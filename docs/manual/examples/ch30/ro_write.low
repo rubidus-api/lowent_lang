@@ -9,7 +9,7 @@ end
 
 unsafe proc poke input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
-  var g be gpio view gpio regs .
+  var g gpio view gpio regs .
   write_volatile g idr 1 .
   return 0 .
 end

@@ -678,7 +678,7 @@ That the two are the same is not proven.</code></pre><p>These are the devices jo
 
 <strong><span class="tok-k">fn</span></strong> close_enough <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> d <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f64</span></strong> sub (add <span class="tok-n">0.1</span> <span class="tok-n">0.2</span>) <span class="tok-n">0.3</span> .
+  <strong><span class="tok-k">let</span></strong> d <strong><span class="tok-t">f64</span></strong> sub (add <span class="tok-n">0.1</span> <span class="tok-n">0.2</span>) <span class="tok-n">0.3</span> .
   <strong><span class="tok-k">return</span></strong> lt (abs d) <span class="tok-n">0.000000001</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run tenths floats.low

@@ -13,16 +13,16 @@ fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end
 
 proc main input k cap io . output u8 . effects io . do
   rem 소리는 그대로 · 음악은 끄고 · 그림자를 켠 설정
-  let now be u64 flags.with (flags.without (defaults) 1) 2 .
-  let diff be u64 flags.changes now (defaults) .
+  let now u64 flags.with (flags.without (defaults) 1) 2 .
+  let diff u64 flags.changes now (defaults) .
 
   rem 바뀐 자리마다 `*` 하나 — 훑기는 `lowest` 와 `without` 으로 돈다(이름만 뺀 같은 코드다).
-  var rest be u64 diff .
-  var n be u64 0 .
-  while flags.has_any rest . do
-    let b be u64 flags.lowest rest .
-    let w1 be u64 write_out k 1 "*" .
-    let w2 be u64 write_out k 1 "\x0a" .
+  var rest u64 diff .
+  var n u64 0 .
+  while flags.has_any rest do
+    let b u64 flags.lowest rest .
+    let w1 u64 write_out k 1 "*" .
+    let w2 u64 write_out k 1 "\x0a" .
     set rest (flags.without rest b) .
     set n (add n 1) .
   end

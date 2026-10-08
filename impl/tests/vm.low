@@ -4,9 +4,9 @@ fn fact
   input n u64 .
   output u64 .
 do
-  var acc be u64 1 .
-  var i be u64 1 .
-  while le i n . do
+  var acc u64 1 .
+  var i u64 1 .
+  while le i n do
     set acc mul acc i .
     set i expr i + 1 .
   end
@@ -17,7 +17,7 @@ fn fib
   input n u64 .
   output u64 .
 do
-  if lt n 2 . do
+  if lt n 2 do
     return n .
   end
   return expr (fib (expr n - 1 .)) + (fib (expr n - 2 .)) .

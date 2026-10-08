@@ -25,38 +25,38 @@ end
 
 rem 바이트 → 토큰 종류. enum 값을 **값 자리**에서 돌려준다.
 fn classify input b u8 . output kind . do
-  if eq b 123 . do return lbrace . end
-  if eq b 125 . do return rbrace . end
-  if eq b 34 .  do return quote . end
-  if ge b 48 . do
-    if le b 57 . do return digit . end
+  if eq b 123 do return lbrace . end
+  if eq b 125 do return rbrace . end
+  if eq b 34  do return quote . end
+  if ge b 48 do
+    if le b 57 do return digit . end
   end
   return other .
 end
 
 rem ★ match — 모든 변형을 다뤄야 한다(완전성). 변형을 하나 추가하면 컴파일러가 여기를 찾아 준다.
 fn weight input k kind . output u8 . do
-  match k . do
-    case lbrace . do return 1 . end
-    case rbrace . do return 1 . end
-    case quote  . do return 2 . end
-    case digit  . do return 3 . end
-    case other  . do return 0 . end
+  match k do
+    case lbrace do return 1 . end
+    case rbrace do return 1 . end
+    case quote  do return 2 . end
+    case digit  do return 3 . end
+    case other  do return 0 . end
   end
 end
 
 rem 훑어서 센다. struct 필드 **쓰기**를 쓴다.
 fn scan input src bytes . output u16 . do
-  var c be lit counts do braces 0 . quotes 0 . digits 0 . end .
-  var i be u64 0 .
-  while lt i (len src) . do
-    let k be kind classify (idx src i) .
-    match k . do
-      case lbrace . do set (field c braces) expr (field c braces) + 1 . end
-      case rbrace . do set (field c braces) expr (field c braces) + 1 . end
-      case quote  . do set (field c quotes) expr (field c quotes) + 1 . end
-      case digit  . do set (field c digits) expr (field c digits) + 1 . end
-      case other  . do set i i . end
+  var c lit counts do braces 0 . quotes 0 . digits 0 . end .
+  var i u64 0 .
+  while lt i (len src) do
+    let k kind classify (idx src i) .
+    match k do
+      case lbrace do set (field c braces) expr (field c braces) + 1 . end
+      case rbrace do set (field c braces) expr (field c braces) + 1 . end
+      case quote  do set (field c quotes) expr (field c quotes) + 1 . end
+      case digit  do set (field c digits) expr (field c digits) + 1 . end
+      case other  do set i i . end
     end
     set i expr i + 1 .
   end

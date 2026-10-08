@@ -9,15 +9,15 @@ module compos_native .
 build profile native .
 
 proc fill input dst mut slice u8 . input at u64 . input v u64 . output u64 . effects none . do
-  guard lt at (len dst) . else return 0 .
+  guard lt at (len dst) else return 0 .
   set (idx dst at) (narrow u8 v) .
   return 1 .
 end
 
 proc main input al cap allocator . output u8 . effects alloc state . do
-  let g be option mut slice u8 alloc_bytes al capacity 4 .
-  guard is_some g . else return 70 .
-  var dst be mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al capacity 4 .
+  guard is_some g else return 70 .
+  var dst mut slice u8 some_value g .
   task_group do
     spawn fill dst 0 10 .
     spawn fill dst 1 20 .

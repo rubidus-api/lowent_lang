@@ -41,24 +41,24 @@ sortlib.sort s .
 
 ```lowent
 proc sort_verify input s mut slice u64 . output u64 . effects none . do
-  var pre be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
+  var pre u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
     set pre (wrap_add pre (idx s i)) .
     set i (add i 1) .
   end
   sortlib.sort s .
-  var post be u64 0 .
-  var sorted be u64 1 .
-  var j be u64 0 .
-  while lt j (len s) . do
+  var post u64 0 .
+  var sorted u64 1 .
+  var j u64 0 .
+  while lt j (len s) do
     set post (wrap_add post (idx s j)) .
-    if gt j 0 . do
-      if gt (idx s (sub j 1)) (idx s j) . do set sorted 0 . end
+    if gt j 0 do
+      if gt (idx s (sub j 1)) (idx s j) do set sorted 0 . end
     end
     set j (add j 1) .
   end
-  if ne pre post . do set sorted 0 . end
+  if ne pre post do set sorted 0 . end
   return sorted .
 end
 ```
@@ -68,7 +68,7 @@ end
 ]
 
 #antipattern[불변 슬라이스를 넘기거나 반환값을 기대한다][
-  `input s slice u64` 를 넘기면 타입 오류다 --- 제자리 정렬이라 `mut slice u64` 여야 한다. 원본을 남겨야 하면 복사본을 정렬한다. `let r be … sortlib.sort s` 도 컴파일
+  `input s slice u64` 를 넘기면 타입 오류다 --- 제자리 정렬이라 `mut slice u64` 여야 한다. 원본을 남겨야 하면 복사본을 정렬한다. `let r … sortlib.sort s` 도 컴파일
   에러다 --- `output void` 이고 결과는 `s` 자신이다.
 ]
 

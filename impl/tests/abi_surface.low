@@ -42,7 +42,7 @@ end
 
 rem ── `export extern` — 같은 이름이 C 헤더로 그대로 나간다(비용 0 경로).
 export extern fn abi_clamp255 input a u64 . output u64 . do
-  if gt a 255 . do return 255 . end
+  if gt a 255 do return 255 . end
   return a .
 end
 

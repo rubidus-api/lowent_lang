@@ -7,25 +7,25 @@ def newtype objects u8 .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let gm be option mut slice u8 alloc_bytes al capacity 64 .
-  let gg be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some gm . else return 255 .
-  guard is_some gg . else return 255 .
-  var gens be mut slice u64 view_array u64 (some_value gg) .
-  let po be option (pool.block_pool objects) pool.init objects (some_value gm) gens 16 .
-  guard is_some po . else return 254 .
-  var p be (pool.block_pool objects) some_value po .
-  let ho be option (pool.handle objects) pool.take objects p .
-  guard is_some ho . else return 253 .
-  let h be (pool.handle objects) some_value ho .
-  let before be bool pool.alive objects p h .
-  let first be bool pool.release objects p h .
-  let after be bool pool.alive objects p h .
-  let again be bool pool.release objects p h .
-  var code be u8 0 .
-  if before . do set code (add code 1) . end
-  if first . do set code (add code 2) . end
-  if after . do set code (add code 4) . end
-  if again . do set code (add code 8) . end
+  let gm option mut slice u8 alloc_bytes al capacity 64 .
+  let gg option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some gm else return 255 .
+  guard is_some gg else return 255 .
+  var gens mut slice u64 view_array u64 (some_value gg) .
+  let po option (pool.block_pool objects) pool.init objects (some_value gm) gens 16 .
+  guard is_some po else return 254 .
+  var p (pool.block_pool objects) some_value po .
+  let ho option (pool.handle objects) pool.take objects p .
+  guard is_some ho else return 253 .
+  let h (pool.handle objects) some_value ho .
+  let before bool pool.alive objects p h .
+  let first bool pool.release objects p h .
+  let after bool pool.alive objects p h .
+  let again bool pool.release objects p h .
+  var code u8 0 .
+  if before do set code (add code 1) . end
+  if first do set code (add code 2) . end
+  if after do set code (add code 4) . end
+  if again do set code (add code 8) . end
   return code .
 end

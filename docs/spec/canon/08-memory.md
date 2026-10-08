@@ -76,7 +76,7 @@ def type scratch u64 .
 
 proc build input temp region scratch . output u64 . effects alloc .
 do
-  let s be stack u64 stack_new temp capacity 4 .
+  let s stack u64 stack_new temp capacity 4 .
   push s 10 .
   push s 20 .
   return 2 .
@@ -109,11 +109,11 @@ module ex_region_field .
 def struct holder do store mut slice u8 . end
 
 proc f output u64 . effects alloc . do
-  var h be lit holder do store (subslice "abcd" 0 0) . end
+  var h lit holder do store (subslice "abcd" 0 0) . end
   region r arena do
-    let g be option mut slice u8 alloc_bytes r capacity 16 .
-    if is_some g . do
-      let b be mut slice u8 some_value g .
+    let g option mut slice u8 alloc_bytes r capacity 16 .
+    if is_some g do
+      let b mut slice u8 some_value g .
       set (field h store) b .
     end
   end
@@ -144,7 +144,7 @@ module ex_region_nested .
 proc f output u64 . effects alloc . do
   region outer arena do
     region inner arena do
-      let g be option mut slice u8 alloc_bytes outer capacity 8 .
+      let g option mut slice u8 alloc_bytes outer capacity 8 .
     end
   end
   return 0 .
@@ -264,7 +264,7 @@ module ex_escape .
 
 export fn leak output ref u32 .
 do
-  let here be u32 42 .
+  let here u32 42 .
   return ref here .     rem `here` 는 이 op 이 끝나면 사라진다
 end
 ```
@@ -667,8 +667,8 @@ end
 
 proc f input b mut buf . output u64 . effects none .
 do
-  let v be slice u8 view_of b .
-  let r be u64 grow b .
+  let v slice u8 view_of b .
+  let r u64 grow b .
   return len v .       rem `grow` 가 `b` 의 뷰를 무효로 만들었다 — 뷰를 다시 받는다
 end
 ```
@@ -688,7 +688,7 @@ module ex_immutable .
 
 fn f output u8 .
 do
-  let a be u8 1 .
+  let a u8 1 .
   set a 2 .            rem 고치려면 `var` 로 묶어야 한다
   return a .
 end
@@ -742,31 +742,32 @@ actor grower do
     root cap heap .
   end
   proc take input n u64 . output u64 . effects heap . do
-    let g be option mut slice u8 alloc_bytes root capacity n .
-    if is_some g . do return n . end
+    let g option mut slice u8 alloc_bytes root capacity n .
+    if is_some g do return n . end
     return 0 .
   end
 end
 
 proc f output u64 . effects heap state . do
-  var g be grower spawn actor grower . rem `input h cap heap .` 가 없다
+  var g grower spawn actor grower . rem `input h cap heap .` 가 없다
   return send g take 8 .
 end
 ```
 
-## 8.14 객체마다 얼로케이터를 고르기 — `using`
+## 8.14 객체마다 얼로케이터를 고르기 — `using` 절과 `use` · `keep`
 
 (1) op 은 머리에 `using <이름> <타입> .` 절을 적어 **자기가 깎아 쓰는 얼로케이터**를 밝힐 수 있다.
       `<타입>` 은 `byte_allocator` 를 갖춘 타입이거나, 그런 경계(`requires allocs.byte_allocator a .`)를
       가진 comptime 타입 매개변수다. 본문에서 `<이름>` 은 평범한 이름이다.
 
-(1a) 한 op 은 `using` 절을 **하나만** 적는다(`E-USING-DUP`). 절은 이름과 타입 두 낱말이며, 바인딩의 `using` 은
-      `be` 바로 앞에 출처 이름 하나를 적는다 — 모양이 어긋나면 `E-USING-FORM` 이다.
+(1a) 한 op 은 `using` 절을 **하나만** 적는다(`E-USING-DUP`). 절은 이름과 타입 두 낱말이다. 바인딩의 할당기 절은
+      이름 바로 뒤에 `use <출처>`(블록 끝에 돌려준다) 또는 `keep <출처>`(돌려주지 아니한다)로 적는다(⟦§6.5.1⟧ (3c)) —
+      모양이 어긋나면 `E-USING-FORM` 이다.
 
 (2) `using` 절은 **입력이 아니다.** 부르는 쪽은 그 얼로케이터를 위치로 적지 않으며, `<타입>` 이 타입
       매개변수이면 그 타입 인자도 적지 않는다 — 얼로케이터의 타입에서 온다.
 
-(3) 부르는 쪽은 바인딩에서 얼로케이터를 고른다: `let <이름> <타입> using <출처> be <식> .` 고른 출처는 그
+(3) 부르는 쪽은 바인딩에서 얼로케이터를 고른다: `let <이름> use <출처> <타입> <식> .` 고른 출처는 그
       초기식의 **머리 호출**에 들어간다. 머리 호출이 `using` 절을 갖지 않은 op 이면 적합하지 아니하다
       (`E-ALLOC-USING-UNUSED`) — 자기 얼로케이터를 이미 든 객체는 부르는 쪽의 선택을 받지 아니한다.
 
@@ -775,7 +776,7 @@ end
 > [!표] 기본값을 정하는 차례
 > #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
 > [*차례*], [*출처*],
-> [1], [바인딩의 `using <출처>`],
+> [1], [바인딩의 `use <출처>` · `keep <출처>`],
 > [2], [이 op 자신의 `using` 절 이름(타입이 맞으면)],
 > [3], [이 op 의 입력·바인딩 가운데 타입이 맞는 **하나뿐인** 것],
 > [없음], [`E-ALLOC-NOSOURCE` — 보이는 얼로케이터가 없다],
@@ -785,7 +786,7 @@ end
 (5) 기본값은 **op 의 경계를 넘지 아니한다.** 출처는 그 op 의 서명과 본문에서만 오고, 부른 쪽의 얼로케이터가
       저절로 흘러들지 않는다. 필드도 출처로 세지 아니한다. 곧 **전역 얼로케이터는 없다.**
 
-(5a) `using` 은 **나무 위에서** 풀린다 — 처리기가 arity 로 폼을 세운 뒤, 단형화 앞이다. 나무를 세우지 않는 대조
+(5a) 할당기의 선택은 **나무 위에서** 풀린다 — 처리기가 arity 로 폼을 세운 뒤, 단형화 앞이다. 나무를 세우지 않는 대조
       방식으로 검사하면 풀리지 않은 절이 남으며, 처리기는 그것을 조용히 입력 하나 모자란 op 으로 검사하지 않고
       `E-USING-UNRESOLVED` 로 말한다.
 
@@ -839,10 +840,10 @@ proc take input comptime a type . using al a . input n u64 . output u64 . effect
 end
 
 proc main output u8 . effects state . do
-  var e be exact spawn actor exact .
-  var d be doubled spawn actor doubled .
-  let x using e be u64 take 3 .      rem 3
-  let y using d be u64 take 3 .      rem 6
+  var e exact spawn actor exact .
+  var d doubled spawn actor doubled .
+  let x use e u64 take 3 .      rem 3
+  let y use d u64 take 3 .      rem 6
   return narrow u8 (add x y) .
 end
 ```
@@ -870,9 +871,9 @@ proc take input comptime a type . using al a . input n u64 . output u64 . effect
 end
 
 proc main output u8 . effects state . do
-  var e be exact spawn actor exact .
-  var f be exact spawn actor exact .
-  let x be u64 take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
+  var e exact spawn actor exact .
+  var f exact spawn actor exact .
+  let x u64 take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
   return narrow u8 x .
 end
 ```

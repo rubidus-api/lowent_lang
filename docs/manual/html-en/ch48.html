@@ -672,8 +672,8 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">fn</span></strong> bare <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> a .
-  <strong><span class="tok-k">match</span></strong> a . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> a .
+  <strong><span class="tok-k">match</span></strong> a <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">set</span></strong> x <span class="tok-n">1</span> .
     <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -683,12 +683,12 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">fn</span></strong> blocked <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> a .
-  <strong><span class="tok-k">match</span></strong> a . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> a .
+  <strong><span class="tok-k">match</span></strong> a <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> x <span class="tok-n">1</span> .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -705,8 +705,8 @@ fn bare
   output u64 .
   requires le a 1000 .
 do
-  var x be u64 a .
-  match a . do case 0 . do set x 1 . end case _ . do set x (add x 10) . end end
+  var x u64 a .
+  match a do case 0 do set x 1 . end case _ do set x (add x 10) . end end
   return x .
 end
 fn blocked
@@ -714,8 +714,8 @@ fn blocked
   output u64 .
   requires le a 1000 .
 do
-  var x be u64 a .
-  match a . do case 0 . do set x 1 . end case _ . do set x (add x 10) . end end
+  var x u64 a .
+  match a do case 0 do set x 1 . end case _ do set x (add x 10) . end end
   return x .
 end
 </code></pre></div></div><p><code>bare</code> writes one statement directly as the body of a <code>case</code> arm, and <code>blocked</code> wraps it in <code>do … end</code>. The answers are the same, and the canonical form printed by <code>--fmt</code> does not differ by a single character. The bodies of <code>if</code>, <code>while</code> and <code>for</code> take only <code>do … end</code> — if the stop after a condition is forgotten, the condition swallows the next statement, so the grammar no longer accepts that mistake (RFC-0113 R4). A one-statement body remains in <code>case</code> arms and in <code>guard … else</code>.</p><div class="dev mathbox"><p class="dev-label">The mathematics. Theorem G1 (<code>one_form_is_a_block</code> in <code>LowentBlock.v</code>)</p><div class="dev-body"><code>forall s, denote (wrap s) = denote s.</code> Wrapping one statement in a block does not change its meaning. Here “same meaning” means that the function <code>denote</code>, sending each tree to a flat sequence of statements, gives the same result. Defining “the same” by a function and confirming equations by computation is the only technique in this chapter. The corollary <code>body_is_one_thing</code> says that writing a statement or a block in a body position is the same.</div></div><p>This theorem justifies a design decision. C separates statements and compound statements into different kinds. <code>if (c) x = 1;</code> and <code>if (c) { x = 1; }</code> are grammatically different, and the famous <code>goto fail;</code> trap came from that gap — the indentation made two lines look as if they belonged to the <code>if</code>, but the grammar made only one belong. Lowent does not separate them.</p><pre><code data-lang="text"> C       if (c)
@@ -723,7 +723,7 @@ end
              y = 0;          ← indented as if inside the if, but the grammar puts it outside
 
  Lowent  case 1 . set x (add x 10) .           an arm's one statement = a one-statement block (G1)
-         if gt a 1 . do                        an if body is always do … end (RFC-0113 R4)
+         if gt a 1 do                          an if body is always do … end (RFC-0113 R4)
            set x (add x 10) .
            set y 0 .
          end                                   a longer body is ended by end</code></pre><h3 id="s48-3">48.3 Closers do the same job<a class="plink" href="#s48-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev mathbox"><p class="dev-label">The mathematics. Theorem G2 (<code>closers_agree</code>)</p><div class="dev-body"><code>forall c1 c2 h ops, close c1 h ops = close c2 h ops.</code> Closing with <code>.</code> or <code>)</code> gives the same tree. Both “close the innermost open form”. <code>end</code> is not on the list — <code>do … end</code> is a pair of braces, so <code>end</code> closes only its own <code>do</code>; if a form is still open inside, it does not close it for you but refuses (<code>E-DOT-MISSING</code>). Blocks are associative, so a block within a block unfolds in place (<code>block_assoc</code>, <code>nested_block_flattens</code>).</div></div><p>Seen in an example:</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch48/closers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> closers .
@@ -766,7 +766,7 @@ spread(4) = 21
   <strong><span class="tok-k">requires</span></strong> le b <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ the period at the end of this line is missing</span></em>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> add a b
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> add a b
   <strong><span class="tok-k">set</span></strong> s (mul s <span class="tok-n">2</span>) .
   <strong><span class="tok-k">return</span></strong> s .
 <strong><span class="tok-k">end</span></strong>

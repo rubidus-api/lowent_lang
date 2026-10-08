@@ -199,7 +199,7 @@ end
 rem 액터를 만들고(`spawn`) 메시지를 보낸다(`send`).
 export proc use_counter output u64 . effects state .
 do
-  var c be counter spawn actor counter .
+  var c counter spawn actor counter .
   return send c inc .
 end")
     #plain[

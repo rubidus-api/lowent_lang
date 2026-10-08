@@ -12,8 +12,8 @@
 ```lowent
 use codec as c .
 
-let n be option u64 c.hex_enc "abc" dst .
-guard is_some n . else return 1 .
+let n option u64 c.hex_enc "abc" dst .
+guard is_some n else return 1 .
 ```
 
 `dst` 는 이 모듈이 만드는 것이 아니라 *호출자가 미리 잡아 두는 출력 자리*다(여기서는 6 바이트 이상). `n` 은 *실제로 쓴 바이트 수*이고 결과는 `dst[0..n)` 이다.
@@ -93,33 +93,33 @@ module ex_codec .
 use codec as c .
 
 proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
-  guard ge (len enc) 6 . else return 90 .
-  guard ge (len dec) 3 . else return 91 .
-  let en be option u64 c.hex_enc "abc" enc .
-  guard is_some en . else return 1 .
-  guard eq (some_value en) 6 . else return 2 .
+  guard ge (len enc) 6 else return 90 .
+  guard ge (len dec) 3 else return 91 .
+  let en option u64 c.hex_enc "abc" enc .
+  guard is_some en else return 1 .
+  guard eq (some_value en) 6 else return 2 .
   rem 쓴 수가 곧 경계다 --- enc 통째로 넘기면 뒤의 쓰레기까지 입력이 된다
-  let dn be option u64 c.hex_dec (subslice enc 0 6) dec .
-  guard is_some dn . else return 3 .
-  guard eq (some_value dn) 3 . else return 4 .
-  guard eq (idx dec 0) 97 . else return 5 .
+  let dn option u64 c.hex_dec (subslice enc 0 6) dec .
+  guard is_some dn else return 3 .
+  guard eq (some_value dn) 3 else return 4 .
+  guard eq (idx dec 0) 97 else return 5 .
   rem 대문자도 받는다: "4A" → 74
-  let up be option u64 c.hex_dec "4A" dec .
-  guard is_some up . else return 6 .
-  guard eq (idx dec 0) 74 . else return 7 .
+  let up option u64 c.hex_dec "4A" dec .
+  guard is_some up else return 6 .
+  guard eq (idx dec 0) 74 else return 7 .
   return 42 .
 end
 
 proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   rem 2 바이트는 한 묶음(4 글자)이 되고 끝에 = 하나가 붙는다: "aGk="
-  guard ge (len enc) 4 . else return 90 .
-  guard ge (len dec) 2 . else return 91 .
-  let e be option u64 c.b64_enc "hi" enc .
-  guard is_some e . else return 1 .
-  guard eq (some_value e) 4 . else return 2 .
-  let d be option u64 c.b64_dec (subslice enc 0 4) dec .
-  guard is_some d . else return 3 .
-  guard eq (some_value d) 2 . else return 4 .
+  guard ge (len enc) 4 else return 90 .
+  guard ge (len dec) 2 else return 91 .
+  let e option u64 c.b64_enc "hi" enc .
+  guard is_some e else return 1 .
+  guard eq (some_value e) 4 else return 2 .
+  let d option u64 c.b64_dec (subslice enc 0 4) dec .
+  guard is_some d else return 3 .
+  guard eq (some_value d) 2 else return 4 .
   return 42 .
 end
 ```

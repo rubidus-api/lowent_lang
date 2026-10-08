@@ -6,6 +6,6 @@ fn area_loud input out cap io . input w u64 . input h u64 . output u64 .
   requires le w 1000 .
   requires le h 1000 .
 do
-  let n be u64 write_out out 1 "computing\n" .
+  let n u64 write_out out 1 "computing\n" .
   return mul w h .
 end

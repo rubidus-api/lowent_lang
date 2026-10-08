@@ -38,7 +38,7 @@ fn rect.scaled input s rect . input k u8 . output u64 . do
 end
 
 fn square.area input s square . output u64 . do
-  let d be u64 widen u64 (field s side) .
+  let d u64 widen u64 (field s side) .
   return mul d d .
 end
 
@@ -48,8 +48,8 @@ end
 
 rem 같은 trait 을 충족하는 두 타입 — 이름 `area` 는 **전역에 없다**
 fn both output u64 . do
-  let r be lit rect do w 3 . h 4 . end .
-  let q be lit square do side 5 . end .
+  let r lit rect do w 3 . h 4 . end .
+  let q lit square do side 5 . end .
   return add (method r area) (method q area) .
 end
 
@@ -76,7 +76,7 @@ actor ctr do
 end
 
 proc actor_trait output u64 . effects state . do
-  var a be ctr spawn actor ctr .
+  var a ctr spawn actor ctr .
   return send a bump 4 .
 end
 

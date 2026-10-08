@@ -157,7 +157,7 @@
   [`pool.init objects mem gens 16`], [호출자 바이트를 블록으로 나눈 풀(봉해 든다)], [뒤의 op 은 `mem`·`gens` 를 따로 받지 않는다],
   [`pool.take` · `pool.release` · `pool.alive`], [빌리기(세대 핸들) · 돌려주기(세대 올림) · 묻기], [지운 뒤 사용·두 번 해제가 값으로 드러난다],
   [`pool.bytes objects p h` → `option mut slice u8`], [블록 바이트에 닿는 유일한 문], [세대가 다르면 `none`],
-  [`var r be (owned shard.token grid) shard.open grid 8 .`], [겹치지 않는 조각의 소유 토큰], [나누면 옛 토큰은 `E-OWN-MOVED`],
+  [`var r (owned shard.token grid) shard.open grid 8 .`], [겹치지 않는 조각의 소유 토큰], [나누면 옛 토큰은 `E-OWN-MOVED`],
   [`budget.pack …`], [비트 예산을 계약으로 확인], [맞지 않으면 번역에서 `E-CONTRACT-IMPOSSIBLE`],
   [`wire.pick mask w` · `wire.merge mask w v` · `wire.fits`], [마스크 하나로 비트 칸 읽기 · 갈아 끼우기 · 들어가는지], [자리와 폭이 한 수에서 나온다 --- `put` 은 자른다],
 )

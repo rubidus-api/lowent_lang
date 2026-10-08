@@ -56,8 +56,8 @@ end
 
 fn demo output u64 .
 do
-  let r be lit rect do w 2 . h 3 . end .
-  let q be lit square do side 4 . end .
+  let r lit rect do w 2 . h 3 . end .
+  let q lit square do side 4 . end .
   return add (double_area rect r) (double_area square q) .
 end
 ```
@@ -172,7 +172,7 @@ end
 rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.
 proc rect.checked_area input s rect . output u64 . effects panic .
 do
-  if eq (field s w) 0 . do panic "empty rect" . end
+  if eq (field s w) 0 do panic "empty rect" . end
   return mul (field s w) (field s h) .
 end
 ```

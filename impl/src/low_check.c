@@ -3371,7 +3371,7 @@ static void ck_toplevel(low_check_result_t *out, const low_parse_result_t *pr) {
                  "closed the op earlier than you meant. The usual cause is a control head written "
                  "without `do`: `if <cond> .` alone takes the ONE statement that follows as its "
                  "body, so the `end` written for the `if` ends the OP instead. Write the body as "
-                 "`if <cond> . do … end` whenever it holds more than one statement",
+                 "`if <cond> do … end` whenever it holds more than one statement",
                  f->line);
             continue;
         }
@@ -3768,7 +3768,7 @@ static void ck_splat_walk(low_check_result_t *out, const low_cst_t *nd,
                  "`splat` fills every lane of a vector, and how many lanes there are comes from the "
                  "declared type — inside an expression there is nothing to say it, so the value is "
                  "read as a plain scalar and the surrounding comparison stops matching its `mask` "
-                 "type. Bind it first, with the lane count written down: `var lim be vec u32 4 splat "
+                 "type. Bind it first, with the lane count written down: `var lim vec u32 4 splat "
                  "5 .`, then use `lim`",
                  nd->line);
     }
@@ -6534,7 +6534,7 @@ static void ck_parallel(low_check_result_t *out, const low_cst_t *f) {
         //   ⇒ 쪼갤 루프가 없으면 **절을 지우라**고 말한다. 지우면 잃는 것이 없다 —
         //     검사되지 않던 절이니 뜻이 없었다.
         emit(out, "E-PAR-NOLOOP",
-            "the `parallel` clause names a slice, but no `while lt <i> (len <slice>) . do … end` "
+            "the `parallel` clause names a slice, but no `while lt <i> (len <slice>) do … end` "
             "loop was found to split. That clause is a CLAIM — DET-1 proves a split is "
             "bit-identical only when there IS a loop to split — so with no loop the compiler "
             "verifies NOTHING while the annotation still tells every reader it was checked. "
@@ -7149,7 +7149,7 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
                    ? "a fixed-length `array <type> <count>` is accepted as an op INPUT (its length is checked at entry) and "
                      "as a STRUCT FIELD (the record keeps the bytes). In an output, a local type or an alias the length "
                      "would have nowhere to be kept (it used to be dropped silently). Take `slice <type>` and "
-                     "state the length in a contract (`requires eq (len x) N .`), or build a local with `var buf be lit array …`"
+                     "state the length in a contract (`requires eq (len x) N .`), or build a local with `var buf lit array …`"
                    : "`array` is written `array <type> <count>` — the element type first, then the length as a literal "
                      "(`array u64 4`, the same order as `vec u32 4`). The order was flipped on 2026-09-27 (RFC-0132); "
                      "`array 4 u64` is the old order",
@@ -7700,7 +7700,7 @@ static void lc_escape(low_check_result_t *out, lc_t *x, proven_u32 line, bool te
     x->told = true;
     emit(out, "E-LIT-ESCAPE", temp
          ? "a list literal with no receiving place lives only until the end of its statement (RFC-0132 §13.2 ⓒ) — here "
-           "its bytes are being kept in a name. Bind the list itself (`var buf be lit array … .`) and use that name"
+           "its bytes are being kept in a name. Bind the list itself (`var buf lit array … .`) and use that name"
          : "this carries a view of a list literal's frame storage — or of bytes an allocator gets back at the end of the block (RFC-0135 D11) — OUT of the block that declared it (a `return`, a name "
            "declared further out, a parameter's field or element, or an actor). That storage belongs to the declaring "
            "block (RFC-0132 §13.2 ⓐ): after the block — or on the next pass of a loop — the bytes are something else. "
@@ -8091,7 +8091,7 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
             snprintf(wb, sizeof wb, "this op holds %zu bytes of list-literal frame storage and can call ITSELF (directly or "
                      "through other ops) — every level of the recursion holds its own copy and the depth is not known when "
                      "the program is translated, so the build cannot show the stack is enough. Take the list from an "
-                     "allocator inside the recursion (`var buf using al be … . else …`), or make the op not recursive "
+                     "allocator inside the recursion (`var buf use al … . else …`), or make the op not recursive "
                      "(RFC-0135 D7)", (size_t)x.bytes);
             emit(out, "E-FRAME-RECURSIVE", wb, f->line);
         }
@@ -8342,7 +8342,7 @@ static const struct { const char *word; const char *why; } CK_REMOVED[] = {
               "of `field a b`: write `field a b` / `idx a i` (the glued dot `a.b` is refused too, "
               "`E-FIELD-GLUED`)" },
     { "loop", "`loop` was an exact SYNONYM of `while true .` — SPEC-002 §2.5 forbids synonyms. "
-              "Write `while true . do … end`" },
+              "Write `while true do … end`" },
     { "when", "`when` is gone. The `errors` clause now takes ONE error per clause — "
               "`errors <variant> [<condition>] .` — so its arity is FIXED (1 or 2) and no marker is "
               "needed. `when` only existed because the clause was VARIADIC: `errors a b .` already "
@@ -10109,7 +10109,7 @@ static void ck_inner_else(low_check_result_t *out, const low_cst_t *blk) {
                 st->kids[0]->tok.kw == LOW_KW_ELSE)
                 emit(out, "E-STMT-ELSE",
                      "`else` sits INSIDE the block, the way C writes it. Here a block is closed "
-                     "before the other arm opens: `if <cond> . do … end else do … end`. Written "
+                     "before the other arm opens: `if <cond> do … end else do … end`. Written "
                      "this way the arm used to be accepted by every static check and then dropped at "
                      "lowering — the VM stopped with an unsupported body and the native build "
                      "silently left the op out",
@@ -10153,11 +10153,19 @@ static void ck_scope_escape(low_check_result_t *out, const low_cst_t *body) {
         const low_cst_t *st = body->kids[i];
         if (!st || st->kind != LOW_CST_FORM || st->nkids < 1 || !ck_atom(st->kids[0])) continue;
         low_kw_t kw = st->kids[0]->tok.kw;
-        if (kw != LOW_KW_IF && kw != LOW_KW_WHILE && kw != LOW_KW_FOR) continue;
+        // ★ RFC-0141 — `guard … else do … end` 와 바인딩의 실패 절(펼치면 `guard` 다)의 블록도 블록이다. 전엔 여기서 지은 이름이
+        //   문장 뒤에서 읽혔다(안 들어간 길에서는 0) — `else error e do … end` 의 `e` 가 블록 밖으로 새는 길이었다.
+        if (kw != LOW_KW_IF && kw != LOW_KW_WHILE && kw != LOW_KW_FOR && kw != LOW_KW_GUARD) continue;
         proven_u8str_view_t inner[64]; proven_size_t ni = 0;
-        for (proven_size_t b = 0; b < st->nkids; b++)
-            if (st->kids[b] && st->kids[b]->kind == LOW_CST_BLOCK)
-                ck_block_names(st->kids[b], inner, &ni, 64);
+        for (proven_size_t b = 0; b < st->nkids; b++) {
+            const low_cst_t *kb = st->kids[b];
+            if (kb && kb->kind == LOW_CST_BLOCK && kw != LOW_KW_GUARD)
+                ck_block_names(kb, inner, &ni, 64);
+            if (kw == LOW_KW_GUARD && kb && kb->kind == LOW_CST_FORM && kb->nkids && ck_atom(kb->kids[0]) &&
+                kb->kids[0]->tok.kw == LOW_KW_ELSE)
+                for (proven_size_t z = 1; z < kb->nkids; z++)
+                    if (kb->kids[z] && kb->kids[z]->kind == LOW_CST_BLOCK) ck_block_names(kb->kids[z], inner, &ni, 64);
+        }
         for (proven_size_t q = 0; q < ni; q++)
             for (proven_size_t j = i + 1; j < body->nkids; j++) {
                 const low_cst_t *later = body->kids[j];
@@ -10169,7 +10177,7 @@ static void ck_scope_escape(low_check_result_t *out, const low_cst_t *body) {
                          "this name was declared INSIDE a block and is read outside it. A block is "
                          "where a name lives (§6.5.1): on the path that did not enter the block the "
                          "name never existed, and the tool used to answer 0 there — a value that "
-                         "appears nowhere in the source. Declare it before the block (`var … be 0 .`) "
+                         "appears nowhere in the source. Declare it before the block (`var … 0 .`) "
                          "and set it inside",
                          body->kids[j]->line);
                     q = ni; break;
@@ -10998,7 +11006,7 @@ static void ck_result_discard_walk(low_check_result_t *out, const low_cst_t *bod
                 warn(out, "W-RESULT-DISCARD",
                      "this op returns a `result` — it says failure is a VALUE — and the value is "
                      "dropped here, so a failure leaves no trace at all. Bind it and look at it "
-                     "(`let r be … …` then `is_error`), forward it (`try`), or say in the code why "
+                     "(`let r … …` then `is_error`), forward it (`try`), or say in the code why "
                      "the failure does not matter", s->kids[0]->tok.line ? s->kids[0]->tok.line : s->line);
             // ② `let r be … <result 를 내는 부름>` 인데 r 을 한 번도 안 읽는다.
             //   ★★★ 이 갈래는 한 번 뺐다가 되돌렸다 (RFC-0115 §8-25, 2026-09-17). 뺐던 까닭은
@@ -11177,7 +11185,7 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
                 emit(out, "E-TYPE-ARGMUT",
                      "a list LITERAL was bound with `let` to a type marked `mut`. A `let` list is a VIEW (read-only — "
                      "constant lists are bytes baked into the program, RFC-0132 §13.2 ⓑ). To write the cells, declare it "
-                     "with `var`: `var buf be lit array u8 16 _ . .`", nd->kids[0]->tok.line);
+                     "with `var`: `var buf lit array u8 16 _ . .`", nd->kids[0]->tok.line);
             if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_TEXTLIT))
                 emit(out, "E-TYPE-ARGMUT",
                      "a string LITERAL was bound to a name declared `mut`. A literal is bytes baked "

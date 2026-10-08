@@ -64,7 +64,7 @@ rem ★ 두 바이트열이 같은지 **빠르게 아닌 것부터** 거른다. 
 rem   해시가 같아도 같다는 뜻은 아니다 — 그래서 이름이 `maybe_same` 이다.
 rem   ☞ 이름이 약속을 지켜야 한다: `same` 이라 부르면 그것은 거짓말이 된다.
 export fn maybe_same input a slice u8 . input b slice u8 . output bool . do
-  guard eq (len a) (len b) . else return false .
+  guard eq (len a) (len b) else return false .
   return eq (call_builtin hash_bytes a) (call_builtin hash_bytes b) .
 end
 
@@ -82,12 +82,12 @@ rem ★★ **왕복이 아니라 대조가 오라클이다** — 받은 다이�
 rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서 멈추지 않는다): 타이밍이 새면
 rem   비교 자체가 정보를 준다. 32 바이트를 늘 끝까지 본다.
 export fn sha256_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
-  guard eq (len want) 32 . else return false .
-  let n be u64 call_builtin sha256 data out .
-  guard eq n 32 . else return false .
-  var diff be u64 0 .
-  var i be u64 0 .
-  while lt i 32 . do
+  guard eq (len want) 32 else return false .
+  let n u64 call_builtin sha256 data out .
+  guard eq n 32 else return false .
+  var diff u64 0 .
+  var i u64 0 .
+  while lt i 32 do
     set diff (bit_or diff (bit_xor (cast u64 (idx out i)) (cast u64 (idx want i)))) .
     set i (add i 1) .
   end
@@ -115,9 +115,9 @@ end
 rem ★★ **다이제스트 둘이 같은가** — 길이가 얼마든(32 · 48 · 64 …) 끝까지 보고 답한다.
 rem   첫 다른 바이트에서 멈추지 않는다: 걸린 시간이 «어디까지 맞았는지» 를 말해 주면 안 된다. 길이가 다르면 거짓.
 export fn digest_eq input a slice u8 . input b slice u8 . output bool . do
-  guard eq (len a) (len b) . else return false .
-  var diff be u64 0 .
-  for i count u64 (len a) . do
+  guard eq (len a) (len b) else return false .
+  var diff u64 0 .
+  repeat i u64 (len a) do
     set diff (bit_or diff (bit_xor (widen u64 (idx a i)) (widen u64 (idx b i)))) .
   end
   return eq diff 0 .

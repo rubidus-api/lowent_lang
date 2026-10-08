@@ -25,10 +25,10 @@ rem ── 비교 ────────────────────�
 
 rem 바이트 단위 동등 — 빌트인 `eq` 는 스칼라 전용이라(E-VM-TYPE) 슬라이스 비교는 여기 산다.
 export fn eq_str input a str . input b str . output bool . do
-  guard eq (len a) (len b) . else return false .
-  var i be u64 0 .
-  while lt i (len a) . do
-    guard eq (idx a i) (idx b i) . else return false .
+  guard eq (len a) (len b) else return false .
+  var i u64 0 .
+  while lt i (len a) do
+    guard eq (idx a i) (idx b i) else return false .
     set i (add i 1) .
   end
   return true .
@@ -36,9 +36,9 @@ end
 
 rem 바이트 멤버십 — 빌트인 `contains` 는 bitset 전용이다. cut 집합 검사(trim)가 쓴다.
 export fn has_byte input s str . input b u8 . output bool . do
-  var i be u64 0 .
-  while lt i (len s) . do
-    if eq (idx s i) b . do return true . end
+  var i u64 0 .
+  while lt i (len s) do
+    if eq (idx s i) b do return true . end
     set i (add i 1) .
   end
   return false .
@@ -51,11 +51,11 @@ rem Go 의 -1 도 필요 없다(RFC-0068 §5.1). from 인자가 기본이다: �
 rem (RFC-0069 §4 위치 지정 원칙 — 커서를 상태에 숨기지 않는다).
 export fn find input hay str . input needle str . input from u64 . output option u64 .
 do
-  guard le from (len hay) . else return none .
-  guard gt (len needle) 0 . else return (some from) .   rem 빈 needle = 그 자리(규약)
-  var i be u64 from .
-  while le (add i (len needle)) (len hay) . do
-    if eq_str (subslice hay i (add i (len needle))) needle . do
+  guard le from (len hay) else return none .
+  guard gt (len needle) 0 else return (some from) .   rem 빈 needle = 그 자리(규약)
+  var i u64 from .
+  while le (add i (len needle)) (len hay) do
+    if eq_str (subslice hay i (add i (len needle))) needle do
       return (some i) .
     end
     set i (add i 1) .
@@ -70,41 +70,41 @@ end
 rem ── 접두 · 접미 ───────────────────────────────────────────────────────
 
 export fn starts_with input s str . input prefix str . output bool . do
-  guard le (len prefix) (len s) . else return false .
+  guard le (len prefix) (len s) else return false .
   return eq_str (subslice s 0 (len prefix)) prefix .
 end
 
 export fn ends_with input s str . input suffix str . output bool . do
-  guard le (len suffix) (len s) . else return false .
+  guard le (len suffix) (len s) else return false .
   return eq_str (subslice s (sub (len s) (len suffix)) (len s)) suffix .
 end
 
 rem 접두/접미 제거 — 없으면 **원본 그대로**(Luca Sas 의 모양). 뷰라 복사 0.
 export fn remove_prefix input s str . input prefix str . output str . do
-  if starts_with s prefix . do return (subslice s (len prefix) (len s)) . end
+  if starts_with s prefix do return (subslice s (len prefix) (len s)) . end
   return s .
 end
 
 export fn remove_suffix input s str . input suffix str . output str . do
-  if ends_with s suffix . do return (subslice s 0 (sub (len s) (len suffix))) . end
+  if ends_with s suffix do return (subslice s 0 (sub (len s) (len suffix))) . end
   return s .
 end
 
 rem ── 다듬기 — cut 은 "잘라낼 바이트들의 집합" (예: " \t\n") ──────────────
 
 export fn trim_start input s str . input cut str . output str . do
-  var i be u64 0 .
-  while lt i (len s) . do
-    guard has_byte cut (idx s i) . else return (subslice s i (len s)) .
+  var i u64 0 .
+  while lt i (len s) do
+    guard has_byte cut (idx s i) else return (subslice s i (len s)) .
     set i (add i 1) .
   end
   return (subslice s (len s) (len s)) .                 rem 전부 잘림 → 빈 뷰
 end
 
 export fn trim_end input s str . input cut str . output str . do
-  var j be u64 (len s) .
-  while gt j 0 . do
-    guard has_byte cut (idx s (sub j 1)) . else return (subslice s 0 j) .
+  var j u64 (len s) .
+  while gt j 0 do
+    guard has_byte cut (idx s (sub j 1)) else return (subslice s 0 j) .
     set j (sub j 1) .
   end
   return (subslice s 0 0) .
@@ -118,10 +118,10 @@ rem     "a,b" → "a"·"b"    "a," → "a"·""(꼬리 빈 조각)    "" → ""(�
 rem   상태를 나눠 갖지 않으므로 같은 src 를 여러 커서가 **동시에** 읽어도 자유다.
 export fn split_next input src str . input sep u8 . input pos u64 . output option str .
 do
-  guard le pos (len src) . else return none .
-  var j be u64 pos .
-  while lt j (len src) . do
-    if eq (idx src j) sep . do return (some (subslice src pos j)) . end
+  guard le pos (len src) else return none .
+  var j u64 pos .
+  while lt j (len src) do
+    if eq (idx src j) sep do return (some (subslice src pos j)) . end
     set j (add j 1) .
   end
   return (some (subslice src pos (len src))) .          rem 마지막 조각(sep 없음)
@@ -143,18 +143,18 @@ export actor str_splitter do
     set fin false .
     return 0 .
   end
-  proc next output option slice u8 . effects state . do
-    guard eq fin false . else return none .
-    var j be u64 pos .
-    while lt j (len src) . do
-      if eq (idx src j) sep . do
-        let piece be slice u8 subslice src pos j .
+  proc pull output option slice u8 . effects state . do
+    guard eq fin false else return none .
+    var j u64 pos .
+    while lt j (len src) do
+      if eq (idx src j) sep do
+        let piece slice u8 subslice src pos j .
         set pos (add j 1) .
         return (some piece) .
       end
       set j (add j 1) .
     end
-    let last be slice u8 subslice src pos (len src) .
+    let last slice u8 subslice src pos (len src) .
     set fin true .
     return (some last) .
   end

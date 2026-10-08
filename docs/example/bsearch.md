@@ -12,9 +12,9 @@ fn sorted
   output bool .
   access xs sequential .
 do
-  var i be u64 1 .
-  while lt i len xs . do
-    if gt (idx xs (sub i 1)) (idx xs i) . do
+  var i u64 1 .
+  while lt i len xs do
+    if gt (idx xs (sub i 1)) (idx xs i) do
       return false .
     end
     set i add i 1 .
@@ -31,13 +31,13 @@ fn bsearch
   access xs random .
   requires sorted xs . rem ★ 술어 op 를 계약으로 — debug 검사 / release assume(RFC-0008 등급)
 do
-  var lo be u64 0 .
-  var hi be u64 len xs . rem 반개구간 [lo, hi)  (슬라이스 규약과 동일, G4)
-  while lt lo hi . do
-    let mid be u64 add lo div sub hi lo . 2 . rem overflow-안전 중점
-    let v be u32 idx xs mid .
-    if eq v target . do return some mid . end
-    if lt v target . do
+  var lo u64 0 .
+  var hi u64 len xs . rem 반개구간 [lo, hi)  (슬라이스 규약과 동일, G4)
+  while lt lo hi do
+    let mid u64 add lo div sub hi lo . 2 . rem overflow-안전 중점
+    let v u32 idx xs mid .
+    if eq v target do return some mid . end
+    if lt v target do
       set lo add mid 1 .
     end
     else do

@@ -220,7 +220,7 @@ things, so the names were split (canon 6.3.7.1).
 
   `splat` fills every lane with one value, and only the declared type says *how many lanes there are*. Inside an expression there is nothing
   to say it, so the value is read as a scalar and the surrounding comparison stops matching its `mask` type. It is rejected with
-  `E-VEC-SPLAT`; store it first under a name that writes the lane count down --- `var lim be vec u32 4 splat 5 .`, then `gt v lim`.
+  `E-VEC-SPLAT`; store it first under a name that writes the lane count down --- `var lim vec u32 4 splat 5 .`, then `gt v lim`.
 ]
 
 == Saying how a place is used --- `access`
@@ -265,7 +265,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
 #antipattern[Writing the loop to split in a different shape][
   #demo("examples/ch27/mistake_noloop.low")
 
-  The processor recognises only loops of the shape `while lt i (len s) . do … end` as candidates for splitting. `while lt (add i 1) (len s)`
+  The processor recognises only loops of the shape `while lt i (len s) do … end` as candidates for splitting. `while lt (add i 1) (len s)`
   is not that shape, so this is `E-PAR-NOLOOP`. As the diagnostic says, the `parallel` clause is a *claim*, and with no loop to split,
   nothing is verified and only the claim remains. This loop also reads the neighbouring element `idx s (add i 1)`; even with the shape
   fixed it would be rejected with `E-PAR-READ`. Write neighbour-reading computations (smoothing and the like) as a sequential loop that
@@ -296,14 +296,14 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
   caption: [Parallel and atomic syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`parallel s split .` (op head)], [declares that `s` may be split and processed by many], [a claim that is checked, not trusted --- `W-PAR-OK` when it holds],
-  [`while lt i (len s) . do … end`], [the shape of a splittable loop], [any other shape is `E-PAR-NOLOOP`],
+  [`while lt i (len s) do … end`], [the shape of a splittable loop], [any other shape is `E-PAR-NOLOOP`],
   [reading and writing only `idx s i`], [only its own share], [others' places: `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [accumulate per piece, then combine with the operation], [start at the identity --- the operation must be associative (`E-PAR-ASSOC`)],
   [`atomic_add counter 0 1` · `atomic_load cells 0`], [atomically on a place named by slice and index], [`effects atomic` + `cap atomic`],
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [memory ordering --- `seq_cst` if unwritten], [the easiest to reason about is the default],
   [`order release` on a read, and so on], [rejected (`E-ATOMIC-ORDER`)], [meaningless combinations are not left undefined],
   [`view_array u64 bytes`], [see bytes as a `u64` slice without copying], [atomic cells live on an allocated window],
-  [`var v be vec u32 4 load xs 0 .` · `reduce_add v`], [read four lanes as one value · gather lanes], [SIMD within one flow --- the lane count is part of the type],
+  [`var v vec u32 4 load xs 0 .` · `reduce_add v`], [read four lanes as one value · gather lanes], [SIMD within one flow --- the lane count is part of the type],
   [`access data shared_read .` · `access out write_only .`], [a promise to only read · only write --- checked against the body], [read-only lets several tasks hold it · breaking it is `E-ACCESS-MODE`],
 )
 

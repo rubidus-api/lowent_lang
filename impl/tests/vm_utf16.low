@@ -14,11 +14,11 @@ use utf16 from "../../lib/utf16.low" .
 
 rem ── ① BMP 는 한 칸, 그 밖은 두 칸 ────────────────────────────────────
 fn unit_counts output u64 . do
-  guard eq (utf16.units 65) 1 . else return 90 .         rem 'A'
-  guard eq (utf16.units 44032) 1 . else return 91 .      rem '가' — 한글은 BMP 안이다
-  guard eq (utf16.units 65535) 1 . else return 92 .      rem U+FFFF — BMP 의 끝
-  guard eq (utf16.units 65536) 2 . else return 93 .      rem U+10000 — 여기부터 짝
-  guard eq (utf16.units 128169) 2 . else return 94 .     rem U+1F4A9 — 이모지
+  guard eq (utf16.units 65) 1 else return 90 .         rem 'A'
+  guard eq (utf16.units 44032) 1 else return 91 .      rem '가' — 한글은 BMP 안이다
+  guard eq (utf16.units 65535) 1 else return 92 .      rem U+FFFF — BMP 의 끝
+  guard eq (utf16.units 65536) 2 else return 93 .      rem U+10000 — 여기부터 짝
+  guard eq (utf16.units 128169) 2 else return 94 .     rem U+1F4A9 — 이모지
   return 1 .
 end
 
@@ -26,23 +26,23 @@ rem ── ② 왕복 — 써 넣고 다시 읽으면 같은 코드포인트 ─
 rem ★ 이것이 이 라이브러리의 핵심 주장이다. 짝을 만들고, 그 짝을 다시 하나로 읽는다.
 proc round_trip input buf mut slice u16 . output u64 . effects none . do
   rem BMP 문자 — 한 칸
-  let a be option u64 utf16.put buf 0 44032 .
-  guard is_some a . else return 90 .
-  guard eq (some_value a) 1 . else return 91 .    rem 위치 0 → 1 (한 칸)
-  let ra be option u64 utf16.decode buf 0 .
-  guard is_some ra . else return 92 .
-  guard eq (some_value ra) 44032 . else return 93 .
+  let a option u64 utf16.put buf 0 44032 .
+  guard is_some a else return 90 .
+  guard eq (some_value a) 1 else return 91 .    rem 위치 0 → 1 (한 칸)
+  let ra option u64 utf16.decode buf 0 .
+  guard is_some ra else return 92 .
+  guard eq (some_value ra) 44032 else return 93 .
 
   rem 이모지 — 두 칸(서로게이트 짝)
-  let b be option u64 utf16.put buf 1 128169 .
-  guard is_some b . else return 94 .
-  guard eq (some_value b) 3 . else return 95 .    rem 위치 1 → 3 (서로게이트 짝은 두 칸)
+  let b option u64 utf16.put buf 1 128169 .
+  guard is_some b else return 94 .
+  guard eq (some_value b) 3 else return 95 .    rem 위치 1 → 3 (서로게이트 짝은 두 칸)
   rem ★★ 정말 짝이 만들어졌는지 **칸을 직접 본다** — 추상 뒤에 숨지 않는다
-  guard eq (idx buf 1) 55357 . else return 96 .  rem 0xD83D
-  guard eq (idx buf 2) 56489 . else return 97 .  rem 0xDCA9
-  let rb be option u64 utf16.decode buf 1 .
-  guard is_some rb . else return 98 .
-  guard eq (some_value rb) 128169 . else return 99 .
+  guard eq (idx buf 1) 55357 else return 96 .  rem 0xD83D
+  guard eq (idx buf 2) 56489 else return 97 .  rem 0xDCA9
+  let rb option u64 utf16.decode buf 1 .
+  guard is_some rb else return 98 .
+  guard eq (some_value rb) 128169 else return 99 .
   return 1 .
 end
 
@@ -54,25 +54,25 @@ proc rejects_broken input buf mut slice u16 . output u64 . effects none . do
   rem ⓐ 상위 서로게이트 뒤에 **하위가 안 온다**(평범한 문자가 온다)
   set (idx buf 0) 55357 .                       rem 0xD83D — 상위
   set (idx buf 1) 65 .                          rem 'A' — 하위가 아니다
-  let a be option u64 utf16.decode buf 0 .
-  guard eq (is_some a) false . else return 90 .
+  let a option u64 utf16.decode buf 0 .
+  guard eq (is_some a) false else return 90 .
 
   rem ⓑ 하위 서로게이트가 **혼자** 온다
   set (idx buf 2) 56489 .                       rem 0xDCA9 — 하위인데 앞이 없다
-  let b be option u64 utf16.decode buf 2 .
-  guard eq (is_some b) false . else return 91 .
+  let b option u64 utf16.decode buf 2 .
+  guard eq (is_some b) false else return 91 .
 
   rem ⓒ 상위 서로게이트로 **끝난다**(잘렸다)
   set (idx buf 3) 55357 .
-  let c be option u64 utf16.decode (subslice buf 0 4) 3 .
-  guard eq (is_some c) false . else return 92 .
+  let c option u64 utf16.decode (subslice buf 0 4) 3 .
+  guard eq (is_some c) false else return 92 .
 
   rem ★ 그리고 **온전한 짝은 여전히 통과한다** — 거절이 과하지 않다는 것도 재야 한다
   set (idx buf 4) 55357 .
   set (idx buf 5) 56489 .
-  let d be option u64 utf16.decode buf 4 .
-  guard is_some d . else return 93 .
-  guard eq (some_value d) 128169 . else return 94 .
+  let d option u64 utf16.decode buf 4 .
+  guard is_some d else return 93 .
+  guard eq (some_value d) 128169 else return 94 .
   return 1 .
 end
 
@@ -80,11 +80,11 @@ rem ── ④ 서로게이트는 **코드포인트가 아니다** ────�
 rem ★ `lib/utf8.low` 이 UTF-8 안의 서로게이트를 거절하므로, 서로게이트는 **오직 UTF-16
 rem   안에서만, 오직 짝으로만** 존재한다. 두 라이브러리가 함께 그 불변을 지킨다.
 fn surrogates_are_not_codepoints output u64 . do
-  guard eq (utf16.cp_valid 55357) false . else return 90 .   rem 상위를 코드포인트로 못 쓴다
-  guard eq (utf16.cp_valid 56489) false . else return 91 .   rem 하위도 마찬가지
-  guard eq (utf16.cp_valid 1114112) false . else return 92 . rem > U+10FFFF
-  guard utf16.cp_valid 128169 . else return 93 .             rem 진짜 코드포인트는 통과
-  guard utf16.cp_valid 65 . else return 94 .
+  guard eq (utf16.cp_valid 55357) false else return 90 .   rem 상위를 코드포인트로 못 쓴다
+  guard eq (utf16.cp_valid 56489) false else return 91 .   rem 하위도 마찬가지
+  guard eq (utf16.cp_valid 1114112) false else return 92 . rem > U+10FFFF
+  guard utf16.cp_valid 128169 else return 93 .             rem 진짜 코드포인트는 통과
+  guard utf16.cp_valid 65 else return 94 .
   return 1 .
 end
 
@@ -95,16 +95,16 @@ proc counts_and_validates input buf mut slice u16 . output u64 . effects none . 
   set (idx buf 1) 55357 .
   set (idx buf 2) 56489 .
   set (idx buf 3) 44032 .
-  let n be option u64 utf16.count_chars (subslice buf 0 4) .
-  guard is_some n . else return 90 .
-  guard eq (some_value n) 3 . else return 91 .        rem 칸은 4, 문자는 3
-  guard utf16.is_valid (subslice buf 0 4) . else return 92 .
+  let n option u64 utf16.count_chars (subslice buf 0 4) .
+  guard is_some n else return 90 .
+  guard eq (some_value n) 3 else return 91 .        rem 칸은 4, 문자는 3
+  guard utf16.is_valid (subslice buf 0 4) else return 92 .
 
   rem ★ 짝을 깨뜨리면 — 수를 못 낸다. **틀린 수를 내느니 안 낸다.**
   set (idx buf 2) 65 .
-  let m be option u64 utf16.count_chars (subslice buf 0 4) .
-  guard eq (is_some m) false . else return 93 .
-  guard eq (utf16.is_valid (subslice buf 0 4)) false . else return 94 .
+  let m option u64 utf16.count_chars (subslice buf 0 4) .
+  guard eq (is_some m) false else return 93 .
+  guard eq (utf16.is_valid (subslice buf 0 4)) false else return 94 .
   return 1 .
 end
 
@@ -112,10 +112,10 @@ rem ── ⑥ 자리가 모자라면 **한 칸도 안 쓴다** (전량-아니�
 rem ★ `lib/strbuf.low` 의 `sb_append` 와 같은 규율이다 — 반쯤 쓰인 버퍼는 조용히 틀린 내용이다.
 proc put_is_atomic input buf mut slice u16 . output u64 . effects none . do
   rem 두 칸짜리를 **마지막 한 칸**에 넣으려 한다 → 거절, 그리고 그 칸은 안 더럽혀진다
-  let last be u64 sub (len buf) 1 .
+  let last u64 sub (len buf) 1 .
   set (idx buf last) 7 .
-  let r be option u64 utf16.put buf last 128169 .
-  guard eq (is_some r) false . else return 90 .
-  guard eq (idx buf last) 7 . else return 91 .      rem 손대지 않았다
+  let r option u64 utf16.put buf last 128169 .
+  guard eq (is_some r) false else return 90 .
+  guard eq (idx buf last) 7 else return 91 .      rem 손대지 않았다
   return 1 .
 end

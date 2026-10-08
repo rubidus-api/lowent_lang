@@ -36,8 +36,8 @@
 #idx("local")
 A name that holds a value in an op body is a *local*. There are only two kinds.
 
-- `let <name> <type> be <expr> .` --- immutable. Once set, it does not change.
-- `var <name> <type> be <expr> .` --- mutable. It is changed with `set <name> <expr> .`.
+- `let <name> <type> <expr> .` --- immutable. Once set, it does not change.
+- `var <name> <type> <expr> .` --- mutable. It is changed with `set <name> <expr> .`.
 
 #demo("examples/ch06/sumto.low")
 
@@ -60,26 +60,28 @@ them says nothing. Today `let` *promises* immutability and the compiler checks t
 
 == The type goes in front of the value
 
-A binding is `let <name> be <type> <value> .`. The type stands after `be` and before the value, and it is *always written* --- the
+A binding is `let <name> <type> <value> .`. The type stands right after the name and before the value, and it is *always written* --- the
 processor never guesses a type.
 
 #demo("examples/ch06/infer.low")
 
-In `let b be u8 add a 1 .`, `b` is a `u8`, so adding 1 to 255 overflows `u8` and stops. The width is the boundary of overflow
+In `let b u8 add a 1 .`, `b` is a `u8`, so adding 1 to 255 overflows `u8` and stops. The width is the boundary of overflow
 (#chref("numbers")), so when the type is visible in the source, the places that can stop are visible with it.
 
-Leaving the type out --- `let x be 300 .` --- is rejected with `E-LET-NOTYPE`. When guessing was allowed, that bare literal slipped past the
-width check and an op returning `u8` answered 300. The old form with the type after the name, `let x u8 be 4 .`, is `E-LET-OLDFORM`. A long
+Leaving the type out --- `let x 300 .` --- is rejected with `E-LET-NOTYPE`. When guessing was allowed, that bare literal slipped past the
+width check and an op returning `u8` answered 300. The old form with `be` between the name and the type, `let x be u8 4 .`, is `E-LET-BE` --- `be` is no longer a word of the language. A long
 type gets a name with `def type`.
+
+#demo("examples/ch06/mistake_be.low")
 
 == No name without a value
 
-There must be a value after `be`. There is no way to make a name first and give it a value later.
+There must be a value after the type. There is no way to make a name first and give it a value later.
 
 #demo("examples/ch06/novalue.low")
 
 This is not a blank left by mistake. The author believes they wrote the value `.5`. But `.5` is not a floating-point literal --- the
-free-standing full stop closes the form, and only the type is left after `be`. The old tool quietly put 0 there, and a value that appears nowhere
+free-standing full stop closes the form, and only the type is left after the name. The old tool quietly put 0 there, and a value that appears nowhere
 in the source got into the program. Now it is rejected, and the diagnostic names the trap. A floating-point half is written `0.5`.
 
 #misconception[An uninitialised variable is zero][
@@ -134,7 +136,7 @@ from each branch. When the value is one of several cases over and over, `match` 
   #demo("examples/ch06/mistake_equals.low")
 
   In most languages `=` means assignment, while in mathematics it means equality. One symbol switching between two meanings has produced
-  bugs like `if (x = 0)`. Lowent uses no symbol for either: declaring is `let`/`var … be`, changing is `set`, and asking whether two
+  bugs like `if (x = 0)`. Lowent uses no symbol for either: declaring is `let`/`var … `, changing is `set`, and asking whether two
   values are equal is `eq`. `=` is not a character the language knows at all, hence `E-CHAR`.
 ]
 
@@ -165,11 +167,11 @@ from each branch. When the value is one of several cases over and over, `match` 
   id: "locals-glance",
   caption: [Local syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`let x be T e .`], [a name that never changes], [immutable by default --- only changing values stand out],
-  [`var x be T e .`], [a name that may change], [say that it will change at the moment you declare it],
+  [`let x T e .`], [a name that never changes], [immutable by default --- only changing values stand out],
+  [`var x T e .`], [a name that may change], [say that it will change at the moment you declare it],
   [`set x e .`], [put a new value into a `var`], [declaring and changing are different words --- a typo never becomes a new variable],
-  [`let x be e .`], [let the value decide the type], [only for short intermediate values --- the width is the overflow boundary],
-  [the value after `be`], [always required], [there is no such thing as an uninitialised variable],
+  [`let x e .`], [let the value decide the type], [only for short intermediate values --- the width is the overflow boundary],
+  [the value after the type], [always required], [there is no such thing as an uninitialised variable],
   [the end of a block], [locals declared inside it disappear], [names live close to where they are used],
   [re-declaring an outer name inside], [rejected (`E-NAME-SHADOW`)], [the same letters point to one value only],
   [`eq a b`], [ask whether two values are equal], [there is no `=` --- assignment and equality never mix],
@@ -177,6 +179,6 @@ from each branch. When the value is one of several cases over and over, `match` 
 
 #recap[
   There are two kinds of local, `let` (immutable) and `var` (mutable), and `set` works only on a `var`. The type may be written or left to
-  the value, but a value after `be` is required. A local lives until the end of its block, and a live name cannot be made again even in an
+  the value, but a value after the type is required. A local lives until the end of its block, and a live name cannot be made again even in an
   inner block. `if` is a statement that yields no value.
 ]

@@ -125,7 +125,7 @@ end 에 닿으면:
 
 #demo("examples/ch18/escape.low")
 
-영역이 `end` 에서 닫히면 그 바이트는 되감긴다. 밖에 남은 `keep` 은 없는 것을 가리키게 된다. 들고 나가는 자리는
+영역이 `end` 에서 닫히면 그 바이트는 되감긴다. 밖에 남은 `held` 는 없는 것을 가리키게 된다. 들고 나가는 자리는
 `return`, 영역 밖 이름에 대입하기, 영역 밖 이름의 칸이나 원소에 대입하기다. 반대로 정수·참거짓처럼 영역의 바이트를
 들지 않는 값 --- `len buf` 나 합계 --- 은 들고 나가도 된다. `fill_count` 가 합을 돌려준 것이 그 모양이다.
 
@@ -180,9 +180,9 @@ end 에 닿으면:
 
 #demo("examples/ch18/stack.low")
 
-- `let work be stack u64 stack_new temp capacity 8 .` 이 스택을 만든다. 영역에서 자리를 얻으므로 `effects alloc` 이다.
+- `let work stack u64 stack_new temp capacity 8 .` 이 스택을 만든다. 영역에서 자리를 얻으므로 `effects alloc` 이다.
 - `push work x .` 는 넣는다.
-- `while pop work into d . do … end` 는 꺼낼 것이 있는 동안 하나씩 꺼내 `d` 에 묶는다. 비면 되풀이가 끝난다 --- 빈 스택에서 꺼내다 멈추는 길이 문법에
+- `while pop work into d do … end` 는 꺼낼 것이 있는 동안 하나씩 꺼내 `d` 에 묶는다. 비면 되풀이가 끝난다 --- 빈 스택에서 꺼내다 멈추는 길이 문법에
   없다.
 
 47 의 자릿수 7·4 를 넣으면 4·7 차례로 나와 74 가 된다. 스택도 영역과 함께 걷히므로 따로 돌려주는 코드가 없다.
@@ -194,7 +194,7 @@ end 에 닿으면:
 
   16 바이트는 얻지만 백만 바이트는 고정 창에 들어가지 않는다. `alloc_bytes` 는 그때 `none` 을 주고, 묻지 않고 꺼낸 `some_value` 가
   `E-VM-NONE` 으로 멈춘다. C 의 `malloc` 결과를 `NULL` 과 비교하지 않는 것과 같은 실수인데, Lowent 는 없는 자리를 쓰는 대신 꺼내는
-  자리에서 멈춘다. 이 장의 예제처럼 `guard is_some g . else return 0 .` 으로 먼저 묻는다. 메모리가 모자란 것도 다뤄야 할 *값*이다.
+  자리에서 멈춘다. 이 장의 예제처럼 `guard is_some g else return 0 .` 으로 먼저 묻는다. 메모리가 모자란 것도 다뤄야 할 *값*이다.
 ]
 
 #antipattern[영역에서 얻은 버퍼를 돌려준다][

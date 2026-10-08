@@ -20,9 +20,9 @@ export proc chain_add input src slice u8 . input start u64 . input finish u64 .
   requires le finish (len src) .
   requires le (len src) 16777216 .
 do
-  var k be u64 0 .
-  var acc be u64 0 .
-  while lt k 8 . do
+  var k u64 0 .
+  var acc u64 0 .
+  while lt k 8 do
     set acc (add acc (add start k)) .
     set k (add k 1) .
   end

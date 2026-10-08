@@ -17,8 +17,8 @@ end
 
 proc give_twice input n u64 . output u64 . effects state .
 do
-  var w be worker spawn actor worker .
-  var j be owned job n .
-  let a be u64 send w take j .
+  var w worker spawn actor worker .
+  var j owned job n .
+  let a u64 send w take j .
   return send w take j .
 end

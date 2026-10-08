@@ -184,7 +184,7 @@ Reading program arguments is a capability too. The next program greets its first
 #demo("examples/ch02/greet.low")
 
 `input a cap args .` receives the argument capability, and `arg a 0` reads the first argument. There may be no argument, so the
-result is `option slice u8`. `guard is_some who . else …` leaves on the spot when there is no value, and below it you may trust that
+result is `option slice u8`. `guard is_some who else …` leaves on the spot when there is no value, and below it you may trust that
 the value exists (#chref("option-result")). Capability inputs come before data inputs, and the two capabilities take argument
 positions in the order written.
 

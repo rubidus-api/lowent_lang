@@ -964,7 +964,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             else if (have_src && src0.k == TK_BOOL)
                 tc_emit(c, "E-TYPE-KIND",
                         "bool is not numeric: it cannot be a cast SOURCE either. Which side is `1` "
-                        "is for the PROGRAM to say, not the language — write `if b . do 1 . else 0 .`",
+                        "is for the PROGRAM to say, not the language — write `var n u8 0 . if b do set n 1 . end`",
                         k[start + 1]->line);
             return tgt;
         }
@@ -1619,7 +1619,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                         // ★ RFC-0135 D3 — 값이 option/result 인데 알맹이 타입으로 묶었다: 고칠 길을 말한다
                         (actual.k == TK_WRAPPED && declared.k != TK_WRAPPED && declared.k != TK_UNKNOWN)
                           ? "the value can be empty (an option/result) but the binding takes its content — say what happens when "
-                            "it is empty: add `. else return … .` (or `. else panic \"…\" .`), or declare the binding `option …`/`result …` "
+                            "it is empty: add `else return … .` (or `else panic \"…\" .`), or declare the binding `option …`/`result …` "
                             "and check it later (RFC-0135 §4.2)"
                           : "the initializer's type does not match the declared type", declared, actual, f->line);
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
@@ -1669,7 +1669,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 if (tau.k != TK_INT) {
                     tc_emit(c, "E-FOR-STEP", tau.k == TK_FLOAT
                             ? "a counted loop counts in an integer type — a float has no next value to step to (RFC-0132 §8.2)"
-                            : "`count`/`range` need the counting type first: `for i count u64 n .` · `for i range u64 3 10 .` (RFC-0132 §8.2)", f->line);
+                            : "`count`/`range` need the counting type first: `repeat i u64 n` · `range i u64 3 10` (RFC-0132 §8.2)", f->line);
                 } else {
                     for (proven_size_t q = 4; q < wi; q++) {
                         if (f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "step")) {
@@ -2103,7 +2103,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             f->kids[2]->tok.kw == LOW_KW_BE)
             tc_emit(&c, "E-TYPE-DECL",
                    "a type alias is `type N T .` and a newtype is `newtype N T .` — without `be`. `be` binds a VALUE "
-                   "(`let x be u8 1 .`); a type declaration names a TYPE. One meaning, one spelling",
+                   "(`let x u8 1 .`); a type declaration names a TYPE. One meaning, one spelling",
                    f->kids[0]->tok.line);
     }
 

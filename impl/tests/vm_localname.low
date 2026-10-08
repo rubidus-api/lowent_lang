@@ -14,8 +14,8 @@ module vm_localname .
 
 export fn guarded input n u64 . output u64 . do
   rem 여기 `total` 은 **지역**이다. 짝 모듈의 `total`(op) 이 이것을 집으면 안 된다.
-  let total be u64 add n 10 .
-  guard ge total 10 . else return 0 .
+  let total u64 add n 10 .
+  guard ge total 10 else return 0 .
   return total .
 end
 

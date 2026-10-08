@@ -1,0 +1,11 @@
+module mistake_dotdo .
+rem expect: E-CTRL-DOT
+
+fn big input a u64 . output u64 .
+do
+  rem ko: ✘ 조건과 `do` 사이에 마침표를 찍었다 --- 조건은 `do` 에서 끝난다 /// en: ✘ a stop between the condition and `do` --- the condition ends at `do`
+  if gt a 3 . do
+    return 1 .
+  end
+  return 0 .
+end

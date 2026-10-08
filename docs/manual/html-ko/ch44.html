@@ -711,10 +711,10 @@ $ lowentc --run pick trap_not_effect.low [1,2,3] 7
 <strong><span class="tok-k">proc</span></strong> stars <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">10</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">*</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">*</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> add w (stars out (sub n <span class="tok-n">1</span>)) .
 <strong><span class="tok-k">end</span></strong>
 

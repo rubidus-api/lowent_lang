@@ -6,13 +6,13 @@ use tty .
 
 proc first_key input buf slice u8 . output u64 . effects none .
 do
-  let k be option u64 tty.parse_key buf 0 .
-  guard is_some k . else return 0 .
-  let code be u64 tty.key_of (some_value k) .
-  if eq code (tty.key_up) . do
+  let k option u64 tty.parse_key buf 0 .
+  guard is_some k else return 0 .
+  let code u64 tty.key_of (some_value k) .
+  if eq code (tty.key_up) do
     return 1 .
   end
-  if tty.is_char code . do
+  if tty.is_char code do
     return 2 .
   end
   return 3 .

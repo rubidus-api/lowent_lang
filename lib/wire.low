@@ -52,7 +52,7 @@ rem   그런 것을 조용히 받으면 `put` 이 값을 **잘라 먹는다**.
 export fn solid input mask u64 . output bool .
   requires gt mask 0 .
 do
-  let m be u64 shr mask (trailing_zeros mask) .
+  let m u64 shr mask (trailing_zeros mask) .
   return eq (bit_and m (add m 1)) 0 .
 end
 
@@ -120,10 +120,10 @@ export fn reverse_bits input v u64 . input w u64 . output u64 .
   requires gt w 0 .
   requires le w 64 .
 do
-  var r be u64 0 .
-  var i be u64 0 .
-  while lt i w . do
-    if ne (bit_and v (shl 1 i)) 0 . do
+  var r u64 0 .
+  var i u64 0 .
+  while lt i w do
+    if ne (bit_and v (shl 1 i)) 0 do
       set r (bit_or r (shl 1 (sub (sub w 1) i))) .
     end
     set i (add i 1) .
@@ -142,9 +142,9 @@ export fn onwire input comptime order u64 . input comptime inv u64 .
   requires gt w 0 .
   requires le w 64 .
 do
-  var x be u64 v .
-  if eq order 1 . do set x (reverse_bits x w) . end
-  if ne inv 0 . do set x (bit_xor x inv) . end
+  var x u64 v .
+  if eq order 1 do set x (reverse_bits x w) . end
+  if ne inv 0 do set x (bit_xor x inv) . end
   return x .
 end
 
@@ -156,21 +156,21 @@ rem   그것이 런타임 표에서 «항등은 공짜» 를 얻는 유일하게
 rem   루프를 접을 수 없다).
 
 export fn is_identity input tab slice u8 . output bool . do
-  var i be u64 0 .
-  while lt i (len tab) . do
-    if ne (widen u64 (idx tab i)) i . do return false . end
+  var i u64 0 .
+  while lt i (len tab) do
+    if ne (widen u64 (idx tab i)) i do return false . end
     set i (add i 1) .
   end
   return true .
 end
 
 export fn permute input v u64 . input tab slice u8 . output u64 . do
-  var r be u64 0 .
-  var i be u64 0 .
-  while lt i (len tab) . do
-    if ne (bit_and v (shl 1 i)) 0 . do
-      let dst be u64 widen u64 (idx tab i) .    rem 이름이 `to` 가 아닌 까닭: `to` 는 **없앤 낱말**이다
-      if lt dst 64 . do set r (bit_or r (shl 1 dst)) . end
+  var r u64 0 .
+  var i u64 0 .
+  while lt i (len tab) do
+    if ne (bit_and v (shl 1 i)) 0 do
+      let dst u64 widen u64 (idx tab i) .    rem 이름이 `to` 가 아닌 까닭: `to` 는 **없앤 낱말**이다
+      if lt dst 64 do set r (bit_or r (shl 1 dst)) . end
     end
     set i (add i 1) .
   end

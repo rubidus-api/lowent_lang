@@ -15,15 +15,15 @@ module vm_roots .
 
 export proc grow_heap output u64 . effects heap .
 do
-  var got be u64 0 .
+  var got u64 0 .
   region h heap do
-    var i be u64 0 .
-    while lt i 8 . do
-      let g be option mut slice u8 alloc_bytes h capacity 32768 .
-      if is_some g . do
-        let b be mut slice u8 some_value g .
+    var i u64 0 .
+    while lt i 8 do
+      let g option mut slice u8 alloc_bytes h capacity 32768 .
+      if is_some g do
+        let b mut slice u8 some_value g .
         set (idx b 32767) 9 .
-        if eq (idx b 32767) 9 . do set got (add got 1) . end
+        if eq (idx b 32767) 9 do set got (add got 1) . end
       end
       set i (add i 1) .
     end
@@ -33,12 +33,12 @@ end
 
 export proc grow_fixed output u64 . effects alloc .
 do
-  var got be u64 0 .
+  var got u64 0 .
   region r arena do
-    var i be u64 0 .
-    while lt i 8 . do
-      let g be option mut slice u8 alloc_bytes r capacity 32768 .
-      if is_some g . do set got (add got 1) . end
+    var i u64 0 .
+    while lt i 8 do
+      let g option mut slice u8 alloc_bytes r capacity 32768 .
+      if is_some g do set got (add got 1) . end
       set i (add i 1) .
     end
   end
@@ -47,26 +47,26 @@ end
 
 export proc both output u64 . effects alloc heap .
 do
-  var keep be u64 0 .
+  var held u64 0 .
   region f arena do
-    let a be option mut slice u8 alloc_bytes f capacity 16 .
-    if is_some a . do
-      let av be mut slice u8 some_value a .
+    let a option mut slice u8 alloc_bytes f capacity 16 .
+    if is_some a do
+      let av mut slice u8 some_value a .
       set (idx av 3) 77 .
       region h heap do
-        let b be option mut slice u8 alloc_bytes h capacity 200000 .
-        if is_some b . do
-          let bv be mut slice u8 some_value b .
+        let b option mut slice u8 alloc_bytes h capacity 200000 .
+        if is_some b do
+          let bv mut slice u8 some_value b .
           set (idx bv 3) 55 .
         end
       end
-      let c be option mut slice u8 alloc_bytes f capacity 16 .
-      if is_some c . do
-        let cv be mut slice u8 some_value c .
+      let c option mut slice u8 alloc_bytes f capacity 16 .
+      if is_some c do
+        let cv mut slice u8 some_value c .
         set (idx cv 3) 11 .
       end
-      set keep (add (mul (narrow u64 (idx av 3)) 100) 1) .
+      set held (add (mul (narrow u64 (idx av 3)) 100) 1) .
     end
   end
-  return keep .
+  return held .
 end

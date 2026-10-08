@@ -19,8 +19,8 @@ module vm_borrow .
 
 rem ★ 빌려서 쓰고, **값을 뽑아** 나온다 — 안전하고 통과해야 한다.
 proc read_through input s mut slice u8 . output u64 . effects none . do
-  var t be u64 0 .
-  borrow b be (subslice s 0 2) do
+  var t u64 0 .
+  borrow b (subslice s 0 2) do
     set (idx b 0) 9 .
     rem ★ `index` 는 **바이트**를 낸다 — 빌림을 들고 나가는 게 아니다.
     set t (narrow u64 (idx b 0)) .
@@ -30,8 +30,8 @@ end
 
 rem ★ 블록 안에서 기존 라이브러리가 그대로 돈다 — 빌림이라고 특별한 op 이 필요하지 않다.
 proc plain_ops_work input s mut slice u8 . output u64 . effects none . do
-  var t be u64 0 .
-  borrow b be (subslice s 0 4) do
+  var t u64 0 .
+  borrow b (subslice s 0 4) do
     set t (len b) .
   end
   return t .

@@ -85,7 +85,7 @@ slot is used instead of heavy relational domains (octagons, polyhedra) because o
 The rules for facts have three parts.
 
 + *Obtain.* Plant the fact on the branch where the condition is true.
-+ *Carry.* Follow assignments --- in `var x be j`, if `j < cap` then `x < cap`. At merges, keep a fact only if both paths agree. What holds on one side only is
++ *Carry.* Follow assignments --- in `var x j`, if `j < cap` then `x < cap`. At merges, keep a fact only if both paths agree. What holds on one side only is
   not a fact.
 + *Kill.* When a related variable changes, kill the fact in both directions. When a slice is rebound, every fact about its length dies.
 
@@ -99,7 +99,7 @@ instruction position, operation, rule used, and the ranges the rule used.
 #demo("examples/ch41/bound_stages.low")
 
 - *1 · Direct.* In `direct` the loop condition looks at `len s` directly. `idx` was removed by `R-IDX-LENLT`.
-- *2 · Length stored in a local.* `stored` puts the length in a local with `let n be len s`. It is a very common idiom. At one time the fact "this value is
+- *2 · Length stored in a local.* `stored` puts the length in a local with `let n len s`. It is a very common idiom. At one time the fact "this value is
   `len s`" was a property of a stack value that vanished the moment it was stored in a local, and this loop's check stayed. Since the fact is now carried by
   locals too, it is removed just like stage 1. This was a performance fix, not a safety fix --- the check was there, so it was safe all along.
 - *3 · Capacity from a contract.* In `capacity` the array size and loop bound are different variables. `j < cap` (loop condition) and `len s ≥ cap`

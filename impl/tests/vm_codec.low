@@ -8,35 +8,35 @@ use codec as c .
 
 rem "abc" → "616263" → "abc" 왕복. 42 = 성공(3 + 'a'=97 은 100 이라, 판별 쉬운 42 로 통일).
 proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
-  guard ge (len enc) 6 . else return 90 .
-  guard ge (len dec) 3 . else return 91 .
-  let en be option u64 c.hex_enc "abc" enc .
-  guard is_some en . else return 1 .
-  guard eq (some_value en) 6 . else return 2 .
+  guard ge (len enc) 6 else return 90 .
+  guard ge (len dec) 3 else return 91 .
+  let en option u64 c.hex_enc "abc" enc .
+  guard is_some en else return 1 .
+  guard eq (some_value en) 6 else return 2 .
   rem 소문자 확정: "616263" 의 첫 두 글자 = '6'(54) '1'(49).
-  guard eq (idx enc 0) 54 . else return 3 .
-  guard eq (idx enc 1) 49 . else return 4 .
-  let dn be option u64 c.hex_dec (subslice enc 0 6) dec .
-  guard is_some dn . else return 5 .
-  guard eq (some_value dn) 3 . else return 6 .
-  guard eq (idx dec 0) 97 . else return 7 .
-  guard eq (idx dec 2) 99 . else return 8 .
+  guard eq (idx enc 0) 54 else return 3 .
+  guard eq (idx enc 1) 49 else return 4 .
+  let dn option u64 c.hex_dec (subslice enc 0 6) dec .
+  guard is_some dn else return 5 .
+  guard eq (some_value dn) 3 else return 6 .
+  guard eq (idx dec 0) 97 else return 7 .
+  guard eq (idx dec 2) 99 else return 8 .
   rem 대문자도 받는다(관대한 수신): "4A" → 74.
-  let up be option u64 c.hex_dec "4A" dec .
-  guard is_some up . else return 9 .
-  guard eq (idx dec 0) 74 . else return 10 .
+  let up option u64 c.hex_dec "4A" dec .
+  guard is_some up else return 9 .
+  guard eq (idx dec 0) 74 else return 10 .
   return 42 .
 end
 
 rem 잘못된 hex 는 값으로 거절된다: 홀수 길이 · hex 아닌 글자 · 모자란 출력 버퍼 → 셋 다 none.
 proc hex_rejects input dst mut slice u8 . output u64 . effects none . do
-  guard ge (len dst) 3 . else return 90 .
-  let odd be option u64 c.hex_dec "abc" dst .
-  guard is_some odd . else do
-    let bad be option u64 c.hex_dec "zz" dst .
-    guard is_some bad . else do
-      let small be option u64 c.hex_enc "abcdefgh" dst .
-      guard is_some small . else return 42 .
+  guard ge (len dst) 3 else return 90 .
+  let odd option u64 c.hex_dec "abc" dst .
+  guard is_some odd else do
+    let bad option u64 c.hex_dec "zz" dst .
+    guard is_some bad else do
+      let small option u64 c.hex_enc "abcdefgh" dst .
+      guard is_some small else return 42 .
       return 3 .
     end
     return 2 .
@@ -46,39 +46,39 @@ end
 
 rem base64 왕복: "hi"(꼬리 2) → "aGk=" → "hi" · "abc"(꼬리 0) → "YWJj" → "abc".
 proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
-  guard ge (len enc) 4 . else return 90 .
-  guard ge (len dec) 3 . else return 91 .
-  let e1 be option u64 c.b64_enc "hi" enc .
-  guard is_some e1 . else return 1 .
-  guard eq (some_value e1) 4 . else return 2 .
+  guard ge (len enc) 4 else return 90 .
+  guard ge (len dec) 3 else return 91 .
+  let e1 option u64 c.b64_enc "hi" enc .
+  guard is_some e1 else return 1 .
+  guard eq (some_value e1) 4 else return 2 .
   rem "aGk=" = 97 71 107 61.
-  guard eq (idx enc 0) 97 . else return 3 .
-  guard eq (idx enc 1) 71 . else return 4 .
-  guard eq (idx enc 2) 107 . else return 5 .
-  guard eq (idx enc 3) 61 . else return 6 .
-  let d1 be option u64 c.b64_dec (subslice enc 0 4) dec .
-  guard is_some d1 . else return 7 .
-  guard eq (some_value d1) 2 . else return 8 .
-  guard eq (idx dec 0) 104 . else return 9 .
-  guard eq (idx dec 1) 105 . else return 10 .
-  let e2 be option u64 c.b64_enc "abc" enc .
-  guard is_some e2 . else return 11 .
-  let d2 be option u64 c.b64_dec (subslice enc 0 4) dec .
-  guard is_some d2 . else return 12 .
-  guard eq (some_value d2) 3 . else return 13 .
-  guard eq (idx dec 2) 99 . else return 14 .
+  guard eq (idx enc 0) 97 else return 3 .
+  guard eq (idx enc 1) 71 else return 4 .
+  guard eq (idx enc 2) 107 else return 5 .
+  guard eq (idx enc 3) 61 else return 6 .
+  let d1 option u64 c.b64_dec (subslice enc 0 4) dec .
+  guard is_some d1 else return 7 .
+  guard eq (some_value d1) 2 else return 8 .
+  guard eq (idx dec 0) 104 else return 9 .
+  guard eq (idx dec 1) 105 else return 10 .
+  let e2 option u64 c.b64_enc "abc" enc .
+  guard is_some e2 else return 11 .
+  let d2 option u64 c.b64_dec (subslice enc 0 4) dec .
+  guard is_some d2 else return 12 .
+  guard eq (some_value d2) 3 else return 13 .
+  guard eq (idx dec 2) 99 else return 14 .
   return 42 .
 end
 
 rem base64 도 값으로 거절한다: 4의 배수 아닌 길이 · 알파벳 밖 글자 · **가운데 패딩**.
 proc b64_rejects input dst mut slice u8 . output u64 . effects none . do
-  guard ge (len dst) 6 . else return 90 .
-  let odd be option u64 c.b64_dec "abc" dst .
-  guard is_some odd . else do
-    let bad be option u64 c.b64_dec "a?cd" dst .
-    guard is_some bad . else do
-      let midpad be option u64 c.b64_dec "aG==YWJj" dst .
-      guard is_some midpad . else return 42 .
+  guard ge (len dst) 6 else return 90 .
+  let odd option u64 c.b64_dec "abc" dst .
+  guard is_some odd else do
+    let bad option u64 c.b64_dec "a?cd" dst .
+    guard is_some bad else do
+      let midpad option u64 c.b64_dec "aG==YWJj" dst .
+      guard is_some midpad else return 42 .
       return 3 .
     end
     return 2 .
@@ -89,17 +89,17 @@ end
 rem ★ 마지막 그룹의 **남는 비트가 0 이 아니면** 거절한다(RFC 4648 §3.5 · 검토 2026-09-04).
 rem   "QQ==" → 'A' 와 "QUI=" → "AB" 는 정규라서 열리고, 같은 바이트를 내는 "QR==" · "QUJ=" 는 none.
 proc b64_canon input dst mut slice u8 . output u64 . effects none . do
-  guard ge (len dst) 3 . else return 90 .
-  let ok1 be option u64 c.b64_dec "QQ==" dst .
-  guard is_some ok1 . else return 1 .
-  guard eq (idx dst 0) 65 . else return 2 .
-  let bad1 be option u64 c.b64_dec "QR==" dst .
-  guard is_some bad1 . else do
-    let ok2 be option u64 c.b64_dec "QUI=" dst .
-    guard is_some ok2 . else return 4 .
-    guard eq (idx dst 1) 66 . else return 5 .
-    let bad2 be option u64 c.b64_dec "QUJ=" dst .
-    guard is_some bad2 . else return 42 .
+  guard ge (len dst) 3 else return 90 .
+  let ok1 option u64 c.b64_dec "QQ==" dst .
+  guard is_some ok1 else return 1 .
+  guard eq (idx dst 0) 65 else return 2 .
+  let bad1 option u64 c.b64_dec "QR==" dst .
+  guard is_some bad1 else do
+    let ok2 option u64 c.b64_dec "QUI=" dst .
+    guard is_some ok2 else return 4 .
+    guard eq (idx dst 1) 66 else return 5 .
+    let bad2 option u64 c.b64_dec "QUJ=" dst .
+    guard is_some bad2 else return 42 .
     return 6 .
   end
   return 3 .
@@ -107,9 +107,9 @@ end
 
 rem ★ hex_digit 의 범위 밖은 '?'(63) — 전엔 E-VM-CAST 트랩이었다(검토 2026-09-04). 0→'0' · 15→'f' 는 그대로.
 fn hex_digit_range output u64 . do
-  guard eq (widen u64 (c.hex_digit 200)) 63 . else return 1 .
-  guard eq (widen u64 (c.hex_digit 16)) 63 . else return 2 .
-  guard eq (widen u64 (c.hex_digit 15)) 102 . else return 3 .
-  guard eq (widen u64 (c.hex_digit 0)) 48 . else return 4 .
+  guard eq (widen u64 (c.hex_digit 200)) 63 else return 1 .
+  guard eq (widen u64 (c.hex_digit 16)) 63 else return 2 .
+  guard eq (widen u64 (c.hex_digit 15)) 102 else return 3 .
+  guard eq (widen u64 (c.hex_digit 0)) 48 else return 4 .
   return 42 .
 end

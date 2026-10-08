@@ -15,7 +15,7 @@ module vm_test .
 fn inc input a u8 . output u8 . do return expr a + 1 . end
 
 fn clamp input a u8 . output u8 . do
-  if gt a 100 . do return 100 . end
+  if gt a 100 do return 100 . end
   return a .
 end
 

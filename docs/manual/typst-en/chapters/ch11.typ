@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  What does `case rect w h .` in #chref("structs-enums") do? And what happens when a `match` leaves out a variant?
+  What does `case rect w h` in #chref("structs-enums") do? And what happens when a `match` leaves out a variant?
 ][
   When the variant is `rect`, it binds the two values the variant carries to `w` and `h`. Leaving out a variant is rejected with
   `E-MATCH-INEXHAUSTIVE`. The `option` and `result` of this chapter behave like two-variant enums the language made in advance --- a value is
@@ -57,8 +57,8 @@ inside cannot be used *before the box is opened*.
 The receiver can use it three ways.
 
 - `find_or` --- `value_or (find k) 99` gives the value if there is one, and 99 otherwise.
-- `find_asked` --- asks first with `guard is_some r . else …` and takes the value out with `some_value r`.
-- `find_match` --- splits with `match` into `case some v .` and `case none .`. The two arms cover every case.
+- `find_asked` --- asks first with `guard is_some r else …` and takes the value out with `some_value r`.
+- `find_match` --- splits with `match` into `case some v` and `case none`. The two arms cover every case.
 
 `find_raw` takes the value out without asking. Translation passes, but execution stops at 7, which has no value (`E-VM-NONE`). Taking a value
 out is a *partial operation*. On which paths a value exists is something the author knows and the processor cannot always know, so
@@ -97,7 +97,7 @@ Writing the failure check by hand every time makes code long, and long code skip
 the value; on failure it *returns that error as is and leaves the op*. `halve_plus_one` in `halve.low` has that shape.
 
 ```lowent
-let v be u8 try halve a .
+let v u8 try halve a .
 return ok (add v 1) .
 ```
 
@@ -119,15 +119,26 @@ binding's type as the content's type and attach what to do when it is empty with
 
 #demo("examples/ch11/bindelse.low")
 
-- `let at be u64 find xs k else return 99 .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
+- `let at u64 find xs k else return 99 .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
   if not, control goes to `else`. A `result` works the same way --- an error goes to `else`.
 - `else` *must leave* (`return` · `break` · `continue` · `panic`). So on the lines that use `at` the value has already been taken out,
   and using it unchecked cannot happen.
-- Where stopping is acceptable, write `. else panic "…" .`. The place that may stop is visible once in the source, and in a pure `fn`
+- Where stopping is acceptable, write `else panic "…" .`. The place that may stop is visible once in the source, and in a pure `fn`
   the effect rules refuse it.
 - Binding an `option` as its content without `else` is refused --- the diagnostic tells you to add `else` or to declare the binding
   `option …`. Forgetting that something can fail is caught at translation.
 - To pass the error up unchanged, use `try`. Use `else` when you want to handle it differently *here*.
+
+What follows `else` is written in one of three ways. A single leaving statement is `else return 99 .` --- the statement's full stop
+comes at the very end. Several statements are `else do … end` --- the block ends with `end`, so there is no full stop. To see *why* a
+`result` failed, bind the error value to a name with `else error <name> do … end`.
+
+#demo("examples/ch11/elseerror.low")
+
+- `let p u64 check n else error e do … end` --- when `check` returns an error, that error value is bound to `e` and the block runs.
+  Every path of the block must leave. `e` lives only inside the block.
+- `port 0` is `zero`, so the answer is 80; `port 70000` is `too_big`, so it is 65535. When the value is an `option` there is no error
+  to bind, and `else error <name>` is refused with `E-BIND-ELSE`.
 
 == Crossing between the two channels
 
@@ -145,7 +156,7 @@ Sometimes the calling op and the called op use different channels. A tail on `tr
 )
 
 A `try` with a tail also changes the type. The type of `try (halve a) else_none` is `option u8`, not `u8`. That is why `maybe_half` returns it
-as is, and why putting it into a value type, as in `let v be u8 try … else_error …`, is rejected.
+as is, and why putting it into a value type, as in `let v u8 try … else_error …`, is rejected.
 
 `else_none` is a choice that throws information away. It is convenient, so it easily becomes a habit, but from that moment the caller can no
 longer ask "why". Throw it away only where it is worth throwing away.
@@ -174,10 +185,10 @@ Now that `option`, `result` and `enum` have all appeared, `match` patterns can b
 #demo("examples/ch11/patterns.low")
 
 #idx("pattern")
-- *Or-patterns.* `case red or green .` is taken if either matches. Each alternative counts towards exhaustiveness, so once `blue` is handled no
+- *Or-patterns.* `case red or green` is taken if either matches. Each alternative counts towards exhaustiveness, so once `blue` is handled no
   `_` is needed. When or-ing variants that carry values, *every alternative must bind the same names* --- `combine` takes out `l` and `r` whether
   the variant is `plus` or `times`. Mismatched names are `E-MATCH-ORBIND`.
-- *Nested patterns.* `case ok (some x) .` splits the `option` inside a `result` in one go. Nested patterns short-circuit, so if it is not `ok`
+- *Nested patterns.* `case ok (some x)` splits the `option` inside a `result` in one go. Nested patterns short-circuit, so if it is not `ok`
   the inner part is never looked at. That is why `error` never tries to take out a value and stop.
 - *Folded at translation time.* If the value being split is a translation-time constant --- a literal, `comptime <expr>`, `config <name>` --- the
   `match` folds to the one matching arm, with no comparison at run time. Dead arms are still type-checked. That is the difference from C's
@@ -253,9 +264,9 @@ refused with `E-MATCH-INEXHAUSTIVE` --- better than a `_` that covers nothing. A
   [`is_error r` · `ok_value r`], [ask whether failed · take out the success value], [same reason],
   [`value_or r 99`], [a stand-in when absent], [one line, but it covers absence],
   [`try <expr>`], [on failure, leave returning that error], [so checks are never forgotten --- like Rust's `?`],
-  [`let n be u64 find xs k . else return 0 .`], [take the content, or leave through `else`], [no unchecked use],
+  [`let n u64 find xs k else return 0 .`], [take the content, or leave through `else`], [no unchecked use],
   [`try <expr> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [changing channel shows what is lost],
-  [`case ok (some x) .` · `case a or b .`], [nested pattern · several variants at once], [split in one go, still covering every case],
+  [`case ok (some x)` · `case a or b`], [nested pattern · several variants at once], [split in one go, still covering every case],
 )
 
 #recap[

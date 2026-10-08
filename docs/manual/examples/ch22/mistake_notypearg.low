@@ -18,7 +18,7 @@ end
 fn max_of input comptime t type . input a t . input b t . output t .
   requires ordered t .
 do
-  if method a less b . do
+  if method a less b do
     return b .
   end
   return a .
@@ -27,6 +27,6 @@ end
 fn bigger input x u64 . input y u64 . output u64 .
 do
   rem ko: ✘ 앞자리의 타입 인자 `score` 를 빠뜨렸다 --- 추론은 없다 /// en: ✘ the leading type argument `score` is missing --- nothing is inferred
-  let m be score max_of (lit score do v x . end) (lit score do v y . end) .
+  let m score max_of (lit score do v x . end) (lit score do v y . end) .
   return field m v .
 end

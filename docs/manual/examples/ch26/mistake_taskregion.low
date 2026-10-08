@@ -3,10 +3,10 @@ rem expect: E-ALLOC-TASK
 
 proc worker input k u64 . output u64 . effects alloc .
 do
-  var n be u64 0 .
+  var n u64 0 .
   region r arena do
-    let g be option mut slice u8 alloc_bytes r capacity 1000 .
-    if is_some g . do
+    let g option mut slice u8 alloc_bytes r capacity 1000 .
+    if is_some g do
       set n k .
     end
   end

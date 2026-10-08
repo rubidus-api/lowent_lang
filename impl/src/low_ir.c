@@ -3066,7 +3066,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                                 ir_fail(c, "E-ENUM-UNCHECKED",
                                         "this enum has several variants, so `get … <variant> …` needs "
                                         "the value to be NARROWED to that variant first — put it after "
-                                        "`guard isa <value> <variant> . else …` (RFC-0080 §4.6). Reading a "
+                                        "`guard isa <value> <variant> else …` (RFC-0080 §4.6). Reading a "
                                         "field of the wrong variant would otherwise read a neighbouring slot",
                                         nd->line);
                             else if (!proven_u8str_view_eq(nw, vname))
@@ -5062,7 +5062,7 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
             if (nd->kind == LOW_CST_ATOM && nd->tok.kw == LOW_KW_IF) {
                 ir_fail(c, "E-IF-VALUE",
                         "`if` is a STATEMENT — it gives no value (§6.5.2 (4)). Choose the value in each branch "
-                        "instead: `var x be u64 6 .  if c do set x 5 . end`, or `return` from each branch",
+                        "instead: `var x u64 6 .  if c do set x 5 . end`, or `return` from each branch",
                         nd->line);
                 return;
             }

@@ -21,10 +21,10 @@ def type bytes slice u8 .
 
 rem 레인 수를 comptime 값으로 받는다 — 같은 소스가 호출마다 다른 폭으로 선다.
 proc wide input comptime n u64 . input a bytes . input out mut slice u8 . output u64 . effects none . do
-  let xa be slice u8 view_array u8 a .
-  let v be vec u8 n load xa 0 .
-  let two be vec u8 n splat 2 .
-  var r be vec u8 n mul v two .
+  let xa slice u8 view_array u8 a .
+  let v vec u8 n load xa 0 .
+  let two vec u8 n splat 2 .
+  var r vec u8 n mul v two .
   store out 0 r .
   return 0 .
 end

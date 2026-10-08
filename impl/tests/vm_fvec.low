@@ -21,7 +21,7 @@ end
 fn f_roundtrip
   output f64 .
 do
-  let h be sample view sample encode sample mk_sample .
+  let h sample view sample encode sample mk_sample .
   return expr ((field h temp)) + ((field h scale)) .
 end
 
@@ -31,9 +31,9 @@ fn fdot
   input b bytes .
   output f64 .
 do
-  let xs be slice f32 view_array f32 b .
-  let va be vec f32 4 load xs 0 .
-  let vb be vec f32 4 load xs 4 .
+  let xs slice f32 view_array f32 b .
+  let va vec f32 4 load xs 0 .
+  let vb vec f32 4 load xs 4 .
   return reduce_add mul va vb .
 end
 
@@ -41,7 +41,7 @@ fn fmax
   input b bytes .
   output f64 .
 do
-  let xs be slice f32 view_array f32 b .
-  let v be vec f32 4 load xs 0 .
+  let xs slice f32 view_array f32 b .
+  let v vec f32 4 load xs 0 .
   return reduce_max v .
 end

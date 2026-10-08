@@ -71,18 +71,18 @@ sat_mul	a u8, b u8	u8	return sat_mul a b .	1 2	= 2
 sat_mul	a i8, b i8	i8	return sat_mul a b .	100 100	= 127
 sat_mul	a i8, b i8	i8	return sat_mul a b .	-100 100	= -128
 wrap_add	a u8, b u16	u16	return wrap_add a b .	255 1	= 256
-chk_add	a u8, b u8	u64	let r be option u8 chk_add a b . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	1 2	= 3
-chk_add	a u8, b u8	u64	let r be option u8 chk_add a b . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	200 100	= 999
-chk_sub	a u8, b u8	u64	let r be option u8 chk_sub a b . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	2 1	= 1
-chk_sub	a u8, b u8	u64	let r be option u8 chk_sub a b . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	1 2	= 999
-chk_mul	a u8, b u8	u64	let r be option u8 chk_mul a b . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	3 5	= 15
-chk_mul	a u8, b u8	u64	let r be option u8 chk_mul a b . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	16 16	= 999
-chk_add	a f64, b f64	u64	let r be option f64 chk_add a b . ␤ if is_some r . do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-nonzero_of	a u32, b u32	u32	let nz be option nonzero u32 nonzero_of b . ␤ if is_some nz . do return div_nz a (some_value nz) . end ␤ return 999 .	10 0	= 999
-div_nz	a u32, b u32	u32	let nz be option nonzero u32 nonzero_of b . ␤ if is_some nz . do return div_nz a (some_value nz) . end ␤ return 999 .	10 0	= 999
-nonzero_of	a u32, b u32	u32	let nz be option nonzero u32 nonzero_of b . ␤ if is_some nz . do return div_nz a (some_value nz) . end ␤ return 999 .	10 3	= 3
-div_nz	a u32, b u32	u32	let nz be option nonzero u32 nonzero_of b . ␤ if is_some nz . do return div_nz a (some_value nz) . end ␤ return 999 .	10 3	= 3
-nonzero_of	a f64	u64	let nz be option nonzero f64 nonzero_of a . ␤ return 1 .	1.0	TRAP E-VM-TYPE
+chk_add	a u8, b u8	u64	let r option u8 chk_add a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	1 2	= 3
+chk_add	a u8, b u8	u64	let r option u8 chk_add a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	200 100	= 999
+chk_sub	a u8, b u8	u64	let r option u8 chk_sub a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	2 1	= 1
+chk_sub	a u8, b u8	u64	let r option u8 chk_sub a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	1 2	= 999
+chk_mul	a u8, b u8	u64	let r option u8 chk_mul a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	3 5	= 15
+chk_mul	a u8, b u8	u64	let r option u8 chk_mul a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	16 16	= 999
+chk_add	a f64, b f64	u64	let r option f64 chk_add a b . ␤ if is_some r do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 0	= 999
+div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 0	= 999
+nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 3	= 3
+div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 3	= 3
+nonzero_of	a f64	u64	let nz option nonzero f64 nonzero_of a . ␤ return 1 .	1.0	TRAP E-VM-TYPE
 eq	a u8, b u8	bool	return eq a b .	1 2	= 0
 eq	a u8, b u8	bool	return eq a b .	2 2	= 1
 eq	a u8, b u8	bool	return eq a b .	3 2	= 0
@@ -140,7 +140,7 @@ ge	a u8, b f64	bool	return ge a b .	1 1.0	CHECK E-TYPE-MIX
 eq	a u8	bool	return eq (eq a 0) (eq a 1) .	1	= 0
 ne	a u8	bool	return ne (eq a 0) (eq a 1) .	1	= 1
 eq	a u8, b bool	bool	return eq a b .	1	CHECK E-TYPE-MIX
-eq	a u8	bool	let x be option u8 chk_add a 1 . ␤ let y be option u8 chk_add a 1 . ␤ return eq x y .	1	TRAP E-VM-TYPE
+eq	a u8	bool	let x option u8 chk_add a 1 . ␤ let y option u8 chk_add a 1 . ␤ return eq x y .	1	TRAP E-VM-TYPE
 and	a u8	bool	return and (gt a 0) (eq (div 10 a) 5) .	0	= 0
 and	a u8	bool	return and (gt a 0) (eq (div 10 a) 5) .	2	= 1
 and	a u8	bool	return and a a .	1	CHECK E-TYPE-LOGICAL
@@ -278,8 +278,8 @@ narrow_sat	a u16	u8	return narrow_sat u8 a .	511	= 255
 narrow_sat	a i16	i8	return narrow_sat i8 a .	-129	= -128
 narrow_sat	a i16	u8	return narrow_sat u8 a .	-1	= 0
 narrow_sat	a i16	u8	return narrow_sat u8 a .	300	= 255
-narrow_try	a u16	u64	let r be option u8 narrow_try u8 a . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	255	= 255
-narrow_try	a u16	u64	let r be option u8 narrow_try u8 a . ␤ if is_some r . do return widen u64 (some_value r) . end ␤ return 999 .	256	= 999
+narrow_try	a u16	u64	let r option u8 narrow_try u8 a . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	255	= 255
+narrow_try	a u16	u64	let r option u8 narrow_try u8 a . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	256	= 999
 cast	a u8	i8	return cast i8 a .	100	= 100
 cast	a u8	i8	return cast i8 a .	200	TRAP E-VM-CAST
 cast	a i8	u8	return cast u8 a .	-1	TRAP E-VM-CAST
@@ -313,69 +313,69 @@ sub	a u8, b f64	f64	return sub a b .	1 2.0	CHECK E-TYPE-MIX
 mul	a u8, b f64	f64	return mul a b .	1 2.0	CHECK E-TYPE-MIX
 div	a u8, b f64	f64	return div a b .	1 2.0	CHECK E-TYPE-MIX
 mod	a u8, b f64	f64	return mod a b .	1 2.0	CHECK E-TYPE-MIX
-chk_sub	a f64, b f64	u64	let r be option f64 chk_sub a b . ␤ if is_some r . do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-chk_mul	a f64, b f64	u64	let r be option f64 chk_mul a b . ␤ if is_some r . do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+chk_sub	a f64, b f64	u64	let r option f64 chk_sub a b . ␤ if is_some r do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+chk_mul	a f64, b f64	u64	let r option f64 chk_mul a b . ␤ if is_some r do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
 div_nz	a u32, b u32	u32	return div_nz a b .	10 0	TRAP E-VM-DIV0
-ne	a u8	bool	let x be option u8 chk_add a 1 . ␤ let y be option u8 chk_add a 1 . ␤ return ne x y .	1	TRAP E-VM-TYPE
+ne	a u8	bool	let x option u8 chk_add a 1 . ␤ let y option u8 chk_add a 1 . ␤ return ne x y .	1	TRAP E-VM-TYPE
 narrow	a u16	u8	return narrow a .	1	CHECK E-IR-UNDEF
 narrow_wrap	a u16	u8	return narrow_wrap a .	1	CHECK E-IR-UNDEF
 narrow_sat	a u16	u8	return narrow_sat a .	1	CHECK E-IR-UNDEF
 narrow_try	a u16	u8	return narrow_try a .	1	CHECK E-IR-UNDEF
-while		u64	var s be u64 0 . ␤ while lt s 3 . do set s (add s 1) . end ␤ return s .		= 3
-while		u64	var s be u64 0 . ␤ while lt s 0 . do set s 9 . end ␤ return s .		= 0
-while		u64	var s be u64 0 . ␤ while lt s 3 do set s (add s 1) . end ␤ return s .		CHECK E-CTRL-NODOT
-while		u64	var s be u64 0 . ␤ while s . do set s 0 . end ␤ return s .		CHECK E-TYPE-COND
-while		u64	var s be u64 0 . ␤ while true . do set s (add s 1) . if eq s 4 . do break . end end ␤ return s .		= 4
-while		u64	var s be u64 0 . ␤ var i be u64 0 . ␤ while lt i 5 . do ␤   set i (add i 1) . ␤   if eq i 3 . do continue . end ␤   set s (add s i) . ␤ end ␤ return s .		= 12
-while		u64	var s be u64 0 . ␤ break . ␤ return s .		CHECK E-LOOP-OUTSIDE
-while		u64	var s be u64 0 . ␤ continue . ␤ return s .		CHECK E-LOOP-OUTSIDE
-while		u64	var s be u64 0 . ␤ while lt s 3 . do set s (add s 1) . else set s 9 . end ␤ return s .		CHECK E-STMT-ELSE
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set s (add s x) . end ␤ return s .		= 60
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x (subslice xs 0 2) do set s (add s x) . end ␤ return s .		= 30
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x (subslice xs 0 0) do set s (add s 1) . end ␤ return s .		= 0
-for		u64	var s be u64 0 . ␤ for x lit slice u64 1 2 3 . . do set s (add s x) . end ␤ return s .		= 6
-for		u64	var s be u64 0 . ␤ for x "ab" do set s (add s (widen u64 x)) . end ␤ return s .		= 195
-for		u64	var s be u64 0 . ␤ for x 5 do set s (add s x) . end ␤ return s .		CHECK E-TYPE-ITER
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x in xs do set s (add s x) . end ␤ return s .		CHECK E-VOCAB-REMOVED
-for	b slice u8	u64	var s be u64 0 . ␤ for x view_array u16 b . do set s (add s (widen u64 x)) . end ␤ return s .		= 0
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x mut xs do set x 1 . end ␤ return s .		CHECK E-TYPE-MUT
-for		u64	var s be u64 0 . ␤ for i count u64 3 . do set s (add (mul s 10) (add i 1)) . end ␤ return s .		= 123
-for		u64	var s be u64 0 . ␤ for i count u64 0 . do set s (add s 1) . end ␤ return s .		= 0
-for		u64	var s be u64 0 . ␤ for i count 3 . do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
-for		u64	var s be u64 0 . ␤ for i count f64 3 . do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
-for		u64	var s be u64 0 . ␤ for i count u8 300 . do set s 1 . end ␤ return s .		CHECK E-TYPE-WIDTH
-for	n i8	u64	var s be u64 0 . ␤ for i count i8 n . do set s (add s 1) . end ␤ return s .	-1	= 0
-for		u64	var s be u64 0 . ␤ for i range u64 3 5 . do set s (add (mul s 10) i) . end ␤ return s .		= 345
-for		u64	var s be u64 0 . ␤ for i range u64 5 3 . do set s (add (mul s 10) i) . end ␤ return s .		= 543
-for		u64	var s be u64 0 . ␤ for i range u64 3 3 . do set s (add s 1) . end ␤ return s .		= 1
-for		u64	var s be u64 0 . ␤ for i range u64 1 10 step 2 . do set s (add (mul s 10) i) . end ␤ return s .		= 13579
-for		u64	var s be u64 0 . ␤ for i range i64 10 1 step -3 . do set s (add s 1) . end ␤ return s .		= 4
-for		u64	var s be u64 0 . ␤ for i range i64 1 10 step -1 . do set s (add s 1) . end ␤ return s .		= 0
-for		u64	var s be u64 0 . ␤ for i range u64 1 10 step 0 . do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
-for	k i64	u64	var s be u64 0 . ␤ for i range u64 1 10 step k . do set s 1 . end ␤ return s .	0	TRAP E-VM-PANIC
-for	k i64	u64	var s be u64 0 . ␤ for i range u64 0 6 step k . do set s (add s 1) . end ␤ return s .	2	= 4
-for		u64	var s be u64 0 . ␤ for i range u8 0 255 . do set s (add s 1) . end ␤ return s .		= 256
-for		u64	var s be u64 0 . ␤ for i range u8 250 255 step 3 . do set s (add (mul s 1000) (widen u64 i)) . end ␤ return s .		= 250253
-for		u64	var s be u64 0 . ␤ for i range i8 -128 127 . do set s (add s 1) . end ␤ return s .		= 256
-for	n u64	u64	var s be u64 0 . ␤ for i range u8 0 n . do set s 1 . end ␤ return s .	3	CHECK E-TYPE-WIDTH
-for		u64	var s be u64 0 . ␤ for i count u64 3 . do set i 0 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s be u64 0 . ␤ var n be u64 3 . ␤ for i count u64 n . do set n 5 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s be u64 0 . ␤ for i be u64 1 . while lt i 100 . next mul i 2 . do set s (add s 1) . end ␤ return s .		= 7
-for		u64	var s be u64 0 . ␤ for i be u64 9 . while lt i 9 . next add i 1 . do set s 1 . end ␤ return s .		= 0
-for		u64	var s be u64 0 . ␤ for i be u64 1 . do set s 1 . end ␤ return s .		CHECK E-IR-UNSUP
-for		u64	var s be u64 0 . ␤ for i be u64 1 . while i . next mul i 2 . do set s 1 . end ␤ return s .		CHECK E-TYPE-COND
-for		u64	var s be u64 0 . ␤ for i be u8 1 . while lt i 200 . next mul i 4 . do set s (add s 1) . end ␤ return s .		TRAP E-VM-OVERFLOW
-for		u64	var s be u64 0 . ␤ for i be u64 1 . while lt i 9 . next add i 1 . do set i 5 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s be u64 0 . ␤ for i count u64 10 . where eq (mod i 2) 0 . do set s (add s i) . end ␤ return s .		= 20
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x xs where gt x 10 . do set s (add s x) . end ␤ return s .		= 50
-for		u64	var s be u64 0 . ␤ for i be u64 1 . while lt i 9 . next add i 1 . where eq (mod i 2) 0 . do set s (add s i) . end ␤ return s .		= 20
-for		u64	var s be u64 0 . ␤ for i count u64 10 . do ␤   if eq i 2 . do continue . end ␤   if eq i 5 . do break . end ␤   set s (add s i) . ␤ end ␤ return s .		= 8
-for		u64	var s be u64 0 . ␤ for i count u64 3 . do ␤   for j count u64 3 . do ␤     if eq j 1 . do break . end ␤     set s (add s 1) . ␤   end ␤ end ␤ return s .		= 3
-for		u64	var s be u64 0 . ␤ let i be u64 5 . ␤ for i count u64 3 . do set s (add s i) . end ␤ return s .		CHECK E-NAME-SHADOW
+while		u64	var s u64 0 . ␤ while lt s 3 do set s (add s 1) . end ␤ return s .		= 3
+while		u64	var s u64 0 . ␤ while lt s 0 do set s 9 . end ␤ return s .		= 0
+while		u64	var s u64 0 . ␤ while lt s 3 . do set s (add s 1) . end ␤ return s .		CHECK E-CTRL-DOT
+while		u64	var s u64 0 . ␤ while s do set s 0 . end ␤ return s .		CHECK E-TYPE-COND
+while		u64	var s u64 0 . ␤ while true do set s (add s 1) . if eq s 4 do break . end end ␤ return s .		= 4
+while		u64	var s u64 0 . ␤ var i u64 0 . ␤ while lt i 5 do ␤   set i (add i 1) . ␤   if eq i 3 do continue . end ␤   set s (add s i) . ␤ end ␤ return s .		= 12
+while		u64	var s u64 0 . ␤ break . ␤ return s .		CHECK E-LOOP-OUTSIDE
+while		u64	var s u64 0 . ␤ continue . ␤ return s .		CHECK E-LOOP-OUTSIDE
+while		u64	var s u64 0 . ␤ while lt s 3 do set s (add s 1) . else set s 9 . end ␤ return s .		CHECK E-STMT-ELSE
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set s (add s x) . end ␤ return s .		= 60
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x (subslice xs 0 2) do set s (add s x) . end ␤ return s .		= 30
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x (subslice xs 0 0) do set s (add s 1) . end ␤ return s .		= 0
+for		u64	var s u64 0 . ␤ for x lit slice u64 1 2 3 . do set s (add s x) . end ␤ return s .		= 6
+for		u64	var s u64 0 . ␤ for x "ab" do set s (add s (widen u64 x)) . end ␤ return s .		= 195
+for		u64	var s u64 0 . ␤ for x 5 do set s (add s x) . end ␤ return s .		CHECK E-TYPE-ITER
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x in xs do set s (add s x) . end ␤ return s .		CHECK E-VOCAB-REMOVED
+for	b slice u8	u64	var s u64 0 . ␤ for x view_array u16 b do set s (add s (widen u64 x)) . end ␤ return s .		= 0
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x mut xs do set x 1 . end ␤ return s .		CHECK E-TYPE-MUT
+for		u64	var s u64 0 . ␤ repeat i u64 3 do set s (add (mul s 10) (add i 1)) . end ␤ return s .		= 123
+for		u64	var s u64 0 . ␤ repeat i u64 0 do set s (add s 1) . end ␤ return s .		= 0
+for		u64	var s u64 0 . ␤ repeat i 3 do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
+for		u64	var s u64 0 . ␤ repeat i f64 3 do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
+for		u64	var s u64 0 . ␤ repeat i u8 300 do set s 1 . end ␤ return s .		CHECK E-TYPE-WIDTH
+for	n i8	u64	var s u64 0 . ␤ repeat i i8 n do set s (add s 1) . end ␤ return s .	-1	= 0
+for		u64	var s u64 0 . ␤ range i u64 3 5 do set s (add (mul s 10) i) . end ␤ return s .		= 345
+for		u64	var s u64 0 . ␤ range i u64 5 3 do set s (add (mul s 10) i) . end ␤ return s .		= 543
+for		u64	var s u64 0 . ␤ range i u64 3 3 do set s (add s 1) . end ␤ return s .		= 1
+for		u64	var s u64 0 . ␤ range i u64 1 10 step 2 do set s (add (mul s 10) i) . end ␤ return s .		= 13579
+for		u64	var s u64 0 . ␤ range i i64 10 1 step -3 do set s (add s 1) . end ␤ return s .		= 4
+for		u64	var s u64 0 . ␤ range i i64 1 10 step -1 do set s (add s 1) . end ␤ return s .		= 0
+for		u64	var s u64 0 . ␤ range i u64 1 10 step 0 do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
+for	k i64	u64	var s u64 0 . ␤ range i u64 1 10 step k do set s 1 . end ␤ return s .	0	TRAP E-VM-PANIC
+for	k i64	u64	var s u64 0 . ␤ range i u64 0 6 step k do set s (add s 1) . end ␤ return s .	2	= 4
+for		u64	var s u64 0 . ␤ range i u8 0 255 do set s (add s 1) . end ␤ return s .		= 256
+for		u64	var s u64 0 . ␤ range i u8 250 255 step 3 do set s (add (mul s 1000) (widen u64 i)) . end ␤ return s .		= 250253
+for		u64	var s u64 0 . ␤ range i i8 -128 127 do set s (add s 1) . end ␤ return s .		= 256
+for	n u64	u64	var s u64 0 . ␤ range i u8 0 n do set s 1 . end ␤ return s .	3	CHECK E-TYPE-WIDTH
+for		u64	var s u64 0 . ␤ repeat i u64 3 do set i 0 . end ␤ return s .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ var n u64 3 . ␤ repeat i u64 n do set n 5 . end ␤ return s .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i 100 next mul i 2 do set s (add s 1) . end ␤ return s .		= 7
+for		u64	var s u64 0 . ␤ cycle i u64 9 while lt i 9 next add i 1 do set s 1 . end ␤ return s .		= 0
+for		u64	var s u64 0 . ␤ cycle i u64 1 do set s 1 . end ␤ return s .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ cycle i u64 1 while i next mul i 2 do set s 1 . end ␤ return s .		CHECK E-TYPE-COND
+for		u64	var s u64 0 . ␤ cycle i u8 1 while lt i 200 next mul i 4 do set s (add s 1) . end ␤ return s .		TRAP E-VM-OVERFLOW
+for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i 9 next add i 1 do set i 5 . end ␤ return s .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ repeat i u64 10 if eq (mod i 2) 0 do set s (add s i) . end ␤ return s .		= 20
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs if gt x 10 do set s (add s x) . end ␤ return s .		= 50
+for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i 9 next add i 1 if eq (mod i 2) 0 do set s (add s i) . end ␤ return s .		= 20
+for		u64	var s u64 0 . ␤ repeat i u64 10 do ␤   if eq i 2 do continue . end ␤   if eq i 5 do break . end ␤   set s (add s i) . ␤ end ␤ return s .		= 8
+for		u64	var s u64 0 . ␤ repeat i u64 3 do ␤   repeat j u64 3 do ␤     if eq j 1 do break . end ␤     set s (add s 1) . ␤   end ␤ end ␤ return s .		= 3
+for		u64	var s u64 0 . ␤ let i u64 5 . ␤ repeat i u64 3 do set s (add s i) . end ␤ return s .		CHECK E-NAME-SHADOW
 mod	a i8, b i8	i8	return mod a b .	-7 2	= 1
 mod	a i8, b i8	i8	return mod a b .	7 -2	= -1
 mod	a i8, b i8	i8	return mod a b .	-128 -1	= 0
 neg	a i8	i8	return neg a .	-128	TRAP E-VM-OVERFLOW
 neg	a u8	u8	return neg a .	7	CHECK E-TYPE-SIGN
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set x 1 . end ␤ for y xs do set s (add s y) . end ␤ return s .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set x 1 . end ␤ for y xs do set s (add s y) . end ␤ return s .		CHECK E-FOR-HEAD
 note	a u64	u64	note ␤ return add a 1 .	1	CHECK E-NOTE-TERM

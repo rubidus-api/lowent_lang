@@ -100,6 +100,6 @@ unsafe proc ptbump_via_c input k cap c . input p unsafe_ptr pt . output i64 . ef
 rem ★★★ **반대 방향 — C 가 우리를 부른다** (`export extern`).
 rem   C 헤더에 이 이름 그대로 나가고, **하강된 몸을 직접** 부른다 — **비용 0**.
 export extern fn lowent_clamp255 input a u64 . output u64 . do
-  if gt a 255 . do return 255 . end
+  if gt a 255 do return 255 . end
   return a .
 end

@@ -707,8 +707,8 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> geom.manhattan a b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run distance app.low 3 4
@@ -736,8 +736,8 @@ hidden.low:8:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `exp
   <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">lit</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">lit</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> g.manhattan a b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run distance alias.low 3 4
@@ -750,11 +750,11 @@ distance(3, 4) = 7
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ an alias was written, yet the original name is used --- the same module would be called by two spellings</span></em>
-  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_aliasold.low
-mistake_aliasold.low:9:16 E-USE-ALIASED: this unit renamed that module with `as`, so its name here is `g` — the original name no longer stands. One thing, one spelling: if both names worked, a reader would have to check that they mean the same module. Write the member under `g.`
+mistake_aliasold.low:9:13 E-USE-ALIASED: this unit renamed that module with `as`, so its name here is `g` — the original name no longer stands. One thing, one spelling: if both names worked, a reader would have to check that they mean the same module. Write the member under `g.`
 </code></pre></div></div><p>The moment you write <code>as g</code>, the module’s name in this file is <code>g</code> and nothing else. <code>geom.point</code> is refused with <code>E-USE-ALIASED</code>. If both spellings stood, code would get changed on one side only, and a reader would have to keep checking that the two are the same module. The one place the original name belongs is the <code>use</code> line.</p></div></div><h3 id="s21-4">21.4 There is no search path<a class="plink" href="#s21-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Many languages fetch a module from somewhere on a search path when you write just its name. Then what the program depends on becomes knowledge outside the source, and the same source can bring in different files on different machines. Importing in Lowent is one of three things.</p><ul><li>Write the place: <code>use geom from "geom.low" .</code></li><li>Pass it in the same compilation unit: <code>lowentc --check app.low geom.low</code></li><li>Use a reserved standard-library name: <code>use allocs .</code></li></ul><p>The principle is the same when a package manifest (<code>pkg.low</code>) lists external dependencies. Dependencies are pinned <strong>with their content hash</strong>, and if the bytes change the build is refused (chapter 31).</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A module’s name comes from its file name</strong></p><div class="dev-body">This trips people up in the standard library. What <code>use</code> looks for is the <code>module</code> declaration inside the file. The module name of <code>lib/alloc.low</code> is <code>allocs</code>, <code>lib/str.low</code> is <code>strings</code>, and <code>lib/vec.low</code> is <code>vecs</code>. The list of modules whose names differ is the first table of the standard-library part (chapter 32).</div></div><h3 id="s21-5">21.5 When names collide<a class="plink" href="#s21-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A module cannot declare the same name twice.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/dup.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dup .
 <em><span class="tok-c">rem expect: E-NAME-DUP</span></em>
 
@@ -769,14 +769,14 @@ dup.low:5:4 E-NAME-DUP: `answer` (op) is declared twice in module `dup` — a qu
 <strong><span class="tok-k">fn</span></strong> is_even <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> is_odd (sub n <span class="tok-n">1</span>) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> is_odd <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> is_even (sub n <span class="tok-n">1</span>) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run is_even order.low 10
@@ -791,7 +791,7 @@ is_even(7) = 0
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ an imported name is used without its module name</span></em>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">lit</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field a x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_bare.low
@@ -863,7 +863,7 @@ secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names 
 <strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ the type name needed to hold the result is hidden</span></em>
-  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> secretbox.secret secretbox.make_secret .
+  <strong><span class="tok-k">let</span></strong> s secretbox.secret secretbox.make_secret .
   <strong><span class="tok-k">return</span></strong> field s v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_privtype.low
@@ -878,7 +878,7 @@ secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names 
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> classify <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> kind . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> lt n <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> lt n <span class="tok-n">100</span> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> small .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> big .
@@ -892,13 +892,13 @@ secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names 
 <strong><span class="tok-k">use</span></strong> sizes from <span class="tok-s">"</span><span class="tok-s">sizes.low</span><span class="tok-s">"</span> .
 
 <strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
-  <strong><span class="tok-k">match</span></strong> k . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> k sizes.kind sizes.classify n .
+  <strong><span class="tok-k">match</span></strong> k <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ a variant with the module name in front; in this edition it matches any value</span></em>
-    <strong><span class="tok-k">case</span></strong> sizes.small . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> sizes.small <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> sizes.big . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> sizes.big <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -914,13 +914,13 @@ describe(500) = 2
 <strong><span class="tok-k">use</span></strong> sizes from <span class="tok-s">"</span><span class="tok-s">sizes.low</span><span class="tok-s">"</span> .
 
 <strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
-  <strong><span class="tok-k">match</span></strong> k . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> k sizes.kind sizes.classify n .
+  <strong><span class="tok-k">match</span></strong> k <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem write only the variant name; the type (sizes.kind) decides which variant it is</span></em>
-    <strong><span class="tok-k">case</span></strong> small . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> small <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> big . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> big <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -939,7 +939,7 @@ describe(500) = 2
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> fa <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">10</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> cycle_b.fb (sub n <span class="tok-n">1</span>) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run fa cycle_a.low 3

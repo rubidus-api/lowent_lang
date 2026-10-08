@@ -24,76 +24,76 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let bp be option slice u8 arg a 0 .
-  guard is_some bp . else return 64 .
-  let base be slice u8 some_value bp .
+  let bp option slice u8 arg a 0 .
+  guard is_some bp else return 64 .
+  let base slice u8 some_value bp .
 
   rem 세 경로를 각자 버퍼에 조립한다: base/d · base/d/f.tmp · base/d/f
-  let gd be option mut slice u8 alloc_bytes al capacity 512 .
-  guard is_some gd . else return 70 .
-  let pdir be mut slice u8 some_value gd .
-  var bd be strbuf.str_buf strbuf.new .
-  let e1 be result void strbuf.sb_error strbuf.append bd pdir base .
-  guard is_ok e1 . else return 80 .
-  let e2 be result void strbuf.sb_error strbuf.append bd pdir "/d" .
-  guard is_ok e2 . else return 80 .
+  let gd option mut slice u8 alloc_bytes al capacity 512 .
+  guard is_some gd else return 70 .
+  let pdir mut slice u8 some_value gd .
+  var bd strbuf.str_buf strbuf.new .
+  let e1 result void strbuf.sb_error strbuf.append bd pdir base .
+  guard is_ok e1 else return 80 .
+  let e2 result void strbuf.sb_error strbuf.append bd pdir "/d" .
+  guard is_ok e2 else return 80 .
 
-  let gtmp be option mut slice u8 alloc_bytes al capacity 512 .
-  guard is_some gtmp . else return 70 .
-  let ptmp be mut slice u8 some_value gtmp .
-  var bt be strbuf.str_buf strbuf.new .
-  let e3 be result void strbuf.sb_error strbuf.append bt ptmp base .
-  guard is_ok e3 . else return 80 .
-  let e4 be result void strbuf.sb_error strbuf.append bt ptmp "/d/f.tmp" .
-  guard is_ok e4 . else return 80 .
+  let gtmp option mut slice u8 alloc_bytes al capacity 512 .
+  guard is_some gtmp else return 70 .
+  let ptmp mut slice u8 some_value gtmp .
+  var bt strbuf.str_buf strbuf.new .
+  let e3 result void strbuf.sb_error strbuf.append bt ptmp base .
+  guard is_ok e3 else return 80 .
+  let e4 result void strbuf.sb_error strbuf.append bt ptmp "/d/f.tmp" .
+  guard is_ok e4 else return 80 .
 
-  let gf be option mut slice u8 alloc_bytes al capacity 512 .
-  guard is_some gf . else return 70 .
-  let pfin be mut slice u8 some_value gf .
-  var bf be strbuf.str_buf strbuf.new .
-  let e5 be result void strbuf.sb_error strbuf.append bf pfin base .
-  guard is_ok e5 . else return 80 .
-  let e6 be result void strbuf.sb_error strbuf.append bf pfin "/d/f" .
-  guard is_ok e6 . else return 80 .
+  let gf option mut slice u8 alloc_bytes al capacity 512 .
+  guard is_some gf else return 70 .
+  let pfin mut slice u8 some_value gf .
+  var bf strbuf.str_buf strbuf.new .
+  let e5 result void strbuf.sb_error strbuf.append bf pfin base .
+  guard is_ok e5 else return 80 .
+  let e6 result void strbuf.sb_error strbuf.append bf pfin "/d/f" .
+  guard is_ok e6 else return 80 .
 
   rem 1. 디렉터리를 만든다
-  guard eq (call_builtin dir_make fs (strbuf.as_str bd pdir)) true . else return 10 .
-  guard eq (files.is_dir fs (strbuf.as_str bd pdir)) true . else return 11 .
+  guard eq (call_builtin dir_make fs (strbuf.as_str bd pdir)) true else return 10 .
+  guard eq (files.is_dir fs (strbuf.as_str bd pdir)) true else return 11 .
 
   rem 2. 임시 파일에 내용을 쓴다(모드 1 = 쓰기)
-  let wi be result files.handle files.file_error files.open fs (strbuf.as_str bt ptmp) 1 .
-  guard is_ok wi . else return 12 .
-  var wh be owned files.handle ok_value wi .
-  let w be result u64 files.file_error files.write fs wh "hello" .
-  guard is_ok w . else return 13 .
-  let c1 be result void files.file_error files.close fs wh .
-  guard is_ok c1 . else return 14 .
+  let wi result files.handle files.file_error files.open fs (strbuf.as_str bt ptmp) 1 .
+  guard is_ok wi else return 12 .
+  var wh owned files.handle ok_value wi .
+  let w result u64 files.file_error files.write fs wh "hello" .
+  guard is_ok w else return 13 .
+  let c1 result void files.file_error files.close fs wh .
+  guard is_ok c1 else return 14 .
 
   rem 3. ★ 원자적으로 제자리에 옮긴다 — 임시 → 최종
-  guard eq (call_builtin path_rename fs (strbuf.as_str bt ptmp) (strbuf.as_str bf pfin)) true . else return 15 .
-  guard eq (files.is_file fs (strbuf.as_str bf pfin)) true . else return 16 .
-  let tt be option u64 files.type_of fs (strbuf.as_str bt ptmp) .
-  guard eq (is_some tt) false . else return 17 .          rem 임시는 사라졌다
+  guard eq (call_builtin path_rename fs (strbuf.as_str bt ptmp) (strbuf.as_str bf pfin)) true else return 15 .
+  guard eq (files.is_file fs (strbuf.as_str bf pfin)) true else return 16 .
+  let tt option u64 files.type_of fs (strbuf.as_str bt ptmp) .
+  guard eq (is_some tt) false else return 17 .          rem 임시는 사라졌다
 
   rem 4. 읽어서 내용을 확인한다
-  let gr be option mut slice u8 alloc_bytes al capacity 16 .
-  guard is_some gr . else return 70 .
-  let rbuf be mut slice u8 some_value gr .
-  let ri be result files.handle files.file_error files.open fs (strbuf.as_str bf pfin) 0 .
-  guard is_ok ri . else return 18 .
-  var rh be owned files.handle ok_value ri .
-  let n be result (option u64) files.file_error files.read fs rh rbuf .
-  guard is_ok n . else return 19 .
-  let nv be option u64 ok_value n .
-  guard is_some nv . else return 19 .
-  let c2 be result void files.file_error files.close fs rh .
-  guard is_ok c2 . else return 20 .
-  guard eq (some_value nv) 5 . else return 21 .
-  guard eq (idx rbuf 0) 104 . else return 22 .          rem 'h'
-  guard eq (idx rbuf 4) 111 . else return 23 .          rem 'o'
+  let gr option mut slice u8 alloc_bytes al capacity 16 .
+  guard is_some gr else return 70 .
+  let rbuf mut slice u8 some_value gr .
+  let ri result files.handle files.file_error files.open fs (strbuf.as_str bf pfin) 0 .
+  guard is_ok ri else return 18 .
+  var rh owned files.handle ok_value ri .
+  let n result (option u64) files.file_error files.read fs rh rbuf .
+  guard is_ok n else return 19 .
+  let nv option u64 ok_value n .
+  guard is_some nv else return 19 .
+  let c2 result void files.file_error files.close fs rh .
+  guard is_ok c2 else return 20 .
+  guard eq (some_value nv) 5 else return 21 .
+  guard eq (idx rbuf 0) 104 else return 22 .          rem 'h'
+  guard eq (idx rbuf 4) 111 else return 23 .          rem 'o'
 
   rem 5. 정리한다 — 스스로 되돌린다(재실행 가능)
-  guard eq (call_builtin path_remove fs (strbuf.as_str bf pfin)) true . else return 24 .
-  guard eq (call_builtin path_remove fs (strbuf.as_str bd pdir)) true . else return 25 .
+  guard eq (call_builtin path_remove fs (strbuf.as_str bf pfin)) true else return 24 .
+  guard eq (call_builtin path_remove fs (strbuf.as_str bd pdir)) true else return 25 .
   return (narrow u8 (some_value nv)) .                       rem 5
 end

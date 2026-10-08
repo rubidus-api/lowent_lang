@@ -18,13 +18,13 @@ end
 
 fn lit4 output array u8 4 .
 do
-  var b be lit array u8 4 1 2 3 4 . .
+  var b lit array u8 4 1 2 3 4 . .
   return b .
 end
 
 fn squares input n u64 . output r array u64 3 .
 do
-  for i count u64 3 . do
+  repeat i u64 3 do
     set (idx r i) (mul (add n i) (add n i)) .
   end
   return r .
@@ -45,25 +45,25 @@ end
 export fn sum4 input a u8 . output u64 .
   requires le a 199 .
 do
-  var x be array u8 4 ramp a .
-  let y be array u8 4 twice a .
-  let z be array u8 4 lit4 .
+  var x array u8 4 ramp a .
+  let y array u8 4 twice a .
+  let z array u8 4 lit4 .
   return add (add (cast u64 (idx x 3)) (cast u64 (idx y 0))) (add (cast u64 (idx z 3)) (cast u64 (idx x 1))) .
 end
 
 export fn sq_sum input n u64 . output u64 .
   requires le n 1000 .
 do
-  let s be array u64 3 squares n .
+  let s array u64 3 squares n .
   return add (add (idx s 0) (idx s 1)) (idx s 2) .
 end
 
 export fn half_sum input x f64 . output f64 . do
-  let h be array f64 2 halves x .
+  let h array f64 2 halves x .
   return add (idx h 0) (idx h 1) .
 end
 
 export fn zero_sum output u64 . do
-  let z be array u64 2 zeros .
+  let z array u64 2 zeros .
   return add (idx z 0) (idx z 1) .
 end

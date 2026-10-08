@@ -39,9 +39,9 @@
       대부분의 프로그램에서는 차례가 달라도 답이 같다. 차이가 드러나는 때는 하나다 — 두 피연산자가 서로 다른 까닭으로 멈출 때 #strong[어느 멈춤이 나는가];.
       그 차이가 중요하면 먼저 계산할 것을 `let` 으로 이름에 담는다 — 문장은 적힌 차례로 실행된다.
     ]
-    #ex("전위 표기", "let a be u32 add 1 2 .
-let b be u32 add 1 (mul 2 3) .
-let c be bool lt a b .")
+    #ex("전위 표기", "let a u32 add 1 2 .
+let b u32 add 1 (mul 2 3) .
+let c bool lt a b .")
     #plain[
       `1 + 2 * 3` 을 처음 보는 사람은 `*` 가 먼저인지 `+` 가 먼저인지 #strong[외워야]; 안다.
       `add 1 (mul 2 3)` 은 외울 것이 없다 — 괄호가 그대로 말해 준다. 이 언어가 전위를
@@ -189,7 +189,7 @@ end
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  let n be u64 call_builtin sha256 s o .
+  let n u64 call_builtin sha256 s o .
   return sha256 n .
 end")
     #para("1e")[
@@ -504,7 +504,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end",
     ]
     #para("1a")[
       `splat` 은 레인 수를 #strong[선언된 타입에서]; 받는다. 그래서 쓸 수 있는 자리는 벡터 타입을
-      적은 바인딩의 값 자리뿐이다: `var lim be vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
+      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
     ]
     #para("2")[
@@ -535,7 +535,7 @@ def type bytes slice u8 .
 
 fn total input b bytes . output u64 .
 do
-  var xs be slice f64 view_array f64 b .
+  var xs slice f64 view_array f64 b .
   return sum_neumaier xs .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
 end", "E-TYPE-RETURN")
     #para("2")[
@@ -610,7 +610,7 @@ end", "E-TYPE-RETURN")
 
 fn f input a u8 . output u8 .
 do
-  if a . do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
+  if a do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
   return 0 .
 end", "E-TYPE-COND")
   ]

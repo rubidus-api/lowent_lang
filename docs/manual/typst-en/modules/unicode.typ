@@ -12,7 +12,7 @@ hand. This module carries those range tables *extracted mechanically from the Un
 use unicode .
 
 proc ident_start input cp u64 . output bool . effects none . do
-  if unicode.is_letter cp . do return true . end
+  if unicode.is_letter cp do return true . end
   return eq cp 95 .
 end
 ```
@@ -101,19 +101,19 @@ use unicode .
 use utf8 .
 
 export proc count_words input s slice u8 . output option u64 . effects none . do
-  var off be u64 0 .
-  var words be u64 0 .
-  var inword be bool false .
-  while lt off (len s) . do
-    let cp be option u64 utf8.decode s off .
-    guard is_some cp . else return none .
-    let n be u64 utf8.seq_len (idx s off) .
-    guard gt n 0 . else return none .
-    if unicode.is_alnum (some_value cp) . do
-      if eq inword false . do set words (add words 1) . end
+  var off u64 0 .
+  var words u64 0 .
+  var inword bool false .
+  while lt off (len s) do
+    let cp option u64 utf8.decode s off .
+    guard is_some cp else return none .
+    let n u64 utf8.seq_len (idx s off) .
+    guard gt n 0 else return none .
+    if unicode.is_alnum (some_value cp) do
+      if eq inword false do set words (add words 1) . end
       set inword true .
     end
-    if eq (unicode.is_alnum (some_value cp)) false . do
+    if eq (unicode.is_alnum (some_value cp)) false do
       set inword false .
     end
     set off (add off n) .
@@ -130,7 +130,7 @@ regular expression is enough, use it; where only one code point needs asking, ca
 #antipattern[Passing a byte as is][
   ```lowent
   rem ✘ index gives a byte. The first byte of '한' is 0xED
-  if unicode.is_letter (widen u64 (idx s 0)) . do … end
+  if unicode.is_letter (widen u64 (idx s 0)) do … end
   ```
   0xED (237) is the code point U+00ED (í) --- judged a letter by chance, but *not the character being asked about*. When handling UTF-8, always go through `utf8.decode`.
 ]
@@ -146,7 +146,7 @@ regular expression is enough, use it; where only one code point needs asking, ca
 #antipattern[Computing digit values with `is_number`][
   ```lowent
   rem ✘ Ⅶ (U+2166) passes too, and cp − 48 is meaningless
-  if unicode.is_number cp . do set v (add (mul v 10) (sub cp 48)) . end
+  if unicode.is_number cp do set v (add (mul v 10) (sub cp 48)) . end
   ```
   To accept decimal digits only, use `is_digit`.
 ]

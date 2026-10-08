@@ -10,10 +10,10 @@ them and handles backspace (line buffering and echo). To move the cursor the mom
 such byte strings as keys.
 
 ```lowent
-let p be option u64 tty.parse_key buf 0 .
-guard is_some p . else return none .
-let code be u64 tty.key_of (some_value p) .
-let used be u64 tty.len_of (some_value p) .
+let p option u64 tty.parse_key buf 0 .
+guard is_some p else return none .
+let code u64 tty.key_of (some_value p) .
+let used u64 tty.len_of (some_value p) .
 ```
 
 #aside[Raw mode changes the user's terminal settings, and the change survives the program's death][
@@ -53,32 +53,32 @@ module keydemo .
 use tty .
 
 proc main input t cap tty . input al cap allocator . output u8 . effects alloc . do
-  let g be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some g . else return 1 .
-  let buf be mut slice u8 some_value g .
-  guard tty_raw t true . else return 1 .
-  var going be bool true .
-  var last be u64 0 .
-  while going . do
-    let n be option u64 tty_read t buf .
-    guard is_some n . else do
+  let g option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some g else return 1 .
+  let buf mut slice u8 some_value g .
+  guard tty_raw t true else return 1 .
+  var going bool true .
+  var last u64 0 .
+  while going do
+    let n option u64 tty_read t buf .
+    guard is_some n else do
       set going false .
       continue .
     end
-    var off be u64 0 .
-    while lt off (some_value n) . do
-      let p be option u64 tty.parse_key (subslice buf 0 (some_value n)) off .
-      guard is_some p . else do
+    var off u64 0 .
+    while lt off (some_value n) do
+      let p option u64 tty.parse_key (subslice buf 0 (some_value n)) off .
+      guard is_some p else do
         set off (some_value n) .
         continue .
       end
-      let code be u64 tty.key_of (some_value p) .
+      let code u64 tty.key_of (some_value p) .
       set last code .
-      if eq code 113 . do set going false . end
+      if eq code 113 do set going false . end
       set off (add off (tty.len_of (some_value p))) .
     end
   end
-  let r be bool tty_raw t false .
+  let r bool tty_raw t false .
   return narrow u8 last .
 end
 ```

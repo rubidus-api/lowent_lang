@@ -34,17 +34,17 @@ do
   set (idx xs 1) 2 .
   set (idx vxs 0) 10 .
   set (idx vxs 1) 20 .
-  let n1 be u64 soa.step_x xs vxs 2 .
-  guard eq n1 2 . else return 90 .
-  let s1 be u64 soa.sum_field (subslice xs 0 2) .
+  let n1 u64 soa.step_x xs vxs 2 .
+  guard eq n1 2 else return 90 .
+  let s1 u64 soa.sum_field (subslice xs 0 2) .
   set (idx rows 0) 1 .
   set (idx rows 1) 10 .
   set (idx rows 2) 2 .
   set (idx rows 3) 20 .
-  let n2 be u64 soa.step_x_aos rows 2 0 1 2 .
-  guard eq n2 2 . else return 91 .
-  var s2 be u64 add (idx rows 0) (idx rows 2) .
-  guard eq s1 s2 . else return 92 .
+  let n2 u64 soa.step_x_aos rows 2 0 1 2 .
+  guard eq n2 2 else return 91 .
+  var s2 u64 add (idx rows 0) (idx rows 2) .
+  guard eq s1 s2 else return 92 .
   return s1 .
 end
 ```
@@ -54,7 +54,7 @@ end
 모른다* --- AoS 판과 SoA 판이 서로 다른 op 이름이 되고(`step_x` 대 `step_x_aos`), AoS 의 오프셋 인자는 전부 `u64` 라 컴파일러가 지켜 주지 못한다.
 
 #antipattern[반환된 처리 수를 보지 않는다][
-  `soa.step_x xs vxs 1000` 은 `xs` 가 3 칸이면 조용히 3 개만 처리한다. `n` 개가 전부 처리됐다고 가정하는 코드는 `guard eq m n .` 으로 확인한다.
+  `soa.step_x xs vxs 1000` 은 `xs` 가 3 칸이면 조용히 3 개만 처리한다. `n` 개가 전부 처리됐다고 가정하는 코드는 `guard eq m n` 으로 확인한다.
 ]
 
 #antipattern[AoS 판의 오프셋을 바꿔 낀다][

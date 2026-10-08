@@ -25,6 +25,9 @@ typedef struct {
     // ★ 2026-09-25 (소유자 결정 «end 는 자기 do 까지만») — 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .`)이
     //   `end` 뒤에 찍은 점은 그 문장의 닫개다. 그 점의 토큰 자리를 적어 두고, 나머지 `end` 뒤 점만 E-DOT-STRAY 로 거절한다.
     proven_array_t dot_ok;   // proven_size_t — 오름차순(파스가 왼쪽에서 오른쪽으로 간다)
+    // ★ RFC-0141 — 지금 **머리의 식**을 읽고 있는가(괄호 · 블록 안에서는 0). 머리 안에서는 식이 끝내는 낱말(`do` · `if` · `while`)에서
+    //   끝나므로, 제 인자를 끝까지 먹는 폼(나열 리터럴 · `..op`)이 그 낱말 앞에서 멈춰야 한다.
+    int head;
 } low_parser_t;
 
 typedef struct {

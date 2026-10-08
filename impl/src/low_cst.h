@@ -79,6 +79,8 @@ struct low_cst {
     //   `target` 은 **문맥 낱말**(task_group 처럼 — 어휘 0 증가). intrinsic 몸통은 아직 없다(스캐폴드·격리만).
     proven_u8str_view_t target_iset;
     bool           synth;    // ★ 정규화가 **만든** 괄호인가 (저자가 쓴 괄호와 구별한다).
+    bool           regen;    // ★ 처리기가 **다시 지은** 문장인가(배열 결과의 숨은 묶기 · 자리를 넘기는 return). 그 문장을 묶는 괄호는
+                             //   «원문에 구조가 없다» 는 셈(`--nest`)에 넣지 않는다 — 원문에 없던 문장이다.
                              //   이것이 있어야 `low_flat_kids` 가 **평평한 입력에 항등**임을
                              //   보장할 수 있다 — 저자의 괄호는 건드리지 않는다.
     proven_u32     line, col;
@@ -126,6 +128,15 @@ typedef struct {
 [[nodiscard]] low_parse_result_t low_parse(proven_allocator_t node_alloc,
                                            proven_allocator_t work,
                                            const proven_array_t *tokens);
+
+// ★ RFC-0141 — 옛 철자(`let n be …` · `if c . do` · `for i count …` · `using al keep`)를 만난 자리마다 «고칠 글자» 를 적어 둔다.
+//   `--migrate` 가 그것을 원문에 적용해 새 철자로 옮긴다(나머지 글자 · 줄바꿈 · 주석은 그대로). 너그러운 모드(`--fmt` · `--migrate`)에서는
+//   옛 철자의 진단을 내지 않는다 — 나무는 어느 쪽이든 새 꼴로 선다.
+typedef struct { proven_u32 line, col, del; const char *ins; } low_fix_t;
+void low_parse_lenient(bool on);
+void low_parse_inner_shape(bool on);   /* 단위 시험 전용 — 안쪽 모양(`var x u64 be 1 .`)을 그대로 읽는다 */
+const low_fix_t *low_parse_fixes(proven_size_t *n);
+void low_surface_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0141: 새 표면 → 안쪽 나무 */
 
 // Print the CST as an indented tree (debug).
 void low_cst_dump(const low_parse_result_t *pr);
@@ -213,8 +224,6 @@ int low_input_rank(const low_cst_t *opform, proven_size_t at, proven_size_t end)
 // ★★★★ RFC-0112 D8 — `using` 을 푼다: 부르는 자리에 얼로케이터 인자를 끼우고, 받는 쪽 절을 입력으로 바꾼다.
 //   나무(`low_nest`) **뒤**, 단형화(`low_mono`) **앞**에 한 번 돈다.
 void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
-// RFC-0135 D12 — `using <할당기> keep` 의 `keep` 을 빼고 `using` 원자에 표시한다(선언 차례 패스 앞).
-void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0135 S1 */
 void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);          /* RFC-0135 S1 */
 void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict);   /* RFC-0132 T1 */

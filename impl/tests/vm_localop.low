@@ -16,17 +16,17 @@ end
 
 export fn parity input n u64 . output u64 .
 do
-  let r be u64 twice (is_even n) .
+  let r u64 twice (is_even n) .
   fn is_even input k u64 . output u64 .
   do
-    if eq k 0 . do
+    if eq k 0 do
       return 1 .
     end
     return is_odd (sub k 1) .
   end
   fn is_odd input k u64 . output u64 .
   do
-    if eq k 0 . do
+    if eq k 0 do
       return 0 .
     end
     return is_even (sub k 1) .
@@ -61,7 +61,7 @@ actor counter do
 end
 
 export proc go output u64 . effects state . do
-  var c be counter spawn actor counter .
-  let a be u64 send c bump 2 .
+  var c counter spawn actor counter .
+  let a u64 send c bump 2 .
   return send c bump 3 .
 end

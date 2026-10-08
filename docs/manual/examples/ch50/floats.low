@@ -9,6 +9,6 @@ end
 
 fn close_enough output bool .
 do
-  let d be f64 sub (add 0.1 0.2) 0.3 .
+  let d f64 sub (add 0.1 0.2) 0.3 .
   return lt (abs d) 0.000000001 .
 end

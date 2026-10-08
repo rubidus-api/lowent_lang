@@ -15,22 +15,22 @@ def type bytes slice u8 .
 
 rem masked store — v>5 인 lane 만 out 에 쓴다. 나머지 out 자리는 **그대로**(호출자가 준 값 보존).
 proc mstore input b bytes . input out mut slice u8 . output u64 . effects none . do
-  let xs be slice u32 view_array u32 b .
-  var v be vec u32 4 load xs 0 .
-  let lim be vec u32 4 splat 5 .
-  var m be mask 4 gt v lim .
+  let xs slice u32 view_array u32 b .
+  var v vec u32 4 load xs 0 .
+  let lim vec u32 4 splat 5 .
+  var m mask 4 gt v lim .
   store_masked out 0 v m .
   return 0 .
 end
 
 rem masked load (merge) — v>5 인 lane 은 메모리를 읽고, 나머지는 passthrough(=100). 결과를 out 에 되쓴다.
 proc mload input b bytes . input out mut slice u8 . output u64 . effects none . do
-  let xs be slice u32 view_array u32 b .
-  let v be vec u32 4 load xs 0 .
-  let lim be vec u32 4 splat 5 .
-  let m be mask 4 gt v lim .
-  let pass be vec u32 4 splat 100 .
-  var r be vec u32 4 load_masked xs 0 m pass .
+  let xs slice u32 view_array u32 b .
+  let v vec u32 4 load xs 0 .
+  let lim vec u32 4 splat 5 .
+  let m mask 4 gt v lim .
+  let pass vec u32 4 splat 100 .
+  var r vec u32 4 load_masked xs 0 m pass .
   store out 0 r .
   return 0 .
 end
@@ -40,13 +40,13 @@ rem   레인 0..2 는 메모리를 읽고 **레인 3 은 short[3](경계 밖)을
 rem   평범한 `load short 0` 이라면 레인 3 이 OOB 라 panic 이다 — masked load 만이 이 꼬리를 안전하게 만든다.
 rem   mask 는 full(u32 4개, 경계 안)에서 만든다: full=[10,10,10,0], gt 5 → [켜,켜,켜,꺼].
 proc tail input full bytes . input short bytes . input out mut slice u8 . output u64 . effects none . do
-  let xf be slice u32 view_array u32 full .
-  let xs be slice u32 view_array u32 short .
-  let vf be vec u32 4 load xf 0 .
-  let lim be vec u32 4 splat 5 .
-  let m be mask 4 gt vf lim .
-  let pass be vec u32 4 splat 9 .
-  var r be vec u32 4 load_masked xs 0 m pass .
+  let xf slice u32 view_array u32 full .
+  let xs slice u32 view_array u32 short .
+  let vf vec u32 4 load xf 0 .
+  let lim vec u32 4 splat 5 .
+  let m mask 4 gt vf lim .
+  let pass vec u32 4 splat 9 .
+  var r vec u32 4 load_masked xs 0 m pass .
   store out 0 r .
   return 0 .
 end

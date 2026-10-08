@@ -14,7 +14,7 @@
 fn bump input a u64 . output u64 .
   requires lt a 100 .
 do
-  var s be u64 a .
+  var s u64 a .
   add s 100 .   rem 뜻한 것은 set s (add s 100) . 이다
   return s .
 end", "E-VALUE-DISCARDED")
@@ -34,29 +34,56 @@ end", "E-VALUE-DISCARDED")
       그러므로 `requires`·`ensures` 가 매개변수 이름으로 말하는 것은 #strong[들어올 때의 값];이다.
       몸통이 그 이름을 `set` 한 뒤에도 계약이 말하는 것은 들어올 때의 값 그대로다.
     ]
+    #syntax("binding", "binding      ::= ( \"let\" | \"var\" ) name [ alloc-clause ] type expression [ fail-clause ] \".\"
+alloc-clause ::= ( \"use\" | \"keep\" ) name
+fail-clause  ::= \"else\" leave
+               | \"else\" block
+               | \"else\" \"error\" name block
+leave        ::= \"return\" [ expression ] | \"break\" | \"continue\" | \"panic\" expression")
     #para("3")[
-      이름을 짓는 문장은 `let <이름> be <타입> <값> .`(`var` 도 같다)이다 — #strong[타입은 `be` 뒤, 값 앞에 선다.];
-      값이 그 타입에 맞지 않으면 번역이 거부된다. 타입은 추측하지 아니한다: `let x be u64 300 .` 이지
-      `let x be 300 .` 이 아니다(`E-LET-NOTYPE`). 추측한 타입은 맨 리터럴이 폭 검사를 빠져나가게 했다.
+      이름을 짓는 문장은 `let <이름> <타입> <값> .`(`var` 도 같다)이다 — #strong[타입은 이름 뒤, 값 앞에 선다.];
+      값이 그 타입에 맞지 않으면 번역이 거부된다. 타입은 추측하지 아니한다: `let x u64 300 .` 이지
+      `let x 300 .` 이 아니다(`E-LET-NOTYPE`). 추측한 타입은 맨 리터럴이 폭 검사를 빠져나가게 했다.
     ]
     #para("3a")[
-      타입을 이름 뒤에 적는 옛 모양 `let <이름> <타입> be <값> .` 은 거부된다(`E-LET-OLDFORM`).
+      이름과 타입 사이에 낱말을 끼우지 아니한다. 옛 꼴 `let <이름> be <타입> <값> .` 의 `be` 는 이 언어의 낱말이
+      아니다 — 적으면 번역이 거부된다(`E-LET-BE`).
     ]
     #para("3b")[
-      `be` 뒤의 타입은 타입 문법의 인자 수로 끝난다(`u64` · `slice u8` · `result u64 perr` · `array u8 4`).
+      타입은 타입 문법의 인자 수로 끝난다(`u64` · `slice u8` · `result u64 perr` · `array u8 4`).
       인자 수가 정해지지 않은 형태(오류 타입을 적지 않은 `result u64` 따위)나 인자를 받는 사용자 타입은
-      괄호로 싼다 — `let r be (result u64) ok k .`. 얼로케이터 절은 `be` 앞에 둔다 —
-      `var v using al be option (vec u32 allocs.bump_bytes) vecgen.new al 8 .`.
+      괄호로 싼다 — `let r (result u64) ok k .`.
+    ]
+    #para("3c")[
+      #strong[할당기 절];은 이름 바로 뒤, 타입 앞에 선다 — `use <할당기>` 는 블록이 끝날 때 돌려주고, `keep <할당기>` 는
+      블록을 나가도 돌려주지 아니한다(#cref("6.2.6") (7e)(7f) · #cref("8.14")):
+      `var v use al option (vec u32 allocs.bump_bytes) vecgen.new al 8 .`.
+      옛 꼴 `using <할당기> be` · `using <할당기> keep be` 는 거부된다(`E-USING-OLD`).
     ]
     #para("4")[
-      `be` 뒤에는 #strong[값이 있어야 한다.]; 값 없이 닫으면 번역이 거부된다(`E-LET-NOVALUE`).
+      타입 뒤에는 #strong[값이 있어야 한다.]; 값 없이 닫으면 번역이 거부된다(`E-LET-NOVALUE`).
       이름을 짓되 값을 나중에 주는 길은 이 언어에 없다.
     ]
+    #para("4a")[
+      값은 #strong[닫는 점];이나 #strong[`else`]; 에서 끝난다. 점은 문장을 닫는 일만 한다 — 값과 `else` 사이에 점을 적으면
+      번역이 거부된다(`E-ELSE-DOT`). 다만 길이가 정해지지 않은 나열 리터럴(`lit array u64 2 7 8 .`)은 제 점으로
+      닫으므로(#cref("6.2.6")), 그 점 다음에 `else` 가 올 수 있다.
+    ]
     #para("5")[
-      #strong[바인딩 `else`]; — `let <이름> be <타입> <값> . else <문장>` 에서 값의 타입이 `option t`·`result t e` 이고 적은
-      타입이 알맹이 `t` 이면, 값이 있을 때 그 알맹이가 이름에 묶이고 비었을 때(`none`·오류) `else` 의 문장이 실행된다.
-      `else` 의 문장은 #strong[반드시 벗어나야 한다];(`return`·`break`·`continue`·`panic`) — 흘러 내려오면 거부된다
+      #strong[실패 절]; — `let <이름> <타입> <값> else <벗어남> .` 에서 값의 타입이 `option t`·`result t e` 이고 적은
+      타입이 알맹이 `t` 이면, 값이 있을 때 그 알맹이가 이름에 묶이고 비었을 때(`none`·오류) `else` 뒤가 실행된다.
+      `else` 뒤는 #strong[반드시 벗어나야 한다];(`return`·`break`·`continue`·`panic`) — 흘러 내려오면 거부된다
       (`E-GUARD-FALLTHROUGH`). 그래서 그 뒤에서 이름은 늘 알맹이를 가진다. `var` 도 같다.
+    ]
+    #para("5c")[
+      실패 절의 꼴은 셋이다. `else <벗어남> .` 은 벗어나는 문장 하나다 — 문장의 닫는 점이 그 뒤에 온다.
+      `else do … end` 는 여러 문장이다 — 블록의 모든 길이 벗어나야 한다. `else error <이름> do … end` 는
+      `result` 의 #strong[오류 값을 `<이름>` 에 묶어]; 블록 안에서 본다 — `<이름>` 은 그 블록 안에서만 살고, 블록의 모든
+      길이 벗어나야 한다. 값이 `option` 이면 받을 오류가 없으므로 `else error <이름>` 은 거부된다(`E-BIND-ELSE`).
+    ]
+    #para("5d")[
+      실패 절이 #strong[블록으로 끝나면 닫는 점을 적지 아니한다]; — `end` 가 문장을 닫는다(`if … end` 와 같다).
+      적으면 번역이 거부된다(`E-DOT-STRAY`).
     ]
     #para("5a")[
       값이 `option`·`result` 가 아니거나 알맹이의 타입이 적은 타입과 다르면 거부된다(`E-BIND-ELSE`). 값의 타입은 부르는
@@ -64,11 +91,11 @@ end", "E-VALUE-DISCARDED")
     ]
     #para("5b")[
       `else` 없이 `option`·`result` 값을 알맹이 타입으로 묶으면 거부된다(`E-TYPE-LET`) — 실패할 수 있음을 잊은 자리다.
-      멈춰도 되면 `. else panic "…" .` 으로 적는다(효과 `panic` 이 따른다).
+      멈춰도 되면 `else panic "…" .` 으로 적는다(효과 `panic` 이 따른다).
     ]
     #caution("")[
-      이 규칙이 잡는 것은 빈칸을 적는 실수만이 아니다. `let x be f64 .5 .` 이라고 적으면
-      `.5` 는 부동소수 리터럴이 아니므로(#cref("6.1.4") (2)) 그 점이 폼을 닫고, `be` 뒤에는
+      이 규칙이 잡는 것은 빈칸을 적는 실수만이 아니다. `let x f64 .5 .` 이라고 적으면
+      `.5` 는 부동소수 리터럴이 아니므로(#cref("6.1.4") (2)) 그 점이 폼을 닫고, 이름 뒤에는
       #strong[타입만 남는다.]; 사람은 값을 적었다고 믿는데 처리기는 값을 못 본 자리이며,
       그래서 진단이 그 함정을 이름으로 짚는다.
     ]
@@ -77,31 +104,95 @@ end", "E-VALUE-DISCARDED")
       되지만, 바뀔 수 있는 이름은 쓰이는 자리마다 #emph["여기서는 무슨 값이지"]; 를 다시 물어야
       한다. 그 물음이 곧 의미 엔트로피다(#cref("1.3")).
     ]
-    #rejected("`be` 뒤에 값이 없다", "module ex_let_novalue .
+    #rejected("타입 뒤에 값이 없다", "module ex_let_novalue .
 
 fn f output u8 .
 do
-  let a be u8 .        rem 조용히 0 을 넣지 아니한다
+  let a u8 .        rem 조용히 0 을 넣지 아니한다
   return a .
 end", "E-LET-NOVALUE")
     #rejected("타입을 추측하지 않는다", "module ex_let_notype .
 
 fn f output u8 .
 do
-  let x be 300 .
+  let x 300 .
   return x .
 end", "E-LET-NOTYPE")
-    #rejected("타입은 `be` 뒤에 선다", "module ex_let_oldform .
+    #rejected("`be` 는 이 언어의 낱말이 아니다 — (3a) 를 시험한다", "module ex_let_be .
 
 fn f output u64 .
 do
-  let x u64 be 7 .
+  let x be u64 7 .
   return x .
-end", "E-LET-OLDFORM")
+end", "E-LET-BE")
+    #rejected("값과 `else` 사이에 점이 없다 — (4a) 를 시험한다", "module ex_else_dot .
+
+fn find input k u64 . output option u64 .
+do
+  if eq k 0 do return none . end
+  return some k .
+end
+
+fn f input k u64 . output u64 .
+do
+  let n u64 find k . else return 0 .
+  return n .
+end", "E-ELSE-DOT")
+    #rejected("할당기 절은 `use` · `keep` 이다 — (3c) 를 시험한다", "module ex_using_old .
+
+actor exact do
+  state do n u64 . end
+  proc reserve input k u64 . output option mut slice u8 . effects state . do
+    return none .
+  end
+end
+
+proc f output u64 . effects state .
+do
+  var e exact spawn actor exact .
+  let b using e mut slice u8 lit array u8 4 _ . else return 0 .
+  return len b .
+end", "E-USING-OLD")
+    #ex("실패 절 셋 — (5)(5c) 를 시험한다", "module ex_fail_clause .
+
+def enum perr do bad . empty . end
+
+fn parse input s u64 . output result u64 perr .
+  errors empty eq s 0 .
+  errors bad gt s 100 .
+do
+  if eq s 0 do return error empty . end
+  if gt s 100 do return error bad . end
+  return ok s .
+end
+
+export fn one input s u64 . output u64 .
+do
+  let n u64 parse s else return 0 .
+  return add n 1 .
+end
+
+export fn many input s u64 . output u64 .
+do
+  let n u64 parse s else do
+    return 99 .
+  end
+  return add n 1 .
+end
+
+export fn why input s u64 . output u64 .
+do
+  let n u64 parse s else error e do
+    if eq e bad do return 1000 . end
+    return 2000 .
+  end
+  return add n 1 .
+end",
+      out: "one(5) = 6 · one(0) = 0 · many(200) = 99 · why(0) = 2000 · why(500) = 1000")
   ]
   #sub("6.5.2", "조건 — `if`")[
     #part("구문")
-    #syntax("if-statement", "if-statement ::= \"if\" expression \".\" block [ \"else\" ( block | if-statement ) ]
+    #syntax("if-statement", "if-statement ::= \"if\" expression block [ \"else\" ( block | if-statement ) ]
 block        ::= \"do\" { statement } \"end\"")
     #part("제약")
     #para("1")[
@@ -129,7 +220,7 @@ block        ::= \"do\" { statement } \"end\"")
       [*어긴 것*], [*진단*],
       [(1) — 조건이 `bool` 이 아니다], [`E-TYPE-COND`],
       [(2) — `if` 를 값 자리에 적었다], [`E-IF-VALUE`],
-      [구문 — `expression` 뒤의 `"."` 가 없다], [`E-CTRL-NODOT`],
+      [구문 — `expression` 과 `block` 사이에 `"."` 를 적었다], [`E-CTRL-DOT`],
       [구문 — `block` 자리에 `do … end` 가 아닌 것을 적었다], [`E-CTRL-NODO`],
       [구문 — `else` 를 `block` 안에 적었다], [`E-STMT-ELSE`],
       )
@@ -139,9 +230,9 @@ block        ::= \"do\" { statement } \"end\"")
 
 export fn sign input a i64 . output u64 .
 do
-  if gt a 0 . do
+  if gt a 0 do
     return 1 .
-  end else if eq a 0 . do
+  end else if eq a 0 do
     return 0 .
   end else do
     return 2 .
@@ -152,28 +243,40 @@ end",
 
 fn pick input a u64 . output u64 .
 do
-  let x be u64 if gt a 1 . 5 else 6 .   rem 갈래마다 set 하거나 return 한다
+  let x u64 (if gt a 1 do 5 . end else do 6 . end) .   rem 갈래마다 set 하거나 return 한다
   return x .
 end", "E-IF-VALUE")
     #part("참고")
     #plain[
-      왜 점과 블록을 둘 다 요구하는가. 점이 없거나 몸이 폼 하나이면, 점 하나를 빠뜨린 조건이 다음 문장을 삼킨다
-      (`if gt a 3 return 1 .` 은 조건이 `return 1` 까지 먹는다). 그 실수를 문법이 받아 주지 않게 한다.
+      왜 몸이 블록이어야 하는가. 몸이 폼 하나여도 되면 조건이 다음 낱말을 삼킨다(`if gt a 3 return 1 .` 은
+      조건이 `return 1` 까지 먹는다). 몸이 늘 `do … end` 이므로 조건은 `do` 에서 끝나고, 점은 필요하지 아니하다 —
+      #strong[식은 닫는 점이나 끝내는 낱말에서 끝난다.]; 점은 문장을 닫는 일만 한다.
     ]
     #note[
-      조건을 점으로 닫고 몸을 블록으로 적는 것은 `while`(#cref("6.5.3")) · `for`(#cref("6.5.3.1")) · `match`(#cref("6.6")) 도 같다.
+      머리의 식이 `do` 에서 끝나고 몸을 블록으로 적는 것은 `while`(#cref("6.5.3")) · 되풀이의 네 머리(#cref("6.5.3.1")) ·
+      `match`(#cref("6.6")) 도 같다. 머리의 식이 블록을 품은 값이면(`if eq p (lit pt do x 1 . end) do`) 머리의 몸은
+      #strong[마지막 블록];이다 — 읽는 사람을 위해 그런 값은 괄호로 싼다.
     ]
+    #rejected("머리의 식과 `do` 사이에 점이 없다", "module ex_ctrl_dot .
+
+fn f input a u64 . output u64 .
+do
+  if gt a 3 . do
+    return 1 .
+  end
+  return 0 .
+end", "E-CTRL-DOT")
     #note[
       갈래마다 다른 값을 얻으려면 각 갈래에서 이름에 `set` 하거나 `return` 한다.
     ]
   ]
   #sub("6.5.3", "되풀이 — `while`")[
     #para("1")[
-      `while <조건> . do <문장들> end` 는 조건이 참인 동안 블록을 되풀이한다. 조건은 #strong[바퀴마다, 블록에
+      `while <조건> do <문장들> end` 는 조건이 참인 동안 블록을 되풀이한다. 조건은 #strong[바퀴마다, 블록에
       들어가기 전에]; 계산한다 — 처음부터 거짓이면 블록은 한 번도 돌지 아니한다.
     ]
     #para("1a")[
-      조건은 제 점으로 닫고, 그 다음에 `do` 가 온다. 점이 없으면 번역이 거부된다(`E-CTRL-NODOT`).
+      조건은 `do` 에서 끝난다. 조건과 `do` 사이에 점을 적으면 번역이 거부된다(`E-CTRL-DOT`).
     ]
     #para("2")[
       `break` 는 되풀이를 벗어나고, `continue` 는 다음 바퀴로 넘어간다. 둘은 #strong[가장 안쪽]; 되풀이에
@@ -194,10 +297,10 @@ end", "E-IF-VALUE")
 export fn count_big input n u32 . output u32 .
   requires le n 100 .
 do
-  var total be u32 0 .
-  var i be u32 0 .
-  while lt i n . do
-    if gt i 5 . do
+  var total u32 0 .
+  var i u32 0 .
+  while lt i n do
+    if gt i 5 do
       set total (add total 1) .
     end
     set i (add i 1) .
@@ -205,20 +308,35 @@ do
   return total .
 end")
   ]
-  #sub("6.5.3.1", "차례로 도는 되풀이 — `for`")[
+  #sub("6.5.3.1", "차례로 도는 되풀이 — `for` · `repeat` · `range` · `cycle`")[
+    #syntax("되풀이의 네 머리", "for-stmt    ::= \"for\"    name [ \"mut\" ] expression [ filter ] block
+repeat-stmt ::= \"repeat\" name type expression [ filter ] block
+range-stmt  ::= \"range\"  name type expression expression [ \"step\" expression ] [ filter ] block
+cycle-stmt  ::= \"cycle\"  name type expression \"while\" expression \"next\" expression [ filter ] block
+filter      ::= \"if\" expression")
     #para("1")[
-      `for <이름> <머리> do <문장들> end` 는 머리가 정한 값을 #strong[차례로 이름에 담아]; 블록을 되풀이한다.
-      머리의 꼴은 다섯이며 그 밖의 꼴은 없다.
+      네 문장은 머리가 정한 값을 #strong[차례로 이름에 담아]; 블록을 되풀이한다. 머리말마다 하는 일이 하나다 —
+      `for` 는 원천의 원소를, `repeat` 는 0 부터 n 번을, `range` 는 두 끝 사이를, `cycle` 은 저자가 적은 다음 값을
+      돈다. 그 밖의 꼴은 없다.
     ]
-    #tbl("`for` 의 머리 다섯")[
+    #tbl("되풀이의 머리")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*머리*], [*꼴*], [*이름이 차례로 갖는 것*],
       [원소], [`for x <슬라이스> do`], [슬라이스의 원소 — 앞에서부터],
       [원소 자리], [`for x mut <슬라이스> do`], [슬라이스의 칸 그 자체 — 읽고 쓸 수 있다],
-      [세기], [`for i count <타입> n . do`], [`0, 1, …, n−1`],
-      [구간], [`for i range <타입> a b . do` · `for i range <타입> a b step k . do`], [`a` 에서 `b` 까지, 두 끝을 넣어],
-      [점화식], [`for i be <타입> v . while c . next e . do`], [`v` 에서 시작해 바퀴마다 `e`],
+      [세기], [`repeat i <타입> n do`], [`0, 1, …, n−1`],
+      [구간], [`range i <타입> a b do` · `range i <타입> a b step k do`], [`a` 에서 `b` 까지, 두 끝을 넣어],
+      [점화식], [`cycle i <타입> v while c next e do`], [`v` 에서 시작해 바퀴마다 `e`],
       )
+    ]
+    #para("1a")[
+      #strong[머리 안에는 점이 없다.]; 머리의 식은 끝내는 낱말 — `do` · `if`(거르기) · `while` · `next` · `step` — 에서
+      끝난다. 이 낱말들은 예약어이므로 식 안에 이름으로 올 수 없다. 머리 안에 점을 적으면 번역이 거부된다
+      (`E-CTRL-DOT`). 다만 나열 리터럴은 제 점으로 닫는다(`for x lit slice u16 10 20 30 . do`).
+    ]
+    #para("1b")[
+      옛 꼴 `for i count <타입> n . do` · `for i range <타입> a b . do` · `for i be <타입> v . while c . next e . do` 와
+      거르기 `. where c .` 는 거부된다(`E-FOR-OLD`). `for` 는 원소를 도는 한 가지 일만 한다.
     ]
     #para("2")[
       #strong[원소.]; 원천은 슬라이스여야 한다. 슬라이스가 아니면 번역이 거부된다(`E-TYPE-ITER`). 이름의 타입은
@@ -226,8 +344,8 @@ end")
       원천이다. 원소가 없으면 블록은 한 번도 돌지 아니한다.
     ]
     #para("2a")[
-      원천이 이름 하나이면 그대로 적고 `do` 가 온다(`for x xs do`). 원천이 낱말로 시작하는 식이면 그 식을
-      제 점으로 닫는다(`for x view_array u16 b . do`).
+      원천은 `do`(또는 거르기의 `if`)에서 끝난다 — 이름 하나든(`for x xs do`) 식이든(`for x view_array u16 b do`)
+      같다.
     ]
     #para("3")[
       #strong[원소 자리.]; `for x mut buf do … end` 의 `x` 는 `buf` 의 그 칸이다: 읽으면 칸의 값이고, `set x v .` 는
@@ -239,53 +357,55 @@ end")
       `set` 할 수 없다(`E-FOR-HEAD`) — 칸을 바꾸려면 머리에 `mut` 을 적는다.
     ]
     #para("4")[
-      #strong[세기.]; `for i count <타입> n .` 는 `i` 에 `0` 부터 `n−1` 까지를 차례로 담는다. `n` 이 0 이하이면 한 번도
+      #strong[세기.]; `repeat i <타입> n do` 는 `i` 에 `0` 부터 `n−1` 까지를 차례로 담는다. `n` 이 0 이하이면 한 번도
       돌지 아니한다. `<타입>` 는 셈의 타입이며 #strong[언제나 적는 정수 타입];이다 — 적지 않거나 정수 타입이 아니면
       번역이 거부된다(`E-FOR-STEP`). `n` 은 `<타입>` 에 들어가야 한다(`E-TYPE-WIDTH`).
     ]
     #para("5")[
-      #strong[구간.]; `for i range <타입> a b .` 는 `a` 에서 `b` 까지 #strong[두 끝을 넣어]; 돈다. 방향은 두 끝이 정한다 —
-      `range u64 3 5` 는 `3, 4, 5`, `range u64 5 3` 은 `5, 4, 3` 이다. 두 끝이 같으면 한 번 돈다.
+      #strong[구간.]; `range i <타입> a b do` 는 `a` 에서 `b` 까지 #strong[두 끝을 넣어]; 돈다. 방향은 두 끝이 정한다 —
+      `range i u64 3 5` 는 `3, 4, 5`, `range i u64 5 3` 은 `5, 4, 3` 이다. 두 끝이 같으면 한 번 돈다.
       두 끝은 `<타입>` 에 들어가야 한다(`E-TYPE-WIDTH`).
     ]
     #para("5a")[
       `step k` 를 적으면 다음 값은 `지금 + k` 이고 #strong[방향은 `k` 의 부호가 정한다.]; 시작이 이미 그 방향으로
-      끝을 넘었으면 한 번도 돌지 아니한다(`range i64 1 10 step -1`). 다음 값이 끝을 지나치면 거기서 끝난다 —
-      `range u8 250 255 step 3` 은 `250, 253` 이다. `step 0` 은 번역이 거부되고(`E-FOR-STEP`), 번역 때 알 수 없는
+      끝을 넘었으면 한 번도 돌지 아니한다(`range i i64 1 10 step -1`). 다음 값이 끝을 지나치면 거기서 끝난다 —
+      `range i u8 250 255 step 3` 은 `250, 253` 이다. `step 0` 은 번역이 거부되고(`E-FOR-STEP`), 번역 때 알 수 없는
       `k` 가 실행 중에 0 이면 멈춘다.
     ]
     #para("5b")[
-      셈은 #strong[넘치지 아니한다.]; `range u8 0 255` 는 256 번 돌고 255 에서 끝난다 — 마지막 값 다음을 계산하다
+      셈은 #strong[넘치지 아니한다.]; `range i u8 0 255` 는 256 번 돌고 255 에서 끝난다 — 마지막 값 다음을 계산하다
       타입을 넘는 일이 없다.
     ]
     #para("6")[
-      #strong[점화식.]; `for i be <타입> v . while c . next e . do … end` 는 `i` 를 `v` 로 시작한다. 바퀴에 들어가기 전에
+      #strong[점화식.]; `cycle i <타입> v while c next e do … end` 는 `i` 를 `v` 로 시작한다. 바퀴에 들어가기 전에
       `c` 를 보아 참이면 블록을 돌고, 블록이 끝나면 `i` 에 `e` 의 값을 담는다. `c` 가 처음부터 거짓이면 한 번도
       돌지 아니한다. `c` 는 `bool` 이어야 하고(`E-TYPE-COND`), `v` 와 `e` 는 `<타입>` 에 들어가야 한다(`E-TYPE-WIDTH`).
-      `e` 의 계산은 보통의 산술이다 — 넘치면 멈춘다(#cref("6.3.4")). `be` · `while` · `next` 세 절이 모두 있어야 한다.
+      `e` 의 계산은 보통의 산술이다 — 넘치면 멈춘다(#cref("6.3.4")). `while` · `next` 두 절이 이 차례로 모두 있어야 한다
+      (`E-FOR-HEAD`). 블록 안의 `continue` 는 `next` 를 #strong[거친다]; — `i` 에 `e` 의 값을 담고 `c` 를 다시 본다.
     ]
     #para("7")[
-      #strong[거르기.]; 머리 끝에 `where c .` 를 덧붙일 수 있다. 블록 첫머리에 `if not c . do continue . end` 를 적은
-      것과 같은 뜻이다 — 조건은 바퀴마다 계산한다. 다섯 머리 어느 것에나 붙는다.
+      #strong[거르기.]; 머리 끝, `do` 앞에 `if c` 를 덧붙일 수 있다. 블록 첫머리에 `if not c do continue . end` 를 적은
+      것과 같은 뜻이다 — 조건은 바퀴마다 계산한다. 네 머리말 어느 것에나 붙는다. 머리 안의 `if` 는 문장이 아니라
+      절이다 — 머리 안에는 문장이 올 수 없으므로 겹치지 아니한다.
     ]
     #para("8")[
       #strong[머리가 읽은 것은 되풀이 동안 얼린다.]; 끝 · `step` · 원천은 되풀이에 들어갈 때 #strong[한 번]; 계산한다.
-      셈 이름(`count` · `range` · 점화식의 이름)과 머리가 읽은 이름은 블록 안에서 `set` 할 수 없다
+      셈 이름(`repeat` · `range` · `cycle` 의 이름)과 머리가 읽은 이름은 블록 안에서 `set` 할 수 없다
       (`E-FOR-HEAD`). 슬라이스 칸의 내용을 바꾸는 것은 된다.
     ]
     #para("9")[
-      `for` 의 이름은 #strong[블록 안에서만]; 산다. 블록이 끝나면 그 이름은 없다. 같은 블록에 이미 있는 이름을
+      되풀이의 이름은 #strong[블록 안에서만]; 산다. 블록이 끝나면 그 이름은 없다. 같은 블록에 이미 있는 이름을
       다시 쓸 수 없다(`E-NAME-SHADOW`).
     ]
     #para("10")[
-      `break` 와 `continue` 는 `for` 안에서도 `while` 에서와 같이 쓴다(#cref("6.5.3") (2)). `for` 도 값을 내지 아니한다.
+      `break` 와 `continue` 는 네 되풀이 안에서도 `while` 에서와 같이 쓴다(#cref("6.5.3") (2)). 넷 모두 값을 내지 아니한다.
     ]
     #ex("수를 세는 머리", "module ex_for_count .
 
 export fn evens output u64 .
 do
-  var acc be u64 0 .
-  for i range u64 10 1 step -2 . do
+  var acc u64 0 .
+  range i u64 10 1 step -2 do
     set acc (add acc i) .
   end
   return acc .
@@ -295,7 +415,7 @@ end",
 
 export fn total_of input xs slice u8 . output u64 .
 do
-  var acc be u64 0 .
+  var acc u64 0 .
   for x xs do
     set acc (add acc (widen u64 x)) .
   end
@@ -309,7 +429,7 @@ do
   for x mut b do
     set x (mul x 2) .
   end
-  var acc be u64 0 .
+  var acc u64 0 .
   for y b do
     set acc (add acc y) .
   end
@@ -318,8 +438,8 @@ end
 
 export fn powers output u64 .
 do
-  var n be u64 0 .
-  for i be u64 1 . while lt i 100 . next mul i 2 . do
+  var n u64 0 .
+  cycle i u64 1 while lt i 100 next mul i 2 do
     set n (add n 1) .
   end
   return n .
@@ -327,8 +447,8 @@ end
 
 export fn evens output u64 .
 do
-  var acc be u64 0 .
-  for i count u64 10 . where eq (mod i 2) 0 . do
+  var acc u64 0 .
+  repeat i u64 10 if eq (mod i 2) 0 do
     set acc (add acc i) .
   end
   return acc .
@@ -338,11 +458,21 @@ end",
 
 fn f output u64 .
 do
-  for i count u64 3 . do
+  repeat i u64 3 do
     set i 0 .
   end
   return 0 .
 end", "E-FOR-HEAD")
+    #rejected("`for` 는 원소만 돈다 — (1b) 를 시험한다", "module ex_for_old .
+
+fn f output u64 .
+do
+  var acc u64 0 .
+  for i count u64 3 do
+    set acc (add acc i) .
+  end
+  return acc .
+end", "E-FOR-OLD")
     #caution("")[
       `in` 은 이 언어의 낱말이 #strong[아니다];. `for x in xs` 라고 적으면 거부된다
       (`E-VOCAB-REMOVED`). 훑을 대상은 이름 바로 뒤에 온다.
@@ -352,6 +482,10 @@ end", "E-FOR-HEAD")
     #para("1")[
       `guard` 는 조건이 참이 아니면 #strong[그 자리에서 빠져나간다];. `else` 뒤에 오는 것은
       #strong[모든 길이 빠져나가야]; 한다.
+    ]
+    #para("0")[
+      `guard <조건> else <벗어남> .` — 조건은 `else` 에서 끝난다. 조건과 `else` 사이에 점을 적으면 번역이
+      거부된다(`E-ELSE-DOT`). `else` 뒤가 블록이면 `end` 가 문장을 닫는다(닫는 점이 없다).
     ]
     #para("1a")[
       `else` 뒤에는 한 문장이 올 수도 있고 블록이 올 수도 있다. 블록이면 그 블록의 #strong[모든
@@ -368,7 +502,7 @@ end", "E-FOR-HEAD")
 
 proc p input n u32 . output u32 . effects none .
 do
-  guard le n 5 . else set n 0 .   rem 빠져나가지 않고 아래로 이어진다
+  guard le n 5 else set n 0 .   rem 빠져나가지 않고 아래로 이어진다
   return n .
 end", "E-GUARD-FALLTHROUGH")
     #caution("`guard` 는 `if not` 의 다른 이름이 아니다")[
@@ -380,23 +514,23 @@ end", "E-GUARD-FALLTHROUGH")
 
 export fn safe_head input data slice u8 . output u8 .
 do
-  guard ge (len data) 1 . else return 0 .
+  guard ge (len data) 1 else return 0 .
   return idx data 0 .
 end")
     #ex("타입은 값 앞에 적고, `guard else` 는 블록이어도 된다", "module ex_infer_guard .
 
-rem 타입은 `be` 뒤, 값 앞에 적는다 — 추측하지 않는다.
+rem 타입은 이름 뒤, 값 앞에 적는다 — 추측하지 않는다.
 fn inferred output u64 .
 do
-  let a be u64 7 .
+  let a u64 7 .
   return a .
 end
 
 rem `else` 가 블록이어도 된다. 규칙은 \"모든 길이 빠져나가는가\" 다.
 fn guarded input n u8 . output u8 .
 do
-  guard gt n 5 . else do
-    let x be u8 1 .
+  guard gt n 5 else do
+    let x u8 1 .
     return x .
   end
   return 9 .
@@ -406,8 +540,8 @@ end",
 
 fn f input n u8 . output u8 .
 do
-  guard gt n 5 . else do
-    let x be u8 1 .
+  guard gt n 5 else do
+    let x u8 1 .
   end
   return 9 .
 end", "E-GUARD-FALLTHROUGH")
@@ -432,7 +566,7 @@ end
 fn head input b slice u8 . output result u8 short .
 errors too_short .
 do
-  guard ge (len b) 2 . else return 0 .   rem `ok 0` 도 `error too_short` 도 아니다
+  guard ge (len b) 2 else return 0 .   rem `ok 0` 도 `error too_short` 도 아니다
   return ok (idx b 0) .
 end", "E-TYPE-RETURN")
     #plain[
@@ -476,9 +610,9 @@ end", "E-TYPE-RETURN")
     ]
     #ex("값을 안 내는 op 은 `return` 없이 끝나도 된다", "module ex_void .
 
-proc keep input n u8 . output void . effects none .
+proc hold input n u8 . output void . effects none .
 do
-  let x be u8 n .
+  let x u8 n .
 end")
     #plain[
       돌려줄 값이 없으므로 #strong[끝나는 자리가 곧 돌아가는 자리];다. 값을 돌려주는 op 이었다면
@@ -498,8 +632,8 @@ end")
 
 fn pick input a u64 . output u64 .
 do
-  if gt a 1 . do
-    let big be u64 mul a 2 .
+  if gt a 1 do
+    let big u64 mul a 2 .
   end
   return big .        rem 들어가지 아니한 길에는 `big` 이 없다
 end", "E-NAME-SCOPE")
@@ -539,14 +673,14 @@ rem ① 고칠 수 있는 실패 — result.
 fn halve input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
 do
-  guard le a 200 . else return error too_big .
+  guard le a 200 else return error too_big .
   return ok (div a 2) .
 end
 
 rem ② 값이 없음 — option.
 fn lookup input k u8 . output option u8 .
 do
-  guard lt k 3 . else return none .
+  guard lt k 3 else return none .
   return some (mul k 10) .
 end
 
@@ -697,7 +831,7 @@ end",
 
 fn f input a u8 . output u8 .
 do
-  if gt a 5 . do return 1 . end
+  if gt a 5 do return 1 . end
 end                      rem `a` 가 5 이하인 길에는 값이 없다", "E-RETURN-PARTIAL")
   ]
   #sub("6.5.12", "오류는 적은 것만 난다")[
@@ -747,14 +881,14 @@ end
 fn read_digit input c u8 . output result u8 parse_error .
 errors bad_digit .
 do
-  guard le c 9 . else return error bad_digit .
+  guard le c 9 else return error bad_digit .
   return ok c .
 end
 
 fn load_byte input c u8 . output result u8 load_error .
 errors too_long .
 do
-  guard le c 200 . else return error too_long .
+  guard le c 200 else return error too_long .
   return read_digit c .     rem `bad_digit` 은 `load_byte` 의 약속에 없다
 end", "E-ERR-UNDECLARED")
     #rejected("절 없는 op 이 넘겨받은 실패를 다시 넘긴다", "module ex_err_clauseless .
@@ -770,7 +904,7 @@ end
 fn read_digit input c u8 . output result u8 parse_error .
 errors bad_digit .
 do
-  guard le c 9 . else return error bad_digit .
+  guard le c 9 else return error bad_digit .
   return ok c .
 end
 
@@ -782,8 +916,8 @@ end
 fn load_byte input c u8 . output result u8 load_error .
 errors too_long .
 do
-  guard le c 200 . else return error too_long .
-  let v be u8 try digit_or_fail c .     rem `parse_error` 는 `load_byte` 의 약속에 없다
+  guard le c 200 else return error too_long .
+  let v u8 try digit_or_fail c .     rem `parse_error` 는 `load_byte` 의 약속에 없다
   return ok v .
 end", "E-ERR-UNDECLARED")
   ]

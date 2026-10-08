@@ -5,10 +5,10 @@ rem run: carve_static
 rem ko: 종류 낱말은 이 영역이 무엇을 위한 자리인지 말한다. 이 판에서는 heap 만 자라는 뿌리에서, 나머지는 고정 창에서 깎는다 /// en: the kind word says what the region is for; in this edition only heap carves from the growing root, the rest from the fixed window
 proc carve_stack output u64 . effects alloc .
 do
-  var n be u64 0 .
+  var n u64 0 .
   region r stack do
-    let g be option mut slice u8 alloc_bytes r capacity 32 .
-    if is_some g . do
+    let g option mut slice u8 alloc_bytes r capacity 32 .
+    if is_some g do
       set n (len (some_value g)) .
     end
   end
@@ -17,10 +17,10 @@ end
 
 proc carve_static output u64 . effects alloc .
 do
-  var n be u64 0 .
+  var n u64 0 .
   region r static do
-    let g be option mut slice u8 alloc_bytes r capacity 64 .
-    if is_some g . do
+    let g option mut slice u8 alloc_bytes r capacity 64 .
+    if is_some g do
       set n (len (some_value g)) .
     end
   end

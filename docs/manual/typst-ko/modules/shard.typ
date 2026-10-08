@@ -9,10 +9,10 @@
 
 ```lowent
 def newtype grid u8 .
-var r be (owned shard.token grid) shard.open grid 8 .
-var h be (shard.halves grid) shard.split_at grid r 4 .
-var lo be (owned shard.token grid) (field h low) .
-var hi be (owned shard.token grid) (field h high) .
+var r (owned shard.token grid) shard.open grid 8 .
+var h (shard.halves grid) shard.split_at grid r 4 .
+var lo (owned shard.token grid) (field h low) .
+var hi (owned shard.token grid) (field h high) .
 rem 이 뒤로 r 은 쓸 수 없다 --- 쓰면 E-OWN-MOVED
 ```
 
@@ -45,7 +45,7 @@ rem 이 뒤로 r 은 쓸 수 없다 --- 쓰면 E-OWN-MOVED
 계약은 검사가 아니라 문장이므로, 부르는 쪽이 반드시 받는 값으로 내렸다.
 
 #antipattern[거꾸로 합친다][
-  `shard.rejoin g hi lo` 는 `none` 이다. 멈추지 않으므로 반환값을 보지 않으면 합쳐지지 않은 것을 모른 채 지나간다. `guard is_some back .` 으로 받는다.
+  `shard.rejoin g hi lo` 는 `none` 이다. 멈추지 않으므로 반환값을 보지 않으면 합쳐지지 않은 것을 모른 채 지나간다. `guard is_some back` 으로 받는다.
 ]
 
 #antipattern[브랜드 하나로 저장소 둘을 연다][

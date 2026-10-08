@@ -10,11 +10,11 @@ rem ko: 수를 세기만 한다 — 효과는 state 뿐 /// en: only counts, so 
 actor counter do
   satisfies ticketer .
   state do
-    next u64 .
+    upcoming u64 .
   end
   proc issue output u64 . effects state . do
-    set next (add next 1) .
-    return next .
+    set upcoming (add upcoming 1) .
+    return upcoming .
   end
 end
 
@@ -26,8 +26,8 @@ actor carver do
     count u64 .
   end
   proc issue output u64 . effects alloc state . do
-    let g be option mut slice u8 alloc_bytes root capacity 8 .
-    guard is_some g . else return 0 .
+    let g option mut slice u8 alloc_bytes root capacity 8 .
+    guard is_some g else return 0 .
     set count (add count 1) .
     return mul count 10 .
   end
@@ -41,16 +41,16 @@ proc issue_two
   effects state via t .
   requires ticketer t .
 do
-  let a be u64 send who issue .
-  let b be u64 send who issue .
+  let a u64 send who issue .
+  let b u64 send who issue .
   return add a b .
 end
 
 proc main input al cap allocator . output u8 . effects alloc state .
 do
-  var c be counter spawn actor counter .
-  var k be carver spawn actor carver .
-  let x be u64 issue_two counter c .
-  let y be u64 issue_two carver k .
+  var c counter spawn actor counter .
+  var k carver spawn actor carver .
+  let x u64 issue_two counter c .
+  let y u64 issue_two carver k .
   return narrow u8 (add x y) .
 end

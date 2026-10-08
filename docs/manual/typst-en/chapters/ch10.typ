@@ -68,7 +68,7 @@ sees those bytes, and `set (idx (field p body) i) v .` writes an element.
 
 #demo("examples/ch10/arrayfield.low")
 
-- A struct is a value. `var q be pkt p .` copies the array field's bytes too, so changing `q` leaves `p` alone. A struct held in a
+- A struct is a value. `var q pkt p .` copies the array field's bytes too, so changing `q` leaves `p` alone. A struct held in a
   field is copied along with it.
 - Writing a field of a record received `mut` changes the caller's record. Writing a record received by value changes only the op's own copy.
 - The elements are sized numbers or `bool`. A list given to the field must match its element type and length (`E-TYPE-FIELD`).
@@ -88,7 +88,7 @@ An `enum` is one of several variants. A variant can carry values, written as `<f
 
 - `circle r u32 .` carries one value named `r`, and `rect w u32 h u32 .` carries two. `dot .` carries nothing.
 - A value is made with the *variant name*, as in `shape.circle 2`.
-- `case rect w h .` in a `match` binds the two carried values to `w` and `h` when the variant is `rect`.
+- `case rect w h` in a `match` binds the two carried values to `w` and `h` when the variant is `rect`.
 
 However many variants there are, the `match` must cover them all. Leaving out `dot` is rejected.
 
@@ -171,7 +171,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
 #antipattern[Believing that putting a value under another name makes a copy][
   #demo("examples/ch10/mistake_alias.low")
 
-  `var q be point p .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
+  `var q point p .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
   ownership is copied; a value with ownership is moved (#chref("ownership")). Until 2026-09-16 the tool made an alias to the same place, and
   `p` changed too --- the `let` promise broke there. Lowering now copies the fields.
 
@@ -195,7 +195,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   [`body array u8 4 .` · `set (idx (field p body) 0) 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
   [`def enum shape do dot . circle r u32 . end`], [one of several --- variants may carry values], [each variant is closed with a stop],
   [`shape.circle 2` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
-  [`match s . do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
+  [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
   [`isa s circle`], [is it that variant (`bool`)], [for asking without taking values out],
   [trees linked by index (`l u32` · `r u32`)], [slice indexes instead of containing itself], [the size is fixed and indexes are bounds-checked],
 )

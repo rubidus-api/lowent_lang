@@ -43,8 +43,8 @@ end
 
 rem ★ 코드포인트로서 유효한가 — 서로게이트는 **코드포인트가 아니다**(UTF-16 의 부품일 뿐).
 export fn cp_valid input c u64 . output bool . do
-  if gt c 1114111 . do return false . end        rem > U+10FFFF . .
-  if and (ge c 55296) (le c 57343) . do return false . end
+  if gt c 1114111 do return false . end        rem > U+10FFFF . .
+  if and (ge c 55296) (le c 57343) do return false . end
   return true .
 end
 
@@ -52,7 +52,7 @@ rem ── ① 한 코드포인트가 몇 칸을 먹는가 ───────
 
 rem ★ BMP 는 한 칸, 그 밖은 **두 칸**. 이것이 UTF-16 의 전부이자 UTF-8 과 다른 점이다.
 export fn units input c u64 . output u64 . do
-  if ge c 65536 . do return 2 . end
+  if ge c 65536 do return 2 . end
   return 1 .
 end
 
@@ -63,17 +63,17 @@ rem   v = c - 0x10000 ;  hi = 0xD800 + v/1024 ;  lo = 0xDC00 + v%1024
 
 rem 상위 칸(BMP 면 그 자체가 답이다).
 export fn unit_hi input c u64 . output option u64 . do
-  guard cp_valid c . else return none .
-  if lt c 65536 . do return (some c) . end
-  let v be u64 sub c 65536 .
+  guard cp_valid c else return none .
+  if lt c 65536 do return (some c) . end
+  let v u64 sub c 65536 .
   return (some (add 55296 (div v 1024))) .
 end
 
 rem 하위 칸 — BMP 면 **없다**. `none` 이 "칸이 하나뿐" 을 뜻한다.
 export fn unit_lo input c u64 . output option u64 . do
-  guard cp_valid c . else return none .
-  if lt c 65536 . do return none . end
-  let v be u64 sub c 65536 .
+  guard cp_valid c else return none .
+  if lt c 65536 do return none . end
+  let v u64 sub c 65536 .
   return (some (add 56320 (mod v 1024))) .
 end
 
@@ -87,17 +87,17 @@ rem   ☞ 같은 축을 두 뜻으로 답하지 않는다. 몇 칸 썼는지가 
 export proc put input dst mut slice u16 . input at u64 . input c u64 .
   output option u64 . effects none .
 do
-  guard cp_valid c . else return none .
-  let n be u64 units c .
-  guard le (add at n) (len dst) . else return none .
-  let h be option u64 unit_hi c .
-  guard is_some h . else return none .
-  if eq n 1 . do
+  guard cp_valid c else return none .
+  let n u64 units c .
+  guard le (add at n) (len dst) else return none .
+  let h option u64 unit_hi c .
+  guard is_some h else return none .
+  if eq n 1 do
     set (idx dst at) (some_value h) .
     return (some (add at 1)) .
   end
-  let l be option u64 unit_lo c .
-  guard is_some l . else return none .
+  let l option u64 unit_lo c .
+  guard is_some l else return none .
   set (idx dst at) (some_value h) .
   set (idx dst (add at 1)) (some_value l) .
   return (some (add at 2)) .
@@ -108,13 +108,13 @@ rem
 rem ★★★ **짝이 안 맞으면 거절한다.** 여기가 이 파일이 실제로 값을 하는 자리다 —
 rem   짝 없는 서로게이트를 조용히 통과시키면 그 뒤의 모든 것이 틀린다.
 export fn decode input s slice u16 . input at u64 . output option u64 . link "utf16_decode" . do
-  guard lt at (len s) . else return none .
-  let u be u64 idx s at .
-  if is_low u . do return none . end             rem 하위가 혼자 왔다 — 짝 없는 꼬리 . .
-  if is_high u . do
-    guard lt (add at 1) (len s) . else return none .   rem 잘렸다
-    let v be u64 idx s (add at 1) .
-    guard is_low v . else return none .          rem 상위 뒤에 하위가 안 왔다
+  guard lt at (len s) else return none .
+  let u u64 idx s at .
+  if is_low u do return none . end             rem 하위가 혼자 왔다 — 짝 없는 꼬리 . .
+  if is_high u do
+    guard lt (add at 1) (len s) else return none .   rem 잘렸다
+    let v u64 idx s (add at 1) .
+    guard is_low v else return none .          rem 상위 뒤에 하위가 안 왔다
     return (some (add 65536 (add (mul (sub u 55296) 1024) (sub v 56320)))) .
   end
   return (some u) .                               rem 평범한 BMP 칸
@@ -122,22 +122,22 @@ end
 
 rem 다음 코드포인트의 자리. 끝이거나 망가졌으면 `none`.
 export fn next_start input s slice u16 . input at u64 . output option u64 . link "utf16_next" . do
-  guard lt at (len s) . else return none .
-  let c be option u64 decode s at .
-  guard is_some c . else return none .
-  let u be u64 idx s at .
-  if is_high u . do return (some (add at 2)) . end
+  guard lt at (len s) else return none .
+  let c option u64 decode s at .
+  guard is_some c else return none .
+  let u u64 idx s at .
+  if is_high u do return (some (add at 2)) . end
   return (some (add at 1)) .
 end
 
 rem ── ④ 전체를 훑는다 ──────────────────────────────────────────────────
 
 export fn count_chars input s slice u16 . output option u64 . link "utf16_count_chars" . do
-  var n be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
-    let nx be option u64 next_start s i .
-    guard is_some nx . else return none .        rem 망가진 자리를 만나면 **수를 안 낸다**
+  var n u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
+    let nx option u64 next_start s i .
+    guard is_some nx else return none .        rem 망가진 자리를 만나면 **수를 안 낸다**
     set i (some_value nx) .
     set n (add n 1) .
   end

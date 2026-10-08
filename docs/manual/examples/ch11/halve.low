@@ -15,8 +15,8 @@ fn halve input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
   errors odd ne (mod a 2) 0 .
 do
-  guard le a 200 . else return error too_big .
-  guard eq (mod a 2) 0 . else return error odd .
+  guard le a 200 else return error too_big .
+  guard eq (mod a 2) 0 else return error odd .
   return ok (div a 2) .
 end
 
@@ -24,13 +24,13 @@ fn halve_plus_one input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
   errors odd ne (mod a 2) 0 .
 do
-  let v be u8 try halve a .
+  let v u8 try halve a .
   return ok (add v 1) .
 end
 
 fn halve_or_zero input a u8 . output u8 .
 do
-  let r be result u8 io_error halve a .
-  guard not (is_error r) . else return 0 .
+  let r result u8 io_error halve a .
+  guard not (is_error r) else return 0 .
   return ok_value r .
 end

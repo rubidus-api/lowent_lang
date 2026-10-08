@@ -85,9 +85,9 @@
 
 fn band input a u8 . output u8 .
 do
-  match a . do
-    case 0 to 9 . do return 1 . end
-    case 10 to 255 . do return 2 . end
+  match a do
+    case 0 to 9 do return 1 . end
+    case 10 to 255 do return 2 . end
   end
 end",
     out: "band(5) = 1 · band(200) = 2")
@@ -95,8 +95,8 @@ end",
 
 fn band input a u8 . output u8 .
 do
-  match a . do
-    case 0 to 9 . do return 1 . end
+  match a do
+    case 0 to 9 do return 1 . end
   end
 end", "E-MATCH-INEXHAUSTIVE")
   #plain[
@@ -113,9 +113,9 @@ end
 
 export fn code input c color . output u32 .
 do
-  match c . do
-    case red . do return 1 . end
-    case green . do return 2 . end
+  match c do
+    case red do return 1 . end
+    case green do return 2 . end
   end
 end")
   #rejected("갈래가 빠진 match", "module ex_match_bad .
@@ -127,8 +127,8 @@ end
 
 export fn code input c color . output u32 .
 do
-  match c . do
-    case red . do return 1 . end
+  match c do
+    case red do return 1 . end
     rem `green` 을 안 다뤘다
   end
 end", "E-MATCH-INEXHAUSTIVE")
@@ -241,7 +241,7 @@ end", "E-COMPTIME-ARG")
 
 fn f input a u8 . output u8 .
 do
-  let b be u8 comptime a .    rem `a` 는 실행할 때에야 정해진다
+  let b u8 comptime a .    rem `a` 는 실행할 때에야 정해진다
   return b .
 end", "E-COMPTIME-NONCONST")
   ]

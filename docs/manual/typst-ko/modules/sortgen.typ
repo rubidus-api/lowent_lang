@@ -21,11 +21,11 @@ fn keyed.less input a keyed . input b keyed . output bool . do
 end
 
 proc sorted3 input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 3 . else return 90 .
+  guard ge (len s) 3 else return 90 .
   sortgen.sort_by keyed s .
-  let f0 be keyed idx s 0 .
-  let f1 be keyed idx s 1 .
-  let f2 be keyed idx s 2 .
+  let f0 keyed idx s 0 .
+  let f1 keyed idx s 1 .
+  let f2 keyed idx s 2 .
   return add (mul 100 (field f0 k)) (add (mul 10 (field f1 k)) (field f2 k)) .
 end
 ```
@@ -62,7 +62,7 @@ end
 ]
 
 *주의.* 내림차순 · 다중 키는 `less` 를 그렇게 쓰면 된다 --- 모드 인자를 다는 것이 곧 엔트로피다. 타입마다 코드가 하나씩 생긴다(단형화의 대가, 대신 간접 호출이 없다).
-*읽으면 뷰다* --- `let a be t idx s j` 는 복사가 아니라 그 자리를 가리키는 창이라, 원소를 맞바꿀 때 `swap` 을 쓴다(`set` 두 번으로는 자기 자신을 덮어쓴다). 직접
+*읽으면 뷰다* --- `let a t idx s j` 는 복사가 아니라 그 자리를 가리키는 창이라, 원소를 맞바꿀 때 `swap` 을 쓴다(`set` 두 번으로는 자기 자신을 덮어쓴다). 직접
 정렬을 짠다면 조심한다 --- 한 번 맞바꾸고 나면 같은 이름 `a` · `b` 가 다른 값을 본다. 한 걸음에 판정은 한 번만 한다. 두 번 비교하면 두 번째가 이미 바뀐 것을 보고
 원소가 한 칸만 내려가 멈추는 부분 정렬이 되고, 원소 셋에 단일 키면 답이 우연히 맞아 결함이 숨는다(실제로 그렇게 숨었다가 다중 키 예제에서 드러났다). `sortlib` 과
 갈라져 있는 것은, 제네릭 틀이 들어오면 `sortlib` 을 쓰는 모든 파일이 일부 대조 검사에서 빠져야 했기 때문이다.

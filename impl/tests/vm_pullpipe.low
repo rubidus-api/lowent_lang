@@ -11,7 +11,7 @@ actor counter do
   state do
     n u64 .
   end
-  proc next output option u64 . effects state . do
+  proc pull output option u64 . effects state . do
     set n (add n 1) .
     return (some n) .
   end
@@ -19,7 +19,7 @@ end
 
 rem take 1 두 번 — 첫 a=[1], 둘째 b=[2](원소2 안 유실).
 proc take_twice input a mut slice u8 . input b mut slice u8 . output u64 . effects state . do
-  let it be counter spawn actor counter .
+  let it counter spawn actor counter .
   pipe it do take 1 . map nar . collect into a . end
   pipe it do take 1 . map nar . collect into b . end
   return 0 .
@@ -29,7 +29,7 @@ rem take 0 으로 단락한 뒤 take 2 — 첫 pipe 는 소스를 안 건드려 
 rem ☞ X-0062(2026-09-25) 전엔 `take` 없이 len-0 싱크로 단락했다. 이제 찬 싱크에 원소가 오면 멈추므로(말없이 버리지 않는다)
 rem   끝없는 소스에서 얼마를 담을지는 `take` 로 **적는다**. 그 꼴은 아래 overflow_stops 가 멈추는 것으로 증언한다.
 proc empty_then input a mut slice u8 . input b mut slice u8 . output u64 . effects state . do
-  let it be counter spawn actor counter .
+  let it counter spawn actor counter .
   pipe it do take 0 . map nar . collect into a . end
   pipe it do take 2 . map nar . collect into b . end
   return 0 .
@@ -37,7 +37,7 @@ end
 
 rem 끝없는 소스를 take 없이 짧은 싱크에 담으면 넘치는 첫 원소에서 멈춘다(X-0062 ⓒ).
 proc overflow_stops input a mut slice u8 . output u64 . effects state . do
-  let it be counter spawn actor counter .
+  let it counter spawn actor counter .
   pipe it do map nar . collect into a . end
   return 0 .
 end

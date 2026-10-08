@@ -3,23 +3,23 @@ rem run: main
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let mb be option mut slice u8 alloc_bytes al capacity 16 .
-  guard is_some mb . else return 250 .
-  let md be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some md . else return 251 .
+  let mb option mut slice u8 alloc_bytes al capacity 16 .
+  guard is_some mb else return 250 .
+  let md option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some md else return 251 .
   rem ko: 뒤에 놓인 바이트 16 개 /// en: the 16 backing bytes
-  var back be mut slice u8 some_value mb .
+  var back mut slice u8 some_value mb .
   set (idx back 4) 20 .
   set (idx back 9) 30 .
   rem ko: 서술자 — (어디부터, 얼마) 짝이 둘: 0 부터 4 개, 8 부터 4 개 /// en: the descriptor: two (start, length) pairs, 4 from 0 and 4 from 8
-  var d be mut slice u64 view_array u64 (some_value md) .
+  var d mut slice u64 view_array u64 (some_value md) .
   set (idx d 0) 0 .
   set (idx d 1) 4 .
   set (idx d 2) 8 .
   set (idx d 3) 4 .
   rem ko: 복사 없이 두 조각을 한 눈으로 본다 /// en: see the two pieces as one view, without copying
-  let ss be segments u8 view_segments back d .
-  let p be slice u8 seg ss 1 .
+  let ss segments u8 view_segments back d .
+  let p slice u8 seg ss 1 .
   rem ko: 조각 수 2 에 10 을 곱하고, 둘째 조각의 1 번 바이트(원래 9 번 자리의 30)를 더한다 /// en: the piece count 2 times 10, plus byte 1 of the second piece (the 30 at original position 9)
   return narrow u8 (add (mul (segs ss) 10) (idx p 1)) .
 end

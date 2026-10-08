@@ -36,7 +36,7 @@ rem ── ② 없는 자리는 거절한다 ───────────�
 rem 64 는 한 낱말에 없는 자리다. `flags.of 64` 는 진입 계약이 문다 — 이 op 은 그 계약을
 rem **부르는 자리에서** 이미 결정되므로 컴파일이 안 되게 하는 대신, 값으로 물어보게 한다.
 fn slot_ok input n u64 . output u64 . do
-  guard lt n 64 . else return 0 .
+  guard lt n 64 else return 0 .
   return flags.of n .
 end
 

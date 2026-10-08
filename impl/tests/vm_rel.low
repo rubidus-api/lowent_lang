@@ -49,6 +49,6 @@ end
 
 rem ⑤ 분기에서 배운 관계도 사실이다 — requires 없이 `if` 하나로.
 fn gap_guarded input a u8 . input b u8 . output u8 . do
-    if gt a b . do return 0 . end
+    if gt a b do return 0 . end
     return sub b a .
 end

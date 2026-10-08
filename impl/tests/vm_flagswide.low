@@ -15,38 +15,38 @@ use flags from "../../lib/flags.low" .
 rem ★ 저장은 **부르는 쪽의 것**이다(RFC-0075 의 caller-backed). 라이브러리는 얼로케이터를
 rem   모르고, 이 픽스처도 모른다 — 32 바이트(=256 자리)를 골든이 넘겨준다.
 proc wide_roundtrip input buf mut slice u8 . output u64 . effects none . do
-  guard eq (flags.wide_bits buf) 256 . else return 90 .
+  guard eq (flags.wide_bits buf) 256 else return 90 .
 
   rem ① 켜고 묻기 — 64·65·255 는 서로 다른 바이트다
-  guard eq (flags.wide_with buf 64) 1 . else return 91 .
-  guard eq (flags.wide_with buf 65) 1 . else return 91 .
-  guard eq (flags.wide_with buf 255) 1 . else return 91 .
-  guard flags.wide_has buf 64 . else return 92 .
-  guard flags.wide_has buf 65 . else return 92 .
-  guard flags.wide_has buf 255 . else return 92 .
-  guard not (flags.wide_has buf 63) . else return 92 .
+  guard eq (flags.wide_with buf 64) 1 else return 91 .
+  guard eq (flags.wide_with buf 65) 1 else return 91 .
+  guard eq (flags.wide_with buf 255) 1 else return 91 .
+  guard flags.wide_has buf 64 else return 92 .
+  guard flags.wide_has buf 65 else return 92 .
+  guard flags.wide_has buf 255 else return 92 .
+  guard not (flags.wide_has buf 63) else return 92 .
 
   rem 손으로 본 것과 같은가 — 64 번 자리는 8 번 바이트의 0 번 비트다
-  guard eq (widen u64 (idx buf 8)) 3 . else return 93 .        rem 64·65 → 0b11
-  guard eq (widen u64 (idx buf 31)) 128 . else return 93 .     rem 255 → 맨 위 비트
+  guard eq (widen u64 (idx buf 8)) 3 else return 93 .        rem 64·65 → 0b11
+  guard eq (widen u64 (idx buf 31)) 128 else return 93 .     rem 255 → 맨 위 비트
 
   rem ② 범위 밖은 값으로
-  guard not (flags.wide_has buf 256) . else return 94 .
-  guard eq (flags.wide_with buf 256) 0 . else return 94 .
+  guard not (flags.wide_has buf 256) else return 94 .
+  guard eq (flags.wide_with buf 256) 0 else return 94 .
 
   rem ③ 훑기 — 처음 선 자리는 64, 그다음은 65, 그다음은 255, 그다음은 «끝»(256)
-  guard eq (flags.wide_next buf 0) 64 . else return 95 .
-  guard eq (flags.wide_next buf 65) 65 . else return 95 .
-  guard eq (flags.wide_next buf 66) 255 . else return 95 .
-  guard eq (flags.wide_next buf 256) 256 . else return 95 .
-  guard eq (flags.wide_ones buf) 3 . else return 96 .
+  guard eq (flags.wide_next buf 0) 64 else return 95 .
+  guard eq (flags.wide_next buf 65) 65 else return 95 .
+  guard eq (flags.wide_next buf 66) 255 else return 95 .
+  guard eq (flags.wide_next buf 256) 256 else return 95 .
+  guard eq (flags.wide_ones buf) 3 else return 96 .
 
   rem 끄고 뒤집기
-  guard eq (flags.wide_without buf 64) 1 . else return 97 .
-  guard not (flags.wide_has buf 64) . else return 97 .
-  guard eq (flags.wide_toggle buf 64) 1 . else return 97 .
-  guard flags.wide_has buf 64 . else return 97 .
-  guard eq (flags.wide_ones buf) 3 . else return 97 .
+  guard eq (flags.wide_without buf 64) 1 else return 97 .
+  guard not (flags.wide_has buf 64) else return 97 .
+  guard eq (flags.wide_toggle buf 64) 1 else return 97 .
+  guard flags.wide_has buf 64 else return 97 .
+  guard eq (flags.wide_ones buf) 3 else return 97 .
 
   return 42 .
 end

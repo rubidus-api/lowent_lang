@@ -4,7 +4,7 @@ rem   못 받으면 `none`. 뒤받침이 틀 안 배열인 범프 할당자 · �
 use allocs .
 
 fn sum input s slice u64 . output u64 . do
-  var t be u64 0 .
+  var t u64 0 .
   for x s do
     set t (add t x) .
   end
@@ -12,19 +12,19 @@ fn sum input s slice u64 . output u64 . do
 end
 
 export proc heap_list input h cap heap . input a u64 . output u64 . effects heap state . do
-  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
-  var b using hb be mut slice u64 lit array u64 8 do 0 a . 7 (mul a 3) . _ 1 . end . else return 0 .
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes .
+  var b use hb mut slice u64 lit array u64 8 do 0 a . 7 (mul a 3) . _ 1 . end else return 0 .
   set (idx b 1) 100 .
   return sum b .
 end
 
 export proc bump_list input a u64 . output u64 . effects state . do
-  var back be lit array u8 64 _ . .
-  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got be u64 send bb init back .
-  let s1 using bb be mut slice u32 lit array u32 4 1 2 3 (narrow u32 a) . . else return 1 .
-  let s2 using bb be mut slice u64 lit slice u64 5 6 . . else return 2 .
-  let x3 using bb be option mut slice u64 lit array u64 8 _ . .
-  guard is_none x3 . else return 3 .
+  var back lit array u8 64 _ . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got u64 send bb init back .
+  let s1 use bb mut slice u32 lit array u32 4 1 2 3 (narrow u32 a) . else return 1 .
+  let s2 use bb mut slice u64 lit slice u64 5 6 . else return 2 .
+  let x3 use bb option mut slice u64 lit array u64 8 _ . .
+  guard is_none x3 else return 3 .
   return add (add (widen u64 (idx s1 3)) (idx s2 1)) (len s2) .
 end

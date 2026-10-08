@@ -5,12 +5,12 @@ rem run: count_inner
 rem ko: 영역이 반복 바깥에 있다 --- 바퀴마다 얻은 4096 바이트가 블록 끝까지 쌓인다 /// en: the region is outside the loop --- the 4096 bytes taken each round pile up until the block ends
 proc count_outer output u64 . effects alloc .
 do
-  var got be u64 0 .
+  var got u64 0 .
   region work arena do
-    var i be u64 0 .
-    while lt i 100 . do
-      let g be option mut slice u8 alloc_bytes work capacity 4096 .
-      if is_some g . do set got (add got 1) . end
+    var i u64 0 .
+    while lt i 100 do
+      let g option mut slice u8 alloc_bytes work capacity 4096 .
+      if is_some g do set got (add got 1) . end
       set i (add i 1) .
     end
   end
@@ -20,12 +20,12 @@ end
 rem ko: 영역을 반복 안에서 연다 --- 바퀴가 끝날 때마다 되감긴다 /// en: the region is opened inside the loop --- it is rewound at the end of every round
 proc count_inner output u64 . effects alloc .
 do
-  var got be u64 0 .
-  var i be u64 0 .
-  while lt i 100 . do
+  var got u64 0 .
+  var i u64 0 .
+  while lt i 100 do
     region work arena do
-      let g be option mut slice u8 alloc_bytes work capacity 4096 .
-      if is_some g . do set got (add got 1) . end
+      let g option mut slice u8 alloc_bytes work capacity 4096 .
+      if is_some g do set got (add got 1) . end
     end
     set i (add i 1) .
   end

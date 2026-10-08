@@ -3,7 +3,7 @@ rem expect: E-TYPE-ARGMUT
 
 rem ko: ✘ 문자열 리터럴을 mut slice 로 받아 고친다 — 리터럴은 프로그램에 박힌 읽기 전용 바이트다 /// en: ✘ taking a string literal as mut slice and changing it; a literal is read-only bytes baked into the program
 fn poke output u8 . do
-  let buf be mut slice u8 "abc" .
+  let buf mut slice u8 "abc" .
   set (idx buf 0) 65 .
   return idx buf 0 .
 end

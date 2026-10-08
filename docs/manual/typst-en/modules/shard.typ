@@ -9,10 +9,10 @@ mine". Whether pieces then ride on several threads or run sequentially, the fact
 
 ```lowent
 def newtype grid u8 .
-var r be (owned shard.token grid) shard.open grid 8 .
-var h be (shard.halves grid) shard.split_at grid r 4 .
-var lo be (owned shard.token grid) (field h low) .
-var hi be (owned shard.token grid) (field h high) .
+var r (owned shard.token grid) shard.open grid 8 .
+var h (shard.halves grid) shard.split_at grid r 4 .
+var lo (owned shard.token grid) (field h low) .
+var hi (owned shard.token grid) (field h high) .
 rem r can no longer be used --- using it is E-OWN-MOVED
 ```
 
@@ -48,7 +48,7 @@ between two struct arguments. A contract nobody can verify is a sentence, not a 
 
 #antipattern[Joining in reverse][
   `shard.rejoin g hi lo` is `none`. It does not stop, so without looking at the return value you pass on unaware that nothing was joined. Receive it with
-  `guard is_some back .`.
+  `guard is_some back`.
 ]
 
 #antipattern[Opening two stores with one brand][

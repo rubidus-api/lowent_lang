@@ -49,14 +49,19 @@ test <이름> [schedule explore_interleavings [limit <수>] .] do expect <조건
 == 문장
 
 ```text
-let <이름> [<타입>] [using <출처>] be <식> .
-var <이름> [<타입>] be <식> .
-set <자리> <식> .                         (자리 = 이름 · field … · index …)
-if <조건> . do … end [else do … end] .
-while <조건> . do … end
-for <이름> <슬라이스> do … end
-guard <조건> . else <떠나는 문장> .
-match <값> . do case <패턴> [when <조건>] . do … end … end
+let <이름> [use <할당기> | keep <할당기>] <타입> <식> [else <떠나는 문장>] .
+var <이름> <타입> <식> .
+let <이름> <타입> <식> else do … end          (실패 절이 블록이면 마침표가 없다)
+let <이름> <타입> <식> else error <이름> do … end
+set <자리> <식> .                         (자리 = 이름 · field … · idx …)
+if <조건> do … end [else do … end]
+while <조건> do … end
+for <이름> [mut] <슬라이스> [if <조건>] do … end
+repeat <이름> <타입> <횟수> [if <조건>] do … end
+range <이름> <타입> <처음> <끝> [step <걸음>] [if <조건>] do … end
+cycle <이름> <타입> <처음> while <조건> next <다음 값> [if <조건>] do … end
+guard <조건> else <떠나는 문장> .
+match <값> do case <패턴> [when <조건>] do … end … end
 return [<식>] .    break .    continue .    panic "<글>" .
 drop <이름> .
 region <이름> stack|frame|arena|static|heap|mmap|disk|device do … end

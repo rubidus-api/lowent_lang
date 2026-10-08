@@ -67,7 +67,7 @@ unsafe proc clock_on
   output void .
   effects device unsafe .
 do
-  var c be rcc view rcc .
+  var c rcc view rcc .
   rem ★ 읽고-고치고-쓴다. 통째로 쓰면 **남의 주변장치 클럭을 꺼 버린다**.
   write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
   return .
@@ -88,9 +88,9 @@ unsafe proc led_init
   output void .
   effects device unsafe .
 do
-  var g be gpioa view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
+  var g gpioa view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
   rem moder 의 핀5 자리(비트 10~11)를 01(범용 출력)로.
-  var m be u32 read_volatile g moder .
+  var m u32 read_volatile g moder .
   set m (bit_and m (bit_not (shl 3 10))) .
   set m (bit_or m (shl 1 10)) .
   write_volatile g moder m .
@@ -108,8 +108,8 @@ unsafe proc on_systick
   output void .
   effects device unsafe .
 do
-  var g be gpioa view gpioa .          rem ★ 줄 사람이 없어도 열린다
-  var cur be u32 read_volatile g odr .
+  var g gpioa view gpioa .          rem ★ 줄 사람이 없어도 열린다
+  var cur u32 read_volatile g odr .
   write_volatile g odr (bit_xor cur led_bit) .
   return .
 end
@@ -129,7 +129,7 @@ unsafe proc tick_init
   output void .
   effects device unsafe .
 do
-  var s be systick view systick .
+  var s systick view systick .
   write_volatile s load 15999 .    rem 16MHz / 16000 = 1kHz
   write_volatile s val 0 .
   write_volatile s ctrl 7 .        rem enable | tickint | clksource
@@ -173,16 +173,16 @@ unsafe proc reset
   effects device unsafe .
 do
   rem ① 클럭이 먼저다 — 없으면 아래 쓰기가 전부 허공에 떨어진다.
-  var c be rcc view rcc .
+  var c rcc view rcc .
   write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
   rem ② LED 핀을 범용 출력으로.
-  var g be gpioa view gpioa .
-  var m be u32 read_volatile g moder .
+  var g gpioa view gpioa .
+  var m u32 read_volatile g moder .
   set m (bit_and m (bit_not (shl 3 10))) .
   set m (bit_or m (shl 1 10)) .
   write_volatile g moder m .
   rem ③ SysTick 을 켠다 — 이제 on_systick 이 1kHz 로 불린다.
-  var s be systick view systick .
+  var s systick view systick .
   write_volatile s load 15999 .
   write_volatile s val 0 .
   write_volatile s ctrl 7 .
@@ -193,7 +193,7 @@ do
   rem     몸**에 두는 것이고, 그래서 `asm` 이 **문장 자리**로 왔다. 새 낱말 0.
   rem   ★ 그전까지 이 자리는 `while true . do end` — **바쁜 대기**였다. 컴파일도 되고 방출도
   rem     되고 보드도 돌지만, 배터리가 있는 기계에서는 그 차이가 전부다.
-  while true . do
+  while true do
     rem ★ 템플릿도 **문장**이라 `.` 로 닫는다 — 안 닫으면 점-닫힘 파서가 뒤 문장을 그 폼 안으로
     rem   빨아들인다(그리고 그것들은 조용히 사라진다). 도구가 그 모양을 알아보고 이름을 부른다.
     asm cortex_m options nomem nostack .
@@ -219,7 +219,7 @@ do
   clock_on dev .
   led_init dev .
   tick_init dev .
-  while true . do
+  while true do
     wait_irq k .
   end
   return .

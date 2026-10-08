@@ -180,7 +180,7 @@
 rem 안 받은 권한은 이 프로그램 어디에도 없다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n be u64 write_out out 1 \"hello\\n\" .
+  let n u64 write_out out 1 \"hello\\n\" .
   return narrow u8 n .
 end")
     #rejected("시작점은 `u8` 을 돌려준다", "module ex_entry .

@@ -692,14 +692,19 @@ contract &lt;이름> do requires &lt;조건> . … end
 actor &lt;이름> do [satisfies …] state do &lt;칸> &lt;타입> . … end [failure restart max &lt;수> .] [mailbox bounded &lt;수> .] &lt;op>… end
 build profile &lt;이름> .        build tier t0|t1|t2|t3 .        build &lt;모드> .
 build option &lt;이름> bool|int|choice … default &lt;값>
-test &lt;이름> [schedule explore_interleavings [limit &lt;수>] .] do expect &lt;조건> . … end</code></pre><h3 id="sx3">문장<a class="plink" href="#sx3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><pre><code data-lang="text">let &lt;이름> [&lt;타입>] [using &lt;출처>] be &lt;식> .
-var &lt;이름> [&lt;타입>] be &lt;식> .
-set &lt;자리> &lt;식> .                         (자리 = 이름 · field … · index …)
-if &lt;조건> . do … end [else do … end] .
-while &lt;조건> . do … end
-for &lt;이름> &lt;슬라이스> do … end
-guard &lt;조건> . else &lt;떠나는 문장> .
-match &lt;값> . do case &lt;패턴> [when &lt;조건>] . do … end … end
+test &lt;이름> [schedule explore_interleavings [limit &lt;수>] .] do expect &lt;조건> . … end</code></pre><h3 id="sx3">문장<a class="plink" href="#sx3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><pre><code data-lang="text">let &lt;이름> [use &lt;할당기> | keep &lt;할당기>] &lt;타입> &lt;식> [else &lt;떠나는 문장>] .
+var &lt;이름> &lt;타입> &lt;식> .
+let &lt;이름> &lt;타입> &lt;식> else do … end          (실패 절이 블록이면 마침표가 없다)
+let &lt;이름> &lt;타입> &lt;식> else error &lt;이름> do … end
+set &lt;자리> &lt;식> .                         (자리 = 이름 · field … · idx …)
+if &lt;조건> do … end [else do … end]
+while &lt;조건> do … end
+for &lt;이름> [mut] &lt;슬라이스> [if &lt;조건>] do … end
+repeat &lt;이름> &lt;타입> &lt;횟수> [if &lt;조건>] do … end
+range &lt;이름> &lt;타입> &lt;처음> &lt;끝> [step &lt;걸음>] [if &lt;조건>] do … end
+cycle &lt;이름> &lt;타입> &lt;처음> while &lt;조건> next &lt;다음 값> [if &lt;조건>] do … end
+guard &lt;조건> else &lt;떠나는 문장> .
+match &lt;값> do case &lt;패턴> [when &lt;조건>] do … end … end
 return [&lt;식>] .    break .    continue .    panic "&lt;글>" .
 drop &lt;이름> .
 region &lt;이름> stack|frame|arena|static|heap|mmap|disk|device do … end

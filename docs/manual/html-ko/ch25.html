@@ -686,14 +686,14 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">proc</span></strong> use_counter <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c get .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_counter counter.low
 use_counter() = 2
-</code></pre></div></div><span id="idx-entry-57"></span><ul><li><code>actor counter do … end</code> 가 액터를 선언한다. <code>state do value u64 . end</code> 가 액터의 상태다. 상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다.</li><li>상태를 고치는 <code>inc</code> 는 <code>proc</code> 이고 <code>effects state</code> 다. 읽기만 하는 <code>get</code> 은 <code>fn</code> 이다. 액터 안의 op 도 5장의 갈래 규칙을 그대로 따른다.</li><li><code>var c be counter spawn actor counter .</code> 가 액터 하나를 만든다. 상태는 0 으로 시작한다.</li><li><code>send c inc</code> 는 <code>c</code> 에게 <code>inc</code> 메시지를 보내고 처리가 끝날 때까지 기다려 결과를 받는다.</li></ul><p>액터는 메시지를 <strong>한 번에 하나씩</strong> 처리한다. 그래서 그 안의 상태는 동시에 건드려지지 않는다. 자물쇠를 손으로 걸 필요가 없는 이유다.</p><p>창구가 하나뿐인 은행 창구에 빗대면 쉽다. 손님(메시지)은 줄을 서고, 창구 직원(액터)은 한 번에 한 손님만 받는다. 금고(상태)는 창구 뒤에 있어 손님이 직접 열 수 없다.</p><pre><code data-lang="text">  보내는 쪽들                    우편함(줄)               액터 counter
+</code></pre></div></div><span id="idx-entry-57"></span><ul><li><code>actor counter do … end</code> 가 액터를 선언한다. <code>state do value u64 . end</code> 가 액터의 상태다. 상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다.</li><li>상태를 고치는 <code>inc</code> 는 <code>proc</code> 이고 <code>effects state</code> 다. 읽기만 하는 <code>get</code> 은 <code>fn</code> 이다. 액터 안의 op 도 5장의 갈래 규칙을 그대로 따른다.</li><li><code>var c counter spawn actor counter .</code> 가 액터 하나를 만든다. 상태는 0 으로 시작한다.</li><li><code>send c inc</code> 는 <code>c</code> 에게 <code>inc</code> 메시지를 보내고 처리가 끝날 때까지 기다려 결과를 받는다.</li></ul><p>액터는 메시지를 <strong>한 번에 하나씩</strong> 처리한다. 그래서 그 안의 상태는 동시에 건드려지지 않는다. 자물쇠를 손으로 걸 필요가 없는 이유다.</p><p>창구가 하나뿐인 은행 창구에 빗대면 쉽다. 손님(메시지)은 줄을 서고, 창구 직원(액터)은 한 번에 한 손님만 받는다. 금고(상태)는 창구 뒤에 있어 손님이 직접 열 수 없다.</p><pre><code data-lang="text">  보내는 쪽들                    우편함(줄)               액터 counter
                                                      ┌──────────────────────┐
   send c inc  ───────▶ ┌─────┬─────┬─────┐           │  지금 처리 중: inc   │
   send c inc  ───────▶ │ inc             │ inc │ get │ ────────▶ │                      │
@@ -735,8 +735,8 @@ pure_bad.low:10:3 E-EFFECT-CALC: this fn is declared pure but performs `state` �
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000000</span> .
   <strong><span class="tok-k">requires</span></strong> le b <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acct <strong><span class="tok-k">be</span></strong> account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> acct deposit a .
+  <strong><span class="tok-k">var</span></strong> acct account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> acct deposit a .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> acct deposit b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run tally args.low 5 7
@@ -760,9 +760,9 @@ tally(5, 7) = 12
 
 <strong><span class="tok-k">proc</span></strong> give_twice <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> w <strong><span class="tok-k">be</span></strong> worker <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> worker .
-  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> job n .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> w take j .
+  <strong><span class="tok-k">var</span></strong> w worker <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> worker .
+  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">owned</span></strong> job n .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> w take j .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> w take j .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check handoff.low
@@ -788,7 +788,7 @@ handoff.low:23:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) �
 
 <strong><span class="tok-k">proc</span></strong> drive <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
@@ -798,7 +798,7 @@ handoff.low:23:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) �
 
 <strong><span class="tok-k">proc</span></strong> nodrain <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c get .
@@ -816,9 +816,9 @@ nodrain() = 0
     bad <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">end</span></strong>
   failure restart max <span class="tok-n">3</span> .
-  <strong><span class="tok-k">proc</span></strong> step <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
+  <strong><span class="tok-k">proc</span></strong> tick <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
   <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> ne bad <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> ne bad <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
       panic <span class="tok-s">"</span><span class="tok-s">corrupted state</span><span class="tok-s">"</span> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> bad <span class="tok-n">1</span> .
@@ -840,14 +840,14 @@ nodrain() = 0
 
 <strong><span class="tok-k">proc</span></strong> recover <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> recov <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> recov .
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c step .
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c step .
+  <strong><span class="tok-k">var</span></strong> c recov <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> recov .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c tick .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c tick .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> escalate <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> doomed <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> doomed .
+  <strong><span class="tok-k">var</span></strong> c doomed <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> doomed .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c boom .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run recover restart.low
@@ -855,7 +855,7 @@ recover() = 42
 $ lowentc --run escalate restart.low
 == ir diagnostics (1) ==
 0:0 E-VM-PANIC: the program called `panic` — this is an unrecoverable stop, and it is NOT a contract violation (the code chose to stop, it did not break a promise)
-</code></pre></div></div><ul><li><code>recov</code> 는 첫 <code>step</code> 에서 <code>bad</code> 를 1 로 만들고, 둘째 <code>step</code> 에서 <code>panic</code> 한다. <code>failure restart max 3 .</code> 이 있으므로 상태를 처음(<code>bad = 0</code>)으로 되돌리고 메시지를 다시 처리해 42 를 낸다.</li><li><code>doomed</code> 는 언제나 터진다. 두 번 다시 세운 뒤에도 터지면 그 실패는 <strong>위로 넘어가</strong> 프로그램이 멈춘다. 조용히 멈추어 있는 액터를 남기지 않는다.</li></ul><p>정책은 셋이다 — <code>restart max &lt;수></code>(그 수만큼), <code>never</code>(처음 터질 때 바로 위로), <code>always</code>(셈하지 않고 계속). 다시 세우는 것은 <code>panic</code> 에만 해당한다. 계약 위반은 프로그램이 스스로 적은 약속을 어긴 것이라 다시 해도 같으므로 다시 세우지 않는다. 되살아나는 것은 <strong>자기 상태뿐</strong>이고 다른 액터는 건드리지 않는다.</p><p>상태가 어쩌다 이상해진 실패를 하나하나 손으로 되돌리는 코드는 길고, 길면 그 코드 자체가 틀린다. 상태를 처음으로 돌리는 것은 짧고 언제나 맞는 복구다.</p><h3 id="s25-5">25.5 액터를 쓸 수 있는 자리<a class="plink" href="#s25-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>프로그램은 자기가 어느 자리에서 도는지 <code>build profile &lt;이름> .</code> 으로 적을 수 있다. 적으면 그 자리가 감당하지 못하는 동시성을 번역할 때 거절한다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>프로파일</strong></th><th><strong>등급</strong></th><th><strong>무엇까지</strong></th></tr><tr><td><code>freestanding</code></td><td>0</td><td>운영체제 없음. 동시성을 쓰지 않는다</td></tr><tr><td><code>embedded</code></td><td>1</td><td>정해진 일감을 나누어 도는 데까지(흐름이 정적으로 정해진다)</td></tr><tr><td><code>native</code></td><td>2</td><td>흐름을 만들고 채널로 주고받는다</td></tr><tr><td><code>server</code></td><td>3</td><td>액터까지</td></tr></table></div><p class="float-caption">표 25.1 — 프로파일과 여는 등급</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/profile.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> profile .
+</code></pre></div></div><ul><li><code>recov</code> 는 첫 <code>tick</code> 에서 <code>bad</code> 를 1 로 만들고, 둘째 <code>tick</code> 에서 <code>panic</code> 한다. <code>failure restart max 3 .</code> 이 있으므로 상태를 처음(<code>bad = 0</code>)으로 되돌리고 메시지를 다시 처리해 42 를 낸다.</li><li><code>doomed</code> 는 언제나 터진다. 두 번 다시 세운 뒤에도 터지면 그 실패는 <strong>위로 넘어가</strong> 프로그램이 멈춘다. 조용히 멈추어 있는 액터를 남기지 않는다.</li></ul><p>정책은 셋이다 — <code>restart max &lt;수></code>(그 수만큼), <code>never</code>(처음 터질 때 바로 위로), <code>always</code>(셈하지 않고 계속). 다시 세우는 것은 <code>panic</code> 에만 해당한다. 계약 위반은 프로그램이 스스로 적은 약속을 어긴 것이라 다시 해도 같으므로 다시 세우지 않는다. 되살아나는 것은 <strong>자기 상태뿐</strong>이고 다른 액터는 건드리지 않는다.</p><p>상태가 어쩌다 이상해진 실패를 하나하나 손으로 되돌리는 코드는 길고, 길면 그 코드 자체가 틀린다. 상태를 처음으로 돌리는 것은 짧고 언제나 맞는 복구다.</p><h3 id="s25-5">25.5 액터를 쓸 수 있는 자리<a class="plink" href="#s25-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>프로그램은 자기가 어느 자리에서 도는지 <code>build profile &lt;이름> .</code> 으로 적을 수 있다. 적으면 그 자리가 감당하지 못하는 동시성을 번역할 때 거절한다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>프로파일</strong></th><th><strong>등급</strong></th><th><strong>무엇까지</strong></th></tr><tr><td><code>freestanding</code></td><td>0</td><td>운영체제 없음. 동시성을 쓰지 않는다</td></tr><tr><td><code>embedded</code></td><td>1</td><td>정해진 일감을 나누어 도는 데까지(흐름이 정적으로 정해진다)</td></tr><tr><td><code>native</code></td><td>2</td><td>흐름을 만들고 채널로 주고받는다</td></tr><tr><td><code>server</code></td><td>3</td><td>액터까지</td></tr></table></div><p class="float-caption">표 25.1 — 프로파일과 여는 등급</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/profile.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> profile .
 <em><span class="tok-c">rem expect: E-PROFILE-LEVEL</span></em>
 
 build profile embedded .
@@ -883,9 +883,9 @@ build profile embedded .
     entries <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">proc</span></strong> write <strong><span class="tok-k">input</span></strong> code <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes root capacity <span class="tok-n">16</span> .
-    <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> .
-    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes root capacity <span class="tok-n">16</span> .
+    <strong><span class="tok-k">guard</span></strong> is_some g <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> .
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
     <strong><span class="tok-k">set</span></strong> (idx v <span class="tok-n">0</span>) code .
     <strong><span class="tok-k">set</span></strong> entries (add entries <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
@@ -897,9 +897,9 @@ build profile embedded .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> book <strong><span class="tok-k">be</span></strong> logbook <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> logbook .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> book write <span class="tok-n">7</span> .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> book write <span class="tok-n">9</span> .
+  <strong><span class="tok-k">var</span></strong> book logbook <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> logbook .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> book write <span class="tok-n">7</span> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> book write <span class="tok-n">9</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (<strong><span class="tok-k">send</span></strong> book count) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main capfield.low
@@ -913,8 +913,8 @@ main() = 2
     entries <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">proc</span></strong> write <strong><span class="tok-k">input</span></strong> code <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes root capacity <span class="tok-n">16</span> .
-    <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes root capacity <span class="tok-n">16</span> .
+    <strong><span class="tok-k">guard</span></strong> is_some g <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> .
     <strong><span class="tok-k">set</span></strong> entries (add entries <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
   <strong><span class="tok-k">end</span></strong>
@@ -923,8 +923,8 @@ main() = 2
 <em><span class="tok-c">rem ✘ cap allocator 를 받지 않은 op 이 권한 칸 액터를 띄운다</span></em>
 <strong><span class="tok-k">proc</span></strong> sneaky <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> book <strong><span class="tok-k">be</span></strong> logbook <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> logbook .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> book write <span class="tok-n">7</span> .
+  <strong><span class="tok-k">var</span></strong> book logbook <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> logbook .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> book write <span class="tok-n">7</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_capfield.low
@@ -954,7 +954,7 @@ mistake_capfield.low:20:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a 
   <strong><span class="tok-k">proc</span></strong> withdraw <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
     <strong><span class="tok-k">errors</span></strong> insufficient .
   <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">guard</span></strong> le amount balance . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error insufficient .
+    <strong><span class="tok-k">guard</span></strong> le amount balance <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error insufficient .
     <strong><span class="tok-k">set</span></strong> balance (sub balance amount) .
     <strong><span class="tok-k">return</span></strong> ok balance .
   <strong><span class="tok-k">end</span></strong>
@@ -969,12 +969,12 @@ mistake_capfield.low:20:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a 
 <strong><span class="tok-k">proc</span></strong> move <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le amount <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> src <strong><span class="tok-k">be</span></strong> account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
-  <strong><span class="tok-k">var</span></strong> dst <strong><span class="tok-k">be</span></strong> account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
-  <strong><span class="tok-k">let</span></strong> seed <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> src deposit <span class="tok-n">50</span> .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error <strong><span class="tok-k">send</span></strong> src withdraw amount .
-  <strong><span class="tok-k">guard</span></strong> not (is_error r) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> add (mul (<strong><span class="tok-k">send</span></strong> src peek_balance) <span class="tok-n">1000</span>) (<strong><span class="tok-k">send</span></strong> dst peek_balance) .
-  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> dst deposit amount .
+  <strong><span class="tok-k">var</span></strong> src account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">var</span></strong> dst account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">let</span></strong> seed <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> src deposit <span class="tok-n">50</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error <strong><span class="tok-k">send</span></strong> src withdraw amount .
+  <strong><span class="tok-k">guard</span></strong> not (is_error r) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> add (mul (<strong><span class="tok-k">send</span></strong> src peek_balance) <span class="tok-n">1000</span>) (<strong><span class="tok-k">send</span></strong> dst peek_balance) .
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> dst deposit amount .
   <strong><span class="tok-k">return</span></strong> add (mul (<strong><span class="tok-k">send</span></strong> src peek_balance) <span class="tok-n">1000</span>) (<strong><span class="tok-k">send</span></strong> dst peek_balance) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run move transfer.low 30
@@ -1002,7 +1002,7 @@ move(80) = 50000
 
 <strong><span class="tok-k">proc</span></strong> burst <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <em><span class="tok-c">rem ✘ 우편함은 두 통까지인데 비우기 전에 셋째를 넣는다</span></em>
@@ -1034,12 +1034,12 @@ move(80) = 50000
 
 <strong><span class="tok-k">proc</span></strong> burst <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <em><span class="tok-c">rem 넣지 못하면 멈추지 않고 오류를 값으로 받는다 --- 비운 뒤 다시 넣는다</span></em>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> mailbox_full <strong><span class="tok-k">try</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
-  <strong><span class="tok-k">if</span></strong> is_error r . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> mailbox_full <strong><span class="tok-k">try</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">if</span></strong> is_error r <strong><span class="tok-k">do</span></strong>
     drain c .
     <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <strong><span class="tok-k">end</span></strong>
@@ -1064,7 +1064,7 @@ burst() = 3
 
 <strong><span class="tok-k">proc</span></strong> use_counter <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
   <em><span class="tok-c">rem ✘ `counter` 는 `dec` 메시지를 다루지 않는다</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c dec .
 <strong><span class="tok-k">end</span></strong>
@@ -1086,8 +1086,8 @@ mistake_unknownmsg.low:19:0 E-IR-UNDEF: send names a message this actor does not
 
 <strong><span class="tok-k">proc</span></strong> peek <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <em><span class="tok-c">rem ✘ 액터의 상태 칸을 바깥에서 읽는다 --- 막혀야 할 자리가 이 판에서는 통과한다</span></em>
   <strong><span class="tok-k">return</span></strong> field c value .
 <strong><span class="tok-k">end</span></strong>
@@ -1116,7 +1116,7 @@ mistake_peekstate.low:20:0 E-ACTOR-FIELD: this reads a STATE FIELD of an actor f
   <strong><span class="tok-k">proc</span></strong> withdraw <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
     <strong><span class="tok-k">errors</span></strong> insufficient gt amount balance .
   <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">guard</span></strong> le amount balance . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error insufficient .
+    <strong><span class="tok-k">guard</span></strong> le amount balance <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error insufficient .
     <strong><span class="tok-k">set</span></strong> balance (sub balance amount) .
     <strong><span class="tok-k">return</span></strong> ok balance .
   <strong><span class="tok-k">end</span></strong>
@@ -1124,14 +1124,14 @@ mistake_peekstate.low:20:0 E-ACTOR-FIELD: this reads a STATE FIELD of an actor f
 
 <strong><span class="tok-k">proc</span></strong> take30 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
-  <strong><span class="tok-k">let</span></strong> seed <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a deposit <span class="tok-n">50</span> .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error <strong><span class="tok-k">send</span></strong> a withdraw <span class="tok-n">30</span> .
-  <strong><span class="tok-k">guard</span></strong> not (is_error r) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">var</span></strong> a account <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">let</span></strong> seed <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a deposit <span class="tok-n">50</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error <strong><span class="tok-k">send</span></strong> a withdraw <span class="tok-n">30</span> .
+  <strong><span class="tok-k">guard</span></strong> not (is_error r) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> ok_value r .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">var</span></strong> fee <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">5</span> .
+<strong><span class="tok-k">var</span></strong> fee <strong><span class="tok-t">u64</span></strong> <span class="tok-n">5</span> .
 
 <em><span class="tok-c">rem ✘ 액터 밖에서도 같다 --- 모듈 `var` 와 `mut` 자리의 인자도 몸통이 바꿀 수 있으므로 오류 조건에 서지 못한다</span></em>
 <strong><span class="tok-k">proc</span></strong> charge <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> log <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
@@ -1159,7 +1159,7 @@ mistake_errorsstate.low:42:0 E-NAME-BUILTIN: a PARAMETER takes the name of a cor
 
 <strong><span class="tok-k">proc</span></strong> peek_it <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">be</span></strong> holder <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> holder .
+  <strong><span class="tok-k">var</span></strong> h holder <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> holder .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> h peek .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_reffield.low
@@ -1176,7 +1176,7 @@ mistake_reffield.low:17:0 E-ACTOR-UNINIT: this is the FIRST message sent to an a
   <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
   <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem 값이 2 일 때 한 번 터진다</span></em>
-    <strong><span class="tok-k">if</span></strong> eq value <span class="tok-n">2</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">at two</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq value <span class="tok-n">2</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">at two</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> value .
   <strong><span class="tok-k">end</span></strong>
@@ -1184,9 +1184,9 @@ mistake_reffield.low:17:0 E-ACTOR-UNINIT: this is the FIRST message sent to an a
 
 <strong><span class="tok-k">proc</span></strong> three_incs <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> c <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
   <em><span class="tok-c">rem 셋째 메시지에서 터지고, 상태가 0 으로 돌아간 뒤 이 메시지가 다시 처리된다</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
 <strong><span class="tok-k">end</span></strong>
@@ -1208,16 +1208,16 @@ three_incs() = 1
 
 <strong><span class="tok-k">proc</span></strong> two_counters <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> left <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
-  <strong><span class="tok-k">var</span></strong> right <strong><span class="tok-k">be</span></strong> counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> left inc .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> left inc .
+  <strong><span class="tok-k">var</span></strong> left counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> right counter <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> left inc .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> left inc .
   <em><span class="tok-c">rem `right` 는 자기 상태를 따로 가진다 --- 1 이 나온다</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> right inc .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run two_counters separate_state.low
 two_counters() = 1
-</code></pre></div></div><p><code>spawn actor counter</code> 를 두 번 하면 상태가 둘 생긴다. <code>left</code> 를 두 번 올려도 <code>right</code> 는 1 부터 센다. 액터 타입은 설계도이고 상태는 <code>spawn</code> 할 때마다 새로 생긴다. 여럿이 같은 값을 봐야 한다면 그 값을 가진 액터 <strong>하나</strong>를 두고 모두가 그 액터에게 말을 건다.</p></div></div><h3 id="s25-9">25.9 이 장의 문법을 한눈에<a class="plink" href="#s25-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>actor counter do state do value u64 . end … end</code></td><td>상태를 가둔 실행 단위를 선언</td><td>상태를 동시에 만질 길이 처음부터 없다</td></tr><tr><td><code>proc inc … effects state .</code> · <code>fn get …</code></td><td>상태를 고치는 메시지 · 읽기만 하는 메시지</td><td><code>fn</code>·<code>proc</code> 규칙이 그대로 — 고치면서 <code>fn</code> 이면 <code>E-EFFECT-PURITY</code></td></tr><tr><td><code>var c be counter spawn actor counter .</code></td><td>액터 하나를 만든다(상태는 0 에서 시작)</td><td><code>spawn</code> 마다 상태가 따로</td></tr><tr><td><code>send c inc</code> · <code>send acct deposit a</code></td><td>보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다</td><td>액터가 먼저 — 메시지는 액터를 첫 매개변수로 받는 op</td></tr><tr><td><code>spawn send c inc .</code> · <code>drain c .</code> · <code>schedule .</code></td><td>우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기</td><td>배달 시점을 사람이 고른다 — 결정성</td></tr><tr><td><code>mailbox bounded 2 .</code> · <code>try spawn send</code></td><td>우편함 크기 · 넘침을 값으로 받기</td><td>넘치면 멈추거나 <code>result</code></td></tr><tr><td><code>failure restart max 3 .</code> · <code>never</code> · <code>always</code></td><td><code>panic</code> 한 액터를 처음 상태로 다시 세운다</td><td>다 쓰면 실패를 위로 넘긴다</td></tr><tr><td><code>build profile server .</code></td><td>액터(3 등급)를 쓸 수 있는 자리</td><td>적은 사람만 그 약속을 진다</td></tr><tr><td><code>state do root cap allocator . … end</code></td><td>권한 칸 — 실행 중 크기 0</td><td>띄우는 op 에 같은 권한이 없으면 <code>E-CAP-FORGE</code></td></tr></table></div><p class="float-caption">표 25.3 — 액터의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">액터는 상태를 안에 가두고 메시지를 한 번에 하나씩 처리한다. <code>spawn actor</code> 로 만들고 <code>send</code> 로 기다려 부르며, 메시지 op 은 <code>fn</code>·<code>proc</code> 규칙을 따른다. 메시지에는 값을 싣고, 소유 값을 보내면 소유가 넘어간다. <code>spawn send</code> 는 우편함에 넣기만 하고 <code>drain</code>·<code>schedule</code> 이 비운다. <code>failure restart</code> 는 <code>panic</code> 한 액터의 상태만 처음으로 돌려 다시 세우고, 다 쓰면 실패를 위로 넘긴다. <code>build profile</code> 은 액터를 쓸 수 있는 자리를 정한다.</div></div>
+</code></pre></div></div><p><code>spawn actor counter</code> 를 두 번 하면 상태가 둘 생긴다. <code>left</code> 를 두 번 올려도 <code>right</code> 는 1 부터 센다. 액터 타입은 설계도이고 상태는 <code>spawn</code> 할 때마다 새로 생긴다. 여럿이 같은 값을 봐야 한다면 그 값을 가진 액터 <strong>하나</strong>를 두고 모두가 그 액터에게 말을 건다.</p></div></div><h3 id="s25-9">25.9 이 장의 문법을 한눈에<a class="plink" href="#s25-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>actor counter do state do value u64 . end … end</code></td><td>상태를 가둔 실행 단위를 선언</td><td>상태를 동시에 만질 길이 처음부터 없다</td></tr><tr><td><code>proc inc … effects state .</code> · <code>fn get …</code></td><td>상태를 고치는 메시지 · 읽기만 하는 메시지</td><td><code>fn</code>·<code>proc</code> 규칙이 그대로 — 고치면서 <code>fn</code> 이면 <code>E-EFFECT-PURITY</code></td></tr><tr><td><code>var c counter spawn actor counter .</code></td><td>액터 하나를 만든다(상태는 0 에서 시작)</td><td><code>spawn</code> 마다 상태가 따로</td></tr><tr><td><code>send c inc</code> · <code>send acct deposit a</code></td><td>보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다</td><td>액터가 먼저 — 메시지는 액터를 첫 매개변수로 받는 op</td></tr><tr><td><code>spawn send c inc .</code> · <code>drain c .</code> · <code>schedule .</code></td><td>우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기</td><td>배달 시점을 사람이 고른다 — 결정성</td></tr><tr><td><code>mailbox bounded 2 .</code> · <code>try spawn send</code></td><td>우편함 크기 · 넘침을 값으로 받기</td><td>넘치면 멈추거나 <code>result</code></td></tr><tr><td><code>failure restart max 3 .</code> · <code>never</code> · <code>always</code></td><td><code>panic</code> 한 액터를 처음 상태로 다시 세운다</td><td>다 쓰면 실패를 위로 넘긴다</td></tr><tr><td><code>build profile server .</code></td><td>액터(3 등급)를 쓸 수 있는 자리</td><td>적은 사람만 그 약속을 진다</td></tr><tr><td><code>state do root cap allocator . … end</code></td><td>권한 칸 — 실행 중 크기 0</td><td>띄우는 op 에 같은 권한이 없으면 <code>E-CAP-FORGE</code></td></tr></table></div><p class="float-caption">표 25.3 — 액터의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">액터는 상태를 안에 가두고 메시지를 한 번에 하나씩 처리한다. <code>spawn actor</code> 로 만들고 <code>send</code> 로 기다려 부르며, 메시지 op 은 <code>fn</code>·<code>proc</code> 규칙을 따른다. 메시지에는 값을 싣고, 소유 값을 보내면 소유가 넘어간다. <code>spawn send</code> 는 우편함에 넣기만 하고 <code>drain</code>·<code>schedule</code> 이 비운다. <code>failure restart</code> 는 <code>panic</code> 한 액터의 상태만 처음으로 돌려 다시 세우고, 다 쓰면 실패를 위로 넘긴다. <code>build profile</code> 은 액터를 쓸 수 있는 자리를 정한다.</div></div>
 <div class="nav"><a href="ch24.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch26.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

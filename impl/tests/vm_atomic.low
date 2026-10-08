@@ -51,8 +51,8 @@ proc count_par input k cap atomic . input data slice u8 . input counter mut slic
   effects atomic .
   parallel data split .
 do
-  var i be u64 0 .
-  while lt i (len data) . do
+  var i u64 0 .
+  while lt i (len data) do
     atomic_add counter 0 1 .
     set i (add i 1) .
   end

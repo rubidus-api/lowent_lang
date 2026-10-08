@@ -683,7 +683,7 @@ main() = 16
 <strong><span class="tok-k">fn</span></strong> mean <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt (len xs) <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> total (add total (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -735,21 +735,21 @@ messy.low:4:22 E-CLAUSE-ORDER: a data input comes after `output`. An op header h
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">cap</span></strong> args . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> who <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> arg a <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some who . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">no name</span><span class="tok-n">\n</span><span class="tok-s">"</span>) .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello, </span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> (some_value who) .
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> who <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> arg a <span class="tok-n">0</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some who <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">no name</span><span class="tok-n">\n</span><span class="tok-s">"</span>) .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello, </span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> (some_value who) .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check greet.low
 == check: ok ==
-</code></pre></div></div><p><code>input a cap args .</code> receives the argument capability, and <code>arg a 0</code> reads the first argument. There may be no argument, so the result is <code>option slice u8</code>. <code>guard is_some who . else …</code> leaves on the spot when there is no value, and below it you may trust that the value exists (chapter 11). Capability inputs come before data inputs, and the two capabilities take argument positions in the order written.</p><p>Note that the single line <code>effects io .</code> covers both capabilities. <code>args</code> is a capability that can be read without an effect. How capabilities pair with effects is tabulated in chapter 16.</p><h3 id="s2-8">2.8 Common mistakes<a class="plink" href="#s2-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>These are the rejections and stops you meet most often in a first program. When you see one of these codes, come back here.</p><div class="dev antipattern"><p class="dev-label">Counter-example. Opening <code>do</code> and never closing it with <code>end</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch02/mistake_noend.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noend .
+</code></pre></div></div><p><code>input a cap args .</code> receives the argument capability, and <code>arg a 0</code> reads the first argument. There may be no argument, so the result is <code>option slice u8</code>. <code>guard is_some who else …</code> leaves on the spot when there is no value, and below it you may trust that the value exists (chapter 11). Capability inputs come before data inputs, and the two capabilities take argument positions in the order written.</p><p>Note that the single line <code>effects io .</code> covers both capabilities. <code>args</code> is a capability that can be read without an effect. How capabilities pair with effects is tabulated in chapter 16.</p><h3 id="s2-8">2.8 Common mistakes<a class="plink" href="#s2-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>These are the rejections and stops you meet most often in a first program. When you see one of these codes, come back here.</p><div class="dev antipattern"><p class="dev-label">Counter-example. Opening <code>do</code> and never closing it with <code>end</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch02/mistake_noend.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noend .
 <em><span class="tok-c">rem expect: E-BLOCK-UNCLOSED</span></em>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
 <em><span class="tok-c">rem ✘ the `do` that opened the body has no matching `end`</span></em>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noend.low
@@ -760,7 +760,7 @@ messy.low:4:22 E-CLAUSE-ORDER: a data input comes after `output`. An op header h
 <em><span class="tok-c">rem ✘ declares `io` but never receives the right to do it (`cap io`)</span></em>
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nocap.low
@@ -770,9 +770,9 @@ mistake_nocap.low:5:0 E-EFFECT-NO-CAP: this op declares the `io` effect but rece
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">8</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">8</span> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> n (add n (write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">32 bytes of text on every line.</span><span class="tok-n">\n</span><span class="tok-s">"</span>)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -795,7 +795,7 @@ mistake_nocap.low:5:0 E-EFFECT-NO-CAP: this op declares the `io` effect but rece
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mian mistake_opname.low

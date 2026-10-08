@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  In #chref("locals"), why was `let x be u64 if gt a 1 . 5 else 6 .` rejected, and how do you set a value per branch?
+  In #chref("locals"), why was `let x u64 if gt a 1 . 5 else 6 .` rejected, and how do you set a value per branch?
 ][
   `if` is a statement that yields no value, so it cannot stand in an expression position (`E-IF-VALUE`). To set a value per branch, make
   a `var` with a default and `set` it in the branches, or `return` from each branch. This chapter covers the branches themselves, loops,
@@ -25,7 +25,7 @@
 ]
 
 #organizer[
-  You will learn to use `if … else`, `while`, `for`, `break` and `continue`. You will see how `guard` turns a condition into *a fact about
+  You will learn to use `if … else`, `while`, `for`, the counting loops `repeat`, `range` and `cycle`, `break` and `continue`. You will see how `guard` turns a condition into *a fact about
   the code below it*, and why an `else` that does not leave is rejected. You will also meet the rule that every path must return a value,
   `match` over numbers and ranges with its exhaustiveness check, and the fact that `panic` is an effect.
 ]
@@ -39,8 +39,8 @@
 
 #demo("examples/ch07/loops.low")
 
-- `count_big` counts from 0 up to `n` and counts only numbers greater than 5. Look at the shape `while lt i n . do … end` --- the
-  condition is a form too, so it is closed with a full stop, and `do` opens the body after it.
+- `count_big` counts from 0 up to `n` and counts only numbers greater than 5. Look at the shape `while lt i n do … end` --- the
+  condition ends at the `do` that opens the body --- there is no full stop between them. A full stop only closes a statement.
 - `first_zero` leaves the loop with `break` when it meets a 0, and returns the length if there is none. `break` and `continue` act on
   the innermost loop; there are no labels for an outer loop.
 - The condition of a `while` is checked *before* each round. If it is false at the start, the body never runs.
@@ -49,27 +49,35 @@
 
 Writing `for x in xs` is rejected with `E-VOCAB-REMOVED`. The thing to walk comes right after the name.
 
-Counting loops are written with `for` too. `for i count u64 n .` runs from 0 up to (not including) `n`, and `for i range u64 a b .`
-runs from `a` to `b`, both ends included. The counting type (`u64`) is always written, and the clause closes with its own full stop.
+Counting loops have heads of their own. `repeat i u64 n do` runs from 0 up to (not including) `n`, and `range i u64 a b do`
+runs from `a` to `b`, both ends included. To write the next value yourself, use `cycle i u64 1 while lt i 100 next mul i 2 do`. The
+counting type (`u64`) is always written. There are no full stops inside a head --- an expression ends at a word such as `do`, `step`,
+`while` or `next`. To skip elements, put `if <condition>` before `do` (`for x xs if gt x 2 do`). `for` does one thing only, walking
+elements --- the old form `for i count u64 n . do` is rejected with `E-FOR-OLD`.
 
 #demo("examples/ch07/counting.low")
 
-- `count u64 n` runs 0, 1, 2, 3 when `n = 4`. If `n` is 0 it does not run at all.
-- `range u64 10 1 step -3` is 10, 7, 4, 1. Without `step` the two ends decide the direction (`range u64 10 3` counts down from 10 to
-  3). Counting never overflows --- `range u8 0 255` ends at 255. When the next value would pass the end, the loop stops there
-  (`range u8 250 255 step 3` is 250, 253).
+- `repeat i u64 n` runs 0, 1, 2, 3 when `n = 4`. If `n` is 0 it does not run at all.
+- `range j u64 10 1 step -3` is 10, 7, 4, 1. Without `step` the two ends decide the direction (`range j u64 10 3` counts down from 10 to
+  3). Counting never overflows --- `range j u8 0 255` ends at 255. When the next value would pass the end, the loop stops there
+  (`range j u8 250 255 step 3` is 250, 253).
 - What the head reads (the ends, `step`) is computed once on entry. Setting the counting name `i` or a name the head read (`n`) in
   the body is `E-FOR-HEAD`. `step 0` or a floating counting type is `E-FOR-STEP`.
 - `for x mut buf do set x 0 . end` walks the element places --- `set x` writes that cell of `buf`. Inside the body, touch the
   elements only through `x`, not through `buf` (`E-FOR-HEAD`).
-- Add `where <condition> .` at the end of the head to run the body only for values where it holds:
-  `for i range u64 1 20 . where eq (mod i 3) 0 . do`.
-- A recurrence is written `for j be u64 1 . while le j 100 . next mul j 2 . do` --- it runs 1, 2, 4 … 64.
+- Add `if <condition>` at the end of the head, before `do`, to run the body only for values where it holds:
+  `range i u64 1 20 if eq (mod i 3) 0 do`.
+- A loop whose next value you write is `cycle j u64 1 while le j 100 next mul j 2 do` --- it runs 1, 2, 4 … 64. A `continue` in the
+  body goes through `next` too.
+
+#demo("examples/ch07/doubling.low")
+
+- `steps 100` runs seven rounds: 1, 2, 4, 8, 16, 32, 64. 128 does not enter the body because `lt i limit` is false.
 
 == `guard` --- turning a condition into a fact
 
 #idx("guard")
-`guard <condition> . else <leave> .` *leaves on the spot* if the condition is not true. The leaving statements are `return`, `break`,
+`guard <condition> else <leave> .` *leaves on the spot* if the condition is not true. The leaving statements are `return`, `break`,
 `continue` and `panic`.
 
 #demo("examples/ch07/guards.low")
@@ -86,7 +94,7 @@ believe an unreliable fact, translation is refused. If you do not mean to leave,
 
 #misconception[`guard` is syntactic sugar for shorter code][
   Being shorter is a side effect. The real point of `guard` is *handing a fact to the compiler and the reader*. After a `guard` the
-  compiler knows the condition is true and uses it to remove bounds checks. You can write the same meaning with `if … . do return … end`
+  compiler knows the condition is true and uses it to remove bounds checks. You can write the same meaning with `if … do return … end`
   and get the same behaviour, but leaving is not guaranteed by the grammar.
 ]
 
@@ -110,9 +118,9 @@ An op that returns nothing (`output void`) may run to the end of its body withou
 
 #demo("examples/ch07/bands.low")
 
-- `band` splits by `lo to hi` ranges (inclusive at both ends). Integers have many cases, so a `case _ .` covering the rest is required.
+- `band` splits by `lo to hi` ranges (inclusive at both ends). Integers have many cases, so a `case _` covering the rest is required.
 - `half` needs no `_` because its two ranges cover `u8`'s 0 … 255 with no gap.
-- `case y when gt y 100 .` in `big` binds the whole value to `y` and narrows it further with a guard. An arm with a guard might be false,
+- `case y when gt y 100` in `big` binds the whole value to `y` and narrows it further with a guard. An arm with a guard might be false,
   so it does not count towards exhaustiveness; `_` is still needed.
 
 A gap is rejected.
@@ -154,6 +162,21 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   would carry nothing. It was removed so that one meaning has one spelling. The fix: `for x xs do`.
 ]
 
+#antipattern[Putting a full stop between the condition and `do`][
+  #demo("examples/ch07/mistake_dotdo.low")
+
+  A head's expression ends at `do`. A full stop only closes a statement, so there is none inside the head of an `if`, `while`, `match` or
+  `case`. The same holds before the `else` of a `guard` or a binding (`guard c else return 0 .`). `lowentc --migrate <file>` rewrites an
+  old file in the new spelling. The fix: `if gt a 3 do`.
+]
+
+#antipattern[Counting with `for … count`][
+  #demo("examples/ch07/mistake_forcount.low")
+
+  `for` does one thing: it walks elements. Counting is `repeat`, an interval is `range`, and a loop whose next value you write yourself is
+  `cycle` --- the head word says which loop it is. The fix: `repeat i u64 n do`.
+]
+
 #antipattern[Chaining branches with `elif`][
   #demo("examples/ch07/mistake_elif.low")
 
@@ -179,7 +202,7 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
 
   Comparisons are words --- `lt` (less than), `le` (less or equal), `gt`, `ge`, `eq`, `ne`. `<` is a character the language does not
   know, hence `E-CHAR`. The choice spares you from memorising symbol precedence, and long arithmetic has the `expr` island
-  (#chref("expr")). The fix: `while lt i n . do`.
+  (#chref("expr")). The fix: `while lt i n do`.
 ]
 
 #antipattern[`continue` skipping the increment][
@@ -188,10 +211,10 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   ```lowent
   fn odd_count input xs slice u8 . output u64 .
   do
-    var n be u64 0 .
-    var i be u64 0 .
-    while lt i (len xs) . do
-      if eq (mod (idx xs i) 2) 0 . do
+    var n u64 0 .
+    var i u64 0 .
+    while lt i (len xs) do
+      if eq (mod (idx xs i) 2) 0 do
         continue .
       end
       set n (add n 1) .
@@ -207,7 +230,7 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   nowhere to live.
 ]
 
-There are two ways to write the slot that takes the rest. `case _ .` and a final `else` do the same thing.
+There are two ways to write the slot that takes the rest. `case _` and a final `else` do the same thing.
 
 #demo("examples/ch07/matchelse.low")
 
@@ -227,16 +250,18 @@ Nothing may follow an `else` --- it has already taken everything, so a later arm
   id: "control-glance",
   caption: [Control-flow syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`if c . do … end`], [run the block when the condition is true], [the condition is a form closed by a stop; the body opens with `do`],
-  [`if c . do … end else do … end`], [one of two], [openers and closers always pair up],
-  [`… end else if c2 . do … end`], [chaining branches], [joins existing words instead of adding `elif`],
-  [`while c . do … end`], [repeat while the condition is true], [the one shape for counting loops],
+  [`if c do … end`], [run the block when the condition is true], [the condition ends at `do` --- a full stop only closes a statement],
+  [`if c do … end else do … end`], [one of two], [openers and closers always pair up],
+  [`… end else if c2 do … end`], [chaining branches], [joins existing words instead of adding `elif`],
+  [`while c do … end`], [repeat while the condition is true], [the condition is looked at again every round],
+  [`repeat i u64 n do … end` · `range i u64 a b do … end`], [n times from 0 · from a to b], [counting is the head word's job --- no hand-incremented counter],
+  [`cycle i u64 v while c next e do … end`], [a loop whose next value you write], [start, condition and next value sit together in one head],
   [`for x xs do … end`], [each element of a slice in turn], [moving to the next element is the language's job],
   [`break .` · `continue .`], [leave the loop · go to the next round], [statements that change the flow],
-  [`guard c . else return … .`], [leave unless the condition holds --- afterwards it is a fact], [`else` must always leave],
+  [`guard c else return … .`], [leave unless the condition holds --- afterwards it is a fact], [`else` must always leave],
   [`return e .`], [return a value and finish], [on every path of an op that produces a value],
-  [`match v . do case … . statement … end`], [split by cases], [complete and non-overlapping --- no fall-through],
-  [`case 1 to 9 .` · `case _ .` · `case y when c .`], [a range · everything else · a guarded arm], [integers have many cases, so `_` is often needed],
+  [`match v do case … do … end … end`], [split by cases], [complete and non-overlapping --- no fall-through],
+  [`case 1 to 9` · `case _` · `case y when c`], [a range · everything else · a guarded arm], [integers have many cases, so `_` is often needed],
   [`panic "…" .`], [an irreversible stop (an effect)], [only in a `proc` that declares `effects panic`],
 )
 

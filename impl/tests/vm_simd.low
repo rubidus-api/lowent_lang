@@ -22,13 +22,13 @@ export proc dot_c
   requires ge (len a) n .
   requires ge (len b) n .
 do
-  var acc be vec u32 4 splat 0 .
-  var i be u64 0 .
-  while le (add i 4) n . do
-    let va be vec u32 4 load a i .
-    let vb be vec u32 4 load b i .
-    let vp be vec u32 4 mul va vb .
-    let vs be vec u32 4 add acc vp .
+  var acc vec u32 4 splat 0 .
+  var i u64 0 .
+  while le (add i 4) n do
+    let va vec u32 4 load a i .
+    let vb vec u32 4 load b i .
+    let vp vec u32 4 mul va vb .
+    let vs vec u32 4 add acc vp .
     set acc vs .
     set i (add i 4) .
   end
@@ -44,13 +44,13 @@ export proc dot_u
   output u64 .
   effects none .
 do
-  var acc be vec u32 4 splat 0 .
-  var i be u64 0 .
-  while le (add i 4) n . do
-    let va be vec u32 4 load a i .
-    let vb be vec u32 4 load b i .
-    let vp be vec u32 4 mul va vb .
-    let vs be vec u32 4 add acc vp .
+  var acc vec u32 4 splat 0 .
+  var i u64 0 .
+  while le (add i 4) n do
+    let va vec u32 4 load a i .
+    let vb vec u32 4 load b i .
+    let vp vec u32 4 mul va vb .
+    let vs vec u32 4 add acc vp .
     set acc vs .
     set i (add i 4) .
   end
@@ -61,12 +61,12 @@ rem ── 부르는 자리 — 바이트 하나를 두 슬라이스로 나눠 �
 rem    VM 과 방출 네이티브가 **같은 답**을 내야 한다(diff-sweep). 계약이 있는 판과 없는 판이
 rem    같은 수를 내는 것도 요점이다: **검사를 지워도 답은 그대로다.**
 fn run_c input b bytes . output u64 . do
-  var xs be slice u32 view_array u32 b .
+  var xs slice u32 view_array u32 b .
   return dot_c xs xs (len xs) .
 end
 
 fn run_u input b bytes . output u64 . do
-  var xs be slice u32 view_array u32 b .
+  var xs slice u32 view_array u32 b .
   return dot_u xs xs (len xs) .
 end
 
@@ -83,10 +83,10 @@ export proc dbl_c
   effects none .
   requires ge (len a) n .
 do
-  var i be u64 0 .
-  while le (add i 4) n . do
-    let v be vec u32 4 load a i .
-    var t be vec u32 4 add v v .
+  var i u64 0 .
+  while le (add i 4) n do
+    let v vec u32 4 load a i .
+    var t vec u32 4 add v v .
     store a i t .
     set i (add i 4) .
   end
@@ -99,10 +99,10 @@ export proc dbl_u
   output u64 .
   effects none .
 do
-  var i be u64 0 .
-  while le (add i 4) n . do
-    let v be vec u32 4 load a i .
-    var t be vec u32 4 add v v .
+  var i u64 0 .
+  while le (add i 4) n do
+    let v vec u32 4 load a i .
+    var t vec u32 4 add v v .
     store a i t .
     set i (add i 4) .
   end
@@ -111,11 +111,11 @@ end
 
 rem 부르는 자리 — 바이트를 두 배로 만들고 합을 낸다(VM≡native 가 이 변경의 오라클이다).
 fn run_w input b bytes . output u64 . do
-  var xs be slice u32 view_array u32 b .
-  let z be u64 dbl_c xs (len xs) .
-  var s be u64 0 .
-  var k be u64 0 .
-  while lt k (len xs) . do
+  var xs slice u32 view_array u32 b .
+  let z u64 dbl_c xs (len xs) .
+  var s u64 0 .
+  var k u64 0 .
+  while lt k (len xs) do
     set s (add s (idx xs k)) .
     set k (add k 1) .
   end

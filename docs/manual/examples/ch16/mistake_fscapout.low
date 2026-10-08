@@ -4,6 +4,6 @@ rem expect: E-CAP-KIND
 rem ko: ✘ 파일 권한으로 표준출력에 쓰려 한다 /// en: ✘ tries to write to standard output with the file capability
 proc main input fs cap file_system . output u8 . effects io .
 do
-  let n be u64 write_out fs 1 "hi\n" .
+  let n u64 write_out fs 1 "hi\n" .
   return 0 .
 end

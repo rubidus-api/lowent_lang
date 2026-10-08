@@ -19,7 +19,7 @@ use searchlib .
 use sortlib .
 
 sortlib.sort s .
-let i be option u64 searchlib.bsearch s 42 .
+let i option u64 searchlib.bsearch s 42 .
 ```
 
 > **Sortedness is not checked**
@@ -39,9 +39,9 @@ The implementation runs on the half-open range `[lo, hi)` with midpoint `lo + (h
 
 ```lowent
 fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i be u64 searchlib.lower_bound s a .
-  let j be u64 searchlib.lower_bound s b .
-  guard lt i j . else return 0 .
+  let i u64 searchlib.lower_bound s a .
+  let j u64 searchlib.lower_bound s b .
+  guard lt i j else return 0 .
   return sub j i .
 end
 ```
@@ -56,7 +56,7 @@ end
 
 > **Counter-example. Indexing directly with `lower_bound`’s result**
 >
-> > If not found, `i` is `len s`, a position that does not exist — `idx s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i (len s) .` first.
+> > If not found, `i` is `len s`, a position that does not exist — `idx s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i (len s)` first.
 
 **Cautions.** It cannot be used as is on descending data (there is no place to swap in a comparator). **Sort once, search many times** — calling `sort` before each search loses the whole gain. After sorting, changing one element with `set` requires sorting again. Keep the order when subtracting two lower bounds — `sub` underflows. As pure ops, the same slice can be searched from many places at once (while nobody writes). Other element types are `lower_by` and `find_by` of [`sortgen`](sec69.md#mod-sortgen).
 

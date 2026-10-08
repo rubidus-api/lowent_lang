@@ -227,7 +227,7 @@ the failure arrives as an answer different from the end, so only code that tells
   [`write_out out 1 "…"`], [write to standard output (1) · standard error (2) --- returns the count], [the capability comes first --- no hidden printing],
   [`use files .` + `input fs cap file_system .`], [the file module and its capability], [the head shows whether files are reached],
   [`files.open fs "notes.txt" 0`], [open --- 0 read · 1 write · 2 append · `result handle file_error`], [opening has no "end" --- two places],
-  [`var h be owned files.handle ok_value o .`], [hold the handle as owned], [forgetting it: `E-OWN-INCOMPLETE` · writing after close: `E-OWN-MOVED`],
+  [`var h owned files.handle ok_value o .`], [hold the handle as owned], [forgetting it: `E-OWN-INCOMPLETE` · writing after close: `E-OWN-MOVED`],
   [`files.read fs h buf`], [`ok (some n)` read · `ok none` end · `error e` failure], [one value never carries two meanings],
   [`files.write fs h bytes`], [returns the count as a `result`], [writes can be short --- check the count],
   [`files.close fs h`], [takes `owned`, returns `result` --- completion], [closing can fail too],

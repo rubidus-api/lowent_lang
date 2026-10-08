@@ -9,13 +9,13 @@ An array holding any type that grows itself when short of room. It has two axes 
 costs nothing (#chref("generics"), #chref("lib-containers")).
 
 ```lowent
-let g using bump be option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
-guard is_some g . else return 1 .
-var v be (vecgen.vec u32 allocs.bump_bytes) some_value g .
-guard vecgen.append u32 allocs.bump_bytes v 100 . else return 2 .
-guard vecgen.append u32 allocs.bump_bytes v 101 . else return 3 .
-guard vecgen.append u32 allocs.bump_bytes v 102 . else return 4 .
-let x be option u32 vecgen.at u32 allocs.bump_bytes v 0 .
+let g use bump option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
+guard is_some g else return 1 .
+var v (vecgen.vec u32 allocs.bump_bytes) some_value g .
+guard vecgen.append u32 allocs.bump_bytes v 100 else return 2 .
+guard vecgen.append u32 allocs.bump_bytes v 101 else return 3 .
+guard vecgen.append u32 allocs.bump_bytes v 102 else return 4 .
+let x option u32 vecgen.at u32 allocs.bump_bytes v 0 .
 ```
 
 *Types are written every time.* Not for lack of inference --- it was deliberately left out. The source shows which instances were created (how many copies of code end up in
@@ -49,10 +49,10 @@ Units are not mixed --- `cap0`, `cap_of`, `count_of`, `at` and `set_at` all coun
 *Reserving first gives all-or-nothing.* After `reserve_more` succeeds, the following `append`s cannot fail midway.
 
 ```lowent
-guard vecgen.reserve_more u16 allocs.bump_bytes v (len src) . else return false .
-var i be u64 0 .
-while lt i (len src) . do
-  guard vecgen.append u16 allocs.bump_bytes v (idx src i) . else return false .
+guard vecgen.reserve_more u16 allocs.bump_bytes v (len src) else return false .
+var i u64 0 .
+while lt i (len src) do
+  guard vecgen.append u16 allocs.bump_bytes v (idx src i) else return false .
   set i (add i 1) .
 end
 ```

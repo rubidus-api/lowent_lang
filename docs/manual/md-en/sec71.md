@@ -15,8 +15,8 @@ none
 A hash map storing and finding `u64` values by `u64` keys. Used to look things up quickly by number (id → count, handle → state). String keys are [`strmap`](sec72.md#mod-strmap) the container that chooses element type and allocator is [`mapgen`](sec112.md#mod-mapgen) (chapter 34).
 
 ```lowent
-let stored be bool hashmap.put b 7 42 .
-let v be option u64 hashmap.lookup b 7 .
+let stored bool hashmap.put b 7 42 .
+let v option u64 hashmap.lookup b 7 .
 ```
 
 > **Two things to know**
@@ -44,19 +44,19 @@ let v be option u64 hashmap.lookup b 7 .
 
 ```lowent
 proc hm_sum input b mut slice u64 . output u64 . effects none . do
-  var i be u64 0 .
-  while lt i (len b) . do
+  var i u64 0 .
+  while lt i (len b) do
     set (idx b i) 0 .
     set i (add i 1) .
   end
-  guard ge (div (len b) 2) 4 . else return 0 .
-  guard eq (hashmap.put b 10 100) true . else return 0 .
-  guard eq (hashmap.put b 20 222) true . else return 0 .
-  guard eq (hashmap.del b 10) true . else return 0 .
-  var slot be u64 0 .
-  var total be u64 0 .
-  while lt slot (hashmap.size b) . do
-    if hashmap.occupied_at b slot . do
+  guard ge (div (len b) 2) 4 else return 0 .
+  guard eq (hashmap.put b 10 100) true else return 0 .
+  guard eq (hashmap.put b 20 222) true else return 0 .
+  guard eq (hashmap.del b 10) true else return 0 .
+  var slot u64 0 .
+  var total u64 0 .
+  while lt slot (hashmap.size b) do
+    if hashmap.occupied_at b slot do
       set total (add total (hashmap.val_at b slot)) .
     end
     set slot (add slot 1) .
@@ -71,7 +71,7 @@ end
 
 > **Counter-example. Ignoring `put`’s `false`**
 >
-> > A full map answers `false` instead of stopping, so the line passes silently; later `lookup` returns `none` and an unchecked `some_value` stops with `E-VM-NONE`. The stop is far from the cause — `guard eq (hashmap.put …) true .` should be habit.
+> > A full map answers `false` instead of stopping, so the line passes silently; later `lookup` returns `none` and an unchecked `some_value` stops with `E-VM-NONE`. The stop is far from the cause — `guard eq (hashmap.put …) true` should be habit.
 
 **Cautions.** Why `lookup`, not `get`, and `size`, not `capacity` — `get` is the payload enum destructuring word and `capacity` is syntax in `alloc_bytes … capacity n`, so ops cannot have those names. Repeated insert and delete pile up tombstones and lengthen probes — move to a same-size backing with `rehash` to compact. With an odd backing length the last u64 is unused.
 

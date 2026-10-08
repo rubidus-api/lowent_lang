@@ -10,8 +10,8 @@ end
 rem ko: 배열 칸의 바이트는 레코드의 것이다 --- 베낀 쪽을 고쳐도 원본은 그대로다 /// en: an array field's bytes belong to the record --- changing the copy leaves the original alone
 export fn copy_keeps input a u8 . output u64 .
 do
-  let p be lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
-  var q be pkt p .
+  let p lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
+  var q pkt p .
   set (idx (field q body) 0) 100 .
   return add (widen u64 (idx (field p body) 0)) (widen u64 (idx (field q body) 0)) .
 end
@@ -26,7 +26,7 @@ end
 rem ko: `mut` 로 받은 레코드의 배열 칸에 쓰면 부른 쪽의 레코드가 바뀐다 /// en: writing the array field of a record received `mut` changes the caller's record
 export proc fill_in input v u8 . output u64 . effects none .
 do
-  var p be lit pkt do len 0 . body lit array u8 4 _ . . end .
-  let z be u64 stamp p v .
+  var p lit pkt do len 0 . body lit array u8 4 _ . . end .
+  let z u64 stamp p v .
   return add (widen u64 (field p len)) (widen u64 (idx (field p body) 3)) .
 end

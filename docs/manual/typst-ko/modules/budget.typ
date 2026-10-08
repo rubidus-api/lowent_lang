@@ -13,10 +13,10 @@ h = (generation << (shard_bits + slot_bits)) | (shard << slot_bits) | slot
 ```
 
 ```lowent
-let ho be option u64 budget.pack 32 8 24 7 1 0 .
-guard is_some ho . else return 1 .
-let h be u64 some_value ho .
-let slot be u64 budget.slot_of 32 h .
+let ho option u64 budget.pack 32 8 24 7 1 0 .
+guard is_some ho else return 1 .
+let h u64 some_value ho .
+let slot u64 budget.slot_of 32 h .
 ```
 
 #aside[이 모듈이 지키는 것][
@@ -51,7 +51,7 @@ let slot be u64 budget.slot_of 32 h .
 )
 
 #antipattern[세대를 그냥 올린다][
-  `let g be u64 add gen 1 .` 은 에러가 없지만, 폭을 넘으면 다른 삶의 핸들과 같아진다. `next_gen` 을 쓰고 `none` 을 받는다 --- 그 칸은 끝났다는 뜻이다.
+  `let g u64 add gen 1 .` 은 에러가 없지만, 폭을 넘으면 다른 삶의 핸들과 같아진다. `next_gen` 을 쓰고 `none` 을 받는다 --- 그 칸은 끝났다는 뜻이다.
 ]
 
 #antipattern[63 비트 칸을 센다][

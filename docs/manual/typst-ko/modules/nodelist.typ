@@ -12,11 +12,11 @@
 
 ```lowent
 def newtype lru u32 .
-var s be (owned nodelist.site lru) nodelist.nl_open lru 3 .
-var h be (owned nodelist.held lru) nodelist.nl_link lru s .
+var s (owned nodelist.site lru) nodelist.nl_open lru 3 .
+var h (owned nodelist.held lru) nodelist.nl_link lru s .
 rem nodelist.nl_relocate lru s 9  →  E-OWN-MOVED (s 는 이미 먹혔다)
-var s3 be (owned nodelist.site lru) nodelist.nl_unlink lru h .
-var s4 be (owned nodelist.site lru) nodelist.nl_relocate lru s3 1 .
+var s3 (owned nodelist.site lru) nodelist.nl_unlink lru h .
+var s4 (owned nodelist.site lru) nodelist.nl_relocate lru s3 1 .
 ```
 
 #dtable(

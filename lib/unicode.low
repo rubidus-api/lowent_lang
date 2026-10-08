@@ -49,12 +49,12 @@ rem ── 조회 ──
 
 rem 표에서 6자리 16진수 하나를 읽는다(구간 i 의 시작 = 12i, 끝 = 12i+6).
 fn hex6_at input tab slice u8 . input off u64 . output option u64 . do
-  guard le (add off 6) (len tab) . else return none .
-  var v be u64 0 .
-  var k be u64 0 .
-  while lt k 6 . do
-    let d be option u64 codec.hex_val (idx tab (add off k)) .
-    guard is_some d . else return none .
+  guard le (add off 6) (len tab) else return none .
+  var v u64 0 .
+  var k u64 0 .
+  while lt k 6 do
+    let d option u64 codec.hex_val (idx tab (add off k)) .
+    guard is_some d else return none .
     set v (add (mul v 16) (some_value d)) .
     set k (add k 1) .
   end
@@ -69,19 +69,19 @@ end
 rem ★ 이 코드포인트가 표의 어느 구간에 드는가 — **이진 탐색**(구간이 정렬돼 있고 겹치지 않는다).
 rem   표가 망가졌으면(16진수가 아니면) `false` — 지어내지 않는다.
 export proc has_cp input tab slice u8 . input cp u64 . output bool . effects none . do
-  var lo be u64 0 .
-  var hi be u64 range_count tab .
-  while lt lo hi . do
-    let mid be u64 add lo (div (sub hi lo) 2) .
-    let s be option u64 hex6_at tab (mul mid 12) .
-    guard is_some s . else return false .
-    let e be option u64 hex6_at tab (add (mul mid 12) 6) .
-    guard is_some e . else return false .
-    if lt cp (some_value s) . do
+  var lo u64 0 .
+  var hi u64 range_count tab .
+  while lt lo hi do
+    let mid u64 add lo (div (sub hi lo) 2) .
+    let s option u64 hex6_at tab (mul mid 12) .
+    guard is_some s else return false .
+    let e option u64 hex6_at tab (add (mul mid 12) 6) .
+    guard is_some e else return false .
+    if lt cp (some_value s) do
       set hi mid .
     end
-    if ge cp (some_value s) . do
-      if le cp (some_value e) . do return true . end
+    if ge cp (some_value s) do
+      if le cp (some_value e) do return true . end
       set lo (add mid 1) .
     end
   end
@@ -97,7 +97,7 @@ export proc is_mark   input cp u64 . output bool . effects none . do return has_
 
 rem ★ 글자 또는 숫자 — 식별자 검사 같은 데 가장 자주 쓰는 조합이다.
 export proc is_alnum input cp u64 . output bool . effects none . do
-  if is_letter cp . do return true . end
+  if is_letter cp do return true . end
   return is_number cp .
 end
 
@@ -194,17 +194,17 @@ end
 
 rem 짝 표에서 앞자리(from)로 찾아 뒷자리(to)를 준다. 없으면 none.
 fn map_cp input tab slice u8 . input cp u64 . output option u64 . do
-  var lo be u64 0 .
-  var hi be u64 range_count tab .
-  while lt lo hi . do
-    let mid be u64 add lo (div (sub hi lo) 2) .
-    let f be option u64 hex6_at tab (mul mid 12) .
-    guard is_some f . else return none .
-    if lt cp (some_value f) . do
+  var lo u64 0 .
+  var hi u64 range_count tab .
+  while lt lo hi do
+    let mid u64 add lo (div (sub hi lo) 2) .
+    let f option u64 hex6_at tab (mul mid 12) .
+    guard is_some f else return none .
+    if lt cp (some_value f) do
       set hi mid .
     end
-    if ge cp (some_value f) . do
-      if eq cp (some_value f) . do return hex6_at tab (add (mul mid 12) 6) . end
+    if ge cp (some_value f) do
+      if eq cp (some_value f) do return hex6_at tab (add (mul mid 12) 6) . end
       set lo (add mid 1) .
     end
   end
@@ -214,20 +214,20 @@ end
 rem ★ 대문자로 / 소문자로. **바뀌지 않으면 그대로 돌려준다**(none 이 아니다 — 대부분의
 rem   코드포인트는 대소문자가 없고, 그때 "없다" 를 답하면 호출자가 매번 풀어야 한다).
 export proc to_upper input cp u64 . output u64 . effects none . do
-  let m be option u64 map_cp tab_toupper cp .
-  guard is_some m . else return cp .
+  let m option u64 map_cp tab_toupper cp .
+  guard is_some m else return cp .
   return some_value m .
 end
 
 export proc to_lower input cp u64 . output u64 . effects none . do
-  let m be option u64 map_cp tab_tolower cp .
-  guard is_some m . else return cp .
+  let m option u64 map_cp tab_tolower cp .
+  guard is_some m else return cp .
   return some_value m .
 end
 
 rem ★ 이 코드포인트는 **1:1 로 못 바꾸는가**(변환 결과가 두 글자 이상). ß·ﬁ 같은 것들이다.
 rem   `to_upper` 는 이런 코드포인트를 **그대로** 돌려준다 — 그것이 틀린 답일 수 있으니 물어본다.
 export proc is_special_case input cp u64 . output bool . effects none . do
-  let m be option u64 map_cp tab_casespecial cp .
+  let m option u64 map_cp tab_casespecial cp .
   return is_some m .
 end

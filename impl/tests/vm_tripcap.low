@@ -16,10 +16,10 @@ export proc grow input a mut slice u32 . input n u64 .
   requires elem_le a 1000 .
   requires le (len a) 4096 . requires le n 4096 .
 do
-  var i be u64 0 .
-  while lt i n . do
-    if lt i (len a) . do
-      let v be u32 idx a i .
+  var i u64 0 .
+  while lt i n do
+    if lt i (len a) do
+      let v u32 idx a i .
       set (idx a i) (add v 1) .
     end
     set i (add i 1) .
@@ -34,10 +34,10 @@ export proc blow input a mut slice u32 . input n u64 .
   requires elem_le a 1000 .
   requires le (len a) 4096 . requires le n 4096 .
 do
-  var i be u64 0 .
-  while lt i n . do
-    if lt i (len a) . do
-      let v be u32 idx a i .
+  var i u64 0 .
+  while lt i n do
+    if lt i (len a) do
+      let v u32 idx a i .
       set (idx a i) (mul v 3) .
     end
     set i (add i 1) .

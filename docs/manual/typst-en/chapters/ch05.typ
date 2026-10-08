@@ -170,7 +170,7 @@ name of the result. A type with no defined zero (a slice, a `result`, an enum, â
 write such an output without a name and return a value. `ensures` still refers to the result as `ret`.
 
 An op can return an array too --- `output r array u64 3 .`. An array has no way to be returned by value, so *the caller gives
-the place*: the caller binds the result to a name (`let s be array u64 3 squares n .`) and the callee builds straight into that
+the place*: the caller binds the result to a name (`let s array u64 3 squares n .`) and the callee builds straight into that
 name's bytes. That is why it cannot be called in the middle of an expression (`idx (squares n) 0` is `E-RESULT-PLACE`) ---
 bind it to a name first.
 
@@ -178,7 +178,7 @@ bind it to a name first.
 fn squares input n u64 . output r array u64 3 .
   requires le n 1000 .
 do
-  for i count u64 3 . do
+  repeat i u64 3 do
     set (idx r i) (mul (add n i) (add n i)) .
   end
   return r .

@@ -22,11 +22,11 @@ export proc roundtrip input k cap atomic . input ctl mut slice u64 . input buf m
   requires ge (len buf) 2 .
   requires ge (len out) 1 .
 do
-  let a be u64 spsc.spsc_push k ctl buf 7 .
-  let b be u64 spsc.spsc_pop k ctl buf out .
+  let a u64 spsc.spsc_push k ctl buf 7 .
+  let b u64 spsc.spsc_pop k ctl buf out .
   rem 넣기 성공(1) · 꺼내기 성공(1) · 값이 7 이면 → 7 을 돌려준다.
-  guard eq a 1 . else return 90 .
-  guard eq b 1 . else return 91 .
+  guard eq a 1 else return 90 .
+  guard eq b 1 else return 91 .
   return idx out 0 .
 end
 
@@ -55,16 +55,16 @@ export proc fill_then_overflow input k cap atomic . input ctl mut slice u64 .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
 do
-  var i be u64 0 .
-  var okc be u64 0 .
-  let capn be u64 spsc.spsc_capacity buf .
-  while lt i capn . do
+  var i u64 0 .
+  var okc u64 0 .
+  let capn u64 spsc.spsc_capacity buf .
+  while lt i capn do
     set okc (add okc (spsc.spsc_push k ctl buf i)) .
     set i (add i 1) .
   end
   rem 여기서 한 번 더 — 가득 찼으므로 0 이어야 한다.
-  let extra be u64 spsc.spsc_push k ctl buf 999 .
-  guard eq extra 0 . else return 90 .
+  let extra u64 spsc.spsc_push k ctl buf 999 .
+  guard eq extra 0 else return 90 .
   rem 성공한 넣기 수 = 용량이어야 한다.
   return okc .
 end
@@ -78,16 +78,16 @@ export proc wrap_around input k cap atomic . input ctl mut slice u64 . input buf
   requires ge (len buf) 2 .
   requires ge (len out) 1 .
 do
-  var i be u64 0 .
-  var bad be u64 0 .
-  while lt i 20 . do
-    let p be u64 spsc.spsc_push k ctl buf i .
-    guard eq p 1 . else return 90 .
-    let q be u64 spsc.spsc_pop k ctl buf out .
-    guard eq q 1 . else return 91 .
+  var i u64 0 .
+  var bad u64 0 .
+  while lt i 20 do
+    let p u64 spsc.spsc_push k ctl buf i .
+    guard eq p 1 else return 90 .
+    let q u64 spsc.spsc_pop k ctl buf out .
+    guard eq q 1 else return 91 .
     rem 넣은 것이 그대로 나와야 한다(SPSC 는 FIFO 다).
     rem ★ `guard … else` 는 **반드시 떠나야** 한다(E-GUARD-FALLTHROUGH) — 세기만 할 때는 `if`.
-    if ne (idx out 0) i . do set bad (add bad 1) . end
+    if ne (idx out 0) i do set bad (add bad 1) . end
     set i (add i 1) .
   end
   return bad .

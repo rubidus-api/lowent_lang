@@ -9,7 +9,7 @@ end
 
 proc confused output u64 . effects none .
 do
-  var n be u64 0 .
+  var n u64 0 .
   set_both (mut_ref n) (mut_ref n) .
   return n .
 end

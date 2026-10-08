@@ -3,24 +3,24 @@ rem ★★ RFC-0132 T2b-3 — SIMD 값 리터럴 `lit vec T N v… [_] .`: 상�
 rem   부호 · 부동 · 묶는 자리의 `vec T N` 과 정확히 맞는가. VM 과 네이티브가 같은 답인가를 잰다.
 
 export fn v_sum input a u32 . output u64 . do
-  let v be lit vec u32 4 1 2 a 4 . .
-  let w be vec u32 4 splat 10 .
-  let s be vec u32 4 add v w .
+  let v lit vec u32 4 1 2 a 4 . .
+  let w vec u32 4 splat 10 .
+  let s vec u32 4 add v w .
   return widen u64 (reduce_add s) .
 end
 
 export fn v_const input i u64 . output u64 . do
-  let v be lit vec u32 4 10 20 _ . .
-  let w be vec u32 4 lit vec u32 4 1 1 1 1 . .
+  let v lit vec u32 4 10 20 _ . .
+  let w vec u32 4 lit vec u32 4 1 1 1 1 . .
   return widen u64 (reduce_max (add v w)) .
 end
 
 export fn v_signed output i64 . do
-  let v be lit vec i16 8 -1 -2 -3 -4 _ . .
+  let v lit vec i16 8 -1 -2 -3 -4 _ . .
   return widen i64 (reduce_min v) .
 end
 
 export fn v_float input x f64 . output f64 . do
-  let v be lit vec f64 2 x 1.5 . .
+  let v lit vec f64 2 x 1.5 . .
   return reduce_add v .
 end

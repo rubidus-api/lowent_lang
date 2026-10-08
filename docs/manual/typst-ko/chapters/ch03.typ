@@ -42,8 +42,8 @@ Lowent 의 식은 *전위 표기*다. 연산의 이름이 먼저 오고 인자�
 를 더하고, 폼 안에 폼이 오면 괄호로 감싼다.
 
 ```lowent
-let total be u64 add 1 2 .
-let mixed be u64 add 1 (mul 2 3) .
+let total u64 add 1 2 .
+let mixed u64 add 1 (mul 2 3) .
 ```
 
 전위 표기에는 우선순위가 없다. `1 + 2 * 3` 을 읽는 사람은 곱셈이 먼저라는 규칙을 *외워서* 알지만,
@@ -102,9 +102,9 @@ end
 
 fn sum_to input n u64 . output u64 .
 do
-  var total be u64 0 .
-  var i be u64 1 .
-  while le i n . do
+  var total u64 0 .
+  var i u64 1 .
+  while le i n do
     set total (add total i) .
     set i (add i 1) .
   end
@@ -118,16 +118,16 @@ end
 - *블록을 몸으로 갖는 구문*은 `end` 에서 끝난다. op 선언, `struct`·`enum`, `if`·`while`·`for`·`match` 가 그렇다.
   위의 예처럼 `end` 뒤에 마침표를 찍지 않는다 --- 찍으면 닫을 것이 없어 `E-DOT-STRAY` 로 거절된다.
 - *블록을 값으로 쓰는 문장*은 여느 문장처럼 자기 마침표로 끝난다. `lit` 로 구조체 값을 만들어 `let` 에 넣는 경우가 대표적이다:
-  `let p be lit point do x 1 . y 2 . end .` --- 마지막 마침표는 `let` 의 것이다. 빠뜨리면 `E-DOT-MISSING`.
+  `let p lit point do x 1 . y 2 . end .` --- 마지막 마침표는 `let` 의 것이다. 빠뜨리면 `E-DOT-MISSING`.
 
 C 에 견주면 `if (c) { … }` 뒤에는 `;` 가 없고 `p = (struct point){ 1, 2 };` 뒤에는 있는 것과 같다.
 
 ```text
-while le i n . do  …  end                  몸-블록: while 문이 end 에서 끝난다
-└────── while 문 ───────┘
+while le i n do  …  end                    몸-블록: while 문이 end 에서 끝난다
+└───── while 문 ──────┘
 
-let p be lit point do x 1 . end .          값-블록: 블록은 lit 의 것, 문장은 자기 . 으로 끝난다
-         └────── lit 값 ──────┘ │
+let p lit point do x 1 . end .             값-블록: 블록은 lit 의 것, 문장은 자기 . 으로 끝난다
+      └────── lit 값 ──────┘ │
 └──────────── let 문 ───────────┘
 ```
 
@@ -234,8 +234,8 @@ C 의 `\x` 는 16진 숫자를 끝없이 먹어서 `"\x41e"` 의 뜻이 옆 글�
   [*갈래*], [*낱말*],
   [선언], [`module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`],
   [op], [`fn` `proc` `export` `unsafe` `extern`],
-  [지역과 흐름], [`let` `var` `set` `return` `if` `else` `for` `while` `guard` `match` `case` `try` `break` `continue` `expr`],
-  [값], [`lit` `true` `false` `none` `be`],
+  [지역과 흐름], [`let` `var` `set` `return` `if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `try` `break` `continue` `expr` `keep`],
+  [값], [`lit` `true` `false` `none`],
   [그 밖], [`spawn` `send` `drop` `test` `expect` `satisfies` `do` `end`],
 )
 
@@ -341,7 +341,7 @@ end
   Python 처럼 들여쓰기로 몸을 여는 문법이 아니다. `do` 가 없으면 `if` 폼은 조건 뒤의 마침표에서 끝나고, 아래의 `end` 는
   `if` 가 아니라 *op 의 몸*을 닫아 버린다. 그러면 남은 `return 0 .` 이 선언 밖으로 떨어져 `E-TOPLEVEL`(최상위에 선언이 아닌
   것이 있다)이 나오고, 몸이 일찍 닫혔으니 돌려주는 길도 어긋난다(`E-RETURN-PARTIAL`). 두 진단이 함께 보이면 빠진 `do` 를
-  의심한다. 고치는 법: `if gt a 3 . do`.
+  의심한다. 고치는 법: `if gt a 3 do`.
 ]
 
 #antipattern[문자열을 작은따옴표로 쓴다][

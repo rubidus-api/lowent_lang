@@ -21,8 +21,8 @@ none — sending is [`outbuf`](sec117.md#mod-outbuf)’s job
 ```lowent
 use term as t .
 
-let p be option u64 t.goto buf 0 2 4 .
-guard is_some p . else return 1 .
+let p option u64 t.goto buf 0 2 4 .
+guard is_some p else return 1 .
 ```
 
 **Convention.** Sequence ops follow [`fmt`](sec61.md#mod-fmt)’s convention — `(buf, pos, …) → option u64` (new pos). Passing one op’s return as the next op’s `pos` chains sequences, and the last pos is the finished sequence’s length. **All or nothing** — short of room, not a single byte is written. A half-written escape is silently wrong output: the terminal reads the rest as characters and debris like `[3;5H` appears. Coordinates are taken **0-based** and emitted in ANSI’s 1-based form — 1-based is the wire’s business.
@@ -57,15 +57,15 @@ guard is_some p . else return 1 .
 
 ```lowent
 proc diff_frame input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 32 . else return 90 .
-  let prev be slice u8 "aaaaaaaaaa" .
-  let nxt be slice u8 "aaaaaaxyaa" .
-  let p be option u64 t.diff prev nxt 5 out 0 .
-  guard is_some p . else return 1 .
-  guard eq (some_value p) 8 . else return 2 .
-  let d be option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
-  guard is_some d . else return 3 .
-  guard eq (some_value d) 9 . else return 4 .
+  guard ge (len out) 32 else return 90 .
+  let prev slice u8 "aaaaaaaaaa" .
+  let nxt slice u8 "aaaaaaxyaa" .
+  let p option u64 t.diff prev nxt 5 out 0 .
+  guard is_some p else return 1 .
+  guard eq (some_value p) 8 else return 2 .
+  let d option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
+  guard is_some d else return 3 .
+  guard eq (some_value d) 9 else return 4 .
   return 42 .
 end
 ```

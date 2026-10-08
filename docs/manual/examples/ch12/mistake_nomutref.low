@@ -11,8 +11,8 @@ proc use_bump input start u64 . output u64 .
   effects none .
   requires lt start 1000 .
 do
-  var n be u64 start .
+  var n u64 start .
   rem ko: ✘ 부르는 자리에 `mut_ref` 를 빠뜨렸다 --- 참조가 아니라 수 7 이 넘어간다 /// en: ✘ `mut_ref` is missing at the call --- the number 7 is passed, not a reference
-  let r be u64 bump n .
+  let r u64 bump n .
   return add n r .
 end

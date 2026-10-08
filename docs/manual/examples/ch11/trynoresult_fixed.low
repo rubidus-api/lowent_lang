@@ -9,7 +9,7 @@ end
 fn halve input a u8 . output result u8 half_error .
 errors too_big gt a 200 .
 do
-  guard le a 200 . else return error too_big .
+  guard le a 200 else return error too_big .
   return ok (div a 2) .
 end
 
@@ -17,6 +17,6 @@ rem ko: 실패를 위로 넘기는 op 은 자기도 result 를 돌려주고, 넘
 fn plus input a u8 . output result u8 half_error .
 errors too_big gt a 200 .
 do
-  let v be u8 try halve a .
+  let v u8 try halve a .
   return ok (add v 1) .
 end

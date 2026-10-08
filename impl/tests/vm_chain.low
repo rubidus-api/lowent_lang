@@ -23,13 +23,13 @@ end
 
 fn bounded input a u8 . output u8 . ensures le ret 10 .
 do
-  if gt a 10 . do return 10 . end
+  if gt a 10 do return 10 . end
   return a .
 end
 
 rem ★ 약속을 쓴다 → 검사가 사라진다.
 fn chain input a u8 . output u8 . do
-  let v be u8 bounded a .
+  let v u8 bounded a .
   return needs_small v .
 end
 

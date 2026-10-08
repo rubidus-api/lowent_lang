@@ -21,54 +21,54 @@ proc main
   output u8 .
   effects io alloc .
 do
-  let dstopt be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some dstopt . else return 1 .
-  let dst be mut slice u8 some_value dstopt .
+  let dstopt option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some dstopt else return 1 .
+  let dst mut slice u8 some_value dstopt .
 
   rem 듣고 **실제 포트까지** 한 번에 받는다 — 되묻기를 잊을 수 없다.
   rem ★ 이제 fd 와 port 가 **필드 둘**이다(2026-08-15). 전에는 `fd << 16 | port` 로 패킹해
   rem   `fd_of`/`port_of` 로 풀었다 — 타입이 생기자 그 셋이 함께 사라졌다.
-  let sopt be option net.listener net.serve k 0 .
-  guard is_some sopt . else return 2 .
-  var l be owned net.listener some_value sopt .
-  let port be u64 field l port .
+  let sopt option net.listener net.serve k 0 .
+  guard is_some sopt else return 2 .
+  var l owned net.listener some_value sopt .
+  let port u64 field l port .
 
   rem ★★★ **이름을 주소로 — 그리고 그 주소로 붙는다** (X-0032, 2026-09-18).
   rem   `net_resolve` 는 연결과 **가른 잎**이다. 여기서 `localhost` 를 풀어 그 답이
   rem   `net.loopback`(2130706433 = 0x7F000001)과 **같은지 본다** — 검사가 바깥 DNS 에
   rem   기대지 않으면서도 잎이 실제로 도는 것을 잰다. 바깥 이름은 게이트에 넣지 않는다:
   rem   망에 기대는 검사는 언젠가 거짓으로 운다.
-  let ropt be option u64 net.resolve k "localhost" .
-  guard is_some ropt . else return 11 .
-  guard eq (some_value ropt) net.loopback . else return 12 .
+  let ropt option u64 net.resolve k "localhost" .
+  guard is_some ropt else return 11 .
+  guard eq (some_value ropt) net.loopback else return 12 .
 
   rem 그 포트로 연결하고(즉시 완료) 받아들인다(대기 없음).
   rem ★★ 셋(듣기·연결·받아들인 것)은 **서로 다른 자원**이고 각자 닫아야 한다.
   rem   하나라도 잊으면 컴파일이 안 된다 — 옛 `shut3` 은 그 물음을 한 덩어리로 뭉개서 없앴다.
-  let copt be option net.conn net.dial k (some_value ropt) port .
-  guard is_some copt . else return 4 .
-  var c be owned net.conn some_value copt .
-  let cfd be u64 net.conn_fd c .
-  let aopt be option net.conn net.take k l .
-  guard is_some aopt . else return 5 .
-  var a be owned net.conn some_value aopt .
-  let afd be u64 net.conn_fd a .
+  let copt option net.conn net.dial k (some_value ropt) port .
+  guard is_some copt else return 4 .
+  var c owned net.conn some_value copt .
+  let cfd u64 net.conn_fd c .
+  let aopt option net.conn net.take k l .
+  guard is_some aopt else return 5 .
+  var a owned net.conn some_value aopt .
+  let afd u64 net.conn_fd a .
 
   rem ★ **끝까지 보낸다** — 한 번의 send 가 전부를 보낸다는 보장은 없다.
-  let sent be option u64 net.send_all k cfd "tcp works" .
-  guard is_some sent . else return 6 .
-  guard eq (some_value sent) 9 . else return 8 .
-  let got be option u64 net.recv_once k afd dst .
-  guard is_some got . else return 7 .
-  let n be u64 some_value got .
+  let sent option u64 net.send_all k cfd "tcp works" .
+  guard is_some sent else return 6 .
+  guard eq (some_value sent) 9 else return 8 .
+  let got option u64 net.recv_once k afd dst .
+  guard is_some got else return 7 .
+  let n u64 some_value got .
 
-  let x1 be result void net.net_error net.shut k c .
-  guard is_ok x1 . else return 9 .
-  let x2 be result void net.net_error net.shut k a .
-  guard is_ok x2 . else return 10 .
-  let x3 be result void net.net_error net.shut_listener k l .
-  guard is_ok x3 . else return 11 .
+  let x1 result void net.net_error net.shut k c .
+  guard is_ok x1 else return 9 .
+  let x2 result void net.net_error net.shut k a .
+  guard is_ok x2 else return 10 .
+  let x3 result void net.net_error net.shut_listener k l .
+  guard is_ok x3 else return 11 .
 
-  let m be u64 write_out out 1 (subslice dst 0 n) .
+  let m u64 write_out out 1 (subslice dst 0 n) .
   return narrow u8 n .
 end

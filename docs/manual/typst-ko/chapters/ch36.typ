@@ -169,7 +169,7 @@
   id: "lib-io-net-glance",
   caption: [입출력·네트워크·암호 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`var p be owned outbuf.pending outbuf.buf_open 1 .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
+  [`var p owned outbuf.pending outbuf.buf_open 1 .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
   [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
   [`outbuf.buf_finish out p buf`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
   [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [연결 쌍 · 다 보내기 · 한 번 받기 · 닫기], [`cap net` 이 첫 인자 --- 받기는 버퍼만큼],

@@ -23,10 +23,10 @@ fn is_digit input c u8 . output bool . do return and (ge c 48) (le c 57) . end
 rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
 fn digits_loop input s slice u8 . output u64 .
 do
-  var n be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
-    if is_digit (idx s i) . do set n (add n 1) . end
+  var n u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
+    if is_digit (idx s i) do set n (add n 1) . end
     set i (add i 1) .
   end
   return n .

@@ -31,10 +31,10 @@ end
 rem ★★ **포화하는 증가** — CAS 고리다. 상한에서는 CAS 를 시도하지 않고 그대로 답한다.
 rem   그냥 `atomic_add` 를 쓰면 넘칠 때 **조용히 0 으로 감긴다**(실측). 그 값을 여기서 막는다.
 export proc rc_share input k cap atomic . input c mut slice u64 . output u64 . effects atomic . do
-  var cur be u64 atomic_load c 0 order relaxed .
-  while lt cur (lifemode.ceiling) . do
-    let won be u64 atomic_cas c 0 cur (add cur 1) .
-    if eq won 1 . do
+  var cur u64 atomic_load c 0 order relaxed .
+  while lt cur (lifemode.ceiling) do
+    let won u64 atomic_cas c 0 cur (add cur 1) .
+    if eq won 1 do
       return add cur 1 .
     end
     set cur (atomic_load c 0 order relaxed) .
@@ -50,13 +50,13 @@ rem   (`lifemode.near_drop` 은 같은 경우에 none 이다). 시그니처를 �
 rem   해제 신호(0)와 절대 겹치지 않는 값, 그리고 뜻이 맞는 값 — 포화값은 이미 *"이 객체는 거두지 않는다"*
 rem   다. 칸 자체는 건드리지 않는다(0 인 객체는 이미 거둬졌을 수 있다 — 그 저장소에 쓰지 않는다).
 export proc rc_release input k cap atomic . input c mut slice u64 . output u64 . effects atomic . do
-  var cur be u64 atomic_load c 0 order relaxed .
-  while gt cur 0 . do
-    guard lt cur (lifemode.ceiling) . else return cur .
-    let won be u64 atomic_cas c 0 cur (sub cur 1) .
-    if eq won 1 . do
+  var cur u64 atomic_load c 0 order relaxed .
+  while gt cur 0 do
+    guard lt cur (lifemode.ceiling) else return cur .
+    let won u64 atomic_cas c 0 cur (sub cur 1) .
+    if eq won 1 do
       rem 마지막 하나였다면 **여기서 담을 친다** — 해제가 앞선 쓰기를 보게.
-      if eq cur 1 . do
+      if eq cur 1 do
         atomic_fence order acquire .
       end
       return sub cur 1 .

@@ -67,7 +67,7 @@ separate them.
              y = 0;          ← indented as if inside the if, but the grammar puts it outside
 
  Lowent  case 1 . set x (add x 10) .           an arm's one statement = a one-statement block (G1)
-         if gt a 1 . do                        an if body is always do … end (RFC-0113 R4)
+         if gt a 1 do                          an if body is always do … end (RFC-0113 R4)
            set x (add x 10) .
            set y 0 .
          end                                   a longer body is ended by end

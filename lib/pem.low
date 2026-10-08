@@ -48,22 +48,22 @@ rem   **인증서 한 장짜리 묶음에서만** 틀렸다(여러 장이면 첫
 rem   ★ 그 실패는 **입력에 따라 숨는다.** 규약을 외워야 안 틀리는 자리는 언젠가 틀린다 —
 rem     읽는 사람이 규약을 외우지 않아도 되게, 「없다」를 **타입으로** 말한다.
 export fn find_from input hay slice u8 . input needle slice u8 . input from u64 . output option u64 . do
-  let n be u64 len needle .
-  let h be u64 len hay .
-  if eq n 0 . do return none . end
-  if gt n h . do return none . end
-  var i be u64 from .
-  while le i (sub h n) . do
-    var j be u64 0 .
-    var same be bool true .
-    while lt j n . do
-      if ne (idx hay (add i j)) (idx needle j) . do
+  let n u64 len needle .
+  let h u64 len hay .
+  if eq n 0 do return none . end
+  if gt n h do return none . end
+  var i u64 from .
+  while le i (sub h n) do
+    var j u64 0 .
+    var same bool true .
+    while lt j n do
+      if ne (idx hay (add i j)) (idx needle j) do
         set same false .
         set j n .
       end
-      if same . do set j (add j 1) . end
+      if same do set j (add j 1) . end
     end
-    if same . do return some i . end
+    if same do return some i . end
     set i (add i 1) .
   end
   return none .
@@ -75,30 +75,30 @@ rem ★ 라벨은 부르는 쪽이 준다(`"CERTIFICATE"` · `"PRIVATE KEY"` · 
 export proc pem_body_off input src slice u8 . input label slice u8 . input scratch mut slice u8 . output result u64 pem_error . effects none .
 errors short_workspace . do
   rem scratch 에 `-----BEGIN <라벨>-----` 을 조립한다(리터럴을 이어 붙일 자리가 없다).
-  let need be u64 add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
-  guard ge (len scratch) need . else return error short_workspace .
-  var k be u64 0 .
-  while lt k 11 . do
+  let need u64 add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
+  guard ge (len scratch) need else return error short_workspace .
+  var k u64 0 .
+  while lt k 11 do
     set (idx scratch k) (idx "-----BEGIN " k) .
     set k (add k 1) .
   end
-  var j be u64 0 .
-  while lt j (len label) . do
+  var j u64 0 .
+  while lt j (len label) do
     set (idx scratch (add 11 j)) (idx label j) .
     set j (add j 1) .
   end
-  var m be u64 0 .
-  while lt m 5 . do
+  var m u64 0 .
+  while lt m 5 do
     set (idx scratch (add (add 11 (len label)) m)) 45 .
     set m (add m 1) .
   end
-  let ao be option u64 find_from src (subslice scratch 0 need) 0 .
-  guard is_some ao . else return ok 0 .
-  let at be u64 some_value ao .
+  let ao option u64 find_from src (subslice scratch 0 need) 0 .
+  guard is_some ao else return ok 0 .
+  let at u64 some_value ao .
   rem 그 줄의 끝(LF)까지 건너뛴다.
-  var i be u64 add at need .
-  while lt i (len src) . do
-    if eq (idx src i) 10 . do return ok (add i 1) . end
+  var i u64 add at need .
+  while lt i (len src) do
+    if eq (idx src i) 10 do return ok (add i 1) . end
     set i (add i 1) .
   end
   return ok 0 .
@@ -107,25 +107,25 @@ end
 rem `-----END <라벨>-----` 이 시작하는 자리. 없으면 0.
 export proc pem_end_off input src slice u8 . input label slice u8 . input scratch mut slice u8 . input from u64 . output result u64 pem_error . effects none .
 errors short_workspace . do
-  let need be u64 add (len label) 14 .   rem `-----END ` 9 + 라벨 + `-----` 5
-  guard ge (len scratch) need . else return error short_workspace .
-  var k be u64 0 .
-  while lt k 9 . do
+  let need u64 add (len label) 14 .   rem `-----END ` 9 + 라벨 + `-----` 5
+  guard ge (len scratch) need else return error short_workspace .
+  var k u64 0 .
+  while lt k 9 do
     set (idx scratch k) (idx "-----END " k) .
     set k (add k 1) .
   end
-  var j be u64 0 .
-  while lt j (len label) . do
+  var j u64 0 .
+  while lt j (len label) do
     set (idx scratch (add 9 j)) (idx label j) .
     set j (add j 1) .
   end
-  var m be u64 0 .
-  while lt m 5 . do
+  var m u64 0 .
+  while lt m 5 do
     set (idx scratch (add (add 9 (len label)) m)) 45 .
     set m (add m 1) .
   end
-  let ao be option u64 find_from src (subslice scratch 0 need) from .
-  guard is_some ao . else return ok 0 .
+  let ao option u64 find_from src (subslice scratch 0 need) from .
+  guard is_some ao else return ok 0 .
   return ok (some_value ao) .
 end
 
@@ -142,26 +142,26 @@ rem   ⇒ `len scratch ≥ len src + 라벨 + 16` 이면 넉넉하다.
 export proc unwrap input src slice u8 . input label slice u8 . input scratch mut slice u8 . input out mut slice u8 . output result (option u64) pem_error . effects none .
 errors short_workspace . do
   rem ★ 두 자리 찾기도 이제 «자리가 모자라다» 를 실패로 말한다 — 그것을 **그대로 넘긴다**.
-  let br be result u64 pem_error pem_body_off src label scratch .
-  guard is_ok br . else return error short_workspace .
-  let b be u64 ok_value br .
-  guard gt b 0 . else return ok none .
-  let er be result u64 pem_error pem_end_off src label scratch b .
-  guard is_ok er . else return error short_workspace .
-  let e be u64 ok_value er .
-  guard gt e 0 . else return ok none .
-  guard gt e b . else return ok none .
+  let br result u64 pem_error pem_body_off src label scratch .
+  guard is_ok br else return error short_workspace .
+  let b u64 ok_value br .
+  guard gt b 0 else return ok none .
+  let er result u64 pem_error pem_end_off src label scratch b .
+  guard is_ok er else return error short_workspace .
+  let e u64 ok_value er .
+  guard gt e 0 else return ok none .
+  guard gt e b else return ok none .
   rem 접힌 것을 편다 — 공백·CR·LF 를 버린다. 그 밖의 글자는 base64 디코더가 판단한다.
-  let need be u64 add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
-  guard ge (len scratch) (add need (sub e b)) . else return ok none .
-  var w be u64 need .
-  var i be u64 b .
-  while lt i e . do
-    let c be u8 idx src i .
-    if ne c 10 . do
-      if ne c 13 . do
-        if ne c 32 . do
-          if ne c 9 . do
+  let need u64 add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
+  guard ge (len scratch) (add need (sub e b)) else return ok none .
+  var w u64 need .
+  var i u64 b .
+  while lt i e do
+    let c u8 idx src i .
+    if ne c 10 do
+      if ne c 13 do
+        if ne c 32 do
+          if ne c 9 do
             set (idx scratch w) c .
             set w (add w 1) .
           end
@@ -170,6 +170,6 @@ errors short_workspace . do
     end
     set i (add i 1) .
   end
-  guard gt w need . else return ok none .
+  guard gt w need else return ok none .
   return ok (codec.b64_dec (subslice scratch need w) out) .
 end

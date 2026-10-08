@@ -43,24 +43,24 @@ A self-verifying pattern --- is it ascending *and* is the sum preserved. It catc
 
 ```lowent
 proc sort_verify input s mut slice u64 . output u64 . effects none . do
-  var pre be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
+  var pre u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
     set pre (wrap_add pre (idx s i)) .
     set i (add i 1) .
   end
   sortlib.sort s .
-  var post be u64 0 .
-  var sorted be u64 1 .
-  var j be u64 0 .
-  while lt j (len s) . do
+  var post u64 0 .
+  var sorted u64 1 .
+  var j u64 0 .
+  while lt j (len s) do
     set post (wrap_add post (idx s j)) .
-    if gt j 0 . do
-      if gt (idx s (sub j 1)) (idx s j) . do set sorted 0 . end
+    if gt j 0 do
+      if gt (idx s (sub j 1)) (idx s j) do set sorted 0 . end
     end
     set j (add j 1) .
   end
-  if ne pre post . do set sorted 0 . end
+  if ne pre post do set sorted 0 . end
   return sorted .
 end
 ```
@@ -70,7 +70,7 @@ end
 ]
 
 #antipattern[Passing an immutable slice or expecting a return value][
-  Passing `input s slice u64` is a type error --- in-place sorting needs `mut slice u64`. If the original must survive, sort a copy. `let r be … sortlib.sort s` is a compile
+  Passing `input s slice u64` is a type error --- in-place sorting needs `mut slice u64`. If the original must survive, sort a copy. `let r … sortlib.sort s` is a compile
   error too --- it is `output void`, and the result is `s` itself.
 ]
 

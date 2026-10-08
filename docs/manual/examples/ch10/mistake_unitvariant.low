@@ -9,7 +9,7 @@ end
 
 fn code input c light . output u64 .
 do
-  match c . do
+  match c do
     case red . return 1 .
     case green . return 2 .
   end

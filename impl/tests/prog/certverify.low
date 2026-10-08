@@ -13,33 +13,33 @@ use x509 from "../../../lib/x509.low" .
 
 proc run input k cap io . input al cap allocator . output u8 . effects alloc io .
 do
-  let g be option mut slice u8 alloc_bytes al capacity 65536 .
-  guard is_some g . else return 9 .
-  let buf be mut slice u8 some_value g .
-  let rn be option u64 read_in k 0 buf .
-  guard is_some rn . else return 9 .
-  let n be u64 some_value rn .
-  guard gt n 8 . else return 9 .
+  let g option mut slice u8 alloc_bytes al capacity 65536 .
+  guard is_some g else return 9 .
+  let buf mut slice u8 some_value g .
+  let rn option u64 read_in k 0 buf .
+  guard is_some rn else return 9 .
+  let n u64 some_value rn .
+  guard gt n 8 else return 9 .
 
-  let l1 be u64 add (add (mul (cast u64 (idx buf 0)) 16777216) (mul (cast u64 (idx buf 1)) 65536))
+  let l1 u64 add (add (mul (cast u64 (idx buf 0)) 16777216) (mul (cast u64 (idx buf 1)) 65536))
                     (add (mul (cast u64 (idx buf 2)) 256) (cast u64 (idx buf 3))) .
-  guard gt l1 0 . else return 9 .
-  guard le (add 4 l1) n . else return 9 .
-  let o2 be u64 add 4 l1 .
-  guard le (add o2 4) n . else return 9 .
-  let l2 be u64 add (add (mul (cast u64 (idx buf o2)) 16777216) (mul (cast u64 (idx buf (add o2 1))) 65536))
+  guard gt l1 0 else return 9 .
+  guard le (add 4 l1) n else return 9 .
+  let o2 u64 add 4 l1 .
+  guard le (add o2 4) n else return 9 .
+  let l2 u64 add (add (mul (cast u64 (idx buf o2)) 16777216) (mul (cast u64 (idx buf (add o2 1))) 65536))
                     (add (mul (cast u64 (idx buf (add o2 2))) 256) (cast u64 (idx buf (add o2 3)))) .
-  guard gt l2 0 . else return 9 .
-  guard le (add (add o2 4) l2) n . else return 9 .
+  guard gt l2 0 else return 9 .
+  guard le (add (add o2 4) l2) n else return 9 .
 
-  let c1 be slice u8 subslice buf 4 (add 4 l1) .
-  let c2 be slice u8 subslice buf (add o2 4) (add (add o2 4) l2) .
+  let c1 slice u8 subslice buf 4 (add 4 l1) .
+  let c2 slice u8 subslice buf (add o2 4) (add (add o2 4) l2) .
 
-  let wu be mut slice u64 view_array u64 (subslice buf 40000 60000) .
-  let good_r be result u64 verify.verify_error verify.signed_by c1 c2 (subslice buf 20000 40000) wu .
-  guard is_ok good_r . else return 0 .
-  let good be u64 ok_value good_r .
-  if eq good 1 . do  return 0 . end
+  let wu mut slice u64 view_array u64 (subslice buf 40000 60000) .
+  let good_r result u64 verify.verify_error verify.signed_by c1 c2 (subslice buf 20000 40000) wu .
+  guard is_ok good_r else return 0 .
+  let good u64 ok_value good_r .
+  if eq good 1 do  return 0 . end
   return 1 .
 end
 
@@ -51,33 +51,33 @@ end
 rem ★ 한 마디 잇기 — 이름·CA·기간·서명을 한 번에. `now` 는 인자로 받는다(검사가 못박을 수 있게).
 proc link input k cap io . input al cap allocator . input now u64 . output u8 . effects alloc io .
 do
-  let g be option mut slice u8 alloc_bytes al capacity 65536 .
-  guard is_some g . else return 99 .
-  let buf be mut slice u8 some_value g .
-  let rn be option u64 read_in k 0 buf .
-  guard is_some rn . else return 99 .
-  let l1 be u64 add (add (mul (cast u64 (idx buf 0)) 16777216) (mul (cast u64 (idx buf 1)) 65536))
+  let g option mut slice u8 alloc_bytes al capacity 65536 .
+  guard is_some g else return 99 .
+  let buf mut slice u8 some_value g .
+  let rn option u64 read_in k 0 buf .
+  guard is_some rn else return 99 .
+  let l1 u64 add (add (mul (cast u64 (idx buf 0)) 16777216) (mul (cast u64 (idx buf 1)) 65536))
                     (add (mul (cast u64 (idx buf 2)) 256) (cast u64 (idx buf 3))) .
-  let o2 be u64 add 4 l1 .
-  let l2 be u64 add (add (mul (cast u64 (idx buf o2)) 16777216) (mul (cast u64 (idx buf (add o2 1))) 65536))
+  let o2 u64 add 4 l1 .
+  let l2 u64 add (add (mul (cast u64 (idx buf o2)) 16777216) (mul (cast u64 (idx buf (add o2 1))) 65536))
                     (add (mul (cast u64 (idx buf (add o2 2))) 256) (cast u64 (idx buf (add o2 3)))) .
-  let c1 be slice u8 subslice buf 4 (add 4 l1) .
-  let c2 be slice u8 subslice buf (add o2 4) (add (add o2 4) l2) .
-  let wu be mut slice u64 view_array u64 (subslice buf 40000 60000) .
+  let c1 slice u8 subslice buf 4 (add 4 l1) .
+  let c2 slice u8 subslice buf (add o2 4) (add (add o2 4) l2) .
+  let wu mut slice u64 view_array u64 (subslice buf 40000 60000) .
   return narrow u8 (verify.link_ok c1 c2 now (subslice buf 20000 40000) wu) .
 end
 
 rem ★ 이름 대조만 따로 — 와일드카드까지.
 proc hostok input k cap io . input al cap allocator . input host slice u8 . output u8 . effects alloc io .
 do
-  let g be option mut slice u8 alloc_bytes al capacity 65536 .
-  guard is_some g . else return 99 .
-  let buf be mut slice u8 some_value g .
-  let rn be option u64 read_in k 0 buf .
-  guard is_some rn . else return 99 .
-  let l1 be u64 add (add (mul (cast u64 (idx buf 0)) 16777216) (mul (cast u64 (idx buf 1)) 65536))
+  let g option mut slice u8 alloc_bytes al capacity 65536 .
+  guard is_some g else return 99 .
+  let buf mut slice u8 some_value g .
+  let rn option u64 read_in k 0 buf .
+  guard is_some rn else return 99 .
+  let l1 u64 add (add (mul (cast u64 (idx buf 0)) 16777216) (mul (cast u64 (idx buf 1)) 65536))
                     (add (mul (cast u64 (idx buf 2)) 256) (cast u64 (idx buf 3))) .
-  let c1 be slice u8 subslice buf 4 (add 4 l1) .
-  if verify.host_ok c1 host . do  return 0 . end
+  let c1 slice u8 subslice buf 4 (add 4 l1) .
+  if verify.host_ok c1 host do  return 0 . end
   return 1 .
 end

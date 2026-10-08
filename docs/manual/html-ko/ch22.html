@@ -681,9 +681,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> report <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> bytes_for <strong><span class="tok-t">u8</span></strong> <span class="tok-n">100</span> .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> bytes_for <strong><span class="tok-t">u64</span></strong> <span class="tok-n">100</span> .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> add_const <span class="tok-n">7</span> <span class="tok-n">10</span> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> bytes_for <strong><span class="tok-t">u8</span></strong> <span class="tok-n">100</span> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> bytes_for <strong><span class="tok-t">u64</span></strong> <span class="tok-n">100</span> .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> add_const <span class="tok-n">7</span> <span class="tok-n">10</span> .
   <strong><span class="tok-k">return</span></strong> add (add a b) (widen <strong><span class="tok-t">u64</span></strong> c) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run report sizes.low
@@ -730,7 +730,7 @@ rt_arg.low:12:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
   <strong><span class="tok-k">requires</span></strong> ordered t .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> method a less b <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
@@ -738,7 +738,7 @@ rt_arg.low:12:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so
 
 <strong><span class="tok-k">fn</span></strong> bigger <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> score max_of score (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m score max_of score (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bigger bound.low 3 9
@@ -759,7 +759,7 @@ bigger(12, 5) = 12
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
   <strong><span class="tok-k">requires</span></strong> ordered t .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> method a less b <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
@@ -767,7 +767,7 @@ bigger(12, 5) = 12
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> plain max_of plain (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m plain max_of plain (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check unsat.low
@@ -799,7 +799,7 @@ bigger(12, 5) = 12
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
   <strong><span class="tok-k">requires</span></strong> ordered t .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> method a less b <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
@@ -808,7 +808,7 @@ bigger(12, 5) = 12
 <strong><span class="tok-k">fn</span></strong> bigger <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 앞자리의 타입 인자 `score` 를 빠뜨렸다 --- 추론은 없다</span></em>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> score max_of (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m score max_of (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_notypearg.low
@@ -827,7 +827,7 @@ mistake_notypearg.low:30:0 E-MONO-NOTYPE: this op takes a TYPE as its first inpu
 <em><span class="tok-c">rem ✘ 본문은 `less` 를 부르는데 머리에 `requires ordered t .` 가 없다</span></em>
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> method a less b <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
@@ -835,7 +835,7 @@ mistake_notypearg.low:30:0 E-MONO-NOTYPE: this op takes a TYPE as its first inpu
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> plain max_of plain (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m plain max_of plain (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">lit</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nobound.low
@@ -881,7 +881,7 @@ mistake_comptimeorder.low:5:27 E-CLAUSE-ORDER: a `comptime` input comes after a 
 <strong><span class="tok-k">fn</span></strong> seventeen <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 값은 늘 7 이지만 op 안의 `let` 은 실행 중에 생기는 이름이다</span></em>
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">7</span> .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-t">u8</span></strong> <span class="tok-n">7</span> .
   <strong><span class="tok-k">return</span></strong> add_const k <span class="tok-n">10</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_localconst.low
@@ -890,7 +890,7 @@ mistake_localconst.low:14:0 E-COMPTIME-ARG: this argument sits in a `comptime` p
 <em><span class="tok-c">rem run: seventeen</span></em>
 
 <em><span class="tok-c">rem 모듈 수준의 `let` 은 번역 시점 상수다</span></em>
-<strong><span class="tok-k">let</span></strong> step <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">7</span> .
+<strong><span class="tok-k">let</span></strong> stride <strong><span class="tok-t">u8</span></strong> <span class="tok-n">7</span> .
 
 <strong><span class="tok-k">fn</span></strong> add_const <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> n <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
@@ -900,11 +900,11 @@ mistake_localconst.low:14:0 E-COMPTIME-ARG: this argument sits in a `comptime` p
 
 <strong><span class="tok-k">fn</span></strong> seventeen <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> add_const step <span class="tok-n">10</span> .
+  <strong><span class="tok-k">return</span></strong> add_const stride <span class="tok-n">10</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run seventeen module_const.low
 seventeen() = 17
-</code></pre></div></div></div></div><h3 id="s22-6">22.6 이 장의 문법을 한눈에<a class="plink" href="#s22-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>input comptime t type .</code></td><td>타입을 번역 시점에 받는다(머리 맨 앞)</td><td>뒤따르는 타입이 그 이름을 쓴다</td></tr><tr><td><code>input comptime n u8 .</code></td><td>값을 번역 시점에 받는다</td><td>상수로 접히고 검사가 지워진다</td></tr><tr><td><code>bytes_for u64 100</code> · <code>add_const 7 10</code></td><td>타입과 상수를 앞자리 인자로 적는다</td><td>꺾쇠도 추론도 없다 — 무엇이 만들어지는지 보인다</td></tr><tr><td><code>let step be u8 7 .</code>(모듈 수준)</td><td><code>comptime</code> 자리에 올 수 있는 이름 붙은 상수</td><td>op 안의 <code>let</code> 은 실행 중의 이름</td></tr><tr><td><code>size_of t</code></td><td>번역 시점에 타입의 크기</td><td>크기가 상수로 박힌다</td></tr><tr><td><code>requires ordered t .</code></td><td>타입 조건 — 트레이트를 갖추어야 한다</td><td>못 갖추면 부르는 자리에서 <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>method a less b</code></td><td>조건이 약속한 op 을 부른다</td><td>직접 호출로 단형화된다</td></tr><tr><td>쓰인 조합마다 실물 한 벌</td><td>단형화</td><td>비용은 속도가 아니라 코드의 양 — 소스에서 센다</td></tr></table></div><p class="float-caption">표 22.1 — 제네릭의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>comptime</code> 매개변수는 번역 시점에 값이 정해지고, 타입도 <code>input comptime t type .</code> 으로 받는다. 부르는 자리는 타입과 상수를 앞자리 인자로 적으며 추론은 없다. 실행 값을 comptime 자리에 주면 거절된다. 쓰인 조합마다 실물이 만들어져 직접 호출이 되고, 그 수가 곧 코드의 양이다. <code>requires &lt;트레이트> t .</code> 는 타입 조건이고, 갖추지 못한 타입은 거절된다. 비교 같은 행동은 값이 아니라 타입이 들고 온다.</div></div>
+</code></pre></div></div></div></div><h3 id="s22-6">22.6 이 장의 문법을 한눈에<a class="plink" href="#s22-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>input comptime t type .</code></td><td>타입을 번역 시점에 받는다(머리 맨 앞)</td><td>뒤따르는 타입이 그 이름을 쓴다</td></tr><tr><td><code>input comptime n u8 .</code></td><td>값을 번역 시점에 받는다</td><td>상수로 접히고 검사가 지워진다</td></tr><tr><td><code>bytes_for u64 100</code> · <code>add_const 7 10</code></td><td>타입과 상수를 앞자리 인자로 적는다</td><td>꺾쇠도 추론도 없다 — 무엇이 만들어지는지 보인다</td></tr><tr><td><code>let stride u8 7 .</code>(모듈 수준)</td><td><code>comptime</code> 자리에 올 수 있는 이름 붙은 상수</td><td>op 안의 <code>let</code> 은 실행 중의 이름</td></tr><tr><td><code>size_of t</code></td><td>번역 시점에 타입의 크기</td><td>크기가 상수로 박힌다</td></tr><tr><td><code>requires ordered t .</code></td><td>타입 조건 — 트레이트를 갖추어야 한다</td><td>못 갖추면 부르는 자리에서 <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>method a less b</code></td><td>조건이 약속한 op 을 부른다</td><td>직접 호출로 단형화된다</td></tr><tr><td>쓰인 조합마다 실물 한 벌</td><td>단형화</td><td>비용은 속도가 아니라 코드의 양 — 소스에서 센다</td></tr></table></div><p class="float-caption">표 22.1 — 제네릭의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>comptime</code> 매개변수는 번역 시점에 값이 정해지고, 타입도 <code>input comptime t type .</code> 으로 받는다. 부르는 자리는 타입과 상수를 앞자리 인자로 적으며 추론은 없다. 실행 값을 comptime 자리에 주면 거절된다. 쓰인 조합마다 실물이 만들어져 직접 호출이 되고, 그 수가 곧 코드의 양이다. <code>requires &lt;트레이트> t .</code> 는 타입 조건이고, 갖추지 못한 타입은 거절된다. 비교 같은 행동은 값이 아니라 타입이 들고 온다.</div></div>
 <div class="nav"><a href="ch21.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch23.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

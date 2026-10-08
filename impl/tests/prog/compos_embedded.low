@@ -9,9 +9,9 @@ module compos_embedded .
 build profile embedded .
 
 fn stage_sum input buf slice u8 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while lt i (len buf) . do
+  var acc u64 0 .
+  var i u64 0 .
+  while lt i (len buf) do
     set acc (add acc (idx buf i)) .
     set i (add i 1) .
   end
@@ -23,9 +23,9 @@ fn stage_scale input v u64 . output u64 . do
 end
 
 proc main output u8 . effects none . do
-  var out be u64 0 .
+  var out u64 0 .
   task_group do
-    let s be u64 stage_sum "\x01\x02\x03\x04" .
+    let s u64 stage_sum "\x01\x02\x03\x04" .
     set out (stage_scale s) .
   end
   return narrow u8 out .

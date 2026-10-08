@@ -12,54 +12,54 @@ use strings from "../../lib/str.low" .
 rem ── 비교·탐색이 리터럴 위에서 ──────────────────────────────────────────
 
 fn t_eq output u64 . do
-  guard strings.eq_str "abc" "abc" . else return 0 .
-  guard eq (strings.eq_str "abc" "abd") false . else return 0 .
-  guard eq (strings.eq_str "ab" "abc") false . else return 0 .
-  guard strings.eq_str "" "" . else return 0 .
+  guard strings.eq_str "abc" "abc" else return 0 .
+  guard eq (strings.eq_str "abc" "abd") false else return 0 .
+  guard eq (strings.eq_str "ab" "abc") false else return 0 .
+  guard strings.eq_str "" "" else return 0 .
   return 1 .
 end
 
 fn t_find output u64 . do
-  let r be option u64 strings.find "hello world" "world" 0 .
-  guard is_some r . else return 99 .
+  let r option u64 strings.find "hello world" "world" 0 .
+  guard is_some r else return 99 .
   return some_value r .                       rem 6
 end
 
 fn t_find_from output u64 . do
   rem from 이 커서다 — 두 번째 "ab" 는 4 에서 찾아야 나온다.
-  let r be option u64 strings.find "ab--ab" "ab" 1 .
-  guard is_some r . else return 99 .
+  let r option u64 strings.find "ab--ab" "ab" 1 .
+  guard is_some r else return 99 .
   return some_value r .                       rem 4
 end
 
 fn t_find_none output u64 . do
-  guard eq (is_some (strings.find "abc" "zz" 0)) false . else return 0 .
-  guard eq (strings.has "abc" "zz") false . else return 0 .
-  guard strings.has "abcdef" "cde" . else return 0 .
+  guard eq (is_some (strings.find "abc" "zz" 0)) false else return 0 .
+  guard eq (strings.has "abc" "zz") false else return 0 .
+  guard strings.has "abcdef" "cde" else return 0 .
   return 1 .
 end
 
 rem ── 접두·접미·다듬기 — 전부 뷰(복사 0) ────────────────────────────────
 
 fn t_affix output u64 . do
-  guard strings.starts_with "foobar" "foo" . else return 0 .
-  guard eq (strings.starts_with "foobar" "bar") false . else return 0 .
-  guard strings.ends_with "foobar" "bar" . else return 0 .
-  guard eq (strings.ends_with "fo" "foo") false . else return 0 .
+  guard strings.starts_with "foobar" "foo" else return 0 .
+  guard eq (strings.starts_with "foobar" "bar") false else return 0 .
+  guard strings.ends_with "foobar" "bar" else return 0 .
+  guard eq (strings.ends_with "fo" "foo") false else return 0 .
   return 1 .
 end
 
 fn t_remove output u64 . do
-  guard strings.eq_str (strings.remove_prefix "foobar" "foo") "bar" . else return 0 .
-  guard strings.eq_str (strings.remove_prefix "foobar" "xxx") "foobar" . else return 0 .
-  guard strings.eq_str (strings.remove_suffix "foobar" "bar") "foo" . else return 0 .
+  guard strings.eq_str (strings.remove_prefix "foobar" "foo") "bar" else return 0 .
+  guard strings.eq_str (strings.remove_prefix "foobar" "xxx") "foobar" else return 0 .
+  guard strings.eq_str (strings.remove_suffix "foobar" "bar") "foo" else return 0 .
   return 1 .
 end
 
 fn t_trim output u64 . do
-  guard strings.eq_str (strings.trim_start "  hi" " ") "hi" . else return 0 .
-  guard strings.eq_str (strings.trim_end "hi  " " ") "hi" . else return 0 .
-  guard strings.eq_str (strings.trim_start "   " " ") "" . else return 0 .    rem 전부 잘림 → 빈 뷰
+  guard strings.eq_str (strings.trim_start "  hi" " ") "hi" else return 0 .
+  guard strings.eq_str (strings.trim_end "hi  " " ") "hi" else return 0 .
+  guard strings.eq_str (strings.trim_start "   " " ") "" else return 0 .    rem 전부 잘림 → 빈 뷰
   return 1 .
 end
 
@@ -67,11 +67,11 @@ rem ── 분할 ① 커서-값 판 — 호출자가 pos 를 든다(RFC-0069 §
 
 fn t_split output u64 . do
   rem "aa,b,,cc" 를 ',' 로: "aa"·"b"·""·"cc" — 4 조각, 총 5 바이트.
-  var pos be u64 0 .
-  var pieces be u64 0 .
-  var bytes be u64 0 .
-  var r be option slice u8 strings.split_next "aa,b,,cc" 44 pos .
-  while is_some r . do
+  var pos u64 0 .
+  var pieces u64 0 .
+  var bytes u64 0 .
+  var r option slice u8 strings.split_next "aa,b,,cc" 44 pos .
+  while is_some r do
     set pieces (add pieces 1) .
     set bytes (add bytes (len (some_value r))) .
     set pos (add pos (add (len (some_value r)) 1)) .
@@ -84,15 +84,15 @@ end
 rem ── 분할 ② pull 소스 판 — actor 가 상태를 든다(RFC-0068 §5.2) ──────────
 
 proc t_splitter output u64 . effects state . do
-  var sp be strings.str_splitter spawn actor strings.str_splitter .
-  let d be u64 send sp init "one,two,three" 44 .
-  var pieces be u64 0 .
-  var bytes be u64 0 .
-  var r be option slice u8 send sp next .
-  while is_some r . do
+  var sp strings.str_splitter spawn actor strings.str_splitter .
+  let d u64 send sp init "one,two,three" 44 .
+  var pieces u64 0 .
+  var bytes u64 0 .
+  var r option slice u8 send sp pull .
+  while is_some r do
     set pieces (add pieces 1) .
     set bytes (add bytes (len (some_value r))) .
-    set r (send sp next) .
+    set r (send sp pull) .
   end
   rem "one"·"two"·"three" = 3 조각, 11 바이트 → 41
   return add (mul pieces 10) bytes .

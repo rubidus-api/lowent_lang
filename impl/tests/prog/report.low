@@ -31,9 +31,9 @@ rem ── 순수한 부분 — 출력과 무관하므로 따로 시험할 수 �
 
 rem 이름을 다듬는다. 비면 "world".
 fn pick input given option slice u8 . output slice u8 . do
-  guard is_some given . else return "world" .
-  let t be slice u8 strings.trim_end (strings.trim_start (some_value given) " ") " " .
-  guard gt (len t) 0 . else return "world" .
+  guard is_some given else return "world" .
+  let t slice u8 strings.trim_end (strings.trim_start (some_value given) " ") " " .
+  guard gt (len t) 0 else return "world" .
   return t .
 end
 
@@ -43,20 +43,20 @@ rem     "hello, <name>! (<n> args, <len> bytes)\n"
 proc compose input buf mut slice u8 . input name slice u8 . input nargs u64 .
   output option u64 . effects none .
 do
-  let a be option u64 fmt.put_str buf 0 "hello, " .
-  guard is_some a . else return none .
-  let b be option u64 fmt.put_str buf (some_value a) name .
-  guard is_some b . else return none .
-  let c be option u64 fmt.put_str buf (some_value b) "! (" .
-  guard is_some c . else return none .
-  let d be option u64 fmt.put_u64 buf (some_value c) nargs .
-  guard is_some d . else return none .
-  let e be option u64 fmt.put_str buf (some_value d) " args, " .
-  guard is_some e . else return none .
-  let f be option u64 fmt.put_u64 buf (some_value e) (len name) .
-  guard is_some f . else return none .
-  let g be option u64 fmt.put_str buf (some_value f) " bytes)" .
-  guard is_some g . else return none .
+  let a option u64 fmt.put_str buf 0 "hello, " .
+  guard is_some a else return none .
+  let b option u64 fmt.put_str buf (some_value a) name .
+  guard is_some b else return none .
+  let c option u64 fmt.put_str buf (some_value b) "! (" .
+  guard is_some c else return none .
+  let d option u64 fmt.put_u64 buf (some_value c) nargs .
+  guard is_some d else return none .
+  let e option u64 fmt.put_str buf (some_value d) " args, " .
+  guard is_some e else return none .
+  let f option u64 fmt.put_u64 buf (some_value e) (len name) .
+  guard is_some f else return none .
+  let g option u64 fmt.put_str buf (some_value f) " bytes)" .
+  guard is_some g else return none .
   return fmt.put_nl buf (some_value g) .
 end
 
@@ -70,25 +70,25 @@ proc main
   effects alloc io state .
 do
   rem ① **뿌리에서 바닥을 얻는다.** 못 얻으면 아무것도 안 한다 — OOM 은 값이지 트랩이 아니다.
-  let root be option mut slice u8 alloc_bytes al capacity 256 .
-  guard is_some root . else return 70 .
+  let root option mut slice u8 alloc_bytes al capacity 256 .
+  guard is_some root else return 70 .
 
   rem ② 그 바닥 위에 **사용자 얼로케이터**를 세운다. 이 actor 는 바이트가 어디서 왔는지 모른다 —
   rem    빌린 버퍼를 줬어도 똑같이 돈다(vm_allocbytes.low 가 정확히 그렇게 시험한다).
-  var mem be allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let cap0 be u64 send mem init (some_value root) .
-  guard ge cap0 128 . else return 71 .
+  var mem allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let cap0 u64 send mem init (some_value root) .
+  guard ge cap0 128 else return 71 .
 
   rem ③ 줄 버퍼를 **얼로케이터에서** 받는다.
-  let line be option mut slice u8 send mem reserve 128 .
-  guard is_some line . else return 72 .
-  let buf be mut slice u8 some_value line .
+  let line option mut slice u8 send mem reserve 128 .
+  guard is_some line else return 72 .
+  let buf mut slice u8 some_value line .
 
   rem ④ 조립한다 — 순수하다. 여기까지 **한 바이트도 밖으로 안 나갔다.**
-  let n be option u64 compose buf (pick (arg a 0)) (count a) .
-  guard is_some n . else return 73 .
+  let n option u64 compose buf (pick (arg a 0)) (count a) .
+  guard is_some n else return 73 .
 
   rem ⑤ **한 번 쓴다.** greet 은 세 번 썼다 — 조립할 곳이 없어서.
-  let wrote be u64 write_out out 1 (subslice buf 0 (some_value n)) .
+  let wrote u64 write_out out 1 (subslice buf 0 (some_value n)) .
   return (narrow u8 wrote) .
 end

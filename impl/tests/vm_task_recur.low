@@ -14,7 +14,7 @@ module vm_task_recur .
 
 rem 순수 재귀: ds(n) = n + (n-1) + … + 0.  깊이 n 까지 판다.
 fn ds input n u64 . output u64 . do
-  if eq n 0 . do return 0 . end
+  if eq n 0 do return 0 . end
   return add n (ds (sub n 1)) .
 end
 
@@ -25,7 +25,7 @@ end
 
 rem spawn → await.  재귀가 힙 프레임 체인에서 자라므로 태스크도 100 을 판다(창 없음).
 proc drive output u64 . effects state . do
-  var h be u64 0 .
+  var h u64 0 .
   task_group do
     set h spawn task .
   end

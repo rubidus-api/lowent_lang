@@ -9,10 +9,10 @@ end
 
 fn digits_loop input s slice u8 . output u64 .
 do
-  var n be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
-    if is_digit (idx s i) . do
+  var n u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
+    if is_digit (idx s i) do
       set n (add n 1) .
     end
     set i (add i 1) .

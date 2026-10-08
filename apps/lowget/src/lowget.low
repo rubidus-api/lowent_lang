@@ -43,117 +43,117 @@ rem ── 받기
 
 rem 정확히 n 바이트를 받는다(한 번의 recv 가 전부를 준다는 보장은 없다). 받은 수, 실패면 0.
 proc recv_exact input k cap net . input fd u64 . input dst mut slice u8 . input n u64 . output u64 . effects io . do
-  guard ge (len dst) n . else return 0 .
-  var got be u64 0 .
-  for spin count u64 8192 . do
-    guard lt got n . else break .
-    let r be option u64 net.recv_once k fd (subslice dst got n) .
-    guard is_some r . else return 0 .
-    let m be u64 some_value r .
-    guard gt m 0 . else return 0 .
+  guard ge (len dst) n else return 0 .
+  var got u64 0 .
+  repeat spin u64 8192 do
+    guard lt got n else break .
+    let r option u64 net.recv_once k fd (subslice dst got n) .
+    guard is_some r else return 0 .
+    let m u64 some_value r .
+    guard gt m 0 else return 0 .
     set got (add got m) .
   end
-  guard eq got n . else return 0 .
+  guard eq got n else return 0 .
   return got .
 end
 
 rem 레코드 한 장(머리 5 + 몸)을 rec 에 받는다 — 머리까지 담는다(AEAD 의 덧붙인 자료가 그 다섯 바이트다).
 proc recv_rec input k cap net . input fd u64 . input rec mut slice u8 . output u64 . effects io . do
-  guard ge (len rec) 5 . else return 0 .
-  guard eq (recv_exact k fd rec 5) 5 . else return 0 .
-  let n be u64 tlscli.rec_len (subslice rec 0 5) .
-  guard and (gt n 0) (ge (len rec) (add 5 n)) . else return 0 .
-  guard eq (recv_exact k fd (subslice rec 5 (add 5 n)) n) n . else return 0 .
+  guard ge (len rec) 5 else return 0 .
+  guard eq (recv_exact k fd rec 5) 5 else return 0 .
+  let n u64 tlscli.rec_len (subslice rec 0 5) .
+  guard and (gt n 0) (ge (len rec) (add 5 n)) else return 0 .
+  guard eq (recv_exact k fd (subslice rec 5 (add 5 n)) n) n else return 0 .
   return add 5 n .
 end
 
 rem ── 손잡기 한 판. 끝나면 응용 트래픽 키가 선다. 0 = 됐다, 그 밖은 멈춘 자리(step).
 rem    전사는 레코드가 아니라 **메시지**를 이어 붙인 것이다 — 한 레코드에 여럿, 한 메시지가 둘에 걸칠 수 있다.
 proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input host slice u8 . input priv slice u8 . input rnd slice u8 . input sid slice u8 . output u64 . effects io . do
-  guard ge (len buf) 60000 . else return 90 .
-  guard eq (len priv) 32 . else return 90 .
-  for z count u64 4 . do
+  guard ge (len buf) 60000 else return 90 .
+  guard eq (len priv) 32 else return 90 .
+  repeat z u64 4 do
     set (idx buf (add 56592 z)) 0 .
   end
-  let xw be mut slice u64 view_array u64 (subslice buf 54400 55800) .
-  let u be mut slice u64 view_array u64 (subslice buf 55800 56200) .
-  let w be mut slice u8 subslice buf 53100 54400 .
+  let xw mut slice u64 view_array u64 (subslice buf 54400 55800) .
+  let u mut slice u64 view_array u64 (subslice buf 55800 56200) .
+  let w mut slice u8 subslice buf 53100 54400 .
 
   rem ① 우리 몫의 키: 공개키 = priv · 기저점(9 뒤에 0 서른하나, RFC 7748 §5)
-  for bi count u64 32 . do
+  repeat bi u64 32 do
     set (idx buf (add 56400 bi)) 0 .
   end
   set (idx buf 56400) 9 .
-  let pk be u64 x25519.agree (subslice buf 56432 56464) priv (subslice buf 56400 56432) (subslice buf 56464 56496) xw . else return 91 .
-  guard eq pk 32 . else return 91 .
+  let pk u64 x25519.agree (subslice buf 56432 56464) priv (subslice buf 56400 56432) (subslice buf 56464 56496) xw else return 91 .
+  guard eq pk 32 else return 91 .
 
   rem ② ClientHello — 전사의 첫 메시지이자 첫 레코드
-  let chn be u64 tlscli.build_ch rnd sid (subslice buf 56432 56464) host (subslice buf 0 20000) .
-  guard and (gt chn 0) (le chn 16384) . else return 92 .
-  guard eq (tlscli.plain_hdr chn (subslice buf 20000 20005)) 5 . else return 92 .
+  let chn u64 tlscli.build_ch rnd sid (subslice buf 56432 56464) host (subslice buf 0 20000) .
+  guard and (gt chn 0) (le chn 16384) else return 92 .
+  guard eq (tlscli.plain_hdr chn (subslice buf 20000 20005)) 5 else return 92 .
   copy (subslice buf 20005 (add 20005 chn)) (subslice buf 0 chn) .
-  let sent be option u64 net.send_all k fd (subslice buf 20000 (add 20005 chn)) .
-  guard is_some sent . else return 93 .
-  var mn be u64 chn .
+  let sent option u64 net.send_all k fd (subslice buf 20000 (add 20005 chn)) .
+  guard is_some sent else return 93 .
+  var mn u64 chn .
 
   rem ③ ServerHello
-  let r1 be u64 recv_rec k fd (subslice buf 20000 36700) .
-  guard gt r1 0 . else return 94 .
-  guard eq (tlscli.rec_type (subslice buf 20000 20005)) 22 . else return 95 .
-  let shn be u64 sub r1 5 .
-  guard le (add mn shn) 20000 . else return 96 .
+  let r1 u64 recv_rec k fd (subslice buf 20000 36700) .
+  guard gt r1 0 else return 94 .
+  guard eq (tlscli.rec_type (subslice buf 20000 20005)) 22 else return 95 .
+  let shn u64 sub r1 5 .
+  guard le (add mn shn) 20000 else return 96 .
   copy (subslice buf mn (add mn shn)) (subslice buf 20005 (add 20005 shn)) .
-  let sh be slice u8 subslice buf mn (add mn shn) .
-  guard tlscli.sh_usable sh . else return 97 .
+  let sh slice u8 subslice buf mn (add mn shn) .
+  guard tlscli.sh_usable sh else return 97 .
   rem 고른 것은 서버다: 4867 = ChaCha20-Poly1305(키 32), 그 밖 = AES-128-GCM(키 16). 키 칸 44 바이트는 32 + 12 도 담는다.
-  var suite be u64 1 .
-  var ksz be u64 16 .
-  if eq (tlscli.sh_suite sh) 4867 . do
+  var suite u64 1 .
+  var ksz u64 16 .
+  if eq (tlscli.sh_suite sh) 4867 do
     set suite 2 .
     set ksz 32 .
   end
   set (idx buf 56596) (narrow u8 suite) .
-  let kso be u64 tlscli.sh_key_share_off sh .
-  let shared be u64 x25519.agree (subslice buf 56496 56528) priv (subslice sh kso (add kso 32)) (subslice buf 56528 56560) xw . else return 98 .
-  guard eq shared 32 . else return 98 .
+  let kso u64 tlscli.sh_key_share_off sh .
+  let shared u64 x25519.agree (subslice buf 56496 56528) priv (subslice sh kso (add kso 32)) (subslice buf 56528 56560) xw else return 98 .
+  guard eq shared 32 else return 98 .
   set mn (add mn shn) .
 
   rem ④ 키 사다리 — 여기서부터 읽을 수 있다
-  let hs be u64 tlscli.hs_secrets (subslice buf 56496 56528) (subslice buf 0 mn) (subslice buf 56200 56296) w . else return 99 .
-  guard eq hs 96 . else return 99 .
-  let sk be u64 tlssrv.traffic_keys (subslice buf 56232 56264) ksz (subslice buf 56296 56340) w . else return 100 .
-  guard eq sk (add ksz 12) . else return 100 .
+  let hs u64 tlscli.hs_secrets (subslice buf 56496 56528) (subslice buf 0 mn) (subslice buf 56200 56296) w else return 99 .
+  guard eq hs 96 else return 99 .
+  let sk u64 tlssrv.traffic_keys (subslice buf 56232 56264) ksz (subslice buf 56296 56340) w else return 100 .
+  guard eq sk (add ksz 12) else return 100 .
 
   rem ⑤ EE · Certificate · CertificateVerify · Finished 를 연다. ChangeCipherSpec(20)은 1.3 에서 뜻이 없어 버린다.
-  var seq be u64 0 .
-  var fin_at be u64 0 .
-  var fin_len be u64 0 .
-  for rounds count u64 64 . do
-    guard eq fin_at 0 . else break .
-    let rn be u64 recv_rec k fd (subslice buf 20000 36700) .
-    guard gt rn 0 . else return 101 .
-    if ne (tlscli.rec_type (subslice buf 20000 20005)) 23 . do
+  var seq u64 0 .
+  var fin_at u64 0 .
+  var fin_len u64 0 .
+  repeat rounds u64 64 do
+    guard eq fin_at 0 else break .
+    let rn u64 recv_rec k fd (subslice buf 20000 36700) .
+    guard gt rn 0 else return 101 .
+    if ne (tlscli.rec_type (subslice buf 20000 20005)) 23 do
       continue .
     end
-    let pl be u64 tls13.record_open suite (subslice buf 56296 (add 56296 ksz)) (subslice buf (add 56296 ksz) (add 56296 (add ksz 12))) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u . else return 102 .
-    guard gt pl 0 . else return 102 .
+    let pl u64 tls13.record_open suite (subslice buf 56296 (add 56296 ksz)) (subslice buf (add 56296 ksz) (add 56296 (add ksz 12))) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u else return 102 .
+    guard gt pl 0 else return 102 .
     set seq (add seq 1) .
-    guard eq (tls13.inner_type (subslice buf 36700 (add 36700 pl))) 22 . else return 103 .
+    guard eq (tls13.inner_type (subslice buf 36700 (add 36700 pl))) 22 else return 103 .
     rem 속 평문의 마지막 한 바이트(타입)를 뺀 자리까지가 메시지들이다.
-    let body be u64 sub pl 1 .
-    let plain be slice u8 subslice buf 36700 (add 36700 body) .
-    var at be u64 0 .
-    for walk count u64 64 . do
-      guard lt at body . else break .
-      let hsz be u64 tls13.hs_size plain at .
-      guard and (gt hsz 0) (le (add at hsz) body) . else return 104 .
-      guard le (add mn hsz) 20000 . else return 96 .
-      let ht be u64 tls13.hs_type plain at .
+    let body u64 sub pl 1 .
+    let plain slice u8 subslice buf 36700 (add 36700 body) .
+    var at u64 0 .
+    repeat walk u64 64 do
+      guard lt at body else break .
+      let hsz u64 tls13.hs_size plain at .
+      guard and (gt hsz 0) (le (add at hsz) body) else return 104 .
+      guard le (add mn hsz) 20000 else return 96 .
+      let ht u64 tls13.hs_type plain at .
       copy (subslice buf mn (add mn hsz)) (subslice plain at (add at hsz)) .
-      if eq ht 20 . do
+      if eq ht 20 do
         set fin_at mn .
         set fin_len hsz .
-      end else if eq ht 11 . do
+      end else if eq ht 11 do
         rem Certificate 메시지의 자리를 네 바이트로 남긴다 — 확인(check_chain)이 읽는다.
         set (idx buf 56592) (narrow u8 (shr mn 24)) .
         set (idx buf 56593) (narrow u8 (bit_and (shr mn 16) 255)) .
@@ -163,65 +163,65 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
       set mn (add mn hsz) .
       set at (add at hsz) .
     end
-    guard ge at body . else return 104 .
+    guard ge at body else return 104 .
   end
-  guard gt fin_at 0 . else return 105 .
+  guard gt fin_at 0 else return 105 .
 
   rem ⑥ 서버의 Finished 를 검산한다 — 전사는 Finished 앞까지다.
-  let fin_ok be bool tlscli.check_server_fin (subslice buf 56232 56264) (subslice buf 0 fin_at) (subslice buf fin_at (add fin_at fin_len)) w . else return 106 .
-  guard fin_ok . else return 106 .
+  let fin_ok bool tlscli.check_server_fin (subslice buf 56232 56264) (subslice buf 0 fin_at) (subslice buf fin_at (add fin_at fin_len)) w else return 106 .
+  guard fin_ok else return 106 .
 
   rem ⑦ 우리 Finished — 전사는 서버 Finished 까지 들어간다.
-  let ck be u64 tlssrv.traffic_keys (subslice buf 56200 56232) ksz (subslice buf 56340 56384) w . else return 107 .
-  guard eq ck (add ksz 12) . else return 107 .
-  let fn2 be u64 tlscli.build_client_fin (subslice buf 56200 56232) (subslice buf 0 mn) (subslice buf 56400 56440) w . else return 108 .
-  guard eq fn2 36 . else return 108 .
-  let sn be u64 tlscli.seal_rec suite (subslice buf 56340 56384) ksz 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) w u . else return 109 .
-  guard gt sn 0 . else return 109 .
-  let s2 be option u64 net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
-  guard is_some s2 . else return 110 .
+  let ck u64 tlssrv.traffic_keys (subslice buf 56200 56232) ksz (subslice buf 56340 56384) w else return 107 .
+  guard eq ck (add ksz 12) else return 107 .
+  let fn2 u64 tlscli.build_client_fin (subslice buf 56200 56232) (subslice buf 0 mn) (subslice buf 56400 56440) w else return 108 .
+  guard eq fn2 36 else return 108 .
+  let sn u64 tlscli.seal_rec suite (subslice buf 56340 56384) ksz 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) w u else return 109 .
+  guard gt sn 0 else return 109 .
+  let s2 option u64 net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
+  guard is_some s2 else return 110 .
 
   rem ⑧ 응용 트래픽 키
-  let ap be u64 tlssrv.app_secrets (subslice buf 56264 56296) (subslice buf 0 mn) (subslice buf 56440 56504) w . else return 111 .
-  guard eq ap 64 . else return 111 .
-  let ct be u64 tlssrv.traffic_keys (subslice buf 56440 56472) ksz (subslice buf 56504 56548) w . else return 112 .
-  guard eq ct (add ksz 12) . else return 112 .
-  let st be u64 tlssrv.traffic_keys (subslice buf 56472 56504) ksz (subslice buf 56548 56592) w . else return 113 .
-  guard eq st (add ksz 12) . else return 113 .
+  let ap u64 tlssrv.app_secrets (subslice buf 56264 56296) (subslice buf 0 mn) (subslice buf 56440 56504) w else return 111 .
+  guard eq ap 64 else return 111 .
+  let ct u64 tlssrv.traffic_keys (subslice buf 56440 56472) ksz (subslice buf 56504 56548) w else return 112 .
+  guard eq ct (add ksz 12) else return 112 .
+  let st u64 tlssrv.traffic_keys (subslice buf 56472 56504) ksz (subslice buf 56548 56592) w else return 113 .
+  guard eq st (add ksz 12) else return 113 .
   return 0 .
 end
 
 rem ── 말하기
 
 proc say input out cap io . input msg slice u8 . output void . effects io . do
-  let w be option u64 outbuf.write_all out 2 msg .
+  let w option u64 outbuf.write_all out 2 msg .
   return .
 end
 
 rem «<tag> (step N)» 한 줄 — 어디서 멈췄는지(N 은 소스의 `return N` 자리).
 proc say_step input out cap io . input tag slice u8 . input n u64 . input d mut slice u8 . output void . effects io . do
-  let p1 be option u64 fmt.put_str d 0 tag .
-  let p2 be option u64 fmt.put_str d (value_or p1 0) " (step " .
-  let p3 be option u64 fmt.put_u64 d (value_or p2 0) n .
-  let p4 be option u64 fmt.put_str d (value_or p3 0) ")\n" .
-  let w be option u64 outbuf.write_all out 2 (subslice d 0 (min (value_or p4 0) (len d))) .
+  let p1 option u64 fmt.put_str d 0 tag .
+  let p2 option u64 fmt.put_str d (value_or p1 0) " (step " .
+  let p3 option u64 fmt.put_u64 d (value_or p2 0) n .
+  let p4 option u64 fmt.put_str d (value_or p3 0) ")\n" .
+  let w option u64 outbuf.write_all out 2 (subslice d 0 (min (value_or p4 0) (len d))) .
   return .
 end
 
 fn chain_text input v u64 . output slice u8 . do
-  if eq v 2 . do
+  if eq v 2 do
     return "lowget: the certificate is not for this host (no matching name)\n" .
   end
-  if eq v 3 . do
+  if eq v 3 do
     return "lowget: the certificate is outside its validity dates\n" .
   end
-  if eq v 4 . do
+  if eq v 4 do
     return "lowget: the chain does not hold — a link failed (name, CA flag, dates, or a signature this build cannot check: this build verifies RSA-v1.5 and ECDSA with SHA-256 or SHA-384)\n" .
   end
-  if eq v 5 . do
+  if eq v 5 do
     return "lowget: the chain does not reach a certificate in the trust store\n" .
   end
-  if eq v 6 . do
+  if eq v 6 do
     return "lowget: the server sent no certificate this build could read\n" .
   end
   return "lowget: the certificate check ran out of room (a working area was too small) — not checked\n" .
@@ -231,10 +231,10 @@ rem ── 한 판: 붙고, 손잡고, 확인하고, 받고, 닫는다. 종료 �
 rem    열쇠 재료는 씨(seed)에서 편다 — 시험이 되풀이될 수 있게.
 proc session input k cap net . input fs cap file_system . input hp cap heap . input out cap io . input ip u64 . input port u64 . input host slice u8 . input path slice u8 . input now u64 . input bundle slice u8 . input seed u64 . input hdrs bool . input follow bool . input loc mut slice u8 . output u64 . effects heap io . do
   rem 손잡기는 64 KiB 안에서 끝나지만 인증서 확인은 그렇지 않다(RSA-4096 뿌리 하나에 큰수 조각 1820 개) — 자라는 뿌리에서 받는다.
-  let g be option mut slice u8 alloc_bytes hp capacity 262144 .
-  guard is_some g . else return 3 .
-  let buf be mut slice u8 some_value g .
-  for i count u64 32 . do
+  let g option mut slice u8 alloc_bytes hp capacity 262144 .
+  guard is_some g else return 3 .
+  let buf mut slice u8 some_value g .
+  repeat i u64 32 do
     set (idx buf (add 60000 i)) (narrow u8 (bit_and (add (mul seed 7) (add i 1)) 255)) .
     set (idx buf (add 60032 i)) (narrow u8 (bit_and (add (mul seed 11) (add i 41)) 255)) .
     set (idx buf (add 60064 i)) (narrow u8 (bit_and (add (mul seed 13) (add i 91)) 255)) .
@@ -243,32 +243,32 @@ proc session input k cap net . input fs cap file_system . input hp cap heap . in
   set (idx buf 60000) (narrow u8 (bit_and (widen u64 (idx buf 60000)) 248)) .
   set (idx buf 60031) (narrow u8 (bit_or (bit_and (widen u64 (idx buf 60031)) 127) 64)) .
 
-  let copt be option net.conn net.dial k ip port .
-  guard is_some copt . else return 3 .
-  var c be owned net.conn some_value copt .
-  let cfd be u64 net.conn_fd c .
-  let hs be u64 handshake k cfd (subslice buf 0 60000) host (subslice buf 60000 60032) (subslice buf 60032 60064) (subslice buf 60064 60096) .
-  if ne hs 0 . do
-    let s0 be result void net.net_error net.shut k c .
+  let copt option net.conn net.dial k ip port .
+  guard is_some copt else return 3 .
+  var c owned net.conn some_value copt .
+  let cfd u64 net.conn_fd c .
+  let hs u64 handshake k cfd (subslice buf 0 60000) host (subslice buf 60000 60032) (subslice buf 60032 60064) (subslice buf 60064 60096) .
+  if ne hs 0 do
+    let s0 result void net.net_error net.shut k c .
     drop s0 .
     say_step out "lowget: the handshake did not hold" hs (subslice buf 59900 59932) .
     return 5 .
   end
   rem 인증서를 확인한다 — 요청을 보내기 전에. now = 0 이면 --insecure 다.
-  if gt now 0 . do
-    let v be u64 check_chain fs buf host now bundle .
-    if ne v 1 . do
+  if gt now 0 do
+    let v u64 check_chain fs buf host now bundle .
+    if ne v 1 do
       say out (chain_text v) .
-      let s1 be result void net.net_error net.shut k c .
+      let s1 result void net.net_error net.shut k c .
       drop s1 .
       return 4 .
     end
     say out "lowget: certificate checked — name, dates, chain, trust anchor\n" .
   end
-  let got be u64 http_get k out cfd buf host path hdrs follow loc .
-  let s2 be result void net.net_error net.shut k c .
+  let got u64 http_get k out cfd buf host path hdrs follow loc .
+  let s2 result void net.net_error net.shut k c .
   drop s2 .
-  if ge got 89 . do
+  if ge got 89 do
     say_step out "lowget: the response did not hold" got (subslice buf 59900 59932) .
     return 5 .
   end
@@ -282,28 +282,28 @@ rem   8 Location 길이 · 9 따라갈 참인가 · 10 본문을 낼까.
 rem   머리의 `\r\n\r\n` 도, 청크의 길이 줄도 레코드 경계를 가로지를 수 있어 상태를 레코드 너머로 이어 간다.
 
 fn lcase input c u8 . output u8 . do
-  guard and (ge c 'A') (le c 'Z') . else return c .
+  guard and (ge c 'A') (le c 'Z') else return c .
   return add c 32 .
 end
 
 rem 머리에서 `<이름:>` 줄을 찾아 값이 시작하는 자리(0 = 없다). name 은 소문자에 콜론까지. 줄 단위로 본다 —
 rem 다른 줄의 값이 이름 행세를 하지 않게.
 fn hdr_find input h slice u8 . input name slice u8 . output u64 . do
-  let m be u64 len name .
-  var ls be u64 0 .
-  for i count u64 (len h) . do
-    guard eq (idx h i) '\n' . else continue .
-    if ge (sub i ls) m . do
-      var same be bool true .
-      for q count u64 m . do
-        if ne (lcase (idx h (add ls q))) (idx name q) . do
+  let m u64 len name .
+  var ls u64 0 .
+  repeat i u64 (len h) do
+    guard eq (idx h i) '\n' else continue .
+    if ge (sub i ls) m do
+      var same bool true .
+      repeat q u64 m do
+        if ne (lcase (idx h (add ls q))) (idx name q) do
           set same false .
           break .
         end
       end
-      if same . do
-        var v be u64 add ls m .
-        while and (lt v i) (eq (idx h v) ' ') . do
+      if same do
+        var v u64 add ls m .
+        while and (lt v i) (eq (idx h v) ' ') do
           set v (add v 1) .
         end
         return v .
@@ -315,8 +315,8 @@ fn hdr_find input h slice u8 . input name slice u8 . output u64 . do
 end
 
 fn hdr_val_end input h slice u8 . input off u64 . output u64 . do
-  for i be u64 off . while lt i (len h) . next add i 1 . do
-    if or (eq (idx h i) '\r') (eq (idx h i) '\n') . do
+  cycle i u64 off while lt i (len h) next add i 1 do
+    if or (eq (idx h i) '\r') (eq (idx h i) '\n') do
       return i .
     end
   end
@@ -325,16 +325,16 @@ end
 
 rem [a, b) 안에 낱말 w(소문자)가 있는가 — 대소문자를 가리지 않는다.
 fn has_word input h slice u8 . input a u64 . input b u64 . input w slice u8 . output bool . do
-  guard and (lt a b) (ge (sub b a) (len w)) . else return false .
-  for q be u64 a . while le (add q (len w)) b . next add q 1 . do
-    var same be bool true .
-    for t count u64 (len w) . do
-      if ne (lcase (idx h (add q t))) (idx w t) . do
+  guard and (lt a b) (ge (sub b a) (len w)) else return false .
+  cycle q u64 a while le (add q (len w)) b next add q 1 do
+    var same bool true .
+    repeat t u64 (len w) do
+      if ne (lcase (idx h (add q t))) (idx w t) do
         set same false .
         break .
       end
     end
-    if same . do
+    if same do
       return true .
     end
   end
@@ -343,12 +343,12 @@ end
 
 rem 십진수 + 1(0 = 못 읽음). «길이 0» 과 «길이 줄이 없다» 를 가르려고 1 을 더한다.
 fn dec_of input h slice u8 . input a u64 . input b u64 . output u64 . do
-  guard lt a b . else return 0 .
-  var v be u64 0 .
-  for i be u64 a . while lt i b . next add i 1 . do
-    let c be u8 idx h i .
-    guard and (ge c '0') (le c '9') . else return 0 .
-    guard le v 1099511627775 . else return 0 .
+  guard lt a b else return 0 .
+  var v u64 0 .
+  cycle i u64 a while lt i b next add i 1 do
+    let c u8 idx h i .
+    guard and (ge c '0') (le c '9') else return 0 .
+    guard le v 1099511627775 else return 0 .
     set v (add (mul v 10) (sub c '0')) .
   end
   return add v 1 .
@@ -356,11 +356,11 @@ end
 
 rem 상태 줄 `HTTP/1.1 200 OK` 의 아홉째부터 석 자. 0 = 못 읽었다.
 fn status_of input h slice u8 . output u64 . do
-  guard ge (len h) 12 . else return 0 .
-  var v be u64 0 .
-  for i be u64 9 . while lt i 12 . next add i 1 . do
-    let c be u8 idx h i .
-    guard and (ge c '0') (le c '9') . else return 0 .
+  guard ge (len h) 12 else return 0 .
+  var v u64 0 .
+  cycle i u64 9 while lt i 12 next add i 1 do
+    let c u8 idx h i .
+    guard and (ge c '0') (le c '9') else return 0 .
     set v (add (mul v 10) (sub c '0')) .
   end
   return v .
@@ -368,30 +368,30 @@ end
 
 rem 16 진 길이 줄(`1a2b` · `1a2b;ext=1`) + 1(0 = 못 읽음).
 fn chunk_size input l slice u8 . output u64 . do
-  var v be u64 0 .
-  var seen be bool false .
+  var v u64 0 .
+  var seen bool false .
   for c l do
-    if or (eq c ';') (eq c '\r') . do
+    if or (eq c ';') (eq c '\r') do
       break .
     end
-    let lc be u8 lcase c .
-    var d be u64 16 .
-    if and (ge c '0') (le c '9') . do
+    let lc u8 lcase c .
+    var d u64 16 .
+    if and (ge c '0') (le c '9') do
       set d (sub c '0') .
-    end else if and (ge lc 'a') (le lc 'f') . do
+    end else if and (ge lc 'a') (le lc 'f') do
       set d (add (sub lc 'a') 10) .
     end
-    guard lt d 16 . else return 0 .
-    guard le v 268435455 . else return 0 .
+    guard lt d 16 else return 0 .
+    guard le v 268435455 else return 0 .
     set v (add (mul v 16) d) .
     set seen true .
   end
-  guard seen . else return 0 .
+  guard seen else return 0 .
   return add v 1 .
 end
 
 proc put_all input out cap io . input b slice u8 . output bool . effects io . do
-  let r be option u64 outbuf.write_all out 1 b .
+  let r option u64 outbuf.write_all out 1 b .
   return is_some r .
 end
 
@@ -399,24 +399,24 @@ rem 머리가 다 왔다 — 이 답의 모양(몸통 · 청크 · 끝)을 정�
 proc on_headers input out cap io . input hdr slice u8 . input st mut slice u64 . input loc mut slice u8 . output bool . effects io .
   requires ge (len st) 11 .
 do
-  let h be slice u8 subslice hdr 0 (min (idx st 1) (len hdr)) .
-  let status be u64 status_of h .
+  let h slice u8 subslice hdr 0 (min (idx st 1) (len hdr)) .
+  let status u64 status_of h .
   set (idx st 6) status .
   rem 따라갈 참이면 중간 3xx 의 본문은 내지 않는다(curl -L 과 같은 몸가짐).
   set (idx st 10) 1 .
-  if and (eq (idx st 9) 1) (and (ge status 300) (lt status 400)) . do
+  if and (eq (idx st 9) 1) (and (ge status 300) (lt status 400)) do
     set (idx st 10) 0 .
   end
-  if and (eq (idx st 5) 1) (eq (idx st 10) 1) . do
-    guard put_all out h . else return false .
+  if and (eq (idx st 5) 1) (eq (idx st 10) 1) do
+    guard put_all out h else return false .
   end
   rem Location — 따라갈 참일 때만. 길이는 앞 두 바이트에.
-  if eq (idx st 9) 1 . do
-    let lo be u64 hdr_find h "location:" .
-    if gt lo 0 . do
-      let le2 be u64 hdr_val_end h lo .
-      let ln be u64 sub le2 lo .
-      if and (gt ln 0) (le (add ln 2) (len loc)) . do
+  if eq (idx st 9) 1 do
+    let lo u64 hdr_find h "location:" .
+    if gt lo 0 do
+      let le2 u64 hdr_val_end h lo .
+      let ln u64 sub le2 lo .
+      if and (gt ln 0) (le (add ln 2) (len loc)) do
         set (idx loc 0) (narrow u8 (shr ln 8)) .
         set (idx loc 1) (narrow u8 (bit_and ln 255)) .
         copy (subslice loc 2 (add 2 ln)) (subslice h lo le2) .
@@ -425,23 +425,23 @@ do
     end
   end
   rem chunked 가 Content-Length 를 이긴다(RFC 9112 §6.1).
-  let te be u64 hdr_find h "transfer-encoding:" .
-  if and (gt te 0) (has_word h te (hdr_val_end h te) "chunked") . do
+  let te u64 hdr_find h "transfer-encoding:" .
+  if and (gt te 0) (has_word h te (hdr_val_end h te) "chunked") do
     set (idx st 0) 2 .
     set (idx st 3) 0 .
     set (idx st 4) 0 .
     return true .
   end
   set (idx st 0) 1 .
-  let cl be u64 hdr_find h "content-length:" .
-  if gt cl 0 . do
+  let cl u64 hdr_find h "content-length:" .
+  if gt cl 0 do
     set (idx st 7) (dec_of h cl (hdr_val_end h cl)) .
   end
   rem 204 와 304 는 길이 줄이 없어도 본문이 없다(RFC 9110 §15.3.5) — 이 갈래가 없으면 닫힐 때까지 기다린다.
-  if or (eq status 204) (eq status 304) . do
+  if or (eq status 204) (eq status 304) do
     set (idx st 7) 1 .
   end
-  if eq (idx st 7) 1 . do
+  if eq (idx st 7) 1 do
     set (idx st 0) 3 .
   end
   return true .
@@ -451,75 +451,75 @@ rem 평문 한 조각을 먹인다. 1 = 이어 간다 · 2 = 본문이 끝났다
 proc feed input out cap io . input p slice u8 . input hdr mut slice u8 . input line mut slice u8 . input st mut slice u64 . input loc mut slice u8 . output u64 . effects io .
   requires ge (len st) 11 .
 do
-  var i be u64 0 .
-  while lt i (len p) . do
-    guard ne (idx st 3) 9 . else return 0 .
-    let phase be u64 idx st 0 .
-    if eq phase 0 . do
+  var i u64 0 .
+  while lt i (len p) do
+    guard ne (idx st 3) 9 else return 0 .
+    let phase u64 idx st 0 .
+    if eq phase 0 do
       rem 머리: 한 바이트씩 모으고 `\r\n\r\n` 에서 모양을 정한다.
-      let n0 be u64 idx st 1 .
-      guard lt n0 (len hdr) . else return 0 .
+      let n0 u64 idx st 1 .
+      guard lt n0 (len hdr) else return 0 .
       set (idx hdr n0) (idx p i) .
-      let n be u64 add n0 1 .
+      let n u64 add n0 1 .
       set (idx st 1) n .
       set i (add i 1) .
-      if ge n 4 . do
-        if and (and (eq (idx hdr (sub n 4)) '\r') (eq (idx hdr (sub n 3)) '\n')) (and (eq (idx hdr (sub n 2)) '\r') (eq (idx hdr (sub n 1)) '\n')) . do
-          guard on_headers out hdr st loc . else return 0 .
+      if ge n 4 do
+        if and (and (eq (idx hdr (sub n 4)) '\r') (eq (idx hdr (sub n 3)) '\n')) (and (eq (idx hdr (sub n 2)) '\r') (eq (idx hdr (sub n 1)) '\n')) do
+          guard on_headers out hdr st loc else return 0 .
         end
       end
-    end else if eq phase 1 . do
+    end else if eq phase 1 do
       rem 길이를 아는/모르는 몸통. Content-Length 를 알면 거기서 멈춘다(안 그러면 안 닫는 서버에서 매달린다).
-      var nn be u64 sub (len p) i .
-      let rest be u64 idx st 7 .
-      if gt rest 0 . do
+      var nn u64 sub (len p) i .
+      let rest u64 idx st 7 .
+      if gt rest 0 do
         set nn (min nn (sub rest 1)) .
       end
-      if eq (idx st 10) 1 . do
-        guard put_all out (subslice p i (add i nn)) . else return 0 .
+      if eq (idx st 10) 1 do
+        guard put_all out (subslice p i (add i nn)) else return 0 .
       end
       set i (add i nn) .
-      if gt rest 0 . do
+      if gt rest 0 do
         set (idx st 7) (sub rest nn) .
-        if eq (idx st 7) 1 . do
+        if eq (idx st 7) 1 do
           set (idx st 0) 3 .
         end
       end
-    end else if eq phase 2 . do
-      let part be u64 idx st 3 .
-      if eq part 0 . do
+    end else if eq phase 2 do
+      let part u64 idx st 3 .
+      if eq part 0 do
         rem 길이 줄
-        let c2 be u8 idx p i .
+        let c2 u8 idx p i .
         set i (add i 1) .
-        if eq c2 '\n' . do
-          let ll be u64 min (idx st 4) (len line) .
-          let sz be u64 chunk_size (subslice line 0 ll) .
-          if eq sz 0 . do
+        if eq c2 '\n' do
+          let ll u64 min (idx st 4) (len line) .
+          let sz u64 chunk_size (subslice line 0 ll) .
+          if eq sz 0 do
             set (idx st 3) 9 .
           end else do
             set (idx st 2) (sub sz 1) .
             set (idx st 4) 0 .
-            if eq (idx st 2) 0 . do
+            if eq (idx st 2) 0 do
               set (idx st 0) 3 .
               return 2 .
             end
             set (idx st 3) 1 .
           end
         end else do
-          let lp be u64 idx st 4 .
-          guard lt lp (len line) . else return 0 .
+          let lp u64 idx st 4 .
+          guard lt lp (len line) else return 0 .
           set (idx line lp) c2 .
           set (idx st 4) (add lp 1) .
         end
-      end else if eq part 1 . do
+      end else if eq part 1 do
         rem 자료
-        let nc be u64 min (sub (len p) i) (idx st 2) .
-        if eq (idx st 10) 1 . do
-          guard put_all out (subslice p i (add i nc)) . else return 0 .
+        let nc u64 min (sub (len p) i) (idx st 2) .
+        if eq (idx st 10) 1 do
+          guard put_all out (subslice p i (add i nc)) else return 0 .
         end
         set i (add i nc) .
         set (idx st 2) (sub (idx st 2) nc) .
-        if eq (idx st 2) 0 . do
+        if eq (idx st 2) 0 do
           set (idx st 3) 2 .
           set (idx st 4) 0 .
         end
@@ -527,13 +527,13 @@ do
         rem 자료 뒤의 CRLF 를 넘긴다
         set i (add i 1) .
         set (idx st 4) (add (idx st 4) 1) .
-        if ge (idx st 4) 2 . do
+        if ge (idx st 4) 2 do
           set (idx st 3) 0 .
           set (idx st 4) 0 .
         end
       end
     end
-    if eq (idx st 0) 3 . do
+    if eq (idx st 0) 3 do
       return 2 .
     end
   end
@@ -544,97 +544,97 @@ rem 요청을 보내고 응답을 흘려 낸다(본문은 모으지 않는다 �
 rem 손잡기 뒤 서버가 보내는 NewSessionTicket(속 타입 22)은 쓰지 않지만 순번은 센다 — 안 세면 다음 레코드가 안 열린다.
 rem 내는 수: 0 · 1(400 이상) · 5(덜 온 본문 · 상태를 못 읽음) · 6(따라갈 자리가 있다) · 89 이상(멈춘 자리).
 proc http_get input k cap net . input out cap io . input fd u64 . input buf mut slice u8 . input host slice u8 . input path slice u8 . input hdrs bool . input follow bool . input loc mut slice u8 . output u64 . effects io . do
-  let u be mut slice u64 view_array u64 (subslice buf 55800 56200) .
-  let w be mut slice u8 subslice buf 53100 54400 .
-  let suite be u64 widen u64 (idx buf 56596) .
-  var ksz be u64 16 .
-  if eq suite 2 . do
+  let u mut slice u64 view_array u64 (subslice buf 55800 56200) .
+  let w mut slice u8 subslice buf 53100 54400 .
+  let suite u64 widen u64 (idx buf 56596) .
+  var ksz u64 16 .
+  if eq suite 2 do
     set ksz 32 .
   end
-  let hdr be mut slice u8 subslice buf 180000 196384 .
-  let line be mut slice u8 subslice buf 196384 196448 .
-  let st be mut slice u64 view_array u64 (subslice buf 196448 196576) .
+  let hdr mut slice u8 subslice buf 180000 196384 .
+  let line mut slice u8 subslice buf 196384 196448 .
+  let st mut slice u64 view_array u64 (subslice buf 196448 196576) .
   for x mut st do
     set x 0 .
   end
-  if hdrs . do
+  if hdrs do
     set (idx st 5) 1 .
   end
-  if follow . do
+  if follow do
     set (idx st 9) 1 .
   end
   rem 요청 줄 — 길이는 손으로 세지 않는다(fmt.put_str 이 센다). User-Agent · Accept 가 없으면 403 으로 막는 서버가 실제로 있다.
-  let rq be mut slice u8 subslice buf 56600 58600 .
-  let q1 be option u64 fmt.put_str rq 0 "GET " .
-  let q2 be option u64 fmt.put_str rq (value_or q1 0) path .
-  let q3 be option u64 fmt.put_str rq (value_or q2 0) " HTTP/1.1\r\nHost: " .
-  let q4 be option u64 fmt.put_str rq (value_or q3 0) host .
-  let q5 be option u64 fmt.put_str rq (value_or q4 0) "\r\nUser-Agent: lowget/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n" .
-  guard and (is_some q1) (and (is_some q2) (and (is_some q3) (and (is_some q4) (is_some q5)))) . else return 125 .
-  let at be u64 some_value q5 .
-  let sn be u64 tlscli.seal_rec suite (subslice buf 56504 56548) ksz 0 23 (subslice rq 0 at) (subslice buf 20000 36700) w u . else return 120 .
-  guard gt sn 0 . else return 120 .
-  let s1 be option u64 net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
-  guard is_some s1 . else return 121 .
+  let rq mut slice u8 subslice buf 56600 58600 .
+  let q1 option u64 fmt.put_str rq 0 "GET " .
+  let q2 option u64 fmt.put_str rq (value_or q1 0) path .
+  let q3 option u64 fmt.put_str rq (value_or q2 0) " HTTP/1.1\r\nHost: " .
+  let q4 option u64 fmt.put_str rq (value_or q3 0) host .
+  let q5 option u64 fmt.put_str rq (value_or q4 0) "\r\nUser-Agent: lowget/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n" .
+  guard and (is_some q1) (and (is_some q2) (and (is_some q3) (and (is_some q4) (is_some q5)))) else return 125 .
+  let at u64 some_value q5 .
+  let sn u64 tlscli.seal_rec suite (subslice buf 56504 56548) ksz 0 23 (subslice rq 0 at) (subslice buf 20000 36700) w u else return 120 .
+  guard gt sn 0 else return 120 .
+  let s1 option u64 net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
+  guard is_some s1 else return 121 .
 
-  var seq be u64 0 .
-  for rounds count u64 4096 . do
-    let rn be u64 recv_rec k fd (subslice buf 20000 36700) .
-    guard gt rn 0 . else break .
-    if ne (tlscli.rec_type (subslice buf 20000 20005)) 23 . do
+  var seq u64 0 .
+  repeat rounds u64 4096 do
+    let rn u64 recv_rec k fd (subslice buf 20000 36700) .
+    guard gt rn 0 else break .
+    if ne (tlscli.rec_type (subslice buf 20000 20005)) 23 do
       continue .
     end
-    let pl be u64 tls13.record_open suite (subslice buf 56548 (add 56548 ksz)) (subslice buf (add 56548 ksz) (add 56548 (add ksz 12))) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u . else return 122 .
-    guard gt pl 0 . else return 122 .
+    let pl u64 tls13.record_open suite (subslice buf 56548 (add 56548 ksz)) (subslice buf (add 56548 ksz) (add 56548 (add ksz 12))) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u else return 122 .
+    guard gt pl 0 else return 122 .
     set seq (add seq 1) .
-    let it be u64 tls13.inner_type (subslice buf 36700 (add 36700 pl)) .
+    let it u64 tls13.inner_type (subslice buf 36700 (add 36700 pl)) .
     rem 21 = alert(close_notify 는 정상 종료) · 23 = 응용 자료
-    if eq it 21 . do
+    if eq it 21 do
       break .
     end
-    if eq it 23 . do
-      let fr be u64 feed out (subslice buf 36700 (add 36700 (sub pl 1))) hdr line st loc .
-      guard gt fr 0 . else return 126 .
-      if eq fr 2 . do
+    if eq it 23 do
+      let fr u64 feed out (subslice buf 36700 (add 36700 (sub pl 1))) hdr line st loc .
+      guard gt fr 0 else return 126 .
+      if eq fr 2 do
         break .
       end
     end
-    guard lt rounds 4095 . else return 124 .
+    guard lt rounds 4095 else return 124 .
   end
-  let status be u64 idx st 6 .
-  guard gt status 0 . else return 5 .
+  let status u64 idx st 6 .
+  guard gt status 0 else return 5 .
   rem 덜 온 본문을 성공이라 하지 않는다: 1 = 길이를 아는 몸통이 안 끝났다 · 2 = 청크의 `0` 덩이를 못 봤다.
-  if and (eq (idx st 0) 1) (gt (idx st 7) 1) . do
+  if and (eq (idx st 0) 1) (gt (idx st 7) 1) do
     say out "lowget: the body stopped early — the server said how long it would be and sent less\n" .
     return 5 .
   end
-  if eq (idx st 0) 2 . do
+  if eq (idx st 0) 2 do
     say out "lowget: the chunked body stopped early — the final 0-sized chunk never arrived\n" .
     return 5 .
   end
-  if and follow (and (and (ge status 300) (lt status 400)) (gt (idx st 8) 0)) . do
+  if and follow (and (and (ge status 300) (lt status 400)) (gt (idx st 8) 0)) do
     return 6 .
   end
-  guard lt status 400 . else return 1 .
+  guard lt status 400 else return 1 .
   return 0 .
 end
 
 rem ── URL: `https://<호스트>[:<포트>]<길>` 만 받는다.
 
 export fn url_host_off input u slice u8 . output u64 . do
-  guard ge (len u) 9 . else return 0 .
-  let scheme be slice u8 "https://" .
-  for i count u64 8 . do
-    guard eq (idx u i) (idx scheme i) . else return 0 .
+  guard ge (len u) 9 else return 0 .
+  let scheme slice u8 "https://" .
+  repeat i u64 8 do
+    guard eq (idx u i) (idx scheme i) else return 0 .
   end
   return 8 .
 end
 
 export fn url_host_end input u slice u8 . output u64 . do
-  let o be u64 url_host_off u .
-  guard gt o 0 . else return 0 .
-  for i be u64 o . while lt i (len u) . next add i 1 . do
-    if or (eq (idx u i) ':') (eq (idx u i) '/') . do
+  let o u64 url_host_off u .
+  guard gt o 0 else return 0 .
+  cycle i u64 o while lt i (len u) next add i 1 do
+    if or (eq (idx u i) ':') (eq (idx u i) '/') do
       return i .
     end
   end
@@ -643,31 +643,31 @@ end
 
 rem 포트 — 안 적혔으면 443, 틀리면 0.
 export fn url_port input u slice u8 . output u64 . do
-  let e be u64 url_host_end u .
-  guard gt e 0 . else return 0 .
-  guard and (lt e (len u)) (eq (idx u e) ':') . else return 443 .
-  var p be u64 0 .
-  var seen be bool false .
-  for i be u64 (add e 1) . while lt i (len u) . next add i 1 . do
-    let d be u8 idx u i .
-    if eq d '/' . do
+  let e u64 url_host_end u .
+  guard gt e 0 else return 0 .
+  guard and (lt e (len u)) (eq (idx u e) ':') else return 443 .
+  var p u64 0 .
+  var seen bool false .
+  cycle i u64 (add e 1) while lt i (len u) next add i 1 do
+    let d u8 idx u i .
+    if eq d '/' do
       break .
     end
-    guard and (ge d '0') (le d '9') . else return 0 .
+    guard and (ge d '0') (le d '9') else return 0 .
     set p (add (mul p 10) (sub d '0')) .
-    guard le p 65535 . else return 0 .
+    guard le p 65535 else return 0 .
     set seen true .
   end
-  guard seen . else return 0 .
+  guard seen else return 0 .
   return p .
 end
 
 rem 길이 시작하는 자리 — 없으면 0(그러면 "/").
 export fn url_path_off input u slice u8 . output u64 . do
-  let o be u64 url_host_off u .
-  guard gt o 0 . else return 0 .
-  for i be u64 o . while lt i (len u) . next add i 1 . do
-    if eq (idx u i) '/' . do
+  let o u64 url_host_off u .
+  guard gt o 0 else return 0 .
+  cycle i u64 o while lt i (len u) next add i 1 do
+    if eq (idx u i) '/' do
       return i .
     end
   end
@@ -675,17 +675,17 @@ export fn url_path_off input u slice u8 . output u64 . do
 end
 
 fn same_word input f slice u8 . input w slice u8 . output bool . do
-  guard eq (len f) (len w) . else return false .
-  for i count u64 (len f) . do
-    guard eq (idx f i) (idx w i) . else return false .
+  guard eq (len f) (len w) else return false .
+  repeat i u64 (len f) do
+    guard eq (idx f i) (idx w i) else return false .
   end
   return true .
 end
 
 rem 길에서 `#조각` 을 떼는 자리 — 조각은 서버에 보내지 않는다(RFC 3986 §3.5).
 fn cut_frag input u slice u8 . input from u64 . output u64 . do
-  for i be u64 from . while lt i (len u) . next add i 1 . do
-    if eq (idx u i) '#' . do
+  cycle i u64 from while lt i (len u) next add i 1 do
+    if eq (idx u i) '#' do
       return i .
     end
   end
@@ -694,7 +694,7 @@ end
 
 rem 지금 시각을 YYYYMMDDhhmmss 한 수로.
 proc now_packed input ck cap clock . output u64 . effects none . do
-  let p be u64 clock.local_packed ck .
+  let p u64 clock.local_packed ck .
   return add (add (add (mul (clock.year_of p) 10000000000) (mul (clock.month_of p) 100000000)) (add (mul (clock.day_of p) 1000000) (mul (clock.hour_of p) 10000))) (add (mul (clock.minute_of p) 100) (clock.second_of p)) .
 end
 
@@ -703,27 +703,27 @@ rem `https://…` 는 그대로, `/…` 는 지금 자리의 권한부에 붙인
 proc next_url input cur slice u8 . input wk mut slice u8 . output u64 . effects none .
   requires ge (len wk) 6400 .
 do
-  let ln be u64 add (mul (widen u64 (idx wk 0)) 256) (widen u64 (idx wk 1)) .
-  guard and (gt ln 0) (le (add ln 2) 4096) . else return 0 .
-  let loc be slice u8 subslice wk 2 (add 2 ln) .
-  if gt (url_host_off loc) 0 . do
+  let ln u64 add (mul (widen u64 (idx wk 0)) 256) (widen u64 (idx wk 1)) .
+  guard and (gt ln 0) (le (add ln 2) 4096) else return 0 .
+  let loc slice u8 subslice wk 2 (add 2 ln) .
+  if gt (url_host_off loc) 0 do
     copy (subslice wk 4096 (add 4096 ln)) loc .
     return ln .
   end
-  guard eq (idx loc 0) '/' . else return 0 .
-  let po be u64 url_path_off cur .
-  var ae be u64 len cur .
-  if gt po 0 . do
+  guard eq (idx loc 0) '/' else return 0 .
+  let po u64 url_path_off cur .
+  var ae u64 len cur .
+  if gt po 0 do
     set ae po .
   end
-  let auth be slice u8 subslice cur (url_host_off cur) ae .
-  guard le (len auth) 256 . else return 0 .
+  let auth slice u8 subslice cur (url_host_off cur) ae .
+  guard le (len auth) 256 else return 0 .
   copy (subslice wk 6144 (add 6144 (len auth))) auth .
-  let dst be mut slice u8 subslice wk 4096 6144 .
-  let a1 be option u64 fmt.put_str dst 0 "https://" .
-  let a2 be option u64 fmt.put_str dst (value_or a1 0) (subslice wk 6144 (add 6144 (len auth))) .
-  let a3 be option u64 fmt.put_str dst (value_or a2 0) loc .
-  guard and (is_some a1) (and (is_some a2) (is_some a3)) . else return 0 .
+  let dst mut slice u8 subslice wk 4096 6144 .
+  let a1 option u64 fmt.put_str dst 0 "https://" .
+  let a2 option u64 fmt.put_str dst (value_or a1 0) (subslice wk 6144 (add 6144 (len auth))) .
+  let a3 option u64 fmt.put_str dst (value_or a2 0) loc .
+  guard and (is_some a1) (and (is_some a2) (is_some a3)) else return 0 .
   return some_value a3 .
 end
 
@@ -737,31 +737,31 @@ proc main
   output u8 .
   effects heap io .
 do
-  let a0 be option slice u8 arg a 0 .
-  guard is_some a0 . else do
+  let a0 option slice u8 arg a 0 .
+  guard is_some a0 else do
     say out "usage: lowget https://<host>[:<port>]/<path> [-i] [-L] [--insecure] [--cafile <path>]\n" .
     return 2 .
   end
-  var insecure be bool false .
-  var hdrs be bool false .
-  var follow be bool false .
-  var cabundle be slice u8 "/etc/ssl/certs/ca-certificates.crt" .
-  var ai be u64 1 .
-  while true . do
-    let ax be option slice u8 arg a ai .
-    guard is_some ax . else break .
-    let f be slice u8 some_value ax .
+  var insecure bool false .
+  var hdrs bool false .
+  var follow bool false .
+  var cabundle slice u8 "/etc/ssl/certs/ca-certificates.crt" .
+  var ai u64 1 .
+  while true do
+    let ax option slice u8 arg a ai .
+    guard is_some ax else break .
+    let f slice u8 some_value ax .
     set ai (add ai 1) .
-    guard le ai 64 . else return 2 .
-    if same_word f "--insecure" . do
+    guard le ai 64 else return 2 .
+    if same_word f "--insecure" do
       set insecure true .
-    end else if same_word f "-i" . do
+    end else if same_word f "-i" do
       set hdrs true .
-    end else if same_word f "-L" . do
+    end else if same_word f "-L" do
       set follow true .
-    end else if same_word f "--cafile" . do
-      let cx be option slice u8 arg a ai .
-      guard is_some cx . else do
+    end else if same_word f "--cafile" do
+      let cx option slice u8 arg a ai .
+      guard is_some cx else do
         say out "lowget: --cafile needs a path\n" .
         return 2 .
       end
@@ -769,45 +769,45 @@ do
       set ai (add ai 1) .
     end
   end
-  var now be u64 0 .
-  if insecure . do
+  var now u64 0 .
+  if insecure do
     say out "lowget: --insecure — the certificate is NOT checked\n" .
   end else do
     set now (now_packed ck) .
-    guard gt now 0 . else return 4 .
+    guard gt now 0 else return 4 .
   end
   rem 자리 셋: [0..4096) 서버가 준 Location · [4096..6144) 다음에 부를 url · [6144..6400) 지금 url 의 권한부 사본.
-  let gw be option mut slice u8 alloc_bytes hp capacity 8192 .
-  guard is_some gw . else return 3 .
-  let wk be mut slice u8 some_value gw .
-  var cur be slice u8 some_value a0 .
-  var rc be u64 0 .
-  for hop count u64 9 . do
-    guard gt (url_host_off cur) 0 . else do
+  let gw option mut slice u8 alloc_bytes hp capacity 8192 .
+  guard is_some gw else return 3 .
+  let wk mut slice u8 some_value gw .
+  var cur slice u8 some_value a0 .
+  var rc u64 0 .
+  repeat hop u64 9 do
+    guard gt (url_host_off cur) 0 else do
       say out "lowget: only https:// is understood\n" .
       return 2 .
     end
-    let host be slice u8 subslice cur (url_host_off cur) (url_host_end cur) .
-    let port be u64 url_port cur .
-    guard and (gt (len host) 0) (gt port 0) . else return 2 .
-    let ipo be option u64 net.resolve k host .
-    guard is_some ipo . else do
+    let host slice u8 subslice cur (url_host_off cur) (url_host_end cur) .
+    let port u64 url_port cur .
+    guard and (gt (len host) 0) (gt port 0) else return 2 .
+    let ipo option u64 net.resolve k host .
+    guard is_some ipo else do
       say out "lowget: cannot resolve that name\n" .
       return 3 .
     end
-    let po be u64 url_path_off cur .
-    var path be slice u8 "/" .
-    if gt po 0 . do
+    let po u64 url_path_off cur .
+    var path slice u8 "/" .
+    if gt po 0 do
       set path (subslice cur po (cut_frag cur po)) .
     end
     set rc (session k fs hp out (some_value ipo) port host path now cabundle 7 hdrs follow (subslice wk 0 4096)) .
-    guard eq rc 6 . else return narrow u8 rc .
-    guard lt hop 8 . else do
+    guard eq rc 6 else return narrow u8 rc .
+    guard lt hop 8 else do
       say out "lowget: too many redirects\n" .
       return 3 .
     end
-    let nl be u64 next_url cur wk .
-    guard gt nl 0 . else do
+    let nl u64 next_url cur wk .
+    guard gt nl 0 else do
       say out "lowget: will not follow that redirect (only https:// or an absolute path)\n" .
       return 3 .
     end
@@ -821,33 +821,33 @@ rem    1 = 믿을 만하다 · 2 = 이름이 안 맞다 · 3 = 기간 밖 · 4 =
 rem    6 = 인증서를 못 찾았다 · 7 = 확인할 자리가 모자랐다(믿지 못한다와 다른 사실이다).
 rem    wu 1820 칸: RSA-4096 뿌리를 만나면 큰수 조각이 (k+4)×7 = 1820 든다.
 proc check_chain input fs cap file_system . input buf mut slice u8 . input host slice u8 . input now u64 . input bundle slice u8 . output u64 . effects io . do
-  let co be u64 add (add (mul (widen u64 (idx buf 56592)) 16777216) (mul (widen u64 (idx buf 56593)) 65536)) (add (mul (widen u64 (idx buf 56594)) 256) (widen u64 (idx buf 56595))) .
-  guard gt co 0 . else return 6 .
-  let msgs be slice u8 subslice buf 0 20000 .
-  let l0 be u64 tlscli.cert_at msgs co 0 .
-  let n0 be u64 tlscli.cert_len msgs co 0 .
-  guard and (gt l0 0) (gt n0 0) . else return 6 .
-  let leaf be slice u8 subslice buf l0 (add l0 n0) .
-  guard verify.host_ok leaf host . else return 2 .
-  guard verify.dates_ok leaf now . else return 3 .
-  let wu be mut slice u64 view_array u64 (subslice buf 70000 100000) .
-  let dn be mut slice u64 view_array u64 (subslice buf 170000 170008) .
+  let co u64 add (add (mul (widen u64 (idx buf 56592)) 16777216) (mul (widen u64 (idx buf 56593)) 65536)) (add (mul (widen u64 (idx buf 56594)) 256) (widen u64 (idx buf 56595))) .
+  guard gt co 0 else return 6 .
+  let msgs slice u8 subslice buf 0 20000 .
+  let l0 u64 tlscli.cert_at msgs co 0 .
+  let n0 u64 tlscli.cert_len msgs co 0 .
+  guard and (gt l0 0) (gt n0 0) else return 6 .
+  let leaf slice u8 subslice buf l0 (add l0 n0) .
+  guard verify.host_ok leaf host else return 2 .
+  guard verify.dates_ok leaf now else return 3 .
+  let wu mut slice u64 view_array u64 (subslice buf 70000 100000) .
+  let dn mut slice u64 view_array u64 (subslice buf 170000 170008) .
   rem 받은 사슬을 위로 오른다(여덟 마디까지).
-  var cur_o be u64 l0 .
-  var cur_n be u64 n0 .
-  for ci be u64 1 . while le ci 8 . next add ci 1 . do
-    let uo be u64 tlscli.cert_at msgs co ci .
-    guard gt uo 0 . else break .
-    let un be u64 tlscli.cert_len msgs co ci .
-    guard eq (verify.link_ok (subslice buf cur_o (add cur_o cur_n)) (subslice buf uo (add uo un)) now (subslice buf 100000 104000) wu) 1 . else return 4 .
+  var cur_o u64 l0 .
+  var cur_n u64 n0 .
+  cycle ci u64 1 while le ci 8 next add ci 1 do
+    let uo u64 tlscli.cert_at msgs co ci .
+    guard gt uo 0 else break .
+    let un u64 tlscli.cert_len msgs co ci .
+    guard eq (verify.link_ok (subslice buf cur_o (add cur_o cur_n)) (subslice buf uo (add uo un)) now (subslice buf 100000 104000) wu) 1 else return 4 .
     set cur_o uo .
     set cur_n un .
   end
   rem 그 꼭대기를 믿는 뿌리에 잇는다. «없다»(0)와 «재지 못했다»(오류)를 가른다.
-  let top be slice u8 subslice buf cur_o (add cur_o cur_n) .
-  let ao be u64 trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 104000 134000) (subslice buf 134000 154000) (subslice buf 154000 170000) dn . else return 7 .
-  guard gt ao 0 . else return 5 .
-  let anchor be slice u8 subslice buf 154000 (add 154000 ao) .
-  guard eq (verify.link_ok top anchor now (subslice buf 28800 30000) wu) 1 . else return 5 .
+  let top slice u8 subslice buf cur_o (add cur_o cur_n) .
+  let ao u64 trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 104000 134000) (subslice buf 134000 154000) (subslice buf 154000 170000) dn else return 7 .
+  guard gt ao 0 else return 5 .
+  let anchor slice u8 subslice buf 154000 (add 154000 ao) .
+  guard eq (verify.link_ok top anchor now (subslice buf 28800 30000) wu) 1 else return 5 .
   return 1 .
 end

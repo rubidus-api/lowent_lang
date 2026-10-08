@@ -7,9 +7,9 @@ actor recov do
     bad u64 .
   end
   failure restart max 3 .
-  proc step output u64 . effects state panic .
+  proc tick output u64 . effects state panic .
   do
-    if ne bad 0 . do
+    if ne bad 0 do
       panic "corrupted state" .
     end
     set bad 1 .
@@ -31,13 +31,13 @@ end
 
 proc recover output u64 . effects state panic .
 do
-  var c be recov spawn actor recov .
-  let x be u64 send c step .
-  return send c step .
+  var c recov spawn actor recov .
+  let x u64 send c tick .
+  return send c tick .
 end
 
 proc escalate output u64 . effects state panic .
 do
-  var c be doomed spawn actor doomed .
+  var c doomed spawn actor doomed .
   return send c boom .
 end

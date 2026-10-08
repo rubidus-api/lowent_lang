@@ -42,12 +42,6 @@
 (`def type bytes slice u8 .`) or leave meaning in the source. `pct` is an alias for a type with a range attached, and every place that takes this
 name inherits the range (covered below).
 
-A type declaration has no `be`.
-
-#demo("examples/ch13/type_be.low")
-
-`be` is the word with which `let` and `var` bind *values*. What is bound here is a type. One meaning, one spelling.
-
 #idx("newtype")
 `def newtype <name> <type> .` makes a *different type* with the same representation as an existing one.
 
@@ -259,7 +253,7 @@ without a word. It is recorded as a defect in the development repository.
   Going from `i32` to `u64` makes the width larger, but a negative number such as −1 has no place in `u64`. `widen` is only for
   places where *no value changes*, so this is `E-WIDEN-SIGN`. If you know no negative value can arrive, write `cast u64 x` to leave
   that judgement in the source; `cast` stops if a negative value does arrive. If negatives need their own handling, put
-  `guard ge x 0 .` first.
+  `guard ge x 0` first.
 ]
 
 #antipattern[Turning a `bool` into a number with `cast`][
@@ -303,7 +297,7 @@ without a word. It is recorded as a defect in the development repository.
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
   [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b` · `encode wire_header h`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
-  [`var a be bitset 64 bitset_new 64 .` · `bitset_insert a 1 .` · `bitset_intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
+  [`var a bitset 64 bitset_new 64 .` · `bitset_insert a 1 .` · `bitset_intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
   [`view_segments back d` · `segs ss` · `seg ss i`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
   [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],
 )

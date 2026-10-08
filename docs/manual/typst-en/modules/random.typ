@@ -13,9 +13,9 @@
 *The reproducible side.* Takes a state (= seed) and returns the next state. The caller carries the state, so the same seed always gives the same sequence.
 
 ```lowent
-var s be u64 12345 .
+var s u64 12345 .
 set s (random.advance_seed s) .
-let c be bool random.coin s .
+let c bool random.coin s .
 ```
 
 *The unpredictable side.* Callable only with `cap random`. It answers the number of bytes filled, and *0 if it could not fill* --- taking 0 and using the buffer anyway means

@@ -24,9 +24,9 @@ fn children_of
   input node u64 .
   output bytes .
 do
-  var at be u64 1 .
-  var i be u64 0 .
-  while lt i node . do
+  var at u64 1 .
+  var i u64 0 .
+  while lt i node do
     set at expr at + (idx g at) + 1 .
     set i expr i + 1 .
   end
@@ -41,14 +41,14 @@ proc graph_reachable
   output void .
   effects alloc .   rem ★ `stack_new` 은 alloc 이다 — 중첩돼 있어서 안 보였다
 do
-  let work be stack node_id stack_new temp capacity node_count_of g .
+  let work stack node_id stack_new temp capacity node_count_of g .
   push work root .
-  while pop work into node . do
-    if bitset_contains out node . do
+  while pop work into node do
+    if bitset_contains out node do
       continue .
     end
     bitset_insert out node .
-    for child children_of g node . do
+    for child children_of g node do
       push work child .
     end
   end
@@ -64,7 +64,7 @@ proc reach
   output u64 .
   effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
 do
-  var out be bitset bitset_new 64 .
+  var out bitset bitset_new 64 .
   graph_reachable temp g root out .
   return count out .
 end

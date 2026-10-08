@@ -5,7 +5,7 @@ fn inc input x u64 . output u64 .
   requires lt x 1000 .
 do
   rem ko: `x` 는 호출자가 넘긴 값의 사본이다 --- 여기서 무엇을 해도 호출자의 변수에 닿지 않는다 /// en: `x` is a copy of the caller's value --- nothing done here reaches the caller's variable
-  var y be u64 x .
+  var y u64 x .
   set y (add y 1) .
   return y .
 end
@@ -13,8 +13,8 @@ end
 fn use_inc input start u64 . output u64 .
   requires lt start 1000 .
 do
-  let n be u64 start .
-  let r be u64 inc n .
+  let n u64 start .
+  let r u64 inc n .
   rem ko: `n` 은 그대로 7 이다 --- 바꾸게 하려면 `mut_ref n` 으로 빌려준다 /// en: `n` is still 7 --- lend it with `mut_ref n` to let it change
   return n .
 end

@@ -18,7 +18,7 @@ end
 
 fn total input xs slice u8 . output u64 .
 do
-  var acc be u64 0 .
+  var acc u64 0 .
   for x xs do
     set acc (add acc (widen u64 x)) .
   end

@@ -11,12 +11,15 @@
 | `;` 나 `,` 로 닫는다 | `E-VOCAB-REMOVED` | 떨어진 마침표 `.` |
 | `p.x` 로 칸을 읽는다 | `E-FIELD-GLUED` | `field p x` |
 | `for x in xs` | `E-VOCAB-REMOVED` | `for x xs do … end` |
-| `let x be f64 .5 .` | `E-LET-NOVALUE` | `0.5` |
+| `let x f64 .5 .` | `E-LET-NOVALUE` | `0.5` |
 | 매개변수와 같은 이름의 지역을 짓는다 | `E-NAME-SHADOW` | 새 이름을 짓는다 |
 | `count`·`text`·`len` 같은 이름을 쓴다 | `E-NAME-BUILTIN` 따위 | 기본 연산·텍스트 리터럴 낱말은 이름이 될 수 없다 |
 | 모듈 이름과 op 이름이 같다 | `E-NAME-DUP` | 모듈 이름을 바꾼다 |
 | `expr a lt b and b lt c` | `E-TYPE-LOGICAL` | `expr (a lt b) and (b lt c)`(8장) |
-| `def type pct be u8 .` | `E-TYPE-DECL` | `def type pct u8 .` |
+| `let x be u8 4 .` | `E-LET-BE` | `let x u8 4 .` |
+| `if gt a 3 . do … end` | `E-CTRL-DOT` | `if gt a 3 do … end` |
+| `guard c . else return 0 .` | `E-ELSE-DOT` | `guard c else return 0 .` |
+| `for i count u64 n . do` | `E-FOR-OLD` | `repeat i u64 n do` |
 
 *표 50.1 — 겉모습에서 걸리는 실수*
 
@@ -31,7 +34,7 @@
 | `guard` 의 `else` 가 떠나지 않는다 | `E-GUARD-FALLTHROUGH` | `return`·`break`·`continue`·`panic`, 아니면 `if` |
 | 어떤 길에서 `return` 이 없다 | `E-RETURN-PARTIAL` | 모든 길에서 돌려준다 |
 | `if` 를 값으로 쓴다 | `E-IF-VALUE` | `var` 를 짓고 갈래마다 `set` |
-| `match` 에서 경우를 빠뜨린다 | `E-MATCH-INEXHAUSTIVE` | 빠진 `case` 나 `case _ .` |
+| `match` 에서 경우를 빠뜨린다 | `E-MATCH-INEXHAUSTIVE` | 빠진 `case` 나 `case _` |
 | 열거의 갈래를 점 없이 줄마다 적는다 | `E-ENUM-DOT` | 갈래마다 `red .` |
 | 확인 없이 `some_value` 로 꺼낸다 | `E-VM-NONE`(실행 중) | `guard is_some` · `value_or` · `match` |
 | `array 4 u8` | `E-TYPE-ARRAY` | `array u8 4` |

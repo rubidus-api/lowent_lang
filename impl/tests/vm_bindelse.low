@@ -8,9 +8,9 @@ def enum perr do
 end
 
 fn find input xs slice u64 . input k u64 . output option u64 . do
-  var i be u64 0 .
+  var i u64 0 .
   for x xs do
-    if eq x k . do
+    if eq x k do
       return some i .
     end
     set i (add i 1) .
@@ -21,35 +21,35 @@ end
 fn parse input a u64 . output result u64 perr .
   errors bad ge a 100 .
 do
-  guard lt a 100 . else return error bad .
+  guard lt a 100 else return error bad .
   return ok (mul a 2) .
 end
 
 export fn f_opt input k u64 . output u64 . do
-  let xs be slice u64 lit slice u64 5 6 7 . .
-  let n be u64 find xs k . else return 99 .
+  let xs slice u64 lit slice u64 5 6 7 . .
+  let n u64 find xs k else return 99 .
   return n .
 end
 
 export fn f_res input a u64 . output u64 . do
-  let v be u64 parse a . else return 7 .
+  let v u64 parse a else return 7 .
   return add v 1 .
 end
 
 export fn f_name input a u64 . output u64 . do
-  let o be option u64 some a .
-  var n be u64 o . else return 0 .
+  let o option u64 some a .
+  var n u64 o else return 0 .
   set n (add n 5) .
   return n .
 end
 
 export proc f_alloc input a u64 . output u64 . effects state . do
-  var back be lit array u8 64 _ . .
-  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got be u64 send bb init back .
-  var buf using bb be mut slice u64 lit array u64 4 do 0 a . _ 1 . end . else return 0 .
+  var back lit array u8 64 _ . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got u64 send bb init back .
+  var buf use bb mut slice u64 lit array u64 4 do 0 a . _ 1 . end else return 0 .
   set (idx buf 3) 10 .
-  let r be mut slice u8 send bb reserve 8 . else return 1 .
-  let big using bb be mut slice u64 lit array u64 64 _ . . else return add (idx buf 0) (idx buf 3) .
+  let r mut slice u8 send bb reserve 8 else return 1 .
+  let big use bb mut slice u64 lit array u64 64 _ . else return add (idx buf 0) (idx buf 3) .
   return 1000 .
 end

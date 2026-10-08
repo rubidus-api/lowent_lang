@@ -7,8 +7,8 @@ def type buffer u8 .
 rem ko: `c` 가 거짓인 길은 `drop` 없이 떠난다 --- 해제는 실패가 없으므로 수명이 끝나는 자리에서 조용히 일어난다 /// en: the path where `c` is false leaves without `drop` --- release cannot fail, so it happens quietly where the lifetime ends
 fn keep_or_drop input v u8 . input c u8 . output u8 .
 do
-  var h be owned buffer v .
-  guard eq c 1 . else return 0 .
+  var h owned buffer v .
+  guard eq c 1 else return 0 .
   drop h .
   return 1 .
 end

@@ -17,7 +17,7 @@ end
 
 fn safe_div input a u32 . input b u32 . output u32 .
 do
-  let nz be option nonzero u32 nonzero_of b .
-  guard is_some nz . else return 0 .
+  let nz option nonzero u32 nonzero_of b .
+  guard is_some nz else return 0 .
   return div_nz a (some_value nz) .
 end

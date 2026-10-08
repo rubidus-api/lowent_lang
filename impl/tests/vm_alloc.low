@@ -50,8 +50,8 @@ actor bump do
   end
   proc reserve input n u64 . output option u64 . effects state .
   do
-    guard le (add off n) cap . else return none .    rem ★ OOM 은 **값**이다
-    var at be u64 off .
+    guard le (add off n) cap else return none .    rem ★ OOM 은 **값**이다
+    var at u64 off .
     set off add off n .
     return some at .
   end
@@ -75,9 +75,9 @@ actor aligned do
   end
   proc reserve input n u64 . output option u64 . effects state .
   do
-    var pad be u64 mod (sub 8 (mod off 8)) 8 .
-    var at be u64 add off pad .
-    guard le (add at n) cap . else return none .
+    var pad u64 mod (sub 8 (mod off 8)) 8 .
+    var at u64 add off pad .
+    guard le (add at n) cap else return none .
     set off add at n .
     return some at .
   end
@@ -96,25 +96,25 @@ proc two_takes
   effects state .
   requires allocator a .        rem ★ 경계는 **타입 파라미터**를 가리킨다
 do
-  let c be u64 send al init 64 .
-  let x be option u64 send al reserve 3 .
-  let y be option u64 send al reserve 5 .
+  let c u64 send al init 64 .
+  let x option u64 send al reserve 3 .
+  let y option u64 send al reserve 5 .
   return send al used .
 end
 
 proc demo output u64 . effects state . do
-  var b be bump spawn actor bump .
-  var g be aligned spawn actor aligned .
-  let p using b be u64 two_takes .
-  let q using g be u64 two_takes .
+  var b bump spawn actor bump .
+  var g aligned spawn actor aligned .
+  let p use b u64 two_takes .
+  let q use g u64 two_takes .
   return add p q .   rem 8 + 13 = 21
 end
 
 rem ★★★ **OOM 은 값이다**(D5) — panic 이 아니다. 임베디드는 **반드시 처리**한다.
 proc oom output bool . effects state . do
-  var b be bump spawn actor bump .
-  let c be u64 send b init 4 .
-  let x be option u64 send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
+  var b bump spawn actor bump .
+  let c u64 send b init 4 .
+  let x option u64 send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
   return is_some x .                        rem → **false**. 트랩이 아니라 **none**.
 end
 

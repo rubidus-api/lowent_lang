@@ -62,7 +62,7 @@
              y = 0;          ← 들여쓰기는 if 안처럼 보이지만 문법은 if 밖이다
 
  Lowent  case 1 . set x (add x 10) .           갈래의 문장 하나 = 문장 하나짜리 블록 (G1)
-         if gt a 1 . do                        if 의 몸은 언제나 do … end (RFC-0113 R4)
+         if gt a 1 do                          if 의 몸은 언제나 do … end (RFC-0113 R4)
            set x (add x 10) .
            set y 0 .
          end                                   몸이 길면 end 가 끝을 적는다

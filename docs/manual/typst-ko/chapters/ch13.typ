@@ -44,12 +44,6 @@
 타입을 짧게 부르거나(`def type bytes slice u8 .`), 뜻을 소스에 남길 때 쓴다. `pct` 는 범위가 붙은 타입의
 별칭이고, 이 이름을 받는 모든 자리가 그 범위를 물려받는다(아래에서 다룬다).
 
-타입 선언에는 `be` 를 끼우지 않는다.
-
-#demo("examples/ch13/type_be.low")
-
-`be` 는 `let`·`var` 가 *값*을 묶는 낱말이다. 여기서 묶는 것은 타입이다. 한 뜻에 한 표기다.
-
 #idx("newtype")
 `def newtype <이름> <타입> .` 은 기존 타입과 같은 표현을 갖되 *다른 타입*을 만든다.
 
@@ -259,7 +253,7 @@
 
   `i32` 에서 `u64` 로 가면 폭은 넓어지지만, −1 같은 음수는 `u64` 에 자리가 없다. `widen` 은 *어떤 값도 변하지 않는* 자리에만
   쓰므로 `E-WIDEN-SIGN` 이다. 음수가 올 수 없다고 알고 있다면 `cast u64 x` 라고 적어 그 판단을 소스에 남긴다. 음수가 오면 `cast`
-  가 멈춘다. 음수를 따로 다뤄야 한다면 `guard ge x 0 .` 을 먼저 둔다.
+  가 멈춘다. 음수를 따로 다뤄야 한다면 `guard ge x 0` 을 먼저 둔다.
 ]
 
 #antipattern[`bool` 을 `cast` 로 수로 바꾼다][
@@ -302,7 +296,7 @@
   [`layout packed .` · `magic u32 big .`], [채움 없는 배치 · 바이트 차례], [바깥과 바이트의 뜻을 맞춘다],
   [`view wire_header b`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
   [`try_view wire_header b` · `encode wire_header h`], [실패를 `none` 으로 주는 뷰 · 값을 그 배치의 바이트로], [경계에서는 멈추지 않는 쪽],
-  [`var a be bitset 64 bitset_new 64 .` · `bitset_insert a 1 .` · `bitset_intersect a b`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
+  [`var a bitset 64 bitset_new 64 .` · `bitset_insert a 1 .` · `bitset_intersect a b`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
   [`view_segments back d` · `segs ss` · `seg ss i`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
   [`byte` · `lock` 같은 타입 낱말], [`W-NOT-YET` · `E-LOCK-NOTYET`], [뜻이 없으면 없다고 말한다],
 )

@@ -13,21 +13,21 @@ rem   wake 는 구조적으로 불가능하다. 워커가 도는 것은 IO 로�
 
 module io_yield .
 proc reader input k cap io . input buf mut slice u8 . output u64 . effects io . do
-  let r be option u64 reactor_new k (subslice buf 0 32) 1 .
-  guard is_some r . else return 90 .
-  let n be option u64 r_read k (some_value r) 0 (subslice buf 32 64) .
-  if is_some n . do return some_value n . end
+  let r option u64 reactor_new k (subslice buf 0 32) 1 .
+  guard is_some r else return 90 .
+  let n option u64 r_read k (some_value r) 0 (subslice buf 32 64) .
+  if is_some n do return some_value n . end
   return 0 .
 end
 proc marker input k cap io . output u64 . effects io . do
   return write_out k 1 "MARK\n" .
 end
 proc main input k cap io . input al cap allocator . output u8 . effects alloc io state . do
-  let b0 be option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some b0 . else return 69 .
-  var buf be mut slice u8 some_value b0 .
-  var m1 be u64 0 .
-  var m2 be u64 0 .
+  let b0 option mut slice u8 alloc_bytes al capacity 4096 .
+  guard is_some b0 else return 69 .
+  var buf mut slice u8 some_value b0 .
+  var m1 u64 0 .
+  var m2 u64 0 .
   task_group do
     set m1 spawn reader k buf .
     set m2 spawn marker k .

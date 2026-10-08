@@ -22,21 +22,21 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
   rem ★ 방어: 잘못된 구간이면 아무것도 안 한다. u64 는 늘 [0, len) 을 주지만, 이 op 을
   rem   직접 부르는 쪽(차등 퍼저 포함)이 뒤집힌·범위 밖 lo/hi 를 줘도 **경계 밖을 안 만진다**.
   rem   (그래야 VM 과 네이티브가 같은 답 — 무동작 — 을 내고 diff-sweep 이 지켜진다.)
-  if gt hi0 (len s) . do return . end
-  if ge lo0 hi0 . do return . end
-  var lo be u64 lo0 .
-  var hi be u64 hi0 .
+  if gt hi0 (len s) do return . end
+  if ge lo0 hi0 do return . end
+  var lo u64 lo0 .
+  var hi u64 hi0 .
   rem 구간 크기가 2 미만이면(0·1 원소) 이미 정렬됨. 그 위만 돈다.
-  while gt (sub hi lo) 1 . do
+  while gt (sub hi lo) 1 do
     rem ── 분할: 피벗 = s[hi-1]. i 는 "피벗 이하" 구간의 경계 ──
-    let pivot be u64 idx s (sub hi 1) .
-    var i be u64 lo .
-    var j be u64 lo .
-    while lt j (sub hi 1) . do
-      if le (idx s j) pivot . do
+    let pivot u64 idx s (sub hi 1) .
+    var i u64 lo .
+    var j u64 lo .
+    while lt j (sub hi 1) do
+      if le (idx s j) pivot do
         rem s[i] 와 s[j] 를 교환
-        let ti be u64 idx s i .
-        let tj be u64 idx s j .
+        let ti u64 idx s i .
+        let tj u64 idx s j .
         set (idx s i) tj .
         set (idx s j) ti .
         set i (add i 1) .
@@ -44,18 +44,18 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
       set j (add j 1) .
     end
     rem 피벗을 제자리(i)로 — 이제 s[i] 가 확정된 자리다
-    let ti be u64 idx s i .
-    let tp be u64 idx s (sub hi 1) .
+    let ti u64 idx s i .
+    let tp u64 idx s (sub hi 1) .
     set (idx s i) tp .
     set (idx s (sub hi 1)) ti .
     rem ── 작은 쪽 재귀, 큰 쪽 루프(깊이를 log n 으로 묶는다) ──
-    let leftlen be u64 sub i lo .              rem [lo, i)
-    let rightlen be u64 sub hi (add i 1) .     rem [i+1, hi)
-    if le leftlen rightlen . do
+    let leftlen u64 sub i lo .              rem [lo, i)
+    let rightlen u64 sub hi (add i 1) .     rem [i+1, hi)
+    if le leftlen rightlen do
       qsort s lo i .
       set lo (add i 1) .
     end
-    if gt leftlen rightlen . do
+    if gt leftlen rightlen do
       qsort s (add i 1) hi .
       set hi i .
     end

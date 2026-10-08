@@ -8,11 +8,11 @@ use lifeatom .
 use allocs .
 
 proc main input al cap allocator . input k cap atomic . output u8 . effects alloc atomic . do
-  let mb be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some mb . else return 89 .
-  var c be mut slice u64 view_array u64 (some_value mb) .
-  guard eq (lifeatom.rc_open k c) 1 . else return 1 .
-  guard eq (lifeatom.rc_share k c) 2 . else return 2 .
-  guard eq (lifeatom.rc_release k c) 1 . else return 3 .
+  let mb option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some mb else return 89 .
+  var c mut slice u64 view_array u64 (some_value mb) .
+  guard eq (lifeatom.rc_open k c) 1 else return 1 .
+  guard eq (lifeatom.rc_share k c) 2 else return 2 .
+  guard eq (lifeatom.rc_release k c) 1 else return 3 .
   return 42 .
 end

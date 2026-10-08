@@ -6,8 +6,8 @@ rem ★★★ **이름 붙은 상수** — 같은 사실을 두 번 쓰지 않�
 rem   전엔 `4` 가 **errors 절과 guard 에 각각** 박혀 있었다. 하나를 고치고 다른 하나를 잊으면
 rem   **계약이 본문과 갈린다** — 그것이 이 프로젝트가 쫓는 결함의 전부다(교훈 7).
 rem   모듈 `let` 은 **컴파일타임 상수**이고 값이 **그 자리에 박힌다**(분석이 리터럴처럼 쓴다).
-let HEADER_LEN be u8 4 .
-let VERSION be u8 1 .
+let HEADER_LEN u8 4 .
+let VERSION u8 1 .
 
 def type bytes slice u8 .
 
@@ -39,10 +39,10 @@ fn parse_header
   errors too_long gt (read_u16_be (subslice data 2 4)) (len data) .
   tests parse_header_short parse_header_bad_version parse_header_ok .
 do
-  guard ge (len data) HEADER_LEN . else return error too_short .
-  guard eq (idx data 0) VERSION . else return error bad_version .
-  let length be u16 read_u16_be subslice data 2 4 .
-  guard le length len data . else return error too_long .
+  guard ge (len data) HEADER_LEN else return error too_short .
+  guard eq (idx data 0) VERSION else return error bad_version .
+  let length u16 read_u16_be subslice data 2 4 .
+  guard le length len data else return error too_long .
   return ok lit header do
     version idx data 0 .
     flags idx data 1 .
@@ -55,16 +55,16 @@ rem    이름만 적혀 있고 아무도 확인하지 않았다(E-CONTRACT-UNDEF
 rem    골든은 이미 이 세 시나리오를 돌리고 있었다. 이제 언어 안에도 있다.
 
 fn parse_header_short input data bytes . output bool . do
-  let r be result header parse_error parse_header data .
+  let r result header parse_error parse_header data .
   return is_error r .                          rem len < 4  → 반드시 오류
 end
 
 fn parse_header_bad_version input data bytes . output bool . do
-  let r be result header parse_error parse_header data .
+  let r result header parse_error parse_header data .
   return is_error r .                          rem version ≠ 1 → 반드시 오류
 end
 
 fn parse_header_ok input data bytes . output bool . do
-  let r be result header parse_error parse_header data .
+  let r result header parse_error parse_header data .
   return is_ok r .                             rem 올바른 입력 → 반드시 성공
 end

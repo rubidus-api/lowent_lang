@@ -12,14 +12,14 @@ def struct handle do
 end
 
 fn resolve input comptime b type . input gen slice u64 . input h handle b . output option u64 . do
-  guard lt (field h w) (len gen) . else return none .
+  guard lt (field h w) (len gen) else return none .
   return some (field h w) .
 end
 
 export fn mix input gen slice u64 . output u64 . do
-  let ha be lit handle ga do w 0 . end .
+  let ha lit handle ga do w 0 . end .
   rem ★ A 의 손잡이를 **B** 에 묻는다 — 여기서 거절되어야 한다.
-  let r be option u64 resolve gb gen ha .
-  if is_some r . do return 1 . end
+  let r option u64 resolve gb gen ha .
+  if is_some r do return 1 . end
   return 0 .
 end

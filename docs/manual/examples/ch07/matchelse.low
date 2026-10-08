@@ -4,11 +4,11 @@ rem run: band 3
 rem run: band 99
 
 fn band input n u64 . output u64 . do
-  match n . do
-    case 1 . do
+  match n do
+    case 1 do
       return 10 .
     end
-    case 2 to 5 . do
+    case 2 to 5 do
       return 20 .
     end
     rem ko: 나머지를 `else` 로 받는다 --- `case _ .` 와 같은 자리다 /// en: catch the rest with `else` --- the same place as `case _ .`

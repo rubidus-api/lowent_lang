@@ -18,7 +18,7 @@ rem 순수 함수입니다: 입출력도, 할당도, 숨은 상태도 없습니�
 fn mean input xs slice u8 . output u64 .
   requires gt (len xs) 0 .
 do
-  var total be u64 0 .
+  var total u64 0 .
   for x xs do
     set total (add total (widen u64 x)) .
   end
@@ -92,7 +92,7 @@ module hello .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n be u64 write_out out 1 "hello, entropy!\n" .
+  let n u64 write_out out 1 "hello, entropy!\n" .
   return 0 .
 end
 ```
@@ -128,9 +128,9 @@ use files .
 
 proc leak input fs cap file_system . output u8 . effects io .
 do
-  let o be result files.handle files.file_error files.open fs "notes.txt" 0 .
-  guard is_ok o . else return 1 .
-  var h be owned files.handle ok_value o .
+  let o result files.handle files.file_error files.open fs "notes.txt" 0 .
+  guard is_ok o else return 1 .
+  var h owned files.handle ok_value o .
   return 0 .
 end
 ```
@@ -202,10 +202,10 @@ end
 
 fn area input s shape . output u32 .
 do
-  match s . do
-    case circle r . do return mul 3 (mul r r) . end
-    case rect w h . do return mul w h . end
-    case dot . do return 0 . end
+  match s do
+    case circle r do return mul 3 (mul r r) . end
+    case rect w h do return mul w h . end
+    case dot do return 0 . end
   end
 end
 ```

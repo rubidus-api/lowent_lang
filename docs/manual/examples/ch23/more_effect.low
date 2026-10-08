@@ -13,7 +13,7 @@ end
 
 proc rect.checked_area input s rect . output u64 . effects panic wait .
 do
-  if eq (field s w) 0 . do
+  if eq (field s w) 0 do
     panic "empty rect" .
   end
   return mul (field s w) (field s h) .

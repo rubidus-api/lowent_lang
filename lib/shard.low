@@ -54,12 +54,12 @@ rem   쓰면 `E-OWN-MOVED` 다. 서로소는 `at` 이 만든다(`[lo,at)` 와 `[
 rem   ☞ `at` 이 범위 밖이면 **빈 조각**이 나온다 — 트랩이 아니다. 빈 조각은 아무것도 못 만지므로
 rem     안전하고, 그 사실은 `covers` 가 답한다.
 export fn split_at input comptime b type . input t owned token b . input at u64 . output halves b . do
-  var cut be u64 at .
-  if lt cut (field t lo) . do set cut (field t lo) . end
-  if gt cut (field t hi) . do set cut (field t hi) . end
+  var cut u64 at .
+  if lt cut (field t lo) do set cut (field t lo) . end
+  if gt cut (field t hi) do set cut (field t hi) . end
   rem ☞ `make` 안의 `make` 는 코어 밖이다(E-IR-UNSUP) — 먼저 이름에 묶는다.
-  let a be lit token b do id (mul (field t id) 2) .         lo (field t lo) . hi cut .    end .
-  let c be lit token b do id (add (mul (field t id) 2) 1) . lo cut .         hi (field t hi) . end .
+  let a lit token b do id (mul (field t id) 2) .         lo (field t lo) . hi cut .    end .
+  let c lit token b do id (add (mul (field t id) 2) 1) . lo cut .         hi (field t hi) . end .
   return lit halves b do low a . high c . end .
 end
 
@@ -76,16 +76,16 @@ rem   ☞ 오라클이 그 모양을 배우면 그때 계약으로 승격한다(
 export fn rejoin input comptime b type . input a owned token b . input c owned token b .
   output option (token b) .
 do
-  guard lt (field a id) (field c id) . else return none .
-  guard eq (field a hi) (field c lo) . else return none .
-  guard le (field a lo) (field a hi) . else return none .
-  guard le (field c lo) (field c hi) . else return none .
+  guard lt (field a id) (field c id) else return none .
+  guard eq (field a hi) (field c lo) else return none .
+  guard le (field a lo) (field a hi) else return none .
+  guard le (field c lo) (field c hi) else return none .
   return some (lit token b do id (div (field a id) 2) . lo (field a lo) . hi (field c hi) . end) .
 end
 
 rem 이 토큰이 그 자리를 덮는가 — **접근 전에 묻는 유일한 질문**이다.
 export fn covers input comptime b type . input t token b . input i u64 . output bool . do
-  if lt i (field t lo) . do return false . end
+  if lt i (field t lo) do return false . end
   return lt i (field t hi) .
 end
 
@@ -106,8 +106,8 @@ rem   ☞ 골든이 방출된 C 를 읽어 이 경로에 원자 연산이 없다
 export proc write input comptime b type . input t token b . input mem mut slice u64 .
   input i u64 . input v u64 . output bool . effects none .
 do
-  guard covers b t i . else return false .
-  guard lt i (len mem) . else return false .
+  guard covers b t i else return false .
+  guard lt i (len mem) else return false .
   set (idx mem i) v .
   return true .
 end
@@ -116,7 +116,7 @@ rem 같은 규율의 읽기.
 export proc read input comptime b type . input t token b . input mem slice u64 . input i u64 .
   output option u64 . effects none .
 do
-  guard covers b t i . else return none .
-  guard lt i (len mem) . else return none .
+  guard covers b t i else return none .
+  guard lt i (len mem) else return none .
   return some (idx mem i) .
 end

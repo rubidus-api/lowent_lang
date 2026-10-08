@@ -4,7 +4,7 @@ fn word_size output u64 . do
 end
 
 fn endian_tag output u64 . do
-  if machine.big_endian . do
+  if machine.big_endian do
     return 1 .
   end
   else do
@@ -13,7 +13,7 @@ fn endian_tag output u64 . do
 end
 
 fn fpu_path input a u64 . output u64 . do
-  if machine.has_fpu . do
+  if machine.has_fpu do
     return add a 1 .        rem FPU 있는 경로
   end
   else do

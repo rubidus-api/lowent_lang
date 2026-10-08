@@ -9,9 +9,9 @@ use shard from "../../lib/shard.low" .
 def newtype grid u8 .
 
 export proc after_split input mem mut slice u64 . output u64 . effects none . do
-  var r be (owned shard.token grid) shard.open grid 8 .
-  let h be (shard.halves grid) shard.split_at grid r 4 .
+  var r (owned shard.token grid) shard.open grid 8 .
+  let h (shard.halves grid) shard.split_at grid r 4 .
   rem ★ root 는 위에서 소비됐다 — 여기서 거절된다.
-  guard shard.write grid r mem 0 7 . else return 91 .
+  guard shard.write grid r mem 0 7 else return 91 .
   return 1 .
 end

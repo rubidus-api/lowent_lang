@@ -12,16 +12,16 @@ fn parse_digit input s slice u8 . output result u8 parse_error .
   errors empty eq (len s) 0 .
   errors not_digit .
 do
-  guard gt (len s) 0 . else return error empty .
-  let c be u8 idx s 0 .
-  guard and (ge c 48) (le c 57) . else return error not_digit .
+  guard gt (len s) 0 else return error empty .
+  let c u8 idx s 0 .
+  guard and (ge c 48) (le c 57) else return error not_digit .
   return ok (sub c 48) .
 end
 
 fn explain input s slice u8 . output u8 .
 do
   rem ko: `case error <갈래>` 의 이름이 선언된 갈래면 그 갈래만 받는다 /// en: a declared variant name after `case error` matches that variant alone
-  match parse_digit s . do
+  match parse_digit s do
     case ok v . return 9 .
     case error empty . return 1 .
     case error not_digit . return 2 .

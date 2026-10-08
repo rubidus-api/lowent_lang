@@ -671,8 +671,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> ge (len data) <span class="tok-n">2</span> .
   <strong><span class="tok-k">ensures</span></strong> le ret <span class="tok-n">65535</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> widen <strong><span class="tok-t">u32</span></strong> (idx data <span class="tok-n">0</span>) .
-  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> widen <strong><span class="tok-t">u32</span></strong> (idx data <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> widen <strong><span class="tok-t">u32</span></strong> (idx data <span class="tok-n">0</span>) .
+  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> widen <strong><span class="tok-t">u32</span></strong> (idx data <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> add (mul hi <span class="tok-n">256</span>) lo .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run read_pair pair.low [1,2,3]
@@ -705,7 +705,7 @@ read_pair([1,2,3]) = 258
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
   <strong><span class="tok-k">ensures</span></strong> le ret <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> gt n <span class="tok-n">150</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> gt n <span class="tok-n">150</span> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
@@ -738,7 +738,7 @@ $ lowentc --run clamp_to_100 blame.low 120
 <strong><span class="tok-k">fn</span></strong> digit_sum <strong><span class="tok-k">input</span></strong> ds <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> elem_le ds <span class="tok-n">9</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> d ds <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> d)) .
   <strong><span class="tok-k">end</span></strong>
@@ -797,7 +797,7 @@ impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requir
   <strong><span class="tok-k">requires</span></strong> ne b <span class="tok-n">0</span> .
   <strong><span class="tok-k">errors</span></strong> by_zero eq b <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> ne b <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error by_zero .
+  <strong><span class="tok-k">guard</span></strong> ne b <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error by_zero .
   <strong><span class="tok-k">return</span></strong> ok (div a b) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check dead.low
@@ -851,7 +851,7 @@ bump(250) = 251
   <em><span class="tok-c">rem ✘ 돌려주는 값의 이름은 `result` 가 아니라 `ret` 이다</span></em>
   <strong><span class="tok-k">ensures</span></strong> le <strong><span class="tok-k">result</span></strong> <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
+  <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">100</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
   <strong><span class="tok-k">return</span></strong> a .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_result.low
@@ -904,13 +904,13 @@ mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input
 <strong><span class="tok-k">fn</span></strong> age_checked <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> age_error .
   <strong><span class="tok-k">errors</span></strong> too_old gt a <span class="tok-n">150</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">150</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_old .
+  <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">150</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_old .
   <strong><span class="tok-k">return</span></strong> ok a .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> check_age <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">match</span></strong> age_checked a . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> age_checked a <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> age_strict v .
     <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">end</span></strong>

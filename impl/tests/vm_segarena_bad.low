@@ -9,6 +9,6 @@ use segarena from "../../lib/segarena.low" .
 def newtype g u8 .
 
 export proc tiny output u64 . effects none . do
-  let a be (segarena.arena g) segarena.open g 0 .
+  let a (segarena.arena g) segarena.open g 0 .
   return segarena.seg_slots g a .
 end

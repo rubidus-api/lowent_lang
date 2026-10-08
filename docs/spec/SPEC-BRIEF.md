@@ -33,14 +33,14 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 
 ☞ 새 기능의 시금석: *"이게 이 원칙들의 귀결인가, 새 축인가?"* 새 축이면 뺀다.
 
-## 2. 어휘 — 하드 키워드 **44**  ·  *출처: 정본 §6.1 · 부록 A*
+## 2. 어휘 — 하드 키워드 **49**  ·  *출처: 정본 §6.1 · 부록 A*
 
 ```text
-  actor         be            break         case          continue      contract      def           do            drop          else
+  actor         break         case          continue      contract      cycle         def           do            drop          else
   end           enum          expect        export        expr          extern        false         fn            for           guard
-  if            let           lit           match         module        newtype       none          proc          return        satisfies
-  send          set           spawn         state         struct        test          trait         true          try           type
-  unsafe        use           var           while
+  if            keep          let           lit           match         module        newtype       next          none          proc
+  range         repeat        return        satisfies     send          set           spawn         state         step          struct
+  test          trait         true          try           type          unsafe        use           var           while
 ```
 
 ## 3. 빌트인 op **209**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
@@ -94,7 +94,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   프로파일  freestanding  embedded  native  server
 ```
 
-## 6. 오류 코드 — 계열 **120**  ·  *출처: `impl/src/*.c`*
+## 6. 오류 코드 — 계열 **121**  ·  *출처: `impl/src/*.c`*
 
 **전부 적지 않는다**(수백 개다). 어느 계열이 얼마나 굵은지만 — 굵은 계열이 곧 이 언어가
 가장 자주 거절하는 자리다.
@@ -103,7 +103,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   E-VM(52)  E-TYPE(36)  E-NAME(13)  E-ASM(11)  E-ALLOC(10)
   E-EFFECT(9)  E-MMIO(9)  E-ENUM(9)  E-PKG(8)  E-PAR(7)
   E-FFI(7)  E-LIT(7)  E-ABSORB(6)  E-IR(6)
-  … 그 밖 106 계열
+  … 그 밖 107 계열
 ```
 
 ## 7. 지금의 수  ·  *가리키기만 한다*

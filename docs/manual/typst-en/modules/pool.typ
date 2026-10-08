@@ -10,10 +10,10 @@ time that is not lexical, so neither `region` nor a bump will do --- so instead 
 
 ```lowent
 def newtype pa u8 .
-let po be option (pool.block_pool pa) pool.init pa mem gens 4096 .
-guard is_some po . else return 1 .
-var p be (pool.block_pool pa) some_value po .
-let h be option (pool.handle pa) pool.take pa p .
+let po option (pool.block_pool pa) pool.init pa mem gens 4096 .
+guard is_some po else return 1 .
+var p (pool.block_pool pa) some_value po .
+let h option (pool.handle pa) pool.take pa p .
 ```
 
 #aside[What it prevents and what it does not][
@@ -48,7 +48,7 @@ reach it, so using its first 8 bytes as the ledger is free. The pool is a struct
 generation. Why the brand is written every time --- this language has no inferred type parameters, and that one word is the contract "this handle belongs to that pool".
 
 *Take the view in the borrow head* --- the slice `bytes` returns is a plain slice and knows nothing about release. So take the
-view in the *head of a borrow* --- `borrow v be some_value (pool.bytes <brand> p h) do … end` --- touch bytes only inside it, and
+view in the *head of a borrow* --- `borrow v some_value (pool.bytes <brand> p h) do … end` --- touch bytes only inside it, and
 release *after* the block (#chref("references")). Taken that way, the processor rejects handing that pool to a writing position
 (`release`, `take`) or opening a second borrow from the same pool while the borrow lives: `E-BORROW-EXCL`.
 
@@ -57,30 +57,30 @@ def newtype demo_brand u8 .
 
 proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
 do
-  let po be option (pool.block_pool demo_brand) pool.init demo_brand mem gens 16 .
-  guard is_some po . else return 89 .
-  var p be (pool.block_pool demo_brand) some_value po .
-  let h be option (pool.handle demo_brand) pool.take demo_brand p .
-  guard is_some h . else return 91 .
-  let hh be (pool.handle demo_brand) some_value h .
-  guard pool.alive demo_brand p hh . else return 92 .
-  var total be u64 0 .
-  borrow v be some_value (pool.bytes demo_brand p hh) do
+  let po option (pool.block_pool demo_brand) pool.init demo_brand mem gens 16 .
+  guard is_some po else return 89 .
+  var p (pool.block_pool demo_brand) some_value po .
+  let h option (pool.handle demo_brand) pool.take demo_brand p .
+  guard is_some h else return 91 .
+  let hh (pool.handle demo_brand) some_value h .
+  guard pool.alive demo_brand p hh else return 92 .
+  var total u64 0 .
+  borrow v some_value (pool.bytes demo_brand p hh) do
     set (idx v 8) 3 .
     set (idx v 9) 4 .
     set total (add (narrow u64 (idx v 8)) (narrow u64 (idx v 9))) .
   end
-  let rel be bool pool.release demo_brand p hh .
-  guard eq rel true . else return 94 .
-  let dead be option mut slice u8 pool.bytes demo_brand p hh .
-  guard eq (is_some dead) false . else return 95 .
+  let rel bool pool.release demo_brand p hh .
+  guard eq rel true else return 94 .
+  let dead option mut slice u8 pool.bytes demo_brand p hh .
+  guard eq (is_some dead) false else return 95 .
   return total .
 end
 ```
 
 #antipattern[Reaching through a released handle · double release][
   After release `bytes` is `none`, and an unchecked `some_value` stops with `E-VM-NONE` on that line. A second `release` just returns `false` silently, so without looking at
-  the return value a "believed released but not" defect hides. Receive it with `guard eq rel true .`.
+  the return value a "believed released but not" defect hides. Receive it with `guard eq rel true`.
 ]
 
 #antipattern[Releasing with values that must survive in the first 8 bytes][
@@ -89,16 +89,16 @@ end
 ]
 
 #antipattern[Sending a borrowed name out of the block][
-  `borrow v be bv do set out v . end` is the compile error `E-BORROW-ESCAPE` --- a borrow ends at the end of its block.
+  `borrow v bv do set out v . end` is the compile error `E-BORROW-ESCAPE` --- a borrow ends at the end of its block.
 ]
 
 #antipattern[Releasing inside the borrow][
-  `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` is the compile error `E-BORROW-EXCL` --- a release changes
+  `borrow v some_value (pool.bytes b p h) do pool.release b p h . … end` is the compile error `E-BORROW-EXCL` --- a release changes
   the pool, and the borrowed view cannot know. Release after closing the block.
 ]
 
 #antipattern[Using an old view after the release][
-  `pool.release` declares `invalidates p .`, so a view bound with `let bv be … some_value (pool.bytes b p h) .` and used *after* the
+  `pool.release` declares `invalidates p .`, so a view bound with `let bv … some_value (pool.bytes b p h) .` and used *after* the
   release is the compile error `E-VIEW-INVALIDATED` --- the processor follows `bv` back to `p`. To reach the block again, ask `bytes`
   anew (the generation answers `none`).
 ]

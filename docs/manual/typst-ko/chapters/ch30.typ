@@ -283,7 +283,7 @@ absorbs: 1 op(s) stop `unsafe` here
   [`rw` · `ro` · `wo`], [닿는 법 --- 번역에서 강제], [어기면 `E-MMIO-PERM`],
   [`read_volatile g idr` · `write_volatile g moder 2`], [합치거나 지우지 않는 접근], [읽는 행위 자체가 일이다],
   [`input dev cap mmio .` + `effects device`], [장치 권한과 효과], [권한 없는 하드웨어 접근이 없다],
-  [`var g be gpio view gpio regs .`], [바이트 위에 지도를 얹는다], [장치를 값으로 받으면 `E-MMIO-BYVALUE`],
+  [`var g gpio view gpio regs .`], [바이트 위에 지도를 얹는다], [장치를 값으로 받으면 `E-MMIO-BYVALUE`],
   [`proc on_exti vector 6 . priority 2 . output void . effects device .`], [인터럽트 처리기], [부르면 `E-ISR-CALLED` · 인자는 `E-ISR-PARAMS`],
   [`build tier t1 .`], [이 기계가 감당하는 효과의 등급], [실을 수 없는 것을 번역에서 막는다],
   [`asm x86_64 . reg a . out reg r . clobber flags . options pure .`], [기계 명령으로 쓴 몸의 머리], [`unsafe`·`cap machine`·효과 줄·기계 이름으로 가둔다],

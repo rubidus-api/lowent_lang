@@ -3,7 +3,7 @@ rem expect: E-TYPE-RETURN
 
 fn find input k u64 . output option u64 .
 do
-  guard lt k 5 . else return none .
+  guard lt k 5 else return none .
   return some (mul k 10) .
 end
 

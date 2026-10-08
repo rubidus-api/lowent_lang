@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  #chref("structs-enums")의 `case rect w h .` 는 무엇을 하는가? 그리고 `match` 가 갈래 하나를 빠뜨리면
+  #chref("structs-enums")의 `case rect w h` 는 무엇을 하는가? 그리고 `match` 가 갈래 하나를 빠뜨리면
   어떻게 되는가?
 ][
   갈래가 `rect` 이면 그 갈래가 지닌 두 값을 `w` 와 `h` 에 묶는다. 갈래를 빠뜨리면
@@ -57,8 +57,8 @@
 과 `none` 으로 보여 준다. 받는 쪽은 세 가지로 쓸 수 있다.
 
 - `find_or` --- `value_or (find k) 99` 는 값이 있으면 그 값을, 없으면 99 를 준다.
-- `find_asked` --- `guard is_some r . else …` 로 먼저 묻고 `some_value r` 로 꺼낸다.
-- `find_match` --- `match` 로 `case some v .` 와 `case none .` 을 가른다. 두 갈래로 모든 경우가 덮인다.
+- `find_asked` --- `guard is_some r else …` 로 먼저 묻고 `some_value r` 로 꺼낸다.
+- `find_match` --- `match` 로 `case some v` 와 `case none` 을 가른다. 두 갈래로 모든 경우가 덮인다.
 
 `find_raw` 는 묻지 않고 바로 꺼낸다. 번역은 통과하지만 값이 없는 7 에서 실행이 멈춘다(`E-VM-NONE`).
 꺼내는 연산은 *부분 연산*이다. 어느 길에서 값이 있는지는 저자가 아는 것이고 처리기가 언제나 알 수는
@@ -99,7 +99,7 @@
 모양이다.
 
 ```lowent
-let v be u8 try halve a .
+let v u8 try halve a .
 return ok (add v 1) .
 ```
 
@@ -121,15 +121,26 @@ return ok (add v 1) .
 
 #demo("examples/ch11/bindelse.low")
 
-- `let at be u64 find xs k else return 99 .` --- `find` 는 `option u64` 를 돌려준다. 값이 있으면 그 `u64` 가 `at` 에 묶이고,
+- `let at u64 find xs k else return 99 .` --- `find` 는 `option u64` 를 돌려준다. 값이 있으면 그 `u64` 가 `at` 에 묶이고,
   없으면 `else` 로 간다. `result` 도 같다 --- 오류면 `else` 로 간다.
 - `else` 는 *반드시 떠나야 한다*(`return` · `break` · `continue` · `panic`). 그래서 `at` 을 쓰는 줄에서는 값이 이미 꺼내져 있고,
   확인 없이 쓰는 실수가 생길 수 없다.
-- 멈춰도 되는 곳이면 `. else panic "…" .` 이라고 적는다. 멈추는 자리가 소스에 한 번 드러나고, 순수 `fn` 에서는 효과 규칙대로
+- 멈춰도 되는 곳이면 `else panic "…" .` 이라고 적는다. 멈추는 자리가 소스에 한 번 드러나고, 순수 `fn` 에서는 효과 규칙대로
   거절된다.
 - `else` 없이 `option` 을 알맹이 타입으로 묶으면 거절된다 --- 진단이 `else` 를 붙이거나 타입을 `option …` 으로 적으라고 알려 준다.
   실패 가능성을 잊은 것을 번역이 잡는 자리다.
 - 오류를 그대로 위로 넘길 때는 `try` 를 쓴다. `else` 는 *여기서 다르게* 처리하고 싶을 때 쓴다.
+
+`else` 뒤는 세 가지로 적는다. 떠나는 문장 하나면 `else return 99 .` --- 문장의 마침표가 맨 끝에 온다. 여러 문장이면
+`else do … end` --- 블록이 `end` 로 끝나므로 마침표를 찍지 않는다. `result` 가 *왜* 실패했는지 보려면 `else error <이름> do … end` 로
+오류 값을 이름에 묶는다.
+
+#demo("examples/ch11/elseerror.low")
+
+- `let p u64 check n else error e do … end` --- `check` 가 오류를 내면 그 오류 값이 `e` 에 묶이고 블록이 돈다. 블록의 모든 길은
+  떠나야 한다. `e` 는 블록 안에서만 산다.
+- `port 0` 은 `zero` 라서 80, `port 70000` 은 `too_big` 이라 65535 다. 값이 `option` 이면 받을 오류가 없으므로
+  `else error <이름>` 은 `E-BIND-ELSE` 로 거절된다.
 
 == 두 채널 사이를 건넌다
 
@@ -147,7 +158,7 @@ return ok (add v 1) .
 )
 
 꼬리를 붙인 `try` 는 타입도 바꾼다. `try (halve a) else_none` 의 타입은 `option u8` 이지 `u8` 이 아니다.
-그래서 `maybe_half` 는 그것을 그대로 돌려주고, `let v be u8 try … else_error …` 처럼 값 타입에 담으려 하면
+그래서 `maybe_half` 는 그것을 그대로 돌려주고, `let v u8 try … else_error …` 처럼 값 타입에 담으려 하면
 거절된다.
 
 `else_none` 은 정보를 버리는 선택이다. 편해서 습관이 되기 쉬운데, 그 순간부터 호출자는 "왜" 를 물을 수
@@ -177,10 +188,10 @@ return ok (add v 1) .
 #demo("examples/ch11/patterns.low")
 
 #idx("패턴")
-- *or 패턴.* `case red or green .` 은 어느 하나라도 맞으면 그 갈래다. 갈래마다 망라에 기여하므로 `blue` 까지 다루면 `_` 가 필요 없다. 값을 지닌
+- *or 패턴.* `case red or green` 은 어느 하나라도 맞으면 그 갈래다. 갈래마다 망라에 기여하므로 `blue` 까지 다루면 `_` 가 필요 없다. 값을 지닌
   갈래를 or 로 묶을 때는 *모든 가지가 같은 이름을 묶어야* 한다 --- `combine` 은 `plus` 든 `times` 든 `l`·`r` 을 꺼내 쓴다. 이름이 어긋나면
   `E-MATCH-ORBIND` 다.
-- *겹친 패턴.* `case ok (some x) .` 는 `result` 안의 `option` 을 한 번에 가른다. 겹친 패턴은 단락 평가라서 `ok` 가 아니면 안쪽을 아예 보지 않는다.
+- *겹친 패턴.* `case ok (some x)` 는 `result` 안의 `option` 을 한 번에 가른다. 겹친 패턴은 단락 평가라서 `ok` 가 아니면 안쪽을 아예 보지 않는다.
   그래서 `error` 에서 값을 잘못 꺼내 멈추는 일이 없다.
 - *번역 시점에 접힌다.* 가르는 값이 번역 시점 상수 --- 리터럴, `comptime <식>`, `config <이름>` --- 이면 `match` 는 맞는 갈래 하나로 접혀 실행 중
   비교가 없다. 죽은 갈래도 타입 검사는 받는다. C 의 `#ifdef` 와 다른 점이다(#chref("build-test")).
@@ -255,9 +266,9 @@ return ok (add v 1) .
   [`is_error r` · `ok_value r`], [실패인지 묻기 · 성공 값 꺼내기], [같은 이유],
   [`value_or r 99`], [없으면 대신할 값], [한 줄로 끝나지만 없음을 덮는다],
   [`try <식>`], [실패면 그 오류를 돌려주며 떠난다], [확인 코드를 빼먹지 않게 --- Rust 의 `?`],
-  [`let n be u64 find xs k . else return 0 .`], [알맹이를 꺼내 묶거나 `else` 로 떠난다], [확인 없이 쓰는 실수가 없다],
+  [`let n u64 find xs k else return 0 .`], [알맹이를 꺼내 묶거나 `else` 로 떠난다], [확인 없이 쓰는 실수가 없다],
   [`try <식> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [채널을 바꿀 때 무엇을 잃는지 드러낸다],
-  [`case ok (some x) .` · `case a or b .`], [겹친 패턴 · 여러 갈래 묶기], [한 번에 가르되 모든 경우를 덮는다],
+  [`case ok (some x)` · `case a or b`], [겹친 패턴 · 여러 갈래 묶기], [한 번에 가르되 모든 경우를 덮는다],
 )
 
 #recap[

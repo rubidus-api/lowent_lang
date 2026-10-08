@@ -25,14 +25,14 @@ actor pinger do
   do set me m . return 0 . end
   proc go input d u64 . output u64 . effects state .
   do
-    guard gt d 0 . else return 0 .
+    guard gt d 0 else return 0 .
     return send me go (sub d 1) .
   end
 end
 
 rem 재진입 깊이를 인자로 받아 바운드의 경계를 양쪽에서 친다(계약 오라클과 같은 정신).
 proc drive input n u64 . output u64 . effects state . do
-  var c be pinger spawn actor pinger .
-  let x be u64 send c setme c .
+  var c pinger spawn actor pinger .
+  let x u64 send c setme c .
   return send c go n .
 end

@@ -18,13 +18,13 @@ rem ko: 바깥에서 온 값은 틀릴 수 있다 --- 틀림을 값으로 돌려
 fn age_checked input a u8 . output result u8 age_error .
   errors too_old gt a 150 .
 do
-  guard le a 150 . else return error too_old .
+  guard le a 150 else return error too_old .
   return ok a .
 end
 
 fn check_age input a u8 . output u8 .
 do
-  match age_checked a . do
+  match age_checked a do
     case ok v . return age_strict v .
     case error e . return 0 .
   end

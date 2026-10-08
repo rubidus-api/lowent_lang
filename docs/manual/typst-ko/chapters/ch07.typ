@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  #chref("locals")에서 `let x be u64 if gt a 1 . 5 else 6 .` 은 왜 거절되었고, 갈래마다 값을 정하려면
+  #chref("locals")에서 `let x u64 if gt a 1 . 5 else 6 .` 은 왜 거절되었고, 갈래마다 값을 정하려면
   어떻게 적는가?
 ][
   `if` 는 값을 내지 않는 문장이라서 식의 자리에 둘 수 없다(`E-IF-VALUE`). 갈래마다 값을 정하려면 `var`
@@ -26,7 +26,7 @@
 ]
 
 #organizer[
-  `if … else`, `while`, `for`, `break`·`continue` 를 쓰는 법을 익힌다. `guard` 가 조건을 *그 아래 코드에
+  `if … else`, `while`, `for` 와 수를 세는 `repeat`·`range`·`cycle`, `break`·`continue` 를 쓰는 법을 익힌다. `guard` 가 조건을 *그 아래 코드에
   대한 사실*로 바꾸는 방식과, `else` 가 떠나지 않으면 왜 거절되는지 알게 된다. 모든 길이 값을 돌려주어야
   한다는 규칙, 수와 범위를 가르는 `match` 와 그 망라 검사, 그리고 `panic` 이 효과라는 것도 보게 된다.
 ]
@@ -40,8 +40,8 @@
 
 #demo("examples/ch07/loops.low")
 
-- `count_big` 은 0 부터 `n` 미만까지 세면서 5 보다 큰 수만 센다. `while lt i n . do … end` 의 모양을
-  보면, 조건도 폼이므로 마침표로 닫고 그 뒤에 몸을 여는 `do` 가 온다.
+- `count_big` 은 0 부터 `n` 미만까지 세면서 5 보다 큰 수만 센다. `while lt i n do … end` 의 모양을
+  보면, 조건은 몸을 여는 `do` 에서 끝난다 --- 조건과 `do` 사이에 마침표가 없다. 마침표는 문장을 닫는 일만 한다.
 - `first_zero` 는 0 을 만나면 `break` 로 되풀이를 벗어난다. 끝까지 없으면 길이를 돌려준다. `break` 와 `continue` 는 가장 안쪽
   되풀이에 듣고, 바깥 되풀이를 가리키는 라벨은 없다.
 - `while` 의 조건은 바퀴마다 몸에 들어가기 *전에* 본다. 처음부터 거짓이면 몸은 한 번도 돌지 않는다.
@@ -50,26 +50,34 @@
 
 `for x in xs` 처럼 `in` 을 적으면 `E-VOCAB-REMOVED` 로 거절된다. 훑을 대상은 이름 바로 뒤에 온다.
 
-수를 세는 반복도 `for` 로 적는다. `for i count u64 n .` 은 0 부터 `n` 미만까지, `for i range u64 a b .` 는 `a` 부터 `b`
-까지 두 끝을 넣어 돈다. 셈의 타입(`u64`)은 늘 적고, 이 절은 제 점으로 닫는다.
+수를 세는 반복은 제 머리말이 있다. `repeat i u64 n do` 는 0 부터 `n` 미만까지, `range i u64 a b do` 는 `a` 부터 `b`
+까지 두 끝을 넣어 돈다. 다음 값을 직접 적으려면 `cycle i u64 1 while lt i 100 next mul i 2 do` 로 쓴다. 셈의 타입(`u64`)은 늘
+적는다. 머리 안에는 마침표가 없다 --- 식은 `do`·`step`·`while`·`next` 같은 낱말에서 끝난다. 원소를 거르려면 `do` 앞에
+`if <조건>` 을 붙인다(`for x xs if gt x 2 do`). `for` 는 원소를 도는 한 가지 일만 한다 --- 옛 꼴 `for i count u64 n . do` 는
+`E-FOR-OLD` 로 거절된다.
 
 #demo("examples/ch07/counting.low")
 
-- `count u64 n` 은 `n = 4` 이면 0 · 1 · 2 · 3 을 돈다. `n` 이 0 이면 한 번도 돌지 않는다.
-- `range u64 10 1 step -3` 은 10 · 7 · 4 · 1 이다. `step` 을 적지 않으면 두 끝이 방향을 정한다(`range u64 10 3` 은 10 부터
-  3 까지 내려간다). 셈은 넘치지 않는다 --- `range u8 0 255` 는 255 에서 끝난다.
-  다음 값이 끝을 지나치면 거기서 끝난다(`range u8 250 255 step 3` 은 250 · 253).
+- `repeat i u64 n` 은 `n = 4` 이면 0 · 1 · 2 · 3 을 돈다. `n` 이 0 이면 한 번도 돌지 않는다.
+- `range j u64 10 1 step -3` 은 10 · 7 · 4 · 1 이다. `step` 을 적지 않으면 두 끝이 방향을 정한다(`range j u64 10 3` 은 10 부터
+  3 까지 내려간다). 셈은 넘치지 않는다 --- `range j u8 0 255` 는 255 에서 끝난다.
+  다음 값이 끝을 지나치면 거기서 끝난다(`range j u8 250 255 step 3` 은 250 · 253).
 - 머리가 읽은 것(끝 · `step`)은 들어갈 때 한 번 계산한다. 몸 안에서 셈 이름 `i` 나 머리가 읽은 이름 `n` 을 `set` 하면
   `E-FOR-HEAD` 다. `step 0` 이나 부동소수 셈 타입은 `E-FOR-STEP` 이다.
 - `for x mut buf do set x 0 . end` 는 원소 자리를 돈다 --- `set x` 가 `buf` 의 그 칸에 쓴다. 몸 안에서는 `buf` 를 직접
   만지지 않고 `x` 로만 만진다(`E-FOR-HEAD`).
-- 머리 끝에 `where <조건> .` 을 붙이면 조건이 참인 값만 몸을 돈다: `for i range u64 1 20 . where eq (mod i 3) 0 . do`.
-- 점화식은 `for j be u64 1 . while le j 100 . next mul j 2 . do` 처럼 적는다 --- 1 · 2 · 4 … 64 를 돈다.
+- 머리 끝, `do` 앞에 `if <조건>` 을 붙이면 조건이 참인 값만 몸을 돈다: `range i u64 1 20 if eq (mod i 3) 0 do`.
+- 다음 값을 직접 적는 되풀이는 `cycle j u64 1 while le j 100 next mul j 2 do` 처럼 적는다 --- 1 · 2 · 4 … 64 를 돈다. 몸 안의
+  `continue` 도 `next` 를 거친다.
+
+#demo("examples/ch07/doubling.low")
+
+- `steps 100` 은 1 · 2 · 4 · 8 · 16 · 32 · 64 일곱 바퀴를 돈다. 128 은 `lt i limit` 이 거짓이라 몸에 들어가지 않는다.
 
 == `guard` — 조건을 사실로 바꾼다
 
 #idx("guard")
-`guard <조건> . else <빠져나감> .` 은 조건이 참이 아니면 *그 자리에서 떠난다.* 떠나는 문장은
+`guard <조건> else <빠져나감> .` 은 조건이 참이 아니면 *그 자리에서 떠난다.* 떠나는 문장은
 `return`·`break`·`continue`·`panic` 이다.
 
 #demo("examples/ch07/guards.low")
@@ -89,7 +97,7 @@
 #misconception[`guard` 는 코드를 짧게 하는 문법 설탕이다][
   짧아지는 것은 부수 효과다. `guard` 의 본뜻은 *컴파일러와 읽는 사람에게 사실 하나를 건네는 것*이다.
   컴파일러는 `guard` 를 지난 뒤 그 조건을 참으로 알고 경계 검사를 지우는 데 쓴다. 같은 뜻을
-  `if … . do return … end` 로 적어도 동작은 같지만, 떠남이 문법으로 보장되지는 않는다.
+  `if … do return … end` 로 적어도 동작은 같지만, 떠남이 문법으로 보장되지는 않는다.
 ]
 
 == 모든 길이 값을 돌려준다
@@ -113,9 +121,9 @@
 
 #demo("examples/ch07/bands.low")
 
-- `band` 는 `lo to hi` 범위(양 끝 포함)로 가른다. 정수는 경우가 많으므로 나머지를 덮는 `case _ .` 가 필요하다.
+- `band` 는 `lo to hi` 범위(양 끝 포함)로 가른다. 정수는 경우가 많으므로 나머지를 덮는 `case _` 가 필요하다.
 - `half` 는 두 범위가 `u8` 의 0 … 255 를 빈틈 없이 덮으므로 `_` 가 없어도 된다.
-- `big` 의 `case y when gt y 100 .` 은 값 전체를 `y` 에 묶고 가드로 더 좁힌다. 가드가 붙은 갈래는
+- `big` 의 `case y when gt y 100` 은 값 전체를 `y` 에 묶고 가드로 더 좁힌다. 가드가 붙은 갈래는
   거짓일 수 있으므로 망라에 세지 않는다. 그래서 `_` 가 여전히 필요하다.
 
 빈틈이 있으면 거절된다.
@@ -158,11 +166,26 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   같은 뜻에 표시를 하나 더 두지 않으려고 없앴다. 고치는 법: `for x xs do`.
 ]
 
+#antipattern[조건과 `do` 사이에 마침표를 찍는다][
+  #demo("examples/ch07/mistake_dotdo.low")
+
+  머리의 식은 `do` 에서 끝난다. 마침표는 문장을 닫는 일만 하므로 `if`·`while`·`match`·`case` 의 머리 안에는 마침표가 없다.
+  `guard` 와 바인딩의 `else` 앞도 같다(`guard c else return 0 .`). 옛 파일은 `lowentc --migrate <파일>` 이 새 철자로 옮겨 찍는다.
+  고치는 법: `if gt a 3 do`.
+]
+
+#antipattern[수를 `for … count` 로 센다][
+  #demo("examples/ch07/mistake_forcount.low")
+
+  `for` 는 원소를 도는 한 가지 일만 한다. 수를 세는 일은 `repeat`, 구간은 `range`, 다음 값을 직접 적는 되풀이는 `cycle` 이 한다 ---
+  머리말을 보면 무슨 되풀이인지 안다. 고치는 법: `repeat i u64 n do`.
+]
+
 #antipattern[`elif` 로 갈래를 잇는다][
   #demo("examples/ch07/mistake_elif.low")
 
   `elif`·`elsif`·`else if:` 는 언어마다 다르다. Lowent 는 이미 있는 낱말을 이어 붙인다 --- 앞 블록을 `end` 로 닫고 `else if` 를
-  붙인다. `elif` 는 낱말이 아니므로 `elif lt n 80 .` 이 따로 선 문장으로 읽히고, 그 뒤의 `do … end` 는 여는 머리가
+  붙인다. `elif` 는 낱말이 아니므로 `elif lt n 80` 이 따로 선 문장으로 읽히고, 그 뒤의 `do … end` 는 여는 머리가
   없는 블록이 된다(`E-BLOCK-NOHEAD`) --- `do … end` 는 늘 `if`·`while`·`fn` 같은 머리가 연다.
 
   #demo("examples/ch07/elseif.low")
@@ -182,7 +205,7 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   #demo("examples/ch07/mistake_less.low")
 
   비교는 낱말이다 --- `lt`(작다)·`le`(작거나 같다)·`gt`·`ge`·`eq`·`ne`. `<` 는 이 언어가 모르는 글자라 `E-CHAR` 가 난다.
-  기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 `expr` 섬이 있다(#chref("expr")). 고치는 법: `while lt i n . do`.
+  기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 `expr` 섬이 있다(#chref("expr")). 고치는 법: `while lt i n do`.
 ]
 
 #antipattern[`continue` 가 증가를 건너뛴다][
@@ -191,10 +214,10 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   ```lowent
   fn odd_count input xs slice u8 . output u64 .
   do
-    var n be u64 0 .
-    var i be u64 0 .
-    while lt i (len xs) . do
-      if eq (mod (idx xs i) 2) 0 . do
+    var n u64 0 .
+    var i u64 0 .
+    while lt i (len xs) do
+      if eq (mod (idx xs i) 2) 0 do
         continue .
       end
       set n (add n 1) .
@@ -209,7 +232,7 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   처음부터 `for x xs do` 를 쓴다. `for` 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.
 ]
 
-나머지를 받는 자리는 두 가지로 적을 수 있다. `case _ .` 와 마지막 `else` 는 같은 일을 한다.
+나머지를 받는 자리는 두 가지로 적을 수 있다. `case _` 와 마지막 `else` 는 같은 일을 한다.
 
 #demo("examples/ch07/matchelse.low")
 
@@ -229,16 +252,18 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   id: "control-glance",
   caption: [흐름의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`if c . do … end`], [조건이 참이면 블록], [조건도 폼이라 마침표로 닫고, 몸은 `do` 로 연다],
-  [`if c . do … end else do … end`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
-  [`… end else if c2 . do … end`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
-  [`while c . do … end`], [조건이 참인 동안], [수를 세는 반복은 이 모양 하나],
+  [`if c do … end`], [조건이 참이면 블록], [조건은 `do` 에서 끝난다 --- 마침표는 문장만 닫는다],
+  [`if c do … end else do … end`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
+  [`… end else if c2 do … end`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
+  [`while c do … end`], [조건이 참인 동안], [조건을 바퀴마다 다시 본다],
+  [`repeat i u64 n do … end` · `range i u64 a b do … end`], [0 부터 n 번 · a 에서 b 까지], [수를 세는 일은 머리말이 맡는다 --- 셈 변수를 손으로 올리지 않는다],
+  [`cycle i u64 v while c next e do … end`], [다음 값을 직접 적는 되풀이], [시작 · 조건 · 다음 값이 머리 한 줄에 모인다],
   [`for x xs do … end`], [슬라이스의 원소를 차례로], [다음 원소로 넘어가는 일을 언어가 맡는다],
   [`break .` · `continue .`], [반복에서 나가기 · 다음 회차로], [흐름을 바꾸는 문장],
-  [`guard c . else return … .`], [조건이 아니면 떠난다 --- 지난 뒤엔 조건이 사실], [`else` 가 반드시 떠나야 한다],
+  [`guard c else return … .`], [조건이 아니면 떠난다 --- 지난 뒤엔 조건이 사실], [`else` 가 반드시 떠나야 한다],
   [`return e .`], [값을 돌려주고 끝낸다], [값을 내는 op 은 모든 길에서],
-  [`match v . do case … . 문장 … end`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
-  [`case 1 to 9 .` · `case _ .` · `case y when c .`], [범위 · 나머지 전부 · 가드가 붙은 갈래], [정수는 경우가 많아 `_` 가 흔히 필요하다],
+  [`match v do case … do … end … end`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
+  [`case 1 to 9` · `case _` · `case y when c`], [범위 · 나머지 전부 · 가드가 붙은 갈래], [정수는 경우가 많아 `_` 가 흔히 필요하다],
   [`panic "…" .`], [되돌릴 수 없는 멈춤(효과)], [`effects panic` 을 적는 `proc` 에서만],
 )
 

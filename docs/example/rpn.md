@@ -12,11 +12,11 @@ def type scratch u64 .
 
 rem 토큰 종류 — 슬라이스로 건네려면 원소가 **바이트 레이아웃**을 가져야 해서(viewable) 종류는 u8 코드다.
 rem   (enum 칸은 레이아웃이 없다. 이름은 prelude op(add/sub/…)와 겹치지 않게 — RFC-0002 §8-12(F1).)
-let k_lit be u8 0 .       rem 리터럴 push (value 사용)
-let plus be u8 1 .
-let minus be u8 2 .
-let times be u8 3 .
-let divide be u8 4 .
+let k_lit u8 0 .       rem 리터럴 push (value 사용)
+let plus u8 1 .
+let minus u8 2 .
+let times u8 3 .
+let divide u8 4 .
 
 def enum eval_error do
   underflow .           rem 이항 연산에 피연산자 부족
@@ -37,10 +37,10 @@ fn apply
   output result i64 eval_error .
   errors div_by_zero .           rem 실행-유도 오류도 **이름은** 절에 적는다(조건은 안 적어도 된다)
 do
-  if eq k plus . do return ok add a b . end
-  if eq k minus . do return ok sub a b . end
-  if eq k times . do return ok mul a b . end
-  guard ne b 0 . else return error div_by_zero . rem 여기 도달 = divide
+  if eq k plus do return ok add a b . end
+  if eq k minus do return ok sub a b . end
+  if eq k times do return ok mul a b . end
+  guard ne b 0 else return error div_by_zero . rem 여기 도달 = divide
   return ok div a b .
 end
 
@@ -59,25 +59,25 @@ proc eval
   errors div_by_zero .
   errors bad_expr .
 do
-  let s be stack i64 stack_new temp capacity len tokens .
-  var depth be u64 0 .
+  let s stack i64 stack_new temp capacity len tokens .
+  var depth u64 0 .
   for t tokens do
-    let k be u8 field t kind .
-    if eq (field t kind) k_lit . do
+    let k u8 field t kind .
+    if eq (field t kind) k_lit do
       push s field t value .
       set depth (add depth 1) .
     end
     else do
-      guard ge depth 2 . else return error underflow .
-      let b be i64 value_or (pop s) 0 .            rem depth≥2 보장 → none 은 오지 않는다
-      let a be i64 value_or (pop s) 0 .
-      let r be i64 try apply k a b . rem apply 의 div_by_zero 를 그대로 전파
+      guard ge depth 2 else return error underflow .
+      let b i64 value_or (pop s) 0 .            rem depth≥2 보장 → none 은 오지 않는다
+      let a i64 value_or (pop s) 0 .
+      let r i64 try apply k a b . rem apply 의 div_by_zero 를 그대로 전파
       push s r .
       set depth (sub depth 1) .
     end
   end
-  guard eq depth 1 . else return error bad_expr .
-  let top be i64 value_or (pop s) 0 .
+  guard eq depth 1 else return error bad_expr .
+  let top i64 value_or (pop s) 0 .
   return ok top .
 end
 ```

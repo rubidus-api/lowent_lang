@@ -23,17 +23,17 @@ fn keyed.less input a keyed . input b keyed . output bool . do return lt (field 
 
 rem [3,1,2] → 123. 자릿수로 순서를 통째로 확인한다(첫 원소만 보면 뒤가 틀려도 모른다).
 proc generic_sorted input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 3 . else return 90 .
+  guard ge (len s) 3 else return 90 .
   sortgen.sort_by keyed s .
-  let f0 be keyed idx s 0 .
-  let f1 be keyed idx s 1 .
-  let f2 be keyed idx s 2 .
+  let f0 keyed idx s 0 .
+  let f1 keyed idx s 1 .
+  let f2 keyed idx s 2 .
   return add (mul 100 (field f0 k)) (add (mul 10 (field f1 k)) (field f2 k)) .
 end
 
 rem ★ `swap` 은 원소 타입을 몰라도 된다 — u64 슬라이스에서도 같은 낱말이다.
 proc swap_scalar input s mut slice u64 . output u64 . effects none . do
-  guard ge (len s) 2 . else return 90 .
+  guard ge (len s) 2 else return 90 .
   swap s 0 1 .
   return add (mul 10 (idx s 0)) (idx s 1) .
 end
@@ -49,29 +49,29 @@ def struct score do
   point u64 .
 end
 fn score.less input a score . input b score . output bool . do
-  if lt (field a grade) (field b grade) . do return true . end
-  if gt (field a grade) (field b grade) . do return false . end
+  if lt (field a grade) (field b grade) do return true . end
+  if gt (field a grade) (field b grade) do return false . end
   return lt (field a point) (field b point) .
 end
 
 rem 입력 (1,5) (1,2) (0,9) → 정렬 (0,9) (1,2) (1,5) → point 자릿수 925.
 proc multikey input s mut slice score . output u64 . effects none . do
-  guard ge (len s) 3 . else return 90 .
+  guard ge (len s) 3 else return 90 .
   sortgen.sort_by score s .
-  let a be score idx s 0 .
-  let b be score idx s 1 .
-  let c be score idx s 2 .
+  let a score idx s 0 .
+  let b score idx s 1 .
+  let c score idx s 2 .
   return add (mul 100 (field a point)) (add (mul 10 (field b point)) (field c point)) .
 end
 
 rem 여섯 원소 역순 [6,5,4,3,2,1] → 정렬 후 자릿수로 654321 이 아니라 123456 이어야 한다.
 proc six_reversed input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 6 . else return 90 .
+  guard ge (len s) 6 else return 90 .
   sortgen.sort_by keyed s .
-  var acc be u64 0 .
-  var i be u64 0 .
-  while lt i 6 . do
-    let e be keyed idx s i .
+  var acc u64 0 .
+  var i u64 0 .
+  while lt i 6 do
+    let e keyed idx s i .
     set acc (add (mul acc 10) (field e k)) .
     set i (add i 1) .
   end
@@ -80,12 +80,12 @@ end
 
 rem ★★ 제네릭 quicksort — 같은 답을 **O(n log n)** 으로. 적대적 입력(역순·이미정렬)도 본다.
 proc fast_six input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 6 . else return 90 .
+  guard ge (len s) 6 else return 90 .
   sortgen.sort_fast keyed s .
-  var acc be u64 0 .
-  var i be u64 0 .
-  while lt i 6 . do
-    let e be keyed idx s i .
+  var acc u64 0 .
+  var i u64 0 .
+  while lt i 6 do
+    let e keyed idx s i .
     set acc (add (mul acc 10) (field e k)) .
     set i (add i 1) .
   end
@@ -94,47 +94,47 @@ end
 
 rem 정렬 결과가 **순서 + 합** 둘 다 맞는지 자기검사한다(원소를 잃거나 복제하면 합이 틀린다).
 proc fast_verify input s mut slice keyed . output u64 . effects none . do
-  var before be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
-    let e be keyed idx s i .
+  var before u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
+    let e keyed idx s i .
     set before (add before (field e k)) .
     set i (add i 1) .
   end
   sortgen.sort_fast keyed s .
-  var after be u64 0 .
-  var sorted_ok be bool true .
+  var after u64 0 .
+  var sorted_ok bool true .
   set i 0 .
-  while lt i (len s) . do
-    let e be keyed idx s i .
+  while lt i (len s) do
+    let e keyed idx s i .
     set after (add after (field e k)) .
-    if gt i 0 . do
-      let prev be keyed idx s (sub i 1) .
-      if gt (field prev k) (field e k) . do set sorted_ok false . end
+    if gt i 0 do
+      let prev keyed idx s (sub i 1) .
+      if gt (field prev k) (field e k) do set sorted_ok false . end
     end
     set i (add i 1) .
   end
-  if eq sorted_ok false . do return 1 . end
-  if ne before after . do return 2 . end
+  if eq sorted_ok false do return 1 . end
+  if ne before after do return 2 . end
   return 42 .
 end
 
 rem ★★ 제네릭 이진 탐색 — 정렬한 뒤 찾는다. 없는 값은 none, 중복은 가장 왼쪽.
 proc search_after_sort input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 6 . else return 90 .
+  guard ge (len s) 6 else return 90 .
   sortgen.sort_fast keyed s .
   rem 정렬 후 [1,2,3,4,5,6] 이라고 보고 3 을 찾으면 자리 2.
-  let k3 be lit keyed do k 3 . end .
-  let f be option u64 sortgen.find_by keyed s k3 .
-  guard is_some f . else return 1 .
-  guard eq (some_value f) 2 . else return 2 .
+  let k3 lit keyed do k 3 . end .
+  let f option u64 sortgen.find_by keyed s k3 .
+  guard is_some f else return 1 .
+  guard eq (some_value f) 2 else return 2 .
   rem 없는 값은 none — 트랩이 아니라 값으로 답한다.
-  let k9 be lit keyed do k 99 . end .
-  let g be option u64 sortgen.find_by keyed s k9 .
-  guard is_some g . else do
+  let k9 lit keyed do k 99 . end .
+  let g option u64 sortgen.find_by keyed s k9 .
+  guard is_some g else do
     rem lower_by 는 삽입점을 준다: 99 는 전부보다 커서 len(=6).
-    let at be u64 sortgen.lower_by keyed s k9 .
-    guard eq at 6 . else return 3 .
+    let at u64 sortgen.lower_by keyed s k9 .
+    guard eq at 6 else return 3 .
     return 42 .
   end
   return 4 .

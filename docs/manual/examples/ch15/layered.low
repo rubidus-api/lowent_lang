@@ -11,14 +11,14 @@ end
 proc print_digit input out cap io . input d u8 . output u64 . effects io .
   requires le d 9 .
 do
-  let buf be slice u8 "0123456789" .
+  let buf slice u8 "0123456789" .
   return write_out out 1 (subslice buf (widen u64 d) (add (widen u64 d) 1)) .
 end
 
 proc main input out cap io . output u8 . effects io .
 do
-  let f be i64 celsius_to_f 100 .
-  let n be u64 print_digit out (narrow u8 (mod f 10)) .
-  let m be u64 write_out out 1 "\n" .
+  let f i64 celsius_to_f 100 .
+  let n u64 print_digit out (narrow u8 (mod f 10)) .
+  let m u64 write_out out 1 "\n" .
   return 0 .
 end

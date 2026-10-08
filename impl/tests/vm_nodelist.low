@@ -15,66 +15,66 @@ def newtype roleset u32 .
 
 rem ── ③ mutable iterator — 순회하면서 뺀다 ──────────────────────────
 proc walks input al cap allocator . output u64 . effects alloc . do
-  let mn be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some mn . else return 89 .
-  let mp be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some mp . else return 88 .
-  var nx be mut slice u64 view_array u64 (some_value mn) .
-  var pv be mut slice u64 view_array u64 (some_value mp) .
+  let mn option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some mn else return 89 .
+  let mp option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some mp else return 88 .
+  var nx mut slice u64 view_array u64 (some_value mn) .
+  var pv mut slice u64 view_array u64 (some_value mp) .
   rem 0 을 혼자로 만들고 1·2·3 을 차례로 뒤에 끼운다 ⇒ 0→1→2→3.
-  guard nodelist.nl_solo nx pv 0 . else return 1 .
-  guard nodelist.nl_after nx pv 0 1 . else return 2 .
-  guard nodelist.nl_after nx pv 1 2 . else return 3 .
-  guard nodelist.nl_after nx pv 2 3 . else return 4 .
-  guard eq (nodelist.nl_count nx 0) 4 . else return 5 .
+  guard nodelist.nl_solo nx pv 0 else return 1 .
+  guard nodelist.nl_after nx pv 0 1 else return 2 .
+  guard nodelist.nl_after nx pv 1 2 else return 3 .
+  guard nodelist.nl_after nx pv 2 3 else return 4 .
+  guard eq (nodelist.nl_count nx 0) 4 else return 5 .
   rem 순회하면서 2 를 뺀다 — 넷을 훑고, 뒤엔 셋이 남는다.
-  guard eq (nodelist.nl_walk_cut nx pv 0 2) 4 . else return 6 .
-  guard eq (nodelist.nl_count nx 0) 3 . else return 7 .
+  guard eq (nodelist.nl_walk_cut nx pv 0 2) 4 else return 6 .
+  guard eq (nodelist.nl_count nx 0) 3 else return 7 .
   rem 뺀 노드는 혼자다.
-  guard eq (idx nx 2) 2 . else return 8 .
-  guard eq (nodelist.nl_count nx 2) 1 . else return 9 .
+  guard eq (idx nx 2) 2 else return 8 .
+  guard eq (nodelist.nl_count nx 2) 1 else return 9 .
   return 42 .
 end
 
 rem ── ② 이동은 이동권을 요구한다 — 안 링크된 노드는 옮길 수 있다 ────
 fn moves_when_free output u64 . do
-  var s be (owned nodelist.site lru) nodelist.nl_open lru 3 .
-  var s2 be (owned nodelist.site lru) nodelist.nl_relocate lru s 9 .
-  guard eq (nodelist.nl_slot_of lru s2) 9 . else return 1 .
+  var s (owned nodelist.site lru) nodelist.nl_open lru 3 .
+  var s2 (owned nodelist.site lru) nodelist.nl_relocate lru s 9 .
+  guard eq (nodelist.nl_slot_of lru s2) 9 else return 1 .
   rem 링크했다가 빼면 이동권이 돌아온다 ⇒ 다시 옮길 수 있다.
-  var h be (owned nodelist.held lru) nodelist.nl_link lru s2 .
-  guard eq (nodelist.nl_held_slot lru h) 9 . else return 2 .
-  var s3 be (owned nodelist.site lru) nodelist.nl_unlink lru h .
-  let s4 be (owned nodelist.site lru) nodelist.nl_relocate lru s3 1 .
-  guard eq (nodelist.nl_slot_of lru s4) 1 . else return 3 .
+  var h (owned nodelist.held lru) nodelist.nl_link lru s2 .
+  guard eq (nodelist.nl_held_slot lru h) 9 else return 2 .
+  var s3 (owned nodelist.site lru) nodelist.nl_unlink lru h .
+  let s4 (owned nodelist.site lru) nodelist.nl_relocate lru s3 1 .
+  guard eq (nodelist.nl_slot_of lru s4) 1 else return 3 .
   return 42 .
 end
 
 rem ── ① 등록 role 만 — role 토큰은 `shard` 로 쪼갠다 ─────────────────
 rem   role 0 = LRU 목록, role 1 = 해시 버킷. **둘 다 돌려줘야** 이동권이 다시 선다.
 fn roles output u64 . do
-  var root be (owned shard.token roleset) shard.open roleset 2 .
-  let hs be (shard.halves roleset) shard.split_at roleset root 1 .
-  var r0 be (owned shard.token roleset) field hs low .
-  var r1 be (owned shard.token roleset) field hs high .
+  var root (owned shard.token roleset) shard.open roleset 2 .
+  let hs (shard.halves roleset) shard.split_at roleset root 1 .
+  var r0 (owned shard.token roleset) field hs low .
+  var r1 (owned shard.token roleset) field hs high .
   rem 등록된 role 만 덮는다 — 2 번 role 은 없다.
-  guard shard.covers roleset r0 0 . else return 1 .
-  guard not (shard.covers roleset r0 1) . else return 2 .
-  guard shard.covers roleset r1 1 . else return 3 .
-  guard not (shard.covers roleset r1 2) . else return 4 .
+  guard shard.covers roleset r0 0 else return 1 .
+  guard not (shard.covers roleset r0 1) else return 2 .
+  guard shard.covers roleset r1 1 else return 3 .
+  guard not (shard.covers roleset r1 2) else return 4 .
   rem 전부 돌려주면 이동권이 선다 = unlink-before-reclaim.
-  let back be option (shard.token roleset) shard.rejoin roleset r0 r1 .
-  guard is_some back . else return 5 .
+  let back option (shard.token roleset) shard.rejoin roleset r0 r1 .
+  guard is_some back else return 5 .
   return 42 .
 end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let a be u64 walks al .
-  guard eq a 42 . else return narrow u8 a .
-  let b be u64 moves_when_free .
-  guard eq b 42 . else return narrow u8 b .
-  let c be u64 roles .
-  guard eq c 42 . else return narrow u8 c .
+  let a u64 walks al .
+  guard eq a 42 else return narrow u8 a .
+  let b u64 moves_when_free .
+  guard eq b 42 else return narrow u8 b .
+  let c u64 roles .
+  guard eq c 42 else return narrow u8 c .
   return 42 .
 end

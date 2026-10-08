@@ -33,18 +33,18 @@ rem ★ 커서는 **값**이다(RFC-0069 §4) — 호출자가 pos 를 들고 �
 fn count_line input line slice u8 . input sep u8 . input trim bool .
   output u64 .
 do
-  var pos be u64 0 .
-  var total be u64 0 .
-  var nonempty be u64 0 .
-  var f be option slice u8 strings.split_next line sep pos .
-  while is_some f . do
-    let cell be slice u8 some_value f .
-    var v be slice u8 cell .
-    if trim . do
+  var pos u64 0 .
+  var total u64 0 .
+  var nonempty u64 0 .
+  var f option slice u8 strings.split_next line sep pos .
+  while is_some f do
+    let cell slice u8 some_value f .
+    var v slice u8 cell .
+    if trim do
       set v (strings.trim_end (strings.trim_start cell (ws)) (ws)) .
     end
     set total (add total 1) .
-    if gt (len v) 0 . do set nonempty (add nonempty 1) . end
+    if gt (len v) 0 do set nonempty (add nonempty 1) . end
     set pos (add pos (add (len cell) 1)) .
     set f (strings.split_next line sep pos) .
   end
@@ -53,32 +53,32 @@ end
 
 proc main input a cap args . input e cap env . output u8 . effects state . do
   rem ── 인자: 구분자. 없으면 ',' (44). 있으면 그 첫 바이트.
-  var sep be u8 44 .
-  let first be option slice u8 arg a 0 .
-  if is_some first . do
-    let s be slice u8 some_value first .
-    if gt (len s) 0 . do set sep (idx s 0) . end
+  var sep u8 44 .
+  let first option slice u8 arg a 0 .
+  if is_some first do
+    let s slice u8 some_value first .
+    if gt (len s) 0 do set sep (idx s 0) . end
   end
 
   rem ── 환경: 다듬기 스위치. 있으면 켠다(값은 안 본다 — 존재가 곧 스위치다).
-  let sw be option slice u8 env_get e "FIELDS_TRIM" .
-  let trim be bool is_some sw .
+  let sw option slice u8 env_get e "FIELDS_TRIM" .
+  let trim bool is_some sw .
 
   rem ── 입력을 줄 단위로 (텍스트 리터럴 — 원문 그대로, 이스케이프 불요)
-  var r be io.mem_reader spawn actor io.mem_reader .
-  let src be slice u8 text DATA
+  var r io.mem_reader spawn actor io.mem_reader .
+  let src slice u8 text DATA
 a, b,,c
  x , ,y
 
 DATA
 .
-  let d be u64 send r attach src .
+  let d u64 send r attach src .
 
-  var total be u64 0 .
-  var nonempty be u64 0 .
-  var l be option slice u8 send r take_line 200 .
-  while is_some l . do
-    let packed be u64 count_line (some_value l) sep trim .
+  var total u64 0 .
+  var nonempty u64 0 .
+  var l option slice u8 send r take_line 200 .
+  while is_some l do
+    let packed u64 count_line (some_value l) sep trim .
     set total (add total (div packed 10)) .
     set nonempty (add nonempty (mod packed 10)) .
     set l (send r take_line 200) .

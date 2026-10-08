@@ -11,7 +11,7 @@ module vm_fold .
 fn add2 input a u8 . input b u8 . output u8 . do return add a b . end
 
 fn max2 input a u8 . input b u8 . output u8 . do
-  guard ge a b . else return b .
+  guard ge a b else return b .
   return a .
 end
 

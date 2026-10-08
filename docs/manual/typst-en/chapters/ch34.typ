@@ -6,7 +6,7 @@
 
 #prereq(
   ([#chref("generics"), Generics], [comparison is brought by the type, not a value]),
-  ([#chref("fixed-memory"), Allocators and fixed memory], [allocators are handed over with `using`]),
+  ([#chref("fixed-memory"), Allocators and fixed memory], [allocators are handed over with `use`]),
   ([#chref("lib-map"), A map of the standard library], [buffers belong to the caller]),
 )
 
@@ -81,9 +81,9 @@ automatically. Byte-string keys are handled by `strmap`, and a growing generic h
 #demo("examples/ch34/growing.low")
 
 - `allocs.heap_bytes` is spawned and used as an allocator. Only `main`, holding `cap heap`, can spawn it (#chref("fixed-memory")).
-- `vecgen.open u32 4` opens a vector with element type `u32` and initial capacity 4. The allocator is handed over with the binding's `using hb`.
+- `vecgen.open u32 4` opens a vector with element type `u32` and initial capacity 4. The allocator is handed over with the binding's `use hb`.
 - `vecgen.append … v x` asks the allocator for more and grows when out of room. On failure it is `false`. The vector already holds its own allocator, so `append` does not
-  take `using`. Writing it is rejected with `E-ALLOC-USING-UNUSED`.
+  take `use`. Writing it is rejected with `E-ALLOC-USING-UNUSED`.
 - `vecgen.at … v 50` gives element 50 as an `option`. 50 × 2 = 100.
 
 The effect of `vecgen.append` is `state via a`. Here `a` is `heap_bytes`, so this instance's effect is `heap state`, and `heap` shows in `main`'s head too. Opening the
@@ -138,12 +138,12 @@ in a weak-memory model. Multi-producer multi-consumer queues and seqlocks have n
   *exists*, so the property "nothing comes before itself" is for the writer to keep.
 ]
 
-#antipattern[Writing `using` again for a container that already carries its allocator][
+#antipattern[Writing `use` again for a container that already carries its allocator][
   #demo("examples/ch34/mistake_usingappend.low")
 
   `vecgen.open` takes the allocator and stores it inside the vector. The later `append` uses the allocator the vector carries, so the
-  binding's `using hb` means nothing. A meaningless mark becomes false information --- "this call carves from `hb`" --- so it is rejected
-  with `E-ALLOC-USING-UNUSED`. Write `using` only where the allocator is *first received* (`open`).
+  binding's `use hb` means nothing. A meaningless mark becomes false information --- "this call carves from `hb`" --- so it is rejected
+  with `E-ALLOC-USING-UNUSED`. Write `use` only where the allocator is *first received* (`open`).
 ]
 
 #misconception[Any `u64` can be a key in `hashmap`][
@@ -165,7 +165,7 @@ in a weak-memory model. Multi-producer multi-consumer queues and seqlocks have n
   [`def struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [the type brings the sort order], [a type instead of a mode argument --- `less` must be strict],
   [`sortgen.sort_by score rs` · `sort_fast`], [stable insertion sort · quicksort for large arrays], [the choice is in the name],
   [`hashmap.put slots k v` · `lookup` · `del`], [a `u64 → u64` map on the caller's slice], [`false` when full --- deletion leaves a tombstone],
-  [`let vo using hb be … vecgen.open u32 4 .`], [open a growing vector with an allocator], [`using` only where it is first received],
+  [`let vo use hb … vecgen.open u32 4 .`], [open a growing vector with an allocator], [`use` only where it is first received],
   [`vecgen.append u32 allocs.heap_bytes v x`], [push while growing --- `false` on failure], [effects follow the allocator type (`state via a`)],
   [`spsc`], [lock-free single-producer single-consumer ring buffer], [atomic operations --- a borrowed proof],
 )

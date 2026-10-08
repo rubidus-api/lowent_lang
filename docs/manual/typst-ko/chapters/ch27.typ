@@ -218,7 +218,7 @@
 
   `splat` 은 한 값을 모든 레인에 채우는데, *레인이 몇인지*는 선언된 타입만이 말한다. 식 안에는 그것을 말해 줄 자리가 없어 값이 스칼라로
   읽히고, 감싼 비교가 `mask` 타입과 어긋난다. `E-VEC-SPLAT` 으로 거절하며, 고치는 길은 레인 수를 적은 이름에 먼저 담는 것이다 ---
-  `var lim be vec u32 4 splat 5 .` 뒤에 `gt v lim` 이다.
+  `var lim vec u32 4 splat 5 .` 뒤에 `gt v lim` 이다.
 ]
 
 == 자리를 어떻게 쓰는지 적는다 --- `access`
@@ -260,7 +260,7 @@
 #antipattern[나눌 되풀이를 다른 모양으로 적는다][
   #demo("examples/ch27/mistake_noloop.low")
 
-  처리기는 `while lt i (len s) . do … end` 모양의 되풀이만 나눌 대상으로 알아본다. `while lt (add i 1) (len s)` 는 그 모양이 아니라서
+  처리기는 `while lt i (len s) do … end` 모양의 되풀이만 나눌 대상으로 알아본다. `while lt (add i 1) (len s)` 는 그 모양이 아니라서
   `E-PAR-NOLOOP` 다. 진단의 말대로 `parallel` 절은 *주장*이고, 나눌 되풀이를 찾지 못하면 아무것도 확인하지 못한 채 주장만 남는다. 게다가
   이 되풀이는 이웃 원소 `idx s (add i 1)` 을 읽는다. 모양을 고쳐도 `E-PAR-READ` 로 거절될 것이다 --- 이웃을 읽는 계산(평활화 따위)은
   결과를 다른 슬라이스에 쓰는 순차 되풀이로 적는다.
@@ -289,14 +289,14 @@
   caption: [병렬과 원자 연산의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`parallel s split .`(op 머리)], [`s` 를 조각으로 나누어 여럿이 돌아도 된다는 선언], [주장을 믿지 않고 확인한다 --- 확인되면 `W-PAR-OK`],
-  [`while lt i (len s) . do … end`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
+  [`while lt i (len s) do … end`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
   [`idx s i` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [조각마다 누적한 뒤 연산으로 합친다], [시작값은 항등원 --- 연산은 결합적(`E-PAR-ASSOC`)],
   [`atomic_add counter 0 1` · `atomic_load cells 0`], [슬라이스와 색인으로 가리킨 자리를 원자적으로], [`effects atomic` + `cap atomic`],
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [기억 차례 --- 적지 않으면 `seq_cst`], [가장 추론하기 쉬운 것이 기본],
   [읽기에 `order release` 따위], [거절(`E-ATOMIC-ORDER`)], [뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다],
   [`view_array u64 bytes`], [바이트를 베끼지 않고 `u64` 슬라이스로 본다], [원자 칸을 할당받은 창 위에 둔다],
-  [`var v be vec u32 4 load xs 0 .` · `reduce_add v`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
+  [`var v vec u32 4 load xs 0 .` · `reduce_add v`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
   [`access data shared_read .` · `access out write_only .`], [읽기만 · 쓰기만 한다는 약속 --- 몸을 검사한다], [읽기만이면 여러 태스크가 함께 쥔다 · 어기면 `E-ACCESS-MODE`],
 )
 

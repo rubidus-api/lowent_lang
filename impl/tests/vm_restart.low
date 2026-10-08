@@ -15,9 +15,9 @@ rem 자기 상태를 오염시켜 다음 호출에 panic 한다. restart 가 상
 actor recov do
   state do bad u64 . end
   failure restart max 3 .
-  proc step output u64 . effects state .
+  proc tick output u64 . effects state .
   do
-    if ne bad 0 . do panic "corrupted state" . end
+    if ne bad 0 do panic "corrupted state" . end
     set bad 1 .
     return 42 .
   end
@@ -25,9 +25,9 @@ end
 
 rem 첫 step 은 OK(bad→1). 둘째 step 은 panic(bad=1) → 슈퍼바이저가 bad→0 초기화 → 재시도 → 42.
 proc recover output u64 . effects state . do
-  var c be recov spawn actor recov .
-  let x be u64 send c step .
-  return send c step .
+  var c recov spawn actor recov .
+  let x u64 send c tick .
+  return send c tick .
 end
 
 rem 언제나 panic 한다 — 초기화해도 또 터진다. max 2 소진 → escalate.
@@ -38,6 +38,6 @@ actor doomed do
 end
 
 proc escalate output u64 . effects state . do
-  var c be doomed spawn actor doomed .
+  var c doomed spawn actor doomed .
   return send c boom .
 end

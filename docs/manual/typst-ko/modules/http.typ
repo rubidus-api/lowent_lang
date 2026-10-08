@@ -14,10 +14,10 @@
 ]
 
 ```lowent
-let t be u64 http.target_off b .
-let n be u64 http.target_len b .
-guard gt n 0 . else return 0 .
-let target be slice u8 subslice b t (add t n) .
+let t u64 http.target_off b .
+let n u64 http.target_len b .
+guard gt n 0 else return 0 .
+let target slice u8 subslice b t (add t n) .
 ```
 
 #dtable(

@@ -11,7 +11,7 @@ end
 
 export fn sum_bytes input xs slice u8 . output u64 .
 do
-  var s be u64 0 .
+  var s u64 0 .
   for x xs do
     set s (add s (widen u64 x)) .
   end

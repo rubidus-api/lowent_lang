@@ -6,9 +6,9 @@ fn dot4
   input b bytes .
   output u64 .
 do
-  let xs be slice u32 view_array u32 b .
-  let va be vec u32 4 load xs 0 .
-  let vb be vec u32 4 load xs 4 .
+  let xs slice u32 view_array u32 b .
+  let va vec u32 4 load xs 0 .
+  let vb vec u32 4 load xs 4 .
   return reduce_add mul va vb .
 end
 
@@ -16,11 +16,11 @@ fn clamp_sum
   input b bytes .
   output u64 .
 do
-  let xs be slice u32 view_array u32 b .
-  let v be vec u32 4 load xs 0 .
-  let lim be vec u32 4 splat 10 .
-  let m be mask 4 gt v lim .        rem ★ 마스크는 정수가 아니다(레인마다 하나씩)
-  let cc be vec u32 4 lane_select m lim v .
+  let xs slice u32 view_array u32 b .
+  let v vec u32 4 load xs 0 .
+  let lim vec u32 4 splat 10 .
+  let m mask 4 gt v lim .        rem ★ 마스크는 정수가 아니다(레인마다 하나씩)
+  let cc vec u32 4 lane_select m lim v .
   return reduce_add cc .
 end
 
@@ -28,9 +28,9 @@ fn over
   input b bytes .
   output bool .
 do
-  let xs be slice u32 view_array u32 b .
-  let v be vec u32 4 load xs 0 .
-  let lim be vec u32 4 splat 10 .
+  let xs slice u32 view_array u32 b .
+  let v vec u32 4 load xs 0 .
+  let lim vec u32 4 splat 10 .
   return lane_any gt v lim .
 end
 
@@ -38,7 +38,7 @@ fn vmax
   input b bytes .
   output u64 .
 do
-  let xs be slice u32 view_array u32 b .
-  let v be vec u32 4 load xs 0 .
+  let xs slice u32 view_array u32 b .
+  let v vec u32 4 load xs 0 .
   return reduce_max v .
 end

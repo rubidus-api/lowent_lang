@@ -4,9 +4,9 @@ rem run: sum_first [3,4,5,6] 3
 fn sum_first input a slice u8 . input n u64 . output u64 .
   requires le n (len a) .
 do
-  var s be u64 0 .
-  var i be u64 0 .
-  while lt i n . do
+  var s u64 0 .
+  var i u64 0 .
+  while lt i n do
     set s (add s (widen u64 (idx a i))) .
     set i (add i 1) .
   end

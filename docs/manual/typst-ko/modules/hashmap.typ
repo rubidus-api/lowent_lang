@@ -8,8 +8,8 @@
 타입과 얼로케이터를 고르는 컨테이너는 #modref("mapgen")[`mapgen`] 이다(#chref("lib-containers")).
 
 ```lowent
-let stored be bool hashmap.put b 7 42 .
-let v be option u64 hashmap.lookup b 7 .
+let stored bool hashmap.put b 7 42 .
+let v option u64 hashmap.lookup b 7 .
 ```
 
 #aside[꼭 알아 둘 것 둘][
@@ -44,19 +44,19 @@ let v be option u64 hashmap.lookup b 7 .
 
 ```lowent
 proc hm_sum input b mut slice u64 . output u64 . effects none . do
-  var i be u64 0 .
-  while lt i (len b) . do
+  var i u64 0 .
+  while lt i (len b) do
     set (idx b i) 0 .
     set i (add i 1) .
   end
-  guard ge (div (len b) 2) 4 . else return 0 .
-  guard eq (hashmap.put b 10 100) true . else return 0 .
-  guard eq (hashmap.put b 20 222) true . else return 0 .
-  guard eq (hashmap.del b 10) true . else return 0 .
-  var slot be u64 0 .
-  var total be u64 0 .
-  while lt slot (hashmap.size b) . do
-    if hashmap.occupied_at b slot . do
+  guard ge (div (len b) 2) 4 else return 0 .
+  guard eq (hashmap.put b 10 100) true else return 0 .
+  guard eq (hashmap.put b 20 222) true else return 0 .
+  guard eq (hashmap.del b 10) true else return 0 .
+  var slot u64 0 .
+  var total u64 0 .
+  while lt slot (hashmap.size b) do
+    if hashmap.occupied_at b slot do
       set total (add total (hashmap.val_at b slot)) .
     end
     set slot (add slot 1) .
@@ -71,7 +71,7 @@ end
 
 #antipattern[`put` 의 `false` 를 보지 않는다][
   꽉 찬 맵은 멈추는 대신 `false` 를 내므로 그 줄은 조용히 지나가고, 나중에 `lookup` 이 `none` 을 내어 검사 없는 `some_value` 에서 `E-VM-NONE` 으로 멈춘다. 멈추는
-  자리가 원인에서 멀다 --- `guard eq (hashmap.put …) true .` 가 습관이어야 한다.
+  자리가 원인에서 멀다 --- `guard eq (hashmap.put …) true` 가 습관이어야 한다.
 ]
 
 *주의.* op 이름이 `get` 이 아니라 `lookup`, `capacity` 가 아니라 `size` 인 이유 --- `get` 은 페이로드 enum 해체 낱말이고 `capacity` 는 `alloc_bytes … capacity n` 의

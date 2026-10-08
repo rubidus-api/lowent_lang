@@ -12,7 +12,7 @@
 #deepqa[
   In #chref("control")'s `head_or_zero`, why was `idx data 0` safe?
 ][
-  Because the `guard ge (len data) 1 . else return 0 .` right before it handed the code below the fact that the slice was not empty. Code
+  Because the `guard ge (len data) 1 else return 0 .` right before it handed the code below the fact that the slice was not empty. Code
   after a `guard` lives only in a world where the condition is true. This chapter covers what that slice is, and when bounds checks remain
   and when they disappear.
 ]
@@ -88,7 +88,7 @@ places another, narrower window over the same bytes.
 `slice u8`.
 
 #realcase[From an `if` chain to one table][
-  An op returning a constant per index is easy to write as a chain like `if eq k 0 . do return 47 . end`. The emitted C then has one
+  An op returning a constant per index is easy to write as a chain like `if eq k 0 do return 47 . end`. The emitted C then has one
   comparison and branch per character. Indexing a string literal becomes one static table and one index. In a benchmark that reads HTTP
   requests, replacing such a chain with a table lookup brought branch mispredictions down to the level of hand-written C and cut run time by
   about 25%. The answer did not change by a single bit.
@@ -181,7 +181,7 @@ entry to the op while the index checks in the body disappear.
 
 #demo("examples/ch09/bounds.low")
 
-With `requires le n (len a) .`, `i` inside `while lt i n .` is always less than `len a`. The compiler's interval analysis works that out and
+With `requires le n (len a) .`, `i` inside `while lt i n` is always less than `len a`. The compiler's interval analysis works that out and
 removes the check in `idx a i`. The rules behind this reasoning are proven in Coq, and an independent checker re-verifies the arithmetic
 evidence the compiler leaves at every removed check (#chref("proofs-bounds")).
 
@@ -191,7 +191,7 @@ the end.
 #misconception[Putting `len` in a loop condition recounts every time][
   `len s` is neither a call nor a memory read. It just takes the length field out of the slice value `{start, length}`. Writing elements
   does not change the length; the only way the length changes is putting a different slice into the name. In fact, storing the length ahead
-  as `let m be u64 len xs .` and then replacing `xs` with a shorter slice leaves `m` as a *stale length* that can go out of range.
+  as `let m u64 len xs .` and then replacing `xs` with a shorter slice leaves `m` as a *stale length* that can go out of range.
   Storing it ahead is a choice of meaning, not an optimisation.
 ]
 
@@ -217,7 +217,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   #demo("examples/ch09/mistake_offbyone.low")
 
   A slice of length 3 has indexes 0, 1 and 2. `le i (len xs)` is still true when `i` is 3, so reading the fourth cell stops with
-  `E-VM-BOUNDS`. Because indexes start at 0, the right condition is "less than the count" --- `while lt i (len xs) .`. If you are walking
+  `E-VM-BOUNDS`. Because indexes start at 0, the right condition is "less than the count" --- `while lt i (len xs)`. If you are walking
   every element, `for x xs do` uses no index at all and removes the mistake completely.
 ]
 
@@ -281,7 +281,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
   [`lit array u32 3 1 2 3 .`], [an array written as values --- closes with its own period], [the length is a promise --- end with `_` if short],
   [`lit slice u32 4 5 .`], [a slice written as values], [the element count is the length],
-  [`var buf be lit array u8 8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
+  [`var buf lit array u8 8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
   [`lit array u8 8 do 2 5 . _ 0 . end`], [an array with chosen cells filled], [every cell must be decided --- the rest by `_`],
   [`requires le n (len xs) .`], [a length condition as a contract], [bounds checks in the body are removed],
 )

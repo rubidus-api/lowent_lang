@@ -18,23 +18,23 @@ end
 fn fails input n u64 . output result u64 e .
 errors bad ge n 1 .
 do
-  if ge n 1 . do return error bad . end
+  if ge n 1 do return error bad . end
   return ok n .
 end
 
 rem `try` 가 오류를 **전파한다** — 조기 반환이다.
 fn propagate input n u64 . output result u64 e . do
-  let v be u64 try (fails n) .
+  let v u64 try (fails n) .
   return ok v .
 end
 
 rem 그것을 200번 한다. 원장이 새면 **129번째에 죽는다.**
 fn loop200 input n u64 . output u64 . do
-  var i be u64 0 .
-  var c be u64 0 .
-  while lt i 200 . do
-    let r be result u64 e propagate n .
-    if is_error r . do set c (add c 1) . end
+  var i u64 0 .
+  var c u64 0 .
+  while lt i 200 do
+    let r result u64 e propagate n .
+    if is_error r do set c (add c 1) . end
     set i (add i 1) .
   end
   return c .

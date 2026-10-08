@@ -22,18 +22,18 @@ do
 end
 
 export proc run input al cap allocator . output u64 . effects alloc . do
-  let ms be option mut slice u8 alloc_bytes al capacity 4 .
-  guard is_some ms . else return 89 .
-  let mt be option mut slice u8 alloc_bytes al capacity 1608 .
-  guard is_some mt . else return 88 .
-  var a be mut slice u8 some_value ms .
-  var b be mut slice u64 view_array u64 (some_value mt) .
+  let ms option mut slice u8 alloc_bytes al capacity 4 .
+  guard is_some ms else return 89 .
+  let mt option mut slice u8 alloc_bytes al capacity 1608 .
+  guard is_some mt else return 88 .
+  var a mut slice u8 some_value ms .
+  var b mut slice u64 view_array u64 (some_value mt) .
   set (idx a 0) 3 .
   set (idx b 3) 42 .
   return (lookup a b 0) .
 end
 
 export proc main input al cap allocator . output u8 . effects alloc . do
-  guard eq (run al) 42 . else return 1 .
+  guard eq (run al) 42 else return 1 .
   return 0 .
 end

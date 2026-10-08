@@ -11,7 +11,7 @@ module vm_wire .
 
 use wire from "../../lib/wire.low" .
 
-let m_month be u64 15 .          rem 0x0f — 폭 4, 자리 0(아래 shl 로 옮겨 쓴다)
+let m_month u64 15 .          rem 0x0f — 폭 4, 자리 0(아래 shl 로 옮겨 쓴다)
 
 rem ── ① 답이 같은가 ────────────────────────────────────────────────────────
 
@@ -55,15 +55,15 @@ fn max_says   output u64 . do return wire.max_of   64424509440 . end   rem 15
 
 rem 구멍 난 마스크는 **한 덩어리가 아니다** — 그것을 라이브러리가 말한다.
 fn solid_says output u64 . do
-  guard wire.solid 64424509440 . else return 0 .
-  guard not (wire.solid 5) . else return 0 .        rem 0b101 — 가운데가 비었다
+  guard wire.solid 64424509440 else return 0 .
+  guard not (wire.solid 5) else return 0 .        rem 0b101 — 가운데가 비었다
   return 1 .
 end
 
 rem 칸보다 큰 값은 안 들어간다 — 넣기 전에 물을 수 있다.
 fn fits_says output u64 . do
-  guard wire.fits 64424509440 15 . else return 0 .
-  guard not (wire.fits 64424509440 16) . else return 0 .
+  guard wire.fits 64424509440 15 else return 0 .
+  guard not (wire.fits 64424509440 16) else return 0 .
   return 1 .
 end
 

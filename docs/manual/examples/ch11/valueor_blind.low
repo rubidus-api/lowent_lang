@@ -6,7 +6,7 @@ rem run: found 7
 
 fn find input k u8 . output option u8 .
 do
-  guard lt k 3 . else return none .
+  guard lt k 3 else return none .
   return some (mul k 10) .
 end
 

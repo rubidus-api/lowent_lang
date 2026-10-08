@@ -21,12 +21,12 @@ rem ── 넘기기 ───────────────────�
 fn take_view input p pt . output u8 . do return field p x . end
 
 fn pass_view input s slice u8 . output u8 . do
-  let v be pt view pt s .
+  let v pt view pt s .
   return take_view v .                  rem 구조체 **뷰**를 넘긴다
 end
 
 fn pass_record output u8 . do
-  let q be lit pt do x 9 . y 8 . end .
+  let q lit pt do x 9 . y 8 . end .
   return take_view q .                  rem **레코드**를 넘긴다(뷰와 같은 자리에서 받는다)
 end
 
@@ -43,7 +43,7 @@ end
 
 fn take_vec input v vec u32 4 . output u32 . do return reduce_add v . end
 fn pass_vec input xs slice u32 . output u32 . do
-  let v be vec u32 4 load xs 0 .
+  let v vec u32 4 load xs 0 .
   return take_vec v .                   rem **vec** 를 넘긴다
 end
 
@@ -55,13 +55,13 @@ end
 rem ── 되돌려 받기 ─────────────────────────────────────────────────────────
 fn give_view input s slice u8 . output pt . do return view pt s . end
 fn get_view input s slice u8 . output u8 . do
-  let v be pt give_view s . rem 구조체 뷰를 **반환**받는다
+  let v pt give_view s . rem 구조체 뷰를 **반환**받는다
   return field v x .
 end
 
 fn give_typed input s slice pt . output slice pt . do return s . end
 fn get_typed input s slice pt . output u64 . do
-  let t be slice pt give_typed s . rem 타입 있는 슬라이스를 **반환**받는다
+  let t slice pt give_typed s . rem 타입 있는 슬라이스를 **반환**받는다
   return len t .
 end
 

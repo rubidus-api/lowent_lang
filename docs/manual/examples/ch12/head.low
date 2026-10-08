@@ -10,6 +10,6 @@ end
 fn first_two input xs slice u8 . output u64 .
   requires ge (len xs) 2 .
 do
-  let front be slice u8 take_front xs 2 .
+  let front slice u8 take_front xs 2 .
   return len front .
 end

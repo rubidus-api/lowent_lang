@@ -10,35 +10,35 @@ rem   ② **항등식**(sin²+cos² = 1)을 오차 한계 안에서 본다.
 module vm_math .
 
 fn t_exact input z f64 . output u64 . do
-  guard eq (sin 0.0) 0.0 . else return 90 .
-  guard eq (cos 0.0) 1.0 . else return 91 .
-  guard eq (exp 0.0) 1.0 . else return 92 .
-  guard eq (log 1.0) 0.0 . else return 93 .
-  guard eq (pow 2.0 10.0) 1024.0 . else return 94 .
+  guard eq (sin 0.0) 0.0 else return 90 .
+  guard eq (cos 0.0) 1.0 else return 91 .
+  guard eq (exp 0.0) 1.0 else return 92 .
+  guard eq (log 1.0) 0.0 else return 93 .
+  guard eq (pow 2.0 10.0) 1024.0 else return 94 .
   return 1 .
 end
 
 rem 반올림은 **half-away-from-zero** 다(C 의 round). 이름이 방향을 말하지 못하므로 시험이 말한다.
 fn t_round input z f64 . output u64 . do
-  guard eq (round 2.5) 3.0 . else return 90 .
-  guard eq (round 0.4) 0.0 . else return 89 .
+  guard eq (round 2.5) 3.0 else return 90 .
+  guard eq (round 0.4) 0.0 else return 89 .
   return 1 .
 end
 
 rem ★ 항등식 — 어느 각에서도 성립한다. 이것이 "정확한 비트" 보다 강한 주장이다:
 rem   두 함수가 **서로 맞아야** 하고, 한쪽만 틀려도 깨진다.
 fn t_ident input z f64 . output u64 . do
-  let s be f64 sin 1.0 .
-  let c be f64 cos 1.0 .
-  let d be f64 sub (add (mul s s) (mul c c)) 1.0 .
-  guard lt (abs d) 0.000000001 . else return 90 .
+  let s f64 sin 1.0 .
+  let c f64 cos 1.0 .
+  let d f64 sub (add (mul s s) (mul c c)) 1.0 .
+  guard lt (abs d) 0.000000001 else return 90 .
   return 1 .
 end
 
 rem ★ exp 와 log 는 서로의 역이다 — 왕복이 오라클이다.
 fn t_roundtrip input z f64 . output u64 . do
-  let x be f64 3.75 .
-  let d be f64 sub (log (exp x)) x .
-  guard lt (abs d) 0.000000001 . else return 90 .
+  let x f64 3.75 .
+  let d f64 sub (log (exp x)) x .
+  guard lt (abs d) 0.000000001 else return 90 .
   return 1 .
 end

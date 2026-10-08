@@ -9,7 +9,7 @@ receive it can touch files (#chref("capabilities"), #chref("io-files")). The bui
 and know only integer handles. Holding a raw fd lets a forgotten close go unnoticed, so this module wraps it in *a value that cannot be forgotten* (`owned handle`).
 
 ```lowent
-let n be result u64 files.file_error files.slurp fs "data.txt" buf .
+let n result u64 files.file_error files.slurp fs "data.txt" buf .
 ```
 
 #dtable(
@@ -51,27 +51,27 @@ is separate from the answer).
 
 ```lowent
 proc main input fs cap file_system . input al cap allocator . input a cap args . output u8 . effects alloc io . do
-  let dpath be option slice u8 arg a 0 .
-  guard is_some dpath . else return 64 .
-  let g be option mut slice u8 alloc_bytes al capacity 256 .
-  guard is_some g . else return 70 .
-  let buf be mut slice u8 some_value g .
-  let di be result files.dir_handle files.file_error files.open_dir fs (some_value dpath) .
-  guard is_ok di . else return 71 .
-  var dh be owned files.dir_handle ok_value di .
-  var total be u64 0 .
-  var going be bool true .
-  while going . do
-    let n be result (option u64) files.file_error files.read_dir fs dh buf .
-    if eq (is_ok n) false . do set going false . end
-    if is_ok n . do
-      let nvo be option u64 ok_value n .
-      if eq (is_some nvo) false . do set going false . end
-      if is_some nvo . do set total (add total (some_value nvo)) . end
+  let dpath option slice u8 arg a 0 .
+  guard is_some dpath else return 64 .
+  let g option mut slice u8 alloc_bytes al capacity 256 .
+  guard is_some g else return 70 .
+  let buf mut slice u8 some_value g .
+  let di result files.dir_handle files.file_error files.open_dir fs (some_value dpath) .
+  guard is_ok di else return 71 .
+  var dh owned files.dir_handle ok_value di .
+  var total u64 0 .
+  var going bool true .
+  while going do
+    let n result (option u64) files.file_error files.read_dir fs dh buf .
+    if eq (is_ok n) false do set going false . end
+    if is_ok n do
+      let nvo option u64 ok_value n .
+      if eq (is_some nvo) false do set going false . end
+      if is_some nvo do set total (add total (some_value nvo)) . end
     end
   end
-  let c be result void files.file_error files.close_dir fs dh .
-  guard is_ok c . else return 72 .
+  let c result void files.file_error files.close_dir fs dh .
+  guard is_ok c else return 72 .
   return (narrow u8 total) .
 end
 ```

@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  What happened to `let x be u8 300 .` in #chref("surface")? How does C handle the same thing?
+  What happened to `let x u8 300 .` in #chref("surface")? How does C handle the same thing?
 ][
   It was rejected with `E-TYPE-WIDTH`, because 300 is outside the `u8` range 0 … 255. C silently truncates it to 44, so the value in
   the source and the actual value differ. This chapter looks at how the same principle applies when a *computed result*, not a
@@ -104,7 +104,7 @@ The "as a value" family turns overflow into an event the program can handle.
 
 #demo("examples/ch04/chk.low")
 
-`chk_add a 1` gives an `option u8`. On overflow it is `none`, and `guard is_some r . else …` handles that case first. You will meet this
+`chk_add a 1` gives an `option u8`. On overflow it is `none`, and `guard is_some r else …` handles that case first. You will meet this
 shape again in #chref("option-result").
 
 #misconception[Checking for overflow makes code slow][
@@ -137,7 +137,7 @@ place, with its result carried in the type*.
 #demo("examples/ch04/cond_bad.low")
 
 C's `if (n)` reads as "n is not zero", but the reader has to guess from context whether it means "n exists" or "n is true". Lowent makes
-you write what you are asking --- `if gt n 0 .`. Conversely, a `bool` cannot be added like a number. `and`, `or` and `not` take only
+you write what you are asking --- `if gt n 0`. Conversely, a `bool` cannot be added like a number. `and`, `or` and `not` take only
 booleans, and `and` and `or` skip the right-hand side when the left-hand side already decides the answer.
 
 == Bitwise operations
@@ -220,7 +220,7 @@ Lowent stops --- and the place it stops is the place to fix.
   #demo("examples/ch04/mistake_usub.low")
 
   `u64` has nothing below 0. `3 − 5` is not −2 but an *overflow*, so it stops (C would give 18446744073709551614). If you want the size of
-  the difference, subtract the smaller from the larger --- `if ge a b . do return sub a b . end return sub b a .` --- and if a negative
+  the difference, subtract the smaller from the larger --- `if ge a b do return sub a b . end return sub b a .` --- and if a negative
   result is meaningful, compute in `i64` from the start.
 ]
 

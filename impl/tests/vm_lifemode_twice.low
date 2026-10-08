@@ -20,11 +20,11 @@ end
 
 rem ✗ 여기가 거절돼야 한다 — E-OWN-MOVED.
 fn twice output u64 . do
-  var t be owned vm_lifemode_twice.ticket vm_lifemode_twice.issue 7 .
-  let a be result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
-  let b be result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
-  guard is_ok a . else return 0 .
-  guard is_ok b . else return 0 .
+  var t owned vm_lifemode_twice.ticket vm_lifemode_twice.issue 7 .
+  let a result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
+  let b result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
+  guard is_ok a else return 0 .
+  guard is_ok b else return 0 .
   return add (ok_value a) (ok_value b) .
 end
 

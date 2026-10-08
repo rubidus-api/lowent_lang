@@ -27,7 +27,7 @@
 
 #organizer[
   할당기가 권한·정책·상태 셋으로 이루어진다는 것을 알게 된다. 빌린 바이트를 잘라 주는 범프 할당기를 쓰고, 메모리
-  부족이 값이라는 것을 확인한다. 할당기를 타입 매개변수로 받고 `using` 으로 건네는 법, 뿌리에서 곧장 깎는 기본 할당기와
+  부족이 값이라는 것을 확인한다. 할당기를 타입 매개변수로 받고(`using` 절) 부르는 쪽이 `use` 로 건네는 법, 뿌리에서 곧장 깎는 기본 할당기와
   권한 칸의 규칙을 익힌다. 운영체제 없는 기계의 고정 창 크기를 링커가 정하는 방식과, 비트를 그대로 둔 채 읽는 법만 바꾸는
   `bit_cast` 도 보게 된다.
 ]
@@ -96,7 +96,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 - `input comptime a type .` 은 할당기의 타입이다. 번역할 때 구체 타입으로 정해진다(#chref("generics")).
 #idx("using")
 - `using al a .` 은 그 타입의 할당기 값을 `al` 이라는 이름으로 받는다. `using` 은 입력이 아니다. 부르는 쪽은 인자
-  자리에 적지 않고, 바인딩에 `let n using b be u64 two_from .` 으로 적는다.
+  자리에 적지 않고, 바인딩에 `let n use b u64 two_from .` 으로 적는다.
 - `requires allocs.byte_allocator a .` 는 `a` 가 트레이트를 갖추어야 한다는 조건이다(#chref("traits")).
 - `effects state via a .` 는 할당기의 `reserve` 가 내는 효과가 곧 이 op 의 효과라는 뜻이다.
 
@@ -104,7 +104,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 조각이 8 에서 시작해 13 을 쓴다. 번역할 때 타입이 확정되므로 가상 함수 표도 간접 호출도 없다. 갈아 끼우기의 실행
 비용이 0 이다.
 
-출처를 적지 않으면 기본값이 정해진다. 바인딩의 `using`, 그 op 의 `using` 이름, 그리고 타입이 맞는 입력·바인딩이
+출처를 적지 않으면 기본값이 정해진다. 바인딩의 `use`·`keep`, 그 op 의 `using` 이름, 그리고 타입이 맞는 입력·바인딩이
 *하나뿐*이면 그것을 쓴다. 둘 이상이면 짐작하지 않고 `E-ALLOC-AMBIGUOUS` 로 적으라고 한다. 기본값은 op 경계를 넘지
 않는다. 부른 쪽의 할당기가 저절로 흘러드는 일이 없으니, *전역 할당기는 없다.*
 
@@ -113,7 +113,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
   id: "fixed-using-lattice",
   caption: [할당기 출처를 정하는 차례 --- 위에서 처음 맞는 것],
   [*차례*], [*출처*], [*왜 이 자리인가*],
-  [1], [바인딩에 적은 `using <이름>`], [적은 것이 언제나 이긴다],
+  [1], [바인딩에 적은 `use <이름>` · `keep <이름>`], [적은 것이 언제나 이긴다],
   [2], [이 op 의 `using` 절 이름 가운데 타입이 맞는 *유일한* 것], [op 이 스스로 받겠다고 한 할당기],
   [3], [이 op 의 입력·바인딩 가운데 타입이 맞는 *유일한* 것], [눈에 보이는 값이 하나뿐이면 헷갈릴 일이 없다],
   [없음], [`E-ALLOC-NOSOURCE`], [전역 할당기로 메우지 않는다],
@@ -130,7 +130,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 입력으로 받거나, 이 자리에서 만들거나, `using` 절을 적으라고 한다. 호출이 거절되었으니 `caller` 의 `state` 도 실제로 쓰이지 않아
 `W-EFFECT-OVER` 가 함께 붙는다. 첫 오류를 고치면 사라진다.
 
-거꾸로, 할당기를 쓰지 않는 호출에 `using` 을 적어도 거절된다.
+거꾸로, 할당기를 쓰지 않는 호출의 바인딩에 `use` 를 적어도 거절된다.
 
 #demo("examples/ch20/usingunused.low")
 
@@ -188,23 +188,23 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 == 나열을 할당기에서 받는다
 
 값을 바로 적은 나열(#chref("slices"))은 보통 op 의 틀 안에 놓인다. 크기가 크거나 op 보다 오래 살아야 하면 바이트를
-고른 할당기에서 받는다. 바인딩에 `using <할당기>` 를 적고, 바이트를 못 받았을 때 할 일을 `else` 로 적는다.
+고른 할당기에서 받는다. 바인딩의 이름 바로 뒤에 `use <할당기>` 를 적고, 바이트를 못 받았을 때 할 일을 `else` 로 적는다.
 
 #demo("examples/ch20/litalloc.low")
 
-- `var xs using bb be mut slice u64 lit array u64 4 … . else return 0 .` 는 `bb` 에게 32 바이트를 청하고, 받으면 그 바이트를
+- `var xs use bb mut slice u64 lit array u64 4 … . else return 0 .` 는 `bb` 에게 32 바이트를 청하고, 받으면 그 바이트를
   나열처럼 채워 `xs` 에 묶는다. 할당기가 바이트를 못 주면 `else` 로 간다 --- `else` 는 반드시 벗어나야 한다(바인딩 `else` 는
   #chref("option-result") 에서 다룬다).
-- 실패를 `option` 째 들고 가려면 타입을 통째로 적는다: `let big using bb be option mut slice u64 lit … .` --- 그러면 나중에
+- 실패를 `option` 째 들고 가려면 타입을 통째로 적는다: `let big use bb option mut slice u64 lit … .` --- 그러면 나중에
   `guard` 나 `match` 로 본다.
 - 채우는 법은 틀 안 나열과 같다. 원소를 늘어놓거나, `do … end` 로 칸을 골라 채운다.
 - 받은 바이트는 할당기의 것이다. 그래서 수명도 할당기를 따른다. 힙에서 받았으면 블록 밖으로 내보내도 되고, 틀 안 배열을
   뒤받침으로 쓰는 범프 할당기에서 받았으면 그 배열의 블록을 벗어날 수 없다(`E-LIT-ESCAPE`).
-- `else` 도 `option` 도 없이 `using` 을 적거나, `lit vec` 에 `using` 을 적으면 `E-LIT-USING` 이다.
+- `else` 도 `option` 도 없이 `use` 를 적거나, `lit vec` 에 `use` 를 적으면 `E-LIT-USING` 이다.
 
 === 블록을 나가면 돌려준다
 
-할당기가 조각을 낱낱이 돌려받을 수 있으면(`freeing_allocator`), `using` 으로 받은 바이트는 그 이름을 선언한 블록을 나갈 때
+할당기가 조각을 낱낱이 돌려받을 수 있으면(`freeing_allocator`), `use` 로 받은 바이트는 그 이름을 선언한 블록을 나갈 때
 저절로 돌려준다. 블록 끝에 닿을 때도, `return` 으로 나갈 때도, 루프에서 `break`·`continue` 할 때도 같다.
 
 #demo("examples/ch20/autorel.low")
@@ -219,7 +219,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
   `t` 를 쓰면 `E-OWN-MOVED` 이고, 안쪽 블록(`if` 의 한쪽 따위)에서 `drop` 하면 `E-OWN-JOIN` 이다.
 - `panic` 으로 멈출 때는 돌려주지 않는다.
 
-바이트를 블록보다 오래 쓰려면 `using` 뒤에 `keep` 을 붙인다. 그러면 블록 끝에 돌려주지 않고, 바이트는 할당기가 사는 동안
+바이트를 블록보다 오래 쓰려면 `use` 대신 `keep <할당기>` 라고 적는다. 그러면 블록 끝에 돌려주지 않고, 바이트는 할당기가 사는 동안
 산다. 도움 op 이 만든 버퍼를 부른 쪽에 돌려줄 수 있다.
 
 #demo("examples/ch20/keepbuf.low")
@@ -227,7 +227,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 - `make_buf` 가 돌려준 `s` 는 `bb` 의 바이트다. `bb` 가 살아 있는 동안 쓸 수 있고, 그보다 오래 살면 번역이 거절한다.
 - 돌려주는 일은 저자가 한다: `send bb release …` 로 조각을 돌려주거나, 할당기가 끝날 때 한꺼번에 돌아간다. `used` 가 16 이라
   답은 1608 이다.
-- `keep` 은 `using <할당기>` 바로 뒤, 나열이나 구조체 리터럴을 받는 바인딩에만 쓴다. 다른 자리면 `E-USING-FORM` 이다.
+- `keep <할당기>` 는 `use <할당기>` 와 같은 자리(이름 바로 뒤)에 서고, 나열이나 구조체 리터럴을 받는 바인딩에만 쓴다. 다른 자리면 `E-USING-FORM` 이다.
 
 === 구조체도 할당기에
 
@@ -235,7 +235,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 
 #demo("examples/ch20/structalloc.low")
 
-- `var q using bb be pt lit pt do … end . else return 0 .` 는 `bb` 에게 `size_of pt`(여기서 16) 바이트를 청한다. 받으면 그 바이트를
+- `var q use bb pt lit pt do … end else return 0 .` 는 `bb` 에게 `size_of pt`(여기서 16) 바이트를 청한다. 받으면 그 바이트를
   0 으로 채우고, `view` 처럼 구조체의 배치를 얹은 뒤, 적은 칸을 쓴다. `q` 가 사는 동안 `used` 가 16 이므로 답은 1607 이다.
 - 칸을 읽고 쓰는 법은 보통 구조체와 같다(`field q y` · `set (field q y) …`). 블록을 나가면 앞 절처럼 돌려준다.
 - 바이트 배치가 있는 구조체만 받는다 --- 모든 칸이 크기 있는 수여야 한다. 슬라이스 · `owned` · 배열 칸이 있는 구조체는
@@ -319,7 +319,7 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   (2026-09-16 까지는 통과했다). 할당기마다 따로 된 바이트를 건다. 한 버퍼를 나눠야 하면 `subslice` 로 겹치지 않는 두 조각을 만든다.
 ]
 
-#antipattern[맞는 할당기가 둘인데 `using` 을 적지 않는다][
+#antipattern[맞는 할당기가 둘인데 `use` 로 고르지 않는다][
   #demo("examples/ch20/mistake_ambiguous.low")
 
   `s` 와 `g` 가 모두 `bump_bytes` 라서 도구가 짐작할 수 없다. 짐작하면 작은 버퍼에서 깎아야 할 것을 큰 버퍼에서 깎거나 그 반대가 되고,
@@ -354,17 +354,17 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   id: "fixed-memory-glance",
   caption: [할당기의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`var a be allocs.bump_bytes spawn actor allocs.bump_bytes .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
+  [`var a allocs.bump_bytes spawn actor allocs.bump_bytes .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
   [`send a init buf`], [잘라 줄 바이트를 건다], [할당기는 몰래 메모리를 만들지 않는다],
   [`send a reserve 3` · `send a used`], [조각을 청한다(`option`) · 쓴 양], [부족은 트랩이 아니라 값],
   [`input comptime a type .`], [할당기의 타입(정책)을 번역 때 받는다], [갈아 끼우기의 실행 비용이 0],
   [`using al a .`], [그 타입의 할당기 값을 받는다 --- 입력이 아니다], [부르는 자리의 인자에 끼지 않는다],
-  [`let n using g be u64 two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
+  [`let n use g u64 two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
   [`effects state via a .` · `requires allocs.byte_allocator a .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],
-  [출처 없음 · 쓰이지 않는 `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
-  [`var xs using bb be mut slice u64 lit array u64 4 … . else …`], [나열을 고른 할당기에서 받는다], [못 받으면 `else` --- 반드시 벗어난다],
+  [출처 없음 · 쓰이지 않는 `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
+  [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [나열을 고른 할당기에서 받는다], [못 받으면 `else` --- 반드시 벗어난다],
   [`bit_cast u32 x`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
 )
 

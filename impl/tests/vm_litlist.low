@@ -4,7 +4,7 @@ rem   VM 과 네이티브가 같은 답을 내는지 잰다 — 부호 있는 �
 module vm_litlist .
 
 fn sum32 input xs slice u32 . output u64 . do
-  var s be u64 0 .
+  var s u64 0 .
   for x xs do
     set s (add s (widen u64 x)) .
   end
@@ -12,13 +12,13 @@ fn sum32 input xs slice u32 . output u64 . do
 end
 
 fn pick16 input xs slice i16 . input i u64 . output i64 . do
-  guard lt i (len xs) . else return 0 .
+  guard lt i (len xs) else return 0 .
   return widen i64 (idx xs i) .
 end
 
 rem 배열 리터럴을 `let` 에 묶는다 — 선언 타입은 리터럴이 보인다(`lit` 뒤의 타입).
 export fn lit_sum output u64 . do
-  let t be lit array u32 4 10 20 30 40 . .
+  let t lit array u32 4 10 20 30 40 . .
   return sum32 t .
 end
 
@@ -34,21 +34,21 @@ end
 
 rem 끝의 `_` = 나머지 칸은 0.
 export fn lit_fill input i u64 . output u64 . do
-  let z be lit array u8 6 1 2 _ . .
-  guard lt i (len z) . else return 99 .
+  let z lit array u8 6 1 2 _ . .
+  guard lt i (len z) else return 99 .
   return widen u64 (idx z i) .
 end
 
 rem 64 비트 끝값.
 export fn lit_u64max input i u64 . output u64 . do
-  let t be lit array u64 2 18446744073709551615 3 . .
-  guard lt i (len t) . else return 0 .
+  let t lit array u64 2 18446744073709551615 3 . .
+  guard lt i (len t) else return 0 .
   return idx t i .
 end
 
 rem 부동 원소.
 export fn lit_f64 input i u64 . output f64 . do
-  let t be lit array f64 3 1.5 2.25 -3.0 . .
-  guard lt i (len t) . else return 0.0 .
+  let t lit array f64 3 1.5 2.25 -3.0 . .
+  guard lt i (len t) else return 0.0 .
   return idx t i .
 end

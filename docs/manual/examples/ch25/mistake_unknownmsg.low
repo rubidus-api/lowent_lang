@@ -14,7 +14,7 @@ end
 
 proc use_counter output u64 . effects state .
 do
-  var c be counter spawn actor counter .
+  var c counter spawn actor counter .
   rem ko: ✘ `counter` 는 `dec` 메시지를 다루지 않는다 /// en: ✘ `counter` does not handle a `dec` message
   return send c dec .
 end

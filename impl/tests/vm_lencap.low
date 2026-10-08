@@ -13,7 +13,7 @@ rem 길이 ≤ 4 를 믿고 u8 넘침 검사가 지워지는 자리 — 그 믿�
 fn scale input s slice u8 . output u8 .
   requires le (len s) 4 .
 do
-  let n be u8 cast u8 (len s) .
+  let n u8 cast u8 (len s) .
   return mul n 60 .
 end
 
@@ -21,6 +21,6 @@ rem 같은 뜻을 반대로 적은 것도 같이 문다.
 fn scale_mirror input s slice u8 . output u8 .
   requires ge 4 (len s) .
 do
-  let n be u8 cast u8 (len s) .
+  let n u8 cast u8 (len s) .
   return mul n 60 .
 end

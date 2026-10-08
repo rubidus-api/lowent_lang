@@ -20,8 +20,8 @@ fn tv_at
   input b bytes .
   output u64 .
 do
-  let o be reg try_view reg (subslice b off (len b)) .
-  guard is_some o . else return 0 .
-  let h be reg some_value o .
+  let o reg try_view reg (subslice b off (len b)) .
+  guard is_some o else return 0 .
+  let h reg some_value o .
   return expr (field h ctrl) + 1000 .
 end

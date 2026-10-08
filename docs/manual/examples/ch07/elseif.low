@@ -5,10 +5,10 @@ rem run: grade 95
 
 fn grade input n u64 . output u64 .
 do
-  if lt n 50 . do
+  if lt n 50 do
     return 0 .
   rem ko: 갈래를 이을 때는 앞 블록을 `end` 로 닫고 `else if` 를 붙인다 /// en: to chain branches, close the previous block with `end` and add `else if`
-  end else if lt n 80 . do
+  end else if lt n 80 do
     return 1 .
   end else do
     return 2 .

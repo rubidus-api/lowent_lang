@@ -7,10 +7,10 @@ rem run: odd_sum [1,2,3,4,5]
 fn count_big input n u32 . output u32 .
   requires le n 100 .
 do
-  var total be u32 0 .
-  var i be u32 0 .
-  while lt i n . do
-    if gt i 5 . do
+  var total u32 0 .
+  var i u32 0 .
+  while lt i n do
+    if gt i 5 do
       set total (add total 1) .
     end
     set i (add i 1) .
@@ -20,9 +20,9 @@ end
 
 fn first_zero input xs slice u8 . output u64 .
 do
-  var i be u64 0 .
-  while lt i (len xs) . do
-    if eq (idx xs i) 0 . do
+  var i u64 0 .
+  while lt i (len xs) do
+    if eq (idx xs i) 0 do
       break .
     end
     set i (add i 1) .
@@ -32,9 +32,9 @@ end
 
 fn odd_sum input xs slice u8 . output u64 .
 do
-  var acc be u64 0 .
+  var acc u64 0 .
   for x xs do
-    if eq (mod x 2) 0 . do
+    if eq (mod x 2) 0 do
       continue .
     end
     set acc (add acc (widen u64 x)) .

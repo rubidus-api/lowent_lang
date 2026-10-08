@@ -670,11 +670,11 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">fn</span></strong> drift <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">ref</span></strong> x .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> seen <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">ref</span></strong> x .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> seen <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">1</span>) .
     <strong><span class="tok-k">set</span></strong> seen (deref r) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -697,10 +697,10 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> seen <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> seen <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> seen (bump (<strong><span class="tok-k">mut_ref</span></strong> x)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -727,12 +727,12 @@ drift(5) = 6
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-    <strong><span class="tok-k">while</span></strong> lt k i . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">let</span></strong> seen <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> x) .
+  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">var</span></strong> k <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">while</span></strong> lt k i <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">let</span></strong> seen <strong><span class="tok-t">u64</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> x) .
       <strong><span class="tok-k">set</span></strong> k (add k <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .

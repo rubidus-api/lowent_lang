@@ -54,7 +54,7 @@ The standard library has no privileges. It gets the same rules as code the autho
 
 ```lowent
 export fn starts_with input s str . input prefix str . output bool . do
-  guard le (len prefix) (len s) . else return false .
+  guard le (len prefix) (len s) else return false .
   return eq_str (subslice s 0 (len prefix)) prefix .
 end
 ```

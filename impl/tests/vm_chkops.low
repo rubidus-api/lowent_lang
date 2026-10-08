@@ -5,14 +5,14 @@ rem   u8 에서: 10×20 = 200 · 20×20 = 넘침(none) · 5−9 = 넘침(none) �
 module vm_chkops .
 
 export fn mul_ok input a u8 . input b u8 . output u64 . do
-  let r be option u8 chk_mul a b .
-  if is_none r . do return 999 . end
+  let r option u8 chk_mul a b .
+  if is_none r do return 999 . end
   return widen u64 (some_value r) .
 end
 
 export fn sub_ok input a u8 . input b u8 . output u64 . do
-  let r be option u8 chk_sub a b .
-  if is_none r . do return 999 . end
+  let r option u8 chk_sub a b .
+  if is_none r do return 999 . end
   return widen u64 (some_value r) .
 end
 

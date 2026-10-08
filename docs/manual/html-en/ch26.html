@@ -676,12 +676,12 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">proc</span></strong> drive <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
-    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">6</span> .
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
-    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
+    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
+    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">6</span> .
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
+    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> r (add a b) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> r .
@@ -689,12 +689,12 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">test</span></strong> join_any_order <strong><span class="tok-k">schedule</span></strong> explore_interleavings .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
-    <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">6</span> .
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
-    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
+    <strong><span class="tok-k">var</span></strong> h1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
+    <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">6</span> .
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
+    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> r (add a b) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">expect</span></strong> eq r <span class="tok-n">61</span> .
@@ -721,7 +721,7 @@ flow h2       │       spawn ├─── square 6 runs ───────�
 
 <strong><span class="tok-k">proc</span></strong> loose <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> h <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">await</span></strong> h .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check scope.low
@@ -753,14 +753,14 @@ scope.low:12:0 E-SPAWN-SCOPE: spawning a task (`spawn &lt;op>`) is only allowed 
 
 <strong><span class="tok-k">proc</span></strong> consumer <strong><span class="tok-k">input</span></strong> ch <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> s sink . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> concurrent .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> chrecv ch .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> chrecv ch .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> s put (min x <span class="tok-n">1000</span>) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> drive <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> sink <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> sink .
+  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> s sink <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> sink .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">spawn</span></strong> consumer ch s .
     <strong><span class="tok-k">spawn</span></strong> consumer ch s .
@@ -772,8 +772,8 @@ scope.low:12:0 E-SPAWN-SCOPE: spawning a task (`spawn &lt;op>`) is only allowed 
 
 <strong><span class="tok-k">test</span></strong> every_interleaving <strong><span class="tok-k">schedule</span></strong> explore_interleavings .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> sink <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> sink .
+  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> s sink <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> sink .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">spawn</span></strong> consumer ch s .
     <strong><span class="tok-k">spawn</span></strong> consumer ch s .
@@ -806,7 +806,7 @@ pure_chan.low:5:1 E-EFFECT: this op performs `concurrent`, `wait`, which its `ef
 
 <strong><span class="tok-k">proc</span></strong> lonely <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> concurrent .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">spawn</span></strong> consumer ch .
   <strong><span class="tok-k">end</span></strong>
@@ -824,7 +824,7 @@ alone.low:12:0 E-CONC-ALONE: this `task_group` spawns exactly ONE task, and that
 
 <strong><span class="tok-k">proc</span></strong> stuck <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">spawn</span></strong> consumer ch .
     <strong><span class="tok-k">spawn</span></strong> consumer ch .
@@ -838,10 +838,10 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
 
 <strong><span class="tok-k">proc</span></strong> worker <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">1000</span> .
-    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">1000</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n k .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -867,8 +867,8 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
 
 <strong><span class="tok-k">proc</span></strong> user <strong><span class="tok-k">input</span></strong> a allocs.bump_bytes . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">4</span> .
-  <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">4</span> .
+  <strong><span class="tok-k">if</span></strong> is_some g <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -876,8 +876,8 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
 
 <strong><span class="tok-k">proc</span></strong> share <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
-  <strong><span class="tok-k">let</span></strong> z <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
+  <strong><span class="tok-k">var</span></strong> b allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> z <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ handing an allocator whose cursor is not moved atomically to two tasks</span></em>
     <strong><span class="tok-k">spawn</span></strong> user b .
@@ -895,10 +895,10 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
 <em><span class="tok-c">rem the task receives bytes, not an allocator; the allocator is created inside the task</span></em>
 <strong><span class="tok-k">proc</span></strong> user <strong><span class="tok-k">input</span></strong> piece <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
-  <strong><span class="tok-k">let</span></strong> room <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init piece .
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">4</span> .
-  <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> room <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init piece .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">4</span> .
+  <strong><span class="tok-k">if</span></strong> is_some g <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -907,12 +907,12 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
 <strong><span class="tok-k">proc</span></strong> share <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem split the buffer into two pieces that do not overlap and give one to each task</span></em>
-  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">0</span> <span class="tok-n">8</span>) .
-    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">8</span> <span class="tok-n">16</span>) .
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
-    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
+    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">0</span> <span class="tok-n">8</span>) .
+    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">8</span> <span class="tok-n">16</span>) .
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
+    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> r (add a b) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> r .
@@ -935,13 +935,13 @@ lock.low:5:0 W-NOT-YET: this type NAME is accepted but carries NO MEANING yet: l
 
 <strong><span class="tok-k">proc</span></strong> relay <strong><span class="tok-k">input</span></strong> inbox <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> outbox <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> concurrent .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> chrecv inbox .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> chrecv inbox .
   <strong><span class="tok-k">return</span></strong> chsend outbox x .
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">proc</span></strong> crossed <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ both start by receiving --- no flow puts in the first value</span></em>
     <strong><span class="tok-k">spawn</span></strong> relay a b .
@@ -961,7 +961,7 @@ lock.low:5:0 W-NOT-YET: this type NAME is accepted but carries NO MEANING yet: l
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">proc</span></strong> race <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ the same variable is lent for writing to two flows</span></em>
     <strong><span class="tok-k">spawn</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
@@ -982,12 +982,12 @@ lock.low:5:0 W-NOT-YET: this type NAME is accepted but carries NO MEANING yet: l
 
 <strong><span class="tok-k">proc</span></strong> count2 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
-    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
-    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
+    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
+    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
+    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> n (add a b) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
@@ -1006,7 +1006,7 @@ count2() = 2
     <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
   <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem keeps only the first value received --- the answer depends on arrival order</span></em>
-    <strong><span class="tok-k">if</span></strong> eq v <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> v n . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq v <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> v n . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">return</span></strong> v .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">fn</span></strong> get <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -1020,15 +1020,15 @@ count2() = 2
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">proc</span></strong> consumer <strong><span class="tok-k">input</span></strong> ch <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> s first_seen . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> concurrent .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> chrecv ch .
-  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> chrecv ch .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> s put (min x <span class="tok-n">1000</span>) .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> chrecv ch .
+  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-t">u64</span></strong> chrecv ch .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> s put (min x <span class="tok-n">1000</span>) .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> s put (min y <span class="tok-n">1000</span>) .
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">proc</span></strong> drive <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> first_seen <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> first_seen .
+  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> s first_seen <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> first_seen .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">spawn</span></strong> consumer ch s .
     <strong><span class="tok-k">spawn</span></strong> producer ch <span class="tok-n">10</span> .
@@ -1038,8 +1038,8 @@ count2() = 2
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">test</span></strong> first_is_ten <strong><span class="tok-k">schedule</span></strong> explore_interleavings .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> first_seen <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> first_seen .
+  <strong><span class="tok-k">var</span></strong> ch <strong><span class="tok-t">u64</span></strong> channel <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">var</span></strong> s first_seen <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> first_seen .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">spawn</span></strong> consumer ch s .
     <strong><span class="tok-k">spawn</span></strong> producer ch <span class="tok-n">10</span> .
@@ -1053,7 +1053,7 @@ $ lowentc --test order_dependent.low
   [FAIL] first_is_ten
          E-SCHED-NONDET: this test PASSES under some message-delivery orders and FAILS under others (diverged at interleaving 1 of 8 explored) — its result DEPENDS on the order the scheduler delivers messages. A deterministic actor program must give the SAME result under EVERY interleaving (RFC-0009 D6 — the actor analogue of a data race). Fix the handler so order does not matter, or serialize with `drain`
 == tests: 1 run, 0 passed, 1 FAILED ==
-</code></pre></div></div><p><code>first_seen</code> keeps only the first value it receives. Running <code>drive</code> gives 32; another order would give 10. One run gives the answer for one order only. The <code>schedule explore_interleavings</code> test runs all eight orders and reports with <code>E-SCHED-NONDET</code> that the answer depends on the order. A deterministic program must give the same answer in every order. Write handlers whose result does not depend on order, like the <code>sink</code> of <code>chan.low</code>, which adds up every value it receives.</p></div></div><h3 id="s26-7">26.7 This chapter’s syntax at a glance<a class="plink" href="#s26-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>task_group do … end</code></td><td>bind flows to a block — all finish at its end</td><td>forgotten flows vanish by grammar</td></tr><tr><td><code>var h1 be u64 spawn square 5 .</code></td><td>start a flow and receive its handle</td><td>outside a group: <code>E-SPAWN-SCOPE</code></td></tr><tr><td><code>await h1</code></td><td>wait for that flow’s result</td><td>other flows progress meanwhile</td></tr><tr><td><code>task_group cancel_on_error do … end</code></td><td>cancel siblings on the first error</td><td>cancellation does not roll back</td></tr><tr><td><code>var ch be u64 channel u64 .</code></td><td>a bounded, ordered container</td><td>no unbounded channels yet — <code>E-CHAN-UNBOUNDED</code></td></tr><tr><td><code>chsend ch n</code> · <code>chrecv ch</code></td><td>put · take — blocks when full or empty</td><td><code>concurrent</code> effect — completion depends on others</td></tr><tr><td>a lone wait · receives with no sender</td><td>rejected at translation (<code>E-CONC-ALONE</code> · <code>E-CONC-DEADLOCK</code>)</td><td>deadlocks visible from the source</td></tr><tr><td><code>test … schedule explore_interleavings . do … end</code></td><td>run every possible order and compare answers</td><td>tests find bugs of rare orders</td></tr><tr><td><code>alloc</code> or <code>heap</code> in a task op’s effects</td><td><code>E-ALLOC-TASK</code></td><td>a root’s rewind relies on order — a lock cannot protect it</td></tr><tr><td>a non-atomic allocator as a <code>spawn</code> argument</td><td><code>E-ALLOC-SHARED</code></td><td>hand over byte pieces and create the allocator inside the task</td></tr><tr><td><code>lock t</code> · <code>rwlock t</code> · <code>shared_read t</code></td><td><code>E-LOCK-NOTYET</code></td><td>the name is in the canon — what is not built is not accepted</td></tr></table></div><p class="float-caption">Table 26.1 — Task and channel syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Inside a <code>task_group</code>, <code>spawn &lt;op></code> makes a flow and gives a handle, and <code>await</code> receives the result. A flow cannot outlive the block that made it, so <code>spawn</code> outside a binding place is rejected. <code>channel</code>, <code>chsend</code> and <code>chrecv</code> form an ordered container of fixed size, and channel operations are the <code>concurrent</code> effect. Waiting without a partner and deadlocks with no sender are rejected at translation, and <code>schedule explore_interleavings</code> tests run every ordering and compare answers.</div></div>
+</code></pre></div></div><p><code>first_seen</code> keeps only the first value it receives. Running <code>drive</code> gives 32; another order would give 10. One run gives the answer for one order only. The <code>schedule explore_interleavings</code> test runs all eight orders and reports with <code>E-SCHED-NONDET</code> that the answer depends on the order. A deterministic program must give the same answer in every order. Write handlers whose result does not depend on order, like the <code>sink</code> of <code>chan.low</code>, which adds up every value it receives.</p></div></div><h3 id="s26-7">26.7 This chapter’s syntax at a glance<a class="plink" href="#s26-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>task_group do … end</code></td><td>bind flows to a block — all finish at its end</td><td>forgotten flows vanish by grammar</td></tr><tr><td><code>var h1 u64 spawn square 5 .</code></td><td>start a flow and receive its handle</td><td>outside a group: <code>E-SPAWN-SCOPE</code></td></tr><tr><td><code>await h1</code></td><td>wait for that flow’s result</td><td>other flows progress meanwhile</td></tr><tr><td><code>task_group cancel_on_error do … end</code></td><td>cancel siblings on the first error</td><td>cancellation does not roll back</td></tr><tr><td><code>var ch u64 channel u64 .</code></td><td>a bounded, ordered container</td><td>no unbounded channels yet — <code>E-CHAN-UNBOUNDED</code></td></tr><tr><td><code>chsend ch n</code> · <code>chrecv ch</code></td><td>put · take — blocks when full or empty</td><td><code>concurrent</code> effect — completion depends on others</td></tr><tr><td>a lone wait · receives with no sender</td><td>rejected at translation (<code>E-CONC-ALONE</code> · <code>E-CONC-DEADLOCK</code>)</td><td>deadlocks visible from the source</td></tr><tr><td><code>test … schedule explore_interleavings . do … end</code></td><td>run every possible order and compare answers</td><td>tests find bugs of rare orders</td></tr><tr><td><code>alloc</code> or <code>heap</code> in a task op’s effects</td><td><code>E-ALLOC-TASK</code></td><td>a root’s rewind relies on order — a lock cannot protect it</td></tr><tr><td>a non-atomic allocator as a <code>spawn</code> argument</td><td><code>E-ALLOC-SHARED</code></td><td>hand over byte pieces and create the allocator inside the task</td></tr><tr><td><code>lock t</code> · <code>rwlock t</code> · <code>shared_read t</code></td><td><code>E-LOCK-NOTYET</code></td><td>the name is in the canon — what is not built is not accepted</td></tr></table></div><p class="float-caption">Table 26.1 — Task and channel syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Inside a <code>task_group</code>, <code>spawn &lt;op></code> makes a flow and gives a handle, and <code>await</code> receives the result. A flow cannot outlive the block that made it, so <code>spawn</code> outside a binding place is rejected. <code>channel</code>, <code>chsend</code> and <code>chrecv</code> form an ordered container of fixed size, and channel operations are the <code>concurrent</code> effect. Waiting without a partner and deadlocks with no sender are rejected at translation, and <code>schedule explore_interleavings</code> tests run every ordering and compare answers.</div></div>
 <div class="nav"><a href="ch25.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch27.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

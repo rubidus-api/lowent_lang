@@ -5,11 +5,11 @@ use allocs .
 
 proc main input h cap heap . output u8 . effects heap state .
 do
-  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes .
   rem ko: 고정 창(기본 64 KiB)보다 큰 100000 바이트도 힙은 준다 /// en: the heap hands out 100000 bytes, more than the fixed window (64 KiB by default) holds
-  let a be option mut slice u8 send hb reserve 100000 .
-  guard is_some a . else return 1 .
+  let a option mut slice u8 send hb reserve 100000 .
+  guard is_some a else return 1 .
   rem ko: 쓴 양이 100000 이 아니면 2, 맞으면 0 을 돌려준다 /// en: return 2 if the amount used is not 100000, and 0 if it is
-  guard eq (send hb used) 100000 . else return 2 .
+  guard eq (send hb used) 100000 else return 2 .
   return 0 .
 end

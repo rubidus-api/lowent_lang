@@ -9,12 +9,12 @@ A *byte* array that fetches more room by itself when short. Used when you do not
 type arguments are written --- a short name is interface too.
 
 ```lowent
-let g using bump be option growvec.gvec growvec.open 16 .
-guard is_some g . else return 1 .
-var v be growvec.gvec some_value g .
-guard growvec.add_all v "hello" . else return 2 .
-guard growvec.add_all v " world" . else return 3 .
-let s be slice u8 growvec.view_of v .
+let g use bump option growvec.gvec growvec.open 16 .
+guard is_some g else return 1 .
+var v growvec.gvec some_value g .
+guard growvec.add_all v "hello" else return 2 .
+guard growvec.add_all v " world" else return 3 .
+let s slice u8 growvec.view_of v .
 ```
 
 *Why it exists.* Gathering bytes with #modref("vecs")[`vecs`] means passing allocator, buffer and length on every call, and *rebinding* to the grown buffer is the call site's
@@ -39,8 +39,8 @@ defect structurally. There is still no magic --- the allocator was still handed 
 
 ```lowent
 proc put_record input v mut growvec.gvec . input rec slice u8 . output bool . effects state . do
-  guard growvec.reserve_more v (add (len rec) 1) . else return false .
-  guard growvec.add_all v rec . else return false .
+  guard growvec.reserve_more v (add (len rec) 1) else return false .
+  guard growvec.add_all v rec else return false .
   return growvec.add_byte v 10 .
 end
 ```
@@ -56,7 +56,7 @@ end
 ]
 
 #antipattern[Copying a `gvec` and pushing to both][
-  After `var b be growvec.gvec a .`, pushing to `a` and `b` separately makes both see the same buffer while each `n` is unaware of the other's change --- they overwrite each
+  After `var b growvec.gvec a .`, pushing to `a` and `b` separately makes both see the same buffer while each `n` is unaware of the other's change --- they overwrite each
   other. Handle one vector by one name, and pass it as `mut gvec`.
 ]
 

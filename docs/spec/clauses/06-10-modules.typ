@@ -128,7 +128,7 @@ fn f output u32 . do return 1 . end
 fn f output u32 . do return 2 . end", "E-NAME-DUP")
     #rejected("종류가 달라도 한 이름 공간이다 — 모듈 let 과 fn", "module ex_dup_kinds .
 
-let limit be u64 3 .
+let limit u64 3 .
 fn limit output u64 . do return 1 . end", "E-NAME-DUP")
   ]
   #sub("6.10.4", "선언의 차례")[
@@ -196,7 +196,7 @@ end", "E-LOCAL-CAPTURE")
 
 export fn f input n u64 . output u64 .
 do
-  if gt n 1 . do
+  if gt n 1 do
     fn g input k u64 . output u64 .
     do
       return k .

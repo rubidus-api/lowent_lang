@@ -123,7 +123,7 @@ Putting bytes obtained from a region into a name outside the region is rejected.
 
 #demo("examples/ch18/escape.low")
 
-When the region closes at `end`, those bytes are rewound, and `keep` outside would point at nothing. The places that carry things out are `return`, assignment
+When the region closes at `end`, those bytes are rewound, and `held` outside would point at nothing. The places that carry things out are `return`, assignment
 to a name outside the region, and assignment to a field or element of such a name. Values that do not carry the region's bytes --- integers and booleans such
 as `len buf` or a sum --- may be carried out. That is what `fill_count` did when it returned a sum.
 
@@ -178,9 +178,9 @@ what went in last first", as when walking a tree or graph with a loop.
 
 #demo("examples/ch18/stack.low")
 
-- `let work be stack u64 stack_new temp capacity 8 .` makes the stack. It takes space from the region, so it is `effects alloc`.
+- `let work stack u64 stack_new temp capacity 8 .` makes the stack. It takes space from the region, so it is `effects alloc`.
 - `push work x .` puts a value in.
-- `while pop work into d . do … end` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
+- `while pop work into d do … end` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
   loop ends --- the grammar has no way to stop by popping an empty stack.
 
 Putting in the digits 7 and 4 of 47 brings them out as 4 and 7, giving 74. The stack is reclaimed together with the region, so there is no
@@ -194,7 +194,7 @@ code to give it back.
   16 bytes are granted, but a million bytes do not fit in the fixed window. `alloc_bytes` then gives `none`, and `some_value`, used
   without asking, stops with `E-VM-NONE`. It is the same mistake as not comparing C's `malloc` result with `NULL`, except that Lowent
   stops at the point of taking the value out instead of using space that does not exist. Ask first, as the examples in this chapter do
-  with `guard is_some g . else return 0 .`. Running out of memory is a *value* to handle as well.
+  with `guard is_some g else return 0 .`. Running out of memory is a *value* to handle as well.
 ]
 
 #antipattern[Returning a buffer obtained from a region][

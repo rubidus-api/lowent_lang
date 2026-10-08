@@ -50,7 +50,9 @@ static const low_kwent_t LOW_KW_TABLE[] = {
     //   ⇒ 액터 안에서도 `fn`/`proc` 을 쓴다. **1비트가 돌아온다.**
     {"actor", LOW_KW_ACTOR}, {"state", LOW_KW_STATE},
     {"spawn", LOW_KW_SPAWN}, {"send", LOW_KW_SEND},   // `to` 는 이미 어휘에 있다
-    {"be", LOW_KW_BE},
+    // ★ RFC-0141 (2026-10-09) — `be` 를 **없앴다**(`let n u64 5 .`). 아래 `low_kw_lookup` 이 옛 철자를 알아보게만 한다.
+    {"repeat", LOW_KW_REPEAT}, {"range", LOW_KW_RANGE}, {"cycle", LOW_KW_CYCLE},
+    {"next", LOW_KW_NEXT}, {"step", LOW_KW_STEP}, {"keep", LOW_KW_KEEP},
     {"def", LOW_KW_DEF},   // ★ RFC-0132 §5.2 — 타입을 짓는 낱말 하나(옮김 창)
 };
 
@@ -60,6 +62,8 @@ low_kw_t low_kw_lookup(proven_u8str_view_t word) {
             return LOW_KW_TABLE[i].kw;
         }
     }
+    // 없앤 낱말 `be` — 예약어가 아니지만 파서가 옛 철자(`let n be u64 5 .`)를 알아보고 고칠 줄을 말하도록 표식만 붙인다(E-LET-BE).
+    if (proven_u8str_view_eq(word, proven_u8str_view_from_cstr("be"))) return LOW_KW_BE;
     return LOW_KW_NONE;
 }
 

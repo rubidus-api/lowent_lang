@@ -10,8 +10,8 @@ fn mkp output pairr . do return lit pairr do a 5 . b 6 . end . end
 fn stale_view
   output u64 .
 do
-  var s be slice u8 encode pairr mkp .
-  let h be pairr view pairr s .
+  var s slice u8 encode pairr mkp .
+  let h pairr view pairr s .
   set s encode pairr mkp .
   return field h a .
 end

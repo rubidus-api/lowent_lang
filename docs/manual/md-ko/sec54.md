@@ -10,14 +10,14 @@
 | `E-ACTOR-FIELD` | 액터의 상태 칸을 바깥에서 읽는다 | 25장 |
 | `E-ACTOR-STATE-REF` | 액터 상태 칸에 빌림을 둔다 | 25장 |
 | `E-ACTOR-UNINIT` | 갓 띄운 액터의 슬라이스 칸을 세우기 전에 읽는다 | 20장 |
-| `E-ALLOC-AMBIGUOUS` | 맞는 할당기가 둘 이상인데 `using` 으로 고르지 않았다 | 20장 |
+| `E-ALLOC-AMBIGUOUS` | 맞는 할당기가 둘 이상인데 `use` 로 고르지 않았다 | 20장 |
 | `E-ALLOC-NESTED` | 같은 뿌리의 안쪽 영역이 열린 채 바깥 출처로 깎았다 | 18장 |
 | `E-ALLOC-NOCAP` | `alloc` 을 적었는데 할당 권한을 받지 않았다 | 16장 |
 | `E-ALLOC-NOSOURCE` | 할당기를 쓰는 호출인데 이 op 안에 맞는 할당기가 하나도 없다 | 20장 |
 | `E-ALLOC-OUTLIVES` | 영역의 바이트를 영역 밖에서 태어난 액터에게 건넨다 | 18장 |
 | `E-ALLOC-SHARED` | 원자적이지 않은 할당기를 태스크에 건넨다 | 26장 |
 | `E-ALLOC-TASK` | 뿌리에서 깎는 op 을 태스크로 띄운다 | 26장 |
-| `E-ALLOC-USING-UNUSED` | 할당기를 쓰지 않는 호출에 `using` 을 적었다 | 20장, 34장 |
+| `E-ALLOC-USING-UNUSED` | 할당기를 쓰지 않는 호출에 `use` 를 적었다 | 20장, 34장 |
 | `E-ASM-TARGET-UNKNOWN` | `asm` 절의 기계 이름이 대상 목록에 없다 | 30장 |
 | `E-ASM-UNBOUND` | 어셈블리 템플릿이 선언하지 않은 피연산자를 부른다 | 30장 |
 | `E-ATOMIC-NOCAP` | `atomic` 을 적었는데 `cap atomic` 을 받지 않았다 | 27장 |
@@ -80,7 +80,7 @@
 | `E-ISR-CALLED` | 인터럽트 처리기를 코드에서 불렀다 | 30장 |
 | `E-ISR-EFFECT` | 인터럽트 처리기가 `effects device` 를 적지 않았다 | 30장 |
 | `E-ISR-PARAMS` | 인터럽트 처리기가 매개변수를 받는다 | 30장 |
-| `E-LET-NOVALUE` | `be` 뒤에 값이 없다 | 6장 |
+| `E-LET-NOVALUE` | 타입 뒤에 값이 없다 | 6장 |
 | `E-LOCK-NOTYET` | 흐름끼리 나누는 자물쇠 타입은 아직 짓지 않았다 | 26장 |
 | `E-MATCH-INEXHAUSTIVE` | `match` 가 모든 경우를 덮지 않는다 | 7장, 10장 |
 | `E-MATCH-REDUNDANT` | `match` 의 갈래가 영영 돌지 않는다(`_` 뒤의 갈래·겹친 범위) | 11장 |

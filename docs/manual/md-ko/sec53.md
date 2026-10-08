@@ -8,8 +8,8 @@
 |---|---|---|
 | 선언 | `module` `use` `def` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | 21·13장 |
 | op | `fn` `proc` `export` `unsafe` `extern` `satisfies` | 5장 |
-| 지역 | `let` `var` `set` `be` | 6장 |
-| 흐름 | `if` `else` `while` `for` `guard` `match` `case` `return` `break` `continue` `try` | 7장 |
+| 지역 | `let` `var` `set` `keep` | 6장 |
+| 흐름 | `if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `return` `break` `continue` `try` | 7장 |
 | 식과 값 | `expr` `lit` `true` `false` `none` | 8장 |
 | 동시성 | `spawn` `send` | 25장 |
 | 소유 | `drop` | 19장 |
@@ -24,7 +24,7 @@
 
 | **없앤 것** | **대신** |
 |---|---|
-| `loop` | `while true .` |
+| `loop` | `while true` |
 | `give` | `return` |
 | `unit` | `void` |
 | `calcop` · `procop` | `fn` · `proc` |

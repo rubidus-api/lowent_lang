@@ -101,9 +101,9 @@ fn sorted                         rem  fn = pure (never write `effects`). proc =
   output bool .
   requires ge (len xs) 1 .        rem  contract flows into the caller
 do
-  var i u64 be 1 .
-  while lt i (len xs) . do
-    guard le (idx xs (sub i 1)) (idx xs i) . else return false .
+  var i u64 1 .
+  while lt i (len xs) do
+    guard le (idx xs (sub i 1)) (idx xs i) else return false .
     set i (add i 1) .
   end
   return true .

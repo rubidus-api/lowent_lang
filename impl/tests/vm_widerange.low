@@ -23,7 +23,7 @@ end
 rem ✔ ② 넓힌 값에 더한다 — [0,255] + 1 은 u64 에서 넘칠 수 없다
 export fn w2 input v u8 . output u64 .
 do
-  let w be u64 widen u64 v .
+  let w u64 widen u64 v .
   return add w 1 .
 end
 
@@ -38,7 +38,7 @@ export fn w4 input v i8 . output u8 .
 do
   rem ★ `cast` 다 — `widen` 은 2026-09-01 부터 부호를 넘지 못한다(E-WIDEN-SIGN).
   rem   이 op 의 값은 그대로다: **증명되면 안 된다**(음수가 뒤바뀌므로).
-  let w be u64 cast u64 v .
+  let w u64 cast u64 v .
   return narrow u8 w .
 end
 

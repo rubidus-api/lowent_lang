@@ -42,7 +42,7 @@
   바깥에서 직접 건드릴 수 없다.
 - 상태를 고치는 `inc` 는 `proc` 이고 `effects state` 다. 읽기만 하는 `get` 은 `fn` 이다. 액터 안의 op 도
   #chref("ops")의 갈래 규칙을 그대로 따른다.
-- `var c be counter spawn actor counter .` 가 액터 하나를 만든다. 상태는 0 으로 시작한다.
+- `var c counter spawn actor counter .` 가 액터 하나를 만든다. 상태는 0 으로 시작한다.
 - `send c inc` 는 `c` 에게 `inc` 메시지를 보내고 처리가 끝날 때까지 기다려 결과를 받는다.
 
 액터는 메시지를 *한 번에 하나씩* 처리한다. 그래서 그 안의 상태는 동시에 건드려지지 않는다. 자물쇠를 손으로 걸 필요가
@@ -119,7 +119,7 @@
 
 #demo("examples/ch25/restart.low")
 
-- `recov` 는 첫 `step` 에서 `bad` 를 1 로 만들고, 둘째 `step` 에서 `panic` 한다. `failure restart max 3 .` 이 있으므로
+- `recov` 는 첫 `tick` 에서 `bad` 를 1 로 만들고, 둘째 `tick` 에서 `panic` 한다. `failure restart max 3 .` 이 있으므로
   상태를 처음(`bad = 0`)으로 되돌리고 메시지를 다시 처리해 42 를 낸다.
 - `doomed` 는 언제나 터진다. 두 번 다시 세운 뒤에도 터지면 그 실패는 *위로 넘어가* 프로그램이 멈춘다. 조용히 멈추어
   있는 액터를 남기지 않는다.
@@ -270,7 +270,7 @@
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`actor counter do state do value u64 . end … end`], [상태를 가둔 실행 단위를 선언], [상태를 동시에 만질 길이 처음부터 없다],
   [`proc inc … effects state .` · `fn get …`], [상태를 고치는 메시지 · 읽기만 하는 메시지], [`fn`·`proc` 규칙이 그대로 --- 고치면서 `fn` 이면 `E-EFFECT-PURITY`],
-  [`var c be counter spawn actor counter .`], [액터 하나를 만든다(상태는 0 에서 시작)], [`spawn` 마다 상태가 따로],
+  [`var c counter spawn actor counter .`], [액터 하나를 만든다(상태는 0 에서 시작)], [`spawn` 마다 상태가 따로],
   [`send c inc` · `send acct deposit a`], [보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다], [액터가 먼저 --- 메시지는 액터를 첫 매개변수로 받는 op],
   [`spawn send c inc .` · `drain c .` · `schedule .`], [우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기], [배달 시점을 사람이 고른다 --- 결정성],
   [`mailbox bounded 2 .` · `try spawn send`], [우편함 크기 · 넘침을 값으로 받기], [넘치면 멈추거나 `result`],

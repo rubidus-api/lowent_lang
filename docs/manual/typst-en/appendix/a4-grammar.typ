@@ -49,14 +49,19 @@ test <name> [schedule explore_interleavings [limit <n>] .] do expect <cond> . �
 == Statements
 
 ```text
-let <name> [<type>] [using <source>] be <expr> .
-var <name> [<type>] be <expr> .
-set <place> <expr> .                      (place = name · field … · index …)
-if <cond> . do … end [else do … end] .
-while <cond> . do … end
-for <name> <slice> do … end
-guard <cond> . else <leaving statement> .
-match <value> . do case <pattern> [when <cond>] . do … end … end
+let <name> [use <allocator> | keep <allocator>] <type> <expr> [else <leaving statement>] .
+var <name> <type> <expr> .
+let <name> <type> <expr> else do … end           (no full stop when the fail clause is a block)
+let <name> <type> <expr> else error <name> do … end
+set <place> <expr> .                      (place = name · field … · idx …)
+if <cond> do … end [else do … end]
+while <cond> do … end
+for <name> [mut] <slice> [if <cond>] do … end
+repeat <name> <type> <count> [if <cond>] do … end
+range <name> <type> <from> <to> [step <stride>] [if <cond>] do … end
+cycle <name> <type> <first> while <cond> next <next value> [if <cond>] do … end
+guard <cond> else <leaving statement> .
+match <value> do case <pattern> [when <cond>] do … end … end
 return [<expr>] .    break .    continue .    panic "<text>" .
 drop <name> .
 region <name> stack|frame|arena|static|heap|mmap|disk|device do … end

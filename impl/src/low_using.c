@@ -330,7 +330,7 @@ static bool us_fill_call(us_ctx_t *c, low_cst_t *call, const us_callee_t *u, con
                 low_pdiag(&c->p, "E-ALLOC-AMBIGUOUS",
                           "this call draws from an allocator, and MORE THAN ONE value of a fitting type is in scope — "
                           "the tool will not guess which one you meant. Say it on the binding: "
-                          "`let <name> <type> using <allocator> be …` (RFC-0112 D8(4))", call->kids[0]->tok.line, call->kids[0]->tok.col);
+                          "`let <name> use <allocator> <type> …` (RFC-0112 D8(4))", call->kids[0]->tok.line, call->kids[0]->tok.col);
                 return false;
             }
             if (!hits) {
@@ -415,7 +415,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
         if (us < be) {
             if (us + 2 != be || !us_atom(nd->kids[us + 1])) {
                 low_pdiag(&c->p, "E-USING-FORM",
-                          "a binding names its allocator right before `be`: `let <name> <type> using <allocator> be …` "
+                          "a binding names its allocator right after its name: `let <name> use <allocator> <type> …` "
                           "(RFC-0112 D8(3))", nd->kids[us]->tok.line, nd->kids[us]->tok.col);
             } else explicit_src = nd->kids[us + 1];
             // `using <출처>` 두 낱말을 폼에서 뺀다 — 뒤의 모든 소비자는 오늘의 바인딩을 본다
@@ -466,7 +466,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
             }
             if (keep && !(is_list || sl))
                 low_pdiag(&c->p, "E-USING-FORM", "`keep` says bytes built from an allocator are not given back at the end of the "
-                          "block — it goes on a list or struct literal: `var t using al keep be mut slice u8 lit … . else … .` "
+                          "block — it goes on a list or struct literal: `var t keep al mut slice u8 lit … . else … .` "
                           "(RFC-0135 D12)", explicit_src ? explicit_src->tok.line : nd->kids[0]->tok.line,
                           explicit_src ? explicit_src->tok.col : nd->kids[0]->tok.col);
             if (explicit_src && (is_list || sl)) {
@@ -476,11 +476,11 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                     low_pdiag(&c->p, "E-LIT-USING", is_list && us_eq(lg->kids[1]->tok.lex, "vec")
                               ? "a SIMD value lives in lanes, not in bytes an allocator hands out — `using` does not apply to `lit vec`"
                               : sl ? "a struct built in an allocator's bytes can fail to get them — say what happens then: "
-                                "`var q using al be pt lit pt do … end . else return … .`, or keep the option: "
-                                "`let qo using al be option pt lit pt do … end .` (RFC-0135 §4.2)"
+                                "`var q use al pt lit pt do … end else return … .`, or keep the option: "
+                                "`let qo use al option pt lit pt do … end .` (RFC-0135 §4.2)"
                               : "a list built from an allocator can fail to get its bytes — say what happens then: "
-                                "`var buf using al be mut slice u8 lit array u8 16 _ . . else return … .`, or keep the option: "
-                                "`let bo using al be option mut slice u8 lit array u8 16 _ . .` (RFC-0135 §4.2)",
+                                "`var buf use al mut slice u8 lit array u8 16 _ . else return … .`, or keep the option: "
+                                "`let bo use al option mut slice u8 lit array u8 16 _ . .` (RFC-0135 §4.2)",
                               explicit_src->tok.line, explicit_src->tok.col);
                 } else {
                     bool row = is_list && !us_atom(lg->kids[2]);      // §13.10 — 줄의 나열: 원소 크기 = m × |T|
@@ -727,7 +727,7 @@ void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_all
 //   타입의 끝은 **타입 문법의 인자 수**로 안다: 내장 낱말은 정해진 수, 괄호 묶음은 하나, 사용자 타입은
 //   선언이 받는 `input comptime <x> type` 의 수(제네릭·브랜드). 그래서 이 패스는 **링크 뒤·묶기 전**, 모든
 //   파일의 타입 선언이 보일 때 돈다(`--flat` 과 나무 모드 둘 다).
-//   strict 이면 옛 모양은 `E-LET-OLDFORM`, 타입 없는 묶기는 `E-LET-NOTYPE`(X-0074 — `let x be 300 .` 이 폭 검사를
+//   strict 이면 타입 없는 묶기는 `E-LET-NOTYPE`(X-0074 — `let x be 300 .` 이 폭 검사를
 //   빠져나갔다).
 // ═══════════════════════════════════════════════════════════════════════════════════════════
 typedef struct { proven_u8str_view_t name, mod; proven_size_t arity; const low_cst_t *form; } dt_tname_t;
@@ -920,18 +920,13 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
         bool lit_head = h1 && us_atom(h1) && h1->tok.kw == LOW_KW_LIT;
         if (!lit_head && dt_type_end_h(c, f->kids, b + 1, f->nkids, true) == (proven_size_t)-1)
             dt_diag(c, f->kids[1], "E-LET-NOTYPE",
-                      "a binding must show its type in front of the value — `let x be u64 300 .`. `--fmt` cannot "
+                      "a binding must show its type in front of the value — `let x u64 300 .`. `--fmt` cannot "
                       "guess it: write the type, then format again");
         return;
     }
-    if (!typeless_mid) {
-        if (c->strict)
-            dt_diag(c, f->kids[1], "E-LET-OLDFORM",
-                      "a binding writes its type AFTER `be`, in front of the value: `var i be u64 0 .` "
-                      "(RFC-0132). The type between the name and `be` is the old form — move it: "
-                      "`var <name> be <type> <value> .`");
-        return;
-    }
+    // ★ RFC-0141 — 이름과 `be` 사이에 타입이 선 꼴(`var x u64 be 0 .`)은 이제 원문에서 올 수 없다(`be` 는 어휘에서 빠졌고 안쪽 나무의 `be` 는
+    //   이름 바로 뒤에 처리기가 넣는다). 단위 시험의 안쪽 모양 원문만 이 길로 온다 — 이미 안쪽 모양이므로 그대로 둔다.
+    if (!typeless_mid) return;
     // ★ RFC-0132 L1 — `be lit <타입> …` 는 `lit` 가 타입을 보인다(§13.1): 따로 달지 않는다. 안쪽 모양에는 그 타입을
     //   선언 타입으로 복사해 넣는다(`let p be lit pt do … end .` → [let, p, pt, be, lit, pt do … end]).
     //   `lit pt do … end` 는 파서가 `pt do … end` 를 머리 붙은 블록 폼 하나로 이미 묶어 둔다.
@@ -952,8 +947,8 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
             (us_eq(lf->kids[1]->tok.lex, "array") || us_eq(lf->kids[1]->tok.lex, "slice"))) {
             // ★ RFC-0135 D6 — 이 철자(`be option lit …`)는 §4.1·§4.2 의 모양과 같은 일을 하는 둘째 철자라 없앴다.
             dt_diag(c, f->kids[1], "E-LIT-USING", "`be option lit …` is gone (RFC-0135 D6) — take the list from the allocator with "
-                    "`var buf using al be mut slice T lit array T N … . else return … .`, or keep the option with its whole type: "
-                    "`let bo using al be option mut slice T lit array T N … .`");
+                    "`var buf use al mut slice T lit array T N … . else return … .`, or keep the option with its whole type: "
+                    "`let bo use al option mut slice T lit array T N … .`");
             return;
         }
     }
@@ -1036,8 +1031,8 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
     if (te == (proven_size_t)-1) {
         if (c->strict)
             dt_diag(c, f->kids[1], "E-LET-NOTYPE",
-                      "a binding must show its type in front of the value — `let x be u64 300 .`, not "
-                      "`let x be 300 .`. The type is never guessed (RFC-0132): a guessed type let a bare "
+                      "a binding must show its type in front of the value — `let x u64 300 .`, not "
+                      "`let x 300 .`. The type is never guessed (RFC-0132): a guessed type let a bare "
                       "literal skip the width check (X-0074)");
         return;
     }
@@ -1107,7 +1102,7 @@ static low_cst_t *dt_mk(dt_ctx_t *c, low_cst_kind_t kind, const low_cst_t *model
     for (proven_size_t i = 0; i < n; i++) kk[i] = k[i];
     (void)low_refit(&c->p, f, kk, n);
     f->synth = true;
-    if (kind == LOW_CST_FORM) f->closer = LOW_TOK_DOT;
+    if (kind == LOW_CST_FORM) { f->closer = LOW_TOK_DOT; f->regen = true; }
     return f;
 }
 // k[ts..te) 타입의 0 을 out[*n..] 에 덧붙인다. 0 이 없으면 false.
@@ -1282,6 +1277,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
                     for (proven_size_t q = 0; q < st->nkids; q++) rk[q] = st->kids[q];
                     rk[st->nkids] = dt_deep(c, place, st->kids[0]->tok.line);
                     (void)low_refit(&c->p, st, rk, st->nkids + 1);
+                    st->regen = true;
                 }
                 nk[m++] = st; done = changed = true;
             } else if (!dt_ar_has_call(c, st)) {
@@ -1302,7 +1298,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
                     if (st->kids[q]->kind != LOW_CST_BLOCK && dt_ar_has_call(c, st->kids[q])) own = true;
                 if (own)
                     dt_diag(c, st->kids[0], "E-RESULT-PLACE", "an op that returns an array is called where there is no place for the result — "
-                            "bind it to a name first: `var x be array <type> <length> f … .` (or `return f … .` inside an op that returns the "
+                            "bind it to a name first: `var x array <type> <length> f … .` (or `return f … .` inside an op that returns the "
                             "same array). The caller gives the place; an expression has none (RFC-0132 P4b)");
             }
             nk[m++] = st;
@@ -1603,7 +1599,7 @@ static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
             }
             proven_size_t tend = us ? us : be;
             if (!is_bind || !be || tend <= 2 || be + 1 >= f->nkids - 1) {
-                if (is_bind) low_pdiag(&c->p, "E-BIND-ELSE", "a binding with `else` needs a type and a value: `let n be u64 find xs 3 . else return 0 .` "
+                if (is_bind) low_pdiag(&c->p, "E-BIND-ELSE", "a binding with `else` needs a type and a value: `let n u64 find xs 3 else return 0 .` "
                                        "(RFC-0135 §4.2)", f->kids[0]->tok.line, f->kids[0]->tok.col);
                 nk[m++] = f; continue;
             }
@@ -1612,6 +1608,29 @@ static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
             char *tn = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, nm->tok.lex.size + 2, 1).value.ptr;
             if (!tn) { nk[m++] = f; continue; }
             tn[0] = '$'; memcpy(tn + 1, nm->tok.lex.ptr, nm->tok.lex.size); tn[nm->tok.lex.size + 1] = 0;
+            // ★★ RFC-0141 §9 (RFC-0135 D4 의 답) — `else error <이름> do … end`: 오류 값을 이름에 묶어 블록 안에서 본다.
+            //   블록의 첫 문장으로 `let <이름> be <오류 타입> error_value $n .` 을 넣는다 — 타입과 꺼내는 op 은 아래 풀이가 채운다
+            //   (`$errtype` · `$errtake`). 그 뒤는 보통의 `else do … end` 다(벗어나야 한다 · 이름은 블록 안에서만 산다).
+            if (els->nkids == 4 && us_atom(els->kids[1]) && us_eq(els->kids[1]->tok.lex, "error") && us_atom(els->kids[2]) &&
+                els->kids[3]->kind == LOW_CST_BLOCK) {
+                const low_cst_t *en = els->kids[2];
+                low_cst_t *lk[6] = { be_word(c, en, "let", LOW_KW_LET), be_copy(c, en), be_word(c, en, "$errtype", LOW_KW_NONE),
+                                     be_word(c, en, "be", LOW_KW_BE), be_word(c, en, "$errtake", LOW_KW_NONE), be_word(c, en, tn, LOW_KW_NONE) };
+                low_cst_t *lf = be_form(c, els, lk, 6);
+                low_cst_t *ob = els->kids[3];
+                low_cst_t *nb = be_copy(c, ob);
+                low_cst_t **bk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (ob->nkids + 1), alignof(low_cst_t *)).value.ptr;
+                if (lf && nb && bk) {
+                    lf->synth = false; lf->closer = LOW_TOK_DOT;
+                    lf->tok = lk[0]->tok;
+                    bk[0] = lf;
+                    for (proven_size_t q = 0; q < ob->nkids; q++) bk[q + 1] = ob->kids[q];
+                    (void)low_refit(&c->p, nb, bk, ob->nkids + 1);
+                    low_cst_t *ek[2] = { els->kids[0], nb };
+                    low_cst_t *ne = be_form(c, els, ek, 2);
+                    if (ne) els = ne;
+                }
+            }
             // 할당기 나열이면 임시의 타입은 곧바로 option(using 패스가 `option` 을 보고 할당 · 채우기로 바꾼다)
             bool using_lit = false, using_row = false;
             if (us && be + 2 == f->nkids - 1) {
@@ -1635,7 +1654,7 @@ static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
                     using_lit = using_struct = true;
                     bool ok = tend == 3 && us_atom(f->kids[2]) && proven_u8str_view_eq(f->kids[2]->tok.lex, sv->kids[0]->tok.lex);
                     if (!ok) low_pdiag(&c->p, "E-BIND-ELSE", "a struct built in an allocator's bytes binds as that struct — write "
-                                       "`be <struct> lit <struct> do … end . else …` (RFC-0135 §4.5)",
+                                       "`<struct> lit <struct> do … end else …` (RFC-0135 §4.5)",
                                        f->kids[0]->tok.line, f->kids[0]->tok.col);
                 }
             }
@@ -1647,7 +1666,7 @@ static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
                 bool ok = tend - q == 2 && us_atom(f->kids[q]) && us_eq(f->kids[q]->tok.lex, "slice") && us_atom(f->kids[q + 1]) &&
                           proven_u8str_view_eq(f->kids[q + 1]->tok.lex, v->kids[2]->tok.lex);
                 if (!ok) low_pdiag(&c->p, "E-BIND-ELSE", "a list taken from an allocator is a slice of its element type — write "
-                                   "`be mut slice <element type> lit array <element type> … . else …` (RFC-0135 §4.2)",
+                                   "`mut slice <element type> lit array <element type> … . else …` (RFC-0135 §4.2)",
                                    f->kids[0]->tok.line, f->kids[0]->tok.col);
             }
             low_cst_t *tk[256]; proven_size_t tnk = 0;
@@ -1689,35 +1708,87 @@ static void be_expand_any(us_ctx_t *c, low_cst_t *nd) {
     if (nd->kind == LOW_CST_BLOCK) { be_expand_block(c, nd); return; }
     for (proven_size_t i = 0; i < nd->nkids; i++) be_expand_any(c, nd->kids[i]);
 }
-// ★ RFC-0135 D12 — `let|var <이름> … using <할당기> keep be …` 에서 `keep` 을 빼고 `using` 원자에 표시한다.
-//   `keep` 은 `using <할당기>` 바로 뒤에만 뜻이 있다 — 다른 자리면 말한다.
-static void be_strip_keep(us_ctx_t *c, low_cst_t *nd) {
+// ══ RFC-0141 — 새 표면 → 안쪽 나무 ═══════════════════════════════════════════════════════════════════
+// 파서는 새 표면 그대로 나무를 세운다(`--fmt` 이 그대로 찍는다):
+//     let n u64 v .   let b use al T v …   var t keep al T v …   borrow b <값> do … end
+//     repeat i T n …  range i T a b step k …  cycle i T v while c next e …  for x xs if c …
+// 뒤의 단계(선언 차례 · 검사 · 타입 · 하강 — `be` 의 자리를 보는 곳만 쉰 넷이다)는 옛 안쪽 나무를 안다:
+//     let n be u64 v .   let b using al be T v …(들고 나가면 `using` 원자에 is_keep)   borrow b be <값> do … end
+//     for i count T n …  for i range T a b step k …  for i be T v while c next e …  for x xs where c …
+// 여기서 한 번 되돌린다. 저자는 `be` 를 적을 수 없으므로(어휘에서 빠졌다) 안쪽 나무의 `be` 는 모두 이 단계가 넣은 것이다.
+static void sl_insert(us_ctx_t *c, low_cst_t *nd, proven_size_t at, low_cst_t *a) {
+    low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (nd->nkids + 1), alignof(low_cst_t *)).value.ptr;
+    if (!nk || !a) return;
+    proven_size_t m = 0;
+    for (proven_size_t i = 0; i < nd->nkids; i++) { if (i == at) nk[m++] = a; nk[m++] = nd->kids[i]; }
+    if (at >= nd->nkids) nk[m++] = a;
+    (void)low_refit(&c->p, nd, nk, m);
+}
+static low_cst_t *sl_word(us_ctx_t *c, const low_cst_t *model, const char *w, low_kw_t kw) {
+    low_cst_t *a = us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)w, .size = strlen(w) });
+    if (a) a->tok.kw = kw;
+    return a;
+}
+static void sl_walk(us_ctx_t *c, low_cst_t *nd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
-    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && us_atom(nd->kids[0]) &&
-        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) {
-        proven_size_t be = nd->nkids;
-        for (proven_size_t q = 2; q < nd->nkids; q++) if (us_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
-        for (proven_size_t q = 2; q < be; q++) {
-            if (!us_atom(nd->kids[q]) || !us_eq(nd->kids[q]->tok.lex, "keep")) continue;
-            if (q >= 4 && us_atom(nd->kids[q - 2]) && us_eq(nd->kids[q - 2]->tok.lex, "using") && q + 1 == be)
-                nd->kids[q - 2]->is_keep = true;
-            else
-                low_pdiag(&c->p, "E-USING-FORM", "`keep` goes right after the allocator, before `be`: "
-                          "`var t using al keep be mut slice u8 lit … . else … .` (RFC-0135 D12)",
-                          nd->kids[q]->tok.line, nd->kids[q]->tok.col);
-            for (proven_size_t z = q; z + 1 < nd->nkids; z++) nd->kids[z] = nd->kids[z + 1];   // 뒤의 패스는 `keep` 을 보지 않는다
-            nd->nkids--;
-            break;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) && nd->kids[0]->tok.kind == LOW_TOK_IDENT) {
+        low_kw_t k = nd->kids[0]->tok.kw;
+        if (k == LOW_KW_LET || k == LOW_KW_VAR) {
+            proven_size_t at = 2;
+            if (nd->nkids > 3 && us_atom(nd->kids[2]) && nd->kids[2]->tok.kind == LOW_TOK_IDENT &&
+                (nd->kids[2]->tok.kw == LOW_KW_USE || nd->kids[2]->tok.kw == LOW_KW_KEEP)) {
+                low_cst_t *u = sl_word(c, nd->kids[2], "using", LOW_KW_NONE);
+                if (u) { u->is_keep = nd->kids[2]->tok.kw == LOW_KW_KEEP; nd->kids[2] = u; }
+                at = 4;
+            }
+            bool has_be = false;                       // 안쪽 모양의 원문(단위 시험)은 `be` 를 이미 들고 온다
+            for (proven_size_t i = 2; i < nd->nkids; i++) if (us_atom(nd->kids[i]) && nd->kids[i]->tok.kw == LOW_KW_BE) has_be = true;
+            if (!has_be && at <= nd->nkids) sl_insert(c, nd, at, sl_word(c, nd->kids[at - 1], "be", LOW_KW_BE));
+        } else if (k == LOW_KW_NONE && us_eq(nd->kids[0]->tok.lex, "borrow") && nd->nkids >= 3) {
+            if (!(us_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_BE))
+                sl_insert(c, nd, 2, sl_word(c, nd->kids[1], "be", LOW_KW_BE));
+        } else if (k == LOW_KW_FOR || k == LOW_KW_REPEAT || k == LOW_KW_RANGE || k == LOW_KW_CYCLE) {
+            proven_size_t nwhile = 0, nnext = 0, nstep = 0, nif = 0;
+            bool order = true;
+            for (proven_size_t i = 2; i < nd->nkids; i++) {
+                low_cst_t *a = nd->kids[i];
+                if (!us_atom(a) || a->tok.kind != LOW_TOK_IDENT) continue;
+                if (a->tok.kw == LOW_KW_IF) { nif++; nd->kids[i] = sl_word(c, a, "where", LOW_KW_NONE); }
+                else if (a->tok.kw == LOW_KW_NEXT) { nnext++; if (!nwhile || nif) order = false; nd->kids[i] = sl_word(c, a, "next", LOW_KW_NONE); }
+                else if (a->tok.kw == LOW_KW_STEP) { nstep++; if (nif) order = false; nd->kids[i] = sl_word(c, a, "step", LOW_KW_NONE); }
+                else if (a->tok.kw == LOW_KW_WHILE) { nwhile++; if (nnext || nif) order = false; }
+            }
+            const char *bad = NULL;
+            if (nif > 1) bad = "a loop head takes one filter — `if <condition>` right before `do`";
+            else if (k == LOW_KW_CYCLE && (nwhile != 1 || nnext != 1 || nstep || !order))
+                bad = "`cycle` is `cycle <name> <type> <first> while <condition> next <next value> [if <filter>] do … end` — "
+                      "one `while`, then one `next`";
+            else if (k == LOW_KW_RANGE && (nwhile || nnext || nstep > 1 || !order))
+                bad = "`range` is `range <name> <type> <from> <to> [step <k>] [if <filter>] do … end` (both ends included)";
+            else if (k == LOW_KW_REPEAT && (nwhile || nnext || nstep))
+                bad = "`repeat` is `repeat <name> <type> <n> [if <filter>] do … end` — n times from 0. A stride is `range … step <k>`, "
+                      "your own next value is `cycle … while … next …`";
+            else if (k == LOW_KW_FOR && (nwhile || nnext || nstep))
+                bad = "`for` walks the elements of a source: `for <name> [mut] <source> [if <filter>] do … end`. Counting is `repeat`, "
+                      "an interval is `range`, your own next value is `cycle`";
+            if (bad) low_pdiag(&c->p, "E-FOR-HEAD", bad, nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+            if (k != LOW_KW_FOR) {
+                low_cst_t *h = sl_word(c, nd->kids[0], "for", LOW_KW_FOR);
+                if (h) { nd->kids[0] = h; nd->tok = h->tok; }
+                sl_insert(c, nd, 2, k == LOW_KW_REPEAT ? sl_word(c, nd->kids[1], "count", LOW_KW_NONE)
+                                  : k == LOW_KW_RANGE  ? sl_word(c, nd->kids[1], "range", LOW_KW_NONE)
+                                                       : sl_word(c, nd->kids[1], "be", LOW_KW_BE));
+            }
         }
     }
-    for (proven_size_t i = 0; i < nd->nkids; i++) be_strip_keep(c, nd->kids[i]);
+    for (proven_size_t i = 0; i < nd->nkids; i++) sl_walk(c, nd->kids[i]);
 }
-void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+void low_surface_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
     us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
     if (!c) return;
     memset(c, 0, sizeof *c);
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
-    for (proven_size_t i = 0; i < pr->nforms; i++) be_strip_keep(c, pr->forms[i]);
+    for (proven_size_t i = 0; i < pr->nforms; i++) sl_walk(c, pr->forms[i]);
 }
 // ★★ RFC-0132 §5.2 (옮김 창) — 타입 선언은 `def` 로 시작한다. 파서가 `def` 를 먹고 `has_def` 를 남기므로, 여기서는 표시 없는
 //   `struct`·`enum`·`type`·`newtype` 머리를 옛 모양으로 거절한다(`--fmt` 는 이 패스를 지나지 않고 `def` 를 붙여 찍는다).
@@ -2011,7 +2082,7 @@ static bool br_payload_ok(br_words_t w, int kind, low_cst_t *const *t, proven_si
     for (proven_size_t i = 0; i < e0 - s0; i++) if (!proven_u8str_view_eq(a[s0 + i], b[s1 + i])) return false;
     return true;
 }
-typedef struct { proven_u8str_view_t name; int kind; } br_tmp_t;   // kind 1 = option · 2 = result
+typedef struct { proven_u8str_view_t name; int kind; const low_cst_t *err; } br_tmp_t;   // kind 1 = option · 2 = result(+오류 타입 낱말)
 // ★ 바인딩 else 가 옮겨 적는 오류 타입 낱말은 **부른 op 의 모듈**에서 온다. 그 모듈이 부르는 쪽과 다르면 맨이름으로 옮기면
 //   부르는 쪽이 남의 이름을 맨이름으로 쓰는 꼴이 된다(E-VISIBILITY — 벤치 탐침 crypto_probe 가 드러냈다). 선언한 모듈을 찾아
 //   `<모듈>.<이름>` 으로 적는다 — 사람이 적을 철자와 같다.
@@ -2062,6 +2133,7 @@ qualify:;
     low_cst_t *a = us_atom_like(c, err, (proven_u8str_view_t){ .ptr = (const proven_u8 *)q, .size = decl.size + w.size + 1 });
     return a ? a : err;
 }
+static const low_cst_t *br_last_err = NULL;   // 방금 푼 `$wrapof` 의 오류 타입 낱말(RFC-0141 §9 — `else error <이름>` 이 쓴다)
 static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t *nd, br_tmp_t *t, proven_size_t *nt) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && us_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LET &&
@@ -2076,7 +2148,7 @@ static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t
             proven_size_t tend = 3;
             while (tend < nd->nkids && !(us_atom(nd->kids[tend]) && (nd->kids[tend]->tok.kw == LOW_KW_BE || us_eq(nd->kids[tend]->tok.lex, "using")))) tend++;
             if (kind > 0 && !br_payload_ok(vw, kind, nd->kids + 3, tend - 3))
-                low_pdiag(&c->p, "E-BIND-ELSE", "the value holds a different type than this binding takes — the type written after `be` "
+                low_pdiag(&c->p, "E-BIND-ELSE", "the value holds a different type than this binding takes — the type written in the binding "
                           "is what comes OUT of the option/result, and it must be that content's type (RFC-0135 §4.2)",
                           nd->kids[0]->tok.line, nd->kids[0]->tok.col);
             if (kind <= 0) {
@@ -2084,13 +2156,14 @@ static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t
                     ? "`else` on a binding takes a value that can be empty — an `option` or a `result`. This value is neither: "
                       "bind it plainly, without `else` (RFC-0135 §4.2)"
                     : "cannot tell here whether this value is an `option` or a `result` — `else` works on calls, names and "
-                      "`send`; bind the value with its type first (`let r be option u64 … .`) and `guard` it (RFC-0135 §4.2)",
+                      "`send`; bind the value with its type first (`let r option u64 … .`) and `guard` it (RFC-0135 §4.2)",
                     nd->kids[0]->tok.line, nd->kids[0]->tok.col);
                 kind = 1;
             }
             nd->kids[2]->tok.lex = kind == 2 ? (proven_u8str_view_t){ .ptr = (const proven_u8 *)"result", .size = 6 }
                                              : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"option", .size = 6 };
             if (kind == 2 && err) err = br_qualify(c, err);              // ★ 남의 모듈의 오류 타입이면 `<모듈>.<이름>` 으로 적는다
+            br_last_err = kind == 2 ? err : NULL;
             if (kind == 2 && err) {                                      // 오류 타입 낱말을 T 뒤(using/be 앞)에 끼운다
                 proven_size_t at = 3;
                 while (at < nd->nkids && !(us_atom(nd->kids[at]) && (nd->kids[at]->tok.kw == LOW_KW_BE || us_eq(nd->kids[at]->tok.lex, "using")))) at++;
@@ -2102,7 +2175,21 @@ static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t
                 }
             }
         }
-        if (kind && *nt < 256) { t[*nt].name = nd->kids[1]->tok.lex; t[*nt].kind = kind; (*nt)++; }
+        if (kind && *nt < 256) { t[*nt].name = nd->kids[1]->tok.lex; t[*nt].kind = kind; t[*nt].err = kind == 2 ? br_last_err : NULL; (*nt)++; }
+    }
+    // ★ RFC-0141 §9 — `else error <이름>` 이 넣은 `let <이름> be $errtype $errtake $n .`: 오류 타입을 채운다. option 에는 받을 오류가 없다.
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 6 && us_atom(nd->kids[2]) && us_eq(nd->kids[2]->tok.lex, "$errtype") && us_atom(nd->kids[5])) {
+        const low_cst_t *err = NULL; int kind = 0;
+        for (proven_size_t z = *nt; z-- > 0; ) if (proven_u8str_view_eq(t[z].name, nd->kids[5]->tok.lex)) { kind = t[z].kind; err = t[z].err; break; }
+        if (kind == 2 && err) nd->kids[2] = be_copy(c, err);
+        else {
+            if (kind) low_pdiag(&c->p, "E-BIND-ELSE", "`else error <name>` reads the error of a `result` — this value is an `option`, which has no "
+                                "error to bind. Write `else do … end` or `else <escape> .` (RFC-0141 §9)",
+                                nd->kids[1]->tok.line, nd->kids[1]->tok.col);
+            nd->kids[2]->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)"u64", .size = 3 };
+        }
+        nd->kids[4]->tok.lex = kind == 2 ? (proven_u8str_view_t){ .ptr = (const proven_u8 *)"error_value", .size = 11 }
+                                         : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"some_value", .size = 10 };
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         low_cst_t *k = nd->kids[i];

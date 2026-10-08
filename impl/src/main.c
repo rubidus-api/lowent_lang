@@ -1080,6 +1080,7 @@ static void print_usage(const char *argv0) {
         "    --emit-c             C 를 찍는다 — **네이티브 빌드**(volatile·인라인 asm 이 여기서 진짜가 된다)\n"
         "    --test               `test` 블록을 돌린다\n"
         "    --fmt                정규형으로 찍는다 (괄호 = 렌더링 계층, RFC-0046 R5)\n"
+        "    --migrate            옛 철자(`let n be …` · `if c . do` · `for i count …`)를 새 철자로 옮겨 찍는다 (RFC-0141)\n"
         "    --doc [--doc-out D]  문서를 낸다\n"
         "    --ir | --cst | -t | --ops    IR · 나무 · 토큰 · op 모양을 덤프한다\n"
         "\n  무엇으로 짓나\n"
@@ -1138,6 +1139,7 @@ int main(int argc, char **argv) {
             argv = xargv; argc = xargc;
         }
     }
+    bool want_migrate = false;   // RFC-0141 — 옛 철자를 새 철자로 옮겨 찍는다
     bool want_tokens = false, want_cst = false, want_fmt = false, want_check = false, want_doc = false,
          want_ir = false, want_emitc = false;
     // ★★ **모듈 링크** — S5 코어의 마지막 벽.
@@ -1178,6 +1180,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "-t") == 0) want_tokens = true;
         else if (strcmp(argv[i], "--cst") == 0) want_cst = true;
         else if (strcmp(argv[i], "--fmt") == 0) want_fmt = true;
+        else if (strcmp(argv[i], "--migrate") == 0) want_migrate = true;
         else if (strcmp(argv[i], "--check") == 0) want_check = true;
         else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); }   // RFC-0135 S3
         else if (strcmp(argv[i], "--diag-json") == 0) g_diag_json = true;
@@ -1666,6 +1669,7 @@ int main(int argc, char **argv) {
                 if (dup) continue;
                 proven_byte_t *db = NULL; proven_size_t dl = 0;
                 if (!read_file(dp, &db, &dl)) {
+                    if (want_migrate) continue;   // 옮기기는 이 파일의 글자만 본다 — 의존이 없어도 옮긴다
                     fprintf(stderr, "E-DEP-MISSING: `use %s from \"%s\"` — cannot read that source. "
                             "A dependency the tool cannot see is a dependency nobody checked\n",
                             dnames[d], dp);
@@ -1802,7 +1806,41 @@ int main(int argc, char **argv) {
             //   `check: ok` 를 인쇄했다 — 종료코드는 1 인데 화면은 초록이라 말했다.
             //   게이트가 `grep "check: ok"` 로 읽으므로 그 한 줄은 **거짓말**이 된다.
             if (!lx.ok) ok = false;
+            low_parse_lenient(want_fmt || want_migrate);   // ★ RFC-0141 — 옮기는 도구는 옛 철자를 받아 새 철자로 낸다
             low_parse_result_t p2 = low_parse(nodes0, heap, &lx.tokens);
+            if (want_migrate && fi == 0) {
+                // ★ RFC-0141 `--migrate` — 파서가 적어 둔 «고칠 글자» 만 원문에 적용한다. 나머지 글자 · 줄바꿈 · 주석은 그대로다.
+                proven_size_t nfx = 0;
+                const low_fix_t *fx = low_parse_fixes(&nfx);
+                proven_size_t *ls = (proven_size_t *)malloc(sizeof(proven_size_t) * (s2.size + 2));
+                proven_size_t nl = 0;
+                if (!ls) { fprintf(stderr, "lowentc: out of memory\n"); return 1; }
+                ls[nl++] = 0;
+                for (proven_size_t q = 0; q < s2.size; q++) if (s2.ptr[q] == '\n') ls[nl++] = q + 1;
+                proven_size_t at = 0;
+                for (proven_size_t q = 0; q < nfx; q++) {      // 파서는 왼쪽에서 오른쪽으로 가지만 머리말 바꾸기는 뒤늦게 적힌다 — 자리순으로 고른다
+                    proven_size_t best = nfx; proven_size_t bo = (proven_size_t)-1;
+                    for (proven_size_t z = 0; z < nfx; z++) {
+                        if (!fx[z].line || fx[z].line > nl) continue;
+                        proven_size_t o = ls[fx[z].line - 1] + fx[z].col - 1;
+                        if (o >= at && o < bo) { bo = o; best = z; }
+                    }
+                    if (best == nfx) break;
+                    fwrite(s2.ptr + at, 1, bo - at, stdout);
+                    proven_size_t e = bo + fx[best].del;
+                    if (fx[best].ins && fx[best].ins[0]) fputs(fx[best].ins, stdout);
+                    else {                                      // 지운 낱말 곁의 빈칸 하나도 함께 지운다
+                        if (e < s2.size && s2.ptr[e] == ' ') e++;
+                        else if (bo > at && s2.ptr[bo - 1] == ' ' && (e >= s2.size || s2.ptr[e] == '\n')) fseek(stdout, -1, SEEK_CUR);
+                    }
+                    at = e;
+                    ((low_fix_t *)fx)[best].line = 0;           // 썼다
+                }
+                fwrite(s2.ptr + at, 1, s2.size - at, stdout);
+                free(ls);
+                fprintf(stderr, "migrate: %zu edit(s)\n", (size_t)nfx);
+                return 0;
+            }
             if (fi != 0)   // ★ X-0064 — 위와 같다(가져온 파일의 파스 진단)
                 for (proven_size_t q = 0; q < p2.diags.len; q++) {
                     low_diag_t *dq = &((low_diag_t *)p2.diags.data)[q];
@@ -1832,8 +1870,9 @@ int main(int argc, char **argv) {
         proven_size_t nd0 = pr.diags.len;
         // ★ `--fmt` 는 옛 모양을 새 모양으로 **옮겨** 찍는다(2026-09-28, 코드 검토 — 전엔 그대로 찍고 rc=0 이라
         //   공개 저장소의 사용자가 옮길 길이 없었다). 타입 없는 묶기는 알리고 실패로 끝난다.
-        if (want_fmt) low_decl_migrate(&pr, nodes0, heap);
-        else { low_bind_keep_strip(&pr, nodes0, heap);      // ★ RFC-0135 D12 — `keep` 은 타입 낱말이 아니다
+        if (want_fmt) { low_surface_lower(&pr, nodes0, heap);   // ★ RFC-0141 — 서식기도 안쪽 나무에서 값을 묶는다(찍는 것은 새 표면)
+                        low_decl_migrate(&pr, nodes0, heap); }
+        else { low_surface_lower(&pr, nodes0, heap);        // ★ RFC-0141 — 새 표면(`be` 없음 · `use`/`keep` · 네 되풀이)을 안쪽 나무로
                low_def_require(&pr, nodes0, heap);         // ★ RFC-0132 §5.2 — 타입 선언은 `def` 로 시작한다
                low_call_host_strip(&pr, nodes0, heap);     // ★ RFC-0127 ⓒ — 권한 잎은 `call_builtin` 뒤에서만
                low_local_lift(&pr, nodes0, heap, &nforms0);  // ★ RFC-0121 — 몸 안의 fn/proc 을 `<바깥>::<로컬>` 로 끌어올린다

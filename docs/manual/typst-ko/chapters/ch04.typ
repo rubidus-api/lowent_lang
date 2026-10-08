@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  #chref("surface")에서 `let x be u8 300 .` 은 어떻게 되었는가? C 는 같은 일을 어떻게 처리하는가?
+  #chref("surface")에서 `let x u8 300 .` 은 어떻게 되었는가? C 는 같은 일을 어떻게 처리하는가?
 ][
   `E-TYPE-WIDTH` 로 거절되었다. 300 은 `u8` 의 범위 0 … 255 밖이기 때문이다. C 는 조용히 잘라 44 로
   만든다. 그러면 소스에 적힌 값과 실제 값이 달라진다. 이 장은 리터럴이 아니라 *계산 결과*가 폭을
@@ -107,7 +107,7 @@ C 의 `int` 는 기계마다 크기가 다를 수 있지만, Lowent 의 `u32` �
 
 #demo("examples/ch04/chk.low")
 
-`chk_add a 1` 은 `option u8` 을 준다. 넘치면 `none` 이고, `guard is_some r . else …` 가 그 경우를 먼저
+`chk_add a 1` 은 `option u8` 을 준다. 넘치면 `none` 이고, `guard is_some r else …` 가 그 경우를 먼저
 처리한다. 이 모양은 #chref("option-result")에서 다시 만난다.
 
 #misconception[넘침을 검사하면 느려진다][
@@ -141,7 +141,7 @@ C 의 `int` 는 기계마다 크기가 다를 수 있지만, Lowent 의 `u32` �
 #demo("examples/ch04/cond_bad.low")
 
 C 의 `if (n)` 은 "n 이 0 이 아니다" 로 읽히지만, 읽는 사람은 그것이 "n 이 있다" 인지 "n 이 참이다"
-인지 문맥으로 짐작해야 한다. Lowent 는 묻는 것을 적게 한다 --- `if gt n 0 .` 이다. 반대로 `bool` 을
+인지 문맥으로 짐작해야 한다. Lowent 는 묻는 것을 적게 한다 --- `if gt n 0` 이다. 반대로 `bool` 을
 수처럼 더할 수도 없다. `and`·`or`·`not` 은 참거짓만 받고, `and` 와 `or` 는 앞쪽만으로 답이 정해지면
 뒤쪽을 계산하지 않는다.
 
@@ -224,7 +224,7 @@ VM 은 부동소수 결과를 짧게 보여 준다(`0.333333`). 부동소수를 
   #demo("examples/ch04/mistake_usub.low")
 
   `u64` 는 0 아래가 없다. `3 − 5` 는 −2 가 아니라 *넘침*이고, 그래서 멈춘다(C 라면 18446744073709551614 가 나온다). 차이의 크기가
-  알고 싶으면 큰 쪽에서 작은 쪽을 뺀다 --- `if ge a b . do return sub a b . end return sub b a .` --- 음수가 뜻이 있는 값이면
+  알고 싶으면 큰 쪽에서 작은 쪽을 뺀다 --- `if ge a b do return sub a b . end return sub b a .` --- 음수가 뜻이 있는 값이면
   처음부터 `i64` 로 계산한다.
 ]
 

@@ -10,8 +10,8 @@
 ```lowent
 fn f_sound output u64 . do return 0 . end
 fn f_music output u64 . do return 1 . end
-let s0 be u64 flags.with (flags.empty) (f_sound) .
-let playing be bool flags.has s0 (f_music) .
+let s0 u64 flags.with (flags.empty) (f_sound) .
+let playing bool flags.has s0 (f_music) .
 ```
 
 #aside[이 모듈이 지키는 것][

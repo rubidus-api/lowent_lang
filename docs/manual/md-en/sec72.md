@@ -15,8 +15,8 @@ none
 A hash map storing and finding `u64` values by byte string (string) keys — word counts, symbol tables, configuration maps. It widens [`hashmap`](sec71.md#mod-hashmap) to variable-length byte string keys. Key bytes are **copied** into an arena on insertion, so they are not tied to the original string’s lifetime.
 
 ```lowent
-let stored be bool strmap.put slots keys "apple" 1 .
-let v be option u64 strmap.lookup slots keys "apple" .
+let stored bool strmap.put slots keys "apple" 1 .
+let v option u64 strmap.lookup slots keys "apple" .
 ```
 
 **The caller prepares two buffers.** `slots` must start all zeros.

@@ -17,8 +17,8 @@ L0 — 순수 계산(호출자의 버퍼)
 ```lowent
 use fmt .
 
-let p be option u64 fmt.put_u64 buf 0 1234 .
-guard is_some p . else return 1 .
+let p option u64 fmt.put_u64 buf 0 1234 .
+guard is_some p else return 1 .
 ```
 
 `0` 은 `pos`(다음에 쓸 자리)이고, 돌려받는 `option u64` 는 **성공하면 새 `pos`, 자리가 모자라면 `none`** 이다.
@@ -78,24 +78,24 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let g be option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some g . else return 70 .
-  let buf be mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al capacity 64 .
+  guard is_some g else return 70 .
+  let buf mut slice u8 some_value g .
 
   rem 조립 --- 여기까지 한 바이트도 밖으로 나가지 않았다
-  let p1 be option u64 fmt.put_str buf 0 "answer=" .
-  guard is_some p1 . else return 71 .
-  let p2 be option u64 fmt.put_u64 buf (some_value p1) 42 .
-  guard is_some p2 . else return 72 .
-  let p3 be option u64 fmt.put_str buf (some_value p2) " hex=" .
-  guard is_some p3 . else return 73 .
-  let p4 be option u64 fmt.put_hex buf (some_value p3) 255 .
-  guard is_some p4 . else return 74 .
-  let p5 be option u64 fmt.put_nl buf (some_value p4) .
-  guard is_some p5 . else return 75 .
+  let p1 option u64 fmt.put_str buf 0 "answer=" .
+  guard is_some p1 else return 71 .
+  let p2 option u64 fmt.put_u64 buf (some_value p1) 42 .
+  guard is_some p2 else return 72 .
+  let p3 option u64 fmt.put_str buf (some_value p2) " hex=" .
+  guard is_some p3 else return 73 .
+  let p4 option u64 fmt.put_hex buf (some_value p3) 255 .
+  guard is_some p4 else return 74 .
+  let p5 option u64 fmt.put_nl buf (some_value p4) .
+  guard is_some p5 else return 75 .
 
   rem 출력 --- 조립된 앞부분(0 … p5)만 내보낸다
-  let w be u64 write_out out 1 (subslice buf 0 (some_value p5)) .
+  let w u64 write_out out 1 (subslice buf 0 (some_value p5)) .
   return 0 .
 end
 ```
@@ -104,7 +104,7 @@ end
 
 ```lowent
 fn need_for input n u64 . output u64 . do
-  let w be u64 fmt.dec_width n .
+  let w u64 fmt.dec_width n .
   return add (add 7 w) 1 .
 end
 ```
@@ -124,8 +124,8 @@ end
 > **반례. 돌려받은 `pos` 를 버리고 옛 `pos` 를 다시 쓴다**
 >
 > > ```lowent
-> > let p1 be option u64 fmt.put_str buf 0 "answer=" .
-> > let p2 be option u64 fmt.put_u64 buf 0 42 .        rem ✗ pos 는 some_value p1 이어야 한다
+> > let p1 option u64 fmt.put_str buf 0 "answer=" .
+> > let p2 option u64 fmt.put_u64 buf 0 42 .        rem ✗ pos 는 some_value p1 이어야 한다
 > > ```
 > >
 > > 번역은 통과하고 결과가 `answer=42` 대신 `42swer=` 처럼 겹쳐 나온다. 출력 앞부분이 뭉개져 있으면 `pos` 를 이어 넘겼는지부터 본다.

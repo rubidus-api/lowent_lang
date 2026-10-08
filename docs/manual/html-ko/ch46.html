@@ -681,8 +681,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">proc</span></strong> observe <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> cells <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic .
   <strong><span class="tok-k">requires</span></strong> ge (len cells) <span class="tok-n">2</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> flag <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> atomic_load cells <span class="tok-n">1</span> order acquire .
-  <strong><span class="tok-k">guard</span></strong> eq flag <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> flag <strong><span class="tok-t">u64</span></strong> atomic_load cells <span class="tok-n">1</span> order acquire .
+  <strong><span class="tok-k">guard</span></strong> eq flag <span class="tok-n">1</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> atomic_load cells <span class="tok-n">0</span> order relaxed .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check handoff.low

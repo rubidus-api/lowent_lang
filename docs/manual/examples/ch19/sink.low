@@ -11,6 +11,6 @@ end
 
 fn use_once input v u8 . output u8 .
 do
-  var h be owned buffer v .
+  var h owned buffer v .
   return consume h .
 end

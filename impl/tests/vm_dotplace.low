@@ -22,7 +22,7 @@ def struct outer do
   n u64 .
 end
 fn field_place output u64 . do
-  var p be lit inner do a 1 . b 2 . end .
+  var p lit inner do a 1 . b 2 . end .
   set (field p a) 7 .
   return add (field p a) (field p b) .                    rem 7 + 2 = 9
 end
@@ -32,16 +32,16 @@ proc index_place input s mut slice u64 . output u64 . effects none . do
   return add (field s 0) (add (field s 1) (idx s 0)) .  rem 11 + 22 + 11 = 44
 end
 fn nested_place output u64 . do
-  var o be lit outer do i (lit inner do a 1 . b 2 . end) . n 5 . end .
+  var o lit outer do i (lit inner do a 1 . b 2 . end) . n 5 . end .
   set (field o i a) 30 .
   return add (field o i a) (add (field o i b) (field o n)) .      rem 30 + 2 + 5 = 37
 end
 fn matches_prefix output u64 . do
   rem ★ 붙임점과 전위 form 이 **같은 답**을 내야 한다 — 한 뜻에 두 표기이므로
-  var p be lit inner do a 0 . b 0 . end .
-  var q be lit inner do a 0 . b 0 . end .
+  var p lit inner do a 0 . b 0 . end .
+  var q lit inner do a 0 . b 0 . end .
   set (field p a) 9 .
   set (field q a) 9 .
-  guard eq (field p a) (field q a) . else return 90 .
+  guard eq (field p a) (field q a) else return 90 .
   return field p a .                       rem 9
 end

@@ -15,8 +15,8 @@
 
 ```lowent
 rem w 는 u64 175 원소 이상 --- 작업 공간을 하나로 받는다
-let n be u64 x25519.agree shared mysecret theirpub zbuf w .
-guard eq n 32 . else return 1 .
+let n u64 x25519.agree shared mysecret theirpub zbuf w .
+guard eq n 32 else return 1 .
 ```
 
 *왜 작업 공간이 하나인가.* `scalarmult` 는 체 원소 아홉과 곱셈 자리를 따로 받는다 --- 안에서 읽기에는 그편이 낫다. 그런데 부르는 쪽에서 열넷을 늘어놓으면 파라미터

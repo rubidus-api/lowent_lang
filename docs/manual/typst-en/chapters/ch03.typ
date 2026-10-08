@@ -40,8 +40,8 @@ Lowent expressions use *prefix notation*. The name of the operation comes first 
 `b`, and a form inside a form is wrapped in parentheses.
 
 ```lowent
-let total be u64 add 1 2 .
-let mixed be u64 add 1 (mul 2 3) .
+let total u64 add 1 2 .
+let mixed u64 add 1 (mul 2 3) .
 ```
 
 Prefix notation has no precedence. Someone reading `1 + 2 * 3` knows that multiplication comes first because they *memorised* it,
@@ -99,9 +99,9 @@ end
 
 fn sum_to input n u64 . output u64 .
 do
-  var total be u64 0 .
-  var i be u64 1 .
-  while le i n . do
+  var total u64 0 .
+  var i u64 1 .
+  while le i n do
     set total (add total i) .
     set i (add i 1) .
   end
@@ -115,17 +115,17 @@ rules to know.
 - *A construct that owns a block as its body* ends at `end`: op declarations, `struct`·`enum`, `if`·`while`·`for`·`match`.
   As in the example above, no full stop follows the `end` --- one there closes nothing and is rejected with `E-DOT-STRAY`.
 - *A statement that uses a block as a value* ends with its own full stop, like any statement. Building a struct value with `lit`
-  and binding it with `let` is the usual case: `let p be lit point do x 1 . y 2 . end .` --- the last stop belongs to the
+  and binding it with `let` is the usual case: `let p lit point do x 1 . y 2 . end .` --- the last stop belongs to the
   `let`. Leaving it out is `E-DOT-MISSING`.
 
 In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1, 2 };`.
 
 ```text
-while le i n . do  …  end                  block as body: the while statement ends at end
-└─── while statement ───┘
+while le i n do  …  end                    block as body: the while statement ends at end
+└── while statement ──┘
 
-let p be lit point do x 1 . end .          block as value: the block is lit's, the statement ends with its own .
-         └───── lit value ────┘ │
+let p lit point do x 1 . end .             block as value: the block is lit's, the statement ends with its own .
+      └───── lit value ────┘ │
 └──────── let statement ────────┘
 ```
 
@@ -232,8 +232,8 @@ words can express gets a new one. Roughly, they fall into these groups.
   [*Group*], [*Words*],
   [Declarations], [`module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`],
   [Ops], [`fn` `proc` `export` `unsafe` `extern`],
-  [Locals and flow], [`let` `var` `set` `return` `if` `else` `for` `while` `guard` `match` `case` `try` `break` `continue` `expr`],
-  [Values], [`lit` `true` `false` `none` `be`],
+  [Locals and flow], [`let` `var` `set` `return` `if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `try` `break` `continue` `expr` `keep`],
+  [Values], [`lit` `true` `false` `none`],
   [Others], [`spawn` `send` `drop` `test` `expect` `satisfies` `do` `end`],
 )
 
@@ -341,7 +341,7 @@ to remember the shapes too.
   Bodies are not opened by indentation as in Python. Without `do`, the `if` form ends at the stop after the condition, and the `end`
   below closes *the op's body* rather than the `if`. The remaining `return 0 .` then falls outside any declaration, which gives
   `E-TOPLEVEL` (something other than a declaration at the top level), and because the body closed early, the return paths go wrong too
-  (`E-RETURN-PARTIAL`). When you see those two together, suspect a missing `do`. The fix: `if gt a 3 . do`.
+  (`E-RETURN-PARTIAL`). When you see those two together, suspect a missing `do`. The fix: `if gt a 3 do`.
 ]
 
 #antipattern[Writing a string in single quotes][

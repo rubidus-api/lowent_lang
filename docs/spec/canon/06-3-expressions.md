@@ -34,9 +34,9 @@
 > 그 차이가 중요하면 먼저 계산할 것을 `let` 으로 이름에 담는다 — 문장은 적힌 차례로 실행된다.
 
 ```lowent 예제: 전위 표기
-let a be u32 add 1 2 .
-let b be u32 add 1 (mul 2 3) .
-let c be bool lt a b .
+let a u32 add 1 2 .
+let b u32 add 1 (mul 2 3) .
+let c bool lt a b .
 ```
 
 > [!산문]
@@ -186,7 +186,7 @@ end
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  let n be u64 call_builtin sha256 s o .
+  let n u64 call_builtin sha256 s o .
   return sha256 n .
 end
 ```
@@ -480,7 +480,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end
 > 다른 값을 내면, 그것은 이 언어가 지키기로 한 것을 놓는 일이다.
 
 (1a) `splat` 은 레인 수를 **선언된 타입에서** 받는다. 그래서 쓸 수 있는 자리는 벡터 타입을
-      적은 바인딩의 값 자리뿐이다: `var lim be vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
+      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
 
 (2) 레인을 가로지르는 op 은 레인 수만큼을 **하나로** 모은다. 결과의 타입은 레인의 타입이다.
@@ -508,7 +508,7 @@ def type bytes slice u8 .
 
 fn total input b bytes . output u64 .
 do
-  var xs be slice f64 view_array f64 b .
+  var xs slice f64 view_array f64 b .
   return sum_neumaier xs .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
 end
 ```
@@ -577,7 +577,7 @@ module ex_cond .
 
 fn f input a u8 . output u8 .
 do
-  if a . do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
+  if a do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
   return 0 .
 end
 ```

@@ -677,7 +677,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <em><span class="tok-c">rem 지역 가변 상태는 op 안에 갇혀 있으므로 fn 도 쓸 수 있다</span></em>
 <strong><span class="tok-k">fn</span></strong> running_total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> total (add total (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -687,7 +687,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">fn</span></strong> fact <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">20</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> le n <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> le n <span class="tok-n">1</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> mul n (fact (sub n <span class="tok-n">1</span>)) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run add3 kinds.low 1 2 3
@@ -757,10 +757,10 @@ end                         ← 몸이 끝나고, 선언 전체도 끝난다(뒤
     <strong><span class="tok-k">set</span></strong> t (add t x) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong></code></pre><p><code>output</code> 뒤의 첫 낱말이 타입 이름이면 출력 전체가 타입이고(<code>output result u64 perr .</code>), 타입 이름이 아니면 결과의 이름이다. 0 이 정해지지 않은 타입(슬라이스 · <code>result</code> · enum 같은 것)에는 이름을 붙일 수 없다(<code>E-RESULT-NOZERO</code>) — 그런 출력은 이름 없이 적고 값을 돌려준다. <code>ensures</code> 는 여전히 <code>ret</code> 으로 결과를 가리킨다.</p><p>배열도 돌려줄 수 있다 — <code>output r array u64 3 .</code>. 배열에는 값으로 돌려주는 길이 없어서 <strong>부르는 쪽이 자리를 준다</strong>. 부르는 쪽은 결과를 이름에 묶고(<code>let s be array u64 3 squares n .</code>), 부름 받는 쪽은 그 이름의 바이트에 바로 짓는다. 그래서 식 한가운데서 부를 수는 없다(<code>idx (squares n) 0</code> 은 <code>E-RESULT-PLACE</code>) — 먼저 이름에 묶는다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> squares <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">3</span> .
+<strong><span class="tok-k">end</span></strong></code></pre><p><code>output</code> 뒤의 첫 낱말이 타입 이름이면 출력 전체가 타입이고(<code>output result u64 perr .</code>), 타입 이름이 아니면 결과의 이름이다. 0 이 정해지지 않은 타입(슬라이스 · <code>result</code> · enum 같은 것)에는 이름을 붙일 수 없다(<code>E-RESULT-NOZERO</code>) — 그런 출력은 이름 없이 적고 값을 돌려준다. <code>ensures</code> 는 여전히 <code>ret</code> 으로 결과를 가리킨다.</p><p>배열도 돌려줄 수 있다 — <code>output r array u64 3 .</code>. 배열에는 값으로 돌려주는 길이 없어서 <strong>부르는 쪽이 자리를 준다</strong>. 부르는 쪽은 결과를 이름에 묶고(<code>let s array u64 3 squares n .</code>), 부름 받는 쪽은 그 이름의 바이트에 바로 짓는다. 그래서 식 한가운데서 부를 수는 없다(<code>idx (squares n) 0</code> 은 <code>E-RESULT-PLACE</code>) — 먼저 이름에 묶는다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> squares <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">3</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">for</span></strong> i count <strong><span class="tok-t">u64</span></strong> <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">repeat</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">3</span> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (idx r i) (mul (add n i) (add n i)) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> r .
@@ -810,14 +810,14 @@ dist(-3, 4) = 7
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">fn</span></strong> is_even <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">return</span></strong> is_odd (sub k <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">fn</span></strong> is_odd <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">return</span></strong> is_even (sub k <span class="tok-n">1</span>) .
@@ -882,7 +882,7 @@ mistake_arity.low:12:0 E-IR-ARITY: `add3` takes 3 arguments but 2 are given here
 
 <strong><span class="tok-k">fn</span></strong> sign <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong>
   <em><span class="tok-c">rem ✘ a 가 0 이하일 때 돌려줄 값이 없다 --- 끝까지 내려오는 길이 있다</span></em>
@@ -912,7 +912,7 @@ mistake_builtin.low:5:0 E-NAME-BUILTIN: this name is a CORE OP — the resolver 
   <em><span class="tok-c">rem ✘ 결과를 받지 않은 fn 호출 --- 순수하므로 아무 일도 안 한다. 그래서 거절된다</span></em>
   twice <span class="tok-n">5</span> .
   <em><span class="tok-c">rem 결과를 쓰려면 이름에 묶는다</span></em>
-  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> twice <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-t">u64</span></strong> twice <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> t .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check discard.low

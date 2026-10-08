@@ -21,8 +21,8 @@ L0 — 순수 계산(호출자의 버퍼)
 ```lowent
 use term as t .
 
-let p be option u64 t.goto buf 0 2 4 .
-guard is_some p . else return 1 .
+let p option u64 t.goto buf 0 2 4 .
+guard is_some p else return 1 .
 ```
 
 **규약.** 시퀀스 op 은 [`fmt`](sec60.md#mod-fmt) 의 규약 그대로다 — `(buf, pos, …) → option u64`(새 pos). 앞 op 의 반환을 다음 op 의 `pos` 로 넘기면 시퀀스가 이어 붙고, 마지막 pos 가 곧 완성된 시퀀스의 길이다. **전량 아니면 무** — 자리가 모자라면 한 바이트도 쓰지 않는다. 반쯤 쓰인 이스케이프는 터미널이 뒷부분을 글자로 읽어 화면에 `[3;5H` 같은 찌꺼기를 띄우는, 조용히 틀린 출력이다. 좌표는 **0 기준**으로 받아 ANSI 의 1 기준으로 바꿔 낸다 — 1 기준은 선의 사정이다.
@@ -57,15 +57,15 @@ guard is_some p . else return 1 .
 
 ```lowent
 proc diff_frame input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 32 . else return 90 .
-  let prev be slice u8 "aaaaaaaaaa" .
-  let nxt be slice u8 "aaaaaaxyaa" .
-  let p be option u64 t.diff prev nxt 5 out 0 .
-  guard is_some p . else return 1 .
-  guard eq (some_value p) 8 . else return 2 .
-  let d be option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
-  guard is_some d . else return 3 .
-  guard eq (some_value d) 9 . else return 4 .
+  guard ge (len out) 32 else return 90 .
+  let prev slice u8 "aaaaaaaaaa" .
+  let nxt slice u8 "aaaaaaxyaa" .
+  let p option u64 t.diff prev nxt 5 out 0 .
+  guard is_some p else return 1 .
+  guard eq (some_value p) 8 else return 2 .
+  let d option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
+  guard is_some d else return 3 .
+  guard eq (some_value d) 9 else return 4 .
   return 42 .
 end
 ```

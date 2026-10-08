@@ -692,14 +692,19 @@ contract &lt;name> do requires &lt;cond> . … end
 actor &lt;name> do [satisfies …] state do &lt;field> &lt;type> . … end [failure restart max &lt;n> .] [mailbox bounded &lt;n> .] &lt;op>… end
 build profile &lt;name> .        build tier t0|t1|t2|t3 .        build &lt;mode> .
 build option &lt;name> bool|int|choice … default &lt;value>
-test &lt;name> [schedule explore_interleavings [limit &lt;n>] .] do expect &lt;cond> . … end</code></pre><h3 id="sx3">Statements<a class="plink" href="#sx3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><pre><code data-lang="text">let &lt;name> [&lt;type>] [using &lt;source>] be &lt;expr> .
-var &lt;name> [&lt;type>] be &lt;expr> .
-set &lt;place> &lt;expr> .                      (place = name · field … · index …)
-if &lt;cond> . do … end [else do … end] .
-while &lt;cond> . do … end
-for &lt;name> &lt;slice> do … end
-guard &lt;cond> . else &lt;leaving statement> .
-match &lt;value> . do case &lt;pattern> [when &lt;cond>] . do … end … end
+test &lt;name> [schedule explore_interleavings [limit &lt;n>] .] do expect &lt;cond> . … end</code></pre><h3 id="sx3">Statements<a class="plink" href="#sx3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><pre><code data-lang="text">let &lt;name> [use &lt;allocator> | keep &lt;allocator>] &lt;type> &lt;expr> [else &lt;leaving statement>] .
+var &lt;name> &lt;type> &lt;expr> .
+let &lt;name> &lt;type> &lt;expr> else do … end           (no full stop when the fail clause is a block)
+let &lt;name> &lt;type> &lt;expr> else error &lt;name> do … end
+set &lt;place> &lt;expr> .                      (place = name · field … · idx …)
+if &lt;cond> do … end [else do … end]
+while &lt;cond> do … end
+for &lt;name> [mut] &lt;slice> [if &lt;cond>] do … end
+repeat &lt;name> &lt;type> &lt;count> [if &lt;cond>] do … end
+range &lt;name> &lt;type> &lt;from> &lt;to> [step &lt;stride>] [if &lt;cond>] do … end
+cycle &lt;name> &lt;type> &lt;first> while &lt;cond> next &lt;next value> [if &lt;cond>] do … end
+guard &lt;cond> else &lt;leaving statement> .
+match &lt;value> do case &lt;pattern> [when &lt;cond>] do … end … end
 return [&lt;expr>] .    break .    continue .    panic "&lt;text>" .
 drop &lt;name> .
 region &lt;name> stack|frame|arena|static|heap|mmap|disk|device do … end

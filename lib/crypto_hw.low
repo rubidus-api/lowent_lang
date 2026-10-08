@@ -28,7 +28,7 @@ rem   이 op 은 **한 곱셈**이 필요한 자리(CRC · 시험 · 다른 모�
 
 rem 캐리 없는 곱셈 한 번 — 128 비트 결과를 낱말 둘로 낸다. `out` 은 조각 2 이상.
 export proc clmul128 input out mut slice u64 . input a u64 . input b u64 . output u64 . effects none . do
-  guard ge (len out) 2 . else return 0 .
+  guard ge (len out) 2 else return 0 .
   set (idx out 0) (call_builtin clmul_hi a b) .
   set (idx out 1) (call_builtin clmul_lo a b) .
   return 2 .
@@ -37,29 +37,29 @@ end
 rem GF(2^128) 곱 — `x`(조각 2)·`h`(조각 2) → `out`(조각 2). 카라추바로 곱셈 셋만 쓴다.
 rem   뒤집힌 표현이라 256 비트 곱을 **한 칸 왼쪽으로 민 뒤** 축약한다.
 export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slice u64 . output u64 . effects none . do
-  guard ge (len out) 2 . else return 0 .
-  guard ge (len x) 2 . else return 0 .
-  guard ge (len h) 2 . else return 0 .
-  let x0 be u64 idx x 0 .
-  let x1 be u64 idx x 1 .
-  let h0 be u64 idx h 0 .
-  let h1 be u64 idx h 1 .
+  guard ge (len out) 2 else return 0 .
+  guard ge (len x) 2 else return 0 .
+  guard ge (len h) 2 else return 0 .
+  let x0 u64 idx x 0 .
+  let x1 u64 idx x 1 .
+  let h0 u64 idx h 0 .
+  let h1 u64 idx h 1 .
 
   rem 아래 낱말끼리 · 위 낱말끼리 · 가운데 항(카라추바)
-  let a_lo be u64 call_builtin clmul_lo x1 h1 .
-  let a_hi be u64 call_builtin clmul_hi x1 h1 .
-  let b_lo be u64 call_builtin clmul_lo x0 h0 .
-  let b_hi be u64 call_builtin clmul_hi x0 h0 .
-  let xm be u64 bit_xor x0 x1 .
-  let hm be u64 bit_xor h0 h1 .
-  let m_lo be u64 bit_xor (call_builtin clmul_lo xm hm) (bit_xor a_lo b_lo) .
-  let m_hi be u64 bit_xor (call_builtin clmul_hi xm hm) (bit_xor a_hi b_hi) .
+  let a_lo u64 call_builtin clmul_lo x1 h1 .
+  let a_hi u64 call_builtin clmul_hi x1 h1 .
+  let b_lo u64 call_builtin clmul_lo x0 h0 .
+  let b_hi u64 call_builtin clmul_hi x0 h0 .
+  let xm u64 bit_xor x0 x1 .
+  let hm u64 bit_xor h0 h1 .
+  let m_lo u64 bit_xor (call_builtin clmul_lo xm hm) (bit_xor a_lo b_lo) .
+  let m_hi u64 bit_xor (call_builtin clmul_hi xm hm) (bit_xor a_hi b_hi) .
 
   rem 256 비트 곱을 낱말 넷으로 놓는다(p0 가 가장 아래)
-  var p0 be u64 a_lo .
-  var p1 be u64 bit_xor a_hi m_lo .
-  var p2 be u64 bit_xor b_lo m_hi .
-  var p3 be u64 b_hi .
+  var p0 u64 a_lo .
+  var p1 u64 bit_xor a_hi m_lo .
+  var p2 u64 bit_xor b_lo m_hi .
+  var p3 u64 b_hi .
 
   rem 뒤집힌 표현이라 한 칸 왼쪽으로 민다 — 그러면 아래 낱말 둘이 차수 ≥ 128 부분이다.
   set p3 (bit_or (wrap_shl p3 1) (shr p2 63)) .
@@ -70,9 +70,9 @@ export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slic
   rem ★ 축약: x^128 ≡ x^7 + x^2 + x + 1 이고, **뒤집힌 표현에서 x 를 곱하는 것은 오른쪽으로 한 칸**이다.
   rem   그래서 차수 ≥ 128 부분(p1·p0)을 1·2·7 칸 민 것과 자기 자신의 배타합으로 접는다.
   rem   접다가 아래로 흘러나간 비트는 **다시** 차수 ≥ 128 이므로 한 번 더 접는다(이번엔 안 흘러난다).
-  var th be u64 p1 .
-  var tl be u64 p0 .
-  var ov be u64 0 .
+  var th u64 p1 .
+  var tl u64 p0 .
+  var ov u64 0 .
   set th (bit_xor th (shr p1 1)) .
   set tl (bit_xor tl (bit_or (shr p0 1) (wrap_shl p1 63))) .
   set ov (bit_xor ov (wrap_shl p0 63)) .

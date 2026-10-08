@@ -9,31 +9,31 @@ end
 
 rem ⓑ 상수 칸 골라 채우기
 export fn f_const input i u64 . output u64 . do
-  let t be lit array u64 6 do 2 7 . 4 9 . _ 1 . end .
-  guard lt i 6 . else return 0 .
+  let t lit array u64 6 do 2 7 . 4 9 . _ 1 . end .
+  guard lt i 6 else return 0 .
   return idx t i .
 end
 
 rem 실행 중 값인 칸
 export fn f_rt input a u64 . input i u64 . output u64 . do
-  let t be lit array u64 5 do 1 (add a 1) . 3 a . _ 0 . end .
-  guard lt i 5 . else return 0 .
+  let t lit array u64 5 do 1 (add a 1) . 3 a . _ 0 . end .
+  guard lt i 5 else return 0 .
   return idx t i .
 end
 
 rem `_` 가 실행 중 값 — 이름 붙은 칸은 그대로
 export fn f_rest input a u64 . input i u64 . output u64 . do
-  let t be lit array u64 6 do 0 100 . 5 (mul a 2) . _ (add a 3) . end .
-  guard lt i 6 . else return 0 .
+  let t lit array u64 6 do 0 100 . 5 (mul a 2) . _ (add a 3) . end .
+  guard lt i 6 else return 0 .
   return idx t i .
 end
 
 rem var 배열 — 본을 베낀 뒤 고쳐 쓴다, 반복마다 다시 본으로
 export fn f_var input n u64 . output u64 . do
-  var s be u64 0 .
-  var k be u64 0 .
-  while lt k n . do
-    var t be lit array u8 4 do 0 1 . _ 2 . end .
+  var s u64 0 .
+  var k u64 0 .
+  while lt k n do
+    var t lit array u8 4 do 0 1 . _ 2 . end .
     set (idx t 0) (narrow_wrap u8 (add (widen u64 (idx t 0)) k)) .
     set s (add s (widen u64 (idx t 0))) .
     set s (add s (widen u64 (idx t 3))) .
@@ -44,15 +44,15 @@ end
 
 rem 부동 · 부호
 export fn f_float input x f64 . output f64 . do
-  let t be lit array f64 3 do 1 x . _ 0.5 . end .
+  let t lit array f64 3 do 1 x . _ 0.5 . end .
   return add (idx t 0) (idx t 1) .
 end
 export proc f_mut input a u64 . output i64 . effects none . do
   return touch (lit array i16 3 do 1 -5 . _ (narrow i16 (widen i64 a)) . end) .
 end
 export fn f_bool input i u64 . output u64 . do
-  let t be lit array bool 4 do 2 true . _ false . end .
-  guard lt i 4 . else return 9 .
-  if eq (idx t i) true . do return 1 . end
+  let t lit array bool 4 do 2 true . _ false . end .
+  guard lt i 4 else return 9 .
+  if eq (idx t i) true do return 1 . end
   return 0 .
 end

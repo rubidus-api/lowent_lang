@@ -71,7 +71,7 @@ module ex_cond .
 
 proc p input n u32 . output u8 . effects none .
 do
-  if n . do return 1 . end     rem `n` 은 bool 이 아니다
+  if n do return 1 . end     rem `n` 은 bool 이 아니다
   return 0 .
 end
 ```
@@ -131,9 +131,9 @@ end
 ```
 
 ```lowent 예제: 넓히기와 좁히기
-let small be u8 200 .
-let wide be u64 widen u64 small .
-let back be u8 narrow u8 wide .
+let small u8 200 .
+let wide u64 widen u64 small .
+let back u8 narrow u8 wide .
 ```
 
 > [!주의] 음수를 부호 없는 타입으로 넓힐 수 없다
@@ -153,7 +153,7 @@ let back be u8 narrow u8 wide .
 
 (1c) op 은 배열을 **돌려줄 수 있다** — `output array t n .` 또는 이름을 붙여 `output r array t n .`(⟦§6.4.1⟧ (3e)). 배열에는
       값으로 돌려주는 길이 없으므로 **부르는 쪽이 자리를 준다**:
-      - 부르는 쪽은 결과를 이름에 묶는다 — `var x be array t n f a … .`(`let` 도 같다). 그 이름의 틀 안 바이트가 결과의 자리이고,
+      - 부르는 쪽은 결과를 이름에 묶는다 — `var x array t n f a … .`(`let` 도 같다). 그 이름의 틀 안 바이트가 결과의 자리이고,
         부름 받는 쪽은 거기에 바로 짓는다(베끼지 않는다).
       - 같은 배열을 돌려주는 op 안에서 `return g … .` 은 자기 자리를 그대로 넘긴다.
       - 그 밖의 자리(식의 한가운데 · 다른 부름의 인자 · `copy` 의 원천)에서 배열을 돌려주는 op 을 부르면 자리가 없으므로
@@ -168,7 +168,7 @@ module ex_array_result .
 fn squares input n u64 . output r array u64 3 .
   requires le n 1000 .
 do
-  for i count u64 3 . do
+  repeat i u64 3 do
     set (idx r i) (mul (add n i) (add n i)) .
   end
   return r .
@@ -177,7 +177,7 @@ end
 export fn total input n u64 . output u64 .
   requires le n 1000 .
 do
-  let s be array u64 3 squares n .
+  let s array u64 3 squares n .
   return add (add (idx s 0) (idx s 1)) (idx s 2) .
 end
 ```
@@ -237,7 +237,7 @@ end
 
 (6) **원소 나열 리터럴** — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
       `slice t` 값이다. 나열은 **제 마침표로 닫히는 폼**이다: 문장의 끝에 오면 나열의 점과 문장의 점이 잇달아
-      오고(`let t be lit array u8 4 1 2 3 4 .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
+      오고(`let t lit array u8 4 1 2 3 4 .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
       `lit` 가 값의 타입을 보이므로 묶는 문장은 타입을 따로 적지 않는다.
 
 (6a) 배열의 원소 수는 `n` 과 같아야 한다. 모자라면 나열의 **끝**에 `_` 를 적어 «나머지 칸은 0» 이라고 말해야 하며,
@@ -252,7 +252,7 @@ end
       를 뜻한다. 모든 칸이 정해져야 한다 — 남는 칸이 있는데 `_ <값> .` 이 없거나, `_` 가 채울 칸이 없으면 거부된다
       (`E-LIT-COUNT`). 번호가 상수가 아니거나 길이 밖이거나 두 번 나오거나 `_` 가 끝이 아닌 자리에 있으면 거부된다
       (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 **한 번** 계산된다. 블록이 나열을 닫으므로
-      나열 자신의 점은 없다(`let t be lit array u8 8 do 2 5 _ 0 end .`). 원소를 늘어놓는 모양과 섞지 않는다
+      나열 자신의 점은 없다(`let t lit array u8 8 do 2 5 _ 0 end .`). 원소를 늘어놓는 모양과 섞지 않는다
 
 (6d) **SIMD 값** — `lit vec t n v₁ … [_] .` 은 `vec t n` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
       수(`bool` 이 아니다), `n` 은 1 부터 16 까지의 2 의 거듭제곱이다(`E-LIT-COUNT`). 값의 타입은 묶는 자리의 `vec`
@@ -300,14 +300,14 @@ end
       **멈춘다** — 스택이 넘쳐 조용히 망가지지 않는다. 이 처리기의 예산은 운영체제가 있는 기계 4 MiB · 그린스레드 64 KiB ·
       운영체제가 없는 기계 16 KiB 이고, 모든 뒤끝이 같은 수로 세어 같은 자리에서 멈춘다.
 
-(7d) **할당기에서 받는 나열** — `var <이름> using <할당기> be mut slice t lit array t n … else <문장>`(`lit slice` 도 같다)은
+(7d) **할당기에서 받는 나열** — `var <이름> use <할당기> mut slice t lit array t n … else <문장>`(`lit slice` 도 같다)은
       그 할당기에 나열의 바이트 수를 청하고(`send <할당기> reserve <바이트>`), 받으면 그 바이트를 (6)~(6c) 대로 채워 이름에
       묶고, 못 받으면 `else` 로 간다(⟦§6.5.1⟧ (5)). 실패를 `option` 째 들고 가려면 타입을 통째로 적는다 —
-      `let <이름> using <할당기> be option mut slice t lit … .`. `else` 도 `option` 도 없거나, `lit vec` 이면 거부된다
+      `let <이름> use <할당기> option mut slice t lit … .`. `else` 도 `option` 도 없거나, `lit vec` 이면 거부된다
       (`E-LIT-USING`). 바인딩 타입의 원소가 나열의 원소 타입과 다르면 거부된다(`E-BIND-ELSE`). 바이트는 할당기의 것이라 (7e) 가
       아니면 (7a) 의 선언 블록 수명을 받지 않고 할당기의 수명을 따른다: 할당기가 ⓐ 칸을 뒤받침으로 받았다면
       (`send <할당기> init buf`) 그 할당기가 주는 바이트도 그 칸의 수명을 받는다.
-      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> using <할당기> be s lit s do … end else <문장>` 은
+      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> use <할당기> s lit s do … end else <문장>` 은
       `size_of s` 바이트를 청해, 받으면 0 으로 채우고 s 의 배치를 얹은 뒤(⟦§8.7.2⟧ 의 `view` 와 같은 표현) 적은 칸을 쓴다.
       바인딩 타입은 s 여야 한다(`E-BIND-ELSE`). **수의 슬라이스 칸**은 할당기 바이트 안에 (주소, 길이) 두 낱말로 놓인다 —
       C 의 `struct { const T *p; size_t n; }` 와 같고, 자리는 8 바이트에 맞춘다. 이 배치는 할당기에 짓는 구조체에만 있다:
@@ -325,16 +325,16 @@ end
       저자는 `drop <이름> .` 으로 더 일찍 돌려줄 수 있다. 그러면 블록 끝에서는 다시 돌려주지 않는다. `drop` 은 그 이름을
       선언한 블록에서만 받고(안쪽 블록이면 `E-OWN-JOIN`), 그 뒤로 이름을 쓰면 거부된다(`E-OWN-MOVED`).
 
-(7f) **남긴다** — `var <이름> using <할당기> keep be … else <문장>` 의 `keep` 은 (7e) 를 끈다: 블록을 나가도 돌려주지
+(7f) **남긴다** — `var <이름> keep <할당기> … else <문장>` 은 (7e) 를 끈다: 블록을 나가도 돌려주지
       않으므로 바이트는 할당기의 수명을 따르고(⟦§6.2.6⟧ (7d)), 블록 밖으로 — `return` 으로도 — 나를 수 있다. 돌려주는 일은
-      저자가 한다(`send <할당기> release <조각>`). 아니면 할당기가 끝날 때 한꺼번에 돌아간다. `keep` 은 `using <할당기>`
-      바로 뒤, 나열이나 구조체 리터럴을 받는 바인딩에만 쓴다(`E-USING-FORM`).
+      저자가 한다(`send <할당기> release <조각>`). 아니면 할당기가 끝날 때 한꺼번에 돌아간다. `keep <할당기>` 는
+      `use <할당기>` 의 자리(이름 바로 뒤)에 서고, 나열이나 구조체 리터럴을 받는 바인딩에만 쓴다(`E-USING-FORM`).
 
 (8) `let` 에 묶은 배열 나열은 그 바이트를 **보는 슬라이스**다. 길이는 나열이 정한다.
 
 (9) 나열의 원소는 바이트 배치가 있는 구조체여도 된다(칸이 모두 크기 있는 수 — ⟦§8.7.2⟧ 의 `view` 가 설 수 있는 구조체).
       원소는 준 값의 사본이고, 나열은 그 바이트 위에 `view_array` 와 같은 보기를 얹은 `slice s` 다. 원소의 칸은
-      `set (field <나열> <자리> <칸>) v .` 로 쓴다. 자리 · 수명 · `_` · 칸 골라 채우기 · `using` 은 수 원소와 같다. 원소 자리의
+      `set (field <나열> <자리> <칸>) v .` 로 쓴다. 자리 · 수명 · `_` · 칸 골라 채우기 · 할당기 절은 수 원소와 같다. 원소 자리의
       값이 수이거나 참거짓이면 `E-TYPE-FIELD`, 다른 구조체이면 `E-TYPE-STRUCT` 로 거부된다. 이 처리기가 아직 짓지 않은
       나열 — 바이트 배치가 없는 구조체 · 칸이 구조체인 구조체 · 줄을 골라 채우기(`do … end`) — 은 무엇이 아직인지 말하며
       거부된다(`E-LIT-UNBUILT`). 구조체 안의 배열 칸은 ⟦§6.2.7⟧ (1a) 가 정한다.
@@ -349,7 +349,7 @@ end
 module ex_list_literal .
 
 fn total input xs slice u32 . output u64 . do
-  var s be u64 0 .
+  var s u64 0 .
   for x xs do
     set s (add s (widen u64 x)) .
   end
@@ -358,7 +358,7 @@ end
 
 rem 배열 나열은 제 점으로 닫힌다 — 문장의 끝이면 점이 둘이다.
 export fn f output u64 . do
-  let t be lit array u32 4 10 20 30 _ . .
+  let t lit array u32 4 10 20 30 _ . .
   return add (total t) (total lit slice u32 1 2 . .) .
 end
 ```
@@ -367,13 +367,13 @@ end
 module ex_frame_list .
 
 export fn squares input n u64 . output u64 . do
-  var buf be lit array u64 8 _ . .
-  var i be u64 0 .
-  while lt i 8 . do
+  var buf lit array u64 8 _ . .
+  var i u64 0 .
+  while lt i 8 do
     set (idx buf i) (mul i i) .
     set i (add i 1) .
   end
-  guard lt n 8 . else return 0 .
+  guard lt n 8 else return 0 .
   return idx buf n .
 end
 ```
@@ -382,8 +382,8 @@ end
 module ex_cell_fill .
 
 export fn pick input a u64 . input i u64 . output u64 . do
-  let t be lit array u64 6 do 0 100 . 5 (mul a 2) . _ 1 . end .
-  guard lt i 6 . else return 0 .
+  let t lit array u64 6 do 0 100 . 5 (mul a 2) . _ 1 . end .
+  guard lt i 6 else return 0 .
   return idx t i .
 end
 ```
@@ -392,7 +392,7 @@ end
 module ex_cell_twice .
 
 export fn f output u64 . do
-  let t be lit array u8 4 do 1 1 . 1 2 . _ 0 . end .
+  let t lit array u8 4 do 1 1 . 1 2 . _ 0 . end .
   return len t .
 end
 ```
@@ -401,7 +401,7 @@ end
 module ex_frame_escape .
 
 export fn f output slice u8 . do
-  var b be lit array u8 2 1 2 . .
+  var b lit array u8 2 1 2 . .
   return b .
 end
 ```
@@ -410,7 +410,7 @@ end
 module ex_list_short .
 
 export fn f output u64 . do
-  let t be lit array u8 4 1 2 3 . .
+  let t lit array u8 4 1 2 3 . .
   return len t .
 end
 ```
@@ -465,7 +465,7 @@ end
       넣는다(`lit pt do y a _ 0 end`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
       그 칸 이름을 대며 거부되며(`E-TYPE-FIELD`), 채울 칸이 없으면 거부된다(`E-LIT-COUNT`).
 
-(4a) **struct 는 값이다.** 만들거나 베낄 때(`var q be point p .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지
+(4a) **struct 는 값이다.** 만들거나 베낄 때(`var q point p .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지
       함께 베껴진다 — 베낀 쪽을 고쳐도 원본은 바뀌지 아니한다. actor 인스턴스(정체가 있는 것)와 `owned` 칸을 가진
       struct 는 베끼지 않고 같은 것을 가리킨다.
 
@@ -505,8 +505,8 @@ def struct pkt do
 end
 
 export fn copy_keeps input a u8 . output u64 . do
-  var p be lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
-  var q be pkt p .
+  var p lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
+  var q pkt p .
   set (idx (field q body) 0) 100 .
   return add (widen u64 (idx (field p body) 0)) (widen u64 (idx (field q body) 0)) .
 end
@@ -520,7 +520,7 @@ def struct pkt do
 end
 
 export fn f output u64 . do
-  let p be lit pkt do body lit array u8 4 _ . . end .
+  let p lit pkt do body lit array u8 4 _ . . end .
   set (idx (field p body) 0) 1 .
   return 0 .
 end
@@ -563,7 +563,7 @@ rem 2 보다 작으면 반으로 나눌 수 없다고 알린다.
 export fn half input n u32 . output result u32 err .
   errors too_small lt n 2 .
 do
-  guard ge n 2 . else return error too_small .
+  guard ge n 2 else return error too_small .
   return ok (div n 2) .
 end
 ```
@@ -613,7 +613,7 @@ module ex_partial .
 
 fn mk input k u8 . output option u8 .
 do
-  guard lt k 3 . else return none .
+  guard lt k 3 else return none .
   return some (mul k 10) .
 end
 
@@ -635,15 +635,15 @@ module ex_option .
 rem 만드는 쪽 — 값이 있으면 some, 없으면 none.
 fn lookup input k u8 . output option u8 .
 do
-  guard lt k 3 . else return none .
+  guard lt k 3 else return none .
   return some (mul k 10) .
 end
 
 rem 받는 쪽 ① — 묻고 꺼낸다.
 fn use_ask input k u8 . output u8 .
 do
-  let r be option u8 lookup k .
-  guard is_some r . else return 255 .
+  let r option u8 lookup k .
+  guard is_some r else return 255 .
   return some_value r .
 end
 
@@ -669,15 +669,15 @@ rem 만드는 쪽 — 언제 실패하는지 계약으로 적는다.
 fn halve input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
 do
-  guard le a 200 . else return error too_big .
+  guard le a 200 else return error too_big .
   return ok (div a 2) .
 end
 
 rem 받는 쪽 ① — 묻고 꺼낸다.
 fn use_ask input a u8 . output u8 .
 do
-  let r be result u8 io_error halve a .
-  guard not (is_error r) . else return 0 .
+  let r result u8 io_error halve a .
+  guard not (is_error r) else return 0 .
   return ok_value r .
 end
 
@@ -685,7 +685,7 @@ rem 받는 쪽 ② — try 는 실패를 그대로 위로 넘긴다.
 fn use_try input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
 do
-  let v be u8 try halve a .
+  let v u8 try halve a .
   return ok (add v 1) .
 end
 ```
@@ -701,17 +701,16 @@ end
 
 (2) `newtype` 은 기존 타입과 같은 표현을 갖되 **다른 타입**을 만든다. 서로 바꿔 쓸 수 없다.
 
-(2a) 모양은 `def type <이름> <타입> .` 과 `def newtype <이름> <타입> .` 이다. 이름과 타입 사이에 `be` 를 끼우지
-      아니한다 — `be` 는 `let`·`var` 가 **값**을 묶는 낱말이고, 여기서 묶는 것은 타입이다. `be` 를 끼운 꼴은
-      거부된다(`E-TYPE-DECL`).
+(2a) 모양은 `def type <이름> <타입> .` 과 `def newtype <이름> <타입> .` 이다. 이름과 타입 사이에 낱말을 끼우지
+      아니한다.
 
-```lowent-거부: 타입 선언에 be 를 끼운다 · E-TYPE-DECL
-module ex_type_be .
+```lowent-거부: `newtype` 은 바탕 타입과 섞이지 아니한다 — (2) 를 시험한다 · E-TYPE-NOMINAL
+module ex_newtype_mix .
 
-def type pct be u8 .
+def newtype node_id u64 .
 
-fn f output pct . do
-  return 1 .
+fn f input a node_id . input b u64 . output u64 . do
+  return add a b .
 end
 ```
 
@@ -800,7 +799,7 @@ end
 module ex_bitset .
 
 fn members output u64 . do
-  var s be bitset 8 bitset_new 8 .
+  var s bitset 8 bitset_new 8 .
   bitset_insert s 3 .
   bitset_insert s 5 .
   bitset_remove s 3 .
@@ -922,7 +921,7 @@ def struct wire_header do
 end
 
 fn hdr_kind input b bytes . output u64 . do
-  var v be view wire_header view wire_header b .
+  var v view wire_header view wire_header b .
   return widen u64 (field v kind) .
 end
 

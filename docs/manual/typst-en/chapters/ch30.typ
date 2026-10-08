@@ -281,7 +281,7 @@ What is carried is not only an instruction that replaces a computation. What `ss
   [`rw` · `ro` · `wo`], [access modes --- enforced at translation], [violations: `E-MMIO-PERM`],
   [`read_volatile g idr` · `write_volatile g moder 2`], [access that is never merged or removed], [reading is itself an action],
   [`input dev cap mmio .` + `effects device`], [device capability and effect], [no hardware access without authority],
-  [`var g be gpio view gpio regs .`], [lay the map over bytes], [taking a device by value: `E-MMIO-BYVALUE`],
+  [`var g gpio view gpio regs .`], [lay the map over bytes], [taking a device by value: `E-MMIO-BYVALUE`],
   [`proc on_exti vector 6 . priority 2 . output void . effects device .`], [an interrupt handler], [calling it: `E-ISR-CALLED` · arguments: `E-ISR-PARAMS`],
   [`build tier t1 .`], [the tier of effects this machine can bear], [what cannot be carried is stopped at translation],
   [`asm x86_64 . reg a . out reg r . clobber flags . options pure .`], [head of a body written in machine code], [confined by `unsafe`, `cap machine`, effects line, machine name],

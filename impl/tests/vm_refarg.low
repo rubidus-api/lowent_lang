@@ -40,10 +40,10 @@ end
 
 rem ★ 가변 참조로 두 번 올린다 — 5 → 7. **루프 안에서** 넘긴다(전엔 이 자리가 조용히 통과했다).
 proc mutate output u64 . effects none . do
-  var q be lit pt do x 5 . end .
-  var i be u64 0 .
-  var t be u64 0 .
-  while lt i 2 . do
+  var q lit pt do x 5 . end .
+  var i u64 0 .
+  var t u64 0 .
+  while lt i 2 do
     set t (bump (mut_ref q)) .
     set i (add i 1) .
   end
@@ -58,7 +58,7 @@ rem     끝나므로 안 잡고, 참조를 돌려주는 op(`output ref …`)이�
 rem   ☞ `ok`/`some` 같은 감싸개는 사용자 op 이 아니라 이 완화가 안 닿는다 —
 rem     `return ok (mut_ref tmp)`(region.low)는 **여전히 잡힌다.** 완화는 구멍만큼만 넓다.
 fn read_only output u64 . do
-  let q be lit pt do x 5 . end .
+  let q lit pt do x 5 . end .
   return peek (ref q) .
 end
 
@@ -79,9 +79,9 @@ end
 
 rem 참조로 길이를 읽는다 — 원본 3 바이트.
 proc slice_len input buf mut slice u8 . output u64 . effects none . do
-  var t be u64 0 .
-  var i be u64 0 .
-  while lt i 1 . do
+  var t u64 0 .
+  var i u64 0 .
+  while lt i 1 do
     set t (slen (mut_ref buf)) .
     set i (add i 1) .
   end
@@ -90,9 +90,9 @@ end
 
 rem ★ 참조로 **원소를 쓴다** — 호출자의 버퍼가 실제로 바뀐다(뷰지 복사가 아니다).
 proc slice_write input buf mut slice u8 . output u64 . effects none . do
-  var t be u64 0 .
-  var i be u64 0 .
-  while lt i 1 . do
+  var t u64 0 .
+  var i u64 0 .
+  while lt i 1 do
     set t (spoke (mut_ref buf)) .
     set i (add i 1) .
   end

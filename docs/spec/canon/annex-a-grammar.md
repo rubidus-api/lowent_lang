@@ -15,13 +15,13 @@
 (1) 다음이 낱말의 전부다. 이 목록에 없는 것은 낱말이 아니다.
 
 ```문법틀: 낱말 목록 — 이 목록이 전부다
-actor      be         break      case       continue   contract   def
+actor      break      case       continue   contract   cycle      def
 do         drop       else       end        enum       expect     export
 expr       extern     false      fn         for        guard      if
-let        lit        match      module     newtype    none       proc
-return     satisfies  send       set        spawn      state      struct
-test       trait      true       try        type       unsafe     use
-var        while
+keep       let        lit        match      module     newtype    next
+none       proc       range      repeat     return     satisfies  send
+set        spawn      state      step       struct     test       trait
+true       try        type       unsafe     use        var        while
 ```
 
 (2) 예약된 낱말은 이름이 될 수 없다(⟦§6.1.2⟧). 이 목록의 낱말은 모두 이 문서가
@@ -67,48 +67,56 @@ end
 ## A.3 문장
 
 ```문법틀: 문장
-let <이름> be <타입> <식> .
-var <이름> be <타입> <식> .
+let <이름> <타입> <식> .
+var <이름> <타입> <식> .
+let <이름> <타입> <식> else <빠져나가는 문장> .
 set <이름> <식> .
 
-if <조건> . do <문장들> end
-if <조건> . do <문장들> else <문장들> end
-while <조건> . do <문장들> end
-for <이름> <머리> do <문장들> end
-guard <조건> . else <빠져나가는 문장> .
+if <조건> do <문장들> end
+if <조건> do <문장들> end else do <문장들> end
+while <조건> do <문장들> end
+for <이름> <원천> do <문장들> end
+repeat <이름> <타입> <횟수> do <문장들> end
+range <이름> <타입> <처음> <끝> do <문장들> end
+cycle <이름> <타입> <처음> while <조건> next <다음 값> do <문장들> end
+guard <조건> else <빠져나가는 문장> .
 
 return <식> .
 break .
 continue .
 ```
 
-(1) 되풀이 둘은 다음과 같다. 표기는 A.6 (2) 를 따른다 — `{ }` 는 0 회 이상, `[ ]` 는 선택, `|` 는 택일이다.
+(1) 이름을 짓는 문장과 되풀이는 다음과 같다. 표기는 A.6 (2) 를 따른다 — `{ }` 는 0 회 이상, `[ ]` 는 선택, `|` 는 택일이다.
+      식은 **닫는 점이나 끝내는 낱말**(`do` · `else` · `if` · `while` · `next` · `step`)에서 끝난다. 점은 문장을 닫는 일만 한다.
 
-```문법틀: 되풀이 — while 과 for
-WHILE  = 'while' , 식 , '.' , 'do' , { 문장 } , 'end' ;
+```문법틀: 바인딩 · 실패 절 · 되풀이
+BINDING = ( 'let' | 'var' ) , 이름 , [ ( 'use' | 'keep' ) , 이름 ] , 타입 , 식 , [ FAIL ] , '.' ;
+FAIL    = 'else' , 벗어남
+        | 'else' , 'do' , { 문장 } , 'end'
+        | 'else' , 'error' , 이름 , 'do' , { 문장 } , 'end' ;
+벗어남  = 'return' , [ 식 ] | 'break' | 'continue' | 'panic' , 식 ;
+GUARD   = 'guard' , 식 , FAIL , '.' ;
 
-FOR    = 'for' , 이름 , 머리 , [ 'where' , 식 , '.' ] , 'do' , { 문장 } , 'end' ;
-머리   = 원천
-       | 'mut' , 원천
-       | 'count' , 정수타입 , 식 , '.'
-       | 'range' , 정수타입 , 식 , 식 , [ 'step' , 식 ] , '.'
-       | 'be' , 타입 , 식 , '.' , 'while' , 식 , '.' , 'next' , 식 , '.' ;
-원천   = 이름
-       | '(' , 식 , ')'
-       | 식 , '.' ;
+WHILE   = 'while' , 식 , 'do' , { 문장 } , 'end' ;
+FOR     = 'for' , 이름 , [ 'mut' ] , 식 , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
+REPEAT  = 'repeat' , 이름 , 정수타입 , 식 , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
+RANGE   = 'range' , 이름 , 정수타입 , 식 , 식 , [ 'step' , 식 ] , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
+CYCLE   = 'cycle' , 이름 , 타입 , 식 , 'while' , 식 , 'next' , 식 , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
+거르기  = 'if' , 식 ;
 
 정수타입 = 'u8' | 'u16' | 'u32' | 'u64' | 'i8' | 'i16' | 'i32' | 'i64' ;
 ```
 
-(2) `WHILE` 의 `식` 과 `where` · 점화식 `while` 의 `식` 은 `bool` 이다. `원천` 은 슬라이스를 내는 식이다.
-      각 머리의 뜻은 ⟦§6.5.3.1⟧ 이 정한다.
+(2) `WHILE` 의 `식`, `거르기` 의 `식`, `CYCLE` 의 `while` 뒤 `식` 은 `bool` 이다. `FOR` 의 `식` 은 슬라이스를 낸다.
+      `FAIL` 이 블록(`end`)으로 끝나면 `BINDING` · `GUARD` 의 닫는 `'.'` 은 적지 아니한다. 각 문장의 뜻은 ⟦§6.5.1⟧ ·
+      ⟦§6.5.3.1⟧ · ⟦§6.5.4⟧ 가 정한다.
 
 ## A.4 갈래·시험·액터
 
 ```문법틀: 갈래를 가르기 · 시험 · 액터
-match <값> . do
-  case <갈래> . do <문장들> end
-  case <갈래> . do <문장들> end
+match <값> do
+  case <갈래> do <문장들> end
+  case <갈래> do <문장들> end
 end
 
 test <이름>
@@ -270,15 +278,18 @@ parallel            parallel <이름> <모드> .
 requires / ensures  requires <조건-폼>* .
 errors              errors <갈래> [<조건-폼>] .  (한 절에 오류 하나)     .
 tests               tests <이름>* .
-let / var           let <이름> [using <이름> [keep]] be <타입> <폼> .
+let / var           let <이름> [use <이름> | keep <이름>] <타입> <폼> [else …] .   (else 가 블록으로 끝나면 점이 없다)
 set                 set <자리-폼> <폼> .
 into                pop <스택> into <이름> .   (프렐류드 문형)           .
-if (문)             if <폼> . do <폼>* end [else (if문 | do <폼>* end)]   end
+if (문)             if <폼> do <폼>* end [else (if문 | do <폼>* end)]     end
 guard               guard <폼> else <나가는-폼> .
-while               while <폼> . do <폼>* end                            end
-for                 for <이름> <머리> do <폼>* end   (머리는 A.3)       end
+while               while <폼> do <폼>* end                              end
+for                 for <이름> [mut] <폼> [if <폼>] do <폼>* end         end
+repeat              repeat <이름> <타입> <폼> [if <폼>] do <폼>* end     end
+range               range <이름> <타입> <폼> <폼> [step <폼>] [if <폼>] do <폼>* end   end
+cycle               cycle <이름> <타입> <폼> while <폼> next <폼> [if <폼>] do <폼>* end  end
 region              region <이름> <종류> do <폼>* end                   end
-borrow              borrow <이름> be <폼> do <폼>* end                  end
+borrow              borrow <이름> <폼> do <폼>* end                     end
 return              return [<폼>] .           (값이 블록으로 끝나도 점)   .
 break               break .                   (라벨은 없다)             .
 continue            continue .
@@ -287,7 +298,7 @@ lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice 
 lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end            블록이 닫는다
 lit (SIMD)          lit vec <타입> <레인> <값>… [_] .                                 .
 extern              extern fn/proc <이름> do <절>* end  (몸이 씨)       end
-match               match <폼> . do <가지>* [else do <폼>* end] end       end
+match               match <폼> do <가지>* [else do <폼>* end] end         end
 ```
 
 (2a) `fn`/`proc` 머리의 `<절>*` 은 ⟦§6.4.1⟧ (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·

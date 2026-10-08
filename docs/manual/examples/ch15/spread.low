@@ -9,8 +9,8 @@ end
 proc compute input out cap io . input x u64 . output u64 . effects panic .
   requires le x 1000 .
 do
-  let n be u64 log_line out "computing\n" .
-  if eq x 0 . do
+  let n u64 log_line out "computing\n" .
+  if eq x 0 do
     panic "zero" .
   end
   return mul x 2 .

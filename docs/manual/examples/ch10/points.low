@@ -14,15 +14,15 @@ end
 
 fn manhattan input s segment . output i64 .
 do
-  let dx be i64 sub (field s stop x) (field s start x) .
-  let dy be i64 sub (field s stop y) (field s start y) .
+  let dx i64 sub (field s stop x) (field s start x) .
+  let dy i64 sub (field s stop y) (field s start y) .
   return add (abs dx) (abs dy) .
 end
 
 fn demo_dist input dx i64 . input dy i64 . output i64 .
 do
-  let a be lit point do x 1 . y 1 . end .
-  let b be lit point do x (add 1 dx) . y (add 1 dy) . end .
+  let a lit point do x 1 . y 1 . end .
+  let b lit point do x (add 1 dx) . y (add 1 dy) . end .
   return manhattan (lit segment do start a . stop b . end) .
 end
 
@@ -33,7 +33,7 @@ end
 
 fn demo_move input k i64 . output i64 .
 do
-  let p be lit point do x 10 . y 0 . end .
-  let q be point moved p k .
+  let p lit point do x 10 . y 0 . end .
+  let q point moved p k .
   return field q x .
 end

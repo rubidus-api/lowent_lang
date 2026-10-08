@@ -674,15 +674,15 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">proc</span></strong> say_twice <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> say k msg .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> say k msg .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> say k msg .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> say k msg .
   <strong><span class="tok-k">return</span></strong> add a b .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> say_twice k <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">guard</span></strong> eq n <span class="tok-n">6</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> say_twice k <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">guard</span></strong> eq n <span class="tok-n">6</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main chain.low
@@ -705,9 +705,9 @@ main() = 0
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">16</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">16</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some g <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main pairs.low
@@ -718,7 +718,7 @@ main() = 0
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check nocap.low
@@ -769,14 +769,14 @@ entry.low:5:1 W-EFFECT-OVER: this op DECLARES `io` but never PERFORMS it. A decl
 <em><span class="tok-c">rem environment variables need cap env and the operating system's entropy needs cap random; both must be handed over</span></em>
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> e <strong><span class="tok-k">cap</span></strong> env . <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-k">cap</span></strong> random . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">250</span> .
-  <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some g <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">250</span> .
+  <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
   <em><span class="tok-c">rem fill eight bytes with operating-system randomness; the value differs every run, so it is not returned</span></em>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> random.bytes r buf .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> random.bytes r buf .
   <em><span class="tok-c">rem a missing variable gives none, an absence rather than a value</span></em>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> env_get e <span class="tok-s">"</span><span class="tok-s">LOWENT_MANUAL_DEMO</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some v . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> env_get e <span class="tok-s">"</span><span class="tok-s">LOWENT_MANUAL_DEMO</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some v <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main envrandom.low
@@ -797,7 +797,7 @@ mistake_fncap.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `io` 
 <strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ the capability is moved into a local name --- pass the received name directly</span></em>
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">cap</span></strong> io out .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">cap</span></strong> io out .
   <strong><span class="tok-k">return</span></strong> write_out k <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_caplocal.low
@@ -808,7 +808,7 @@ mistake_caplocal.low:8:0 E-CAP-LOCAL: `k` is a LOCAL that a `cap io` was copied 
 <em><span class="tok-c">rem ✘ tries to write to standard output with the file capability</span></em>
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> fs <strong><span class="tok-k">cap</span></strong> file_system . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out fs <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out fs <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fscapout.low
@@ -824,7 +824,7 @@ mistake_fscapout.low:7:0 E-CAP-KIND: this leaf needs a `cap io`, and `fs` is a `
 <em><span class="tok-c">rem ✘ receives no capability at all, yet prints by passing the number 0 where a capability belongs</span></em>
 <strong><span class="tok-k">proc</span></strong> start <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> say <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> say <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_capforge.low

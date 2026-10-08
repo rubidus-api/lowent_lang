@@ -80,8 +80,8 @@ rem 혼자인 노드로 만든다 — 고리 하나다.
 export proc nl_solo input nx mut slice u64 . input pv mut slice u64 . input i u64 .
   output bool . effects none .
 do
-  guard lt i (len nx) . else return false .
-  guard lt i (len pv) . else return false .
+  guard lt i (len nx) else return false .
+  guard lt i (len pv) else return false .
   set (idx nx i) i .
   set (idx pv i) i .
   return true .
@@ -91,9 +91,9 @@ rem `i` 를 `at` 뒤에 끼운다.
 export proc nl_after input nx mut slice u64 . input pv mut slice u64 . input at u64 . input i u64 .
   output bool . effects none .
 do
-  guard lt at (len nx) . else return false .
-  guard lt i (len nx) . else return false .
-  let n be u64 idx nx at .
+  guard lt at (len nx) else return false .
+  guard lt i (len nx) else return false .
+  let n u64 idx nx at .
   set (idx nx at) i .
   set (idx pv i) at .
   set (idx nx i) n .
@@ -105,9 +105,9 @@ rem `i` 를 뺀다 — 이웃을 서로 잇고, 자신은 혼자가 된다.
 export proc nl_cut input nx mut slice u64 . input pv mut slice u64 . input i u64 .
   output bool . effects none .
 do
-  guard lt i (len nx) . else return false .
-  let p be u64 idx pv i .
-  let n be u64 idx nx i .
+  guard lt i (len nx) else return false .
+  let p u64 idx pv i .
+  let n u64 idx nx i .
   set (idx nx p) n .
   set (idx pv n) p .
   set (idx nx i) i .
@@ -125,28 +125,28 @@ rem   그래서 머리는 고리에 들기 전에 따로 자르고, 바퀴는 �
 export proc nl_walk_cut input nx mut slice u64 . input pv mut slice u64 . input head u64 .
   input cut_at u64 . output u64 . effects none .
 do
-  guard lt head (len nx) . else return 0 .
-  var start be u64 head .
-  var seen be u64 0 .
-  if eq cut_at head . do
-    let n0 be u64 idx nx head .
-    let p0 be u64 idx pv head .
+  guard lt head (len nx) else return 0 .
+  var start u64 head .
+  var seen u64 0 .
+  if eq cut_at head do
+    let n0 u64 idx nx head .
+    let p0 u64 idx pv head .
     set (idx nx p0) n0 .
     set (idx pv n0) p0 .
     set (idx nx head) head .
     set (idx pv head) head .
     set seen 1 .
-    if eq n0 head . do return 1 . end        rem 혼자였다 — 바퀴가 곧 끝이다
+    if eq n0 head do return 1 . end        rem 혼자였다 — 바퀴가 곧 끝이다
     set start n0 .
   end
-  var i be u64 start .
-  var steps be u64 0 .
-  while le steps (len nx) . do
+  var i u64 start .
+  var steps u64 0 .
+  while le steps (len nx) do
     rem ★ **다음을 먼저 읽는다** — 지금 노드를 빼면 그 `next` 가 자기 자신이 되기 때문이다.
-    let nxt be u64 idx nx i .
-    if eq i cut_at . do
-      let p be u64 idx pv i .
-      let n be u64 idx nx i .
+    let nxt u64 idx nx i .
+    if eq i cut_at do
+      let p u64 idx pv i .
+      let n u64 idx nx i .
       set (idx nx p) n .
       set (idx pv n) p .
       set (idx nx i) i .
@@ -154,7 +154,7 @@ do
     end
     set seen (add seen 1) .
     set i nxt .
-    if eq i start . do
+    if eq i start do
       return seen .
     end
     set steps (add steps 1) .
@@ -164,14 +164,14 @@ end
 
 rem 고리 한 바퀴의 길이를 센다 — 훑기만 한다. 머리로 돌아오면 끝이다.
 export fn nl_count input nx slice u64 . input head u64 . output u64 . do
-  guard lt head (len nx) . else return 0 .
-  var i be u64 head .
-  var seen be u64 0 .
-  var steps be u64 0 .
-  while le steps (len nx) . do
+  guard lt head (len nx) else return 0 .
+  var i u64 head .
+  var seen u64 0 .
+  var steps u64 0 .
+  while le steps (len nx) do
     set seen (add seen 1) .
     set i (idx nx i) .
-    if eq i head . do
+    if eq i head do
       return seen .
     end
     set steps (add steps 1) .

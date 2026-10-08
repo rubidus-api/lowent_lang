@@ -2,7 +2,7 @@ rem ★ **의존이 되는 쪽** — `export` 한 것만 밖에서 보인다(RFC
 module lib_math .
 
 export fn clamp255 input a u64 . output u64 . do
-    if gt a 255 . do return 255 . end
+    if gt a 255 do return 255 . end
     return a .
 end
 

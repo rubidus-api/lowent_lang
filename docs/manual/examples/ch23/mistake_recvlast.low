@@ -13,6 +13,6 @@ do
 end
 fn f output u64 .
 do
-  let r be lit rect do w 2 . h 3 . end .
+  let r lit rect do w 2 . h 3 . end .
   return method r scaled 5 .
 end

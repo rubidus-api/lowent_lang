@@ -9,12 +9,12 @@
 이름이 짧은 것도 인터페이스다.
 
 ```lowent
-let g using bump be option growvec.gvec growvec.open 16 .
-guard is_some g . else return 1 .
-var v be growvec.gvec some_value g .
-guard growvec.add_all v "hello" . else return 2 .
-guard growvec.add_all v " world" . else return 3 .
-let s be slice u8 growvec.view_of v .
+let g use bump option growvec.gvec growvec.open 16 .
+guard is_some g else return 1 .
+var v growvec.gvec some_value g .
+guard growvec.add_all v "hello" else return 2 .
+guard growvec.add_all v " world" else return 3 .
+let s slice u8 growvec.view_of v .
 ```
 
 *왜 있는가.* #modref("vecs")[`vecs`] 로 바이트를 모으면 부를 때마다 얼로케이터 · 버퍼 · 길이를 넘기고, 늘어난 새 버퍼를 받아 *다시 묶는 일*도 호출부의 몫이다. 그 한
@@ -39,8 +39,8 @@ let s be slice u8 growvec.view_of v .
 
 ```lowent
 proc put_record input v mut growvec.gvec . input rec slice u8 . output bool . effects state . do
-  guard growvec.reserve_more v (add (len rec) 1) . else return false .
-  guard growvec.add_all v rec . else return false .
+  guard growvec.reserve_more v (add (len rec) 1) else return false .
+  guard growvec.add_all v rec else return false .
   return growvec.add_byte v 10 .
 end
 ```
@@ -54,7 +54,7 @@ end
 ]
 
 #antipattern[`gvec` 을 복사해 두고 양쪽에 넣는다][
-  `var b be growvec.gvec a .` 뒤 `a` 와 `b` 에 각각 넣으면 둘이 같은 버퍼를 보면서 `n` 은 서로의 변경을 모른다 --- 서로 덮어쓴다. 한 벡터는 한 이름으로 다루고, 넘길
+  `var b growvec.gvec a .` 뒤 `a` 와 `b` 에 각각 넣으면 둘이 같은 버퍼를 보면서 `n` 은 서로의 변경을 모른다 --- 서로 덮어쓴다. 한 벡터는 한 이름으로 다루고, 넘길
   때는 `mut gvec` 로 넘긴다.
 ]
 

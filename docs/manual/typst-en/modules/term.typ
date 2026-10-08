@@ -16,8 +16,8 @@ instead of everything (#chref("lib-terminal")).
 ```lowent
 use term as t .
 
-let p be option u64 t.goto buf 0 2 4 .
-guard is_some p . else return 1 .
+let p option u64 t.goto buf 0 2 4 .
+guard is_some p else return 1 .
 ```
 
 *Convention.* Sequence ops follow #modref("fmt")[`fmt`]'s convention --- `(buf, pos, …) → option u64` (new pos). Passing one op's return as the next op's `pos` chains sequences,
@@ -66,15 +66,15 @@ deleted or the cursor stops inside a character.
 
 ```lowent
 proc diff_frame input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 32 . else return 90 .
-  let prev be slice u8 "aaaaaaaaaa" .
-  let nxt be slice u8 "aaaaaaxyaa" .
-  let p be option u64 t.diff prev nxt 5 out 0 .
-  guard is_some p . else return 1 .
-  guard eq (some_value p) 8 . else return 2 .
-  let d be option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
-  guard is_some d . else return 3 .
-  guard eq (some_value d) 9 . else return 4 .
+  guard ge (len out) 32 else return 90 .
+  let prev slice u8 "aaaaaaaaaa" .
+  let nxt slice u8 "aaaaaaxyaa" .
+  let p option u64 t.diff prev nxt 5 out 0 .
+  guard is_some p else return 1 .
+  guard eq (some_value p) 8 else return 2 .
+  let d option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
+  guard is_some d else return 3 .
+  guard eq (some_value d) 9 else return 4 .
   return 42 .
 end
 ```

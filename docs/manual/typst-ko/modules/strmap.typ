@@ -8,8 +8,8 @@
 키 바이트는 넣을 때 아레나로 *복사*되므로 원본 문자열의 수명에 매이지 않는다.
 
 ```lowent
-let stored be bool strmap.put slots keys "apple" 1 .
-let v be option u64 strmap.lookup slots keys "apple" .
+let stored bool strmap.put slots keys "apple" 1 .
+let v option u64 strmap.lookup slots keys "apple" .
 ```
 
 *버퍼 둘을 호출자가 마련한다.* 처음에 `slots` 는 전부 0 이어야 한다.

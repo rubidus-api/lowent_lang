@@ -675,10 +675,10 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> digits_loop <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> is_digit (idx s i) . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i (len s) <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> is_digit (idx s i) <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -876,10 +876,10 @@ running([1,2,3,4], [1,3,6,10]) = 0
 
 <strong><span class="tok-k">fn</span></strong> clamp <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b band . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> lt x (field b lo) . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> lt x (field b lo) <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> field b lo .
   <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">if</span></strong> gt x (field b hi) . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> gt x (field b hi) <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> field b hi .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
@@ -1018,7 +1018,7 @@ mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WID
 <strong><span class="tok-k">fn</span></strong> add_small_swapped <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le acc <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> lt x <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc .
+  <strong><span class="tok-k">guard</span></strong> lt x <span class="tok-n">100</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc .
   <strong><span class="tok-k">return</span></strong> add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
 <strong><span class="tok-k">end</span></strong>
 
@@ -1035,7 +1035,7 @@ mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is t
 
 <strong><span class="tok-k">proc</span></strong> nonzero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq a <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero in input</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq a <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero in input</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
 <strong><span class="tok-k">end</span></strong>
 

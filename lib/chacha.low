@@ -28,12 +28,12 @@ export def enum chacha_error do
 end
 
 
-let mask32 be u64 4294967295 .
+let mask32 u64 4294967295 .
 
 rem 32비트 왼쪽 회전.
 fn rotl32 input x u64 . input n u64 . output u64 . do
-  let a be u64 bit_and (shl x n) 4294967295 .
-  let b be u64 shr (bit_and x 4294967295) (sub 32 n) .
+  let a u64 bit_and (shl x n) 4294967295 .
+  let b u64 shr (bit_and x 4294967295) (sub 32 n) .
   return bit_or a b .
 end
 
@@ -60,29 +60,29 @@ rem ★ 블록 함수: 상태 16 워드를 20 라운드 돌리고 원래 상태�
 rem   `st` 에는 호출자가 초기 상태를 채워 둔다. `work` 는 16 원소 작업 공간.
 export proc rounds input st slice u64 . input work mut slice u64 . output result u64 chacha_error . effects none .
 errors short_workspace . do
-  guard ge (len st) 16 . else return ok 0 .
-  guard ge (len work) 16 . else return error short_workspace .
-  var i be u64 0 .
-  while lt i 16 . do
+  guard ge (len st) 16 else return ok 0 .
+  guard ge (len work) 16 else return error short_workspace .
+  var i u64 0 .
+  while lt i 16 do
     set (idx work i) (idx st i) .
     set i (add i 1) .
   end
-  var r be u64 0 .
-  while lt r 10 . do
+  var r u64 0 .
+  while lt r 10 do
     rem 열(column) 라운드
-    let z1 be u64 qround work 0 4 8 12 .
-    let z2 be u64 qround work 1 5 9 13 .
-    let z3 be u64 qround work 2 6 10 14 .
-    let z4 be u64 qround work 3 7 11 15 .
+    let z1 u64 qround work 0 4 8 12 .
+    let z2 u64 qround work 1 5 9 13 .
+    let z3 u64 qround work 2 6 10 14 .
+    let z4 u64 qround work 3 7 11 15 .
     rem 대각(diagonal) 라운드
-    let z5 be u64 qround work 0 5 10 15 .
-    let z6 be u64 qround work 1 6 11 12 .
-    let z7 be u64 qround work 2 7 8 13 .
-    let z8 be u64 qround work 3 4 9 14 .
+    let z5 u64 qround work 0 5 10 15 .
+    let z6 u64 qround work 1 6 11 12 .
+    let z7 u64 qround work 2 7 8 13 .
+    let z8 u64 qround work 3 4 9 14 .
     set r (add r 1) .
   end
-  var j be u64 0 .
-  while lt j 16 . do
+  var j u64 0 .
+  while lt j 16 do
     set (idx work j) (add32 (idx work j) (idx st j)) .
     set j (add j 1) .
   end
@@ -95,18 +95,18 @@ rem   ☞ 키는 **정확히 32**, nonce 는 **정확히 12** 바이트다. 전�
 rem     (XChaCha 모양)를 주면 앞 12 만 쓰고 16 을 답했다 — *성공한 척한 다른 암호*다
 rem     (2026-09-04 검토 A2). 이 모듈은 RFC 8439 의 ChaCha20 뿐이므로 다른 길이는 거절한다.
 export proc prep input key slice u8 . input nonce slice u8 . input counter u64 . input st mut slice u64 . output u64 . effects none . do
-  guard eq (len key) 32 . else return 0 .
-  guard eq (len nonce) 12 . else return 0 .
-  guard ge (len st) 16 . else return 0 .
+  guard eq (len key) 32 else return 0 .
+  guard eq (len nonce) 12 else return 0 .
+  guard ge (len st) 16 else return 0 .
   set (idx st 0) 1634760805 .
   set (idx st 1) 857760878 .
   set (idx st 2) 2036477234 .
   set (idx st 3) 1797285236 .
-  var i be u64 0 .
-  while lt i 8 . do
-    var w be u64 0 .
-    var b be u64 0 .
-    while lt b 4 . do
+  var i u64 0 .
+  while lt i 8 do
+    var w u64 0 .
+    var b u64 0 .
+    while lt b 4 do
       set w (bit_or w (shl (cast u64 (idx key (add (mul i 4) b))) (mul b 8))) .
       set b (add b 1) .
     end
@@ -114,11 +114,11 @@ export proc prep input key slice u8 . input nonce slice u8 . input counter u64 .
     set i (add i 1) .
   end
   set (idx st 12) (bit_and counter 4294967295) .
-  var j be u64 0 .
-  while lt j 3 . do
-    var v be u64 0 .
-    var c be u64 0 .
-    while lt c 4 . do
+  var j u64 0 .
+  while lt j 3 do
+    var v u64 0 .
+    var c u64 0 .
+    while lt c 4 do
       set v (bit_or v (shl (cast u64 (idx nonce (add (mul j 4) c))) (mul c 8))) .
       set c (add c 1) .
     end
@@ -131,14 +131,14 @@ end
 rem ★ 키스트림 한 블록(64 바이트)을 `ks` 에 리틀엔디언으로 편다.
 export proc keystream input st slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
 errors short_workspace . do
-  guard ge (len ks) 64 . else return ok 0 .
-  let _u1 be result u64 chacha_error rounds st work .
-  guard is_ok _u1 . else return error short_workspace .
-  guard eq (ok_value _u1) 16 . else return ok 0 .
-  var i be u64 0 .
-  while lt i 16 . do
-    var b be u64 0 .
-    while lt b 4 . do
+  guard ge (len ks) 64 else return ok 0 .
+  let _u1 result u64 chacha_error rounds st work .
+  guard is_ok _u1 else return error short_workspace .
+  guard eq (ok_value _u1) 16 else return ok 0 .
+  var i u64 0 .
+  while lt i 16 do
+    var b u64 0 .
+    while lt b 4 do
       set (idx ks (add (mul i 4) b)) (cast u8 (bit_and (shr (idx work i) (mul b 8)) 255)) .
       set b (add b 1) .
     end
@@ -152,26 +152,26 @@ rem   `st`·`work` 16 원소, `ks` 64 바이트를 호출자가 준다 — 이 �
 rem   **호출자의 몫**이다. 그래서 이 프로시저는 effects none 이다.
 export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
 errors short_workspace . do
-  guard ge (len out) (len inp) . else return ok 0 .
-  guard eq (len key) 32 . else return ok 0 .
-  guard eq (len nonce) 12 . else return ok 0 .
-  guard ge (len st) 16 . else return ok 0 .
-  guard ge (len work) 16 . else return error short_workspace .
-  guard ge (len ks) 64 . else return ok 0 .
+  guard ge (len out) (len inp) else return ok 0 .
+  guard eq (len key) 32 else return ok 0 .
+  guard eq (len nonce) 12 else return ok 0 .
+  guard ge (len st) 16 else return ok 0 .
+  guard ge (len work) 16 else return error short_workspace .
+  guard ge (len ks) 64 else return ok 0 .
   rem ★ 카운터 블록을 `ks` 의 앞 16 바이트에 세운다 — 앞 4 는 블록 번호(리틀엔디언),
   rem   뒤 12 는 nonce. 이 언어에서 뒷받침은 **호출자의 몫**이므로 새 버퍼를 얻지 않고
   rem   이미 받은 작업 공간을 쓴다(`ks` 는 이 부름 동안 낱말이 채우지 않는다).
-  var b be u64 0 .
-  while lt b 4 . do
+  var b u64 0 .
+  while lt b 4 do
     set (idx ks b) (cast u8 (bit_and (shr counter (mul b 8)) 255)) .
     set b (add b 1) .
   end
-  var j be u64 0 .
-  while lt j 12 . do
+  var j u64 0 .
+  while lt j 12 do
     set (idx ks (add 4 j)) (idx nonce j) .
     set j (add j 1) .
   end
-  let n be u64 call_builtin chacha20 key (subslice ks 0 16) inp out .
-  guard eq n (len inp) . else return ok 0 .
+  let n u64 call_builtin chacha20 key (subslice ks 0 16) inp out .
+  guard eq n (len inp) else return ok 0 .
   return ok (len inp) .
 end

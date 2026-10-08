@@ -188,7 +188,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
             else if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "next") && wh < wi) { nx = q; break; }
         }
         if (wh == wi || nx == wi || wh == 4 || nx == wh + 1 || nx + 1 >= wi) {
-            ir_fail(c, "E-IR-UNSUP", "a recurrence head is `for i be <type> <start> . while <condition> . next <step> .` (RFC-0132 §8.1)", f->line); return;
+            ir_fail(c, "E-IR-UNSUP", "a recurrence head is `cycle i <type> <start> while <condition> next <next value> do` (RFC-0132 §8.1)", f->line); return;
         }
         ir_run(c, f->kids, 4, wh - 4); ir_emit(c, IRW_STORE, (proven_i64)var);
         proven_size_t top = c->code.len;
@@ -463,7 +463,7 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
         // ★★★ **pull 소스** (RFC-0010 §8-8) — 소스가 `next` 핸들러를 가진 액터면 **당겨서** 읽는다.
         //   ★ **새 문법이 0 이다**: 소스의 **타입이 모양을 결정한다**. 슬라이스면 인덱스 루프, `next` 를
         //   가진 액터면 pull 루프. 둘 다 **단일 루프**라 융합 보장(D-A)이 유지된다.
-        //   ★ pull 반복자 = **상태 액터 + `next` → option T**. 새 기계가 없다: trait·단형화·option 이
+        //   ★ pull 반복자 = **상태 액터 + `pull` → option T**(RFC-0141 — `next` 가 예약어가 되어 처리기 이름을 바꿨다). 새 기계가 없다: trait·단형화·option 이
         //   이미 있었고, allocator(vm_alloc)가 바로 그 모양이다. 무한 소스는 `take`/`any`/`all` 의
         //   단락으로 끝난다 — 단락이 없으면 끝나지 않는다(그래서 take 가 먼저 필요했다).
         proven_size_t nexth = (proven_size_t)-1;
@@ -473,7 +473,7 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
                 bool sf; proven_size_t si = ir_struct_find(c->out, c->locals[lsl].tyname, &sf);
                 if (sf) for (proven_size_t q = 0; q < c->out->ndefs; q++) {
                     const low_ir_def_t *dd = &c->out->defs[q];
-                    if (dd->is_actor && proven_u8str_view_eq(dd->name, proven_u8str_view_from_cstr("next")) &&
+                    if (dd->is_actor && proven_u8str_view_eq(dd->name, proven_u8str_view_from_cstr("pull")) &&
                         dd->param_sidx[0] == (proven_u8)si) { nexth = q; break; }
                 }
             }
@@ -893,7 +893,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
         if (!blk || !be || be < 2 || !is_atom(f->kids[1])) {
             ir_fail(c, "E-IR-UNSUP",
                     "`borrow` needs a name, a value and a block: "
-                    "`borrow <name> be <expr> do … end`. The borrow lives for the block and not "
+                    "`borrow <name> <expr> do … end`. The borrow lives for the block and not "
                     "one statement longer — that is the whole point", f->line);
             return;
         }
@@ -914,7 +914,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             for (proven_size_t j = 0; j + 1 < lf->nkids && nvk < 64; j++) vk[nvk++] = lf->kids[j];
         }
         if (!nvk) {
-            ir_fail(c, "E-IR-UNSUP", "`borrow` needs a value after `be`", f->line);
+            ir_fail(c, "E-IR-UNSUP", "`borrow` needs a value after its name: `borrow <name> <expr> do … end`", f->line);
             return;
         }
         proven_size_t pos = 0;
@@ -1092,7 +1092,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             //     `be` 로 값을 받는다). 그러므로 값 없는 `be` 는 **어떤 뜻도 아니다.**
             if (vstart >= f->nkids) {
                 ir_fail(c, "E-LET-NOVALUE",
-                        "this binding has NO VALUE — `be` is followed by nothing, and the tool used "
+                        "this binding has NO VALUE — nothing follows its type, and the tool used "
                         "to quietly bind 0 there: a value that appears NOWHERE in your source. "
                         "If you wrote a float like `.5`, that is the cause: a LEADING DOT is a "
                         "form CLOSER here, not part of a number, so the value vanished before it "
@@ -1674,7 +1674,7 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
     for (proven_size_t q = 1; q + 1 < m->nkids; q++)
         if (is_atom(m->kids[q]) && m->kids[q]->tok.kw == LOW_KW_CASE) {
             ir_fail(c, "E-IR-UNSUP",
-                    "`match` needs a do-block: `match <x> do case <v> . do … end … end` "
+                    "`match` needs a do-block: `match <x> do case <v> do … end … end` "
                     "(SPEC-002 §239). Without it the cases are loose siblings and a following "
                     "`end` closes the ENCLOSING block — a statement after the match would silently "
                     "leave the loop", m->line);
@@ -1683,7 +1683,7 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
     const low_cst_t *arms = m->kids[m->nkids - 1];
     if (arms->kind != LOW_CST_BLOCK) {
         ir_fail(c, "E-IR-UNSUP",
-                "`match` needs a do-block: `match <x> do case <v> . do … end … end` "
+                "`match` needs a do-block: `match <x> do case <v> do … end … end` "
                 "(without it the cases are loose siblings and a following `end` closes the "
                 "ENCLOSING block — SPEC-002 §239)", m->line);
         return;
@@ -2064,7 +2064,7 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
         proven_size_t brz_guard = 0;
         if (has_guard) {
             proven_size_t gcount = (f->nkids - 1) - (when_idx + 1);   // 가드 식 원자 수
-            if (gcount == 0) { ir_fail(c, "E-IR-UNSUP", "`when` needs a guard expression: `case p when <cond> . do…end`", m->line); return; }
+            if (gcount == 0) { ir_fail(c, "E-IR-UNSUP", "`when` needs a guard expression: `case p when <cond> do…end`", m->line); return; }
             ir_run(c, f->kids, when_idx + 1, gcount);
             brz_guard = ir_emit(c, IRW_BRZ, 0);
         }

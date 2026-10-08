@@ -9,14 +9,14 @@ use lifemode .
 use allocs .
 
 proc main input al cap allocator . output u8 . effects alloc . do
-  let mb be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some mb . else return 89 .
-  var c be mut slice u64 view_array u64 (some_value mb) .
-  guard lifemode.near_open c 0 . else return 1 .
-  let a be option u64 lifemode.near_share c 0 .
-  guard is_some a . else return 2 .
-  let b be option u64 lifemode.near_drop c 0 .
-  guard is_some b . else return 3 .
-  guard eq (some_value b) 1 . else return 4 .
+  let mb option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some mb else return 89 .
+  var c mut slice u64 view_array u64 (some_value mb) .
+  guard lifemode.near_open c 0 else return 1 .
+  let a option u64 lifemode.near_share c 0 .
+  guard is_some a else return 2 .
+  let b option u64 lifemode.near_drop c 0 .
+  guard is_some b else return 3 .
+  guard eq (some_value b) 1 else return 4 .
   return 42 .
 end

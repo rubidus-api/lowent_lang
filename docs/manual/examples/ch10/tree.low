@@ -8,11 +8,11 @@ end
 
 fn eval input nodes slice node . input i u32 . output u32 .
 do
-  let n be node idx nodes i .
-  match n . do
-    case num v . do return v . end
-    case add l r . do return add (eval nodes l) (eval nodes r) . end
-    case mul l r . do return mul (eval nodes l) (eval nodes r) . end
+  let n node idx nodes i .
+  match n do
+    case num v do return v . end
+    case add l r do return add (eval nodes l) (eval nodes r) . end
+    case mul l r do return mul (eval nodes l) (eval nodes r) . end
   end
 end
 

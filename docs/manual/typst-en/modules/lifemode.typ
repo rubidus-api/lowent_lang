@@ -19,9 +19,9 @@ something convenient.
 )
 
 ```lowent
-guard lifemode.near_open c 0 . else return 1 .
-let a be option u64 lifemode.near_share c 0 .
-let b be option u64 lifemode.near_drop c 0 .
+guard lifemode.near_open c 0 else return 1 .
+let a option u64 lifemode.near_share c 0 .
+let b option u64 lifemode.near_drop c 0 .
 rem answering 0 means it was the last --- the caller then reclaims the storage
 ```
 

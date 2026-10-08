@@ -8,7 +8,7 @@ end
 
 proc stuck output u64 . effects state .
 do
-  var ch be u64 channel u64 .
+  var ch u64 channel u64 .
   task_group do
     spawn consumer ch .
     spawn consumer ch .

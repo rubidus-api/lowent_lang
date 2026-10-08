@@ -23,10 +23,10 @@ end
 
 fn clamp input x u8 . input b band . output u8 .
 do
-  if lt x (field b lo) . do
+  if lt x (field b lo) do
     return field b lo .
   end
-  if gt x (field b hi) . do
+  if gt x (field b hi) do
     return field b hi .
   end
   return x .

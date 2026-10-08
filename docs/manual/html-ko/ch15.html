@@ -684,8 +684,8 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
 <strong><span class="tok-k">proc</span></strong> compute <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> log_line out <span class="tok-s">"</span><span class="tok-s">computing</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> log_line out <span class="tok-s">"</span><span class="tok-s">computing</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
     panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> mul x <span class="tok-n">2</span> .
@@ -705,15 +705,15 @@ spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does
 <strong><span class="tok-k">proc</span></strong> print_digit <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> d <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">requires</span></strong> le d <span class="tok-n">9</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> (subslice buf (widen <strong><span class="tok-t">u64</span></strong> d) (add (widen <strong><span class="tok-t">u64</span></strong> d) <span class="tok-n">1</span>)) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">i64</span></strong> celsius_to_f <span class="tok-n">100</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> print_digit out (narrow <strong><span class="tok-t">u8</span></strong> (mod f <span class="tok-n">10</span>)) .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-t">i64</span></strong> celsius_to_f <span class="tok-n">100</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> print_digit out (narrow <strong><span class="tok-t">u8</span></strong> (mod f <span class="tok-n">10</span>)) .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main layered.low
@@ -734,7 +734,7 @@ over.low:6:1 W-EFFECT-OVER: this op DECLARES `panic` but never PERFORMS it. A de
 
 <strong><span class="tok-k">proc</span></strong> checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check dup.low
@@ -744,7 +744,7 @@ dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `effects`
 
 <strong><span class="tok-k">proc</span></strong> checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check nonemix.low
@@ -762,7 +762,7 @@ nonemix.low:4:0 E-EFFECT-NONE-MIX: `none` sits in the `effects` clause ALONGSIDE
 <em><span class="tok-c">rem ✘ 순수한 `fn` 이 `panic` 을 쓴다 --- 멈추게 하는 것도 효과다</span></em>
 <strong><span class="tok-k">fn</span></strong> nonzero <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fnpanic.low
@@ -774,7 +774,7 @@ mistake_fnpanic.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `pa
 <em><span class="tok-c">rem 고친 길 1 --- 멈춤을 효과로 적은 `proc`</span></em>
 <strong><span class="tok-k">proc</span></strong> nonzero_checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
 
@@ -795,8 +795,8 @@ $ lowentc --run nonzero_strict fnpanic_fixed.low 0
 <em><span class="tok-c">rem ✘ `fn` 이 `mut` 로 받은 호출자의 줄에 쓴다</span></em>
 <strong><span class="tok-k">fn</span></strong> clear <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i (len xs) <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (idx xs i) <span class="tok-n">0</span> .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -809,7 +809,7 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
 <em><span class="tok-c">rem ✘ 효과 사이에 쉼표를 넣었다 --- 낱말을 띄어 적기만 한다</span></em>
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io, panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_effcomma.low
@@ -821,9 +821,9 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
 <strong><span class="tok-k">fn</span></strong> sum_to <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> le i n . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> le i n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s i) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>

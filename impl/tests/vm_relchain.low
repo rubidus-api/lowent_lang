@@ -23,7 +23,7 @@ export proc by_guard input a slice u8 . input hi u64 . input j u64 .
   output u8 . effects none .
   requires lt hi (len a) .
 do
-  guard le j hi . else return 0 .
+  guard le j hi else return 0 .
   return idx a j .
 end
 

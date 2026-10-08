@@ -5,8 +5,8 @@ fn parse_header
   errors too.short .
   errors bad.version .
 do
-  guard ge len data 4 . else return error too.short .
-  guard eq idx data 0 . 1 . else return error bad.version .
+  guard ge len data 4 else return error too.short .
+  guard eq (idx data 0) 1 else return error bad.version .
   return ok header .
 end
 
@@ -14,7 +14,7 @@ fn leaky
   input data slice u8 .
   errors too.short .
 do
-  guard nonempty data . else return error way.too.long .
+  guard nonempty data else return error way.too.long .
   return ok .
 end
 

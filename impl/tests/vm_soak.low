@@ -21,11 +21,11 @@ fn mk4 input b bytes . output slice u32 . do return view_array u32 b . end
 
 rem ── ① 벡터 풀 · **빠른 경로** — 풀이 아예 없다(값이 프레임에 산다). 300만 번도 돈다.
 fn vec_fast input a bytes . input n u64 . output u64 . do
-  let xa be slice u32 view_array u32 a .
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let v be vec u32 4 load xa 0 .
+  let xa slice u32 view_array u32 a .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let v vec u32 4 load xa 0 .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
   end
@@ -36,10 +36,10 @@ rem ── ② 벡터 풀 · **태그 경로** — 32칸 풀. **여기가 33번�
 rem   VM 과 방출된 C 가 **둘 다** 이 풀을 쓰므로, 되감기는 양쪽에 같이 들어가야 한다:
 rem   한쪽만 고치면 결함이 사라지는 것이 아니라 **반대편으로 옮겨간다**(실측 2026-08-03).
 fn vec_tag input a bytes . input n u64 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let v be vec u32 4 load (mk4 a) 0 .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let v vec u32 4 load (mk4 a) 0 .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
   end
@@ -49,14 +49,14 @@ end
 rem ── ③ 벡터를 **돌려주는** op 을 루프에서 부른다 — 반환 하나만 콜리의 바닥으로 내려온다.
 rem   되감기가 반환을 안 챙기면 여기서 죽거나(풀 고갈) 레인이 어긋난다(잘못된 답).
 fn vmake input a bytes . output vec u32 4 . do
-  let v be vec u32 4 load (mk4 a) 0 .
+  let v vec u32 4 load (mk4 a) 0 .
   return v .
 end
 fn vec_ret input a bytes . input n u64 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let v be vec u32 4 vmake a .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let v vec u32 4 vmake a .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
   end
@@ -66,10 +66,10 @@ end
 rem ── ④ 박스 풀 · option — 4096칸이고 **되감기지 않는다**(표의 ⛔ 그대로).
 rem   여기서 재는 것은 생존이 아니라 **두 뒤끝이 같이 살고 같이 죽는가** 다.
 fn box_pool input n u64 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let o be option u64 some i .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let o option u64 some i .
     set acc (add acc (some_value o)) .
     set i (add i 1) .
   end
@@ -87,22 +87,22 @@ end
 fn fails input k u64 . output result u64 e .
 errors bad ge k 1 .
 do
-  if ge k 1 . do return error bad . end
+  if ge k 1 do return error bad . end
   return ok k .
 end
 
 fn vtry input a bytes . input k u64 . output result u64 e . do
-  let v be vec u32 4 load (mk4 a) 0 .
-  let x be u64 try (fails k) .
+  let v vec u32 4 load (mk4 a) 0 .
+  let x u64 try (fails k) .
   return ok (add x (widen u64 (reduce_add v))) .
 end
 
 fn vec_try input a bytes . input n u64 . output u64 . do
-  var c be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let r be result u64 e vtry a 1 .
-    if is_error r . do set c (add c 1) . end
+  var c u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let r result u64 e vtry a 1 .
+    if is_error r do set c (add c 1) . end
     set i (add i 1) .
   end
   return c .
@@ -117,10 +117,10 @@ def struct pt do
 end
 
 fn rec_pool input n u64 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let p be lit pt do x i . y 1 . end .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let p lit pt do x i . y 1 . end .
     set acc (add acc (field p x)) .
     set i (add i 1) .
   end
@@ -129,10 +129,10 @@ end
 
 def type slot u64 .
 proc stk_pool input temp region slot . input n u64 . output u64 . effects alloc . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let s be stack u64 stack_new temp capacity 4 .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let s stack u64 stack_new temp capacity 4 .
     push s i .
     set acc (add acc (count s)) .
     set i (add i 1) .
@@ -141,10 +141,10 @@ proc stk_pool input temp region slot . input n u64 . output u64 . effects alloc 
 end
 
 fn bset_pool input n u64 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    var b be bitset 8 bitset_new 8 .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    var b bitset 8 bitset_new 8 .
     bitset_insert b 1 .
     set acc (add acc (count b)) .
     set i (add i 1) .
@@ -155,10 +155,10 @@ end
 rem ── ⑦ **태그 경로**에서도 같은 질문 — 박스를 루프에서 만들되 하강을 막는다(mk4 를 부른다).
 rem   단계 B 의 교훈: 한쪽만 되감으면 결함은 사라지지 않고 **반대편으로 옮겨간다**.
 fn box_tag input a bytes . input n u64 . output u64 . do
-  var acc be u64 0 .
-  var i be u64 0 .
-  while (lt i n) . do
-    let o be option u64 some (widen u64 (len (mk4 a))) .
+  var acc u64 0 .
+  var i u64 0 .
+  while (lt i n) do
+    let o option u64 some (widen u64 (len (mk4 a))) .
     set acc (add acc (some_value o)) .
     set i (add i 1) .
   end

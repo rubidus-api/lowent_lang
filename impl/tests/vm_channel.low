@@ -18,7 +18,7 @@ end
 
 fn g input a u8 . output result u8 e . errors bad gt a 10 .
 do
-  if gt a 10 . do return error bad . end
+  if gt a 10 do return error bad . end
   return ok a .
 end
 

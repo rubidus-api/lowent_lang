@@ -4,6 +4,6 @@ rem expect: E-EFFECT-NO-CAP
 rem ko: ✘ `io` 를 한다고 적었지만 권한(`cap io`)을 받지 않았다 /// en: ✘ declares `io` but never receives the right to do it (`cap io`)
 proc main output u8 . effects io .
 do
-  let n be u64 write_out 1 "hi\n" .
+  let n u64 write_out 1 "hi\n" .
   return narrow u8 n .
 end

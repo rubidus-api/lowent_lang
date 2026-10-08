@@ -10,7 +10,7 @@ end
 
 unsafe proc last_set input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
-  var g be gpio view gpio regs .
+  var g gpio view gpio regs .
   rem ko: ✘ 방금 무엇을 썼는지 확인하려고 쓰기 전용 레지스터를 읽는다 /// en: ✘ reads a write-only register to check what was just written
   return read_volatile g bsrr .
 end

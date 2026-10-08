@@ -192,7 +192,7 @@ op 머리의 절은 정해진 한 차례로 적는다. 입력이 출력보다 �
 #demo("examples/ch02/greet.low")
 
 `input a cap args .` 로 인자 권한을 받고, `arg a 0` 이 첫 인자를 읽는다. 인자가 없을 수도 있으니
-결과는 `option slice u8` 이다. `guard is_some who . else …` 는 값이 없으면 그 자리에서 떠나고, 그
+결과는 `option slice u8` 이다. `guard is_some who else …` 는 값이 없으면 그 자리에서 떠나고, 그
 아래에서는 값이 있다고 믿어도 된다(#chref("option-result")). 권한 입력이 데이터 입력보다 앞에 오고,
 권한 둘은 적은 차례대로 인자 자리를 차지한다.
 

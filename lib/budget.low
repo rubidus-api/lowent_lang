@@ -67,17 +67,17 @@ rem ☞ 그리고 **`cap` 을 부르지 않고 자리이동을 여기 적는다*
 rem   그 계약의 거절을 **부른 쪽의 실패로** 센다(같은 문서의 두 번째 증상). 한 줄이면 될 일에
 rem   호출을 끼우지 않는 편이 어차피 낫다.
 export fn slots  input p plan . output option u64 . do
-  guard lt (field p slot_bits) 63 . else return none .
+  guard lt (field p slot_bits) 63 else return none .
   return some (shl 1 (field p slot_bits)) .
 end
 
 export fn shards input p plan . output option u64 . do
-  guard lt (field p shard_bits) 63 . else return none .
+  guard lt (field p shard_bits) 63 else return none .
   return some (shl 1 (field p shard_bits)) .
 end
 
 export fn lives  input p plan . output option u64 . do
-  guard lt (field p gen_bits) 63 . else return none .
+  guard lt (field p gen_bits) 63 else return none .
   return some (shl 1 (field p gen_bits)) .
 end
 
@@ -96,12 +96,12 @@ requires le (add (add slot_bits shard_bits) gen_bits) 64 .
 requires lt slot_bits 64 .
 requires lt (add slot_bits shard_bits) 64 .
 do
-  guard lt slot (shl 1 slot_bits) . else return none .
-  guard lt shard (shl 1 shard_bits) . else return none .
-  if lt gen_bits 64 . do
-    guard lt gen (shl 1 gen_bits) . else return none .
+  guard lt slot (shl 1 slot_bits) else return none .
+  guard lt shard (shl 1 shard_bits) else return none .
+  if lt gen_bits 64 do
+    guard lt gen (shl 1 gen_bits) else return none .
   end
-  let g be u64 shl gen (add slot_bits shard_bits) .
+  let g u64 shl gen (add slot_bits shard_bits) .
   return some (bit_or (bit_or slot (shl shard slot_bits)) g) .
 end
 
@@ -138,6 +138,6 @@ rem 다음 세대. 은퇴한 칸에는 **더 없다** — 그래서 `option` 이
 export fn next_gen input gen_bits u64 . input gen u64 . output option u64 .
 requires lt gen_bits 64 .
 do
-  guard eq (retired gen_bits gen) false . else return none .
+  guard eq (retired gen_bits gen) false else return none .
   return some (add gen 1) .
 end

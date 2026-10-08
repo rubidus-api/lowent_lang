@@ -8,9 +8,9 @@ end
 
 fn copy_then_change output u64 .
 do
-  let p be lit point do x 1 . y 2 . end .
+  let p lit point do x 1 . y 2 . end .
   rem ko: 새 값이 필요하면 make 로 새로 만든다 --- 칸을 하나씩 옮겨 적는다 /// en: when you need a new value, build it with make --- copy the fields one by one
-  var q be lit point do x (field p x) . y (field p y) . end .
+  var q lit point do x (field p x) . y (field p y) . end .
   set (field q x) 99 .
   return field p x .
 end

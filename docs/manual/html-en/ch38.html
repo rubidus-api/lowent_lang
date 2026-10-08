@@ -698,8 +698,8 @@ $ lowentc --test average.low
 
 <strong><span class="tok-k">fn</span></strong> mean2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> min a b .
-  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> max a b .
+  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> min a b .
+  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> max a b .
   <strong><span class="tok-k">return</span></strong> add lo (div (sub hi lo) <span class="tok-n">2</span>) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mean2 average_fixed.low 4294967295 1

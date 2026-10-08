@@ -26,21 +26,21 @@ end
 rem ── ① task_group 후 메인 지역의 참조가 살아있다 ──────────────────────
 rem ★ x 를 잡고 → task_group → x 의 참조를 통해 읽는다. 12345 여야 한다(안 덮였다).
 proc ref_survives output u64 . effects state . do
-  let x be u64 12345 .
-  var c be counter spawn actor counter .
+  let x u64 12345 .
+  var c counter spawn actor counter .
   task_group do
     spawn worker c .
     spawn worker c .
   end
-  let r be ref u64 ref x .
+  let r ref u64 ref x .
   return deref r .
 end
 
 rem ── ② 메인 지역과 태스크 결과가 둘 다 맞다 ────────────────────────────
 rem ★ 메인 지역(x=7)이 task_group 뒤에도 7 이고, 태스크 둘의 효과(get=2)도 보인다: 7*10+2 = 72.
 proc both output u64 . effects state . do
-  let x be u64 7 .
-  var c be counter spawn actor counter .
+  let x u64 7 .
+  var c counter spawn actor counter .
   task_group do
     spawn worker c .
     spawn worker c .

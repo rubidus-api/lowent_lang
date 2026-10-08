@@ -18,7 +18,7 @@ proc tally input a u64 . input b u64 . output u64 . effects state .
   requires le a 1000000 .
   requires le b 1000000 .
 do
-  var acct be account spawn actor account .
-  let x be u64 send acct deposit a .
+  var acct account spawn actor account .
+  let x u64 send acct deposit a .
   return send acct deposit b .
 end

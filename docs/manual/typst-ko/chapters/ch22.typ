@@ -190,7 +190,7 @@ export proc sort_by input comptime t type . input s mut slice t .
   [`input comptime t type .`], [타입을 번역 시점에 받는다(머리 맨 앞)], [뒤따르는 타입이 그 이름을 쓴다],
   [`input comptime n u8 .`], [값을 번역 시점에 받는다], [상수로 접히고 검사가 지워진다],
   [`bytes_for u64 100` · `add_const 7 10`], [타입과 상수를 앞자리 인자로 적는다], [꺾쇠도 추론도 없다 --- 무엇이 만들어지는지 보인다],
-  [`let step be u8 7 .`(모듈 수준)], [`comptime` 자리에 올 수 있는 이름 붙은 상수], [op 안의 `let` 은 실행 중의 이름],
+  [`let stride u8 7 .`(모듈 수준)], [`comptime` 자리에 올 수 있는 이름 붙은 상수], [op 안의 `let` 은 실행 중의 이름],
   [`size_of t`], [번역 시점에 타입의 크기], [크기가 상수로 박힌다],
   [`requires ordered t .`], [타입 조건 --- 트레이트를 갖추어야 한다], [못 갖추면 부르는 자리에서 `E-BOUND-UNSAT`],
   [`method a less b`], [조건이 약속한 op 을 부른다], [직접 호출로 단형화된다],

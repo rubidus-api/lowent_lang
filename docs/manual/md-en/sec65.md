@@ -17,8 +17,8 @@ Turns bytes **into hex or base64 text and back**. Many places let only text thro
 ```lowent
 use codec as c .
 
-let n be option u64 c.hex_enc "abc" dst .
-guard is_some n . else return 1 .
+let n option u64 c.hex_enc "abc" dst .
+guard is_some n else return 1 .
 ```
 
 `dst` is not made by this module but is **an output place the caller sets aside in advance** (at least 6 bytes here). `n` is **the number of bytes actually written**, and the result is `dst[0..n)`.
@@ -84,33 +84,33 @@ module ex_codec .
 use codec as c .
 
 proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
-  guard ge (len enc) 6 . else return 90 .
-  guard ge (len dec) 3 . else return 91 .
-  let en be option u64 c.hex_enc "abc" enc .
-  guard is_some en . else return 1 .
-  guard eq (some_value en) 6 . else return 2 .
+  guard ge (len enc) 6 else return 90 .
+  guard ge (len dec) 3 else return 91 .
+  let en option u64 c.hex_enc "abc" enc .
+  guard is_some en else return 1 .
+  guard eq (some_value en) 6 else return 2 .
   rem the count written is the boundary --- passing all of enc makes trailing garbage input
-  let dn be option u64 c.hex_dec (subslice enc 0 6) dec .
-  guard is_some dn . else return 3 .
-  guard eq (some_value dn) 3 . else return 4 .
-  guard eq (idx dec 0) 97 . else return 5 .
+  let dn option u64 c.hex_dec (subslice enc 0 6) dec .
+  guard is_some dn else return 3 .
+  guard eq (some_value dn) 3 else return 4 .
+  guard eq (idx dec 0) 97 else return 5 .
   rem uppercase is accepted too: "4A" → 74
-  let up be option u64 c.hex_dec "4A" dec .
-  guard is_some up . else return 6 .
-  guard eq (idx dec 0) 74 . else return 7 .
+  let up option u64 c.hex_dec "4A" dec .
+  guard is_some up else return 6 .
+  guard eq (idx dec 0) 74 else return 7 .
   return 42 .
 end
 
 proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   rem 2 bytes make one group (4 characters) with one = at the end: "aGk="
-  guard ge (len enc) 4 . else return 90 .
-  guard ge (len dec) 2 . else return 91 .
-  let e be option u64 c.b64_enc "hi" enc .
-  guard is_some e . else return 1 .
-  guard eq (some_value e) 4 . else return 2 .
-  let d be option u64 c.b64_dec (subslice enc 0 4) dec .
-  guard is_some d . else return 3 .
-  guard eq (some_value d) 2 . else return 4 .
+  guard ge (len enc) 4 else return 90 .
+  guard ge (len dec) 2 else return 91 .
+  let e option u64 c.b64_enc "hi" enc .
+  guard is_some e else return 1 .
+  guard eq (some_value e) 4 else return 2 .
+  let d option u64 c.b64_dec (subslice enc 0 4) dec .
+  guard is_some d else return 3 .
+  guard eq (some_value d) 2 else return 4 .
   return 42 .
 end
 ```

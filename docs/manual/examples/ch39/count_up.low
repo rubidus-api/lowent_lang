@@ -3,9 +3,9 @@ rem run: ten
 rem proof
 
 fn ten output u8 . do
-  var i be u8 0 .
-  var s be u8 0 .
-  while lt i 10 . do
+  var i u8 0 .
+  var s u8 0 .
+  while lt i 10 do
     set s (add s i) .
     set i (add i 1) .
   end

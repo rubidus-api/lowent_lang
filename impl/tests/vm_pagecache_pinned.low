@@ -12,9 +12,9 @@ use pagecache from "../../lib/pagecache.low" .
 def newtype db u8 .
 
 export proc evict_while_pinned output u64 . effects none . do
-  var c be (owned pagecache.cache db) pagecache.open db 16 .
-  let p be (pagecache.pin db) pagecache.acquire db c 42 .
+  var c (owned pagecache.cache db) pagecache.open db 16 .
+  let p (pagecache.pin db) pagecache.acquire db c 42 .
   rem ★ 캐시 토큰은 위에서 pin 이 삼켰다 — 여기서 거절된다.
-  let c2 be (owned pagecache.cache db) pagecache.evict db c .
+  let c2 (owned pagecache.cache db) pagecache.evict db c .
   return (pagecache.epoch_of db c2) .
 end

@@ -2,7 +2,7 @@ module mistake_frameescape .
 rem expect: E-LIT-ESCAPE
 
 rem ko: ✘ var 나열을 돌려준다 --- 그 칸은 이 op 이 끝나면 다른 값이 된다 /// en: ✘ returning a var list --- its slot becomes something else when this op returns
-fn keep output slice u8 . do
-  var buf be lit array u8 4 1 2 3 4 . .
+fn hold output slice u8 . do
+  var buf lit array u8 4 1 2 3 4 . .
   return buf .
 end

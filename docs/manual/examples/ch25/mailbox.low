@@ -19,7 +19,7 @@ end
 
 proc drive output u64 . effects state .
 do
-  var c be counter spawn actor counter .
+  var c counter spawn actor counter .
   spawn send c inc .
   spawn send c inc .
   spawn send c inc .
@@ -29,7 +29,7 @@ end
 
 proc nodrain output u64 . effects state .
 do
-  var c be counter spawn actor counter .
+  var c counter spawn actor counter .
   spawn send c inc .
   spawn send c inc .
   return send c get .

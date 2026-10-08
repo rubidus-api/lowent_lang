@@ -26,28 +26,28 @@ rem   그리고 이들은 `alloc` 을 **실제로 한다**(선언만 하고 안 
 rem   `alloc` 은 아래 `ring` 이 선언한 `atomic` 에 **들지 않으므로**, 순서 낱말이 호출로
 rem   세어지는 순간 곧바로 E-EFFECT 로 드러난다 — 그것이 이 픽스처가 고정하려는 자리다.
 proc release input al cap allocator . output u64 . effects alloc . do
-  let g be option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g . else return 0 .
+  let g option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g else return 0 .
   return len (some_value g) .
 end
 proc acquire input al cap allocator . output u64 . effects alloc . do
-  let g be option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g . else return 0 .
+  let g option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g else return 0 .
   return len (some_value g) .
 end
 proc relaxed input al cap allocator . output u64 . effects alloc . do
-  let g be option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g . else return 0 .
+  let g option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g else return 0 .
   return len (some_value g) .
 end
 proc acq_rel input al cap allocator . output u64 . effects alloc . do
-  let g be option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g . else return 0 .
+  let g option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g else return 0 .
   return len (some_value g) .
 end
 proc seq_cst input al cap allocator . output u64 . effects alloc . do
-  let g be option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g . else return 0 .
+  let g option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g else return 0 .
   return len (some_value g) .
 end
 
@@ -58,9 +58,9 @@ proc ring input k cap atomic . input ctl mut slice u64 .
   requires ge (len ctl) 4 .
 do
   atomic_store ctl 0 1 order release .
-  let a be u64 atomic_load ctl 0 order acquire .
+  let a u64 atomic_load ctl 0 order acquire .
   atomic_store ctl 1 a order relaxed .
-  let b be u64 atomic_load ctl 1 order seq_cst .
+  let b u64 atomic_load ctl 1 order seq_cst .
   atomic_store ctl 2 b order seq_cst .
   return b .
 end

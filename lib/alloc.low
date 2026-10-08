@@ -99,8 +99,8 @@ export actor bump_bytes do
   rem ★ 남은 자리와 **뺄셈으로** 비교한다 — `add off n` 은 n 이 크면 넘쳐 트랩이었고, OOM 은 값이어야
   rem   한다(2026-09-04 보안 검토). `off ≤ len mem` 은 불변이라 뺄셈은 안 감긴다.
   proc reserve input n u64 . output option mut slice u8 . effects state . do
-    guard le n (sub (len mem) off) . else return none .
-    let v be mut slice u8 subslice mem off (add off n) .
+    guard le n (sub (len mem) off) else return none .
+    let v mut slice u8 subslice mem off (add off n) .
     set last off .
     set off (add off n) .
     return (some v) .
@@ -110,11 +110,11 @@ export actor bump_bytes do
   rem 그게 참이면 그 뒤로 아무도 자리를 안 받았다는 뜻이므로 늘려도 남의 바이트가 아니다.
   rem (같은 길이의 남의 버퍼는 못 가른다 — 위 인터페이스 주석 참조.) 산술은 전부 뺄셈이다.
   proc grow input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state . do
-    guard le (len old) newn . else return none .
-    guard eq (len old) (sub off last) . else return none .
+    guard le (len old) newn else return none .
+    guard eq (len old) (sub off last) else return none .
     rem ★ RFC-0112 D10 — 길이만 같은 남의 버퍼가 아니라 **바로 그 조각**이어야 한다
-    guard same_slice old (subslice mem last off) . else return none .
-    guard le newn (sub (len mem) last) . else return none .
+    guard same_slice old (subslice mem last off) else return none .
+    guard le newn (sub (len mem) last) else return none .
     set off (add last newn) .
     return (some (subslice mem last (add last newn))) .
   end
@@ -122,8 +122,8 @@ export actor bump_bytes do
   rem ★ 낱낱 반환 — 범프는 **마지막 조각만** 돌려받는다(그 뒤로 아무도 자리를 안 받았으므로 커서를 되돌려도
   rem   남의 바이트가 아니다). 다른 조각은 false — 받는 척하지 않는다.
   proc release input v mut slice u8 . output bool . effects state . do
-    guard eq (len v) (sub off last) . else return false .
-    guard same_slice v (subslice mem last off) . else return false .
+    guard eq (len v) (sub off last) else return false .
+    guard same_slice v (subslice mem last off) else return false .
     set off last .
     return true .
   end
@@ -155,12 +155,12 @@ export actor bump_aligned do
 
   rem 시작점을 8 의 배수로 올린 뒤 자른다. 패딩은 버려진다(범프니까 되돌릴 수 없다).
   proc reserve input n u64 . output option mut slice u8 . effects state . do
-    var pad be u64 mod (sub 8 (mod off 8)) 8 .
-    var at be u64 add off pad .
+    var pad u64 mod (sub 8 (mod off 8)) 8 .
+    var at u64 add off pad .
     rem ★ 패딩이 끝을 넘을 수 있으므로 먼저 `at` 을 재고, 그다음 남은 자리와 뺄셈으로 잰다(2026-09-04).
-    guard le at (len mem) . else return none .
-    guard le n (sub (len mem) at) . else return none .
-    let v be mut slice u8 subslice mem at (add at n) .
+    guard le at (len mem) else return none .
+    guard le n (sub (len mem) at) else return none .
+    let v mut slice u8 subslice mem at (add at n) .
     set last at .
     set off (add at n) .
     return (some v) .
@@ -168,11 +168,11 @@ export actor bump_aligned do
 
   rem ★ 정렬판도 같은 규칙이다 — `last` 는 **패딩 뒤의** 시작이므로 늘려도 정렬이 안 깨진다.
   proc grow input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state . do
-    guard le (len old) newn . else return none .
-    guard eq (len old) (sub off last) . else return none .
+    guard le (len old) newn else return none .
+    guard eq (len old) (sub off last) else return none .
     rem ★ RFC-0112 D10 — 길이만 같은 남의 버퍼가 아니라 **바로 그 조각**이어야 한다
-    guard same_slice old (subslice mem last off) . else return none .
-    guard le newn (sub (len mem) last) . else return none .
+    guard same_slice old (subslice mem last off) else return none .
+    guard le newn (sub (len mem) last) else return none .
     set off (add last newn) .
     return (some (subslice mem last (add last newn))) .
   end
@@ -180,8 +180,8 @@ export actor bump_aligned do
   rem ★ 낱낱 반환 — 범프는 **마지막 조각만** 돌려받는다(그 뒤로 아무도 자리를 안 받았으므로 커서를 되돌려도
   rem   남의 바이트가 아니다). 다른 조각은 false — 받는 척하지 않는다.
   proc release input v mut slice u8 . output bool . effects state . do
-    guard eq (len v) (sub off last) . else return false .
-    guard same_slice v (subslice mem last off) . else return false .
+    guard eq (len v) (sub off last) else return false .
+    guard same_slice v (subslice mem last off) else return false .
     set off last .
     return true .
   end
@@ -209,8 +209,8 @@ export actor fixed_bytes do
   end
 
   proc reserve input n u64 . output option mut slice u8 . effects alloc state . do
-    let g be option mut slice u8 alloc_bytes root capacity n .
-    guard is_some g . else return none .
+    let g option mut slice u8 alloc_bytes root capacity n .
+    guard is_some g else return none .
     set got (add got n) .
     return g .
   end
@@ -233,8 +233,8 @@ export actor heap_bytes do
   end
 
   proc reserve input n u64 . output option mut slice u8 . effects heap state . do
-    let g be option mut slice u8 alloc_bytes root capacity n .
-    guard is_some g . else return none .
+    let g option mut slice u8 alloc_bytes root capacity n .
+    guard is_some g else return none .
     set got (add got n) .
     return g .
   end

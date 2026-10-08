@@ -5,11 +5,11 @@ rem ko: 적지 않으면 seq_cst — 모든 흐름이 같은 차례를 본다 //
 rem ko: 읽고 쓰는 연산(atomic_swap)에는 acq_rel, 쓰기에는 release, 읽기에는 acquire /// en: acq_rel for an operation that reads and writes (atomic_swap), release for a write, acquire for a read
 proc main input k cap atomic . input al cap allocator . output u8 . effects atomic alloc .
 do
-  let g be option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g . else return 250 .
-  var cells be mut slice u64 view_array u64 (some_value g) .
+  let g option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g else return 250 .
+  var cells mut slice u64 view_array u64 (some_value g) .
   atomic_store cells 0 5 order seq_cst .
-  let old be u64 atomic_swap cells 0 7 order acq_rel .
+  let old u64 atomic_swap cells 0 7 order acq_rel .
   atomic_store cells 0 (add old 10) order release .
   return narrow u8 (atomic_load cells 0 order acquire) .
 end

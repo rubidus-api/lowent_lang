@@ -34,9 +34,9 @@ do
   set (idx vxs 0) 10 .
   set (idx vxs 1) 20 .
   set (idx vxs 2) 30 .
-  let n1 be u64 soa.step_x xs vxs 3 .
-  guard eq n1 3 . else return 90 .
-  let s1 be u64 soa.sum_field (subslice xs 0 3) .
+  let n1 u64 soa.step_x xs vxs 3 .
+  guard eq n1 3 else return 90 .
+  let s1 u64 soa.sum_field (subslice xs 0 3) .
 
   rem ── AoS 판: 한 배열에 {x, vx} 를 보폭 2 로 섞는다 ──
   set (idx rows 0) 1 .
@@ -45,15 +45,15 @@ do
   set (idx rows 3) 20 .
   set (idx rows 4) 3 .
   set (idx rows 5) 30 .
-  let n2 be u64 soa.step_x_aos rows 2 0 1 3 .
-  guard eq n2 3 . else return 91 .
-  var s2 be u64 0 .
+  let n2 u64 soa.step_x_aos rows 2 0 1 3 .
+  guard eq n2 3 else return 91 .
+  var s2 u64 0 .
   set s2 (add s2 (idx rows 0)) .
   set s2 (add s2 (idx rows 2)) .
   set s2 (add s2 (idx rows 4)) .
 
   rem ★★★ **두 배치가 같은 답을 낸다** — 배치는 성능 축이지 의미 축이 아니다.
-  guard eq s1 s2 . else return 92 .
+  guard eq s1 s2 else return 92 .
   return s1 .                                    rem 11 + 22 + 33 = 66
 end
 
@@ -75,7 +75,7 @@ do
   set (idx ys 0) 2 .
   set (idx vxs 0) 10 .
   set (idx vys 0) 20 .
-  let m be u64 soa.step_all xs ys vxs vys 1 .
-  guard eq m 1 . else return 90 .
+  let m u64 soa.step_all xs ys vxs vys 1 .
+  guard eq m 1 else return 90 .
   return add (idx xs 0) (idx ys 0) .          rem 11 + 22 = 33
 end

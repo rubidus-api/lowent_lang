@@ -8,9 +8,9 @@ Reads bytes already in memory *like a stream*, a little at a time. Used to scan 
 `read(buf) → n` but *peek · take · toss → views* --- instead of filling caller memory, it hands out borrowed views pointing into the original (zero copies).
 
 ```lowent
-var r be io.mem_reader spawn actor io.mem_reader .
-let z be u64 send r attach src .
-let line be option slice u8 send r take_line 4096 .
+var r io.mem_reader spawn actor io.mem_reader .
+let z u64 send r attach src .
+let line option slice u8 send r take_line 4096 .
 ```
 
 *Why no capability is needed.* This module only cuts bytes already in memory and never reaches the kernel. Only the side actually filling bytes (`read_in` needs `cap io`,
@@ -47,16 +47,16 @@ knows how long a line may legitimately be. *No partial consumption* --- on `none
 
 ```lowent
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r be io.mem_reader spawn actor io.mem_reader .
-  let z be u64 send r attach src .
-  var lines be u64 0 .
-  var going be bool true .
-  while going . do
-    let l be option slice u8 send r take_line 4096 .
-    if is_some l . do set lines (add lines 1) . end
-    if eq (is_some l) false . do set going false . end
+  var r io.mem_reader spawn actor io.mem_reader .
+  let z u64 send r attach src .
+  var lines u64 0 .
+  var going bool true .
+  while going do
+    let l option slice u8 send r take_line 4096 .
+    if is_some l do set lines (add lines 1) . end
+    if eq (is_some l) false do set going false . end
   end
-  if gt (send r remaining) 0 . do set lines (add lines 1) . end
+  if gt (send r remaining) 0 do set lines (add lines 1) . end
   return lines .
 end
 ```

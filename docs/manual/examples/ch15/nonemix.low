@@ -3,6 +3,6 @@ rem expect: E-EFFECT-NONE-MIX
 
 proc checked input x u64 . output u64 . effects none panic .
 do
-  if eq x 0 . do panic "zero" . end
+  if eq x 0 do panic "zero" . end
   return x .
 end

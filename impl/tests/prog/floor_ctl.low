@@ -50,8 +50,8 @@ export proc filter_step
   effects none .
   requires ge (len st) 3 .
 do
-  let y be u32 idx st 0 .
-  guard gt x y . else return step_down st y x .
+  let y u32 idx st 0 .
+  guard gt x y else return step_down st y x .
   set (idx st 0) (rise y x) .
   return idx st 0 .
 end
@@ -89,9 +89,9 @@ export proc control_step
   requires ge (len st) 3 .
   requires ge hi lo .
 do
-  let y be u32 filter_step st x .
-  guard lt y hi . else return put_out st 1 .
-  guard gt y lo . else return put_out st 0 .
+  let y u32 filter_step st x .
+  guard lt y hi else return put_out st 1 .
+  guard gt y lo else return put_out st 0 .
   rem 사이 — 직전 출력을 **그대로** 둔다.
   return idx st 1 .
 end
@@ -104,7 +104,7 @@ export proc tick
   effects none .
   requires ge (len st) 3 .
 do
-  let out be u32 control_step st x 40 60 .
+  let out u32 control_step st x 40 60 .
   set (idx st 2) (wrap_add (idx st 2) 1) .
   return out .
 end
@@ -118,10 +118,10 @@ export proc run
   effects none .
   requires ge (len st) 3 .
 do
-  var i be u64 0 .
-  var out be u32 0 .
-  while true . do
-    guard lt i (len xs) . else break .
+  var i u64 0 .
+  var out u32 0 .
+  while true do
+    guard lt i (len xs) else break .
     set out (tick st (idx xs i)) .
     set i (add i 1) .
   end

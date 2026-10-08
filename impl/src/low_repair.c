@@ -310,7 +310,12 @@ static const low_repair_row_t REPAIR[] = {
     { "E-TOPLEVEL",            "R-USE-DECL-HEAD" },
     { "E-STMT-NODO",           "R-ADD-DO-END" },
     { "E-CTRL-NODO",           "R-ADD-DO-END" },   // RFC-0113 R4 — 한 폼 몸을 `do … end` 로 감싼다
-    { "E-CTRL-NODOT",          "R-ADD-DOT" },      // RFC-0113 R4 — `do` 앞에 점(`--fmt` 이 찍는다)
+    // ★ RFC-0141 — 옛 철자의 수리(`lowentc --migrate` 가 그대로 한다)
+    { "E-CTRL-DOT",            "R-DROP-DOT" },     // `if c . do` → `if c do` — 머리의 식은 `do` 에서 끝난다
+    { "E-ELSE-DOT",            "R-DROP-DOT" },     // `guard c . else …` → `guard c else …` — 실패 절은 문장 안에 선다
+    { "E-LET-BE",              "R-DROP-BE" },      // `let n be u64 5 .` → `let n u64 5 .`
+    { "E-USING-OLD",           "R-USE-KEEP" },     // `using al be` → `use al` · `using al keep be` → `keep al`
+    { "E-FOR-OLD",             "R-LOOP-HEAD" },    // `for i count …` → `repeat` · `for i range …` → `range` · `for i be … while … next …` → `cycle`
     { "E-NOT-IS-SOME",         "R-USE-IS-NONE" },  // RFC-0113 O5 — `not is_some x` → `is_none x`
     { "E-EFFECT-MISSING",      "R-INSERT-INFERRED-EFFECTS" },   // RFC-0113 R1 — `--doc` 의 inferred 를 절로
     { "E-BITSET-ADD",          "R-ADD-TO-INSERT" },   // RFC-0113 R5 — `add s n` → `bitset_insert s n`
@@ -354,7 +359,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-PARSE-LIMIT",         "R-SPLIT-OP" },     // ★ 2026-09-27 — 노드 아레나가 찼다: 단위를 나눈다
     { "E-EXPECT-PLACE",        "R-USE-CONTRACT" }, // ★ X-0072 — 시험 밖 expect: requires/ensures 로(또는 panic)
     { "E-LET-NOTYPE",          "R-WRITE-TYPE" },   // ★ RFC-0132 T1 — `let x be u64 300 .`
-    { "E-LET-OLDFORM",         "R-MOVE-TYPE" },    // ★ RFC-0132 T1 — 타입을 `be` 뒤로
     { "E-IR-UNSUP",            "R-SHORTEN-LITERAL" },
     { "E-IR-EXTRA",            "R-DROP-OPERANDS" },
     { "E-VOCAB-REMOVED",       "R-USE-REPLACEMENT" },
@@ -518,8 +522,8 @@ static const low_repair_row_t NOREPAIR[] = {
     { "E-VM-COPY",          "`copy` 의 두 조각 길이를 같게 한다 — 받는 쪽이나 주는 쪽을 `subslice` 로 잘라 맞춘다" },
     { "E-COPY-LEN",         "두 나열의 길이를 같게 하거나, 받는 쪽을 `subslice` 로 잘라 길이를 맞춘다" },
     { "E-FOR-HEAD",         "셈 이름이나 머리가 읽은 이름을 몸에서 바꾸지 말고 다른 이름에 담는다. `for x mut buf` 이면 몸에서는 `x` 로만 칸을 만진다" },
-    { "E-FOR-STEP",         "셈의 타입을 정수로 적고(`for i range u64 3 10 .`), `step` 은 0 이 아닌 수로 적는다" },
-    { "E-BIND-ELSE",        "길이 둘이다 — 값이 option/result 가 아니면 `else` 를 빼고, 알맹이 타입이 다르면 `be` 뒤의 타입을 알맹이의 타입으로 고친다. 모르는 식이면 먼저 타입을 적어 묶는다" },
+    { "E-FOR-STEP",         "셈의 타입을 정수로 적고(`range i u64 3 10`), `step` 은 0 이 아닌 수로 적는다" },
+    { "E-BIND-ELSE",        "길이 둘이다 — 값이 option/result 가 아니면 `else` 를 빼고, 알맹이 타입이 다르면 바인딩에 적은 타입을 알맹이의 타입으로 고친다. 모르는 식이면 먼저 타입을 적어 묶는다" },
     { "E-LIT-USING",        "길이 둘이다 — 할당자에서 받는 나열이면 `using <할당자>` 와 타입 `option` 을 함께 적고, 아니면 둘 다 뺀다(틀 안 자리)" },
     { "E-LIT-IDENTITY",     "길이 둘이다 — 자리가 아니라 내용을 견주거나(원소를 차례로), 한쪽을 `var` 나열로 받아 제 자리를 갖게 한다. 무엇을 알고 싶었는지는 저자가 안다" },
     { "E-LIT-INDEX",        "길이 여럿이다 — 번호를 길이 안의 상수로 고치거나, 두 번 적은 칸 하나를 지우거나, `_ <값> .` 을 끝으로 옮긴다. 어느 칸에 무엇이 뜻인지는 저자가 안다" },

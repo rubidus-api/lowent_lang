@@ -697,7 +697,7 @@ $ lowentc --ir product_bare.low
    0 / 1 removed  (0%)
 </code></pre></div></div><p><code>1000 × 1000</code> 은 넘치지 않지만 분석은 <code>a</code>·<code>b</code> 가 어디까지 커질지 모른다. 그래서 검사를 남기고, 실제 값이 들어와서야 넘치지 않음을 확인한다.</p><p>정리들은 모두 한 방향이다. <strong>“안전하다고 말한 자리는 정말 안전하다.”</strong> 그 반대 — 안전한데 안전하다고 말하지 못함 — 는 정리가 보장하지 않는다. 그것은 성능 손해일 뿐이다.</p><pre><code data-lang="text">분석이 넓게 잡음  →  검사가 남는다     →  느리다(안전)
 분석이 좁게 잡음  →  검사가 사라진다   →  틀린 메모리 접근(위험)</code></pre><p>그래서 규칙을 하나 더할 때마다 묻는 것은 늘 같다 — “이 규칙이 실제보다 좁게 잡을 수 있는가?”</p><h3 id="s41-2">41.2 관계 — 구간이 못 하는 것<a class="plink" href="#s41-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>구간은 변수를 따로따로 본다. <code>i ∈ [0, 100]</code>, <code>n ∈ [0, 100]</code> 을 알아도 <code>i &lt; n</code> 인지는 모른다. 그런데 배열 안전에 필요한 사실이 바로 그것이다. 그래서 구간 옆에 <strong>한 칸짜리 관계</strong>를 둔다.</p><pre><code data-lang="text">lenlt[i] = s     지역 i 는 len(지역 s) 보다 작다
-lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실은 분기 조건에서 온다. <code>while lt i n</code> 의 몸 안에서는 <code>i &lt; n</code> 이 참이고, 조건이 거짓인 갈래에서는 <code>i ≥ n</code> 이 참이다. 무거운 관계 영역 (팔각형·다면체) 대신 한 칸을 두는 까닭은 실제 코드의 모양 때문이다. 배열을 훑는 코드는 거의 언제나 <code>while lt i (len s)</code> 모양이고, 정교한 이론보다 실제 코드의 모양을 정확히 담는 쪽이 값이 크다.</p><p>사실을 다루는 규칙은 세 조각이다.</p><ol><li><strong>얻기.</strong> 분기 조건이 참인 갈래에 그 조건을 사실로 기록해 둔다.</li><li><strong>나르기.</strong> 대입을 따라간다 — <code>var x be j</code> 에서 <code>j &lt; cap</code> 이면 <code>x &lt; cap</code> 이다. 합류에서는 두 경로가 같을 때만 살린다. 한쪽에서만 참인 것은 사실이 아니다.</li><li><strong>죽이기.</strong> 관련 변수가 바뀌면 그 사실을 양방향으로 죽인다. 슬라이스가 다시 묶이면 그 길이에 대한 사실이 전부 죽는다.</li></ol><p>셋째가 안전의 핵이다. 사실을 오래 살려 두는 것이 곧 잘못된 검사 제거이므로, 죽이는 쪽이 늘 더 공격적이다.</p><h3 id="s41-3">41.3 네 단계<a class="plink" href="#s41-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>경계 검사가 사라지는 모양을 세지는 순서로 늘어놓는다. <code>--emit-proof</code> 는 증명으로 지운 검사를 한 줄씩 적는다 — op 이름, 명령 위치, 연산, 쓴 규칙, 그리고 그 규칙이 쓴 범위다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch41/bound_stages.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bound_stages .
+lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실은 분기 조건에서 온다. <code>while lt i n</code> 의 몸 안에서는 <code>i &lt; n</code> 이 참이고, 조건이 거짓인 갈래에서는 <code>i ≥ n</code> 이 참이다. 무거운 관계 영역 (팔각형·다면체) 대신 한 칸을 두는 까닭은 실제 코드의 모양 때문이다. 배열을 훑는 코드는 거의 언제나 <code>while lt i (len s)</code> 모양이고, 정교한 이론보다 실제 코드의 모양을 정확히 담는 쪽이 값이 크다.</p><p>사실을 다루는 규칙은 세 조각이다.</p><ol><li><strong>얻기.</strong> 분기 조건이 참인 갈래에 그 조건을 사실로 기록해 둔다.</li><li><strong>나르기.</strong> 대입을 따라간다 — <code>var x j</code> 에서 <code>j &lt; cap</code> 이면 <code>x &lt; cap</code> 이다. 합류에서는 두 경로가 같을 때만 살린다. 한쪽에서만 참인 것은 사실이 아니다.</li><li><strong>죽이기.</strong> 관련 변수가 바뀌면 그 사실을 양방향으로 죽인다. 슬라이스가 다시 묶이면 그 길이에 대한 사실이 전부 죽는다.</li></ol><p>셋째가 안전의 핵이다. 사실을 오래 살려 두는 것이 곧 잘못된 검사 제거이므로, 죽이는 쪽이 늘 더 공격적이다.</p><h3 id="s41-3">41.3 네 단계<a class="plink" href="#s41-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>경계 검사가 사라지는 모양을 세지는 순서로 늘어놓는다. <code>--emit-proof</code> 는 증명으로 지운 검사를 한 줄씩 적는다 — op 이름, 명령 위치, 연산, 쓴 규칙, 그리고 그 규칙이 쓴 범위다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch41/bound_stages.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bound_stages .
 <em><span class="tok-c">rem run: direct [1,2,3]</span></em>
 <em><span class="tok-c">rem run: stored [1,2,3]</span></em>
 <em><span class="tok-c">rem run: capacity [1,2,3,4] 3</span></em>
@@ -706,9 +706,9 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
 
 <em><span class="tok-c">rem 1 --- 반복 조건이 len 을 직접 본다</span></em>
 <strong><span class="tok-k">fn</span></strong> direct <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i (len s) <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (idx s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -717,10 +717,10 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
 
 <em><span class="tok-c">rem 2 --- 길이를 지역에 담았다</span></em>
 <strong><span class="tok-k">fn</span></strong> stored <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> len s .
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> len s .
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (idx s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -731,9 +731,9 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
 <strong><span class="tok-k">fn</span></strong> capacity <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">cap</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len s) <strong><span class="tok-k">cap</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt j <strong><span class="tok-k">cap</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt j <strong><span class="tok-k">cap</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (idx s j))) .
     <strong><span class="tok-k">set</span></strong> j (add j <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
@@ -745,11 +745,11 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len a) (mul n n) .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-    <strong><span class="tok-k">while</span></strong> lt k n . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">var</span></strong> k <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">while</span></strong> lt k n <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (idx a (add (mul i n) k)))) .
       <strong><span class="tok-k">set</span></strong> k (add k <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>
@@ -783,7 +783,7 @@ grid 31 add.i64 R-ROW-CAP 0 999000 0 999 64 0
 grid 32 index R-IDX-ROWMAJOR 0 999999
 grid 38 add.i64 R-ADD-LEREL 0 999 1 1 64 0
 grid 43 add.i64 R-ADD-LEREL 0 999 1 1 64 0
-</code></pre></div></div><ul><li><strong>1 · 직접.</strong> <code>direct</code> 는 반복 조건이 <code>len s</code> 를 직접 본다. <code>idx</code> 가 <code>R-IDX-LENLT</code> 로 지워졌다.</li><li><strong>2 · 지역에 담은 길이.</strong> <code>stored</code> 는 <code>let n be len s</code> 로 길이를 지역에 담았다. 아주 흔한 관용구다. 한때는 “이 값은 <code>len s</code> 다” 라는 사실이 스택 값의 속성이라 지역에 담는 순간 사라졌고, 이 루프의 검사가 남았다. 지역에도 그 사실을 싣도록 고친 뒤로 1 과 같이 지워진다. 이것은 안전성이 아니라 성능 수정이다 — 검사가 있었으므로 처음부터 안전했다.</li><li><strong>3 · 계약의 용량.</strong> <code>capacity</code> 는 배열 크기와 반복 상한이 다른 변수다. <code>j &lt; cap</code>(반복 조건)이고 <code>len s ≥ cap</code>(계약)이므로 <code>j &lt; len s</code> 다.</li><li><strong>4 · 행우선 주소.</strong> <code>grid</code> 는 <code>idx a (add (mul i n) k)</code> 처럼 <strong>계산된</strong> 색인을 쓴다. 구간도 한 칸 관계도 곱을 다루지 못하지만 <code>R-IDX-ROWMAJOR</code> 로 지워졌다. 주소의 곱과 합도 <code>R-MUL-CAP</code>·<code>R-ROW-CAP</code> 으로 함께 증명되었다.</li></ul><p><code>i</code> 와 <code>j</code> 를 하나 올리는 덧셈이 <code>R-ADD-LENLT</code>·<code>R-ADD-LEREL</code> 로 함께 사라진 것도 같은 관계 덕분이다. <code>i &lt; n</code> 이면 <code>i + 1 ≤ n</code> 이라 넘치지 않는다.</p><h3 id="s41-4">41.4 행우선 증명<a class="plink" href="#s41-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev mathbox"><p class="dev-label">수학. 행우선 주소가 범위 안이라는 증명</p><div class="dev-body">전제는 셋이다 — 계약 <code>len a ≥ p·q</code>, 바깥 반복 조건 <code>i &lt; p</code>, 안쪽 반복 조건 <code>k &lt; q</code>. 주소는 멈추는 곱과 멈추는 합으로 계산한 <code>i·q + k</code> 다. 그러면 i ≤ p − 1 이므로 i·q ≤ (p − 1)·q = p·q − q 이고, k ≤ q − 1 이므로 i·q + k ≤ p·q − q + q − 1 = p·q − 1 이다. 따라서 주소 ≤ p·q − 1 &lt; p·q ≤ len a 다. 부등식 두 개를 더했을 뿐이다.</div></div><p>고등학교 수학이지만, 전제가 하나라도 빠지면 무너진다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>무엇을 뺐나</strong></th><th><strong>색인 검사</strong></th></tr><tr><td>전부 있음</td><td>사라진다</td></tr><tr><td>계약 <code>len a ≥ n·n</code> 을 뺀다</td><td>남는다</td></tr><tr><td><code>i</code> 를 다른 변수로 묶는다(<code>while lt i m</code>)</td><td>남는다</td></tr><tr><td>주소를 <code>wrap_mul</code> 로 계산한다</td><td>남는다</td></tr></table></div><p class="float-caption">표 41.1 — 행우선 규칙이 서는 조건</p></figure><p>마지막 줄이 가장 미묘하다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch41/grid_wrap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> grid_wrap .
+</code></pre></div></div><ul><li><strong>1 · 직접.</strong> <code>direct</code> 는 반복 조건이 <code>len s</code> 를 직접 본다. <code>idx</code> 가 <code>R-IDX-LENLT</code> 로 지워졌다.</li><li><strong>2 · 지역에 담은 길이.</strong> <code>stored</code> 는 <code>let n len s</code> 로 길이를 지역에 담았다. 아주 흔한 관용구다. 한때는 “이 값은 <code>len s</code> 다” 라는 사실이 스택 값의 속성이라 지역에 담는 순간 사라졌고, 이 루프의 검사가 남았다. 지역에도 그 사실을 싣도록 고친 뒤로 1 과 같이 지워진다. 이것은 안전성이 아니라 성능 수정이다 — 검사가 있었으므로 처음부터 안전했다.</li><li><strong>3 · 계약의 용량.</strong> <code>capacity</code> 는 배열 크기와 반복 상한이 다른 변수다. <code>j &lt; cap</code>(반복 조건)이고 <code>len s ≥ cap</code>(계약)이므로 <code>j &lt; len s</code> 다.</li><li><strong>4 · 행우선 주소.</strong> <code>grid</code> 는 <code>idx a (add (mul i n) k)</code> 처럼 <strong>계산된</strong> 색인을 쓴다. 구간도 한 칸 관계도 곱을 다루지 못하지만 <code>R-IDX-ROWMAJOR</code> 로 지워졌다. 주소의 곱과 합도 <code>R-MUL-CAP</code>·<code>R-ROW-CAP</code> 으로 함께 증명되었다.</li></ul><p><code>i</code> 와 <code>j</code> 를 하나 올리는 덧셈이 <code>R-ADD-LENLT</code>·<code>R-ADD-LEREL</code> 로 함께 사라진 것도 같은 관계 덕분이다. <code>i &lt; n</code> 이면 <code>i + 1 ≤ n</code> 이라 넘치지 않는다.</p><h3 id="s41-4">41.4 행우선 증명<a class="plink" href="#s41-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev mathbox"><p class="dev-label">수학. 행우선 주소가 범위 안이라는 증명</p><div class="dev-body">전제는 셋이다 — 계약 <code>len a ≥ p·q</code>, 바깥 반복 조건 <code>i &lt; p</code>, 안쪽 반복 조건 <code>k &lt; q</code>. 주소는 멈추는 곱과 멈추는 합으로 계산한 <code>i·q + k</code> 다. 그러면 i ≤ p − 1 이므로 i·q ≤ (p − 1)·q = p·q − q 이고, k ≤ q − 1 이므로 i·q + k ≤ p·q − q + q − 1 = p·q − 1 이다. 따라서 주소 ≤ p·q − 1 &lt; p·q ≤ len a 다. 부등식 두 개를 더했을 뿐이다.</div></div><p>고등학교 수학이지만, 전제가 하나라도 빠지면 무너진다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>무엇을 뺐나</strong></th><th><strong>색인 검사</strong></th></tr><tr><td>전부 있음</td><td>사라진다</td></tr><tr><td>계약 <code>len a ≥ n·n</code> 을 뺀다</td><td>남는다</td></tr><tr><td><code>i</code> 를 다른 변수로 묶는다(<code>while lt i m</code>)</td><td>남는다</td></tr><tr><td>주소를 <code>wrap_mul</code> 로 계산한다</td><td>남는다</td></tr></table></div><p class="float-caption">표 41.1 — 행우선 규칙이 서는 조건</p></figure><p>마지막 줄이 가장 미묘하다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch41/grid_wrap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> grid_wrap .
 <em><span class="tok-c">rem run: grid [1,2,3,4] 2</span></em>
 <em><span class="tok-c">rem proof</span></em>
 
@@ -792,11 +792,11 @@ grid 43 add.i64 R-ADD-LEREL 0 999 1 1 64 0
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len a) (mul n n) .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-    <strong><span class="tok-k">while</span></strong> lt k n . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">var</span></strong> k <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">while</span></strong> lt k n <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (idx a (wrap_add (wrap_mul i n) k)))) .
       <strong><span class="tok-k">set</span></strong> k (add k <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>

@@ -20,14 +20,14 @@ export fn parity input n u64 . output u64 .
 do
   fn is_even input k u64 . output u64 .
   do
-    if eq k 0 . do
+    if eq k 0 do
       return 1 .
     end
     return is_odd (sub k 1) .
   end
   fn is_odd input k u64 . output u64 .
   do
-    if eq k 0 . do
+    if eq k 0 do
       return 0 .
     end
     return is_even (sub k 1) .

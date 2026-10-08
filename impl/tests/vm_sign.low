@@ -1,12 +1,12 @@
 rem RFC-0052 S2 — div·mod·순서 비교는 **선언된 부호**를 따른다.
 rem 이전에는 무조건 부호 있는 연산이라 u64 의 2^63 이 "1보다 작다"고 나왔다.
 fn ubig output bool . do
-  let big be u64 9223372036854775808 .
+  let big u64 9223372036854775808 .
   return lt big 1 .                      rem 무부호: 0
 end
 
 fn udiv output u64 . do
-  let big be u64 9223372036854775808 .
+  let big u64 9223372036854775808 .
   return div big 2 .                     rem 무부호: 2^62 (부호 있으면 음수 몫)
 end
 

@@ -19,7 +19,7 @@ end
 
 rem 소비자: 하나 받고 **카운터를 올린다**(완료를 셀 수 있게). 받기 전까지 chrecv 로 막힌다.
 proc cons input c u64 . input k counter . output u64 . effects state concurrent . do
-  let x be u64 chrecv c .
+  let x u64 chrecv c .
   spawn send k inc .
   return x .
 end
@@ -32,17 +32,17 @@ end
 rem ★ 소비자 40 을 **먼저 전부** spawn → 전부 동시에 막힌다(>16, 재활용 불가) → 생산자 40.
 rem   상한이 있으면 여기서 거절/데드락한다. 성장하면 40 이 다 돌고 카운터 = 40.
 proc grew output u64 . effects state . do
-  var c be u64 channel u64 .
-  var k be counter spawn actor counter .
+  var c u64 channel u64 .
+  var k counter spawn actor counter .
   task_group do
-    var i be u64 0 .
-    while lt i 40 . do
-      let h be u64 spawn cons c k .
+    var i u64 0 .
+    while lt i 40 do
+      let h u64 spawn cons c k .
       set i (add i 1) .
     end
-    var j be u64 0 .
-    while lt j 40 . do
-      let p be u64 spawn prod c .
+    var j u64 0 .
+    while lt j 40 do
+      let p u64 spawn prod c .
       set j (add j 1) .
     end
   end

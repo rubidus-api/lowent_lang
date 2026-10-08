@@ -54,30 +54,30 @@ actor accum do
 end
 
 proc two_actors output u64 . effects state . do
-  var c be counter spawn actor counter .
-  var d be accum spawn actor accum .
-  var a be u64 send c inc .
-  let b be u64 send d add .
+  var c counter spawn actor counter .
+  var d accum spawn actor accum .
+  var a u64 send c inc .
+  let b u64 send d add .
   set a expr a + b .
   return a .                     rem counter=1, accum=10 → 11
 end
 
 proc drive output u64 . effects state . do
-  var c be counter spawn actor counter .
-  let a be u64 send c inc .
-  let b be u64 send c inc .
+  var c counter spawn actor counter .
+  let a u64 send c inc .
+  let b u64 send c inc .
   return send c get .
 end
 
 rem ★★ **격리** — 두 인스턴스는 상태를 공유하지 않는다. 그것이 level-2 의 전부다.
 proc isolated output u64 . effects state . do
-  var c be counter spawn actor counter .
-  var d be counter spawn actor counter .
-  let a be u64 send c inc .
-  let b be u64 send c inc .
-  let e be u64 send d inc .
-  var x be u64 send c get .
-  let y be u64 send d get .
+  var c counter spawn actor counter .
+  var d counter spawn actor counter .
+  let a u64 send c inc .
+  let b u64 send c inc .
+  let e u64 send d inc .
+  var x u64 send c get .
+  let y u64 send d get .
   set x expr x * 10 .
   set x expr x + y .
   return x .                    rem c = 2, d = 1  →  21
@@ -130,10 +130,10 @@ actor bank do
 end
 
 proc banking output u64 . effects state . do
-  var b be bank spawn actor bank .
-  let x be u64 send b deposit 100 .
-  let y be u64 send b deposit 50 .
-  let z be u64 send b withdraw 30 .
+  var b bank spawn actor bank .
+  let x u64 send b deposit 100 .
+  let y u64 send b deposit 50 .
+  let z u64 send b withdraw 30 .
   return send b peek .          rem 100 + 50 − 30 = 120
 end
 
@@ -154,8 +154,8 @@ actor vault do
 end
 
 proc hand_over input a u64 . output u64 . effects state . do
-  var v be vault spawn actor vault .
-  var h be owned u64 a .
+  var v vault spawn actor vault .
+  var h owned u64 a .
   return send v stash h .      rem h 는 여기서 **떠난다**. 뒤에 쓰면 E-OWN-MOVED.
 end
 

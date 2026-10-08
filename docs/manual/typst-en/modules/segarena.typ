@@ -14,10 +14,10 @@ address = directory[segment] + slot
 
 ```lowent
 def newtype grid u8 .
-var a be (segarena.arena grid) segarena.open grid 4 .
-let b be option u64 segarena.grow grid a dir 1024 .
-guard is_some b . else return 1 .
-let v be option u64 segarena.at grid a dir mem 9 .
+var a (segarena.arena grid) segarena.open grid 4 .
+let b option u64 segarena.grow grid a dir 1024 .
+guard is_some b else return 1 .
+let v option u64 segarena.at grid a dir mem 9 .
 ```
 
 #aside[The cost is written in the op name --- this is the point of the module][

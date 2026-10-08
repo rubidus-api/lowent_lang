@@ -4,10 +4,10 @@ rem trap: stale [1,2,3,4]
 
 rem ko: len 을 조건에 그대로 둔다 --- 매 바퀴 지금의 길이를 읽는다 /// en: len stays in the condition --- each round reads the current length
 fn fresh input xs slice u8 . output u64 . do
-  var s be slice u8 xs .
-  var t be u64 0 .
-  var i be u64 0 .
-  while lt i (len s) . do
+  var s slice u8 xs .
+  var t u64 0 .
+  var i u64 0 .
+  while lt i (len s) do
     set t (wrap_add t (widen u64 (idx s i))) .
     set s (subslice s 0 2) .
     set i (add i 1) .
@@ -17,11 +17,11 @@ end
 
 rem ko: 길이를 미리 담았다 --- s 가 짧아져도 m 은 그대로다 /// en: the length was stored ahead --- m stays even when s gets shorter
 fn stale input xs slice u8 . output u64 . do
-  var s be slice u8 xs .
-  let m be u64 len s .
-  var t be u64 0 .
-  var i be u64 0 .
-  while lt i m . do
+  var s slice u8 xs .
+  let m u64 len s .
+  var t u64 0 .
+  var i u64 0 .
+  while lt i m do
     set t (wrap_add t (widen u64 (idx s i))) .
     set s (subslice s 0 2) .
     set i (add i 1) .

@@ -12,9 +12,9 @@ module segview .
 
 rem 총길이 — 서술자만 읽는다. 바이트는 안 만진다(그래서 O(조각 수)).
 export fn total_len input ss segments u8 . output u64 . do
-  var i be u64 0 .
-  var acc be u64 0 .
-  while lt i (segs ss) . do
+  var i u64 0 .
+  var acc u64 0 .
+  while lt i (segs ss) do
     set acc (add acc (len (seg ss i))) .
     set i (add i 1) .
   end
@@ -29,11 +29,11 @@ export def struct cursor do
 end
 
 export fn seek input ss segments u8 . input pos u64 . output option segview.cursor . do
-  var i be u64 0 .
-  var left be u64 pos .
-  while lt i (segs ss) . do
-    let n be u64 len (seg ss i) .
-    if lt left n . do
+  var i u64 0 .
+  var left u64 pos .
+  while lt i (segs ss) do
+    let n u64 len (seg ss i) .
+    if lt left n do
       return some (lit cursor do piece i . at left . end) .
     end
     set left (sub left n) .
@@ -45,23 +45,23 @@ end
 
 rem 평평한 색인으로 한 바이트 읽기. **비용이 이름에 있다**: 조각을 훑는다.
 export fn byte_at input ss segments u8 . input pos u64 . output option u8 . do
-  let co be option segview.cursor segview.seek ss pos .
-  guard is_some co . else return none .
-  let c be segview.cursor some_value co .
+  let co option segview.cursor segview.seek ss pos .
+  guard is_some co else return none .
+  let c segview.cursor some_value co .
   return some (idx (seg ss (field c piece)) (field c at)) .
 end
 
 rem ★ `coalesce` — 한 덩어리로 편다. **여기서만 복사가 일어난다**, 그리고 부른 자리에 보인다.
 rem   저장은 호출자 것이다(이 저장소의 규율): 받은 버퍼에 쓰고 쓴 길이를 답한다.
 export proc coalesce input ss segments u8 . input out mut slice u8 . output option u64 . effects none . do
-  let need be u64 segview.total_len ss .
-  guard le need (len out) . else return none .
-  var w be u64 0 .
-  var i be u64 0 .
-  while lt i (segs ss) . do
-    let p be slice u8 seg ss i .
-    var j be u64 0 .
-    while lt j (len p) . do
+  let need u64 segview.total_len ss .
+  guard le need (len out) else return none .
+  var w u64 0 .
+  var i u64 0 .
+  while lt i (segs ss) do
+    let p slice u8 seg ss i .
+    var j u64 0 .
+    while lt j (len p) do
       set (idx out w) (idx p j) .
       set w (add w 1) .
       set j (add j 1) .

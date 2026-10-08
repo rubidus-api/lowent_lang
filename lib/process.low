@@ -17,8 +17,8 @@ end
 
 rem 띄운다. 못 띄우면 none(프로그램이 없다 · 인자가 틀렸다 · 표가 찼다).
 export proc launch input k cap process . input argv slice u8 . output option child . effects io . do
-  let h be option u64 call_builtin proc_spawn k argv .
-  guard is_some h . else return none .
+  let h option u64 call_builtin proc_spawn k argv .
+  guard is_some h else return none .
   return some (lit child do h (some_value h) . end) .
 end
 
@@ -40,9 +40,9 @@ rem 끝날 때까지 기다리고 닫는다(완결). 상태를 낸다.
 export proc wait_exit input k cap process . input c owned child . output result u64 process_error . effects io .
 errors wait_failed .
 do
-  let s be option u64 call_builtin proc_wait k (field c h) .
+  let s option u64 call_builtin proc_wait k (field c h) .
   drop c .
-  guard is_some s . else return error wait_failed .
+  guard is_some s else return error wait_failed .
   return ok (some_value s) .
 end
 

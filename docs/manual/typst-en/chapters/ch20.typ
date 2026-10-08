@@ -26,7 +26,7 @@
 
 #organizer[
   You will learn that an allocator is made of three parts: a capability, a policy and state. You will use a bump allocator that cuts borrowed bytes, and confirm
-  that running out of memory is a value. You will pick up how to take an allocator as a type parameter and hand it over with `using`, and the default allocators
+  that running out of memory is a value. You will pick up how to take an allocator as a type parameter (the `using` clause) and hand it over from the caller with `use`, and the default allocators
   that carve straight from a root, with the rule for capability fields. You will also see how the linker sets the size of the fixed window on machines without an
   operating system, and `bit_cast`, which keeps the bits and changes only how they are read.
 ]
@@ -93,14 +93,14 @@ Code that uses an allocator need not know which implementation it is. It takes t
 - `input comptime a type .` is the allocator's type, fixed to a concrete type at translation (#chref("generics")).
 #idx("using")
 - `using al a .` receives the allocator value of that type under the name `al`. `using` is not an input. The caller does not write it in an argument position but
-  in the binding, as `let n using b be u64 two_from .`.
+  in the binding, as `let n use b u64 two_from .`.
 - `requires allocs.byte_allocator a .` is the condition that `a` satisfies the trait (#chref("traits")).
 - `effects state via a .` means the effects of the allocator's `reserve` are this op's effects.
 
 Given `bump_bytes`, the same `two_from` uses 3 + 5 = 8; given `bump_aligned`, which aligns start positions to multiples of 8, the second piece starts at 8 and it
 uses 13. Because the type is fixed at translation, there is no virtual function table and no indirect call. Swapping costs nothing at run time.
 
-If no source is written, a default is chosen: the binding's `using`, the op's own `using` name, and otherwise the input or binding of matching type if there is
+If no source is written, a default is chosen: the binding's `use` or `keep`, the op's own `using` name, and otherwise the input or binding of matching type if there is
 *only one*. With two or more it does not guess and asks you to write it with `E-ALLOC-AMBIGUOUS`. Defaults do not cross op boundaries --- an allocator from the
 caller never flows in on its own, so *there is no global allocator*.
 
@@ -109,7 +109,7 @@ caller never flows in on its own, so *there is no global allocator*.
   id: "fixed-using-lattice",
   caption: [The order that picks an allocator source --- the first match from the top],
   [*Order*], [*Source*], [*Why here*],
-  [1], [`using <name>` written on the binding], [what you write always wins],
+  [1], [`use <name>` or `keep <name>` written on the binding], [what you write always wins],
   [2], [the *only* name of fitting type among this op's `using` clauses], [the allocator the op said it takes],
   [3], [the *only* input or binding of fitting type in this op], [one visible value leaves nothing to confuse],
   [none], [`E-ALLOC-NOSOURCE`], [no global allocator fills the gap],
@@ -126,7 +126,7 @@ With no source at all, the call is refused.
 allocator as an input, create one here, or write a `using` clause. Because the call is refused, `caller` never really uses `state` either, so `W-EFFECT-OVER`
 comes along. It goes away once the first error is fixed.
 
-The other way round, writing `using` on a call that draws from no allocator is refused too.
+The other way round, writing `use` on the binding of a call that draws from no allocator is refused too.
 
 #demo("examples/ch20/usingunused.low")
 
@@ -184,23 +184,23 @@ Both ops are *an optimisation, not a promise*. If a piece cannot grow, the calle
 == Taking a list from an allocator
 
 A list written out as values (#chref("slices")) normally sits in the op's frame. When it is large, or must outlive the op,
-take its bytes from an allocator you choose: write `using <allocator>` on the binding, and say with `else` what happens when the bytes do not come.
+take its bytes from an allocator you choose: write `use <allocator>` right after the binding's name, and say with `else` what happens when the bytes do not come.
 
 #demo("examples/ch20/litalloc.low")
 
-- `var xs using bb be mut slice u64 lit array u64 4 … . else return 0 .` asks `bb` for 32 bytes and, if it gets them, fills them like
+- `var xs use bb mut slice u64 lit array u64 4 … . else return 0 .` asks `bb` for 32 bytes and, if it gets them, fills them like
   any list and binds them to `xs`. If the allocator cannot give the bytes, control goes to `else`, which must leave (binding `else` is
   covered in #chref("option-result")).
-- To carry the failure along as an `option`, write the whole type: `let big using bb be option mut slice u64 lit … .` --- then check it
+- To carry the failure along as an `option`, write the whole type: `let big use bb option mut slice u64 lit … .` --- then check it
   later with `guard` or `match`.
 - Filling works as for a frame list: list the elements, or fill chosen cells with `do … end`.
 - The bytes belong to the allocator, so their lifetime follows it. Bytes from the heap may be passed out of the block; bytes
   from a bump allocator backed by a frame array cannot leave that array's block (`E-LIT-ESCAPE`).
-- Writing `using` with neither `else` nor `option`, or on a `lit vec`, is `E-LIT-USING`.
+- Writing `use` with neither `else` nor `option`, or on a `lit vec`, is `E-LIT-USING`.
 
 === Given back when the block ends
 
-When the allocator can take pieces back one by one (`freeing_allocator`), bytes taken with `using` are given back automatically
+When the allocator can take pieces back one by one (`freeing_allocator`), bytes taken with `use` are given back automatically
 when the block that declared the name ends. The same happens when the block is left by `return`, or by `break` or `continue` in a loop.
 
 #demo("examples/ch20/autorel.low")
@@ -217,7 +217,7 @@ when the block that declared the name ends. The same happens when the block is l
   the `drop` is `E-OWN-MOVED`, and a `drop` in an inner block (one side of an `if`, say) is `E-OWN-JOIN`.
 - Nothing is given back when the program stops with `panic`.
 
-To use the bytes longer than the block, write `keep` after `using`. Then nothing is given back at the end of the block, and the
+To use the bytes longer than the block, write `keep <allocator>` instead of `use <allocator>`. Then nothing is given back at the end of the block, and the
 bytes live as long as the allocator. A helper can hand the buffer it built to its caller.
 
 #demo("examples/ch20/keepbuf.low")
@@ -225,7 +225,7 @@ bytes live as long as the allocator. A helper can hand the buffer it built to it
 - The `s` that `make_buf` returns is `bb`'s bytes. It can be used while `bb` lives; using it longer is refused at translation.
 - Giving the bytes back is up to you: `send bb release …` gives a piece back, or everything goes back when the allocator ends.
   `used` is 16, so the answer is 1608.
-- `keep` goes right after `using <allocator>`, on a binding that takes a list or struct literal. Anywhere else it is
+- `keep <allocator>` stands where `use <allocator>` does (right after the name), on a binding that takes a list or struct literal. Anywhere else it is
   `E-USING-FORM`.
 
 === Structs in an allocator too
@@ -234,7 +234,7 @@ A struct value is built in an allocator's bytes with the same spelling. The bind
 
 #demo("examples/ch20/structalloc.low")
 
-- `var q using bb be pt lit pt do … end . else return 0 .` asks `bb` for `size_of pt` bytes (16 here). If it gets them, it fills
+- `var q use bb pt lit pt do … end else return 0 .` asks `bb` for `size_of pt` bytes (16 here). If it gets them, it fills
   them with zeros, lays the struct's layout over them as `view` does, and writes the fields you gave. `used` is 16 while `q` lives,
   so the answer is 1607.
 - Fields are read and written as in any struct (`field q y`, `set (field q y) …`). The bytes are given back when the block ends, as
@@ -321,7 +321,7 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   be shared out, cut two non-overlapping pieces with `subslice`.
 ]
 
-#antipattern[Leaving out `using` when two allocators fit][
+#antipattern[Leaving out `use` when two allocators fit][
   #demo("examples/ch20/mistake_ambiguous.low")
 
   `s` and `g` are both `bump_bytes`, so the tool cannot guess. A guess might carve from the big buffer what should come from the small one,
@@ -359,17 +359,17 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   id: "fixed-memory-glance",
   caption: [Allocator syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`var a be allocs.bump_bytes spawn actor allocs.bump_bytes .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
+  [`var a allocs.bump_bytes spawn actor allocs.bump_bytes .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
   [`send a init buf`], [attach the bytes to hand out], [an allocator never creates memory behind your back],
   [`send a reserve 3` · `send a used`], [request a piece (`option`) · amount used], [shortage is a value, not a trap],
   [`input comptime a type .`], [receive the allocator's type (policy) at translation time], [swapping costs nothing at run time],
   [`using al a .`], [receive an allocator value of that type --- not an input], [it does not sit among the call's arguments],
-  [`let n using g be u64 two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
+  [`let n use g u64 two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
   [`effects state via a .` · `requires allocs.byte_allocator a .`], [inherit the type's effects · trait condition], [exact effects per instance],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
-  [no source · an unused `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
-  [`var xs using bb be mut slice u64 lit array u64 4 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
+  [no source · an unused `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
+  [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
   [`bit_cast u32 x`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 

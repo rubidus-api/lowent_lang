@@ -1,13 +1,13 @@
 rem RFC-0052 D5/D6 — 실패를 **값으로** 돌려주는 계열. 트랩도, panic 도 없다.
 rem chk_*: 오버플로 → none.  nonzero_of + div_nz: 0 나누기를 **타입으로** 없앤다.
 fn chk input a u8 . output u64 . do
-  let r be u64 chk_add a 1 .
-  guard is_some r . else return 999 .
+  let r u64 chk_add a 1 .
+  guard is_some r else return 999 .
   return some_value r .
 end
 
 fn dz input a u32 . input b u32 . output u32 . do
-  let nb be u32 nonzero_of b .
-  guard is_some nb . else return 0 .
+  let nb u32 nonzero_of b .
+  guard is_some nb else return 0 .
   return div_nz a (some_value nb) .        rem 제수가 0 이 아님이 여기서 보장된다
 end

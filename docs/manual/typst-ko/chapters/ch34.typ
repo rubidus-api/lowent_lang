@@ -6,7 +6,7 @@
 
 #prereq(
   ([#chref("generics") 제네릭], [비교는 값이 아니라 타입이 들고 온다]),
-  ([#chref("fixed-memory") 할당기와 고정 메모리], [할당기를 `using` 으로 건넨다]),
+  ([#chref("fixed-memory") 할당기와 고정 메모리], [할당기를 `use` 로 건넨다]),
   ([#chref("lib-map") 표준 라이브러리의 지도], [버퍼는 호출자의 것]),
 )
 
@@ -85,9 +85,9 @@
 #demo("examples/ch34/growing.low")
 
 - `allocs.heap_bytes` 를 띄워 할당기로 쓴다. `cap heap` 을 쥔 `main` 만 띄울 수 있다(#chref("fixed-memory")).
-- `vecgen.open u32 4` 는 원소 타입 `u32`, 처음 용량 4 인 벡터를 연다. 할당기는 바인딩의 `using hb` 로 건넨다.
+- `vecgen.open u32 4` 는 원소 타입 `u32`, 처음 용량 4 인 벡터를 연다. 할당기는 바인딩의 `use hb` 로 건넨다.
 - `vecgen.append … v x` 는 자리가 모자라면 할당기에게 더 청해 자란다. 실패하면 `false` 다. 벡터는 자기 할당기를 이미 들고 있으므로
-  `append` 에는 `using` 을 적지 않는다. 적으면 `E-ALLOC-USING-UNUSED` 로 거절된다.
+  `append` 에는 `use` 를 적지 않는다. 적으면 `E-ALLOC-USING-UNUSED` 로 거절된다.
 - `vecgen.at … v 50` 은 50 번 원소를 `option` 으로 준다. 50 × 2 = 100 이다.
 
 `vecgen.append` 의 효과는 `state via a` 다. 여기서 `a` 가 `heap_bytes` 이므로 이 인스턴스의 효과는 `heap state` 이고, `main` 의
@@ -141,11 +141,11 @@
   차례를 낼 수도 있다. 트레이트는 `less` 가 *있는지*만 검사하므로, "자기 자신보다 앞일 수 없다" 는 성질은 적는 사람이 지킨다.
 ]
 
-#antipattern[이미 할당기를 든 그릇에 `using` 을 또 적는다][
+#antipattern[이미 할당기를 든 그릇에 `use` 를 또 적는다][
   #demo("examples/ch34/mistake_usingappend.low")
 
-  `vecgen.open` 은 할당기를 받아 벡터 안에 넣어 둔다. 그 뒤의 `append` 는 벡터가 든 할당기를 쓰므로 바인딩의 `using hb` 는 아무 뜻이 없다. 뜻 없는
-  표시는 "이 호출이 `hb` 에서 깎는다" 는 거짓 정보가 되므로 `E-ALLOC-USING-UNUSED` 로 거절된다. `using` 은 할당기를 *처음 받는* 자리(`open`)에만
+  `vecgen.open` 은 할당기를 받아 벡터 안에 넣어 둔다. 그 뒤의 `append` 는 벡터가 든 할당기를 쓰므로 바인딩의 `use hb` 는 아무 뜻이 없다. 뜻 없는
+  표시는 "이 호출이 `hb` 에서 깎는다" 는 거짓 정보가 되므로 `E-ALLOC-USING-UNUSED` 로 거절된다. `use` 는 할당기를 *처음 받는* 자리(`open`)에만
   적는다.
 ]
 
@@ -167,7 +167,7 @@
   [`def struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
   [`sortgen.sort_by score rs` · `sort_fast`], [안정 삽입정렬 · 큰 배열용 quicksort], [고르는 기준이 이름에 있다],
   [`hashmap.put slots k v` · `lookup` · `del`], [호출자 슬라이스 위의 `u64 → u64` 맵], [가득 차면 `false` --- 삭제는 묘비],
-  [`let vo using hb be … vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`using` 은 처음 받는 자리에만],
+  [`let vo use hb … vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`use` 는 처음 받는 자리에만],
   [`vecgen.append u32 allocs.heap_bytes v x`], [자라며 넣는다 --- 실패하면 `false`], [효과가 할당기 타입을 따라간다(`state via a`)],
   [`spsc`], [락 없는 단일 생산자·단일 소비자 링 버퍼], [원자 연산 --- 증명을 빌렸다],
 )

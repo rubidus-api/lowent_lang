@@ -38,11 +38,11 @@ rem   이것이 SoA 가 이기는 자리다(사전 조사 §5.1 의 useful_ratio
 export proc step_x input xs mut slice u64 . input vxs slice u64 . input n u64 .
   output u64 . effects none .
 do
-  var i be u64 0 .
-  var m be u64 n .
-  if gt m (len xs) . do set m (len xs) . end
-  if gt m (len vxs) . do set m (len vxs) . end
-  while lt i m . do
+  var i u64 0 .
+  var m u64 n .
+  if gt m (len xs) do set m (len xs) . end
+  if gt m (len vxs) do set m (len vxs) . end
+  while lt i m do
     set (idx xs i) (add (idx xs i) (idx vxs i)) .
     set i (add i 1) .
   end
@@ -51,9 +51,9 @@ end
 
 rem ★ 한 필드만 합친다 — 다른 필드는 **읽지도 않는다**.
 export fn sum_field input f slice u64 . output u64 . do
-  var t be u64 0 .
-  var i be u64 0 .
-  while lt i (len f) . do
+  var t u64 0 .
+  var i u64 0 .
+  while lt i (len f) do
     set t (add t (idx f i)) .
     set i (add i 1) .
   end
@@ -63,7 +63,7 @@ end
 rem ☞ **막히는 자리 ①**: 원소 하나를 "한 덩어리" 로 못 준다. 필드마다 따로 꺼낸다.
 rem   사전 조사의 `load i` / `row i` 가 풀려던 문제이고, 지금은 **불편할 뿐** 불가능하지는 않다.
 export fn get_x input xs slice u64 . input i u64 . output u64 . do
-  guard lt i (len xs) . else return 0 .
+  guard lt i (len xs) else return 0 .
   return idx xs i .
 end
 
@@ -74,9 +74,9 @@ export proc step_all input xs mut slice u64 . input ys mut slice u64 .
   input vxs slice u64 . input vys slice u64 . input n u64 .
   output u64 . effects none .
 do
-  let a be u64 step_x xs vxs n .
-  let b be u64 step_x ys vys n .
-  if lt b a . do return b . end
+  let a u64 step_x xs vxs n .
+  let b u64 step_x ys vys n .
+  if lt b a do return b . end
   return a .
 end
 
@@ -91,16 +91,16 @@ export proc step_x_aos input rows mut slice u64 . input stride u64 . input xoff 
   input voff u64 . input n u64 .
   output u64 . effects none .
 do
-  var i be u64 0 .
-  while lt i n . do
-    let base be u64 mul i stride .
+  var i u64 0 .
+  while lt i n do
+    let base u64 mul i stride .
     rem ★ 두 필드 자리를 **둘 다** 지킨다 — `xoff > voff` 이면 voff 만 보던 옛 검사가 통과하고
     rem   다음 줄이 경계 밖을 밟았다(2026-09-04 보안 검토). 약속대로 멈춘 자리 i 를 답한다.
-    guard lt (add base voff) (len rows) . else return i .
-    guard lt (add base xoff) (len rows) . else return i .
+    guard lt (add base voff) (len rows) else return i .
+    guard lt (add base xoff) (len rows) else return i .
     rem ★ 한 줄로 쓴다: 줄을 나누면 **개행이 form 을 닫는다**(이어 쓰려면 줄 끝에 `,`).
     rem   이 시범이 그것도 한 번 밟았다 — 진단이 그 규칙을 말해 줬다.
-    let nx be u64 add (idx rows (add base xoff)) (idx rows (add base voff)) .
+    let nx u64 add (idx rows (add base xoff)) (idx rows (add base voff)) .
     set (idx rows (add base xoff)) nx .
     set i (add i 1) .
   end

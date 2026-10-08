@@ -29,67 +29,67 @@ end
 
 rem 화면 지우기 ESC[2J.
 export proc clear input buf mut slice u8 . input pos u64 . output option u64 . effects none . do
-  guard le (add pos 4) (len buf) . else return none .
-  let p be option u64 t_csi buf pos .
-  guard is_some p . else return none .
-  let q be option u64 fmt.put_byte buf (some_value p) 50 .
-  guard is_some q . else return none .
+  guard le (add pos 4) (len buf) else return none .
+  let p option u64 t_csi buf pos .
+  guard is_some p else return none .
+  let q option u64 fmt.put_byte buf (some_value p) 50 .
+  guard is_some q else return none .
   return fmt.put_byte buf (some_value q) 74 .
 end
 
 rem 커서를 (row, col) 로 — **0-기준** 입력, ANSI 1-기준 출력: ESC[<r+1>;<c+1>H.
 export proc goto input buf mut slice u8 . input pos u64 . input row u64 . input col u64 . output option u64 . effects none . do
   rem 전량 아니면 무: 최대 폭을 먼저 잰다.
-  let need be u64 add 4 (add (fmt.dec_width (add row 1)) (fmt.dec_width (add col 1))) .
-  guard le (add pos need) (len buf) . else return none .
-  let p0 be option u64 t_csi buf pos .
-  guard is_some p0 . else return none .
-  let p1 be option u64 fmt.put_u64 buf (some_value p0) (add row 1) .
-  guard is_some p1 . else return none .
-  let p2 be option u64 fmt.put_byte buf (some_value p1) 59 .
-  guard is_some p2 . else return none .
-  let p3 be option u64 fmt.put_u64 buf (some_value p2) (add col 1) .
-  guard is_some p3 . else return none .
+  let need u64 add 4 (add (fmt.dec_width (add row 1)) (fmt.dec_width (add col 1))) .
+  guard le (add pos need) (len buf) else return none .
+  let p0 option u64 t_csi buf pos .
+  guard is_some p0 else return none .
+  let p1 option u64 fmt.put_u64 buf (some_value p0) (add row 1) .
+  guard is_some p1 else return none .
+  let p2 option u64 fmt.put_byte buf (some_value p1) 59 .
+  guard is_some p2 else return none .
+  let p3 option u64 fmt.put_u64 buf (some_value p2) (add col 1) .
+  guard is_some p3 else return none .
   return fmt.put_byte buf (some_value p3) 72 .
 end
 
 rem SGR 하나짜리 ESC[<n>m — t_reset 은 n=0, 굵게 1, 밑줄 4, 반전 7.
 export proc sgr input buf mut slice u8 . input pos u64 . input n u64 . output option u64 . effects none . do
-  let need be u64 add 3 (fmt.dec_width n) .
-  guard le (add pos need) (len buf) . else return none .
-  let p0 be option u64 t_csi buf pos .
-  guard is_some p0 . else return none .
-  let p1 be option u64 fmt.put_u64 buf (some_value p0) n .
-  guard is_some p1 . else return none .
+  let need u64 add 3 (fmt.dec_width n) .
+  guard le (add pos need) (len buf) else return none .
+  let p0 option u64 t_csi buf pos .
+  guard is_some p0 else return none .
+  let p1 option u64 fmt.put_u64 buf (some_value p0) n .
+  guard is_some p1 else return none .
   return fmt.put_byte buf (some_value p1) 109 .
 end
 
 rem 256색 전경 ESC[38;5;<n>m / 배경 ESC[48;5;<n>m.
 export proc color256 input buf mut slice u8 . input pos u64 . input n u64 . input bg bool . output option u64 . effects none . do
-  let need be u64 add 8 (fmt.dec_width n) .
-  guard le (add pos need) (len buf) . else return none .
-  let p0 be option u64 t_csi buf pos .
-  guard is_some p0 . else return none .
-  var head be u64 51 .
-  if bg . do set head 52 . end
-  let p1 be option u64 fmt.put_byte buf (some_value p0) (narrow u8 head) .
-  guard is_some p1 . else return none .
-  let p2 be option u64 fmt.put_str buf (some_value p1) "8;5;" .
-  guard is_some p2 . else return none .
-  let p3 be option u64 fmt.put_u64 buf (some_value p2) n .
-  guard is_some p3 . else return none .
+  let need u64 add 8 (fmt.dec_width n) .
+  guard le (add pos need) (len buf) else return none .
+  let p0 option u64 t_csi buf pos .
+  guard is_some p0 else return none .
+  var head u64 51 .
+  if bg do set head 52 . end
+  let p1 option u64 fmt.put_byte buf (some_value p0) (narrow u8 head) .
+  guard is_some p1 else return none .
+  let p2 option u64 fmt.put_str buf (some_value p1) "8;5;" .
+  guard is_some p2 else return none .
+  let p3 option u64 fmt.put_u64 buf (some_value p2) n .
+  guard is_some p3 else return none .
   return fmt.put_byte buf (some_value p3) 109 .
 end
 
 rem 커서 보이기/숨기기 ESC[?25h / ESC[?25l.
 export proc cursor input buf mut slice u8 . input pos u64 . input show bool . output option u64 . effects none . do
-  guard le (add pos 6) (len buf) . else return none .
-  let p0 be option u64 t_csi buf pos .
-  guard is_some p0 . else return none .
-  let p1 be option u64 fmt.put_str buf (some_value p0) "?25" .
-  guard is_some p1 . else return none .
-  var t be u64 104 .
-  if eq show false . do set t 108 . end
+  guard le (add pos 6) (len buf) else return none .
+  let p0 option u64 t_csi buf pos .
+  guard is_some p0 else return none .
+  let p1 option u64 fmt.put_str buf (some_value p0) "?25" .
+  guard is_some p1 else return none .
+  var t u64 104 .
+  if eq show false do set t 108 . end
   return fmt.put_byte buf (some_value p1) (narrow u8 t) .
 end
 
@@ -97,40 +97,40 @@ rem ★★ **화면 diff** — 이 라이브러리의 존재 이유. prev 와 nx
 rem   **바뀐 연속 구간만** `goto + 바이트들` 로 out 에 쓴다. 반환 = 새 pos.
 rem   바뀐 것이 없으면 pos 그대로 — **0 바이트가 곧 "화면 건드리지 마라"** 는 답이다.
 export proc diff input prev slice u8 . input nxt slice u8 . input w u64 . input out mut slice u8 . input pos u64 . output option u64 . effects none . do
-  guard eq (len prev) (len nxt) . else return none .
-  guard gt w 0 . else return none .
-  guard eq (mod (len prev) w) 0 . else return none .
-  var p be u64 pos .
-  var i be u64 0 .
-  while lt i (len nxt) . do
-    guard ne (idx prev i) (idx nxt i) . else do
+  guard eq (len prev) (len nxt) else return none .
+  guard gt w 0 else return none .
+  guard eq (mod (len prev) w) 0 else return none .
+  var p u64 pos .
+  var i u64 0 .
+  while lt i (len nxt) do
+    guard ne (idx prev i) (idx nxt i) else do
       set i (add i 1) .
       continue .
     end
     rem 바뀐 구간 [i, j): 같은 행 안에서 연속으로 다른 셀들.
-    let row be u64 div i w .
-    let rowend be u64 mul (add row 1) w .
-    var j be u64 add i 1 .
-    var scanning be u64 1 .
-    while eq scanning 1 . do
-      if ge j rowend . do
+    let row u64 div i w .
+    let rowend u64 mul (add row 1) w .
+    var j u64 add i 1 .
+    var scanning u64 1 .
+    while eq scanning 1 do
+      if ge j rowend do
         set scanning 0 .
       end
-      if eq scanning 1 . do
-        if eq (idx prev j) (idx nxt j) . do
+      if eq scanning 1 do
+        if eq (idx prev j) (idx nxt j) do
           set scanning 0 .
         end
-        if eq scanning 1 . do
+        if eq scanning 1 do
           set j (add j 1) .
         end
       end
     end
-    let g be option u64 goto out p row (mod i w) .
-    guard is_some g . else return none .
+    let g option u64 goto out p row (mod i w) .
+    guard is_some g else return none .
     set p (some_value g) .
-    var q be u64 i .
-    while lt q j . do
-      guard lt p (len out) . else return none .
+    var q u64 i .
+    while lt q j do
+      guard lt p (len out) else return none .
       set (idx out p) (idx nxt q) .
       set p (add p 1) .
       set q (add q 1) .
@@ -154,18 +154,18 @@ rem   과길이·서로게이트·상한). 전엔 이 파일의 셀 셈이 선�
 rem   않으면 none" 을 약속하고도 `E2 41 42` 를 셀 하나로 셌다 — 같은 바이트에 `row_width` 와 다른 답이었고,
 rem   그 틈에서 `col_off` 는 터미널이 동의하지 않는 열을 냈다. 잣대는 하나여야 한다.
 fn t_cp_len input s slice u8 . input at u64 . output option u64 . do
-  guard is_some (utf8.decode s at) . else return none .
+  guard is_some (utf8.decode s at) else return none .
   return some (utf8.seq_len (idx s at)) .
 end
 
 rem 한 행(개행 없는 UTF-8 바이트열)에서 **코드포인트 c 번째의 바이트 오프셋**. 모자라면 none.
 export proc col_off input row_bytes slice u8 . input c u64 . output option u64 . effects none . do
-  var off be u64 0 .
-  var seen be u64 0 .
-  while lt seen c . do
-    guard lt off (len row_bytes) . else return none .
-    let n be option u64 t_cp_len row_bytes off .
-    guard is_some n . else return none .
+  var off u64 0 .
+  var seen u64 0 .
+  while lt seen c do
+    guard lt off (len row_bytes) else return none .
+    let n option u64 t_cp_len row_bytes off .
+    guard is_some n else return none .
     set off (add off (some_value n)) .
     set seen (add seen 1) .
   end
@@ -174,11 +174,11 @@ end
 
 rem 행의 **코드포인트 개수**. 유효하지 않은 UTF-8 이면 none(값으로 답한다).
 export proc row_cells input row_bytes slice u8 . output option u64 . effects none . do
-  var off be u64 0 .
-  var cells be u64 0 .
-  while lt off (len row_bytes) . do
-    let n be option u64 t_cp_len row_bytes off .
-    guard is_some n . else return none .
+  var off u64 0 .
+  var cells u64 0 .
+  while lt off (len row_bytes) do
+    let n option u64 t_cp_len row_bytes off .
+    guard is_some n else return none .
     set off (add off (some_value n)) .
     set cells (add cells 1) .
   end
@@ -193,93 +193,93 @@ rem   화면의 글자가 그 자리에 남는다(바이트 셀 `diff` 는 길�
 rem ★ 잘린 다중바이트가 어느 행의 끝에 있어도 none 이다 — 전엔 그 자리에서 나아가지 못한 채 **영원히
 rem   돌았다**(나아감이 조건부였고 else 가 없었다). 신뢰할 수 없는 텍스트를 그리는 렌더러가 멈추는 길이었다.
 export proc diff_row_utf8 input prev slice u8 . input nxt slice u8 . input row u64 . input out mut slice u8 . input pos u64 . output option u64 . effects none . do
-  var p be u64 pos .
-  var po be u64 0 .
-  var no be u64 0 .
-  var col be u64 0 .
-  var runsc be u64 0 .
-  var runso be u64 0 .
-  var inrun be u64 0 .
-  var stale be u64 0 .
-  var going be u64 1 .
-  while eq going 1 . do
-    let pend be bool ge po (len prev) .
-    let nend be bool ge no (len nxt) .
-    if pend . do
-      if nend . do set going 0 . end
+  var p u64 pos .
+  var po u64 0 .
+  var no u64 0 .
+  var col u64 0 .
+  var runsc u64 0 .
+  var runso u64 0 .
+  var inrun u64 0 .
+  var stale u64 0 .
+  var going u64 1 .
+  while eq going 1 do
+    let pend bool ge po (len prev) .
+    let nend bool ge no (len nxt) .
+    if pend do
+      if nend do set going 0 . end
     end
-    if eq going 1 . do
+    if eq going 1 do
       rem 한쪽이 끝났거나 코드포인트가 다르면 "바뀐 셀"이다.
-      var differ be u64 0 .
-      var pn be u64 0 .
-      var nn be u64 0 .
-      if pend . do set differ 1 . end
-      if nend . do
+      var differ u64 0 .
+      var pn u64 0 .
+      var nn u64 0 .
+      if pend do set differ 1 . end
+      if nend do
         set differ 1 .
         rem prev 에는 셀이 남았는데 nxt 는 끝났다 — 그 셀들은 화면에서 **지워야** 한다.
-        if eq pend false . do set stale 1 . end
+        if eq pend false do set stale 1 . end
       end
-      if eq differ 0 . do
-        let pl be option u64 t_cp_len prev po .
-        let nl be option u64 t_cp_len nxt no .
-        guard is_some pl . else return none .
-        guard is_some nl . else return none .
+      if eq differ 0 do
+        let pl option u64 t_cp_len prev po .
+        let nl option u64 t_cp_len nxt no .
+        guard is_some pl else return none .
+        guard is_some nl else return none .
         set pn (some_value pl) .
         set nn (some_value nl) .
-        if ne pn nn . do set differ 1 . end
-        if eq differ 0 . do
-          var b be u64 0 .
-          while lt b pn . do
-            if ne (idx prev (add po b)) (idx nxt (add no b)) . do set differ 1 . end
+        if ne pn nn do set differ 1 . end
+        if eq differ 0 do
+          var b u64 0 .
+          while lt b pn do
+            if ne (idx prev (add po b)) (idx nxt (add no b)) do set differ 1 . end
             set b (add b 1) .
           end
         end
       end
-      if eq differ 1 . do
-        if eq inrun 0 . do
+      if eq differ 1 do
+        if eq inrun 0 do
           set inrun 1 .
           set runsc col .
           set runso no .
         end
       end
-      if eq differ 0 . do
-        if eq inrun 1 . do
-          let e be option u64 t_flush_run nxt runso no runsc row out p .
-          guard is_some e . else return none .
+      if eq differ 0 do
+        if eq inrun 1 do
+          let e option u64 t_flush_run nxt runso no runsc row out p .
+          guard is_some e else return none .
           set p (some_value e) .
           set inrun 0 .
         end
       end
       rem 진행: 각각 자기 코드포인트만큼.
       rem ★ 나아감은 **무조건**이다: 유효하면 그만큼, 아니면 none. 조건부 나아감은 제자리걸음 = 무한 루프였다.
-      if eq pend false . do
-        if eq differ 0 . do set po (add po pn) . end
-        if eq differ 1 . do
-          let s be option u64 t_cp_len prev po .
-          guard is_some s . else return none .
+      if eq pend false do
+        if eq differ 0 do set po (add po pn) . end
+        if eq differ 1 do
+          let s option u64 t_cp_len prev po .
+          guard is_some s else return none .
           set po (add po (some_value s)) .
         end
       end
-      if eq nend false . do
-        if eq differ 0 . do set no (add no nn) . end
-        if eq differ 1 . do
-          let s be option u64 t_cp_len nxt no .
-          guard is_some s . else return none .
+      if eq nend false do
+        if eq differ 0 do set no (add no nn) . end
+        if eq differ 1 do
+          let s option u64 t_cp_len nxt no .
+          guard is_some s else return none .
           set no (add no (some_value s)) .
         end
       end
       set col (add col 1) .
     end
   end
-  if eq inrun 1 . do
-    let e be option u64 t_flush_run nxt runso no runsc row out p .
-    guard is_some e . else return none .
+  if eq inrun 1 do
+    let e option u64 t_flush_run nxt runso no runsc row out p .
+    guard is_some e else return none .
     set p (some_value e) .
   end
   rem 마지막 구간을 쓴 뒤 커서는 nxt 의 끝 다음 칸에 있다 — 거기서 줄 끝까지 지우면 남은 셀이 사라진다.
-  if eq stale 1 . do
-    let e be option u64 fmt.put_str out p "\x1b[K" .
-    guard is_some e . else return none .
+  if eq stale 1 do
+    let e option u64 fmt.put_str out p "\x1b[K" .
+    guard is_some e else return none .
     set p (some_value e) .
   end
   return some p .
@@ -287,12 +287,12 @@ end
 
 rem 바뀐 구간 하나를 낸다: goto(row, 시작 코드포인트 열) + nxt[method from to) 바이트.
 proc t_flush_run input nxt slice u8 . input lo u64 . input hi u64 . input col u64 . input row u64 . input out mut slice u8 . input pos u64 . output option u64 . effects none . do
-  let g be option u64 goto out pos row col .
-  guard is_some g . else return none .
-  var p be u64 some_value g .
-  var q be u64 lo .
-  while lt q hi . do
-    guard lt p (len out) . else return none .
+  let g option u64 goto out pos row col .
+  guard is_some g else return none .
+  var p u64 some_value g .
+  var q u64 lo .
+  while lt q hi do
+    guard lt p (len out) else return none .
     set (idx out p) (idx nxt q) .
     set p (add p 1) .
     set q (add q 1) .
@@ -315,39 +315,39 @@ rem 코드포인트 하나의 표시 폭(0 은 안 낸다 — 결합 문자는 �
 export proc cp_width input cp u64 . output u64 . effects none . do
   rem ★ 폭 0 이 먼저다(2026-07-26): 결합 문자·서식 문자는 **앞 글자에 얹혀** 자기 칸이 없다.
   rem   이걸 1 로 세면 악센트 하나마다 화면이 한 칸씩 밀린다.
-  if unicode.is_zerowidth cp . do return 0 . end
+  if unicode.is_zerowidth cp do return 0 . end
   rem 한글 자모 (Hangul Jamo 초성/중성/종성 일부) — 1100–115F 는 폭 2.
-  if ge cp 4352 . do if le cp 4447 . do return 2 . end end
+  if ge cp 4352 do if le cp 4447 do return 2 . end end
   rem CJK 부수·한자·한글 음절 등 큰 덩어리: 2E80–303E, 3041–33FF, 3400–4DBF, 4E00–9FFF,
   rem   A000–A4CF, AC00–D7A3(한글 음절), F900–FAFF, FE10–FE19, FE30–FE6F, FF00–FF60, FFE0–FFE6
-  if ge cp 11904 . do if le cp 12350 . do return 2 . end end
-  if ge cp 12353 . do if le cp 13311 . do return 2 . end end
-  if ge cp 13312 . do if le cp 19903 . do return 2 . end end
-  if ge cp 19968 . do if le cp 40959 . do return 2 . end end
-  if ge cp 40960 . do if le cp 42127 . do return 2 . end end
-  if ge cp 44032 . do if le cp 55203 . do return 2 . end end
-  if ge cp 63744 . do if le cp 64255 . do return 2 . end end
-  if ge cp 65040 . do if le cp 65049 . do return 2 . end end
-  if ge cp 65072 . do if le cp 65135 . do return 2 . end end
-  if ge cp 65280 . do if le cp 65376 . do return 2 . end end
-  if ge cp 65504 . do if le cp 65510 . do return 2 . end end
+  if ge cp 11904 do if le cp 12350 do return 2 . end end
+  if ge cp 12353 do if le cp 13311 do return 2 . end end
+  if ge cp 13312 do if le cp 19903 do return 2 . end end
+  if ge cp 19968 do if le cp 40959 do return 2 . end end
+  if ge cp 40960 do if le cp 42127 do return 2 . end end
+  if ge cp 44032 do if le cp 55203 do return 2 . end end
+  if ge cp 63744 do if le cp 64255 do return 2 . end end
+  if ge cp 65040 do if le cp 65049 do return 2 . end end
+  if ge cp 65072 do if le cp 65135 do return 2 . end end
+  if ge cp 65280 do if le cp 65376 do return 2 . end end
+  if ge cp 65504 do if le cp 65510 do return 2 . end end
   rem 이모지·보조 평면의 넓은 구간: 1F300–1F64F, 1F900–1F9FF, 20000–3FFFD
-  if ge cp 127744 . do if le cp 128591 . do return 2 . end end
-  if ge cp 129280 . do if le cp 129535 . do return 2 . end end
-  if ge cp 131072 . do if le cp 262141 . do return 2 . end end
+  if ge cp 127744 do if le cp 128591 do return 2 . end end
+  if ge cp 129280 do if le cp 129535 do return 2 . end end
+  if ge cp 131072 do if le cp 262141 do return 2 . end end
   return 1 .
 end
 
 rem ★ 한 행(개행 없는 UTF-8)의 **표시 폭**. 유효하지 않은 UTF-8 이면 none.
 export proc row_width input row_bytes slice u8 . output option u64 . effects none . do
-  var off be u64 0 .
-  var w be u64 0 .
-  while lt off (len row_bytes) . do
-    let c be option u64 utf8.decode row_bytes off .
-    guard is_some c . else return none .
-    let n be u64 utf8.seq_len (idx row_bytes off) .
-    guard gt n 0 . else return none .
-    guard le (add off n) (len row_bytes) . else return none .
+  var off u64 0 .
+  var w u64 0 .
+  while lt off (len row_bytes) do
+    let c option u64 utf8.decode row_bytes off .
+    guard is_some c else return none .
+    let n u64 utf8.seq_len (idx row_bytes off) .
+    guard gt n 0 else return none .
+    guard le (add off n) (len row_bytes) else return none .
     set w (add w (cp_width (some_value c))) .
     set off (add off n) .
   end
@@ -357,16 +357,16 @@ end
 rem ★ 표시 폭이 `cols` 를 넘지 않는 **가장 긴 앞부분**의 바이트 길이. 글자 한가운데서 자르지
 rem   않는다 — 자르면 그 뒤 바이트가 쓰레기가 되고 화면이 깨진다.
 export proc fit_width input row_bytes slice u8 . input cols u64 . output option u64 . effects none . do
-  var off be u64 0 .
-  var w be u64 0 .
-  while lt off (len row_bytes) . do
-    let c be option u64 utf8.decode row_bytes off .
-    guard is_some c . else return none .
-    let n be u64 utf8.seq_len (idx row_bytes off) .
-    guard gt n 0 . else return none .
-    guard le (add off n) (len row_bytes) . else return none .
-    let cw be u64 cp_width (some_value c) .
-    if gt (add w cw) cols . do return some off . end
+  var off u64 0 .
+  var w u64 0 .
+  while lt off (len row_bytes) do
+    let c option u64 utf8.decode row_bytes off .
+    guard is_some c else return none .
+    let n u64 utf8.seq_len (idx row_bytes off) .
+    guard gt n 0 else return none .
+    guard le (add off n) (len row_bytes) else return none .
+    let cw u64 cp_width (some_value c) .
+    if gt (add w cw) cols do return some off . end
     set w (add w cw) .
     set off (add off n) .
   end
@@ -385,23 +385,23 @@ rem     전부 UAX #29 의 나머지 규칙이 필요하고, 그건 또 다른 �
 
 rem ★ `at` 에서 시작하는 덩어리의 **바이트 길이**. 유효하지 않은 UTF-8 이면 none.
 export proc cluster_len input s slice u8 . input at u64 . output option u64 . effects none . do
-  guard lt at (len s) . else return none .
-  let n0 be option u64 t_cp_len s at .
-  guard is_some n0 . else return none .
-  var off be u64 add at (some_value n0) .
-  var going be bool true .
-  while going . do
-    if ge off (len s) . do set going false . end
-    if going . do
-      let c be option u64 utf8.decode s off .
-      guard is_some c . else return none .
-      if unicode.is_zerowidth (some_value c) . do
-        let n be u64 utf8.seq_len (idx s off) .
-        guard gt n 0 . else return none .
-        guard le (add off n) (len s) . else return none .
+  guard lt at (len s) else return none .
+  let n0 option u64 t_cp_len s at .
+  guard is_some n0 else return none .
+  var off u64 add at (some_value n0) .
+  var going bool true .
+  while going do
+    if ge off (len s) do set going false . end
+    if going do
+      let c option u64 utf8.decode s off .
+      guard is_some c else return none .
+      if unicode.is_zerowidth (some_value c) do
+        let n u64 utf8.seq_len (idx s off) .
+        guard gt n 0 else return none .
+        guard le (add off n) (len s) else return none .
         set off (add off n) .
       end
-      if eq (unicode.is_zerowidth (some_value c)) false . do set going false . end
+      if eq (unicode.is_zerowidth (some_value c)) false do set going false . end
     end
   end
   return some (sub off at) .
@@ -409,12 +409,12 @@ end
 
 rem ★ 행의 **덩어리 개수** — 사람이 세는 글자 수다(코드포인트 수와 다르다).
 export proc row_clusters input row_bytes slice u8 . output option u64 . effects none . do
-  var off be u64 0 .
-  var cnt be u64 0 .
-  while lt off (len row_bytes) . do
-    let n be option u64 cluster_len row_bytes off .
-    guard is_some n . else return none .
-    guard gt (some_value n) 0 . else return none .
+  var off u64 0 .
+  var cnt u64 0 .
+  while lt off (len row_bytes) do
+    let n option u64 cluster_len row_bytes off .
+    guard is_some n else return none .
+    guard gt (some_value n) 0 else return none .
     set off (add off (some_value n)) .
     set cnt (add cnt 1) .
   end

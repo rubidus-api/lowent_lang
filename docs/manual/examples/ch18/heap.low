@@ -4,10 +4,10 @@ rem run: main
 proc grow_twice output u64 . effects heap .
 do
   region big heap do
-    let a be option mut slice u8 alloc_bytes big capacity 4096 .
-    let b be option mut slice u8 alloc_bytes big capacity 4096 .
-    guard is_some a . else return 0 .
-    guard is_some b . else return 0 .
+    let a option mut slice u8 alloc_bytes big capacity 4096 .
+    let b option mut slice u8 alloc_bytes big capacity 4096 .
+    guard is_some a else return 0 .
+    guard is_some b else return 0 .
     return add (len (some_value a)) (len (some_value b)) .
   end
   return 0 .
@@ -15,7 +15,7 @@ end
 
 proc main input h cap heap . output u8 . effects heap .
 do
-  let n be u64 grow_twice .
-  guard eq n 8192 . else return 1 .
+  let n u64 grow_twice .
+  guard eq n 8192 else return 1 .
   return 0 .
 end

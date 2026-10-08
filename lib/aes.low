@@ -24,15 +24,15 @@ module aes .
 rem ★ GF(2^8) 곱 — 기약다항식 x^8+x^4+x^3+x+1 (0x11b).
 rem   러시아 농부 곱셈: 분기가 값에 달려 있으나 **비밀 표를 읽지는 않는다**.
 export fn gmul input a u64 . input b u64 . output u64 . do
-  var x be u64 bit_and a 255 .
-  var y be u64 bit_and b 255 .
-  var r be u64 0 .
-  var i be u64 0 .
-  while lt i 8 . do
-    if eq (bit_and y 1) 1 . do  set r (bit_xor r x) .  end
-    let hi be u64 bit_and x 128 .
+  var x u64 bit_and a 255 .
+  var y u64 bit_and b 255 .
+  var r u64 0 .
+  var i u64 0 .
+  while lt i 8 do
+    if eq (bit_and y 1) 1 do  set r (bit_xor r x) .  end
+    let hi u64 bit_and x 128 .
     set x (bit_and (shl x 1) 255) .
-    if eq hi 128 . do  set x (bit_xor x 27) .  end
+    if eq hi 128 do  set x (bit_xor x 27) .  end
     set y (shr y 1) .
     set i (add i 1) .
   end
@@ -41,11 +41,11 @@ end
 
 rem ★ GF(2^8) 역원 — x^254. x=0 이면 0(S-box 의 규약).
 export fn ginv input a u64 . output u64 . do
-  var r be u64 1 .
-  var b be u64 a .
-  var e be u64 254 .
-  while gt e 0 . do
-    if eq (bit_and e 1) 1 . do set r (gmul r b) . end
+  var r u64 1 .
+  var b u64 a .
+  var e u64 254 .
+  while gt e 0 do
+    if eq (bit_and e 1) 1 do set r (gmul r b) . end
     set b (gmul b b) .
     set e (shr e 1) .
   end
@@ -55,11 +55,11 @@ end
 rem ★★ S-box — **표가 아니라 정의**다(FIPS 197 §5.1.1).
 rem   b = x^(-1) 의 비트를 회전해 더하고 0x63 을 더한다.
 export fn sbox input a u64 . output u64 . do
-  let b be u64 ginv a .
-  var r be u64 bit_xor b 99 .
-  var i be u64 1 .
-  while lt i 5 . do
-    let rot be u64 bit_and (bit_or (shl b i) (shr b (sub 8 i))) 255 .
+  let b u64 ginv a .
+  var r u64 bit_xor b 99 .
+  var i u64 1 .
+  while lt i 5 do
+    let rot u64 bit_and (bit_or (shl b i) (shr b (sub 8 i))) 255 .
     set r (bit_xor r rot) .
     set i (add i 1) .
   end
@@ -68,13 +68,13 @@ end
 
 rem 역 S-box — 아핀의 역을 먼저 풀고 역원을 취한다.
 export fn inv_sbox input a u64 . output u64 . do
-  var t be u64 0 .
-  var i be u64 0 .
-  while lt i 8 . do
+  var t u64 0 .
+  var i u64 0 .
+  while lt i 8 do
     rem 역아핀: 비트 i 는 a 의 비트 (i+2)·(i+5)·(i+7) 의 XOR, 그리고 상수 0x05.
-    let b1 be u64 bit_and (shr a (bit_and (add i 2) 7)) 1 .
-    let b2 be u64 bit_and (shr a (bit_and (add i 5) 7)) 1 .
-    let b3 be u64 bit_and (shr a (bit_and (add i 7) 7)) 1 .
+    let b1 u64 bit_and (shr a (bit_and (add i 2) 7)) 1 .
+    let b2 u64 bit_and (shr a (bit_and (add i 5) 7)) 1 .
+    let b3 u64 bit_and (shr a (bit_and (add i 7) 7)) 1 .
     set t (bit_or t (shl (bit_xor (bit_xor b1 b2) b3) i)) .
     set i (add i 1) .
   end
@@ -87,23 +87,23 @@ rem   ☞ 전엔 `ge 16` 이어서 32 바이트(AES-256 크기) 키를 주면 **
 rem     돌렸다 — 태그가 16 바이트 키와 바이트까지 같다(2026-09-04 검토 A2). 이 모듈은 AES-128
 rem     뿐이므로 다른 길이는 *다른 알고리즘을 달라는 말*이고, 그것은 거절이 답이다.
 export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 . effects none . do
-  guard eq (len key) 16 . else return 0 .
-  guard ge (len rk) 176 . else return 0 .
-  var i be u64 0 .
-  while lt i 16 . do
+  guard eq (len key) 16 else return 0 .
+  guard ge (len rk) 176 else return 0 .
+  var i u64 0 .
+  while lt i 16 do
     set (idx rk i) (idx key i) .
     set i (add i 1) .
   end
-  var rcon be u64 1 .
-  var w be u64 16 .
-  while lt w 176 . do
-    var t0 be u64 cast u64 (idx rk (sub w 4)) .
-    var t1 be u64 cast u64 (idx rk (sub w 3)) .
-    var t2 be u64 cast u64 (idx rk (sub w 2)) .
-    var t3 be u64 cast u64 (idx rk (sub w 1)) .
-    if eq (bit_and w 15) 0 . do
+  var rcon u64 1 .
+  var w u64 16 .
+  while lt w 176 do
+    var t0 u64 cast u64 (idx rk (sub w 4)) .
+    var t1 u64 cast u64 (idx rk (sub w 3)) .
+    var t2 u64 cast u64 (idx rk (sub w 2)) .
+    var t3 u64 cast u64 (idx rk (sub w 1)) .
+    if eq (bit_and w 15) 0 do
       rem RotWord + SubWord + Rcon
-      let a0 be u64 t0 .
+      let a0 u64 t0 .
       set t0 (bit_xor (sbox t1) rcon) .
       set t1 (sbox t2) .
       set t2 (sbox t3) .
@@ -121,8 +121,8 @@ end
 
 rem 라운드 키를 더한다(XOR).
 proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
-  var i be u64 0 .
-  while lt i 16 . do
+  var i u64 0 .
+  while lt i 16 do
     set (idx st i) (cast u8 (bit_xor (cast u64 (idx st i)) (cast u64 (idx rk (add (mul r 16) i))))) .
     set i (add i 1) .
   end
@@ -133,20 +133,20 @@ rem ★★ 블록 암호화 — 상태는 **열 우선**이다(st[r + 4c] 가 �
 rem   ☞ FIPS 197 의 그림은 행 우선처럼 보이지만 바이트 순서는 열 우선이다. 이 자리를
 rem     뒤집으면 ShiftRows 가 조용히 다른 것을 섞는다.
 export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp mut slice u8 . output u64 . effects none . do
-  guard ge (len rk) 176 . else return 0 .
-  guard ge (len st) 16 . else return 0 .
-  guard ge (len tmp) 16 . else return 0 .
+  guard ge (len rk) 176 else return 0 .
+  guard ge (len st) 16 else return 0 .
+  guard ge (len tmp) 16 else return 0 .
   rem ★★★ 2026-09-23 (RFC-0119 §10): 라운드를 **낱말 하나**로 부른다(`aes_round`).
   rem   기계에 그 명령이 있으면 C 뒤끝이 `aesenc` 로 내리고(표를 안 읽으므로 상수시간),
   rem   없으면 같은 답을 내는 표 셈으로 내린다. VM 은 언제나 표 셈이라 오라클이 둘을 맞댄다.
   rem   ☞ 전에는 SubBytes·ShiftRows·MixColumns 를 이 자리에 손으로 폈다 — 뜻은 같고, 이제
   rem     그 셈이 **한 곳**(처리기의 잎)에 있다.
-  let z0 be u64 add_round_key st rk 0 .
-  var r be u64 1 .
-  while lt r 10 . do
-    guard eq (call_builtin aes_round st (subslice rk (mul r 16) (add (mul r 16) 16))) 16 . else return 0 .
+  let z0 u64 add_round_key st rk 0 .
+  var r u64 1 .
+  while lt r 10 do
+    guard eq (call_builtin aes_round st (subslice rk (mul r 16) (add (mul r 16) 16))) 16 else return 0 .
     set r (add r 1) .
   end
-  guard eq (call_builtin aes_round_last st (subslice rk 160 176)) 16 . else return 0 .
+  guard eq (call_builtin aes_round_last st (subslice rk 160 176)) 16 else return 0 .
   return 16 .
 end

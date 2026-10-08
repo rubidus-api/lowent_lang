@@ -9,13 +9,13 @@
 (#chref("generics"), #chref("lib-containers")).
 
 ```lowent
-let g using bump be option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
-guard is_some g . else return 1 .
-var v be (vecgen.vec u32 allocs.bump_bytes) some_value g .
-guard vecgen.append u32 allocs.bump_bytes v 100 . else return 2 .
-guard vecgen.append u32 allocs.bump_bytes v 101 . else return 3 .
-guard vecgen.append u32 allocs.bump_bytes v 102 . else return 4 .
-let x be option u32 vecgen.at u32 allocs.bump_bytes v 0 .
+let g use bump option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
+guard is_some g else return 1 .
+var v (vecgen.vec u32 allocs.bump_bytes) some_value g .
+guard vecgen.append u32 allocs.bump_bytes v 100 else return 2 .
+guard vecgen.append u32 allocs.bump_bytes v 101 else return 3 .
+guard vecgen.append u32 allocs.bump_bytes v 102 else return 4 .
+let x option u32 vecgen.at u32 allocs.bump_bytes v 0 .
 ```
 
 *타입을 매번 적는다.* 추론이 없어서가 아니라 일부러 넣지 않았다 --- 어떤 인스턴스가 생겼는지(바이너리에 코드가 몇 벌 생기는지) 소스에 보이고, 읽는 사람이 `v` 의
@@ -48,10 +48,10 @@ let x be option u32 vecgen.at u32 allocs.bump_bytes v 0 .
 *미리 자리를 잡으면 "전량 아니면 무" 가 된다.* `reserve_more` 가 성공한 뒤 이어지는 `append` 는 도중에 실패하지 않는다.
 
 ```lowent
-guard vecgen.reserve_more u16 allocs.bump_bytes v (len src) . else return false .
-var i be u64 0 .
-while lt i (len src) . do
-  guard vecgen.append u16 allocs.bump_bytes v (idx src i) . else return false .
+guard vecgen.reserve_more u16 allocs.bump_bytes v (len src) else return false .
+var i u64 0 .
+while lt i (len src) do
+  guard vecgen.append u16 allocs.bump_bytes v (idx src i) else return false .
   set i (add i 1) .
 end
 ```

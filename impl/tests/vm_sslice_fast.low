@@ -7,7 +7,7 @@ def struct box do
 end
 
 fn sum8 input s slice i8 . output i64 . do
-  var t be i64 0 .
+  var t i64 0 .
   for x s do
     set t (add t (widen i64 x)) .
   end
@@ -15,7 +15,7 @@ fn sum8 input s slice i8 . output i64 . do
 end
 
 fn sum16 input s slice i16 . output i64 . do
-  var t be i64 0 .
+  var t i64 0 .
   for x s do
     set t (add t (widen i64 x)) .
   end
@@ -23,28 +23,28 @@ fn sum16 input s slice i16 . output i64 . do
 end
 
 fn min32 input s slice i32 . output i64 . do
-  guard gt (len s) 0 . else return 0 .
-  var m be i64 widen i64 (idx s 0) .
+  guard gt (len s) 0 else return 0 .
+  var m i64 widen i64 (idx s 0) .
   for x s do
-    if lt (widen i64 x) m . do set m (widen i64 x) . end
+    if lt (widen i64 x) m do set m (widen i64 x) . end
   end
   return m .
 end
 
 fn tail32 input s slice i32 . output i64 . do
-  guard gt (len s) 1 . else return 0 .
-  let t be slice i32 subslice s 1 (len s) .
+  guard gt (len s) 1 else return 0 .
+  let t slice i32 subslice s 1 (len s) .
   return widen i64 (idx t 0) .
 end
 
 proc flip32 input s mut slice i32 . output i64 . effects none . do
-  guard gt (len s) 1 . else return 0 .
+  guard gt (len s) 1 else return 0 .
   swap s 0 1 .
   return widen i64 (idx s 0) .
 end
 
 proc neg16 input s mut slice i16 . output i64 . effects none . do
-  guard gt (len s) 0 . else return 0 .
+  guard gt (len s) 0 else return 0 .
   set (idx s 0) (sub 0 (idx s 0)) .
   return widen i64 (idx s 0) .
 end
@@ -54,14 +54,14 @@ fn boxed input b box . output i64 . do
 end
 
 fn viaboxed input s slice i16 . output i64 . do
-  let b be box lit box do s s . end .
+  let b box lit box do s s . end .
   return boxed b .
 end
 
 fn cmp8 input s slice i8 . output u64 . do
-  var n be u64 0 .
+  var n u64 0 .
   for x s do
-    if lt x 0 . do set n (add n 1) . end
+    if lt x 0 do set n (add n 1) . end
   end
   return n .
 end
@@ -72,7 +72,7 @@ def struct fbox do
 end
 
 fn ffirst input b fbox . output f64 . do
-  guard gt (len (field b s)) 0 . else return 0.0 .
+  guard gt (len (field b s)) 0 else return 0.0 .
   return idx (field b s) 0 .
 end
 

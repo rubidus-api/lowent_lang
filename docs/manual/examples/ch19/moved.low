@@ -11,7 +11,7 @@ end
 
 fn reuse input h owned buffer . output u8 .
 do
-  let a be u8 consume h .
-  let b be u8 consume h .
+  let a u8 consume h .
+  let b u8 consume h .
   return add a b .
 end

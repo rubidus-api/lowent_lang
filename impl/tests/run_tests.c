@@ -15,6 +15,14 @@
 #include "low_blake3.h"
 #include "low_smt.h"
 
+// ★ RFC-0141 — 이 시험들의 원문은 **안쪽 모양**이다(`var v u64 be 1 .` · `if c . do` · `for i count …`): 선언 차례 패스를
+//   거치지 않고 검사 · 하강에 바로 준다. 파서를 안쪽 모양 모드(RFC-0141 전의 읽기)로 둔다.
+static low_parse_result_t ut_parse(proven_allocator_t nodes, proven_allocator_t heap, const proven_array_t *toks) {
+    low_parse_inner_shape(true);
+    return low_parse(nodes, heap, toks);
+}
+#define low_parse(a, b, c) ut_parse(a, b, c)
+
 static int g_fail = 0;
 static void check(bool cond, const char *name) {
     printf("  [%s] %s\n", cond ? "PASS" : "FAIL", name);

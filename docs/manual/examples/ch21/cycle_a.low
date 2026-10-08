@@ -8,6 +8,6 @@ use cycle_b from "cycle_b.low" .
 export fn fa input n u32 . output u32 .
   requires le n 10 .
 do
-  if eq n 0 . do return 0 . end
+  if eq n 0 do return 0 . end
   return cycle_b.fb (sub n 1) .
 end

@@ -6,14 +6,14 @@ use files .
 proc main input out cap io . input fs cap file_system . output u8 . effects io .
 do
   rem ko: ✘ 모드 0 은 읽기다 --- 그런데 쓴다 /// en: ✘ mode 0 is read --- yet it writes
-  let o be result files.handle files.file_error files.open fs "notes.txt" 0 .
-  guard is_ok o . else return 1 .
-  var h be owned files.handle ok_value o .
-  let w be result u64 files.file_error files.write fs h "extra line\n" .
-  let c be result void files.file_error files.close fs h .
+  let o result files.handle files.file_error files.open fs "notes.txt" 0 .
+  guard is_ok o else return 1 .
+  var h owned files.handle ok_value o .
+  let w result u64 files.file_error files.write fs h "extra line\n" .
+  let c result void files.file_error files.close fs h .
   drop c .
-  guard is_ok w . else return 2 .
+  guard is_ok w else return 2 .
   rem ko: 쓰기가 실패했으므로 여기서 2 로 나간다 --- 짧게 쓰인 것도 함께 본다 /// en: the write failed, so it leaves with 2 here --- a short write is checked too
-  guard eq (ok_value w) 11 . else return 3 .
+  guard eq (ok_value w) 11 else return 3 .
   return 0 .
 end

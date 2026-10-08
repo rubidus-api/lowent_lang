@@ -19,7 +19,7 @@ end
 
 proc burst output u64 . effects state .
 do
-  var c be counter spawn actor counter .
+  var c counter spawn actor counter .
   spawn send c inc .
   spawn send c inc .
   rem ko: ✘ 우편함은 두 통까지인데 비우기 전에 셋째를 넣는다 /// en: ✘ the mailbox holds two, yet a third is put in before draining

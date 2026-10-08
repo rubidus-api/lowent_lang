@@ -13,7 +13,7 @@ use searchlib .
 use sortlib .
 
 sortlib.sort s .
-let i be option u64 searchlib.bsearch s 42 .
+let i option u64 searchlib.bsearch s 42 .
 ```
 
 #aside[정렬을 검사하지 않는다][
@@ -38,9 +38,9 @@ let i be option u64 searchlib.bsearch s 42 .
 
 ```lowent
 fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i be u64 searchlib.lower_bound s a .
-  let j be u64 searchlib.lower_bound s b .
-  guard lt i j . else return 0 .
+  let i u64 searchlib.lower_bound s a .
+  let j u64 searchlib.lower_bound s b .
+  guard lt i j else return 0 .
   return sub j i .
 end
 ```
@@ -56,7 +56,7 @@ end
 
 #antipattern[`lower_bound` 결과로 곧장 `idx` 한다][
   못 찾으면 `i` 가 `len s` 이고 그 자리는 없는 자리다 --- `idx s i` 가 `E-VM-BOUNDS` 로 멈춘다. 값이 표의 최댓값보다 클 때만 터지므로 실제 데이터에서 걸리기 쉽다.
-  `guard lt i (len s) .` 를 먼저 둔다.
+  `guard lt i (len s)` 를 먼저 둔다.
 ]
 
 *주의.* 내림차순 자료에는 그대로 쓸 수 없다(비교자를 바꿔 끼울 자리가 없다). *정렬은 한 번, 탐색은 여러 번* --- 찾을 때마다 `sort` 를 부르면 이득이 통째로 사라진다.

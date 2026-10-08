@@ -12,7 +12,7 @@ rem    ★ 그래서 **술어 기억**이 그것을 증명하고 검사가 사�
 fn honest input data bytes . output result u8 e .
   errors small lt len data 4 .
 do
-  guard ge len data . 4 . else return error small .
+  guard ge (len data) 4 else return error small .
   return ok idx data 0 .
 end
 
@@ -21,7 +21,7 @@ rem    증명 실패 → 검사 유지 → 실제로 어기면 **errors 절이 �
 fn liar input data bytes . output result u8 e .
   errors small lt len data 2 .
 do
-  guard ge len data . 9 . else return error small .
+  guard ge (len data) 9 else return error small .
   return ok idx data 0 .
 end
 
@@ -40,6 +40,6 @@ rem    그러면 이 거짓말이 조용히 통과한다. 극성이 건전성의
 fn inverted input data bytes . output result u8 e .
   errors small ge len data 4 .
 do
-  guard ge len data . 4 . else return error small .
+  guard ge (len data) 4 else return error small .
   return ok idx data 0 .
 end

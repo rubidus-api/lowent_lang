@@ -11,7 +11,7 @@ end
 rem ko: 지역 가변 상태는 op 안에 갇혀 있으므로 fn 도 쓸 수 있다 /// en: local mutable state stays inside the op, so a fn may use it
 fn running_total input xs slice u8 . output u64 .
 do
-  var total be u64 0 .
+  var total u64 0 .
   for x xs do
     set total (add total (widen u64 x)) .
   end
@@ -21,6 +21,6 @@ end
 fn fact input n u64 . output u64 .
   requires le n 20 .
 do
-  if le n 1 . do return 1 . end
+  if le n 1 do return 1 . end
   return mul n (fact (sub n 1)) .
 end

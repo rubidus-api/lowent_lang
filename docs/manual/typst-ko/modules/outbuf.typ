@@ -11,11 +11,11 @@
 막는다.
 
 ```lowent
-var p be owned outbuf.pending outbuf.buf_open 1 .
-let w be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "hi\n" .
-guard is_ok w . else return 1 .
+var p owned outbuf.pending outbuf.buf_open 1 .
+let w result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "hi\n" .
+guard is_ok w else return 1 .
 set p (ok_value w) .
-let r be result void outbuf.io_error outbuf.buf_finish out p buf .
+let r result void outbuf.io_error outbuf.buf_finish out p buf .
 ```
 
 *소유되는 것은 버퍼가 아니라 아직 나가지 않은 바이트다.* 버퍼는 호출자 것으로 두고(#modref("fmt")[`fmt`] 와 같은 규율), `owned` 로 지키는 것은 비워지지 않은 상태
@@ -50,29 +50,29 @@ use fmt .
 use outbuf .
 
 proc main input out cap io . input al cap allocator . output u8 . effects alloc io . do
-  let g be option mut slice u8 alloc_bytes al capacity 16 .
-  guard is_some g . else return 70 .
-  let buf be mut slice u8 some_value g .
-  let ng be option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some ng . else return 71 .
-  let nb be mut slice u8 some_value ng .
-  var p be owned outbuf.pending outbuf.buf_open 1 .
-  var i be u64 1 .
-  while le i 5 . do
-    let a be option u64 fmt.put_str nb 0 "line " .
-    guard is_some a . else return 72 .
-    let b be option u64 fmt.put_u64 nb (some_value a) i .
-    guard is_some b . else return 73 .
-    let c be option u64 fmt.put_nl nb (some_value b) .
-    guard is_some c . else return 74 .
-    let w be result (owned outbuf.pending) outbuf.io_error
+  let g option mut slice u8 alloc_bytes al capacity 16 .
+  guard is_some g else return 70 .
+  let buf mut slice u8 some_value g .
+  let ng option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some ng else return 71 .
+  let nb mut slice u8 some_value ng .
+  var p owned outbuf.pending outbuf.buf_open 1 .
+  var i u64 1 .
+  while le i 5 do
+    let a option u64 fmt.put_str nb 0 "line " .
+    guard is_some a else return 72 .
+    let b option u64 fmt.put_u64 nb (some_value a) i .
+    guard is_some b else return 73 .
+    let c option u64 fmt.put_nl nb (some_value b) .
+    guard is_some c else return 74 .
+    let w result (owned outbuf.pending) outbuf.io_error
       outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
-    guard is_ok w . else return 75 .
+    guard is_ok w else return 75 .
     set p (ok_value w) .
     set i (add i 1) .
   end
-  let f be result void outbuf.io_error outbuf.buf_finish out p buf .
-  guard is_ok f . else return 76 .
+  let f result void outbuf.io_error outbuf.buf_finish out p buf .
+  guard is_ok f else return 76 .
   return 0 .
 end
 ```

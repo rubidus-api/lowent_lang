@@ -1,0 +1,13 @@
+module doubling .
+rem run: steps 100
+
+rem ko: 다음 값을 직접 적는 되풀이 --- 1 에서 시작해 `limit` 에 닿기 전까지 두 배씩 /// en: a loop whose next value you write --- from 1, doubling while below `limit`
+export fn steps input limit u64 . output u64 .
+  requires le limit 1000000 .
+do
+  var n u64 0 .
+  cycle i u64 1 while lt i limit next mul i 2 do
+    set n (add n 1) .
+  end
+  return n .
+end

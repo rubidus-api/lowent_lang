@@ -8,9 +8,9 @@ The allocator *interface* (two traits) and four actors satisfying it. The most c
 to data "made in many pieces, discarded all at once" (a parser's temporary nodes, strings living for one pass) (#chref("lib-alloc")).
 
 ```lowent
-var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
-var c be u64 send bump init mem .
-let b be option mut slice u8 send bump reserve 64 .
+var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
+var c u64 send bump init mem .
+let b option mut slice u8 send bump reserve 64 .
 ```
 
 *The root and what sits on it.* Lowent has no implicit global heap. The only place bytes first enter a program is the root op `alloc_bytes <capability> capacity n`, and there
@@ -65,7 +65,7 @@ allocator.
   --- the op spawning that actor must hold the same kind of capability (`E-CAP-FORGE`). A heap cannot be conjured in one line where no capability exists.
 
 Code taking an allocator accepts any implementation with `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a .`. Callers pass it not as a positional
-argument but with `let x be (… using <source>) …`, and if the op has only one source it is the default without being written. Monomorphisation means no vtables and no indirect
+argument but with `let x (… using <source>) …`, and if the op has only one source it is the default without being written. Monomorphisation means no vtables and no indirect
 calls.
 
 ```lowent
@@ -76,18 +76,18 @@ proc two_from
   effects state via a .
   requires allocs.byte_allocator a .
 do
-  let p be option mut slice u8 send al reserve 3 .
-  guard is_some p . else return 91 .
-  let q be option mut slice u8 send al reserve 5 .
-  guard is_some q . else return 92 .
-  let g be option mut slice u8 send al grow (some_value q) 9 .
+  let p option mut slice u8 send al reserve 3 .
+  guard is_some p else return 91 .
+  let q option mut slice u8 send al reserve 5 .
+  guard is_some q else return 92 .
+  let g option mut slice u8 send al grow (some_value q) 9 .
   return send al used .
 end
 
 proc borrowed2 input buf mut slice u8 . output u64 . effects state . do
-  var b be allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c be u64 send b init buf .
-  let n using b be u64 two_from .
+  var b allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let c u64 send b init buf .
+  let n use b u64 two_from .
   return n .
 end
 ```

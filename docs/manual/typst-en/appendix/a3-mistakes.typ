@@ -17,12 +17,15 @@ explanations are in the chapters named in the tables.
   [Closing with `;` or `,`], [`E-VOCAB-REMOVED`], [The detached period `.`],
   [Reading a field with `p.x`], [`E-FIELD-GLUED`], [`field p x`],
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs do … end`],
-  [`let x be f64 .5 .`], [`E-LET-NOVALUE`], [`0.5`],
+  [`let x f64 .5 .`], [`E-LET-NOVALUE`], [`0.5`],
   [Naming a local the same as a parameter], [`E-NAME-SHADOW`], [Pick a new name],
   [Using names like `count`, `text` or `len`], [`E-NAME-BUILTIN` and others], [Builtins and the word that opens a text literal cannot be names],
   [A module name equal to an op name], [`E-NAME-DUP`], [Rename the module],
   [`expr a lt b and b lt c`], [`E-TYPE-LOGICAL`], [`expr (a lt b) and (b lt c)` (#chref("expr"))],
-  [`def type pct be u8 .`], [`E-TYPE-DECL`], [`def type pct u8 .`],
+  [`let x be u8 4 .`], [`E-LET-BE`], [`let x u8 4 .`],
+  [`if gt a 3 . do … end`], [`E-CTRL-DOT`], [`if gt a 3 do … end`],
+  [`guard c . else return 0 .`], [`E-ELSE-DOT`], [`guard c else return 0 .`],
+  [`for i count u64 n . do`], [`E-FOR-OLD`], [`repeat i u64 n do`],
 )
 
 == Values and flow
@@ -39,7 +42,7 @@ explanations are in the chapters named in the tables.
   [`guard`'s `else` does not leave], [`E-GUARD-FALLTHROUGH`], [`return`, `break`, `continue`, `panic`, or use `if`],
   [No `return` on some path], [`E-RETURN-PARTIAL`], [Return on every path],
   [Using `if` as a value], [`E-IF-VALUE`], [Make a `var` and `set` it in each branch],
-  [Missing cases in `match`], [`E-MATCH-INEXHAUSTIVE`], [The missing `case` or `case _ .`],
+  [Missing cases in `match`], [`E-MATCH-INEXHAUSTIVE`], [The missing `case` or `case _`],
   [Writing enum variants one per line without periods], [`E-ENUM-DOT`], [`red .` for each variant],
   [Extracting with `some_value` without checking], [`E-VM-NONE` (at run time)], [`guard is_some` · `value_or` · `match`],
   [`array 4 u8`], [`E-TYPE-ARRAY`], [`array u8 4`],

@@ -5,8 +5,8 @@ rem run: label 9
 
 fn label input c u64 . output u64 .
 do
-  var score be u64 0 .
-  match c . do
+  var score u64 0 .
+  match c do
     rem ko: 맞은 갈래 하나만 실행된다 --- 다음 갈래로 흘러가지 않으므로 `break` 가 필요 없다 /// en: only the matching arm runs --- it never falls into the next arm, so no `break` is needed
     case 1 . set score (add score 10) .
     case 2 . set score (add score 20) .

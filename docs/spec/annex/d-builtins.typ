@@ -258,8 +258,8 @@
   ]
 
   #note[
-    실측: 기본 연산 166 개 가운데 지역 이름 선언이 막히는 것은 #strong[148 개];,
-    쓸 수 있는 것은 #strong[18 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
+    실측: 기본 연산 166 개 가운데 지역 이름 선언이 막히는 것은 #strong[149 개];,
+    쓸 수 있는 것은 #strong[17 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 #strong[이름 충돌 규칙을 틀리게 말하기];
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
   ]

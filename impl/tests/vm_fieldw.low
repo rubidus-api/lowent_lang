@@ -8,7 +8,7 @@ def struct p do
 end
 
 fn f input v u8 . output u8 . do
-  var q be lit p do x 1 . y 2 . end .
+  var q lit p do x 1 . y 2 . end .
   set (field q x) v .
   return expr (field q x) + (field q y) .
 end

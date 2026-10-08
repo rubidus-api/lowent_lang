@@ -14,8 +14,8 @@ fn sorted
   input xs slice u32 .
   output bool .
 do
-  let i be usize 1 .
-  while lt i (len xs) . do
+  let i usize 1 .
+  while lt i (len xs) do
     return false .
   end
   return true .

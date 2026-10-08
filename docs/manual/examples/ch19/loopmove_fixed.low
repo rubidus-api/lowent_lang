@@ -11,10 +11,10 @@ end
 
 fn three_times input v u8 . output u8 .
 do
-  var h be owned buffer v .
-  var n be u8 0 .
-  var i be u64 0 .
-  while lt i 3 . do
+  var h owned buffer v .
+  var n u8 0 .
+  var i u64 0 .
+  while lt i 3 do
     set n (add n (consume h)) .
     rem ko: 넘긴 자리를 새 값으로 다시 채운다 --- 바퀴가 시작할 때와 같은 모양으로 끝난다 /// en: refill the moved place with a new value --- the round ends in the same shape it began
     set h v .

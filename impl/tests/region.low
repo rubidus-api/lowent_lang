@@ -8,13 +8,13 @@ end
 fn dangling
   output ref u32 .
 do
-  let local be u32 5 .
+  let local u32 5 .
   return ref local .
 end
 
 fn nested_escape
   output ref u32 .
 do
-  var tmp be u32 1 .
+  var tmp u32 1 .
   return ok (mut_ref tmp) .
 end

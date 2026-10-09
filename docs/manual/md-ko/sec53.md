@@ -60,7 +60,7 @@
 | 장치 | `read_volatile` `write_volatile` |
 | 동시성 | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
 | 원자(비트) | `atomic_and` `atomic_or` `atomic_xor` |
-| 부동소수 수학 — 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
+| 부동소수점 수학 — 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
 | 파이프 단계 — 24장 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into` |
 | 레인(SIMD) — 27장 | `splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch` |
 | 작은 수의 집합 — 13장 | `bitset_new` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |

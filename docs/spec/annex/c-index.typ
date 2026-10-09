@@ -63,7 +63,7 @@
       [번역], [translation], [#cref("3.6")],
       [번역 단위], [translation unit], [#cref("5.1")],
       [번역 환경], [translation environment], [#cref("3.9")],
-      [부동소수 리터럴], [floating-point literal], [#cref("3.2")],
+      [부동소수점 리터럴], [floating-point literal], [#cref("3.2")],
       [빌드 모드], [build mode], [#cref("3.3")],
       [빌트인 연산], [builtin op], [#cref("3.8")],
       [사전 조건], [precondition], [#cref("3.3")],

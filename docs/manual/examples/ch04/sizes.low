@@ -12,7 +12,7 @@ do
   return add cast isize n. . k. . .
 end .
 
-rem ko: f32 — 32 비트 부동소수. 메모리가 절반이고 정밀도는 약 일곱 자리 /// en: f32 is a 32-bit float: half the memory, about seven significant digits
+rem ko: f32 — 32 비트 부동소수점. 메모리가 절반이고 정밀도는 약 일곱 자리 /// en: f32 is a 32-bit float: half the memory, about seven significant digits
 fn third32 input x f32 . output f32 . do
   return div x. 3.0 . .
 end .

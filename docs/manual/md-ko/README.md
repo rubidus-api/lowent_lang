@@ -34,7 +34,7 @@ C·Rust 같은 시스템 언어를 쓰는 사람까지입니다.
 
 ### 제2부 — 값과 흐름
 
-- [4 수 — 폭이 정해진 정수와 부동소수](ch04.md)
+- [4 수 — 폭이 정해진 정수와 부동소수점](ch04.md)
 - [5 op — fn 과 proc](ch05.md)
 - [6 지역 — let 과 var](ch06.md)
 - [7 흐름 — 갈래, 되풀이, 빠져나가기](ch07.md)
@@ -131,7 +131,7 @@ C·Rust 같은 시스템 언어를 쓰는 사람까지입니다.
 - [spsc — 락 없는 SPSC 링 버퍼](sec73.md)
 - [hash — 해시(해시맵 자리 · 손상 검출 · SHA-2)](sec74.md)
 - [hash_legacy — 옛 해시(MD5 · SHA-1)](sec75.md)
-- [math — 부동소수 수학](sec76.md)
+- [math — 부동소수점 수학](sec76.md)
 - [random — 난수(재현되는 열 · OS 엔트로피)](sec77.md)
 - [hmac — HMAC-SHA256 과 HKDF](sec78.md)
 - [chacha — ChaCha20 스트림 암호](sec79.md)

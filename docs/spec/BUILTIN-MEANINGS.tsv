@@ -58,7 +58,7 @@ bitset_new	빈 비트 집합
 borrow	빌린 것의 수명을 스코프로 못 박는다
 byte_swap	바이트 순서를 뒤집는다
 capacity	담을 수 있는 최대
-cast	수치 변환(폭·부호·부동소수)
+cast	수치 변환(폭·부호·부동소수점)
 ceil	올림
 chk_add	더하기 — 넘쳤는지 **답과 함께** 돌려준다
 chk_mul	곱하기 — 넘쳤는지 답과 함께 돌려준다
@@ -103,7 +103,7 @@ link_type	그 경로 자신이 무엇인가 — 심링크를 따라가지 아니
 file_write	파일에 쓴다
 filter	술어가 참인 원소만 지나보낸다
 floor	내림
-fmod	부동소수 나머지
+fmod	부동소수점 나머지
 fold	누산기에 차례로 접는다
 ge	앞이 크거나 같은가
 gt	앞이 큰가

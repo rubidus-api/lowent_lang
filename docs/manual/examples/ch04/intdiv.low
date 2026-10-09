@@ -10,6 +10,6 @@ end .
 
 fn avg_f input a f64 . input b f64 . output f64 .
 do
-  rem ko: 소수점 아래가 필요하면 처음부터 부동소수로 계산한다 /// en: if you need the fraction, compute in floating point from the start
+  rem ko: 소수점 아래가 필요하면 처음부터 부동소수점 수로 계산한다 /// en: if you need the fraction, compute in floating point from the start
   return div add a. b. . 2.0 . .
 end .

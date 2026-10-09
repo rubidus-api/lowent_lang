@@ -18,7 +18,7 @@ fn ints output u64 . do
   return add add a. b. . add c. d. . . .
 end .
 
-rem ko: 부동소수 — 지수 e · 십육진 부동소수 p(0x1.8 은 1.5, p1 은 곱하기 2) /// en: floating point: exponent e, hexadecimal float p (0x1.8 is 1.5, p1 multiplies by 2)
+rem ko: 부동소수점 — 지수 e · 십육진 부동소수점 p(0x1.8 은 1.5, p1 은 곱하기 2) /// en: floating point: exponent e, hexadecimal float p (0x1.8 is 1.5, p1 multiplies by 2)
 fn floats output f64 . do
   let e f64 1.5e3 .
   let h f64 0x1.8p1 .

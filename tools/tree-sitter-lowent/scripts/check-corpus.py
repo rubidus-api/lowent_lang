@@ -62,5 +62,6 @@ if broken:
     for x in broken[:40]:
         print('   ' + x)
     sys.exit(1)
-print(f'check-corpus: ok — every file the compiler reads parses with no ERROR / MISSING node '
-      f'({len(lenient)} of the {refused} refused files also parse: the grammar is looser than the compiler there)')
+tail = (f'and the grammar refuses all {refused} files the compiler refuses' if not lenient else
+        f'{len(lenient)} of the {refused} files the compiler refuses do parse — the grammar is looser than the compiler there')
+print(f'check-corpus: ok — every file the compiler reads parses with no ERROR / MISSING node; {tail}')

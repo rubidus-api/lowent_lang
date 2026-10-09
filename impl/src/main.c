@@ -45,6 +45,7 @@ static proven_allocator_t lw_heap(void) {
 #include "low_lex.h"
 #include "low_repair.h"
 #include "low_cst.h"
+#include "low_closer.h"
 #include "low_blake3.h"
 #include "low_check.h"
 #include "low_typecheck.h"
@@ -1139,6 +1140,7 @@ int main(int argc, char **argv) {
             argv = xargv; argc = xargc;
         }
     }
+    bool want_closer = false;    // RFC-0142 — 새 표면(«이름은 열고, 점은 닫는다»)으로 읽는다. 옮기는 동안의 스위치다
     bool want_migrate = false;   // RFC-0141 — 옛 철자를 새 철자로 옮겨 찍는다
     bool want_tokens = false, want_cst = false, want_fmt = false, want_check = false, want_doc = false,
          want_ir = false, want_emitc = false;
@@ -1181,6 +1183,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--cst") == 0) want_cst = true;
         else if (strcmp(argv[i], "--fmt") == 0) want_fmt = true;
         else if (strcmp(argv[i], "--migrate") == 0) want_migrate = true;
+        else if (strcmp(argv[i], "--closer") == 0) want_closer = true;
         else if (strcmp(argv[i], "--check") == 0) want_check = true;
         else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); }   // RFC-0135 S3
         else if (strcmp(argv[i], "--diag-json") == 0) g_diag_json = true;
@@ -1806,6 +1809,26 @@ int main(int argc, char **argv) {
             //   `check: ok` 를 인쇄했다 — 종료코드는 1 인데 화면은 초록이라 말했다.
             //   게이트가 `grep "check: ok"` 로 읽으므로 그 한 줄은 **거짓말**이 된다.
             if (!lx.ok) ok = false;
+            if (want_closer && lx.ok) {                  // ★ RFC-0142 — 새 표면을 파서가 읽는 꼴로 내린다(토큰 열을 고쳐 쓴다)
+                proven_size_t d0 = lx.diags.len;
+                if (!low_closer_lower(heap, &lx.tokens, &lx.diags)) {
+                    for (proven_size_t q = d0; q < lx.diags.len; q++) {
+                        low_diag_t *dq = &((low_diag_t *)lx.diags.data)[q];
+                        if (!dq->file && fi != 0) dq->file = paths[fi];
+                    }
+                    proven_array_t tail = lx.diags;
+                    tail.data = (char *)lx.diags.data + d0 * sizeof(low_diag_t);
+                    tail.len = lx.diags.len - d0;
+                    dump_diags("surface diagnostics", &tail);
+                    ok = false;
+                    // 내리지 못한 토큰 열을 파서에 넘기면 뒤따르는 진단은 전부 헛것이다 — 끝 토큰만 남긴다.
+                    if (lx.tokens.len > 1) {
+                        low_token_t *tk = (low_token_t *)lx.tokens.data;
+                        tk[0] = tk[lx.tokens.len - 1];
+                        lx.tokens.len = 1;
+                    }
+                }
+            }
             low_parse_lenient(want_fmt || want_migrate);   // ★ RFC-0141 — 옮기는 도구는 옛 철자를 받아 새 철자로 낸다
             low_parse_result_t p2 = low_parse(nodes0, heap, &lx.tokens);
             if (want_migrate && fi == 0) {

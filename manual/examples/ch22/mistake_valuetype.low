@@ -1,0 +1,14 @@
+module mistake_valuetype .
+rem expect: E-IR-UNDEF
+
+fn bytes_for input comptime t type . input items u64 . output u64 .
+  requires le items. 1000000 . .
+do
+  return mul size_of t . items. . .
+end .
+
+fn total output u64 .
+do
+  rem ko: ✘ 타입 자리에 크기(8)를 넘겼다 --- `u64` 라고 적는다 /// en: ✘ a size (8) is passed where a type belongs --- write `u64`
+  return bytes_for 8 100 . .
+end .

@@ -1,0 +1,7 @@
+module pure_chan .
+rem expect: E-EFFECT
+
+proc producer input ch u64 . output u64 . effects none .
+do
+  return chsend ch. 1 . .
+end .

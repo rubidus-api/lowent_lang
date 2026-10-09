@@ -1,0 +1,1166 @@
+#import "../lib.typ": *
+
+#sub("6.2", "타입 (Types)")[
+  #para("1")[
+    모든 값은 정확히 하나의 #t("타입", "type") 을 가진다. 타입은 그 값이 가질 수 있는 것과,
+      그 값에 할 수 있는 일을 함께 정한다.
+  ]
+  #para("2")[
+    로우엔트의 모든 타입은 #strong[크기와 표현이 정해져 있다.]; 처리기가 기계에 따라 마음대로
+      정하는 자리가 없다.
+  ]
+  #plain[
+    C 를 아는 사람에게: C 의 `int` 는 기계마다 크기가 다를 수 있다. 로우엔트에는 그런 타입이
+    없다 — `u32` 는 어디서나 32 비트다. 그래서 #emph["이 기계에서 몇 바이트지?"]; 를 물을 일이 없다.
+  ]
+  #sub("6.2.1", "타입의 갈래")[
+    #para("1")[
+      타입은 다음 갈래로 나뉜다.
+    ]
+    #tbl("타입의 갈래")[
+      #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*갈래*], [*무엇인가*],
+      [정수], [`u8` `u16` `u32` `u64` `usize` `i8` `i16` `i32` `i64` `isize`],
+      [부동소수점], [`f32` `f64`],
+      [참거짓], [`bool`],
+      [묶음], [`struct`(이름 붙은 칸의 모음) · `enum`(여럿 중 하나)],
+      [줄], [`array n t`(길이가 고정된 줄) · `slice t`(길이를 함께 갖는 구간)],
+      [답], [`result t e`(성공 값 또는 오류) · `option t`(값이 있거나 없음)],
+      [가리킴], [`ref t`(읽기 참조) · `mut_ref t`(쓰기 참조) · `owned t`(소유)],
+      [권한], [`cap k`(효과를 낼 자격, #cref("7.2"))],
+      )
+    ]
+    #note[
+      이 목록에 #strong[포인터가 없다];. `ref`·`slice`·`owned` 가 포인터가 하던 일을 갈라 맡는다 —
+      #emph["무엇을 가리키는가"]; 와 #emph["얼마나 있는가"]; 와 #emph["누가 없앨 책임이 있는가"]; 는 서로 다른
+      질문이고, 하나의 포인터가 셋을 다 답하려 하면 어느 것도 검사할 수 없게 된다.
+    ]
+  ]
+  #sub("6.2.2", "정수 타입")[
+    #para("1")[
+      정수 타입의 이름은 부호와 폭으로 이루어진다. `u` 는 부호 없음, `i` 는 부호 있음이며,
+      뒤의 숫자가 비트 폭이다.
+    ]
+    #para("2")[
+      정수는 2 의 보수로 표현된다(#cref("5.3")).
+    ]
+    #para("3")[
+      `usize` 와 `isize` 는 주소 공간의 #strong[크기와 첨자];를 셀 수 있을 만큼 넓은 정수다. 이 둘은 `u64`·`i64` 와 폭이
+      같더라도 #strong[다른 타입];이며, 서로 자동으로 바뀌지 아니한다.
+    ]
+    #para("3a")[
+      `usize` 는 #strong[포인터를 담는 타입이 아니다.]; 그 폭은 주소의 폭을 따르지만, 포인터 값은 주소보다 클 수 있고(#cref("5.3") (4a))
+      정수에서 되살릴 수 없다. 크기 · 길이 · 첨자에는 `usize` 를 쓰고, 가리키는 것은 슬라이스와 참조로 적는다.
+    ]
+    #tbl("정수 타입의 범위")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*타입*], [*폭*], [*범위*],
+      [`u8`], [8], [0 … 255],
+      [`u16`], [16], [0 … 65 535],
+      [`u32`], [32], [0 … 4 294 967 295],
+      [`u64`], [64], [0 … 2#super[64]−1],
+      [`i8`], [8], [−128 … 127],
+      [`i16`], [16], [−32 768 … 32 767],
+      [`i32`], [32], [−2 147 483 648 … 2 147 483 647],
+      [`i64`], [64], [−2#super[63] … 2#super[63]−1],
+      [`usize`/`isize`], [주소 폭], [실행 환경이 정한다(구현 정의)],
+      )
+    ]
+  ]
+  #sub("6.2.3", "참거짓 타입")[
+    #para("1")[
+      `bool` 은 참과 거짓 두 값만 갖는다. 표현은 1 바이트이며, 유효한 값은 0 과 1 뿐이다.
+    ]
+    #para("2")[
+      `bool` 과 정수는 #strong[서로 바뀌지 아니한다.]; 정수를 조건 자리에 쓸 수 없고, `bool` 을
+      숫자로 셈할 수 없다.
+    ]
+    #rejected("정수를 조건 자리에 쓸 수 없다", "module ex_cond .
+
+proc p input n u32 . output u8 . effects none .
+do
+  if n. do return 1 . end .     rem `n` 은 bool 이 아니다
+  return 0 .
+end .", "E-TYPE-COND")
+    #caution("0 은 거짓이 아니다")[
+      C 계열 언어는 0 을 거짓으로, 그 밖을 참으로 다룬다. 로우엔트는 그러지 아니한다.
+      `if n. do` 처럼 정수를 조건에 쓰면 번역이 거부된다 — `if gt n. 0 . do` 처럼 #strong[무엇을 묻는지];
+      적어야 한다. 묻는 바가 소스에 적히지 않으면, 읽는 사람이 그것을 짐작해야 한다.
+    ]
+  ]
+  #sub("6.2.4", "부동소수점 타입")[
+    #para("1")[
+      `f32` 와 `f64` 는 각각 IEEE 754 의 이진 32 비트·64 비트 형식이다.
+    ]
+    #para("2")[
+      부동소수점 연산은 #strong[피연산자의 폭에서]; 일어난다. `f32` 끼리의 연산은 `f32` 로 계산하며,
+      처리기가 몰래 더 넓은 정밀도로 계산하지 아니한다.
+    ]
+    #para("3")[
+      정수와 부동소수점은 서로 자동으로 바뀌지 아니한다. 바꾸려면 명시적으로 적어야 한다.
+    ]
+  ]
+  #sub("6.2.5", "타입 사이의 변환")[
+    #para("1")[
+      로우엔트에는 #strong[값을 잃는 암묵적 변환이 없다.]; 좁아지는 자리는 언제나 소스에 적혀 있다.
+    ]
+    #para("2")[
+      값을 잃지 않는 변환을 #t("넓히기", "widening") 라 한다. 넓히기는 값을 바꾸지 않으므로
+      처리기가 자동으로 할 수 있다 — `u8` 값을 `u32` 를 받는 자리에 그대로 넘길 수 있다.
+    ]
+    #para("2a")[
+      다만 #strong[넓히기를 소스에 적을 수도 있다.]; `widen u64 x. .` 는 `x` 를 `u64` 로 넓힌다.
+      결과가 같더라도, 폭이 바뀌는 자리를 눈에 보이게 하고 싶을 때 쓴다.
+    ]
+    #plain[
+      정리하면 이렇다 — #strong[넓히는 쪽은 자동, 좁히는 쪽은 손으로.]; 넓히기는 값이 그대로라
+      실수할 여지가 없지만, 좁히기는 값이 사라질 수 있어서 저자가 그것을 알고 있음을
+      소스에 남겨야 한다.
+    ]
+    #para("3")[
+      값을 잃을 수 있는 변환을 #t("좁히기", "narrowing") 라 하며 `narrow` 로 적는다.
+      좁히기는 값이 목표 타입에 들어가지 않으면 #strong[트랩한다];. 조용히 잘리지 아니한다.
+    ]
+    #para("4")[
+      넓히기가 허용되는 관계는 다음과 같다. 여기 없는 조합은 넓히기가 아니며, 적으면
+      번역이 거부된다(`E-WIDEN-KIND` · `E-WIDEN-SIGN` · `E-WIDEN-NARROW`).
+    ]
+    #tbl("넓히기가 허용되는 관계")[
+      #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*관계*], [*설명*],
+      [`uN` → `uM` (N ≤ M)], [부호 없는 정수를 더 넓은 부호 없는 정수로],
+      [`iN` → `iM` (N ≤ M)], [부호 있는 정수를 더 넓은 부호 있는 정수로],
+      [`uN` → `iM` (N < M)], [부호 없는 정수를 #strong[더 넓은]; 부호 있는 정수로],
+      [`iN` → `uM`], [#strong[허용되지 아니한다]; — 음수가 표현되지 않는다],
+      [`f32` → `f64`], [부동소수점을 더 넓은 부동소수점으로],
+      [정수 ↔ 부동소수점], [#strong[넓히기가 아니다]; — 갈래가 다르면 명시적으로 바꿔야 한다],
+      )
+    ]
+    #diagram("넓히기 — 화살을 따라가면 값이 그대로 들어간다", " u8 ──▶ u16 ──▶ u32 ──▶ u64          f32 ──▶ f64
+   ╲       ╲       ╲
+    ▼       ▼       ▼
+ i8 ──▶ i16 ──▶ i32 ──▶ i64
+ 같은 폭으로 내려가는 화살(u8 → i8)도, i 줄에서 u 줄로 가는 화살도 없다")
+    #ex("넓히기와 좁히기", "let small u8 200 .
+let wide u64 widen u64 small. . .
+let back u8 narrow u8 wide. . .")
+    #caution("음수를 부호 없는 타입으로 넓힐 수 없다")[
+      `i8` 의 −1 을 `u64` 로 넓히면 값이 아주 큰 수로 뒤바뀐다. 그것은 넓히기가 아니라
+      #strong[다른 값이 되는 일];이므로 이 언어는 넓히기로 인정하지 아니한다.
+    ]
+  ]
+  #sub("6.2.6", "줄 — 배열과 슬라이스")[
+    #para("1")[
+      `array t n` 은 타입 `t` 의 값이 정확히 `n` 개 놓인 줄이다. 길이는 타입의 일부이며
+      번역 시점에 정해진다.
+    ]
+    #para("1a")[
+      #strong[원소 타입을 먼저, 길이 `n` 을 뒤에 정수 리터럴로]; 적는다 — `vec t n` 과 같은 차례다. 반대로 적거나
+      (`array n t`) 길이가 리터럴이 아니면 거부된다(`E-TYPE-ARRAY`).
+    ]
+    #para("1b")[
+      op 의 입력 `input x array t n .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
+      `requires eq len x. . n. . .` 과 같이 #strong[진입에서 검사된다];.
+    ]
+    #para("1c")[
+      op 은 배열을 #strong[돌려줄 수 있다]; — `output array t n .` 또는 이름을 붙여 `output r array t n .`(#cref("6.4.1") (3e)). 배열에는
+      값으로 돌려주는 길이 없으므로 #strong[부르는 쪽이 자리를 준다];:
+      - 부르는 쪽은 결과를 이름에 묶는다 — `var x array t n f a … .`(`let` 도 같다). 그 이름의 틀 안 바이트가 결과의 자리이고,
+      부름 받는 쪽은 거기에 바로 짓는다(베끼지 않는다).
+      - 같은 배열을 돌려주는 op 안에서 `return g … .` 은 자기 자리를 그대로 넘긴다.
+      - 그 밖의 자리(식의 한가운데 · 다른 부름의 인자 · `copy` 의 원천)에서 배열을 돌려주는 op 을 부르면 자리가 없으므로
+      번역이 거부된다(`E-RESULT-PLACE`). 먼저 이름에 묶는다.
+      - 이름 붙은 결과는 0 에서 시작한다(칸마다 0). 이름 없는 결과의 `return v. .` 는 `v` 를 자리에 베껴 돌려준다. 이것은 블록 안의
+      `return` 이어야 한다 — `guard … else return v. . .` 처럼 블록 밖이면 거부된다(`E-RESULT-PLACE`). 그런 op 은 결과에 이름을 붙인다.
+      - 원소는 수 타입이고 길이는 정수 리터럴이다(그 밖은 `E-TYPE-ARRAY`).
+    ]
+    #ex("배열을 돌려주는 op — 부르는 쪽이 자리를 준다", "module ex_array_result .
+
+fn squares input n u64 . output r array u64 3 .
+  requires le n. 1000 . .
+do
+  repeat i u64 3 do
+    set idx r. i. . mul add n. i. . add n. i. . . .
+  end .
+  return r. .
+end .
+
+export fn total input n u64 . output u64 .
+  requires le n. 1000 . .
+do
+  let s array u64 3 squares n. . .
+  return add add idx s. 0 . idx s. 1 . . idx s. 2 . . .
+end .")
+    #rejected("배열을 돌려주는 op 을 식 한가운데서 부른다 — 결과의 자리가 없다", "module ex_array_result_expr .
+
+fn squares input n u64 . output r array u64 3 .
+  requires le n. 1000 . .
+do
+  return r. .
+end .
+
+export fn first input n u64 . output u64 .
+  requires le n. 1000 . .
+do
+  return idx squares n. . 0 . .
+end .", "E-RESULT-PLACE")
+    #para("2")[
+      `slice t` 는 타입 `t` 의 값이 연속으로 놓인 구간을 가리키는 것이며, #strong[시작과 길이를
+      함께 갖는다.];
+    ]
+    #para("3")[
+      슬라이스의 길이는 `len` 으로 읽는다. `len s. .` 는 `s` 의 원소 개수다.
+    ]
+    #para("4")[
+      `idx s. i. .` 는 `s` 의 `i` 번째 원소다. 첫 원소의 번호는 0 이다.
+    ]
+    #para("5")[
+      `i` 가 `len s. .` 보다 작지 않으면 #strong[트랩한다];. 처리기가 그 조건이 언제나 참임을
+      증명하면 그 검사는 사라진다(#cref("6.4.6")).
+    ]
+    #diagram("슬라이스는 시작과 길이를 함께 든다", " memory   [ 10 ][ 20 ][ 30 ][ 40 ][ 50 ]
+                  ^
+ s = { start ─────┘ , len 3 }
+ idx s 0 = 20 · idx s 2 = 40 · idx s 3 → trap (len s = 3)")
+    #ex("슬라이스", "module ex_slice .
+
+rem 슬라이스는 시작과 길이를 함께 갖는다.
+export fn head input data slice u8 . output u8 .
+  requires ge len data. . 1 . .
+do
+  return idx data. 0 . .
+end .")
+    #rejected("길이를 타입 앞에 적었다", "module ex_array_order .
+
+export fn last input xs array 4 u64 . output u64 .
+do
+  return idx xs. 3 . .
+end .", "E-TYPE-ARRAY")
+    #para("6")[
+      #strong[원소 나열 리터럴]; — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
+      `slice t` 값이다. 나열은 #strong[제 마침표로 닫히는 폼];이다: 문장의 끝에 오면 나열의 점과 문장의 점이 잇달아
+      오고(`let t lit array u8 4 1 2 3 4 . .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
+      `lit` 가 값의 타입을 보이므로 묶는 문장은 타입을 따로 적지 않는다.
+    ]
+    #para("6a")[
+      배열의 원소 수는 `n` 과 같아야 한다. 모자라면 나열의 #strong[끝];에 `_` 를 적어 «나머지 칸은 0» 이라고 말해야 하며,
+      넘치거나 `_` 가 끝이 아닌 자리에 있거나 슬라이스 나열에 `_` 가 있으면 거부된다(`E-LIT-COUNT`). 칸은 말없이
+      채워지지 않는다.
+    ]
+    #para("6b")[
+      각 원소는 `t` 에 들어가야 한다 — 부호 없는 `t` 에 음수도 들어가지 않는다(`E-TYPE-WIDTH`). `bool` 원소는
+      `true`·`false` 만이다.
+    ]
+    #para("6c")[
+      #strong[칸 골라 채우기]; — `lit array t n do <번호> <값> . … [_ <값> .] end .` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
+      0 부터 `n − 1` 까지의 정수 리터럴이고 한 번씩만 적는다. `_ <값> .` 은 끝에만 오며 «이름을 적지 않은 칸 모두»
+      를 뜻한다. 모든 칸이 정해져야 한다 — 남는 칸이 있는데 `_ <값> .` 이 없거나, `_` 가 채울 칸이 없으면 거부된다
+      (`E-LIT-COUNT`). 번호가 상수가 아니거나 길이 밖이거나 두 번 나오거나 `_` 가 끝이 아닌 자리에 있으면 거부된다
+      (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 #strong[한 번]; 계산된다. 블록으로 적은 나열도 폼이라 제 점으로 닫힌다 —
+      `let t lit array u8 8 do 2 5 . _ 0 . end . .` 에서 첫 점은 나열을, 둘째 점은 `let` 을 닫는다. 원소를 늘어놓는 모양과 섞지 않는다
+    ]
+    #para("6d")[
+      #strong[SIMD 값]; — `lit vec t n v₁ … [_] .` 은 `vec t n` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
+      수(`bool` 이 아니다), `n` 은 1 부터 16 까지의 2 의 거듭제곱이다(`E-LIT-COUNT`). 값의 타입은 묶는 자리의 `vec`
+      타입과 레인 수·원소 종류·폭이 모두 같아야 한다(`E-TYPE-LANES` · `E-TYPE-WIDTH`). 레인에 값을 싣는 것으로
+      끝나므로 (7) 의 자리 규칙과 상관없다.
+    ]
+    #para("7")[
+      나열이 #strong[어디에 놓이고 얼마나 사는지];는 처리기가 번역 시점에 셋 중 하나로 정한다. 저자는 고르지 않는다.
+      ⓐ `var` 에 묶은 나열과, 실행 중에 계산되는 원소가 든 `let` 나열은 그 op 의 틀 안에 #strong[선언 자리마다 한 칸];을
+      갖는다. 그 칸은 선언이 실행될 때마다 새로 채워지고(적지 않은 칸은 0), #strong[선언이 든 블록];이 끝날 때까지 산다 —
+      반복 안의 선언은 바퀴마다 다시 채워지고, 재귀한 부름은 저마다 제 칸을 갖는다.
+      ⓑ 원소가 모두 번역 시점 상수이고 `let` 에 묶였거나 받는 자리 없이 읽기로만 쓰인 나열은 프로그램에 박힌
+      #strong[읽기 전용]; 바이트다. 프로그램 끝까지 살므로 어디에 담아도 된다. 그것을 `mut` 인 이름에 묶거나 `let` 에 묶은
+      그 이름을 `mut`·`owned`·`mut_ref` 자리에 넘기면 거부된다(`E-TYPE-ARGMUT`). 내용이 같은 두 나열(문자열 리터럴도
+      같다)이 #strong[같은 자리인지는 정하지 않는다]; — 처리기가 한 벌로 합칠 수 있다. 그러니 두 쪽이 모두 이런 리터럴에서
+      왔다는 것이 번역 시점에 보이는 `same_slice` 는 거부된다(`E-LIT-IDENTITY` — 리터럴 자신 · 그것에 `let` 으로 묶은
+      이름 · 그것의 `subslice`). 부름을 건너 보이지 않는 경우는 거부되지 않지만, 그 답에 기대는 프로그램은 적합하지
+      아니하다.
+      ⓒ 받는 이름 없이 쓰인 나열 가운데 실행 중 원소가 들었거나 `mut`·`owned`·`mut_ref` 자리에 곧바로 넘긴 것은
+      #strong[그 문장이 끝날 때까지]; 사는 틀 안 임시다. 받는 op 은 그 칸을 고쳐 써도 된다.
+    ]
+    #para("7a")[
+      ⓐ·ⓒ 의 칸을 보는 값이 그 수명보다 오래 가는 자리 — `return`, 선언 블록보다 바깥에 선언된 이름(매개변수와
+      그 칸·원소를 포함한다), 선언 블록보다 바깥에 선언된 actor 에게 보내는 메시지 — 에 담기면 거부된다(`E-LIT-ESCAPE`).
+      같은 블록이나 더 안쪽에 선언된 actor 에게는 건넬 수 있고, 그 뒤로 그 actor 가 주는 값도 같은 수명을 받는다. ⓒ 임시를 이름에
+      담는 것도 거부된다 — 나열을 `var` 에 묶어 ⓐ 로 쓴다. 흐름은 부름을 건너 따라간다: 부름의 결과는 그 op 몸에서
+      결과로 흘러드는 입력의 것만 들고, 스칼라를 돌려주는 부름은 아무것도 들고 나가지 않는다(#cref("8") 영역 탈출과 같은
+      가름이다).
+    ]
+    #para("7b")[
+      `var` 에 묶은 나열은 #strong[쓸 수 있는]; 슬라이스다 — 칸은 `set idx buf. i. . v. .` 로 쓴다. 그 이름을 다른 저장소로
+      다시 묶는 `set buf …` 은 거부된다(`E-ARRAY-SET`). 각 원소는 (6b) 의 폭 규칙을 따르고, 실행 중 원소는 원소
+      타입과 맞아야 한다(`E-TYPE-SET` · `E-TYPE-WIDTH`).
+    ]
+    #para("7c")[
+      한 op 의 ⓐ·ⓒ 칸을 모두 더한 크기에는 처리기가 밝히는 한도가 있고, 넘으면 거부된다(`E-FRAME-SIZE` — 조용히
+      힙으로 옮기지 않는다). 이 처리기의 한도는 운영체제가 있는 기계 65,536 바이트 · 운영체제가 없는 기계 4,096 바이트다.
+      그런 칸을 가진 op 이 자기 자신에게 (다른 op 을 거쳐서라도) 닿을 수 있으면 거부된다(`E-FRAME-RECURSIVE`) — 재귀 깊이만큼
+      틀이 곱해지는데 그 깊이는 번역 시점에 모르므로, 스택이 모자라지 않음을 보일 수 없다. 재귀 안의 나열은 할당기에서
+      받는다((7d)). 부르는 관계를 따라 가장 깊은 길에서 동시에 살아 있는 ⓐ·ⓒ 칸의 합이 아래 예산을 넘으면 번역이
+      거부된다(`E-STACK-BUDGET`) — 진입(아무도 부르지 않는 op)마다 잰다. 태스크로 도는 op(`spawn <op>` · `spawn send`
+      의 처리기)은 그린스레드 예산으로 따로 잰다. 실행 중에는 한 호출
+      사슬 위에 #strong[동시에 살아 있는]; ⓐ·ⓒ 칸의 합에도 처리기가 밝히는 예산이 있어, 넘치게 할 op 에는 들어가지 않고
+      #strong[멈춘다]; — 스택이 넘쳐 조용히 망가지지 않는다. 이 처리기의 예산은 운영체제가 있는 기계 4 MiB · 그린스레드 64 KiB ·
+      운영체제가 없는 기계 16 KiB 이고, 모든 뒤끝이 같은 수로 세어 같은 자리에서 멈춘다.
+    ]
+    #para("7d")[
+      #strong[할당기에서 받는 나열]; — `var <이름> use <할당기> mut slice t lit array t n … else <문장>`(`lit slice` 도 같다)은
+      그 할당기에 나열의 바이트 수를 청하고(`send <할당기> reserve <바이트>`), 받으면 그 바이트를 (6)~(6c) 대로 채워 이름에
+      묶고, 못 받으면 `else` 로 간다(#cref("6.5.1") (5)). 실패를 `option` 째 들고 가려면 타입을 통째로 적는다 —
+      `let <이름> use <할당기> option mut slice t lit … .`. `else` 도 `option` 도 없거나, `lit vec` 이면 거부된다
+      (`E-LIT-USING`). 바인딩 타입의 원소가 나열의 원소 타입과 다르면 거부된다(`E-BIND-ELSE`). 바이트는 할당기의 것이라 (7e) 가
+      아니면 (7a) 의 선언 블록 수명을 받지 않고 할당기의 수명을 따른다: 할당기가 ⓐ 칸을 뒤받침으로 받았다면
+      (`send <할당기> init buf`) 그 할당기가 주는 바이트도 그 칸의 수명을 받는다.
+      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> use <할당기>. s lit s do … end . else <문장> .` 은
+      `size_of s .` 바이트를 청해, 받으면 0 으로 채우고 s 의 배치를 얹은 뒤(#cref("8.7.2") 의 `view` 와 같은 표현) 적은 칸을 쓴다.
+      바인딩 타입은 s 여야 한다(`E-BIND-ELSE`). #strong[수의 슬라이스 칸];은 할당기 바이트 안에 (주소, 길이) 두 낱말로 놓인다 —
+      C 의 `struct { const T *p; size_t n; }` 와 같고, 자리는 8 바이트에 맞춘다. 이 배치는 할당기에 짓는 구조체에만 있다:
+      그런 구조체를 남의 바이트에 `view` 로 얹거나 `size_of` 로 크기를 묻는 것은 여전히 거부된다(바이트가 주소가 되면 안 된다).
+      슬라이스 칸에 준 값이 틀 안 자리를 보면 그 구조체도 그 자리의 수명을 받는다 — `keep` 으로 남겨도 그 자리보다 오래
+      나르면 거부된다(`E-LIT-ESCAPE`). `owned` · actor · 능력 칸, 원소가 수가 아닌 슬라이스 칸, 배치가 없는 안쪽 구조체를
+      가진 구조체는 짓지 않는다(`E-LIT-UNBUILT`) — 그 바이트는 칸과 함께 끝을 맺어야 하기 때문이다.
+    ]
+    #para("7e")[
+      #strong[블록 끝에 돌려준다]; — 할당기가 `freeing_allocator` 를 갖추면(#cref("8.13") (6)), (7d) 로 받은 바이트는 그 이름을 선언한 블록을
+      나갈 때 할당기에 돌려준다(`send <할당기> release <받은 조각>`). 블록 끝에 닿을 때 · `return` · 그 블록 안의
+      `break`·`continue` 모두 그렇다. 한 블록에서 여럿을 받았으면 선언의 거꾸로 돌려주고, 받지 못한 것(`else` 로 간 것)은
+      돌려줄 것이 없다. `release` 의 답은 쓰지 않는다 — 돌려받을지는 할당기의 정책이다. 그래서 이 바이트는 (7a) 의 선언
+      블록 수명을 받는다: 블록 밖으로 나르면 거부된다(`E-LIT-ESCAPE`). `freeing_allocator` 가 아닌 할당기의 바이트는
+      할당기에 남는다. `panic` 으로 멈출 때는 돌려주지 않는다 — 멈춤은 그 op 을 복구 단위에 넘긴다.
+      저자는 `drop <이름> .` 으로 더 일찍 돌려줄 수 있다. 그러면 블록 끝에서는 다시 돌려주지 않는다. `drop` 은 그 이름을
+      선언한 블록에서만 받고(안쪽 블록이면 `E-OWN-JOIN`), 그 뒤로 이름을 쓰면 거부된다(`E-OWN-MOVED`).
+    ]
+    #para("7f")[
+      #strong[남긴다]; — `var <이름> keep <할당기> … else <문장>` 은 (7e) 를 끈다: 블록을 나가도 돌려주지
+      않으므로 바이트는 할당기의 수명을 따르고(#cref("6.2.6") (7d)), 블록 밖으로 — `return` 으로도 — 나를 수 있다. 돌려주는 일은
+      저자가 한다(`send <할당기> release <조각>`). 아니면 할당기가 끝날 때 한꺼번에 돌아간다. `keep <할당기>` 는
+      `use <할당기>` 의 자리(이름 바로 뒤)에 서고, 나열이나 구조체 리터럴을 받는 바인딩에만 쓴다(`E-USING-FORM`).
+    ]
+    #para("8")[
+      `let` 에 묶은 배열 나열은 그 바이트를 #strong[보는 슬라이스];다. 길이는 나열이 정한다.
+    ]
+    #para("9")[
+      나열의 원소는 바이트 배치가 있는 구조체여도 된다(칸이 모두 크기 있는 수 — #cref("8.7.2") 의 `view` 가 설 수 있는 구조체).
+      원소는 준 값의 사본이고, 나열은 그 바이트 위에 `view_array` 와 같은 보기를 얹은 `slice s` 다. 원소의 칸은
+      `set field <나열>. <자리> <칸> . v. .` 로 쓴다. 자리 · 수명 · `_` · 칸 골라 채우기 · 할당기 절은 수 원소와 같다. 원소 자리의
+      값이 수이거나 참거짓이면 `E-TYPE-FIELD`, 다른 구조체이면 `E-TYPE-STRUCT` 로 거부된다. 이 처리기가 아직 짓지 않은
+      나열 — 바이트 배치가 없는 구조체 · 칸이 구조체인 구조체 · 줄을 골라 채우기(`do … end`) — 은 무엇이 아직인지 말하며
+      거부된다(`E-LIT-UNBUILT`). 구조체 안의 배열 칸은 #cref("6.2.7") (1a) 가 정한다.
+    ]
+    #para("9a")[
+      #strong[줄의 나열]; — 원소가 고정 길이 배열 `(array t m)` 인 나열 `lit array (array t m) n <줄>… [_] .` 의 타입은
+      `slice (array t m)` 이다. `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
+      바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array t m` 과 다르면
+      거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set idx g. r. . <줄> .` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
+      베낀다. 틀 안 나열의 줄(과 구조체 원소)은 그 틀의 바이트를 보므로 블록 밖으로 나르면 `E-LIT-ESCAPE` 다.
+    ]
+    #ex("원소 나열 리터럴", "module ex_list_literal .
+
+fn total input xs slice u32 . output u64 . do
+  var s u64 0 .
+  for x xs. do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
+
+rem 배열 나열은 제 점으로 닫힌다 — 문장의 끝이면 점이 둘이다.
+export fn f output u64 . do
+  let t lit array u32 4 10 20 30 _ . .
+  return add total t. . total lit slice u32 1 2 . . . .
+end .")
+    #ex("var 배열을 반복으로 채운다", "module ex_frame_list .
+
+export fn squares input n u64 . output u64 . do
+  var buf lit array u64 8 _ . .
+  var i u64 0 .
+  while lt i. 8 . do
+    set idx buf. i. . mul i. i. . .
+    set i. add i. 1 . .
+  end .
+  guard lt n. 8 . else return 0 . .
+  return idx buf. n. . .
+end .")
+    #ex("칸을 골라 채운다", "module ex_cell_fill .
+
+export fn pick input a u64 . input i u64 . output u64 . do
+  let t lit array u64 6 do 0 100 . 5 mul a. 2 . . _ 1 . end . .
+  guard lt i. 6 . else return 0 . .
+  return idx t. i. . .
+end .")
+    #rejected("칸 번호를 두 번 적었다", "module ex_cell_twice .
+
+export fn f output u64 . do
+  let t lit array u8 4 do 1 1 . 1 2 . _ 0 . end . .
+  return len t. . .
+end .", "E-LIT-INDEX")
+    #rejected("블록 안의 var 배열을 돌려준다", "module ex_frame_escape .
+
+export fn f output slice u8 . do
+  var b lit array u8 2 1 2 . .
+  return b. .
+end .", "E-LIT-ESCAPE")
+    #rejected("원소가 길이보다 적은데 끝에 _ 가 없다", "module ex_list_short .
+
+export fn f output u64 . do
+  let t lit array u8 4 1 2 3 . .
+  return len t. . .
+end .", "E-LIT-COUNT")
+    #plain[
+      포인터만 있는 언어에서는 #emph["이 포인터가 가리키는 곳에 몇 개가 있는가"]; 를 사람이 따로
+      알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를
+      읽는다. 슬라이스는 그 지식을 #strong[값 안에 넣어]; 그 문제를 없앤다.
+    ]
+  ]
+  #sub("6.2.7", "묶음 — struct 와 enum")[
+    #para("1")[
+      `struct` 는 이름 붙은 칸의 모음이다. 각 칸은 자기 타입을 갖는다.
+    ]
+    #para("1a")[
+      #strong[배열 칸]; — 칸의 타입이 `array t n` 이면 그 칸은 원소 `n` 개의 바이트를 #strong[레코드 안에]; 가진다(길이가 타입에
+      있으므로 자리가 정해진다). `t` 는 크기 있는 수나 `bool` 이다 — 구조체나 배열을 원소로 가진 칸은 이 처리기가 아직
+      짓지 않았다(`E-LIT-UNBUILT`). 한 구조체의 배열 칸 바이트 합에는 틀과 같은 한도가 있다(`E-FRAME-SIZE`, #cref("6.2.6") (7c)).
+      `field r. body .` 는 그 바이트를 보는 슬라이스이고, `set idx field r. body . i. . v. .` 가 레코드의 원소를 쓴다. 칸에 주는
+      나열 리터럴은 칸과 원소 타입·길이가 같아야 한다(`E-TYPE-FIELD`). 바이트 배치(`view` · `encode` · `size_of` · C 쪽
+      레이아웃)에서 배열 칸은 C 와 같이 #strong[구조체 바이트 안에 그대로]; 놓인다 — 크기는 `n × |t|`, 정렬은 `t` 의 것이다
+      (`len u8 . body array u8 4 . tail u16 .` 은 8 바이트 — `len` 은 0 번째 · `body` 는 1 번째 · `tail` 은 6 번째 바이트부터). 뷰의 배열 칸은 그 바이트를 보는
+      슬라이스이고, 칸에 쓰면 그 자리에 베낀다.
+    ]
+    #para("2")[
+      `enum` 은 여럿 중 하나다. 각 갈래는 이름을 가지며, 값을 함께 지닐 수 있다.
+    ]
+    #para("2a")[
+      갈래는 #strong[하나마다 `.` 으로 닫는다.]; 개행은 닫개가 아니므로, 점 없이 줄마다 적은 갈래는 한 갈래로
+      이어지며 거부된다(`E-ENUM-DOT`). 갈래가 지니는 값은 `<칸 이름> <타입>` 짝으로 적는다 — 짝이 맞지
+      않으면 거부된다(`E-ENUM-FIELD`).
+    ]
+    #para("3")[
+      struct 는 #strong[자기 자신을 칸으로 가질 수 없다.]; 직접이든 다른 타입을 거쳐서든 순환하면
+      번역이 거부된다.
+      (`E-STRUCT-CYCLE`). 크기가 정해지지 아니하기 때문이다.
+    ]
+    #para("3a")[
+      참조를 거쳐 자기를 가리키면 크기는 정해진다. 다만 그 참조가 #strong[누가 관리하는지
+      알 수 없는 것];이면 거부된다(`E-STRUCT-REF-UNMANAGED`) — 크기가 있다고 수명이
+      선 것은 아니다.
+    ]
+    #ex("struct 와 enum", "module ex_shape .
+
+def struct point do
+  x u32 .
+  y u32 .
+end .
+
+def enum color do
+  red .
+  green .
+end .")
+    #para("4")[
+      struct 값은 `lit` 로 만든다. 만들 때 #strong[모든 칸을 채워야]; 한다. 마지막 줄의 `_ <값> .` 은 적지 않은 칸 모두에 그 값을
+      넣는다(`lit pt do y a. . _ 0 . end .`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
+      그 칸 이름을 대며 거부되며(`E-TYPE-FIELD`), 채울 칸이 없으면 거부된다(`E-LIT-COUNT`).
+    ]
+    #para("4a")[
+      #strong[struct 는 값이다.]; 만들거나 베낄 때(`var q point p. .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지
+      함께 베껴진다 — 베낀 쪽을 고쳐도 원본은 바뀌지 아니한다. actor 인스턴스(정체가 있는 것)와 `owned` 칸을 가진
+      struct 는 베끼지 않고 같은 것을 가리킨다.
+    ]
+    #para("4b")[
+      #strong[칸에 쓰는 것은 그 레코드에 쓰는 것이다.]; `set field r. x . v. .` 와 배열 칸의 원소 쓰기는 `r` 이 쓸 수 있는
+      자리일 때만 받는다: `var` 이거나 `mut` 매개변수다. `let` 으로 묶은 레코드에 쓰면 거부된다(`E-IMMUTABLE`) —
+      배열 칸을 쓸 수 있는 슬라이스(`mut slice`)로 꺼내는 것도 같다. 값으로 받은 매개변수의 칸에 쓰면 그 op 의 #strong[지역
+      복사];에 쓴다 — 부른 쪽의 레코드는 바뀌지 아니한다(#cref("6.5.1") (2a)).
+    ]
+    #para("5")[
+      칸을 읽을 때는 `field <값> <칸 이름>` 을 쓴다. 값 뒤에 점과 칸 이름을 붙이는 모양은 없다
+      (`E-FIELD-GLUED`) — 점은 모듈 한정·갈래 이름에 이미 쓰인다.
+    ]
+    #ex("struct 를 만들고 읽는다", "module ex_make .
+
+def struct point do
+  x u32 .
+  y u32 .
+end .
+
+export fn origin output point .
+do
+  return lit point do x 0 . y 0 . end . .
+end .
+
+export fn get_x input p point . output u32 .
+do
+  return field p. x . .
+end .")
+    #ex("배열 칸을 가진 struct 를 베낀다", "module ex_struct_array .
+
+def struct pkt do
+  len u8 .
+  body array u8 4 .
+end .
+
+export fn copy_keeps input a u8 . output u64 . do
+  var p lit pkt do len 2 . body lit array u8 4 1 a. _ . . end . .
+  var q pkt p. .
+  set idx field q. body . 0 . 100 .
+  return add widen u64 idx field p. body . 0 . . widen u64 idx field q. body . 0 . . . .
+end .")
+    #rejected("let 으로 묶은 레코드의 배열 칸에 쓴다", "module ex_struct_array_let .
+
+def struct pkt do
+  body array u8 4 .
+end .
+
+export fn f output u64 . do
+  let p lit pkt do body lit array u8 4 _ . . end . .
+  set idx field p. body . 0 . 1 .
+  return 0 .
+end .", "E-IMMUTABLE")
+    #rejected("갈래를 점으로 닫지 않았다", "module ex_enum_dot .
+
+def enum color do
+  red
+  green
+end .", "E-ENUM-DOT")
+    #note[
+      순환을 금지하는 이유는 크기 때문이다. 자기를 품는 struct 는 크기가 무한해진다.
+      나무 같은 자료 구조가 필요하면 #strong[번호(색인)]; 로 잇는다 — 그러면 크기가 정해지고,
+      경계 검사가 그대로 성립한다.
+    ]
+  ]
+  #sub("6.2.8", "답을 담는 타입 — result 와 option")[
+    #para("1")[
+      `result t e` 는 성공한 값(`t`) 또는 오류(`e`) 중 하나를 담는다.
+    ]
+    #para("2")[
+      `option t` 는 값이 있거나 없음을 담는다.
+    ]
+    #para("3")[
+      이 두 타입의 값은 #strong[꺼내기 전에 어느 쪽인지 확인해야 한다.];
+    ]
+    #para("3a")[
+      꺼내는 연산은 #strong[부분 연산];이다 — 확인하지 않고 꺼내는 것 자체는 번역이 거부하지
+      아니하며, 실행 중에 없는 쪽을 꺼내면 #strong[트랩한다];. 곧 확인은 번역이 대신해 주는 것이
+      아니라 저자가 하는 것이다.
+    ]
+    #ex("result 로 실패를 돌려준다", "module ex_result .
+
+def enum err do
+  too_small .
+end .
+
+rem 2 보다 작으면 반으로 나눌 수 없다고 알린다.
+export fn half input n u32 . output result u32 err .
+  errors too_small lt n. 2 . .
+do
+  guard ge n. 2 . else return error too_small . . .
+  return ok div n. 2 . . .
+end .")
+    #plain[
+      실패를 나타내려고 −1 이나 널 포인터 같은 #strong[특별한 값];을 쓰는 관습이 있다. 그러면
+      #emph["이 −1 은 오류인가 그냥 −1 인가"]; 를 소스만 보고는 알 수 없다. `result` 와 `option` 은
+      그 물음을 타입으로 옮겨서, 처리기가 대신 물어보게 만든다.
+    ]
+    #para("4")[
+      만드는 쪽은 `ok`(성공) `error`(오류) `some`(값이 있음) `none`(값이 없음) 으로 값을
+      싼다.
+    ]
+    #para("5")[
+      받는 쪽은 먼저 어느 쪽인지 묻는다 — `is_error`(오류인가) `is_some`(값이 있는가).
+      그 다음 꺼낸다 — `ok_value`(성공 값) `error_value`(오류) `some_value`(있는 값).
+    ]
+    #diagram("싸고 · 묻고 · 꺼낸다", " ok v  | error e  ──▶ is_error r ── false ──▶ ok_value r    = v
+                                 └─ true ──▶ error_value r = e
+ some v | none    ──▶ is_some o  ── true  ──▶ some_value o  = v
+                                 └─ false ─▶ some_value o  → trap")
+    #para("6")[
+      `value_or` 는 값이 있으면 그 값을, 없으면 대신 줄 값을 낸다. 묻고 꺼내는 두 걸음을
+      한 걸음으로 줄인다.
+    ]
+    #para("7")[
+      `try` 는 `result` 를 받아 성공하면 값을 꺼내고 실패하면 그 오류를 #strong[그대로 위로
+      넘긴다];(#cref("6.5.7")).
+    ]
+    #para("8")[
+      `result` 를 받고 #strong[아무도 그것을 보지 아니하면]; 처리기는 알린다
+      (`W-RESULT-DISCARD`). 실패를 값으로 돌려준다는 설계는 받는 쪽이 그 값을 #strong[볼 때만];
+      지켜진다. 보지 않는 모양은 둘이다 --- op 을 #strong[문장으로]; 불러 값을 이름조차 없이
+      버리는 것, 그리고 이름에 #strong[담아 두고 한 번도 읽지 아니하는]; 것.
+    ]
+    #para("8a")[
+      실패를 #strong[일부러 넘기는]; 자리는 `drop <이름> .` 으로 적는다. 그러면 알리지 아니한다.
+      실패로 할 일이 정말 없는 자리가 있다 --- 오류 경로에서 자원을 닫고 나가는 자리가
+      그렇다. `drop` 은 이미 «나는 이것을 여기서 끝낸다» 를 뜻하므로, 그 자리에 새 낱말을
+      두지 아니한다.
+    ]
+    #plain[
+      왜 거절이 아니라 알림인가. 실패를 무시하는 것이 #strong[언제나]; 잘못은 아니다 --- 잘못은
+      #strong[말없이]; 무시하는 것이다. 그래서 이 조항이 요구하는 것은 «무시하지 말라» 가 아니라
+      «무시한다고 적어라» 이고, 적어 두면 읽는 사람이 그것을 #strong[저자의 판단];으로 읽는다.
+      적히지 않은 것은 판단인지 실수인지 아무도 모른다.
+    ]
+    #ex("확인하지 않고 꺼내면 실행 중에 멈춘다", "module ex_partial .
+
+fn mk input k u8 . output option u8 .
+do
+  guard lt k. 3 . else return none . .
+  return some mul k. 10 . . .
+end .
+
+rem 확인 없이 바로 꺼낸다 — 번역은 통과한다.
+fn raw input k u8 . output u8 .
+do
+  return some_value mk k. . . .
+end .",
+      out: "raw(2) = 20 · raw(7) → E-VM-NONE (트랩)")
+    #plain[
+      `raw(2)` 는 20 을 낸다. `raw(7)` 은 값이 없는데 꺼내므로 #strong[멈춘다]; — 조용히 0 을 내지
+      아니한다. 번역이 이것을 미리 막지 않는 까닭은, 어느 길에서 값이 있는지는 #strong[저자가 아는
+      것];이고 처리기가 언제나 알 수는 없기 때문이다. 대신 틀렸을 때 #strong[조용하지 않다.];
+    ]
+    #ex("option — 만드는 쪽과 받는 쪽", "module ex_option .
+
+rem 만드는 쪽 — 값이 있으면 some, 없으면 none.
+fn lookup input k u8 . output option u8 .
+do
+  guard lt k. 3 . else return none . .
+  return some mul k. 10 . . .
+end .
+
+rem 받는 쪽 ① — 묻고 꺼낸다.
+fn use_ask input k u8 . output u8 .
+do
+  let r option u8 lookup k. . .
+  guard is_some r. . else return 255 . .
+  return some_value r. . .
+end .
+
+rem 받는 쪽 ② — 없으면 대신 쓸 값을 준다.
+fn use_or input k u8 . output u8 .
+do
+  return value_or lookup k. . 99 . .
+end .",
+      out: "use_ask(2) = 20 · use_ask(7) = 255 · use_or(2) = 20 · use_or(7) = 99")
+    #plain[
+      `output option u8 .` 의 점은 하나다 — `option` 은 타입을 #strong[하나]; 받으므로 그 인자 수에서 끝나고,
+      점은 `output` 절을 닫는다. 타입마다 점을 겹쳐 적던 옛 모양(`option u8 . .`)은 거부된다(#cref("6.1.6") (2e)).
+    ]
+    #ex("result — 묻고 꺼내기, 그리고 `try` 로 넘기기", "module ex_result_use .
+
+def enum io_error do
+  too_big .
+end .
+
+rem 만드는 쪽 — 언제 실패하는지 계약으로 적는다.
+fn halve input a u8 . output result u8 io_error .
+  errors too_big gt a. 200 . .
+do
+  guard le a. 200 . else return error too_big . . .
+  return ok div a. 2 . . .
+end .
+
+rem 받는 쪽 ① — 묻고 꺼낸다.
+fn use_ask input a u8 . output u8 .
+do
+  let r result u8 io_error halve a. . .
+  guard not is_error r. . . else return 0 . .
+  return ok_value r. . .
+end .
+
+rem 받는 쪽 ② — try 는 실패를 그대로 위로 넘긴다.
+fn use_try input a u8 . output result u8 io_error .
+  errors too_big gt a. 200 . .
+do
+  let v u8 try halve a. . . .
+  return ok add v. 1 . . .
+end .",
+      out: "use_ask(100) = 50 · use_ask(250) = 0 · use_try(100) = ok 51")
+    #plain[
+      `use_try` 가 `errors` 를 자기도 적은 것에 주의한다. `try` 로 실패를 넘기려면
+      #strong[자기도 그 오류를 돌려줄 수 있어야]; 하고, 그것을 계약에 적어야 한다. 실패가 조용히
+      사라지는 길이 없다.
+    ]
+  ]
+  #sub("6.2.9", "이름 붙인 타입")[
+    #para("1")[
+      `type` 은 기존 타입에 다른 이름을 준다. 두 이름은 #strong[같은 타입];이며 서로 바꿔 쓸 수 있다.
+    ]
+    #para("2")[
+      `newtype` 은 기존 타입과 같은 표현을 갖되 #strong[다른 타입];을 만든다. 서로 바꿔 쓸 수 없다.
+    ]
+    #para("2a")[
+      모양은 `def type <이름> <타입> .` 과 `def newtype <이름> <타입> .` 이다. 이름과 타입 사이에 낱말을 끼우지
+      아니한다.
+    ]
+    #rejected("`newtype` 은 바탕 타입과 섞이지 아니한다 — (2) 를 시험한다", "module ex_newtype_mix .
+
+def newtype node_id u64 .
+
+fn f input a node_id . input b u64 . output u64 . do
+  return add a. b. . .
+end .", "E-TYPE-NOMINAL")
+    #note[
+      둘을 가르는 이유는 실수를 막기 위해서다. 사용자 번호와 주문 번호가 둘 다 `u64` 라면
+      바꿔 넣어도 처리기가 모른다. `newtype` 으로 갈라 두면 처리기가 그 실수를 잡는다.
+    ]
+    #para("3")[
+      `newtype` 이 #strong[저장소를 가르는 이름];(#t("상표", "brand"))으로 쓰일 때, 한 상표는 저장소
+      #strong[하나];를 가리킨다. 같은 상표로 저장소를 두 번 여는 것은 거부된다
+      (`E-BRAND-REUSED`) — 그러면 한 이름이 둘을 가리키게 되고, 서로 다른 저장소에서
+      온 손잡이가 #strong[같은 타입으로 보인다.]; 그것은 상표가 막으려던 바로 그 혼동이다.
+      갈라야 한다면 `newtype` 을 하나 더 선언한다.
+    ]
+  ]
+  #sub("6.2.10", "값의 안을 읽는다 — field")[
+    #para("1")[
+      `field` 는 값의 안에 있는 것을 읽는 폼이다. 모양은
+      `field <값> <마디> …` 이며, 마디는 #strong[하나 이상];이다. 마디가 여럿이면
+      왼쪽에서 오른쪽으로 한 칸씩 내려간다 — `field o. inner deep .` 은 `o` 의
+      `inner`, 그 안의 `deep` 을 뜻한다.
+    ]
+    #para("2")[
+      마디는 두 가지 중 하나다. #strong[이름];이면 struct 의 필드이고, #strong[정수];이면
+      줄(배열·슬라이스)의 자리다. 둘은 섞일 수 있다.
+    ]
+    #para("3")[
+      `field` 는 #t("자리", "place") 이기도 하다 — `set` 의 왼쪽에 올 수 있다.
+      읽는 자리와 쓰는 자리가 #strong[같은 철자];를 갖는다.
+    ]
+    #para("4")[
+      선언에 없는 필드를 적으면 처리기는 프로그램을 거절한다. 줄의 자리는
+      #cref("6.2.6") 의 경계 규칙을 따른다.
+    ]
+    #ex("다단 필드 읽기와 쓰기", "module ex_field .
+
+def struct inner do
+  a u64 .
+end .
+
+def struct outer do
+  i inner .
+end .
+
+export fn read_deep input o outer . output u64 .
+do
+  return field o. i a . .
+end .
+
+export proc bump_deep input o mut outer .
+  effects state .
+do
+  set field o. i a . 1 .
+end .")
+    #note[
+      점을 붙여 적는 표기(`o.i.a`) 는 #strong[없다];. 값에 대한 연산을 이름 경로처럼
+      보이게 하면, 읽는 사람이 `o` 가 값인지 모듈인지 알아야만 뜻이 정해진다 —
+      그리고 그것은 문법이 아니라 이름 해소의 일이다. 폼으로 적으면 #strong[읽는
+      순간에]; 정해진다.
+    ]
+  ]
+  #sub("6.2.11", "레인을 가진 값 — `vec`")[
+    #para("1")[
+      `vec <원소 타입> <레인 수>` 는 같은 타입의 값 여럿을 #strong[한 값으로]; 든다.
+      레인 수는 번역 시점에 정해진 값이어야 한다(#cref("6.8")).
+    ]
+    #para("2")[
+      레인 수가 다른 두 `vec` 은 서로 다른 타입이며 섞이지 아니한다.
+    ]
+    #para("3")[
+      `vec` 에 대한 산술은 #strong[레인마다]; 따로 일어난다. 레인 사이에 값이 넘나들지 아니한다.
+    ]
+    #note[
+      기계가 여러 레인을 한 번에 셈할 수 있으면 그렇게 하고, 못 하면 하나씩 셈한다.
+      #strong[어느 쪽이든 답은 같다]; — 레인 수는 성능의 힌트가 아니라 타입의 일부다.
+    ]
+  ]
+  #sub("6.2.12", "비트로 이루어진 집합 — `bitset`")[
+    #para("1")[
+      `bitset <비트 수>` 는 0 부터 그 수 미만까지의 값이 들어 있는지 없는지를 담는다.
+      비트 수는 번역 시점에 정해진 값이어야 한다.
+    ]
+    #para("2")[
+      범위 밖의 값을 넣거나 묻는 것은 적합하지 아니하다.
+    ]
+    #para("3")[
+      `bitset` 은 #strong[집합];이지 워드의 비트가 아니다. 워드의 비트를 다루는 것은 비트 연산이며
+      (#cref("6.3")), 둘은 서로 다른 것이다.
+    ]
+    #para("4")[
+      원소를 넣는 것은 `bitset_insert <집합> <값> .`, 지우는 것은 `bitset_remove <집합> <값> .` 이다 — 둘 다 그 자리에서
+      집합을 바꾼다. `add` 는 수의 덧셈만 뜻하므로 집합에 쓰는 것은 적합하지 아니하다(`E-BITSET-ADD`).
+    ]
+    #ex("집합에 넣고 지운다", "module ex_bitset .
+
+fn members output u64 . do
+  var s bitset 8 bitset_new 8 . .
+  bitset_insert s. 3 .
+  bitset_insert s. 5 .
+  bitset_remove s. 3 .
+  return count s. . .
+end .",
+      out: "members() = 1")
+  ]
+  #sub("6.2.13", "바이트 위에 얹는 눈 — 뷰")[
+    #para("1")[
+      바이트 슬라이스를 #strong[복사 없이]; 다른 타입의 배열처럼 읽을 수 있다. 이것을 뷰(view)라
+      한다.
+    ]
+    #para("2")[
+      뷰를 얻을 때 정렬과 길이의 계약이 확인된다. 계약이 깨지면 프로그램이 멈춘다.
+    ]
+    #para("3")[
+      뷰는 바이트를 #strong[복사하지 아니한다.]; 뷰를 통해 쓰면 원래 바이트가 바뀐다.
+    ]
+    #caution("뷰는 길이를 원소 수로 센다")[
+      바이트 슬라이스의 길이는 바이트 수이지만, 그것을 네 바이트짜리 원소의 배열로 보면
+      길이는 #strong[원소 수];다. 같은 저장소를 두 눈으로 보면 `len` 이 다르게 답한다 — 다른 것을
+      세고 있기 때문이다.
+    ]
+    #para("4")[
+      뷰의 반대는 `encode` 다. `encode <짜임> <값>` 은 그 값을 짜임이 정한 배치대로
+      #strong[바이트에 적는다.]; 얹어 읽는 것이 `view` 라면, 적어 내리는 것이 `encode` 다.
+    ]
+  ]
+  #sub("6.2.14", "값의 범위를 좁힌 매개변수 — `range`")[
+    #para("1")[
+      매개변수의 타입 자리에 `range <아래> <위>` 를 적으면, 그 매개변수는 두 끝을 포함한
+      그 사이의 값만 받는다.
+    ]
+    #para("2")[
+      부르는 쪽이 그 범위 안임을 증명하지 못하면 번역이 거부된다. 프로그램 #strong[바깥];에서
+      들어온 값(진입점의 인자 따위)은 증명할 부르는 쪽이 없으므로, #strong[경계에서]; 확인되며
+      범위를 벗어나면 프로그램이 멈춘다.
+    ]
+    #para("2a")[
+      부르는 쪽의 타입이 그 범위보다 #strong[넓으면]; 그것만으로 거부된다(`E-TYPE-WIDTH`). 폭이
+      같아 그 검사에 걸리지 않는 값은 #strong[op 의 진입에서]; 범위를 확인하며, 벗어나면 멈춘다
+      (`E-VM-CONTRACT`) — `requires ge <이름> <아래> .` 와 `requires le <이름> <위> .` 를 적은
+      것과 같은 검사다.
+    ]
+    #para("3")[
+      선언한 범위는 #cref("6.4") 의 계약과 같은 자격으로 쓰인다 — 검사기가 그것을 사실로
+      삼아 뒤따르는 검사를 지울 수 있다.
+    ]
+    #plain[
+      (3) 이 (2a) 를 #strong[필요하게 만든다];. 검사기가 범위를 사실로 삼아 경계 검사를 지우는데
+      그 사실을 아무도 지키지 않으면, 지워진 검사 자리로 범위 밖의 값이 지나간다. 2026-09-16
+      까지 폭이 같은 `range` 매개변수는 어느 층에서도 확인되지 않았다(결함 노트 #10) —
+      #strong[믿을 것은 검사되는 것뿐이다.];
+    ]
+    #rejected("부르는 쪽의 타입이 범위보다 넓다", "module ex_range_wide .
+
+fn scale input a range 0 100 . output u8 .
+do
+  return narrow u8 a. . .
+end .
+
+fn call_scale input x u64 . output u8 .
+do
+  return scale x. . .    rem `u64` 는 0 … 100 보다 넓다 — 범위 안임을 보이지 않았다
+end .", "E-TYPE-WIDTH")
+    #note[
+      같은 일을 `requires` 로도 적을 수 있다. 다른 점은 #strong[어디에 적히는가];다. 범위를
+      타입 자리에 적으면 그 제약이 매개변수의 #strong[생김새];가 되어, 부르는 쪽이 서명만 보고도
+      안다. 계약절로 적으면 계약을 읽어야 안다.
+    ]
+  ]
+  #sub("6.2.15", "바이트 배치를 못 박는다 — `layout` 과 `align`")[
+    #para("1")[
+      구조체의 선언 안에 배치를 적을 수 있다. 적지 아니하면 필드는 #strong[선언 차례대로]; 놓이고, 각 필드는 제 타입의
+      정렬에 맞춰 놓인다(그 사이의 채움은 정렬이 요구하는 만큼). 처리기는 차례를 바꾸지 아니한다.
+    ]
+    #para("2")[
+      `layout packed .` 은 필드 사이에 #strong[채움(padding)을 두지 아니한다]; — 필드가 선언 차례로
+      맞붙는다.
+    ]
+    #para("2a")[
+      배치의 낱말은 닫힌 둘이다 — `packed` 와 `native`. 그 밖은 거부된다
+      (`E-TYPE-LAYOUT`).
+    ]
+    #para("3")[
+      `align <n> .` 은 그 구조체가 시작하는 자리의 정렬을 못 박는다. n 은 2 의 거듭제곱이어야 한다.
+      정렬은 #strong[2 의 거듭제곱];이어야 한다(`E-TYPE-ALIGN`) — 그 밖의 수는 어떤 기계도
+      지킬 수 없다.
+    ]
+    #term("표지", "marker")[
+      필드 뒤에 붙여 그 필드가 #strong[어떻게 놓이고 어떻게 닿을 수 있는지];를 정하는 낱말.
+      타입이 아니므로 값의 크기를 바꾸지 아니하며, 바이트 차례와 닿는 법만 정한다.
+    ]
+    #para("4")[
+      필드 뒤에는 #t("표지", "marker") 를 붙일 수 있다. 표지는 다음 다섯이 전부이며, 그 밖의
+      낱말을 적으면 번역이 거부된다(`E-FIELD-MARK`).
+    ]
+    #tbl("필드 표지 — 닫힌 집합 다섯")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*표지*], [*무엇을 정하나*], [*뜻*],
+      [`big`], [바이트 차례], [#strong[큰끝];으로 놓는다],
+      [`little`], [바이트 차례], [#strong[작은끝];으로 놓는다],
+      [`rw`], [닿는 법], [읽고 쓸 수 있다],
+      [`ro`], [닿는 법], [#strong[읽기만]; 한다 — 쓰면 번역이 거부된다],
+      [`wo`], [닿는 법], [#strong[쓰기만]; 한다 — 읽으면 번역이 거부된다],
+      )
+    ]
+    #para("4a")[
+      바이트 차례를 적지 아니하면 그 기계의 차례를 따른다(#cref("5.6")).
+    ]
+    #para("4b")[
+      닿는 법은 #strong[장치 레지스터를 비추는 구조체];(#cref("7.6"))에서만 강제된다. 어긴 것은
+      실행할 때가 아니라 #strong[번역할 때]; 거부된다(`E-MMIO-PERM`).
+    ]
+    #plain[
+      `wo` 를 읽는 것이 왜 오류인가. 쓰기 전용 레지스터는 읽으면 쓰레기가 나오거나, 읽는
+      행위 자체가 장치를 움직인다. 곧 그 읽기는 #strong[쓸모없는 것이 아니라 틀린 것];이다.
+      장치가 무엇을 받아들이는지 말했으면, 타입이 그것을 되말한다.
+    ]
+    #ex("선으로 나가는 머리 — 채움 없이, 큰끝으로", "module ex_layout .
+
+def type bytes slice u8 .
+
+def struct wire_header do
+  layout packed .
+  magic u32 big .
+  length u16 big .
+  kind u8 .
+end .
+
+fn hdr_kind input b bytes . output u64 . do
+  var v view wire_header view wire_header b. . .
+  return widen u64 field v. kind . . .
+end .
+")
+    #note[
+      #strong[배치를 못 박는 것과 안 박는 것은 다른 값을 산다.]; 안 박으면 처리기가 기계에 맞게
+      고를 수 있어 빠르다. 못 박으면 그 바이트가 #strong[밖에서도 같은 뜻];이 된다 — 선으로
+      나가거나 장치가 읽는 것은 그래야 한다. 그러니 필요한 자리에만 박는다.
+    ]
+  ]
+  #sub("6.2.16", "갈래를 넘는 변환 — `cast`")[
+    #para("1")[
+      `widen`(#cref("6.2.5"))은 #strong[값이 변하지 않는]; 자리에만 쓴다. 값이 변할 수 있는 변환은
+      `cast <타입> <값>` 으로 적는다 — 부호를 바꾸거나, 갈래를 넘거나, 좁히는 자리다.
+    ]
+    #para("2")[
+      `cast` 는 #strong[값이 목표 타입에 들어가지 아니하면 트랩한다.]; 조용히 잘리지 아니한다.
+      곧 `cast` 는 «아무 일이나 해도 된다» 는 표시가 아니라 #emph["값이 변할 수 있는 자리임을
+      내가 안다"]; 는 표시다.
+    ]
+    #para("3")[
+      부동소수를 정수로 바꾸면 #strong[0 쪽으로 버린다]; — `7.9` 는 `7` 이 되고 `-2.9` 는 `-2` 가
+      된다. 버려지는 것은 소수부뿐이며, 정수부가 목표 타입에 안 들어가면 (2) 대로 트랩한다.
+    ]
+    #caution("")[
+      소수부가 버려지는 것은 #strong[트랩하지 아니한다.]; 그러므로 `cast` 는 §6.2.5 (1) 의
+      #emph["값을 잃는 암묵적 변환이 없다"]; 를 어기지 않는다 — 그 변환은 #strong[암묵적이지 않기];
+      때문이다. 저자가 `cast` 라고 적었고, 그 낱말이 곧 «여기서 값이 변할 수 있다» 는 표시다.
+    ]
+    #para("4")[
+      `bool` 은 수치가 아니므로 `cast` 의 #strong[대상도 원천도]; 될 수 없다(`E-TYPE-KIND`). 참거짓과
+      수를 오가려면 `if` 로 적는다 — 어느 쪽이 `1` 인지는 프로그램이 정할 일이지 타입이
+      정할 일이 아니다.
+    ]
+  ]
+  #sub("6.2.17", "글자를 담는 것 — 문자열은 타입이 아니다")[
+    #para("1")[
+      이 언어에는 #strong[문자열 타입이 없다.]; 글자를 담는 것은 바이트의 조각(`slice u8`)이며,
+      그것이 전부다.
+    ]
+    #para("2")[
+      그러므로 #strong[길이가 진실이다.]; 문자열의 끝을 알려 주는 표식(널 바이트)은 값의 일부가
+      아니며, 길이를 세기 위해 바이트를 훑는 일은 일어나지 아니한다.
+    ]
+    #plain[
+      널로 끝나는 문자열은 길이를 #strong[값 안에 숨긴]; 설계다. 그래서 길이를 알려면 훑어야 하고,
+      훑다가 표식이 없으면 그 너머를 읽는다 — 실제로 가장 흔한 메모리 사고가 여기서 났다.
+      조각은 길이를 #strong[밖에 들고 다니므로]; 그 사고가 설 자리가 없다.
+    ]
+    #para("3")[
+      씨와 만나는 자리에서만 널로 끝나는 꼴이 필요하다(#cref("6.9.2")). 그것은 #strong[경계에서 짓는
+      모양];이지 이 언어가 지닌 타입이 아니다.
+    ]
+    #para("4")[
+      글자의 다룸 — 자르기·찾기·이어 붙이기·유니코드 검사 — 은 #strong[라이브러리의 일];이다
+      (#cref("9.5")). 처리기는 조각과 바이트만 안다.
+    ]
+  ]
+  #sub("6.2.18", "뜻이 없는 타입 이름")[
+    #para("1")[
+      어떤 이름은 #strong[받아들여지되 뜻이 없다.]; 그런 이름을 시그니처에 적으면 처리기는
+      경고한다(`W-NOT-YET`). 그 이름들은 부록 A.9 (2) 에 모여 있다 — `byte` · `char` · `str` ·
+      `string` · `bytes_view` · `dyn` · `atomic` 과 같은 것들이다.
+    ]
+    #para("2")[
+      뜻이 없다는 것은 #strong[처리기가 그 이름이 담는 값의 모양을 모른다];는 말이다. 크기도, 배치도,
+      그 값에 할 수 있는 일도 정해지지 않았으므로, 그 이름에 기대는 검사는 #strong[서지 아니한다];.
+    ]
+    #caution("")[
+      이 자리가 #strong[말해야 하는]; 까닭이 여기에 있다. 번역은 통과하고 답도 나오므로, 서지 않은
+      검사는 어디에도 드러나지 않는다. #strong[조용히 빠진 것은 아무도 못 찾는다]; — 그래서 처리기가 말한다.
+    ]
+    #para("3")[
+      이름에 뜻을 주는 길은 둘이다. #strong[바탕이 되는 타입을 직접 적거나];, 그 이름을 선언하는
+      것이다(`def type str slice u8 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
+    ]
+    #ex("뜻 없는 이름은 경고를 받되 거절되지는 않는다", "module ex_name_only .
+
+rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다.
+def type str slice u8 .
+
+fn f input s str . output u8 . do return 1 . end .",
+      out: "f() = 1")
+  ]
+  #sub("6.2.19", "값을 지닌 갈래 — 짓기와 해체")[
+    #para("1")[
+      `enum` 의 갈래는 값을 지닐 수 있다. 갈래를 적을 때 지닐 것의 이름과 타입을 함께
+      적는다.
+    ]
+    #para("2")[
+      그런 값을 짓는 모양은 `<열거>.<갈래>` 이며, 갈래가 지니기로 한 것을 #strong[모두]; 준다.
+      모자라면 거부된다(`E-ENUM-ARITY`) — 조용히 반만 지은 값을 만들지 아니한다.
+    ]
+    #para("3")[
+      값을 지닌 열거를 다루는 길은 둘이다.
+    ]
+    #tbl("값을 지닌 갈래를 다루는 두 op")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*op*], [*모양*], [*무엇을 하나*],
+      [`isa`], [`isa <값> <갈래>`], [지금 그 갈래인가를 묻는다],
+      [`payload`], [`payload <값> <갈래> <이름>`], [그 갈래가 지닌 것을 읽는다],
+      )
+    ]
+    #para("4")[
+      없는 갈래를 부르면 거부되고(`E-ENUM-NOVARIANT`), 그 갈래가 지니지 않는 이름을
+      읽으려 하면 거부된다(`E-ENUM-NOFIELD`). 둘 다 #strong[번역할 때]; 판정된다 — 갈래와
+      이름은 소스에 적혀 있으므로 실행을 기다릴 까닭이 없다.
+    ]
+    #para("5")[
+      갈래가 여럿인 열거에서 `payload` 는 #strong[먼저 그 갈래임이 좁혀진 뒤에만]; 쓸 수 있다
+      (`E-ENUM-UNCHECKED`). 좁히는 것은 `isa` 이며, 보통 `guard isa <값> <갈래> else …`
+      로 적는다.
+    ]
+    #para("5a")[
+      이미 #strong[다른 갈래];로 좁혀진 자리에서 `payload` 을 쓰는 것도 거부된다
+      (`E-ENUM-VARIANT`) — 그 자리에서는 다른 갈래임이 이미 증명되었으므로, 그 `payload` 는
+      #strong[틀린 것을 읽는다.];
+    ]
+    #para("5b")[
+      갈래가 지니는 것의 타입은 오늘 #strong[한 낱말];이어야 한다(`E-ENUM-PAYLOAD`).
+    ]
+    #plain[
+      (5) 가 하는 일은 「없는 것을 읽는 일」을 막는 것이다. 좁히지 않고 읽으면 그 값이 그
+      갈래일 때만 맞고 아닐 때는 #strong[엉뚱한 바이트];를 읽는다 — 그것은 답이 틀리는 것이 아니라
+      답이 #strong[어쩌다 맞는]; 것이며, 이 언어가 가장 싫어하는 모양이다.
+    ]
+    #para("6")[
+      열거가 자기 자신을 값으로 지니면 크기가 정해지지 아니하므로 거부된다
+      (`E-ENUM-INFINITE`). 되풀이되는 구조는 #strong[사이에 무언가를 두어]; 짓는다.
+    ]
+    #plain[
+      값을 지닌 갈래는 새 짜임이 아니다. 갈래를 가리키는 칸 하나와 갈래가 지닌 것을 담은
+      묶음이 있을 뿐이며, 짓는 것은 묶음 짓기이고 읽는 것은 칸 읽기다. 그래서 이 기능은
+      #strong[새 기계 명령을 하나도 늘리지 아니했다]; — 이미 있던 것으로 낮아지므로 두 뒤끝
+      모두에서 저절로 돌았다.
+    ]
+  ]
+  #sub("6.2.20", "흩어진 조각을 하나로 보기 — `segments`")[
+    #para("1")[
+      이어져 있지 않은 여러 조각을 #strong[하나의 눈];으로 볼 수 있다. 뒤에 놓인 바이트와,
+      그 안에서 어디부터 얼마인지를 적은 서술자 둘로 이루어진다.
+    ]
+    #tbl("흩어진 조각을 다루는 세 op")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*op*], [*모양*], [*무엇을 하나*],
+      [`view_segments`], [`view_segments <바이트> <서술자>`], [둘을 묶어 하나의 눈을 만든다],
+      [`segs`], [`segs <눈>`], [조각이 몇인지 센다],
+      [`seg`], [`seg <눈> <번호>`], [그 번호의 조각을 조각(slice)으로 준다],
+      )
+    ]
+    #para("2")[
+      서술자는 「어디부터」와 「얼마」의 짝을 담은 조각이다. 그러므로 이 셋은 #strong[새 타입도
+      새 기계 명령도 늘리지 아니한다]; — 묶음 짓기와 칸 읽기와 잘라내기로 낮아진다.
+    ]
+    #plain[
+      흩어진 조각을 다루는 길이 없으면, 쓰는 사람은 그것을 #strong[한 자리에 모으는]; 수밖에 없다.
+      모으는 일은 베끼는 일이고, 베끼지 않아도 되는 곳에서 베끼는 것이 이 언어가 없애려는
+      비용이다. 눈을 주면 베낌이 사라진다.
+    ]
+  ]
+  #sub("6.2.21", "미리 끌어오기 — `prefetch`")[
+    #para("1")[
+      `prefetch <조각> <번호>` 는 그 자리의 바이트를 #strong[곧 쓸 것];이라고 기계에 알린다.
+    ]
+    #para("2")[
+      이것은 #strong[힌트일 뿐];이다. 값을 남기지 아니하고, 프로그램의 뜻을 바꾸지 아니하며,
+      기계가 무시해도 답은 같다.
+    ]
+    #caution("")[
+      힌트는 #strong[틀려도 프로그램이 틀리지 않는]; 것만 힌트다. 뜻을 바꾸는 것은 힌트가 아니라
+      명령이며, 그런 것은 이 자리에 오지 아니한다.
+    ]
+  ]
+  #sub("6.2.22", "타입이 맞는다는 것")[
+    #para("1")[
+      값을 두는 모든 자리에서 값의 타입은 그 자리가 적은 타입과 #strong[같아야]; 한다.
+    ]
+    #tbl("타입이 어긋나는 자리")[
+      #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*진단*], [*어디에서*],
+      [`E-TYPE-LET`], [`let` 으로 묶을 때 — 주는 값이 적은 타입과 다르다],
+      [`E-TYPE-VAR`], [`var` 로 묶을 때 — 같은 어긋남이되 자리가 다르다],
+      [`E-TYPE-SET`], [고쳐 쓸 때 — 새 값이 그 이름의 타입과 다르다],
+      [`E-TYPE-RETURN`], [돌려줄 때 — 돌려주는 것이 op 이 적은 것과 다르다],
+      [`E-TYPE-ARG`], [건넬 때 — 인자가 매개변수와 다르다],
+      [`E-TYPE-FIELD`], [#strong[만들 때]; — 없는 칸을 주거나, 칸의 값이 적은 타입과 다르거나, 칸을 빠뜨렸다],
+      [`E-TYPE-TRY`], [`try` 할 때 — 벗겨 낼 것이 없는 값이다],
+      )
+    ]
+    #para("2")[
+      묶음과 열거는 `def struct <이름> do … end .` · `def enum <이름> do … end .` 로 선언한다. 다른 모양으로
+      선언하려 하면 거부된다(`E-TYPE-DECL`).
+    ]
+    #para("3")[
+      칸의 배치가 같아도 #strong[이름이 다르면 다른 묶음];이다(`E-TYPE-STRUCT`, #cref("8.9")).
+    ]
+    #plain[
+      이 표의 일곱은 모두 같은 문장의 다른 자리다 — #emph["여기 오는 것의 타입은 이것이다"]; 를
+      소스가 적었고, 처리기는 그 적힌 것과 실제를 견준다. 자리마다 진단을 따로 두는 까닭은
+      #strong[어디에서 어긋났는지];가 고치는 사람에게 가장 필요한 사실이기 때문이다.
+    ]
+  ]
+  #sub("6.2.23", "칸을 적는 꼴")[
+    #para("1")[
+      묶음의 칸은 #strong[이름 다음에 타입];이다(`x u64 .`). 그 꼴이 아니면 거부된다
+      (`E-FIELD-FORM`).
+    ]
+    #para("2")[
+      칸을 읽을 때는 `field <값> <이름> …` 으로 적는다. 점을 붙여 읽는 옛 철자는
+      이 언어에 없다(`E-FIELD-GLUED`).
+    ]
+    #para("3")[
+      `vec` 과 가림막은 #strong[값 그 자체];이며, 가리키거나 빌리는 표지를 붙일 수 없다
+      (`E-VEC-QUAL`). 그 레인들은 낱말 안의 자리이지 메모리의 자리가 아니다.
+    ]
+    #rejected("칸은 이름 다음에 타입이다", "module ex_field_form .
+
+def struct p do
+  x .              rem 타입이 없다
+end .
+
+fn f output u8 . do return 1 . end .", "E-FIELD-FORM")
+  ]
+  #sub("6.2.24", "임의 폭 정수 — `bits`")[
+    #para("1")[
+      `def type <이름> bits <수> .` 은 그 수만큼의 비트를 가진 정수 타입을 만든다. 폭은
+      #strong[1 부터 64 까지];다.
+    ]
+    #para("2")[
+      폭은 2 의 거듭제곱일 필요가 없다 — `bits 3` 도 `bits 10` 도 선다.
+    ]
+    #caution("")[
+      폭이 기계의 낱말과 어긋나면 #strong[빠름은 보장되지 아니한다.]; 이 언어가 보장하는 것은
+      #strong[정확함];이다 — `bits 10` 은 열 비트로 셈한 답을 주되, 그것이 열여섯 비트 셈보다
+      빠르다고 말하지 아니한다. 비용이 보이지 않는 자리를 만들지 않으려면, 보장하지
+      않는 것을 #strong[보장하지 않는다고 적어야]; 한다.
+    ]
+  ]
+]

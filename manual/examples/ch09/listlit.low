@@ -1,0 +1,33 @@
+module listlit .
+rem run: primes
+rem run: padded
+rem run: inside
+
+fn total input xs slice u32 . output u64 .
+do
+  var s u64 0 .
+  for x xs. do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
+
+rem ko: 배열 나열 --- 원소 타입, 길이, 원소들, 그리고 나열의 점 /// en: an array list --- element type, length, elements, then the list's own dot
+export fn primes output u64 .
+do
+  let p lit array u32 5 2 3 5 7 11 . .
+  return total p. . .
+end .
+
+rem ko: 끝의 _ 는 나머지 칸이 0 이라는 뜻 /// en: a trailing _ means the remaining cells are zero
+export fn padded output u64 .
+do
+  let p lit array u32 6 1 2 _ . .
+  return add len p. . total p. . . .
+end .
+
+rem ko: 슬라이스 나열은 길이를 적지 않는다 --- 원소 수가 길이다. 한가운데서도 점 하나로 닫힌다 /// en: a slice list has no length --- the element count is the length. In the middle it closes with one dot
+export fn inside output u64 .
+do
+  return add total lit slice u32 4 5 6 . . 1 . .
+end .

@@ -1,0 +1,17 @@
+module encoded .
+rem run: header_bytes 9
+
+def struct wire_header do
+  layout packed .
+  magic u32 big .
+  length u16 big .
+  kind u8 .
+end .
+
+rem ko: `view` 의 반대 방향 --- 값을 그 배치의 바이트로 만든다 /// en: the opposite of `view` --- turn a value into bytes of that layout
+fn header_bytes input k u8 . output u64 .
+do
+  let h lit wire_header do magic 1 . length 2 . kind k. . end . .
+  let bytes slice u8 encode wire_header h. . .
+  return add mul len bytes. . 1000 . widen u64 idx bytes. 6 . . . .
+end .

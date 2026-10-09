@@ -1,0 +1,83 @@
+# 빌트인 op 의 시그니처 — 한 op 에 한 줄 (정본)
+#
+# ★ 이 파일은 **정본**이다(2026-10-07 소유자 «내장op들의 각 arg들의 데이터형이나 제한, 조건, 요구사항이나 반환값의 타입, 조건, 제한 등을 상세히»).
+#   이름은 `low_arity.h` 가, 한 줄짜리 뜻은 `BUILTIN-MEANINGS.tsv` 가, **받는 것 · 내는 것 · 거절 · 멈춤**은 여기가 권위다.
+#   부록 D 가 이 표를 읽어 낸다.
+#
+# ★★ **잰 것만 적는다.** 줄마다 `docs/spec/BUILTIN-PROBES.tsv` 에 그 줄을 뒷받침하는 탐침이 있다 — 처리기를 실제로 돌려
+#   VM 과 네이티브에서 같은 답이 나온 것이다. 재지 못한 칸은 **비워 둔다**(게이트가 세어 말한다). `—` 는 «없다» 는 뜻이다.
+#
+# ★★★ 처리기가 이 표보다 **더 받아 주는** 자리가 있다(타입 검사가 낸 값의 타입을 모르는 op 따위). 그것은 여기 적지 않는다 —
+#   적으면 결함이 약속이 된다. 그 목록은 비공개 `docs/known-defects/builtin-signature-gaps.md` 에 있다.
+#
+# 칸: op · 갈래 · 꼴 · 받는 것 · 내는 것 · 번역 때 거절 · 실행 때 멈춤 · 조항
+#
+# 타입을 줄여 적는 말:
+#   정수   = `u8` `u16` `u32` `u64` `i8` `i16` `i32` `i64` (`usize` · `isize` 는 이름이 다른 타입이라 이들과 섞이지 않는다 — `E-TYPE-NOMINAL`)
+#   부동   = `f32` `f64`
+#   수     = 정수 또는 부동
+#   맞는 둘 = 넓히기로 한 타입에 맞출 수 있는 두 수(§6.3.4 (1)) — 폭만 다르면 넓은 쪽, 부호가 섞이면 둘을 다 담는 부호 있는 쪽
+#   `T`    = 그 자리에 적는 타입 이름
+#
+# op	갈래	꼴	받는 것	내는 것	번역 때 거절	실행 때 멈춤	조항
+add	산술	`add a b`	`a` `b` — 맞는 둘	둘 중 넓은 쪽 타입	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY`	정수: 합이 그 폭에 안 들어가면 `E-VM-OVERFLOW`. 부동: 멈추지 않는다(무한 · NaN 이 값으로 나온다)	6.3.4
+sub	산술	`sub a b`	`a` `b` — 맞는 둘	둘 중 넓은 쪽 타입	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY`	정수: 차가 그 폭에 안 들어가면 `E-VM-OVERFLOW`(부호 없는 타입에서 작은 수에서 큰 수를 빼는 것 포함). 부동: 멈추지 않는다	6.3.4
+mul	산술	`mul a b`	`a` `b` — 맞는 둘	둘 중 넓은 쪽 타입	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY`	정수: 곱이 그 폭에 안 들어가면 `E-VM-OVERFLOW`. 부동: 멈추지 않는다	6.3.4
+div	산술	`div a b`	`a` `b` — 맞는 둘	둘 중 넓은 쪽 타입. 정수의 몫은 0 쪽으로 자른다(`div -7 2` 는 -3)	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY`	정수: `b` 가 0 이면 `E-VM-DIV0` · 부호 있는 타입의 가장 작은 값을 -1 로 나누면 `E-VM-OVERFLOW`. 부동: 멈추지 않는다(0 으로 나누면 무한)	6.3.4
+mod	산술	`mod a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — 바닥 나눗셈의 나머지. 부호는 `b` 를 따른다(`mod -7 2` 는 1, `mod 7 -2` 는 -1). `b` 가 양수이면 0 이상이고 `b` 보다 작다. 가장 작은 값을 -1 로 나누면 0	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY`	`b` 가 0 이면 `E-VM-DIV0` · 부동을 주면 `E-VM-TYPE`(부동의 나머지는 `fmod`)	6.3.4
+neg	산술	`neg a`	`a` — 부호 있는 정수 또는 부동	`a` 의 타입 — 부호를 뒤집은 값	부호 없는 정수를 주면 `E-TYPE-SIGN` · `E-IR-ARITY`	부호 있는 정수의 가장 작은 값이면 `E-VM-OVERFLOW`(뒤집은 값이 그 폭에 없다). 부동: 멈추지 않는다	6.3.3
+abs	산술	`abs a`	`a` — 부호 있는 정수 또는 부동	`a` 의 타입	`E-IR-ARITY`	부호 있는 정수의 가장 작은 값이면 `E-VM-OVERFLOW`(절댓값이 그 폭에 없다). 부동: 멈추지 않는다	6.3.9
+min	산술	`min a b`	`a` `b` — 같은 부호의 두 정수, 또는 두 부동	둘 중 작은 값	`E-IR-ARITY`	—	6.3.3
+max	산술	`max a b`	`a` `b` — 같은 부호의 두 정수, 또는 두 부동	둘 중 큰 값	`E-IR-ARITY`	—	6.3.3
+wrap_add	넘침 처분	`wrap_add a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `add` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)	`E-IR-ARITY`	—	6.3.6
+wrap_sub	넘침 처분	`wrap_sub a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `sub` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)	`E-IR-ARITY`	—	6.3.6
+wrap_mul	넘침 처분	`wrap_mul a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `mul` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)	`E-IR-ARITY`	—	6.3.6
+sat_add	넘침 처분	`sat_add a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `add` 의 결과를 폭의 끝값에 붙인 값(위로 넘치면 가장 큰 값, 아래로 넘치면 가장 작은 값)	`E-IR-ARITY`	—	6.3.6
+sat_sub	넘침 처분	`sat_sub a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `sub` 의 결과를 폭의 끝값에 붙인 값(위로 넘치면 가장 큰 값, 아래로 넘치면 가장 작은 값)	`E-IR-ARITY`	—	6.3.6
+sat_mul	넘침 처분	`sat_mul a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `mul` 의 결과를 폭의 끝값에 붙인 값(위로 넘치면 가장 큰 값, 아래로 넘치면 가장 작은 값)	`E-IR-ARITY`	—	6.3.6
+chk_add	넘침 처분	`chk_add a b`	`a` `b` — 맞는 두 정수	`option T`(`T` 는 둘 중 넓은 쪽) — `add` 의 결과가 폭에 들어가면 그 값, 넘치면 없음	`E-IR-ARITY`	부동을 주면 `E-VM-TYPE`	6.3.6
+chk_sub	넘침 처분	`chk_sub a b`	`a` `b` — 맞는 두 정수	`option T`(`T` 는 둘 중 넓은 쪽) — `sub` 의 결과가 폭에 들어가면 그 값, 넘치면 없음	`E-IR-ARITY`	부동을 주면 `E-VM-TYPE`	6.3.6
+chk_mul	넘침 처분	`chk_mul a b`	`a` `b` — 맞는 두 정수	`option T`(`T` 는 둘 중 넓은 쪽) — `mul` 의 결과가 폭에 들어가면 그 값, 넘치면 없음	`E-IR-ARITY`	부동을 주면 `E-VM-TYPE`	6.3.6
+nonzero_of	넘침 처분	`nonzero_of a`	`a` — 정수	`option nonzero T`(`T` 는 `a` 의 타입) — 0 이면 없음	`E-IR-ARITY`	부동을 주면 `E-VM-TYPE`	6.3.6
+div_nz	넘침 처분	`div_nz a b`	`a` — 정수 · `b` — `nonzero_of` 로 얻은 0 아닌 값	`a` 의 타입 — 몫	`E-IR-ARITY`	`b` 가 0 이면 `E-VM-DIV0`	6.3.6
+eq	비교	`eq a b`	`a` `b` — 맞는 둘, 또는 두 `bool`	`bool` — 같으면 참. 부동의 NaN 은 자기 자신과도 같지 않다	수와 `bool` 을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	`option` · `result` 를 주면 `E-VM-TYPE`(안의 값을 꺼내 견준다)	6.3.3
+ne	비교	`ne a b`	`a` `b` — 맞는 둘, 또는 두 `bool`	`bool` — 다르면 참. 부동의 NaN 은 자기 자신과도 같지 않다	수와 `bool` 을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	`option` · `result` 를 주면 `E-VM-TYPE`(안의 값을 꺼내 견준다)	6.3.3
+lt	비교	`lt a b`	`a` `b` — 맞는 둘	`bool` — `a` 가 작으면 참. 부동에서 한쪽이 NaN 이면 거짓	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
+le	비교	`le a b`	`a` `b` — 맞는 둘	`bool` — `a` 가 작거나 같으면 참. 부동에서 한쪽이 NaN 이면 거짓	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
+gt	비교	`gt a b`	`a` `b` — 맞는 둘	`bool` — `a` 가 크면 참. 부동에서 한쪽이 NaN 이면 거짓	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
+ge	비교	`ge a b`	`a` `b` — 맞는 둘	`bool` — `a` 가 크거나 같으면 참. 부동에서 한쪽이 NaN 이면 거짓	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
+and	논리	`and a b`	`a` `b` — `bool`	`bool`. `a` 가 거짓이면 `b` 를 계산하지 않는다	`bool` 이 아니면 `E-TYPE-LOGICAL` · `E-IR-ARITY`	—	6.3.3
+or	논리	`or a b`	`a` `b` — `bool`	`bool`. `a` 가 참이면 `b` 를 계산하지 않는다	`bool` 이 아니면 `E-TYPE-LOGICAL` · `E-IR-ARITY`	—	6.3.3
+not	논리	`not a`	`a` — `bool`	`bool`	`bool` 이 아니면 `E-TYPE-LOGICAL` · `E-IR-ARITY`	—	6.3.3
+bit_and	비트	`bit_and a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+bit_or	비트	`bit_or a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+bit_xor	비트	`bit_xor a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+bit_not	비트	`bit_not a`	`a` — 정수	`a` 의 타입 — 그 폭 안에서 뒤집는다(`bit_not` 을 `u8` 0 에 대면 255)	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+shl	비트	`shl a n`	`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다	`a` 의 타입 — 왼쪽으로 옮긴다. 폭 밖으로 밀려난 비트는 버린다(넘침으로 치지 않는다)	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
+shr	비트	`shr a n`	`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다	`a` 의 타입 — 오른쪽으로 옮긴다. 부호 없는 타입은 0 이, 부호 있는 타입은 부호 비트가 들어온다	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
+wrap_shl	비트	`wrap_shl a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 왼쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
+wrap_shr	비트	`wrap_shr a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 오른쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
+rotl	비트	`rotl a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — 왼쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+rotr	비트	`rotr a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — 오른쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+count_ones	비트	`count_ones a`	`a` — 정수	1 인 비트의 수 — 0 이상 폭 이하	`E-IR-ARITY`	—	6.3.5
+leading_zeros	비트	`leading_zeros a`	`a` — 정수	`a` 의 타입 — 맨 윗자리부터 이어지는 0 의 수. `a` 가 0 이면 폭(`u8` 에서 8)	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+trailing_zeros	비트	`trailing_zeros a`	`a` — 정수	`a` 의 타입 — 맨 아랫자리부터 이어지는 0 의 수. `a` 가 0 이면 폭	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+byte_swap	비트	`byte_swap a`	`a` — 정수	`a` 의 타입 — 바이트 차례를 뒤집은 값. 한 바이트 타입에서는 그대로	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+sqrt	부동소수 함수	`sqrt a`	`a` — 부동	`a` 의 타입 — 제곱근. 음수면 NaN	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+sin	부동소수 함수	`sin a`	`a` — 부동	`a` 의 타입 — 사인(라디안)	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+cos	부동소수 함수	`cos a`	`a` — 부동	`a` 의 타입 — 코사인(라디안)	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+exp	부동소수 함수	`exp a`	`a` — 부동	`a` 의 타입 — e 의 거듭제곱	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+log	부동소수 함수	`log a`	`a` — 부동	`a` 의 타입 — 자연로그. 0 이면 음의 무한, 음수면 NaN	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+floor	부동소수 함수	`floor a`	`a` — 부동	`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 크지 않은 가장 큰 정수 값(`floor -1.5` 는 -2.0)	`E-IR-ARITY`	—	6.3.9
+ceil	부동소수 함수	`ceil a`	`a` — 부동	`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 작지 않은 가장 작은 정수 값	`E-IR-ARITY`	—	6.3.9
+round	부동소수 함수	`round a`	`a` — 부동	`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — 가장 가까운 정수 값. 꼭 가운데면 0 에서 먼 쪽(`round 2.5` 는 3.0, `round -2.5` 는 -3.0)	`E-IR-ARITY`	—	6.3.9
+pow	부동소수 함수	`pow a b`	`a` `b` — 같은 부동 타입	`a` 의 타입 — `a` 의 `b` 제곱. 음수 밑에 정수 아닌 지수면 NaN	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+fmod	부동소수 함수	`fmod a b`	`a` `b` — 같은 부동 타입	`a` 의 타입 — 나머지. 부호는 `a` 를 따른다(`fmod -7.5 2.0` 은 -1.5)	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
+widen	변환	`widen T a`	`T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수	`T` — 값은 그대로다	`T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.2.5
+narrow	변환	`narrow T a`	`T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수	`T` — 값은 그대로다	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	정수 값이 `T` 에 안 들어가면 `E-VM-CAST`	6.3.6
+narrow_wrap	변환	`narrow_wrap T a`	`T` — 정수 타입 · `a` — 수	`T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255)	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
+narrow_sat	변환	`narrow_sat T a`	`T` — 정수 타입 · `a` — 수	`T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0)	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
+narrow_try	변환	`narrow_try T a`	`T` — 정수 타입 · `a` — 정수	`option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
+cast	변환	`cast T a`	`T` — 정수 또는 부동 타입 · `a` — 수	`T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값	`bool` 이 한쪽이면 `E-TYPE-KIND`	정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`	6.2.16
+bit_cast	변환	`bit_cast T a`	`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수	`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408)		—	6.2.5
+size_of	변환	`size_of T`	`T` — 타입	정수 — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)		—	6.3.8

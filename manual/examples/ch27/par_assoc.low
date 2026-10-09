@@ -1,0 +1,15 @@
+module par_assoc .
+rem expect: E-PAR-ASSOC
+
+fn diff input s slice u8 . output u64 .
+  parallel s split .
+  reduce acc sub .
+do
+  var acc u64 1000 .
+  var i u64 0 .
+  while lt i. len s. . . do
+    set acc. sub acc. widen u64 idx s. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

@@ -1,0 +1,63 @@
+#import "../lib.typ": *
+
+= `pagecache` --- 페이지 id 와 고정 커서 <mod-pagecache>
+
+#modhead(file: "lib/pagecache.low", layer: [L1 --- 호출자의 저장], caps: [없음])
+
+페이지를 담아 두는 캐시에서 *오래 사는 이름*(페이지 id)과 *짧게 닿는 권한*(pin)을 가른다. 밖에 저장하는 것은 언제나 id 이고, 바이트를 만지는 동안만 pin 을 든다.
+SQLite 의 페이지 캐시가 그 모양이다. 페이지는 옮겨진다(축출 · 재배치). 옮겨질 때 고칠 것이 id → 자리 표 하나뿐이어야지, 흩어진 포인터를 찾아다녀야 한다면 그
+캐시는 쓸 수 없다.
+
+```lowent
+def newtype db u8 .
+var c (owned pagecache.cache db) pagecache.open db. 16 . .
+var p (pagecache.pin db) pagecache.acquire db. c. 42 . .
+rem 이 사이에는 evict 를 부를 수 없다 --- 컴파일되지 않는다
+var c2 (owned pagecache.cache db) pagecache.release db. p. . .
+var c3 (owned pagecache.cache db) pagecache.evict db. c2. . .
+```
+
+#aside[고정이 살아 있는 동안 축출은 컴파일 에러다][
+  `acquire` 는 캐시 토큰을 *삼킨다*. 그래서 pin 이 사는 동안에는 `evict` · `reset` 에 건넬 것이 손에 없다 --- `E-OWN-MOVED`. 그것을 막는 것은 이 모듈이 아니라
+  언어다. `owned` 가 "토큰은 하나이고 넘기면 손을 떠난다" 를 이미 강제한다(#chref("ownership")). 브랜드로 저장소를 봉하고, 토큰으로 접근 단위를 가르고
+  (#modref("shard")[`shard`]), 여기서 세 번째로 같은 규칙이 새 규약을 공짜로 만든다.
+]
+
+#dtable(
+  columns: 3,
+  id: "mod-pagecache-limits",
+  caption: [상한과 순서 --- 그 수가 어디서 왔나],
+  [*무엇*], [*정한 것*], [*근거*],
+  [기본 pin 상한], [`machine.cache_line / 8` --- x86_64 · arm64 8 · mips_be 4 · cortex_m 1], [PostgreSQL 이 pin 표 8 칸을 "캐시 라인 크기쯤인 64 바이트" 로 두었다],
+  [release 순서], [LIFO --- 겹친 pin 은 앞선 것을 삼킨다], [SQLite 커서가 페이지를 스택으로 든다],
+)
+
+수 대신 이유를 적었다. 8 을 박아 두면 캐시 라인이 다른 기계에서 틀린다 --- 그래서 `machine.cache_line` 으로 나눈다(#chref("hardware")).
+
+#dtable(
+  columns: 3,
+  id: "mod-pagecache-ops",
+  caption: [`pagecache` 의 op],
+  [*op*], [*하는 일*], [*실패하면*],
+  [`cache` · `pin` · `pin2`], [캐시 토큰 · 고정 · 겹친 고정 타입], [---],
+  [`open`], [캐시 토큰을 만든다], [---],
+  [`acquire`], [페이지를 고정한다 --- 캐시 토큰을 삼킨다], [---],
+  [`acquire_more`], [겹쳐 고정한다 --- 앞선 pin 을 삼킨다(깊이 +1)], [---],
+  [`release` · `release_more`], [놓는다 --- 토큰을 돌려준다], [---],
+  [`evict` · `reset`], [축출 · 비움. 캐시 토큰을 요구한다], [고정 중이면 컴파일 에러],
+  [`slot_of`], [id 의 현재 자리], [빈 캐시면 `none`],
+  [`pin_limit` · `within_limit`], [이 기계의 상한과 그 판정], [---],
+  [`epoch_of` · `depth_of` · `depth2_of`], [관측], [---],
+)
+
+#antipattern[겹친 고정을 안쪽부터 놓는다][
+  `a` 를 고정하고 `acquire_more db a 9` 로 `b` 를 겹친 뒤 `release db a` 를 부르면 컴파일 에러다 --- `a` 는 `b` 안에 있다. 순서를 어길 길이 없다. 그것이 LIFO 다.
+]
+
+#antipattern[자리를 저장해 두고 나중에 쓴다][
+  `slot_of` 로 얻은 자리를 들고 있다가 축출이 지나간 뒤 쓰면 에러는 없고 틀린 자리를 읽을 뿐이다. 밖에 저장하는 것은 id 여야 한다 --- 자리는 물을 때마다 새로
+  얻는다. 그것이 이 모듈이 id 와 자리를 가른 이유다.
+]
+
+*주의.* 자리도 pin 도 저장하지 않는다 --- 둘 다 지금 이 순간의 것이다. 상한은 규약이지 강제가 아니다(깊이는 `pin2` 까지만 지었다). 페이지를 읽어 오는 일과 그
+실패, 그리고 LRU 같은 축출 정책은 여기 없다 --- 정책은 이 규약 위에 얹는다.

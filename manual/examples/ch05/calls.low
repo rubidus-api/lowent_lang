@@ -1,0 +1,12 @@
+module calls .
+rem expect: E-EFFECT-CALC
+
+proc say input out cap io . output u64 . effects io .
+do
+  return write_out out. 1 "hi\n" . .
+end .
+
+fn helper input out cap io . output u64 .
+do
+  return say out. . .
+end .

@@ -1,0 +1,14 @@
+module escape .
+rem expect: E-REGION-ESCAPE
+
+proc leak output u64 . effects alloc .
+do
+  var held mut slice u8 subslice "abcd" 0 0 . .
+  region r arena do
+    let g option mut slice u8 alloc_bytes r. capacity 16 . .
+    if is_some g. . do
+      set held. some_value g. . .
+    end .
+  end .
+  return len held. . .
+end .

@@ -1,0 +1,18 @@
+module aliases .
+rem run: area 3 4
+rem run: half_percent 90
+
+def type meters u64 .
+def type pct range 0 100 .
+
+fn area input w meters . input h meters . output u64 .
+  requires le w. 1000000 . .
+  requires le h. 1000000 . .
+do
+  return mul w. h. . .
+end .
+
+fn half_percent input p pct . output u8 .
+do
+  return narrow u8 div p. 2 . . .
+end .

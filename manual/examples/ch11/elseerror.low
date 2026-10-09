@@ -1,0 +1,28 @@
+module elseerror .
+rem run: port 8080
+rem run: port 0
+rem run: port 70000
+
+def enum port_error do
+  zero .
+  too_big .
+end .
+
+fn check input n u64 . output result u64 port_error .
+  errors zero eq n. 0 . .
+  errors too_big gt n. 65535 . .
+do
+  if eq n. 0 . do return error zero . . end .
+  if gt n. 65535 . do return error too_big . . end .
+  return ok n. . .
+end .
+
+rem ko: 실패했을 때 *왜* 실패했는지 본다 --- `e` 는 이 블록 안에서만 산다 /// en: look at *why* it failed --- `e` lives only inside this block
+export fn port input n u64 . output u64 .
+do
+  let p u64 check n. . else error e do
+    if eq e. zero. . do return 80 . end .
+    return 65535 .
+  end .
+  return p. .
+end .

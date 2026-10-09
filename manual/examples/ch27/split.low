@@ -1,0 +1,27 @@
+module split .
+rem run: double_all [1,2,3,4,5,6]
+rem run: total [1,2,3,4,5,6]
+
+proc double_all input s mut slice u8 . output u64 . effects none .
+  parallel s split .
+do
+  var i u64 0 .
+  while lt i. len s. . . do
+    set idx s. i. . wrap_mul idx s. i. . 2 . .
+    set i. add i. 1 . .
+  end .
+  return len s. . .
+end .
+
+fn total input s slice u8 . output u64 .
+  parallel s split .
+  reduce acc add .
+do
+  var acc u64 0 .
+  var i u64 0 .
+  while lt i. len s. . . do
+    set acc. add acc. widen u64 idx s. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

@@ -1,0 +1,14 @@
+module mistake_noloop .
+rem expect: E-PAR-NOLOOP
+
+proc smooth input s mut slice u8 . output u64 . effects none .
+  parallel s split .
+do
+  var i u64 0 .
+  rem ko: ✘ 나눌 되풀이는 `while lt i (len s)` 모양이어야 한다 --- 이웃 원소를 읽는 되풀이이기도 하다 /// en: ✘ a loop to split must have the shape `while lt i (len s)` --- and this one reads a neighbouring element too
+  while lt add i. 1 . len s. . . do
+    set idx s. i. . div wrap_add idx s. i. . idx s. add i. 1 . . . 2 . .
+    set i. add i. 1 . .
+  end .
+  return len s. . .
+end .

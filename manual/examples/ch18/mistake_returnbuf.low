@@ -1,0 +1,13 @@
+module mistake_returnbuf .
+rem expect: E-REGION-ESCAPE
+
+proc make_buf input n u64 . output mut slice u8 . effects alloc .
+do
+  region work arena do
+    let g option mut slice u8 alloc_bytes work. capacity n. . .
+    guard is_some g. . else return subslice "" 0 0 . . .
+    rem ko: ✘ 이 블록이 끝나면 걷힐 바이트를 돌려준다 /// en: ✘ returns bytes that are reclaimed when this block ends
+    return some_value g. . .
+  end .
+  return subslice "" 0 0 . .
+end .

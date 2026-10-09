@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 Types that hold answers — option and result — Lowent Manual</title><style>/* ── 웹 판의 조판 (RFC-0027, 저자 지시 2026-08-10) ────────────────
+ *
+ * 전에는 이 CSS 가 scripts/wrap-html.py 안의 문자열이었다. 디자인을 한 줄
+ * 고치려면 파이썬 파일을 열어야 했고, 무엇이 디자인이고 무엇이 생성 논리인지
+ * 섞여 있었다. 이제 갈라 둔다 --- 디자인은 여기, 생성은 거기.
+ *
+ * ★ 고치는 절차
+ *   1. 이 파일만 고친다.
+ *   2. scripts/style-preview.sh --- build/style-preview.html 을 본다(몇 초).
+ *   3. 괜찮으면 그때 scripts/build-html.sh 로 전체를 만든다.
+ *
+ * ★ 규율 하나: 장치는 *왼쪽 세로선*으로 영역을 말하고, 제목은 *가로 밑줄*로
+ *   경계를 말한다. 소스 코드와 실행 결과(.demo)만 네 변 상자를 쓴다.
+ */
+
+/* ── 글꼴을 직접 싣는다 (RFC-0026 D2, 저자 지시 2026-08-10) ────────
+   전에는 @font-face 가 하나도 없어, CSS 가 적어 둔 이름이 방문자 기계에 없으면
+   대체 글꼴로 떨어졌다 --- 세리프 본문이 고딕으로 보이는 일이 흔했다.
+   이 책이 쓰는 갈래는 셋뿐이다: serif(본문) · sans-serif(제목·UI) · monospace(코드).
+   파일은 scripts/make-webfonts.sh 가 *이 책에 쓰인 글자만* 남겨 만든다.
+   font-display:swap --- 글꼴을 기다리느라 글이 안 보이는 일이 없게 한다. */
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-italic.woff2") format("woff2");
+  font-weight:400; font-style:italic; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+/* ── 색은 세 가지 상태를 모두 적어야 한다 (저자 지적 2026-08-11) ───────
+ * ★ 예전에는 어두운 팔레트가 `@media (prefers-color-scheme: dark)` *안에만*
+ *   있었다. 그래서 「어둡게」 단추가 `data-theme` 를 붙여도 응답할 규칙이 없어
+ *   아무 일도 일어나지 않았고, 「밝게」도 시스템이 어두우면 소용없었다.
+ *   이제 세 자리에 적는다:
+ *     ① 바탕(:root)                          --- 밝은 팔레트
+ *     ② 시스템이 어두울 때, 단 밝게를 고르지 않았으면  --- 어두운 팔레트
+ *     ③ 어둡게를 골랐을 때                      --- 어두운 팔레트
+ *   ②③ 은 같은 값이라 되풀이되지만, CSS 에서 변수 묶음을 이름으로 나눠 쓸
+ *   방법이 없다. 고칠 때는 *둘 다* 고쳐야 한다.
+ */
+:root { color-scheme: light dark; --fg:#141414; --bg:#ffffff; --muted:#5c5c5c;
+  --rule:#c9c9c9; --box-bg:#f6f6f6; --box-rule:#c4c4c4; --code-bg:#f2f2f2; --link:#1a4f8a;
+  --tok-c:#3f5b4a; --tok-k:#123c87; --tok-t:#0f5b63; --tok-s:#7a3b0a;
+  --tok-n:#8a2222; --tok-p:#6b2d8a; --tok-x:#555555; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+    --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+    --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+    --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; } }
+:root[data-theme="dark"] { color-scheme: dark; --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+  --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+  --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+  --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; }
+:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); line-height:1.75;
+       font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+/* ── 상세 차례와 「이 장의 차례」 패널 (저자 지시 2026-08-10) ── */
+.here-btn { margin-left:.7rem; font:inherit; font-size:.92rem; cursor:pointer;
+  background:none; border:1px solid var(--rule,#bbb); border-radius:.25rem;
+  padding:.1rem .5rem; color:inherit; }
+.here-btn:hover { background:rgba(127,127,127,.14); }
+.here-at { margin-left:.7rem; font-size:.92rem; color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:70vh; overflow:auto;
+  border:1px solid var(--rule,#bbb); border-top:none; background:var(--bg,#fff);
+  padding:.6rem .9rem 1rem; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.here-head { display:flex; align-items:center; gap:.8rem; padding:.2rem 0 .5rem;
+  border-bottom:1px solid var(--rule,#ddd); margin-bottom:.5rem; }
+.here-head .sp { flex:1; }
+.here-all { margin-left:auto; font-size:.9rem; }
+.here-x { font:inherit; font-size:.9rem; cursor:pointer; background:none;
+  border:1px solid var(--rule,#bbb); border-radius:.25rem; padding:.05rem .45rem;
+  color:inherit; }
+.here-body a, .tf-secs a { display:block; text-decoration:none; padding:.12rem 0;
+  line-height:1.45; }
+.here-body a:hover, .tf-secs a:hover { text-decoration:underline; }
+.here-body a.lv4, .tf-secs a.lv4 { padding-left:1.6rem; font-size:.94rem;
+  color:var(--muted,#555); }
+.tf-no { display:inline-block; min-width:3.2rem; color:var(--muted,#666);
+  font-variant-numeric:tabular-nums; }
+.toc-full .tf-ch { margin:.9rem 0 .15rem; font-weight:700; }
+.toc-full .tf-secs { margin:0 0 .5rem .2rem; border-left:2px solid var(--rule,#e2e2e2);
+  padding-left:.7rem; }
+.toc-full h4.toc-part { margin-top:1.8rem; }
+.toc a.toc-detail { font-weight:700; }
+@media print { .here-btn, .here-panel { display:none; } }
+/* 왼쪽부터 죽 이어 쓰고, 좁으면 개행한다 (저자 지시 2026-08-10).
+   전에는 가운데 여백(.sp)이 뒤쪽 항목을 오른쪽 끝으로 밀어 두 덩이로
+   갈라져 있었다. 좁은 화면에서는 그 사이가 벌어져 읽기 나빴다. */
+.bar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; gap:.35rem .8rem; align-items:center;
+       padding:.55rem clamp(.8rem,3vw,2.5rem); background:var(--bg);
+       border-bottom:1px solid var(--rule); font-size:.86rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.bar a { color:var(--link); text-decoration:none; } .bar a:hover { text-decoration:underline; }
+.bar .sp { display:none; }        /* 더 쓰지 않는다 --- 왼쪽 정렬로 이어 쓴다 */
+main { width:100%; padding:1.6rem clamp(.9rem,3vw,2.5rem) 5rem; }
+/* 폭을 가두지 않는다 — 보통의 웹 문서처럼 화면 가로를 그대로 쓴다.
+   (2026-08-10: 40rem 으로 가둬 봤으나 저자가 「모양이 깨졌다」며 되돌리라고
+   했다. 줄 길이 문제는 D4 의 *독자가 고르는 폭*으로 푼다.) */
+.wrap { width:100%; max-width:none; margin:0; }
+h1,h2,h3,h4 { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; line-height:1.35;
+  padding-bottom:.18rem; border-bottom:1px solid var(--rule); }
+h1 { font-size:clamp(1.5rem,3.4vw,2.1rem); margin:.2rem 0 .9rem; }
+h2 { font-size:clamp(1.35rem,3vw,1.8rem); margin:0 0 .7rem; padding-bottom:.35rem;
+     border-bottom:2px solid var(--fg); }
+h3 { font-size:clamp(1.05rem,2.2vw,1.25rem); margin:1.5rem 0 .5rem;
+     padding-bottom:.22rem; border-bottom:1.5px solid var(--fg); }
+p { margin:.9rem 0; } a { color:var(--link); }
+/* 본문 문단은 첫 줄을 한 글자만큼 들여쓴다 — PDF 와 같은 규칙
+   (저자 지시 2026-08-06). 구조적인 자리(표지·차례·표제·캡션·목록)는 뺀다. */
+main p { text-indent: 1em; }
+.cover p, .note p, .toc p, .float-caption, .metalist p, .memrow p,
+.colophon-meta p, li p, td p, th p, figure p, blockquote p,
+.demo-src p, .demo-out p, pre, pre p,
+.dev-label, p.dev-label { text-indent: 0; }
+/* 출처 주석 — PDF 의 각주에 해당한다(lib.typ 의 note). Typst 의 HTML 내보내기가
+   각주 본문을 버리므로 lib.typ 이 본문에 펴 두고, wrap-html.py 의 collect_notes 가
+   번호를 매겨 장 끝의 「주」로 옮긴다. 아래 .src-note 는 혹시 옮겨지지 않은 것이
+   있을 때의 대비책이다. */
+.src-note { font-size: .86em; color: var(--muted, #666); }
+.src-note code { font-size: .95em; }
+sup.fnref { font-size: .72em; line-height: 0; vertical-align: super; }
+sup.fnref a { text-decoration: none; padding: 0 .1em; }
+sup.fnref a::before { content: "["; }
+sup.fnref a::after  { content: "]"; }
+.chapter-notes { margin: 3rem 0 1rem; padding-top: .9rem;
+                 border-top: 2px solid var(--rule, #333); }
+.chapter-notes h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.chapter-notes ol { margin: 0; padding-left: 1.6em; }
+.chapter-notes li { font-size: .92em; margin: .35em 0; text-indent: 0; }
+.chapter-notes a.fnback { text-decoration: none; }
+/* 상자 안에서는 표제 줄에 붙는 첫 문단만 들여쓰지 않는다(PDF 의 all:false) */
+.dev p { text-indent: 0; }
+.dev p + p { text-indent: 1em; }
+/* 표지(문./답.)가 들어간 첫 문단은 절대 들여쓰지 않는다 */
+.dev p:has(> span.dev-label:first-child) { text-indent: 0; }
+.chapter-head p { text-indent: 0; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+code { background:none; padding:0; font-size:.95em; }
+pre { background:none; border:1px solid var(--fg); border-radius:0;
+      padding:.95rem 1.05rem; overflow-x:auto; line-height:1.6; font-size:.95rem;
+      margin:1.2rem 0; }
+.tok-c { color:var(--tok-c); font-style:italic; }
+.tok-k { color:var(--tok-k); font-weight:700; }
+.tok-s { color:var(--tok-s); }
+.tok-n { color:var(--tok-n); }
+.tok-t { color:var(--tok-t); font-weight:700; }
+.tok-x { color:var(--tok-x); }
+.tok-p { color:var(--tok-p); }
+pre code { background:none; padding:0; }
+/* 표: 바깥은 굵게, 안은 가늘게, 머리행은 굵은 글씨에 옅은 음영
+   (저자 지시 2026-08-06). */
+/* 표는 내용에 필요한 만큼만 폭을 쓰고 가운데에 선다. 100% 폭으로 늘리면
+   셀 오른쪽에 빈 칸이 생겨 테두리와 내용이 어긋나 보인다
+   (저자 지적 2026-08-06). 넘칠 때는 감싼 .tblwrap 이 가로로 스크롤한다. */
+.tblwrap { overflow-x:auto; text-align:center; }
+/* inline-table 은 언제나 내용만큼만 넓어진다(shrink-to-fit). flex 로 가운데를
+   맞추면 브라우저에 따라 늘어나거나 왼쪽이 잘리는 일이 있어 이 방식을 쓴다. */
+.tblwrap > table { display:inline-table; width:auto; max-width:none; margin:1.1rem 0; }
+table { border-collapse:collapse; margin:1.1rem auto; font-size:.95rem;
+        width:auto; max-width:100%; border:2px solid var(--fg);
+        table-layout:auto; }
+th, td { white-space:normal; }
+th,td { border:1px solid var(--rule); padding:.42rem .6rem; text-align:left; vertical-align:top; }
+/* 머리행 — 옅은 음영으로 포인트를 준다(PDF 와 같은 처리). 색이 아니라
+   반투명 회색이라 밝은·어두운 테마 양쪽에서 자연스럽다. */
+th { background:rgba(128,128,128,.16); font-weight:700;
+     border-bottom:2px solid var(--fg);
+     font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+table tr:first-child th, table tr:first-child td { border-bottom:1px solid var(--fg); }
+ul,ol { padding-left:1.4rem; } li { margin:.3rem 0; }
+/* 표·그림 목록은 훑어보는 것이라 촘촘해야 한다 (저자 지시 2026-08-31) */
+.float-list { list-style:none; padding-left:0; }
+.float-list li { margin:.12rem 0; }
+/* 메모리 사물함 도해 — 칸과 그 아래 주소. 표 서식과 섞이지 않게 따로 둔다. */
+.memrow { overflow-x:auto; text-align:center; margin:1.1rem 0 .2rem; }
+.memrow table.mem { display:inline-table; border-collapse:collapse;
+  border:none; margin:0; width:auto; }
+.memrow td.cell { border:1px solid var(--fg); padding:.3rem .5rem;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.9rem;
+  text-align:center; background:none; }
+.memrow td.cell.hi { border-width:2px; }
+.memrow td.addr { border:none; padding:.15rem .5rem 0; text-align:center;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.82rem;
+  color:var(--muted); }
+/* 시연 — 소스와 실행 결과는 선명한 검은 테두리로 묶는다 */
+/* 시연 상자 — 문답과 같은 1×2 모양. 위 칸은 표제(파일 경로는 고정폭,
+   "실행 결과"는 산세리프 굵은 글씨), 가로선 아래 칸이 내용이다
+   (저자 지시 2026-08-06). */
+.demo { border:1px solid var(--fg); margin:1.15rem 0; }
+.demo > .demo-head { margin:0; padding:.5rem .9rem; text-indent:0;
+  border-bottom:1px solid var(--fg); font-weight:700; font-size:.92rem; }
+.demo-src > .demo-head { font-family:"PCB Mono","D2Coding",ui-monospace,monospace; }
+.demo-in > .demo-head, .demo-out > .demo-head {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.demo > .demo-body { padding:0; }
+.demo > .demo-body pre { border:none; border-radius:0; margin:0;
+  padding:.6rem .9rem; }
+
+/* ── 왼쪽 세로선 규율 (저자 지시 2026-08-10) ─────────────────
+   네 변 상자는 좌우 안쪽 여백이 양쪽에서 폭을 갉는다. 왼쪽 세로선 하나로
+   영역만 표시하고 오른쪽은 열어 둔다. 제목 쪽 선이 내용 쪽보다 굵고, 둘은
+   서로 붙지 않는다(사이에 여백). 제목(heading)은 반대로 *가로* 밑줄이다 ---
+   영역과 경계는 하는 일이 다르므로 표시도 갈라 둔다. */
+.dev { margin:1.15rem 0; padding:0; background:none; border:none; border-radius:0; }
+/* 표지 줄 --- 굵은 왼쪽 선 */
+.dev > .dev-label { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0 0 .34rem; }
+/* 본문 --- 가는 왼쪽 선 *하나*로 끝까지 이어진다.
+   ★ 자식마다 선을 그으면 문단 사이에서 끊기고, 한 문단짜리 본문(맨 글)은
+   선을 아예 받지 못한다. 그래서 본문을 한 겹으로 감싸고 그 칸에만 긋는다. */
+.dev > .dev-body { border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem .35rem .8rem; margin:0; }
+.dev > .dev-body > *:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child { margin-bottom:0; }
+/* 표·그림 캡션 — 대상 아래 가운데, 산세리프 */
+.float-caption { text-align:center; font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; color:var(--muted); margin:.35rem 0 1.2rem; }
+figure { margin:1.2rem 0; }
+figure.tbl table { margin-bottom:.2rem; }
+figure.tbl { text-align:center; }
+.dev > p:first-child { margin-top:0; } .dev > p:last-child { margin-bottom:0; }
+.dev-label { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+             font-size:.92rem; color:var(--muted); margin-bottom:.4rem; }
+/* 장 서두 — 넷을 각각 하나의 상자로 둔다. 표제 줄과 내용을 가로선으로
+   가르는 모양은 문답·복습 정리와 같다 (저자 지시 2026-08-06).
+   ★ 좌우 여백은 *상자*가 준다. 자식 요소에 주면, 본문이 요소로 감싸이지 않은
+     칸(「이 장이 끝나면」)은 여백이 0 이 되고 문단이 여럿인 칸(질문 목록)은
+     여백이 겹쳐 들쭉날쭉해진다. */
+.dev.open { border:none; border-radius:0; background:none;
+  padding:0; margin:.75rem 0; }
+.dev.open > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.98rem; color:var(--fg); text-transform:none; letter-spacing:0; }
+/* 서두 본문은 한 겹(.open-body) 안에 있다 — 위·아래 여백을 여기서 한 번만 준다 */
+.dev.open > .open-body { margin:0; padding:.35rem .8rem;
+  border-left:2px solid var(--box-rule); }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open > .open-body > * { margin:.4rem 0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+/* 질문 목록 — 번호를 보이게 하고 항목 간격은 촘촘히 */
+.dev.open .open-body > ol.qlist { margin:0; padding-left:1.35rem; }
+.dev.open ol.qlist li { margin:.18rem 0; padding-left:.15rem; }
+.dev.open ol.qlist li::marker { color:var(--muted); font-weight:700; }
+/* 돌아보기 안의 답 — 왼쪽 가는 선으로 구분 */
+.dev.open .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.06rem 0 .06rem .7rem; margin:.32rem 0 0; }
+/* 서두 표지: 굵고 선명한 검은 산세리프, 본문보다 약간 크게
+   (저자 지시 2026-08-06). 대문자 변형과 자간 늘리기는 쓰지 않는다. */
+.prereq .dev-label, .deepqa .dev-label, .why .dev-label,
+.organizer .dev-label, .questions .dev-label {
+  text-transform:none; letter-spacing:0; font-size:1.12rem; font-weight:700;
+  color:var(--fg); margin-bottom:.45rem; }
+/* 돌아보기 안의 답 — 왼쪽 세로선을 또렷하게 */
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+
+/* 문답 — 질문 쪽 선이 굵고, 답 쪽이 가늘고, 둘 사이가 떨어져 있다 */
+.qa-box { border:none; margin:1.15rem 0; }
+.qa-box .dev { margin:0; border:none; border-radius:0; padding:0; background:none; }
+.qa-box .qa-q { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0; }
+.qa-box .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem; margin:.34rem 0 0; }
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:0; }
+/* 복습 정리도 문답과 같은 상자 — 표제 줄과 본문을 가로선으로 가른다 */
+.dev.recap { border:none; background:none; padding:0; margin:1.15rem 0; }
+.dev.recap > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+.dev.recap > .dev-body > p, .dev.recap > .dev-body > div:not(.demo),
+.dev.recap > .dev-body > figure { margin:.3rem 0; padding:0; }
+
+/* ★ 장치 안에 든 시연 상자 --- 소스와 실행 결과는 중첩되어도 상자 그대로다
+   (저자 지시 2026-08-10). 바깥의 세로선 안쪽에서 조금 좁혀 놓는다. */
+.dev > .dev-body > .demo { margin:.7rem 0; }
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+/* 문./답. 은 줄을 바꾸지 않고 질문·답 첫 문단과 같은 줄에 이어 붙는다
+   (저자 지시 2026-08-06). 답의 둘째 문단부터는 그대로 문단으로 흐른다. */
+.qa-q .dev-label, .qa-a .dev-label, .deepqa .qa-a .dev-label {
+  display:inline; margin-bottom:0; }
+.qa-q .dev-label + p, .qa-a .dev-label + p { display:inline; }
+.qa-q .dev-label, .qa-q .dev-label + p {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  color:var(--fg); font-size:1rem; }
+.qa-a .dev-label { color:var(--muted); }
+.qa-a .dev-label + p { font-family:inherit; font-weight:400; }
+span.dev-label { display:inline; font-size:1rem; margin:0; }
+/* 상자형 장치 공통 — 문답 상자와 같은 모양: 표제 줄과 본문을 가로선으로
+   가르고, 좌우 여백은 상자가 준다 (저자 지시 2026-08-06).
+   ★ 예전의 2단 구조(.misconception + div) 규칙이 남아 뒤따르는 문답 상자를
+     오해 상자의 아랫칸처럼 그리던 문제를 여기서 없앤다. */
+/* 같은 꼴을 쓰는 상자들 --- 네 변을 걷고 왼쪽 세로선만 남긴다
+   (저자 지시 2026-08-10). 소스 코드와 실행 결과(.demo)는 그대로 상자다. */
+.dev.misconception, .dev.realcase, .dev.antipattern, .dev.mathbox,
+.dev.platform, .dev.recap {
+  border:none; border-radius:0; background:none; padding:0; margin:1.15rem 0; }
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem; text-indent:0;
+  border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+/* ★ 본문 칸(.dev-body)은 건드리지 않는다 --- 전에는 `> div` 가 그것까지 잡아
+   padding:0 으로 덮어, 실제 사례·반례·흔한 오해의 글이 왼쪽 선에 바짝 붙었다
+   (저자 지적 2026-08-10). 안쪽 문단의 간격만 손본다. */
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure, .dev > .open-body > p {
+  margin:.35rem 0; padding:0; }
+/* 상자 안의 문단 간격은 한 줄 사이 정도로 — 본문 문단 간격(.9rem)을 그대로
+   쓰면 상자 안이 헐렁해 보인다 (저자 지시 2026-08-06). */
+/* 고정 바: 제목은 왼쪽 끝, 장 이동 화살표·언어·GitHub 는 오른쪽 끝
+   (저자 지시 2026-08-06) */
+.bar > strong { flex:0 0 auto; }
+.bar .bar-nav { display:flex; gap:.55rem; align-items:center; margin-right:.35rem; }
+.bar .bar-nav a, .bar .bar-nav .off {
+  display:inline-block; min-width:1.35rem; text-align:center;
+  font-size:1.15rem; line-height:1.1; text-decoration:none; }
+.bar .bar-nav a:hover { text-decoration:none; color:var(--fg); }
+.bar .bar-nav .off { color:var(--muted); opacity:.35; }
+.dev p, .dev div, .dev ul, .dev ol, .qa-box p, .qa-box div {
+  margin-top:.4rem; margin-bottom:.4rem; }
+.dev > *:first-child, .qa-box .dev > *:first-child { margin-top:0; }
+.dev > *:last-child, .qa-box .dev > *:last-child { margin-bottom:0; }
+.dev ul, .dev ol { padding-left:1.3rem; }
+.dev li { margin:.15rem 0; }
+/* ★ 반례의 세로선도 실선이다(저자 지시 2026-08-10). 예전에는 점선으로 갈래를
+   구별했는데, 왼쪽 세로선 체계로 바꾼 뒤로는 그것만 따로 놀았다 --- 갈래는
+   선 모양이 아니라 표지 글(「반례.」)이 말한다. */
+.dev.antipattern > .dev-label { border-left-style:solid; }
+
+.dev.mathbox { font-size:.95rem; }
+.note { border:1px solid var(--rule); background:none; padding:.65rem .9rem;
+        margin:0 0 1.6rem; font-size:.9rem; }
+/* ★ 표지에는 가로줄을 두지 않는다(저자 지시 2026-08-10) --- 제목 밑의 옅은 줄은
+   *일반 제목의 밑줄 규칙*이 표지 제목까지 잡은 것이었고, 소개글 밑의 줄은 표지
+   블록 자신의 아래 테두리였다. 표지는 경계를 말할 자리가 아니다. */
+.cover { text-align:center; margin:1.4rem 0 2rem; padding-bottom:1.2rem; }
+.cover h1 { font-size:clamp(1.9rem,5vw,2.9rem); margin:0; letter-spacing:.01em;
+            padding-bottom:0; border-bottom:none; }
+.cover p { margin:.45rem 0; }
+.cover-sub { font-size:clamp(1rem,2.2vw,1.2rem); color:var(--fg); }
+.badge { display:inline-block; margin-top:.5rem; padding:.16rem .6rem;
+         border:1px solid var(--fg); font-size:.8rem; font-weight:700;
+         font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-meta { color:var(--muted); font-size:.9rem;
+              font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-author { margin-top:1.1rem; font-size:1.05rem; }
+.cover-links { font-size:.87rem; }
+.cover-links a { margin:0 .6rem; }
+.cover-blurb { max-width:44rem; margin:1.7rem auto 0; font-size:.95rem; color:var(--muted); }
+.cover-blurb p { margin:.5rem 0; }
+.metalist { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+  margin:.6rem 0 1rem; }
+.metalist dt { color:var(--muted); font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; }
+.metalist dd { margin:0; }
+.colophon-meta { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+                 margin:1.2rem 0 1.8rem; font-size:.93rem; }
+.colophon-meta dt { color:var(--muted);
+                    font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-size:.88rem; }
+.colophon-meta dd { margin:0; }
+.colophon { font-size:.93rem; }
+.colophon > div { margin:.9rem 0; padding-left:.9rem; border-left:1px solid var(--rule); }
+/* 개념도 — 흑백 선화라 다크 모드에서는 반전해 준다 */
+figure.fig { margin:1.6rem 0; text-align:center; }
+figure.fig img { max-width:100%; height:auto; }
+figure.fig figcaption { margin-top:.5rem; font-size:.92rem; color:var(--muted); }
+@media (prefers-color-scheme: dark) { figure.fig img { filter:invert(1) hue-rotate(180deg); } }
+:root[data-theme="dark"] figure.fig img { filter:invert(1) hue-rotate(180deg); }
+:root[data-theme="light"] figure.fig img { filter:none; }
+.toc { columns:24rem; column-gap:2.4rem; }
+.toc-part { break-inside:avoid; margin:1.1rem 0 .3rem; font-size:.95rem; letter-spacing:.02em;
+            font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.toc-part:first-child { margin-top:0; }
+.toc-front { margin-bottom:.4rem; }
+/* 차례도 선 없이 --- 왼쪽 세로줄과 장마다의 밑줄을 걷어 낸다(저자 지시 2026-08-10).
+   여기는 장치가 아니라 목록이라 선이 뜻하는 바가 없다. */
+.toc-group { break-inside:avoid; padding-left:.85rem; }
+.toc a { display:block; padding:.28rem 0; text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.nav { display:flex; gap:1rem; align-items:center; margin-top:3rem; padding-top:1rem;
+       border-top:1px solid var(--rule); font-size:.9rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.nav .sp { flex:1 1 auto; }
+
+/* ── 서식 예시의 이름표 ─────────────────────────────────────────
+   조판 견본(style-specimen)에서만 나온다. 「이 모양을 뭐라고 부르는가」를
+   그 자리에 붙여 둔다 --- 본문에는 쓰지 않는다. */
+code.style-name { font-family:"PCB Mono","D2Coding",ui-monospace,monospace;
+  font-size:.72em; color:var(--muted); background:var(--rule);
+  padding:.05em .35em; border-radius:3px; white-space:nowrap;
+  font-weight:400; letter-spacing:0; }
+
+/* ── 조판 값 --- 견본에서 시험해 채택한 것들 (저자 지시 2026-08-10) ─────
+ *
+ * 아래는 견본(style-specimen)에서 눈으로 확인한 뒤 책에 들인 값이다.
+ * 여백은 일반적인 책의 숨에 맞추고, 선은 색 하나(#d5d5d5)로 모았다
+ * --- 표만 예외다(격자는 옅으면 칸이 안 읽힌다).
+ */
+
+/* 서두 다섯 칸 --- 표지 줄이 선에 눌려 있었다 */
+.dev.open > .dev-label { padding-top:.42rem; padding-bottom:.42rem; }
+.dev.open > .open-body { padding-top:.4rem; padding-bottom:.4rem; }
+.dev.open > .open-body > p { margin:.6rem 0; }
+
+/* 장치 안의 글도 조금 넉넉하게 */
+.dev > .dev-body { padding-top:.5rem; padding-bottom:.5rem; }
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure { margin:.55rem 0; }
+
+/* 본문 --- 줄 사이와 문단 사이 */
+main { line-height:1.85; }
+p { margin:1.15rem 0; }
+h2 { margin-top:2.4rem; }
+h3 { margin-top:2rem; }
+li { margin:.3rem 0; }
+
+/* 제목 밑줄 --- 시험 중: 검정 대신 흐린 회색(저자 지시 2026-08-10).
+   경계를 말하되 글자보다 앞서지 않게. */
+/* 제목 밑줄도 팔레트를 따른다 --- 고정색이면 어두운 테마에서 홀로 밝다 */
+h1, h2, h3, h4 { border-bottom-color:var(--box-rule) !important; }
+
+/* 차례 --- 본문의 넉넉한 행간을 그대로 받아 헐거웠다. 목록은 촘촘해야 훑힌다.
+   (저자 지시 2026-08-10, 웹판 견본) */
+.toc { line-height:1.45; }
+.toc a { padding:.16rem 0; }
+.toc-part { margin:.85rem 0 .2rem; }
+
+/* 저작권·연락처 --- 두 칸짜리 표는 줄 사이가 벌어질수록 짝이 흩어진다 */
+.metalist { line-height:1.45; gap:.2rem 1.2rem; }
+.metalist dt, .metalist dd { margin:0; }
+
+/* 시연 상자(소스 코드·실행 결과) --- 시험 중: 테두리를 연한 회색으로
+   (저자 지시 2026-08-10). 코드가 이미 검은 덩어리다. */
+.demo { border-color:var(--box-rule); }
+.demo > .demo-head { border-bottom-color:var(--box-rule); }
+
+/* ── 왼쪽 세로선 --- 시험 중: 검정에서 연한 회색으로 (저자 지시 2026-08-10)
+ * 색은 팔레트(--box-rule)를 따른다 --- 테마가 바뀌면 선도 함께 바뀐다.
+ * 굵기(4px 대 2px)가 층위를 말하므로 색까지 세게 말할 까닭이 없다. */
+.dev > .dev-label,
+.dev.open > .dev-label,
+.qa-box .qa-q,
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  border-left-color:var(--box-rule); }
+
+.dev > .dev-body,
+.dev > .open-body,
+.dev.open .qa-a,
+.qa-box .qa-a,
+.deepqa .qa-a { border-left-color:var(--box-rule); }
+
+/* ★ 선의 색은 하나다(저자 지시 2026-08-10) --- 표(.tbl)만 예외로 제 색을 쓴다.
+   여기 한 줄로 못 박아, 뒤에 무엇이 오든 같은 회색이 되게 한다. */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div {
+  border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* ★ 특이도(specificity) 함정 --- `.dev.open > .open-body` 는 클래스가 셋이라
+   위의 `.dev *`(하나) 나 `.dev > .open-body`(둘) 보다 세다. 그래서 서두 칸의
+   *내용* 세로선만 var(--box-rule)=#9a9a9a 로 남아 혼자 진했다(저자 지적).
+   같은 자리를 같은 힘으로 눌러 준다. */
+.dev.open > .open-body,
+.dev.open > .qa-a,
+.dev.open .qa-a,
+.dev.deepqa .qa-a,
+.qa-box > .qa-a,
+.qa-box > .qa-q { border-left-color:var(--box-rule); }
+
+/* 상단 바의 차례 그림글자 --- 글자 크기를 조금 키워 다른 이름들과 눈높이를 맞춘다 */
+.bar .bar-toc { font-size:1.15em; line-height:1; text-decoration:none; }
+
+/* ── 통일 (저자 지시 2026-08-11) ─────────────────────────────────────
+ * ★ 「글 전체의 통일성이 중요하다」 --- 장치 안의 글도, 장 안의 차례도, 본문과
+ *   같은 크기·행간·문단 간격을 쓴다. 예전에는 자리마다 값이 조금씩 달라
+ *   상자를 지날 때마다 리듬이 흔들렸다.
+ */
+.dev, .dev-body, .open-body, .qa-box, .qa-q, .qa-a, .dev-label,
+.toc-full, .toc-full .tf-secs { line-height:inherit; font-size:1rem; }
+.dev > .dev-body > p, .dev > .open-body > p,
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:1.15rem 0; }
+.dev > .dev-body > *:first-child, .dev > .open-body > *:first-child,
+.qa-box .qa-q > p:first-child, .qa-box .qa-a > p:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child, .dev > .open-body > *:last-child,
+.qa-box .qa-q > p:last-child, .qa-box .qa-a > p:last-child { margin-bottom:0; }
+/* 표지 줄만은 제 크기를 지킨다 --- 이름이지 본문이 아니다 */
+.dev > .dev-label, .dev.open > .dev-label { font-size:.98rem; line-height:1.4; }
+
+/* 제목: 글자와 밑줄 사이를 넉넉히, 그만큼 밑줄 아래도 넉넉히 */
+h1,h2,h3,h4 { padding-bottom:.34rem; }
+h1 { margin:.2rem 0 1.3rem; }
+h2 { padding-bottom:.42rem; margin-bottom:1.15rem; }
+h3 { padding-bottom:.36rem; margin-bottom:.95rem; }
+
+/* ── 장 서두 칸의 목록과 문단 (저자 지시 2026-08-11) ──────────────────
+ * ★ 항목 사이에 여백을 또 주면 *행간이 두 번 붙은 것처럼* 보인다. 서두 칸은
+ *   짧은 줄이 여럿 늘어서는 자리라 그 겹침이 특히 크게 보였다. 항목 사이
+ *   간격은 행간이 대신하게 두고, 여백은 문단 사이에만 최소로 준다.
+ *   행간 자체는 본문과 같다(main 에서 물려받는다) --- 값을 따로 두지 않는다.
+ */
+.dev.open > .open-body > * { margin:.3rem 0; }
+.dev.open > .open-body > p { margin:.5rem 0; }
+.dev.open > .open-body > div { margin:.15rem 0; }   /* 「먼저 알아야 할 것」의 한 줄들 */
+.dev.open ul, .dev.open ol { margin:.3rem 0; }
+.dev.open li, .dev.open ol.qlist li { margin:0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open .qa-a > p { margin:.35rem 0; }
+
+/* ── 웹판만의 조정 (저자 승인 2026-08-11) ─────────────────────────────
+ * ★ 선의 색을 종이와 화면이 나눠 쓴다. 종이는 잉크가 실제로 얹혀 #d5d5d5 도
+ *   보이지만, 화면에서는 흰 배경 대비 **1.47:1** 이라 밝기를 낮추거나 값싼
+ *   패널에서는 사실상 사라진다 --- 「영역을 한눈에」라는 목적이 화면에서만
+ *   무너진다. 그래서 웹만 한 단계 진하게 둔다(#c4c4c4, 대비 1.75:1).
+ */
+/* 선의 색은 팔레트의 --box-rule 을 따른다 --- 테마가 바뀌면 함께 바뀐다 */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div { border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* 키보드로 다닐 때 지금 어디인지 보여야 한다 --- 없으면 링크를 세며 다녀야 한다 */
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline:2px solid var(--link); outline-offset:2px; border-radius:2px; }
+
+/* 고정 바 아래로 제목이 숨지 않게 --- 차례에서 절을 누르면 바에 가렸다 */
+:target, h1, h2, h3, h4, [id] { scroll-margin-top:4.2rem; }
+
+/* 본문 건너뛰기 --- 상단 바의 링크를 매 쪽마다 지나지 않아도 되게 */
+.skip { position:absolute; left:-9999px; top:0; z-index:30;
+        background:var(--bg); color:var(--fg); border:1px solid var(--fg);
+        padding:.5rem .8rem; font-size:.9rem; text-decoration:none; }
+.skip:focus { left:.5rem; top:.5rem; }
+
+/* ── 상단 바의 펼침 패널과 읽기 설정 (저자 지시 2026-08-11) ────────────
+ * 바에는 넷만 둔다. 나머지는 여기로 접었다 --- 늘 보이던 것을 접어 두면
+ * 읽는 자리가 넓어지고, 필요할 때는 한 번의 누름으로 전부 나온다.
+ */
+.here-btn { font:inherit; color:inherit; background:none; border:1px solid transparent;
+  border-radius:4px; padding:.1rem .45rem; cursor:pointer; }
+.here-btn .caret { color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:78vh; overflow:auto;
+  background:var(--bg); border-bottom:1px solid var(--rule);
+  padding:.6rem clamp(.8rem,3vw,2.5rem) .9rem; }
+
+/* 도구 줄 --- 인라인으로 죽 늘어서다 좁으면 다음 줄로 넘어간다 */
+.here-panel .tools { display:flex; flex-wrap:wrap; gap:.3rem .5rem; align-items:center;
+  margin-bottom:.5rem; }
+.tool { font:inherit; font-size:.86rem; color:inherit; background:none;
+  border:1px solid var(--rule); border-radius:4px; padding:.2rem .55rem;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+
+/* ★ 누를 수 있다는 것을 바탕색으로 말한다(저자 지시) --- 글자만 바뀌면
+   손이 닿기 전에는 알 수 없다. */
+.tool:hover, .here-btn:hover, .bar a:hover, .nav a:hover,
+.here-panel .here-body a:hover { background:var(--box-bg); }
+.tool:hover { border-color:var(--box-rule); }
+.here-btn:hover { border-color:var(--rule); }
+.bar a, .nav a { border-radius:4px; padding:.1rem .35rem; }
+.tool:active, .here-btn:active, .bar a:active { transform:translateY(1px); }
+.segb[aria-pressed="true"] { background:var(--box-bg); border-color:var(--fg); font-weight:700; }
+
+/* 본문 링크 --- 밑줄로 있음을 말하고, 손이 닿으면 바탕으로 답한다 */
+main a { text-decoration:underline; text-decoration-color:var(--box-rule);
+  text-underline-offset:2px; border-radius:3px; }
+main a:hover { background:var(--box-bg); text-decoration-color:var(--link); }
+main .toc a, main .toc-full a, main .here-body a { text-decoration:none; }
+main .toc a:hover, main .toc-full a:hover { background:var(--box-bg); text-decoration:underline; }
+
+/* 읽기 설정 상자 */
+.setbox { border:1px solid var(--rule); border-radius:5px; padding:.6rem .7rem;
+  margin:0 0 .6rem; font-size:.88rem;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.setrow { display:flex; flex-wrap:wrap; gap:.4rem .7rem; align-items:center;
+  margin:.35rem 0; }
+.setlbl { color:var(--muted); min-width:3.2rem; }
+.seg { display:inline-flex; gap:.25rem; }
+.segb { font:inherit; color:inherit; background:none; border:1px solid var(--rule);
+  border-radius:4px; padding:.15rem .5rem; cursor:pointer; }
+.col { display:inline-flex; align-items:center; gap:.3rem; }
+.col input[type=color] { width:2rem; height:1.4rem; padding:0; border:1px solid var(--rule);
+  border-radius:3px; background:none; cursor:pointer; }
+.setnote { margin:.5rem 0 0; color:var(--muted); font-size:.82rem; }
+
+/* 가로폭 제한 --- 기본은 제한 없음(설계 의도). 독자가 켤 때만 걸린다. */
+:root[data-measure="on"] main .wrap { max-width:46rem; margin-inline:auto; }
+
+/* 펼침 패널 맨 왼쪽의 판 번호 --- 도구가 아니라 표시다(누를 것이 없다) */
+.here-panel .ver { font-size:.82rem; color:var(--muted); padding:.2rem .45rem .2rem 0;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; white-space:nowrap; }
+
+/* ── 코드와 실행 결과의 줄바꿈 (저자 지시 2026-08-11) ─────────────────
+ * ★ 가로로 흘러 넘치게 두면 긴 줄은 *가로 스크롤 안에 숨는다.* 종이에서는
+ *   글자 단위로 접어 넣고 있으니(lib.typ 의 _hardwrap), 화면에서도 같은
+ *   약속을 지킨다 --- 넘치는 대신 접는다. 들여쓰기는 그대로 살린다.
+ */
+.demo pre, .demo pre code {
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+.demo > .demo-body { overflow-x:visible; }
+
+/* ── 절의 주소(permalink) ─────────────────────────────────────────
+   종이 책에는 쪽수가 있지만 웹 판에는 없어서, 남에게 「거기」를 알려 줄
+   방법이 없었다. 절마다 닻을 두되 *읽기를 방해하지 않게* --- 평소에는
+   보이지 않다가 제목에 닿거나 키보드 초점이 오면 드러난다. */
+.plink {
+  margin-left: .4em; font-weight: 400; text-decoration: none;
+  color: var(--muted, #888); opacity: 0; transition: opacity .12s;
+}
+h3:hover > .plink, h4:hover > .plink,
+h3 > .plink:focus, h4 > .plink:focus { opacity: 1; }
+@media (hover: none) { .plink { opacity: .45; } }
+
+/* ── 검색 ─────────────────────────────────────────────────────────
+   *제목과 색인 표제어*만 찾는다. 본문 전체 색인은 판마다 수 MB 라
+   내려받게 하는 값이 얻는 것보다 크다. 무엇을 찾는지 화면에 적어 둔다. */
+.searchbox { margin:.6em 0 0; }
+.searchbox input[type=search] {
+  width: 100%; padding: .45em .6em; font: inherit;
+  border: 1px solid var(--rule, #ccc); border-radius: 4px;
+  background: var(--bg, #fff); color: var(--fg, #111);
+}
+.search-hint { color: var(--muted, #777); font-size: .85em; margin:.3em 0 0; }
+.search-results { list-style: none; padding: 0; margin: .5em 0 0; }
+.search-results li { margin: .15em 0; }
+.search-results .where { color: var(--muted, #777); font-size: .85em; margin-left: .4em; }
+
+body { font-family:"PCB Serif","Noto Serif",Georgia,"Noto Serif CJK KR",serif; }
+h1,h2,h3,h4,.bar,.dev-label,.toc-part,.cover-meta,.badge,
+.colophon-meta dt { font-family:"Noto Sans",system-ui,"Noto Sans CJK KR",sans-serif; }
+pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,monospace; }
+</style>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 11 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch10.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch12.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch11.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s11-1"><span class="tf-no">11.1</span>option — a value, or none</a><a class="lv3" href="#s11-2"><span class="tf-no">11.2</span>result and the errors clause</a><a class="lv3" href="#s11-3"><span class="tf-no">11.3</span>try — passing failure upwards</a><a class="lv3" href="#s11-4"><span class="tf-no">11.4</span>Binding else — take the content, or leave</a><a class="lv3" href="#s11-5"><span class="tf-no">11.5</span>Crossing between the two channels</a><a class="lv3" href="#s11-6"><span class="tf-no">11.6</span>Three ways to report failure</a><a class="lv3" href="#s11-7"><span class="tf-no">11.7</span>Combining and nesting patterns</a><a class="lv3" href="#s11-8"><span class="tf-no">11.8</span>Common mistakes</a><a class="lv3" href="#s11-9"><span class="tf-no">11.9</span>This chapter’s syntax at a glance</a></div></div>
+<main id="content"><div class="wrap">
+<h2>11 Types that hold answers — <code>option</code> and <code>result</code></h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 7, Flow · <code>guard</code> and <code>panic</code></div><div>chapter 10, Aggregates · enums carrying values, and <code>match</code></div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>What does <code>case rect w h</code> in chapter 10 do? And what happens when a <code>match</code> leaves out a variant?</p><div class="qa-a"><p><span class="dev-label">A.</span> When the variant is <code>rect</code>, it binds the two values the variant carries to <code>w</code> and <code>h</code>. Leaving out a variant is rejected with <code>E-MATCH-INEXHAUSTIVE</code>. The <code>option</code> and <code>result</code> of this chapter behave like two-variant enums the language made in advance — a value is there or not, it succeeded or failed.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">The habit of signalling failure with a special value such as −1 or a null pointer makes it impossible to tell from the source whether “this −1 is an error or just −1”. And forgetting the check goes unnoticed. <code>option</code> and <code>result</code> move that question into the type. This chapter sits in the middle of Part III because nearly every op that takes data out — a lookup, a conversion, a parser — returns “may be missing” or “may fail”.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn to make an <code>option</code> with <code>some</code> and <code>none</code>, and to use it by asking and taking out, by giving a fallback with <code>value_or</code>, or by splitting with <code>match</code>. You will see that taking out without checking stops. You will also see that <code>result</code> pairs with an <code>errors</code> clause, that <code>try</code> passes a failure upwards, and that the <code>else_none</code> and <code>else_error</code> tails cross between the two. Finally you will settle the criterion that separates the three ways of reporting failure — <code>result</code>, <code>option</code> and <code>panic</code> — and see or-patterns, nested patterns and <code>match</code> folded at translation time.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>If I put an expensive computation in <code>value_or</code>’s default, is it computed every time?</li></ol></div></div><div></div><h3 id="s11-1">11.1 <code>option</code> — a value, or none<a class="plink" href="#s11-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-22"></span><p><code>option t</code> is either a value of <code>t</code> (<code>some v. .</code>) or nothing (<code>none</code>). Together with <code>result</code>, seen later, it helps to draw them as <strong>two kinds of box</strong> that hold a value.</p><pre><code data-lang="text"> option u64         ┌──────────┐              result u64 e     ┌──────────────┐
+                    │ some 20  │  a value                       │ ok 20        │  a value
+                    ├──────────┤                               ├──────────────┤
+                    │ none     │  empty                         │ error bad    │  it failed ---
+                    └──────────┘  (nothing was there)           └──────────────┘  and carries why (bad)</code></pre><p><code>none</code> is not something strange but the normal answer “there was nothing”, and <code>error</code> is the answer “what I tried failed”. Either way, the value inside cannot be used <strong>before the box is opened</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/lookup.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> lookup .
+<em><span class="tok-c">rem run: find 2</span></em>
+<em><span class="tok-c">rem run: find 7</span></em>
+<em><span class="tok-c">rem run: find_or 7</span></em>
+<em><span class="tok-c">rem run: find_asked 2</span></em>
+<em><span class="tok-c">rem run: find_match 7</span></em>
+<em><span class="tok-c">rem trap: find_raw 7</span></em>
+
+<strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt k. <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> . .
+  <strong><span class="tok-k">return</span></strong> some mul k. <span class="tok-n">10</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> find_or <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> value_or find k. . <span class="tok-n">99</span> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> find_asked <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> find k. . .
+  <strong><span class="tok-k">guard</span></strong> is_some r. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> . .
+  <strong><span class="tok-k">return</span></strong> some_value r. . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> find_match <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> find k. . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> some v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v. . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">none</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> find_raw <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> some_value find k. . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run find lookup.low 2
+find(2) = some 20
+$ lowentc --run find lookup.low 7
+find(7) = none
+$ lowentc --run find_or lookup.low 7
+find_or(7) = 99
+$ lowentc --run find_asked lookup.low 2
+find_asked(2) = 20
+$ lowentc --run find_match lookup.low 7
+find_match(7) = 0
+$ lowentc --run find_raw lookup.low 7
+== ir diagnostics (1) ==
+0:0 E-VM-NONE: some_value of none (panic)
+</code></pre></div></div><p><code>find</code>, the producer, wraps values with <code>return none .</code> and <code>return some mul k. 10 . . .</code>, and the VM shows the results as <code>some 20 .</code> and <code>none</code>. The receiver can use it three ways.</p><ul><li><code>find_or</code> — <code>value_or find k. . 99 .</code> gives the value if there is one, and 99 otherwise.</li><li><code>find_asked</code> — asks first with <code>guard is_some r else …</code> and takes the value out with <code>some_value r. .</code>.</li><li><code>find_match</code> — splits with <code>match</code> into <code>case some v</code> and <code>case none</code>. The two arms cover every case.</li></ul><p><code>find_raw</code> takes the value out without asking. Translation passes, but execution stops at 7, which has no value (<code>E-VM-NONE</code>). Taking a value out is a <strong>partial operation</strong>. On which paths a value exists is something the author knows and the processor cannot always know, so translation does not block it. Instead it is not silent when wrong — it does not hand out 0 and carry on.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> If I put an expensive computation in <code>value_or</code>’s default, is it computed every time?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> No. The default is computed <strong>only when there is no value</strong>. <code>value_or some 7 . div 1 0 . .</code> is 7, and no division by zero happens. So you may put a computation that can fail in the default. This behaviour was once the other way round and was fixed to match the specification.</p></div></div><h3 id="s11-2">11.2 <code>result</code> and the <code>errors</code> clause<a class="plink" href="#s11-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-23"></span><p><code>result t e</code> is either a successful value (<code>ok v. .</code>) or an error (<code>error &lt;variant></code>). The error type <code>e</code> is usually an <code>enum</code>. And an op that <span id="idx-entry-24"></span>returns a <code>result</code> writes <strong>when it produces which error</strong> in its <code>errors</code> clause.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/halve.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> halving .
+<em><span class="tok-c">rem run: halve 100</span></em>
+<em><span class="tok-c">rem run: halve 250</span></em>
+<em><span class="tok-c">rem run: halve 101</span></em>
+<em><span class="tok-c">rem run: halve_plus_one 100</span></em>
+<em><span class="tok-c">rem run: halve_plus_one 250</span></em>
+<em><span class="tok-c">rem run: halve_or_zero 250</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> io_error <strong><span class="tok-k">do</span></strong>
+  too_big .
+  odd .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error .
+  <strong><span class="tok-k">errors</span></strong> too_big gt a. <span class="tok-n">200</span> . .
+  <strong><span class="tok-k">errors</span></strong> odd ne mod a. <span class="tok-n">2</span> . <span class="tok-n">0</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> le a. <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">guard</span></strong> eq mod a. <span class="tok-n">2</span> . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error odd . . .
+  <strong><span class="tok-k">return</span></strong> ok div a. <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> halve_plus_one <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error .
+  <strong><span class="tok-k">errors</span></strong> too_big gt a. <span class="tok-n">200</span> . .
+  <strong><span class="tok-k">errors</span></strong> odd ne mod a. <span class="tok-n">2</span> . <span class="tok-n">0</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a. . . .
+  <strong><span class="tok-k">return</span></strong> ok add v. <span class="tok-n">1</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> halve_or_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error halve a. . .
+  <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">return</span></strong> ok_value r. . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run halve halve.low 100
+halve(100) = ok 50
+$ lowentc --run halve halve.low 250
+halve(250) = err too_big
+$ lowentc --run halve halve.low 101
+halve(101) = err odd
+$ lowentc --run halve_plus_one halve.low 100
+halve_plus_one(100) = ok 51
+$ lowentc --run halve_plus_one halve.low 250
+halve_plus_one(250) = err too_big
+$ lowentc --run halve_or_zero halve.low 250
+halve_or_zero(250) = 0
+</code></pre></div></div><p><code>halve</code>’s head lists two errors. <code>errors too_big gt a 200 .</code> is the promise “if <code>a</code> is greater than 200, produce <code>too_big</code>”. This clause is a <strong>contract on the way out</strong>. Returning normally while the condition holds, or returning an error not written, is a contract violation. Code that returns an error not written is rejected at translation.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/undeclared.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> undeclared .
+<em><span class="tok-c">rem expect: E-ERR-UNDECLARED</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
+  empty .
+  too_long .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> first_byte <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">guard</span></strong> le len s. . <span class="tok-n">16</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_long . . .
+  <strong><span class="tok-k">return</span></strong> ok idx s. <span class="tok-n">0</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check undeclared.low
+undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clause
+</code></pre></div></div><p><code>too_long</code> is a variant of <code>parse_error</code>, but it is not in <code>first_byte</code>’s <code>errors</code> clause. A caller reading the head would believe handling <code>empty</code> is enough. When what is written and what is produced differ, one side meets failures it never saw and the other handles failures that never come.</p><h3 id="s11-3">11.3 <code>try</code> — passing failure upwards<a class="plink" href="#s11-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-25"></span><p>Writing the failure check by hand every time makes code long, and long code skips checks. <code>try</code> takes a <code>result</code> and, on success, takes out the value; on failure it <strong>returns that error as is and leaves the op</strong>. <code>halve_plus_one</code> in <code>halve.low</code> has that shape.</p><pre><code data-lang="lowent"><strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a. . . .
+<strong><span class="tok-k">return</span></strong> ok add v. <span class="tok-n">1</span> . . .</code></pre><p>Notice that <code>halve_plus_one</code> writes <code>errors</code> in its own head too. To pass an error up with <code>try</code>, it must itself be able to return that error, and it must say so in its contract. There is no path by which a failure silently disappears. To handle the failure here instead of passing it up, ask with <code>is_error</code> and take out with <code>ok_value</code>, as <code>halve_or_zero</code> does.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>try</code> is the <code>try</code> of exception handling</strong></p><div class="dev-body">Java’s or C++‘s <code>try</code> is a place that catches exceptions thrown anywhere in a block. Lowent’s <code>try</code> is attached to <strong>one expression</strong> and marks that expression’s failure as <strong>passed upwards</strong>; it is closer to Rust’s <code>?</code>. There is no throw-and-catch control flow. Failures always come back as values, and where they can be passed on is written in the source.</div></div><h3 id="s11-4">11.4 Binding <code>else</code> — take the content, or leave<a class="plink" href="#s11-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-26"></span><p>When you handle a failure <strong>right here</strong> instead of passing it up, the check-then-take-out pair of lines can be one line. Write the binding’s type as the content’s type and attach what to do when it is empty with <code>else</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/bindelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bindelse .
+<em><span class="tok-c">rem run: lookup 7</span></em>
+<em><span class="tok-c">rem run: lookup 4</span></em>
+<em><span class="tok-c">rem run: doubled 30</span></em>
+<em><span class="tok-c">rem run: doubled 300</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> perr <strong><span class="tok-k">do</span></strong>
+  too_big .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> x xs. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq x. k. . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">return</span></strong> some i. . .
+    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> perr .
+  <strong><span class="tok-k">errors</span></strong> too_big ge a. <span class="tok-n">100</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt a. <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">return</span></strong> ok mul a. <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem take the content out of an option --- leave through else when it is empty</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> lookup <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">5</span> <span class="tok-n">6</span> <span class="tok-n">7</span> . .
+  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-t">u64</span></strong> find xs. k. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . .
+  <strong><span class="tok-k">return</span></strong> add at. <span class="tok-n">100</span> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem a result works the same way --- an error goes to else</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> doubled <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> twice a. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">return</span></strong> add v. <span class="tok-n">1</span> . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run lookup bindelse.low 7
+lookup(7) = 102
+$ lowentc --run lookup bindelse.low 4
+lookup(4) = 99
+$ lowentc --run doubled bindelse.low 30
+doubled(30) = 61
+$ lowentc --run doubled bindelse.low 300
+doubled(300) = 0
+</code></pre></div></div><ul><li><code>let at u64 find xs. k. . else return 99 . .</code> — <code>find</code> returns an <code>option u64</code>. If there is a value, that <code>u64</code> is bound to <code>at</code>; if not, control goes to <code>else</code>. A <code>result</code> works the same way — an error goes to <code>else</code>.</li><li><code>else</code> <strong>must leave</strong> (<code>return</code> · <code>break</code> · <code>continue</code> · <code>panic</code>). So on the lines that use <code>at</code> the value has already been taken out, and using it unchecked cannot happen.</li><li>Where stopping is acceptable, write <code>else panic "…" .</code>. The place that may stop is visible once in the source, and in a pure <code>fn</code> the effect rules refuse it.</li><li>Binding an <code>option</code> as its content without <code>else</code> is refused — the diagnostic tells you to add <code>else</code> or to declare the binding <code>option …</code>. Forgetting that something can fail is caught at translation.</li><li>To pass the error up unchanged, use <code>try</code>. Use <code>else</code> when you want to handle it differently <strong>here</strong>.</li></ul><p>What follows <code>else</code> is written in one of three ways. A single leaving statement is <code>else return 99 .</code> — the statement’s full stop comes at the very end. Several statements are <code>else do … end</code> — the block ends with <code>end</code>, so there is no full stop. To see <strong>why</strong> a <code>result</code> failed, bind the error value to a name with <code>else error &lt;name> do … end</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/elseerror.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elseerror .
+<em><span class="tok-c">rem run: port 8080</span></em>
+<em><span class="tok-c">rem run: port 0</span></em>
+<em><span class="tok-c">rem run: port 70000</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> port_error <strong><span class="tok-k">do</span></strong>
+  zero .
+  too_big .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> check <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> port_error .
+  <strong><span class="tok-k">errors</span></strong> zero eq n. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">errors</span></strong> too_big gt n. <span class="tok-n">65535</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> error zero . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> gt n. <span class="tok-n">65535</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> ok n. . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem look at *why* it failed --- `e` lives only inside this block</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> port <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-t">u64</span></strong> check n. . <strong><span class="tok-k">else</span></strong> error e <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq e. zero. . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">80</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">return</span></strong> <span class="tok-n">65535</span> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> p. .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run port elseerror.low 8080
+port(8080) = 8080
+$ lowentc --run port elseerror.low 0
+port(0) = 80
+$ lowentc --run port elseerror.low 70000
+port(70000) = 65535
+</code></pre></div></div><ul><li><code>let p u64 check n. . else error e do … end .</code> — when <code>check</code> returns an error, that error value is bound to <code>e</code> and the block runs. Every path of the block must leave. <code>e</code> lives only inside the block.</li><li><code>port 0</code> is <code>zero</code>, so the answer is 80; <code>port 70000</code> is <code>too_big</code>, so it is 65535. When the value is an <code>option</code> there is no error to bind, and <code>else error &lt;name></code> is refused with <code>E-BIND-ELSE</code>.</li></ul><h3 id="s11-5">11.5 Crossing between the two channels<a class="plink" href="#s11-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Sometimes the calling op and the called op use different channels. A tail on <code>try</code> changes the container.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/tails.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tails .
+<em><span class="tok-c">rem run: maybe_half 100</span></em>
+<em><span class="tok-c">rem run: maybe_half 250</span></em>
+<em><span class="tok-c">rem run: must_find 2</span></em>
+<em><span class="tok-c">rem run: must_find 9</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> lookup_error <strong><span class="tok-k">do</span></strong>
+  too_big .
+  not_found .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> lookup_error .
+  <strong><span class="tok-k">errors</span></strong> too_big gt a. <span class="tok-n">200</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> le a. <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">return</span></strong> ok div a. <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt k. <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> . .
+  <strong><span class="tok-k">return</span></strong> some mul k. <span class="tok-n">10</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> maybe_half <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> halve a. . else_none . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> must_find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> lookup_error .
+  <strong><span class="tok-k">errors</span></strong> not_found .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> find k. . else_error not_found . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run maybe_half tails.low 100
+maybe_half(100) = some 50
+$ lowentc --run maybe_half tails.low 250
+maybe_half(250) = none
+$ lowentc --run must_find tails.low 2
+must_find(2) = ok 20
+$ lowentc --run must_find tails.low 9
+must_find(9) = err not_found
+</code></pre></div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Direction</strong></th><th><strong>What is lost or gained</strong></th></tr><tr><td><code>try &lt;expr> else_none</code></td><td><code>result</code> → <code>option</code></td><td>The error is <strong>discarded</strong>; why it failed is no longer said</td></tr><tr><td><code>try &lt;expr> else_error &lt;variant></code></td><td><code>option</code> → <code>result</code></td><td>Absence <strong>gets a name</strong></td></tr></table></div><p class="float-caption">Table 11.1 — Changing channel with a <code>try</code> tail</p></figure><p>A <code>try</code> with a tail also changes the type. The type of <code>try halve a. . else_none .</code> is <code>option u8</code>, not <code>u8</code>. That is why <code>maybe_half</code> returns it as is, and why putting it into a value type, as in <code>let v u8 try … else_error …</code>, is rejected.</p><p><code>else_none</code> is a choice that throws information away. It is convenient, so it easily becomes a habit, but from that moment the caller can no longer ask “why”. Throw it away only where it is worth throwing away.</p><h3 id="s11-6">11.6 Three ways to report failure<a class="plink" href="#s11-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>What</strong></th><th><strong>What it says</strong></th><th><strong>What the caller does</strong></th></tr><tr><td><code>result t e</code></td><td>A failure that can be fixed</td><td>Asks which it is and handles it, or passes it up</td></tr><tr><td><code>option t</code></td><td>There is no value</td><td>Asks whether it exists and takes it, or gives a fallback</td></tr><tr><td><code>panic</code> · contract violation</td><td>A promise was broken</td><td>Cannot handle it; the program stops</td></tr></table></div><p class="float-caption">Table 11.2 — Three ways to report failure</p></figure><p>The question that separates the three is “what can the caller do?”. If a file is missing, another file can be tried, so it is a <code>result</code>. If what you look for is not in the list, it simply is not there, so it is an <code>option</code>. If the caller broke a contract, the promise is already broken and cannot be fixed, so execution stops. <code>panic</code> does not unwind; there is no way to catch it midway and carry on. How to design an op’s failures on this criterion is revisited in chapter 17.</p><h3 id="s11-7">11.7 Combining and nesting patterns<a class="plink" href="#s11-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Now that <code>option</code>, <code>result</code> and <code>enum</code> have all appeared, <code>match</code> patterns can be used more widely.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/patterns.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> patterns .
+<em><span class="tok-c">rem run: warm 1</span></em>
+<em><span class="tok-c">rem run: combine 1</span></em>
+<em><span class="tok-c">rem run: pick 1</span></em>
+<em><span class="tok-c">rem run: choose</span></em>
+<em><span class="tok-c">rem run: half 200</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> color <strong><span class="tok-k">do</span></strong>
+  red .
+  green .
+  blue .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> node <strong><span class="tok-k">do</span></strong>
+  num v <strong><span class="tok-t">u32</span></strong> .
+  plus l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
+  times l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem any one match takes the arm --- red, green and blue are all covered, so no _ is needed</span></em>
+<strong><span class="tok-k">fn</span></strong> warm <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> c color green. .
+  <strong><span class="tok-k">match</span></strong> c. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> red or green <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> blue <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem arms joined with or must bind the same names</span></em>
+<strong><span class="tok-k">fn</span></strong> combine <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> e node node.times <span class="tok-n">6</span> <span class="tok-n">7</span> . .
+  <strong><span class="tok-k">match</span></strong> e. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> plus l r or times l r <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add l. r. . . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> num v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v. . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem splits an option inside a result in one go</span></em>
+<strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u32</span></strong> color ok some <span class="tok-n">42</span> . . .
+  <strong><span class="tok-k">match</span></strong> r. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok (some x) <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x. . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> error <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem if the value being split is a compile-time constant, it folds to the one matching arm</span></em>
+<strong><span class="tok-k">fn</span></strong> choose <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> <strong><span class="tok-k">comptime</span></strong> add <span class="tok-n">2</span> <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">5</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">500</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> _ <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem the two ranges cover all of u8 without gaps, so no _ is needed</span></em>
+<strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> b. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">127</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">128</span> to <span class="tok-n">255</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run warm patterns.low 1
+warm(1) = 1
+$ lowentc --run combine patterns.low 1
+combine(1) = 13
+$ lowentc --run pick patterns.low 1
+pick(1) = 42
+$ lowentc --run choose patterns.low
+choose() = 500
+$ lowentc --run half patterns.low 200
+half(200) = 1
+</code></pre></div></div><span id="idx-entry-27"></span><ul><li><strong>Or-patterns.</strong> <code>case red or green</code> is taken if either matches. Each alternative counts towards exhaustiveness, so once <code>blue</code> is handled no <code>_</code> is needed. When or-ing variants that carry values, <strong>every alternative must bind the same names</strong> — <code>combine</code> takes out <code>l</code> and <code>r</code> whether the variant is <code>plus</code> or <code>times</code>. Mismatched names are <code>E-MATCH-ORBIND</code>.</li><li><strong>Nested patterns.</strong> <code>case ok (some x)</code> splits the <code>option</code> inside a <code>result</code> in one go. Nested patterns short-circuit, so if it is not <code>ok</code> the inner part is never looked at. That is why <code>error</code> never tries to take out a value and stop.</li><li><strong>Folded at translation time.</strong> If the value being split is a translation-time constant — a literal, <code>comptime &lt;expr></code>, <code>config &lt;name></code> — the <code>match</code> folds to the one matching arm, with no comparison at run time. Dead arms are still type-checked. That is the difference from C’s <code>#ifdef</code> (chapter 31).</li><li><strong>Ranges cover a type.</strong> The two ranges in <code>half</code> cover 0 … 255 of <code>u8</code> without a gap, so it is exhaustive without <code>_</code>. A gap is <code>E-MATCH-INEXHAUSTIVE</code>; overlapping ranges are <code>E-MATCH-REDUNDANT</code>.</li></ul><p>An arm after <code>_</code> is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/arm_after_wild.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> arm_after_wild .
+<em><span class="tok-c">rem expect: E-MATCH-REDUNDANT</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
+  bright .
+  dark .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> name <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> s light bright. .
+  <strong><span class="tok-k">match</span></strong> s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> bright <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check arm_after_wild.low
+arm_after_wild.low:13:0 E-MATCH-REDUNDANT: this `case` comes AFTER a `_` (wildcard) arm — the wildcard already matched, so this arm can never run. A dead arm is an error here, not a warning (RFC-0020 §6.4)
+</code></pre></div></div><p><code>_</code> has already taken everything, so the arm after it can never run. A dead arm is an error, not a warning — a <code>match</code> where each case does not appear exactly once when read hides defects.</p><h3 id="s11-8">11.8 Common mistakes<a class="plink" href="#s11-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using an <code>option</code> in arithmetic as if it were a number</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_optarith.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_optarith .
+<em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
+
+<strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt k. <span class="tok-n">5</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> . .
+  <strong><span class="tok-k">return</span></strong> some mul k. <span class="tok-n">10</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> plus_one <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ an `option u64` is not a number --- ask whether it is there and take it out before adding</span></em>
+  <strong><span class="tok-k">return</span></strong> add find k. . <span class="tok-n">1</span> . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_optarith.low
+mistake_optarith.low:13:0 E-TYPE-RETURN: the returned value does not match the op's `output` — expected `u64`, found `option …`
+</code></pre></div></div><p><code>find k</code> does not give back a <code>u64</code>; it gives back “a box that may or may not hold a <code>u64</code>”. You cannot add 1 to a box. In other languages a null flows into the calculation and blows up much later; Lowent stops you right here with <code>E-TYPE-RETURN</code>. There are three fixes: supply a stand-in with <code>value_or find k. . 0 .</code>, ask with <code>is_some</code> and take it out with <code>some_value</code>, or split with <code>match</code>. Which one to pick depends on “what should happen when it is absent”.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Forgetting <code>some</code> in an op that returns an <code>option</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_nosome.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nosome .
+<em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
+
+<strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt k. <span class="tok-n">5</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> . .
+  <em><span class="tok-c">rem ✘ the value is not wrapped in `some`</span></em>
+  <strong><span class="tok-k">return</span></strong> mul k. <span class="tok-n">10</span> . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosome.low
+mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's `output` — expected `option …`, found `u64`
+</code></pre></div></div><p>Once the head says <code>output option u64</code>, the value you return must be a box too. <code>none</code> is a box, but <code>mul k. 10 .</code> is a bare number, so this is <code>E-TYPE-RETURN</code>. Some languages wrap the value for you; Lowent does not. Writing <code>return some mul k. 10 . . .</code> spells out “it is there”, so the reader sees both branches.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using <code>try</code> in an op that does not return a <code>result</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_trynoresult.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_trynoresult .
+<em><span class="tok-c">rem expect: E-TRY-NORESULT</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
+  too_big .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
+<strong><span class="tok-k">errors</span></strong> too_big gt a. <span class="tok-n">200</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> le a. <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">return</span></strong> ok div a. <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem ✘ uses `try`, but this op neither returns a `result` nor has an `errors` clause</span></em>
+<strong><span class="tok-k">fn</span></strong> plus <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a. . . .
+  <strong><span class="tok-k">return</span></strong> add v. <span class="tok-n">1</span> . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_trynoresult.low
+mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op that can RETURN that error (§6.5.8(2)): this op's output is not a `result`, so there is nowhere for the failure to go. It used to pass, and the VM then returned the ERROR VALUE in the plain output slot while the native build would not compile at all. Declare `output result &lt;T> &lt;E> .` (and the matching `errors` clause), or handle the failure here (`guard is_ok …` / `value_or` / a `case error` arm)
+</code></pre></div></div><p><code>try</code> <strong>passes failure upwards</strong>, so this op must be able to return that failure itself (§6.5.8(2)). <code>plus</code> returns only a <code>u8</code> and has no <code>errors</code> clause, so it is refused with <code>E-TRY-NORESULT</code>. Until 2026-09-16 it passed: <code>plus 250</code> printed <code>err too_big</code> where a <code>u8</code> belongs, and the native build would not even compile. Adding a tail (<code>else_none</code>, <code>else_error</code>) or handling it here (<code>is_ok</code> and the rest of §6.5.8(3)) keeps the op free of <code>result</code>; to pass the failure up, give the head a <code>result</code> output and an <code>errors</code> clause.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/trynoresult_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trynoresult_fixed .
+<em><span class="tok-c">rem run: plus 10</span></em>
+<em><span class="tok-c">rem run: plus 250</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
+  too_big .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
+<strong><span class="tok-k">errors</span></strong> too_big gt a. <span class="tok-n">200</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> le a. <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">return</span></strong> ok div a. <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem an op that passes failure upward returns a result itself and lists the errors it may pass in `errors`</span></em>
+<strong><span class="tok-k">fn</span></strong> plus <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
+<strong><span class="tok-k">errors</span></strong> too_big gt a. <span class="tok-n">200</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a. . . .
+  <strong><span class="tok-k">return</span></strong> ok add v. <span class="tok-n">1</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run plus trynoresult_fixed.low 10
+plus(10) = ok 6
+$ lowentc --run plus trynoresult_fixed.low 250
+plus(250) = err too_big
+</code></pre></div></div></div></div><p>Nested patterns count towards exhaustiveness too. An outer tag is covered when <strong>its inner pattern is itself exhaustive</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/nestedwild.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nestedwild .
+<em><span class="tok-c">rem run: via_match</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> read_error <strong><span class="tok-k">do</span></strong>
+  broken .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) read_error . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem three nested patterns are every case --- no separate `_`</span></em>
+  <strong><span class="tok-k">match</span></strong> r. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok (some x) <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x. . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> error e <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> via_match <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> pick ok some <span class="tok-n">42</span> . . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run via_match nestedwild.low
+via_match() = 42
+</code></pre></div></div><p><code>ok some x. . .</code> and <code>ok none .</code> together cover <code>ok</code>, and <code>error e .</code> covers the rest, so no <code>_</code> is needed. Leave one case out and it is refused with <code>E-MATCH-INEXHAUSTIVE</code> — better than a <code>_</code> that covers nothing. A <code>_</code> says nothing when a variant is added later.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>With <code>value_or</code> you can still tell when a value was absent</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/valueor_blind.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> valueor_blind .
+<em><span class="tok-c">rem run: find_or_zero 0</span></em>
+<em><span class="tok-c">rem run: find_or_zero 7</span></em>
+<em><span class="tok-c">rem run: found 0</span></em>
+<em><span class="tok-c">rem run: found 7</span></em>
+
+<strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt k. <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> . .
+  <strong><span class="tok-k">return</span></strong> some mul k. <span class="tok-n">10</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem slot 0 really holds 0 and slot 7 is absent --- yet both come out as 0</span></em>
+<strong><span class="tok-k">fn</span></strong> find_or_zero <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> value_or find k. . <span class="tok-n">0</span> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem if you need to know whether it is there, ask before covering it with a stand-in</span></em>
+<strong><span class="tok-k">fn</span></strong> found <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> is_some find k. . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run find_or_zero valueor_blind.low 0
+find_or_zero(0) = 0
+$ lowentc --run find_or_zero valueor_blind.low 7
+find_or_zero(7) = 0
+$ lowentc --run found valueor_blind.low 0
+found(0) = 1
+$ lowentc --run found valueor_blind.low 7
+found(7) = 0
+</code></pre></div></div><p><code>value_or</code> <strong>covers</strong> absence with a stand-in. When the stand-in collides with a real value, the two cannot be told apart. Above, the real 0 in slot 0 and the absence in slot 7 both come out as 0. Use <code>value_or</code> only where “treat absent as 0” is truly fine; when presence matters, ask with <code>is_some</code> or <code>match</code> before covering it.</p></div></div><h3 id="s11-9">11.9 This chapter’s syntax at a glance<a class="plink" href="#s11-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>output option u8 .</code></td><td>a value, or none</td><td>absence (null) shows in the type</td></tr><tr><td><code>some v. .</code> · <code>none</code></td><td>present · absent</td><td>“present” is written too, so both branches are visible</td></tr><tr><td><code>output result u8 e .</code></td><td>a value or an error (a variant of <code>e</code>)</td><td>failure is returned as a value — there are no exceptions</td></tr><tr><td><code>ok v. .</code> · <code>error too_big .</code></td><td>success · failure</td><td>which branch is written in the source</td></tr><tr><td><code>errors too_big &lt;condition> .</code></td><td>promise which error happens when</td><td>written in the contract so the caller can prepare</td></tr><tr><td><code>is_some r. .</code> · <code>some_value r. .</code></td><td>ask whether present · take it out</td><td>taking out is partial — ask first</td></tr><tr><td><code>is_error r. .</code> · <code>ok_value r. .</code></td><td>ask whether failed · take out the success value</td><td>same reason</td></tr><tr><td><code>value_or r. 99 .</code></td><td>a stand-in when absent</td><td>one line, but it covers absence</td></tr><tr><td><code>try &lt;expr></code></td><td>on failure, leave returning that error</td><td>so checks are never forgotten — like Rust’s <code>?</code></td></tr><tr><td><code>let n u64 find xs. k. . else return 0 . .</code></td><td>take the content, or leave through <code>else</code></td><td>no unchecked use</td></tr><tr><td><code>try &lt;expr> else_none</code> · <code>else_error e</code></td><td><code>result</code> → <code>option</code> · <code>option</code> → <code>result</code></td><td>changing channel shows what is lost</td></tr><tr><td><code>case ok (some x)</code> · <code>case a or b</code></td><td>nested pattern · several variants at once</td><td>split in one go, still covering every case</td></tr></table></div><p class="float-caption">Table 11.3 — Syntax of answer-carrying types — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>option</code> is made with <code>some</code> and <code>none</code>, <code>result</code> with <code>ok</code> and <code>error</code>. The receiver asks and takes out (<code>is_some</code>, <code>some_value</code>, <code>is_error</code>, <code>ok_value</code>), gives a fallback with <code>value_or</code>, or splits with <code>match</code>. Taking out is partial, so taking from the missing side stops. An op returning a <code>result</code> promises its errors in an <code>errors</code> clause, <code>try</code> passes failures up, and the <code>else_none</code> and <code>else_error</code> tails change channel and type. Patterns can be or-ed (binding the same names) and nested, and a <code>match</code> on a constant folds at translation.</div></div>
+<div class="nav"><a href="ch10.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch12.html">Next →</a></div>
+</div></main>
+<script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>
+(function(){
+  var q=document.getElementById('q'), out=document.getElementById('qr');
+  if(!q||!out) return;
+  var data=null, NONE="Nothing found";
+  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+  function run(){
+    var v=q.value.trim().toLowerCase();
+    out.innerHTML='';
+    if(!v||!data) return;
+    var hits=[];
+    for(var i=0;i<data.length && hits.length<40;i++){
+      if(data[i][0].toLowerCase().indexOf(v)>=0) hits.push(data[i]);
+    }
+    if(!hits.length){ out.innerHTML='<li>'+NONE+'</li>'; return; }
+    out.innerHTML=hits.map(function(h){
+      return '<li><a href="'+h[1]+'">'+esc(h[0])+'</a>'+
+             (h[2]?'<span class="where">'+esc(h[2])+'</span>':'')+'</li>';
+    }).join('');
+  }
+  q.addEventListener('input',function(){
+    if(data){ run(); return; }
+    fetch('search-index.json').then(function(r){return r.json();})
+      .then(function(j){ data=j; run(); })
+      .catch(function(){ out.innerHTML='<li>'+NONE+'</li>'; });
+  });
+})();
+</script></body></html>

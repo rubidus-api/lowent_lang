@@ -1,0 +1,66 @@
+#import "../lib.typ": *
+
+= `growvec` --- 자가성장 바이트 벡터 <mod-growvec>
+
+#modhead(file: "lib/growvec.low", layer: [L1 --- 저장(얼로케이터를 들고 다닌다)], caps: [없음 --- `open` 이 범프 얼로케이터를 건네받는다])
+
+자리가 모자라면 알아서 더 받아 오는 *바이트* 배열이다. 파일을 다 읽을 때까지, 사용자가 Enter 를 누를 때까지처럼 얼마나 들어올지 모를 때 쓴다. `growvec.gvec` 은
+`vecgen.vec u8 allocs.bump_bytes` 의 *별칭*이고 op 들은 #modref("vecgen")[`vecgen`] 으로 위임한다. 바이트만 밀 때는 타입 인자를 적지 않아도 되는 이쪽이 짧다 ---
+이름이 짧은 것도 인터페이스다.
+
+```lowent
+let g use bump. option growvec.gvec growvec.open 16 . .
+guard is_some g. . else return 1 . .
+var v growvec.gvec some_value g. . .
+guard growvec.add_all v. "hello" . else return 2 . .
+guard growvec.add_all v. " world" . else return 3 . .
+let s slice u8 growvec.view_of v. . .
+```
+
+*왜 있는가.* #modref("vecs")[`vecs`] 로 바이트를 모으면 부를 때마다 얼로케이터 · 버퍼 · 길이를 넘기고, 늘어난 새 버퍼를 받아 *다시 묶는 일*도 호출부의 몫이다. 그 한
+줄을 잊어도 컴파일러가 잡지 못한다 --- 옛 버퍼도 유효한 슬라이스이기 때문이다. `growvec` 은 셋을 *한 값 안에* 넣어 그런 결함을 구조로 없앤다. 그래도 마법은 없다 ---
+얼로케이터는 여전히 누군가 넣어 준 것이고, 성장의 비용은 `false` 를 돌려줄 수 있는 op 자리에 보인다.
+
+#dtable(
+  columns: 3,
+  id: "mod-growvec-ops",
+  caption: [`growvec` 의 op],
+  [*op*], [*effects*], [*하는 일*],
+  [`gvec`], [---], [`vecgen.vec u8 allocs.bump_bytes` 의 별칭],
+  [`open cap0`(`using al`)], [state], [빈 벡터를 연다. `cap0` 은 0 도 된다(첫 push 에서 8 로). 못 받으면 `none`],
+  [`count_of g` · `cap_of g`], [none], [담긴 개수 · 지금 용량],
+  [`add_byte g b`], [state], [바이트 하나 --- 모자라면 두 배 + 8 로 늘린다. `false` = 새 자리를 못 받음(벡터는 여전히 유효)],
+  [`add_all g s`], [state], [바이트열 통째로. *중간에 실패하면 앞부분은 들어가 있다*],
+  [`reserve_more g more`], [state], [`n + more` 가 들어갈 자리를 미리 확보],
+  [`view_of g`], [none], [담긴 만큼만 보는 뷰],
+)
+
+*`add_all` 은 전량 아니면 무를 약속하지 않는다.* 약속하려면 먼저 자리를 확보해야 하고, 그 비용을 낼지는 호출자가 고를 일이라 `reserve_more` 를 따로 뒀다.
+
+```lowent
+proc put_record input v mut growvec.gvec . input rec slice u8 . output bool . effects state . do
+  guard growvec.reserve_more v. add len rec. . 1 . . else return false . .
+  guard growvec.add_all v. rec. . else return false . .
+  return growvec.add_byte v. 10 . .
+end .
+```
+
+*메모리 쪽의 값.* 범프 얼로케이터는 되돌리지 않으므로, 한때 벡터가 자랄 때마다 옛 버퍼가 아레나에 버려진 채 남아 2,048 바이트를 담는 데 8,104 바이트를 썼다. 얼로케이터에
+*제자리 성장*(`grow` --- 마지막 할당이 우리 버퍼면 그 자리를 늘린다)을 두어 그 세대를 없앴다. 남은 두 배는 성장 정책의 여유(용량 ≈ 2n)이고, 시간과의 정상적인
+교환이다. 넣을 크기를 미리 알면 `reserve_more` 로 여유까지 없애 정확히 필요한 만큼만 잡는다(#modref("allocs")[`allocs`]).
+
+#antipattern[성장 전에 꺼낸 뷰를 성장 뒤에 쓴다][
+  `view_of` 로 꺼낸 뒤 `add_all` 을 부르면 버퍼가 바뀔 수 있고, 뷰는 옛 버퍼를 본다. 늘어나지 않았다면 우연히 맞아서 더 나쁘다. 뷰는 마지막에 꺼낸다.
+]
+
+#antipattern[`gvec` 을 복사해 두고 양쪽에 넣는다][
+  `var b growvec.gvec a. .` 뒤 `a` 와 `b` 에 각각 넣으면 둘이 같은 버퍼를 보면서 `n` 은 서로의 변경을 모른다 --- 서로 덮어쓴다. 한 벡터는 한 이름으로 다루고, 넘길
+  때는 `mut gvec` 로 넘긴다.
+]
+
+#antipattern[반환값을 보지 않는다 · `cap_of` 만큼 읽는다][
+  `add_byte` 의 `false` 를 보지 않으면 벡터는 그 바이트 없이 계속 간다. `n` 뒤는 쓰레기다 --- `count_of` 나 `view_of` 를 쓴다.
+]
+
+*주의.* 개별 반납과 축소는 없다. 벡터의 수명은 얼로케이터의 수명 안이다. `effects state` 라 순수 계층에서는 쓸 수 없다 --- 순수하게 풀 수 있는 문제라면 호출자 버퍼
+(#modref("fmt")[`fmt`] 의 규약)가 더 싸다.

@@ -1,0 +1,15 @@
+module no_terminal .
+rem expect: E-PIPE-NO-TERMINAL
+
+fn is_digit input c u8 . output bool .
+do
+  return and ge c. 48 . le c. 57 . . .
+end .
+
+fn broken input s slice u8 . output u64 .
+do
+  return pipe s. do
+    count .
+    filter is_digit .
+  end . .
+end .

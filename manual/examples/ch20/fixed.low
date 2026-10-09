@@ -1,0 +1,14 @@
+module fixed .
+rem run: main
+
+use allocs .
+
+proc main input al cap allocator . output u8 . effects alloc state .
+do
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  let a option mut slice u8 send fb. reserve 64 . .
+  guard is_some a. . else return 1 . .
+  let b option mut slice u8 send fb. reserve 64 . .
+  guard is_some b. . else return 2 . .
+  return narrow u8 send fb. used . . .
+end .

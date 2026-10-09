@@ -1,0 +1,20 @@
+module loopback .
+rem run: main
+
+use net .
+
+proc main input k cap net . input al cap allocator . output u8 . effects io alloc .
+do
+  let po option net.pair net.pair_of k. . .
+  guard is_some po. . else return 1 . .
+  var p owned net.pair some_value po. . .
+  let sent option u64 net.send_all k. net.pair_a p. . "ping" . .
+  guard is_some sent. . else return 2 . .
+  let g option mut slice u8 alloc_bytes al. capacity 16 . .
+  guard is_some g. . else return 3 . .
+  let got option u64 net.recv_once k. net.pair_b p. . some_value g. . . .
+  let s result void net.net_error net.shut_pair k. p. . .
+  guard is_some got. . else return 4 . .
+  guard is_ok s. . else return 5 . .
+  return narrow u8 some_value got. . . .
+end .

@@ -1,0 +1,17 @@
+module mistake_runmax .
+rem trap: echo 18446744073709551615
+rem test
+
+rem ko: ✘ u64 의 위쪽 절반을 `--run` 인자로 주면 경계에서 거절된다 — 구간 분석이 u64 의 상한을 i64 최댓값으로 믿기 때문이다 /// en: ✘ giving the upper half of u64 as a `--run` argument is refused at the boundary: the interval analysis believes u64 tops out at the i64 maximum
+fn echo input n u64 . output u64 .
+do
+  return n. .
+end .
+
+rem ko: 경계값은 시험 안에서 리터럴로 적는다 /// en: write boundary values as literals inside a test
+test largest_u64
+do
+  let m u64 18446744073709551615 .
+  expect gt m. 9223372036854775807 . .
+  expect eq div m. 2 . 9223372036854775807 . .
+end .

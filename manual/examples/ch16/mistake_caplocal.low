@@ -1,0 +1,9 @@
+module mistake_caplocal .
+rem expect: E-CAP-LOCAL
+
+proc say input out cap io . output u64 . effects io .
+do
+  rem ko: ✘ 권한을 지역 이름에 옮겨 담았다 --- 받은 이름을 그대로 건넨다 /// en: ✘ the capability is moved into a local name --- pass the received name directly
+  let k cap io out. .
+  return write_out k. 1 "hi\n" . .
+end .

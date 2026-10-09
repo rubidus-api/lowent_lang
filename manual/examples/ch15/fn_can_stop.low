@@ -1,0 +1,9 @@
+module fn_can_stop .
+rem run: first [7,8]
+rem trap: first []
+
+rem ko: 순수한 `fn` 이지만 빈 줄을 받으면 멈춘다 --- 경계 검사의 멈춤은 op 이 낸 효과가 아니다 /// en: a pure `fn`, yet it stops on an empty slice --- a bounds-check stop is not an effect the op performs
+fn first input xs slice u8 . output u8 .
+do
+  return idx xs. 0 . .
+end .

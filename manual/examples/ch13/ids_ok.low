@@ -1,0 +1,19 @@
+module ids_ok .
+rem run: roundtrip 42
+
+def newtype user_id u64 .
+
+fn user_of input n u64 . output user_id .
+do
+  return cast user_id n. . .
+end .
+
+fn raw_of input u user_id . output u64 .
+do
+  return cast u64 u. . .
+end .
+
+fn roundtrip input n u64 . output u64 .
+do
+  return raw_of user_of n. . . .
+end .

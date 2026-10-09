@@ -1,0 +1,17 @@
+module tests_clause .
+rem test
+
+fn clamp8 input v u64 . output u8 .
+do
+  return narrow_sat u8 v. . .
+end .
+
+test clamp_keeps_small
+do
+  expect eq clamp8 7 . 7 . .
+end .
+
+test clamp_saturates
+do
+  expect eq clamp8 1000 . 255 . .
+end .

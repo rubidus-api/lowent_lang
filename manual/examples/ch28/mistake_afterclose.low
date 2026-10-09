@@ -1,0 +1,17 @@
+module mistake_afterclose .
+rem expect: E-OWN-MOVED
+
+use files .
+
+proc main input out cap io . input fs cap file_system . output u8 . effects io .
+do
+  let o result files.handle files.file_error files.open fs. "../../build/ch28-after.txt" 1 . .
+  guard is_ok o. . else return 1 . .
+  var h owned files.handle ok_value o. . .
+  let c result void files.file_error files.close fs. h. . .
+  drop c. .
+  rem ko: ✘ 닫은 핸들로 또 쓴다 --- `close` 가 소유를 가져갔다 /// en: ✘ writes again with the closed handle --- `close` took ownership
+  let w result u64 files.file_error files.write fs. h. "late\n" . .
+  drop w. .
+  return 0 .
+end .

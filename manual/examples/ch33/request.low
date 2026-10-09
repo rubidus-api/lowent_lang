@@ -1,0 +1,30 @@
+module request .
+rem run: main
+
+use strings .
+use fmt .
+
+proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
+do
+  let line slice u8 "GET /users/42 HTTP/1.1" .
+  guard strings.starts_with line. "GET " . else return 1 . .
+  let rest slice u8 strings.remove_prefix line. "GET " . .
+  let sp option u64 strings.find rest. " " 0 . .
+  guard is_some sp. . else return 2 . .
+  let path slice u8 subslice rest. 0 some_value sp. . . .
+  let g option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some g. . else return 3 . .
+  let buf mut slice u8 some_value g. . .
+  let p1 option u64 fmt.put_str buf. 0 "path=" . .
+  guard is_some p1. . else return 4 . .
+  let p2 option u64 fmt.put_str buf. some_value p1. . path. . .
+  guard is_some p2. . else return 4 . .
+  let p3 option u64 fmt.put_str buf. some_value p2. . " len=" . .
+  guard is_some p3. . else return 4 . .
+  let p4 option u64 fmt.put_u64 buf. some_value p3. . len path. . . .
+  guard is_some p4. . else return 4 . .
+  let p5 option u64 fmt.put_nl buf. some_value p4. . . .
+  guard is_some p5. . else return 4 . .
+  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  return 0 .
+end .

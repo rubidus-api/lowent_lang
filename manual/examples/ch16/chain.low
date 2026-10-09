@@ -1,0 +1,21 @@
+module chain .
+rem run: main
+
+proc say input k cap io . input msg slice u8 . output u64 . effects io .
+do
+  return write_out k. 1 msg. . .
+end .
+
+proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .
+do
+  let a u64 say k. msg. . .
+  let b u64 say k. msg. . .
+  return add a. b. . .
+end .
+
+proc main input k cap io . output u8 . effects io .
+do
+  let n u64 say_twice k. "hi\n" . .
+  guard eq n. 6 . else return 1 . .
+  return 0 .
+end .

@@ -1,0 +1,8 @@
+module mistake_floatint .
+rem expect: E-TYPE-MIX
+
+fn half input x f64 . output f64 .
+do
+  rem ko: ✘ f64 를 정수 리터럴 2 로 나눴다 --- 부동소수 자리에는 2.0 을 쓴다 /// en: ✘ divides an f64 by the integer literal 2 --- write 2.0 where a float is expected
+  return div x. 2 . .
+end .

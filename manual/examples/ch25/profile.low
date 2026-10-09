@@ -1,0 +1,15 @@
+module profile .
+rem expect: E-PROFILE-LEVEL
+
+build profile embedded .
+
+actor counter do
+  state do
+    value u64 .
+  end .
+  proc inc output u64 . effects state .
+  do
+    set value. add value. 1 . .
+    return value. .
+  end .
+end .

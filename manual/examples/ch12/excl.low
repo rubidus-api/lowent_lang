@@ -1,0 +1,15 @@
+module excl .
+rem expect: E-EXCL
+
+proc set_both input a mut_ref u64 . input b mut_ref u64 . output void . effects none .
+do
+  set a. 1 .
+  set b. 2 .
+end .
+
+proc confused output u64 . effects none .
+do
+  var n u64 0 .
+  set_both mut_ref n . mut_ref n . .
+  return n. .
+end .

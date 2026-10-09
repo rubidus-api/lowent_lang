@@ -1,0 +1,12 @@
+module all_or_nothing .
+rem run: try_put [0,0,0,0]
+
+use fmt .
+
+proc try_put input buf mut slice u8 . output u64 . effects none .
+do
+  rem ko: 여섯 바이트를 네 칸에 --- 앞 네 바이트만 쓰는 대신 하나도 쓰지 않는다 /// en: six bytes into four slots --- instead of writing the first four, it writes none
+  let p option u64 fmt.put_str buf. 0 "Lowent" . .
+  guard is_some p. . else return 99 . .
+  return some_value p. . .
+end .

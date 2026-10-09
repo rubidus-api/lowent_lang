@@ -1,0 +1,50 @@
+#import "../../typst-ko/lib.typ": *
+
+= `nodelist` --- fixed intrusive lists <mod-nodelist>
+
+#modhead(file: "lib/nodelist.low", layer: [L1 --- the caller's storage], caps: [none])
+
+Nodes hold their links *inside themselves* (intrusive). No separate slot is allocated on the list side, so linking and unlinking allocate nothing --- the shape of the Linux
+kernel's `list_head`. Only two things are dangerous --- *moving* a linked node rots the places its neighbours pointed to, and *reclaiming* while linked rots the list.
+
+*The language prevents both.* A node has a *move right* (`site`), and linking it into a list consumes that right (`held`). A program trying to move a linked node has nothing
+to hand over and is rejected at compile time.
+
+```lowent
+def newtype lru u32 .
+var s (owned nodelist.site lru) nodelist.nl_open lru. 3 . .
+var h (owned nodelist.held lru) nodelist.nl_link lru. s. . .
+rem nodelist.nl_relocate lru s 9  →  E-OWN-MOVED (s was already consumed)
+var s3 (owned nodelist.site lru) nodelist.nl_unlink lru. h. . .
+var s4 (owned nodelist.site lru) nodelist.nl_relocate lru. s3. 1 . .
+```
+
+#dtable(
+  columns: 2,
+  id: "mod-nodelist-ops",
+  caption: [Ops of `nodelist`],
+  [*op*], [*What it does*],
+  [`site` · `held`], [Move right (unlinked) · linked ticket --- branded types],
+  [`nl_open` · `nl_relocate`], [Open a slot as a move right · move an unlinked node],
+  [`nl_link` · `nl_unlink`], [Consume the move right, yield a linked ticket · consume the ticket, give the move right back],
+  [`nl_slot_of` · `nl_held_slot`], [Slot number of a move right · of a linked ticket],
+  [`nl_solo` · `nl_after` · `nl_cut`], [Make a lone ring · insert after `at` · remove (updating `nx` and `pv`)],
+  [`nl_walk_cut`], [Walks from the head removing one node (mutable traversal)],
+  [`nl_count`], [Number of nodes in the ring],
+)
+
+*A list is a ring.* With no null there is no value to mark the end. Instead, returning to the head is one full lap. A lone node is a ring pointing to itself. At first
+counting stopped at "points to itself", which was wrong --- in a ring of two or more nobody points to itself, so that condition never comes.
+
+*When removing during traversal, read next first.* Removing the current node makes its `next` point to itself, so without reading it beforehand the traversal stops right
+there. `nl_walk_cut` does this.
+
+*Storage belongs to the caller.* The two slices `nx` (next) and `pv` (previous) come from outside. Links are *indices* --- there are no raw pointers, and indices mesh with
+storage that does not move, like #modref("segarena")[`segarena`].
+
+*Nodes in several lists at once.* If the same node is in an LRU list and a hash bucket, there is only one move right, so the second link cannot happen. Split it with
+#modref("shard")[`shard`] tokens --- one piece per role, and the move right stands again only after all are rejoined (`rejoin`). That is exactly "unlink from every role
+before reclaiming". One brand names one store, so using the same brand for node slots and role tokens is rejected with `E-BRAND-REUSED` --- this actually happened while
+writing this manual, and the compiler was right.
+
+*Not built* --- automatic reclamation (the first reclamation policy is bulk), cycle detection, concurrent traversal, relocating linked nodes (fixing is the opposite).

@@ -1,0 +1,56 @@
+module chan .
+rem run: drive
+rem test
+
+actor sink do
+  state do
+    v u64 .
+  end .
+  proc put input n u64 . output u64 . effects state .
+    requires le n. 1000 . .
+  do
+    set v. wrap_add v. n. . .
+    return v. .
+  end .
+  fn get output u64 .
+  do
+    return v. .
+  end .
+end .
+
+proc producer input ch u64 . input n u64 . output u64 . effects concurrent .
+do
+  return chsend ch. n. . .
+end .
+
+proc consumer input ch u64 . input s sink . output u64 . effects state concurrent .
+do
+  let x u64 chrecv ch. . .
+  return send s. put min x. 1000 . . .
+end .
+
+proc drive output u64 . effects state .
+do
+  var ch u64 channel u64 . .
+  var s sink spawn actor sink . .
+  task_group do
+    spawn consumer ch. s. .
+    spawn consumer ch. s. .
+    spawn producer ch. 10 .
+    spawn producer ch. 32 .
+  end .
+  return send s. get . .
+end .
+
+test every_interleaving schedule explore_interleavings .
+do
+  var ch u64 channel u64 . .
+  var s sink spawn actor sink . .
+  task_group do
+    spawn consumer ch. s. .
+    spawn consumer ch. s. .
+    spawn producer ch. 10 .
+    spawn producer ch. 32 .
+  end .
+  expect eq send s. get . 42 . .
+end .

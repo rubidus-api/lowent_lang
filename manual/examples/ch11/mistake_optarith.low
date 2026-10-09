@@ -1,0 +1,14 @@
+module mistake_optarith .
+rem expect: E-TYPE-RETURN
+
+fn find input k u64 . output option u64 .
+do
+  guard lt k. 5 . else return none . .
+  return some mul k. 10 . . .
+end .
+
+fn plus_one input k u64 . output u64 .
+do
+  rem ko: ✘ `option u64` 는 수가 아니다 --- 있는지 먼저 묻고 꺼내야 더할 수 있다 /// en: ✘ an `option u64` is not a number --- ask whether it is there and take it out before adding
+  return add find k. . 1 . .
+end .

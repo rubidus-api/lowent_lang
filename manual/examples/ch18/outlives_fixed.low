@@ -1,0 +1,22 @@
+module outlives_fixed .
+rem run: carve_inside
+
+use allocs .
+
+proc carve_inside output u64 . effects alloc state .
+do
+  var n u64 0 .
+  region r arena do
+    let g option mut slice u8 alloc_bytes r. capacity 16 . .
+    if is_some g. . do
+      rem ko: 액터도 영역 안에서 태어난다 — 둘이 함께 사라진다 /// en: the actor is born inside the region too, so both go away together
+      var a allocs.bump_bytes spawn actor allocs.bump_bytes . .
+      let c u64 send a. init some_value g. . . .
+      let p option mut slice u8 send a. reserve 10 . .
+      if is_some p. . do
+        set n. send a. used . .
+      end .
+    end .
+  end .
+  return n. .
+end .

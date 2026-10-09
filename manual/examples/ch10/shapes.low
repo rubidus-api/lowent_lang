@@ -1,0 +1,26 @@
+module shapes .
+rem run: demo_area 0
+rem run: demo_area 1
+rem run: demo_area 2
+
+def enum shape do
+  circle r u32 .
+  rect w u32 h u32 .
+  dot .
+end .
+
+fn area input s shape . output u32 .
+do
+  match s. do
+    case circle r do return mul 3 mul r. r. . . . end .
+    case rect w h do return mul w. h. . . end .
+    case dot do return 0 . end .
+  end .
+end .
+
+fn demo_area input k u8 . output u32 .
+do
+  if eq k. 0 . do return area shape.circle 2 . . . end .
+  if eq k. 1 . do return area shape.rect 3 5 . . . end .
+  return area shape.dot. . .
+end .

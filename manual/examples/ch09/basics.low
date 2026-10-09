@@ -1,0 +1,31 @@
+module basics .
+rem run: head [9,8,7]
+rem run: last4 [1,2,3,4]
+rem run: total [10,20,30]
+rem trap: at [1,2,3] 5
+
+fn head input data slice u8 .
+  output u8 .
+  requires ge len data. . 1 . .
+do
+  return idx data. 0 . .
+end .
+
+fn last4 input xs array u8 4 . output u8 .
+do
+  return idx xs. 3 . .
+end .
+
+fn total input xs slice u8 . output u64 .
+do
+  var acc u64 0 .
+  for x xs. do
+    set acc. add acc. widen u64 x. . . .
+  end .
+  return acc. .
+end .
+
+fn at input xs slice u8 . input i u64 . output u8 .
+do
+  return idx xs. i. . .
+end .

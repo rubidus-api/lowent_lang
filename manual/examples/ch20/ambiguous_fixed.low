@@ -1,0 +1,28 @@
+module ambiguous_fixed .
+rem run: with_two [0,0,0,0] [0,0,0,0,0,0,0,0]
+
+use allocs .
+
+proc two_from
+  input comptime a type .
+  using al a .
+  output u64 .
+  effects state via a .
+  requires allocs.byte_allocator a. . .
+do
+  let p option mut slice u8 send al. reserve 3 . .
+  guard is_some p. . else return 91 . .
+  return send al. used . .
+end .
+
+proc with_two input small mut slice u8 . input big mut slice u8 . output u64 . effects state .
+do
+  var s allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var g allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let x u64 send s. init small. . .
+  let y u64 send g. init big. . .
+  rem ko: 바인딩에 `use` 로 출처를 적는다 /// en: name the source on the binding with `use`
+  let n use g. u64 two_from. .
+  let m use g. u64 two_from. .
+  return m. .
+end .

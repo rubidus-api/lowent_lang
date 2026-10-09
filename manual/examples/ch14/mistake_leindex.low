@@ -1,0 +1,10 @@
+module mistake_leindex .
+rem run: at [1,2,3] 2
+rem trap: at [1,2,3] 3
+
+fn at input xs slice u8 . input i u64 . output u8 .
+  rem ko: ✘ `le` 는 `i = len xs` 를 허락한다 --- 그 칸은 한 칸 밖이다 /// en: ✘ `le` allows `i = len xs` --- that slot is one past the end
+  requires le i. len xs. . . .
+do
+  return idx xs. i. . .
+end .

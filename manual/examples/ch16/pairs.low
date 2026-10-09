@@ -1,0 +1,10 @@
+module pairs .
+rem run: main
+
+proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
+do
+  let g option mut slice u8 alloc_bytes al. capacity 16 . .
+  guard is_some g. . else return 1 . .
+  let n u64 write_out out. 1 "hi\n" . .
+  return 0 .
+end .

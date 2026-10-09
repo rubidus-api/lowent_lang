@@ -1,0 +1,46 @@
+module lanes .
+rem run: capped_sum [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
+rem run: extremes [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
+rem run: turned [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+rem run: lanes_here
+
+rem ko: 네 레인을 한 값으로 읽고, 5 보다 큰 레인은 5 로 눌러 모두 더한다 /// en: read four lanes as one value, press lanes above 5 down to 5, and add them all
+fn capped_sum input b slice u8 . output u32 .
+  requires ge len b. . 16 . .
+do
+  let xs slice u32 view_array u32 b. . .
+  let v vec u32 4 load xs. 0 . .
+  let lim vec u32 4 splat 5 . .
+  let over mask 4 gt v. lim. . .
+  let capped vec u32 4 lane_select over. lim. v. . .
+  return reduce_add capped. . .
+end .
+
+rem ko: 레인을 가로질러 가장 큰 것 · 가장 작은 것 · 모두 곱한 것 /// en: across the lanes: the largest, the smallest, and the product of all
+fn extremes input b slice u8 . output u32 .
+  requires ge len b. . 16 . .
+do
+  let xs slice u32 view_array u32 b. . .
+  let v vec u32 4 load xs. 0 . .
+  return add mul reduce_max v. . 1000 . add mul reduce_min v. . 100 . reduce_mul v. . . . .
+end .
+
+rem ko: 레인의 차례를 뒤집고, 한 칸 돌려 메모리에 쓴다 /// en: reverse the lanes, rotate by one, and write them to memory
+proc turned input b slice u8 . input out mut slice u8 . output u32 . effects none .
+  requires ge len b. . 16 . .
+  requires ge len out. . 16 . .
+do
+  let xs slice u32 view_array u32 b. . .
+  var ys mut slice u32 view_array u32 out. . .
+  let v vec u32 4 load xs. 0 . .
+  let r vec u32 4 lane_reverse v. . .
+  var t vec u32 4 lane_rotate r. 1 . .
+  store ys. 0 t. .
+  return reduce_add t. . .
+end .
+
+rem ko: 이 기계가 u32 레인을 한 번에 몇 개 다루나 --- 번역 시점의 수 /// en: how many u32 lanes this machine handles at once --- a translation-time number
+fn lanes_here output u64 .
+do
+  return native_lanes u32 . .
+end .

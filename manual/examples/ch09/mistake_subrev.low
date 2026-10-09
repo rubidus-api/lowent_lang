@@ -1,0 +1,8 @@
+module mistake_subrev .
+rem trap: tail_len [1,2,3,4]
+
+fn tail_len input xs slice u8 . output u64 .
+do
+  rem ko: ✘ 시작(3)이 끝(1)보다 뒤다 --- `subslice s from to` 는 from ≤ to ≤ len 이어야 한다 /// en: ✘ the start (3) is after the end (1) --- `subslice s from to` needs from ≤ to ≤ len
+  return len subslice xs. 3 1 . . .
+end .

@@ -1,0 +1,13 @@
+module mistake_letfield .
+rem expect: E-IMMUTABLE
+
+def struct pkt do
+  body array u8 4 .
+end .
+
+rem ko: ✘ `let` 으로 묶은 레코드의 배열 칸에 쓴다 --- `let` 은 칸까지 바뀌지 않는다 /// en: ✘ writing the array field of a record bound with `let` --- `let` freezes its fields too
+fn poke output u64 . do
+  let p lit pkt do body lit array u8 4 _ . . end . .
+  set idx field p. body . 0 . 1 .
+  return 0 .
+end .

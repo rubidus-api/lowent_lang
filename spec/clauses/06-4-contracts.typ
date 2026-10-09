@@ -1,0 +1,735 @@
+#import "../lib.typ": *
+
+#sub("6.4", "선언과 계약 (Declarations and contracts)")[
+  #sub("6.4.1", "op 의 선언")[
+    #para("1")[
+      #t("op", "op") 은 이름과 계약을 가진 실행 단위다. op 은 두 갈래로 갈린다.
+    ]
+    #term("fn", "pure op")[
+      아무 효과도 내지 않는 op. 같은 입력에 언제나 같은 결과를 낸다. 바깥세상을 건드리지
+      않으므로 순서를 바꾸어 실행해도 결과가 같다.
+    ]
+    #term("proc", "effectful op")[
+      효과를 내는 op. 무슨 효과를 내는지 자기 계약에 적어야 하며(#cref("7.1")), 적은 것보다
+      많은 효과를 내면 번역이 거부된다.
+    ]
+    #para("2")[
+      갈래는 #strong[언제나 적는다.]; 기본값이 없다 — `fn` 인지 `proc` 인지는 이름 앞에 적혀 있다.
+    ]
+    #para("3")[
+      op 의 선언은 이름, 입력, 출력, 효과, 계약, 본문의 차례로 이루어진다. 입력은 `input`,
+      출력은 `output` 으로 적는다. 차례는 #strong[앞의 것이 뒤의 것에 쓰이도록]; 놓였다:
+      - 이름 붙은 약속(`satisfies`)은 이름 바로 뒤에 온다 — 이 op 이 #strong[무엇인지];를 먼저 말한다.
+      - 번역 시점 입력(`comptime`)이 다음이다 — 뒤따르는 입력·출력의 타입이 그 이름을 쓴다.
+      - 권한 입력이 데이터 입력보다 먼저다 — 누가 허락했는지가 무엇을 받는지보다 먼저 보인다.
+      - 출력은 입력 뒤다 — 출력 타입은 입력의 타입 매개변수를 쓸 수 있다.
+      - 효과는 출력 뒤, 계약 앞이다 — 앞에 받은 권한으로 #strong[무엇을 하는지];를 적는다.
+      - 계약은 입력 조건(`requires`) · 출력 약속(`ensures`) · 실패(`errors`) · 시험(`tests`) 차례다.
+    ]
+    #para("3a")[
+      머리의 절은 #strong[한 가지 차례로만]; 적는다. 앞에서 뒤로:
+      `satisfies`·`lowdoc` · `vector`·`priority` · `comptime` 입력 · 권한·영역 입력(타입이 `cap …`·`region …`) ·
+      `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm`·`absorbs`·`reference`·`why` · `access`·`inplace`·`invalidates`·`parallel`·`reduce` ·
+      `requires` · `ensures` · `errors` · `tests` · `schedule`. 같은 자리의 절끼리는 적힌 차례를 지킨다.
+      trait 의 메서드 서명(#cref("6.11.2"))과 actor 안의 `proc` 도 같은 차례를 따른다.
+      이 차례를 어기면 번역이 거부된다(`E-CLAUSE-ORDER`). 입력의 차례는 부르는 쪽 인자의 차례이기도 하다 —
+      그러므로 권한은 언제나 데이터보다 #strong[먼저]; 건넨다.
+    ]
+    #para("3b")[
+      서식기(`--fmt`)는 입력이 아닌 절과 `using` 을 이 차례로 옮겨 적는다. 입력끼리의 차례는 옮기지 아니한다 —
+      입력을 옮기면 호출의 뜻이 바뀌기 때문이다.
+    ]
+    #para("3c")[
+      머리의 절은 #strong[저마다 자기 점으로 닫는다]; — 문장과 같다(#cref("6.1.6") (2)). 절 낱말은 앞 절을 닫지 아니하고,
+      개행도 닫지 아니한다. 점 없이 다음 절 낱말이나 `do` 를 만나면 번역이 거부된다(`E-DOT-MISSING`).
+      절의 목록이 곧 머리이므로, 이름 뒤에 오는 첫 낱말부터 절이다 — 이름이 절 낱말과 같은 철자여도
+      (`proc link …`) 이름으로 읽는다.
+    ]
+    #para("3d")[
+      (3a) 의 차례에 나온 절 낱말의 뜻과 정의 자리는 다음과 같다.
+      - `satisfies` — 이 op 이 지키는 이름 붙은 약속(#cref("6.4.5") · #cref("6.11.2")). `lowdoc` — 사람이 읽는 설명(#cref("6.4.3")).
+      - `vector` · `priority` — 이 op 을 인터럽트 처리기로 만든다: 받는 인터럽트의 번호와 그 급함(#cref("7.7")).
+      - `comptime` 입력 — 번역 시점에 정해지는 매개변수(#cref("6.8")). 권한 입력 — 효과를 낼 자격(#cref("7.2")).
+      - `using` — 이 op 이 쓰는 얼로케이터(#cref("8.14")).
+      - `link` · `variadic` — C 쪽의 이름 · 개수가 정해지지 않은 인자(#cref("7.4")).
+      - `asm` — 기계 명령을 직접 적는 자리(#cref("6.9.1")).
+      - `absorbs` · `reference` · `why` — `unsafe` 가 번지는 것을 여기서 멈춘다는 선언과, 그 근거가 되는 순수한 판 · 가정한 것(#cref("7.2.1")).
+      - `access` · `inplace` · `invalidates` — 무엇을 어떤 모드로 건드리는가 · 제자리 쓰기 · 무효로 하는 것(#cref("6.4.3") · #cref("8.12")).
+      - `parallel` · `reduce` — 나누어 도는 되풀이와, 걸음들이 모으는 자리(#cref("6.5.10")).
+      - `requires` · `ensures` · `errors` · `tests` — 계약의 절(#cref("6.4.3")).
+      - `schedule` — 시험(`test`) 머리에만 온다. `schedule explore_interleavings .` 은 메시지가 배달되는 #strong[차례를 모두];
+      돌려 보고 결과가 차례마다 같은지 본다. `limit <수>` 를 붙이면 그 수까지만 돈다. 차례에 따라 결과가 갈리면
+      그 시험은 실패한다(`E-SCHED-NONDET`). 뜻은 #cref("6.4.13") (4) 가 정한다.
+    ]
+    #para("3e")[
+      #strong[출력에 이름을 붙일 수 있다]; — `output <이름> <타입> .`. 그 이름은 몸의 지역이고 #strong[0 으로 시작한다];:
+      수는 `0` · `0.0`, `bool` 은 `false`, `option` 은 `none`, 구조체는 칸마다 그 칸의 0 이다. 몸은 그 이름에 쓰고
+      `return <이름> .` 으로 돌려준다(값을 돌려주는 다른 op 과 같이 모든 길이 `return` 으로 끝나야 한다 — #cref("6.5.5") (3)).
+      - 가름: 이름 공간이 하나이므로(#cref("6.10")) `output` 뒤의 첫 낱말이 #strong[타입 이름이면]; 출력 전체가 타입이고,
+      타입 이름이 아니고 그 뒤가 타입 하나이면 그 낱말이 결과의 이름이다.
+      - 0 이 정해지지 않은 타입(슬라이스 · `result` · `owned` · enum · newtype · 제네릭 매개변수, 그런 칸을 가진 구조체)에는
+      이름을 붙일 수 없다(`E-RESULT-NOZERO`). 그런 출력은 이름 없이 적고 값을 돌려준다.
+      - 몸이 없는 op(`extern` · trait 의 메서드 서명)은 결과에 이름을 붙일 수 없다(`E-RESULT-NAMED`).
+      - 배열을 돌려주는 출력(`output [<이름>] array <타입> <길이> .`)은 #strong[부르는 쪽이 자리를 준다]; — #cref("6.2.6") (1c).
+      - `ensures` 는 결과를 여전히 `ret` 으로 가리킨다(#cref("6.4.12")). 결과의 이름은 몸 안에서만 보인다.
+    ]
+    #ex("이름 붙은 결과는 0 에서 시작한다", "module ex_named_result .
+
+def struct span do
+  lo u64 .
+  hi u64 .
+  seen bool .
+end .
+
+export fn bounds input xs slice u64 . output s span .
+do
+  for x xs. do
+    if or not field s. seen . . lt x. field s. lo . . . do set field s. lo . x. . end .
+    if gt x. field s. hi . . do set field s. hi . x. . end .
+    set field s. seen . true .
+  end .
+  return s. .
+end .")
+    #rejected("0 이 정해지지 않은 타입에 이름을 붙였다", "module ex_named_nozero .
+
+fn first input xs slice u8 . output r slice u8 .
+do
+  return xs. .
+end .", "E-RESULT-NOZERO")
+    #ex("op 의 선언", "module ex_op .
+
+export fn twice input n u32 . output u32 .
+  requires le n. 2147483647 . .
+do
+  return mul n. 2 . .
+end .")
+    #rejected("출력을 입력보다 앞에 적는다", "module ex_clause_order .
+
+fn twice output u32 .
+  input n u32 .
+  requires le n. 2147483647 . .
+do
+  return mul n. 2 . .
+end .", "E-CLAUSE-ORDER")
+    #rejected("머리의 절에 점이 없다", "module ex_clause_dot .
+
+fn twice input n u32 output u32 .
+do
+  return mul n. 2 . .
+end .", "E-DOT-MISSING")
+    #plain[
+      `export` 는 다른 모듈이 이 op 을 쓸 수 있게 한다는 표시다. 붙이지 않으면 그 모듈
+      안에서만 쓴다.
+    ]
+  ]
+  #sub("6.4.2", "계약이란 무엇인가")[
+    #para("1")[
+      #t("계약", "contract") 은 op 이 자기 입력과 출력에 대해 #strong[스스로 적는 약속];이다.
+      계약은 주석이 아니라 #strong[검사되는 문장];이다.
+    ]
+    #para("2")[
+      계약은 세 곳에서 쓰인다.
+    ]
+    #para("3")[
+      가) #strong[처리기가 사실로 쓴다]; — 계약이 참임을 전제로 검사를 없앤다(#cref("6.4.5")).
+    ]
+    #para("4")[
+      나) #strong[실행 중에 강제된다]; — 처리기가 증명하지 못한 계약은 실행 중에 확인되며,
+      깨지면 트랩한다. 다만 남은 검사를 실제로 둘지는 #strong[빌드 모드];가 정한다(#cref("6.4.8")).
+    ]
+    #para("5")[
+      다) #strong[읽는 사람에게 말한다]; — 이 op 을 부르려면 무엇을 지켜야 하는지가 본문을 열지
+      않고도 보인다.
+    ]
+    #para("6")[
+      계약이 깨지는 자리는 둘이고, 진단이 #strong[누구의 잘못인지]; 가른다.
+    ]
+    #tbl("계약이 깨졌을 때")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*절*], [*언제 확인되나*], [*깨지면 누구의 잘못인가*],
+      [`requires`], [들어올 때], [#strong[부르는 쪽]; — 지켜야 할 조건을 안 지켰다],
+      [`ensures`], [나갈 때], [#strong[이 op]; — 자기 약속을 어겼다(부르는 쪽은 거짓말을 들었다)],
+      )
+    ]
+    #plain[
+      이 구별이 실제로 값을 한다. 프로그램이 멈췄을 때 #emph["내가 잘못 불렀나, 저 함수가 잘못
+      만들어졌나"]; 를 진단이 바로 말해 준다.
+    ]
+    #caution("계약은 비용이 아니라 자산이다")[
+      #emph["검사를 적으면 느려진다"]; 고 생각하기 쉽다. 로우엔트에서는 반대다. 계약을 적으면
+      처리기가 그것을 #strong[사실로 써서]; 실행 중 검사를 없앤다. 적지 않으면 처리기가 모르므로
+      검사가 남는다 — 곧 #strong[정직하게 적는 쪽이 빠르다];.
+    ]
+  ]
+  #sub("6.4.3", "계약의 여섯 절")[
+    #para("1")[
+      계약은 다음 여섯 절로 이루어진다. 모든 절이 필수는 아니다.
+    ]
+    #term("requires", "precondition")[
+      op 에 들어오는 순간 참이어야 하는 조건. 부르는 쪽이 지킬 책임이 있다.
+      들어올 때 확인되며, 깨져 있으면 트랩한다.
+    ]
+    #term("ensures", "postcondition")[
+      op 이 정상으로 끝날 때 참인 조건. 만드는 쪽이 지킬 책임이 있다.
+      돌려주는 값을 `ret` 이라는 이름으로 가리킬 수 있다.
+    ]
+    #term("errors", "error condition")[
+      op 이 실패하는 경우와 그때의 오류 값. 어떤 조건에서 어떤 오류가 나오는지를 적는다.
+      조건은 op 에 #strong[들어올 때의 값];으로 읽는다 — ⟦(1c)⟧.
+    ]
+    #term("effects", "effect declaration")[
+      이 op 이 내는 효과의 목록(#cref("7.1")). 아무 효과도 내지 않으면 `effects none` 이다.
+    ]
+    #term("access", "access declaration")[
+      이 op 이 무엇을 어떻게 건드리는지 — `access <이름> <모드> .` 로 적는다. 모드는 아래
+      표의 일곱 가지가 전부이며, 그 밖의 낱말은 거부된다(`E-CONTRACT-MODE`).
+    ]
+    #tbl("`access` 의 모드 — 닫힌 집합 일곱")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*모드*], [*지금 강제되나*], [*뜻*],
+      [`shared_read`], [#strong[예];], [이 자리에 #strong[쓰지 않는다];. 쓰면 거부된다],
+      [`write_only`], [#strong[예];], [이 자리를 #strong[읽지 않는다];. 읽으면 거부된다],
+      [`sequential`], [아니오], [차례대로 훑는다],
+      [`random`], [아니오], [아무 자리나 짚는다],
+      [`streaming`], [아니오], [한 번 지나가고 다시 안 본다],
+      [`tiled`], [아니오], [덩이로 나눠 훑는다],
+      [`read_mostly`], [아니오], [거의 읽고 드물게 쓴다],
+      )
+    ]
+    #term("tests", "examples")[
+      이 op 의 쓰임새를 보이는 예. 처리기는 이것을 시험으로 돌릴 수 있다.
+    ]
+    #para("1a")[
+      `tests <이름>…` 절은 이 op 을 시험하는 #strong[op 의 이름];을 하나 이상 적는다. 적은 이름은 그 자리에서
+      볼 수 있는 op 이어야 하며, 없으면 거부된다(`E-CONTRACT-UNDEF`). 시험 블록(#cref("6.4.13"))의 이름은 op 이
+      아니므로 여기 적을 수 없다. `tests` 절은 시험을 #strong[정의하지도 돌리지도 아니한다]; — 이미 있는 것을
+      #strong[가리킬 뿐];이다. 가리킨 op 이 없어지면 머리가 그것을 알린다.
+    ]
+    #para("1b")[
+      `lowdoc` 절은 이 op 의 설명을 적는다. 한 줄이면 `lowdoc "<글>" .` 이고, 여러 줄이면
+      `lowdoc text <끝표시>` 로 열어 그 표시가 홀로 있는 줄까지가 글이다. 이 글은 문서 산출물
+      (`--doc`)이 읽으며, 번역되는 프로그램의 뜻에는 영향을 주지 아니한다.
+    ]
+    #para("1c")[
+      `errors` 절의 조건은 op 에 #strong[들어올 때의 값];으로 읽는다.
+    ]
+    #para("1c1")[
+      몸통이 그 오류를 #strong[한 번도 내지 아니하면]; 처리기는 그것을 알린다
+      (`W-ERRORS-UNRAISED`). 절은 «이 op 이 이렇게 실패할 수 있다» 는 약속으로 읽히고
+      부르는 쪽이 그것을 보고 갈래를 짓는데, 갈 수 없는 갈래는 #strong[읽는 사람이 살아 있는
+      갈래와 가릴 수 없는 죽은 코드];가 된다. 남의 `result` 를 그대로 넘기는 op 은 그
+      오류를 내는 것으로 본다(`try` · `return <부름>`).
+    ]
+    #para("1d")[
+      그러므로 그 조건에 설 수 있는 이름은 #strong[들어올 때와 나갈 때가 같은 것];뿐이다 — 곧
+      바뀌지 않는 입력과 모듈 상수다. 몸통이 바꿀 수 있는 이름(액터의 상태 칸 · 모듈 `var` ·
+      `mut` 자리의 인자)을 조건에 적으면 거부된다(`E-ERRORS-STATE`).
+    ]
+    #plain[
+      왜 들어올 때인가. `errors` 는 ⟦(6)⟧ 의 표에서 `requires` 와 같은 쪽에 선다 — #strong[부르는
+      쪽이 무엇을 잘못했는가];를 말하는 절이다. 부르는 쪽이 한 일은 #strong[건넨 것];뿐이므로, 그
+      잘못을 잴 수 있는 값도 건넨 것뿐이다. 나갈 때 값으로 읽으면 성공한 실행이 스스로를
+      고발한다 — 잔액 50 에서 30 을 빼고 성공한 op 이, 나갈 때 다시 읽힌 「잔액보다 많다」
+      조건 때문에 #emph["내야 할 오류를 안 냈다"]; 가 된다.
+    ]
+    #caution("")[
+      (1d) 는 넉넉히 거절한다. `mut` 자리의 슬라이스는 길이가 바뀌지 아니하므로 `len` 만 읽는
+      조건은 사실 들어올 때와 나갈 때가 같지만, 처리기는 조건이 그 값의 #strong[어느 부분];을 읽는지
+      가리지 아니한다. 가릴 수 없는 것을 가리는 척하기보다 선을 굵게 긋고 그 사실을 적는
+      편이 낫다 — 몸통 안에서 `guard` 로 적으면 된다.
+    ]
+    #para("2")[
+      계약에 쓰는 조건은 #strong[순수한 식];이어야 한다 — 효과를 내는 것을 계약에 적을 수 없다.
+    ]
+    #para("3")[
+      `shared_read` 와 `write_only` 는 #strong[읽기·쓰기의 규율];이라 처리기가 지금 강제한다. 곧
+      `shared_read` 라 적고 그 자리에 쓰면 거부되고, `write_only` 라 적고 읽으면 거부된다
+      (`E-ACCESS-MODE`).
+      나머지 다섯은 쓰임새를 알리는 #strong[힌트];이며, 처리기는 그것을 아직 쓰지 않는다는 것을
+      #strong[말한다];(`W-NOT-YET`). 조용히 무시하지 아니한다.
+    ]
+    #para("4")[
+      강제되지 않는다고 해서 적어도 좋다는 뜻은 아니다. 모드는 이 op 이 무엇을 하는지에
+      대한 #strong[주장];이며, 처리기가 언젠가 그 주장을 물을 수 있다.
+    ]
+  ]
+  #sub("6.4.4", "계약을 쓰는 법")[
+    #para("1")[
+      조건은 전위 표기로 적는다. 비교와 논리 연산, 산술, `len`, `idx` 를 쓸 수 있다.
+    ]
+    #para("2")[
+      `requires` 가 여럿이면 #strong[모두]; 참이어야 한다.
+    ]
+    #para("3")[
+      슬라이스의 #strong[모든 원소];에 대한 조건은 다음 넷으로 적는다. `elem_lt <슬라이스> <값>`
+      은 #emph["모든 원소가 그 값보다 작다"]; 는 뜻이며, `elem_le`·`elem_gt`·`elem_ge` 도 같다.
+    ]
+    #para("4")[
+      이 넷이 있는 까닭은 계약이 #strong[하나씩 도는 것을 적을 수 없기]; 때문이다. 조건은 순수한
+      식이고 되풀이는 문장이므로, 원소 전체를 말하려면 그것을 말하는 낱말이 있어야 한다.
+    ]
+    #ex("계약", "module ex_contract .
+
+rem 이 op 은 슬라이스에서 두 바이트를 읽어 큰 수 하나를 만든다.
+export fn read_pair input data slice u8 . output u32 .
+  requires ge len data. . 2 . .
+  ensures le ret. 65535 . .
+do
+  let hi u32 widen u32 idx data. 0 . . .
+  let lo u32 widen u32 idx data. 1 . . .
+  return add mul hi. 256 . lo. . .
+end .")
+    #plain[
+      위 예제를 읽는 법: #emph["이 함수는 길이가 2 이상인 바이트 줄을 받아야 하고(requires),
+      돌려주는 값은 65535 이하임을 약속하며(ensures), 바깥세상은 아무것도 건드리지
+      않는다(effects none)."]; — 본문을 열지 않고도 이만큼을 알 수 있다.
+    ]
+  ]
+  #sub("6.4.5", "계약에 이름 주기")[
+    #para("1")[
+      여러 op 이 같은 조건을 요구하면, 그 조건에 이름을 줄 수 있다. `contract` 로 적는다.
+    ]
+    #para("2")[
+      op 은 `satisfies` 로 그 이름을 적어 그 계약을 갖춘다.
+    ]
+    #ex("이름 붙인 계약", "module ex_named .
+
+rem 여러 op 이 같은 조건을 요구하면 그 조건에 이름을 줄 수 있다.
+contract nonneg do
+  requires ge a. 1 . .
+end .
+
+fn half satisfies nonneg . input a u8 . output u8 .
+do
+  return div a. 2 . .
+end .")
+    #plain[
+      같은 조건을 여러 곳에 손으로 되풀이하면, 하나를 고치고 다른 하나를 잊는 일이 생긴다.
+      이름을 주면 고칠 자리가 하나가 된다.
+    ]
+  ]
+  #sub("6.4.6", "계약이 검사를 없앤다")[
+    #para("1")[
+      처리기는 계약을 #strong[사실로 삼아]; 값이 가질 수 있는 범위를 좁힌다. 그 범위가 안전을
+      보이면 그 검사를 없앤다.
+    ]
+    #para("2")[
+      없앨 수 있는 검사는 다음이다 — 넘침, 0 으로 나누기, 좁히기, 슬라이스 경계.
+    ]
+    #para("3")[
+      계약이 #strong[강제되지 않으면 사실로 쓰지 아니한다.]; 곧 확인 없이 믿는 일은 없다.
+      확인 없이 믿고 검사를 없애면 그것은 빨라진 것이 아니라 틀린 것이다.
+    ]
+    #para("4")[
+      처리기는 없애지 못한 검사가 어디에 남았는지 알릴 수 있다. 알리지 않는 성능 모형은
+      그 자체로 소스 밖의 지식이 된다(#cref("1.3")).
+    ]
+    #ex("계약이 검사를 없앤다", "module ex_elim .
+
+rem 계약이 없으면 넘침 검사가 남는다.
+export fn bare input a u8 . output u8 .
+do
+  return add a. 1 . .
+end .
+
+rem 계약이 있으면 처리기가 증명하고 검사를 없앤다.
+export fn proven input a u8 . output u8 .
+  requires le a. 200 . .
+do
+  return add a. 1 . .
+end .")
+    #note[
+      두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이며, 그 한 줄이 실행 중 검사 하나를
+      없앤다. 이것이 이 언어에서 계약이 하는 가장 큰 일이다.
+    ]
+    #diagram("계약이 진입에서 사실이 되어 넘침 검사를 지운다", " proven 250  ──▶ requires le a 200   entry check fails → E-VM-CONTRACT (caller's fault)
+ proven 150  ──▶ requires le a 200   passes → from here on a ∈ [0, 200] is a fact
+                 add a 1             a + 1 ∈ [1, 201] ⊂ u8 [0, 255] → overflow check removed
+ bare 255    ──▶ add a 1             no fact about a → the check stays → E-VM-OVERFLOW")
+  ]
+  #sub("6.4.7", "빌드 모드가 남은 검사를 정한다")[
+    #para("1")[
+      #t("빌드 모드", "build mode") 는 소스에 `build <모드> .` 로 적는다. 증명된 계약은 어느
+      모드에서도 검사가 남지 아니한다. 정하는 것은 #strong[증명하지 못한 계약];의 처분이다.
+    ]
+    #para("1a")[
+      모드는 #strong[닫힌 넷];이다 — `debug` · `test` · `release_safe` · `release_fast`.
+      그 밖의 낱말은 거부된다(`E-BUILD-MODE`).
+    ]
+    #para("2")[
+      `debug` 는 남은 검사를 두고, 깨지면 무엇이 깨졌는지 말하며 멈춘다.
+    ]
+    #para("2a")[
+      `test` 는 `debug` 와 같이 검사를 둔다. 시험(#cref("6.4.13"))을 돌리는 것은 이 모드가 아니라 #strong[시험을 돌리라는
+      요청];이다 — 그 요청은 어느 모드에서든 시험을 돌리고, `test` 모드라도 보통의 실행은 시험을 돌리지 아니한다.
+      시험 안의 `expect` 가 거짓이면 그 시험은 실패한다(`E-TEST-FAIL`) — 처리기의
+      잘못이 아니라 #strong[적은 사람의 주장이 틀린 것];이다.
+    ]
+    #para("3")[
+      `release_safe` 는 남은 검사를 두되 메시지 없이 멈춘다.
+    ]
+    #para("4")[
+      `release_fast` 는 남은 검사를 #strong[없앤다];. 그러므로 이 모드에서 계약이 깨진 채로
+      프로그램이 계속 진행할 수 있으며, 그때의 거동은 이 문서가 정하지 아니한다.
+    ]
+    #para("5")[
+      곧 `release_fast` 는 #strong[신뢰 경계];(#cref("4.4"))를 하나 더 여는 것과 같다 — 계약이
+      참임을 사람이 약속하는 것이다.
+    ]
+    #rejected("빌드 모드는 닫힌 넷이다", "module ex_build_mode .
+
+build nosuchmode .
+
+fn f output u8 . do return 1 . end .", "E-BUILD-MODE")
+  ]
+  #sub("6.4.8", "이름과 범위")[
+    #para("1")[
+      이름은 네 겹으로 중첩된다 — 모듈, op, 블록, 그 안의 블록.
+    ]
+    #para("2")[
+      한 이름은 한 범위에서 정확히 한 대상을 가리킨다. 이미 살아 있는 이름을 다시 선언하여
+      #strong[가릴 수 없다.]; 그렇게 하면 번역이 거부된다.
+    ]
+    #para("3")[
+      가릴 수 없는 것은 다음 넷이다 — 모듈에 있는 이름, 기본 연산의 이름(#cref("6.1.3")),
+      같은 op 의 매개변수 이름, 그리고 바깥 블록에서 아직 살아 있는 지역 이름.
+    ]
+    #para("4")[
+      같은 블록에서 같은 이름을 두 번 선언하는 것도 적합하지 아니하다. 두 번째 선언은 첫 번째를
+      #strong[대신하지 않는다]; — 같은 글자가 두 대상을 가리키게 될 뿐이다.
+    ]
+    #para("5")[
+      블록을 벗어나면 그 블록에서 선언한 이름은 사라진다. 따라서 나란한 두 블록이 같은 이름을
+      각각 선언하는 것은 적합하다 — 두 이름이 동시에 살아 있지 않기 때문이다.
+    ]
+    #rejected("모듈 이름을 가릴 수 없다", "module ex_shadow .
+
+let g u32 7 .
+
+proc p output u32 . effects none .
+do
+  let g u32 1 .     rem 모듈의 `g` 를 가린다
+  return g. .
+end .", "E-NAME-SHADOW")
+    #rejected("매개변수를 가릴 수 없다", "module ex_shadow_param .
+
+proc p input n u32 . output u32 . effects none .
+do
+  let n u32 1 .     rem 매개변수 `n` 을 가린다
+  return n. .
+end .", "E-NAME-SHADOW")
+    #rejected("같은 블록에서 같은 이름을 두 번 선언할 수 없다", "module ex_shadow_twice .
+
+proc p output u32 . effects none .
+do
+  let a u32 1 .
+  let a u32 2 .     rem 첫 번째를 대신하지 않는다
+  return a. .
+end .", "E-NAME-SHADOW")
+    #rejected("안쪽 블록이 바깥 이름을 가릴 수 없다", "module ex_shadow_inner .
+
+proc p input n u32 . output u32 . effects none .
+do
+  let a u32 1 .
+  guard gt n. 0 . else do
+    let a u32 2 .   rem 바깥 `a` 가 아직 살아 있다
+    return a. .
+  end .
+  return a. .
+end .", "E-NAME-SHADOW")
+    #para("6")[
+      이름을 찾는 차례는 지역 → 모듈 → 가져온 모듈이다. 가져온 이름이 서로 부딪히면
+      어느 것인지 밝혀 적어야 한다.
+    ]
+  ]
+  #sub("6.4.9", "계약의 등급")[
+    #para("1")[
+      계약 절 하나에 #t("등급", "grade") 을 붙여 #strong[그 조건을 언제 무엇으로 다룰지];를 정할 수
+      있다 — `requires <등급> <조건> .` 처럼 절 낱말 바로 뒤에 온다. 등급은 다음 셋이
+      전부다.
+    ]
+    #term("등급", "grade")[
+      계약 절 하나에 붙여 그 조건을 #strong[언제 누가 책임지는지];를 정하는 표시. 번역할 때
+      처리기가 증명하거나(`static`), 돌 때 검사하거나(`debug`), 사람이 참이라고
+      약속한다(`assume`).
+    ]
+    #tbl("계약의 등급 — 닫힌 집합 셋")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*등급*], [*언제 보나*], [*뜻*],
+      [`static`], [번역할 때], [처리기가 #strong[증명해야 한다];. 못 하면 번역이 실패한다],
+      [`debug`], [돌 때], [빌드 모드가 검사를 두는 동안만 본다],
+      [`assume`], [#strong[보지 않는다];], [적어 두기만 한다. 처리기는 이것을 #strong[사실로 쓰지 아니한다];],
+      )
+    ]
+    #para("2")[
+      등급을 적지 아니하면 처리기가 정한다 — 증명할 수 있으면 증명하고, 못 하면 빌드
+      모드(#cref("6.4.7"))가 정한 대로 남긴다. 곧 등급은 #strong[기본 처분을 뒤집는 표시];이지
+      계약을 쓰는 데 필요한 것이 아니다.
+    ]
+    #para("3")[
+      `assume` 한 조건은 #strong[사실로 쓰이지 아니한다.]; 처리기는 그것을 지키지도 않고, 그것에
+      기대어 다른 검사를 지우지도 않는다 — 곧 그 조건은 #strong[읽는 사람에게 하는 말];이다.
+    ]
+    #para("4")[
+      이것이 규범인 까닭은 그 반대가 성립하지 아니하기 때문이다. 지켜지지 않는 조건을 사실로
+      삼으면, 그 조건이 거짓일 때 처리기는 #strong[지우지 말았어야 할 검사를 지운 채]; 옳다고 믿는다.
+      곧 계약을 사실로 쓰려면 #strong[강제해야 하고];, 강제하지 않는 것은 사실이 아니다.
+    ]
+    #tbl("같은 조건, 다른 처분")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*적은 것*], [*진입에서*], [*뒤따르는 검사*],
+      [`requires le a 200`], [검사한다], [#strong[지워진다]; — 사실이 되었으므로],
+      [`requires assume le a 200`], [검사하지 아니한다], [남는다 — 사실이 아니므로],
+      )
+    ]
+    #plain[
+      그러면 `assume` 은 무엇에 쓰는가. 아직 처리기가 증명할 수 없지만 사람은 아는 것을
+      #strong[적어 두는]; 자리다. 적어 두면 읽는 사람이 알고, 나중에 처리기가 자라면 그 자리를
+      `static` 으로 올릴 수 있다. 적지 아니하면 그 앎은 사람의 머릿속에만 남는다.
+    ]
+    #ex("같은 프로그램이 모드에 따라 다르게 끝난다 — `debug`", "module ex_mode_debug .
+
+build debug .
+
+fn bump input a u8 . output u8 .
+  requires le a. 200 . .
+do
+  return add a. 1 . .
+end .",
+      out: "bump(10) = 11 · bump(250) → E-VM-CONTRACT (트랩)")
+    #ex("같은 프로그램 — `release_fast`", "module ex_mode_fast .
+
+build release_fast .
+
+fn bump input a u8 . output u8 .
+  requires le a. 200 . .
+do
+  return add a. 1 . .
+end .",
+      out: "bump(10) = 11 · bump(250) = 251 (멈추지 않는다)")
+    #caution("`release_fast` 는 안전한 부분집합 밖이다")[
+      같은 프로그램이 모드에 따라 다르게 끝난다. 계약 `requires le a. 200 . .` 을 어기고
+      `a` 를 250 으로 부르면 `debug` 에서는 멈추고(`E-VM-CONTRACT`), `release_fast` 에서는
+      #strong[멈추지 않고 251 을 낸다.];
+      이것이 이 문서가 미정의 동작을 없앴다고 말하는 범위를 #strong[안전한 부분집합];으로 한정하는
+      까닭 가운데 하나다(#cref("4.4")). 속도를 위해 검사를 없애는 것은 고를 수 있는 일이되,
+      #strong[고른다는 사실이 소스에 남아야]; 한다 — 그래서 모드는 명령줄 깃발이 아니라 `build`
+      문장이다.
+    ]
+  ]
+  #sub("6.4.10", "지금 판정할 수 있는 위반")[
+    #para("1")[
+      부르는 자리가 상대의 `requires` 를 어기고 #strong[양쪽이 모두 상수];이면, 그 어김은
+      실행을 기다릴 필요 없이 #strong[번역할 때]; 판정된다. 이때 거부된다
+      (`E-CONTRACT-IMPOSSIBLE`).
+    ]
+    #para("2")[
+      이것은 계약을 더 엄하게 만든 것이 아니라, #strong[언제 답이 나오는가];를 앞당긴 것이다.
+      전에는 초록으로 번역되어 실행 중에 덫에 걸렸다.
+    ]
+    #plain[
+      번역할 때 답이 나는 계약이 실행할 때까지 미뤄지면, 그 프로그램은 #strong[돌려 봐야만
+      틀렸음을 아는]; 프로그램이 된다. 맞지 않는 비트 예산을 지닌 채 돌아가는 프로그램이
+      배포되는 일이 실제로 있었다. 답이 지금 나면 지금 말한다.
+    ]
+    #rejected("양쪽이 상수이므로 지금 판정된다", "module ex_impossible .
+
+fn g input a u8 . output u8 . requires lt a. 10 . .
+do
+  return a. .
+end .
+
+fn f output u8 .
+do
+  return g 200 . .       rem 200 은 결코 10 보다 작지 않다
+end .", "E-CONTRACT-IMPOSSIBLE")
+  ]
+  #sub("6.4.11", "이름이 될 수 없는 것")[
+    #para("1")[
+      가릴 수 없는 것(#cref("6.4.8"))과는 별개로, #strong[애초에 이름이 될 수 없는 글자];들이 있다.
+    ]
+    #tbl("이름으로 쓸 수 없는 것")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*무엇*], [*진단*], [*왜*],
+      [열쇠말], [`E-NAME-KEYWORD`], [열쇠말은 읽는 사람이 #strong[한눈에 짜임과 값을 가르는]; 표시다],
+      [기본 연산의 이름], [`E-NAME-BUILTIN`], [이름칸이 #strong[평평하므로];(가림 없음) 그 이름이 두 가지를 뜻하게 된다],
+      [`_` 하나], [`E-NAME-WILDCARD`], [혼자 있는 `_` 는 #strong[아무거나];를 뜻하는 표시이지 이름이 아니다],
+      [`__` 로 시작하는 이름], [`E-NAME-VENDOR-RESERVED`], [처리기와 라이브러리를 만드는 쪽의 몫으로 #strong[남겨 둔]; 자리다],
+      [ASCII 밖의 글자], [`E-NAME-ASCII`], [글월·문자열·`rem` 주석은 어떤 글자든 담지만, #strong[이름은 ASCII]; 다],
+      )
+    ]
+    #para("1a")[
+      여기서 「기본 연산」은 #cref("6.3") 이 이름 부른 것들만이 아니다. 호스트에 닿는 것 가운데 #strong[맨 이름으로
+      부르는 것];(시각 · 난수 · 환경 · 터미널 …)의 이름도 그 집합에 든다. `call_builtin` 뒤에 서는 빌트인 연산
+      (파일 · 그물 · 프로세스 …)의 이름은 들지 아니한다 — 제 이름공간에 있다(#cref("6.3.3") (1f)).
+      맨 이름으로 부르는 것들이 무엇을 하는지는 이 문서가 적지 아니하나(#cref("9.5") — 목록은 베끼지 않는다),
+      #strong[그 이름이 잡혀 있다는 사실은 규범이다]; — 지역 이름으로 쓰면 거부된다.
+    ]
+    #plain[
+      목록을 적지 않으면서 「그 목록에 든 이름은 쓸 수 없다」고 정하는 것이 이상해 보일
+      수 있다. 그러나 두 물음은 다르다 — #strong[무엇이 있는가];는 세는 쪽(원장)이 답하고,
+      #strong[그것이 이름칸을 차지하는가];는 규범이 답한다. 앞엣것은 늘고 줄지만 뒤엣것은
+      늘 참이며, #strong[늘 참인 것만 이 문서에 적힌다.];
+    ]
+    #para("2")[
+      들여온 이름 둘이 #strong[같은 이름에 묶이는]; 것도 거부된다(`E-NAME-COLLISION`). 들여오기는
+      이미 있는 이름을 #strong[덮어쓰지 아니한다.];
+    ]
+    #para("3")[
+      점이 든 이름 `<앞>.<뒤>` 에서 앞은 #strong[선언된 타입];이어야 한다(`E-NAME-QUALIFIER`).
+      그 모양은 op 을 그 타입의 이름칸에 두는 것이지 모듈을 가리키는 것이 아니다.
+    ]
+    #plain[
+      왜 ASCII 인가. 이 언어는 글월과 주석에 어떤 글자든 담을 수 있게 하면서 #strong[이름만]; 좁게
+      둔다. 이름은 사람이 읽을 뿐 아니라 도구가 옮기고 붙이고 비교하는 것이며, 눈으로
+      구별되지 않는 글자가 서로 다른 이름이 되는 일은 #strong[찾을 수 없는 잘못];을 만든다.
+    ]
+    #caution("")[
+      `__` 를 남겨 두는 것이 지키는 것은 처리기가 아니라 #strong[쓰는 사람];이다. 그 자리가 늘
+      「안쪽의 것」을 뜻한다고 정해 두면, 남의 코드를 읽을 때 그것이 내 것이 아님을 이름만
+      보고 안다.
+    ]
+  ]
+  #sub("6.4.12", "계약이 가리키는 것")[
+    #para("1")[
+      계약 절이 부르는 이름은 그 자리에서 #strong[볼 수 있는 것];이어야 한다. 없는 이름을
+      부르면 거부된다(`E-REQ-UNDEF` · `E-ENS-UNDEF`).
+    ]
+    #para("2")[
+      처리기가 그 자리로 #strong[가져올 수 없는]; 것을 부르는 계약도 거부된다
+      (`E-REQ-UNSUP` · `E-ENS-UNSUP`). 판단할 수 없는 것을 판단한 척하지 아니한다.
+    ]
+    #para("3")[
+      이름 붙인 계약(#cref("6.4.5"))이 선언되지 않은 것을 가리키면 거부된다
+      (`E-CONTRACT-UNDEF`).
+    ]
+    #para("4")[
+      일어날 수 #strong[없는]; 오류를 선언하는 것은 거부된다(`E-CONTRACT-DEAD`) — `requires` 가
+      이미 그 경우를 걸러 내고 있다면, 그 오류 갈래는 결코 나지 아니한다.
+    ]
+    #para("4a")[
+      같은 입력에 대한 `requires` 둘이 #strong[함께 참일 수 없으면]; 거부된다
+      (`E-CONTRACT-UNSAT`) — 어떤 인자로 불러도 진입에서 멈추므로 그 op 의 몸은 결코 돌지
+      아니한다. (4) 와 같은 자리다: 돌지 않는 코드가 시그니처에 적혀 있는 것이다.
+    ]
+    #plain[
+      (4) 가 막는 것은 틀린 프로그램이 아니라 #strong[틀린 그림];이다. 결코 나지 않는 실패가
+      시그니처에 적혀 있으면, 부르는 쪽은 그것을 다루는 코드를 쓰고 그 코드는 영영 돌지
+      않는다. 돌지 않는 코드는 시험되지 않고, 시험되지 않는 코드는 언젠가 틀린다.
+    ]
+    #para("4b")[
+      처리기가 #strong[강제하지 못하는]; 계약 절은 그 사실을 알린다(`W-CONTRACT-IGNORED`).
+      진입 검사(`requires`)와 출구 검사(`ensures`)가 각각 아는 모양이 있고, 그 밖의 모양은
+      실행 중에 아무도 막지 않으며 구간 분석도 배우지 못한다. 그 절은 문서에만 선다.
+    ]
+    #plain[
+      (4b) 는 (2) 와 짝이다. (2) 는 #strong[가져올 수 없는 것];을 거부하고, (4b) 는 가져올 수는
+      있으나 #strong[세울 수 없는 모양];을 알린다. 둘 다 같은 하나를 지킨다 — 검사되지 않는 약속을
+      검사되는 것처럼 보이게 두지 아니한다. `ensures` 쪽은 2026-09-16 까지 이 알림이 없어
+      #strong[조용히 버려졌다];(결함 노트 #11).
+    ]
+    #para("5")[
+      번역 시점의 매개변수에 건넨 타입이 그 자리가 #strong[요구하는 것을 갖추지 못하면];
+      거부된다(`E-BOUND-UNSAT`, #cref("6.11.2")).
+    ]
+  ]
+  #sub("6.4.13", "시험 블록")[
+    #term("시험 블록", "test block")[
+      `test <이름> do … end .` 로 적는, 입력도 출력도 없는 몸. 시험을 돌리라는 요청을 받았을 때만 실행된다.
+    ]
+    #term("단언", "assertion")[
+      `expect <조건> .` — 시험이 참이라고 주장하는 조건. 거짓이면 그 시험은 실패한다.
+    ]
+    #para("1")[
+      시험 블록은 모듈의 최상위에 온다. 머리에는 이름과, 있으면 `schedule` 절(#cref("6.4.1") (3d))이 오고, 몸에는
+      op 의 몸에 오는 폼이 온다. 몸은 op 의 몸과 #strong[같은 타입 규칙];으로 검사된다 — 시험 안이라고
+      `let x u8 300 .` 이 통과하지 아니한다.
+    ]
+    #para("1a")[
+      시험의 이름은 op · 타입 · 모듈의 이름과 #strong[같은 이름 공간];에 든다. 한 모듈 안에서 시험끼리, 또는 시험과
+      다른 선언이 같은 이름을 쓰면 거부된다(`E-NAME-DUP`, #cref("6.4.8") (2)). 시험은 이름으로 보고되고 이름으로
+      불리므로, 이름이 겹치면 어느 것을 가리키는지 말할 수 없다.
+    ]
+    #para("2")[
+      `expect <조건> .` 의 조건은 `bool` 이어야 한다. 수를 주는 것은 거부된다(`E-TYPE-COND`) — 0 이 아닌
+      수를 참으로 읽는 규칙은 이 언어에 없다(#cref("6.2.16") (4)).
+    ]
+    #para("2a")[
+      시험을 돌렸을 때 `expect` 의 조건이 거짓이면 그 시험은 실패한다(`E-TEST-FAIL`). 이것은 계약 위반이
+      아니다 — 계약 위반은 코드가 #strong[자기 약속];을 어긴 것이고, 시험 실패는 #strong[적은 사람의 주장];과 코드가
+      다르다는 것이다. 고칠 자리가 다르다.
+    ]
+    #para("2b")[
+      처리기는 어느 빌드 모드(#cref("6.4.7"))에서도 `expect` 를 없애지 아니한다. 사라진 단언은 돌지 않은 시험이다.
+    ]
+    #para("2c")[
+      `expect` 는 시험 블록 안에만 온다. op 의 몸이나 그 밖의 자리에 적으면 거부된다(`E-EXPECT-PLACE`).
+      입력이나 결과에 대한 약속은 `requires` · `ensures`(#cref("6.4.3"))로, 일부러 멈추는 것은 `panic`(#cref("7.1"))으로 적는다.
+    ]
+    #para("3")[
+      시험은 시험을 돌리라는 요청(`lowentc --test`)을 받았을 때만 실행된다. 보통의 실행과 검사(`--check`)는
+      시험을 돌리지 아니하며, 검사는 그 사실을 알린다(`W-TEST-NOT-RUN`) — 검사의 통과가 시험의 통과로
+      읽히지 않게 하기 위함이다.
+    ]
+    #para("3a")[
+      번역이 거부하는 단위의 시험은 돌지 아니한다. 시험을 돌리는 요청도 먼저 `--check` 와 같은 검사를 거친다.
+      거부된 프로그램이 «통과» 를 내면 그 초록은 거짓이다.
+    ]
+    #para("3b")[
+      시험을 돌린 결과는 돈 시험의 수 · 통과한 수 · 실패한 수다. 시험이 하나도 없으면 없다고 말한다.
+      실패한 시험이 하나라도 있으면 그 요청은 실패로 끝난다.
+    ]
+    #para("4")[
+      `schedule explore_interleavings [limit <수>] .` 절이 붙은 시험은 메시지가 배달되는 #strong[차례];를 바꾸어 가며
+      되풀이해 돌린다. `limit` 이 없으면 처리기가 정한 상한까지 돈다. 상한 전에 차례를 다 돌면 결과를
+      «전수» 로, 상한에서 멈추면 «상한까지» 로 보고한다. 상한에서 멈춘 것을 전수라고 보고하지 아니한다.
+    ]
+    #para("4a")[
+      모든 차례에서 통과하면 그 시험은 통과한다. 어떤 차례에서는 통과하고 어떤 차례에서는 실패하면 그
+      시험은 실패한다(`E-SCHED-NONDET`) — 결과가 배달 차례에 기대는 것이고, 한 번 돌려 본 답은 그 한
+      차례의 답일 뿐이다. 모든 차례에서 실패하면 보통의 시험 실패(`E-TEST-FAIL`)다.
+    ]
+    #ex("시험 블록과 단언", "module ex_test .
+
+fn clamp8 input v u64 . output u8 .
+do
+  return narrow_sat u8 v. . .
+end .
+
+test clamp_keeps_small do
+  expect eq clamp8 7 . 7 . .
+end .
+
+test clamp_saturates do
+  expect eq clamp8 1000 . 255 . .
+end .")
+    #rejected("단언의 조건은 bool 이다 — 수는 참이 아니다", "module ex_test_num .
+
+test counts do
+  expect 1 .
+end .", "E-TYPE-COND")
+    #rejected("한 모듈의 두 시험은 이름이 달라야 한다", "module ex_test_dup .
+
+test same do
+  expect eq 1 1 . .
+end .
+
+test same do
+  expect eq 2 2 . .
+end .", "E-NAME-DUP")
+    #rejected("시험과 op 은 한 이름 공간을 쓴다", "module ex_test_ns .
+
+fn check output bool . do return true . end .
+
+test check do
+  expect check. .
+end .", "E-NAME-DUP")
+    #rejected("expect 는 시험 블록 안에만 온다", "module ex_expect_place .
+
+fn half input n u8 . output u8 .
+do
+  expect lt n. 200 . .
+  return div n. 2 . .
+end .", "E-EXPECT-PLACE")
+  ]
+]

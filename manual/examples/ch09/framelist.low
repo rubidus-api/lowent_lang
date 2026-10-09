@@ -1,0 +1,38 @@
+module framelist .
+rem run: squares 5
+rem run: spread 3 4
+rem run: again 3
+
+rem ko: var 에 묶은 나열은 이 op 의 틀 안 칸이다 --- 칸은 set (index …) 로 쓴다 /// en: a list bound with var is a slot in this op's frame --- write its cells with set (index …)
+export fn squares input n u64 . output u64 .
+do
+  var buf lit array u64 8 _ . .
+  var i u64 0 .
+  while lt i. 8 . do
+    set idx buf. i. . mul i. i. . .
+    set i. add i. 1 . .
+  end .
+  guard lt n. 8 . else return 0 . .
+  return idx buf. n. . .
+end .
+
+rem ko: 원소를 실행 중에 계산해도 된다 --- 그런 let 나열도 틀 안에 놓인다 /// en: elements may be computed at run time --- such a let list also lives in the frame
+export fn spread input a u64 . input b u64 . output u64 .
+do
+  let t lit array u64 3 a. b. mul a. b. . . .
+  return add idx t. 2 . len t. . . .
+end .
+
+rem ko: 반복 안의 선언은 바퀴마다 새로 채워진다 --- 앞 바퀴의 값을 보지 않는다 /// en: a declaration inside a loop is filled afresh on each pass --- it never sees the last pass
+export fn again input n u64 . output u64 .
+do
+  var total u64 0 .
+  var k u64 0 .
+  while lt k. n. . do
+    var cell lit array u64 1 _ . .
+    set idx cell. 0 . add idx cell. 0 . 10 . .
+    set total. add total. idx cell. 0 . . .
+    set k. add k. 1 . .
+  end .
+  return total. .
+end .

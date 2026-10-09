@@ -1,0 +1,36 @@
+module clauses .
+rem run: first_two [65,66]
+rem test
+
+def enum parse_error do
+  too_short .
+end .
+
+fn first_two
+  rem ko: lowdoc — 사람이 읽는 설명. 도구가 문서로 뽑는다 /// en: lowdoc is a description for people; tools extract it as documentation
+  lowdoc "Add the first two bytes; refuses input shorter than two." .
+  input data slice u8 .
+  output result u64 parse_error .
+  errors too_short lt len data. . 2 . .
+  rem ko: tests — 이 op 을 시험하는 op 의 이름. 도구는 그 이름이 실제로 있는지 검사한다 /// en: tests names the ops that test this op; the tool checks that those names exist
+  tests first_two_ok first_two_short .
+do
+  guard ge len data. . 2 . else return error too_short . . .
+  return ok add widen u64 idx data. 0 . . widen u64 idx data. 1 . . . . .
+end .
+
+fn first_two_ok output bool . do
+  let r result u64 parse_error first_two "AB" . .
+  return is_ok r. . .
+end .
+
+fn first_two_short output bool . do
+  let r result u64 parse_error first_two "A" . .
+  return is_error r. . .
+end .
+
+rem ko: test 블록이 시험 op 들을 부른다 — lowentc --test 가 돌린다 /// en: the test block calls the testing ops; lowentc --test runs it
+test first_two_cases do
+  expect first_two_ok. .
+  expect first_two_short. .
+end .

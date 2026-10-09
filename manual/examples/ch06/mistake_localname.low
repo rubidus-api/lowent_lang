@@ -1,0 +1,9 @@
+module mistake_localname .
+rem expect: E-NAME-BUILTIN
+
+fn size input xs slice u8 . output u64 .
+do
+  rem ko: ✘ `count` 는 내장 op 의 이름이다 --- 지역 이름으로 쓸 수 없다 /// en: ✘ `count` is the name of a builtin op --- it cannot be a local name
+  let count u64 len xs. . .
+  return count. .
+end .

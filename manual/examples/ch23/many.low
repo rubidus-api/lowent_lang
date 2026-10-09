@@ -1,0 +1,54 @@
+module many .
+rem run: demo 3 4
+rem trap: demo_empty
+
+trait shape do
+  area input s self . output u64 .
+  perimeter input s self . output u64 .
+  grow input s self . input k u64 . output self .
+  checked_area input s self . output u64 . effects panic .
+end .
+
+def struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+fn rect.area input s rect . output u64 .
+do
+  return mul field s. w . field s. h . . .
+end .
+
+fn rect.perimeter input s rect . output u64 .
+do
+  return mul 2 add field s. w . field s. h . . . .
+end .
+
+fn rect.grow input s rect . input k u64 . output rect .
+do
+  return lit rect do w add field s. w . k. . . h add field s. h . k. . . end . .
+end .
+
+proc rect.checked_area input s rect . output u64 . effects panic .
+do
+  if eq field s. w . 0 . do
+    panic "empty rect" .
+  end .
+  return mul field s. w . field s. h . . .
+end .
+
+proc demo input w u64 . input h u64 . output u64 . effects panic .
+  requires le w. 1000 . .
+  requires le h. 1000 . .
+do
+  let r lit rect do w w. . h h. . end . .
+  let big rect method r. grow. 1 . .
+  return add method big. perimeter. . method big. checked_area. . . .
+end .
+
+proc demo_empty output u64 . effects panic .
+do
+  let r lit rect do w 0 . h 5 . end . .
+  return method r. checked_area. . .
+end .

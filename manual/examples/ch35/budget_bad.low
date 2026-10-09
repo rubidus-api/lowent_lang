@@ -1,0 +1,11 @@
+module budget_bad .
+rem expect: E-CONTRACT-IMPOSSIBLE
+
+use budget .
+
+fn too_wide output u64 .
+do
+  let ho option u64 budget.pack 40 16 16 7 1 0 . .
+  guard is_some ho. . else return 0 . .
+  return some_value ho. . .
+end .

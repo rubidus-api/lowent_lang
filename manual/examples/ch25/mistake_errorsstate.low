@@ -1,0 +1,47 @@
+module mistake_errorsstate .
+rem expect: E-ERRORS-STATE
+
+def enum bank_error do
+  insufficient .
+end .
+
+actor account do
+  state do
+    balance u64 .
+  end .
+
+  proc deposit input amount u64 . output u64 . effects state .
+    requires le amount. 1000000 . .
+  do
+    set balance. wrap_add balance. amount. . .
+    return balance. .
+  end .
+
+  rem ko: ✘ 오류 조건이 상태 칸 `balance` 를 읽는다 --- 나갈 때는 이미 줄어든 잔액으로 다시 읽힌다 /// en: ✘ the error condition reads the state field `balance` --- on exit it is read again, after the balance has shrunk
+  proc withdraw input amount u64 . output result u64 bank_error . effects state .
+    errors insufficient gt amount. balance. . .
+  do
+    guard le amount. balance. . else return error insufficient . . .
+    set balance. sub balance. amount. . .
+    return ok balance. . .
+  end .
+end .
+
+proc take30 output u64 . effects state .
+do
+  var a account spawn actor account . .
+  let seed u64 send a. deposit 50 . .
+  let r result u64 bank_error send a. withdraw 30 . .
+  guard not is_error r. . . else return 1 . .
+  return ok_value r. . .
+end .
+
+var fee u64 5 .
+
+rem ko: ✘ 액터 밖에서도 같다 --- 모듈 `var` 와 `mut` 자리의 인자도 몸통이 바꿀 수 있으므로 오류 조건에 서지 못한다 /// en: ✘ the same holds outside an actor --- a module `var` and a `mut` argument can both be changed by the body, so neither may stand in an error condition
+proc charge input amount u64 . input log mut slice u8 . output result u64 bank_error . effects state .
+  errors insufficient lt amount. fee. . .
+do
+  set fee. 0 .
+  return ok amount. . .
+end .

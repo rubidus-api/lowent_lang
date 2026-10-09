@@ -1,0 +1,25 @@
+module restart_resets .
+rem run: three_incs
+
+actor counter do
+  state do
+    value u64 .
+  end .
+  failure restart max 3 .
+  proc inc output u64 . effects state panic .
+  do
+    rem ko: 값이 2 일 때 한 번 터진다 /// en: blows up once, when the value is 2
+    if eq value. 2 . do panic "at two" . end .
+    set value. add value. 1 . .
+    return value. .
+  end .
+end .
+
+proc three_incs output u64 . effects state panic .
+do
+  var c counter spawn actor counter . .
+  let a u64 send c. inc . .
+  let b u64 send c. inc . .
+  rem ko: 셋째 메시지에서 터지고, 상태가 0 으로 돌아간 뒤 이 메시지가 다시 처리된다 /// en: the third message blows up, the state goes back to 0, and this message is processed again
+  return send c. inc . .
+end .

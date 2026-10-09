@@ -1,0 +1,7 @@
+module twice_bad .
+rem expect: E-EFFECT-CALC
+
+fn shout input out cap io . output u64 .
+do
+  return write_out out. 1 "hi\n" . .
+end .

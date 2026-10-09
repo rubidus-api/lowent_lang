@@ -1,0 +1,15 @@
+module max_gather .
+rem run: biggest [3,9,2,7]
+rem ko: `max` 도 결합적이고 0 이 항등원이라 나누어 모을 수 있다 /// en: `max` is associative too, with 0 as its identity, so it can be split and gathered
+fn biggest input s slice u8 . output u64 .
+  parallel s split .
+  reduce best max .
+do
+  var best u64 0 .
+  var i u64 0 .
+  while lt i. len s. . . do
+    set best. max best. widen u64 idx s. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return best. .
+end .

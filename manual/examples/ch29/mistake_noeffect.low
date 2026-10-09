@@ -1,0 +1,11 @@
+module mistake_noeffect .
+rem expect: E-FFI-NOEFFECT
+
+rem ko: ✘ 효과 줄이 없다 --- 부르는 쪽이 무엇을 떠안는지 머리에서 알 수 없다 /// en: ✘ no effects line --- callers cannot learn from the head what they take on
+unsafe extern proc c_area do
+  input k cap c .
+  input w i64 .
+  input h i64 .
+  output i64 .
+  link "lw_c_area" .
+end .

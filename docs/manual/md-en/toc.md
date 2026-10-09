@@ -528,13 +528,14 @@ Searches headings and index terms --- not the full text
 - [47.6 A borrowed proof in weak memory — spsc](ch47.md#s47-6)
 - [47.7 What is not proven](ch47.md#s47-7)
 
-[48 Proofs about syntax — whichever closer closes it, the same tree](ch48.md)
+[48 Proofs about syntax — the text decides the tree](ch48.md)
 
-- [48.1 Algebra and denotation](ch48.md#s48-1)
-- [48.2 One statement is a one-statement block](ch48.md#s48-2)
-- [48.3 Closers do the same job](ch48.md#s48-3)
-- [48.4 Common mistakes](ch48.md#s48-4)
-- [48.5 What is not proven](ch48.md#s48-5)
+- [48.1 Text and trees](ch48.md#s48-1)
+- [48.2 Reading is determined](ch48.md#s48-2)
+- [48.3 The number of stops is a checksum](ch48.md#s48-3)
+- [48.4 Blocks are associative](ch48.md#s48-4)
+- [48.5 Common mistakes](ch48.md#s48-5)
+- [48.6 What is not proven](ch48.md#s48-6)
 
 [49 Proofs about hashes — calling things by content, not name](ch49.md)
 

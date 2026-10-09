@@ -1,191 +1,341 @@
-(* ★★★ RFC-0103 (2026-08-27, 소유자 결정): **개행은 더 이상 닫개가 아니다.**
-   이 파일의 정리들 가운데 개행 닫힘을 모형화한 것들 — closers_agree ·
-   paren_does_not_leak_inward · paren_continues_inside 등 — 은 **죽은 규칙**을 말한다.
-   증명이 틀린 것이 아니라 **그 규칙이 언어에 없다.** 역사 기록으로 남긴다.
-   지금 규칙: 닫개는 오직 `.` 이고, 개행은 공백이다(SPEC-002 §2.3 R2). *)
+(* LowentBlock.v — «이름은 열고, 점은 닫는다» 의 형식 모델 (언어 개정 1.8 · RFC-0142).
 
-(* LowentBlock.v — 점-닫힘(point-closure) 문법의 형식 모델.
+   ★ 이 파일은 2026-10-10 에 **다시 썼다.** 앞선 판은 1.7 의 겉모습을 모델로 했다 — 닫개가 둘(`.` · `)`)이고
+     `case` 의 몸이 문장 하나여도 됐다. 1.8 에서 겉모습의 규칙이 하나로 모였다:
+
+         쓰는 자리의 이름은 폼을 **열고**, 점 하나가 가장 안쪽에 열린 폼을 **닫는다.**
+
+     닫개는 점 하나뿐이고, 괄호는 꾸밈이며, 폼의 끝을 인자 수가 정하지 않는다. 옛 정리 가운데 «문장 하나 = 문장
+     하나짜리 블록»(one_form_is_a_block)은 견줄 두 철자 가운데 하나가 언어에서 사라져 함께 뺐고, «닫개 둘이 같은
+     일을 한다»(closers_agree)는 닫개가 하나가 되어 뺐다. 블록의 결합법칙은 그대로 둔다.
 
    무엇을 증명하는가:
 
-     ① **한 문장은 한 문장짜리 블록이다.**   S  ≡  do S end
-        C 는 문장(statement)과 블록(compound statement)을 **다른 종류**로 갈라 놓았다.
-        우리는 가르지 않는다. 이 파일이 그것을 **기계로** 못 박는다.
+     ① **읽기는 하나로 정해진다(왕복).** 나무를 찍은 글을 다시 읽으면 그 나무가 나온다.
+        읽는 기계는 **인자 수 표를 갖지 않는다** — 그러므로 폼의 끝은 글만으로 정해진다.
+     ② **괄호는 꾸밈이다.** 폼을 괄호로 싸도 읽은 나무가 같다.
+     ③ **두 나무가 같은 글이 되면 두 나무는 같다**(괄호를 빼고). 한 글에 두 뜻이 없다.
+     ④ **점의 수는 검사합이다.** 찍은 글에서 여는 이름의 수와 점의 수가 같다. 점이 하나 모자라면 읽기가
+        실패하고(E-DOT-MISSING), 하나 남아도 실패한다(E-CLOSER-EXTRA).
+     ⑤ **`end` 는 폼을 닫지 않는다.** 블록 안에 열린 폼이 남은 채 `end` 가 오면 읽기가 실패한다.
+     ⑥ **블록은 결합적이다.** 블록 안의 블록은 제자리에서 펼쳐도 뜻이 같다.
 
-     ② **닫개는 결정적이다.** `.` 과 `)` 는 **같은 것**을 한다: 열려 있는 가장 안쪽 form 을
-        닫는다. 어느 것으로 닫든 **같은 나무**가 나온다. (개행은 2026-08-27, `end` 는 2026-09-25 에
-        이 목록에서 빠졌다 — 개행은 공백이고, `end` 는 자기 `do` 만 닫는 블록의 경계다.)
+   이 모델이 **다루지 않는 것**(정본 부록 A.10 이 정한다):
+     · 짓는 자리의 이름(`let x` · `input n`) · 타입 · 패턴 — 폼을 열지 않는 낱말들. 모델에서는 리터럴과 같은 잎이다.
+     · op 머리의 절 · `else` 사슬 · `expr` 섬의 중위 연산자.
+     · 토큰을 가르는 어휘 층(붙은 점 `a.` 와 띄운 점 `a .` 가 같은 토큰 열이 된다는 것은 렉서의 몫이다).
+     · 실제 처리기(`low_closer.c`)가 이 모델과 같은 일을 한다는 것 — 그것은 골든 시험이 잰다.
 
-     ③ **블록은 결합적이다(flatten).** 블록 안의 블록은 자기 자리에서 펼쳐도 뜻이 같다.
-        (그래서 `do S end` 를 본체 자리에 넣어도, S 를 그냥 넣어도 같다.)
+   순수 Coq(표준 라이브러리의 List · Lia 만). 공리 없음. *)
 
-   왜 증명하는가: 이 세 성질이 **파서와 뒤 단계가 form 이 무엇인지에 대해 같은 답을 갖는다**
-   는 뜻이기 때문이다. 실제로 그렇지 않았다 — 파서가 `.` 로 form 을 조각내면 IR 이 그것을
-   말없이 다시 붙이고 있었다. 두 층이 서로 다른 문법을 믿으면, 그 차이는 **조용히 틀린 답**
-   으로 나온다(PRINCIPLES.md §0).
-
-   순수 Coq. 외부 라이브러리 없음. *)
-
-Require Import List.
+Require Import List Lia.
 Import ListNotations.
 
 (* ── 나무 ────────────────────────────────────────────────────────────────── *)
 
-(* form 은 머리와 피연산자들이다. 피연산자는 원자 · 묶음 · **블록**이다.
-   블록은 form 의 **열**이다 — 그 이상도 이하도 아니다. *)
-Inductive node : Type :=
-  | Atom  : nat -> node                 (* 이름/리터럴 — 번호로 추상화 *)
-  | Group : node -> node                (* ( form )  — 괄호는 **하나의** form 을 감싼다 *)
-  | Block : list node -> node           (* do form* end — form 의 열 *)
-  | Form  : nat -> list node -> node.   (* head operand* *)
+Inductive tree : Type :=
+  | Lit   : nat -> tree                 (* 리터럴 · 짓는 자리의 이름 · 타입 — 폼을 열지 않는 잎 *)
+  | Form  : nat -> list tree -> tree    (* 이름 인자* .   — 변수 `a.` 는 인자가 없는 폼이다 *)
+  | Block : list tree -> tree           (* do 폼* end *)
+  | Group : tree -> tree.               (* ( 폼 )  — 꾸밈 *)
 
-(* ── 의미 ────────────────────────────────────────────────────────────────── *)
+(* 겹친 목록을 따라 내려가는 귀납 원리(Coq 이 저절로 주는 것은 목록 안쪽을 보지 않는다). *)
+Section TreeInd.
+  Variable P : tree -> Prop.
+  Hypothesis HLit   : forall n, P (Lit n).
+  Hypothesis HForm  : forall h a, Forall P a -> P (Form h a).
+  Hypothesis HBlock : forall ts, Forall P ts -> P (Block ts).
+  Hypothesis HGroup : forall t, P t -> P (Group t).
 
-(* 이 모델이 붙잡는 것은 **구조**다: 무엇이 무엇의 자식인가.
-   의미를 값이 아니라 **평탄화된 실행 열**로 준다 — 블록은 그 안의 form 을 순서대로 낸다. *)
+  Fixpoint tree_ind' (t : tree) : P t :=
+    match t with
+    | Lit n    => HLit n
+    | Form h a => HForm h a
+        ((fix go (l : list tree) : Forall P l :=
+            match l with
+            | []      => Forall_nil P
+            | x :: xs => Forall_cons x (tree_ind' x) (go xs)
+            end) a)
+    | Block ts => HBlock ts
+        ((fix go (l : list tree) : Forall P l :=
+            match l with
+            | []      => Forall_nil P
+            | x :: xs => Forall_cons x (tree_ind' x) (go xs)
+            end) ts)
+    | Group g  => HGroup g (tree_ind' g)
+    end.
+End TreeInd.
 
-Fixpoint denote (n : node) : list node :=
-  match n with
-  | Atom k    => [Atom k]
-  | Group g   => denote g                  (* 괄호는 **아무것도 더하지 않는다** *)
-  | Block bs  => flat_map denote bs        (* 블록 = 그 안의 것들, 순서대로 *)
-  | Form h os => [Form h os]               (* form 은 그 자체가 한 단위다 *)
+(* 괄호를 걷어 낸 나무 — 읽은 결과는 이 모양이다. *)
+Fixpoint erase (t : tree) : tree :=
+  match t with
+  | Lit n    => Lit n
+  | Form h a => Form h (map erase a)
+  | Block ts => Block (map erase ts)
+  | Group g  => erase g
   end.
 
-(* ── ① 한 문장 ≡ 한 문장짜리 블록 ───────────────────────────────────────── *)
+(* ── 글(토큰 열) ─────────────────────────────────────────────────────────── *)
 
-(* 파서가 제어 머리의 본체를 이렇게 **탈설탕**한다:
-       if c . S .      ↦   if c . do S end
-   그 탈설탕이 **의미를 바꾸지 않는다**는 것이 이 정리다. *)
+Inductive tok : Type :=
+  | TLit  : nat -> tok      (* 잎 *)
+  | TName : nat -> tok      (* 쓰는 자리의 이름 — 연다 *)
+  | TDot  : tok             (* 점 — 닫는다 *)
+  | TDo   : tok
+  | TEnd  : tok
+  | TLP   : tok
+  | TRP   : tok.
 
-Definition wrap (s : node) : node := Block [s].
+Fixpoint print (t : tree) : list tok :=
+  match t with
+  | Lit n    => [TLit n]
+  | Form h a => TName h :: flat_map print a ++ [TDot]
+  | Block ts => TDo :: flat_map print ts ++ [TEnd]
+  | Group g  => TLP :: print g ++ [TRP]
+  end.
 
-Theorem one_form_is_a_block :
-  forall s, denote (wrap s) = denote s.
+Definition prints (ts : list tree) : list tok := flat_map print ts.
+
+(* ── 읽는 기계 ───────────────────────────────────────────────────────────── *)
+
+(* 열려 있는 것의 종류와, 그것을 열기 전까지 모은 형제들. **인자 수는 어디에도 없다.** *)
+Inductive ctx : Type :=
+  | CForm  : nat -> list tree -> ctx
+  | CBlock : list tree -> ctx
+  | CParen : list tree -> ctx.
+
+(* 상태 = (가장 안쪽에 열린 것의 자식들 — 거꾸로 쌓는다, 그 바깥의 열린 것들). *)
+Definition state : Type := (list tree * list ctx)%type.
+
+Definition step (k : tok) (st : state) : option state :=
+  let (cur, stk) := st in
+  match k with
+  | TLit n  => Some (Lit n :: cur, stk)
+  | TName h => Some ([], CForm h cur :: stk)
+  | TDot    => match stk with
+               | CForm h saved :: s => Some (Form h (rev cur) :: saved, s)
+               | _ => None                         (* 닫을 폼이 없다 — E-CLOSER-EXTRA *)
+               end
+  | TDo     => Some ([], CBlock cur :: stk)
+  | TEnd    => match stk with
+               | CBlock saved :: s => Some (Block (rev cur) :: saved, s)
+               | _ => None                         (* 열린 폼이 남았다 — E-DOT-MISSING *)
+               end
+  | TLP     => Some ([], CParen cur :: stk)
+  | TRP     => match stk, cur with
+               | CParen saved :: s, [t] => Some (t :: saved, s)
+               | _, _ => None
+               end
+  end.
+
+Fixpoint run (ks : list tok) (st : state) : option state :=
+  match ks with
+  | []      => Some st
+  | k :: r  => match step k st with
+               | Some st' => run r st'
+               | None     => None
+               end
+  end.
+
+Definition parse (ks : list tok) : option (list tree) :=
+  match run ks ([], []) with
+  | Some (cur, []) => Some (rev cur)
+  | _              => None                         (* 끝까지 왔는데 열린 것이 남았다 *)
+  end.
+
+(* ── ① 왕복 — 읽기는 하나로 정해진다 ─────────────────────────────────────── *)
+
+Lemma run_app : forall a b st,
+  run (a ++ b) st = match run a st with Some st' => run b st' | None => None end.
 Proof.
-  intros s. simpl. rewrite app_nil_r. reflexivity.
+  induction a as [|k a IH]; intros b st; simpl.
+  - reflexivity.
+  - destruct (step k st) as [st'|]; [apply IH | reflexivity].
 Qed.
 
-(* 그러므로 본체 자리에 **문장을 쓰든 블록을 쓰든** 같다.
-   C 의 statement/compound-statement 구분은 여기서 **사라진다.** *)
-Corollary body_is_one_thing :
-  forall (mk : node -> node) (s : node),
-    (forall a b, denote a = denote b -> denote (mk a) = denote (mk b)) ->
-    denote (mk (wrap s)) = denote (mk s).
+Definition reads (t : tree) : Prop :=
+  forall rest cur stk, run (print t ++ rest) (cur, stk) = run rest (erase t :: cur, stk).
+
+Lemma reads_list : forall ts, Forall reads ts ->
+  forall rest cur stk,
+    run (prints ts ++ rest) (cur, stk) = run rest (rev (map erase ts) ++ cur, stk).
 Proof.
-  intros mk s Hcong. apply Hcong. apply one_form_is_a_block.
+  unfold prints. induction 1 as [|t ts Ht _ IH]; intros rest cur stk; simpl.
+  - reflexivity.
+  - rewrite <- app_assoc. rewrite Ht. rewrite IH. rewrite <- app_assoc. reflexivity.
 Qed.
 
-(* ── ② 블록은 결합적이다 (닫개가 어디서 닫히든 같은 나무) ───────────────── *)
-
-(* 블록 안의 블록을 그 자리에 펼쳐도 뜻이 같다. 이것이 "닫개는 결정적" 의 구조적 알맹이다:
-   `.` 로 닫든 개행으로 닫든 `end` 로 닫든, **열린 가장 안쪽 form 하나**를 닫으므로
-   결과 나무는 같다. *)
-
-Theorem block_assoc :
-  forall xs ys,
-    denote (Block (xs ++ ys)) = denote (Block xs) ++ denote (Block ys).
+Lemma reads_all : forall t, reads t.
 Proof.
-  intros xs ys. simpl. apply flat_map_app.
+  induction t as [n | h a IH | ts IH | g IH] using tree_ind'; unfold reads; intros rest cur stk.
+  - reflexivity.
+  - change (print (Form h a) ++ rest) with (TName h :: (prints a ++ [TDot]) ++ rest).
+    rewrite <- app_assoc. cbn [run step].
+    rewrite (reads_list a IH ([TDot] ++ rest) [] (CForm h cur :: stk)).
+    cbn [app run step]. rewrite app_nil_r. rewrite rev_involutive. reflexivity.
+  - change (print (Block ts) ++ rest) with (TDo :: (prints ts ++ [TEnd]) ++ rest).
+    rewrite <- app_assoc. cbn [run step].
+    rewrite (reads_list ts IH ([TEnd] ++ rest) [] (CBlock cur :: stk)).
+    cbn [app run step]. rewrite app_nil_r. rewrite rev_involutive. reflexivity.
+  - change (print (Group g) ++ rest) with (TLP :: (print g ++ [TRP]) ++ rest).
+    rewrite <- app_assoc. cbn [run step]. rewrite IH. reflexivity.
 Qed.
 
-Theorem nested_block_flattens :
-  forall xs ys zs,
-    denote (Block (xs ++ [Block ys] ++ zs))
-  = denote (Block (xs ++ ys ++ zs)).
+Lemma run_prints : forall ts rest cur stk,
+  run (prints ts ++ rest) (cur, stk) = run rest (rev (map erase ts) ++ cur, stk).
+Proof.
+  intros ts. apply reads_list. induction ts; constructor; [apply reads_all | assumption].
+Qed.
+
+(* 정리 G1 — 찍은 글을 읽으면 그 나무(괄호를 뺀 것)가 나온다. *)
+Theorem parse_print : forall ts, parse (prints ts) = Some (map erase ts).
+Proof.
+  intros ts. unfold parse.
+  rewrite <- (app_nil_r (prints ts)). rewrite run_prints. simpl.
+  rewrite app_nil_r. rewrite rev_involutive. reflexivity.
+Qed.
+
+(* 따름 — 폼 하나. **인자가 몇 개든** 같은 식으로 읽힌다: 끝을 정하는 것은 점이지 인자 수가 아니다. *)
+Corollary form_ends_at_its_stop : forall h args,
+  parse (print (Form h args)) = Some [Form h (map erase args)].
+Proof.
+  intros h args.
+  pose proof (parse_print [Form h args]) as H. unfold prints in H. simpl in H.
+  rewrite app_nil_r in H. exact H.
+Qed.
+
+(* ── ② 괄호는 꾸밈이다 ───────────────────────────────────────────────────── *)
+
+(* 정리 G2 — 어느 자리에서든, 폼을 괄호로 싼 글과 싸지 않은 글은 같은 상태에 이른다. *)
+Theorem parens_are_decoration : forall t rest st,
+  run (print (Group t) ++ rest) st = run (print t ++ rest) st.
+Proof.
+  intros t rest [cur stk]. rewrite (reads_all (Group t)). rewrite (reads_all t). reflexivity.
+Qed.
+
+Corollary parse_group : forall t, parse (print (Group t)) = parse (print t).
+Proof.
+  intros t. unfold parse.
+  rewrite <- (app_nil_r (print (Group t))). rewrite <- (app_nil_r (print t)).
+  rewrite parens_are_decoration. reflexivity.
+Qed.
+
+(* ── ③ 한 글에 두 뜻이 없다 ──────────────────────────────────────────────── *)
+
+(* 정리 G3 — 두 나무가 같은 글이 되면, 괄호를 뺀 두 나무는 같다. *)
+Theorem one_text_one_tree : forall ts us,
+  prints ts = prints us -> map erase ts = map erase us.
+Proof.
+  intros ts us H.
+  pose proof (parse_print ts) as A. pose proof (parse_print us) as B.
+  rewrite H in A. rewrite A in B. injection B as B. exact B.
+Qed.
+
+(* ── ④ 점의 수는 검사합이다 ──────────────────────────────────────────────── *)
+
+Definition opens (ks : list tok) : nat :=
+  length (filter (fun k => match k with TName _ => true | _ => false end) ks).
+Definition stops (ks : list tok) : nat :=
+  length (filter (fun k => match k with TDot => true | _ => false end) ks).
+
+Lemma len_app : forall (A : Type) (a b : list A), length (a ++ b) = length a + length b.
+Proof. induction a as [|x a IH]; intros b; simpl; [reflexivity | rewrite IH; reflexivity]. Qed.
+
+Lemma opens_app : forall a b, opens (a ++ b) = opens a + opens b.
+Proof. intros. unfold opens. rewrite filter_app, len_app. reflexivity. Qed.
+Lemma stops_app : forall a b, stops (a ++ b) = stops a + stops b.
+Proof. intros. unfold stops. rewrite filter_app, len_app. reflexivity. Qed.
+
+Lemma balanced_list : forall ts,
+  Forall (fun t => opens (print t) = stops (print t)) ts ->
+  opens (prints ts) = stops (prints ts).
+Proof.
+  unfold prints. induction 1 as [|t ts Ht _ IH]; simpl.
+  - reflexivity.
+  - rewrite opens_app, stops_app, Ht, IH. reflexivity.
+Qed.
+
+(* 정리 G4a — 찍은 글에서 여는 이름의 수와 점의 수가 같다. *)
+Theorem stops_match_opens : forall t, opens (print t) = stops (print t).
+Proof.
+  induction t as [n | h a IH | ts IH | g IH] using tree_ind'.
+  - reflexivity.
+  - simpl. change (TName h :: flat_map print a ++ [TDot]) with ([TName h] ++ prints a ++ [TDot]).
+    rewrite !opens_app, !stops_app. rewrite (balanced_list a IH). cbn. lia.
+  - simpl. change (TDo :: flat_map print ts ++ [TEnd]) with ([TDo] ++ prints ts ++ [TEnd]).
+    rewrite !opens_app, !stops_app. rewrite (balanced_list ts IH). cbn. lia.
+  - simpl. change (TLP :: print g ++ [TRP]) with ([TLP] ++ print g ++ [TRP]).
+    rewrite !opens_app, !stops_app. rewrite IH. cbn. lia.
+Qed.
+
+(* 정리 G4b — 폼을 닫는 점이 빠지면 읽기가 실패한다(E-DOT-MISSING). *)
+Theorem missing_stop_is_refused : forall h args,
+  parse (TName h :: prints args) = None.
+Proof.
+  intros h args. unfold parse. simpl.
+  rewrite <- (app_nil_r (prints args)). rewrite run_prints. reflexivity.
+Qed.
+
+(* 정리 G4c — 닫힌 것 뒤의 점은 닫을 것이 없어 읽기가 실패한다(E-CLOSER-EXTRA). *)
+Theorem extra_stop_is_refused : forall ts,
+  parse (prints ts ++ [TDot]) = None.
+Proof.
+  intros ts. unfold parse. rewrite run_prints. reflexivity.
+Qed.
+
+(* ── ⑤ `end` 는 폼을 닫지 않는다 ─────────────────────────────────────────── *)
+
+(* 정리 G5 — 블록 안에 열린 폼이 남은 채 `end` 가 오면 읽기가 실패한다. `end` 는 자기 `do` 만 닫는다. *)
+Theorem end_does_not_close_a_form : forall before h args rest,
+  parse (TDo :: prints before ++ TName h :: prints args ++ TEnd :: rest) = None.
+Proof.
+  intros before h args rest. unfold parse. simpl.
+  rewrite run_prints. simpl. rewrite run_prints. reflexivity.
+Qed.
+
+(* 그리고 블록을 가진 폼은 `end` 뒤의 점으로 닫힌다 — `while c. do … end .` 의 모양이다. *)
+Example block_form_closes_after_end : forall h c body,
+  parse (print (Form h [c; Block body])) = Some [Form h [erase c; Block (map erase body)]].
+Proof. intros. apply form_ends_at_its_stop. Qed.
+
+(* ── ⑥ 블록은 결합적이다 ─────────────────────────────────────────────────── *)
+
+(* 뜻을 값이 아니라 **평탄화된 실행 열**로 준다 — 블록은 그 안의 폼을 순서대로 낸다. *)
+Fixpoint denote (t : tree) : list tree :=
+  match t with
+  | Lit n    => [Lit n]
+  | Group g  => denote g                  (* 괄호는 아무것도 더하지 않는다 *)
+  | Block bs => flat_map denote bs        (* 블록 = 그 안의 것들, 순서대로 *)
+  | Form h a => [Form h a]                (* 폼은 그 자체가 한 단위다 *)
+  end.
+
+Theorem block_assoc : forall xs ys,
+  denote (Block (xs ++ ys)) = denote (Block xs) ++ denote (Block ys).
+Proof. intros xs ys. simpl. apply flat_map_app. Qed.
+
+Theorem nested_block_flattens : forall xs ys zs,
+  denote (Block (xs ++ [Block ys] ++ zs)) = denote (Block (xs ++ ys ++ zs)).
 Proof.
   intros xs ys zs.
   repeat rewrite block_assoc. simpl. rewrite app_nil_r.
   repeat rewrite block_assoc. reflexivity.
 Qed.
 
-(* 빈 블록은 **아무것도 아니다** — `do end` 를 써도 나무가 안 바뀐다. *)
-Theorem empty_block_is_nothing :
-  forall xs ys,
-    denote (Block (xs ++ [Block []] ++ ys)) = denote (Block (xs ++ ys)).
-Proof.
-  intros xs ys. rewrite nested_block_flattens. simpl. reflexivity.
-Qed.
+Theorem empty_block_is_nothing : forall xs ys,
+  denote (Block (xs ++ [Block []] ++ ys)) = denote (Block (xs ++ ys)).
+Proof. intros xs ys. rewrite nested_block_flattens. simpl. reflexivity. Qed.
 
-(* ── ③ 괄호는 값을 나르고, 블록은 열을 나른다 ───────────────────────────── *)
-
-(* 괄호 `( f )` 는 **정확히 하나의 form** 을 감싼다 — 그래서 아무것도 더하지 않는다.
-   블록 `do f end` 도 하나를 감싸면 아무것도 더하지 않는다.
-   ⇒ **하나짜리에서는 괄호와 블록이 같다.** 다른 것은 **여럿**일 때뿐이다.
-   이것이 두 어휘가 왜 **직교**한지의 답이다: 괄호 = 묶기, 블록 = 잇기. *)
-
-Theorem group_adds_nothing :
-  forall f, denote (Group f) = denote f.
+Theorem group_adds_nothing : forall f, denote (Group f) = denote f.
 Proof. intros f. reflexivity. Qed.
 
-Theorem group_and_block_agree_on_one :
-  forall f, denote (Group f) = denote (Block [f]).
-Proof.
-  intros f. simpl. rewrite app_nil_r. reflexivity.
-Qed.
+(* ── 개행 ────────────────────────────────────────────────────────────────── *)
 
-(* 그러나 **여럿**에서는 갈린다 — 괄호는 여럿을 담을 수 없다(문법이 하나만 받는다).
-   그것이 이 둘을 섞으면 안 되는 이유다. *)
+(* 개행은 이 모델의 글(tok)에 **없다.** 닫는 것은 점 하나뿐이므로 «개행이 닫느냐» 를 물을 자리가 없다 —
+   2026-08-27(RFC-0103)에 개행 닫힘을 없앤 뒤로 그렇다. 그때 지운 정리들의 기록은 git 이력에 있다. *)
 
-(* ── ④ 닫개의 결정성 ─────────────────────────────────────────────────────── *)
-
-(* 닫개를 추상화한다: 어떤 닫개든 "열린 가장 안쪽 form 을 닫는다" 는 **같은 함수**다.
-   `.`(명시) · `)`(묶음 끝) — 둘이 같은 일을 한다. *)
-
-(* ★ `Newline` 이 여기 있었다 — RFC-0103(2026-08-27)에서 **없앴다.** 개행은 공백이다.
-   ★★ `End` 도 여기 있었다 — X-0052(2026-09-25, 소유자 결정)에서 **뺐다.** `do … end` 는 짝인
-   괄호이고 `end` 는 **자기 `do` 만** 닫는다: 블록 안에 열린 form 이 남아 있으면 `end` 가 그것을
-   대신 닫지 않고 번역이 거부된다(E-DOT-MISSING). 그래서 `end` 는 "열린 가장 안쪽 form 을 닫는
-   닫개" 가 아니다 — 블록의 **경계**다. 남은 둘은 여전히 같은 일을 한다. *)
-Inductive closer : Type := Dot | RParen.
-
-(* 닫개가 하는 일: 쌓여 있던 피연산자들로 form 을 만든다. *)
-Definition close (c : closer) (h : nat) (ops : list node) : node :=
-  match c with
-  | Dot | RParen => Form h ops
-  end.
-
-Theorem closers_agree :
-  forall c1 c2 h ops, close c1 h ops = close c2 h ops.
-Proof.
-  intros c1 c2 h ops. destruct c1; destruct c2; reflexivity.
-Qed.
-
-(* ★ 닫개의 **철자가 둘이어도 나무는 하나**다. 두 철자가 다른 나무를 만들면
-   그것이 곧 "하나의 뜻에 두 표현" 이다(교훈 7).
-
-   ★★ 2026-08-27(RFC-0103): 여기 **네 번째 철자 `Newline` 이 있었다.** 그것도 같은 일을
-   한다는 것이 이 정리로 증명돼 있었다 — 증명은 옳았다. 없앤 이유는 다른 데 있다:
-   개행이 닫으면 **줄바꿈이 의미가 되어** 긴 줄을 되감는 것만으로 프로그램이 바뀐다.
-   *"같은 뜻이다" 가 증명됐다고 그 철자를 두어야 하는 것은 아니다.* *)
-
-(* ── ⑤ ~~쉼표: 형제이지 자식이 아니다~~ — **없앴다** (RFC-0103, 2026-08-27)
-
-   여기에 `comma_form` 과 `comma_does_not_close` 가 있었다. `,` 가 form 을 닫지 않고
-   같은 form 안에서 다음 인자를 연다는 정리다. Qed 였고 **지금도 참이다** — 그러나
-   `,` 가 어휘에 없다.
-
-   ★ 없앤 이유는 규칙이 틀려서가 아니라 **아무도 안 썼기 때문**이다: 저장소 전체에서
-   COMMA 토큰이 셋뿐이었고 셋 다 줄잇기(개행 닫힘과 함께 죽은 역할)였다. 인자 구분자로
-   쓴 자리는 한 곳도 없었고, 그 셋에서 `,` 를 지워도 def 해시가 그대로였다.
-   *파싱되는데 아무 효과가 없는 낱말은 조용한 함정이다.* *)
-
-(* ── ⑥⑦ ~~줄잇기 세 철자~~ · ~~괄호와 개행~~ — **없앴다** (RFC-0103, 2026-08-27)
-
-   여기에 정리 다섯이 있었다:
-
-     three_reasons_one_rule        줄잇기 방법 셋은 서로 다른 이유다
-     no_fourth_spelling_is_needed  C 의 `\` 는 새 뜻을 안 나른다
-     paren_does_not_leak_inward    괄호 안의 블록에서는 개행이 닫는다
-     paren_does_not_leak_outward   `)` 가 빠지면 효과도 즉시 빠진다
-     paren_continues_inside        괄호 안에서는 개행이 잇는다
-
-   다섯 다 Qed 였고 **지금도 참이다** — 그러나 **그 규칙이 언어에 없다.** 개행은
-   공백이므로 "개행이 닫느냐" 를 물을 자리가 없고, "줄을 어떻게 잇나" 도 물을 자리가
-   없다. 참인 정리를 지우는 것이 아깝지만, 죽은 규칙을 모형화한 정리를 남겨 두면
-   그것은 **증명된 문서가 거짓말을 하는** 자리가 된다.
-
-   ★ 이 절이 기록한 사고 하나는 남길 값이 있다: 전엔 "괄호 **깊이**" 를 봤고 효과가
-   양쪽으로 샜다(괄호 안 블록에서도 개행이 안 닫혔고, 괄호 하나를 안 닫으면 파일의
-   나머지가 통째로 빨려 들어갔다). **깊이가 아니라 스택의 맨 위**를 보는 것이 답이었다.
-   그 교훈은 규칙이 없어져도 남는다 — *중첩된 것을 다룰 때 깊이는 맨 위의 근사일 뿐이다.* *)
+(* ── 공리 점검 ───────────────────────────────────────────────────────────── *)
+Print Assumptions parse_print.
+Print Assumptions parens_are_decoration.
+Print Assumptions one_text_one_tree.
+Print Assumptions stops_match_opens.
+Print Assumptions end_does_not_close_a_form.

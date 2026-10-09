@@ -80,7 +80,7 @@ Contents
 - 45. Proofs about races and parallelism — discipline instead of a memory model
 - 46. Proofs about weak memory — with the default, you may think sequentially
 - 47. Proofs about locks — where heavy tools are really needed
-- 48. Proofs about syntax — whichever closer closes it, the same tree
+- 48. Proofs about syntax — the text decides the tree
 - 49. Proofs about hashes — calling things by content, not name
 - 50. What is not proven
 

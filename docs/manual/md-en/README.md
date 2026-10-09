@@ -103,7 +103,7 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 - [45 Proofs about races and parallelism — discipline instead of a memory model](ch45.md)
 - [46 Proofs about weak memory — with the default, you may think sequentially](ch46.md)
 - [47 Proofs about locks — where heavy tools are really needed](ch47.md)
-- [48 Proofs about syntax — whichever closer closes it, the same tree](ch48.md)
+- [48 Proofs about syntax — the text decides the tree](ch48.md)
 - [49 Proofs about hashes — calling things by content, not name](ch49.md)
 - [50 What is not proven](ch50.md)
 

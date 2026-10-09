@@ -28,9 +28,9 @@ proc run_kill input k cap process . output u64 . effects io . do
   let co option process.child process.launch k. "sleep\030" . .
   guard is_some co. . else return 999 . .
   var c owned process.child some_value co. . .
-  let alive option u64 process.check k. c. . .
-  guard is_some alive. . else return 997 . .
-  guard eq some_value alive. . process.still_running . . else return 996 . .
+  let polled option u64 process.check k. c. . .
+  guard is_some polled. . else return 997 . .
+  guard eq some_value polled. . process.still_running . . else return 996 . .
   guard process.kill_child k. c. . else return 995 . .
   let s u64 process.wait_exit k. c. . else return 998 . .
   return s. .

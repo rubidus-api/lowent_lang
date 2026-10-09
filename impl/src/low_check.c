@@ -2409,6 +2409,12 @@ kids:
                 //   없는 남의 모듈 머리가 «비공개 이름에 손댄다» 로 고발됐다(certverify 의 `proc link`).
                 //   최소 재현이 오래 안 만들어진 까닭이 그것이다 — 겹치는 이름이 **소비자 쪽**에 있어야 했다.
                 if (nd->kids[i]->kind == LOW_CST_ATOM && low_is_clause_word(nd->kids[i]->tok.lex)) continue;
+                // ★★★ 2026-10-10 — **`call_builtin <이름>` 의 이름은 모듈 이름공간의 것이 아니다** (결함 call-builtin-false-visibility).
+                //   빌트인 연산은 제 이름공간을 갖고 그 자리에서만 선다(RFC-0125 · RFC-0127 ⓒ). 그런데 이 걸음은 그 이름도 참조로 읽어,
+                //   한 단위에 `hash`(export `sha256`)와 `call_builtin sha256 …` 을 쓰는 모듈(`hmac` · `rsa` · `tls13` …)이 함께 오면
+                //   «남의 export 를 맨이름으로 불렀다» 로 고발했다 — 아홉 쌍이 그래서 한 프로그램에 못 들어갔다(1.7.0 에도 있었다).
+                if (nd->kids[i]->kind == LOW_CST_ATOM && veq(nd->kids[i]->tok.lex, "call_builtin") &&
+                    i + 1 < nd->nkids && nd->kids[i + 1]->kind == LOW_CST_ATOM) { i++; continue; }
                 if (nd->kids[i]->kind == LOW_CST_ATOM && nd->kids[i]->tok.kw == LOW_KW_SEND &&
                     i + 2 < nd->nkids) {
                     ck_vis_walk(out, nd->kids[i + 1], v, nv, cur);
@@ -2425,6 +2431,12 @@ kids:
         //   이름으로 건다(모듈 링크의 존재 이유). 다음 원자(이름)를 면제한다.
         if (nd->kids[i]->kind == LOW_CST_ATOM && veq(nd->kids[i]->tok.lex, "tests") &&
             i + 1 < nd->nkids) { i++; continue; }
+        // ★★★ 2026-10-10 — **`call_builtin <이름>` 의 이름은 모듈 이름공간의 것이 아니다** (결함 call-builtin-false-visibility).
+        //   빌트인 연산은 제 이름공간을 갖고 그 자리에서만 선다(RFC-0125 · RFC-0127 ⓒ). 그런데 이 걸음은 그 이름도 참조로 읽어,
+        //   한 단위에 `hash`(export `sha256`)와 `call_builtin sha256 …` 을 쓰는 모듈(`hmac` · `rsa` · `tls13` …)이 함께 오면
+        //   «남의 export 를 맨이름으로 불렀다» 로 고발했다 — 아홉 쌍이 그래서 한 프로그램에 못 들어갔다(1.7.0 에도 있었다).
+        if (nd->kids[i]->kind == LOW_CST_ATOM && veq(nd->kids[i]->tok.lex, "call_builtin") &&
+            i + 1 < nd->nkids && nd->kids[i + 1]->kind == LOW_CST_ATOM) { i++; continue; }
         // ★★ `send <액터> <메시지> …` 의 **메시지 슬롯**도 면제한다 — 그 이름은 모듈
         //   이름공간에서 찾는 것이 아니라 **그 액터의 핸들러**에서 찾는다(수신자가 정한다).
         //   면제하지 않으면 남의 모듈이 우연히 같은 이름을 export 했다는 이유만으로

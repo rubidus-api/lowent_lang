@@ -1,0 +1,53 @@
+module procrun .
+rem ★ 프로세스 잎 다섯(`proc_spawn` · `proc_read` · `proc_poll` · `proc_wait` · `proc_kill` — RFC-0136)의 픽스처.
+rem   골든이 이 파일을 VM 과 네이티브로 돌려 같은 답인지 본다. 전에는 골든 안에 박힌 글이라 «어느 픽스처에도 없는 옵코드» 로
+rem   세어졌다(oracle-coverage) — 그리고 `proc_poll` · `proc_kill` 은 실제로 아무도 부르지 않았다.
+
+use process .
+
+proc run_one input k cap process . input argv slice u8 . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
+  requires ge len st. . 1 . .
+do
+  let co option process.child process.launch k. argv. . .
+  guard is_some co. . else return 999 . .
+  var c owned process.child some_value co. . .
+  var got u64 0 .
+  repeat spin u64 2000000 do
+    guard lt got. len buf. . . else break . .
+    let r option u64 process.read_output k. c. subslice buf. got. len buf. . . . .
+    guard is_some r. . else break . .
+    set got. add got. some_value r. . . .
+  end .
+  set idx st. 0 . got. .
+  let s u64 process.wait_exit k. c. . else return 998 . .
+  return s. .
+end .
+
+rem 오래 도는 자식을 띄우고 — 아직 도는지 묻고(`check`) — 강제로 끝낸다(`kill_child`). 상태는 «신호 9 로 끝났다» 다.
+proc run_kill input k cap process . output u64 . effects io . do
+  let co option process.child process.launch k. "sleep\030" . .
+  guard is_some co. . else return 999 . .
+  var c owned process.child some_value co. . .
+  let alive option u64 process.check k. c. . .
+  guard is_some alive. . else return 997 . .
+  guard eq some_value alive. . process.still_running . . else return 996 . .
+  guard process.kill_child k. c. . else return 995 . .
+  let s u64 process.wait_exit k. c. . else return 998 . .
+  return s. .
+end .
+
+proc main input k cap process . input hp cap heap . output u8 . effects heap io . do
+  let g option mut slice u8 alloc_bytes hp. capacity 1048640 . .
+  guard is_some g. . else return 70 . .
+  let mem mut slice u8 some_value g. . .
+  let buf mut slice u8 subslice mem. 0 1048576 . .
+  let st mut slice u64 view_array u64 subslice mem. 1048576 1048640 . . .
+  guard and eq run_one k. "echo\0hello world" buf. st. . 0 . eq idx st. 0 . 12 . . else return 1 . .
+  guard eq run_one k. "sh\0-c\0exit 3" buf. st. . 3 . else return 2 . .
+  guard eq run_one k. "sh\0-c\0kill -9 $$" buf. st. . 4294967305 . else return 3 . .
+  guard eq run_one k. "no-such-program-lowent" buf. st. . 999 . else return 4 . .
+  guard and eq run_one k. "head\0-c\0300000\0/dev/zero" buf. st. . 0 . eq idx st. 0 . 300000 . . else return 5 . .
+  guard and eq run_one k. "sh\0-c\0echo err 1>&2" buf. st. . 0 . eq idx st. 0 . 4 . . else return 6 . .
+  guard eq run_kill k. . 4294967305 . else return 7 . .
+  return 0 .
+end .

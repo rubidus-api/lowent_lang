@@ -958,13 +958,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 if (!have_src) { src0 = ti; have_src = true; }
             }
             ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
+            /* ★★★ 2026-10-10 (소유자 «bool을 숫자 u8 0과 1로 바꿀 수 있어야 합니다 … 수를 bool로 바꾸는 것은 eq n 0 또는
+             *   ne n 0 으로») — 위 «결정 A»(2026-09-03)의 한쪽을 되돌린다: **참거짓에서 정수로**는 `cast` 로 간다.
+             *   `true` 는 1, `false` 는 0 이고 어느 정수 타입에도 들어가므로 트랩하지 않는다. 반대쪽(정수 → 참거짓)은 여전히
+             *   없다 — 무엇을 묻는지(`ne n. 0 .`)를 적는다. 부동소수점 타입은 대상이 아니다(0/1 을 실수로 받을 까닭이 없다). */
             if (tgt.k == TK_BOOL)
-                tc_emit(c, "E-TYPE-KIND", "bool is not numeric: it cannot be a cast target (use `if`)",
+                tc_emit(c, "E-TYPE-KIND", "bool is not numeric: it cannot be a cast target — write the question: `ne n. 0 .` (or `eq n. 0 .`)",
                         k[start + 1]->line);
-            else if (have_src && src0.k == TK_BOOL)
+            else if (have_src && src0.k == TK_BOOL && tgt.k != TK_INT)
                 tc_emit(c, "E-TYPE-KIND",
-                        "bool is not numeric: it cannot be a cast SOURCE either. Which side is `1` "
-                        "is for the PROGRAM to say, not the language — write `var n u8 0 . if b do set n 1 . end`",
+                        "a bool casts to an INTEGER type only (`cast u8 b. .` gives 1 for true and 0 for false) — "
+                        "not to a floating-point type",
                         k[start + 1]->line);
             return tgt;
         }
@@ -993,6 +997,12 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             //   (거짓양성 하나가 거짓음성 여럿보다 비싸다: 사람이 게이트를 끄게 만든다.)
             bool known = (src.k == TK_INT || src.k == TK_FLOAT) && src.bits
                       && (tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits;
+            // ★ 2026-10-10 — 참거짓은 넓히기의 표에 없다(§6.2.5 (4)). 그런데 «모르면 안 문다» 에 걸려 `widen u8 <bool>` 이
+            //   말없이 통과해 1 을 냈다. 참거짓 → 정수의 철자는 `cast` 하나다(§6.2.16 (4)).
+            if (src.k == TK_BOOL)
+                tc_emit(c, "E-WIDEN-KIND",
+                        "a bool is not in the widening table — turning true/false into 1/0 crosses a KIND, "
+                        "and that is spelt `cast`: `cast u8 b. .`", k[start]->line);
             if (known) {
                 if (src.k != tgt.k) {
                     tc_emit(c, "E-WIDEN-KIND",

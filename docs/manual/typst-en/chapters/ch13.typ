@@ -111,7 +111,8 @@ written `cast <type> <value>`.
 
 - Converting floating point to integer truncates towards zero: 7.9 becomes 7, −2.9 becomes −2. Discarding the fraction does not stop.
 - If the integer part or the value does not fit the target type, execution stops. Three billion does not fit in an `i32`.
-- A `bool` can be neither the target nor the source of a `cast`. To go between booleans and numbers, write an `if`.
+- To turn a boolean into a number, use `cast`: `cast u8 b. .` is 1 for true and 0 for false (integer types only). There is no `cast` the
+  other way --- write the question, as in `ne n. 0 .`.
 
 `cast` is not a mark meaning "anything goes". It is a mark meaning *I know the value may change here*. It does not break the principle that no
 value-losing conversion happens implicitly (#chref("numbers")), because the author wrote the word.
@@ -256,12 +257,12 @@ without a word. It is recorded as a defect in the development repository.
   `guard ge x 0` first.
 ]
 
-#antipattern[Turning a `bool` into a number with `cast`][
+#antipattern[Turning a number into a `bool` with `cast`][
   #demo("examples/ch13/mistake_boolcast.low")
 
-  C treats true as 1, but whether true is 1, 0 or −1 is a promise of the program, not something the language should decide. So
-  `bool` can be neither the source nor the target of `cast`, and it is rejected with `E-TYPE-KIND`. As the tool suggests, write
-  "1 if true, 0 if false" with `if`. That one line puts the promise in the source.
+  C treats any non-zero number as true, but which values of a number count as true is decided by the question asked at that place. So
+  `bool` cannot be the target of `cast`, and it is rejected with `E-TYPE-KIND`. Write the question, as in `ne n. 0 .`; that one line puts
+  the meaning in the source. The other direction works --- `cast u8 b. .` is 1 for true and 0 for false.
 ]
 
 #misconception[Giving a type another name with `type` keeps units from mixing][

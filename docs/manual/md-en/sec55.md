@@ -127,7 +127,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-TYPE-DECL` | `be` in a type declaration | chapter 13 |
 | `E-TYPE-FIELD` | a field is missing or unknown when building a struct | chapter 10 |
 | `E-TYPE-INSTANCE` | mixes different instances of the same generic | chapter 35 |
-| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` of `bool`) | chapter 8, chapter 10, chapter 13 |
+| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` to `bool`) | chapter 8, chapter 10, chapter 13 |
 | `E-TYPE-MIX` | float and integer literals mixed in one calculation | chapter 4 |
 | `E-TYPE-MUT` | writes an element of a non-`mut` slice | chapter 9 |
 | `E-TYPE-NOMINAL` | mixes nominally distinct types | chapter 13 |

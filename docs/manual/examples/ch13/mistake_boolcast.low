@@ -1,8 +1,8 @@
 module mistake_boolcast .
 rem expect: E-TYPE-KIND
 
-fn flag input b bool . output u8 .
+fn nonzero input n u64 . output bool .
 do
-  rem ko: ✘ 참이 1 인지는 언어가 아니라 프로그램이 정할 일이다 /// en: ✘ whether true is 1 is for the program to decide, not the language
-  return cast u8 b. . .
+  rem ko: ✘ 수의 어느 값이 참인지는 물음이 정한다 --- `ne n. 0 .` 으로 적는다 /// en: ✘ which values count as true is decided by the question --- write `ne n. 0 .`
+  return cast bool n. . .
 end .

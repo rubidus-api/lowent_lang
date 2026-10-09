@@ -290,6 +290,10 @@ cast	a f64	u8	return cast u8 a. . .	1.9	= 1
 cast	a u64	f64	return cast f64 a. . .	5	= 5.0
 cast	a i8	f64	return cast f64 a. . .	-3	= -3.0
 cast	a u8	bool	return cast bool a. . .	1	CHECK E-TYPE-KIND
+cast	a u8	u8	return cast u8 gt a. 2 . . .	5	= 1
+cast	a u8	u8	return cast u8 gt a. 2 . . .	1	= 0
+cast	a u8	f64	return cast f64 gt a. 2 . . .	1	CHECK E-TYPE-KIND
+widen	a u8	u8	return widen u8 gt a. 2 . . .	1	CHECK E-WIDEN-KIND
 bit_cast	a u8	i8	return bit_cast i8 a. . .	200	= -56
 bit_cast	a f64	u64	return bit_cast u64 a. . .	1.0	= 4607182418800017408
 bit_cast	a u64	f64	return bit_cast f64 a. . .	4607182418800017408	= 1.0

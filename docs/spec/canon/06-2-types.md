@@ -954,9 +954,33 @@ end .
 > *"값을 잃는 암묵적 변환이 없다"* 를 어기지 않는다 — 그 변환은 **암묵적이지 않기**
 > 때문이다. 저자가 `cast` 라고 적었고, 그 낱말이 곧 «여기서 값이 변할 수 있다» 는 표시다.
 
-(4) `bool` 은 수치가 아니므로 `cast` 의 **대상도 원천도** 될 수 없다(`E-TYPE-KIND`). 참거짓과
-      수를 오가려면 `if` 로 적는다 — 어느 쪽이 `1` 인지는 프로그램이 정할 일이지 타입이
-      정할 일이 아니다.
+(4) **참거짓에서 정수로**는 `cast` 로 간다 — `cast <정수 타입> <참거짓>` 은 참이면 `1`, 거짓이면 `0` 이다. 그 값은 어느
+      정수 타입에도 들어가므로 (2) 의 트랩은 일어나지 아니한다. 부동소수점 타입은 이 변환의 대상이 아니다(`E-TYPE-KIND`).
+
+(4a) **정수에서 참거짓으로** 가는 `cast` 는 없다 — `bool` 은 `cast` 의 대상이 될 수 없다(`E-TYPE-KIND`). 무엇을 묻는지를
+      적는다: `ne n. 0 .` 또는 `eq n. 0 .`. 수의 어느 값이 참인지는 그 물음이 정한다.
+
+(4b) 참거짓은 `widen` 의 표(⟦§6.2.5⟧ (4))에 없다 — `widen <정수 타입> <참거짓>` 은 거부된다(`E-WIDEN-KIND`). 참거짓을 수로
+      바꾸는 철자는 `cast` 하나다.
+
+```lowent 예제: 참거짓을 수로 · 결과: big(5) = 1 · big(1) = 0 · count_big(5, 7) = 2
+module ex_bool_cast .
+
+fn big input a u64 . output u8 . do
+  return cast u8 gt a. 2 . . .
+end .
+
+fn count_big input a u64 . input b u64 . output u64 . do
+  return add cast u64 gt a. 2 . . cast u64 gt b. 2 . . . .
+end .
+```
+
+```lowent-거부: 수를 참거짓으로 바꾸는 cast 는 없다 · E-TYPE-KIND
+module ex_cast_to_bool .
+fn nonzero input n u64 . output bool . do
+  return cast bool n. . .     rem 무엇을 묻는지 적는다 — `ne n. 0 .`
+end .
+```
 
 ## 6.2.17 글자를 담는 것 — 문자열은 타입이 아니다
 

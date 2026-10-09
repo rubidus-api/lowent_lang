@@ -2421,8 +2421,8 @@ do
   expect &lt;조건> .
 end
 
-actor &lt;이름>
-  state
+actor &lt;이름> do
+  state do
     &lt;칸이름> &lt;타입> .
   end
 
@@ -2611,10 +2611,12 @@ text-literal   ::= "text" blank { blank } tag [ blank { blank } processor ] { bl
                    tag { blank } ( newline | end-of-source )
 processor      ::= "u" | "U"
 text-line      ::= ? 닫는 줄이 아닌 줄 ?</code></pre></div><p class="para" id="cA.10.1-p1"><a class="pno" href="#cA.10.1-p1">1</a> <code>keyword</code> 가운데 <code>rem</code> · <code>note</code> · <code>text</code> 로 시작하는 토큰은 없다 — 그 셋은 낱말이 아니라 주석과 텍스트 리터럴을 여는 글자열이다(<a href="#c6.1.1" class="cref">§6.1.1</a> · <a href="#c6.1.4" class="cref">§6.1.4</a>).</p><p class="para" id="cA.10.1-p2"><a class="pno" href="#cA.10.1-p2">2</a> 아래 구문 문법에 <code>"from"</code> · <code>"input"</code> · <code>"slice"</code> 처럼 <code>keyword</code> 에 없는 글자열이 끝 기호로 나오면, 그것은 <strong>그 자리에서만</strong> 뜻을 갖는 <code>name</code> 토큰이다(문맥 낱말). 그 자리 밖에서는 보통 이름이다.</p></section><section class="subclause" id="cA.10.2"><h3>A.10.2 번역 단위와 선언<a class="anchor" href="#cA.10.2" aria-label="이 조항의 주소">§</a></h3><div class="syntax"><pre><code>unit           ::= { top-form }
-top-form       ::= module-decl | use-decl | declaration | binding
+top-form       ::= module-decl | use-decl | package-decl | build-decl | declaration | binding
 
 module-decl    ::= "module" name "."
 use-decl       ::= "use" name [ "from" string-literal ] [ "as" name ] "."
+package-decl   ::= "package" name term "."
+build-decl     ::= "build" name { term } "."
 
 declaration    ::= { modifier } ( type-decl | op-decl | extern-decl | actor-decl | trait-decl )
                  | contract-decl
@@ -2652,7 +2654,7 @@ state-decl     ::= "state" "do" { field } "end"
 trait-decl     ::= "trait" name "do" { signature } "end"
 signature      ::= op-name { clause }
 contract-decl  ::= "contract" name "do" { clause } "end"
-test-decl      ::= "test" name [ "schedule" name "." ] block</code></pre></div><p class="para" id="cA.10.2-p1"><a class="pno" href="#cA.10.2-p1">1</a> <code>extern-decl</code> 은 <code>modifier</code> 에 <code>"extern"</code> 이 있고 <code>"export"</code> 가 없는 선언의 꼴이다 — 몸이 씨(C)에 있으므로 블록에는 절만 든다(<a href="#c6.9" class="cref">§6.9</a>). 그 밖의 <code>fn</code> · <code>proc</code> 은 <code>op-decl</code> 이다.</p><p class="para" id="cA.10.2-p2"><a class="pno" href="#cA.10.2-p2">2</a> <code>clause</code> 의 차례는 생성 규칙이 정하지 아니한다. 차례는 <a href="#c6.4.1" class="cref">§6.4.1</a> (3a) 가 정한다(<code>E-CLAUSE-ORDER</code>).</p><p class="para" id="cA.10.2-p3"><a class="pno" href="#cA.10.2-p3">3</a> <code>struct-attr</code> · <code>variant</code> · <code>signature</code> 의 낱낱의 제약은 <a href="#c6.2.7" class="cref">§6.2.7</a> · <a href="#c6.2.15" class="cref">§6.2.15</a> · <a href="#c6.2.19" class="cref">§6.2.19</a> · <a href="#c6.11" class="cref">§6.11</a> 이 정한다.</p></section><section class="subclause" id="cA.10.3"><h3>A.10.3 문장<a class="anchor" href="#cA.10.3" aria-label="이 조항의 주소">§</a></h3><div class="syntax"><pre><code>block          ::= "do" { statement } "end"
+test-decl      ::= "test" name [ "schedule" name "." ] block</code></pre></div><p class="para" id="cA.10.2-p1"><a class="pno" href="#cA.10.2-p1">1</a> <code>extern-decl</code> 은 <code>modifier</code> 에 <code>"extern"</code> 이 있고 <code>"export"</code> 가 없는 선언의 꼴이다 — 몸이 씨(C)에 있으므로 블록에는 절만 든다(<a href="#c6.9" class="cref">§6.9</a>). 그 밖의 <code>fn</code> · <code>proc</code> 은 <code>op-decl</code> 이다.</p><p class="para" id="cA.10.2-p2"><a class="pno" href="#cA.10.2-p2">2</a> <code>clause</code> 의 차례는 생성 규칙이 정하지 아니한다. 차례는 <a href="#c6.4.1" class="cref">§6.4.1</a> (3a) 가 정한다(<code>E-CLAUSE-ORDER</code>).</p><p class="para" id="cA.10.2-p2a"><a class="pno" href="#cA.10.2-p2a">2a</a> <code>package-decl</code> 과 <code>build-decl</code> 의 열쇠말과 값은 <a href="#c5.7" class="cref">§5.7</a> · <a href="#c5.8" class="cref">§5.8</a> · <a href="#c6.4.7" class="cref">§6.4.7</a> · <a href="#c10.7" class="cref">§10.7</a> 이 정한다.</p><p class="para" id="cA.10.2-p3"><a class="pno" href="#cA.10.2-p3">3</a> <code>struct-attr</code> · <code>variant</code> · <code>signature</code> 의 낱낱의 제약은 <a href="#c6.2.7" class="cref">§6.2.7</a> · <a href="#c6.2.15" class="cref">§6.2.15</a> · <a href="#c6.2.19" class="cref">§6.2.19</a> · <a href="#c6.11" class="cref">§6.11</a> 이 정한다.</p></section><section class="subclause" id="cA.10.3"><h3>A.10.3 문장<a class="anchor" href="#cA.10.3" aria-label="이 조항의 주소">§</a></h3><div class="syntax"><pre><code>block          ::= "do" { statement } "end"
 
 statement      ::= binding | guard-stmt | set-stmt | return-stmt | jump-stmt | expect-stmt
                  | if-statement | while-stmt | for-stmt | repeat-stmt | range-stmt | cycle-stmt

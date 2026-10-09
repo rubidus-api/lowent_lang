@@ -99,8 +99,8 @@ do
   expect <조건> .
 end
 
-actor <이름>
-  state
+actor <이름> do
+  state do
     <칸이름> <타입> .
   end
 
@@ -529,10 +529,12 @@ text-line      ::= ? 닫는 줄이 아닌 줄 ?")
   ]
   #sub("A.10.2", "번역 단위와 선언")[
     #syntax("전체 문법 — 선언", "unit           ::= { top-form }
-top-form       ::= module-decl | use-decl | declaration | binding
+top-form       ::= module-decl | use-decl | package-decl | build-decl | declaration | binding
 
 module-decl    ::= \"module\" name \".\"
 use-decl       ::= \"use\" name [ \"from\" string-literal ] [ \"as\" name ] \".\"
+package-decl   ::= \"package\" name term \".\"
+build-decl     ::= \"build\" name { term } \".\"
 
 declaration    ::= { modifier } ( type-decl | op-decl | extern-decl | actor-decl | trait-decl )
                  | contract-decl
@@ -577,6 +579,9 @@ test-decl      ::= \"test\" name [ \"schedule\" name \".\" ] block")
     ]
     #para("2")[
       `clause` 의 차례는 생성 규칙이 정하지 아니한다. 차례는 #cref("6.4.1") (3a) 가 정한다(`E-CLAUSE-ORDER`).
+    ]
+    #para("2a")[
+      `package-decl` 과 `build-decl` 의 열쇠말과 값은 #cref("5.7") · #cref("5.8") · #cref("6.4.7") · #cref("10.7") 이 정한다.
     ]
     #para("3")[
       `struct-attr` · `variant` · `signature` 의 낱낱의 제약은 #cref("6.2.7") · #cref("6.2.15") · #cref("6.2.19") · #cref("6.11") 이 정한다.

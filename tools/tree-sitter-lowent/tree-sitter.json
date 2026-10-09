@@ -1,0 +1,18 @@
+{
+  "grammars": [
+    {
+      "name": "lowent",
+      "camelcase": "Lowent",
+      "scope": "source.lowent",
+      "path": ".",
+      "file-types": ["low"],
+      "highlights": "queries/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "1.8.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for the Lowent language (language revision 1.8)",
+    "links": { "repository": "https://github.com/rubidus-api/lowent_lang" }
+  }
+}

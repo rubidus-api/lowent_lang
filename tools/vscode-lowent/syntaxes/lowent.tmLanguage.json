@@ -1,0 +1,123 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Lowent",
+  "scopeName": "source.lowent",
+  "fileTypes": [
+    "low"
+  ],
+  "patterns": [
+    {
+      "name": "comment.block.lowent",
+      "begin": "\\bnote[ \\t]+([A-Za-z_][A-Za-z0-9_]*)\\b.*$",
+      "end": "^\\1[ \\t]*$"
+    },
+    {
+      "name": "comment.line.rem.lowent",
+      "match": "\\brem(?:[ \\t].*)?$"
+    },
+    {
+      "name": "string.unquoted.text.lowent",
+      "begin": "\\btext[ \\t]+([A-Za-z_][A-Za-z0-9_]*)\\b.*$",
+      "end": "^\\1[ \\t]*$"
+    },
+    {
+      "name": "string.quoted.double.lowent",
+      "begin": "[uU]?\"",
+      "end": "\"|$",
+      "patterns": [
+        {
+          "name": "constant.character.escape.lowent",
+          "match": "\\\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|[\\\\\"\\'abfnrtv0])"
+        }
+      ]
+    },
+    {
+      "name": "string.quoted.single.lowent",
+      "match": "[uU]?'(?:\\\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)|[^'\\\\])'"
+    },
+    {
+      "name": "constant.numeric.lowent",
+      "match": "(?<![A-Za-z0-9_.])[+-]?(?:0[xX][0-9A-Fa-f_]+(?:\\.[0-9A-Fa-f_]+)?(?:[pP][+-]?[0-9_]+)?|0[bB][01_]+|[0-9][0-9_]*(?:\\.[0-9][0-9_]*)?(?:[eE][+-]?[0-9_]+)?)(?![A-Za-z0-9_])"
+    },
+    {
+      "match": "\\b(fn|proc)\\s+([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.lowent"
+        },
+        "2": {
+          "name": "entity.name.function.lowent"
+        }
+      }
+    },
+    {
+      "match": "\\b(module|use|struct|enum|trait|actor|contract|test|type|newtype)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.lowent"
+        },
+        "2": {
+          "name": "entity.name.type.lowent"
+        }
+      }
+    },
+    {
+      "match": "\\b(let|var)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "keyword.other.lowent"
+        },
+        "2": {
+          "name": "variable.other.definition.lowent"
+        }
+      }
+    },
+    {
+      "name": "constant.language.lowent",
+      "match": "\\b(?:false|none|true)\\b"
+    },
+    {
+      "name": "keyword.control.lowent",
+      "match": "\\b(?:continue|repeat|return|break|cycle|guard|match|range|while|case|else|next|step|end|for|try|do|if)\\b"
+    },
+    {
+      "name": "keyword.other.lowent",
+      "match": "\\b(?:satisfies|contract|newtype|expect|export|extern|module|struct|unsafe|actor|spawn|state|trait|drop|enum|expr|keep|proc|send|test|type|def|let|lit|set|use|var|fn)\\b"
+    },
+    {
+      "name": "keyword.other.clause.lowent",
+      "match": "\\b(?:capacity|comptime|requires|effects|ensures|assume|errors|output|static|debug|input|order|tests|using|from|into|with|as)\\b"
+    },
+    {
+      "name": "storage.type.lowent",
+      "match": "\\b(?:unsafe_ptr|segments|mut_ref|bitset|option|result|array|isize|owned|slice|stack|usize|bits|bool|mask|self|void|cap|f32|f64|i16|i32|i64|mut|ref|set|u16|u32|u64|vec|i8|u8)\\b(?!\\.)"
+    },
+    {
+      "name": "support.function.core.lowent",
+      "match": "\\b(?:bitset_complement|bitset_difference|bitset_intersect|bitset_is_subset|bitset_contains|bitset_is_empty|aes_round_last|trailing_zeros|write_volatile|bitset_insert|bitset_remove|leading_zeros|read_volatile|str_from_cstr|view_segments|atomic_fence|atomic_store|bitset_union|call_builtin|lane_reverse|native_lanes|random_bytes|store_masked|sum_neumaier|alloc_bytes|atomic_load|atomic_swap|chacha_poly|error_value|lane_rotate|lane_select|load_masked|narrow_wrap|net_connect|net_resolve|path_remove|path_rename|reactor_new|atomic_add|atomic_and|atomic_cas|atomic_sub|atomic_xor|bitset_new|count_ones|file_close|file_write|hash_bytes|narrow_sat|narrow_try|net_accept|net_listen|nonzero_of|proc_spawn|reduce_add|reduce_max|reduce_min|reduce_mul|same_slice|some_value|time_local|time_sleep|view_array|aes_round|atomic_or|byte_swap|dir_close|enumerate|file_open|file_read|file_seek|file_type|link_type|net_close|proc_kill|proc_poll|proc_read|proc_wait|stack_new|unsafe_fn|write_out|bit_cast|capacity|chacha20|clmul_hi|clmul_lo|dir_make|dir_open|dir_read|is_error|lane_all|lane_any|lane_avg|net_pair|net_port|net_recv|net_send|ok_value|poly1305|prefetch|rng_next|subslice|time_now|try_view|tty_read|tty_size|value_or|wrap_add|wrap_mul|wrap_shl|wrap_shr|wrap_sub|aes_ctr|aes_gcm|bit_and|bit_not|bit_xor|channel|chk_add|chk_mul|chk_sub|collect|cstr_of|elem_ge|elem_gt|elem_le|elem_lt|env_get|is_none|is_some|mut_ref|payload|r_write|read_in|sat_add|sat_mul|sat_sub|shuffle|size_of|sum_seq|tty_raw|bit_or|borrow|chrecv|chsend|config|div_nz|encode|filter|narrow|r_read|region|sha256|sha384|sha512|await|count|crc32|deref|drain|error|field|floor|ghash|is_ok|panic|round|splat|store|widen|cast|ceil|copy|fmod|fold|into|load|pipe|push|rotl|rotr|scan|segs|skip|some|sqrt|swap|take|view|abs|add|all|and|any|arg|cos|div|exp|idx|isa|len|log|map|max|min|mod|mul|neg|not|pop|pow|ref|ret|seg|shl|shr|sin|sub|zip|eq|ge|gt|le|lt|ne|ok|or)\\b(?!\\.)"
+    },
+    {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\.)(?=\\s|$|\\))",
+      "captures": {
+        "1": {
+          "name": "variable.other.lowent"
+        },
+        "2": {
+          "name": "punctuation.terminator.stop.lowent"
+        }
+      }
+    },
+    {
+      "name": "entity.name.namespace.path.lowent",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+"
+    },
+    {
+      "name": "punctuation.terminator.stop.lowent",
+      "match": "(?<=\\s|^)\\.(?=\\s|$|\\))"
+    },
+    {
+      "name": "keyword.operator.lowent",
+      "match": "(?<=\\s)[+\\-*/](?=\\s)"
+    }
+  ]
+}

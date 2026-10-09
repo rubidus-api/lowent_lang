@@ -1,0 +1,7067 @@
+[
+  {
+    "type": "actor_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "clause",
+          "named": true
+        },
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "op_declaration",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "state_declaration",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "alloc_form",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "applied_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "asm_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "binding",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "fail_clause",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "asm_statement",
+          "named": true
+        },
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "borrow_statement",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "cycle_statement",
+          "named": true
+        },
+        {
+          "type": "drop_statement",
+          "named": true
+        },
+        {
+          "type": "expect_statement",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "for_statement",
+          "named": true
+        },
+        {
+          "type": "guard_statement",
+          "named": true
+        },
+        {
+          "type": "if_statement",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "jump_statement",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "match_statement",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "op_declaration",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "range_statement",
+          "named": true
+        },
+        {
+          "type": "region_statement",
+          "named": true
+        },
+        {
+          "type": "repeat_statement",
+          "named": true
+        },
+        {
+          "type": "return_statement",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "set_statement",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "task_group",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "while_statement",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "boolean",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "borrow_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "build_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "builtin_call",
+    "named": true,
+    "fields": {
+      "builtin": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "call",
+    "named": true,
+    "fields": {
+      "head": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "order_mark",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "case_arm",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "pattern",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "char",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "clause",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "group",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "contract_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "clause",
+          "named": true
+        },
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "cycle_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "filter",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "drop_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "enum_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "variant",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "expect_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "extern_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "clause",
+          "named": true
+        },
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "fail_clause",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "return_leave",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "field_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "field_form",
+    "named": true,
+    "fields": {
+      "segment": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "field_init",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "_",
+            "named": false
+          },
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "fill_item",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "fill_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "fill_item",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "filter",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "for_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "filter",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "group",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "group",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "guard_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "return_leave",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "if_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "island",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "island_group",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "operator",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "island_group",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "island_group",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "operator",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "jump_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "list_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "match_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "case_arm",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "method_form",
+    "named": true,
+    "fields": {
+      "op": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      },
+      "segment": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "modifier",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "module_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "op_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "clause",
+          "named": true
+        },
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "operator",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "order_mark",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "package_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "paren_term",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "paren_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "pattern",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "payload_form",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      },
+      "variant": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pipe_form",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stage",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pop_form",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "range_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "filter",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "region_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "repeat_statement",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "filter",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "return_leave",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "return_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "send_form",
+    "named": true,
+    "fields": {
+      "handler": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "set_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "shaped_form",
+    "named": true,
+    "fields": {
+      "head": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "core_op",
+            "named": true
+          }
+        ]
+      },
+      "word": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "number",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "signature",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "clause",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "source_file",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "actor_declaration",
+          "named": true
+        },
+        {
+          "type": "binding",
+          "named": true
+        },
+        {
+          "type": "build_declaration",
+          "named": true
+        },
+        {
+          "type": "contract_declaration",
+          "named": true
+        },
+        {
+          "type": "enum_declaration",
+          "named": true
+        },
+        {
+          "type": "extern_declaration",
+          "named": true
+        },
+        {
+          "type": "module_declaration",
+          "named": true
+        },
+        {
+          "type": "op_declaration",
+          "named": true
+        },
+        {
+          "type": "package_declaration",
+          "named": true
+        },
+        {
+          "type": "struct_declaration",
+          "named": true
+        },
+        {
+          "type": "test_declaration",
+          "named": true
+        },
+        {
+          "type": "trait_declaration",
+          "named": true
+        },
+        {
+          "type": "type_declaration",
+          "named": true
+        },
+        {
+          "type": "use_declaration",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "spawn_form",
+    "named": true,
+    "fields": {
+      "op": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "stage",
+    "named": true,
+    "fields": {
+      "op": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          },
+          {
+            "type": "path",
+            "named": true
+          }
+        ]
+      },
+      "stage": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "all",
+            "named": false
+          },
+          {
+            "type": "any",
+            "named": false
+          },
+          {
+            "type": "collect",
+            "named": false
+          },
+          {
+            "type": "count",
+            "named": false
+          },
+          {
+            "type": "enumerate",
+            "named": false
+          },
+          {
+            "type": "filter",
+            "named": false
+          },
+          {
+            "type": "fold",
+            "named": false
+          },
+          {
+            "type": "map",
+            "named": false
+          },
+          {
+            "type": "scan",
+            "named": false
+          },
+          {
+            "type": "skip",
+            "named": false
+          },
+          {
+            "type": "sort",
+            "named": false
+          },
+          {
+            "type": "take",
+            "named": false
+          },
+          {
+            "type": "zip",
+            "named": false
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "state_declaration",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "field_declaration",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "string",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "struct_attribute",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "struct_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "field_declaration",
+          "named": true
+        },
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "struct_attribute",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "struct_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "field_init",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "task_group",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "test_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "trait_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "signature",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "try_form",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "modifier",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "use_declaration",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "variant",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "type_name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "view_form",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "while_statement",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "block",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "word_list_form",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "word_value",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "\"",
+    "named": false
+  },
+  {
+    "type": "'",
+    "named": false
+  },
+  {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
+    "named": false
+  },
+  {
+    "type": "*",
+    "named": false
+  },
+  {
+    "type": "+",
+    "named": false
+  },
+  {
+    "type": "-",
+    "named": false
+  },
+  {
+    "type": "/",
+    "named": false
+  },
+  {
+    "type": "U\"",
+    "named": false
+  },
+  {
+    "type": "U'",
+    "named": false
+  },
+  {
+    "type": "_",
+    "named": false
+  },
+  {
+    "type": "absorbs",
+    "named": false
+  },
+  {
+    "type": "access",
+    "named": false
+  },
+  {
+    "type": "actor",
+    "named": false
+  },
+  {
+    "type": "align",
+    "named": false
+  },
+  {
+    "type": "all",
+    "named": false
+  },
+  {
+    "type": "alloc_bytes",
+    "named": false
+  },
+  {
+    "type": "and",
+    "named": false
+  },
+  {
+    "type": "any",
+    "named": false
+  },
+  {
+    "type": "array",
+    "named": false
+  },
+  {
+    "type": "as",
+    "named": false
+  },
+  {
+    "type": "asm",
+    "named": false
+  },
+  {
+    "type": "assume",
+    "named": false
+  },
+  {
+    "type": "atomic",
+    "named": false
+  },
+  {
+    "type": "bits",
+    "named": false
+  },
+  {
+    "type": "bitset",
+    "named": false
+  },
+  {
+    "type": "block_comment",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "borrow",
+    "named": false
+  },
+  {
+    "type": "break",
+    "named": false
+  },
+  {
+    "type": "build",
+    "named": false
+  },
+  {
+    "type": "call_builtin",
+    "named": false
+  },
+  {
+    "type": "cap",
+    "named": false
+  },
+  {
+    "type": "capacity",
+    "named": false
+  },
+  {
+    "type": "case",
+    "named": false
+  },
+  {
+    "type": "channel",
+    "named": false
+  },
+  {
+    "type": "collect",
+    "named": false
+  },
+  {
+    "type": "comptime",
+    "named": false
+  },
+  {
+    "type": "continue",
+    "named": false
+  },
+  {
+    "type": "contract",
+    "named": false
+  },
+  {
+    "type": "core_op",
+    "named": true
+  },
+  {
+    "type": "count",
+    "named": false
+  },
+  {
+    "type": "cycle",
+    "named": false
+  },
+  {
+    "type": "debug",
+    "named": false
+  },
+  {
+    "type": "def",
+    "named": false
+  },
+  {
+    "type": "do",
+    "named": false
+  },
+  {
+    "type": "drop",
+    "named": false
+  },
+  {
+    "type": "effects",
+    "named": false
+  },
+  {
+    "type": "else",
+    "named": false
+  },
+  {
+    "type": "end",
+    "named": false
+  },
+  {
+    "type": "ensures",
+    "named": false
+  },
+  {
+    "type": "enum",
+    "named": false
+  },
+  {
+    "type": "enumerate",
+    "named": false
+  },
+  {
+    "type": "eq",
+    "named": false
+  },
+  {
+    "type": "error",
+    "named": false
+  },
+  {
+    "type": "errors",
+    "named": false
+  },
+  {
+    "type": "escape",
+    "named": true
+  },
+  {
+    "type": "expect",
+    "named": false
+  },
+  {
+    "type": "export",
+    "named": false
+  },
+  {
+    "type": "expr",
+    "named": false
+  },
+  {
+    "type": "extern",
+    "named": false
+  },
+  {
+    "type": "failure",
+    "named": false
+  },
+  {
+    "type": "false",
+    "named": false
+  },
+  {
+    "type": "field",
+    "named": false
+  },
+  {
+    "type": "filter",
+    "named": false
+  },
+  {
+    "type": "fn",
+    "named": false
+  },
+  {
+    "type": "fold",
+    "named": false
+  },
+  {
+    "type": "for",
+    "named": false
+  },
+  {
+    "type": "from",
+    "named": false
+  },
+  {
+    "type": "ge",
+    "named": false
+  },
+  {
+    "type": "gt",
+    "named": false
+  },
+  {
+    "type": "guard",
+    "named": false
+  },
+  {
+    "type": "if",
+    "named": false
+  },
+  {
+    "type": "inplace",
+    "named": false
+  },
+  {
+    "type": "input",
+    "named": false
+  },
+  {
+    "type": "into",
+    "named": false
+  },
+  {
+    "type": "invalidates",
+    "named": false
+  },
+  {
+    "type": "keep",
+    "named": false
+  },
+  {
+    "type": "layout",
+    "named": false
+  },
+  {
+    "type": "le",
+    "named": false
+  },
+  {
+    "type": "let",
+    "named": false
+  },
+  {
+    "type": "line_comment",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "link",
+    "named": false
+  },
+  {
+    "type": "lit",
+    "named": false
+  },
+  {
+    "type": "lock",
+    "named": false
+  },
+  {
+    "type": "lowdoc",
+    "named": false
+  },
+  {
+    "type": "lt",
+    "named": false
+  },
+  {
+    "type": "mailbox",
+    "named": false
+  },
+  {
+    "type": "map",
+    "named": false
+  },
+  {
+    "type": "mask",
+    "named": false
+  },
+  {
+    "type": "match",
+    "named": false
+  },
+  {
+    "type": "method",
+    "named": false
+  },
+  {
+    "type": "mmio",
+    "named": false
+  },
+  {
+    "type": "module",
+    "named": false
+  },
+  {
+    "type": "mut",
+    "named": false
+  },
+  {
+    "type": "mut_ref",
+    "named": false
+  },
+  {
+    "type": "name",
+    "named": true
+  },
+  {
+    "type": "ne",
+    "named": false
+  },
+  {
+    "type": "newtype",
+    "named": false
+  },
+  {
+    "type": "next",
+    "named": false
+  },
+  {
+    "type": "none",
+    "named": true
+  },
+  {
+    "type": "nonzero",
+    "named": false
+  },
+  {
+    "type": "number",
+    "named": true
+  },
+  {
+    "type": "on",
+    "named": false
+  },
+  {
+    "type": "option",
+    "named": false
+  },
+  {
+    "type": "or",
+    "named": false
+  },
+  {
+    "type": "order",
+    "named": false
+  },
+  {
+    "type": "output",
+    "named": false
+  },
+  {
+    "type": "owned",
+    "named": false
+  },
+  {
+    "type": "package",
+    "named": false
+  },
+  {
+    "type": "panic",
+    "named": false
+  },
+  {
+    "type": "parallel",
+    "named": false
+  },
+  {
+    "type": "path",
+    "named": true
+  },
+  {
+    "type": "payload",
+    "named": false
+  },
+  {
+    "type": "pipe",
+    "named": false
+  },
+  {
+    "type": "pop",
+    "named": false
+  },
+  {
+    "type": "priority",
+    "named": false
+  },
+  {
+    "type": "proc",
+    "named": false
+  },
+  {
+    "type": "range",
+    "named": false
+  },
+  {
+    "type": "reduce",
+    "named": false
+  },
+  {
+    "type": "ref",
+    "named": false
+  },
+  {
+    "type": "reference",
+    "named": false
+  },
+  {
+    "type": "region",
+    "named": false
+  },
+  {
+    "type": "repeat",
+    "named": false
+  },
+  {
+    "type": "requires",
+    "named": false
+  },
+  {
+    "type": "result",
+    "named": false
+  },
+  {
+    "type": "return",
+    "named": false
+  },
+  {
+    "type": "rwlock",
+    "named": false
+  },
+  {
+    "type": "satisfies",
+    "named": false
+  },
+  {
+    "type": "scan",
+    "named": false
+  },
+  {
+    "type": "schedule",
+    "named": false
+  },
+  {
+    "type": "segments",
+    "named": false
+  },
+  {
+    "type": "send",
+    "named": false
+  },
+  {
+    "type": "set",
+    "named": false
+  },
+  {
+    "type": "shared_read",
+    "named": false
+  },
+  {
+    "type": "skip",
+    "named": false
+  },
+  {
+    "type": "slice",
+    "named": false
+  },
+  {
+    "type": "sort",
+    "named": false
+  },
+  {
+    "type": "spawn",
+    "named": false
+  },
+  {
+    "type": "stack",
+    "named": false
+  },
+  {
+    "type": "stack_new",
+    "named": false
+  },
+  {
+    "type": "state",
+    "named": false
+  },
+  {
+    "type": "static",
+    "named": false
+  },
+  {
+    "type": "step",
+    "named": false
+  },
+  {
+    "type": "stop",
+    "named": true
+  },
+  {
+    "type": "storage",
+    "named": false
+  },
+  {
+    "type": "strlen",
+    "named": false
+  },
+  {
+    "type": "struct",
+    "named": false
+  },
+  {
+    "type": "take",
+    "named": false
+  },
+  {
+    "type": "target",
+    "named": false
+  },
+  {
+    "type": "task_group",
+    "named": false
+  },
+  {
+    "type": "test",
+    "named": false
+  },
+  {
+    "type": "tests",
+    "named": false
+  },
+  {
+    "type": "text_literal",
+    "named": true
+  },
+  {
+    "type": "trait",
+    "named": false
+  },
+  {
+    "type": "true",
+    "named": false
+  },
+  {
+    "type": "try",
+    "named": false
+  },
+  {
+    "type": "type",
+    "named": false
+  },
+  {
+    "type": "u\"",
+    "named": false
+  },
+  {
+    "type": "u'",
+    "named": false
+  },
+  {
+    "type": "unsafe",
+    "named": false
+  },
+  {
+    "type": "unsafe_ptr",
+    "named": false
+  },
+  {
+    "type": "use",
+    "named": false
+  },
+  {
+    "type": "using",
+    "named": false
+  },
+  {
+    "type": "var",
+    "named": false
+  },
+  {
+    "type": "variadic",
+    "named": false
+  },
+  {
+    "type": "vec",
+    "named": false
+  },
+  {
+    "type": "vector",
+    "named": false
+  },
+  {
+    "type": "view",
+    "named": false
+  },
+  {
+    "type": "while",
+    "named": false
+  },
+  {
+    "type": "why",
+    "named": false
+  },
+  {
+    "type": "with",
+    "named": false
+  },
+  {
+    "type": "zip",
+    "named": false
+  }
+]

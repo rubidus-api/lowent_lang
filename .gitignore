@@ -12,6 +12,7 @@
 !/lib/
 !/apps/
 !/skills/
+!/tools/
 !/docs/
 /docs/*
 !/docs/spec/
@@ -76,3 +77,9 @@ __pycache__/
 .DS_Store
 *.swp
 *~
+
+# editor tools: dependencies and build products are not tracked
+/tools/**/node_modules/
+/tools/**/build/
+/tools/**/*.wasm
+/tools/**/package-lock.json

@@ -1,0 +1,38 @@
+{
+  "name": "lowent",
+  "displayName": "Lowent",
+  "description": "Lowent language support: syntax colours and the compiler's diagnostics",
+  "version": "1.8.0",
+  "license": "MIT",
+  "private": true,
+  "publisher": "lowent",
+  "repository": { "type": "git", "url": "https://github.com/rubidus-api/lowent_lang" },
+  "engines": { "vscode": "^1.75.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:lowent"],
+  "contributes": {
+    "languages": [
+      { "id": "lowent", "aliases": ["Lowent", "lowent"], "extensions": [".low"], "configuration": "./language-configuration.json" }
+    ],
+    "grammars": [
+      { "language": "lowent", "scopeName": "source.lowent", "path": "./syntaxes/lowent.tmLanguage.json" }
+    ],
+    "configuration": {
+      "title": "Lowent",
+      "properties": {
+        "lowent.compilerPath": {
+          "type": "string",
+          "default": "lowentc",
+          "description": "Path to the lowentc compiler. Diagnostics are what this compiler reports when a file is opened or saved."
+        },
+        "lowent.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to lowent-lsp/server.js. Empty: use the copy next to this extension in the repository (tools/lowent-lsp)."
+        }
+      }
+    }
+  },
+  "dependencies": { "vscode-languageclient": "^9.0.1" }
+}

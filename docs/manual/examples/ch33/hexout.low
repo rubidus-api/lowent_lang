@@ -5,14 +5,14 @@ use codec .
 
 proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
 do
-  let g option mut slice u8 alloc_bytes al capacity 16 .
-  guard is_some g else return 1 .
-  let dst mut slice u8 some_value g .
-  let n option u64 codec.hex_enc "Lowent" dst .
-  guard is_some n else return 2 .
-  let w u64 write_out out 1 (subslice dst 0 (some_value n)) .
-  let nl u64 write_out out 1 "\n" .
-  let small option u64 codec.hex_enc "too long for eight" (subslice dst 0 8) .
-  guard is_none small else return 3 .
+  let g option mut slice u8 alloc_bytes al. capacity 16 . .
+  guard is_some g. . else return 1 . .
+  let dst mut slice u8 some_value g. . .
+  let n option u64 codec.hex_enc "Lowent" dst. . .
+  guard is_some n. . else return 2 . .
+  let w u64 write_out out. 1 subslice dst. 0 some_value n. . . . .
+  let nl u64 write_out out. 1 "\n" . .
+  let small option u64 codec.hex_enc "too long for eight" subslice dst. 0 8 . . .
+  guard is_none small. . else return 3 . .
   return 0 .
-end
+end .

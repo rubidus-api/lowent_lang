@@ -6,4 +6,4 @@ export fn pick
   link "qb_pick" .
 do
   return 22 .
-end
+end .

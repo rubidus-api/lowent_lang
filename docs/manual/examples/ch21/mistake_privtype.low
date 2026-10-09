@@ -6,6 +6,6 @@ use secretbox from "secretbox.low" .
 fn peek output u64 .
 do
   rem ko: ✘ 받은 값을 담을 타입 이름이 감춰져 있다 /// en: ✘ the type name needed to hold the result is hidden
-  let s secretbox.secret secretbox.make_secret .
-  return field s v .
-end
+  let s secretbox.secret secretbox.make_secret. .
+  return field s. v . .
+end .

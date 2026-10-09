@@ -15,25 +15,25 @@ module vm_nested .
 def struct inner do
   a u8 .
   b u8 .
-end
+end .
 
 def struct outer do
   i inner .
   c u8 .
-end
+end .
 
 fn get_c input s slice u8 . output u8 . do
-  let v outer view outer s .
-  return field v c .
-end
+  let v outer view outer s. . .
+  return field v. c . .
+end .
 
 fn get_inner_b input s slice u8 . output u8 . do
-  let v outer view outer s .
-  let n inner field v i . rem 중첩 필드 = **안쪽 뷰**
-  return field n b .
-end
+  let v outer view outer s. . .
+  let n inner field v. i . . rem 중첩 필드 = **안쪽 뷰**
+  return field n. b . .
+end .
 
 test nested_struct do
-  expect eq (get_c "abc") 99 .          rem 'c' = 99
-  expect eq (get_inner_b "abc") 98 .    rem 'b' = 98
-end
+  expect eq get_c "abc" . 99 . .          rem 'c' = 99
+  expect eq get_inner_b "abc" . 98 . .    rem 'b' = 98
+end .

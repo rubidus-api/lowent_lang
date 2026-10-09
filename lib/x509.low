@@ -25,60 +25,60 @@ rem   Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm, signatureVa
 
 rem tbsCertificate 가 시작하는 자리(0 = 성하지 않다). **서명이 덮는 바이트가 여기서 시작한다.**
 export fn tbs_off input b slice u8 . output u64 . do
-  if ne (der.tag_at b 0) 48 do  return 0 . end
-  let vo u64 der.value_off b 0 .
-  if eq vo 0 do  return 0 . end
-  if ne (der.tag_at b vo) 48 do  return 0 . end
-  return vo .
-end
+  if ne der.tag_at b. 0 . 48 . do  return 0 . end .
+  let vo u64 der.value_off b. 0 . .
+  if eq vo. 0 . do  return 0 . end .
+  if ne der.tag_at b. vo. . 48 . do  return 0 . end .
+  return vo. .
+end .
 rem tbsCertificate 가 끝나는 자리 — 서명은 [tbs_off, tbs_end) 를 덮는다.
 export fn tbs_end input b slice u8 . output u64 . do
-  let o u64 tbs_off b .
-  if eq o 0 do  return 0 . end
-  return der.next_off b o .
-end
+  let o u64 tbs_off b. . .
+  if eq o. 0 . do  return 0 . end .
+  return der.next_off b. o. . .
+end .
 
 rem 바깥 signatureAlgorithm 의 OID 자리와 길이.
 export fn sigalg_oid_off input b slice u8 . output u64 . do
-  let e u64 tbs_end b .
-  if eq e 0 do  return 0 . end
-  if ne (der.tag_at b e) 48 do  return 0 . end
-  let vo u64 der.value_off b e .
-  if eq vo 0 do  return 0 . end
-  if ne (der.tag_at b vo) 6 do  return 0 . end
-  return der.value_off b vo .
-end
+  let e u64 tbs_end b. . .
+  if eq e. 0 . do  return 0 . end .
+  if ne der.tag_at b. e. . 48 . do  return 0 . end .
+  let vo u64 der.value_off b. e. . .
+  if eq vo. 0 . do  return 0 . end .
+  if ne der.tag_at b. vo. . 6 . do  return 0 . end .
+  return der.value_off b. vo. . .
+end .
 export fn sigalg_oid_len input b slice u8 . output u64 . do
-  let e u64 tbs_end b .
-  if eq e 0 do  return 0 . end
-  let vo u64 der.value_off b e .
-  if eq vo 0 do  return 0 . end
-  return der.value_len b vo .
-end
+  let e u64 tbs_end b. . .
+  if eq e. 0 . do  return 0 . end .
+  let vo u64 der.value_off b. e. . .
+  if eq vo. 0 . do  return 0 . end .
+  return der.value_len b. vo. . .
+end .
 
 rem ★ 서명 값. BIT STRING 의 **첫 바이트는 남은 비트 수**이고 인증서에서는 언제나 0 이다 —
 rem   그것을 건너뛴 자리를 낸다. 0 이 아니면 성하지 않은 것으로 본다.
 export fn sig_off input b slice u8 . output u64 . do
-  let e u64 tbs_end b .
-  if eq e 0 do  return 0 . end
-  let a u64 der.next_off b e .
-  if eq a 0 do  return 0 . end
-  if ne (der.tag_at b a) 3 do  return 0 . end
-  let vo u64 der.value_off b a .
-  if eq vo 0 do  return 0 . end
-  if ge vo (len b) do  return 0 . end
-  if ne (idx b vo) 0 do  return 0 . end
-  return add vo 1 .
-end
+  let e u64 tbs_end b. . .
+  if eq e. 0 . do  return 0 . end .
+  let a u64 der.next_off b. e. . .
+  if eq a. 0 . do  return 0 . end .
+  if ne der.tag_at b. a. . 3 . do  return 0 . end .
+  let vo u64 der.value_off b. a. . .
+  if eq vo. 0 . do  return 0 . end .
+  if ge vo. len b. . . do  return 0 . end .
+  if ne idx b. vo. . 0 . do  return 0 . end .
+  return add vo. 1 . .
+end .
 export fn sig_len input b slice u8 . output u64 . do
-  let e u64 tbs_end b .
-  if eq e 0 do  return 0 . end
-  let a u64 der.next_off b e .
-  if eq a 0 do  return 0 . end
-  let n u64 der.value_len b a .
-  if lt n 2 do  return 0 . end
-  return sub n 1 .
-end
+  let e u64 tbs_end b. . .
+  if eq e. 0 . do  return 0 . end .
+  let a u64 der.next_off b. e. . .
+  if eq a. 0 . do  return 0 . end .
+  let n u64 der.value_len b. a. . .
+  if lt n. 2 . do  return 0 . end .
+  return sub n. 1 . .
+end .
 
 rem ── tbsCertificate 안의 차례 ────────────────────────────────────────────
 rem   TBSCertificate ::= SEQUENCE {
@@ -90,40 +90,40 @@ rem   그래서 여기 한 op 이 자리를 세어 주고 나머지는 그것을
 rem   언젠가 하나만 고쳐진다.
 rem   n: 0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 spki · 6 그 다음
 export fn tbs_field input b slice u8 . input n u64 . output u64 . do
-  let t u64 tbs_off b .
-  if eq t 0 do  return 0 . end
-  var o u64 der.value_off b t .
-  if eq o 0 do  return 0 . end
+  let t u64 tbs_off b. . .
+  if eq t. 0 . do  return 0 . end .
+  var o u64 der.value_off b. t. . .
+  if eq o. 0 . do  return 0 . end .
   rem [0] EXPLICIT version 이 있으면 건너뛴다(tag 0xA0).
-  if eq (der.tag_at b o) 160 do
-    set o (der.next_off b o) .
-    if eq o 0 do  return 0 . end
-  end
+  if eq der.tag_at b. o. . 160 . do
+    set o. der.next_off b. o. . .
+    if eq o. 0 . do  return 0 . end .
+  end .
   var i u64 0 .
-  while lt i n do
-    set o (der.next_off b o) .
-    if eq o 0 do  return 0 . end
-    set i (add i 1) .
-  end
-  if ge o (len b) do  return 0 . end
-  return o .
-end
+  while lt i. n. . do
+    set o. der.next_off b. o. . .
+    if eq o. 0 . do  return 0 . end .
+    set i. add i. 1 . .
+  end .
+  if ge o. len b. . . do  return 0 . end .
+  return o. .
+end .
 
 rem 발급자·주체의 **요소 전체**(tag 부터 끝까지)를 가리키는 자리와 길이.
 rem ☞ 체인을 잇는 판단은 «발급자 이름 = 위 인증서의 주체 이름» 이고, 그 견줌은 **바이트로**
 rem   한다. DER 은 한 이름에 한 바이트열이므로(최소 형식) 그것이 옳다.
-export fn issuer_off input b slice u8 . output u64 . do  return tbs_field b 2 . end
-export fn subject_off input b slice u8 . output u64 . do  return tbs_field b 4 . end
+export fn issuer_off input b slice u8 . output u64 . do  return tbs_field b. 2 . . end .
+export fn subject_off input b slice u8 . output u64 . do  return tbs_field b. 4 . . end .
 export fn elem_len input b slice u8 . input off u64 . output u64 . do
-  if eq off 0 do  return 0 . end
-  let e u64 der.next_off b off .
-  if eq e 0 do  return 0 . end
-  if le e off do  return 0 . end
-  return sub e off .
-end
+  if eq off. 0 . do  return 0 . end .
+  let e u64 der.next_off b. off. . .
+  if eq e. 0 . do  return 0 . end .
+  if le e. off. . do  return 0 . end .
+  return sub e. off. . .
+end .
 
 rem 공개키(SubjectPublicKeyInfo)의 자리.
-export fn spki_off input b slice u8 . output u64 . do  return tbs_field b 5 . end
+export fn spki_off input b slice u8 . output u64 . do  return tbs_field b. 5 . . end .
 
 rem ── 유효기간 ────────────────────────────────────────────────────────────
 rem   Validity ::= SEQUENCE { notBefore Time, notAfter Time }
@@ -131,77 +131,77 @@ rem   Time ::= UTCTime(23, YYMMDDhhmmssZ) | GeneralizedTime(24, YYYYMMDDhhmmssZ)
 rem ★ 견줄 수 있는 **한 수**로 편다: YYYYMMDDhhmmss. 시간대는 Z 만 받는다 — 오프셋을 받으면
 rem   그것을 더하고 빼는 자리가 생기고, 그 자리가 곧 틀릴 자리다.
 fn digit2 input b slice u8 . input o u64 . output u64 . do
-  if ge (add o 1) (len b) do  return 100 . end
-  let d0 u64 cast u64 (idx b o) .
-  let d1 u64 cast u64 (idx b (add o 1)) .
-  if lt d0 48 do  return 100 . end
-  if gt d0 57 do  return 100 . end
-  if lt d1 48 do  return 100 . end
-  if gt d1 57 do  return 100 . end
-  return add (mul (sub d0 48) 10) (sub d1 48) .
-end
+  if ge add o. 1 . len b. . . do  return 100 . end .
+  let d0 u64 cast u64 idx b. o. . . .
+  let d1 u64 cast u64 idx b. add o. 1 . . . .
+  if lt d0. 48 . do  return 100 . end .
+  if gt d0. 57 . do  return 100 . end .
+  if lt d1. 48 . do  return 100 . end .
+  if gt d1. 57 . do  return 100 . end .
+  return add mul sub d0. 48 . 10 . sub d1. 48 . . .
+end .
 fn time_at input b slice u8 . input o u64 . output u64 . do
-  if eq o 0 do  return 0 . end
-  let tg u64 der.tag_at b o .
-  let vo u64 der.value_off b o .
-  let vl u64 der.value_len b o .
-  if eq vo 0 do  return 0 . end
+  if eq o. 0 . do  return 0 . end .
+  let tg u64 der.tag_at b. o. . .
+  let vo u64 der.value_off b. o. . .
+  let vl u64 der.value_len b. o. . .
+  if eq vo. 0 . do  return 0 . end .
   var base u64 0 .
   var yr u64 0 .
-  if eq tg 23 do
-    if ne vl 13 do  return 0 . end
-    let yy u64 digit2 b vo .
-    if ge yy 100 do  return 0 . end
-    if ge yy 50 do  set yr (add 1900 yy) . end
-    if lt yy 50 do  set yr (add 2000 yy) . end
-    set base (add vo 2) .
-  end
-  if eq tg 24 do
-    if ne vl 15 do  return 0 . end
-    let c u64 digit2 b vo .
-    let y u64 digit2 b (add vo 2) .
-    if ge c 100 do  return 0 . end
-    if ge y 100 do  return 0 . end
-    set yr (add (mul c 100) y) .
-    set base (add vo 4) .
-  end
-  if eq yr 0 do  return 0 . end
-  if ne (idx b (add base 10)) 90 do  return 0 . end     rem 끝은 'Z' 여야 한다
-  let mo u64 digit2 b base .
-  let dy u64 digit2 b (add base 2) .
-  let hh u64 digit2 b (add base 4) .
-  let mi u64 digit2 b (add base 6) .
-  let ss u64 digit2 b (add base 8) .
-  if ge mo 100 do  return 0 . end
-  if ge dy 100 do  return 0 . end
-  if ge hh 100 do  return 0 . end
-  if ge mi 100 do  return 0 . end
-  if ge ss 100 do  return 0 . end
-  if eq mo 0 do  return 0 . end
-  if gt mo 12 do  return 0 . end
-  if eq dy 0 do  return 0 . end
-  if gt dy 31 do  return 0 . end
-  if gt hh 23 do  return 0 . end
-  if gt mi 59 do  return 0 . end
-  if gt ss 60 do  return 0 . end
-  return add (add (add (mul yr 10000000000) (mul mo 100000000))
-                  (add (mul dy 1000000) (mul hh 10000)))
-             (add (mul mi 100) ss) .
-end
+  if eq tg. 23 . do
+    if ne vl. 13 . do  return 0 . end .
+    let yy u64 digit2 b. vo. . .
+    if ge yy. 100 . do  return 0 . end .
+    if ge yy. 50 . do  set yr. add 1900 yy. . . end .
+    if lt yy. 50 . do  set yr. add 2000 yy. . . end .
+    set base. add vo. 2 . .
+  end .
+  if eq tg. 24 . do
+    if ne vl. 15 . do  return 0 . end .
+    let c u64 digit2 b. vo. . .
+    let y u64 digit2 b. add vo. 2 . . .
+    if ge c. 100 . do  return 0 . end .
+    if ge y. 100 . do  return 0 . end .
+    set yr. add mul c. 100 . y. . .
+    set base. add vo. 4 . .
+  end .
+  if eq yr. 0 . do  return 0 . end .
+  if ne idx b. add base. 10 . . 90 . do  return 0 . end .     rem 끝은 'Z' 여야 한다
+  let mo u64 digit2 b. base. . .
+  let dy u64 digit2 b. add base. 2 . . .
+  let hh u64 digit2 b. add base. 4 . . .
+  let mi u64 digit2 b. add base. 6 . . .
+  let ss u64 digit2 b. add base. 8 . . .
+  if ge mo. 100 . do  return 0 . end .
+  if ge dy. 100 . do  return 0 . end .
+  if ge hh. 100 . do  return 0 . end .
+  if ge mi. 100 . do  return 0 . end .
+  if ge ss. 100 . do  return 0 . end .
+  if eq mo. 0 . do  return 0 . end .
+  if gt mo. 12 . do  return 0 . end .
+  if eq dy. 0 . do  return 0 . end .
+  if gt dy. 31 . do  return 0 . end .
+  if gt hh. 23 . do  return 0 . end .
+  if gt mi. 59 . do  return 0 . end .
+  if gt ss. 60 . do  return 0 . end .
+  return add add add mul yr. 10000000000 . mul mo. 100000000 . .
+                  add mul dy. 1000000 . mul hh. 10000 . . .
+             add mul mi. 100 . ss. . . .
+end .
 export fn not_before input b slice u8 . output u64 . do
-  let v u64 tbs_field b 3 .
-  if eq v 0 do  return 0 . end
-  if ne (der.tag_at b v) 48 do  return 0 . end
-  return time_at b (der.value_off b v) .
-end
+  let v u64 tbs_field b. 3 . .
+  if eq v. 0 . do  return 0 . end .
+  if ne der.tag_at b. v. . 48 . do  return 0 . end .
+  return time_at b. der.value_off b. v. . . .
+end .
 export fn not_after input b slice u8 . output u64 . do
-  let v u64 tbs_field b 3 .
-  if eq v 0 do  return 0 . end
-  if ne (der.tag_at b v) 48 do  return 0 . end
-  let f u64 der.value_off b v .
-  if eq f 0 do  return 0 . end
-  return time_at b (der.next_off b f) .
-end
+  let v u64 tbs_field b. 3 . .
+  if eq v. 0 . do  return 0 . end .
+  if ne der.tag_at b. v. . 48 . do  return 0 . end .
+  let f u64 der.value_off b. v. . .
+  if eq f. 0 . do  return 0 . end .
+  return time_at b. der.next_off b. f. . . .
+end .
 
 rem ── 확장 ────────────────────────────────────────────────────────────────
 rem   [3] EXPLICIT Extensions ::= SEQUENCE OF Extension
@@ -211,93 +211,93 @@ rem   17(0x11) = subjectAltName · 19(0x13) = basicConstraints.
 rem ☞ **재귀를 안 한다.** 걸음 수를 묶는다 — 길이 0 인 확장을 늘어놓은 인증서가 무한 걷기가
 rem   되지 않도록.
 export fn ext_value_off input b slice u8 . input last u64 . output u64 . do
-  let e u64 tbs_field b 6 .
-  if eq e 0 do  return 0 . end
-  if ne (der.tag_at b e) 163 do  return 0 . end
-  let s u64 der.value_off b e .
-  if eq s 0 do  return 0 . end
-  if ne (der.tag_at b s) 48 do  return 0 . end
-  var o u64 der.value_off b s .
-  if eq o 0 do  return 0 . end
-  let endo u64 der.next_off b s .
-  if eq endo 0 do  return 0 . end
+  let e u64 tbs_field b. 6 . .
+  if eq e. 0 . do  return 0 . end .
+  if ne der.tag_at b. e. . 163 . do  return 0 . end .
+  let s u64 der.value_off b. e. . .
+  if eq s. 0 . do  return 0 . end .
+  if ne der.tag_at b. s. . 48 . do  return 0 . end .
+  var o u64 der.value_off b. s. . .
+  if eq o. 0 . do  return 0 . end .
+  let endo u64 der.next_off b. s. . .
+  if eq endo. 0 . do  return 0 . end .
   var steps u64 0 .
-  while lt o endo do
-    if ne (der.tag_at b o) 48 do  return 0 . end
-    let io u64 der.value_off b o .
-    if eq io 0 do  return 0 . end
-    if ne (der.tag_at b io) 6 do  return 0 . end
-    let oo u64 der.value_off b io .
-    let ol u64 der.value_len b io .
-    if eq oo 0 do  return 0 . end
+  while lt o. endo. . do
+    if ne der.tag_at b. o. . 48 . do  return 0 . end .
+    let io u64 der.value_off b. o. . .
+    if eq io. 0 . do  return 0 . end .
+    if ne der.tag_at b. io. . 6 . do  return 0 . end .
+    let oo u64 der.value_off b. io. . .
+    let ol u64 der.value_len b. io. . .
+    if eq oo. 0 . do  return 0 . end .
     var hit u64 0 .
-    if eq ol 3 do
-      if eq (idx b oo) 85 do
-        if eq (idx b (add oo 1)) 29 do
-          if eq (cast u64 (idx b (add oo 2))) last do  set hit 1 . end
-        end
-      end
-    end
-    if eq hit 1 do
+    if eq ol. 3 . do
+      if eq idx b. oo. . 85 . do
+        if eq idx b. add oo. 1 . . 29 . do
+          if eq cast u64 idx b. add oo. 2 . . . last. . do  set hit. 1 . end .
+        end .
+      end .
+    end .
+    if eq hit. 1 . do
       rem extnID 다음은 critical(있을 수도) 이고 그 다음이 OCTET STRING 이다.
-      var v u64 der.next_off b io .
-      if eq v 0 do  return 0 . end
-      if eq (der.tag_at b v) 1 do
-        set v (der.next_off b v) .
-        if eq v 0 do  return 0 . end
-      end
-      if ne (der.tag_at b v) 4 do  return 0 . end
-      return der.value_off b v .
-    end
-    set o (der.next_off b o) .
-    if eq o 0 do  return 0 . end
-    set steps (add steps 1) .
-    if gt steps 64 do  return 0 . end
-  end
+      var v u64 der.next_off b. io. . .
+      if eq v. 0 . do  return 0 . end .
+      if eq der.tag_at b. v. . 1 . do
+        set v. der.next_off b. v. . .
+        if eq v. 0 . do  return 0 . end .
+      end .
+      if ne der.tag_at b. v. . 4 . do  return 0 . end .
+      return der.value_off b. v. . .
+    end .
+    set o. der.next_off b. o. . .
+    if eq o. 0 . do  return 0 . end .
+    set steps. add steps. 1 . .
+    if gt steps. 64 . do  return 0 . end .
+  end .
   return 0 .
-end
+end .
 
 rem ★★ **이 인증서가 남을 발급할 수 있는가** — basicConstraints 의 cA.
 rem   ☞ 확장이 **없으면 거짓**이다(RFC 5280 §4.2.1.9: 없으면 CA 가 아니다). 이 기본값을
 rem     놓치면 잎 인증서가 중간자 노릇을 할 수 있다 — 체인 검증에서 가장 비싼 실수 가운데 하나다.
 export fn is_ca input b slice u8 . output bool . do
-  let v u64 ext_value_off b 19 .
-  if eq v 0 do  return false . end
-  if ne (der.tag_at b v) 48 do  return false . end
-  let n u64 der.value_len b v .
-  if eq n 0 do  return false . end            rem 빈 SEQUENCE = cA 기본값(FALSE)
-  let f u64 der.value_off b v .
-  if eq f 0 do  return false . end
-  if ne (der.tag_at b f) 1 do  return false . end
-  let bo u64 der.value_off b f .
-  if eq bo 0 do  return false . end
-  if ge bo (len b) do  return false . end
-  return ne (idx b bo) 0 .
-end
+  let v u64 ext_value_off b. 19 . .
+  if eq v. 0 . do  return false . end .
+  if ne der.tag_at b. v. . 48 . do  return false . end .
+  let n u64 der.value_len b. v. . .
+  if eq n. 0 . do  return false . end .            rem 빈 SEQUENCE = cA 기본값(FALSE)
+  let f u64 der.value_off b. v. . .
+  if eq f. 0 . do  return false . end .
+  if ne der.tag_at b. f. . 1 . do  return false . end .
+  let bo u64 der.value_off b. f. . .
+  if eq bo. 0 . do  return false . end .
+  if ge bo. len b. . . do  return false . end .
+  return ne idx b. bo. . 0 . .
+end .
 
 rem ★★ 주체 대체 이름(SAN)의 **dNSName** 을 하나씩 준다.
 rem   `cur` 가 0 이면 첫째. 낸 값은 그 이름의 **요소 자리**(0 = 더 없다) — 이름 자체는
 rem   `der.value_off`/`der.value_len` 으로 꺼낸다.
 export fn san_next input b slice u8 . input cur u64 . output u64 . do
-  let v u64 ext_value_off b 17 .
-  if eq v 0 do  return 0 . end
-  if ne (der.tag_at b v) 48 do  return 0 . end
-  let s u64 der.value_off b v .
-  let e u64 der.next_off b v .
-  if eq s 0 do  return 0 . end
-  if eq e 0 do  return 0 . end
-  var o u64 s .
-  if gt cur 0 do
-    set o (der.next_off b cur) .
-    if eq o 0 do  return 0 . end
-  end
+  let v u64 ext_value_off b. 17 . .
+  if eq v. 0 . do  return 0 . end .
+  if ne der.tag_at b. v. . 48 . do  return 0 . end .
+  let s u64 der.value_off b. v. . .
+  let e u64 der.next_off b. v. . .
+  if eq s. 0 . do  return 0 . end .
+  if eq e. 0 . do  return 0 . end .
+  var o u64 s. .
+  if gt cur. 0 . do
+    set o. der.next_off b. cur. . .
+    if eq o. 0 . do  return 0 . end .
+  end .
   var steps u64 0 .
-  while lt o e do
-    if eq (der.tag_at b o) 130 do  return o . end   rem [2] dNSName
-    set o (der.next_off b o) .
-    if eq o 0 do  return 0 . end
-    set steps (add steps 1) .
-    if gt steps 128 do  return 0 . end
-  end
+  while lt o. e. . do
+    if eq der.tag_at b. o. . 130 . do  return o. . end .   rem [2] dNSName
+    set o. der.next_off b. o. . .
+    if eq o. 0 . do  return 0 . end .
+    set steps. add steps. 1 . .
+    if gt steps. 128 . do  return 0 . end .
+  end .
   return 0 .
-end
+end .

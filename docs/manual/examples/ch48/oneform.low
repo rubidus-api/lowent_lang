@@ -4,27 +4,27 @@ rem run: blocked 3
 rem fmt
 
 fn bare input a u64 . output u64 .
-  requires le a 1000 .
+  requires le a. 1000 . .
 do
-  var x u64 a .
-  match a do
-    case 0 . set x 1 .
-    case _ . set x (add x 10) .
-  end
-  return x .
-end
+  var x u64 a. .
+  match a. do
+    case 0 do set x. 1 . end .
+    case _ do set x. add x. 10 . . end .
+  end .
+  return x. .
+end .
 
 fn blocked input a u64 . output u64 .
-  requires le a 1000 .
+  requires le a. 1000 . .
 do
-  var x u64 a .
-  match a do
+  var x u64 a. .
+  match a. do
     case 0 do
-      set x 1 .
-    end
+      set x. 1 .
+    end .
     case _ do
-      set x (add x 10) .
-    end
-  end
-  return x .
-end
+      set x. add x. 10 . .
+    end .
+  end .
+  return x. .
+end .

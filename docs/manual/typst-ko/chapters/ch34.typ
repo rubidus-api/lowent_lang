@@ -38,8 +38,8 @@
 
 - `alloc_bytes al capacity 40` 으로 40 바이트를 받고 `view_array u64` 로 `u64` 다섯 칸의 슬라이스로 본다. 할당은 여기서만
   일어난다.
-- `sortlib.sort xs` 는 제자리에서 오름차순으로 정렬한다. `effects none` 이다.
-- `searchlib.bsearch xs 19` 는 정렬된 슬라이스에서 19 의 자리를 `option` 으로 준다. 없으면 `none` 이다. `lower_bound` 는 넣을
+- `sortlib.sort xs. .` 는 제자리에서 오름차순으로 정렬한다. `effects none` 이다.
+- `searchlib.bsearch xs. 19 .` 는 정렬된 슬라이스에서 19 의 자리를 `option` 으로 준다. 없으면 `none` 이다. `lower_bound` 는 넣을
   자리를 준다.
 
 가장 작은 값 3 과 19 의 자리 2 로 32 가 나온다. `bsearch` 는 입력이 정렬되어 있다고 *믿는다*. 정렬되지 않은 슬라이스를 주면
@@ -50,7 +50,7 @@
 #demo("examples/ch34/rows.low")
 
 `score` 는 `satisfies sortgen.ordered .` 로 순서를 안다고 선언하고, `score.less` 가 "점수가 높은 것이 앞" 이라는 기준을 준다.
-`sortgen.sort_by score rs` 는 그 기준으로 정렬한다. 점수 95·80·70 의 번호가 차례로 2·3·1 이다.
+`sortgen.sort_by score. rs. .` 는 그 기준으로 정렬한다. 점수 95·80·70 의 번호가 차례로 2·3·1 이다.
 
 내림차순이나 여러 키로 정렬하고 싶으면 `less` 를 그렇게 쓰면 된다. 모드 인자를 다는 대신 타입이 뜻을 들고 온다. `sort_by` 는
 삽입정렬이라 *안정*하고(같은 점수의 차례가 바뀌지 않는다) 거의 정렬된 입력에 빠르다. 큰 배열에는 `sort_fast`(제네릭 quicksort)
@@ -85,7 +85,7 @@
 #demo("examples/ch34/growing.low")
 
 - `allocs.heap_bytes` 를 띄워 할당기로 쓴다. `cap heap` 을 쥔 `main` 만 띄울 수 있다(#chref("fixed-memory")).
-- `vecgen.open u32 4` 는 원소 타입 `u32`, 처음 용량 4 인 벡터를 연다. 할당기는 바인딩의 `use hb` 로 건넨다.
+- `vecgen.open u32. 4 .` 는 원소 타입 `u32`, 처음 용량 4 인 벡터를 연다. 할당기는 바인딩의 `use hb` 로 건넨다.
 - `vecgen.append … v x` 는 자리가 모자라면 할당기에게 더 청해 자란다. 실패하면 `false` 다. 벡터는 자기 할당기를 이미 들고 있으므로
   `append` 에는 `use` 를 적지 않는다. 적으면 `E-ALLOC-USING-UNUSED` 로 거절된다.
 - `vecgen.at … v 50` 은 50 번 원소를 `option` 으로 준다. 50 × 2 = 100 이다.
@@ -163,12 +163,12 @@
   id: "lib-containers-glance",
   caption: [그릇과 정렬의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`sortlib.sort xs` · `searchlib.bsearch xs k`], [`u64` 제자리 정렬 · 정렬된 입력에서 탐색(`option`)], [할당하지 않는다 --- 탐색은 정렬을 믿는다],
-  [`def struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
-  [`sortgen.sort_by score rs` · `sort_fast`], [안정 삽입정렬 · 큰 배열용 quicksort], [고르는 기준이 이름에 있다],
-  [`hashmap.put slots k v` · `lookup` · `del`], [호출자 슬라이스 위의 `u64 → u64` 맵], [가득 차면 `false` --- 삭제는 묘비],
+  [`sortlib.sort xs. .` · `searchlib.bsearch xs. k. .`], [`u64` 제자리 정렬 · 정렬된 입력에서 탐색(`option`)], [할당하지 않는다 --- 탐색은 정렬을 믿는다],
+  [`def struct score do satisfies sortgen.ordered . … end .` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
+  [`sortgen.sort_by score. rs. .` · `sort_fast`], [안정 삽입정렬 · 큰 배열용 quicksort], [고르는 기준이 이름에 있다],
+  [`hashmap.put slots. k. v. .` · `lookup` · `del`], [호출자 슬라이스 위의 `u64 → u64` 맵], [가득 차면 `false` --- 삭제는 묘비],
   [`let vo use hb … vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`use` 는 처음 받는 자리에만],
-  [`vecgen.append u32 allocs.heap_bytes v x`], [자라며 넣는다 --- 실패하면 `false`], [효과가 할당기 타입을 따라간다(`state via a`)],
+  [`vecgen.append u32. allocs.heap_bytes. v. x. .`], [자라며 넣는다 --- 실패하면 `false`], [효과가 할당기 타입을 따라간다(`state via a`)],
   [`spsc`], [락 없는 단일 생산자·단일 소비자 링 버퍼], [원자 연산 --- 증명을 빌렸다],
 )
 

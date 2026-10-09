@@ -5,21 +5,21 @@ rem run: clamp_to_100 400
 rem trap: clamp_to_100 120
 
 fn percent_of input part u64 . input whole u64 . output u64 .
-  requires le part whole .
-  requires gt whole 0 .
-  requires le whole 1000000 .
-  ensures le ret 100 .
+  requires le part. whole. . .
+  requires gt whole. 0 . .
+  requires le whole. 1000000 . .
+  ensures le ret. 100 . .
 do
-  return div (mul part 100) whole .
-end
+  return div mul part. 100 . whole. . .
+end .
 
 rem ko: 150 을 넘는 값만 자르고, 101 … 150 은 깜빡 잊었다 /// en: clamps only values above 150 and forgets 101 … 150
 fn clamp_to_100 input n u64 . output u64 .
-  requires le n 1000 .
-  ensures le ret 100 .
+  requires le n. 1000 . .
+  ensures le ret. 100 . .
 do
-  if gt n 150 do
+  if gt n. 150 . do
     return 100 .
-  end
-  return n .
-end
+  end .
+  return n. .
+end .

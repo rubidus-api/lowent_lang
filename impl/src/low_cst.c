@@ -109,10 +109,13 @@ static void low_fix(proven_u32 line, proven_u32 col, proven_u32 del, const char 
 static void low_old(low_parser_t *p, const char *code, const char *msg, proven_u32 line, proven_u32 col) {
     if (!g_lenient) low_pdiag(p, code, msg, line, col);
 }
-#define LOW_MSG_CTRL_DOT \
-    "a head's expression ends at `do` — there is no `.` before it: `if gt a 3 do … end`, `while lt i n do … end`, " \
-    "`match m do case red do … end end`, `for x xs do … end` (RFC-0141: a stop only closes a statement). Delete the `.`; " \
-    "`lowentc --migrate` rewrites a file"
+// ★ RFC-0142 (1.8) — 표면 패스(low_closer.c)가 이름·점의 표면을 이 파서가 읽는 모양으로 내려 준다. 그 뒤에는 머리 안의 점 ·
+//   `else` 앞의 점 · `end`/`do` 뒤의 점이 **올 수 없다**. 오면 표면 패스의 잘못이다 — 프로그램의 잘못이 아니다.
+//   (1.7 까지는 저자가 쓸 수 있는 실수였고 E-CTRL-DOT · E-ELSE-DOT · E-DOT-STRAY 라는 제 이름이 있었다. 지금 저자의 같은 실수는
+//    표면 패스가 E-CLOSER-EXTRA / E-DOT-MISSING 으로 먼저 말한다.)
+#define LOW_MSG_SURFACE_INTERNAL \
+    "internal: the surface pass handed on a shape the parser refuses — this is a compiler bug, not a mistake in the program"
+#define LOW_MSG_CTRL_DOT LOW_MSG_SURFACE_INTERNAL " (a stop inside a control head)"
 // `do` 가 머리의 **몸**인가. 머리 안의 값이 블록을 품을 수 있다(`if eq p lit pt do … end do … end`) — 몸은 **마지막 블록**이다:
 // 이 `do` 의 짝 `end` 다음이 또 `do` 이면 이것은 값의 블록이다(이 언어에는 `do` 로 시작하는 문장이 없다).
 static bool low_do_is_body(const low_parser_t *p, proven_size_t at) {
@@ -607,7 +610,7 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
                     //   옛 철자 `if c . do` 는 고칠 글자를 적고(너그러운 모드가 아니면) 거절한다 — 나무는 같다.
                     if (low_curkw(p) == LOW_KW_DO) {
                         low_fix(dt.line, dt.col, 1, "");
-                        low_old(p, "E-CTRL-DOT", LOW_MSG_CTRL_DOT, dt.line, dt.col);
+                        low_old(p, "E-IR-SURFACE", LOW_MSG_CTRL_DOT, dt.line, dt.col);
                     }
                     break;
                 }
@@ -840,7 +843,7 @@ static low_cst_t *low_parse_loop(low_parser_t *p) {
         (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_access(p, low_head_value_block(p)));
     }
     p->head = save_head;
-    if (ndot && !old) low_old(p, "E-CTRL-DOT", LOW_MSG_CTRL_DOT, dot0.line, dot0.col);
+    if (ndot && !old) low_old(p, "E-IR-SURFACE", LOW_MSG_CTRL_DOT, dot0.line, dot0.col);
     if (old)
         low_old(p, "E-FOR-OLD",
                 "`for` now means one thing — every element of a source: `for x xs do … end`. The other loops have their own heads "
@@ -919,10 +922,7 @@ static low_cst_t *low_parse_bindlike(low_parser_t *p) {
         p->toks[p->pos + 1].kw == LOW_KW_ELSE) {
         low_token_t dt = low_adv(p);
         low_fix(dt.line, dt.col, 1, "");
-        low_old(p, "E-ELSE-DOT",
-                "the `else` clause is part of the statement — no `.` before it: `let n u64 parse s else return 0 .`, "
-                "`guard gt n 0 else return 0 .` (RFC-0141: one stop closes the whole statement). Delete the `.`; "
-                "`lowentc --migrate` rewrites a file", dt.line, dt.col);
+        low_old(p, "E-IR-SURFACE", LOW_MSG_SURFACE_INTERNAL " (a stop before `else`)", dt.line, dt.col);
     }
     low_tok_kind_t closer = LOW_TOK_EOF;
     bool by_block = false;
@@ -1336,15 +1336,9 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
             if (tk->kind != LOW_TOK_DOT || pv->kind != LOW_TOK_IDENT) continue;
             while (k < p.dot_ok.len && ok[k] < i) k++;
             if (pv->kw == LOW_KW_END && !(k < p.dot_ok.len && ok[k] == i))
-                low_pdiag(&p, "E-DOT-STRAY",
-                          "a stop after `end` closes nothing here — this construct owns its `do … end` block and "
-                          "ends with it (like `}` in C). Delete the `.`. A statement that only USES a block value "
-                          "(`let x T lit T do … end .`) does take its own stop",
-                          tk->line, tk->col);
+                low_pdiag(&p, "E-IR-SURFACE", LOW_MSG_SURFACE_INTERNAL " (a stop after `end`)", tk->line, tk->col);
             else if (pv->kw == LOW_KW_DO)
-                low_pdiag(&p, "E-DOT-STRAY",
-                          "a stop after `do` closes nothing — `do` opens a block, there is no form to close yet. "
-                          "Delete the `.`", tk->line, tk->col);
+                low_pdiag(&p, "E-IR-SURFACE", LOW_MSG_SURFACE_INTERNAL " (a stop after `do`)", tk->line, tk->col);
         }
     }
     proven_array_destroy(&p.dot_ok);

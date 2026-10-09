@@ -3,6 +3,6 @@ rem expect: E-TYPE-MUT
 
 fn poke input xs slice u8 . output u64 .
 do
-  set (idx xs 0) 1 .
+  set idx xs. 0 . 1 .
   return 0 .
-end
+end .

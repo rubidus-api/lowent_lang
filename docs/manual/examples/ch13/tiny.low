@@ -6,5 +6,5 @@ def type ten_bits bits 10 .
 
 fn grow input x ten_bits . output ten_bits .
 do
-  return add x 1 .
-end
+  return add x. 1 . .
+end .

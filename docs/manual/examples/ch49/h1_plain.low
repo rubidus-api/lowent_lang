@@ -3,5 +3,5 @@ rem db
 
 export fn twice input a u64 . output u64 .
 do
-  return add a a .
-end
+  return add a. a. . .
+end .

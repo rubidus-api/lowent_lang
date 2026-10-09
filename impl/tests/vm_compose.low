@@ -10,67 +10,67 @@ module vm_compose .
 
 def enum e do
   bad .
-end
+end .
 
 def struct pt do
   x u8 .
   y u8 .
-end
+end .
 
 rem ── 넘기기 ──────────────────────────────────────────────────────────────
-fn take_view input p pt . output u8 . do return field p x . end
+fn take_view input p pt . output u8 . do return field p. x . . end .
 
 fn pass_view input s slice u8 . output u8 . do
-  let v pt view pt s .
-  return take_view v .                  rem 구조체 **뷰**를 넘긴다
-end
+  let v pt view pt s. . .
+  return take_view v. . .                  rem 구조체 **뷰**를 넘긴다
+end .
 
 fn pass_record output u8 . do
-  let q lit pt do x 9 . y 8 . end .
-  return take_view q .                  rem **레코드**를 넘긴다(뷰와 같은 자리에서 받는다)
-end
+  let q lit pt do x 9 . y 8 . end . .
+  return take_view q. . .                  rem **레코드**를 넘긴다(뷰와 같은 자리에서 받는다)
+end .
 
-fn mk_result input a u8 . output result u8 e . do return ok a . end
-fn take_result input r result u8 e . output bool . do return is_ok r . end
+fn mk_result input a u8 . output result u8 e . do return ok a. . . end .
+fn take_result input r result u8 e . output bool . do return is_ok r. . . end .
 fn pass_result input a u8 . output bool . do
-  return take_result (mk_result a) .    rem **result** 를 넘긴다
-end
+  return take_result mk_result a. . . .    rem **result** 를 넘긴다
+end .
 
-fn take_option input o option u8 . output bool . do return is_some o . end
+fn take_option input o option u8 . output bool . do return is_some o. . . end .
 fn pass_option input a u8 . output bool . do
-  return take_option (nonzero_of a) .   rem **option** 을 넘긴다
-end
+  return take_option nonzero_of a. . . .   rem **option** 을 넘긴다
+end .
 
-fn take_vec input v vec u32 4 . output u32 . do return reduce_add v . end
+fn take_vec input v vec u32 4 . output u32 . do return reduce_add v. . . end .
 fn pass_vec input xs slice u32 . output u32 . do
-  let v vec u32 4 load xs 0 .
-  return take_vec v .                   rem **vec** 를 넘긴다
-end
+  let v vec u32 4 load xs. 0 . .
+  return take_vec v. . .                   rem **vec** 를 넘긴다
+end .
 
-fn take_typed input s slice u32 . output u64 . do return len s . end
+fn take_typed input s slice u32 . output u64 . do return len s. . . end .
 fn pass_typed input s slice u32 . output u64 . do
-  return take_typed s .                 rem ★ **타입 있는 슬라이스** — 여기가 깨지던 자리다
-end
+  return take_typed s. . .                 rem ★ **타입 있는 슬라이스** — 여기가 깨지던 자리다
+end .
 
 rem ── 되돌려 받기 ─────────────────────────────────────────────────────────
-fn give_view input s slice u8 . output pt . do return view pt s . end
+fn give_view input s slice u8 . output pt . do return view pt s. . . end .
 fn get_view input s slice u8 . output u8 . do
-  let v pt give_view s . rem 구조체 뷰를 **반환**받는다
-  return field v x .
-end
+  let v pt give_view s. . . rem 구조체 뷰를 **반환**받는다
+  return field v. x . .
+end .
 
-fn give_typed input s slice pt . output slice pt . do return s . end
+fn give_typed input s slice pt . output slice pt . do return s. . end .
 fn get_typed input s slice pt . output u64 . do
-  let t slice pt give_typed s . rem 타입 있는 슬라이스를 **반환**받는다
-  return len t .
-end
+  let t slice pt give_typed s. . . rem 타입 있는 슬라이스를 **반환**받는다
+  return len t. . .
+end .
 
 test values_cross_op_boundaries do
-  expect eq (pass_view "ab") 97 .
-  expect eq (pass_record) 9 .
-  expect eq (pass_result 5) 1 .
-  expect eq (pass_option 5) 1 .
-  expect eq (pass_typed "abcdefgh") 2 .
-  expect eq (get_view "ab") 97 .
-  expect eq (get_typed "abcd") 2 .
-end
+  expect eq pass_view "ab" . 97 . .
+  expect eq pass_record. 9 . .
+  expect eq pass_result 5 . 1 . .
+  expect eq pass_option 5 . 1 . .
+  expect eq pass_typed "abcdefgh" . 2 . .
+  expect eq get_view "ab" . 97 . .
+  expect eq get_typed "abcd" . 2 . .
+end .

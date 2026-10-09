@@ -9,52 +9,52 @@ module process .
 
 export def struct child do
   h u64 .
-end
+end .
 
 export def enum process_error do
   wait_failed .
-end
+end .
 
 rem 띄운다. 못 띄우면 none(프로그램이 없다 · 인자가 틀렸다 · 표가 찼다).
 export proc launch input k cap process . input argv slice u8 . output option child . effects io . do
-  let h option u64 call_builtin proc_spawn k argv .
-  guard is_some h else return none .
-  return some (lit child do h (some_value h) . end) .
-end
+  let h option u64 call_builtin proc_spawn k. argv. . .
+  guard is_some h. . else return none . .
+  return some lit child do h some_value h. . . end . . .
+end .
 
 rem 출력을 읽는다 — 막지 않는다. some n(n > 0) 읽음 · some 0 지금은 없다 · none 출력이 끝났다.
 export proc read_output input k cap process . input c child . input buf mut slice u8 . output option u64 . effects io . do
-  return call_builtin proc_read k (field c h) buf .
-end
+  return call_builtin proc_read k. field c. h . buf. . .
+end .
 
 rem 막지 않는 확인. some still_running = 아직 돈다 · some s = 끝났다 · none = 잘못된 핸들.
 export proc check input k cap process . input c child . output option u64 . effects io . do
-  return call_builtin proc_poll k (field c h) .
-end
+  return call_builtin proc_poll k. field c. h . . .
+end .
 
 export fn still_running output u64 . do
   return 18446744073709551615 .
-end
+end .
 
 rem 끝날 때까지 기다리고 닫는다(완결). 상태를 낸다.
 export proc wait_exit input k cap process . input c owned child . output result u64 process_error . effects io .
 errors wait_failed .
 do
-  let s option u64 call_builtin proc_wait k (field c h) .
-  drop c .
-  guard is_some s else return error wait_failed .
-  return ok (some_value s) .
-end
+  let s option u64 call_builtin proc_wait k. field c. h . . .
+  drop c. .
+  guard is_some s. . else return error wait_failed . . .
+  return ok some_value s. . . .
+end .
 
 rem 강제로 끝낸다(POSIX SIGKILL · Windows TerminateProcess). 손자는 남을 수 있다.
 export proc kill_child input k cap process . input c child . output bool . effects io . do
-  return call_builtin proc_kill k (field c h) .
-end
+  return call_builtin proc_kill k. field c. h . . .
+end .
 
 export fn exited_normally input s u64 . output bool . do
-  return lt s 4294967296 .
-end
+  return lt s. 4294967296 . .
+end .
 
 export fn exit_code input s u64 . output u64 . do
-  return bit_and s 4294967295 .
-end
+  return bit_and s. 4294967295 . .
+end .

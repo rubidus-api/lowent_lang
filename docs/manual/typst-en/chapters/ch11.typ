@@ -37,7 +37,7 @@
 == `option` --- a value, or none
 
 #idx("option")
-`option t` is either a value of `t` (`some v`) or nothing (`none`). Together with `result`, seen later, it helps to draw them as *two kinds of box*
+`option t` is either a value of `t` (`some v. .`) or nothing (`none`). Together with `result`, seen later, it helps to draw them as *two kinds of box*
 that hold a value.
 
 ```text
@@ -53,11 +53,11 @@ inside cannot be used *before the box is opened*.
 
 #demo("examples/ch11/lookup.low")
 
-`find`, the producer, wraps values with `return none .` and `return some (mul k 10) .`, and the VM shows the results as `some 20` and `none`.
+`find`, the producer, wraps values with `return none .` and `return some mul k. 10 . . .`, and the VM shows the results as `some 20 .` and `none`.
 The receiver can use it three ways.
 
-- `find_or` --- `value_or (find k) 99` gives the value if there is one, and 99 otherwise.
-- `find_asked` --- asks first with `guard is_some r else …` and takes the value out with `some_value r`.
+- `find_or` --- `value_or find k. . 99 .` gives the value if there is one, and 99 otherwise.
+- `find_asked` --- asks first with `guard is_some r else …` and takes the value out with `some_value r. .`.
 - `find_match` --- splits with `match` into `case some v` and `case none`. The two arms cover every case.
 
 `find_raw` takes the value out without asking. Translation passes, but execution stops at 7, which has no value (`E-VM-NONE`). Taking a value
@@ -67,14 +67,14 @@ translation does not block it. Instead it is not silent when wrong --- it does n
 #qa[
   If I put an expensive computation in `value_or`'s default, is it computed every time?
 ][
-  No. The default is computed *only when there is no value*. `value_or (some 7) (div 1 0)` is 7, and no division by zero happens. So you may
+  No. The default is computed *only when there is no value*. `value_or some 7 . div 1 0 . .` is 7, and no division by zero happens. So you may
   put a computation that can fail in the default. This behaviour was once the other way round and was fixed to match the specification.
 ]
 
 == `result` and the `errors` clause
 
 #idx("result")
-`result t e` is either a successful value (`ok v`) or an error (`error <variant>`). The error type `e` is usually an `enum`. And an op that
+`result t e` is either a successful value (`ok v. .`) or an error (`error <variant>`). The error type `e` is usually an `enum`. And an op that
 #idx("errors clause")
 returns a `result` writes *when it produces which error* in its `errors` clause.
 
@@ -97,8 +97,8 @@ Writing the failure check by hand every time makes code long, and long code skip
 the value; on failure it *returns that error as is and leaves the op*. `halve_plus_one` in `halve.low` has that shape.
 
 ```lowent
-let v u8 try halve a .
-return ok (add v 1) .
+let v u8 try halve a. . . .
+return ok add v. 1 . . .
 ```
 
 Notice that `halve_plus_one` writes `errors` in its own head too. To pass an error up with `try`, it must itself be able to return that error,
@@ -119,7 +119,7 @@ binding's type as the content's type and attach what to do when it is empty with
 
 #demo("examples/ch11/bindelse.low")
 
-- `let at u64 find xs k else return 99 .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
+- `let at u64 find xs. k. . else return 99 . .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
   if not, control goes to `else`. A `result` works the same way --- an error goes to `else`.
 - `else` *must leave* (`return` · `break` · `continue` · `panic`). So on the lines that use `at` the value has already been taken out,
   and using it unchecked cannot happen.
@@ -135,7 +135,7 @@ comes at the very end. Several statements are `else do … end` --- the block en
 
 #demo("examples/ch11/elseerror.low")
 
-- `let p u64 check n else error e do … end` --- when `check` returns an error, that error value is bound to `e` and the block runs.
+- `let p u64 check n. . else error e do … end .` --- when `check` returns an error, that error value is bound to `e` and the block runs.
   Every path of the block must leave. `e` lives only inside the block.
 - `port 0` is `zero`, so the answer is 80; `port 70000` is `too_big`, so it is 65535. When the value is an `option` there is no error
   to bind, and `else error <name>` is refused with `E-BIND-ELSE`.
@@ -155,7 +155,7 @@ Sometimes the calling op and the called op use different channels. A tail on `tr
   [`try <expr> else_error <variant>`], [`option` → `result`], [Absence *gets a name*],
 )
 
-A `try` with a tail also changes the type. The type of `try (halve a) else_none` is `option u8`, not `u8`. That is why `maybe_half` returns it
+A `try` with a tail also changes the type. The type of `try halve a. . else_none .` is `option u8`, not `u8`. That is why `maybe_half` returns it
 as is, and why putting it into a value type, as in `let v u8 try … else_error …`, is rejected.
 
 `else_none` is a choice that throws information away. It is convenient, so it easily becomes a habit, but from that moment the caller can no
@@ -210,15 +210,15 @@ appear exactly once when read hides defects.
 
   `find k` does not give back a `u64`; it gives back "a box that may or may not hold a `u64`". You cannot add 1 to a box. In
   other languages a null flows into the calculation and blows up much later; Lowent stops you right here with `E-TYPE-RETURN`.
-  There are three fixes: supply a stand-in with `value_or (find k) 0`, ask with `is_some` and take it out with `some_value`, or
+  There are three fixes: supply a stand-in with `value_or find k. . 0 .`, ask with `is_some` and take it out with `some_value`, or
   split with `match`. Which one to pick depends on "what should happen when it is absent".
 ]
 
 #antipattern[Forgetting `some` in an op that returns an `option`][
   #demo("examples/ch11/mistake_nosome.low")
 
-  Once the head says `output option u64`, the value you return must be a box too. `none` is a box, but `mul k 10` is a bare
-  number, so this is `E-TYPE-RETURN`. Some languages wrap the value for you; Lowent does not. Writing `return some (mul k 10) .`
+  Once the head says `output option u64`, the value you return must be a box too. `none` is a box, but `mul k. 10 .` is a bare
+  number, so this is `E-TYPE-RETURN`. Some languages wrap the value for you; Lowent does not. Writing `return some mul k. 10 . . .`
   spells out "it is there", so the reader sees both branches.
 ]
 
@@ -237,7 +237,7 @@ Nested patterns count towards exhaustiveness too. An outer tag is covered when *
 
 #demo("examples/ch11/nestedwild.low")
 
-`ok (some x)` and `ok none` together cover `ok`, and `error e` covers the rest, so no `_` is needed. Leave one case out and it is
+`ok some x. . .` and `ok none .` together cover `ok`, and `error e .` covers the rest, so no `_` is needed. Leave one case out and it is
 refused with `E-MATCH-INEXHAUSTIVE` --- better than a `_` that covers nothing. A `_` says nothing when a variant is added later.
 
 #misconception[With `value_or` you can still tell when a value was absent][
@@ -256,15 +256,15 @@ refused with `E-MATCH-INEXHAUSTIVE` --- better than a `_` that covers nothing. A
   caption: [Syntax of answer-carrying types --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`output option u8 .`], [a value, or none], [absence (null) shows in the type],
-  [`some v` · `none`], [present · absent], ["present" is written too, so both branches are visible],
+  [`some v. .` · `none`], [present · absent], ["present" is written too, so both branches are visible],
   [`output result u8 e .`], [a value or an error (a variant of `e`)], [failure is returned as a value --- there are no exceptions],
-  [`ok v` · `error too_big`], [success · failure], [which branch is written in the source],
+  [`ok v. .` · `error too_big .`], [success · failure], [which branch is written in the source],
   [`errors too_big <condition> .`], [promise which error happens when], [written in the contract so the caller can prepare],
-  [`is_some r` · `some_value r`], [ask whether present · take it out], [taking out is partial --- ask first],
-  [`is_error r` · `ok_value r`], [ask whether failed · take out the success value], [same reason],
-  [`value_or r 99`], [a stand-in when absent], [one line, but it covers absence],
+  [`is_some r. .` · `some_value r. .`], [ask whether present · take it out], [taking out is partial --- ask first],
+  [`is_error r. .` · `ok_value r. .`], [ask whether failed · take out the success value], [same reason],
+  [`value_or r. 99 .`], [a stand-in when absent], [one line, but it covers absence],
   [`try <expr>`], [on failure, leave returning that error], [so checks are never forgotten --- like Rust's `?`],
-  [`let n u64 find xs k else return 0 .`], [take the content, or leave through `else`], [no unchecked use],
+  [`let n u64 find xs. k. . else return 0 . .`], [take the content, or leave through `else`], [no unchecked use],
   [`try <expr> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [changing channel shows what is lost],
   [`case ok (some x)` · `case a or b`], [nested pattern · several variants at once], [split in one go, still covering every case],
 )

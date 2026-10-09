@@ -119,7 +119,7 @@ op 의 진입점만 담은 C 를 낸다. 남의 빌드에 그대로 넣으면 �
 
 #raw(read("/build/examples-out/ch29/host.c.out"), block: true)
 
-앞의 두 호출은 답을 받는다. 셋째 호출은 `requires le a 1000 .` 을 어긴다. C 는 계약을 모르지만, *불려 들어오는 자리는
+앞의 두 호출은 답을 받는다. 셋째 호출은 `requires le a. 1000 . .` 을 어긴다. C 는 계약을 모르지만, *불려 들어오는 자리는
 이쪽 문*이므로 op 의 계약이 인자에 강제되고 진입에서 멈춘다. 문 안은 Lowent 가, 문 밖은 C 가 책임진다.
 
 두 방향을 한 장에 그리면 이렇다. 나가는 쪽은 *머리에 적고*, 들어오는 쪽은 *문에서 잰다*.
@@ -216,14 +216,14 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   id: "ffi-glance",
   caption: [C 경계의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`unsafe extern proc c_area do input k cap c . … effects unsafe . link "lw_c_area" . end`], [C 에 몸이 있는 op --- 절을 `do … end` 에 담는다], [표시·권리·효과 줄 셋이 모두 있어야 한다],
+  [`unsafe extern proc c_area do input k cap c . … effects unsafe . link "lw_c_area" . end .`], [C 에 몸이 있는 op --- 절을 `do … end` 에 담는다], [표시·권리·효과 줄 셋이 모두 있어야 한다],
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [C 를 부르는 op 을 부르는 op], [표시와 권리가 호출 사슬을 따라 올라간다],
   [`input xs slice u8 .`(경계)], [C 에서는 포인터와 길이 두 인자], [저절로 사상되는 것은 슬라이스뿐],
   [`option`·`result`·벡터를 경계에], [거절(`E-FFI-TYPE`)], [C ABI 에 없는 것을 있는 척하지 않는다],
   [`export fn clamp_add …`], [C 에서 부를 수 있는 심볼 `lw_8exported_9clamp_add`], [들어오는 인자에 계약이 강제된다 · 이름은 길이와 함께라 부딪치지 않는다],
   [`link "exported_clamp_add" .`], [export 의 C 이름을 직접 짓는다], [C 가 받을 수 없는 이름은 `E-LINK-NAME`],
   [`lowentc --emit-h` · `--no-main`], [헤더를 낸다 · `main` 없이 라이브러리로 낸다], [서명이 한 곳에만 산다],
-  [`unsafe_fn cmp`], [`export extern` op 의 주소(되부름)], [보통 op 은 `E-FN-NOTEXPORT` · 권한을 받으면 `E-FN-CAP`],
+  [`unsafe_fn cmp .`], [`export extern` op 의 주소(되부름)], [보통 op 은 `E-FN-NOTEXPORT` · 권한을 받으면 `E-FN-CAP`],
   [`input h owned <타입> .`(extern 에)], [없앨 책임이 C 로 넘어간다], [그 뒤의 반납은 검증되지 않는다],
   [`variadic .`], [C 의 가변 인자 함수를 부른다], [가변 인자에는 계약이 닿지 않는다],
   [`def newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C 포인터 한정자 · 영 바이트로 끝나는 C 문자열로 보기], [포인터는 이름 붙인 타입으로만 다룬다],

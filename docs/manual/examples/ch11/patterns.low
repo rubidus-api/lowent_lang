@@ -9,55 +9,55 @@ def enum color do
   red .
   green .
   blue .
-end
+end .
 
 def enum node do
   num v u32 .
   plus l u32 r u32 .
   times l u32 r u32 .
-end
+end .
 
 rem ko: 어느 하나라도 맞으면 그 갈래 --- red·green·blue 를 모두 덮으므로 _ 가 필요 없다 /// en: any one match takes the arm --- red, green and blue are all covered, so no _ is needed
 fn warm input k u8 . output u8 . do
-  let c color green .
-  match c do
-    case red or green do return 1 . end
-    case blue do return 2 . end
-  end
-end
+  let c color green. .
+  match c. do
+    case red or green do return 1 . end .
+    case blue do return 2 . end .
+  end .
+end .
 
 rem ko: or 로 묶은 갈래는 같은 이름을 묶어야 한다 /// en: arms joined with or must bind the same names
 fn combine input k u8 . output u32 . do
-  let e node node.times 6 7 .
-  match e do
-    case plus l r or times l r do return add l r . end
-    case num v do return v . end
-  end
-end
+  let e node node.times 6 7 . .
+  match e. do
+    case plus l r or times l r do return add l. r. . . end .
+    case num v do return v. . end .
+  end .
+end .
 
 rem ko: result 안의 option 을 한 번에 가른다 /// en: splits an option inside a result in one go
 fn pick input k u8 . output u32 . do
-  let r result option u32 color ok (some 42) .
-  match r do
-    case ok (some x) do return x . end
-    case ok none do return 0 . end
-    case error do return 99 . end
-  end
-end
+  let r result option u32 color ok some 42 . . .
+  match r. do
+    case ok (some x) do return x. . end .
+    case ok none do return 0 . end .
+    case error do return 99 . end .
+  end .
+end .
 
 rem ko: 가르는 값이 번역 시점 상수면 맞는 갈래 하나로 접힌다 /// en: if the value being split is a compile-time constant, it folds to the one matching arm
 fn choose output u32 . do
-  match comptime (add 2 3) do
-    case 0 do return 100 . end
-    case 5 do return 500 . end
-    case _ do return 999 . end
-  end
-end
+  match comptime add 2 3 . do
+    case 0 do return 100 . end .
+    case 5 do return 500 . end .
+    case _ do return 999 . end .
+  end .
+end .
 
 rem ko: 두 범위가 u8 전체를 빈틈 없이 덮으므로 _ 가 필요 없다 /// en: the two ranges cover all of u8 without gaps, so no _ is needed
 fn half input b u8 . output u8 . do
-  match b do
-    case 0 to 127 do return 0 . end
-    case 128 to 255 do return 1 . end
-  end
-end
+  match b. do
+    case 0 to 127 do return 0 . end .
+    case 128 to 255 do return 1 . end .
+  end .
+end .

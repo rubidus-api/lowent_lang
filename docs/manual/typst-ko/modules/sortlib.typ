@@ -9,7 +9,7 @@
 ```lowent
 use sortlib .
 
-sortlib.sort s .
+sortlib.sort s. .
 ```
 
 #aside[성숙도 `standard` --- 이 저장소의 첫 `standard`][
@@ -43,28 +43,28 @@ sortlib.sort s .
 proc sort_verify input s mut slice u64 . output u64 . effects none . do
   var pre u64 0 .
   var i u64 0 .
-  while lt i (len s) do
-    set pre (wrap_add pre (idx s i)) .
-    set i (add i 1) .
-  end
-  sortlib.sort s .
+  while lt i. len s. . . do
+    set pre. wrap_add pre. idx s. i. . . .
+    set i. add i. 1 . .
+  end .
+  sortlib.sort s. .
   var post u64 0 .
   var sorted u64 1 .
   var j u64 0 .
-  while lt j (len s) do
-    set post (wrap_add post (idx s j)) .
-    if gt j 0 do
-      if gt (idx s (sub j 1)) (idx s j) do set sorted 0 . end
-    end
-    set j (add j 1) .
-  end
-  if ne pre post do set sorted 0 . end
-  return sorted .
-end
+  while lt j. len s. . . do
+    set post. wrap_add post. idx s. j. . . .
+    if gt j. 0 . do
+      if gt idx s. sub j. 1 . . idx s. j. . . do set sorted. 0 . end .
+    end .
+    set j. add j. 1 . .
+  end .
+  if ne pre. post. . do set sorted. 0 . end .
+  return sorted. .
+end .
 ```
 
 #antipattern[부분 구간을 내부 op 으로 정렬한다][
-  `sortlib.qsort s 0 (len s)` 는 `E-VISIBILITY` 다. 부분 구간은 `subslice` 로 잘라 `sort` 에 준다 --- `sortlib.sort (subslice s 2 7) .`
+  `sortlib.qsort s. 0 len s. . .` 는 `E-VISIBILITY` 다. 부분 구간은 `subslice` 로 잘라 `sort` 에 준다 --- `sortlib.sort subslice s. 2 7 . .`
 ]
 
 #antipattern[불변 슬라이스를 넘기거나 반환값을 기대한다][

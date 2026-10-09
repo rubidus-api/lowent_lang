@@ -42,39 +42,39 @@ export def newtype cstr unsafe_ptr u8 .
 
 export def enum sb_error do
   no_room .
-end
+end .
 
 rem ★ 상태만. 바이트는 호출자가 든다.
 rem   `cap` 은 **호출자가 준 버퍼의 길이**를 그대로 적는다 — 두 곳에 적으면 어긋난다(§0).
 export def struct str_buf do
   len u64 .
-end
+end .
 
 export fn new output str_buf . do
-  return lit str_buf do len 0 . end .
-end
+  return lit str_buf do len 0 . end . .
+end .
 
 rem 지금까지 쓴 바이트의 **뷰**. 복사가 아니다. (널은 뷰에 안 든다 — 길이가 진실이다.)
 export fn as_str input b str_buf . input buf slice u8 . output slice u8 . do
-  return subslice buf 0 (field b len) .
-end
+  return subslice buf. 0 field b. len . . .
+end .
 
 rem ★ 내용 용량 = len(buf) − 1 (마지막 1 바이트는 널 봉인 자리, D2).
 rem ★ 빈 버퍼거나 `len` 이 버퍼 길이에 닿았으면(낡은 str_buf 를 짧은 버퍼에 댄 경우) **0** 이다 —
 rem   전에는 뺄셈이 밑으로 감겨 2^64−1 을 냈다(2026-09-04 보안 검토). 자리가 없다는 사실은 0 으로 말한다.
 export fn room input b str_buf . input buf slice u8 . output u64 . do
-  guard lt (field b len) (len buf) else return 0 .
-  return sub (sub (len buf) 1) (field b len) .
-end
+  guard lt field b. len . len buf. . . else return 0 . .
+  return sub sub len buf. . 1 . field b. len . . .
+end .
 
 rem ★★★ **str_buf → cstr** (RFC-0068 S4 · C4 · D2 봉인) — **O(1)·무할당**. `len` 자리에 널을 봉인하고
 rem   base 포인터를 cstr 로 낸다. `cstr_of` 가 `effects unsafe` 라 이 op 도 unsafe 다 — 그리고 그것이
 rem   D4 의 규율이다: cstr 를 만드는 것은 언제나 널종단 보증이고, 봉인하는 유일한 안전 경로가 str_buf 다.
 rem   ☞ 버퍼는 `len + 1 ≤ len(buf)` 여야 한다(append 가 예약해 뒀다). 아니면 널 쓰기가 경계 밖 → 트랩.
 export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . output cstr . effects unsafe . do
-  set (idx buf (field b len)) 0 .
-  return cstr_of buf .
-end
+  set idx buf. field b. len . . 0 .
+  return cstr_of buf. . .
+end .
 
 rem ── ① 전량-아니면-무 ─────────────────────────────────────────────────
 rem
@@ -85,16 +85,16 @@ export proc append input b mut str_buf . input buf mut slice u8 . input s slice 
 errors no_room .
 do
   rem ★ 내용 + 널 1 바이트가 들어가야 한다(D2 봉인). len + |s| + 1 ≤ len(buf).
-  guard le (add (add (field b len) (len s)) 1) (len buf) else return error no_room .
+  guard le add add field b. len . len s. . . 1 . len buf. . . else return error no_room . . .
   var i u64 0 .
-  while lt i (len s) do
-    set (idx buf (add (field b len) i)) (idx s i) .
-    set i (add i 1) .
-  end
-  set (field b len) (add (field b len) (len s)) .
-  set (idx buf (field b len)) 0 .              rem ★ 봉인 — len 자리에 널(cstr 수출이 O(1))
-  return ok .
-end
+  while lt i. len s. . . do
+    set idx buf. add field b. len . i. . . idx s. i. . .
+    set i. add i. 1 . .
+  end .
+  set field b. len . add field b. len . len s. . . .
+  set idx buf. field b. len . . 0 .              rem ★ 봉인 — len 자리에 널(cstr 수출이 O(1))
+  return ok. .
+end .
 
 rem ── ② 되는 만큼 ──────────────────────────────────────────────────────
 rem
@@ -105,20 +105,20 @@ export proc append_trunc input b mut str_buf . input buf mut slice u8 . input s 
 do
   rem ★ 자리가 아예 없으면(빈 버퍼 · `len ≥ len buf`) **한 바이트도 안 쓰고 0** 이다 — 봉인 자리조차
   rem   없으므로 봉인도 안 한다. 전에는 밑으로 감긴 `avail` 로 경계 밖에 썼다(2026-09-04).
-  guard lt (field b len) (len buf) else return 0 .
+  guard lt field b. len . len buf. . . else return 0 . .
   rem ★ 내용 용량 = len(buf) − 1 (널 봉인 자리 예약, D2).
-  let avail u64 sub (sub (len buf) 1) (field b len) .
-  var n u64 len s .
-  if gt n avail do set n avail . end
+  let avail u64 sub sub len buf. . 1 . field b. len . . .
+  var n u64 len s. . .
+  if gt n. avail. . do set n. avail. . end .
   var i u64 0 .
-  while lt i n do
-    set (idx buf (add (field b len) i)) (idx s i) .
-    set i (add i 1) .
-  end
-  set (field b len) (add (field b len) n) .
-  set (idx buf (field b len)) 0 .              rem ★ 봉인
-  return n .
-end
+  while lt i. n. . do
+    set idx buf. add field b. len . i. . . idx s. i. . .
+    set i. add i. 1 . .
+  end .
+  set field b. len . add field b. len . n. . .
+  set idx buf. field b. len . . 0 .              rem ★ 봉인
+  return n. .
+end .
 
 rem ── ③ 키운다 ─────────────────────────────────────────────────────────
 rem
@@ -133,20 +133,20 @@ export proc append_grow input b mut str_buf . input old mut slice u8 .
 errors no_room .
 do
   rem ★ 새 자리에 내용 + 널 1 바이트가 들어가야 한다(D2 봉인).
-  guard le (add (add (field b len) (len s)) 1) (len new_buf) else return error no_room .
+  guard le add add field b. len . len s. . . 1 . len new_buf. . . else return error no_room . . .
   rem 옛 내용을 새 자리로 옮긴다
   var i u64 0 .
-  while lt i (field b len) do
-    set (idx new_buf i) (idx old i) .
-    set i (add i 1) .
-  end
+  while lt i. field b. len . . do
+    set idx new_buf. i. . idx old. i. . .
+    set i. add i. 1 . .
+  end .
   rem 그 뒤에 새 바이트를 잇는다
   var j u64 0 .
-  while lt j (len s) do
-    set (idx new_buf (add (field b len) j)) (idx s j) .
-    set j (add j 1) .
-  end
-  set (field b len) (add (field b len) (len s)) .
-  set (idx new_buf (field b len)) 0 .          rem ★ 봉인
-  return ok .
-end
+  while lt j. len s. . . do
+    set idx new_buf. add field b. len . j. . . idx s. j. . .
+    set j. add j. 1 . .
+  end .
+  set field b. len . add field b. len . len s. . . .
+  set idx new_buf. field b. len . . 0 .          rem ★ 봉인
+  return ok. .
+end .

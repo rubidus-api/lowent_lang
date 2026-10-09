@@ -5,16 +5,16 @@ def type journal u64 .
 
 def enum flush_error do
   disk_full .
-end
+end .
 
 fn finish input j owned journal . output result u8 flush_error .
   errors disk_full .
 do
-  drop j .
-  return ok 0 .
-end
+  drop j. .
+  return ok 0 . .
+end .
 
 fn forget input j owned journal . output u8 .
 do
   return 0 .
-end
+end .

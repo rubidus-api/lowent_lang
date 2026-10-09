@@ -33,6 +33,15 @@
 
 #chapter-questions()
 
+#aside[How to read this chapter in edition 1.8][
+  The proof in this chapter (`LowentBlock.v`) models *the surface of edition 1.7*. Edition 1.8 gathered the surface rules into one ---
+  "a name opens, a stop closes" --- and two things changed with it. First, the one-statement body of a `case` branch is gone. A branch
+  body is always `do … end .`, so one of the two spellings theorem G1 compares can no longer be written (the two ops in `oneform.low`
+  differ only in line breaks). Second, parentheses are no longer closers but decoration --- the only thing that closes a form is a
+  stop. "A stop closes the innermost open form", the associativity of blocks, and "a newline is whitespace" all still hold. The proof
+  has not been redone for the 1.8 surface yet. Read the theorems and diagrams below as those of edition 1.7.
+]
+
 == Algebra and denotation
 
 Joining statements has two properties. The way they join does not depend on grouping (associativity), and an empty block is nothing (identity --- what 0 does for
@@ -84,14 +93,14 @@ Seen in an example:
 
 #demo("examples/ch48/closers.low")
 
-In `one_line` the two `)` close the inner forms and `.` closes the outer one. `spread` lays the same form over four lines with no marks needed, because a newline
+In `one_line` each of the two inner forms closes with its own stop, and the last stop closes the outer one. `spread` lays the same form over four lines with no marks needed, because a newline
 is whitespace. Both ops give the same answer.
 
 ```text
- return add (mul x x) (add x 1) .      return add
-                                           (mul x x)
-                                           (add x
-                                                1) .
+ return add mul x. x. . add x. 1 . . .      return add
+                                                mul x. x. .
+                                                add x.
+                                                     1 . . .
  both become the same tree:
                  add
             ┌─────┴─────┐
@@ -128,7 +137,7 @@ catch that drift. What they stop are not users' defects but the compiler's.
 
 #misconception[A line break ends a statement][
   A line break is whitespace. `spread` in `closers.low` lays one form over four lines and, without any mark, becomes the same tree as
-  `one_line`. Only closers (`.`·`)`) end a form. So a missing stop makes the next line join the previous form and produces an odd
+  `one_line`. Only the closer (`.`) ends a form. So a missing stop makes the next line join the previous form and produces an odd
   diagnostic, while splitting a long expression over several lines never changes its meaning. A rule making line breaks closers can also be
   proved, and this second property is exactly why it was not adopted.
 ]
@@ -138,8 +147,8 @@ catch that drift. What they stop are not users' defects but the compiler's.
 #antipattern[Leaving out the period at the end of a line][
   #demo("examples/ch48/mistake_noperiod.low")
 
-  The diagnostic points not at the line missing its period but at *the next line*. A newline closes nothing, so `set s (mul s 2)` was joined
-  onto `add a b`, `add` ended up with four operands, and the tool says "extra operands". Look one line above the reported number first. Even
+  The diagnostic points not at the line missing its period but at *the next line*. A newline closes nothing, so the `var` statement was
+  still open when the `set` on the next line arrived, and the tool says "a stop must close the binding". Look one line above the reported number first. Even
   if this diagnostic is confusing, the rule stays. If a line ended a statement, merely splitting a long expression would change its meaning.
 ]
 

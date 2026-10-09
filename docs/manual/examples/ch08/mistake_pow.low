@@ -4,5 +4,5 @@ rem expect: E-TYPE-KIND
 fn square input a u64 . output u64 .
 do
   rem ko: ✘ 정수에 `pow` 를 썼다 — 초월 함수는 부동소수 전용이다 /// en: ✘ `pow` on an integer; transcendental functions are floating-point only
-  return pow a 2 .
-end
+  return pow a. 2 . .
+end .

@@ -1,0 +1,22 @@
+module app .
+rem run: bump 3
+rem run: bump_marked 3
+
+fn twice input a u32 . output u32 .
+  requires le a. 1000 . .
+do
+  return mul a. 2 . .
+end .
+
+fn bump input a u32 . output u32 .
+  requires le a. 100 . .
+do
+  return expr twice a. . + 1 . .
+end .
+
+fn bump_marked input a u32 . output u32 .
+  requires le a. 100 . .
+do
+  rem ko: 괄호는 꾸밈이다 --- 같은 7 이다 /// en: the parentheses are decoration --- the same 7
+  return expr (twice a. .) + 1 . .
+end .

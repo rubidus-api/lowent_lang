@@ -3,4 +3,4 @@ rem expect: E-EFFECT-UNDEF
 
 proc ping input out cap io . output u64 . effects netwrok . do
   return 0 .
-end
+end .

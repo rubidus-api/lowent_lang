@@ -31,115 +31,115 @@ export def struct arena do
   kbits u64 .
   nseg u64 .      rem 지금까지 연 조각 수
   used u64 .      rem 마지막 조각에서 쓴 칸 수
-end
+end .
 
 rem ★ 연다. 조각 크기는 `2^kbits` 이고, `kbits` 는 **1 이상 20 이하**로 둔다 —
 rem   0 이면 조각이 한 칸이라 뜻이 없고, 너무 크면 조각 하나가 이미 큰 배열이다.
-export fn open input comptime b type . input kbits u64 . output arena b .
-requires ge kbits 1 .
-requires le kbits 20 .
+export fn open input comptime b type . input kbits u64 . output (arena b) .
+requires ge kbits. 1 . .
+requires le kbits. 20 . .
 do
-  return lit arena b do kbits kbits . nseg 0 . used 0 . end .
-end
+  return lit (arena b) do kbits kbits. . nseg 0 . used 0 . end . .
+end .
 
 rem 조각 하나에 몇 칸이 들어가나.
 rem ☞ 필드 경로 `requires` 는 **안 쓴다**: 계약 오라클이 그 축을 거짓 실패로 센다
 rem   (`docs/known-defects/oracle-field-path-contract.md`, 최소 재현 포함). `open` 의 **스칼라**
 rem   계약이 이미 `kbits ≤ 20` 을 지키므로 여기서는 값이 그 사실을 다시 확인할 뿐이다.
-export fn seg_slots input comptime b type . input a arena b . output u64 . do
-  if gt (field a kbits) 20 do return 0 . end
-  return shl 1 (field a kbits) .
-end
+export fn seg_slots input comptime b type . input a (arena b) . output u64 . do
+  if gt field a. kbits . 20 . do return 0 . end .
+  return shl 1 field a. kbits . . .
+end .
 
 rem 전역 색인을 **조각**과 **자리**로 가른다. 이 둘이 이 모듈의 전부다.
-export fn seg_of  input comptime b type . input a arena b . input i u64 . output u64 . do
-  if gt (field a kbits) 20 do return 0 . end
-  return shr i (field a kbits) .
-end
+export fn seg_of  input comptime b type . input a (arena b) . input i u64 . output u64 . do
+  if gt field a. kbits . 20 . do return 0 . end .
+  return shr i. field a. kbits . . .
+end .
 
-export fn slot_of input comptime b type . input a arena b . input i u64 . output u64 . do
-  if gt (field a kbits) 20 do return 0 . end
-  return bit_and i (sub (shl 1 (field a kbits)) 1) .
-end
+export fn slot_of input comptime b type . input a (arena b) . input i u64 . output u64 . do
+  if gt field a. kbits . 20 . do return 0 . end .
+  return bit_and i. sub shl 1 field a. kbits . . 1 . . .
+end .
 
 rem ★★ **조각을 하나 더 연다.** `dir` 에 그 조각의 시작 자리를 적는다.
 rem   더 열 자리가 없으면 `none` — 실패는 값이다(RFC-0043 D5).
-export proc grow input comptime b type . input a mut arena b . input dir mut slice u64 .
+export proc grow input comptime b type . input a mut (arena b) . input dir mut slice u64 .
   input cap0 u64 . output option u64 . effects none .
 do
-  guard le (field a kbits) 20 else return none .
-  guard lt (field a nseg) (len dir) else return none .
-  let width u64 shl 1 (field a kbits) .
-  let base u64 mul (field a nseg) width .
-  guard le (add base width) cap0 else return none .
-  set (idx dir (field a nseg)) base .
-  set (field a nseg) (add (field a nseg) 1) .
-  set (field a used) 0 .
-  return some base .
-end
+  guard le field a. kbits . 20 . else return none . .
+  guard lt field a. nseg . len dir. . . else return none . .
+  let width u64 shl 1 field a. kbits . . .
+  let base u64 mul field a. nseg . width. . .
+  guard le add base. width. . cap0. . else return none . .
+  set idx dir. field a. nseg . . base. .
+  set field a. nseg . add field a. nseg . 1 . .
+  set field a. used . 0 .
+  return some base. . .
+end .
 
 rem ★ **전역 색인 하나로 읽는다** — 편하지만 directory 를 **매번** 본다.
 rem   뜨거운 순회에는 아래 `walk_base` 를 써라. 이름이 비용을 말한다.
-export proc at input comptime b type . input a arena b . input dir slice u64 .
+export proc at input comptime b type . input a (arena b) . input dir slice u64 .
   input mem slice u64 . input i u64 . output option u64 . effects none .
 do
-  guard le (field a kbits) 20 else return none .
-  let s u64 shr i (field a kbits) .
-  guard lt s (field a nseg) else return none .
-  guard lt s (len dir) else return none .
-  let at0 u64 add (idx dir s) (bit_and i (sub (shl 1 (field a kbits)) 1)) .
-  guard lt at0 (len mem) else return none .
-  return some (idx mem at0) .
-end
+  guard le field a. kbits . 20 . else return none . .
+  let s u64 shr i. field a. kbits . . .
+  guard lt s. field a. nseg . . else return none . .
+  guard lt s. len dir. . . else return none . .
+  let at0 u64 add idx dir. s. . bit_and i. sub shl 1 field a. kbits . . 1 . . . .
+  guard lt at0. len mem. . . else return none . .
+  return some idx mem. at0. . . .
+end .
 
 rem ★★★ **조각을 한 번 빌린다** — 그 뒤 순회는 directory 를 **안 본다**.
 rem   이 op 이 있는 이유가 종료 조건 그 자체다(세그먼트당 directory load 1회).
-export proc walk_base input comptime b type . input a arena b . input dir slice u64 .
+export proc walk_base input comptime b type . input a (arena b) . input dir slice u64 .
   input s u64 . output option u64 . effects none .
 do
-  guard lt s (field a nseg) else return none .
-  guard lt s (len dir) else return none .
-  return some (idx dir s) .
-end
+  guard lt s. field a. nseg . . else return none . .
+  guard lt s. len dir. . . else return none . .
+  return some idx dir. s. . . .
+end .
 
 rem 조각 하나를 더한다 — 빌린 base 로 도는 합. **루프 안에 directory 가 없다.**
-export proc sum_seg input comptime b type . input a arena b . input dir slice u64 .
+export proc sum_seg input comptime b type . input a (arena b) . input dir slice u64 .
   input mem slice u64 . input s u64 . output u64 . effects none .
 do
-  guard le (field a kbits) 20 else return 0 .
-  let bo option u64 walk_base b a dir s .
-  guard is_some bo else return 0 .
-  let base u64 some_value bo .
-  let width u64 shl 1 (field a kbits) .
+  guard le field a. kbits . 20 . else return 0 . .
+  let bo option u64 walk_base b. a. dir. s. . .
+  guard is_some bo. . else return 0 . .
+  let base u64 some_value bo. . .
+  let width u64 shl 1 field a. kbits . . .
   var acc u64 0 .
   var k u64 0 .
-  while lt k width do
-    let at0 u64 add base k .
-    if lt at0 (len mem) do
-      set acc (wrap_add acc (idx mem at0)) .
-    end
-    set k (add k 1) .
-  end
-  return acc .
-end
+  while lt k. width. . do
+    let at0 u64 add base. k. . .
+    if lt at0. len mem. . . do
+      set acc. wrap_add acc. idx mem. at0. . . .
+    end .
+    set k. add k. 1 . .
+  end .
+  return acc. .
+end .
 
 rem 같은 합을 **전역 색인으로** 낸다 — 답은 같고 비용은 다르다(골든이 그 차이를 잰다).
-export proc sum_global input comptime b type . input a arena b . input dir slice u64 .
+export proc sum_global input comptime b type . input a (arena b) . input dir slice u64 .
   input mem slice u64 . input s u64 . output u64 . effects none .
 do
-  guard le (field a kbits) 20 else return 0 .
+  guard le field a. kbits . 20 . else return 0 . .
   rem ★ 안 연 조각은 `sum_seg` 와 같은 답(0)이다 — `at` 이 어차피 전부 none 을 냈을 것이지만, 큰 `s` 는
   rem   그 전에 `mul s width` 에서 넘쳐 트랩이었다(2026-09-04 보안 검토). `nseg ≤ len dir` 이고 조각의
   rem   시작 자리는 `grow` 가 `cap0` 안에 두었으므로, 이 검사를 지난 곱셈은 넘치지 않는다.
-  guard lt s (field a nseg) else return 0 .
-  let width u64 shl 1 (field a kbits) .
+  guard lt s. field a. nseg . . else return 0 . .
+  let width u64 shl 1 field a. kbits . . .
   var acc u64 0 .
   var k u64 0 .
-  while lt k width do
-    let i u64 add (mul s width) k .
-    let v option u64 at b a dir mem i .
-    if is_some v do set acc (wrap_add acc (some_value v)) . end
-    set k (add k 1) .
-  end
-  return acc .
-end
+  while lt k. width. . do
+    let i u64 add mul s. width. . k. . .
+    let v option u64 at b. a. dir. mem. i. . .
+    if is_some v. . do set acc. wrap_add acc. some_value v. . . . end .
+    set k. add k. 1 . .
+  end .
+  return acc. .
+end .

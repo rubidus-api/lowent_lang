@@ -9,11 +9,11 @@ buffer and flushes only when full, reducing system calls from the number of byte
 what was gathered" *at compile time*.
 
 ```lowent
-var p owned outbuf.pending outbuf.buf_open 1 .
-let w result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "hi\n" .
-guard is_ok w else return 1 .
-set p (ok_value w) .
-let r result void outbuf.io_error outbuf.buf_finish out p buf .
+var p owned outbuf.pending outbuf.buf_open 1 . .
+let w result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out. p. buf. "hi\n" . .
+guard is_ok w. . else return 1 . .
+set p. ok_value w. . .
+let r result void outbuf.io_error outbuf.buf_finish out. p. buf. . .
 ```
 
 *What is owned is not the buffer but the bytes not yet sent.* The buffer stays the caller's (the same discipline as #modref("fmt")[`fmt`]), and `owned` guards the unflushed
@@ -32,12 +32,12 @@ leave --- *the writer cannot flush behind your back* (#chref("capabilities")).
   [`write_all`], [`proc (out cap io, d u64, b slice u8) → option u64` --- writes one slice *to the end*, bypassing the buffer], [`none` --- cannot write any more],
   [`io_error` · `pending`], [enum `write_failed` · struct `pos u64` (bytes accumulated) · `fd u64` (1 = stdout, 2 = stderr)], [---],
   [`buf_open`], [`fn (d u64) → pending`, effects none], [none --- but opening creates a debt],
-  [`buf_flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed`],
-  [`buf_write`], [`proc (out cap io, p owned pending, buf mut slice u8, s slice u8) → result (owned pending) io_error` --- flushes itself when full], [`error write_failed`],
-  [`buf_finish`], [`proc (out cap io, p owned pending, buf mut slice u8) → result void io_error` --- flushes the tail and completes], [`error write_failed`],
+  [`buf_flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed .`],
+  [`buf_write`], [`proc (out cap io, p owned pending, buf mut slice u8, s slice u8) → result (owned pending) io_error` --- flushes itself when full], [`error write_failed .`],
+  [`buf_finish`], [`proc (out cap io, p owned pending, buf mut slice u8) → result void io_error` --- flushes the tail and completes], [`error write_failed .`],
 )
 
-`buf_write` and `buf_flush` consume ownership and return the new state in `ok` --- the caller takes it over with `set p (ok_value w)` every time. `set` is reinitialisation, not use, so
+`buf_write` and `buf_flush` consume ownership and return the new state in `ok` --- the caller takes it over with `set p. ok_value w. .` every time. `set` is reinitialisation, not use, so
 ownership holds inside loops. *A partial write is failure* --- if the count written differs from the request it is `write_failed`, the pending is consumed and bytes in the buffer
 at that moment are lost (retry was not built). A small buffer still behaves correctly; size only affects speed. Call `buf_flush` directly only when "this line must appear on screen
 now".
@@ -49,31 +49,31 @@ use fmt .
 use outbuf .
 
 proc main input out cap io . input al cap allocator . output u8 . effects alloc io . do
-  let g option mut slice u8 alloc_bytes al capacity 16 .
-  guard is_some g else return 70 .
-  let buf mut slice u8 some_value g .
-  let ng option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some ng else return 71 .
-  let nb mut slice u8 some_value ng .
-  var p owned outbuf.pending outbuf.buf_open 1 .
+  let g option mut slice u8 alloc_bytes al. capacity 16 . .
+  guard is_some g. . else return 70 . .
+  let buf mut slice u8 some_value g. . .
+  let ng option mut slice u8 alloc_bytes al. capacity 32 . .
+  guard is_some ng. . else return 71 . .
+  let nb mut slice u8 some_value ng. . .
+  var p owned outbuf.pending outbuf.buf_open 1 . .
   var i u64 1 .
-  while le i 5 do
-    let a option u64 fmt.put_str nb 0 "line " .
-    guard is_some a else return 72 .
-    let b option u64 fmt.put_u64 nb (some_value a) i .
-    guard is_some b else return 73 .
-    let c option u64 fmt.put_nl nb (some_value b) .
-    guard is_some c else return 74 .
+  while le i. 5 . do
+    let a option u64 fmt.put_str nb. 0 "line " . .
+    guard is_some a. . else return 72 . .
+    let b option u64 fmt.put_u64 nb. some_value a. . i. . .
+    guard is_some b. . else return 73 . .
+    let c option u64 fmt.put_nl nb. some_value b. . . .
+    guard is_some c. . else return 74 . .
     let w result (owned outbuf.pending) outbuf.io_error
-      outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
-    guard is_ok w else return 75 .
-    set p (ok_value w) .
-    set i (add i 1) .
-  end
-  let f result void outbuf.io_error outbuf.buf_finish out p buf .
-  guard is_ok f else return 76 .
+      outbuf.buf_write out. p. buf. subslice nb. 0 some_value c. . . . .
+    guard is_ok w. . else return 75 . .
+    set p. ok_value w. . .
+    set i. add i. 1 . .
+  end .
+  let f result void outbuf.io_error outbuf.buf_finish out. p. buf. . .
+  guard is_ok f. . else return 76 . .
   return 0 .
-end
+end .
 ```
 
 Pure formatting (`fmt`) assembles bytes and buffered output (`outbuf`) sends them. The assembly buffer `nb` and the writer's buffer `buf` are separate.

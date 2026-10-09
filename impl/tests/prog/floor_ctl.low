@@ -30,17 +30,17 @@ rem ★ 이름이 아니라 **자리**로 적는 것이 floor 의 방식이다 �
 
 rem 내려가는 갈래: y 가 x 보다 크면 차이의 1/8 만큼 내려간다.
 fn fall input y u32 . input x u32 . output u32 .
-  requires ge y x .
+  requires ge y. x. . .
 do
-  return sub y (shr (sub y x) 3) .
-end
+  return sub y. shr sub y. x. . 3 . . .
+end .
 
 rem 올라가는 갈래.
 fn rise input y u32 . input x u32 . output u32 .
-  requires ge x y .
+  requires ge x. y. . .
 do
-  return add y (shr (sub x y) 3) .
-end
+  return add y. shr sub x. y. . 3 . . .
+end .
 
 rem ★ 1차 IIR 한 걸음. 나눗셈도, 부동소수도 없다 — 시프트 하나뿐이다.
 export proc filter_step
@@ -48,13 +48,13 @@ export proc filter_step
   input x u32 .
   output u32 .
   effects none .
-  requires ge (len st) 3 .
+  requires ge len st. . 3 . .
 do
-  let y u32 idx st 0 .
-  guard gt x y else return step_down st y x .
-  set (idx st 0) (rise y x) .
-  return idx st 0 .
-end
+  let y u32 idx st. 0 . .
+  guard gt x. y. . else return step_down st. y. x. . . .
+  set idx st. 0 . rise y. x. . .
+  return idx st. 0 . .
+end .
 
 proc step_down
   input st mut slice u32 .
@@ -62,20 +62,20 @@ proc step_down
   input x u32 .
   output u32 .
   effects none .
-  requires ge (len st) 3 .
-  requires ge y x .
+  requires ge len st. . 3 . .
+  requires ge y. x. . .
 do
-  set (idx st 0) (fall y x) .
-  return idx st 0 .
-end
+  set idx st. 0 . fall y. x. . .
+  return idx st. 0 . .
+end .
 
 rem 출력 자리에 값을 박고 그 값을 돌려준다.
 proc put_out input st mut slice u32 . input v u32 . output u32 . effects none .
-  requires ge (len st) 3 .
+  requires ge len st. . 3 . .
 do
-  set (idx st 1) v .
-  return v .
-end
+  set idx st. 1 . v. .
+  return v. .
+end .
 
 rem ★★ 히스테리시스: 두 문턱 **사이**에서는 아무것도 바꾸지 않는다.
 rem   문턱이 하나면 값이 그 근처에서 떨 때 출력이 초당 수천 번 뒤집힌다(릴레이가 죽는다).
@@ -86,15 +86,15 @@ export proc control_step
   input hi u32 .
   output u32 .
   effects none .
-  requires ge (len st) 3 .
-  requires ge hi lo .
+  requires ge len st. . 3 . .
+  requires ge hi. lo. . .
 do
-  let y u32 filter_step st x .
-  guard lt y hi else return put_out st 1 .
-  guard gt y lo else return put_out st 0 .
+  let y u32 filter_step st. x. . .
+  guard lt y. hi. . else return put_out st. 1 . . .
+  guard gt y. lo. . else return put_out st. 0 . . .
   rem 사이 — 직전 출력을 **그대로** 둔다.
-  return idx st 1 .
-end
+  return idx st. 1 . .
+end .
 
 rem ★ 주 루프 한 바퀴: 표본 하나를 먹고, 처리 수를 센다.
 export proc tick
@@ -102,12 +102,12 @@ export proc tick
   input x u32 .
   output u32 .
   effects none .
-  requires ge (len st) 3 .
+  requires ge len st. . 3 . .
 do
-  let out u32 control_step st x 40 60 .
-  set (idx st 2) (wrap_add (idx st 2) 1) .
-  return out .
-end
+  let out u32 control_step st. x. 40 60 . .
+  set idx st. 2 . wrap_add idx st. 2 . 1 . .
+  return out. .
+end .
 
 rem ★★ 시연용 진입점 — 표본 열을 통째로 먹여 **마지막 출력**을 낸다.
 rem   호스트에서 돌려 볼 수 있고(VM·네이티브), floor 타깃에서는 이 op 을 안 쓰면 그만이다.
@@ -116,14 +116,14 @@ export proc run
   input xs slice u32 .
   output u32 .
   effects none .
-  requires ge (len st) 3 .
+  requires ge len st. . 3 . .
 do
   var i u64 0 .
   var out u32 0 .
   while true do
-    guard lt i (len xs) else break .
-    set out (tick st (idx xs i)) .
-    set i (add i 1) .
-  end
-  return out .
-end
+    guard lt i. len xs. . . else break . .
+    set out. tick st. idx xs. i. . . .
+    set i. add i. 1 . .
+  end .
+  return out. .
+end .

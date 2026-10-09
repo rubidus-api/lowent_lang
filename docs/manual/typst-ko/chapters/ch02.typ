@@ -120,8 +120,8 @@ cc -O2 -o hello hello.c -lm
 
 #demo("examples/ch01/stats.low")
 
-`requires gt (len xs) 0 .` 는 *계약*이다. 호출자는 빈 슬라이스를 주지 않는다고 약속한다. 그
-약속이 있으니 본문의 `div total (len xs)` 가 0 으로 나눌 걱정을 하지 않는다. 결과 아래의
+`requires gt len xs. . 0 . .` 는 *계약*이다. 호출자는 빈 슬라이스를 주지 않는다고 약속한다. 그
+약속이 있으니 본문의 `div total. len xs. . .` 가 0 으로 나눌 걱정을 하지 않는다. 결과 아래의
 `arg0 (written) = [3,4,8]` 은 VM 이 슬라이스 인자의 마지막 모습을 보여 주는 줄이다.
 
 == 계약이 멈추는 모습
@@ -191,7 +191,7 @@ op 머리의 절은 정해진 한 차례로 적는다. 입력이 출력보다 �
 
 #demo("examples/ch02/greet.low")
 
-`input a cap args .` 로 인자 권한을 받고, `arg a 0` 이 첫 인자를 읽는다. 인자가 없을 수도 있으니
+`input a cap args .` 로 인자 권한을 받고, `arg a. 0 .` 이 첫 인자를 읽는다. 인자가 없을 수도 있으니
 결과는 `option slice u8` 이다. `guard is_some who else …` 는 값이 없으면 그 자리에서 떠나고, 그
 아래에서는 값이 있다고 믿어도 된다(#chref("option-result")). 권한 입력이 데이터 입력보다 앞에 오고,
 권한 둘은 적은 차례대로 인자 자리를 차지한다.
@@ -248,8 +248,8 @@ op 머리의 절은 정해진 한 차례로 적는다. 입력이 출력보다 �
   [`proc main input out cap io . output u8 . effects io .`], [프로그램의 시작점], [받는 권한·돌려주는 종료 코드·하는 일이 머리에 다 보인다],
   [`do … end`], [몸], [여는 말과 닫는 말이 짝을 이룬다],
   [`write_out out 1 "…"`], [표준출력(1)에 쓰고 쓴 바이트 수를 돌려준다], [권한 `out` 이 첫 인자 --- 권한 없이는 못 쓴다],
-  [`narrow u8 n`], [`u8` 로 좁힌다(안 들어가면 멈춘다)], [값이 조용히 바뀌지 않게],
-  [`requires c .` · `test t do … end` · `expect c .`], [계약 · 시험 블록 · 시험 속 단언], [약속은 검사되고, 시험은 따로 돈다],
+  [`narrow u8 n. .`], [`u8` 로 좁힌다(안 들어가면 멈춘다)], [값이 조용히 바뀌지 않게],
+  [`requires c .` · `test t do … end .` · `expect c .`], [계약 · 시험 블록 · 시험 속 단언], [약속은 검사되고, 시험은 따로 돈다],
   [`lowentc --check f.low`], [검사만 한다], [무엇을 했는지 명령 줄에 보이게 --- 기본 모드가 없다],
   [`lowentc --run op f.low 인자…`], [VM 으로 op 하나를 돌린다], [파일 안의 어느 op 이든 따로 돌려 본다],
   [`lowentc --emit-c f.low > f.c`], [네이티브용 C 를 낸다], [VM 과 같은 답인지 맞대 볼 수 있게],

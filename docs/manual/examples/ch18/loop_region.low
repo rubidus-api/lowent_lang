@@ -8,26 +8,26 @@ do
   var got u64 0 .
   region work arena do
     var i u64 0 .
-    while lt i 100 do
-      let g option mut slice u8 alloc_bytes work capacity 4096 .
-      if is_some g do set got (add got 1) . end
-      set i (add i 1) .
-    end
-  end
-  return got .
-end
+    while lt i. 100 . do
+      let g option mut slice u8 alloc_bytes work. capacity 4096 . .
+      if is_some g. . do set got. add got. 1 . . end .
+      set i. add i. 1 . .
+    end .
+  end .
+  return got. .
+end .
 
 rem ko: 영역을 반복 안에서 연다 --- 바퀴가 끝날 때마다 되감긴다 /// en: the region is opened inside the loop --- it is rewound at the end of every round
 proc count_inner output u64 . effects alloc .
 do
   var got u64 0 .
   var i u64 0 .
-  while lt i 100 do
+  while lt i. 100 . do
     region work arena do
-      let g option mut slice u8 alloc_bytes work capacity 4096 .
-      if is_some g do set got (add got 1) . end
-    end
-    set i (add i 1) .
-  end
-  return got .
-end
+      let g option mut slice u8 alloc_bytes work. capacity 4096 . .
+      if is_some g. . do set got. add got. 1 . . end .
+    end .
+    set i. add i. 1 . .
+  end .
+  return got. .
+end .

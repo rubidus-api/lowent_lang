@@ -24,32 +24,32 @@ rem ── 재기 ────────────────────�
 
 rem 지금(단조 나노초). **절대 시각이 아니다** — 두 번 재서 빼는 데 쓴다.
 export proc now_ns input k cap clock . output u64 . effects none . do
-  return time_now k .
-end
+  return time_now k. . .
+end .
 
 rem 밀리초로. 나노초는 u64 로 584 년을 담으므로 넘침 걱정이 없다.
 export proc now_ms input k cap clock . output u64 . effects none . do
-  return div (time_now k) 1000000 .
-end
+  return div time_now k. . 1000000 . .
+end .
 
 rem ★ **경과 시간** — 시계의 가장 흔한 쓰임이다. 시작을 받아 지금까지의 나노초를 낸다.
 rem   단조 시계라 뒤로 가지 않으므로 뺄셈이 안전하다(벽시계였다면 음수가 났을 것이다).
 export proc since_ns input k cap clock . input start u64 . output u64 . effects none . do
-  let n u64 time_now k .
-  guard ge n start else return 0 .
-  return sub n start .
-end
+  let n u64 time_now k. . .
+  guard ge n. start. . else return 0 . .
+  return sub n. start. . .
+end .
 
 export proc since_ms input k cap clock . input start u64 . output u64 . effects none . do
-  return div (since_ns k start) 1000000 .
-end
+  return div since_ns k. start. . 1000000 . .
+end .
 
 rem ── 자기 ─────────────────────────────────────────────────────────────
 
 rem 잔다. **실제로 잔 밀리초**를 낸다 — 요청과 다를 수 있고, 그 차이를 숨기지 않는다.
 export proc sleep_ms input k cap clock . input ms u64 . output u64 . effects wait . do
-  return time_sleep k ms .
-end
+  return time_sleep k. ms. . .
+end .
 
 rem ── 마감 ─────────────────────────────────────────────────────────────
 
@@ -60,33 +60,33 @@ rem ★ **포화한다**(`sat_mul`·`sat_add`): "타임아웃 없음" 을 u64 �
 rem   그것이 곱셈에서 트랩하면 *"영원히"* 가 *"즉사"* 가 된다. 포화한 마감 = 사실상 오지 않는 마감이고,
 rem   그것이 호출자가 뜻한 바다. (2^44 ms ≈ 557 년 위로는 어차피 구별할 뜻이 없다.)
 export proc deadline_in input k cap clock . input ms u64 . output u64 . effects none . do
-  return sat_add (time_now k) (sat_mul ms 1000000) .
-end
+  return sat_add time_now k. . sat_mul ms. 1000000 . . .
+end .
 
 rem 마감이 지났나.
 export proc past input k cap clock . input deadline u64 . output bool . effects none . do
-  return ge (time_now k) deadline .
-end
+  return ge time_now k. . deadline. . .
+end .
 
 rem 마감까지 남은 밀리초(지났으면 0). 논블로킹 대기의 인자로 쓴다(RFC-0090 N4).
 export proc left_ms input k cap clock . input deadline u64 . output u64 . effects none . do
-  let n u64 time_now k .
-  guard lt n deadline else return 0 .
-  return div (sub deadline n) 1000000 .
-end
+  let n u64 time_now k. . .
+  guard lt n. deadline. . else return 0 . .
+  return div sub deadline. n. . 1000000 . .
+end .
 
 rem ── 날짜시각 ─────────────────────────────────────────────────────────
 
 rem 지역 날짜시각을 **한 값**으로 받는다. 아래 접근자가 푼다 — 팩 방식은 리프의 사정이고
 rem 프로그램이 알 이유가 없다(`lib/net.low` 의 `pair_a`/`pair_b` 와 같은 규율).
 export proc local_packed input k cap clock . output u64 . effects none . do
-  return time_local k .
-end
+  return time_local k. . .
+end .
 
 rem 푸는 쪽은 **순수 계산**이다 — 권한이 필요 없다. 그래야 권한이 진짜 리프에만 남는다.
-export fn year_of   input p u64 . output u64 . do return shr p 36 . end
-export fn month_of  input p u64 . output u64 . do return bit_and (shr p 32) 15 . end
-export fn day_of    input p u64 . output u64 . do return bit_and (shr p 27) 31 . end
-export fn hour_of   input p u64 . output u64 . do return bit_and (shr p 22) 31 . end
-export fn minute_of input p u64 . output u64 . do return bit_and (shr p 16) 63 . end
-export fn second_of input p u64 . output u64 . do return bit_and (shr p 10) 63 . end
+export fn year_of   input p u64 . output u64 . do return shr p. 36 . . end .
+export fn month_of  input p u64 . output u64 . do return bit_and shr p. 32 . 15 . . end .
+export fn day_of    input p u64 . output u64 . do return bit_and shr p. 27 . 31 . . end .
+export fn hour_of   input p u64 . output u64 . do return bit_and shr p. 22 . 31 . . end .
+export fn minute_of input p u64 . output u64 . do return bit_and shr p. 16 . 63 . . end .
+export fn second_of input p u64 . output u64 . do return bit_and shr p. 10 . 63 . . end .

@@ -9,10 +9,10 @@ mine". Whether pieces then ride on several threads or run sequentially, the fact
 
 ```lowent
 def newtype grid u8 .
-var r (owned shard.token grid) shard.open grid 8 .
-var h (shard.halves grid) shard.split_at grid r 4 .
-var lo (owned shard.token grid) (field h low) .
-var hi (owned shard.token grid) (field h high) .
+var r (owned shard.token grid) shard.open grid. 8 . .
+var h (shard.halves grid) shard.split_at grid. r. 4 . .
+var lo (owned shard.token grid) field h. low . .
+var hi (owned shard.token grid) field h. high . .
 rem r can no longer be used --- using it is E-OWN-MOVED
 ```
 
@@ -43,11 +43,11 @@ access unit (#chref("ownership")).
 )
 
 *`rejoin`'s ordering convention --- and why it is not a contract.* When joining, pass the lower id first (deadlock convention: cross acquisition is always ascending).
-Breaking it gives `none`. It was first written as `requires lt (field a id) (field c id) .`, but the contract test generator cannot produce rejection cases for relations
+Breaking it gives `none`. It was first written as `requires lt field a. id . field c. id . . .`, but the contract test generator cannot produce rejection cases for relations
 between two struct arguments. A contract nobody can verify is a sentence, not a check, so it was lowered to a value the caller must receive.
 
 #antipattern[Joining in reverse][
-  `shard.rejoin g hi lo` is `none`. It does not stop, so without looking at the return value you pass on unaware that nothing was joined. Receive it with
+  `shard.rejoin g. hi. lo. .` is `none`. It does not stop, so without looking at the return value you pass on unaware that nothing was joined. Receive it with
   `guard is_some back`.
 ]
 

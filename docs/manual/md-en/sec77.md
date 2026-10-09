@@ -17,7 +17,7 @@ Adds commonly used things on top of core ops like `sqrt`, `sin` and `exp` — co
 > **Do not compare with `==` — use `close`**
 >
 > > ```lowent
-> > guard math.close (math.hyp 3.0 4.0) 5.0 0.000001 else return 1 .
+> > guard math.close math.hyp 3.0 4.0 . 5.0 0.000001 . else return 1 . .
 > > ```
 > >
 > > “Equal” is not well defined for floating point (chapter 4). So this module provides `close(a, b, tol)`, and the library’s own tests judge with it.

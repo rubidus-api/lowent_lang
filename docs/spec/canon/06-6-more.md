@@ -72,11 +72,11 @@ module ex_range_match .
 
 fn band input a u8 . output u8 .
 do
-  match a do
-    case 0 to 9 do return 1 . end
-    case 10 to 255 do return 2 . end
-  end
-end
+  match a. do
+    case 0 to 9 do return 1 . end .
+    case 10 to 255 do return 2 . end .
+  end .
+end .
 ```
 
 ```lowent-거부: 덮이지 않은 값이 있으면 거부된다 · E-MATCH-INEXHAUSTIVE
@@ -84,10 +84,10 @@ module ex_range_gap .
 
 fn band input a u8 . output u8 .
 do
-  match a do
-    case 0 to 9 do return 1 . end
-  end
-end
+  match a. do
+    case 0 to 9 do return 1 . end .
+  end .
+end .
 ```
 
 > [!산문]
@@ -101,15 +101,15 @@ module ex_match .
 def enum color do
   red .
   green .
-end
+end .
 
 export fn code input c color . output u32 .
 do
-  match c do
-    case red do return 1 . end
-    case green do return 2 . end
-  end
-end
+  match c. do
+    case red do return 1 . end .
+    case green do return 2 . end .
+  end .
+end .
 ```
 
 ```lowent-거부: 갈래가 빠진 match · E-MATCH-INEXHAUSTIVE
@@ -118,15 +118,15 @@ module ex_match_bad .
 def enum color do
   red .
   green .
-end
+end .
 
 export fn code input c color . output u32 .
 do
-  match c do
-    case red do return 1 . end
+  match c. do
+    case red do return 1 . end .
     rem `green` 을 안 다뤘다
-  end
-end
+  end .
+end .
 ```
 
 > [!산문]
@@ -153,15 +153,15 @@ end
 module ex_test .
 
 export fn twice input n u32 . output u32 .
-  requires le n 100 .
+  requires le n. 100 . .
 do
-  return mul n 2 .
-end
+  return mul n. 2 . .
+end .
 
 test twice_works
 do
-  expect eq (twice 5) 10 .
-end
+  expect eq twice 5 . 10 . .
+end .
 ```
 
 > [!주의] 계약 위반과 시험 실패는 다르다
@@ -191,13 +191,13 @@ module ex_comptime .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
 do
-  return add a n .
-end
+  return add a. n. . .
+end .
 
 fn call_it output u8 .
 do
-  return twice 3 4 .
-end
+  return twice 3 4 . .
+end .
 ```
 
 ```lowent-거부: 번역 시점에 알 수 없는 값은 줄 수 없다 · E-COMPTIME-ARG
@@ -205,13 +205,13 @@ module ex_comptime_rt .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
 do
-  return add a n .
-end
+  return add a. n. . .
+end .
 
 fn call_it input k u8 . output u8 .
 do
-  return twice k 4 .
-end
+  return twice k. 4 . .
+end .
 ```
 
 > [!참고]
@@ -236,9 +236,9 @@ module ex_comptime .
 
 fn f input a u8 . output u8 .
 do
-  let b u8 comptime a .    rem `a` 는 실행할 때에야 정해진다
-  return b .
-end
+  let b u8 comptime a. . .    rem `a` 는 실행할 때에야 정해진다
+  return b. .
+end .
 ```
 
 ## 6.9 검사할 수 없는 자리 — `unsafe` 와 `extern`
@@ -321,7 +321,7 @@ end
       (`E-FFI-BODY`) — 몸이 둘인 것은 프로그램이 아니라 아무도 답할 수 없는 물음이다.
 
 (1a) 몸이 씨에 있는 `extern` op 은 **블록 선언**이다. `struct` 가 칸을 `do … end` 에 담듯, 절을
-      `do … end` 에 담는다: `extern proc <이름> do <절>* end`. 절은 저마다 자기 점으로 닫는다
+      `do … end` 에 담는다: `extern proc <이름> do <절>* end .`. 절은 저마다 자기 점으로 닫는다
       (⟦§6.4.1⟧ (3c)). 블록에는 절만 온다 — 문장이 오면 몸이 둘이다(`E-FFI-BODY`). `do` 없이 이름
       뒤에 절을 늘어놓고 `end` 로 닫는 꼴은 거부된다(`E-STMT-NODO`) — `end` 는 자기 `do` 만
       닫는다(⟦§6.1.6⟧ (2a)).
@@ -335,7 +335,7 @@ unsafe extern proc c_abs do
   output i64 .
   effects unsafe .
   link "llabs" .
-end
+end .
 ```
 
 ```lowent-거부: do 없이 절을 늘어놓고 end 로 닫는다 · E-STMT-NODO
@@ -368,8 +368,8 @@ module ex_link_keyword .
 export fn inside input a u64 . output u64 .
   link "inline" .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .
 ```
 
 (3) 씨를 부르는 op 은 다음 셋을 **모두** 갖추어야 한다. 하나라도 없으면 거부된다.

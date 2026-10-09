@@ -112,34 +112,34 @@
 actor counter do
   state do
     value u64 .
-  end
+  end .
 
   rem 상태를 고치므로 `proc` 이고 `effects state` 다.
   proc inc output u64 . effects state .
   do
-    set value expr value + 1 .
-    return value .
-  end
+    set value. expr value. + 1 . .
+    return value. .
+  end .
 
   rem 읽기만 하므로 `fn` 이고 효과가 없다.
   fn get output u64 .
   do
-    return value .
-  end
-end")
+    return value. .
+  end .
+end .")
     #rejected("상태를 고치면서 순수하다고 선언", "module ex_actor_bad .
 
 actor counter do
   state do
     value u64 .
-  end
+  end .
 
   fn inc output u64 .
   do
-    set value expr value + 1 . rem 상태를 고치는데 `fn` 이다
-    return value .
-  end
-end", "E-EFFECT-PURITY")
+    set value. expr value. + 1 . . rem 상태를 고치는데 `fn` 이다
+    return value. .
+  end .
+end .", "E-EFFECT-PURITY")
   ]
   #sub("10.3", "실행 흐름 만들기")[
     #para("1")[
@@ -187,21 +187,21 @@ end", "E-EFFECT-PURITY")
 actor counter do
   state do
     value u64 .
-  end
+  end .
 
   proc inc output u64 . effects state .
   do
-    set value expr value + 1 .
-    return value .
-  end
-end
+    set value. expr value. + 1 . .
+    return value. .
+  end .
+end .
 
 rem 액터를 만들고(`spawn`) 메시지를 보낸다(`send`).
 export proc use_counter output u64 . effects state .
 do
-  var c counter spawn actor counter .
-  return send c inc .
-end")
+  var c counter spawn actor counter . .
+  return send c. inc . .
+end .")
     #plain[
       액터가 메시지를 한 번에 하나씩 처리한다는 것이 중요하다 — 그 안의 상태는 #strong[동시에
       건드려지지 않는다];. 자물쇠를 손으로 걸 필요가 없는 이유가 그것이다.
@@ -214,7 +214,7 @@ end")
   ]
   #sub("10.4", "흐름을 묶는 자리 — `task_group`")[
     #para("1")[
-      `task_group do <문장들> end` 는 그 안에서 만든 흐름들을 #strong[하나로 묶는다.]; 블록이
+      `task_group do <문장들> end .` 는 그 안에서 만든 흐름들을 #strong[하나로 묶는다.]; 블록이
       끝나는 자리에서 묶인 흐름이 모두 끝나며, 하나라도 남은 채로 나가지 아니한다.
     ]
     #para("2")[
@@ -233,7 +233,7 @@ h2          │       spawn ├── 일 ──────────┤ 끝
       `spawn actor <이름>` 은 액터 하나를 만드는 것이며, 둘은 뒤따르는 것으로 갈린다.
     ]
     #para("4")[
-      `task_group cancel_on_error do … end` 는 #strong[취소를 전파한다.]; 묶인 흐름 하나가 오류로
+      `task_group cancel_on_error do … end .` 는 #strong[취소를 전파한다.]; 묶인 흐름 하나가 오류로
       끝나면, 아직 시작하지 아니하였거나 기다리고 있는 #strong[형제];들이 그 오류로 끝난 것으로
       처리된다.
     ]

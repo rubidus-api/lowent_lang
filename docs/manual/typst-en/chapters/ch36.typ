@@ -36,8 +36,8 @@
 
 #demo("examples/ch36/buffered.low")
 
-- `outbuf.buf_open 1` makes *pending output* to emit to standard output (1). It is `owned outbuf.pending`.
-- `outbuf.buf_write out p buf s` gathers `s` into the buffer, emitting and continuing when the buffer fills. It takes a pending value and returns a new one (ownership moves
+- `outbuf.buf_open 1 .` makes *pending output* to emit to standard output (1). It is `owned outbuf.pending`.
+- `outbuf.buf_write out. p. buf. s. .` gathers `s` into the buffer, emitting and continuing when the buffer fills. It takes a pending value and returns a new one (ownership moves
   along).
 - `outbuf.buf_finish` emits the remaining bytes and ends the pending value.
 
@@ -74,7 +74,7 @@ running.
 `random.advance_seed` *computes* the next value from a seed. It is a pure `fn` with no capabilities or effects. Rolling twice with the same seed 42 gives 3 both times. Randomness
 that *must be reproducible*, as in simulations, tests and procedural generation, uses this.
 
-Operating-system entropy is obtained with `random.bytes k dst`, which receives `cap random`. Randomness that *must not be predictable*, like keys and nonces, goes this way.
+Operating-system entropy is obtained with `random.bytes k. dst. .`, which receives `cap random`. Randomness that *must not be predictable*, like keys and nonces, goes this way.
 The two jobs get different names and capabilities because merged, tests that must reproduce would depend on operating-system entropy, or conversely keys would come from a
 predictable sequence. `below_biased` is, as its name says, a biased range reduction. The name carries the meaning that it is not used where bias matters.
 
@@ -169,13 +169,13 @@ certificates are received from outside. The principle of not pretending to have 
   id: "lib-io-net-glance",
   caption: [Shapes of the I/O, network and crypto modules --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`var p owned outbuf.pending outbuf.buf_open 1 .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
-  [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
-  [`outbuf.buf_finish out p buf`], [flush the rest and finish], [completion --- it can fail],
-  [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [connected pair · send all · receive once · close], [`cap net` first --- a receive takes at most the buffer],
-  [`random.advance_seed seed` · `random.bytes k dst`], [reproducible next state · OS entropy (`cap random`)], [computation separated from authority],
-  [`clock.now_ns k` · `clock.since_ns k start`], [monotonic clock --- elapsed time], [a different promise from wall time --- `cap clock`, effect `none`],
-  [`http.method_code req` · `http.version_ok req`], [parse the request line (pure)], [ambiguous input is rejected],
+  [`var p owned outbuf.pending outbuf.buf_open 1 . .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
+  [`outbuf.buf_write out. p. buf. s. .` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
+  [`outbuf.buf_finish out. p. buf. .`], [flush the rest and finish], [completion --- it can fail],
+  [`net.pair_of k. .` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [connected pair · send all · receive once · close], [`cap net` first --- a receive takes at most the buffer],
+  [`random.advance_seed seed. .` · `random.bytes k. dst. .`], [reproducible next state · OS entropy (`cap random`)], [computation separated from authority],
+  [`clock.now_ns k. .` · `clock.since_ns k. start. .`], [monotonic clock --- elapsed time], [a different promise from wall time --- `cap clock`, effect `none`],
+  [`http.method_code req. .` · `http.version_ok req. .`], [parse the request line (pure)], [ambiguous input is rejected],
   [`aead` · `gcm` · `x25519` · `ed25519` · `tls13` · `tlssrv`], [sealing · key agreement · signatures · TLS computation], [pieces unsafe on their own are flagged in their docs],
 )
 

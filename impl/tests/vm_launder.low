@@ -6,26 +6,26 @@ fn pass
   input a mut_ref u32 .
   output mut_ref u32 .
 do
-  return a .
-end
+  return a. .
+end .
 
 fn launder
   output u32 .
 do
   var x u32 1 .
-  let r mut_ref u32 mut_ref x .
-  var t mut_ref u32 pass r .
-  set x 9 .
-  set t 5 .
-  return x .
-end
+  let r mut_ref u32 mut_ref x . .
+  var t mut_ref u32 pass r. . .
+  set x. 9 .
+  set t. 5 .
+  return x. .
+end .
 
 fn ok1
   output u32 .
 do
   var x u32 1 .
-  let r mut_ref u32 mut_ref x .
-  var t mut_ref u32 pass r .
-  set t 5 .
-  return x .
-end
+  let r mut_ref u32 mut_ref x . .
+  var t mut_ref u32 pass r. . .
+  set t. 5 .
+  return x. .
+end .

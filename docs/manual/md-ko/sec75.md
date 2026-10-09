@@ -22,8 +22,8 @@ MD5 와 SHA-1 을 낸다. 둘 다 **보안에는 쓸 수 없는 해시**다. 보
 use hash_legacy .
 
 proc sum input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
-  return hash_legacy.md5 data work out .
-end
+  return hash_legacy.md5 data. work. out. . .
+end .
 ```
 
 **왜 모듈을 갈랐나.** 이름이 경고다. `hash.md5` 라고 적히면 `hash.sha256` 와 같은 무게로 읽힌다. `hash_legacy.md5` 는 읽는 사람이 한 번 멈추게 한다. 없어질 모듈이라는 뜻은 아니다 — 보안용 해시와 섞이지 않게 따로 둔 것이다.

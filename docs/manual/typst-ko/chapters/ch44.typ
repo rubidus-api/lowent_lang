@@ -91,8 +91,8 @@ op 이 몰래 파일을 쓰는 일을 막는다(#chref("effects")).
 
 #demo("examples/ch44/trap_not_effect.low")
 
-`idx s i` 는 범위를 벗어나면 멈춘다. 그러면 `pick` 은 `panic` 효과를 가져야 하는가? *아니다.* `panic` 은 명시적인 `panic "…"` 만 센다. 멈출
-가능성은 *계약*이 말하는 것이지 효과가 말하는 것이 아니다. `idx` 의 위험은 `requires lt i (len s)` 로 *없앨 수 있고* 실제로 처리기가 그 검사를
+`idx s. i. .` 는 범위를 벗어나면 멈춘다. 그러면 `pick` 은 `panic` 효과를 가져야 하는가? *아니다.* `panic` 은 명시적인 `panic "…"` 만 센다. 멈출
+가능성은 *계약*이 말하는 것이지 효과가 말하는 것이 아니다. `idx` 의 위험은 `requires lt i. len s. . .` 로 *없앨 수 있고* 실제로 처리기가 그 검사를
 지운다(#chref("proofs-bounds")). 효과 표시는 지워지지 않는다. 없앨 수 있는 것을 효과로 표시하면 그 표시는 영원히 남고, 거의 모든 op 이 `panic` 을
 갖게 되어 표시가 뜻을 잃는다.
 

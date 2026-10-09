@@ -8,9 +8,9 @@
 때는 한꺼번에" 인 자료(파서의 임시 노드, 한 처리 동안만 사는 문자열)에 맞는다(#chref("lib-alloc")).
 
 ```lowent
-var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-var c u64 send bump init mem .
-let b option mut slice u8 send bump reserve 64 .
+var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+var c u64 send bump. init mem. . .
+let b option mut slice u8 send bump. reserve 64 . .
 ```
 
 *뿌리와 그 위.* Lowent 에는 암묵 전역 힙이 없다. 바이트가 프로그램에 처음 들어오는 자리는 뿌리 op `alloc_bytes <권한> capacity n` 하나뿐이고, 뿌리는 둘이다 --- *고정
@@ -23,7 +23,7 @@ export trait byte_allocator do
   reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
   grow    input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used    input s self . output u64 . effects state .
-end
+end .
 ```
 
 `freeing_allocator` 는 같은 셋에 `release input s self . input v mut slice u8 . output bool .` 을 더한다. `via self` 는 "이 op 의 효과는 구현이 적은 효과다" 라는 뜻이다
@@ -61,7 +61,7 @@ end
 - `fixed_bytes` · `heap_bytes` 는 `init` 이 없고 `grow` 는 언제나 `none` 이다(뿌리는 마지막 할당이 누구 것인지 모른다). 권한 칸은 실행 중 값이 아니다 --- 그 actor 를
   `spawn` 하는 op 이 같은 종류의 권한을 쥐고 있어야 한다(`E-CAP-FORGE`). 권한 없는 곳에서 한 줄로 힙을 지어낼 수 없다.
 
-얼로케이터를 받는 코드는 `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a .` 로 어느 구현이든 받는다. 부르는 쪽은 위치 인자가 아니라
+얼로케이터를 받는 코드는 `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a. . .` 로 어느 구현이든 받는다. 부르는 쪽은 위치 인자가 아니라
 `let x (… using <출처>) …` 로 건네고, 그 op 안에 출처가 하나뿐이면 적지 않아도 기본값이 된다. 단형화되므로 vtable 도 간접 호출도 없다.
 
 ```lowent
@@ -70,28 +70,28 @@ proc two_from
   using al a .
   output u64 .
   effects state via a .
-  requires allocs.byte_allocator a .
+  requires allocs.byte_allocator a. . .
 do
-  let p option mut slice u8 send al reserve 3 .
-  guard is_some p else return 91 .
-  let q option mut slice u8 send al reserve 5 .
-  guard is_some q else return 92 .
-  let g option mut slice u8 send al grow (some_value q) 9 .
-  return send al used .
-end
+  let p option mut slice u8 send al. reserve 3 . .
+  guard is_some p. . else return 91 . .
+  let q option mut slice u8 send al. reserve 5 . .
+  guard is_some q. . else return 92 . .
+  let g option mut slice u8 send al. grow some_value q. . 9 . .
+  return send al. used . .
+end .
 
 proc borrowed2 input buf mut slice u8 . output u64 . effects state . do
-  var b allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send b init buf .
-  let n use b u64 two_from .
-  return n .
-end
+  var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send b. init buf. . .
+  let n use b. u64 two_from. .
+  return n. .
+end .
 ```
 
 범프를 주면 3 + 5 를 9 로 늘려 12, `bump_aligned` 를 주면 둘째 조각이 8 에서 시작해 17, `heap_bytes` 를 주면 `grow` 가 `none` 이고 인스턴스 서명에 `heap` 이 선다.
 
 #antipattern[`none` 검사 없이 값을 꺼낸다][
-  `some_value (send a reserve 99)` 는 버퍼가 작으면 `E-VM-NONE` 으로 멈춘다. 컴파일은 통과하므로 방심하기 쉽다.
+  `some_value send a. reserve 99 . .` 는 버퍼가 작으면 `E-VM-NONE` 으로 멈춘다. 컴파일은 통과하므로 방심하기 쉽다.
 ]
 
 #antipattern[권한 없이 뿌리에 닿는다 · fn 에서 send 한다][

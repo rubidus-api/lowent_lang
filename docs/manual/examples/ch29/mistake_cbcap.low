@@ -3,17 +3,17 @@ rem expect: E-FN-CAP
 
 rem ko: 되부름으로 쓸 op 이 권한을 입력으로 받는다 /// en: the op meant as a callback takes a capability as input
 export extern fn cmp_logged input out cap io . input a i64 . input b i64 . output i64 .
-  requires ge a -1000000 .
-  requires le a 1000000 .
-  requires ge b -1000000 .
-  requires le b 1000000 .
+  requires ge a. -1000000 . .
+  requires le a. 1000000 . .
+  requires ge b. -1000000 . .
+  requires le b. 1000000 . .
 do
-  return sub a b .
-end
+  return sub a. b. . .
+end .
 
 unsafe proc callback_addr input k cap c . output u64 . effects unsafe .
 do
   rem ko: ✘ C 가 되부를 때 건넬 권한이 없다 /// en: ✘ when C calls back, it has no capability to hand over
-  let f u64 unsafe_fn cmp_logged .
-  return f .
-end
+  let f u64 unsafe_fn cmp_logged . .
+  return f. .
+end .

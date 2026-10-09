@@ -13,26 +13,26 @@ module vm_sha512 .
 fn head8 input d slice u8 . output u64 . do
   var acc u64 0 .
   var i u64 0 .
-  while lt i 8 do
-    set acc (add (shl acc 8) (cast u64 (idx d i))) .
-    set i (add i 1) .
-  end
-  return acc .
-end
+  while lt i. 8 . do
+    set acc. add shl acc. 8 . cast u64 idx d. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
 
 proc t_hash input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (call_builtin sha512 src dst) 64 else return 0 .
-  return head8 dst .
-end
+  guard eq call_builtin sha512 src. dst. . 64 . else return 0 . .
+  return head8 dst. . .
+end .
 
 rem ★ 버퍼가 짧으면 0 을 답하고 **아무것도 안 쓴다** — 조용히 덜 쓰는 것이 이 축에서
 rem   가장 위험한 실패다(짧은 다이제스트는 맞아 보인다). sha256 과 같은 규율이다.
 proc t_short input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (call_builtin sha512 src dst) 0 else return 0 .
+  guard eq call_builtin sha512 src. dst. . 0 . else return 0 . .
   var i u64 0 .
-  while lt i (len dst) do
-    guard eq (idx dst i) 0 else return 0 .
-    set i (add i 1) .
-  end
+  while lt i. len dst. . . do
+    guard eq idx dst. i. . 0 . else return 0 . .
+    set i. add i. 1 . .
+  end .
   return 1 .
-end
+end .

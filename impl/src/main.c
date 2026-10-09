@@ -1081,7 +1081,7 @@ static void print_usage(const char *argv0) {
         "    --emit-c             C 를 찍는다 — **네이티브 빌드**(volatile·인라인 asm 이 여기서 진짜가 된다)\n"
         "    --test               `test` 블록을 돌린다\n"
         "    --fmt                정규형으로 찍는다 (괄호 = 렌더링 계층, RFC-0046 R5)\n"
-        "    --migrate            옛 철자(`let n be …` · `if c . do` · `for i count …`)를 새 철자로 옮겨 찍는다 (RFC-0141)\n"
+        "    --migrate            (물러났다) 1.6 → 1.7 을 옮기던 스위치다. 1.7 → 1.8 은 저장소의 옮김 도구가 한다 (RFC-0142)\n"
         "    --doc [--doc-out D]  문서를 낸다\n"
         "    --ir | --cst | -t | --ops    IR · 나무 · 토큰 · op 모양을 덤프한다\n"
         "\n  무엇으로 짓나\n"
@@ -1114,6 +1114,15 @@ static void print_usage(const char *argv0) {
 }
 
 int main(int argc, char **argv) {
+    // `--lex <파일>` — 그 파일 하나의 토큰만 찍는다(의존을 찾지 않는다). 글자만 보는 도구(옮김 스크립트 · 편집기)가 쓴다.
+    if (argc == 3 && strcmp(argv[1], "--lex") == 0) {
+        proven_byte_t *lbuf = NULL; proven_size_t llen = 0;
+        if (!read_file(argv[2], &lbuf, &llen)) { fprintf(stderr, "lowentc: cannot read '%s'\n", argv[2]); return 1; }
+        low_lex_result_t llx = low_lex(lw_heap(), (proven_u8str_view_t){ .ptr = lbuf, .size = llen });
+        dump_tokens(&llx);
+        return 0;
+    }
+
     atexit(low_hwm_dump);   // ★ 고정 표의 최고수위 — `LOW_HWM=1` 일 때만 찍는다
     // ── 서브커맨드 번역 (RFC-0033 D6) — 플래그 언어는 그대로 살아 있다(스크립트·골든 호환) ──
     static char *xargv[80]; int xargc = 0;
@@ -1140,7 +1149,6 @@ int main(int argc, char **argv) {
             argv = xargv; argc = xargc;
         }
     }
-    bool want_closer = false;    // RFC-0142 — 새 표면(«이름은 열고, 점은 닫는다»)으로 읽는다. 옮기는 동안의 스위치다
     bool want_migrate = false;   // RFC-0141 — 옛 철자를 새 철자로 옮겨 찍는다
     bool want_tokens = false, want_cst = false, want_fmt = false, want_check = false, want_doc = false,
          want_ir = false, want_emitc = false;
@@ -1182,8 +1190,13 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "-t") == 0) want_tokens = true;
         else if (strcmp(argv[i], "--cst") == 0) want_cst = true;
         else if (strcmp(argv[i], "--fmt") == 0) want_fmt = true;
-        else if (strcmp(argv[i], "--migrate") == 0) want_migrate = true;
-        else if (strcmp(argv[i], "--closer") == 0) want_closer = true;
+        else if (strcmp(argv[i], "--migrate") == 0) {
+            // ★ RFC-0142 (1.8) — `--migrate` 는 1.6 의 글을 1.7 로 옮기던 스위치다. 그 결과는 이제 한 판 전의 글이라 이 도구가 읽지 않는다.
+            //   조용히 옛 글을 내는 것보다 물러났다고 말하는 편이 낫다(1.6 → 1.7 은 lowentc 1.7.0 이, 1.7 → 1.8 은 옮김 도구가 한다).
+            fprintf(stderr, "lowentc: `--migrate` is retired — it moved 1.6 text to 1.7, and 1.7 is no longer what this compiler reads.\n"
+                            "  1.6 → 1.7: run `lowentc --migrate` of release 1.7.0.  1.7 → 1.8: the migration tool in the repository (RFC-0142).\n");
+            return 2;
+        }
         else if (strcmp(argv[i], "--check") == 0) want_check = true;
         else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); }   // RFC-0135 S3
         else if (strcmp(argv[i], "--diag-json") == 0) g_diag_json = true;
@@ -1809,8 +1822,18 @@ int main(int argc, char **argv) {
             //   `check: ok` 를 인쇄했다 — 종료코드는 1 인데 화면은 초록이라 말했다.
             //   게이트가 `grep "check: ok"` 로 읽으므로 그 한 줄은 **거짓말**이 된다.
             if (!lx.ok) ok = false;
-            if (want_closer && lx.ok) {                  // ★ RFC-0142 — 새 표면을 파서가 읽는 꼴로 내린다(토큰 열을 고쳐 쓴다)
+            // ★★★ RFC-0142 (1.8) — 표면은 «이름은 열고, 점은 닫는다» 하나다. 파서가 읽는 꼴로 내린다(토큰 열을 고쳐 쓴다).
+            //   `--migrate`(RFC-0141 의 옛 철자 옮김)만은 내리지 않는다 — 그것은 1.7 이전의 글을 글자 그대로 읽는다.
+            if (!want_migrate) {
                 proven_size_t d0 = lx.diags.len;
+                // 글자 오류가 난 글은 내릴 수 없다. 그대로 파서에 넘기면 뒤따르는 진단이 전부 헛것이므로 끝 토큰만 남긴다.
+                if (!lx.ok) {
+                    if (lx.tokens.len > 1) {
+                        low_token_t *tk = (low_token_t *)lx.tokens.data;
+                        tk[0] = tk[lx.tokens.len - 1];
+                        lx.tokens.len = 1;
+                    }
+                } else
                 if (!low_closer_lower(heap, &lx.tokens, &lx.diags)) {
                     for (proven_size_t q = d0; q < lx.diags.len; q++) {
                         low_diag_t *dq = &((low_diag_t *)lx.diags.data)[q];
@@ -1976,8 +1999,7 @@ int main(int argc, char **argv) {
         //   ("서식이 뜻을 바꿨다"). 파일에 있던 것만 찍는다.
         low_parse_result_t p0 = pr;
         p0.nforms = nforms0;
-        if (!want_closer) low_cst_fmt(&p0);
-        else {
+        {
             // ★ RFC-0142 — 서식기는 «호출마다 괄호» 로 찍는다. 그 글을 받아 새 표면으로 올려 낸다(괄호를 벗기고 닫는 점을 찍는다).
             fflush(stdout);
             FILE *tf = tmpfile();

@@ -124,11 +124,11 @@ maxcpu 8
 `smp` 를 끄자 `tick_rate` 는 100 을, `cpus` 는 8 을 낸다. 값이 정해지면 꺼진 가지는 생성물에 남지 않는다. 비용이 0 이다.
 
 ```text
- build option smp bool default true .       ← 소스가 손잡이를 선언한다
- small.config:  smp false                   ← 구성 파일이 값을 준다 (없으면 기본값)
+ build option smp bool default true .           ← 소스가 손잡이를 선언한다
+ small.config:  smp false                       ← 구성 파일이 값을 준다 (없으면 기본값)
 
- if config smp . do return config hz . end  ← smp 가 켜졌을 때의 가지
- return 100 .                               ← 꺼졌을 때의 가지
+ if config smp . do return config hz . . end .  ← smp 가 켜졌을 때의 가지
+ return 100 .                                   ← 꺼졌을 때의 가지
 
  번역   두 가지 모두 파싱하고 타입 검사한다
  생성물 고른 가지만 남는다 (꺼진 가지의 비용 0)
@@ -155,7 +155,7 @@ C 의 `#ifdef` 와 결정적으로 다른 점이 있다. *꺼진 가지도 파�
 
 == 시험
 
-`test <이름> do … end` 블록 안의 `expect` 가 단언이다. `--test` 가 모든 시험을 돌린다.
+`test <이름> do … end .` 블록 안의 `expect` 가 단언이다. `--test` 가 모든 시험을 돌린다.
 
 #demo("examples/ch31/tests_clause.low")
 
@@ -169,7 +169,7 @@ C 의 `#ifdef` 와 결정적으로 다른 점이 있다. *꺼진 가지도 파�
 
 `expect` 는 시험 블록 안에만 쓴다. op 의 몸에 적으면 `E-EXPECT-PLACE` 로 거절된다. op 이 지킬 약속은 `requires` · `ensures` 로 적는다. 시험의 이름도 op 과 같은 이름 공간에 들어서, `fn check` 와 `test check` 를 함께 두면 `E-NAME-DUP` 이다.
 
-동시성 코드는 `test <이름> schedule explore_interleavings . do … end` 로 가능한 모든 흐름의 차례를 돌려 답이 같은지 본다
+동시성 코드는 `test <이름> schedule explore_interleavings . do … end .` 로 가능한 모든 흐름의 차례를 돌려 답이 같은지 본다
 (#chref("tasks-channels")). 경우가 많으면 `limit <수>` 로 상한을 둔다.
 
 op 머리에도 문서와 시험을 적는 절이 있다.
@@ -180,7 +180,7 @@ op 머리에도 문서와 시험을 적는 절이 있다.
   적는다(#chref("surface")).
 - `tests first_two_ok first_two_short .` 는 이 op 을 시험하는 *op 의 이름*이다. `test` 블록 이름이 아니다. 도구는 그 이름이 실제로 있는지 검사하고,
   없으면 `E-CONTRACT-UNDEF` 로 거절한다. 시험이 이름을 바꾸거나 사라지면 머리가 그 사실을 알려 준다.
-- `errors too_short lt (len data) 2 .` 는 조건이 붙은 실패다. 시험 op 둘이 성공과 실패 갈래를 하나씩 확인하고, `test` 블록이 둘을 `expect` 로 묶는다.
+- `errors too_short lt len data. . 2 . .` 는 조건이 붙은 실패다. 시험 op 둘이 성공과 실패 갈래를 하나씩 확인하고, `test` 블록이 둘을 `expect` 로 묶는다.
 
 #qa[
   시험이 있는데 계약까지 적어야 하는가?
@@ -276,9 +276,9 @@ why-slow: 0 / 1 op(s) still on the tagged path
   [`lowentc run` · `lowentc build`], [프로젝트를 VM 으로 돌린다 · `out/` 에 짓는다], [매니페스트를 걸어 올라가며 찾는다],
   [`lowentc add <이름> <자리>` · `--lock-write` · `--lock`], [의존을 해시와 함께 고정한다], [판 번호가 같아도 바이트가 다르면 다른 의존],
   [`build option smp bool default true .`], [빌드 손잡이 --- `bool`·`int`·`choice`], [읽히지 않는 손잡이는 `E-OPT-UNUSED`],
-  [`config smp` · `--config small.config`], [손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일], [꺼진 가지도 검사받는다],
-  [`test <이름> do expect <조건> . end` · `--test`], [시험 블록과 단언], [실패는 `E-TEST-FAIL` --- 계약 위반과 다른 진단],
-  [`test … schedule explore_interleavings limit <수> . do … end`], [모든 차례를 돌리는 시험], [드문 차례의 결함],
+  [`config smp .` · `--config small.config`], [손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일], [꺼진 가지도 검사받는다],
+  [`test <이름> do expect <조건> . end .` · `--test`], [시험 블록과 단언], [실패는 `E-TEST-FAIL` --- 계약 위반과 다른 진단],
+  [`test … schedule explore_interleavings limit <수> . do … end .`], [모든 차례를 돌리는 시험], [드문 차례의 결함],
   [`lowentc --run <op> <파일> <인자…>`], [op 하나를 VM 으로 돌린다], [권한 자리는 도구가 채운다 --- 거절된 단위는 돌지 않는다],
   [`--why-slow` · `--no-fast`], [느린 길에 남은 op 과 이유 · 모두 느린 길로], [성능을 도구가 말한다],
   [`lowdoc "…" .` · `tests op1 op2 .`], [op 에 딸린 문서 · 이 op 을 시험하는 op 이름], [문서는 op 과 함께 움직이고, 없어진 시험은 머리가 알린다],

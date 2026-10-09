@@ -18,16 +18,16 @@ module ex_conform .
 
 rem 이 프로그램은 이 문서가 정한 것을 전부 지킨다.
 export fn clamp input n u32 . output u8 .
-  requires le n 255 .
-  ensures le ret 255 .
+  requires le n. 255 . .
+  ensures le ret. 255 . .
 do
-  return narrow u8 n .
-end
+  return narrow u8 n. . .
+end .
 
 proc main output u8 . effects none .
 do
   return 0 .
-end
+end .
 ```
 
 > [!산문]
@@ -101,7 +101,7 @@ end
 > 적어 둔다» 이다. **자유 선택**은 «이 가운데 아무거나 골라도 되고, 무엇을 골랐는지 적지 않아도 된다» 이다.
 
 > [!산문]
-> 자유 선택을 두는 까닭은 처리기가 빠른 길을 고를 수 있게 하려는 것이다. 예를 들어 `add (f x) (g y)` 에서
+> 자유 선택을 두는 까닭은 처리기가 빠른 길을 고를 수 있게 하려는 것이다. 예를 들어 `add f x. . g y. . .` 에서
 > `f` 와 `g` 가운데 무엇을 먼저 계산해도 답은 같다. 차례를 못 박아 두면 처리기는 더 빠른 차례를 알아도
 > 쓰지 못한다. 그래서 그 차례를 열어 둔다.
 

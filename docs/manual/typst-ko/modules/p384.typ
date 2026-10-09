@@ -32,7 +32,7 @@
   id: "mod-p384-ops",
   caption: [`p384` 의 op],
   [*op*], [*하는 일*],
-  [`ecdsa_ok`], [서명 `(r, s)` 가 해시 `e` 와 공개키 `pub` 에 맞는가 --- `ok 1` 맞다 · `ok 0` 아니다 · `error short_workspace` 작업 공간이 모자라다],
+  [`ecdsa_ok`], [서명 `(r, s)` 가 해시 `e` 와 공개키 `pub` 에 맞는가 --- `ok 1 .` 맞다 · `ok 0 .` 아니다 · `error short_workspace .` 작업 공간이 모자라다],
 )
 
 `ecdsa_ok` 는 곡선 상수(`p` · `n` · `Gx` · `Gy`)를 호출자에게서 받고, 공개키는 아핀 좌표 `x ‖ y`(48 조각), 작업 공간 `w` 는 1364 조각 이상이어야

@@ -76,11 +76,11 @@ def type scratch u64 .
 
 proc build input temp region scratch . output u64 . effects alloc .
 do
-  let s stack u64 stack_new temp capacity 4 .
-  push s 10 .
-  push s 20 .
+  let s stack u64 stack_new temp capacity 4 . .
+  push s. 10 .
+  push s. 20 .
   return 2 .
-end
+end .
 ```
 
 > [!산문]
@@ -88,14 +88,14 @@ end
 > op(`fn` 에 `effects none`)은 영역을 쓸 수 없다. 어디서 메모리가 나오는지가 서명에
 > 적혀 있다는 뜻이다.
 
-(4) 영역을 여는 문은 이름과 **종류**를 함께 적는다: `region <이름> <종류> do … end`.
+(4) 영역을 여는 문은 이름과 **종류**를 함께 적는다: `region <이름> <종류> do … end .`.
       종류는 닫힌 여덟이다 — `stack` · `frame` · `arena` · `static` · `heap` · `mmap` ·
       `disk` · `device`. 그 밖의 낱말은 적합하지 아니하다(`E-REGION-KIND`).
 
 (4a) 영역 안에서 얻은 값을 그 영역 **밖으로 들고 나가는** 것은 적합하지 아니하다
       (`E-REGION-ESCAPE`). 영역이 닫히면 그 값은 없으므로, 밖에 남은 이름은 없는 것을
       가리킨다. 들고 나가는 자리는 `return`, 영역 밖 이름에 대입하기, 그리고 영역 밖 이름의
-      **칸이나 원소에** 대입하기(`set (field h store) b .`)다. 영역의 바이트를 들지 않는 값 —
+      **칸이나 원소에** 대입하기(`set field h. store . b. .`)다. 영역의 바이트를 들지 않는 값 —
       정수·참거짓처럼 스칼라 타입으로 묶인 것, `len`·`idx` 처럼 스칼라를 내는 식 — 은
       들고 나가지 아니한다. 영역의 바이트를 드는지는 **흐름을 따라** 가린다: op 부름의 결과는
       그 op 의 몸에서 결과로 흘러드는 입력의 것만 든다. 결과가 `lit` 로 지은 묶음이면 칸마다
@@ -106,19 +106,19 @@ end
 ```lowent-거부: 영역의 슬라이스를 바깥 묶음의 칸에 넣는다 · E-REGION-ESCAPE
 module ex_region_field .
 
-def struct holder do store mut slice u8 . end
+def struct holder do store mut slice u8 . end .
 
 proc f output u64 . effects alloc . do
-  var h lit holder do store (subslice "abcd" 0 0) . end
+  var h lit holder do store subslice "abcd" 0 0 . . end . .
   region r arena do
-    let g option mut slice u8 alloc_bytes r capacity 16 .
-    if is_some g do
-      let b mut slice u8 some_value g .
-      set (field h store) b .
-    end
-  end
-  return len (field h store) .
-end
+    let g option mut slice u8 alloc_bytes r. capacity 16 . .
+    if is_some g. . do
+      let b mut slice u8 some_value g. . .
+      set field h. store . b. .
+    end .
+  end .
+  return len field h. store . . .
+end .
 ```
 
 (4b) 그 op 의 영역 매개변수가 아닌 이름으로 영역을 여는 것도 적합하지 아니하다
@@ -144,11 +144,11 @@ module ex_region_nested .
 proc f output u64 . effects alloc . do
   region outer arena do
     region inner arena do
-      let g option mut slice u8 alloc_bytes outer capacity 8 .
-    end
-  end
+      let g option mut slice u8 alloc_bytes outer. capacity 8 . .
+    end .
+  end .
   return 0 .
-end
+end .
 ```
 
 (4d) 영역 안에서 얻은 바이트를 **영역 밖에서 태어난 actor** 에게 보내는 것은 적합하지 아니하다
@@ -237,8 +237,8 @@ module ex_ref_value .
 
 fn twice input p ref u64 . output u64 .
 do
-  return add p p .    rem 가리키는 값은 `deref p` 로 꺼낸다
-end
+  return add p. p. . .    rem 가리키는 값은 `deref p` 로 꺼낸다
+end .
 ```
 
 ## 8.4.1 참조는 자기가 가리키는 것보다 오래 살 수 없다
@@ -252,11 +252,11 @@ end
 module ex_ref .
 
 export fn sum_two input a ref u32 . input b ref u32 . output u32 .
-  requires le (deref a) 1000 .
-  requires le (deref b) 1000 .
+  requires le deref a. . 1000 . .
+  requires le deref b. . 1000 . .
 do
-  return add (deref a) (deref b) .
-end
+  return add deref a. . deref b. . . .
+end .
 ```
 
 ```lowent-거부: 지역 값을 가리키는 참조를 돌려줄 수 없다 · E-ESCAPE: reference to a local escapes the op (dangling)
@@ -265,8 +265,8 @@ module ex_escape .
 export fn leak output ref u32 .
 do
   let here u32 42 .
-  return ref here .     rem `here` 는 이 op 이 끝나면 사라진다
-end
+  return ref here . .     rem `here` 는 이 op 이 끝나면 사라진다
+end .
 ```
 
 > [!산문]
@@ -341,9 +341,9 @@ def type buffer u8 .
 
 fn sink input h owned buffer . output u8 .
 do
-  drop h .
+  drop h. .
   return 0 .
-end
+end .
 ```
 
 ```lowent-거부: 두 번 없앨 수 없다 · E-OWN-MOVED
@@ -353,10 +353,10 @@ def type buffer u8 .
 
 fn twice input h owned buffer . output u8 .
 do
-  drop h .
-  drop h .     rem 이미 없어진 것을 또 없앤다
+  drop h. .
+  drop h. .     rem 이미 없어진 것을 또 없앤다
   return 0 .
-end
+end .
 ```
 
 > [!산문]
@@ -428,8 +428,8 @@ module ex_bitcast .
 
 fn f input a u8 . output bool .
 do
-  return bit_cast bool a .     rem 모든 비트열이 참·거짓인 것은 아니다
-end
+  return bit_cast bool a. . .     rem 모든 비트열이 참·거짓인 것은 아니다
+end .
 ```
 
 ## 8.7.2 `view` — 배치를 얹는다
@@ -496,8 +496,8 @@ module ex_mix .
 
 fn f input a u32 . input b f64 . output f64 .
 do
-  return add a b .     rem 건너려면 그렇게 적힌 op 을 쓴다
-end
+  return add a. b. . .     rem 건너려면 그렇게 적힌 op 을 쓴다
+end .
 ```
 
 ## 8.10 링커가 주는 저장소 — `storage reserved`
@@ -533,7 +533,7 @@ module ex_paren .
 fn f output u8 .
 do
   return (add 1 2 .
-end
+end .
 ```
 
 ## 8.12 배타 — 읽는 이 여럿 **또는** 쓰는 이 하나
@@ -566,7 +566,7 @@ end
       아니라 **피호출자의 문장 차례**가 정하며, 부르는 쪽 글에는 그것을 알 길이 없다.
 
 (6a) 같은 저장소인지는 이름이 아니라 **자리**로 가른다: 한 이름의 별칭, 같은 저장소에서 잘라 낸 겹치는 조각, 같은 값의
-      **같은 칸**, 그리고 값 **전체와 그 칸**은 같은 저장소다. 한 값의 **서로 다른 칸**(`(field s a)` 와 `(field s b)`)은 다른
+      **같은 칸**, 그리고 값 **전체와 그 칸**은 같은 저장소다. 한 값의 **서로 다른 칸**(`field s. a .` 와 `field s. b .`)은 다른
       저장소다 — 칸을 `mut` 자리에 넘기면 그 칸의 자리가 넘어가므로, 서로 다른 칸 둘은 쓰기 자리 둘에 함께 넘길 수 있다.
 
 (7) 같은 저장소를 `mut` 자리 **하나**와 읽는 자리에 함께 넘기는 것(제자리 연산)은, 피호출자가 그 두 입력의 짝을
@@ -578,7 +578,7 @@ end
 (7a) `inplace` 절은 이름 **둘**을 적는다: 앞의 것은 그 op 의 `mut` 입력, 뒤의 것은 그 op 의 다른 입력이다. 짝 하나에 절
       하나를 적는다. 모양이 어긋나면 `E-INPLACE-FORM` 이다. 그 선언이 **참인지** — 몸이 같은 구간에서 옳게 도는지 — 는 몸의
       모양 둘 가운데 하나로 보여야 한다: ⓐ 읽기 입력을 읽는 마지막 문장까지 쓰기 입력에 쓰지 아니하거나, ⓑ 그 마지막 문장
-      안에서 쓰기는 `set (idx <쓰기> V)` 하나의 첨자 V 로만, 읽기는 `(idx <읽기> V)` 같은 첨자로만 하고, 반복 안이면
+      안에서 쓰기는 `set idx <쓰기>. V. .` 하나의 첨자 V 로만, 읽기는 `idx <읽기>. V. .` 같은 첨자로만 하고, 반복 안이면
       같은 바퀴에서 쓴 뒤에 읽지 아니한다(원소마다 제자리). 같은 짝을 `inplace` 로 밝힌 op 에 넘기는 것은 그 op 의 선언에
       맡긴다. 어느 모양으로도 보이지 않으면 `E-INPLACE-UNPROVEN` 이다. 이 검사는 보수적이다 — 옳은 몸을 거절할 수는 있어도
       틀린 몸을 들이지 아니하며, 거절된 몸은 ⓐ 나 ⓑ 로 다시 쓴다.
@@ -595,35 +595,35 @@ end
 module ex_inplace_undeclared .
 
 proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . do
-  set (idx o 0) (mul (idx a 0) 2) .
+  set idx o. 0 . mul idx a. 0 . 2 . .
   return 1 .
-end
+end .
 
 proc f input w mut slice u64 . output u64 . effects none . do
-  return scale w w .
-end
+  return scale w. w. . .
+end .
 ```
 
 ```lowent 예제: 같은 구간을 허락한 op 의 제자리 부름
 module ex_inplace_ok .
 
 proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
-  set (idx o 0) (mul (idx a 0) 2) .
+  set idx o. 0 . mul idx a. 0 . 2 . .
   return 1 .
-end
+end .
 
 proc f input w mut slice u64 . output u64 . effects none . do
-  return scale (subslice w 0 4) (subslice w 0 4) .
-end
+  return scale subslice w. 0 4 . subslice w. 0 4 . . .
+end .
 ```
 
 ```lowent-거부: 같은 구간이면 쓴 뒤에 읽는 몸에 inplace 를 적는다 · E-INPLACE-UNPROVEN
 module ex_inplace_unproven .
 
 proc late_read input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
-  set (idx o 0) 1 .
-  return idx a 0 .
-end
+  set idx o. 0 . 1 .
+  return idx a. 0 . .
+end .
 ```
 
 (8) op 은 머리에 `invalidates <입력> .` 절(⟦§6.4.1⟧ (3a))을 적어, 그 입력의 저장소에서 **나온 뷰를 무효로 만든다**고 밝힐 수 있다 —
@@ -639,7 +639,7 @@ end
       뷰를 놓치지 아니한다. op 경계는 이렇게 넘는다:
       - `invalidates` 를 적지 않은 op 이라도, 제 몸에서 어떤 입력을 `invalidates` 를 밝힌 op(이렇게 추론된 op 포함)에 넘기면 그 입력을
         무효로 만드는 op 으로 본다 — 감싸는 op 을 거쳐도 무효화가 사라지지 아니한다.
-      - 뷰를 묶음의 칸에 담으면(`set (field h f) <뷰> .`) 그 칸이 뷰를 든다. 그 칸의 출처가 무효가 된 뒤 칸을 읽어 쓰는 것은
+      - 뷰를 묶음의 칸에 담으면(`set field h. f . <뷰> .`) 그 칸이 뷰를 든다. 그 칸의 출처가 무효가 된 뒤 칸을 읽어 쓰는 것은
         `E-VIEW-INVALIDATED` 이고, 칸을 다시 대입하면 되살아난다.
 
 (8c) 부수효과가 없는 op(`effects none`) 을 **같은 인자**로 두 번 불러 얻은 `mut` 뷰 둘은 같은 저장소로 본다. `borrow` 밖에서 둘을 함께
@@ -652,25 +652,25 @@ module ex_view_invalidated .
 def struct buf do
   data mut slice u8 .
   n u64 .
-end
+end .
 
 proc grow input b mut buf . output u64 . effects none . invalidates b .
 do
-  set (field b n) (add (field b n) 1) .
+  set field b. n . add field b. n . 1 . .
   return 1 .
-end
+end .
 
 proc view_of input b buf . output slice u8 . effects none .
 do
-  return (field b data) .
-end
+  return field b. data . .
+end .
 
 proc f input b mut buf . output u64 . effects none .
 do
-  let v slice u8 view_of b .
-  let r u64 grow b .
-  return len v .       rem `grow` 가 `b` 의 뷰를 무효로 만들었다 — 뷰를 다시 받는다
-end
+  let v slice u8 view_of b. . .
+  let r u64 grow b. . .
+  return len v. . .       rem `grow` 가 `b` 의 뷰를 무효로 만들었다 — 뷰를 다시 받는다
+end .
 ```
 
 > [!산문]
@@ -689,9 +689,9 @@ module ex_immutable .
 fn f output u8 .
 do
   let a u8 1 .
-  set a 2 .            rem 고치려면 `var` 로 묶어야 한다
-  return a .
-end
+  set a. 2 .            rem 고치려면 `var` 로 묶어야 한다
+  return a. .
+end .
 ```
 
 ## 8.13 얼로케이터 — 권한 · 정책 · 상태
@@ -723,7 +723,7 @@ end
 
 (5) 표준 라이브러리는 기본 얼로케이터 둘을 이 모양으로 낸다: `allocs.fixed_bytes`(고정 창) ·
       `allocs.heap_bytes`(힙). 그래서 기본 얼로케이터와 사용자가 지은 얼로케이터가 **같은 자리**에
-      들어간다 — 받는 쪽(`input comptime a type . input al a . requires allocs.byte_allocator a .`)은 그 둘을
+      들어간다 — 받는 쪽(`input comptime a type . input al a . requires allocs.byte_allocator a. . .`)은 그 둘을
       가리지 아니한다.
 
 (6) `heap` 효과는 «뿌리가 자란다» 만 뜻한다. 자리를 **낱낱이 돌려주는** 것은 정책의 일이며, 그런 얼로케이터는
@@ -731,7 +731,7 @@ end
       참거짓으로 답한다. 그래서 운영체제가 없는 기계에서도 고정 창 위의 낱낱 반환 얼로케이터를 쓸 수 있다.
 
 (7) 얼로케이터가 «내가 마지막에 준 그 조각인가» 를 물을 때는 **길이가 아니라 정체**로 묻는다: `grow` 와 `release` 는
-      조각 자체를 받고, 기본 연산 `same_slice a b` 로 두 슬라이스가 같은 자리에서 시작하고 길이가 같은지 본다. 길이만으로
+      조각 자체를 받고, 기본 연산 `same_slice a. b. .` 로 두 슬라이스가 같은 자리에서 시작하고 길이가 같은지 본다. 길이만으로
       알아보면 같은 길이의 남의 조각을 늘리거나 돌려받는다. `same_slice` 는 주소를 밖에 내지 않는다 — 답은 참거짓이다.
 
 ```lowent-거부: 권한 없이 권한 칸을 가진 actor 를 띄운다 · E-CAP-FORGE
@@ -740,24 +740,24 @@ module ex_cap_forge .
 actor grower do
   state do
     root cap heap .
-  end
+  end .
   proc take input n u64 . output u64 . effects heap . do
-    let g option mut slice u8 alloc_bytes root capacity n .
-    if is_some g do return n . end
+    let g option mut slice u8 alloc_bytes root. capacity n. . .
+    if is_some g. . do return n. . end .
     return 0 .
-  end
-end
+  end .
+end .
 
 proc f output u64 . effects heap state . do
-  var g grower spawn actor grower . rem `input h cap heap .` 가 없다
-  return send g take 8 .
-end
+  var g grower spawn actor grower . . rem `input h cap heap .` 가 없다
+  return send g. take 8 . .
+end .
 ```
 
 ## 8.14 객체마다 얼로케이터를 고르기 — `using` 절과 `use` · `keep`
 
 (1) op 은 머리에 `using <이름> <타입> .` 절을 적어 **자기가 깎아 쓰는 얼로케이터**를 밝힐 수 있다.
-      `<타입>` 은 `byte_allocator` 를 갖춘 타입이거나, 그런 경계(`requires allocs.byte_allocator a .`)를
+      `<타입>` 은 `byte_allocator` 를 갖춘 타입이거나, 그런 경계(`requires allocs.byte_allocator a. . .`)를
       가진 comptime 타입 매개변수다. 본문에서 `<이름>` 은 평범한 이름이다.
 
 (1a) 한 op 은 `using` 절을 **하나만** 적는다(`E-USING-DUP`). 절은 이름과 타입 두 낱말이다. 바인딩의 할당기 절은
@@ -809,43 +809,43 @@ module ex_using .
 
 trait carver do
   reserve input s self . input n u64 . output u64 . effects state .
-end
+end .
 
 rem 정책 둘 — 하나는 요청만큼, 하나는 두 배씩 센다
 actor exact do
   satisfies carver .
   state do
     used u64 .
-  end
+  end .
   proc reserve input n u64 . output u64 . effects state . do
-    set used (add used n) .
-    return used .
-  end
-end
+    set used. add used. n. . .
+    return used. .
+  end .
+end .
 
 actor doubled do
   satisfies carver .
   state do
     used u64 .
-  end
+  end .
   proc reserve input n u64 . output u64 . effects state . do
-    set used (add used (mul n 2)) .
-    return used .
-  end
-end
+    set used. add used. mul n. 2 . . .
+    return used. .
+  end .
+end .
 
 rem 받는 쪽 — 부르는 쪽은 얼로케이터도, 그 타입도 적지 않는다
-proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a . do
-  return send al reserve n .
-end
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a. . . do
+  return send al. reserve n. . .
+end .
 
 proc main output u8 . effects state . do
-  var e exact spawn actor exact .
-  var d doubled spawn actor doubled .
-  let x use e u64 take 3 .      rem 3
-  let y use d u64 take 3 .      rem 6
-  return narrow u8 (add x y) .
-end
+  var e exact spawn actor exact . .
+  var d doubled spawn actor doubled . .
+  let x use e. u64 take 3 . .      rem 3
+  let y use d. u64 take 3 . .      rem 6
+  return narrow u8 add x. y. . . .
+end .
 ```
 
 ```lowent-거부: 보이는 얼로케이터가 둘인데 고르지 않았다 · E-ALLOC-AMBIGUOUS
@@ -853,27 +853,27 @@ module ex_using_ambiguous .
 
 trait carver do
   reserve input s self . input n u64 . output u64 . effects state .
-end
+end .
 
 actor exact do
   satisfies carver .
   state do
     used u64 .
-  end
+  end .
   proc reserve input n u64 . output u64 . effects state . do
-    set used (add used n) .
-    return used .
-  end
-end
+    set used. add used. n. . .
+    return used. .
+  end .
+end .
 
-proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a . do
-  return send al reserve n .
-end
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a. . . do
+  return send al. reserve n. . .
+end .
 
 proc main output u8 . effects state . do
-  var e exact spawn actor exact .
-  var f exact spawn actor exact .
-  let x u64 take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
-  return narrow u8 x .
-end
+  var e exact spawn actor exact . .
+  var f exact spawn actor exact . .
+  let x u64 take 3 . .              rem e 인가 f 인가 — 짐작하지 않는다
+  return narrow u8 x. . .
+end .
 ```

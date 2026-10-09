@@ -46,96 +46,96 @@ rem 찾으면 그 인덱스, limit 안에 없거나 끝에 닿으면 none.
 export fn scan_until input src slice u8 . input from u64 . input delim u8 . input limit u64 .
   output option u64 .
 do
-  guard le from (len src) else return none .
-  var j u64 from .
+  guard le from. len src. . . else return none . .
+  var j u64 from. .
   var seen u64 0 .
-  while lt j (len src) do
-    guard lt seen limit else return none .
-    if eq (idx src j) delim do return (some j) . end
-    set j (add j 1) .
-    set seen (add seen 1) .
-  end
+  while lt j. len src. . . do
+    guard lt seen. limit. . else return none . .
+    if eq idx src. j. . delim. . do return some j. . . end .
+    set j. add j. 1 . .
+    set seen. add seen. 1 . .
+  end .
   return none .
-end
+end .
 
 export actor mem_reader do
   state do
     src slice u8 .
     pos u64 .
-  end
+  end .
 
   rem 소스를 건다. 같은 리더를 다시 걸면 처음부터 다시 읽는다.
   proc attach input s slice u8 . output u64 . effects state . do
-    set src s .
-    set pos 0 .
+    set src. s. .
+    set pos. 0 .
     return 0 .
-  end
+  end .
 
   rem 남은 바이트 수 — `count` 가 컬렉션에 하는 일과 같은 뜻이다.
   proc remaining output u64 . effects none . do
-    return sub (len src) pos .
-  end
+    return sub len src. . pos. . .
+  end .
 
   rem ★ n 바이트를 **소비하지 않고** 본다. 모자라면 none — 부분으로 속이지 않는다.
   rem ★ 비교는 `n ≤ 남은 수` 다 — `pos + n` 을 먼저 셈하면 호출자(프레이밍 길이 필드 = 적대적
   rem   입력)가 준 큰 n 이 u64 `add` 에서 **트랩**한다. 모자람은 값(none)이어야 한다(§9.2).
   proc peek input n u64 . output option slice u8 . effects none . do
-    guard le n (sub (len src) pos) else return none .
-    return (some (subslice src pos (add pos n))) .
-  end
+    guard le n. sub len src. . pos. . . else return none . .
+    return some subslice src. pos. add pos. n. . . . .
+  end .
 
   rem ★ n 바이트를 소비하고 그 **뷰**를 낸다(복사 0). 모자라면 none 이고 커서는 안 움직인다.
   proc take input n u64 . output option slice u8 . effects state . do
-    guard le n (sub (len src) pos) else return none .
-    let v slice u8 subslice src pos (add pos n) .
-    set pos (add pos n) .
-    return (some v) .
-  end
+    guard le n. sub len src. . pos. . . else return none . .
+    let v slice u8 subslice src. pos. add pos. n. . . .
+    set pos. add pos. n. . .
+    return some v. . .
+  end .
 
   rem 남은 전부를 소비하고 뷰를 낸다. 이미 끝이면 **빈 뷰**(none 이 아니다 —
   rem "끝났다" 와 "0 바이트 읽었다" 는 다르고, 여기선 후자다).
   proc take_rest output slice u8 . effects state . do
-    let v slice u8 subslice src pos (len src) .
-    set pos (len src) .
-    return v .
-  end
+    let v slice u8 subslice src. pos. len src. . . .
+    set pos. len src. . .
+    return v. .
+  end .
 
   rem ★ 채워진 것 중 n 바이트를 버린다 — IO 없음. 남은 것보다 많이 버리라면 끝까지만.
   proc toss input n u64 . output u64 . effects state . do
-    guard le n (sub (len src) pos) else do
-      let dropped u64 sub (len src) pos .
-      set pos (len src) .
-      return dropped .
-    end
-    set pos (add pos n) .
-    return n .
-  end
+    guard le n. sub len src. . pos. . . else do
+      let dropped u64 sub len src. . pos. . .
+      set pos. len src. . .
+      return dropped. .
+    end .
+    set pos. add pos. n. . .
+    return n. .
+  end .
 
   rem ★★ **구분자까지 읽는다 — 구분자는 소비하되 뷰에는 넣지 않는다.** 순수 `scan_until` 의 껍질.
   rem   `limit` 은 **기본값 없는 필수 상한**(Zig 의 규율): 적대적 입력이 무한 읽기를 못 만든다.
   rem   · 찾으면 그 앞까지의 뷰 · 못 찾으면 **none 이고 커서는 안 움직인다**(부분 소비 없음)
   rem   · 이미 끝이면 none
   proc take_until input delim u8 . input limit u64 . output option slice u8 . effects state . do
-    guard lt pos (len src) else return none .
-    let at option u64 scan_until src pos delim limit .
-    guard is_some at else return none .
-    let j u64 some_value at .
-    let v slice u8 subslice src pos j .
-    set pos (add j 1) .
-    return (some v) .
-  end
+    guard lt pos. len src. . . else return none . .
+    let at option u64 scan_until src. pos. delim. limit. . .
+    guard is_some at. . else return none . .
+    let j u64 some_value at. . .
+    let v slice u8 subslice src. pos. j. . .
+    set pos. add j. 1 . .
+    return some v. . .
+  end .
 
   rem 한 줄 — LF(10) 까지. ★ 개행 규약은 **LF 만**이다(CR 은 내용에 남는다).
   rem   CRLF 를 벗기려면 호출자가 `str_remove_suffix line "\r"` 를 쓴다 —
   rem   라이브러리가 **조용히 바이트를 지우지 않는다**(RFC-0069 §8-8 의 열린 항목을
   rem   "안 지운다" 로 닫는다: 지우는 쪽은 되돌릴 수 없고, 안 지우는 쪽은 호출자가 고를 수 있다).
   proc take_line input limit u64 . output option slice u8 . effects state . do
-    guard lt pos (len src) else return none .
-    let at option u64 scan_until src pos 10 limit .
-    guard is_some at else return none .
-    let j u64 some_value at .
-    let v slice u8 subslice src pos j .
-    set pos (add j 1) .
-    return (some v) .
-  end
-end
+    guard lt pos. len src. . . else return none . .
+    let at option u64 scan_until src. pos. 10 limit. . .
+    guard is_some at. . else return none . .
+    let j u64 some_value at. . .
+    let v slice u8 subslice src. pos. j. . .
+    set pos. add j. 1 . .
+    return some v. . .
+  end .
+end .

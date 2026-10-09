@@ -6,19 +6,19 @@ def type job u64 .
 actor worker do
   state do
     done u64 .
-  end
+  end .
   proc take input j owned job . output u64 . effects state .
   do
-    drop j .
-    set done (add done 1) .
-    return done .
-  end
-end
+    drop j. .
+    set done. add done. 1 . .
+    return done. .
+  end .
+end .
 
 proc give_twice input n u64 . output u64 . effects state .
 do
-  var w worker spawn actor worker .
-  var j owned job n .
-  let a u64 send w take j .
-  return send w take j .
-end
+  var w worker spawn actor worker . .
+  var j owned job n. .
+  let a u64 send w. take j. . .
+  return send w. take j. . .
+end .

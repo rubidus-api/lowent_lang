@@ -36,8 +36,8 @@
 
 #demo("examples/ch36/buffered.low")
 
-- `outbuf.buf_open 1` 은 표준출력(1)에 내보낼 *대기 중 출력*을 만든다. `owned outbuf.pending` 이다.
-- `outbuf.buf_write out p buf s` 는 `s` 를 버퍼에 모으고, 버퍼가 차면 내보낸 뒤 이어 쓴다. 대기 값을 받아 새 대기 값을 돌려준다(소유가
+- `outbuf.buf_open 1 .` 은 표준출력(1)에 내보낼 *대기 중 출력*을 만든다. `owned outbuf.pending` 이다.
+- `outbuf.buf_write out. p. buf. s. .` 는 `s` 를 버퍼에 모으고, 버퍼가 차면 내보낸 뒤 이어 쓴다. 대기 값을 받아 새 대기 값을 돌려준다(소유가
   옮겨 다닌다).
 - `outbuf.buf_finish` 가 남은 바이트를 내보내고 대기 값을 끝낸다.
 
@@ -74,7 +74,7 @@
 `random.advance_seed` 은 시드에서 다음 값을 *계산*한다. 권한도 효과도 없는 순수한 `fn` 이다. 같은 시드 42 로 두 번 굴리면 두 번 다 3 이다.
 시뮬레이션·시험·절차적 생성처럼 *재현되어야 하는* 난수는 이것을 쓴다.
 
-운영체제의 엔트로피는 `random.bytes k dst` 로 얻고 `cap random` 을 받는다. 키와 논스처럼 *예측되면 안 되는* 난수는 이쪽이다. 두 일에
+운영체제의 엔트로피는 `random.bytes k. dst. .` 로 얻고 `cap random` 을 받는다. 키와 논스처럼 *예측되면 안 되는* 난수는 이쪽이다. 두 일에
 서로 다른 이름과 권한을 주는 까닭은, 하나로 합치면 재현되어야 할 시험이 운영체제 엔트로피에 기대게 되거나 반대로 키가 예측 가능한
 열에서 나오기 때문이다. `below_biased` 는 이름대로 치우침이 있는 범위 줄이기다. 치우침이 문제인 자리에서는 쓰지 않는다는 뜻이 이름에 들어
 있다.
@@ -169,13 +169,13 @@
   id: "lib-io-net-glance",
   caption: [입출력·네트워크·암호 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`var p owned outbuf.pending outbuf.buf_open 1 .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
-  [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
-  [`outbuf.buf_finish out p buf`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
-  [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [연결 쌍 · 다 보내기 · 한 번 받기 · 닫기], [`cap net` 이 첫 인자 --- 받기는 버퍼만큼],
-  [`random.advance_seed seed` · `random.bytes k dst`], [재현되는 다음 상태 · 운영체제 엔트로피(`cap random`)], [셈과 권위를 가른다],
-  [`clock.now_ns k` · `clock.since_ns k start`], [단조 시계 --- 경과 시간], [벽시계와 약속이 다르다 --- `cap clock`, 효과 `none`],
-  [`http.method_code req` · `http.version_ok req`], [요청 줄 해석(순수)], [애매한 입력을 거절한다],
+  [`var p owned outbuf.pending outbuf.buf_open 1 . .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
+  [`outbuf.buf_write out. p. buf. s. .` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
+  [`outbuf.buf_finish out. p. buf. .`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
+  [`net.pair_of k. .` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [연결 쌍 · 다 보내기 · 한 번 받기 · 닫기], [`cap net` 이 첫 인자 --- 받기는 버퍼만큼],
+  [`random.advance_seed seed. .` · `random.bytes k. dst. .`], [재현되는 다음 상태 · 운영체제 엔트로피(`cap random`)], [셈과 권위를 가른다],
+  [`clock.now_ns k. .` · `clock.since_ns k. start. .`], [단조 시계 --- 경과 시간], [벽시계와 약속이 다르다 --- `cap clock`, 효과 `none`],
+  [`http.method_code req. .` · `http.version_ok req. .`], [요청 줄 해석(순수)], [애매한 입력을 거절한다],
   [`aead` · `gcm` · `x25519` · `ed25519` · `tls13` · `tlssrv`], [봉인 · 키 합의 · 서명 · TLS 계산], [혼자 쓰면 틀리는 조각은 문서가 경고한다],
 )
 

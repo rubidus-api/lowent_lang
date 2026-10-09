@@ -36,20 +36,25 @@
 == The name first, then the arguments
 
 #idx("prefix notation")
-Lowent expressions use *prefix notation*. The name of the operation comes first and its arguments follow. `add a b` adds `a` and
-`b`, and a form inside a form is wrapped in parentheses.
+Lowent expressions use *prefix notation*. The name of the operation comes first and its arguments follow. One rule reads all of it ---
+*a name opens, a stop closes.* In `add a. b. .`, `add` opens a form and the last stop closes it. `a.` and `b.` follow the same rule:
+the variable's name opens, and the stop glued to it closes. A literal such as `1` or `"hi"` is not a name, so it takes no stop. When a
+form sits inside a form, the inner one is closed first, by its own stop.
 
 ```lowent
-let total u64 add 1 2 .
-let mixed u64 add 1 (mul 2 3) .
+let total u64 add 1 2 . .
+let mixed u64 add 1 mul 2 3 . . .
 ```
 
 Prefix notation has no precedence. Someone reading `1 + 2 * 3` knows that multiplication comes first because they *memorised* it,
-but in `add 1 (mul 2 3)` the parentheses already say so. The principle is the same for ops you write yourself. `write_out out 1 "hi"`,
-`field p x` and `mean xs` all put the name first.
+but in `add 1 mul 2 3 . .` the stops already say so --- the first stop closes `mul`, the second closes `add`. The principle is the same
+for ops you write yourself. `write_out out. 1 "hi" .`, `field p. x .` and `mean xs. .` all put the name first.
+
+Parentheses are *decoration*: they never change the meaning. Use them to make an inner form stand out, as in `add 1 (mul 2 3 .) .`.
+The form inside the parentheses still closes with its own stop --- parentheses do not replace it.
 
 #qa[
-  When arithmetic gets long, don't the parentheses pile up and become hard to read?
+  When arithmetic gets long, don't the stops pile up and become hard to read?
 ][
   That is why there is an `expr` island. Inside a place starting with `expr`, the four arithmetic operators, comparisons, `and` and
   `or` may be written infix. An expression in the island is translated to *exactly the same meaning* as the prefix form and costs
@@ -59,7 +64,9 @@ but in `add 1 (mul 2 3)` the parentheses already say so. The principle is the sa
 == A free-standing full stop closes
 
 #idx("closer")
-The end of a statement or clause is closed by a *free-standing* full stop `.`, called a *closer*. A newline is not a closer --- it is
+Every open form is closed by a full stop `.` --- a value, a statement, a clause, a declaration. That stop is called a *closer*. One
+stop closes *the innermost form that is still open*. A variable is written with the stop glued on, `a.` (the spaced `a .` means the
+same). A newline is not a closer --- it is
 whitespace, exactly like a space. So wherever you break a line, the meaning stays the same.
 
 #demo("examples/ch03/poly.low")
@@ -71,13 +78,14 @@ same computation as an `expr` island, and the two ops give the same answer.
 `note WHY … WHY` is a multi-line comment; it ends at a line where the word written after `note` stands alone, starting in the first column. `rem` is a line comment.
 The language has no symbolic comments like `//` or `/* */` --- comments too are opened with words.
 
-The number of full stops works as a kind of *checksum*. If opened forms and closers do not match, the compiler says so. Forgetting one
-parenthesis looks like this.
+The number of full stops works as a kind of *checksum*. If the forms opened and the stops that close them do not match, the compiler
+says so. Leaving one stop out looks like this.
 
 #demo("examples/ch03/dots.low")
 
-The first diagnostic means a parenthesis tried to leak past the block's `end`. Parentheses cannot cross a block boundary. So a single
-wrongly closed parenthesis stops inside that block instead of silently swallowing the rest of the file.
+The diagnostic says it reached `end` with nothing closing the `return`. An open form cannot cross a block's `end`. So one missing
+stop is caught inside that block instead of silently swallowing the rest of the file. The other way round, a stop with nothing left
+to close is rejected with `E-CLOSER-EXTRA`.
 
 #misconception[A semicolon closes statements too][
   It once did. When the processor met `;` it literally produced a full stop. Two spellings of one meaning force a reader to know
@@ -95,43 +103,45 @@ Every place that groups statements opens with `do` and closes with `end`: an op 
 def struct point do
   x u64 .
   y u64 .
-end
+end .
 
 fn sum_to input n u64 . output u64 .
 do
   var total u64 0 .
   var i u64 1 .
-  while le i n do
-    set total (add total i) .
-    set i (add i 1) .
-  end
-  return total .
-end
+  while le i. n. . do
+    set total. add total. i. . .
+    set i. add i. 1 . .
+  end .
+  return total. .
+end .
 ```
 
-`do … end` works like a pair of braces. `end` closes *only its own `do`* and leaves everything outside alone. So there are just two
-rules to know.
+`do … end` works like a pair of braces. `end` closes *only its own `do`* and leaves everything outside alone. And `end` closes the
+block, *not the form* --- a form is always closed by a stop. So there are three things to know.
 
-- *A construct that owns a block as its body* ends at `end`: op declarations, `struct`·`enum`, `if`·`while`·`for`·`match`.
-  As in the example above, no full stop follows the `end` --- one there closes nothing and is rejected with `E-DOT-STRAY`.
-- *A statement that uses a block as a value* ends with its own full stop, like any statement. Building a struct value with `lit`
-  and binding it with `let` is the usual case: `let p lit point do x 1 . y 2 . end .` --- the last stop belongs to the
-  `let`. Leaving it out is `E-DOT-MISSING`.
+- *A form that owns a block still ends with a stop.* Op declarations, `struct`·`enum`, `if`·`while`·`for`·`match` all end in `end .`,
+  as in the example above. Leaving the stop out is rejected with `E-DOT-MISSING`.
+- *A chain joined by `else` is one form.* In `if … do … end else do … end .` there is a single stop, at the end.
+- *A block inside a value gives two stops in a row.* In `let p lit point do x 1 . y 2 . end . .` the first stop closes the `lit`
+  value and the second closes the `let` statement.
 
-In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1, 2 };`.
+C has no `;` after `if (c) { … }` but one after `p = (struct point){ 1, 2 };`. Lowent makes no such distinction --- what was opened is
+closed by a stop.
 
 ```text
-while le i n do  …  end                    block as body: the while statement ends at end
-└── while statement ──┘
+while le i. n. . do  …  end .              the condition closes with its own stop, the while form with the stop after end
+      └ condition ┘
+└──────── while form ──────┘
 
-let p lit point do x 1 . end .             block as value: the block is lit's, the statement ends with its own .
-      └───── lit value ────┘ │
-└──────── let statement ────────┘
+let p lit point do x 1 . end . .           the first stop closes the lit value, the second the let statement
+      └───── lit value ─────┘
+└──────── let statement ─────────┘
 ```
 
 Each statement inside a block must end with its own full stop too; `end` does not close an open statement for you. A bare
 `do … end` with nothing opening it is not allowed either (`E-BLOCK-NOHEAD`) --- a block always has a head. Opening a declaration
-block with only a line break instead of `do` is rejected with `E-STMT-NODO`, and `--fmt` inserts the `do`.
+block with only a line break instead of `do` is rejected with `E-STMT-NODO`.
 The clauses of an op header work the same way. Each ends with its own stop --- `input n u64 .` · `output u64 .` --- and the next
 clause word does not close the one before it; leaving the stop out is `E-DOT-MISSING`.
 
@@ -202,7 +212,7 @@ languages.
 
 First, *declared names contain no dots.* A place with a dot attached is a path *referring* to a name, and it has only three meanings
 --- a module's name (`allocs.byte_allocator`), a variant's name (`node.num`), and the name of a declaration attached to a type
-(`rect.area`). Looking inside a value (reading a field, calling a method) is not a glued dot but a form: `field p x` · `method s area`.
+(`rect.area`). Looking inside a value (reading a field, calling a method) is not a glued dot but a form: `field p. x .` · `method s. area. .`.
 
 #idx("shadowing")
 Second, *there is no shadowing.* An inner name that reuses the spelling of an outer name is rejected.
@@ -248,13 +258,16 @@ them, and `and` binds tighter than `or`. Bitwise operations, remainder, minimum 
 island. The precedence of bitwise operations differs between languages, so putting them in the island would not make them easier to
 read --- it would add something to look up.
 
+The same rule holds inside the island. A variable is written `a.`, and the island that `expr` opened is closed by one stop:
+`expr a. + b. * 2 .`.
+
 Comparisons cannot be chained.
 
 #demo("examples/ch03/chain.low")
 
 Mathematical `a < b < c` means "a is less than b and b is less than c", but in many languages that spelling reads as `(a < b) < c`. A
 spelling that means one thing to people and another to the machine is a place where code is silently wrong. As the diagnostic
-suggests, write `expr (a lt b) and (b lt c)`.
+suggests, write `expr (a. lt b.) and (b. lt c.) .`.
 
 == Clause order in an op head
 
@@ -289,10 +302,10 @@ proc copy_upper
   input src slice u8 .          rem data input
   output u64 .
   effects io .
-  requires gt (len src) 0 .
+  requires gt len src. . 0 . .
 do
-  return write_out out 1 src .
-end
+  return write_out out. 1 src. . .
+end .
 ```
 
 Written on one line or one clause per line, the meaning is the same (newlines are whitespace). This book writes short heads on one
@@ -313,11 +326,9 @@ to remember the shapes too.
 #antipattern[Writing comments with `//`][
   #demo("examples/ch03/mistake_slash.low")
 
-  Comments in this language are `rem` (line comment) and `note WHY … WHY` (multi-line), nothing else. `//` is not a comment, so the
-  compiler reads it as the start of a form, and a form runs *until a stop appears*. `// double it` and the next line's `return mul a 2`
-  therefore become one form that ends at a single stop, and the `return` is swallowed inside it. The diagnostic says "some path does not
-  return", but the cause is the comment. Comments open with a word to keep symbols down --- `//`, `#` and `--` differ from language to
-  language, so one word was chosen. The fix: `rem double it`.
+  Comments in this language are `rem` (line comment) and `note WHY … WHY` (multi-line), nothing else. `//` is not a comment, so it is
+  rejected with `E-VOCAB-REMOVED`, and the diagnostic tells you to write `rem`. Comments open with a word to keep symbols down ---
+  `//`, `#` and `--` differ from language to language, so one word was chosen. The fix: `rem double it`.
 ]
 
 #antipattern[Reading a field with a glued dot][
@@ -325,7 +336,7 @@ to remember the shapes too.
 
   `p.x` is everyday C or Python, but here it is `E-FIELD-GLUED`. The dot already serves as a *path to a name* (module
   `allocs.bump_bytes`, variant `color.red`); if it also looked inside values, every `a.b` would need working out. Read a field with
-  `field p x` (#chref("structs-enums")).
+  `field p. x .` (#chref("structs-enums")).
 ]
 
 #antipattern[Writing the head's clauses in any order][
@@ -338,17 +349,15 @@ to remember the shapes too.
 #antipattern[Opening an `if` body without `do`][
   #demo("examples/ch03/mistake_ifdo.low")
 
-  Bodies are not opened by indentation as in Python. Without `do`, the `if` form ends at the stop after the condition, and the `end`
-  below closes *the op's body* rather than the `if`. The remaining `return 0 .` then falls outside any declaration, which gives
-  `E-TOPLEVEL` (something other than a declaration at the top level), and because the body closed early, the return paths go wrong too
-  (`E-RETURN-PARTIAL`). When you see those two together, suspect a missing `do`. The fix: `if gt a 3 do`.
+  Bodies are not opened by indentation as in Python. Once the condition is closed by its own stop, `do` must come next. Anything
+  else there is rejected with `E-CTRL-NODO` (a `do … end` block belongs here). The fix: `if gt a. 3 . do`.
 ]
 
 #antipattern[Writing a string in single quotes][
   #demo("examples/ch03/mistake_quote.low")
 
   Single quotes are the literal for *one character* (`'a'` is the byte 97). Two characters do not fit in one unit, so you get
-  `E-CHAR-WIDTH`. Strings always use double quotes: `len "hi"` is 2. The two kinds of quote mean different things because "one character"
+  `E-CHAR-WIDTH`. Strings always use double quotes: `len "hi" .` is 2. The two kinds of quote mean different things because "one character"
   and "several bytes" are different types (#tblref("surface-literals")).
 ]
 
@@ -368,14 +377,14 @@ to remember the shapes too.
   id: "surface-glance",
   caption: [Surface rules --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`add a (mul b c)`], [prefix notation --- name first, inner calls in parentheses], [no precedence rules to memorise],
-  [`… .`], [a detached stop closes a form (statement or clause)], [newlines never change meaning --- break lines anywhere],
+  [`add a. mul b. c. . .`], [prefix notation --- a name opens, a stop closes], [no precedence rules to memorise],
+  [`… .`], [a stop closes the innermost open form (value, statement, clause, declaration)], [newlines never change meaning --- break lines anywhere],
   [`do … end`], [every block], [only one way to open a block],
   [`rem …` · `note WHY … WHY`], [line comment · multi-line comment], [no symbol comments (`//`, `#`) --- they open with a word],
   [`42` · `0x2A` · `0b101010` · `1_000`], [integer literals (the position decides the type)], [no octal --- `0755` is 755],
   [`"hi\n"` · `'a'`], [a string (several bytes) · one character], [the quote itself is the type difference],
   [`true` · `false` · `none`], [booleans · no value], [values are words too],
-  [`field p x` · `method s area`], [read a field · call a method], [the dot is kept for name paths only],
+  [`field p. x .` · `method s. area. .`], [read a field · call a method], [the dot is kept for name paths only],
   [`allocs.bump_bytes` · `color.red`], [a name inside a module · a variant name], [one dot means "that name inside this name"],
   [`expr a + b * c`], [an infix island --- arithmetic, comparisons, `and`/`or` only], [long arithmetic reads easily; same meaning as prefix],
   [Clause order in an op head], [#tblref("surface-clause-order")], [each clause comes before the ones that use it],

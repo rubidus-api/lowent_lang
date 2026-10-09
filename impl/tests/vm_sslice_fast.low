@@ -4,78 +4,78 @@ module m .
 
 def struct box do
   s slice i16 .
-end
+end .
 
 fn sum8 input s slice i8 . output i64 . do
   var t i64 0 .
-  for x s do
-    set t (add t (widen i64 x)) .
-  end
-  return t .
-end
+  for x s. do
+    set t. add t. widen i64 x. . . .
+  end .
+  return t. .
+end .
 
 fn sum16 input s slice i16 . output i64 . do
   var t i64 0 .
-  for x s do
-    set t (add t (widen i64 x)) .
-  end
-  return t .
-end
+  for x s. do
+    set t. add t. widen i64 x. . . .
+  end .
+  return t. .
+end .
 
 fn min32 input s slice i32 . output i64 . do
-  guard gt (len s) 0 else return 0 .
-  var m i64 widen i64 (idx s 0) .
-  for x s do
-    if lt (widen i64 x) m do set m (widen i64 x) . end
-  end
-  return m .
-end
+  guard gt len s. . 0 . else return 0 . .
+  var m i64 widen i64 idx s. 0 . . .
+  for x s. do
+    if lt widen i64 x. . m. . do set m. widen i64 x. . . end .
+  end .
+  return m. .
+end .
 
 fn tail32 input s slice i32 . output i64 . do
-  guard gt (len s) 1 else return 0 .
-  let t slice i32 subslice s 1 (len s) .
-  return widen i64 (idx t 0) .
-end
+  guard gt len s. . 1 . else return 0 . .
+  let t slice i32 subslice s. 1 len s. . . .
+  return widen i64 idx t. 0 . . .
+end .
 
 proc flip32 input s mut slice i32 . output i64 . effects none . do
-  guard gt (len s) 1 else return 0 .
-  swap s 0 1 .
-  return widen i64 (idx s 0) .
-end
+  guard gt len s. . 1 . else return 0 . .
+  swap s. 0 1 .
+  return widen i64 idx s. 0 . . .
+end .
 
 proc neg16 input s mut slice i16 . output i64 . effects none . do
-  guard gt (len s) 0 else return 0 .
-  set (idx s 0) (sub 0 (idx s 0)) .
-  return widen i64 (idx s 0) .
-end
+  guard gt len s. . 0 . else return 0 . .
+  set idx s. 0 . sub 0 idx s. 0 . . .
+  return widen i64 idx s. 0 . . .
+end .
 
 fn boxed input b box . output i64 . do
-  return sum16 (field b s) .
-end
+  return sum16 field b. s . . .
+end .
 
 fn viaboxed input s slice i16 . output i64 . do
-  let b box lit box do s s . end .
-  return boxed b .
-end
+  let b box lit box do s s. . end . .
+  return boxed b. . .
+end .
 
 fn cmp8 input s slice i8 . output u64 . do
   var n u64 0 .
-  for x s do
-    if lt x 0 do set n (add n 1) . end
-  end
-  return n .
-end
+  for x s. do
+    if lt x. 0 . do set n. add n. 1 . . end .
+  end .
+  return n. .
+end .
 
 rem a float slice in a struct field read on the fast path used to come back as raw bits (VM 1.5, native 4609434218613702656).
 def struct fbox do
   s slice f64 .
-end
+end .
 
 fn ffirst input b fbox . output f64 . do
-  guard gt (len (field b s)) 0 else return 0.0 .
-  return idx (field b s) 0 .
-end
+  guard gt len field b. s . . 0 . else return 0.0 . .
+  return idx field b. s . 0 . .
+end .
 
 fn viaf input s slice f64 . output f64 . do
-  return ffirst (lit fbox do s s . end) .
-end
+  return ffirst lit fbox do s s. . end . . .
+end .

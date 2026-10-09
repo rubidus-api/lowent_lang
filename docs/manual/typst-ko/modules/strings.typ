@@ -10,9 +10,9 @@
 ```lowent
 use strings .
 
-if strings.starts_with line "GET " do
-  let rest slice u8 strings.remove_prefix line "GET " .
-end
+if strings.starts_with line. "GET " . do
+  let rest slice u8 strings.remove_prefix line. "GET " . .
+end .
 ```
 
 `rest` 는 `line` 의 일부를 그대로 가리킨다. 이 모듈은 언어가 이미 가진 것(`len`·`idx`·`subslice`·`eq`·`option`·`guard`·`while`·`actor`)만으로
@@ -65,9 +65,9 @@ end
 
 *`find`* --- `hay` 에서 `needle` 을 `from` 부터 찾아 시작 색인을 `some` 으로 낸다. `from` 이 있는 이유가 이 모듈의 성격이다. *커서는 호출자가 드는
 값이다.* 다음 검색은 찾은 자리 뒤를 `from` 으로 다시 부른다. 라이브러리가 상태를 어디에도 숨기지 않으므로, 같은 문자열을 여러 곳에서 동시에 훑어도
-서로 간섭하지 않는다. `from > len hay` 면 `none`, 빈 `needle` 은 `some from` 이다.
+서로 간섭하지 않는다. `from > len hay` 면 `none`, 빈 `needle` 은 `some from. .` 이다.
 
-*`has`* --- "들어 있는가" 만 물을 때. 속은 `is_some (find hay needle 0)` 그대로다.
+*`has`* --- "들어 있는가" 만 물을 때. 속은 `is_some find hay. needle. 0 . .` 그대로다.
 
 *`starts_with` · `ends_with`* --- 접두와 접미 검사. 조각이 `s` 보다 길면 볼 것도 없이 `false` 다.
 
@@ -102,39 +102,39 @@ module demo .
 use strings .
 
 fn t_find output u64 . do
-  let r option u64 strings.find "hello world" "world" 0 .
-  guard is_some r else return 99 .
-  return some_value r .
-end
+  let r option u64 strings.find "hello world" "world" 0 . .
+  guard is_some r. . else return 99 . .
+  return some_value r. . .
+end .
 
 fn t_split output u64 . do
   rem "aa,b,,cc" 를 ',' (바이트 44) 로: "aa"·"b"·""·"cc" --- 네 조각
   var pos u64 0 .
   var pieces u64 0 .
-  var r option slice u8 strings.split_next "aa,b,,cc" 44 pos .
-  while is_some r do
-    set pieces (add pieces 1) .
-    set pos (add pos (add (len (some_value r)) 1)) .
-    set r (strings.split_next "aa,b,,cc" 44 pos) .
-  end
-  return pieces .
-end
+  var r option slice u8 strings.split_next "aa,b,,cc" 44 pos. . .
+  while is_some r. . do
+    set pieces. add pieces. 1 . .
+    set pos. add pos. add len some_value r. . . 1 . . .
+    set r. strings.split_next "aa,b,,cc" 44 pos. . .
+  end .
+  return pieces. .
+end .
 ```
 
 `t_find` 는 6 을, `t_split` 은 4 를 낸다. 상태를 원하면 액터 판을 쓴다 --- 커서를 액터가 든다.
 
 ```lowent
 proc t_splitter output u64 . effects state . do
-  var sp strings.str_splitter spawn actor strings.str_splitter .
-  let d u64 send sp init "one,two,three" 44 .
+  var sp strings.str_splitter spawn actor strings.str_splitter . .
+  let d u64 send sp. init "one,two,three" 44 . .
   var pieces u64 0 .
-  var r option slice u8 send sp next .
-  while is_some r do
-    set pieces (add pieces 1) .
-    set r (send sp next) .
-  end
-  return pieces .
-end
+  var r option slice u8 send sp. next . .
+  while is_some r. . do
+    set pieces. add pieces. 1 . .
+    set r. send sp. next . .
+  end .
+  return pieces. .
+end .
 ```
 
 두 판의 차이는 커서를 누가 드는가 하나다. 같은 원본을 여러 갈래로 동시에 훑을 일이 있으면 `split_next` 가 맞고, 반복 하나로 끝까지 당길 뿐이면 액터
@@ -144,25 +144,25 @@ end
 
 #antipattern[기본 연산 `eq` 로 슬라이스를 비교한다][
   ```lowent
-  guard eq "abc" "abc" else return 0 .        rem ✗ eq 는 스칼라 전용이다
+  guard eq "abc" "abc" . else return 0 . .        rem ✗ eq 는 스칼라 전용이다
   ```
   `E-VM-TYPE` 이다. 슬라이스 비교는 `strings.eq_str` 로 한다.
 ]
 
 #antipattern[분할 반복에서 커서를 밀지 않는다][
   ```lowent
-  var r option slice u8 strings.split_next src 44 pos .
-  while is_some r do
-    set r (strings.split_next src 44 pos) .   rem ✗ pos 가 그대로
-  end
+  var r option slice u8 strings.split_next src. 44 pos. . .
+  while is_some r. . do
+    set r. strings.split_next src. 44 pos. . .   rem ✗ pos 가 그대로
+  end .
   ```
   번역 오류가 아니다 --- *프로그램이 끝나지 않는다.* 같은 `pos` 를 주므로 같은 조각이 영원히 나온다. 조각을 받을 때마다 `pos + len(조각) + 1` 로 민다.
 ]
 
 #antipattern[`option` 을 값처럼 쓴다][
   ```lowent
-  let r option u64 strings.find "abc" "zz" 0 .
-  return some_value r .                         rem ✗ none 검사가 없다
+  let r option u64 strings.find "abc" "zz" 0 . .
+  return some_value r. . .                         rem ✗ none 검사가 없다
   ```
   번역은 통과하고, 못 찾은 순간 실행 중 `E-VM-NONE` 으로 멈춘다. 찾히는 입력으로만 시험하면 드러나지 않는다. `guard is_some r else …` 가 먼저다
   (#chref("option-result")).
@@ -170,8 +170,8 @@ end
 
 #antipattern[뷰가 가리키는 원본을 나중에 바꾼다][
   ```lowent
-  let piece slice u8 strings.remove_prefix line "GET " .
-  set (idx line 4) 88 .                                     rem ✗ 원본을 고쳤다
+  let piece slice u8 strings.remove_prefix line. "GET " . .
+  set idx line. 4 . 88 .                                     rem ✗ 원본을 고쳤다
   ```
   오류 없이 `piece` 의 내용이 조용히 바뀐다 --- 복사본이 아니라 창이기 때문이다. 내용을 붙잡아 두려면 #modref("strbuf")[`strbuf`] 로 복사한다.
 ]
@@ -182,7 +182,7 @@ end
   바이트 집합이라 멀티바이트 문자를 한 단위로 다루지 못한다. 글자 단위는 #modref("utf8")[`utf8`] 로 간다.
 - *뷰는 원본과 수명과 내용을 함께한다.* 원본이 바뀌면 뷰의 내용도 바뀌고, 원본이 사라지면 뷰도 못 쓴다. "값을 받았다" 가 아니라 "창을 받았다" 로 읽는다.
 - *`remove_prefix` 는 실패를 알리지 않는다.* 뗐는지가 필요하면 `starts_with` 로 먼저 묻는다.
-- *`find` 는 소박한 탐색이다.* 비용은 O(`len hay` × `len needle`) 이다. 아주 긴 문자열을 되풀이해 훑는 자리에서는 이 비용을 계산에 넣는다.
+- *`find` 는 소박한 탐색이다.* 비용은 O(`len hay. .` × `len needle. .`) 이다. 아주 긴 문자열을 되풀이해 훑는 자리에서는 이 비용을 계산에 넣는다.
 - *커서 판과 액터 판.* `split_next` 는 상태를 나누지 않으므로 여러 커서가 동시에 읽어도 자유롭다. `str_splitter` 는 상태를 들므로 띄운 곳이 소진까지 책임진다.
 - *널 종단 문자열로 바로 가는 길은 없다.* 뷰는 끝의 0 바이트를 약속하지 못한다. #modref("strbuf")[`strbuf`] 의 `as_cstr` 를 거친다.
 - *기본 연산 이름과 겹치는 이름.* `eq` 는 기본 연산이라 이 모듈이 `eq_str` 로 이름을 지었다. `has_byte` 는 비트셋의 `contains` 가 내장이던 때 지은 이름이다(지금은 `bitset_contains`). 내 코드의 변수 이름도 기본 연산 이름을 피한다.

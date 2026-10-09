@@ -3,10 +3,10 @@ rem ko: (인자는 네이티브와 VM 의 번호가 달라 여기서는 검사�
 
 proc main input out cap io . input a cap args . output u8 . effects io .
 do
-  let who option slice u8 arg a 0 .
-  guard is_some who else return narrow u8 (write_out out 1 "no name\n") .
-  let n u64 write_out out 1 "hello, " .
-  let m u64 write_out out 1 (some_value who) .
-  let k u64 write_out out 1 "\n" .
+  let who option slice u8 arg a. 0 . .
+  guard is_some who. . else return narrow u8 write_out out. 1 "no name\n" . . . .
+  let n u64 write_out out. 1 "hello, " . .
+  let m u64 write_out out. 1 some_value who. . . .
+  let k u64 write_out out. 1 "\n" . .
   return 0 .
-end
+end .

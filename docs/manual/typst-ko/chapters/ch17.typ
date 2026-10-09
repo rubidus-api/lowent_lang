@@ -68,7 +68,7 @@
 ```
 
 #qa[
-  `errors not_digit .` 처럼 조건 없이 적은 오류와 `errors empty eq (len s) 0 .` 처럼 조건을 붙인 오류는 무엇이
+  `errors not_digit .` 처럼 조건 없이 적은 오류와 `errors empty eq len s. . 0 . .` 처럼 조건을 붙인 오류는 무엇이
   다른가?
 ][
   조건을 붙이면 "이 조건일 때 *정확히* 이 오류가 난다" 는 나가는 쪽의 계약이 된다. 조건이 참인데 정상으로
@@ -93,7 +93,7 @@
 
 #demo("examples/ch17/layers.low")
 
-- `slot_of` 는 안쪽이다. 슬롯 수가 0 이면 나머지 연산이 멈추지만, 그것은 부르는 쪽의 잘못이므로 `requires gt slots 0 .` 으로 적었다.
+- `slot_of` 는 안쪽이다. 슬롯 수가 0 이면 나머지 연산이 멈추지만, 그것은 부르는 쪽의 잘못이므로 `requires gt slots. 0 . .` 으로 적었다.
 - `check_port` 는 경계에 가깝다. 0 번 포트는 설정이 틀린 것이고 고칠 수 있으므로 `result` 다.
 - `pick_slot` 은 `try` 로 실패를 위로 넘긴다. 자기도 같은 오류를 `errors` 에 적었다. 성공한 뒤에는 `p` 가 0 이
   아님을 알므로 안쪽 op 을 부른다.
@@ -193,9 +193,9 @@
   [*모양*], [*뜻*], [*왜 이렇게*],
   [경계의 op `output result t e .` + `errors`], [바깥 값의 실패를 값으로 돌려준다], [부르는 층이 무엇을 할지 고른다],
   [안쪽의 op `requires` · `range` · `newtype`], [이미 걸러진 값의 불변식], [검사가 경계에 한 번 남고 안쪽에서는 지워진다],
-  [`def enum parse_error do empty . not_digit . end`], [부르는 쪽이 다르게 행동할 경우마다 갈래 하나], [갈래가 많을수록 다루는 짐이 는다],
-  [`let v u16 try check_port port .`], [다룰 수 없으면 위로 넘긴다], [넘긴 사실이 `errors` 절에 남는다],
-  [`case error e do match e do … end end`], [오류 값을 묶고 갈래를 한 번 더 가른다], [`case error <이름>` 의 이름이 선언된 갈래가 아니면 새 묶음이다],
+  [`def enum parse_error do empty . not_digit . end .`], [부르는 쪽이 다르게 행동할 경우마다 갈래 하나], [갈래가 많을수록 다루는 짐이 는다],
+  [`let v u16 try check_port port. . . .`], [다룰 수 없으면 위로 넘긴다], [넘긴 사실이 `errors` 절에 남는다],
+  [`case error e do match e. do … end . end .`], [오류 값을 묶고 갈래를 한 번 더 가른다], [`case error <이름>` 의 이름이 선언된 갈래가 아니면 새 묶음이다],
   [`try … else_none` · `value_or`], [이유를 버린다], [버리는 것은 가능한 한 위 층에서],
   [`proc … effects panic .` + `panic "…"`], [어느 층도 다룰 수 없는 상태에서 멈춘다], [틀린 입력·없는 파일에는 쓰지 않는다],
   [시작점 `output u8 .`], [가장 바깥 층 --- 실패를 다루고 종료 코드로 알린다], [더 넘길 곳이 없다],

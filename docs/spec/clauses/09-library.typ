@@ -71,15 +71,15 @@
 
 def enum parse_error do
   too_short .
-end
+end .
 
 rem 실패를 값으로 돌려준다 — 특별한 수(−1 따위)를 쓰지 않는다.
 export fn first_byte input data slice u8 . output result u8 parse_error .
-  errors too_short lt (len data) 1 .
+  errors too_short lt len data. . 1 . .
 do
-  guard ge (len data) 1 else return error too_short .
-  return ok (idx data 0) .
-end")
+  guard ge len data. . 1 . else return error too_short . . .
+  return ok idx data. 0 . . .
+end .")
     #plain[
       이 넷은 새 규칙이 아니라 #strong[이미 정한 규칙을 라이브러리도 지킨다];는 말이다.
       라이브러리라고 예외를 두면, 그 라이브러리를 쓰는 순간 프로그램의 보장이 끊긴다.

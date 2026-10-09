@@ -25,7 +25,7 @@
 
 #organizer[
   You will learn the three places values live (local, static, obtained) and the two roots memory is obtained from (the fixed window and the heap). You will pick
-  up how to open a region with a `region <name> <kind> do … end` block and obtain space with `alloc_bytes`, and how to pass a region as a parameter. You will
+  up how to open a region with a `region <name> <kind> do … end .` block and obtain space with `alloc_bytes`, and how to pass a region as a parameter. You will
   see why carrying bytes from a region out of it, or carving from an outer region while an inner one is open, is rejected, and why the heap is refused on
   machines without an operating system.
 ]
@@ -65,7 +65,7 @@ The fixed window works even on machines without an operating system. There the w
 (#chref("fixed-memory")).
 
 #qa[
-  Where do the values made by `lit point do … end` or `some 7` live? Is that allocation?
+  Where do the values made by `lit point do … end .` or `some 7 .` live? Is that allocation?
 ][
   They live in the processor's *finite pool*. It is the op's implicit frame, so it has no effect and needs no capability. The pool is rewound on every loop
   iteration, and if more values are alive at once than the pool holds, execution stops on the spot. Its size is set by the machine and can be adjusted by
@@ -75,15 +75,15 @@ The fixed window works even on machines without an operating system. There the w
 == Opening a region and obtaining space
 
 #idx("region")
-A region is opened with `region <name> <kind> do … end`. Inside the block, `alloc_bytes <region> capacity <n>` asks that region for `n` bytes.
+A region is opened with `region <name> <kind> do … end .`. Inside the block, `alloc_bytes <region> capacity <n>` asks that region for `n` bytes.
 
 #demo("examples/ch18/scratch.low")
 
-- `region work arena do … end` opens a region. `arena` is the kind meaning "carve from the front and give back all at once".
+- `region work arena do … end .` opens a region. `arena` is the kind meaning "carve from the front and give back all at once".
 - `alloc_bytes work capacity n` gives an `option mut slice u8`. If there is not enough space, it is `none`. Running out of memory is a *value* too.
 - `fill_count`'s head has `effects alloc`. Obtaining space is an effect; a pure `fn` cannot use a region.
 - On *every path* out of the block --- reaching the end, `return`, `break` or `continue` of an enclosing loop --- the region is rewound. Even leaving with
-  `return s .` reclaims the buffer. There is no code that gives it back piece by piece.
+  `return s. .` reclaims the buffer. There is no code that gives it back piece by piece.
 
 `main` receives `cap allocator`. The `alloc` effect of `fill_count` spreads up to it, so a capability authorising that effect is needed
 (#chref("capabilities")). A region block is entitlement to obtain space inside the op that opened it, but the effect still spreads to the caller.
@@ -125,7 +125,7 @@ Putting bytes obtained from a region into a name outside the region is rejected.
 
 When the region closes at `end`, those bytes are rewound, and `held` outside would point at nothing. The places that carry things out are `return`, assignment
 to a name outside the region, and assignment to a field or element of such a name. Values that do not carry the region's bytes --- integers and booleans such
-as `len buf` or a sum --- may be carried out. That is what `fill_count` did when it returned a sum.
+as `len buf. .` or a sum --- may be carried out. That is what `fill_count` did when it returned a sum.
 
 #misconception[A region is just people managing lifetimes after all][
   People *decide* the lifetime, but translation *enforces* it. Paths by which a value from a region leaks out, and paths that point into a closed region, are
@@ -178,9 +178,9 @@ what went in last first", as when walking a tree or graph with a loop.
 
 #demo("examples/ch18/stack.low")
 
-- `let work stack u64 stack_new temp capacity 8 .` makes the stack. It takes space from the region, so it is `effects alloc`.
+- `let work stack u64 stack_new temp capacity 8 . .` makes the stack. It takes space from the region, so it is `effects alloc`.
 - `push work x .` puts a value in.
-- `while pop work into d do … end` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
+- `while pop work. into d. . do … end .` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
   loop ends --- the grammar has no way to stop by popping an empty stack.
 
 Putting in the digits 7 and 4 of 47 brings them out as 4 and 7, giving 74. The stack is reclaimed together with the region, so there is no
@@ -194,7 +194,7 @@ code to give it back.
   16 bytes are granted, but a million bytes do not fit in the fixed window. `alloc_bytes` then gives `none`, and `some_value`, used
   without asking, stops with `E-VM-NONE`. It is the same mistake as not comparing C's `malloc` result with `NULL`, except that Lowent
   stops at the point of taking the value out instead of using space that does not exist. Ask first, as the examples in this chapter do
-  with `guard is_some g else return 0 .`. Running out of memory is a *value* to handle as well.
+  with `guard is_some g. . else return 0 . .`. Running out of memory is a *value* to handle as well.
 ]
 
 #antipattern[Returning a buffer obtained from a region][
@@ -241,7 +241,7 @@ code to give it back.
   id: "regions-glance",
   caption: [Region syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`region work arena do … end`], [open a region --- rewound all at once on every way out of the block], [no `free` --- the lifetime is the block],
+  [`region work arena do … end .`], [open a region --- rewound all at once on every way out of the block], [no `free` --- the lifetime is the block],
   [`alloc_bytes work capacity n`], [request `n` bytes from the region --- `option mut slice u8`], [running short is a value too],
   [`effects alloc` · `effects heap`], [take from the fixed window · take from the growing heap], [the root in use is visible in the head],
   [`input al cap allocator .` · `cap heap`], [allocation capabilities received by the entry point], [the pair that allows the effect],
@@ -255,7 +255,7 @@ code to give it back.
 
 #recap[
   Values live in one of local, static and obtained, and the roots they are obtained from are the fixed window that does not grow (`alloc`) and the heap that
-  does (`heap`). `region <name> <kind> do … end` opens a region, rewound all at once on every path out of the block. Regions can be passed as parameters. Bytes
+  does (`heap`). `region <name> <kind> do … end .` opens a region, rewound all at once on every path out of the block. Regions can be passed as parameters. Bytes
   from a region cannot be carried out, and an outer region cannot be carved from while an inner region of the same root is open. On machines without an
   operating system the heap is rejected.
 ]

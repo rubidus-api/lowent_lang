@@ -673,50 +673,50 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   b <strong><span class="tok-t">u64</span></strong> .
   c <strong><span class="tok-t">u64</span></strong> .
   d <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-k">ref</span></strong> big . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le (field v a) <span class="tok-n">1000</span> .
-  <strong><span class="tok-k">requires</span></strong> le (field v b) <span class="tok-n">1000</span> .
-  <strong><span class="tok-k">requires</span></strong> le (field v c) <span class="tok-n">1000</span> .
-  <strong><span class="tok-k">requires</span></strong> le (field v d) <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le field v. a . <span class="tok-n">1000</span> . .
+  <strong><span class="tok-k">requires</span></strong> le field v. b . <span class="tok-n">1000</span> . .
+  <strong><span class="tok-k">requires</span></strong> le field v. c . <span class="tok-n">1000</span> . .
+  <strong><span class="tok-k">requires</span></strong> le field v. d . <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> add (add (field v a) (field v b)) (add (field v c) (field v d)) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> add add field v. a . field v. b . . add field v. c . field v. d . . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> use_sum <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le x. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">lit</span></strong> big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> add (total (<strong><span class="tok-k">ref</span></strong> v)) (total (<strong><span class="tok-k">ref</span></strong> v)) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">lit</span></strong> big <strong><span class="tok-k">do</span></strong> a x. . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> . .
+  <strong><span class="tok-k">return</span></strong> add total <strong><span class="tok-k">ref</span></strong> v . . total <strong><span class="tok-k">ref</span></strong> v . . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">return</span></strong> deref p .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">set</span></strong> p. add deref p. . <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">return</span></strong> deref p. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
-  <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> lt start. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> start .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
-  <strong><span class="tok-k">return</span></strong> add n r .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> start. .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> bump <strong><span class="tok-k">mut_ref</span></strong> n . . .
+  <strong><span class="tok-k">return</span></strong> add n. r. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_sum borrow.low 7
 use_sum(7) = 32
 $ lowentc --run use_bump borrow.low 7
 use_bump(7) = 16
-</code></pre></div></div><ul><li><code>total</code> 은 네 칸짜리 <code>big</code> 을 베끼지 않고 <code>ref big</code> 으로 빌려 읽는다. <code>field v a</code> 는 참조를 거쳐 칸을 읽는다.</li><li><code>use_sum</code> 은 같은 값을 <code>ref v</code> 로 두 번 빌려 넘긴다. 읽기 빌림은 여럿이어도 된다.</li><li><code>bump</code> 는 <code>mut_ref u64</code> 를 받아 <code>set p …</code> 로 호출자의 값을 바꾼다. 참조가 가리키는 값은 <code>deref p</code> 로 읽는다.</li><li><code>use_bump</code> 는 <code>var n</code> 을 <code>mut_ref n</code> 으로 빌려준다. <code>bump</code> 가 돌아온 뒤 <code>n</code> 은 8 이다.</li></ul><p>빌리는 쪽이 <code>ref x</code> 나 <code>mut_ref n</code> 을 <strong>부르는 자리에 적는다</strong>는 점이 중요하다. 호출을 읽는 사람은 그 자리만 보고도 이 호출이 <code>n</code> 을 바꿀 수 있다는 것을 안다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 널 참조는 어떻게 만드는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 만들 수 없다. 참조는 언제나 살아 있는 값을 가리킨다. “가리키는 것이 없음” 을 나타내야 하면 <code>option</code> 을 쓴다(11장). 그러면 꺼내기 전에 확인하는 코드가 소스에 드러나고, 확인하지 않고 꺼내면 멈춘다.</p></div></div><h3 id="s12-2">12.2 쓰기 권한은 한 방향으로만 좁아진다<a class="plink" href="#s12-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>읽기 빌림으로 쓰려 하면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/ref_write.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ref_write .
+</code></pre></div></div><ul><li><code>total</code> 은 네 칸짜리 <code>big</code> 을 베끼지 않고 <code>ref big .</code> 으로 빌려 읽는다. <code>field v. a .</code> 는 참조를 거쳐 칸을 읽는다.</li><li><code>use_sum</code> 은 같은 값을 <code>ref v .</code> 로 두 번 빌려 넘긴다. 읽기 빌림은 여럿이어도 된다.</li><li><code>bump</code> 는 <code>mut_ref u64</code> 를 받아 <code>set p …</code> 로 호출자의 값을 바꾼다. 참조가 가리키는 값은 <code>deref p. .</code> 로 읽는다.</li><li><code>use_bump</code> 는 <code>var n</code> 을 <code>mut_ref n .</code> 으로 빌려준다. <code>bump</code> 가 돌아온 뒤 <code>n</code> 은 8 이다.</li></ul><p>빌리는 쪽이 <code>ref x .</code> 나 <code>mut_ref n .</code> 을 <strong>부르는 자리에 적는다</strong>는 점이 중요하다. 호출을 읽는 사람은 그 자리만 보고도 이 호출이 <code>n</code> 을 바꿀 수 있다는 것을 안다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 널 참조는 어떻게 만드는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 만들 수 없다. 참조는 언제나 살아 있는 값을 가리킨다. “가리키는 것이 없음” 을 나타내야 하면 <code>option</code> 을 쓴다(11장). 그러면 꺼내기 전에 확인하는 코드가 소스에 드러나고, 확인하지 않고 꺼내면 멈춘다.</p></div></div><h3 id="s12-2">12.2 쓰기 권한은 한 방향으로만 좁아진다<a class="plink" href="#s12-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>읽기 빌림으로 쓰려 하면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/ref_write.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ref_write .
 <em><span class="tok-c">rem expect: E-TYPE-REF</span></em>
 
 <strong><span class="tok-k">fn</span></strong> reset <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> p <span class="tok-n">0</span> .
+  <strong><span class="tok-k">set</span></strong> p. <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check ref_write.low
 ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 </code></pre></div></div><p>반대 방향도 막힌다. 읽기로만 받은 값을 <code>mut</code>·<code>mut_ref</code>·<code>owned</code> 를 받는 자리에 넘기면 <code>E-TYPE-ARGMUT</code> 으로 거절된다. 쓸 수 있는 것을 읽기로 건네는 것은 되지만, 읽기만 되는 것을 쓸 수 있는 자리로 건넬 수는 없다. 어떤 값을 읽기로 받은 쪽은 <strong>자기가 보는 동안 그 값이 바뀌지 않는다</strong>고 믿을 수 있어야 하고, 그 믿음은 아무도 몰래 쓰기 권한을 얻지 못할 때에만 선다.</p><h3 id="s12-3">12.3 읽기 여럿 또는 쓰기 하나<a class="plink" href="#s12-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-29"></span><p>같은 값에 대한 빌림이 겹칠 때가 문제다. 쓰기 빌림 둘이 겹치면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/excl.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> excl .
@@ -724,16 +724,16 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 
 <strong><span class="tok-k">proc</span></strong> set_both <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> a <span class="tok-n">1</span> .
-  <strong><span class="tok-k">set</span></strong> b <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">set</span></strong> a. <span class="tok-n">1</span> .
+  <strong><span class="tok-k">set</span></strong> b. <span class="tok-n">2</span> .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> confused <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  set_both (<strong><span class="tok-k">mut_ref</span></strong> n) (<strong><span class="tok-k">mut_ref</span></strong> n) .
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+  set_both <strong><span class="tok-k">mut_ref</span></strong> n . <strong><span class="tok-k">mut_ref</span></strong> n . .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check excl.low
 13:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 </code></pre></div></div><p><code>set_both</code> 의 본문은 <code>a</code> 와 <code>b</code> 가 서로 다른 값이라고 믿는다. 같은 <code>n</code> 을 두 번 빌려주면 그 믿음이 깨지고, 남는 값이 1 인지 2 인지는 쓰는 차례에 달린다. 읽기와 쓰기가 겹쳐도 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/stale.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stale .
@@ -742,10 +742,10 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 <strong><span class="tok-k">fn</span></strong> look_then_write <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">ref</span></strong> n .
-  <strong><span class="tok-k">set</span></strong> n <span class="tok-n">5</span> .
-  <strong><span class="tok-k">return</span></strong> deref r .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">ref</span></strong> n . .
+  <strong><span class="tok-k">set</span></strong> n. <span class="tok-n">5</span> .
+  <strong><span class="tok-k">return</span></strong> deref r. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check stale.low
 8:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 </code></pre></div></div><p><code>r</code> 로 <code>n</code> 을 읽기로 빌린 채 <code>n</code> 에 5 를 쓰면, <code>r</code> 을 읽는 쪽은 자기가 본 값이 언제 바뀌었는지 알 수 없다.</p><p>같은 값 <code>n</code> 에 대한 빌림을 시간 순으로 늘어놓으면 규칙이 한눈에 보인다.</p><pre><code data-lang="text"> 시간 →          ①        ②        ③        ④        ⑤
@@ -754,7 +754,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
  mut_ref w n                                   ├────────┤  쓰기는 혼자일 때만
  ──────────────────────────────────────────────────────────────
  ✘ ref r n    ├──────────────────────────┤
-   set n 5                   ●                             읽는 동안 값이 바뀐다  → 거절
+   set n. 5 .                ●                             읽는 동안 값이 바뀐다  → 거절
  ✘ mut_ref a n ├──────────────┤
    mut_ref b n        ├──────────────┤                     쓰기 둘이 겹친다      → 거절</code></pre><p>이 두 모양 — 다른 흐름이 동시에 고치는 것, 읽는 중에 값이 바뀌는 것 — 은 소스를 읽어서는 찾기 어려운 결함이라 규칙으로 없앤다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>배타 규칙은 멀티스레드 프로그램에만 필요하다</strong></p><div class="dev-body">위의 두 예제에는 스레드가 하나도 없다. 한 흐름 안에서도 두 이름이 같은 값을 가리키면 한쪽의 쓰기가 다른 쪽의 믿음을 깬다. C 의 <code>memcpy</code> 가 겹치는 버퍼에서 미정의 동작인 것도 같은 이유다. 다만 이 규칙이 한 흐름 안에서 지켜지면 여러 흐름으로 나누었을 때 데이터 경합이 없다는 것까지 따라 나오고, 그것이 제7부의 증명이 기대는 자리다(45장).</div></div><h3 id="s12-4">12.4 빌림은 빌려준 값보다 오래 살 수 없다<a class="plink" href="#s12-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>op 안의 지역을 가리키는 참조를 op 밖으로 돌려주면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/escape.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> escape .
 <em><span class="tok-c">rem expect: E-ESCAPE</span></em>
@@ -762,8 +762,8 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 <strong><span class="tok-k">fn</span></strong> leak <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> here <strong><span class="tok-t">u32</span></strong> <span class="tok-n">42</span> .
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">ref</span></strong> here .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">ref</span></strong> here . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check escape.low
 7:0 E-ESCAPE: reference to a local escapes the op (dangling)
 </code></pre></div></div><p>만약 이 코드가 번역된다면, 돌려받은 참조는 이미 사라진 값을 가리킨다. 그 참조를 읽으면 무슨 값이 나올지 아무도 모른다. Lowent 는 이것을 실행해 보고 아는 것이 아니라 <strong>번역할 때</strong> 안다. 빌림은 그것을 연 블록 밖으로 나갈 수 없고(<code>E-BORROW-ESCAPE</code>), 빌려준 값이 옮겨졌는데 빌림이 남아 있어도 거절된다(<code>E-EXCL-MOVED</code>).</p><p>값을 op 밖으로 내보내야 한다면 참조가 아니라 <strong>값</strong>을 돌려주거나, 호출자가 넘긴 저장소에 담는다. 호출자보다 오래 사는 저장소가 필요하면 영역을 쓴다(18장).</p><h3 id="s12-5">12.5 <code>mut ref slice</code> 는 없다<a class="plink" href="#s12-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>슬라이스에는 <code>mut ref</code> 를 붙이지 않는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mref_slice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mref_slice .
@@ -772,24 +772,24 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 <strong><span class="tok-k">proc</span></strong> shrink <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mref_slice.low
 mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` does not — the elements are already writable through a plain `mut slice` (the descriptor is copied, the bytes are shared). The ONLY thing it adds is replacing the caller's descriptor, which silently changes the length behind the caller's back. Say the new slice with a RETURN VALUE instead (SPEC-004 §4.4a: the windows through which someone else can change your local are listed, and this one is closed)
 </code></pre></div></div><p><code>mut slice</code> 를 넘기면 원소는 이미 쓸 수 있다. 슬라이스 값 <code>{시작, 길이}</code> 는 베껴 가지만 가리키는 바이트는 같기 때문이다. 그러니 <code>mut ref slice</code> 가 더 주는 능력은 하나뿐이다 — <strong>호출자 쪽 슬라이스의 길이와 시작을 몰래 바꾸는 것.</strong> 그러면 호출자의 반복문은 자기 코드 어디에도 대입이 없는데 길이가 달라진다. 새 슬라이스는 돌려주면 된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/head.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> head .
 <em><span class="tok-c">rem run: first_two [9,8,7,6]</span></em>
 
 <strong><span class="tok-k">fn</span></strong> take_front <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le n (len p) .
+  <strong><span class="tok-k">requires</span></strong> le n. len p. . . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> subslice p <span class="tok-n">0</span> n .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> subslice p. <span class="tok-n">0</span> n. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> ge (len xs) <span class="tok-n">2</span> .
+  <strong><span class="tok-k">requires</span></strong> ge len xs. . <span class="tok-n">2</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> take_front xs <span class="tok-n">2</span> .
-  <strong><span class="tok-k">return</span></strong> len front .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> take_front xs. <span class="tok-n">2</span> . .
+  <strong><span class="tok-k">return</span></strong> len front. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run first_two head.low [9,8,7,6]
 first_two([9,8,7,6]) = 2
   arg0 (written) = [9,8,7,6]
@@ -798,77 +798,77 @@ first_two([9,8,7,6]) = 2
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">return</span></strong> deref p .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">set</span></strong> p. add deref p. . <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">return</span></strong> deref p. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
-  <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> lt start. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> start .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> start. .
   <em><span class="tok-c">rem ✘ 부르는 자리에 `mut_ref` 를 빠뜨렸다 --- 참조가 아니라 수 7 이 넘어간다</span></em>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> bump n .
-  <strong><span class="tok-k">return</span></strong> add n r .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> bump n. . .
+  <strong><span class="tok-k">return</span></strong> add n. r. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nomutref.low
 mistake_nomutref.low:16:0 E-TYPE-ARG: this op takes a BORROW here (`ref` / `mut_ref`), and a plain value was passed. Take the borrow at the call — `mut_ref &lt;name>` — so the reader sees where the callee may write. It used to pass `--check` and stop at run time with `E-VM-TYPE: deref needs a reference`
-</code></pre></div></div><p><code>bump</code> 는 “수를 가리키는 참조” 를 받기로 했는데 <code>bump n</code> 은 수 7 을 그대로 넘긴다. C++ 의 참조 매개변수는 부르는 자리에 아무 표시가 없어도 되지만, Lowent 는 호출만 보고도 무엇이 바뀔지 알게 하려고 <code>mut_ref n</code> 을 적게 한다. 이 판의 도구는 이 빠뜨림을 번역에서 거절하지 않고, 실행하면 <code>deref</code> 가 참조가 아닌 것을 만나 멈춘다(개발 저장소에 결함으로 적어 두었다). 멈춤의 메시지가 “deref needs a reference” 이면 부르는 자리에서 <code>mut_ref</code> 나 <code>ref</code> 를 찾는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 참조를 <code>deref</code> 없이 수처럼 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_noderef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noderef .
+</code></pre></div></div><p><code>bump</code> 는 “수를 가리키는 참조” 를 받기로 했는데 <code>bump n</code> 은 수 7 을 그대로 넘긴다. C++ 의 참조 매개변수는 부르는 자리에 아무 표시가 없어도 되지만, Lowent 는 호출만 보고도 무엇이 바뀔지 알게 하려고 <code>mut_ref n .</code> 을 적게 한다. 이 판의 도구는 이 빠뜨림을 번역에서 거절하지 않고, 실행하면 <code>deref</code> 가 참조가 아닌 것을 만나 멈춘다(개발 저장소에 결함으로 적어 두었다). 멈춤의 메시지가 “deref needs a reference” 이면 부르는 자리에서 <code>mut_ref</code> 나 <code>ref</code> 를 찾는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 참조를 <code>deref</code> 없이 수처럼 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_noderef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noderef .
 <em><span class="tok-c">rem expect: E-TYPE-REFVAL</span></em>
 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `p` 는 수가 아니라 수를 가리키는 참조다 --- `deref p` 로 읽어야 한다</span></em>
-  <strong><span class="tok-k">return</span></strong> add p p .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> add p. p. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> double <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le x. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> x .
-  <strong><span class="tok-k">return</span></strong> twice (<strong><span class="tok-k">ref</span></strong> n) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> x. .
+  <strong><span class="tok-k">return</span></strong> twice <strong><span class="tok-k">ref</span></strong> n . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noderef.low
 mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is expected. `ref t` / `mut_ref t` names a place, not the value in it — read it with `deref &lt;name>` (and write through it with `set &lt;name> …`). It used to pass `--check` and stop at run time with `E-VM-TYPE`, which blamed the arithmetic instead of the missing read
-</code></pre></div></div><p>참조는 값이 <strong>있는 곳</strong>이지 값이 아니다. 읽을 때마다 <code>deref p</code> 라고 적어서 “여기서 빌린 값을 읽는다” 를 드러낸다. C 에서 <code>*p</code> 를 빠뜨리면 주소끼리 더하는 엉뚱한 계산이 되지만, Lowent 는 주소 계산을 허용하지 않으므로 잘못된 값이 조용히 나오지는 않는다. 다만 이 판의 도구는 번역에서 알리지 않고 실행 중에 멈춘다(결함으로 적어 두었다). 고친 줄은 <code>add (deref p) (deref p)</code> 다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>let</code> 으로 지은 이름을 쓰기로 빌려준다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_letmutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_letmutref .
+</code></pre></div></div><p>참조는 값이 <strong>있는 곳</strong>이지 값이 아니다. 읽을 때마다 <code>deref p. .</code> 라고 적어서 “여기서 빌린 값을 읽는다” 를 드러낸다. C 에서 <code>*p</code> 를 빠뜨리면 주소끼리 더하는 엉뚱한 계산이 되지만, Lowent 는 주소 계산을 허용하지 않으므로 잘못된 값이 조용히 나오지는 않는다. 다만 이 판의 도구는 번역에서 알리지 않고 실행 중에 멈춘다(결함으로 적어 두었다). 고친 줄은 <code>add deref p. . deref p. . .</code> 다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>let</code> 으로 지은 이름을 쓰기로 빌려준다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_letmutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_letmutref .
 <em><span class="tok-c">rem expect: E-TYPE-ARGMUT</span></em>
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">set</span></strong> p. add deref p. . <span class="tok-n">1</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
-  <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> lt start. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `let` 으로 지은 이름인데 쓰기로 빌려준다</span></em>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> start .
-  bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> start. .
+  bump <strong><span class="tok-k">mut_ref</span></strong> n . .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_letmutref.low
 mistake_letmutref.low:15:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken of a name that cannot be written: a `let` binding (or a shared input). `let` says the value does not change (§6.5.1) — if a borrow could change it, the reader who checked that name once would be wrong, and the borrow makes the change invisible at the call site. Bind it with `var`, or take a read borrow (`ref`)
 </code></pre></div></div><p><code>let</code> 은 “이 이름의 값은 바뀌지 않는다” 는 약속이다. 그런 이름을 <code>mut_ref</code> 로 빌려주면 약속이 깨지므로 <code>E-TYPE-ARGMUT</code> 로 거절한다. 빌림은 부르는 자리에서 보이지 않게 값을 바꾸기 때문에, 한 번 확인하면 된다는 <code>let</code> 의 값이 사라진다. 바뀌어야 하는 값은 처음부터 <code>var</code> 로 짓는다. 그러면 읽는 사람이 “이 값은 어딘가에서 바뀐다” 를 선언에서 안다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>input</code> 으로 넘긴 변수는 불린 op 이 바꿀 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/copyparam.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> copyparam .
 <em><span class="tok-c">rem run: use_inc 7</span></em>
 
 <strong><span class="tok-k">fn</span></strong> inc <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> lt x <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> lt x. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `x` 는 호출자가 넘긴 값의 사본이다 --- 여기서 무엇을 해도 호출자의 변수에 닿지 않는다</span></em>
-  <strong><span class="tok-k">var</span></strong> y <strong><span class="tok-t">u64</span></strong> x .
-  <strong><span class="tok-k">set</span></strong> y (add y <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">return</span></strong> y .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">var</span></strong> y <strong><span class="tok-t">u64</span></strong> x. .
+  <strong><span class="tok-k">set</span></strong> y. add y. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">return</span></strong> y. .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> use_inc <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> lt start. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> start .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> inc n .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> start. .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> inc n. . .
   <em><span class="tok-c">rem `n` 은 그대로 7 이다 --- 바꾸게 하려면 `mut_ref n` 으로 빌려준다</span></em>
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_inc copyparam.low 7
 use_inc(7) = 7
 </code></pre></div></div><p>맨 값 매개변수(<code>input x u64</code>)는 호출자의 값을 <strong>베껴서</strong> 받는다. <code>inc</code> 가 안에서 무엇을 하든 <code>use_inc</code> 의 <code>n</code> 은 7 그대로다. 어떤 언어는 큰 값을 몰래 참조로 넘겨 이 경계가 흐리지만, Lowent 에서 호출자의 값을 바꾸는 길은 <code>mut_ref</code> 하나이고 그 표시는 부르는 자리에 남는다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>한 op 안에서는 같은 값을 <code>mut_ref</code> 로 한 번만 빌릴 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/seqborrow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> seqborrow .
@@ -876,24 +876,24 @@ use_inc(7) = 7
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> .
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
-  <strong><span class="tok-k">requires</span></strong> lt (deref p) <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> lt deref p. . <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">set</span></strong> p. add deref p. . <span class="tok-n">1</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> use_twice <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
-  <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">900</span> .
+  <strong><span class="tok-k">requires</span></strong> lt start. <span class="tok-n">900</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> start .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> start. .
   <em><span class="tok-c">rem 첫 빌림은 이 호출이 끝날 때 돌아온다 --- 그래서 다음 줄에서 또 빌릴 수 있다</span></em>
-  bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
-  bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+  bump <strong><span class="tok-k">mut_ref</span></strong> n . .
+  bump <strong><span class="tok-k">mut_ref</span></strong> n . .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_twice seqborrow.low 7
 use_twice(7) = 9
-</code></pre></div></div><p>배타 규칙이 막는 것은 <strong>동시에 겹친</strong> 빌림이다. 호출 하나에 넘긴 <code>mut_ref n</code> 은 그 호출이 끝나면 돌아오므로 다음 줄에서 또 빌릴 수 있다. 거절되는 것은 <code>set_both (mut_ref n) (mut_ref n)</code> 처럼 한 호출 안에 두 빌림이 함께 살아 있는 모양이다.</p></div></div><h3 id="s12-7">12.7 이 장의 문법을 한눈에<a class="plink" href="#s12-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>input v ref big .</code></td><td>읽기로 빌려 받는다</td><td>큰 값을 베끼지 않고, 바꾸지 않는다고 약속한다</td></tr><tr><td><code>input p mut_ref u64 .</code></td><td>쓰기로 빌려 받는다</td><td>호출자의 값을 바꿀 수 있는 유일한 길</td></tr><tr><td><code>total (ref v)</code> · <code>bump (mut_ref n)</code></td><td>부르는 자리에서 빌려준다</td><td>호출만 보고도 무엇이 바뀔지 안다</td></tr><tr><td><code>deref p</code></td><td>참조가 가리키는 값을 읽는다</td><td>값과 값이 있는 곳을 섞지 않는다</td></tr><tr><td><code>set p &lt;값> .</code></td><td>참조가 가리키는 곳에 쓴다(<code>mut_ref</code>)</td><td>읽기 빌림으로는 <code>E-TYPE-REF</code></td></tr><tr><td><code>field v a</code></td><td>참조를 거쳐 칸을 읽는다</td><td>구조체에 대한 참조도 같은 철자</td></tr><tr><td>같은 값에 <code>mut_ref</code> 둘 · <code>ref</code> 와 쓰기</td><td>겹친 빌림 — 거절(<code>E-EXCL</code>)</td><td>읽기 여럿 또는 쓰기 하나</td></tr><tr><td>같은 저장소를 쓰기 자리와 읽기 자리에</td><td>피호출자가 <code>inplace &lt;쓰기> &lt;읽기> .</code> 로 허락했고 <strong>같은 구간</strong>일 때만 — 아니면 <code>E-EXCL-INPLACE</code></td><td>원소마다 읽고 쓰는 몸은 같은 구간에서만 옳다</td></tr><tr><td><code>inplace o a</code> 를 적은 op 의 몸</td><td><code>a</code> 를 다 읽은 뒤에 <code>o</code> 에 쓰거나, 한 첨자로 원소마다 읽고 쓴다 — 아니면 <code>E-INPLACE-UNPROVEN</code></td><td>선언이 참인지 처리기가 몸에서 본다</td></tr><tr><td><code>invalidates &lt;입력></code> 을 밝힌 op 을 부른 뒤 그 저장소의 옛 뷰를 쓴다</td><td>거절(<code>E-VIEW-INVALIDATED</code>) — 뷰를 다시 받는다</td><td>반환·성장·되감기 뒤의 뷰는 남의 자리를 본다</td></tr><tr><td><code>return ref here .</code></td><td>지역을 가리키는 참조를 돌려준다 — 거절</td><td>사라진 값을 가리키지 않게</td></tr><tr><td><code>mut ref slice</code></td><td>없다 — 거절(<code>E-MREF-SLICE</code>)</td><td>길이를 몰래 바꾸지 않게 — 새 슬라이스는 돌려준다</td></tr></table></div><p class="float-caption">표 12.1 — 빌리기의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>ref t</code> 는 읽기, <code>mut_ref t</code> 는 쓰기 빌림이고, 빌리는 쪽이 부르는 자리에 <code>ref x</code>·<code>mut_ref n</code> 을 적는다. 참조가 가리키는 값은 <code>deref</code> 로 읽는다. 쓰기 권한은 한 방향으로만 좁아진다. 한 값에 대한 빌림은 읽기 여럿 또는 쓰기 하나이며, 빌림은 빌려준 값보다 오래 살 수 없다. <code>mut ref slice</code> 는 거절되고, 새 슬라이스는 돌려준다.</div></div>
+</code></pre></div></div><p>배타 규칙이 막는 것은 <strong>동시에 겹친</strong> 빌림이다. 호출 하나에 넘긴 <code>mut_ref n .</code> 은 그 호출이 끝나면 돌아오므로 다음 줄에서 또 빌릴 수 있다. 거절되는 것은 <code>set_both mut_ref n . mut_ref n . .</code> 처럼 한 호출 안에 두 빌림이 함께 살아 있는 모양이다.</p></div></div><h3 id="s12-7">12.7 이 장의 문법을 한눈에<a class="plink" href="#s12-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>input v ref big .</code></td><td>읽기로 빌려 받는다</td><td>큰 값을 베끼지 않고, 바꾸지 않는다고 약속한다</td></tr><tr><td><code>input p mut_ref u64 .</code></td><td>쓰기로 빌려 받는다</td><td>호출자의 값을 바꿀 수 있는 유일한 길</td></tr><tr><td><code>total ref v . .</code> · <code>bump mut_ref n . .</code></td><td>부르는 자리에서 빌려준다</td><td>호출만 보고도 무엇이 바뀔지 안다</td></tr><tr><td><code>deref p. .</code></td><td>참조가 가리키는 값을 읽는다</td><td>값과 값이 있는 곳을 섞지 않는다</td></tr><tr><td><code>set p &lt;값> .</code></td><td>참조가 가리키는 곳에 쓴다(<code>mut_ref</code>)</td><td>읽기 빌림으로는 <code>E-TYPE-REF</code></td></tr><tr><td><code>field v. a .</code></td><td>참조를 거쳐 칸을 읽는다</td><td>구조체에 대한 참조도 같은 철자</td></tr><tr><td>같은 값에 <code>mut_ref</code> 둘 · <code>ref</code> 와 쓰기</td><td>겹친 빌림 — 거절(<code>E-EXCL</code>)</td><td>읽기 여럿 또는 쓰기 하나</td></tr><tr><td>같은 저장소를 쓰기 자리와 읽기 자리에</td><td>피호출자가 <code>inplace &lt;쓰기> &lt;읽기> .</code> 로 허락했고 <strong>같은 구간</strong>일 때만 — 아니면 <code>E-EXCL-INPLACE</code></td><td>원소마다 읽고 쓰는 몸은 같은 구간에서만 옳다</td></tr><tr><td><code>inplace o a</code> 를 적은 op 의 몸</td><td><code>a</code> 를 다 읽은 뒤에 <code>o</code> 에 쓰거나, 한 첨자로 원소마다 읽고 쓴다 — 아니면 <code>E-INPLACE-UNPROVEN</code></td><td>선언이 참인지 처리기가 몸에서 본다</td></tr><tr><td><code>invalidates &lt;입력></code> 을 밝힌 op 을 부른 뒤 그 저장소의 옛 뷰를 쓴다</td><td>거절(<code>E-VIEW-INVALIDATED</code>) — 뷰를 다시 받는다</td><td>반환·성장·되감기 뒤의 뷰는 남의 자리를 본다</td></tr><tr><td><code>return ref here . .</code></td><td>지역을 가리키는 참조를 돌려준다 — 거절</td><td>사라진 값을 가리키지 않게</td></tr><tr><td><code>mut ref slice</code></td><td>없다 — 거절(<code>E-MREF-SLICE</code>)</td><td>길이를 몰래 바꾸지 않게 — 새 슬라이스는 돌려준다</td></tr></table></div><p class="float-caption">표 12.1 — 빌리기의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>ref t</code> 는 읽기, <code>mut_ref t</code> 는 쓰기 빌림이고, 빌리는 쪽이 부르는 자리에 <code>ref x .</code>·<code>mut_ref n .</code> 을 적는다. 참조가 가리키는 값은 <code>deref</code> 로 읽는다. 쓰기 권한은 한 방향으로만 좁아진다. 한 값에 대한 빌림은 읽기 여럿 또는 쓰기 하나이며, 빌림은 빌려준 값보다 오래 살 수 없다. <code>mut ref slice</code> 는 거절되고, 새 슬라이스는 돌려준다.</div></div>
 <div class="nav"><a href="ch11.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch13.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

@@ -121,11 +121,11 @@ maxcpu 8
 With `smp` switched off, `tick_rate` gives 100 and `cpus` gives 8. Once the value is fixed, switched-off branches do not remain in the output. The cost is zero.
 
 ```text
- build option smp bool default true .       ← the source declares the knob
- small.config:  smp false                   ← the config file gives a value (default if absent)
+ build option smp bool default true .           ← the source declares the knob
+ small.config:  smp false                       ← the config file gives a value (default if absent)
 
- if config smp . do return config hz . end  ← the branch when smp is on
- return 100 .                               ← the branch when it is off
+ if config smp . do return config hz . . end .  ← the branch when smp is on
+ return 100 .                                   ← the branch when it is off
 
  translation  both branches are parsed and type-checked
  output       only the chosen branch stays (the off branch costs 0)
@@ -151,7 +151,7 @@ among the choices (`E-CONFIG-TYPE`) or naming a knob that does not exist (`E-CON
 
 == Tests
 
-`expect` inside a `test <name> do … end` block is an assertion. `--test` runs every test.
+`expect` inside a `test <name> do … end .` block is an assertion. `--test` runs every test.
 
 #demo("examples/ch31/tests_clause.low")
 
@@ -164,7 +164,7 @@ wrong*. What to fix differs. Here `narrow_wrap` must become `narrow_sat`. And th
 
 `expect` belongs inside a test block only. Written in an op body it is refused with `E-EXPECT-PLACE`; a promise an op keeps is written as `requires` or `ensures`. Test names share one namespace with ops, so `fn check` next to `test check` is `E-NAME-DUP`.
 
-Concurrent code uses `test <name> schedule explore_interleavings . do … end` to run every possible ordering of flows and see whether the answers agree
+Concurrent code uses `test <name> schedule explore_interleavings . do … end .` to run every possible ordering of flows and see whether the answers agree
 (#chref("tasks-channels")). When there are many cases, `limit <number>` sets a ceiling.
 
 An op head also has clauses for documentation and tests.
@@ -175,7 +175,7 @@ An op head also has clauses for documentation and tests.
   long one, write several lines with `lowdoc text DOC … DOC .` (#chref("surface")).
 - `tests first_two_ok first_two_short .` lists *the names of the ops* that test this op, not the names of `test` blocks. The tool checks that
   those names exist and refuses with `E-CONTRACT-UNDEF` if they do not. If a test is renamed or removed, the head tells you.
-- `errors too_short lt (len data) 2 .` is a failure with a condition. The two testing ops check the success arm and the failure arm, and the
+- `errors too_short lt len data. . 2 . .` is a failure with a condition. The two testing ops check the success arm and the failure arm, and the
   `test` block ties them together with `expect`.
 
 #qa[
@@ -274,9 +274,9 @@ the slow path, used to see whether both paths give the same answer.
   [`lowentc run` · `lowentc build`], [run the project on the VM · build into `out/`], [the manifest is found by walking upward],
   [`lowentc add <name> <place>` · `--lock-write` · `--lock`], [pin dependencies with hashes], [same version, different bytes: a different dependency],
   [`build option smp bool default true .`], [a build knob --- `bool`·`int`·`choice`], [a knob nobody reads is `E-OPT-UNUSED`],
-  [`config smp` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
-  [`test <name> do expect <condition> . end` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
-  [`test … schedule explore_interleavings limit <n> . do … end`], [a test that runs every order], [bugs of rare orders],
+  [`config smp .` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
+  [`test <name> do expect <condition> . end .` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
+  [`test … schedule explore_interleavings limit <n> . do … end .`], [a test that runs every order], [bugs of rare orders],
   [`lowentc --run <op> <file> <args…>`], [run one op on the VM], [the tool fills capability positions --- a rejected unit does not run],
   [`--why-slow` · `--no-fast`], [ops left on the slow path and why · everything on the slow path], [the tool speaks about performance],
   [`lowdoc "…" .` · `tests op1 op2 .`], [documentation attached to the op · names of ops testing it], [docs move with the op, and a missing test is reported by the head],

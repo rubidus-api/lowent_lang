@@ -10,27 +10,27 @@ module vm_head .
 
 rem ① 평평하게 — arity 가 괄호를 친다 (Γ 가 필요하다)
 fn flat input a u8 . input b u8 . output u8 . do
-  return add a mul b 2 .
-end
+  return add a. mul b. 2 . . .
+end .
 
 rem ② 괄호로 — 구조가 문자열에 있다
 fn parens input a u8 . input b u8 . output u8 . do
-  return add a (mul b 2) .
-end
+  return add a. mul b. 2 . . .
+end .
 
 rem ③ 안쪽이 앞에 — 괄호가 닫고 그다음 것이 바깥 op 의 인자다
 fn early_close input a u8 . input b u8 . output u8 . do
-  return add (mul b 2) a .
-end
+  return add mul b. 2 . a. . .
+end .
 
 rem ④ 중첩 — 세 겹
 fn deep input a u8 . output u8 . do
-  return add 1 (add 2 (add 3 a)) .
-end
+  return add 1 add 2 add 3 a. . . . .
+end .
 
 test head_agrees do
-  expect eq (flat 3 4) 11 .
-  expect eq (parens 3 4) 11 .
-  expect eq (early_close 3 4) 11 .
-  expect eq (deep 4) 10 .
-end
+  expect eq flat 3 4 . 11 . .
+  expect eq parens 3 4 . 11 . .
+  expect eq early_close 3 4 . 11 . .
+  expect eq deep 4 . 10 . .
+end .

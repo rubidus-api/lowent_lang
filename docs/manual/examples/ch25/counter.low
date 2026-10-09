@@ -4,24 +4,24 @@ rem run: use_counter
 actor counter do
   state do
     value u64 .
-  end
+  end .
 
   proc inc output u64 . effects state .
   do
-    set value (add value 1) .
-    return value .
-  end
+    set value. add value. 1 . .
+    return value. .
+  end .
 
   fn get output u64 .
   do
-    return value .
-  end
-end
+    return value. .
+  end .
+end .
 
 proc use_counter output u64 . effects state .
 do
-  var c counter spawn actor counter .
-  let a u64 send c inc .
-  let b u64 send c inc .
-  return send c get .
-end
+  var c counter spawn actor counter . .
+  let a u64 send c. inc . .
+  let b u64 send c. inc . .
+  return send c. get . .
+end .

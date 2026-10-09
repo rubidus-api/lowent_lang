@@ -7,67 +7,67 @@ rem run: middle [10,20,30,40] [0,0]
 
 fn over2 input a u8 . output bool .
 do
-  return gt a 2 .
-end
+  return gt a. 2 . .
+end .
 
 fn dbl input a u8 . output u8 .
 do
-  return wrap_add a a .
-end
+  return wrap_add a. a. . .
+end .
 
 fn addu input acc u64 . input x u8 . output u64 .
 do
-  return wrap_add acc (widen u64 x) .
-end
+  return wrap_add acc. widen u64 x. . . .
+end .
 
 fn is_zero input a u8 . output bool .
 do
-  return eq a 0 .
-end
+  return eq a. 0 . .
+end .
 
 fn under10 input a u8 . output bool .
 do
-  return lt a 10 .
-end
+  return lt a. 10 . .
+end .
 
 proc big_doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
-  pipe xs do
+  pipe xs. do
     filter over2 .
     map dbl .
-    collect into out .
-  end
-  return len out .
-end
+    collect into out. .
+  end .
+  return len out. . .
+end .
 
 fn sum_big input xs slice u8 . output u64 .
 do
-  return pipe xs do
+  return pipe xs. do
     filter over2 .
     fold 0 addu .
-  end .
-end
+  end . .
+end .
 
 fn has_zero input xs slice u8 . output bool .
 do
-  return pipe xs do
+  return pipe xs. do
     any is_zero .
-  end .
-end
+  end . .
+end .
 
 fn all_small input xs slice u8 . output bool .
 do
-  return pipe xs do
+  return pipe xs. do
     all under10 .
-  end .
-end
+  end . .
+end .
 
 proc middle input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
-  pipe xs do
+  pipe xs. do
     skip 1 .
     take 2 .
-    collect into out .
-  end
-  return len out .
-end
+    collect into out. .
+  end .
+  return len out. . .
+end .

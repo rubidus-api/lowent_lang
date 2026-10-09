@@ -13,8 +13,8 @@ use chacha from "../../lib/chacha.low" .
 
 rem 낱말 하나 — 카운터 블록은 **제자리에서** 올라간다(`aes_ctr` 와 같은 규약).
 export proc cc input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  return call_builtin chacha20 key c s d .
-end
+  return call_builtin chacha20 key. c. s. d. . .
+end .
 
 rem ★ 낱말과 `lib/chacha.low` 의 `stream` 이 **같은 바이트**를 내는가. 1 이면 같다.
 rem   `c` 는 16 바이트(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce), `n` 은 같은 nonce 12 바이트.
@@ -22,28 +22,28 @@ export proc same input key slice u8 . input c mut slice u8 . input n slice u8 . 
   input d1 mut slice u8 . input d2 mut slice u8 .
   input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none .
 do
-  guard eq (len d1) (len s) else return 0 .
-  guard eq (len d2) (len s) else return 0 .
-  let a u64 call_builtin chacha20 key c s d1 .
-  guard eq a (len s) else return 0 .
-  let r result u64 chacha.chacha_error chacha.stream key n cnt s d2 st work ks .
-  guard is_ok r else return 0 .
-  guard eq (ok_value r) (len s) else return 0 .
+  guard eq len d1. . len s. . . else return 0 . .
+  guard eq len d2. . len s. . . else return 0 . .
+  let a u64 call_builtin chacha20 key. c. s. d1. . .
+  guard eq a. len s. . . else return 0 . .
+  let r result u64 chacha.chacha_error chacha.stream key. n. cnt. s. d2. st. work. ks. . .
+  guard is_ok r. . else return 0 . .
+  guard eq ok_value r. . len s. . . else return 0 . .
   var i u64 0 .
-  while lt i (len s) do
-    guard eq (cast u64 (idx d1 i)) (cast u64 (idx d2 i)) else return 0 .
-    set i (add i 1) .
-  end
+  while lt i. len s. . . do
+    guard eq cast u64 idx d1. i. . . cast u64 idx d2. i. . . . else return 0 . .
+    set i. add i. 1 . .
+  end .
   return 1 .
-end
+end .
 
 rem 정의 쪽만 — 시험이 왜 0 인지 가르는 자리.
 export proc onlylib input key slice u8 . input n slice u8 . input s slice u8 . input d2 mut slice u8 .
   input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
-  let r result u64 chacha.chacha_error chacha.stream key n 1 s d2 st work ks .
-  guard is_ok r else return 111 .
-  return ok_value r .
-end
+  let r result u64 chacha.chacha_error chacha.stream key. n. 1 s. d2. st. work. ks. . .
+  guard is_ok r. . else return 111 . .
+  return ok_value r. . .
+end .
 
 rem ★★★★★ **엮은 판과 잎 둘이 같은 답인가** (RFC-0128, 2026-09-24).
 rem   `chacha_poly` 의 뜻은 «`chacha20` 을 돌리고 그 암호문을 `poly1305` 에 먹인다» 이다.
@@ -51,13 +51,13 @@ rem   기계 판만 둘을 어긋내어 엮으므로, 같은 입력에 **같은 
 rem   나와야 한다. 512 의 앞뒤가 갈림길이다(엮은 고리는 512 씩, 꼬리는 잎 둘이 판다).
 export proc cp input key slice u8 . input c mut slice u8 . input st mut slice u64 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  return call_builtin chacha_poly key c st s d .
-end
+  return call_builtin chacha_poly key. c. st. s. d. . .
+end .
 
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc cppair input key slice u8 . input c mut slice u8 . input st mut slice u64 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  let n u64 call_builtin chacha20 key c s d .
-  guard eq n (len s) else return 0 .
-  return call_builtin poly1305 st d .
-end
+  let n u64 call_builtin chacha20 key. c. s. d. . .
+  guard eq n. len s. . . else return 0 . .
+  return call_builtin poly1305 st. d. . .
+end .

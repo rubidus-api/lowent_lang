@@ -24,52 +24,52 @@ fn f output u64 . do
   rem ASCII
   let a8 slice u8 "A" .
   let a16 slice u16 u"A" .
-  let c8 option u64 utf8.decode a8 0 .
-  let c16 option u64 utf16.decode a16 0 .
-  guard is_some c8 else return 90 .
-  guard is_some c16 else return 91 .
-  guard eq (some_value c8) (some_value c16) else return 92 .
-  guard eq (some_value c8) 65 else return 93 .
+  let c8 option u64 utf8.decode a8. 0 . .
+  let c16 option u64 utf16.decode a16. 0 . .
+  guard is_some c8. . else return 90 . .
+  guard is_some c16. . else return 91 . .
+  guard eq some_value c8. . some_value c16. . . else return 92 . .
+  guard eq some_value c8. . 65 . else return 93 . .
 
   rem 한글 — UTF-8 3 바이트 · UTF-16 1 유닛
   let k8 slice u8 "한" .
   let k16 slice u16 u"한" .
-  guard eq (len k8) 3 else return 94 .
-  guard eq (len k16) 1 else return 95 .
-  let d8 option u64 utf8.decode k8 0 .
-  let d16 option u64 utf16.decode k16 0 .
-  guard is_some d8 else return 96 .
-  guard is_some d16 else return 97 .
-  guard eq (some_value d8) (some_value d16) else return 98 .
-  guard eq (some_value d8) 54620 else return 99 .
+  guard eq len k8. . 3 . else return 94 . .
+  guard eq len k16. . 1 . else return 95 . .
+  let d8 option u64 utf8.decode k8. 0 . .
+  let d16 option u64 utf16.decode k16. 0 . .
+  guard is_some d8. . else return 96 . .
+  guard is_some d16. . else return 97 . .
+  guard eq some_value d8. . some_value d16. . . else return 98 . .
+  guard eq some_value d8. . 54620 . else return 99 . .
 
   rem 비-BMP — UTF-8 4 바이트 · UTF-16 **서러게이트 쌍** 2 유닛
   let e8 slice u8 "😀" .
   let e16 slice u16 u"😀" .
-  guard eq (len e8) 4 else return 100 .
-  guard eq (len e16) 2 else return 101 .
-  let g8 option u64 utf8.decode e8 0 .
-  let g16 option u64 utf16.decode e16 0 .
-  guard is_some g8 else return 102 .
-  guard is_some g16 else return 103 .
-  guard eq (some_value g8) (some_value g16) else return 104 .
-  guard eq (some_value g8) 128512 else return 105 .
+  guard eq len e8. . 4 . else return 100 . .
+  guard eq len e16. . 2 . else return 101 . .
+  let g8 option u64 utf8.decode e8. 0 . .
+  let g16 option u64 utf16.decode e16. 0 . .
+  guard is_some g8. . else return 102 . .
+  guard is_some g16. . else return 103 . .
+  guard eq some_value g8. . some_value g16. . . else return 104 . .
+  guard eq some_value g8. . 128512 . else return 105 . .
 
   rem 글자 수는 표현이 달라도 같아야 한다 — 이것이 두 모듈을 함께 쓰는 이유다.
   let m8 slice u8 "A한😀" .
   let m16 slice u16 u"A한😀" .
-  let n8 option u64 utf8.count_chars m8 .
-  let n16 option u64 utf16.count_chars m16 .
-  guard is_some n8 else return 106 .
-  guard is_some n16 else return 107 .
-  guard eq (some_value n8) (some_value n16) else return 108 .
-  guard eq (some_value n8) 3 else return 109 .
+  let n8 option u64 utf8.count_chars m8. . .
+  let n16 option u64 utf16.count_chars m16. . .
+  guard is_some n8. . else return 106 . .
+  guard is_some n16. . else return 107 . .
+  guard eq some_value n8. . some_value n16. . . else return 108 . .
+  guard eq some_value n8. . 3 . else return 109 . .
 
   rem 바이트 수와 유닛 수는 **다르다** — 같으면 위 대조가 우연일 수 있다.
-  guard eq (len m8) 8 else return 110 .
-  guard eq (len m16) 4 else return 111 .
+  guard eq len m8. . 8 . else return 110 . .
+  guard eq len m16. . 4 . else return 111 . .
 
-  guard utf8.is_valid m8 else return 112 .
-  guard utf16.is_valid m16 else return 113 .
+  guard utf8.is_valid m8. . else return 112 . .
+  guard utf16.is_valid m16. . else return 113 . .
   return 42 .
-end
+end .

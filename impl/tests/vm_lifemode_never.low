@@ -6,26 +6,26 @@ rem   완료가 실패할 수 없으면 그냥 버려도 삼킬 것이 없으므
 
 module vm_lifemode_never .
 
-export def enum late do too_late . end
+export def enum late do too_late . end .
 
 export def struct ticket do
   id u64 .
-end
+end .
 
 export fn issue input i u64 . output owned vm_lifemode_never.ticket . do
-  return lit ticket do id i . end .
-end
+  return lit ticket do id i. . end . .
+end .
 
 export fn finish input t owned vm_lifemode_never.ticket . output result u64 vm_lifemode_never.late . do
-  return ok (field t id) .
-end
+  return ok field t. id . . .
+end .
 
 rem ✗ 여기가 거절돼야 한다 — 표를 받아 놓고 아무것도 안 한다.
 fn never output u64 . do
-  let t owned vm_lifemode_never.ticket vm_lifemode_never.issue 7 .
+  let t owned vm_lifemode_never.ticket vm_lifemode_never.issue 7 . .
   return 1 .
-end
+end .
 
 proc main output u8 . effects none . do
   return 0 .
-end
+end .

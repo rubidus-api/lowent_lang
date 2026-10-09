@@ -40,20 +40,20 @@
 
 #demo("examples/ch07/loops.low")
 
-- `count_big` 은 0 부터 `n` 미만까지 세면서 5 보다 큰 수만 센다. `while lt i n do … end` 의 모양을
+- `count_big` 은 0 부터 `n` 미만까지 세면서 5 보다 큰 수만 센다. `while lt i. n. . do … end .` 의 모양을
   보면, 조건은 몸을 여는 `do` 에서 끝난다 --- 조건과 `do` 사이에 마침표가 없다. 마침표는 문장을 닫는 일만 한다.
 - `first_zero` 는 0 을 만나면 `break` 로 되풀이를 벗어난다. 끝까지 없으면 길이를 돌려준다. `break` 와 `continue` 는 가장 안쪽
   되풀이에 듣고, 바깥 되풀이를 가리키는 라벨은 없다.
 - `while` 의 조건은 바퀴마다 몸에 들어가기 *전에* 본다. 처음부터 거짓이면 몸은 한 번도 돌지 않는다.
-- `odd_sum` 은 `for x xs do … end` 로 원소를 훑고, 짝수면 `continue` 로 다음 원소로 넘어간다. `for`
+- `odd_sum` 은 `for x xs. do … end .` 로 원소를 훑고, 짝수면 `continue` 로 다음 원소로 넘어간다. `for`
   의 이름 `x` 는 슬라이스의 원소 타입(`u8`)이고 블록 안에서만 산다.
 
 `for x in xs` 처럼 `in` 을 적으면 `E-VOCAB-REMOVED` 로 거절된다. 훑을 대상은 이름 바로 뒤에 온다.
 
-수를 세는 반복은 제 머리말이 있다. `repeat i u64 n do` 는 0 부터 `n` 미만까지, `range i u64 a b do` 는 `a` 부터 `b`
-까지 두 끝을 넣어 돈다. 다음 값을 직접 적으려면 `cycle i u64 1 while lt i 100 next mul i 2 do` 로 쓴다. 셈의 타입(`u64`)은 늘
+수를 세는 반복은 제 머리말이 있다. `repeat i u64 n. do` 는 0 부터 `n` 미만까지, `range i u64 a. b. do` 는 `a` 부터 `b`
+까지 두 끝을 넣어 돈다. 다음 값을 직접 적으려면 `cycle i u64 1 while lt i. 100 . next mul i. 2 . do` 로 쓴다. 셈의 타입(`u64`)은 늘
 적는다. 머리 안에는 마침표가 없다 --- 식은 `do`·`step`·`while`·`next` 같은 낱말에서 끝난다. 원소를 거르려면 `do` 앞에
-`if <조건>` 을 붙인다(`for x xs if gt x 2 do`). `for` 는 원소를 도는 한 가지 일만 한다 --- 옛 꼴 `for i count u64 n . do` 는
+`if <조건>` 을 붙인다(`for x xs. if gt x. 2 . do`). `for` 는 원소를 도는 한 가지 일만 한다 --- 옛 꼴 `for i count u64 n . do` 는
 `E-FOR-OLD` 로 거절된다.
 
 #demo("examples/ch07/counting.low")
@@ -64,15 +64,15 @@
   다음 값이 끝을 지나치면 거기서 끝난다(`range j u8 250 255 step 3` 은 250 · 253).
 - 머리가 읽은 것(끝 · `step`)은 들어갈 때 한 번 계산한다. 몸 안에서 셈 이름 `i` 나 머리가 읽은 이름 `n` 을 `set` 하면
   `E-FOR-HEAD` 다. `step 0` 이나 부동소수 셈 타입은 `E-FOR-STEP` 이다.
-- `for x mut buf do set x 0 . end` 는 원소 자리를 돈다 --- `set x` 가 `buf` 의 그 칸에 쓴다. 몸 안에서는 `buf` 를 직접
+- `for x mut buf. do set x. 0 . end .` 는 원소 자리를 돈다 --- `set x` 가 `buf` 의 그 칸에 쓴다. 몸 안에서는 `buf` 를 직접
   만지지 않고 `x` 로만 만진다(`E-FOR-HEAD`).
-- 머리 끝, `do` 앞에 `if <조건>` 을 붙이면 조건이 참인 값만 몸을 돈다: `range i u64 1 20 if eq (mod i 3) 0 do`.
-- 다음 값을 직접 적는 되풀이는 `cycle j u64 1 while le j 100 next mul j 2 do` 처럼 적는다 --- 1 · 2 · 4 … 64 를 돈다. 몸 안의
+- 머리 끝, `do` 앞에 `if <조건>` 을 붙이면 조건이 참인 값만 몸을 돈다: `range i u64 1 20 if eq mod i. 3 . 0 . do`.
+- 다음 값을 직접 적는 되풀이는 `cycle j u64 1 while le j. 100 . next mul j. 2 . do` 처럼 적는다 --- 1 · 2 · 4 … 64 를 돈다. 몸 안의
   `continue` 도 `next` 를 거친다.
 
 #demo("examples/ch07/doubling.low")
 
-- `steps 100` 은 1 · 2 · 4 · 8 · 16 · 32 · 64 일곱 바퀴를 돈다. 128 은 `lt i limit` 이 거짓이라 몸에 들어가지 않는다.
+- `steps 100` 은 1 · 2 · 4 · 8 · 16 · 32 · 64 일곱 바퀴를 돈다. 128 은 `lt i. limit. .` 이 거짓이라 몸에 들어가지 않는다.
 
 == `guard` — 조건을 사실로 바꾼다
 
@@ -82,7 +82,7 @@
 
 #demo("examples/ch07/guards.low")
 
-`head_or_zero` 의 `guard` 를 지난 코드는 슬라이스가 비지 않은 세계에서만 산다. 그래서 `idx data 0`
+`head_or_zero` 의 `guard` 를 지난 코드는 슬라이스가 비지 않은 세계에서만 산다. 그래서 `idx data. 0 .`
 이 안전하다. `grade` 는 `guard` 로 범위 밖을 먼저 걸러 내고, 그 아래에서 `if … end else do … end` 로
 갈래를 나눈다.
 
@@ -163,34 +163,34 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   #demo("examples/ch07/mistake_forin.low")
 
   `for` 는 `for <이름> <슬라이스> do` 다. 훑을 대상이 이름 바로 뒤에 오고, 몸의 시작은 `do` 가 알리므로 `in` 이 전할 것이 없다.
-  같은 뜻에 표시를 하나 더 두지 않으려고 없앴다. 고치는 법: `for x xs do`.
+  같은 뜻에 표시를 하나 더 두지 않으려고 없앴다. 고치는 법: `for x xs. do`.
 ]
 
-#antipattern[조건과 `do` 사이에 마침표를 찍는다][
+#antipattern[조건과 `do` 사이에 마침표를 하나 더 찍는다][
   #demo("examples/ch07/mistake_dotdo.low")
 
-  머리의 식은 `do` 에서 끝난다. 마침표는 문장을 닫는 일만 하므로 `if`·`while`·`match`·`case` 의 머리 안에는 마침표가 없다.
-  `guard` 와 바인딩의 `else` 앞도 같다(`guard c else return 0 .`). 옛 파일은 `lowentc --migrate <파일>` 이 새 철자로 옮겨 찍는다.
-  고치는 법: `if gt a 3 do`.
+  조건은 값이고, 값은 제 점으로 닫힌다 --- `gt a. 3 .` 의 마지막 점이 그것이다. 그 다음에는 `do` 가 온다. 점을 하나 더 찍으면
+  닫을 것이 없는 점이라 `E-CLOSER-EXTRA` 로 거절된다. `while`·`match` 의 머리와 `guard` 의 조건도 같다. `guard gt a. 0 . else return 0 . .`
+  에서 점 셋은 차례로 조건, `return`, `guard` 를 닫는다. 고치는 법: `if gt a. 3 . do`.
 ]
 
 #antipattern[수를 `for … count` 로 센다][
   #demo("examples/ch07/mistake_forcount.low")
 
   `for` 는 원소를 도는 한 가지 일만 한다. 수를 세는 일은 `repeat`, 구간은 `range`, 다음 값을 직접 적는 되풀이는 `cycle` 이 한다 ---
-  머리말을 보면 무슨 되풀이인지 안다. 고치는 법: `repeat i u64 n do`.
+  머리말을 보면 무슨 되풀이인지 안다. 고치는 법: `repeat i u64 n. do`.
 ]
 
 #antipattern[`elif` 로 갈래를 잇는다][
   #demo("examples/ch07/mistake_elif.low")
 
   `elif`·`elsif`·`else if:` 는 언어마다 다르다. Lowent 는 이미 있는 낱말을 이어 붙인다 --- 앞 블록을 `end` 로 닫고 `else if` 를
-  붙인다. `elif` 는 낱말이 아니므로 `elif lt n 80` 이 따로 선 문장으로 읽히고, 그 뒤의 `do … end` 는 여는 머리가
-  없는 블록이 된다(`E-BLOCK-NOHEAD`) --- `do … end` 는 늘 `if`·`while`·`fn` 같은 머리가 연다.
+  붙인다. `elif` 는 낱말이 아니다. `end` 뒤에는 `else` 가 오거나 폼을 닫는 점이 와야 하므로, `elif` 를 만난 자리에서
+  `E-DOT-MISSING` 으로 거절된다.
 
   #demo("examples/ch07/elseif.low")
 
-  마지막 갈래는 `end else do … end` 이다. 갈래가 셋 이상이고 모두 한 값을 가르는 것이면 `match` 가 더 알맞다.
+  마지막 갈래는 `end else do … end .` 이다. 갈래가 셋 이상이고 모두 한 값을 가르는 것이면 `match` 가 더 알맞다.
 ]
 
 #antipattern[C 처럼 블록 안에 `else` 를 둔다][
@@ -205,31 +205,31 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   #demo("examples/ch07/mistake_less.low")
 
   비교는 낱말이다 --- `lt`(작다)·`le`(작거나 같다)·`gt`·`ge`·`eq`·`ne`. `<` 는 이 언어가 모르는 글자라 `E-CHAR` 가 난다.
-  기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 `expr` 섬이 있다(#chref("expr")). 고치는 법: `while lt i n do`.
+  기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 `expr` 섬이 있다(#chref("expr")). 고치는 법: `while lt i. n. . do`.
 ]
 
 #antipattern[`continue` 가 증가를 건너뛴다][
-  `while` 로 세면서 몸 가운데서 `continue` 하면, 그 아래에 둔 `set i (add i 1) .` 도 함께 건너뛴다.
+  `while` 로 세면서 몸 가운데서 `continue` 하면, 그 아래에 둔 `set i. add i. 1 . .` 도 함께 건너뛴다.
 
   ```lowent
   fn odd_count input xs slice u8 . output u64 .
   do
     var n u64 0 .
     var i u64 0 .
-    while lt i (len xs) do
-      if eq (mod (idx xs i) 2) 0 do
+    while lt i. len xs. . . do
+      if eq mod idx xs. i. . 2 . 0 . do
         continue .
-      end
-      set n (add n 1) .
-      set i (add i 1) .
-    end
-    return n .
-  end
+      end .
+      set n. add n. 1 . .
+      set i. add i. 1 . .
+    end .
+    return n. .
+  end .
   ```
 
   첫 짝수에서 `i` 가 더 이상 오르지 않아 반복이 끝나지 않는다. 번역도 실행 검사도 이것을 잡지 못한다 --- 멈추지 않는 것은
   넘침이 아니기 때문이다. 증가를 몸의 *맨 앞*으로 옮기거나(그러면 색인에는 증가 전의 값을 따로 담는다), 원소를 훑는 일이면
-  처음부터 `for x xs do` 를 쓴다. `for` 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.
+  처음부터 `for x xs. do` 를 쓴다. `for` 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.
 ]
 
 나머지를 받는 자리는 두 가지로 적을 수 있다. `case _` 와 마지막 `else` 는 같은 일을 한다.
@@ -252,17 +252,17 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   id: "control-glance",
   caption: [흐름의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`if c do … end`], [조건이 참이면 블록], [조건은 `do` 에서 끝난다 --- 마침표는 문장만 닫는다],
-  [`if c do … end else do … end`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
-  [`… end else if c2 do … end`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
-  [`while c do … end`], [조건이 참인 동안], [조건을 바퀴마다 다시 본다],
-  [`repeat i u64 n do … end` · `range i u64 a b do … end`], [0 부터 n 번 · a 에서 b 까지], [수를 세는 일은 머리말이 맡는다 --- 셈 변수를 손으로 올리지 않는다],
-  [`cycle i u64 v while c next e do … end`], [다음 값을 직접 적는 되풀이], [시작 · 조건 · 다음 값이 머리 한 줄에 모인다],
-  [`for x xs do … end`], [슬라이스의 원소를 차례로], [다음 원소로 넘어가는 일을 언어가 맡는다],
+  [`if c do … end .`], [조건이 참이면 블록], [조건은 `do` 에서 끝난다 --- 마침표는 문장만 닫는다],
+  [`if c do … end else do … end .`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
+  [`… end else if c2 do … end .`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
+  [`while c do … end .`], [조건이 참인 동안], [조건을 바퀴마다 다시 본다],
+  [`repeat i u64 n. do … end .` · `range i u64 a. b. do … end .`], [0 부터 n 번 · a 에서 b 까지], [수를 세는 일은 머리말이 맡는다 --- 셈 변수를 손으로 올리지 않는다],
+  [`cycle i u64 v while c next e do … end .`], [다음 값을 직접 적는 되풀이], [시작 · 조건 · 다음 값이 머리 한 줄에 모인다],
+  [`for x xs. do … end .`], [슬라이스의 원소를 차례로], [다음 원소로 넘어가는 일을 언어가 맡는다],
   [`break .` · `continue .`], [반복에서 나가기 · 다음 회차로], [흐름을 바꾸는 문장],
   [`guard c else return … .`], [조건이 아니면 떠난다 --- 지난 뒤엔 조건이 사실], [`else` 가 반드시 떠나야 한다],
   [`return e .`], [값을 돌려주고 끝낸다], [값을 내는 op 은 모든 길에서],
-  [`match v do case … do … end … end`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
+  [`match v. do case … do … end . … end .`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
   [`case 1 to 9` · `case _` · `case y when c`], [범위 · 나머지 전부 · 가드가 붙은 갈래], [정수는 경우가 많아 `_` 가 흔히 필요하다],
   [`panic "…" .`], [되돌릴 수 없는 멈춤(효과)], [`effects panic` 을 적는 `proc` 에서만],
 )

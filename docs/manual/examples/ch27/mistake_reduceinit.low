@@ -8,9 +8,9 @@ do
   rem ko: ✘ 누산을 100 에서 시작한다 --- 나누면 조각마다 100 에서 시작한다 /// en: ✘ the accumulator starts at 100 --- once split, every piece starts at 100
   var acc u64 100 .
   var i u64 0 .
-  while lt i (len s) do
-    set acc (add acc (widen u64 (idx s i))) .
-    set i (add i 1) .
-  end
-  return acc .
-end
+  while lt i. len s. . . do
+    set acc. add acc. widen u64 idx s. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

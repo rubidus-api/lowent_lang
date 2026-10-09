@@ -3,6 +3,6 @@ rem expect: E-BLOCK-UNCLOSED
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out 1 "hi\n" .
-  return narrow u8 n .
+  let n u64 write_out out. 1 "hi\n" . .
+  return narrow u8 n. . .
 rem ko: ✘ 몸을 연 `do` 에 짝이 되는 `end` 가 없다 /// en: ✘ the `do` that opened the body has no matching `end`

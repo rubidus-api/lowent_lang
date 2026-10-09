@@ -5,21 +5,21 @@ use allocs .
 
 proc user input a allocs.bump_bytes . output u64 . effects state .
 do
-  let g option mut slice u8 send a reserve 4 .
-  if is_some g do
+  let g option mut slice u8 send a. reserve 4 . .
+  if is_some g. . do
     return 1 .
-  end
+  end .
   return 0 .
-end
+end .
 
 proc share input buf mut slice u8 . output u64 . effects state .
 do
-  var b allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let z u64 send b init buf .
+  var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let z u64 send b. init buf. . .
   task_group do
     rem ko: ✘ 커서를 원자적으로 옮기지 않는 할당기를 두 태스크에 건넨다 /// en: ✘ handing an allocator whose cursor is not moved atomically to two tasks
-    spawn user b .
-    spawn user b .
-  end
+    spawn user b. .
+    spawn user b. .
+  end .
   return 0 .
-end
+end .

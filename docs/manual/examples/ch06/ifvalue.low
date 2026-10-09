@@ -3,6 +3,6 @@ rem expect: E-IF-VALUE
 
 fn pick input a u64 . output u64 .
 do
-  let x u64 (if gt a 1 do 5 . end else do 6 . end) .
-  return x .
-end
+  let x u64 (if gt a. 1 . do 5 . end else do 6 . end .) .
+  return x. .
+end .

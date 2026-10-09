@@ -34,43 +34,43 @@ rem   둘 다 브랜드를 받는다 — 남의 목록의 자리를 이 목록�
 export def struct site do
   input comptime b type .
   slot u64 .
-end
+end .
 
 export def struct held do
   input comptime b type .
   slot u64 .
-end
+end .
 
 rem 자리를 연다 — 아직 어느 목록에도 안 들었다. 이때가 **옮길 수 있는 유일한 때**다.
-export fn nl_open input comptime b type . input slot u64 . output owned nodelist.site b . do
-  return lit site b do slot slot . end .
-end
+export fn nl_open input comptime b type . input slot u64 . output owned (nodelist.site b) . do
+  return lit (site b) do slot slot. . end . .
+end .
 
 rem ★ 링크는 이동권을 **먹는다**. 이 뒤로 그 노드는 못 옮긴다 — 건넬 값이 없기 때문이다.
-export fn nl_link input comptime b type . input s owned nodelist.site b . output owned nodelist.held b . do
-  return lit held b do slot (field s slot) . end .
-end
+export fn nl_link input comptime b type . input s owned (nodelist.site b) . output owned (nodelist.held b) . do
+  return lit (held b) do slot field s. slot . . end . .
+end .
 
 rem 빼면 이동권을 **돌려준다**.
-export fn nl_unlink input comptime b type . input h owned nodelist.held b . output owned nodelist.site b . do
-  return lit site b do slot (field h slot) . end .
-end
+export fn nl_unlink input comptime b type . input h owned (nodelist.held b) . output owned (nodelist.site b) . do
+  return lit (site b) do slot field h. slot . . end . .
+end .
 
 rem 옮기는 일은 이동권을 **요구한다** — 그것이 이 모듈의 전부다.
-export fn nl_relocate input comptime b type . input s owned nodelist.site b . input dst u64 .
-  output owned nodelist.site b .
+export fn nl_relocate input comptime b type . input s owned (nodelist.site b) . input dst u64 .
+  output owned (nodelist.site b) .
 do
-  return lit site b do slot dst . end .
-end
+  return lit (site b) do slot dst. . end . .
+end .
 
 rem 자리 번호를 묻는다(빌려 읽기 — 소비하지 않는다).
-export fn nl_slot_of input comptime b type . input s nodelist.site b . output u64 . do
-  return field s slot .
-end
+export fn nl_slot_of input comptime b type . input s (nodelist.site b) . output u64 . do
+  return field s. slot . .
+end .
 
-export fn nl_held_slot input comptime b type . input h nodelist.held b . output u64 . do
-  return field h slot .
-end
+export fn nl_held_slot input comptime b type . input h (nodelist.held b) . output u64 . do
+  return field h. slot . .
+end .
 
 rem ── 인덱스 링크 조작 ────────────────────────────────────────────
 rem   순수 자료다. 위의 토큰이 **누가 이 일을 할 자격이 있는지**를 정하고,
@@ -80,40 +80,40 @@ rem 혼자인 노드로 만든다 — 고리 하나다.
 export proc nl_solo input nx mut slice u64 . input pv mut slice u64 . input i u64 .
   output bool . effects none .
 do
-  guard lt i (len nx) else return false .
-  guard lt i (len pv) else return false .
-  set (idx nx i) i .
-  set (idx pv i) i .
+  guard lt i. len nx. . . else return false . .
+  guard lt i. len pv. . . else return false . .
+  set idx nx. i. . i. .
+  set idx pv. i. . i. .
   return true .
-end
+end .
 
 rem `i` 를 `at` 뒤에 끼운다.
 export proc nl_after input nx mut slice u64 . input pv mut slice u64 . input at u64 . input i u64 .
   output bool . effects none .
 do
-  guard lt at (len nx) else return false .
-  guard lt i (len nx) else return false .
-  let n u64 idx nx at .
-  set (idx nx at) i .
-  set (idx pv i) at .
-  set (idx nx i) n .
-  set (idx pv n) i .
+  guard lt at. len nx. . . else return false . .
+  guard lt i. len nx. . . else return false . .
+  let n u64 idx nx. at. . .
+  set idx nx. at. . i. .
+  set idx pv. i. . at. .
+  set idx nx. i. . n. .
+  set idx pv. n. . i. .
   return true .
-end
+end .
 
 rem `i` 를 뺀다 — 이웃을 서로 잇고, 자신은 혼자가 된다.
 export proc nl_cut input nx mut slice u64 . input pv mut slice u64 . input i u64 .
   output bool . effects none .
 do
-  guard lt i (len nx) else return false .
-  let p u64 idx pv i .
-  let n u64 idx nx i .
-  set (idx nx p) n .
-  set (idx pv n) p .
-  set (idx nx i) i .
-  set (idx pv i) i .
+  guard lt i. len nx. . . else return false . .
+  let p u64 idx pv. i. . .
+  let n u64 idx nx. i. . .
+  set idx nx. p. . n. .
+  set idx pv. n. . p. .
+  set idx nx. i. . i. .
+  set idx pv. i. . i. .
   return true .
-end
+end .
 
 rem ★★ **mutable iterator** — 순회하면서 뺄 수 있다.
 rem   요령 하나: **다음을 먼저 읽는다.** 지금 노드를 빼면 그 `next` 가 자기 자신이 되므로,
@@ -125,56 +125,56 @@ rem   그래서 머리는 고리에 들기 전에 따로 자르고, 바퀴는 �
 export proc nl_walk_cut input nx mut slice u64 . input pv mut slice u64 . input head u64 .
   input cut_at u64 . output u64 . effects none .
 do
-  guard lt head (len nx) else return 0 .
-  var start u64 head .
+  guard lt head. len nx. . . else return 0 . .
+  var start u64 head. .
   var seen u64 0 .
-  if eq cut_at head do
-    let n0 u64 idx nx head .
-    let p0 u64 idx pv head .
-    set (idx nx p0) n0 .
-    set (idx pv n0) p0 .
-    set (idx nx head) head .
-    set (idx pv head) head .
-    set seen 1 .
-    if eq n0 head do return 1 . end        rem 혼자였다 — 바퀴가 곧 끝이다
-    set start n0 .
-  end
-  var i u64 start .
+  if eq cut_at. head. . do
+    let n0 u64 idx nx. head. . .
+    let p0 u64 idx pv. head. . .
+    set idx nx. p0. . n0. .
+    set idx pv. n0. . p0. .
+    set idx nx. head. . head. .
+    set idx pv. head. . head. .
+    set seen. 1 .
+    if eq n0. head. . do return 1 . end .        rem 혼자였다 — 바퀴가 곧 끝이다
+    set start. n0. .
+  end .
+  var i u64 start. .
   var steps u64 0 .
-  while le steps (len nx) do
+  while le steps. len nx. . . do
     rem ★ **다음을 먼저 읽는다** — 지금 노드를 빼면 그 `next` 가 자기 자신이 되기 때문이다.
-    let nxt u64 idx nx i .
-    if eq i cut_at do
-      let p u64 idx pv i .
-      let n u64 idx nx i .
-      set (idx nx p) n .
-      set (idx pv n) p .
-      set (idx nx i) i .
-      set (idx pv i) i .
-    end
-    set seen (add seen 1) .
-    set i nxt .
-    if eq i start do
-      return seen .
-    end
-    set steps (add steps 1) .
-  end
-  return seen .
-end
+    let nxt u64 idx nx. i. . .
+    if eq i. cut_at. . do
+      let p u64 idx pv. i. . .
+      let n u64 idx nx. i. . .
+      set idx nx. p. . n. .
+      set idx pv. n. . p. .
+      set idx nx. i. . i. .
+      set idx pv. i. . i. .
+    end .
+    set seen. add seen. 1 . .
+    set i. nxt. .
+    if eq i. start. . do
+      return seen. .
+    end .
+    set steps. add steps. 1 . .
+  end .
+  return seen. .
+end .
 
 rem 고리 한 바퀴의 길이를 센다 — 훑기만 한다. 머리로 돌아오면 끝이다.
 export fn nl_count input nx slice u64 . input head u64 . output u64 . do
-  guard lt head (len nx) else return 0 .
-  var i u64 head .
+  guard lt head. len nx. . . else return 0 . .
+  var i u64 head. .
   var seen u64 0 .
   var steps u64 0 .
-  while le steps (len nx) do
-    set seen (add seen 1) .
-    set i (idx nx i) .
-    if eq i head do
-      return seen .
-    end
-    set steps (add steps 1) .
-  end
-  return seen .
-end
+  while le steps. len nx. . . do
+    set seen. add seen. 1 . .
+    set i. idx nx. i. . .
+    if eq i. head. . do
+      return seen. .
+    end .
+    set steps. add steps. 1 . .
+  end .
+  return seen. .
+end .

@@ -9,13 +9,13 @@ build option maxcpu int default 64 .
 
 fn tick_rate output u64 .
 do
-  if config smp do
-    return config hz .
-  end
+  if config smp . do
+    return config hz . .
+  end .
   return 100 .
-end
+end .
 
 fn cpus output u64 .
 do
-  return config maxcpu .
-end
+  return config maxcpu . .
+end .

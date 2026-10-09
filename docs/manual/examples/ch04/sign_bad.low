@@ -3,5 +3,5 @@ rem expect: E-TYPE-SIGN
 
 fn total input a i32 . input b u32 . output i32 .
 do
-  return add a b .
-end
+  return add a. b. . .
+end .

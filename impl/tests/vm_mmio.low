@@ -28,7 +28,7 @@ def struct gpio do
   moder u32 rw .             rem 모드     (읽기·쓰기)
   idr   u32 ro .             rem 입력     (읽기 전용 — 쓰면 컴파일 에러)
   bsrr  u32 wo .             rem set/reset(쓰기 전용 — 읽으면 컴파일 에러)
-end
+end .
 
 rem ★ VM 에서 **진짜로 돈다**: "디바이스" 는 호출자가 건네는 바이트 버퍼다.
 unsafe proc drive
@@ -37,11 +37,11 @@ unsafe proc drive
   output u32 .
   effects device unsafe .    rem ★ volatile 접근은 **부작용**이다 — 시그니처에 보인다
 do
-  var g gpio view gpio regs .
-  write_volatile g moder 2 .        rem rw — 쓴다
-  write_volatile g bsrr 1 .         rem wo — 쓴다
-  return read_volatile g idr .      rem ro — 읽는다
-end
+  var g gpio view gpio regs. . .
+  write_volatile g. moder 2 .        rem rw — 쓴다
+  write_volatile g. bsrr 1 .         rem wo — 쓴다
+  return read_volatile g. idr . .      rem ro — 읽는다
+end .
 
 rem ★ 슬라이스는 `test` 블록에서 못 쓴다(리터럴 문법이 없다) ⇒ 골든이 `--run` 으로 잰다.
 
@@ -60,4 +60,4 @@ unsafe proc on_exti
 do
   rem ★ ISR 은 **돌아갈 데가 없다** — `output void` 의 반환은 값 없이 적는다(정본 §6.5.5(2), 2026-09-16).
   return .
-end
+end .

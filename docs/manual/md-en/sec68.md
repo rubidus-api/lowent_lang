@@ -17,7 +17,7 @@ Sorts a `u64` slice **in place** in ascending order. Used before binary search (
 ```lowent
 use sortlib .
 
-sortlib.sort s .
+sortlib.sort s. .
 ```
 
 > **Maturity `standard` — the repository’s first `standard`**
@@ -43,29 +43,29 @@ A self-verifying pattern — is it ascending **and** is the sum preserved. It ca
 proc sort_verify input s mut slice u64 . output u64 . effects none . do
   var pre u64 0 .
   var i u64 0 .
-  while lt i (len s) do
-    set pre (wrap_add pre (idx s i)) .
-    set i (add i 1) .
-  end
-  sortlib.sort s .
+  while lt i. len s. . . do
+    set pre. wrap_add pre. idx s. i. . . .
+    set i. add i. 1 . .
+  end .
+  sortlib.sort s. .
   var post u64 0 .
   var sorted u64 1 .
   var j u64 0 .
-  while lt j (len s) do
-    set post (wrap_add post (idx s j)) .
-    if gt j 0 do
-      if gt (idx s (sub j 1)) (idx s j) do set sorted 0 . end
-    end
-    set j (add j 1) .
-  end
-  if ne pre post do set sorted 0 . end
-  return sorted .
-end
+  while lt j. len s. . . do
+    set post. wrap_add post. idx s. j. . . .
+    if gt j. 0 . do
+      if gt idx s. sub j. 1 . . idx s. j. . . do set sorted. 0 . end .
+    end .
+    set j. add j. 1 . .
+  end .
+  if ne pre. post. . do set sorted. 0 . end .
+  return sorted. .
+end .
 ```
 
 > **Counter-example. Sorting a subrange with the internal op**
 >
-> > `sortlib.qsort s 0 (len s)` is `E-VISIBILITY`. Cut a subrange with `subslice` and give it to `sort` — `sortlib.sort (subslice s 2 7) .`
+> > `sortlib.qsort s. 0 len s. . .` is `E-VISIBILITY`. Cut a subrange with `subslice` and give it to `sort` — `sortlib.sort subslice s. 2 7 . .`
 
 > **Counter-example. Passing an immutable slice or expecting a return value**
 >

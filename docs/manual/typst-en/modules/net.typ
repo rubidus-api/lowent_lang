@@ -12,15 +12,15 @@ address). Every op takes `cap net`. The ability to reach the world is a right ha
 
 ```lowent
 proc main input k cap net . output u8 . effects io . do
-  let po option net.pair net.pair_of k .
-  guard is_some po else return 1 .
-  var p owned net.pair some_value po .
-  let s option u64 net.send_all k (net.pair_a p) "hi" .
-  guard is_some s else return 2 .
-  let c result void net.net_error net.shut_pair k p .
-  guard is_ok c else return 3 .
+  let po option net.pair net.pair_of k. . .
+  guard is_some po. . else return 1 . .
+  var p owned net.pair some_value po. . .
+  let s option u64 net.send_all k. net.pair_a p. . "hi" . .
+  guard is_some s. . else return 2 . .
+  let c result void net.net_error net.shut_pair k. p. . .
+  guard is_ok c. . else return 3 . .
   return 0 .
-end
+end .
 ```
 
 #dtable(
@@ -33,16 +33,16 @@ end
   [`take`], [`(cap net, l listener) → option conn`], [`none` --- could not accept],
   [`pair_of`], [`(cap net) → option pair`], [`none`],
   [`send_all`], [`(cap net, fd u64, buf slice u8) → option u64`], [answers *how much was sent*],
-  [`recv_once`], [`(cap net, fd u64, dst mut slice u8) → option u64`], [`some 0` = peer closed · `none` = failure],
-  [`shut` · `shut_listener` · `shut_pair`], [`(cap net, owned X) → result void net_error`], [`error close_failed`. A pair closes both ends *separately*],
+  [`recv_once`], [`(cap net, fd u64, dst mut slice u8) → option u64`], [`some 0 .` = peer closed · `none` = failure],
+  [`shut` · `shut_listener` · `shut_pair`], [`(cap net, owned X) → result void net_error`], [`error close_failed .`. A pair closes both ends *separately*],
   [`conn_fd` · `pair_a` · `pair_b`], [`→ u64`], [*pure* --- no capability needed],
 )
 
-The listening port is read with `field l port` (the assigned number if an ephemeral port was requested). Reading an fd is pure --- a resource must not be forgotten, but
+The listening port is read with `field l. port .` (the assigned number if an ephemeral port was requested). Reading an fd is pure --- a resource must not be forgotten, but
 looking at its number needs no right.
 
 *Two contracts to know.* `send_all` sends to the end but does not lie --- one send is not guaranteed to send everything, so it repeats, and if blocked midway it answers *how
-far it got*. On `some n`, check that `n` equals `len buf`. `0` from `recv_once` is not failure but the *fact* that the peer closed.
+far it got*. On `some n. .`, check that `n` equals `len buf. .`. `0` from `recv_once` is not failure but the *fact* that the peer closed.
 
 *Why the close-three-at-once op was removed.* Handles used to be integers, and `shut3` closed three fds at once. Listening, connecting and accepted sockets are different
 resources, and bundling three into one call leaves the compiler unable to say *what was forgotten*. Convenience that hides safety is not worth having. Now a pair holds each

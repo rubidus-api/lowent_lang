@@ -44,7 +44,7 @@
 
 - `main` 은 권한 셋을 받는다. 출력(`cap io`), 파일(`cap file_system`), 버퍼를 받을 할당(`cap allocator`)이다. 머리만
   보고도 이 프로그램이 네트워크에 닿지 않는다는 것을 안다.
-- `files.slurp fs "notes.txt" buf` 는 파일 전체를 `buf` 에 읽고 읽은 바이트 수를 `result u64 files.file_error` 로 준다.
+- `files.slurp fs. "notes.txt" buf. .` 는 파일 전체를 `buf` 에 읽고 읽은 바이트 수를 `result u64 files.file_error` 로 준다.
   파일이 없거나 버퍼보다 크면 오류다. 자르지 않는다.
 - 오류면 메시지를 쓰고 종료 코드 2 를 돌려준다. 경계에서 실패를 다루는 모양이다(#chref("errors-design")).
 - 읽은 부분을 `subslice` 로 잘라 `pipe` 로 줄바꿈을 세고(#chref("pipe")), 내용을 그대로 표준출력에 쓴다.
@@ -76,8 +76,8 @@
 #demo("examples/ch28/copy.low")
 
 - `files.open fs <경로> 1` 은 쓰기 모드로 연다. 모드는 0 읽기, 1 쓰기(자르고 만들기), 2 덧붙이기다.
-- 성공하면 `ok_value o` 를 `owned files.handle` 에 담는다.
-- `files.write` 로 쓰고 `files.close fs h` 로 닫는다. `close` 는 `owned handle` 을 받고 `result` 를 돌려준다. 닫기는 진짜로
+- 성공하면 `ok_value o. .` 를 `owned files.handle` 에 담는다.
+- `files.write` 로 쓰고 `files.close fs. h. .` 로 닫는다. `close` 는 `owned handle` 을 받고 `result` 를 돌려준다. 닫기는 진짜로
   실패할 수 있다 --- 네트워크 파일 시스템이나 가득 찬 디스크에서 마지막 버퍼를 비우지 못하면 닫기에서 드러난다.
 
 `close` 가 그 모양이므로 `handle` 은 완결이 필요한 타입이다. 닫지 않고 두면 거절된다.
@@ -85,7 +85,7 @@
 #demo("examples/ch28/forgot.low")
 
 닫기를 잊은 프로그램은 번역되지 않는다. 운영체제가 프로세스 종료 때 파일 기술자를 닫아 준다는 기대에 기대지 않는다. 정말로
-닫지 않고 버리려면 `drop h .` 로 버린다고 적는다.
+닫지 않고 버리려면 `drop h. .` 로 버린다고 적는다.
 
 핸들 하나의 일생을 한 장으로 그리면 이렇다.
 
@@ -121,9 +121,9 @@
   id: "io-read",
   caption: [`read` 의 답],
   [*답*], [*뜻*],
-  [`ok (some n)`], [`n` 바이트를 읽었다],
-  [`ok none`], [파일의 *끝*이다. 실패가 아니다],
-  [`error e`], [실패다. `e` 는 어느 연산이 실패했는지 말한다],
+  [`ok some n. . .`], [`n` 바이트를 읽었다],
+  [`ok none .`], [파일의 *끝*이다. 실패가 아니다],
+  [`error e .`], [실패다. `e` 는 어느 연산이 실패했는지 말한다],
 )
 
 34 바이트 파일을 16 바이트 버퍼로 되풀이해 읽으면 답이 이렇게 온다(이 판에서 실측).
@@ -138,7 +138,7 @@
  읽기 5   ok none         끝에서 또 읽어도 끝이다
 ```
 
-마지막 조각(2 바이트)이 버퍼보다 작다고 해서 그것이 끝을 알리는 것은 아니다. 끝은 `ok none` 이 따로 알린다.
+마지막 조각(2 바이트)이 버퍼보다 작다고 해서 그것이 끝을 알리는 것은 아니다. 끝은 `ok none .` 이 따로 알린다.
 
 한때 이 모듈의 `slurp` 은 읽기가 실패하면 반복을 멈추기만 했다. 그러면 실패한 읽기가 "파일을 다 읽었다" 로 보고되었고,
 이 모듈로 지은 줄 세기 프로그램이 읽기 실패를 "0 줄" 이라는 성공으로 냈다. 값 하나가 두 뜻(끝과 실패)을 나르면 안 된다는
@@ -171,7 +171,7 @@ VM 과 네이티브가 같은 주입기를 쓰므로 두 백엔드의 답이 같
  read:err@2          ok 16 · error read_failed
 ```
 
-짧게 읽혀도 조각의 합은 34 로 같고, 끝은 여전히 `ok none` 이 알린다. `eof_fixed.low` 는 첫 줄과 둘째 줄 모두에서 34 를
+짧게 읽혀도 조각의 합은 34 로 같고, 끝은 여전히 `ok none .` 이 알린다. `eof_fixed.low` 는 첫 줄과 둘째 줄 모두에서 34 를
 돌려준다. 셋째 줄에서는 실패가 끝과 다른 답으로 오므로, 둘을 가르는 코드만 이 경로를 바르게 지난다.
 
 #realcase[줄 세기 프로그램이 찾아낸 결함][
@@ -185,8 +185,8 @@ VM 과 네이티브가 같은 주입기를 쓰므로 두 백엔드의 답이 같
 #antipattern[읽기 모드로 열고 쓴다 --- 쓴 바이트 수를 보지 않는다][
   #demo("examples/ch28/mistake_readmode.low")
 
-  `files.open fs "notes.txt" 0` 은 읽기 모드다. 거기에 쓰면 `files.write` 가 실패를 돌려주고(스트림 오류가 켜진 짧은 쓰기는 값이 아니라
-  실패다) 이 예제는 종료 코드 2 로 나간다. 전에는 같은 자리가 `ok 0`("0 바이트 썼다")이어서 `is_ok w` 만 본 코드가 성공으로 지나갔다.
+  `files.open fs. "notes.txt" 0 .` 은 읽기 모드다. 거기에 쓰면 `files.write` 가 실패를 돌려주고(스트림 오류가 켜진 짧은 쓰기는 값이 아니라
+  실패다) 이 예제는 종료 코드 2 로 나간다. 전에는 같은 자리가 `ok 0 .`("0 바이트 썼다")이어서 `is_ok w. .` 만 본 코드가 성공으로 지나갔다.
   모드를 확인하고(0 읽기 · 1 쓰기 · 2 덧붙이기), 쓰기의 답은 성공 여부와 함께 *쓴 수*까지 본다. 짧게 쓰인 것은 남은 바이트를 다시 써야
   한다는 뜻이다.
 ]
@@ -202,12 +202,12 @@ VM 과 네이티브가 같은 주입기를 쓰므로 두 백엔드의 답이 같
 #antipattern[읽기의 답에서 실패만 묻는다][
   #demo("examples/ch28/mistake_eof.low")
 
-  `files.read` 의 답은 세 자리다. `is_ok r` 는 "실패가 아니다" 만 말한다. 파일 끝의 `ok none` 도 실패가 아니므로 통과하고, 그 안에서
+  `files.read` 의 답은 세 자리다. `is_ok r. .` 는 "실패가 아니다" 만 말한다. 파일 끝의 `ok none .` 도 실패가 아니므로 통과하고, 그 안에서
   `some_value` 를 꺼내다 멈춘다. 세 자리를 모두 가른다.
 
   #demo("examples/ch28/eof_fixed.low")
 
-  16 바이트 버퍼로 34 바이트 파일을 세 번에 나누어 읽고, 넷째 읽기의 `ok none` 에서 멈춘다. 실패하면 닫고 3 을, 닫기가 실패하면 4 를
+  16 바이트 버퍼로 34 바이트 파일을 세 번에 나누어 읽고, 넷째 읽기의 `ok none .` 에서 멈춘다. 실패하면 닫고 3 을, 닫기가 실패하면 4 를
   돌려준다. `rounds` 의 상한은 끝을 영영 알리지 않는 원천에서도 반복이 끝나게 한다.
 ]
 
@@ -227,12 +227,12 @@ VM 과 네이티브가 같은 주입기를 쓰므로 두 백엔드의 답이 같
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`write_out out 1 "…"`], [표준출력(1) · 표준오류(2)에 쓴다 --- 쓴 수를 준다], [권한이 첫 피연산자 --- 몰래 찍는 출력이 없다],
   [`use files .` + `input fs cap file_system .`], [파일 모듈과 그 권한], [머리만 보고 파일에 닿는지 안다],
-  [`files.open fs "notes.txt" 0`], [연다 --- 0 읽기 · 1 쓰기 · 2 덧붙이기 · `result handle file_error`], [여는 일에는 "끝" 이 없다 --- 두 자리],
-  [`var h owned files.handle ok_value o .`], [핸들을 소유로 담는다], [잊으면 `E-OWN-INCOMPLETE` · 닫은 뒤 쓰면 `E-OWN-MOVED`],
-  [`files.read fs h buf`], [`ok (some n)` 읽었다 · `ok none` 끝 · `error e` 실패], [값 하나가 두 뜻을 나르지 않는다],
-  [`files.write fs h bytes`], [쓴 수를 `result` 로 준다], [짧게 쓰일 수 있다 --- 수를 확인한다],
-  [`files.close fs h`], [`owned` 로 받아 `result` --- 완결], [닫기도 실패할 수 있다],
-  [`files.slurp fs path buf`], [통째로 읽는다 --- 버퍼보다 크면 오류], [자르지 않는다],
+  [`files.open fs. "notes.txt" 0 .`], [연다 --- 0 읽기 · 1 쓰기 · 2 덧붙이기 · `result handle file_error`], [여는 일에는 "끝" 이 없다 --- 두 자리],
+  [`var h owned files.handle ok_value o. . .`], [핸들을 소유로 담는다], [잊으면 `E-OWN-INCOMPLETE` · 닫은 뒤 쓰면 `E-OWN-MOVED`],
+  [`files.read fs. h. buf. .`], [`ok some n. . .` 읽었다 · `ok none .` 끝 · `error e .` 실패], [값 하나가 두 뜻을 나르지 않는다],
+  [`files.write fs. h. bytes. .`], [쓴 수를 `result` 로 준다], [짧게 쓰일 수 있다 --- 수를 확인한다],
+  [`files.close fs. h. .`], [`owned` 로 받아 `result` --- 완결], [닫기도 실패할 수 있다],
+  [`files.slurp fs. path. buf. .`], [통째로 읽는다 --- 버퍼보다 크면 오류], [자르지 않는다],
   [`LOW_HOST_FAULT="read:err@2"`], [실패를 일부러 일으킨다(환경 변수)], [실패 경로를 시험한다],
 )
 

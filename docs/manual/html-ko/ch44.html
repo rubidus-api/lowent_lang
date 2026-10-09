@@ -677,8 +677,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <em><span class="tok-c">rem expect: E-EFFECT-DUP</span></em>
 
 <strong><span class="tok-k">proc</span></strong> shout <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io io . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check effect_dup.low
 effect_dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `effects` clause — the row is a SET, not a list. A repeat says nothing the first one didn't, and the reader has to decide it's noise (RFC-0057 E3)
 </code></pre></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/effect_typo.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> effect_typo .
@@ -686,7 +686,7 @@ effect_dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `e
 
 <strong><span class="tok-k">proc</span></strong> ping <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> netwrok . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check effect_typo.low
 effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/heap/io/wait/concurrent/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
 </code></pre></div></div><p>같은 원자를 두 번 적으면 거절된다. 집합에 중복은 뜻이 없고, 읽는 사람이 그것이 잡음인지 판단해야 한다. 없는 원자는 오타로 잡힌다 — 진단이 말하듯 오타가 조용히 지나가면 그 op 은 <strong>순수하다고 선언한 것</strong>이 된다. 당연해 보이는 규칙이지만, 구현이 절의 <strong>첫 낱말 하나만</strong> 읽던 때가 있었다. 그때 <code>effects io alloc</code> 은 <code>io</code> 로만 등록되었고 둘째 원자부터는 적어도 없는 것과 같았다. 선언을 읽는 코드의 결함은 선언 체계 전체를 무력하게 만든다.</p><p><strong>규칙 4 — 멈춤은 효과가 아니다.</strong> 이 장에서 가장 생각할 거리다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/trap_not_effect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trap_not_effect .
@@ -695,33 +695,33 @@ effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: no
 
 <em><span class="tok-c">rem 범위를 벗어나면 멈추지만, 이 op 은 여전히 순수한 fn 이다</span></em>
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> idx s i .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> idx s. i. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run pick trap_not_effect.low [1,2,3] 1
 pick([1,2,3], 1) = 2
   arg0 (written) = [1,2,3]
 $ lowentc --run pick trap_not_effect.low [1,2,3] 7
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: slice index out of bounds (panic)
-</code></pre></div></div><p><code>idx s i</code> 는 범위를 벗어나면 멈춘다. 그러면 <code>pick</code> 은 <code>panic</code> 효과를 가져야 하는가? <strong>아니다.</strong> <code>panic</code> 은 명시적인 <code>panic "…"</code> 만 센다. 멈출 가능성은 <strong>계약</strong>이 말하는 것이지 효과가 말하는 것이 아니다. <code>idx</code> 의 위험은 <code>requires lt i (len s)</code> 로 <strong>없앨 수 있고</strong> 실제로 처리기가 그 검사를 지운다(41장). 효과 표시는 지워지지 않는다. 없앨 수 있는 것을 효과로 표시하면 그 표시는 영원히 남고, 거의 모든 op 이 <code>panic</code> 을 갖게 되어 표시가 뜻을 잃는다.</p><pre><code data-lang="text"> op 을 끝내는 것           어디에 적나                 지워지나
+</code></pre></div></div><p><code>idx s. i. .</code> 는 범위를 벗어나면 멈춘다. 그러면 <code>pick</code> 은 <code>panic</code> 효과를 가져야 하는가? <strong>아니다.</strong> <code>panic</code> 은 명시적인 <code>panic "…"</code> 만 센다. 멈출 가능성은 <strong>계약</strong>이 말하는 것이지 효과가 말하는 것이 아니다. <code>idx</code> 의 위험은 <code>requires lt i. len s. . .</code> 로 <strong>없앨 수 있고</strong> 실제로 처리기가 그 검사를 지운다(41장). 효과 표시는 지워지지 않는다. 없앨 수 있는 것을 효과로 표시하면 그 표시는 영원히 남고, 거의 모든 op 이 <code>panic</code> 을 갖게 되어 표시가 뜻을 잃는다.</p><pre><code data-lang="text"> op 을 끝내는 것           어디에 적나                 지워지나
  panic "…"  (의도)         effects panic               아니다 — 늘 남는다
  범위 밖 idx (위반)      requires lt i (len s)       증명되면 검사가 지워진다</code></pre><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>멈출 수 있는 op 은 순수하지 않다</strong></p><div class="dev-body">효과는 “이 op 이 무엇을 하는가” 이고 계약은 “언제 안전한가” 다. 둘을 섞지 않았기 때문에 <code>panic</code> 표시가 여전히 정보를 가진다. <code>panic</code> 이 붙어 있으면 그 op 은 <strong>의도적으로</strong> 프로그램을 끝낼 수 있다는 뜻이다. 범위 밖 색인은 의도가 아니라 계약 위반이고, 계약이 그 자리를 맡는다.</div></div><h3 id="s44-3">44.3 권한 — 효과의 짝<a class="plink" href="#s44-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>효과가 “무슨 종류의 일을 하나” 라면, 권한은 “그 일을 할 <strong>권리</strong>를 어디서 받았나” 다. <code>cap io</code> 를 인자로 받아야 화면에 쓸 수 있고, 아무 데서나 전역으로 꺼내 쓰지 못한다. 이 객체-권한 모형이 두 가지를 준다.</p><ul><li><strong>감쇠(attenuation).</strong> 받은 권리를 좁혀서 넘길 수 있다. 평면 효과 격자로 못 하는 정밀도를 여기서 얻는다.</li><li><strong>국소 감사.</strong> op 의 서명만 보면 무엇에 손댈 수 있는지 <strong>전부</strong> 보인다. 숨은 전역 통로가 없다는 것이 요점이다.</li></ul><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>주는 것</strong></th><th><strong>어떻게</strong></th></tr><tr><td>최적화의 정당성</td><td><code>effects none</code> 이면 차례 바꾸기·공통 부분식 제거·지우기가 관측 동작을 바꾸지 않는다</td></tr><tr><td>감사할 수 있음</td><td><code>io</code> 를 하는 코드를 선언에서 찾을 수 있다</td></tr><tr><td>등급과 프로파일 게이팅</td><td>작은 기계에서 <code>alloc</code> 하는 op 을 번역 오류로 막는다</td></tr><tr><td>놀람이 없음</td><td>순수하다고 적힌 것이 정말 순수하다</td></tr></table></div><p class="float-caption">표 44.2 — 효과 체계가 주는 안전</p></figure><h3 id="s44-4">44.4 효과 건전성 — 순환이 아니다<a class="plink" href="#s44-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/recursive.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> recursive .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">proc</span></strong> stars <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
-  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">10</span> .
+  <strong><span class="tok-k">requires</span></strong> le n. <span class="tok-n">10</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">*</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> add w (stars out (sub n <span class="tok-n">1</span>)) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">*</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> add w. stars out. sub n. <span class="tok-n">1</span> . . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (stars out <span class="tok-n">5</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> stars out. <span class="tok-n">5</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main recursive.low
 *****
 main() = 6

@@ -8,4 +8,4 @@ unsafe extern proc c_area do
   input h i64 .
   output i64 .
   link "lw_c_area" .
-end
+end .

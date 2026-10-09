@@ -5,13 +5,13 @@ rem trap: nonzero_strict 0
 rem ko: 고친 길 1 --- 멈춤을 효과로 적은 `proc` /// en: fix 1 --- a `proc` that declares stopping as an effect
 proc nonzero_checked input x u64 . output u64 . effects panic .
 do
-  if eq x 0 do panic "zero" . end
-  return x .
-end
+  if eq x. 0 . do panic "zero" . end .
+  return x. .
+end .
 
 rem ko: 고친 길 2 --- 조건을 계약으로 옮기면 `fn` 으로 남는다 /// en: fix 2 --- move the condition into a contract and it stays a `fn`
 fn nonzero_strict input x u64 . output u64 .
-  requires ne x 0 .
+  requires ne x. 0 . .
 do
-  return x .
-end
+  return x. .
+end .

@@ -46,14 +46,14 @@ root being looked for.
   id: "mod-trust-results",
   caption: ["not found" and "could not measure" are different],
   [*answer*], [*meaning*],
-  [`ok n` (n > 0)], [found --- the first `n` bytes of `out` are that certificate],
-  [`ok 0`], [read to the end, and it is not there --- the only thing said *after measuring*],
-  [`error short_workspace`], [the window (`win`, over 16 KiB) or the unwrap space was too small --- it *could not read to the end* (a block larger than the window, or the step limit)],
-  [`error unreadable`], [the bundle file could not be opened, or a read failed --- check the path first],
+  [`ok n. .` (n > 0)], [found --- the first `n` bytes of `out` are that certificate],
+  [`ok 0 .`], [read to the end, and it is not there --- the only thing said *after measuring*],
+  [`error short_workspace .`], [the window (`win`, over 16 KiB) or the unwrap space was too small --- it *could not read to the end* (a block larger than the window, or the step limit)],
+  [`error unreadable .`], [the bundle file could not be opened, or a read failed --- check the path first],
 )
 
 The last two rows once did not exist. A window too narrow to read everything gave 0, and a file that would not even open gave
-`ok 0` (fixed 2026-09-25). So the tool said "there is no trusted root" --- which was not *absent* but *unmeasured*.
+`ok 0 .` (fixed 2026-09-25). So the tool said "there is no trusted root" --- which was not *absent* but *unmeasured*.
 
 ```text
  a read failed ──────────────────────▶ error unreadable

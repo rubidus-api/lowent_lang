@@ -17,9 +17,9 @@ L0 — 순수 계산(호출자의 스크래치)
 ```lowent
 use regex as rx .
 
-let n option u64 rx.compile "a{2,4}b" prog st .
-guard is_some n else return 1 .
-let m option u64 rx.match_at prog "aaab" 0 cl nl mk .
+let n option u64 rx.compile "a{2,4}b" prog. st. . .
+guard is_some n. . else return 1 . .
+let m option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 ```
 
 프로그램(`slice u64`)도, 컴파일러 상태도, 매처의 작업 공간도 모두 호출자의 슬라이스다. 그래서 `effects none` 이고 숨은 할당이 없으며 재진입이 공짜이고 VM· 네이티브 대조 안에서 돈다.
@@ -51,7 +51,7 @@ let m option u64 rx.match_at prog "aaab" 0 cl nl mk .
 | 3 SPLIT | 갈래 1 · 갈래 2 | 두 갈래를 동시에 진행(갈래 1 우선 = 탐욕) |
 | 4 JMP | 목표 | 무조건 이동 |
 | 5 MATCH | — | 여기 닿으면 매치 |
-| 6 BOL · 7 EOL | — | `^` 은 위치 0 에서만, `$` 는 `len s` 에서만 통과 |
+| 6 BOL · 7 EOL | — | `^` 은 위치 0 에서만, `$` 는 `len s. .` 에서만 통과 |
 | 8 SAVE | 슬롯 번호 | 캡처 자리 기록(바이트를 먹지 않는다) |
 | 9 CPPROP | 속성 코드 | **직전에 먹은** 코드포인트가 그 속성인가(바이트를 먹지 않는다) |
 
@@ -79,7 +79,7 @@ let m option u64 rx.match_at prog "aaab" 0 cl nl mk .
 ## <a id="sx4"></a>op 상세
 
 - **`compile pat prog st`** — `len prog ≥ 8`·`len st ≥ 4` 여야 한다. 성공하면 `some <명령 수>` 이고, 이 값이 곧 매처 스크래치의 최소 길이다. 닫히지 않은 그룹 `(ab`, 원자 자리에 온 `) | * + ?`, 닫히지 않은 `[…]`, 뒤집힌 범위 `[z-a]`, 패턴 끝의 홀로 선 `\`, 잘못된 셈(`a{4,2}`·`a{}`·`a{2`·64 초과), 코드와 비트맵이 만남(버퍼 부족)이면 `none`. 빈 패턴은 유효하다 — `MATCH` 하나로 컴파일되어 어디서나 빈 매치다.
-- **`match_at prog s at clist nlist marks`** — `at` 에서 시작하는 매치의 **가장 긴 끝**(탐욕)을 `some end`(끝은 배타적)로 준다. 시작점이 물음의 일부라 `at` 을 받는다. `clist` 는 지금 위치의 스레드 목록, `nlist` 는 다음 위치의 목록이고(한 바이트마다 둘을 맞바꾼다), `marks` 는 “이 명령은 이번 위치에 이미 담았다” 는 도장이다. 도장이 없으면 같은 자리가 여러 번 들어가 목록 길이의 상한이 깨진다. 빈 매치도 매치다(`some at`). 비용은 O(`len s` × 명령 수).
+- **`match_at prog s at clist nlist marks`** — `at` 에서 시작하는 매치의 **가장 긴 끝**(탐욕)을 `some end`(끝은 배타적)로 준다. 시작점이 물음의 일부라 `at` 을 받는다. `clist` 는 지금 위치의 스레드 목록, `nlist` 는 다음 위치의 목록이고(한 바이트마다 둘을 맞바꾼다), `marks` 는 “이 명령은 이번 위치에 이미 담았다” 는 도장이다. 도장이 없으면 같은 자리가 여러 번 들어가 목록 길이의 상한이 깨진다. 빈 매치도 매치다(`some at. .`). 비용은 O(`len s. .` × 명령 수).
 - **`find`** — 매치가 **시작되는 가장 왼쪽 위치**. `at = 0, 1, …, len s` 로 `match_at` 을 다시 시작하는 반복이라 상한은 O(n²·m) 이지만, 시도마다 선형이라 지수 폭발은 없다. 끝 위치가 필요하면 돌려받은 시작에서 `match_at` 을 한 번 더 부른다.
 - **`search`** — `find` 와 같은 물음을 **한 번 훑어** 답한다. 재시작 반복을 없앤 대신 “이 스레드가 어디서 출발했는가” 를 스레드마다 들고 다녀야 해서 `cstart`·`nstart` 두 스크래치가 더 든다. 아직 매치가 없는 동안에만 매 위치에서 시작 스레드를 새로 넣으므로 비용은 O(입력 × 명령 수)이고, 더 왼쪽 시작이 늘 이기므로 왼쪽 우선이 지켜진다. `find` 와 **같은 답**이다 — 개발 저장소의 시험이 둘을 맞대 본다.
 - **`test_at`** — 어딘가에 매치가 있는가. 위치 없이 예·아니오만 필요할 때 쓴다.
@@ -98,32 +98,32 @@ proc demo input prog mut slice u64 . input st mut slice u64 .
   input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
   output u64 . effects none .
 do
-  guard ge (len prog) 32 else return 90 .
+  guard ge len prog. . 32 . else return 90 . .
 
   rem "ab.d*" 를 "abcdddx" 에: . 이 c 를, 탐욕 d* 가 ddd 를 먹어 끝 = 6
-  let n option u64 rx.compile "ab.d*" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_at prog "abcdddx" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 6 else return 3 .
+  let n option u64 rx.compile "ab.d*" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_at prog. "abcdddx" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 6 . else return 3 . .
 
   rem 정규식으로는 [a-c]+z\d --- 소스에는 "\\d"
-  let n2 option u64 rx.compile "[a-c]+z\\d" prog st .
-  guard is_some n2 else return 4 .
-  let m2 option u64 rx.match_at prog "abz7" 0 cl nl mk .
-  guard is_some m2 else return 5 .
-  guard eq (some_value m2) 4 else return 6 .
+  let n2 option u64 rx.compile "[a-c]+z\\d" prog. st. . .
+  guard is_some n2. . else return 4 . .
+  let m2 option u64 rx.match_at prog. "abz7" 0 cl. nl. mk. . .
+  guard is_some m2. . else return 5 . .
+  guard eq some_value m2. . 4 . else return 6 . .
 
   rem "ab$" 는 끝에서만 --- find 가 가장 왼쪽 시작을 준다
-  let n3 option u64 rx.compile "ab$" prog st .
-  guard is_some n3 else return 7 .
-  let f option u64 rx.find prog "xxab" cl nl mk .
-  guard is_some f else return 8 .
-  guard eq (some_value f) 2 else return 9 .
-  let g option u64 rx.find prog "abx" cl nl mk .
-  guard eq (is_some g) false else return 10 .
+  let n3 option u64 rx.compile "ab$" prog. st. . .
+  guard is_some n3. . else return 7 . .
+  let f option u64 rx.find prog. "xxab" cl. nl. mk. . .
+  guard is_some f. . else return 8 . .
+  guard eq some_value f. . 2 . else return 9 . .
+  let g option u64 rx.find prog. "abx" cl. nl. mk. . .
+  guard eq is_some g. . false . else return 10 . .
   return 42 .
-end
+end .
 ```
 
 `search` 와 셈 반복도 같은 모양이다.
@@ -134,26 +134,26 @@ proc demo_search input prog mut slice u64 . input st mut slice u64 .
   input cs mut slice u64 . input ns mut slice u64 .
   output u64 . effects none .
 do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "b+c" prog st .
-  guard is_some n else return 1 .
-  let a option u64 rx.find prog "xxbbbc" cl nl mk .
-  guard is_some a else return 2 .
-  let b option u64 rx.search prog "xxbbbc" cl nl mk cs ns .
-  guard is_some b else return 3 .
-  guard eq (some_value a) (some_value b) else return 4 .
-  guard eq (some_value b) 2 else return 5 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "b+c" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let a option u64 rx.find prog. "xxbbbc" cl. nl. mk. . .
+  guard is_some a. . else return 2 . .
+  let b option u64 rx.search prog. "xxbbbc" cl. nl. mk. cs. ns. . .
+  guard is_some b. . else return 3 . .
+  guard eq some_value a. . some_value b. . . else return 4 . .
+  guard eq some_value b. . 2 . else return 5 . .
 
-  let n3 option u64 rx.compile "a{2,4}b" prog st .
-  guard is_some n3 else return 9 .
-  let m3 option u64 rx.match_at prog "aaab" 0 cl nl mk .
-  guard is_some m3 else return 10 .
-  guard eq (some_value m3) 4 else return 11 .
+  let n3 option u64 rx.compile "a{2,4}b" prog. st. . .
+  guard is_some n3. . else return 9 . .
+  let m3 option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
+  guard is_some m3. . else return 10 . .
+  guard eq some_value m3. . 4 . else return 11 . .
   rem 하한 미달은 매치가 아니다
-  let f option u64 rx.match_at prog "ab" 0 cl nl mk .
-  guard eq (is_some f) false else return 12 .
+  let f option u64 rx.match_at prog. "ab" 0 cl. nl. mk. . .
+  guard eq is_some f. . false . else return 12 . .
   return 42 .
-end
+end .
 ```
 
 호출자는 예컨대 `prog` 32 칸, `st` 4 칸, `cl`·`nl`·`mk`(`search` 를 쓰면 `cs`·`ns` 까지) 각 32 칸을 마련한다 — `compile` 이 돌려준 명령 수보다 크면 된다. `{m,n}` 은 펼쳐지므로 명령 수가 반복 횟수만큼 는다.
@@ -161,33 +161,33 @@ end
 역추적 엔진이라면 `(a*)*b` 에 `a` 64 개를 주면 2^64 갈래를 헤매지만, Pike VM 은 스레드 목록이라 선형으로 끝난다.
 
 ```lowent
-let n option u64 rx.compile "(a*)*b" prog st .
-guard is_some n else return 1 .
-let f option u64 rx.match_at prog
-  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl nl mk .
-guard eq (is_some f) false else return 2 .
+let n option u64 rx.compile "(a*)*b" prog. st. . .
+guard is_some n. . else return 1 . .
+let f option u64 rx.match_at prog.
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl. nl. mk. . .
+guard eq is_some f. . false . else return 2 . .
 ```
 
 ## <a id="sx6"></a>반례
 
 | **부름** | **결과** |
 |---|---|
-| `rx.compile "(ab" prog st` | `none` — 닫히지 않은 그룹 |
-| `rx.compile "*a" prog st` | `none` — 앞이 없는 반복 |
-| `rx.compile "abcdefghij" tiny st`(`tiny` 8 칸) | `none` — 코드와 비트맵이 만난다 |
-| `rx.match_at prog s 0 short short short` | `none` — 스크래치가 명령 수보다 짧다 |
+| `rx.compile "(ab" prog. st. .` | `none` — 닫히지 않은 그룹 |
+| `rx.compile "*a" prog. st. .` | `none` — 앞이 없는 반복 |
+| `rx.compile "abcdefghij" tiny. st. .`(`tiny` 8 칸) | `none` — 코드와 비트맵이 만난다 |
+| `rx.match_at prog. s. 0 short. short. short. .` | `none` — 스크래치가 명령 수보다 짧다 |
 | `rx.compile "a{4,2}" prog st` · `"a{}"` · `"a{2"` · `"a{65}"` | `none` — 잘못된 셈(상한 64 는 펼치는 방식이라 폭발을 막는다) |
-| `rx.compile "\d" prog st` | 실행 전에 `E-STR-ESCAPE` — `"\\d"` 로 쓴다 |
+| `rx.compile "\d" prog. st. .` | 실행 전에 `E-STR-ESCAPE` — `"\\d"` 로 쓴다 |
 
 *표 50.3 — 값으로 거절되는 것과 번역에서 거절되는 것*
 
 ## <a id="sx7"></a>주의
 
-- **`prog` 는 컴파일할 때와 같은 길이로 매칭에 넘긴다.** 클래스 비트맵이 버퍼의 꼬리에 살고 그 주소가 `len prog` 기준이다. `subslice` 로 잘라 넘기면 명령은 살아도 비트맵 주소가 어긋나 `[…]`·`\d\w\s` 가 조용히 엉뚱한 바이트를 본다. 프로그램은 자르지 말고 통째로 든다.
+- **`prog` 는 컴파일할 때와 같은 길이로 매칭에 넘긴다.** 클래스 비트맵이 버퍼의 꼬리에 살고 그 주소가 `len prog. .` 기준이다. `subslice` 로 잘라 넘기면 명령은 살아도 비트맵 주소가 어긋나 `[…]`·`\d\w\s` 가 조용히 엉뚱한 바이트를 본다. 프로그램은 자르지 말고 통째로 든다.
 - **프로그램 버퍼 하나에 패턴 하나.** 다시 `compile` 하면 앞 프로그램은 덮인다. 두 패턴을 번갈아 쓰려면 버퍼를 둘 마련한다.
 - **`find` 냐 `search` 냐는 비용의 선택이다.** 답은 같다. 긴 입력과 잦은 탐색이면 `search`, 작은 입력에서 스크래치를 아끼려면 `find` 다.
 - **`marks` 는 매번 스스로 초기화된다.** 호출 사이에 보존할 것이 없다.
-- **빈 매치에 주의한다.** `a*` 같은 패턴은 어디서나 길이 0 으로 성공하고, `find` 는 늘 `some 0` 을 낸다. “한 글자라도 먹었는가” 가 필요하면 끝을 시작과 비교한다.
+- **빈 매치에 주의한다.** `a*` 같은 패턴은 어디서나 길이 0 으로 성공하고, `find` 는 늘 `some 0 .` 을 낸다. “한 글자라도 먹었는가” 가 필요하면 끝을 시작과 비교한다.
 - **매칭 단위는 바이트다.** UTF-8 입력에서 `.`·`[^…]` 는 코드포인트가 아니라 바이트 하나를 먹는다. 코드포인트 하나는 `\X`, 유니코드 범주는 `\p{…}` 로 묻는다.
 
 ---

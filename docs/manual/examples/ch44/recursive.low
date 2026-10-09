@@ -2,16 +2,16 @@ module recursive .
 rem run: main
 
 proc stars input out cap io . input n u64 . output u64 . effects io .
-  requires le n 10 .
+  requires le n. 10 . .
 do
-  if eq n 0 do
-    return write_out out 1 "\n" .
-  end
-  let w u64 write_out out 1 "*" .
-  return add w (stars out (sub n 1)) .
-end
+  if eq n. 0 . do
+    return write_out out. 1 "\n" . .
+  end .
+  let w u64 write_out out. 1 "*" . .
+  return add w. stars out. sub n. 1 . . . .
+end .
 
 proc main input out cap io . output u8 . effects io .
 do
-  return narrow u8 (stars out 5) .
-end
+  return narrow u8 stars out. 5 . . .
+end .

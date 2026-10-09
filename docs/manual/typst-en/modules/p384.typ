@@ -33,7 +33,7 @@ module --- this file is `p256` carried from 16 limbs to 24, and *not one formula
   id: "mod-p384-ops",
   caption: [ops of `p384`],
   [*op*], [*what it does*],
-  [`ecdsa_ok`], [does the signature `(r, s)` match hash `e` and public key `pub` --- `ok 1` yes · `ok 0` no · `error short_workspace` the workspace is too small],
+  [`ecdsa_ok`], [does the signature `(r, s)` match hash `e` and public key `pub` --- `ok 1 .` yes · `ok 0 .` no · `error short_workspace .` the workspace is too small],
 )
 
 `ecdsa_ok` takes the curve constants (`p` · `n` · `Gx` · `Gy`) from the caller, the public key in affine form `x ‖ y` (48 limbs), and a

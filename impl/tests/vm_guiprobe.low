@@ -29,114 +29,114 @@ rem ★ 공개 손잡이 — **word 하나**. 브랜드는 타입 인자로만 �
 export def struct handle do
   input comptime b type .
   w u64 .
-end
+end .
 
 rem hot 레코드의 칸 번호 — 8 칸 × u32.
 rem   0 parent · 1 first_child · 2 last_child · 3 prev_sibling · 4 next_sibling · 5 kind · 6 flags · 7 state
 rem   링크는 **슬롯 + 1** 이고 0 은 「없음」이다. flags: bit0 = alive · bit1 = destroy_pending.
 fn rd input hot slice u32 . input i u64 . input f u64 . output u64 . do
-  return widen u64 (idx hot (add (mul i 8) f)) .
-end
+  return widen u64 idx hot. add mul i. 8 . f. . . . .
+end .
 
 proc wr input hot mut slice u32 . input i u64 . input f u64 . input v u64 . output void . effects none . do
-  set (idx hot (add (mul i 8) f)) (narrow u32 v) .
-end
+  set idx hot. add mul i. 8 . f. . . narrow u32 v. . .
+end .
 
 rem ★ 저장소를 연다: 세대는 1 부터(0 = 한 번도 안 준 슬롯), 자유 목록은 `next` 칸에 **intrusive** 로.
 proc open input hot mut slice u32 . input gen mut slice u64 . input meta mut slice u64 .
   output u64 . effects none .
 do
-  var n u64 div (len hot) 8 .
-  if gt n (len gen) do set n (len gen) . end
+  var n u64 div len hot. . 8 . .
+  if gt n. len gen. . . do set n. len gen. . . end .
   var i u64 0 .
-  while lt i n do
-    set (idx gen i) 1 .
-    wr hot i 6 0 .
-    wr hot i 4 (add i 2) .          rem 다음 자유 슬롯 = i+1 → (+1 인코딩) i+2
-    set i (add i 1) .
-  end
-  if gt n 0 do wr hot (sub n 1) 4 0 . end
-  set (idx meta 0) 1 .            rem 머리 = 슬롯 0
-  set (idx meta 1) n .
-  set (idx meta 2) 0 .
-  set (idx meta 3) 0 .
-  set (idx meta 4) 0 .
-  return n .
-end
+  while lt i. n. . do
+    set idx gen. i. . 1 .
+    wr hot. i. 6 0 .
+    wr hot. i. 4 add i. 2 . .          rem 다음 자유 슬롯 = i+1 → (+1 인코딩) i+2
+    set i. add i. 1 . .
+  end .
+  if gt n. 0 . do wr hot. sub n. 1 . 4 0 . end .
+  set idx meta. 0 . 1 .            rem 머리 = 슬롯 0
+  set idx meta. 1 . n. .
+  set idx meta. 2 . 0 .
+  set idx meta. 3 . 0 .
+  set idx meta. 4 . 0 .
+  return n. .
+end .
 
 rem 부모 없음 — 뿌리를 만들 때 넘기는 값. 세대 0 은 어떤 슬롯과도 안 맞으므로 안전하다.
-fn no_parent input comptime b type . output handle b . do
-  return lit handle b do w 0 . end .
-end
+fn no_parent input comptime b type . output (handle b) . do
+  return lit (handle b) do w 0 . end . .
+end .
 
 rem ★★★ **I1 — 손잡이 검사 다섯**: 브랜드(타입) · shard · slot 범위 · alive ∧ ¬pending · 세대.
 rem   살아 있는 노드에 닿는 **유일한 문**이다. 통과하면 phase-local 슬롯 번호를 준다(§5.3).
 fn resolve input comptime b type . input hot slice u32 . input gen slice u64 . input meta slice u64 .
-  input h handle b . output option u64 .
+  input h (handle b) . output option u64 .
 do
-  let w u64 field h w .
-  let s u64 budget.slot_of 32 w .
-  guard eq (budget.shard_of 32 8 w) 0 else return none .
-  guard lt s (idx meta 1) else return none .
-  let fl u64 rd hot s 6 .
-  guard eq (bit_and fl 3) 1 else return none .            rem alive 이고 pending 아님
-  guard eq (idx gen s) (budget.gen_of 32 8 w) else return none .
-  return some s .
-end
+  let w u64 field h. w . .
+  let s u64 budget.slot_of 32 w. . .
+  guard eq budget.shard_of 32 8 w. . 0 . else return none . .
+  guard lt s. idx meta. 1 . . else return none . .
+  let fl u64 rd hot. s. 6 . .
+  guard eq bit_and fl. 3 . 1 . else return none . .            rem alive 이고 pending 아님
+  guard eq idx gen. s. . budget.gen_of 32 8 w. . . else return none . .
+  return some s. . .
+end .
 
 rem ★ 노드 하나를 만든다. 부모가 있으면 **마지막 자식으로 O(1) 덧붙인다**(§2.2 (2)).
 rem   자유 슬롯이 없으면 `none` — 트랩이 아니다(§3.6 "실패와 상한이 보여야 한다").
 proc create input comptime b type . input hot mut slice u32 . input gen mut slice u64 .
-  input meta mut slice u64 . input parent handle b . input kind u64 .
+  input meta mut slice u64 . input parent (handle b) . input kind u64 .
   output option (handle b) . effects none .
 do
   var p u64 0 .
-  if gt (field parent w) 0 do
-    let po option u64 resolve b hot gen meta parent .
-    guard is_some po else return none .
-    set p (add (some_value po) 1) .
-  end
-  let fh u64 idx meta 0 .
-  guard gt fh 0 else return none .                         rem capacity_nodes
-  let s u64 sub fh 1 .
-  set (idx meta 0) (rd hot s 4) .                          rem 자유 목록 pop
-  wr hot s 0 p .
-  wr hot s 1 0 .
-  wr hot s 2 0 .
-  wr hot s 3 0 .
-  wr hot s 4 0 .
-  wr hot s 5 kind .
-  wr hot s 6 1 .
-  wr hot s 7 0 .
-  if gt p 0 do
-    let ps u64 sub p 1 .
-    let last u64 rd hot ps 2 .
-    wr hot s 3 last .
-    if gt last 0 do wr hot (sub last 1) 4 (add s 1) . end
-    if eq (rd hot ps 1) 0 do wr hot ps 1 (add s 1) . end
-    wr hot ps 2 (add s 1) .
-  end
-  set (idx meta 4) (add (idx meta 4) 1) .
-  let ho option u64 budget.pack 32 8 24 s 0 (idx gen s) .
-  guard is_some ho else return none .
-  return some (lit handle b do w (some_value ho) . end) .
-end
+  if gt field parent. w . 0 . do
+    let po option u64 resolve b. hot. gen. meta. parent. . .
+    guard is_some po. . else return none . .
+    set p. add some_value po. . 1 . .
+  end .
+  let fh u64 idx meta. 0 . .
+  guard gt fh. 0 . else return none . .                         rem capacity_nodes
+  let s u64 sub fh. 1 . .
+  set idx meta. 0 . rd hot. s. 4 . .                          rem 자유 목록 pop
+  wr hot. s. 0 p. .
+  wr hot. s. 1 0 .
+  wr hot. s. 2 0 .
+  wr hot. s. 3 0 .
+  wr hot. s. 4 0 .
+  wr hot. s. 5 kind. .
+  wr hot. s. 6 1 .
+  wr hot. s. 7 0 .
+  if gt p. 0 . do
+    let ps u64 sub p. 1 . .
+    let last u64 rd hot. ps. 2 . .
+    wr hot. s. 3 last. .
+    if gt last. 0 . do wr hot. sub last. 1 . 4 add s. 1 . . end .
+    if eq rd hot. ps. 1 . 0 . do wr hot. ps. 1 add s. 1 . . end .
+    wr hot. ps. 2 add s. 1 . .
+  end .
+  set idx meta. 4 . add idx meta. 4 . 1 . .
+  let ho option u64 budget.pack 32 8 24 s. 0 idx gen. s. . . .
+  guard is_some ho. . else return none . .
+  return some lit (handle b) do w some_value ho. . . end . . .
+end .
 
 rem 부모에서 뗀다 — O(1). 형제 링크와 부모의 first/last 를 고친다.
 proc unlink input hot mut slice u32 . input s u64 . output void . effects none . do
-  let p u64 rd hot s 0 .
-  guard gt p 0 else return 0 .
-  let ps u64 sub p 1 .
-  let pv u64 rd hot s 3 .
-  let nx u64 rd hot s 4 .
-  if gt pv 0 do wr hot (sub pv 1) 4 nx . end
-  if gt nx 0 do wr hot (sub nx 1) 3 pv . end
-  if eq (rd hot ps 1) (add s 1) do wr hot ps 1 nx . end
-  if eq (rd hot ps 2) (add s 1) do wr hot ps 2 pv . end
-  wr hot s 0 0 .
-  wr hot s 3 0 .
-  wr hot s 4 0 .
-end
+  let p u64 rd hot. s. 0 . .
+  guard gt p. 0 . else return 0 . .
+  let ps u64 sub p. 1 . .
+  let pv u64 rd hot. s. 3 . .
+  let nx u64 rd hot. s. 4 . .
+  if gt pv. 0 . do wr hot. sub pv. 1 . 4 nx. . end .
+  if gt nx. 0 . do wr hot. sub nx. 1 . 3 pv. . end .
+  if eq rd hot. ps. 1 . add s. 1 . . do wr hot. ps. 1 nx. . end .
+  if eq rd hot. ps. 2 . add s. 1 . . do wr hot. ps. 2 pv. . end .
+  wr hot. s. 0 0 .
+  wr hot. s. 3 0 .
+  wr hot. s. 4 0 .
+end .
 
 rem ★★★ **삭제의 첫 걸음(§5.7 2·3)** — 부분 나무 전체를 `pending` 으로 표시하고(스택 `stk` 로
 rem   반복 순회, 재귀 없음) 각 슬롯을 `pend` 목록에 적은 뒤, 뿌리만 부모에서 뗀다.
@@ -144,33 +144,33 @@ rem   **세대는 아직 안 올린다** — 그것은 안전 지점(`reclaim`)�
 rem   표시된 순간부터 `resolve` 가 `none` 을 낸다(I5 pending invisibility).
 proc mark_destroy input comptime b type . input hot mut slice u32 . input gen mut slice u64 .
   input meta mut slice u64 . input stk mut slice u32 . input pend mut slice u32 .
-  input h handle b . output u64 . effects none .
+  input h (handle b) . output u64 . effects none .
 do
-  let so option u64 resolve b hot gen meta h .
-  guard is_some so else return 0 .
-  let root u64 some_value so .
-  unlink hot root .
+  let so option u64 resolve b. hot. gen. meta. h. . .
+  guard is_some so. . else return 0 . .
+  let root u64 some_value so. . .
+  unlink hot. root. .
   var top u64 0 .
-  set (idx stk 0) (narrow u32 root) .
-  set top 1 .
+  set idx stk. 0 . narrow u32 root. . .
+  set top. 1 .
   var marked u64 0 .
-  while gt top 0 do
-    set top (sub top 1) .
-    let x u64 widen u64 (idx stk top) .
-    wr hot x 6 3 .                                           rem alive | pending
-    let pc u64 idx meta 2 .
-    set (idx pend pc) (narrow u32 x) .
-    set (idx meta 2) (add pc 1) .
-    set marked (add marked 1) .
-    var c u64 rd hot x 1 .
-    while gt c 0 do
-      set (idx stk top) (narrow u32 (sub c 1)) .
-      set top (add top 1) .
-      set c (rd hot (sub c 1) 4) .
-    end
-  end
-  return marked .
-end
+  while gt top. 0 . do
+    set top. sub top. 1 . .
+    let x u64 widen u64 idx stk. top. . . .
+    wr hot. x. 6 3 .                                           rem alive | pending
+    let pc u64 idx meta. 2 . .
+    set idx pend. pc. . narrow u32 x. . .
+    set idx meta. 2 . add pc. 1 . .
+    set marked. add marked. 1 . .
+    var c u64 rd hot. x. 1 . .
+    while gt c. 0 . do
+      set idx stk. top. . narrow u32 sub c. 1 . . .
+      set top. add top. 1 . .
+      set c. rd hot. sub c. 1 . 4 . .
+    end .
+  end .
+  return marked. .
+end .
 
 rem ★★★ **안전 지점(§5.7 5)** — pending 슬롯의 세대를 올리고 자유 목록에 되돌린다.
 rem   세대가 한 바퀴 돌면 그 슬롯은 **은퇴**한다(`budget.next_gen` = none): 자유 목록에 안 넣는다.
@@ -179,40 +179,40 @@ proc reclaim input hot mut slice u32 . input gen mut slice u64 . input meta mut 
   input pend mut slice u32 . output u64 . effects none .
 do
   var freed u64 0 .
-  while gt (idx meta 2) 0 do
-    let pc u64 sub (idx meta 2) 1 .
-    set (idx meta 2) pc .
-    let s u64 widen u64 (idx pend pc) .
-    wr hot s 6 0 .
-    wr hot s 0 0 .
-    wr hot s 1 0 .
-    wr hot s 2 0 .
-    wr hot s 3 0 .
-    set (idx meta 4) (sub (idx meta 4) 1) .
-    let ng option u64 budget.next_gen 24 (idx gen s) .
-    if is_some ng do
-      set (idx gen s) (some_value ng) .
-      wr hot s 4 (idx meta 0) .
-      set (idx meta 0) (add s 1) .
-      set freed (add freed 1) .
-    end
-    if is_none ng do
-      set (idx meta 3) (add (idx meta 3) 1) .
-    end
-  end
-  return freed .
-end
+  while gt idx meta. 2 . 0 . do
+    let pc u64 sub idx meta. 2 . 1 . .
+    set idx meta. 2 . pc. .
+    let s u64 widen u64 idx pend. pc. . . .
+    wr hot. s. 6 0 .
+    wr hot. s. 0 0 .
+    wr hot. s. 1 0 .
+    wr hot. s. 2 0 .
+    wr hot. s. 3 0 .
+    set idx meta. 4 . sub idx meta. 4 . 1 . .
+    let ng option u64 budget.next_gen 24 idx gen. s. . . .
+    if is_some ng. . do
+      set idx gen. s. . some_value ng. . .
+      wr hot. s. 4 idx meta. 0 . .
+      set idx meta. 0 . add s. 1 . .
+      set freed. add freed. 1 . .
+    end .
+    if is_none ng. . do
+      set idx meta. 3 . add idx meta. 3 . 1 . .
+    end .
+  end .
+  return freed. .
+end .
 
 rem 자식 수 — first → next 를 따라 센다(순회는 슬롯 번호로, 손잡이 검사는 문에서 한 번뿐).
 fn child_count input hot slice u32 . input s u64 . output u64 . do
   var n u64 0 .
-  var c u64 rd hot s 1 .
-  while gt c 0 do
-    set n (add n 1) .
-    set c (rd hot (sub c 1) 4) .
-  end
-  return n .
-end
+  var c u64 rd hot. s. 1 . .
+  while gt c. 0 . do
+    set n. add n. 1 . .
+    set c. rd hot. sub c. 1 . 4 . .
+  end .
+  return n. .
+end .
 
 rem ─── 시험 ─────────────────────────────────────────────────────────────────
 
@@ -220,72 +220,72 @@ rem ① 나무: root 아래 a·b·c, a 아래 d. 링크 다섯이 §2.2 (2) 대�
 export proc t_tree input hot mut slice u32 . input gen mut slice u64 . input meta mut slice u64 .
   output u64 . effects none .
 do
-  guard ge (open hot gen meta) 8 else return 90 .
-  let r option (handle g_tree) create g_tree hot gen meta (no_parent g_tree) 1 .
-  guard is_some r else return 91 .
-  let root (handle g_tree) some_value r .
-  let ao option (handle g_tree) create g_tree hot gen meta root 2 .
-  let bo option (handle g_tree) create g_tree hot gen meta root 2 .
-  let co option (handle g_tree) create g_tree hot gen meta root 2 .
-  guard is_some ao else return 92 .
-  guard is_some bo else return 92 .
-  guard is_some co else return 92 .
-  let a (handle g_tree) some_value ao .
-  let dd option (handle g_tree) create g_tree hot gen meta a 3 .
-  guard is_some dd else return 93 .
-  let rs option u64 resolve g_tree hot gen meta root .
-  let asl option u64 resolve g_tree hot gen meta a .
-  let bs option u64 resolve g_tree hot gen meta (some_value bo) .
-  let cs option u64 resolve g_tree hot gen meta (some_value co) .
-  let ds option u64 resolve g_tree hot gen meta (some_value dd) .
-  guard is_some rs else return 94 .
-  guard is_some ds else return 94 .
-  let ri u64 some_value rs .
-  let ai u64 some_value asl .
-  let bi u64 some_value bs .
-  let ci u64 some_value cs .
-  let di u64 some_value ds .
-  guard eq (rd hot ri 1) (add ai 1) else return 95 .     rem first(root) = a
-  guard eq (rd hot ri 2) (add ci 1) else return 96 .     rem last(root) = c
-  guard eq (rd hot ai 4) (add bi 1) else return 97 .     rem next(a) = b
-  guard eq (rd hot ci 3) (add bi 1) else return 98 .     rem prev(c) = b
-  guard eq (rd hot di 0) (add ai 1) else return 99 .     rem parent(d) = a
-  guard eq (child_count hot ri) 3 else return 100 .
-  guard eq (idx meta 4) 5 else return 101 .
+  guard ge open hot. gen. meta. . 8 . else return 90 . .
+  let r option (handle g_tree) create g_tree. hot. gen. meta. no_parent g_tree. . 1 . .
+  guard is_some r. . else return 91 . .
+  let root (handle g_tree) some_value r. . .
+  let ao option (handle g_tree) create g_tree. hot. gen. meta. root. 2 . .
+  let bo option (handle g_tree) create g_tree. hot. gen. meta. root. 2 . .
+  let co option (handle g_tree) create g_tree. hot. gen. meta. root. 2 . .
+  guard is_some ao. . else return 92 . .
+  guard is_some bo. . else return 92 . .
+  guard is_some co. . else return 92 . .
+  let a (handle g_tree) some_value ao. . .
+  let dd option (handle g_tree) create g_tree. hot. gen. meta. a. 3 . .
+  guard is_some dd. . else return 93 . .
+  let rs option u64 resolve g_tree. hot. gen. meta. root. . .
+  let asl option u64 resolve g_tree. hot. gen. meta. a. . .
+  let bs option u64 resolve g_tree. hot. gen. meta. some_value bo. . . .
+  let cs option u64 resolve g_tree. hot. gen. meta. some_value co. . . .
+  let ds option u64 resolve g_tree. hot. gen. meta. some_value dd. . . .
+  guard is_some rs. . else return 94 . .
+  guard is_some ds. . else return 94 . .
+  let ri u64 some_value rs. . .
+  let ai u64 some_value asl. . .
+  let bi u64 some_value bs. . .
+  let ci u64 some_value cs. . .
+  let di u64 some_value ds. . .
+  guard eq rd hot. ri. 1 . add ai. 1 . . else return 95 . .     rem first(root) = a
+  guard eq rd hot. ri. 2 . add ci. 1 . . else return 96 . .     rem last(root) = c
+  guard eq rd hot. ai. 4 . add bi. 1 . . else return 97 . .     rem next(a) = b
+  guard eq rd hot. ci. 3 . add bi. 1 . . else return 98 . .     rem prev(c) = b
+  guard eq rd hot. di. 0 . add ai. 1 . . else return 99 . .     rem parent(d) = a
+  guard eq child_count hot. ri. . 3 . else return 100 . .
+  guard eq idx meta. 4 . 5 . else return 101 . .
   return 1 .
-end
+end .
 
 rem ② 낡은 손잡이: 지우고 되돌린 슬롯이 **재사용돼도** 옛 손잡이는 `none`(수용 시험 2).
 export proc t_stale input hot mut slice u32 . input gen mut slice u64 . input meta mut slice u64 .
   input stk mut slice u32 . input pend mut slice u32 . output u64 . effects none .
 do
-  guard ge (open hot gen meta) 8 else return 90 .
-  let r option (handle g_stale) create g_stale hot gen meta (no_parent g_stale) 1 .
-  guard is_some r else return 91 .
-  let root (handle g_stale) some_value r .
-  let ao option (handle g_stale) create g_stale hot gen meta root 2 .
-  guard is_some ao else return 92 .
-  let a (handle g_stale) some_value ao .
-  let asl option u64 resolve g_stale hot gen meta a .
-  guard is_some asl else return 93 .
-  let ai u64 some_value asl .
-  guard eq (mark_destroy g_stale hot gen meta stk pend a) 1 else return 94 .
+  guard ge open hot. gen. meta. . 8 . else return 90 . .
+  let r option (handle g_stale) create g_stale. hot. gen. meta. no_parent g_stale. . 1 . .
+  guard is_some r. . else return 91 . .
+  let root (handle g_stale) some_value r. . .
+  let ao option (handle g_stale) create g_stale. hot. gen. meta. root. 2 . .
+  guard is_some ao. . else return 92 . .
+  let a (handle g_stale) some_value ao. . .
+  let asl option u64 resolve g_stale. hot. gen. meta. a. . .
+  guard is_some asl. . else return 93 . .
+  let ai u64 some_value asl. . .
+  guard eq mark_destroy g_stale. hot. gen. meta. stk. pend. a. . 1 . else return 94 . .
   rem 표시만 됐는데 이미 안 보인다(I5) — 슬롯은 아직 돌아오지 않았다.
-  guard is_none (resolve g_stale hot gen meta a) else return 95 .
-  guard eq (idx meta 2) 1 else return 96 .
-  guard eq (reclaim hot gen meta pend) 1 else return 97 .
-  guard is_none (resolve g_stale hot gen meta a) else return 98 .
+  guard is_none resolve g_stale. hot. gen. meta. a. . . else return 95 . .
+  guard eq idx meta. 2 . 1 . else return 96 . .
+  guard eq reclaim hot. gen. meta. pend. . 1 . else return 97 . .
+  guard is_none resolve g_stale. hot. gen. meta. a. . . else return 98 . .
   rem 같은 슬롯이 돌아온다 — 세대만 다르다.
-  let a2o option (handle g_stale) create g_stale hot gen meta root 2 .
-  guard is_some a2o else return 99 .
-  let a2s option u64 resolve g_stale hot gen meta (some_value a2o) .
-  guard is_some a2s else return 100 .
-  guard eq (some_value a2s) ai else return 101 .          rem 슬롯 재사용
-  guard eq (idx gen ai) 2 else return 102 .             rem 세대 1 → 2
-  guard is_none (resolve g_stale hot gen meta a) else return 103 .   rem 옛 손잡이는 여전히 죽어 있다
-  guard eq (idx meta 4) 2 else return 104 .
+  let a2o option (handle g_stale) create g_stale. hot. gen. meta. root. 2 . .
+  guard is_some a2o. . else return 99 . .
+  let a2s option u64 resolve g_stale. hot. gen. meta. some_value a2o. . . .
+  guard is_some a2s. . else return 100 . .
+  guard eq some_value a2s. . ai. . else return 101 . .          rem 슬롯 재사용
+  guard eq idx gen. ai. . 2 . else return 102 . .             rem 세대 1 → 2
+  guard is_none resolve g_stale. hot. gen. meta. a. . . else return 103 . .   rem 옛 손잡이는 여전히 죽어 있다
+  guard eq idx meta. 4 . 2 . else return 104 . .
   return 2 .
-end
+end .
 
 rem ③ dispatch 중 조상 삭제(수용 시험 3): 경로 [b, a, root] 를 걷는 동안 a 의 처리기가
 rem   「a 를 지워라」를 **요청**만 하고(명령 큐), 걷기는 root 까지 **링크 변화 없이** 간다(I4).
@@ -293,81 +293,81 @@ rem   dispatch 뒤 적용 → a·b 가 pending(I5) → 안전 지점에서 둘 �
 export proc t_self_destroy input hot mut slice u32 . input gen mut slice u64 . input meta mut slice u64 .
   input stk mut slice u32 . input pend mut slice u32 . output u64 . effects none .
 do
-  guard ge (open hot gen meta) 8 else return 90 .
-  let r option (handle g_self) create g_self hot gen meta (no_parent g_self) 1 .
-  guard is_some r else return 91 .
-  let root (handle g_self) some_value r .
-  let ao option (handle g_self) create g_self hot gen meta root 2 .
-  guard is_some ao else return 92 .
-  let a (handle g_self) some_value ao .
-  let bo option (handle g_self) create g_self hot gen meta a 3 .
-  guard is_some bo else return 93 .
-  let nb (handle g_self) some_value bo .
-  let ri u64 some_value (resolve g_self hot gen meta root) .
-  let ai u64 some_value (resolve g_self hot gen meta a) .
-  let bi u64 some_value (resolve g_self hot gen meta nb) .
+  guard ge open hot. gen. meta. . 8 . else return 90 . .
+  let r option (handle g_self) create g_self. hot. gen. meta. no_parent g_self. . 1 . .
+  guard is_some r. . else return 91 . .
+  let root (handle g_self) some_value r. . .
+  let ao option (handle g_self) create g_self. hot. gen. meta. root. 2 . .
+  guard is_some ao. . else return 92 . .
+  let a (handle g_self) some_value ao. . .
+  let bo option (handle g_self) create g_self. hot. gen. meta. a. 3 . .
+  guard is_some bo. . else return 93 . .
+  let nb (handle g_self) some_value bo. . .
+  let ri u64 some_value resolve g_self. hot. gen. meta. root. . . .
+  let ai u64 some_value resolve g_self. hot. gen. meta. a. . . .
+  let bi u64 some_value resolve g_self. hot. gen. meta. nb. . . .
   rem 경로를 frame scratch 에 복사한다(§5.7): target 에서 root 까지.
-  let route0 u64 bi .
-  let route1 u64 ai .
-  let route2 u64 ri .
+  let route0 u64 bi. .
+  let route1 u64 ai. .
+  let route2 u64 ri. .
   var visited u64 0 .
   var queued u64 0 .                                     rem 「명령 큐」— 요청은 값이다
   var i u64 0 .
-  while lt i 3 do
-    var cur u64 route0 .
-    if eq i 1 do set cur route1 . end
-    if eq i 2 do set cur route2 . end
+  while lt i. 3 . do
+    var cur u64 route0. .
+    if eq i. 1 . do set cur. route1. . end .
+    if eq i. 2 . do set cur. route2. . end .
     rem 처리기: a 에서 destroy 를 요청한다 — 나무는 안 만진다.
-    if eq cur ai do set queued (add queued 1) . end
+    if eq cur. ai. . do set queued. add queued. 1 . . end .
     rem 걷는 동안 링크는 그대로다(I4): root 의 first 는 여전히 a.
-    guard eq (rd hot ri 1) (add ai 1) else return 94 .
-    set visited (add visited 1) .
-    set i (add i 1) .
-  end
-  guard eq visited 3 else return 95 .
-  guard eq queued 1 else return 96 .
+    guard eq rd hot. ri. 1 . add ai. 1 . . else return 94 . .
+    set visited. add visited. 1 . .
+    set i. add i. 1 . .
+  end .
+  guard eq visited. 3 . else return 95 . .
+  guard eq queued. 1 . else return 96 . .
   rem dispatch 가 끝났다 — 이제 적용한다.
-  guard eq (mark_destroy g_self hot gen meta stk pend a) 2 else return 97 .   rem a 와 b
-  guard is_none (resolve g_self hot gen meta nb) else return 98 .              rem 자손도 안 보인다
-  guard eq (rd hot ri 1) 0 else return 99 .                                   rem root 에서 떨어졌다
-  guard eq (reclaim hot gen meta pend) 2 else return 100 .
-  guard eq (idx meta 4) 1 else return 101 .
+  guard eq mark_destroy g_self. hot. gen. meta. stk. pend. a. . 2 . else return 97 . .   rem a 와 b
+  guard is_none resolve g_self. hot. gen. meta. nb. . . else return 98 . .              rem 자손도 안 보인다
+  guard eq rd hot. ri. 1 . 0 . else return 99 . .                                   rem root 에서 떨어졌다
+  guard eq reclaim hot. gen. meta. pend. . 2 . else return 100 . .
+  guard eq idx meta. 4 . 1 . else return 101 . .
   rem 두 슬롯이 다 돌아왔다: 둘을 다시 만들 수 있고, 셋째는 용량대로 답한다.
-  let x option (handle g_self) create g_self hot gen meta root 2 .
-  let y option (handle g_self) create g_self hot gen meta root 2 .
-  guard is_some x else return 102 .
-  guard is_some y else return 102 .
+  let x option (handle g_self) create g_self. hot. gen. meta. root. 2 . .
+  let y option (handle g_self) create g_self. hot. gen. meta. root. 2 . .
+  guard is_some x. . else return 102 . .
+  guard is_some y. . else return 102 . .
   return 3 .
-end
+end .
 
 rem ④ 휘저음(benchmark 행 「node」): root 아래 자식 하나를 만들고 지우기를 n 번.
 rem   끝에 산 노드 = 1 · 은퇴 0 · 슬롯 하나의 세대 = n+1 이어야 한다. `--emit-c` 로 시간을 잰다.
 export proc t_churn input hot mut slice u32 . input gen mut slice u64 . input meta mut slice u64 .
   input stk mut slice u32 . input pend mut slice u32 . input n u64 . output u64 . effects none .
 do
-  guard ge (open hot gen meta) 8 else return 90 .
-  let r option (handle g_churn) create g_churn hot gen meta (no_parent g_churn) 1 .
-  guard is_some r else return 91 .
-  let root (handle g_churn) some_value r .
+  guard ge open hot. gen. meta. . 8 . else return 90 . .
+  let r option (handle g_churn) create g_churn. hot. gen. meta. no_parent g_churn. . 1 . .
+  guard is_some r. . else return 91 . .
+  let root (handle g_churn) some_value r. . .
   var i u64 0 .
   var slot u64 0 .
-  while lt i n do
-    let ao option (handle g_churn) create g_churn hot gen meta root 2 .
-    guard is_some ao else return 92 .
-    let a (handle g_churn) some_value ao .
-    set slot (budget.slot_of 32 (field a w)) .
-    guard eq (mark_destroy g_churn hot gen meta stk pend a) 1 else return 93 .
-    guard eq (reclaim hot gen meta pend) 1 else return 94 .
-    set i (add i 1) .
-  end
-  guard eq (idx meta 4) 1 else return 95 .
-  guard eq (idx meta 3) 0 else return 96 .
-  guard eq (idx gen slot) (add n 1) else return 97 .
+  while lt i. n. . do
+    let ao option (handle g_churn) create g_churn. hot. gen. meta. root. 2 . .
+    guard is_some ao. . else return 92 . .
+    let a (handle g_churn) some_value ao. . .
+    set slot. budget.slot_of 32 field a. w . . .
+    guard eq mark_destroy g_churn. hot. gen. meta. stk. pend. a. . 1 . else return 93 . .
+    guard eq reclaim hot. gen. meta. pend. . 1 . else return 94 . .
+    set i. add i. 1 . .
+  end .
+  guard eq idx meta. 4 . 1 . else return 95 . .
+  guard eq idx meta. 3 . 0 . else return 96 . .
+  guard eq idx gen. slot. . add n. 1 . . else return 97 . .
   return 4 .
-end
+end .
 
 rem ⑤ 크기 — 문서가 아니라 도구가 답한다: hot 레코드 = 8 × size_of u32 · 손잡이 = size_of u64.
 rem   답 = 레코드 × 100 + 손잡이 = 3208.
 export fn t_sizes output u64 . do
-  return add (mul 100 (mul 8 (size_of u32))) (size_of u64) .
-end
+  return add mul 100 mul 8 size_of u32 . . . size_of u64 . . .
+end .

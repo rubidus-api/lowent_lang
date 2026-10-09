@@ -51,7 +51,7 @@ is gathered (the order the server sent, how many links) is the caller's choice -
   caption: [ops of `verify`],
   [*op*], [*what it does*],
   [`link_ok`], [links one step (table above). Byte workspace ≥ 1024 · limb workspace ≥ 2200],
-  [`signed_by`], [was the child signed by the parent --- `ok 1` / `ok 0`, `error short_workspace` if there is not enough room],
+  [`signed_by`], [was the child signed by the parent --- `ok 1 .` / `ok 0 .`, `error short_workspace .` if there is not enough room],
   [`sig_kind`], [the algorithm the child names: 1 RSA+SHA-256 · 2 ECDSA+SHA-256 · 3 RSA+SHA-384 · 4 ECDSA+SHA-384 · 0 unknown],
   [`dn_eq`], [are two names equal *as bytes*],
   [`dates_ok`], [does the validity period contain now (one number `YYYYMMDDhhmmss`)],
@@ -76,5 +76,5 @@ whitespace rules in, and each rule shifts what "equal" means.
 *`ecdsa_rs` right-aligns.* A DER integer may carry a leading 0 (when the top bit is 1) or be short. Copying it as is verifies a value shifted
 by one byte, and that mistake only ever shows up as "bad signature".
 
-*A short workspace is a failure.* It is `error short_workspace` --- once "not enough room" and "not signed" were both 0, and a program that
+*A short workspace is a failure.* It is `error short_workspace .` --- once "not enough room" and "not signed" were both 0, and a program that
 passed the wrong workspace looked like it had a bad signature.

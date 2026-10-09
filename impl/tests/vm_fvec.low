@@ -6,7 +6,7 @@ def struct sample do
   temp f32 big .
   scale f64 .
   tag u8 .
-end
+end .
 
 fn mk_sample
   output sample .
@@ -15,33 +15,33 @@ do
     temp 1.5 .
     scale 2.25 .
     tag 3 .
-  end .
-end
+  end . .
+end .
 
 fn f_roundtrip
   output f64 .
 do
-  let h sample view sample encode sample mk_sample .
-  return expr ((field h temp)) + ((field h scale)) .
-end
+  let h sample view sample encode sample mk_sample. . . .
+  return expr ((field h. temp .)) + ((field h. scale .)) . .
+end .
 
-fn f_len output u64 . do return len encode sample mk_sample . end
+fn f_len output u64 . do return len encode sample mk_sample. . . . end .
 
 fn fdot
   input b bytes .
   output f64 .
 do
-  let xs slice f32 view_array f32 b .
-  let va vec f32 4 load xs 0 .
-  let vb vec f32 4 load xs 4 .
-  return reduce_add mul va vb .
-end
+  let xs slice f32 view_array f32 b. . .
+  let va vec f32 4 load xs. 0 . .
+  let vb vec f32 4 load xs. 4 . .
+  return reduce_add mul va. vb. . . .
+end .
 
 fn fmax
   input b bytes .
   output f64 .
 do
-  let xs slice f32 view_array f32 b .
-  let v vec f32 4 load xs 0 .
-  return reduce_max v .
-end
+  let xs slice f32 view_array f32 b. . .
+  let v vec f32 4 load xs. 0 . .
+  return reduce_max v. . .
+end .

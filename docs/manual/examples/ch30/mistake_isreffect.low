@@ -8,4 +8,4 @@ proc on_exti
   output void . effects none .
 do
   return .
-end
+end .

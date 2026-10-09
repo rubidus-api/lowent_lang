@@ -6,11 +6,11 @@ use hash .
 
 fn checksum input data slice u8 . output u64 .
 do
-  return hash.crc data .
-end
+  return hash.crc data. . .
+end .
 
 fn slot input key slice u8 . input nslots u64 . output u64 .
-  requires gt nslots 0 .
+  requires gt nslots. 0 . .
 do
-  return hash.bucket_of key nslots .
-end
+  return hash.bucket_of key. nslots. . .
+end .

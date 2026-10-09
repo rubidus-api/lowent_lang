@@ -11,18 +11,17 @@
       뒤에 온다.
     ]
     #para("2")[
-      전위 표기에는 #strong[우선순위 규칙이 없다.]; 어떤 것이 먼저 계산되는지는 괄호와 순서가
-      전부 말해 준다.
+      전위 표기에는 #strong[우선순위 규칙이 없다.]; 어떤 것이 먼저 계산되는지는 점과 순서가
+      전부 말해 준다 — 폼은 이름으로 열리고 제 점으로 닫히며(#cref("6.1.5")), 안쪽 폼이 먼저 닫힌다.
     ]
     #para("2a")[
-      괄호를 생략하고 부름을 겹쳐 적을 수 있다 — `add 1 mul a b` 는 `add 1 (mul 2 3)` 과
-      같은 방식으로 묶인다. 묶는 규칙은 #strong[인자 수];다: 낱말을 왼쪽에서 오른쪽으로 읽다가
-      연산 이름을 만나면 그 연산이 받는 수만큼 뒤의 것을 가져간다. 인자 수는 낱말마다
-      정해져 있으므로(부록 D) 이 묶기는 하나로 정해진다.
+      부름을 겹쳐 적는 데 괄호가 들지 아니한다 — `add 1 mul a. b. . .` 에서 첫 점이 `mul` 을, 둘째
+      점이 `add` 를 닫는다. 폼의 끝은 #strong[그 폼의 점];이 정한다. 연산이 받는 인자 수는 끝을 정하지
+      아니한다 — 인자 수가 맞는지는 폼이 닫힌 뒤에 따로 본다(맞지 아니하면 `E-IR-ARITY`).
     ]
     #para("2b")[
-      그러나 #strong[읽는 사람은 인자 수를 외워야 한다]; — (2) 가 없애려던 바로 그 외움이다.
-      그러므로 괄호 생략은 적합하되, 이 문서의 예제와 표준 라이브러리는 #strong[괄호를 적는다.];
+      괄호는 #strong[묶음을 눈에 띄게 하는 꾸밈];이다 — `add 1 (mul a. b. .) .` 는 (2a) 의 식과 같은 식이다.
+      괄호 안의 폼도 제 점으로 닫히고, 괄호는 뜻을 바꾸지 아니한다.
     ]
     #para("2c")[
       #strong[피연산자를 계산하는 차례는 #t("자유 선택", "free choice") 이다];(#cref("4.3")). 처리기는 한 연산의 피연산자들을 어느 차례로든
@@ -39,12 +38,12 @@
       대부분의 프로그램에서는 차례가 달라도 답이 같다. 차이가 드러나는 때는 하나다 — 두 피연산자가 서로 다른 까닭으로 멈출 때 #strong[어느 멈춤이 나는가];.
       그 차이가 중요하면 먼저 계산할 것을 `let` 으로 이름에 담는다 — 문장은 적힌 차례로 실행된다.
     ]
-    #ex("전위 표기", "let a u32 add 1 2 .
-let b u32 add 1 (mul 2 3) .
-let c bool lt a b .")
+    #ex("전위 표기", "let a u32 add 1 2 . .
+let b u32 add 1 mul 2 3 . . .
+let c bool lt a. b. . .")
     #plain[
       `1 + 2 * 3` 을 처음 보는 사람은 `*` 가 먼저인지 `+` 가 먼저인지 #strong[외워야]; 안다.
-      `add 1 (mul 2 3)` 은 외울 것이 없다 — 괄호가 그대로 말해 준다. 이 언어가 전위를
+      `add 1 mul 2 3 . .` 은 외울 것이 없다 — 점이 그대로 말해 준다. 이 언어가 전위를
       기본으로 삼는 이유가 그것이다.
     ]
   ]
@@ -71,7 +70,7 @@ let c bool lt a b .")
       )
     ]
     #para("4")[
-      `and` 가 `or` 보다 강하게 묶는다. 곧 `expr a or b and c` 는 `or a (and b c)` 와 같다.
+      `and` 가 `or` 보다 강하게 묶는다. 곧 `expr a or b and c` 는 `or a. and b. c. . .` 와 같다.
     ]
     #para("5")[
       비교는 #strong[이어 쓸 수 없다.]; `expr a lt b lt c` 는 거부된다.
@@ -83,7 +82,7 @@ let c bool lt a b .")
     ]
     #para("7")[
       단항 연산도 섬에 없다. 부호를 뒤집으려면 `expr 0 - a` 로 적거나 전위 폼을 괄호로
-      묶는다(`expr (not b) or c`).
+      묶는다(`expr (not b. .) or c. .`).
     ]
     #caution("섬이 작은 것은 부족해서가 아니다")[
       중위 표기의 값은 #strong[읽기 쉬움]; 하나뿐이고, 그것은 우선순위를 #strong[아무도 찾아보지 않아도
@@ -106,17 +105,17 @@ let c bool lt a b .")
     #ex("중위 표기", "module ex_infix .
 
 export fn score input a u32 . input b u32 . output u32 .
-  requires le a 1000 .
-  requires le b 1000 .
+  requires le a. 1000 . .
+  requires le b. 1000 . .
 do
-  return expr a + b * 2 .
-end")
+  return expr a. + b. * 2 . .
+end .")
     #rejected("비교를 이어 쓸 수 없다", "module ex_chain .
 
 proc p input a u32 . input b u32 . input c u32 . output bool . effects none .
 do
-  return expr a lt b lt c .     rem 두 비교를 이어 쓸 수 없다
-end", "E-EXPR-CHAIN")
+  return expr a. lt b. lt c. . .     rem 두 비교를 이어 쓸 수 없다
+end .", "E-EXPR-CHAIN")
     #caution("비교를 이어 쓰지 못하는 이유")[
       수학에서 `a < b < c` 는 「a 가 b 보다 작고 b 가 c 보다 작다」는 뜻이다. 그런데 여러
       언어에서 그 표기는 #strong[다른 뜻];으로 읽힌다(먼저 `a < b` 를 계산해 참거짓을 얻고, 그것을
@@ -173,25 +172,25 @@ end", "E-EXPR-CHAIN")
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  return sha256 s o .
-end", "E-BUILTIN-BARE")
+  return sha256 s. o. . .
+end .", "E-BUILTIN-BARE")
     #ex("같은 것을 자리에 맞게 적으면 선다", "module ex_call .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  return call_builtin sha256 s o .
-end")
+  return call_builtin sha256 s. o. . .
+end .")
     #ex("저자의 `sha256` 과 빌트인 연산 `sha256` 이 한 단위에 함께 선다", "module ex_both .
 
 fn sha256 input x u64 . output u64 . do
-  return add x 1 .
-end
+  return add x. 1 . .
+end .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  let n u64 call_builtin sha256 s o .
-  return sha256 n .
-end")
+  let n u64 call_builtin sha256 s. o. . .
+  return sha256 n. . .
+end .")
     #para("1e")[
       언어가 뜻을 정한 이름을 전역 어휘에서 가두는 길은 셋이다.
       - #strong[머리]; — `call_builtin <이름>` 의 이름 자리((1c)). 빌트인 연산이 그렇다.
@@ -270,16 +269,16 @@ end")
       `div` 와 `mod` 는 #strong[선언된 부호];로 해석한다.
     ]
     #para("5a")[
-      `div` 는 몫을 #strong[0 쪽으로 자른다]; — `div -7 2` 는 -3 이다.
+      `div` 는 몫을 #strong[0 쪽으로 자른다]; — `div -7 2 .` 는 -3 이다.
     ]
     #para("5b")[
-      `mod` 는 #strong[바닥 나눗셈의 나머지];다. 나머지의 부호는 #strong[제수];를 따른다 — `mod -7 2` 는 1, `mod 7 -2` 는 -1 이다.
+      `mod` 는 #strong[바닥 나눗셈의 나머지];다. 나머지의 부호는 #strong[제수];를 따른다 — `mod -7 2 .` 는 1, `mod 7 -2 .` 는 -1 이다.
       그러므로 제수가 양수이면 결과는 언제나 0 이상이고 제수보다 작다: `0 < n` 이면 `0 ≤ mod i n < n` 이며,
       `i` 가 음수여도 그렇다.
     ]
     #para("5c")[
       그러므로 `div` 와 `mod` 는 #strong[서로 짝이 아니다.]; `(div a b) × b + (mod a b)` 가 `a` 와 같은 것은 두 수의 부호가
-      같거나 나누어떨어질 때뿐이다. 0 쪽으로 자른 몫과 짝인 나머지는 `sub a (mul (div a b) b)` 로 적는다.
+      같거나 나누어떨어질 때뿐이다. 0 쪽으로 자른 몫과 짝인 나머지는 `sub a. mul div a. b. . b. . .` 로 적는다.
     ]
     #para("5d")[
       부호 있는 타입의 가장 작은 값을 -1 로 나눈 `mod` 는 0 이다. `div` 는 같은 자리에서 멈추지만(몫이 그 폭에 없다)
@@ -293,17 +292,17 @@ end")
     #ex("부호가 섞여도 값을 지키는 넓히기가 있으면 된다", "module ex_mixsign .
 
 rem `u8` 은 `i16` 안에 값을 잃지 않고 들어간다.
-fn ok_widen input a u8 . input b i16 . output i16 . do return add a b . end
+fn ok_widen input a u8 . input b i16 . output i16 . do return add a. b. . . end .
 
 rem 더 넓은 자리를 결과로 골라도 된다.
-fn ok_wider input a u8 . input b i16 . output i32 . do return add a b . end",
+fn ok_wider input a u8 . input b i16 . output i32 . do return add a. b. . . end .",
       out: "ok_widen(200, -100) = 100 · ok_wider(200, -100) = 100")
     #rejected("값을 지키는 넓히기가 없으면 거부된다", "module ex_sign .
 
 proc p input a i32 . input b u32 . output i32 . effects none .
 do
-  return add a b .     rem `u32` 는 `i32` 안에 안 들어간다 — 폭이 같다
-end", "E-TYPE-SIGN")
+  return add a. b. . .     rem `u32` 는 `i32` 안에 안 들어간다 — 폭이 같다
+end .", "E-TYPE-SIGN")
     #caution("넘침이 조용히 감기지 않는다")[
       많은 언어에서 `u8` 의 255 에 1 을 더하면 0 이 된다(감김). 로우엔트는 #strong[트랩];한다.
       감김이 필요하면 `wrap_add` 처럼 #strong[그렇게 적힌 연산];을 쓴다 — 감기기를 원했는지
@@ -354,10 +353,10 @@ end", "E-TYPE-SIGN")
     #ex("비트별 논리와 뒤집기", "module ex_bitlogic .
 
 rem 12 = 0000_1100 · 10 = 0000_1010
-fn mask input a u8 . input b u8 . output u8 . do return bit_and a b . end
-fn both input a u8 . input b u8 . output u8 . do return bit_or  a b . end
-fn diff input a u8 . input b u8 . output u8 . do return bit_xor a b . end
-fn flip input a u8 . output u8 . do return bit_not a . end",
+fn mask input a u8 . input b u8 . output u8 . do return bit_and a. b. . . end .
+fn both input a u8 . input b u8 . output u8 . do return bit_or  a. b. . . end .
+fn diff input a u8 . input b u8 . output u8 . do return bit_xor a. b. . . end .
+fn flip input a u8 . output u8 . do return bit_not a. . . end .",
       out: "mask(12,10) = 8 · both(12,10) = 14 · diff(12,10) = 6 · flip(12) = 243")
     #plain[
       `flip(12)` 이 243 인 것은 `u8` 이라서다 — `0000_1100` 을 뒤집으면 `1111_0011` 이고
@@ -366,10 +365,10 @@ fn flip input a u8 . output u8 . do return bit_not a . end",
     ]
     #ex("옮기기와 돌리기", "module ex_bitshift .
 
-fn up   input a u8 . input n u8 . output u8 . do return shl  a n . end
-fn down input a u8 . input n u8 . output u8 . do return shr  a n . end
-fn spin input a u8 . input n u8 . output u8 . do return rotl a n . end
-fn back input a u8 . input n u8 . output u8 . do return rotr a n . end",
+fn up   input a u8 . input n u8 . output u8 . do return shl  a. n. . . end .
+fn down input a u8 . input n u8 . output u8 . do return shr  a. n. . . end .
+fn spin input a u8 . input n u8 . output u8 . do return rotl a. n. . . end .
+fn back input a u8 . input n u8 . output u8 . do return rotr a. n. . . end .",
       out: "up(3,2) = 12 · down(12,2) = 3 · spin(129,1) = 3 · back(3,1) = 129")
     #plain[
       `spin(129, 1)` 이 3 인 것이 돌리기와 옮기기의 차이를 보여 준다. 129 는 `1000_0001`
@@ -386,14 +385,14 @@ fn back input a u8 . input n u8 . output u8 . do return rotr a n . end",
     #ex("부호가 옮기기의 뜻을 바꾼다", "module ex_signed_shift .
 
 rem 부호 있는 정수 — 빈자리에 부호 비트가 들어온다(산술 이동).
-fn s_shr input a i32 . input n i32 . output i32 . do return shr a n . end
+fn s_shr input a i32 . input n i32 . output i32 . do return shr a. n. . . end .
 
 rem 부호 없는 정수 — 빈자리에 0 이 들어온다(논리 이동).
-fn u_shr input a u32 . input n u32 . output u32 . do return shr a n . end
+fn u_shr input a u32 . input n u32 . output u32 . do return shr a. n. . . end .
 
 rem 비트별 논리 연산도 부호 있는 정수를 다룬다.
-fn s_and input a i32 . input b i32 . output i32 . do return bit_and a b . end
-fn s_not input a i32 . output i32 . do return bit_not a . end",
+fn s_and input a i32 . input b i32 . output i32 . do return bit_and a. b. . . end .
+fn s_not input a i32 . output i32 . do return bit_not a. . . end .",
       out: "s_shr(-8, 1) = -4 · u_shr(4294967288, 1) = 2147483644 · s_and(-8, 12) = 8 · s_not(0) = -1")
     #plain[
       `-8` 과 `4294967288` 은 32 비트에서 #strong[같은 비트열];이다. 그런데 오른쪽으로 한 칸 옮기면
@@ -402,10 +401,10 @@ fn s_not input a i32 . output i32 . do return bit_not a . end",
     ]
     #ex("세기와 바이트 뒤집기", "module ex_bitcount .
 
-fn ones input a u8 . output u8 . do return count_ones a . end
-fn lead input a u8 . output u8 . do return leading_zeros a . end
-fn tail input a u8 . output u8 . do return trailing_zeros a . end
-fn endian input a u32 . output u32 . do return byte_swap a . end",
+fn ones input a u8 . output u8 . do return count_ones a. . . end .
+fn lead input a u8 . output u8 . do return leading_zeros a. . . end .
+fn tail input a u8 . output u8 . do return trailing_zeros a. . . end .
+fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
       out: "ones(7) = 3 · lead(1) = 7 · tail(8) = 3 · endian(1) = 16777216")
     #plain[
       `lead(1)` 이 7 인 것도 폭 때문이다 — `u8` 에서 1 은 `0000_0001` 이므로 앞선 0 이
@@ -504,7 +503,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end",
     ]
     #para("1a")[
       `splat` 은 레인 수를 #strong[선언된 타입에서]; 받는다. 그래서 쓸 수 있는 자리는 벡터 타입을
-      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
+      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 . .`. 식 안에 바로 적는 것은
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
     ]
     #para("2")[
@@ -535,9 +534,9 @@ def type bytes slice u8 .
 
 fn total input b bytes . output u64 .
 do
-  var xs slice f64 view_array f64 b .
-  return sum_neumaier xs .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
-end", "E-TYPE-RETURN")
+  var xs slice f64 view_array f64 b. . .
+  return sum_neumaier xs. . .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
+end .", "E-TYPE-RETURN")
     #para("2")[
       두 op 의 결과는 #strong[부동소수];다. 정수로 적은 자리에 그대로 돌려주면 거부된다
       (`E-TYPE-RETURN`).
@@ -599,7 +598,7 @@ end", "E-TYPE-RETURN")
     ]
     #para("3")[
       곧 0 이 거짓이고 그 밖이 참이라는 약속은 #strong[없다.]; 무엇을 묻는지는 그 자리에
-      적어야 한다 — `gt a 0` 처럼.
+      적어야 한다 — `gt a. 0 .` 처럼.
     ]
     #plain[
       정수를 조건 자리에 그냥 두는 언어에서는 `if x` 가 #emph["x 가 0 이 아니다"]; 인지
@@ -610,9 +609,9 @@ end", "E-TYPE-RETURN")
 
 fn f input a u8 . output u8 .
 do
-  if a do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
+  if a. do return 1 . end .     rem 무엇을 묻는지 적는다 — `gt a. 0 .`
   return 0 .
-end", "E-TYPE-COND")
+end .", "E-TYPE-COND")
   ]
   #sub("6.3.11", "폭과 레인은 타입의 일부다")[
     #para("1")[
@@ -634,31 +633,26 @@ end", "E-TYPE-COND")
 
 fn f input a vec u8 4 . input b vec u8 8 . output vec u8 4 .
 do
-  return add a b .
-end", "E-TYPE-LANES")
+  return add a. b. . .
+end .", "E-TYPE-LANES")
   ]
   #sub("6.3.12", "`expr` 섬 안의 규칙")[
     #para("1")[
-      `expr` 섬(#cref("6.3.2")) 안에서 op 을 부르려면 #strong[괄호로 묶어야]; 한다
-      (`E-EXPR-APP`) — 섬 안은 중위 표기이고, 괄호가 없으면 어디까지가 한 부름인지
-      읽는 이도 처리기도 가릴 수 없다.
+      `expr` 섬(#cref("6.3.2")) 안의 토막은 저마다 폼 하나다 — 이름이면 `a.`, 호출이면 제 점으로 닫힌 폼이다
+      (`expr twice a. . + 1 .`). 폼이 제 끝을 스스로 가지므로 호출을 괄호로 묶을 필요가 없다. 섬은 제 점으로 닫힌다.
     ]
     #para("2")[
       섬 안에는 #strong[중위 연산자만]; 있다. 앞에 붙는 한 자리 연산자는 없다
-      (`E-EXPR-UNARY`) — 부호를 뒤집으려면 그렇게 적힌 op 을 괄호로 부른다.
+      (`E-EXPR-UNARY`) — 부호를 뒤집으려면 그렇게 적힌 op 을 부른다(`neg a. .`).
     ]
+    #rejected("섬 안에는 앞에 붙는 연산자가 없다", "module m .
+fn flip input a i32 . output i32 . do
+  return expr - a. . .
+end .", "E-EXPR-UNARY")
     #plain[
       섬을 둔 까닭은 산술을 #strong[눈에 익은 차례로]; 읽게 하려는 것이지, 두 번째 문법을
       들이려는 것이 아니다. 그래서 섬 안에서 할 수 있는 일은 좁고, 좁은 만큼 그 안의
       뜻은 흔들리지 아니한다.
     ]
-    #rejected("섬 안의 부름은 괄호로 묶는다", "module ex_island .
-
-fn g input a u8 . output u8 . do return a . end
-
-fn f output u8 .
-do
-  return expr g 1 .     rem `expr (g 1)` 이어야 한다
-end", "E-EXPR-APP")
   ]
 ]

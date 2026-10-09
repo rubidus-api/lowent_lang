@@ -2,13 +2,13 @@ module fill .
 rem run: fill_two [0,0,5]
 
 proc fill_two input xs mut slice u8 . output u64 . effects state .
-  requires ge (len xs) 2 .
+  requires ge len xs. . 2 . .
 do
-  set (idx xs 0) 10 .
-  set (idx xs 1) 20 .
+  set idx xs. 0 . 10 .
+  set idx xs. 1 . 20 .
   var s u64 0 .
-  for x xs do
-    set s (add s (widen u64 x)) .
-  end
-  return s .
-end
+  for x xs. do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .

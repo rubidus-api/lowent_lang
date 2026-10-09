@@ -21,104 +21,104 @@ rem   ☞ 전엔 검사 없이 `narrow u8 (add 87 v)` 여서 `hex_digit 200` 이
 rem     (2026-09-04 검토). 출력이 u8 이라 option 을 낼 자리가 없으므로 실패는 *값*으로 —
 rem     그리고 마스크해서 조용히 다른 글자를 내지 않는다(그건 "조용히 다르게" 다).
 export fn hex_digit input v u64 . output u8 . do
-  guard lt v 16 else return 63 .
-  if lt v 10 do return narrow u8 (add 48 v) . end
-  return narrow u8 (add 87 v) .
-end
+  guard lt v. 16 . else return 63 . .
+  if lt v. 10 . do return narrow u8 add 48 v. . . . end .
+  return narrow u8 add 87 v. . . .
+end .
 
 rem hex 글자 하나의 값. 0~9 a~f A~F 밖이면 none.
 export fn hex_val input c u8 . output option u64 . do
-  if ge c 48 do if le c 57 do return some (sub (widen u64 c) 48) . end end
-  if ge c 97 do if le c 102 do return some (sub (widen u64 c) 87) . end end
-  if ge c 65 do if le c 70 do return some (sub (widen u64 c) 55) . end end
+  if ge c. 48 . do if le c. 57 . do return some sub widen u64 c. . 48 . . . end . end .
+  if ge c. 97 . do if le c. 102 . do return some sub widen u64 c. . 87 . . . end . end .
+  if ge c. 65 . do if le c. 70 . do return some sub widen u64 c. . 55 . . . end . end .
   return none .
-end
+end .
 
 rem ★ src 를 소문자 hex 로 dst 에 쓴다. 성공 = some (2×len src). dst 가 모자라면 none.
 export proc hex_enc input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
-  let need u64 mul 2 (len src) .
-  guard le need (len dst) else return none .
+  let need u64 mul 2 len src. . . .
+  guard le need. len dst. . . else return none . .
   var i u64 0 .
-  while lt i (len src) do
-    let b u64 widen u64 (idx src i) .
-    set (idx dst (mul 2 i)) (hex_digit (shr b 4)) .
-    set (idx dst (add (mul 2 i) 1)) (hex_digit (bit_and b 15)) .
-    set i (add i 1) .
-  end
-  return some need .
-end
+  while lt i. len src. . . do
+    let b u64 widen u64 idx src. i. . . .
+    set idx dst. mul 2 i. . . hex_digit shr b. 4 . . .
+    set idx dst. add mul 2 i. . 1 . . hex_digit bit_and b. 15 . . .
+    set i. add i. 1 . .
+  end .
+  return some need. . .
+end .
 
 rem ★ hex 를 바이트로. 홀수 길이·hex 아닌 글자·모자란 dst = none. 성공 = some (len src / 2).
 export proc hex_dec input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
-  guard eq (mod (len src) 2) 0 else return none .
-  let need u64 div (len src) 2 .
-  guard le need (len dst) else return none .
+  guard eq mod len src. . 2 . 0 . else return none . .
+  let need u64 div len src. . 2 . .
+  guard le need. len dst. . . else return none . .
   var i u64 0 .
-  while lt i need do
-    let hv option u64 hex_val (idx src (mul 2 i)) .
-    guard is_some hv else return none .
-    let lv option u64 hex_val (idx src (add (mul 2 i) 1)) .
-    guard is_some lv else return none .
-    set (idx dst i) (narrow u8 (bit_or (shl (some_value hv) 4) (some_value lv))) .
-    set i (add i 1) .
-  end
-  return some need .
-end
+  while lt i. need. . do
+    let hv option u64 hex_val idx src. mul 2 i. . . . .
+    guard is_some hv. . else return none . .
+    let lv option u64 hex_val idx src. add mul 2 i. . 1 . . . .
+    guard is_some lv. . else return none . .
+    set idx dst. i. . narrow u8 bit_or shl some_value hv. . 4 . some_value lv. . . . .
+    set i. add i. 1 . .
+  end .
+  return some need. . .
+end .
 
 rem base64 표준 알파벳의 i(0~63)번째 글자.
 export fn b64_digit input v u64 . output u8 . do
-  if lt v 26 do return narrow u8 (add 65 v) . end
-  if lt v 52 do return narrow u8 (add 71 v) . end
-  if lt v 62 do return narrow u8 (sub v 4) . end
-  if eq v 62 do return 43 . end
+  if lt v. 26 . do return narrow u8 add 65 v. . . . end .
+  if lt v. 52 . do return narrow u8 add 71 v. . . . end .
+  if lt v. 62 . do return narrow u8 sub v. 4 . . . end .
+  if eq v. 62 . do return 43 . end .
   return 47 .
-end
+end .
 
 rem base64 글자 하나의 값. 알파벳 밖이면 none. (`=` 도 none — 패딩은 디코더 본문이 다룬다.)
 export fn b64_val input c u8 . output option u64 . do
-  if ge c 65 do if le c 90 do return some (sub (widen u64 c) 65) . end end
-  if ge c 97 do if le c 122 do return some (sub (widen u64 c) 71) . end end
-  if ge c 48 do if le c 57 do return some (add (widen u64 c) 4) . end end
-  if eq c 43 do return some 62 . end
-  if eq c 47 do return some 63 . end
+  if ge c. 65 . do if le c. 90 . do return some sub widen u64 c. . 65 . . . end . end .
+  if ge c. 97 . do if le c. 122 . do return some sub widen u64 c. . 71 . . . end . end .
+  if ge c. 48 . do if le c. 57 . do return some add widen u64 c. . 4 . . . end . end .
+  if eq c. 43 . do return some 62 . . end .
+  if eq c. 47 . do return some 63 . . end .
   return none .
-end
+end .
 
 rem ★ src 를 base64 로 dst 에 쓴다(`=` 패딩 포함). 성공 = some (4×⌈len/3⌉). dst 모자라면 none.
 export proc b64_enc input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
-  let full u64 div (len src) 3 .
-  let tail u64 mod (len src) 3 .
-  var groups u64 full .
-  if gt tail 0 do set groups (add groups 1) . end
-  let need u64 mul 4 groups .
-  guard le need (len dst) else return none .
+  let full u64 div len src. . 3 . .
+  let tail u64 mod len src. . 3 . .
+  var groups u64 full. .
+  if gt tail. 0 . do set groups. add groups. 1 . . end .
+  let need u64 mul 4 groups. . .
+  guard le need. len dst. . . else return none . .
   var i u64 0 .
   var o u64 0 .
-  while lt i (mul 3 full) do
-    let w u64 bit_or (shl (widen u64 (idx src i)) 16) (bit_or (shl (widen u64 (idx src (add i 1))) 8) (widen u64 (idx src (add i 2)))) .
-    set (idx dst o) (b64_digit (shr w 18)) .
-    set (idx dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
-    set (idx dst (add o 2)) (b64_digit (bit_and (shr w 6) 63)) .
-    set (idx dst (add o 3)) (b64_digit (bit_and w 63)) .
-    set i (add i 3) .
-    set o (add o 4) .
-  end
-  if eq tail 1 do
-    let w u64 shl (widen u64 (idx src i)) 16 .
-    set (idx dst o) (b64_digit (shr w 18)) .
-    set (idx dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
-    set (idx dst (add o 2)) 61 .
-    set (idx dst (add o 3)) 61 .
-  end
-  if eq tail 2 do
-    let w u64 bit_or (shl (widen u64 (idx src i)) 16) (shl (widen u64 (idx src (add i 1))) 8) .
-    set (idx dst o) (b64_digit (shr w 18)) .
-    set (idx dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
-    set (idx dst (add o 2)) (b64_digit (bit_and (shr w 6) 63)) .
-    set (idx dst (add o 3)) 61 .
-  end
-  return some need .
-end
+  while lt i. mul 3 full. . . do
+    let w u64 bit_or shl widen u64 idx src. i. . . 16 . bit_or shl widen u64 idx src. add i. 1 . . . 8 . widen u64 idx src. add i. 2 . . . . . .
+    set idx dst. o. . b64_digit shr w. 18 . . .
+    set idx dst. add o. 1 . . b64_digit bit_and shr w. 12 . 63 . . .
+    set idx dst. add o. 2 . . b64_digit bit_and shr w. 6 . 63 . . .
+    set idx dst. add o. 3 . . b64_digit bit_and w. 63 . . .
+    set i. add i. 3 . .
+    set o. add o. 4 . .
+  end .
+  if eq tail. 1 . do
+    let w u64 shl widen u64 idx src. i. . . 16 . .
+    set idx dst. o. . b64_digit shr w. 18 . . .
+    set idx dst. add o. 1 . . b64_digit bit_and shr w. 12 . 63 . . .
+    set idx dst. add o. 2 . . 61 .
+    set idx dst. add o. 3 . . 61 .
+  end .
+  if eq tail. 2 . do
+    let w u64 bit_or shl widen u64 idx src. i. . . 16 . shl widen u64 idx src. add i. 1 . . . 8 . . .
+    set idx dst. o. . b64_digit shr w. 18 . . .
+    set idx dst. add o. 1 . . b64_digit bit_and shr w. 12 . 63 . . .
+    set idx dst. add o. 2 . . b64_digit bit_and shr w. 6 . 63 . . .
+    set idx dst. add o. 3 . . 61 .
+  end .
+  return some need. . .
+end .
 
 rem ★ base64 를 바이트로. 길이 4의 배수가 아니거나·알파벳 밖 글자·어긋난 패딩·모자란 dst = none.
 rem   성공 = some <쓴 바이트 수> (패딩만큼 줄어든 정확한 길이).
@@ -127,55 +127,55 @@ rem   바이트를 내지만 정규 인코딩이 아니므로 none 이다. 받�
 rem   여럿이 되어, 인코딩된 문자열을 맞대는 자리(PEM 본문 고정·중복 제거)가 속는다
 rem   (2026-09-04 검토 A2). 이 모듈의 다른 어긋남과 같이 **값으로** 거절한다.
 export proc b64_dec input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
-  guard eq (mod (len src) 4) 0 else return none .
-  guard gt (len src) 0 else return some 0 .
+  guard eq mod len src. . 4 . 0 . else return none . .
+  guard gt len src. . 0 . else return some 0 . . .
   var pad u64 0 .
-  if eq (idx src (sub (len src) 1)) 61 do set pad 1 .
-    if eq (idx src (sub (len src) 2)) 61 do set pad 2 . end
-  end
-  let need u64 sub (mul 3 (div (len src) 4)) pad .
-  guard le need (len dst) else return none .
+  if eq idx src. sub len src. . 1 . . 61 . do set pad. 1 .
+    if eq idx src. sub len src. . 2 . . 61 . do set pad. 2 . end .
+  end .
+  let need u64 sub mul 3 div len src. . 4 . . pad. . .
+  guard le need. len dst. . . else return none . .
   var i u64 0 .
   var o u64 0 .
-  while lt i (len src) do
-    let last bool eq (add i 4) (len src) .
-    let v0 option u64 b64_val (idx src i) .
-    guard is_some v0 else return none .
-    let v1 option u64 b64_val (idx src (add i 1)) .
-    guard is_some v1 else return none .
-    var w u64 bit_or (shl (some_value v0) 18) (shl (some_value v1) 12) .
+  while lt i. len src. . . do
+    let last bool eq add i. 4 . len src. . . .
+    let v0 option u64 b64_val idx src. i. . . .
+    guard is_some v0. . else return none . .
+    let v1 option u64 b64_val idx src. add i. 1 . . . .
+    guard is_some v1. . else return none . .
+    var w u64 bit_or shl some_value v0. . 18 . shl some_value v1. . 12 . . .
     var nb u64 3 .
-    let c2 u8 idx src (add i 2) .
-    let c3 u8 idx src (add i 3) .
-    if eq c2 61 do
+    let c2 u8 idx src. add i. 2 . . .
+    let c3 u8 idx src. add i. 3 . . .
+    if eq c2. 61 . do
       rem `==` 은 마지막 그룹에서만, 그리고 c3 도 `=` 여야 한다.
-      guard last else return none .
-      guard eq c3 61 else return none .
+      guard last. else return none . .
+      guard eq c3. 61 . else return none . .
       rem 1 바이트만 실렸다: 비트 16..23 이 자료, 아래 16 비트(v1 의 하위 4 비트)는 0 이어야 한다.
-      guard eq (bit_and w 65535) 0 else return none .
-      set nb 1 .
-    end
-    if ne c2 61 do
-      let v2 option u64 b64_val c2 .
-      guard is_some v2 else return none .
-      set w (bit_or w (shl (some_value v2) 6)) .
-      if eq c3 61 do
-        guard last else return none .
+      guard eq bit_and w. 65535 . 0 . else return none . .
+      set nb. 1 .
+    end .
+    if ne c2. 61 . do
+      let v2 option u64 b64_val c2. . .
+      guard is_some v2. . else return none . .
+      set w. bit_or w. shl some_value v2. . 6 . . .
+      if eq c3. 61 . do
+        guard last. else return none . .
         rem 2 바이트가 실렸다: 비트 8..23 이 자료, 아래 8 비트(v2 의 하위 2 비트)는 0 이어야 한다.
-        guard eq (bit_and w 255) 0 else return none .
-        set nb 2 .
-      end
-      if ne c3 61 do
-        let v3 option u64 b64_val c3 .
-        guard is_some v3 else return none .
-        set w (bit_or w (some_value v3)) .
-      end
-    end
-    set (idx dst o) (narrow u8 (shr w 16)) .
-    if ge nb 2 do set (idx dst (add o 1)) (narrow u8 (bit_and (shr w 8) 255)) . end
-    if ge nb 3 do set (idx dst (add o 2)) (narrow u8 (bit_and w 255)) . end
-    set i (add i 4) .
-    set o (add o nb) .
-  end
-  return some need .
-end
+        guard eq bit_and w. 255 . 0 . else return none . .
+        set nb. 2 .
+      end .
+      if ne c3. 61 . do
+        let v3 option u64 b64_val c3. . .
+        guard is_some v3. . else return none . .
+        set w. bit_or w. some_value v3. . . .
+      end .
+    end .
+    set idx dst. o. . narrow u8 shr w. 16 . . .
+    if ge nb. 2 . do set idx dst. add o. 1 . . narrow u8 bit_and shr w. 8 . 255 . . . end .
+    if ge nb. 3 . do set idx dst. add o. 2 . . narrow u8 bit_and w. 255 . . . end .
+    set i. add i. 4 . .
+    set o. add o. nb. . .
+  end .
+  return some need. . .
+end .

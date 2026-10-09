@@ -7,9 +7,9 @@ fn biggest input s slice u8 . output u64 .
 do
   var best u64 0 .
   var i u64 0 .
-  while lt i (len s) do
-    set best (max best (widen u64 (idx s i))) .
-    set i (add i 1) .
-  end
-  return best .
-end
+  while lt i. len s. . . do
+    set best. max best. widen u64 idx s. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return best. .
+end .

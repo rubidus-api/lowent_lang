@@ -5,17 +5,17 @@ rem ko: 흐름은 자기 몫을 돌려주고, 합치는 일은 묶는 쪽이 `aw
 fn one output u64 .
 do
   return 1 .
-end
+end .
 
 proc count2 output u64 . effects state .
 do
   var n u64 0 .
   task_group do
-    let h1 u64 spawn one .
-    let h2 u64 spawn one .
-    let a u64 await h1 .
-    let b u64 await h2 .
-    set n (add a b) .
-  end
-  return n .
-end
+    let h1 u64 spawn one . .
+    let h2 u64 spawn one . .
+    let a u64 await h1. . .
+    let b u64 await h2. . .
+    set n. add a. b. . .
+  end .
+  return n. .
+end .

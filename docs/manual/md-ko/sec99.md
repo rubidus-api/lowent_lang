@@ -19,10 +19,10 @@ L0 — 순수 계산
 > > 서버 쪽 요청 파싱만 한다(응답 파싱 없음). 전송이 없다 — 바이트열은 부르는 쪽이 모아 온다. **청크 전송(`Transfer-Encoding: chunked`)을 짓지 않았다** — 그 헤더를 찾아 주기만 하므로 부르는 쪽이 거절해야 한다. 트레일러 · 여러 줄 헤더(obs-fold) · URL 퍼센트 해체 · HTTP/2 가 없다. HTTP/1.0 을 받지 않는다 — 지속 연결 규칙이 다르고 그것을 짓지 않았다.
 
 ```lowent
-let t u64 http.target_off b .
-let n u64 http.target_len b .
-guard gt n 0 else return 0 .
-let target slice u8 subslice b t (add t n) .
+let t u64 http.target_off b. . .
+let n u64 http.target_len b. . .
+guard gt n. 0 . else return 0 . .
+let target slice u8 subslice b. t. add t. n. . . .
 ```
 
 | **op** | **하는 일** |
@@ -36,7 +36,7 @@ let target slice u8 subslice b t (add t n) .
 | `name_len` · `value_off` · `value_len` | 헤더 이름 길이 · 값 자리 · 값 길이 |
 | `name_eq` | 이 헤더의 이름이 그것인가(대소문자 안 가림) |
 | `header_find` · `header_find_len` | 그 이름의 값 자리 · 길이. **중복이면 0** |
-| `content_length` | `option u64` — 없으면 `some 0`, 성하지 않으면 `none` |
+| `content_length` | `option u64` — 없으면 `some 0 .`, 성하지 않으면 `none` |
 | `body_off` | 몸통이 시작하는 자리 |
 
 *표 50.1 — `http` 의 op*
@@ -55,7 +55,7 @@ let target slice u8 subslice b t (add t n) .
 
 *표 50.2 — `http` 가 거절하는 것*
 
-**`content_length` 가 `option` 인 이유.** “없다” 와 “틀렸다” 는 다른 답이다. 없으면 `some 0`(몸통이 없는 정상 요청), 성하지 않으면 `none`(연결을 끊어야 할 일). 한 값으로 두면 둘이 섞이고, 섞이는 자리가 곧 공격 자리다.
+**`content_length` 가 `option` 인 이유.** “없다” 와 “틀렸다” 는 다른 답이다. 없으면 `some 0 .`(몸통이 없는 정상 요청), 성하지 않으면 `none`(연결을 끊어야 할 일). 한 값으로 두면 둘이 섞이고, 섞이는 자리가 곧 공격 자리다.
 
 **이 모듈이 처리기 결함을 하나 잡았다.** 처음에 `input b str .` 로 썼다. `--check` 는 통과했는데 21 op 중 16 이 느린 해석 경로로 떨어졌다(약 80 배). `str` 은 빌트인이 아니라 [`strings`](sec58.md#mod-strings) 의 지역 별칭이었고, 검사기는 그 이름을 통과시켰지만 타입 붙은 하강은 뜻을 몰랐다. 답은 맞으므로 시험이 영원히 보지 못하는 조용한 80 배다. 이제 그런 이름을 시그니처에 쓰면 `W-NOT-YET` 경고가 나온다. 검사가 통과하는 것과 빠른 것은 다른 일이고, `--why-slow` 를 보지 않았으면 이 파일은 그대로 실렸을 것이다.
 

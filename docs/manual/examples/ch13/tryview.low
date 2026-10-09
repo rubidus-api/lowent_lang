@@ -7,13 +7,13 @@ def struct wire_header do
   magic u32 big .
   length u16 big .
   kind u8 .
-end
+end .
 
 rem ko: 바깥에서 온 바이트는 짧을 수 있다 --- 멈추는 `view` 대신 `none` 을 주는 `try_view` /// en: bytes from outside may be short --- `try_view` gives `none` instead of stopping like `view`
 fn kind_or_zero input b slice u8 . output u64 .
 do
-  let o option view wire_header try_view wire_header b .
-  guard is_some o else return 0 .
-  let v view wire_header some_value o .
-  return widen u64 (field v kind) .
-end
+  let o option view wire_header try_view wire_header b. . .
+  guard is_some o. . else return 0 . .
+  let v view wire_header some_value o. . .
+  return widen u64 field v. kind . . .
+end .

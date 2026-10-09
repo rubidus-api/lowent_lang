@@ -1,8 +1,8 @@
 module mistake_semicolon .
 rem expect: E-VOCAB-REMOVED
 fn twice input a u64 . output u64 .
-  requires le a 1000 .
+  requires le a. 1000 . .
 do
   rem ko: ✘ C 처럼 쌍반점으로 닫는다 /// en: ✘ closing with a semicolon, as in C
-  return mul a 2 . ;
-end
+  return mul a. 2 . . ;
+end .

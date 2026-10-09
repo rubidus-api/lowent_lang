@@ -36,9 +36,9 @@ proc line_hits input prog slice u64 . input line slice u8 .
   input cs mut slice u64 . input ns mut slice u64 .
   output bool . effects none .
 do
-  let h option u64 regex.search prog line cl nl mk cs ns .
-  return is_some h .
-end
+  let h option u64 regex.search prog. line. cl. nl. mk. cs. ns. . .
+  return is_some h. . .
+end .
 
 proc main
   input fs cap file_system .
@@ -48,99 +48,99 @@ proc main
   output u8 .
   effects alloc io state .
 do
-  let pa option slice u8 arg a 0 .
-  guard is_some pa else return 64 .
-  let pb option slice u8 arg a 1 .
-  guard is_some pb else return 64 .
-  let pat slice u8 some_value pa .
-  let path slice u8 some_value pb .
+  let pa option slice u8 arg a. 0 . .
+  guard is_some pa. . else return 64 . .
+  let pb option slice u8 arg a. 1 . .
+  guard is_some pb. . else return 64 . .
+  let pat slice u8 some_value pa. . .
+  let path slice u8 some_value pb. . .
 
   rem ★ 패턴 자체가 UTF-8 이어야 한다 — 아니면 `\p{...}` 같은 것이 뜻을 잃는다.
   rem   **거절하는 것이 조용히 이상하게 도는 것보다 낫다.**
-  guard utf8.is_valid pat else return 65 .
+  guard utf8.is_valid pat. . else return 65 . .
 
   rem ── 스크래치 일곱 개. 바이트 버퍼 하나를 잡아 u64 로 재해석해 나눈다(무복사).
-  let gp option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some gp else return 70 .
-  let progb mut slice u8 some_value gp .
-  let prog mut slice u64 view_array u64 progb .
+  let gp option mut slice u8 alloc_bytes al. capacity 4096 . .
+  guard is_some gp. . else return 70 . .
+  let progb mut slice u8 some_value gp. . .
+  let prog mut slice u64 view_array u64 progb. . .
 
-  let gs option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some gs else return 70 .
-  let stb mut slice u8 some_value gs .
-  let st mut slice u64 view_array u64 stb .
+  let gs option mut slice u8 alloc_bytes al. capacity 4096 . .
+  guard is_some gs. . else return 70 . .
+  let stb mut slice u8 some_value gs. . .
+  let st mut slice u64 view_array u64 stb. . .
 
-  let g1 option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some g1 else return 70 .
-  let b1 mut slice u8 some_value g1 .
-  let cl mut slice u64 view_array u64 b1 .
+  let g1 option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some g1. . else return 70 . .
+  let b1 mut slice u8 some_value g1. . .
+  let cl mut slice u64 view_array u64 b1. . .
 
-  let g2 option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some g2 else return 70 .
-  let b2 mut slice u8 some_value g2 .
-  let nl mut slice u64 view_array u64 b2 .
+  let g2 option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some g2. . else return 70 . .
+  let b2 mut slice u8 some_value g2. . .
+  let nl mut slice u64 view_array u64 b2. . .
 
-  let g3 option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some g3 else return 70 .
-  let b3 mut slice u8 some_value g3 .
-  let mk mut slice u64 view_array u64 b3 .
+  let g3 option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some g3. . else return 70 . .
+  let b3 mut slice u8 some_value g3. . .
+  let mk mut slice u64 view_array u64 b3. . .
 
-  let g4 option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some g4 else return 70 .
-  let b4 mut slice u8 some_value g4 .
-  let cs mut slice u64 view_array u64 b4 .
+  let g4 option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some g4. . else return 70 . .
+  let b4 mut slice u8 some_value g4. . .
+  let cs mut slice u64 view_array u64 b4. . .
 
-  let g5 option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some g5 else return 70 .
-  let b5 mut slice u8 some_value g5 .
-  let ns mut slice u64 view_array u64 b5 .
+  let g5 option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some g5. . else return 70 . .
+  let b5 mut slice u8 some_value g5. . .
+  let ns mut slice u64 view_array u64 b5. . .
 
   rem ★ 컴파일 실패는 **사용자의 오류**다(자원 부족과 구별한다 — 종료 코드가 그 말을 한다).
-  let cn option u64 regex.compile pat prog st .
-  guard is_some cn else return 66 .
+  let cn option u64 regex.compile pat. prog. st. . .
+  guard is_some cn. . else return 66 . .
 
   rem ── 파일을 통째로 읽고 줄로 나눈다(`io.mem_reader` 는 이미 검증된 프레이밍이다).
-  let gtx option mut slice u8 alloc_bytes al capacity 8192 .
-  guard is_some gtx else return 70 .
-  let txt mut slice u8 some_value gtx .
+  let gtx option mut slice u8 alloc_bytes al. capacity 8192 . .
+  guard is_some gtx. . else return 70 . .
+  let txt mut slice u8 some_value gtx. . .
 
-  let sn result u64 files.file_error files.slurp fs path txt .
-  guard is_ok sn else return 67 .
-  let n u64 ok_value sn .
+  let sn result u64 files.file_error files.slurp fs. path. txt. . .
+  guard is_ok sn. . else return 67 . .
+  let n u64 ok_value sn. . .
 
-  let go option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some go else return 70 .
-  let ob mut slice u8 some_value go .
+  let go option mut slice u8 alloc_bytes al. capacity 4096 . .
+  guard is_some go. . else return 70 . .
+  let ob mut slice u8 some_value go. . .
 
-  var r io.mem_reader spawn actor io.mem_reader .
-  let z u64 send r attach (subslice txt 0 n) .
+  var r io.mem_reader spawn actor io.mem_reader . .
+  let z u64 send r. attach subslice txt. 0 n. . . .
 
   var lineno u64 0 .
   var hits u64 0 .
   var going bool true .
-  while going do
-    let l option slice u8 send r take_line 4096 .
-    if is_some l do
-      set lineno (add lineno 1) .
-      let line slice u8 some_value l .
-      if line_hits prog line cl nl mk cs ns do
-        set hits (add hits 1) .
+  while going. do
+    let l option slice u8 send r. take_line 4096 . .
+    if is_some l. . do
+      set lineno. add lineno. 1 . .
+      let line slice u8 some_value l. . .
+      if line_hits prog. line. cl. nl. mk. cs. ns. . do
+        set hits. add hits. 1 . .
         rem 맞은 줄은 `번호:내용` 으로 낸다. 조립은 순수하고, 출력은 줄마다 한 번이다.
-        let q1 option u64 fmt.put_u64 ob 0 lineno .
-        guard is_some q1 else return 72 .
-        let q2 option u64 fmt.put_str ob (some_value q1) ":" .
-        guard is_some q2 else return 72 .
-        let q3 option u64 fmt.put_str ob (some_value q2) line .
-        guard is_some q3 else return 72 .
-        let q4 option u64 fmt.put_nl ob (some_value q3) .
-        guard is_some q4 else return 72 .
-        let w u64 write_out out 1 (subslice ob 0 (some_value q4)) .
-      end
-    end
-    if eq (is_some l) false do set going false . end
-  end
+        let q1 option u64 fmt.put_u64 ob. 0 lineno. . .
+        guard is_some q1. . else return 72 . .
+        let q2 option u64 fmt.put_str ob. some_value q1. . ":" . .
+        guard is_some q2. . else return 72 . .
+        let q3 option u64 fmt.put_str ob. some_value q2. . line. . .
+        guard is_some q3. . else return 72 . .
+        let q4 option u64 fmt.put_nl ob. some_value q3. . . .
+        guard is_some q4. . else return 72 . .
+        let w u64 write_out out. 1 subslice ob. 0 some_value q4. . . . .
+      end .
+    end .
+    if eq is_some l. . false . do set going. false . end .
+  end .
 
   rem ★ 하나도 못 찾은 것은 **오류가 아니다** — grep 의 관례대로 1 이다.
-  if eq hits 0 do return 1 . end
+  if eq hits. 0 . do return 1 . end .
   return 0 .
-end
+end .

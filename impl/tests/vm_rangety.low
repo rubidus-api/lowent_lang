@@ -1,16 +1,16 @@
 rem RFC-0055 D7 — range 에 **타입을 같이 적으면 표현이 못 박히고 타입이 강제된다.**
 rem `range u32 0 100` 은 u32 다: 폭 유도(u8)를 덮어쓴다. 범위는 그 위의 정련일 뿐.
 fn wide input a range u32 0 100 . output u32 . do
-  return mul a 1000 .               rem [0,100]*1000 = [0,100000] ⊆ u32 → 검사 제거
-end
+  return mul a. 1000 . .               rem [0,100]*1000 = [0,100000] ⊆ u32 → 검사 제거
+end .
 
 rem 유도형(`range 0 100` → u8)이었다면 100000 이 u8 을 넘어 **트랩**했을 것이다.
 rem 타입을 적었기 때문에 표현이 u32 이고, 그래서 이것은 넘치지 않는다.
 fn drive input x range u32 0 100 . output u32 . do
-  return wide x .                   rem x ∈ [0,100] ⊆ [0,100] → 진입 검사도 제거
-end
+  return wide x. . .                   rem x ∈ [0,100] ⊆ [0,100] → 진입 검사도 제거
+end .
 
 rem 부호도 강제된다: range i16 -50 150 은 i16 이다(유도였다면 i8 이 아니라 i16 — 같지만 명시).
 fn temp input t range i16 -50 150 . output i16 . do
-  return add t 10 .
-end
+  return add t. 10 . .
+end .

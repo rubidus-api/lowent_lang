@@ -5,8 +5,8 @@ rem ko: wait 는 번진다 — 같은 모양이 E-EFFECT-CALC 로 거절된다 /
 proc wait_for_device output u64 . effects wait .
 do
   return 0 .
-end
+end .
 
 fn ready output u64 . do
-  return wait_for_device .
-end
+  return wait_for_device. .
+end .

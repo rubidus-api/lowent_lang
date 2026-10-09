@@ -6,5 +6,5 @@ use strings .
 
 fn is_get input line slice u8 . output bool .
 do
-  return strings.starts_with line "GET " .
-end
+  return strings.starts_with line. "GET " . .
+end .

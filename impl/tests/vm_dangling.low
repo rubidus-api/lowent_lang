@@ -4,12 +4,12 @@ fn bad
   output ref u64 .
 do
   let l u64 5 .
-  return ref l .
-end
+  return ref l . .
+end .
 
 fn use_bad
   output u64 .
 do
-  let r ref u64 bad .
-  return deref r .
-end
+  let r ref u64 bad. .
+  return deref r. . .
+end .

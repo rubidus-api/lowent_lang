@@ -4,5 +4,5 @@ rem trap: mid 200 100
 fn mid input a u8 . input b u8 . output u8 .
 do
   rem ko: ✘ 둘을 먼저 더하면 300 이 되어 u8 에 들어가지 않는다 /// en: ✘ adding first gives 300, which does not fit in u8
-  return div (add a b) 2 .
-end
+  return div add a. b. . 2 . .
+end .

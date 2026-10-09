@@ -5,38 +5,38 @@ rem run: clamp_all [1,5,9,12] [0,0,0,0] 4 9
 def struct band do
   lo u8 .
   hi u8 .
-end
+end .
 
 fn above input x u8 . input limit u8 . output bool .
 do
-  return gt x limit .
-end
+  return gt x. limit. . .
+end .
 
 rem ko: 실행 중에 정해지는 문턱 --- 훑기 전에 한 번 계산해 마지막 인자로 건넨다 /// en: a threshold known only at run time --- computed once before the pass and handed over as the last argument
 export fn count_above input xs slice u8 . input base u8 . input margin u8 . output u64 .
 do
-  return pipe xs do
-    filter above with wrap_add base margin .
+  return pipe xs. do
+    filter above with wrap_add base. margin. . .
     count .
-  end .
-end
+  end . .
+end .
 
 fn clamp input x u8 . input b band . output u8 .
 do
-  if lt x (field b lo) do
-    return field b lo .
-  end
-  if gt x (field b hi) do
-    return field b hi .
-  end
-  return x .
-end
+  if lt x. field b. lo . . do
+    return field b. lo . .
+  end .
+  if gt x. field b. hi . . do
+    return field b. hi . .
+  end .
+  return x. .
+end .
 
 rem ko: 설정이 여럿이면 참조 없는 구조체 하나로 묶는다 /// en: several settings go into one struct without references
 export proc clamp_all input xs slice u8 . input out mut slice u8 . input lo u8 . input hi u8 . output u64 . effects state .
 do
-  return pipe xs do
-    map clamp with lit band do lo lo . hi hi . end .
-    collect into out .
-  end .
-end
+  return pipe xs. do
+    map clamp with lit band do lo lo. . hi hi. . end . .
+    collect into out. .
+  end . .
+end .

@@ -11,7 +11,7 @@
 )
 
 #deepqa[
-  #chref("generics")의 `max_of` 는 `requires ordered t .` 를 믿고 본문에서 무엇을 불렀는가? 그리고 조건을 갖추지 못한
+  #chref("generics")의 `max_of` 는 `requires ordered t. . .` 를 믿고 본문에서 무엇을 불렀는가? 그리고 조건을 갖추지 못한
   `plain` 을 주면 어떻게 되었는가?
 ][
   `method a less b` 를 불렀다. `plain` 을 주면 `E-BOUND-UNSAT` 으로 거절되었다. 조건은 약속이고, 약속을 넘어 실물을
@@ -37,10 +37,10 @@
 #demo("examples/ch23/why.low")
 
 #idx("트레이트")
-- `trait shape do … end` 는 "`area` 를 갖춘다" 는 약속이다. 서명의 `self` 는 이 약속을 갖출 타입 자신이다.
+- `trait shape do … end .` 는 "`area` 를 갖춘다" 는 약속이다. 서명의 `self` 는 이 약속을 갖출 타입 자신이다.
 - `rect` 와 `square` 는 몸 안에 `satisfies shape .` 를 적어 약속을 갖추겠다고 선언한다.
 - `fn rect.area` 와 `fn square.area` 가 실제로 갖춘다. 이름의 `rect.` 는 그 op 이 `rect` 에 붙었다는 뜻이다.
-- `double_area` 는 *어떤 모양이든* 받는다. `requires shape t .` 가 "넓이를 알려 주는 타입만" 이라고 못 박는다.
+- `double_area` 는 *어떤 모양이든* 받는다. `requires shape t. . .` 가 "넓이를 알려 주는 타입만" 이라고 못 박는다.
 - `method s area` 는 `s` 의 타입에 붙은 `area` 를 부른다. `rect` 면 `rect.area`, `square` 면 `square.area` 다.
 
 트레이트는 *자격 요건*에 빗대면 쉽다. «넓이를 알려 줄 수 있음» 이라는 요건이 있고, 요건을 갖춘 타입만 그 요건을 요구하는
@@ -55,7 +55,7 @@ op 에 들어올 수 있다.
      │ rect.area     │    │ square.area   │   ← 요건을 실제로 갖춘 op
      └───────────────┘    └───────────────┘
 
- double_area 는 requires shape t .  ── shape 를 갖춘 타입만 받는다
+ double_area 는 requires shape t. . .  ── shape 를 갖춘 타입만 받는다
    double_area rect r    →  method s area  =  rect.area
    double_area square q  →  method s area  =  square.area
 ```
@@ -67,7 +67,7 @@ op 에 들어올 수 있다.
 
 트레이트와 상관없이도 op 을 타입에 붙일 수 있다. 이름 앞에 타입 이름과 점을 붙이면 되고, 첫 입력은 그 타입의 값이다.
 #idx("method")
-`method <값> <이름> <인자…>` 가 그 op 을 부른다. 수신자가 다른 폼의 결과여도 된다 --- `method (method r grow 1) area`.
+`method <값> <이름> <인자…>` 가 그 op 을 부른다. 수신자가 다른 폼의 결과여도 된다 --- `method method r. grow. 1 . area. .`.
 붙은 op 이 없으면 거절된다.
 
 #demo("examples/ch23/method_undef.low")
@@ -92,7 +92,7 @@ op 에 들어올 수 있다.
   위 예제를 `--check` 하면 `demo` 에 `W-EFFECT-OVER`(`panic` 을 선언했지만 하지 않는다)라는 경고가 붙는다. 틀린 경고다.
   `demo_empty` 는 실제로 멈춘다. 이 책을 쓰며 확인한 바로, 이 판의 처리기는 `method` 로 부른 op 의 효과를 부르는 쪽에
   번지게 하지 않는다. 그래서 순수한 `fn` 이 `method` 로 `panic` 하는 op 을 불러도 번역이 통과한다. 같은 op 을
-  `rect.checked_area r` 로 직접 부르면 올바르게 거절된다. 명세(#chref("effects"))가 요구하는 동작은 직접 부름 쪽이고,
+  `rect.checked_area r. .` 로 직접 부르면 올바르게 거절된다. 명세(#chref("effects"))가 요구하는 동작은 직접 부름 쪽이고,
   `method` 쪽은 결함이다. 고쳐지기 전까지는 효과가 있는 붙은 op 을 순수한 op 안에서 `method` 로 부르지 않는다.
 ]
 
@@ -161,7 +161,7 @@ export trait byte_allocator do
   reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
   grow input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used input s self . output u64 . effects state .
-end
+end .
 ```
 
 범프의 `reserve` 는 `state` 뿐이고, 힙에서 깎는 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그 차이가 제네릭 op 의
@@ -223,7 +223,7 @@ end
 #misconception[타입에 붙은 op 은 `method` 로만 부를 수 있다][
   #demo("examples/ch23/direct_call.low")
 
-  `rect.area r` 은 이름으로 곧장 부르고, `method r area` 는 값의 타입을 보고 같은 op 을 찾아 부른다. 둘은 같은 op 이고 결과도 6 과 6 이다.
+  `rect.area r. .` 은 이름으로 곧장 부르고, `method r area` 는 값의 타입을 보고 같은 op 을 찾아 부른다. 둘은 같은 op 이고 결과도 6 과 6 이다.
   `method` 가 쓸모 있는 곳은 타입이 제네릭 매개변수여서 이름을 적을 수 없는 자리(`double_area` 의 `method s area`)다. 타입을 아는 자리에서는
   직접 부르는 편이 효과도 올바르게 번진다(위의 결함 사례).
 ]
@@ -236,11 +236,11 @@ end
   caption: [트레이트의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`fn rect.area input s rect . …`], [타입에 op 을 붙인다 --- 첫 입력이 수신자], [이름 칸을 나누는 장치이지 상속이 아니다],
-  [`method r area` · `rect.area r`], [값의 타입으로 찾아 부른다 · 이름으로 곧장 부른다], [번역 때 정해진다 --- 가상 함수 표가 없다],
-  [`trait shape do area input s self . output u64 . end`], [타입이 갖출 op 의 목록], [`self` 는 갖출 타입 자신],
+  [`method r area` · `rect.area r. .`], [값의 타입으로 찾아 부른다 · 이름으로 곧장 부른다], [번역 때 정해진다 --- 가상 함수 표가 없다],
+  [`trait shape do area input s self . output u64 . end .`], [타입이 갖출 op 의 목록], [`self` 는 갖출 타입 자신],
   [서명 줄: 이름 · 입력 · 출력 · 효과], [op 머리와 같은 차례, `fn`·`proc` 은 적지 않는다], [효과 줄이 갖추는 쪽의 상한],
-  [`def struct rect do satisfies shape . … end`], [이 타입이 약속을 갖춘다고 선언], [선언이 있어야 목록 전체를 검사한다],
-  [`requires shape t .`], [제네릭 op 의 타입 조건], [갖추지 못한 타입은 `E-BOUND-UNSAT`],
+  [`def struct rect do satisfies shape . … end .`], [이 타입이 약속을 갖춘다고 선언], [선언이 있어야 목록 전체를 검사한다],
+  [`requires shape t. . .`], [제네릭 op 의 타입 조건], [갖추지 못한 타입은 `E-BOUND-UNSAT`],
   [`effects state via self .`(서명)], [할당 계열 효과만 더 적어도 된다], [할당기마다 효과가 다르다],
   [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [갖추지 못한 자리마다의 진단], [`satisfies` 는 주석이 아니다],
   [`effects state via t .`(제네릭 op)], [단형화한 타입이 `via self` 로 더 적은 효과를 물려받는다], [`counter` 로는 `state`, `carver` 로는 `alloc state`],

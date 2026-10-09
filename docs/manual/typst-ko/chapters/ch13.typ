@@ -40,7 +40,7 @@
 
 #demo("examples/ch13/aliases.low")
 
-`meters` 는 `u64` 의 다른 이름일 뿐이다. 그래서 `mul w h` 의 결과를 `u64` 로 돌려줄 수 있다. 별칭은 긴
+`meters` 는 `u64` 의 다른 이름일 뿐이다. 그래서 `mul w. h. .` 의 결과를 `u64` 로 돌려줄 수 있다. 별칭은 긴
 타입을 짧게 부르거나(`def type bytes slice u8 .`), 뜻을 소스에 남길 때 쓴다. `pct` 는 범위가 붙은 타입의
 별칭이고, 이 이름을 받는 모든 자리가 그 범위를 물려받는다(아래에서 다룬다).
 
@@ -73,7 +73,7 @@
   `newtype` 을 쓰면 실행 비용이 드는가?
 ][
   들지 않는다. 표현이 같으므로 네이티브 코드에서 `user_id` 는 그냥 64 비트 정수다. 구별은 번역할 때만
-  있고, `cast user_id n` 은 값을 바꾸지 않는다. 비용 없는 구별이라서 적극적으로 쓸 만하다.
+  있고, `cast user_id n. .` 은 값을 바꾸지 않는다. 비용 없는 구별이라서 적극적으로 쓸 만하다.
 ]
 
 == `range` — 매개변수의 생김새가 된 계약
@@ -83,7 +83,7 @@
 
 #demo("examples/ch13/ranges.low")
 
-`scale` 의 본문은 `a` 가 100 이하라는 사실을 쓴다. 그래서 `mul a 2` 는 200 을 넘지 않고, `narrow u8` 은
+`scale` 의 본문은 `a` 가 100 이하라는 사실을 쓴다. 그래서 `mul a. 2 .` 는 200 을 넘지 않고, `narrow u8` 은
 들어가지 않을 수 없으며, 두 자리의 넘침 검사가 모두 지워진다. 범위를 지키는 책임은 부르는 쪽에 있다. 넘기는 값의
 타입이 이미 범위보다 넓으면(`u64` 따위) 번역이 거절되고, `u8` 처럼 들어갈 수 있는 타입의 값은 부르는 자리에서
 범위를 확인한다. 프로그램 *바깥*에서 들어온 값(여기서는 `--run` 의 인자)도 경계에서 확인되고, 101 은 거기서
@@ -101,7 +101,7 @@
  u64 값           ── 이미 넓다 ─────▶   E-TYPE-WIDTH (거절)
 ```
 
-같은 일을 `requires le a 100 .` 으로도 적을 수 있다. 차이는 *어디에 적히는가*다. `range` 는 매개변수의
+같은 일을 `requires le a. 100 . .` 으로도 적을 수 있다. 차이는 *어디에 적히는가*다. `range` 는 매개변수의
 생김새가 되어 부르는 쪽이 서명만 보고도 알고, 별칭(`def type pct range 0 100 .`)에 실어 여러 op 에 물려줄 수
 있다.
 
@@ -146,7 +146,7 @@
 
 - `layout packed .` 은 칸 사이에 채움(padding)을 두지 않는다. 칸이 선언 차례로 맞붙는다.
 - 칸 뒤의 `big`·`little` 은 바이트 차례를 정한다. 적지 않으면 그 기계의 차례를 따른다.
-- `view wire_header b` 는 바이트 슬라이스를 *베끼지 않고* 그 배치의 값으로 읽는다. 길이와 정렬이 맞지
+- `view wire_header b. .` 는 바이트 슬라이스를 *베끼지 않고* 그 배치의 값으로 읽는다. 길이와 정렬이 맞지
   않으면 멈춘다.
 
 `magic 1 · length 2 · kind 9` 를 담은 머리는 바이트로 이렇게 놓인다. `big` 이라 큰 자리가 앞이다.
@@ -170,7 +170,7 @@
 
 #demo("examples/ch13/encoded.low")
 
-`encode wire_header h` 는 칸마다 적힌 바이트 차례(`big`)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 `kind` 의 9 를 한데 적은 것이다.
+`encode wire_header h. .` 는 칸마다 적힌 바이트 차례(`big`)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 `kind` 의 9 를 한데 적은 것이다.
 선으로 나갈 머리를 짓는 쪽이 `encode`, 받은 머리를 읽는 쪽이 `view` 다.
 
 ```text
@@ -193,10 +193,10 @@
 
 #demo("examples/ch13/sets.low")
 
-- `bitset_new 64` 가 빈 집합을 만든다. 폭은 번역 시점에 정해진 수다.
-- `bitset_insert a 1 .` 은 넣고 `bitset_remove a 1 .` 은 지운다. 둘 다 *제자리에서* 집합을 바꾸는 문장이다. `count a` 는 원소 수다.
-- `bitset_intersect a b` 는 교집합, `bitset_difference a b` 는 `a` 에만 있는 것, `bitset_complement a` 는 여집합을 *새 집합으로* 준다.
-- `bitset_is_subset x y` 는 `x` 가 `y` 에 다 들어 있는지, `bitset_is_empty x` 는 비었는지 묻는다.
+- `bitset_new 64 .` 가 빈 집합을 만든다. 폭은 번역 시점에 정해진 수다.
+- `bitset_insert a 1 .` 은 넣고 `bitset_remove a 1 .` 은 지운다. 둘 다 *제자리에서* 집합을 바꾸는 문장이다. `count a. .` 는 원소 수다.
+- `bitset_intersect a. b. .` 는 교집합, `bitset_difference a. b. .` 는 `a` 에만 있는 것, `bitset_complement a. .` 는 여집합을 *새 집합으로* 준다.
+- `bitset_is_subset x. y. .` 는 `x` 가 `y` 에 다 들어 있는지, `bitset_is_empty x. .` 는 비었는지 묻는다.
 
 `overlap 5` 에서 교집합은 {3, 5}, `a` 에만 있는 것은 {1} 이라 211 이 나온다. `bitset_complement` 는 폭 안에서만 뜻이 있다. 여덟 칸 집합에 0 하나를 넣었으면
 여집합은 나머지 일곱이다. 폭 밖의 수를 넣거나 물으면 멈춘다 --- 집합의 범위도 타입의 일부이기 때문이다.
@@ -208,9 +208,9 @@
 
 #demo("examples/ch13/pieces.low")
 
-- `view_segments back d` 는 뒤에 놓인 바이트 `back` 과 서술자 `d` 를 묶어 `segments u8` 타입의 눈을 만든다. 서술자는 (어디부터, 얼마) 짝의
+- `view_segments back. d. .` 는 뒤에 놓인 바이트 `back` 과 서술자 `d` 를 묶어 `segments u8` 타입의 눈을 만든다. 서술자는 (어디부터, 얼마) 짝의
   줄이다. 여기서는 0 부터 4 바이트, 8 부터 4 바이트다.
-- `segs ss` 는 조각 수 2 를, `seg ss 1` 은 둘째 조각을 평범한 `slice u8` 로 준다. 둘째 조각의 1 번 바이트는 원래 9 번 자리의 30 이다.
+- `segs ss. .` 는 조각 수 2 를, `seg ss. 1 .` 은 둘째 조각을 평범한 `slice u8` 로 준다. 둘째 조각의 1 번 바이트는 원래 9 번 자리의 30 이다.
 - 새 기계 명령은 없다. 묶음 짓기와 칸 읽기와 잘라내기로 낮아지므로 비용이 보인다.
 
 == 타입 낱말의 세 갈래
@@ -252,7 +252,7 @@
   #demo("examples/ch13/mistake_widensign.low")
 
   `i32` 에서 `u64` 로 가면 폭은 넓어지지만, −1 같은 음수는 `u64` 에 자리가 없다. `widen` 은 *어떤 값도 변하지 않는* 자리에만
-  쓰므로 `E-WIDEN-SIGN` 이다. 음수가 올 수 없다고 알고 있다면 `cast u64 x` 라고 적어 그 판단을 소스에 남긴다. 음수가 오면 `cast`
+  쓰므로 `E-WIDEN-SIGN` 이다. 음수가 올 수 없다고 알고 있다면 `cast u64 x. .` 라고 적어 그 판단을 소스에 남긴다. 음수가 오면 `cast`
   가 멈춘다. 음수를 따로 다뤄야 한다면 `guard ge x 0` 을 먼저 둔다.
 ]
 
@@ -288,16 +288,16 @@
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`def type meters u64 .`], [같은 타입의 다른 이름], [긴 타입을 줄이고 뜻을 남긴다 --- 섞임은 막지 않는다],
   [`def newtype user_id u64 .`], [표현이 같은 새 타입], [번호끼리 섞이는 결함을 번역이 막는다 --- 실행 비용 없음],
-  [`cast user_id n` · `cast u64 u`], [새 타입과 원래 타입 사이를 건넌다], [건너는 자리가 코드에서 한곳에 모인다],
+  [`cast user_id n. .` · `cast u64 u. .`], [새 타입과 원래 타입 사이를 건넌다], [건너는 자리가 코드에서 한곳에 모인다],
   [`input a range 0 100 .`], [두 끝을 포함한 범위만 받는다], [계약이 서명의 생김새가 된다],
   [`def type pct range 0 100 .`], [범위를 별칭에 싣는다], [여러 op 이 같은 범위를 물려받는다],
-  [`cast i32 x`], [값이 변할 수 있는 변환 --- 들어가지 않으면 멈춤], ["여기서 값이 변할 수 있음을 안다" 는 표시],
+  [`cast i32 x. .`], [값이 변할 수 있는 변환 --- 들어가지 않으면 멈춤], ["여기서 값이 변할 수 있음을 안다" 는 표시],
   [`def type ten_bits bits 10 .`], [1 … 64 비트 정수], [폭이 곧 계약],
   [`layout packed .` · `magic u32 big .`], [채움 없는 배치 · 바이트 차례], [바깥과 바이트의 뜻을 맞춘다],
-  [`view wire_header b`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
-  [`try_view wire_header b` · `encode wire_header h`], [실패를 `none` 으로 주는 뷰 · 값을 그 배치의 바이트로], [경계에서는 멈추지 않는 쪽],
-  [`var a bitset 64 bitset_new 64 .` · `bitset_insert a 1 .` · `bitset_intersect a b`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
-  [`view_segments back d` · `segs ss` · `seg ss i`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
+  [`view wire_header b. .`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
+  [`try_view wire_header b. .` · `encode wire_header h. .`], [실패를 `none` 으로 주는 뷰 · 값을 그 배치의 바이트로], [경계에서는 멈추지 않는 쪽],
+  [`var a bitset 64 bitset_new 64 . .` · `bitset_insert a 1 .` · `bitset_intersect a. b. .`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
+  [`view_segments back. d. .` · `segs ss. .` · `seg ss. i. .`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
   [`byte` · `lock` 같은 타입 낱말], [`W-NOT-YET` · `E-LOCK-NOTYET`], [뜻이 없으면 없다고 말한다],
 )
 

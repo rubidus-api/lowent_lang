@@ -180,15 +180,15 @@
 rem 안 받은 권한은 이 프로그램 어디에도 없다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out 1 \"hello\\n\" .
-  return narrow u8 n .
-end")
+  let n u64 write_out out. 1 \"hello\\n\" . .
+  return narrow u8 n. . .
+end .")
     #rejected("시작점은 `u8` 을 돌려준다", "module ex_entry .
 
 proc main output u64 . effects none .
 do
   return 0 .
-end", "E-ENTRY-OUTPUT")
+end .", "E-ENTRY-OUTPUT")
     #plain[
       마지막 문단이 다른 언어와 크게 다른 자리다. 흔히 「프로그램이 끝나면 운영체제가
       알아서 치운다」고 하지만, 로우엔트는 #strong[치우는 것을 잊었다는 사실 자체를 번역 단계에서

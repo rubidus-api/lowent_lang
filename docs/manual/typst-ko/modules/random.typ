@@ -14,8 +14,8 @@
 
 ```lowent
 var s u64 12345 .
-set s (random.advance_seed s) .
-let c bool random.coin s .
+set s. random.advance_seed s. . .
+let c bool random.coin s. . .
 ```
 
 *예측할 수 없는 쪽.* `cap random` 을 받아야 부를 수 있다. 채운 바이트 수를 답하고 *못 채우면 0* 이다 --- 0 을 받고 그대로 쓰면 초기화되지 않은 버퍼를 열쇠로 쓰는
@@ -23,8 +23,8 @@ let c bool random.coin s .
 
 ```lowent
 proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
-  return eq (random.bytes k key) (len key) .
-end
+  return eq random.bytes k. key. . len key. . . .
+end .
 ```
 
 #dtable(

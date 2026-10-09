@@ -5,27 +5,27 @@ rem   증인: 저자의 `sha256` 은 인자 하나(잎은 둘)이고 답이 다�
 module vm_builtin_ns .
 
 fn sha256 input x u64 . output u64 . do
-  return add x 1 .
-end
+  return add x. 1 . .
+end .
 
 rem 권한 빌트인과 같은 철자 — 효과가 없고 권한도 받지 않는다.
 fn net_send input a u64 . input b u64 . output u64 . do
-  return mul a b .
-end
+  return mul a. b. . .
+end .
 
 fn user_first input x u64 . output u64 . do
-  return sha256 x .
-end
+  return sha256 x. . .
+end .
 
 rem 한 op 안에서 둘 다: 빌트인 연산은 32(쓴 바이트 수)를, 저자의 op 은 그 다음 수를 낸다.
 proc both input data slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let n u64 call_builtin sha256 data out .
-  return add n (sha256 n) .
-end
+  let n u64 call_builtin sha256 data. out. . .
+  return add n. sha256 n. . . .
+end .
 
 rem 지역과 파라미터도 같은 철자를 쓴다.
 fn locals input crc32 u64 . output u64 . do
-  let file_type u64 crc32 .
+  let file_type u64 crc32. .
   let ghash u64 3 .
-  return add file_type (net_send ghash crc32) .
-end
+  return add file_type. net_send ghash. crc32. . . .
+end .

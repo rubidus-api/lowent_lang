@@ -22,48 +22,48 @@ rem 힌트를 **주고** 훑는다.
 export proc walk_hinted input xs slice u64 . output u64 . effects none . do
   var i u64 0 .
   var s u64 0 .
-  while lt i (len xs) do
-    prefetch xs (add i 8) .
-    set s (add s (idx xs i)) .
-    set i (add i 1) .
-  end
-  return s .
-end
+  while lt i. len xs. . . do
+    prefetch xs. add i. 8 . .
+    set s. add s. idx xs. i. . . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .
 
 rem 힌트 **없이** 훑는다 — 답이 같아야 한다.
 export proc walk_plain input xs slice u64 . output u64 . effects none . do
   var i u64 0 .
   var s u64 0 .
-  while lt i (len xs) do
-    set s (add s (idx xs i)) .
-    set i (add i 1) .
-  end
-  return s .
-end
+  while lt i. len xs. . . do
+    set s. add s. idx xs. i. . . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .
 
 rem ★ 범위 **밖**을 미리 당겨도 안전하다 — 힌트는 접근이 아니다.
 rem   (방출 C 가 길이를 보고 거른다. 그래서 `i + 8` 이 끝을 넘어도 아무 일이 없다.)
 proc same input al cap allocator . output u64 . effects alloc . do
-  let mb option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some mb else return 89 .
-  var xs mut slice u64 view_array u64 (some_value mb) .
+  let mb option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some mb. . else return 89 . .
+  var xs mut slice u64 view_array u64 some_value mb. . . .
   var i u64 0 .
-  while lt i (len xs) do
-    set (idx xs i) (add i 1) .
-    set i (add i 1) .
-  end
+  while lt i. len xs. . . do
+    set idx xs. i. . add i. 1 . .
+    set i. add i. 1 . .
+  end .
   rem 1..8 의 합 = 36. 힌트를 줘도 안 줘도 같아야 한다.
-  let a u64 vm_prefetch.walk_hinted xs .
-  let b u64 vm_prefetch.walk_plain xs .
-  guard eq a 36 else return 1 .
-  guard eq b 36 else return 2 .
-  guard eq a b else return 3 .
+  let a u64 vm_prefetch.walk_hinted xs. . .
+  let b u64 vm_prefetch.walk_plain xs. . .
+  guard eq a. 36 . else return 1 . .
+  guard eq b. 36 . else return 2 . .
+  guard eq a. b. . else return 3 . .
   return 42 .
-end
+end .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let a u64 same al .
-  guard eq a 42 else return narrow u8 a .
+  let a u64 same al. . .
+  guard eq a. 42 . else return narrow u8 a. . . .
   return 42 .
-end
+end .

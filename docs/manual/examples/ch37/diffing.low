@@ -5,12 +5,12 @@ use term .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let g option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some g else return 255 .
-  let out mut slice u8 some_value g .
-  let same option u64 term.diff "hello   " "hello   " 8 out 0 .
-  guard is_some same else return 254 .
-  let changed option u64 term.diff "hello   " "help!   " 8 out 0 .
-  guard is_some changed else return 253 .
-  return narrow u8 (add (mul (some_value same) 100) (some_value changed)) .
-end
+  let g option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some g. . else return 255 . .
+  let out mut slice u8 some_value g. . .
+  let same option u64 term.diff "hello   " "hello   " 8 out. 0 . .
+  guard is_some same. . else return 254 . .
+  let changed option u64 term.diff "hello   " "help!   " 8 out. 0 . .
+  guard is_some changed. . else return 253 . .
+  return narrow u8 add mul some_value same. . 100 . some_value changed. . . . .
+end .

@@ -4,5 +4,5 @@ rem expect: E-LET-NOVALUE
 fn half output f64 .
 do
   let x f64 .5 .
-  return x .
-end
+  return x. .
+end .

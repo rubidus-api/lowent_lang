@@ -34,7 +34,7 @@
 
 #demo("examples/ch38/average.low")
 
-`mean2`, which computes the mean of two numbers, passes all three tests. But given 4294967295 and 1, `add a b` overflows `u32` and stops. Write a million more tests, and if the
+`mean2`, which computes the mean of two numbers, passes all three tests. But given 4294967295 and 1, `add a. b. .` overflows `u32` and stops. Write a million more tests, and if the
 author does not pick large numbers, the defect does not show.
 
 This is the nature of testing. A test can show "it is wrong on *this* input (∃)" but not "it is wrong on *no* input (∀)". Checking a million natural numbers is not checking all

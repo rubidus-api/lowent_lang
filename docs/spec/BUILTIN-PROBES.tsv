@@ -7,375 +7,375 @@
 # 칸: op · 입력(`이름 타입`, 쉼표로 가른다) · 낸 타입 · 몸(` ␤ ` 는 줄바꿈) · 인자 · 기대
 # 기대: `= 값`(두 뒤끝이 같은 값을 낸다) · `TRAP 코드`(실행하다 멈춘다) · `CHECK 코드`(번역이 거부된다)
 #
-add	a u8, b u8	u8	return add a b .	1 2	= 3
-add	a u8, b u8	u8	return add a b .	200 100	TRAP E-VM-OVERFLOW
-sub	a u8, b u8	u8	return sub a b .	2 1	= 1
-sub	a u8, b u8	u8	return sub a b .	1 2	TRAP E-VM-OVERFLOW
-mul	a u8, b u8	u8	return mul a b .	3 5	= 15
-mul	a u8, b u8	u8	return mul a b .	16 16	TRAP E-VM-OVERFLOW
-div	a u8, b u8	u8	return div a b .	7 2	= 3
-div	a u8, b u8	u8	return div a b .	1 0	TRAP E-VM-DIV0
-mod	a u8, b u8	u8	return mod a b .	7 2	= 1
-mod	a u8, b u8	u8	return mod a b .	1 0	TRAP E-VM-DIV0
-add	a i8, b i8	i8	return add a b .	100 100	TRAP E-VM-OVERFLOW
-sub	a i8, b i8	i8	return sub a b .	-100 100	TRAP E-VM-OVERFLOW
-mul	a i8, b i8	i8	return mul a b .	-128 -1	TRAP E-VM-OVERFLOW
-div	a i8, b i8	i8	return div a b .	-7 2	= -3
-div	a i8, b i8	i8	return div a b .	-128 -1	TRAP E-VM-OVERFLOW
-mod	a i8, b i8	i8	return mod a b .	7 2	= 1
-add	a f64, b f64	f64	return add a b .	1.5 2.0	= 3.5
-add	a f64, b f64	f64	return add a b .	1e+308 1e+308	= inf
-sub	a f64, b f64	f64	return sub a b .	1.5 2.0	= -0.5
-mul	a f64, b f64	f64	return mul a b .	1.5 2.0	= 3.0
-div	a f64, b f64	f64	return div a b .	1.0 0.0	= inf
-mod	a f64, b f64	f64	return mod a b .	7.5 2.0	TRAP E-VM-TYPE
-add	a u8, b u16	u16	return add a b .	255 1	= 256
-add	a u8, b i16	i16	return add a b .	200 -1	= 199
-add	a u8, b i8	u8	return add a b .	1 2	CHECK E-TYPE-SIGN
-add	a u8, b f64	f64	return add a b .	1 2.0	CHECK E-TYPE-MIX
-add	a u8	u8	return add a 300 .	1	CHECK E-TYPE-WIDTH
-add	a u8	u8	return add a .	1	CHECK E-IR-ARITY
-neg	a i8	i8	return neg a .	5	= -5
-neg	a f64	f64	return neg a .	1.5	= -1.5
-abs	a i8	i8	return abs a .	-5	= 5
-abs	a i8	i8	return abs a .	-128	TRAP E-VM-OVERFLOW
-abs	a f64	f64	return abs a .	-1.5	= 1.5
-min	a u8, b u8	u8	return min a b .	3 5	= 3
-min	a i8, b i8	i8	return min a b .	-3 5	= -3
-min	a f64, b f64	f64	return min a b .	1.0 2.0	= 1.0
-max	a u8, b u8	u8	return max a b .	3 5	= 5
-max	a i8, b i8	i8	return max a b .	-3 5	= 5
-max	a f64, b f64	f64	return max a b .	1.0 2.0	= 2.0
-wrap_add	a u8, b u8	u8	return wrap_add a b .	200 100	= 44
-wrap_add	a u8, b u8	u8	return wrap_add a b .	1 2	= 3
-wrap_add	a i8, b i8	i8	return wrap_add a b .	100 100	= -56
-wrap_add	a i8, b i8	i8	return wrap_add a b .	-100 100	= 0
-wrap_sub	a u8, b u8	u8	return wrap_sub a b .	200 100	= 100
-wrap_sub	a u8, b u8	u8	return wrap_sub a b .	1 2	= 255
-wrap_sub	a i8, b i8	i8	return wrap_sub a b .	100 100	= 0
-wrap_sub	a i8, b i8	i8	return wrap_sub a b .	-100 100	= 56
-wrap_mul	a u8, b u8	u8	return wrap_mul a b .	200 100	= 32
-wrap_mul	a u8, b u8	u8	return wrap_mul a b .	1 2	= 2
-wrap_mul	a i8, b i8	i8	return wrap_mul a b .	100 100	= 16
-wrap_mul	a i8, b i8	i8	return wrap_mul a b .	-100 100	= -16
-sat_add	a u8, b u8	u8	return sat_add a b .	200 100	= 255
-sat_add	a u8, b u8	u8	return sat_add a b .	1 2	= 3
-sat_add	a i8, b i8	i8	return sat_add a b .	100 100	= 127
-sat_add	a i8, b i8	i8	return sat_add a b .	-100 100	= 0
-sat_sub	a u8, b u8	u8	return sat_sub a b .	200 100	= 100
-sat_sub	a u8, b u8	u8	return sat_sub a b .	1 2	= 0
-sat_sub	a i8, b i8	i8	return sat_sub a b .	100 100	= 0
-sat_sub	a i8, b i8	i8	return sat_sub a b .	-100 100	= -128
-sat_mul	a u8, b u8	u8	return sat_mul a b .	200 100	= 255
-sat_mul	a u8, b u8	u8	return sat_mul a b .	1 2	= 2
-sat_mul	a i8, b i8	i8	return sat_mul a b .	100 100	= 127
-sat_mul	a i8, b i8	i8	return sat_mul a b .	-100 100	= -128
-wrap_add	a u8, b u16	u16	return wrap_add a b .	255 1	= 256
-chk_add	a u8, b u8	u64	let r option u8 chk_add a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	1 2	= 3
-chk_add	a u8, b u8	u64	let r option u8 chk_add a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	200 100	= 999
-chk_sub	a u8, b u8	u64	let r option u8 chk_sub a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	2 1	= 1
-chk_sub	a u8, b u8	u64	let r option u8 chk_sub a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	1 2	= 999
-chk_mul	a u8, b u8	u64	let r option u8 chk_mul a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	3 5	= 15
-chk_mul	a u8, b u8	u64	let r option u8 chk_mul a b . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	16 16	= 999
-chk_add	a f64, b f64	u64	let r option f64 chk_add a b . ␤ if is_some r do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 0	= 999
-div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 0	= 999
-nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 3	= 3
-div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b . ␤ if is_some nz do return div_nz a (some_value nz) . end ␤ return 999 .	10 3	= 3
-nonzero_of	a f64	u64	let nz option nonzero f64 nonzero_of a . ␤ return 1 .	1.0	TRAP E-VM-TYPE
-eq	a u8, b u8	bool	return eq a b .	1 2	= 0
-eq	a u8, b u8	bool	return eq a b .	2 2	= 1
-eq	a u8, b u8	bool	return eq a b .	3 2	= 0
-eq	a i8, b i8	bool	return eq a b .	-1 1	= 0
-eq	a f64, b f64	bool	return eq a b .	1.5 1.5	= 1
-eq	a f64	bool	return eq (div a a) (div a a) .	0.0	= 0
-eq	a u8, b u16	bool	return eq a b .	1 2	= 0
-eq	a u8, b i8	bool	return eq a b .	1 1	CHECK E-TYPE-SIGN
-eq	a u8, b f64	bool	return eq a b .	1 1.0	CHECK E-TYPE-MIX
-ne	a u8, b u8	bool	return ne a b .	1 2	= 1
-ne	a u8, b u8	bool	return ne a b .	2 2	= 0
-ne	a u8, b u8	bool	return ne a b .	3 2	= 1
-ne	a i8, b i8	bool	return ne a b .	-1 1	= 1
-ne	a f64, b f64	bool	return ne a b .	1.5 1.5	= 0
-ne	a f64	bool	return ne (div a a) (div a a) .	0.0	= 1
-ne	a u8, b u16	bool	return ne a b .	1 2	= 1
-ne	a u8, b i8	bool	return ne a b .	1 1	CHECK E-TYPE-SIGN
-ne	a u8, b f64	bool	return ne a b .	1 1.0	CHECK E-TYPE-MIX
-lt	a u8, b u8	bool	return lt a b .	1 2	= 1
-lt	a u8, b u8	bool	return lt a b .	2 2	= 0
-lt	a u8, b u8	bool	return lt a b .	3 2	= 0
-lt	a i8, b i8	bool	return lt a b .	-1 1	= 1
-lt	a f64, b f64	bool	return lt a b .	1.5 1.5	= 0
-lt	a f64	bool	return lt (div a a) (div a a) .	0.0	= 0
-lt	a u8, b u16	bool	return lt a b .	1 2	= 1
-lt	a u8, b i8	bool	return lt a b .	1 1	CHECK E-TYPE-SIGN
-lt	a u8, b f64	bool	return lt a b .	1 1.0	CHECK E-TYPE-MIX
-le	a u8, b u8	bool	return le a b .	1 2	= 1
-le	a u8, b u8	bool	return le a b .	2 2	= 1
-le	a u8, b u8	bool	return le a b .	3 2	= 0
-le	a i8, b i8	bool	return le a b .	-1 1	= 1
-le	a f64, b f64	bool	return le a b .	1.5 1.5	= 1
-le	a f64	bool	return le (div a a) (div a a) .	0.0	= 0
-le	a u8, b u16	bool	return le a b .	1 2	= 1
-le	a u8, b i8	bool	return le a b .	1 1	CHECK E-TYPE-SIGN
-le	a u8, b f64	bool	return le a b .	1 1.0	CHECK E-TYPE-MIX
-gt	a u8, b u8	bool	return gt a b .	1 2	= 0
-gt	a u8, b u8	bool	return gt a b .	2 2	= 0
-gt	a u8, b u8	bool	return gt a b .	3 2	= 1
-gt	a i8, b i8	bool	return gt a b .	-1 1	= 0
-gt	a f64, b f64	bool	return gt a b .	1.5 1.5	= 0
-gt	a f64	bool	return gt (div a a) (div a a) .	0.0	= 0
-gt	a u8, b u16	bool	return gt a b .	1 2	= 0
-gt	a u8, b i8	bool	return gt a b .	1 1	CHECK E-TYPE-SIGN
-gt	a u8, b f64	bool	return gt a b .	1 1.0	CHECK E-TYPE-MIX
-ge	a u8, b u8	bool	return ge a b .	1 2	= 0
-ge	a u8, b u8	bool	return ge a b .	2 2	= 1
-ge	a u8, b u8	bool	return ge a b .	3 2	= 1
-ge	a i8, b i8	bool	return ge a b .	-1 1	= 0
-ge	a f64, b f64	bool	return ge a b .	1.5 1.5	= 1
-ge	a f64	bool	return ge (div a a) (div a a) .	0.0	= 0
-ge	a u8, b u16	bool	return ge a b .	1 2	= 0
-ge	a u8, b i8	bool	return ge a b .	1 1	CHECK E-TYPE-SIGN
-ge	a u8, b f64	bool	return ge a b .	1 1.0	CHECK E-TYPE-MIX
-eq	a u8	bool	return eq (eq a 0) (eq a 1) .	1	= 0
-ne	a u8	bool	return ne (eq a 0) (eq a 1) .	1	= 1
-eq	a u8, b bool	bool	return eq a b .	1	CHECK E-TYPE-MIX
-eq	a u8	bool	let x option u8 chk_add a 1 . ␤ let y option u8 chk_add a 1 . ␤ return eq x y .	1	TRAP E-VM-TYPE
-and	a u8	bool	return and (gt a 0) (eq (div 10 a) 5) .	0	= 0
-and	a u8	bool	return and (gt a 0) (eq (div 10 a) 5) .	2	= 1
-and	a u8	bool	return and a a .	1	CHECK E-TYPE-LOGICAL
-or	a u8	bool	return or (eq a 0) (eq (div 10 a) 5) .	0	= 1
-or	a u8	bool	return or (eq a 0) (eq (div 10 a) 5) .	3	= 0
-or	a u8	bool	return or a a .	1	CHECK E-TYPE-LOGICAL
-not	a u8	bool	return not (eq a 0) .	0	= 0
-not	a u8	bool	return not a .	1	CHECK E-TYPE-LOGICAL
-bit_and	a u8, b u8	u8	return bit_and a b .	12 10	= 8
-bit_and	a i8, b i8	i8	return bit_and a b .	-1 10	= 10
-bit_and	a u8, b u16	u16	return bit_and a b .	12 300	= 12
-bit_and	a f64, b f64	u64	return bit_and a b .	1.5 2.5	TRAP E-BITOP-TYPE
-bit_or	a u8, b u8	u8	return bit_or a b .	12 10	= 14
-bit_or	a i8, b i8	i8	return bit_or a b .	-1 10	= -1
-bit_or	a u8, b u16	u16	return bit_or a b .	12 300	= 300
-bit_or	a f64, b f64	u64	return bit_or a b .	1.5 2.5	TRAP E-BITOP-TYPE
-bit_xor	a u8, b u8	u8	return bit_xor a b .	12 10	= 6
-bit_xor	a i8, b i8	i8	return bit_xor a b .	-1 10	= -11
-bit_xor	a u8, b u16	u16	return bit_xor a b .	12 300	= 288
-bit_xor	a f64, b f64	u64	return bit_xor a b .	1.5 2.5	TRAP E-BITOP-TYPE
-bit_not	a u8	u8	return bit_not a .	0	= 255
-bit_not	a i8	i8	return bit_not a .	0	= -1
-bit_not	a u64	u64	return bit_not a .	0	= 18446744073709551615
-bit_not	a f64	u64	return bit_not a .	1.5	TRAP E-BITOP-TYPE
-shl	a u8, b u8	u8	return shl a b .	129 1	= 2
-shl	a u8, b u8	u8	return shl a b .	129 7	= 128
-shl	a u8, b u8	u8	return shl a b .	129 8	TRAP E-VM-SHIFT
-shl	a u8	u8	return shl a 8 .	1	CHECK E-SHIFT-RANGE
-shl	a u8, b i8	u8	return shl a b .	1 -1	TRAP E-VM-SHIFT
-shl	a f64, b f64	u64	return shl a b .	1.5 1.0	TRAP E-BITOP-TYPE
-shr	a u8, b u8	u8	return shr a b .	129 1	= 64
-shr	a u8, b u8	u8	return shr a b .	129 7	= 1
-shr	a u8, b u8	u8	return shr a b .	129 8	TRAP E-VM-SHIFT
-shr	a u8	u8	return shr a 8 .	1	CHECK E-SHIFT-RANGE
-shr	a u8, b i8	u8	return shr a b .	1 -1	TRAP E-VM-SHIFT
-shr	a f64, b f64	u64	return shr a b .	1.5 1.0	TRAP E-BITOP-TYPE
-shr	a i8, b i8	i8	return shr a b .	-128 1	= -64
-shl	a i8, b i8	i8	return shl a b .	64 1	= -128
-wrap_shl	a u8, b u8	u8	return wrap_shl a b .	129 1	= 2
-wrap_shl	a u8, b u8	u8	return wrap_shl a b .	129 8	= 129
-wrap_shl	a u8, b u8	u8	return wrap_shl a b .	129 9	= 2
-wrap_shr	a u8, b u8	u8	return wrap_shr a b .	129 1	= 64
-wrap_shr	a u8, b u8	u8	return wrap_shr a b .	129 8	= 129
-wrap_shr	a u8, b u8	u8	return wrap_shr a b .	129 9	= 64
-rotl	a u8, b u8	u8	return rotl a b .	129 1	= 3
-rotl	a u8, b u8	u8	return rotl a b .	129 8	= 129
-rotl	a u8, b u8	u8	return rotl a b .	129 9	= 3
-rotr	a u8, b u8	u8	return rotr a b .	129 1	= 192
-rotr	a u8, b u8	u8	return rotr a b .	129 8	= 129
-rotr	a u8, b u8	u8	return rotr a b .	129 9	= 192
-rotl	a f64, b f64	u64	return rotl a b .	1.5 1.0	TRAP E-BITOP-TYPE
-rotr	a f64, b f64	u64	return rotr a b .	1.5 1.0	TRAP E-BITOP-TYPE
-rotl	a i8, b i8	i8	return rotl a b .	-128 1	= 1
-count_ones	a u8	u8	return count_ones a .	0	= 0
-count_ones	a u8	u8	return count_ones a .	1	= 1
-count_ones	a u8	u8	return count_ones a .	255	= 8
-count_ones	a u16	u16	return count_ones a .	1	= 1
-count_ones	a u64	u64	return count_ones a .	0	= 0
-count_ones	a u64	u64	return count_ones a .	1	= 1
-count_ones	a i8	i8	return count_ones a .	-1	= 8
-leading_zeros	a u8	u8	return leading_zeros a .	0	= 8
-leading_zeros	a u8	u8	return leading_zeros a .	1	= 7
-leading_zeros	a u8	u8	return leading_zeros a .	255	= 0
-leading_zeros	a u16	u16	return leading_zeros a .	1	= 15
-leading_zeros	a u64	u64	return leading_zeros a .	0	= 64
-leading_zeros	a u64	u64	return leading_zeros a .	1	= 63
-leading_zeros	a i8	i8	return leading_zeros a .	-1	= 0
-trailing_zeros	a u8	u8	return trailing_zeros a .	0	= 8
-trailing_zeros	a u8	u8	return trailing_zeros a .	1	= 0
-trailing_zeros	a u8	u8	return trailing_zeros a .	255	= 0
-trailing_zeros	a u16	u16	return trailing_zeros a .	1	= 0
-trailing_zeros	a u64	u64	return trailing_zeros a .	0	= 64
-trailing_zeros	a u64	u64	return trailing_zeros a .	1	= 0
-trailing_zeros	a i8	i8	return trailing_zeros a .	-1	= 0
-byte_swap	a u8	u8	return byte_swap a .	0	= 0
-byte_swap	a u8	u8	return byte_swap a .	1	= 1
-byte_swap	a u8	u8	return byte_swap a .	255	= 255
-byte_swap	a u16	u16	return byte_swap a .	1	= 256
-byte_swap	a u64	u64	return byte_swap a .	0	= 0
-byte_swap	a u64	u64	return byte_swap a .	1	= 72057594037927936
-byte_swap	a i8	i8	return byte_swap a .	-1	= -1
-leading_zeros	a f64	u64	return leading_zeros a .	1.5	TRAP E-BITOP-TYPE
-trailing_zeros	a f64	u64	return trailing_zeros a .	1.5	TRAP E-BITOP-TYPE
-byte_swap	a f64	u64	return byte_swap a .	1.5	TRAP E-BITOP-TYPE
-sqrt	a f64	f64	return sqrt a .	4.0	= 2.0
-sqrt	a f64	f64	return sqrt a .	-1.0	= -nan
-sin	a f64	f64	return sin a .	0.0	= 0.0
-cos	a f64	f64	return cos a .	0.0	= 1.0
-exp	a f64	f64	return exp a .	0.0	= 1.0
-log	a f64	f64	return log a .	1.0	= 0.0
-log	a f64	f64	return log a .	0.0	= -inf
-log	a f64	f64	return log a .	-1.0	= -nan
-floor	a f64	f64	return floor a .	1.5	= 1.0
-floor	a f64	f64	return floor a .	-1.5	= -2.0
-ceil	a f64	f64	return ceil a .	1.5	= 2.0
-ceil	a f64	f64	return ceil a .	-1.5	= -1.0
-round	a f64	f64	return round a .	2.5	= 3.0
-round	a f64	f64	return round a .	-2.5	= -3.0
-round	a f64	f64	return round a .	2.4	= 2.0
-sqrt	a u8	u8	return sqrt a .	1	CHECK E-TYPE-KIND
-sin	a u8	u8	return sin a .	1	CHECK E-TYPE-KIND
-cos	a u8	u8	return cos a .	1	CHECK E-TYPE-KIND
-exp	a u8	u8	return exp a .	1	CHECK E-TYPE-KIND
-log	a u8	u8	return log a .	1	CHECK E-TYPE-KIND
-pow	a f64, b f64	f64	return pow a b .	2.0 10.0	= 1024.0
-pow	a f64, b f64	f64	return pow a b .	2.0 0.5	= 1.41421
-pow	a f64, b f64	f64	return pow a b .	-8.0 0.5	= -nan
-fmod	a f64, b f64	f64	return fmod a b .	7.5 2.0	= 1.5
-fmod	a f64, b f64	f64	return fmod a b .	-7.5 2.0	= -1.5
-pow	a u8, b u8	u8	return pow a b .	2 3	CHECK E-TYPE-KIND
-fmod	a u8, b u8	u8	return fmod a b .	7 2	CHECK E-TYPE-KIND
-widen	a u8	u16	return widen u16 a .	255	= 255
-widen	a u8	i16	return widen i16 a .	255	= 255
-widen	a i8	i16	return widen i16 a .	-1	= -1
-widen	a f32	f64	return widen f64 a .	1.5	= 1.5
-widen	a i8	u16	return widen u16 a .	1	CHECK E-WIDEN-SIGN
-widen	a u16	u8	return widen u8 a .	1	CHECK E-WIDEN-NARROW
-widen	a u8	f64	return widen f64 a .	1	CHECK E-WIDEN-KIND
-widen	a u8	u16	return widen a .	1	CHECK E-IR-UNDEF
-narrow	a u16	u8	return narrow u8 a .	255	= 255
-narrow	a u16	u8	return narrow u8 a .	256	TRAP E-VM-CAST
-narrow	a i16	i8	return narrow i8 a .	-129	TRAP E-VM-CAST
-narrow	a i16	u8	return narrow u8 a .	-1	TRAP E-VM-CAST
-narrow	a u16	i8	return narrow i8 a .	200	TRAP E-VM-CAST
-narrow	a f64	f32	return narrow f32 a .	1.5	= 1.5
-narrow_wrap	a u16	u8	return narrow_wrap u8 a .	255	= 255
-narrow_wrap	a u16	u8	return narrow_wrap u8 a .	256	= 0
-narrow_wrap	a u16	u8	return narrow_wrap u8 a .	511	= 255
-narrow_wrap	a i16	i8	return narrow_wrap i8 a .	-129	= 127
-narrow_wrap	a i16	u8	return narrow_wrap u8 a .	-1	= 255
-narrow_wrap	a i16	u8	return narrow_wrap u8 a .	300	= 44
-narrow_sat	a u16	u8	return narrow_sat u8 a .	255	= 255
-narrow_sat	a u16	u8	return narrow_sat u8 a .	256	= 255
-narrow_sat	a u16	u8	return narrow_sat u8 a .	511	= 255
-narrow_sat	a i16	i8	return narrow_sat i8 a .	-129	= -128
-narrow_sat	a i16	u8	return narrow_sat u8 a .	-1	= 0
-narrow_sat	a i16	u8	return narrow_sat u8 a .	300	= 255
-narrow_try	a u16	u64	let r option u8 narrow_try u8 a . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	255	= 255
-narrow_try	a u16	u64	let r option u8 narrow_try u8 a . ␤ if is_some r do return widen u64 (some_value r) . end ␤ return 999 .	256	= 999
-cast	a u8	i8	return cast i8 a .	100	= 100
-cast	a u8	i8	return cast i8 a .	200	TRAP E-VM-CAST
-cast	a i8	u8	return cast u8 a .	-1	TRAP E-VM-CAST
-cast	a u16	u8	return cast u8 a .	511	TRAP E-VM-CAST
-cast	a u8	u64	return cast u64 a .	5	= 5
-cast	a f64	i8	return cast i8 a .	-1.9	= -1
-cast	a f64	u8	return cast u8 a .	1.9	= 1
-cast	a u64	f64	return cast f64 a .	5	= 5.0
-cast	a i8	f64	return cast f64 a .	-3	= -3.0
-cast	a u8	bool	return cast bool a .	1	CHECK E-TYPE-KIND
-bit_cast	a u8	i8	return bit_cast i8 a .	200	= -56
-bit_cast	a f64	u64	return bit_cast u64 a .	1.0	= 4607182418800017408
-bit_cast	a u64	f64	return bit_cast f64 a .	4607182418800017408	= 1.0
-bit_cast	a f32	u32	return bit_cast u32 a .	1.0	= 1065353216
-bit_cast	a i64	u64	return bit_cast u64 a .	-1	= 18446744073709551615
-size_of		u64	return size_of u8 .		= 1
-size_of		u64	return size_of u16 .		= 2
-size_of		u64	return size_of u32 .		= 4
-size_of		u64	return size_of u64 .		= 8
-size_of		u64	return size_of f32 .		= 4
-size_of		u64	return size_of f64 .		= 8
-sub	a u8, b i8	u8	return sub a b .	1 2	CHECK E-TYPE-SIGN
-sub	a u8	u8	return sub a 300 .	1	CHECK E-TYPE-WIDTH
-mul	a u8, b i8	u8	return mul a b .	1 2	CHECK E-TYPE-SIGN
-mul	a u8	u8	return mul a 300 .	1	CHECK E-TYPE-WIDTH
-div	a u8, b i8	u8	return div a b .	1 2	CHECK E-TYPE-SIGN
-div	a u8	u8	return div a 300 .	1	CHECK E-TYPE-WIDTH
-mod	a u8, b i8	u8	return mod a b .	1 2	CHECK E-TYPE-SIGN
-mod	a u8	u8	return mod a 300 .	1	CHECK E-TYPE-WIDTH
-sub	a u8, b f64	f64	return sub a b .	1 2.0	CHECK E-TYPE-MIX
-mul	a u8, b f64	f64	return mul a b .	1 2.0	CHECK E-TYPE-MIX
-div	a u8, b f64	f64	return div a b .	1 2.0	CHECK E-TYPE-MIX
-mod	a u8, b f64	f64	return mod a b .	1 2.0	CHECK E-TYPE-MIX
-chk_sub	a f64, b f64	u64	let r option f64 chk_sub a b . ␤ if is_some r do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-chk_mul	a f64, b f64	u64	let r option f64 chk_mul a b . ␤ if is_some r do return 1 . end ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-div_nz	a u32, b u32	u32	return div_nz a b .	10 0	TRAP E-VM-DIV0
-ne	a u8	bool	let x option u8 chk_add a 1 . ␤ let y option u8 chk_add a 1 . ␤ return ne x y .	1	TRAP E-VM-TYPE
-narrow	a u16	u8	return narrow a .	1	CHECK E-IR-UNDEF
-narrow_wrap	a u16	u8	return narrow_wrap a .	1	CHECK E-IR-UNDEF
-narrow_sat	a u16	u8	return narrow_sat a .	1	CHECK E-IR-UNDEF
-narrow_try	a u16	u8	return narrow_try a .	1	CHECK E-IR-UNDEF
-while		u64	var s u64 0 . ␤ while lt s 3 do set s (add s 1) . end ␤ return s .		= 3
-while		u64	var s u64 0 . ␤ while lt s 0 do set s 9 . end ␤ return s .		= 0
-while		u64	var s u64 0 . ␤ while lt s 3 . do set s (add s 1) . end ␤ return s .		CHECK E-CTRL-DOT
-while		u64	var s u64 0 . ␤ while s do set s 0 . end ␤ return s .		CHECK E-TYPE-COND
-while		u64	var s u64 0 . ␤ while true do set s (add s 1) . if eq s 4 do break . end end ␤ return s .		= 4
-while		u64	var s u64 0 . ␤ var i u64 0 . ␤ while lt i 5 do ␤   set i (add i 1) . ␤   if eq i 3 do continue . end ␤   set s (add s i) . ␤ end ␤ return s .		= 12
-while		u64	var s u64 0 . ␤ break . ␤ return s .		CHECK E-LOOP-OUTSIDE
-while		u64	var s u64 0 . ␤ continue . ␤ return s .		CHECK E-LOOP-OUTSIDE
-while		u64	var s u64 0 . ␤ while lt s 3 do set s (add s 1) . else set s 9 . end ␤ return s .		CHECK E-STMT-ELSE
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set s (add s x) . end ␤ return s .		= 60
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x (subslice xs 0 2) do set s (add s x) . end ␤ return s .		= 30
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x (subslice xs 0 0) do set s (add s 1) . end ␤ return s .		= 0
-for		u64	var s u64 0 . ␤ for x lit slice u64 1 2 3 . do set s (add s x) . end ␤ return s .		= 6
-for		u64	var s u64 0 . ␤ for x "ab" do set s (add s (widen u64 x)) . end ␤ return s .		= 195
-for		u64	var s u64 0 . ␤ for x 5 do set s (add s x) . end ␤ return s .		CHECK E-TYPE-ITER
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x in xs do set s (add s x) . end ␤ return s .		CHECK E-VOCAB-REMOVED
-for	b slice u8	u64	var s u64 0 . ␤ for x view_array u16 b do set s (add s (widen u64 x)) . end ␤ return s .		= 0
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x mut xs do set x 1 . end ␤ return s .		CHECK E-TYPE-MUT
-for		u64	var s u64 0 . ␤ repeat i u64 3 do set s (add (mul s 10) (add i 1)) . end ␤ return s .		= 123
-for		u64	var s u64 0 . ␤ repeat i u64 0 do set s (add s 1) . end ␤ return s .		= 0
-for		u64	var s u64 0 . ␤ repeat i 3 do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
-for		u64	var s u64 0 . ␤ repeat i f64 3 do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
-for		u64	var s u64 0 . ␤ repeat i u8 300 do set s 1 . end ␤ return s .		CHECK E-TYPE-WIDTH
-for	n i8	u64	var s u64 0 . ␤ repeat i i8 n do set s (add s 1) . end ␤ return s .	-1	= 0
-for		u64	var s u64 0 . ␤ range i u64 3 5 do set s (add (mul s 10) i) . end ␤ return s .		= 345
-for		u64	var s u64 0 . ␤ range i u64 5 3 do set s (add (mul s 10) i) . end ␤ return s .		= 543
-for		u64	var s u64 0 . ␤ range i u64 3 3 do set s (add s 1) . end ␤ return s .		= 1
-for		u64	var s u64 0 . ␤ range i u64 1 10 step 2 do set s (add (mul s 10) i) . end ␤ return s .		= 13579
-for		u64	var s u64 0 . ␤ range i i64 10 1 step -3 do set s (add s 1) . end ␤ return s .		= 4
-for		u64	var s u64 0 . ␤ range i i64 1 10 step -1 do set s (add s 1) . end ␤ return s .		= 0
-for		u64	var s u64 0 . ␤ range i u64 1 10 step 0 do set s 1 . end ␤ return s .		CHECK E-FOR-STEP
-for	k i64	u64	var s u64 0 . ␤ range i u64 1 10 step k do set s 1 . end ␤ return s .	0	TRAP E-VM-PANIC
-for	k i64	u64	var s u64 0 . ␤ range i u64 0 6 step k do set s (add s 1) . end ␤ return s .	2	= 4
-for		u64	var s u64 0 . ␤ range i u8 0 255 do set s (add s 1) . end ␤ return s .		= 256
-for		u64	var s u64 0 . ␤ range i u8 250 255 step 3 do set s (add (mul s 1000) (widen u64 i)) . end ␤ return s .		= 250253
-for		u64	var s u64 0 . ␤ range i i8 -128 127 do set s (add s 1) . end ␤ return s .		= 256
-for	n u64	u64	var s u64 0 . ␤ range i u8 0 n do set s 1 . end ␤ return s .	3	CHECK E-TYPE-WIDTH
-for		u64	var s u64 0 . ␤ repeat i u64 3 do set i 0 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s u64 0 . ␤ var n u64 3 . ␤ repeat i u64 n do set n 5 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i 100 next mul i 2 do set s (add s 1) . end ␤ return s .		= 7
-for		u64	var s u64 0 . ␤ cycle i u64 9 while lt i 9 next add i 1 do set s 1 . end ␤ return s .		= 0
-for		u64	var s u64 0 . ␤ cycle i u64 1 do set s 1 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s u64 0 . ␤ cycle i u64 1 while i next mul i 2 do set s 1 . end ␤ return s .		CHECK E-TYPE-COND
-for		u64	var s u64 0 . ␤ cycle i u8 1 while lt i 200 next mul i 4 do set s (add s 1) . end ␤ return s .		TRAP E-VM-OVERFLOW
-for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i 9 next add i 1 do set i 5 . end ␤ return s .		CHECK E-FOR-HEAD
-for		u64	var s u64 0 . ␤ repeat i u64 10 if eq (mod i 2) 0 do set s (add s i) . end ␤ return s .		= 20
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs if gt x 10 do set s (add s x) . end ␤ return s .		= 50
-for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i 9 next add i 1 if eq (mod i 2) 0 do set s (add s i) . end ␤ return s .		= 20
-for		u64	var s u64 0 . ␤ repeat i u64 10 do ␤   if eq i 2 do continue . end ␤   if eq i 5 do break . end ␤   set s (add s i) . ␤ end ␤ return s .		= 8
-for		u64	var s u64 0 . ␤ repeat i u64 3 do ␤   repeat j u64 3 do ␤     if eq j 1 do break . end ␤     set s (add s 1) . ␤   end ␤ end ␤ return s .		= 3
-for		u64	var s u64 0 . ␤ let i u64 5 . ␤ repeat i u64 3 do set s (add s i) . end ␤ return s .		CHECK E-NAME-SHADOW
-mod	a i8, b i8	i8	return mod a b .	-7 2	= 1
-mod	a i8, b i8	i8	return mod a b .	7 -2	= -1
-mod	a i8, b i8	i8	return mod a b .	-128 -1	= 0
-neg	a i8	i8	return neg a .	-128	TRAP E-VM-OVERFLOW
-neg	a u8	u8	return neg a .	7	CHECK E-TYPE-SIGN
-for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set x 1 . end ␤ for y xs do set s (add s y) . end ␤ return s .		CHECK E-FOR-HEAD
-note	a u64	u64	note ␤ return add a 1 .	1	CHECK E-NOTE-TERM
+add	a u8, b u8	u8	return add a. b. . .	1 2	= 3
+add	a u8, b u8	u8	return add a. b. . .	200 100	TRAP E-VM-OVERFLOW
+sub	a u8, b u8	u8	return sub a. b. . .	2 1	= 1
+sub	a u8, b u8	u8	return sub a. b. . .	1 2	TRAP E-VM-OVERFLOW
+mul	a u8, b u8	u8	return mul a. b. . .	3 5	= 15
+mul	a u8, b u8	u8	return mul a. b. . .	16 16	TRAP E-VM-OVERFLOW
+div	a u8, b u8	u8	return div a. b. . .	7 2	= 3
+div	a u8, b u8	u8	return div a. b. . .	1 0	TRAP E-VM-DIV0
+mod	a u8, b u8	u8	return mod a. b. . .	7 2	= 1
+mod	a u8, b u8	u8	return mod a. b. . .	1 0	TRAP E-VM-DIV0
+add	a i8, b i8	i8	return add a. b. . .	100 100	TRAP E-VM-OVERFLOW
+sub	a i8, b i8	i8	return sub a. b. . .	-100 100	TRAP E-VM-OVERFLOW
+mul	a i8, b i8	i8	return mul a. b. . .	-128 -1	TRAP E-VM-OVERFLOW
+div	a i8, b i8	i8	return div a. b. . .	-7 2	= -3
+div	a i8, b i8	i8	return div a. b. . .	-128 -1	TRAP E-VM-OVERFLOW
+mod	a i8, b i8	i8	return mod a. b. . .	7 2	= 1
+add	a f64, b f64	f64	return add a. b. . .	1.5 2.0	= 3.5
+add	a f64, b f64	f64	return add a. b. . .	1e+308 1e+308	= inf
+sub	a f64, b f64	f64	return sub a. b. . .	1.5 2.0	= -0.5
+mul	a f64, b f64	f64	return mul a. b. . .	1.5 2.0	= 3.0
+div	a f64, b f64	f64	return div a. b. . .	1.0 0.0	= inf
+mod	a f64, b f64	f64	return mod a. b. . .	7.5 2.0	TRAP E-VM-TYPE
+add	a u8, b u16	u16	return add a. b. . .	255 1	= 256
+add	a u8, b i16	i16	return add a. b. . .	200 -1	= 199
+add	a u8, b i8	u8	return add a. b. . .	1 2	CHECK E-TYPE-SIGN
+add	a u8, b f64	f64	return add a. b. . .	1 2.0	CHECK E-TYPE-MIX
+add	a u8	u8	return add a. 300 . .	1	CHECK E-TYPE-WIDTH
+add	a u8	u8	return add a. . .	1	CHECK E-IR-ARITY
+neg	a i8	i8	return neg a. . .	5	= -5
+neg	a f64	f64	return neg a. . .	1.5	= -1.5
+abs	a i8	i8	return abs a. . .	-5	= 5
+abs	a i8	i8	return abs a. . .	-128	TRAP E-VM-OVERFLOW
+abs	a f64	f64	return abs a. . .	-1.5	= 1.5
+min	a u8, b u8	u8	return min a. b. . .	3 5	= 3
+min	a i8, b i8	i8	return min a. b. . .	-3 5	= -3
+min	a f64, b f64	f64	return min a. b. . .	1.0 2.0	= 1.0
+max	a u8, b u8	u8	return max a. b. . .	3 5	= 5
+max	a i8, b i8	i8	return max a. b. . .	-3 5	= 5
+max	a f64, b f64	f64	return max a. b. . .	1.0 2.0	= 2.0
+wrap_add	a u8, b u8	u8	return wrap_add a. b. . .	200 100	= 44
+wrap_add	a u8, b u8	u8	return wrap_add a. b. . .	1 2	= 3
+wrap_add	a i8, b i8	i8	return wrap_add a. b. . .	100 100	= -56
+wrap_add	a i8, b i8	i8	return wrap_add a. b. . .	-100 100	= 0
+wrap_sub	a u8, b u8	u8	return wrap_sub a. b. . .	200 100	= 100
+wrap_sub	a u8, b u8	u8	return wrap_sub a. b. . .	1 2	= 255
+wrap_sub	a i8, b i8	i8	return wrap_sub a. b. . .	100 100	= 0
+wrap_sub	a i8, b i8	i8	return wrap_sub a. b. . .	-100 100	= 56
+wrap_mul	a u8, b u8	u8	return wrap_mul a. b. . .	200 100	= 32
+wrap_mul	a u8, b u8	u8	return wrap_mul a. b. . .	1 2	= 2
+wrap_mul	a i8, b i8	i8	return wrap_mul a. b. . .	100 100	= 16
+wrap_mul	a i8, b i8	i8	return wrap_mul a. b. . .	-100 100	= -16
+sat_add	a u8, b u8	u8	return sat_add a. b. . .	200 100	= 255
+sat_add	a u8, b u8	u8	return sat_add a. b. . .	1 2	= 3
+sat_add	a i8, b i8	i8	return sat_add a. b. . .	100 100	= 127
+sat_add	a i8, b i8	i8	return sat_add a. b. . .	-100 100	= 0
+sat_sub	a u8, b u8	u8	return sat_sub a. b. . .	200 100	= 100
+sat_sub	a u8, b u8	u8	return sat_sub a. b. . .	1 2	= 0
+sat_sub	a i8, b i8	i8	return sat_sub a. b. . .	100 100	= 0
+sat_sub	a i8, b i8	i8	return sat_sub a. b. . .	-100 100	= -128
+sat_mul	a u8, b u8	u8	return sat_mul a. b. . .	200 100	= 255
+sat_mul	a u8, b u8	u8	return sat_mul a. b. . .	1 2	= 2
+sat_mul	a i8, b i8	i8	return sat_mul a. b. . .	100 100	= 127
+sat_mul	a i8, b i8	i8	return sat_mul a. b. . .	-100 100	= -128
+wrap_add	a u8, b u16	u16	return wrap_add a. b. . .	255 1	= 256
+chk_add	a u8, b u8	u64	let r option u8 chk_add a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	1 2	= 3
+chk_add	a u8, b u8	u64	let r option u8 chk_add a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	200 100	= 999
+chk_sub	a u8, b u8	u64	let r option u8 chk_sub a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	2 1	= 1
+chk_sub	a u8, b u8	u64	let r option u8 chk_sub a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	1 2	= 999
+chk_mul	a u8, b u8	u64	let r option u8 chk_mul a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	3 5	= 15
+chk_mul	a u8, b u8	u64	let r option u8 chk_mul a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	16 16	= 999
+chk_add	a f64, b f64	u64	let r option f64 chk_add a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 0	= 999
+div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 0	= 999
+nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 3	= 3
+div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 3	= 3
+nonzero_of	a f64	u64	let nz option nonzero f64 nonzero_of a. . . ␤ return 1 .	1.0	TRAP E-VM-TYPE
+eq	a u8, b u8	bool	return eq a. b. . .	1 2	= 0
+eq	a u8, b u8	bool	return eq a. b. . .	2 2	= 1
+eq	a u8, b u8	bool	return eq a. b. . .	3 2	= 0
+eq	a i8, b i8	bool	return eq a. b. . .	-1 1	= 0
+eq	a f64, b f64	bool	return eq a. b. . .	1.5 1.5	= 1
+eq	a f64	bool	return eq div a. a. . div a. a. . . .	0.0	= 0
+eq	a u8, b u16	bool	return eq a. b. . .	1 2	= 0
+eq	a u8, b i8	bool	return eq a. b. . .	1 1	CHECK E-TYPE-SIGN
+eq	a u8, b f64	bool	return eq a. b. . .	1 1.0	CHECK E-TYPE-MIX
+ne	a u8, b u8	bool	return ne a. b. . .	1 2	= 1
+ne	a u8, b u8	bool	return ne a. b. . .	2 2	= 0
+ne	a u8, b u8	bool	return ne a. b. . .	3 2	= 1
+ne	a i8, b i8	bool	return ne a. b. . .	-1 1	= 1
+ne	a f64, b f64	bool	return ne a. b. . .	1.5 1.5	= 0
+ne	a f64	bool	return ne div a. a. . div a. a. . . .	0.0	= 1
+ne	a u8, b u16	bool	return ne a. b. . .	1 2	= 1
+ne	a u8, b i8	bool	return ne a. b. . .	1 1	CHECK E-TYPE-SIGN
+ne	a u8, b f64	bool	return ne a. b. . .	1 1.0	CHECK E-TYPE-MIX
+lt	a u8, b u8	bool	return lt a. b. . .	1 2	= 1
+lt	a u8, b u8	bool	return lt a. b. . .	2 2	= 0
+lt	a u8, b u8	bool	return lt a. b. . .	3 2	= 0
+lt	a i8, b i8	bool	return lt a. b. . .	-1 1	= 1
+lt	a f64, b f64	bool	return lt a. b. . .	1.5 1.5	= 0
+lt	a f64	bool	return lt div a. a. . div a. a. . . .	0.0	= 0
+lt	a u8, b u16	bool	return lt a. b. . .	1 2	= 1
+lt	a u8, b i8	bool	return lt a. b. . .	1 1	CHECK E-TYPE-SIGN
+lt	a u8, b f64	bool	return lt a. b. . .	1 1.0	CHECK E-TYPE-MIX
+le	a u8, b u8	bool	return le a. b. . .	1 2	= 1
+le	a u8, b u8	bool	return le a. b. . .	2 2	= 1
+le	a u8, b u8	bool	return le a. b. . .	3 2	= 0
+le	a i8, b i8	bool	return le a. b. . .	-1 1	= 1
+le	a f64, b f64	bool	return le a. b. . .	1.5 1.5	= 1
+le	a f64	bool	return le div a. a. . div a. a. . . .	0.0	= 0
+le	a u8, b u16	bool	return le a. b. . .	1 2	= 1
+le	a u8, b i8	bool	return le a. b. . .	1 1	CHECK E-TYPE-SIGN
+le	a u8, b f64	bool	return le a. b. . .	1 1.0	CHECK E-TYPE-MIX
+gt	a u8, b u8	bool	return gt a. b. . .	1 2	= 0
+gt	a u8, b u8	bool	return gt a. b. . .	2 2	= 0
+gt	a u8, b u8	bool	return gt a. b. . .	3 2	= 1
+gt	a i8, b i8	bool	return gt a. b. . .	-1 1	= 0
+gt	a f64, b f64	bool	return gt a. b. . .	1.5 1.5	= 0
+gt	a f64	bool	return gt div a. a. . div a. a. . . .	0.0	= 0
+gt	a u8, b u16	bool	return gt a. b. . .	1 2	= 0
+gt	a u8, b i8	bool	return gt a. b. . .	1 1	CHECK E-TYPE-SIGN
+gt	a u8, b f64	bool	return gt a. b. . .	1 1.0	CHECK E-TYPE-MIX
+ge	a u8, b u8	bool	return ge a. b. . .	1 2	= 0
+ge	a u8, b u8	bool	return ge a. b. . .	2 2	= 1
+ge	a u8, b u8	bool	return ge a. b. . .	3 2	= 1
+ge	a i8, b i8	bool	return ge a. b. . .	-1 1	= 0
+ge	a f64, b f64	bool	return ge a. b. . .	1.5 1.5	= 1
+ge	a f64	bool	return ge div a. a. . div a. a. . . .	0.0	= 0
+ge	a u8, b u16	bool	return ge a. b. . .	1 2	= 0
+ge	a u8, b i8	bool	return ge a. b. . .	1 1	CHECK E-TYPE-SIGN
+ge	a u8, b f64	bool	return ge a. b. . .	1 1.0	CHECK E-TYPE-MIX
+eq	a u8	bool	return eq eq a. 0 . eq a. 1 . . .	1	= 0
+ne	a u8	bool	return ne eq a. 0 . eq a. 1 . . .	1	= 1
+eq	a u8, b bool	bool	return eq a. b. . .	1	CHECK E-TYPE-MIX
+eq	a u8	bool	let x option u8 chk_add a. 1 . . ␤ let y option u8 chk_add a. 1 . . ␤ return eq x. y. . .	1	TRAP E-VM-TYPE
+and	a u8	bool	return and gt a. 0 . eq div 10 a. . 5 . . .	0	= 0
+and	a u8	bool	return and gt a. 0 . eq div 10 a. . 5 . . .	2	= 1
+and	a u8	bool	return and a. a. . .	1	CHECK E-TYPE-LOGICAL
+or	a u8	bool	return or eq a. 0 . eq div 10 a. . 5 . . .	0	= 1
+or	a u8	bool	return or eq a. 0 . eq div 10 a. . 5 . . .	3	= 0
+or	a u8	bool	return or a. a. . .	1	CHECK E-TYPE-LOGICAL
+not	a u8	bool	return not eq a. 0 . . .	0	= 0
+not	a u8	bool	return not a. . .	1	CHECK E-TYPE-LOGICAL
+bit_and	a u8, b u8	u8	return bit_and a. b. . .	12 10	= 8
+bit_and	a i8, b i8	i8	return bit_and a. b. . .	-1 10	= 10
+bit_and	a u8, b u16	u16	return bit_and a. b. . .	12 300	= 12
+bit_and	a f64, b f64	u64	return bit_and a. b. . .	1.5 2.5	TRAP E-BITOP-TYPE
+bit_or	a u8, b u8	u8	return bit_or a. b. . .	12 10	= 14
+bit_or	a i8, b i8	i8	return bit_or a. b. . .	-1 10	= -1
+bit_or	a u8, b u16	u16	return bit_or a. b. . .	12 300	= 300
+bit_or	a f64, b f64	u64	return bit_or a. b. . .	1.5 2.5	TRAP E-BITOP-TYPE
+bit_xor	a u8, b u8	u8	return bit_xor a. b. . .	12 10	= 6
+bit_xor	a i8, b i8	i8	return bit_xor a. b. . .	-1 10	= -11
+bit_xor	a u8, b u16	u16	return bit_xor a. b. . .	12 300	= 288
+bit_xor	a f64, b f64	u64	return bit_xor a. b. . .	1.5 2.5	TRAP E-BITOP-TYPE
+bit_not	a u8	u8	return bit_not a. . .	0	= 255
+bit_not	a i8	i8	return bit_not a. . .	0	= -1
+bit_not	a u64	u64	return bit_not a. . .	0	= 18446744073709551615
+bit_not	a f64	u64	return bit_not a. . .	1.5	TRAP E-BITOP-TYPE
+shl	a u8, b u8	u8	return shl a. b. . .	129 1	= 2
+shl	a u8, b u8	u8	return shl a. b. . .	129 7	= 128
+shl	a u8, b u8	u8	return shl a. b. . .	129 8	TRAP E-VM-SHIFT
+shl	a u8	u8	return shl a. 8 . .	1	CHECK E-SHIFT-RANGE
+shl	a u8, b i8	u8	return shl a. b. . .	1 -1	TRAP E-VM-SHIFT
+shl	a f64, b f64	u64	return shl a. b. . .	1.5 1.0	TRAP E-BITOP-TYPE
+shr	a u8, b u8	u8	return shr a. b. . .	129 1	= 64
+shr	a u8, b u8	u8	return shr a. b. . .	129 7	= 1
+shr	a u8, b u8	u8	return shr a. b. . .	129 8	TRAP E-VM-SHIFT
+shr	a u8	u8	return shr a. 8 . .	1	CHECK E-SHIFT-RANGE
+shr	a u8, b i8	u8	return shr a. b. . .	1 -1	TRAP E-VM-SHIFT
+shr	a f64, b f64	u64	return shr a. b. . .	1.5 1.0	TRAP E-BITOP-TYPE
+shr	a i8, b i8	i8	return shr a. b. . .	-128 1	= -64
+shl	a i8, b i8	i8	return shl a. b. . .	64 1	= -128
+wrap_shl	a u8, b u8	u8	return wrap_shl a. b. . .	129 1	= 2
+wrap_shl	a u8, b u8	u8	return wrap_shl a. b. . .	129 8	= 129
+wrap_shl	a u8, b u8	u8	return wrap_shl a. b. . .	129 9	= 2
+wrap_shr	a u8, b u8	u8	return wrap_shr a. b. . .	129 1	= 64
+wrap_shr	a u8, b u8	u8	return wrap_shr a. b. . .	129 8	= 129
+wrap_shr	a u8, b u8	u8	return wrap_shr a. b. . .	129 9	= 64
+rotl	a u8, b u8	u8	return rotl a. b. . .	129 1	= 3
+rotl	a u8, b u8	u8	return rotl a. b. . .	129 8	= 129
+rotl	a u8, b u8	u8	return rotl a. b. . .	129 9	= 3
+rotr	a u8, b u8	u8	return rotr a. b. . .	129 1	= 192
+rotr	a u8, b u8	u8	return rotr a. b. . .	129 8	= 129
+rotr	a u8, b u8	u8	return rotr a. b. . .	129 9	= 192
+rotl	a f64, b f64	u64	return rotl a. b. . .	1.5 1.0	TRAP E-BITOP-TYPE
+rotr	a f64, b f64	u64	return rotr a. b. . .	1.5 1.0	TRAP E-BITOP-TYPE
+rotl	a i8, b i8	i8	return rotl a. b. . .	-128 1	= 1
+count_ones	a u8	u8	return count_ones a. . .	0	= 0
+count_ones	a u8	u8	return count_ones a. . .	1	= 1
+count_ones	a u8	u8	return count_ones a. . .	255	= 8
+count_ones	a u16	u16	return count_ones a. . .	1	= 1
+count_ones	a u64	u64	return count_ones a. . .	0	= 0
+count_ones	a u64	u64	return count_ones a. . .	1	= 1
+count_ones	a i8	i8	return count_ones a. . .	-1	= 8
+leading_zeros	a u8	u8	return leading_zeros a. . .	0	= 8
+leading_zeros	a u8	u8	return leading_zeros a. . .	1	= 7
+leading_zeros	a u8	u8	return leading_zeros a. . .	255	= 0
+leading_zeros	a u16	u16	return leading_zeros a. . .	1	= 15
+leading_zeros	a u64	u64	return leading_zeros a. . .	0	= 64
+leading_zeros	a u64	u64	return leading_zeros a. . .	1	= 63
+leading_zeros	a i8	i8	return leading_zeros a. . .	-1	= 0
+trailing_zeros	a u8	u8	return trailing_zeros a. . .	0	= 8
+trailing_zeros	a u8	u8	return trailing_zeros a. . .	1	= 0
+trailing_zeros	a u8	u8	return trailing_zeros a. . .	255	= 0
+trailing_zeros	a u16	u16	return trailing_zeros a. . .	1	= 0
+trailing_zeros	a u64	u64	return trailing_zeros a. . .	0	= 64
+trailing_zeros	a u64	u64	return trailing_zeros a. . .	1	= 0
+trailing_zeros	a i8	i8	return trailing_zeros a. . .	-1	= 0
+byte_swap	a u8	u8	return byte_swap a. . .	0	= 0
+byte_swap	a u8	u8	return byte_swap a. . .	1	= 1
+byte_swap	a u8	u8	return byte_swap a. . .	255	= 255
+byte_swap	a u16	u16	return byte_swap a. . .	1	= 256
+byte_swap	a u64	u64	return byte_swap a. . .	0	= 0
+byte_swap	a u64	u64	return byte_swap a. . .	1	= 72057594037927936
+byte_swap	a i8	i8	return byte_swap a. . .	-1	= -1
+leading_zeros	a f64	u64	return leading_zeros a. . .	1.5	TRAP E-BITOP-TYPE
+trailing_zeros	a f64	u64	return trailing_zeros a. . .	1.5	TRAP E-BITOP-TYPE
+byte_swap	a f64	u64	return byte_swap a. . .	1.5	TRAP E-BITOP-TYPE
+sqrt	a f64	f64	return sqrt a. . .	4.0	= 2.0
+sqrt	a f64	f64	return sqrt a. . .	-1.0	= -nan
+sin	a f64	f64	return sin a. . .	0.0	= 0.0
+cos	a f64	f64	return cos a. . .	0.0	= 1.0
+exp	a f64	f64	return exp a. . .	0.0	= 1.0
+log	a f64	f64	return log a. . .	1.0	= 0.0
+log	a f64	f64	return log a. . .	0.0	= -inf
+log	a f64	f64	return log a. . .	-1.0	= -nan
+floor	a f64	f64	return floor a. . .	1.5	= 1.0
+floor	a f64	f64	return floor a. . .	-1.5	= -2.0
+ceil	a f64	f64	return ceil a. . .	1.5	= 2.0
+ceil	a f64	f64	return ceil a. . .	-1.5	= -1.0
+round	a f64	f64	return round a. . .	2.5	= 3.0
+round	a f64	f64	return round a. . .	-2.5	= -3.0
+round	a f64	f64	return round a. . .	2.4	= 2.0
+sqrt	a u8	u8	return sqrt a. . .	1	CHECK E-TYPE-KIND
+sin	a u8	u8	return sin a. . .	1	CHECK E-TYPE-KIND
+cos	a u8	u8	return cos a. . .	1	CHECK E-TYPE-KIND
+exp	a u8	u8	return exp a. . .	1	CHECK E-TYPE-KIND
+log	a u8	u8	return log a. . .	1	CHECK E-TYPE-KIND
+pow	a f64, b f64	f64	return pow a. b. . .	2.0 10.0	= 1024.0
+pow	a f64, b f64	f64	return pow a. b. . .	2.0 0.5	= 1.41421
+pow	a f64, b f64	f64	return pow a. b. . .	-8.0 0.5	= -nan
+fmod	a f64, b f64	f64	return fmod a. b. . .	7.5 2.0	= 1.5
+fmod	a f64, b f64	f64	return fmod a. b. . .	-7.5 2.0	= -1.5
+pow	a u8, b u8	u8	return pow a. b. . .	2 3	CHECK E-TYPE-KIND
+fmod	a u8, b u8	u8	return fmod a. b. . .	7 2	CHECK E-TYPE-KIND
+widen	a u8	u16	return widen u16 a. . .	255	= 255
+widen	a u8	i16	return widen i16 a. . .	255	= 255
+widen	a i8	i16	return widen i16 a. . .	-1	= -1
+widen	a f32	f64	return widen f64 a. . .	1.5	= 1.5
+widen	a i8	u16	return widen u16 a. . .	1	CHECK E-WIDEN-SIGN
+widen	a u16	u8	return widen u8 a. . .	1	CHECK E-WIDEN-NARROW
+widen	a u8	f64	return widen f64 a. . .	1	CHECK E-WIDEN-KIND
+widen	a u8	u16	return widen a. . .	1	CHECK E-FORM-UNEXPECTED
+narrow	a u16	u8	return narrow u8 a. . .	255	= 255
+narrow	a u16	u8	return narrow u8 a. . .	256	TRAP E-VM-CAST
+narrow	a i16	i8	return narrow i8 a. . .	-129	TRAP E-VM-CAST
+narrow	a i16	u8	return narrow u8 a. . .	-1	TRAP E-VM-CAST
+narrow	a u16	i8	return narrow i8 a. . .	200	TRAP E-VM-CAST
+narrow	a f64	f32	return narrow f32 a. . .	1.5	= 1.5
+narrow_wrap	a u16	u8	return narrow_wrap u8 a. . .	255	= 255
+narrow_wrap	a u16	u8	return narrow_wrap u8 a. . .	256	= 0
+narrow_wrap	a u16	u8	return narrow_wrap u8 a. . .	511	= 255
+narrow_wrap	a i16	i8	return narrow_wrap i8 a. . .	-129	= 127
+narrow_wrap	a i16	u8	return narrow_wrap u8 a. . .	-1	= 255
+narrow_wrap	a i16	u8	return narrow_wrap u8 a. . .	300	= 44
+narrow_sat	a u16	u8	return narrow_sat u8 a. . .	255	= 255
+narrow_sat	a u16	u8	return narrow_sat u8 a. . .	256	= 255
+narrow_sat	a u16	u8	return narrow_sat u8 a. . .	511	= 255
+narrow_sat	a i16	i8	return narrow_sat i8 a. . .	-129	= -128
+narrow_sat	a i16	u8	return narrow_sat u8 a. . .	-1	= 0
+narrow_sat	a i16	u8	return narrow_sat u8 a. . .	300	= 255
+narrow_try	a u16	u64	let r option u8 narrow_try u8 a. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	255	= 255
+narrow_try	a u16	u64	let r option u8 narrow_try u8 a. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	256	= 999
+cast	a u8	i8	return cast i8 a. . .	100	= 100
+cast	a u8	i8	return cast i8 a. . .	200	TRAP E-VM-CAST
+cast	a i8	u8	return cast u8 a. . .	-1	TRAP E-VM-CAST
+cast	a u16	u8	return cast u8 a. . .	511	TRAP E-VM-CAST
+cast	a u8	u64	return cast u64 a. . .	5	= 5
+cast	a f64	i8	return cast i8 a. . .	-1.9	= -1
+cast	a f64	u8	return cast u8 a. . .	1.9	= 1
+cast	a u64	f64	return cast f64 a. . .	5	= 5.0
+cast	a i8	f64	return cast f64 a. . .	-3	= -3.0
+cast	a u8	bool	return cast bool a. . .	1	CHECK E-TYPE-KIND
+bit_cast	a u8	i8	return bit_cast i8 a. . .	200	= -56
+bit_cast	a f64	u64	return bit_cast u64 a. . .	1.0	= 4607182418800017408
+bit_cast	a u64	f64	return bit_cast f64 a. . .	4607182418800017408	= 1.0
+bit_cast	a f32	u32	return bit_cast u32 a. . .	1.0	= 1065353216
+bit_cast	a i64	u64	return bit_cast u64 a. . .	-1	= 18446744073709551615
+size_of		u64	return size_of u8 . .		= 1
+size_of		u64	return size_of u16 . .		= 2
+size_of		u64	return size_of u32 . .		= 4
+size_of		u64	return size_of u64 . .		= 8
+size_of		u64	return size_of f32 . .		= 4
+size_of		u64	return size_of f64 . .		= 8
+sub	a u8, b i8	u8	return sub a. b. . .	1 2	CHECK E-TYPE-SIGN
+sub	a u8	u8	return sub a. 300 . .	1	CHECK E-TYPE-WIDTH
+mul	a u8, b i8	u8	return mul a. b. . .	1 2	CHECK E-TYPE-SIGN
+mul	a u8	u8	return mul a. 300 . .	1	CHECK E-TYPE-WIDTH
+div	a u8, b i8	u8	return div a. b. . .	1 2	CHECK E-TYPE-SIGN
+div	a u8	u8	return div a. 300 . .	1	CHECK E-TYPE-WIDTH
+mod	a u8, b i8	u8	return mod a. b. . .	1 2	CHECK E-TYPE-SIGN
+mod	a u8	u8	return mod a. 300 . .	1	CHECK E-TYPE-WIDTH
+sub	a u8, b f64	f64	return sub a. b. . .	1 2.0	CHECK E-TYPE-MIX
+mul	a u8, b f64	f64	return mul a. b. . .	1 2.0	CHECK E-TYPE-MIX
+div	a u8, b f64	f64	return div a. b. . .	1 2.0	CHECK E-TYPE-MIX
+mod	a u8, b f64	f64	return mod a. b. . .	1 2.0	CHECK E-TYPE-MIX
+chk_sub	a f64, b f64	u64	let r option f64 chk_sub a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+chk_mul	a f64, b f64	u64	let r option f64 chk_mul a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+div_nz	a u32, b u32	u32	return div_nz a. b. . .	10 0	TRAP E-VM-DIV0
+ne	a u8	bool	let x option u8 chk_add a. 1 . . ␤ let y option u8 chk_add a. 1 . . ␤ return ne x. y. . .	1	TRAP E-VM-TYPE
+narrow	a u16	u8	return narrow a. . .	1	CHECK E-FORM-UNEXPECTED
+narrow_wrap	a u16	u8	return narrow_wrap a. . .	1	CHECK E-FORM-UNEXPECTED
+narrow_sat	a u16	u8	return narrow_sat a. . .	1	CHECK E-FORM-UNEXPECTED
+narrow_try	a u16	u8	return narrow_try a. . .	1	CHECK E-FORM-UNEXPECTED
+while		u64	var s u64 0 . ␤ while lt s. 3 . do set s. add s. 1 . . end . ␤ return s. .		= 3
+while		u64	var s u64 0 . ␤ while lt s. 0 . do set s. 9 . end . ␤ return s. .		= 0
+while		u64	var s u64 0 . ␤ while lt s. 3 . . do set s. add s. 1 . . end . ␤ return s. .		CHECK E-CLOSER-EXTRA
+while		u64	var s u64 0 . ␤ while s. do set s. 0 . end . ␤ return s. .		CHECK E-TYPE-COND
+while		u64	var s u64 0 . ␤ while true do set s. add s. 1 . . if eq s. 4 . do break . end . end . ␤ return s. .		= 4
+while		u64	var s u64 0 . ␤ var i u64 0 . ␤ while lt i. 5 . do ␤   set i. add i. 1 . . ␤   if eq i. 3 . do continue . end . ␤   set s. add s. i. . . ␤ end . ␤ return s. .		= 12
+while		u64	var s u64 0 . ␤ break . ␤ return s. .		CHECK E-LOOP-OUTSIDE
+while		u64	var s u64 0 . ␤ continue . ␤ return s. .		CHECK E-LOOP-OUTSIDE
+while		u64	var s u64 0 . ␤ while lt s. 3 . do set s. add s. 1 . . else set s. 9 . end . ␤ return s. .		CHECK E-STMT-ELSE
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs. do set s. add s. x. . . end . ␤ return s. .		= 60
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x subslice xs. 0 2 . do set s. add s. x. . . end . ␤ return s. .		= 30
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x subslice xs. 0 0 . do set s. add s. 1 . . end . ␤ return s. .		= 0
+for		u64	var s u64 0 . ␤ for x lit slice u64 1 2 3 . do set s. add s. x. . . end . ␤ return s. .		= 6
+for		u64	var s u64 0 . ␤ for x "ab" do set s. add s. widen u64 x. . . . end . ␤ return s. .		= 195
+for		u64	var s u64 0 . ␤ for x 5 do set s. add s. x. . . end . ␤ return s. .		CHECK E-TYPE-ITER
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x in xs. do set s. add s. x. . . end . ␤ return s. .		CHECK E-VOCAB-REMOVED
+for	b slice u8	u64	var s u64 0 . ␤ for x view_array u16 b. . do set s. add s. widen u64 x. . . . end . ␤ return s. .		= 0
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x mut xs. do set x. 1 . end . ␤ return s. .		CHECK E-TYPE-MUT
+for		u64	var s u64 0 . ␤ repeat i u64 3 do set s. add mul s. 10 . add i. 1 . . . end . ␤ return s. .		= 123
+for		u64	var s u64 0 . ␤ repeat i u64 0 do set s. add s. 1 . . end . ␤ return s. .		= 0
+for		u64	var s u64 0 . ␤ repeat i 3 do set s. 1 . end . ␤ return s. .		CHECK E-FORM-UNEXPECTED
+for		u64	var s u64 0 . ␤ repeat i f64 3 do set s. 1 . end . ␤ return s. .		CHECK E-FOR-STEP
+for		u64	var s u64 0 . ␤ repeat i u8 300 do set s. 1 . end . ␤ return s. .		CHECK E-TYPE-WIDTH
+for	n i8	u64	var s u64 0 . ␤ repeat i i8 n. do set s. add s. 1 . . end . ␤ return s. .	-1	= 0
+for		u64	var s u64 0 . ␤ range i u64 3 5 do set s. add mul s. 10 . i. . . end . ␤ return s. .		= 345
+for		u64	var s u64 0 . ␤ range i u64 5 3 do set s. add mul s. 10 . i. . . end . ␤ return s. .		= 543
+for		u64	var s u64 0 . ␤ range i u64 3 3 do set s. add s. 1 . . end . ␤ return s. .		= 1
+for		u64	var s u64 0 . ␤ range i u64 1 10 step 2 do set s. add mul s. 10 . i. . . end . ␤ return s. .		= 13579
+for		u64	var s u64 0 . ␤ range i i64 10 1 step -3 do set s. add s. 1 . . end . ␤ return s. .		= 4
+for		u64	var s u64 0 . ␤ range i i64 1 10 step -1 do set s. add s. 1 . . end . ␤ return s. .		= 0
+for		u64	var s u64 0 . ␤ range i u64 1 10 step 0 do set s. 1 . end . ␤ return s. .		CHECK E-FOR-STEP
+for	k i64	u64	var s u64 0 . ␤ range i u64 1 10 step k. do set s. 1 . end . ␤ return s. .	0	TRAP E-VM-PANIC
+for	k i64	u64	var s u64 0 . ␤ range i u64 0 6 step k. do set s. add s. 1 . . end . ␤ return s. .	2	= 4
+for		u64	var s u64 0 . ␤ range i u8 0 255 do set s. add s. 1 . . end . ␤ return s. .		= 256
+for		u64	var s u64 0 . ␤ range i u8 250 255 step 3 do set s. add mul s. 1000 . widen u64 i. . . . end . ␤ return s. .		= 250253
+for		u64	var s u64 0 . ␤ range i i8 -128 127 do set s. add s. 1 . . end . ␤ return s. .		= 256
+for	n u64	u64	var s u64 0 . ␤ range i u8 0 n. do set s. 1 . end . ␤ return s. .	3	CHECK E-TYPE-WIDTH
+for		u64	var s u64 0 . ␤ repeat i u64 3 do set i. 0 . end . ␤ return s. .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ var n u64 3 . ␤ repeat i u64 n. do set n. 5 . end . ␤ return s. .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i. 100 . next mul i. 2 . do set s. add s. 1 . . end . ␤ return s. .		= 7
+for		u64	var s u64 0 . ␤ cycle i u64 9 while lt i. 9 . next add i. 1 . do set s. 1 . end . ␤ return s. .		= 0
+for		u64	var s u64 0 . ␤ cycle i u64 1 do set s. 1 . end . ␤ return s. .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ cycle i u64 1 while i. next mul i. 2 . do set s. 1 . end . ␤ return s. .		CHECK E-TYPE-COND
+for		u64	var s u64 0 . ␤ cycle i u8 1 while lt i. 200 . next mul i. 4 . do set s. add s. 1 . . end . ␤ return s. .		TRAP E-VM-OVERFLOW
+for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i. 9 . next add i. 1 . do set i. 5 . end . ␤ return s. .		CHECK E-FOR-HEAD
+for		u64	var s u64 0 . ␤ repeat i u64 10 if eq mod i. 2 . 0 . do set s. add s. i. . . end . ␤ return s. .		= 20
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs. if gt x. 10 . do set s. add s. x. . . end . ␤ return s. .		= 50
+for		u64	var s u64 0 . ␤ cycle i u64 1 while lt i. 9 . next add i. 1 . if eq mod i. 2 . 0 . do set s. add s. i. . . end . ␤ return s. .		= 20
+for		u64	var s u64 0 . ␤ repeat i u64 10 do ␤   if eq i. 2 . do continue . end . ␤   if eq i. 5 . do break . end . ␤   set s. add s. i. . . ␤ end . ␤ return s. .		= 8
+for		u64	var s u64 0 . ␤ repeat i u64 3 do ␤   repeat j u64 3 do ␤     if eq j. 1 . do break . end . ␤     set s. add s. 1 . . ␤   end . ␤ end . ␤ return s. .		= 3
+for		u64	var s u64 0 . ␤ let i u64 5 . ␤ repeat i u64 3 do set s. add s. i. . . end . ␤ return s. .		CHECK E-NAME-SHADOW
+mod	a i8, b i8	i8	return mod a. b. . .	-7 2	= 1
+mod	a i8, b i8	i8	return mod a. b. . .	7 -2	= -1
+mod	a i8, b i8	i8	return mod a. b. . .	-128 -1	= 0
+neg	a i8	i8	return neg a. . .	-128	TRAP E-VM-OVERFLOW
+neg	a u8	u8	return neg a. . .	7	CHECK E-TYPE-SIGN
+for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs. do set x. 1 . end . ␤ for y xs. do set s. add s. y. . . end . ␤ return s. .		CHECK E-FOR-HEAD
+note	a u64	u64	note ␤ return add a. 1 . .	1	CHECK E-NOTE-TERM

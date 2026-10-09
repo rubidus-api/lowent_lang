@@ -1,4 +1,4 @@
 module qgen_al .
 export def struct box do
   n u64 .
-end
+end .

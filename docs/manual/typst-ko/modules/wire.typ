@@ -16,10 +16,10 @@ wire.merge mask w v  →  (w & ~mask) | put     낱말의 그 칸만 갈아 끼�
 ```
 
 ```lowent
-fn m_month output u64 . do return 64424509440 . end
-let mo u64 wire.pick (m_month) w .
-guard wire.fits (m_month) 9 else return 1 .
-let w2 u64 wire.merge (m_month) w 9 .
+fn m_month output u64 . do return 64424509440 . end .
+let mo u64 wire.pick m_month. w. . .
+guard wire.fits m_month . 9 . else return 1 . .
+let w2 u64 wire.merge m_month. w. 9 . .
 ```
 
 #aside[이 모듈이 지키는 것][
@@ -50,11 +50,11 @@ let w2 u64 wire.merge (m_month) w 9 .
 공짜다* --- `onwire 0 0 v w` 는 값을 그냥 돌려주는 코드와 명령 수가 같다. 순열 표는 실행 때 값이라 접히지 않으므로 `is_identity` 로 부르기 전에 물을 수 있게 했다.
 
 #antipattern[마스크와 따로 자리를 또 적는다][
-  `bit_and (shr w 32) 15` 는 자리(32)와 폭(15)이 두 수라 한쪽만 고치면 조용히 틀린다. `wire.pick` 은 한 수만 받는다.
+  `bit_and shr w. 32 . 15 .` 는 자리(32)와 폭(15)이 두 수라 한쪽만 고치면 조용히 틀린다. `wire.pick` 은 한 수만 받는다.
 ]
 
 #antipattern[들어가는지 묻지 않고 넣는다][
-  달은 네 비트다. `wire.merge (m_month) w 20` 은 에러 없이 4(= 20 & 15)를 넣는다. `wire.fits` 가 그 물음에 답한다 --- 둘을 한 op 으로 묶지 않은 까닭은, 실패를 값으로
+  달은 네 비트다. `wire.merge m_month. w. 20 .` 은 에러 없이 4(= 20 & 15)를 넣는다. `wire.fits` 가 그 물음에 답한다 --- 둘을 한 op 으로 묶지 않은 까닭은, 실패를 값으로
   답하면 모든 자리에서 `option` 을 풀어야 하기 때문이다.
 ]
 

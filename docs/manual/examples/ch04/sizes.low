@@ -5,21 +5,21 @@ rem run: same_third 1.0 1.0
 
 rem ko: usize · isize — 기계의 주소 폭(64 비트 기계에서 64 비트). 길이와 색인을 C 와 주고받을 때 쓴다 /// en: usize and isize have the machine's address width (64 bits on a 64-bit machine); use them to exchange lengths and indexes with C
 fn advance input n usize . input k isize . output isize .
-  requires le n 1000 .
-  requires ge k -1000 .
-  requires le k 1000 .
+  requires le n. 1000 . .
+  requires ge k. -1000 . .
+  requires le k. 1000 . .
 do
-  return add (cast isize n) k .
-end
+  return add cast isize n. . k. . .
+end .
 
 rem ko: f32 — 32 비트 부동소수. 메모리가 절반이고 정밀도는 약 일곱 자리 /// en: f32 is a 32-bit float: half the memory, about seven significant digits
 fn third32 input x f32 . output f32 . do
-  return div x 3.0 .
-end
+  return div x. 3.0 . .
+end .
 
 rem ko: 같은 1/3 도 f32 와 f64 는 다른 수다 — 넓혀서 비교하면 거짓 /// en: even 1/3 is a different number in f32 and f64; widened and compared, they are not equal
 fn same_third input x f32 . input y f64 . output bool . do
-  let a f32 div x 3.0 .
-  let b f64 div y 3.0 .
-  return eq (widen f64 a) b .
-end
+  let a f32 div x. 3.0 . .
+  let b f64 div y. 3.0 . .
+  return eq widen f64 a. . b. . .
+end .

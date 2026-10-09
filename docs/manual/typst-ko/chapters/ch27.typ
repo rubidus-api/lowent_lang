@@ -40,7 +40,7 @@
 
 #idx("parallel")
 - `double_all` 의 머리에 `parallel s split .` 이 있다. "이 되풀이는 `s` 를 조각으로 나누어 여럿이 함께 돌아도 된다" 는
-  선언이다. 각 걸음은 `idx s i` --- 자기 원소 --- 만 읽고 쓴다.
+  선언이다. 각 걸음은 `idx s. i. .` --- 자기 원소 --- 만 읽고 쓴다.
 - `total` 은 합을 누적한다. 누적 변수 `acc` 는 걸음을 넘어 살기 때문에 그대로는 나눌 수 없다. `reduce acc add .` 로
   "조각마다 따로 누적한 뒤 `add` 로 합친다" 고 밝힌다.
 
@@ -79,7 +79,7 @@
 
 #demo("examples/ch27/par_read.low")
 
-모든 원소에서 첫 원소를 빼는 되풀이다. 첫 조각이 `idx s 0` 을 먼저 바꾸면, 다른 조각이 읽는 첫 원소는 이미 바뀐 값이다.
+모든 원소에서 첫 원소를 빼는 되풀이다. 첫 조각이 `idx s. 0 .` 을 먼저 바꾸면, 다른 조각이 읽는 첫 원소는 이미 바뀐 값이다.
 순차로 돌려도 첫 걸음 이후에는 0 을 빼게 되는 결함이 있는데, 나누면 그 결함이 차례에 따라 달라진다.
 
 #demo("examples/ch27/par_carry.low")
@@ -112,7 +112,7 @@
 
 #demo("examples/ch27/counter.low")
 
-- `atomic_add counter 0 1` 은 슬라이스 `counter` 의 0 번 자리에 원자적으로 1 을 더한다. 자리는 *슬라이스와 색인*으로
+- `atomic_add counter. 0 1 .` 은 슬라이스 `counter` 의 0 번 자리에 원자적으로 1 을 더한다. 자리는 *슬라이스와 색인*으로
   가리킨다.
 - `count_par` 는 `data` 를 나누어 돌면서 공유 카운터를 갱신한다. 열 바이트를 세었으므로 10 이다.
 - 원자 연산은 `atomic` 효과이고, `cap atomic` 을 받아야 한다. `main` 은 시작점에서 `cap atomic` 을 받는다.
@@ -175,15 +175,15 @@
 
 #demo("examples/ch27/lanes.low")
 
-- `load xs 0` 은 슬라이스의 0 번 자리부터 레인 넷을 읽는다. `store ys 0 t` 는 거꾸로 쓴다.
-- `splat 5` 는 모든 레인에 5 를 채운다. 레인 수는 담는 이름의 타입(`vec u32 4`)이 알려 준다.
+- `load xs. 0 .` 은 슬라이스의 0 번 자리부터 레인 넷을 읽는다. `store ys. 0 t. .` 는 거꾸로 쓴다.
+- `splat 5 .` 는 모든 레인에 5 를 채운다. 레인 수는 담는 이름의 타입(`vec u32 4`)이 알려 준다.
 - 레인마다 다른 값은 `lit vec u32 4 1 10 100 1000 .` 처럼 바로 적는다. 리터럴이 제 타입을 달고 오므로 식 한가운데에도 쓸 수 있고, 담는 이름의 타입과는
   레인 수·원소 종류가 정확히 같아야 한다(`E-TYPE-LANES`).
-- `gt v lim` 처럼 `vec` 끼리 비교하면 레인마다 참거짓이 담긴 *가림막* `mask 4` 가 나온다. `lane_select over lim v` 는 가림막이 켜진 레인에서 `lim` 을, 꺼진 레인에서
+- `gt v. lim. .` 처럼 `vec` 끼리 비교하면 레인마다 참거짓이 담긴 *가림막* `mask 4` 가 나온다. `lane_select over. lim. v. .` 는 가림막이 켜진 레인에서 `lim` 을, 꺼진 레인에서
   `v` 를 고른다. 갈래(`if`) 없이 레인마다 고르므로 기계가 한 명령으로 처리한다.
 - `reduce_add`·`reduce_max`·`reduce_min`·`reduce_mul` 은 레인을 가로질러 하나로 모은다. `[1,9,3,7]` 을 5 로 누르면 `[1,5,3,5]` 라서 합이 14 다.
-- `lane_reverse` 는 레인의 차례를 뒤집고, `lane_rotate r 1` 은 한 칸 돌린다. `[7,3,9,1]` 을 돌린 `[3,9,1,7]` 이 메모리에 쓰였다.
-- `native_lanes u32` 는 이 기계가 `u32` 레인을 한 번에 몇 개 다루는지를 *번역 시점에* 준다. 레인 수를 그 수로 고르면 한 번에 더 많이 셈할 뿐 답은 같다.
+- `lane_reverse` 는 레인의 차례를 뒤집고, `lane_rotate r. 1 .` 은 한 칸 돌린다. `[7,3,9,1]` 을 돌린 `[3,9,1,7]` 이 메모리에 쓰였다.
+- `native_lanes u32 .` 는 이 기계가 `u32` 레인을 한 번에 몇 개 다루는지를 *번역 시점에* 준다. 레인 수를 그 수로 고르면 한 번에 더 많이 셈할 뿐 답은 같다.
 
 #demo("examples/ch27/litvec.low")
 
@@ -191,7 +191,7 @@
 
 #demo("examples/ch27/masked.low")
 
-`store_masked out 0 v m` 은 켜진 레인(9 와 7)의 자리에만 쓰고 나머지 자리는 건드리지 않는다. `load_masked xs 0 m fallback` 은 켜진 레인만 읽고 꺼진 레인에는
+`store_masked out. 0 v. m. .` 은 켜진 레인(9 와 7)의 자리에만 쓰고 나머지 자리는 건드리지 않는다. `load_masked xs. 0 m. fallback. .` 은 켜진 레인만 읽고 꺼진 레인에는
 기본값 100 을 둔다. 슬라이스 끝에 네 칸이 다 남지 않을 때 꼬리를 처리하는 모양이 이것이다.
 
 #dtable(
@@ -206,7 +206,7 @@
   [`native_lanes`], [이 기계의 레인 수(번역 시점)], [답을 바꾸지 않는다],
   [`sum_neumaier` · `sum_seq`], [`view_array` 로 본 부동소수 조각을 모두 더한다], [레인 op 이 아니다 --- 이름이 더하는 방법을 말한다(보정 · 앞에서 뒤로)],
   [`lane_avg`], [레인마다 반올림하는 평균], [값이 `(a+b+1)>>1` 로 정해져 있다 — 레인이 넘치지 않도록 넓혀 더한다],
-  [`prefetch xs i`], [곧 쓸 자리를 미리 캐시로 끌어 온다], [뜻을 바꾸지 않는 성능 힌트],
+  [`prefetch xs. i. .`], [곧 쓸 자리를 미리 캐시로 끌어 온다], [뜻을 바꾸지 않는 성능 힌트],
 )
 
 두 가지를 조심한다. 첫째, `splat` 은 레인 수를 *선언된 타입에서* 받으므로 식 안에 바로 쓸 수 없다. 둘째, *레인을 더하는 것과 조각을 더하는 것은 다른 op 이다* --- 레인은 `reduce_add`,
@@ -218,7 +218,7 @@
 
   `splat` 은 한 값을 모든 레인에 채우는데, *레인이 몇인지*는 선언된 타입만이 말한다. 식 안에는 그것을 말해 줄 자리가 없어 값이 스칼라로
   읽히고, 감싼 비교가 `mask` 타입과 어긋난다. `E-VEC-SPLAT` 으로 거절하며, 고치는 길은 레인 수를 적은 이름에 먼저 담는 것이다 ---
-  `var lim vec u32 4 splat 5 .` 뒤에 `gt v lim` 이다.
+  `var lim vec u32 4 splat 5 . .` 뒤에 `gt v. lim. .` 이다.
 ]
 
 == 자리를 어떻게 쓰는지 적는다 --- `access`
@@ -236,8 +236,8 @@
 #antipattern[나누어 도는 조각들이 공유 카운터를 보통 연산으로 올린다][
   #demo("examples/ch27/mistake_sharedwrite.low")
 
-  조각마다 `idx counter 0` 을 읽고 1 을 더해 쓴다. 두 스레드가 같은 값을 읽고 각자 더해 쓰면 하나가 사라진다. 이것은 자기 몫이 아닌
-  자리에 쓰는 것이라 `E-PAR-WRITE` 로 거절된다. 공유 자리를 함께 갱신해야 하면 `cap atomic` 을 받고 `atomic_add counter 0 1` 을 쓴다(이 장의
+  조각마다 `idx counter. 0 .` 을 읽고 1 을 더해 쓴다. 두 스레드가 같은 값을 읽고 각자 더해 쓰면 하나가 사라진다. 이것은 자기 몫이 아닌
+  자리에 쓰는 것이라 `E-PAR-WRITE` 로 거절된다. 공유 자리를 함께 갱신해야 하면 `cap atomic` 을 받고 `atomic_add counter. 0 1 .` 을 쓴다(이 장의
   `counter.low`). 대개는 그보다 조각마다 센 값을 `reduce` 로 모으는 편이 빠르다.
 ]
 
@@ -260,9 +260,9 @@
 #antipattern[나눌 되풀이를 다른 모양으로 적는다][
   #demo("examples/ch27/mistake_noloop.low")
 
-  처리기는 `while lt i (len s) do … end` 모양의 되풀이만 나눌 대상으로 알아본다. `while lt (add i 1) (len s)` 는 그 모양이 아니라서
+  처리기는 `while lt i. len s. . . do … end .` 모양의 되풀이만 나눌 대상으로 알아본다. `while lt add i. 1 . len s. . .` 는 그 모양이 아니라서
   `E-PAR-NOLOOP` 다. 진단의 말대로 `parallel` 절은 *주장*이고, 나눌 되풀이를 찾지 못하면 아무것도 확인하지 못한 채 주장만 남는다. 게다가
-  이 되풀이는 이웃 원소 `idx s (add i 1)` 을 읽는다. 모양을 고쳐도 `E-PAR-READ` 로 거절될 것이다 --- 이웃을 읽는 계산(평활화 따위)은
+  이 되풀이는 이웃 원소 `idx s. add i. 1 . .` 을 읽는다. 모양을 고쳐도 `E-PAR-READ` 로 거절될 것이다 --- 이웃을 읽는 계산(평활화 따위)은
   결과를 다른 슬라이스에 쓰는 순차 되풀이로 적는다.
 ]
 
@@ -289,14 +289,14 @@
   caption: [병렬과 원자 연산의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`parallel s split .`(op 머리)], [`s` 를 조각으로 나누어 여럿이 돌아도 된다는 선언], [주장을 믿지 않고 확인한다 --- 확인되면 `W-PAR-OK`],
-  [`while lt i (len s) do … end`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
-  [`idx s i` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
+  [`while lt i. len s. . . do … end .`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
+  [`idx s. i. .` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [조각마다 누적한 뒤 연산으로 합친다], [시작값은 항등원 --- 연산은 결합적(`E-PAR-ASSOC`)],
-  [`atomic_add counter 0 1` · `atomic_load cells 0`], [슬라이스와 색인으로 가리킨 자리를 원자적으로], [`effects atomic` + `cap atomic`],
+  [`atomic_add counter. 0 1 .` · `atomic_load cells. 0 .`], [슬라이스와 색인으로 가리킨 자리를 원자적으로], [`effects atomic` + `cap atomic`],
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [기억 차례 --- 적지 않으면 `seq_cst`], [가장 추론하기 쉬운 것이 기본],
   [읽기에 `order release` 따위], [거절(`E-ATOMIC-ORDER`)], [뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다],
-  [`view_array u64 bytes`], [바이트를 베끼지 않고 `u64` 슬라이스로 본다], [원자 칸을 할당받은 창 위에 둔다],
-  [`var v vec u32 4 load xs 0 .` · `reduce_add v`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
+  [`view_array u64 bytes. .`], [바이트를 베끼지 않고 `u64` 슬라이스로 본다], [원자 칸을 할당받은 창 위에 둔다],
+  [`var v vec u32 4 load xs. 0 . .` · `reduce_add v. .`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
   [`access data shared_read .` · `access out write_only .`], [읽기만 · 쓰기만 한다는 약속 --- 몸을 검사한다], [읽기만이면 여러 태스크가 함께 쥔다 · 어기면 `E-ACCESS-MODE`],
 )
 

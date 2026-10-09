@@ -38,7 +38,7 @@
 
 #demo("examples/ch13/aliases.low")
 
-`meters` is just another name for `u64`, so the result of `mul w h` can be returned as a `u64`. Aliases shorten long types
+`meters` is just another name for `u64`, so the result of `mul w. h. .` can be returned as a `u64`. Aliases shorten long types
 (`def type bytes slice u8 .`) or leave meaning in the source. `pct` is an alias for a type with a range attached, and every place that takes this
 name inherits the range (covered below).
 
@@ -71,7 +71,7 @@ Those are the only places that need checking.
   Does a `newtype` cost anything at run time?
 ][
   No. The representation is the same, so in native code `user_id` is just a 64-bit integer. The distinction exists only at translation time,
-  and `cast user_id n` does not change the value. It is a free distinction, worth using freely.
+  and `cast user_id n. .` does not change the value. It is a free distinction, worth using freely.
 ]
 
 == `range` --- a contract that became the shape of a parameter
@@ -81,7 +81,7 @@ Writing `range <low> <high>` in a parameter's type position makes that parameter
 
 #demo("examples/ch13/ranges.low")
 
-The body of `scale` uses the fact that `a` is at most 100. So `mul a 2` does not exceed 200, `narrow u8` cannot fail, and both overflow checks
+The body of `scale` uses the fact that `a` is at most 100. So `mul a. 2 .` does not exceed 200, `narrow u8` cannot fail, and both overflow checks
 are removed. Keeping to the range is the caller's responsibility. If the type of the value passed is already wider than the range (such as
 `u64`), translation is refused; a value of a type that can fit, such as `u8`, is checked at the call. Values that come from *outside* the
 program (here, `--run`'s arguments) are also checked at the boundary, and 101 stops there. The specification says translation is refused when
@@ -98,7 +98,7 @@ Who measures the range, and where, in one picture (the literal `101` was measure
  a u64 value      ── already wider ───────────▶  E-TYPE-WIDTH (refused)
 ```
 
-The same could be written as `requires le a 100 .`. The difference is *where it is written*. `range` becomes the shape of the parameter, so
+The same could be written as `requires le a. 100 . .`. The difference is *where it is written*. `range` becomes the shape of the parameter, so
 the caller sees it from the signature alone, and it can be carried into several ops through an alias (`def type pct range 0 100 .`).
 
 == `cast` --- where a value may change
@@ -141,7 +141,7 @@ wire, a register a device reads --- write the layout.
 
 - `layout packed .` puts no padding between fields. Fields sit next to each other in declaration order.
 - `big` and `little` after a field set its byte order. If not written, the machine's order is used.
-- `view wire_header b` reads a byte slice as a value of that layout *without copying*. If length or alignment do not fit, execution stops.
+- `view wire_header b. .` reads a byte slice as a value of that layout *without copying*. If length or alignment do not fit, execution stops.
 
 A header holding `magic 1 · length 2 · kind 9` lies in bytes like this. `big` puts the high byte first.
 
@@ -163,7 +163,7 @@ at translation (#chref("hardware")). Pinning the layout takes choices away from 
 
 #demo("examples/ch13/encoded.low")
 
-`encode wire_header h` produces seven bytes in the byte order written on each field (`big`). The result 7009 puts the length 7 and the 9 of
+`encode wire_header h. .` produces seven bytes in the byte order written on each field (`big`). The result 7009 puts the length 7 and the 9 of
 the last byte, `kind`, side by side. The side that builds a header going onto the wire uses `encode`; the side that reads a received header
 uses `view`.
 
@@ -189,10 +189,10 @@ bit operations such as `bit_and` and `shl`.
 
 #demo("examples/ch13/sets.low")
 
-- `bitset_new 64` makes an empty set. The width is a number fixed at translation time.
-- `bitset_insert a 1 .` inserts and `bitset_remove a 1 .` removes. Both are statements that change the set *in place*. `count a` is the number of members.
-- `bitset_intersect a b` gives the intersection, `bitset_difference a b` what is only in `a`, and `bitset_complement a` the complement, each *as a new set*.
-- `bitset_is_subset x y` asks whether all of `x` is in `y`; `bitset_is_empty x` asks whether it is empty.
+- `bitset_new 64 .` makes an empty set. The width is a number fixed at translation time.
+- `bitset_insert a 1 .` inserts and `bitset_remove a 1 .` removes. Both are statements that change the set *in place*. `count a. .` is the number of members.
+- `bitset_intersect a. b. .` gives the intersection, `bitset_difference a. b. .` what is only in `a`, and `bitset_complement a. .` the complement, each *as a new set*.
+- `bitset_is_subset x. y. .` asks whether all of `x` is in `y`; `bitset_is_empty x. .` asks whether it is empty.
 
 In `overlap 5` the intersection is {3, 5} and what is only in `a` is {1}, giving 211. `bitset_complement` only means something within the width: put
 0 into an eight-slot set and its complement is the other seven. Inserting or asking about a number outside the width stops the program ---
@@ -205,9 +205,9 @@ buffer. Gathering them into one place means copying. `segments` views the pieces
 
 #demo("examples/ch13/pieces.low")
 
-- `view_segments back d` binds the backing bytes `back` and the descriptor `d` into a view of type `segments u8`. The descriptor is a row of
+- `view_segments back. d. .` binds the backing bytes `back` and the descriptor `d` into a view of type `segments u8`. The descriptor is a row of
   (start, length) pairs; here 4 bytes from 0 and 4 bytes from 8.
-- `segs ss` gives the piece count 2, and `seg ss 1` gives the second piece as an ordinary `slice u8`. Byte 1 of the second piece is the 30 at
+- `segs ss. .` gives the piece count 2, and `seg ss. 1 .` gives the second piece as an ordinary `slice u8`. Byte 1 of the second piece is the 30 at
   original position 9.
 - There is no new machine instruction. It lowers to building a grouping, reading fields and slicing, so the cost is visible.
 
@@ -251,7 +251,7 @@ without a word. It is recorded as a defect in the development repository.
   #demo("examples/ch13/mistake_widensign.low")
 
   Going from `i32` to `u64` makes the width larger, but a negative number such as −1 has no place in `u64`. `widen` is only for
-  places where *no value changes*, so this is `E-WIDEN-SIGN`. If you know no negative value can arrive, write `cast u64 x` to leave
+  places where *no value changes*, so this is `E-WIDEN-SIGN`. If you know no negative value can arrive, write `cast u64 x. .` to leave
   that judgement in the source; `cast` stops if a negative value does arrive. If negatives need their own handling, put
   `guard ge x 0` first.
 ]
@@ -289,16 +289,16 @@ without a word. It is recorded as a defect in the development repository.
   [*Shape*], [*Meaning*], [*Why*],
   [`def type meters u64 .`], [another name for the same type], [shortens a type and records meaning --- does not stop mixing],
   [`def newtype user_id u64 .`], [a new type with the same representation], [translation stops ids from mixing --- no run-time cost],
-  [`cast user_id n` · `cast u64 u`], [cross between the new type and the original], [crossings gather in one place in the code],
+  [`cast user_id n. .` · `cast u64 u. .`], [cross between the new type and the original], [crossings gather in one place in the code],
   [`input a range 0 100 .`], [accept only values in the range, both ends included], [the contract becomes the shape of the signature],
   [`def type pct range 0 100 .`], [put a range on an alias], [many ops inherit the same range],
-  [`cast i32 x`], [a conversion that may change the value --- stops if it does not fit], [a mark that says "I know the value may change here"],
+  [`cast i32 x. .`], [a conversion that may change the value --- stops if it does not fit], [a mark that says "I know the value may change here"],
   [`def type ten_bits bits 10 .`], [an integer of 1 … 64 bits], [the width is the contract],
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
-  [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
-  [`try_view wire_header b` · `encode wire_header h`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
-  [`var a bitset 64 bitset_new 64 .` · `bitset_insert a 1 .` · `bitset_intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
-  [`view_segments back d` · `segs ss` · `seg ss i`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
+  [`view wire_header b. .`], [read bytes in that layout without copying], [stops if length or alignment is off],
+  [`try_view wire_header b. .` · `encode wire_header h. .`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
+  [`var a bitset 64 bitset_new 64 . .` · `bitset_insert a 1 .` · `bitset_intersect a. b. .`], [a set of small numbers and its operations], [a set, not the bits of a word],
+  [`view_segments back. d. .` · `segs ss. .` · `seg ss. i. .`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
   [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],
 )
 

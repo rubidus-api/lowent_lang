@@ -11,159 +11,159 @@ actor keep_bytes do
   state do
     mem mut slice u8 .
     off u64 .
-  end
+  end .
   proc init input m mut slice u8 . output u64 . effects state . do
-    set mem m .
-    set off 0 .
-    return len m .
-  end
+    set mem. m. .
+    set off. 0 .
+    return len m. . .
+  end .
   proc reserve input n u64 . output option mut slice u8 . effects state . do
-    guard le n (sub (len mem) off) else return none .
-    let s mut slice u8 subslice mem off (add off n) .
-    set off (add off n) .
-    return some s .
-  end
+    guard le n. sub len mem. . off. . . else return none . .
+    let s mut slice u8 subslice mem. off. add off. n. . . .
+    set off. add off. n. . .
+    return some s. . .
+  end .
   proc grow input old mut slice u8 . input newn u64 . output option mut slice u8 . effects none . do
     return none .
-  end
+  end .
   proc used output u64 . effects none . do
-    return off .
-  end
-end
+    return off. .
+  end .
+end .
 
 proc take input bb mut allocs.bump_bytes . input k u64 . output u64 . effects state . do
-  let t use bb mut slice u64 lit array u64 2 k _ . else return 500 .
-  if gt k 5 do
+  let t use bb. mut slice u64 lit array u64 2 k. _ . else return 500 . .
+  if gt k. 5 . do
     return 7 .
-  end
-  return idx t 0 .
-end
+  end .
+  return idx t. 0 . .
+end .
 
 rem 루프 열 번 · 도움 op 의 이른 return · 그 뒤 used 가 0 인가.
 export proc round_trip input n u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
   var s u64 0 .
   var i u64 0 .
-  while lt i n do
-    let t use bb mut slice u64 lit array u64 4 i _ . else return 999 .
-    set s (add s (idx t 0)) .
-    set i (add i 1) .
-  end
-  let a u64 take bb 3 .
-  let b u64 take bb 9 .
-  return add (add s (mul (send bb used) 1000)) (add (mul a 100000) (mul b 10000000)) .
-end
+  while lt i. n. . do
+    let t use bb. mut slice u64 lit array u64 4 i. _ . else return 999 . .
+    set s. add s. idx t. 0 . . .
+    set i. add i. 1 . .
+  end .
+  let a u64 take bb. 3 . .
+  let b u64 take bb. 9 . .
+  return add add s. mul send bb. used . 1000 . . add mul a. 100000 . mul b. 10000000 . . . .
+end .
 
 rem break · continue 도 그 블록에서 받은 것을 돌려준다(if 블록 안에서 받고 continue · 루프 몸에서 받고 break).
 rem   범프 할당기는 마지막 것 하나만 돌려받으므로 한 번에 하나만 쥔다 — 백 번 돌아도 64 바이트로 선다.
 export proc jumps input n u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
   var s u64 0 .
   var i u64 0 .
-  while lt i 100 do
-    set i (add i 1) .
-    if lt i 50 do
-      let u use bb mut slice u64 lit array u64 4 1 _ . else return 888 .
-      set s (add s (idx u 0)) .
+  while lt i. 100 . do
+    set i. add i. 1 . .
+    if lt i. 50 . do
+      let u use bb. mut slice u64 lit array u64 4 1 _ . else return 888 . .
+      set s. add s. idx u. 0 . . .
       continue .
-    end
-    let t use bb mut slice u64 lit array u64 4 i _ . else return 999 .
-    if eq (idx t 0) n do
+    end .
+    let t use bb. mut slice u64 lit array u64 4 i. _ . else return 999 . .
+    if eq idx t. 0 . n. . do
       break .
-    end
-    set s (add s 10) .
-  end
-  return add s (mul (send bb used) 100000) .
-end
+    end .
+    set s. add s. 10 . .
+  end .
+  return add s. mul send bb. used . 100000 . . .
+end .
 
 rem 돌려받지 않는 할당기: 블록을 나가도 바이트가 남는다 — 64 바이트에서 32 씩 두 번이면 셋째는 else.
 export proc kept input n u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
-  var kb keep_bytes spawn actor keep_bytes .
-  let got u64 send kb init back .
+  var kb keep_bytes spawn actor keep_bytes . .
+  let got u64 send kb. init back. . .
   var i u64 0 .
-  while lt i n do
-    let t use kb mut slice u64 lit array u64 4 i _ . else return add 900 i .
-    set i (add i 1) .
-  end
-  return send kb used .
-end
+  while lt i. n. . do
+    let t use kb. mut slice u64 lit array u64 4 i. _ . else return add 900 i. . . .
+    set i. add i. 1 . .
+  end .
+  return send kb. used . .
+end .
 
 rem ★★ RFC-0135 S2a (D9) — 구조체도 할당기 바이트에 짓는다: 받은 바이트를 0 으로 채우고 배치를 얹어(`view` 와 같은 표현)
 rem   칸을 쓴다. 블록 끝 돌려주기도 같다 — 40 바이트로 16 바이트 구조체를 열 번 짓는다.
 def struct pt do
   x u32 .
   y u64 .
-end
+end .
 
 export proc sput input a u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
-  var q use bb pt lit pt do x 7 . y a . end else return 0 .
-  set (field q y) (add (field q y) 1) .
-  return add (widen u64 (field q x)) (field q y) .
-end
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  var q use bb. pt lit pt do x 7 . y a. . end . else return 0 . .
+  set field q. y . add field q. y . 1 . .
+  return add widen u64 field q. x . . field q. y . . .
+end .
 
 export proc srounds input n u64 . output u64 . effects state . do
   var back lit array u8 40 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
   var s u64 0 .
   var i u64 0 .
-  while lt i n do
-    let p use bb pt lit pt do x 1 . y i . end else return 999 .
-    set s (add s (add (widen u64 (field p x)) (field p y))) .
-    set i (add i 1) .
-  end
-  return add s (mul (send bb used) 1000) .
-end
+  while lt i. n. . do
+    let p use bb. pt lit pt do x 1 . y i. . end . else return 999 . .
+    set s. add s. add widen u64 field p. x . . field p. y . . . .
+    set i. add i. 1 . .
+  end .
+  return add s. mul send bb. used . 1000 . . .
+end .
 
 rem 바이트가 모자라면 else · option 째 받으면 guard 로 본다.
 export proc sshort input k u64 . output u64 . effects state . do
   var back lit array u8 8 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
-  let qo use bb option pt lit pt do x 1 . y k . end .
-  guard is_none qo else return 1 .
-  let p use bb pt lit pt do x 1 . y k . end else return 77 .
-  return field p y .
-end
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  let qo use bb. option pt lit pt do x 1 . y k. . end . .
+  guard is_none qo. . else return 1 . .
+  let p use bb. pt lit pt do x 1 . y k. . end . else return 77 . .
+  return field p. y . .
+end .
 
 rem ★★ RFC-0135 D12 — `keep`: 블록 끝에 돌려주지 않는다. 그래서 op 밖으로 내보낼 수 있고(할당기가 살아 있는 동안),
 rem   돌려주는 일은 저자가 한다(`send bb release …`) — 아니면 할당기가 끝날 때 한꺼번에.
 proc kmake input bb mut allocs.bump_bytes . input d mut slice u64 . output mut slice u64 . effects state . do
-  let t keep bb mut slice u64 lit array u64 2 7 8 . else return d .
-  return t .
-end
+  let t keep bb. mut slice u64 lit array u64 2 7 8 . else return d. . .
+  return t. .
+end .
 
 proc kpt input bb mut allocs.bump_bytes . input d pt . output pt . effects state . do
-  let q keep bb pt lit pt do x 3 . y 4 . end else return d .
-  return q .
-end
+  let q keep bb. pt lit pt do x 3 . y 4 . end . else return d. . .
+  return q. .
+end .
 
 export proc kept_out output u64 . effects state . do
   var back lit array u8 64 _ . .
   var d lit array u64 1 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
-  let s mut slice u64 kmake bb d .
-  let p pt kpt bb lit pt do x 0 . y 0 . end .
-  return add (add (idx s 1) (field p y)) (mul (send bb used) 100) .
-end
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  let s mut slice u64 kmake bb. d. . .
+  let p pt kpt bb. lit pt do x 0 . y 0 . end . . .
+  return add add idx s. 1 . field p. y . . mul send bb. used . 100 . . .
+end .
 
 rem ★ 일찍 돌려주기 — `drop t .` 가 그 자리에서 돌려주고 블록 끝에서는 다시 넣지 않는다. 그래서 같은 블록에서 다음 것을 받는다.
 export proc early input a u64 . output u64 . effects state . do
   var back lit array u8 40 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
-  let t use bb mut slice u64 lit array u64 4 a _ . else return 900 .
-  let x u64 idx t 0 .
-  drop t .
-  let u use bb mut slice u64 lit array u64 4 x _ . else return 901 .
-  return add (idx u 0) (mul (send bb used) 100) .
-end
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  let t use bb. mut slice u64 lit array u64 4 a. _ . else return 900 . .
+  let x u64 idx t. 0 . .
+  drop t. .
+  let u use bb. mut slice u64 lit array u64 4 x. _ . else return 901 . .
+  return add idx u. 0 . mul send bb. used . 100 . . .
+end .

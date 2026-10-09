@@ -4,12 +4,12 @@ rem expect: E-MATCH-REDUNDANT
 def enum light do
   bright .
   dark .
-end
+end .
 
 fn name input k u8 . output u8 . do
-  let s light bright .
-  match s do
-    case _ do return 0 . end
-    case bright do return 1 . end
-  end
-end
+  let s light bright. .
+  match s. do
+    case _ do return 0 . end .
+    case bright do return 1 . end .
+  end .
+end .

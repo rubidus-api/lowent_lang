@@ -18,7 +18,7 @@ take a larger place and move the old contents, which can be written in Lowent. S
 )
 
 `vecs` is for when you want to hold buffer lifetimes *directly* inside a region. A vector lives as *a pair of two values*: `vec_u8` (a single length `len`) and `mut slice u8`
-(storage). Capacity is not stored separately --- `len buf` is the capacity. Push maintains the invariant `v.len ≤ len buf`.
+(storage). Capacity is not stored separately --- `len buf. .` is the capacity. Push maintains the invariant `v.len ≤ len buf`.
 
 #dtable(
   columns: 3,
@@ -30,7 +30,7 @@ take a larger place and move the old contents, which can be written in Lowent. S
   [`push_byte`], [`proc (comptime a, using al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a`], [`none` on OOM --- `v` and `buf` unchanged],
 )
 
-With room, `push_byte` writes in place and returns `some buf`; when full it takes double with `send al reserve (next_cap (len buf))`, copies the old contents and returns
+With room, `push_byte` writes in place and returns `some buf. .`; when full it takes double with `send al. reserve next_cap len buf. . . .`, copies the old contents and returns
 `some <new buffer>`. The allocator is handed over with a `using` clause, not a positional argument --- the type `a` is filled from that source and monomorphised, so passing
 it costs nothing (#chref("lib-alloc")). No hidden allocation, so code without an allocator cannot call this op.
 
@@ -40,36 +40,36 @@ use vecs .
 use allocs .
 
 proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
-  let memopt option mut slice u8 alloc_bytes al capacity 256 .
-  guard is_some memopt else return 1 .
-  let mem mut slice u8 some_value memopt .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  var c u64 send bump init mem .
-  let b0 option mut slice u8 send bump reserve 2 .
-  guard is_some b0 else return 2 .
-  var buf mut slice u8 some_value b0 .
-  var v lit vecs.vec_u8 do len 0 . end .
+  let memopt option mut slice u8 alloc_bytes al. capacity 256 . .
+  guard is_some memopt. . else return 1 . .
+  let mem mut slice u8 some_value memopt. . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c u64 send bump. init mem. . .
+  let b0 option mut slice u8 send bump. reserve 2 . .
+  guard is_some b0. . else return 2 . .
+  var buf mut slice u8 some_value b0. . .
+  var v lit vecs.vec_u8 do len 0 . end . .
   var i u64 0 .
-  while lt i 10 do
-    let r use bump option mut slice u8 vecs.push_byte v buf (narrow u8 (add 65 i)) .
-    guard is_some r else return 3 .
-    set buf (some_value r) .
-    set i (add i 1) .
-  end
-  let m u64 write_out out 1 (subslice buf 0 (field v len)) .
-  return narrow u8 (field v len) .
-end
+  while lt i. 10 . do
+    let r use bump. option mut slice u8 vecs.push_byte v. buf. narrow u8 add 65 i. . . . .
+    guard is_some r. . else return 3 . .
+    set buf. some_value r. . .
+    set i. add i. 1 . .
+  end .
+  let m u64 write_out out. 1 subslice buf. 0 field v. len . . . .
+  return narrow u8 field v. len . . .
+end .
 ```
 
 Starting at 2 bytes and pushing 10, it grows three times, 2 → 4 → 8 → 16, and prints `ABCDEFGHIJ`.
 
 #antipattern[Not rebinding to the returned buffer][
-  Forgetting `set buf (some_value r) .` compiles and runs, but the result is silently wrong. After growth, passing the old `buf` keeps `v.len` counting against the new buffer
+  Forgetting `set buf. some_value r. . .` compiles and runs, but the result is silently wrong. After growth, passing the old `buf` keeps `v.len` counting against the new buffer
   while writes go to the old (small) one. *The return value is the next buffer* --- the most dangerous mistake in this module.
 ]
 
 #antipattern[Ignoring OOM · calling from a pure fn][
-  Unwrapping `some_value r` unchecked stops with `E-VM-NONE` when the allocator runs dry. Calling from an `effects none` `fn` is `E-EFFECT-CALC` --- `push_byte` is a proc with
+  Unwrapping `some_value r. .` unchecked stops with `E-VM-NONE` when the allocator runs dry. Calling from an `effects none` `fn` is `E-EFFECT-CALC` --- `push_byte` is a proc with
   `effects state`. Passing a source that does not satisfy the trait (such as `u64`) is `E-BOUND-UNSAT`.
 ]
 

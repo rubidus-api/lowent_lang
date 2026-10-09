@@ -85,20 +85,20 @@
 
 fn band input a u8 . output u8 .
 do
-  match a do
-    case 0 to 9 do return 1 . end
-    case 10 to 255 do return 2 . end
-  end
-end",
+  match a. do
+    case 0 to 9 do return 1 . end .
+    case 10 to 255 do return 2 . end .
+  end .
+end .",
     out: "band(5) = 1 · band(200) = 2")
   #rejected("덮이지 않은 값이 있으면 거부된다", "module ex_range_gap .
 
 fn band input a u8 . output u8 .
 do
-  match a do
-    case 0 to 9 do return 1 . end
-  end
-end", "E-MATCH-INEXHAUSTIVE")
+  match a. do
+    case 0 to 9 do return 1 . end .
+  end .
+end .", "E-MATCH-INEXHAUSTIVE")
   #plain[
     빈틈을 남기면 번역이 거부되므로, #emph["나머지는 무엇인가"]; 를 저자가 반드시 말하게 된다.
     다른 언어에서 이 자리는 조용히 아무 일도 안 하거나 예외가 되는데, 둘 다 소스를 읽고는
@@ -109,29 +109,29 @@ end", "E-MATCH-INEXHAUSTIVE")
 def enum color do
   red .
   green .
-end
+end .
 
 export fn code input c color . output u32 .
 do
-  match c do
-    case red do return 1 . end
-    case green do return 2 . end
-  end
-end")
+  match c. do
+    case red do return 1 . end .
+    case green do return 2 . end .
+  end .
+end .")
   #rejected("갈래가 빠진 match", "module ex_match_bad .
 
 def enum color do
   red .
   green .
-end
+end .
 
 export fn code input c color . output u32 .
 do
-  match c do
-    case red do return 1 . end
+  match c. do
+    case red do return 1 . end .
     rem `green` 을 안 다뤘다
-  end
-end", "E-MATCH-INEXHAUSTIVE")
+  end .
+end .", "E-MATCH-INEXHAUSTIVE")
   #plain[
     조건문을 이어 쓰는 것으로도 같은 일을 할 수 있다. `match` 가 나은 점은 #strong[완전성];
     하나다 — 갈래를 하나 더 만들었을 때, 그것을 안 다룬 자리를 처리기가 전부 찾아 준다.
@@ -158,15 +158,15 @@ end", "E-MATCH-INEXHAUSTIVE")
     #ex("시험", "module ex_test .
 
 export fn twice input n u32 . output u32 .
-  requires le n 100 .
+  requires le n. 100 . .
 do
-  return mul n 2 .
-end
+  return mul n. 2 . .
+end .
 
 test twice_works
 do
-  expect eq (twice 5) 10 .
-end")
+  expect eq twice 5 . 10 . .
+end .")
     #caution("계약 위반과 시험 실패는 다르다")[
       계약 위반은 #strong[코드가 자기 약속을 어긴 것];이고, 시험 실패는 #strong[시험이 코드가 틀렸다고
       말하는 것];이다. 둘은 다른 진단으로 나온다 — 무엇을 고쳐야 하는지가 다르기 때문이다.
@@ -199,25 +199,25 @@ end")
 
 fn twice input comptime n u8 . input a u8 . output u8 .
 do
-  return add a n .
-end
+  return add a. n. . .
+end .
 
 fn call_it output u8 .
 do
-  return twice 3 4 .
-end",
+  return twice 3 4 . .
+end .",
       out: "call_it() = 7")
     #rejected("번역 시점에 알 수 없는 값은 줄 수 없다", "module ex_comptime_rt .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
 do
-  return add a n .
-end
+  return add a. n. . .
+end .
 
 fn call_it input k u8 . output u8 .
 do
-  return twice k 4 .
-end", "E-COMPTIME-ARG")
+  return twice k. 4 . .
+end .", "E-COMPTIME-ARG")
     #note[
       다른 언어의 제네릭이 하는 일과 겹치지만, 여기서는 #strong[암묵적인 것이 없다];. 무엇이
       만들어지는지 소스만 보고 알 수 있어야 하고, 그것이 이 언어가 추론을 안 쓰는 이유다.
@@ -241,9 +241,9 @@ end", "E-COMPTIME-ARG")
 
 fn f input a u8 . output u8 .
 do
-  let b u8 comptime a .    rem `a` 는 실행할 때에야 정해진다
-  return b .
-end", "E-COMPTIME-NONCONST")
+  let b u8 comptime a. . .    rem `a` 는 실행할 때에야 정해진다
+  return b. .
+end .", "E-COMPTIME-NONCONST")
   ]
   #sub("6.9", "검사할 수 없는 자리 — `unsafe` 와 `extern`")[
     #para("1")[
@@ -337,7 +337,7 @@ end", "E-COMPTIME-NONCONST")
     ]
     #para("1a")[
       몸이 씨에 있는 `extern` op 은 #strong[블록 선언];이다. `struct` 가 칸을 `do … end` 에 담듯, 절을
-      `do … end` 에 담는다: `extern proc <이름> do <절>* end`. 절은 저마다 자기 점으로 닫는다
+      `do … end` 에 담는다: `extern proc <이름> do <절>* end .`. 절은 저마다 자기 점으로 닫는다
       (#cref("6.4.1") (3c)). 블록에는 절만 온다 — 문장이 오면 몸이 둘이다(`E-FFI-BODY`). `do` 없이 이름
       뒤에 절을 늘어놓고 `end` 로 닫는 꼴은 거부된다(`E-STMT-NODO`) — `end` 는 자기 `do` 만
       닫는다(#cref("6.1.6") (2a)).
@@ -350,7 +350,7 @@ unsafe extern proc c_abs do
   output i64 .
   effects unsafe .
   link \"llabs\" .
-end")
+end .")
     #rejected("do 없이 절을 늘어놓고 end 로 닫는다", "module ex_extern_nodo .
 
 unsafe extern proc c_abs input k cap c . input a i64 . output i64 .
@@ -380,8 +380,8 @@ end", "E-STMT-NODO")
 export fn inside input a u64 . output u64 .
   link \"inline\" .
 do
-  return add a 1 .
-end", "E-LINK-NAME")
+  return add a. 1 . .
+end .", "E-LINK-NAME")
     #para("3")[
       씨를 부르는 op 은 다음 셋을 #strong[모두]; 갖추어야 한다. 하나라도 없으면 거부된다.
     ]

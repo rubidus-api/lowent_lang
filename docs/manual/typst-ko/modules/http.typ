@@ -14,10 +14,10 @@
 ]
 
 ```lowent
-let t u64 http.target_off b .
-let n u64 http.target_len b .
-guard gt n 0 else return 0 .
-let target slice u8 subslice b t (add t n) .
+let t u64 http.target_off b. . .
+let n u64 http.target_len b. . .
+guard gt n. 0 . else return 0 . .
+let target slice u8 subslice b. t. add t. n. . . .
 ```
 
 #dtable(
@@ -34,7 +34,7 @@ let target slice u8 subslice b t (add t n) .
   [`name_len` · `value_off` · `value_len`], [헤더 이름 길이 · 값 자리 · 값 길이],
   [`name_eq`], [이 헤더의 이름이 그것인가(대소문자 안 가림)],
   [`header_find` · `header_find_len`], [그 이름의 값 자리 · 길이. *중복이면 0*],
-  [`content_length`], [`option u64` --- 없으면 `some 0`, 성하지 않으면 `none`],
+  [`content_length`], [`option u64` --- 없으면 `some 0 .`, 성하지 않으면 `none`],
   [`body_off`], [몸통이 시작하는 자리],
 )
 
@@ -55,7 +55,7 @@ smuggling)*. 앞단(프록시)과 뒷단(서버)이 같은 바이트를 다르�
   [빈 대상(`GET  HTTP/1.1`) · 끝나지 않은 헤더(빈 줄 없음)], [---],
 )
 
-*`content_length` 가 `option` 인 이유.* "없다" 와 "틀렸다" 는 다른 답이다. 없으면 `some 0`(몸통이 없는 정상 요청), 성하지 않으면 `none`(연결을 끊어야 할 일). 한 값으로
+*`content_length` 가 `option` 인 이유.* "없다" 와 "틀렸다" 는 다른 답이다. 없으면 `some 0 .`(몸통이 없는 정상 요청), 성하지 않으면 `none`(연결을 끊어야 할 일). 한 값으로
 두면 둘이 섞이고, 섞이는 자리가 곧 공격 자리다.
 
 *이 모듈이 처리기 결함을 하나 잡았다.* 처음에 `input b str .` 로 썼다. `--check` 는 통과했는데 21 op 중 16 이 느린 해석 경로로 떨어졌다(약 80 배). `str` 은 빌트인이

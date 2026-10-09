@@ -4,37 +4,37 @@ rem run: main
 def enum config_error do
   bad_port .
   port_zero .
-end
+end .
 
 rem ko: 안쪽 불변식 — 부르는 쪽이 이미 걸렀어야 하는 것은 계약이다 /// en: inner invariant — what the caller should already have filtered is a contract
 fn slot_of input port u16 . input slots u64 . output u64 .
-  requires gt slots 0 .
+  requires gt slots. 0 . .
 do
-  return mod (widen u64 port) slots .
-end
+  return mod widen u64 port. . slots. . .
+end .
 
 rem ko: 바깥 입력 — 틀릴 수 있는 것은 result 다 /// en: outside input — what can be wrong is a result
 fn check_port input port u16 . output result u16 config_error .
-  errors port_zero eq port 0 .
+  errors port_zero eq port. 0 . .
 do
-  guard ne port 0 else return error port_zero .
-  return ok port .
-end
+  guard ne port. 0 . else return error port_zero . . .
+  return ok port. . .
+end .
 
 fn pick_slot input port u16 . output result u64 config_error .
-  errors port_zero eq port 0 .
+  errors port_zero eq port. 0 . .
 do
-  let p u16 try check_port port .
-  return ok (slot_of p 16) .
-end
+  let p u16 try check_port port. . . .
+  return ok slot_of p. 16 . . .
+end .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let r result u64 config_error pick_slot 8080 .
-  guard not (is_error r) else do
-    let n u64 write_out out 1 "bad port\n" .
+  let r result u64 config_error pick_slot 8080 . .
+  guard not is_error r. . . else do
+    let n u64 write_out out. 1 "bad port\n" . .
     return 1 .
-  end
-  let m u64 write_out out 1 "slot ok\n" .
-  return narrow u8 (ok_value r) .
-end
+  end .
+  let m u64 write_out out. 1 "slot ok\n" . .
+  return narrow u8 ok_value r. . . .
+end .

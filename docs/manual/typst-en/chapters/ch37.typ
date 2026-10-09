@@ -41,11 +41,11 @@ the assembled bytes.
 
 #demo("examples/ch37/assemble.low")
 
-- `term.goto buf 0 2 5` writes the cursor-move bytes into `buf` from position 0 and returns the next position to write, 6, as an `option`. If the
+- `term.goto buf. 0 2 5 .` writes the cursor-move bytes into `buf` from position 0 and returns the next position to write, 6, as an `option`. If the
   buffer is too short it writes nothing and gives `none`, because half-written control bytes would garble the screen.
 - Rows and columns count *from 0*. The terminal convention (ANSI) counts from 1, so `goto` adds 1 and writes `ESC [ 3 ; 6 H` (27 91 51 59 54 72).
   The choice keeps the same base as array indexes.
-- `term.sgr buf 6 1` writes `ESC [ 1 m`, which turns on bold, and the last `term.sgr … 0` writes `ESC [ 0 m`, which resets attributes. The 104 and
+- `term.sgr buf. 6 1 .` writes `ESC [ 1 m`, which turns on bold, and the last `term.sgr … 0` writes `ESC [ 0 m`, which resets attributes. The 104 and
   105 in between are the letters `hi`.
 - Every op returns "the next position", so the answer of one op becomes the `pos` of the next. Sixteen bytes are written in all, and the `buf` the
   VM shows is exactly those bytes.
@@ -82,7 +82,7 @@ cells and clusters. The width table was extracted from Unicode data like the `un
 
 #demo("examples/ch37/keys.low")
 
-What a terminal sends for the up arrow is the three bytes `ESC [ A`. `tty.parse_key buf 0` reads those bytes as one value holding the key code and the length consumed.
+What a terminal sends for the up arrow is the three bytes `ESC [ A`. `tty.parse_key buf. 0 .` reads those bytes as one value holding the key code and the length consumed.
 `tty.key_of` extracts the key code and `tty.len_of` the length. Ordinary characters are their byte value as is (1 … 255), and special keys are placed above 1000 (`key_up`
 is 1001). So one value distinguishes "this is a character" from "this is an arrow key".
 
@@ -91,14 +91,14 @@ too few bytes are `none`.
 
 == Raw mode is a capability
 
-The part touching the operating system is only three core ops: `tty_raw t on` (enter and leave raw mode), `tty_read t buf` (read key bytes) and `tty_size t` (screen size).
+The part touching the operating system is only three core ops: `tty_raw t. on. .` (enter and leave raw mode), `tty_read t. buf. .` (read key bytes) and `tty_size t. .` (screen size).
 All take `cap tty` as their first argument.
 
 #demo("examples/ch37/rawmode.low")
 
 - The buffer is obtained *before* entering raw mode. If allocation failed after entering and it returned, the terminal would be left in raw mode.
 - Bytes read with `tty_read` are interpreted with `tty.parse_key`, and pressing `q` ends it.
-- At the end it always restores with `tty_raw t false`.
+- At the end it always restores with `tty_raw t. false .`.
 
 Raw mode *changes the user's terminal settings*. Even if the program dies, the change remains, and in the user's shell input becomes invisible and line breaks stop working.
 If such a capability floated around ambiently, any library could wreck someone's shell. So only its holder exercises it. This example waits for key input, so the verification
@@ -124,14 +124,14 @@ it.
   This code passes translation (restoring `tty_raw` is not enforced by ownership). But if allocation fails, it leaves through `return 2` with
   the terminal still in raw mode. The user's shell stops echoing input and line breaks go wrong. As `rawmode.low` in this chapter does, finish
   every preparation that can fail (getting the buffer) *before* entering raw mode, and make every path after entering it pass through
-  `tty_raw t false`.
+  `tty_raw t. false .`.
 ]
 
 #antipattern[Cutting a row by byte count to fit the screen width][
   #demo("examples/ch37/mistake_bytecut.low")
 
   Cutting "안녕" at five bytes splits the second character, which is no longer valid text, so `row_width` returns `none` (999). Sent to the
-  screen as is, it would have printed broken characters. `term.fit_width row 3` gives, *as a byte length*, the longest prefix that fits in
+  screen as is, it would have printed broken characters. `term.fit_width row. 3 .` gives, *as a byte length*, the longest prefix that fits in
   three columns --- one "안", 3 bytes. Always cut by that answer.
 ]
 
@@ -152,11 +152,11 @@ it.
   [*Shape*], [*Meaning*], [*Why*],
   [`term.goto` · `term.sgr` · `term.clear` (`buf pos …`)], [assemble control bytes into the caller's buffer], [nothing is written to the screen --- test by bytes],
   [`term.diff prev next w out pos`], [bytes that redraw only the changed runs --- 0 if equal], [less flicker and less traffic],
-  [`term.row_width row` · `term.row_clusters row` · `term.cp_width cp`], [columns · grapheme clusters · code point width], [columns are not bytes],
-  [`term.fit_width row cols`], [byte length of the longest prefix fitting the columns], [never cut inside a character],
-  [`tty.parse_key buf at` · `tty.key_of` · `tty.len_of`], [interpret key bytes (pure) --- `none` when incomplete], [reading keys is computation],
-  [`tty_raw t true` · `tty_read t buf` · `tty_size t`], [raw mode · read key bytes · screen size], [`cap tty` --- always restore raw mode],
-  [`term.goto buf 0 2 5`], [row and column counted from 0 --- the bytes are `ESC [ 3 ; 6 H`], [same base as array indexes; the op adapts to the terminal's 1-based count],
+  [`term.row_width row. .` · `term.row_clusters row. .` · `term.cp_width cp. .`], [columns · grapheme clusters · code point width], [columns are not bytes],
+  [`term.fit_width row. cols. .`], [byte length of the longest prefix fitting the columns], [never cut inside a character],
+  [`tty.parse_key buf. at. .` · `tty.key_of` · `tty.len_of`], [interpret key bytes (pure) --- `none` when incomplete], [reading keys is computation],
+  [`tty_raw t. true .` · `tty_read t. buf. .` · `tty_size t. .`], [raw mode · read key bytes · screen size], [`cap tty` --- always restore raw mode],
+  [`term.goto buf. 0 2 5 .`], [row and column counted from 0 --- the bytes are `ESC [ 3 ; 6 H`], [same base as array indexes; the op adapts to the terminal's 1-based count],
 )
 
 #recap[

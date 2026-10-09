@@ -7,30 +7,30 @@ module vm_isnone .
 
 export fn in_if input x u64 . output u64 . do
   var o option u64 none .
-  if gt x 0 do set o (some x) . end
-  if is_none o do return 1 . end
+  if gt x. 0 . do set o. some x. . . end .
+  if is_none o. . do return 1 . end .
   return 2 .
-end
+end .
 
 export fn in_let input x u64 . output u64 . do
   var o option u64 none .
-  if gt x 0 do set o (some x) . end
-  let q bool is_none o .
-  if q do return 1 . end
+  if gt x. 0 . do set o. some x. . . end .
+  let q bool is_none o. . .
+  if q. do return 1 . end .
   return 2 .
-end
+end .
 
 export fn in_guard input x u64 . output u64 . do
   var o option u64 none .
-  if gt x 0 do set o (some x) . end
-  guard is_none o else return 2 .
+  if gt x. 0 . do set o. some x. . . end .
+  guard is_none o. . else return 2 . .
   return 1 .
-end
+end .
 
 rem ★ `is_some` 이 거짓인 것과 같은 답이다 — 그것이 하강의 모양이기도 하다. (`not is_some` 철자는 RFC-0113 O5 로 거절된다)
 export fn agrees input x u64 . output u64 . do
   var o option u64 none .
-  if gt x 0 do set o (some x) . end
-  if eq (is_none o) (eq (is_some o) false) do return 1 . end
+  if gt x. 0 . do set o. some x. . . end .
+  if eq is_none o. . eq is_some o. . false . . do return 1 . end .
   return 0 .
-end
+end .

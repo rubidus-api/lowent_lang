@@ -6,12 +6,12 @@ use wire .
 
 fn mode_of input w u64 . output u64 .
 do
-  return wire.pick 3840 w .
-end
+  return wire.pick 3840 w. . .
+end .
 
 fn with_mode input w u64 . input m u64 .
   output u64 .
-  requires le m 15 .
+  requires le m. 15 . .
 do
-  return wire.merge 3840 w m .
-end
+  return wire.merge 3840 w. m. . .
+end .

@@ -4,15 +4,15 @@ rem expect: E-TRAIT-MISSING
 trait shape do
   area input s self . output u64 .
   perimeter input s self . output u64 .
-end
+end .
 
 def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end
+end .
 
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .

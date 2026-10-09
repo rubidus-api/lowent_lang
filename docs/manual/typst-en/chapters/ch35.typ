@@ -37,7 +37,7 @@
 
 #demo("examples/ch35/blocks.low")
 
-- `pool.init objects mem gens 16` divides the bytes `mem` handed over by the caller into 16-byte blocks and keeps a generation count per block in `gens`. The pool seals
+- `pool.init objects. mem. gens. 16 .` divides the bytes `mem` handed over by the caller into 16-byte blocks and keeps a generation count per block in `gens`. The pool seals
   `mem` and `gens` inside, so later ops do not take them separately.
 #idx("generational handle")
 - `pool.take` lends one block and gives a *handle*. The handle holds the block number and the generation count at that moment.
@@ -72,7 +72,7 @@ point at two, and the confusion the brand was meant to prevent would return.
 
 #demo("examples/ch35/split.low")
 
-`shard.split_at grid r 4` *consumes* the whole token `r` and splits it in two. Asking the width with `r` afterwards is `E-OWN-MOVED`. What stops this mistake is not the
+`shard.split_at grid. r. 4 .` *consumes* the whole token `r` and splits it in two. Asking the width with `r` afterwards is `E-OWN-MOVED`. What stops this mistake is not the
 `shard` module but *the language*. The token is `owned`, so it leaves your hands the moment it is handed over. The idea of an access unit is not a new rule but the
 consequence of an existing one. Whether the pieces ride several flows or run sequentially, the fact that they do not overlap is itself the value.
 
@@ -155,12 +155,12 @@ one word is the job of `flags`.
   caption: [Shapes of stores and handles --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`def newtype objects u8 .`], [the brand of one store], [cost-free distinction --- mixing: `E-TYPE-INSTANCE`, opening twice: `E-BRAND-REUSED`],
-  [`pool.init objects mem gens 16`], [a pool carving the caller's bytes into blocks (sealed in)], [later ops do not take `mem`/`gens` again],
+  [`pool.init objects. mem. gens. 16 .`], [a pool carving the caller's bytes into blocks (sealed in)], [later ops do not take `mem`/`gens` again],
   [`pool.take` · `pool.release` · `pool.alive`], [borrow (generation handle) · return (bump generation) · ask], [use-after-free and double free surface as values],
-  [`pool.bytes objects p h` → `option mut slice u8`], [the only door to a block's bytes], [`none` when the generation differs],
-  [`var r (owned shard.token grid) shard.open grid 8 .`], [an owned token for a non-overlapping piece], [after splitting, the old token is `E-OWN-MOVED`],
+  [`pool.bytes objects. p. h. .` → `option mut slice u8`], [the only door to a block's bytes], [`none` when the generation differs],
+  [`var r (owned shard.token grid) shard.open grid. 8 . .`], [an owned token for a non-overlapping piece], [after splitting, the old token is `E-OWN-MOVED`],
   [`budget.pack …`], [check a bit budget by contract], [a misfit is `E-CONTRACT-IMPOSSIBLE` at translation],
-  [`wire.pick mask w` · `wire.merge mask w v` · `wire.fits`], [read · replace · check a bit field with one mask], [position and width come from one number --- `put` truncates],
+  [`wire.pick mask. w. .` · `wire.merge mask. w. v. .` · `wire.fits`], [read · replace · check a bit field with one mask], [position and width come from one number --- `put` truncates],
 )
 
 #recap[

@@ -8,326 +8,326 @@ use regex as rx .
 
 rem 리터럴·`.`·탐욕 `*` : "ab.d*" 를 "abcdddx" 에 anchored — 끝 = 7? 아니, d* 탐욕이 ddd 까지 = 6.
 proc basic input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "ab.d*" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_at prog "abcdddx" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 6 else return 3 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "ab.d*" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_at prog. "abcdddx" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 6 . else return 3 . .
   rem 매치 없음도 값이다.
-  let f option u64 rx.match_at prog "zzz" 0 cl nl mk .
-  guard is_some f else return 42 .
+  let f option u64 rx.match_at prog. "zzz" 0 cl. nl. mk. . .
+  guard is_some f. . else return 42 . .
   return 4 .
-end
+end .
 
 rem 갈래·그룹·`+` : "(ab|cd)+x" — "cdabx" 매치(끝 5), "abcx" 는 실패.
 proc alt_group input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "(ab|cd)+x" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_at prog "cdabx" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 5 else return 3 .
-  let f option u64 rx.match_at prog "abcx" 0 cl nl mk .
-  guard is_some f else return 42 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "(ab|cd)+x" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_at prog. "cdabx" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 5 . else return 3 . .
+  let f option u64 rx.match_at prog. "abcx" 0 cl. nl. mk. . .
+  guard is_some f. . else return 42 . .
   return 4 .
-end
+end .
 
 rem 클래스·부정·이스케이프: "[a-c]+z\\d" 가 "abz7" 에 끝 4 · "[^0-9]" 는 숫자만 거부.
 proc classes input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "[a-c]+z\\d" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_at prog "abz7" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 4 else return 3 .
-  let n2 option u64 rx.compile "[^0-9]" prog st .
-  guard is_some n2 else return 4 .
-  let d option u64 rx.match_at prog "7" 0 cl nl mk .
-  guard is_some d else do
-    let z option u64 rx.match_at prog "z" 0 cl nl mk .
-    guard is_some z else return 5 .
-    guard eq (some_value z) 1 else return 6 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "[a-c]+z\\d" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_at prog. "abz7" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 4 . else return 3 . .
+  let n2 option u64 rx.compile "[^0-9]" prog. st. . .
+  guard is_some n2. . else return 4 . .
+  let d option u64 rx.match_at prog. "7" 0 cl. nl. mk. . .
+  guard is_some d. . else do
+    let z option u64 rx.match_at prog. "z" 0 cl. nl. mk. . .
+    guard is_some z. . else return 5 . .
+    guard eq some_value z. . 1 . else return 6 . .
     return 42 .
-  end
+  end .
   return 7 .
-end
+end .
 
 rem 닻·탐색: "^a" 는 1에서 실패 · "b$" 는 끝에서만 · rx_find 는 가장 왼쪽 시작.
 proc anchors input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "^a" prog st .
-  guard is_some n else return 1 .
-  let m0 option u64 rx.match_at prog "aa" 0 cl nl mk .
-  guard is_some m0 else return 2 .
-  let m1 option u64 rx.match_at prog "aa" 1 cl nl mk .
-  guard is_some m1 else do
-    let n2 option u64 rx.compile "ab$" prog st .
-    guard is_some n2 else return 3 .
-    let f option u64 rx.find prog "xxab" cl nl mk .
-    guard is_some f else return 4 .
-    guard eq (some_value f) 2 else return 5 .
-    let g option u64 rx.find prog "abx" cl nl mk .
-    guard is_some g else return 42 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "^a" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m0 option u64 rx.match_at prog. "aa" 0 cl. nl. mk. . .
+  guard is_some m0. . else return 2 . .
+  let m1 option u64 rx.match_at prog. "aa" 1 cl. nl. mk. . .
+  guard is_some m1. . else do
+    let n2 option u64 rx.compile "ab$" prog. st. . .
+    guard is_some n2. . else return 3 . .
+    let f option u64 rx.find prog. "xxab" cl. nl. mk. . .
+    guard is_some f. . else return 4 . .
+    guard eq some_value f. . 2 . else return 5 . .
+    let g option u64 rx.find prog. "abx" cl. nl. mk. . .
+    guard is_some g. . else return 42 . .
     return 6 .
-  end
+  end .
   return 7 .
-end
+end .
 
 rem 잘못된 패턴은 값으로 거절된다: 닫히지 않은 그룹·앞이 없는 `*`·모자란 버퍼 → 전부 none.
 proc rejects input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let a option u64 rx.compile "(ab" prog st .
-  guard is_some a else do
-    let b option u64 rx.compile "*a" prog st .
-    guard is_some b else do
-      let tiny mut slice u64 subslice prog 0 8 .
-      let c option u64 rx.compile "abcdefghij" tiny st .
-      guard is_some c else return 42 .
+  guard ge len prog. . 32 . else return 90 . .
+  let a option u64 rx.compile "(ab" prog. st. . .
+  guard is_some a. . else do
+    let b option u64 rx.compile "*a" prog. st. . .
+    guard is_some b. . else do
+      let tiny mut slice u64 subslice prog. 0 8 . .
+      let c option u64 rx.compile "abcdefghij" tiny. st. . .
+      guard is_some c. . else return 42 . .
       return 3 .
-    end
+    end .
     return 2 .
-  end
+  end .
   return 1 .
-end
+end .
 
 rem ★ `{m,n}` 반복 — **컴파일 시 펼친다**(새 옵코드 0): "a{3}"·"a{2,4}b"·"ab{2,}c".
 proc counted input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n1 option u64 rx.compile "a{3}" prog st .
-  guard is_some n1 else return 1 .
-  let m1 option u64 rx.match_at prog "aaaa" 0 cl nl mk .
-  guard is_some m1 else return 2 .
-  guard eq (some_value m1) 3 else return 3 .
-  let n2 option u64 rx.compile "a{2,4}b" prog st .
-  guard is_some n2 else return 4 .
-  let m2 option u64 rx.match_at prog "aaab" 0 cl nl mk .
-  guard is_some m2 else return 5 .
-  guard eq (some_value m2) 4 else return 6 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n1 option u64 rx.compile "a{3}" prog. st. . .
+  guard is_some n1. . else return 1 . .
+  let m1 option u64 rx.match_at prog. "aaaa" 0 cl. nl. mk. . .
+  guard is_some m1. . else return 2 . .
+  guard eq some_value m1. . 3 . else return 3 . .
+  let n2 option u64 rx.compile "a{2,4}b" prog. st. . .
+  guard is_some n2. . else return 4 . .
+  let m2 option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
+  guard is_some m2. . else return 5 . .
+  guard eq some_value m2. . 4 . else return 6 . .
   rem 하한 미달은 매치가 아니다: "ab" 는 a 가 하나뿐.
-  let f option u64 rx.match_at prog "ab" 0 cl nl mk .
-  guard is_some f else do
-    let n3 option u64 rx.compile "ab{2,}c" prog st .
-    guard is_some n3 else return 7 .
-    let m3 option u64 rx.match_at prog "abbbbc" 0 cl nl mk .
-    guard is_some m3 else return 8 .
-    guard eq (some_value m3) 6 else return 9 .
+  let f option u64 rx.match_at prog. "ab" 0 cl. nl. mk. . .
+  guard is_some f. . else do
+    let n3 option u64 rx.compile "ab{2,}c" prog. st. . .
+    guard is_some n3. . else return 7 . .
+    let m3 option u64 rx.match_at prog. "abbbbc" 0 cl. nl. mk. . .
+    guard is_some m3. . else return 8 . .
+    guard eq some_value m3. . 6 . else return 9 . .
     rem 잘못된 셈은 값으로 거절: 상한<하한, 숫자 없음, 안 닫힘.
-    let e1 option u64 rx.compile "a{4,2}" prog st .
-    guard is_some e1 else do
-      let e2 option u64 rx.compile "a{}" prog st .
-      guard is_some e2 else do
-        let e3 option u64 rx.compile "a{2" prog st .
-        guard is_some e3 else return 42 .
+    let e1 option u64 rx.compile "a{4,2}" prog. st. . .
+    guard is_some e1. . else do
+      let e2 option u64 rx.compile "a{}" prog. st. . .
+      guard is_some e2. . else do
+        let e3 option u64 rx.compile "a{2" prog. st. . .
+        guard is_some e3. . else return 42 . .
         return 12 .
-      end
+      end .
       return 11 .
-    end
+    end .
     return 10 .
-  end
+  end .
   return 13 .
-end
+end .
 
 rem ★★ 단일 패스 탐색 `rx_search` — 재시작 없이 한 번만 훑고도 **rx_find 와 같은 답**을 낸다.
 proc search_pass input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . input cs mut slice u64 . input ns mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "b+c" prog st .
-  guard is_some n else return 1 .
-  let a option u64 rx.find prog "xxbbbc" cl nl mk .
-  guard is_some a else return 2 .
-  let b option u64 rx.search prog "xxbbbc" cl nl mk cs ns .
-  guard is_some b else return 3 .
-  guard eq (some_value a) (some_value b) else return 4 .
-  guard eq (some_value b) 2 else return 5 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "b+c" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let a option u64 rx.find prog. "xxbbbc" cl. nl. mk. . .
+  guard is_some a. . else return 2 . .
+  let b option u64 rx.search prog. "xxbbbc" cl. nl. mk. cs. ns. . .
+  guard is_some b. . else return 3 . .
+  guard eq some_value a. . some_value b. . . else return 4 . .
+  guard eq some_value b. . 2 . else return 5 . .
   rem 닻도 존중한다: "a$" 는 마지막 a 에서만 — 가장 왼쪽 매치의 시작은 2.
-  let n2 option u64 rx.compile "a$" prog st .
-  guard is_some n2 else return 6 .
-  let e option u64 rx.search prog "aaa" cl nl mk cs ns .
-  guard is_some e else return 7 .
-  guard eq (some_value e) 2 else return 8 .
+  let n2 option u64 rx.compile "a$" prog. st. . .
+  guard is_some n2. . else return 6 . .
+  let e option u64 rx.search prog. "aaa" cl. nl. mk. cs. ns. . .
+  guard is_some e. . else return 7 . .
+  guard eq some_value e. . 2 . else return 8 . .
   rem 없으면 none — 그리고 입력을 두 번 훑지 않는다.
-  let n3 option u64 rx.compile "zz" prog st .
-  guard is_some n3 else return 9 .
-  let g option u64 rx.search prog "abcabc" cl nl mk cs ns .
-  guard is_some g else return 42 .
+  let n3 option u64 rx.compile "zz" prog. st. . .
+  guard is_some n3. . else return 9 . .
+  let g option u64 rx.search prog. "abcabc" cl. nl. mk. cs. ns. . .
+  guard is_some g. . else return 42 . .
   return 10 .
-end
+end .
 
 rem ★ ReDoS 형 패턴이 **선형으로** 끝난다: "(a*)*b" 를 a×64 에 — 역추적 엔진은 지수, Pike VM 은 즉답.
 proc no_redos input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "(a*)*b" prog st .
-  guard is_some n else return 1 .
-  let f option u64 rx.match_at prog "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl nl mk .
-  guard is_some f else return 42 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "(a*)*b" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let f option u64 rx.match_at prog. "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl. nl. mk. . .
+  guard is_some f. . else return 42 . .
   return 2 .
-end
+end .
 
 rem ★★ 캡처 그룹(슬라이스 6): `(…)` 마다 시작·끝 위치를 out 에 적는다. 안 잡힌 그룹은 MAX.
 proc captures input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . input cs mut slice u64 . input ns mut slice u64 . input tmp mut slice u64 . input out mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "(a+)(b+)" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_caps prog "aabbb" 0 cl nl mk cs ns tmp out .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 5 else return 3 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "(a+)(b+)" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_caps prog. "aabbb" 0 cl. nl. mk. cs. ns. tmp. out. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 5 . else return 3 . .
   rem 그룹 1 = [0,2) "aa" · 그룹 2 = [2,5) "bbb" — 여는 괄호 순서가 그룹 번호다.
-  guard eq (idx out 0) 0 else return 4 .
-  guard eq (idx out 1) 2 else return 5 .
-  guard eq (idx out 2) 2 else return 6 .
-  guard eq (idx out 3) 5 else return 7 .
+  guard eq idx out. 0 . 0 . else return 4 . .
+  guard eq idx out. 1 . 2 . else return 5 . .
+  guard eq idx out. 2 . 2 . else return 6 . .
+  guard eq idx out. 3 . 5 . else return 7 . .
   rem 안 잡힌 그룹은 MAX 로 남는다 — 0 으로 두면 "위치 0" 과 구별이 안 된다.
-  guard eq (idx out 4) (bit_not 0) else return 8 .
+  guard eq idx out. 4 . bit_not 0 . . else return 8 . .
   rem 갈래에서 안 고른 쪽은 안 잡힌다: "(x)|(a)" 를 "a" 에 → 그룹1 미포획, 그룹2 = [0,1)
-  let n2 option u64 rx.compile "(x)|(a)" prog st .
-  guard is_some n2 else return 9 .
-  let m2 option u64 rx.match_caps prog "a" 0 cl nl mk cs ns tmp out .
-  guard is_some m2 else return 10 .
-  guard eq (idx out 0) (bit_not 0) else return 11 .
-  guard eq (idx out 2) 0 else return 12 .
-  guard eq (idx out 3) 1 else return 13 .
+  let n2 option u64 rx.compile "(x)|(a)" prog. st. . .
+  guard is_some n2. . else return 9 . .
+  let m2 option u64 rx.match_caps prog. "a" 0 cl. nl. mk. cs. ns. tmp. out. . .
+  guard is_some m2. . else return 10 . .
+  guard eq idx out. 0 . bit_not 0 . . else return 11 . .
+  guard eq idx out. 2 . 0 . else return 12 . .
+  guard eq idx out. 3 . 1 . else return 13 . .
   return 42 .
-end
+end .
 
 rem ★★ 유니코드 코드포인트 `\X`(슬라이스 8) — 엔진은 바이트로 걷되, UTF-8 을 **바이트
 rem   오토마톤으로 컴파일**해 글자 하나를 센다(RE2·Rust regex 와 같은 길, 새 옵코드 0).
 proc codepoint input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "\\X" prog st .
-  guard is_some n else return 1 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "\\X" prog. st. . .
+  guard is_some n. . else return 1 . .
   rem "한" = 3바이트지만 **글자 하나**다.
-  let m option u64 rx.match_at prog "한" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 3 else return 3 .
+  let m option u64 rx.match_at prog. "한" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 3 . else return 3 . .
   rem ASCII 는 1바이트, 이모지는 4바이트 — 같은 패턴이 셋 다 하나로 센다.
-  let a option u64 rx.match_at prog "a" 0 cl nl mk .
-  guard is_some a else return 4 .
-  guard eq (some_value a) 1 else return 5 .
-  let e option u64 rx.match_at prog "😀" 0 cl nl mk .
-  guard is_some e else return 6 .
-  guard eq (some_value e) 4 else return 7 .
+  let a option u64 rx.match_at prog. "a" 0 cl. nl. mk. . .
+  guard is_some a. . else return 4 . .
+  guard eq some_value a. . 1 . else return 5 . .
+  let e option u64 rx.match_at prog. "😀" 0 cl. nl. mk. . .
+  guard is_some e. . else return 6 . .
+  guard eq some_value e. . 4 . else return 7 . .
   rem 이어 붙이기·반복도 그대로 된다(그냥 원자이기 때문이다).
-  let n3 option u64 rx.compile "\\X\\X\\X" prog st .
-  guard is_some n3 else return 8 .
-  let m3 option u64 rx.match_at prog "한글자" 0 cl nl mk .
-  guard is_some m3 else return 9 .
-  guard eq (some_value m3) 9 else return 10 .
-  let np option u64 rx.compile "\\X+" prog st .
-  guard is_some np else return 11 .
-  let mp option u64 rx.match_at prog "한글" 0 cl nl mk .
-  guard is_some mp else return 12 .
-  guard eq (some_value mp) 6 else return 13 .
+  let n3 option u64 rx.compile "\\X\\X\\X" prog. st. . .
+  guard is_some n3. . else return 8 . .
+  let m3 option u64 rx.match_at prog. "한글자" 0 cl. nl. mk. . .
+  guard is_some m3. . else return 9 . .
+  guard eq some_value m3. . 9 . else return 10 . .
+  let np option u64 rx.compile "\\X+" prog. st. . .
+  guard is_some np. . else return 11 . .
+  let mp option u64 rx.match_at prog. "한글" 0 cl. nl. mk. . .
+  guard is_some mp. . else return 12 . .
+  guard eq some_value mp. . 6 . else return 13 . .
   rem ★ 대조: `.` 는 여전히 **바이트 하나**다 — 그 계약을 바꾸지 않았다.
-  let nd option u64 rx.compile "." prog st .
-  guard is_some nd else return 14 .
-  let md option u64 rx.match_at prog "한" 0 cl nl mk .
-  guard is_some md else return 15 .
-  guard eq (some_value md) 1 else return 16 .
+  let nd option u64 rx.compile "." prog. st. . .
+  guard is_some nd. . else return 14 . .
+  let md option u64 rx.match_at prog. "한" 0 cl. nl. mk. . .
+  guard is_some md. . else return 15 . .
+  guard eq some_value md. . 1 . else return 16 . .
   return 42 .
-end
+end .
 
 rem ★★ 유니코드 **속성** 클래스 `\p{L}`·`\P{L}` (슬라이스 10) — 코드포인트를 먹은 **뒤에**
 rem   그 값이 표에 드는지 묻는다(CPPROP). 속성 집합은 구간이 수백~수천이라 바이트 오토마톤으로
 rem   펼치면 명령이 수천 개가 된다 — 뒤를 돌아보면 바이트를 안 먹으므로 스레드 보조가 그대로다.
 proc props input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "\\p{L}" prog st .
-  guard is_some n else return 1 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "\\p{L}" prog. st. . .
+  guard is_some n. . else return 1 . .
   rem ASCII 글자 1바이트 · 한글 3바이트 — 둘 다 글자다(표가 진짜라서 둘 다 안다).
-  let a option u64 rx.match_at prog "a" 0 cl nl mk .
-  guard is_some a else return 2 .
-  guard eq (some_value a) 1 else return 3 .
-  let h option u64 rx.match_at prog "한" 0 cl nl mk .
-  guard is_some h else return 4 .
-  guard eq (some_value h) 3 else return 5 .
+  let a option u64 rx.match_at prog. "a" 0 cl. nl. mk. . .
+  guard is_some a. . else return 2 . .
+  guard eq some_value a. . 1 . else return 3 . .
+  let h option u64 rx.match_at prog. "한" 0 cl. nl. mk. . .
+  guard is_some h. . else return 4 . .
+  guard eq some_value h. . 3 . else return 5 . .
   rem 숫자는 글자가 아니다.
-  let d option u64 rx.match_at prog "5" 0 cl nl mk .
-  guard is_some d else do
+  let d option u64 rx.match_at prog. "5" 0 cl. nl. mk. . .
+  guard is_some d. . else do
     rem `\p{N}` 은 숫자를 받고, 전각 숫자도 받는다(ASCII 만 세는 표였으면 여기서 걸린다).
-    let n2 option u64 rx.compile "\\p{N}" prog st .
-    guard is_some n2 else return 6 .
-    let d2 option u64 rx.match_at prog "5" 0 cl nl mk .
-    guard is_some d2 else return 7 .
-    let f2 option u64 rx.match_at prog "０" 0 cl nl mk .
-    guard is_some f2 else return 8 .
-    guard eq (some_value f2) 3 else return 9 .
+    let n2 option u64 rx.compile "\\p{N}" prog. st. . .
+    guard is_some n2. . else return 6 . .
+    let d2 option u64 rx.match_at prog. "5" 0 cl. nl. mk. . .
+    guard is_some d2. . else return 7 . .
+    let f2 option u64 rx.match_at prog. "０" 0 cl. nl. mk. . .
+    guard is_some f2. . else return 8 . .
+    guard eq some_value f2. . 3 . else return 9 . .
     rem `\P{L}` = 글자가 **아닌** 코드포인트 하나.
-    let n3 option u64 rx.compile "\\P{L}" prog st .
-    guard is_some n3 else return 10 .
-    let p3 option u64 rx.match_at prog "5" 0 cl nl mk .
-    guard is_some p3 else return 11 .
-    let q3 option u64 rx.match_at prog "a" 0 cl nl mk .
-    guard is_some q3 else return 42 .
+    let n3 option u64 rx.compile "\\P{L}" prog. st. . .
+    guard is_some n3. . else return 10 . .
+    let p3 option u64 rx.match_at prog. "5" 0 cl. nl. mk. . .
+    guard is_some p3. . else return 11 . .
+    let q3 option u64 rx.match_at prog. "a" 0 cl. nl. mk. . .
+    guard is_some q3. . else return 42 . .
     return 12 .
-  end
+  end .
   return 13 .
-end
+end .
 
 rem ★ 이어붙임·반복도 그대로 된다: "\p{L}+" 는 글자 여럿(한글 두 자 = 6바이트).
 proc props_rep input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "\\p{L}+" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_at prog "한글" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 6 else return 3 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "\\p{L}+" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_at prog. "한글" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 6 . else return 3 . .
   rem 글자 뒤에 숫자가 오면 글자까지만 먹는다.
-  let m2 option u64 rx.match_at prog "ab3" 0 cl nl mk .
-  guard is_some m2 else return 4 .
-  guard eq (some_value m2) 2 else return 5 .
+  let m2 option u64 rx.match_at prog. "ab3" 0 cl. nl. mk. . .
+  guard is_some m2. . else return 4 . .
+  guard eq some_value m2. . 2 . else return 5 . .
   return 42 .
-end
+end .
 
 rem ★★ 세부 범주 — `\p{Lu}`·`\p{Ll}`·`\p{Nd}`. 두 글자 이름은 **좁히는** 것이지 넓히는 게 아니다.
 proc props_sub input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
-  guard ge (len prog) 32 else return 90 .
+  guard ge len prog. . 32 . else return 90 . .
   rem 대문자만 — 'A' 는 받고 'a' 는 거절한다(L 이면 둘 다 받았을 것이다).
-  let n option u64 rx.compile "\\p{Lu}" prog st .
-  guard is_some n else return 1 .
-  let a option u64 rx.match_at prog "A" 0 cl nl mk .
-  guard is_some a else return 2 .
-  let b option u64 rx.match_at prog "a" 0 cl nl mk .
-  guard is_some b else do
+  let n option u64 rx.compile "\\p{Lu}" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let a option u64 rx.match_at prog. "A" 0 cl. nl. mk. . .
+  guard is_some a. . else return 2 . .
+  let b option u64 rx.match_at prog. "a" 0 cl. nl. mk. . .
+  guard is_some b. . else do
     rem ASCII 밖도 안다: 'Ω'(U+03A9)는 대문자, 'ω' 는 아니다.
-    let g option u64 rx.match_at prog "Ω" 0 cl nl mk .
-    guard is_some g else return 3 .
-    guard eq (some_value g) 2 else return 4 .
-    let g2 option u64 rx.match_at prog "ω" 0 cl nl mk .
-    guard is_some g2 else do
+    let g option u64 rx.match_at prog. "Ω" 0 cl. nl. mk. . .
+    guard is_some g. . else return 3 . .
+    guard eq some_value g. . 2 . else return 4 . .
+    let g2 option u64 rx.match_at prog. "ω" 0 cl. nl. mk. . .
+    guard is_some g2. . else do
       rem 소문자만.
-      let n2 option u64 rx.compile "\\p{Ll}" prog st .
-      guard is_some n2 else return 5 .
-      let c option u64 rx.match_at prog "a" 0 cl nl mk .
-      guard is_some c else return 6 .
-      let d option u64 rx.match_at prog "A" 0 cl nl mk .
-      guard is_some d else do
+      let n2 option u64 rx.compile "\\p{Ll}" prog. st. . .
+      guard is_some n2. . else return 5 . .
+      let c option u64 rx.match_at prog. "a" 0 cl. nl. mk. . .
+      guard is_some c. . else return 6 . .
+      let d option u64 rx.match_at prog. "A" 0 cl. nl. mk. . .
+      guard is_some d. . else do
         rem 십진 숫자만 — 로마 숫자 'Ⅶ'(U+2166)는 N 이지만 **Nd 가 아니다**.
-        let n3 option u64 rx.compile "\\p{Nd}" prog st .
-        guard is_some n3 else return 7 .
-        let e option u64 rx.match_at prog "7" 0 cl nl mk .
-        guard is_some e else return 8 .
-        let f option u64 rx.match_at prog "Ⅶ" 0 cl nl mk .
-        guard is_some f else do
+        let n3 option u64 rx.compile "\\p{Nd}" prog. st. . .
+        guard is_some n3. . else return 7 . .
+        let e option u64 rx.match_at prog. "7" 0 cl. nl. mk. . .
+        guard is_some e. . else return 8 . .
+        let f option u64 rx.match_at prog. "Ⅶ" 0 cl. nl. mk. . .
+        guard is_some f. . else do
           rem ★ Lt·Lm·Lo·Nl·No 도 이제 있다(2026-07-26). Ⅶ 는 **Nl** 이다 — Nd 가 아니라.
-          let n4 option u64 rx.compile "\\p{Nl}" prog st .
-          guard is_some n4 else return 9 .
-          let g4 option u64 rx.match_at prog "Ⅶ" 0 cl nl mk .
-          guard is_some g4 else return 10 .
+          let n4 option u64 rx.compile "\\p{Nl}" prog. st. . .
+          guard is_some n4. . else return 9 . .
+          let g4 option u64 rx.match_at prog. "Ⅶ" 0 cl. nl. mk. . .
+          guard is_some g4. . else return 10 . .
           rem 한글은 Lo 다.
-          let n5 option u64 rx.compile "\\p{Lo}" prog st .
-          guard is_some n5 else return 11 .
-          let g5 option u64 rx.match_at prog "한" 0 cl nl mk .
-          guard is_some g5 else return 12 .
+          let n5 option u64 rx.compile "\\p{Lo}" prog. st. . .
+          guard is_some n5. . else return 11 . .
+          let g5 option u64 rx.match_at prog. "한" 0 cl. nl. mk. . .
+          guard is_some g5. . else return 12 . .
           rem 그래도 **모르는 이름**은 여전히 거절한다: \p{So}(기호-기타)는 표가 없다.
-          let bad option u64 rx.compile "\\p{So}" prog st .
-          guard is_some bad else return 42 .
+          let bad option u64 rx.compile "\\p{So}" prog. st. . .
+          guard is_some bad. . else return 42 . .
           return 13 .
-        end
+        end .
         return 10 .
-      end
+      end .
       return 11 .
-    end
+    end .
     return 12 .
-  end
+  end .
   return 13 .
-end
+end .

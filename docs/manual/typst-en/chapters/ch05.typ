@@ -46,7 +46,7 @@ ops too --- ops the language made in advance, called *core ops*.
 
 #demo("examples/ch05/kinds.low")
 
-All three ops are `fn`s. `add3` adds three arguments, and `fact` is recursive, calling itself. `fact`'s `requires le n 20 .` is there
+All three ops are `fn`s. `add3` adds three arguments, and `fact` is recursive, calling itself. `fact`'s `requires le n. 20 . .` is there
 because 21! exceeds `u64`. Without that contract, `fact 21` would stop at a multiplication (#chref("numbers")). With it, execution stops
 *on entry*, and where it stopped tells you it was the caller's fault.
 
@@ -114,13 +114,14 @@ fn   add3   input a i32 .   input b i32 .   input c i32 .   output i32 .
 │    │      └─ parameter a has type i32 ─┘                   └ type of the returned value
 │    └─ name (used when calling)
 └─ kind: fn (pure) or proc (may have effects)
-do                          ← the body starts here
-  return add (add a b) c .  ← compute and return; a statement also ends with a stop
-end                         ← the body ends, and so does the whole declaration (no stop after it)
+do                                ← the body starts here
+  return add add a. b. . c. . .   ← compute and return; each value and the statement close with their own stops
+end .                             ← the body ends, and the stop closes the whole declaration
 ```
 
-To call an op, write its name followed by the arguments *separated by spaces*. `add3 1 2 3` is one call, and parentheses are used only to
-put one call inside another as an argument --- `add3 (add3 1 2 3) 4 5`. Parentheses simply mean "this is one value". There is no C-style
+To call an op, write its name, then the arguments *separated by spaces*, then the stop that closes the call. `add3 1 2 3 .` is one
+call. A call used as an argument closes with its own stop first --- `add3 add3 1 2 3 . 4 5 .`. Parentheses may be added to make the
+inner call stand out, `add3 (add3 1 2 3 .) 4 5 .`, and they change nothing. There is no C-style
 `add3(1, 2, 3)`: the comma has no meaning in this language, so it is rejected (see «Common mistakes» below).
 
 A parameter is one `input <name> <type> .` clause. For several, repeat the clause. The caller supplies arguments in clause order. The
@@ -129,8 +130,8 @@ returned value is a single `output <type> .`, and the body returns it with `retu
 ```lowent
 fn compare input a i32 . input b i32 . output i32 .
 do
-  return sub a b .
-end
+  return sub a. b. . .
+end .
 ```
 
 Words in front of the type say ownership, mutability and presence. The ones you meet often are these.
@@ -158,11 +159,11 @@ is 0, a `bool` is `false`, an `option` is `none`, a struct is zero field by fiel
 ```lowent
 fn total input xs slice u64 . output t u64 .
 do
-  for x xs do
-    set t (add t x) .
-  end
-  return t .
-end
+  for x xs. do
+    set t. add t. x. . .
+  end .
+  return t. .
+end .
 ```
 
 If the first word after `output` names a type, the whole output is a type (`output result u64 perr .`); otherwise it is the
@@ -170,19 +171,19 @@ name of the result. A type with no defined zero (a slice, a `result`, an enum, �
 write such an output without a name and return a value. `ensures` still refers to the result as `ret`.
 
 An op can return an array too --- `output r array u64 3 .`. An array has no way to be returned by value, so *the caller gives
-the place*: the caller binds the result to a name (`let s array u64 3 squares n .`) and the callee builds straight into that
-name's bytes. That is why it cannot be called in the middle of an expression (`idx (squares n) 0` is `E-RESULT-PLACE`) ---
+the place*: the caller binds the result to a name (`let s array u64 3 squares n. . .`) and the callee builds straight into that
+name's bytes. That is why it cannot be called in the middle of an expression (`idx squares n. . 0 .` is `E-RESULT-PLACE`) ---
 bind it to a name first.
 
 ```lowent
 fn squares input n u64 . output r array u64 3 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
   repeat i u64 3 do
-    set (idx r i) (mul (add n i) (add n i)) .
-  end
-  return r .
-end
+    set idx r. i. . mul add n. i. . add n. i. . . .
+  end .
+  return r. .
+end .
 ```
 
 == Only `neg` is unary
@@ -214,7 +215,7 @@ unsafe extern proc c_area do
   output i64 .
   effects unsafe .
   link lw_c_area .
-end
+end .
 ```
 
 == An op inside an op
@@ -248,7 +249,7 @@ can come back to this section.
 
   A Lowent call is prefix notation: *the name, then the arguments separated by spaces*. The comma was once part of the language and has
   been removed, hence `E-VOCAB-REMOVED`. Calls avoid parentheses and commas so that everyone writes the same shape with as few symbols as
-  possible --- even on a phone keyboard. The fix: `return add3 1 2 3 .`
+  possible --- even on a phone keyboard. The fix: `return add3 1 2 3 . .`
 ]
 
 #antipattern[The number of arguments differs from the `input` clauses][
@@ -291,19 +292,19 @@ can come back to this section.
   id: "ops-glance",
   caption: [Op syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`fn f input a T . output R . do … end`], [a pure op], [the head alone tells whether results may be cached, reordered or dropped],
-  [`proc f … effects E . do … end`], [an op that may have effects], [what it does (`E`) is visible in the head],
+  [`fn f input a T . output R . do … end .`], [a pure op], [the head alone tells whether results may be cached, reordered or dropped],
+  [`proc f … effects E . do … end .`], [an op that may have effects], [what it does (`E`) is visible in the head],
   [`input x T .`], [one parameter], [one per clause, so each name and type sits on its own line],
   [`output T .` · `output void .`], [type of the returned value · no returned value], [one return value --- bundle several in a `struct`],
   [`output r T .`], [a named result --- a local that starts at zero], [an op that builds its result loses the «zero-filled local» line],
   [`return e .`], [return a value and finish], [required on every path (`E-RETURN-PARTIAL`)],
   [`f a b c`], [a call --- name, then space-separated arguments], [prefix notation without parentheses or commas],
-  [`f (g a) b`], [a call used as an argument], [parentheses mean "this is one value"],
+  [`f g a. . b. .`], [a call used as an argument], [parentheses mean "this is one value"],
   [`requires c .`], [a condition the caller must meet], [blame lands on the caller, at entry (#chref("contracts"))],
   [`effects state .`], [writes to the caller's storage], [the head of an op that writes through `mut` parameters],
-  [`neg a`], [flip the sign (the only unary arithmetic)], [a name, so it never gets confused with subtraction],
+  [`neg a. .`], [flip the sign (the only unary arithmetic)], [a name, so it never gets confused with subtraction],
   [`export` · `extern` · `unsafe`], [exported · body in C · does unchecked things], [what an op may do is visible before its name],
-  [`fn g … end` right under `do`], [local op --- visible only inside that op], [sees no outer name --- not a closure],
+  [`fn g … end .` right under `do`], [local op --- visible only inside that op], [sees no outer name --- not a closure],
 )
 
 #recap[

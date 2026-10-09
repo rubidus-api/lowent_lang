@@ -8,9 +8,9 @@ Reads bytes already in memory *like a stream*, a little at a time. Used to scan 
 `read(buf) → n` but *peek · take · toss → views* --- instead of filling caller memory, it hands out borrowed views pointing into the original (zero copies).
 
 ```lowent
-var r io.mem_reader spawn actor io.mem_reader .
-let z u64 send r attach src .
-let line option slice u8 send r take_line 4096 .
+var r io.mem_reader spawn actor io.mem_reader . .
+let z u64 send r. attach src. . .
+let line option slice u8 send r. take_line 4096 . .
 ```
 
 *Why no capability is needed.* This module only cuts bytes already in memory and never reaches the kernel. Only the side actually filling bytes (`read_in` needs `cap io`,
@@ -47,21 +47,21 @@ knows how long a line may legitimately be. *No partial consumption* --- on `none
 
 ```lowent
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r io.mem_reader spawn actor io.mem_reader .
-  let z u64 send r attach src .
+  var r io.mem_reader spawn actor io.mem_reader . .
+  let z u64 send r. attach src. . .
   var lines u64 0 .
   var going bool true .
-  while going do
-    let l option slice u8 send r take_line 4096 .
-    if is_some l do set lines (add lines 1) . end
-    if eq (is_some l) false do set going false . end
-  end
-  if gt (send r remaining) 0 do set lines (add lines 1) . end
-  return lines .
-end
+  while going. do
+    let l option slice u8 send r. take_line 4096 . .
+    if is_some l. . do set lines. add lines. 1 . . end .
+    if eq is_some l. . false . do set going. false . end .
+  end .
+  if gt send r. remaining . 0 . do set lines. add lines. 1 . . end .
+  return lines. .
+end .
 ```
 
-`count_lines` knows neither files nor stdin --- `main` fills bytes with one capability-holding line (`read_in out 0 buf`) and passes them via `subslice`. A final piece without
+`count_lines` knows neither files nor stdin --- `main` fills bytes with one capability-holding line (`read_in out. 0 buf. .`) and passes them via `subslice`. A final piece without
 a newline is not given by `take_line`, so `remaining` checks for it.
 
 #antipattern[Treating `take_line`'s `none` as EOF][
@@ -70,7 +70,7 @@ a newline is not given by `take_line`, so `remaining` checks for it.
 ]
 
 #antipattern[Comparing CRLF input views as is][
-  `take_line` does not strip CR, so the view is `"data\r"`. It looks identical but `eq` is always `false` (one byte longer). Strip it with `strings.remove_suffix line "\r"` before
+  `take_line` does not strip CR, so the view is `"data\r"`. It looks identical but `eq` is always `false` (one byte longer). Strip it with `strings.remove_suffix line. "\r" .` before
   comparing.
 ]
 

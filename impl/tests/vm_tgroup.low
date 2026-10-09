@@ -12,44 +12,44 @@ rem   ★ 아직 없는 것(정직히): `await`(결과 수확) · `cancel_on_err
 module vm_tgroup .
 
 actor counter do
-  state do v u64 . end
-  proc inc output u64 . effects state . do set v expr v + 1 . return v . end
-  fn get output u64 . do return v . end
-end
+  state do v u64 . end .
+  proc inc output u64 . effects state . do set v. expr v. + 1 . . return v. . end .
+  fn get output u64 . do return v. . end .
+end .
 
 rem 태스크: 주어진 카운터에 inc 한 번 보낸다(그리고 그룹 join 이 그 메시지도 배달한다).
 proc worker input c counter . output u64 . effects state . do
-  spawn send c inc .
+  spawn send c. inc . .
   return 0 .
-end
+end .
 
 rem 순서 무관: 두 태스크가 각자 inc → 어떤 실행 순서든 get=2. 오라클이 전 interleaving 확인.
 test tg_independent schedule explore_interleavings . do
-  var c counter spawn actor counter .
+  var c counter spawn actor counter . .
   task_group do
-    spawn worker c .
-    spawn worker c .
-  end
-  expect eq (send c get) 2 .
-end
+    spawn worker c. .
+    spawn worker c. .
+  end .
+  expect eq send c. get . 2 . .
+end .
 
 rem 셋도 마찬가지 — 그룹이 셋을 join, 순서 무관하게 get=3.
 test tg_three schedule explore_interleavings . do
-  var c counter spawn actor counter .
+  var c counter spawn actor counter . .
   task_group do
-    spawn worker c .
-    spawn worker c .
-    spawn worker c .
-  end
-  expect eq (send c get) 3 .
-end
+    spawn worker c. .
+    spawn worker c. .
+    spawn worker c. .
+  end .
+  expect eq send c. get . 3 . .
+end .
 
 rem `task_group` 문 + join, 스칼라 반환 — VM≡네이티브(차등 스윕).
 proc drive output u64 . effects state . do
-  var c counter spawn actor counter .
+  var c counter spawn actor counter . .
   task_group do
-    spawn worker c .
-    spawn worker c .
-  end
-  return send c get .
-end
+    spawn worker c. .
+    spawn worker c. .
+  end .
+  return send c. get . .
+end .

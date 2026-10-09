@@ -4,5 +4,5 @@ rem expect: E-CHAR-WIDTH
 fn size output u64 .
 do
   rem ko: ✘ 작은따옴표는 글자 하나다 --- 문자열은 큰따옴표 "hi" 로 쓴다 /// en: ✘ single quotes hold one character --- strings use double quotes, "hi"
-  return len 'hi' .
-end
+  return len 'hi' . .
+end .

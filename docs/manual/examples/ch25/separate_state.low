@@ -4,20 +4,20 @@ rem run: two_counters
 actor counter do
   state do
     value u64 .
-  end
+  end .
   proc inc output u64 . effects state .
   do
-    set value (add value 1) .
-    return value .
-  end
-end
+    set value. add value. 1 . .
+    return value. .
+  end .
+end .
 
 proc two_counters output u64 . effects state .
 do
-  var left counter spawn actor counter .
-  var right counter spawn actor counter .
-  let a u64 send left inc .
-  let b u64 send left inc .
+  var left counter spawn actor counter . .
+  var right counter spawn actor counter . .
+  let a u64 send left. inc . .
+  let b u64 send left. inc . .
   rem ko: `right` 는 자기 상태를 따로 가진다 --- 1 이 나온다 /// en: `right` has its own state --- the result is 1
-  return send right inc .
-end
+  return send right. inc . .
+end .

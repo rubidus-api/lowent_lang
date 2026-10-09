@@ -12,8 +12,8 @@ for a million elements. In exchange, elements must already be in line to choose 
 use searchlib .
 use sortlib .
 
-sortlib.sort s .
-let i option u64 searchlib.bsearch s 42 .
+sortlib.sort s. .
+let i option u64 searchlib.bsearch s. 42 . .
 ```
 
 #aside[Sortedness is not checked][
@@ -27,7 +27,7 @@ let i option u64 searchlib.bsearch s 42 .
   caption: [Ops of `searchlib` --- all `fn` · `effects none`],
   [*op*], [*Shape*], [*Answer*],
   [`bsearch`], [`(s slice u64, target u64) → option u64`], [index of `target`, or `none`. With duplicates, *one* of them (which one is unspecified)],
-  [`lower_bound`], [`(s slice u64, target u64) → u64`], [first index at or above `target`. `len s` if all are smaller],
+  [`lower_bound`], [`(s slice u64, target u64) → u64`], [first index at or above `target`. `len s. .` if all are smaller],
 )
 
 How to choose --- "is it there, and where" is `bsearch`; "where would it go" or "where do values at or above this start" is `lower_bound`. `lower_bound` is both *insertion
@@ -38,15 +38,15 @@ The implementation runs on the half-open range `[lo, hi)` with midpoint `lo + (h
 
 ```lowent
 fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i u64 searchlib.lower_bound s a .
-  let j u64 searchlib.lower_bound s b .
-  guard lt i j else return 0 .
-  return sub j i .
-end
+  let i u64 searchlib.lower_bound s. a. . .
+  let j u64 searchlib.lower_bound s. b. . .
+  guard lt i. j. . else return 0 . .
+  return sub j. i. . .
+end .
 ```
 
 #antipattern[Not separating `bsearch`'s `none`][
-  `return some_value r .` compiles, and stops with `E-VM-NONE` the moment nothing is found. Testing only with present values never triggers it --- seeing an `option`, add
+  `return some_value r. . .` compiles, and stops with `E-VM-NONE` the moment nothing is found. Testing only with present values never triggers it --- seeing an `option`, add
   `guard is_some` (#chref("option-result")).
 ]
 
@@ -55,8 +55,8 @@ end
 ]
 
 #antipattern[Indexing directly with `lower_bound`'s result][
-  If not found, `i` is `len s`, a position that does not exist --- `idx s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table's maximum, so it tends
-  to hit with real data. Put `guard lt i (len s)` first.
+  If not found, `i` is `len s. .`, a position that does not exist --- `idx s. i. .` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table's maximum, so it tends
+  to hit with real data. Put `guard lt i. len s. . .` first.
 ]
 
 *Cautions.* It cannot be used as is on descending data (there is no place to swap in a comparator). *Sort once, search many times* --- calling `sort` before each search loses

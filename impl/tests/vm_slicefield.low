@@ -6,62 +6,62 @@ def struct packet do
   tag u8 .
   body slice u8 .
   nums slice u64 .
-end
+end .
 
 export proc build input a u8 . output u64 . effects state . do
   var back lit array u8 128 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
-  let payload lit array u8 4 1 2 3 a . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  let body_bytes lit array u8 4 1 2 3 a. . .
   let ws lit array u64 3 10 20 30 . .
-  let m use bb packet lit packet do tag 7 . body payload . nums ws . end else return 999 .
-  let b slice u8 field m body .
-  let n slice u64 field m nums .
-  return add (add (widen u64 (field m tag)) (widen u64 (idx b 3))) (add (idx n 2) (mul (len b) 1000)) .
-end
+  let m use bb. packet lit packet do tag 7 . body body_bytes. . nums ws. . end . else return 999 . .
+  let b slice u8 field m. body . .
+  let n slice u64 field m. nums . .
+  return add add widen u64 field m. tag . . widen u64 idx b. 3 . . . add idx n. 2 . mul len b. . 1000 . . . .
+end .
 
 def struct msg do
   tag u8 .
   body slice u8 .
-end
+end .
 
 def struct sv do
   v slice i16 .
-end
+end .
 
 export proc rewrite input a u8 . output u64 . effects state . do
   var back lit array u8 64 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
   let one lit array u8 2 1 2 . .
-  let two lit array u8 3 7 8 a . .
-  var m use bb msg lit msg do tag 1 . body one . end else return 999 .
-  set (field m body) two .
-  let b slice u8 field m body .
-  return add (mul (len b) 100) (widen u64 (idx b 2)) .
-end
+  let two lit array u8 3 7 8 a. . .
+  var m use bb. msg lit msg do tag 1 . body one. . end . else return 999 . .
+  set field m. body . two. .
+  let b slice u8 field m. body . .
+  return add mul len b. . 100 . widen u64 idx b. 2 . . . .
+end .
 
 export proc signed output i64 . effects state . do
   var back lit array u8 64 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
   let xs lit array i16 3 -5 7 -300 . .
-  let q use bb sv lit sv do v xs . end else return 0 .
-  let s slice i16 field q v .
-  return add (widen i64 (idx s 0)) (widen i64 (idx s 2)) .
-end
+  let q use bb. sv lit sv do v xs. . end . else return 0 . .
+  let s slice i16 field q. v . .
+  return add widen i64 idx s. 0 . . widen i64 idx s. 2 . . . .
+end .
 
 export proc rounds input n u64 . output u64 . effects state . do
   var back lit array u8 40 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
   let data lit array u8 3 4 5 6 . .
   var s u64 0 .
   var i u64 0 .
-  while lt i n do
-    let m use bb msg lit msg do tag 1 . body data . end else return 999 .
-    set s (add s (widen u64 (idx (field m body) 1))) .
-    set i (add i 1) .
-  end
-  return add s (mul (send bb used) 1000) .
-end
+  while lt i. n. . do
+    let m use bb. msg lit msg do tag 1 . body data. . end . else return 999 . .
+    set s. add s. widen u64 idx field m. body . 1 . . . .
+    set i. add i. 1 . .
+  end .
+  return add s. mul send bb. used . 1000 . . .
+end .

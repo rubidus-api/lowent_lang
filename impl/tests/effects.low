@@ -2,23 +2,23 @@ fn clean_add
   input a i32 . input b i32 .
   output i32 .
 do
-  return add a b .
-end
+  return add a. b. . .
+end .
 
 fn bad_pure
   input x i32 .
 do
   print "side effect!" .
-  return x .
-end
+  return x. .
+end .
 
 proc do_io
   effects io .
 do
   print "ok in proc" .
-end
+end .
 
 fn calls_proc
 do
   do_io .
-end
+end .

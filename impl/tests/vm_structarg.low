@@ -13,7 +13,7 @@ module vm_structarg .
 def struct pt do
   x u8 .
   y u8 .
-end
+end .
 
-fn getx input p pt . output u8 . do return field p x . end
-fn gety input p pt . output u8 . do return field p y . end
+fn getx input p pt . output u8 . do return field p. x . . end .
+fn gety input p pt . output u8 . do return field p. y . . end .

@@ -17,9 +17,9 @@ Builds strings **by appending little by little**. Use it to assemble a path from
 ```lowent
 use strbuf .
 
-var b strbuf.str_buf strbuf.new .
-let r result void strbuf.sb_error strbuf.append b buf "hello" .
-guard is_ok r else return 1 .
+var b strbuf.str_buf strbuf.new. .
+let r result void strbuf.sb_error strbuf.append b. buf. "hello" . .
+guard is_ok r. . else return 1 . .
 ```
 
 In this module a “buffer” is two pieces — the **state** `b` remembering how much was written, and the **place** `buf` where the bytes actually go. They are separate, so ops always receive both. Where the buffer comes from (`cap allocator`, a region, a static buffer) is the caller’s business, and the library **never allocates behind your back**. The only core op added is `cstr_of`, which gives the raw pointer of a slice.
@@ -54,9 +54,9 @@ There are three types. `str_buf` (state `len u64`), `sb_error` (one failure name
 | `as_str` | `fn (b str_buf, buf slice u8) → slice u8` | — (a view, not a copy) |
 | `room` | `fn (b str_buf, buf slice u8) → u64` | stops on underflow for an empty (length 0) buffer |
 | `as_cstr` | `unsafe proc (b str_buf, buf mut slice u8) → cstr` | stops out of bounds if `len + 1 > len(buf)` |
-| `append` | `proc (b mut str_buf, buf mut slice u8, s slice u8) → result void sb_error` | `error no_room` (buffer unchanged) |
-| `append_trunc` | `proc (b mut str_buf, buf mut slice u8, s slice u8) → u64` | — (known from count written < `len s`) |
-| `append_grow` | `proc (b mut str_buf, old mut slice u8, new_buf mut slice u8, s slice u8) → result void sb_error` | `error no_room` (original unchanged) |
+| `append` | `proc (b mut str_buf, buf mut slice u8, s slice u8) → result void sb_error` | `error no_room .` (buffer unchanged) |
+| `append_trunc` | `proc (b mut str_buf, buf mut slice u8, s slice u8) → u64` | — (known from count written < `len s. .`) |
+| `append_grow` | `proc (b mut str_buf, old mut slice u8, new_buf mut slice u8, s slice u8) → result void sb_error` | `error no_room .` (original unchanged) |
 
 *Table 50.2 — Ops of `strbuf`*
 
@@ -66,9 +66,9 @@ There are three types. `str_buf` (state `len u64`), `sb_error` (one failure name
 - **`as_str`** — a view of the bytes written so far, i.e. `subslice buf 0 len`. The null is not in the view — the length is the truth.
 - **`room`** — remaining content capacity `len(buf) − 1 − len`. The 1 byte for the null is excluded. Use it to ask “can this much more go in” before appending.
 - **`as_cstr`** — seals a null at position `len` and gives the start pointer as `cstr`. `buf` is `mut` because it **actually writes** the null byte. `cstr_of` is `effects unsafe`, so this op is `unsafe` too and cannot be called from pure code.
-- **`append`** — if `len + len(s) + 1 ≤ len(buf)`, writes everything, seals and gives `ok`. Otherwise `error no_room`, and **not a single byte is written** (length and buffer unchanged). A half-written buffer is silently wrong content, which is worse than refusal.
-- **`append_trunc`** — writes only as much as fits and returns the count written. Comparing it with `len s` tells whether it was truncated. Without comparing, you never know.
-- **`append_grow`** — moving the old content to `new_buf`, appending `s` and sealing is one action. The `new_buf` parameter is the embodiment of “never allocates behind your back”. If even the new place is too small, `error no_room`, and **nothing is moved**. To grow you must be the one holding larger bytes.
+- **`append`** — if `len + len(s) + 1 ≤ len(buf)`, writes everything, seals and gives `ok`. Otherwise `error no_room .`, and **not a single byte is written** (length and buffer unchanged). A half-written buffer is silently wrong content, which is worse than refusal.
+- **`append_trunc`** — writes only as much as fits and returns the count written. Comparing it with `len s. .` tells whether it was truncated. Without comparing, you never know.
+- **`append_grow`** — moving the old content to `new_buf`, appending `s` and sealing is one action. The `new_buf` parameter is the embodiment of “never allocates behind your back”. If even the new place is too small, `error no_room .`, and **nothing is moved**. To grow you must be the one holding larger bytes.
 
 ## <a id="sx4"></a>Using it
 
@@ -80,39 +80,39 @@ module demo .
 use strbuf .
 
 proc build input buf mut slice u8 . output u64 . effects none . do
-  var b strbuf.str_buf strbuf.new .
-  let r1 result void strbuf.sb_error strbuf.append b buf "ab" .
-  guard is_ok r1 else return 90 .
-  guard eq (field b len) 2 else return 91 .
+  var b strbuf.str_buf strbuf.new. .
+  let r1 result void strbuf.sb_error strbuf.append b. buf. "ab" . .
+  guard is_ok r1. . else return 90 . .
+  guard eq field b. len . 2 . else return 91 . .
   rem the seal --- a null at position len (buf[2])
-  guard eq (idx buf 2) 0 else return 92 .
+  guard eq idx buf. 2 . 0 . else return 92 . .
   rem buffer 5 = content 4 + null 1 --- 2 + 3 + 1 > 5, so refused and the buffer stays clean
-  let r2 result void strbuf.sb_error strbuf.append b (subslice buf 0 5) "xyz" .
-  guard is_error r2 else return 93 .
-  guard eq (field b len) 2 else return 94 .
+  let r2 result void strbuf.sb_error strbuf.append b. subslice buf. 0 5 . "xyz" . .
+  guard is_error r2. . else return 93 . .
+  guard eq field b. len . 2 . else return 94 . .
   rem in the same situation trunc writes as much as fits (2) and returns 2
-  let n u64 strbuf.append_trunc b (subslice buf 0 5) "xyz" .
-  guard eq n 2 else return 95 .
-  return field b len .
-end
+  let n u64 strbuf.append_trunc b. subslice buf. 0 5 . "xyz" . .
+  guard eq n. 2 . else return 95 . .
+  return field b. len . .
+end .
 ```
 
 Growth is expressed by the caller giving a new place.
 
 ```lowent
 proc grow input small mut slice u8 . input big mut slice u8 . output u64 . effects none . do
-  var b strbuf.str_buf strbuf.new .
-  let r1 result void strbuf.sb_error strbuf.append b small "ab" .
-  guard is_ok r1 else return 90 .
-  let r2 result void strbuf.sb_error strbuf.append b small "xyz" .
-  guard is_error r2 else return 91 .
+  var b strbuf.str_buf strbuf.new. .
+  let r1 result void strbuf.sb_error strbuf.append b. small. "ab" . .
+  guard is_ok r1. . else return 90 . .
+  let r2 result void strbuf.sb_error strbuf.append b. small. "xyz" . .
+  guard is_error r2. . else return 91 . .
   rem I provide the larger place --- the library does not allocate
-  let r3 result void strbuf.sb_error strbuf.append_grow b small big "xyz" .
-  guard is_ok r3 else return 92 .
-  guard eq (idx big 0) 97 else return 93 .
-  guard eq (idx big 2) 120 else return 94 .
-  return field b len .
-end
+  let r3 result void strbuf.sb_error strbuf.append_grow b. small. big. "xyz" . .
+  guard is_ok r3. . else return 92 . .
+  guard eq idx big. 0 . 97 . else return 93 . .
+  guard eq idx big. 2 . 120 . else return 94 . .
+  return field b. len . .
+end .
 ```
 
 `build` gives 4 (“ab” 2 + 2 written by trunc) and `grow` gives 5 (“abxyz”). The real use is path assembly — append with `append b pathbuf dpath`, `append b pathbuf "/"`, `append b pathbuf name`, then take the view with `as_str b pathbuf` and pass it to [`files`](sec118.md#mod-files).
@@ -123,22 +123,22 @@ end
 >
 > > ```lowent
 > > fn f input b strbuf.str_buf . input buf mut slice u8 . output u64 . do
-> >   let p strbuf.cstr strbuf.as_cstr b buf .   rem ✗ calling an unsafe proc from a fn
+> >   let p strbuf.cstr strbuf.as_cstr b. buf. . .   rem ✗ calling an unsafe proc from a fn
 > >   return 0 .
-> > end
+> > end .
 > > ```
 > >
 > > Rejected at translation with `E-EFFECT-CALC`. Making a `cstr` is a guarantee of null termination, and that guarantee stands only inside an `unsafe` boundary. Make the caller an `unsafe proc`.
 
 > **Counter-example. A buffer size forgetting the null**
 >
-> > If the buffer is exactly 2 bytes, not even `"ab"` fits (2 + 0 + null 1 > 2). The very first `append` is `error no_room` and `field b len` stays at 0. Content of n bytes needs a buffer of n + 1 bytes.
+> > If the buffer is exactly 2 bytes, not even `"ab"` fits (2 + 0 + null 1 > 2). The very first `append` is `error no_room .` and `field b. len .` stays at 0. Content of n bytes needs a buffer of n + 1 bytes.
 
 > **Counter-example. Reading the buffer without checking the `result`**
 >
 > > ```lowent
-> > let r result void strbuf.sb_error strbuf.append b buf "hello" .
-> > let v slice u8 strbuf.as_str b buf .   rem ✗ r was not checked
+> > let r result void strbuf.sb_error strbuf.append b. buf. "hello" . .
+> > let v slice u8 strbuf.as_str b. buf. . .   rem ✗ r was not checked
 > > ```
 > >
 > > No stop and no error. The buffer is not broken either — refusal does not touch it. You just get **a short string missing what you expected**. `guard is_ok r else …` comes first.
@@ -146,8 +146,8 @@ end
 > **Counter-example. Mixing state and buffer**
 >
 > > ```lowent
-> > let r result void strbuf.sb_error strbuf.append b buf1 "ab" .
-> > let v slice u8 strbuf.as_str b buf2 .   rem ✗ length from buf1, bytes from buf2
+> > let r result void strbuf.sb_error strbuf.append b. buf1. "ab" . .
+> > let v slice u8 strbuf.as_str b. buf2. . .   rem ✗ length from buf1, bytes from buf2
 > > ```
 > >
 > > With no error, a view of the wrong bytes comes out. Pair one `str_buf` with one buffer only (or its successor moved by `append_grow`).

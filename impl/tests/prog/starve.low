@@ -20,23 +20,23 @@ proc reader input k cap io . input buf mut slice u8 . output u64 . effects io . 
   rem ★ reactor 뒷받침은 **읽기 목적지와 달라야 한다**(RFC-0022 D-B) — completion 백엔드는
   rem   그 자리에 읽고 나서 목적지로 옮기므로 겹치면 덮어쓴다. 도구가 모든 백엔드에서 거절한다.
   rem ★ 앞 절반은 reactor 것, 뒤 절반이 읽기 자리 — **겹치지 않는 두 구간**이다.
-  let r option u64 reactor_new k (subslice buf 0 32) 1 .
-  guard is_some r else return 90 .
-  let n option u64 r_read k (some_value r) 0 (subslice buf 32 64) .
-  if is_some n do return some_value n . end
+  let r option u64 reactor_new k. subslice buf. 0 32 . 1 . .
+  guard is_some r. . else return 90 . .
+  let n option u64 r_read k. some_value r. . 0 subslice buf. 32 64 . . .
+  if is_some n. . do return some_value n. . . end .
   return 0 .
-end
+end .
 proc marker input k cap io . output u64 . effects io . do
-  let w u64 write_out k 1 "MARK\n" .
-  return w .
-end
+  let w u64 write_out k. 1 "MARK\n" . .
+  return w. .
+end .
 proc main input k cap io . input al cap allocator . output u8 . effects alloc io state . do
-  let b0 option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some b0 else return 69 .
-  var buf mut slice u8 some_value b0 .
+  let b0 option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some b0. . else return 69 . .
+  var buf mut slice u8 some_value b0. . .
   task_group do
-    spawn reader k buf .
-    spawn marker k .
-  end
+    spawn reader k. buf. .
+    spawn marker k. .
+  end .
   return 0 .
-end
+end .

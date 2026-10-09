@@ -2,19 +2,19 @@ fn safe
   input p ref u32 .
   output ref u32 .
 do
-  return ref p .
-end
+  return ref p . .
+end .
 
 fn dangling
   output ref u32 .
 do
   let local u32 5 .
-  return ref local .
-end
+  return ref local . .
+end .
 
 fn nested_escape
   output ref u32 .
 do
   var tmp u32 1 .
-  return ok (mut_ref tmp) .
-end
+  return ok mut_ref tmp . . .
+end .

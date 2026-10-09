@@ -5,4 +5,4 @@ def enum color do
   red
   green
   blue .
-end
+end .

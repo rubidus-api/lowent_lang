@@ -2,13 +2,13 @@ module scope .
 rem expect: E-SPAWN-SCOPE
 
 fn square input n u64 . output u64 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
-  return mul n n .
-end
+  return mul n. n. . .
+end .
 
 proc loose output u64 . effects state .
 do
-  let h u64 spawn square 5 .
-  return await h .
-end
+  let h u64 spawn square 5 . .
+  return await h. . .
+end .

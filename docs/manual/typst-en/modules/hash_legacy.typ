@@ -17,8 +17,8 @@ Produces MD5 and SHA-1. Neither may be used for *security*. Where security is no
 use hash_legacy .
 
 proc sum input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
-  return hash_legacy.md5 data work out .
-end
+  return hash_legacy.md5 data. work. out. . .
+end .
 ```
 
 *Why a separate module.* The name is the warning. Written `hash.md5`, it would read with the same weight as `hash.sha256`. `hash_legacy.md5` makes the reader stop once.

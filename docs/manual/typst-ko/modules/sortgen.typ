@@ -14,20 +14,20 @@ use sortgen .
 def struct keyed do
   satisfies sortgen.ordered .
   k u64 .
-end
+end .
 
 fn keyed.less input a keyed . input b keyed . output bool . do
-  return lt (field a k) (field b k) .
-end
+  return lt field a. k . field b. k . . .
+end .
 
 proc sorted3 input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 3 else return 90 .
-  sortgen.sort_by keyed s .
-  let f0 keyed idx s 0 .
-  let f1 keyed idx s 1 .
-  let f2 keyed idx s 2 .
-  return add (mul 100 (field f0 k)) (add (mul 10 (field f1 k)) (field f2 k)) .
-end
+  guard ge len s. . 3 . else return 90 . .
+  sortgen.sort_by keyed. s. .
+  let f0 keyed idx s. 0 . .
+  let f1 keyed idx s. 1 . .
+  let f2 keyed idx s. 2 . .
+  return add mul 100 field f0. k . . add mul 10 field f1. k . . field f2. k . . . .
+end .
 ```
 
 *왜 비교 함수를 값으로 넘기지 않나.* 흔한 답(C 의 `qsort`, C++ 의 comparator)은 비교 함수를 값으로 넘기는 것이다. 이 언어는 그 길을 쓰지 않는다. 일급 함수가 없고,
@@ -42,7 +42,7 @@ end
   [`ordered`], [trait --- `less (self, self) → bool`], [미충족 = `E-BOUND-UNSAT`(컴파일)],
   [`sort_by`], [`(comptime t, mut slice t) → void`, `requires ordered t` --- 삽입정렬(안정)], [없음],
   [`sort_fast`], [같은 모양 --- quicksort, 큰 배열용], [없음],
-  [`lower_by`], [`(comptime t, slice t, key t) → u64`], [없음 --- 없으면 삽입점(`len s` 가능)],
+  [`lower_by`], [`(comptime t, slice t, key t) → u64`], [없음 --- 없으면 삽입점(`len s. .` 가능)],
   [`find_by`], [`(comptime t, slice t, key t) → option u64`], [없으면 `none`],
 )
 
@@ -58,7 +58,7 @@ end
 ]
 
 #antipattern[`less` 가 같은 값에 참을 낸다][
-  `return le (field a key) (field b key) .` 는 컴파일은 통과하지만 같은 값이 둘 이상이면 루프가 끝나지 않을 수 있다. 비교는 `lt` 여야 한다.
+  `return le field a. key . field b. key . . .` 는 컴파일은 통과하지만 같은 값이 둘 이상이면 루프가 끝나지 않을 수 있다. 비교는 `lt` 여야 한다.
 ]
 
 *주의.* 내림차순 · 다중 키는 `less` 를 그렇게 쓰면 된다 --- 모드 인자를 다는 것이 곧 엔트로피다. 타입마다 코드가 하나씩 생긴다(단형화의 대가, 대신 간접 호출이 없다).

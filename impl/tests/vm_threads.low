@@ -27,8 +27,8 @@ rem   그리고 동시성 픽스처 22 op 이 두 방식에서 **같은 답**을
 
 module vm_threads .
 
-fn w1 output u64 . do return 11 . end
-fn w2 output u64 . do return 22 . end
+fn w1 output u64 . do return 11 . end .
+fn w2 output u64 . do return 22 . end .
 
 rem ★ 동료가 필요 없는 태스크 둘 — 진짜 스레드로 갈 자격이 있다(채널을 안 쓴다).
 rem   협조적으로 돌든 진짜 스레드로 돌든 **같은 답**이어야 한다: 33.
@@ -36,8 +36,8 @@ proc pair_sum output u64 . effects state . do
   var a u64 0 .
   var b u64 0 .
   task_group do
-    set a spawn w1 .
-    set b spawn w2 .
-  end
-  return add (await a) (await b) .
-end
+    set a. spawn w1 . .
+    set b. spawn w2 . .
+  end .
+  return add await a. . await b. . . .
+end .

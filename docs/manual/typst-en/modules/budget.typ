@@ -14,10 +14,10 @@ h = (generation << (shard_bits + slot_bits)) | (shard << slot_bits) | slot
 ```
 
 ```lowent
-let ho option u64 budget.pack 32 8 24 7 1 0 .
-guard is_some ho else return 1 .
-let h u64 some_value ho .
-let slot u64 budget.slot_of 32 h .
+let ho option u64 budget.pack 32 8 24 7 1 0 . .
+guard is_some ho. . else return 1 . .
+let h u64 some_value ho. . .
+let slot u64 budget.slot_of 32 h. . .
 ```
 
 #aside[What this module guards][
@@ -52,11 +52,11 @@ These are only defaults --- when a store writes its own numbers, those win.
 )
 
 #antipattern[Simply incrementing the generation][
-  `let g u64 add gen 1 .` gives no error, but past the width it equals a handle from another life. Use `next_gen` and accept `none` --- it means that slot is finished.
+  `let g u64 add gen. 1 . .` gives no error, but past the width it equals a handle from another life. Use `next_gen` and accept `none` --- it means that slot is finished.
 ]
 
 #antipattern[Counting a 63-bit piece][
-  `budget.pow2 63` is rejected by the entry contract. `shl 1 63` overflows signed 64 bits into a negative --- rejecting beats silently returning a wrong number.
+  `budget.pow2 63 .` is rejected by the entry contract. `shl 1 63 .` overflows signed 64 bits into a negative --- rejecting beats silently returning a wrong number.
 ]
 
 *Cautions.* Give *the same budget* when unpacking --- if `pack` and `slot_of` see different numbers the answer is silently wrong. Write the budget once as three constants and

@@ -5,7 +5,7 @@ rem run: bump 250
 build release_fast .
 
 fn bump input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .

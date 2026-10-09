@@ -4,10 +4,10 @@ rem run: hyp 3.0 4.0
 
 fn third input x f64 . output f64 .
 do
-  return div x 3.0 .
-end
+  return div x. 3.0 . .
+end .
 
 fn hyp input a f64 . input b f64 . output f64 .
 do
-  return sqrt (add (mul a a) (mul b b)) .
-end
+  return sqrt add mul a. a. . mul b. b. . . . .
+end .

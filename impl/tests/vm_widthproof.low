@@ -13,13 +13,13 @@ rem   **넷 다 0** 인지 본다 — 하나라도 남으면 폭이 뜻을 바�
 module widthproof .
 
 export proc rd8  input a slice u8  . input i u64 . output u64 .
-  effects none . requires lt i (len a) . do return (idx a i) . end
+  effects none . requires lt i. len a. . . . do return idx a. i. . . end .
 
 export proc rd16 input a slice u16 . input i u64 . output u64 .
-  effects none . requires lt i (len a) . do return (idx a i) . end
+  effects none . requires lt i. len a. . . . do return idx a. i. . . end .
 
 export proc rd32 input a slice u32 . input i u64 . output u64 .
-  effects none . requires lt i (len a) . do return (idx a i) . end
+  effects none . requires lt i. len a. . . . do return idx a. i. . . end .
 
 export proc rd64 input a slice u64 . input i u64 . output u64 .
-  effects none . requires lt i (len a) . do return (idx a i) . end
+  effects none . requires lt i. len a. . . . do return idx a. i. . . end .

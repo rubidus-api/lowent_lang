@@ -17,41 +17,41 @@ use vecgen from "../../lib/vecgen.low" .
 use ringalloc from "mod/ringalloc.low" .
 
 rem 받는 쪽 — 얼로케이터의 **타입**도 부르는 쪽이 안 적는다(얼로케이터 값에서 온다)
-proc filled input comptime a type . using al a . input n u64 . output u64 . effects state via a . requires allocs.byte_allocator a .
+proc filled input comptime a type . using al a . input n u64 . output u64 . effects state via a . requires allocs.byte_allocator a. . .
 do
   rem ★ 기본값: 이 op 의 `using` 이름(al)이 안쪽 `vecgen.open` 의 출처가 된다
-  let vo option (vecgen.vec u32 a) vecgen.open u32 4 .
-  guard is_some vo else return 0 .
-  var v (vecgen.vec u32 a) some_value vo .
+  let vo option (vecgen.vec u32 a) vecgen.open u32. 4 . .
+  guard is_some vo. . else return 0 . .
+  var v (vecgen.vec u32 a) some_value vo. . .
   var i u64 0 .
-  while lt i n do
-    guard vecgen.append u32 a v (narrow u32 i) else return 1 .
-    set i (add i 1) .
-  end
-  return vecgen.count_of u32 a v .
-end
+  while lt i. n. . do
+    guard vecgen.append u32. a. v. narrow u32 i. . . else return 1 . .
+    set i. add i. 1 . .
+  end .
+  return vecgen.count_of u32. a. v. . .
+end .
 
-proc take input comptime a type . using al a . input n u64 . output u64 . effects state via a . requires allocs.byte_allocator a .
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state via a . requires allocs.byte_allocator a. . .
 do
-  let g option mut slice u8 send al reserve n .
-  if is_some g do return n . end
+  let g option mut slice u8 send al. reserve n. . .
+  if is_some g. . do return n. . end .
   return 0 .
-end
+end .
 
 rem 한 op 에서 셋을 번갈아 — 종료 코드: 힙 벡터 1000(→10) + 고정 창 70000 은 안 들어간다(0) + 7 + 돌림 used 1040(→10) = 27
 export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
 do
-  var hb allocs.heap_bytes spawn actor allocs.heap_bytes .
-  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes .
-  let back option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some back else return 200 .
-  var rb ringalloc.ring_bytes spawn actor ringalloc.ring_bytes .
-  let z u64 send rb init (some_value back) .
-  let x use hb u64 filled 1000 .
-  let y use fb u64 take 70000 .
-  let w use fb u64 take 7 .
-  let r1 use rb u64 take 40 .
-  let r2 use rb u64 take 40 .
-  let lap u64 send rb used .
-  return narrow u8 (add (add (div x 100) (add y w)) (div lap 100)) .
-end
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes . .
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  let back option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some back. . else return 200 . .
+  var rb ringalloc.ring_bytes spawn actor ringalloc.ring_bytes . .
+  let z u64 send rb. init some_value back. . . .
+  let x use hb. u64 filled 1000 . .
+  let y use fb. u64 take 70000 . .
+  let w use fb. u64 take 7 . .
+  let r1 use rb. u64 take 40 . .
+  let r2 use rb. u64 take 40 . .
+  let lap u64 send rb. used . .
+  return narrow u8 add add div x. 100 . add y. w. . . div lap. 100 . . . .
+end .

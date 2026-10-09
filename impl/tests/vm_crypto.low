@@ -24,95 +24,95 @@ rem 결과 앞 8 바이트를 하나의 수로 — 골든이 한 줄로 대조�
 fn head8 input d slice u8 . output u64 . do
   var acc u64 0 .
   var i u64 0 .
-  while lt i 8 do
-    set acc (add (shl acc 8) (cast u64 (idx d i))) .
-    set i (add i 1) .
-  end
-  return acc .
-end
+  while lt i. 8 . do
+    set acc. add shl acc. 8 . cast u64 idx d. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
 
 rem RFC 4231 case 1 — key 20×0x0b, msg "Hi There".
 proc t_hmac input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let _u6 result u64 hmac.hmac_error hmac.mac key msg scratch out .
-  guard is_ok _u6 else return 0 .
-  guard eq (ok_value _u6) 32 else return 0 .
-  return head8 out .
-end
+  let _u6 result u64 hmac.hmac_error hmac.mac key. msg. scratch. out. . .
+  guard is_ok _u6. . else return 0 . .
+  guard eq ok_value _u6. . 32 . else return 0 . .
+  return head8 out. . .
+end .
 
 rem RFC 5869 case 1 — PRK = HKDF-Extract(salt, IKM).
 proc t_hkdf input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
-  let _u5 result u64 hmac.hmac_error hmac.extract salt ikm scratch prk .
-  guard is_ok _u5 else return 0 .
-  guard eq (ok_value _u5) 32 else return 0 .
-  return head8 prk .
-end
+  let _u5 result u64 hmac.hmac_error hmac.extract salt. ikm. scratch. prk. . .
+  guard is_ok _u5. . else return 0 . .
+  guard eq ok_value _u5. . 32 . else return 0 . .
+  return head8 prk. . .
+end .
 
 rem RFC 8439 §2.3.2 — ChaCha20 블록 함수. 첫 워드를 낸다.
 proc t_chacha input key slice u8 . input nonce slice u8 . input st mut slice u64 . input work mut slice u64 . output u64 . effects none . do
-  guard eq (chacha.prep key nonce 1 st) 16 else return 0 .
-  let _u4 result u64 chacha.chacha_error chacha.rounds st work .
-  guard is_ok _u4 else return 0 .
-  guard eq (ok_value _u4) 16 else return 0 .
-  return idx work 0 .
-end
+  guard eq chacha.prep key. nonce. 1 st. . 16 . else return 0 . .
+  let _u4 result u64 chacha.chacha_error chacha.rounds st. work. . .
+  guard is_ok _u4. . else return 0 . .
+  guard eq ok_value _u4. . 16 . else return 0 . .
+  return idx work. 0 . .
+end .
 
 rem RFC 8439 §2.5.2 — Poly1305 태그.
 proc t_poly input key slice u8 . input msg slice u8 . input st mut slice u64 . input pad mut slice u8 . input tag mut slice u8 . output u64 . effects none . do
-  guard eq (poly.setup key st) 1 else return 0 .
+  guard eq poly.setup key. st. . 1 . else return 0 . .
   var off u64 0 .
-  while le (add off 16) (len msg) do
-    let z u64 poly.block st (subslice msg off (add off 16)) 1 .
-    set off (add off 16) .
-  end
-  if lt off (len msg) do
+  while le add off. 16 . len msg. . . do
+    let z u64 poly.block st. subslice msg. off. add off. 16 . . 1 . .
+    set off. add off. 16 . .
+  end .
+  if lt off. len msg. . . do
     var i u64 0 .
-    while lt i 16 do  set (idx pad i) 0 .  set i (add i 1) .  end
+    while lt i. 16 . do  set idx pad. i. . 0 .  set i. add i. 1 . .  end .
     var j u64 0 .
-    while lt (add off j) (len msg) do
-      set (idx pad j) (idx msg (add off j)) .
-      set j (add j 1) .
-    end
-    set (idx pad j) 1 .
-    let z2 u64 poly.block st pad 0 .
-  end
-  guard eq (poly.emit st key tag) 16 else return 0 .
-  return head8 tag .
-end
+    while lt add off. j. . len msg. . . do
+      set idx pad. j. . idx msg. add off. j. . . .
+      set j. add j. 1 . .
+    end .
+    set idx pad. j. . 1 .
+    let z2 u64 poly.block st. pad. 0 . .
+  end .
+  guard eq poly.emit st. key. tag. . 16 . else return 0 . .
+  return head8 tag. . .
+end .
 
 rem RFC 8439 §2.8.2 — AEAD 봉인. 암호문 앞 8 바이트를 낸다(태그는 out 으로 나간다).
 proc t_seal input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
      input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 .
      input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 .
      output u64 . effects none . do
-  let _u3 result u64 aead.aead_error aead.seal key nonce aad msg ct tag otk pst st work ks pad .
-  guard is_ok _u3 else return 0 .
-  guard eq (ok_value _u3) 16 else return 0 .
-  return head8 ct .
-end
+  let _u3 result u64 aead.aead_error aead.seal key. nonce. aad. msg. ct. tag. otk. pst. st. work. ks. pad. . .
+  guard is_ok _u3. . else return 0 . .
+  guard eq ok_value _u3. . 16 . else return 0 . .
+  return head8 ct. . .
+end .
 
 rem ★★ 변조는 거절돼야 한다 — AEAD 가 하는 약속의 전부다. 1 이면 거절했다.
 proc t_tamper input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
      input ct mut slice u8 . input tag mut slice u8 . input outp mut slice u8 . input otk mut slice u8 .
      input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 .
      input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
-  let _u0 result u64 aead.aead_error aead.seal key nonce aad msg ct tag otk pst st work ks pad .
-  guard is_ok _u0 else return 90 .
-  guard eq (ok_value _u0) 16 else return 90 .
-  let _u1 result u64 aead.aead_error aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
-  guard is_ok _u1 else return 91 .
-  guard eq (ok_value _u1) 1 else return 91 .
-  set (idx ct 0) (cast u8 (bit_xor (cast u64 (idx ct 0)) 1)) .
-  let _u2 result u64 aead.aead_error aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
-  guard is_ok _u2 else return 92 .
-  guard eq (ok_value _u2) 0 else return 92 .
+  let _u0 result u64 aead.aead_error aead.seal key. nonce. aad. msg. ct. tag. otk. pst. st. work. ks. pad. . .
+  guard is_ok _u0. . else return 90 . .
+  guard eq ok_value _u0. . 16 . else return 90 . .
+  let _u1 result u64 aead.aead_error aead.unseal key. nonce. aad. ct. tag. outp. otk. pst. st. work. ks. pad. want. . .
+  guard is_ok _u1. . else return 91 . .
+  guard eq ok_value _u1. . 1 . else return 91 . .
+  set idx ct. 0 . cast u8 bit_xor cast u64 idx ct. 0 . . 1 . . .
+  let _u2 result u64 aead.aead_error aead.unseal key. nonce. aad. ct. tag. outp. otk. pst. st. work. ks. pad. want. . .
+  guard is_ok _u2. . else return 92 . .
+  guard eq ok_value _u2. . 0 . else return 92 . .
   return 1 .
-end
+end .
 
 rem RFC 7748 §5.2 / §6.1 — X25519 스칼라 곱.
 proc t_x25519 input n slice u8 . input pt slice u8 . input q mut slice u8 . input z mut slice u8 .
      input fa mut slice u64 . input fb mut slice u64 . input fc mut slice u64 . input fd mut slice u64 .
      input fe mut slice u64 . input ff mut slice u64 . input fg mut slice u64 . input fx mut slice u64 .
      input fs mut slice u64 . input t mut slice u64 . output u64 . effects none . do
-  guard eq (x25519.scalarmult q n pt z fa fb fc fd fe ff fg fx fs t) 32 else return 0 .
-  return head8 q .
-end
+  guard eq x25519.scalarmult q. n. pt. z. fa. fb. fc. fd. fe. ff. fg. fx. fs. t. . 32 . else return 0 . .
+  return head8 q. . .
+end .

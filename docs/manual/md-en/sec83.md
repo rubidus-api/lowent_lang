@@ -20,8 +20,8 @@ From my secret scalar and the peer’s public point, makes **32 bytes only the t
 
 ```lowent
 rem w has at least 175 u64 elements --- one workspace
-let n u64 x25519.agree shared mysecret theirpub zbuf w .
-guard eq n 32 else return 1 .
+let n u64 x25519.agree shared. mysecret. theirpub. zbuf. w. . .
+guard eq n. 32 . else return 1 . .
 ```
 
 **Why one workspace.** `scalarmult` takes nine field elements and the multiplication area separately — easier to read inside. But laying out fourteen at the call site quickly eats the parameter limit of 16. The first program using this library was actually rejected with `E-IR-ARITY`. So `agree` slices one `w` (at least 175 elements), and the layout (nine field elements = `w[0..144]`, multiplication area = `w[144..175]`) lives in one place in the source.

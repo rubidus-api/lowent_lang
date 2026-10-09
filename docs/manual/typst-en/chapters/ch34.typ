@@ -36,8 +36,8 @@
 #demo("examples/ch34/sorted.low")
 
 - `alloc_bytes al capacity 40` gets 40 bytes, and `view_array u64` views them as a slice of five `u64` elements. Allocation happens only here.
-- `sortlib.sort xs` sorts in place in ascending order. It is `effects none`.
-- `searchlib.bsearch xs 19` gives the position of 19 in the sorted slice as an `option`, or `none` if absent. `lower_bound` gives the insertion position.
+- `sortlib.sort xs. .` sorts in place in ascending order. It is `effects none`.
+- `searchlib.bsearch xs. 19 .` gives the position of 19 in the sorted slice as an `option`, or `none` if absent. `lower_bound` gives the insertion position.
 
 The smallest value 3 and 19's position 2 give 32. `bsearch` *trusts* that its input is sorted. Given an unsorted slice it gives a wrong answer. That trust is a
 precondition written in the module document.
@@ -46,7 +46,7 @@ precondition written in the module document.
 
 #demo("examples/ch34/rows.low")
 
-`score` declares that it knows order with `satisfies sortgen.ordered .`, and `score.less` gives the criterion "higher score first". `sortgen.sort_by score rs` sorts by that
+`score` declares that it knows order with `satisfies sortgen.ordered .`, and `score.less` gives the criterion "higher score first". `sortgen.sort_by score. rs. .` sorts by that
 criterion. The ids for scores 95, 80 and 70 are 2, 3 and 1 in order.
 
 To sort descending or by several keys, write `less` that way. Instead of adding a mode argument, the type brings the meaning. `sort_by` is insertion sort, so it is
@@ -81,7 +81,7 @@ automatically. Byte-string keys are handled by `strmap`, and a growing generic h
 #demo("examples/ch34/growing.low")
 
 - `allocs.heap_bytes` is spawned and used as an allocator. Only `main`, holding `cap heap`, can spawn it (#chref("fixed-memory")).
-- `vecgen.open u32 4` opens a vector with element type `u32` and initial capacity 4. The allocator is handed over with the binding's `use hb`.
+- `vecgen.open u32. 4 .` opens a vector with element type `u32` and initial capacity 4. The allocator is handed over with the binding's `use hb`.
 - `vecgen.append … v x` asks the allocator for more and grows when out of room. On failure it is `false`. The vector already holds its own allocator, so `append` does not
   take `use`. Writing it is rejected with `E-ALLOC-USING-UNUSED`.
 - `vecgen.at … v 50` gives element 50 as an `option`. 50 × 2 = 100.
@@ -161,12 +161,12 @@ in a weak-memory model. Multi-producer multi-consumer queues and seqlocks have n
   id: "lib-containers-glance",
   caption: [Shapes of containers and sorting --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`sortlib.sort xs` · `searchlib.bsearch xs k`], [sort `u64` in place · search sorted input (`option`)], [no allocation --- search trusts the order],
-  [`def struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [the type brings the sort order], [a type instead of a mode argument --- `less` must be strict],
-  [`sortgen.sort_by score rs` · `sort_fast`], [stable insertion sort · quicksort for large arrays], [the choice is in the name],
-  [`hashmap.put slots k v` · `lookup` · `del`], [a `u64 → u64` map on the caller's slice], [`false` when full --- deletion leaves a tombstone],
+  [`sortlib.sort xs. .` · `searchlib.bsearch xs. k. .`], [sort `u64` in place · search sorted input (`option`)], [no allocation --- search trusts the order],
+  [`def struct score do satisfies sortgen.ordered . … end .` + `fn score.less`], [the type brings the sort order], [a type instead of a mode argument --- `less` must be strict],
+  [`sortgen.sort_by score. rs. .` · `sort_fast`], [stable insertion sort · quicksort for large arrays], [the choice is in the name],
+  [`hashmap.put slots. k. v. .` · `lookup` · `del`], [a `u64 → u64` map on the caller's slice], [`false` when full --- deletion leaves a tombstone],
   [`let vo use hb … vecgen.open u32 4 .`], [open a growing vector with an allocator], [`use` only where it is first received],
-  [`vecgen.append u32 allocs.heap_bytes v x`], [push while growing --- `false` on failure], [effects follow the allocator type (`state via a`)],
+  [`vecgen.append u32. allocs.heap_bytes. v. x. .`], [push while growing --- `false` on failure], [effects follow the allocator type (`state via a`)],
   [`spsc`], [lock-free single-producer single-consumer ring buffer], [atomic operations --- a borrowed proof],
 )
 

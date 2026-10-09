@@ -18,7 +18,7 @@
 )
 
 region 안에서 버퍼 수명을 *직접* 쥐고 싶을 때가 `vecs` 다. 벡터는 `vec_u8`(길이 `len` 하나)과 `mut slice u8`(저장소) *두 값의 쌍*으로 산다. 용량은 따로 들지 않는다
---- `len buf` 가 곧 용량이다. 불변식 `v.len ≤ len buf` 를 push 가 유지한다.
+--- `len buf. .` 가 곧 용량이다. 불변식 `v.len ≤ len buf` 를 push 가 유지한다.
 
 #dtable(
   columns: 3,
@@ -30,7 +30,7 @@ region 안에서 버퍼 수명을 *직접* 쥐고 싶을 때가 `vecs` 다. 벡�
   [`push_byte`], [`proc (comptime a, using al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a`], [OOM 이면 `none` --- 이때 `v` · `buf` 는 그대로],
 )
 
-`push_byte` 는 자리가 있으면 그대로 쓰고 `some buf` 를, 꽉 찼으면 `send al reserve (next_cap (len buf))` 로 두 배를 받아 옛 내용을 복사한 뒤 `some <새 버퍼>` 를
+`push_byte` 는 자리가 있으면 그대로 쓰고 `some buf. .` 를, 꽉 찼으면 `send al. reserve next_cap len buf. . . .` 로 두 배를 받아 옛 내용을 복사한 뒤 `some <새 버퍼>` 를
 돌려준다. 얼로케이터는 위치 인자가 아니라 `using` 절로 건넨다 --- 타입 `a` 는 그 출처에서 채워지고 단형화되므로 전달 비용은 0 이다(#chref("lib-alloc")). 몰래
 할당하지 않으므로 얼로케이터를 가지지 않은 코드는 이 op 을 부를 수 없다.
 
@@ -40,36 +40,36 @@ use vecs .
 use allocs .
 
 proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
-  let memopt option mut slice u8 alloc_bytes al capacity 256 .
-  guard is_some memopt else return 1 .
-  let mem mut slice u8 some_value memopt .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  var c u64 send bump init mem .
-  let b0 option mut slice u8 send bump reserve 2 .
-  guard is_some b0 else return 2 .
-  var buf mut slice u8 some_value b0 .
-  var v lit vecs.vec_u8 do len 0 . end .
+  let memopt option mut slice u8 alloc_bytes al. capacity 256 . .
+  guard is_some memopt. . else return 1 . .
+  let mem mut slice u8 some_value memopt. . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c u64 send bump. init mem. . .
+  let b0 option mut slice u8 send bump. reserve 2 . .
+  guard is_some b0. . else return 2 . .
+  var buf mut slice u8 some_value b0. . .
+  var v lit vecs.vec_u8 do len 0 . end . .
   var i u64 0 .
-  while lt i 10 do
-    let r use bump option mut slice u8 vecs.push_byte v buf (narrow u8 (add 65 i)) .
-    guard is_some r else return 3 .
-    set buf (some_value r) .
-    set i (add i 1) .
-  end
-  let m u64 write_out out 1 (subslice buf 0 (field v len)) .
-  return narrow u8 (field v len) .
-end
+  while lt i. 10 . do
+    let r use bump. option mut slice u8 vecs.push_byte v. buf. narrow u8 add 65 i. . . . .
+    guard is_some r. . else return 3 . .
+    set buf. some_value r. . .
+    set i. add i. 1 . .
+  end .
+  let m u64 write_out out. 1 subslice buf. 0 field v. len . . . .
+  return narrow u8 field v. len . . .
+end .
 ```
 
 2 바이트로 시작해 10 개를 밀며 2 → 4 → 8 → 16 으로 세 번 자라고, `ABCDEFGHIJ` 를 출력한다.
 
 #antipattern[돌려받은 버퍼로 다시 묶지 않는다][
-  `set buf (some_value r) .` 를 빼먹으면 컴파일도 실행도 통과하는데 결과가 소리 없이 틀린다. 성장이 일어난 뒤 옛 `buf` 를 계속 주면 `v.len` 은 새 버퍼 기준으로
+  `set buf. some_value r. . .` 를 빼먹으면 컴파일도 실행도 통과하는데 결과가 소리 없이 틀린다. 성장이 일어난 뒤 옛 `buf` 를 계속 주면 `v.len` 은 새 버퍼 기준으로
   올라가 있는데 쓰기는 옛(작은) 버퍼에 간다. *반환값이 곧 다음 버퍼다* --- 이 모듈에서 가장 위험한 실수다.
 ]
 
 #antipattern[OOM 을 보지 않는다 · 순수 fn 에서 부른다][
-  `some_value r` 를 검사 없이 꺼내면 얼로케이터가 말랐을 때 `E-VM-NONE` 으로 멈춘다. `effects none` 인 `fn` 에서 부르면 `E-EFFECT-CALC` 다 --- `push_byte` 는
+  `some_value r. .` 를 검사 없이 꺼내면 얼로케이터가 말랐을 때 `E-VM-NONE` 으로 멈춘다. `effects none` 인 `fn` 에서 부르면 `E-EFFECT-CALC` 다 --- `push_byte` 는
   `effects state` 인 proc 이다. trait 을 충족하지 않는 값(예: `u64`)을 출처로 건네면 `E-BOUND-UNSAT` 이다.
 ]
 

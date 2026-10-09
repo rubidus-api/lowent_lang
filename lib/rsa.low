@@ -22,7 +22,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export def enum rsa_error do
   short_workspace .
-end
+end .
 
 
 use bigint from "bigint.low" .
@@ -31,94 +31,94 @@ rem ★ MGF1(SHA-256): seed 로부터 `n` 바이트 마스크를 만든다(RFC 8
 rem   `w` 는 작업 공간(≥ len(seed) + 4 + 32).
 export proc mgf1 input seed slice u8 . input n u64 . input out mut slice u8 . input w mut slice u8 . output result u64 rsa_error . effects none .
 errors short_workspace . do
-  guard ge (len out) n else return ok 0 .
-  let sl u64 len seed .
-  guard ge (len w) (add (add sl 4) 32) else return error short_workspace .
+  guard ge len out. . n. . else return ok 0 . . .
+  let sl u64 len seed. . .
+  guard ge len w. . add add sl. 4 . 32 . . else return error short_workspace . . .
   var i u64 0 .
-  while lt i sl do  set (idx w i) (idx seed i) .  set i (add i 1) .  end
+  while lt i. sl. . do  set idx w. i. . idx seed. i. . .  set i. add i. 1 . .  end .
   var counter u64 0 .
   var off u64 0 .
-  while lt off n do
+  while lt off. n. . do
     rem 카운터는 **4 바이트 빅엔디언**이다.
-    set (idx w sl) (cast u8 (bit_and (shr counter 24) 255)) .
-    set (idx w (add sl 1)) (cast u8 (bit_and (shr counter 16) 255)) .
-    set (idx w (add sl 2)) (cast u8 (bit_and (shr counter 8) 255)) .
-    set (idx w (add sl 3)) (cast u8 (bit_and counter 255)) .
-    guard eq (call_builtin sha256 (subslice w 0 (add sl 4)) (subslice w (add sl 4) (add (add sl 4) 32))) 32 else return ok 0 .
+    set idx w. sl. . cast u8 bit_and shr counter. 24 . 255 . . .
+    set idx w. add sl. 1 . . cast u8 bit_and shr counter. 16 . 255 . . .
+    set idx w. add sl. 2 . . cast u8 bit_and shr counter. 8 . 255 . . .
+    set idx w. add sl. 3 . . cast u8 bit_and counter. 255 . . .
+    guard eq call_builtin sha256 subslice w. 0 add sl. 4 . . subslice w. add sl. 4 . add add sl. 4 . 32 . . . 32 . else return ok 0 . . .
     var j u64 0 .
-    while lt j 32 do
-      if lt (add off j) n do
-        set (idx out (add off j)) (idx w (add (add sl 4) j)) .
-      end
-      set j (add j 1) .
-    end
-    set off (add off 32) .
-    set counter (add counter 1) .
-  end
-  return ok n .
-end
+    while lt j. 32 . do
+      if lt add off. j. . n. . do
+        set idx out. add off. j. . . idx w. add add sl. 4 . j. . . .
+      end .
+      set j. add j. 1 . .
+    end .
+    set off. add off. 32 . .
+    set counter. add counter. 1 . .
+  end .
+  return ok n. . .
+end .
 
 rem ★★★ **EMSA-PSS-VERIFY** (RFC 8017 §9.1.2). `em` 은 emLen 바이트, mHash 는 32.
 rem   `slen` 은 salt 길이(TLS 1.3 은 해시 길이와 같게 32 를 쓴다).
 rem   `w` 는 작업 공간(≥ emLen + 128).
 export proc pss_verify input em slice u8 . input mhash slice u8 . input slen u64 . input w mut slice u8 . output result u64 rsa_error . effects none .
 errors short_workspace . do
-  let emlen u64 len em .
-  guard eq (len mhash) 32 else return ok 0 .
-  guard ge emlen (add (add slen 32) 2) else return ok 0 .
-  guard ge (len w) (add emlen 128) else return error short_workspace .
+  let emlen u64 len em. . .
+  guard eq len mhash. . 32 . else return ok 0 . . .
+  guard ge emlen. add add slen. 32 . 2 . . else return ok 0 . . .
+  guard ge len w. . add emlen. 128 . . else return error short_workspace . . .
 
   rem ① 마지막 바이트는 0xbc 여야 한다.
-  guard eq (cast u64 (idx em (sub emlen 1))) 188 else return ok 0 .
+  guard eq cast u64 idx em. sub emlen. 1 . . . 188 . else return ok 0 . . .
 
   let hlen u64 32 .
-  let dblen u64 sub (sub emlen hlen) 1 .
+  let dblen u64 sub sub emlen. hlen. . 1 . .
 
   rem ② maskedDB 의 **왼쪽 여분 비트는 0** 이어야 한다. emBits = 8·emLen − 1 이므로
   rem   최상위 한 비트가 남는다. 이것을 안 보면 서명이 **여러 모양**을 가질 수 있다.
-  guard eq (bit_and (cast u64 (idx em 0)) 128) 0 else return ok 0 .
+  guard eq bit_and cast u64 idx em. 0 . . 128 . 0 . else return ok 0 . . .
 
   rem ③ dbMask = MGF1(H, dblen),  DB = maskedDB xor dbMask
-  let _u0 result u64 rsa_error mgf1 (subslice em dblen (add dblen hlen)) dblen (subslice w 0 dblen) (subslice w emlen (add emlen 128)) .
-  guard is_ok _u0 else return error short_workspace .
-  guard eq (ok_value _u0) dblen else return ok 0 .
+  let _u0 result u64 rsa_error mgf1 subslice em. dblen. add dblen. hlen. . . dblen. subslice w. 0 dblen. . subslice w. emlen. add emlen. 128 . . . .
+  guard is_ok _u0. . else return error short_workspace . . .
+  guard eq ok_value _u0. . dblen. . else return ok 0 . . .
   var i u64 0 .
-  while lt i dblen do
-    set (idx w i) (cast u8 (bit_xor (cast u64 (idx w i)) (cast u64 (idx em i)))) .
-    set i (add i 1) .
-  end
-  set (idx w 0) (cast u8 (bit_and (cast u64 (idx w 0)) 127)) .
+  while lt i. dblen. . do
+    set idx w. i. . cast u8 bit_xor cast u64 idx w. i. . . cast u64 idx em. i. . . . . .
+    set i. add i. 1 . .
+  end .
+  set idx w. 0 . cast u8 bit_and cast u64 idx w. 0 . . 127 . . .
 
   rem ④ DB 는 0x00 … 0x00 ‖ 0x01 ‖ salt 여야 한다.
   var p u64 0 .
-  while lt p (sub (sub dblen slen) 1) do
-    guard eq (cast u64 (idx w p)) 0 else return ok 0 .
-    set p (add p 1) .
-  end
-  guard eq (cast u64 (idx w (sub (sub dblen slen) 1))) 1 else return ok 0 .
+  while lt p. sub sub dblen. slen. . 1 . . do
+    guard eq cast u64 idx w. p. . . 0 . else return ok 0 . . .
+    set p. add p. 1 . .
+  end .
+  guard eq cast u64 idx w. sub sub dblen. slen. . 1 . . . 1 . else return ok 0 . . .
 
   rem ⑤ M' = 0x00×8 ‖ mHash ‖ salt,  H' = SHA-256(M') 가 EM 안의 H 와 같은가
-  let mp u64 add emlen 0 .
+  let mp u64 add emlen. 0 . .
   var q u64 0 .
-  while lt q 8 do  set (idx w (add mp q)) 0 .  set q (add q 1) .  end
+  while lt q. 8 . do  set idx w. add mp. q. . . 0 .  set q. add q. 1 . .  end .
   var r u64 0 .
-  while lt r 32 do  set (idx w (add (add mp 8) r)) (idx mhash r) .  set r (add r 1) .  end
+  while lt r. 32 . do  set idx w. add add mp. 8 . r. . . idx mhash. r. . .  set r. add r. 1 . .  end .
   var t u64 0 .
-  while lt t slen do
-    set (idx w (add (add mp 40) t)) (idx w (add (sub dblen slen) t)) .
-    set t (add t 1) .
-  end
-  guard eq (call_builtin sha256 (subslice w mp (add (add mp 40) slen)) (subslice w (add (add mp 40) slen) (add (add (add mp 40) slen) 32))) 32 else return ok 0 .
+  while lt t. slen. . do
+    set idx w. add add mp. 40 . t. . . idx w. add sub dblen. slen. . t. . . .
+    set t. add t. 1 . .
+  end .
+  guard eq call_builtin sha256 subslice w. mp. add add mp. 40 . slen. . . subslice w. add add mp. 40 . slen. . add add add mp. 40 . slen. . 32 . . . 32 . else return ok 0 . . .
   rem 비교는 XOR 누적 — 조기 반환이 없다.
   var diff u64 0 .
   var z u64 0 .
-  while lt z 32 do
-    set diff (bit_or diff (bit_xor (cast u64 (idx w (add (add (add mp 40) slen) z))) (cast u64 (idx em (add dblen z))))) .
-    set z (add z 1) .
-  end
-  guard eq diff 0 else return ok 0 .
-  return ok 1 .
-end
+  while lt z. 32 . do
+    set diff. bit_or diff. bit_xor cast u64 idx w. add add add mp. 40 . slen. . z. . . . cast u64 idx em. add dblen. z. . . . . . .
+    set z. add z. 1 . .
+  end .
+  guard eq diff. 0 . else return ok 0 . . .
+  return ok 1 . .
+end .
 
 rem ★★ 한 번에: 서명 · 공개키(n, e) · 메시지 해시 → 맞으면 1.
 rem   `sw`/`nw`/`ow`/`r2`/`acc`/`tw`/`mw` 는 조각 작업 공간(각 k+2 이상), `w` 는 바이트 공간.
@@ -128,17 +128,17 @@ export proc verify_pss input sig slice u8 . input nb slice u8 . input e u64 . in
      input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
      output result u64 rsa_error . effects none .
 errors short_workspace . do
-  guard eq (len sig) (len nb) else return ok 0 .
-  guard ge (len em) (len nb) else return ok 0 .
-  let k u64 shr (len nb) 1 .
-  guard eq (bigint.from_bytes nb nw k) k else return ok 0 .
-  guard eq (bigint.from_bytes sig sw k) k else return ok 0 .
+  guard eq len sig. . len nb. . . else return ok 0 . . .
+  guard ge len em. . len nb. . . else return ok 0 . . .
+  let k u64 shr len nb. . 1 . .
+  guard eq bigint.from_bytes nb. nw. k. . k. . else return ok 0 . . .
+  guard eq bigint.from_bytes sig. sw. k. . k. . else return ok 0 . . .
   rem ☞ s < n 이어야 한다 — 아니면 같은 값에 여러 서명이 생긴다.
-  guard eq (bigint.ge_mod sw nw k) 0 else return ok 0 .
-  guard eq (bigint.mod_exp ow sw e nw k r2 acc mw tw) 1 else return ok 0 .
-  guard eq (bigint.to_bytes ow k em) (len nb) else return ok 0 .
-  return pss_verify (subslice em 0 (len nb)) mhash slen w .
-end
+  guard eq bigint.ge_mod sw. nw. k. . 0 . else return ok 0 . . .
+  guard eq bigint.mod_exp ow. sw. e. nw. k. r2. acc. mw. tw. . 1 . else return ok 0 . . .
+  guard eq bigint.to_bytes ow. k. em. . len nb. . . else return ok 0 . . .
+  return pss_verify subslice em. 0 len nb. . . mhash. slen. w. . .
+end .
 
 rem ★★★★★ **PKCS#1 v1.5 서명 검증** (백로그 X-0032 P3)
 rem
@@ -158,50 +158,50 @@ rem   나머지 규율은 같다. 지어 견주지 않고 **받은 것을 뜯어
 rem   SHA-256: 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20
 rem   SHA-384: 30 41 30 0d 06 09 60 86 48 01 65 03 04 02 02 05 00 04 30
 export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di slice u8 . output u64 . effects none . do
-  guard eq (len di) 19 else return 0 .
-  guard ge (len mhash) 32 else return 0 .
-  guard le (len mhash) 64 else return 0 .
+  guard eq len di. . 19 . else return 0 . .
+  guard ge len mhash. . 32 . else return 0 . .
+  guard le len mhash. . 64 . else return 0 . .
   rem 0x00 0x01 + 채움 여덟 이상 + 0x00 + DigestInfo(19 + 해시)
-  guard ge (len em) (add 30 (add 19 (len mhash))) else return 0 .
-  guard eq (idx em 0) 0 else return 0 .
-  guard eq (idx em 1) 1 else return 0 .
+  guard ge len em. . add 30 add 19 len mhash. . . . . else return 0 . .
+  guard eq idx em. 0 . 0 . else return 0 . .
+  guard eq idx em. 1 . 1 . else return 0 . .
 
   rem ① 0xFF 가 몇 개인지 센다 — 여덟 미만이면 거절(RFC 8017 §9.2).
   var i u64 2 .
   var run u64 1 .
-  while eq run 1 do
-    if ge i (len em) do  set run 0 . end
-    if eq run 1 do
-      if ne (idx em i) 255 do  set run 0 . end
-      if eq run 1 do  set i (add i 1) . end
-    end
-  end
-  guard ge (sub i 2) 8 else return 0 .
+  while eq run. 1 . do
+    if ge i. len em. . . do  set run. 0 . end .
+    if eq run. 1 . do
+      if ne idx em. i. . 255 . do  set run. 0 . end .
+      if eq run. 1 . do  set i. add i. 1 . . end .
+    end .
+  end .
+  guard ge sub i. 2 . 8 . else return 0 . .
 
   rem ② 채움 뒤는 0x00 하나.
-  guard lt i (len em) else return 0 .
-  guard eq (idx em i) 0 else return 0 .
-  set i (add i 1) .
+  guard lt i. len em. . . else return 0 . .
+  guard eq idx em. i. . 0 . else return 0 . .
+  set i. add i. 1 . .
 
   rem ③ 남은 것이 **정확히** DigestInfo 51 바이트여야 한다. 남으면 거절 — 뒤에 무엇이든
   rem   붙일 수 있게 두면 같은 해시에 서명이 여럿 생긴다(Bleichenbacher 가 그것으로 열었다).
-  guard eq (sub (len em) i) (add 19 (len mhash)) else return 0 .
+  guard eq sub len em. . i. . add 19 len mhash. . . . else return 0 . .
   var j u64 0 .
-  while lt j 19 do
-    if ne (idx em (add i j)) (idx di j) do  return 0 . end
-    set j (add j 1) .
-  end
+  while lt j. 19 . do
+    if ne idx em. add i. j. . . idx di. j. . . do  return 0 . end .
+    set j. add j. 1 . .
+  end .
 
   rem ④ 해시를 **끝까지** 견준다 — 첫 바이트에서 돌아서면 그 시간이 곧 정보다.
   var diff u64 0 .
   var m u64 0 .
-  while lt m (len mhash) do
-    set diff (bit_or diff (bit_xor (cast u64 (idx em (add (add i 19) m))) (cast u64 (idx mhash m)))) .
-    set m (add m 1) .
-  end
-  if eq diff 0 do  return 1 . end
+  while lt m. len mhash. . . do
+    set diff. bit_or diff. bit_xor cast u64 idx em. add add i. 19 . m. . . . cast u64 idx mhash. m. . . . . .
+    set m. add m. 1 . .
+  end .
+  if eq diff. 0 . do  return 1 . end .
   return 0 .
-end
+end .
 
 rem ★ 서명을 풀어 위 검사를 돌린다 — `verify_pss` 와 같은 앞자락(모듈러 거듭제곱)을 쓴다.
 export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 .
@@ -209,13 +209,13 @@ export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . 
      input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
      input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
      output u64 . effects none . do
-  guard eq (len sig) (len nb) else return 0 .
-  guard ge (len em) (len nb) else return 0 .
-  let k u64 shr (len nb) 1 .
-  guard eq (bigint.from_bytes nb nw k) k else return 0 .
-  guard eq (bigint.from_bytes sig sw k) k else return 0 .
-  guard eq (bigint.ge_mod sw nw k) 0 else return 0 .
-  guard eq (bigint.mod_exp ow sw e nw k r2 acc mw tw) 1 else return 0 .
-  guard eq (bigint.to_bytes ow k em) (len nb) else return 0 .
-  return pkcs1_verify (subslice em 0 (len nb)) mhash di .
-end
+  guard eq len sig. . len nb. . . else return 0 . .
+  guard ge len em. . len nb. . . else return 0 . .
+  let k u64 shr len nb. . 1 . .
+  guard eq bigint.from_bytes nb. nw. k. . k. . else return 0 . .
+  guard eq bigint.from_bytes sig. sw. k. . k. . else return 0 . .
+  guard eq bigint.ge_mod sw. nw. k. . 0 . else return 0 . .
+  guard eq bigint.mod_exp ow. sw. e. nw. k. r2. acc. mw. tw. . 1 . else return 0 . .
+  guard eq bigint.to_bytes ow. k. em. . len nb. . . else return 0 . .
+  return pkcs1_verify subslice em. 0 len nb. . . mhash. di. . .
+end .

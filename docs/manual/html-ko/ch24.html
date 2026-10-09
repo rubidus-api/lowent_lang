@@ -664,35 +664,35 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <a class="skip" href="#content">본문으로 건너뛰기</a>
 <div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">24장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch23.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch25.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch24.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s24-1"><span class="tf-no">24.1</span>같은 일, 두 가지 모양</a><a class="lv3" href="#s24-2"><span class="tf-no">24.2</span>스테이지와 종결자</a><a class="lv4" href="#s24-2-1"><span class="tf-no">24.2.1</span>문맥 — with</a><a class="lv3" href="#s24-3"><span class="tf-no">24.3</span>한 번에 훑는 것은 정의다</a><a class="lv3" href="#s24-4"><span class="tf-no">24.4</span>필요한 만큼만 읽는다</a><a class="lv3" href="#s24-5"><span class="tf-no">24.5</span>이름이 같은 기본 연산 map·filter</a><a class="lv3" href="#s24-6"><span class="tf-no">24.6</span>흔한 실수</a><a class="lv3" href="#s24-7"><span class="tf-no">24.7</span>이 장의 문법을 한눈에</a></div></div>
 <main id="content"><div class="wrap">
-<h2>24 <code>pipe</code> — 하려는 일만 한 줄씩</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>7장 흐름 · <code>for</code> 는 슬라이스를 훑고 세는 반복은 <code>while</code> 로 적는다</div><div>9장 줄 · <code>mut slice</code> 여야 원소에 쓸 수 있다</div><div>22장 제네릭 · 값 대신 이름 붙은 op 을 건넨다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>7장에서 “<code>for</code> 로 0 부터 <code>n</code> 까지 세는 반복은 어떻게 적는가” 라는 물음에, 슬라이스를 걸러 세거나 모으는 일은 무엇이 맡는다고 했는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> <code>pipe</code> 가 맡는다고 했다. 세는 반복은 <code>while</code> 과 <code>var</code> 로 적고, 슬라이스를 거르고 바꾸고 모으는 일은 <code>pipe</code> 로 적는다. 이 장이 그 <code>pipe</code> 를 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">슬라이스를 훑는 반복은 거의 언제나 같은 뼈대다. 색인을 두고, 끝인지 보고, 원소를 꺼내 조건을 보고, 무언가를 쌓고, 색인을 늘린다. 이 뼈대를 손으로 쓰면 <strong>하려는 일</strong>(“숫자만 남기고 센다”)이 색인과 카운터 사이에 묻히고, 경계를 한 칸 틀리는 실수가 거기서 난다. <code>pipe</code> 는 뼈대를 언어가 맡고 사람은 하려는 일만 줄마다 한 낱말로 적게 한다. 그러면서도 손으로 쓴 반복과 똑같이 한 번만 훑는다. 추상(제6부)의 마지막 장으로, 추상이 비용을 숨기지 않는 모양을 보인다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>pipe &lt;원천> do &lt;스테이지…> &lt;종결자> end</code> 의 모양과, 스테이지 일곱·종결자 다섯을 알게 된다. 스테이지에 이름 붙은 op 을 건네는 법, <code>collect into</code> 로 호출자의 버퍼에 담는 법, <code>fold</code>·<code>any</code>·<code>all</code>·<code>take</code> 가 필요한 만큼만 읽는다는 것을 익힌다. 한 <code>pipe</code> 가 중간 배열 없이 한 번에 훑는 것이 최적화가 아니라 <strong>정의</strong>라는 점도 이해하게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>collect into</code> 로 쓰는 op 인데 머리가 <code>effects none</code> 이다. 호출자의 버퍼를 바꾸는데 효과가 없는가?</li></ol></div></div><div></div><h3 id="s24-1">24.1 같은 일, 두 가지 모양<a class="plink" href="#s24-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/digits.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> digits .
+<h2>24 <code>pipe</code> — 하려는 일만 한 줄씩</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>7장 흐름 · <code>for</code> 는 슬라이스를 훑고 세는 반복은 <code>while</code> 로 적는다</div><div>9장 줄 · <code>mut slice</code> 여야 원소에 쓸 수 있다</div><div>22장 제네릭 · 값 대신 이름 붙은 op 을 건넨다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>7장에서 “<code>for</code> 로 0 부터 <code>n</code> 까지 세는 반복은 어떻게 적는가” 라는 물음에, 슬라이스를 걸러 세거나 모으는 일은 무엇이 맡는다고 했는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> <code>pipe</code> 가 맡는다고 했다. 세는 반복은 <code>while</code> 과 <code>var</code> 로 적고, 슬라이스를 거르고 바꾸고 모으는 일은 <code>pipe</code> 로 적는다. 이 장이 그 <code>pipe</code> 를 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">슬라이스를 훑는 반복은 거의 언제나 같은 뼈대다. 색인을 두고, 끝인지 보고, 원소를 꺼내 조건을 보고, 무언가를 쌓고, 색인을 늘린다. 이 뼈대를 손으로 쓰면 <strong>하려는 일</strong>(“숫자만 남기고 센다”)이 색인과 카운터 사이에 묻히고, 경계를 한 칸 틀리는 실수가 거기서 난다. <code>pipe</code> 는 뼈대를 언어가 맡고 사람은 하려는 일만 줄마다 한 낱말로 적게 한다. 그러면서도 손으로 쓴 반복과 똑같이 한 번만 훑는다. 추상(제6부)의 마지막 장으로, 추상이 비용을 숨기지 않는 모양을 보인다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>pipe &lt;원천> do &lt;스테이지…> &lt;종결자> end .</code> 의 모양과, 스테이지 일곱·종결자 다섯을 알게 된다. 스테이지에 이름 붙은 op 을 건네는 법, <code>collect into</code> 로 호출자의 버퍼에 담는 법, <code>fold</code>·<code>any</code>·<code>all</code>·<code>take</code> 가 필요한 만큼만 읽는다는 것을 익힌다. 한 <code>pipe</code> 가 중간 배열 없이 한 번에 훑는 것이 최적화가 아니라 <strong>정의</strong>라는 점도 이해하게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>collect into</code> 로 쓰는 op 인데 머리가 <code>effects none</code> 이다. 호출자의 버퍼를 바꾸는데 효과가 없는가?</li></ol></div></div><div></div><h3 id="s24-1">24.1 같은 일, 두 가지 모양<a class="plink" href="#s24-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/digits.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> digits .
 <em><span class="tok-c">rem run: digits_loop [97,49,50,98,51]</span></em>
 <em><span class="tok-c">rem run: digits_pipe [97,49,50,98,51]</span></em>
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> digits_loop <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i (len s) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> is_digit (idx s i) <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> is_digit idx s. i. . . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n. add n. <span class="tok-n">1</span> . .
+    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> digits_pipe <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s. <strong><span class="tok-k">do</span></strong>
     filter is_digit .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run digits_loop digits.low [97,49,50,98,51]
 digits_loop([97,49,50,98,51]) = 3
   arg0 (written) = [97,49,50,98,51]
@@ -716,70 +716,70 @@ digits_pipe([97,49,50,98,51]) = 3
 
 <strong><span class="tok-k">fn</span></strong> over2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt a. <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add a a .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a. a. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> addu <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add acc. widen <strong><span class="tok-t">u64</span></strong> x. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> is_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> eq a <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> eq a. <span class="tok-n">0</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> under10 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> lt a <span class="tok-n">10</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> lt a. <span class="tok-n">10</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> big_doubled <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     map dbl .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> len out .
-<strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> len out. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> sum_big <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     fold <span class="tok-n">0</span> addu .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> has_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     any is_zero .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> all_small <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     all under10 .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> middle <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     skip <span class="tok-n">1</span> .
     take <span class="tok-n">2</span> .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> len out .
-<strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> len out. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run big_doubled stages.low [1,2,3,4,5] [0,0,0,0,0]
 big_doubled([1,2,3,4,5], [6,8,10,0,0]) = 5
   arg0 (written) = [1,2,3,4,5]
@@ -804,40 +804,40 @@ middle([10,20,30,40], [20,30]) = 2
 
 <strong><span class="tok-k">fn</span></strong> idxadd <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> e <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add e (narrow_wrap <strong><span class="tok-t">u8</span></strong> i) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add e. narrow_wrap <strong><span class="tok-t">u8</span></strong> i. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> addb <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add a b .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a. b. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> with_index <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     enumerate idxadd .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> added <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> ys <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    zip ys addb .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    zip ys. addb .
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> running <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     scan <span class="tok-n">0</span> addb .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run with_index pairs.low [10,10,10] [0,0,0]
 with_index([10,10,10], [10,11,12]) = 0
   arg0 (written) = [10,10,10]
@@ -858,41 +858,41 @@ running([1,2,3,4], [1,3,6,10]) = 0
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> band <strong><span class="tok-k">do</span></strong>
   lo <strong><span class="tok-t">u8</span></strong> .
   hi <strong><span class="tok-t">u8</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> above <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> limit <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt x limit .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt x. limit. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 실행 중에 정해지는 문턱 --- 훑기 전에 한 번 계산해 마지막 인자로 건넨다</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> count_above <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> base <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> margin <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    filter above with wrap_add base margin .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    filter above with wrap_add base. margin. . .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> clamp <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b band . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> lt x (field b lo) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">return</span></strong> field b lo .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">if</span></strong> gt x (field b hi) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">return</span></strong> field b hi .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> lt x. field b. lo . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> field b. lo . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> gt x. field b. hi . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> field b. hi . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> x. .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 설정이 여럿이면 참조 없는 구조체 하나로 묶는다</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> clamp_all <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> lo <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> hi <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    map clamp with <strong><span class="tok-k">lit</span></strong> band <strong><span class="tok-k">do</span></strong> lo lo . hi hi . <strong><span class="tok-k">end</span></strong> .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    map clamp with <strong><span class="tok-k">lit</span></strong> band <strong><span class="tok-k">do</span></strong> lo lo. . hi hi. . <strong><span class="tok-k">end</span></strong> . .
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run count_above context.low [1,5,9,12] 4 3
 count_above([1,5,9,12], 4, 3) = 2
   arg0 (written) = [1,5,9,12]
@@ -906,16 +906,16 @@ clamp_all([1,5,9,12], [4,5,9,9], 4, 9) = 4
 <em><span class="tok-c">rem ✘ 문맥은 참조 없는 값이다 --- 슬라이스는 주소를 들고 다니므로 문맥이 될 수 없다</span></em>
 <strong><span class="tok-k">fn</span></strong> over <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt x (idx s <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt x. idx s. <span class="tok-n">0</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> count_over <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    filter over with xs .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    filter over with xs. .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_context.low
 mistake_context.low:13:0 E-PIPE-CONTEXT-TYPE: a `with` context is a value without references (RFC-0121 §6.2) — this op's context parameter `s` holds a slice (it carries an address — the context would keep watching storage outside the pipe). Put the settings into a struct of numbers, bools and enums, or call the op in an explicit loop
 </code></pre></div></div><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>collect into</code> 로 쓰는 op 인데 머리가 <code>effects none</code> 이다. 호출자의 버퍼를 바꾸는데 효과가 없는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 명세의 예제도 <code>effects none</code> 으로 적는다. <code>collect into</code> 는 <code>effects state</code> 를 <strong>요구하지는</strong> 않지만, 적어 두면 처리기가 그것을 호출자 저장소 쓰기로 세므로 “선언했지만 하지 않는다” 는 경고는 나지 않는다 — <code>mut</code>·<code>mut_ref</code> 매개변수에 쓰는 자리와 같은 판정이다. 어느 쪽으로 적든 호출자는 <code>mut slice</code> 를 건네는 자리에서 쓰기가 일어날 수 있다는 것을 안다(12장).</p></div></div><h3 id="s24-3">24.3 한 번에 훑는 것은 정의다<a class="plink" href="#s24-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>한 <code>pipe</code> 는 <strong>한 번의 훑기</strong>로 실행되고 스테이지 사이에 중간 배열이 만들어지지 않는다. 이것은 처리기가 해 볼 수 있는 최적화가 아니라 <code>pipe</code> 의 정의이고, 중간 배열을 만드는 처리기는 적합하지 않다.</p><p>왜 정의로 두는가. 융합을 최적화로 두면 “어디까지 융합되는가” 가 처리기마다 다르고, 쓰는 사람은 <strong>절벽</strong>을 만난다. 한 줄을 고쳤더니 갑자기 중간 배열이 생기고 느려지는 자리다. 그 절벽은 소스만 봐서는 안 보인다. Lowent 는 융합할 수 없는 연산을 스테이지 낱말에 <strong>아예 넣지 않았다</strong>. 정렬처럼 전체를 봐야 하는 연산이 스테이지에 없는 이유다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/bad_stage.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bad_stage .
@@ -923,16 +923,16 @@ mistake_context.low:13:0 E-PIPE-CONTEXT-TYPE: a `with` context is a value withou
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> broken <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s. <strong><span class="tok-k">do</span></strong>
     sort .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check bad_stage.low
 bad_stage.low:12:0 E-PIPE-STAGE: this word is not a `pipe` stage. The stage vocabulary is CLOSED (RFC-0010 G5/D-A): stages are `filter &lt;op> .`, `map &lt;op> .`, `take &lt;n> .`, `skip &lt;n> .`, `enumerate &lt;op> .`, `zip &lt;other> &lt;op> .` and `scan &lt;init> &lt;op> .`, and the pipeline ends with exactly one terminal — `collect into &lt;mut slice> .`, `fold &lt;init> &lt;op> .`, `count .`, `any &lt;op> .` or `all &lt;op> .`. Fusion here is the MEANING, not an optimization, so anything that could not fuse into the single loop is not writable as a stage — use an explicit loop, or break the pipeline with an explicit intermediate collect
 </code></pre></div></div><p>스테이지 목록은 닫혀 있다. <code>pipe</code> 가 식이 아니라 문장인 것도 같은 이유다. 식이었다면 스테이지를 값으로 떼어 넘길 수 있고, 그러면 어디까지가 한 줄기인지 소스에서 안 보인다. <code>do … end</code> 가 그 경계를 눈에 보이게 한다.</p><h3 id="s24-4">24.4 필요한 만큼만 읽는다<a class="plink" href="#s24-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>any</code> 는 참을 내는 첫 원소에서, <code>all</code> 은 거짓을 내는 첫 원소에서, <code>take n</code> 은 <code>n</code> 개를 지나보낸 뒤 훑기를 멈춘다. 멈춘 뒤의 원소는 읽히지 않고 그 원소에 대한 스테이지도 실행되지 않는다. <code>has_zero [4,0,9]</code> 는 9 를 보지 않는다. 이 성질이 의미에 적혀 있어야 끝이 없는 원천도 <code>pipe</code> 로 다룰 수 있다.</p><p>종결자는 흐름을 끝낸다. 종결자 뒤에 스테이지가 오면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/no_terminal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> no_terminal .
@@ -940,37 +940,37 @@ bad_stage.low:12:0 E-PIPE-STAGE: this word is not a `pipe` stage. The stage voca
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> broken <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s. <strong><span class="tok-k">do</span></strong>
     count .
     filter is_digit .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check no_terminal.low
 no_terminal.low:13:0 E-PIPE-NO-TERMINAL: a `pipe` stage may not come AFTER the terminal — the terminal ends the pipeline (RFC-0010 G1)
 </code></pre></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>pipe</code> 는 편하지만 손으로 쓴 반복보다 느리다</strong></p><div class="dev-body">많은 언어에서 반복자 체인은 중간 객체나 간접 호출을 남기거나, 최적화기가 운 좋게 걷어내기를 기대한다. <code>pipe</code> 는 한 번 훑기가 정의이고 스테이지 op 은 단형화된 직접 호출이다. <code>pipe</code> 하나는 반복 하나로 낮아지고, 비용은 손으로 쓴 반복과 같은 자리에서 생긴다. 편한 쪽과 빠른 쪽이 갈리지 않도록 낱말을 고른 결과다.</div></div><h3 id="s24-5">24.5 이름이 같은 기본 연산 <code>map</code>·<code>filter</code><a class="plink" href="#s24-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>pipe</code> 밖에도 <code>map</code>·<code>filter</code> 가 있다. 이쪽은 스테이지가 아니라 <strong>문 하나로 슬라이스를 옮겨 담는 기본 연산</strong>이고, 인자가 셋이다 — <code>map &lt;받는 자리> &lt;op> &lt;원천> .</code> · <code>filter &lt;받는 자리> &lt;op> &lt;원천> .</code>.</p><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sink_map .
 
-<strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> wrap_add a a . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> wrap_add a. a. . . <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> doubled <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  map out dbl xs .
+  map out. dbl xs. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong></code></pre><p><code>[1,2]</code> 를 세 칸짜리 <code>out</code> 에 담으면 <code>[2,4,0]</code> 이다. 거꾸로 <code>[1,2,3]</code> 을 두 칸에 담으려 하면 셋째를 쓰는 순간 멈춘다 — 받는 자리가 차도 말없이 멈추는 일은 없다(<code>collect into</code> 와 같다). 받는 자리는 <code>mut slice</code> 여야 하고(<code>E-MAP-SINK</code>), 원소는 스칼라여야 한다(<code>E-MAP-ELEM</code>). 낱말은 같지만 <code>pipe</code> 안에서는 op 하나만 받는다 — 인자 수를 보면 어느 쪽인지 안다.</p><h3 id="s24-6">24.6 흔한 실수<a class="plink" href="#s24-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 스테이지에 식을 적어 람다를 흉내 낸다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_lambda.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_lambda .
+<strong><span class="tok-k">end</span></strong> .</code></pre><p><code>[1,2]</code> 를 세 칸짜리 <code>out</code> 에 담으면 <code>[2,4,0]</code> 이다. 거꾸로 <code>[1,2,3]</code> 을 두 칸에 담으려 하면 셋째를 쓰는 순간 멈춘다 — 받는 자리가 차도 말없이 멈추는 일은 없다(<code>collect into</code> 와 같다). 받는 자리는 <code>mut slice</code> 여야 하고(<code>E-MAP-SINK</code>), 원소는 스칼라여야 한다(<code>E-MAP-ELEM</code>). 낱말은 같지만 <code>pipe</code> 안에서는 op 하나만 받는다 — 인자 수를 보면 어느 쪽인지 안다.</p><h3 id="s24-6">24.6 흔한 실수<a class="plink" href="#s24-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 스테이지에 식을 적어 람다를 흉내 낸다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_lambda.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_lambda .
 <em><span class="tok-c">rem expect: E-FOLD-OP</span></em>
 
 <strong><span class="tok-k">fn</span></strong> count_big <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ 이름 없는 함수를 흉내 냈다 --- 스테이지에는 이름 붙은 op 하나를 건넨다</span></em>
     filter gt <span class="tok-n">2</span> .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_lambda.low
 mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not exist
 </code></pre></div></div><p>다른 언어의 <code>filter(x => x > 2)</code> 를 옮기면 <code>filter gt 2</code> 가 되기 쉽다. 스테이지는 <strong>이름 붙은 op 하나</strong>를 받으므로 <code>E-FOLD-OP</code> 다(진단은 “그런 op 이 없다” 고만 말한다). 조건에 이름을 붙이는 것은 번거로워 보이지만, <code>over2</code> 라는 이름이 곧 그 줄의 설명이 되고 같은 조건을 다른 <code>pipe</code> 에서도 쓴다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/lambda_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> lambda_fixed .
@@ -979,16 +979,16 @@ mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not ex
 <em><span class="tok-c">rem 조건에 이름을 붙인다 --- 이름이 곧 설명이 된다</span></em>
 <strong><span class="tok-k">fn</span></strong> over2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt a. <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> count_big <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run count_big lambda_fixed.low [1,2,3,4,5]
 count_big([1,2,3,4,5]) = 3
   arg0 (written) = [1,2,3,4,5]
@@ -997,18 +997,18 @@ count_big([1,2,3,4,5]) = 3
 
 <strong><span class="tok-k">fn</span></strong> times1000 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> mul (widen <strong><span class="tok-t">u64</span></strong> a) <span class="tok-n">1000</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> mul widen <strong><span class="tok-t">u64</span></strong> a. . <span class="tok-n">1000</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> scale <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ `u64` 를 내는 `map` 을 `u8` 버퍼에 담는다 --- 1000 이 232 가 된다</span></em>
     map times1000 .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_widecollect.low
 mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WIDER value into a narrower buffer, and that loses bits silently (measured: 1000 became 232). A conversion that loses value never happens implicitly here (§6.2.5) — put a `map` in front that says which narrowing you mean (`narrow`, `narrow_wrap`, `narrow_sat`, `narrow_try`), or collect into a buffer of the produced width
 </code></pre></div></div><p><code>times1000</code> 은 <code>u64</code> 를 내는데 <code>out</code> 은 <code>u8</code> 버퍼다. 값을 잃는 좁히기는 적어야만 일어나므로(§6.2.5) <code>E-TYPE-COLLECT</code> 로 거절된다. 2026-09-16 까지는 통과했고 1000 과 2000 이 조용히 232 와 208 로 담겼다. 좁혀야 한다면 <code>map</code> 의 op 안에서 <code>narrow</code>·<code>narrow_wrap</code>· <code>narrow_sat</code> 로 어느 좁히기인지 적어 멈출 자리를 드러낸다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>fold</code> 의 op 에서 누산값과 원소의 차례를 바꾼다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_foldorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_foldorder .
@@ -1016,18 +1016,18 @@ mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WID
 
 <em><span class="tok-c">rem ✘ 원소를 먼저 받았다 --- 누산값이 `x` 로, 원소가 `acc` 로 들어온다</span></em>
 <strong><span class="tok-k">fn</span></strong> add_small_swapped <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le acc <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le acc. <span class="tok-n">1000000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> lt x <span class="tok-n">100</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc .
-  <strong><span class="tok-k">return</span></strong> add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt x. <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc. . .
+  <strong><span class="tok-k">return</span></strong> add acc. widen <strong><span class="tok-t">u64</span></strong> x. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> sum_small_wrong <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     fold <span class="tok-n">0</span> add_small_swapped .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_foldorder.low
 mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is the FIRST input of its op and also its output, because each step computes `acc = op(acc, element)`. Here the first input and the output are declared with different types, so the running total is handed to a parameter that cannot hold it — a `u8` first input takes a total of 600 as 88 and the answer is silently wrong. Write the op as `input acc &lt;out-type> . input x &lt;element-type> .`
 </code></pre></div></div><p><code>fold</code> 는 op 에 <strong>누산값을 먼저, 원소를 다음</strong> 에 준다. <code>add_small_swapped</code> 는 차례를 거꾸로 받았으므로 <code>x</code> 에 누산값이, <code>acc</code> 에 원소가 들어온다. 한 걸음이 <code>누산값 = op(누산값, 원소)</code> 이므로 첫 입력의 타입은 출력 타입과 같아야 하는데 여기서는 <code>u8</code> 과 <code>u64</code> 로 다르다 — <code>E-FOLD-ORDER</code> 로 거절한다. <code>fold</code>·<code>scan</code> 의 op 은 언제나 <code>input acc … . input x … .</code> 차례로 적는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 멈출 수 있는 스테이지 op 을 쓰고 <code>fn</code> 으로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_stageeffect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_stageeffect .
@@ -1035,18 +1035,18 @@ mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is t
 
 <strong><span class="tok-k">proc</span></strong> nonzero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq a <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero in input</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq a. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero in input</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem ✘ 스테이지 op 이 멈출 수 있는데 `pipe` 를 쓴 op 을 `fn` 으로 적었다</span></em>
 <strong><span class="tok-k">fn</span></strong> count_checked <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter nonzero .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_stageeffect.low
 mistake_stageeffect.low:12:1 E-EFFECT-CALC: this fn is declared pure but performs `panic` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p><code>pipe</code> 는 스테이지 op 을 부르는 반복이므로, 스테이지 op 의 효과가 <code>pipe</code> 를 쓴 op 으로 번진다. <code>nonzero</code> 가 <code>panic</code> 할 수 있으니 <code>count_checked</code> 도 <code>panic</code> 을 낸다. 그래서 <code>fn</code> 이면 <code>E-EFFECT-CALC</code> 다. <code>proc … effects panic .</code> 으로 적거나, 멈추는 대신 조건을 만족하지 않는 원소를 걸러 내는 순수한 op 을 쓴다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>collect into</code> 는 버퍼가 차면 남는 것을 버리고 끝난다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/short_buffer.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> short_buffer .
@@ -1055,24 +1055,24 @@ mistake_stageeffect.low:12:1 E-EFFECT-CALC: this fn is declared pure but perform
 
 <strong><span class="tok-k">fn</span></strong> over2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt a. <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add a a .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a. a. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 버퍼는 두 칸 --- 남는 원소가 둘이면 담기고, 넷이면 셋째를 담으려는 순간 멈춘다</span></em>
 <strong><span class="tok-k">proc</span></strong> big_doubled <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     map dbl .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> len out .
-<strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> len out. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run big_doubled short_buffer.low [1,3,4] [0,0]
 big_doubled([1,3,4], [6,8]) = 2
   arg0 (written) = [1,3,4]
@@ -1080,7 +1080,7 @@ big_doubled([1,3,4], [6,8]) = 2
 $ lowentc --run big_doubled short_buffer.low [3,4,5,6] [0,0]
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N
-</code></pre></div></div><p><code>[1,3,4]</code> 에서 남는 원소는 둘(3·4)이라 두 칸에 담긴다. <code>[3,4,5,6]</code> 은 넷이라 셋째를 담으려는 순간 <strong>멈춘다</strong>. 예전에는 두 칸에서 말없이 끝났고, 남은 둘이 사라진 것을 아무도 몰랐다. 두 길이를 번역 시점에 알면(<code>array u8 5</code> 입력처럼) 멈출 것도 없이 <code>E-COLLECT-FULL</code> 로 거절된다. <code>pipe</code> 는 할당하지 않으므로 버퍼를 늘려 주지도 않는다. 들어갈 만큼만 담으려면 <code>take 2</code> 를 <strong>적는다</strong>.</p></div></div><h3 id="s24-7">24.7 이 장의 문법을 한눈에<a class="plink" href="#s24-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>pipe xs do … end</code></td><td>원천 <code>xs</code> 를 한 번 훑는다</td><td>뼈대(색인·끝 조건)를 언어가 맡는다</td></tr><tr><td><code>filter over2 .</code> · <code>map dbl .</code></td><td>남기기 · 바꾸기 — 이름 붙은 op 을 건넨다</td><td>람다가 없다 — 이름이 설명이 된다</td></tr><tr><td><code>take 2 .</code> · <code>skip 1 .</code></td><td>앞 몇 개만 · 앞 몇 개 버리기</td><td>필요한 만큼만 읽는다</td></tr><tr><td><code>enumerate idxadd .</code> · <code>zip ys addb .</code></td><td>순번·짝을 op 의 인자로 건넨다</td><td>튜플을 만들지 않는다</td></tr><tr><td><code>scan 0 addb .</code> · <code>fold 0 addu .</code></td><td>누적해 흘리기 · 누적해 값 하나</td><td>op 은 누산값이 먼저, 원소가 다음</td></tr><tr><td><code>filter above with limit .</code></td><td>문맥 — 훑기 전에 한 번 계산해 op 의 마지막 인자로</td><td>람다 없이 실행 중 값을 건넨다 — 참조 없는 값만</td></tr><tr><td><code>count .</code> · <code>any is_zero .</code> · <code>all under10 .</code></td><td>값을 내는 종결자</td><td><code>return pipe … end</code> 로 쓸 수 있다</td></tr><tr><td><code>collect into out .</code></td><td>부르는 쪽 버퍼에 담는다</td><td><code>pipe</code> 는 할당하지 않는다 — 모자라면 거절되거나 멈춘다</td></tr><tr><td>종결자는 정확히 하나, 맨 끝</td><td>뒤에 스테이지가 오면 <code>E-PIPE-NO-TERMINAL</code></td><td>흐름의 끝이 한곳에 보인다</td></tr><tr><td><code>sort</code> 같은 낱말</td><td>없다 — <code>E-PIPE-STAGE</code></td><td>융합할 수 없는 연산은 넣지 않았다</td></tr></table></div><p class="float-caption">표 24.2 — <code>pipe</code> 의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>pipe &lt;원천> do … end</code> 는 스테이지(<code>filter</code>·<code>map</code>·<code>take</code>·<code>skip</code>·<code>enumerate</code>·<code>zip</code>·<code>scan</code>)를 거쳐 종결자 (<code>collect into</code>·<code>fold</code>·<code>count</code>·<code>any</code>·<code>all</code>) 하나로 끝난다. 스테이지에는 이름 붙은 op 을 건네고, 담을 버퍼는 부르는 쪽이 준다. 한 번 훑기와 중간 배열 없음은 정의이며, 융합할 수 없는 연산은 낱말에 없다. <code>any</code>·<code>all</code>·<code>take</code> 는 필요한 만큼만 읽는다.</div></div>
+</code></pre></div></div><p><code>[1,3,4]</code> 에서 남는 원소는 둘(3·4)이라 두 칸에 담긴다. <code>[3,4,5,6]</code> 은 넷이라 셋째를 담으려는 순간 <strong>멈춘다</strong>. 예전에는 두 칸에서 말없이 끝났고, 남은 둘이 사라진 것을 아무도 몰랐다. 두 길이를 번역 시점에 알면(<code>array u8 5</code> 입력처럼) 멈출 것도 없이 <code>E-COLLECT-FULL</code> 로 거절된다. <code>pipe</code> 는 할당하지 않으므로 버퍼를 늘려 주지도 않는다. 들어갈 만큼만 담으려면 <code>take 2</code> 를 <strong>적는다</strong>.</p></div></div><h3 id="s24-7">24.7 이 장의 문법을 한눈에<a class="plink" href="#s24-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>pipe xs. do … end .</code></td><td>원천 <code>xs</code> 를 한 번 훑는다</td><td>뼈대(색인·끝 조건)를 언어가 맡는다</td></tr><tr><td><code>filter over2 .</code> · <code>map dbl .</code></td><td>남기기 · 바꾸기 — 이름 붙은 op 을 건넨다</td><td>람다가 없다 — 이름이 설명이 된다</td></tr><tr><td><code>take 2 .</code> · <code>skip 1 .</code></td><td>앞 몇 개만 · 앞 몇 개 버리기</td><td>필요한 만큼만 읽는다</td></tr><tr><td><code>enumerate idxadd .</code> · <code>zip ys addb .</code></td><td>순번·짝을 op 의 인자로 건넨다</td><td>튜플을 만들지 않는다</td></tr><tr><td><code>scan 0 addb .</code> · <code>fold 0 addu .</code></td><td>누적해 흘리기 · 누적해 값 하나</td><td>op 은 누산값이 먼저, 원소가 다음</td></tr><tr><td><code>filter above with limit .</code></td><td>문맥 — 훑기 전에 한 번 계산해 op 의 마지막 인자로</td><td>람다 없이 실행 중 값을 건넨다 — 참조 없는 값만</td></tr><tr><td><code>count .</code> · <code>any is_zero .</code> · <code>all under10 .</code></td><td>값을 내는 종결자</td><td><code>return pipe … end . .</code> 로 쓸 수 있다</td></tr><tr><td><code>collect into out .</code></td><td>부르는 쪽 버퍼에 담는다</td><td><code>pipe</code> 는 할당하지 않는다 — 모자라면 거절되거나 멈춘다</td></tr><tr><td>종결자는 정확히 하나, 맨 끝</td><td>뒤에 스테이지가 오면 <code>E-PIPE-NO-TERMINAL</code></td><td>흐름의 끝이 한곳에 보인다</td></tr><tr><td><code>sort</code> 같은 낱말</td><td>없다 — <code>E-PIPE-STAGE</code></td><td>융합할 수 없는 연산은 넣지 않았다</td></tr></table></div><p class="float-caption">표 24.2 — <code>pipe</code> 의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>pipe &lt;원천> do … end .</code> 는 스테이지(<code>filter</code>·<code>map</code>·<code>take</code>·<code>skip</code>·<code>enumerate</code>·<code>zip</code>·<code>scan</code>)를 거쳐 종결자 (<code>collect into</code>·<code>fold</code>·<code>count</code>·<code>any</code>·<code>all</code>) 하나로 끝난다. 스테이지에는 이름 붙은 op 을 건네고, 담을 버퍼는 부르는 쪽이 준다. 한 번 훑기와 중간 배열 없음은 정의이며, 융합할 수 없는 연산은 낱말에 없다. <code>any</code>·<code>all</code>·<code>take</code> 는 필요한 만큼만 읽는다.</div></div>
 <div class="nav"><a href="ch23.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch25.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

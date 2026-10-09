@@ -79,44 +79,44 @@ def struct span do
   lo u64 .
   hi u64 .
   seen bool .
-end
+end .
 
 export fn bounds input xs slice u64 . output s span .
 do
-  for x xs do
-    if or (not (field s seen)) (lt x (field s lo)) do set (field s lo) x . end
-    if gt x (field s hi) do set (field s hi) x . end
-    set (field s seen) true .
-  end
-  return s .
-end")
+  for x xs. do
+    if or not field s. seen . . lt x. field s. lo . . . do set field s. lo . x. . end .
+    if gt x. field s. hi . . do set field s. hi . x. . end .
+    set field s. seen . true .
+  end .
+  return s. .
+end .")
     #rejected("0 이 정해지지 않은 타입에 이름을 붙였다", "module ex_named_nozero .
 
 fn first input xs slice u8 . output r slice u8 .
 do
-  return xs .
-end", "E-RESULT-NOZERO")
+  return xs. .
+end .", "E-RESULT-NOZERO")
     #ex("op 의 선언", "module ex_op .
 
 export fn twice input n u32 . output u32 .
-  requires le n 2147483647 .
+  requires le n. 2147483647 . .
 do
-  return mul n 2 .
-end")
+  return mul n. 2 . .
+end .")
     #rejected("출력을 입력보다 앞에 적는다", "module ex_clause_order .
 
 fn twice output u32 .
   input n u32 .
-  requires le n 2147483647 .
+  requires le n. 2147483647 . .
 do
-  return mul n 2 .
-end", "E-CLAUSE-ORDER")
+  return mul n. 2 . .
+end .", "E-CLAUSE-ORDER")
     #rejected("머리의 절에 점이 없다", "module ex_clause_dot .
 
 fn twice input n u32 output u32 .
 do
-  return mul n 2 .
-end", "E-DOT-MISSING")
+  return mul n. 2 . .
+end .", "E-DOT-MISSING")
     #plain[
       `export` 는 다른 모듈이 이 op 을 쓸 수 있게 한다는 표시다. 붙이지 않으면 그 모듈
       안에서만 쓴다.
@@ -272,13 +272,13 @@ end", "E-DOT-MISSING")
 
 rem 이 op 은 슬라이스에서 두 바이트를 읽어 큰 수 하나를 만든다.
 export fn read_pair input data slice u8 . output u32 .
-  requires ge (len data) 2 .
-  ensures le ret 65535 .
+  requires ge len data. . 2 . .
+  ensures le ret. 65535 . .
 do
-  let hi u32 widen u32 (idx data 0) .
-  let lo u32 widen u32 (idx data 1) .
-  return add (mul hi 256) lo .
-end")
+  let hi u32 widen u32 idx data. 0 . . .
+  let lo u32 widen u32 idx data. 1 . . .
+  return add mul hi. 256 . lo. . .
+end .")
     #plain[
       위 예제를 읽는 법: #emph["이 함수는 길이가 2 이상인 바이트 줄을 받아야 하고(requires),
       돌려주는 값은 65535 이하임을 약속하며(ensures), 바깥세상은 아무것도 건드리지
@@ -296,13 +296,13 @@ end")
 
 rem 여러 op 이 같은 조건을 요구하면 그 조건에 이름을 줄 수 있다.
 contract nonneg do
-  requires ge a 1 .
-end
+  requires ge a. 1 . .
+end .
 
 fn half satisfies nonneg . input a u8 . output u8 .
 do
-  return div a 2 .
-end")
+  return div a. 2 . .
+end .")
     #plain[
       같은 조건을 여러 곳에 손으로 되풀이하면, 하나를 고치고 다른 하나를 잊는 일이 생긴다.
       이름을 주면 고칠 자리가 하나가 된다.
@@ -329,15 +329,15 @@ end")
 rem 계약이 없으면 넘침 검사가 남는다.
 export fn bare input a u8 . output u8 .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .
 
 rem 계약이 있으면 처리기가 증명하고 검사를 없앤다.
 export fn proven input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .
-end")
+  return add a. 1 . .
+end .")
     #note[
       두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이며, 그 한 줄이 실행 중 검사 하나를
       없앤다. 이것이 이 언어에서 계약이 하는 가장 큰 일이다.
@@ -380,7 +380,7 @@ end")
 
 build nosuchmode .
 
-fn f output u8 . do return 1 . end", "E-BUILD-MODE")
+fn f output u8 . do return 1 . end .", "E-BUILD-MODE")
   ]
   #sub("6.4.8", "이름과 범위")[
     #para("1")[
@@ -409,34 +409,34 @@ let g u32 7 .
 proc p output u32 . effects none .
 do
   let g u32 1 .     rem 모듈의 `g` 를 가린다
-  return g .
-end", "E-NAME-SHADOW")
+  return g. .
+end .", "E-NAME-SHADOW")
     #rejected("매개변수를 가릴 수 없다", "module ex_shadow_param .
 
 proc p input n u32 . output u32 . effects none .
 do
   let n u32 1 .     rem 매개변수 `n` 을 가린다
-  return n .
-end", "E-NAME-SHADOW")
+  return n. .
+end .", "E-NAME-SHADOW")
     #rejected("같은 블록에서 같은 이름을 두 번 선언할 수 없다", "module ex_shadow_twice .
 
 proc p output u32 . effects none .
 do
   let a u32 1 .
   let a u32 2 .     rem 첫 번째를 대신하지 않는다
-  return a .
-end", "E-NAME-SHADOW")
+  return a. .
+end .", "E-NAME-SHADOW")
     #rejected("안쪽 블록이 바깥 이름을 가릴 수 없다", "module ex_shadow_inner .
 
 proc p input n u32 . output u32 . effects none .
 do
   let a u32 1 .
-  guard gt n 0 else do
+  guard gt n. 0 . else do
     let a u32 2 .   rem 바깥 `a` 가 아직 살아 있다
-    return a .
-  end
-  return a .
-end", "E-NAME-SHADOW")
+    return a. .
+  end .
+  return a. .
+end .", "E-NAME-SHADOW")
     #para("6")[
       이름을 찾는 차례는 지역 → 모듈 → 가져온 모듈이다. 가져온 이름이 서로 부딪히면
       어느 것인지 밝혀 적어야 한다.
@@ -492,23 +492,23 @@ end", "E-NAME-SHADOW")
 build debug .
 
 fn bump input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .
-end",
+  return add a. 1 . .
+end .",
       out: "bump(10) = 11 · bump(250) → E-VM-CONTRACT (트랩)")
     #ex("같은 프로그램 — `release_fast`", "module ex_mode_fast .
 
 build release_fast .
 
 fn bump input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .
-end",
+  return add a. 1 . .
+end .",
       out: "bump(10) = 11 · bump(250) = 251 (멈추지 않는다)")
     #caution("`release_fast` 는 안전한 부분집합 밖이다")[
-      같은 프로그램이 모드에 따라 다르게 끝난다. 계약 `requires le a 200 .` 을 어기고
+      같은 프로그램이 모드에 따라 다르게 끝난다. 계약 `requires le a. 200 . .` 을 어기고
       `a` 를 250 으로 부르면 `debug` 에서는 멈추고(`E-VM-CONTRACT`), `release_fast` 에서는
       #strong[멈추지 않고 251 을 낸다.];
       이것이 이 문서가 미정의 동작을 없앴다고 말하는 범위를 #strong[안전한 부분집합];으로 한정하는
@@ -534,15 +534,15 @@ end",
     ]
     #rejected("양쪽이 상수이므로 지금 판정된다", "module ex_impossible .
 
-fn g input a u8 . output u8 . requires lt a 10 .
+fn g input a u8 . output u8 . requires lt a. 10 . .
 do
-  return a .
-end
+  return a. .
+end .
 
 fn f output u8 .
 do
-  return g 200 .       rem 200 은 결코 10 보다 작지 않다
-end", "E-CONTRACT-IMPOSSIBLE")
+  return g 200 . .       rem 200 은 결코 10 보다 작지 않다
+end .", "E-CONTRACT-IMPOSSIBLE")
   ]
   #sub("6.4.11", "이름이 될 수 없는 것")[
     #para("1")[
@@ -635,7 +635,7 @@ end", "E-CONTRACT-IMPOSSIBLE")
   ]
   #sub("6.4.13", "시험 블록")[
     #term("시험 블록", "test block")[
-      `test <이름> do … end` 로 적는, 입력도 출력도 없는 몸. 시험을 돌리라는 요청을 받았을 때만 실행된다.
+      `test <이름> do … end .` 로 적는, 입력도 출력도 없는 몸. 시험을 돌리라는 요청을 받았을 때만 실행된다.
     ]
     #term("단언", "assertion")[
       `expect <조건> .` — 시험이 참이라고 주장하는 조건. 거짓이면 그 시험은 실패한다.
@@ -693,43 +693,43 @@ end", "E-CONTRACT-IMPOSSIBLE")
 
 fn clamp8 input v u64 . output u8 .
 do
-  return narrow_sat u8 v .
-end
+  return narrow_sat u8 v. . .
+end .
 
 test clamp_keeps_small do
-  expect eq (clamp8 7) 7 .
-end
+  expect eq clamp8 7 . 7 . .
+end .
 
 test clamp_saturates do
-  expect eq (clamp8 1000) 255 .
-end")
+  expect eq clamp8 1000 . 255 . .
+end .")
     #rejected("단언의 조건은 bool 이다 — 수는 참이 아니다", "module ex_test_num .
 
 test counts do
   expect 1 .
-end", "E-TYPE-COND")
+end .", "E-TYPE-COND")
     #rejected("한 모듈의 두 시험은 이름이 달라야 한다", "module ex_test_dup .
 
 test same do
-  expect eq 1 1 .
-end
+  expect eq 1 1 . .
+end .
 
 test same do
-  expect eq 2 2 .
-end", "E-NAME-DUP")
+  expect eq 2 2 . .
+end .", "E-NAME-DUP")
     #rejected("시험과 op 은 한 이름 공간을 쓴다", "module ex_test_ns .
 
-fn check output bool . do return true . end
+fn check output bool . do return true . end .
 
 test check do
-  expect check .
-end", "E-NAME-DUP")
+  expect check. .
+end .", "E-NAME-DUP")
     #rejected("expect 는 시험 블록 안에만 온다", "module ex_expect_place .
 
 fn half input n u8 . output u8 .
 do
-  expect lt n 200 .
-  return div n 2 .
-end", "E-EXPECT-PLACE")
+  expect lt n. 200 . .
+  return div n. 2 . .
+end .", "E-EXPECT-PLACE")
   ]
 ]

@@ -10,8 +10,8 @@ and JavaScript. `slice u16` is a UTF-16 string, and one element is one unit.
 ```lowent
 use utf16 .
 
-let c option u64 utf16.decode s 0 .
-guard is_some c else return 1 .
+let c option u64 utf16.decode s. 0 . .
+guard is_some c. . else return 1 . .
 ```
 
 `0` is not "the first character" but *unit 0*. Every position in this module is a unit index, and advancing by character is done by `next_start` (two units for a pair).
@@ -76,7 +76,7 @@ The most used in practice are `put` (writing) and `decode` + `next_start` (itera
 - *`cp_valid`* --- is it valid as a code point. `false` if `c > 1114111` or in the surrogate range (55296 … 57343). The gate that filters numbers from outside before
   writing.
 - *`units`* --- how many units a code point takes. 2 if `c ≥ 65536`, otherwise 1. Use it to size buffers in advance. *It does not check validity.*
-- *`unit_hi`* --- the high unit. `some c` for BMP, `some (0xD800 + v/1024)` for two units, `none` if invalid.
+- *`unit_hi`* --- the high unit. `some c. .` for BMP, `some (0xD800 + v/1024)` for two units, `none` if invalid.
 - *`unit_lo`* --- the low unit. `none` for BMP --- here meaning "there is only one unit", not an error. `some (0xDC00 + v%1024)` for two units. `none` also for an invalid
   code point.
 - *`put`* --- writes the code point into `dst` from `at` and returns *the next position to write* (`some (at+1)` or `some (at+2)`). It is on the same position axis as
@@ -100,45 +100,45 @@ module ex_utf16 .
 use utf16 as u .
 
 proc round_trip input buf mut slice u16 . output u64 . effects none . do
-  guard ge (len buf) 4 else return 90 .
+  guard ge len buf. . 4 . else return 90 . .
   rem '가' (U+AC00) --- BMP, so one unit. put returns the next position to write
-  let a option u64 u.put buf 0 44032 .
-  guard is_some a else return 1 .
-  guard eq (some_value a) 1 else return 2 .
+  let a option u64 u.put buf. 0 44032 . .
+  guard is_some a. . else return 1 . .
+  guard eq some_value a. . 1 . else return 2 . .
 
   rem U+1F4A9 --- outside the BMP, so split into two units (a surrogate pair)
-  let b option u64 u.put buf (some_value a) 128169 .
-  guard is_some b else return 3 .
-  guard eq (some_value b) 3 else return 4 .
-  guard eq (idx buf 1) 55357 else return 5 .
-  guard eq (idx buf 2) 56489 else return 6 .
+  let b option u64 u.put buf. some_value a. . 128169 . .
+  guard is_some b. . else return 3 . .
+  guard eq some_value b. . 3 . else return 4 . .
+  guard eq idx buf. 1 . 55357 . else return 5 . .
+  guard eq idx buf. 2 . 56489 . else return 6 . .
 
   rem read it back as one --- decode joins the pair
-  let rb option u64 u.decode buf 1 .
-  guard is_some rb else return 7 .
-  guard eq (some_value rb) 128169 else return 8 .
+  let rb option u64 u.decode buf. 1 . .
+  guard is_some rb. . else return 7 . .
+  guard eq some_value rb. . 128169 . else return 8 . .
 
   rem 'A' + emoji (pair) + '가' = four units, three characters
-  set (idx buf 0) 65 .
-  set (idx buf 3) 44032 .
-  let n option u64 u.count_chars (subslice buf 0 4) .
-  guard is_some n else return 9 .
-  guard eq (some_value n) 3 else return 10 .
+  set idx buf. 0 . 65 .
+  set idx buf. 3 . 44032 .
+  let n option u64 u.count_chars subslice buf. 0 4 . . .
+  guard is_some n. . else return 9 . .
+  guard eq some_value n. . 3 . else return 10 . .
   return 42 .
-end
+end .
 ```
 
 The high unit `buf[1]` is 55357 (0xD83D) and the low unit `buf[2]` is 56489 (0xDCA9). Iterate with `next_start`.
 
 ```lowent
 var i u64 0 .
-while lt i (len s) do
-  let c option u64 u.decode s i .
-  guard is_some c else return 80 .
-  let nx option u64 u.next s i .
-  guard is_some nx else return 81 .
-  set i (some_value nx) .
-end
+while lt i. len s. . . do
+  let c option u64 u.decode s. i. . .
+  guard is_some c. . else return 80 . .
+  let nx option u64 u.next s. i. . .
+  guard is_some nx. . else return 81 . .
+  set i. some_value nx. . .
+end .
 ```
 
 +1 for BMP, +2 for a pair --- you do not count. `none` means stop (whether it is the end or breakage is told apart by measuring `is_valid` first).
@@ -147,26 +147,26 @@ end
 
 #antipattern[Trying to pass unpaired input through `decode`][
   ```lowent
-  set (idx buf 0) 55357 .          rem ✗ after the high 0xD83D
-  set (idx buf 1) 65 .             rem   comes 'A', not a low
-  let a option u64 u.decode buf 0 .
+  set idx buf. 0 . 55357 .          rem ✗ after the high 0xD83D
+  set idx buf. 1 . 65 .             rem   comes 'A', not a low
+  let a option u64 u.decode buf. 0 . .
   ```
-  It is `none`. So is a low surrogate alone (`decode buf 2`, value 56489) or ending with a high surrogate (`decode (subslice buf 0 4) 3`). All three are caught right at
+  It is `none`. So is a low surrogate alone (`decode buf 2`, value 56489) or ending with a high surrogate (`decode subslice buf. 0 4 . 3 .`). All three are caught right at
   `guard is_some`. Letting them through silently would make everything after wrong, so *rejection is the value of this library*. Intact pairs still pass.
 ]
 
 #antipattern[Putting a two-unit character into the last unit][
-  `u.put buf (sub (len buf) 1) 128169` is `none` and *that unit is not touched*. No need to worry about half a write.
+  `u.put buf. sub len buf. . 1 . 128169 .` is `none` and *that unit is not touched*. No need to worry about half a write.
 ]
 
 #antipattern[Trying to use a surrogate value as a code point][
-  `u.cp_valid 55357` is `false`, so `put`, `unit_hi` and `unit_lo` all give `none`. Taking these `none`s out with `some_value` without checking stops at run time with
+  `u.cp_valid 55357 .` is `false`, so `put`, `unit_hi` and `unit_lo` all give `none`. Taking these `none`s out with `some_value` without checking stops at run time with
   `E-VM-NONE` --- it translates, so `guard` comes first.
 ]
 
 == Cautions
 
-- *`len s` is a unit count.* Only `count_chars` knows the character count. One emoji takes two units.
+- *`len s. .` is a unit count.* Only `count_chars` knows the character count. One emoji takes two units.
 - *Do not cut through a pair.* Splitting between high and low with `subslice` makes both pieces invalid. Cut only at positions `next_start` gave.
 - *Advance the cursor with `next_start`.* Advancing by 1 reads a pair's low unit as a character start, giving `none` or an inflated count.
 - *Costs.* `decode`, `next_start` and `put` are O(1); `count_chars` and `is_valid` are O(units). Do not count in a loop condition every time.

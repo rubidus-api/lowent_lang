@@ -104,7 +104,7 @@ export def struct handle do
   blk u64 .
   len u64 .
   gen u64 .
-end
+end .
 
 rem ★ 풀 하나. 뒷받침 바이트와 세대 배열을 **자기가 든다**(봉인). 호출자가 준 것을 `init` 이 봉한다.
 rem   두 배열은 여전히 **호출자가 마련한다**(라이브러리는 할당하지 않는다 — lib/alloc.low 규율).
@@ -118,7 +118,7 @@ export def struct block_pool do
   freetop u64 .
   rem ★ 자유 목록 머리. **인덱스 + 1** 을 담는다 — 0 이 "비었음" 이다(0 번 블록과 안 헷갈린다).
   freehead u64 .
-end
+end .
 
 rem 뒷받침을 걸고 **봉한다**. `bs` = 블록 크기(예: 4096). 블록 수는 두 배열 중 작은 쪽이 정한다.
 rem ★ 전에는 블록 수를 돌려줬다. 이제는 **풀을 돌려준다** — 못 열면 `none` 이다(트랩 아님).
@@ -127,136 +127,136 @@ export proc init input comptime b type . input mem mut slice u8 . input g mut sl
   input bs u64 . output option (block_pool b) . effects none .
 do
   rem ★ 링크 한 칸이 u64 다 — 블록이 그보다 작으면 자유 목록을 못 든다. 거절한다(§0).
-  guard ge bs 8 else return none .
-  var n u64 div (len mem) bs .
-  if gt n (len g) do set n (len g) . end
+  guard ge bs. 8 . else return none . .
+  var n u64 div len mem. . bs. . .
+  if gt n. len g. . . do set n. len g. . . end .
   rem 세대는 1 부터 — 0 은 "한 번도 안 준 블록" 으로 남겨 둔다.
   var i u64 0 .
-  while lt i n do
-    set (idx g i) 1 .
-    set i (add i 1) .
-  end
-  return some (lit block_pool b do
-    mem mem .
-    gens g .
-    bsize bs .
-    nblk n .
+  while lt i. n. . do
+    set idx g. i. . 1 .
+    set i. add i. 1 . .
+  end .
+  return some lit (block_pool b) do
+    mem mem. .
+    gens g. .
+    bsize bs. .
+    nblk n. .
     freetop 0 .
     freehead 0 .
-  end) .
-end
+  end . . .
+end .
 
 rem 이 풀이 든 블록 수. 전에 `init` 이 돌려주던 그 수다.
-export fn blocks input comptime b type . input p block_pool b . output u64 . do
-  return (field p nblk) .
-end
+export fn blocks input comptime b type . input p (block_pool b) . output u64 . do
+  return field p. nblk . .
+end .
 
 rem ★ 블록 하나를 얻는다. 없으면 `none` — 트랩이 아니다(OOM 은 값이다, RFC-0043 D5).
 rem ★★★ **놓은 것을 먼저 준다**: 자유 목록이 비어 있을 때만 순차 배당으로 간다.
 rem   ⇒ 받고-놓기를 반복해도 풀이 마르지 않는다. 이것이 자유 목록의 전부다.
-export proc take input comptime b type . input p mut block_pool b . output option (handle b) .
+export proc take input comptime b type . input p mut (block_pool b) . output option (handle b) .
   effects none .
 do
-  var mem mut slice u8 (field p mem) .
-  var g mut slice u64 (field p gens) .
-  if gt (field p freehead) 0 do
-    let bk u64 sub (field p freehead) 1 .
+  var mem mut slice u8 field p. mem . .
+  var g mut slice u64 field p. gens . .
+  if gt field p. freehead . 0 . do
+    let bk u64 sub field p. freehead . 1 . .
     rem 블록 안에 적어 둔 "다음" 을 꺼내 머리로 삼는다 (리틀엔디언 u64)
-    let off u64 mul bk (field p bsize) .
+    let off u64 mul bk. field p. bsize . . .
     var v u64 0 .
     var k u64 8 .
-    while gt k 0 do
-      set k (sub k 1) .
-      set v (add (mul v 256) (idx mem (add off k))) .
-    end
-    set (field p freehead) v .
-    return some (lit handle b do blk bk . len (field p bsize) . gen (idx g bk) . end) .
-  end
-  guard lt (field p freetop) (field p nblk) else return none .
-  let b2 u64 (field p freetop) .
-  set (field p freetop) (add (field p freetop) 1) .
-  return some (lit handle b do blk b2 . len (field p bsize) . gen (idx g b2) . end) .
-end
+    while gt k. 0 . do
+      set k. sub k. 1 . .
+      set v. add mul v. 256 . idx mem. add off. k. . . . .
+    end .
+    set field p. freehead . v. .
+    return some lit (handle b) do blk bk. . len field p. bsize . . gen idx g. bk. . . end . . .
+  end .
+  guard lt field p. freetop . field p. nblk . . else return none . .
+  let b2 u64 field p. freetop . .
+  set field p. freetop . add field p. freetop . 1 . .
+  return some lit (handle b) do blk b2. . len field p. bsize . . gen idx g. b2. . . end . . .
+end .
 
 rem ★★★ **해제 — 세대를 올린다.** 그 순간 그 블록의 **모든 옛 핸들이 낡는다.**
 rem   메모리는 그대로 있지만 **아무도 그것을 쓸 수 없다** — 그것이 세대 핸들의 전부다.
 rem ★★ 그리고 **블록을 자유 목록에 되돌린다** — 링크는 블록 자기 바이트에 쓴다(추가 비용 0).
 rem   ★ 순서가 중요하다: 세대를 **먼저** 올려 아무도 못 닿게 만든 뒤에야 그 바이트를 장부로 쓴다.
-export proc release input comptime b type . input p mut block_pool b . input h handle b .
+export proc release input comptime b type . input p mut (block_pool b) . input h (handle b) .
   output bool . effects none . invalidates p .
 do
-  var mem mut slice u8 (field p mem) .
-  var g mut slice u64 (field p gens) .
+  var mem mut slice u8 field p. mem . .
+  var g mut slice u64 field p. gens . .
   rem ★ 순차 커서 앞의 블록만 밖에 나가 있을 수 있다(`freetop ≤ nblk`). 그 뒤는 세대 1 이 그대로라
   rem   지어 낸 핸들과 구별이 안 되므로 **자리로** 거절한다.
-  guard lt (field h blk) (field p freetop) else return false .
-  guard eq (idx g (field h blk)) (field h gen) else return false .   rem 이미 낡았다 (이중 해제도 여기서 걸린다)
-  set (idx g (field h blk)) (add (field h gen) 1) .
+  guard lt field h. blk . field p. freetop . . else return false . .
+  guard eq idx g. field h. blk . . field h. gen . . else return false . .   rem 이미 낡았다 (이중 해제도 여기서 걸린다)
+  set idx g. field h. blk . . add field h. gen . 1 . .
   rem 옛 머리를 이 블록 안에 적고, 이 블록이 새 머리가 된다
-  let off u64 mul (field h blk) (field p bsize) .
-  var v u64 (field p freehead) .
+  let off u64 mul field h. blk . field p. bsize . . .
+  var v u64 field p. freehead . .
   var k u64 0 .
-  while lt k 8 do
-    set (idx mem (add off k)) (mod v 256) .
-    set v (div v 256) .
-    set k (add k 1) .
-  end
-  set (field p freehead) (add (field h blk) 1) .
+  while lt k. 8 . do
+    set idx mem. add off. k. . . mod v. 256 . .
+    set v. div v. 256 . .
+    set k. add k. 1 . .
+  end .
+  set field p. freehead . add field h. blk . 1 . .
   return true .
-end
+end .
 
 rem ★★★ **바이트에 닿는 유일한 문.** 세대가 안 맞으면 `none` — use-after-free 가 **여기서** 걸린다.
 rem   ★ 검사 비용이 **이 문을 지나는 코드에만** 붙는다. 평범한 slice 는 아무것도 안 낸다.
 rem   ★★ 그리고 이제 **어느 backing 인지 묻지 않는다** — 풀이 자기 것을 안다(봉인).
-export proc bytes input comptime b type . input p block_pool b . input h handle b .
+export proc bytes input comptime b type . input p (block_pool b) . input h (handle b) .
   output option mut slice u8 . effects none .
 do
-  var mem mut slice u8 (field p mem) .
-  var g mut slice u64 (field p gens) .
-  guard lt (field h blk) (field p freetop) else return none .
-  guard eq (idx g (field h blk)) (field h gen) else return none .
-  let off u64 mul (field h blk) (field p bsize) .
+  var mem mut slice u8 field p. mem . .
+  var g mut slice u64 field p. gens . .
+  guard lt field h. blk . field p. freetop . . else return none . .
+  guard eq idx g. field h. blk . . field h. gen . . else return none . .
+  let off u64 mul field h. blk . field p. bsize . . .
   rem ★ 뷰의 길이는 **풀이** 안다 — 핸들의 `len` 은 호출자가 지어 낼 수 있는 값이다.
-  return some (subslice mem off (add off (field p bsize))) .
-end
+  return some subslice mem. off. add off. field p. bsize . . . . .
+end .
 
 rem 살아 있는 핸들인가 — 묻기만 한다(바이트를 안 꺼낸다).
-export proc alive input comptime b type . input p block_pool b . input h handle b .
+export proc alive input comptime b type . input p (block_pool b) . input h (handle b) .
   output bool . effects none .
 do
-  var g mut slice u64 (field p gens) .
-  guard lt (field h blk) (field p freetop) else return false .
-  return eq (idx g (field h blk)) (field h gen) .
-end
+  var g mut slice u64 field p. gens . .
+  guard lt field h. blk . field p. freetop . . else return false . .
+  return eq idx g. field h. blk . . field h. gen . . .
+end .
 
 rem ★ 순차로 **꺼내 본** 블록 수. 자유 목록에 돌아온 것은 여기서 안 준다 — `outstanding` 을 보라.
-export fn used input comptime b type . input p block_pool b . output u64 . do
-  return (field p freetop) .
-end
+export fn used input comptime b type . input p (block_pool b) . output u64 . do
+  return field p. freetop . .
+end .
 
 rem ★★ 지금 **밖에 나가 있는** 블록 수. 자유 목록 길이를 세어 뺀다.
 rem ☞ 이름이 `live` 가 아닌 이유: 평평한 형태의 정규화기는 op 이름과 지역 이름을 못 가른다.
 rem   `live` 로 지었더니 픽스처의 **지역 변수 `live`** 를 op 머리로 읽고 포기했다 —
 rem   `guard is_some live .` 가 "피연산자 부족" 이 됐다. **흔한 낱말을 op 이름으로 쓰지 않는다.**
 rem   ⇒ 받고-놓기를 반복해도 이 수가 안 는다는 것이 자유 목록이 산다는 증거다(픽스처가 잰다).
-export proc outstanding input comptime b type . input p block_pool b . output u64 . effects none . do
-  var mem mut slice u8 (field p mem) .
+export proc outstanding input comptime b type . input p (block_pool b) . output u64 . effects none . do
+  var mem mut slice u8 field p. mem . .
   var n u64 0 .
-  var cur u64 (field p freehead) .
-  while gt cur 0 do
+  var cur u64 field p. freehead . .
+  while gt cur. 0 . do
     rem ★ 장부가 썩었으면(순환 · 범위 밖 링크 · 목록이 나간 수보다 길다) **0 으로 멎는다** —
     rem   밑으로 감긴 수나 경계 밖 읽기가 아니라 값이다(2026-09-04). 있어선 안 되지만 안 돈다.
-    guard lt n (field p freetop) else return 0 .
-    guard le cur (field p nblk) else return 0 .
-    set n (add n 1) .
-    let off u64 mul (sub cur 1) (field p bsize) .
+    guard lt n. field p. freetop . . else return 0 . .
+    guard le cur. field p. nblk . . else return 0 . .
+    set n. add n. 1 . .
+    let off u64 mul sub cur. 1 . field p. bsize . . .
     var v u64 0 .
     var k u64 8 .
-    while gt k 0 do
-      set k (sub k 1) .
-      set v (add (mul v 256) (idx mem (add off k))) .
-    end
-    set cur v .
-  end
-  return sub (field p freetop) n .
-end
+    while gt k. 0 . do
+      set k. sub k. 1 . .
+      set v. add mul v. 256 . idx mem. add off. k. . . . .
+    end .
+    set cur. v. .
+  end .
+  return sub field p. freetop . n. . .
+end .

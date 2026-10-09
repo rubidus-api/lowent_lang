@@ -22,33 +22,33 @@ rem ── 함께 쓰는 것 ─────────────────
 
 rem 32 비트 왼쪽 돌리기 — 값은 u64 칸에 담고 아래 32 비트만 쓴다. n 은 1 ~ 31.
 fn rotl32 input x u64 . input n u64 . output u64 . do
-  return bit_and (bit_or (shl x n) (shr x (sub 32 n))) 0xffffffff .
-end
+  return bit_and bit_or shl x. n. . shr x. sub 32 n. . . . 0xffffffff . .
+end .
 
 rem 덧붙임을 **버퍼 없이** 읽는다. 채운 뒤의 메시지에서 i 번째 바이트가 무엇인지 그 자리에서 답한다:
 rem   원문 → 0x80 하나 → 0 들 → 끝의 8 바이트는 원문의 **비트** 길이(big 이면 큰 끝부터, 아니면 작은 끝부터).
 fn pad_byte input data slice u8 . input i u64 . input total u64 . input big bool . output u64 . do
-  let n u64 len data .
-  if lt i n do return widen u64 (idx data i) . end
-  if eq i n do return 128 . end
-  if lt i (sub total 8) do return 0 . end
-  let bits u64 mul n 8 .
-  let k u64 sub i (sub total 8) .
-  if big do return bit_and (shr bits (mul (sub 7 k) 8)) 255 . end
-  return bit_and (shr bits (mul k 8)) 255 .
-end
+  let n u64 len data. . .
+  if lt i. n. . do return widen u64 idx data. i. . . . end .
+  if eq i. n. . do return 128 . end .
+  if lt i. sub total. 8 . . do return 0 . end .
+  let bits u64 mul n. 8 . .
+  let k u64 sub i. sub total. 8 . . .
+  if big. do return bit_and shr bits. mul sub 7 k. . 8 . . 255 . . end .
+  return bit_and shr bits. mul k. 8 . . 255 . .
+end .
 
 rem 채운 뒤의 길이 — 원문 + 0x80 하나 + 길이 8 바이트가 들어가는 가장 작은 64 의 배수.
 fn padded_len input n u64 . output u64 . do
-  return mul (add (div (add n 8) 64) 1) 64 .
-end
+  return mul add div add n. 8 . 64 . 1 . 64 . .
+end .
 
 rem ── MD5 (RFC 1321) ──────────────────────────────────────────────────
 
 rem ★ 16 바이트 다이제스트를 `out` 에 쓴다. 낸 값은 16, 버퍼가 모자라면 0(`out` 16 바이트 · `work` 16 낱말).
 export proc md5 input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 16 else return 0 .
-  guard ge (len work) 16 else return 0 .
+  guard ge len out. . 16 . else return 0 . .
+  guard ge len work. . 16 . else return 0 . .
   let kt slice u64 lit slice u64
     0xd76aa478 0xe8c7b756 0x242070db 0xc1bdceee 0xf57c0faf 0x4787c62a 0xa8304613 0xfd469501
     0x698098d8 0x8b44f7af 0xffff5bb1 0x895cd7be 0x6b901122 0xfd987193 0xa679438e 0x49b40821
@@ -63,126 +63,126 @@ export proc md5 input data slice u8 . input work mut slice u64 . input out mut s
     5 9 14 20 5 9 14 20 5 9 14 20 5 9 14 20
     4 11 16 23 4 11 16 23 4 11 16 23 4 11 16 23
     6 10 15 21 6 10 15 21 6 10 15 21 6 10 15 21 . .
-  let total u64 padded_len (len data) .
+  let total u64 padded_len len data. . . .
   var a0 u64 0x67452301 .
   var b0 u64 0xefcdab89 .
   var c0 u64 0x98badcfe .
   var d0 u64 0x10325476 .
   var off u64 0 .
-  while lt off total do
+  while lt off. total. . do
     repeat j u64 16 do
-      let p u64 add off (mul j 4) .
-      set (idx work j) (bit_or (bit_or (pad_byte data p total false) (shl (pad_byte data (add p 1) total false) 8))
-                               (bit_or (shl (pad_byte data (add p 2) total false) 16) (shl (pad_byte data (add p 3) total false) 24))) .
-    end
-    var a u64 a0 .
-    var b u64 b0 .
-    var c u64 c0 .
-    var d u64 d0 .
+      let p u64 add off. mul j. 4 . . .
+      set idx work. j. . bit_or bit_or pad_byte data. p. total. false . shl pad_byte data. add p. 1 . total. false . 8 . .
+                               bit_or shl pad_byte data. add p. 2 . total. false . 16 . shl pad_byte data. add p. 3 . total. false . 24 . . . .
+    end .
+    var a u64 a0. .
+    var b u64 b0. .
+    var c u64 c0. .
+    var d u64 d0. .
     repeat i u64 64 do
       var f u64 0 .
       var g u64 0 .
-      if lt i 16 do
-        set f (bit_or (bit_and b c) (bit_and (bit_xor b 0xffffffff) d)) .
-        set g i .
-      end else if lt i 32 do
-        set f (bit_or (bit_and d b) (bit_and (bit_xor d 0xffffffff) c)) .
-        set g (mod (add (mul 5 i) 1) 16) .
-      end else if lt i 48 do
-        set f (bit_xor (bit_xor b c) d) .
-        set g (mod (add (mul 3 i) 5) 16) .
+      if lt i. 16 . do
+        set f. bit_or bit_and b. c. . bit_and bit_xor b. 0xffffffff . d. . . .
+        set g. i. .
+      end else if lt i. 32 . do
+        set f. bit_or bit_and d. b. . bit_and bit_xor d. 0xffffffff . c. . . .
+        set g. mod add mul 5 i. . 1 . 16 . .
+      end else if lt i. 48 . do
+        set f. bit_xor bit_xor b. c. . d. . .
+        set g. mod add mul 3 i. . 5 . 16 . .
       end else do
-        set f (bit_xor c (bit_or b (bit_xor d 0xffffffff))) .
-        set g (mod (mul 7 i) 16) .
-      end
-      let sum u64 bit_and (add (add f a) (add (idx kt i) (idx work g))) 0xffffffff .
-      set a d .
-      set d c .
-      set c b .
-      set b (bit_and (add b (rotl32 sum (idx st i))) 0xffffffff) .
-    end
-    set a0 (bit_and (add a0 a) 0xffffffff) .
-    set b0 (bit_and (add b0 b) 0xffffffff) .
-    set c0 (bit_and (add c0 c) 0xffffffff) .
-    set d0 (bit_and (add d0 d) 0xffffffff) .
-    set off (add off 64) .
-  end
+        set f. bit_xor c. bit_or b. bit_xor d. 0xffffffff . . . .
+        set g. mod mul 7 i. . 16 . .
+      end .
+      let sum u64 bit_and add add f. a. . add idx kt. i. . idx work. g. . . . 0xffffffff . .
+      set a. d. .
+      set d. c. .
+      set c. b. .
+      set b. bit_and add b. rotl32 sum. idx st. i. . . . 0xffffffff . .
+    end .
+    set a0. bit_and add a0. a. . 0xffffffff . .
+    set b0. bit_and add b0. b. . 0xffffffff . .
+    set c0. bit_and add c0. c. . 0xffffffff . .
+    set d0. bit_and add d0. d. . 0xffffffff . .
+    set off. add off. 64 . .
+  end .
   rem 낱말 넷을 작은 끝부터 적는다.
   repeat q u64 4 do
-    set (idx out q)          (narrow_wrap u8 (shr a0 (mul q 8))) .
-    set (idx out (add 4 q))  (narrow_wrap u8 (shr b0 (mul q 8))) .
-    set (idx out (add 8 q))  (narrow_wrap u8 (shr c0 (mul q 8))) .
-    set (idx out (add 12 q)) (narrow_wrap u8 (shr d0 (mul q 8))) .
-  end
+    set idx out. q. .          narrow_wrap u8 shr a0. mul q. 8 . . . .
+    set idx out. add 4 q. . .  narrow_wrap u8 shr b0. mul q. 8 . . . .
+    set idx out. add 8 q. . .  narrow_wrap u8 shr c0. mul q. 8 . . . .
+    set idx out. add 12 q. . . narrow_wrap u8 shr d0. mul q. 8 . . . .
+  end .
   return 16 .
-end
+end .
 
 rem ── SHA-1 (FIPS 180) ────────────────────────────────────────────────
 
 rem ★ 20 바이트 다이제스트를 `out` 에 쓴다. 낸 값은 20, 버퍼가 모자라면 0(`out` 20 바이트 · `work` 80 낱말).
 export proc sha1 input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 20 else return 0 .
-  guard ge (len work) 80 else return 0 .
-  let total u64 padded_len (len data) .
+  guard ge len out. . 20 . else return 0 . .
+  guard ge len work. . 80 . else return 0 . .
+  let total u64 padded_len len data. . . .
   var h0 u64 0x67452301 .
   var h1 u64 0xefcdab89 .
   var h2 u64 0x98badcfe .
   var h3 u64 0x10325476 .
   var h4 u64 0xc3d2e1f0 .
   var off u64 0 .
-  while lt off total do
+  while lt off. total. . do
     repeat j u64 16 do
-      let p u64 add off (mul j 4) .
-      set (idx work j) (bit_or (bit_or (shl (pad_byte data p total true) 24) (shl (pad_byte data (add p 1) total true) 16))
-                               (bit_or (shl (pad_byte data (add p 2) total true) 8) (pad_byte data (add p 3) total true))) .
-    end
+      let p u64 add off. mul j. 4 . . .
+      set idx work. j. . bit_or bit_or shl pad_byte data. p. total. true . 24 . shl pad_byte data. add p. 1 . total. true . 16 . .
+                               bit_or shl pad_byte data. add p. 2 . total. true . 8 . pad_byte data. add p. 3 . total. true . . . .
+    end .
     range t u64 16 79 do
-      set (idx work t) (rotl32 (bit_xor (bit_xor (idx work (sub t 3)) (idx work (sub t 8)))
-                                        (bit_xor (idx work (sub t 14)) (idx work (sub t 16)))) 1) .
-    end
-    var a u64 h0 .
-    var b u64 h1 .
-    var c u64 h2 .
-    var d u64 h3 .
-    var e u64 h4 .
+      set idx work. t. . rotl32 bit_xor bit_xor idx work. sub t. 3 . . idx work. sub t. 8 . . .
+                                        bit_xor idx work. sub t. 14 . . idx work. sub t. 16 . . . . 1 . .
+    end .
+    var a u64 h0. .
+    var b u64 h1. .
+    var c u64 h2. .
+    var d u64 h3. .
+    var e u64 h4. .
     repeat t u64 80 do
       var f u64 0 .
       var k u64 0 .
-      if lt t 20 do
-        set f (bit_or (bit_and b c) (bit_and (bit_xor b 0xffffffff) d)) .
-        set k 0x5a827999 .
-      end else if lt t 40 do
-        set f (bit_xor (bit_xor b c) d) .
-        set k 0x6ed9eba1 .
-      end else if lt t 60 do
-        set f (bit_or (bit_or (bit_and b c) (bit_and b d)) (bit_and c d)) .
-        set k 0x8f1bbcdc .
+      if lt t. 20 . do
+        set f. bit_or bit_and b. c. . bit_and bit_xor b. 0xffffffff . d. . . .
+        set k. 0x5a827999 .
+      end else if lt t. 40 . do
+        set f. bit_xor bit_xor b. c. . d. . .
+        set k. 0x6ed9eba1 .
+      end else if lt t. 60 . do
+        set f. bit_or bit_or bit_and b. c. . bit_and b. d. . . bit_and c. d. . . .
+        set k. 0x8f1bbcdc .
       end else do
-        set f (bit_xor (bit_xor b c) d) .
-        set k 0xca62c1d6 .
-      end
-      let tmp u64 bit_and (add (add (rotl32 a 5) f) (add (add e k) (idx work t))) 0xffffffff .
-      set e d .
-      set d c .
-      set c (rotl32 b 30) .
-      set b a .
-      set a tmp .
-    end
-    set h0 (bit_and (add h0 a) 0xffffffff) .
-    set h1 (bit_and (add h1 b) 0xffffffff) .
-    set h2 (bit_and (add h2 c) 0xffffffff) .
-    set h3 (bit_and (add h3 d) 0xffffffff) .
-    set h4 (bit_and (add h4 e) 0xffffffff) .
-    set off (add off 64) .
-  end
+        set f. bit_xor bit_xor b. c. . d. . .
+        set k. 0xca62c1d6 .
+      end .
+      let tmp u64 bit_and add add rotl32 a. 5 . f. . add add e. k. . idx work. t. . . . 0xffffffff . .
+      set e. d. .
+      set d. c. .
+      set c. rotl32 b. 30 . .
+      set b. a. .
+      set a. tmp. .
+    end .
+    set h0. bit_and add h0. a. . 0xffffffff . .
+    set h1. bit_and add h1. b. . 0xffffffff . .
+    set h2. bit_and add h2. c. . 0xffffffff . .
+    set h3. bit_and add h3. d. . 0xffffffff . .
+    set h4. bit_and add h4. e. . 0xffffffff . .
+    set off. add off. 64 . .
+  end .
   rem 낱말 다섯을 큰 끝부터 적는다.
   repeat q u64 4 do
-    let sh u64 mul (sub 3 q) 8 .
-    set (idx out q)          (narrow_wrap u8 (shr h0 sh)) .
-    set (idx out (add 4 q))  (narrow_wrap u8 (shr h1 sh)) .
-    set (idx out (add 8 q))  (narrow_wrap u8 (shr h2 sh)) .
-    set (idx out (add 12 q)) (narrow_wrap u8 (shr h3 sh)) .
-    set (idx out (add 16 q)) (narrow_wrap u8 (shr h4 sh)) .
-  end
+    let sh u64 mul sub 3 q. . 8 . .
+    set idx out. q. .          narrow_wrap u8 shr h0. sh. . . .
+    set idx out. add 4 q. . .  narrow_wrap u8 shr h1. sh. . . .
+    set idx out. add 8 q. . .  narrow_wrap u8 shr h2. sh. . . .
+    set idx out. add 12 q. . . narrow_wrap u8 shr h3. sh. . . .
+    set idx out. add 16 q. . . narrow_wrap u8 shr h4. sh. . . .
+  end .
   return 20 .
-end
+end .

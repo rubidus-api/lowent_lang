@@ -6,5 +6,5 @@ use str .
 
 fn same input a slice u8 . input b slice u8 . output bool .
 do
-  return str.eq_str a b .
-end
+  return str.eq_str a. b. . .
+end .

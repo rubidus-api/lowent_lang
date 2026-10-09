@@ -18,6 +18,7 @@
 #include "low_closer.h"
 #include "low_arity.h"
 #include "low_lex.h"
+#include "low_check.h"
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +31,7 @@ typedef struct {
     unsigned short *lp, *rp; // 이 토큰 앞에 `(` · 뒤에 `)` 를 몇 개 끼우나
     proven_size_t *mate;     // 괄호 · do/end 의 짝 (없으면 SIZE_MAX)
     bool          ext;       // `extern` 선언 안인가
+    unsigned      depth;     // 지금 몇 겹 안인가(값 + 블록) — 렉서의 괄호 한도와 같은 한도를 여기서도 지킨다
     jmp_buf       jb;
     low_diag_t    err;
 } cl_t;
@@ -63,11 +65,16 @@ static bool cl_kw(cl_t *c, proven_size_t i, const char *w) { return cl_id(c, i) 
 static bool cl_word(cl_t *c, proven_size_t i, const char *w) { return cl_id(c, i) && cl_eq(&c->T[i], w); }
 static bool cl_dot(cl_t *c, proven_size_t i) { return i < c->n && c->T[i].kind == LOW_TOK_DOT; }
 static proven_size_t cl_need_dot(cl_t *c, proven_size_t i, const char *what) {
+    if (i < c->n && c->T[i].kind == LOW_TOK_IDENT) {
+        const char *why = low_removed_word_why(c->T[i].lex);
+        if (why) cl_fail(c, i, "E-VOCAB-REMOVED", why);
+    }
     if (!cl_dot(c, i)) cl_fail(c, i, "E-DOT-MISSING", what);
     return i;
 }
 static proven_size_t cl_mate(cl_t *c, proven_size_t i) {
-    if (i >= c->n || c->mate[i] == NOPE) cl_fail(c, i, "E-FORM-UNEXPECTED", "this `(` or `do` has no partner");
+    if (i < c->n && c->mate[i] == NOPE && c->T[i].kind == LOW_TOK_IDENT) cl_fail(c, i, "E-BLOCK-UNCLOSED", "this `do` has no `end`");
+    if (i >= c->n || c->mate[i] == NOPE) cl_fail(c, i, "E-FORM-UNEXPECTED", "this `(` has no partner");
     return c->mate[i];
 }
 static void cl_wrap(cl_t *c, proven_size_t a, proven_size_t b) { c->lp[a]++; c->rp[b]++; }
@@ -179,7 +186,19 @@ static void cl_island_inner(cl_t *c, proven_size_t j, proven_size_t e) {
 }
 
 // 항 하나. wrap: 인자 자리(뒤의 파서에게는 괄호로 싸서 넘긴다). keep: 닫는 점을 남긴다(호출 문장 — 그 점이 문장의 점이다).
+// ★ 깊이 한도. 1.7 까지는 중첩이 괄호로만 깊어졌고 렉서가 그 괄호를 128 겹에서 끊었다(E-NEST-DEPTH). 이름·점의 표면에서는
+//   괄호 없이도 `add 1 add 1 …` 로 얼마든지 깊어진다 — 그 나무를 뒤의 재귀 패스들이 따라 내려가다 스택을 넘긴다(1,000 겹에서
+//   실측: 세그폴트). 그래서 같은 한도를 여기서 지킨다. 프로그램의 잘못이라기보다 처리기의 한계다 — 말은 렉서의 것과 같다.
+#define CL_NEST_MAX 128
+static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep);
 static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
+    if (++c->depth > CL_NEST_MAX)
+        cl_fail(c, i, "E-NEST-DEPTH", "nesting is deeper than this compiler tracks (128 levels of forms and blocks combined). Split the expression into named steps");
+    proven_size_t r = cl_term_in(c, i, wrap, keep);
+    c->depth--;
+    return r;
+}
+static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) {
     const low_token_t *t = cl_tk(c, i);
     if (t->kind == LOW_TOK_LPAREN) {
         proven_size_t j = cl_mate(c, i);
@@ -189,6 +208,9 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
     }
     if (t->kind == LOW_TOK_NUMBER || t->kind == LOW_TOK_STRING || t->kind == LOW_TOK_CHAR || t->kind == LOW_TOK_TEXTLIT) return i + 1;
     if (t->kind != LOW_TOK_IDENT) cl_fail(c, i, "E-FORM-UNEXPECTED", "a value belongs here");
+    {   const char *why = low_removed_word_why(t->lex);              // 버린 낱말 — 검사기와 같은 말로 거절한다
+        if (why) cl_fail(c, i, "E-VOCAB-REMOVED", why);
+    }
     if (t->kw != LOW_KW_NONE) {
         if (cl_eq(t, "true") || cl_eq(t, "false") || cl_eq(t, "none")) return i + 1;
         if (cl_eq(t, "lit")) {
@@ -198,7 +220,7 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
                 proven_size_t e = cl_mate(c, j), k = j + 1;
                 while (k < e) {
                     k++;                                 // 칸 이름(또는 자리 · `_`)
-                    k = cl_term(c, k, false, false);
+                    k = cl_term(c, k, true, false);      // 칸의 값이 호출이면 괄호로 싸서 넘긴다 — 뒤의 분석(칸마다 가리는 출처)이 그 모양을 읽는다
                     k = cl_need_dot(c, k, "a stop `.` must close this field") + 1;
                 }
                 return cl_done(c, i, e + 1, wrap, keep);
@@ -246,6 +268,13 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
             while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
             return cl_done(c, i, j, wrap, keep);
         }
+        if (cl_eq(t, "if")) cl_fail(c, i, "E-IF-VALUE", "`if` is a statement, not a value — bind the result in each branch (`var x T … . if c. do set x. … . end .`)");
+        if (t->kw == LOW_KW_IN || t->kw == LOW_KW_TO) cl_fail(c, i, "E-VOCAB-REMOVED", "`in` and `to` between values are gone — read a slice with `idx <slice>. <i>. .`, loop with `for <name> <slice>. do … end .`");
+        if (t->kw == LOW_KW_BE) cl_fail(c, i, "E-LET-BE", "`be` is gone — the type follows the name: `let x u8 4 .`");
+        if (t->kw == LOW_KW_LOOP) cl_fail(c, i, "E-VOCAB-REMOVED", "`loop` is gone — write `while true do … end .`");
+        if (cl_eq(t, "end") || cl_eq(t, "else") || cl_eq(t, "return") || cl_eq(t, "let") || cl_eq(t, "var") || cl_eq(t, "set") ||
+            cl_eq(t, "guard") || cl_eq(t, "while") || cl_eq(t, "match") || cl_eq(t, "fn") || cl_eq(t, "proc") || cl_eq(t, "break") || cl_eq(t, "continue"))
+            cl_fail(c, i, "E-DOT-MISSING", "the form before this word is not closed — a stop `.` is missing");
         cl_fail(c, i, "E-FORM-UNEXPECTED", "a value belongs here, not a reserved word");
     }
     if (cl_dot(c, i + 1)) {                              // 곧바로 닫힌 이름 — 값(또는 인자 없는 호출)
@@ -265,7 +294,10 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
                 else k++;
             }
             while (!cl_dot(c, k) && !cl_word(c, k, "with")) k = cl_term(c, k, true, false);
-            if (cl_word(c, k, "with")) k = cl_term(c, k + 1, false, false);
+            if (cl_word(c, k, "with")) {
+                k = cl_term(c, k + 1, false, false);
+                if (!cl_dot(c, k)) cl_fail(c, k, "E-PIPE-WITH", "`with` takes ONE value, and it is the last thing in the stage — `filter above with limit. .`");
+            }
             k = cl_need_dot(c, k, "a stop `.` must close this stage") + 1;
         }
         return cl_done(c, i, e + 1, wrap, keep);
@@ -275,7 +307,7 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
     if (cl_eq(t, "alloc_bytes")) {
         proven_size_t j = i + 1;
         if (!cl_word(c, j, "capacity")) j = cl_term(c, j, true, false);
-        if (!cl_word(c, j, "capacity")) cl_fail(c, j, "E-FORM-UNEXPECTED", "`alloc_bytes [<root>] capacity <n> .`");
+        if (!cl_word(c, j, "capacity")) cl_fail(c, j, "E-ALLOC-CAPACITY-MARK", "`alloc_bytes` spells its size with the `capacity` marker — `alloc_bytes al. capacity 16 .`");
         return cl_done(c, i, cl_term(c, j + 1, true, false), wrap, keep);
     }
     if (cl_eq(t, "pop")) {
@@ -290,6 +322,7 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
     }
     if (cl_eq(t, "method")) {                            // method <값> <마디>* <op 이름>. <인자>* .
         proven_size_t j = cl_term(c, i + 1, true, false);
+        if (cl_dot(c, j)) cl_fail(c, j, "E-METHOD-RECV", "`method` needs a receiver and an op name: `method <value> <segments> <op name>. <arguments> .`");
         while (!cl_dot(c, j + 1)) {
             const low_token_t *s = cl_tk(c, j);
             if (s->kind != LOW_TOK_IDENT && s->kind != LOW_TOK_NUMBER)
@@ -300,7 +333,7 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
         c->T[j].aux = (proven_u8str_view_t){ .ptr = (const proven_byte_t *)".", .size = 1 };   // 서식기가 이 이름 뒤에 점을 다시 찍는다
         return cl_done(c, i, cl_args(c, j + 2), wrap, keep);
     }
-    if (cl_eq(t, "stack_new")) {
+    if (cl_eq(t, "stack_new") || cl_eq(t, "channel")) {  // 낱말의 나열(타입 · 표식) — 값이 아니다
         proven_size_t j = i + 1;
         while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
         return cl_done(c, i, j, wrap, keep);
@@ -338,8 +371,17 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
 static proven_size_t cl_endstop(cl_t *c, proven_size_t j, const char *what) {   // 블록으로 끝난 것의 닫는 점
     cl_need_dot(c, j, what); c->del[j] = 1; return j + 1;
 }
+static proven_size_t cl_block_in(cl_t *c, proven_size_t i);
 static proven_size_t cl_block(cl_t *c, proven_size_t i) {
-    if (!cl_kw(c, i, "do")) cl_fail(c, i, "E-FORM-UNEXPECTED", "a block `do … end` belongs here");
+    if (++c->depth > CL_NEST_MAX)
+        cl_fail(c, i, "E-NEST-DEPTH", "nesting is deeper than this compiler tracks (128 levels of forms and blocks combined). Split the body into smaller ops");
+    proven_size_t r = cl_block_in(c, i);
+    c->depth--;
+    return r;
+}
+static proven_size_t cl_block_in(cl_t *c, proven_size_t i) {
+    if (cl_dot(c, i)) cl_fail(c, i, "E-CLOSER-EXTRA", "this stop closes nothing — the value before it is already closed, and the block `do … end` comes next");
+    if (!cl_kw(c, i, "do")) cl_fail(c, i, "E-CTRL-NODO", "a block `do … end` belongs here");
     proven_size_t e = cl_mate(c, i), k = i + 1;
     if (cl_word(c, k, "asm") || c->T[k].kind == LOW_TOK_TEXTLIT) return e + 1;   // 기계어 몸 — 건드리지 않는다
     while (k < e) k = cl_stmt(c, k);
@@ -356,7 +398,7 @@ static proven_size_t cl_fail_clause(cl_t *c, proven_size_t i) {
         if (cl_kw(c, j, "break") || cl_kw(c, j, "continue")) j++;
         else if (cl_kw(c, j, "return")) j = cl_dot(c, j + 1) ? j + 1 : cl_term(c, j + 1, false, false);
         else if (cl_eq(t, "panic")) j = cl_term(c, j + 1, false, false);
-        else cl_fail(c, j, "E-FORM-UNEXPECTED", "after `else` comes a block or a leaving statement (`return` · `break` · `continue` · `panic`)");
+        else cl_fail(c, j, "E-GUARD-FALLTHROUGH", "after `else` comes a block or a leaving statement (`return` · `break` · `continue` · `panic`) — the `else` must leave");
         j = cl_need_dot(c, j, "a stop `.` must close the leaving statement") + 1;
     }
     return cl_endstop(c, j, "a stop `.` must close the statement after its `else` clause");
@@ -364,13 +406,33 @@ static proven_size_t cl_fail_clause(cl_t *c, proven_size_t i) {
 
 static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
     const low_token_t *t = cl_tk(c, i);
+    if (t->kind == LOW_TOK_OP && i + 1 < c->n && c->T[i + 1].kind == LOW_TOK_OP && t->lex.size == 1 && t->lex.ptr[0] == '/')
+        cl_fail(c, i, "E-VOCAB-REMOVED", "`//` does not start a comment — a comment is `rem …` to the end of the line");
+    if (t->kind == LOW_TOK_DOT) cl_fail(c, i, "E-CLOSER-EXTRA", "this stop closes nothing — nothing is open here");
     if (t->kind != LOW_TOK_IDENT) cl_fail(c, i, "E-FORM-UNEXPECTED", "a statement belongs here");
     bool kw = t->kw != LOW_KW_NONE;
+    if (kw && cl_eq(t, "for") && cl_word(c, i + 2, "in"))
+        cl_fail(c, i + 2, "E-VOCAB-REMOVED", "`in` is gone — a loop over elements is `for <name> <slice>. do … end .`");
     if (kw && (cl_eq(t, "let") || cl_eq(t, "var"))) {
         proven_size_t j = i + 2;
+        if (cl_id(c, i + 1) && c->T[i + 1].kw != LOW_KW_NONE) cl_fail(c, i + 1, "E-NAME-KEYWORD", "a reserved word cannot be a name — pick another one");
         cl_tk(c, j);
-        if (cl_kw(c, j, "use") || cl_kw(c, j, "keep")) { c->del[cl_need_dot(c, j + 2, "the allocator is a variable — write `use g.`")] = 1; j += 3; }
-        if (!cl_kw(c, j, "lit")) j = cl_tyend(c, j, false);
+        if (cl_kw(c, j, "use") || cl_kw(c, j, "keep")) {
+            if (!cl_dot(c, j + 2)) cl_fail(c, j, "E-USING-FORM", "`use` / `keep` is followed by the allocator, a variable — `let b use g. mut slice u8 … .`");
+            c->del[j + 2] = 1; j += 3;
+        }
+        if (cl_id(c, j) && c->T[j].kw == LOW_KW_BE) cl_fail(c, j, "E-LET-BE", "`be` is gone — the type follows the name: `let x u8 4 .`");
+        if (cl_word(c, j, "using")) cl_fail(c, j, "E-USING-OLD", "the allocator clause is `use <allocator>.` or `keep <allocator>.` — `let b use g. mut slice u8 … .`");
+        if (j < c->n && (c->T[j].kind == LOW_TOK_NUMBER || c->T[j].kind == LOW_TOK_STRING || c->T[j].kind == LOW_TOK_CHAR))
+            cl_fail(c, j, "E-LET-NOTYPE", "a binding shows its type in front of the value — `let x u64 300 .`; the type is never guessed");
+        bool paren_ty = j < c->n && c->T[j].kind == LOW_TOK_LPAREN;
+        // `option lit …` is the removed second spelling (RFC-0135 D6): let it through so the binding pass names it (E-LIT-USING)
+        if (cl_word(c, j, "option") && cl_kw(c, j + 1, "lit")) { cl_tk(c, j); j++; }
+        else if (!cl_kw(c, j, "lit")) j = cl_tyend(c, j, false);
+        if (cl_dot(c, j) && paren_ty) cl_fail(c, j, "E-LET-NOTYPE", "a binding shows its type in front of the value — `let x u64 (add a. 1 .) .`; the type is never guessed");
+        if (cl_dot(c, j) && j + 1 < c->n && c->T[j + 1].kind == LOW_TOK_NUMBER)
+            cl_fail(c, j, "E-LET-NOVALUE", "a binding names its value, and this one has none — a LEADING DOT is a stop, not part of a number: `.5` reads as `.` then `5`. Write `0.5`");
+        if (cl_dot(c, j)) cl_fail(c, j, "E-LET-NOVALUE", "a binding names its value — `let x f64 0.5 .` (a number needs a digit on both sides of its point)");
         j = cl_term(c, j, false, false);
         if (cl_kw(c, j, "else")) return cl_fail_clause(c, j);
         return cl_need_dot(c, j, "a stop `.` must close the binding") + 1;
@@ -408,6 +470,8 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
         return cl_endstop(c, j, "a stop `.` must close `if … end`");
     }
     if (kw && cl_eq(t, "while")) return cl_endstop(c, cl_block(c, cl_term(c, i + 1, false, false)), "a stop `.` must close `while … end`");
+    if (kw && cl_eq(t, "for") && ((cl_word(c, i + 2, "count") || cl_word(c, i + 2, "range") || (cl_id(c, i + 2) && c->T[i + 2].kw == LOW_KW_BE)) && !cl_dot(c, i + 3)))
+        cl_fail(c, i, "E-FOR-OLD", "`for` walks elements only — counting is `repeat <name> <type> <n>. do … end .`, a range is `range <name> <type> <a>. <b>. do … end .`");
     if (kw && (cl_eq(t, "for") || cl_eq(t, "repeat") || cl_eq(t, "range") || cl_eq(t, "cycle"))) {
         proven_size_t j = i + 2;                         // 뒤의 파서는 되풀이 머리의 식을 인자 수로 묶지 않는다 — 괄호로 싸서 넘긴다
         if (cl_eq(t, "for")) {
@@ -415,14 +479,16 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
             j = cl_term(c, j, true, false);
         } else {
             j = cl_tyend(c, j, false); j = cl_term(c, j, true, false);
+            if (!cl_eq(t, "range") && cl_kw(c, j, "step")) cl_fail(c, j, "E-FOR-HEAD", "`step` belongs to `range` — `range <name> <type> <a>. <b>. step <k> do … end .`");
+            if (cl_eq(t, "cycle") && cl_kw(c, j, "do")) cl_fail(c, j, "E-FOR-HEAD", "`cycle <name> <type> <start> while <condition> next <step> do … end .`");
             if (cl_eq(t, "range")) {
                 j = cl_term(c, j, true, false);
                 if (cl_kw(c, j, "step")) j = cl_term(c, j + 1, true, false);
             }
             if (cl_eq(t, "cycle")) {
-                if (!cl_kw(c, j, "while")) cl_fail(c, j, "E-FORM-UNEXPECTED", "`cycle <name> <type> <start> while <condition> next <step> do … end .`");
+                if (!cl_kw(c, j, "while")) cl_fail(c, j, "E-FOR-HEAD", "`cycle <name> <type> <start> while <condition> next <step> do … end .`");
                 j = cl_term(c, j + 1, true, false);
-                if (!cl_kw(c, j, "next")) cl_fail(c, j, "E-FORM-UNEXPECTED", "`cycle <name> <type> <start> while <condition> next <step> do … end .`");
+                if (!cl_kw(c, j, "next")) cl_fail(c, j, "E-FOR-HEAD", "`cycle <name> <type> <start> while <condition> next <step> do … end .`");
                 j = cl_term(c, j + 1, true, false);
             }
         }
@@ -452,8 +518,15 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
         return cl_endstop(c, cl_block(c, cl_term(c, i + 2, false, false)), "a stop `.` must close `borrow … end`");
     if (cl_eq(t, "task_group") && (cl_kw(c, i + 1, "do") || cl_kw(c, i + 2, "do")))
         return cl_endstop(c, cl_block(c, cl_kw(c, i + 1, "do") ? i + 1 : i + 2), "a stop `.` must close `task_group … end`");
+    if (kw && (cl_eq(t, "export") || cl_eq(t, "unsafe") || cl_eq(t, "extern")) && (cl_kw(c, i + 1, "fn") || cl_kw(c, i + 1, "proc")))
+        cl_fail(c, i, "E-LOCAL-EXPORT", "a local op is never exported, `extern` or `unsafe` — it is visible only inside its owner. Declare it at the top level to share it (RFC-0121 §6.6)");
+    if (kw && (cl_eq(t, "def") || cl_eq(t, "struct") || cl_eq(t, "enum") || cl_eq(t, "newtype") || cl_eq(t, "trait") || cl_eq(t, "test") || cl_eq(t, "module")))
+        cl_fail(c, i, "E-LOCAL-PLACE", "only `fn` and `proc` may be declared inside an op's body — types, actors, traits, tests and modules are declared at the top level (RFC-0121 §6.6)");
     if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return cl_op_decl(c, i);
-    if (kw && (cl_eq(t, "else") || cl_eq(t, "end") || cl_eq(t, "do") || cl_eq(t, "case")))
+    if (kw && cl_eq(t, "else"))
+        cl_fail(c, i, "E-STMT-ELSE", "`else` belongs after the `end` of the block before it — `if c. do … end else do … end .`");
+    if (kw && cl_eq(t, "do")) cl_fail(c, i, "E-BLOCK-NOHEAD", "a `do … end` block needs a head that owns it — `if … do`, `while … do`, `fn … do`, `lit T do` …");
+    if (kw && (cl_eq(t, "end") || cl_eq(t, "case")))
         cl_fail(c, i, "E-FORM-UNEXPECTED", "a statement belongs here");
     if (!kw && cl_eq(t, "pipe") && !cl_dot(c, i + 1)) return cl_term(c, i, false, false);
     return cl_term(c, i, false, true);                   // 호출 문장 — 그 호출의 닫는 점이 문장의 점이다
@@ -461,11 +534,18 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
 
 static proven_size_t cl_clause(cl_t *c, proven_size_t i) {
     const low_token_t *t = cl_tk(c, i);
+    if (t->kind == LOW_TOK_DOT) cl_fail(c, i, "E-CLOSER-EXTRA", "this stop closes nothing — the clause before it is already closed");
     if (t->kind != LOW_TOK_IDENT) cl_fail(c, i, "E-FORM-UNEXPECTED", "a clause belongs here");
     if (cl_eq(t, "requires") || cl_eq(t, "ensures")) {
         proven_size_t j = i + 1;
         while (cl_id(c, j) && cl_in(&c->T[j], CL_GRADE) && !cl_dot(c, j + 1)) j++;
         return cl_need_dot(c, cl_term(c, j, false, false), "a stop `.` must close the clause") + 1;
+    }
+    if (cl_eq(t, "errors")) {                            // errors <갈래> [<조건>] . — 조건은 식이다(제 점으로 닫힌다)
+        proven_size_t j = i + 2;
+        cl_tk(c, i + 1);
+        if (!cl_dot(c, j)) j = cl_term(c, j, false, false);
+        return cl_need_dot(c, j, "a stop `.` must close the clause") + 1;
     }
     if (cl_eq(t, "input")) {
         proven_size_t j = i + 1;
@@ -484,11 +564,20 @@ static proven_size_t cl_clause(cl_t *c, proven_size_t i) {
         return j;
     }
     proven_size_t j = i + 1;
+    if (cl_eq(t, "input") && cl_id(c, i + 1) && c->T[i + 1].kw != LOW_KW_NONE)
+        cl_fail(c, i + 1, "E-NAME-KEYWORD", "a reserved word cannot be a name — pick another one");
     for (;;) {
         const low_token_t *k = cl_tk(c, j);
         if (k->kind == LOW_TOK_LPAREN) { j = cl_mate(c, j) + 1; continue; }
+        if (k->kind == LOW_TOK_DOT && j == i + 2 && cl_eq(t, "input") && j + 1 < c->n && c->T[j + 1].kind == LOW_TOK_IDENT && c->T[j + 1].kw == LOW_KW_NONE &&
+            !cl_eq(&c->T[j + 1], "input") && !cl_eq(&c->T[j + 1], "output") && !cl_eq(&c->T[j + 1], "requires") && !cl_eq(&c->T[j + 1], "ensures") &&
+            !cl_eq(&c->T[j + 1], "effects") && !cl_eq(&c->T[j + 1], "errors"))
+            cl_fail(c, j, "E-CLOSER-EXTRA", "this stop sits in the middle of a clause — `input <name> <type> .` closes once, after the type");
         if (k->kind == LOW_TOK_DOT) return j + 1;
         if (cl_kw(c, j, "do") || cl_kw(c, j, "end")) cl_fail(c, i, "E-DOT-MISSING", "a stop `.` must close this clause");
+        if (k->kind == LOW_TOK_IDENT && (cl_eq(k, "input") || cl_eq(k, "output") || cl_eq(k, "requires") || cl_eq(k, "ensures") ||
+                                         cl_eq(k, "effects") || cl_eq(k, "errors")))
+            cl_fail(c, i, "E-DOT-MISSING", "this header clause is not closed — each clause ends with its own stop (`input a u64 . output u64 .`)");
         j++;
     }
 }
@@ -508,7 +597,12 @@ static proven_size_t cl_op_decl(cl_t *c, proven_size_t i) {
         while (k < e) k = cl_clause(c, k);
         return cl_endstop(c, e + 1, "a stop `.` must close the declaration");
     }
-    while (!cl_kw(c, j, "do")) j = cl_clause(c, j);
+    while (!cl_kw(c, j, "do")) {
+        if (cl_kw(c, j, "return") || cl_kw(c, j, "let") || cl_kw(c, j, "var") || cl_kw(c, j, "set") || cl_kw(c, j, "if") ||
+            cl_kw(c, j, "while") || cl_kw(c, j, "guard") || cl_kw(c, j, "match") || cl_kw(c, j, "end"))
+            cl_fail(c, j, "E-STMT-NODO", "an op's body is a block — `fn <name> <clauses> do … end .`");
+        j = cl_clause(c, j);
+    }
     return cl_endstop(c, cl_block(c, j), "a stop `.` must close the declaration (`fn … end .`)");
 }
 static proven_size_t cl_top(cl_t *c, proven_size_t i) {
@@ -520,6 +614,7 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
         if (cl_word(c, j, "target")) j += 2;
     }
     const low_token_t *t = cl_tk(c, j);
+    if (t->kind == LOW_TOK_DOT) cl_fail(c, j, "E-CLOSER-EXTRA", "this stop closes nothing — the declaration before it is already closed");
     if (t->kind != LOW_TOK_IDENT) cl_fail(c, j, "E-TOPLEVEL", "a declaration belongs here");
     bool kw = t->kw != LOW_KW_NONE;
     if (cl_eq(t, "module") || cl_eq(t, "use") || cl_eq(t, "package") || cl_eq(t, "build")) {
@@ -533,7 +628,8 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
             while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
             return j + 1;
         }
-        if (!cl_kw(c, j + 3, "do")) cl_fail(c, j + 3, "E-FORM-UNEXPECTED", "`def struct <name> do … end .`");
+        if (!cl_eq(k, "struct") && !cl_eq(k, "enum")) cl_fail(c, j + 1, "E-DEF-HEAD", "`def` builds types only — `def struct` · `def enum` · `def type` · `def newtype`");
+        if (!cl_kw(c, j + 3, "do")) cl_fail(c, j + 3, cl_dot(c, j + 3) ? "E-STMT-NODO" : "E-FORM-UNEXPECTED", "`def struct <name> do … end .`");
         proven_size_t e = cl_mate(c, j + 3);
         if (cl_eq(k, "struct")) cl_fields(c, j + 4, e);
         return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`def struct … end .`)");
@@ -546,6 +642,7 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
         while (k < e) {
             if (cl_id(c, k) && cl_in(&c->T[k], CL_CLAUSE)) k = cl_clause(c, k);
             else if (cl_id(c, k)) k++;
+            else if (cl_dot(c, k)) k++;                  // 절 없는 서명(`area .`) — 그 꼴의 잘못은 뒤의 검사가 말한다
             else cl_fail(c, k, "E-FORM-UNEXPECTED", "inside `trait` come signatures: `<op name> <clauses>`");
         }
         return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`trait … end .`)");
@@ -564,6 +661,7 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
                 k = cl_endstop(c, m + 1, "a stop `.` must close `state … end`");
             } else if (cl_kw(c, k, "fn") || cl_kw(c, k, "proc")) k = cl_op_decl(c, k);
             else if (cl_kw(c, k, "export") || cl_kw(c, k, "unsafe")) k++;
+            else if (cl_word(c, k, "on")) cl_fail(c, k, "E-VOCAB-REMOVED", "`on` is gone — a handler inside an actor is written `fn` or `proc`");
             else k = cl_clause(c, k);
         }
         return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`actor … end .`)");
@@ -574,6 +672,11 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
         return cl_endstop(c, cl_block(c, k), "a stop `.` must close the declaration (`test … end .`)");
     }
     if (kw && (cl_eq(t, "let") || cl_eq(t, "var"))) return cl_stmt(c, j);
+    {   const char *why = low_removed_word_why(t->lex);
+        if (why) cl_fail(c, j, "E-VOCAB-REMOVED", why);
+    }
+    if (kw && (cl_eq(t, "struct") || cl_eq(t, "enum") || cl_eq(t, "type") || cl_eq(t, "newtype")))
+        cl_fail(c, j, "E-VOCAB-REMOVED", "a type declaration starts with `def` — `def struct <name> do … end .`");
     cl_fail(c, j, "E-TOPLEVEL", "this word does not start a declaration");
 }
 
@@ -1034,6 +1137,11 @@ static proven_size_t up_clause(up_t *u, proven_size_t i) {
         proven_size_t j = i + 1;
         while (up_id(u, j) && cl_in(&u->T[j], CL_GRADE) && !up_dot(u, j + 1)) j++;
         j = up_top(u, j);
+        if (!up_dot(u, j)) up_fail(u);
+        return j + 1;
+    }
+    if (cl_eq(t, "errors") && !up_dot(u, i + 2)) {
+        proven_size_t j = up_top(u, i + 2);
         if (!up_dot(u, j)) up_fail(u);
         return j + 1;
     }

@@ -8,16 +8,15 @@
 (1) 식은 ⟦전위 표기|prefix notation⟧ 로 적는다 — 연산의 이름이 먼저 오고 인자가
       뒤에 온다.
 
-(2) 전위 표기에는 **우선순위 규칙이 없다.** 어떤 것이 먼저 계산되는지는 괄호와 순서가
-      전부 말해 준다.
+(2) 전위 표기에는 **우선순위 규칙이 없다.** 어떤 것이 먼저 계산되는지는 점과 순서가
+      전부 말해 준다 — 폼은 이름으로 열리고 제 점으로 닫히며(⟦§6.1.5⟧), 안쪽 폼이 먼저 닫힌다.
 
-(2a) 괄호를 생략하고 부름을 겹쳐 적을 수 있다 — `add 1 mul a b` 는 `add 1 (mul 2 3)` 과
-      같은 방식으로 묶인다. 묶는 규칙은 **인자 수**다: 낱말을 왼쪽에서 오른쪽으로 읽다가
-      연산 이름을 만나면 그 연산이 받는 수만큼 뒤의 것을 가져간다. 인자 수는 낱말마다
-      정해져 있으므로(부록 D) 이 묶기는 하나로 정해진다.
+(2a) 부름을 겹쳐 적는 데 괄호가 들지 아니한다 — `add 1 mul a. b. . .` 에서 첫 점이 `mul` 을, 둘째
+      점이 `add` 를 닫는다. 폼의 끝은 **그 폼의 점**이 정한다. 연산이 받는 인자 수는 끝을 정하지
+      아니한다 — 인자 수가 맞는지는 폼이 닫힌 뒤에 따로 본다(맞지 아니하면 `E-IR-ARITY`).
 
-(2b) 그러나 **읽는 사람은 인자 수를 외워야 한다** — (2) 가 없애려던 바로 그 외움이다.
-      그러므로 괄호 생략은 적합하되, 이 문서의 예제와 표준 라이브러리는 **괄호를 적는다.**
+(2b) 괄호는 **묶음을 눈에 띄게 하는 꾸밈**이다 — `add 1 (mul a. b. .) .` 는 (2a) 의 식과 같은 식이다.
+      괄호 안의 폼도 제 점으로 닫히고, 괄호는 뜻을 바꾸지 아니한다.
 
 (2c) **피연산자를 계산하는 차례는 ⟦자유 선택|free choice⟧ 이다**(⟦§4.3⟧). 처리기는 한 연산의 피연산자들을 어느 차례로든
       계산할 수 있다. 기본 연산 · 빌트인 연산과 저자가 선언한 op 이 같다. 다만 다음은 정해져 있다.
@@ -34,14 +33,14 @@
 > 그 차이가 중요하면 먼저 계산할 것을 `let` 으로 이름에 담는다 — 문장은 적힌 차례로 실행된다.
 
 ```lowent 예제: 전위 표기
-let a u32 add 1 2 .
-let b u32 add 1 (mul 2 3) .
-let c bool lt a b .
+let a u32 add 1 2 . .
+let b u32 add 1 mul 2 3 . . .
+let c bool lt a. b. . .
 ```
 
 > [!산문]
 > `1 + 2 * 3` 을 처음 보는 사람은 `*` 가 먼저인지 `+` 가 먼저인지 **외워야** 안다.
-> `add 1 (mul 2 3)` 은 외울 것이 없다 — 괄호가 그대로 말해 준다. 이 언어가 전위를
+> `add 1 mul 2 3 . .` 은 외울 것이 없다 — 점이 그대로 말해 준다. 이 언어가 전위를
 > 기본으로 삼는 이유가 그것이다.
 
 ## 6.3.2 중위 표기 — `expr` 섬
@@ -64,7 +63,7 @@ let c bool lt a b .
 > [1a], [`or`], [왼쪽], [`or` (단락 평가)],
 > )
 
-(4) `and` 가 `or` 보다 강하게 묶는다. 곧 `expr a or b and c` 는 `or a (and b c)` 와 같다.
+(4) `and` 가 `or` 보다 강하게 묶는다. 곧 `expr a or b and c` 는 `or a. and b. c. . .` 와 같다.
 
 (5) 비교는 **이어 쓸 수 없다.** `expr a lt b lt c` 는 거부된다.
 
@@ -73,7 +72,7 @@ let c bool lt a b .
       섬 안에서도 **전위로 적는다.**
 
 (7) 단항 연산도 섬에 없다. 부호를 뒤집으려면 `expr 0 - a` 로 적거나 전위 폼을 괄호로
-      묶는다(`expr (not b) or c`).
+      묶는다(`expr (not b. .) or c. .`).
 
 > [!주의] 섬이 작은 것은 부족해서가 아니다
 > 중위 표기의 값은 **읽기 쉬움** 하나뿐이고, 그것은 우선순위를 **아무도 찾아보지 않아도
@@ -97,11 +96,11 @@ let c bool lt a b .
 module ex_infix .
 
 export fn score input a u32 . input b u32 . output u32 .
-  requires le a 1000 .
-  requires le b 1000 .
+  requires le a. 1000 . .
+  requires le b. 1000 . .
 do
-  return expr a + b * 2 .
-end
+  return expr a. + b. * 2 . .
+end .
 ```
 
 ```lowent-거부: 비교를 이어 쓸 수 없다 · E-EXPR-CHAIN
@@ -109,8 +108,8 @@ module ex_chain .
 
 proc p input a u32 . input b u32 . input c u32 . output bool . effects none .
 do
-  return expr a lt b lt c .     rem 두 비교를 이어 쓸 수 없다
-end
+  return expr a. lt b. lt c. . .     rem 두 비교를 이어 쓸 수 없다
+end .
 ```
 
 > [!주의] 비교를 이어 쓰지 못하는 이유
@@ -164,8 +163,8 @@ module ex_bare .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  return sha256 s o .
-end
+  return sha256 s. o. . .
+end .
 ```
 
 ```lowent 예제: 같은 것을 자리에 맞게 적으면 선다
@@ -173,22 +172,22 @@ module ex_call .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  return call_builtin sha256 s o .
-end
+  return call_builtin sha256 s. o. . .
+end .
 ```
 
 ```lowent 예제: 저자의 `sha256` 과 빌트인 연산 `sha256` 이 한 단위에 함께 선다
 module ex_both .
 
 fn sha256 input x u64 . output u64 . do
-  return add x 1 .
-end
+  return add x. 1 . .
+end .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  let n u64 call_builtin sha256 s o .
-  return sha256 n .
-end
+  let n u64 call_builtin sha256 s. o. . .
+  return sha256 n. . .
+end .
 ```
 
 (1e) 언어가 뜻을 정한 이름을 전역 어휘에서 가두는 길은 셋이다.
@@ -252,14 +251,14 @@ end
 
 (5) `div` 와 `mod` 는 **선언된 부호**로 해석한다.
 
-(5a) `div` 는 몫을 **0 쪽으로 자른다** — `div -7 2` 는 -3 이다.
+(5a) `div` 는 몫을 **0 쪽으로 자른다** — `div -7 2 .` 는 -3 이다.
 
-(5b) `mod` 는 **바닥 나눗셈의 나머지**다. 나머지의 부호는 **제수**를 따른다 — `mod -7 2` 는 1, `mod 7 -2` 는 -1 이다.
+(5b) `mod` 는 **바닥 나눗셈의 나머지**다. 나머지의 부호는 **제수**를 따른다 — `mod -7 2 .` 는 1, `mod 7 -2 .` 는 -1 이다.
       그러므로 제수가 양수이면 결과는 언제나 0 이상이고 제수보다 작다: `0 < n` 이면 `0 ≤ mod i n < n` 이며,
       `i` 가 음수여도 그렇다.
 
 (5c) 그러므로 `div` 와 `mod` 는 **서로 짝이 아니다.** `(div a b) × b + (mod a b)` 가 `a` 와 같은 것은 두 수의 부호가
-      같거나 나누어떨어질 때뿐이다. 0 쪽으로 자른 몫과 짝인 나머지는 `sub a (mul (div a b) b)` 로 적는다.
+      같거나 나누어떨어질 때뿐이다. 0 쪽으로 자른 몫과 짝인 나머지는 `sub a. mul div a. b. . b. . .` 로 적는다.
 
 (5d) 부호 있는 타입의 가장 작은 값을 -1 로 나눈 `mod` 는 0 이다. `div` 는 같은 자리에서 멈추지만(몫이 그 폭에 없다)
       나머지 0 은 그 폭 안에 있다.
@@ -273,10 +272,10 @@ end
 module ex_mixsign .
 
 rem `u8` 은 `i16` 안에 값을 잃지 않고 들어간다.
-fn ok_widen input a u8 . input b i16 . output i16 . do return add a b . end
+fn ok_widen input a u8 . input b i16 . output i16 . do return add a. b. . . end .
 
 rem 더 넓은 자리를 결과로 골라도 된다.
-fn ok_wider input a u8 . input b i16 . output i32 . do return add a b . end
+fn ok_wider input a u8 . input b i16 . output i32 . do return add a. b. . . end .
 ```
 
 ```lowent-거부: 값을 지키는 넓히기가 없으면 거부된다 · E-TYPE-SIGN
@@ -284,8 +283,8 @@ module ex_sign .
 
 proc p input a i32 . input b u32 . output i32 . effects none .
 do
-  return add a b .     rem `u32` 는 `i32` 안에 안 들어간다 — 폭이 같다
-end
+  return add a. b. . .     rem `u32` 는 `i32` 안에 안 들어간다 — 폭이 같다
+end .
 ```
 
 > [!주의] 넘침이 조용히 감기지 않는다
@@ -331,10 +330,10 @@ end
 module ex_bitlogic .
 
 rem 12 = 0000_1100 · 10 = 0000_1010
-fn mask input a u8 . input b u8 . output u8 . do return bit_and a b . end
-fn both input a u8 . input b u8 . output u8 . do return bit_or  a b . end
-fn diff input a u8 . input b u8 . output u8 . do return bit_xor a b . end
-fn flip input a u8 . output u8 . do return bit_not a . end
+fn mask input a u8 . input b u8 . output u8 . do return bit_and a. b. . . end .
+fn both input a u8 . input b u8 . output u8 . do return bit_or  a. b. . . end .
+fn diff input a u8 . input b u8 . output u8 . do return bit_xor a. b. . . end .
+fn flip input a u8 . output u8 . do return bit_not a. . . end .
 ```
 
 > [!산문]
@@ -345,10 +344,10 @@ fn flip input a u8 . output u8 . do return bit_not a . end
 ```lowent 예제: 옮기기와 돌리기 · 결과: up(3,2) = 12 · down(12,2) = 3 · spin(129,1) = 3 · back(3,1) = 129
 module ex_bitshift .
 
-fn up   input a u8 . input n u8 . output u8 . do return shl  a n . end
-fn down input a u8 . input n u8 . output u8 . do return shr  a n . end
-fn spin input a u8 . input n u8 . output u8 . do return rotl a n . end
-fn back input a u8 . input n u8 . output u8 . do return rotr a n . end
+fn up   input a u8 . input n u8 . output u8 . do return shl  a. n. . . end .
+fn down input a u8 . input n u8 . output u8 . do return shr  a. n. . . end .
+fn spin input a u8 . input n u8 . output u8 . do return rotl a. n. . . end .
+fn back input a u8 . input n u8 . output u8 . do return rotr a. n. . . end .
 ```
 
 > [!산문]
@@ -367,14 +366,14 @@ fn back input a u8 . input n u8 . output u8 . do return rotr a n . end
 module ex_signed_shift .
 
 rem 부호 있는 정수 — 빈자리에 부호 비트가 들어온다(산술 이동).
-fn s_shr input a i32 . input n i32 . output i32 . do return shr a n . end
+fn s_shr input a i32 . input n i32 . output i32 . do return shr a. n. . . end .
 
 rem 부호 없는 정수 — 빈자리에 0 이 들어온다(논리 이동).
-fn u_shr input a u32 . input n u32 . output u32 . do return shr a n . end
+fn u_shr input a u32 . input n u32 . output u32 . do return shr a. n. . . end .
 
 rem 비트별 논리 연산도 부호 있는 정수를 다룬다.
-fn s_and input a i32 . input b i32 . output i32 . do return bit_and a b . end
-fn s_not input a i32 . output i32 . do return bit_not a . end
+fn s_and input a i32 . input b i32 . output i32 . do return bit_and a. b. . . end .
+fn s_not input a i32 . output i32 . do return bit_not a. . . end .
 ```
 
 > [!산문]
@@ -385,10 +384,10 @@ fn s_not input a i32 . output i32 . do return bit_not a . end
 ```lowent 예제: 세기와 바이트 뒤집기 · 결과: ones(7) = 3 · lead(1) = 7 · tail(8) = 3 · endian(1) = 16777216
 module ex_bitcount .
 
-fn ones input a u8 . output u8 . do return count_ones a . end
-fn lead input a u8 . output u8 . do return leading_zeros a . end
-fn tail input a u8 . output u8 . do return trailing_zeros a . end
-fn endian input a u32 . output u32 . do return byte_swap a . end
+fn ones input a u8 . output u8 . do return count_ones a. . . end .
+fn lead input a u8 . output u8 . do return leading_zeros a. . . end .
+fn tail input a u8 . output u8 . do return trailing_zeros a. . . end .
+fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 ```
 
 > [!산문]
@@ -480,7 +479,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end
 > 다른 값을 내면, 그것은 이 언어가 지키기로 한 것을 놓는 일이다.
 
 (1a) `splat` 은 레인 수를 **선언된 타입에서** 받는다. 그래서 쓸 수 있는 자리는 벡터 타입을
-      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
+      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 . .`. 식 안에 바로 적는 것은
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
 
 (2) 레인을 가로지르는 op 은 레인 수만큼을 **하나로** 모은다. 결과의 타입은 레인의 타입이다.
@@ -508,9 +507,9 @@ def type bytes slice u8 .
 
 fn total input b bytes . output u64 .
 do
-  var xs slice f64 view_array f64 b .
-  return sum_neumaier xs .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
-end
+  var xs slice f64 view_array f64 b. . .
+  return sum_neumaier xs. . .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
+end .
 ```
 
 (2) 두 op 의 결과는 **부동소수**다. 정수로 적은 자리에 그대로 돌려주면 거부된다
@@ -565,7 +564,7 @@ end
 (2) 조건이 오는 자리(⟦§6.5⟧)도 마찬가지로 참거짓만 받는다(`E-TYPE-COND`).
 
 (3) 곧 0 이 거짓이고 그 밖이 참이라는 약속은 **없다.** 무엇을 묻는지는 그 자리에
-      적어야 한다 — `gt a 0` 처럼.
+      적어야 한다 — `gt a. 0 .` 처럼.
 
 > [!산문]
 > 정수를 조건 자리에 그냥 두는 언어에서는 `if x` 가 *"x 가 0 이 아니다"* 인지
@@ -577,9 +576,9 @@ module ex_cond .
 
 fn f input a u8 . output u8 .
 do
-  if a do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
+  if a. do return 1 . end .     rem 무엇을 묻는지 적는다 — `gt a. 0 .`
   return 0 .
-end
+end .
 ```
 
 ## 6.3.11 폭과 레인은 타입의 일부다
@@ -600,31 +599,27 @@ module ex_lanes .
 
 fn f input a vec u8 4 . input b vec u8 8 . output vec u8 4 .
 do
-  return add a b .
-end
+  return add a. b. . .
+end .
 ```
 
 ## 6.3.12 `expr` 섬 안의 규칙
 
-(1) `expr` 섬(⟦§6.3.2⟧) 안에서 op 을 부르려면 **괄호로 묶어야** 한다
-      (`E-EXPR-APP`) — 섬 안은 중위 표기이고, 괄호가 없으면 어디까지가 한 부름인지
-      읽는 이도 처리기도 가릴 수 없다.
+(1) `expr` 섬(⟦§6.3.2⟧) 안의 토막은 저마다 폼 하나다 — 이름이면 `a.`, 호출이면 제 점으로 닫힌 폼이다
+      (`expr twice a. . + 1 .`). 폼이 제 끝을 스스로 가지므로 호출을 괄호로 묶을 필요가 없다. 섬은 제 점으로 닫힌다.
 
 (2) 섬 안에는 **중위 연산자만** 있다. 앞에 붙는 한 자리 연산자는 없다
-      (`E-EXPR-UNARY`) — 부호를 뒤집으려면 그렇게 적힌 op 을 괄호로 부른다.
+      (`E-EXPR-UNARY`) — 부호를 뒤집으려면 그렇게 적힌 op 을 부른다(`neg a. .`).
+
+```lowent-거부: 섬 안에는 앞에 붙는 연산자가 없다 · E-EXPR-UNARY
+module m .
+fn flip input a i32 . output i32 . do
+  return expr - a. . .
+end .
+```
 
 > [!산문]
 > 섬을 둔 까닭은 산술을 **눈에 익은 차례로** 읽게 하려는 것이지, 두 번째 문법을
 > 들이려는 것이 아니다. 그래서 섬 안에서 할 수 있는 일은 좁고, 좁은 만큼 그 안의
 > 뜻은 흔들리지 아니한다.
 
-```lowent-거부: 섬 안의 부름은 괄호로 묶는다 · E-EXPR-APP
-module ex_island .
-
-fn g input a u8 . output u8 . do return a . end
-
-fn f output u8 .
-do
-  return expr g 1 .     rem `expr (g 1)` 이어야 한다
-end
-```

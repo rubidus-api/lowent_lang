@@ -27,79 +27,79 @@ export def struct cache do
   input comptime b type .
   pages u64 .      rem 담을 수 있는 페이지 수
   epoch u64 .      rem reset·eviction 이 올린다 — 옛 id 는 그때 낡는다
-end
+end .
 
 rem 페이지 하나에 대한 고정. 앞선 권한을 **자기 안에** 든다.
 export def struct pin do
   input comptime b type .
   id u64 .
   depth u64 .
-  held owned cache b .
-end
+  held owned (cache b) .
+end .
 
 rem 겹친 고정 — 앞선 pin 을 삼킨다. 이 중첩이 곧 LIFO 다.
 export def struct pin2 do
   input comptime b type .
   id u64 .
   depth u64 .
-  under owned pin b .
-end
+  under owned (pin b) .
+end .
 
 rem ★ 캐시를 연다.
-export fn open input comptime b type . input pages u64 . output owned cache b . do
-  return lit cache b do pages pages . epoch 0 . end .
-end
+export fn open input comptime b type . input pages u64 . output owned (cache b) . do
+  return lit (cache b) do pages pages. . epoch 0 . end . .
+end .
 
 rem ★★ **이 기계에서 커서가 들 수 있는 pin 수** — 한 캐시라인에 들어가는 만큼.
 rem   `machine.cache_line` 은 comptime 상수라 이 수도 컴파일타임에 접힌다(비용 0).
 rem   ☞ pin 하나를 8 바이트(페이지 id 한 칸)로 센다: 상한이 세는 것은 **추적 비용**이지
 rem     구조체 전체 크기가 아니다 — PostgreSQL 의 그 배열도 id 만 들고 있다.
 export fn pin_limit output u64 . do
-  let line u64 machine.cache_line .
-  if lt line 8 do return 1 . end
-  return div line 8 .
-end
+  let line u64 machine.cache_line. .
+  if lt line. 8 . do return 1 . end .
+  return div line. 8 . .
+end .
 
 rem 이 커서가 상한 안에 있나 — 시험이 이것을 읽는다.
 export fn within_limit input depth u64 . output bool . do
-  return le depth (pin_limit) .
-end
+  return le depth. pin_limit. . .
+end .
 
 rem ★★★ **고정한다 — 캐시 토큰을 삼킨다.** 이 뒤로 `evict` 는 부를 수 없다(컴파일 거절).
-export fn acquire input comptime b type . input c owned cache b . input id u64 . output pin b . do
-  return lit pin b do id id . depth 1 . held c . end .
-end
+export fn acquire input comptime b type . input c owned (cache b) . input id u64 . output (pin b) . do
+  return lit (pin b) do id id. . depth 1 . held c. . end . .
+end .
 
 rem ★★ 겹쳐 고정한다 — 앞선 pin 을 삼킨다. 깊이가 하나 는다.
-export fn acquire_more input comptime b type . input p owned pin b . input id u64 . output pin2 b . do
-  return lit pin2 b do id id . depth (add (field p depth) 1) . under p . end .
-end
+export fn acquire_more input comptime b type . input p owned (pin b) . input id u64 . output (pin2 b) . do
+  return lit (pin2 b) do id id. . depth add field p. depth . 1 . . under p. . end . .
+end .
 
 rem 놓는다 — 캐시 토큰을 돌려준다.
 rem ☞ 부분 이동은 언어가 막으므로(`E-OWN-PARTIAL`) 토큰을 **다시 만든다**. 값은 그대로다.
-export fn release input comptime b type . input p owned pin b . output owned cache b . do
-  let h (cache b) (field p held) .
-  return lit cache b do pages (field h pages) . epoch (field h epoch) . end .
-end
+export fn release input comptime b type . input p owned (pin b) . output owned (cache b) . do
+  let h (cache b) field p. held . .
+  return lit (cache b) do pages field h. pages . . epoch field h. epoch . . end . .
+end .
 
 rem 겹친 것을 놓는다 — 바깥부터. 순서를 어길 길이 **없다**(안쪽은 바깥 안에 있다).
-export fn release_more input comptime b type . input p owned pin2 b . output owned pin b . do
-  let u (pin b) (field p under) .
-  let h (cache b) (field u held) .
-  let c lit cache b do pages (field h pages) . epoch (field h epoch) . end .
-  return lit pin b do id (field u id) . depth (field u depth) . held c . end .
-end
+export fn release_more input comptime b type . input p owned (pin2 b) . output owned (pin b) . do
+  let u (pin b) field p. under . .
+  let h (cache b) field u. held . .
+  let c lit (cache b) do pages field h. pages . . epoch field h. epoch . . end . .
+  return lit (pin b) do id field u. id . . depth field u. depth . . held c. . end . .
+end .
 
 rem ★★★ **축출 — 캐시 토큰을 요구한다.** pin 이 살아 있으면 이 op 을 부를 수가 없다.
 rem   epoch 를 올린다: 그 순간 옮겨진 페이지의 옛 자리를 가리키던 것이 전부 낡는다.
-export fn evict input comptime b type . input c owned cache b . output owned cache b . do
-  return lit cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
-end
+export fn evict input comptime b type . input c owned (cache b) . output owned (cache b) . do
+  return lit (cache b) do pages field c. pages . . epoch add field c. epoch . 1 . . end . .
+end .
 
 rem 캐시를 비운다 — 같은 규율(토큰을 요구한다).
-export fn reset input comptime b type . input c owned cache b . output owned cache b . do
-  return lit cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
-end
+export fn reset input comptime b type . input c owned (cache b) . output owned (cache b) . do
+  return lit (cache b) do pages field c. pages . . epoch add field c. epoch . 1 . . end . .
+end .
 
 rem ★ **id 는 이동을 견딘다** — 페이지가 옮겨져도 id 는 그대로이고 directory 만 고친다.
 rem   여기서는 그 사실을 값으로 보인다: 자리(slot)는 epoch 로 바뀌어도 id 는 안 바뀐다.
@@ -108,24 +108,24 @@ rem   (`docs/known-defects/oracle-field-path-contract.md`). 빈 캐시는 **값�
 rem ★ `id + epoch` 를 **먹기 전에 각각 나머지로 줄인다** — id 는 호출자 것이라 2^64 근처일 수 있고,
 rem   축출 한 번 뒤 그 덧셈이 넘쳐 트랩이었다(2026-09-04 보안 검토). (a+b) mod p = ((a mod p)+(b mod p)) mod p
 rem   이고, 두 나머지의 합도 p 가 2^63 을 넘으면 넘칠 수 있으므로 **빼서** 접는다: 덧셈이 하나도 없다.
-export fn slot_of input comptime b type . input c cache b . input id u64 . output option u64 . do
-  guard ge (field c pages) 1 else return none .
-  let p u64 (field c pages) .
-  let a u64 mod id p .
-  let e u64 mod (field c epoch) p .
+export fn slot_of input comptime b type . input c (cache b) . input id u64 . output option u64 . do
+  guard ge field c. pages . 1 . else return none . .
+  let p u64 field c. pages . .
+  let a u64 mod id. p. . .
+  let e u64 mod field c. epoch . p. . .
   rem a + e ≥ p ⇔ a ≥ p − e (둘 다 p 미만이므로 p − e 는 안 감긴다)
-  if ge a (sub p e) do return some (sub a (sub p e)) . end
-  return some (add a e) .
-end
+  if ge a. sub p. e. . . do return some sub a. sub p. e. . . . . end .
+  return some add a. e. . . .
+end .
 
-export fn epoch_of input comptime b type . input c cache b . output u64 . do
-  return (field c epoch) .
-end
+export fn epoch_of input comptime b type . input c (cache b) . output u64 . do
+  return field c. epoch . .
+end .
 
-export fn depth_of input comptime b type . input p pin b . output u64 . do
-  return (field p depth) .
-end
+export fn depth_of input comptime b type . input p (pin b) . output u64 . do
+  return field p. depth . .
+end .
 
-export fn depth2_of input comptime b type . input p pin2 b . output u64 . do
-  return (field p depth) .
-end
+export fn depth2_of input comptime b type . input p (pin2 b) . output u64 . do
+  return field p. depth . .
+end .

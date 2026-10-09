@@ -8,10 +8,10 @@ Handles many on/off settings *in one integer*. Positions are called by *bit numb
 settings screen, feature switches, dirty markers, device status bits --- places where carrying each separately is wasteful and bundling makes comparison easy.
 
 ```lowent
-fn f_sound output u64 . do return 0 . end
-fn f_music output u64 . do return 1 . end
-let s0 u64 flags.with (flags.empty) (f_sound) .
-let playing bool flags.has s0 (f_music) .
+fn f_sound output u64 . do return 0 . end .
+fn f_music output u64 . do return 1 . end .
+let s0 u64 flags.with flags.empty. f_sound. . .
+let playing bool flags.has s0. f_music. . .
 ```
 
 #aside[What this module guards][
@@ -40,21 +40,21 @@ let playing bool flags.has s0 (f_music) .
 nine-instruction difference is the price of "which byte" (division, indexing) and "does that byte exist" (bounds check). That is why the two implementations are not hidden
 behind one name. Out of range is answered as a value (`false`, `0`) --- the width is decided at run time, so it cannot be a contract.
 
-*Names are opt-in.* The label table belongs to the caller; the library holds no strings. `flags.label_in "sound\x00music\x00shadow\x00" 2` gives `"shadow"`, and
+*Names are opt-in.* The label table belongs to the caller; the library holds no strings. `flags.label_in "sound\x00music\x00shadow\x00" 2 .` gives `"shadow"`, and
 `label_count` answers the number of names. A program not using names has none of those characters in its binary --- tests compare the read-only data size of both outputs.
 
 *When several flows modify the same word.* This module's ops take a value and return a value --- they do not modify a stored word. If several flows update with
-`set shared (flags.with shared 2)`, other updates vanish between read → modify → write. Atomic operations answer that --- `atomic_or s 0 4` (set bit 2), `atomic_and s 0 251`
-(clear), `atomic_xor s 0 4` (toggle). With a constant position the mask is constant and it lowers to one machine instruction (#chref("parallel-atomic")). For device
+`set shared (flags.with shared 2)`, other updates vanish between read → modify → write. Atomic operations answer that --- `atomic_or s. 0 4 .` (set bit 2), `atomic_and s. 0 251 .`
+(clear), `atomic_xor s. 0 4 .` (toggle). With a constant position the mask is constant and it lowers to one machine instruction (#chref("parallel-atomic")). For device
 registers use `to_set` and `to_clear` of #modref("wire")[`wire`].
 
 #antipattern[Writing a position as a mask][
-  `flags.with (flags.empty) 64` meant mask 64 (= position 6), but this module reads "position 64", and with both constant it is a compile error (`E-CONTRACT-IMPOSSIBLE`).
+  `flags.with flags.empty. 64 .` meant mask 64 (= position 6), but this module reads "position 64", and with both constant it is a compile error (`E-CONTRACT-IMPOSSIBLE`).
   Numbers here are always positions. To work with masks, use `wire`.
 ]
 
 #antipattern[Saving settings only as their current value][
-  When defaults change, saved values go stale. Recording only the difference with `flags.from_default s d` is small and keeps its meaning when defaults change.
+  When defaults change, saved values go stale. Recording only the difference with `flags.from_default s. d. .` is small and keeps its meaning when defaults change.
 ]
 
 *Cautions.* Fields wider than one bit are `wire`'s job. Bit numbers are not managed automatically --- people write them, and a check in the development repository catches

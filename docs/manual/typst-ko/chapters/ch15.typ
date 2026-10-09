@@ -139,7 +139,7 @@ export proc append
   input x t .
   output bool .
   effects state via a .
-  requires allocs.byte_allocator a .
+  requires allocs.byte_allocator a. . .
 ```
 
 표준 라이브러리 `vecgen` 의 `append` 머리다. `effects state via a .` 는 "타입 `a` 의 op 들이 적은 할당 계열 효과(`alloc`·`heap`·`atomic`)도 이 op 의
@@ -207,7 +207,7 @@ export proc append
   #demo("examples/ch15/fn_can_stop.low")
 
   `fn` 이 쓸 수 없는 것은 `panic` *효과*다. 빈 줄의 첫 칸을 읽는 것처럼 계약이나 경계가 깨져 처리기가 멈추는 것은 op 이 한 일이
-  아니라 잘못 불린 결과로 본다(정본 6.5.9). 그래서 순수한 `first` 도 `[]` 를 받으면 멈춘다. 멈추지 않게 하려면 `requires ge (len xs) 1 .`
+  아니라 잘못 불린 결과로 본다(정본 6.5.9). 그래서 순수한 `first` 도 `[]` 를 받으면 멈춘다. 멈추지 않게 하려면 `requires ge len xs. . 1 . .`
   로 책임을 부르는 쪽에 드러내거나, `option` 을 돌려준다.
 ]
 

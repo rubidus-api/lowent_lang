@@ -36,7 +36,7 @@ true       try        type       unsafe     use        var        while")
   ]
   #sub("A.2", "문장의 모양")[
     #para("1")[
-      아래는 자주 쓰는 모양을 모은 것이다. `<…>` 는 채워 넣는 자리다.
+      아래는 자주 쓰는 모양을 모은 것이다. `<…>` 는 채워 넣는 자리다. 블록을 가진 선언도 `end` 뒤의 점으로 닫힌다(#cref("6.1.6") (2b)).
     ]
     #shape("선언", "module <이름> .
 
@@ -47,81 +47,86 @@ def newtype <이름> <타입> .
 
 def struct <이름> do
   <칸이름> <타입> .
-end
+end .
 
 def enum <이름> do
   <갈래이름> .
-end
+end .
 
 export fn <이름> input <이름> <타입> . output <타입> .
   requires <조건> .
   ensures <조건> .
 do
   <문장들>
-end
+end .
 
 proc <이름> input <이름> <타입> . output <타입> . effects <효과들> .
 do
   <문장들>
-end")
+end .")
   ]
   #sub("A.3", "문장")[
     #shape("문장", "let <이름> <타입> <식> .
 var <이름> <타입> <식> .
 let <이름> <타입> <식> else <빠져나가는 문장> .
-set <이름> <식> .
+set <자리> <식> .
 
-if <조건> do <문장들> end
-if <조건> do <문장들> end else do <문장들> end
-while <조건> do <문장들> end
-for <이름> <원천> do <문장들> end
-repeat <이름> <타입> <횟수> do <문장들> end
-range <이름> <타입> <처음> <끝> do <문장들> end
-cycle <이름> <타입> <처음> while <조건> next <다음 값> do <문장들> end
+if <조건> do <문장들> end .
+if <조건> do <문장들> end else do <문장들> end .
+while <조건> do <문장들> end .
+for <이름> <원천> do <문장들> end .
+repeat <이름> <타입> <횟수> do <문장들> end .
+range <이름> <타입> <처음> <끝> do <문장들> end .
+cycle <이름> <타입> <처음> while <조건> next <다음 값> do <문장들> end .
 guard <조건> else <빠져나가는 문장> .
 
 return <식> .
 break .
 continue .")
     #para("1")[
-      식은 #strong[닫는 점이나 끝내는 낱말];(`do` · `else` · `if` · `while` · `next` · `step`)에서 끝난다. 점은 문장을 닫는 일만
-      한다. 이 문장들의 생성 규칙은 A.10.3 에 있고, 뜻은 #cref("6.5.1") · #cref("6.5.3.1") · #cref("6.5.4") 가 정한다.
+      이 틀의 `<식>` · `<조건>` · `<원천>` · `<자리>` 는 #strong[제 점까지 든 폼];이다 — 변수면 `a.`, 부름이면 `add a. 1 .`, 리터럴이면
+      `7` 이다(#cref("6.1.5")). 줄 끝의 점은 그 문장을 닫는다. 블록을 가진 문장도 `end` 뒤의 점으로 닫히고, `else` 로 이어진 사슬은
+      끝에 점 하나다. `<빠져나가는 문장>` 도 제 점을 갖는다(`guard gt a. 0 . else return 0 . .`). 이 문장들의 생성 규칙은 A.10.3 에
+      있고, 뜻은 #cref("6.5.1") · #cref("6.5.3.1") · #cref("6.5.4") 가 정한다.
     ]
   ]
   #sub("A.4", "갈래·시험·액터")[
     #shape("갈래를 가르기 · 시험 · 액터", "match <값> do
-  case <갈래> do <문장들> end
-  case <갈래> do <문장들> end
-end
+  case <갈래> do <문장들> end .
+  case <갈래> do <문장들> end .
+end .
 
 test <이름>
 do
   expect <조건> .
-end
+end .
 
 actor <이름> do
   state do
     <칸이름> <타입> .
-  end
+  end .
 
   proc <이름> output <타입> . effects state .
   do
     <문장들>
-  end
-end")
+  end .
+end .")
   ]
   #sub("A.5", "식")[
-    #shape("식", "rem 전위 — 우선순위가 없다
-add <a> <b>          sub <a> <b>          mul <a> <b>
-div <a> <b>          rem <a> <b>
-eq <a> <b>           ne <a> <b>           lt <a> <b>
-le <a> <b>           gt <a> <b>           ge <a> <b>
-and <a> <b>          or <a> <b>           not <a>
-len <슬라이스>        idx <슬라이스> <번호>
-widen <타입> <값>     narrow <타입> <값>
+    #shape("식", "rem 전위 — 이름이 열고 점이 닫는다. 우선순위가 없다
+add <a> <b> .        sub <a> <b> .        mul <a> <b> .
+div <a> <b> .        mod <a> <b> .
+eq <a> <b> .         ne <a> <b> .         lt <a> <b> .
+le <a> <b> .         gt <a> <b> .         ge <a> <b> .
+and <a> <b> .        or <a> <b> .         not <a> .
+len <슬라이스> .      idx <슬라이스> <번호> .
+widen <타입> <값> .   narrow <타입> <값> .
 
-rem 중위 — expr 섬 안에서만
-expr <a> + <b> * <c>")
+rem 변수 — 이름에 점을 붙인다. 리터럴과 true · false · none 에는 점이 없다
+<이름>.
+
+rem 중위 — expr 섬 안에서만. 섬도 제 점으로 닫힌다
+expr <a> + <b> * <c> .")
   ]
   #sub("A.6", "리터럴의 어휘 문법")[
     #para("1")[
@@ -221,8 +226,8 @@ letter  = 'a'…'z' | 'A'…'Z' ;")
   ]
   #sub("A.7", "머리 낱말과 닫개")[
     #para("1")[
-      폼은 #strong[머리]; 하나로 시작해 #strong[닫개]; 하나로 끝난다(#cref("6.1.6")). 다음 표가 머리마다
-      어떤 모양을 갖고 무엇으로 닫는지를 모은 것이다.
+      폼은 #strong[이름]; 하나로 열려 #strong[닫개]; — 점 — 하나로 닫힌다(#cref("6.1.5") · #cref("6.1.6")). 다음 표가 머리 낱말마다
+      어떤 모양을 갖는지를 모은 것이다. 닫개는 어느 줄에서나 점이다 — 블록을 가진 폼은 `end .` 으로 끝난다. 그래서 닫개 칸은 따로 채우지 않고, 모양의 끝에 적힌 점이 그것이다.
     ]
     #para("2")[
       표기: `<…>` 는 채워 넣는 자리, `*` 는 0 회 이상, `[…]` 는 선택이다.
@@ -233,45 +238,45 @@ module              module <이름> .
 use                 use <이름> from \"<경로>\" [as <별칭>] .
 def type            def type <이름> <타입> .
 def newtype         def newtype <이름> <타입> .
-def struct          def struct <이름> do <칸>* end  (칸 = <이름> <타입> .) end
-def enum            def enum <이름> do <갈래>* end  (갈래 = <이름> [<칸>*] .) end
-trait               trait <이름> do <서명>* end (서명 = <이름> <절>*)     end
-actor               actor <이름> do <state·절·op>* end                  end
-state               state do <칸>* end        (actor 안)                 end
-contract            contract <이름> do <절>* end                        end
-fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end                end
-test                test <이름> [schedule <절>] do <폼>* end           end
-expect              expect <조건> .           (시험 블록의 단언)         .
+def struct          def struct <이름> do <칸>* end .  (칸 = <이름> <타입> .)
+def enum            def enum <이름> do <갈래>* end .  (갈래 = <이름> [<칸>*] .)
+trait               trait <이름> do <서명>* end . (서명 = <이름> <절>*)
+actor               actor <이름> do <state·절·op>* end .
+state               state do <칸>* end .        (actor 안)
+contract            contract <이름> do <절>* end .
+fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end .
+test                test <이름> [schedule <절>] do <폼>* end .
+expect              expect <조건> .           (시험 블록의 단언)
 input               input [comptime] <이름> <타입> .
-using               using <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터) .
+using               using <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터)
 output              output <타입> .   |   output <이름> <타입> .     (이름 붙은 결과 — 0 에서 시작하는 지역, §6.4.1 (3e))
 effects             effects <원자>* .
 access              access <이름> <모드> .
 parallel            parallel <이름> <모드> .
 requires / ensures  requires <조건-폼>* .
-errors              errors <갈래> [<조건-폼>] .  (한 절에 오류 하나)     .
+errors              errors <갈래> [<조건-폼>] .  (한 절에 오류 하나)
 tests               tests <이름>* .
-let / var           let <이름> [use <이름> | keep <이름>] <타입> <폼> [else …] .   (else 가 블록으로 끝나면 점이 없다)
+let / var           let <이름> [use <이름>. | keep <이름>.] <타입> <폼> [else …] .   (else 가 블록으로 끝나도 점)
 set                 set <자리-폼> <폼> .
-into                pop <스택> into <이름> .   (프렐류드 문형)           .
-if (문)             if <폼> do <폼>* end [else (if문 | do <폼>* end)]     end
-guard               guard <폼> else <나가는-폼> .
-while               while <폼> do <폼>* end                              end
-for                 for <이름> [mut] <폼> [if <폼>] do <폼>* end         end
-repeat              repeat <이름> <타입> <폼> [if <폼>] do <폼>* end     end
-range               range <이름> <타입> <폼> <폼> [step <폼>] [if <폼>] do <폼>* end   end
-cycle               cycle <이름> <타입> <폼> while <폼> next <폼> [if <폼>] do <폼>* end  end
-region              region <이름> <종류> do <폼>* end                   end
-borrow              borrow <이름> <폼> do <폼>* end                     end
-return              return [<폼>] .           (값이 블록으로 끝나도 점)   .
-break               break .                   (라벨은 없다)             .
+into                pop <스택> into <자리> .   (프렐류드 문형)
+if (문)             if <폼> do <폼>* end [else if <폼> do <폼>* end]* [else do <폼>* end] .
+guard               guard <폼> else <나가는-폼> . .   (나가는 폼의 점, 그리고 guard 의 점)
+while               while <폼> do <폼>* end .
+for                 for <이름> [mut] <폼> [if <폼>] do <폼>* end .
+repeat              repeat <이름> <타입> <폼> [if <폼>] do <폼>* end .
+range               range <이름> <타입> <폼> <폼> [step <폼>] [if <폼>] do <폼>* end .
+cycle               cycle <이름> <타입> <폼> while <폼> next <폼> [if <폼>] do <폼>* end .
+region              region <이름> <종류> do <폼>* end .
+borrow              borrow <이름> <폼> do <폼>* end .
+return              return [<폼>] .
+break               break .                   (라벨은 없다)
 continue            continue .
-lit                 lit <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end
-lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .     .
-lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end            블록이 닫는다
-lit (SIMD)          lit vec <타입> <레인> <값>… [_] .                                 .
-extern              extern fn/proc <이름> do <절>* end  (몸이 씨)       end
-match               match <폼> do <가지>* [else do <폼>* end] end         end")
+lit                 lit <타입> do <칸초기>* end .  (칸초기 = <이름> <폼> .)
+lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .
+lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end .
+lit (SIMD)          lit vec <타입> <레인> <값>… [_] .
+extern              extern fn/proc <이름> do <절>* end .  (몸이 씨)
+match               match <폼> do <가지>* end [else do <폼>* end] .   (가지 = case <패턴> do <폼>* end .)")
     #para("2a")[
       `fn`/`proc` 머리의 `<절>*` 은 #cref("6.4.1") (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·
       comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` ·
@@ -280,10 +285,10 @@ match               match <폼> do <가지>* [else do <폼>* end] end         en
     #para("2b")[
       #strong[블록 선언];(`struct`·`enum`·`trait`·`actor`·`state`·`contract`)의 몸은 `do` 로 열고 `end` 로 닫는다 — `fn` 의 몸과 제어
       블록과 같은 한 규칙이다. `def struct <이름> .` 처럼 점으로 열거나 이름 뒤에서 줄만 바꾸는 꼴은 거부된다(`E-STMT-NODO`).
-      개행은 닫개가 아니므로(#cref("6.1.6")) 줄바꿈으로는 머리가 닫히지 않는다. 서식기는 `do` 꼴로 옮겨 적는다.
+      개행은 닫개가 아니므로(#cref("6.1.6")) 줄바꿈으로는 머리가 닫히지 않는다.
     ]
     #para("3")[
-      이 표는 #strong[머리와 닫개];를 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한
+      이 표는 #strong[머리와 그 모양];을 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한
       규범은 각 조항의 본문이다 — 둘이 갈리면 본문이 이긴다.
     ]
     #para("4")[
@@ -307,17 +312,17 @@ match               match <폼> do <가지>* [else do <폼>* end] end         en
       [`is`], [(적지 않는다)], [장식이었다 — 아무도 읽지 않아 `def type h zzz u8 .` 이 통과했다],
       [`as`], [(적지 않는다)], [어디서도 무게가 없었다 — 블록 이름은 읽히고 #strong[버려졌다];],
       [`local`], [(적지 않는다)], [기본값이 이미 그것이다 — `export` 아닌 것은 밖에서 안 보인다],
-      [`to`], [`field a b`], [중위 접근을 없앴다 — 한 뜻에 철자가 넷이었다],
-      [`in`], [`field a b` · `idx a i`], [`to` 의 거꾸로 철자 — 셋째 철자였다],
+      [`to`], [`field a. b .`], [중위 접근을 없앴다 — 한 뜻에 철자가 넷이었다],
+      [`in`], [`field a. b .` · `idx a. i. .`], [`to` 의 거꾸로 철자 — 셋째 철자였다],
       [`when`], [(적지 않는다)], [`errors` 절이 오류 하나만 받으므로 표식이 필요 없다],
       [`on`], [`proc`], [액터 블록 안이면 이미 메시지 처리기다. 게다가 #strong[순수/절차 비트를 우회했다];],
       [`fail`], [`return error <갈래>`], [명세의 어휘에 아예 없었다 — 옛 해석기에만 살아 있었다],
       [`;`], [`.`], [닫개의 #strong[세 번째 철자];였다(⟦§6.1.6⟧)],
       [`make`], [`lit`], [값 리터럴의 머리를 하나로 — 구조체·배열·벡터·슬라이스 값이 모두 `lit <타입> …` 로 시작한다],
-      [`index`], [`idx`], [자주 쓰는 낱말을 짧게 — 읽기 `idx a 3` · 쓰기 `set (idx a 3) v .`],
+      [`index`], [`idx`], [자주 쓰는 낱말을 짧게 — 읽기 `idx a. 3 .` · 쓰기 `set idx a. 3 . v. .`],
       [`be`], [(적지 않는다)], [타입의 끝은 타입 문법의 인자 수가 정한다 — 이름과 타입 사이에서 나르는 것이 없었다. 거부의 코드는 `E-LET-BE` 다(⟦§6.5.1⟧ (3a))],
       [`.이름` (머리 표시)], [맨 전위 · 괄호], [머리를 여는 셋째 철자였다 — 띄어쓰기 한 칸이 닫개를 머리로 바꿨다],
-      [`not is_some x`], [`is_none x`], [같은 뜻의 두 철자였다(`E-NOT-IS-SOME`)],
+      [`not is_some x. . .`], [`is_none x. .`], [같은 뜻의 두 철자였다(`E-NOT-IS-SOME`)],
       [`union` · `select` · `any` … (비트셋·레인)], [`bitset_union` · `lane_select` · `lane_any` …], [짧은 낱말을 저자에게 남긴다(⟦§6.3.3⟧ (1e))],
       )
     ]
@@ -422,28 +427,20 @@ rng   clock   device   file_system   net   tty   process")
       공백과 주석은 A.10.1 에서 버려지고 그 뒤에는 나타나지 아니한다.
     ]
     #para("3")[
-      소스의 모양은 다음 #strong[다섯 규칙];으로 선다. 이 절의 생성 규칙은 그 다섯을 풀어 적은 것이다.
+      소스의 모양은 다음 #strong[네 규칙];으로 선다. 이 절의 생성 규칙은 그 넷을 풀어 적은 것이다.
     ]
-    #tbl("모양을 세우는 다섯 규칙")[
+    #tbl("모양을 세우는 네 규칙")[
       #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*규칙*], [*내용*],
       [머리], [모든 문장과 선언은 머리 낱말 하나로 시작한다. 머리가 그 뒤의 모양을 정한다],
       [블록], [`do` 는 `end` 와 짝이다. `end` 는 제 `do` 만 닫는다],
-      [점], [블록으로 끝나지 않는 문장 · 선언 · 절 · 칸은 점 하나로 닫는다],
-      [끝내는 낱말], [머리 안의 식은 다음 끝내는 낱말에서 끝난다 — `do` · `else` · `if` · `while` · `next` · `step`],
-      [인자 수], [식 안에서 어디까지가 한 호출인지는 머리의 인자 수가 정한다. 달리 묶으려면 괄호를 쓴다],
+      [이름과 점], [쓰는 자리의 이름은 폼을 열고, 점 하나가 가장 안쪽에 열린 폼 하나를 닫는다. 변수는 곧바로 닫힌 폼이다(`a.`). 문장 · 선언 · 절 · 칸도 제 머리가 열고 점이 닫는다],
+      [낱말의 자리], [이름을 만드는 자리 · 타입의 자리 · 문법과 부록 D 의 표가 정한 낱말의 자리에 선 이름은 폼을 열지 아니한다(점이 없다)],
       )
     ]
     #para("4")[
-      위 표의 «점» 규칙에는 #strong[예외가 셋]; 있다. 생성 규칙이 그 셋을 그대로 적는다.
-    ]
-    #tbl("점 규칙의 예외")[
-      #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
-      [*자리*], [*내용*],
-      [값이 블록으로 끝나는 문장], [`let p pt lit pt do x 1 . end .` — 블록은 값의 것이므로 문장은 제 점으로 닫는다(A.10.3 (1))],
-      [원소를 나열한 리터럴], [`lit slice u8 1 2 3 .` — 원소의 수가 정해져 있지 않아 제 점으로 닫는다. 문장 끝에서는 점이 둘이 되고, 머리 안에도 선다(`list-literal`)],
-      [`case` 의 한 문장 몸], [`case 1 . return 2 .` — 점 뒤의 문장 하나가 몸이다(`case-arm`)],
-      )
+      네 규칙은 모두 #strong[글자만 보고]; 판정한다 — 선언을 읽지 않아도 나무가 선다. op 이 인자를 몇 개 받는지는 모양을
+      세우는 재료가 아니고, 나무가 선 뒤의 검사다(#cref("6.1.5") (3)). «점» 규칙에 예외는 없다.
     ]
   ]
   #sub("A.10.1", "어휘 문법")[
@@ -530,49 +527,45 @@ text-line      ::= ? 닫는 줄이 아닌 줄 ?")
   #sub("A.10.2", "번역 단위와 선언")[
     #syntax("전체 문법 — 선언", "unit           ::= { top-form }
 top-form       ::= module-decl | use-decl | package-decl | build-decl | declaration | binding
-
 module-decl    ::= \"module\" name \".\"
 use-decl       ::= \"use\" name [ \"from\" string-literal ] [ \"as\" name ] \".\"
-package-decl   ::= \"package\" name term \".\"
-build-decl     ::= \"build\" name { term } \".\"
-
+package-decl   ::= \"package\" name word \".\"
+build-decl     ::= \"build\" name { word } \".\"
+word           ::= name | path | literal
 declaration    ::= { modifier } ( type-decl | op-decl | extern-decl | actor-decl | trait-decl )
                  | contract-decl
                  | test-decl
 modifier       ::= \"export\" | \"extern\" | \"unsafe\" [ \"target\" name ]
-
 type-decl      ::= \"def\" ( \"type\" | \"newtype\" ) name type \".\"
-                 | \"def\" \"struct\" name \"do\" { field | struct-attr } \"end\"
-                 | \"def\" \"enum\" name \"do\" { variant } \"end\"
+                 | \"def\" \"struct\" name \"do\" { field | struct-attr } \"end\" \".\"
+                 | \"def\" \"enum\" name \"do\" { variant } \"end\" \".\"
 field          ::= name type \".\"
-struct-attr    ::= ( \"layout\" name | \"align\" term | \"mmio\" number ) \".\"
+struct-attr    ::= ( \"layout\" name | \"align\" word | \"mmio\" number ) \".\"
 variant        ::= name { name type } \".\"
-
-op-decl        ::= ( \"fn\" | \"proc\" ) op-name { clause } block
-extern-decl    ::= ( \"fn\" | \"proc\" ) op-name \"do\" { clause } \"end\"
+op-decl        ::= ( \"fn\" | \"proc\" ) op-name { clause } block \".\"
+extern-decl    ::= ( \"fn\" | \"proc\" ) op-name \"do\" { clause } \"end\" \".\"
 op-name        ::= name | path
-
 clause         ::= \"input\" [ \"comptime\" ] name type \".\"
                  | \"using\" name type \".\"
                  | \"output\" [ name ] type \".\"
                  | \"effects\" { name } \".\"
-                 | ( \"requires\" | \"ensures\" ) expression \".\"
-                 | \"errors\" name [ expression ] \".\"
+                 | ( \"requires\" | \"ensures\" ) [ grade ] term \".\"
+                 | \"errors\" name [ term ] \".\"
                  | \"tests\" { name } \".\"
                  | \"satisfies\" name \".\"
                  | ( \"access\" | \"parallel\" ) name name \".\"
                  | \"asm\" name \".\" { asm-item \".\" }
-                 | other-clause-word { term } \".\"
+                 | other-clause-word { word } \".\"
+grade          ::= \"assume\" | \"static\" | \"debug\"
 other-clause-word ::= \"reduce\" | \"lowdoc\" | \"vector\" | \"priority\" | \"inplace\" | \"invalidates\"
                  | \"absorbs\" | \"reference\" | \"why\" | \"strlen\" | \"link\" | \"variadic\" | \"schedule\"
 asm-item       ::= ? `asm` 절의 항목 하나 — 낱말과 리터럴의 나열(⟦§6.9⟧) ?
-
-actor-decl     ::= \"actor\" name \"do\" { state-decl | clause | op-decl } \"end\"
-state-decl     ::= \"state\" \"do\" { field } \"end\"
-trait-decl     ::= \"trait\" name \"do\" { signature } \"end\"
+actor-decl     ::= \"actor\" name \"do\" { state-decl | clause | op-decl } \"end\" \".\"
+state-decl     ::= \"state\" \"do\" { field } \"end\" \".\"
+trait-decl     ::= \"trait\" name \"do\" { signature } \"end\" \".\"
 signature      ::= op-name { clause }
-contract-decl  ::= \"contract\" name \"do\" { clause } \"end\"
-test-decl      ::= \"test\" name [ \"schedule\" name \".\" ] block")
+contract-decl  ::= \"contract\" name \"do\" { clause } \"end\" \".\"
+test-decl      ::= \"test\" name [ \"schedule\" { word } \".\" ] block \".\"")
     #para("1")[
       `extern-decl` 은 `modifier` 에 `"extern"` 이 있고 `"export"` 가 없는 선언의 꼴이다 — 몸이 씨(C)에 있으므로 블록에는
       절만 든다(#cref("6.9")). 그 밖의 `fn` · `proc` 은 `op-decl` 이다.
@@ -586,137 +579,150 @@ test-decl      ::= \"test\" name [ \"schedule\" name \".\" ] block")
     #para("3")[
       `struct-attr` · `variant` · `signature` 의 낱낱의 제약은 #cref("6.2.7") · #cref("6.2.15") · #cref("6.2.19") · #cref("6.11") 이 정한다.
     ]
+    #para("4")[
+      `signature` 는 op 의 이름 하나와 그 뒤의 절들이다. 절은 절 낱말로 시작하고 제 점으로 닫히므로, 절의 점 다음에 오는
+      «절 낱말이 아닌 이름» 이 다음 서명의 이름이다.
+    ]
+    #para("5")[
+      `requires` · `ensures` 의 `term` 이 계약 · 트레이트의 이름으로 시작하면 그것은 타입에 대한 술어다
+      (`requires ordered t. . .` — #cref("6.11")). 꼴은 여느 폼과 같다.
+    ]
   ]
   #sub("A.10.3", "문장")[
     #syntax("전체 문법 — 문장", "block          ::= \"do\" { statement } \"end\"
-
 statement      ::= binding | guard-stmt | set-stmt | return-stmt | jump-stmt | expect-stmt
                  | if-statement | while-stmt | for-stmt | repeat-stmt | range-stmt | cycle-stmt
-                 | match-stmt | region-stmt | borrow-stmt | task-group | pipe-stmt
-                 | drop-stmt | call-stmt
-
-binding      ::= ( \"let\" | \"var\" ) name [ alloc-clause ] type expression ( \".\" | fail-clause )
-alloc-clause ::= ( \"use\" | \"keep\" ) name
+                 | match-stmt | region-stmt | borrow-stmt | task-group
+                 | drop-stmt | op-decl | call-stmt
+binding      ::= ( \"let\" | \"var\" ) name [ alloc-clause ] [ type ] term [ fail-clause ] \".\"
+alloc-clause ::= ( \"use\" | \"keep\" ) name \".\"
 fail-clause  ::= \"else\" leave \".\"
                | \"else\" block
                | \"else\" \"error\" name block
-leave        ::= \"return\" [ expression ] | \"break\" | \"continue\" | \"panic\" expression
-guard-stmt     ::= \"guard\" expression \"else\" ( leave \".\" | block )
-
-set-stmt       ::= \"set\" place expression \".\"
-place          ::= name | \"(\" expression \")\"
-return-stmt    ::= \"return\" [ expression ] \".\"
+leave        ::= \"return\" [ term ] | \"break\" | \"continue\" | \"panic\" term
+guard-stmt     ::= \"guard\" term \"else\" ( leave \".\" | block ) \".\"
+set-stmt       ::= \"set\" term term \".\"
+return-stmt    ::= \"return\" [ term ] \".\"
 jump-stmt      ::= ( \"break\" | \"continue\" ) \".\"
-expect-stmt    ::= \"expect\" expression \".\"
-drop-stmt      ::= \"drop\" name \".\"
-call-stmt      ::= expression \".\"
-
-if-statement ::= \"if\" expression block [ \"else\" ( block | if-statement ) ]
-while-stmt     ::= \"while\" expression block
-for-stmt    ::= \"for\"    name [ \"mut\" ] expression [ filter ] block
-repeat-stmt ::= \"repeat\" name type expression [ filter ] block
-range-stmt  ::= \"range\"  name type expression expression [ \"step\" expression ] [ filter ] block
-cycle-stmt  ::= \"cycle\"  name type expression \"while\" expression \"next\" expression [ filter ] block
-filter      ::= \"if\" expression
-
-match-stmt     ::= \"match\" expression \"do\" { case-arm } [ \"else\" block ] \"end\"
-case-arm       ::= \"case\" pattern ( block | \".\" statement )
-pattern        ::= term { term } | term \"to\" term
-
-region-stmt    ::= \"region\" name name block
-borrow-stmt    ::= \"borrow\" name expression block
-task-group     ::= \"task_group\" block
-pipe-stmt      ::= pipe-form")
+expect-stmt    ::= \"expect\" term \".\"
+drop-stmt      ::= \"drop\" name \".\" \".\"
+call-stmt      ::= term
+if-statement ::= \"if\" term block { \"else\" \"if\" term block } [ \"else\" block ] \".\"
+while-stmt     ::= \"while\" term block \".\"
+for-stmt    ::= \"for\"    name [ \"mut\" ] term [ filter ] block \".\"
+repeat-stmt ::= \"repeat\" name type term [ filter ] block \".\"
+range-stmt  ::= \"range\"  name type term term [ \"step\" term ] [ filter ] block \".\"
+cycle-stmt  ::= \"cycle\"  name type term \"while\" term \"next\" term [ filter ] block \".\"
+filter      ::= \"if\" term
+match-stmt     ::= \"match\" [ \"comptime\" ] term \"do\" { case-arm | \"else\" block } \"end\" [ \"else\" block ] \".\"
+case-arm       ::= \"case\" pattern block \".\"
+pattern        ::= word { word } | word \"to\" word
+region-stmt    ::= \"region\" name name block \".\"
+borrow-stmt    ::= \"borrow\" name term block \".\"
+task-group     ::= \"task_group\" [ name ] block \".\"")
     #para("1")[
-      `binding` 의 `expression` 이 블록으로 끝나고 실패 절이 없으면 그 블록 뒤에 점이 온다
-      (`let p pt lit pt do x 1 . end .`). `set-stmt` · `return-stmt` · `call-stmt` 의 닫는 점도 같다 —
-      식이 블록으로 끝나도 점은 온다. 빠지면 번역이 거부된다(`E-DOT-MISSING`).
+      문장은 제 머리가 열고 #strong[점 하나가 닫는다]; — 블록으로 끝나는 문장도 그렇다(#cref("6.1.6") (2b)). 점이 빠지면 번역이
+      거부된다(`E-DOT-MISSING`). 닫힌 것 뒤에 점을 더 적어도 거부된다(`E-CLOSER-EXTRA`).
     ]
     #para("2")[
-      반대로 #strong[제 블록으로 끝나는 문장];(`if-statement` · `while-stmt` · 네 되풀이 · `match-stmt` · `region-stmt` ·
-      `borrow-stmt` · `task-group` · `pipe-stmt`, 그리고 `fail-clause` 가 블록인 `binding` · `guard-stmt`) 뒤에 점을 적으면
-      번역이 거부된다(`E-DOT-STRAY`).
+      `call-stmt` 는 `term` 그대로다 — 그 호출을 닫는 점이 곧 문장의 점이다(`print x. .` 에서 안쪽 점이 `x` 를, 바깥 점이
+      `print` 를 닫는다).
     ]
     #para("3")[
-      `statement` 를 여는 낱말(`let` · `var` · `return` · `guard`)은 식 안에 올 수 없다. 식 한가운데서 만나면 앞
-      문장의 점이 빠진 것이다(`E-DOT-MISSING`).
+      `set-stmt` 의 첫 `term` 은 값을 넣을 자리다 — 이름(`i.`)이거나 자리를 내는 폼(`idx a. i. .` · `field p. x .`)이다.
     ]
     #para("4")[
-      머리 없이 홀로 선 `block` 은 문장이 아니다(`E-BLOCK-NOHEAD`).
+      `statement` 를 여는 낱말(`let` · `var` · `return` · `guard` …)은 식 안에 올 수 없다. `if` 는 문장이고 값이 아니다(`E-IF-VALUE`).
+    ]
+    #para("5")[
+      머리 없이 홀로 선 `block` 은 문장이 아니다(`E-BLOCK-NOHEAD`). `pattern` 안의 이름은 폼을 열지 아니한다.
+    ]
+    #para("6")[
+      `op-decl` 이 블록 안에 서면 그것은 그 op 안에서만 보이는 op 이다(#cref("6.10")).
     ]
   ]
   #sub("A.10.4", "식")[
-    #syntax("전체 문법 — 식", "expression     ::= term { term }
-term           ::= name | path | literal | word-term
-                 | \"(\" expression \")\"
+    #syntax("전체 문법 — 식", "term           ::= literal | \"true\" | \"false\" | \"none\"
+                 | call | paren-term
                  | struct-literal | fill-literal | list-literal
-                 | island | pipe-form
-word-term      ::= \"true\" | \"false\" | \"none\" | \"send\" | \"spawn\" | \"try\" | \"actor\"
-
-struct-literal ::= \"lit\" type \"do\" { field-init } \"end\"
-field-init     ::= name expression \".\"
-fill-literal   ::= \"lit\" \"array\" type term \"do\" { fill-item } \"end\"
-fill-item      ::= ( term | \"_\" ) expression \".\"
-list-literal   ::= \"lit\" list-kind { term } [ \"_\" ] \".\"
-list-kind      ::= \"array\" type term | \"slice\" type | \"vec\" type term
-
-island         ::= \"expr\" island-item { island-item }
-island-item    ::= term | operator
-
-pipe-form      ::= \"pipe\" expression \"do\" { stage \".\" } \"end\"
-stage          ::= term { term }")
+                 | island | pipe-form | word-form
+call           ::= ( name | path ) { term } \".\"
+paren-term     ::= \"(\" term \")\"
+struct-literal ::= \"lit\" type \"do\" { field-init } \"end\" \".\"
+field-init     ::= name term \".\"
+fill-literal   ::= \"lit\" \"array\" type word \"do\" { fill-item } \"end\" \".\"
+fill-item      ::= ( word | \"_\" ) term \".\"
+list-literal   ::= \"lit\" list-kind { term | \"_\" } \".\"
+list-kind      ::= \"array\" type word | \"slice\" type | \"vec\" type word
+island         ::= \"expr\" island-item { operator island-item } \".\"
+island-item    ::= term | \"(\" island-item { operator island-item } \")\"
+pipe-form      ::= \"pipe\" term \"do\" { stage } \"end\" \".\"
+stage          ::= stage-word { word | term } [ \"with\" term ] \".\"
+stage-word     ::= ? 파이프 단계의 낱말 — 닫힌 어휘다(⟦§6.12⟧) ?
+word-form      ::= \"field\" term segment { segment } \".\"
+                 | \"method\" term { segment } name \".\" { term } \".\"
+                 | \"payload\" term name name \".\"
+                 | \"send\" term name { term } \".\"
+                 | \"spawn\" \"actor\" path \".\"
+                 | \"spawn\" \"send\" term name { term } \".\" \".\"
+                 | \"spawn\" name { term } \".\"
+                 | \"try\" term { name } \".\"
+                 | \"call_builtin\" name { term } \".\"
+                 | shaped-form
+segment        ::= name | number
+shaped-form    ::= ? 부록 D 의 표가 낱말의 자리를 정한 기본 연산 — `cast <타입> <항> .` · `isa <항> <갈래> .` · `size_of <타입> .` 따위 ?")
     #para("1")[
-      #strong[`expression` 은 낱말의 평평한 나열이다.]; 그 나열이 어떤 나무로 읽히는지는 생성 규칙이 정하지 아니하고,
-      #strong[머리의 인자 수];가 정한다: 첫 `term` 이 op 의 이름이면 그 op 이 받는 수만큼의 인자를 뒤에서 차례로 가져가며,
-      인자 자리에 다시 op 의 이름이 오면 그것이 먼저 제 인자를 가져간다. `add a mul b 2` 는 `add a (mul b 2)` 다.
-      인자 수는 op 의 선언(#cref("6.4.1"))과 부록 D 의 표가 정한다. 그러므로 이 문법은 선언을 읽지 않고는 식의 나무를
-      세우지 못한다 — 토큰만으로 정해지는 것은 #strong[식의 처음과 끝];이다.
+      #strong[식은 폼 하나다.]; `call` 은 이름이 열고 점이 닫는다 — 인자가 없으면 그 이름의 값이다(`a.`). 폼 안의 폼은 먼저 제 점으로
+      닫히므로 이 문법은 #strong[선언을 읽지 않고]; 식의 나무를 세운다. 인자의 수가 선언과 맞는지는 그 뒤에 본다(`E-IR-ARITY`).
     ]
     #para("2")[
-      `expression` 은 다음 가운데 먼저 오는 것에서 끝난다: 닫는 점, `)`, `end`, 그리고 머리 안에서는 끝내는 낱말
-      (`do` · `else` · `if` · `while` · `next` · `step`). 바인딩의 값은 `else` 에서도 끝난다.
+      `paren-term` 은 폼 하나를 감쌀 뿐 뜻을 바꾸지 아니한다(#cref("6.1.5") (3a)).
     ]
     #para("3")[
-      머리 안의 식에 블록으로 끝나는 값(`struct-literal` · `fill-literal` · `pipe-form`)을 적을 때는 그 값을 괄호로
-      싼다(`if eq 3 field (lit r do w 3 . end) w do … end`). 식의 #strong[맨 끝];에 오는 블록 값만은 괄호 없이도 읽히며, 그때
-      머리의 몸은 마지막 블록이다(`borrow b lit r do w 3 . end do … end`).
+      낱말의 자리를 가진 폼은 #strong[닫힌 어휘];다: 문장의 머리, `word-form` 에 적은 낱말, 그리고 부록 D 의 표가 모양을 적은
+      기본 연산(`shaped-form`). 그 밖의 `call` — 사용자가 선언한 op — 의 인자는 모두 `term` 이다. 타입을 넘길 때도 그렇다
+      (`max_of u64. a. b. .`).
     ]
     #para("4")[
-      `list-literal` 의 닫는 점은 그 리터럴의 것이다. 문장 끝에서는 문장의 점이 하나 더 온다
-      (`let a array u8 3 lit array u8 3 1 2 3 . .`). 괄호 안에서는 `)` 가 대신 닫는다. 끝내는 낱말은 대신 닫지
-      아니한다(`E-DOT-MISSING`).
+      `method` 의 op 이름은 #strong[점으로 닫은 첫 이름];이다. 그 앞의 이름과 수는 마디이고 그 뒤는 인자다
+      (`method o. inner area. w. 2 .`). `payload` 의 두 낱말은 갈래와 칸의 이름이다(#cref("6.2.19")).
     ]
     #para("5")[
-      `island` 는 닫는 점이나 `)` 까지이고, 그 안의 `operator` 는 중위 연산자다(#cref("6.3.2")).
+      `island` 안의 `operator` 는 중위 연산자다(#cref("6.3.2")). 괄호는 섬의 한 토막을 묶는다.
     ]
     #para("6")[
-      `stage` 의 낱말은 #cref("6.12") 가 정한다.
+      `stage` 의 낱말과 그 인자의 꼴은 #cref("6.12") 가 정한다.
     ]
   ]
   #sub("A.10.5", "타입")[
     #syntax("전체 문법 — 타입", "type           ::= { type-qualifier } type-core
 type-qualifier ::= \"mut\" | \"owned\" | \"ref\" | \"mut_ref\" | \"unsafe_ptr\"
 type-core      ::= name | path
-                 | \"(\" type \")\"
+                 | \"(\" applied-type \")\"
                  | \"slice\" type
-                 | \"array\" type term
+                 | \"array\" type word
                  | \"option\" type
                  | \"result\" type type
-                 | \"vec\" type term
+                 | \"vec\" type word
                  | \"segments\" type
-                 | \"bitset\" term
-                 | \"bits\" term
+                 | \"bitset\" [ number ]
+                 | \"bits\" number
                  | \"cap\" name
                  | \"region\" name
-                 | \"range\" [ type ] term term
+                 | \"range\" [ type ] word word
                  | other-type
+applied-type   ::= type | ( name | path ) type { type }
 other-type     ::= ? ⟦§6.2⟧ 가 정하는 그 밖의 타입 꼴(`mask` · `set` · `stack` · `fn` · `unsafe_fn` · `mmio`) ?")
     #para("1")[
       `u8` · `bool` · `void` 같은 타입 낱말(A.9)과 저자가 지은 타입의 이름은 `name` 이다.
     ]
     #para("2")[
-      타입은 #strong[제 인자 수로 끝난다]; — 닫는 표시가 없다. `slice u8` 은 낱말 둘, `result u64 perr` 는 셋이다. 인자 수가
-      정해지지 않은 꼴과 인자를 받는 사용자 타입은 괄호로 싼다(#cref("6.5.1") (3b)).
+      타입은 #strong[글자만으로 끝난다]; — 닫는 표시가 없다. 생성자는 닫힌 어휘이고(`slice u8` 은 낱말 둘, `result u64 perr` 는
+      셋), 그 밖의 타입은 이름 하나다. 인자를 받는 사용자 타입과 인자 수가 정해지지 않은 꼴은 괄호로 싼다
+      (`(box u64)` — #cref("6.5.1") (3b)).
+    ]
+    #para("3")[
+      타입 안의 이름과 수는 폼을 열지 아니한다 — 점이 없다(`array u8 n`).
     ]
   ]
 ]

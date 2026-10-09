@@ -27,13 +27,13 @@ use lifeatom .
 
 proc share_one input k cap atomic . input c mut slice u64 . output u64 . effects atomic .
 do
-  return lifeatom.rc_share k c .
-end
+  return lifeatom.rc_share k. c. . .
+end .
 
 proc release_one input k cap atomic . input c mut slice u64 . output u64 . effects atomic .
 do
-  return lifeatom.rc_release k c .
-end
+  return lifeatom.rc_release k. c. . .
+end .
 
 proc main
   input al cap allocator .
@@ -41,11 +41,11 @@ proc main
   output u8 .
   effects alloc atomic state .
 do
-  let mb option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some mb else return 89 .
-  var c mut slice u64 view_array u64 (some_value mb) .
+  let mb option mut slice u8 alloc_bytes al. capacity 32 . .
+  guard is_some mb. . else return 89 . .
+  var c mut slice u64 view_array u64 some_value mb. . . .
 
-  guard eq (lifeatom.rc_open k c) 1 else return 43 .
+  guard eq lifeatom.rc_open k. c. . 1 . else return 43 . .
 
   rem ── 흐름 넷이 저마다 나눠 갖는다 ──
   var h0 u64 0 .
@@ -53,24 +53,24 @@ do
   var h2 u64 0 .
   var h3 u64 0 .
   task_group do
-    set h0 spawn share_one k c .
-    set h1 spawn share_one k c .
-    set h2 spawn share_one k c .
-    set h3 spawn share_one k c .
-  end
-  guard eq (atomic_load c 0 order relaxed) 5 else return 43 .
+    set h0. spawn share_one k. c. . .
+    set h1. spawn share_one k. c. . .
+    set h2. spawn share_one k. c. . .
+    set h3. spawn share_one k. c. . .
+  end .
+  guard eq atomic_load c. 0 order relaxed . 5 . else return 43 . .
 
   rem ── 저마다 놓는다 ──
   task_group do
-    set h0 spawn release_one k c .
-    set h1 spawn release_one k c .
-    set h2 spawn release_one k c .
-    set h3 spawn release_one k c .
-  end
-  guard eq (atomic_load c 0 order relaxed) 1 else return 44 .
+    set h0. spawn release_one k. c. . .
+    set h1. spawn release_one k. c. . .
+    set h2. spawn release_one k. c. . .
+    set h3. spawn release_one k. c. . .
+  end .
+  guard eq atomic_load c. 0 order relaxed . 1 . else return 44 . .
 
   rem ── 마지막 하나 ──
-  guard eq (lifeatom.rc_release k c) 0 else return 45 .
+  guard eq lifeatom.rc_release k. c. . 0 . else return 45 . .
 
   return 42 .
-end
+end .

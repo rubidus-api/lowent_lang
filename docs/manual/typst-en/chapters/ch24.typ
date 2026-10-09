@@ -26,7 +26,7 @@
 ]
 
 #organizer[
-  You will learn the shape `pipe <source> do <stages…> <terminal> end` and its seven stages and five terminals. You will pick up how to pass named ops to
+  You will learn the shape `pipe <source> do <stages…> <terminal> end .` and its seven stages and five terminals. You will pick up how to pass named ops to
   stages, how to collect into the caller's buffer with `collect into`, and that `fold`, `any`, `all` and `take` read only as much as needed. You will also
   understand that walking once without intermediate arrays is not an optimisation but *the definition* of `pipe`.
 ]
@@ -175,13 +175,13 @@ single statement*, and they take three arguments --- `map <sink> <op> <source> .
 ```lowent
 module sink_map .
 
-fn dbl input a u8 . output u8 . do return wrap_add a a . end
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
 
 proc doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
-  map out dbl xs .
+  map out. dbl xs. .
   return 0 .
-end
+end .
 ```
 
 Putting `[1,2]` into a three-slot `out` gives `[2,4,0]`. The other way round, putting `[1,2,3]` into two slots stops the run as the third is written ---
@@ -241,20 +241,20 @@ the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it 
   id: "pipe-glance",
   caption: [`pipe` syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`pipe xs do … end`], [scan the source `xs` once], [the language owns the skeleton (index, end test)],
+  [`pipe xs. do … end .`], [scan the source `xs` once], [the language owns the skeleton (index, end test)],
   [`filter over2 .` · `map dbl .`], [keep · transform --- pass a named op], [no lambdas --- the name is the explanation],
   [`take 2 .` · `skip 1 .`], [only the first few · drop the first few], [read only as much as needed],
   [`enumerate idxadd .` · `zip ys addb .`], [pass the index or partner as op arguments], [no tuples are built],
   [`scan 0 addb .` · `fold 0 addu .`], [emit running values · accumulate into one value], [the op takes the accumulator first, then the element],
   [`filter above with limit .`], [context --- computed once before the pass, the op's last argument], [a run-time value without a lambda --- values without references only],
-  [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end`],
+  [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end . .`],
   [`collect into out .`], [store into the caller's buffer], [a `pipe` never allocates --- a buffer too short is refused or stops the run],
   [exactly one terminator, at the end], [a stage after it is `E-PIPE-NO-TERMINAL`], [the end of the flow is in one place],
   [a word like `sort`], [does not exist --- `E-PIPE-STAGE`], [operations that cannot fuse were left out],
 )
 
 #recap[
-  `pipe <source> do … end` passes through stages (`filter`, `map`, `take`, `skip`, `enumerate`, `zip`, `scan`) and ends with one terminal (`collect into`,
+  `pipe <source> do … end .` passes through stages (`filter`, `map`, `take`, `skip`, `enumerate`, `zip`, `scan`) and ends with one terminal (`collect into`,
   `fold`, `count`, `any`, `all`). Stages take named ops, and the buffer to collect into is given by the caller. Walking once with no intermediate arrays is the
   definition, and operations that cannot be fused are not in the vocabulary. `any`, `all` and `take` read only as much as needed.
 ]

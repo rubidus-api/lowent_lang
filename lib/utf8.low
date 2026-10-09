@@ -25,85 +25,85 @@ rem   `utf8.decode`·`utf16.decode` 이고, 겹치지 않는 이름들은 그대
 
 rem 이어지는 바이트인가 — 10xxxxxx.
 export fn is_cont input b u8 . output bool . do
-  return eq (bit_and b 192) 128 .
-end
+  return eq bit_and b. 192 . 128 . .
+end .
 
 rem ★ 한 코드포인트의 **바이트 길이**를 선두 바이트로 안다. 0 = 선두 바이트가 아니다.
 export fn seq_len input b u8 . output u64 . do
-  if lt b 128 do return 1 . end
-  if eq (bit_and b 224) 192 do return 2 . end
-  if eq (bit_and b 240) 224 do return 3 . end
-  if eq (bit_and b 248) 240 do return 4 . end
+  if lt b. 128 . do return 1 . end .
+  if eq bit_and b. 224 . 192 . do return 2 . end .
+  if eq bit_and b. 240 . 224 . do return 3 . end .
+  if eq bit_and b. 248 . 240 . do return 4 . end .
   return 0 .
-end
+end .
 
 rem ★★★ `at` 에서 코드포인트 하나를 **디코드**한다. 유효하지 않으면 `none`.
 rem   반환은 코드포인트 값 — 길이는 `seq_len` 으로 다시 얻거나 `next_start` 를 쓴다.
 export fn decode input s slice u8 . input at u64 . output option u64 . link "utf8_decode" . do
-  guard lt at (len s) else return none .
-  let b0 u8 idx s at .
-  let n u64 seq_len b0 .
-  guard gt n 0 else return none .                      rem 이어지는 바이트가 선두에 왔다
-  guard le (add at n) (len s) else return none .        rem 잘린 시퀀스
-  if eq n 1 do return (some (narrow u64 b0)) . end
+  guard lt at. len s. . . else return none . .
+  let b0 u8 idx s. at. . .
+  let n u64 seq_len b0. . .
+  guard gt n. 0 . else return none . .                      rem 이어지는 바이트가 선두에 왔다
+  guard le add at. n. . len s. . . else return none . .        rem 잘린 시퀀스
+  if eq n. 1 . do return some narrow u64 b0. . . . end .
 
   rem 이어지는 바이트들이 전부 10xxxxxx 여야 한다.
   var i u64 1 .
-  while lt i n do
-    guard is_cont (idx s (add at i)) else return none .
-    set i (add i 1) .
-  end
+  while lt i. n. . do
+    guard is_cont idx s. add at. i. . . . else return none . .
+    set i. add i. 1 . .
+  end .
 
   rem 선두 바이트의 남은 비트 + 이어지는 바이트마다 6 비트.
   var cp u64 0 .
-  if eq n 2 do set cp (narrow u64 (bit_and b0 31)) . end
-  if eq n 3 do set cp (narrow u64 (bit_and b0 15)) . end
-  if eq n 4 do set cp (narrow u64 (bit_and b0 7)) . end
+  if eq n. 2 . do set cp. narrow u64 bit_and b0. 31 . . . end .
+  if eq n. 3 . do set cp. narrow u64 bit_and b0. 15 . . . end .
+  if eq n. 4 . do set cp. narrow u64 bit_and b0. 7 . . . end .
   var j u64 1 .
-  while lt j n do
-    set cp (add (mul cp 64) (narrow u64 (bit_and (idx s (add at j)) 63))) .
-    set j (add j 1) .
-  end
+  while lt j. n. . do
+    set cp. add mul cp. 64 . narrow u64 bit_and idx s. add at. j. . . 63 . . . .
+    set j. add j. 1 . .
+  end .
 
   rem ★ **과길이 인코딩을 거절한다** — 같은 코드포인트를 두 가지로 쓸 수 있으면
   rem   비교가 거짓말이 된다(보안 필터를 우회하는 고전적 통로다).
-  if eq n 2 do guard ge cp 128 else return none . end
-  if eq n 3 do guard ge cp 2048 else return none . end
-  if eq n 4 do guard ge cp 65536 else return none . end
+  if eq n. 2 . do guard ge cp. 128 . else return none . . end .
+  if eq n. 3 . do guard ge cp. 2048 . else return none . . end .
+  if eq n. 4 . do guard ge cp. 65536 . else return none . . end .
 
   rem ★ 서로게이트 자리(U+D800–U+DFFF)는 UTF-8 에 **없다** — UTF-16 의 사정이다.
-  if ge cp 55296 do guard gt cp 57343 else return none . end
+  if ge cp. 55296 . do guard gt cp. 57343 . else return none . . end .
   rem ★ 유니코드의 끝은 U+10FFFF 다.
-  guard le cp 1114111 else return none .
-  return (some cp) .
-end
+  guard le cp. 1114111 . else return none . .
+  return some cp. . .
+end .
 
 rem ★ 다음 코드포인트의 **시작 위치**. 유효하지 않으면 none — 건너뛰며 뭉개지 않는다.
 rem ★ "유효하지 않으면" 은 `decode` 와 **같은 잣대**다(이어지는 바이트·과길이·서로게이트·상한).
 rem   전엔 선두 바이트와 잘림만 봤다 — `C3 41` 을 `next_start` 는 받고 `decode` 는 거절해, 같은 바이트열에
 rem   두 답이 있었다. 두 op 이 다른 잣대를 들면 위층(term 의 셀 셈)이 그 틈에서 어긋난다.
 export fn next_start input s slice u8 . input at u64 . output option u64 . link "utf8_next" . do
-  guard is_some (decode s at) else return none .
-  return (some (add at (seq_len (idx s at)))) .
-end
+  guard is_some decode s. at. . . else return none . .
+  return some add at. seq_len idx s. at. . . . . .
+end .
 
 rem ★★ 코드포인트 개수. 유효하지 않은 바이트를 만나면 `none` — **부분 답을 주지 않는다**
 rem   (`lib/fmt.low` 의 전량-아니면-무와 같은 규율: 반쯤 맞는 답이 가장 나쁘다).
 export fn count_chars input s slice u8 . output option u64 . link "utf8_count_chars" . do
   var i u64 0 .
   var n u64 0 .
-  while lt i (len s) do
-    let d option u64 decode s i .
-    guard is_some d else return none .
-    let nx option u64 next_start s i .
-    guard is_some nx else return none .
-    set i (some_value nx) .
-    set n (add n 1) .
-  end
-  return (some n) .
-end
+  while lt i. len s. . . do
+    let d option u64 decode s. i. . .
+    guard is_some d. . else return none . .
+    let nx option u64 next_start s. i. . .
+    guard is_some nx. . else return none . .
+    set i. some_value nx. . .
+    set n. add n. 1 . .
+  end .
+  return some n. . .
+end .
 
 rem ★ 전체가 유효한 UTF-8 인가 — D3 이 말한 *"검증은 별도 op 이지 타입 불변식이 아니다"*.
 export fn is_valid input s slice u8 . output bool . link "utf8_is_valid" . do
-  return is_some (count_chars s) .
-end
+  return is_some count_chars s. . . .
+end .

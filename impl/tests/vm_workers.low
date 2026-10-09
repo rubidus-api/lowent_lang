@@ -12,26 +12,26 @@ rem   실측(16코어): 워커 1→4 에서 4.3배 스케일.
 
 module vm_workers .
 
-fn w0 output u64 . do return 0 . end
-fn w1 output u64 . do return 1 . end
-fn w2 output u64 . do return 2 . end
-fn w3 output u64 . do return 3 . end
-fn w4 output u64 . do return 4 . end
-fn w5 output u64 . do return 5 . end
-fn w6 output u64 . do return 6 . end
-fn w7 output u64 . do return 7 . end
-fn w8 output u64 . do return 8 . end
-fn w9 output u64 . do return 9 . end
-fn w10 output u64 . do return 10 . end
-fn w11 output u64 . do return 11 . end
-fn w12 output u64 . do return 12 . end
-fn w13 output u64 . do return 13 . end
-fn w14 output u64 . do return 14 . end
-fn w15 output u64 . do return 15 . end
-fn w16 output u64 . do return 16 . end
-fn w17 output u64 . do return 17 . end
-fn w18 output u64 . do return 18 . end
-fn w19 output u64 . do return 19 . end
+fn w0 output u64 . do return 0 . end .
+fn w1 output u64 . do return 1 . end .
+fn w2 output u64 . do return 2 . end .
+fn w3 output u64 . do return 3 . end .
+fn w4 output u64 . do return 4 . end .
+fn w5 output u64 . do return 5 . end .
+fn w6 output u64 . do return 6 . end .
+fn w7 output u64 . do return 7 . end .
+fn w8 output u64 . do return 8 . end .
+fn w9 output u64 . do return 9 . end .
+fn w10 output u64 . do return 10 . end .
+fn w11 output u64 . do return 11 . end .
+fn w12 output u64 . do return 12 . end .
+fn w13 output u64 . do return 13 . end .
+fn w14 output u64 . do return 14 . end .
+fn w15 output u64 . do return 15 . end .
+fn w16 output u64 . do return 16 . end .
+fn w17 output u64 . do return 17 . end .
+fn w18 output u64 . do return 18 . end .
+fn w19 output u64 . do return 19 . end .
 
 rem 태스크 스물을 한 그룹에 — 협조·워커N·워커1 이 모두 190(=0+1+..+19)을 내야 한다.
 proc twenty output u8 . effects state . do
@@ -56,47 +56,47 @@ proc twenty output u8 . effects state . do
   var h18 u64 0 .
   var h19 u64 0 .
   task_group do
-    set h0 spawn w0 .
-    set h1 spawn w1 .
-    set h2 spawn w2 .
-    set h3 spawn w3 .
-    set h4 spawn w4 .
-    set h5 spawn w5 .
-    set h6 spawn w6 .
-    set h7 spawn w7 .
-    set h8 spawn w8 .
-    set h9 spawn w9 .
-    set h10 spawn w10 .
-    set h11 spawn w11 .
-    set h12 spawn w12 .
-    set h13 spawn w13 .
-    set h14 spawn w14 .
-    set h15 spawn w15 .
-    set h16 spawn w16 .
-    set h17 spawn w17 .
-    set h18 spawn w18 .
-    set h19 spawn w19 .
-  end
+    set h0. spawn w0 . .
+    set h1. spawn w1 . .
+    set h2. spawn w2 . .
+    set h3. spawn w3 . .
+    set h4. spawn w4 . .
+    set h5. spawn w5 . .
+    set h6. spawn w6 . .
+    set h7. spawn w7 . .
+    set h8. spawn w8 . .
+    set h9. spawn w9 . .
+    set h10. spawn w10 . .
+    set h11. spawn w11 . .
+    set h12. spawn w12 . .
+    set h13. spawn w13 . .
+    set h14. spawn w14 . .
+    set h15. spawn w15 . .
+    set h16. spawn w16 . .
+    set h17. spawn w17 . .
+    set h18. spawn w18 . .
+    set h19. spawn w19 . .
+  end .
   var s u64 0 .
-  set s (add s (await h0)) .
-  set s (add s (await h1)) .
-  set s (add s (await h2)) .
-  set s (add s (await h3)) .
-  set s (add s (await h4)) .
-  set s (add s (await h5)) .
-  set s (add s (await h6)) .
-  set s (add s (await h7)) .
-  set s (add s (await h8)) .
-  set s (add s (await h9)) .
-  set s (add s (await h10)) .
-  set s (add s (await h11)) .
-  set s (add s (await h12)) .
-  set s (add s (await h13)) .
-  set s (add s (await h14)) .
-  set s (add s (await h15)) .
-  set s (add s (await h16)) .
-  set s (add s (await h17)) .
-  set s (add s (await h18)) .
-  set s (add s (await h19)) .
-  return narrow u8 s .
-end
+  set s. add s. await h0. . . .
+  set s. add s. await h1. . . .
+  set s. add s. await h2. . . .
+  set s. add s. await h3. . . .
+  set s. add s. await h4. . . .
+  set s. add s. await h5. . . .
+  set s. add s. await h6. . . .
+  set s. add s. await h7. . . .
+  set s. add s. await h8. . . .
+  set s. add s. await h9. . . .
+  set s. add s. await h10. . . .
+  set s. add s. await h11. . . .
+  set s. add s. await h12. . . .
+  set s. add s. await h13. . . .
+  set s. add s. await h14. . . .
+  set s. add s. await h15. . . .
+  set s. add s. await h16. . . .
+  set s. add s. await h17. . . .
+  set s. add s. await h18. . . .
+  set s. add s. await h19. . . .
+  return narrow u8 s. . .
+end .

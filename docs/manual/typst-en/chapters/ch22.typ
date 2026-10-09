@@ -39,7 +39,7 @@ A parameter marked `comptime` must have its value fixed at translation time. Typ
 
 #demo("examples/ch22/sizes.low")
 
-- `bytes_for`'s `input comptime t type .` takes a type. `size_of t` in the body gives the size of that type at translation time. `bytes_for u8 100` is 100 and
+- `bytes_for`'s `input comptime t type .` takes a type. `size_of t .` in the body gives the size of that type at translation time. `bytes_for u8 100` is 100 and
   `bytes_for u64 100` is 800.
 - `add_const`'s `input comptime n u8 .` takes a value. `add_const 7 10` is 17.
 - Call sites write the type or constant *in front, like an ordinary argument*. There are no angle brackets (`<T>`) and no inference.
@@ -70,15 +70,15 @@ functions in native code. Because they are made after the type is fixed, sizes a
 
 ```text
  source (one template)                       after translation (one copy per combination used)
- fn bytes_for input comptime t type …   ┌─▶ bytes_for#u8  :  return mul 1 items
-     return mul (size_of t) items        │
-                                         └─▶ bytes_for#u64 :  return mul 8 items
+ fn bytes_for input comptime t type …   ┌─▶ bytes_for#u8  :  return mul 1 items. . .
+     return mul size_of t . items. . .   │
+                                         └─▶ bytes_for#u64 :  return mul 8 items. . .
  call sites:
-   bytes_for u8 100   ────────────────────▶ calls bytes_for#u8 directly
-   bytes_for u64 100  ────────────────────▶ calls bytes_for#u64 directly
+   bytes_for u8. 100 . ───────────────────▶ calls bytes_for#u8 directly
+   bytes_for u64. 100 . ──────────────────▶ calls bytes_for#u64 directly
 ```
 
-The template's `size_of t` becomes the constants 1 and 8 in the copies. No "what is t?" question is left for run time.
+The template's `size_of t .` becomes the constants 1 and 8 in the copies. No "what is t?" question is left for run time.
 
 The price is the amount of code. Calling with ten types makes ten copies. That cost does not hide; the types are written at the call sites, so the number of
 copies can be counted from the source.
@@ -92,7 +92,7 @@ An op that takes a type usually needs that type to know how to do something. To 
 
 - `trait ordered` is the promise "has an op called `less`". `score` declares it will satisfy that promise with `satisfies ordered .` and actually does so with
   `score.less` (#chref("traits")).
-- `max_of`'s `requires ordered t .` is the type condition. The body trusts it and calls `method a less b`.
+- `max_of`'s `requires ordered t. . .` is the type condition. The body trusts it and calls `method a less b`.
 - `bigger` calls `max_of score …`. The processor makes a `score`-specific instance of `max_of`; in the emitted C you can see `max_of_score` in that function's
   name.
 
@@ -117,12 +117,12 @@ would hide. Instead *the type carries the comparison*. The head of the standard 
 ```lowent
 export trait ordered do
   less input a self . input b self . output bool . effects none .
-end
+end .
 
 export proc sort_by input comptime t type . input s mut slice t .
   output void .
   effects none .
-  requires ordered t .
+  requires ordered t. . .
 ```
 
 To change the ordering, use a type with a different `less`. Wrapping in a one-field struct keeps the layout unchanged, so it costs nothing. Descending order or
@@ -147,7 +147,7 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
 #antipattern[Not stating, as a type condition, the behaviour the body uses][
   #demo("examples/ch22/mistake_nobound.low")
 
-  The body of `max_of` calls `less`, but the head has no `requires ordered t .`. The mistake of calling it with `plain` then appears as
+  The body of `max_of` calls `less`, but the head has no `requires ordered t. . .`. The mistake of calling it with `plain` then appears as
   `E-METHOD-UNDEF` on a line *inside the template*, and the tool adds `N-MONO-SITE` to say "this is the line that asked for the instance".
   `unsat.low`, which states the condition, reports the same mistake directly at the call with `E-BOUND-UNSAT`. A type condition is both a
   promise to callers and the mark that brings the diagnostic back to the right place.
@@ -157,7 +157,7 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
   #demo("examples/ch22/mistake_valuetype.low")
 
   `u64` is 8 bytes, so passing 8 may seem fine, but `input comptime t type .` takes a *type*. This edition's tool tries to read the number 8
-  as a type and reports `E-IR-UNDEF` at `size_of t` inside the template. Write the type name, as in `bytes_for u64 100`. Needing the size is
+  as a type and reports `E-IR-UNDEF` at `size_of t .` inside the template. Write the type name, as in `bytes_for u64 100`. Needing the size is
   the template's business; the caller says what it is the size of.
 ]
 
@@ -191,8 +191,8 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
   [`input comptime n u8 .`], [receive a value at translation time], [folded as a constant; checks disappear],
   [`bytes_for u64 100` · `add_const 7 10`], [write types and constants as leading arguments], [no angle brackets, no inference --- what is built is visible],
   [`let stride u8 7 .` (module level)], [a named constant allowed in a `comptime` position], [a `let` inside an op is a run-time name],
-  [`size_of t`], [the size of a type at translation time], [the size is fixed as a constant],
-  [`requires ordered t .`], [type condition --- the type must adopt the trait], [otherwise `E-BOUND-UNSAT` at the call],
+  [`size_of t .`], [the size of a type at translation time], [the size is fixed as a constant],
+  [`requires ordered t. . .`], [type condition --- the type must adopt the trait], [otherwise `E-BOUND-UNSAT` at the call],
   [`method a less b`], [call the op the condition promises], [monomorphised into a direct call],
   [one concrete copy per combination used], [monomorphisation], [the cost is code size, not speed --- counted in the source],
 )

@@ -99,39 +99,48 @@ rem  line comment. block comment is:  note END ... END
 fn sorted                         rem  fn = pure (never write `effects`). proc = effectful.
   input xs slice u8 .
   output bool .
-  requires ge (len xs) 1 .        rem  contract flows into the caller
+  requires ge len xs. . 1 . .        rem  contract flows into the caller
 do
   var i u64 1 .
-  while lt i (len xs) do
-    guard le (idx xs (sub i 1)) (idx xs i) else return false .
-    set i (add i 1) .
-  end
+  while lt i. len xs. . . do
+    guard le idx xs. sub i. 1 . . idx xs. i. . . else return false . .
+    set i. add i. 1 . .
+  end .
   return true .
-end
+end .
 ```
 
 Shape rules you will hit immediately:
-- **Prefix application, arity-aware.** `ge (len xs) 1` is `ge(len(xs), 1)`. Parens are
-  a readability/rendering layer, not required by the grammar.
+- **A name opens, a stop closes.** `ge len xs. . 1 .` is `ge(len(xs), 1)`: `xs.` is the variable,
+  the next stop closes `len`, the last one closes `ge`. A variable is always written with its stop
+  (`xs.`). Literals and `true`/`false`/`none` take none, and neither do names being *defined*
+  (`let x`, `input n`, type names, names in a `case` pattern). **Arity does not end a form — only
+  its stop does.** Parentheses are optional decoration: `ge (len xs. .) 1 .` means the same.
 - **Single-word identifiers.** No multi-word names; snake_case by convention
   (`mut_ref`, `file_system`).
-- **`.` is the terminator** — it ends declarations, clauses, statements, and each enum
-  variant. A newline is just whitespace: it never closes anything. Glued, `.` also qualifies
-  a name (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p x`.
+- **`.` closes every form** — values, statements, clauses, declarations, each enum variant, and
+  block forms after their `end` (`if c. do … end .`, `fn … end .`; an `else` chain takes one stop,
+  at the very end). One stop too few is `E-DOT-MISSING`, one too many `E-CLOSER-EXTRA`. A newline
+  is just whitespace: it never closes anything. Glued *inside* a name, `.` qualifies it
+  (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p. x .`.
+- **Statements you will write constantly**: `let n u64 add a. 1 . .` (the call's stop, then the
+  binding's) · `set i. add i. 1 . .` (the place is a value too) · `return x. .` ·
+  `guard gt n. 0 . else return 0 . .` · `method o. name. arg. .` · `payload v. variant field .`.
 - **Clauses have one order**: `satisfies` right after the name, then `comptime` inputs,
   capability/region inputs, data inputs, then `output`, `effects`, `link`, then `requires`,
-  `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt` moves the non-input clauses).
-  `proc save input fs cap file_system input name slice u8 output u64 effects io do … end`.
+  `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`). Each clause closes with its own stop:
+  `proc save input fs cap file_system . input name slice u8 . output u64 . effects io . do … end .`.
 - **Every body is `do … end`**: op bodies, control blocks AND block declarations —
-  `def struct p do x u8 end`, `def enum e do a end`, `trait t do area input s self output u64 end`,
-  `actor c do state do v u64 end … end` (`def struct p .` / a bare line break → `E-STMT-NODO`).
+  `def struct p do x u8 . end .`, `def enum e do a . end .`,
+  `trait t do area input s self . output u64 . end .`,
+  `actor c do state do v u64 . end . … end .` (`def struct p .` / a bare line break → `E-STMT-NODO`).
   A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: a host leaf takes its capability as the first
-  operand (`write_out out 1 s`, `alloc_bytes al capacity n`); holding it is not enough
+  operand (`write_out out. 1 s. .`, `alloc_bytes al. capacity n. .`); holding it is not enough
   (`E-CAP-MISSING`).
-- **Infix arithmetic only inside `expr`** (`+ - * /`); everywhere else it is prefix
-  (`add sub mul div mod`). Comparisons/logic are always prefix words
-  (`eq ne lt le gt ge and or not`).
+- **Infix arithmetic only inside `expr`** (`+ - * /`), and the island closes with its own stop:
+  `expr a. + b. * 2 .`. Everywhere else it is prefix (`add sub mul div mod`). Comparisons/logic
+  are always prefix words (`eq ne lt le gt ge and or not`).
 - `fn` promises **no effects**; an `fn` that does IO is `E-EFFECT-CALC`, and writing
   `effects none` on an `fn` is `E-EFFECT-REDUNDANT`. Effectful work is `proc` with a declared
   `effects …` set and the capabilities it needs.

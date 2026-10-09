@@ -7,7 +7,7 @@ def newtype grid u8 .
 
 fn halves_then_root output u64 .
 do
-  var r (owned shard.token grid) shard.open grid 8 .
-  var h (shard.halves grid) shard.split_at grid r 4 .
-  return shard.width grid r .
-end
+  var r (owned shard.token grid) shard.open grid. 8 . .
+  var h (shard.halves grid) shard.split_at grid. r. 4 . .
+  return shard.width grid. r. . .
+end .

@@ -12,15 +12,15 @@ L0 — 순수 계산
 
 없음
 
-“이 글자가 문자인가, 숫자인가, 공백인가” 를 묻는 곳이다. ASCII 만 다룰 때는 `ge c 97` 이고 `le c 122` 면 소문자라고 손으로 답할 수 있었다. `'한'` 이나 `'あ'` 나 `'Ω'` 가 들어오는 순간 그 방식은 무너진다. 유니코드에서 “문자” 인 코드포인트는 **658 개의 흩어진 구간**에 걸쳐 있어 손으로 적지 못한다. 이 모듈은 그 구간표를 **Unicode 15.1.0 원본에서 기계적으로 뽑아** 싣고 이진 탐색으로 답한다.
+“이 글자가 문자인가, 숫자인가, 공백인가” 를 묻는 곳이다. ASCII 만 다룰 때는 `ge c. 97 .` 이고 `le c. 122 .` 면 소문자라고 손으로 답할 수 있었다. `'한'` 이나 `'あ'` 나 `'Ω'` 가 들어오는 순간 그 방식은 무너진다. 유니코드에서 “문자” 인 코드포인트는 **658 개의 흩어진 구간**에 걸쳐 있어 손으로 적지 못한다. 이 모듈은 그 구간표를 **Unicode 15.1.0 원본에서 기계적으로 뽑아** 싣고 이진 탐색으로 답한다.
 
 ```lowent
 use unicode .
 
 proc ident_start input cp u64 . output bool . effects none . do
-  if unicode.is_letter cp do return true . end
-  return eq cp 95 .
-end
+  if unicode.is_letter cp. . do return true . end .
+  return eq cp. 95 . .
+end .
 ```
 
 `is_letter 54620`(`'한'`)은 `true`, `is_letter 128512`(😀)는 `false` 다 — 이모지는 기호이지 문자가 아니다. **입력은 코드포인트(`u64`)이지 바이트가 아니다.** UTF-8 바이트열에서 코드포인트를 꺼내는 일은 [`utf8`](sec61.md#mod-utf8) 이 하고, 둘을 이어 쓴다.
@@ -87,22 +87,22 @@ export proc count_words input s slice u8 . output option u64 . effects none . do
   var off u64 0 .
   var words u64 0 .
   var inword bool false .
-  while lt off (len s) do
-    let cp option u64 utf8.decode s off .
-    guard is_some cp else return none .
-    let n u64 utf8.seq_len (idx s off) .
-    guard gt n 0 else return none .
-    if unicode.is_alnum (some_value cp) do
-      if eq inword false do set words (add words 1) . end
-      set inword true .
-    end
-    if eq (unicode.is_alnum (some_value cp)) false do
-      set inword false .
-    end
-    set off (add off n) .
-  end
-  return some words .
-end
+  while lt off. len s. . . do
+    let cp option u64 utf8.decode s. off. . .
+    guard is_some cp. . else return none . .
+    let n u64 utf8.seq_len idx s. off. . . .
+    guard gt n. 0 . else return none . .
+    if unicode.is_alnum some_value cp. . . do
+      if eq inword. false . do set words. add words. 1 . . end .
+      set inword. true .
+    end .
+    if eq unicode.is_alnum some_value cp. . . false . do
+      set inword. false .
+    end .
+    set off. add off. n. . .
+  end .
+  return some words. . .
+end .
 ```
 
 `"한글 word 123"` 에서 3 이 나온다 — ASCII 만 아는 판정으로는 `'한글'` 을 세지 못한다. 정규식의 `\p{L}`·`\P{L}` 이 바로 이 표를 쓴다 ([`regex`](sec65.md#mod-regex)). 정규식으로 충분하면 정규식을 쓰고, 코드포인트 하나만 물으면 되는 자리에서는 이 모듈을 직접 부르는 편이 훨씬 싸다.
@@ -113,7 +113,9 @@ end
 >
 > > ```lowent
 > > rem ✘ index 는 바이트를 준다. '한' 의 첫 바이트는 0xED 다
-> > if unicode.is_letter (widen u64 (idx s 0)) do … end
+> > if unicode.is_letter widen u64 idx s. 0 . . . do
+> >   rem …
+> > end .
 > > ```
 > >
 > > 0xED(237)는 코드포인트 U+00ED(í)다 — 우연히 문자로 판정되지만 **묻고 있던 글자가 아니다**. UTF-8 을 다루면 반드시 `utf8.decode` 를 거친다.
@@ -130,7 +132,7 @@ end
 >
 > > ```lowent
 > > rem ✘ Ⅶ(U+2166)도 통과하고 cp − 48 은 뜻 없는 수다
-> > if unicode.is_number cp do set v (add (mul v 10) (sub cp 48)) . end
+> > if unicode.is_number cp. . do set v. add mul v. 10 . sub cp. 48 . . . end .
 > > ```
 > >
 > > 십진 숫자만 받으려면 `is_digit` 이다.
@@ -142,7 +144,7 @@ end
 ## <a id="sx6"></a>주의
 
 - **범위 밖은 조용히 `false` 다.** U+30000 이상을 다루는 프로그램이라면 이 모듈이 답하지 못한다는 것을 알고 쓴다.
-- **`has_cp` 의 `false` 는 “들지 않는다” 와 “표가 깨졌다” 를 구별하지 않는다.** 내장 표는 늘 온전하다. 표를 직접 만든다면 넘기기 전에 `mod (len tab) 12` 가 0 인지 확인한다.
+- **`has_cp` 의 `false` 는 “들지 않는다” 와 “표가 깨졌다” 를 구별하지 않는다.** 내장 표는 늘 온전하다. 표를 직접 만든다면 넘기기 전에 `mod len tab. . 12 .` 가 0 인지 확인한다.
 - **표는 Unicode 15.1.0 기준이다.** 유니코드가 갱신되면 표를 손으로 고치지 않고 다시 뽑는다.
 - **바이너리 크기.** 표 전체가 문자열로 들어간다(수십 KB). 작은 기계에서 문제가 되면 필요한 표만 쓰는 모듈을 따로 두는 것이 맞다.
 - **`is_space` 는 Z 범주 그대로다 — 탭·개행·CR 은 들지 않는다.** 유니코드에서 그것들은 제어 문자(Cc)다. 정규식의 `\s` 처럼 굴기를 바란다면 호출부에서 더한다. 이 표가 `\p{Z}` 에 그대로 쓰이기 때문에 섞지 않았다.

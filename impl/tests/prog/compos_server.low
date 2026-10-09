@@ -11,21 +11,21 @@ export actor tally do
   state do
     n u64 .
     last u64 .
-  end
+  end .
   proc add input v u64 . output u64 . effects state . do
-    set n (add n v) .
-    set last v .
-    return n .
-  end
+    set n. add n. v. . .
+    set last. v. .
+    return n. .
+  end .
   proc total output u64 . effects none . do
-    return n .
-  end
-end
+    return n. .
+  end .
+end .
 
 proc main output u8 . effects state . do
-  var t tally spawn actor tally .
-  let a u64 send t add 5 .
-  let b u64 send t add 7 .
+  var t tally spawn actor tally . .
+  let a u64 send t. add 5 . .
+  let b u64 send t. add 7 . .
   rem 상태는 메시지 사이에서 살아 있다 — 그것이 actor 가 하는 일의 전부다.
-  return narrow u8 (send t total) .
-end
+  return narrow u8 send t. total . . .
+end .

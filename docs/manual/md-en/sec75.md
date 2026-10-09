@@ -22,8 +22,8 @@ Produces numbers from byte strings. Three things of different character live in 
 use hash .
 
 fn slot input key slice u8 . input nslots u64 . output u64 . do
-  return hash.bucket_of key nslots .
-end
+  return hash.bucket_of key. nslots. . .
+end .
 ```
 
 **Why the algorithms are fixed.** A hash looks right whenever a plausible number comes out. If not fixed, nothing is left to check. Because they are fixed, standard check values become the tests’ reference (CRC-32 of `"123456789"` → `0xCBF43926`), and if VM and native diverge it shows on the spot.

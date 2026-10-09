@@ -30,19 +30,19 @@ def struct uart do
   mmio 0x40011000 .
   cr   u32 rw .              rem 제어  — 칸과 자리가 섞여 산다
   bsrr u32 wo .              rem 세울/지울 짝 (아래 16 비트=세움 · 위 16 비트=지움)
-end
+end .
 
 rem 자리표 — 칸은 마스크로(`wire`), 자리는 번호로(`flags`). 한 곳에만 적는다.
-fn m_baud   output u64 . do return 65520 . end    rem 비트 4~15 (GENMASK(15,4))
-fn f_enable output u64 . do return 0 . end        rem 0 번 자리
-fn f_parity output u64 . do return 1 . end        rem 1 번 자리
+fn m_baud   output u64 . do return 65520 . end .    rem 비트 4~15 (GENMASK(15,4))
+fn f_enable output u64 . do return 0 . end .        rem 0 번 자리
+fn f_parity output u64 . do return 1 . end .        rem 1 번 자리
 
 rem 제어 낱말을 **짓는다** — 순수 계산이다. 권한이 필요 없다(그래서 시험하기 쉽다).
 fn control input baud u64 . input parity bool . output u64 . do
-  var w u64 flags.with (flags.empty) (f_enable) .
-  if parity do set w (flags.with w (f_parity)) . end
-  return wire.merge (m_baud) w baud .
-end
+  var w u64 flags.with flags.empty. f_enable. . .
+  if parity. do set w. flags.with w. f_parity. . . end .
+  return wire.merge m_baud. w. baud. . .
+end .
 
 unsafe proc drive
   input dev cap mmio .
@@ -51,22 +51,22 @@ unsafe proc drive
   output u32 .
   effects device unsafe .
 do
-  var u uart view uart regs .
+  var u uart view uart regs. . .
 
   rem ★ 칸에 안 들어가는 값이면 **아무것도 안 쓰고** 1 을 답한다. 조용히 자르는 대신
   rem   물어볼 수 있다는 것이 이 라이브러리가 C 보다 나은 자리다.
-  guard wire.fits (m_baud) baud else return 1 .
+  guard wire.fits m_baud. baud. . else return 1 . .
 
   rem ① 칸과 자리를 함께 — 한 번의 쓰기다(읽고-고쳐-쓰기가 아니다)
-  write_volatile u cr (narrow u32 (control baud true)) .
+  write_volatile u. cr narrow u32 control baud. true . . .
 
   rem ③ 그리고 자리 둘을 바꿀 때는 **값이 아니라 짝**을 보낸다:
   rem   지금 걸려 있다고 아는 값이 `now`, 가고 싶은 값이 `want` 다.
-  let now u64 control baud true .
-  let want u64 flags.without now (f_parity) .
-  let s u64 wire.to_set now want .
-  let c u64 wire.to_clear now want .
-  write_volatile u bsrr (narrow u32 (bit_or s (shl c 16))) .
+  let now u64 control baud. true . .
+  let want u64 flags.without now. f_parity. . .
+  let s u64 wire.to_set now. want. . .
+  let c u64 wire.to_clear now. want. . .
+  write_volatile u. bsrr narrow u32 bit_or s. shl c. 16 . . . .
 
-  return (narrow u32 (control baud true)) .
-end
+  return narrow u32 control baud. true . . .
+end .

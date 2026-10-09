@@ -2,7 +2,7 @@
 
 = Appendix D --- Grammar summary
 
-The normative text is the specification; this appendix is a reference gathering frequently sought shapes. There is no complete formal grammar yet.
+The normative text is the specification; this appendix is a reference gathering frequently sought shapes. The complete formal grammar is in Annex A (A.10) of the specification.
 
 == Clause order of an op head
 
@@ -24,10 +24,10 @@ The normative text is the specification; this appendix is a reference gathering 
   tests … · schedule …                     ⑭
 do
   <statements>
-end
+end .
 ```
 
-An `extern` op whose body is in C holds the same clauses, in the same order, *inside* `do … end` --- `unsafe extern proc <name> do <clause>* end`. Only clauses go in that block.
+An `extern` op whose body is in C holds the same clauses, in the same order, *inside* `do … end` --- `unsafe extern proc <name> do <clause>* end .`. Only clauses go in that block.
 
 == Declarations
 
@@ -36,67 +36,77 @@ module <name> .
 use <module> [from "<place>"] .
 def type <name> <type> .
 def newtype <name> <type> .
-def struct <name> do [satisfies <trait> .] [layout packed .] [mmio <address> .] <field> <type> [big|little] [rw|ro|wo] . … end
-def enum <name> do <variant> [<field> <type>]… . … end
-trait <name> do <op name> <clauses…> . … end
-contract <name> do requires <cond> . … end
-actor <name> do [satisfies …] state do <field> <type> . … end [failure restart max <n> .] [mailbox bounded <n> .] <op>… end
+def struct <name> do [satisfies <trait> .] [layout packed .] [mmio <address> .] <field> <type> [big|little] [rw|ro|wo] . … end .
+def enum <name> do <variant> [<field> <type>]… . … end .
+trait <name> do <op name> <clauses…> . … end .
+contract <name> do requires <cond> . … end .
+actor <name> do [satisfies …] state do <field> <type> . … end [failure restart max <n> .] [mailbox bounded <n> .] <op>… end .
 build profile <name> .        build tier t0|t1|t2|t3 .        build <mode> .
 build option <name> bool|int|choice … default <value>
-test <name> [schedule explore_interleavings [limit <n>] .] do expect <cond> . … end
+test <name> [schedule explore_interleavings [limit <n>] .] do expect <cond> . … end .
 ```
 
 == Statements
 
+Below, `<expr>`, `<value>` and `<cond>` stand for a value *with its own stop* --- `a.` for a variable, `add a. 1 .` for a call, `7` for
+a literal. The ` .` at the end of a line is the stop that closes that statement.
+
 ```text
-let <name> [use <allocator> | keep <allocator>] <type> <expr> [else <leaving statement>] .
+let <name> [use <allocator>. | keep <allocator>.] <type> <expr> [else <leaving statement>] .
 var <name> <type> <expr> .
-let <name> <type> <expr> else do … end           (no full stop when the fail clause is a block)
-let <name> <type> <expr> else error <name> do … end
-set <place> <expr> .                      (place = name · field … · idx …)
-if <cond> do … end [else do … end]
-while <cond> do … end
-for <name> [mut] <slice> [if <cond>] do … end
-repeat <name> <type> <count> [if <cond>] do … end
-range <name> <type> <from> <to> [step <stride>] [if <cond>] do … end
-cycle <name> <type> <first> while <cond> next <next value> [if <cond>] do … end
+let <name> <type> <expr> else do … end .
+let <name> <type> <expr> else error <name> do … end .
+set <place> <expr> .                      (place = <name>. · field … . · idx … .)
+if <cond> do … end [else if <cond> do … end]… [else do … end] .
+while <cond> do … end .
+for <name> [mut] <slice> [if <cond>] do … end .
+repeat <name> <type> <count> [if <cond>] do … end .
+range <name> <type> <from> <to> [step <stride>] [if <cond>] do … end .
+cycle <name> <type> <first> while <cond> next <next value> [if <cond>] do … end .
 guard <cond> else <leaving statement> .
-match <value> do case <pattern> [when <cond>] do … end … end
+match <value> do case <pattern> [when <cond>] do … end . … end .
 return [<expr>] .    break .    continue .    panic "<text>" .
-drop <name> .
-region <name> stack|frame|arena|static|heap|mmap|disk|device do … end
-task_group [cancel_on_error] do … end
-pipe <source> do <stage> . … <terminal> . end
-spawn send <actor> <message> <value>… .    drain <actor> .    schedule .
+drop <name>. .
+region <name> stack|frame|arena|static|heap|mmap|disk|device do … end .
+task_group [cancel_on_error] do … end .
+pipe <source> do <stage> . … <terminal> . end .
+spawn send <actor> <message> <value>… . .    drain <actor> .    schedule .
 ```
 
 == Patterns
 
+A name in a pattern takes no stop --- it is a place where a name is *made*, not used. The body of a branch is always `do … end .`.
+
 ```text
-case _ .                    everything else
-case <integer> .  case <low> to <high> .
-case <variant> [<name>…] .  case <pattern> or <pattern> .
-case some <name> .  case none .  case ok <pattern> .  case error .
-case <name> when <cond> .
+case _                      everything else
+case <integer>    case <low> to <high>
+case <variant> [<name>…]    case <pattern> or <pattern>
+case some <name>    case none    case ok <pattern>    case error
+case <name> when <cond>
 ```
 
 == Expressions
 
 ```text
-<op> <args>…                            prefix --- no precedence, forms inside forms in parentheses
-expr <a> + <b> * <c>                    infix island --- * / above + -, comparisons below, and above or
-lit <type> do <field> <expr> . … end    <enum>.<variant> <values>…
-lit array <type> <len> <value>… [_] .   lit slice <type> <value>… .  (a list closes with its own .)
-field <value> <steps>…   index <slice> <n>   method <value> <name> <args>…
-some <value>   ok <value>   error <variant>   none
-try <expr> [else_none | else_error <variant>]
-comptime <expr>   size_of <type>   config <name>
-spawn actor <type>   send <actor> <message> <values>…   spawn <op> <args>…   await <handle>
-alloc_bytes <root> capacity <n>
+<op> <args>… .                          prefix --- a name opens, a stop closes. No precedence
+<variable>.                             a variable follows the same rule (name + stop). Literals, true, false, none take no stop
+( <expr> )                              parentheses are decoration --- the expression inside closes with its own stop
+expr <a> + <b> * <c> .                  infix island --- * / above + -, comparisons below, and above or
+lit <type> do <field> <expr> . … end .  <enum>.<variant> <values>… .
+lit array <type> <len> <value>… [_] .   lit slice <type> <value>… .
+field <value> <steps>… .   idx <slice> <n> .   method <value> <steps>… <name>. <args>… .
+some <value> .   ok <value> .   error <variant> .   none
+try <expr> [else_none | else_error <variant>] .
+comptime <expr> .   size_of <type> .   config <name> .
+spawn actor <type> .   send <actor> <message> <values>… .   spawn <op> <args>… .   await <handle> .
+alloc_bytes <root> capacity <n> .
+payload <value> <variant> <field> .
 ```
 
-== Heads and closers
+== Opening names and closers
 
-A form starts with one head and ends with one closer. The closer is the detached period `.`, and `)` also closes what is open inside it. `do … end` is a pair of braces, so `end` closes
-only its own `do` --- a construct that owns a block ends at its `end`, and a statement that uses a block value ends with its own `.`.
-A newline is not a closer but whitespace. Parentheses cannot cross block boundaries.
+A form is opened by one name and closed by one closer. The closer is the full stop `.`, and one stop closes *the innermost form that is
+still open*. A variable is a form too --- `a.`. Literals, `true`, `false`, `none`, and names in *defining* positions (`let x`, `input n`,
+type names, names in patterns) take no stop. `do … end` is a pair of braces, so `end` closes only its own `do`, and a form that owns a
+block is closed with `end .`. A chain joined by `else` is one form, with one stop at the end. A newline is not a closer but whitespace.
+Parentheses are decoration and cannot cross block boundaries.

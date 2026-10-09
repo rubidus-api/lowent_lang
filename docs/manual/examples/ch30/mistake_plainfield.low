@@ -6,12 +6,12 @@ def struct gpio do
   moder u32 rw .
   idr u32 ro .
   bsrr u32 wo .
-end
+end .
 
 unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
-  var g gpio view gpio regs .
+  var g gpio view gpio regs. . .
   rem ko: ✘ 레지스터를 보통 칸처럼 쓰고 읽는다 --- 합치거나 지워도 되는 접근으로 읽힌다 /// en: ✘ writes and reads registers as ordinary fields --- these read as accesses that may be merged or removed
-  set (field g moder) 2 .
-  return field g idr .
-end
+  set field g. moder . 2 .
+  return field g. idr . .
+end .

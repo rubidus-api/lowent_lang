@@ -9,7 +9,7 @@
 
 #aside[`==` 로 비교하지 않는다 --- `close` 를 쓴다][
   ```lowent
-  guard math.close (math.hyp 3.0 4.0) 5.0 0.000001 else return 1 .
+  guard math.close math.hyp 3.0 4.0 . 5.0 0.000001 . else return 1 . .
   ```
   부동소수에서는 "같다" 가 잘 정의되지 않는다(#chref("numbers")). 그래서 이 모듈은 `close(a, b, tol)` 을 주고, 라이브러리 자신의 시험도 그것으로 판정한다.
 ]

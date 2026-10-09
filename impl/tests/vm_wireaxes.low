@@ -13,42 +13,42 @@ module vm_wireaxes .
 use wire from "../../lib/wire.low" .
 
 rem ② 항등 기술자와 «그냥 돌려주기» — 골든이 이 짝의 명령 수를 견준다.
-fn ident_emit input v u64 . output u64 . do return wire.onwire 0 0 v 8 . end
-fn plain_copy input v u64 . output u64 . do return v . end
+fn ident_emit input v u64 . output u64 . do return wire.onwire 0 0 v. 8 . . end .
+fn plain_copy input v u64 . output u64 . do return v. . end .
 
 rem 축을 하나씩 켠 판들
-fn rev_emit input v u64 . output u64 . do return wire.onwire 1 0 v 8 . end
-fn inv_emit input v u64 . output u64 . do return wire.onwire 0 255 v 8 . end
+fn rev_emit input v u64 . output u64 . do return wire.onwire 1 0 v. 8 . . end .
+fn inv_emit input v u64 . output u64 . do return wire.onwire 0 255 v. 8 . . end .
 
 rem ③ 순열 표 — 논리 자리 0..3 이 선에서는 3..0 에 앉는 보드
-fn tab_rev output slice u8 . do return "\x03\x02\x01\x00" . end
-fn tab_id  output slice u8 . do return "\x00\x01\x02\x03" . end
+fn tab_rev output slice u8 . do return "\x03\x02\x01\x00" . end .
+fn tab_id  output slice u8 . do return "\x00\x01\x02\x03" . end .
 
 test wire_axes do
   rem ① 축이 따로 논다
-  expect eq (wire.reverse_bits 1 8) 128 .        rem 0 번 자리가 8 비트 프레임의 맨 끝으로
-  expect eq (wire.reverse_bits 128 8) 1 .
-  expect eq (wire.reverse_bits 1 4) 8 .          rem 폭이 다르면 답도 다르다 — 폭은 축이다
-  expect eq (wire.polarity 1 255) 254 .            rem 극성: 8 자리를 뒤집는다
-  expect eq (byte_swap 1) 72057594037927936 .    rem 바이트 순서는 이미 있던 빌트인이다
+  expect eq wire.reverse_bits 1 8 . 128 . .        rem 0 번 자리가 8 비트 프레임의 맨 끝으로
+  expect eq wire.reverse_bits 128 8 . 1 . .
+  expect eq wire.reverse_bits 1 4 . 8 . .          rem 폭이 다르면 답도 다르다 — 폭은 축이다
+  expect eq wire.polarity 1 255 . 254 . .            rem 극성: 8 자리를 뒤집는다
+  expect eq byte_swap 1 . 72057594037927936 . .    rem 바이트 순서는 이미 있던 빌트인이다
 
   rem 셋을 겹쳐도 서로 안 섞인다
-  expect eq (rev_emit 1) 128 .
-  expect eq (inv_emit 1) 254 .
-  expect eq (ident_emit 1) 1 .
-  expect eq (ident_emit 200) (plain_copy 200) .
+  expect eq rev_emit 1 . 128 . .
+  expect eq inv_emit 1 . 254 . .
+  expect eq ident_emit 1 . 1 . .
+  expect eq ident_emit 200 . plain_copy 200 . . .
 
   rem ③ 자리 옮김
-  expect eq (wire.permute 1 (tab_rev)) 8 .
-  expect eq (wire.permute 9 (tab_rev)) 9 .       rem 0·3 → 3·0 = 다시 0·3
-  expect eq (wire.permute 1 (tab_id)) 1 .
-  expect eq (wire.is_identity (tab_id)) true .
-  expect eq (wire.is_identity (tab_rev)) false .
+  expect eq wire.permute 1 tab_rev. . 8 . .
+  expect eq wire.permute 9 tab_rev. . 9 . .       rem 0·3 → 3·0 = 다시 0·3
+  expect eq wire.permute 1 tab_id. . 1 . .
+  expect eq wire.is_identity tab_id. . true . .
+  expect eq wire.is_identity tab_rev. . false . .
 
   rem ④ 세울 마스크 · 지울 마스크 — 그리고 **둘은 겹치지 않는다**
-  expect eq (wire.to_set 5 6) 2 .                rem 0b101 → 0b110 : 1 번을 세운다
-  expect eq (wire.to_clear 5 6) 1 .              rem                 0 번을 지운다
-  expect eq (bit_and (wire.to_set 5 6) (wire.to_clear 5 6)) 0 .
+  expect eq wire.to_set 5 6 . 2 . .                rem 0b101 → 0b110 : 1 번을 세운다
+  expect eq wire.to_clear 5 6 . 1 . .              rem                 0 번을 지운다
+  expect eq bit_and wire.to_set 5 6 . wire.to_clear 5 6 . . 0 . .
   rem 세우고 지운 결과가 정말 want 다 — 읽고-고쳐-쓰기 없이
-  expect eq (bit_and (bit_or 5 (wire.to_set 5 6)) (bit_not (wire.to_clear 5 6))) 6 .
-end
+  expect eq bit_and bit_or 5 wire.to_set 5 6 . . bit_not wire.to_clear 5 6 . . . 6 . .
+end .

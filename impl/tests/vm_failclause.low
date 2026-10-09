@@ -2,87 +2,87 @@ rem ★ 증인 — RFC-0141: 실패 절 셋 · 머리 안의 블록 값 · 네 �
 rem   VM 과 네이티브가 같은 답을 내야 한다(골든이 둘 다 돌린다).
 module vm_failclause .
 
-def enum perr do bad . empty . end
-def struct pt do x u64 . y u64 . end
+def enum perr do bad . empty . end .
+def struct pt do x u64 . y u64 . end .
 
 fn parse input s u64 . output result u64 perr .
-  errors empty eq s 0 .
-  errors bad gt s 100 .
+  errors empty eq s. 0 . .
+  errors bad gt s. 100 . .
 do
-  if eq s 0 do return error empty . end
-  if gt s 100 do return error bad . end
-  return ok s .
-end
+  if eq s. 0 . do return error empty . . end .
+  if gt s. 100 . do return error bad . . end .
+  return ok s. . .
+end .
 
 fn find input s u64 . output option u64 . do
-  if eq s 7 do return none . end
-  return some s .
-end
+  if eq s. 7 . do return none . end .
+  return some s. . .
+end .
 
 rem 벗어나는 문장 하나 — 문장의 닫는 점이 뒤에 온다
 export fn one input s u64 . output u64 . do
-  let n u64 parse s else return 0 .
-  return add n 1 .
-end
+  let n u64 parse s. . else return 0 . .
+  return add n. 1 . .
+end .
 
 rem 블록 — `end` 가 문장을 닫는다(닫는 점이 없다)
 export fn many input s u64 . output u64 . do
-  let n u64 parse s else do
+  let n u64 parse s. . else do
     return 99 .
-  end
-  return add n 1 .
-end
+  end .
+  return add n. 1 . .
+end .
 
 rem 오류 값을 이름에 묶는다 — 그 이름은 블록 안에서만 산다
 export fn why input s u64 . output u64 . do
-  let n u64 parse s else error e do
-    if eq e bad do return 1000 . end
+  let n u64 parse s. . else error e do
+    if eq e. bad. . do return 1000 . end .
     return 2000 .
-  end
-  return add n 1 .
-end
+  end .
+  return add n. 1 . .
+end .
 
 rem `var` 와 `guard` 도 같은 꼴이다
 export fn opt input s u64 . output u64 . do
-  var n u64 find s else return 5 .
-  guard gt n 2 else return 6 .
-  set n (add n 1) .
-  return n .
-end
+  var n u64 find s. . else return 5 . .
+  guard gt n. 2 . else return 6 . .
+  set n. add n. 1 . .
+  return n. .
+end .
 
 rem 되풀이 안에서 벗어나기 — `break` · `continue`
 export fn skip input n u64 . output u64 . do
   var t u64 0 .
-  repeat i u64 n do
-    let v u64 find i else continue .
-    let w u64 parse (add v 1) else break .
-    set t (add t w) .
-  end
-  return t .
-end
+  repeat i u64 n. do
+    let v u64 find i. . else continue . .
+    let w u64 parse add v. 1 . . else break . .
+    set t. add t. w. . .
+  end .
+  return t. .
+end .
 
 rem 네 머리말 · 거르기 · 머리 안의 블록 값(몸은 마지막 블록)
 export fn loops input n u64 . output u64 . do
   var t u64 0 .
-  repeat i u64 n do set t (add t i) . end
-  range i u64 1 n do set t (add t i) . end
-  range i u64 0 n step 2 if gt i 2 do set t (add t i) . end
-  cycle i u64 1 while lt i n next mul i 2 do set t (add t i) . end
-  for x lit array u64 3 10 20 30 . if gt x 10 do set t (add t x) . end
-  cycle i u64 0 while lt i 6 next add i 1 do
-    if eq i 2 do continue . end
-    set t (add t 1) .
-  end
-  let p pt lit pt do x 1 . y 2 . end .
-  if eq (field (lit pt do x 1 . y 2 . end) x) (field p x) do set t (add t 100) . end
-  return t .
-end
+  repeat i u64 n. do set t. add t. i. . . end .
+  range i u64 1 n. do set t. add t. i. . . end .
+  range i u64 0 n. step 2 if gt i. 2 . do set t. add t. i. . . end .
+  cycle i u64 1 while lt i. n. . next mul i. 2 . do set t. add t. i. . . end .
+  for x lit array u64 3 10 20 30 . if gt x. 10 . do set t. add t. x. . . end .
+  cycle i u64 0 while lt i. 6 . next add i. 1 . do
+    if eq i. 2 . do continue . end .
+    set t. add t. 1 . .
+  end .
+  let p pt lit pt do x 1 . y 2 . end . .
+  if eq field lit pt do x 1 . y 2 . end . x . field p. x . . do set t. add t. 100 . . end .
+  return t. .
+end .
 
 export proc lend input buf mut slice u8 . output u64 . effects none .
-  requires ge (len buf) 4 .
+  requires ge len buf. . 4 . .
 do
-  borrow b subslice buf 0 2 do
-    set (idx b 0) 7 .
-  end
-  return widen u64 (idx buf 0) .
-end
+  borrow b subslice buf. 0 2 . do
+    set idx b. 0 . 7 .
+  end .
+  return widen u64 idx buf. 0 . . .
+end .

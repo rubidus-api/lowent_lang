@@ -11,10 +11,10 @@
 )
 
 #deepqa[
-  #chref("slices")의 `sum_first` 에서 `requires le n (len a) .` 한 줄이 한 일은 무엇인가? 그리고 색인 자체에
+  #chref("slices")의 `sum_first` 에서 `requires le n. len a. . . .` 한 줄이 한 일은 무엇인가? 그리고 색인 자체에
   `le` 를 걸면 왜 안 되는가?
 ][
-  검사를 op 진입의 한 번으로 모으고, 반복 안의 `idx a i` 경계 검사를 지우게 했다. 색인에 `le` 를 걸면
+  검사를 op 진입의 한 번으로 모으고, 반복 안의 `idx a. i. .` 경계 검사를 지우게 했다. 색인에 `le` 를 걸면
   `i = len a` 가 허락되는데 그것은 한 칸 밖이므로, 색인에는 `lt` 를 쓴다. 이 장은 그 계약이 무엇이고, 누가
   지키며, 언제 검사되고 언제 사라지는지를 모두 다룬다.
 ]
@@ -102,14 +102,14 @@ its own promise" 라고 말한다. 프로그램이 멈췄을 때 "내가 잘못 
 ```lowent
 fn bare input a u8 . output u8 .
 do
-  return add a 1 .          rem 넘침 검사가 남는다
-end
+  return add a. 1 . .          rem 넘침 검사가 남는다
+end .
 
 fn proven input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .          rem 검사가 없다 — 201 을 넘을 수 없다
-end
+  return add a. 1 . .          rem 검사가 없다 — 201 을 넘을 수 없다
+end .
 ```
 
 두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이고, 그 한 줄이 실행 중 검사 하나를 없앤다. 처리기가 하는 생각은
@@ -135,7 +135,7 @@ end
 
 #demo("examples/ch14/elems.low")
 
-`elem_le ds 9` 는 모든 원소가 9 이하라는 뜻이다. `elem_lt`·`elem_gt`·`elem_ge` 도 있다. 이 조건은 진입에서 한
+`elem_le ds. 9 .` 는 모든 원소가 9 이하라는 뜻이다. `elem_lt`·`elem_gt`·`elem_ge` 도 있다. 이 조건은 진입에서 한
 번 확인되고, 본문의 산술은 원소가 9 이하라는 사실을 쓴다.
 
 == 계약에 이름을 준다
@@ -144,7 +144,7 @@ end
 
 #demo("examples/ch14/named.low")
 
-`contract positive do … end` 가 이름 붙은 계약이고, op 은 머리 맨 앞의 `satisfies positive .` 로 그것을
+`contract positive do … end .` 가 이름 붙은 계약이고, op 은 머리 맨 앞의 `satisfies positive .` 로 그것을
 갖춘다. 같은 조건을 여러 곳에 손으로 되풀이하면 하나를 고치고 다른 하나를 잊는다. 이름을 주면 고칠 자리가
 하나가 된다. `satisfies` 가 머리의 *맨 앞*에 오는 것은 이 op 이 무엇인지를 먼저 말하기 때문이다(#chref("surface")).
 
@@ -161,7 +161,7 @@ end
 
 #demo("examples/ch14/dead.low")
 
-`requires ne b 0 .` 가 있으니 `errors by_zero eq b 0 .` 은 영영 참이 될 수 없다. 이 선언이 남아 있으면 부르는
+`requires ne b. 0 . .` 가 있으니 `errors by_zero eq b 0 .` 은 영영 참이 될 수 없다. 이 선언이 남아 있으면 부르는
 쪽은 `by_zero` 를 다루는 코드를 쓰고, 그 코드는 영영 돌지 않는다. 돌지 않는 코드는 시험되지 않고, 시험되지
 않는 코드는 언젠가 틀린다. 진단은 둘 중 하나를 지우라고 한다 --- 부르는 쪽에 책임을 지우든(`requires`),
 op 이 스스로 처리하든(`errors`).
@@ -190,7 +190,7 @@ op 이 스스로 처리하든(`errors`).
 
 #demo("examples/ch14/grades.low")
 
-같은 조건을 두 가지로 적었다. `bump_checked` 는 진입에서 250 을 거절하고, 그 뒤 `add a 1` 의 넘침 검사를
+같은 조건을 두 가지로 적었다. `bump_checked` 는 진입에서 250 을 거절하고, 그 뒤 `add a. 1 .` 의 넘침 검사를
 지운다. `bump_assumed` 는 진입에서 검사하지 않는다. 대신 조건을 사실로 쓰지도 않으므로 넘침 검사가 *남는다*.
 그래서 255 를 주면 계약이 아니라 넘침(`E-VM-OVERFLOW`)으로 멈춘다.
 
@@ -225,7 +225,7 @@ op 이 스스로 처리하든(`errors`).
 #realcase[처리기가 만들 수 없는 진입 검사][
   계약의 모든 식을 진입 검사로 만들 수 있는 것은 아니다. 이 판의 처리기는 `requires` 에서 `이름 비교 상수`,
   `len`, `elem_*`, 칸 경로 같은 꼴을 진입 검사로 만들고, 만들 수 없는 식을 만나면 `W-CONTRACT-IGNORED` 로
-  알린다. 이 책을 쓰며 확인한 바로는 `ensures` 에 식이 든 조건(`ensures le (mul ret 2) n .`)은 경고 없이
+  알린다. 이 책을 쓰며 확인한 바로는 `ensures` 에 식이 든 조건(`ensures le mul ret. 2 . n. . .`)은 경고 없이
   검사되지 않았다. 계약이 강제되지 않으면 사실로도 쓰이지 않으므로 틀린 최적화는 생기지 않지만, 약속이 지켜지는지
   확인되지 않는다는 사실은 알려야 한다. 이런 자리는 처리기가 알려야 하는 곳이므로, 이 판의 결함이다.
 ]
@@ -243,7 +243,7 @@ op 이 스스로 처리하든(`errors`).
 #antipattern[색인의 전제를 `le` 로 적는다][
   #demo("examples/ch14/mistake_leindex.low")
 
-  길이가 3 인 줄의 칸 번호는 0, 1, 2 다. `requires le i (len xs)` 는 `i = 3` 도 허락하므로 계약은 통과하고, 그다음 `idx` 가 한
+  길이가 3 인 줄의 칸 번호는 0, 1, 2 다. `requires le i. len xs. . .` 는 `i = 3` 도 허락하므로 계약은 통과하고, 그다음 `idx` 가 한
   칸 밖을 읽으려다 `E-VM-BOUNDS` 로 멈춘다. 계약이 틀리면 멈추는 자리가 계약에서 본문으로 옮겨 가고, 진단이 "부르는 쪽의 잘못"
   대신 "경계 밖" 을 말한다. 색인에는 `lt` 를 쓴다. 개수(`n` 개를 읽는다)에는 `le` 가 맞다.
 ]
@@ -272,11 +272,11 @@ op 이 스스로 처리하든(`errors`).
   id: "contracts-glance",
   caption: [계약의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`requires le a 200 .`], [들어올 때의 조건 --- 부르는 쪽의 책임], [검사를 진입의 한 번으로 모으고 본문의 검사를 지운다],
-  [`ensures le ret 100 .`], [나갈 때의 약속 --- 이 op 의 책임], [`ret` 은 돌려주는 값 --- 부르는 쪽이 사실로 쓴다],
+  [`requires le a. 200 . .`], [들어올 때의 조건 --- 부르는 쪽의 책임], [검사를 진입의 한 번으로 모으고 본문의 검사를 지운다],
+  [`ensures le ret. 100 . .`], [나갈 때의 약속 --- 이 op 의 책임], [`ret` 은 돌려주는 값 --- 부르는 쪽이 사실로 쓴다],
   [`errors too_big gt a 200 .`], [이 조건이면 이 오류를 낸다는 약속], [나가는 쪽의 계약 --- 오류도 약속한다],
-  [`requires elem_le ds 9 .`], [모든 원소에 대한 조건], [계약은 식이라 반복문을 쓸 수 없다],
-  [`contract positive do … end`], [계약에 이름을 준다], [같은 조건을 고칠 자리가 하나가 된다],
+  [`requires elem_le ds. 9 . .`], [모든 원소에 대한 조건], [계약은 식이라 반복문을 쓸 수 없다],
+  [`contract positive do … end .`], [계약에 이름을 준다], [같은 조건을 고칠 자리가 하나가 된다],
   [`fn half satisfies positive . …`], [이름 붙은 계약을 갖춘다(머리 맨 앞)], [op 이 무엇인지 먼저 말한다],
   [`requires static …` · `debug` · `assume`], [계약의 등급], [언제 무엇으로 볼지 절마다 정한다 --- `assume` 은 사실이 아니다],
   [`build release_fast .`], [증명하지 못한 계약 검사를 없앤다], [속도를 고른 사실이 소스에 남는다],

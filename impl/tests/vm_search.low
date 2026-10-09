@@ -12,17 +12,17 @@ use searchlib from "../../lib/search.low" .
 
 rem 정렬 후 target 을 찾는다 → 인덱스+1(0 = 못 찾음). 골든이 알려진 배열의 정확한 자리를 대조한다.
 proc bs_find input s mut slice u64 . input target u64 . output u64 . effects none . do
-  sortlib.sort s .
-  let r option u64 searchlib.bsearch s target .
-  guard is_some r else return 0 .
-  return add (some_value r) 1 .
-end
+  sortlib.sort s. .
+  let r option u64 searchlib.bsearch s. target. . .
+  guard is_some r. . else return 0 . .
+  return add some_value r. . 1 . .
+end .
 
 rem 정렬 후 하한(target 이상인 첫 인덱스). 삽입점·범위 시작.
 proc lb_find input s mut slice u64 . input target u64 . output u64 . effects none . do
-  sortlib.sort s .
-  return searchlib.lower_bound s target .
-end
+  sortlib.sort s. .
+  return searchlib.lower_bound s. target. . .
+end .
 
 rem ☞ **임의 배열의 정확성은 diff-sweep 이 지킨다**: `bsearch`·`lower_bound` 는 순수 op 이라 차등
 rem   퍼저가 **직접** 부른다(임의 slice·target). 두 백엔드가 같은 답을 내야 한다(VM≡native). 그래서

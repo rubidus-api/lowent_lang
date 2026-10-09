@@ -14,42 +14,42 @@ rem     낮춘다 ⇒ 지금 넣으면 두 백엔드가 갈린다. 폭을 하강
 module vm_set .
 
 fn ops output u64 . do
-  var a bitset 8 bitset_new 8 .
-  bitset_insert a 1 .
-  bitset_insert a 2 .
-  bitset_insert a 3 .
-  var b bitset 8 bitset_new 8 .
-  bitset_insert b 2 .
-  bitset_insert b 3 .
-  bitset_insert b 4 .
-  let u bitset 8 bitset_union a b .
-  let i bitset 8 bitset_intersect a b .
-  let d bitset 8 bitset_difference a b .
+  var a bitset 8 bitset_new 8 . .
+  bitset_insert a. 1 .
+  bitset_insert a. 2 .
+  bitset_insert a. 3 .
+  var b bitset 8 bitset_new 8 . .
+  bitset_insert b. 2 .
+  bitset_insert b. 3 .
+  bitset_insert b. 4 .
+  let u bitset 8 bitset_union a. b. . .
+  let i bitset 8 bitset_intersect a. b. . .
+  let d bitset 8 bitset_difference a. b. . .
   rem union 은 원소 4 개, intersect 는 2 개, difference 는 1 개 — 합쳐 421 을 만든다.
-  return (add (mul (count u) 100) (add (mul (count i) 10) (count d))) .
-end
+  return add mul count u. . 100 . add mul count i. . 10 . count d. . . . .
+end .
 
 fn subs output u64 . do
-  var a bitset 8 bitset_new 8 .
-  bitset_insert a 1 .
-  var b bitset 8 bitset_new 8 .
-  bitset_insert b 1 .
-  bitset_insert b 2 .
-  let e bitset 8 bitset_new 8 .
-  if bitset_is_subset a b do
-    if bitset_is_empty e do return 11 . end
-  end
+  var a bitset 8 bitset_new 8 . .
+  bitset_insert a. 1 .
+  var b bitset 8 bitset_new 8 . .
+  bitset_insert b. 1 .
+  bitset_insert b. 2 .
+  let e bitset 8 bitset_new 8 . .
+  if bitset_is_subset a. b. . do
+    if bitset_is_empty e. . do return 11 . end .
+  end .
   return 0 .
-end
+end .
 
 rem ★ remove 는 제자리 변이다 — 원소 둘에서 하나를 빼면 count 는 1 이다.
 fn rem1 output u64 . do
-  var a bitset 8 bitset_new 8 .
-  bitset_insert a 1 .
-  bitset_insert a 2 .
-  bitset_remove a 1 .
-  return count a .
-end
+  var a bitset 8 bitset_new 8 . .
+  bitset_insert a. 1 .
+  bitset_insert a. 2 .
+  bitset_remove a. 1 .
+  return count a. . .
+end .
 
 rem ★ **complement — 여집합은 폭이 있어야 옳다** (RFC-0010 §6.7.1).
 rem   `bitset 8` 의 여집합이 상위 56 비트를 켜면 count 가 거짓말을 한다. 그런데 VM 은 폭을 들지만
@@ -59,11 +59,11 @@ rem     백엔드가 **같은 마스크**를 쓴다. 폭을 알 수 없는 자�
 rem     추측해서 64 로 두면 조용히 틀린 답이 나오고, 그것이 이 프로젝트가 가장 싫어하는 것이다.
 
 fn comp output u64 . do
-  var a bitset 8 bitset_new 8 .
-  bitset_insert a 1 .
-  bitset_insert a 2 .
-  bitset_insert a 3 .
-  let c bitset 8 bitset_complement a .
+  var a bitset 8 bitset_new 8 . .
+  bitset_insert a. 1 .
+  bitset_insert a. 2 .
+  bitset_insert a. 3 .
+  let c bitset 8 bitset_complement a. . .
   rem 8 비트 중 셋을 뺀 나머지 = 5
-  return count c .
-end
+  return count c. . .
+end .

@@ -6,4 +6,4 @@ use str .
 fn is_get input line slice u8 . output bool .
 do
   return true .
-end
+end .

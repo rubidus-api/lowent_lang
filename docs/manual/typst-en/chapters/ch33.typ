@@ -36,7 +36,7 @@
 
 - `strings.starts_with`, `strings.remove_prefix` and `strings.find` all take `slice u8`. What `remove_prefix` and `subslice` return is not a new buffer but a *view*
   pointing at the original bytes. There is no copy.
-- `fmt.put_str buf pos s` and `fmt.put_u64 buf pos n` write into the caller's buffer `buf` from position `pos`, and give *the next position to write* as an `option`.
+- `fmt.put_str buf. pos. s. .` and `fmt.put_u64 buf. pos. n. .` write into the caller's buffer `buf` from position `pos`, and give *the next position to write* as an `option`.
   If there is not enough room, not one character is written and it is `none`.
 - When assembly is done, `subslice buf 0 end` is written to standard output.
 
@@ -56,7 +56,7 @@ business.
 
 - `utf8.count_chars` counts characters. The Korean "안녕" is 6 bytes and 2 characters.
 - The truncated `[236,149]` is not valid UTF-8, so it is `none`, and the example returns 999.
-- `utf8.decode s 0` gives the one character at position 0 as a code point. 50504 is U+C548, "안".
+- `utf8.decode s. 0 .` gives the one character at position 0 as a code point. 50504 is U+C548, "안".
 
 Many libraries insert a replacement character (U+FFFD) when they meet invalid bytes and carry on. Then the fact that the input was broken is buried in the output.
 `utf8` reports `none`. How to handle broken input is decided by the caller.
@@ -69,7 +69,7 @@ because hand-picked judgements silently give `false` instead of an error in rang
 
 #demo("examples/ch33/hexout.low")
 
-`codec.hex_enc src dst` writes `src` as hex characters into `dst` and gives *the number of bytes actually written*. The result is the first `n` bytes, not all of `dst`.
+`codec.hex_enc src. dst. .` writes `src` as hex characters into `dst` and gives *the number of bytes actually written*. The result is the first `n` bytes, not all of `dst`.
 The six characters "Lowent" become the twelve characters `4c6f77656e74`. Trying to encode 18 characters into 8 bytes of room gives `none` and writes nothing --- all or
 nothing. `hex_dec`, `b64_enc` and `b64_dec` have the same shape.
 
@@ -125,7 +125,7 @@ features that require backtracking, such as backreferences, are absent. What it 
 
   `codec.hex_enc` writes 12 bytes into the 16-byte buffer and returns 12 (the result 1612 puts the buffer size 16 and the count 12 side by
   side). Using all of `dst` as the result tacks four unwritten bytes onto the end. It is the same mistake as discarding the return value of
-  C's `sprintf` and sending the whole buffer. The result is always `subslice dst 0 n`.
+  C's `sprintf` and sending the whole buffer. The result is always `subslice dst. 0 n. .`.
 ]
 
 #misconception[`len` is the number of characters, and a byte position is a character position][
@@ -143,12 +143,12 @@ features that require backtracking, such as backreferences, are absent. What it 
   id: "lib-text-glance",
   caption: [Shapes of the text modules --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`strings.starts_with s p` · `strings.find hay needle from`], [ask · search (`option u64`)], [on views --- no copying],
-  [`strings.remove_prefix s p`], [a view without the prefix --- the original if absent], [always a usable view, no failure],
-  [`fmt.put_str buf pos s` · `fmt.put_u64 buf pos n`], [assemble into the caller's buffer --- next position as `option`], [all or nothing],
-  [`utf8.count_chars s` · `utf8.decode s at`], [character count · code point at that position], [invalid input gives `none`, not a replacement character],
-  [`codec.hex_enc src dst` · `b64_enc`], [transcribe and return the count], [the result is `subslice dst 0 n` --- not encryption],
-  [`hash.bucket_of key n` · `hash.crc data` · `hash.sha256`], [choosing a slot · detecting damage · detecting tampering], [a different hash per question],
+  [`strings.starts_with s. p. .` · `strings.find hay. needle. from. .`], [ask · search (`option u64`)], [on views --- no copying],
+  [`strings.remove_prefix s. p. .`], [a view without the prefix --- the original if absent], [always a usable view, no failure],
+  [`fmt.put_str buf. pos. s. .` · `fmt.put_u64 buf. pos. n. .`], [assemble into the caller's buffer --- next position as `option`], [all or nothing],
+  [`utf8.count_chars s. .` · `utf8.decode s. at. .`], [character count · code point at that position], [invalid input gives `none`, not a replacement character],
+  [`codec.hex_enc src. dst. .` · `b64_enc`], [transcribe and return the count], [the result is `subslice dst. 0 n. .` --- not encryption],
+  [`hash.bucket_of key. n. .` · `hash.crc data. .` · `hash.sha256`], [choosing a slot · detecting damage · detecting tampering], [a different hash per question],
   [`regex`], [compile once, match many inputs], [no backtracking --- time proportional to input length],
 )
 

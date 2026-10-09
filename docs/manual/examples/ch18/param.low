@@ -4,25 +4,25 @@ rem run: main
 def type scratch u64 .
 
 proc sum_squares input temp region scratch . input n u64 . output u64 . effects alloc .
-  requires le n 100 .
+  requires le n. 100 . .
 do
-  let g option mut slice u8 alloc_bytes temp capacity n .
-  guard is_some g else return 0 .
-  let buf mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes temp. capacity n. . .
+  guard is_some g. . else return 0 . .
+  let buf mut slice u8 some_value g. . .
   var i u64 0 .
   var s u64 0 .
-  while lt i n do
-    set s (add s (mul i i)) .
-    set i (add i 1) .
-  end
-  return s .
-end
+  while lt i. n. . do
+    set s. add s. mul i. i. . . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
   region r arena do
-    let v u64 sum_squares r 5 .
-    return narrow u8 v .
-  end
+    let v u64 sum_squares r. 5 . .
+    return narrow u8 v. . .
+  end .
   return 1 .
-end
+end .

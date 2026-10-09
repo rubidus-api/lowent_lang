@@ -67,7 +67,7 @@ Drawn as where a value comes from and where it goes:
 ```
 
 #qa[
-  How does an error written without a condition, like `errors not_digit .`, differ from one with a condition, like `errors empty eq (len s) 0 .`?
+  How does an error written without a condition, like `errors not_digit .`, differ from one with a condition, like `errors empty eq len s. . 0 . .`?
 ][
   With a condition, it becomes an outgoing contract: "under this condition, *exactly* this error happens". Returning normally while the condition holds
   is a contract violation. Callers can trust that avoiding the condition means they need not handle that error. Errors whose condition cannot be written as
@@ -91,7 +91,7 @@ A layer that receives a failure does one of two things: *pass it on* or *handle 
 #demo("examples/ch17/layers.low")
 
 - `slot_of` is inside. If the number of slots were 0, the remainder operation would stop, but that is the caller's fault, so it is written as
-  `requires gt slots 0 .`.
+  `requires gt slots. 0 . .`.
 - `check_port` is close to a boundary. Port 0 means the configuration is wrong and can be fixed, so it is a `result`.
 - `pick_slot` passes the failure up with `try`, and writes the same error in its own `errors`. After success it knows `p` is not 0 and calls the inner op.
 - `main` is the outermost layer. There is nowhere further to pass the failure, so it *handles* it --- writes a message and returns exit code 1.
@@ -190,9 +190,9 @@ forgot; bind a name instead and that single arm takes every error, so there is n
   [*Shape*], [*Meaning*], [*Why*],
   [boundary op `output result t e .` + `errors`], [return the failure of outside values as a value], [the calling layer chooses what to do],
   [inner op `requires` · `range` · `newtype`], [invariants of already-filtered values], [one check stays at the boundary; inside it is removed],
-  [`def enum parse_error do empty . not_digit . end`], [one variant per different caller action], [more variants, more handling work],
-  [`let v u16 try check_port port .`], [pass it upward when you cannot handle it], [the passing stays visible in `errors`],
-  [`case error e do match e do … end end`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding unless it names a declared variant],
+  [`def enum parse_error do empty . not_digit . end .`], [one variant per different caller action], [more variants, more handling work],
+  [`let v u16 try check_port port. . . .`], [pass it upward when you cannot handle it], [the passing stays visible in `errors`],
+  [`case error e do match e. do … end . end .`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding unless it names a declared variant],
   [`try … else_none` · `value_or`], [discard the reason], [discard as high up as possible],
   [`proc … effects panic .` + `panic "…"`], [stop in a state no layer can handle], [not for bad input or missing files],
   [entry point `output u8 .`], [the outermost layer --- handle failure and report by exit code], [there is nowhere further to pass it],

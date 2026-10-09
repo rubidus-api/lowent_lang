@@ -5,9 +5,9 @@ proc relative input s mut slice u8 . output u64 . effects none .
   parallel s split .
 do
   var i u64 0 .
-  while lt i (len s) do
-    set (idx s i) (wrap_sub (idx s i) (idx s 0)) .
-    set i (add i 1) .
-  end
-  return len s .
-end
+  while lt i. len s. . . do
+    set idx s. i. . wrap_sub idx s. i. . idx s. 0 . . .
+    set i. add i. 1 . .
+  end .
+  return len s. . .
+end .

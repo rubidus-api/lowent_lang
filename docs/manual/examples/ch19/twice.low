@@ -5,7 +5,7 @@ def type buffer u8 .
 
 fn twice input h owned buffer . output u8 .
 do
-  drop h .
-  drop h .
+  drop h. .
+  drop h. .
   return 0 .
-end
+end .

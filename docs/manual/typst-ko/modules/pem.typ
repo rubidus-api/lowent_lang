@@ -18,7 +18,7 @@
   id: "mod-pem-ops",
   caption: [`pem` 의 op],
   [*op*], [*하는 일*],
-  [`find_from`], [`hay` 안에서 `needle` 찾기(없으면 `len hay`)],
+  [`find_from`], [`hay` 안에서 `needle` 찾기(없으면 `len hay. .`)],
   [`body_off`], [`-----BEGIN <라벨>-----` *다음 줄*의 자리. 0 = 없음],
   [`end_off`], [`-----END <라벨>-----` 의 자리. 0 = 없음],
   [`unwrap`], [PEM 한 덩이 → DER 바이트. `option u64`(쓴 바이트 수), 실패는 `none`],
@@ -35,7 +35,7 @@
 *왜 `decode` 가 아니라 `unwrap` 인가.* `utf8.decode` 가 이미 있고, 이름이 겹치면 한정해 불러도 처리기가 다른 모듈의 시그니처로 타입을 재는 알려진 결함이 있다. 두
 모듈을 함께 쓰는 시험이 그 조합이 깨지는 것을 잡았다. 라이브러리는 혼자 초록인 것으로 충분하지 않다 --- 조합되어야 쓸 수 있다.
 
-PEM → DER → PKCS\#8 → 32 바이트 스칼라로 가는 길은 #modref("der")[`der`] 와 함께다 --- `pem.unwrap src "PRIVATE KEY" sc buf` 로 DER 을 얻고, `der.p8_inner_off` 와
+PEM → DER → PKCS\#8 → 32 바이트 스칼라로 가는 길은 #modref("der")[`der`] 와 함께다 --- `pem.unwrap src. "PRIVATE KEY" sc. buf. .` 로 DER 을 얻고, `der.p8_inner_off` 와
 `der.ec_priv_off` 로 스칼라의 자리를 찾는다.
 
 *확인하는 것* --- openssl 이 낸 산물과의 대조(인증서 DER 375 바이트가 같고, PKCS\#8 안의 스칼라가 자리 36 · 길이 32), 라벨 불일치와 봉투 없음의 거절, VM·네이티브

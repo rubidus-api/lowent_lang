@@ -79,12 +79,12 @@
 
 proc p input n u32 . output u8 . effects none .
 do
-  if n do return 1 . end     rem `n` 은 bool 이 아니다
+  if n. do return 1 . end .     rem `n` 은 bool 이 아니다
   return 0 .
-end", "E-TYPE-COND")
+end .", "E-TYPE-COND")
     #caution("0 은 거짓이 아니다")[
       C 계열 언어는 0 을 거짓으로, 그 밖을 참으로 다룬다. 로우엔트는 그러지 아니한다.
-      `if n .` 처럼 정수를 조건에 쓰면 번역이 거부된다 — `if gt n 0 .` 처럼 #strong[무엇을 묻는지];
+      `if n. do` 처럼 정수를 조건에 쓰면 번역이 거부된다 — `if gt n. 0 . do` 처럼 #strong[무엇을 묻는지];
       적어야 한다. 묻는 바가 소스에 적히지 않으면, 읽는 사람이 그것을 짐작해야 한다.
     ]
   ]
@@ -109,7 +109,7 @@ end", "E-TYPE-COND")
       처리기가 자동으로 할 수 있다 — `u8` 값을 `u32` 를 받는 자리에 그대로 넘길 수 있다.
     ]
     #para("2a")[
-      다만 #strong[넓히기를 소스에 적을 수도 있다.]; `widen u64 x` 는 `x` 를 `u64` 로 넓힌다.
+      다만 #strong[넓히기를 소스에 적을 수도 있다.]; `widen u64 x. .` 는 `x` 를 `u64` 로 넓힌다.
       결과가 같더라도, 폭이 바뀌는 자리를 눈에 보이게 하고 싶을 때 쓴다.
     ]
     #plain[
@@ -142,8 +142,8 @@ end", "E-TYPE-COND")
  i8 ──▶ i16 ──▶ i32 ──▶ i64
  같은 폭으로 내려가는 화살(u8 → i8)도, i 줄에서 u 줄로 가는 화살도 없다")
     #ex("넓히기와 좁히기", "let small u8 200 .
-let wide u64 widen u64 small .
-let back u8 narrow u8 wide .")
+let wide u64 widen u64 small. . .
+let back u8 narrow u8 wide. . .")
     #caution("음수를 부호 없는 타입으로 넓힐 수 없다")[
       `i8` 의 −1 을 `u64` 로 넓히면 값이 아주 큰 수로 뒤바뀐다. 그것은 넓히기가 아니라
       #strong[다른 값이 되는 일];이므로 이 언어는 넓히기로 인정하지 아니한다.
@@ -160,7 +160,7 @@ let back u8 narrow u8 wide .")
     ]
     #para("1b")[
       op 의 입력 `input x array t n .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
-      `requires eq (len x) n .` 과 같이 #strong[진입에서 검사된다];.
+      `requires eq len x. . n. . .` 과 같이 #strong[진입에서 검사된다];.
     ]
     #para("1c")[
       op 은 배열을 #strong[돌려줄 수 있다]; — `output array t n .` 또는 이름을 붙여 `output r array t n .`(#cref("6.4.1") (3e)). 배열에는
@@ -170,52 +170,52 @@ let back u8 narrow u8 wide .")
       - 같은 배열을 돌려주는 op 안에서 `return g … .` 은 자기 자리를 그대로 넘긴다.
       - 그 밖의 자리(식의 한가운데 · 다른 부름의 인자 · `copy` 의 원천)에서 배열을 돌려주는 op 을 부르면 자리가 없으므로
       번역이 거부된다(`E-RESULT-PLACE`). 먼저 이름에 묶는다.
-      - 이름 붙은 결과는 0 에서 시작한다(칸마다 0). 이름 없는 결과의 `return v .` 는 `v` 를 자리에 베껴 돌려준다. 이것은 블록 안의
-      `return` 이어야 한다 — `guard … else return v .` 처럼 블록 밖이면 거부된다(`E-RESULT-PLACE`). 그런 op 은 결과에 이름을 붙인다.
+      - 이름 붙은 결과는 0 에서 시작한다(칸마다 0). 이름 없는 결과의 `return v. .` 는 `v` 를 자리에 베껴 돌려준다. 이것은 블록 안의
+      `return` 이어야 한다 — `guard … else return v. . .` 처럼 블록 밖이면 거부된다(`E-RESULT-PLACE`). 그런 op 은 결과에 이름을 붙인다.
       - 원소는 수 타입이고 길이는 정수 리터럴이다(그 밖은 `E-TYPE-ARRAY`).
     ]
     #ex("배열을 돌려주는 op — 부르는 쪽이 자리를 준다", "module ex_array_result .
 
 fn squares input n u64 . output r array u64 3 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
   repeat i u64 3 do
-    set (idx r i) (mul (add n i) (add n i)) .
-  end
-  return r .
-end
+    set idx r. i. . mul add n. i. . add n. i. . . .
+  end .
+  return r. .
+end .
 
 export fn total input n u64 . output u64 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
-  let s array u64 3 squares n .
-  return add (add (idx s 0) (idx s 1)) (idx s 2) .
-end")
+  let s array u64 3 squares n. . .
+  return add add idx s. 0 . idx s. 1 . . idx s. 2 . . .
+end .")
     #rejected("배열을 돌려주는 op 을 식 한가운데서 부른다 — 결과의 자리가 없다", "module ex_array_result_expr .
 
 fn squares input n u64 . output r array u64 3 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
-  return r .
-end
+  return r. .
+end .
 
 export fn first input n u64 . output u64 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
-  return idx (squares n) 0 .
-end", "E-RESULT-PLACE")
+  return idx squares n. . 0 . .
+end .", "E-RESULT-PLACE")
     #para("2")[
       `slice t` 는 타입 `t` 의 값이 연속으로 놓인 구간을 가리키는 것이며, #strong[시작과 길이를
       함께 갖는다.];
     ]
     #para("3")[
-      슬라이스의 길이는 `len` 으로 읽는다. `len s` 는 `s` 의 원소 개수다.
+      슬라이스의 길이는 `len` 으로 읽는다. `len s. .` 는 `s` 의 원소 개수다.
     ]
     #para("4")[
-      `idx s i` 는 `s` 의 `i` 번째 원소다. 첫 원소의 번호는 0 이다.
+      `idx s. i. .` 는 `s` 의 `i` 번째 원소다. 첫 원소의 번호는 0 이다.
     ]
     #para("5")[
-      `i` 가 `len s` 보다 작지 않으면 #strong[트랩한다];. 처리기가 그 조건이 언제나 참임을
+      `i` 가 `len s. .` 보다 작지 않으면 #strong[트랩한다];. 처리기가 그 조건이 언제나 참임을
       증명하면 그 검사는 사라진다(#cref("6.4.6")).
     ]
     #diagram("슬라이스는 시작과 길이를 함께 든다", " memory   [ 10 ][ 20 ][ 30 ][ 40 ][ 50 ]
@@ -226,20 +226,20 @@ end", "E-RESULT-PLACE")
 
 rem 슬라이스는 시작과 길이를 함께 갖는다.
 export fn head input data slice u8 . output u8 .
-  requires ge (len data) 1 .
+  requires ge len data. . 1 . .
 do
-  return idx data 0 .
-end")
+  return idx data. 0 . .
+end .")
     #rejected("길이를 타입 앞에 적었다", "module ex_array_order .
 
 export fn last input xs array 4 u64 . output u64 .
 do
-  return idx xs 3 .
-end", "E-TYPE-ARRAY")
+  return idx xs. 3 . .
+end .", "E-TYPE-ARRAY")
     #para("6")[
       #strong[원소 나열 리터럴]; — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
       `slice t` 값이다. 나열은 #strong[제 마침표로 닫히는 폼];이다: 문장의 끝에 오면 나열의 점과 문장의 점이 잇달아
-      오고(`let t lit array u8 4 1 2 3 4 .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
+      오고(`let t lit array u8 4 1 2 3 4 . .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
       `lit` 가 값의 타입을 보이므로 묶는 문장은 타입을 따로 적지 않는다.
     ]
     #para("6a")[
@@ -252,12 +252,12 @@ end", "E-TYPE-ARRAY")
       `true`·`false` 만이다.
     ]
     #para("6c")[
-      #strong[칸 골라 채우기]; — `lit array t n do <번호> <값> … [_ <값> .] end` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
+      #strong[칸 골라 채우기]; — `lit array t n do <번호> <값> . … [_ <값> .] end .` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
       0 부터 `n − 1` 까지의 정수 리터럴이고 한 번씩만 적는다. `_ <값> .` 은 끝에만 오며 «이름을 적지 않은 칸 모두»
       를 뜻한다. 모든 칸이 정해져야 한다 — 남는 칸이 있는데 `_ <값> .` 이 없거나, `_` 가 채울 칸이 없으면 거부된다
       (`E-LIT-COUNT`). 번호가 상수가 아니거나 길이 밖이거나 두 번 나오거나 `_` 가 끝이 아닌 자리에 있으면 거부된다
-      (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 #strong[한 번]; 계산된다. 블록이 나열을 닫으므로
-      나열 자신의 점은 없다(`let t lit array u8 8 do 2 5 _ 0 end .`). 원소를 늘어놓는 모양과 섞지 않는다
+      (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 #strong[한 번]; 계산된다. 블록으로 적은 나열도 폼이라 제 점으로 닫힌다 —
+      `let t lit array u8 8 do 2 5 . _ 0 . end . .` 에서 첫 점은 나열을, 둘째 점은 `let` 을 닫는다. 원소를 늘어놓는 모양과 섞지 않는다
     ]
     #para("6d")[
       #strong[SIMD 값]; — `lit vec t n v₁ … [_] .` 은 `vec t n` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
@@ -289,7 +289,7 @@ end", "E-TYPE-ARRAY")
       가름이다).
     ]
     #para("7b")[
-      `var` 에 묶은 나열은 #strong[쓸 수 있는]; 슬라이스다 — 칸은 `set (idx buf i) v .` 로 쓴다. 그 이름을 다른 저장소로
+      `var` 에 묶은 나열은 #strong[쓸 수 있는]; 슬라이스다 — 칸은 `set idx buf. i. . v. .` 로 쓴다. 그 이름을 다른 저장소로
       다시 묶는 `set buf …` 은 거부된다(`E-ARRAY-SET`). 각 원소는 (6b) 의 폭 규칙을 따르고, 실행 중 원소는 원소
       타입과 맞아야 한다(`E-TYPE-SET` · `E-TYPE-WIDTH`).
     ]
@@ -313,8 +313,8 @@ end", "E-TYPE-ARRAY")
       (`E-LIT-USING`). 바인딩 타입의 원소가 나열의 원소 타입과 다르면 거부된다(`E-BIND-ELSE`). 바이트는 할당기의 것이라 (7e) 가
       아니면 (7a) 의 선언 블록 수명을 받지 않고 할당기의 수명을 따른다: 할당기가 ⓐ 칸을 뒤받침으로 받았다면
       (`send <할당기> init buf`) 그 할당기가 주는 바이트도 그 칸의 수명을 받는다.
-      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> use <할당기> s lit s do … end else <문장>` 은
-      `size_of s` 바이트를 청해, 받으면 0 으로 채우고 s 의 배치를 얹은 뒤(#cref("8.7.2") 의 `view` 와 같은 표현) 적은 칸을 쓴다.
+      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> use <할당기>. s lit s do … end . else <문장> .` 은
+      `size_of s .` 바이트를 청해, 받으면 0 으로 채우고 s 의 배치를 얹은 뒤(#cref("8.7.2") 의 `view` 와 같은 표현) 적은 칸을 쓴다.
       바인딩 타입은 s 여야 한다(`E-BIND-ELSE`). #strong[수의 슬라이스 칸];은 할당기 바이트 안에 (주소, 길이) 두 낱말로 놓인다 —
       C 의 `struct { const T *p; size_t n; }` 와 같고, 자리는 8 바이트에 맞춘다. 이 배치는 할당기에 짓는 구조체에만 있다:
       그런 구조체를 남의 바이트에 `view` 로 얹거나 `size_of` 로 크기를 묻는 것은 여전히 거부된다(바이트가 주소가 되면 안 된다).
@@ -344,70 +344,70 @@ end", "E-TYPE-ARRAY")
     #para("9")[
       나열의 원소는 바이트 배치가 있는 구조체여도 된다(칸이 모두 크기 있는 수 — #cref("8.7.2") 의 `view` 가 설 수 있는 구조체).
       원소는 준 값의 사본이고, 나열은 그 바이트 위에 `view_array` 와 같은 보기를 얹은 `slice s` 다. 원소의 칸은
-      `set (field <나열> <자리> <칸>) v .` 로 쓴다. 자리 · 수명 · `_` · 칸 골라 채우기 · 할당기 절은 수 원소와 같다. 원소 자리의
+      `set field <나열>. <자리> <칸> . v. .` 로 쓴다. 자리 · 수명 · `_` · 칸 골라 채우기 · 할당기 절은 수 원소와 같다. 원소 자리의
       값이 수이거나 참거짓이면 `E-TYPE-FIELD`, 다른 구조체이면 `E-TYPE-STRUCT` 로 거부된다. 이 처리기가 아직 짓지 않은
       나열 — 바이트 배치가 없는 구조체 · 칸이 구조체인 구조체 · 줄을 골라 채우기(`do … end`) — 은 무엇이 아직인지 말하며
       거부된다(`E-LIT-UNBUILT`). 구조체 안의 배열 칸은 #cref("6.2.7") (1a) 가 정한다.
     ]
     #para("9a")[
       #strong[줄의 나열]; — 원소가 고정 길이 배열 `(array t m)` 인 나열 `lit array (array t m) n <줄>… [_] .` 의 타입은
-      `slice (array t m)` 이다. `len` 은 줄 수이고, `idx g r` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
+      `slice (array t m)` 이다. `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
       바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array t m` 과 다르면
-      거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set (idx g r) <줄>` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
+      거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set idx g. r. . <줄> .` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
       베낀다. 틀 안 나열의 줄(과 구조체 원소)은 그 틀의 바이트를 보므로 블록 밖으로 나르면 `E-LIT-ESCAPE` 다.
     ]
     #ex("원소 나열 리터럴", "module ex_list_literal .
 
 fn total input xs slice u32 . output u64 . do
   var s u64 0 .
-  for x xs do
-    set s (add s (widen u64 x)) .
-  end
-  return s .
-end
+  for x xs. do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
 
 rem 배열 나열은 제 점으로 닫힌다 — 문장의 끝이면 점이 둘이다.
 export fn f output u64 . do
   let t lit array u32 4 10 20 30 _ . .
-  return add (total t) (total lit slice u32 1 2 . .) .
-end")
+  return add total t. . total lit slice u32 1 2 . . . .
+end .")
     #ex("var 배열을 반복으로 채운다", "module ex_frame_list .
 
 export fn squares input n u64 . output u64 . do
   var buf lit array u64 8 _ . .
   var i u64 0 .
-  while lt i 8 do
-    set (idx buf i) (mul i i) .
-    set i (add i 1) .
-  end
-  guard lt n 8 else return 0 .
-  return idx buf n .
-end")
+  while lt i. 8 . do
+    set idx buf. i. . mul i. i. . .
+    set i. add i. 1 . .
+  end .
+  guard lt n. 8 . else return 0 . .
+  return idx buf. n. . .
+end .")
     #ex("칸을 골라 채운다", "module ex_cell_fill .
 
 export fn pick input a u64 . input i u64 . output u64 . do
-  let t lit array u64 6 do 0 100 . 5 (mul a 2) . _ 1 . end .
-  guard lt i 6 else return 0 .
-  return idx t i .
-end")
+  let t lit array u64 6 do 0 100 . 5 mul a. 2 . . _ 1 . end . .
+  guard lt i. 6 . else return 0 . .
+  return idx t. i. . .
+end .")
     #rejected("칸 번호를 두 번 적었다", "module ex_cell_twice .
 
 export fn f output u64 . do
-  let t lit array u8 4 do 1 1 . 1 2 . _ 0 . end .
-  return len t .
-end", "E-LIT-INDEX")
+  let t lit array u8 4 do 1 1 . 1 2 . _ 0 . end . .
+  return len t. . .
+end .", "E-LIT-INDEX")
     #rejected("블록 안의 var 배열을 돌려준다", "module ex_frame_escape .
 
 export fn f output slice u8 . do
   var b lit array u8 2 1 2 . .
-  return b .
-end", "E-LIT-ESCAPE")
+  return b. .
+end .", "E-LIT-ESCAPE")
     #rejected("원소가 길이보다 적은데 끝에 _ 가 없다", "module ex_list_short .
 
 export fn f output u64 . do
   let t lit array u8 4 1 2 3 . .
-  return len t .
-end", "E-LIT-COUNT")
+  return len t. . .
+end .", "E-LIT-COUNT")
     #plain[
       포인터만 있는 언어에서는 #emph["이 포인터가 가리키는 곳에 몇 개가 있는가"]; 를 사람이 따로
       알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를
@@ -422,7 +422,7 @@ end", "E-LIT-COUNT")
       #strong[배열 칸]; — 칸의 타입이 `array t n` 이면 그 칸은 원소 `n` 개의 바이트를 #strong[레코드 안에]; 가진다(길이가 타입에
       있으므로 자리가 정해진다). `t` 는 크기 있는 수나 `bool` 이다 — 구조체나 배열을 원소로 가진 칸은 이 처리기가 아직
       짓지 않았다(`E-LIT-UNBUILT`). 한 구조체의 배열 칸 바이트 합에는 틀과 같은 한도가 있다(`E-FRAME-SIZE`, #cref("6.2.6") (7c)).
-      `field r body` 는 그 바이트를 보는 슬라이스이고, `set (idx (field r body) i) v .` 가 레코드의 원소를 쓴다. 칸에 주는
+      `field r. body .` 는 그 바이트를 보는 슬라이스이고, `set idx field r. body . i. . v. .` 가 레코드의 원소를 쓴다. 칸에 주는
       나열 리터럴은 칸과 원소 타입·길이가 같아야 한다(`E-TYPE-FIELD`). 바이트 배치(`view` · `encode` · `size_of` · C 쪽
       레이아웃)에서 배열 칸은 C 와 같이 #strong[구조체 바이트 안에 그대로]; 놓인다 — 크기는 `n × |t|`, 정렬은 `t` 의 것이다
       (`len u8 . body array u8 4 . tail u16 .` 은 8 바이트 — `len` 은 0 번째 · `body` 는 1 번째 · `tail` 은 6 번째 바이트부터). 뷰의 배열 칸은 그 바이트를 보는
@@ -451,24 +451,24 @@ end", "E-LIT-COUNT")
 def struct point do
   x u32 .
   y u32 .
-end
+end .
 
 def enum color do
   red .
   green .
-end")
+end .")
     #para("4")[
       struct 값은 `lit` 로 만든다. 만들 때 #strong[모든 칸을 채워야]; 한다. 마지막 줄의 `_ <값> .` 은 적지 않은 칸 모두에 그 값을
-      넣는다(`lit pt do y a _ 0 end`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
+      넣는다(`lit pt do y a. . _ 0 . end .`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
       그 칸 이름을 대며 거부되며(`E-TYPE-FIELD`), 채울 칸이 없으면 거부된다(`E-LIT-COUNT`).
     ]
     #para("4a")[
-      #strong[struct 는 값이다.]; 만들거나 베낄 때(`var q point p .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지
+      #strong[struct 는 값이다.]; 만들거나 베낄 때(`var q point p. .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지
       함께 베껴진다 — 베낀 쪽을 고쳐도 원본은 바뀌지 아니한다. actor 인스턴스(정체가 있는 것)와 `owned` 칸을 가진
       struct 는 베끼지 않고 같은 것을 가리킨다.
     ]
     #para("4b")[
-      #strong[칸에 쓰는 것은 그 레코드에 쓰는 것이다.]; `set (field r x) v .` 와 배열 칸의 원소 쓰기는 `r` 이 쓸 수 있는
+      #strong[칸에 쓰는 것은 그 레코드에 쓰는 것이다.]; `set field r. x . v. .` 와 배열 칸의 원소 쓰기는 `r` 이 쓸 수 있는
       자리일 때만 받는다: `var` 이거나 `mut` 매개변수다. `let` 으로 묶은 레코드에 쓰면 거부된다(`E-IMMUTABLE`) —
       배열 칸을 쓸 수 있는 슬라이스(`mut slice`)로 꺼내는 것도 같다. 값으로 받은 매개변수의 칸에 쓰면 그 op 의 #strong[지역
       복사];에 쓴다 — 부른 쪽의 레코드는 바뀌지 아니한다(#cref("6.5.1") (2a)).
@@ -482,47 +482,47 @@ end")
 def struct point do
   x u32 .
   y u32 .
-end
+end .
 
 export fn origin output point .
 do
-  return lit point do x 0 . y 0 . end .
-end
+  return lit point do x 0 . y 0 . end . .
+end .
 
 export fn get_x input p point . output u32 .
 do
-  return (field p x) .
-end")
+  return field p. x . .
+end .")
     #ex("배열 칸을 가진 struct 를 베낀다", "module ex_struct_array .
 
 def struct pkt do
   len u8 .
   body array u8 4 .
-end
+end .
 
 export fn copy_keeps input a u8 . output u64 . do
-  var p lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
-  var q pkt p .
-  set (idx (field q body) 0) 100 .
-  return add (widen u64 (idx (field p body) 0)) (widen u64 (idx (field q body) 0)) .
-end")
+  var p lit pkt do len 2 . body lit array u8 4 1 a. _ . . end . .
+  var q pkt p. .
+  set idx field q. body . 0 . 100 .
+  return add widen u64 idx field p. body . 0 . . widen u64 idx field q. body . 0 . . . .
+end .")
     #rejected("let 으로 묶은 레코드의 배열 칸에 쓴다", "module ex_struct_array_let .
 
 def struct pkt do
   body array u8 4 .
-end
+end .
 
 export fn f output u64 . do
-  let p lit pkt do body lit array u8 4 _ . . end .
-  set (idx (field p body) 0) 1 .
+  let p lit pkt do body lit array u8 4 _ . . end . .
+  set idx field p. body . 0 . 1 .
   return 0 .
-end", "E-IMMUTABLE")
+end .", "E-IMMUTABLE")
     #rejected("갈래를 점으로 닫지 않았다", "module ex_enum_dot .
 
 def enum color do
   red
   green
-end", "E-ENUM-DOT")
+end .", "E-ENUM-DOT")
     #note[
       순환을 금지하는 이유는 크기 때문이다. 자기를 품는 struct 는 크기가 무한해진다.
       나무 같은 자료 구조가 필요하면 #strong[번호(색인)]; 로 잇는다 — 그러면 크기가 정해지고,
@@ -548,15 +548,15 @@ end", "E-ENUM-DOT")
 
 def enum err do
   too_small .
-end
+end .
 
 rem 2 보다 작으면 반으로 나눌 수 없다고 알린다.
 export fn half input n u32 . output result u32 err .
-  errors too_small lt n 2 .
+  errors too_small lt n. 2 . .
 do
-  guard ge n 2 else return error too_small .
-  return ok (div n 2) .
-end")
+  guard ge n. 2 . else return error too_small . . .
+  return ok div n. 2 . . .
+end .")
     #plain[
       실패를 나타내려고 −1 이나 널 포인터 같은 #strong[특별한 값];을 쓰는 관습이 있다. 그러면
       #emph["이 −1 은 오류인가 그냥 −1 인가"]; 를 소스만 보고는 알 수 없다. `result` 와 `option` 은
@@ -604,15 +604,15 @@ end")
 
 fn mk input k u8 . output option u8 .
 do
-  guard lt k 3 else return none .
-  return some (mul k 10) .
-end
+  guard lt k. 3 . else return none . .
+  return some mul k. 10 . . .
+end .
 
 rem 확인 없이 바로 꺼낸다 — 번역은 통과한다.
 fn raw input k u8 . output u8 .
 do
-  return some_value (mk k) .
-end",
+  return some_value mk k. . . .
+end .",
       out: "raw(2) = 20 · raw(7) → E-VM-NONE (트랩)")
     #plain[
       `raw(2)` 는 20 을 낸다. `raw(7)` 은 값이 없는데 꺼내므로 #strong[멈춘다]; — 조용히 0 을 내지
@@ -624,23 +624,23 @@ end",
 rem 만드는 쪽 — 값이 있으면 some, 없으면 none.
 fn lookup input k u8 . output option u8 .
 do
-  guard lt k 3 else return none .
-  return some (mul k 10) .
-end
+  guard lt k. 3 . else return none . .
+  return some mul k. 10 . . .
+end .
 
 rem 받는 쪽 ① — 묻고 꺼낸다.
 fn use_ask input k u8 . output u8 .
 do
-  let r option u8 lookup k .
-  guard is_some r else return 255 .
-  return some_value r .
-end
+  let r option u8 lookup k. . .
+  guard is_some r. . else return 255 . .
+  return some_value r. . .
+end .
 
 rem 받는 쪽 ② — 없으면 대신 쓸 값을 준다.
 fn use_or input k u8 . output u8 .
 do
-  return value_or (lookup k) 99 .
-end",
+  return value_or lookup k. . 99 . .
+end .",
       out: "use_ask(2) = 20 · use_ask(7) = 255 · use_or(2) = 20 · use_or(7) = 99")
     #plain[
       `output option u8 .` 의 점은 하나다 — `option` 은 타입을 #strong[하나]; 받으므로 그 인자 수에서 끝나고,
@@ -650,31 +650,31 @@ end",
 
 def enum io_error do
   too_big .
-end
+end .
 
 rem 만드는 쪽 — 언제 실패하는지 계약으로 적는다.
 fn halve input a u8 . output result u8 io_error .
-  errors too_big gt a 200 .
+  errors too_big gt a. 200 . .
 do
-  guard le a 200 else return error too_big .
-  return ok (div a 2) .
-end
+  guard le a. 200 . else return error too_big . . .
+  return ok div a. 2 . . .
+end .
 
 rem 받는 쪽 ① — 묻고 꺼낸다.
 fn use_ask input a u8 . output u8 .
 do
-  let r result u8 io_error halve a .
-  guard not (is_error r) else return 0 .
-  return ok_value r .
-end
+  let r result u8 io_error halve a. . .
+  guard not is_error r. . . else return 0 . .
+  return ok_value r. . .
+end .
 
 rem 받는 쪽 ② — try 는 실패를 그대로 위로 넘긴다.
 fn use_try input a u8 . output result u8 io_error .
-  errors too_big gt a 200 .
+  errors too_big gt a. 200 . .
 do
-  let v u8 try halve a .
-  return ok (add v 1) .
-end",
+  let v u8 try halve a. . . .
+  return ok add v. 1 . . .
+end .",
       out: "use_ask(100) = 50 · use_ask(250) = 0 · use_try(100) = ok 51")
     #plain[
       `use_try` 가 `errors` 를 자기도 적은 것에 주의한다. `try` 로 실패를 넘기려면
@@ -698,8 +698,8 @@ end",
 def newtype node_id u64 .
 
 fn f input a node_id . input b u64 . output u64 . do
-  return add a b .
-end", "E-TYPE-NOMINAL")
+  return add a. b. . .
+end .", "E-TYPE-NOMINAL")
     #note[
       둘을 가르는 이유는 실수를 막기 위해서다. 사용자 번호와 주문 번호가 둘 다 `u64` 라면
       바꿔 넣어도 처리기가 모른다. `newtype` 으로 갈라 두면 처리기가 그 실수를 잡는다.
@@ -716,7 +716,7 @@ end", "E-TYPE-NOMINAL")
     #para("1")[
       `field` 는 값의 안에 있는 것을 읽는 폼이다. 모양은
       `field <값> <마디> …` 이며, 마디는 #strong[하나 이상];이다. 마디가 여럿이면
-      왼쪽에서 오른쪽으로 한 칸씩 내려간다 — `field o inner deep` 은 `o` 의
+      왼쪽에서 오른쪽으로 한 칸씩 내려간다 — `field o. inner deep .` 은 `o` 의
       `inner`, 그 안의 `deep` 을 뜻한다.
     ]
     #para("2")[
@@ -735,22 +735,22 @@ end", "E-TYPE-NOMINAL")
 
 def struct inner do
   a u64 .
-end
+end .
 
 def struct outer do
   i inner .
-end
+end .
 
 export fn read_deep input o outer . output u64 .
 do
-  return (field o i a) .
-end
+  return field o. i a . .
+end .
 
 export proc bump_deep input o mut outer .
   effects state .
 do
-  set (field o i a) 1 .
-end")
+  set field o. i a . 1 .
+end .")
     #note[
       점을 붙여 적는 표기(`o.i.a`) 는 #strong[없다];. 값에 대한 연산을 이름 경로처럼
       보이게 하면, 읽는 사람이 `o` 가 값인지 모듈인지 알아야만 뜻이 정해진다 —
@@ -793,12 +793,12 @@ end")
     #ex("집합에 넣고 지운다", "module ex_bitset .
 
 fn members output u64 . do
-  var s bitset 8 bitset_new 8 .
-  bitset_insert s 3 .
-  bitset_insert s 5 .
-  bitset_remove s 3 .
-  return count s .
-end",
+  var s bitset 8 bitset_new 8 . .
+  bitset_insert s. 3 .
+  bitset_insert s. 5 .
+  bitset_remove s. 3 .
+  return count s. . .
+end .",
       out: "members() = 1")
   ]
   #sub("6.2.13", "바이트 위에 얹는 눈 — 뷰")[
@@ -852,13 +852,13 @@ end",
 
 fn scale input a range 0 100 . output u8 .
 do
-  return narrow u8 a .
-end
+  return narrow u8 a. . .
+end .
 
 fn call_scale input x u64 . output u8 .
 do
-  return scale x .    rem `u64` 는 0 … 100 보다 넓다 — 범위 안임을 보이지 않았다
-end", "E-TYPE-WIDTH")
+  return scale x. . .    rem `u64` 는 0 … 100 보다 넓다 — 범위 안임을 보이지 않았다
+end .", "E-TYPE-WIDTH")
     #note[
       같은 일을 `requires` 로도 적을 수 있다. 다른 점은 #strong[어디에 적히는가];다. 범위를
       타입 자리에 적으면 그 제약이 매개변수의 #strong[생김새];가 되어, 부르는 쪽이 서명만 보고도
@@ -922,12 +922,12 @@ def struct wire_header do
   magic u32 big .
   length u16 big .
   kind u8 .
-end
+end .
 
 fn hdr_kind input b bytes . output u64 . do
-  var v view wire_header view wire_header b .
-  return widen u64 (field v kind) .
-end
+  var v view wire_header view wire_header b. . .
+  return widen u64 field v. kind . . .
+end .
 ")
     #note[
       #strong[배치를 못 박는 것과 안 박는 것은 다른 값을 산다.]; 안 박으면 처리기가 기계에 맞게
@@ -1006,7 +1006,7 @@ end
 rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다.
 def type str slice u8 .
 
-fn f input s str . output u8 . do return 1 . end",
+fn f input s str . output u8 . do return 1 . end .",
       out: "f() = 1")
   ]
   #sub("6.2.19", "값을 지닌 갈래 — 짓기와 해체")[
@@ -1025,7 +1025,7 @@ fn f input s str . output u8 . do return 1 . end",
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*op*], [*모양*], [*무엇을 하나*],
       [`isa`], [`isa <값> <갈래>`], [지금 그 갈래인가를 묻는다],
-      [`get`], [`get <값> <갈래> <이름>`], [그 갈래가 지닌 것을 읽는다],
+      [`payload`], [`payload <값> <갈래> <이름>`], [그 갈래가 지닌 것을 읽는다],
       )
     ]
     #para("4")[
@@ -1034,13 +1034,13 @@ fn f input s str . output u8 . do return 1 . end",
       이름은 소스에 적혀 있으므로 실행을 기다릴 까닭이 없다.
     ]
     #para("5")[
-      갈래가 여럿인 열거에서 `get` 은 #strong[먼저 그 갈래임이 좁혀진 뒤에만]; 쓸 수 있다
+      갈래가 여럿인 열거에서 `payload` 는 #strong[먼저 그 갈래임이 좁혀진 뒤에만]; 쓸 수 있다
       (`E-ENUM-UNCHECKED`). 좁히는 것은 `isa` 이며, 보통 `guard isa <값> <갈래> else …`
       로 적는다.
     ]
     #para("5a")[
-      이미 #strong[다른 갈래];로 좁혀진 자리에서 `get` 을 쓰는 것도 거부된다
-      (`E-ENUM-VARIANT`) — 그 자리에서는 다른 갈래임이 이미 증명되었으므로, 그 `get` 은
+      이미 #strong[다른 갈래];로 좁혀진 자리에서 `payload` 을 쓰는 것도 거부된다
+      (`E-ENUM-VARIANT`) — 그 자리에서는 다른 갈래임이 이미 증명되었으므로, 그 `payload` 는
       #strong[틀린 것을 읽는다.];
     ]
     #para("5b")[
@@ -1115,7 +1115,7 @@ fn f input s str . output u8 . do return 1 . end",
       )
     ]
     #para("2")[
-      묶음과 열거는 `def struct <이름> do … end` · `def enum <이름> do … end` 로 선언한다. 다른 모양으로
+      묶음과 열거는 `def struct <이름> do … end .` · `def enum <이름> do … end .` 로 선언한다. 다른 모양으로
       선언하려 하면 거부된다(`E-TYPE-DECL`).
     ]
     #para("3")[
@@ -1144,9 +1144,9 @@ fn f input s str . output u8 . do return 1 . end",
 
 def struct p do
   x .              rem 타입이 없다
-end
+end .
 
-fn f output u8 . do return 1 . end", "E-FIELD-FORM")
+fn f output u8 . do return 1 . end .", "E-FIELD-FORM")
   ]
   #sub("6.2.24", "임의 폭 정수 — `bits`")[
     #para("1")[

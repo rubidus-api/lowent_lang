@@ -18,8 +18,8 @@ Finds values in a **sorted** slice by binary search. Probe the middle, decide wh
 use searchlib .
 use sortlib .
 
-sortlib.sort s .
-let i option u64 searchlib.bsearch s 42 .
+sortlib.sort s. .
+let i option u64 searchlib.bsearch s. 42 . .
 ```
 
 > **Sortedness is not checked**
@@ -29,7 +29,7 @@ let i option u64 searchlib.bsearch s 42 .
 | **op** | **Shape** | **Answer** |
 |---|---|---|
 | `bsearch` | `(s slice u64, target u64) → option u64` | index of `target`, or `none`. With duplicates, **one** of them (which one is unspecified) |
-| `lower_bound` | `(s slice u64, target u64) → u64` | first index at or above `target`. `len s` if all are smaller |
+| `lower_bound` | `(s slice u64, target u64) → u64` | first index at or above `target`. `len s. .` if all are smaller |
 
 *Table 50.1 — Ops of `searchlib` — all `fn` · `effects none`*
 
@@ -39,16 +39,16 @@ The implementation runs on the half-open range `[lo, hi)` with midpoint `lo + (h
 
 ```lowent
 fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i u64 searchlib.lower_bound s a .
-  let j u64 searchlib.lower_bound s b .
-  guard lt i j else return 0 .
-  return sub j i .
-end
+  let i u64 searchlib.lower_bound s. a. . .
+  let j u64 searchlib.lower_bound s. b. . .
+  guard lt i. j. . else return 0 . .
+  return sub j. i. . .
+end .
 ```
 
 > **Counter-example. Not separating `bsearch`’s `none`**
 >
-> > `return some_value r .` compiles, and stops with `E-VM-NONE` the moment nothing is found. Testing only with present values never triggers it — seeing an `option`, add `guard is_some` (chapter 11).
+> > `return some_value r. . .` compiles, and stops with `E-VM-NONE` the moment nothing is found. Testing only with present values never triggers it — seeing an `option`, add `guard is_some` (chapter 11).
 
 > **Counter-example. Giving meaning to `bsearch`’s index among duplicates**
 >
@@ -56,7 +56,7 @@ end
 
 > **Counter-example. Indexing directly with `lower_bound`’s result**
 >
-> > If not found, `i` is `len s`, a position that does not exist — `idx s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i (len s)` first.
+> > If not found, `i` is `len s. .`, a position that does not exist — `idx s. i. .` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i. len s. . .` first.
 
 **Cautions.** It cannot be used as is on descending data (there is no place to swap in a comparator). **Sort once, search many times** — calling `sort` before each search loses the whole gain. After sorting, changing one element with `set` requires sorting again. Keep the order when subtracting two lower bounds — `sub` underflows. As pure ops, the same slice can be searched from many places at once (while nobody writes). Other element types are `lower_by` and `find_by` of [`sortgen`](sec69.md#mod-sortgen).
 

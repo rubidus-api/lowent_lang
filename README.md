@@ -1,4 +1,4 @@
-[한국어](README.ko.md) | **English** — **Lowent v1.7.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.7.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+[한국어](README.ko.md) | **English** — **Lowent v1.8.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.8.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent
 
@@ -16,14 +16,14 @@ module stats .
 
 rem Pure: no I/O, no allocation, no hidden state. The contract is checked.
 fn mean input xs slice u8 . output u64 .
-  requires gt (len xs) 0 .
+  requires gt len xs. . 0 . .
 do
   var total u64 0 .
-  for x xs do
-    set total (add total (widen u64 x)) .
-  end
-  return div total (len xs) .
-end
+  for x xs. do
+    set total. add total. widen u64 x. . . .
+  end .
+  return div total. len xs. . . .
+end .
 ```
 
 ```text
@@ -58,18 +58,18 @@ module overflow .
 
 fn bump input a u8 . output u8 .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .
 
 fn bump_wrap input a u8 . output u8 .
 do
-  return wrap_add a 1 .
-end
+  return wrap_add a. 1 . .
+end .
 
 fn bump_sat input a u8 . output u8 .
 do
-  return sat_add a 1 .
-end
+  return sat_add a. 1 . .
+end .
 ```
 
 ```text
@@ -92,9 +92,9 @@ module hello .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out 1 "hello, entropy!\n" .
+  let n u64 write_out out. 1 "hello, entropy!\n" . .
   return 0 .
-end
+end .
 ```
 
 A `fn` that sneaks in some I/O doesn't compile:
@@ -104,8 +104,8 @@ module leak .
 
 fn shout input out cap io . output u64 .
 do
-  return write_out out 1 "hi\n" .
-end
+  return write_out out. 1 "hi\n" . .
+end .
 ```
 
 ```text
@@ -128,11 +128,11 @@ use files .
 
 proc leak input fs cap file_system . output u8 . effects io .
 do
-  let o result files.handle files.file_error files.open fs "notes.txt" 0 .
-  guard is_ok o else return 1 .
-  var h owned files.handle ok_value o .
+  let o result files.handle files.file_error files.open fs. "notes.txt" 0 . .
+  guard is_ok o. . else return 1 . .
+  var h owned files.handle ok_value o. . .
   return 0 .
-end
+end .
 ```
 
 For small boards with no operating system, there is a separate path that allocates only from a fixed window that never grows. Build for such a target and any code that needs a heap is rejected.
@@ -143,7 +143,7 @@ You write `requires` (what the caller must guarantee), `ensures` (what the funct
 
 ### 5. One meaning, one spelling
 
-Every statement starts with a word, takes its operands in prefix order and ends with a period: `add total x`, not `total + x`. Long arithmetic can go infix inside `expr`, with exactly the same meaning. There are **43 keywords**, and the set is closed. No second spelling for the same thing.
+Every form is opened by a name and closed by a period: `add total. x. .`, not `total + x`. A variable is written with its period glued on (`total.`), and one period closes the innermost open form, so no parentheses and no operator precedence are needed. Long arithmetic can go infix inside `expr`, with exactly the same meaning. There are **43 keywords**, and the set is closed. No second spelling for the same thing.
 
 This buys some unusual properties. The whole grammar can be highlighted with plain regular expressions, so an editor's highlighter is exact rather than approximate. There's almost no punctuation, so it's comfortable to type even on a phone keyboard. Every diagnostic carries a stable code, and `--diag-json` emits one JSON line per diagnostic for tools and AI agents.
 
@@ -158,7 +158,7 @@ This buys some unusual properties. The whole grammar can be highlighted with pla
 
 ## Where it stands today
 
-Lowent is not just a design document. It grows together with a working compiler (compiler 1.7.0, language revision 1.7).
+Lowent is not just a design document. It grows together with a working compiler (compiler 1.8.0, language revision 1.8).
 
 - **The compiler, `lowentc`,** is written in C23. Its only external dependency is one vendored library (`proven_c_lib`, MIT). Native code goes out as C and is built by your system's C compiler. Targets: `x86_64`, `arm64`, `riscv64`, `cortex_m` and `mips_be`.
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.
@@ -170,7 +170,7 @@ Lowent is not just a design document. It grows together with a working compiler 
 
 Lowent makes some deliberate trade-offs. You should know them before you pick it.
 
-- **It looks unfamiliar.** Prefix notation and period-terminated statements feel odd at first. Writing `add a (mul b c)` instead of `a + b * c` takes some getting used to.
+- **It looks unfamiliar.** Prefix notation and forms closed by periods feel odd at first. Writing `add a. mul b. c. . .` instead of `a + b * c` takes some getting used to.
 - **It's wordy.** Effects, capabilities and width conversions are all written out, so code runs longer than the equivalent C. In exchange, the reader has less to guess.
 - **No inheritance, no lambdas, no exceptions.** Familiar tools are missing. The next section shows what to use instead.
 - **No dynamic dispatch yet.** `dyn` is reserved but not implemented. Polymorphism is done with compile-time generics, which generate code for every combination used, so binaries can grow.
@@ -198,16 +198,16 @@ def enum shape do
   circle r u32 .
   rect w u32 h u32 .
   dot .
-end
+end .
 
 fn area input s shape . output u32 .
 do
-  match s do
-    case circle r do return mul 3 (mul r r) . end
-    case rect w h do return mul w h . end
-    case dot do return 0 . end
-  end
-end
+  match s. do
+    case circle r do return mul 3 mul r. r. . . . end .
+    case rect w h do return mul w. h. . . end .
+    case dot do return 0 . end .
+  end .
+end .
 ```
 
 When many types should keep the same promise, use a trait. Which function gets called is decided at compile time.
@@ -217,24 +217,24 @@ module why .
 
 trait shape do
   area input s self . output u64 .
-end
+end .
 
 def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end
+end .
 
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 
 fn double_area input comptime t type . input s t . output u64 .
-  requires shape t .
+  requires shape t. . .
 do
-  return mul 2 (method s area) .
-end
+  return mul 2 method s. area. . . .
+end .
 ```
 
 Instead of a lambda, give the condition a name and pass it to `pipe`. The data flows through once, with no intermediate arrays.
@@ -244,16 +244,16 @@ module lambda_fixed .
 
 fn over2 input a u8 . output bool .
 do
-  return gt a 2 .
-end
+  return gt a. 2 . .
+end .
 
 fn count_big input xs slice u8 . output u64 .
 do
-  return pipe xs do
+  return pipe xs. do
     filter over2 .
     count .
-  end .
-end
+  end . .
+end .
 ```
 
 ## Where it's headed

@@ -40,7 +40,7 @@
 
 #demo("examples/ch22/sizes.low")
 
-- `bytes_for` 의 `input comptime t type .` 은 타입을 받는다. 본문의 `size_of t` 는 그 타입의 크기를 번역할 때 준다.
+- `bytes_for` 의 `input comptime t type .` 은 타입을 받는다. 본문의 `size_of t .` 는 그 타입의 크기를 번역할 때 준다.
   `bytes_for u8 100` 은 100, `bytes_for u64 100` 은 800 이다.
 - `add_const` 의 `input comptime n u8 .` 은 값을 받는다. `add_const 7 10` 은 17 이다.
 - 부르는 자리는 타입이나 상수를 *보통 인자처럼* 앞자리에 적는다. 꺾쇠(`<T>`)도, 추론도 없다.
@@ -72,15 +72,15 @@ comptime 자리에 올 수 있는 것은 정수 리터럴과 모듈 수준의 `l
 
 ```text
  소스 (틀 하나)                              번역 뒤 (쓰인 조합마다 한 벌)
- fn bytes_for input comptime t type …   ┌─▶ bytes_for#u8  :  return mul 1 items
-     return mul (size_of t) items        │
-                                         └─▶ bytes_for#u64 :  return mul 8 items
+ fn bytes_for input comptime t type …   ┌─▶ bytes_for#u8  :  return mul 1 items. . .
+     return mul size_of t . items. . .   │
+                                         └─▶ bytes_for#u64 :  return mul 8 items. . .
  부르는 자리:
-   bytes_for u8 100   ────────────────────▶ bytes_for#u8 을 곧바로 부른다
-   bytes_for u64 100  ────────────────────▶ bytes_for#u64 를 곧바로 부른다
+   bytes_for u8. 100 . ───────────────────▶ bytes_for#u8 을 곧바로 부른다
+   bytes_for u64. 100 . ──────────────────▶ bytes_for#u64 를 곧바로 부른다
 ```
 
-틀에 적힌 `size_of t` 가 각 벌에서는 1 과 8 이라는 상수가 된다. 실행 중에 «t 가 무엇인가» 를 묻는 일이 남지 않는다.
+틀에 적힌 `size_of t .` 가 각 벌에서는 1 과 8 이라는 상수가 된다. 실행 중에 «t 가 무엇인가» 를 묻는 일이 남지 않는다.
 
 대가는 코드의 양이다. 열 가지 타입으로 부르면 열 벌이 생긴다. 이 비용은 숨지 않는다. 부르는 자리에 타입이 적혀 있으니
 몇 벌이 생길지를 소스에서 센다.
@@ -94,7 +94,7 @@ comptime 자리에 올 수 있는 것은 정수 리터럴과 모듈 수준의 `l
 
 - `trait ordered` 는 "`less` 라는 op 을 갖춘다" 는 약속이다. `score` 는 `satisfies ordered .` 로 그 약속을 갖추겠다고
   적고, `score.less` 로 실제로 갖춘다(#chref("traits")).
-- `max_of` 의 `requires ordered t .` 가 타입 조건이다. 본문은 그 조건을 믿고 `method a less b` 를 부른다.
+- `max_of` 의 `requires ordered t. . .` 가 타입 조건이다. 본문은 그 조건을 믿고 `method a less b` 를 부른다.
 - `bigger` 는 `max_of score …` 로 부른다. 처리기는 `max_of` 의 `score` 전용 실물을 만든다. 방출된 C 에서 그 함수의
   이름에 `max_of_score` 가 들어 있는 것을 볼 수 있다.
 
@@ -119,12 +119,12 @@ C 의 `qsort` 는 비교 함수를 *값*으로 받는다. Lowent 에는 일급 �
 ```lowent
 export trait ordered do
   less input a self . input b self . output bool . effects none .
-end
+end .
 
 export proc sort_by input comptime t type . input s mut slice t .
   output void .
   effects none .
-  requires ordered t .
+  requires ordered t. . .
 ```
 
 정렬 기준을 바꾸려면 다른 `less` 를 가진 타입을 쓴다. 필드 하나짜리 구조체로 감싸도 배치는 그대로라서 비용이 없다.
@@ -149,7 +149,7 @@ export proc sort_by input comptime t type . input s mut slice t .
 #antipattern[본문이 쓰는 행동을 타입 조건으로 적지 않는다][
   #demo("examples/ch22/mistake_nobound.low")
 
-  `max_of` 의 본문은 `less` 를 부르지만 머리에 `requires ordered t .` 가 없다. 그러면 `plain` 으로 부른 잘못이 *템플릿 안*의 줄에서
+  `max_of` 의 본문은 `less` 를 부르지만 머리에 `requires ordered t. . .` 가 없다. 그러면 `plain` 으로 부른 잘못이 *템플릿 안*의 줄에서
   `E-METHOD-UNDEF` 로 나고, 도구는 `N-MONO-SITE` 로 "그 인스턴스를 청한 줄은 여기" 라고 덧붙인다. 조건을 적은 `unsat.low` 는 같은
   잘못을 부르는 자리에서 `E-BOUND-UNSAT` 으로 곧바로 말한다. 타입 조건은 부르는 쪽에게 주는 약속이면서 진단을 제자리로 데려오는 표시다.
 ]
@@ -158,7 +158,7 @@ export proc sort_by input comptime t type . input s mut slice t .
   #demo("examples/ch22/mistake_valuetype.low")
 
   `u64` 가 8 바이트이니 8 을 넘기면 될 것 같지만, `input comptime t type .` 이 받는 것은 *타입*이다. 이 판의 도구는 수 8 을 타입으로
-  읽으려다 템플릿 안의 `size_of t` 에서 `E-IR-UNDEF` 를 낸다. `bytes_for u64 100` 처럼 타입 이름을 적는다. 크기가 필요한 것은 템플릿의
+  읽으려다 템플릿 안의 `size_of t .` 에서 `E-IR-UNDEF` 를 낸다. `bytes_for u64 100` 처럼 타입 이름을 적는다. 크기가 필요한 것은 템플릿의
   일이고, 부르는 쪽은 무엇의 크기인지를 말한다.
 ]
 
@@ -191,8 +191,8 @@ export proc sort_by input comptime t type . input s mut slice t .
   [`input comptime n u8 .`], [값을 번역 시점에 받는다], [상수로 접히고 검사가 지워진다],
   [`bytes_for u64 100` · `add_const 7 10`], [타입과 상수를 앞자리 인자로 적는다], [꺾쇠도 추론도 없다 --- 무엇이 만들어지는지 보인다],
   [`let stride u8 7 .`(모듈 수준)], [`comptime` 자리에 올 수 있는 이름 붙은 상수], [op 안의 `let` 은 실행 중의 이름],
-  [`size_of t`], [번역 시점에 타입의 크기], [크기가 상수로 박힌다],
-  [`requires ordered t .`], [타입 조건 --- 트레이트를 갖추어야 한다], [못 갖추면 부르는 자리에서 `E-BOUND-UNSAT`],
+  [`size_of t .`], [번역 시점에 타입의 크기], [크기가 상수로 박힌다],
+  [`requires ordered t. . .`], [타입 조건 --- 트레이트를 갖추어야 한다], [못 갖추면 부르는 자리에서 `E-BOUND-UNSAT`],
   [`method a less b`], [조건이 약속한 op 을 부른다], [직접 호출로 단형화된다],
   [쓰인 조합마다 실물 한 벌], [단형화], [비용은 속도가 아니라 코드의 양 --- 소스에서 센다],
 )

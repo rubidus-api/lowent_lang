@@ -5,8 +5,8 @@ proc f output u64 . effects alloc .
 do
   region outer arena do
     region inner arena do
-      let g option mut slice u8 alloc_bytes outer capacity 8 .
-    end
-  end
+      let g option mut slice u8 alloc_bytes outer. capacity 8 . .
+    end .
+  end .
   return 0 .
-end
+end .

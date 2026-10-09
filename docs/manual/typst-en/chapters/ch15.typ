@@ -135,7 +135,7 @@ export proc append
   input x t .
   output bool .
   effects state via a .
-  requires allocs.byte_allocator a .
+  requires allocs.byte_allocator a. . .
 ```
 
 This is the head of `append` in the standard library's `vecgen`. `effects state via a .` means "the allocation-family effects (`alloc`, `heap`,
@@ -206,7 +206,7 @@ proof.
   What a `fn` cannot use is the `panic` *effect*. A stop raised by the processor because a contract or a bound broke --- such as
   reading the first slot of an empty slice --- is treated as the result of a wrong call, not as something the op did (canon 6.5.9).
   So the pure `first` also stops when given `[]`. To avoid the stop, expose the responsibility to the caller with
-  `requires ge (len xs) 1 .`, or return an `option`.
+  `requires ge len xs. . 1 . .`, or return an `option`.
 ]
 
 #antipattern[Calling an op with a rare effect from a pure `fn`][

@@ -48,7 +48,7 @@ op 이다 --- 언어가 미리 만들어 둔 op 이라서 *기본 연산* 이라
 #demo("examples/ch05/kinds.low")
 
 세 op 이 모두 `fn` 이다. `add3` 은 인자 셋을 받아 더하고, `fact` 는 자기 자신을 부르는 재귀다.
-`fact` 의 `requires le n 20 .` 은 21! 이 `u64` 를 넘기 때문에 붙인 계약이다. 이 계약이 없으면
+`fact` 의 `requires le n. 20 . .` 은 21! 이 `u64` 를 넘기 때문에 붙인 계약이다. 이 계약이 없으면
 `fact 21` 은 곱셈에서 멈춘다(#chref("numbers")). 계약이 있으면 *진입에서* 멈추고, 멈춘 자리가 부르는
 쪽의 잘못임을 알린다.
 
@@ -119,13 +119,14 @@ fn   add3   input a i32 .   input b i32 .   input c i32 .   output i32 .
 │    │      └─ 매개변수 a 의 타입은 i32 ─┘                  └ 돌려주는 값의 타입
 │    └─ 이름 (부를 때 쓴다)
 └─ 갈래: fn(순수) 또는 proc(효과를 낼 수 있음)
-do                          ← 몸이 여기서 시작한다
-  return add (add a b) c .  ← 계산해서 돌려준다. 문장도 마침표로 끝난다
-end                         ← 몸이 끝나고, 선언 전체도 끝난다(뒤에 점을 찍지 않는다)
+do                                ← 몸이 여기서 시작한다
+  return add add a. b. . c. . .   ← 계산해서 돌려준다. 값도 문장도 제 점으로 닫힌다
+end .                             ← 몸이 끝나고, 점이 선언 전체를 닫는다
 ```
 
-부를 때는 이름 뒤에 인자를 *공백으로* 늘어놓는다. `add3 1 2 3` 이 한 번의 호출이고, 괄호는 호출 하나를 다른 호출의 인자로
-넣을 때만 쓴다 --- `add3 (add3 1 2 3) 4 5`. 괄호가 곧 "이 안이 값 하나" 라는 표시다. C 처럼 `add3(1, 2, 3)` 으로 쓰는 법은 없다.
+부를 때는 이름 뒤에 인자를 *공백으로* 늘어놓고, 그 호출을 닫는 점을 찍는다. `add3 1 2 3 .` 이 한 번의 호출이다. 호출을 다른 호출의
+인자로 넣으면 안쪽 호출이 제 점으로 먼저 닫힌다 --- `add3 add3 1 2 3 . 4 5 .`. 안쪽 호출을 눈에 띄게 하려면 괄호를 둘러도 된다
+(`add3 (add3 1 2 3 .) 4 5 .`). 괄호는 뜻을 바꾸지 않는다. C 처럼 `add3(1, 2, 3)` 으로 쓰는 법은 없다.
 쉼표는 이 언어에서 뜻이 없는 기호이고, 그래서 거절된다(아래 «흔한 실수»).
 
 매개변수는 `input <이름> <타입> .` 한 절에 하나다. 여럿이면 절을 되풀이한다. 부르는 쪽은 절의 차례대로
@@ -134,8 +135,8 @@ end                         ← 몸이 끝나고, 선언 전체도 끝난다(뒤
 ```lowent
 fn compare input a i32 . input b i32 . output i32 .
 do
-  return sub a b .
-end
+  return sub a. b. . .
+end .
 ```
 
 타입 앞에 붙는 낱말이 소유와 가변과 유무를 말한다. 자주 만나는 것은 다음과 같다.
@@ -163,11 +164,11 @@ end
 ```lowent
 fn total input xs slice u64 . output t u64 .
 do
-  for x xs do
-    set t (add t x) .
-  end
-  return t .
-end
+  for x xs. do
+    set t. add t. x. . .
+  end .
+  return t. .
+end .
 ```
 
 `output` 뒤의 첫 낱말이 타입 이름이면 출력 전체가 타입이고(`output result u64 perr .`), 타입 이름이 아니면 결과의 이름이다.
@@ -175,18 +176,18 @@ end
 없이 적고 값을 돌려준다. `ensures` 는 여전히 `ret` 으로 결과를 가리킨다.
 
 배열도 돌려줄 수 있다 --- `output r array u64 3 .`. 배열에는 값으로 돌려주는 길이 없어서 *부르는 쪽이 자리를 준다*. 부르는 쪽은
-결과를 이름에 묶고(`let s array u64 3 squares n .`), 부름 받는 쪽은 그 이름의 바이트에 바로 짓는다. 그래서 식 한가운데서
-부를 수는 없다(`idx (squares n) 0` 은 `E-RESULT-PLACE`) --- 먼저 이름에 묶는다.
+결과를 이름에 묶고(`let s array u64 3 squares n. . .`), 부름 받는 쪽은 그 이름의 바이트에 바로 짓는다. 그래서 식 한가운데서
+부를 수는 없다(`idx squares n. . 0 .` 은 `E-RESULT-PLACE`) --- 먼저 이름에 묶는다.
 
 ```lowent
 fn squares input n u64 . output r array u64 3 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
   repeat i u64 3 do
-    set (idx r i) (mul (add n i) (add n i)) .
-  end
-  return r .
-end
+    set idx r. i. . mul add n. i. . add n. i. . . .
+  end .
+  return r. .
+end .
 ```
 
 == `neg` 만 단항이다
@@ -218,7 +219,7 @@ unsafe extern proc c_area do
   output i64 .
   effects unsafe .
   link lw_c_area .
-end
+end .
 ```
 
 == op 안의 op
@@ -251,7 +252,7 @@ end
 
   Lowent 의 호출은 *이름 다음에 인자를 공백으로 늘어놓는* 전위 표기다. 쉼표는 한때 쓰였다가 없앤 기호라서 `E-VOCAB-REMOVED`
   가 나온다. 괄호·쉼표 없이 부르는 까닭은 기호를 줄여 누구나(휴대전화 자판으로도) 같은 모양으로 쓰게 하려는 것이다.
-  고치는 법: `return add3 1 2 3 .`
+  고치는 법: `return add3 1 2 3 . .`
 ]
 
 #antipattern[인자 수가 `input` 절 수와 다르다][
@@ -293,19 +294,19 @@ end
   id: "ops-glance",
   caption: [op 의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`fn f input a T . output R . do … end`], [순수한 op], [결과를 기억·재배치·생략해도 되는지 머리만 보고 알게],
-  [`proc f … effects E . do … end`], [효과를 낼 수 있는 op], [무엇을 하는지(`E`)가 머리에 드러나게],
+  [`fn f input a T . output R . do … end .`], [순수한 op], [결과를 기억·재배치·생략해도 되는지 머리만 보고 알게],
+  [`proc f … effects E . do … end .`], [효과를 낼 수 있는 op], [무엇을 하는지(`E`)가 머리에 드러나게],
   [`input x T .`], [매개변수 하나], [절마다 하나라 이름과 타입이 줄마다 보인다],
   [`output T .` · `output void .`], [돌려주는 값의 타입 · 돌려주는 값 없음], [반환은 하나 --- 여럿이면 `struct` 로 묶는다],
   [`output r T .`], [이름 붙은 결과 --- 0 에서 시작하는 지역], [결과를 쌓는 op 에서 «0 으로 채운 지역» 줄이 사라진다],
   [`return e .`], [값을 돌려주고 끝낸다], [모든 길에서 적어야 한다(`E-RETURN-PARTIAL`)],
   [`f a b c`], [부르기 --- 이름 뒤에 인자를 공백으로], [괄호·쉼표 없는 전위 표기],
-  [`f (g a) b`], [호출을 인자로 넣기], [괄호는 "이 안이 값 하나" 라는 표시],
+  [`f g a. . b. .`], [호출을 인자로 넣기], [괄호는 "이 안이 값 하나" 라는 표시],
   [`requires c .`], [부르는 쪽이 지켜야 할 조건], [어긴 쪽의 잘못임을 진입에서 알린다(#chref("contracts"))],
   [`effects state .`], [호출자의 저장소를 고친다], [`mut` 매개변수로 쓰는 op 의 머리],
-  [`neg a`], [부호 뒤집기(유일한 단항 산술)], [빼기와 뒤섞이지 않게 이름으로],
+  [`neg a. .`], [부호 뒤집기(유일한 단항 산술)], [빼기와 뒤섞이지 않게 이름으로],
   [`export` · `extern` · `unsafe`], [내보내기 · 몸이 C 에 · 검사 못 하는 일], [할 수 있는 일이 머리 앞에 보이게],
-  [`do` 바로 아래의 `fn g … end`], [로컬 op --- 그 op 안에서만 보인다], [바깥 이름을 보지 않는다 --- 클로저가 아니다],
+  [`do` 바로 아래의 `fn g … end .`], [로컬 op --- 그 op 안에서만 보인다], [바깥 이름을 보지 않는다 --- 클로저가 아니다],
 )
 
 #recap[

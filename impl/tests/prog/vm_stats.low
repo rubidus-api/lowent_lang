@@ -11,113 +11,113 @@ module vm_stats .
 
 def enum stat_err do
   empty_stream .
-end
+end .
 
 rem 표본 하나: 센서 id + 값.
 def struct sample do
   id u8 .
   value u8 .
-end
+end .
 
 rem 헤더 안의 헤더 — 와이어 포맷의 기본 모양.
 def struct version do
   major u8 .
   minor u8 .
-end
+end .
 
 def struct header do
   ver version .
   count u8 .
-end
+end .
 
 rem ★ 명명 계약 — 표본 값은 눈금 밖으로 나가면 안 된다.
 contract in_scale do
-  requires le v 100 .
-end
+  requires le v. 100 . .
+end .
 
 fn clamp_scale satisfies in_scale . input v u8 . output u8 .
 do
-  return v .
-end
+  return v. .
+end .
 
 rem ★ 구조체 배열 — 원소는 **구조체 뷰**다(무복사).
 fn n_samples input s slice sample . output u64 . do
-  return len s .
-end
+  return len s. . .
+end .
 
 fn sum_values input s slice sample . output u64 . do
   var t u64 0 .
   var i u64 0 .
-  while lt i (len s) do
-    let p sample idx s i .
-    set t expr t + (field p value) .
-    set i expr i + 1 .
-  end
-  return t .
-end
+  while lt i. len s. . . do
+    let p sample idx s. i. . .
+    set t. expr t. + (field p. value .) . .
+    set i. expr i. + 1 . .
+  end .
+  return t. .
+end .
 
 rem ★ 채널 전환 — 빈 스트림은 **오류**이고, 그것을 **없음**으로 옮길 수 있다.
 fn mean input s slice sample . output result u64 stat_err .
-  errors empty_stream eq len s 0 .
+  errors empty_stream eq len s. . 0 . .
 do
-  guard gt (len s) 0 else do return error empty_stream . end
-  return ok (div (sum_values s) (len s)) .
-end
+  guard gt len s. . 0 . else do return error empty_stream . . end .
+  return ok div sum_values s. . len s. . . . .
+end .
 
 fn mean_or_none input s slice sample . output option u64 . do
-  return try (mean s) else_none .
-end
+  return try mean s. . else_none . .
+end .
 
 rem ★ 헤더 읽기 — 중첩 필드.
 fn header_major input b slice u8 . output u8 . do
-  let h header view header b .
-  let v version field h ver .
-  return field v major .
-end
+  let h header view header b. . .
+  let v version field h. ver . .
+  return field v. major . .
+end .
 
 rem ★★ level-2 actor — 표본을 하나씩 받아 누적한다. 상태는 **격리**돼 있다.
 actor tally do
   state do
     seen u64 .
-  end
+  end .
   proc bump output u64 . effects state .
   do
-    set seen expr seen + 1 .
-    return seen .
-  end
+    set seen. expr seen. + 1 . .
+    return seen. .
+  end .
   fn total output u64 .
-  do return seen . end
-end
+  do return seen. . end .
+end .
 
 rem ★ 액터를 만들고 메시지를 보낸다 — **순수하지 않다.** 전엔 `fn … effects none` 이었고
 rem   효과 검사기가 빌트인 효과를 **머리 자리에서만** 세어서 통과했다(spawn/send 가 식 안에 중첩).
 proc count_stream input s slice sample . output u64 . effects state . do
-  var t tally spawn actor tally .
+  var t tally spawn actor tally . .
   var i u64 0 .
-  while lt i (len s) do
-    let one u64 send t bump .
-    set i expr i + 1 .
-  end
-  return send t total .
-end
+  while lt i. len s. . . do
+    let one u64 send t. bump . .
+    set i. expr i. + 1 . .
+  end .
+  return send t. total . .
+end .
 
 rem ── 테스트: Lowent 로 쓰고 Lowent 로 돈다 ──────────────────────────────
 rem "ab" = (id 97, value 98)   ·   "abcd" = 표본 둘: (97,98) (99,100)
 
 test samples_are_structs do
-  expect eq (n_samples "abcd") 2 .
-  expect eq (sum_values "abcd") 198 .        rem 98 + 100
-end
+  expect eq n_samples "abcd" . 2 . .
+  expect eq sum_values "abcd" . 198 . .        rem 98 + 100
+end .
 
 test nested_header do
   rem [1,2, 3] = ver(major 1, minor 2), count 3
-  expect eq (header_major "abc") 97 .        rem 'a' = 97
-end
+  expect eq header_major "abc" . 97 . .        rem 'a' = 97
+end .
 
 test actor_counts_every_sample do
-  expect eq (count_stream "abcd") 2 .
-end
+  expect eq count_stream "abcd" . 2 . .
+end .
 
 test named_contract_holds do
-  expect eq (clamp_scale 50) 50 .
-end
+  expect eq clamp_scale 50 . 50 . .
+end .

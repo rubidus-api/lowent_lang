@@ -22,12 +22,12 @@ def enum eval_error do
   underflow .           rem 이항 연산에 피연산자 부족
   div_by_zero .
   bad_expr .            rem 평가 후 스택에 정확히 1개가 안 남음
-end
+end .
 
 def struct token do
   kind  u8 .
   value i64 .
-end
+end .
 
 rem 두 피연산자에 연산 적용 — 순수(effects none). divide 만 0 검사.
 fn apply
@@ -37,12 +37,12 @@ fn apply
   output result i64 eval_error .
   errors div_by_zero .           rem 실행-유도 오류도 **이름은** 절에 적는다(조건은 안 적어도 된다)
 do
-  if eq k plus do return ok add a b . end
-  if eq k minus do return ok sub a b . end
-  if eq k times do return ok mul a b . end
-  guard ne b 0 else return error div_by_zero . rem 여기 도달 = divide
-  return ok div a b .
-end
+  if eq k. plus. . do return ok add a. b. . . . end .
+  if eq k. minus. . do return ok sub a. b. . . . end .
+  if eq k. times. . do return ok mul a. b. . . . end .
+  guard ne b. 0 . else return error div_by_zero . . . rem 여기 도달 = divide
+  return ok div a. b. . . .
+end .
 
 rem RPN 평가 — scratch region 에 깊이 len(tokens) 의 i64 스택.
 rem 비용 가시: effects alloc(스택 backing) + access sequential. 숨은 할당 0.
@@ -54,32 +54,32 @@ proc eval
   output result i64 eval_error .
   effects alloc .
   access tokens sequential .
-  requires gt (len tokens) 0 .
+  requires gt len tokens. . 0 . .
   errors underflow .
   errors div_by_zero .
   errors bad_expr .
 do
-  let s stack i64 stack_new temp capacity len tokens .
+  let s stack i64 stack_new temp capacity len tokens . .
   var depth u64 0 .
-  for t tokens do
-    let k u8 field t kind .
-    if eq (field t kind) k_lit do
-      push s field t value .
-      set depth (add depth 1) .
+  for t tokens. do
+    let k u8 field t. kind . .
+    if eq field t. kind . k_lit. . do
+      push s. field t. value . .
+      set depth. add depth. 1 . .
     end
     else do
-      guard ge depth 2 else return error underflow .
-      let b i64 value_or (pop s) 0 .            rem depth≥2 보장 → none 은 오지 않는다
-      let a i64 value_or (pop s) 0 .
-      let r i64 try apply k a b . rem apply 의 div_by_zero 를 그대로 전파
-      push s r .
-      set depth (sub depth 1) .
-    end
-  end
-  guard eq depth 1 else return error bad_expr .
-  let top i64 value_or (pop s) 0 .
-  return ok top .
-end
+      guard ge depth. 2 . else return error underflow . . .
+      let b i64 value_or pop s. . 0 . .            rem depth≥2 보장 → none 은 오지 않는다
+      let a i64 value_or pop s. . 0 . .
+      let r i64 try apply k. a. b. . . . rem apply 의 div_by_zero 를 그대로 전파
+      push s. r. .
+      set depth. sub depth. 1 . .
+    end .
+  end .
+  guard eq depth. 1 . else return error bad_expr . . .
+  let top i64 value_or pop s. . 0 . .
+  return ok top. . .
+end .
 ```
 
 ## 보이는 Lowent 특징

@@ -6,10 +6,10 @@ export fn count_over input xs slice u8 . input limit u8 . output u64 .
 do
   fn over input x u8 . output bool .
   do
-    return gt x limit .
-  end
-  return pipe xs do
+    return gt x. limit. . .
+  end .
+  return pipe xs. do
     filter over .
     count .
-  end .
-end
+  end . .
+end .

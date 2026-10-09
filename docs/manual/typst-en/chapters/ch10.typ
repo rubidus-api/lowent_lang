@@ -40,9 +40,9 @@ written without it. The declaration's body is `do … end`, and each field is cl
 
 #demo("examples/ch10/points.low")
 
-- `lit point do x 1 . y 1 . end` makes a value. *Every field must be filled* when making it. No unfilled field quietly becomes 0.
-  To fill the rest with one value, end with `_ <value> .`: `lit point do x 1 . _ 0 . end`.
-- `field s stop x` reads the `stop` field of `s` and the `x` field inside it. With several steps, it goes down one field at a time from
+- `lit point do x 1 . y 1 . end .` makes a value. *Every field must be filled* when making it. No unfilled field quietly becomes 0.
+  To fill the rest with one value, end with `_ <value> .`: `lit point do x 1 . _ 0 . end .`.
+- `field s. stop x .` reads the `stop` field of `s` and the `x` field inside it. With several steps, it goes down one field at a time from
   the left.
 - A field's type may be another `struct`. `segment` holds two `point`s.
 - `moved` builds and returns a *new value* with one field changed. The original stays as it was.
@@ -58,17 +58,17 @@ module. The `field` form settles it the moment you read it.
   cannot be a name, so it is rejected with `E-VOCAB-REMOVED`. That is why this example uses `start` and `stop` rather than `from` and `to`.
 ]
 
-`field` is both a place to read and a place to write. A field of a value received as `mut` is changed with `set (field p x) 3 .` --- reading
+`field` is both a place to read and a place to write. A field of a value received as `mut` is changed with `set field p. x . 3 .` --- reading
 and writing use the same spelling. The rules for borrowing a value to change it are in #chref("references").
 
 === Array fields --- a field that holds bytes
 
-When a field's type is an array with a length, like `array u8 4`, its bytes live *inside the record*. `field p body` is a slice that
-sees those bytes, and `set (idx (field p body) i) v .` writes an element.
+When a field's type is an array with a length, like `array u8 4`, its bytes live *inside the record*. `field p. body .` is a slice that
+sees those bytes, and `set idx field p. body . i. . v. .` writes an element.
 
 #demo("examples/ch10/arrayfield.low")
 
-- A struct is a value. `var q pkt p .` copies the array field's bytes too, so changing `q` leaves `p` alone. A struct held in a
+- A struct is a value. `var q pkt p. .` copies the array field's bytes too, so changing `q` leaves `p` alone. A struct held in a
   field is copied along with it.
 - Writing a field of a record received `mut` changes the caller's record. Writing a record received by value changes only the op's own copy.
 - The elements are sized numbers or `bool`. A list given to the field must match its element type and length (`E-TYPE-FIELD`).
@@ -87,7 +87,7 @@ An `enum` is one of several variants. A variant can carry values, written as `<f
 #demo("examples/ch10/shapes.low")
 
 - `circle r u32 .` carries one value named `r`, and `rect w u32 h u32 .` carries two. `dot .` carries nothing.
-- A value is made with the *variant name*, as in `shape.circle 2`.
+- A value is made with the *variant name*, as in `shape.circle 2 .`.
 - `case rect w h` in a `match` binds the two carried values to `w` and `h` when the variant is `rect`.
 
 However many variants there are, the `match` must cover them all. Leaving out `dot` is rejected.
@@ -97,7 +97,7 @@ However many variants there are, the `match` must cover them all. Leaving out `d
 This check is the greatest value of an `enum`. When a `triangle` variant is added later, every `match` over `shape`, `area` and `corners`
 included, stops at translation. Nobody has to remember the places to fix.
 
-To ask only which variant without a `match`, `isa n num` gives a `bool`.
+To ask only which variant without a `match`, `isa n. num .` gives a `bool`.
 
 == Variants are closed with full stops
 
@@ -152,7 +152,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
 #antipattern[Passing a value-less variant as `Type.variant`][
   #demo("examples/ch10/mistake_unitvariant.low")
 
-  A variant that carries values is built with the type name in front, as in `shape.circle 2`, and this book writes a variant carrying
+  A variant that carries values is built with the type name in front, as in `shape.circle 2 .`, and this book writes a variant carrying
   nothing by *its name alone* (`green`). Both are the same value --- `pick_bare` and `pick_qualified` both answer 2. Until 2026-09-16 the
   tool lowered a value-less variant written as `light.green` to a *different representation* (a record with a tag), so it stopped at run
   time with `E-VM-TYPE`. Now both lower to the same index. Prefer the shorter spelling, and qualify where the enum would otherwise be
@@ -171,7 +171,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
 #antipattern[Believing that putting a value under another name makes a copy][
   #demo("examples/ch10/mistake_alias.low")
 
-  `var q point p .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
+  `var q point p. .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
   ownership is copied; a value with ownership is moved (#chref("ownership")). Until 2026-09-16 the tool made an alias to the same place, and
   `p` changed too --- the `let` promise broke there. Lowering now copies the fields.
 
@@ -188,15 +188,15 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   id: "structs-glance",
   caption: [Struct and enum syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`def struct point do x u64 . y u64 . end`], [a bundle of named fields], [one line per field, name and type],
-  [`lit point do x 1 . y 2 . end`], [build a value --- fill every field], [no field silently becomes 0],
-  [`field p x` · `field s stop x`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
-  [`set (field p x) 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
-  [`body array u8 4 .` · `set (idx (field p body) 0) 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
-  [`def enum shape do dot . circle r u32 . end`], [one of several --- variants may carry values], [each variant is closed with a stop],
-  [`shape.circle 2` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
+  [`def struct point do x u64 . y u64 . end .`], [a bundle of named fields], [one line per field, name and type],
+  [`lit point do x 1 . y 2 . end .`], [build a value --- fill every field], [no field silently becomes 0],
+  [`field p. x .` · `field s. stop x .`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
+  [`set field p. x . 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
+  [`body array u8 4 .` · `set idx field p. body . 0 . 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
+  [`def enum shape do dot . circle r u32 . end .`], [one of several --- variants may carry values], [each variant is closed with a stop],
+  [`shape.circle 2 .` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
   [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
-  [`isa s circle`], [is it that variant (`bool`)], [for asking without taking values out],
+  [`isa s. circle .`], [is it that variant (`bool`)], [for asking without taking values out],
   [trees linked by index (`l u32` · `r u32`)], [slice indexes instead of containing itself], [the size is fixed and indexes are bounds-checked],
 )
 

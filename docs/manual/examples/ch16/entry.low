@@ -3,5 +3,5 @@ rem expect: E-ENTRY-PARAMS
 
 proc main input out cap io . input n u64 . output u8 . effects io .
 do
-  return narrow u8 n .
-end
+  return narrow u8 n. . .
+end .

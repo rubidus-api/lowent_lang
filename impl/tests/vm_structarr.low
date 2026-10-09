@@ -5,107 +5,107 @@ rem   바이트를 베낀다(값 복사). `mut` 매개변수로 넘긴 레코드
 def struct pkt do
   len u8 .
   body array u8 8 .
-end
+end .
 
 fn total input p pkt . output u64 . do
-  var t u64 (widen u64 (field p len)) .
-  for x (field p body) do
-    set t (add t (widen u64 x)) .
-  end
-  return t .
-end
+  var t u64 widen u64 field p. len . . .
+  for x field p. body . do
+    set t. add t. widen u64 x. . . .
+  end .
+  return t. .
+end .
 
 export fn copy_is_value input a u64 . output u64 . do
-  let p lit pkt do len 3 . body lit array u8 8 1 2 (narrow_wrap u8 a) _ . . end .
-  var q pkt p .
-  set (idx (field q body) 0) 100 .
-  return add (mul (total p) 1000) (total q) .
-end
+  let p lit pkt do len 3 . body lit array u8 8 1 2 narrow_wrap u8 a. . _ . . end . .
+  var q pkt p. .
+  set idx field q. body . 0 . 100 .
+  return add mul total p. . 1000 . total q. . . .
+end .
 
 def struct rec do
   tag u8 .
   w array i16 3 .
   f array f64 2 .
   b array bool 2 .
-end
+end .
 
 fn mk input a u64 . output rec . do
-  return lit rec do tag 7 . w lit array i16 3 -1 (narrow i16 (widen i64 a)) _ . . f lit array f64 2 1.5 _ . . b lit array bool 2 true false . . end .
-end
+  return lit rec do tag 7 . w lit array i16 3 -1 narrow i16 widen i64 a. . . _ . . f lit array f64 2 1.5 _ . . b lit array bool 2 true false . . end . .
+end .
 
 proc bump input r mut rec . output u64 . effects none . do
-  set (idx (field r w) 2) 40 .
+  set idx field r. w . 2 . 40 .
   return 0 .
-end
+end .
 
 export proc run input a u64 . output i64 . effects none . do
-  var r rec mk a .
-  let z u64 bump r .
-  var s rec r .
-  set (field s w) lit array i16 3 5 5 5 . .
-  set (idx (field s f) 1) 2.25 .
+  var r rec mk a. . .
+  let z u64 bump r. . .
+  var s rec r. .
+  set field s. w . lit array i16 3 5 5 5 . .
+  set idx field s. f . 1 . 2.25 .
   var t i64 0 .
-  for x (field r w) do
-    set t (add t (widen i64 x)) .
-  end
-  for y (field s w) do
-    set t (add t (mul (widen i64 y) 100)) .
-  end
-  if eq (idx (field r b) 0) true do
-    set t (add t 10000) .
-  end
-  return t .
-end
+  for x field r. w . do
+    set t. add t. widen i64 x. . . .
+  end .
+  for y field s. w . do
+    set t. add t. mul widen i64 y. . 100 . . .
+  end .
+  if eq idx field r. b . 0 . true . do
+    set t. add t. 10000 . .
+  end .
+  return t. .
+end .
 
 export fn fsum input a u64 . output f64 . do
-  let r rec mk a .
-  var s rec r .
-  set (idx (field s f) 1) 2.25 .
-  return add (add (idx (field r f) 0) (idx (field r f) 1)) (idx (field s f) 1) .
-end
+  let r rec mk a. . .
+  var s rec r. .
+  set idx field s. f . 1 . 2.25 .
+  return add add idx field r. f . 0 . idx field r. f . 1 . . idx field s. f . 1 . . .
+end .
 
 rem 레코드 풀이 되감기고 압축될 때 배열 칸 버퍼가 자리와 함께 옮는가(맞바꿈) — 같은 틀에서 레코드를 계속 만든다.
 def struct cell do
   k u64 .
   v array u64 4 .
-end
+end .
 
 fn mkcell input i u64 . output cell . do
-  return lit cell do k i . v lit array u64 4 i (add i 1) (add i 2) (add i 3) . . end .
-end
+  return lit cell do k i. . v lit array u64 4 i. add i. 1 . add i. 2 . add i. 3 . . . end . .
+end .
 
 fn churn input i u64 . output u64 . do
-  let a cell mkcell i .
-  let b cell mkcell (add i 100) .
-  var c cell a .
-  set (idx (field c v) 0) 7 .
-  return add (add (idx (field a v) 0) (idx (field b v) 3)) (idx (field c v) 0) .
-end
+  let a cell mkcell i. . .
+  let b cell mkcell add i. 100 . . .
+  var c cell a. .
+  set idx field c. v . 0 . 7 .
+  return add add idx field a. v . 0 . idx field b. v . 3 . . idx field c. v . 0 . . .
+end .
 
 export fn stress input n u64 . output u64 . do
-  guard le n 5000 else return 0 .
-  let held cell mkcell 1000 .
+  guard le n. 5000 . else return 0 . .
+  let held cell mkcell 1000 . .
   var s u64 0 .
   var i u64 0 .
-  while lt i n do
-    set s (add s (churn i)) .
-    set i (add i 1) .
-  end
-  return add s (idx (field held v) 2) .
-end
+  while lt i. n. . do
+    set s. add s. churn i. . . .
+    set i. add i. 1 . .
+  end .
+  return add s. idx field held. v . 2 . . .
+end .
 
 export fn stress2 input n u64 . output u64 . do
-  guard le n 5000 else return 0 .
-  var held cell mkcell 5 .
-  var old cell mkcell 9 .
+  guard le n. 5000 . else return 0 . .
+  var held cell mkcell 5 . .
+  var old cell mkcell 9 . .
   var s u64 0 .
   var i u64 0 .
-  while lt i n do
-    set old held .
-    set held (mkcell i) .
-    set (idx (field held v) 1) (add (idx (field old v) 1) 1) .
-    set s (add s (idx (field held v) 1)) .
-    set i (add i 1) .
-  end
-  return add s (idx (field held v) 3) .
-end
+  while lt i. n. . do
+    set old. held. .
+    set held. mkcell i. . .
+    set idx field held. v . 1 . add idx field old. v . 1 . 1 . .
+    set s. add s. idx field held. v . 1 . . .
+    set i. add i. 1 . .
+  end .
+  return add s. idx field held. v . 3 . . .
+end .

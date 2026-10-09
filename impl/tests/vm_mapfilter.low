@@ -10,15 +10,15 @@ rem     (fn 이면 E-EFFECT-PURITY — 관측적 순수성).
 
 module vm_mapfilter .
 
-fn dbl    input a u8 . output u8 . do return wrap_mul a 2 . end
-fn is_big input a u8 . output bool . do return ge a 3 . end
+fn dbl    input a u8 . output u8 . do return wrap_mul a. 2 . . end .
+fn is_big input a u8 . output bool . do return ge a. 3 . . end .
 
 rem 각 원소를 2배로 — out 에 쓴다.
 proc domap input xs slice u8 . input out mut slice u8 . output u8 . effects none . do
-  return map out dbl xs .
-end
+  return map out. dbl xs. . .
+end .
 
 rem 3 이상만 남긴다 — out 에 압축해 쓰고 개수를 낸다.
 proc dofilter input xs slice u8 . input out mut slice u8 . output u8 . effects none . do
-  return filter out is_big xs .
-end
+  return filter out. is_big xs. . .
+end .

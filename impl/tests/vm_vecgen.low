@@ -9,83 +9,83 @@ use allocs .
 
 rem u32 벡터: 용량 2 로 열고 8개를 민다 — 자라야 통과한다.
 proc grows_u32 input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 1024 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let go use bump option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
-  guard is_some go else return 1 .
-  var g (vecgen.vec u32 allocs.bump_bytes) some_value go .
-  guard eq (vecgen.cap_of u32 allocs.bump_bytes g) 2 else return 2 .
+  let memo option mut slice u8 alloc_bytes al. capacity 1024 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let go use bump. option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32. 2 . .
+  guard is_some go. . else return 1 . .
+  var g (vecgen.vec u32 allocs.bump_bytes) some_value go. . .
+  guard eq vecgen.cap_of u32. allocs.bump_bytes. g. . 2 . else return 2 . .
   var i u64 0 .
-  while lt i 8 do
-    let okv bool vecgen.append u32 allocs.bump_bytes g (narrow u32 (add 100 i)) .
-    guard okv else return add 10 i .
-    set i (add i 1) .
-  end
-  guard eq (vecgen.count_of u32 allocs.bump_bytes g) 8 else return 3 .
+  while lt i. 8 . do
+    let okv bool vecgen.append u32. allocs.bump_bytes. g. narrow u32 add 100 i. . . . .
+    guard okv. else return add 10 i. . . .
+    set i. add i. 1 . .
+  end .
+  guard eq vecgen.count_of u32. allocs.bump_bytes. g. . 8 . else return 3 . .
   rem 자란 뒤에도 옛 내용이 살아 있어야 한다.
-  let x0 option u32 vecgen.at u32 allocs.bump_bytes g 0 .
-  guard is_some x0 else return 4 .
-  guard eq (some_value x0) 100 else return 5 .
-  let x7 option u32 vecgen.at u32 allocs.bump_bytes g 7 .
-  guard is_some x7 else return 6 .
-  guard eq (some_value x7) 107 else return 7 .
+  let x0 option u32 vecgen.at u32. allocs.bump_bytes. g. 0 . .
+  guard is_some x0. . else return 4 . .
+  guard eq some_value x0. . 100 . else return 5 . .
+  let x7 option u32 vecgen.at u32. allocs.bump_bytes. g. 7 . .
+  guard is_some x7. . else return 6 . .
+  guard eq some_value x7. . 107 . else return 7 . .
   rem 범위 밖은 none — 값으로 답한다.
-  let x9 option u32 vecgen.at u32 allocs.bump_bytes g 9 .
-  guard eq (is_some x9) false else return 8 .
+  let x9 option u32 vecgen.at u32. allocs.bump_bytes. g. 9 . .
+  guard eq is_some x9. . false . else return 8 . .
   return 42 .
-end
+end .
 
 rem ★★ 같은 틀의 **다른 인스턴스**: u8 은 원소가 1바이트라 같은 바이트로 4배를 담는다.
 rem   이것이 `size_of t` 가 없으면 못 하는 일이다(최대 폭으로 잡으면 u8 이 8배를 쓴다).
 proc bytes_fit input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let g8 use bump option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8 4 .
-  guard is_some g8 else return 1 .
-  var a (vecgen.vec u8 allocs.bump_bytes) some_value g8 .
-  guard eq (vecgen.cap_of u8 allocs.bump_bytes a) 4 else return 2 .
+  let memo option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let g8 use bump. option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8. 4 . .
+  guard is_some g8. . else return 1 . .
+  var a (vecgen.vec u8 allocs.bump_bytes) some_value g8. . .
+  guard eq vecgen.cap_of u8. allocs.bump_bytes. a. . 4 . else return 2 . .
   rem u32 로 열면 같은 개수가 4배의 바이트를 먹는다 — 자리 계산이 타입마다 다르다.
-  let g4 use bump option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 4 .
-  guard is_some g4 else return 3 .
-  var b (vecgen.vec u32 allocs.bump_bytes) some_value g4 .
-  guard eq (vecgen.cap_of u32 allocs.bump_bytes b) 4 else return 4 .
+  let g4 use bump. option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32. 4 . .
+  guard is_some g4. . else return 3 . .
+  var b (vecgen.vec u32 allocs.bump_bytes) some_value g4. . .
+  guard eq vecgen.cap_of u32. allocs.bump_bytes. b. . 4 . else return 4 . .
   rem 4 + 16 = 20 바이트를 썼다.
-  guard eq (send bump used) 20 else return 5 .
+  guard eq send bump. used . 20 . else return 5 . .
   return 42 .
-end
+end .
 
 rem 미리 자리를 잡으면 뒤따르는 append 가 도중에 실패하지 않는다.
 proc reserved input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 512 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let go use bump option (vecgen.vec u16 allocs.bump_bytes) vecgen.open u16 1 .
-  guard is_some go else return 1 .
-  var g (vecgen.vec u16 allocs.bump_bytes) some_value go .
-  guard vecgen.reserve_more u16 allocs.bump_bytes g 10 else return 2 .
-  guard ge (vecgen.cap_of u16 allocs.bump_bytes g) 10 else return 3 .
+  let memo option mut slice u8 alloc_bytes al. capacity 512 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let go use bump. option (vecgen.vec u16 allocs.bump_bytes) vecgen.open u16. 1 . .
+  guard is_some go. . else return 1 . .
+  var g (vecgen.vec u16 allocs.bump_bytes) some_value go. . .
+  guard vecgen.reserve_more u16. allocs.bump_bytes. g. 10 . else return 2 . .
+  guard ge vecgen.cap_of u16. allocs.bump_bytes. g. . 10 . else return 3 . .
   var i u64 0 .
-  while lt i 10 do
-    guard vecgen.append u16 allocs.bump_bytes g (narrow u16 (mul i 3)) else return add 20 i .
-    set i (add i 1) .
-  end
+  while lt i. 10 . do
+    guard vecgen.append u16. allocs.bump_bytes. g. narrow u16 mul i. 3 . . . else return add 20 i. . . .
+    set i. add i. 1 . .
+  end .
   rem 고쳐 쓰기 — 범위 밖이면 false 다(조용히 늘리지 않는다).
-  guard vecgen.set_at u16 allocs.bump_bytes g 0 999 else return 4 .
-  guard eq (vecgen.set_at u16 allocs.bump_bytes g 10 1) false else return 5 .
-  let x option u16 vecgen.at u16 allocs.bump_bytes g 0 .
-  guard is_some x else return 6 .
-  guard eq (some_value x) 999 else return 7 .
+  guard vecgen.set_at u16. allocs.bump_bytes. g. 0 999 . else return 4 . .
+  guard eq vecgen.set_at u16. allocs.bump_bytes. g. 10 1 . false . else return 5 . .
+  let x option u16 vecgen.at u16. allocs.bump_bytes. g. 0 . .
+  guard is_some x. . else return 6 . .
+  guard eq some_value x. . 999 . else return 7 . .
   rem 담긴 만큼만 보는 뷰.
-  let v slice u16 vecgen.view_of u16 allocs.bump_bytes g .
-  guard eq (len v) 10 else return 8 .
-  guard eq (idx v 9) 27 else return 9 .
+  let v slice u16 vecgen.view_of u16. allocs.bump_bytes. g. . .
+  guard eq len v. . 10 . else return 8 . .
+  guard eq idx v. 9 . 27 . else return 9 . .
   return 42 .
-end
+end .
 
 rem ★★★ **구조체 원소** (2026-07-26) — 제네릭 컨테이너가 스칼라에 갇혀 있던 자리.
 rem   기계장치(IR_STRUCT_BIT)는 이미 있었다: `index` 가 정수 대신 **구조체 뷰**를 준다.
@@ -93,38 +93,38 @@ rem   표면만 안 이어져 있었고, 그래서 `vec point` 가 못 섰다.
 def struct pt do
   x u32 .
   y u32 .
-end
+end .
 
 proc structs input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 1024 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
+  let memo option mut slice u8 alloc_bytes al. capacity 1024 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
   rem 원소 하나가 8바이트다 — 자리 계산이 스칼라와 같은 식으로 나온다.
-  let go use bump option (vecgen.vec pt allocs.bump_bytes) vecgen.open pt 2 .
-  guard is_some go else return 1 .
-  var g (vecgen.vec pt allocs.bump_bytes) some_value go .
-  guard eq (send bump used) 16 else return 2 .
+  let go use bump. option (vecgen.vec pt allocs.bump_bytes) vecgen.open pt. 2 . .
+  guard is_some go. . else return 1 . .
+  var g (vecgen.vec pt allocs.bump_bytes) some_value go. . .
+  guard eq send bump. used . 16 . else return 2 . .
   rem 자라야 한다: 2 자리에 5개.
   var i u64 0 .
-  while lt i 5 do
-    guard vecgen.append pt allocs.bump_bytes g (lit pt do x (narrow u32 i) . y (narrow u32 (mul i 10)) . end) else return add 10 i .
-    set i (add i 1) .
-  end
-  guard eq (vecgen.count_of pt allocs.bump_bytes g) 5 else return 3 .
+  while lt i. 5 . do
+    guard vecgen.append pt. allocs.bump_bytes. g. lit pt do x narrow u32 i. . . y narrow u32 mul i. 10 . . . end . . else return add 10 i. . . .
+    set i. add i. 1 . .
+  end .
+  guard eq vecgen.count_of pt. allocs.bump_bytes. g. . 5 . else return 3 . .
   rem 자란 뒤에도 옛 원소가 **필드까지** 살아 있어야 한다.
-  let e0 option pt vecgen.at pt allocs.bump_bytes g 0 .
-  guard is_some e0 else return 4 .
-  let v0 pt some_value e0 .
-  guard eq (field v0 x) 0 else return 5 .
-  guard eq (field v0 y) 0 else return 6 .
-  let e4 option pt vecgen.at pt allocs.bump_bytes g 4 .
-  guard is_some e4 else return 7 .
-  let v4 pt some_value e4 .
-  guard eq (field v4 x) 4 else return 8 .
-  guard eq (field v4 y) 40 else return 9 .
+  let e0 option pt vecgen.at pt. allocs.bump_bytes. g. 0 . .
+  guard is_some e0. . else return 4 . .
+  let v0 pt some_value e0. . .
+  guard eq field v0. x . 0 . else return 5 . .
+  guard eq field v0. y . 0 . else return 6 . .
+  let e4 option pt vecgen.at pt. allocs.bump_bytes. g. 4 . .
+  guard is_some e4. . else return 7 . .
+  let v4 pt some_value e4. . .
+  guard eq field v4. x . 4 . else return 8 . .
+  guard eq field v4. y . 40 . else return 9 . .
   return 42 .
-end
+end .
 
 rem ★★ **중첩** (2026-07-26) — 타입 인자는 낱말 하나가 아니어도 된다: 괄호로 싸면 그것도 인자다.
 rem   `nest (nest u32)` 는 접고 나면 `nest#nest#u32` 라는 **평범한 구체 struct** 다.
@@ -132,25 +132,25 @@ rem   ☞ 괄호 없는 `nest nest u32` 는 **일부러 안 받는다** — 인�
 def struct nest do
   input comptime t type .
   v t .
-end
+end .
 
-fn wrap input comptime t type . input x t . output nest t . do
-  return lit nest t do v x . end .
-end
+fn wrap input comptime t type . input x t . output (nest t) . do
+  return lit (nest t) do v x. . end . .
+end .
 
 fn nested output u64 . do
-  let inner (nest u32) wrap u32 7 .
-  let outer (nest (nest u32)) lit nest (nest u32) do v inner . end .
+  let inner (nest u32) wrap u32. 7 . .
+  let outer (nest (nest u32)) lit (nest (nest u32)) do v inner. . end . .
   rem 두 겹을 벗겨도 값이 그대로여야 한다.
-  let back (nest u32) (field outer v) .
-  guard eq (field back v) 7 else return 1 .
+  let back (nest u32) field outer. v . .
+  guard eq field back. v . 7 . else return 1 . .
   rem 세 겹도 된다(고정점이 도니까).
-  let deep (nest (nest (nest u32))) lit nest (nest (nest u32)) do v outer . end .
-  let d1 (nest (nest u32)) (field deep v) .
-  let d2 (nest u32) (field d1 v) .
-  guard eq (field d2 v) 7 else return 2 .
+  let deep (nest (nest (nest u32))) lit (nest (nest (nest u32))) do v outer. . end . .
+  let d1 (nest (nest u32)) field deep. v . .
+  let d2 (nest u32) field d1. v . .
+  guard eq field d2. v . 7 . else return 2 . .
   return 42 .
-end
+end .
 
 rem ★★★★ **얼로케이터 축** (RFC-0075 S3 축소, 2026-08-15) — 같은 틀·같은 op 을 **다른
 rem   얼로케이터 타입**으로 인스턴스화한다. 이 자리가 축소가 산 것이다: 전에는 `vecgen` 이
@@ -159,43 +159,43 @@ rem   했다(그리고 `vecs` 는 그 축을 갖는 대신 원소를 u8 에 못�
 rem   ★ `bump_aligned` 는 8 바이트 경계로 올림하는 **다른 정책**이다. 같은 소스가 두 인스턴스를 낸다:
 rem     `vec#u32#allocs.bump_bytes` 와 `vec#u32#allocs.bump_aligned`(`--ir` 에 보인다).
 proc aligned_axis input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 1024 .
-  guard is_some memo else return 89 .
-  var ba allocs.bump_aligned spawn actor allocs.bump_aligned .
-  let c u64 send ba init (some_value memo) .
-  let go use ba option (vecgen.vec u32 allocs.bump_aligned) vecgen.open u32 2 .
-  guard is_some go else return 1 .
-  var g (vecgen.vec u32 allocs.bump_aligned) some_value go .
-  guard eq (vecgen.cap_of u32 allocs.bump_aligned g) 2 else return 2 .
+  let memo option mut slice u8 alloc_bytes al. capacity 1024 . .
+  guard is_some memo. . else return 89 . .
+  var ba allocs.bump_aligned spawn actor allocs.bump_aligned . .
+  let c u64 send ba. init some_value memo. . . .
+  let go use ba. option (vecgen.vec u32 allocs.bump_aligned) vecgen.open u32. 2 . .
+  guard is_some go. . else return 1 . .
+  var g (vecgen.vec u32 allocs.bump_aligned) some_value go. . .
+  guard eq vecgen.cap_of u32. allocs.bump_aligned. g. . 2 . else return 2 . .
   var i u64 0 .
-  while lt i 6 do
-    guard vecgen.append u32 allocs.bump_aligned g (narrow u32 (add 200 i)) else return add 10 i .
-    set i (add i 1) .
-  end
+  while lt i. 6 . do
+    guard vecgen.append u32. allocs.bump_aligned. g. narrow u32 add 200 i. . . . else return add 10 i. . . .
+    set i. add i. 1 . .
+  end .
   rem 자라면서도 옛 내용을 지킨다 — 얼로케이터가 달라도 계약은 같다.
-  guard eq (vecgen.count_of u32 allocs.bump_aligned g) 6 else return 3 .
-  let x0 option u32 vecgen.at u32 allocs.bump_aligned g 0 .
-  guard is_some x0 else return 4 .
-  guard eq (some_value x0) 200 else return 5 .
-  let x5 option u32 vecgen.at u32 allocs.bump_aligned g 5 .
-  guard is_some x5 else return 6 .
-  guard eq (some_value x5) 205 else return 7 .
+  guard eq vecgen.count_of u32. allocs.bump_aligned. g. . 6 . else return 3 . .
+  let x0 option u32 vecgen.at u32. allocs.bump_aligned. g. 0 . .
+  guard is_some x0. . else return 4 . .
+  guard eq some_value x0. . 200 . else return 5 . .
+  let x5 option u32 vecgen.at u32. allocs.bump_aligned. g. 5 . .
+  guard is_some x5. . else return 6 . .
+  guard eq some_value x5. . 205 . else return 7 . .
   return 42 .
-end
+end .
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다(vm_growvec 와 같은 꼴).
 proc main input al cap allocator . output u8 . effects state alloc . do
-  let a u64 grows_u32 al .
-  guard eq a 42 else return narrow u8 a .
-  let b u64 bytes_fit al .
-  guard eq b 42 else return narrow u8 b .
-  let c u64 reserved al .
-  guard eq c 42 else return narrow u8 c .
-  let d u64 structs al .
-  guard eq d 42 else return narrow u8 d .
-  let e u64 nested .
-  guard eq e 42 else return narrow u8 e .
-  let f u64 aligned_axis al .
-  guard eq f 42 else return narrow u8 f .
+  let a u64 grows_u32 al. . .
+  guard eq a. 42 . else return narrow u8 a. . . .
+  let b u64 bytes_fit al. . .
+  guard eq b. 42 . else return narrow u8 b. . . .
+  let c u64 reserved al. . .
+  guard eq c. 42 . else return narrow u8 c. . . .
+  let d u64 structs al. . .
+  guard eq d. 42 . else return narrow u8 d. . . .
+  let e u64 nested. .
+  guard eq e. 42 . else return narrow u8 e. . . .
+  let f u64 aligned_axis al. . .
+  guard eq f. 42 . else return narrow u8 f. . . .
   return 42 .
-end
+end .

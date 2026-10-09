@@ -31,7 +31,7 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 | **op** | **하는 일** |
 |---|---|
-| `ecdsa_ok` | 서명 `(r, s)` 가 해시 `e` 와 공개키 `pub` 에 맞는가 — `ok 1` 맞다 · `ok 0` 아니다 · `error short_workspace` 작업 공간이 모자라다 |
+| `ecdsa_ok` | 서명 `(r, s)` 가 해시 `e` 와 공개키 `pub` 에 맞는가 — `ok 1 .` 맞다 · `ok 0 .` 아니다 · `error short_workspace .` 작업 공간이 모자라다 |
 
 *표 50.2 — `p384` 의 op*
 

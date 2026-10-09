@@ -4,14 +4,14 @@ rem expect: E-ALLOC-USING-UNUSED
 use allocs .
 
 fn twice input x u64 . output u64 . do
-  return mul x 2 .
-end
+  return mul x. 2 . .
+end .
 
 proc caller input buf mut slice u8 . output u64 . effects state .
 do
-  var b allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send b init buf .
+  var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send b. init buf. . .
   rem ko: ✘ twice 는 할당기를 쓰지 않는데 using 으로 골라 준다 /// en: ✘ twice draws from no allocator, yet the binding picks one with using
-  let n use b u64 twice 4 .
-  return n .
-end
+  let n use b. u64 twice 4 . .
+  return n. .
+end .

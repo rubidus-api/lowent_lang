@@ -5,5 +5,5 @@ rem ko: access data shared_read — 이 op 은 data 를 읽기만 한다. 여러
 fn peek input data slice u8 . output u64 .
   access data shared_read .
 do
-  return widen u64 (idx data 0) .
-end
+  return widen u64 idx data. 0 . . .
+end .

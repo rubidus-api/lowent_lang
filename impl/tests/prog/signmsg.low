@@ -31,21 +31,21 @@ rem ── 곡선 상수: 규격이 정한 수다(우리가 고른 것이 아니
 proc limbs_of input hexs slice u8 . input out mut slice u64 . input w mut slice u8 .
   output u64 . effects none .
 do
-  guard ge (len w) 32 else return 0 .
-  let d option u64 codec.hex_dec hexs (subslice w 0 32) .
-  guard is_some d else return 0 .
-  return bigint.from_bytes (subslice w 0 32) out 16 .
-end
+  guard ge len w. . 32 . else return 0 . .
+  let d option u64 codec.hex_dec hexs. subslice w. 0 32 . . .
+  guard is_some d. . else return 0 . .
+  return bigint.from_bytes subslice w. 0 32 . out. 16 . .
+end .
 
 proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . effects none .
 do
-  guard ge (len cw) 64 else return 0 .
-  guard eq (limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" (subslice cw 0 16) w) 16 else return 0 .
-  guard eq (limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" (subslice cw 16 32) w) 16 else return 0 .
-  guard eq (limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" (subslice cw 32 48) w) 16 else return 0 .
-  guard eq (limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" (subslice cw 48 64) w) 16 else return 0 .
+  guard ge len cw. . 64 . else return 0 . .
+  guard eq limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" subslice cw. 0 16 . w. . 16 . else return 0 . .
+  guard eq limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" subslice cw. 16 32 . w. . 16 . else return 0 . .
+  guard eq limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" subslice cw. 32 48 . w. . 16 . else return 0 . .
+  guard eq limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" subslice cw. 48 64 . w. . 16 . else return 0 . .
   return 1 .
-end
+end .
 
 rem ★ 알맹이를 **따로 op 으로** 담는다. 처음엔 `main` 안에 전부 썼더니
 rem   `W-CBE-SKIP` — 몸이 네이티브 핵심 밖이라 네이티브 빌드에서 빠진다고
@@ -56,48 +56,48 @@ export proc sign_and_check
   input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 .
   output u64 . effects none .
 do
-  guard ge (len wu) 2020 else return 89 .
-  guard eq (curve (subslice wu 0 64) wb) 1 else return 89 .
+  guard ge len wu. . 2020 . else return 89 . .
+  guard eq curve subslice wu. 0 64 . wb. . 1 . else return 89 . .
 
-  guard eq (call_builtin sha256 msg (subslice wb 32 64)) 32 else return 89 .
+  guard eq call_builtin sha256 msg. subslice wb. 32 64 . . 32 . else return 89 . .
 
-  let dh option u64 codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wb 0 32) .
-  guard is_some dh else return 89 .
+  let dh option u64 codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wb. 0 32 . . .
+  guard is_some dh. . else return 89 . .
 
-  let sg result u64 ecdsa.ecdsa_error ecdsa.sign (subslice wb 0 32) (subslice wb 32 64)
-                       (subslice wu 0 16) (subslice wu 16 32)
-                       (subslice wu 32 48) (subslice wu 48 64)
-                       rs (subslice wb 64 640) (subslice wu 64 1016) .
-  guard is_ok sg else return 43 .
-  guard eq (ok_value sg) 64 else return 43 .
+  let sg result u64 ecdsa.ecdsa_error ecdsa.sign subslice wb. 0 32 . subslice wb. 32 64 .
+                       subslice wu. 0 16 . subslice wu. 16 32 .
+                       subslice wu. 32 48 . subslice wu. 48 64 .
+                       rs. subslice wb. 64 640 . subslice wu. 64 1016 . . .
+  guard is_ok sg. . else return 43 . .
+  guard eq ok_value sg. . 64 . else return 43 . .
 
-  guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 1016 1032) 16) 16 else return 89 .
-  guard eq (bigint.from_bytes (subslice rs 32 64) (subslice wu 1032 1048) 16) 16 else return 89 .
-  guard eq (bigint.from_bytes (subslice wb 32 64) (subslice wu 1048 1064) 16) 16 else return 89 .
-  guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 1064 1080) wb) 16 else return 89 .
-  guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 1080 1096) wb) 16 else return 89 .
+  guard eq bigint.from_bytes subslice rs. 0 32 . subslice wu. 1016 1032 . 16 . 16 . else return 89 . .
+  guard eq bigint.from_bytes subslice rs. 32 64 . subslice wu. 1032 1048 . 16 . 16 . else return 89 . .
+  guard eq bigint.from_bytes subslice wb. 32 64 . subslice wu. 1048 1064 . 16 . 16 . else return 89 . .
+  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 1064 1080 . wb. . 16 . else return 89 . .
+  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 1080 1096 . wb. . 16 . else return 89 . .
 
-  let ev1 result u64 p256.p256_error p256.ecdsa_verify (subslice wu 1016 1032) (subslice wu 1032 1048) (subslice wu 1048 1064)
-                              (subslice wu 1064 1096)
-                              (subslice wu 0 16) (subslice wu 16 32)
-                              (subslice wu 32 48) (subslice wu 48 64)
-                              (subslice wu 1096 2020) .
-  guard is_ok ev1 else return 44 .
-  guard eq (ok_value ev1) 1 else return 44 .
+  let ev1 result u64 p256.p256_error p256.ecdsa_verify subslice wu. 1016 1032 . subslice wu. 1032 1048 . subslice wu. 1048 1064 .
+                              subslice wu. 1064 1096 .
+                              subslice wu. 0 16 . subslice wu. 16 32 .
+                              subslice wu. 32 48 . subslice wu. 48 64 .
+                              subslice wu. 1096 2020 . . .
+  guard is_ok ev1. . else return 44 . .
+  guard eq ok_value ev1. . 1 . else return 44 . .
 
   rem ── 한 비트를 뒤집으면 **거절되어야** 한다 ──
-  set (idx rs 0) (bit_xor (idx rs 0) 1) .
-  guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 1016 1032) 16) 16 else return 89 .
-  let ev2 result u64 p256.p256_error p256.ecdsa_verify (subslice wu 1016 1032) (subslice wu 1032 1048) (subslice wu 1048 1064)
-                              (subslice wu 1064 1096)
-                              (subslice wu 0 16) (subslice wu 16 32)
-                              (subslice wu 32 48) (subslice wu 48 64)
-                              (subslice wu 1096 2020) .
-  guard is_ok ev2 else return 45 .
-  guard ne (ok_value ev2) 1 else return 45 .
+  set idx rs. 0 . bit_xor idx rs. 0 . 1 . .
+  guard eq bigint.from_bytes subslice rs. 0 32 . subslice wu. 1016 1032 . 16 . 16 . else return 89 . .
+  let ev2 result u64 p256.p256_error p256.ecdsa_verify subslice wu. 1016 1032 . subslice wu. 1032 1048 . subslice wu. 1048 1064 .
+                              subslice wu. 1064 1096 .
+                              subslice wu. 0 16 . subslice wu. 16 32 .
+                              subslice wu. 32 48 . subslice wu. 48 64 .
+                              subslice wu. 1096 2020 . . .
+  guard is_ok ev2. . else return 45 . .
+  guard ne ok_value ev2. . 1 . else return 45 . .
 
   return 42 .
-end
+end .
 
 proc main
   input al cap allocator .
@@ -105,23 +105,23 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let gi option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some gi else return 89 .
-  let inbuf mut slice u8 some_value gi .
+  let gi option mut slice u8 alloc_bytes al. capacity 4096 . .
+  guard is_some gi. . else return 89 . .
+  let inbuf mut slice u8 some_value gi. . .
 
-  let rn option u64 read_in k 0 inbuf .
-  guard is_some rn else return 89 .
-  let got u64 some_value rn .
-  guard ne got 0 else return 46 .
+  let rn option u64 read_in k. 0 inbuf. . .
+  guard is_some rn. . else return 89 . .
+  let got u64 some_value rn. . .
+  guard ne got. 0 . else return 46 . .
 
-  let grs option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some grs else return 89 .
-  let gwb option mut slice u8 alloc_bytes al capacity 1024 .
-  guard is_some gwb else return 89 .
-  let gwu option mut slice u8 alloc_bytes al capacity 24576 .
-  guard is_some gwu else return 89 .
+  let grs option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some grs. . else return 89 . .
+  let gwb option mut slice u8 alloc_bytes al. capacity 1024 . .
+  guard is_some gwb. . else return 89 . .
+  let gwu option mut slice u8 alloc_bytes al. capacity 24576 . .
+  guard is_some gwu. . else return 89 . .
 
-  return narrow_wrap u8 (sign_and_check (subslice inbuf 0 got)
-                          (some_value grs) (some_value gwb)
-                          (view_array u64 (some_value gwu))) .
-end
+  return narrow_wrap u8 sign_and_check subslice inbuf. 0 got. .
+                          some_value grs. . some_value gwb. .
+                          view_array u64 some_value gwu. . . . . .
+end .

@@ -5,13 +5,13 @@ rem run: bump_assumed 10
 rem trap: bump_assumed 255
 
 fn bump_checked input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .
 
 fn bump_assumed input a u8 . output u8 .
-  requires assume le a 200 .
+  requires assume le a. 200 . .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .

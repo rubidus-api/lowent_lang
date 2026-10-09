@@ -20,31 +20,31 @@ proc main
   effects io alloc .
 do
   rem 받을 버퍼를 뿌리 얼로케이터에서 얻는다(진입점은 데이터를 직접 못 받아 — 할당하거나 cap args).
-  let dstopt option mut slice u8 alloc_bytes al capacity 16 .
-  guard is_some dstopt else return 1 .
-  let dst mut slice u8 some_value dstopt .
+  let dstopt option mut slice u8 alloc_bytes al. capacity 16 . .
+  guard is_some dstopt. . else return 1 . .
+  let dst mut slice u8 some_value dstopt. . .
 
   rem ★ 소켓 쌍은 **자원**이다(2026-08-15) — `owned` 로 받고 `shut_pair` 로만 닫는다.
   rem   이 줄을 지우거나 아래 `shut_pair` 를 지우면 **컴파일이 안 된다**. 전에는 둘 다 지워도
   rem   조용히 통과했고, 그것이 소켓 누수가 보이지 않던 이유였다.
-  let paired option net.pair net.pair_of k .
-  guard is_some paired else return 2 .
-  var p owned net.pair some_value paired .
-  let fd0 u64 net.pair_a p .
-  let fd1 u64 net.pair_b p .
+  let paired option net.pair net.pair_of k. . .
+  guard is_some paired. . else return 2 . .
+  var p owned net.pair some_value paired. . .
+  let fd0 u64 net.pair_a p. . .
+  let fd1 u64 net.pair_b p. . .
 
   rem fd0 으로 보내고 fd1 에서 받는다(loopback).
-  let sent option u64 net.send_all k fd0 "hello, socket" .
-  guard is_some sent else return 3 .
-  guard eq (some_value sent) 13 else return 5 .
-  let got option u64 net.recv_once k fd1 dst .
-  guard is_some got else return 4 .
-  let n u64 some_value got .
+  let sent option u64 net.send_all k. fd0. "hello, socket" . .
+  guard is_some sent. . else return 3 . .
+  guard eq some_value sent. . 13 . else return 5 . .
+  let got option u64 net.recv_once k. fd1. dst. . .
+  guard is_some got. . else return 4 . .
+  let n u64 some_value got. . .
 
-  let closed result void net.net_error net.shut_pair k p .
-  guard is_ok closed else return 6 .
+  let closed result void net.net_error net.shut_pair k. p. . .
+  guard is_ok closed. . else return 6 . .
 
   rem 받은 바이트를 그대로 낸다 — 종료 코드는 받은 길이.
-  let m u64 write_out out 1 (subslice dst 0 n) .
-  return narrow u8 n .
-end
+  let m u64 write_out out. 1 subslice dst. 0 n. . . .
+  return narrow u8 n. . .
+end .

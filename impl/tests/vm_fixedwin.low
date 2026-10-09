@@ -14,15 +14,15 @@ export proc carve input al cap allocator . output u64 . effects alloc .
 do
   var n u64 0 .
   var i u64 0 .
-  while lt i 10 do
-    let g option mut slice u8 alloc_bytes al capacity 1000 .
-    if is_some g do set n (add n 1) . end
-    set i (add i 1) .
-  end
-  return n .
-end
+  while lt i. 10 . do
+    let g option mut slice u8 alloc_bytes al. capacity 1000 . .
+    if is_some g. . do set n. add n. 1 . . end .
+    set i. add i. 1 . .
+  end .
+  return n. .
+end .
 
 export proc main input al cap allocator . output u8 . effects alloc .
 do
-  return narrow u8 (carve al) .
-end
+  return narrow u8 carve al. . . .
+end .

@@ -22,7 +22,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export def enum aead_error do
   short_workspace .
-end
+end .
 
 
 rem 이 모듈은 혼자 서지 않는다 — 흐름은 chacha 가, 증언은 poly 가 만든다.
@@ -44,31 +44,31 @@ proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8
   rem   같은 상태·같은 바이트로 맞댄다(`impl/tests/vm_poly.low` 의 `same`).
   rem   ☞ `pad` 는 이제 이 프로시저가 안 쓴다 — 그래도 받는다. 호출자의 자리 규약을
   rem     바꾸면 `seal`·`unseal` 의 서명이 따라 바뀌고, 그것은 이 변경이 살 값이 아니다.
-  let z u64 call_builtin poly1305 pst data .
-  guard eq z (len data) else return 0 .
+  let z u64 call_builtin poly1305 pst. data. . .
+  guard eq z. len data. . . else return 0 . .
   return 1 .
-end
+end .
 
 rem ★ 길이 블록: le64(|AAD|) ‖ le64(|CT|) — 꽉 찬 16 바이트 한 블록.
 proc feed_lens input pst mut slice u64 . input alen u64 . input clen u64 . input pad mut slice u8 . output u64 . effects none . do
   var b u64 0 .
-  while lt b 8 do
-    set (idx pad b) (cast u8 (bit_and (shr alen (mul b 8)) 255)) .
-    set (idx pad (add 8 b)) (cast u8 (bit_and (shr clen (mul b 8)) 255)) .
-    set b (add b 1) .
-  end
-  return poly.block pst (subslice pad 0 16) 1 .
-end
+  while lt b. 8 . do
+    set idx pad. b. . cast u8 bit_and shr alen. mul b. 8 . . 255 . . .
+    set idx pad. add 8 b. . . cast u8 bit_and shr clen. mul b. 8 . . 255 . . .
+    set b. add b. 1 . .
+  end .
+  return poly.block pst. subslice pad. 0 16 . 1 . .
+end .
 
 rem ★ 일회용 Poly1305 키: ChaCha20 블록 0 의 앞 32 바이트(RFC 8439 §2.6).
 export proc key_gen input key slice u8 . input nonce slice u8 . input otk mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 aead_error . effects none .
 errors short_workspace . do
-  guard ge (len otk) 32 else return ok 0 .
-  guard ge (len ks) 64 else return error short_workspace .
-  guard ge (len st) 16 else return ok 0 .
-  guard ge (len work) 16 else return error short_workspace .
-  guard eq (len key) 32 else return ok 0 .
-  guard eq (len nonce) 12 else return ok 0 .
+  guard ge len otk. . 32 . else return ok 0 . . .
+  guard ge len ks. . 64 . else return error short_workspace . . .
+  guard ge len st. . 16 . else return ok 0 . . .
+  guard ge len work. . 16 . else return error short_workspace . . .
+  guard eq len key. . 32 . else return ok 0 . . .
+  guard eq len nonce. . 12 . else return ok 0 . . .
   rem ★★★★★ **한 판을 여는 값이 셈보다 컸다** (RFC-0130, 2026-09-24).
   rem   그전에는 여기서 `chacha.keystream` 을 불렀다 — 스무 라운드를 **이 언어로** 도는 판이다.
   rem   그것이 이 모듈이 말하는 **뜻의 정의**이고 지워지지 않지만, 레코드마다 그것을 도는 것은
@@ -76,26 +76,26 @@ errors short_workspace . do
   rem   ☞ 그래서 여기서는 낱말을 부르고, 정의는 골든이 맞대는 자리에 남는다.
   rem 카운터 블록: 앞 4 = 블록 번호 0(리틀엔디언) · 뒤 12 = nonce. `ks` 의 앞 16 을 빌린다.
   var b u64 0 .
-  while lt b 16 do  set (idx ks b) 0 .  set b (add b 1) .  end
+  while lt b. 16 . do  set idx ks. b. . 0 .  set b. add b. 1 . .  end .
   var j u64 0 .
-  while lt j 12 do  set (idx ks (add 4 j)) (idx nonce j) .  set j (add j 1) .  end
+  while lt j. 12 . do  set idx ks. add 4 j. . . idx nonce. j. . .  set j. add j. 1 . .  end .
   var z u64 0 .
-  while lt z 32 do  set (idx otk z) 0 .  set z (add z 1) .  end
-  let n u64 call_builtin chacha20 key (subslice ks 0 16) (subslice otk 0 32) (subslice otk 0 32) .
-  guard eq n 32 else return ok 0 .
-  return ok 32 .
-end
+  while lt z. 32 . do  set idx otk. z. . 0 .  set z. add z. 1 . .  end .
+  let n u64 call_builtin chacha20 key. subslice ks. 0 16 . subslice otk. 0 32 . subslice otk. 0 32 . . .
+  guard eq n. 32 . else return ok 0 . . .
+  return ok 32 . .
+end .
 
 rem ★★ 봉인: 평문 → 암호문 + 16 바이트 태그.
 rem   작업 공간은 전부 호출자가 든다 — otk 32 · pst 10 · st 16 · work 16 · ks 64 · pad 16.
 export proc seal input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . output result u64 aead_error . effects none .
 errors short_workspace . do
-  guard ge (len ct) (len msg) else return ok 0 .
-  guard ge (len tag) 16 else return ok 0 .
-  guard ge (len pad) 16 else return ok 0 .
-  let _u1 result u64 aead_error key_gen key nonce otk st work ks .
-  guard is_ok _u1 else return error short_workspace .
-  guard eq (ok_value _u1) 32 else return ok 0 .
+  guard ge len ct. . len msg. . . else return ok 0 . . .
+  guard ge len tag. . 16 . else return ok 0 . . .
+  guard ge len pad. . 16 . else return ok 0 . . .
+  let _u1 result u64 aead_error key_gen key. nonce. otk. st. work. ks. . .
+  guard is_ok _u1. . else return error short_workspace . . .
+  guard eq ok_value _u1. . 32 . else return ok 0 . . .
   rem ★ 카운터는 **1** 부터다 — 0 은 위에서 Poly1305 키로 이미 썼다.
   rem ★★★★★ **흐름과 누산을 한 바퀴에** (RFC-0128, 2026-09-24).
   rem   그전에는 `chacha.stream` 한 바퀴, `feed` 가 또 한 바퀴였다. 둘 다 빠른데 따로 돌면
@@ -104,19 +104,19 @@ errors short_workspace . do
   rem     몸 안에서 어긋내어 돌리므로 겹쳐 돈다 — **답은 같다**(골든이 잎 둘과 맞댄다).
   rem ★★ **차례는 여기 남는다**: 일회용 키를 먼저 만들고 · 누산기를 세우고 · AAD 를 먼저 먹이고 ·
   rem   길이 블록을 마지막에 먹인다. 낱말이 아는 것은 «흘리고 그 암호문을 누산한다» 뿐이다.
-  guard eq (poly.setup otk pst) 1 else return ok 0 .
-  let a1 u64 feed pst aad pad .
+  guard eq poly.setup otk. pst. . 1 . else return ok 0 . . .
+  let a1 u64 feed pst. aad. pad. . .
   rem 카운터 블록: 앞 4 = 블록 번호 1(리틀엔디언) · 뒤 12 = nonce. `ks` 앞 16 을 빌려 쓴다.
   var cb u64 0 .
-  while lt cb 16 do  set (idx ks cb) 0 .  set cb (add cb 1) .  end
-  set (idx ks 0) 1 .
+  while lt cb. 16 . do  set idx ks. cb. . 0 .  set cb. add cb. 1 . .  end .
+  set idx ks. 0 . 1 .
   var cn u64 0 .
-  while lt cn 12 do  set (idx ks (add 4 cn)) (idx nonce cn) .  set cn (add cn 1) .  end
-  let n u64 call_builtin chacha_poly key (subslice ks 0 16) pst msg ct .
-  guard eq n (len msg) else return ok 0 .
-  let a3 u64 feed_lens pst (len aad) (len msg) pad .
-  return ok (poly.emit pst otk tag) .
-end
+  while lt cn. 12 . do  set idx ks. add 4 cn. . . idx nonce. cn. . .  set cn. add cn. 1 . .  end .
+  let n u64 call_builtin chacha_poly key. subslice ks. 0 16 . pst. msg. ct. . .
+  guard eq n. len msg. . . else return ok 0 . . .
+  let a3 u64 feed_lens pst. len aad. . len msg. . pad. . .
+  return ok poly.emit pst. otk. tag. . . .
+end .
 
 rem ★★ 개봉: 태그를 먼저 확인하고, 맞을 때만 평문을 낸다.
 rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다는 뜻이고, 그것이 여기서 할 수 있는 최선이다.
@@ -125,28 +125,28 @@ rem     나머지를 말없이 지나쳤다 — `hash.sha256_ok`(정확 길이)�
 rem     (2026-09-04 검토 RU). `gcm.decrypt` 도 같은 규칙으로 맞췼다.
 export proc unseal input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . output result u64 aead_error . effects none .
 errors short_workspace . do
-  guard ge (len msg) (len ct) else return ok 0 .
-  guard eq (len tag) 16 else return ok 0 .
-  guard ge (len want) 16 else return ok 0 .
-  guard ge (len pad) 16 else return ok 0 .
-  let _u0 result u64 aead_error key_gen key nonce otk st work ks .
-  guard is_ok _u0 else return error short_workspace .
-  guard eq (ok_value _u0) 32 else return ok 0 .
-  guard eq (poly.setup otk pst) 1 else return ok 0 .
-  let a1 u64 feed pst aad pad .
-  let a2 u64 feed pst ct pad .
-  let a3 u64 feed_lens pst (len aad) (len ct) pad .
-  guard eq (poly.emit pst otk want) 16 else return ok 0 .
+  guard ge len msg. . len ct. . . else return ok 0 . . .
+  guard eq len tag. . 16 . else return ok 0 . . .
+  guard ge len want. . 16 . else return ok 0 . . .
+  guard ge len pad. . 16 . else return ok 0 . . .
+  let _u0 result u64 aead_error key_gen key. nonce. otk. st. work. ks. . .
+  guard is_ok _u0. . else return error short_workspace . . .
+  guard eq ok_value _u0. . 32 . else return ok 0 . . .
+  guard eq poly.setup otk. pst. . 1 . else return ok 0 . . .
+  let a1 u64 feed pst. aad. pad. . .
+  let a2 u64 feed pst. ct. pad. . .
+  let a3 u64 feed_lens pst. len aad. . len ct. . pad. . .
+  guard eq poly.emit pst. otk. want. . 16 . else return ok 0 . . .
   var diff u64 0 .
   var i u64 0 .
-  while lt i 16 do
-    set diff (bit_or diff (bit_xor (cast u64 (idx want i)) (cast u64 (idx tag i)))) .
-    set i (add i 1) .
-  end
-  guard eq diff 0 else return ok 0 .
-  let n_r result u64 chacha.chacha_error chacha.stream key nonce 1 ct msg st work ks .
-  guard is_ok n_r else return error short_workspace .
-  let n u64 ok_value n_r .
-  guard eq n (len ct) else return ok 0 .
-  return ok 1 .
-end
+  while lt i. 16 . do
+    set diff. bit_or diff. bit_xor cast u64 idx want. i. . . cast u64 idx tag. i. . . . . .
+    set i. add i. 1 . .
+  end .
+  guard eq diff. 0 . else return ok 0 . . .
+  let n_r result u64 chacha.chacha_error chacha.stream key. nonce. 1 ct. msg. st. work. ks. . .
+  guard is_ok n_r. . else return error short_workspace . . .
+  let n u64 ok_value n_r. . .
+  guard eq n. len ct. . . else return ok 0 . . .
+  return ok 1 . .
+end .

@@ -16,752 +16,752 @@ use fmt .
 
 fn max_entries output u64 . do
   return 4096 .
-end
+end .
 
 fn max_names output u64 . do
   return 262144 .
-end
+end .
 
 fn max_pend output u64 . do
   return 4096 .
-end
+end .
 
 rem ── 바이트 도움(순수 fn — 파일 잎을 부르는 proc 은 느린 길에 있으므로 바이트 고리는 여기에 둔다)
 
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
-  guard eq (len a) (len b) else return false .
-  repeat i u64 (len a) do
-    guard eq (idx a i) (idx b i) else return false .
-  end
+  guard eq len a. . len b. . . else return false . .
+  repeat i u64 len a. . do
+    guard eq idx a. i. . idx b. i. . . else return false . .
+  end .
   return true .
-end
+end .
 
 fn less_bytes input a slice u8 . input b slice u8 . output bool . do
-  repeat i u64 (min (len a) (len b)) do
-    if ne (idx a i) (idx b i) do
-      return lt (idx a i) (idx b i) .
-    end
-  end
-  return lt (len a) (len b) .
-end
+  repeat i u64 min len a. . len b. . . do
+    if ne idx a. i. . idx b. i. . . do
+      return lt idx a. i. . idx b. i. . . .
+    end .
+  end .
+  return lt len a. . len b. . . .
+end .
 
 fn all_zero input b slice u8 . output bool . do
-  for c b do
-    guard eq c 0 else return false .
-  end
+  for c b. do
+    guard eq c. 0 . else return false . .
+  end .
   return true .
-end
+end .
 
 rem 헤더 체크섬: 512 바이트의 합, 체크섬 칸(148..156)은 빈칸 여덟으로 센다.
 fn header_sum input h slice u8 . output u64 .
-  requires ge (len h) 512 .
+  requires ge len h. . 512 . .
 do
   var s u64 0 .
   repeat i u64 512 do
-    if and (ge i 148) (lt i 156) do
-      set s (add s 32) .
+    if and ge i. 148 . lt i. 156 . . do
+      set s. add s. 32 . .
     end else do
-      set s (add s (widen u64 (idx h i))) .
-    end
-  end
-  return s .
-end
+      set s. add s. widen u64 idx h. i. . . . .
+    end .
+  end .
+  return s. .
+end .
 
 rem 팔진 숫자 칸 읽기(앞 빈칸 · 뒤 NUL/빈칸 허용). 틀리면 18446744073709551615.
 fn parse_octal input f slice u8 . output u64 . do
   let bad u64 18446744073709551615 .
   var i u64 0 .
-  while and (lt i (len f)) (eq (idx f i) ' ') do
-    set i (add i 1) .
-  end
+  while and lt i. len f. . . eq idx f. i. . ' ' . . do
+    set i. add i. 1 . .
+  end .
   var v u64 0 .
   var digits u64 0 .
-  while lt i (len f) do
-    let c u8 idx f i .
-    if or (eq c 0) (eq c ' ') do
+  while lt i. len f. . . do
+    let c u8 idx f. i. . .
+    if or eq c. 0 . eq c. ' ' . . do
       break .
-    end
-    guard and (ge c '0') (le c '7') else return bad .
-    guard lt v 1152921504606846976 else return bad .
-    set v (add (mul v 8) (sub c '0')) .
-    set digits (add digits 1) .
-    set i (add i 1) .
-  end
-  guard gt digits 0 else return bad .
-  return v .
-end
+    end .
+    guard and ge c. '0' . le c. '7' . . else return bad. . .
+    guard lt v. 1152921504606846976 . else return bad. . .
+    set v. add mul v. 8 . sub c. '0' . . .
+    set digits. add digits. 1 . .
+    set i. add i. 1 . .
+  end .
+  guard gt digits. 0 . else return bad. . .
+  return v. .
+end .
 
 rem width 칸에 팔진수를 0 으로 채워 쓰고 끝에 NUL 하나(width-1 자리 숫자).
 proc put_octal input h mut slice u8 . input at u64 . input width u64 . input v u64 . output bool . effects none .
-  requires ge width 2 .
+  requires ge width. 2 . .
 do
-  guard le (add at width) (len h) else return false .
-  var x u64 v .
-  let digits u64 sub width 1 .
-  repeat k u64 digits do
-    set (idx h (add at (sub (sub digits 1) k))) (narrow u8 (add 48 (bit_and x 7))) .
-    set x (shr x 3) .
-  end
-  set (idx h (add at digits)) 0 .
-  return eq x 0 .
-end
+  guard le add at. width. . len h. . . else return false . .
+  var x u64 v. .
+  let digits u64 sub width. 1 . .
+  repeat k u64 digits. do
+    set idx h. add at. sub sub digits. 1 . k. . . . narrow u8 add 48 bit_and x. 7 . . . .
+    set x. shr x. 3 . .
+  end .
+  set idx h. add at. digits. . . 0 .
+  return eq x. 0 . .
+end .
 
 fn ends_slash input s slice u8 . output bool . do
-  guard gt (len s) 0 else return false .
-  return eq (idx s (sub (len s) 1)) '/' .
-end
+  guard gt len s. . 0 . else return false . .
+  return eq idx s. sub len s. . 1 . . '/' . .
+end .
 
 rem 묶음 안 경로가 안전한가: 비지 않고 · `/` 로 시작하지 않고 · NUL 이 없고 · `..` 마디가 없다.
 fn safe_name input s slice u8 . output bool . do
-  guard gt (len s) 0 else return false .
-  guard ne (idx s 0) '/' else return false .
+  guard gt len s. . 0 . else return false . .
+  guard ne idx s. 0 . '/' . else return false . .
   var start u64 0 .
-  repeat i u64 (add (len s) 1) do
-    let at_end bool eq i (len s) .
-    var cut bool at_end .
-    if not at_end do
-      guard ne (idx s i) 0 else return false .
-      set cut (eq (idx s i) '/') .
-    end
-    if cut do
-      if eq (sub i start) 2 do
-        guard not (and (eq (idx s start) '.') (eq (idx s (add start 1)) '.')) else return false .
-      end
-      set start (add i 1) .
-    end
-  end
+  repeat i u64 add len s. . 1 . do
+    let at_end bool eq i. len s. . . .
+    var cut bool at_end. .
+    if not at_end. . do
+      guard ne idx s. i. . 0 . else return false . .
+      set cut. eq idx s. i. . '/' . .
+    end .
+    if cut. do
+      if eq sub i. start. . 2 . do
+        guard not and eq idx s. start. . '.' . eq idx s. add start. 1 . . '.' . . . else return false . .
+      end .
+      set start. add i. 1 . .
+    end .
+  end .
   return true .
-end
+end .
 
 rem ── 헤더 만들기. 이름이 100 바이트를 넘으면 `/` 에서 갈라 앞(155 까지)을 prefix 칸에 둔다. 못 가르면 거짓.
 proc make_header input h mut slice u8 . input name slice u8 . input size u64 . input is_dir bool . output bool . effects none .
-  requires ge (len h) 512 .
+  requires ge len h. . 512 . .
 do
-  for z mut h do
-    set z 0 .
-  end
+  for z mut h. do
+    set z. 0 .
+  end .
   var cut u64 0 .
   var has_cut bool false .
-  if gt (len name) 100 do
-    repeat i u64 (len name) do
-      if and (eq (idx name i) '/') (and (le i 155) (and (le (sub (sub (len name) i) 1) 100) (lt (add i 1) (len name)))) do
-        set cut i .
-        set has_cut true .
+  if gt len name. . 100 . do
+    repeat i u64 len name. . do
+      if and eq idx name. i. . '/' . and le i. 155 . and le sub sub len name. . i. . 1 . 100 . lt add i. 1 . len name. . . . . . do
+        set cut. i. .
+        set has_cut. true .
         break .
-      end
-    end
-    guard has_cut else return false .
-  end
+      end .
+    end .
+    guard has_cut. else return false . .
+  end .
   var name_at u64 0 .
-  if has_cut do
-    repeat p u64 cut do
-      set (idx h (add 345 p)) (idx name p) .
-    end
-    set name_at (add cut 1) .
-  end
-  repeat n2 u64 (sub (len name) name_at) do
-    set (idx h n2) (idx name (add name_at n2)) .
-  end
+  if has_cut. do
+    repeat p u64 cut. do
+      set idx h. add 345 p. . . idx name. p. . .
+    end .
+    set name_at. add cut. 1 . .
+  end .
+  repeat n2 u64 sub len name. . name_at. . do
+    set idx h. n2. . idx name. add name_at. n2. . . .
+  end .
   var mode u64 420 .
-  if is_dir do
-    set mode 493 .
-  end
-  guard put_octal h 100 8 mode else return false .
-  guard put_octal h 108 8 0 else return false .
-  guard put_octal h 116 8 0 else return false .
-  guard put_octal h 124 12 size else return false .
-  guard put_octal h 136 12 0 else return false .
-  set (idx h 156) '0' .
-  if is_dir do
-    set (idx h 156) '5' .
-  end
+  if is_dir. do
+    set mode. 493 .
+  end .
+  guard put_octal h. 100 8 mode. . else return false . .
+  guard put_octal h. 108 8 0 . else return false . .
+  guard put_octal h. 116 8 0 . else return false . .
+  guard put_octal h. 124 12 size. . else return false . .
+  guard put_octal h. 136 12 0 . else return false . .
+  set idx h. 156 . '0' .
+  if is_dir. do
+    set idx h. 156 . '5' .
+  end .
   let magic slice u8 "ustar" .
   repeat m u64 5 do
-    set (idx h (add 257 m)) (idx magic m) .
-  end
-  set (idx h 263) '0' .
-  set (idx h 264) '0' .
-  guard put_octal h 329 8 0 else return false .
-  guard put_octal h 337 8 0 else return false .
+    set idx h. add 257 m. . . idx magic. m. . .
+  end .
+  set idx h. 263 . '0' .
+  set idx h. 264 . '0' .
+  guard put_octal h. 329 8 0 . else return false . .
+  guard put_octal h. 337 8 0 . else return false . .
   repeat sp u64 8 do
-    set (idx h (add 148 sp)) ' ' .
-  end
-  guard put_octal h 148 7 (header_sum h) else return false .
-  set (idx h 155) ' ' .
+    set idx h. add 148 sp. . . ' ' .
+  end .
+  guard put_octal h. 148 7 header_sum h. . . else return false . .
+  set idx h. 155 . ' ' .
   return true .
-end
+end .
 
 rem 헤더를 읽어 이름을 nb 에 짓는다(prefix + "/" + name). 이름 길이를 낸다. 0 = 잘못된 헤더.
 proc header_name input h slice u8 . input nb mut slice u8 . output u64 . effects none .
-  requires ge (len h) 512 .
+  requires ge len h. . 512 . .
 do
   var pl u64 0 .
-  while and (lt pl 155) (ne (idx h (add 345 pl)) 0) do
-    set pl (add pl 1) .
-  end
+  while and lt pl. 155 . ne idx h. add 345 pl. . . 0 . . do
+    set pl. add pl. 1 . .
+  end .
   var nl u64 0 .
-  while and (lt nl 100) (ne (idx h nl) 0) do
-    set nl (add nl 1) .
-  end
-  guard gt nl 0 else return 0 .
+  while and lt nl. 100 . ne idx h. nl. . 0 . . do
+    set nl. add nl. 1 . .
+  end .
+  guard gt nl. 0 . else return 0 . .
   var at u64 0 .
-  guard le (add (add pl nl) 1) (len nb) else return 0 .
-  if gt pl 0 do
-    repeat p u64 pl do
-      set (idx nb p) (idx h (add 345 p)) .
-    end
-    set (idx nb pl) '/' .
-    set at (add pl 1) .
-  end
-  repeat n2 u64 nl do
-    set (idx nb (add at n2)) (idx h n2) .
-  end
-  return add at nl .
-end
+  guard le add add pl. nl. . 1 . len nb. . . else return 0 . .
+  if gt pl. 0 . do
+    repeat p u64 pl. do
+      set idx nb. p. . idx h. add 345 p. . . .
+    end .
+    set idx nb. pl. . '/' .
+    set at. add pl. 1 . .
+  end .
+  repeat n2 u64 nl. do
+    set idx nb. add at. n2. . . idx h. n2. . .
+  end .
+  return add at. nl. . .
+end .
 
 rem 헤더가 ustar 인가(\"ustar\\0\" + \"00\" 또는 GNU 의 \"ustar  \\0\").
 fn is_ustar input h slice u8 . output bool .
-  requires ge (len h) 512 .
+  requires ge len h. . 512 . .
 do
-  guard same_bytes (subslice h 257 262) "ustar" else return false .
-  return or (and (eq (idx h 262) 0) (and (eq (idx h 263) '0') (eq (idx h 264) '0'))) (and (eq (idx h 262) ' ') (eq (idx h 263) ' ')) .
-end
+  guard same_bytes subslice h. 257 262 . "ustar" . else return false . .
+  return or and eq idx h. 262 . 0 . and eq idx h. 263 . '0' . eq idx h. 264 . '0' . . . and eq idx h. 262 . ' ' . eq idx h. 263 . ' ' . . . .
+end .
 
 rem ── 출력
 
 proc say input out cap io . input d u64 . input a slice u8 . input b slice u8 . output void . effects io . do
-  let w1 option u64 outbuf.write_all out d a .
-  let w2 option u64 outbuf.write_all out d b .
-  let w3 option u64 outbuf.write_all out d "\n" .
+  let w1 option u64 outbuf.write_all out. d. a. . .
+  let w2 option u64 outbuf.write_all out. d. b. . .
+  let w3 option u64 outbuf.write_all out. d. "\n" . .
   return .
-end
+end .
 
 fn usage_text output slice u8 . do
   return "usage: lowpack create <archive.tar> <path>... | list <archive.tar> | check <archive.tar> | extract <archive.tar> <dir>\n" .
-end
+end .
 
 rem ── 파일 도움
 
 rem buf 를 가득 채울 때까지 읽는다. 읽은 수(끝이면 그보다 작다). 실패면 st[0] = 4.
 proc read_full input fs cap file_system . input h files.handle . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
-  requires ge (len st) 1 .
+  requires ge len st. . 1 . .
 do
   var got u64 0 .
-  while lt got (len buf) do
-    let r result (option u64) files.file_error files.read fs h (subslice buf got (len buf)) .
-    guard is_ok r else do
-      set (idx st 0) 4 .
-      return got .
-    end
-    let n u64 value_or (ok_value r) 0 .
-    guard gt n 0 else return got .
-    set got (add got n) .
-  end
-  return got .
-end
+  while lt got. len buf. . . do
+    let r result (option u64) files.file_error files.read fs. h. subslice buf. got. len buf. . . . .
+    guard is_ok r. . else do
+      set idx st. 0 . 4 .
+      return got. .
+    end .
+    let n u64 value_or ok_value r. . 0 . .
+    guard gt n. 0 . else return got. . .
+    set got. add got. n. . .
+  end .
+  return got. .
+end .
 
 rem 끝까지 쓴다. 실패면 거짓.
 proc write_full input fs cap file_system . input h files.handle . input buf slice u8 . output bool . effects io . do
   var put u64 0 .
   var spins u64 0 .
-  while lt put (len buf) do
-    let r result u64 files.file_error files.write fs h (subslice buf put (len buf)) .
-    guard is_ok r else return false .
-    let n u64 ok_value r .
-    guard gt n 0 else return false .
-    set put (add put n) .
-    set spins (add spins 1) .
-    guard le spins (len buf) else return false .
-  end
+  while lt put. len buf. . . do
+    let r result u64 files.file_error files.write fs. h. subslice buf. put. len buf. . . . .
+    guard is_ok r. . else return false . .
+    let n u64 ok_value r. . .
+    guard gt n. 0 . else return false . .
+    set put. add put. n. . .
+    set spins. add spins. 1 . .
+    guard le spins. len buf. . . else return false . .
+  end .
   return true .
-end
+end .
 
 rem base + "/" + name 을 buf 에(base 가 비었으면 name 만). 길이를 st[0] 에. 자리가 모자라면 거짓.
 proc join_path input base slice u8 . input name slice u8 . input buf mut slice u8 . input st mut slice u64 . output bool . effects none .
-  requires ge (len st) 1 .
+  requires ge len st. . 1 . .
 do
   var head u64 0 .
-  if gt (len base) 0 do
-    set head (add (len base) 1) .
-  end
-  let total u64 add head (len name) .
-  guard le total (len buf) else return false .
-  repeat bi u64 (len base) do
-    set (idx buf bi) (idx base bi) .
-  end
-  if gt head 0 do
-    set (idx buf (len base)) '/' .
-  end
-  repeat ni u64 (len name) do
-    set (idx buf (add head ni)) (idx name ni) .
-  end
-  set (idx st 0) total .
+  if gt len base. . 0 . do
+    set head. add len base. . 1 . .
+  end .
+  let total u64 add head. len name. . . .
+  guard le total. len buf. . . else return false . .
+  repeat bi u64 len base. . do
+    set idx buf. bi. . idx base. bi. . .
+  end .
+  if gt head. 0 . do
+    set idx buf. len base. . . '/' .
+  end .
+  repeat ni u64 len name. . do
+    set idx buf. add head. ni. . . idx name. ni. . .
+  end .
+  set idx st. 0 . total. .
   return true .
-end
+end .
 
 fn name_of input arena slice u8 . input offs slice u64 . input lens slice u64 . input i u64 . output slice u8 . do
-  return subslice arena (idx offs i) (add (idx offs i) (idx lens i)) .
-end
+  return subslice arena. idx offs. i. . add idx offs. i. . idx lens. i. . . . .
+end .
 
 proc sort_names input arena slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input n u64 . output void . effects none .
-  requires le n (len offs) .
-  requires le n (len lens) .
-  requires le n (len tmpo) .
-  requires le n (len tmpl) .
+  requires le n. len offs. . . .
+  requires le n. len lens. . . .
+  requires le n. len tmpo. . . .
+  requires le n. len tmpl. . . .
 do
-  cycle w u64 1 while lt w n next mul w 2 do
-    cycle lo u64 0 while lt lo n next add lo (mul w 2) do
-      let mid u64 min (add lo w) n .
-      let hi u64 min (add lo (mul w 2)) n .
-      var ia u64 lo .
-      var ib u64 mid .
-      cycle k u64 lo while lt k hi next add k 1 do
-        var take_b bool ge ia mid .
-        if and (lt ia mid) (lt ib hi) do
-          set take_b (less_bytes (name_of arena offs lens ib) (name_of arena offs lens ia)) .
-        end
-        if take_b do
-          set (idx tmpo k) (idx offs ib) .
-          set (idx tmpl k) (idx lens ib) .
-          set ib (add ib 1) .
+  cycle w u64 1 while lt w. n. . next mul w. 2 . do
+    cycle lo u64 0 while lt lo. n. . next add lo. mul w. 2 . . do
+      let mid u64 min add lo. w. . n. . .
+      let hi u64 min add lo. mul w. 2 . . n. . .
+      var ia u64 lo. .
+      var ib u64 mid. .
+      cycle k u64 lo. while lt k. hi. . next add k. 1 . do
+        var take_b bool ge ia. mid. . .
+        if and lt ia. mid. . lt ib. hi. . . do
+          set take_b. less_bytes name_of arena. offs. lens. ib. . name_of arena. offs. lens. ia. . . .
+        end .
+        if take_b. do
+          set idx tmpo. k. . idx offs. ib. . .
+          set idx tmpl. k. . idx lens. ib. . .
+          set ib. add ib. 1 . .
         end else do
-          set (idx tmpo k) (idx offs ia) .
-          set (idx tmpl k) (idx lens ia) .
-          set ia (add ia 1) .
-        end
-      end
-      cycle m u64 lo while lt m hi next add m 1 do
-        set (idx offs m) (idx tmpo m) .
-        set (idx lens m) (idx tmpl m) .
-      end
-    end
-  end
+          set idx tmpo. k. . idx offs. ia. . .
+          set idx tmpl. k. . idx lens. ia. . .
+          set ia. add ia. 1 . .
+        end .
+      end .
+      cycle m u64 lo. while lt m. hi. . next add m. 1 . do
+        set idx offs. m. . idx tmpo. m. . .
+        set idx lens. m. . idx tmpl. m. . .
+      end .
+    end .
+  end .
   return .
-end
+end .
 
 fn is_dot_name input nm slice u8 . output bool . do
-  guard eq (idx nm 0) '.' else return false .
-  return or (eq (len nm) 1) (and (eq (len nm) 2) (eq (idx nm 1) '.')) .
-end
+  guard eq idx nm. 0 . '.' . else return false . .
+  return or eq len nm. . 1 . and eq len nm. . 2 . eq idx nm. 1 . '.' . . . .
+end .
 
 rem 한 디렉터리의 이름을 모아 정렬한다. 개수를 내고 상태를 st[0] 에(0 됐다 · 3 한도 · 4 입출력).
 proc list_dir input fs cap file_system . input path slice u8 . input namebuf mut slice u8 . input arena mut slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input st mut slice u64 . output u64 . effects io .
-  requires ge (len st) 1 .
+  requires ge len st. . 1 . .
 do
-  set (idx st 0) 0 .
-  let opened result files.dir_handle files.file_error files.open_dir fs path .
-  guard is_ok opened else do
-    set (idx st 0) 4 .
+  set idx st. 0 . 0 .
+  let opened result files.dir_handle files.file_error files.open_dir fs. path. . .
+  guard is_ok opened. . else do
+    set idx st. 0 . 4 .
     return 0 .
-  end
-  var dh owned files.dir_handle ok_value opened .
+  end .
+  var dh owned files.dir_handle ok_value opened. . .
   var n u64 0 .
   var used u64 0 .
   while true do
-    let r result (option u64) files.file_error files.read_dir fs dh namebuf .
-    guard is_ok r else do
-      set (idx st 0) 4 .
+    let r result (option u64) files.file_error files.read_dir fs. dh. namebuf. . .
+    guard is_ok r. . else do
+      set idx st. 0 . 4 .
       break .
-    end
-    let got option u64 ok_value r .
-    guard is_some got else break .
-    let nl u64 some_value got .
-    guard and (gt nl 0) (le nl (len namebuf)) else break .
-    if is_dot_name (subslice namebuf 0 nl) do
+    end .
+    let got option u64 ok_value r. . .
+    guard is_some got. . else break . .
+    let nl u64 some_value got. . .
+    guard and gt nl. 0 . le nl. len namebuf. . . . else break . .
+    if is_dot_name subslice namebuf. 0 nl. . . do
       continue .
-    end
-    guard and (lt n (max_entries)) (and (le (add used nl) (max_names)) (and (lt n (len offs)) (and (lt n (len lens)) (le (add used nl) (len arena))))) else do
-      set (idx st 0) 3 .
+    end .
+    guard and lt n. max_entries. . and le add used. nl. . max_names. . and lt n. len offs. . . and lt n. len lens. . . le add used. nl. . len arena. . . . . . . else do
+      set idx st. 0 . 3 .
       break .
-    end
-    set (idx offs n) used .
-    set (idx lens n) nl .
-    repeat c u64 nl do
-      set (idx arena (add used c)) (idx namebuf c) .
-    end
-    set used (add used nl) .
-    set n (add n 1) .
-  end
-  let closed result void files.file_error files.close_dir fs dh .
-  drop closed .
-  guard and (le n (len offs)) (and (le n (len lens)) (and (le n (len tmpo)) (le n (len tmpl)))) else return n .
-  sort_names arena offs lens tmpo tmpl n .
-  return n .
-end
+    end .
+    set idx offs. n. . used. .
+    set idx lens. n. . nl. .
+    repeat c u64 nl. do
+      set idx arena. add used. c. . . idx namebuf. c. . .
+    end .
+    set used. add used. nl. . .
+    set n. add n. 1 . .
+  end .
+  let closed result void files.file_error files.close_dir fs. dh. . .
+  drop closed. .
+  guard and le n. len offs. . . and le n. len lens. . . and le n. len tmpo. . . le n. len tmpl. . . . . . else return n. . .
+  sort_names arena. offs. lens. tmpo. tmpl. n. .
+  return n. .
+end .
 
 rem ── create: 파일 하나를 담는다(헤더 + 내용 + 512 맞춤). 내는 수: 0 됐다 · 1 크기가 바뀌었다 · 3 이름이 길다 · 4 입출력.
 proc add_file input fs cap file_system . input ar files.handle . input src slice u8 . input name slice u8 . input hdr mut slice u8 . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
-  requires ge (len st) 1 .
-  requires ge (len hdr) 512 .
-  requires ge (len buf) 512 .
+  requires ge len st. . 1 . .
+  requires ge len hdr. . 512 . .
+  requires ge len buf. . 512 . .
 do
-  let opened result files.handle files.file_error files.open fs src 0 .
-  guard is_ok opened else return 4 .
-  var h owned files.handle ok_value opened .
-  let endr result u64 files.file_error files.seek_to fs h 0 2 .
-  let back result u64 files.file_error files.seek_to fs h 0 0 .
+  let opened result files.handle files.file_error files.open fs. src. 0 . .
+  guard is_ok opened. . else return 4 . .
+  var h owned files.handle ok_value opened. . .
+  let endr result u64 files.file_error files.seek_to fs. h. 0 2 . .
+  let back result u64 files.file_error files.seek_to fs. h. 0 0 . .
   var code u64 0 .
-  if or (not (is_ok endr)) (not (is_ok back)) do
-    set code 4 .
-  end
+  if or not is_ok endr. . . not is_ok back. . . . do
+    set code. 4 .
+  end .
   var size u64 0 .
-  if eq code 0 do
-    set size (ok_value endr) .
-    if not (make_header hdr name size false) do
-      set code 3 .
-    end
-  end
-  if eq code 0 do
-    if not (write_full fs ar (subslice hdr 0 512)) do
-      set code 4 .
-    end
-  end
-  var left u64 size .
-  while and (eq code 0) (gt left 0) do
-    let want u64 min left (len buf) .
-    set (idx st 0) 0 .
-    let got u64 read_full fs h (subslice buf 0 want) st .
-    if or (eq (idx st 0) 4) (ne got want) do
-      set code 1 .
+  if eq code. 0 . do
+    set size. ok_value endr. . .
+    if not make_header hdr. name. size. false . . do
+      set code. 3 .
+    end .
+  end .
+  if eq code. 0 . do
+    if not write_full fs. ar. subslice hdr. 0 512 . . . do
+      set code. 4 .
+    end .
+  end .
+  var left u64 size. .
+  while and eq code. 0 . gt left. 0 . . do
+    let want u64 min left. len buf. . . .
+    set idx st. 0 . 0 .
+    let got u64 read_full fs. h. subslice buf. 0 want. . st. . .
+    if or eq idx st. 0 . 4 . ne got. want. . . do
+      set code. 1 .
       break .
-    end
-    if not (write_full fs ar (subslice buf 0 want)) do
-      set code 4 .
+    end .
+    if not write_full fs. ar. subslice buf. 0 want. . . . do
+      set code. 4 .
       break .
-    end
-    set left (sub left want) .
-  end
-  if eq code 0 do
-    let pad u64 mod (sub 512 (mod size 512)) 512 .
-    repeat z u64 pad do
-      set (idx buf z) 0 .
-    end
-    if gt pad 0 do
-      if not (write_full fs ar (subslice buf 0 pad)) do
-        set code 4 .
-      end
-    end
-  end
-  let closed result void files.file_error files.close fs h .
-  drop closed .
-  return code .
-end
+    end .
+    set left. sub left. want. . .
+  end .
+  if eq code. 0 . do
+    let pad u64 mod sub 512 mod size. 512 . . 512 . .
+    repeat z u64 pad. do
+      set idx buf. z. . 0 .
+    end .
+    if gt pad. 0 . do
+      if not write_full fs. ar. subslice buf. 0 pad. . . . do
+        set code. 4 .
+      end .
+    end .
+  end .
+  let closed result void files.file_error files.close fs. h. . .
+  drop closed. .
+  return code. .
+end .
 
 rem 디렉터리 헤더 하나.
 proc add_dir input fs cap file_system . input ar files.handle . input name slice u8 . input hdr mut slice u8 . input nb mut slice u8 . input st mut slice u64 . output u64 . effects io .
-  requires ge (len hdr) 512 .
-  requires ge (len st) 1 .
+  requires ge len hdr. . 512 . .
+  requires ge len st. . 1 . .
 do
-  guard join_path name "" nb st else return 3 .
-  let n u64 idx st 0 .
-  guard lt n (len nb) else return 3 .
-  set (idx nb (sub n 1)) '/' .
-  guard make_header hdr (subslice nb 0 n) 0 true else return 3 .
-  guard write_full fs ar (subslice hdr 0 512) else return 4 .
+  guard join_path name. "" nb. st. . else return 3 . .
+  let n u64 idx st. 0 . .
+  guard lt n. len nb. . . else return 3 . .
+  set idx nb. sub n. 1 . . '/' .
+  guard make_header hdr. subslice nb. 0 n. . 0 true . else return 3 . .
+  guard write_full fs. ar. subslice hdr. 0 512 . . else return 4 . .
   return 0 .
-end
+end .
 
 rem create 의 몸. 길(인자)마다: 파일이면 담고, 디렉터리면 헤더를 쓰고 대기 목록에 넣어 안의 것을 이름순으로 담는다.
 proc do_create input fs cap file_system . input out cap io . input a cap args . input ar files.handle . input mem mut slice u8 . output u8 . effects io . do
-  let hdr mut slice u8 subslice mem 0 512 .
-  let buf mut slice u8 subslice mem 512 66048 .
-  let namebuf mut slice u8 subslice mem 66048 70144 .
-  let arena mut slice u8 subslice mem 70144 332288 .
-  let offs mut slice u64 view_array u64 (subslice mem 332288 365056) .
-  let lens mut slice u64 view_array u64 (subslice mem 365056 397824) .
-  let tmpo mut slice u64 view_array u64 (subslice mem 397824 430592) .
-  let tmpl mut slice u64 view_array u64 (subslice mem 430592 463360) .
-  let pend mut slice u8 subslice mem 463360 725504 .
-  let poffs mut slice u64 view_array u64 (subslice mem 725504 758272) .
-  let plens mut slice u64 view_array u64 (subslice mem 758272 791040) .
-  let child mut slice u8 subslice mem 791040 795136 .
-  let nb mut slice u8 subslice mem 795136 799232 .
-  let st mut slice u64 view_array u64 (subslice mem 799232 799296) .
+  let hdr mut slice u8 subslice mem. 0 512 . .
+  let buf mut slice u8 subslice mem. 512 66048 . .
+  let namebuf mut slice u8 subslice mem. 66048 70144 . .
+  let arena mut slice u8 subslice mem. 70144 332288 . .
+  let offs mut slice u64 view_array u64 subslice mem. 332288 365056 . . .
+  let lens mut slice u64 view_array u64 subslice mem. 365056 397824 . . .
+  let tmpo mut slice u64 view_array u64 subslice mem. 397824 430592 . . .
+  let tmpl mut slice u64 view_array u64 subslice mem. 430592 463360 . . .
+  let pend mut slice u8 subslice mem. 463360 725504 . .
+  let poffs mut slice u64 view_array u64 subslice mem. 725504 758272 . . .
+  let plens mut slice u64 view_array u64 subslice mem. 758272 791040 . . .
+  let child mut slice u8 subslice mem. 791040 795136 . .
+  let nb mut slice u8 subslice mem. 795136 799232 . .
+  let st mut slice u64 view_array u64 subslice mem. 799232 799296 . . .
   var ai u64 2 .
   while true do
-    let p0 option slice u8 arg a ai .
-    guard is_some p0 else break .
-    set ai (add ai 1) .
-    var root slice u8 some_value p0 .
-    while and (gt (len root) 1) (ends_slash root) do
-      set root (subslice root 0 (sub (len root) 1)) .
-    end
-    guard safe_name root else do
-      say out 2 "lowpack: refusing an absolute path or `..`: " root .
+    let p0 option slice u8 arg a. ai. . .
+    guard is_some p0. . else break . .
+    set ai. add ai. 1 . .
+    var root slice u8 some_value p0. . .
+    while and gt len root. . 1 . ends_slash root. . . do
+      set root. subslice root. 0 sub len root. . 1 . . .
+    end .
+    guard safe_name root. . else do
+      say out. 2 "lowpack: refusing an absolute path or `..`: " root. .
       return 1 .
-    end
-    let kind u64 value_or (files.type_of fs root) 9 .
-    let link u64 value_or (files.link_type_of fs root) 9 .
-    guard ne link 3 else do
-      say out 2 "lowpack: symbolic links are not stored: " root .
+    end .
+    let kind u64 value_or files.type_of fs. root. . 9 . .
+    let link u64 value_or files.link_type_of fs. root. . 9 . .
+    guard ne link. 3 . else do
+      say out. 2 "lowpack: symbolic links are not stored: " root. .
       return 1 .
-    end
-    if eq kind 0 do
-      let c0 u64 add_file fs ar root root hdr buf st .
-      guard eq c0 0 else do
-        say out 2 "lowpack: cannot store " root .
-        return narrow u8 c0 .
-      end
+    end .
+    if eq kind. 0 . do
+      let c0 u64 add_file fs. ar. root. root. hdr. buf. st. . .
+      guard eq c0. 0 . else do
+        say out. 2 "lowpack: cannot store " root. .
+        return narrow u8 c0. . .
+      end .
       continue .
-    end
-    guard eq kind 1 else do
-      say out 2 "lowpack: not a regular file or directory: " root .
+    end .
+    guard eq kind. 1 . else do
+      say out. 2 "lowpack: not a regular file or directory: " root. .
       return 1 .
-    end
-    let c1 u64 add_dir fs ar root hdr nb st .
-    guard eq c1 0 else do
-      say out 2 "lowpack: cannot store (a name longer than ustar allows?) " root .
-      return narrow u8 c1 .
-    end
+    end .
+    let c1 u64 add_dir fs. ar. root. hdr. nb. st. . .
+    guard eq c1. 0 . else do
+      say out. 2 "lowpack: cannot store (a name longer than ustar allows?) " root. .
+      return narrow u8 c1. . .
+    end .
     rem 대기 목록 — 꺼낸 경로의 자리부터 덮어쓰므로 늘 마지막에 넣은 것을 먼저 꺼낸다.
-    guard le (len root) (len pend) else return 3 .
-    repeat r u64 (len root) do
-      set (idx pend r) (idx root r) .
-    end
-    set (idx poffs 0) 0 .
-    set (idx plens 0) (len root) .
+    guard le len root. . len pend. . . else return 3 . .
+    repeat r u64 len root. . do
+      set idx pend. r. . idx root. r. . .
+    end .
+    set idx poffs. 0 . 0 .
+    set idx plens. 0 . len root. . .
     var np u64 1 .
-    while gt np 0 do
-      set np (sub np 1) .
-      let ro u64 idx poffs np .
-      let dir slice u8 subslice pend ro (add ro (idx plens np)) .
-      var pused u64 ro .
-      let n u64 list_dir fs dir namebuf arena offs lens tmpo tmpl st .
-      guard eq (idx st 0) 0 else do
-        say out 2 "lowpack: cannot list " dir .
-        return narrow u8 (idx st 0) .
-      end
-      repeat e u64 n do
-        guard join_path dir (name_of arena offs lens e) child st else return 3 .
-        let cp slice u8 subslice child 0 (idx st 0) .
-        let ck u64 value_or (files.type_of fs cp) 9 .
-        let cl u64 value_or (files.link_type_of fs cp) 9 .
-        guard ne cl 3 else do
-          say out 2 "lowpack: symbolic links are not stored: " cp .
+    while gt np. 0 . do
+      set np. sub np. 1 . .
+      let ro u64 idx poffs. np. . .
+      let dir slice u8 subslice pend. ro. add ro. idx plens. np. . . . .
+      var pused u64 ro. .
+      let n u64 list_dir fs. dir. namebuf. arena. offs. lens. tmpo. tmpl. st. . .
+      guard eq idx st. 0 . 0 . else do
+        say out. 2 "lowpack: cannot list " dir. .
+        return narrow u8 idx st. 0 . . .
+      end .
+      repeat e u64 n. do
+        guard join_path dir. name_of arena. offs. lens. e. . child. st. . else return 3 . .
+        let cp slice u8 subslice child. 0 idx st. 0 . . .
+        let ck u64 value_or files.type_of fs. cp. . 9 . .
+        let cl u64 value_or files.link_type_of fs. cp. . 9 . .
+        guard ne cl. 3 . else do
+          say out. 2 "lowpack: symbolic links are not stored: " cp. .
           return 1 .
-        end
-        if eq ck 0 do
-          let c2 u64 add_file fs ar cp cp hdr buf st .
-          guard eq c2 0 else do
-            say out 2 "lowpack: cannot store " cp .
-            return narrow u8 c2 .
-          end
-        end else if eq ck 1 do
-          let c3 u64 add_dir fs ar cp hdr nb st .
-          guard eq c3 0 else do
-            say out 2 "lowpack: cannot store (a name longer than ustar allows?) " cp .
-            return narrow u8 c3 .
-          end
-          guard and (lt np (max_pend)) (and (lt np (len poffs)) (le (add pused (len cp)) (len pend))) else return 3 .
-          set (idx poffs np) pused .
-          set (idx plens np) (len cp) .
-          repeat z u64 (len cp) do
-            set (idx pend (add pused z)) (idx cp z) .
-          end
-          set pused (add pused (len cp)) .
-          set np (add np 1) .
+        end .
+        if eq ck. 0 . do
+          let c2 u64 add_file fs. ar. cp. cp. hdr. buf. st. . .
+          guard eq c2. 0 . else do
+            say out. 2 "lowpack: cannot store " cp. .
+            return narrow u8 c2. . .
+          end .
+        end else if eq ck. 1 . do
+          let c3 u64 add_dir fs. ar. cp. hdr. nb. st. . .
+          guard eq c3. 0 . else do
+            say out. 2 "lowpack: cannot store (a name longer than ustar allows?) " cp. .
+            return narrow u8 c3. . .
+          end .
+          guard and lt np. max_pend. . and lt np. len poffs. . . le add pused. len cp. . . len pend. . . . . else return 3 . .
+          set idx poffs. np. . pused. .
+          set idx plens. np. . len cp. . .
+          repeat z u64 len cp. . do
+            set idx pend. add pused. z. . . idx cp. z. . .
+          end .
+          set pused. add pused. len cp. . . .
+          set np. add np. 1 . .
         end else do
-          say out 2 "lowpack: not a regular file or directory: " cp .
+          say out. 2 "lowpack: not a regular file or directory: " cp. .
           return 1 .
-        end
-      end
-    end
-  end
+        end .
+      end .
+    end .
+  end .
   rem 끝 표시: 0 으로 찬 블록 둘.
   repeat z2 u64 1024 do
-    set (idx buf z2) 0 .
-  end
-  guard write_full fs ar (subslice buf 0 1024) else return 4 .
+    set idx buf. z2. . 0 .
+  end .
+  guard write_full fs. ar. subslice buf. 0 1024 . . else return 4 . .
   return 0 .
-end
+end .
 
 rem ── 묶음 읽기: 헤더를 하나씩 훑는다. mode: 0 = list · 1 = check · 2 = extract(dest 밑으로).
 rem    extract 의 안전 검사는 이름(safe_name)과 길의 마디마다(이미 있는 심링크 · 덮어쓰기)를 본다.
 
 rem dest/name 의 부모 디렉터리들을 만든다. 이미 있는 마디가 심링크면 거절. 0 됐다 · 1 안전하지 않다 · 4 입출력.
 proc make_parents input fs cap file_system . input path slice u8 . input from u64 . output u64 . effects io . do
-  cycle i u64 from while lt i (len path) next add i 1 do
-    if eq (idx path i) '/' do
-      let part slice u8 subslice path 0 i .
-      let lk u64 value_or (files.link_type_of fs part) 9 .
-      guard ne lk 3 else return 1 .
-      let k u64 value_or (files.type_of fs part) 9 .
-      if eq k 9 do
-        guard call_builtin dir_make fs part else return 4 .
-      end else if ne k 1 do
+  cycle i u64 from. while lt i. len path. . . next add i. 1 . do
+    if eq idx path. i. . '/' . do
+      let part slice u8 subslice path. 0 i. . .
+      let lk u64 value_or files.link_type_of fs. part. . 9 . .
+      guard ne lk. 3 . else return 1 . .
+      let k u64 value_or files.type_of fs. part. . 9 . .
+      if eq k. 9 . do
+        guard call_builtin dir_make fs. part. . else return 4 . .
+      end else if ne k. 1 . do
         return 1 .
-      end
-    end
-  end
+      end .
+    end .
+  end .
   return 0 .
-end
+end .
 
 rem 파일 하나를 풀어낸다(size 바이트 + 맞춤을 묶음에서 읽어 path 에 쓴다). 실패하면 쓰던 파일을 지운다.
 proc extract_file input fs cap file_system . input ar files.handle . input path slice u8 . input size u64 . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
-  requires ge (len st) 1 .
-  requires ge (len buf) 512 .
+  requires ge len st. . 1 . .
+  requires ge len buf. . 512 . .
 do
-  let lk u64 value_or (files.link_type_of fs path) 9 .
-  guard eq lk 9 else return 1 .
-  let opened result files.handle files.file_error files.open fs path 1 .
-  guard is_ok opened else return 4 .
-  var h owned files.handle ok_value opened .
+  let lk u64 value_or files.link_type_of fs. path. . 9 . .
+  guard eq lk. 9 . else return 1 . .
+  let opened result files.handle files.file_error files.open fs. path. 1 . .
+  guard is_ok opened. . else return 4 . .
+  var h owned files.handle ok_value opened. . .
   var code u64 0 .
-  let blocks u64 mul (div (add size 511) 512) 512 .
-  var left u64 blocks .
-  var data_left u64 size .
-  while gt left 0 do
-    let want u64 min left (sub (len buf) (mod (len buf) 512)) .
-    set (idx st 0) 0 .
-    let got u64 read_full fs ar (subslice buf 0 want) st .
-    if or (eq (idx st 0) 4) (ne got want) do
-      set code 1 .
+  let blocks u64 mul div add size. 511 . 512 . 512 . .
+  var left u64 blocks. .
+  var data_left u64 size. .
+  while gt left. 0 . do
+    let want u64 min left. sub len buf. . mod len buf. . 512 . . . .
+    set idx st. 0 . 0 .
+    let got u64 read_full fs. ar. subslice buf. 0 want. . st. . .
+    if or eq idx st. 0 . 4 . ne got. want. . . do
+      set code. 1 .
       break .
-    end
-    let held u64 min want data_left .
-    if gt held 0 do
-      if not (write_full fs h (subslice buf 0 held)) do
-        set code 4 .
+    end .
+    let held u64 min want. data_left. . .
+    if gt held. 0 . do
+      if not write_full fs. h. subslice buf. 0 held. . . . do
+        set code. 4 .
         break .
-      end
-    end
-    set data_left (sub data_left held) .
-    set left (sub left want) .
-  end
-  let closed result void files.file_error files.close fs h .
-  if not (is_ok closed) do
-    set code 4 .
-  end
-  if ne code 0 do
-    let gone bool call_builtin path_remove fs path .
-    drop gone .
-  end
-  return code .
-end
+      end .
+    end .
+    set data_left. sub data_left. held. . .
+    set left. sub left. want. . .
+  end .
+  let closed result void files.file_error files.close fs. h. . .
+  if not is_ok closed. . . do
+    set code. 4 .
+  end .
+  if ne code. 0 . do
+    let gone bool call_builtin path_remove fs. path. . .
+    drop gone. .
+  end .
+  return code. .
+end .
 
 proc walk_archive input fs cap file_system . input out cap io . input ar files.handle . input mode u64 . input dest slice u8 . input mem mut slice u8 . output u8 . effects io . do
-  let hdr mut slice u8 subslice mem 0 512 .
-  let buf mut slice u8 subslice mem 512 66048 .
-  let nb mut slice u8 subslice mem 66048 66560 .
-  let path mut slice u8 subslice mem 66560 70656 .
-  let st mut slice u64 view_array u64 (subslice mem 70656 70720) .
+  let hdr mut slice u8 subslice mem. 0 512 . .
+  let buf mut slice u8 subslice mem. 512 66048 . .
+  let nb mut slice u8 subslice mem. 66048 66560 . .
+  let path mut slice u8 subslice mem. 66560 70656 . .
+  let st mut slice u64 view_array u64 subslice mem. 70656 70720 . . .
   var entries u64 0 .
   while true do
-    set (idx st 0) 0 .
-    let got u64 read_full fs ar hdr st .
-    guard ne (idx st 0) 4 else return 4 .
-    guard eq got 512 else do
-      say out 2 "lowpack: the archive ends without the end marker" "" .
+    set idx st. 0 . 0 .
+    let got u64 read_full fs. ar. hdr. st. . .
+    guard ne idx st. 0 . 4 . else return 4 . .
+    guard eq got. 512 . else do
+      say out. 2 "lowpack: the archive ends without the end marker" "" .
       return 1 .
-    end
-    if all_zero hdr do
-      set (idx st 0) 0 .
-      let got2 u64 read_full fs ar hdr st .
-      guard and (eq got2 512) (all_zero hdr) else do
-        say out 2 "lowpack: a lone zero block is not an end marker" "" .
+    end .
+    if all_zero hdr. . do
+      set idx st. 0 . 0 .
+      let got2 u64 read_full fs. ar. hdr. st. . .
+      guard and eq got2. 512 . all_zero hdr. . . else do
+        say out. 2 "lowpack: a lone zero block is not an end marker" "" .
         return 1 .
-      end
+      end .
       break .
-    end
-    guard eq (parse_octal (subslice hdr 148 156)) (header_sum hdr) else do
-      say out 2 "lowpack: a header checksum does not match" "" .
+    end .
+    guard eq parse_octal subslice hdr. 148 156 . . header_sum hdr. . . else do
+      say out. 2 "lowpack: a header checksum does not match" "" .
       return 1 .
-    end
-    guard is_ustar hdr else do
-      say out 2 "lowpack: not a ustar header" "" .
+    end .
+    guard is_ustar hdr. . else do
+      say out. 2 "lowpack: not a ustar header" "" .
       return 1 .
-    end
-    let nl u64 header_name hdr nb .
-    guard gt nl 0 else do
-      say out 2 "lowpack: a header has no name" "" .
+    end .
+    let nl u64 header_name hdr. nb. . .
+    guard gt nl. 0 . else do
+      say out. 2 "lowpack: a header has no name" "" .
       return 1 .
-    end
-    let name slice u8 subslice nb 0 nl .
-    let size u64 parse_octal (subslice hdr 124 136) .
-    guard ne size 18446744073709551615 else do
-      say out 2 "lowpack: a size field is not octal: " name .
+    end .
+    let name slice u8 subslice nb. 0 nl. . .
+    let size u64 parse_octal subslice hdr. 124 136 . . .
+    guard ne size. 18446744073709551615 . else do
+      say out. 2 "lowpack: a size field is not octal: " name. .
       return 1 .
-    end
-    let tf u8 idx hdr 156 .
-    let is_file bool or (eq tf '0') (eq tf 0) .
-    let is_dir bool eq tf '5' .
-    guard or is_file is_dir else do
-      say out 2 "lowpack: only regular files and directories are supported: " name .
+    end .
+    let tf u8 idx hdr. 156 . .
+    let is_file bool or eq tf. '0' . eq tf. 0 . . .
+    let is_dir bool eq tf. '5' . .
+    guard or is_file. is_dir. . else do
+      say out. 2 "lowpack: only regular files and directories are supported: " name. .
       return 1 .
-    end
-    set entries (add entries 1) .
-    if eq mode 0 do
-      say out 1 name "" .
-    end
-    if lt mode 2 do
+    end .
+    set entries. add entries. 1 . .
+    if eq mode. 0 . do
+      say out. 1 name. "" .
+    end .
+    if lt mode. 2 . do
       rem 내용을 건너뛴다(읽어서 버린다 — 길이까지 검사한다).
-      var left u64 mul (div (add size 511) 512) 512 .
-      while gt left 0 do
-        let want u64 min left (len buf) .
-        set (idx st 0) 0 .
-        let g u64 read_full fs ar (subslice buf 0 want) st .
-        guard and (ne (idx st 0) 4) (eq g want) else do
-          say out 2 "lowpack: the archive is truncated inside " name .
+      var left u64 mul div add size. 511 . 512 . 512 . .
+      while gt left. 0 . do
+        let want u64 min left. len buf. . . .
+        set idx st. 0 . 0 .
+        let g u64 read_full fs. ar. subslice buf. 0 want. . st. . .
+        guard and ne idx st. 0 . 4 . eq g. want. . . else do
+          say out. 2 "lowpack: the archive is truncated inside " name. .
           return 1 .
-        end
-        set left (sub left want) .
-      end
+        end .
+        set left. sub left. want. . .
+      end .
       continue .
-    end
+    end .
     rem extract
-    guard safe_name name else do
-      say out 2 "lowpack: refusing an unsafe path: " name .
+    guard safe_name name. . else do
+      say out. 2 "lowpack: refusing an unsafe path: " name. .
       return 1 .
-    end
-    var rel slice u8 name .
-    while and (gt (len rel) 1) (ends_slash rel) do
-      set rel (subslice rel 0 (sub (len rel) 1)) .
-    end
-    guard join_path dest rel path st else return 3 .
-    let full slice u8 subslice path 0 (idx st 0) .
-    let pc u64 make_parents fs full (add (len dest) 1) .
-    guard eq pc 0 else do
-      say out 2 "lowpack: refusing a path through a symbolic link or a file: " name .
-      return narrow u8 pc .
-    end
-    if is_dir do
-      guard eq size 0 else do
-        say out 2 "lowpack: a directory entry has a size: " name .
+    end .
+    var rel slice u8 name. .
+    while and gt len rel. . 1 . ends_slash rel. . . do
+      set rel. subslice rel. 0 sub len rel. . 1 . . .
+    end .
+    guard join_path dest. rel. path. st. . else return 3 . .
+    let full slice u8 subslice path. 0 idx st. 0 . . .
+    let pc u64 make_parents fs. full. add len dest. . 1 . . .
+    guard eq pc. 0 . else do
+      say out. 2 "lowpack: refusing a path through a symbolic link or a file: " name. .
+      return narrow u8 pc. . .
+    end .
+    if is_dir. do
+      guard eq size. 0 . else do
+        say out. 2 "lowpack: a directory entry has a size: " name. .
         return 1 .
-      end
-      let k u64 value_or (files.type_of fs full) 9 .
-      let lk u64 value_or (files.link_type_of fs full) 9 .
-      guard ne lk 3 else do
-        say out 2 "lowpack: refusing a path through a symbolic link: " name .
+      end .
+      let k u64 value_or files.type_of fs. full. . 9 . .
+      let lk u64 value_or files.link_type_of fs. full. . 9 . .
+      guard ne lk. 3 . else do
+        say out. 2 "lowpack: refusing a path through a symbolic link: " name. .
         return 1 .
-      end
-      if eq k 9 do
-        guard call_builtin dir_make fs full else return 4 .
-      end else if ne k 1 do
-        say out 2 "lowpack: refusing to replace a file with a directory: " name .
+      end .
+      if eq k. 9 . do
+        guard call_builtin dir_make fs. full. . else return 4 . .
+      end else if ne k. 1 . do
+        say out. 2 "lowpack: refusing to replace a file with a directory: " name. .
         return 1 .
-      end
+      end .
       continue .
-    end
-    let exists u64 value_or (files.link_type_of fs full) 9 .
-    guard eq exists 9 else do
-      say out 2 "lowpack: refusing to overwrite: " name .
+    end .
+    let exists u64 value_or files.link_type_of fs. full. . 9 . .
+    guard eq exists. 9 . else do
+      say out. 2 "lowpack: refusing to overwrite: " name. .
       return 1 .
-    end
-    let ec u64 extract_file fs ar full size buf st .
-    guard eq ec 0 else do
-      say out 2 "lowpack: cannot extract " name .
-      return narrow u8 ec .
-    end
-  end
-  if eq mode 1 do
-    let n0 option u64 fmt.put_str buf 0 "ok " .
-    let n1 option u64 fmt.put_u64 buf (value_or n0 0) entries .
-    let n2 option u64 fmt.put_str buf (value_or n1 0) " entries\n" .
-    let w option u64 outbuf.write_all out 1 (subslice buf 0 (min (value_or n2 0) (len buf))) .
-  end
+    end .
+    let ec u64 extract_file fs. ar. full. size. buf. st. . .
+    guard eq ec. 0 . else do
+      say out. 2 "lowpack: cannot extract " name. .
+      return narrow u8 ec. . .
+    end .
+  end .
+  if eq mode. 1 . do
+    let n0 option u64 fmt.put_str buf. 0 "ok " . .
+    let n1 option u64 fmt.put_u64 buf. value_or n0. 0 . entries. . .
+    let n2 option u64 fmt.put_str buf. value_or n1. 0 . " entries\n" . .
+    let w option u64 outbuf.write_all out. 1 subslice buf. 0 min value_or n2. 0 . len buf. . . . . .
+  end .
   return 0 .
-end
+end .
 
 proc main
   input fs cap file_system .
@@ -771,70 +771,70 @@ proc main
   output u8 .
   effects heap io .
 do
-  let a0 option slice u8 arg a 0 .
-  let a1 option slice u8 arg a 1 .
-  guard and (is_some a0) (is_some a1) else do
-    let w0 option u64 outbuf.write_all out 2 usage_text .
+  let a0 option slice u8 arg a. 0 . .
+  let a1 option slice u8 arg a. 1 . .
+  guard and is_some a0. . is_some a1. . . else do
+    let w0 option u64 outbuf.write_all out. 2 usage_text. . .
     return 2 .
-  end
-  let cmd slice u8 some_value a0 .
-  let archive slice u8 some_value a1 .
-  let got option mut slice u8 alloc_bytes hp capacity 799296 .
-  guard is_some got else return 70 .
-  let mem mut slice u8 some_value got .
-  if same_bytes cmd "create" do
-    guard is_some (arg a 2) else do
-      let w1 option u64 outbuf.write_all out 2 usage_text .
+  end .
+  let cmd slice u8 some_value a0. . .
+  let archive slice u8 some_value a1. . .
+  let got option mut slice u8 alloc_bytes hp. capacity 799296 . .
+  guard is_some got. . else return 70 . .
+  let mem mut slice u8 some_value got. . .
+  if same_bytes cmd. "create" . do
+    guard is_some arg a. 2 . . else do
+      let w1 option u64 outbuf.write_all out. 2 usage_text. . .
       return 2 .
-    end
-    let opened result files.handle files.file_error files.open fs archive 1 .
-    guard is_ok opened else do
-      say out 2 "lowpack: cannot create " archive .
+    end .
+    let opened result files.handle files.file_error files.open fs. archive. 1 . .
+    guard is_ok opened. . else do
+      say out. 2 "lowpack: cannot create " archive. .
       return 4 .
-    end
-    var ar owned files.handle ok_value opened .
-    let rc u8 do_create fs out a ar mem .
-    let closed result void files.file_error files.close fs ar .
-    guard is_ok closed else return 4 .
-    if ne rc 0 do
-      let gone bool call_builtin path_remove fs archive .
-      drop gone .
-    end
-    return rc .
-  end
+    end .
+    var ar owned files.handle ok_value opened. . .
+    let rc u8 do_create fs. out. a. ar. mem. . .
+    let closed result void files.file_error files.close fs. ar. . .
+    guard is_ok closed. . else return 4 . .
+    if ne rc. 0 . do
+      let gone bool call_builtin path_remove fs. archive. . .
+      drop gone. .
+    end .
+    return rc. .
+  end .
   var mode u64 9 .
-  if same_bytes cmd "list" do
-    set mode 0 .
-  end else if same_bytes cmd "check" do
-    set mode 1 .
-  end else if same_bytes cmd "extract" do
-    set mode 2 .
-  end
-  guard ne mode 9 else do
-    let w2 option u64 outbuf.write_all out 2 usage_text .
+  if same_bytes cmd. "list" . do
+    set mode. 0 .
+  end else if same_bytes cmd. "check" . do
+    set mode. 1 .
+  end else if same_bytes cmd. "extract" . do
+    set mode. 2 .
+  end .
+  guard ne mode. 9 . else do
+    let w2 option u64 outbuf.write_all out. 2 usage_text. . .
     return 2 .
-  end
+  end .
   var dest slice u8 "" .
-  if eq mode 2 do
-    let a2 option slice u8 arg a 2 .
-    guard is_some a2 else do
-      let w3 option u64 outbuf.write_all out 2 usage_text .
+  if eq mode. 2 . do
+    let a2 option slice u8 arg a. 2 . .
+    guard is_some a2. . else do
+      let w3 option u64 outbuf.write_all out. 2 usage_text. . .
       return 2 .
-    end
-    set dest (some_value a2) .
-    guard eq (value_or (files.type_of fs dest) 9) 1 else do
-      say out 2 "lowpack: the destination is not a directory: " dest .
+    end .
+    set dest. some_value a2. . .
+    guard eq value_or files.type_of fs. dest. . 9 . 1 . else do
+      say out. 2 "lowpack: the destination is not a directory: " dest. .
       return 2 .
-    end
-  end
-  let opened2 result files.handle files.file_error files.open fs archive 0 .
-  guard is_ok opened2 else do
-    say out 2 "lowpack: cannot open " archive .
+    end .
+  end .
+  let opened2 result files.handle files.file_error files.open fs. archive. 0 . .
+  guard is_ok opened2. . else do
+    say out. 2 "lowpack: cannot open " archive. .
     return 4 .
-  end
-  var ar2 owned files.handle ok_value opened2 .
-  let rc2 u8 walk_archive fs out ar2 mode dest mem .
-  let closed2 result void files.file_error files.close fs ar2 .
-  drop closed2 .
-  return rc2 .
-end
+  end .
+  var ar2 owned files.handle ok_value opened2. . .
+  let rc2 u8 walk_archive fs. out. ar2. mode. dest. mem. . .
+  let closed2 result void files.file_error files.close fs. ar2. . .
+  drop closed2. .
+  return rc2. .
+end .

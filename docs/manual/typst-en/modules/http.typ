@@ -14,10 +14,10 @@ Takes request bytes and answers *where each field starts and how many bytes it i
 ]
 
 ```lowent
-let t u64 http.target_off b .
-let n u64 http.target_len b .
-guard gt n 0 else return 0 .
-let target slice u8 subslice b t (add t n) .
+let t u64 http.target_off b. . .
+let n u64 http.target_len b. . .
+guard gt n. 0 . else return 0 . .
+let target slice u8 subslice b. t. add t. n. . . .
 ```
 
 #dtable(
@@ -34,7 +34,7 @@ let target slice u8 subslice b t (add t n) .
   [`name_len` · `value_off` · `value_len`], [Header name length · value position · value length],
   [`name_eq`], [Is this header's name that one (case-insensitive)],
   [`header_find` · `header_find_len`], [Value position · length for that name. *0 if duplicated*],
-  [`content_length`], [`option u64` --- `some 0` if absent, `none` if malformed],
+  [`content_length`], [`option u64` --- `some 0 .` if absent, `none` if malformed],
   [`body_off`], [Where the body starts],
 )
 
@@ -55,7 +55,7 @@ the front (proxy) and back (server) read the same bytes differently, a request o
   [Empty target (`GET  HTTP/1.1`) · unterminated headers (no blank line)], [---],
 )
 
-*Why `content_length` is an `option`.* "Absent" and "wrong" are different answers. Absent gives `some 0` (a normal request without a body); malformed gives `none` (the
+*Why `content_length` is an `option`.* "Absent" and "wrong" are different answers. Absent gives `some 0 .` (a normal request without a body); malformed gives `none` (the
 connection must be dropped). With one value the two mix, and where they mix is where attacks live.
 
 *This module caught a processor defect.* It was first written with `input b str .`. `--check` passed, but 16 of 21 ops fell onto the slow interpreted path (about 80×).

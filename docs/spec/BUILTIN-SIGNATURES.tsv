@@ -73,11 +73,11 @@ ceil	부동소수 함수	`ceil a`	`a` — 부동	`a` 의 타입(부동 그대로
 round	부동소수 함수	`round a`	`a` — 부동	`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — 가장 가까운 정수 값. 꼭 가운데면 0 에서 먼 쪽(`round 2.5` 는 3.0, `round -2.5` 는 -3.0)	`E-IR-ARITY`	—	6.3.9
 pow	부동소수 함수	`pow a b`	`a` `b` — 같은 부동 타입	`a` 의 타입 — `a` 의 `b` 제곱. 음수 밑에 정수 아닌 지수면 NaN	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
 fmod	부동소수 함수	`fmod a b`	`a` `b` — 같은 부동 타입	`a` 의 타입 — 나머지. 부호는 `a` 를 따른다(`fmod -7.5 2.0` 은 -1.5)	정수를 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.9
-widen	변환	`widen T a`	`T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수	`T` — 값은 그대로다	`T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-IR-UNDEF`	—	6.2.5
-narrow	변환	`narrow T a`	`T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수	`T` — 값은 그대로다	`T` 를 안 적으면 `E-IR-UNDEF`	정수 값이 `T` 에 안 들어가면 `E-VM-CAST`	6.3.6
-narrow_wrap	변환	`narrow_wrap T a`	`T` — 정수 타입 · `a` — 수	`T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255)	`T` 를 안 적으면 `E-IR-UNDEF`	—	6.3.6
-narrow_sat	변환	`narrow_sat T a`	`T` — 정수 타입 · `a` — 수	`T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0)	`T` 를 안 적으면 `E-IR-UNDEF`	—	6.3.6
-narrow_try	변환	`narrow_try T a`	`T` — 정수 타입 · `a` — 정수	`option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음	`T` 를 안 적으면 `E-IR-UNDEF`	—	6.3.6
+widen	변환	`widen T a`	`T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수	`T` — 값은 그대로다	`T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.2.5
+narrow	변환	`narrow T a`	`T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수	`T` — 값은 그대로다	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	정수 값이 `T` 에 안 들어가면 `E-VM-CAST`	6.3.6
+narrow_wrap	변환	`narrow_wrap T a`	`T` — 정수 타입 · `a` — 수	`T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255)	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
+narrow_sat	변환	`narrow_sat T a`	`T` — 정수 타입 · `a` — 수	`T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0)	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
+narrow_try	변환	`narrow_try T a`	`T` — 정수 타입 · `a` — 정수	`option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
 cast	변환	`cast T a`	`T` — 정수 또는 부동 타입 · `a` — 수	`T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값	`bool` 이 한쪽이면 `E-TYPE-KIND`	정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`	6.2.16
 bit_cast	변환	`bit_cast T a`	`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수	`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408)		—	6.2.5
 size_of	변환	`size_of T`	`T` — 타입	정수 — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)		—	6.3.8

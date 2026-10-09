@@ -3,9 +3,9 @@ rem expect: E-NAME-SCOPE
 
 fn big_or_zero input a u64 . output u64 .
 do
-  if gt a 3 do
-    let big u64 mul a 10 .
-  end
+  if gt a. 3 . do
+    let big u64 mul a. 10 . .
+  end .
   rem ko: ✘ `big` 은 위 블록 안에서만 산다 --- 블록 밖에서 읽었다 /// en: ✘ `big` only lives inside the block above --- it is read outside
-  return big .
-end
+  return big. .
+end .

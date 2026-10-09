@@ -14,14 +14,14 @@ rem 아무도 안 건 계약은 **W-UNBOUND** 로 말한다 — 그것은 정말
 module vm_named_contract .
 
 contract nonneg do
-  requires ge a 1 .
-end
+  requires ge a. 1 . .
+end .
 
 fn f satisfies nonneg . input a u8 . output u8 .
 do
-  return a .
-end
+  return a. .
+end .
 
 test named_contract_holds do
-  expect eq (f 5) 5 .
-end
+  expect eq f 5 . 5 . .
+end .

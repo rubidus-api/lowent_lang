@@ -18,28 +18,28 @@ end")
   ]
   #ex("같은 일을 손으로 쓴 반복과 pipe 로 — 둘 다 한 번 훑는다", "module ex_pipe_why .
 
-fn is_digit input c u8 . output bool . do return and (ge c 48) (le c 57) . end
+fn is_digit input c u8 . output bool . do return and ge c. 48 . le c. 57 . . . end .
 
 rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
 fn digits_loop input s slice u8 . output u64 .
 do
   var n u64 0 .
   var i u64 0 .
-  while lt i (len s) do
-    if is_digit (idx s i) do set n (add n 1) . end
-    set i (add i 1) .
-  end
-  return n .
-end
+  while lt i. len s. . . do
+    if is_digit idx s. i. . . do set n. add n. 1 . . end .
+    set i. add i. 1 . .
+  end .
+  return n. .
+end .
 
 rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
 fn digits_pipe input s slice u8 . output u64 .
 do
-  return pipe s do
+  return pipe s. do
     filter is_digit .
     count .
-  end .
-end")
+  end . .
+end .")
   #para("2")[
     스테이지는 일곱이다: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.
       종결자는 다섯이다: `collect into` · `fold` · `count` · `any` · `all`.
@@ -68,7 +68,7 @@ end")
   ]
   #para("2c")[
     받는 자리가 차면 #strong[말없이 멈추지 아니한다.]; 흐름이 받는 자리보다 긴 것을 번역 시점에 알면 — 두 길이가
-      머리의 계약(`requires eq (len x) N`, `array N T` 입력이 그리 된다)에 적혀 있고 사이의 스테이지가 개수를 모르는
+      머리의 계약(`requires eq len x. . N .`, `array N T` 입력이 그리 된다)에 적혀 있고 사이의 스테이지가 개수를 모르는
       것(`filter`·`zip`)이 아니면 — 번역이 거부한다(`E-COLLECT-FULL`). 알 수 없으면 실행 중, 담지 못할 원소가 오는
       순간 받는 자리가 찼다고 말하며 멈춘다(`E-VM-BOUNDS`, 네이티브는 같은 문장의 panic). 들어갈 만큼만 담으려면
       `take` 로 #strong[적는다.];
@@ -80,24 +80,24 @@ end")
   ]
   #rejected("다섯을 셋 칸에 담는다 — 두 길이를 번역 시점에 안다", "module ex_collect_full .
 
-fn dbl input a u8 . output u8 . do return wrap_add a a . end
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
 
 proc over input xs array u8 5 . input out mut array u8 3 . output u64 . effects none . do
-  return pipe xs do
+  return pipe xs. do
     map dbl .
-    collect into out .
-  end .
-end", "E-COLLECT-FULL")
+    collect into out. .
+  end . .
+end .", "E-COLLECT-FULL")
   #rejected("수를 내는 op 을 판정 자리에 준다", "module ex_pipe_pred .
 
-fn as_flag input a u8 . output u8 . do return a . end
+fn as_flag input a u8 . output u8 . do return a. . end .
 
 fn nonzero input xs slice u8 . output u64 . do
-  return pipe xs do
+  return pipe xs. do
     filter as_flag .
     count .
-  end .
-end", "E-PIPE-PRED")
+  end . .
+end .", "E-PIPE-PRED")
   #para("3")[
     한 `pipe` 문은 종결자를 #strong[정확히 하나]; 갖는다. 종결자 없이 끝나거나 둘을 두는 것은
       적합하지 아니하다.
@@ -149,44 +149,44 @@ end", "E-PIPE-PRED")
 
 fn above input x u8 . input limit u8 . output bool .
 do
-  return gt x limit .
-end
+  return gt x. limit. . .
+end .
 
 export fn count_above input xs slice u8 . input base u8 . output u64 .
 do
-  return pipe xs do
-    filter above with wrap_add base 1 .
+  return pipe xs. do
+    filter above with wrap_add base. 1 . .
     count .
-  end .
-end")
+  end . .
+end .")
   #rejected("문맥은 참조 없는 값이다", "module ex_with_slice .
 
 fn over input x u8 . input s slice u8 . output bool .
 do
-  return gt x (idx s 0) .
-end
+  return gt x. idx s. 0 . . .
+end .
 
 export fn f input xs slice u8 . output u64 .
 do
-  return pipe xs do
-    filter over with xs .
+  return pipe xs. do
+    filter over with xs. .
     count .
-  end .
-end", "E-PIPE-CONTEXT-TYPE")
+  end . .
+end .", "E-PIPE-CONTEXT-TYPE")
   #rejected("op 을 부르지 않는 종결자는 문맥을 받지 않는다", "module ex_with_count .
 
 fn above input x u8 . input limit u8 . output bool .
 do
-  return gt x limit .
-end
+  return gt x. limit. . .
+end .
 
 export fn f input xs slice u8 . output u64 .
 do
-  return pipe xs do
+  return pipe xs. do
     filter above with 3 .
     count with 1 .
-  end .
-end", "E-PIPE-WITH")
+  end . .
+end .", "E-PIPE-WITH")
   #note[
     문맥은 람다가 아니다. 스테이지 op 은 여전히 이름 있는 op 이고, 바깥의 이름을 몰래 읽지 않는다 —
     문맥으로 건너간 값만 본다. 참조를 막는 까닭은 주소만 복사해 바깥 저장소를 훑기 내내 지켜보는 길을
@@ -223,19 +223,19 @@ end", "E-PIPE-WITH")
     ]
     #ex("스테이지 둘과 종결자 하나 — 한 번의 훑기", "module ex_pipe .
 
-fn over2 input a u8 . output bool . do return gt a 2 . end
+fn over2 input a u8 . output bool . do return gt a. 2 . . end .
 
-fn dbl input a u8 . output u8 . do return (wrap_add a a) . end
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
 
 rem [1,2,3,4,5] → 2 보다 큰 것만 → 두 배 → out 에 담는다. 중간 배열은 생기지 아니한다.
 proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
-  pipe xs do
+  pipe xs. do
     filter over2 .
     map dbl .
-    collect into out .
-  end
+    collect into out. .
+  end .
   return 0 .
-end
+end .
 ")
     #plain[
       `pipe` 가 문인 까닭은 융합을 #strong[약속으로]; 만들기 위해서다. 식이었다면 스테이지를 값으로

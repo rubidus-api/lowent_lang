@@ -11,7 +11,7 @@
 )
 
 #deepqa[
-  What did `max_of` in #chref("generics") call in its body, trusting `requires ordered t .`? And what happened when `plain`, which did not satisfy the
+  What did `max_of` in #chref("generics") call in its body, trusting `requires ordered t. . .`? And what happened when `plain`, which did not satisfy the
   condition, was given?
 ][
   It called `method a less b`. Giving `plain` was rejected with `E-BOUND-UNSAT`, because the condition is a promise and making an instance past it would make
@@ -37,10 +37,10 @@
 #demo("examples/ch23/why.low")
 
 #idx("trait")
-- `trait shape do … end` is the promise "has `area`". `self` in a signature is the type that will satisfy the promise.
+- `trait shape do … end .` is the promise "has `area`". `self` in a signature is the type that will satisfy the promise.
 - `rect` and `square` write `satisfies shape .` in their bodies, declaring they will satisfy it.
 - `fn rect.area` and `fn square.area` actually satisfy it. The `rect.` in the name means the op is attached to `rect`.
-- `double_area` accepts *any shape*. `requires shape t .` pins it down to "only types that can tell their area".
+- `double_area` accepts *any shape*. `requires shape t. . .` pins it down to "only types that can tell their area".
 - `method s area` calls the `area` attached to the type of `s` --- `rect.area` for a `rect`, `square.area` for a `square`.
 
 Think of a trait as a *qualification*. There is a requirement, "can tell its area", and only types that meet it may enter an op that asks for it.
@@ -54,7 +54,7 @@ Think of a trait as a *qualification*. There is a requirement, "can tell its are
      │ rect.area     │    │ square.area   │   ← the ops that actually meet it
      └───────────────┘    └───────────────┘
 
- double_area has requires shape t .  ── only types that meet shape
+ double_area has requires shape t. . .  ── only types that meet shape
    double_area rect r    →  method s area  =  rect.area
    double_area square q  →  method s area  =  square.area
 ```
@@ -66,7 +66,7 @@ looked up at run time. There is no virtual function table.
 
 #idx("method")
 An op can be attached to a type even without a trait. Put the type name and a dot in front of the op name, and its first input is a value of that type.
-`method <value> <name> <args…>` calls that op. The receiver may be the result of another form --- `method (method r grow 1) area`. If no such op is attached,
+`method <value> <name> <args…>` calls that op. The receiver may be the result of another form --- `method method r. grow. 1 . area. .`. If no such op is attached,
 the call is rejected.
 
 #demo("examples/ch23/method_undef.low")
@@ -89,7 +89,7 @@ There are three things to know about writing them.
 #realcase[A defect: effects of ops called through `method` do not spread][
   Running `--check` on the example above attaches `W-EFFECT-OVER` (`panic` declared but never performed) to `demo`. It is a false warning --- `demo_empty` really
   does stop. While writing this book it turned out that the processor in this edition does not spread the effects of ops called through `method` to the caller.
-  So even a pure `fn` can call an op that `panic`s through `method` and pass translation. Calling the same op directly as `rect.checked_area r` is correctly
+  So even a pure `fn` can call an op that `panic`s through `method` and pass translation. Calling the same op directly as `rect.checked_area r. .` is correctly
   rejected. The behaviour the specification (#chref("effects")) requires is the direct call's; the `method` side is a defect. Until it is fixed, do not call
   effectful attached ops through `method` inside pure ops.
 ]
@@ -160,7 +160,7 @@ export trait byte_allocator do
   reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
   grow input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used input s self . output u64 . effects state .
-end
+end .
 ```
 
 A bump allocator's `reserve` is just `state`, while `heap_bytes`, carving from the heap, has `heap state`. That difference rises through a generic op's `via a`
@@ -223,7 +223,7 @@ fixed window for every ticket.
 #misconception[An op attached to a type can only be called through `method`][
   #demo("examples/ch23/direct_call.low")
 
-  `rect.area r` calls it directly by name, and `method r area` finds the same op from the value's type. They are the same op, and the results
+  `rect.area r. .` calls it directly by name, and `method r area` finds the same op from the value's type. They are the same op, and the results
   are 6 and 6. `method` earns its place where the type is a generic parameter and its name cannot be written (`method s area` in
   `double_area`). Where the type is known, a direct call also propagates effects correctly (see the defect case above).
 ]
@@ -236,11 +236,11 @@ fixed window for every ticket.
   caption: [Trait syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`fn rect.area input s rect . …`], [attach an op to a type --- the first input is the receiver], [a way to divide the name space, not inheritance],
-  [`method r area` · `rect.area r`], [call by the value's type · call directly by name], [fixed at translation time --- no virtual table],
-  [`trait shape do area input s self . output u64 . end`], [the list of ops a type must have], [`self` is the adopting type itself],
+  [`method r area` · `rect.area r. .`], [call by the value's type · call directly by name], [fixed at translation time --- no virtual table],
+  [`trait shape do area input s self . output u64 . end .`], [the list of ops a type must have], [`self` is the adopting type itself],
   [signature line: name · inputs · output · effects], [same order as an op head; no `fn`/`proc`], [the effects line caps the implementer],
-  [`def struct rect do satisfies shape . … end`], [declare that this type keeps the promise], [the declaration triggers the full check],
-  [`requires shape t .`], [type condition of a generic op], [a type that does not adopt it: `E-BOUND-UNSAT`],
+  [`def struct rect do satisfies shape . … end .`], [declare that this type keeps the promise], [the declaration triggers the full check],
+  [`requires shape t. . .`], [type condition of a generic op], [a type that does not adopt it: `E-BOUND-UNSAT`],
   [`effects state via self .` (signature)], [only allocation effects may be added], [allocators differ in effects],
   [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [one diagnostic per way of falling short], [`satisfies` is not a comment],
   [`effects state via t .` (generic op)], [inherits the extra effects the specialised type declared with `via self`], [`state` for `counter`, `alloc state` for `carver`],

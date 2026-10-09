@@ -5,19 +5,19 @@ fn two_mut
   output u64 .
 do
   var x u64 0 .
-  var a mut_ref u64 mut_ref x .
-  var b mut_ref u64 mut_ref x .
-  set a 1 .
-  set b 2 .
-  return x .
-end
+  var a mut_ref u64 mut_ref x . .
+  var b mut_ref u64 mut_ref x . .
+  set a. 1 .
+  set b. 2 .
+  return x. .
+end .
 
 fn owner_read
   output u64 .
 do
   var x u64 7 .
-  var r mut_ref u64 mut_ref x .
-  let y u64 x .
-  set r 5 .
-  return x .
-end
+  var r mut_ref u64 mut_ref x . .
+  let y u64 x. .
+  set r. 5 .
+  return x. .
+end .

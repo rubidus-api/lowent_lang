@@ -6,37 +6,37 @@ rem run: doubled 300
 
 def enum perr do
   too_big .
-end
+end .
 
 fn find input xs slice u64 . input k u64 . output option u64 . do
   var i u64 0 .
-  for x xs do
-    if eq x k do
-      return some i .
-    end
-    set i (add i 1) .
-  end
+  for x xs. do
+    if eq x. k. . do
+      return some i. . .
+    end .
+    set i. add i. 1 . .
+  end .
   return none .
-end
+end .
 
 fn twice input a u64 . output result u64 perr .
-  errors too_big ge a 100 .
+  errors too_big ge a. 100 . .
 do
-  guard lt a 100 else return error too_big .
-  return ok (mul a 2) .
-end
+  guard lt a. 100 . else return error too_big . . .
+  return ok mul a. 2 . . .
+end .
 
 rem ko: option 에서 알맹이를 꺼내 묶는다 --- 비었으면 else 로 떠난다 /// en: take the content out of an option --- leave through else when it is empty
 export fn lookup input k u64 . output u64 .
 do
   let xs slice u64 lit slice u64 5 6 7 . .
-  let at u64 find xs k else return 99 .
-  return add at 100 .
-end
+  let at u64 find xs. k. . else return 99 . .
+  return add at. 100 . .
+end .
 
 rem ko: result 도 같다 --- 오류면 else 로 /// en: a result works the same way --- an error goes to else
 export fn doubled input a u64 . output u64 .
 do
-  let v u64 twice a else return 0 .
-  return add v 1 .
-end
+  let v u64 twice a. . else return 0 . .
+  return add v. 1 . .
+end .

@@ -4,14 +4,14 @@ rem expect: E-METHOD-UNDEF
 def struct rect do
   w u64 .
   h u64 .
-end
+end .
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 fn f output u64 .
 do
-  let r lit rect do w 2 . h 3 . end .
+  let r lit rect do w 2 . h 3 . end . .
   rem ko: ✘ `method` 뒤에는 값이 먼저, 이름이 다음이다 /// en: ✘ after `method` comes the value first, then the name
-  return method area r .
-end
+  return method area. r. . .
+end .

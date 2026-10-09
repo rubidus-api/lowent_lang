@@ -20,63 +20,63 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let dp option slice u8 arg a 0 .
-  guard is_some dp else return 64 .
-  let dpath slice u8 some_value dp .
+  let dp option slice u8 arg a. 0 . .
+  guard is_some dp. . else return 64 . .
+  let dpath slice u8 some_value dp. . .
 
-  let gn option mut slice u8 alloc_bytes al capacity 256 .
-  guard is_some gn else return 70 .
-  let namebuf mut slice u8 some_value gn .
-  let gpth option mut slice u8 alloc_bytes al capacity 512 .
-  guard is_some gpth else return 70 .
-  let pathbuf mut slice u8 some_value gpth .
+  let gn option mut slice u8 alloc_bytes al. capacity 256 . .
+  guard is_some gn. . else return 70 . .
+  let namebuf mut slice u8 some_value gn. . .
+  let gpth option mut slice u8 alloc_bytes al. capacity 512 . .
+  guard is_some gpth. . else return 70 . .
+  let pathbuf mut slice u8 some_value gpth. . .
 
-  let di result files.dir_handle files.file_error files.open_dir fs dpath .
-  guard is_ok di else return 71 .
-  var dh owned files.dir_handle ok_value di .
+  let di result files.dir_handle files.file_error files.open_dir fs. dpath. . .
+  guard is_ok di. . else return 71 . .
+  var dh owned files.dir_handle ok_value di. . .
 
   var nfiles u64 0 .
   var dirs u64 0 .
   var going bool true .
-  while going do
+  while going. do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`**.
-    let n result (option u64) files.file_error files.read_dir fs dh namebuf .
-    if eq (is_ok n) false do set going false . end
-    if is_ok n do
-      let nvo option u64 ok_value n .
-      if eq (is_some nvo) false do set going false . end
+    let n result (option u64) files.file_error files.read_dir fs. dh. namebuf. . .
+    if eq is_ok n. . false . do set going. false . end .
+    if is_ok n. . do
+      let nvo option u64 ok_value n. . .
+      if eq is_some nvo. . false . do set going. false . end .
       var nl u64 0 .
-      if is_some nvo do set nl (some_value nvo) . end
-      if eq nl 0 do set going false . end
-      if gt nl 0 do
+      if is_some nvo. . do set nl. some_value nvo. . . end .
+      if eq nl. 0 . do set going. false . end .
+      if gt nl. 0 . do
         var is_dot bool false .
-        if eq nl 1 do
-          if eq (idx namebuf 0) 46 do set is_dot true . end
-        end
-        if eq nl 2 do
-          if eq (idx namebuf 0) 46 do
-            if eq (idx namebuf 1) 46 do set is_dot true . end
-          end
-        end
-        if eq is_dot false do
+        if eq nl. 1 . do
+          if eq idx namebuf. 0 . 46 . do set is_dot. true . end .
+        end .
+        if eq nl. 2 . do
+          if eq idx namebuf. 0 . 46 . do
+            if eq idx namebuf. 1 . 46 . do set is_dot. true . end .
+          end .
+        end .
+        if eq is_dot. false . do
           rem 전체 경로 = dpath + "/" + name — str_buf 로 조립한다
-          var b strbuf.str_buf strbuf.new .
-          let r1 result void strbuf.sb_error strbuf.append b pathbuf dpath .
-          guard is_ok r1 else return 80 .
-          let r2 result void strbuf.sb_error strbuf.append b pathbuf "/" .
-          guard is_ok r2 else return 81 .
-          let r3 result void strbuf.sb_error strbuf.append b pathbuf (subslice namebuf 0 nl) .
-          guard is_ok r3 else return 82 .
-          let t option u64 files.type_of fs (strbuf.as_str b pathbuf) .
-          guard is_some t else return 83 .
-          if eq (some_value t) 1 do set dirs (add dirs 1) . end
-          if eq (some_value t) 0 do set nfiles (add nfiles 1) . end
-        end
-      end
-    end
-  end
+          var b strbuf.str_buf strbuf.new. .
+          let r1 result void strbuf.sb_error strbuf.append b. pathbuf. dpath. . .
+          guard is_ok r1. . else return 80 . .
+          let r2 result void strbuf.sb_error strbuf.append b. pathbuf. "/" . .
+          guard is_ok r2. . else return 81 . .
+          let r3 result void strbuf.sb_error strbuf.append b. pathbuf. subslice namebuf. 0 nl. . . .
+          guard is_ok r3. . else return 82 . .
+          let t option u64 files.type_of fs. strbuf.as_str b. pathbuf. . . .
+          guard is_some t. . else return 83 . .
+          if eq some_value t. . 1 . do set dirs. add dirs. 1 . . end .
+          if eq some_value t. . 0 . do set nfiles. add nfiles. 1 . . end .
+        end .
+      end .
+    end .
+  end .
 
-  let c result void files.file_error files.close_dir fs dh .
-  guard is_ok c else return 72 .
-  return (narrow u8 (add (mul nfiles 10) dirs)) .   rem tree = 2 files, 1 dir → 21
-end
+  let c result void files.file_error files.close_dir fs. dh. . .
+  guard is_ok c. . else return 72 . .
+  return narrow u8 add mul nfiles. 10 . dirs. . . .   rem tree = 2 files, 1 dir → 21
+end .

@@ -9,10 +9,10 @@
 방향키는 한 바이트가 아니다 --- `↑` 는 `ESC [ A` 세 바이트, `Delete` 는 `ESC [ 3 ~` 네 바이트다. 그 바이트열을 키로 읽어 주는 것이 `parse_key` 다.
 
 ```lowent
-let p option u64 tty.parse_key buf 0 .
-guard is_some p else return none .
-let code u64 tty.key_of (some_value p) .
-let used u64 tty.len_of (some_value p) .
+let p option u64 tty.parse_key buf. 0 . .
+guard is_some p. . else return none . .
+let code u64 tty.key_of some_value p. . . .
+let used u64 tty.len_of some_value p. . . .
 ```
 
 #aside[raw 모드는 사용자의 터미널 설정을 바꾸고, 그 변경은 프로그램이 죽어도 남는다][
@@ -22,7 +22,7 @@ let used u64 tty.len_of (some_value p) .
   표시 폭(#modref("term")[`term`])은 순수하다(#chref("lib-terminal")).
 ]
 
-*키코드 하나로 글자와 특수키를 구별한다.* 평범한 바이트는 그 값 그대로(1 … 255, 제어 문자 포함 --- Ctrl-C 는 3), 특수키는 1000 위다. 그래서 `is_char` 는 `lt keycode 1000`
+*키코드 하나로 글자와 특수키를 구별한다.* 평범한 바이트는 그 값 그대로(1 … 255, 제어 문자 포함 --- Ctrl-C 는 3), 특수키는 1000 위다. 그래서 `is_char` 는 `lt keycode. 1000 .`
 한 번이다. *튜플이 없으므로* 반환은 `키코드 × 16 + 길이` 한 값에 담는다(길이는 1 … 8). 길이가 필요한 이유는 다음 키가 버퍼의 어디서 시작하는지 알아야 하기 때문이다. 포장
 형식이 바뀌어도 코드가 깨지지 않게 `key_of` · `len_of` 로 꺼낸다.
 
@@ -36,9 +36,9 @@ let used u64 tty.len_of (some_value p) .
   [`key_unknown`], [순수], [1011 --- 알아보지 못한 특수키],
   [`parse_key buf at`], [순수(`effects none`)], [바이트열 → `some (키코드 × 16 + 길이)` 또는 `none`],
   [`key_of` · `len_of` · `is_char`], [순수], [포장 값에서 키코드 · 길이 꺼내기 · 평범한 글자인가(*키코드*를 넣는다)],
-  [`tty_raw t on`(기본 연산)], [`cap tty`], [raw 모드 진입(`true`) · 복귀(`false`)],
-  [`tty_read t dst`(기본 연산)], [`cap tty`], [지금 온 바이트를 버퍼로 → `option u64`(`some 0` = 지금은 없음, 에러가 아니다)],
-  [`tty_size t`(기본 연산)], [`cap tty`], [화면 크기 → `option u64`(행 = `div v 4294967296`, 열 = `mod v 4294967296`)],
+  [`tty_raw t. on. .`(기본 연산)], [`cap tty`], [raw 모드 진입(`true`) · 복귀(`false`)],
+  [`tty_read t. dst. .`(기본 연산)], [`cap tty`], [지금 온 바이트를 버퍼로 → `option u64`(`some 0 .` = 지금은 없음, 에러가 아니다)],
+  [`tty_size t. .`(기본 연산)], [`cap tty`], [화면 크기 → `option u64`(행 = `div v. 4294967296 .`, 열 = `mod v. 4294967296 .`)],
 )
 
 *`parse_key` 가 알아보는 것* --- ESC 아닌 한 바이트(길이 1), 뒤가 없는 `ESC`(ESC 키, 길이 1), `ESC O A`–`D` · `H` · `F` 와 `ESC [ A`–`D` · `H` · `F`(방향키 · Home ·
@@ -52,34 +52,34 @@ module keydemo .
 use tty .
 
 proc main input t cap tty . input al cap allocator . output u8 . effects alloc . do
-  let g option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some g else return 1 .
-  let buf mut slice u8 some_value g .
-  guard tty_raw t true else return 1 .
+  let g option mut slice u8 alloc_bytes al. capacity 32 . .
+  guard is_some g. . else return 1 . .
+  let buf mut slice u8 some_value g. . .
+  guard tty_raw t. true . else return 1 . .
   var going bool true .
   var last u64 0 .
-  while going do
-    let n option u64 tty_read t buf .
-    guard is_some n else do
-      set going false .
+  while going. do
+    let n option u64 tty_read t. buf. . .
+    guard is_some n. . else do
+      set going. false .
       continue .
-    end
+    end .
     var off u64 0 .
-    while lt off (some_value n) do
-      let p option u64 tty.parse_key (subslice buf 0 (some_value n)) off .
-      guard is_some p else do
-        set off (some_value n) .
+    while lt off. some_value n. . . do
+      let p option u64 tty.parse_key subslice buf. 0 some_value n. . . off. . .
+      guard is_some p. . else do
+        set off. some_value n. . .
         continue .
-      end
-      let code u64 tty.key_of (some_value p) .
-      set last code .
-      if eq code 113 do set going false . end
-      set off (add off (tty.len_of (some_value p))) .
-    end
-  end
-  let r bool tty_raw t false .
-  return narrow u8 last .
-end
+      end .
+      let code u64 tty.key_of some_value p. . . .
+      set last. code. .
+      if eq code. 113 . do set going. false . end .
+      set off. add off. tty.len_of some_value p. . . . .
+    end .
+  end .
+  let r bool tty_raw t. false . .
+  return narrow u8 last. . .
+end .
 ```
 
 할당처럼 실패할 수 있는 일은 *raw 로 들어가기 전에* 끝낸다 --- 들어간 뒤 실패해 돌아가면 단말이 raw 로 남는다. 터미널 내장은 `cap tty` 를 *인자로* 받는다 --- 권한을
@@ -87,13 +87,13 @@ op 이 가졌다는 것만으로는 안 되고 쓰는 자리에 건네야 한다
 배당금이다.
 
 #antipattern[raw 모드를 복귀시키지 않는다][
-  `tty_raw t true` 뒤 중간의 `guard … else return 2` 로 빠지면 복귀가 없어 셸이 망가진 채 남는다. 언어에 `defer` 가 없으므로 모든 나가는 길에서 `tty_raw t false` 를
+  `tty_raw t. true .` 뒤 중간의 `guard … else return 2` 로 빠지면 복귀가 없어 셸이 망가진 채 남는다. 언어에 `defer` 가 없으므로 모든 나가는 길에서 `tty_raw t. false .` 를
   부르거나, 실패할 수 있는 부분을 raw 진입 전에 끝낸다. 위 예제는 루프가 언제나 아래로 빠져나오게 짜여 있다.
 ]
 
 #antipattern[`none` 을 에러로 읽고 끝낸다 · 먹은 길이를 무시하고 1 씩 전진한다][
   `parse_key` 의 `none` 은 대개 "바이트가 더 필요하다" 다 --- 읽기 경계가 시퀀스 가운데를 자를 수 있다. 여기서 끝내면 방향키를 누를 때마다 죽는 프로그램이 된다.
-  `set off (add off 1)` 은 `ESC [ A` 를 세 개의 키로 읽는다 --- 반드시 `len_of` 만큼 전진한다. 포장 값을 `1001` 과 직접 비교하면 길이가 섞여 맞지 않는다.
+  `set off. add off. 1 .` 은 `ESC [ A` 를 세 개의 키로 읽는다 --- 반드시 `len_of` 만큼 전진한다. 포장 값을 `1001` 과 직접 비교하면 길이가 섞여 맞지 않는다.
 ]
 
 *주의.* 터미널마다 방향키 시퀀스가 달라 `ESC [ A` 와 `ESC O A` 둘 다 알아본다. 그래도 못 잡는 시퀀스는 `none` 이다 --- 조용히 다른 키로 답하지 않는다. 한글을 입력하면

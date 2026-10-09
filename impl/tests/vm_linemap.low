@@ -11,9 +11,9 @@ rem   17 번 줄이 곧 아래 `set (index b 99) 1 .` 이고, 거기서 죽어�
 module linemap .
 
 proc main input al cap allocator . output u8 . effects alloc . do
-  let g option mut slice u8 alloc_bytes al capacity 8 .
-  guard is_some g else return 70 .
-  let b mut slice u8 some_value g .
-  set (idx b 99) 1 .
+  let g option mut slice u8 alloc_bytes al. capacity 8 . .
+  guard is_some g. . else return 70 . .
+  let b mut slice u8 some_value g. . .
+  set idx b. 99 . 1 .
   return 0 .
-end
+end .

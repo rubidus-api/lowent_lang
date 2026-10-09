@@ -31,7 +31,7 @@ none
 
 | **op** | **what it does** |
 |---|---|
-| `ecdsa_ok` | does the signature `(r, s)` match hash `e` and public key `pub` — `ok 1` yes · `ok 0` no · `error short_workspace` the workspace is too small |
+| `ecdsa_ok` | does the signature `(r, s)` match hash `e` and public key `pub` — `ok 1 .` yes · `ok 0 .` no · `error short_workspace .` the workspace is too small |
 
 *Table 50.2 — ops of `p384`*
 

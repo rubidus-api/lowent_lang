@@ -6,62 +6,62 @@ export fn count_selected input xs slice u8 . input mask u8 . output u64 .
 do
   fn has_bits input x u8 . input bits u8 . output bool .
   do
-    return eq (bit_and x bits) bits .
-  end
-  return pipe xs do
-    filter has_bits with mask .
-    count .
+    return eq bit_and x. bits. . bits. . .
   end .
-end
+  return pipe xs. do
+    filter has_bits with mask. .
+    count .
+  end . .
+end .
 
 export fn parity input n u64 . output u64 .
 do
-  let r u64 twice (is_even n) .
+  let r u64 twice is_even n. . . .
   fn is_even input k u64 . output u64 .
   do
-    if eq k 0 do
+    if eq k. 0 . do
       return 1 .
-    end
-    return is_odd (sub k 1) .
-  end
+    end .
+    return is_odd sub k. 1 . . .
+  end .
   fn is_odd input k u64 . output u64 .
   do
-    if eq k 0 do
+    if eq k. 0 . do
       return 0 .
-    end
-    return is_even (sub k 1) .
-  end
+    end .
+    return is_even sub k. 1 . . .
+  end .
   fn twice input v u64 . output u64 .
   do
-    return add v v .
-  end
-  return r .
-end
+    return add v. v. . .
+  end .
+  return r. .
+end .
 
 export fn other output u64 .
 do
   fn twice input v u64 . output u64 .
   do
-    return mul v 3 .
-  end
-  return twice 5 .
-end
+    return mul v. 3 . .
+  end .
+  return twice 5 . .
+end .
 
 actor counter do
   state do
     n u64 .
-  end
+  end .
   proc bump input by u64 . output u64 . effects state . do
     fn double input v u64 . output u64 . do
-      return add v v .
-    end
-    set n (add n (double by)) .
-    return n .
-  end
-end
+      return add v. v. . .
+    end .
+    set n. add n. double by. . . .
+    return n. .
+  end .
+end .
 
 export proc go output u64 . effects state . do
-  var c counter spawn actor counter .
-  let a u64 send c bump 2 .
-  return send c bump 3 .
-end
+  var c counter spawn actor counter . .
+  let a u64 send c. bump 2 . .
+  return send c. bump 3 . .
+end .

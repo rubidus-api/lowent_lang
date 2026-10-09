@@ -30,114 +30,114 @@ module hashmap .
 rem 내부 — 키의 시작 슬롯. 곱셈 해시(0x9E3779B97F4A7C15, 황금비)로 섞고 N 으로 나눈 나머지.
 rem   wrap_mul 은 넘침을 감는다(해시라 정보 손실이 목적이 아니라 섞기다).
 fn hm_slot input k u64 . input n u64 . output u64 . do
-  guard gt n 0 else return 0 .
-  return mod (wrap_mul k 11400714819323198485) n .
-end
+  guard gt n. 0 . else return 0 . .
+  return mod wrap_mul k. 11400714819323198485 . n. . .
+end .
 
 rem ★ 넣거나 갱신한다. true=성공 · false=꽉 참(또는 키가 예약 상단 둘 중 하나).
 rem   ★ **묘비 재사용**: 프로브 중 처음 만난 묘비를 기억해 두고, 키가 이 뒤에 없음이 확인되면
 rem     (빈칸에 닿거나 한 바퀴) 거기에 넣는다 — 삭제로 생긴 구멍이 도로 메워져 클러스터가 안 자란다.
 export proc put input b mut slice u64 . input k u64 . input v u64 . output bool . effects none . do
   rem k+1 이 묘비값(MAX_U64)과 겹치면 안 된다 ⇒ k < MAX−1. MAX 도 자동 배제(k+1=0=빈칸).
-  guard lt k 18446744073709551614 else return false .
-  let n u64 div (len b) 2 .
-  guard gt n 0 else return false .
-  var slot u64 hm_slot k n .
+  guard lt k. 18446744073709551614 . else return false . .
+  let n u64 div len b. . 2 . .
+  guard gt n. 0 . else return false . .
+  var slot u64 hm_slot k. n. . .
   var tries u64 0 .
   var have_tomb bool false .
   var tomb_slot u64 0 .
-  while lt tries n do
-    let ks u64 mul slot 2 .
-    let stored u64 idx b ks .
-    if eq stored 0 do
+  while lt tries. n. . do
+    let ks u64 mul slot. 2 . .
+    let stored u64 idx b. ks. . .
+    if eq stored. 0 . do
       rem 빈칸 — 키는 이 뒤에 없다(삽입이 빈칸을 넘지 않으므로). 묘비를 봤으면 거기 재사용.
-      var ws u64 ks .
-      if have_tomb do set ws (mul tomb_slot 2) . end
-      set (idx b ws) (add k 1) .
-      set (idx b (add ws 1)) v .
+      var ws u64 ks. .
+      if have_tomb. do set ws. mul tomb_slot. 2 . . end .
+      set idx b. ws. . add k. 1 . .
+      set idx b. add ws. 1 . . v. .
       return true .
-    end
-    if eq stored 18446744073709551615 do
+    end .
+    if eq stored. 18446744073709551615 . do
       rem 묘비 — 첫 것을 재사용 후보로 기억. 하지만 키가 더 뒤에 있을 수 있으니 계속 프로브한다.
-      if eq have_tomb false do
-        set have_tomb true .
-        set tomb_slot slot .
-      end
-    end
-    if eq stored (add k 1) do
+      if eq have_tomb. false . do
+        set have_tomb. true .
+        set tomb_slot. slot. .
+      end .
+    end .
+    if eq stored. add k. 1 . . do
       rem 같은 키 — 값만 갱신한다(제자리, 묘비로 안 옮긴다)
-      set (idx b (add ks 1)) v .
+      set idx b. add ks. 1 . . v. .
       return true .
-    end
+    end .
     rem 선형 프로빙 — 다음 슬롯(감아 돈다)
-    set slot (mod (add slot 1) n) .
-    set tries (add tries 1) .
-  end
+    set slot. mod add slot. 1 . n. . .
+    set tries. add tries. 1 . .
+  end .
   rem 한 바퀴 다 돌았다(빈칸 없음). 묘비가 있으면 거기 넣는다.
-  if have_tomb do
-    let ts u64 mul tomb_slot 2 .
-    set (idx b ts) (add k 1) .
-    set (idx b (add ts 1)) v .
+  if have_tomb. do
+    let ts u64 mul tomb_slot. 2 . .
+    set idx b. ts. . add k. 1 . .
+    set idx b. add ts. 1 . . v. .
     return true .
-  end
+  end .
   return false .
-end
+end .
 
 rem ★★★ **삭제** — 키를 지운다. true=지웠다 · false=없던 키(또는 예약 상단). 슬롯을 **묘비**로 덮어
 rem   프로브 체인을 보존한다(빈칸으로 되돌리면 그 뒤 키를 못 찾는다). 값 슬롯은 0 으로 지운다.
 export proc del input b mut slice u64 . input k u64 . output bool . effects none . do
-  guard lt k 18446744073709551614 else return false .
-  let n u64 div (len b) 2 .
-  guard gt n 0 else return false .
-  var slot u64 hm_slot k n .
+  guard lt k. 18446744073709551614 . else return false . .
+  let n u64 div len b. . 2 . .
+  guard gt n. 0 . else return false . .
+  var slot u64 hm_slot k. n. . .
   var tries u64 0 .
-  while lt tries n do
-    let ks u64 mul slot 2 .
-    let stored u64 idx b ks .
-    if eq stored 0 do return false . end          rem 빈칸에 닿았다 — 없다 . .
-    if eq stored (add k 1) do
-      set (idx b ks) 18446744073709551615 .        rem 묘비 표식(빈칸 아님!)
-      set (idx b (add ks 1)) 0 .
+  while lt tries. n. . do
+    let ks u64 mul slot. 2 . .
+    let stored u64 idx b. ks. . .
+    if eq stored. 0 . do return false . end .          rem 빈칸에 닿았다 — 없다 . .
+    if eq stored. add k. 1 . . do
+      set idx b. ks. . 18446744073709551615 .        rem 묘비 표식(빈칸 아님!)
+      set idx b. add ks. 1 . . 0 .
       return true .
-    end
-    set slot (mod (add slot 1) n) .                   rem 묘비도 건너뛴다(≠k+1·≠0)
-    set tries (add tries 1) .
-  end
+    end .
+    set slot. mod add slot. 1 . n. . .                   rem 묘비도 건너뛴다(≠k+1·≠0)
+    set tries. add tries. 1 . .
+  end .
   return false .
-end
+end .
 
 rem ── ★★★ **순회**(iteration) — 맵을 열거한다(strmap 과 대칭). 슬롯 j = [b[2j]=key+1, b[2j+1]=value].
 rem   occupancy 는 **b[2j] 가 0(빈칸)도 MAX(묘비)도 아닐 때**. 순회 = method 0 capacity 를 훑으며 occupied 처리.
 rem   ★ 접근자는 slot 이 범위 밖이면 0/false(트랩 아님). key 는 key_at(디코드된 값).
 
 export fn size input b slice u64 . output u64 . do
-  return div (len b) 2 .
-end
+  return div len b. . 2 . .
+end .
 
 rem 슬롯이 살아 있나(빈칸도 묘비도 아니다). 순회의 occupancy 판별.
 export fn occupied_at input b slice u64 . input slot u64 . output bool . do
-  guard lt slot (size b) else return false .
-  let stored u64 idx b (mul slot 2) .
-  if eq stored 0 do return false . end                     rem 빈칸 . .
-  if eq stored 18446744073709551615 do return false . end  rem 묘비 . .
+  guard lt slot. size b. . . else return false . .
+  let stored u64 idx b. mul slot. 2 . . .
+  if eq stored. 0 . do return false . end .                     rem 빈칸 . .
+  if eq stored. 18446744073709551615 . do return false . end .  rem 묘비 . .
   return true .
-end
+end .
 
 rem 슬롯의 **디코드된 키**(저장값 − 1). occupied 일 때만 뜻이 있다.
 rem ★ 빈칸(저장값 0)은 **0** 이다 — `sub 0 1` 을 하지 않는다(2026-09-04 보안 검토): 위의 약속대로
 rem   접근자는 트랩하지 않고, 범위 밖과 같은 값(0)으로 답한다. 뜻은 `occupied_at` 이 정한다.
 export fn key_at input b slice u64 . input slot u64 . output u64 . do
-  guard lt slot (size b) else return 0 .
-  let stored u64 idx b (mul slot 2) .
-  guard gt stored 0 else return 0 .
-  return sub stored 1 .
-end
+  guard lt slot. size b. . . else return 0 . .
+  let stored u64 idx b. mul slot. 2 . . .
+  guard gt stored. 0 . else return 0 . .
+  return sub stored. 1 . .
+end .
 
 rem 슬롯의 value. occupied 일 때만 뜻이 있다.
 export fn val_at input b slice u64 . input slot u64 . output u64 . do
-  guard lt slot (size b) else return 0 .
-  return idx b (add (mul slot 2) 1) .
-end
+  guard lt slot. size b. . . else return 0 . .
+  return idx b. add mul slot. 2 . 1 . . .
+end .
 
 rem ★★★ **성장(rehash)** — 꽉 찬(또는 묘비 많은) 맵을 더 큰 백킹으로 옮긴다. 맵은 스스로 할당 못
 rem   하므로(백킹은 호출자 소유, RFC-0043 D1) 호출자가 **큰 백킹을 마련하고** 이걸 부른다: old 의
@@ -146,32 +146,32 @@ rem   false=new 가 작아 도중에 안 들어감. ★ occupied_at 이 묘비�
 rem   (묘비가 사라진다). old 는 안 바꾸므로 비소유 slice.
 export proc rehash input nb mut slice u64 . input ob slice u64 . output bool . effects none . do
   var slot u64 0 .
-  while lt slot (size ob) do
-    if occupied_at ob slot do
-      let k u64 key_at ob slot .
-      let v u64 val_at ob slot .
-      guard eq (put nb k v) true else return false .
-    end
-    set slot (add slot 1) .
-  end
+  while lt slot. size ob. . . do
+    if occupied_at ob. slot. . do
+      let k u64 key_at ob. slot. . .
+      let v u64 val_at ob. slot. . .
+      guard eq put nb. k. v. . true . else return false . .
+    end .
+    set slot. add slot. 1 . .
+  end .
   return true .
-end
+end .
 
 rem ★ 키를 찾는다 → 값 또는 none. 백킹을 안 바꾸므로 비소유 slice 로 충분하다. 묘비는 건너뛴다
 rem   (묘비값 ≠ k+1 이고 ≠ 0 이라 자연히 통과 — 빈칸에 닿아야 "없음" 이다).
 export proc lookup input b slice u64 . input k u64 . output option u64 . effects none . do
-  guard lt k 18446744073709551614 else return none .
-  let n u64 div (len b) 2 .
-  guard gt n 0 else return none .
-  var slot u64 hm_slot k n .
+  guard lt k. 18446744073709551614 . else return none . .
+  let n u64 div len b. . 2 . .
+  guard gt n. 0 . else return none . .
+  var slot u64 hm_slot k. n. . .
   var tries u64 0 .
-  while lt tries n do
-    let ks u64 mul slot 2 .
-    let stored u64 idx b ks .
-    if eq stored 0 do return none . end          rem 빈칸에 닿았다 — 없다(그 뒤로도 없다) . .
-    if eq stored (add k 1) do return (some (idx b (add ks 1))) . end
-    set slot (mod (add slot 1) n) .
-    set tries (add tries 1) .
-  end
+  while lt tries. n. . do
+    let ks u64 mul slot. 2 . .
+    let stored u64 idx b. ks. . .
+    if eq stored. 0 . do return none . end .          rem 빈칸에 닿았다 — 없다(그 뒤로도 없다) . .
+    if eq stored. add k. 1 . . do return some idx b. add ks. 1 . . . . end .
+    set slot. mod add slot. 1 . n. . .
+    set tries. add tries. 1 . .
+  end .
   return none .
-end
+end .

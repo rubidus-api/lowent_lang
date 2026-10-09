@@ -3,8 +3,8 @@ rem expect: E-ENS-UNDEF
 
 fn clamp input a u8 . output u8 .
   rem ko: ✘ 돌려주는 값의 이름은 `result` 가 아니라 `ret` 이다 /// en: ✘ the returned value is named `ret`, not `result`
-  ensures le result 100 .
+  ensures le result. 100 . .
 do
-  guard le a 100 else return 100 .
-  return a .
-end
+  guard le a. 100 . else return 100 . .
+  return a. .
+end .

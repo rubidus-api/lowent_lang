@@ -115,7 +115,7 @@ with the loop condition `i < 10` gives `i ∈ [0, 9]`, and one more round still 
 
 #demo("examples/ch39/count_up.low")
 
-There is one proof line. `add i 1` adds within `i ∈ [0, 9]`, so it is proven not to exceed `u8` (`R-ARITH-RANGE 0 9`). `add s i` is not proven,
+There is one proof line. `add i. 1 .` adds within `i ∈ [0, 9]`, so it is proven not to exceed `u8` (`R-ARITH-RANGE 0 9`). `add s. i. .` is not proven,
 because widening threw away the upper end of `s`. In reality `s` never exceeds 45, but the analysis does not know that. So the check stays --- slow,
 but never wrong.
 

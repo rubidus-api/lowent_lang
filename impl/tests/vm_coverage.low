@@ -21,62 +21,62 @@ rem `bytes` 는 이 저장소의 관용 별칭이다 — 픽스처가 자기 타
 def type bytes slice u8 .
 
 export fn cov_orpat input a u64 . output u64 . do
-  match a do
-    case 1 or 2 or 3 do return 7 . end
-    case 9 or 10 do return 8 . end
-    case _ do return 0 . end
-  end
-end
+  match a. do
+    case 1 or 2 or 3 do return 7 . end .
+    case 9 or 10 do return 8 . end .
+    case _ do return 0 . end .
+  end .
+end .
 
 rem ★ 여섯 가지 + 촘촘(0..5) ⇒ IRW_SWITCH 로 낮아진다. 다섯 가지면 선형으로 남는다.
 export fn cov_switch input a u64 . output u64 . do
-  match a do
-    case 0 do return 10 . end
-    case 1 do return 11 . end
-    case 2 do return 12 . end
-    case 3 do return 13 . end
-    case 4 do return 14 . end
-    case 5 do return 15 . end
-    case _ do return 99 . end
-  end
-end
+  match a. do
+    case 0 do return 10 . end .
+    case 1 do return 11 . end .
+    case 2 do return 12 . end .
+    case 3 do return 13 . end .
+    case 4 do return 14 . end .
+    case 5 do return 15 . end .
+    case _ do return 99 . end .
+  end .
+end .
 
 rem ★ `reduce_*` 는 **슬라이스가 아니라 벡터**(SIMD 레인)를 먹는다 — 처음에 `slice f64` 로 적었고
 rem   `E-VM-TYPE: reduce needs a vector` 로 배웠다. 짝의 안 쓰이는 쪽은 **쓰는 법조차 안 굳어 있다.**
 rem   항등원이 갈리는 자리다: 같은 레인에 대해 add 는 합, mul 은 곱 — 0 과 1 이 갈린다.
 export fn cov_reduce_mul input b bytes . output f64 . do
-  let xs slice f32 view_array f32 b .
-  let v vec f32 4 load xs 0 .
-  return reduce_mul v .
-end
+  let xs slice f32 view_array f32 b. . .
+  let v vec f32 4 load xs. 0 . .
+  return reduce_mul v. . .
+end .
 
 export fn cov_rotr input a u32 . output u32 . do
-  return rotr a 3 .
-end
+  return rotr a. 3 . .
+end .
 
 export fn cov_wrap_shr input a u64 . output u64 . do
-  return wrap_shr a 3 .
-end
+  return wrap_shr a. 3 . .
+end .
 
 rem ★ `and` 옵코드가 실제로 나오는 자리는 **match 의 범위 패턴** 하나다(`case lo to hi` → ge·le·and).
 rem   섬의 `and` 는 전위처럼 단락 평가로 낮아지므로 옵코드를 내지 않는다(2026-09-28). 범위 패턴을 쓰는
 rem   픽스처가 스윕 안에 없어서 `and` 가 «아무 픽스처에도 없는» 옵코드로 남아 있었다.
 export fn cov_range_pat input a u64 . output u64 . do
-  match a do
-    case 0 to 9 do return 1 . end
-    case 10 to 255 do return 2 . end
-    case _ do return 0 . end
-  end
-end
+  match a. do
+    case 0 to 9 do return 1 . end .
+    case 10 to 255 do return 2 . end .
+    case _ do return 0 . end .
+  end .
+end .
 
 rem ★★ 섬의 `and`/`or` 는 **단락 평가**다(정본 §6.3.2). 전엔 양쪽을 다 계산해 n = 0 에서
 rem   `mod x n` 이 E-VM-DIV0 으로 멈췄다. 두 뒤끝이 같은 답을 내는지를 훑기가 잰다.
 export fn cov_island_and input n u64 . input x u64 . output u64 . do
-  if expr (ne n 0) and (eq (mod x n) 0) do return 1 . end
+  if expr (ne n. 0 .) and (eq mod x. n. . 0 .) . do return 1 . end .
   return 0 .
-end
+end .
 
 export fn cov_island_or input n u64 . input x u64 . output u64 . do
-  if expr (eq n 0) or (eq (mod x n) 0) do return 1 . end
+  if expr (eq n. 0 .) or (eq mod x. n. . 0 .) . do return 1 . end .
   return 0 .
-end
+end .

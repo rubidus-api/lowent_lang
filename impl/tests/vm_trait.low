@@ -16,42 +16,42 @@ module vm_trait .
 trait shape do
   area   input s self . output u64 . effects none .
   scaled input s self . input k u8 . output u64 . effects none .
-end
+end .
 
 def struct rect do
   satisfies shape .          rem ★ 검사된다: 아래 두 op 이 **정확히** 그 시그니처여야 한다
   w u8 .
   h u8 .
-end
+end .
 
 def struct square do
   satisfies shape .
   side u8 .
-end
+end .
 
 fn rect.area input s rect . output u64 . do
-  return mul (widen u64 (field s w)) (widen u64 (field s h)) .
-end
+  return mul widen u64 field s. w . . widen u64 field s. h . . . .
+end .
 
 fn rect.scaled input s rect . input k u8 . output u64 . do
-  return mul (widen u64 k) (method s area) .
-end
+  return mul widen u64 k. . method s. area. . . .
+end .
 
 fn square.area input s square . output u64 . do
-  let d u64 widen u64 (field s side) .
-  return mul d d .
-end
+  let d u64 widen u64 field s. side . . .
+  return mul d. d. . .
+end .
 
 fn square.scaled input s square . input k u8 . output u64 . do
-  return mul (widen u64 k) (method s area) .
-end
+  return mul widen u64 k. . method s. area. . . .
+end .
 
 rem 같은 trait 을 충족하는 두 타입 — 이름 `area` 는 **전역에 없다**
 fn both output u64 . do
-  let r lit rect do w 3 . h 4 . end .
-  let q lit square do side 5 . end .
-  return add (method r area) (method q area) .
-end
+  let r lit rect do w 3 . h 4 . end . .
+  let q lit square do side 5 . end . .
+  return add method r. area. . method q. area. . . .
+end .
 
 rem ★★★ **액터도 타입이다** — 그리고 `satisfies` 를 적을 수 있다. 그런데 검사기가
 rem   **`struct` 만** 보고 있었다 ⇒ **액터의 주장은 아무도 확인하지 않았다.**
@@ -61,27 +61,27 @@ rem   ★ 액터의 op 은 **핸들러**이고 수신자(인스턴스)는 **암�
 rem     `self` 파라미터를 빼고 대조한다.
 trait counter do
   bump input s self . input n u64 . output u64 . effects state .
-end
+end .
 
 actor ctr do
   satisfies counter .          rem ★ 이제 **검사된다**
   state do
     v u64 .
-  end
+  end .
   proc bump input n u64 . output u64 . effects state .
   do
-    set v expr v + n .
-    return v .
-  end
-end
+    set v. expr v. + n. . .
+    return v. .
+  end .
+end .
 
 proc actor_trait output u64 . effects state . do
-  var a ctr spawn actor ctr .
-  return send a bump 4 .
-end
+  var a ctr spawn actor ctr . .
+  return send a. bump 4 . .
+end .
 
 test trait_holds do
-  expect eq (both) 37 .                  rem 3*4 + 5*5
-  expect eq (rect.scaled (lit rect do w 3 . h 4 . end) 2) 24 .
-  expect eq (actor_trait) 4 .
-end
+  expect eq both. 37 . .                  rem 3*4 + 5*5
+  expect eq rect.scaled lit rect do w 3 . h 4 . end . 2 . 24 . .
+  expect eq actor_trait. 4 . .
+end .

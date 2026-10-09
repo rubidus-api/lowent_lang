@@ -7,4 +7,4 @@ unsafe extern proc c_find do
   output option u64 .
   effects unsafe .
   link "lw_c_find" .
-end
+end .

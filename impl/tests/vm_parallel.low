@@ -19,12 +19,12 @@ rem    런타임 쪼개기에서도 **발산한다.**)
 rem ★ 쪼갤 수 있다 — 각 반복이 **제 원소만** 읽고 쓴다.
 proc dbl input s mut slice u8 . output u64 . effects none . parallel s split . do
   var i u64 0 .
-  while lt i (len s) do
-    set (idx s i) expr (idx s i) * 2 .
-    set i expr i + 1 .
-  end
-  return len s .
-end
+  while lt i. len s. . . do
+    set idx s. i. . expr (idx s. i. .) * 2 . .
+    set i. expr i. + 1 . .
+  end .
+  return len s. . .
+end .
 
 rem ── ★★ DET-3 — reduction 은 **트리를 고정해야** 하는가? 연산이 결합적이냐에 달렸다.
 rem
@@ -37,9 +37,9 @@ fn isum input s mut slice u8 . output u64 .
 do
   var acc u64 0 .
   var i u64 0 .
-  while lt i (len s) do
-    set acc expr acc + (idx s i) .
-    set i expr i + 1 .
-  end
-  return acc .
-end
+  while lt i. len s. . . do
+    set acc. expr acc. + (idx s. i. .) . .
+    set i. expr i. + 1 . .
+  end .
+  return acc. .
+end .

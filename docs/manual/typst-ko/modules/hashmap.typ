@@ -8,8 +8,8 @@
 타입과 얼로케이터를 고르는 컨테이너는 #modref("mapgen")[`mapgen`] 이다(#chref("lib-containers")).
 
 ```lowent
-let stored bool hashmap.put b 7 42 .
-let v option u64 hashmap.lookup b 7 .
+let stored bool hashmap.put b. 7 42 . .
+let v option u64 hashmap.lookup b. 7 . .
 ```
 
 #aside[꼭 알아 둘 것 둘][
@@ -45,24 +45,24 @@ let v option u64 hashmap.lookup b 7 .
 ```lowent
 proc hm_sum input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard ge (div (len b) 2) 4 else return 0 .
-  guard eq (hashmap.put b 10 100) true else return 0 .
-  guard eq (hashmap.put b 20 222) true else return 0 .
-  guard eq (hashmap.del b 10) true else return 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard ge div len b. . 2 . 4 . else return 0 . .
+  guard eq hashmap.put b. 10 100 . true . else return 0 . .
+  guard eq hashmap.put b. 20 222 . true . else return 0 . .
+  guard eq hashmap.del b. 10 . true . else return 0 . .
   var slot u64 0 .
   var total u64 0 .
-  while lt slot (hashmap.size b) do
-    if hashmap.occupied_at b slot do
-      set total (add total (hashmap.val_at b slot)) .
-    end
-    set slot (add slot 1) .
-  end
-  return total .
-end
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      set total. add total. hashmap.val_at b. slot. . . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  return total. .
+end .
 ```
 
 #antipattern[`occupied_at` 없이 슬롯을 읽는다][

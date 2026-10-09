@@ -671,18 +671,18 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> use_once <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v .
-  <strong><span class="tok-k">return</span></strong> consume h .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v. .
+  <strong><span class="tok-k">return</span></strong> consume h. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run use_once sink.low 5
 use_once(5) = 0
-</code></pre></div></div><p><code>consume</code> takes an <code>owned buffer</code> and disposes of it with <code>drop h .</code>. <code>use_once</code> makes an owned value with <code>var h owned buffer v .</code> and passes it to <code>consume</code>. At that moment ownership <strong>moves</strong>. Now <code>consume</code> is responsible for disposing of <code>h</code>, and <code>use_once</code> can no longer use <code>h</code>.</p><pre><code data-lang="text">  use_once                              consume
+</code></pre></div></div><p><code>consume</code> takes an <code>owned buffer</code> and disposes of it with <code>drop h. .</code>. <code>use_once</code> makes an owned value with <code>var h owned buffer v. .</code> and passes it to <code>consume</code>. At that moment ownership <strong>moves</strong>. Now <code>consume</code> is responsible for disposing of <code>h</code>, and <code>use_once</code> can no longer use <code>h</code>.</p><pre><code data-lang="text">  use_once                              consume
   ┌──────────────────┐   pass (move)    ┌──────────────────┐
   │ h ──▶ [ buffer ] │ ───────────────▶ │ h ──▶ [ buffer ] │ ── drop h .  → gone
   └──────────────────┘                  └──────────────────┘
@@ -694,16 +694,16 @@ use_once(5) = 0
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> reuse <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> consume h .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u8</span></strong> consume h .
-  <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> consume h. . .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u8</span></strong> consume h. . .
+  <strong><span class="tok-k">return</span></strong> add a. b. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check moved.low
 moved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p>Disposing twice is rejected too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/twice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> twice_drop .
@@ -713,10 +713,10 @@ moved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — 
 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h. .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check twice.low
 twice.low:9:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p>The diagnostic notes that the specification always called this an error and that for a while nothing enforced it. Today translation stops it.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> What happens when a value without ownership is passed?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> It is copied. Values like <code>u64</code> or <code>point</code> are copied when passed, and the original name stays usable. Only owned values move. Large values whose copying cost worries you are passed by borrowing with <code>ref</code> (chapter 12). And when the place where a value-producing expression will land is empty, the expression cannot fail on the way, and the place belongs to that value alone, the value is built directly in place — no intermediate temporary and no moving copy. These three conditions can be counted from the source alone.</p></div></div><h3 id="s19-2">19.2 Where branches meet<a class="plink" href="#s19-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Where an <code>if</code> splits and rejoins, the ownership state must be the same on every path.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/join.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> join .
@@ -726,11 +726,11 @@ twice.low:9:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — u
 
 <strong><span class="tok-k">fn</span></strong> maybe <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> c <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">drop</span></strong> h .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> c. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">drop</span></strong> h. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check join.low
 join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this branch but still LIVE on another where they merge — Lowent requires the ownership state to be STATICALLY consistent at a join (RFC-0044 §9.3): no hidden drop-flag decides it at runtime. Consume it on EVERY path, or make it conditionally owned (`?owned`)
 </code></pre></div></div><p>On the path where <code>c</code> is true, <code>h</code> was disposed of; on the false path it is still alive. After the paths meet, nobody can say whether <code>h</code> is alive. Some languages keep a hidden “already dropped” flag here, but Lowent requires the ownership state to be <strong>statically</strong> one thing. Dispose of it on both paths, or pass it on both paths.</p><pre><code data-lang="text">              if c
@@ -745,26 +745,26 @@ join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this bran
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
   disk_full .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> finish <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
-  <strong><span class="tok-k">errors</span></strong> disk_full eq j <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> disk_full eq j. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem an empty journal means there was no room to write --- so this arm really does happen</span></em>
-  <strong><span class="tok-k">guard</span></strong> ne j <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">drop</span></strong> j .
-    <strong><span class="tok-k">return</span></strong> error disk_full .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">drop</span></strong> j .
-  <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> ne j. <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">drop</span></strong> j. .
+    <strong><span class="tok-k">return</span></strong> error disk_full . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">drop</span></strong> j. .
+  <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> session <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
   <strong><span class="tok-k">errors</span></strong> disk_full .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">owned</span></strong> journal n .
-  <strong><span class="tok-k">return</span></strong> finish j .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">owned</span></strong> journal n. .
+  <strong><span class="tok-k">return</span></strong> finish j. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run session complete.low 3
 session(3) = ok 0
 </code></pre></div></div><p>Because <code>finish</code> takes an <code>owned journal</code> and returns a <code>result</code>, <code>journal</code> becomes a type needing completion. <code>session</code> finishes it by calling <code>finish j</code> and returns that (possibly failing) result as its own. Letting it go out of scope without calling the completion is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/incomplete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> incomplete .
@@ -774,19 +774,19 @@ session(3) = ok 0
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
   disk_full .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> finish <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
   <strong><span class="tok-k">errors</span></strong> disk_full .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> j .
-  <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">drop</span></strong> j. .
+  <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> forget <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check incomplete.low
 incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the body never returns. The clause is read as a promise about what this op can do, and the callers write their handling from it — a branch that can never be taken is dead code the reader cannot tell from live code. Return it (`return error &lt;variant>`), forward one (`try`), or remove the clause
 17:0 E-OWN-INCOMPLETE: this value is dropped automatically at the end of scope — but the program itself declares an op that takes this type `owned` BY VALUE and returns a `result`: finishing it CAN FAIL. An automatic drop is a RELEASE (total, non-suspending), and it has nowhere to hand you that failure — it would SWALLOW it. A fallible finish (flush/commit/close) is a COMPLETION and must be EXPLICIT: call it and handle the `result`. If you really mean to discard the value and its failure, say so with `drop`. RFC-0058
@@ -797,21 +797,21 @@ incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the 
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> three_times <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v .
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v. .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">3</span> <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ the second round passes `h` again after the first round moved it away</span></em>
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> consume h .
-    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> consume h. . .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_loopmove.low
 mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a LOOP and never put back — the SECOND iteration would be a use-after-move. A loop body must end the way it began: consume it and REASSIGN the place (`set &lt;name> …`, which re-initialises it), or move the consumption out of the loop
 </code></pre></div></div><p>Once <code>consume h</code> takes ownership in the first round, <code>h</code> in the second round already belongs to someone else. Translation does not need to follow the rounds one by one; it sees that “the loop body ends in a different shape than it began” and rejects it with <code>E-OWN-MOVED</code>. There are two fixes: move the consuming call out of the loop, or refill the moved place with a new value using <code>set</code>, so each round ends in the same shape.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/loopmove_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loopmove_fixed .
@@ -821,24 +821,24 @@ mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a L
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> three_times <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v .
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v. .
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u8</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">3</span> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> n (add n (consume h)) .
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> n. add n. consume h. . . .
     <em><span class="tok-c">rem refill the moved place with a new value --- the round ends in the same shape it began</span></em>
-    <strong><span class="tok-k">set</span></strong> h v .
-    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">set</span></strong> h. v. .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">drop</span></strong> h. .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run three_times loopmove_fixed.low 5
 three_times(5) = 3
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Moving a value while thinking you only read it</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_readmove.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_readmove .
@@ -849,34 +849,34 @@ three_times(5) = 3
 <strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ taking the value into a name is a move too --- the `drop h` after it destroys a moved value</span></em>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> h .
-  <strong><span class="tok-k">drop</span></strong> h .
-  <strong><span class="tok-k">return</span></strong> v .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> h. .
+  <strong><span class="tok-k">drop</span></strong> h. .
+  <strong><span class="tok-k">return</span></strong> v. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_readmove.low
 mistake_readmove.low:10:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
-</code></pre></div></div><p><code>let v u8 h .</code> does not look at <code>h</code>; it <strong>moves</strong> it into <code>v</code>. A value with ownership moves the moment it is stored under a name, so the later <code>drop h</code> tries to destroy a moved value. To only look, borrow it with <code>ref h</code> inside the same op. As the diagnostic notes, borrows across an op boundary are not lowered yet in this edition.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Believing a second name makes a copy</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_twonames.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_twonames .
+</code></pre></div></div><p><code>let v u8 h. .</code> does not look at <code>h</code>; it <strong>moves</strong> it into <code>v</code>. A value with ownership moves the moment it is stored under a name, so the later <code>drop h</code> tries to destroy a moved value. To only look, borrow it with <code>ref h .</code> inside the same op. As the diagnostic notes, borrows across an op boundary are not lowered yet in this edition.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Believing a second name makes a copy</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_twonames.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_twonames .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> both <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ believed a second name makes a copy --- ownership moved to `h2`</span></em>
-  <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">owned</span></strong> buffer h .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> consume h2 .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u8</span></strong> consume h .
+  <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">owned</span></strong> buffer h. .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> consume h2. . .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u8</span></strong> consume h. . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_twonames.low
 mistake_twonames.low:17:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
-</code></pre></div></div><p>A value like <code>u64</code> is copied when stored under another name. A value with ownership is not copied; it moves. With two copies nobody could say who destroys it, and destroying both would destroy it twice. After <code>var h2 owned buffer h .</code>, <code>h2</code> is the only owner.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Leaving out <code>drop</code> leaks the value</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/implicit_release.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> implicit_release .
+</code></pre></div></div><p>A value like <code>u64</code> is copied when stored under another name. A value with ownership is not copied; it moves. With two copies nobody could say who destroys it, and destroying both would destroy it twice. After <code>var h2 owned buffer h. .</code>, <code>h2</code> is the only owner.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Leaving out <code>drop</code> leaks the value</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/implicit_release.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> implicit_release .
 <em><span class="tok-c">rem run: keep_or_drop 5 1</span></em>
 <em><span class="tok-c">rem run: keep_or_drop 5 0</span></em>
 
@@ -885,16 +885,16 @@ mistake_twonames.low:17:0 E-OWN-MOVED: this `owned` value was already MOVED (con
 <em><span class="tok-c">rem the path where `c` is false leaves without `drop` --- release cannot fail, so it happens quietly where the lifetime ends</span></em>
 <strong><span class="tok-k">fn</span></strong> keep_or_drop <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v .
-  <strong><span class="tok-k">guard</span></strong> eq c <span class="tok-n">1</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer v. .
+  <strong><span class="tok-k">guard</span></strong> eq c. <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">drop</span></strong> h. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run keep_or_drop implicit_release.low 5 1
 keep_or_drop(5, 1) = 1
 $ lowentc --run keep_or_drop implicit_release.low 5 0
 keep_or_drop(5, 0) = 0
-</code></pre></div></div><p>The path where <code>c</code> is 0 leaves without <code>drop</code>, yet it is neither rejected nor leaked. <strong>Release</strong>, which gives memory back, cannot fail, so it happens quietly where the lifetime ends. Only <strong>completion</strong>, which can fail, must be written by the author (<code>incomplete.low</code>). Where branches <strong>meet again</strong>, though, the ownership state must match (<code>join.low</code>). A path that leaves never meets the other, so that rule does not apply.</p></div></div><h3 id="s19-7">19.7 This chapter’s syntax at a glance<a class="plink" href="#s19-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>input h owned buffer .</code> · <code>var h owned buffer v .</code></td><td>a value with ownership</td><td>one name is responsible for destroying it</td></tr><tr><td><code>consume h</code></td><td>passing moves ownership</td><td>no use after the move — <code>E-OWN-MOVED</code></td></tr><tr><td><code>drop h .</code></td><td>say it is destroyed now</td><td>destroying twice is rejected</td></tr><tr><td><code>set h v .</code> (after a move)</td><td>refill the moved place</td><td>a loop body ends in the same shape</td></tr><tr><td>different ownership states per branch after <code>if</code></td><td>rejected (<code>E-OWN-JOIN</code>)</td><td>no hidden “was it dropped” flag</td></tr><tr><td><code>fn finish input j owned journal . output result …</code></td><td>declares that finishing this type can fail</td><td>completion declared without a new word</td></tr><tr><td>leaving scope without calling completion</td><td>rejected (<code>E-OWN-INCOMPLETE</code>)</td><td>a failing finish is never swallowed</td></tr><tr><td>leaving without a word, when no completion is needed</td><td>released quietly</td><td>release cannot fail</td></tr></table></div><p class="float-caption">Table 19.4 — Ownership syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>owned t</code> must be disposed of exactly once and moves when passed. Reusing a moved value, disposing twice, and differing ownership state across branches are rejected. Disposal splits into release, which cannot fail, and completion, which can; a type needing completion is declared by an op that takes it <code>owned</code> and returns a <code>result</code>. Silently discarding a value that needs completion is rejected. Understand memory rules by strength: static, dynamic and proven.</div></div>
+</code></pre></div></div><p>The path where <code>c</code> is 0 leaves without <code>drop</code>, yet it is neither rejected nor leaked. <strong>Release</strong>, which gives memory back, cannot fail, so it happens quietly where the lifetime ends. Only <strong>completion</strong>, which can fail, must be written by the author (<code>incomplete.low</code>). Where branches <strong>meet again</strong>, though, the ownership state must match (<code>join.low</code>). A path that leaves never meets the other, so that rule does not apply.</p></div></div><h3 id="s19-7">19.7 This chapter’s syntax at a glance<a class="plink" href="#s19-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>input h owned buffer .</code> · <code>var h owned buffer v. .</code></td><td>a value with ownership</td><td>one name is responsible for destroying it</td></tr><tr><td><code>consume h</code></td><td>passing moves ownership</td><td>no use after the move — <code>E-OWN-MOVED</code></td></tr><tr><td><code>drop h. .</code></td><td>say it is destroyed now</td><td>destroying twice is rejected</td></tr><tr><td><code>set h. v. .</code> (after a move)</td><td>refill the moved place</td><td>a loop body ends in the same shape</td></tr><tr><td>different ownership states per branch after <code>if</code></td><td>rejected (<code>E-OWN-JOIN</code>)</td><td>no hidden “was it dropped” flag</td></tr><tr><td><code>fn finish input j owned journal . output result …</code></td><td>declares that finishing this type can fail</td><td>completion declared without a new word</td></tr><tr><td>leaving scope without calling completion</td><td>rejected (<code>E-OWN-INCOMPLETE</code>)</td><td>a failing finish is never swallowed</td></tr><tr><td>leaving without a word, when no completion is needed</td><td>released quietly</td><td>release cannot fail</td></tr></table></div><p class="float-caption">Table 19.4 — Ownership syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>owned t</code> must be disposed of exactly once and moves when passed. Reusing a moved value, disposing twice, and differing ownership state across branches are rejected. Disposal splits into release, which cannot fail, and completion, which can; a type needing completion is declared by an op that takes it <code>owned</code> and returns a <code>result</code>. Silently discarding a value that needs completion is rejected. Understand memory rules by strength: static, dynamic and proven.</div></div>
 <div class="nav"><a href="ch18.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch20.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

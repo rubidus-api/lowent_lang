@@ -14,10 +14,10 @@ address = directory[segment] + slot
 
 ```lowent
 def newtype grid u8 .
-var a (segarena.arena grid) segarena.open grid 4 .
-let b option u64 segarena.grow grid a dir 1024 .
-guard is_some b else return 1 .
-let v option u64 segarena.at grid a dir mem 9 .
+var a (segarena.arena grid) segarena.open grid. 4 . .
+let b option u64 segarena.grow grid. a. dir. 1024 . .
+guard is_some b. . else return 1 . .
+let v option u64 segarena.at grid. a. dir. mem. 9 . .
 ```
 
 #aside[비용이 op 이름에 적혀 있다 --- 이것이 이 모듈의 요점이다][
@@ -40,7 +40,7 @@ let v option u64 segarena.at grid a dir mem 9 .
 )
 
 #antipattern[조각 크기가 뜻이 없다][
-  `segarena.open g 0` 은 컴파일 에러 `E-CONTRACT-IMPOSSIBLE` 이다 --- 조각이 한 칸이면 세그먼트가 아니다. 인자가 상수라 부르는 자리에서 판정된다(#chref("contracts")).
+  `segarena.open g. 0 .` 은 컴파일 에러 `E-CONTRACT-IMPOSSIBLE` 이다 --- 조각이 한 칸이면 세그먼트가 아니다. 인자가 상수라 부르는 자리에서 판정된다(#chref("contracts")).
 ]
 
 #antipattern[뜨거운 순회를 전역 색인으로 돈다][

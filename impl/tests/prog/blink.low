@@ -34,7 +34,7 @@ def struct gpioa do
   idr   u32 ro .             rem 입력     (쓰면 컴파일 에러)
   odr   u32 rw .             rem 출력 데이터
   bsrr  u32 wo .             rem set/reset(읽으면 컴파일 에러)
-end
+end .
 
 rem ── RCC — 클럭이 없으면 장치는 **없는 것과 같다** ───────────────────────
 rem ★★★ 실기에서 가장 조용한 함정이다: RCC 가 GPIOA 에 클럭을 주기 전에는 그 레지스터가
@@ -60,25 +60,25 @@ def struct rcc do
   rsv1      u32 rw .         rem 0x28 — 예약
   rsv2      u32 rw .         rem 0x2C — 예약
   ahb1enr   u32 rw .         rem 0x30 — 비트0 = GPIOAEN
-end
+end .
 
 unsafe proc clock_on
   input dev cap mmio .
   output void .
   effects device unsafe .
 do
-  var c rcc view rcc .
+  var c rcc view rcc . .
   rem ★ 읽고-고치고-쓴다. 통째로 쓰면 **남의 주변장치 클럭을 꺼 버린다**.
-  write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
+  write_volatile c. ahb1enr bit_or read_volatile c. ahb1enr . 1 . .
   return .
-end
+end .
 
 rem ── 핀 5 = 보드 LED (Nucleo-F401 의 LD2) ────────────────────────────────
 rem ★ 상수도 낱말을 안 늘린다 — 그냥 정수를 내는 fn 이다.
 fn led_bit output u32 .
 do
-  return shl 1 5 .
-end
+  return shl 1 5 . .
+end .
 
 rem ── 초기화: LED 핀을 출력 모드로 ────────────────────────────────────────
 rem ★ **보통 op 은 여전히 권한을 받아야 한다.** ISR 의 면제는 정확히 문 하나 폭이다(D5-b) —
@@ -88,14 +88,14 @@ unsafe proc led_init
   output void .
   effects device unsafe .
 do
-  var g gpioa view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
+  var g gpioa view gpioa . .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
   rem moder 의 핀5 자리(비트 10~11)를 01(범용 출력)로.
-  var m u32 read_volatile g moder .
-  set m (bit_and m (bit_not (shl 3 10))) .
-  set m (bit_or m (shl 1 10)) .
-  write_volatile g moder m .
+  var m u32 read_volatile g. moder . .
+  set m. bit_and m. bit_not shl 3 10 . . . .
+  set m. bit_or m. shl 1 10 . . .
+  write_volatile g. moder m. .
   return .
-end
+end .
 
 rem ── ISR: 시스틱이 부를 때마다 LED 를 뒤집는다 ───────────────────────────
 rem ★★★ 이것이 이 축의 **주장**이다: 인자 없는 함수가 장치에 닿는다.
@@ -108,11 +108,11 @@ unsafe proc on_systick
   output void .
   effects device unsafe .
 do
-  var g gpioa view gpioa .          rem ★ 줄 사람이 없어도 열린다
-  var cur u32 read_volatile g odr .
-  write_volatile g odr (bit_xor cur led_bit) .
+  var g gpioa view gpioa . .          rem ★ 줄 사람이 없어도 열린다
+  var cur u32 read_volatile g. odr . .
+  write_volatile g. odr bit_xor cur. led_bit. . .
   return .
-end
+end .
 
 rem ── SysTick — 무엇이 ISR 을 부르는가 ────────────────────────────────────
 rem ★ Cortex-M 코어 안의 타이머다. **NVIC 를 거치지 않는다** — 자기 `ctrl` 로 켜진다.
@@ -122,19 +122,19 @@ def struct systick do
   ctrl u32 rw .              rem 비트0 켜기 · 비트1 인터럽트 · 비트2 코어클럭
   load u32 rw .              rem 재적재 값(24비트)
   val  u32 rw .              rem 현재 값 — 쓰면 0 으로 지워진다
-end
+end .
 
 unsafe proc tick_init
   input dev cap mmio .
   output void .
   effects device unsafe .
 do
-  var s systick view systick .
-  write_volatile s load 15999 .    rem 16MHz / 16000 = 1kHz
-  write_volatile s val 0 .
-  write_volatile s ctrl 7 .        rem enable | tickint | clksource
+  var s systick view systick . .
+  write_volatile s. load 15999 .    rem 16MHz / 16000 = 1kHz
+  write_volatile s. val 0 .
+  write_volatile s. ctrl 7 .        rem enable | tickint | clksource
   return .
-end
+end .
 
 rem ── `wfi` — 인터럽트를 기다린다 ─────────────────────────────────────────
 rem ★★★ 이식 가능한 방법이 **없는** 자리다(RFC-0041 의 최후수단 규율): portable → intrinsic →
@@ -155,7 +155,7 @@ do
   text ASM
     wfi
 ASM
-end
+end .
 
 rem ── 리셋 진입 — `vector 1 .` (RFC-0042 D5-c) ───────────────────────────
 rem ★★★ Cortex-M 의 **슬롯 1 이 곧 리셋 벡터**다. 그것을 주장하는 op 이 리셋 진입이고,
@@ -173,19 +173,19 @@ unsafe proc reset
   effects device unsafe .
 do
   rem ① 클럭이 먼저다 — 없으면 아래 쓰기가 전부 허공에 떨어진다.
-  var c rcc view rcc .
-  write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
+  var c rcc view rcc . .
+  write_volatile c. ahb1enr bit_or read_volatile c. ahb1enr . 1 . .
   rem ② LED 핀을 범용 출력으로.
-  var g gpioa view gpioa .
-  var m u32 read_volatile g moder .
-  set m (bit_and m (bit_not (shl 3 10))) .
-  set m (bit_or m (shl 1 10)) .
-  write_volatile g moder m .
+  var g gpioa view gpioa . .
+  var m u32 read_volatile g. moder . .
+  set m. bit_and m. bit_not shl 3 10 . . . .
+  set m. bit_or m. shl 1 10 . . .
+  write_volatile g. moder m. .
   rem ③ SysTick 을 켠다 — 이제 on_systick 이 1kHz 로 불린다.
-  var s systick view systick .
-  write_volatile s load 15999 .
-  write_volatile s val 0 .
-  write_volatile s ctrl 7 .
+  var s systick view systick . .
+  write_volatile s. load 15999 .
+  write_volatile s. val 0 .
+  write_volatile s. ctrl 7 .
   rem ④ 인터럽트를 기다린다 — **잔다**(RFC-0042 D11, 2026-08-03).
   rem   ☞ 여기서 `wait_irq k .`(wfi)를 **부를 수 없다**: 그것은 `cap machine` 을 요구하는데
   rem     리셋의 권한은 **건네줄 수 없다**(그게 이 문이 새지 않는 이유다). *"D5-b 의 권한이
@@ -201,9 +201,9 @@ do
       wfi
 ASM
     .
-  end
+  end .
   return .
-end
+end .
 
 rem ── 주 루프 ─────────────────────────────────────────────────────────────
 rem ★ 베어메탈의 main 은 **돌아오지 않는다**. 초기화한 뒤 인터럽트를 기다리며 잔다 —
@@ -216,11 +216,11 @@ export unsafe proc start
 do
   rem ★★ 순서가 전부다: **클럭이 먼저다.** 이 줄이 뒤로 가면 `led_init` 의 쓰기가 전부
   rem   허공에 떨어지고, 프로그램은 여전히 초록이며 보드는 여전히 어둡다.
-  clock_on dev .
-  led_init dev .
-  tick_init dev .
+  clock_on dev. .
+  led_init dev. .
+  tick_init dev. .
   while true do
-    wait_irq k .
-  end
+    wait_irq k. .
+  end .
   return .
-end
+end .

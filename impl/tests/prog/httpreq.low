@@ -30,28 +30,28 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let g option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some g else return 70 .
-  let buf mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al. capacity 4096 . .
+  guard is_some g. . else return 70 . .
+  let buf mut slice u8 some_value g. . .
 
-  let rn option u64 read_in k 0 buf .
-  guard is_some rn else return 71 .
-  let got u64 some_value rn .
-  guard ne got 0 else return 46 .
+  let rn option u64 read_in k. 0 buf. . .
+  guard is_some rn. . else return 71 . .
+  let got u64 some_value rn. . .
+  guard ne got. 0 . else return 46 . .
 
-  let req slice u8 subslice buf 0 got .
+  let req slice u8 subslice buf. 0 got. . .
 
   rem ── 판을 먼저 본다: 판이 다르면 나머지를 읽을 까닭이 없다 ──
-  guard http.version_ok req else return 45 .
+  guard http.version_ok req. . else return 45 . .
 
   rem ── 메서드 ──
-  guard eq (http.method_code req) (http.method_get) else return 44 .
+  guard eq http.method_code req. . http.method_get. . else return 44 . .
 
   rem ── 대상이 `/` 하나인가 ──
-  let tl u64 http.target_len req .
-  guard eq tl 1 else return 43 .
-  let at u64 http.target_off req .   rem ★ `to` 는 버린 낱말이라 이름으로 못 쓴다(E-VOCAB-REMOVED).
-  guard eq (idx req at) 47 else return 43 .
+  let tl u64 http.target_len req. . .
+  guard eq tl. 1 . else return 43 . .
+  let at u64 http.target_off req. . .   rem ★ `to` 는 버린 낱말이라 이름으로 못 쓴다(E-VOCAB-REMOVED).
+  guard eq idx req. at. . 47 . else return 43 . .
 
   return 42 .
-end
+end .

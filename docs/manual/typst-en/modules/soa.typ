@@ -30,23 +30,23 @@ by side. For a computation scanning only x, SoA reads just the needed values con
 proc demo input xs mut slice u64 . input vxs mut slice u64 .
   input rows mut slice u64 . output u64 . effects none .
 do
-  set (idx xs 0) 1 .
-  set (idx xs 1) 2 .
-  set (idx vxs 0) 10 .
-  set (idx vxs 1) 20 .
-  let n1 u64 soa.step_x xs vxs 2 .
-  guard eq n1 2 else return 90 .
-  let s1 u64 soa.sum_field (subslice xs 0 2) .
-  set (idx rows 0) 1 .
-  set (idx rows 1) 10 .
-  set (idx rows 2) 2 .
-  set (idx rows 3) 20 .
-  let n2 u64 soa.step_x_aos rows 2 0 1 2 .
-  guard eq n2 2 else return 91 .
-  var s2 u64 add (idx rows 0) (idx rows 2) .
-  guard eq s1 s2 else return 92 .
-  return s1 .
-end
+  set idx xs. 0 . 1 .
+  set idx xs. 1 . 2 .
+  set idx vxs. 0 . 10 .
+  set idx vxs. 1 . 20 .
+  let n1 u64 soa.step_x xs. vxs. 2 . .
+  guard eq n1. 2 . else return 90 . .
+  let s1 u64 soa.sum_field subslice xs. 0 2 . . .
+  set idx rows. 0 . 1 .
+  set idx rows. 1 . 10 .
+  set idx rows. 2 . 2 .
+  set idx rows. 3 . 20 .
+  let n2 u64 soa.step_x_aos rows. 2 0 1 2 . .
+  guard eq n2. 2 . else return 91 . .
+  var s2 u64 add idx rows. 0 . idx rows. 2 . . .
+  guard eq s1. s2. . else return 92 . .
+  return s1. .
+end .
 ```
 
 *Where it gets stuck --- the list of language work.* ① There is no syntax for handling one element "as a lump" --- the caller gathers fields by hand (`get_x`). Inconvenient, not
@@ -55,11 +55,11 @@ the four-argument shape. ③ *Types do not know the layout* --- AoS and SoA vers
 where the compiler cannot help.
 
 #antipattern[Ignoring the returned count][
-  `soa.step_x xs vxs 1000` silently processes only 3 if `xs` has 3 slots. Code assuming all `n` were processed confirms with `guard eq m n`.
+  `soa.step_x xs. vxs. 1000 .` silently processes only 3 if `xs` has 3 slots. Code assuming all `n` were processed confirms with `guard eq m n`.
 ]
 
 #antipattern[Swapping the AoS offsets][
-  `soa.step_x_aos rows 2 1 0 3` has xoff and voff reversed and adds position to velocity without error. That is how "layout is not in the type" feels.
+  `soa.step_x_aos rows. 2 1 0 3 .` has xoff and voff reversed and adds position to velocity without error. That is how "layout is not in the type" feels.
 ]
 
 *Cautions.* Keeping parallel arrays the same length is the caller's responsibility --- ops shrink to the shorter one without telling. `get_x`'s failure value 0 cannot be told

@@ -20,8 +20,8 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 ```lowent
 rem w 는 u64 175 원소 이상 --- 작업 공간을 하나로 받는다
-let n u64 x25519.agree shared mysecret theirpub zbuf w .
-guard eq n 32 else return 1 .
+let n u64 x25519.agree shared. mysecret. theirpub. zbuf. w. . .
+guard eq n. 32 . else return 1 . .
 ```
 
 **왜 작업 공간이 하나인가.** `scalarmult` 는 체 원소 아홉과 곱셈 자리를 따로 받는다 — 안에서 읽기에는 그편이 낫다. 그런데 부르는 쪽에서 열넷을 늘어놓으면 파라미터 상한 16 을 금방 먹는다. 이 라이브러리를 쓴 첫 프로그램이 실제로 `E-IR-ARITY` 로 거절당했다. 그래서 `agree` 가 `w` 하나(175 원소 이상)를 잘라 쓰고, 자리 배치(체 원소 아홉 = `w[0..144]`, 곱셈 자리 = `w[144..175]`)는 소스 한 곳에만 있다.

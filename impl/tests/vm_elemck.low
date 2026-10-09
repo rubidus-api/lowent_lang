@@ -15,25 +15,25 @@ rem 원소가 전부 한도 아래면 그 사실로 색인이 안전해진다 �
 export proc lookup input s slice u8 . input t slice u64 . input i u64 .
   output u64 .
   effects none .
-  requires elem_le s 200 .
-  requires lt i (len s) . requires ge (len t) 201 .
+  requires elem_le s. 200 . .
+  requires lt i. len s. . . . requires ge len t. . 201 . .
 do
-  return (idx t (idx s i)) .
-end
+  return idx t. idx s. i. . . .
+end .
 
 export proc run input al cap allocator . output u64 . effects alloc . do
-  let ms option mut slice u8 alloc_bytes al capacity 4 .
-  guard is_some ms else return 89 .
-  let mt option mut slice u8 alloc_bytes al capacity 1608 .
-  guard is_some mt else return 88 .
-  var a mut slice u8 some_value ms .
-  var b mut slice u64 view_array u64 (some_value mt) .
-  set (idx a 0) 3 .
-  set (idx b 3) 42 .
-  return (lookup a b 0) .
-end
+  let ms option mut slice u8 alloc_bytes al. capacity 4 . .
+  guard is_some ms. . else return 89 . .
+  let mt option mut slice u8 alloc_bytes al. capacity 1608 . .
+  guard is_some mt. . else return 88 . .
+  var a mut slice u8 some_value ms. . .
+  var b mut slice u64 view_array u64 some_value mt. . . .
+  set idx a. 0 . 3 .
+  set idx b. 3 . 42 .
+  return lookup a. b. 0 . .
+end .
 
 export proc main input al cap allocator . output u8 . effects alloc . do
-  guard eq (run al) 42 else return 1 .
+  guard eq run al. . 42 . else return 1 . .
   return 0 .
-end
+end .

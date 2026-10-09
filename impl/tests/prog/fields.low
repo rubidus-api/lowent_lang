@@ -26,7 +26,7 @@ use io from "../../../lib/io.low" .
 rem 잘라낼 공백 집합 — 라이브러리의 trim 은 "집합" 을 받는다(문자 하나가 아니라).
 fn ws output slice u8 . do
   return " \t" .
-end
+end .
 
 rem 한 줄을 구분자로 쪼개어 (필드수, 비어있지 않은 수) 를 10 진 두 자리로 접어 돌려준다.
 rem ★ 커서는 **값**이다(RFC-0069 §4) — 호출자가 pos 를 들고 스스로 전진한다.
@@ -36,53 +36,53 @@ do
   var pos u64 0 .
   var total u64 0 .
   var nonempty u64 0 .
-  var f option slice u8 strings.split_next line sep pos .
-  while is_some f do
-    let cell slice u8 some_value f .
-    var v slice u8 cell .
-    if trim do
-      set v (strings.trim_end (strings.trim_start cell (ws)) (ws)) .
-    end
-    set total (add total 1) .
-    if gt (len v) 0 do set nonempty (add nonempty 1) . end
-    set pos (add pos (add (len cell) 1)) .
-    set f (strings.split_next line sep pos) .
-  end
-  return add (mul total 10) nonempty .
-end
+  var f option slice u8 strings.split_next line. sep. pos. . .
+  while is_some f. . do
+    let cell slice u8 some_value f. . .
+    var v slice u8 cell. .
+    if trim. do
+      set v. strings.trim_end strings.trim_start cell. ws. . ws. . .
+    end .
+    set total. add total. 1 . .
+    if gt len v. . 0 . do set nonempty. add nonempty. 1 . . end .
+    set pos. add pos. add len cell. . 1 . . .
+    set f. strings.split_next line. sep. pos. . .
+  end .
+  return add mul total. 10 . nonempty. . .
+end .
 
 proc main input a cap args . input e cap env . output u8 . effects state . do
   rem ── 인자: 구분자. 없으면 ',' (44). 있으면 그 첫 바이트.
   var sep u8 44 .
-  let first option slice u8 arg a 0 .
-  if is_some first do
-    let s slice u8 some_value first .
-    if gt (len s) 0 do set sep (idx s 0) . end
-  end
+  let first option slice u8 arg a. 0 . .
+  if is_some first. . do
+    let s slice u8 some_value first. . .
+    if gt len s. . 0 . do set sep. idx s. 0 . . end .
+  end .
 
   rem ── 환경: 다듬기 스위치. 있으면 켠다(값은 안 본다 — 존재가 곧 스위치다).
-  let sw option slice u8 env_get e "FIELDS_TRIM" .
-  let trim bool is_some sw .
+  let sw option slice u8 env_get e. "FIELDS_TRIM" . .
+  let trim bool is_some sw. . .
 
   rem ── 입력을 줄 단위로 (텍스트 리터럴 — 원문 그대로, 이스케이프 불요)
-  var r io.mem_reader spawn actor io.mem_reader .
+  var r io.mem_reader spawn actor io.mem_reader . .
   let src slice u8 text DATA
 a, b,,c
  x , ,y
 
 DATA
 .
-  let d u64 send r attach src .
+  let d u64 send r. attach src. . .
 
   var total u64 0 .
   var nonempty u64 0 .
-  var l option slice u8 send r take_line 200 .
-  while is_some l do
-    let packed u64 count_line (some_value l) sep trim .
-    set total (add total (div packed 10)) .
-    set nonempty (add nonempty (mod packed 10)) .
-    set l (send r take_line 200) .
-  end
+  var l option slice u8 send r. take_line 200 . .
+  while is_some l. . do
+    let packed u64 count_line some_value l. . sep. trim. . .
+    set total. add total. div packed. 10 . . .
+    set nonempty. add nonempty. mod packed. 10 . . .
+    set l. send r. take_line 200 . .
+  end .
 
-  return (narrow u8 (add (mul total 10) nonempty)) .
-end
+  return narrow u8 add mul total. 10 . nonempty. . . .
+end .

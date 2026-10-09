@@ -20,16 +20,16 @@ module hello_exit .
 let LIMIT u8 10 .
 
 fn clamp input a u8 . output u8 . do
-  guard le a LIMIT else return LIMIT .
-  return a .
-end
+  guard le a. LIMIT. . else return LIMIT. . .
+  return a. .
+end .
 
 rem ★ 엔트리 — 보통 op 이다. 특별한 폼이 아니다.
 proc main output u8 . effects none . do
-  return clamp 42 .          rem 42 > 10 → 10 → **종료 코드 10**
-end
+  return clamp 42 . .          rem 42 > 10 → 10 → **종료 코드 10**
+end .
 
 test exit_code do
-  expect eq (clamp 42) 10 .
-  expect eq (clamp 3) 3 .
-end
+  expect eq clamp 42 . 10 . .
+  expect eq clamp 3 . 3 . .
+end .

@@ -28,49 +28,49 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let g option mut slice u8 alloc_bytes al capacity 4096 .
-  guard is_some g else return 70 .
-  let buf mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al. capacity 4096 . .
+  guard is_some g. . else return 70 . .
+  let buf mut slice u8 some_value g. . .
 
   rem ★ `read_in <cap> <fd> <buf>` — 0 번이 표준 입력이고, 답은 **option** 이다
   rem   (읽기가 실패할 수 있다는 사실을 타입이 든다).
-  let rn option u64 read_in k 0 buf .
-  guard is_some rn else return 71 .
-  let got u64 some_value rn .
-  guard ne got 0 else return 44 .
+  let rn option u64 read_in k. 0 buf. . .
+  guard is_some rn. . else return 71 . .
+  let got u64 some_value rn. . .
+  guard ne got. 0 . else return 44 . .
 
   rem ── 순수한 알맹이: 접기 ─────────────────────────────────────────────
-  let data slice u8 subslice buf 0 got .
-  let crcv u64 hash.crc data .
+  let data slice u8 subslice buf. 0 got. . .
+  let crcv u64 hash.crc data. . .
 
   rem ── 내보내기 ────────────────────────────────────────────────────────
   rem ★ `fmt` 는 **호출자 버퍼에 써 넣는다**(라이브러리가 몰래 할당하지 않는다 — RFC-0043 D1).
   rem   그래서 줄 하나를 담을 자리를 여기서 든다.
-  let g2 option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some g2 else return 70 .
-  let line mut slice u8 some_value g2 .
+  let g2 option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some g2. . else return 70 . .
+  let line mut slice u8 some_value g2. . .
   rem ★ `fmt` 의 자리 옮김은 **option** 이다 — 버퍼가 모자라면 `none` 으로 답한다.
   rem   가정하지 않고 **검사해서** 답하는 규율이라, 받는 쪽도 매번 풀어야 한다.
   var at u64 0 .
-  let a1 option u64 fmt.put_str line at "crc32=" .
-  guard is_some a1 else return 71 .
-  set at (some_value a1) .
-  let a2 option u64 fmt.put_u64 line at crcv .
-  guard is_some a2 else return 71 .
-  set at (some_value a2) .
-  let a3 option u64 fmt.put_str line at " len=" .
-  guard is_some a3 else return 71 .
-  set at (some_value a3) .
-  let a4 option u64 fmt.put_u64 line at got .
-  guard is_some a4 else return 71 .
-  set at (some_value a4) .
-  let a5 option u64 fmt.put_nl line at .
-  guard is_some a5 else return 71 .
-  set at (some_value a5) .
-  let z1 u64 write_out k 1 (subslice line 0 at) .
+  let a1 option u64 fmt.put_str line. at. "crc32=" . .
+  guard is_some a1. . else return 71 . .
+  set at. some_value a1. . .
+  let a2 option u64 fmt.put_u64 line. at. crcv. . .
+  guard is_some a2. . else return 71 . .
+  set at. some_value a2. . .
+  let a3 option u64 fmt.put_str line. at. " len=" . .
+  guard is_some a3. . else return 71 . .
+  set at. some_value a3. . .
+  let a4 option u64 fmt.put_u64 line. at. got. . .
+  guard is_some a4. . else return 71 . .
+  set at. some_value a4. . .
+  let a5 option u64 fmt.put_nl line. at. . .
+  guard is_some a5. . else return 71 . .
+  set at. some_value a5. . .
+  let z1 u64 write_out k. 1 subslice line. 0 at. . . .
 
   rem ── 값으로 말한다 ───────────────────────────────────────────────────
-  guard eq got 9 else return 45 .
-  guard eq crcv 3421780262 else return 43 .
+  guard eq got. 9 . else return 45 . .
+  guard eq crcv. 3421780262 . else return 43 . .
   return 42 .
-end
+end .

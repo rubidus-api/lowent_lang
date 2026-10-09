@@ -1,12 +1,12 @@
 module mistake_noperiod .
-rem expect: E-IR-ARITY
+rem expect: E-DOT-MISSING
 
 fn total input a u64 . input b u64 . output u64 .
-  requires le a 1000 .
-  requires le b 1000 .
+  requires le a. 1000 . .
+  requires le b. 1000 . .
 do
   rem ko: ✘ 이 줄 끝의 마침표를 빠뜨렸다 /// en: ✘ the period at the end of this line is missing
-  var s u64 add a b
-  set s (mul s 2) .
-  return s .
-end
+  var s u64 add a. b. .
+  set s. mul s. 2 . .
+  return s. .
+end .

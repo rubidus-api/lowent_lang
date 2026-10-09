@@ -8360,6 +8360,15 @@ static const struct { const char *word; const char *why; } CK_REMOVED[] = {
               "precisely so the 1 bit is ALWAYS stated. Write `proc` (it mutates state) or "
               "`fn` (it only reads)" },
 };
+
+// ★ RFC-0142 — 표면을 내리는 단계(`low_closer.c`)도 버린 낱말을 같은 말로 거절한다. 표는 여기 하나다.
+const char *low_removed_word_why(proven_u8str_view_t w) {
+    for (proven_size_t i = 0; i < sizeof CK_REMOVED / sizeof CK_REMOVED[0]; i++) {
+        proven_size_t n = strlen(CK_REMOVED[i].word);
+        if (w.size == n && memcmp(w.ptr, CK_REMOVED[i].word, n) == 0) return CK_REMOVED[i].why;
+    }
+    return NULL;
+}
 static void ck_removed_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_ATOM) {

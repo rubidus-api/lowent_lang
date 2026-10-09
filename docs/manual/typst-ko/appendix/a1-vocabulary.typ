@@ -38,7 +38,7 @@
   [`unit`], [`void`],
   [`calcop` · `procop`], [`fn` · `proc`],
   [`is` · `as`(선언 속) · `local`], [적지 않는다],
-  [`to` · `in`(칸 접근)], [`field a b` · `idx a i`],
+  [`to` · `in`(칸 접근)], [`field a. b .` · `idx a. i. .`],
   [`on`], [액터 안의 `proc`],
   [`fail`], [`return error <갈래>`],
   [`;` · `,`], [`.`],
@@ -62,7 +62,7 @@
   [비교와 논리], [`eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not`],
   [비트], [`bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` `clmul_lo` `clmul_hi`],
   [줄], [`len` `idx` `subslice` `view` `view_array` `same_slice`],
-  [묶음], [`field` `method` `isa` `get`],
+  [묶음], [`field` `method` `isa` `payload`],
   [답을 담는 타입], [`some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or`],
   [번역 시점], [`size_of` `comptime` `config`],
   [할당], [`alloc_bytes`],
@@ -73,7 +73,7 @@
   [원자(비트)], [`atomic_and` `atomic_or` `atomic_xor`],
   [부동소수 수학 --- #chref("numbers")], [`sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq`],
   [파이프 단계 --- #chref("pipe")], [`pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into`],
-  [레인(SIMD) --- #chref("parallel-atomic")], [`splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `prefetch`],
+  [레인(SIMD) --- #chref("parallel-atomic")], [`splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch`],
   [작은 수의 집합 --- #chref("named-types")], [`bitset_new` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove`],
   [배치와 뷰 --- #chref("named-types")], [`encode` `try_view` `view_segments` `seg` `segs` `capacity`],
   [빌림과 영역 --- #chref("references") · #chref("regions")], [`ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap`],
@@ -81,10 +81,10 @@
   [빌트인 연산(계산) --- `call_builtin` 뒤에서만 선다], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
   [C 문자열 --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
   [빌트인 연산(파일 · 그물 · 프로세스) --- `call_builtin` 뒤에서만 선다], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port`],
-  [호스트 잎 --- #chref("lib-map")], [`env_get` `reactor_new` `r_read` `r_write`],
+  [호스트 잎 --- #chref("lib-map")], [`env_get` `reactor_new` `r_read` `r_write` `random_bytes` `time_local` `time_sleep`],
 )
 
-★ *빌트인 연산은 제 이름공간을 갖는다.* `call_builtin sha256 msg out` 처럼 그 자리에서만 서고, 저자는 같은 철자를 제 이름으로 지을 수 있다. 저자의 이름 가운데 없는 것을 맨 이름으로 부르면 `E-BUILTIN-BARE`, `call_builtin` 뒤에 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 빌트인 연산은 시스템 라이브러리를 짓는 재료이고, 프로그램은 그것을 감싼 모듈을 부른다(#chref("lib-map")).
+★ *빌트인 연산은 제 이름공간을 갖는다.* `call_builtin sha256 msg. out. .` 처럼 그 자리에서만 서고, 저자는 같은 철자를 제 이름으로 지을 수 있다. 저자의 이름 가운데 없는 것을 맨 이름으로 부르면 `E-BUILTIN-BARE`, `call_builtin` 뒤에 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 빌트인 연산은 시스템 라이브러리를 짓는 재료이고, 프로그램은 그것을 감싼 모듈을 부른다(#chref("lib-map")).
 
 이 표는 정본의 기본 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의
 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.

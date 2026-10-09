@@ -7,22 +7,22 @@ proc carve_stack output u64 . effects alloc .
 do
   var n u64 0 .
   region r stack do
-    let g option mut slice u8 alloc_bytes r capacity 32 .
-    if is_some g do
-      set n (len (some_value g)) .
-    end
-  end
-  return n .
-end
+    let g option mut slice u8 alloc_bytes r. capacity 32 . .
+    if is_some g. . do
+      set n. len some_value g. . . .
+    end .
+  end .
+  return n. .
+end .
 
 proc carve_static output u64 . effects alloc .
 do
   var n u64 0 .
   region r static do
-    let g option mut slice u8 alloc_bytes r capacity 64 .
-    if is_some g do
-      set n (len (some_value g)) .
-    end
-  end
-  return n .
-end
+    let g option mut slice u8 alloc_bytes r. capacity 64 . .
+    if is_some g. . do
+      set n. len some_value g. . . .
+    end .
+  end .
+  return n. .
+end .

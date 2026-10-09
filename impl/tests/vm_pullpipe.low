@@ -6,38 +6,38 @@ rem   다음 pipe 가 그 다음 원소부터 봐서 **조용히 유실**(RFC-00
 rem   §6.5 "collect 는 유계 싱크" 위반). 슬라이스 소스는 인덱스라 무해했고 pull 만 샜다 ⇒ 수정은
 rem   pull 브랜치에서 take 소진·collect sink-full 을 **pull 전에** 검사한다.
 module m .
-fn nar input a u64 . output u8 . do return narrow_wrap u8 a . end
+fn nar input a u64 . output u8 . do return narrow_wrap u8 a. . . end .
 actor counter do
   state do
     n u64 .
-  end
+  end .
   proc pull output option u64 . effects state . do
-    set n (add n 1) .
-    return (some n) .
-  end
-end
+    set n. add n. 1 . .
+    return some n. . .
+  end .
+end .
 
 rem take 1 두 번 — 첫 a=[1], 둘째 b=[2](원소2 안 유실).
 proc take_twice input a mut slice u8 . input b mut slice u8 . output u64 . effects state . do
-  let it counter spawn actor counter .
-  pipe it do take 1 . map nar . collect into a . end
-  pipe it do take 1 . map nar . collect into b . end
+  let it counter spawn actor counter . .
+  pipe it. do take 1 . map nar . collect into a. . end .
+  pipe it. do take 1 . map nar . collect into b. . end .
   return 0 .
-end
+end .
 
 rem take 0 으로 단락한 뒤 take 2 — 첫 pipe 는 소스를 안 건드려 둘째 b=[1,2].
 rem ☞ X-0062(2026-09-25) 전엔 `take` 없이 len-0 싱크로 단락했다. 이제 찬 싱크에 원소가 오면 멈추므로(말없이 버리지 않는다)
 rem   끝없는 소스에서 얼마를 담을지는 `take` 로 **적는다**. 그 꼴은 아래 overflow_stops 가 멈추는 것으로 증언한다.
 proc empty_then input a mut slice u8 . input b mut slice u8 . output u64 . effects state . do
-  let it counter spawn actor counter .
-  pipe it do take 0 . map nar . collect into a . end
-  pipe it do take 2 . map nar . collect into b . end
+  let it counter spawn actor counter . .
+  pipe it. do take 0 . map nar . collect into a. . end .
+  pipe it. do take 2 . map nar . collect into b. . end .
   return 0 .
-end
+end .
 
 rem 끝없는 소스를 take 없이 짧은 싱크에 담으면 넘치는 첫 원소에서 멈춘다(X-0062 ⓒ).
 proc overflow_stops input a mut slice u8 . output u64 . effects state . do
-  let it counter spawn actor counter .
-  pipe it do map nar . collect into a . end
+  let it counter spawn actor counter . .
+  pipe it. do map nar . collect into a. . end .
   return 0 .
-end
+end .

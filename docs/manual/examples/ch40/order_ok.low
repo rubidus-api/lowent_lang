@@ -3,5 +3,5 @@ rem run: wider 200
 
 fn wider input a u8 . output i16 .
 do
-  return a .
-end
+  return a. .
+end .

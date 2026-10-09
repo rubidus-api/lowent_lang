@@ -22,8 +22,8 @@ L0 — 순수 계산
 use hash .
 
 fn slot input key slice u8 . input nslots u64 . output u64 . do
-  return hash.bucket_of key nslots .
-end
+  return hash.bucket_of key. nslots. . .
+end .
 ```
 
 **왜 알고리즘을 고정했나.** 해시는 그럴듯한 수가 나오면 맞아 보인다. 고정하지 않으면 검사할 것이 남지 않는다. 고정했기에 표준이 정한 검사값이 시험의 기준이 되고 (CRC-32 의 `"123456789"` → `0xCBF43926`), VM 과 네이티브가 갈리면 그 자리에서 드러난다.

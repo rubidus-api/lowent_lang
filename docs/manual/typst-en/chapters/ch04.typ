@@ -59,14 +59,14 @@ it for you. Even with mixed signs, arithmetic is allowed if a value-preserving w
 
 #demo("examples/ch04/widths.low")
 
-`mix` adds a `u8` and an `i16`, and the result has the wider type, `i16`. To make the widening visible, write `widen u64 x`. An `i32`
+`mix` adds a `u8` and an `i16`, and the result has the wider type, `i16`. To make the widening visible, write `widen u64 x. .`. An `i32`
 and a `u32` of the same width cannot be mixed, because neither fits entirely in the other.
 
 #demo("examples/ch04/sign_bad.low")
 
 #idx("narrowing")
 A conversion that can lose a value is *narrowing*, and it must be written. `shrink` in the same file narrows a `u64` to a `u8` with
-`narrow u8 x`. 200 fits and comes out unchanged, but 300 does not, so execution stops (`E-VM-CAST`). If you do not want it to stop,
+`narrow u8 x. .`. 200 fits and comes out unchanged, but 300 does not, so execution stops (`E-VM-CAST`). If you do not want it to stop,
 choose the treatment you want by name. `narrow_sat` stops at the end value 255, and `narrow_wrap` wraps like C and gives 44.
 `narrow_try` gives `none` when the value does not fit.
 
@@ -74,7 +74,7 @@ choose the treatment you want by name. `narrow_sat` stops at the end value 255, 
   If `narrow_wrap` does what C does, why isn't wrapping the default?
 ][
   To leave in the source whether wrapping was *intended or a mistake*. If wrapping were the default, someone reading a place where
-  `narrow u8 x` gave 44 could not tell whether that was the wanted value. With stopping as the default, an author who wanted wrapping
+  `narrow u8 x. .` gave 44 could not tell whether that was the wanted value. With stopping as the default, an author who wanted wrapping
   *wrote* `narrow_wrap`. The name written is the record of the author's intent.
 ]
 
@@ -104,7 +104,7 @@ The "as a value" family turns overflow into an event the program can handle.
 
 #demo("examples/ch04/chk.low")
 
-`chk_add a 1` gives an `option u8`. On overflow it is `none`, and `guard is_some r else …` handles that case first. You will meet this
+`chk_add a. 1 .` gives an `option u8`. On overflow it is `none`, and `guard is_some r else …` handles that case first. You will meet this
 shape again in #chref("option-result").
 
 #misconception[Checking for overflow makes code slow][
@@ -120,13 +120,13 @@ Dividing an integer by zero stops. Signed division truncates towards zero, and t
 
 #demo("examples/ch04/divide.low")
 
-`quot -7 2` is −3 and `modulo -7 2` is 1. Because the remainder follows the divisor's sign, `mod h n` for a positive `n` is always at
-least 0 and less than `n`. That property is why the bounds check in `idx slots (mod h n)` disappears when a hash table picks a slot,
+`quot -7 2` is −3 and `modulo -7 2` is 1. Because the remainder follows the divisor's sign, `mod h. n. .` for a positive `n` is always at
+least 0 and less than `n`. That property is why the bounds check in `idx slots. mod h. n. . .` disappears when a hash table picks a slot,
 and it is proven in Coq (#chref("proofs-numbers")).
 
 The only case where signed division overflows is `MIN / −1`, and that stops too. In C it is undefined behaviour.
 
-There is also a way to check once that a divisor is not zero and carry that fact around. `nonzero_of b` gives an `option nonzero u32`,
+There is also a way to check once that a divisor is not zero and carry that fact around. `nonzero_of b. .` gives an `option nonzero u32`,
 and the value inside can be passed to `div_nz`. No zero check remains at the `div_nz` site. The check was not removed but *moved to one
 place, with its result carried in the type*.
 
@@ -192,7 +192,7 @@ with an operating system. The exact last bit of their results is up to the machi
 
 - `usize` and `isize` are unsigned and signed integers with the machine's address width. Use them to exchange lengths and indexes with C's
   `size_t` and `ptrdiff_t` (#chref("ffi")). Their width may differ between machines, so use `u64` and `i64` for fixed-width arithmetic. Moving to a
-  type of the other signedness goes through a named operation such as `cast isize n`.
+  type of the other signedness goes through a named operation such as `cast isize n. .`.
 - `f32` takes half the memory and has about seven significant digits. Use it where quantity matters more than precision, as in large arrays or
   graphics.
 - `same_third` computes the same 1/3 as `f32` and as `f64`, widens, and compares. The answer is false (0). Even though the VM shows both briefly
@@ -213,21 +213,21 @@ Lowent stops --- and the place it stops is the place to fix.
 
   Widen to `u16`, add, divide, then `narrow u8` back down. The middle always fits in `u8`, so the narrowing never stops --- and if the
   computation is ever changed by mistake, it stops right there and tells you. (When `lo <= hi` is guaranteed,
-  `add lo (div (sub hi lo) 2)` does not overflow either.)
+  `add lo. div sub hi. lo. . 2 . .` does not overflow either.)
 ]
 
 #antipattern[Subtracting a larger number from an unsigned one][
   #demo("examples/ch04/mistake_usub.low")
 
   `u64` has nothing below 0. `3 − 5` is not −2 but an *overflow*, so it stops (C would give 18446744073709551614). If you want the size of
-  the difference, subtract the smaller from the larger --- `if ge a b do return sub a b . end return sub b a .` --- and if a negative
+  the difference, subtract the smaller from the larger --- `if ge a. b. . do return sub a. b. . . end . return sub b. a. . .` --- and if a negative
   result is meaningful, compute in `i64` from the start.
 ]
 
 #antipattern[Giving a loop counter too narrow a type][
   #demo("examples/ch04/mistake_narrowloop.low")
 
-  A `u8` can never reach 256, so `lt i 256` is always true. In C, `i` would wrap from 255 back to 0 and the loop would *never end*. Lowent
+  A `u8` can never reach 256, so `lt i. 256 .` is always true. In C, `i` would wrap from 255 back to 0 and the loop would *never end*. Lowent
   refuses the comparison at translation time with `E-TYPE-WIDTH`: comparing against a value the type cannot hold gives the same answer for
   every input, so it decides nothing. Give a loop counter a type wider than the largest value it counts to (`u64`).
 ]
@@ -258,20 +258,20 @@ Lowent stops --- and the place it stops is the place to fix.
   comparing two widths.
 ]
 
-#misconception[`div 7 2` is 3.5][
+#misconception[`div 7 2 .` is 3.5][
   Integer division keeps only the quotient and drops the fraction.
 
   #demo("examples/ch04/intdiv.low")
 
   `avg2 3 4` is 3. If you need the fraction, take the inputs as floats and divide by `2.0`. If you need rounding, *write* it --- add
-  `div d 2` before dividing, for example --- because the language never rounds for you.
+  `div d. 2 .` before dividing, for example --- because the language never rounds for you.
 ]
 
 The floating-point remainder gets its own name, `fmod`, separate from the integer `mod`.
 
 #demo("examples/ch04/floatmod.low")
 
-`fmod 7.5 2.0` is 1.5 and `mod 7 2` is 1. Not loading two kinds onto one name is the same reason as for `div` --- what is computed shows in the
+`fmod 7.5 2.0 .` is 1.5 and `mod 7 2 .` is 1. Not loading two kinds onto one name is the same reason as for `div` --- what is computed shows in the
 name.
 
 == This chapter's syntax at a glance
@@ -283,13 +283,13 @@ name.
   [*Shape*], [*Meaning*], [*Why*],
   [`u8` … `u64` · `i8` … `i64` · `usize` · `isize`], [integers with the width in the name], [sizes never change from machine to machine],
   [`f32` · `f64`], [IEEE 754 floating point], [never mixed with integers --- the literal is `2.0` too],
-  [`widen u64 x`], [widening (loses nothing)], [happens automatically, but can be written to make it visible],
-  [`narrow u8 x`], [narrowing --- stops if it does not fit], [so values never change silently],
+  [`widen u64 x. .`], [widening (loses nothing)], [happens automatically, but can be written to make it visible],
+  [`narrow u8 x. .`], [narrowing --- stops if it does not fit], [so values never change silently],
   [`narrow_sat` · `narrow_wrap` · `narrow_try`], [clamp to the end value · wrap · as an `option`], [pick the outcome by name],
   [`add` · `sub` · `mul`], [arithmetic that stops on overflow], [overflow is a bug by default],
   [`wrap_add` · `sat_add` · `chk_add`], [wrap · saturate · `option`], [the intended outcome stays in the source],
   [`div` · `mod`], [quotient (towards zero) · remainder (sign of the divisor)], [division by zero and `MIN / −1` stop],
-  [`nonzero_of b` · `div_nz`], [check "not zero" once and carry it in the type], [moves the check to one place],
+  [`nonzero_of b. .` · `div_nz`], [check "not zero" once and carry it in the type], [moves the check to one place],
   [`bit_and` · `bit_or` · `bit_xor` · `bit_not`], [bitwise logic], [no symbol-precedence traps],
   [`shl` · `shr` · `rotl` · `rotr`], [shift · rotate], [shifting by the width or more stops],
   [`clmul_lo` · `clmul_hi`], [carry-less multiply — two words out], [the machine instruction when there is one, the computation when there is not],

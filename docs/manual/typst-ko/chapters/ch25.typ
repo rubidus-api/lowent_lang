@@ -25,7 +25,7 @@
 ]
 
 #organizer[
-  `actor … do state do … end … end` 로 액터를 선언하고, `spawn actor` 로 만들고, `send` 로 메시지를 보내는 법을 익힌다.
+  `actor … do state do … end . … end .` 로 액터를 선언하고, `spawn actor` 로 만들고, `send` 로 메시지를 보내는 법을 익힌다.
   액터 안의 op 도 `fn`·`proc` 규칙을 따른다는 것, 메시지에 값을 싣고 소유를 넘기는 법을 알게 된다. 우편함에 넣고
   나중에 비우는 `spawn send`·`drain`, 터진 액터를 다시 세우는 `failure restart`, 그리고 액터를 쓸 수 있는 자리를 정하는
   `build profile` 도 보게 된다.
@@ -38,11 +38,11 @@
 #demo("examples/ch25/counter.low")
 
 #idx("액터")
-- `actor counter do … end` 가 액터를 선언한다. `state do value u64 . end` 가 액터의 상태다. 상태는 액터 안에만 있고
+- `actor counter do … end .` 가 액터를 선언한다. `state do value u64 . end .` 가 액터의 상태다. 상태는 액터 안에만 있고
   바깥에서 직접 건드릴 수 없다.
 - 상태를 고치는 `inc` 는 `proc` 이고 `effects state` 다. 읽기만 하는 `get` 은 `fn` 이다. 액터 안의 op 도
   #chref("ops")의 갈래 규칙을 그대로 따른다.
-- `var c counter spawn actor counter .` 가 액터 하나를 만든다. 상태는 0 으로 시작한다.
+- `var c counter spawn actor counter . .` 가 액터 하나를 만든다. 상태는 0 으로 시작한다.
 - `send c inc` 는 `c` 에게 `inc` 메시지를 보내고 처리가 끝날 때까지 기다려 결과를 받는다.
 
 액터는 메시지를 *한 번에 하나씩* 처리한다. 그래서 그 안의 상태는 동시에 건드려지지 않는다. 자물쇠를 손으로 걸 필요가
@@ -99,7 +99,7 @@
 
 #demo("examples/ch25/mailbox.low")
 
-`drive` 는 `inc` 를 세 번 넣고 `drain c` 로 우편함을 넣은 차례대로 비운 뒤 3 을 읽는다. `nodrain` 은 비우지 않았으므로
+`drive` 는 `inc` 를 세 번 넣고 `drain c. .` 로 우편함을 넣은 차례대로 비운 뒤 3 을 읽는다. `nodrain` 은 비우지 않았으므로
 0 이다. 우편함에 든 메시지는 *저절로 처리되지 않는다.*
 
 처리기가 언제 배달할지 스스로 정하지 않는 까닭은 *결정성*이다. 같은 프로그램은 같은 답을 내야 하고, 배달 시점이 곧
@@ -191,7 +191,7 @@
 #demo("examples/ch25/transfer.low")
 
 - 잔액은 `account` 의 상태에만 있다. 바깥은 `deposit`·`withdraw`·`peek_balance` 세 메시지로만 계좌에 닿는다.
-- `withdraw` 는 잔액이 모자라면 *상태를 건드리지 않고* `error insufficient` 를 돌려준다. 멈추지 않는다 --- 잔액 부족은 계좌를 쓰는 쪽이
+- `withdraw` 는 잔액이 모자라면 *상태를 건드리지 않고* `error insufficient .` 를 돌려준다. 멈추지 않는다 --- 잔액 부족은 계좌를 쓰는 쪽이
   다룰 수 있는 실패다(#chref("errors-design")).
 - `move` 는 빼기가 성공했을 때만 넣는다. `move 30` 은 보내는 쪽 20, 받는 쪽 30 이라 20030 을 낸다. `move 80` 은 빼기가 실패해 두 계좌가
   50 과 0 그대로다(50000).
@@ -221,7 +221,7 @@
 #antipattern[바깥에서 액터의 상태 칸을 읽는다][
   #demo("examples/ch25/mistake_peekstate.low")
 
-  이 장의 첫 약속은 "상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다" 였다. `field c value` 는 그 문을 돌아가려는 시도이고,
+  이 장의 첫 약속은 "상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다" 였다. `field c. value .` 는 그 문을 돌아가려는 시도이고,
   `E-ACTOR-FIELD` 로 거절된다. 상태가 바깥에서 읽히면 메시지를 한 번에 하나씩 처리한다는 전제가 소용없어진다 --- 읽는 쪽이 메시지
   사이의 값을 보기 때문이다. 상태가 필요하면 `get` 같은 읽기 메시지를 두고 `send c get` 으로 묻는다.
 ]
@@ -233,7 +233,7 @@
   *들어올 때*의 값으로 읽는다(정본 6.4.2). `errors` 는 `requires` 와 같은 쪽 --- *부르는 쪽이 무엇을 잘못했는가*를 말하는 절이고,
   부르는 쪽이 한 일은 건넨 것뿐이기 때문이다. 그래서 몸통이 바꿀 수 있는 이름(상태 칸 · 모듈 `var` · `mut` 자리의 인자)은 조건에 설 수
   없고, 번역이 `E-ERRORS-STATE` 로 거절한다. 나갈 때 값으로 읽으면 성공한 실행이 스스로를 고발한다 --- 잔액이 50 에서 20 으로 줄었으므로
-  나갈 때 `gt 30 20` 이 참이 되어 "조건이 참인데 오류를 내지 않았다" 가 된다. 오류 조건은 *입력*으로 적고, 상태를 보는 판정은 본문의
+  나갈 때 `gt 30 20 .` 이 참이 되어 "조건이 참인데 오류를 내지 않았다" 가 된다. 오류 조건은 *입력*으로 적고, 상태를 보는 판정은 본문의
   `guard` 가 맡는다 --- 위의 `transfer.low` 처럼 조건 없이 `errors insufficient .` 만 적는다.
 ]
 
@@ -242,7 +242,7 @@
 
   빌림(`ref`)은 빌려준 쪽보다 오래 살 수 없다(#chref("references")). 액터의 상태는 액터가 사는 동안 남으므로, 그 칸이 무엇을
   빌렸는지 적을 자리가 없다. 그래서 선언에서 `E-ACTOR-STATE-REF` 로 거절한다. 2026-09-16 까지는 선언을 받아들이고 칸을 비운 채 액터를
-  띄웠고, `deref r` 에 이르러서야 VM 은 `E-VM-TYPE` 으로, 네이티브는 `panic` 으로 멈췄다. 상태에는 빌림 대신 값을 두고, 값이 크면
+  띄웠고, `deref r. .` 에 이르러서야 VM 은 `E-VM-TYPE` 으로, 네이티브는 `panic` 으로 멈췄다. 상태에는 빌림 대신 값을 두고, 값이 크면
   액터가 사는 동안 유효한 슬라이스를 받아 둔다.
 ]
 
@@ -268,15 +268,15 @@
   id: "actors-glance",
   caption: [액터의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`actor counter do state do value u64 . end … end`], [상태를 가둔 실행 단위를 선언], [상태를 동시에 만질 길이 처음부터 없다],
+  [`actor counter do state do value u64 . end . … end .`], [상태를 가둔 실행 단위를 선언], [상태를 동시에 만질 길이 처음부터 없다],
   [`proc inc … effects state .` · `fn get …`], [상태를 고치는 메시지 · 읽기만 하는 메시지], [`fn`·`proc` 규칙이 그대로 --- 고치면서 `fn` 이면 `E-EFFECT-PURITY`],
-  [`var c counter spawn actor counter .`], [액터 하나를 만든다(상태는 0 에서 시작)], [`spawn` 마다 상태가 따로],
+  [`var c counter spawn actor counter . .`], [액터 하나를 만든다(상태는 0 에서 시작)], [`spawn` 마다 상태가 따로],
   [`send c inc` · `send acct deposit a`], [보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다], [액터가 먼저 --- 메시지는 액터를 첫 매개변수로 받는 op],
-  [`spawn send c inc .` · `drain c .` · `schedule .`], [우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기], [배달 시점을 사람이 고른다 --- 결정성],
+  [`spawn send c. inc . .` · `drain c .` · `schedule .`], [우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기], [배달 시점을 사람이 고른다 --- 결정성],
   [`mailbox bounded 2 .` · `try spawn send`], [우편함 크기 · 넘침을 값으로 받기], [넘치면 멈추거나 `result`],
   [`failure restart max 3 .` · `never` · `always`], [`panic` 한 액터를 처음 상태로 다시 세운다], [다 쓰면 실패를 위로 넘긴다],
   [`build profile server .`], [액터(3 등급)를 쓸 수 있는 자리], [적은 사람만 그 약속을 진다],
-  [`state do root cap allocator . … end`], [권한 칸 --- 실행 중 크기 0], [띄우는 op 에 같은 권한이 없으면 `E-CAP-FORGE`],
+  [`state do root cap allocator . … end .`], [권한 칸 --- 실행 중 크기 0], [띄우는 op 에 같은 권한이 없으면 `E-CAP-FORGE`],
 )
 
 #recap[

@@ -8,4 +8,4 @@ proc on_exti
   effects device .
 do
   return .
-end
+end .

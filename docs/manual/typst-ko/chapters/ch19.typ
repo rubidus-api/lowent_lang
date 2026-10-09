@@ -42,7 +42,7 @@
 
 #demo("examples/ch19/sink.low")
 
-`consume` 은 `owned buffer` 를 받아 `drop h .` 로 없앤다. `use_once` 는 `var h owned buffer v .` 로 소유 값을 만들어
+`consume` 은 `owned buffer` 를 받아 `drop h. .` 로 없앤다. `use_once` 는 `var h owned buffer v. .` 로 소유 값을 만들어
 `consume` 에 넘긴다. 넘기는 순간 소유가 *옮겨진다*. 이제 `h` 를 없앨 책임은 `consume` 에 있고, `use_once` 는 `h` 를
 더 쓸 수 없다.
 
@@ -186,8 +186,8 @@
 #antipattern[읽기만 했다고 생각하고 옮긴다][
   #demo("examples/ch19/mistake_readmove.low")
 
-  `let v u8 h .` 는 `h` 를 들여다보는 것이 아니라 `v` 로 *옮기는* 것이다. 소유가 있는 값은 이름에 담는 순간 옮겨 가므로 뒤의
-  `drop h` 는 옮긴 값을 없애려는 셈이다. 들여다보기만 하려면 같은 op 안에서 `ref h` 로 빌린다. 진단이 적은 대로 op 경계를 넘는 빌림은
+  `let v u8 h. .` 는 `h` 를 들여다보는 것이 아니라 `v` 로 *옮기는* 것이다. 소유가 있는 값은 이름에 담는 순간 옮겨 가므로 뒤의
+  `drop h` 는 옮긴 값을 없애려는 셈이다. 들여다보기만 하려면 같은 op 안에서 `ref h .` 로 빌린다. 진단이 적은 대로 op 경계를 넘는 빌림은
   이 판에서 아직 낮춰지지 않는다.
 ]
 
@@ -195,7 +195,7 @@
   #demo("examples/ch19/mistake_twonames.low")
 
   `u64` 같은 값은 다른 이름에 담으면 베껴진다. 소유가 있는 값은 베껴지지 않고 옮겨 간다. 사본이 둘이면 누가 없앨지 정할 수 없고, 둘 다
-  없애면 두 번 없애기가 되기 때문이다. `var h2 owned buffer h .` 뒤로 소유자는 `h2` 하나다.
+  없애면 두 번 없애기가 되기 때문이다. `var h2 owned buffer h. .` 뒤로 소유자는 `h2` 하나다.
 ]
 
 #misconception[`drop` 을 적지 않으면 샌다][
@@ -213,10 +213,10 @@
   id: "ownership-glance",
   caption: [소유의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`input h owned buffer .` · `var h owned buffer v .`], [소유를 가진 값], [없앨 책임이 이름 하나에 있다],
+  [`input h owned buffer .` · `var h owned buffer v. .`], [소유를 가진 값], [없앨 책임이 이름 하나에 있다],
   [`consume h`], [넘기면 소유가 옮겨 간다], [옮긴 뒤에는 쓸 수 없다 --- `E-OWN-MOVED`],
-  [`drop h .`], [지금 없앤다고 적는다], [두 번 없애기는 거절된다],
-  [`set h v .` (옮긴 뒤)], [옮겨 간 자리를 다시 채운다], [반복 몸이 같은 모양으로 끝난다],
+  [`drop h. .`], [지금 없앤다고 적는다], [두 번 없애기는 거절된다],
+  [`set h. v. .` (옮긴 뒤)], [옮겨 간 자리를 다시 채운다], [반복 몸이 같은 모양으로 끝난다],
   [`if` 뒤 갈래마다 다른 소유 상태], [거절(`E-OWN-JOIN`)], [숨은 "없앴나" 깃발을 두지 않는다],
   [`fn finish input j owned journal . output result …`], [이 타입의 끝내기는 실패할 수 있다는 선언], [새 낱말 없이 완결을 선언한다],
   [완결을 부르지 않고 범위를 떠남], [거절(`E-OWN-INCOMPLETE`)], [끝내기의 실패를 삼키지 않는다],

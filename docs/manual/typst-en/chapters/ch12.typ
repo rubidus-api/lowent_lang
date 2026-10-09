@@ -46,12 +46,12 @@ meanwhile --- otherwise a reader would see half-made corrections.
 
 #demo("examples/ch12/borrow.low")
 
-- `total` borrows the four-field `big` with `ref big` to read it without copying. `field v a` reads a field through the reference.
-- `use_sum` borrows the same value twice with `ref v`. Read borrows may be many.
-- `bump` takes a `mut_ref u64` and changes the caller's value with `set p …`. The value a reference points to is read with `deref p`.
-- `use_bump` lends `var n` as `mut_ref n`. After `bump` returns, `n` is 8.
+- `total` borrows the four-field `big` with `ref big .` to read it without copying. `field v. a .` reads a field through the reference.
+- `use_sum` borrows the same value twice with `ref v .`. Read borrows may be many.
+- `bump` takes a `mut_ref u64` and changes the caller's value with `set p …`. The value a reference points to is read with `deref p. .`.
+- `use_bump` lends `var n` as `mut_ref n .`. After `bump` returns, `n` is 8.
 
-What matters is that the borrower *writes `ref x` or `mut_ref n` at the call site*. Someone reading the call sees from that place alone that
+What matters is that the borrower *writes `ref x .` or `mut_ref n .` at the call site*. Someone reading the call sees from that place alone that
 this call can change `n`.
 
 #qa[
@@ -97,7 +97,7 @@ Laying the borrows of one value `n` out in time makes the rule visible at a glan
  mut_ref w n                                   ├────────┤  a write only when alone
  ──────────────────────────────────────────────────────────────
  ✘ ref r n    ├──────────────────────────┤
-   set n 5                   ●                             the value changes while read  → refused
+   set n. 5 .                ●                             the value changes while read  → refused
  ✘ mut_ref a n ├──────────────┤
    mut_ref b n        ├──────────────┤                     two writes overlap            → refused
 ```
@@ -142,7 +142,7 @@ loop has its length change even though its own code contains no assignment. Retu
   #demo("examples/ch12/mistake_nomutref.low")
 
   `bump` expects "a reference to a number", but `bump n` passes the number 7 itself. C++ reference parameters need no mark at the
-  call, but Lowent makes you write `mut_ref n` so the call alone tells you what may change. This edition's tool does not reject the
+  call, but Lowent makes you write `mut_ref n .` so the call alone tells you what may change. This edition's tool does not reject the
   omission at translation time; at run time `deref` meets something that is not a reference and stops (recorded as a defect in the
   development repository). When the stop says "deref needs a reference", look for a missing `mut_ref` or `ref` at the call site.
 ]
@@ -150,10 +150,10 @@ loop has its length change even though its own code contains no assignment. Retu
 #antipattern[Using a reference as a number without `deref`][
   #demo("examples/ch12/mistake_noderef.low")
 
-  A reference is *where* a value lives, not the value. Each read spells `deref p`, making "read the borrowed value here" visible. In
+  A reference is *where* a value lives, not the value. Each read spells `deref p. .`, making "read the borrowed value here" visible. In
   C, dropping the `*` turns the code into address arithmetic; Lowent has no address arithmetic, so a wrong value never comes out
   quietly. This edition's tool does not report it at translation time, though, and stops at run time instead (recorded as a defect).
-  The fixed line is `add (deref p) (deref p)`.
+  The fixed line is `add deref p. . deref p. . .`.
 ]
 
 #antipattern[Lending a `let` name for writing][
@@ -176,8 +176,8 @@ loop has its length change even though its own code contains no assignment. Retu
 #misconception[Within one op you may lend a value with `mut_ref` only once][
   #demo("examples/ch12/seqborrow.low")
 
-  The exclusivity rule forbids borrows that *overlap in time*. A `mut_ref n` passed to one call comes back when that call ends, so the
-  next line may borrow again. What is rejected is a shape like `set_both (mut_ref n) (mut_ref n)`, where two borrows live inside a
+  The exclusivity rule forbids borrows that *overlap in time*. A `mut_ref n .` passed to one call comes back when that call ends, so the
+  next line may borrow again. What is rejected is a shape like `set_both mut_ref n . mut_ref n . .`, where two borrows live inside a
   single call.
 ]
 
@@ -190,20 +190,20 @@ loop has its length change even though its own code contains no assignment. Retu
   [*Shape*], [*Meaning*], [*Why*],
   [`input v ref big .`], [receive a read borrow], [no copy of a large value, and a promise not to change it],
   [`input p mut_ref u64 .`], [receive a write borrow], [the only way to change a caller's value],
-  [`total (ref v)` · `bump (mut_ref n)`], [lend at the call site], [the call alone shows what may change],
-  [`deref p`], [read the value a reference points to], [a value and its place are never mixed up],
+  [`total ref v . .` · `bump mut_ref n . .`], [lend at the call site], [the call alone shows what may change],
+  [`deref p. .`], [read the value a reference points to], [a value and its place are never mixed up],
   [`set p <value> .`], [write where a reference points (`mut_ref`)], [through a read borrow it is `E-TYPE-REF`],
-  [`field v a`], [read a field through a reference], [same spelling for a reference to a struct],
+  [`field v. a .`], [read a field through a reference], [same spelling for a reference to a struct],
   [two `mut_ref` of one value · `ref` plus a write], [overlapping borrows --- rejected (`E-EXCL`)], [many readers or one writer],
   [one storage in a written and a read position], [only when the callee allows it with `inplace <written> <read> .` and the ranges are *the same* --- else `E-EXCL-INPLACE`], [a body that reads and writes element by element is right only on the same range],
   [the body of an op that declares `inplace o a`], [write `o` only after every read of `a`, or read and write element by element with one index --- else `E-INPLACE-UNPROVEN`], [the processor checks the declaration against the body],
   [using an old view after calling an op that declares `invalidates <input>` on its storage], [rejected (`E-VIEW-INVALIDATED`) --- take the view again], [after a release, a growth or a rewind the view points at someone else's place],
-  [`return ref here .`], [return a reference to a local --- rejected], [never point at a value that is gone],
+  [`return ref here . .`], [return a reference to a local --- rejected], [never point at a value that is gone],
   [`mut ref slice`], [does not exist --- rejected (`E-MREF-SLICE`)], [no hidden length change --- return a new slice],
 )
 
 #recap[
-  `ref t` is a read borrow and `mut_ref t` a write borrow, and the borrower writes `ref x` or `mut_ref n` at the call site. The value a
+  `ref t` is a read borrow and `mut_ref t` a write borrow, and the borrower writes `ref x .` or `mut_ref n .` at the call site. The value a
   reference points to is read with `deref`. Write permission only narrows. Borrows of one value are many readers or one writer, and a borrow
   cannot outlive the lent value. `mut ref slice` is rejected; return the new slice.
 ]

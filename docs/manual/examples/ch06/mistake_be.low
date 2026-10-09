@@ -5,5 +5,5 @@ fn f output u8 .
 do
   rem ko: ✘ 옛 꼴 --- `be` 는 이제 이 언어의 낱말이 아니다. 타입은 이름 바로 뒤에 온다 /// en: ✘ the old form --- `be` is no longer a word of the language. The type comes right after the name
   let x be u8 4 .
-  return x .
-end
+  return x. .
+end .

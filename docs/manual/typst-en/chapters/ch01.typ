@@ -43,12 +43,12 @@ Let us look at a small program that actually runs.
 
 - `module heads .` is this file's name tag. Every file starts with this one line.
 - Lines starting with `rem` are words for people (comments). The compiler does not read them.
-- `fn area … do … end` is an op that computes an area. `input w u64 .` means "take an unsigned 64-bit integer under the name `w`",
-  and `output u64 .` is the type of the value returned. `requires le w 1000 .` is a promise: "`w` must be at most 1000". It is there
+- `fn area … do … end .` is an op that computes an area. `input w u64 .` means "take an unsigned 64-bit integer under the name `w`",
+  and `output u64 .` is the type of the value returned. `requires le w. 1000 . .` is a promise: "`w` must be at most 1000". It is there
   so the product cannot overflow.
-- `return mul w h .` returns `w` times `h`. The operation name comes first and the arguments follow. A statement ends with a detached
+- `return mul w. h. . .` returns `w` times `h`. The operation name comes first and the arguments follow. A statement ends with a detached
   period.
-- `main` is the op where the program starts. `let a u64 area 3 4 .` gets 12 into `a`, and `write_out out 1 "…"` writes a line to
+- `main` is the op where the program starts. `let a u64 area 3 4 . .` gets 12 into `a`, and `write_out out 1 "…"` writes a line to
   standard output (number 1). That line is possible because the head receives `cap io` and declares `effects io`. The 12 it returns
   becomes the exit value handed to the operating system.
 
@@ -115,7 +115,7 @@ different answers, that is a compiler defect. Every example in this book passed 
 The *entropy* in Lowent's name is the measure of disorder. The language tries to reduce the places where one meaning can be written
 several ways. A few choices follow.
 
-- A field is read only as `field p x`. There is no glued dot like `p.x`.
+- A field is read only as `field p. x .`. There is no glued dot like `p.x`.
 - Statements and clauses are closed with a free-standing full stop `.`, and a block is always `do … end`.
 - The clauses of a head are written in one fixed order. A wrong order is rejected, and `--fmt` fixes it.
 - Removed words (`loop`, `give`, `on` and so on) are not quietly accepted; they are rejected with `E-VOCAB-REMOVED`.

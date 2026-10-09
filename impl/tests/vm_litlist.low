@@ -5,50 +5,50 @@ module vm_litlist .
 
 fn sum32 input xs slice u32 . output u64 . do
   var s u64 0 .
-  for x xs do
-    set s (add s (widen u64 x)) .
-  end
-  return s .
-end
+  for x xs. do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
 
 fn pick16 input xs slice i16 . input i u64 . output i64 . do
-  guard lt i (len xs) else return 0 .
-  return widen i64 (idx xs i) .
-end
+  guard lt i. len xs. . . else return 0 . .
+  return widen i64 idx xs. i. . . .
+end .
 
 rem 배열 리터럴을 `let` 에 묶는다 — 선언 타입은 리터럴이 보인다(`lit` 뒤의 타입).
 export fn lit_sum output u64 . do
   let t lit array u32 4 10 20 30 40 . .
-  return sum32 t .
-end
+  return sum32 t. . .
+end .
 
 rem 슬라이스 리터럴을 인자로 — 길이는 원소 수다.
 export fn lit_arg output u64 . do
-  return sum32 lit slice u32 1 2 3 . .
-end
+  return sum32 lit slice u32 1 2 3 . . .
+end .
 
 rem 한가운데 자리: 나열은 제 점으로 닫히고 다음 인자 `i` 가 이어진다. 부호 있는 원소.
 export fn lit_mid input i u64 . output i64 . do
-  return pick16 lit array i16 3 -5 7 -9 . i .
-end
+  return pick16 lit array i16 3 -5 7 -9 . i. . .
+end .
 
 rem 끝의 `_` = 나머지 칸은 0.
 export fn lit_fill input i u64 . output u64 . do
   let z lit array u8 6 1 2 _ . .
-  guard lt i (len z) else return 99 .
-  return widen u64 (idx z i) .
-end
+  guard lt i. len z. . . else return 99 . .
+  return widen u64 idx z. i. . . .
+end .
 
 rem 64 비트 끝값.
 export fn lit_u64max input i u64 . output u64 . do
   let t lit array u64 2 18446744073709551615 3 . .
-  guard lt i (len t) else return 0 .
-  return idx t i .
-end
+  guard lt i. len t. . . else return 0 . .
+  return idx t. i. . .
+end .
 
 rem 부동 원소.
 export fn lit_f64 input i u64 . output f64 . do
   let t lit array f64 3 1.5 2.25 -3.0 . .
-  guard lt i (len t) else return 0.0 .
-  return idx t i .
-end
+  guard lt i. len t. . . else return 0.0 . .
+  return idx t. i. . .
+end .

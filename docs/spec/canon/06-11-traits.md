@@ -24,42 +24,42 @@ module ex_trait_why .
 rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
 trait shape do
   area input s self . output u64 .
-end
+end .
 
 def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end
+end .
 
 def struct square do
   satisfies shape .
   side u64 .
-end
+end .
 
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 
 fn square.area input s square . output u64 .
 do
-  return mul (field s side) (field s side) .
-end
+  return mul field s. side . field s. side . . .
+end .
 
 rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
 fn double_area input comptime t type . input s t . output u64 .
-  requires shape t .
+  requires shape t. . .
 do
-  return mul 2 (method s area) .
-end
+  return mul 2 method s. area. . . .
+end .
 
 fn demo output u64 .
 do
-  let r lit rect do w 2 . h 3 . end .
-  let q lit square do side 4 . end .
-  return add (double_area rect r) (double_area square q) .
-end
+  let r lit rect do w 2 . h 3 . end . .
+  let q lit square do side 4 . end . .
+  return add double_area rect. r. . double_area square. q. . . .
+end .
 ```
 
 (1a) 트레이트는 op 을 **여럿** 적을 수 있다. 서명 하나는 op 의 **이름으로 시작**하고 그 op 의 절이 뒤따르며,
@@ -105,19 +105,19 @@ module ex_trait .
 rem 트레이트는 타입이 갖춰야 할 op 의 목록이다.
 trait shape do
   area input s self . output u64 . effects none .
-end
+end .
 
 rem `satisfies` 를 적으면 그 목록을 갖췄는지 검사받는다.
 def struct rect do
   satisfies shape .
   w u8 .
   h u8 .
-end
+end .
 
 fn rect.area input s rect . output u64 .
 do
-  return mul (widen u64 (field s w)) (widen u64 (field s h)) .
-end
+  return mul widen u64 field s. w . . widen u64 field s. h . . . .
+end .
 ```
 
 ```lowent-거부: 갖추겠다고 적고 안 갖추면 · E-TRAIT-MISSING
@@ -125,13 +125,13 @@ module ex_trait_bad .
 
 trait shape do
   area input s self . output u64 . effects none .
-end
+end .
 
 def struct rect do
   satisfies shape .     rem 갖추겠다고 적었는데
   w u8 .
   h u8 .
-end
+end .
 
 rem `rect.area` 를 만들지 않았다
 ```
@@ -145,36 +145,36 @@ trait shape do
   perimeter input s self . output u64 .
   grow input s self . input k u64 . output self .
   checked_area input s self . output u64 . effects panic .
-end
+end .
 
 def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end
+end .
 
 rem 효과 줄이 없는 서명은 `fn` 으로 갖춘다.
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 
 fn rect.perimeter input s rect . output u64 .
 do
-  return mul 2 (add (field s w) (field s h)) .
-end
+  return mul 2 add field s. w . field s. h . . . .
+end .
 
 fn rect.grow input s rect . input k u64 . output rect .
 do
-  return lit rect do w (add (field s w) k) . h (add (field s h) k) . end .
-end
+  return lit rect do w add field s. w . k. . . h add field s. h . k. . . end . .
+end .
 
 rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.
 proc rect.checked_area input s rect . output u64 . effects panic .
 do
-  if eq (field s w) 0 do panic "empty rect" . end
-  return mul (field s w) (field s h) .
-end
+  if eq field s. w . 0 . do panic "empty rect" . end .
+  return mul field s. w . field s. h . . .
+end .
 ```
 
 ```lowent-거부: 효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다 · E-TRAIT-EFFECT
@@ -182,18 +182,18 @@ module ex_trait_proc_noeff .
 
 trait shape do
   area input s self . output u64 .
-end
+end .
 
 def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end
+end .
 
 proc rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 ```
 
 > [!산문]
@@ -228,17 +228,17 @@ module ex_method .
 def struct rect do
   w u64 .
   h u64 .
-end
+end .
 
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 
 export fn twice_area input s rect . output u64 .
 do
-  return mul 2 (method s area) .
-end
+  return mul 2 method s. area. . . .
+end .
 ```
 
 > [!참고]
@@ -262,10 +262,10 @@ module ex_method_undef .
 
 def struct p do
   x u8 .
-end
+end .
 
 fn f input s p . output u8 .
 do
-  return method s nosuch .
-end
+  return method s. nosuch. . .
+end .
 ```

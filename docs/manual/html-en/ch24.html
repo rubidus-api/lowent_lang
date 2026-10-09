@@ -664,35 +664,35 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <a class="skip" href="#content">Skip to content</a>
 <div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 24 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch23.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch25.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch24.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s24-1"><span class="tf-no">24.1</span>The same work, two shapes</a><a class="lv3" href="#s24-2"><span class="tf-no">24.2</span>Stages and terminals</a><a class="lv4" href="#s24-2-1"><span class="tf-no">24.2.1</span>Context — with</a><a class="lv3" href="#s24-3"><span class="tf-no">24.3</span>Walking once is the definition</a><a class="lv3" href="#s24-4"><span class="tf-no">24.4</span>Reading only as much as needed</a><a class="lv3" href="#s24-5"><span class="tf-no">24.5</span>The built-in map · filter with the same names</a><a class="lv3" href="#s24-6"><span class="tf-no">24.6</span>Common mistakes</a><a class="lv3" href="#s24-7"><span class="tf-no">24.7</span>This chapter’s syntax at a glance</a></div></div>
 <main id="content"><div class="wrap">
-<h2>24 <code>pipe</code> — one line for each thing you mean to do</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 7, Flow · <code>for</code> walks slices and counting loops use <code>while</code></div><div>chapter 9, Sequences · elements can be written only through a <code>mut slice</code></div><div>chapter 22, Generics · named ops are passed instead of values</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>When chapter 7 asked “how do you write a loop counting from 0 to <code>n</code> with <code>for</code>?”, what did it say takes care of filtering, counting and collecting over a slice?</p><div class="qa-a"><p><span class="dev-label">A.</span> <code>pipe</code>. Counting loops are written with <code>while</code> and <code>var</code>, and filtering, transforming and collecting over a slice with <code>pipe</code>. This chapter covers that <code>pipe</code>.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">A loop walking a slice almost always has the same skeleton: keep an index, check for the end, take an element, test it, accumulate something, advance the index. Written by hand, <strong>what you mean to do</strong> (“keep only the digits and count them”) gets buried among indices and counters, and off-by-one mistakes happen there. <code>pipe</code> hands the skeleton to the language and lets people write only what they mean, one word per line. And it still walks once, just like the hand-written loop. As the last chapter of Part VI on abstraction, it shows an abstraction that hides no cost.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn the shape <code>pipe &lt;source> do &lt;stages…> &lt;terminal> end</code> and its seven stages and five terminals. You will pick up how to pass named ops to stages, how to collect into the caller’s buffer with <code>collect into</code>, and that <code>fold</code>, <code>any</code>, <code>all</code> and <code>take</code> read only as much as needed. You will also understand that walking once without intermediate arrays is not an optimisation but <strong>the definition</strong> of <code>pipe</code>.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>An op that uses <code>collect into</code> has <code>effects none</code> in its head. It changes the caller’s buffer — is that not an effect?</li></ol></div></div><div></div><h3 id="s24-1">24.1 The same work, two shapes<a class="plink" href="#s24-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/digits.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> digits .
+<h2>24 <code>pipe</code> — one line for each thing you mean to do</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 7, Flow · <code>for</code> walks slices and counting loops use <code>while</code></div><div>chapter 9, Sequences · elements can be written only through a <code>mut slice</code></div><div>chapter 22, Generics · named ops are passed instead of values</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>When chapter 7 asked “how do you write a loop counting from 0 to <code>n</code> with <code>for</code>?”, what did it say takes care of filtering, counting and collecting over a slice?</p><div class="qa-a"><p><span class="dev-label">A.</span> <code>pipe</code>. Counting loops are written with <code>while</code> and <code>var</code>, and filtering, transforming and collecting over a slice with <code>pipe</code>. This chapter covers that <code>pipe</code>.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">A loop walking a slice almost always has the same skeleton: keep an index, check for the end, take an element, test it, accumulate something, advance the index. Written by hand, <strong>what you mean to do</strong> (“keep only the digits and count them”) gets buried among indices and counters, and off-by-one mistakes happen there. <code>pipe</code> hands the skeleton to the language and lets people write only what they mean, one word per line. And it still walks once, just like the hand-written loop. As the last chapter of Part VI on abstraction, it shows an abstraction that hides no cost.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn the shape <code>pipe &lt;source> do &lt;stages…> &lt;terminal> end .</code> and its seven stages and five terminals. You will pick up how to pass named ops to stages, how to collect into the caller’s buffer with <code>collect into</code>, and that <code>fold</code>, <code>any</code>, <code>all</code> and <code>take</code> read only as much as needed. You will also understand that walking once without intermediate arrays is not an optimisation but <strong>the definition</strong> of <code>pipe</code>.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>An op that uses <code>collect into</code> has <code>effects none</code> in its head. It changes the caller’s buffer — is that not an effect?</li></ol></div></div><div></div><h3 id="s24-1">24.1 The same work, two shapes<a class="plink" href="#s24-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/digits.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> digits .
 <em><span class="tok-c">rem run: digits_loop [97,49,50,98,51]</span></em>
 <em><span class="tok-c">rem run: digits_pipe [97,49,50,98,51]</span></em>
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> digits_loop <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i (len s) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> is_digit (idx s i) <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> is_digit idx s. i. . . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n. add n. <span class="tok-n">1</span> . .
+    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> digits_pipe <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s. <strong><span class="tok-k">do</span></strong>
     filter is_digit .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run digits_loop digits.low [97,49,50,98,51]
 digits_loop([97,49,50,98,51]) = 3
   arg0 (written) = [97,49,50,98,51]
@@ -716,70 +716,70 @@ digits_pipe([97,49,50,98,51]) = 3
 
 <strong><span class="tok-k">fn</span></strong> over2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt a. <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add a a .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a. a. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> addu <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add acc. widen <strong><span class="tok-t">u64</span></strong> x. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> is_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> eq a <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> eq a. <span class="tok-n">0</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> under10 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> lt a <span class="tok-n">10</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> lt a. <span class="tok-n">10</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> big_doubled <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     map dbl .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> len out .
-<strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> len out. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> sum_big <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     fold <span class="tok-n">0</span> addu .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> has_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     any is_zero .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> all_small <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     all under10 .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> middle <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     skip <span class="tok-n">1</span> .
     take <span class="tok-n">2</span> .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> len out .
-<strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> len out. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run big_doubled stages.low [1,2,3,4,5] [0,0,0,0,0]
 big_doubled([1,2,3,4,5], [6,8,10,0,0]) = 5
   arg0 (written) = [1,2,3,4,5]
@@ -804,40 +804,40 @@ middle([10,20,30,40], [20,30]) = 2
 
 <strong><span class="tok-k">fn</span></strong> idxadd <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> e <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add e (narrow_wrap <strong><span class="tok-t">u8</span></strong> i) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add e. narrow_wrap <strong><span class="tok-t">u8</span></strong> i. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> addb <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add a b .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a. b. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> with_index <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     enumerate idxadd .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> added <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> ys <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    zip ys addb .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    zip ys. addb .
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> running <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     scan <span class="tok-n">0</span> addb .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run with_index pairs.low [10,10,10] [0,0,0]
 with_index([10,10,10], [10,11,12]) = 0
   arg0 (written) = [10,10,10]
@@ -858,41 +858,41 @@ running([1,2,3,4], [1,3,6,10]) = 0
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> band <strong><span class="tok-k">do</span></strong>
   lo <strong><span class="tok-t">u8</span></strong> .
   hi <strong><span class="tok-t">u8</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> above <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> limit <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt x limit .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt x. limit. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem a threshold known only at run time --- computed once before the pass and handed over as the last argument</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> count_above <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> base <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> margin <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    filter above with wrap_add base margin .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    filter above with wrap_add base. margin. . .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> clamp <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b band . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> lt x (field b lo) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">return</span></strong> field b lo .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">if</span></strong> gt x (field b hi) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">return</span></strong> field b hi .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> lt x. field b. lo . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> field b. lo . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> gt x. field b. hi . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> field b. hi . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> x. .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem several settings go into one struct without references</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> clamp_all <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> lo <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> hi <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    map clamp with <strong><span class="tok-k">lit</span></strong> band <strong><span class="tok-k">do</span></strong> lo lo . hi hi . <strong><span class="tok-k">end</span></strong> .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    map clamp with <strong><span class="tok-k">lit</span></strong> band <strong><span class="tok-k">do</span></strong> lo lo. . hi hi. . <strong><span class="tok-k">end</span></strong> . .
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run count_above context.low [1,5,9,12] 4 3
 count_above([1,5,9,12], 4, 3) = 2
   arg0 (written) = [1,5,9,12]
@@ -906,16 +906,16 @@ clamp_all([1,5,9,12], [4,5,9,9], 4, 9) = 4
 <em><span class="tok-c">rem ✘ a context is a value without references --- a slice carries an address, so it cannot be one</span></em>
 <strong><span class="tok-k">fn</span></strong> over <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt x (idx s <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt x. idx s. <span class="tok-n">0</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> count_over <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    filter over with xs .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
+    filter over with xs. .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_context.low
 mistake_context.low:13:0 E-PIPE-CONTEXT-TYPE: a `with` context is a value without references (RFC-0121 §6.2) — this op's context parameter `s` holds a slice (it carries an address — the context would keep watching storage outside the pipe). Put the settings into a struct of numbers, bools and enums, or call the op in an explicit loop
 </code></pre></div></div><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> An op that uses <code>collect into</code> has <code>effects none</code> in its head. It changes the caller’s buffer — is that not an effect?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> The specification’s examples also write <code>effects none</code>. <code>collect into</code> does not <strong>require</strong> <code>effects state</code>, but if you write it the processor counts the write to caller storage, so no “declared but not performed” warning appears — the same judgement it makes for writes through a <code>mut</code> or <code>mut_ref</code> parameter. Either way, the caller knows writes may happen where it hands over a <code>mut slice</code> (chapter 12).</p></div></div><h3 id="s24-3">24.3 Walking once is the definition<a class="plink" href="#s24-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A single <code>pipe</code> runs <strong>in one pass</strong>, and no intermediate arrays are created between stages. This is not an optimisation the processor may try but the definition of <code>pipe</code>, and a processor that creates intermediate arrays does not conform.</p><p>Why make it the definition? If fusion were an optimisation, “how far fusion goes” would differ between processors, and users would hit <strong>cliffs</strong> — change one line and suddenly an intermediate array appears and things slow down. That cliff is invisible in the source. Lowent <strong>left operations that cannot be fused out of the stage words entirely</strong>. That is why operations needing to see everything, such as sorting, are not stages.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/bad_stage.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bad_stage .
@@ -923,16 +923,16 @@ mistake_context.low:13:0 E-PIPE-CONTEXT-TYPE: a `with` context is a value withou
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> broken <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s. <strong><span class="tok-k">do</span></strong>
     sort .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check bad_stage.low
 bad_stage.low:12:0 E-PIPE-STAGE: this word is not a `pipe` stage. The stage vocabulary is CLOSED (RFC-0010 G5/D-A): stages are `filter &lt;op> .`, `map &lt;op> .`, `take &lt;n> .`, `skip &lt;n> .`, `enumerate &lt;op> .`, `zip &lt;other> &lt;op> .` and `scan &lt;init> &lt;op> .`, and the pipeline ends with exactly one terminal — `collect into &lt;mut slice> .`, `fold &lt;init> &lt;op> .`, `count .`, `any &lt;op> .` or `all &lt;op> .`. Fusion here is the MEANING, not an optimization, so anything that could not fuse into the single loop is not writable as a stage — use an explicit loop, or break the pipeline with an explicit intermediate collect
 </code></pre></div></div><p>The list of stages is closed. <code>pipe</code> being a statement rather than an expression has the same reason: as an expression, stages could be detached and passed as values, and where one stream ends would not be visible in the source. <code>do … end</code> makes that boundary visible.</p><h3 id="s24-4">24.4 Reading only as much as needed<a class="plink" href="#s24-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>any</code> stops at the first element giving true, <code>all</code> at the first giving false, and <code>take n</code> after passing <code>n</code> elements. Elements after the stop are not read, and stages are not run for them. <code>has_zero [4,0,9]</code> never looks at 9. Only because this property is written into the meaning can <code>pipe</code> handle sources without an end.</p><p>A terminal ends the flow. A stage after the terminal is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/no_terminal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> no_terminal .
@@ -940,37 +940,37 @@ bad_stage.low:12:0 E-PIPE-STAGE: this word is not a `pipe` stage. The stage voca
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> broken <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s. <strong><span class="tok-k">do</span></strong>
     count .
     filter is_digit .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check no_terminal.low
 no_terminal.low:13:0 E-PIPE-NO-TERMINAL: a `pipe` stage may not come AFTER the terminal — the terminal ends the pipeline (RFC-0010 G1)
 </code></pre></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>pipe</code> is convenient but slower than a hand-written loop</strong></p><div class="dev-body">In many languages iterator chains leave intermediate objects or indirect calls behind, or hope the optimiser removes them. For <code>pipe</code>, walking once is the definition, and stage ops are monomorphised direct calls. One <code>pipe</code> lowers to one loop, and its costs arise at the same places as in a hand-written loop. The words were chosen so that the convenient way and the fast way do not diverge.</div></div><h3 id="s24-5">24.5 The built-in <code>map</code> · <code>filter</code> with the same names<a class="plink" href="#s24-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>map</code> and <code>filter</code> also exist outside <code>pipe</code>. These are not stages but <strong>core ops that copy one slice into another in a single statement</strong>, and they take three arguments — <code>map &lt;sink> &lt;op> &lt;source> .</code> · <code>filter &lt;sink> &lt;op> &lt;source> .</code>.</p><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sink_map .
 
-<strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> wrap_add a a . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> wrap_add a. a. . . <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> doubled <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  map out dbl xs .
+  map out. dbl xs. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong></code></pre><p>Putting <code>[1,2]</code> into a three-slot <code>out</code> gives <code>[2,4,0]</code>. The other way round, putting <code>[1,2,3]</code> into two slots stops the run as the third is written — a full sink never drops the rest in silence (the same as <code>collect into</code>). The sink must be a <code>mut slice</code> (<code>E-MAP-SINK</code>) and the element a scalar (<code>E-MAP-ELEM</code>). The word is the same, but inside <code>pipe</code> it takes one op — the number of arguments tells which is meant.</p><h3 id="s24-6">24.6 Common mistakes<a class="plink" href="#s24-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing an expression in a stage to imitate a lambda</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_lambda.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_lambda .
+<strong><span class="tok-k">end</span></strong> .</code></pre><p>Putting <code>[1,2]</code> into a three-slot <code>out</code> gives <code>[2,4,0]</code>. The other way round, putting <code>[1,2,3]</code> into two slots stops the run as the third is written — a full sink never drops the rest in silence (the same as <code>collect into</code>). The sink must be a <code>mut slice</code> (<code>E-MAP-SINK</code>) and the element a scalar (<code>E-MAP-ELEM</code>). The word is the same, but inside <code>pipe</code> it takes one op — the number of arguments tells which is meant.</p><h3 id="s24-6">24.6 Common mistakes<a class="plink" href="#s24-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing an expression in a stage to imitate a lambda</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_lambda.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_lambda .
 <em><span class="tok-c">rem expect: E-FOLD-OP</span></em>
 
 <strong><span class="tok-k">fn</span></strong> count_big <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ imitates an anonymous function --- a stage takes one named op</span></em>
     filter gt <span class="tok-n">2</span> .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_lambda.low
 mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not exist
 </code></pre></div></div><p>Carrying over <code>filter(x => x > 2)</code> from another language easily gives <code>filter gt 2</code>. A stage takes <strong>one named op</strong>, so this is <code>E-FOLD-OP</code> (the diagnostic only says “no such op”). Naming a condition may feel like extra work, but the name <code>over2</code> becomes the explanation of that line, and the same condition can be reused in other <code>pipe</code>s.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/lambda_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> lambda_fixed .
@@ -979,16 +979,16 @@ mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not ex
 <em><span class="tok-c">rem give the condition a name --- the name becomes its explanation</span></em>
 <strong><span class="tok-k">fn</span></strong> over2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt a. <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> count_big <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run count_big lambda_fixed.low [1,2,3,4,5]
 count_big([1,2,3,4,5]) = 3
   arg0 (written) = [1,2,3,4,5]
@@ -997,18 +997,18 @@ count_big([1,2,3,4,5]) = 3
 
 <strong><span class="tok-k">fn</span></strong> times1000 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> mul (widen <strong><span class="tok-t">u64</span></strong> a) <span class="tok-n">1000</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> mul widen <strong><span class="tok-t">u64</span></strong> a. . <span class="tok-n">1000</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> scale <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ a `map` producing `u64` is collected into a `u8` buffer --- 1000 becomes 232</span></em>
     map times1000 .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_widecollect.low
 mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WIDER value into a narrower buffer, and that loses bits silently (measured: 1000 became 232). A conversion that loses value never happens implicitly here (§6.2.5) — put a `map` in front that says which narrowing you mean (`narrow`, `narrow_wrap`, `narrow_sat`, `narrow_try`), or collect into a buffer of the produced width
 </code></pre></div></div><p><code>times1000</code> produces <code>u64</code>, but <code>out</code> is a <code>u8</code> buffer. A narrowing that loses value happens only where it is written (§6.2.5), so this is refused with <code>E-TYPE-COLLECT</code>. Until 2026-09-16 it passed and 1000 and 2000 were stored silently as 232 and 208. If narrowing is needed, write <code>narrow</code>, <code>narrow_wrap</code> or <code>narrow_sat</code> inside the op given to <code>map</code>, so the place where it may stop is visible.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Swapping the accumulator and the element in a <code>fold</code> op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_foldorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_foldorder .
@@ -1016,18 +1016,18 @@ mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WID
 
 <em><span class="tok-c">rem ✘ takes the element first --- the accumulator arrives as `x`, the element as `acc`</span></em>
 <strong><span class="tok-k">fn</span></strong> add_small_swapped <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le acc <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le acc. <span class="tok-n">1000000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> lt x <span class="tok-n">100</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc .
-  <strong><span class="tok-k">return</span></strong> add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> lt x. <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc. . .
+  <strong><span class="tok-k">return</span></strong> add acc. widen <strong><span class="tok-t">u64</span></strong> x. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> sum_small_wrong <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     fold <span class="tok-n">0</span> add_small_swapped .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_foldorder.low
 mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is the FIRST input of its op and also its output, because each step computes `acc = op(acc, element)`. Here the first input and the output are declared with different types, so the running total is handed to a parameter that cannot hold it — a `u8` first input takes a total of 600 as 88 and the answer is silently wrong. Write the op as `input acc &lt;out-type> . input x &lt;element-type> .`
 </code></pre></div></div><p><code>fold</code> gives its op <strong>the accumulator first and the element second</strong>. <code>add_small_swapped</code> takes them the other way round, so <code>x</code> receives the accumulator and <code>acc</code> receives the element. Each step is <code>acc = op(acc, element)</code>, so the first input must have the same type as the output; here they are <code>u8</code> and <code>u64</code>, and the program is refused with <code>E-FOLD-ORDER</code>. Always write the op of <code>fold</code> or <code>scan</code> in the order <code>input acc … . input x … .</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a stage op that can stop, in a <code>fn</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_stageeffect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_stageeffect .
@@ -1035,18 +1035,18 @@ mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is t
 
 <strong><span class="tok-k">proc</span></strong> nonzero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq a <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero in input</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq a. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero in input</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem ✘ the stage op can stop, yet the op using the `pipe` is written as a `fn`</span></em>
 <strong><span class="tok-k">fn</span></strong> count_checked <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter nonzero .
     count .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_stageeffect.low
 mistake_stageeffect.low:12:1 E-EFFECT-CALC: this fn is declared pure but performs `panic` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p>A <code>pipe</code> is a loop that calls its stage ops, so the effects of a stage op spread to the op containing the <code>pipe</code>. <code>nonzero</code> may <code>panic</code>, so <code>count_checked</code> performs <code>panic</code> too, and as a <code>fn</code> it is <code>E-EFFECT-CALC</code>. Write it as <code>proc … effects panic .</code>, or instead of stopping, use a pure op that filters out the elements that do not meet the condition.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>collect into</code> drops the rest when the buffer is full</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/short_buffer.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> short_buffer .
@@ -1055,24 +1055,24 @@ mistake_stageeffect.low:12:1 E-EFFECT-CALC: this fn is declared pure but perform
 
 <strong><span class="tok-k">fn</span></strong> over2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> gt a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> gt a. <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> dbl <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> wrap_add a a .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a. a. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem the buffer has two slots --- two remaining elements fit; with four, the run stops as the third is stored</span></em>
 <strong><span class="tok-k">proc</span></strong> big_doubled <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">pipe</span></strong> xs. <strong><span class="tok-k">do</span></strong>
     filter over2 .
     map dbl .
-    collect into out .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> len out .
-<strong><span class="tok-k">end</span></strong>
+    collect into out. .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> len out. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run big_doubled short_buffer.low [1,3,4] [0,0]
 big_doubled([1,3,4], [6,8]) = 2
   arg0 (written) = [1,3,4]
@@ -1080,7 +1080,7 @@ big_doubled([1,3,4], [6,8]) = 2
 $ lowentc --run big_doubled short_buffer.low [3,4,5,6] [0,0]
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N
-</code></pre></div></div><p>From <code>[1,3,4]</code> two elements remain (3, 4), and they fit in two slots. <code>[3,4,5,6]</code> leaves four, so the run <strong>stops</strong> as the third is stored. It used to end quietly after two, and nobody learned that the other two were gone. When both lengths are known at translation (an <code>array u8 5</code> input, say), there is nothing to stop: it is refused with <code>E-COLLECT-FULL</code>. A <code>pipe</code> does not allocate, so it does not grow the buffer either. To keep only what fits, <strong>write</strong> <code>take 2</code>.</p></div></div><h3 id="s24-7">24.7 This chapter’s syntax at a glance<a class="plink" href="#s24-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>pipe xs do … end</code></td><td>scan the source <code>xs</code> once</td><td>the language owns the skeleton (index, end test)</td></tr><tr><td><code>filter over2 .</code> · <code>map dbl .</code></td><td>keep · transform — pass a named op</td><td>no lambdas — the name is the explanation</td></tr><tr><td><code>take 2 .</code> · <code>skip 1 .</code></td><td>only the first few · drop the first few</td><td>read only as much as needed</td></tr><tr><td><code>enumerate idxadd .</code> · <code>zip ys addb .</code></td><td>pass the index or partner as op arguments</td><td>no tuples are built</td></tr><tr><td><code>scan 0 addb .</code> · <code>fold 0 addu .</code></td><td>emit running values · accumulate into one value</td><td>the op takes the accumulator first, then the element</td></tr><tr><td><code>filter above with limit .</code></td><td>context — computed once before the pass, the op’s last argument</td><td>a run-time value without a lambda — values without references only</td></tr><tr><td><code>count .</code> · <code>any is_zero .</code> · <code>all under10 .</code></td><td>terminators that produce a value</td><td>usable as <code>return pipe … end</code></td></tr><tr><td><code>collect into out .</code></td><td>store into the caller’s buffer</td><td>a <code>pipe</code> never allocates — a buffer too short is refused or stops the run</td></tr><tr><td>exactly one terminator, at the end</td><td>a stage after it is <code>E-PIPE-NO-TERMINAL</code></td><td>the end of the flow is in one place</td></tr><tr><td>a word like <code>sort</code></td><td>does not exist — <code>E-PIPE-STAGE</code></td><td>operations that cannot fuse were left out</td></tr></table></div><p class="float-caption">Table 24.2 — <code>pipe</code> syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>pipe &lt;source> do … end</code> passes through stages (<code>filter</code>, <code>map</code>, <code>take</code>, <code>skip</code>, <code>enumerate</code>, <code>zip</code>, <code>scan</code>) and ends with one terminal (<code>collect into</code>, <code>fold</code>, <code>count</code>, <code>any</code>, <code>all</code>). Stages take named ops, and the buffer to collect into is given by the caller. Walking once with no intermediate arrays is the definition, and operations that cannot be fused are not in the vocabulary. <code>any</code>, <code>all</code> and <code>take</code> read only as much as needed.</div></div>
+</code></pre></div></div><p>From <code>[1,3,4]</code> two elements remain (3, 4), and they fit in two slots. <code>[3,4,5,6]</code> leaves four, so the run <strong>stops</strong> as the third is stored. It used to end quietly after two, and nobody learned that the other two were gone. When both lengths are known at translation (an <code>array u8 5</code> input, say), there is nothing to stop: it is refused with <code>E-COLLECT-FULL</code>. A <code>pipe</code> does not allocate, so it does not grow the buffer either. To keep only what fits, <strong>write</strong> <code>take 2</code>.</p></div></div><h3 id="s24-7">24.7 This chapter’s syntax at a glance<a class="plink" href="#s24-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>pipe xs. do … end .</code></td><td>scan the source <code>xs</code> once</td><td>the language owns the skeleton (index, end test)</td></tr><tr><td><code>filter over2 .</code> · <code>map dbl .</code></td><td>keep · transform — pass a named op</td><td>no lambdas — the name is the explanation</td></tr><tr><td><code>take 2 .</code> · <code>skip 1 .</code></td><td>only the first few · drop the first few</td><td>read only as much as needed</td></tr><tr><td><code>enumerate idxadd .</code> · <code>zip ys addb .</code></td><td>pass the index or partner as op arguments</td><td>no tuples are built</td></tr><tr><td><code>scan 0 addb .</code> · <code>fold 0 addu .</code></td><td>emit running values · accumulate into one value</td><td>the op takes the accumulator first, then the element</td></tr><tr><td><code>filter above with limit .</code></td><td>context — computed once before the pass, the op’s last argument</td><td>a run-time value without a lambda — values without references only</td></tr><tr><td><code>count .</code> · <code>any is_zero .</code> · <code>all under10 .</code></td><td>terminators that produce a value</td><td>usable as <code>return pipe … end . .</code></td></tr><tr><td><code>collect into out .</code></td><td>store into the caller’s buffer</td><td>a <code>pipe</code> never allocates — a buffer too short is refused or stops the run</td></tr><tr><td>exactly one terminator, at the end</td><td>a stage after it is <code>E-PIPE-NO-TERMINAL</code></td><td>the end of the flow is in one place</td></tr><tr><td>a word like <code>sort</code></td><td>does not exist — <code>E-PIPE-STAGE</code></td><td>operations that cannot fuse were left out</td></tr></table></div><p class="float-caption">Table 24.2 — <code>pipe</code> syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>pipe &lt;source> do … end .</code> passes through stages (<code>filter</code>, <code>map</code>, <code>take</code>, <code>skip</code>, <code>enumerate</code>, <code>zip</code>, <code>scan</code>) and ends with one terminal (<code>collect into</code>, <code>fold</code>, <code>count</code>, <code>any</code>, <code>all</code>). Stages take named ops, and the buffer to collect into is given by the caller. Walking once with no intermediate arrays is the definition, and operations that cannot be fused are not in the vocabulary. <code>any</code>, <code>all</code> and <code>take</code> read only as much as needed.</div></div>
 <div class="nav"><a href="ch23.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch25.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

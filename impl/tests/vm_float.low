@@ -4,10 +4,10 @@ fn favg
   input b u64 .
   output f64 .
 do
-  return expr ((cast f64 a) + (cast f64 b)) / 2.0 .
-end
+  return expr ((cast f64 a. .) + (cast f64 b. .)) / 2.0 . .
+end .
 
-fn fcmp output bool . do return lt 1.5 2.25 . end
-fn fdiv0 output f64 . do return expr 1.0 / 0.0 . end
-fn ftrunc output u64 . do return cast u32 7.9 . end
-fn fmixed output f64 . do return expr 1.5 + 2.25 . end
+fn fcmp output bool . do return lt 1.5 2.25 . . end .
+fn fdiv0 output f64 . do return expr 1.0 / 0.0 . . end .
+fn ftrunc output u64 . do return cast u32 7.9 . . end .
+fn fmixed output f64 . do return expr 1.5 + 2.25 . . end .

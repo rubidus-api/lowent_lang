@@ -6,19 +6,19 @@ rem    컴파일되고, 실행되고, **틀린 값을 냈다.** 미구현보다 
 rem    기계장치는 이미 있었다(IRW_VARRAY — view_array 가 쓰던 것). 진입에서 씌운다.
 
 fn tally input s slice u32 . output u64 . do
-  return len s .                      rem **원소 수** (바이트 수가 아니다)
-end
+  return len s. . .                      rem **원소 수** (바이트 수가 아니다)
+end .
 
 fn at input i u64 . input s slice u32 . output u32 . do
-  return idx s i .                  rem **원소** (바이트가 아니다)
-end
+  return idx s. i. . .                  rem **원소** (바이트가 아니다)
+end .
 
 rem 원소 쓰기도 원소 단위로 인코딩된다.
 proc dbl input s mut slice u32 . output u32 . effects none . do
   var i u64 0 .
-  while lt i (len s) do
-    set (idx s i) expr (idx s i) * 2 .
-    set i expr i + 1 .
-  end
-  return idx s 1 .
-end
+  while lt i. len s. . . do
+    set idx s. i. . expr (idx s. i. .) * 2 . .
+    set i. expr i. + 1 . .
+  end .
+  return idx s. 1 . .
+end .

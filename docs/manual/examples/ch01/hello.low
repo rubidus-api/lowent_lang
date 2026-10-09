@@ -2,5 +2,5 @@ module hello .
 rem run: main
 
 proc main input out cap io . output u8 . effects io . do
-  return narrow u8 (write_out out 1 "hello, entropy!\n") .
-end
+  return narrow u8 write_out out. 1 "hello, entropy!\n" . . .
+end .

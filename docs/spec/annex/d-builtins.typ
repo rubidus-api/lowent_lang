@@ -12,7 +12,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 209 개다 — 기본 연산 166 개와 빌트인 연산 43 개.]
+  #para("2")[모두 231 개다 — 기본 연산 188 개와 빌트인 연산 43 개.]
 
   == D.1 이름과 뜻
 
@@ -42,6 +42,7 @@
         [`atomic_sub`], [원자적으로 뺀다],
         [`atomic_swap`], [원자적으로 바꿔 끼우고 옛 값을 낸다],
         [`atomic_xor`], [원자적 비트 배타합],
+        [`await`], [그 흐름이 끝날 때까지 기다렸다가 결과를 낸다],
         [`bit_and`], [비트 곱],
         [`bit_cast`], [비트를 그대로 두고 타입만 바꾼다],
         [`bit_not`], [비트 뒤집기 — #strong[폭 안에서]; 뒤집는다(C 처럼 int 로 승격하지 아니한다)],
@@ -63,11 +64,15 @@
         [`capacity`], [담을 수 있는 최대],
         [`cast`], [수치 변환(폭·부호·부동소수)],
         [`ceil`], [올림],
+        [`channel`], [채널을 만든다],
         [`chk_add`], [더하기 — 넘쳤는지 #strong[답과 함께]; 돌려준다],
         [`chk_mul`], [곱하기 — 넘쳤는지 답과 함께 돌려준다],
         [`chk_sub`], [빼기 — 넘쳤는지 답과 함께 돌려준다],
+        [`chrecv`], [채널에서 값을 뺀다],
+        [`chsend`], [채널에 값을 넣는다],
         [`collect`], [파이프라인의 결과를 자리에 담는다],
         [`config`], [번역 시점의 설정 값],
+        [`copy`], [주는 쪽의 원소를 받는 쪽에 베낀다],
         [`cos`], [코사인],
         [`count`], [원소의 수를 센다],
         [`count_ones`], [선 비트의 수],
@@ -75,6 +80,11 @@
         [`deref`], [참조가 가리키는 값],
         [`div`], [앞을 뒤로 나눈다. 0 으로 나누면 트랩한다],
         [`div_nz`], [0 이 아님이 증명된 나눗셈 — 검사 없이 나눈다],
+        [`drain`], [그 액터의 우편함에 든 것을 처리한다],
+        [`elem_ge`], [모든 원소가 그 값 이상이다],
+        [`elem_gt`], [모든 원소가 그 값보다 크다],
+        [`elem_le`], [모든 원소가 그 값 이하다],
+        [`elem_lt`], [모든 원소가 그 값보다 작다],
         [`encode`], [주어진 부호로 바이트를 만든다],
         [`enumerate`], [원소에 차례 번호를 붙인다],
         [`env_get`], [환경 변수를 읽는다],
@@ -96,6 +106,7 @@
         [`is_none`], [값이 없나],
         [`is_ok`], [성공인가],
         [`is_some`], [값이 있나],
+        [`isa`], [지금 그 갈래인가를 묻는다],
         [`lane_all`], [가림막의 레인이 모두 켜졌나 (레인 판정 — pipe 종결자 `all` 과 다른 낱말)],
         [`lane_any`], [가림막의 레인이 하나라도 켜졌나 (레인 판정 — pipe 종결자 `any` 와 다른 낱말)],
         [`lane_avg`], [두 수의 평균 — 중간값을 넘침 없이 낸다],
@@ -128,6 +139,7 @@
         [`ok_value`], [담긴 성공값을 꺼낸다],
         [`or`], [논리 합 — 앞이 참이면 뒤를 안 본다],
         [`panic`], [계약이 깨졌음을 알리고 멈춘다],
+        [`payload`], [갈래가 지닌 칸의 값을 꺼낸다(먼저 `isa` 로 그 갈래임을 확인해야 한다)],
         [`pipe`], [한 줄기로 흘린다 — #strong[한 번의 훑기];다],
         [`pop`], [뒤에서 하나 뺀다],
         [`pow`], [거듭제곱],
@@ -135,6 +147,7 @@
         [`push`], [뒤에 붙인다],
         [`r_read`], [reactor 로 읽는다],
         [`r_write`], [reactor 로 쓴다],
+        [`random_bytes`], [OS 엔트로피로 버퍼를 채운다],
         [`range`], [값의 범위를 좁힌 매개변수 표시],
         [`reactor_new`], [reactor 를 만든다],
         [`read_in`], [표준 입력에서 읽는다],
@@ -159,9 +172,11 @@
         [`send`], [액터에 메시지를 보낸다],
         [`shl`], [왼쪽으로 민다. 시프트 양이 폭 이상이면 트랩한다],
         [`shr`], [오른쪽으로 민다. 부호 있는 값은 산술 이동이다],
+        [`shuffle`], [레인을 주어진 차례로 다시 놓는다],
         [`sin`], [사인],
         [`size_of`], [그 타입이 차지하는 바이트 수],
         [`skip`], [앞의 n 개를 건너뛴다],
+        [`some`], [값을 담은 option 을 만든다],
         [`some_value`], [담긴 값을 꺼낸다],
         [`spawn`], [새 실행 흐름을 만들고 핸들을 낸다],
         [`splat`], [한 값을 모든 레인에 채운다],
@@ -176,8 +191,15 @@
         [`sum_seq`], [부동 조각을 앞에서 뒤로 한 번 더한다 — 빠르고, 오차가 항의 개수에 비례한다],
         [`swap`], [두 자리를 맞바꾼다],
         [`take`], [앞에서 n 개],
+        [`time_local`], [지금의 날짜와 시각(한 수에 묶어 낸다)],
+        [`time_now`], [단조 시계의 지금(나노초)],
+        [`time_sleep`], [주어진 밀리초만큼 잔다 — 실제로 잔 밀리초를 낸다],
         [`trailing_zeros`], [맨 뒤의 0 비트 수],
         [`try_view`], [`view` 와 같되 계약이 깨지면 `none` 을 낸다],
+        [`tty_raw`], [터미널의 날 입력 모드를 켜거나 끈다],
+        [`tty_read`], [터미널에서 읽는다(지금 없으면 0)],
+        [`tty_size`], [터미널의 행과 열(한 수에 묶어 낸다)],
+        [`unsafe_fn`], [op 의 주소를 값으로 낸다(씨에 되부름으로 넘긴다)],
         [`value_or`], [값이 있으면 그것, 없으면 기본값 — 기본값은 #strong[성공 시 평가되지 아니한다];],
         [`view`], [바이트를 구조체로 본다 — 복사 없음. 정렬·길이 계약을 확인한다],
         [`view_array`], [바이트를 그 타입의 배열로 본다 — 복사 없음],
@@ -258,8 +280,8 @@
   ]
 
   #note[
-    실측: 기본 연산 166 개 가운데 지역 이름 선언이 막히는 것은 #strong[149 개];,
-    쓸 수 있는 것은 #strong[17 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
+    실측: 기본 연산 188 개 가운데 지역 이름 선언이 막히는 것은 #strong[188 개];,
+    쓸 수 있는 것은 #strong[0 개];다 — ``.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 #strong[이름 충돌 규칙을 틀리게 말하기];
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
   ]
@@ -269,54 +291,59 @@ aes_round             aes_round_last        all                   alloc_bytes
 and                   any                   arg                   atomic_add
 atomic_and            atomic_cas            atomic_fence          atomic_load
 atomic_or             atomic_store          atomic_sub            atomic_swap
-atomic_xor            bit_and               bit_cast              bit_not
-bit_or                bit_xor               bitset_complement     bitset_contains
-bitset_difference     bitset_insert         bitset_intersect      bitset_is_empty
-bitset_is_subset      bitset_new            bitset_remove         bitset_union
-borrow                byte_swap             call_builtin          capacity
-cast                  ceil                  chacha20              chacha_poly
-chk_add               chk_mul               chk_sub               clmul_hi
-clmul_lo              collect               config                cos
-count                 count_ones            crc32                 cstr_of
-deref                 dir_close             dir_make              dir_open
-dir_read              div                   div_nz                encode
-enumerate             env_get               eq                    error
-error_value           exp                   expect                field
-file_close            file_open             file_read             file_seek
-file_type             file_write            filter                floor
-fmod                  fold                  ge                    ghash
-gt                    hash_bytes            idx                   into
-is_error              is_none               is_ok                 is_some
-lane_all              lane_any              lane_avg              lane_reverse
-lane_rotate           lane_select           le                    leading_zeros
-len                   link_type             load                  load_masked
-log                   lt                    map                   max
-min                   mod                   mul                   mut_ref
-narrow                narrow_sat            narrow_try            narrow_wrap
-native_lanes          ne                    neg                   net_accept
-net_close             net_connect           net_listen            net_pair
-net_port              net_recv              net_resolve           net_send
-nonzero_of            not                   ok                    ok_value
-or                    panic                 path_remove           path_rename
+atomic_xor            await                 bit_and               bit_cast
+bit_not               bit_or                bit_xor               bitset_complement
+bitset_contains       bitset_difference     bitset_insert         bitset_intersect
+bitset_is_empty       bitset_is_subset      bitset_new            bitset_remove
+bitset_union          borrow                byte_swap             call_builtin
+capacity              cast                  ceil                  chacha20
+chacha_poly           channel               chk_add               chk_mul
+chk_sub               chrecv                chsend                clmul_hi
+clmul_lo              collect               config                copy
+cos                   count                 count_ones            crc32
+cstr_of               deref                 dir_close             dir_make
+dir_open              dir_read              div                   div_nz
+drain                 elem_ge               elem_gt               elem_le
+elem_lt               encode                enumerate             env_get
+eq                    error                 error_value           exp
+expect                field                 file_close            file_open
+file_read             file_seek             file_type             file_write
+filter                floor                 fmod                  fold
+ge                    ghash                 gt                    hash_bytes
+idx                   into                  is_error              is_none
+is_ok                 is_some               isa                   lane_all
+lane_any              lane_avg              lane_reverse          lane_rotate
+lane_select           le                    leading_zeros         len
+link_type             load                  load_masked           log
+lt                    map                   max                   min
+mod                   mul                   mut_ref               narrow
+narrow_sat            narrow_try            narrow_wrap           native_lanes
+ne                    neg                   net_accept            net_close
+net_connect           net_listen            net_pair              net_port
+net_recv              net_resolve           net_send              nonzero_of
+not                   ok                    ok_value              or
+panic                 path_remove           path_rename           payload
 pipe                  poly1305              pop                   pow
 prefetch              proc_kill             proc_poll             proc_read
 proc_spawn            proc_wait             push                  r_read
-r_write               range                 reactor_new           read_in
-read_volatile         reduce_add            reduce_max            reduce_min
-reduce_mul            ref                   region                ret
-rng_next              rotl                  rotr                  round
-same_slice            sat_add               sat_mul               sat_sub
-scan                  seg                   segs                  send
-sha256                sha384                sha512                shl
-shr                   sin                   size_of               skip
-some_value            spawn                 splat                 sqrt
-stack_new             store                 store_masked          str_from_cstr
-sub                   subslice              sum_neumaier          sum_seq
-swap                  take                  trailing_zeros        try_view
-value_or              view                  view_array            view_segments
-widen                 wrap_add              wrap_mul              wrap_shl
-wrap_shr              wrap_sub              write_out             write_volatile
-zip")
+r_write               random_bytes          range                 reactor_new
+read_in               read_volatile         reduce_add            reduce_max
+reduce_min            reduce_mul            ref                   region
+ret                   rng_next              rotl                  rotr
+round                 same_slice            sat_add               sat_mul
+sat_sub               scan                  seg                   segs
+send                  sha256                sha384                sha512
+shl                   shr                   shuffle               sin
+size_of               skip                  some                  some_value
+spawn                 splat                 sqrt                  stack_new
+store                 store_masked          str_from_cstr         sub
+subslice              sum_neumaier          sum_seq               swap
+take                  time_local            time_now              time_sleep
+trailing_zeros        try_view              tty_raw               tty_read
+tty_size              unsafe_fn             value_or              view
+view_array            view_segments         widen                 wrap_add
+wrap_mul              wrap_shl              wrap_shr              wrap_sub
+write_out             write_volatile        zip")
 
   == D.2 받는 것과 내는 것
 
@@ -327,7 +354,7 @@ zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 209 개 가운데 *61 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *61 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -429,11 +456,11 @@ zip")
   #tbl("변환")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
-        [`widen T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-IR-UNDEF` \ *실행 때 멈춤:* —],
-        [`narrow T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 를 안 적으면 `E-IR-UNDEF` \ *실행 때 멈춤:* 정수 값이 `T` 에 안 들어가면 `E-VM-CAST`],
-        [`narrow_wrap T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255) \ *번역 때 거절:* `T` 를 안 적으면 `E-IR-UNDEF` \ *실행 때 멈춤:* —],
-        [`narrow_sat T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0) \ *번역 때 거절:* `T` 를 안 적으면 `E-IR-UNDEF` \ *실행 때 멈춤:* —],
-        [`narrow_try T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 정수 \ *내는 것:* `option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음 \ *번역 때 거절:* `T` 를 안 적으면 `E-IR-UNDEF` \ *실행 때 멈춤:* —],
+        [`widen T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
+        [`narrow T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* 정수 값이 `T` 에 안 들어가면 `E-VM-CAST`],
+        [`narrow_wrap T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
+        [`narrow_sat T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
+        [`narrow_try T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 정수 \ *내는 것:* `option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`cast T a` #cref("6.2.16")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 수 \ *내는 것:* `T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값 \ *번역 때 거절:* `bool` 이 한쪽이면 `E-TYPE-KIND` \ *실행 때 멈춤:* 정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`],
         [`bit_cast T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수 \ *내는 것:* `T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408) \ *번역 때 거절:*  \ *실행 때 멈춤:* —],
         [`size_of T` #cref("6.3.8")], [*받는 것:* `T` — 타입 \ *내는 것:* 정수 — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4) \ *번역 때 거절:*  \ *실행 때 멈춤:* —],

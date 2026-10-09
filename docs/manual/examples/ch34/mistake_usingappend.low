@@ -6,18 +6,18 @@ use vecgen .
 
 proc main input h cap heap . output u8 . effects heap state .
 do
-  var hb allocs.heap_bytes spawn actor allocs.heap_bytes .
-  let vo use hb option (vecgen.vec u32 allocs.heap_bytes) vecgen.open u32 4 .
-  guard is_some vo else return 255 .
-  var v (vecgen.vec u32 allocs.heap_bytes) some_value vo .
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes . .
+  let vo use hb. option (vecgen.vec u32 allocs.heap_bytes) vecgen.open u32. 4 . .
+  guard is_some vo. . else return 255 . .
+  var v (vecgen.vec u32 allocs.heap_bytes) some_value vo. . .
   var i u32 0 .
-  while lt i 100 do
+  while lt i. 100 . do
     rem ko: ✘ 벡터가 이미 할당기를 들고 있는데 `use` 를 또 적었다 /// en: ✘ `use` is written again although the vector already carries its allocator
-    let pushed use hb bool vecgen.append u32 allocs.heap_bytes v (mul i 2) .
-    guard pushed else return 254 .
-    set i (add i 1) .
-  end
-  let x option u32 vecgen.at u32 allocs.heap_bytes v 50 .
-  guard is_some x else return 253 .
-  return narrow u8 (some_value x) .
-end
+    let pushed use hb. bool vecgen.append u32. allocs.heap_bytes. v. mul i. 2 . . .
+    guard pushed. else return 254 . .
+    set i. add i. 1 . .
+  end .
+  let x option u32 vecgen.at u32. allocs.heap_bytes. v. 50 . .
+  guard is_some x. . else return 253 . .
+  return narrow u8 some_value x. . . .
+end .

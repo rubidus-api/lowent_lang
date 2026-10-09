@@ -10,10 +10,10 @@ module m .
 def type bytes slice u8 .
 
 rem f32 원소: 1.5 = 0x3FC00000, LE 바이트 [0,0,192,63].
-fn f32idx input b bytes . output f64 . do return idx (view_array f32 b) 0 . end
+fn f32idx input b bytes . output f64 . do return idx view_array f32 b. . 0 . . end .
 
 rem f64 원소: 2.5 = 0x4004000000000000, LE 바이트 [0,0,0,0,0,0,4,64].
-fn f64idx input b bytes . output f64 . do return idx (view_array f64 b) 0 . end
+fn f64idx input b bytes . output f64 . do return idx view_array f64 b. . 0 . . end .
 
 rem 무부호 정수 원소 대조 — 불변이어야: u32 300 = LE [44,1,0,0].
-fn u32idx input b bytes . output i64 . do return widen i64 (idx (view_array u32 b) 0) . end
+fn u32idx input b bytes . output i64 . do return widen i64 idx view_array u32 b. . 0 . . . end .

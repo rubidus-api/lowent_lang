@@ -10,8 +10,8 @@ takes 1 … 4 bytes --- one number is not one byte. Use it to count characters i
 ```lowent
 use utf8 .
 
-let c option u64 utf8.decode s 0 .
-guard is_some c else return 1 .
+let c option u64 utf8.decode s. 0 . .
+guard is_some c. . else return 1 . .
 ```
 
 `0` is not "the first character" but *byte offset 0*. Every position in this module is a byte offset, and advancing by character is done by `next_start`.
@@ -67,18 +67,18 @@ than the minimum code point each length can hold (at least 128 for 2 bytes, 2048
 
 This module holds no state, so where and from where to read is always given by the caller.
 
-- *`is_cont`* --- is it a continuation byte (`10xxxxxx`, i.e. `eq (bit_and b 192) 128`). A judgement needing no context, so it takes one byte.
+- *`is_cont`* --- is it a continuation byte (`10xxxxxx`, i.e. `eq bit_and b. 192 . 128 .`). A judgement needing no context, so it takes one byte.
 - *`seq_len`* --- the byte length (1 … 4) of a code point from its lead byte. Length information lives only in the high bits of the lead byte. *0 is not a length but
   an error signal* --- adding it as is leaves the cursor still and the loop never ends.
 - *`decode`* --- reads one code point at byte offset `at` and gives its *value*. `none` if `at` is past the end, the lead is a continuation byte, the sequence is cut
   off by the slice end, a continuation byte is not `10xxxxxx`, the encoding is overlong, it is a surrogate, or it exceeds U+10FFFF. A character spans up to 4 bytes,
-  so it takes the whole slice, and `len s` is the basis for judging truncation. `at` must be the *start* of a character --- feeding only positions `next_start` gave is a safe
+  so it takes the whole slice, and `len s. .` is the basis for judging truncation. `at` must be the *start* of a character --- feeding only positions `next_start` gave is a safe
   habit. It does not return the length.
 - *`next_start`* --- the *start position* of the next code point. `none` if invalid --- it does not skip and paper over. It looks only at lead, length and truncation;
   range checks are `decode`'s job. Using the returned value as the next `at` is one step of iteration.
 - *`count_chars`* --- walks everything and gives the number of code points. `none` on an invalid byte. "Everything" is the contract, so it takes no start position.
   Cost is O(bytes).
-- *`is_valid`* --- is all of it valid UTF-8. It embodies "validation is a separate op, not a type invariant", implemented as `is_some (count_chars s)`. If you also
+- *`is_valid`* --- is all of it valid UTF-8. It embodies "validation is a separate op, not a type invariant", implemented as `is_some count_chars s. . .`. If you also
   need the count, calling `count_chars` once is better.
 
 == Using it
@@ -98,42 +98,42 @@ proc main
   effects alloc io .
 do
   let s slice u8 "a한😀" .
-  guard utf8.is_valid s else return 65 .
+  guard utf8.is_valid s. . else return 65 . .
 
-  let g option mut slice u8 alloc_bytes al capacity 128 .
-  guard is_some g else return 70 .
-  let buf mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al. capacity 128 . .
+  guard is_some g. . else return 70 . .
+  let buf mut slice u8 some_value g. . .
   var pos u64 0 .
 
   var i u64 0 .
-  while lt i (len s) do
-    let c option u64 utf8.decode s i .
-    guard is_some c else return 66 .
-    let a option u64 fmt.put_str buf pos "U+" .
-    guard is_some a else return 71 .
-    let b option u64 fmt.put_hex buf (some_value a) (some_value c) .
-    guard is_some b else return 72 .
-    let d option u64 fmt.put_nl buf (some_value b) .
-    guard is_some d else return 73 .
-    set pos (some_value d) .
-    let nx option u64 utf8.next_start s i .
-    guard is_some nx else return 67 .
-    set i (some_value nx) .
-  end
+  while lt i. len s. . . do
+    let c option u64 utf8.decode s. i. . .
+    guard is_some c. . else return 66 . .
+    let a option u64 fmt.put_str buf. pos. "U+" . .
+    guard is_some a. . else return 71 . .
+    let b option u64 fmt.put_hex buf. some_value a. . some_value c. . . .
+    guard is_some b. . else return 72 . .
+    let d option u64 fmt.put_nl buf. some_value b. . . .
+    guard is_some d. . else return 73 . .
+    set pos. some_value d. . .
+    let nx option u64 utf8.next_start s. i. . .
+    guard is_some nx. . else return 67 . .
+    set i. some_value nx. . .
+  end .
 
-  let w u64 write_out out 1 (subslice buf 0 pos) .
+  let w u64 write_out out. 1 subslice buf. 0 pos. . . .
   return 0 .
-end
+end .
 ```
 
 The output is three lines: `U+61`, `U+d55c`, `U+1f600`. In one pass `i` jumps 0 → 1 → 4 → 8, through `a` (1 byte), `한` (3 bytes) and `😀` (4 bytes). *Never
-advance with `add i 1`* --- on the second round it would point into the middle of a character. If you only need the count, it is one line:
-`let n option u64 utf8.count_chars s .`
+advance with `add i. 1 .`* --- on the second round it would point into the middle of a character. If you only need the count, it is one line:
+`let n option u64 utf8.count_chars s. . .`
 
 == Counter-examples
 
 #antipattern[Patching `none` with a replacement character and carrying on][
-  Skipping a byte with `set i (add i 1)` when `next_start` fails lets invalid input through silently, and comparisons and filters above stand on a false premise. There is no
+  Skipping a byte with `set i. add i. 1 .` when `next_start` fails lets invalid input through silently, and comparisons and filters above stand on a false premise. There is no
   error --- it is *a silently wrong answer*, and the character count quietly grows. Feed invalid input on purpose and see whether later processing runs although
   `is_valid` is `false`. The only fix is to stop at `none`.
 ]
@@ -144,7 +144,7 @@ advance with `add i 1`* --- on the second round it would point into the middle o
 ]
 
 #antipattern[Treating `none` from `count_chars` as 0][
-  `none` is not "no characters" but "invalid UTF-8". An empty slice is `some 0`. Merge the two and broken input can never be told apart from input with no characters.
+  `none` is not "no characters" but "invalid UTF-8". An empty slice is `some 0 .`. Merge the two and broken input can never be told apart from input with no characters.
   Taking it out with `some_value` without checking stops at run time with `E-VM-NONE`.
 ]
 
@@ -155,7 +155,7 @@ advance with `add i 1`* --- on the second round it would point into the middle o
 
 == Cautions
 
-- *`len s` is a byte count.* Only `count_chars` knows the character count. Measuring "at most 10 characters" with `len` goes wrong (`"한글"` has `len` 6 and 2
+- *`len s. .` is a byte count.* Only `count_chars` knows the character count. Measuring "at most 10 characters" with `len` goes wrong (`"한글"` has `len` 6 and 2
   characters).
 - *Advance the cursor with `next_start`.* Advancing by 1 reads continuation bytes as leads, giving `none` or an inflated count.
 - *`none` from `decode` and from `next_start` judge different things.* `next_start` checks structure only, not value range (overlong, surrogates, upper limit). For strict

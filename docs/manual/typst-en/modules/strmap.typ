@@ -8,8 +8,8 @@ A hash map storing and finding `u64` values by byte string (string) keys --- wor
 variable-length byte string keys. Key bytes are *copied* into an arena on insertion, so they are not tied to the original string's lifetime.
 
 ```lowent
-let stored bool strmap.put slots keys "apple" 1 .
-let v option u64 strmap.lookup slots keys "apple" .
+let stored bool strmap.put slots. keys. "apple" 1 . .
+let v option u64 strmap.lookup slots. keys. "apple" . .
 ```
 
 *The caller prepares two buffers.* `slots` must start all zeros.
@@ -37,14 +37,14 @@ value without reserving anything. The hash is FNV-1a 64 with linear probing.
 - `put` updates only the value for the same key (length and bytes equal) --- no new slot, no arena use. New keys are copied into the arena. The first tombstone met while
   probing is reused.
 - `del` overwrites keylen with a tombstone and zeroes the value. *The old key bytes stay in the arena* --- reclamation happens when `rehash` moves to a new arena (compaction).
-- Read key bytes with `subslice keys off (add off klen)`. That is a view into the arena, valid only while the arena lives.
+- Read key bytes with `subslice keys. off. add off. klen. . .`. That is a view into the arena, valid only while the arena lives.
 
 #antipattern[An empty string key][
-  `strmap.put slots keys "" 7` is always `false`. `keylen 0` marks an empty slot, so an empty key cannot exist in the encoding. `lookup ""` is always `none` too.
+  `strmap.put slots. keys. "" 7 .` is always `false`. `keylen 0` marks an empty slot, so an empty key cannot exist in the encoding. `lookup ""` is always `none` too.
 ]
 
 #antipattern[Traversing by `keylen > 0` after deletion][
-  A tombstone's keylen is MAX, so `gt keylen 0` is true --- deleted items creep into totals. Filter with `occupied_at` in any map that has ever used `del`.
+  A tombstone's keylen is MAX, so `gt keylen. 0 .` is true --- deleted items creep into totals. Filter with `occupied_at` in any map that has ever used `del`.
 ]
 
 #antipattern[Touching `slots[0]` directly][

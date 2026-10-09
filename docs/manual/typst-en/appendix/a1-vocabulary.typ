@@ -38,7 +38,7 @@ are not words but cannot be used as names.
   [`unit`], [`void`],
   [`calcop` · `procop`], [`fn` · `proc`],
   [`is` · `as` (in declarations) · `local`], [Not written],
-  [`to` · `in` (field access)], [`field a b` · `idx a i`],
+  [`to` · `in` (field access)], [`field a. b .` · `idx a. i. .`],
   [`on`], [`proc` inside an actor],
   [`fail`], [`return error <variant>`],
   [`;` · `,`], [`.`],
@@ -62,7 +62,7 @@ are not words but cannot be used as names.
   [Comparison and logic], [`eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not`],
   [Bits], [`bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` `clmul_lo` `clmul_hi`],
   [Sequences], [`len` `idx` `subslice` `view` `view_array` `same_slice`],
-  [Groupings], [`field` `method` `isa` `get`],
+  [Groupings], [`field` `method` `isa` `payload`],
   [Answer-carrying types], [`some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or`],
   [Translation time], [`size_of` `comptime` `config`],
   [Allocation], [`alloc_bytes`],
@@ -73,7 +73,7 @@ are not words but cannot be used as names.
   [Atomic (bits)], [`atomic_and` `atomic_or` `atomic_xor`],
   [Floating-point maths --- #chref("numbers")], [`sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq`],
   [Pipe stages --- #chref("pipe")], [`pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into`],
-  [Lanes (SIMD) --- #chref("parallel-atomic")], [`splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `prefetch`],
+  [Lanes (SIMD) --- #chref("parallel-atomic")], [`splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch`],
   [Small-number sets --- #chref("named-types")], [`bitset_new` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove`],
   [Layouts and views --- #chref("named-types")], [`encode` `try_view` `view_segments` `seg` `segs` `capacity`],
   [Borrows and regions --- #chref("references") · #chref("regions")], [`ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap`],
@@ -81,10 +81,10 @@ are not words but cannot be used as names.
   [Builtin ops (computation) --- stand only after `call_builtin`], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
   [C strings --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
   [Builtin ops (files, network, processes) --- only after `call_builtin`], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port`],
-  [Host leaves --- #chref("lib-map")], [`env_get` `reactor_new` `r_read` `r_write`],
+  [Host leaves --- #chref("lib-map")], [`env_get` `reactor_new` `r_read` `r_write` `random_bytes` `time_local` `time_sleep`],
 )
 
-★ *Builtin ops have a name space of their own.* They stand only in that position --- `call_builtin sha256 msg out` --- and you may use the same spelling for a name of yours. Calling one bare when no name of yours is spelt that way is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. Builtin ops are the material the system library is built from; a program calls the module that wraps them (#chref("lib-map")).
+★ *Builtin ops have a name space of their own.* They stand only in that position --- `call_builtin sha256 msg. out. .` --- and you may use the same spelling for a name of yours. Calling one bare when no name of yours is spelt that way is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. Builtin ops are the material the system library is built from; a program calls the module that wraps them (#chref("lib-map")).
 
 This table sorts every core op and builtin op of the canon into a group. The chapter next to each group name explains that group with examples. The
 one-line meanings are authoritative in the repository's `docs/spec/BUILTIN-MEANINGS.tsv`.

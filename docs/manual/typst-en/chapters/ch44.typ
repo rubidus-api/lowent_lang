@@ -92,8 +92,8 @@ declarations disables the whole declaration system.
 
 #demo("examples/ch44/trap_not_effect.low")
 
-`idx s i` stops when out of range. So should `pick` carry the `panic` effect? *No.* `panic` counts only an explicit `panic "…"`. The possibility of stopping is
-what *contracts* speak of, not effects. The danger of `idx` *can be removed* with `requires lt i (len s)`, and the processor really does remove that check
+`idx s. i. .` stops when out of range. So should `pick` carry the `panic` effect? *No.* `panic` counts only an explicit `panic "…"`. The possibility of stopping is
+what *contracts* speak of, not effects. The danger of `idx` *can be removed* with `requires lt i. len s. . .`, and the processor really does remove that check
 (#chref("proofs-bounds")). An effect mark is never removed. Marking something removable as an effect makes the mark permanent, nearly every op ends up with
 `panic`, and the mark loses meaning.
 

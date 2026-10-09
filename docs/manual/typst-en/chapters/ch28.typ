@@ -44,7 +44,7 @@ operand* means `cap io` shows in the head of every op that emits even one byte t
 
 - `main` receives three capabilities: output (`cap io`), files (`cap file_system`) and allocation for the buffer (`cap allocator`). From the head alone you know this
   program does not touch the network.
-- `files.slurp fs "notes.txt" buf` reads the whole file into `buf` and gives the number of bytes read as a `result u64 files.file_error`. If the file is missing or
+- `files.slurp fs. "notes.txt" buf. .` reads the whole file into `buf` and gives the number of bytes read as a `result u64 files.file_error`. If the file is missing or
   larger than the buffer, it is an error. It does not truncate.
 - On error it writes a message and returns exit code 2 --- the shape of handling failure at the boundary (#chref("errors-design")).
 - It cuts off the part read with `subslice`, counts line breaks with `pipe` (#chref("pipe")), and writes the contents to standard output as is.
@@ -75,8 +75,8 @@ and joining them is the caller's job.
 #demo("examples/ch28/copy.low")
 
 - `files.open fs <path> 1` opens for writing. Modes are 0 read, 1 write (truncate and create), 2 append.
-- On success, `ok_value o` is put into an `owned files.handle`.
-- It writes with `files.write` and closes with `files.close fs h`. `close` takes an `owned handle` and returns a `result`. Closing really can fail --- on network file
+- On success, `ok_value o. .` is put into an `owned files.handle`.
+- It writes with `files.write` and closes with `files.close fs. h. .`. `close` takes an `owned handle` and returns a `result`. Closing really can fail --- on network file
   systems or full disks, failing to flush the last buffer shows up at close.
 
 Because `close` has that shape, `handle` is a type needing completion. Leaving it unclosed is rejected.
@@ -84,7 +84,7 @@ Because `close` has that shape, `handle` is a type needing completion. Leaving i
 #demo("examples/ch28/forgot.low")
 
 A program that forgets to close does not translate. It does not count on the operating system closing file descriptors when the process ends. If you really mean
-to discard without closing, write `drop h .` to say so.
+to discard without closing, write `drop h. .` to say so.
 
 The life of one handle, on one page:
 
@@ -120,9 +120,9 @@ Translation rejects the first two. The third is how the intent to discard is lef
   id: "io-read",
   caption: [The answers of `read`],
   [*Answer*], [*Meaning*],
-  [`ok (some n)`], [`n` bytes were read],
-  [`ok none`], [The *end* of the file. Not a failure],
-  [`error e`], [A failure. `e` says which operation failed],
+  [`ok some n. . .`], [`n` bytes were read],
+  [`ok none .`], [The *end* of the file. Not a failure],
+  [`error e .`], [A failure. `e` says which operation failed],
 )
 
 Reading a 34-byte file again and again with a 16-byte buffer gives these answers (measured on this edition).
@@ -137,7 +137,7 @@ Reading a 34-byte file again and again with a 16-byte buffer gives these answers
  read 5   ok none         reading past the end is still the end
 ```
 
-A last piece (2 bytes) smaller than the buffer does not announce the end. The end is announced separately, by `ok none`.
+A last piece (2 bytes) smaller than the buffer does not announce the end. The end is announced separately, by `ok none .`.
 
 At one time this module's `slurp` just stopped its loop when a read failed. A failed read was then reported as "read the whole file", and a line-counting program
 built on the module reported a read failure as the success "0 lines". The lesson was that one value must not carry two meanings (end and failure), and so the answer
@@ -169,7 +169,7 @@ The 16-byte reads from the previous section, run again under the injector, chang
  read:err@2          ok 16 · error read_failed
 ```
 
-A short read still adds up to 34, and the end is still announced by `ok none`. `eof_fixed.low` returns 34 on both the first and the second row. On the third row
+A short read still adds up to 34, and the end is still announced by `ok none .`. `eof_fixed.low` returns 34 on both the first and the second row. On the third row
 the failure arrives as an answer different from the end, so only code that tells the two apart takes this path correctly.
 
 #realcase[A defect found by a line-counting program][
@@ -183,9 +183,9 @@ the failure arrives as an answer different from the end, so only code that tells
 #antipattern[Opening in read mode and writing --- without checking the byte count][
   #demo("examples/ch28/mistake_readmode.low")
 
-  `files.open fs "notes.txt" 0` is read mode. Writing there makes `files.write` return a failure --- a short write with the stream's error
-  flag set is a failure, not a value --- and this example leaves with exit code 2. The same spot used to answer `ok 0` ("0 bytes written"),
-  so code that asked only `is_ok w` passed it as a success. Check the mode (0 read · 1 write · 2 append), and look at *the number of bytes
+  `files.open fs. "notes.txt" 0 .` is read mode. Writing there makes `files.write` return a failure --- a short write with the stream's error
+  flag set is a failure, not a value --- and this example leaves with exit code 2. The same spot used to answer `ok 0 .` ("0 bytes written"),
+  so code that asked only `is_ok w. .` passed it as a success. Check the mode (0 read · 1 write · 2 append), and look at *the number of bytes
   written* as well as success. A short write means the remaining bytes must be written again.
 ]
 
@@ -200,12 +200,12 @@ the failure arrives as an answer different from the end, so only code that tells
 #antipattern[Asking only about failure in the answer of a read][
   #demo("examples/ch28/mistake_eof.low")
 
-  The answer of `files.read` has three places. `is_ok r` only says "not a failure". The end-of-file `ok none` is not a failure either, so it
+  The answer of `files.read` has three places. `is_ok r. .` only says "not a failure". The end-of-file `ok none .` is not a failure either, so it
   passes, and taking `some_value` out of it stops the program. Split all three places.
 
   #demo("examples/ch28/eof_fixed.low")
 
-  It reads the 34-byte file in three pieces with a 16-byte buffer and stops at the `ok none` of the fourth read. On failure it closes and
+  It reads the 34-byte file in three pieces with a 16-byte buffer and stops at the `ok none .` of the fourth read. On failure it closes and
   returns 3; if closing fails, it returns 4. The bound on `rounds` makes the loop end even for a source that never reports its end.
 ]
 
@@ -226,12 +226,12 @@ the failure arrives as an answer different from the end, so only code that tells
   [*Shape*], [*Meaning*], [*Why*],
   [`write_out out 1 "…"`], [write to standard output (1) · standard error (2) --- returns the count], [the capability comes first --- no hidden printing],
   [`use files .` + `input fs cap file_system .`], [the file module and its capability], [the head shows whether files are reached],
-  [`files.open fs "notes.txt" 0`], [open --- 0 read · 1 write · 2 append · `result handle file_error`], [opening has no "end" --- two places],
-  [`var h owned files.handle ok_value o .`], [hold the handle as owned], [forgetting it: `E-OWN-INCOMPLETE` · writing after close: `E-OWN-MOVED`],
-  [`files.read fs h buf`], [`ok (some n)` read · `ok none` end · `error e` failure], [one value never carries two meanings],
-  [`files.write fs h bytes`], [returns the count as a `result`], [writes can be short --- check the count],
-  [`files.close fs h`], [takes `owned`, returns `result` --- completion], [closing can fail too],
-  [`files.slurp fs path buf`], [read it whole --- an error if larger than the buffer], [never truncates],
+  [`files.open fs. "notes.txt" 0 .`], [open --- 0 read · 1 write · 2 append · `result handle file_error`], [opening has no "end" --- two places],
+  [`var h owned files.handle ok_value o. . .`], [hold the handle as owned], [forgetting it: `E-OWN-INCOMPLETE` · writing after close: `E-OWN-MOVED`],
+  [`files.read fs. h. buf. .`], [`ok some n. . .` read · `ok none .` end · `error e .` failure], [one value never carries two meanings],
+  [`files.write fs. h. bytes. .`], [returns the count as a `result`], [writes can be short --- check the count],
+  [`files.close fs. h. .`], [takes `owned`, returns `result` --- completion], [closing can fail too],
+  [`files.slurp fs. path. buf. .`], [read it whole --- an error if larger than the buffer], [never truncates],
   [`LOW_HOST_FAULT="read:err@2"`], [inject failures on purpose (environment variable)], [exercise the failure paths],
 )
 

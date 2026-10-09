@@ -15,65 +15,65 @@ def newtype grid3 u8 .
 
 rem ★ 쪼개고, 각 조각이 **자기 범위만** 만지는지 잰다.
 proc disjoint input mem mut slice u64 . output u64 . effects none . do
-  var r (owned shard.token grid) shard.open grid 8 .
-  let h (shard.halves grid) shard.split_at grid r 4 .
-  let lo (shard.token grid) (field h low) .
-  let hi (shard.token grid) (field h high) .
+  var r (owned shard.token grid) shard.open grid. 8 . .
+  let h (shard.halves grid) shard.split_at grid. r. 4 . .
+  let lo (shard.token grid) field h. low . .
+  let hi (shard.token grid) field h. high . .
 
   rem 낮은 조각은 0..4 만 쓴다
-  guard shard.write grid lo mem 0 100 else return 91 .
-  guard shard.write grid lo mem 3 103 else return 92 .
+  guard shard.write grid. lo. mem. 0 100 . else return 91 . .
+  guard shard.write grid. lo. mem. 3 103 . else return 92 . .
   rem ★ 자기 범위 밖은 **거절된다** — 트랩이 아니라 false 다.
-  guard eq (shard.write grid lo mem 4 999) false else return 93 .
+  guard eq shard.write grid. lo. mem. 4 999 . false . else return 93 . .
 
   rem 높은 조각은 4..8 만 쓴다
-  guard shard.write grid hi mem 4 104 else return 94 .
-  guard eq (shard.write grid hi mem 3 999) false else return 95 .
+  guard shard.write grid. hi. mem. 4 104 . else return 94 . .
+  guard eq shard.write grid. hi. mem. 3 999 . false . else return 95 . .
 
   rem 서로 밟지 않았다
-  let a option u64 shard.read grid lo mem 3 .
-  let b option u64 shard.read grid hi mem 4 .
-  guard is_some a else return 96 .
-  guard is_some b else return 97 .
-  guard eq (some_value a) 103 else return 98 .
-  guard eq (some_value b) 104 else return 99 .
+  let a option u64 shard.read grid. lo. mem. 3 . .
+  let b option u64 shard.read grid. hi. mem. 4 . .
+  guard is_some a. . else return 96 . .
+  guard is_some b. . else return 97 . .
+  guard eq some_value a. . 103 . else return 98 . .
+  guard eq some_value b. . 104 . else return 99 . .
   return 1 .
-end
+end .
 
 rem ★★ **오름차순 교차 획득과 rejoin.** 낮은 id 를 먼저 넘긴다 — 계약이 그것을 요구한다.
 fn order_and_rejoin output u64 . do
-  var r (owned shard.token grid2) shard.open grid2 10 .
-  let h (shard.halves grid2) shard.split_at grid2 r 6 .
-  var lo (owned shard.token grid2) (field h low) .
-  var hi (owned shard.token grid2) (field h high) .
-  guard eq (shard.width grid2 lo) 6 else return 91 .
-  guard eq (shard.width grid2 hi) 4 else return 92 .
+  var r (owned shard.token grid2) shard.open grid2. 10 . .
+  let h (shard.halves grid2) shard.split_at grid2. r. 6 . .
+  var lo (owned shard.token grid2) field h. low . .
+  var hi (owned shard.token grid2) field h. high . .
+  guard eq shard.width grid2. lo. . 6 . else return 91 . .
+  guard eq shard.width grid2. hi. . 4 . else return 92 . .
 
   rem 합치면 다시 온전한 범위다 — 순서가 맞아야 답이 나온다(값으로 답한다)
-  let ok1 option (shard.token grid2) shard.rejoin grid2 lo hi .
-  guard is_some ok1 else return 93 .
-  let back (shard.token grid2) some_value ok1 .
-  guard eq (shard.width grid2 back) 10 else return 94 .
+  let ok1 option (shard.token grid2) shard.rejoin grid2. lo. hi. . .
+  guard is_some ok1. . else return 93 . .
+  let back (shard.token grid2) some_value ok1. . .
+  guard eq shard.width grid2. back. . 10 . else return 94 . .
   return 2 .
-end
+end .
 
 rem ★ 쪼갠 뒤 **다시 쪼개도** 범위는 계속 서로소다(계층 = root → shard → …).
 fn nested output u64 . do
-  var r (owned shard.token grid3) shard.open grid3 8 .
-  let h (shard.halves grid3) shard.split_at grid3 r 4 .
-  var hi (owned shard.token grid3) (field h high) .
-  let h2 (shard.halves grid3) shard.split_at grid3 hi 6 .
-  let q1 (shard.token grid3) (field h2 low) .
-  let q2 (shard.token grid3) (field h2 high) .
-  guard eq (shard.width grid3 q1) 2 else return 91 .
-  guard eq (shard.width grid3 q2) 2 else return 92 .
+  var r (owned shard.token grid3) shard.open grid3. 8 . .
+  let h (shard.halves grid3) shard.split_at grid3. r. 4 . .
+  var hi (owned shard.token grid3) field h. high . .
+  let h2 (shard.halves grid3) shard.split_at grid3. hi. 6 . .
+  let q1 (shard.token grid3) field h2. low . .
+  let q2 (shard.token grid3) field h2. high . .
+  guard eq shard.width grid3. q1. . 2 . else return 91 . .
+  guard eq shard.width grid3. q2. . 2 . else return 92 . .
   rem 조각 넷이 8 을 정확히 덮는다
-  guard covers_all q1 q2 else return 93 .
+  guard covers_all q1. q2. . else return 93 . .
   return 3 .
-end
+end .
 
-fn covers_all input a shard.token grid . input b shard.token grid . output bool . do
-  if eq (shard.covers grid a 4) false do return false . end
-  if eq (shard.covers grid a 6) true do return false . end
-  return shard.covers grid b 6 .
-end
+fn covers_all input a (shard.token grid) . input b (shard.token grid) . output bool . do
+  if eq shard.covers grid. a. 4 . false . do return false . end .
+  if eq shard.covers grid. a. 6 . true . do return false . end .
+  return shard.covers grid. b. 6 . .
+end .

@@ -72,7 +72,7 @@ What `NumericLattice.v` proves about this relation:
   table by hand really does make such holes.
 - *The join holds both and is one of the two* (`join_sound`, `join_is_an_operand`). When two values go into one operation, the type picked holds both values and does
   not invent a third type absent from the source (#chref("proofs-math")'s `u8 ⊔ u16 = u16`).
-- *Narrowing has exactly one condition* (`narrow_ok_iff`). `narrow_try u8 300` never quietly succeeds giving 44.
+- *Narrowing has exactly one condition* (`narrow_ok_iff`). `narrow_try u8 300 .` never quietly succeeds giving 44.
 
 #mathbox[The skeleton of the proof that widening preserves values][
   Split into four cases. If `uN ⊑ uM` (N ≤ M), both lower ends are 0 and the upper ends satisfy 2#super[N] − 1 ≤ 2#super[M] − 1 --- using only the fact that powers of 2 are
@@ -88,7 +88,7 @@ Division is a place this language treats with unusual care.
 #demo("examples/ch40/division.low")
 
 Signed division `-7 / 2` truncates towards zero to −3. `-128 / -1` stops because `i8` has no 128. In C this one case is undefined behaviour. The sign of `mod`
-follows *the divisor* --- `mod -7 3` is 2 and `mod 7 -3` is −2.
+follows *the divisor* --- `mod -7 3 .` is 2 and `mod 7 -3 .` is −2.
 
 #dtable(
   columns: 2,
@@ -98,7 +98,7 @@ follows *the divisor* --- `mod -7 3` is 2 and `mod 7 -3` is −2.
   [`div_unsigned_total`], [Unsigned division always succeeds unless dividing by zero],
   [`div_signed_failure_is_only_min_neg1`], [The only failing signed division is `MIN / −1`],
   [`mod_sign_follows_divisor`], [The sign of `mod` follows the divisor],
-  [`mod_is_a_safe_index`], [`mod h (len s)` is always at least 0 and less than `len s`],
+  [`mod_is_a_safe_index`], [`mod h. len s. . .` is always at least 0 and less than `len s. .`],
 )
 
 ```text
@@ -114,7 +114,7 @@ The last theorem has great practical value.
 
 #demo("examples/ch40/modslot.low")
 
-Hash tables always pick slots with `mod`, and because the result is proven in range, the index check disappears. What if `len s` is 0? It divides by zero and stops
+Hash tables always pick slots with `mod`, and because the result is proven in range, the index check disappears. What if `len s. .` is 0? It divides by zero and stops
 first. So on any path that yields a value, `len s > 0` is guaranteed. The argument has no gap.
 
 == Theorems that `range` provides
@@ -163,7 +163,7 @@ and certificates (#chref("proofs-bounds")).
   Is it worth proving separately that widening cannot fail?
 ][
   Yes (`widen_never_fails`). "Cannot fail" must be proven for widening sites to carry no run-time check. That is *why widening is free*. Conversely, `narrow_ok_iff`
-  pins narrowing's success condition to "exactly within range", so `narrow_try u8 300` does not quietly give 44 but `none`. Failure is a value.
+  pins narrowing's success condition to "exactly within range", so `narrow_try u8 300 .` does not quietly give 44 but `none`. Failure is a value.
 ]
 
 #misconception[Since `values_fit` is proved, an overflowing value can never reach a `u8` position in this edition's compiler][

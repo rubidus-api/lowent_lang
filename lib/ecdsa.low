@@ -37,7 +37,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export def enum ecdsa_error do
   short_workspace .
-end
+end .
 
 
 use hmac from "hmac.low" .
@@ -56,89 +56,89 @@ export proc nonce6979 input x slice u8 . input h1 slice u8 . input nl slice u64 
      input out mut slice u8 . input w mut slice u8 . input wu mut slice u64 . output result u64 ecdsa_error . effects none .
 errors short_workspace .
 do
-  guard ge (len out) 32 else return ok 0 .
-  guard ge (len w) 480 else return ok 0 .
-  guard eq (len x) 32 else return ok 0 .
-  guard eq (len h1) 32 else return ok 0 .
+  guard ge len out. . 32 . else return ok 0 . . .
+  guard ge len w. . 480 . else return ok 0 . . .
+  guard eq len x. . 32 . else return ok 0 . . .
+  guard eq len h1. . 32 . else return ok 0 . . .
 
   rem V ← 01…01, K ← 00…00
   var i u64 0 .
-  while lt i 32 do
-    set (idx w i) 1 .
-    set (idx w (add 32 i)) 0 .
-    set i (add i 1) .
-  end
+  while lt i. 32 . do
+    set idx w. i. . 1 .
+    set idx w. add 32 i. . . 0 .
+    set i. add i. 1 . .
+  end .
 
   rem 두 바퀴: 접미 바이트가 00 · 01.
   var phase u64 0 .
-  while lt phase 2 do
+  while lt phase. 2 . do
     rem msg = V ‖ phase ‖ x ‖ h1  (97 바이트) — w 96..193 에 조립한다.
     var j u64 0 .
-    while lt j 32 do
-      set (idx w (add 96 j)) (idx w j) .
-      set (idx w (add 129 j)) (idx x j) .
-      set (idx w (add 161 j)) (idx h1 j) .
-      set j (add j 1) .
-    end
-    set (idx w 128) (narrow u8 phase) .
-    let _u3 result u64 hmac.hmac_error hmac.mac (subslice w 32 64) (subslice w 96 193) (subslice w 256 480) (subslice w 64 96) .
-    guard is_ok _u3 else return error short_workspace .
-    guard eq (ok_value _u3) 32 else return ok 0 .
+    while lt j. 32 . do
+      set idx w. add 96 j. . . idx w. j. . .
+      set idx w. add 129 j. . . idx x. j. . .
+      set idx w. add 161 j. . . idx h1. j. . .
+      set j. add j. 1 . .
+    end .
+    set idx w. 128 . narrow u8 phase. . .
+    let _u3 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 96 193 . subslice w. 256 480 . subslice w. 64 96 . . .
+    guard is_ok _u3. . else return error short_workspace . . .
+    guard eq ok_value _u3. . 32 . else return ok 0 . . .
     var c u64 0 .
-    while lt c 32 do  set (idx w (add 32 c)) (idx w (add 64 c)) .  set c (add c 1) .  end
+    while lt c. 32 . do  set idx w. add 32 c. . . idx w. add 64 c. . . .  set c. add c. 1 . .  end .
     rem V = HMAC_K(V)
-    let _u4 result u64 hmac.hmac_error hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96) .
-    guard is_ok _u4 else return error short_workspace .
-    guard eq (ok_value _u4) 32 else return ok 0 .
+    let _u4 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 0 32 . subslice w. 256 480 . subslice w. 64 96 . . .
+    guard is_ok _u4. . else return error short_workspace . . .
+    guard eq ok_value _u4. . 32 . else return ok 0 . . .
     var c2 u64 0 .
-    while lt c2 32 do  set (idx w c2) (idx w (add 64 c2)) .  set c2 (add c2 1) .  end
-    set phase (add phase 1) .
-  end
+    while lt c2. 32 . do  set idx w. c2. . idx w. add 64 c2. . . .  set c2. add c2. 1 . .  end .
+    set phase. add phase. 1 . .
+  end .
 
   rem ── T = HMAC_K(V) → k. 범위 밖이면 다시 ──────────────────────────────────
   rem ☞ **되풀이가 있다는 것 자체가 규격의 일부**다. 실제로는 거의 첫 바퀴에 끝나지만
   rem   (k ≥ n 일 확률이 2^-32 쯤), 없으면 그 드문 입력에서 **범위 밖 k 로 서명**하게 된다.
-  guard ge (len wu) 16 else return error short_workspace .
+  guard ge len wu. . 16 . else return error short_workspace . . .
   var tries u64 0 .
-  while lt tries 8 do
-    let _u5 result u64 hmac.hmac_error hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96) .
-    guard is_ok _u5 else return error short_workspace .
-    guard eq (ok_value _u5) 32 else return ok 0 .
+  while lt tries. 8 . do
+    let _u5 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 0 32 . subslice w. 256 480 . subslice w. 64 96 . . .
+    guard is_ok _u5. . else return error short_workspace . . .
+    guard eq ok_value _u5. . 32 . else return ok 0 . . .
     var c3 u64 0 .
-    while lt c3 32 do  set (idx w c3) (idx w (add 64 c3)) .  set c3 (add c3 1) .  end
+    while lt c3. 32 . do  set idx w. c3. . idx w. add 64 c3. . . .  set c3. add c3. 1 . .  end .
     rem 후보를 조각으로 바꿔 [1, n−1] 인지 본다.
-    guard eq (bigint.from_bytes (subslice w 0 32) wu 16) 16 else return ok 0 .
+    guard eq bigint.from_bytes subslice w. 0 32 . wu. 16 . 16 . else return ok 0 . . .
     var nz u64 0 .
     var q u64 0 .
-    while lt q 16 do
-      if ne (idx wu q) 0 do  set nz 1 .  end
-      set q (add q 1) .
-    end
-    if eq nz 1 do
-      if eq (bigint.ge_mod wu nl 16) 0 do
+    while lt q. 16 . do
+      if ne idx wu. q. . 0 . do  set nz. 1 .  end .
+      set q. add q. 1 . .
+    end .
+    if eq nz. 1 . do
+      if eq bigint.ge_mod wu. nl. 16 . 0 . do
         var o u64 0 .
-        while lt o 32 do  set (idx out o) (idx w o) .  set o (add o 1) .  end
-        return ok 32 .
-      end
-    end
+        while lt o. 32 . do  set idx out. o. . idx w. o. . .  set o. add o. 1 . .  end .
+        return ok 32 . .
+      end .
+    end .
     rem 다시: K = HMAC_K(V ‖ 00) · V = HMAC_K(V)
     var r2 u64 0 .
-    while lt r2 32 do  set (idx w (add 96 r2)) (idx w r2) .  set r2 (add r2 1) .  end
-    set (idx w 128) 0 .
-    let _u6 result u64 hmac.hmac_error hmac.mac (subslice w 32 64) (subslice w 96 129) (subslice w 256 480) (subslice w 64 96) .
-    guard is_ok _u6 else return error short_workspace .
-    guard eq (ok_value _u6) 32 else return ok 0 .
+    while lt r2. 32 . do  set idx w. add 96 r2. . . idx w. r2. . .  set r2. add r2. 1 . .  end .
+    set idx w. 128 . 0 .
+    let _u6 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 96 129 . subslice w. 256 480 . subslice w. 64 96 . . .
+    guard is_ok _u6. . else return error short_workspace . . .
+    guard eq ok_value _u6. . 32 . else return ok 0 . . .
     var c4 u64 0 .
-    while lt c4 32 do  set (idx w (add 32 c4)) (idx w (add 64 c4)) .  set c4 (add c4 1) .  end
-    let _u7 result u64 hmac.hmac_error hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96) .
-    guard is_ok _u7 else return error short_workspace .
-    guard eq (ok_value _u7) 32 else return ok 0 .
+    while lt c4. 32 . do  set idx w. add 32 c4. . . idx w. add 64 c4. . . .  set c4. add c4. 1 . .  end .
+    let _u7 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 0 32 . subslice w. 256 480 . subslice w. 64 96 . . .
+    guard is_ok _u7. . else return error short_workspace . . .
+    guard eq ok_value _u7. . 32 . else return ok 0 . . .
     var c5 u64 0 .
-    while lt c5 32 do  set (idx w c5) (idx w (add 64 c5)) .  set c5 (add c5 1) .  end
-    set tries (add tries 1) .
-  end
-  return ok 0 .
-end
+    while lt c5. 32 . do  set idx w. c5. . idx w. add 64 c5. . . .  set c5. add c5. 1 . .  end .
+    set tries. add tries. 1 . .
+  end .
+  return ok 0 . .
+end .
 
 rem ── 서명 ──────────────────────────────────────────────────────────────────
 rem ★★★★★ `sign` — (개인키 d, 메시지 해시 h) → (r, s).
@@ -163,69 +163,69 @@ export proc sign input d slice u8 . input h slice u8 .
      input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output result u64 ecdsa_error . effects none .
 errors short_workspace .
 do
-  guard eq (len d) 32 else return ok 0 .
-  guard eq (len h) 32 else return ok 0 .
-  guard ge (len rs) 64 else return ok 0 .
-  guard ge (len wb) 512 else return ok 0 .
-  guard ge (len wu) 908 else return ok 0 .
+  guard eq len d. . 32 . else return ok 0 . . .
+  guard eq len h. . 32 . else return ok 0 . . .
+  guard ge len rs. . 64 . else return ok 0 . . .
+  guard ge len wb. . 512 . else return ok 0 . . .
+  guard ge len wu. . 908 . else return ok 0 . . .
 
   rem ① nonce — 난수원을 안 쓴다.
-  let _u0 result u64 ecdsa_error nonce6979 d h n (subslice wb 0 32) (subslice wb 32 512) (subslice wu 0 16) .
-  guard is_ok _u0 else return error short_workspace .
-  guard eq (ok_value _u0) 32 else return ok 0 .
+  let _u0 result u64 ecdsa_error nonce6979 d. h. n. subslice wb. 0 32 . subslice wb. 32 512 . subslice wu. 0 16 . . .
+  guard is_ok _u0. . else return error short_workspace . . .
+  guard eq ok_value _u0. . 32 . else return ok 0 . . .
 
   rem ② 조각으로: k(16..32) · d(32..48) · h(48..64)
-  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 16 32) 16) 16 else return ok 0 .
-  guard eq (bigint.from_bytes d (subslice wu 32 48) 16) 16 else return ok 0 .
-  guard eq (bigint.from_bytes h (subslice wu 48 64) 16) 16 else return ok 0 .
+  guard eq bigint.from_bytes subslice wb. 0 32 . subslice wu. 16 32 . 16 . 16 . else return ok 0 . . .
+  guard eq bigint.from_bytes d. subslice wu. 32 48 . 16 . 16 . else return ok 0 . . .
+  guard eq bigint.from_bytes h. subslice wu. 48 64 . 16 . 16 . else return ok 0 . . .
   rem h 는 n 보다 클 수 있다 — 한 번 빼면 족하다(둘 다 256비트).
-  if eq (bigint.ge_mod (subslice wu 48 64) n 16) 1 do
-    let z0 u64 p256.msub (subslice wu 48 64) (subslice wu 48 64) n n .
-  end
+  if eq bigint.ge_mod subslice wu. 48 64 . n. 16 . 1 . do
+    let z0 u64 p256.msub subslice wu. 48 64 . subslice wu. 48 64 . n. n. . .
+  end .
 
-  let n0p u64 bigint.n0inv16 (idx p 0) .
-  let n0n u64 bigint.n0inv16 (idx n 0) .
-  guard eq (p256.make_r2 (subslice wu 64 80) p) 1 else return ok 0 .
-  guard eq (p256.make_r2 (subslice wu 80 96) n) 1 else return ok 0 .
+  let n0p u64 bigint.n0inv16 idx p. 0 . . .
+  let n0n u64 bigint.n0inv16 idx n. 0 . . .
+  guard eq p256.make_r2 subslice wu. 64 80 . p. . 1 . else return ok 0 . . .
+  guard eq p256.make_r2 subslice wu. 80 96 . n. . 1 . else return ok 0 . . .
 
   rem ③ R = [k]G — G 를 야코비로(Z=1) 올리고 **상수시간** 곱.
   var i u64 0 .
-  while lt i 16 do
-    set (idx wu (add 96 i)) (idx gx i) .
-    set (idx wu (add 112 i)) (idx gy i) .
-    set (idx wu (add 128 i)) 0 .
-    set i (add i 1) .
-  end
-  set (idx wu 128) 1 .
-  let _u9 result u64 p256.p256_error p256.smul_ct (subslice wu 144 192) (subslice wu 16 32) (subslice wu 96 144) p (subslice wu 64 80) n0p (subslice wu 512 908) .
-  guard is_ok _u9 else return error short_workspace .
-  guard eq (ok_value _u9) 1 else return ok 0 .
-  guard eq (p256.is_zero (subslice wu 176 192)) 0 else return ok 0 .
+  while lt i. 16 . do
+    set idx wu. add 96 i. . . idx gx. i. . .
+    set idx wu. add 112 i. . . idx gy. i. . .
+    set idx wu. add 128 i. . . 0 .
+    set i. add i. 1 . .
+  end .
+  set idx wu. 128 . 1 .
+  let _u9 result u64 p256.p256_error p256.smul_ct subslice wu. 144 192 . subslice wu. 16 32 . subslice wu. 96 144 . p. subslice wu. 64 80 . n0p. subslice wu. 512 908 . . .
+  guard is_ok _u9. . else return error short_workspace . . .
+  guard eq ok_value _u9. . 1 . else return ok 0 . . .
+  guard eq p256.is_zero subslice wu. 176 192 . . 0 . else return ok 0 . . .
 
   rem ④ 아핀 x = X/Z² · r = x mod n
-  let _u1 result u64 p256.p256_error p256.minv (subslice wu 192 208) (subslice wu 176 192) p (subslice wu 356 464) .
-  guard is_ok _u1 else return error short_workspace .
-  guard eq (ok_value _u1) 1 else return ok 0 .
-  guard eq (p256.pmul (subslice wu 208 224) (subslice wu 192 208) (subslice wu 192 208) p (subslice wu 64 80) n0p (subslice wu 320 338) (subslice wu 338 356)) 1 else return ok 0 .
-  guard eq (p256.pmul (subslice wu 224 240) (subslice wu 144 160) (subslice wu 208 224) p (subslice wu 64 80) n0p (subslice wu 320 338) (subslice wu 338 356)) 1 else return ok 0 .
+  let _u1 result u64 p256.p256_error p256.minv subslice wu. 192 208 . subslice wu. 176 192 . p. subslice wu. 356 464 . . .
+  guard is_ok _u1. . else return error short_workspace . . .
+  guard eq ok_value _u1. . 1 . else return ok 0 . . .
+  guard eq p256.pmul subslice wu. 208 224 . subslice wu. 192 208 . subslice wu. 192 208 . p. subslice wu. 64 80 . n0p. subslice wu. 320 338 . subslice wu. 338 356 . . 1 . else return ok 0 . . .
+  guard eq p256.pmul subslice wu. 224 240 . subslice wu. 144 160 . subslice wu. 208 224 . p. subslice wu. 64 80 . n0p. subslice wu. 320 338 . subslice wu. 338 356 . . 1 . else return ok 0 . . .
   var c u64 0 .
-  while lt c 16 do  set (idx wu (add 240 c)) (idx wu (add 224 c)) .  set c (add c 1) .  end
-  if eq (bigint.ge_mod (subslice wu 240 256) n 16) 1 do
-    let z1 u64 p256.msub (subslice wu 240 256) (subslice wu 240 256) n n .
-  end
-  guard eq (p256.is_zero (subslice wu 240 256)) 0 else return ok 0 .   rem r = 0 은 거절한다
+  while lt c. 16 . do  set idx wu. add 240 c. . . idx wu. add 224 c. . . .  set c. add c. 1 . .  end .
+  if eq bigint.ge_mod subslice wu. 240 256 . n. 16 . 1 . do
+    let z1 u64 p256.msub subslice wu. 240 256 . subslice wu. 240 256 . n. n. . .
+  end .
+  guard eq p256.is_zero subslice wu. 240 256 . . 0 . else return ok 0 . . .   rem r = 0 은 거절한다
 
   rem ⑤ s = k^-1 (h + r·d) mod n
-  guard eq (p256.pmul (subslice wu 256 272) (subslice wu 240 256) (subslice wu 32 48) n (subslice wu 80 96) n0n (subslice wu 320 338) (subslice wu 338 356)) 1 else return ok 0 .
-  guard eq (p256.madd (subslice wu 272 288) (subslice wu 256 272) (subslice wu 48 64) n) 1 else return ok 0 .
-  let _u2 result u64 p256.p256_error p256.minv (subslice wu 288 304) (subslice wu 16 32) n (subslice wu 356 464) .
-  guard is_ok _u2 else return error short_workspace .
-  guard eq (ok_value _u2) 1 else return ok 0 .
-  guard eq (p256.pmul (subslice wu 304 320) (subslice wu 288 304) (subslice wu 272 288) n (subslice wu 80 96) n0n (subslice wu 320 338) (subslice wu 338 356)) 1 else return ok 0 .
-  guard eq (p256.is_zero (subslice wu 304 320)) 0 else return ok 0 .   rem s = 0 도 거절한다
+  guard eq p256.pmul subslice wu. 256 272 . subslice wu. 240 256 . subslice wu. 32 48 . n. subslice wu. 80 96 . n0n. subslice wu. 320 338 . subslice wu. 338 356 . . 1 . else return ok 0 . . .
+  guard eq p256.madd subslice wu. 272 288 . subslice wu. 256 272 . subslice wu. 48 64 . n. . 1 . else return ok 0 . . .
+  let _u2 result u64 p256.p256_error p256.minv subslice wu. 288 304 . subslice wu. 16 32 . n. subslice wu. 356 464 . . .
+  guard is_ok _u2. . else return error short_workspace . . .
+  guard eq ok_value _u2. . 1 . else return ok 0 . . .
+  guard eq p256.pmul subslice wu. 304 320 . subslice wu. 288 304 . subslice wu. 272 288 . n. subslice wu. 80 96 . n0n. subslice wu. 320 338 . subslice wu. 338 356 . . 1 . else return ok 0 . . .
+  guard eq p256.is_zero subslice wu. 304 320 . . 0 . else return ok 0 . . .   rem s = 0 도 거절한다
 
   rem ⑥ 빅엔디언 바이트로.
-  guard eq (bigint.to_bytes (subslice wu 240 256) 16 (subslice rs 0 32)) 32 else return ok 0 .
-  guard eq (bigint.to_bytes (subslice wu 304 320) 16 (subslice rs 32 64)) 32 else return ok 0 .
-  return ok 64 .
-end
+  guard eq bigint.to_bytes subslice wu. 240 256 . 16 subslice rs. 0 32 . . 32 . else return ok 0 . . .
+  guard eq bigint.to_bytes subslice wu. 304 320 . 16 subslice rs. 32 64 . . 32 . else return ok 0 . . .
+  return ok 64 . .
+end .

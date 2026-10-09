@@ -7,118 +7,118 @@ use unicode .
 
 rem 문자: 'A'(65)·'한'(0xD55C)·'あ'(0x3042) 는 글자, '1'·' '·'!' 는 아니다.
 proc letters output u64 . effects none . do
-  guard unicode.is_letter 65 else return 1 .
-  guard unicode.is_letter 54620 else return 2 .
-  guard unicode.is_letter 12354 else return 3 .
-  guard eq (unicode.is_letter 49) false else return 4 .
-  guard eq (unicode.is_letter 32) false else return 5 .
-  guard eq (unicode.is_letter 33) false else return 6 .
+  guard unicode.is_letter 65 . else return 1 . .
+  guard unicode.is_letter 54620 . else return 2 . .
+  guard unicode.is_letter 12354 . else return 3 . .
+  guard eq unicode.is_letter 49 . false . else return 4 . .
+  guard eq unicode.is_letter 32 . false . else return 5 . .
+  guard eq unicode.is_letter 33 . false . else return 6 . .
   return 42 .
-end
+end .
 
 rem 숫자·공백·문장부호가 각자 제 표에 든다.
 proc others output u64 . effects none . do
-  guard unicode.is_number 49 else return 1 .
-  guard eq (unicode.is_number 65) false else return 2 .
-  guard unicode.is_space 32 else return 3 .
-  guard eq (unicode.is_space 65) false else return 4 .
-  guard unicode.is_punct 33 else return 5 .
-  guard eq (unicode.is_punct 65) false else return 6 .
+  guard unicode.is_number 49 . else return 1 . .
+  guard eq unicode.is_number 65 . false . else return 2 . .
+  guard unicode.is_space 32 . else return 3 . .
+  guard eq unicode.is_space 65 . false . else return 4 . .
+  guard unicode.is_punct 33 . else return 5 . .
+  guard eq unicode.is_punct 65 . false . else return 6 . .
   rem 전각 숫자(U+FF10)도 숫자다 — ASCII 만 세는 표였으면 여기서 걸린다.
-  guard unicode.is_number 65296 else return 7 .
+  guard unicode.is_number 65296 . else return 7 . .
   return 42 .
-end
+end .
 
 rem ★ 담지 않은 범위는 **없다고 답한다** — 담은 척하지 않는다. U+30000+ 는 표 밖이다.
 proc beyond output u64 . effects none . do
-  guard eq (unicode.is_letter 196608) false else return 1 .
+  guard eq unicode.is_letter 196608 . false . else return 1 . .
   rem 그리고 표 안의 SMP 는 제대로 답한다: U+1D400(수학 볼드 A)은 글자.
-  guard unicode.is_letter 119808 else return 2 .
+  guard unicode.is_letter 119808 . else return 2 . .
   rem 이모지(U+1F600)는 글자가 아니다(기호다).
-  guard eq (unicode.is_letter 128512) false else return 3 .
+  guard eq unicode.is_letter 128512 . false . else return 3 . .
   return 42 .
-end
+end .
 
 rem is_alnum = 글자 또는 숫자.
 proc alnum output u64 . effects none . do
-  guard unicode.is_alnum 65 else return 1 .
-  guard unicode.is_alnum 49 else return 2 .
-  guard unicode.is_alnum 54620 else return 3 .
-  guard eq (unicode.is_alnum 32) false else return 4 .
+  guard unicode.is_alnum 65 . else return 1 . .
+  guard unicode.is_alnum 49 . else return 2 . .
+  guard unicode.is_alnum 54620 . else return 3 . .
+  guard eq unicode.is_alnum 32 . false . else return 4 . .
   return 42 .
-end
+end .
 
 rem ★ 폭 0(결합·서식) 구간 — 이 표가 grapheme cluster 와 폭 계산의 바탕이다.
 proc zerowidth output u64 . effects none . do
   rem U+0301 결합 예음 부호(Mn).
-  guard unicode.is_zerowidth 769 else return 1 .
+  guard unicode.is_zerowidth 769 . else return 1 . .
   rem U+200D ZWJ(Cf).
-  guard unicode.is_zerowidth 8205 else return 2 .
+  guard unicode.is_zerowidth 8205 . else return 2 . .
   rem U+20DD 둘러싸는 원(Me).
-  guard unicode.is_zerowidth 8413 else return 3 .
+  guard unicode.is_zerowidth 8413 . else return 3 . .
   rem 보통 글자는 폭 0 이 아니다.
-  guard eq (unicode.is_zerowidth 65) false else return 4 .
-  guard eq (unicode.is_zerowidth 54620) false else return 5 .
+  guard eq unicode.is_zerowidth 65 . false . else return 4 . .
+  guard eq unicode.is_zerowidth 54620 . false . else return 5 . .
   rem 공백은 자기 칸을 차지한다 — 폭 0 이 아니다.
-  guard eq (unicode.is_zerowidth 32) false else return 6 .
+  guard eq unicode.is_zerowidth 32 . false . else return 6 . .
   return 42 .
-end
+end .
 
 rem ★ 세부 범주 — 좁은 물음에 좁게 답한다.
 proc subcats output u64 . effects none . do
   rem 대문자/소문자: ASCII 도 그 밖도.
-  guard unicode.is_upper 65 else return 1 .
-  guard eq (unicode.is_upper 97) false else return 2 .
-  guard unicode.is_lower 97 else return 3 .
-  guard unicode.is_upper 937 else return 4 .
-  guard unicode.is_lower 969 else return 5 .
+  guard unicode.is_upper 65 . else return 1 . .
+  guard eq unicode.is_upper 97 . false . else return 2 . .
+  guard unicode.is_lower 97 . else return 3 . .
+  guard unicode.is_upper 937 . else return 4 . .
+  guard unicode.is_lower 969 . else return 5 . .
   rem 한글은 대문자도 소문자도 아니다(Lo) — 그래도 is_letter 다.
-  guard eq (unicode.is_upper 54620) false else return 6 .
-  guard eq (unicode.is_lower 54620) false else return 7 .
-  guard unicode.is_letter 54620 else return 8 .
+  guard eq unicode.is_upper 54620 . false . else return 6 . .
+  guard eq unicode.is_lower 54620 . false . else return 7 . .
+  guard unicode.is_letter 54620 . else return 8 . .
   rem ★ is_digit 는 is_number 보다 **좁다**: 로마 숫자 Ⅶ(U+2166)는 N 이지만 Nd 가 아니다.
-  guard unicode.is_digit 55 else return 9 .
-  guard unicode.is_number 8550 else return 10 .
-  guard eq (unicode.is_digit 8550) false else return 11 .
+  guard unicode.is_digit 55 . else return 9 . .
+  guard unicode.is_number 8550 . else return 10 . .
+  guard eq unicode.is_digit 8550 . false . else return 11 . .
   rem 전각 숫자(U+FF17)는 Nd 다.
-  guard unicode.is_digit 65303 else return 12 .
+  guard unicode.is_digit 65303 . else return 12 . .
   return 42 .
-end
+end .
 
 rem ★★ 나머지 세부 범주 — L 과 N 의 하위가 이제 전부 있다.
 proc subcats2 output u64 . effects none . do
   rem Ǆ(U+01C4)는 Lu, ǅ(U+01C5)는 **Lt**(제목꼴) — 이 셋을 가르는 것이 Lt 표의 존재 이유다.
-  guard unicode.is_title 453 else return 1 .
-  guard eq (unicode.is_upper 453) false else return 2 .
+  guard unicode.is_title 453 . else return 1 . .
+  guard eq unicode.is_upper 453 . false . else return 2 . .
   rem ʰ(U+02B0)는 Lm(수식 문자) — 글자이긴 하다.
-  guard unicode.is_modifier 688 else return 3 .
-  guard unicode.is_letter 688 else return 4 .
+  guard unicode.is_modifier 688 . else return 3 . .
+  guard unicode.is_letter 688 . else return 4 . .
   rem 한글은 Lo(그 밖의 문자) — 대소문자가 없다.
-  guard unicode.is_other_letter 54620 else return 5 .
-  guard eq (unicode.is_other_letter 65) false else return 6 .
+  guard unicode.is_other_letter 54620 . else return 5 . .
+  guard eq unicode.is_other_letter 65 . false . else return 6 . .
   rem Ⅶ(U+2166)는 Nl(문자꼴 수), ½(U+00BD)는 No(그 밖의 수) — 둘 다 Nd 가 아니다.
-  guard unicode.is_numletter 8550 else return 7 .
-  guard unicode.is_numother 189 else return 8 .
-  guard eq (unicode.is_digit 189) false else return 9 .
-  guard unicode.is_number 189 else return 10 .
+  guard unicode.is_numletter 8550 . else return 7 . .
+  guard unicode.is_numother 189 . else return 8 . .
+  guard eq unicode.is_digit 189 . false . else return 9 . .
+  guard unicode.is_number 189 . else return 10 . .
   return 42 .
-end
+end .
 
 rem ★★★ 대소문자 변환 — **변환은 구간이 아니라 짝이다**.
 proc casing output u64 . effects none . do
-  guard eq (unicode.to_upper 97) 65 else return 1 .
-  guard eq (unicode.to_lower 65) 97 else return 2 .
+  guard eq unicode.to_upper 97 . 65 . else return 1 . .
+  guard eq unicode.to_lower 65 . 97 . else return 2 . .
   rem ASCII 밖도: ω(U+03C9) ↔ Ω(U+03A9).
-  guard eq (unicode.to_upper 969) 937 else return 3 .
-  guard eq (unicode.to_lower 937) 969 else return 4 .
+  guard eq unicode.to_upper 969 . 937 . else return 3 . .
+  guard eq unicode.to_lower 937 . 969 . else return 4 . .
   rem 대소문자가 없는 것은 **그대로** 돌아온다(none 이 아니다).
-  guard eq (unicode.to_upper 54620) 54620 else return 5 .
-  guard eq (unicode.to_upper 48) 48 else return 6 .
+  guard eq unicode.to_upper 54620 . 54620 . else return 5 . .
+  guard eq unicode.to_upper 48 . 48 . else return 6 . .
   rem ★ ß(U+00DF)의 대문자는 "SS" 라 짝으로 못 적는다 — 그대로 돌려주되 **물어볼 수 있다**.
-  guard eq (unicode.to_upper 223) 223 else return 7 .
-  guard unicode.is_special_case 223 else return 8 .
-  guard eq (unicode.is_special_case 97) false else return 9 .
+  guard eq unicode.to_upper 223 . 223 . else return 7 . .
+  guard unicode.is_special_case 223 . else return 8 . .
+  guard eq unicode.is_special_case 97 . false . else return 9 . .
   rem 왕복: 소문자→대문자→소문자.
-  guard eq (unicode.to_lower (unicode.to_upper 101)) 101 else return 10 .
+  guard eq unicode.to_lower unicode.to_upper 101 . . 101 . else return 10 . .
   return 42 .
-end
+end .

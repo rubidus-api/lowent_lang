@@ -4,5 +4,5 @@ rem expect: E-NAME-BUILTIN
 rem ko: ✘ `min` 은 이미 내장 op 의 이름이다 --- 이 선언은 영영 불리지 않는다 /// en: ✘ `min` is already a builtin op name --- this declaration could never be called
 fn min input a u64 . input b u64 . output u64 .
 do
-  return add a b .
-end
+  return add a. b. . .
+end .

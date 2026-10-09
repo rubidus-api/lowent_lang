@@ -18,30 +18,30 @@ module vm_errid .
 def enum e1 do
   alpha .
   beta .
-end
+end .
 
 def enum e2 do
   gamma .
   delta .
-end
+end .
 
-fn g input a u8 . output result u8 e2 . errors delta gt a 10 .
+fn g input a u8 . output result u8 e2 . errors delta gt a. 10 . .
 do
-  if gt a 10 do return error delta . end
-  return ok a .
-end
+  if gt a. 10 . do return error delta . . end .
+  return ok a. . .
+end .
 
 rem 오류를 **자기 이름과 비교한다.** 1 이어야 한다.
 fn names_match input a u8 . output u8 . do
-  let r result u8 e2 g a .
-  if is_error r do
-    if eq (error_value r) delta do return 1 . end
+  let r result u8 e2 g a. . .
+  if is_error r. . do
+    if eq error_value r. . delta. . do return 1 . end .
     return 0 .
-  end
+  end .
   return 9 .
-end
+end .
 
 test error_names_are_the_same_number do
-  expect eq (names_match 20) 1 .
-  expect eq (names_match 5) 9 .
-end
+  expect eq names_match 20 . 1 . .
+  expect eq names_match 5 . 9 . .
+end .

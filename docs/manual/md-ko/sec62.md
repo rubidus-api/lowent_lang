@@ -17,8 +17,8 @@ UTF-16 의 서로게이트 쌍을 코드포인트로 바꾸고 되돌린다. Win
 ```lowent
 use utf16 .
 
-let c option u64 utf16.decode s 0 .
-guard is_some c else return 1 .
+let c option u64 utf16.decode s. 0 . .
+guard is_some c. . else return 1 . .
 ```
 
 `0` 은 “첫 글자” 가 아니라 **0 번 칸**이다. 이 모듈의 위치는 모두 칸 번호이고, 글자 단위 전진은 `next_start` 가 한다(짝이면 두 칸을 뛴다).
@@ -71,7 +71,7 @@ BMP(U+0000 … U+FFFF, 서로게이트 구간 제외)의 코드포인트는 한 
 - **`is_high` · `is_low`** — 칸 하나의 값이 상위(D800 … DBFF)·하위(DC00 … DFFF) 서로게이트인가. 값 범위만으로 끝나는 판정이다.
 - **`cp_valid`** — 코드포인트로서 유효한가. `c > 1114111` 이거나 서로게이트 구간(55296 … 57343)이면 `false`. 바깥에서 들어온 수를 쓰기 전에 한 번 거르는 문이다.
 - **`units`** — 코드포인트 하나가 먹는 칸 수. `c ≥ 65536` 이면 2, 아니면 1. 버퍼 크기를 미리 셈할 때 쓴다. **유효성은 보지 않는다.**
-- **`unit_hi`** — 상위 칸. BMP 면 `some c`, 두 칸이면 `some (0xD800 + v/1024)`, 유효하지 않으면 `none`.
+- **`unit_hi`** — 상위 칸. BMP 면 `some c. .`, 두 칸이면 `some (0xD800 + v/1024)`, 유효하지 않으면 `none`.
 - **`unit_lo`** — 하위 칸. BMP 면 `none` — 여기서는 오류가 아니라 “칸이 하나뿐” 이라는 뜻이다. 두 칸이면 `some (0xDC00 + v%1024)`. 무효 코드포인트도 `none`.
 - **`put`** — 코드포인트를 `dst` 의 `at` 부터 써 넣고 **다음에 쓸 위치**(`some (at+1)` 또는 `some (at+2)`)를 돌려준다. `decode`·`next_start` 와 같은 위치 축이다. 몇 칸 썼는지가 필요하면 `units c` 가 답한다. 유효하지 않거나 `at + units c > len dst` 면 `none` 이고 **한 칸도 쓰지 않는다**. 스스로 메모리를 만들지 않으므로 쓸 자리를 밖에서 받는다.
 - **`decode`** — `s` 의 `at` 에서 코드포인트 하나를 읽는다. 평범한 칸이면 그 값, 상위 서로게이트면 바로 다음 칸이 하위인지 확인하고 합친다. `at ≥ len s`, 하위가 혼자 옴, 상위 뒤에 하위가 오지 않음, 상위로 끝남(잘림)이면 `none`. 짝이 두 칸이라 슬라이스 전체를 받는다. `at` 은 문자의 **시작** 칸이어야 한다.
@@ -89,45 +89,45 @@ module ex_utf16 .
 use utf16 as u .
 
 proc round_trip input buf mut slice u16 . output u64 . effects none . do
-  guard ge (len buf) 4 else return 90 .
+  guard ge len buf. . 4 . else return 90 . .
   rem '가'(U+AC00) --- BMP 라서 한 칸. put 은 다음에 쓸 위치를 돌려준다
-  let a option u64 u.put buf 0 44032 .
-  guard is_some a else return 1 .
-  guard eq (some_value a) 1 else return 2 .
+  let a option u64 u.put buf. 0 44032 . .
+  guard is_some a. . else return 1 . .
+  guard eq some_value a. . 1 . else return 2 . .
 
   rem U+1F4A9 --- BMP 밖이라 두 칸(서로게이트 짝)으로 갈라진다
-  let b option u64 u.put buf (some_value a) 128169 .
-  guard is_some b else return 3 .
-  guard eq (some_value b) 3 else return 4 .
-  guard eq (idx buf 1) 55357 else return 5 .
-  guard eq (idx buf 2) 56489 else return 6 .
+  let b option u64 u.put buf. some_value a. . 128169 . .
+  guard is_some b. . else return 3 . .
+  guard eq some_value b. . 3 . else return 4 . .
+  guard eq idx buf. 1 . 55357 . else return 5 . .
+  guard eq idx buf. 2 . 56489 . else return 6 . .
 
   rem 다시 하나로 읽는다 --- decode 가 짝을 합친다
-  let rb option u64 u.decode buf 1 .
-  guard is_some rb else return 7 .
-  guard eq (some_value rb) 128169 else return 8 .
+  let rb option u64 u.decode buf. 1 . .
+  guard is_some rb. . else return 7 . .
+  guard eq some_value rb. . 128169 . else return 8 . .
 
   rem 'A' + 이모지(짝) + '가' = 칸 넷, 문자 셋
-  set (idx buf 0) 65 .
-  set (idx buf 3) 44032 .
-  let n option u64 u.count_chars (subslice buf 0 4) .
-  guard is_some n else return 9 .
-  guard eq (some_value n) 3 else return 10 .
+  set idx buf. 0 . 65 .
+  set idx buf. 3 . 44032 .
+  let n option u64 u.count_chars subslice buf. 0 4 . . .
+  guard is_some n. . else return 9 . .
+  guard eq some_value n. . 3 . else return 10 . .
   return 42 .
-end
+end .
 ```
 
 상위 칸 `buf[1]` 은 55357(0xD83D), 하위 칸 `buf[2]` 는 56489(0xDCA9)다. 순회는 `next_start` 로 한다.
 
 ```lowent
 var i u64 0 .
-while lt i (len s) do
-  let c option u64 u.decode s i .
-  guard is_some c else return 80 .
-  let nx option u64 u.next s i .
-  guard is_some nx else return 81 .
-  set i (some_value nx) .
-end
+while lt i. len s. . . do
+  let c option u64 u.decode s. i. . .
+  guard is_some c. . else return 80 . .
+  let nx option u64 u.next s. i. . .
+  guard is_some nx. . else return 81 . .
+  set i. some_value nx. . .
+end .
 ```
 
 BMP 면 +1, 짝이면 +2 — 직접 세지 않는다. `none` 이면 멈춘다(끝인지 망가짐인지는 먼저 `is_valid` 를 재면 갈린다).
@@ -137,24 +137,24 @@ BMP 면 +1, 짝이면 +2 — 직접 세지 않는다. `none` 이면 멈춘다(�
 > **반례. 짝이 맞지 않는 입력을 `decode` 로 통과시키려 한다**
 >
 > > ```lowent
-> > set (idx buf 0) 55357 .          rem ✗ 상위 0xD83D 뒤에
-> > set (idx buf 1) 65 .             rem   하위가 아니라 'A' 가 온다
-> > let a option u64 u.decode buf 0 .
+> > set idx buf. 0 . 55357 .          rem ✗ 상위 0xD83D 뒤에
+> > set idx buf. 1 . 65 .             rem   하위가 아니라 'A' 가 온다
+> > let a option u64 u.decode buf. 0 . .
 > > ```
 > >
-> > `none` 이다. 하위 서로게이트가 혼자 오거나(`decode buf 2`, 값 56489), 상위 서로게이트로 끝나도(`decode (subslice buf 0 4) 3`) 마찬가지다. 셋 다 `guard is_some` 자리에서 바로 걸린다. 조용히 통과시키면 그 뒤가 모두 틀리므로 **거절이 곧 이 라이브러리의 값**이다. 온전한 짝은 여전히 통과한다.
+> > `none` 이다. 하위 서로게이트가 혼자 오거나(`decode buf 2`, 값 56489), 상위 서로게이트로 끝나도(`decode subslice buf. 0 4 . 3 .`) 마찬가지다. 셋 다 `guard is_some` 자리에서 바로 걸린다. 조용히 통과시키면 그 뒤가 모두 틀리므로 **거절이 곧 이 라이브러리의 값**이다. 온전한 짝은 여전히 통과한다.
 
 > **반례. 두 칸짜리를 마지막 한 칸에 넣으려 한다**
 >
-> > `u.put buf (sub (len buf) 1) 128169` 는 `none` 이고 **그 칸은 더럽혀지지 않는다**. 반쯤 쓰다 말았나 걱정하지 않아도 된다.
+> > `u.put buf. sub len buf. . 1 . 128169 .` 는 `none` 이고 **그 칸은 더럽혀지지 않는다**. 반쯤 쓰다 말았나 걱정하지 않아도 된다.
 
 > **반례. 서로게이트 값을 코드포인트로 쓰려 한다**
 >
-> > `u.cp_valid 55357` 은 `false` 이고, 그래서 `put`·`unit_hi`·`unit_lo` 가 모두 `none` 이다. 이 `none` 들을 검사 없이 `some_value` 로 꺼내면 실행 중 `E-VM-NONE` 으로 멈춘다 — 번역은 통과하므로 `guard` 가 먼저다.
+> > `u.cp_valid 55357 .` 은 `false` 이고, 그래서 `put`·`unit_hi`·`unit_lo` 가 모두 `none` 이다. 이 `none` 들을 검사 없이 `some_value` 로 꺼내면 실행 중 `E-VM-NONE` 으로 멈춘다 — 번역은 통과하므로 `guard` 가 먼저다.
 
 ## <a id="sx6"></a>주의
 
-- **`len s` 는 칸 수다.** 문자 수는 `count_chars` 만이 안다. 이모지 하나가 칸 둘을 먹는다.
+- **`len s. .` 는 칸 수다.** 문자 수는 `count_chars` 만이 안다. 이모지 하나가 칸 둘을 먹는다.
 - **짝 한가운데서 자르지 않는다.** 상위와 하위 사이를 `subslice` 로 가르면 양쪽 조각이 모두 무효가 된다. 자를 자리는 `next_start` 가 준 값이어야 한다.
 - **커서는 `next_start` 로 민다.** 1 씩 밀면 짝의 하위 칸을 문자 시작으로 읽어 `none` 이 나오거나 문자 수가 부푼다.
 - **비용.** `decode`·`next_start`·`put` 은 O(1), `count_chars`·`is_valid` 는 O(칸 수)다. 반복 조건 안에서 매번 세지 않는다.

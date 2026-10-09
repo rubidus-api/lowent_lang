@@ -23,82 +23,82 @@ rem 위치는 x = 100·200·300·400, 속도는 1·2·3·4 — 한 스텝 뒤 10
 
 proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ① soa — 필드별 배열을 세우고 한 스텝 전진 ──────────────────────
-  let xso option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some xso else return 90 .
-  var xs mut slice u64 view_array u64 (some_value xso) .
-  set (idx xs 0) 100 . set (idx xs 1) 200 .
-  set (idx xs 2) 300 . set (idx xs 3) 400 .
+  let xso option mut slice u8 alloc_bytes al. capacity 32 . .
+  guard is_some xso. . else return 90 . .
+  var xs mut slice u64 view_array u64 some_value xso. . . .
+  set idx xs. 0 . 100 . set idx xs. 1 . 200 .
+  set idx xs. 2 . 300 . set idx xs. 3 . 400 .
 
-  let vso option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some vso else return 91 .
-  var vxs mut slice u64 view_array u64 (some_value vso) .
-  set (idx vxs 0) 1 . set (idx vxs 1) 2 .
-  set (idx vxs 2) 3 . set (idx vxs 3) 4 .
+  let vso option mut slice u8 alloc_bytes al. capacity 32 . .
+  guard is_some vso. . else return 91 . .
+  var vxs mut slice u64 view_array u64 some_value vso. . . .
+  set idx vxs. 0 . 1 . set idx vxs. 1 . 2 .
+  set idx vxs. 2 . 3 . set idx vxs. 3 . 4 .
 
-  let moved u64 soa.step_x xs vxs 4 .
-  guard eq moved 4 else return 1 .
-  guard eq (soa.get_x xs 0) 101 else return 2 .
-  guard eq (soa.get_x xs 3) 404 else return 3 .
+  let moved u64 soa.step_x xs. vxs. 4 . .
+  guard eq moved. 4 . else return 1 . .
+  guard eq soa.get_x xs. 0 . 101 . else return 2 . .
+  guard eq soa.get_x xs. 3 . 404 . else return 3 . .
 
   rem ── ② hashmap — id → 자리 (통은 호출자가 준다: 슬롯 8 = u64 16 칸) ──
-  let bko option mut slice u8 alloc_bytes al capacity 128 .
-  guard is_some bko else return 92 .
-  var bk mut slice u64 view_array u64 (some_value bko) .
+  let bko option mut slice u8 alloc_bytes al. capacity 128 . .
+  guard is_some bko. . else return 92 . .
+  var bk mut slice u64 view_array u64 some_value bko. . . .
   var s u64 0 .
-  while lt s (len bk) do
-    set (idx bk s) 0 .
-    set s (add s 1) .
-  end
-  guard hashmap.put bk 10 0 else return 4 .
-  guard hashmap.put bk 20 1 else return 5 .
-  guard hashmap.put bk 30 2 else return 6 .
-  guard hashmap.put bk 40 3 else return 7 .
+  while lt s. len bk. . . do
+    set idx bk. s. . 0 .
+    set s. add s. 1 . .
+  end .
+  guard hashmap.put bk. 10 0 . else return 4 . .
+  guard hashmap.put bk. 20 1 . else return 5 . .
+  guard hashmap.put bk. 30 2 . else return 6 . .
+  guard hashmap.put bk. 40 3 . else return 7 . .
   rem ★ 주의: `hashmap.size` 는 **담긴 개수가 아니라 용량**이다(`div (len b) 2`). 담긴 수는
   rem   `occupied_at` 로 훑어 센다. 처음 이 프로그램을 쓸 때 `size` 를 개수로 읽어 틀렸다 —
   rem   해시맵에서 `size` 는 대개 개수를 뜻하므로, 이름이 독자를 그쪽으로 민다.
-  guard eq (hashmap.size bk) 8 else return 8 .
+  guard eq hashmap.size bk. . 8 . else return 8 . .
   var occ u64 0 .
   var sl u64 0 .
-  while lt sl (hashmap.size bk) do
-    if hashmap.occupied_at bk sl do set occ (add occ 1) . end
-    set sl (add sl 1) .
-  end
-  guard eq occ 4 else return 22 .
+  while lt sl. hashmap.size bk. . . do
+    if hashmap.occupied_at bk. sl. . do set occ. add occ. 1 . . end .
+    set sl. add sl. 1 . .
+  end .
+  guard eq occ. 4 . else return 22 . .
 
   rem 색인이 실제로 자리를 짚는가 — 없는 id 는 none 이어야 한다.
-  let i20 option u64 hashmap.lookup bk 20 .
-  guard is_some i20 else return 9 .
-  guard eq (soa.get_x xs (some_value i20)) 202 else return 10 .
-  let miss option u64 hashmap.lookup bk 99 .
-  guard is_none miss else return 11 .
+  let i20 option u64 hashmap.lookup bk. 20 . .
+  guard is_some i20. . else return 9 . .
+  guard eq soa.get_x xs. some_value i20. . . 202 . else return 10 . .
+  let miss option u64 hashmap.lookup bk. 99 . .
+  guard is_none miss. . else return 11 . .
 
   rem ── ③ growvec — 리포트를 스스로 자라는 벡터에 쌓는다 ────────────────
-  let memo option mut slice u8 alloc_bytes al capacity 512 .
-  guard is_some memo else return 93 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let go use bump option growvec.gvec growvec.open 2 .
-  guard is_some go else return 12 .
-  var g growvec.gvec some_value go .
+  let memo option mut slice u8 alloc_bytes al. capacity 512 . .
+  guard is_some memo. . else return 93 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let go use bump. option growvec.gvec growvec.open 2 . .
+  guard is_some go. . else return 12 . .
+  var g growvec.gvec some_value go. . .
 
   rem 개체마다 한 바이트 — 자리 순서대로 x 의 하위 바이트. 용량 2 로 열었으니 **자라야** 한다.
   var k u64 0 .
-  while lt k 4 do
-    let ido u64 add 10 (mul k 10) .
-    let po option u64 hashmap.lookup bk ido .
-    guard is_some po else return 13 .
-    guard growvec.add_byte g (narrow u8 (mod (soa.get_x xs (some_value po)) 256)) else return 14 .
-    set k (add k 1) .
-  end
-  guard eq (growvec.count_of g) 4 else return 15 .
-  guard gt (growvec.cap_of g) 2 else return 16 .
+  while lt k. 4 . do
+    let ido u64 add 10 mul k. 10 . . .
+    let po option u64 hashmap.lookup bk. ido. . .
+    guard is_some po. . else return 13 . .
+    guard growvec.add_byte g. narrow u8 mod soa.get_x xs. some_value po. . . 256 . . . else return 14 . .
+    set k. add k. 1 . .
+  end .
+  guard eq growvec.count_of g. . 4 . else return 15 . .
+  guard gt growvec.cap_of g. . 2 . else return 16 . .
 
   rem 101·202·303·404 의 하위 바이트 = 101·202·47·148.
-  let v slice u8 growvec.view_of g .
-  guard eq (len v) 4 else return 17 .
-  guard eq (idx v 0) 101 else return 18 .
-  guard eq (idx v 1) 202 else return 19 .
-  guard eq (idx v 2) 47 else return 20 .
-  guard eq (idx v 3) 148 else return 21 .
+  let v slice u8 growvec.view_of g. . .
+  guard eq len v. . 4 . else return 17 . .
+  guard eq idx v. 0 . 101 . else return 18 . .
+  guard eq idx v. 1 . 202 . else return 19 . .
+  guard eq idx v. 2 . 47 . else return 20 . .
+  guard eq idx v. 3 . 148 . else return 21 . .
   return 42 .
-end
+end .

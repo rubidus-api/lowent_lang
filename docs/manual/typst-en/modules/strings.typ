@@ -10,9 +10,9 @@ a *view* over the original --- a window pointing at someone else's bytes --- and
 ```lowent
 use strings .
 
-if strings.starts_with line "GET " do
-  let rest slice u8 strings.remove_prefix line "GET " .
-end
+if strings.starts_with line. "GET " . do
+  let rest slice u8 strings.remove_prefix line. "GET " . .
+end .
 ```
 
 `rest` points directly at part of `line`. This module was built only from what the language already has (`len`, `idx`, `subslice`, `eq`, `option`,
@@ -66,9 +66,9 @@ is why the name could not be shortened to `eq`.
 
 *`find`* --- searches `hay` for `needle` from `from` and gives the start index as `some`. Why `from` exists is the character of this module: *the cursor is a
 value the caller holds.* The next search calls again with the position after the match as `from`. The library hides state nowhere, so scanning the same string
-from several places at once causes no interference. `from > len hay` gives `none`, and an empty `needle` gives `some from`.
+from several places at once causes no interference. `from > len hay` gives `none`, and an empty `needle` gives `some from. .`.
 
-*`has`* --- when you only ask "is it in there". Inside it is `is_some (find hay needle 0)`.
+*`has`* --- when you only ask "is it in there". Inside it is `is_some find hay. needle. 0 . .`.
 
 *`starts_with` · `ends_with`* --- prefix and suffix tests. If the piece is longer than `s`, it is `false` without looking.
 
@@ -103,39 +103,39 @@ module demo .
 use strings .
 
 fn t_find output u64 . do
-  let r option u64 strings.find "hello world" "world" 0 .
-  guard is_some r else return 99 .
-  return some_value r .
-end
+  let r option u64 strings.find "hello world" "world" 0 . .
+  guard is_some r. . else return 99 . .
+  return some_value r. . .
+end .
 
 fn t_split output u64 . do
   rem "aa,b,,cc" split on ',' (byte 44): "aa", "b", "", "cc" --- four pieces
   var pos u64 0 .
   var pieces u64 0 .
-  var r option slice u8 strings.split_next "aa,b,,cc" 44 pos .
-  while is_some r do
-    set pieces (add pieces 1) .
-    set pos (add pos (add (len (some_value r)) 1)) .
-    set r (strings.split_next "aa,b,,cc" 44 pos) .
-  end
-  return pieces .
-end
+  var r option slice u8 strings.split_next "aa,b,,cc" 44 pos. . .
+  while is_some r. . do
+    set pieces. add pieces. 1 . .
+    set pos. add pos. add len some_value r. . . 1 . . .
+    set r. strings.split_next "aa,b,,cc" 44 pos. . .
+  end .
+  return pieces. .
+end .
 ```
 
 `t_find` gives 6 and `t_split` gives 4. If you want state, use the actor version --- the actor holds the cursor.
 
 ```lowent
 proc t_splitter output u64 . effects state . do
-  var sp strings.str_splitter spawn actor strings.str_splitter .
-  let d u64 send sp init "one,two,three" 44 .
+  var sp strings.str_splitter spawn actor strings.str_splitter . .
+  let d u64 send sp. init "one,two,three" 44 . .
   var pieces u64 0 .
-  var r option slice u8 send sp next .
-  while is_some r do
-    set pieces (add pieces 1) .
-    set r (send sp next) .
-  end
-  return pieces .
-end
+  var r option slice u8 send sp. next . .
+  while is_some r. . do
+    set pieces. add pieces. 1 . .
+    set r. send sp. next . .
+  end .
+  return pieces. .
+end .
 ```
 
 The only difference between the two is who holds the cursor. If the same original must be scanned along several paths at once, `split_next` fits; if a single
@@ -145,33 +145,33 @@ loop just pulls to the end, the actor version is shorter.
 
 #antipattern[Comparing slices with the core op `eq`][
   ```lowent
-  guard eq "abc" "abc" else return 0 .        rem ✗ eq is scalar-only
+  guard eq "abc" "abc" . else return 0 . .        rem ✗ eq is scalar-only
   ```
   It is `E-VM-TYPE`. Compare slices with `strings.eq_str`.
 ]
 
 #antipattern[Not advancing the cursor in a split loop][
   ```lowent
-  var r option slice u8 strings.split_next src 44 pos .
-  while is_some r do
-    set r (strings.split_next src 44 pos) .   rem ✗ pos stays the same
-  end
+  var r option slice u8 strings.split_next src. 44 pos. . .
+  while is_some r. . do
+    set r. strings.split_next src. 44 pos. . .   rem ✗ pos stays the same
+  end .
   ```
   It is not a translation error --- *the program never ends.* Giving the same `pos` yields the same piece forever. Advance by `pos + len(piece) + 1` each time.
 ]
 
 #antipattern[Using an `option` as a value][
   ```lowent
-  let r option u64 strings.find "abc" "zz" 0 .
-  return some_value r .                         rem ✗ no none check
+  let r option u64 strings.find "abc" "zz" 0 . .
+  return some_value r. . .                         rem ✗ no none check
   ```
   It translates, and stops at run time with `E-VM-NONE` the moment nothing is found. Testing only with inputs that are found never reveals it. `guard is_some r else …` comes first (#chref("option-result")).
 ]
 
 #antipattern[Changing the original a view points at, later][
   ```lowent
-  let piece slice u8 strings.remove_prefix line "GET " .
-  set (idx line 4) 88 .                                     rem ✗ the original was changed
+  let piece slice u8 strings.remove_prefix line. "GET " . .
+  set idx line. 4 . 88 .                                     rem ✗ the original was changed
   ```
   With no error, the content of `piece` silently changes --- because it is a window, not a copy. To hold on to the content, copy it with #modref("strbuf")[`strbuf`].
 ]
@@ -183,7 +183,7 @@ loop just pulls to the end, the actor version is shorter.
 - *A view shares lifetime and content with its original.* If the original changes, so does the view's content; if the original goes away, the view cannot be
   used. Read it as "received a window", not "received a value".
 - *`remove_prefix` does not report failure.* If you need to know whether it removed anything, ask `starts_with` first.
-- *`find` is a naive search.* Its cost is O(`len hay` × `len needle`). Account for it where very long strings are scanned repeatedly.
+- *`find` is a naive search.* Its cost is O(`len hay. .` × `len needle. .`). Account for it where very long strings are scanned repeatedly.
 - *Cursor version and actor version.* `split_next` shares no state, so several cursors may read at once. `str_splitter` holds state, so whoever spawned it is
   responsible until it is exhausted.
 - *There is no direct path to a null-terminated string.* A view cannot promise a trailing 0 byte. Go through `as_cstr` of #modref("strbuf")[`strbuf`].

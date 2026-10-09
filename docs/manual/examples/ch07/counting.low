@@ -5,11 +5,11 @@ rem ko: 수를 세는 되풀이 --- `repeat` 는 끝을 빼고, `range` 는 두 
 export fn tally input n u64 . output u64 .
 do
   var s u64 0 .
-  repeat i u64 n do
-    set s (add s i) .
-  end
+  repeat i u64 n. do
+    set s. add s. i. . .
+  end .
   range j u64 10 1 step -3 do
-    set s (add (mul s 100) j) .
-  end
-  return s .
-end
+    set s. add mul s. 100 . j. . .
+  end .
+  return s. .
+end .

@@ -4,7 +4,7 @@
 
 #modhead(file: "lib/unicode.low", layer: [L0 --- pure computation], caps: [none])
 
-This is where you ask "is this character a letter, a number, a space?". With ASCII only, you could answer by hand: `ge c 97` and `le c 122` means lowercase. The
+This is where you ask "is this character a letter, a number, a space?". With ASCII only, you could answer by hand: `ge c. 97 .` and `le c. 122 .` means lowercase. The
 moment `'한'`, `'あ'` or `'Ω'` arrives, that approach collapses. The code points that are "letters" in Unicode span *658 scattered ranges*, impossible to write by
 hand. This module carries those range tables *extracted mechanically from the Unicode 15.1.0 source* and answers by binary search.
 
@@ -12,9 +12,9 @@ hand. This module carries those range tables *extracted mechanically from the Un
 use unicode .
 
 proc ident_start input cp u64 . output bool . effects none . do
-  if unicode.is_letter cp do return true . end
-  return eq cp 95 .
-end
+  if unicode.is_letter cp. . do return true . end .
+  return eq cp. 95 . .
+end .
 ```
 
 `is_letter 54620` (`'한'`) is `true` and `is_letter 128512` (😀) is `false` --- emoji are symbols, not letters. *The input is a code point (`u64`), not a byte.*
@@ -104,22 +104,22 @@ export proc count_words input s slice u8 . output option u64 . effects none . do
   var off u64 0 .
   var words u64 0 .
   var inword bool false .
-  while lt off (len s) do
-    let cp option u64 utf8.decode s off .
-    guard is_some cp else return none .
-    let n u64 utf8.seq_len (idx s off) .
-    guard gt n 0 else return none .
-    if unicode.is_alnum (some_value cp) do
-      if eq inword false do set words (add words 1) . end
-      set inword true .
-    end
-    if eq (unicode.is_alnum (some_value cp)) false do
-      set inword false .
-    end
-    set off (add off n) .
-  end
-  return some words .
-end
+  while lt off. len s. . . do
+    let cp option u64 utf8.decode s. off. . .
+    guard is_some cp. . else return none . .
+    let n u64 utf8.seq_len idx s. off. . . .
+    guard gt n. 0 . else return none . .
+    if unicode.is_alnum some_value cp. . . do
+      if eq inword. false . do set words. add words. 1 . . end .
+      set inword. true .
+    end .
+    if eq unicode.is_alnum some_value cp. . . false . do
+      set inword. false .
+    end .
+    set off. add off. n. . .
+  end .
+  return some words. . .
+end .
 ```
 
 `"한글 word 123"` gives 3 --- a test that knows only ASCII cannot count `'한글'`. Regex `\p{L}` and `\P{L}` use exactly these tables (#modref("regex")[`regex`]). If a
@@ -130,7 +130,9 @@ regular expression is enough, use it; where only one code point needs asking, ca
 #antipattern[Passing a byte as is][
   ```lowent
   rem ✘ index gives a byte. The first byte of '한' is 0xED
-  if unicode.is_letter (widen u64 (idx s 0)) do … end
+  if unicode.is_letter widen u64 idx s. 0 . . . do
+    rem …
+  end .
   ```
   0xED (237) is the code point U+00ED (í) --- judged a letter by chance, but *not the character being asked about*. When handling UTF-8, always go through `utf8.decode`.
 ]
@@ -146,7 +148,7 @@ regular expression is enough, use it; where only one code point needs asking, ca
 #antipattern[Computing digit values with `is_number`][
   ```lowent
   rem ✘ Ⅶ (U+2166) passes too, and cp − 48 is meaningless
-  if unicode.is_number cp do set v (add (mul v 10) (sub cp 48)) . end
+  if unicode.is_number cp. . do set v. add mul v. 10 . sub cp. 48 . . . end .
   ```
   To accept decimal digits only, use `is_digit`.
 ]
@@ -159,7 +161,7 @@ regular expression is enough, use it; where only one code point needs asking, ca
 
 - *Out of range is silently `false`.* A program handling U+30000 and above must know this module cannot answer.
 - *`false` from `has_cp` does not distinguish "not in it" from "the table is broken".* Built-in tables are always intact. If you build a table, check that
-  `mod (len tab) 12` is 0 before passing it.
+  `mod len tab. . 12 .` is 0 before passing it.
 - *Tables follow Unicode 15.1.0.* When Unicode updates, re-extract the tables rather than editing them by hand.
 - *Binary size.* All tables go in as strings (tens of KB). If that matters on a small machine, a module carrying only the needed tables is the right answer.
 - *`is_space` is exactly category Z --- tab, newline and CR are not in it.* In Unicode those are control characters (Cc). If you want regex `\s` behaviour, add them at

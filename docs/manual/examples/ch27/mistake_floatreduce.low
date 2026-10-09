@@ -8,9 +8,9 @@ fn mean input s slice f64 . output f64 .
 do
   var acc f64 0.0 .
   var i u64 0 .
-  while lt i (len s) do
-    set acc (add acc (idx s i)) .
-    set i (add i 1) .
-  end
-  return acc .
-end
+  while lt i. len s. . . do
+    set acc. add acc. idx s. i. . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

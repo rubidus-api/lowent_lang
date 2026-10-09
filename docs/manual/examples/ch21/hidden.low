@@ -5,5 +5,5 @@ use geom from "geom.low" .
 
 fn peek input v i64 . output i64 .
 do
-  return geom.helper v .
-end
+  return geom.helper v. . .
+end .

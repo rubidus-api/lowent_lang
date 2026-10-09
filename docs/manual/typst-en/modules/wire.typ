@@ -16,10 +16,10 @@ wire.merge mask w v  →  (w & ~mask) | put     replace only that field of the w
 ```
 
 ```lowent
-fn m_month output u64 . do return 64424509440 . end
-let mo u64 wire.pick (m_month) w .
-guard wire.fits (m_month) 9 else return 1 .
-let w2 u64 wire.merge (m_month) w 9 .
+fn m_month output u64 . do return 64424509440 . end .
+let mo u64 wire.pick m_month. w. . .
+guard wire.fits m_month . 9 . else return 1 . .
+let w2 u64 wire.merge m_month. w. 9 . .
 ```
 
 #aside[What this module guards][
@@ -52,11 +52,11 @@ hardware provides set-mask and clear-mask registers (STM32's `BSRR`) --- nothing
 `is_identity` lets you ask before calling.
 
 #antipattern[Writing the position again separately from the mask][
-  `bit_and (shr w 32) 15` has position (32) and width (15) as two numbers, so fixing one silently breaks. `wire.pick` takes one number.
+  `bit_and shr w. 32 . 15 .` has position (32) and width (15) as two numbers, so fixing one silently breaks. `wire.pick` takes one number.
 ]
 
 #antipattern[Inserting without asking whether it fits][
-  A month is four bits. `wire.merge (m_month) w 20` silently inserts 4 (= 20 & 15). `wire.fits` answers that question --- the two are not one op because answering failure
+  A month is four bits. `wire.merge m_month. w. 20 .` silently inserts 4 (= 20 & 15). `wire.fits` answers that question --- the two are not one op because answering failure
   as a value would force unwrapping an `option` everywhere.
 ]
 

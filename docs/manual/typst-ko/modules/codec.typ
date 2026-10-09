@@ -12,8 +12,8 @@
 ```lowent
 use codec as c .
 
-let n option u64 c.hex_enc "abc" dst .
-guard is_some n else return 1 .
+let n option u64 c.hex_enc "abc" dst. . .
+guard is_some n. . else return 1 . .
 ```
 
 `dst` 는 이 모듈이 만드는 것이 아니라 *호출자가 미리 잡아 두는 출력 자리*다(여기서는 6 바이트 이상). `n` 은 *실제로 쓴 바이트 수*이고 결과는 `dst[0..n)` 이다.
@@ -44,7 +44,7 @@ guard is_some n else return 1 .
 )
 
 `dst` 가 공식보다 작으면 결과는 늘 `none` 이고, 크면 상관없다 --- 앞에서부터 쓰고 쓴 수를 돌려준다. 빈 입력은 성공이다(`hex_enc ""`·`b64_enc ""`·`b64_dec ""`
-모두 `some 0`).
+모두 `some 0 .`).
 
 == op 한눈에
 
@@ -68,8 +68,8 @@ guard is_some n else return 1 .
 == op 상세
 
 모든 변환이 `src`(읽을 바이트)와 `dst`(쓸 자리)를 따로 받는다. 제자리 변환을 하지 않는 것은 인코딩이 결과를 키워서 원본을 덮으면 아직 읽지 않은 바이트를
-밟기 때문이다. *`src` 의 길이가 곧 입력의 전부*다 --- 끝 표식을 찾지 않고 `len src` 만 믿으므로, 큰 버퍼에 든 결과를 다시 넘길 때는 `subslice` 로 정확히
-잘라 준다. 결과의 길이는 `dst` 의 길이가 아니라 반환된 `some n` 의 `n` 이다.
+밟기 때문이다. *`src` 의 길이가 곧 입력의 전부*다 --- 끝 표식을 찾지 않고 `len src. .` 만 믿으므로, 큰 버퍼에 든 결과를 다시 넘길 때는 `subslice` 로 정확히
+잘라 준다. 결과의 길이는 `dst` 의 길이가 아니라 반환된 `some n. .` 의 `n` 이다.
 
 - *`hex_digit v`* --- 니블(0 … 15)을 소문자 16 진 글자로. `v < 10` 이면 `'0'+v`, 아니면 `'a'+(v−10)`. 범위를 검사하지 않는 대신 호출자가 보장한다.
 - *`hex_val c`* --- 16 진 글자 하나의 값. 대소문자를 둘 다 받고, 밖이면 `none`.
@@ -93,35 +93,35 @@ module ex_codec .
 use codec as c .
 
 proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
-  guard ge (len enc) 6 else return 90 .
-  guard ge (len dec) 3 else return 91 .
-  let en option u64 c.hex_enc "abc" enc .
-  guard is_some en else return 1 .
-  guard eq (some_value en) 6 else return 2 .
+  guard ge len enc. . 6 . else return 90 . .
+  guard ge len dec. . 3 . else return 91 . .
+  let en option u64 c.hex_enc "abc" enc. . .
+  guard is_some en. . else return 1 . .
+  guard eq some_value en. . 6 . else return 2 . .
   rem 쓴 수가 곧 경계다 --- enc 통째로 넘기면 뒤의 쓰레기까지 입력이 된다
-  let dn option u64 c.hex_dec (subslice enc 0 6) dec .
-  guard is_some dn else return 3 .
-  guard eq (some_value dn) 3 else return 4 .
-  guard eq (idx dec 0) 97 else return 5 .
+  let dn option u64 c.hex_dec subslice enc. 0 6 . dec. . .
+  guard is_some dn. . else return 3 . .
+  guard eq some_value dn. . 3 . else return 4 . .
+  guard eq idx dec. 0 . 97 . else return 5 . .
   rem 대문자도 받는다: "4A" → 74
-  let up option u64 c.hex_dec "4A" dec .
-  guard is_some up else return 6 .
-  guard eq (idx dec 0) 74 else return 7 .
+  let up option u64 c.hex_dec "4A" dec. . .
+  guard is_some up. . else return 6 . .
+  guard eq idx dec. 0 . 74 . else return 7 . .
   return 42 .
-end
+end .
 
 proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   rem 2 바이트는 한 묶음(4 글자)이 되고 끝에 = 하나가 붙는다: "aGk="
-  guard ge (len enc) 4 else return 90 .
-  guard ge (len dec) 2 else return 91 .
-  let e option u64 c.b64_enc "hi" enc .
-  guard is_some e else return 1 .
-  guard eq (some_value e) 4 else return 2 .
-  let d option u64 c.b64_dec (subslice enc 0 4) dec .
-  guard is_some d else return 3 .
-  guard eq (some_value d) 2 else return 4 .
+  guard ge len enc. . 4 . else return 90 . .
+  guard ge len dec. . 2 . else return 91 . .
+  let e option u64 c.b64_enc "hi" enc. . .
+  guard is_some e. . else return 1 . .
+  guard eq some_value e. . 4 . else return 2 . .
+  let d option u64 c.b64_dec subslice enc. 0 4 . dec. . .
+  guard is_some d. . else return 3 . .
+  guard eq some_value d. . 2 . else return 4 . .
   return 42 .
-end
+end .
 ```
 
 == 반례
@@ -133,11 +133,11 @@ end
   id: "mod-codec-bad",
   caption: [자주 틀리는 입력],
   [*입력*], [*결과*], [*흔한 원인과 `dst`*],
-  [`c.hex_dec "abc" dst`], [`none`], [홀수 길이 --- 길이 검사에서 먼저 걸려 `dst` 는 그대로],
-  [`c.hex_dec "zz" dst`], [`none`], [16 진이 아닌 글자 --- 훑다가 발견되므로 `dst` 앞부분이 덮였을 수 있다],
-  [`c.hex_enc "abcdefgh" dst3`], [`none`], [3 바이트 자리에 16 이 필요 --- 한 바이트도 쓰지 않는다],
-  [`c.b64_dec "abc" dst`], [`none`], [길이가 4 의 배수가 아님 --- `enc` 를 `subslice` 로 자르지 않고 통째로 넘긴 경우가 흔하다],
-  [`c.b64_dec "a?cd" dst`], [`none`], [알파벳 밖 --- URL 에 안전한 `-`·`_` 나 개행이 섞인 경우가 대부분],
+  [`c.hex_dec "abc" dst. .`], [`none`], [홀수 길이 --- 길이 검사에서 먼저 걸려 `dst` 는 그대로],
+  [`c.hex_dec "zz" dst. .`], [`none`], [16 진이 아닌 글자 --- 훑다가 발견되므로 `dst` 앞부분이 덮였을 수 있다],
+  [`c.hex_enc "abcdefgh" dst3. .`], [`none`], [3 바이트 자리에 16 이 필요 --- 한 바이트도 쓰지 않는다],
+  [`c.b64_dec "abc" dst. .`], [`none`], [길이가 4 의 배수가 아님 --- `enc` 를 `subslice` 로 자르지 않고 통째로 넘긴 경우가 흔하다],
+  [`c.b64_dec "a?cd" dst. .`], [`none`], [알파벳 밖 --- URL 에 안전한 `-`·`_` 나 개행이 섞인 경우가 대부분],
   [`c.b64_dec "aG==YWJj" dst`], [`none`], [가운데 패딩 --- 두 base64 문자열을 그냥 이어 붙이면 이 꼴이 된다],
 )
 
@@ -146,7 +146,7 @@ end
 - *`none` 만 계속 나오면 먼저 버퍼 크기를 의심한다.* "코드는 맞는데 늘 `none`" 의 원인은 거의 늘 `dst` 를 공식보다 작게 잡은 것이다. 넉넉히 잡는 것은 손해가
   없다.
 - *`none` 이면 `dst` 를 결과로 쓰지 않는다.* 인코더는 크기를 먼저 검사해 실패하면 `dst` 가 그대로지만, 해독기는 훑으면서 쓰므로 앞부분이 덮였을 수 있다. 성공한
-  `some n` 의 `dst[0..n)` 만 결과다.
+  `some n. .` 의 `dst[0..n)` 만 결과다.
 - *돌려받은 수를 버리고 `dst` 통째를 결과로 쓰지 않는다.* 뒤에 남은 옛 바이트까지 섞인다.
 - *인코딩과 해독의 버퍼를 겹치지 않는다.* `src` 와 `dst` 가 겹치면 아직 읽지 않은 입력을 출력이 덮는다. 겹침은 검사하지 않고 결과가 조용히 틀린다.
 - *패딩을 손으로 다루지 않는다.* `b64_val` 에 `=` 를 물으면 `none` 이다. `b64_dec` 에 맡긴다.

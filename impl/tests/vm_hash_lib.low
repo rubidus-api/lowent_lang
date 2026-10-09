@@ -9,40 +9,40 @@ use hash from "../../lib/hash.low" .
 fn be8 input d slice u8 . input at u64 . output u64 . do
   var acc u64 0 .
   repeat i u64 8 do
-    set acc (bit_or (shl acc 8) (widen u64 (idx d (add at i)))) .
-  end
-  return acc .
-end
+    set acc. bit_or shl acc. 8 . widen u64 idx d. add at. i. . . . . .
+  end .
+  return acc. .
+end .
 
 proc h384 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.sha384 src dst) 48 else return 0 .
-  return be8 dst 0 .
-end
+  guard eq hash.sha384 src. dst. . 48 . else return 0 . .
+  return be8 dst. 0 . .
+end .
 
 proc h512 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.sha512 src dst) 64 else return 0 .
-  return be8 dst 0 .
-end
+  guard eq hash.sha512 src. dst. . 64 . else return 0 . .
+  return be8 dst. 0 . .
+end .
 
 proc h256 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.sha256 src dst) 32 else return 0 .
-  return be8 dst 0 .
-end
+  guard eq hash.sha256 src. dst. . 32 . else return 0 . .
+  return be8 dst. 0 . .
+end .
 
 rem 받은 다이제스트와 대조 — 길이가 32 가 아니면 거짓.
 proc h256_ok input src slice u8 . input dst mut slice u8 . input want slice u8 . output bool . effects none . do
-  return hash.sha256_ok src dst want .
-end
+  return hash.sha256_ok src. dst. want. . .
+end .
 
 rem 버퍼가 모자라면 0 — 아무것도 안 쓴다.
 proc h512_short input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.sha512 src dst) 0 else return 0 .
-  repeat i u64 (len dst) do
-    guard eq (idx dst i) 0 else return 0 .
-  end
+  guard eq hash.sha512 src. dst. . 0 . else return 0 . .
+  repeat i u64 len dst. . do
+    guard eq idx dst. i. . 0 . else return 0 . .
+  end .
   return 1 .
-end
+end .
 
 fn same input a slice u8 . input b slice u8 . output bool . do
-  return hash.digest_eq a b .
-end
+  return hash.digest_eq a. b. . .
+end .

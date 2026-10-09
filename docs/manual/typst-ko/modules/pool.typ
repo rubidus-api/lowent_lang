@@ -10,10 +10,10 @@
 
 ```lowent
 def newtype pa u8 .
-let po option (pool.block_pool pa) pool.init pa mem gens 4096 .
-guard is_some po else return 1 .
-var p (pool.block_pool pa) some_value po .
-let h option (pool.handle pa) pool.take pa p .
+let po option (pool.block_pool pa) pool.init pa. mem. gens. 4096 . .
+guard is_some po. . else return 1 . .
+var p (pool.block_pool pa) some_value po. . .
+let h option (pool.handle pa) pool.take pa. p. . .
 ```
 
 #aside[무엇을 막아 주고, 무엇을 안 막아 주나][
@@ -48,7 +48,7 @@ struct 다(actor state 는 슬라이스를 들 수 없다).
 이유 --- 이 언어에는 추론되는 타입 파라미터가 없고, 그 한 낱말이 "이 핸들은 저 풀의 것" 이라는 계약이다.
 
 *뷰는 빌림 머리에서 꺼낸다* --- `bytes` 가 준 슬라이스는 평범한 슬라이스라 반환을 모른다. 그래서 뷰는
-`borrow v some_value (pool.bytes <브랜드> p h) do … end` 처럼 *빌림 머리에서* 꺼내고, 바이트는 빌림 안에서만 만지고, 해제는
+`borrow v some_value pool.bytes <브랜드>. p. h. . . do … end .` 처럼 *빌림 머리에서* 꺼내고, 바이트는 빌림 안에서만 만지고, 해제는
 블록 *뒤에* 한다(#chref("references")). 이렇게 꺼내면 처리기가 빌림 동안 그 풀을 쓰기 자리에 넘기는 것(`release`·`take`)과 같은 풀로
 두 번째 빌림을 여는 것을 `E-BORROW-EXCL` 로 거절한다.
 
@@ -57,25 +57,25 @@ def newtype demo_brand u8 .
 
 proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
 do
-  let po option (pool.block_pool demo_brand) pool.init demo_brand mem gens 16 .
-  guard is_some po else return 89 .
-  var p (pool.block_pool demo_brand) some_value po .
-  let h option (pool.handle demo_brand) pool.take demo_brand p .
-  guard is_some h else return 91 .
-  let hh (pool.handle demo_brand) some_value h .
-  guard pool.alive demo_brand p hh else return 92 .
+  let po option (pool.block_pool demo_brand) pool.init demo_brand. mem. gens. 16 . .
+  guard is_some po. . else return 89 . .
+  var p (pool.block_pool demo_brand) some_value po. . .
+  let h option (pool.handle demo_brand) pool.take demo_brand. p. . .
+  guard is_some h. . else return 91 . .
+  let hh (pool.handle demo_brand) some_value h. . .
+  guard pool.alive demo_brand. p. hh. . else return 92 . .
   var total u64 0 .
-  borrow v some_value (pool.bytes demo_brand p hh) do
-    set (idx v 8) 3 .
-    set (idx v 9) 4 .
-    set total (add (narrow u64 (idx v 8)) (narrow u64 (idx v 9))) .
-  end
-  let rel bool pool.release demo_brand p hh .
-  guard eq rel true else return 94 .
-  let dead option mut slice u8 pool.bytes demo_brand p hh .
-  guard eq (is_some dead) false else return 95 .
-  return total .
-end
+  borrow v some_value pool.bytes demo_brand. p. hh. . . do
+    set idx v. 8 . 3 .
+    set idx v. 9 . 4 .
+    set total. add narrow u64 idx v. 8 . . narrow u64 idx v. 9 . . . .
+  end .
+  let rel bool pool.release demo_brand. p. hh. . .
+  guard eq rel. true . else return 94 . .
+  let dead option mut slice u8 pool.bytes demo_brand. p. hh. . .
+  guard eq is_some dead. . false . else return 95 . .
+  return total. .
+end .
 ```
 
 #antipattern[해제한 핸들로 다시 닿는다 · 이중 해제][
@@ -89,11 +89,11 @@ end
 ]
 
 #antipattern[빌린 이름을 블록 밖으로 내보낸다][
-  `borrow v bv do set out v . end` 는 컴파일 에러 `E-BORROW-ESCAPE` 다 --- 빌림은 블록 끝에서 끝난다.
+  `borrow v bv. do set out. v. . end .` 는 컴파일 에러 `E-BORROW-ESCAPE` 다 --- 빌림은 블록 끝에서 끝난다.
 ]
 
 #antipattern[빌림 안에서 해제한다][
-  `borrow v some_value (pool.bytes b p h) do pool.release b p h . … end` 는 컴파일 에러 `E-BORROW-EXCL` 이다 --- 반환은 풀을 고치고,
+  `borrow v some_value pool.bytes b. p. h. . . do pool.release b. p. h. . … end .` 는 컴파일 에러 `E-BORROW-EXCL` 이다 --- 반환은 풀을 고치고,
   빌린 뷰는 그것을 모른다. 해제는 블록을 닫은 뒤에 한다.
 ]
 

@@ -10,8 +10,8 @@
 ```lowent
 use fmt .
 
-let p option u64 fmt.put_u64 buf 0 1234 .
-guard is_some p else return 1 .
+let p option u64 fmt.put_u64 buf. 0 1234 . .
+guard is_some p. . else return 1 . .
 ```
 
 `0` 은 `pos`(다음에 쓸 자리)이고, 돌려받는 `option u64` 는 *성공하면 새 `pos`, 자리가 모자라면 `none`* 이다.
@@ -58,7 +58,7 @@ guard is_some p else return 1 .
 모듈이 기억하지 않으므로 직전 호출이 준 새 `pos` 를 넘기는 것이 "이어 쓴다" 의 유일한 표현)다.
 
 - *`put_byte`* --- 바이트 `b` 하나를 `buf[pos]` 에 쓴다(`'-'` 는 45, LF 는 10). 성공하면 `some (pos+1)`.
-- *`put_str`* --- 바이트열 `s` 전체를 쓴다. `s` 는 읽기만 하므로 문자열 리터럴을 그대로 줄 수 있다. `pos + len s` 가 `len buf` 를 넘으면 `none`.
+- *`put_str`* --- 바이트열 `s` 전체를 쓴다. `s` 는 읽기만 하므로 문자열 리터럴을 그대로 줄 수 있다. `pos + len s` 가 `len buf. .` 를 넘으면 `none`.
 - *`dec_width` · `hex_width`* --- `n` 을 10 진·16 진으로 쓸 때의 자릿수. 최소 1(`0` 도 한 자리). 전량 아니면 무를 위한 사전 계산이지만, "버퍼가 몇 바이트면
   충분한가" 를 미리 잴 때 직접 써도 된다.
 - *`put_u64` · `put_hex`* --- 부호 없는 10 진·16 진(소문자, `0x` 없음). `0x` 가 필요하면 `put_str buf pos "0x"` 를 앞에 붙인다.
@@ -82,35 +82,35 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let g option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some g else return 70 .
-  let buf mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some g. . else return 70 . .
+  let buf mut slice u8 some_value g. . .
 
   rem 조립 --- 여기까지 한 바이트도 밖으로 나가지 않았다
-  let p1 option u64 fmt.put_str buf 0 "answer=" .
-  guard is_some p1 else return 71 .
-  let p2 option u64 fmt.put_u64 buf (some_value p1) 42 .
-  guard is_some p2 else return 72 .
-  let p3 option u64 fmt.put_str buf (some_value p2) " hex=" .
-  guard is_some p3 else return 73 .
-  let p4 option u64 fmt.put_hex buf (some_value p3) 255 .
-  guard is_some p4 else return 74 .
-  let p5 option u64 fmt.put_nl buf (some_value p4) .
-  guard is_some p5 else return 75 .
+  let p1 option u64 fmt.put_str buf. 0 "answer=" . .
+  guard is_some p1. . else return 71 . .
+  let p2 option u64 fmt.put_u64 buf. some_value p1. . 42 . .
+  guard is_some p2. . else return 72 . .
+  let p3 option u64 fmt.put_str buf. some_value p2. . " hex=" . .
+  guard is_some p3. . else return 73 . .
+  let p4 option u64 fmt.put_hex buf. some_value p3. . 255 . .
+  guard is_some p4. . else return 74 . .
+  let p5 option u64 fmt.put_nl buf. some_value p4. . . .
+  guard is_some p5. . else return 75 . .
 
   rem 출력 --- 조립된 앞부분(0 … p5)만 내보낸다
-  let w u64 write_out out 1 (subslice buf 0 (some_value p5)) .
+  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
-end
+end .
 ```
 
 출력은 `answer=42 hex=ff` 와 줄바꿈 하나다. 조각마다 종료 코드를 달리 두면 어디서 모자랐는지 바로 안다. 버퍼 크기를 미리 재는 것도 같은 도구로 된다.
 
 ```lowent
 fn need_for input n u64 . output u64 . do
-  let w u64 fmt.dec_width n .
-  return add (add 7 w) 1 .
-end
+  let w u64 fmt.dec_width n. . .
+  return add add 7 w. . 1 . .
+end .
 ```
 
 == 반례
@@ -118,16 +118,16 @@ end
 #antipattern[`effects none` op 안에서 출력한다][
   ```lowent
   proc bad input out cap io . output u64 . effects none . do
-    return write_out out 1 "x" .
-  end
+    return write_out out. 1 "x" . .
+  end .
   ```
   선언이 거짓말이 되어 `E-EFFECT`(`fn` 이면 `E-EFFECT-CALC`)로 거절된다. `effects io` 로 바꿔도 `cap io` 입력이 없으면 `E-EFFECT-NO-CAP` 이다.
 ]
 
 #antipattern[돌려받은 `pos` 를 버리고 옛 `pos` 를 다시 쓴다][
   ```lowent
-  let p1 option u64 fmt.put_str buf 0 "answer=" .
-  let p2 option u64 fmt.put_u64 buf 0 42 .        rem ✗ pos 는 some_value p1 이어야 한다
+  let p1 option u64 fmt.put_str buf. 0 "answer=" . .
+  let p2 option u64 fmt.put_u64 buf. 0 42 . .        rem ✗ pos 는 some_value p1 이어야 한다
   ```
   번역은 통과하고 결과가 `answer=42` 대신 `42swer=` 처럼 겹쳐 나온다. 출력 앞부분이 뭉개져 있으면 `pos` 를 이어 넘겼는지부터 본다.
 ]
@@ -139,14 +139,14 @@ end
 ]
 
 #antipattern[`write_out` 에 버퍼 전체를 준다][
-  `subslice buf 0 (some_value p5)` 대신 `buf` 를 주면 쓰지 않은 뒷부분까지 나간다. 줄 끝에 정체 모를 바이트가 붙는다. 마지막 `pos` 가 곧 *쓴 길이*다.
+  `subslice buf. 0 some_value p5. . .` 대신 `buf` 를 주면 쓰지 않은 뒷부분까지 나간다. 줄 끝에 정체 모를 바이트가 붙는다. 마지막 `pos` 가 곧 *쓴 길이*다.
 ]
 
 == 주의
 
 - *모자람은 정상 경로다.* 오류가 아니라 예상된 답이므로 `guard` 로 받는다. 상한이 필요하면 미리 잰다 --- `u64` 10 진 최대 20 자리, 16 진 최대 16 자리,
   `i64` 는 부호 1 자리를 더한다.
-- *`pos` 는 색인이자 길이다.* 조립이 끝난 뒤의 `pos` 는 지금까지 쓴 바이트 수와 같아서 `subslice buf 0 pos` 가 곧 결과다.
+- *`pos` 는 색인이자 길이다.* 조립이 끝난 뒤의 `pos` 는 지금까지 쓴 바이트 수와 같아서 `subslice buf. 0 pos. .` 가 곧 결과다.
 - *버퍼를 다시 쓰려면 `pos` 를 0 으로 되돌리기만 하면 된다.* 지난 내용은 지울 필요가 없다 --- 그때의 `pos` 까지만 내보내면 옛 바이트는 보이지 않는다.
 - *CRLF 는 직접 쓴다.* 필요한 규약이면 `put_str buf pos "\r\n"` 을 쓴다.
 - *모든 op 이 `effects none` 이다.* `fn` 안에서도 액터 핸들러 안에서도 부를 수 있다. 출력할 때만 `cap io` 와 `effects io` 가 필요하다.

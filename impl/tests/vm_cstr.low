@@ -26,27 +26,27 @@ unsafe extern proc c_greeting do
   output cstr .
   effects unsafe .
   link lw_c_greeting .
-end
+end .
 
 unsafe extern proc c_empty do
   input k cap c .
   output cstr .
   effects unsafe .
   link lw_c_empty .
-end
+end .
 
 rem ── C2·C3: 스캔해 str 로 — 그리고 str 연산이 그 위에서 그대로 돈다 ──────────────
 rem 길이를 몰라 스캔한다(strlen). "hello, lowent" = 13 바이트.
 unsafe proc greeting_len input k cap c . output u64 . effects unsafe . do
-  return len (str_from_cstr (c_greeting k)) .
-end
+  return len str_from_cstr c_greeting k. . . . .
+end .
 
 rem str 은 slice u8 의 투명 별칭(D1′) ⇒ index 가 그대로 작동한다. 첫 바이트 'h' = 104.
 unsafe proc greeting_byte0 input k cap c . output u8 . effects unsafe . do
-  return idx (str_from_cstr (c_greeting k)) 0 .
-end
+  return idx str_from_cstr c_greeting k. . . 0 . .
+end .
 
 rem 빈 문자열도 정직하게 — strlen 0 → len 0 (자르지 않는다, none 도 아니다).
 unsafe proc empty_len input k cap c . output u64 . effects unsafe . do
-  return len (str_from_cstr (c_empty k)) .
-end
+  return len str_from_cstr c_empty k. . . . .
+end .

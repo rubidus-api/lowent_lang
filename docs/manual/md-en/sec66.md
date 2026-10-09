@@ -17,9 +17,9 @@ Checks and finds **what shape** a string has. Use it for input validation (did o
 ```lowent
 use regex as rx .
 
-let n option u64 rx.compile "a{2,4}b" prog st .
-guard is_some n else return 1 .
-let m option u64 rx.match_at prog "aaab" 0 cl nl mk .
+let n option u64 rx.compile "a{2,4}b" prog. st. . .
+guard is_some n. . else return 1 . .
+let m option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 ```
 
 The program (`slice u64`), the compiler state and the matcher’s workspace are all the caller’s slices. So it is `effects none` with no hidden allocation, reentrancy is free, and it runs inside the VM/native cross-check.
@@ -51,7 +51,7 @@ A whole program lives in one **program buffer** (`slice u64`). `prog[0]` is the 
 | 3 SPLIT | branch 1 · branch 2 | run both branches (branch 1 first = greedy) |
 | 4 JMP | target | unconditional jump |
 | 5 MATCH | — | reaching here is a match |
-| 6 BOL · 7 EOL | — | `^` passes only at position 0, `$` only at `len s` |
+| 6 BOL · 7 EOL | — | `^` passes only at position 0, `$` only at `len s. .` |
 | 8 SAVE | slot number | record a capture position (consumes no byte) |
 | 9 CPPROP | property code | is the code point **just consumed** of that property (consumes no byte) |
 
@@ -79,7 +79,7 @@ Names starting with `rx_` are compiler and matcher internals, invisible from out
 ## <a id="sx4"></a>Ops in detail
 
 - **`compile pat prog st`** — needs `len prog ≥ 8` and `len st ≥ 4`. Success gives `some <instruction count>`, which is the minimum length for matcher scratch. `none` for an unclosed group `(ab`, `) | * + ?` in atom position, an unclosed `[…]`, a reversed range `[z-a]`, a lone `\` at the end, bad counts (`a{4,2}`, `a{}`, `a{2`, over 64), or code meeting bitmaps (buffer too small). The empty pattern is valid — it compiles to one `MATCH` and matches empty anywhere.
-- **`match_at prog s at clist nlist marks`** — gives **the longest end** (greedy) of a match starting at `at` as `some end` (exclusive). The start is part of the question, so it takes `at`. `clist` is the thread list at the current position, `nlist` the list at the next (the two swap each byte), and `marks` stamps “this instruction was already added at this position”. Without stamps the same place enters several times and the list-length bound breaks. An empty match is a match (`some at`). Cost is O(`len s` × instructions).
+- **`match_at prog s at clist nlist marks`** — gives **the longest end** (greedy) of a match starting at `at` as `some end` (exclusive). The start is part of the question, so it takes `at`. `clist` is the thread list at the current position, `nlist` the list at the next (the two swap each byte), and `marks` stamps “this instruction was already added at this position”. Without stamps the same place enters several times and the list-length bound breaks. An empty match is a match (`some at. .`). Cost is O(`len s. .` × instructions).
 - **`find`** — **the leftmost position where a match starts**. It restarts `match_at` for `at = 0, 1, …, len s`, so the bound is O(n²·m), but each attempt is linear, so there is no exponential blow-up. If you need the end, call `match_at` once more from the returned start.
 - **`search`** — answers the same question as `find` **in one pass**. Removing the restart loop means each thread must carry “where it started”, hence two more scratch slices `cstart` and `nstart`. A start thread is added at each position only while no match has been found yet, so cost is O(input × instructions), and since a further-left start always wins, leftmost priority holds. It gives **the same answer** as `find` — the development repository’s tests compare the two.
 - **`test_at`** — is there a match anywhere. Use it when you need only yes or no, not a position.
@@ -98,32 +98,32 @@ proc demo input prog mut slice u64 . input st mut slice u64 .
   input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
   output u64 . effects none .
 do
-  guard ge (len prog) 32 else return 90 .
+  guard ge len prog. . 32 . else return 90 . .
 
   rem "ab.d*" on "abcdddx": . consumes c, greedy d* consumes ddd, end = 6
-  let n option u64 rx.compile "ab.d*" prog st .
-  guard is_some n else return 1 .
-  let m option u64 rx.match_at prog "abcdddx" 0 cl nl mk .
-  guard is_some m else return 2 .
-  guard eq (some_value m) 6 else return 3 .
+  let n option u64 rx.compile "ab.d*" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let m option u64 rx.match_at prog. "abcdddx" 0 cl. nl. mk. . .
+  guard is_some m. . else return 2 . .
+  guard eq some_value m. . 6 . else return 3 . .
 
   rem as a regex this is [a-c]+z\d --- in source, "\\d"
-  let n2 option u64 rx.compile "[a-c]+z\\d" prog st .
-  guard is_some n2 else return 4 .
-  let m2 option u64 rx.match_at prog "abz7" 0 cl nl mk .
-  guard is_some m2 else return 5 .
-  guard eq (some_value m2) 4 else return 6 .
+  let n2 option u64 rx.compile "[a-c]+z\\d" prog. st. . .
+  guard is_some n2. . else return 4 . .
+  let m2 option u64 rx.match_at prog. "abz7" 0 cl. nl. mk. . .
+  guard is_some m2. . else return 5 . .
+  guard eq some_value m2. . 4 . else return 6 . .
 
   rem "ab$" only at the end --- find gives the leftmost start
-  let n3 option u64 rx.compile "ab$" prog st .
-  guard is_some n3 else return 7 .
-  let f option u64 rx.find prog "xxab" cl nl mk .
-  guard is_some f else return 8 .
-  guard eq (some_value f) 2 else return 9 .
-  let g option u64 rx.find prog "abx" cl nl mk .
-  guard eq (is_some g) false else return 10 .
+  let n3 option u64 rx.compile "ab$" prog. st. . .
+  guard is_some n3. . else return 7 . .
+  let f option u64 rx.find prog. "xxab" cl. nl. mk. . .
+  guard is_some f. . else return 8 . .
+  guard eq some_value f. . 2 . else return 9 . .
+  let g option u64 rx.find prog. "abx" cl. nl. mk. . .
+  guard eq is_some g. . false . else return 10 . .
   return 42 .
-end
+end .
 ```
 
 `search` and counted repetition have the same shape.
@@ -134,26 +134,26 @@ proc demo_search input prog mut slice u64 . input st mut slice u64 .
   input cs mut slice u64 . input ns mut slice u64 .
   output u64 . effects none .
 do
-  guard ge (len prog) 32 else return 90 .
-  let n option u64 rx.compile "b+c" prog st .
-  guard is_some n else return 1 .
-  let a option u64 rx.find prog "xxbbbc" cl nl mk .
-  guard is_some a else return 2 .
-  let b option u64 rx.search prog "xxbbbc" cl nl mk cs ns .
-  guard is_some b else return 3 .
-  guard eq (some_value a) (some_value b) else return 4 .
-  guard eq (some_value b) 2 else return 5 .
+  guard ge len prog. . 32 . else return 90 . .
+  let n option u64 rx.compile "b+c" prog. st. . .
+  guard is_some n. . else return 1 . .
+  let a option u64 rx.find prog. "xxbbbc" cl. nl. mk. . .
+  guard is_some a. . else return 2 . .
+  let b option u64 rx.search prog. "xxbbbc" cl. nl. mk. cs. ns. . .
+  guard is_some b. . else return 3 . .
+  guard eq some_value a. . some_value b. . . else return 4 . .
+  guard eq some_value b. . 2 . else return 5 . .
 
-  let n3 option u64 rx.compile "a{2,4}b" prog st .
-  guard is_some n3 else return 9 .
-  let m3 option u64 rx.match_at prog "aaab" 0 cl nl mk .
-  guard is_some m3 else return 10 .
-  guard eq (some_value m3) 4 else return 11 .
+  let n3 option u64 rx.compile "a{2,4}b" prog. st. . .
+  guard is_some n3. . else return 9 . .
+  let m3 option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
+  guard is_some m3. . else return 10 . .
+  guard eq some_value m3. . 4 . else return 11 . .
   rem below the lower bound is not a match
-  let f option u64 rx.match_at prog "ab" 0 cl nl mk .
-  guard eq (is_some f) false else return 12 .
+  let f option u64 rx.match_at prog. "ab" 0 cl. nl. mk. . .
+  guard eq is_some f. . false . else return 12 . .
   return 42 .
-end
+end .
 ```
 
 The caller provides, for example, `prog` of 32 slots, `st` of 4, and `cl`, `nl`, `mk` (and `cs`, `ns` for `search`) of 32 each — anything above the instruction count `compile` returned. `{m,n}` expands, so the instruction count grows with the repetition count.
@@ -161,33 +161,33 @@ The caller provides, for example, `prog` of 32 slots, `st` of 4, and `cl`, `nl`,
 A backtracking engine would wander through 2^64 paths giving `(a*)*b` sixty-four `a`s, but a Pike VM finishes linearly with its thread list.
 
 ```lowent
-let n option u64 rx.compile "(a*)*b" prog st .
-guard is_some n else return 1 .
-let f option u64 rx.match_at prog
-  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl nl mk .
-guard eq (is_some f) false else return 2 .
+let n option u64 rx.compile "(a*)*b" prog. st. . .
+guard is_some n. . else return 1 . .
+let f option u64 rx.match_at prog.
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl. nl. mk. . .
+guard eq is_some f. . false . else return 2 . .
 ```
 
 ## <a id="sx6"></a>Counter-examples
 
 | **Call** | **Result** |
 |---|---|
-| `rx.compile "(ab" prog st` | `none` — unclosed group |
-| `rx.compile "*a" prog st` | `none` — repetition with nothing before it |
-| `rx.compile "abcdefghij" tiny st` (`tiny` of 8 slots) | `none` — code meets bitmaps |
-| `rx.match_at prog s 0 short short short` | `none` — scratch shorter than the instruction count |
+| `rx.compile "(ab" prog. st. .` | `none` — unclosed group |
+| `rx.compile "*a" prog. st. .` | `none` — repetition with nothing before it |
+| `rx.compile "abcdefghij" tiny. st. .` (`tiny` of 8 slots) | `none` — code meets bitmaps |
+| `rx.match_at prog. s. 0 short. short. short. .` | `none` — scratch shorter than the instruction count |
 | `rx.compile "a{4,2}" prog st` · `"a{}"` · `"a{2"` · `"a{65}"` | `none` — bad counts (the limit of 64 stops blow-up, since repetition expands) |
-| `rx.compile "\d" prog st` | `E-STR-ESCAPE` before running — write `"\\d"` |
+| `rx.compile "\d" prog. st. .` | `E-STR-ESCAPE` before running — write `"\\d"` |
 
 *Table 50.3 — What is rejected as a value, and what at translation*
 
 ## <a id="sx7"></a>Cautions
 
-- **Pass `prog` to matching at the same length as at compilation.** Class bitmaps live at the buffer’s tail, addressed relative to `len prog`. Passing a `subslice` keeps the instructions but misaligns the bitmap addresses, so `[…]` and `\d\w\s` silently look at the wrong bytes. Do not cut the program; carry it whole.
+- **Pass `prog` to matching at the same length as at compilation.** Class bitmaps live at the buffer’s tail, addressed relative to `len prog. .`. Passing a `subslice` keeps the instructions but misaligns the bitmap addresses, so `[…]` and `\d\w\s` silently look at the wrong bytes. Do not cut the program; carry it whole.
 - **One program buffer, one pattern.** Compiling again overwrites the previous program. To alternate two patterns, provide two buffers.
 - **`find` or `search` is a choice of cost.** The answers are the same. For long inputs and frequent searching use `search`; to save scratch on small inputs use `find`.
 - **`marks` re-initialises itself every call.** Nothing needs preserving between calls.
-- **Watch for empty matches.** Patterns like `a*` succeed with length 0 anywhere, and `find` always gives `some 0` for them. If you need “consumed at least one character”, compare the end with the start.
+- **Watch for empty matches.** Patterns like `a*` succeed with length 0 anywhere, and `find` always gives `some 0 .` for them. If you need “consumed at least one character”, compare the end with the start.
 - **The matching unit is the byte.** On UTF-8 input, `.` and `[^…]` consume one byte, not one code point. Ask for one code point with `\X`, and for Unicode categories with `\p{…}`.
 
 ---

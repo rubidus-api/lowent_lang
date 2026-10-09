@@ -9,12 +9,12 @@
 한 값이 소유하며, 꽉 차면 스스로 다시 뿌린다.
 
 ```lowent
-let mo use bump option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
-guard is_some mo else return 1 .
-var m (mapgen.table u32 u64) some_value mo .
-guard mapgen.insert u32 u64 m 7 900 else return 2 .
-let x option u64 mapgen.lookup u32 u64 m 7 .
-guard mapgen.erase u32 u64 m 7 else return 3 .
+let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 4 . .
+guard is_some mo. . else return 1 . .
+var m (mapgen.table u32 u64) some_value mo. . .
+guard mapgen.insert u32. u64. m. 7 900 . else return 2 . .
+let x option u64 mapgen.lookup u32. u64. m. 7 . .
+guard mapgen.erase u32. u64. m. 7 . else return 3 . .
 ```
 
 *설계.* ⓪ 이름이 `map` 이 아니라 `table` 인 이유 --- `map` 은 기본 연산이다. 같은 낱말이 두 가지를 뜻하면 문장이 어떻게 묶이는지가 흔들린다. 제네릭이라는 이유로 그
@@ -45,18 +45,18 @@ guard mapgen.erase u32 u64 m 7 else return 3 .
 var at u64 0 .
 var total u64 0 .
 var going bool true .
-while going do
-  let nx option u64 mapgen.next_used u32 u64 m at .
-  guard is_some nx else do
-    set going false .
+while going. do
+  let nx option u64 mapgen.next_used u32. u64. m. at. . .
+  guard is_some nx. . else do
+    set going. false .
     continue .
-  end
-  let s u64 some_value nx .
-  let v option u64 mapgen.val_at u32 u64 m s .
-  guard is_some v else return none .
-  set total (add total (some_value v)) .
-  set at (add s 1) .
-end
+  end .
+  let s u64 some_value nx. . .
+  let v option u64 mapgen.val_at u32. u64. m. s. . .
+  guard is_some v. . else return none . .
+  set total. add total. some_value v. . . .
+  set at. add s. 1 . .
+end .
 ```
 
 빈도 세기의 관용구는 `lookup` → 없으면 1, 있으면 +1 → `insert` 다. 값 타입을 `u8` 로 두고 1 만 넣으면 집합이다.
@@ -67,7 +67,7 @@ end
 ]
 
 #antipattern[`at` 을 1 씩 올리지 않는다][
-  `set at (some_value nx)` 로 두면 같은 자리를 영원히 다시 찾는다. 다음 시작은 *앞 자리 + 1* 이다.
+  `set at. some_value nx. .` 로 두면 같은 자리를 영원히 다시 찾는다. 다음 시작은 *앞 자리 + 1* 이다.
 ]
 
 #antipattern[정수 아닌 키 · 타입 순서 바꾸기][

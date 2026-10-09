@@ -5,12 +5,12 @@ def type buffer u8 .
 
 fn consume input h owned buffer . output u8 .
 do
-  drop h .
+  drop h. .
   return 0 .
-end
+end .
 
 fn use_once input v u8 . output u8 .
 do
-  var h owned buffer v .
-  return consume h .
-end
+  var h owned buffer v. .
+  return consume h. . .
+end .

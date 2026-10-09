@@ -91,19 +91,19 @@ module ex_effect .
 
 rem 순수한 op — 바깥세상을 건드리지 않는다. `fn` 이 곧 그 선언이다.
 export fn double input n u32 . output u32 .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
-  return mul n 2 .
-end
+  return mul n. 2 . .
+end .
 
 rem 효과를 내는 op — 무슨 효과인지 계약에 적는다.
 export proc note_and_add input n u32 . output u32 .
   effects panic .
-  requires le n 1000 .
+  requires le n. 1000 . .
 do
-  if gt n 500 do panic . end
-  return add n 1 .
-end
+  if gt n. 500 . do panic . end .
+  return add n. 1 . .
+end .
 ```
 
 > [!주의] 효과 선언은 문서가 아니라 검사다
@@ -150,7 +150,7 @@ module ex_calc_eff .
 fn f output u8 . effects io .     rem 효과가 있으면 `proc` 이다
 do
   return 1 .
-end
+end .
 ```
 
 ## 7.2 권한
@@ -250,9 +250,9 @@ module ex_io .
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out 1 "hello\n" .
-  return narrow u8 n .
-end
+  let n u64 write_out out. 1 "hello\n" . .
+  return narrow u8 n. . .
+end .
 ```
 
 ```lowent-거부: 권한 없이는 한 바이트도 낼 수 없다 · E-EFFECT-NO-CAP
@@ -260,9 +260,9 @@ module ex_io_bad .
 
 proc main output u8 . effects io .
 do
-  let n u64 write_out 1 "hello\n" .   rem 권한을 안 받았다
-  return narrow u8 n .
-end
+  let n u64 write_out 1 "hello\n" . .   rem 권한을 안 받았다
+  return narrow u8 n. . .
+end .
 ```
 
 > [!산문]
@@ -279,24 +279,24 @@ module ex_cap_chain .
 rem 권한을 인자로 받는다 — 이름은 `k`, 타입은 `cap io` 다.
 proc say input k cap io . input msg slice u8 . output u64 . effects io .
 do
-  return write_out k 1 msg .
-end
+  return write_out k. 1 msg. . .
+end .
 
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
 proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .
 do
-  let a u64 say k msg .
-  let b u64 say k msg .
-  return add a b .
-end
+  let a u64 say k. msg. . .
+  let b u64 say k. msg. . .
+  return add a. b. . .
+end .
 
 rem 시작점은 권한을 **바깥에서** 받는다 — 아무도 스스로 만들지 못한다.
 proc main input k cap io . output u8 . effects io .
 do
-  let n u64 say_twice k "hi\n" .
-  guard eq n 6 else return 1 .
+  let n u64 say_twice k. "hi\n" . .
+  guard eq n. 6 . else return 1 . .
   return 0 .
-end
+end .
 ```
 
 > [!산문]
@@ -410,7 +410,7 @@ end
 (2) 이 접근에는 `device` 효과와 그에 맞는 권한이 있어야 한다(⟦§7.2⟧).
 
 (3) 그 자리를 **보통의 칸처럼** 읽거나 쓰는 것은 거부된다(`E-MMIO-PLAIN`) --- 곧
-      `field <묶음> <레지스터>` 로 읽거나 `set (field <묶음> <레지스터>) <값>` 으로 쓰는
+      `field <묶음> <레지스터>` 로 읽거나 `set field <묶음>. <레지스터> . <값> .` 으로 쓰는
       것이다. 보통의 칸 접근은 처리기가 **합치거나 없애도 되는** 연산이므로, 그 철자로
       적힌 장치 접근은 (1) 이 요구하는 것을 **지킬 수 없다.** 같은 뜻을 적는 길이 둘인데
       한쪽만 그 약속을 지킨다면, 다른 쪽은 길이 아니라 함정이다.
@@ -423,14 +423,14 @@ build tier t1 .
 def struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
-end
+end .
 
 unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
-  var g gpio view gpio regs .
-  set (field g moder) 2 .       rem 보통 칸 쓰기 — 처리기가 없애도 되는 연산이다
+  var g gpio view gpio regs. . .
+  set field g. moder . 2 .       rem 보통 칸 쓰기 — 처리기가 없애도 되는 연산이다
   return 0 .
-end
+end .
 ```
 
 > [!참고]
@@ -555,7 +555,7 @@ module ex_alloc_nocap .
 proc f output u8 . effects alloc .    rem `input k cap allocator .` 가 없다
 do
   return 1 .
-end
+end .
 ```
 
 ## 7.2.2 들어오는 자리와 나가는 자리

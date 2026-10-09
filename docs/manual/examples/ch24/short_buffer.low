@@ -4,21 +4,21 @@ rem trap: big_doubled [3,4,5,6] [0,0]
 
 fn over2 input a u8 . output bool .
 do
-  return gt a 2 .
-end
+  return gt a. 2 . .
+end .
 
 fn dbl input a u8 . output u8 .
 do
-  return wrap_add a a .
-end
+  return wrap_add a. a. . .
+end .
 
 rem ko: 버퍼는 두 칸 --- 남는 원소가 둘이면 담기고, 넷이면 셋째를 담으려는 순간 멈춘다 /// en: the buffer has two slots --- two remaining elements fit; with four, the run stops as the third is stored
 proc big_doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
-  pipe xs do
+  pipe xs. do
     filter over2 .
     map dbl .
-    collect into out .
-  end
-  return len out .
-end
+    collect into out. .
+  end .
+  return len out. . .
+end .

@@ -80,7 +80,7 @@ lerel[i] = n     local i is less than local n
 
 These facts come from branch conditions. Inside the body of `while lt i n`, `i < n` is true, and on the branch where the condition is false, `i ≥ n` is true. One
 slot is used instead of heavy relational domains (octagons, polyhedra) because of the shape of real code. Code walking an array is almost always shaped
-`while lt i (len s)`, and capturing the shape of real code exactly is worth more than sophisticated theory.
+`while lt i. len s. . .`, and capturing the shape of real code exactly is worth more than sophisticated theory.
 
 The rules for facts have three parts.
 
@@ -98,13 +98,13 @@ instruction position, operation, rule used, and the ranges the rule used.
 
 #demo("examples/ch41/bound_stages.low")
 
-- *1 · Direct.* In `direct` the loop condition looks at `len s` directly. `idx` was removed by `R-IDX-LENLT`.
+- *1 · Direct.* In `direct` the loop condition looks at `len s. .` directly. `idx` was removed by `R-IDX-LENLT`.
 - *2 · Length stored in a local.* `stored` puts the length in a local with `let n len s`. It is a very common idiom. At one time the fact "this value is
-  `len s`" was a property of a stack value that vanished the moment it was stored in a local, and this loop's check stayed. Since the fact is now carried by
+  `len s. .`" was a property of a stack value that vanished the moment it was stored in a local, and this loop's check stayed. Since the fact is now carried by
   locals too, it is removed just like stage 1. This was a performance fix, not a safety fix --- the check was there, so it was safe all along.
 - *3 · Capacity from a contract.* In `capacity` the array size and loop bound are different variables. `j < cap` (loop condition) and `len s ≥ cap`
   (contract), so `j < len s`.
-- *4 · Row-major address.* `grid` uses a *computed* index, `idx a (add (mul i n) k)`. Neither intervals nor one-slot relations handle products, yet it was
+- *4 · Row-major address.* `grid` uses a *computed* index, `idx a. add mul i. n. . k. . .`. Neither intervals nor one-slot relations handle products, yet it was
   removed by `R-IDX-ROWMAJOR`. The product and sum of the address were proven along with it, by `R-MUL-CAP` and `R-ROW-CAP`.
 
 The additions incrementing `i` and `j` vanished too, via `R-ADD-LENLT` and `R-ADD-LEREL`, thanks to the same relations. If `i < n` then `i + 1 ≤ n`, so it does
@@ -143,7 +143,7 @@ was reached it did not overflow. Where bounds checks were removed, the contract 
 modes nor optimisation.
 
 In the development repository's measurements, this rule cut the bounds checks of a matrix multiplication benchmark from 6 to 1 (the remaining one is
-`idx c 0`, where `n ≥ 1` is missing from the contract), and those of an LRU benchmark whose contract states capacity from 10 to 4.
+`idx c. 0 .`, where `n ≥ 1` is missing from the contract), and those of an LRU benchmark whose contract states capacity from 10 to 4.
 
 #misconception[Fewer checks mean proportionally faster][
   The number of checks is not a proxy for cost. A check that never fires and is always branch-predicted correctly is practically free, and one benchmark cut
@@ -159,7 +159,7 @@ Theorems say the rules are right, but whether the compiler applied them exactly 
 *Analysis self-accusation.* The VM does not remove checks. It runs the places the compiler marked "may be removed", and if a value is actually out of range, it
 accuses the compiler right there with `E-VM-ANALYSIS: … the interval/relational analysis is UNSOUND (this is a compiler bug)`. The native build has no checks and
 is fast, the VM has checks and reports when the mark is false, and the back-end cross-check runs both on the same inputs. This device has actually worked. While
-adding the row-major rule, `requires ge (len a) (mul n n)` was believed to be a checked contract, but the processor could not read a contract of that shape, so
+adding the row-major rule, `requires ge len a. . mul n. n. . .` was believed to be a checked contract, but the processor could not read a contract of that shape, so
 there was really no check, and exactly this diagnostic appeared. *Trust only what is checked.*
 
 #idx("certificate recheck")
@@ -193,9 +193,9 @@ Some checks do not go away even with contracts. These are the places measured.
   id: "bounds-remain",
   caption: [Checks that remain, and why],
   [*Remaining place*], [*Why it cannot be removed*],
-  [`idx c 0` in matrix multiplication], [`n ≥ 1` is missing from the contract (adding it closes it)],
-  [`idx keys lru_idx` in LRU], [It merges `0` and `j`, so the relational fact dies at the merge],
-  [`idx s i` in the sieve (`while lt (mul i i) n`)], [`i·i < n ⟹ i < n` is another nonlinear shape, rare in real code, so no rule was made],
+  [`idx c. 0 .` in matrix multiplication], [`n ≥ 1` is missing from the contract (adding it closes it)],
+  [`idx keys. lru_idx. .` in LRU], [It merges `0` and `j`, so the relational fact dies at the merge],
+  [`idx s. i. .` in the sieve (`while lt mul i. i. . n. .`)], [`i·i < n ⟹ i < n` is another nonlinear shape, rare in real code, so no rule was made],
   [Partition indices in sorting], [There is nowhere to carry `hi ≤ len s` non-strictly (relations are strict only for now)],
 )
 

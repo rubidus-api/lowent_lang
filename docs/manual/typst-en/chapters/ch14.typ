@@ -11,9 +11,9 @@
 )
 
 #deepqa[
-  What did the single line `requires le n (len a) .` do in #chref("slices")'s `sum_first`? And why must an index itself not use `le`?
+  What did the single line `requires le n. len a. . . .` do in #chref("slices")'s `sum_first`? And why must an index itself not use `le`?
 ][
-  It gathered the check into one check on entry and let the be (bounds check on `idx a i` inside the loop) removed. With `le` on an index,
+  It gathered the check into one check on entry and let the be (bounds check on `idx a. i. .` inside the loop) removed. With `le` on an index,
   `i = len a` would be allowed, and that is one past the end, so indices use `lt`. This chapter covers all of it: what that contract is, who
   keeps it, and when it is checked and when it disappears.
 ]
@@ -99,14 +99,14 @@ zero, narrowing and slice bounds checks. So in this language *writing honestly m
 ```lowent
 fn bare input a u8 . output u8 .
 do
-  return add a 1 .          rem the overflow check remains
-end
+  return add a. 1 . .          rem the overflow check remains
+end .
 
 fn proven input a u8 . output u8 .
-  requires le a 200 .
+  requires le a. 200 . .
 do
-  return add a 1 .          rem no check --- it cannot exceed 201
-end
+  return add a. 1 . .          rem no check --- it cannot exceed 201
+end .
 ```
 
 The two ops have the same body. The only difference is one line of contract, and that line removes a run-time check. What the processor thinks is this short:
@@ -131,7 +131,7 @@ that say it instead.
 
 #demo("examples/ch14/elems.low")
 
-`elem_le ds 9` means every element is at most 9. There are also `elem_lt`, `elem_gt` and `elem_ge`. The condition is checked once on entry, and
+`elem_le ds. 9 .` means every element is at most 9. There are also `elem_lt`, `elem_gt` and `elem_ge`. The condition is checked once on entry, and
 the arithmetic in the body uses the fact that the elements are at most 9.
 
 == Naming a contract
@@ -140,7 +140,7 @@ When several ops require the same condition, give the condition a name.
 
 #demo("examples/ch14/named.low")
 
-`contract positive do … end` is a named contract, and an op adopts it with `satisfies positive .` at the very front of its head. Repeating the
+`contract positive do … end .` is a named contract, and an op adopts it with `satisfies positive .` at the very front of its head. Repeating the
 same condition by hand in several places means fixing one and forgetting another; a name leaves one place to fix. `satisfies` comes *first* in
 the head because it says what the op is first (#chref("surface")).
 
@@ -158,7 +158,7 @@ never happen.
 
 #demo("examples/ch14/dead.low")
 
-With `requires ne b 0 .`, `errors by_zero eq b 0 .` can never be true. If the declaration stays, callers write code to handle `by_zero`, and that
+With `requires ne b. 0 . .`, `errors by_zero eq b 0 .` can never be true. If the declaration stays, callers write code to handle `by_zero`, and that
 code never runs. Code that never runs is never tested, and untested code is wrong someday. The diagnostic says to remove one of the two ---
 either make it the caller's responsibility (`requires`) or have the op handle it itself (`errors`).
 
@@ -185,7 +185,7 @@ A grade on a single contract clause decides when and how its condition is treate
 
 #demo("examples/ch14/grades.low")
 
-The same condition is written two ways. `bump_checked` rejects 250 on entry and then removes the overflow check in `add a 1`. `bump_assumed` does
+The same condition is written two ways. `bump_checked` rejects 250 on entry and then removes the overflow check in `add a. 1 .`. `bump_assumed` does
 not check on entry. In exchange it does not use the condition as a fact either, so the overflow check *remains*. That is why giving it 255 stops
 with overflow (`E-VM-OVERFLOW`), not with a contract violation.
 
@@ -220,7 +220,7 @@ boundary, where *a person promises* the contracts are true. It is one reason the
 #realcase[Entry checks the processor cannot build][
   Not every expression in a contract can become an entry check. The processor in this edition builds entry checks from `requires` of shapes like
   `name comparison constant`, `len`, `elem_*` and field paths, and reports `W-CONTRACT-IGNORED` when it meets an expression it cannot build. While
-  writing this book it turned out that an `ensures` containing an expression (`ensures le (mul ret 2) n .`) was not checked, without any warning. An
+  writing this book it turned out that an `ensures` containing an expression (`ensures le mul ret. 2 . n. . .`) was not checked, without any warning. An
   unenforced contract is not used as a fact either, so no wrong optimisation results, but the fact that a promise goes unchecked should be
   reported. That is a place where the processor ought to speak, so it is a defect of this edition.
 ]
@@ -238,7 +238,7 @@ boundary, where *a person promises* the contracts are true. It is one reason the
 #antipattern[Writing an index precondition with `le`][
   #demo("examples/ch14/mistake_leindex.low")
 
-  The slots of a slice of length 3 are 0, 1 and 2. `requires le i (len xs)` also allows `i = 3`, so the contract passes and the
+  The slots of a slice of length 3 are 0, 1 and 2. `requires le i. len xs. . .` also allows `i = 3`, so the contract passes and the
   following `idx` stops with `E-VM-BOUNDS` trying to read one slot past the end. When a contract is wrong, the stop moves from the
   contract into the body, and the diagnostic says "out of bounds" instead of "the caller's fault". Use `lt` for indexes; `le` is
   right for counts ("read `n` items").
@@ -268,11 +268,11 @@ boundary, where *a person promises* the contracts are true. It is one reason the
   id: "contracts-glance",
   caption: [Contract syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`requires le a 200 .`], [condition on entry --- the caller's responsibility], [gathers checks into one at entry and removes checks in the body],
-  [`ensures le ret 100 .`], [promise on exit --- this op's responsibility], [`ret` is the returned value --- callers use it as a fact],
+  [`requires le a. 200 . .`], [condition on entry --- the caller's responsibility], [gathers checks into one at entry and removes checks in the body],
+  [`ensures le ret. 100 . .`], [promise on exit --- this op's responsibility], [`ret` is the returned value --- callers use it as a fact],
   [`errors too_big gt a 200 .`], [promise to return this error under this condition], [a contract on the way out --- errors are promised too],
-  [`requires elem_le ds 9 .`], [a condition on every element], [contracts are expressions, so no loops],
-  [`contract positive do … end`], [give a contract a name], [one place to change a shared condition],
+  [`requires elem_le ds. 9 . .`], [a condition on every element], [contracts are expressions, so no loops],
+  [`contract positive do … end .`], [give a contract a name], [one place to change a shared condition],
   [`fn half satisfies positive . …`], [adopt a named contract (first in the head)], [say what the op is first],
   [`requires static …` · `debug` · `assume`], [contract grades], [decide per clause when and how it is checked --- `assume` is not a fact],
   [`build release_fast .`], [remove unproven contract checks], [the choice of speed stays in the source],

@@ -15,17 +15,17 @@ module lenrel .
 export proc copy_at input a slice u8 . input b mut slice u8 . input i u64 .
   output u64 .
   effects none .
-  requires le (len a) (len b) . requires lt i (len a) .
+  requires le len a. . len b. . . . requires lt i. len a. . . .
 do
-  set (idx b i) (idx a i) .
-  return (idx b i) .
-end
+  set idx b. i. . idx a. i. . .
+  return idx b. i. . .
+end .
 
 rem 「긴 쪽은 비어 있을 수 없다」 — 엄격 관계가 주는 하한(상수 색인이 이 한 줄로 닫힌다).
 export proc head input a slice u8 . input b mut slice u8 .
   output u64 .
-  effects none . requires lt (len a) (len b) .
+  effects none . requires lt len a. . len b. . . .
 do
-  set (idx b 0) 7 .
-  return (idx b 0) .
-end
+  set idx b. 0 . 7 .
+  return idx b. 0 . .
+end .

@@ -27,79 +27,79 @@ use allocs from "../../../lib/alloc.low" .
 
 proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ① 작업 대기열(평범한 배열 — 링 버퍼는 ring.low 이 따로 시험한다) ─────
-  let bufo option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some bufo else return 91 .
-  var buf mut slice u64 view_array u64 (some_value bufo) .
+  let bufo option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some bufo. . else return 91 . .
+  var buf mut slice u64 view_array u64 some_value bufo. . . .
   var qn u64 0 .
 
   rem ── ② pool: 블록 8 개 × 16 바이트, 세대 배열 나란히 ───────────────────
-  let pmo option mut slice u8 alloc_bytes al capacity 128 .
-  guard is_some pmo else return 92 .
-  var pmem mut slice u8 some_value pmo .
-  let pgo option mut slice u8 alloc_bytes al capacity 64 .
-  guard is_some pgo else return 93 .
-  var pgen mut slice u64 view_array u64 (some_value pgo) .
-  let plo option (pool.block_pool jobs) pool.init jobs pmem pgen 16 .
-  guard is_some plo else return 95 .
-  var pl (pool.block_pool jobs) some_value plo .
-  guard eq (pool.blocks jobs pl) 8 else return 2 .
+  let pmo option mut slice u8 alloc_bytes al. capacity 128 . .
+  guard is_some pmo. . else return 92 . .
+  var pmem mut slice u8 some_value pmo. . .
+  let pgo option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some pgo. . else return 93 . .
+  var pgen mut slice u64 view_array u64 some_value pgo. . . .
+  let plo option (pool.block_pool jobs) pool.init jobs. pmem. pgen. 16 . .
+  guard is_some plo. . else return 95 . .
+  var pl (pool.block_pool jobs) some_value plo. . .
+  guard eq pool.blocks jobs. pl. . 8 . else return 2 . .
 
   rem ── ③ mapgen: id → 결과 · vecgen: 처리 순서 ──────────────────────────
-  let amo option mut slice u8 alloc_bytes al capacity 1024 .
-  guard is_some amo else return 94 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c0 u64 send bump init (some_value amo) .
-  let tbo use bump option (mapgen.table u64 u64) mapgen.open u64 u64 8 .
-  guard is_some tbo else return 3 .
-  var tb (mapgen.table u64 u64) some_value tbo .
-  let vco use bump option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64 2 .
-  guard is_some vco else return 4 .
-  var order (vecgen.vec u64 allocs.bump_bytes) some_value vco .
+  let amo option mut slice u8 alloc_bytes al. capacity 1024 . .
+  guard is_some amo. . else return 94 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c0 u64 send bump. init some_value amo. . . .
+  let tbo use bump. option (mapgen.table u64 u64) mapgen.open u64. u64. 8 . .
+  guard is_some tbo. . else return 3 . .
+  var tb (mapgen.table u64 u64) some_value tbo. . .
+  let vco use bump. option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64. 2 . .
+  guard is_some vco. . else return 4 . .
+  var order (vecgen.vec u64 allocs.bump_bytes) some_value vco. . .
 
   rem ── ④ 생산: 작업 id 다섯을 민다 ──────────────────────────────────────
   var i u64 0 .
-  while lt i 5 do
-    set (idx buf i) (add 100 i) .
-    set qn (add qn 1) .
-    set i (add i 1) .
-  end
-  guard eq qn 5 else return 6 .
+  while lt i. 5 . do
+    set idx buf. i. . add 100 i. . .
+    set qn. add qn. 1 . .
+    set i. add i. 1 . .
+  end .
+  guard eq qn. 5 . else return 6 . .
 
   rem ── ⑤ 소비: 꺼내면서 블록을 빌리고, 결과를 색인하고, 순서를 남긴다 ────
   var done u64 0 .
-  while lt done 5 do
-    let id u64 idx buf done .
+  while lt done. 5 . do
+    let id u64 idx buf. done. . .
     rem 블록을 빌린다 — 작업 하나가 쓰는 자리다.
-    let ho option (pool.handle jobs) pool.take jobs pl .
-    guard is_some ho else return 8 .
-    let h (pool.handle jobs) some_value ho .
-    guard (pool.alive jobs pl h) else return 9 .
+    let ho option (pool.handle jobs) pool.take jobs. pl. . .
+    guard is_some ho. . else return 8 . .
+    let h (pool.handle jobs) some_value ho. . .
+    guard pool.alive jobs. pl. h. . else return 9 . .
     rem 결과 = id × 2. 색인에 넣고, 처리 순서를 벡터에 쌓는다.
-    guard mapgen.insert u64 u64 tb id (mul id 2) else return 10 .
-    guard vecgen.append u64 allocs.bump_bytes order id else return 11 .
+    guard mapgen.insert u64. u64. tb. id. mul id. 2 . . else return 10 . .
+    guard vecgen.append u64. allocs.bump_bytes. order. id. . else return 11 . .
     rem 블록을 돌려준다 — 세대가 올라가 옛 핸들은 죽는다.
-    guard (pool.release jobs pl h) else return 12 .
-    guard not (pool.alive jobs pl h) else return 13 .
-    set done (add done 1) .
-  end
-  guard eq done 5 else return 14 .
+    guard pool.release jobs. pl. h. . else return 12 . .
+    guard not pool.alive jobs. pl. h. . . else return 13 . .
+    set done. add done. 1 . .
+  end .
+  guard eq done. 5 . else return 14 . .
 
   rem ── ⑥ 대조: 색인·순서·풀이 서로 맞는가 ──────────────────────────────
-  guard eq (mapgen.count_of u64 u64 tb) 5 else return 15 .
-  let r102 option u64 mapgen.lookup u64 u64 tb 102 .
-  guard is_some r102 else return 16 .
-  guard eq (some_value r102) 204 else return 17 .
-  guard not (mapgen.has u64 u64 tb 999) else return 18 .
+  guard eq mapgen.count_of u64. u64. tb. . 5 . else return 15 . .
+  let r102 option u64 mapgen.lookup u64. u64. tb. 102 . .
+  guard is_some r102. . else return 16 . .
+  guard eq some_value r102. . 204 . else return 17 . .
+  guard not mapgen.has u64. u64. tb. 999 . . else return 18 . .
 
-  guard eq (vecgen.count_of u64 allocs.bump_bytes order) 5 else return 19 .
-  let f0 option u64 vecgen.at u64 allocs.bump_bytes order 0 .
-  guard is_some f0 else return 20 .
-  guard eq (some_value f0) 100 else return 21 .
-  let f4 option u64 vecgen.at u64 allocs.bump_bytes order 4 .
-  guard is_some f4 else return 22 .
-  guard eq (some_value f4) 104 else return 23 .
+  guard eq vecgen.count_of u64. allocs.bump_bytes. order. . 5 . else return 19 . .
+  let f0 option u64 vecgen.at u64. allocs.bump_bytes. order. 0 . .
+  guard is_some f0. . else return 20 . .
+  guard eq some_value f0. . 100 . else return 21 . .
+  let f4 option u64 vecgen.at u64. allocs.bump_bytes. order. 4 . .
+  guard is_some f4. . else return 22 . .
+  guard eq some_value f4. . 104 . else return 23 . .
 
   rem 빌린 것을 모두 돌려줬으니 미반납은 0 이어야 한다.
-  guard eq (pool.outstanding jobs pl) 0 else return 24 .
+  guard eq pool.outstanding jobs. pl. . 0 . else return 24 . .
   return 42 .
-end
+end .

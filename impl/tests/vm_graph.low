@@ -16,8 +16,8 @@ fn node_count_of
   input g graph .
   output u64 .
 do
-  return idx g 0 .
-end
+  return idx g. 0 . .
+end .
 
 fn children_of
   input g graph .
@@ -26,12 +26,12 @@ fn children_of
 do
   var at u64 1 .
   var i u64 0 .
-  while lt i node do
-    set at expr at + (idx g at) + 1 .
-    set i expr i + 1 .
-  end
-  return subslice g (add at 1) (add (add at 1) (idx g at)) .
-end
+  while lt i. node. . do
+    set at. expr at. + (idx g. at. .) + 1 . .
+    set i. expr i. + 1 . .
+  end .
+  return subslice g. add at. 1 . add add at. 1 . idx g. at. . . . .
+end .
 
 proc graph_reachable
   input temp region frame .
@@ -41,18 +41,18 @@ proc graph_reachable
   output void .
   effects alloc .   rem ★ `stack_new` 은 alloc 이다 — 중첩돼 있어서 안 보였다
 do
-  let work stack node_id stack_new temp capacity node_count_of g .
-  push work root .
-  while pop work into node do
-    if bitset_contains out node do
+  let work stack node_id stack_new temp capacity node_count_of g . .
+  push work. root. .
+  while pop work. into node. . do
+    if bitset_contains out. node. . do
       continue .
-    end
-    bitset_insert out node .
-    for child children_of g node do
-      push work child .
-    end
-  end
-end
+    end .
+    bitset_insert out. node. .
+    for child children_of g. node. . do
+      push work. child. .
+    end .
+  end .
+end .
 
 rem ★★★ **할당 = 명시 권한** (RFC-0043 D1). 이 op 은 할당한다(`bitset_new`) — 그러면
 rem   **어디서 할당하는지**를 건네받아야 한다. 전엔 아무것도 안 받고 할당했다: **ambient 힙**.
@@ -64,7 +64,7 @@ proc reach
   output u64 .
   effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
 do
-  var out bitset bitset_new 64 .
-  graph_reachable temp g root out .
-  return count out .
-end
+  var out bitset bitset_new 64 . .
+  graph_reachable temp. g. root. out. .
+  return count out. . .
+end .

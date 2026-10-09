@@ -68,7 +68,7 @@ asking reserve 4: only 3 bytes are left → none (running short is a value too)
 
 - `spawn actor allocs.bump_bytes` makes the allocator, and `send a init buf` hands it the bytes to cut. This allocator cannot make memory by itself --- the
   discipline of never allocating secretly.
-- `send a reserve 3` cuts off 3 bytes. What comes back is not a copy but a slice pointing at part of the original, so `set (idx pv 0) 65 .` changes the first
+- `send a reserve 3` cuts off 3 bytes. What comes back is not a copy but a slice pointing at part of the original, so `set idx pv. 0 . 65 .` changes the first
   byte of the caller's `buf`. The argument `[65,0,…]` the VM shows is the trace.
 - `send a reserve 99` gives `none` because there is not enough space. Not a trap. *Running out of memory is a value*, and the caller checks it.
 
@@ -93,8 +93,8 @@ Code that uses an allocator need not know which implementation it is. It takes t
 - `input comptime a type .` is the allocator's type, fixed to a concrete type at translation (#chref("generics")).
 #idx("using")
 - `using al a .` receives the allocator value of that type under the name `al`. `using` is not an input. The caller does not write it in an argument position but
-  in the binding, as `let n use b u64 two_from .`.
-- `requires allocs.byte_allocator a .` is the condition that `a` satisfies the trait (#chref("traits")).
+  in the binding, as `let n use b. u64 two_from. .`.
+- `requires allocs.byte_allocator a. . .` is the condition that `a` satisfies the trait (#chref("traits")).
 - `effects state via a .` means the effects of the allocator's `reserve` are this op's effects.
 
 Given `bump_bytes`, the same `two_from` uses 3 + 5 = 8; given `bump_aligned`, which aligns start positions to multiples of 8, the second piece starts at 8 and it
@@ -173,7 +173,7 @@ A bump allocator only moves forward. Even so, *the piece it handed out last* is 
 
 #idx("same_slice")
 - `send b grow pv 6` grows `pv` from 4 bytes to 6. What it grows is *the piece itself*, not a size. The implementation checks with the core op
-  `same_slice a b` (same start address and same length?) that `pv` is exactly the bytes it just handed out. Pass someone else's buffer of the same length
+  `same_slice a. b. .` (same start address and same length?) that `pv` is exactly the bytes it just handed out. Pass someone else's buffer of the same length
   and the answer is `none`. Recognising a piece by size alone would let two containers overlap without a sound.
 - After `qv` is handed out, `gv` is no longer the last piece. So `release gv` is `false` and changes nothing.
 - `release qv` is `true`. The cursor goes back to 6, so `used` is 6. The answer 601 reads "used 6 · first answer false · second answer true".
@@ -213,7 +213,7 @@ when the block that declared the name ends. The same happens when the block is l
 - After they are given back, the bytes belong to something else. Carrying them out of the block (`return t`, or storing them in a
   name further out) is `E-LIT-ESCAPE`.
 - Bytes from an allocator that cannot take pieces back (`fixed_bytes`, `heap_bytes`) stay with the allocator.
-- To give the bytes back before the block ends, write `drop t .`. The block end then does not give them back again. Using `t` after
+- To give the bytes back before the block ends, write `drop t. .`. The block end then does not give them back again. Using `t` after
   the `drop` is `E-OWN-MOVED`, and a `drop` in an inner block (one side of an `if`, say) is `E-OWN-JOIN`.
 - Nothing is given back when the program stops with `panic`.
 
@@ -234,10 +234,10 @@ A struct value is built in an allocator's bytes with the same spelling. The bind
 
 #demo("examples/ch20/structalloc.low")
 
-- `var q use bb pt lit pt do … end else return 0 .` asks `bb` for `size_of pt` bytes (16 here). If it gets them, it fills
+- `var q use bb. pt lit pt do … end . else return 0 . .` asks `bb` for `size_of pt .` bytes (16 here). If it gets them, it fills
   them with zeros, lays the struct's layout over them as `view` does, and writes the fields you gave. `used` is 16 while `q` lives,
   so the answer is 1607.
-- Fields are read and written as in any struct (`field q y`, `set (field q y) …`). The bytes are given back when the block ends, as
+- Fields are read and written as in any struct (`field q. y .`, `set field q. y . …`). The bytes are given back when the block ends, as
   in the previous section.
 - Only a struct with a byte layout is accepted --- every field must be a sized number. A struct with a slice, `owned` or array field
   has no representation in allocator bytes yet and is `E-LIT-UNBUILT`.
@@ -359,18 +359,18 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   id: "fixed-memory-glance",
   caption: [Allocator syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`var a allocs.bump_bytes spawn actor allocs.bump_bytes .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
+  [`var a allocs.bump_bytes spawn actor allocs.bump_bytes . .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
   [`send a init buf`], [attach the bytes to hand out], [an allocator never creates memory behind your back],
   [`send a reserve 3` · `send a used`], [request a piece (`option`) · amount used], [shortage is a value, not a trap],
   [`input comptime a type .`], [receive the allocator's type (policy) at translation time], [swapping costs nothing at run time],
   [`using al a .`], [receive an allocator value of that type --- not an input], [it does not sit among the call's arguments],
-  [`let n use g u64 two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
-  [`effects state via a .` · `requires allocs.byte_allocator a .`], [inherit the type's effects · trait condition], [exact effects per instance],
+  [`let n use g. u64 two_from. .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
+  [`effects state via a .` · `requires allocs.byte_allocator a. . .`], [inherit the type's effects · trait condition], [exact effects per instance],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
   [no source · an unused `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
   [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
-  [`bit_cast u32 x`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
+  [`bit_cast u32 x. .`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 
 #recap[

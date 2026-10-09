@@ -65,7 +65,7 @@ processor never guesses a type.
 
 #demo("examples/ch06/infer.low")
 
-In `let b u8 add a 1 .`, `b` is a `u8`, so adding 1 to 255 overflows `u8` and stops. The width is the boundary of overflow
+In `let b u8 add a. 1 . .`, `b` is a `u8`, so adding 1 to 255 overflows `u8` and stops. The width is the boundary of overflow
 (#chref("numbers")), so when the type is visible in the source, the places that can stop are visible with it.
 
 Leaving the type out --- `let x 300 .` --- is rejected with `E-LET-NOTYPE`. When guessing was allowed, that bare literal slipped past the
@@ -174,7 +174,7 @@ from each branch. When the value is one of several cases over and over, `match` 
   [the value after the type], [always required], [there is no such thing as an uninitialised variable],
   [the end of a block], [locals declared inside it disappear], [names live close to where they are used],
   [re-declaring an outer name inside], [rejected (`E-NAME-SHADOW`)], [the same letters point to one value only],
-  [`eq a b`], [ask whether two values are equal], [there is no `=` --- assignment and equality never mix],
+  [`eq a. b. .`], [ask whether two values are equal], [there is no `=` --- assignment and equality never mix],
 )
 
 #recap[

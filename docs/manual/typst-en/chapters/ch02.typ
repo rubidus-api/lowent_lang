@@ -115,8 +115,8 @@ Slice arguments are given in brackets. The next op computes the mean of a byte s
 
 #demo("examples/ch01/stats.low")
 
-`requires gt (len xs) 0 .` is a *contract*. The caller promises not to pass an empty slice. Because of that promise, the body's
-`div total (len xs)` need not worry about dividing by zero. The line `arg0 (written) = [3,4,8]` below the result is the VM showing
+`requires gt len xs. . 0 . .` is a *contract*. The caller promises not to pass an empty slice. Because of that promise, the body's
+`div total. len xs. . .` need not worry about dividing by zero. The line `arg0 (written) = [3,4,8]` below the result is the VM showing
 the final state of the slice argument.
 
 == How a contract stops execution
@@ -183,7 +183,7 @@ Reading program arguments is a capability too. The next program greets its first
 
 #demo("examples/ch02/greet.low")
 
-`input a cap args .` receives the argument capability, and `arg a 0` reads the first argument. There may be no argument, so the
+`input a cap args .` receives the argument capability, and `arg a. 0 .` reads the first argument. There may be no argument, so the
 result is `option slice u8`. `guard is_some who else …` leaves on the spot when there is no value, and below it you may trust that
 the value exists (#chref("option-result")). Capability inputs come before data inputs, and the two capabilities take argument
 positions in the order written.
@@ -241,8 +241,8 @@ These are the rejections and stops you meet most often in a first program. When 
   [`proc main input out cap io . output u8 . effects io .`], [where the program starts], [rights received, exit code returned and what it does are all in the head],
   [`do … end`], [a body], [an opener and a closer that pair up],
   [`write_out out 1 "…"`], [write to standard output (1) and return the byte count], [the capability `out` comes first --- no right, no writing],
-  [`narrow u8 n`], [narrow to `u8` (stops if it does not fit)], [so values never change silently],
-  [`requires c .` · `test t do … end` · `expect c .`], [contract · test block · assertion inside a test], [promises are checked; tests run separately],
+  [`narrow u8 n. .`], [narrow to `u8` (stops if it does not fit)], [so values never change silently],
+  [`requires c .` · `test t do … end .` · `expect c .`], [contract · test block · assertion inside a test], [promises are checked; tests run separately],
   [`lowentc --check f.low`], [check only], [the command line shows what was done --- there is no default mode],
   [`lowentc --run op f.low args…`], [run one op on the VM], [try any op in the file on its own],
   [`lowentc --emit-c f.low > f.c`], [emit C for a native build], [so the result can be compared with the VM],

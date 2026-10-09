@@ -23,22 +23,22 @@ use strings from "../../../lib/str.low" .
 
 fn ws output slice u8 . do
   return " " .
-end
+end .
 
 rem 인자에서 이름을 고른다 — **순수**하다(출력과 무관하므로 따로 시험할 수 있다).
 fn pick_name input given option slice u8 . output slice u8 . do
-  guard is_some given else return "world" .
-  let trimmed slice u8 strings.trim_end (strings.trim_start (some_value given) (ws)) (ws) .
-  guard gt (len trimmed) 0 else return "world" .
-  return trimmed .
-end
+  guard is_some given. . else return "world" . .
+  let trimmed slice u8 strings.trim_end strings.trim_start some_value given. . ws. . ws. . .
+  guard gt len trimmed. . 0 . else return "world" . .
+  return trimmed. .
+end .
 
 proc main input out cap io . input a cap args . output u8 . effects io . do
-  let name slice u8 pick_name (arg a 0) .
+  let name slice u8 pick_name arg a. 0 . . .
   var total u64 0 .
-  set total (add total (write_out out 1 "hello, ")) .
-  set total (add total (write_out out 1 name)) .
-  set total (add total (write_out out 1 "!\n")) .
+  set total. add total. write_out out. 1 "hello, " . . .
+  set total. add total. write_out out. 1 name. . . .
+  set total. add total. write_out out. 1 "!\n" . . .
   rem 답은 쓴 바이트 수 — 종료 코드로 관측된다(RFC-0030 D3).
-  return (narrow u8 total) .
-end
+  return narrow u8 total. . .
+end .

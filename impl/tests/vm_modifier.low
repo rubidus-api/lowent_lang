@@ -18,23 +18,23 @@ rem **그것을 말한다**(W-NOT-YET). 조용히 무시하는 것이 죄다(PRI
 
 module vm_modifier .
 
-export fn e output u8 . do return 7 . end
+export fn e output u8 . do return 7 . end .
 rem ★★★ **`unsafe` 규율이 이제 강제된다**(2026-07-14). 전엔 이 op 이 `unsafe` 라고 적어 놓고
 rem   `effects none` 이었다 — **아무것도 사지 않는 unsafe** 다. 그것은 **거짓 경보**이고,
 rem   거짓 경보는 **진짜 경보를 안 읽게 만든다.**
 rem   ⇒ 수식자와 효과는 **짝이어야 한다**: 효과가 있으면 수식자가 있어야 하고(E-UNSAFE-UNDECLARED),
 rem     수식자가 있으면 효과가 있어야 한다(E-UNSAFE-UNUSED).
 rem   ★ 효과는 **무엇을 하는지**를 말하고, 수식자는 **누가 책임지는지**를 말한다.
-unsafe proc u output u8 . effects unsafe . do return 8 . end
-fn l output u8 . do return 9 . end
+unsafe proc u output u8 . effects unsafe . do return 8 . end .
+fn l output u8 . do return 9 . end .
 
 rem ★ 그리고 **효과는 호출 사슬을 타고 전파된다**: `u` 가 unsafe 이므로 이것도 unsafe 다.
 rem   순수(`fn`)로는 부를 수 없다 — 그것이 효과 체계의 전부다.
 unsafe proc total output u8 . effects unsafe . do
-  var a u8 e .
-  let b u8 u .
-  let c u8 l .
-  set a expr a + b .
-  set a expr a + c .
-  return a .
-end
+  var a u8 e. .
+  let b u8 u. .
+  let c u8 l. .
+  set a. expr a. + b. . .
+  set a. expr a. + c. . .
+  return a. .
+end .

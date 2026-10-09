@@ -8,19 +8,19 @@ module sorted_search .
 def struct pt do
   x i32 .
   y i32 .
-end
+end .
 
 fn sorted
   input xs slice u32 .
   output bool .
 do
   let i usize 1 .
-  while lt i (len xs) do
+  while lt i. len xs. . . do
     return false .
-  end
+  end .
   return true .
-end
+end .
 
 fn origin output pt . do
-  return lit pt do x 10 . y 20 . end .
-end
+  return lit pt do x 10 . y 20 . end . .
+end .

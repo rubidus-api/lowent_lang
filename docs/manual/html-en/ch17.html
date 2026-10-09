@@ -664,7 +664,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <a class="skip" href="#content">Skip to content</a>
 <div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 17 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch16.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch18.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch17.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s17-1"><span class="tf-no">17.1</span>The boundary and the inside</a><a class="lv3" href="#s17-2"><span class="tf-no">17.2</span>How to split an error enum</a><a class="lv3" href="#s17-3"><span class="tf-no">17.3</span>Moving up the layers</a><a class="lv3" href="#s17-4"><span class="tf-no">17.4</span>Where information may be thrown away</a><a class="lv3" href="#s17-5"><span class="tf-no">17.5</span>Where panic is acceptable</a><a class="lv3" href="#s17-6"><span class="tf-no">17.6</span>Common mistakes</a><a class="lv3" href="#s17-7"><span class="tf-no">17.7</span>This chapter’s syntax at a glance</a></div></div>
 <main id="content"><div class="wrap">
-<h2>17 Designing failure</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 11, Types that hold answers · three ways to report failure</div><div>chapter 14, Contracts · <code>requires</code> is the caller’s responsibility, <code>errors</code> the op’s</div><div>chapter 16, Capabilities · the entry point shows where the program touches the outside</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>What question did chapter 11 use to separate <code>result</code>, <code>option</code> and <code>panic</code>?</p><div class="qa-a"><p><span class="dev-label">A.</span> “What can the caller do?” If another path can be tried, <code>result</code>; if the thing is simply absent, <code>option</code>; if the caller already broke a promise and it cannot be fixed, stop. This chapter applies that question not to one op but to <strong>every layer</strong> of a program.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">Knowing all the grammar does not by itself decide where and how failure should be reported. The same “invalid port number” must be a <code>result</code> in the layer reading a configuration file, and a contract in an inner layer that has already checked it. Get this wrong and checks repeat in layer after layer, or no layer checks at all. As the last chapter of Part IV, it lays out how to use contracts, errors and capabilities together to place failure.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn the design that separates values coming from outside from inner invariants, reporting with <code>result</code> at the boundary and with contracts inside. You will see the criteria for splitting error enums and what to put in <code>errors</code> clauses, and for deciding whether to pass failures up with <code>try</code> or handle them on the spot as they move up the layers. You will also see where it is fine to throw information away with <code>option</code>, and where <code>panic</code> is acceptable.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>How does an error written without a condition, like <code>errors not_digit .</code>, differ from one with a condition, like <code>errors empty eq (len s) 0 .</code>?</li></ol></div></div><div></div><h3 id="s17-1">17.1 The boundary and the inside<a class="plink" href="#s17-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A program has <strong>places where values come in from outside</strong>: program arguments, file contents, bytes from the network, user input. Such values carry no promises. And there is an <strong>inside</strong> where values that passed a check flow around.</p><p>The first principle of the design is to separate the two.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Place</strong></th><th><strong>Nature of values</strong></th><th><strong>How to report</strong></th></tr><tr><td>Boundary (parsing, input)</td><td>Anything can arrive</td><td><code>result</code> and <code>errors</code></td></tr><tr><td>Inside (computation)</td><td>Already passed a check</td><td><code>requires</code> · <code>range</code> · <code>newtype</code></td></tr><tr><td>No layer can handle it</td><td>A state that must not exist</td><td><code>panic</code></td></tr></table></div><p class="float-caption">Table 17.1 — Where failure is reported</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/parse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> parse .
+<h2>17 Designing failure</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 11, Types that hold answers · three ways to report failure</div><div>chapter 14, Contracts · <code>requires</code> is the caller’s responsibility, <code>errors</code> the op’s</div><div>chapter 16, Capabilities · the entry point shows where the program touches the outside</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>What question did chapter 11 use to separate <code>result</code>, <code>option</code> and <code>panic</code>?</p><div class="qa-a"><p><span class="dev-label">A.</span> “What can the caller do?” If another path can be tried, <code>result</code>; if the thing is simply absent, <code>option</code>; if the caller already broke a promise and it cannot be fixed, stop. This chapter applies that question not to one op but to <strong>every layer</strong> of a program.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">Knowing all the grammar does not by itself decide where and how failure should be reported. The same “invalid port number” must be a <code>result</code> in the layer reading a configuration file, and a contract in an inner layer that has already checked it. Get this wrong and checks repeat in layer after layer, or no layer checks at all. As the last chapter of Part IV, it lays out how to use contracts, errors and capabilities together to place failure.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn the design that separates values coming from outside from inner invariants, reporting with <code>result</code> at the boundary and with contracts inside. You will see the criteria for splitting error enums and what to put in <code>errors</code> clauses, and for deciding whether to pass failures up with <code>try</code> or handle them on the spot as they move up the layers. You will also see where it is fine to throw information away with <code>option</code>, and where <code>panic</code> is acceptable.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>How does an error written without a condition, like <code>errors not_digit .</code>, differ from one with a condition, like <code>errors empty eq len s. . 0 . .</code>?</li></ol></div></div><div></div><h3 id="s17-1">17.1 The boundary and the inside<a class="plink" href="#s17-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A program has <strong>places where values come in from outside</strong>: program arguments, file contents, bytes from the network, user input. Such values carry no promises. And there is an <strong>inside</strong> where values that passed a check flow around.</p><p>The first principle of the design is to separate the two.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Place</strong></th><th><strong>Nature of values</strong></th><th><strong>How to report</strong></th></tr><tr><td>Boundary (parsing, input)</td><td>Anything can arrive</td><td><code>result</code> and <code>errors</code></td></tr><tr><td>Inside (computation)</td><td>Already passed a check</td><td><code>requires</code> · <code>range</code> · <code>newtype</code></td></tr><tr><td>No layer can handle it</td><td>A state that must not exist</td><td><code>panic</code></td></tr></table></div><p class="float-caption">Table 17.1 — Where failure is reported</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/parse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> parse .
 <em><span class="tok-c">rem run: parse_u16 [52,50]</span></em>
 <em><span class="tok-c">rem run: parse_u16 []</span></em>
 <em><span class="tok-c">rem run: parse_u16 [52,120]</span></em>
@@ -676,36 +676,36 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   empty .
   not_digit .
   too_big .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem bytes from outside — anything can arrive, so failure is a value</span></em>
 <strong><span class="tok-k">fn</span></strong> parse_u16 <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
   <strong><span class="tok-k">errors</span></strong> too_big .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">for</span></strong> c s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">guard</span></strong> is_digit c <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-    <strong><span class="tok-k">set</span></strong> acc (add (mul acc <span class="tok-n">10</span>) (widen <strong><span class="tok-t">u64</span></strong> (sub c <span class="tok-n">48</span>))) .
-    <strong><span class="tok-k">guard</span></strong> le acc <span class="tok-n">65535</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> ok (narrow <strong><span class="tok-t">u16</span></strong> acc) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">for</span></strong> c s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">guard</span></strong> is_digit c. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+    <strong><span class="tok-k">set</span></strong> acc. add mul acc. <span class="tok-n">10</span> . widen <strong><span class="tok-t">u64</span></strong> sub c. <span class="tok-n">48</span> . . . .
+    <strong><span class="tok-k">guard</span></strong> le acc. <span class="tok-n">65535</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> ok narrow <strong><span class="tok-t">u16</span></strong> acc. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem this layer needs no «why» — if absent, use the default</span></em>
 <strong><span class="tok-k">fn</span></strong> port_or_default <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u16</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> parse_error parse_u16 s .
-  <strong><span class="tok-k">guard</span></strong> not (is_error r) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">8080</span> .
-  <strong><span class="tok-k">return</span></strong> ok_value r .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> parse_error parse_u16 s. . .
+  <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">8080</span> . .
+  <strong><span class="tok-k">return</span></strong> ok_value r. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run parse_u16 parse.low [52,50]
 parse_u16([52,50]) = ok 42
   arg0 (written) = [52,50]
@@ -729,50 +729,50 @@ port_or_default([120]) = 8080
                           result + errors      requires · range · newtype
                              │ error
                              ▼
-                          the calling layer decides what to do</code></pre><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> How does an error written without a condition, like <code>errors not_digit .</code>, differ from one with a condition, like <code>errors empty eq (len s) 0 .</code>?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> With a condition, it becomes an outgoing contract: “under this condition, <strong>exactly</strong> this error happens”. Returning normally while the condition holds is a contract violation. Callers can trust that avoiding the condition means they need not handle that error. Errors whose condition cannot be written as a contract expression (are all bytes digits?) are written without one and promise only “it can happen”. Where a condition can be written, writing it tells callers more.</p></div></div><h3 id="s17-2">17.2 How to split an error enum<a class="plink" href="#s17-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Give an error variant to <strong>each case where the caller would act differently</strong>. <code>empty</code>, <code>not_digit</code> and <code>too_big</code> were split because a different message can be shown for each. If callers do the same thing for all of them, merge the variants; more variants mean more work for the code that handles them with <code>match</code>.</p><p>Conversely, avoid a giant enum that holds the errors of unrelated layers in one op. When file errors, parse errors and configuration errors are mixed into one enum, the <code>errors</code> clause in the head paints a wider picture than the op can actually produce, and declarations of impossible errors are rejected by translation (chapter 14).</p><h3 id="s17-3">17.3 Moving up the layers<a class="plink" href="#s17-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A layer that receives a failure does one of two things: <strong>pass it on</strong> or <strong>handle it there</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/layers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layers .
+                          the calling layer decides what to do</code></pre><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> How does an error written without a condition, like <code>errors not_digit .</code>, differ from one with a condition, like <code>errors empty eq len s. . 0 . .</code>?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> With a condition, it becomes an outgoing contract: “under this condition, <strong>exactly</strong> this error happens”. Returning normally while the condition holds is a contract violation. Callers can trust that avoiding the condition means they need not handle that error. Errors whose condition cannot be written as a contract expression (are all bytes digits?) are written without one and promise only “it can happen”. Where a condition can be written, writing it tells callers more.</p></div></div><h3 id="s17-2">17.2 How to split an error enum<a class="plink" href="#s17-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Give an error variant to <strong>each case where the caller would act differently</strong>. <code>empty</code>, <code>not_digit</code> and <code>too_big</code> were split because a different message can be shown for each. If callers do the same thing for all of them, merge the variants; more variants mean more work for the code that handles them with <code>match</code>.</p><p>Conversely, avoid a giant enum that holds the errors of unrelated layers in one op. When file errors, parse errors and configuration errors are mixed into one enum, the <code>errors</code> clause in the head paints a wider picture than the op can actually produce, and declarations of impossible errors are rejected by translation (chapter 14).</p><h3 id="s17-3">17.3 Moving up the layers<a class="plink" href="#s17-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A layer that receives a failure does one of two things: <strong>pass it on</strong> or <strong>handle it there</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/layers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layers .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> config_error <strong><span class="tok-k">do</span></strong>
   bad_port .
   port_zero .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem inner invariant — what the caller should already have filtered is a contract</span></em>
 <strong><span class="tok-k">fn</span></strong> slot_of <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">input</span></strong> slots <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> gt slots <span class="tok-n">0</span> .
+  <strong><span class="tok-k">requires</span></strong> gt slots. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> mod (widen <strong><span class="tok-t">u64</span></strong> port) slots .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> mod widen <strong><span class="tok-t">u64</span></strong> port. . slots. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem outside input — what can be wrong is a result</span></em>
 <strong><span class="tok-k">fn</span></strong> check_port <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> config_error .
-  <strong><span class="tok-k">errors</span></strong> port_zero eq port <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> ne port <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero .
-  <strong><span class="tok-k">return</span></strong> ok port .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> ne port. <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero . . .
+  <strong><span class="tok-k">return</span></strong> ok port. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> pick_slot <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error .
-  <strong><span class="tok-k">errors</span></strong> port_zero eq port <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">try</span></strong> check_port port .
-  <strong><span class="tok-k">return</span></strong> ok (slot_of p <span class="tok-n">16</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">try</span></strong> check_port port. . . .
+  <strong><span class="tok-k">return</span></strong> ok slot_of p. <span class="tok-n">16</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error pick_slot <span class="tok-n">8080</span> .
-  <strong><span class="tok-k">guard</span></strong> not (is_error r) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">bad port</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error pick_slot <span class="tok-n">8080</span> . .
+  <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">bad port</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">slot ok</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (ok_value r) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">slot ok</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> ok_value r. . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main layers.low
 slot ok
 main() = 0
-</code></pre></div></div><ul><li><code>slot_of</code> is inside. If the number of slots were 0, the remainder operation would stop, but that is the caller’s fault, so it is written as <code>requires gt slots 0 .</code>.</li><li><code>check_port</code> is close to a boundary. Port 0 means the configuration is wrong and can be fixed, so it is a <code>result</code>.</li><li><code>pick_slot</code> passes the failure up with <code>try</code>, and writes the same error in its own <code>errors</code>. After success it knows <code>p</code> is not 0 and calls the inner op.</li><li><code>main</code> is the outermost layer. There is nowhere further to pass the failure, so it <strong>handles</strong> it — writes a message and returns exit code 1.</li></ul><p>The path a failure takes upward when <code>port</code> is 0. Going down, layers call; coming up, each passes the failure on or handles it.</p><pre><code data-lang="text"> main ─────────────────────────  handles it: writes "bad port", returns 1
+</code></pre></div></div><ul><li><code>slot_of</code> is inside. If the number of slots were 0, the remainder operation would stop, but that is the caller’s fault, so it is written as <code>requires gt slots. 0 . .</code>.</li><li><code>check_port</code> is close to a boundary. Port 0 means the configuration is wrong and can be fixed, so it is a <code>result</code>.</li><li><code>pick_slot</code> passes the failure up with <code>try</code>, and writes the same error in its own <code>errors</code>. After success it knows <code>p</code> is not 0 and calls the inner op.</li><li><code>main</code> is the outermost layer. There is nowhere further to pass the failure, so it <strong>handles</strong> it — writes a message and returns exit code 1.</li></ul><p>The path a failure takes upward when <code>port</code> is 0. Going down, layers call; coming up, each passes the failure on or handles it.</p><pre><code data-lang="text"> main ─────────────────────────  handles it: writes "bad port", returns 1
   │  ▲ error port_zero
   ▼  │
  pick_slot ────────────────────  passes it on: try sends it up as is
@@ -787,13 +787,13 @@ main() = 0
 <strong><span class="tok-k">proc</span></strong> parse_or_die <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">for</span></strong> c s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> or (lt c <span class="tok-n">48</span>) (gt c <span class="tok-n">57</span>) <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">not a digit</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">set</span></strong> acc (add (mul acc <span class="tok-n">10</span>) (widen <strong><span class="tok-t">u64</span></strong> (sub c <span class="tok-n">48</span>))) .
-    <strong><span class="tok-k">if</span></strong> gt acc <span class="tok-n">65535</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">too big</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">for</span></strong> c s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> or lt c. <span class="tok-n">48</span> . gt c. <span class="tok-n">57</span> . . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">not a digit</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> acc. add mul acc. <span class="tok-n">10</span> . widen <strong><span class="tok-t">u64</span></strong> sub c. <span class="tok-n">48</span> . . . .
+    <strong><span class="tok-k">if</span></strong> gt acc. <span class="tok-n">65535</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">too big</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> acc. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run parse_or_die mistake_panicinput.low [52,50]
 parse_or_die([52,50]) = 42
   arg0 (written) = [52,50]
@@ -807,31 +807,31 @@ $ lowentc --run parse_or_die mistake_panicinput.low [52,120]
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   not_digit .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> parse_digit <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-  <strong><span class="tok-k">return</span></strong> ok (sub c <span class="tok-n">48</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">guard</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+  <strong><span class="tok-k">return</span></strong> ok sub c. <span class="tok-n">48</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem ✘ the lower layer threw the reason away early</span></em>
 <strong><span class="tok-k">fn</span></strong> digit_or_none <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> (parse_digit s) else_none .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> parse_digit s. . else_none . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem the upper layer wants different messages for empty and non-digit input, but sees 0 for both</span></em>
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> d <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> digit_or_none s .
-  <strong><span class="tok-k">guard</span></strong> is_some d <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> d <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> digit_or_none s. . .
+  <strong><span class="tok-k">guard</span></strong> is_some d. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run explain mistake_dropwhy.low []
 explain([]) = 0
   arg0 (written) = []
@@ -846,32 +846,32 @@ explain([120]) = 0
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   not_digit .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> parse_digit <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-  <strong><span class="tok-k">return</span></strong> ok (sub c <span class="tok-n">48</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">guard</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+  <strong><span class="tok-k">return</span></strong> ok sub c. <span class="tok-n">48</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem carry the reason all the way up and split on it in the layer that needs it</span></em>
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">match</span></strong> parse_digit s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
+  <strong><span class="tok-k">match</span></strong> parse_digit s. . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> . <strong><span class="tok-k">end</span></strong> .
     <strong><span class="tok-k">case</span></strong> error e <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem bind the error value to a name, then split that enum once more</span></em>
-      <strong><span class="tok-k">match</span></strong> e <strong><span class="tok-k">do</span></strong>
-        <strong><span class="tok-k">case</span></strong> empty . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-        <strong><span class="tok-k">case</span></strong> not_digit . <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-      <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">end</span></strong>
-<strong><span class="tok-k">end</span></strong>
+      <strong><span class="tok-k">match</span></strong> e. <strong><span class="tok-k">do</span></strong>
+        <strong><span class="tok-k">case</span></strong> empty <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+        <strong><span class="tok-k">case</span></strong> not_digit <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run explain dropwhy_fixed.low []
 explain([]) = 1
   arg0 (written) = []
@@ -889,27 +889,27 @@ explain([55]) = 9
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   not_digit .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> parse_digit <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-  <strong><span class="tok-k">return</span></strong> ok (sub c <span class="tok-n">48</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">guard</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+  <strong><span class="tok-k">return</span></strong> ok sub c. <span class="tok-n">48</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem a declared variant name after `case error` matches that variant alone</span></em>
-  <strong><span class="tok-k">match</span></strong> parse_digit s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
-    <strong><span class="tok-k">case</span></strong> error empty . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-    <strong><span class="tok-k">case</span></strong> error not_digit . <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-  <strong><span class="tok-k">end</span></strong>
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">match</span></strong> parse_digit s. . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> error empty <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> error not_digit <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run explain errvariant.low []
 explain([]) = 1
   arg0 (written) = []
@@ -924,26 +924,26 @@ explain([53]) = 9
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> config_error <strong><span class="tok-k">do</span></strong>
   port_zero .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> check_port <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> config_error . <strong><span class="tok-k">effects</span></strong> io .
-  <strong><span class="tok-k">errors</span></strong> port_zero eq port <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">checking</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">guard</span></strong> ne port <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero .
-  <strong><span class="tok-k">return</span></strong> ok port .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">checking</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">guard</span></strong> ne port. <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero . . .
+  <strong><span class="tok-k">return</span></strong> ok port. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ the result of the check is dropped as a statement --- the port is 0, yet "started" is printed</span></em>
-  check_port out <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">started</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  check_port out. <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">started</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_dropresult.low
 mistake_dropresult.low:19:0 W-RESULT-DISCARD: this op returns a `result` — it says failure is a VALUE — and the value is dropped here, so a failure leaves no trace at all. Bind it and look at it (`let r … …` then `is_error`), forward it (`try`), or say in the code why the failure does not matter
-</code></pre></div></div><p><code>check_port out 0 .</code> returned an error, but nobody received it: the port is 0, yet “started” would be printed and the exit code would be 0. The design of returning failure as a value only holds when the caller <strong>looks at</strong> that value, so the tool reports it as <code>W-RESULT-DISCARD</code>. Receive the <code>result</code> of such an op with <code>let</code> and ask, pass it on with <code>try</code>, or split it with <code>match</code>. Binding it and never reading it gets the same warning — the failure vanishes just the same. Where there genuinely is nothing to do with it (closing a handle on an error path), write <code>drop &lt;name> .</code> to say you are letting this one go. The fault is not ignoring a failure; it is ignoring it <strong>silently</strong>.</p></div></div><h3 id="s17-7">17.7 This chapter’s syntax at a glance<a class="plink" href="#s17-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td>boundary op <code>output result t e .</code> + <code>errors</code></td><td>return the failure of outside values as a value</td><td>the calling layer chooses what to do</td></tr><tr><td>inner op <code>requires</code> · <code>range</code> · <code>newtype</code></td><td>invariants of already-filtered values</td><td>one check stays at the boundary; inside it is removed</td></tr><tr><td><code>def enum parse_error do empty . not_digit . end</code></td><td>one variant per different caller action</td><td>more variants, more handling work</td></tr><tr><td><code>let v u16 try check_port port .</code></td><td>pass it upward when you cannot handle it</td><td>the passing stays visible in <code>errors</code></td></tr><tr><td><code>case error e do match e do … end end</code></td><td>bind the error value, then split its variants</td><td>the name in <code>case error &lt;name></code> is a new binding unless it names a declared variant</td></tr><tr><td><code>try … else_none</code> · <code>value_or</code></td><td>discard the reason</td><td>discard as high up as possible</td></tr><tr><td><code>proc … effects panic .</code> + <code>panic "…"</code></td><td>stop in a state no layer can handle</td><td>not for bad input or missing files</td></tr><tr><td>entry point <code>output u8 .</code></td><td>the outermost layer — handle failure and report by exit code</td><td>there is nowhere further to pass it</td></tr></table></div><p class="float-caption">Table 17.2 — Shapes for designing failure — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">At boundaries where values come from outside, report failure with <code>result</code> and <code>errors</code>; inside, where checks have passed, write invariants with contracts and types. Give error variants to each case where the caller acts differently. A layer receiving a failure handles it if it can and passes it on with <code>try</code> if not. Throw information away as high up as possible, and use <code>panic</code> only for states no layer can handle.</div></div>
+</code></pre></div></div><p><code>check_port out 0 .</code> returned an error, but nobody received it: the port is 0, yet “started” would be printed and the exit code would be 0. The design of returning failure as a value only holds when the caller <strong>looks at</strong> that value, so the tool reports it as <code>W-RESULT-DISCARD</code>. Receive the <code>result</code> of such an op with <code>let</code> and ask, pass it on with <code>try</code>, or split it with <code>match</code>. Binding it and never reading it gets the same warning — the failure vanishes just the same. Where there genuinely is nothing to do with it (closing a handle on an error path), write <code>drop &lt;name> .</code> to say you are letting this one go. The fault is not ignoring a failure; it is ignoring it <strong>silently</strong>.</p></div></div><h3 id="s17-7">17.7 This chapter’s syntax at a glance<a class="plink" href="#s17-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td>boundary op <code>output result t e .</code> + <code>errors</code></td><td>return the failure of outside values as a value</td><td>the calling layer chooses what to do</td></tr><tr><td>inner op <code>requires</code> · <code>range</code> · <code>newtype</code></td><td>invariants of already-filtered values</td><td>one check stays at the boundary; inside it is removed</td></tr><tr><td><code>def enum parse_error do empty . not_digit . end .</code></td><td>one variant per different caller action</td><td>more variants, more handling work</td></tr><tr><td><code>let v u16 try check_port port. . . .</code></td><td>pass it upward when you cannot handle it</td><td>the passing stays visible in <code>errors</code></td></tr><tr><td><code>case error e do match e. do … end . end .</code></td><td>bind the error value, then split its variants</td><td>the name in <code>case error &lt;name></code> is a new binding unless it names a declared variant</td></tr><tr><td><code>try … else_none</code> · <code>value_or</code></td><td>discard the reason</td><td>discard as high up as possible</td></tr><tr><td><code>proc … effects panic .</code> + <code>panic "…"</code></td><td>stop in a state no layer can handle</td><td>not for bad input or missing files</td></tr><tr><td>entry point <code>output u8 .</code></td><td>the outermost layer — handle failure and report by exit code</td><td>there is nowhere further to pass it</td></tr></table></div><p class="float-caption">Table 17.2 — Shapes for designing failure — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">At boundaries where values come from outside, report failure with <code>result</code> and <code>errors</code>; inside, where checks have passed, write invariants with contracts and types. Give error variants to each case where the caller acts differently. A layer receiving a failure handles it if it can and passes it on with <code>try</code> if not. Throw information away as high up as possible, and use <code>panic</code> only for states no layer can handle.</div></div>
 <div class="nav"><a href="ch16.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch18.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

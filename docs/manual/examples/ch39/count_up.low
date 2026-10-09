@@ -5,9 +5,9 @@ rem proof
 fn ten output u8 . do
   var i u8 0 .
   var s u8 0 .
-  while lt i 10 do
-    set s (add s i) .
-    set i (add i 1) .
-  end
-  return s .
-end
+  while lt i. 10 . do
+    set s. add s. i. . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .

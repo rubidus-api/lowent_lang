@@ -5,49 +5,49 @@ rem test-fail
 actor first_seen do
   state do
     v u64 .
-  end
+  end .
   proc put input n u64 . output u64 . effects state .
-    requires le n 1000 .
+    requires le n. 1000 . .
   do
     rem ko: 처음 받은 값만 남긴다 --- 답이 도착 차례에 달린다 /// en: keeps only the first value received --- the answer depends on arrival order
-    if eq v 0 do set v n . end
-    return v .
-  end
+    if eq v. 0 . do set v. n. . end .
+    return v. .
+  end .
   fn get output u64 .
   do
-    return v .
-  end
-end
+    return v. .
+  end .
+end .
 proc producer input ch u64 . input n u64 . output u64 . effects concurrent .
 do
-  return chsend ch n .
-end
+  return chsend ch. n. . .
+end .
 proc consumer input ch u64 . input s first_seen . output u64 . effects state concurrent .
 do
-  let x u64 chrecv ch .
-  let y u64 chrecv ch .
-  let a u64 send s put (min x 1000) .
-  return send s put (min y 1000) .
-end
+  let x u64 chrecv ch. . .
+  let y u64 chrecv ch. . .
+  let a u64 send s. put min x. 1000 . . .
+  return send s. put min y. 1000 . . .
+end .
 proc drive output u64 . effects state .
 do
-  var ch u64 channel u64 .
-  var s first_seen spawn actor first_seen .
+  var ch u64 channel u64 . .
+  var s first_seen spawn actor first_seen . .
   task_group do
-    spawn consumer ch s .
-    spawn producer ch 10 .
-    spawn producer ch 32 .
-  end
-  return send s get .
-end
+    spawn consumer ch. s. .
+    spawn producer ch. 10 .
+    spawn producer ch. 32 .
+  end .
+  return send s. get . .
+end .
 test first_is_ten schedule explore_interleavings .
 do
-  var ch u64 channel u64 .
-  var s first_seen spawn actor first_seen .
+  var ch u64 channel u64 . .
+  var s first_seen spawn actor first_seen . .
   task_group do
-    spawn consumer ch s .
-    spawn producer ch 10 .
-    spawn producer ch 32 .
-  end
-  expect eq (send s get) 10 .
-end
+    spawn consumer ch. s. .
+    spawn producer ch. 10 .
+    spawn producer ch. 32 .
+  end .
+  expect eq send s. get . 10 . .
+end .

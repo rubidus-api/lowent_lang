@@ -118,7 +118,7 @@ command-line dispatcher, ready to drop into someone else's build. The following 
 
 #raw(read("/build/examples-out/ch29/host.c.out"), block: true)
 
-The first two calls get answers. The third breaks `requires le a 1000 .`. C does not know contracts, but *the place being called into is this side's door*, so the op's
+The first two calls get answers. The third breaks `requires le a. 1000 . .`. C does not know contracts, but *the place being called into is this side's door*, so the op's
 contract is enforced on the arguments and it stops on entry. Lowent answers for inside the door, C for outside.
 
 Both directions in one picture. Going out, it is *written in the head*; coming in, it is *measured at the door*.
@@ -219,14 +219,14 @@ opposite direction (C calling our variadics) does not exist.
   id: "ffi-glance",
   caption: [C boundary syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`unsafe extern proc c_area do input k cap c . … effects unsafe . link "lw_c_area" . end`], [an op whose body is in C --- its clauses go in `do … end`], [marker, right and effects line must all be present],
+  [`unsafe extern proc c_area do input k cap c . … effects unsafe . link "lw_c_area" . end .`], [an op whose body is in C --- its clauses go in `do … end`], [marker, right and effects line must all be present],
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [an op that calls an op that calls C], [marker and right travel up the call chain],
   [`input xs slice u8 .` (at the boundary)], [two arguments in C: pointer and length], [only slices are mapped automatically],
   [`option`·`result`·vectors at the boundary], [rejected (`E-FFI-TYPE`)], [nothing absent from the C ABI is faked],
   [`export fn clamp_add …`], [a symbol C can call, `lw_8exported_9clamp_add`], [the contract is enforced on incoming arguments · names carry lengths, so they never collide],
   [`link "exported_clamp_add" .`], [name the export's C symbol yourself], [a name C cannot take is `E-LINK-NAME`],
   [`lowentc --emit-h` · `--no-main`], [emit a header · emit as a library without `main`], [the signature lives in one place],
-  [`unsafe_fn cmp`], [address of an `export extern` op (callback)], [ordinary op: `E-FN-NOTEXPORT` · with a capability: `E-FN-CAP`],
+  [`unsafe_fn cmp .`], [address of an `export extern` op (callback)], [ordinary op: `E-FN-NOTEXPORT` · with a capability: `E-FN-CAP`],
   [`input h owned <type> .` (to an extern)], [responsibility for destroying passes to C], [what C does with it afterwards is not verified],
   [`variadic .`], [call a C variadic function], [contracts do not reach variadic arguments],
   [`def newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C pointer qualifier · view as a zero-terminated C string], [pointers are handled only through named types],

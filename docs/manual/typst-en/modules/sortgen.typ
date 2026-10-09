@@ -14,20 +14,20 @@ use sortgen .
 def struct keyed do
   satisfies sortgen.ordered .
   k u64 .
-end
+end .
 
 fn keyed.less input a keyed . input b keyed . output bool . do
-  return lt (field a k) (field b k) .
-end
+  return lt field a. k . field b. k . . .
+end .
 
 proc sorted3 input s mut slice keyed . output u64 . effects none . do
-  guard ge (len s) 3 else return 90 .
-  sortgen.sort_by keyed s .
-  let f0 keyed idx s 0 .
-  let f1 keyed idx s 1 .
-  let f2 keyed idx s 2 .
-  return add (mul 100 (field f0 k)) (add (mul 10 (field f1 k)) (field f2 k)) .
-end
+  guard ge len s. . 3 . else return 90 . .
+  sortgen.sort_by keyed. s. .
+  let f0 keyed idx s. 0 . .
+  let f1 keyed idx s. 1 . .
+  let f2 keyed idx s. 2 . .
+  return add mul 100 field f0. k . . add mul 10 field f1. k . . field f2. k . . . .
+end .
 ```
 
 *Why the comparison is not passed as a function value.* The common answer (C's `qsort`, C++ comparators) passes a comparison function as a value. This language does not. It
@@ -43,7 +43,7 @@ the comparison is embedded as a direct call. Zero indirect calls, zero space for
   [`ordered`], [trait --- `less (self, self) → bool`], [unsatisfied = `E-BOUND-UNSAT` (compile time)],
   [`sort_by`], [`(comptime t, mut slice t) → void`, `requires ordered t` --- insertion sort (stable)], [none],
   [`sort_fast`], [same shape --- quicksort, for large arrays], [none],
-  [`lower_by`], [`(comptime t, slice t, key t) → u64`], [none --- the insertion point if absent (may be `len s`)],
+  [`lower_by`], [`(comptime t, slice t, key t) → u64`], [none --- the insertion point if absent (may be `len s. .`)],
   [`find_by`], [`(comptime t, slice t, key t) → option u64`], [`none` if absent],
 )
 
@@ -59,7 +59,7 @@ If `less a b` is true, a comes before b. The relation must be a *strict weak ord
 ]
 
 #antipattern[`less` returning true for equal values][
-  `return le (field a key) (field b key) .` compiles, but with two or more equal values the loop may never end. The comparison must be `lt`.
+  `return le field a. key . field b. key . . .` compiles, but with two or more equal values the loop may never end. The comparison must be `lt`.
 ]
 
 *Cautions.* Descending order and multiple keys are written in `less` --- adding a mode argument is entropy itself. One copy of code is produced per type (the price of

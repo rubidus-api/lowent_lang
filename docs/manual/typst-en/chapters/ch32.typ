@@ -54,9 +54,9 @@ The standard library has no privileges. It gets the same rules as code the autho
 
 ```lowent
 export fn starts_with input s str . input prefix str . output bool . do
-  guard le (len prefix) (len s) else return false .
-  return eq_str (subslice s 0 (len prefix)) prefix .
-end
+  guard le len prefix. . len s. . . else return false . .
+  return eq_str subslice s. 0 len prefix. . . prefix. . .
+end .
 ```
 
 It reads with only what this book has taught. If there were a hidden passage only the library could use, a program's guarantees would break the moment it passed
@@ -227,8 +227,8 @@ capability takes it as the *first operand* (#chref("capabilities")).
   caption: [Shapes for using the standard library --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`use strings .`], [import a standard module --- the name is the file's `module` declaration], [the module in `lib/str.low` is `strings`],
-  [`strings.starts_with line "GET "`], [imported names are qualified by module], [no glob imports],
-  [`fmt.put_str buf pos s` → `option u64`], [write into the caller's buffer and return the next position], [L0 never allocates --- reentrancy is free],
+  [`strings.starts_with line. "GET " .`], [imported names are qualified by module], [no glob imports],
+  [`fmt.put_str buf. pos. s. .` → `option u64`], [write into the caller's buffer and return the next position], [L0 never allocates --- reentrancy is free],
   [`none` (not enough room)], [not a single byte was written], [all or nothing --- the promise of one call],
   [`result t e`], [a failure that says what failed], [no traps, no silent truncation],
   [`owned` handles · pending bytes], [ownership that must be repaid], [forgetting it is rejected at translation],

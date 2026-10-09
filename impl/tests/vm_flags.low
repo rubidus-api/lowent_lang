@@ -12,74 +12,74 @@ module vm_flags .
 use flags from "../../lib/flags.low" .
 
 rem 설정 자리표 — 번호다(마스크가 아니다). 지운 자리는 비워 두고 재사용하지 않는다(§6.4).
-fn f_sound  output u64 . do return 0 . end
-fn f_music  output u64 . do return 1 . end
-fn f_shadow output u64 . do return 2 . end
-fn f_vsync  output u64 . do return 3 . end
+fn f_sound  output u64 . do return 0 . end .
+fn f_music  output u64 . do return 1 . end .
+fn f_shadow output u64 . do return 2 . end .
+fn f_vsync  output u64 . do return 3 . end .
 
 rem ── ① 답이 같은가 ────────────────────────────────────────────────────────
 
-fn on_lib  input s u64 . output u64 . do return flags.with s 2 . end
-fn on_hand input s u64 . output u64 . do return bit_or s (shl 1 2) . end
+fn on_lib  input s u64 . output u64 . do return flags.with s. 2 . . end .
+fn on_hand input s u64 . output u64 . do return bit_or s. shl 1 2 . . . end .
 
-fn off_lib  input s u64 . output u64 . do return flags.without s 2 . end
-fn off_hand input s u64 . output u64 . do return bit_and s (bit_not (shl 1 2)) . end
+fn off_lib  input s u64 . output u64 . do return flags.without s. 2 . . end .
+fn off_hand input s u64 . output u64 . do return bit_and s. bit_not shl 1 2 . . . . end .
 
-fn has_lib  input s u64 . output bool . do return flags.has s 3 . end
-fn has_hand input s u64 . output bool . do return ne (bit_and s (shl 1 3)) 0 . end
+fn has_lib  input s u64 . output bool . do return flags.has s. 3 . . end .
+fn has_hand input s u64 . output bool . do return ne bit_and s. shl 1 3 . . 0 . . end .
 
-fn sub_lib  input a u64 . input b u64 . output bool . do return flags.inside a b . end
-fn sub_hand input a u64 . input b u64 . output bool . do return eq (bit_and a b) a . end
+fn sub_lib  input a u64 . input b u64 . output bool . do return flags.inside a. b. . . end .
+fn sub_hand input a u64 . input b u64 . output bool . do return eq bit_and a. b. . a. . . end .
 
 rem ── ② 없는 자리는 거절한다 ───────────────────────────────────────────────
 
 rem 64 는 한 낱말에 없는 자리다. `flags.of 64` 는 진입 계약이 문다 — 이 op 은 그 계약을
 rem **부르는 자리에서** 이미 결정되므로 컴파일이 안 되게 하는 대신, 값으로 물어보게 한다.
 fn slot_ok input n u64 . output u64 . do
-  guard lt n 64 else return 0 .
-  return flags.of n .
-end
+  guard lt n. 64 . else return 0 . .
+  return flags.of n. . .
+end .
 
 rem ── ③ 설정 연산 ──────────────────────────────────────────────────────────
 
 fn defaults output u64 . do
-  return flags.with (flags.with (flags.empty) 0) 1 .     rem 소리 · 음악은 켜고 나머지는 끈다
-end
+  return flags.with flags.with flags.empty. 0 . 1 . .     rem 소리 · 음악은 켜고 나머지는 끈다
+end .
 
 fn tuned output u64 . do
-  return flags.with (flags.without (defaults) 1) 2 .     rem 음악 끄고 그림자 켠다
-end
+  return flags.with flags.without defaults. 1 . 2 . .     rem 음악 끄고 그림자 켠다
+end .
 
 test flags_same do
-  expect eq (on_lib 0) (on_hand 0) .
-  expect eq (on_lib 255) (on_hand 255) .
-  expect eq (off_lib 255) (off_hand 255) .
-  expect eq (has_lib 8) (has_hand 8) .
-  expect eq (has_lib 7) (has_hand 7) .
-  expect eq (sub_lib 5 7) (sub_hand 5 7) .
-  expect eq (sub_lib 9 7) (sub_hand 9 7) .
+  expect eq on_lib 0 . on_hand 0 . . .
+  expect eq on_lib 255 . on_hand 255 . . .
+  expect eq off_lib 255 . off_hand 255 . . .
+  expect eq has_lib 8 . has_hand 8 . . .
+  expect eq has_lib 7 . has_hand 7 . . .
+  expect eq sub_lib 5 7 . sub_hand 5 7 . . .
+  expect eq sub_lib 9 7 . sub_hand 9 7 . . .
 
   rem 집합 연산
-  expect eq (flags.join 5 2) 7 .
-  expect eq (flags.both 7 5) 5 .
-  expect eq (flags.minus 7 5) 2 .
-  expect eq (flags.ones 7) 3 .
-  expect eq (flags.lowest 12) 2 .
-  expect eq (flags.has_any 0) false .
-  expect eq (flags.has_none 0) true .
-  expect eq (flags.is_full 15 4) true .
-  expect eq (flags.is_full 14 4) false .
-  expect eq (flags.widthmask 64) 18446744073709551615 .
+  expect eq flags.join 5 2 . 7 . .
+  expect eq flags.both 7 5 . 5 . .
+  expect eq flags.minus 7 5 . 2 . .
+  expect eq flags.ones 7 . 3 . .
+  expect eq flags.lowest 12 . 2 . .
+  expect eq flags.has_any 0 . false . .
+  expect eq flags.has_none 0 . true . .
+  expect eq flags.is_full 15 4 . true . .
+  expect eq flags.is_full 14 4 . false . .
+  expect eq flags.widthmask 64 . 18446744073709551615 . .
 
   rem 없는 자리는 값으로 거절한다
-  expect eq (slot_ok 64) 0 .
-  expect eq (slot_ok 63) 9223372036854775808 .
+  expect eq slot_ok 64 . 0 . .
+  expect eq slot_ok 63 . 9223372036854775808 . .
 
   rem 설정 — 무엇이 바뀌었나
-  expect eq (defaults) 3 .
-  expect eq (tuned) 5 .
-  expect eq (flags.changes (defaults) (tuned)) 6 .          rem 음악(1) 과 그림자(2) 가 바뀌었다
-  expect eq (flags.from_default (tuned) (defaults)) 6 .
-  expect eq (flags.changes_in (defaults) (tuned) 2) 2 .     rem 그중 음악 자리만 보면
-  expect eq (flags.overlay 3 4 4) 7 .                          rem 4 자리는 over 에서, 나머지는 base 에서
-end
+  expect eq defaults. 3 . .
+  expect eq tuned. 5 . .
+  expect eq flags.changes defaults. tuned. . 6 . .          rem 음악(1) 과 그림자(2) 가 바뀌었다
+  expect eq flags.from_default tuned. defaults. . 6 . .
+  expect eq flags.changes_in defaults. tuned. 2 . 2 . .     rem 그중 음악 자리만 보면
+  expect eq flags.overlay 3 4 4 . 7 . .                          rem 4 자리는 over 에서, 나머지는 base 에서
+end .

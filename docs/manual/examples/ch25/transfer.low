@@ -4,45 +4,45 @@ rem run: move 80
 
 def enum bank_error do
   insufficient .
-end
+end .
 
 actor account do
   state do
     balance u64 .
-  end
+  end .
 
   rem ko: 잔액을 채운다 --- 상태를 고치므로 proc /// en: add to the balance --- it changes state, so it is a proc
   proc deposit input amount u64 . output u64 . effects state .
-    requires le amount 1000000 .
+    requires le amount. 1000000 . .
   do
-    set balance (wrap_add balance amount) .
-    return balance .
-  end
+    set balance. wrap_add balance. amount. . .
+    return balance. .
+  end .
 
   rem ko: 모자라면 상태를 건드리지 않고 오류를 값으로 돌려준다 /// en: if short, leave the state untouched and return the error as a value
   proc withdraw input amount u64 . output result u64 bank_error . effects state .
     errors insufficient .
   do
-    guard le amount balance else return error insufficient .
-    set balance (sub balance amount) .
-    return ok balance .
-  end
+    guard le amount. balance. . else return error insufficient . . .
+    set balance. sub balance. amount. . .
+    return ok balance. . .
+  end .
 
   fn peek_balance output u64 .
   do
-    return balance .
-  end
-end
+    return balance. .
+  end .
+end .
 
 rem ko: 두 액터 사이의 이체 --- 빼기가 성공했을 때만 넣는다 /// en: a transfer between two actors --- deposit only when the withdrawal succeeded
 proc move input amount u64 . output u64 . effects state .
-  requires le amount 1000 .
+  requires le amount. 1000 . .
 do
-  var src account spawn actor account .
-  var dst account spawn actor account .
-  let seed u64 send src deposit 50 .
-  let r result u64 bank_error send src withdraw amount .
-  guard not (is_error r) else return add (mul (send src peek_balance) 1000) (send dst peek_balance) .
-  let t u64 send dst deposit amount .
-  return add (mul (send src peek_balance) 1000) (send dst peek_balance) .
-end
+  var src account spawn actor account . .
+  var dst account spawn actor account . .
+  let seed u64 send src. deposit 50 . .
+  let r result u64 bank_error send src. withdraw amount. . .
+  guard not is_error r. . . else return add mul send src. peek_balance . 1000 . send dst. peek_balance . . . .
+  let t u64 send dst. deposit amount. . .
+  return add mul send src. peek_balance . 1000 . send dst. peek_balance . . .
+end .

@@ -1,0 +1,9 @@
+module vm_elemcmp .
+rem ★ 원소 계약 `elem_gt` 의 증인 (RFC-0142 가 원소 비교 넷을 어휘 표에 올리면서 «쓰는 초록 단위가 있는가» 를 처음 물었고,
+rem   `elem_gt` 만 없었다). `elem_le` · `elem_lt` · `elem_ge` 는 vm_elemck · vm_elemfact 가 쓴다.
+
+export fn all_big input s slice u8 . output u64 .
+  requires elem_gt s. 9 . .
+do
+  return len s. . .
+end .

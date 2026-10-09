@@ -11,10 +11,10 @@ unsafe extern proc c_printf do
   rem ko: 고정 인자 뒤에 개수가 정해지지 않은 인자를 받는다 /// en: takes an unspecified number of arguments after the fixed ones
   variadic .
   link printf .
-end
+end .
 
 rem ko: 고정 인자(서식) 뒤에 42 를 하나 더 건넨다 — 그 값에는 타입 검사도 계약도 닿지 않는다 /// en: after the fixed argument (the format) one more value, 42, is passed; neither type checks nor contracts reach it
 unsafe proc report input k cap c . output i32 . effects unsafe .
 do
-  return c_printf k (cstr_of "sum=%d\n\0") 42 .
-end
+  return c_printf k. cstr_of "sum=%d\n\0" . 42 . .
+end .

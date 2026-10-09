@@ -71,7 +71,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 - `spawn actor allocs.bump_bytes` 로 할당기를 만들고, `send a init buf` 로 잘라 줄 원본 바이트를 건다. 이 할당기는
   스스로 메모리를 만들지 못한다. 몰래 할당하지 않는 규율이다.
 - `send a reserve 3` 은 3 바이트를 잘라 준다. 돌려받은 것은 복사본이 아니라 원본의 일부를 가리키는 슬라이스라서,
-  `set (idx pv 0) 65 .` 가 호출자의 `buf` 첫 바이트를 바꾼다. VM 이 보여 주는 인자 `[65,0,…]` 가 그 흔적이다.
+  `set idx pv. 0 . 65 .` 가 호출자의 `buf` 첫 바이트를 바꾼다. VM 이 보여 주는 인자 `[65,0,…]` 가 그 흔적이다.
 - `send a reserve 99` 는 자리가 모자라 `none` 을 준다. 트랩이 아니다. *메모리 부족은 값*이고, 부르는 쪽이 검사한다.
 
 이 op 의 머리에는 `cap allocator` 도 `alloc` 도 없다. 효과는 `state` 뿐이다. 바이트는 호출자가 빌려주었고, 할당기는
@@ -96,8 +96,8 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 - `input comptime a type .` 은 할당기의 타입이다. 번역할 때 구체 타입으로 정해진다(#chref("generics")).
 #idx("using")
 - `using al a .` 은 그 타입의 할당기 값을 `al` 이라는 이름으로 받는다. `using` 은 입력이 아니다. 부르는 쪽은 인자
-  자리에 적지 않고, 바인딩에 `let n use b u64 two_from .` 으로 적는다.
-- `requires allocs.byte_allocator a .` 는 `a` 가 트레이트를 갖추어야 한다는 조건이다(#chref("traits")).
+  자리에 적지 않고, 바인딩에 `let n use b. u64 two_from. .` 으로 적는다.
+- `requires allocs.byte_allocator a. . .` 는 `a` 가 트레이트를 갖추어야 한다는 조건이다(#chref("traits")).
 - `effects state via a .` 는 할당기의 `reserve` 가 내는 효과가 곧 이 op 의 효과라는 뜻이다.
 
 같은 `two_from` 에 `bump_bytes` 를 주면 3 + 5 = 8 을 쓰고, 8 의 배수로 시작점을 맞추는 `bump_aligned` 를 주면 둘째
@@ -177,7 +177,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 
 #idx("same_slice")
 - `send b grow pv 6` 은 4 바이트였던 `pv` 를 6 바이트로 늘린다. 늘리는 대상은 크기가 아니라 *조각 자체*다. 구현은 내장
-  `same_slice a b`(시작 주소와 길이가 같은가)로 `pv` 가 방금 준 바로 그 바이트인지 확인한다. 길이만 같은 남의 버퍼를 넘기면
+  `same_slice a. b. .`(시작 주소와 길이가 같은가)로 `pv` 가 방금 준 바로 그 바이트인지 확인한다. 길이만 같은 남의 버퍼를 넘기면
   `none` 이다. 크기만으로 알아보면 두 그릇이 조용히 겹치기 때문이다.
 - `qv` 를 받은 뒤에는 `gv` 가 더 이상 마지막이 아니다. 그래서 `release gv` 는 `false` 이고 아무것도 바꾸지 않는다.
 - `release qv` 는 `true` 다. 커서가 6 으로 돌아가므로 `used` 가 6 이다. 답 601 은 "쓴 양 6 · 첫 답 거짓 · 둘째 답 참" 이다.
@@ -215,7 +215,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
   돌려받는다. 그래서 한 블록에서 둘을 받으면 안쪽 것(나중 것)부터 돌려준다.
 - 돌려준 뒤의 바이트는 다른 것이 쓴다. 그래서 그 바이트를 블록 밖으로 나르면(`return t` · 바깥 이름에 담기) `E-LIT-ESCAPE` 다.
 - 낱낱이 돌려받지 못하는 할당기(`fixed_bytes`·`heap_bytes`)에서 받은 바이트는 할당기에 남는다.
-- 다 쓴 바이트를 블록 끝보다 먼저 돌려주려면 `drop t .` 라고 적는다. 그러면 블록 끝에서는 다시 돌려주지 않는다. `drop` 뒤에
+- 다 쓴 바이트를 블록 끝보다 먼저 돌려주려면 `drop t. .` 라고 적는다. 그러면 블록 끝에서는 다시 돌려주지 않는다. `drop` 뒤에
   `t` 를 쓰면 `E-OWN-MOVED` 이고, 안쪽 블록(`if` 의 한쪽 따위)에서 `drop` 하면 `E-OWN-JOIN` 이다.
 - `panic` 으로 멈출 때는 돌려주지 않는다.
 
@@ -235,9 +235,9 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 
 #demo("examples/ch20/structalloc.low")
 
-- `var q use bb pt lit pt do … end else return 0 .` 는 `bb` 에게 `size_of pt`(여기서 16) 바이트를 청한다. 받으면 그 바이트를
+- `var q use bb. pt lit pt do … end . else return 0 . .` 는 `bb` 에게 `size_of pt .`(여기서 16) 바이트를 청한다. 받으면 그 바이트를
   0 으로 채우고, `view` 처럼 구조체의 배치를 얹은 뒤, 적은 칸을 쓴다. `q` 가 사는 동안 `used` 가 16 이므로 답은 1607 이다.
-- 칸을 읽고 쓰는 법은 보통 구조체와 같다(`field q y` · `set (field q y) …`). 블록을 나가면 앞 절처럼 돌려준다.
+- 칸을 읽고 쓰는 법은 보통 구조체와 같다(`field q. y .` · `set field q. y . …`). 블록을 나가면 앞 절처럼 돌려준다.
 - 바이트 배치가 있는 구조체만 받는다 --- 모든 칸이 크기 있는 수여야 한다. 슬라이스 · `owned` · 배열 칸이 있는 구조체는
   아직 할당기 바이트에 담을 표현이 없어 `E-LIT-UNBUILT` 다.
 
@@ -354,18 +354,18 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   id: "fixed-memory-glance",
   caption: [할당기의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`var a allocs.bump_bytes spawn actor allocs.bump_bytes .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
+  [`var a allocs.bump_bytes spawn actor allocs.bump_bytes . .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
   [`send a init buf`], [잘라 줄 바이트를 건다], [할당기는 몰래 메모리를 만들지 않는다],
   [`send a reserve 3` · `send a used`], [조각을 청한다(`option`) · 쓴 양], [부족은 트랩이 아니라 값],
   [`input comptime a type .`], [할당기의 타입(정책)을 번역 때 받는다], [갈아 끼우기의 실행 비용이 0],
   [`using al a .`], [그 타입의 할당기 값을 받는다 --- 입력이 아니다], [부르는 자리의 인자에 끼지 않는다],
-  [`let n use g u64 two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
-  [`effects state via a .` · `requires allocs.byte_allocator a .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
+  [`let n use g. u64 two_from. .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
+  [`effects state via a .` · `requires allocs.byte_allocator a. . .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],
   [출처 없음 · 쓰이지 않는 `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
   [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [나열을 고른 할당기에서 받는다], [못 받으면 `else` --- 반드시 벗어난다],
-  [`bit_cast u32 x`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
+  [`bit_cast u32 x. .`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
 )
 
 #recap[

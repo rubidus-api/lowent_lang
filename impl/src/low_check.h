@@ -54,4 +54,7 @@ void low_check_set_stack_report(bool on);
 //   그 갈래가 모든 값을 잡았다. 한 나무를 두 층이 다르게 읽으면 그중 하나는 틀린다.
 void low_narrow_qualified(const low_parse_result_t *pr);
 
+// 버린 낱말이면 그 까닭(정적 문자열), 아니면 NULL.
+const char *low_removed_word_why(proven_u8str_view_t w);
+
 #endif // LOW_CHECK_H

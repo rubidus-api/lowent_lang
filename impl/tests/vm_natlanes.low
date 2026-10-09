@@ -9,13 +9,13 @@ rem     (RFC-0021)이 필요하다(후속). 지금은 **값 자리**의 comptime
 
 module vm_natlanes .
 
-fn nl_f32 output u64 . do return native_lanes f32 . end
-fn nl_u8  output u64 . do return native_lanes u8 . end
-fn nl_u16 output u64 . do return native_lanes u16 . end
-fn nl_u64 output u64 . do return native_lanes u64 . end
+fn nl_f32 output u64 . do return native_lanes f32 . . end .
+fn nl_u8  output u64 . do return native_lanes u8 . . end .
+fn nl_u16 output u64 . do return native_lanes u16 . . end .
+fn nl_u64 output u64 . do return native_lanes u64 . . end .
 
 rem 값으로 쓴다 — 폭의 2배 stride 를 계산(comptime int 는 평범한 정수처럼 산술에 든다).
 fn stride2 output u64 . do
-  let w u64 native_lanes u32 .
-  return add w w .
-end
+  let w u64 native_lanes u32 . .
+  return add w. w. . .
+end .

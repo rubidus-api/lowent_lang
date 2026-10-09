@@ -25,37 +25,37 @@ rem   위한 **특수화**로 남는다: u64 는 감싸지 않고 그대로 정�
 
 export trait ordered do
   less input a self . input b self . output bool . effects none .
-end
+end .
 
 rem 제네릭 삽입정렬 — 제자리·안정. 작은 배열과 거의 정렬된 배열에 좋다.
 rem   ★ 큰 배열의 quicksort 제네릭판은 다음 슬라이스다(분할이 원소 복사를 요구한다).
-export proc sort_by input comptime t type . input s mut slice t . output void . effects none . requires ordered t . do
+export proc sort_by input comptime t type . input s mut slice t . output void . effects none . requires ordered t. . . do
   var i u64 1 .
-  while lt i (len s) do
-    var j u64 i .
+  while lt i. len s. . . do
+    var j u64 i. .
     var going bool true .
-    while going do
-      if eq j 0 do set going false . end
-      if going do
-        let a t idx s j .
-        let b t idx s (sub j 1) .
+    while going. do
+      if eq j. 0 . do set going. false . end .
+      if going. do
+        let a t idx s. j. . .
+        let b t idx s. sub j. 1 . . .
         rem ★★★ **판정은 한 번만 한다.** `a`·`b` 는 그 자리를 가리키는 **뷰**라서, 맞바꾸고 나면
         rem   같은 이름이 **다른 값**을 가리킨다. 비교를 두 번 하면 두 번째는 이미 바뀐 것을
         rem   보고 "정렬됐다" 고 답해 **한 칸만 내려가고 멈춘다** — 부분 정렬된 배열이 나온다.
         rem   (다중 키 예제가 이것을 잡았다: 한 번 스왑으로 끝나 순서가 어긋났다.)
         var moved bool false .
-        if (method a less b) do
-          swap s j (sub j 1) .
-          set j (sub j 1) .
-          set moved true .
-        end
-        if eq moved false do set going false . end
-      end
-    end
-    set i (add i 1) .
-  end
+        if method a. less. b. . do
+          swap s. j. sub j. 1 . .
+          set j. sub j. 1 . .
+          set moved. true .
+        end .
+        if eq moved. false . do set going. false . end .
+      end .
+    end .
+    set i. add i. 1 . .
+  end .
   return .
-end
+end .
 
 rem ── 제네릭 quicksort (2026-07-26) — 삽입정렬의 O(n²) 상한을 없앤다 ──
 rem
@@ -68,49 +68,49 @@ rem
 rem ★ 깊이 상한: **작은 쪽만 재귀하고 큰 쪽은 루프로** 돈다(sortlib 과 같은 규율). 그래야
 rem   역순·이미정렬 같은 적대적 입력에서도 깊이가 O(log n) 이다(RFC-0073 의 네이티브 깊이 천장).
 
-proc qsort_by input comptime t type . input s mut slice t . input lo0 u64 . input hi0 u64 . output void . effects none . requires ordered t . do
+proc qsort_by input comptime t type . input s mut slice t . input lo0 u64 . input hi0 u64 . output void . effects none . requires ordered t. . . do
   rem 방어: 뒤집힌·범위 밖 구간이면 **경계 밖을 안 만진다**(VM·네이티브가 같은 무동작을 낸다).
-  if gt hi0 (len s) do return . end
-  if ge lo0 hi0 do return . end
-  var lo u64 lo0 .
-  var hi u64 hi0 .
-  while gt (sub hi lo) 1 do
+  if gt hi0. len s. . . do return . end .
+  if ge lo0. hi0. . do return . end .
+  var lo u64 lo0. .
+  var hi u64 hi0. .
+  while gt sub hi. lo. . 1 . do
     rem ── 분할: 피벗은 **자리**다(s[hi-1]). 복사하지 않는다 ──
-    let p u64 sub hi 1 .
-    var i u64 lo .
-    var j u64 lo .
-    while lt j p do
+    let p u64 sub hi. 1 . .
+    var i u64 lo. .
+    var j u64 lo. .
+    while lt j. p. . do
       rem ★ 매 걸음 **다시 읽는다** — 뷰는 맞바꾼 뒤 다른 값을 가리키기 때문이다.
-      let a t idx s j .
-      let b t idx s p .
+      let a t idx s. j. . .
+      let b t idx s. p. . .
       rem `less b a` 가 거짓 = a ≤ b — 피벗 이하를 왼쪽으로 모은다.
-      if eq (method b less a) false do
-        swap s i j .
-        set i (add i 1) .
-      end
-      set j (add j 1) .
-    end
-    swap s i p .
+      if eq method b. less. a. . false . do
+        swap s. i. j. .
+        set i. add i. 1 . .
+      end .
+      set j. add j. 1 . .
+    end .
+    swap s. i. p. .
     rem ── 작은 쪽 재귀 · 큰 쪽 루프 ──
-    let lsz u64 sub i lo .
-    let rsz u64 sub hi (add i 1) .
-    if le lsz rsz do
-      qsort_by t s lo i .
-      set lo (add i 1) .
-    end
-    if gt lsz rsz do
-      qsort_by t s (add i 1) hi .
-      set hi i .
-    end
-  end
+    let lsz u64 sub i. lo. . .
+    let rsz u64 sub hi. add i. 1 . . .
+    if le lsz. rsz. . do
+      qsort_by t. s. lo. i. .
+      set lo. add i. 1 . .
+    end .
+    if gt lsz. rsz. . do
+      qsort_by t. s. add i. 1 . hi. .
+      set hi. i. .
+    end .
+  end .
   return .
-end
+end .
 
 rem ★ 공개 진입 — 큰 배열용. 작은 배열이나 거의 정렬된 입력엔 `sort_by`(삽입)가 낫다.
-export proc sort_fast input comptime t type . input s mut slice t . output void . effects none . requires ordered t . do
-  qsort_by t s 0 (len s) .
+export proc sort_fast input comptime t type . input s mut slice t . output void . effects none . requires ordered t. . . do
+  qsort_by t. s. 0 len s. . .
   return .
-end
+end .
 
 rem ── 제네릭 이진 탐색 (2026-07-26) — 정렬의 짝 ──
 rem
@@ -119,30 +119,30 @@ rem   ☞ **전제: 슬라이스가 그 순서로 정렬돼 있어야 한다.** 
 rem     검사하지 않는 이유는 검사가 O(n) 이라 탐색의 O(log n) 을 삼키기 때문이다(searchlib 과 같은 판단).
 
 rem ★ `key` 이상인 첫 자리. 전부 작으면 `len s`. 이것이 **삽입점**이자 **범위의 시작**이다.
-export proc lower_by input comptime t type . input s slice t . input key t . output u64 . effects none . requires ordered t . do
+export proc lower_by input comptime t type . input s slice t . input key t . output u64 . effects none . requires ordered t. . . do
   var lo u64 0 .
-  var hi u64 len s .
-  while lt lo hi do
-    let mid u64 add lo (div (sub hi lo) 2) .
-    let m t idx s mid .
+  var hi u64 len s. . .
+  while lt lo. hi. . do
+    let mid u64 add lo. div sub hi. lo. . 2 . . .
+    let m t idx s. mid. . .
     rem m < key 면 답은 오른쪽에 있다.
-    if (method m less key) do
-      set lo (add mid 1) .
-    end
-    if eq (method m less key) false do
-      set hi mid .
-    end
-  end
-  return lo .
-end
+    if method m. less. key. . do
+      set lo. add mid. 1 . .
+    end .
+    if eq method m. less. key. . false . do
+      set hi. mid. .
+    end .
+  end .
+  return lo. .
+end .
 
 rem ★ 있으면 그 자리를, 없으면 none. 중복이 있으면 **가장 왼쪽**을 준다(lower_by 위에 서므로).
-export proc find_by input comptime t type . input s slice t . input key t . output option u64 . effects none . requires ordered t . do
-  let at u64 lower_by t s key .
-  guard lt at (len s) else return none .
-  let m t idx s at .
+export proc find_by input comptime t type . input s slice t . input key t . output option u64 . effects none . requires ordered t. . . do
+  let at u64 lower_by t. s. key. . .
+  guard lt at. len s. . . else return none . .
+  let m t idx s. at. . .
   rem 같음 = 어느 쪽도 상대보다 작지 않다(등호 op 을 따로 요구하지 않는 이유다).
-  guard eq (method m less key) false else return none .
-  guard eq (method key less m) false else return none .
-  return some at .
-end
+  guard eq method m. less. key. . false . else return none . .
+  guard eq method key. less. m. . false . else return none . .
+  return some at. . .
+end .

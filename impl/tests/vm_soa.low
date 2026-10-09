@@ -28,54 +28,54 @@ proc soa_matches_aos input xs mut slice u64 . input vxs mut slice u64 .
   input rows mut slice u64 . output u64 . effects none .
 do
   rem ── SoA 판: 필드마다 배열 ──
-  set (idx xs 0) 1 .
-  set (idx xs 1) 2 .
-  set (idx xs 2) 3 .
-  set (idx vxs 0) 10 .
-  set (idx vxs 1) 20 .
-  set (idx vxs 2) 30 .
-  let n1 u64 soa.step_x xs vxs 3 .
-  guard eq n1 3 else return 90 .
-  let s1 u64 soa.sum_field (subslice xs 0 3) .
+  set idx xs. 0 . 1 .
+  set idx xs. 1 . 2 .
+  set idx xs. 2 . 3 .
+  set idx vxs. 0 . 10 .
+  set idx vxs. 1 . 20 .
+  set idx vxs. 2 . 30 .
+  let n1 u64 soa.step_x xs. vxs. 3 . .
+  guard eq n1. 3 . else return 90 . .
+  let s1 u64 soa.sum_field subslice xs. 0 3 . . .
 
   rem ── AoS 판: 한 배열에 {x, vx} 를 보폭 2 로 섞는다 ──
-  set (idx rows 0) 1 .
-  set (idx rows 1) 10 .
-  set (idx rows 2) 2 .
-  set (idx rows 3) 20 .
-  set (idx rows 4) 3 .
-  set (idx rows 5) 30 .
-  let n2 u64 soa.step_x_aos rows 2 0 1 3 .
-  guard eq n2 3 else return 91 .
+  set idx rows. 0 . 1 .
+  set idx rows. 1 . 10 .
+  set idx rows. 2 . 2 .
+  set idx rows. 3 . 20 .
+  set idx rows. 4 . 3 .
+  set idx rows. 5 . 30 .
+  let n2 u64 soa.step_x_aos rows. 2 0 1 3 . .
+  guard eq n2. 3 . else return 91 . .
   var s2 u64 0 .
-  set s2 (add s2 (idx rows 0)) .
-  set s2 (add s2 (idx rows 2)) .
-  set s2 (add s2 (idx rows 4)) .
+  set s2. add s2. idx rows. 0 . . .
+  set s2. add s2. idx rows. 2 . . .
+  set s2. add s2. idx rows. 4 . . .
 
   rem ★★★ **두 배치가 같은 답을 낸다** — 배치는 성능 축이지 의미 축이 아니다.
-  guard eq s1 s2 else return 92 .
-  return s1 .                                    rem 11 + 22 + 33 = 66
-end
+  guard eq s1. s2. . else return 92 . .
+  return s1. .                                    rem 11 + 22 + 33 = 66
+end .
 
 rem ★ **필드 하나만 훑는다** — SoA 가 이기는 자리(다른 필드는 캐시에 안 올라온다).
 rem   여기서는 정확성만 잰다: 속도 주장은 **측정 없이 안 한다**(RFC-0070 §4).
 proc field_only input xs mut slice u64 . output u64 . effects none . do
-  set (idx xs 0) 5 .
-  set (idx xs 1) 7 .
-  set (idx xs 2) 9 .
-  return soa.sum_field (subslice xs 0 3) .            rem 21
-end
+  set idx xs. 0 . 5 .
+  set idx xs. 1 . 7 .
+  set idx xs. 2 . 9 .
+  return soa.sum_field subslice xs. 0 3 . . .            rem 21
+end .
 
 rem ☞ **막히는 자리 ②를 그대로 보인다**: 두 필드를 함께 전진시키려니 **인자가 넷**이다.
 rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 그게 안 된다.
 proc two_fields input xs mut slice u64 . input ys mut slice u64 .
   input vxs mut slice u64 . input vys mut slice u64 . output u64 . effects none .
 do
-  set (idx xs 0) 1 .
-  set (idx ys 0) 2 .
-  set (idx vxs 0) 10 .
-  set (idx vys 0) 20 .
-  let m u64 soa.step_all xs ys vxs vys 1 .
-  guard eq m 1 else return 90 .
-  return add (idx xs 0) (idx ys 0) .          rem 11 + 22 = 33
-end
+  set idx xs. 0 . 1 .
+  set idx ys. 0 . 2 .
+  set idx vxs. 0 . 10 .
+  set idx vys. 0 . 20 .
+  let m u64 soa.step_all xs. ys. vxs. vys. 1 . .
+  guard eq m. 1 . else return 90 . .
+  return add idx xs. 0 . idx ys. 0 . . .          rem 11 + 22 = 33
+end .

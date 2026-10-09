@@ -9,155 +9,155 @@ use allocs .
 
 rem 넣고·찾고·덮어쓰고·지운다. 그리고 **키 0** 이 담긴다(빈칸을 키 값으로 예약하지 않는다).
 proc basic input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let mo use bump option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
-  guard is_some mo else return 1 .
-  var m (mapgen.table u32 u64) some_value mo .
-  guard mapgen.insert u32 u64 m 7 900 else return 2 .
-  guard mapgen.insert u32 u64 m 0 111 else return 3 .
-  guard eq (mapgen.count_of u32 u64 m) 2 else return 4 .
-  let a option u64 mapgen.lookup u32 u64 m 7 .
-  guard is_some a else return 5 .
-  guard eq (some_value a) 900 else return 6 .
+  let memo option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 4 . .
+  guard is_some mo. . else return 1 . .
+  var m (mapgen.table u32 u64) some_value mo. . .
+  guard mapgen.insert u32. u64. m. 7 900 . else return 2 . .
+  guard mapgen.insert u32. u64. m. 0 111 . else return 3 . .
+  guard eq mapgen.count_of u32. u64. m. . 2 . else return 4 . .
+  let a option u64 mapgen.lookup u32. u64. m. 7 . .
+  guard is_some a. . else return 5 . .
+  guard eq some_value a. . 900 . else return 6 . .
   rem ★ 키 0 — 빈칸을 0 으로 표시했다면 여기서 조용히 틀렸을 것이다.
-  let z option u64 mapgen.lookup u32 u64 m 0 .
-  guard is_some z else return 7 .
-  guard eq (some_value z) 111 else return 8 .
+  let z option u64 mapgen.lookup u32. u64. m. 0 . .
+  guard is_some z. . else return 7 . .
+  guard eq some_value z. . 111 . else return 8 . .
   rem 없는 키는 none.
-  guard eq (mapgen.has u32 u64 m 5) false else return 9 .
+  guard eq mapgen.has u32. u64. m. 5 . false . else return 9 . .
   rem 덮어쓰기는 개수를 안 늘린다.
-  guard mapgen.insert u32 u64 m 7 901 else return 10 .
-  guard eq (mapgen.count_of u32 u64 m) 2 else return 11 .
-  let b option u64 mapgen.lookup u32 u64 m 7 .
-  guard is_some b else return 12 .
-  guard eq (some_value b) 901 else return 13 .
+  guard mapgen.insert u32. u64. m. 7 901 . else return 10 . .
+  guard eq mapgen.count_of u32. u64. m. . 2 . else return 11 . .
+  let b option u64 mapgen.lookup u32. u64. m. 7 . .
+  guard is_some b. . else return 12 . .
+  guard eq some_value b. . 901 . else return 13 . .
   rem 지우면 사라지고, 다시 넣으면 돌아온다(무덤 자리를 다시 쓴다).
-  guard mapgen.erase u32 u64 m 7 else return 14 .
-  guard eq (mapgen.has u32 u64 m 7) false else return 15 .
-  guard eq (mapgen.count_of u32 u64 m) 1 else return 16 .
-  guard mapgen.insert u32 u64 m 7 902 else return 17 .
-  let d option u64 mapgen.lookup u32 u64 m 7 .
-  guard is_some d else return 18 .
-  guard eq (some_value d) 902 else return 19 .
+  guard mapgen.erase u32. u64. m. 7 . else return 14 . .
+  guard eq mapgen.has u32. u64. m. 7 . false . else return 15 . .
+  guard eq mapgen.count_of u32. u64. m. . 1 . else return 16 . .
+  guard mapgen.insert u32. u64. m. 7 902 . else return 17 . .
+  let d option u64 mapgen.lookup u32. u64. m. 7 . .
+  guard is_some d. . else return 18 . .
+  guard eq some_value d. . 902 . else return 19 . .
   return 42 .
-end
+end .
 
 rem ★★ 스스로 다시 뿌린다: 4개 자리로 열고 40개를 넣는다 — 전부 살아남아야 한다.
 proc regrows input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 32768 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let mo use bump option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
-  guard is_some mo else return 1 .
-  var m (mapgen.table u32 u64) some_value mo .
+  let memo option mut slice u8 alloc_bytes al. capacity 32768 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 4 . .
+  guard is_some mo. . else return 1 . .
+  var m (mapgen.table u32 u64) some_value mo. . .
   var i u64 0 .
-  while lt i 40 do
-    guard mapgen.insert u32 u64 m (narrow u32 i) (add 1000 (mul i 7)) else return add 100 i .
-    set i (add i 1) .
-  end
-  guard eq (mapgen.count_of u32 u64 m) 40 else return 2 .
+  while lt i. 40 . do
+    guard mapgen.insert u32. u64. m. narrow u32 i. . add 1000 mul i. 7 . . . else return add 100 i. . . .
+    set i. add i. 1 . .
+  end .
+  guard eq mapgen.count_of u32. u64. m. . 40 . else return 2 . .
   rem 다시 뿌린 뒤에도 **전부** 제자리에 있어야 한다.
   var j u64 0 .
-  while lt j 40 do
-    let x option u64 mapgen.lookup u32 u64 m (narrow u32 j) .
-    guard is_some x else return add 200 j .
-    guard eq (some_value x) (add 1000 (mul j 7)) else return add 300 j .
-    set j (add j 1) .
-  end
+  while lt j. 40 . do
+    let x option u64 mapgen.lookup u32. u64. m. narrow u32 j. . . .
+    guard is_some x. . else return add 200 j. . . .
+    guard eq some_value x. . add 1000 mul j. 7 . . . else return add 300 j. . . .
+    set j. add j. 1 . .
+  end .
   return 42 .
-end
+end .
 
 rem ★ 인스턴스가 **다르면 산술도 다르다**: u8→u16 맵은 같은 개수에 훨씬 적은 바이트를 쓴다.
 proc other_pair input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let mo use bump option (mapgen.table u8 u16) mapgen.open u8 u16 3 .
-  guard is_some mo else return 1 .
-  var m (mapgen.table u8 u16) some_value mo .
+  let memo option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let mo use bump. option (mapgen.table u8 u16) mapgen.open u8. u16. 3 . .
+  guard is_some mo. . else return 1 . .
+  var m (mapgen.table u8 u16) some_value mo. . .
   rem 슬롯 8 = pow2_up((3+1)*2) ⇒ 키 8바이트 + 값 16바이트 + 상태 8바이트 = 32.
-  guard eq (mapgen.slots_of u8 u16 m) 8 else return 2 .
-  guard eq (send bump used) 32 else return 3 .
-  guard mapgen.insert u8 u16 m 200 60000 else return 4 .
-  let x option u16 mapgen.lookup u8 u16 m 200 .
-  guard is_some x else return 5 .
-  guard eq (some_value x) 60000 else return 6 .
+  guard eq mapgen.slots_of u8. u16. m. . 8 . else return 2 . .
+  guard eq send bump. used . 32 . else return 3 . .
+  guard mapgen.insert u8. u16. m. 200 60000 . else return 4 . .
+  let x option u16 mapgen.lookup u8. u16. m. 200 . .
+  guard is_some x. . else return 5 . .
+  guard eq some_value x. . 60000 . else return 6 . .
   return 42 .
-end
+end .
 
 rem ★★ **순회** — 반복자 객체가 없다. `next_used` 가 다음으로 **찬 자리**를 주고, 그 자리로
 rem   키·값을 꺼낸다. 순서는 약속하지 않으므로 **합계**로 검사한다(순서에 안 기대는 검사).
 proc walking input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 alloc_bytes al capacity 2048 .
-  guard is_some memo else return 89 .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let c u64 send bump init (some_value memo) .
-  let mo use bump option (mapgen.table u32 u64) mapgen.open u32 u64 8 .
-  guard is_some mo else return 1 .
-  var m (mapgen.table u32 u64) some_value mo .
+  let memo option mut slice u8 alloc_bytes al. capacity 2048 . .
+  guard is_some memo. . else return 89 . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c u64 send bump. init some_value memo. . . .
+  let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 8 . .
+  guard is_some mo. . else return 1 . .
+  var m (mapgen.table u32 u64) some_value mo. . .
   var i u64 0 .
-  while lt i 6 do
-    guard mapgen.insert u32 u64 m (narrow u32 i) (mul i 100) else return add 10 i .
-    set i (add i 1) .
-  end
+  while lt i. 6 . do
+    guard mapgen.insert u32. u64. m. narrow u32 i. . mul i. 100 . . else return add 10 i. . . .
+    set i. add i. 1 . .
+  end .
   rem 전부 한 번씩 — 키 합 0+1+…+5 = 15, 값 합 0+100+…+500 = 1500.
   var ksum u64 0 .
   var vsum u64 0 .
   var seen u64 0 .
   var at u64 0 .
   var going bool true .
-  while going do
-    let nx option u64 mapgen.next_used u32 u64 m at .
-    guard is_some nx else do
-      set going false .
+  while going. do
+    let nx option u64 mapgen.next_used u32. u64. m. at. . .
+    guard is_some nx. . else do
+      set going. false .
       continue .
-    end
-    let s u64 some_value nx .
-    let kk option u32 mapgen.key_at u32 u64 m s .
-    guard is_some kk else return 2 .
-    let vv option u64 mapgen.val_at u32 u64 m s .
-    guard is_some vv else return 3 .
-    set ksum (add ksum (widen u64 (some_value kk))) .
-    set vsum (add vsum (some_value vv)) .
-    set seen (add seen 1) .
-    set at (add s 1) .
-  end
-  guard eq seen 6 else return 4 .
-  guard eq ksum 15 else return 5 .
-  guard eq vsum 1500 else return 6 .
+    end .
+    let s u64 some_value nx. . .
+    let kk option u32 mapgen.key_at u32. u64. m. s. . .
+    guard is_some kk. . else return 2 . .
+    let vv option u64 mapgen.val_at u32. u64. m. s. . .
+    guard is_some vv. . else return 3 . .
+    set ksum. add ksum. widen u64 some_value kk. . . . .
+    set vsum. add vsum. some_value vv. . . .
+    set seen. add seen. 1 . .
+    set at. add s. 1 . .
+  end .
+  guard eq seen. 6 . else return 4 . .
+  guard eq ksum. 15 . else return 5 . .
+  guard eq vsum. 1500 . else return 6 . .
   rem 지운 자리는 순회에서 빠진다(무덤은 찬 자리가 아니다).
-  guard mapgen.erase u32 u64 m 3 else return 7 .
+  guard mapgen.erase u32. u64. m. 3 . else return 7 . .
   var cnt u64 0 .
   var at2 u64 0 .
   var more bool true .
-  while more do
-    let nx2 option u64 mapgen.next_used u32 u64 m at2 .
-    guard is_some nx2 else do
-      set more false .
+  while more. do
+    let nx2 option u64 mapgen.next_used u32. u64. m. at2. . .
+    guard is_some nx2. . else do
+      set more. false .
       continue .
-    end
-    set cnt (add cnt 1) .
-    set at2 (add (some_value nx2) 1) .
-  end
-  guard eq cnt 5 else return 8 .
+    end .
+    set cnt. add cnt. 1 . .
+    set at2. add some_value nx2. . 1 . .
+  end .
+  guard eq cnt. 5 . else return 8 . .
   rem 빈 자리를 물으면 none — 자리 번호를 믿지 않는다.
-  guard eq (is_some (mapgen.key_at u32 u64 m 9999)) false else return 9 .
+  guard eq is_some mapgen.key_at u32. u64. m. 9999 . . false . else return 9 . .
   return 42 .
-end
+end .
 
 proc main input al cap allocator . output u8 . effects state alloc . do
-  let a u64 basic al .
-  guard eq a 42 else return narrow u8 a .
-  let b u64 regrows al .
-  guard eq b 42 else return narrow u8 b .
-  let c u64 other_pair al .
-  guard eq c 42 else return narrow u8 c .
-  let d u64 walking al .
-  guard eq d 42 else return narrow u8 d .
+  let a u64 basic al. . .
+  guard eq a. 42 . else return narrow u8 a. . . .
+  let b u64 regrows al. . .
+  guard eq b. 42 . else return narrow u8 b. . . .
+  let c u64 other_pair al. . .
+  guard eq c. 42 . else return narrow u8 c. . . .
+  let d u64 walking al. . .
+  guard eq d. 42 . else return narrow u8 d. . . .
   return 42 .
-end
+end .

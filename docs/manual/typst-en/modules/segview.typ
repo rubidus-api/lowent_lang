@@ -13,11 +13,11 @@ and coalescing* on top. All three are written with those three, so there is no r
 
 ```lowent
 rem the descriptor is (at, n) pairs in a flat slice u64 --- no new struct type
-set (idx d 0) 0 .  set (idx d 1) 4 .
-set (idx d 2) 8 .  set (idx d 3) 4 .
-let ss segments u8 view_segments back d .
-let n u64 segview.total_len ss .
-let w option u64 segview.coalesce ss out .
+set idx d. 0 . 0 .  set idx d. 1 . 4 .
+set idx d. 2 . 8 .  set idx d. 3 . 4 .
+let ss segments u8 view_segments back. d. . .
+let n u64 segview.total_len ss. . .
+let w option u64 segview.coalesce ss. out. . .
 ```
 
 #dtable(

@@ -96,7 +96,7 @@ note DOC
 처리기는 이것을 없는 것으로 다룬다.
 DOC
 
-fn f output u8 . do return 1 . end",
+fn f output u8 . do return 1 . end .",
       out: "f() = 1")
     #part("참고")
     #note[
@@ -135,7 +135,7 @@ fn f output u8 . do return 1 . end",
       `def` 뒤에는 그 넷만 온다. `fn` · `proc` · `actor` · `trait` · `test` · `module` 은 `def` 없이 적는다.
     ]
     #para("5")[
-      `export` 는 `def` 앞에 온다: `export def struct rect do … end`.
+      `export` 는 `def` 앞에 온다: `export def struct rect do … end .`.
     ]
     #part("진단")
     #tbl("낱말의 진단")[
@@ -151,13 +151,13 @@ fn f output u8 . do return 1 . end",
 
 struct pt do
   x u32 .
-end", "E-VOCAB-REMOVED")
+end .", "E-VOCAB-REMOVED")
     #rejected("`def` 는 타입만 짓는다", "module ex_defop .
 
 def fn f output u8 .
 do
   return 1 .
-end", "E-DEF-HEAD")
+end .", "E-DEF-HEAD")
     #part("참고")
     #note[
       낱말은 #strong[예산];이다. 새 낱말을 더하는 것은 언어가 커지는 일이므로, 기존 낱말로 표현할 수 있는 것에는 새 낱말을 주지 아니한다.
@@ -221,7 +221,7 @@ fn f output u8 .
 do
   let a.b u8 1 .
   return 1 .
-end", "E-NAME-DOTTED")
+end .", "E-NAME-DOTTED")
     #part("참고")
     #plain[
       여러 겹의 이름 공간은 이 언어에 #strong[없다.]; 이름 안에 계층을 담고 싶으면 밑줄로 적는다
@@ -394,7 +394,7 @@ text-line      ::= ? 닫는 줄이 아닌 줄 ?")
     ]
     #tbl("접두사가 정하는 것 — `len` 은 언제나 원소의 수다")[
       #table(columns: (auto, auto, auto, auto, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
-      [*적은 것*], [*원소*], [*`len "한"`*], [*`len "ab"`*], [*`len "😀"`*],
+      [*적은 것*], [*원소*], [*`len "한" .`*], [*`len "ab" .`*], [*`len "😀" .`*],
       [`"…"` (없음)], [바이트], [3], [2], [4],
       [`u"…"`], [UTF-16 코드 유닛], [1], [2], [2],
       [`U"…"`], [코드포인트], [1], [2], [1],
@@ -433,47 +433,47 @@ text-line      ::= ? 닫는 줄이 아닌 줄 ?")
     #part("예제")
     #ex("문자 리터럴", "module ex_char .
 
-fn letter output u32 . do return widen u32 'a' . end
-fn tab    output u32 . do return widen u32 '\\t' . end
-fn quote  output u32 . do return widen u32 '\\x27' . end
-fn hangul output u32 . do return widen u32 U'한' . end
-fn emoji  output u32 . do return widen u32 U'😀' . end",
+fn letter output u32 . do return widen u32 'a' . . end .
+fn tab    output u32 . do return widen u32 '\\t' . . end .
+fn quote  output u32 . do return widen u32 '\\x27' . . end .
+fn hangul output u32 . do return widen u32 U'한' . . end .
+fn emoji  output u32 . do return widen u32 U'😀' . . end .",
       out: "letter() = 97 · tab() = 9 · quote() = 39 · hangul() = 54620 · emoji() = 128512")
     #ex("코드포인트를 적고, 인코딩은 접두사가 정한다", "module ex_escape .
 
-fn bytes  output u64 . do return len  \"\\U0001F600\" . end
-fn units  output u64 . do return len u\"\\U0001F600\" . end
-fn points output u64 . do return len U\"\\U0001F600\" . end
+fn bytes  output u64 . do return len  \"\\U0001F600\" . . end .
+fn units  output u64 . do return len u\"\\U0001F600\" . . end .
+fn points output u64 . do return len U\"\\U0001F600\" . . end .
 
 rem 이름이 있는 제어 문자.
-fn bell   output u32 . do return widen u32 '\\a' . end
-fn vtab   output u32 . do return widen u32 '\\v' . end
-fn quote  output u32 . do return widen u32 '\\'' . end",
+fn bell   output u32 . do return widen u32 '\\a' . . end .
+fn vtab   output u32 . do return widen u32 '\\v' . . end .
+fn quote  output u32 . do return widen u32 '\\'' . . end .",
       out: "bytes() = 4 · units() = 2 · points() = 1 · bell() = 7 · vtab() = 11 · quote() = 39")
     #rejected("코드포인트가 아닌 것은 적을 수 없다", "module ex_surro .
 
 fn f output u32 .
 do
-  return widen u32 '\\uD800' .
-end", "E-STR-ESCAPE")
+  return widen u32 '\\uD800' . .
+end .", "E-STR-ESCAPE")
     #rejected("팔진 이스케이프는 없다", "module ex_octal .
 
 fn f output u32 .
 do
-  return widen u32 '\\101' .
-end", "E-STR-ESCAPE")
+  return widen u32 '\\101' . .
+end .", "E-STR-ESCAPE")
     #rejected("이스케이프 집합 밖은 거부된다", "module ex_esc .
 
 fn f output u64 .
 do
-  return len \"a\\qb\" .
-end", "E-STR-ESCAPE")
+  return len \"a\\qb\" . .
+end .", "E-STR-ESCAPE")
     #rejected("접두사는 둘뿐이다 — `u8` 은 없다", "module ex_pfx .
 
 fn f output u64 .
 do
-  return len u8\"ab\" .
-end", "E-STR-PREFIX")
+  return len u8\"ab\" . .
+end .", "E-STR-PREFIX")
     #ex("텍스트 리터럴 — 여러 줄을 그대로", "module ex_textlit .
 
 fn doc output u64 .
@@ -482,8 +482,8 @@ do
 line one
 line two
 DOC
-  .
-end
+  . .
+end .
 
 rem 본문에서는 이스케이프를 풀지 않는다 — `a\\nb` 는 네 바이트다.
 fn raw output u64 .
@@ -491,8 +491,8 @@ do
   return len text RAW
 a\\nb
 RAW
-  .
-end",
+  . .
+end .",
       out: "doc() = 17 · raw() = 4")
     #ex("리터럴", "let dec u32 42 .
 let hex u32 0x2A .
@@ -500,27 +500,27 @@ let big u32 1_000_000 .
 let flag bool true .")
     #ex("부동소수 리터럴", "module ex_float .
 
-fn plain output f64 . do return 1.5 . end
-fn expo  output f64 . do return 1e3 . end
-fn small output f64 . do return 1.5e-3 . end
-fn under output f64 . do return 1_000.5 . end
-fn hexp  output f64 . do return 0x1p3 . end
-fn negat output f64 . do return -1.5 . end",
+fn plain output f64 . do return 1.5 . end .
+fn expo  output f64 . do return 1e3 . end .
+fn small output f64 . do return 1.5e-3 . end .
+fn under output f64 . do return 1_000.5 . end .
+fn hexp  output f64 . do return 0x1p3 . end .
+fn negat output f64 . do return -1.5 . end .",
       out: "plain() = 1.5 · expo() = 1000.0 · small() = 0.0015 · under() = 1000.5 · hexp() = 8.0 · negat() = -1.5")
     #rejected("정수 리터럴은 부동소수가 되지 아니한다", "module ex_intfloat .
 
 fn f output f64 .
 do
   let x f64 3 .     rem 3 은 정수 리터럴이다 — 3.0 이라고 적어야 한다
-  return x .
-end", "E-TYPE-LET")
+  return x. .
+end .", "E-TYPE-LET")
     #rejected("타입의 범위를 벗어난 리터럴", "module ex_lit .
 
 proc p output u8 . effects none .
 do
   let x u8 300 .     rem 300 은 u8 의 범위(0~255) 밖이다
   return 0 .
-end", "E-TYPE-WIDTH")
+end .", "E-TYPE-WIDTH")
     #part("참고")
     #plain[
       작은따옴표 자신은 `'\''` 로 적는다(`'\x27'` 도 같은 값이다).
@@ -579,29 +579,46 @@ end", "E-TYPE-WIDTH")
   ]
   #sub("6.1.5", "점과 form")[
     #para("1")[
-      로우엔트의 문법에서 마침표 `.` 는 #strong[닫는 표시];다. 하나의 #t("폼", "form") 이
-      끝났음을 알린다.
+      로우엔트의 문법에서 마침표 `.` 는 #strong[닫는 표시];다. 점 하나가 가장 안쪽에 열린
+      #t("폼", "form") 하나를 닫는다.
     ]
     #para("2")[
-      폼은 전위 표기다 — 이름이 먼저 오고 인자가 뒤에 온다. `add a b` 는 `a` 와 `b` 를
-      더한다.
+      폼은 전위 표기다 — 이름이 먼저 오고 인자가 뒤에 온다. #strong[쓰는 자리의 이름은 폼을 열고,
+      점이 그것을 닫는다.]; `add a. b. .` 는 `a` 와 `b` 를 더한다: `a.` 와 `b.` 는 인자 없이
+      곧바로 닫힌 폼, 곧 그 이름의 값이고, 마지막 점이 `add` 를 닫는다.
+    ]
+    #para("2a")[
+      글자만 보고 값인 줄 아는 것 — 수 · 문자 · 문자열 리터럴과 `true` · `false` · `none` — 은
+      폼을 열지 아니하며 점을 갖지 아니한다.
+    ]
+    #para("2b")[
+      다음 자리의 이름은 폼을 열지 아니하며 점을 갖지 아니한다: 이름을 #strong[만드는]; 자리(선언의 이름 ·
+      `let` · `var` 의 이름 · 입력의 이름 · 되풀이 변수 · 칸의 이름), #strong[타입];의 자리, 그리고 기본 연산과
+      문장이 정한 #strong[낱말의 자리];(`cast <타입> …` · `field … <마디>` · `send … <처리기>` · 파이프 단계의
+      낱말 따위). 이 자리들은 부록 A.10 의 문법과 부록 D 의 표가 정한다. 사용자가 선언한 op 의
+      인자는 #strong[모두 폼];이다 — 타입을 넘길 때도 그렇다(`max_of u64. a. b. .`).
     ]
     #para("3")[
-      폼 안에 폼이 올 때는 괄호로 감싼다. `add a (mul b c)` 는 `b` 와 `c` 를 곱한 뒤
-      `a` 를 더한다.
+      폼 안에 폼이 오면 안쪽 폼이 먼저 제 점으로 닫힌다. `add a. mul b. c. . .` 는 `b` 와 `c` 를
+      곱한 뒤 `a` 를 더한다. 그러므로 폼의 처음과 끝은 #strong[글자만으로]; 정해진다 — op 이 인자를
+      몇 개 받는지 몰라도 나무가 선다. 인자의 수는 나무가 선 뒤에 선언과 견주어 본다(`E-IR-ARITY`).
+    ]
+    #para("3a")[
+      괄호 `( … )` 는 폼 하나를 감싼다. 뜻을 바꾸지 아니한다 — 읽기 쉽게 묶거나 눈에 띄게
+      하려고 적는다. 괄호 안의 폼은 제 점으로 닫힌다(`add a. (mul b. c. .) .`). 괄호는 닫개가 아니다.
     ]
     #para("4")[
       점의 개수는 #strong[검사합];이다 — 열린 폼의 수와 점의 수가 맞지 않으면 처리기가 진단을
-      낸다. 그래서 괄호를 잘못 닫은 프로그램이 조용히 다른 뜻으로 읽히는 일이 없다.
+      낸다. 그래서 점을 빠뜨린 프로그램이 조용히 다른 뜻으로 읽히는 일이 없다.
     ]
-    #ex("전위 표기와 점", "let total u32 add 1 2 .
-let mixed u32 add 1 (mul 2 3) .")
+    #ex("전위 표기와 점", "let total u32 add 1 2 . .
+let mixed u32 add 1 mul 2 3 . . .")
     #para("5")[
-      점은 #strong[떨어져 있을 때만]; 닫는다. 이름에 #strong[붙은]; 점은 닫지 않고
-      #t("한정", "qualification") 을 뜻한다 — 그리고 한정의 뜻은 #strong[셋뿐];이다:
+      이름 #strong[뒤에]; 붙은 점(`a.`)은 닫는 점이다 — 띄운 것(`a .`)과 같은 글이다. 이름과 이름
+      #strong[사이에]; 붙은 점은 닫지 않고 #t("한정", "qualification") 을 뜻한다 — 그리고 한정의 뜻은 #strong[셋뿐];이다:
       모듈의 이름(`allocs.byte_allocator`), 변형의 이름(`err.too_short`), 그리고
       타입에 딸린 선언의 이름(`fn pt.twice`). 이 셋은 모두 #strong[선언된 이름을 가리키는
-      경로];이지, 값에 대한 연산이 아니다.
+      경로];이지, 값에 대한 연산이 아니다. 이름 #strong[앞에]; 붙은 점(`.name`)은 없는 글이다(`E-VOCAB-REMOVED`).
     ]
     #para("6")[
       값의 안을 들여다보는 것 — 필드 접근과 메서드 호출 — 은 붙임 점으로 적을 수
@@ -620,8 +637,7 @@ let mixed u32 add 1 (mul 2 3) .")
       #t("개행", "newline") 은 폼을 닫지 아니한다. 사이띄개와 똑같이 다룬다.
     ]
     #para("2")[
-      폼은 자기 닫개에서 끝난다. 닫개는 점 `.` 하나다. 괄호 `( … )` 는 그 안에 열린 폼을 함께
-      닫는다.
+      폼은 자기 닫개에서 끝난다. 닫개는 점 `.` 하나다. 괄호는 닫개가 아니다(#cref("6.1.5") (3a)).
     ]
     #para("2a")[
       `do … end` 는 #strong[서로 짝인 괄호];다. `end` 는 자기 `do` 만 닫고, 블록 밖의 폼은 닫지 아니한다.
@@ -629,69 +645,67 @@ let mixed u32 add 1 (mul 2 3) .")
       만나면 번역이 거부된다(`E-DOT-MISSING`).
     ]
     #para("2b")[
-      블록을 #strong[몸으로 갖는]; 구문 — 부록 A 의 표에서 닫개가 `end` 인 머리(`fn` · `proc` · `if` ·
-      `while` · `for` · `match` · `case` · `struct` · `enum` · `region` · `borrow` · `pipe` · `else` …) — 은
-      그 블록이 끝나면 끝난다. 뒤에 점을 적으면 닫을 것이 없어 거부된다(`E-DOT-STRAY`). 블록을
-      여는 `do` 바로 뒤의 점도 같다.
+      #strong[블록을 가진 것도 제 점으로 닫힌다.]; 블록을 몸으로 갖는 문장(`if` · `while` · 네 되풀이 ·
+      `match` · `case` · `region` · `borrow` · `task_group` · `pipe`)과 선언(`fn` · `proc` · `def struct` ·
+      `def enum` · `trait` · `actor` · `state` · `contract` · `test`)은 `end` 다음의 점에서 끝난다 —
+      `if c. do … end .` · `fn f … do … end .`. `else` 로 이어지는 사슬은 한 문장이고, 점은 사슬의
+      맨 끝에 하나다(`if a. do … end else do … end .`). 그 점이 빠지면 번역이 거부된다(`E-DOT-MISSING`).
     ]
     #para("2c")[
-      블록을 품은 #strong[값];을 쓰는 문장 — `let x lit t do … end .` · `return pipe xs do … end .` —
-      은 블록을 몸으로 갖지 아니하므로, 여느 문장처럼 #strong[자기 점];으로 닫는다. 괄호 안이면
-      `)` 가 닫는다.
+      블록을 품은 #strong[값]; — `lit t do … end .` · `pipe xs. do … end .` — 도 제 점으로 닫히고, 그 값을
+      쓰는 문장은 다시 자기 점으로 닫힌다(`let x lit t do … end . .`).
     ]
     #para("2d")[
       블록은 그것을 여는 머리 없이 홀로 설 수 없다(`E-BLOCK-NOHEAD`).
     ]
     #para("2e")[
-      #strong[점은 하나다.]; 아무것도 닫지 않는 점 — 이미 닫힌 폼 뒤에 겹친 점(`def type bytes slice u8 . .`), op 머리의 이름 바로
-      뒤의 점(`fn f . input …`), 머리 절 가운데의 점(`input a . u64 .`) — 은 적합하지 아니하다(`E-CLOSER-EXTRA`).
-      타입은 제 문법의 인자 수로 끝나므로 점을 갖지 아니한다(`input b slice u8 .` 의 점은 절을 닫는다).
+      #strong[아무것도 닫지 않는 점은 없다.]; 이미 닫힌 폼 뒤에 겹친 점(`if c. . do`), op 머리의 이름 바로
+      뒤의 점(`fn f . input …`), 머리 절 가운데의 점(`input a . u64 .`)은 적합하지 아니하다(`E-CLOSER-EXTRA`).
+      타입은 제 문법으로 끝나므로 점을 갖지 아니한다(`input b slice u8 .` 의 점은 절을 닫는다).
       머리 절은 점 하나로 닫히고, 점 뒤의 낱말은 다음 절의 낱말이거나 `do` 다. `asm` 절은 제 항목(`reg a .`)을
       점으로 나눈다. 절 낱말(`vector` · `output` · `effects` …)은 입력의 이름이 될 수 없다(`E-NAME-CLAUSE`).
     ]
     #rejected("아무것도 닫지 않는 점", "module ex_extra_dot .
 
 fn head input data slice u8 . . output u8 .
-  requires ge (len data) 1 .
+  requires ge len data. . 1 . .
 do
-  return idx data 0 .
-end", "E-CLOSER-EXTRA")
-    #diagram("end 는 블록만 닫고, 마침표는 문장을 닫는다", "if eq a 0 do return 1 . end      ← if 문: 블록을 몸으로 갖는다 --- end 에서 끝난다
-└─────────────────────────┘ if 문
+  return idx data. 0 . .
+end .", "E-CLOSER-EXTRA")
+    #diagram("end 는 블록만 닫고, 마침표는 그 블록을 가진 것을 닫는다", "if eq a. 0 . do return 1 . end .      ← 마지막 점이 if 문을 닫는다
+                 └──────────┘ │       ← └┘ 는 if 의 블록, │ 는 if 의 마침표
 
-let p lit pt do x 1 . end .           ← let 문: 블록을 값으로 쓴다 --- 자기 . 으로 끝난다
-      └─────────────────┘ │           ← └┘ 는 lit 의 블록, │ 는 let 의 마침표
-└─────────────────────────────┘ let 문")
-    #rejected("몸으로 갖는 블록의 `end` 뒤에는 점이 없다", "module ex_dot_after_end .
+let p lit pt do x 1 . end . .         ← 앞의 점이 lit 을, 뒤의 점이 let 을 닫는다
+      └─────────────────┘ │ │")
+    #rejected("블록으로 끝난 문장도 제 점으로 닫는다", "module ex_dot_after_end .
 
 fn f input a u64 . output u64 . do
-  if eq a 0 do return 1 . end .
-  return a .
-end", "E-DOT-STRAY")
+  if eq a. 0 . do return 1 . end
+  return a. .
+end .", "E-DOT-MISSING")
     #rejected("블록을 값으로 쓰는 문장은 자기 점으로 닫는다", "module ex_dot_missing .
 
 def struct pt do
   x u64 .
-end
+end .
 
 fn f output u64 . do
   let p lit pt do x 1 . end
-  return field p x .
-end", "E-DOT-MISSING")
+  return field p. x . .
+end .", "E-DOT-MISSING")
     #rejected("머리 없는 블록", "module ex_block_nohead .
 
 fn f input a u64 . output u64 . do
   do
     return 1 .
-  end
-  return a .
-end", "E-BLOCK-NOHEAD")
+  end .
+  return a. .
+end .", "E-BLOCK-NOHEAD")
     #plain[
       왜 `end` 가 자기 `do` 만 닫는가. `end` 가 바깥 문장까지 닫으면, 한 `end` 가 무엇을 끝냈는지
-      알려면 그 블록을 #strong[누가 품었는지];를 거슬러 올라가 봐야 한다 — `let … lit T do … end` 에서
-      그 `end` 는 `lit` 의 블록과 `let` 문장을 함께 끝냈다. 이제 규칙은 둘뿐이다: #strong[`do … end` 는
-      괄호처럼 짝을 이루고, 문장은 자기 점으로 끝난다.]; 블록을 몸으로 갖는 구문만 C 의
-      `if (…) { }` 처럼 블록에서 끝난다(2026-09-25).
+      알려면 그 블록을 #strong[누가 품었는지];를 거슬러 올라가 봐야 한다. 그래서 규칙은 둘뿐이다:
+      #strong[`do … end` 는 괄호처럼 짝을 이루고, 이름이 연 것은 점이 닫는다.]; 블록을 몸으로 갖는 문장도,
+      블록을 값으로 쓰는 문장도 같은 규칙으로 끝난다(2026-10-09).
     ]
     #para("3")[
       그러므로 줄을 어디서 나누어도 뜻이 같다. 줄을 이어 쓰는 표시를 두지
@@ -704,9 +718,9 @@ end", "E-BLOCK-NOHEAD")
 
 rem 개행은 공백이다. 폼은 자기 닫개 `.` 에서 끝난다.
 fn poly input a u64 . input b u64 . output u64 . do
-  return add (mul a 2)
-             (mul b 3) .
-end",
+  return add mul a. 2 .
+             mul b. 3 . . .
+end .",
       out: "poly(5, 4) = 22")
     #plain[
       줄을 어디서 나누든 뜻이 같다. 이어 쓰는 #emph[방법];을 따로 배울 것이 없다 —
@@ -719,7 +733,7 @@ end",
     ]
     #rejected("세미콜론은 닫개가 아니다", "module ex_semi .
 
-fn twice input a u64 . output u64 . do return mul a 2 ; end", "E-VOCAB-REMOVED")
+fn twice input a u64 . output u64 . do return mul a. 2 ; end .", "E-VOCAB-REMOVED")
     #plain[
       세미콜론은 한때 닫개의 #strong[세 번째 철자];였다 — 처리기가 그것을 만나면 글자 그대로
       점을 냈다. 같은 것을 가리키는 이름이 셋이면 읽는 사람이 셋을 다 알아야 하므로,
@@ -787,7 +801,7 @@ fn twice input a u64 . output u64 . do return mul a 2 ; end", "E-VOCAB-REMOVED")
     #part("예제")
     #rejected("어느 낱말에도 속하지 않는 글자", "module ex_stray_char .
 
-fn f output u8 . do return 1 @ . end", "E-CHAR")
+fn f output u8 . do return 1 @ . end .", "E-CHAR")
     #part("참고")
     #caution("")[
       `..` 는 이 언어에 없다(`E-DOT-DOUBLE`). 한때 있던 철자이며, #strong[버린 철자를 새 뜻으로

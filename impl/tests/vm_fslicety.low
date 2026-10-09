@@ -12,21 +12,21 @@ module m .
 def type bytes slice u8 .
 
 rem len of float 타입배열 = 원소 수. 두 f32 → 2.
-fn flen input b bytes . output u64 . do return len (view_array f32 b) . end
+fn flen input b bytes . output u64 . do return len view_array f32 b. . . . end .
 
 rem for-in 합 over float 슬라이스: f32 1.5 + 2.5 = 4.0. (원소가 u8 이면 E-TYPE-MIX 였다.)
 fn fsum input b bytes . output f64 . do
   var acc f64 0.0 .
-  for x (view_array f32 b) do set acc (add acc x) . end
-  return acc .
-end
+  for x view_array f32 b. . do set acc. add acc. x. . . end .
+  return acc. .
+end .
 
 rem subslice 가 원소 타입을 물려줘 index 가 float 를 되살린다: sub[1..2] 원소0 = 2.5.
-fn fsub input b bytes . output f64 . do return idx (subslice (view_array f32 b) 1 2) 0 . end
+fn fsub input b bytes . output f64 . do return idx subslice view_array f32 b. . 1 2 . 0 . . end .
 
 rem for-in 합 over **부호형** 슬라이스: i16 [-1,-2] → -3 (부호확장).
 fn ssum input b bytes . output i64 . do
   var acc i64 0 .
-  for x (view_array i16 b) do set acc (add acc x) . end
-  return acc .
-end
+  for x view_array i16 b. . do set acc. add acc. x. . . end .
+  return acc. .
+end .

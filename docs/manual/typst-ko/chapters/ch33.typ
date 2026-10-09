@@ -37,7 +37,7 @@
 
 - `strings.starts_with`·`strings.remove_prefix`·`strings.find` 는 모두 `slice u8` 을 받는다. `remove_prefix` 와 `subslice` 가
   돌려주는 것은 새 버퍼가 아니라 원래 바이트를 가리키는 *뷰*다. 복사가 없다.
-- `fmt.put_str buf pos s` 와 `fmt.put_u64 buf pos n` 은 호출자의 버퍼 `buf` 의 `pos` 자리부터 쓰고, *다음 쓸 자리*를 `option`
+- `fmt.put_str buf. pos. s. .` 와 `fmt.put_u64 buf. pos. n. .` 은 호출자의 버퍼 `buf` 의 `pos` 자리부터 쓰고, *다음 쓸 자리*를 `option`
   으로 준다. 자리가 모자라면 한 글자도 쓰지 않고 `none` 이다.
 - 조립이 끝나면 `subslice buf 0 끝` 을 표준출력에 쓴다.
 
@@ -58,7 +58,7 @@
 
 - `utf8.count_chars` 는 글자 수를 센다. 한글 "안녕" 은 6 바이트, 2 글자다.
 - 끝이 잘린 `[236,149]` 는 올바른 UTF-8 이 아니므로 `none` 이고, 예제는 999 를 돌려준다.
-- `utf8.decode s 0` 은 0 번 자리의 글자 하나를 코드포인트로 준다. 50504 는 U+C548, "안" 이다.
+- `utf8.decode s. 0 .` 은 0 번 자리의 글자 하나를 코드포인트로 준다. 50504 는 U+C548, "안" 이다.
 
 많은 라이브러리는 올바르지 않은 바이트를 만나면 치환 문자(U+FFFD)를 넣고 계속 간다. 그러면 입력이 망가졌다는 사실이 출력 속에
 묻힌다. `utf8` 은 `none` 으로 알린다. 망가진 입력을 어떻게 다룰지는 부르는 쪽이 정한다.
@@ -71,7 +71,7 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
 
 #demo("examples/ch33/hexout.low")
 
-`codec.hex_enc src dst` 는 `src` 를 16진 글자로 `dst` 에 쓰고 *실제로 쓴 바이트 수*를 준다. 결과는 `dst` 통째가 아니라 앞의 `n`
+`codec.hex_enc src. dst. .` 는 `src` 를 16진 글자로 `dst` 에 쓰고 *실제로 쓴 바이트 수*를 준다. 결과는 `dst` 통째가 아니라 앞의 `n`
 바이트다. 여섯 글자 "Lowent" 는 열두 글자 `4c6f77656e74` 가 된다. 8 바이트 자리에 18 글자를 부호화하려 하면 `none` 이고 아무것도
 쓰지 않는다 --- 전량 아니면 무다. `hex_dec`·`b64_enc`·`b64_dec` 도 같은 모양이다.
 
@@ -125,7 +125,7 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
   #demo("examples/ch33/mistake_wholedst.low")
 
   `codec.hex_enc` 는 16 바이트 버퍼에 12 바이트를 쓰고 12 를 돌려준다(결과 1612 는 버퍼 16 과 쓴 수 12 를 한데 적은 것이다). `dst` 통째를 결과로 쓰면
-  쓰지 않은 네 바이트가 뒤에 붙는다. C 에서 `sprintf` 의 반환값을 버리고 버퍼 전체를 보내는 실수와 같다. 결과는 언제나 `subslice dst 0 n` 이다.
+  쓰지 않은 네 바이트가 뒤에 붙는다. C 에서 `sprintf` 의 반환값을 버리고 버퍼 전체를 보내는 실수와 같다. 결과는 언제나 `subslice dst. 0 n. .` 이다.
 ]
 
 #misconception[`len` 은 글자 수이고, 바이트 자리가 곧 글자 자리다][
@@ -143,12 +143,12 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
   id: "lib-text-glance",
   caption: [글자 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`strings.starts_with s p` · `strings.find hay needle from`], [묻기 · 찾기(`option u64`)], [뷰 위에서 --- 복사가 없다],
-  [`strings.remove_prefix s p`], [접두사를 뗀 뷰 --- 없으면 원본 그대로], [실패 없이 늘 쓸 수 있는 뷰],
-  [`fmt.put_str buf pos s` · `fmt.put_u64 buf pos n`], [호출자의 버퍼에 조립 --- 다음 자리를 `option` 으로], [전량 아니면 무],
-  [`utf8.count_chars s` · `utf8.decode s at`], [글자 수 · 그 자리의 코드포인트], [올바르지 않으면 치환 문자 대신 `none`],
-  [`codec.hex_enc src dst` · `b64_enc`], [옮겨 적고 쓴 수를 준다], [결과는 `subslice dst 0 n` --- 암호화가 아니다],
-  [`hash.bucket_of key n` · `hash.crc data` · `hash.sha256`], [칸 고르기 · 손상 검출 · 변조 검출], [물음마다 다른 해시],
+  [`strings.starts_with s. p. .` · `strings.find hay. needle. from. .`], [묻기 · 찾기(`option u64`)], [뷰 위에서 --- 복사가 없다],
+  [`strings.remove_prefix s. p. .`], [접두사를 뗀 뷰 --- 없으면 원본 그대로], [실패 없이 늘 쓸 수 있는 뷰],
+  [`fmt.put_str buf. pos. s. .` · `fmt.put_u64 buf. pos. n. .`], [호출자의 버퍼에 조립 --- 다음 자리를 `option` 으로], [전량 아니면 무],
+  [`utf8.count_chars s. .` · `utf8.decode s. at. .`], [글자 수 · 그 자리의 코드포인트], [올바르지 않으면 치환 문자 대신 `none`],
+  [`codec.hex_enc src. dst. .` · `b64_enc`], [옮겨 적고 쓴 수를 준다], [결과는 `subslice dst. 0 n. .` --- 암호화가 아니다],
+  [`hash.bucket_of key. n. .` · `hash.crc data. .` · `hash.sha256`], [칸 고르기 · 손상 검출 · 변조 검출], [물음마다 다른 해시],
   [`regex`], [한 번 컴파일해 여러 입력에 맞춘다], [역추적하지 않는다 --- 시간이 입력 길이에 비례],
 )
 

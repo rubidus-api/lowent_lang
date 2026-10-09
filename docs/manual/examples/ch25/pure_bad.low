@@ -4,11 +4,11 @@ rem expect: E-EFFECT-PURITY
 actor counter do
   state do
     value u64 .
-  end
+  end .
 
   fn inc output u64 .
   do
-    set value (add value 1) .
-    return value .
-  end
-end
+    set value. add value. 1 . .
+    return value. .
+  end .
+end .

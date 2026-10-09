@@ -16,7 +16,7 @@ def type scratch u64 .
 
 def enum write_error do
   overflow .         rem 버퍼 부족 — 실행-유도 오류(조건 없이 errors 절에 이름만)
-end
+end .
 
 rem ── 저수준 라이터: 모두 (buf, pos) → 새 pos 를 돌려주는 순수 빌더(숨은 alloc 0) ──
 
@@ -28,10 +28,10 @@ proc write_byte
   effects none .
   errors overflow .
 do
-  guard lt pos len buf else return error overflow .
-  set (idx buf pos) b .
-  return ok add pos 1 .
-end
+  guard lt pos. len buf. . . else return error overflow . . .
+  set idx buf. pos. . b. .
+  return ok add pos. 1 . . .
+end .
 
 proc write_str
   input buf mut slice u8 .
@@ -42,12 +42,12 @@ proc write_str
   access s sequential .
   errors overflow .
 do
-  var p u64 pos .
-  for c s do
-    set p try write_byte buf p c . rem overflow 자동 전파
-  end
-  return ok p .
-end
+  var p u64 pos. .
+  for c s. do
+    set p. try write_byte buf. p. c. . . . rem overflow 자동 전파
+  end .
+  return ok p. . .
+end .
 
 rem [lo, hi) 바이트 역순 — write_u32 보조
 proc reverse_bytes
@@ -57,18 +57,18 @@ proc reverse_bytes
   output void .
   effects none .
 do
-  guard lt lo hi else return .
-  var i u64 lo .
-  var j u64 sub hi 1 .
-  while lt i j do
-    guard lt j (len buf) else return .
-    let t u8 idx buf i .
-    set (idx buf i) (idx buf j) .
-    set (idx buf j) t .
-    set i add i 1 .
-    set j sub j 1 .
-  end
-end
+  guard lt lo. hi. . else return . .
+  var i u64 lo. .
+  var j u64 sub hi. 1 . .
+  while lt i. j. . do
+    guard lt j. len buf. . . else return . .
+    let t u8 idx buf. i. . .
+    set idx buf. i. . idx buf. j. . .
+    set idx buf. j. . t. .
+    set i. add i. 1 . .
+    set j. sub j. 1 . .
+  end .
+end .
 
 rem u32 10진수 — LSB 먼저 쓰고 뒤집기(do-while = while true + guard)
 proc write_u32
@@ -79,25 +79,25 @@ proc write_u32
   effects none .
   errors overflow .
 do
-  let start u64 pos .
-  var p u64 pos .
-  var v u32 n .
+  let start u64 pos. .
+  var p u64 pos. .
+  var v u32 n. .
   while true do
-    let d u32 mod v 10 .
-    set p try write_byte buf p (narrow u8 (add d 48)) . rem '0' = 48, d≤9 → 안전 narrow
-    set v div v 10 .
-    guard gt v 0 else break .
-  end
-  reverse_bytes buf start p .
-  return ok p .
-end
+    let d u32 mod v. 10 . .
+    set p. try write_byte buf. p. narrow u8 add d. 48 . . . . . rem '0' = 48, d≤9 → 안전 narrow
+    set v. div v. 10 . .
+    guard gt v. 0 . else break . .
+  end .
+  reverse_bytes buf. start. p. .
+  return ok p. . .
+end .
 
 rem ── 고수준: 라이터들을 합성 ──
 
 def struct point do
   x u32 .
   y u32 .
-end
+end .
 
 rem "(x, y)" 를 buf 에 조립, 총 길이 반환. 문자열 리터럴 = slice u8(정적).
 proc format_point
@@ -108,13 +108,13 @@ proc format_point
   errors overflow .
 do
   var at u64 0 .
-  set at try write_byte buf at 40 . rem '('
-  set at try write_u32 buf at field p x .
-  set at try write_str buf at ", " .
-  set at try write_u32 buf at field p y .
-  set at try write_byte buf at 41 . rem ')'
-  return ok at .
-end
+  set at. try write_byte buf. at. 40 . . . rem '('
+  set at. try write_u32 buf. at. field p. x . . . .
+  set at. try write_str buf. at. ", " . . .
+  set at. try write_u32 buf. at. field p. y . . . .
+  set at. try write_byte buf. at. 41 . . . rem ')'
+  return ok at. . .
+end .
 
 rem ── 실제 출력: io effect + capability ──
 rem cap io 없으면 호출 불가(ambient authority 없음). 권한이 먼저 온다(WO-0217). scratch 에 임시 버퍼(가시).
@@ -126,13 +126,13 @@ proc print_point
   effects io alloc .
   errors overflow .
 do
-  let g option mut slice u8 alloc_bytes temp capacity 64 .
-  guard is_some g else return error overflow .
-  let buf mut slice u8 some_value g .
-  let n u64 try format_point buf p .
-  let w u64 write_out sink 1 (subslice buf 0 n) .     rem cap 경유 출력(1 = stdout)
-  return ok .
-end
+  let g option mut slice u8 alloc_bytes temp. capacity 64 . .
+  guard is_some g. . else return error overflow . . .
+  let buf mut slice u8 some_value g. . .
+  let n u64 try format_point buf. p. . . .
+  let w u64 write_out sink. 1 subslice buf. 0 n. . . .     rem cap 경유 출력(1 = stdout)
+  return ok. .
+end .
 ```
 
 ## 보이는 Lowent 특징

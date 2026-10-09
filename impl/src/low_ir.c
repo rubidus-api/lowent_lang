@@ -1156,6 +1156,16 @@ bool low_ir_is_builtin_name(proven_u8str_view_t name) {
 #undef X
     };
     for (proven_size_t i = 0; i < sizeof SH / sizeof SH[0]; i++) if (veq(name, SH[i])) return true;
+    // ★ RFC-0142 (2026-10-09) — 하강이 이름으로 읽는 특수형(`some` · `await` · `channel` · `isa` …)도 잡는다. 전엔 어휘 표에 없어서
+    //   지역 이름으로 쓸 수 있었고, 그러면 그 이름을 값으로 읽는 자리에서 하강이 가로챘다. `copy` · `drain` 만은 문맥
+    //   낱말이다 — 같은 이름의 사용자 op 이 있으면 그 부름이다(RFC-0132 P3 · 액터의 `drain`). 갈래의 칸을 꺼내는 연산은 `payload` 다(옛 `get` — 사용자 op 의 이름과 갈라 놓았다).
+    static const char *NS[] = {
+#define X(n, s) #n,
+        LOW_NAMED_SHAPES(X)
+#undef X
+    };
+    for (proven_size_t i = 0; i < sizeof NS / sizeof NS[0]; i++)
+        if (veq(name, NS[i]) && !veq(name, "copy") && !veq(name, "drain")) return true;
     return false;
 }
 // ★ 구간 분석 스택이 넘쳐 **포기한** 횟수(RFC-0077 P1-5) — 조용하지 않게 하려고 센다.
@@ -3034,12 +3044,12 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_EQ, 0);      // 태그 == 변형 인덱스 → bool
                 return;
             }
-            if (veq(nd->tok.lex, "get")) {  // ★ 변형 페이로드 접근 (RFC-0080 §4.4): `get <value> <variant> <field>`
+            if (veq(nd->tok.lex, "payload")) {  // ★ 변형 페이로드 접근 (RFC-0080 §4.4): `payload <value> <variant> <field>` (1.8 — 옛 이름 `get`, RFC-0142)
                 // ★ 값이 **맨 지역 이름**이면 narrowing 검사를 위해 이름을 먼저 붙든다.
                 proven_u8str_view_t gvn = (*pos < end && is_atom(k[*pos])) ? k[*pos]->tok.lex : (proven_u8str_view_t){0};
                 ir_value(c, k, pos, end);   // 값(레코드)
                 if (*pos + 1 >= end || !is_atom(k[*pos]) || !is_atom(k[*pos + 1])) {
-                    ir_fail(c, "E-IR-UNSUP", "`get` needs a variant and a field: `get <value> <variant> <field>`", nd->line); return; }
+                    ir_fail(c, "E-IR-UNSUP", "`payload` needs a variant and a field: `payload <value>. <variant> <field> .`", nd->line); return; }
                 proven_u8str_view_t vname = k[(*pos)++]->tok.lex;   // 변형
                 proven_u8str_view_t fname = k[(*pos)++]->tok.lex;   // 필드
                 // ★ 정적 안전(RFC-0080 §4.6): 변형·필드가 **선언에 있어야** 한다. 오타는
@@ -3064,7 +3074,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             proven_u8str_view_t nw = c->locals[ls].narrowed;
                             if (!nw.size)
                                 ir_fail(c, "E-ENUM-UNCHECKED",
-                                        "this enum has several variants, so `get … <variant> …` needs "
+                                        "this enum has several variants, so `payload … <variant> …` needs "
                                         "the value to be NARROWED to that variant first — put it after "
                                         "`guard isa <value> <variant> else …` (RFC-0080 §4.6). Reading a "
                                         "field of the wrong variant would otherwise read a neighbouring slot",
@@ -3072,7 +3082,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             else if (!proven_u8str_view_eq(nw, vname))
                                 ir_fail(c, "E-ENUM-VARIANT",
                                         "this value was narrowed to a DIFFERENT variant here — a `guard "
-                                        "isa` proved another case, so this `get` reads the wrong one "
+                                        "isa` proved another case, so this `payload` reads the wrong one "
                                         "(RFC-0080 §4.6)", nd->line);
                             if (c->failed) return;
                         }
@@ -4851,11 +4861,10 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
             if (proven_u8str_view_eq(ct->kids[ni]->tok.lex, nd->tok.lex)) known = true;
         }
     if (!known) return false;
-    ir_fail(c, "E-EXPR-APP",
-            "an op call inside an `expr` island must be parenthesised — write `(len d) ge 4`, "
-            "not `len d ge 4`. The island has infix operators only: without the parentheses "
-            "nothing says where the argument list ends, and you and the compiler would read it "
-            "differently", nd->line);
+    // ★ RFC-0142 (1.8) — 섬 안의 호출도 제 점으로 닫히고, 표면 패스가 그것을 괄호로 싸서 내려 준다. 맨 호출이 여기 닿으면
+    //   표면 패스의 잘못이다(1.7 까지는 저자의 실수 E-EXPR-APP 였다).
+    ir_fail(c, "E-IR-SURFACE", "internal: an op call reached an `expr` island unparenthesised — the surface pass wraps every call; "
+            "this is a compiler bug, not a mistake in the program", nd->line);
     return true;
 }
  void ir_island_climb(ir_ctx_t *c, low_cst_t *const *k, proven_size_t n, proven_size_t *pos, int minp) {

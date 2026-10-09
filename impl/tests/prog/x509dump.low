@@ -18,84 +18,84 @@ rem   ☞ 두 뒤끝이 같은 프로그램에 다른 답을 내면 그것은 **
 rem   ⇒ 쓰는 자리는 **부르는 쪽이 준다**(이 저장소의 규율 그대로).
 proc putnum input out cap io . input tag slice u8 . input v u64 . input d mut slice u8 . output u64 . effects io .
 do
-  guard ge (len d) 20 else return 0 .
+  guard ge len d. . 20 . else return 0 . .
   var i u64 20 .
-  var x u64 v .
-  if eq x 0 do
-    set i 19 .
-    set (idx d 19) 48 .
-  end
-  while gt x 0 do
-    set i (sub i 1) .
-    set (idx d i) (narrow u8 (add 48 (mod x 10))) .
-    set x (div x 10) .
-  end
-  let w1 u64 write_out out 1 tag .
-  guard gt w1 0 else return 0 .
-  let w2 u64 write_out out 1 (subslice d i 20) .
-  guard gt w2 0 else return 0 .
-  let w3 u64 write_out out 1 "\n" .
-  guard gt w3 0 else return 0 .
+  var x u64 v. .
+  if eq x. 0 . do
+    set i. 19 .
+    set idx d. 19 . 48 .
+  end .
+  while gt x. 0 . do
+    set i. sub i. 1 . .
+    set idx d. i. . narrow u8 add 48 mod x. 10 . . . .
+    set x. div x. 10 . .
+  end .
+  let w1 u64 write_out out. 1 tag. . .
+  guard gt w1. 0 . else return 0 . .
+  let w2 u64 write_out out. 1 subslice d. i. 20 . . .
+  guard gt w2. 0 . else return 0 . .
+  let w3 u64 write_out out. 1 "\n" . .
+  guard gt w3. 0 . else return 0 . .
   return 1 .
-end
+end .
 
 rem ★ 바이트열을 16진으로 낸다 — 증인의 출력은 언제나 글이어야 한다.
 proc puthex input out cap io . input b slice u8 . input d mut slice u8 . output u64 . effects io .
 do
-  guard ge (len d) 2 else return 0 .
+  guard ge len d. . 2 . else return 0 . .
   var i u64 0 .
-  while lt i (len b) do
-    let hi u64 shr (cast u64 (idx b i)) 4 .
-    let lo u64 bit_and (cast u64 (idx b i)) 15 .
-    set (idx d 0) (narrow u8 (add (add 48 hi) (mul (div hi 10) 39))) .
-    set (idx d 1) (narrow u8 (add (add 48 lo) (mul (div lo 10) 39))) .
-    let w u64 write_out out 1 (subslice d 0 2) .
-    guard gt w 0 else return 0 .
-    set i (add i 1) .
-  end
+  while lt i. len b. . . do
+    let hi u64 shr cast u64 idx b. i. . . 4 . .
+    let lo u64 bit_and cast u64 idx b. i. . . 15 . .
+    set idx d. 0 . narrow u8 add add 48 hi. . mul div hi. 10 . 39 . . . .
+    set idx d. 1 . narrow u8 add add 48 lo. . mul div lo. 10 . 39 . . . .
+    let w u64 write_out out. 1 subslice d. 0 2 . . .
+    guard gt w. 0 . else return 0 . .
+    set i. add i. 1 . .
+  end .
   return 1 .
-end
+end .
 
 proc dump input k cap io . input al cap allocator . output u8 . effects alloc io .
 do
-  let g option mut slice u8 alloc_bytes al capacity 16384 .
-  guard is_some g else return 9 .
-  let buf mut slice u8 some_value g .
-  let rn option u64 read_in k 0 buf .
-  guard is_some rn else return 9 .
-  let n u64 some_value rn .
-  guard gt n 0 else return 9 .
-  let c slice u8 subslice buf 0 n .
+  let g option mut slice u8 alloc_bytes al. capacity 16384 . .
+  guard is_some g. . else return 9 . .
+  let buf mut slice u8 some_value g. . .
+  let rn option u64 read_in k. 0 buf. . .
+  guard is_some rn. . else return 9 . .
+  let n u64 some_value rn. . .
+  guard gt n. 0 . else return 9 . .
+  let c slice u8 subslice buf. 0 n. . .
 
-  guard gt (x509.tbs_off c) 0 else return 1 .
-  guard gt (putnum k "notBefore " (x509.not_before c) (subslice buf 15000 15032)) 0 else return 9 .
-  guard gt (putnum k "notAfter " (x509.not_after c) (subslice buf 15000 15032)) 0 else return 9 .
-  if x509.is_ca c do
-    guard gt (putnum k "ca " 1 (subslice buf 15000 15032)) 0 else return 9 .
-  end
-  if eq (x509.is_ca c) false do
-    guard gt (putnum k "ca " 0 (subslice buf 15000 15032)) 0 else return 9 .
-  end
-  guard gt (putnum k "tbs_off " (x509.tbs_off c) (subslice buf 15000 15032)) 0 else return 9 .
-  guard gt (putnum k "tbs_end " (x509.tbs_end c) (subslice buf 15000 15032)) 0 else return 9 .
-  guard gt (putnum k "sig_len " (x509.sig_len c) (subslice buf 15000 15032)) 0 else return 9 .
-  guard gt (putnum k "issuer_len " (x509.elem_len c (x509.issuer_off c)) (subslice buf 15000 15032)) 0 else return 9 .
-  guard gt (putnum k "subject_len " (x509.elem_len c (x509.subject_off c)) (subslice buf 15000 15032)) 0 else return 9 .
+  guard gt x509.tbs_off c. . 0 . else return 1 . .
+  guard gt putnum k. "notBefore " x509.not_before c. . subslice buf. 15000 15032 . . 0 . else return 9 . .
+  guard gt putnum k. "notAfter " x509.not_after c. . subslice buf. 15000 15032 . . 0 . else return 9 . .
+  if x509.is_ca c. . do
+    guard gt putnum k. "ca " 1 subslice buf. 15000 15032 . . 0 . else return 9 . .
+  end .
+  if eq x509.is_ca c. . false . do
+    guard gt putnum k. "ca " 0 subslice buf. 15000 15032 . . 0 . else return 9 . .
+  end .
+  guard gt putnum k. "tbs_off " x509.tbs_off c. . subslice buf. 15000 15032 . . 0 . else return 9 . .
+  guard gt putnum k. "tbs_end " x509.tbs_end c. . subslice buf. 15000 15032 . . 0 . else return 9 . .
+  guard gt putnum k. "sig_len " x509.sig_len c. . subslice buf. 15000 15032 . . 0 . else return 9 . .
+  guard gt putnum k. "issuer_len " x509.elem_len c. x509.issuer_off c. . . subslice buf. 15000 15032 . . 0 . else return 9 . .
+  guard gt putnum k. "subject_len " x509.elem_len c. x509.subject_off c. . . subslice buf. 15000 15032 . . 0 . else return 9 . .
 
-  var s u64 x509.san_next c 0 .
+  var s u64 x509.san_next c. 0 . .
   var guard_ u64 0 .
-  while gt s 0 do
-    let w1 u64 write_out k 1 "san " .
-    guard gt w1 0 else return 9 .
+  while gt s. 0 . do
+    let w1 u64 write_out k. 1 "san " . .
+    guard gt w1. 0 . else return 9 . .
     rem ★★★ 이름을 **날바이트로 찍지 않는다.** 차등 퍼저는 이 op 에 **쓰레기 인자**를 준다 —
     rem   그러면 아무 바이트나 표준출력으로 나가고, 그것을 글로 읽는 도구(스윕)가 그 자리에서
     rem   죽는다(실측 2026-09-18: UTF-8 아닌 0xFF 에서 멈췄다). 증인의 출력은 **언제나 글**이어야 한다.
-    guard gt (puthex k (subslice c (der.value_off c s) (add (der.value_off c s) (der.value_len c s))) (subslice buf 15040 15048)) 0 else return 9 .
-    let w3 u64 write_out k 1 "\n" .
-    guard gt w3 0 else return 9 .
-    set s (x509.san_next c s) .
-    set guard_ (add guard_ 1) .
-    guard le guard_ 64 else return 9 .
-  end
+    guard gt puthex k. subslice c. der.value_off c. s. . add der.value_off c. s. . der.value_len c. s. . . . subslice buf. 15040 15048 . . 0 . else return 9 . .
+    let w3 u64 write_out k. 1 "\n" . .
+    guard gt w3. 0 . else return 9 . .
+    set s. x509.san_next c. s. . .
+    set guard_. add guard_. 1 . .
+    guard le guard_. 64 . else return 9 . .
+  end .
   return 0 .
-end
+end .

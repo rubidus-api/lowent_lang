@@ -25,28 +25,28 @@ rem   ☞ 매개변수를 `state` 라 부를 수 없다 — 그것은 **효과 �
 rem     도구는 `E-IR-UNSUP: unsupported atom` 이라고만 했는데, 그 말은 원인을 안 가리킨다.
 rem     (평평한 어휘의 대가다. 여기서는 `seed` 로 비켰다.)
 export fn advance_seed input seed u64 . output u64 . do
-  return call_builtin rng_next seed .
-end
+  return call_builtin rng_next seed. . .
+end .
 
 rem ★ 0 이상 bound 미만으로 접는다. **치우침이 있다**(모듈로 편향) — 이름이 그것을 숨기지 않도록
 rem   `_biased` 를 붙였다. 통계가 걸린 자리에는 쓰지 말고, 셔플·샘플링 정도에 쓴다.
 export fn below_biased input seed u64 . input bound u64 . output u64 .
-  requires ge bound 1 . do
-  return mod (call_builtin rng_next seed) bound .
-end
+  requires ge bound. 1 . . do
+  return mod call_builtin rng_next seed. . bound. . .
+end .
 
 rem ★ 동전 — 최상위 비트를 본다(하위 비트가 약한 생성기가 있으므로 상위를 쓴다).
 export fn coin input seed u64 . output bool . do
-  return ge (shr (call_builtin rng_next seed) 63) 1 .
-end
+  return ge shr call_builtin rng_next seed. . 63 . 1 . .
+end .
 
 rem ── OS 엔트로피 (cap random) ──────────────────────────────────────────────
 
 rem ★ 버퍼를 채우고 **채운 바이트 수**를 답한다. 못 채우면 0 이다 — 조용히 덜 채우지 않는다.
 rem   뒷받침은 호출자가 든다(RFC-0043 D1).
 export proc bytes input k cap random . input dst mut slice u8 . output u64 . effects none . do
-  return random_bytes k dst .
-end
+  return random_bytes k. dst. . .
+end .
 
 rem ★★ **시드를 OS 에서 얻는다** — 재현 가능한 열의 출발점을 예측 불가하게 만드는 자리.
 rem   이 한 줄이 두 세계를 잇는다: 여기서만 권한이 필요하고, 그 뒤는 전부 순수하다.
@@ -60,10 +60,10 @@ rem ☞ X-0035 에서 이 op 은 **안 바꿨다**: 자리 요구가 이미 `req
 rem   그것은 **부르는 쪽이 어긴 것**이라 실행 시간의 실패가 아니라 계약 위반이다.
 rem   실패로 말해야 하는 것은 «계약은 지켰는데 재지 못했다» 일 때다.
 export proc seed_from_os input k cap random . input scratch mut slice u8 . output u64 . effects none .
-  requires ge (len scratch) 8 . do
-  let got u64 random_bytes k scratch .
-  guard ge got 8 else return 0 .
-  let h u64 call_builtin hash_bytes (subslice scratch 0 8) .
-  guard ne h 0 else return 1 .
-  return h .
-end
+  requires ge len scratch. . 8 . . do
+  let got u64 random_bytes k. scratch. . .
+  guard ge got. 8 . else return 0 . .
+  let h u64 call_builtin hash_bytes subslice scratch. 0 8 . . .
+  guard ne h. 0 . else return 1 . .
+  return h. .
+end .

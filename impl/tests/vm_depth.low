@@ -15,17 +15,17 @@ rem   네이티브 → panic: call depth limit exceeded
 module vm_depth .
 
 fn deep input n u64 . output u64 . do
-  if eq n 0 do return 0 . end
-  return expr 1 + (deep (expr n - 1 .)) .
-end
+  if eq n. 0 . do return 0 . end .
+  return expr 1 + (deep expr n. - 1 . .) . .
+end .
 
 rem ★ 경계는 **정확히** 같아야 한다. VM 은 129 프레임을 허용하고 네이티브는 128 에서 멈췄다 —
 rem   `deep(128)` 에서 **같은 프로그램이 두 답을 냈다**(VM: 128 · 네이티브: panic).
 rem   **자동 차등 퍼저가 그것을 찾았다**(scripts/diff-sweep.py — 값을 경계까지 흔든다).
 rem   한계의 **경계도 의미의 일부다.**
 test recursion_within_the_limit do
-  expect eq (deep 100) 100 .
-  expect eq (deep 120) 120 .
+  expect eq deep 100 . 100 . .
+  expect eq deep 120 . 120 . .
   rem ★ `deep 127` 은 **여기서는** 안 된다 — 테스트 블록 자신이 프레임을 하나 쓰기 때문이다.
   rem   그것이 옳은 동작이다(한계는 **호출 사슬 전체**를 센다). 경계 검사는 골든이 CLI 에서 한다.
-end
+end .

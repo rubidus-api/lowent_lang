@@ -62,15 +62,15 @@ module ex_lib .
 
 def enum parse_error do
   too_short .
-end
+end .
 
 rem 실패를 값으로 돌려준다 — 특별한 수(−1 따위)를 쓰지 않는다.
 export fn first_byte input data slice u8 . output result u8 parse_error .
-  errors too_short lt (len data) 1 .
+  errors too_short lt len data. . 1 . .
 do
-  guard ge (len data) 1 else return error too_short .
-  return ok (idx data 0) .
-end
+  guard ge len data. . 1 . else return error too_short . . .
+  return ok idx data. 0 . . .
+end .
 ```
 
 > [!산문]

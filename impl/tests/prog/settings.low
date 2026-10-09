@@ -19,20 +19,20 @@ module settings .
 use flags from "../../../lib/flags.low" .
 
 rem 설정 자리표 — **번호**다. 저장된 설정에서는 이 번호가 계약이므로 재사용하지 않는다(§6.4).
-fn f_sound  output u64 . do return 0 . end
-fn f_music  output u64 . do return 1 . end
-fn f_shadow output u64 . do return 2 . end
-fn f_vsync  output u64 . do return 3 . end
+fn f_sound  output u64 . do return 0 . end .
+fn f_music  output u64 . do return 1 . end .
+fn f_shadow output u64 . do return 2 . end .
+fn f_vsync  output u64 . do return 3 . end .
 
 rem 소리·음악 두 자리만 보는 마스크 — «그중 무엇이 바뀌었나» 를 물을 때 쓴다.
 fn m_audio output u64 . do
-  return flags.join (flags.of (f_sound)) (flags.of (f_music)) .
-end
+  return flags.join flags.of f_sound. . flags.of f_music. . . .
+end .
 
 rem 공장 기본값: 소리 켬 · 음악 켬 · 나머지 끔.
 fn defaults output u64 . do
-  return flags.join (flags.of (f_sound)) (flags.of (f_music)) .
-end
+  return flags.join flags.of f_sound. . flags.of f_music. . . .
+end .
 
 rem 환경 변수가 있으면 그 자리를 켜고, 없으면 그대로 둔다(존재가 곧 스위치다).
 rem ★ `effects none` 이다 — 환경을 **읽기만** 하는 것은 바깥을 고치지 않는다. 처음엔 옆 프로그램
@@ -41,31 +41,31 @@ rem   (W-EFFECT-OVER). 선언한 효과는 **부르는 쪽이 치러야 하는 �
 proc switch input e cap env . input s u64 . input name slice u8 . input n u64 .
   output u64 . effects none .
 do
-  let v option slice u8 env_get e name .
-  guard is_some v else return s .
-  return flags.with s n .
-end
+  let v option slice u8 env_get e. name. . .
+  guard is_some v. . else return s. . .
+  return flags.with s. n. . .
+end .
 
 proc main input e cap env . output u8 . effects none . do
-  var s u64 flags.empty .
+  var s u64 flags.empty. .
 
   rem ⓑ 환경이 켜는 자리들 — 기본값과 무관하게 «사용자가 켠 것» 을 모은다.
-  set s (switch e s "SET_SOUND"  (f_sound)) .
-  set s (switch e s "SET_MUSIC"  (f_music)) .
-  set s (switch e s "SET_SHADOW" (f_shadow)) .
-  set s (switch e s "SET_VSYNC"  (f_vsync)) .
+  set s. switch e. s. "SET_SOUND"  f_sound. . .
+  set s. switch e. s. "SET_MUSIC"  f_music. . .
+  set s. switch e. s. "SET_SHADOW" f_shadow. . .
+  set s. switch e. s. "SET_VSYNC"  f_vsync. . .
 
   rem ⓒ 정책: `SET_LOCK` 이 있으면 **소리·음악 두 자리는 기본값이 이긴다**.
   rem   `overlay base over m` = m 자리는 over 에서, 나머지는 base 에서. 읽고-고쳐-쓰기가 한 번이다.
-  let lock option slice u8 env_get e "SET_LOCK" .
-  var eff u64 s .
-  if is_some lock do
-    set eff (flags.overlay s (defaults) (m_audio)) .
-  end
+  let lock option slice u8 env_get e. "SET_LOCK" . .
+  var eff u64 s. .
+  if is_some lock. . do
+    set eff. flags.overlay s. defaults. m_audio. . .
+  end .
 
   rem ⓓ 기본값과 다른 자리만 — 그리고 그중 소리·음악에서 바뀐 자리만.
-  let diff u64 flags.from_default eff (defaults) .
-  let audio u64 flags.changes_in eff (defaults) (m_audio) .
+  let diff u64 flags.from_default eff. defaults. . .
+  let audio u64 flags.changes_in eff. defaults. m_audio. . .
 
-  return (narrow u8 (add (mul (flags.ones diff) 10) (flags.ones audio))) .
-end
+  return narrow u8 add mul flags.ones diff. . 10 . flags.ones audio. . . . .
+end .

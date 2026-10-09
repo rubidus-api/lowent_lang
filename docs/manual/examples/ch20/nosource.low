@@ -8,16 +8,16 @@ proc one_from
   using al a .
   output u64 .
   effects state via a .
-  requires allocs.byte_allocator a .
+  requires allocs.byte_allocator a. . .
 do
-  let p option mut slice u8 send al reserve 3 .
-  guard is_some p else return 91 .
-  return send al used .
-end
+  let p option mut slice u8 send al. reserve 3 . .
+  guard is_some p. . else return 91 . .
+  return send al. used . .
+end .
 
 proc caller output u64 . effects state .
 do
   rem ko: ✘ 이 op 안에는 깎아 올 할당기가 하나도 없다 /// en: ✘ there is no allocator at all in this op to draw from
-  let n u64 one_from .
-  return n .
-end
+  let n u64 one_from. .
+  return n. .
+end .

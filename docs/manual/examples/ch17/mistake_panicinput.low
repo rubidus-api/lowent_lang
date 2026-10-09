@@ -6,10 +6,10 @@ rem ko: ✘ 사용자가 잘못 친 한 글자에 프로그램 전체가 멈춘�
 proc parse_or_die input s slice u8 . output u64 . effects panic .
 do
   var acc u64 0 .
-  for c s do
-    if or (lt c 48) (gt c 57) do panic "not a digit" . end
-    set acc (add (mul acc 10) (widen u64 (sub c 48))) .
-    if gt acc 65535 do panic "too big" . end
-  end
-  return acc .
-end
+  for c s. do
+    if or lt c. 48 . gt c. 57 . . do panic "not a digit" . end .
+    set acc. add mul acc. 10 . widen u64 sub c. 48 . . . .
+    if gt acc. 65535 . do panic "too big" . end .
+  end .
+  return acc. .
+end .

@@ -8,8 +8,8 @@
 키 바이트는 넣을 때 아레나로 *복사*되므로 원본 문자열의 수명에 매이지 않는다.
 
 ```lowent
-let stored bool strmap.put slots keys "apple" 1 .
-let v option u64 strmap.lookup slots keys "apple" .
+let stored bool strmap.put slots. keys. "apple" 1 . .
+let v option u64 strmap.lookup slots. keys. "apple" . .
 ```
 
 *버퍼 둘을 호출자가 마련한다.* 처음에 `slots` 는 전부 0 이어야 한다.
@@ -36,14 +36,14 @@ let v option u64 strmap.lookup slots keys "apple" .
 
 - `put` 은 같은 키(길이 + 바이트 일치)면 값만 갱신한다 --- 새 슬롯도 아레나도 쓰지 않는다. 새 키는 아레나에 복사된다. 프로브 중 처음 만난 묘비를 재사용한다.
 - `del` 은 keylen 을 묘비로 덮고 value 를 0 으로 지운다. *아레나의 옛 키 바이트는 남는다* --- 회수는 `rehash` 가 새 아레나로 옮기며 한다(압축).
-- 키 바이트는 `subslice keys off (add off klen)` 으로 읽는다. 그 뷰는 아레나의 뷰라 아레나가 살아 있는 동안만 유효하다.
+- 키 바이트는 `subslice keys. off. add off. klen. . .` 으로 읽는다. 그 뷰는 아레나의 뷰라 아레나가 살아 있는 동안만 유효하다.
 
 #antipattern[빈 문자열 키][
-  `strmap.put slots keys "" 7` 은 언제나 `false` 다. `keylen 0` 이 빈칸 표식이라 빈 키는 인코딩상 존재할 수 없다. `lookup ""` 도 언제나 `none` 이다.
+  `strmap.put slots. keys. "" 7 .` 은 언제나 `false` 다. `keylen 0` 이 빈칸 표식이라 빈 키는 인코딩상 존재할 수 없다. `lookup ""` 도 언제나 `none` 이다.
 ]
 
 #antipattern[삭제 뒤 `keylen > 0` 으로 순회한다][
-  묘비의 keylen 은 MAX 라 `gt keylen 0` 이 참이다 --- 지운 항목이 집계에 섞여 든다. `del` 을 한 번이라도 쓴 맵은 `occupied_at` 으로 거른다.
+  묘비의 keylen 은 MAX 라 `gt keylen. 0 .` 이 참이다 --- 지운 항목이 집계에 섞여 든다. `del` 을 한 번이라도 쓴 맵은 `occupied_at` 으로 거른다.
 ]
 
 #antipattern[`slots[0]` 을 직접 만진다][

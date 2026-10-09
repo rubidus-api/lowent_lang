@@ -16,18 +16,18 @@ use vecgen from "../../lib/vecgen.low" .
 
 export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
 do
-  var hb allocs.heap_bytes spawn actor allocs.heap_bytes .
-  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes .
-  let vo use hb option (vecgen.vec u32 allocs.heap_bytes) vecgen.open u32 16 .
-  guard is_some vo else return 1 .
-  var v (vecgen.vec u32 allocs.heap_bytes) some_value vo .
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes . .
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  let vo use hb. option (vecgen.vec u32 allocs.heap_bytes) vecgen.open u32. 16 . .
+  guard is_some vo. . else return 1 . .
+  var v (vecgen.vec u32 allocs.heap_bytes) some_value vo. . .
   var i u64 0 .
-  while lt i 100000 do
-    guard vecgen.append u32 allocs.heap_bytes v (narrow u32 i) else return 2 .
-    set i (add i 1) .
-  end
-  var r u64 mod (vecgen.count_of u32 allocs.heap_bytes v) 251 .
-  let big option mut slice u8 send fb reserve 70000 .
-  if is_some big do set r (add r 100) . end
-  return narrow u8 r .
-end
+  while lt i. 100000 . do
+    guard vecgen.append u32. allocs.heap_bytes. v. narrow u32 i. . . else return 2 . .
+    set i. add i. 1 . .
+  end .
+  var r u64 mod vecgen.count_of u32. allocs.heap_bytes. v. . 251 . .
+  let big option mut slice u8 send fb. reserve 70000 . .
+  if is_some big. . do set r. add r. 100 . . end .
+  return narrow u8 r. . .
+end .

@@ -3,5 +3,5 @@ rem expect: E-EFFECT-REDUNDANT
 
 fn square input a u64 . output u64 . effects none .
 do
-  return mul a a .
-end
+  return mul a. a. . .
+end .

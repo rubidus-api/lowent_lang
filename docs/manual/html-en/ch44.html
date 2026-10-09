@@ -677,8 +677,8 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <em><span class="tok-c">rem expect: E-EFFECT-DUP</span></em>
 
 <strong><span class="tok-k">proc</span></strong> shout <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io io . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check effect_dup.low
 effect_dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `effects` clause — the row is a SET, not a list. A repeat says nothing the first one didn't, and the reader has to decide it's noise (RFC-0057 E3)
 </code></pre></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/effect_typo.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> effect_typo .
@@ -686,7 +686,7 @@ effect_dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `e
 
 <strong><span class="tok-k">proc</span></strong> ping <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> netwrok . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check effect_typo.low
 effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/heap/io/wait/concurrent/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
 </code></pre></div></div><p>Writing the same atom twice is rejected. A duplicate in a set means nothing, and the reader has to decide whether it is noise. A nonexistent atom is caught as a typo — as the diagnostic says, a typo passing silently would <strong>declare the op pure</strong>. The rule looks obvious, but there was a time the implementation read only <strong>the first word</strong> of the clause. Then <code>effects io alloc</code> registered only <code>io</code>, and atoms from the second on were as good as absent. A defect in the code reading declarations disables the whole declaration system.</p><p><strong>Rule 4 — stopping is not an effect.</strong> This is the most thought-provoking part of the chapter.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/trap_not_effect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trap_not_effect .
@@ -695,33 +695,33 @@ effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: no
 
 <em><span class="tok-c">rem it stops when out of range, but this op is still a pure fn</span></em>
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> idx s i .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> idx s. i. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run pick trap_not_effect.low [1,2,3] 1
 pick([1,2,3], 1) = 2
   arg0 (written) = [1,2,3]
 $ lowentc --run pick trap_not_effect.low [1,2,3] 7
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: slice index out of bounds (panic)
-</code></pre></div></div><p><code>idx s i</code> stops when out of range. So should <code>pick</code> carry the <code>panic</code> effect? <strong>No.</strong> <code>panic</code> counts only an explicit <code>panic "…"</code>. The possibility of stopping is what <strong>contracts</strong> speak of, not effects. The danger of <code>idx</code> <strong>can be removed</strong> with <code>requires lt i (len s)</code>, and the processor really does remove that check (chapter 41). An effect mark is never removed. Marking something removable as an effect makes the mark permanent, nearly every op ends up with <code>panic</code>, and the mark loses meaning.</p><pre><code data-lang="text"> what ends the op              where it is written         can it disappear
+</code></pre></div></div><p><code>idx s. i. .</code> stops when out of range. So should <code>pick</code> carry the <code>panic</code> effect? <strong>No.</strong> <code>panic</code> counts only an explicit <code>panic "…"</code>. The possibility of stopping is what <strong>contracts</strong> speak of, not effects. The danger of <code>idx</code> <strong>can be removed</strong> with <code>requires lt i. len s. . .</code>, and the processor really does remove that check (chapter 41). An effect mark is never removed. Marking something removable as an effect makes the mark permanent, nearly every op ends up with <code>panic</code>, and the mark loses meaning.</p><pre><code data-lang="text"> what ends the op              where it is written         can it disappear
  panic "…"  (intended)         effects panic               no — it always stays
  idx out of range (breach)   requires lt i (len s)       the check goes once proven</code></pre><div class="dev misconception"><p class="dev-label">A common misconception. <strong>An op that can stop is not pure</strong></p><div class="dev-body">Effects say “what this op does” and contracts say “when it is safe”. Because the two were not mixed, the <code>panic</code> mark still carries information. An op marked <code>panic</code> can end the program <strong>on purpose</strong>. An out-of-range index is not intent but a contract violation, and contracts handle that place.</div></div><h3 id="s44-3">44.3 Capabilities — the partner of effects<a class="plink" href="#s44-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>If effects say “what kind of work”, capabilities say “where the <strong>right</strong> to do it came from”. Writing to the screen requires receiving <code>cap io</code> as an argument; it cannot be pulled out globally from anywhere. This object-capability model gives two things.</p><ul><li><strong>Attenuation.</strong> A received right can be narrowed before passing it on. The precision a flat effect lattice lacks is obtained here.</li><li><strong>Local audit.</strong> Looking at an op’s signature shows <strong>everything</strong> it can touch. That there are no hidden global passages is the point.</li></ul><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>What it gives</strong></th><th><strong>How</strong></th></tr><tr><td>Legitimate optimisation</td><td>With <code>effects none</code>, reordering, common subexpression elimination and deletion do not change observable behaviour</td></tr><tr><td>Auditability</td><td>Code doing <code>io</code> can be found from declarations</td></tr><tr><td>Tier and profile gating</td><td>Ops allocating on small machines are stopped as translation errors</td></tr><tr><td>No surprises</td><td>What is written as pure really is pure</td></tr></table></div><p class="float-caption">Table 44.2 — Safety the effect system gives</p></figure><h3 id="s44-4">44.4 Effect soundness — not circular<a class="plink" href="#s44-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/recursive.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> recursive .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">proc</span></strong> stars <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
-  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">10</span> .
+  <strong><span class="tok-k">requires</span></strong> le n. <span class="tok-n">10</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">*</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> add w (stars out (sub n <span class="tok-n">1</span>)) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">*</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> add w. stars out. sub n. <span class="tok-n">1</span> . . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (stars out <span class="tok-n">5</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> stars out. <span class="tok-n">5</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main recursive.low
 *****
 main() = 6

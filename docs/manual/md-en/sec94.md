@@ -20,7 +20,7 @@ Extracts **the bytes in the middle (DER)** from the folded base64 between `-----
 
 | **op** | **What it does** |
 |---|---|
-| `find_from` | Finds `needle` in `hay` (`len hay` if absent) |
+| `find_from` | Finds `needle` in `hay` (`len hay. .` if absent) |
 | `body_off` | Position of **the line after** `-----BEGIN <label>-----`. 0 = absent |
 | `end_off` | Position of `-----END <label>-----`. 0 = absent |
 | `unwrap` | One PEM block → DER bytes. `option u64` (bytes written), `none` on failure |
@@ -35,7 +35,7 @@ In `unwrap src label scratch out`, `scratch` carries two loads — assembling th
 
 **Why `unwrap`, not `decode`.** `utf8.decode` already exists, and when names collide there is a known defect where the processor measures types with another module’s signature even when called qualified. A test using both modules together caught that combination breaking. A library green on its own is not enough — it must compose to be usable.
 
-The path PEM → DER → PKCS#8 → 32-byte scalar goes with [`der`](sec93.md#mod-der) — get DER with `pem.unwrap src "PRIVATE KEY" sc buf`, then find the scalar’s position with `der.p8_inner_off` and `der.ec_priv_off`.
+The path PEM → DER → PKCS#8 → 32-byte scalar goes with [`der`](sec93.md#mod-der) — get DER with `pem.unwrap src. "PRIVATE KEY" sc. buf. .`, then find the scalar’s position with `der.p8_inner_off` and `der.ec_priv_off`.
 
 **What is checked** — comparison with openssl output (certificate DER of 375 bytes identical, the scalar inside PKCS#8 at position 36 with length 32), rejection of label mismatch and missing envelope, VM/native agreement. The test vector’s scalar is the synthetic value `01 02 … 20` — the structure is exactly what openssl produced, so it measures the parser just as well, and it is plainly not a secret.
 

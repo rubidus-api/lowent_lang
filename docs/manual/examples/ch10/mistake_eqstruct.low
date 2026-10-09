@@ -4,12 +4,12 @@ rem expect: E-TYPE-KIND
 def struct point do
   x u64 .
   y u64 .
-end
+end .
 
 fn same output bool .
 do
-  let p lit point do x 1 . y 2 . end .
-  let q lit point do x 1 . y 2 . end .
+  let p lit point do x 1 . y 2 . end . .
+  let q lit point do x 1 . y 2 . end . .
   rem ko: ✘ 구조체 둘을 `eq` 로 비교했다 --- `eq` 는 수와 참거짓을 비교한다 /// en: ✘ compares two structs with `eq` --- `eq` compares numbers and booleans
-  return eq p q .
-end
+  return eq p. q. . .
+end .

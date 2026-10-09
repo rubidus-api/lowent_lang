@@ -8,19 +8,19 @@ use term .
 
 proc columns input row slice u8 . output u64 . effects none .
 do
-  let w option u64 term.row_width row .
-  guard is_some w else return 999 .
-  return some_value w .
-end
+  let w option u64 term.row_width row. . .
+  guard is_some w. . else return 999 . .
+  return some_value w. . .
+end .
 
 proc emoji_width input cp u64 . output u64 . effects none .
 do
-  return term.cp_width cp .
-end
+  return term.cp_width cp. . .
+end .
 
 proc clusters input row slice u8 . output u64 . effects none .
 do
-  let n option u64 term.row_clusters row .
-  guard is_some n else return 999 .
-  return some_value n .
-end
+  let n option u64 term.row_clusters row. . .
+  guard is_some n. . else return 999 . .
+  return some_value n. . .
+end .

@@ -16,37 +16,37 @@ module vm_condand .
 
 rem ✔ ① 가드가 양쪽 경계를 다 준다 ⟹ `add c 32` 는 u8 안에 있다.
 export fn both input c u8 . output u8 . do
-  if and (ge c 65) (le c 90) do return add c 32 . end
-  return c .
-end
+  if and ge c. 65 . le c. 90 . . do return add c. 32 . . end .
+  return c. .
+end .
 
 rem ✔ 세 겹도 갈라진다(왼쪽부터 차례로, 거짓이면 곧장 나간다).
 export fn three input c u8 . output u8 . do
-  if and (and (ge c 10) (le c 20)) (ne c 15) do return add c 100 . end
+  if and and ge c. 10 . le c. 20 . . ne c. 15 . . do return add c. 100 . . end .
   return 0 .
-end
+end .
 
 rem ★ ② **단락**: n = 0 이면 오른쪽(`mod x n`)을 **계산하지 않는다**. 계산하면 0 으로 나눠
 rem   트랩한다 — 즉 이 함수가 답을 내는 것 자체가 단락의 증인이다.
 export fn safe_div input x u64 . input n u64 . output u64 . do
-  if and (ne n 0) (eq (mod x n) 0) do return 1 . end
+  if and ne n. 0 . eq mod x. n. . 0 . . do return 1 . end .
   return 0 .
-end
+end .
 
 rem ★ 대조군: `or` 은 **안 가른다**(참 목적지가 갈라져 꿰맬 곳이 둘이 되고, 재 보니 값이
 rem   없었다). 여기서 검사가 남는 것이 정상이며, 답은 물론 같아야 한다.
 export fn either input c u8 . output u8 . do
-  if or (lt c 10) (gt c 200) do return add c 1 . end
-  return c .
-end
+  if or lt c. 10 . gt c. 200 . . do return add c. 1 . . end .
+  return c. .
+end .
 
 rem ★ 루프 조건에서도 같은 갈라짐이 일어난다.
 export fn count_while input n u64 . output u64 . do
   var i u64 0 .
   var acc u64 0 .
-  while and (lt i n) (lt i 8) do
-    set acc (add acc i) .
-    set i (add i 1) .
-  end
-  return acc .
-end
+  while and lt i. n. . lt i. 8 . . do
+    set acc. add acc. i. . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

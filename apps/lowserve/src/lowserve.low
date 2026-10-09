@@ -18,367 +18,367 @@ use fmt .
 
 fn head_max output u64 . do
   return 8192 .
-end
+end .
 
 rem ── 순수 도움
 
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
-  guard eq (len a) (len b) else return false .
-  repeat i u64 (len a) do
-    guard eq (idx a i) (idx b i) else return false .
-  end
+  guard eq len a. . len b. . . else return false . .
+  repeat i u64 len a. . do
+    guard eq idx a. i. . idx b. i. . . else return false . .
+  end .
   return true .
-end
+end .
 
 fn ends_with input s slice u8 . input tail slice u8 . output bool . do
-  guard ge (len s) (len tail) else return false .
-  return same_bytes (subslice s (sub (len s) (len tail)) (len s)) tail .
-end
+  guard ge len s. . len tail. . . else return false . .
+  return same_bytes subslice s. sub len s. . len tail. . . len s. . . tail. . .
+end .
 
 rem 머리의 끝(\r\n\r\n) 바로 뒤 자리, 없으면 0.
 fn head_end input b slice u8 . output u64 . do
-  guard ge (len b) 4 else return 0 .
-  repeat i u64 (sub (len b) 3) do
-    if and (and (eq (idx b i) '\r') (eq (idx b (add i 1)) '\n')) (and (eq (idx b (add i 2)) '\r') (eq (idx b (add i 3)) '\n')) do
-      return add i 4 .
-    end
-  end
+  guard ge len b. . 4 . else return 0 . .
+  repeat i u64 sub len b. . 3 . do
+    if and and eq idx b. i. . '\r' . eq idx b. add i. 1 . . '\n' . . and eq idx b. add i. 2 . . '\r' . eq idx b. add i. 3 . . '\n' . . . do
+      return add i. 4 . .
+    end .
+  end .
   return 0 .
-end
+end .
 
 fn hexval input c u8 . output u64 . do
-  if and (ge c '0') (le c '9') do
-    return sub c '0' .
-  end
-  if and (ge c 'a') (le c 'f') do
-    return add (sub c 'a') 10 .
-  end
-  if and (ge c 'A') (le c 'F') do
-    return add (sub c 'A') 10 .
-  end
+  if and ge c. '0' . le c. '9' . . do
+    return sub c. '0' . .
+  end .
+  if and ge c. 'a' . le c. 'f' . . do
+    return add sub c. 'a' . 10 . .
+  end .
+  if and ge c. 'A' . le c. 'F' . . do
+    return add sub c. 'A' . 10 . .
+  end .
   return 16 .
-end
+end .
 
 rem 요청 대상(쿼리 앞까지)의 퍼센트 부호를 풀어 dst 에. 길이를 내고, 틀리면(잘못된 %xx · NUL) 18446744073709551615.
 proc decode_target input t slice u8 . input dst mut slice u8 . output u64 . effects none . do
   let bad u64 18446744073709551615 .
   var n u64 0 .
   var i u64 0 .
-  while lt i (len t) do
-    let c u8 idx t i .
-    if or (eq c '?') (eq c '#') do
+  while lt i. len t. . . do
+    let c u8 idx t. i. . .
+    if or eq c. '?' . eq c. '#' . . do
       break .
-    end
-    var v u8 c .
-    if eq c '%' do
-      guard lt (add i 2) (len t) else return bad .
-      let hi u64 hexval (idx t (add i 1)) .
-      let lo u64 hexval (idx t (add i 2)) .
-      guard and (lt hi 16) (lt lo 16) else return bad .
-      set v (narrow u8 (add (mul hi 16) lo)) .
-      set i (add i 2) .
-    end
-    guard ne v 0 else return bad .
-    guard lt n (len dst) else return bad .
-    set (idx dst n) v .
-    set n (add n 1) .
-    set i (add i 1) .
-  end
-  return n .
-end
+    end .
+    var v u8 c. .
+    if eq c. '%' . do
+      guard lt add i. 2 . len t. . . else return bad. . .
+      let hi u64 hexval idx t. add i. 1 . . . .
+      let lo u64 hexval idx t. add i. 2 . . . .
+      guard and lt hi. 16 . lt lo. 16 . . else return bad. . .
+      set v. narrow u8 add mul hi. 16 . lo. . . .
+      set i. add i. 2 . .
+    end .
+    guard ne v. 0 . else return bad. . .
+    guard lt n. len dst. . . else return bad. . .
+    set idx dst. n. . v. .
+    set n. add n. 1 . .
+    set i. add i. 1 . .
+  end .
+  return n. .
+end .
 
 rem 풀린 경로가 안전한가: `/` 로 시작하고 `..` 마디가 없다.
 fn safe_path input p slice u8 . output bool . do
-  guard and (gt (len p) 0) (eq (idx p 0) '/') else return false .
+  guard and gt len p. . 0 . eq idx p. 0 . '/' . . else return false . .
   var start u64 1 .
-  cycle i u64 1 while le i (len p) next add i 1 do
-    var cut bool eq i (len p) .
-    if not cut do
-      set cut (eq (idx p i) '/') .
-    end
-    if cut do
-      if eq (sub i start) 2 do
-        guard not (and (eq (idx p start) '.') (eq (idx p (add start 1)) '.')) else return false .
-      end
-      set start (add i 1) .
-    end
-  end
+  cycle i u64 1 while le i. len p. . . next add i. 1 . do
+    var cut bool eq i. len p. . . .
+    if not cut. . do
+      set cut. eq idx p. i. . '/' . .
+    end .
+    if cut. do
+      if eq sub i. start. . 2 . do
+        guard not and eq idx p. start. . '.' . eq idx p. add start. 1 . . '.' . . . else return false . .
+      end .
+      set start. add i. 1 . .
+    end .
+  end .
   return true .
-end
+end .
 
 fn content_type input p slice u8 . output slice u8 . do
-  if or (ends_with p ".html") (ends_with p ".htm") do
+  if or ends_with p. ".html" . ends_with p. ".htm" . . do
     return "text/html; charset=utf-8" .
-  end
-  if or (ends_with p ".txt") (ends_with p ".md") do
+  end .
+  if or ends_with p. ".txt" . ends_with p. ".md" . . do
     return "text/plain; charset=utf-8" .
-  end
-  if ends_with p ".css" do
+  end .
+  if ends_with p. ".css" . do
     return "text/css" .
-  end
-  if ends_with p ".js" do
+  end .
+  if ends_with p. ".js" . do
     return "text/javascript" .
-  end
-  if ends_with p ".json" do
+  end .
+  if ends_with p. ".json" . do
     return "application/json" .
-  end
-  if ends_with p ".png" do
+  end .
+  if ends_with p. ".png" . do
     return "image/png" .
-  end
-  if or (ends_with p ".jpg") (ends_with p ".jpeg") do
+  end .
+  if or ends_with p. ".jpg" . ends_with p. ".jpeg" . . do
     return "image/jpeg" .
-  end
-  if ends_with p ".svg" do
+  end .
+  if ends_with p. ".svg" . do
     return "image/svg+xml" .
-  end
-  if ends_with p ".pdf" do
+  end .
+  if ends_with p. ".pdf" . do
     return "application/pdf" .
-  end
+  end .
   return "application/octet-stream" .
-end
+end .
 
 fn reason input code u64 . output slice u8 . do
-  if eq code 200 do
+  if eq code. 200 . do
     return "OK" .
-  end
-  if eq code 400 do
+  end .
+  if eq code. 400 . do
     return "Bad Request" .
-  end
-  if eq code 403 do
+  end .
+  if eq code. 403 . do
     return "Forbidden" .
-  end
-  if eq code 404 do
+  end .
+  if eq code. 404 . do
     return "Not Found" .
-  end
-  if eq code 405 do
+  end .
+  if eq code. 405 . do
     return "Method Not Allowed" .
-  end
-  if eq code 431 do
+  end .
+  if eq code. 431 . do
     return "Request Header Fields Too Large" .
-  end
-  if eq code 505 do
+  end .
+  if eq code. 505 . do
     return "HTTP Version Not Supported" .
-  end
+  end .
   return "Internal Server Error" .
-end
+end .
 
 rem 응답 머리를 buf 에 짓는다. 길이를 낸다(모자라면 0).
 proc build_head input buf mut slice u8 . input code u64 . input ctype slice u8 . input clen u64 . output u64 . effects none . do
   var p u64 0 .
-  let a1 option u64 fmt.put_str buf p "HTTP/1.1 " .
-  guard is_some a1 else return 0 .
-  let a2 option u64 fmt.put_u64 buf (some_value a1) code .
-  guard is_some a2 else return 0 .
-  let a3 option u64 fmt.put_str buf (some_value a2) " " .
-  guard is_some a3 else return 0 .
-  let a4 option u64 fmt.put_str buf (some_value a3) (reason code) .
-  guard is_some a4 else return 0 .
-  let a5 option u64 fmt.put_str buf (some_value a4) "\r\nContent-Type: " .
-  guard is_some a5 else return 0 .
-  let a6 option u64 fmt.put_str buf (some_value a5) ctype .
-  guard is_some a6 else return 0 .
-  let a7 option u64 fmt.put_str buf (some_value a6) "\r\nContent-Length: " .
-  guard is_some a7 else return 0 .
-  let a8 option u64 fmt.put_u64 buf (some_value a7) clen .
-  guard is_some a8 else return 0 .
+  let a1 option u64 fmt.put_str buf. p. "HTTP/1.1 " . .
+  guard is_some a1. . else return 0 . .
+  let a2 option u64 fmt.put_u64 buf. some_value a1. . code. . .
+  guard is_some a2. . else return 0 . .
+  let a3 option u64 fmt.put_str buf. some_value a2. . " " . .
+  guard is_some a3. . else return 0 . .
+  let a4 option u64 fmt.put_str buf. some_value a3. . reason code. . . .
+  guard is_some a4. . else return 0 . .
+  let a5 option u64 fmt.put_str buf. some_value a4. . "\r\nContent-Type: " . .
+  guard is_some a5. . else return 0 . .
+  let a6 option u64 fmt.put_str buf. some_value a5. . ctype. . .
+  guard is_some a6. . else return 0 . .
+  let a7 option u64 fmt.put_str buf. some_value a6. . "\r\nContent-Length: " . .
+  guard is_some a7. . else return 0 . .
+  let a8 option u64 fmt.put_u64 buf. some_value a7. . clen. . .
+  guard is_some a8. . else return 0 . .
   var tail slice u8 "\r\nConnection: close\r\n\r\n" .
-  if eq code 405 do
-    set tail "\r\nAllow: GET, HEAD\r\nConnection: close\r\n\r\n" .
-  end
-  let a9 option u64 fmt.put_str buf (some_value a8) tail .
-  guard is_some a9 else return 0 .
-  return some_value a9 .
-end
+  if eq code. 405 . do
+    set tail. "\r\nAllow: GET, HEAD\r\nConnection: close\r\n\r\n" .
+  end .
+  let a9 option u64 fmt.put_str buf. some_value a8. . tail. . .
+  guard is_some a9. . else return 0 . .
+  return some_value a9. . .
+end .
 
 rem ── 연결 하나
 
 rem 오류 응답(짧은 글 본문). 
 proc send_error input k cap net . input fd u64 . input code u64 . input head_only bool . input buf mut slice u8 . output void . effects io . do
-  let body slice u8 reason code .
-  let hl u64 build_head buf code "text/plain; charset=utf-8" (add (len body) 1) .
-  guard and (gt hl 0) (le hl (len buf)) else return .
-  let s1 option u64 net.send_all k fd (subslice buf 0 hl) .
-  guard not head_only else return .
-  let s2 option u64 net.send_all k fd body .
-  let s3 option u64 net.send_all k fd "\n" .
+  let body slice u8 reason code. . .
+  let hl u64 build_head buf. code. "text/plain; charset=utf-8" add len body. . 1 . . .
+  guard and gt hl. 0 . le hl. len buf. . . . else return . .
+  let s1 option u64 net.send_all k. fd. subslice buf. 0 hl. . . .
+  guard not head_only. . else return . .
+  let s2 option u64 net.send_all k. fd. body. . .
+  let s3 option u64 net.send_all k. fd. "\n" . .
   return .
-end
+end .
 
 rem root + 경로의 마디마다 심링크가 아닌지 본다(root 자신은 묻지 않는다). 아니면 거짓.
 proc no_links input fs cap file_system . input full slice u8 . input from u64 . output bool . effects io . do
-  cycle i u64 from while le i (len full) next add i 1 do
-    var cut bool eq i (len full) .
-    if not cut do
-      set cut (eq (idx full i) '/') .
-    end
-    if and cut (gt i from) do
-      let lk u64 value_or (files.link_type_of fs (subslice full 0 i)) 9 .
-      guard ne lk 3 else return false .
-    end
-  end
+  cycle i u64 from. while le i. len full. . . next add i. 1 . do
+    var cut bool eq i. len full. . . .
+    if not cut. . do
+      set cut. eq idx full. i. . '/' . .
+    end .
+    if and cut. gt i. from. . . do
+      let lk u64 value_or files.link_type_of fs. subslice full. 0 i. . . 9 . .
+      guard ne lk. 3 . else return false . .
+    end .
+  end .
   return true .
-end
+end .
 
 rem 파일을 보낸다(머리 + 내용). 실패하면 거짓(이미 보낸 바이트는 되돌리지 않는다 — 연결을 닫을 뿐).
 proc send_file input fs cap file_system . input k cap net . input fd u64 . input path slice u8 . input head_only bool . input buf mut slice u8 . output u64 . effects io . do
-  let opened result files.handle files.file_error files.open fs path 0 .
-  guard is_ok opened else return 404 .
-  var h owned files.handle ok_value opened .
-  let endr result u64 files.file_error files.seek_to fs h 0 2 .
-  let back result u64 files.file_error files.seek_to fs h 0 0 .
+  let opened result files.handle files.file_error files.open fs. path. 0 . .
+  guard is_ok opened. . else return 404 . .
+  var h owned files.handle ok_value opened. . .
+  let endr result u64 files.file_error files.seek_to fs. h. 0 2 . .
+  let back result u64 files.file_error files.seek_to fs. h. 0 0 . .
   var code u64 200 .
-  if or (not (is_ok endr)) (not (is_ok back)) do
-    set code 500 .
-  end
-  if eq code 200 do
-    let size u64 ok_value endr .
-    let hl u64 build_head buf 200 (content_type path) size .
-    if or (eq hl 0) (gt hl (len buf)) do
-      set code 500 .
+  if or not is_ok endr. . . not is_ok back. . . . do
+    set code. 500 .
+  end .
+  if eq code. 200 . do
+    let size u64 ok_value endr. . .
+    let hl u64 build_head buf. 200 content_type path. . size. . .
+    if or eq hl. 0 . gt hl. len buf. . . . do
+      set code. 500 .
     end else do
-      let s1 option u64 net.send_all k fd (subslice buf 0 hl) .
-      if not head_only do
-        var left u64 size .
-        while gt left 0 do
-          let want u64 min left (len buf) .
-          let r result (option u64) files.file_error files.read fs h (subslice buf 0 want) .
-          guard is_ok r else break .
-          let n u64 value_or (ok_value r) 0 .
-          guard and (gt n 0) (le n want) else break .
-          let s2 option u64 net.send_all k fd (subslice buf 0 n) .
-          guard and (is_some s2) (eq (value_or s2 0) n) else break .
-          set left (sub left n) .
-        end
-      end
-    end
-  end
-  let closed result void files.file_error files.close fs h .
-  drop closed .
-  return code .
-end
+      let s1 option u64 net.send_all k. fd. subslice buf. 0 hl. . . .
+      if not head_only. . do
+        var left u64 size. .
+        while gt left. 0 . do
+          let want u64 min left. len buf. . . .
+          let r result (option u64) files.file_error files.read fs. h. subslice buf. 0 want. . . .
+          guard is_ok r. . else break . .
+          let n u64 value_or ok_value r. . 0 . .
+          guard and gt n. 0 . le n. want. . . else break . .
+          let s2 option u64 net.send_all k. fd. subslice buf. 0 n. . . .
+          guard and is_some s2. . eq value_or s2. 0 . n. . . else break . .
+          set left. sub left. n. . .
+        end .
+      end .
+    end .
+  end .
+  let closed result void files.file_error files.close fs. h. . .
+  drop closed. .
+  return code. .
+end .
 
 rem 요청 하나를 받아 답한다. 무엇을 답했는지(상태 번호)를 낸다 — 기록용.
 proc serve_one input fs cap file_system . input k cap net . input fd u64 . input root slice u8 . input mem mut slice u8 . output u64 . effects io . do
-  let req mut slice u8 subslice mem 0 8192 .
-  let tgt mut slice u8 subslice mem 8192 12288 .
-  let full mut slice u8 subslice mem 12288 20480 .
-  let buf mut slice u8 subslice mem 20480 86016 .
+  let req mut slice u8 subslice mem. 0 8192 . .
+  let tgt mut slice u8 subslice mem. 8192 12288 . .
+  let full mut slice u8 subslice mem. 12288 20480 . .
+  let buf mut slice u8 subslice mem. 20480 86016 . .
   var got u64 0 .
   var hend u64 0 .
-  while eq hend 0 do
-    guard lt got (len req) else do
-      send_error k fd 431 false buf .
+  while eq hend. 0 . do
+    guard lt got. len req. . . else do
+      send_error k. fd. 431 false buf. .
       return 431 .
-    end
-    let r option u64 net.recv_once k fd (subslice req got (len req)) .
-    guard is_some r else return 0 .
-    let n u64 some_value r .
-    guard gt n 0 else return 0 .
-    set got (add got n) .
-    set hend (head_end (subslice req 0 got)) .
-  end
+    end .
+    let r option u64 net.recv_once k. fd. subslice req. got. len req. . . . .
+    guard is_some r. . else return 0 . .
+    let n u64 some_value r. . .
+    guard gt n. 0 . else return 0 . .
+    set got. add got. n. . .
+    set hend. head_end subslice req. 0 got. . . .
+  end .
   rem 요청 줄: METHOD SP target SP HTTP/1.x CRLF
   var sp1 u64 0 .
-  while and (lt sp1 hend) (ne (idx req sp1) ' ') do
-    set sp1 (add sp1 1) .
-  end
-  var sp2 u64 add sp1 1 .
-  while and (lt sp2 hend) (ne (idx req sp2) ' ') do
-    set sp2 (add sp2 1) .
-  end
-  var eol u64 add sp2 1 .
-  while and (lt eol hend) (ne (idx req eol) '\r') do
-    set eol (add eol 1) .
-  end
-  guard and (lt sp2 eol) (lt (add sp1 1) sp2) else do
-    send_error k fd 400 false buf .
+  while and lt sp1. hend. . ne idx req. sp1. . ' ' . . do
+    set sp1. add sp1. 1 . .
+  end .
+  var sp2 u64 add sp1. 1 . .
+  while and lt sp2. hend. . ne idx req. sp2. . ' ' . . do
+    set sp2. add sp2. 1 . .
+  end .
+  var eol u64 add sp2. 1 . .
+  while and lt eol. hend. . ne idx req. eol. . '\r' . . do
+    set eol. add eol. 1 . .
+  end .
+  guard and lt sp2. eol. . lt add sp1. 1 . sp2. . . else do
+    send_error k. fd. 400 false buf. .
     return 400 .
-  end
-  let method slice u8 subslice req 0 sp1 .
-  let target slice u8 subslice req (add sp1 1) sp2 .
-  let version slice u8 subslice req (add sp2 1) eol .
-  let is_head bool same_bytes method "HEAD" .
-  guard or (same_bytes version "HTTP/1.1") (same_bytes version "HTTP/1.0") else do
-    guard ge (len version) 5 else do
-      send_error k fd 400 false buf .
+  end .
+  let method slice u8 subslice req. 0 sp1. . .
+  let target slice u8 subslice req. add sp1. 1 . sp2. . .
+  let version slice u8 subslice req. add sp2. 1 . eol. . .
+  let is_head bool same_bytes method. "HEAD" . .
+  guard or same_bytes version. "HTTP/1.1" . same_bytes version. "HTTP/1.0" . . else do
+    guard ge len version. . 5 . else do
+      send_error k. fd. 400 false buf. .
       return 400 .
-    end
-    guard same_bytes (subslice version 0 5) "HTTP/" else do
-      send_error k fd 400 false buf .
+    end .
+    guard same_bytes subslice version. 0 5 . "HTTP/" . else do
+      send_error k. fd. 400 false buf. .
       return 400 .
-    end
-    send_error k fd 505 is_head buf .
+    end .
+    send_error k. fd. 505 is_head. buf. .
     return 505 .
-  end
-  guard or is_head (same_bytes method "GET") else do
-    send_error k fd 405 false buf .
+  end .
+  guard or is_head. same_bytes method. "GET" . . else do
+    send_error k. fd. 405 false buf. .
     return 405 .
-  end
-  let tl u64 decode_target target tgt .
-  guard ne tl 18446744073709551615 else do
-    send_error k fd 400 is_head buf .
+  end .
+  let tl u64 decode_target target. tgt. . .
+  guard ne tl. 18446744073709551615 . else do
+    send_error k. fd. 400 is_head. buf. .
     return 400 .
-  end
-  let path slice u8 subslice tgt 0 tl .
-  guard safe_path path else do
-    send_error k fd 400 is_head buf .
+  end .
+  let path slice u8 subslice tgt. 0 tl. . .
+  guard safe_path path. . else do
+    send_error k. fd. 400 is_head. buf. .
     return 400 .
-  end
+  end .
   rem root + path (+ index.html)
-  guard le (add (add (len root) tl) 11) (len full) else do
-    send_error k fd 404 is_head buf .
+  guard le add add len root. . tl. . 11 . len full. . . else do
+    send_error k. fd. 404 is_head. buf. .
     return 404 .
-  end
-  repeat i u64 (len root) do
-    set (idx full i) (idx root i) .
-  end
-  repeat j u64 tl do
-    set (idx full (add (len root) j)) (idx path j) .
-  end
-  var fl u64 add (len root) tl .
-  guard no_links fs (subslice full 0 fl) (len root) else do
-    send_error k fd 403 is_head buf .
+  end .
+  repeat i u64 len root. . do
+    set idx full. i. . idx root. i. . .
+  end .
+  repeat j u64 tl. do
+    set idx full. add len root. . j. . . idx path. j. . .
+  end .
+  var fl u64 add len root. . tl. . .
+  guard no_links fs. subslice full. 0 fl. . len root. . . else do
+    send_error k. fd. 403 is_head. buf. .
     return 403 .
-  end
-  let kind u64 value_or (files.type_of fs (subslice full 0 fl)) 9 .
-  if eq kind 1 do
+  end .
+  let kind u64 value_or files.type_of fs. subslice full. 0 fl. . . 9 . .
+  if eq kind. 1 . do
     let idxname slice u8 "/index.html" .
-    var at u64 fl .
-    if eq (idx full (sub fl 1)) '/' do
-      set at (sub fl 1) .
-    end
-    repeat q u64 (len idxname) do
-      set (idx full (add at q)) (idx idxname q) .
-    end
-    set fl (add at (len idxname)) .
-    guard no_links fs (subslice full 0 fl) (len root) else do
-      send_error k fd 403 is_head buf .
+    var at u64 fl. .
+    if eq idx full. sub fl. 1 . . '/' . do
+      set at. sub fl. 1 . .
+    end .
+    repeat q u64 len idxname. . do
+      set idx full. add at. q. . . idx idxname. q. . .
+    end .
+    set fl. add at. len idxname. . . .
+    guard no_links fs. subslice full. 0 fl. . len root. . . else do
+      send_error k. fd. 403 is_head. buf. .
       return 403 .
-    end
-  end else if ne kind 0 do
-    send_error k fd 404 is_head buf .
+    end .
+  end else if ne kind. 0 . do
+    send_error k. fd. 404 is_head. buf. .
     return 404 .
-  end
-  guard eq (value_or (files.type_of fs (subslice full 0 fl)) 9) 0 else do
-    send_error k fd 404 is_head buf .
+  end .
+  guard eq value_or files.type_of fs. subslice full. 0 fl. . . 9 . 0 . else do
+    send_error k. fd. 404 is_head. buf. .
     return 404 .
-  end
-  let code u64 send_file fs k fd (subslice full 0 fl) is_head buf .
-  if ne code 200 do
-    send_error k fd code is_head buf .
-  end
-  return code .
-end
+  end .
+  let code u64 send_file fs. k. fd. subslice full. 0 fl. . is_head. buf. . .
+  if ne code. 200 . do
+    send_error k. fd. code. is_head. buf. .
+  end .
+  return code. .
+end .
 
 fn parse_num input s slice u8 . output u64 . do
-  guard and (gt (len s) 0) (le (len s) 9) else return 18446744073709551615 .
+  guard and gt len s. . 0 . le len s. . 9 . . else return 18446744073709551615 . .
   var v u64 0 .
-  for c s do
-    guard and (ge c '0') (le c '9') else return 18446744073709551615 .
-    set v (add (mul v 10) (sub c '0')) .
-  end
-  return v .
-end
+  for c s. do
+    guard and ge c. '0' . le c. '9' . . else return 18446744073709551615 . .
+    set v. add mul v. 10 . sub c. '0' . . .
+  end .
+  return v. .
+end .
 
 proc main
   input fs cap file_system .
@@ -390,51 +390,51 @@ proc main
   effects heap io .
 do
   let usage slice u8 "usage: lowserve <root> <port> [<max-requests>]\n" .
-  let a0 option slice u8 arg a 0 .
-  let a1 option slice u8 arg a 1 .
-  guard and (is_some a0) (is_some a1) else do
-    let w0 option u64 outbuf.write_all out 2 usage .
+  let a0 option slice u8 arg a. 0 . .
+  let a1 option slice u8 arg a. 1 . .
+  guard and is_some a0. . is_some a1. . . else do
+    let w0 option u64 outbuf.write_all out. 2 usage. . .
     return 2 .
-  end
-  var root slice u8 some_value a0 .
-  while and (gt (len root) 1) (ends_with root "/") do
-    set root (subslice root 0 (sub (len root) 1)) .
-  end
-  let port u64 parse_num (some_value a1) .
+  end .
+  var root slice u8 some_value a0. . .
+  while and gt len root. . 1 . ends_with root. "/" . . do
+    set root. subslice root. 0 sub len root. . 1 . . .
+  end .
+  let port u64 parse_num some_value a1. . . .
   var limit u64 0 .
-  let a2 option slice u8 arg a 2 .
-  if is_some a2 do
-    set limit (parse_num (some_value a2)) .
-  end
-  guard and (le port 65535) (and (ne limit 18446744073709551615) (eq (value_or (files.type_of fs root) 9) 1)) else do
-    let w1 option u64 outbuf.write_all out 2 usage .
+  let a2 option slice u8 arg a. 2 . .
+  if is_some a2. . do
+    set limit. parse_num some_value a2. . . .
+  end .
+  guard and le port. 65535 . and ne limit. 18446744073709551615 . eq value_or files.type_of fs. root. . 9 . 1 . . . else do
+    let w1 option u64 outbuf.write_all out. 2 usage. . .
     return 2 .
-  end
-  let got option mut slice u8 alloc_bytes hp capacity 86080 .
-  guard is_some got else return 70 .
-  let mem mut slice u8 some_value got .
-  let lo option net.listener net.serve k port .
-  guard is_some lo else do
-    let w2 option u64 outbuf.write_all out 2 "lowserve: cannot listen on that port\n" .
+  end .
+  let got option mut slice u8 alloc_bytes hp. capacity 86080 . .
+  guard is_some got. . else return 70 . .
+  let mem mut slice u8 some_value got. . .
+  let lo option net.listener net.serve k. port. . .
+  guard is_some lo. . else do
+    let w2 option u64 outbuf.write_all out. 2 "lowserve: cannot listen on that port\n" . .
     return 4 .
-  end
-  var l owned net.listener some_value lo .
-  let line mut slice u8 subslice mem 86016 86080 .
-  let p1 option u64 fmt.put_str line 0 "listening on 127.0.0.1:" .
-  let p2 option u64 fmt.put_u64 line (value_or p1 0) (field l port) .
-  let p3 option u64 fmt.put_str line (value_or p2 0) "\n" .
-  let w3 option u64 outbuf.write_all out 1 (subslice line 0 (min (value_or p3 0) (len line))) .
+  end .
+  var l owned net.listener some_value lo. . .
+  let line mut slice u8 subslice mem. 86016 86080 . .
+  let p1 option u64 fmt.put_str line. 0 "listening on 127.0.0.1:" . .
+  let p2 option u64 fmt.put_u64 line. value_or p1. 0 . field l. port . . .
+  let p3 option u64 fmt.put_str line. value_or p2. 0 . "\n" . .
+  let w3 option u64 outbuf.write_all out. 1 subslice line. 0 min value_or p3. 0 . len line. . . . . .
   var served u64 0 .
-  while or (eq limit 0) (lt served limit) do
-    let co option net.conn net.take k l .
-    guard is_some co else continue .
-    var c owned net.conn some_value co .
-    let code u64 serve_one fs k (net.conn_fd c) root mem .
-    let sh result void net.net_error net.shut k c .
-    drop sh .
-    set served (add served 1) .
-  end
-  let sl result void net.net_error net.shut_listener k l .
-  drop sl .
+  while or eq limit. 0 . lt served. limit. . . do
+    let co option net.conn net.take k. l. . .
+    guard is_some co. . else continue . .
+    var c owned net.conn some_value co. . .
+    let code u64 serve_one fs. k. net.conn_fd c. . root. mem. . .
+    let sh result void net.net_error net.shut k. c. . .
+    drop sh. .
+    set served. add served. 1 . .
+  end .
+  let sl result void net.net_error net.shut_listener k. l. . .
+  drop sl. .
   return 0 .
-end
+end .

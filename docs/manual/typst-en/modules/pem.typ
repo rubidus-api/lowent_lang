@@ -18,7 +18,7 @@ from outside (a tool like certbot leaves them as files). ACME is not built.
   id: "mod-pem-ops",
   caption: [Ops of `pem`],
   [*op*], [*What it does*],
-  [`find_from`], [Finds `needle` in `hay` (`len hay` if absent)],
+  [`find_from`], [Finds `needle` in `hay` (`len hay. .` if absent)],
   [`body_off`], [Position of *the line after* `-----BEGIN <label>-----`. 0 = absent],
   [`end_off`], [Position of `-----END <label>-----`. 0 = absent],
   [`unwrap`], [One PEM block → DER bytes. `option u64` (bytes written), `none` on failure],
@@ -37,7 +37,7 @@ file format, and real files use both. Strictness is not a virtue but a tool --- 
 signature even when called qualified. A test using both modules together caught that combination breaking. A library green on its own is not enough --- it must compose to
 be usable.
 
-The path PEM → DER → PKCS\#8 → 32-byte scalar goes with #modref("der")[`der`] --- get DER with `pem.unwrap src "PRIVATE KEY" sc buf`, then find the scalar's position with
+The path PEM → DER → PKCS\#8 → 32-byte scalar goes with #modref("der")[`der`] --- get DER with `pem.unwrap src. "PRIVATE KEY" sc. buf. .`, then find the scalar's position with
 `der.p8_inner_off` and `der.ec_priv_off`.
 
 *What is checked* --- comparison with openssl output (certificate DER of 375 bytes identical, the scalar inside PKCS\#8 at position 36 with length 32), rejection of label

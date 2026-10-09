@@ -3,14 +3,14 @@ rem expect: E-CONC-ALONE
 
 proc consumer input ch u64 . output u64 . effects concurrent .
 do
-  return chrecv ch .
-end
+  return chrecv ch. . .
+end .
 
 proc lonely output u64 . effects state concurrent .
 do
-  var ch u64 channel u64 .
+  var ch u64 channel u64 . .
   task_group do
-    spawn consumer ch .
-  end
+    spawn consumer ch. .
+  end .
   return 0 .
-end
+end .

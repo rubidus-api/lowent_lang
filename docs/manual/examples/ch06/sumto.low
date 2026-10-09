@@ -6,9 +6,9 @@ fn sum_to input n u64 . output u64 .
 do
   var total u64 0 .
   var i u64 1 .
-  while le i n do
-    set total (add total i) .
-    set i (add i 1) .
-  end
-  return total .
-end
+  while le i. n. . do
+    set total. add total. i. . .
+    set i. add i. 1 . .
+  end .
+  return total. .
+end .

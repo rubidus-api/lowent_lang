@@ -20,12 +20,12 @@ unsafe extern proc c_vsum do
   effects unsafe .
   variadic .
   link lw_c_vsum .
-end
+end .
 
 unsafe proc vsum3 input k cap c . input a i64 . input b i64 . input d i64 . output i64 . effects unsafe . do
-  return c_vsum k 3 a b d .
-end
+  return c_vsum k. 3 a. b. d. . .
+end .
 
 unsafe proc vsum0 input k cap c . output i64 . effects unsafe . do
-  return c_vsum k 0 .
-end
+  return c_vsum k. 0 . .
+end .

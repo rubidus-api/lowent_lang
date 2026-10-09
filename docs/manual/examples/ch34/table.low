@@ -5,16 +5,16 @@ use hashmap .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let g option mut slice u8 alloc_bytes al capacity 128 .
-  guard is_some g else return 255 .
-  var slots mut slice u64 view_array u64 (some_value g) .
-  let a bool hashmap.put slots 7 700 .
-  let b bool hashmap.put slots 9 900 .
-  let c bool hashmap.put slots 7 777 .
-  let v option u64 hashmap.lookup slots 7 .
-  guard is_some v else return 254 .
-  let gone bool hashmap.del slots 9 .
-  let w option u64 hashmap.lookup slots 9 .
-  guard is_none w else return 253 .
-  return narrow u8 (add (mul (div (some_value v) 100) 10) (hashmap.size slots)) .
-end
+  let g option mut slice u8 alloc_bytes al. capacity 128 . .
+  guard is_some g. . else return 255 . .
+  var slots mut slice u64 view_array u64 some_value g. . . .
+  let a bool hashmap.put slots. 7 700 . .
+  let b bool hashmap.put slots. 9 900 . .
+  let c bool hashmap.put slots. 7 777 . .
+  let v option u64 hashmap.lookup slots. 7 . .
+  guard is_some v. . else return 254 . .
+  let gone bool hashmap.del slots. 9 . .
+  let w option u64 hashmap.lookup slots. 9 . .
+  guard is_none w. . else return 253 . .
+  return narrow u8 add mul div some_value v. . 100 . 10 . hashmap.size slots. . . . .
+end .

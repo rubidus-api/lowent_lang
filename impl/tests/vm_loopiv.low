@@ -2,24 +2,24 @@ rem RFC-0053 §8-1 — 루프 정밀도. CFG 고정점 + 위드닝 + **분기 �
 rem ① 루프 카운터: while lt i 10 → 본문에서 i ∈ [0,9] → add i 1 이 u8 안에서 안전
 fn counter output u8 . do
   var i u8 0 .
-  while lt i 10 do
-    set i expr i + 1 .
-  end
-  return i .
-end
+  while lt i. 10 . do
+    set i. expr i. + 1 . .
+  end .
+  return i. .
+end .
 rem ② 계약이 **루프 안까지** 전달된다: n ≤ 100 이고 i < n 이면 i ≤ 99
-fn guarded input n u8 . output u8 . requires le n 100 . do
+fn guarded input n u8 . output u8 . requires le n. 100 . . do
   var i u8 0 .
-  while lt i n do
-    set i expr i + 1 .
-  end
-  return i .
-end
+  while lt i. n. . do
+    set i. expr i. + 1 . .
+  end .
+  return i. .
+end .
 rem ③ 경계가 없으면 증명 못 한다(보수적이되 건전)
 fn unbounded input n u8 . output u8 . do
   var i u8 0 .
-  while lt i n do
-    set i expr i + 100 .
-  end
-  return i .
-end
+  while lt i. n. . do
+    set i. expr i. + 100 . .
+  end .
+  return i. .
+end .

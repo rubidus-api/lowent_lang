@@ -7,27 +7,27 @@ proc bump
   output u64 .
   effects state .
 do
-  set p expr (deref p) + 1 .
-  return deref p .
-end
+  set p. expr (deref p. .) + 1 . .
+  return deref p. . .
+end .
 
 proc bump42
   input n u64 .
   output u64 .
   effects state .
 do
-  var x u64 n .
-  var r mut_ref u64 mut_ref x .
-  bump r .
-  return x .
-end
+  var x u64 n. .
+  var r mut_ref u64 mut_ref x . .
+  bump r. .
+  return x. .
+end .
 
 fn ro_write
   input n u64 .
   output u64 .
 do
-  let x u64 n .
-  var r ref u64 ref x .
-  set r 9 .
-  return x .
-end
+  let x u64 n. .
+  var r ref u64 ref x . .
+  set r. 9 .
+  return x. .
+end .

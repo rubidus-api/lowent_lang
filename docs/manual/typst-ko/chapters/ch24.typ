@@ -26,7 +26,7 @@
 ]
 
 #organizer[
-  `pipe <원천> do <스테이지…> <종결자> end` 의 모양과, 스테이지 일곱·종결자 다섯을 알게 된다. 스테이지에 이름 붙은
+  `pipe <원천> do <스테이지…> <종결자> end .` 의 모양과, 스테이지 일곱·종결자 다섯을 알게 된다. 스테이지에 이름 붙은
   op 을 건네는 법, `collect into` 로 호출자의 버퍼에 담는 법, `fold`·`any`·`all`·`take` 가 필요한 만큼만 읽는다는 것을
   익힌다. 한 `pipe` 가 중간 배열 없이 한 번에 훑는 것이 최적화가 아니라 *정의*라는 점도 이해하게 된다.
 ]
@@ -173,13 +173,13 @@
 ```lowent
 module sink_map .
 
-fn dbl input a u8 . output u8 . do return wrap_add a a . end
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
 
 proc doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
-  map out dbl xs .
+  map out. dbl xs. .
   return 0 .
-end
+end .
 ```
 
 `[1,2]` 를 세 칸짜리 `out` 에 담으면 `[2,4,0]` 이다. 거꾸로 `[1,2,3]` 을 두 칸에 담으려 하면 셋째를 쓰는 순간 멈춘다 ---
@@ -237,20 +237,20 @@ end
   id: "pipe-glance",
   caption: [`pipe` 의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`pipe xs do … end`], [원천 `xs` 를 한 번 훑는다], [뼈대(색인·끝 조건)를 언어가 맡는다],
+  [`pipe xs. do … end .`], [원천 `xs` 를 한 번 훑는다], [뼈대(색인·끝 조건)를 언어가 맡는다],
   [`filter over2 .` · `map dbl .`], [남기기 · 바꾸기 --- 이름 붙은 op 을 건넨다], [람다가 없다 --- 이름이 설명이 된다],
   [`take 2 .` · `skip 1 .`], [앞 몇 개만 · 앞 몇 개 버리기], [필요한 만큼만 읽는다],
   [`enumerate idxadd .` · `zip ys addb .`], [순번·짝을 op 의 인자로 건넨다], [튜플을 만들지 않는다],
   [`scan 0 addb .` · `fold 0 addu .`], [누적해 흘리기 · 누적해 값 하나], [op 은 누산값이 먼저, 원소가 다음],
   [`filter above with limit .`], [문맥 --- 훑기 전에 한 번 계산해 op 의 마지막 인자로], [람다 없이 실행 중 값을 건넨다 --- 참조 없는 값만],
-  [`count .` · `any is_zero .` · `all under10 .`], [값을 내는 종결자], [`return pipe … end` 로 쓸 수 있다],
+  [`count .` · `any is_zero .` · `all under10 .`], [값을 내는 종결자], [`return pipe … end . .` 로 쓸 수 있다],
   [`collect into out .`], [부르는 쪽 버퍼에 담는다], [`pipe` 는 할당하지 않는다 --- 모자라면 거절되거나 멈춘다],
   [종결자는 정확히 하나, 맨 끝], [뒤에 스테이지가 오면 `E-PIPE-NO-TERMINAL`], [흐름의 끝이 한곳에 보인다],
   [`sort` 같은 낱말], [없다 --- `E-PIPE-STAGE`], [융합할 수 없는 연산은 넣지 않았다],
 )
 
 #recap[
-  `pipe <원천> do … end` 는 스테이지(`filter`·`map`·`take`·`skip`·`enumerate`·`zip`·`scan`)를 거쳐 종결자
+  `pipe <원천> do … end .` 는 스테이지(`filter`·`map`·`take`·`skip`·`enumerate`·`zip`·`scan`)를 거쳐 종결자
   (`collect into`·`fold`·`count`·`any`·`all`) 하나로 끝난다. 스테이지에는 이름 붙은 op 을 건네고, 담을 버퍼는 부르는
   쪽이 준다. 한 번 훑기와 중간 배열 없음은 정의이며, 융합할 수 없는 연산은 낱말에 없다. `any`·`all`·`take` 는 필요한
   만큼만 읽는다.

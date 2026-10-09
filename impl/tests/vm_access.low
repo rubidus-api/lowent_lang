@@ -11,5 +11,5 @@ module vm_access .
 
 fn only_reads input s slice u8 . output u8 . access s shared_read .
 do
-  return idx s 0 .
-end
+  return idx s. 0 . .
+end .

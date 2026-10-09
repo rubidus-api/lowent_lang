@@ -4,11 +4,11 @@ use arith .
 rem ★ 다른 파일의 op 을 부른다.
 rem ★ `main` 은 이제 **엔트리 포인트의 관례 이름**이다(RFC-0030 D1) — 보통 op 에 쓸 수 없다.
 fn run input a u8 . output u8 . do
-  return arith.dbl a .
-end
+  return arith.dbl a. . .
+end .
 
 rem ★ 그리고 math 의 `tests` 절이 이 op 을 이름으로 건다 — **이제 그것이 검사된다.**
 rem ★ `math` 의 `tests` 절이 이것을 이름으로 건다 — **다른 모듈**이므로 `export` 여야 한다.
 export fn dbl_is_double input a u8 . output bool . do
-  return eq (arith.dbl a) (mul a 2) .
-end
+  return eq arith.dbl a. . mul a. 2 . . .
+end .

@@ -10,9 +10,9 @@ rem ✗ 이 파일은 `E-EXPR-UNARY` 로 거절돼야 한다.
 module vm_expr_unary .
 
 fn neg_in_island output u64 . do
-  return expr - 5 .
-end
+  return expr - 5 . .
+end .
 
 proc main output u8 . effects none . do
   return 0 .
-end
+end .

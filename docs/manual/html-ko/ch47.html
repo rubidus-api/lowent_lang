@@ -681,23 +681,23 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> gc <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">16</span> .
-  <strong><span class="tok-k">let</span></strong> gb <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">32</span> .
-  <strong><span class="tok-k">let</span></strong> go <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some gc <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some gb <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> .
-  <strong><span class="tok-k">guard</span></strong> is_some go <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
-  <strong><span class="tok-k">var</span></strong> ctl <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value gc) .
-  <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value gb) .
-  <strong><span class="tok-k">var</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value go) .
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> spsc.spsc_push k ctl buf <span class="tok-n">10</span> .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> spsc.spsc_push k ctl buf <span class="tok-n">32</span> .
-  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">u64</span></strong> spsc.spsc_pop k ctl buf out .
-  <strong><span class="tok-k">guard</span></strong> eq got <span class="tok-n">1</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">252</span> .
-  <strong><span class="tok-k">let</span></strong> first <strong><span class="tok-t">u64</span></strong> idx out <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> again <strong><span class="tok-t">u64</span></strong> spsc.spsc_pop k ctl buf out .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add first (idx out <span class="tok-n">0</span>)) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> gc <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">16</span> . .
+  <strong><span class="tok-k">let</span></strong> gb <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">32</span> . .
+  <strong><span class="tok-k">let</span></strong> go <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">8</span> . .
+  <strong><span class="tok-k">guard</span></strong> is_some gc. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> . .
+  <strong><span class="tok-k">guard</span></strong> is_some gb. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> . .
+  <strong><span class="tok-k">guard</span></strong> is_some go. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> . .
+  <strong><span class="tok-k">var</span></strong> ctl <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> some_value gc. . . .
+  <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> some_value gb. . . .
+  <strong><span class="tok-k">var</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> some_value go. . . .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> spsc.spsc_push k. ctl. buf. <span class="tok-n">10</span> . .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> spsc.spsc_push k. ctl. buf. <span class="tok-n">32</span> . .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">u64</span></strong> spsc.spsc_pop k. ctl. buf. out. . .
+  <strong><span class="tok-k">guard</span></strong> eq got. <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">252</span> . .
+  <strong><span class="tok-k">let</span></strong> first <strong><span class="tok-t">u64</span></strong> idx out. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">let</span></strong> again <strong><span class="tok-t">u64</span></strong> spsc.spsc_pop k. ctl. buf. out. . .
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> add first. idx out. <span class="tok-n">0</span> . . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main ring.low
 main() = 42
 </code></pre></div></div><p>생산자는 칸을 <strong>먼저</strong> 채우고 그다음에 색인을 <code>release</code> 로 공개한다. 소비자는 그 색인을 <code>acquire</code> 로 읽은 뒤에야 칸을 읽는다. <code>lowent_spsc_push_is_correct</code>· <code>lowent_spsc_pop_is_correct</code> 가 이 짝이 RC11 에서 옳다고(가득·빔 판정 포함) 말한다.</p><pre><code data-lang="text"> 생산자                                   소비자

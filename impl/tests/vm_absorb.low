@@ -29,24 +29,24 @@ do
     mov {a}, {r}
     add {b}, {r}
 ASM
-end
+end .
 
 rem 같은 답을 내는 **참조 구현** — 흡수한 자리는 언제나 이것과 맞대어진다.
 export proc add2_soft input a u64 . input b u64 . output u64 . effects none . do
-  return add a b .
-end
+  return add a. b. . .
+end .
 
 rem 흡수하는 op — 여기서 `unsafe` 가 멈춘다.
 export proc add2 input a u64 . input b u64 . output u64 . effects none .
   absorbs machine k .
   reference add2_soft .
   why "asm_add2 는 레지스터 둘을 더해 하나를 낼 뿐이다(options pure nomem nostack) — 메모리를 읽지도 쓰지도 않으므로 이 op 이 넘겨받은 저장소 밖을 만질 수 없다." .
-  requires ge a 0 .
+  requires ge a. 0 . .
 do
-  return asm_add2 k a b .
-end
+  return asm_add2 k. a. b. . .
+end .
 
 rem 부르는 쪽 — 아무것도 안 적는다. 그것이 흡수의 값이다.
 export proc caller input a u64 . output u64 . effects none . do
-  return add2 a 41 .
-end
+  return add2 a. 41 . .
+end .

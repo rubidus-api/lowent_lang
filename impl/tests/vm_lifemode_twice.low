@@ -4,30 +4,30 @@ rem   ⇒ *"completion 정확히 1 회"* 의 **한 번 넘게 못 한다** 쪽�
 
 module vm_lifemode_twice .
 
-export def enum late do too_late . end
+export def enum late do too_late . end .
 
 export def struct ticket do
   id u64 .
-end
+end .
 
 export fn issue input i u64 . output owned vm_lifemode_twice.ticket . do
-  return lit ticket do id i . end .
-end
+  return lit ticket do id i. . end . .
+end .
 
 export fn finish input t owned vm_lifemode_twice.ticket . output result u64 vm_lifemode_twice.late . do
-  return ok (field t id) .
-end
+  return ok field t. id . . .
+end .
 
 rem ✗ 여기가 거절돼야 한다 — E-OWN-MOVED.
 fn twice output u64 . do
-  var t owned vm_lifemode_twice.ticket vm_lifemode_twice.issue 7 .
-  let a result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
-  let b result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
-  guard is_ok a else return 0 .
-  guard is_ok b else return 0 .
-  return add (ok_value a) (ok_value b) .
-end
+  var t owned vm_lifemode_twice.ticket vm_lifemode_twice.issue 7 . .
+  let a result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t. . .
+  let b result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t. . .
+  guard is_ok a. . else return 0 . .
+  guard is_ok b. . else return 0 . .
+  return add ok_value a. . ok_value b. . . .
+end .
 
 proc main output u8 . effects none . do
   return 0 .
-end
+end .

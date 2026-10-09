@@ -671,15 +671,15 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> mean2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> div add a. b. . <span class="tok-n">2</span> . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">test</span></strong> small_numbers
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">expect</span></strong> eq (mean2 <span class="tok-n">10</span> <span class="tok-n">20</span>) <span class="tok-n">15</span> .
-  <strong><span class="tok-k">expect</span></strong> eq (mean2 <span class="tok-n">0</span> <span class="tok-n">0</span>) <span class="tok-n">0</span> .
-  <strong><span class="tok-k">expect</span></strong> eq (mean2 <span class="tok-n">1000000</span> <span class="tok-n">3000000</span>) <span class="tok-n">2000000</span> .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">expect</span></strong> eq mean2 <span class="tok-n">10</span> <span class="tok-n">20</span> . <span class="tok-n">15</span> . .
+  <strong><span class="tok-k">expect</span></strong> eq mean2 <span class="tok-n">0</span> <span class="tok-n">0</span> . <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">expect</span></strong> eq mean2 <span class="tok-n">1000000</span> <span class="tok-n">3000000</span> . <span class="tok-n">2000000</span> . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run mean2 average.low 10 20
 mean2(10, 20) = 15
 $ lowentc --run mean2 average.low 4294967295 1
@@ -688,7 +688,7 @@ $ lowentc --run mean2 average.low 4294967295 1
 $ lowentc --test average.low
   [PASS] small_numbers
 == tests: 1 run, 1 passed, 0 FAILED ==
-</code></pre></div></div><p>두 수의 평균을 구하는 <code>mean2</code> 는 시험 세 개를 모두 통과한다. 그런데 4294967295 와 1 을 주면 <code>add a b</code> 가 <code>u32</code> 에서 넘쳐 멈춘다. 시험을 백만 개 더 써도 저자가 큰 수를 고르지 않으면 이 결함은 드러나지 않는다.</p><p>이것이 시험의 본성이다. 시험은 “<strong>이</strong> 입력에서 틀린다(∃)” 를 보일 수 있지만 “<strong>어떤</strong> 입력에서도 틀리지 않는다(∀)” 를 보일 수 없다. 자연수를 백만 개 확인해도 모든 자연수를 확인한 것이 아니다. ∃ 를 아무리 모아도 ∀ 가 되지 않는다. 이 간극이 증명이 필요한 유일한 이유다.</p><pre><code data-lang="text"> mean2 의 입력: u32 두 개 = 약 1.8 × 10^19 쌍
+</code></pre></div></div><p>두 수의 평균을 구하는 <code>mean2</code> 는 시험 세 개를 모두 통과한다. 그런데 4294967295 와 1 을 주면 <code>add a. b. .</code> 가 <code>u32</code> 에서 넘쳐 멈춘다. 시험을 백만 개 더 써도 저자가 큰 수를 고르지 않으면 이 결함은 드러나지 않는다.</p><p>이것이 시험의 본성이다. 시험은 “<strong>이</strong> 입력에서 틀린다(∃)” 를 보일 수 있지만 “<strong>어떤</strong> 입력에서도 틀리지 않는다(∀)” 를 보일 수 없다. 자연수를 백만 개 확인해도 모든 자연수를 확인한 것이 아니다. ∃ 를 아무리 모아도 ∀ 가 되지 않는다. 이 간극이 증명이 필요한 유일한 이유다.</p><pre><code data-lang="text"> mean2 의 입력: u32 두 개 = 약 1.8 × 10^19 쌍
 
  시험   (10,20) (0,0) (10^6,3·10^6)   세 점을 찍었다 → 셋 다 맞다
  반례   (4294967295, 1)               찍지 않은 자리 → 넘쳐 멈춘다
@@ -698,10 +698,10 @@ $ lowentc --test average.low
 
 <strong><span class="tok-k">fn</span></strong> mean2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> min a b .
-  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> max a b .
-  <strong><span class="tok-k">return</span></strong> add lo (div (sub hi lo) <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> min a. b. . .
+  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> max a. b. . .
+  <strong><span class="tok-k">return</span></strong> add lo. div sub hi. lo. . <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run mean2 average_fixed.low 4294967295 1
 mean2(4294967295, 1) = 2147483648
 $ lowentc --ir average_fixed.low

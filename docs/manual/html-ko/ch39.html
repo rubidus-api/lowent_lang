@@ -670,8 +670,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <em><span class="tok-c">rem u8 과 u16 을 더하면 둘을 다 담는 가장 작은 타입(u16)에서 계산된다</span></em>
 <strong><span class="tok-k">fn</span></strong> wider <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> add a. b. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run wider wider.low 200 60000
 wider(200, 60000) = 60200
 $ lowentc --run wider wider.low 255 65535
@@ -682,8 +682,8 @@ $ lowentc --run wider wider.low 255 65535
 
 <em><span class="tok-c">rem u8 과 i8 을 둘 다 담는 타입은 i16 이다. 처리기는 그 넓히기를 대신 고르지 않는다</span></em>
 <strong><span class="tok-k">fn</span></strong> mix <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> add a. b. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check sign_join.low
 sign_join.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
 </code></pre></div></div><p>진단이 말하는 “strictly wider signed type” 이 바로 <code>u8 ⊔ i8 = i16</code> 이다. 둘을 모두 <code>i16</code> 으로 넓혀 적으면 받아들여진다.</p><h3 id="s39-5">39.5 단조 함수와 고정점 — 분석은 왜 멈추는가<a class="plink" href="#s39-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-78"></span><p><strong>단조 함수</strong>는 입력이 커지면 출력이 작아지지 않는 함수다. <strong>고정점</strong>은 <code>f(x) = x</code> 인 점, 곧 한 번 더 적용해도 변하지 않는 점이다.</p><p>처리기가 반복을 분석할 때 이 두 개념이 일한다. 분석기는 반복에 들어올 때 변수의 범위를 모른다. 그래서 좁게 시작해 되풀이하며 넓힌다.</p><pre><code data-lang="text">1 바퀴 뒤: i ∈ [0, 0]
@@ -695,18 +695,18 @@ sign_join.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exist
 <strong><span class="tok-k">fn</span></strong> ten <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u8</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u8</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">10</span> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> s (add s i) .
-    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">10</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> s. add s. i. . .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> s. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run ten count_up.low
 ten() = 45
 $ lowentc --emit-proof count_up.low
 # proven 1 certified 1
 ten 14 add.i64 R-ARITH-RANGE 0 9 1 1 8 0
-</code></pre></div></div><p>증명 줄이 하나다. <code>add i 1</code> 은 <code>i ∈ [0, 9]</code> 에서 더하므로 <code>u8</code> 을 넘지 않는다고 증명되었다(<code>R-ARITH-RANGE 0 9</code>). <code>add s i</code> 는 증명되지 않았다. 위드닝이 <code>s</code> 의 위 끝을 버렸기 때문이다. 실제로 <code>s</code> 는 45 를 넘지 않지만 분석은 그것을 모른다. 그래서 검사가 남는다 — 느릴 뿐 틀리지는 않는다.</p><ul><li>고정점이 늘 있다는 것이 분석이 <strong>멈춘다</strong>는 보장이다.</li><li>위드닝은 <strong>넓게</strong> 잡는다. 실제보다 크게 잡으면 검사를 못 지울 뿐 틀린 답은 나오지 않는다. 이 방향이 추상해석의 핵심이다.</li></ul><h3 id="s39-6">39.6 귀납법과 불변식 — 도미노<a class="plink" href="#s39-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-79"></span><p>수학적 귀납법은 이렇다. <code>P(0)</code> 이 참이고, <code>P(n)</code> 이 참이면 <code>P(n+1)</code> 도 참이다. 그러면 모든 <code>n</code> 에 대해 <code>P(n)</code> 이 참이다. 프로그램에서는 <code>n</code> 이 “실행한 걸음 수” 가 되고, <code>P</code> 를 <strong>불변식</strong> — 실행 내내 참인 성질 — 이라 부른다.</p><div class="dev mathbox"><p class="dev-label">수학. 소유와 차용 정리의 모양</p><div class="dev-body">시작할 때 빌림 상태는 깨끗하다(<code>P(0)</code>). 정적 검사를 통과한 사건 하나를 실행하면 깨끗한 상태는 여전히 깨끗하다(<code>P(n) → P(n+1)</code>). 따라서 몇 걸음을 실행해도 차용 위반이 없다(<code>∀n, P(n)</code>). 이 논증의 좋은 점은 <strong>몇 걸음인지 몰라도 된다</strong>는 것이다. 그래서 반복을 몇 번 도는지 몰라도 결론이 선다(42·43장).</div></div><h3 id="s39-7">39.7 추상해석 — 값 대신 범위로<a class="plink" href="#s39-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-80"></span><p>프로그램을 돌리지 않고 값에 대해 무언가 알아내려면 값 하나 대신 <strong>값의 집합</strong>을 다뤄야 한다. 집합을 그대로 다루면 너무 크니 간단한 근사를 쓴다. 그 대표가 구간 <code>[lo, hi]</code> 다.</p><pre><code data-lang="text">x ∈ [0, 5],  y ∈ [10, 20]  이면
+</code></pre></div></div><p>증명 줄이 하나다. <code>add i. 1 .</code> 은 <code>i ∈ [0, 9]</code> 에서 더하므로 <code>u8</code> 을 넘지 않는다고 증명되었다(<code>R-ARITH-RANGE 0 9</code>). <code>add s. i. .</code> 는 증명되지 않았다. 위드닝이 <code>s</code> 의 위 끝을 버렸기 때문이다. 실제로 <code>s</code> 는 45 를 넘지 않지만 분석은 그것을 모른다. 그래서 검사가 남는다 — 느릴 뿐 틀리지는 않는다.</p><ul><li>고정점이 늘 있다는 것이 분석이 <strong>멈춘다</strong>는 보장이다.</li><li>위드닝은 <strong>넓게</strong> 잡는다. 실제보다 크게 잡으면 검사를 못 지울 뿐 틀린 답은 나오지 않는다. 이 방향이 추상해석의 핵심이다.</li></ul><h3 id="s39-6">39.6 귀납법과 불변식 — 도미노<a class="plink" href="#s39-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-79"></span><p>수학적 귀납법은 이렇다. <code>P(0)</code> 이 참이고, <code>P(n)</code> 이 참이면 <code>P(n+1)</code> 도 참이다. 그러면 모든 <code>n</code> 에 대해 <code>P(n)</code> 이 참이다. 프로그램에서는 <code>n</code> 이 “실행한 걸음 수” 가 되고, <code>P</code> 를 <strong>불변식</strong> — 실행 내내 참인 성질 — 이라 부른다.</p><div class="dev mathbox"><p class="dev-label">수학. 소유와 차용 정리의 모양</p><div class="dev-body">시작할 때 빌림 상태는 깨끗하다(<code>P(0)</code>). 정적 검사를 통과한 사건 하나를 실행하면 깨끗한 상태는 여전히 깨끗하다(<code>P(n) → P(n+1)</code>). 따라서 몇 걸음을 실행해도 차용 위반이 없다(<code>∀n, P(n)</code>). 이 논증의 좋은 점은 <strong>몇 걸음인지 몰라도 된다</strong>는 것이다. 그래서 반복을 몇 번 도는지 몰라도 결론이 선다(42·43장).</div></div><h3 id="s39-7">39.7 추상해석 — 값 대신 범위로<a class="plink" href="#s39-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-80"></span><p>프로그램을 돌리지 않고 값에 대해 무언가 알아내려면 값 하나 대신 <strong>값의 집합</strong>을 다뤄야 한다. 집합을 그대로 다루면 너무 크니 간단한 근사를 쓴다. 그 대표가 구간 <code>[lo, hi]</code> 다.</p><pre><code data-lang="text">x ∈ [0, 5],  y ∈ [10, 20]  이면
 x + y ∈ [10, 25]      양 끝끼리 더한다
 x × y ∈ [0, 100]      부호가 섞이면 네 곱의 최소·최대를 본다</code></pre><p>규칙은 하나다. <strong>추상 계산의 결과는 실제로 가능한 모든 값을 포함해야 한다.</strong> 실제로 <code>x</code> 가 늘 3 인데 분석이 <code>[0, 5]</code> 라고 답하면 손해는 있어도 안전하다(검사를 못 지운다). 실제로 <code>x</code> 가 7 일 수 있는데 <code>[0, 5]</code> 라고 답하면, 그 답으로 검사를 지운 순간 범위 밖 접근이 일어난다. 그래서 분석의 모든 규칙은 “넓게” 쪽으로 기울어 있다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>분석이 정확할수록 좋다</strong></p><div class="dev-body">정확함보다 먼저 오는 것이 <strong>방향</strong>이다. 넓게 틀리는 분석은 느릴 뿐이지만 좁게 틀리는 분석은 틀린 메모리를 읽는다. 정밀도를 높이는 규칙을 더할 때마다 물어야 하는 것은 “더 정확한가” 가 아니라 “실제보다 좁게 잡는 경우가 생기는가” 다. 그래서 이 언어는 무거운 분석 대신 넓게 틀리는 가벼운 분석을 두고, 모자란 자리에서는 검사를 남긴다.</div></div><h3 id="s39-8">39.8 기호 표<a class="plink" href="#s39-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>기호</strong></th><th><strong>읽는 법</strong></th><th><strong>뜻</strong></th></tr><tr><td><code>A ⊑ B</code></td><td>A 는 B 에 안전하게 들어간다</td><td>안전한 넓히기 관계</td></tr><tr><td><code>A ⊔ B</code></td><td>A 와 B 의 join</td><td>둘을 다 담는 가장 작은 것</td></tr><tr><td><code>[lo, hi]</code></td><td>구간</td><td>lo 이상 hi 이하의 값</td></tr><tr><td><code>∀x, P(x)</code></td><td>모든 x 에 대해 P</td><td>예외가 없다</td></tr><tr><td><code>∃x, P(x)</code></td><td>어떤 x 가 있어 P</td><td>하나라도 있다</td></tr><tr><td><code>P → Q</code></td><td>P 이면 Q</td><td>함의</td></tr><tr><td><code>⊤</code></td><td>모름</td><td>아무 값이나 가능</td></tr><tr><td><code>A ∗ B</code></td><td>A 와 B, 서로 다른 조각</td><td>분리논리의 접속사(47장)</td></tr></table></div><p class="float-caption">표 39.3 — 이 부의 기호</p></figure><h3 id="s39-9">39.9 도구들이 맞물리는 방식<a class="plink" href="#s39-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><pre><code data-lang="text">부분 순서 ⊑           "안전하게 담긴다" 를 정의한다        (수)
    │

@@ -14,241 +14,241 @@ rem 넣고 그 키를 꺼낸다 → 값. 알려진 (k,v) 에 대해 골든이 v 
 rem   못 넣거나(꽉 참·MAX 키) 못 찾으면 큰 센티널(값과 안 겹치게 골든이 v 를 고른다).
 proc hm_roundtrip input b mut slice u64 . input k u64 . input v u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  let ok_put bool hashmap.put b k v .
-  guard eq ok_put true else return 4000000001 .
-  let g option u64 hashmap.lookup b k .
-  guard is_some g else return 4000000002 .
-  return some_value g .
-end
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  let ok_put bool hashmap.put b. k. v. . .
+  guard eq ok_put. true . else return 4000000001 . .
+  let g option u64 hashmap.lookup b. k. . .
+  guard is_some g. . else return 4000000002 . .
+  return some_value g. . .
+end .
 
 rem 스스로 검사한다: 몇 개 넣고 · 하나 갱신하고 · 다 꺼내 맞는지 · 없는 키가 none 인지. → 1/0.
 rem   백킹이 4 슬롯 미만이면 0(검사 불가). diff-sweep 이 임의 백킹에서 이것을 돌린다.
 proc hm_check input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard ge (div (len b) 2) 4 else return 0 .
-  guard eq (hashmap.put b 10 100) true else return 0 .
-  guard eq (hashmap.put b 20 200) true else return 0 .
-  guard eq (hashmap.put b 30 300) true else return 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard ge div len b. . 2 . 4 . else return 0 . .
+  guard eq hashmap.put b. 10 100 . true . else return 0 . .
+  guard eq hashmap.put b. 20 200 . true . else return 0 . .
+  guard eq hashmap.put b. 30 300 . true . else return 0 . .
   rem ★ 같은 키를 다시 넣으면 **갱신**(새 슬롯 안 씀)
-  guard eq (hashmap.put b 20 222) true else return 0 .
+  guard eq hashmap.put b. 20 222 . true . else return 0 . .
   rem 꺼내서 확인
-  let a option u64 hashmap.lookup b 10 .
-  guard is_some a else return 0 .
-  guard eq (some_value a) 100 else return 0 .
-  let c option u64 hashmap.lookup b 20 .
-  guard is_some c else return 0 .
-  guard eq (some_value c) 222 else return 0 .          rem 갱신됨
-  let d option u64 hashmap.lookup b 30 .
-  guard is_some d else return 0 .
-  guard eq (some_value d) 300 else return 0 .
+  let a option u64 hashmap.lookup b. 10 . .
+  guard is_some a. . else return 0 . .
+  guard eq some_value a. . 100 . else return 0 . .
+  let c option u64 hashmap.lookup b. 20 . .
+  guard is_some c. . else return 0 . .
+  guard eq some_value c. . 222 . else return 0 . .          rem 갱신됨
+  let d option u64 hashmap.lookup b. 30 . .
+  guard is_some d. . else return 0 . .
+  guard eq some_value d. . 300 . else return 0 . .
   rem ★ 없는 키는 none
-  let e option u64 hashmap.lookup b 99 .
-  guard eq (is_some e) false else return 0 .
+  let e option u64 hashmap.lookup b. 99 . .
+  guard eq is_some e. . false . else return 0 . .
   return 1 .
-end
+end .
 
 rem ★ 키 MAX_U64 는 거절된다(k+1 이 빈칸 표식 0 과 겹치므로). CLI 는 MAX 를 못 넘기니(i64 상한)
 rem   `bit_not 0` 으로 진짜 MAX 를 op 안에서 만든다. → put 이 false 여야 1 을 낸다.
 proc hm_maxkey input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard gt (div (len b) 2) 0 else return 0 .
-  let maxk u64 bit_not 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard gt div len b. . 2 . 0 . else return 0 . .
+  let maxk u64 bit_not 0 . .
   rem MAX 키는 못 담는다 → false
-  guard eq (hashmap.put b maxk 7) false else return 0 .
+  guard eq hashmap.put b. maxk. 7 . false . else return 0 . .
   rem ★ MAX−1 도 예약됐다(k+1 = MAX = 묘비값과 겹친다) — 삭제 tombstone 도입의 대가
-  guard eq (hashmap.put b (sub maxk 1) 7) false else return 0 .
+  guard eq hashmap.put b. sub maxk. 1 . 7 . false . else return 0 . .
   rem 그래도 다른 키는 멀쩡하다
-  guard eq (hashmap.put b 5 50) true else return 0 .
-  let g option u64 hashmap.lookup b 5 .
-  guard is_some g else return 0 .
-  guard eq (some_value g) 50 else return 0 .
+  guard eq hashmap.put b. 5 50 . true . else return 0 . .
+  let g option u64 hashmap.lookup b. 5 . .
+  guard is_some g. . else return 0 . .
+  guard eq some_value g. . 50 . else return 0 . .
   return 1 .
-end
+end .
 
 rem 꽉 찬 맵에 새 키를 넣으면 false. 2 슬롯짜리 백킹에 서로 다른 3 키를 넣어 본다.
 proc hm_full input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard eq (div (len b) 2) 2 else return 0 .           rem 정확히 2 슬롯일 때만 의미
-  guard eq (hashmap.put b 1 10) true else return 0 .
-  guard eq (hashmap.put b 2 20) true else return 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard eq div len b. . 2 . 2 . else return 0 . .           rem 정확히 2 슬롯일 때만 의미
+  guard eq hashmap.put b. 1 10 . true . else return 0 . .
+  guard eq hashmap.put b. 2 20 . true . else return 0 . .
   rem 두 슬롯이 찼다 — 셋째 키는 못 들어간다
-  guard eq (hashmap.put b 3 30) false else return 0 .
+  guard eq hashmap.put b. 3 30 . false . else return 0 . .
   rem 그래도 기존 키 갱신은 된다(새 슬롯 불필요)
-  guard eq (hashmap.put b 1 11) true else return 0 .
+  guard eq hashmap.put b. 1 11 . true . else return 0 . .
   return 1 .
-end
+end .
 
 rem ── ★★★ **순회** — 맵을 열거해 집계한다. 10→100·20→200·30→300 을 넣고 순회한다.
 rem   occupancy 를 hm_occupied_at 로 판별하므로 option 이 없다 → 순회 루프에서 정규화기 give-up 없음.
 rem   누산 변수는 `total`·`mx`(빌트인 `sum`·`max` 와 안 겹치게).
 proc hm_sum_vals input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard eq (hashmap.put b 10 100) true else return 999 .
-  guard eq (hashmap.put b 20 200) true else return 999 .
-  guard eq (hashmap.put b 30 300) true else return 999 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard eq hashmap.put b. 10 100 . true . else return 999 . .
+  guard eq hashmap.put b. 20 200 . true . else return 999 . .
+  guard eq hashmap.put b. 30 300 . true . else return 999 . .
   var slot u64 0 .
   var total u64 0 .
-  while lt slot (hashmap.size b) do
-    if hashmap.occupied_at b slot do
-      set total (add total (hashmap.val_at b slot)) .
-    end
-    set slot (add slot 1) .
-  end
-  return total .
-end
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      set total. add total. hashmap.val_at b. slot. . . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  return total. .
+end .
 
 rem 디코드된 키의 합 → 10+20+30 = 60 (hm_key_at 이 key+1 을 −1 로 되돌리는지 증명).
 proc hm_sum_keys input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard eq (hashmap.put b 10 100) true else return 999 .
-  guard eq (hashmap.put b 20 200) true else return 999 .
-  guard eq (hashmap.put b 30 300) true else return 999 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard eq hashmap.put b. 10 100 . true . else return 999 . .
+  guard eq hashmap.put b. 20 200 . true . else return 999 . .
+  guard eq hashmap.put b. 30 300 . true . else return 999 . .
   var slot u64 0 .
   var total u64 0 .
-  while lt slot (hashmap.size b) do
-    if hashmap.occupied_at b slot do
-      set total (add total (hashmap.key_at b slot)) .
-    end
-    set slot (add slot 1) .
-  end
-  return total .
-end
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      set total. add total. hashmap.key_at b. slot. . . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  return total. .
+end .
 
 rem ── ★★★ **삭제(tombstone) 자기검증** → 1/0. 세 키를 넣고 · 하나 지우고 · 지운 건 none 인데
 rem   나머지는 여전히 찾히는가(프로브 체인 보존) · 없는 키 삭제는 false · 재삽입은 묘비 재사용 ·
 rem   순회 카운트가 묘비를 안 세는가. 백킹이 4 슬롯 미만이면 0. diff-sweep 이 임의 백킹에서 돌린다.
 proc hm_del_check input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard ge (div (len b) 2) 4 else return 0 .
-  guard eq (hashmap.put b 10 100) true else return 0 .
-  guard eq (hashmap.put b 20 200) true else return 0 .
-  guard eq (hashmap.put b 30 300) true else return 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard ge div len b. . 2 . 4 . else return 0 . .
+  guard eq hashmap.put b. 10 100 . true . else return 0 . .
+  guard eq hashmap.put b. 20 200 . true . else return 0 . .
+  guard eq hashmap.put b. 30 300 . true . else return 0 . .
   rem 20 을 지운다
-  guard eq (hashmap.del b 20) true else return 0 .
+  guard eq hashmap.del b. 20 . true . else return 0 . .
   rem 지운 건 이제 none
-  let g20 option u64 hashmap.lookup b 20 .
-  guard eq (is_some g20) false else return 0 .
+  let g20 option u64 hashmap.lookup b. 20 . .
+  guard eq is_some g20. . false . else return 0 . .
   rem ★ 나머지는 여전히 찾힌다 — 묘비가 프로브 체인을 끊지 않았다
-  let g10 option u64 hashmap.lookup b 10 .
-  guard is_some g10 else return 0 .
-  guard eq (some_value g10) 100 else return 0 .
-  let g30 option u64 hashmap.lookup b 30 .
-  guard is_some g30 else return 0 .
-  guard eq (some_value g30) 300 else return 0 .
+  let g10 option u64 hashmap.lookup b. 10 . .
+  guard is_some g10. . else return 0 . .
+  guard eq some_value g10. . 100 . else return 0 . .
+  let g30 option u64 hashmap.lookup b. 30 . .
+  guard is_some g30. . else return 0 . .
+  guard eq some_value g30. . 300 . else return 0 . .
   rem 없는 키(이미 지움·처음부터 없음) 삭제는 false
-  guard eq (hashmap.del b 20) false else return 0 .
-  guard eq (hashmap.del b 99) false else return 0 .
+  guard eq hashmap.del b. 20 . false . else return 0 . .
+  guard eq hashmap.del b. 99 . false . else return 0 . .
   rem ★ 재삽입은 묘비를 재사용한다(성공하고 도로 찾힌다)
-  guard eq (hashmap.put b 40 400) true else return 0 .
-  let g40 option u64 hashmap.lookup b 40 .
-  guard is_some g40 else return 0 .
-  guard eq (some_value g40) 400 else return 0 .
+  guard eq hashmap.put b. 40 400 . true . else return 0 . .
+  let g40 option u64 hashmap.lookup b. 40 . .
+  guard is_some g40. . else return 0 . .
+  guard eq some_value g40. . 400 . else return 0 . .
   rem ★ 순회는 묘비를 안 센다 — 지금 살아 있는 건 10·30·40 = 셋
   var slot u64 0 .
   var cnt u64 0 .
-  while lt slot (hashmap.size b) do
-    if hashmap.occupied_at b slot do
-      set cnt (add cnt 1) .
-    end
-    set slot (add slot 1) .
-  end
-  guard eq cnt 3 else return 0 .
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      set cnt. add cnt. 1 . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  guard eq cnt. 3 . else return 0 . .
   return 1 .
-end
+end .
 
 rem ── ★★★ **성장(rehash) 자기검증** → 1/0. 2 슬롯짜리 ob 를 꽉 채우고(셋째 키는 false) · 큰 nb 로
 rem   rehash 하고 · 이제 셋째 키가 들어가고 · 옛 키가 다 살아 있는가. "못 자라던 맵이 자란다" 는 증명.
 rem   ob 는 정확히 2 슬롯(4 u64) · nb 는 4+ 슬롯. diff-sweep 이 임의 두 백킹에서 이것을 돌린다.
 proc hm_rehash_check input ob mut slice u64 . input nb mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len ob) do
-    set (idx ob i) 0 .
-    set i (add i 1) .
-  end
+  while lt i. len ob. . . do
+    set idx ob. i. . 0 .
+    set i. add i. 1 . .
+  end .
   var j u64 0 .
-  while lt j (len nb) do
-    set (idx nb j) 0 .
-    set j (add j 1) .
-  end
-  guard eq (div (len ob) 2) 2 else return 0 .          rem ob = 정확히 2 슬롯
-  guard ge (div (len nb) 2) 4 else return 0 .
-  guard eq (hashmap.put ob 10 100) true else return 0 .
-  guard eq (hashmap.put ob 20 200) true else return 0 .
+  while lt j. len nb. . . do
+    set idx nb. j. . 0 .
+    set j. add j. 1 . .
+  end .
+  guard eq div len ob. . 2 . 2 . else return 0 . .          rem ob = 정확히 2 슬롯
+  guard ge div len nb. . 2 . 4 . else return 0 . .
+  guard eq hashmap.put ob. 10 100 . true . else return 0 . .
+  guard eq hashmap.put ob. 20 200 . true . else return 0 . .
   rem ob 가 꽉 찼다 — 셋째 키는 못 들어간다
-  guard eq (hashmap.put ob 30 300) false else return 0 .
+  guard eq hashmap.put ob. 30 300 . false . else return 0 . .
   rem ★ 성장: ob 의 살아있는 항목을 nb 로 옮긴다
-  guard eq (hashmap.rehash nb ob) true else return 0 .
+  guard eq hashmap.rehash nb. ob. . true . else return 0 . .
   rem 이제 셋째 키가 nb 에 들어간다
-  guard eq (hashmap.put nb 30 300) true else return 0 .
+  guard eq hashmap.put nb. 30 300 . true . else return 0 . .
   rem 옛 키 둘 + 새 키가 전부 nb 에 있다
-  let a option u64 hashmap.lookup nb 10 .
-  guard is_some a else return 0 .
-  guard eq (some_value a) 100 else return 0 .
-  let b option u64 hashmap.lookup nb 20 .
-  guard is_some b else return 0 .
-  guard eq (some_value b) 200 else return 0 .
-  let c option u64 hashmap.lookup nb 30 .
-  guard is_some c else return 0 .
-  guard eq (some_value c) 300 else return 0 .
+  let a option u64 hashmap.lookup nb. 10 . .
+  guard is_some a. . else return 0 . .
+  guard eq some_value a. . 100 . else return 0 . .
+  let b option u64 hashmap.lookup nb. 20 . .
+  guard is_some b. . else return 0 . .
+  guard eq some_value b. . 200 . else return 0 . .
+  let c option u64 hashmap.lookup nb. 30 . .
+  guard is_some c. . else return 0 . .
+  guard eq some_value c. . 300 . else return 0 . .
   rem 순회 카운트 3 — 옛 백킹의 무엇도 흘러들지 않았다
   var slot u64 0 .
   var cnt u64 0 .
-  while lt slot (hashmap.size nb) do
-    if hashmap.occupied_at nb slot do
-      set cnt (add cnt 1) .
-    end
-    set slot (add slot 1) .
-  end
-  guard eq cnt 3 else return 0 .
+  while lt slot. hashmap.size nb. . . do
+    if hashmap.occupied_at nb. slot. . do
+      set cnt. add cnt. 1 . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  guard eq cnt. 3 . else return 0 . .
   return 1 .
-end
+end .
 
 rem 최대 값 → 300.
 proc hm_maxval input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard eq (hashmap.put b 10 100) true else return 999 .
-  guard eq (hashmap.put b 20 200) true else return 999 .
-  guard eq (hashmap.put b 30 300) true else return 999 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard eq hashmap.put b. 10 100 . true . else return 999 . .
+  guard eq hashmap.put b. 20 200 . true . else return 999 . .
+  guard eq hashmap.put b. 30 300 . true . else return 999 . .
   var slot u64 0 .
   var mx u64 0 .
-  while lt slot (hashmap.size b) do
-    if hashmap.occupied_at b slot do
-      let v u64 hashmap.val_at b slot .
-      if gt v mx do set mx v . end
-    end
-    set slot (add slot 1) .
-  end
-  return mx .
-end
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      let v u64 hashmap.val_at b. slot. . .
+      if gt v. mx. . do set mx. v. . end .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  return mx. .
+end .

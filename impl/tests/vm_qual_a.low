@@ -8,4 +8,4 @@ export fn pick
   link "qa_pick" .
 do
   return 11 .
-end
+end .

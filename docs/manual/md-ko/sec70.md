@@ -15,8 +15,8 @@ L0 — 순수 계산(호출자의 뒷받침)
 `u64` 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다. 번호로 무언가를 빨리 찾아야 할 때(아이디 → 개수, 핸들 → 상태) 쓴다. 문자열 열쇠는 [`strmap`](sec71.md#mod-strmap), 원소 타입과 얼로케이터를 고르는 컨테이너는 [`mapgen`](sec111.md#mod-mapgen) 이다(34장).
 
 ```lowent
-let stored bool hashmap.put b 7 42 .
-let v option u64 hashmap.lookup b 7 .
+let stored bool hashmap.put b. 7 42 . .
+let v option u64 hashmap.lookup b. 7 . .
 ```
 
 > **꼭 알아 둘 것 둘**
@@ -45,24 +45,24 @@ let v option u64 hashmap.lookup b 7 .
 ```lowent
 proc hm_sum input b mut slice u64 . output u64 . effects none . do
   var i u64 0 .
-  while lt i (len b) do
-    set (idx b i) 0 .
-    set i (add i 1) .
-  end
-  guard ge (div (len b) 2) 4 else return 0 .
-  guard eq (hashmap.put b 10 100) true else return 0 .
-  guard eq (hashmap.put b 20 222) true else return 0 .
-  guard eq (hashmap.del b 10) true else return 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard ge div len b. . 2 . 4 . else return 0 . .
+  guard eq hashmap.put b. 10 100 . true . else return 0 . .
+  guard eq hashmap.put b. 20 222 . true . else return 0 . .
+  guard eq hashmap.del b. 10 . true . else return 0 . .
   var slot u64 0 .
   var total u64 0 .
-  while lt slot (hashmap.size b) do
-    if hashmap.occupied_at b slot do
-      set total (add total (hashmap.val_at b slot)) .
-    end
-    set slot (add slot 1) .
-  end
-  return total .
-end
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      set total. add total. hashmap.val_at b. slot. . . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  return total. .
+end .
 ```
 
 > **반례. `occupied_at` 없이 슬롯을 읽는다**

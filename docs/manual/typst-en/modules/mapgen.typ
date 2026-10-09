@@ -9,12 +9,12 @@ A table finding values by key, with key and value types *of your choosing*. Each
 types, one value owns storage and allocator, and it rehashes itself when full.
 
 ```lowent
-let mo use bump option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
-guard is_some mo else return 1 .
-var m (mapgen.table u32 u64) some_value mo .
-guard mapgen.insert u32 u64 m 7 900 else return 2 .
-let x option u64 mapgen.lookup u32 u64 m 7 .
-guard mapgen.erase u32 u64 m 7 else return 3 .
+let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 4 . .
+guard is_some mo. . else return 1 . .
+var m (mapgen.table u32 u64) some_value mo. . .
+guard mapgen.insert u32. u64. m. 7 900 . else return 2 . .
+let x option u64 mapgen.lookup u32. u64. m. 7 . .
+guard mapgen.erase u32. u64. m. 7 . else return 3 . .
 ```
 
 *Design.* ⓪ Why `table`, not `map` --- `map` is a core op. When one word means two things, how sentences group becomes unstable. Generics had been slipping past that check;
@@ -46,18 +46,18 @@ The key array is `slots × size_of k` bytes and the value array `slots × size_o
 var at u64 0 .
 var total u64 0 .
 var going bool true .
-while going do
-  let nx option u64 mapgen.next_used u32 u64 m at .
-  guard is_some nx else do
-    set going false .
+while going. do
+  let nx option u64 mapgen.next_used u32. u64. m. at. . .
+  guard is_some nx. . else do
+    set going. false .
     continue .
-  end
-  let s u64 some_value nx .
-  let v option u64 mapgen.val_at u32 u64 m s .
-  guard is_some v else return none .
-  set total (add total (some_value v)) .
-  set at (add s 1) .
-end
+  end .
+  let s u64 some_value nx. . .
+  let v option u64 mapgen.val_at u32. u64. m. s. . .
+  guard is_some v. . else return none . .
+  set total. add total. some_value v. . . .
+  set at. add s. 1 . .
+end .
 ```
 
 The frequency-count idiom is `lookup` → 1 if absent, +1 if present → `insert`. With value type `u8` and only 1 stored, it is a set.
@@ -68,7 +68,7 @@ The frequency-count idiom is `lookup` → 1 if absent, +1 if present → `insert
 ]
 
 #antipattern[Not advancing `at` by one][
-  `set at (some_value nx)` finds the same slot forever. The next start is *previous slot + 1*.
+  `set at. some_value nx. .` finds the same slot forever. The next start is *previous slot + 1*.
 ]
 
 #antipattern[Non-integer keys · swapping type order][

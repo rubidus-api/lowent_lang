@@ -38,7 +38,7 @@
 #demo("examples/ch30/gpio.low")
 
 #idx("mmio")
-- `def struct gpio do mmio 0x40020000 . … end` 는 장치의 *지도*다. `mmio` 뒤의 수가 시작 주소이고, 칸들이 차례로 레지스터가
+- `def struct gpio do mmio 0x40020000 . … end .` 는 장치의 *지도*다. `mmio` 뒤의 수가 시작 주소이고, 칸들이 차례로 레지스터가
   된다. 새 낱말은 없다. 구조체에 절 하나가 붙었을 뿐이다.
 - 칸 뒤의 `rw`·`ro`·`wo` 가 닿는 법이다.
 - `read_volatile`·`write_volatile` 이 레지스터에 닿는다. 처리기는 이 접근을 *합치거나 없애거나 차례를 바꾸지 않는다.* 장치
@@ -47,7 +47,7 @@
   정확히 같은 문제다.
 - `build tier t1 .` 은 이 모듈이 작은 기계용이라는 선언이다(아래에서 다룬다).
 
-VM 에서는 이것이 *실제로 돈다*. 장치 대신 호출자가 건넨 바이트 버퍼가 레지스터 자리가 되고, `view gpio regs` 가 그 위에
+VM 에서는 이것이 *실제로 돈다*. 장치 대신 호출자가 건넨 바이트 버퍼가 레지스터 자리가 되고, `view gpio regs. .` 가 그 위에
 지도를 얹는다. 실행 결과의 인자 모습 `[2,0,0,0,7,0,0,0,1,0,0,0]` 에서 `moder` 에 2, `bsrr` 에 1 이 쓰였고 `idr` 의 7 이
 읽혀 돌아온 것을 볼 수 있다. 실행 인자의 첫 `0` 은 `cap mmio` 자리를 채우는 자리표다.
 
@@ -177,10 +177,10 @@ export proc add2 input a u64 . input b u64 . output u64 . effects none .
   absorbs machine k .          rem 여기서 멈춘다. `k` 가 이 몸 안의 `cap machine` 이다
   reference add2_soft .        rem 같은 답을 내야 하는 순수한 판
   why "레지스터 둘을 더할 뿐 메모리를 만지지 않는다(options pure nomem nostack)." .
-  requires ge a 0 .
+  requires ge a. 0 . .
 do
-  return asm_add2 k a b .
-end
+  return asm_add2 k. a. b. . .
+end .
 ```
 
 - 이 op 을 부르는 쪽은 *아무것도 적지 않는다.* 그것이 흡수의 값이다.
@@ -266,7 +266,7 @@ absorbs: 1 op(s) stop `unsafe` here
 #antipattern[레지스터를 보통 칸처럼 읽고 쓴다][
   #demo("examples/ch30/mistake_plainfield.low")
 
-  `set (field g moder) 2` 와 `field g idr` 는 거절된다(`E-MMIO-PLAIN`). 보통 칸 접근은 처리기가 합치거나 지워도 되는 연산이기 때문이다 ---
+  `set field g. moder . 2 .` 와 `field g. idr .` 는 거절된다(`E-MMIO-PLAIN`). 보통 칸 접근은 처리기가 합치거나 지워도 되는 연산이기 때문이다 ---
   같은 레지스터를 두 번 읽는 코드가 한 번으로 줄거나, 아무도 읽지 않는 쓰기가 사라져도 보통 메모리에서는 답이 같다. 장치에서는 그 접근
   자체가 일이므로 답이 달라진다. 장치 레지스터에는 `read_volatile`·`write_volatile` 을 쓴다 --- 닿는 법(`ro`·`wo`)도 그 자리에서 함께
   검사한다.
@@ -279,11 +279,11 @@ absorbs: 1 op(s) stop `unsafe` here
   id: "hardware-glance",
   caption: [하드웨어의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`def struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
+  [`def struct gpio do mmio 0x40020000 . moder u32 rw . … end .`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
   [`rw` · `ro` · `wo`], [닿는 법 --- 번역에서 강제], [어기면 `E-MMIO-PERM`],
-  [`read_volatile g idr` · `write_volatile g moder 2`], [합치거나 지우지 않는 접근], [읽는 행위 자체가 일이다],
+  [`read_volatile g. idr .` · `write_volatile g. moder 2 .`], [합치거나 지우지 않는 접근], [읽는 행위 자체가 일이다],
   [`input dev cap mmio .` + `effects device`], [장치 권한과 효과], [권한 없는 하드웨어 접근이 없다],
-  [`var g gpio view gpio regs .`], [바이트 위에 지도를 얹는다], [장치를 값으로 받으면 `E-MMIO-BYVALUE`],
+  [`var g gpio view gpio regs. . .`], [바이트 위에 지도를 얹는다], [장치를 값으로 받으면 `E-MMIO-BYVALUE`],
   [`proc on_exti vector 6 . priority 2 . output void . effects device .`], [인터럽트 처리기], [부르면 `E-ISR-CALLED` · 인자는 `E-ISR-PARAMS`],
   [`build tier t1 .`], [이 기계가 감당하는 효과의 등급], [실을 수 없는 것을 번역에서 막는다],
   [`asm x86_64 . reg a . out reg r . clobber flags . options pure .`], [기계 명령으로 쓴 몸의 머리], [`unsafe`·`cap machine`·효과 줄·기계 이름으로 가둔다],

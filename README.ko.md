@@ -1,4 +1,4 @@
-**한국어** | [English](README.md) — **Lowent v1.7.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.7.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+**한국어** | [English](README.md) — **Lowent v1.8.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.8.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent (로우엔트)
 
@@ -16,14 +16,14 @@ module stats .
 
 rem 순수 함수입니다: 입출력도, 할당도, 숨은 상태도 없습니다. 계약은 검사됩니다.
 fn mean input xs slice u8 . output u64 .
-  requires gt (len xs) 0 .
+  requires gt len xs. . 0 . .
 do
   var total u64 0 .
-  for x xs do
-    set total (add total (widen u64 x)) .
-  end
-  return div total (len xs) .
-end
+  for x xs. do
+    set total. add total. widen u64 x. . . .
+  end .
+  return div total. len xs. . . .
+end .
 ```
 
 ```text
@@ -58,18 +58,18 @@ module overflow .
 
 fn bump input a u8 . output u8 .
 do
-  return add a 1 .
-end
+  return add a. 1 . .
+end .
 
 fn bump_wrap input a u8 . output u8 .
 do
-  return wrap_add a 1 .
-end
+  return wrap_add a. 1 . .
+end .
 
 fn bump_sat input a u8 . output u8 .
 do
-  return sat_add a 1 .
-end
+  return sat_add a. 1 . .
+end .
 ```
 
 ```text
@@ -92,9 +92,9 @@ module hello .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out 1 "hello, entropy!\n" .
+  let n u64 write_out out. 1 "hello, entropy!\n" . .
   return 0 .
-end
+end .
 ```
 
 순수하다고 적은 `fn` 이 몰래 출력을 하려 들면 컴파일되지 않습니다.
@@ -104,8 +104,8 @@ module leak .
 
 fn shout input out cap io . output u64 .
 do
-  return write_out out 1 "hi\n" .
-end
+  return write_out out. 1 "hi\n" . .
+end .
 ```
 
 ```text
@@ -128,11 +128,11 @@ use files .
 
 proc leak input fs cap file_system . output u8 . effects io .
 do
-  let o result files.handle files.file_error files.open fs "notes.txt" 0 .
-  guard is_ok o else return 1 .
-  var h owned files.handle ok_value o .
+  let o result files.handle files.file_error files.open fs. "notes.txt" 0 . .
+  guard is_ok o. . else return 1 . .
+  var h owned files.handle ok_value o. . .
   return 0 .
-end
+end .
 ```
 
 운영체제가 없는 작은 보드를 위해서는 자라지 않는 고정 메모리 창만 쓰는 길이 따로 있습니다. 그런 보드를 대상으로 지으면 힙이 필요한 코드는 거절됩니다.
@@ -143,7 +143,7 @@ end
 
 ### 5. 한 뜻에는 한 표기만 둡니다
 
-문장은 낱말 하나로 시작해 피연산자를 뒤에 늘어놓고, 점(`.`)으로 끝납니다. `total + x` 가 아니라 `add total x` 입니다. 긴 수식은 `expr` 안에서만 중위로 쓸 수 있고, 뜻은 전위 표기와 똑같습니다. 키워드는 **43 개**로 닫혀 있고, 같은 일을 하는 두 번째 철자는 두지 않습니다.
+폼은 이름으로 열리고 점(`.`)으로 닫힙니다. `total + x` 가 아니라 `add total. x. .` 입니다. 변수는 이름에 점을 붙여 `total.` 로 적고, 점 하나가 가장 안쪽에 열린 폼을 닫습니다. 그래서 괄호도 연산자 우선순위도 필요 없습니다. 긴 수식은 `expr` 안에서만 중위로 쓸 수 있고, 뜻은 전위 표기와 똑같습니다. 키워드는 **43 개**로 닫혀 있고, 같은 일을 하는 두 번째 철자는 두지 않습니다.
 
 이 규칙 덕분에 문법 전체를 정규식만으로 칠할 수 있고(에디터 하이라이터가 근사치가 아니라 정확합니다), 특수문자가 거의 없어 스마트폰 자판으로도 편하게 칠 수 있습니다. 진단에는 바뀌지 않는 코드가 붙고, `--diag-json` 을 주면 도구와 AI 에이전트가 읽기 좋은 JSON 한 줄로 나옵니다.
 
@@ -158,7 +158,7 @@ end
 
 ## 지금 어디까지 왔나
 
-Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.7.0, 언어 개정 1.7).
+Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.8.0, 언어 개정 1.8).
 
 - **컴파일러 `lowentc`** 는 C23 으로 쓰였고, 외부 의존은 들여온 라이브러리 하나(`proven_c_lib`, MIT)뿐입니다. 네이티브 코드는 C 로 내보내 시스템의 C 컴파일러로 짓습니다. 대상은 `x86_64`·`arm64`·`riscv64`·`cortex_m`·`mips_be` 입니다.
 - **컴파일할 때 막는 것**: 효과와 권한 위반, 차용·수명 위반, 옮긴 값 재사용, 완결되지 않은 자원, 값을 잃을 수 있는 정수 변환, 모순되거나 죽은 계약.
@@ -170,7 +170,7 @@ Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러�
 
 Lowent 는 몇 가지를 일부러 포기했습니다. 고르시기 전에 아시는 편이 좋습니다.
 
-- **낯선 겉모습.** 전위 표기와 점으로 끝나는 문장은 처음엔 어색합니다. `a + b * c` 대신 `add a (mul b c)` 라고 쓰는 데 익숙해지는 시간이 필요합니다.
+- **낯선 겉모습.** 전위 표기와 점으로 닫는 폼은 처음엔 어색합니다. `a + b * c` 대신 `add a. mul b. c. . .` 라고 쓰는 데 익숙해지는 시간이 필요합니다.
 - **말이 깁니다.** 효과, 권한, 폭 변환을 모두 적으므로 같은 일을 하는 C 코드보다 길어집니다. 그 대가로 읽는 쪽이 짐작할 일이 줄어듭니다.
 - **상속, 람다, 예외가 없습니다.** 익숙한 도구가 빠져 있습니다. 대신 쓰는 방법은 바로 아래에 정리했습니다.
 - **동적 디스패치가 아직 없습니다.** `dyn` 은 이름만 예약되어 있습니다. 여러 타입을 다루는 일은 컴파일 시점 제네릭으로 하므로, 쓰인 조합마다 코드가 만들어져 바이너리가 커질 수 있습니다.
@@ -198,16 +198,16 @@ def enum shape do
   circle r u32 .
   rect w u32 h u32 .
   dot .
-end
+end .
 
 fn area input s shape . output u32 .
 do
-  match s do
-    case circle r do return mul 3 (mul r r) . end
-    case rect w h do return mul w h . end
-    case dot do return 0 . end
-  end
-end
+  match s. do
+    case circle r do return mul 3 mul r. r. . . . end .
+    case rect w h do return mul w. h. . . end .
+    case dot do return 0 . end .
+  end .
+end .
 ```
 
 여러 타입이 같은 약속을 지키게 하려면 트레이트를 씁니다. 어느 함수가 불릴지는 컴파일할 때 정해집니다.
@@ -217,24 +217,24 @@ module why .
 
 trait shape do
   area input s self . output u64 .
-end
+end .
 
 def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end
+end .
 
 fn rect.area input s rect . output u64 .
 do
-  return mul (field s w) (field s h) .
-end
+  return mul field s. w . field s. h . . .
+end .
 
 fn double_area input comptime t type . input s t . output u64 .
-  requires shape t .
+  requires shape t. . .
 do
-  return mul 2 (method s area) .
-end
+  return mul 2 method s. area. . . .
+end .
 ```
 
 람다 대신 이름 붙인 함수를 `pipe` 에 건넵니다. 중간 배열 없이 한 번에 흐릅니다.
@@ -244,16 +244,16 @@ module lambda_fixed .
 
 fn over2 input a u8 . output bool .
 do
-  return gt a 2 .
-end
+  return gt a. 2 . .
+end .
 
 fn count_big input xs slice u8 . output u64 .
 do
-  return pipe xs do
+  return pipe xs. do
     filter over2 .
     count .
-  end .
-end
+  end . .
+end .
 ```
 
 ## 앞으로 나아갈 길

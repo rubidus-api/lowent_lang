@@ -23,47 +23,47 @@ use wire  from "../../../lib/wire.low" .
 use clock from "../../../lib/clock.low" .
 
 rem 자리표 — **여기 한 곳에만** 적힌다. 접근자마다 자리와 폭을 따로 적지 않는다.
-fn m_year   output u64 . do return 18446744004990074880 . end
-fn m_month  output u64 . do return 64424509440 . end
-fn m_day    output u64 . do return 4160749568 . end
-fn m_hour   output u64 . do return 130023424 . end
-fn m_minute output u64 . do return 4128768 . end
-fn m_second output u64 . do return 64512 . end
+fn m_year   output u64 . do return 18446744004990074880 . end .
+fn m_month  output u64 . do return 64424509440 . end .
+fn m_day    output u64 . do return 4160749568 . end .
+fn m_hour   output u64 . do return 130023424 . end .
+fn m_minute output u64 . do return 4128768 . end .
+fn m_second output u64 . do return 64512 . end .
 
 rem 날짜 여섯 조각을 한 낱말로 짓는다.
 fn build input y u64 . input mo u64 . input d u64 . input h u64 . input mi u64 . input s u64 .
   output u64 .
 do
-  let w0 u64 wire.put (m_year) y .
-  let w1 u64 wire.merge (m_month)  w0 mo .
-  let w2 u64 wire.merge (m_day)    w1 d .
-  let w3 u64 wire.merge (m_hour)   w2 h .
-  let w4 u64 wire.merge (m_minute) w3 mi .
-  return wire.merge (m_second) w4 s .
-end
+  let w0 u64 wire.put m_year. y. . .
+  let w1 u64 wire.merge m_month.  w0. mo. . .
+  let w2 u64 wire.merge m_day.    w1. d. . .
+  let w3 u64 wire.merge m_hour.   w2. h. . .
+  let w4 u64 wire.merge m_minute. w3. mi. . .
+  return wire.merge m_second. w4. s. . .
+end .
 
 proc main output u8 . effects none . do
-  let w u64 build 2026 9 7 13 45 30 .
+  let w u64 build 2026 9 7 13 45 30 . .
 
   rem ① 넣은 것이 그대로 나오는가.
-  guard eq (wire.pick (m_year)   w) 2026 else return 41 .
-  guard eq (wire.pick (m_month)  w) 9    else return 41 .
-  guard eq (wire.pick (m_day)    w) 7    else return 41 .
-  guard eq (wire.pick (m_hour)   w) 13   else return 41 .
-  guard eq (wire.pick (m_minute) w) 45   else return 41 .
-  guard eq (wire.pick (m_second) w) 30   else return 41 .
+  guard eq wire.pick m_year.   w. . 2026 . else return 41 . .
+  guard eq wire.pick m_month.  w. . 9 .    else return 41 . .
+  guard eq wire.pick m_day.    w. . 7 .    else return 41 . .
+  guard eq wire.pick m_hour.   w. . 13 .   else return 41 . .
+  guard eq wire.pick m_minute. w. . 45 .   else return 41 . .
+  guard eq wire.pick m_second. w. . 30 .   else return 41 . .
 
   rem ② 손으로 자리를 센 `clock` 의 접근자와 **같은 답**인가. 두 길이 갈리면 하나는 틀렸다.
-  guard eq (wire.pick (m_year)   w) (clock.year_of w)   else return 42 .
-  guard eq (wire.pick (m_month)  w) (clock.month_of w)  else return 42 .
-  guard eq (wire.pick (m_day)    w) (clock.day_of w)    else return 42 .
-  guard eq (wire.pick (m_hour)   w) (clock.hour_of w)   else return 42 .
-  guard eq (wire.pick (m_minute) w) (clock.minute_of w) else return 42 .
-  guard eq (wire.pick (m_second) w) (clock.second_of w) else return 42 .
+  guard eq wire.pick m_year.   w. . clock.year_of w. . .   else return 42 . .
+  guard eq wire.pick m_month.  w. . clock.month_of w. . .  else return 42 . .
+  guard eq wire.pick m_day.    w. . clock.day_of w. . .    else return 42 . .
+  guard eq wire.pick m_hour.   w. . clock.hour_of w. . .   else return 42 . .
+  guard eq wire.pick m_minute. w. . clock.minute_of w. . . else return 42 . .
+  guard eq wire.pick m_second. w. . clock.second_of w. . . else return 42 . .
 
   rem ③ 칸보다 큰 값은 **넣기 전에** 알 수 있다 — 달은 네 비트라 15 까지다.
-  guard wire.fits (m_month) 15      else return 43 .
-  guard not (wire.fits (m_month) 16) else return 43 .
+  guard wire.fits m_month. 15 .      else return 43 . .
+  guard not wire.fits m_month. 16 . . else return 43 . .
 
   return 0 .
-end
+end .

@@ -5,64 +5,64 @@ use allocs .
 def struct pt do
   x u32 .
   y u64 .
-end
+end .
 fn sum input ps slice pt . output u64 . do
   var s u64 0 .
-  for p ps do
-    set s (add s (add (widen u64 (field p x)) (field p y))) .
-  end
-  return s .
-end
+  for p ps. do
+    set s. add s. add widen u64 field p. x . . field p. y . . . .
+  end .
+  return s. .
+end .
 export fn pos input a u64 . output u64 . do
-  let p pt lit pt do x 1 . y a . end .
-  let ps lit array pt 3 p (lit pt do x 2 . y 20 . end) _ . .
-  return add (sum ps) (mul (len ps) 1000) .
-end
+  let p pt lit pt do x 1 . y a. . end . .
+  let ps lit array pt 3 p. lit pt do x 2 . y 20 . end . _ . .
+  return add sum ps. . mul len ps. . 1000 . . .
+end .
 export fn cells input a u64 . output u64 . do
-  let ps lit array pt 4 do 1 lit pt do x 5 . y a . end . _ lit pt do x 1 . y 1 . end . end .
-  return sum ps .
-end
+  let ps lit array pt 4 do 1 lit pt do x 5 . y a. . end . . _ lit pt do x 1 . y 1 . end . . end . .
+  return sum ps. . .
+end .
 export fn zero output u64 . do
   let ps lit array pt 2 _ . .
-  return add (sum ps) (len ps) .
-end
+  return add sum ps. . len ps. . . .
+end .
 export fn sli input a u64 . output u64 . do
-  let ps lit slice pt (lit pt do x 3 . y a . end) (lit pt do x 4 . y 4 . end) . .
-  return add (sum ps) (mul (len ps) 100) .
-end
+  let ps lit slice pt lit pt do x 3 . y a. . end . lit pt do x 4 . y 4 . end . . .
+  return add sum ps. . mul len ps. . 100 . . .
+end .
 export fn wr input a u64 . output u64 . do
   var ps lit array pt 2 _ . .
-  set (field ps 1 y) a .
-  return sum ps .
-end
+  set field ps. 1 y . a. .
+  return sum ps. . .
+end .
 export proc onheap input a u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes .
-  let got u64 send bb init back .
-  let ps use bb mut slice pt lit array pt 2 do 0 lit pt do x 1 . y a . end . _ lit pt do x 0 . y 0 . end . end else return 999 .
-  return add (sum ps) (mul (send bb used) 100) .
-end
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  let ps use bb. mut slice pt lit array pt 2 do 0 lit pt do x 1 . y a. . end . . _ lit pt do x 0 . y 0 . end . . end . else return 999 . .
+  return add sum ps. . mul send bb. used . 100 . . .
+end .
 
 rem 원소는 값의 **사본**이다 — 나열의 칸을 바꿔도 넣은 이름은 그대로다(정본 §6.2.6 (9) · 매뉴얼 9장이 말하는 것).
 export fn copied input a u64 . output u64 . do
-  let p pt lit pt do x 1 . y a . end .
-  var ps lit array pt 2 p _ . .
-  set (field ps 0 y) 500 .
-  return add (field p y) (mul (field ps 0 y) 1000) .
-end
+  let p pt lit pt do x 1 . y a. . end . .
+  var ps lit array pt 2 p. _ . .
+  set field ps. 0 y . 500 .
+  return add field p. y . mul field ps. 0 y . 1000 . . .
+end .
 
 rem ★ T2b-3d ⓒ — 배열 칸을 가진 구조체가 다른 구조체의 칸이어도 값으로 베껴진다(안쪽 바이트까지 — X-0083 의 길).
 def struct pkt do
   len u8 .
   body array u8 4 .
-end
+end .
 def struct outer do
   tag u64 .
   inner pkt .
-end
+end .
 export fn nested input a u8 . output u64 . do
-  var o outer lit outer do tag 9 . inner lit pkt do len 2 . body lit array u8 4 1 a _ . . end . end .
-  let c outer o .
-  set (idx (field o inner body) 0) 50 .
-  return add (widen u64 (idx (field c inner body) 1)) (add (widen u64 (idx (field o inner body) 0)) (mul (widen u64 (idx (field c inner body) 0)) 1000)) .
-end
+  var o outer lit outer do tag 9 . inner lit pkt do len 2 . body lit array u8 4 1 a. _ . . end . . end . .
+  let c outer o. .
+  set idx field o. inner body . 0 . 50 .
+  return add widen u64 idx field c. inner body . 1 . . add widen u64 idx field o. inner body . 0 . . mul widen u64 idx field c. inner body . 0 . . 1000 . . . .
+end .

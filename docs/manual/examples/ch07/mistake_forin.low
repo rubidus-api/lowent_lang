@@ -5,8 +5,8 @@ fn total input xs slice u8 . output u64 .
 do
   var t u64 0 .
   rem ko: ✘ `in` 을 적었다 --- `for` 는 `for <이름> <슬라이스> do` 다 /// en: ✘ wrote `in` --- `for` is `for <name> <slice> do`
-  for x in xs do
-    set t (add t (widen u64 x)) .
-  end
-  return t .
-end
+  for x in xs. do
+    set t. add t. widen u64 x. . . .
+  end .
+  return t. .
+end .

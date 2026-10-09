@@ -37,7 +37,7 @@
 #demo("examples/ch30/gpio.low")
 
 #idx("mmio")
-- `def struct gpio do mmio 0x40020000 . … end` is the device's *map*. The number after `mmio` is the start address, and the fields become registers in order. There is no
+- `def struct gpio do mmio 0x40020000 . … end .` is the device's *map*. The number after `mmio` is the start address, and the fields become registers in order. There is no
   new word; a struct just gained a clause.
 - `rw`, `ro` and `wo` after a field are its access.
 - `read_volatile` and `write_volatile` reach a register. The processor *does not merge, delete or reorder* these accesses. Reading a device register is itself work
@@ -46,7 +46,7 @@
   allocators.
 - `build tier t1 .` declares that this module is for a small machine (covered below).
 
-On the VM this *really runs*. Instead of a device, a byte buffer handed over by the caller takes the registers' place, and `view gpio regs` lays the map over it. In
+On the VM this *really runs*. Instead of a device, a byte buffer handed over by the caller takes the registers' place, and `view gpio regs. .` lays the map over it. In
 the argument shown in the result, `[2,0,0,0,7,0,0,0,1,0,0,0]`, you can see 2 written to `moder`, 1 to `bsrr`, and the 7 in `idr` read back. The first `0` in the run
 arguments is a placeholder filling the `cap mmio` position.
 
@@ -174,10 +174,10 @@ export proc add2 input a u64 . input b u64 . output u64 . effects none .
   absorbs machine k .          rem it stops here; `k` is this body's `cap machine`
   reference add2_soft .        rem a pure version that must give the same answer
   why "it adds two registers and touches no memory (options pure nomem nostack)." .
-  requires ge a 0 .
+  requires ge a. 0 . .
 do
-  return asm_add2 k a b .
-end
+  return asm_add2 k. a. b. . .
+end .
 ```
 
 - Callers of this op *write nothing.* That is the whole value of absorption.
@@ -264,7 +264,7 @@ What is carried is not only an instruction that replaces a computation. What `ss
 #antipattern[Reading and writing registers as ordinary fields][
   #demo("examples/ch30/mistake_plainfield.low")
 
-  `set (field g moder) 2` and `field g idr` are refused (`E-MMIO-PLAIN`). Ordinary field access is an operation the processor may merge or
+  `set field g. moder . 2 .` and `field g. idr .` are refused (`E-MMIO-PLAIN`). Ordinary field access is an operation the processor may merge or
   remove --- two reads of one register becoming one read, or a store nothing reads going away, change nothing in ordinary memory. On a device
   the access itself is the work, so the answers change. For device registers write `read_volatile` and `write_volatile`, which is also where
   the access modes (`ro`·`wo`) are checked.
@@ -277,11 +277,11 @@ What is carried is not only an instruction that replaces a computation. What `ss
   id: "hardware-glance",
   caption: [Hardware syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`def struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [a device's register map], [one clause on a struct, no new words],
+  [`def struct gpio do mmio 0x40020000 . moder u32 rw . … end .`], [a device's register map], [one clause on a struct, no new words],
   [`rw` · `ro` · `wo`], [access modes --- enforced at translation], [violations: `E-MMIO-PERM`],
-  [`read_volatile g idr` · `write_volatile g moder 2`], [access that is never merged or removed], [reading is itself an action],
+  [`read_volatile g. idr .` · `write_volatile g. moder 2 .`], [access that is never merged or removed], [reading is itself an action],
   [`input dev cap mmio .` + `effects device`], [device capability and effect], [no hardware access without authority],
-  [`var g gpio view gpio regs .`], [lay the map over bytes], [taking a device by value: `E-MMIO-BYVALUE`],
+  [`var g gpio view gpio regs. . .`], [lay the map over bytes], [taking a device by value: `E-MMIO-BYVALUE`],
   [`proc on_exti vector 6 . priority 2 . output void . effects device .`], [an interrupt handler], [calling it: `E-ISR-CALLED` · arguments: `E-ISR-PARAMS`],
   [`build tier t1 .`], [the tier of effects this machine can bear], [what cannot be carried is stopped at translation],
   [`asm x86_64 . reg a . out reg r . clobber flags . options pure .`], [head of a body written in machine code], [confined by `unsafe`, `cap machine`, effects line, machine name],

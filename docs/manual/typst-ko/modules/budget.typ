@@ -13,10 +13,10 @@ h = (generation << (shard_bits + slot_bits)) | (shard << slot_bits) | slot
 ```
 
 ```lowent
-let ho option u64 budget.pack 32 8 24 7 1 0 .
-guard is_some ho else return 1 .
-let h u64 some_value ho .
-let slot u64 budget.slot_of 32 h .
+let ho option u64 budget.pack 32 8 24 7 1 0 . .
+guard is_some ho. . else return 1 . .
+let h u64 some_value ho. . .
+let slot u64 budget.slot_of 32 h. . .
 ```
 
 #aside[이 모듈이 지키는 것][
@@ -51,11 +51,11 @@ let slot u64 budget.slot_of 32 h .
 )
 
 #antipattern[세대를 그냥 올린다][
-  `let g u64 add gen 1 .` 은 에러가 없지만, 폭을 넘으면 다른 삶의 핸들과 같아진다. `next_gen` 을 쓰고 `none` 을 받는다 --- 그 칸은 끝났다는 뜻이다.
+  `let g u64 add gen. 1 . .` 은 에러가 없지만, 폭을 넘으면 다른 삶의 핸들과 같아진다. `next_gen` 을 쓰고 `none` 을 받는다 --- 그 칸은 끝났다는 뜻이다.
 ]
 
 #antipattern[63 비트 칸을 센다][
-  `budget.pow2 63` 은 진입 계약이 거절한다. `shl 1 63` 은 부호 있는 64 비트에서 넘쳐 음수가 된다 --- 조용히 틀린 수를 돌려주느니 거절한다.
+  `budget.pow2 63 .` 은 진입 계약이 거절한다. `shl 1 63 .` 은 부호 있는 64 비트에서 넘쳐 음수가 된다 --- 조용히 틀린 수를 돌려주느니 거절한다.
 ]
 
 *주의.* 되꺼낼 때 *같은 예산*을 준다 --- `pack` 과 `slot_of` 가 다른 수를 보면 답이 조용히 틀린다. 예산을 상수 셋으로 한 자리에 적어 두고 그것만 쓴다. op 이름이

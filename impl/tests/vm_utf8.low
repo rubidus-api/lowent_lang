@@ -23,80 +23,80 @@ rem ── 유효한 것 ──────────────────�
 
 rem ASCII 는 1 바이트. "hi" → 2 글자.
 fn t_ascii output u64 . do
-  let n option u64 utf8.count_chars "hi" .
-  guard is_some n else return 90 .
-  guard eq (some_value n) 2 else return 91 .
-  let c option u64 utf8.decode "hi" 0 .
-  guard is_some c else return 92 .
-  guard eq (some_value c) 104 else return 93 .          rem 'h'
+  let n option u64 utf8.count_chars "hi" . .
+  guard is_some n. . else return 90 . .
+  guard eq some_value n. . 2 . else return 91 . .
+  let c option u64 utf8.decode "hi" 0 . .
+  guard is_some c. . else return 92 . .
+  guard eq some_value c. . 104 . else return 93 . .          rem 'h'
   return 1 .
-end
+end .
 
 rem 한글은 3 바이트. "한" = EA 9C … 아니라 ED 95 9C (U+D55C).
 fn t_hangul output u64 . do
   let s slice u8 "한" .
-  guard eq (len s) 3 else return 90 .                   rem ★ 바이트로는 3
-  let n option u64 utf8.count_chars s .
-  guard is_some n else return 91 .
-  guard eq (some_value n) 1 else return 92 .            rem ★ 글자로는 1
-  let c option u64 utf8.decode s 0 .
-  guard is_some c else return 93 .
-  guard eq (some_value c) 54620 else return 94 .        rem U+D55C = 54620
+  guard eq len s. . 3 . else return 90 . .                   rem ★ 바이트로는 3
+  let n option u64 utf8.count_chars s. . .
+  guard is_some n. . else return 91 . .
+  guard eq some_value n. . 1 . else return 92 . .            rem ★ 글자로는 1
+  let c option u64 utf8.decode s. 0 . .
+  guard is_some c. . else return 93 . .
+  guard eq some_value c. . 54620 . else return 94 . .        rem U+D55C = 54620
   return 1 .
-end
+end .
 
 rem 2 바이트(U+00E9 'é' = C3 A9)와 4 바이트(U+1F600 = F0 9F 98 80) 섞기.
 fn t_mixed output u64 . do
   let s slice u8 "aé😀" .
-  let n option u64 utf8.count_chars s .
-  guard is_some n else return 90 .
-  guard eq (some_value n) 3 else return 91 .            rem 글자 3, 바이트 7
-  guard eq (len s) 7 else return 92 .
-  let c2 option u64 utf8.decode s 1 .
-  guard is_some c2 else return 93 .
-  guard eq (some_value c2) 233 else return 94 .         rem U+00E9
-  let c3 option u64 utf8.decode s 3 .
-  guard is_some c3 else return 95 .
-  guard eq (some_value c3) 128512 else return 96 .      rem U+1F600
+  let n option u64 utf8.count_chars s. . .
+  guard is_some n. . else return 90 . .
+  guard eq some_value n. . 3 . else return 91 . .            rem 글자 3, 바이트 7
+  guard eq len s. . 7 . else return 92 . .
+  let c2 option u64 utf8.decode s. 1 . .
+  guard is_some c2. . else return 93 . .
+  guard eq some_value c2. . 233 . else return 94 . .         rem U+00E9
+  let c3 option u64 utf8.decode s. 3 . .
+  guard is_some c3. . else return 95 . .
+  guard eq some_value c3. . 128512 . else return 96 . .      rem U+1F600
   return 1 .
-end
+end .
 
 rem ── 거절하는 것 — 여기가 이 라이브러리의 값이다 ────────────────────────
 
 rem ★ 잘린 시퀀스: 3 바이트 선두인데 뒤가 하나뿐.
 proc t_truncated input buf mut slice u8 . output u64 . effects none . do
-  set (idx buf 0) 237 .                                 rem ED — 3 바이트 선두
-  set (idx buf 1) 149 .
-  let d option u64 utf8.decode (subslice buf 0 2) 0 .
-  guard eq (is_some d) false else return 90 .
+  set idx buf. 0 . 237 .                                 rem ED — 3 바이트 선두
+  set idx buf. 1 . 149 .
+  let d option u64 utf8.decode subslice buf. 0 2 . 0 . .
+  guard eq is_some d. . false . else return 90 . .
   return 1 .
-end
+end .
 
 rem ★★ 과길이: U+0041('A')을 2 바이트로 쓴 C1 81. 유효한 것과 **같은 값**이 되므로 거절해야 한다.
 proc t_overlong input buf mut slice u8 . output u64 . effects none . do
-  set (idx buf 0) 193 .                                 rem C1
-  set (idx buf 1) 129 .                                 rem 81
-  let d option u64 utf8.decode (subslice buf 0 2) 0 .
-  guard eq (is_some d) false else return 90 .
+  set idx buf. 0 . 193 .                                 rem C1
+  set idx buf. 1 . 129 .                                 rem 81
+  let d option u64 utf8.decode subslice buf. 0 2 . 0 . .
+  guard eq is_some d. . false . else return 90 . .
   return 1 .
-end
+end .
 
 rem ★★ 서로게이트 U+D800 을 UTF-8 로 쓴 ED A0 80 — UTF-8 에는 없는 자리.
 proc t_surrogate input buf mut slice u8 . output u64 . effects none . do
-  set (idx buf 0) 237 .                                 rem ED
-  set (idx buf 1) 160 .                                 rem A0
-  set (idx buf 2) 128 .                                 rem 80
-  let d option u64 utf8.decode (subslice buf 0 3) 0 .
-  guard eq (is_some d) false else return 90 .
+  set idx buf. 0 . 237 .                                 rem ED
+  set idx buf. 1 . 160 .                                 rem A0
+  set idx buf. 2 . 128 .                                 rem 80
+  let d option u64 utf8.decode subslice buf. 0 3 . 0 . .
+  guard eq is_some d. . false . else return 90 . .
   return 1 .
-end
+end .
 
 rem ★ 이어지기 바이트가 선두에 왔다.
 proc t_stray_cont input buf mut slice u8 . output u64 . effects none . do
-  set (idx buf 0) 128 .                                 rem 80
-  let d option u64 utf8.decode (subslice buf 0 1) 0 .
-  guard eq (is_some d) false else return 90 .
-  let v bool utf8.is_valid (subslice buf 0 1) .
-  guard eq v false else return 91 .
+  set idx buf. 0 . 128 .                                 rem 80
+  let d option u64 utf8.decode subslice buf. 0 1 . 0 . .
+  guard eq is_some d. . false . else return 90 . .
+  let v bool utf8.is_valid subslice buf. 0 1 . . .
+  guard eq v. false . else return 91 . .
   return 1 .
-end
+end .

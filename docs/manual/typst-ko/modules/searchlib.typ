@@ -12,8 +12,8 @@
 use searchlib .
 use sortlib .
 
-sortlib.sort s .
-let i option u64 searchlib.bsearch s 42 .
+sortlib.sort s. .
+let i option u64 searchlib.bsearch s. 42 . .
 ```
 
 #aside[정렬을 검사하지 않는다][
@@ -27,7 +27,7 @@ let i option u64 searchlib.bsearch s 42 .
   caption: [`searchlib` 의 op --- 모두 `fn` · `effects none`],
   [*op*], [*모양*], [*답*],
   [`bsearch`], [`(s slice u64, target u64) → option u64`], [`target` 의 인덱스, 없으면 `none`. 중복이면 그중 *하나*(어느 것인지 규정하지 않는다)],
-  [`lower_bound`], [`(s slice u64, target u64) → u64`], [`target` 이상인 첫 인덱스. 모두 작으면 `len s`],
+  [`lower_bound`], [`(s slice u64, target u64) → u64`], [`target` 이상인 첫 인덱스. 모두 작으면 `len s. .`],
 )
 
 고르는 법 --- "있나 없나, 있으면 어디" 는 `bsearch`, "여기 끼우면 어디" 또는 "이 값 이상이 어디부터" 는 `lower_bound` 다. `lower_bound` 는 *삽입점*이자 *범위의
@@ -38,15 +38,15 @@ let i option u64 searchlib.bsearch s 42 .
 
 ```lowent
 fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i u64 searchlib.lower_bound s a .
-  let j u64 searchlib.lower_bound s b .
-  guard lt i j else return 0 .
-  return sub j i .
-end
+  let i u64 searchlib.lower_bound s. a. . .
+  let j u64 searchlib.lower_bound s. b. . .
+  guard lt i. j. . else return 0 . .
+  return sub j. i. . .
+end .
 ```
 
 #antipattern[`bsearch` 의 `none` 을 가르지 않는다][
-  `return some_value r .` 는 컴파일은 통과하고, 못 찾은 순간 `E-VM-NONE` 으로 멈춘다. 있는 값만 넣어 시험하면 걸리지 않는다 --- `option` 을 보면 `guard is_some` 을
+  `return some_value r. . .` 는 컴파일은 통과하고, 못 찾은 순간 `E-VM-NONE` 으로 멈춘다. 있는 값만 넣어 시험하면 걸리지 않는다 --- `option` 을 보면 `guard is_some` 을
   붙인다(#chref("option-result")).
 ]
 
@@ -55,8 +55,8 @@ end
 ]
 
 #antipattern[`lower_bound` 결과로 곧장 `idx` 한다][
-  못 찾으면 `i` 가 `len s` 이고 그 자리는 없는 자리다 --- `idx s i` 가 `E-VM-BOUNDS` 로 멈춘다. 값이 표의 최댓값보다 클 때만 터지므로 실제 데이터에서 걸리기 쉽다.
-  `guard lt i (len s)` 를 먼저 둔다.
+  못 찾으면 `i` 가 `len s. .` 이고 그 자리는 없는 자리다 --- `idx s. i. .` 가 `E-VM-BOUNDS` 로 멈춘다. 값이 표의 최댓값보다 클 때만 터지므로 실제 데이터에서 걸리기 쉽다.
+  `guard lt i. len s. . .` 를 먼저 둔다.
 ]
 
 *주의.* 내림차순 자료에는 그대로 쓸 수 없다(비교자를 바꿔 끼울 자리가 없다). *정렬은 한 번, 탐색은 여러 번* --- 찾을 때마다 `sort` 를 부르면 이득이 통째로 사라진다.

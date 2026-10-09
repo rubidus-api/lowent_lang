@@ -37,7 +37,7 @@
 
 #demo("examples/ch35/blocks.low")
 
-- `pool.init objects mem gens 16` 은 호출자가 건넨 바이트 `mem` 을 16 바이트 블록으로 나누고, 블록마다 세대 수를 `gens` 에 둔다.
+- `pool.init objects. mem. gens. 16 .` 은 호출자가 건넨 바이트 `mem` 을 16 바이트 블록으로 나누고, 블록마다 세대 수를 `gens` 에 둔다.
   풀은 `mem` 과 `gens` 를 봉해 들어서 이후의 op 은 그것을 따로 받지 않는다.
 #idx("세대 핸들")
 - `pool.take` 는 블록 하나를 빌려주고 *핸들*을 준다. 핸들에는 블록 번호와 그때의 세대 수가 들어 있다.
@@ -73,7 +73,7 @@
 
 #demo("examples/ch35/split.low")
 
-`shard.split_at grid r 4` 는 전체 토큰 `r` 을 *소비해* 둘로 나눈다. 그 뒤 `r` 로 폭을 물으면 `E-OWN-MOVED` 다. 이 실수를 막는 것은
+`shard.split_at grid. r. 4 .` 는 전체 토큰 `r` 을 *소비해* 둘로 나눈다. 그 뒤 `r` 로 폭을 물으면 `E-OWN-MOVED` 다. 이 실수를 막는 것은
 `shard` 모듈이 아니라 *언어*다. 토큰이 `owned` 라서 넘기는 순간 손을 떠난다. 접근 단위라는 개념이 새 규칙이 아니라 이미 있던 규칙의
 결과다. 나눈 조각을 여러 흐름에 태우든 순차로 돌든, 겹치지 않는다는 사실 자체가 값이다.
 
@@ -154,12 +154,12 @@
   caption: [저장소와 핸들의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`def newtype objects u8 .`], [저장소 하나의 브랜드], [비용 없는 구별 --- 섞으면 `E-TYPE-INSTANCE`, 두 번 열면 `E-BRAND-REUSED`],
-  [`pool.init objects mem gens 16`], [호출자 바이트를 블록으로 나눈 풀(봉해 든다)], [뒤의 op 은 `mem`·`gens` 를 따로 받지 않는다],
+  [`pool.init objects. mem. gens. 16 .`], [호출자 바이트를 블록으로 나눈 풀(봉해 든다)], [뒤의 op 은 `mem`·`gens` 를 따로 받지 않는다],
   [`pool.take` · `pool.release` · `pool.alive`], [빌리기(세대 핸들) · 돌려주기(세대 올림) · 묻기], [지운 뒤 사용·두 번 해제가 값으로 드러난다],
-  [`pool.bytes objects p h` → `option mut slice u8`], [블록 바이트에 닿는 유일한 문], [세대가 다르면 `none`],
-  [`var r (owned shard.token grid) shard.open grid 8 .`], [겹치지 않는 조각의 소유 토큰], [나누면 옛 토큰은 `E-OWN-MOVED`],
+  [`pool.bytes objects. p. h. .` → `option mut slice u8`], [블록 바이트에 닿는 유일한 문], [세대가 다르면 `none`],
+  [`var r (owned shard.token grid) shard.open grid. 8 . .`], [겹치지 않는 조각의 소유 토큰], [나누면 옛 토큰은 `E-OWN-MOVED`],
   [`budget.pack …`], [비트 예산을 계약으로 확인], [맞지 않으면 번역에서 `E-CONTRACT-IMPOSSIBLE`],
-  [`wire.pick mask w` · `wire.merge mask w v` · `wire.fits`], [마스크 하나로 비트 칸 읽기 · 갈아 끼우기 · 들어가는지], [자리와 폭이 한 수에서 나온다 --- `put` 은 자른다],
+  [`wire.pick mask. w. .` · `wire.merge mask. w. v. .` · `wire.fits`], [마스크 하나로 비트 칸 읽기 · 갈아 끼우기 · 들어가는지], [자리와 폭이 한 수에서 나온다 --- `put` 은 자른다],
 )
 
 #recap[

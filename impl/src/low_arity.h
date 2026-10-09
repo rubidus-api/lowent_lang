@@ -217,7 +217,7 @@
     X(drain, "V")  X(unsafe_fn, "W")  X(random_bytes, "VV")  X(copy, "VV")     \
     X(isa, "VW")  X(tty_size, "V")  X(tty_read, "VV")  X(tty_raw, "VV")        \
     X(shuffle, "VR")  X(elem_le, "VV")  X(elem_lt, "VV")  X(elem_ge, "VV")     \
-    X(elem_gt, "VV")  X(elem_eq, "VV")  X(elem_ne, "VV")
+    X(elem_gt, "VV")  X(payload, "VWW")
 
 // ★ 위의 표와 같은 종류지만 이미 다른 목록(`LOW_SPECIAL` · `LOW_VOCAB_ONLY`)이 어휘로 세는 이름들 — 모양만 여기 적는다.
 //   (`X(이름, 모양)` 꼴이 아니라 `Y` 로 적는다: 어휘를 두 번 세지 않게.)

@@ -5,161 +5,161 @@ rem   **마지막 인자**로 값 복사로 건너간다. 람다·클로저가 �
 def struct band do
   lo u8 .
   hi u8 .
-end
+end .
 
 def enum mode do
   keep_small .
   keep_big .
-end
+end .
 
 fn above input x u8 . input limit u8 . output bool . do
-  return gt x limit .
-end
+  return gt x. limit. . .
+end .
 
 rem 런타임 임계값 — RFC-0121 §1 의 예(되감기 덧셈을 적었다).
 export fn count_above input xs slice u8 . input base u8 . input margin u8 . output u64 . do
-  return pipe xs do
-    filter above with wrap_add base margin .
+  return pipe xs. do
+    filter above with wrap_add base. margin. . .
     count .
-  end .
-end
+  end . .
+end .
 
 fn clamp input x u8 . input b band . output u8 . do
-  if lt x (field b lo) do
-    return field b lo .
-  end
-  if gt x (field b hi) do
-    return field b hi .
-  end
-  return x .
-end
+  if lt x. field b. lo . . do
+    return field b. lo . .
+  end .
+  if gt x. field b. hi . . do
+    return field b. hi . .
+  end .
+  return x. .
+end .
 
 rem 구조체 문맥 — 여러 설정은 참조 없는 묶음 하나로.
 export proc clamp_all input xs slice u8 . input out mut slice u8 . input lo u8 . input hi u8 . output u64 . effects state . do
-  return pipe xs do
-    map clamp with lit band do lo lo . hi hi . end .
-    collect into out .
-  end .
-end
+  return pipe xs. do
+    map clamp with lit band do lo lo. . hi hi. . end . .
+    collect into out. .
+  end . .
+end .
 
 fn picks input x u8 . input m mode . output bool . do
-  match m do
-    case keep_small do return lt x 10 . end
-    case keep_big do return ge x 10 . end
-  end
-end
+  match m. do
+    case keep_small do return lt x. 10 . . end .
+    case keep_big do return ge x. 10 . . end .
+  end .
+end .
 
 rem 열거값 문맥.
 export fn count_mode input xs slice u8 . input big u8 . output u64 . do
-  var m mode keep_small .
-  if ne big 0 do
-    set m keep_big .
-  end
-  return pipe xs do
-    filter picks with m .
-    count .
+  var m mode keep_small. .
+  if ne big. 0 . do
+    set m. keep_big. .
   end .
-end
+  return pipe xs. do
+    filter picks with m. .
+    count .
+  end . .
+end .
 
 fn addw input acc u64 . input x u8 . input w u64 . output u64 . do
-  return add acc (mul (widen u64 x) w) .
-end
+  return add acc. mul widen u64 x. . w. . . .
+end .
 
 rem fold · scan 의 문맥 — 누산값 · 원소 · 문맥 차례.
 export fn weighted input xs slice u8 . input w u64 . output u64 . do
-  return pipe xs do
-    fold 0 addw with w .
-  end .
-end
+  return pipe xs. do
+    fold 0 addw with w. .
+  end . .
+end .
 
 fn runw input acc u64 . input x u8 . input w u64 . output u64 . do
-  return add acc (mul (widen u64 x) w) .
-end
+  return add acc. mul widen u64 x. . w. . . .
+end .
 
 fn small input x u64 . output u64 . do
-  return x .
-end
+  return x. .
+end .
 
 export proc running input xs slice u8 . input out mut slice u64 . input w u64 . output u64 . effects state . do
-  return pipe xs do
-    scan 0 runw with w .
+  return pipe xs. do
+    scan 0 runw with w. .
     map small .
-    collect into out .
-  end .
-end
+    collect into out. .
+  end . .
+end .
 
 fn pairsum input x u8 . input y u8 . input k u8 . output u8 . do
-  return wrap_add (wrap_add x y) k .
-end
+  return wrap_add wrap_add x. y. . k. . .
+end .
 
 fn atpos input i u64 . input x u8 . input k u64 . output u8 . do
-  return narrow_wrap u8 (add (mul i k) (widen u64 x)) .
-end
+  return narrow_wrap u8 add mul i. k. . widen u64 x. . . . .
+end .
 
 rem zip · enumerate 의 문맥.
 export proc zipped input xs slice u8 . input ys slice u8 . input out mut slice u8 . input k u8 . output u64 . effects state . do
-  return pipe xs do
-    zip ys pairsum with k .
-    collect into out .
-  end .
-end
+  return pipe xs. do
+    zip ys. pairsum with k. .
+    collect into out. .
+  end . .
+end .
 
 export proc numbered input xs slice u8 . input out mut slice u8 . input k u64 . output u64 . effects state . do
-  return pipe xs do
-    enumerate atpos with k .
-    collect into out .
-  end .
-end
+  return pipe xs. do
+    enumerate atpos with k. .
+    collect into out. .
+  end . .
+end .
 
 fn under input x u8 . input lim u8 . output bool . do
-  return lt x lim .
-end
+  return lt x. lim. . .
+end .
 
 rem any · all 의 문맥.
 export fn any_over input xs slice u8 . input lim u8 . output bool . do
-  return pipe xs do
-    any above with lim .
-  end .
-end
+  return pipe xs. do
+    any above with lim. .
+  end . .
+end .
 
 export fn all_under input xs slice u8 . input lim u8 . output bool . do
-  return pipe xs do
-    all under with lim .
-  end .
-end
+  return pipe xs. do
+    all under with lim. .
+  end . .
+end .
 
 rem ★ 준비 차례(§6.3) — 원천 · 그다음 절 차례대로(zip 의 짝 → with → 끝 단계의 받는 자리). 빈 원천이어도 준비는 한다.
 rem   `rec` 의 첫 칸이 쓴 개수, 그 뒤가 기록이다.
 proc mark input rec mut slice u8 . input tag u8 . input v u8 . output u8 . effects state . do
-  let n u64 widen u64 (idx rec 0) .
-  set (idx rec (add n 1)) tag .
-  set (idx rec 0) (narrow_wrap u8 (add n 1)) .
-  return v .
-end
+  let n u64 widen u64 idx rec. 0 . . .
+  set idx rec. add n. 1 . . tag. .
+  set idx rec. 0 . narrow_wrap u8 add n. 1 . . .
+  return v. .
+end .
 
 proc mark_s input rec mut slice u8 . input tag u8 . input s slice u8 . output slice u8 . effects state . do
-  let n u64 widen u64 (idx rec 0) .
-  set (idx rec (add n 1)) tag .
-  set (idx rec 0) (narrow_wrap u8 (add n 1)) .
-  return s .
-end
+  let n u64 widen u64 idx rec. 0 . . .
+  set idx rec. add n. 1 . . tag. .
+  set idx rec. 0 . narrow_wrap u8 add n. 1 . . .
+  return s. .
+end .
 
 export proc order input xs slice u8 . input ys slice u8 . input rec mut slice u8 . output u64 . effects state . do
   var buf lit array u8 8 _ . .
-  let got u64 pipe (mark_s rec 1 xs) do
-    zip (mark_s rec 2 ys) pairsum with mark rec 3 1 .
-    filter above with mark rec 4 0 .
-    collect into buf .
-  end .
-  return add (mul got 1000) (widen u64 (idx rec 0)) .
-end
+  let got u64 pipe mark_s rec. 1 xs. . do
+    zip mark_s rec. 2 ys. . pairsum with mark rec. 3 1 . .
+    filter above with mark rec. 4 0 . .
+    collect into buf. .
+  end . .
+  return add mul got. 1000 . widen u64 idx rec. 0 . . . .
+end .
 
 rem 빈 원천 — 문맥 식은 그래도 한 번 돈다(바깥 효과가 남는다).
 export proc empty_still input xs slice u8 . input rec mut slice u8 . output u64 . effects state . do
-  let none_here slice u8 subslice xs 0 0 .
-  let got u64 pipe none_here do
-    filter above with mark rec 7 0 .
+  let none_here slice u8 subslice xs. 0 0 . .
+  let got u64 pipe none_here. do
+    filter above with mark rec. 7 0 . .
     count .
-  end .
-  return add (mul got 1000) (widen u64 (idx rec 0)) .
-end
+  end . .
+  return add mul got. 1000 . widen u64 idx rec. 0 . . . .
+end .

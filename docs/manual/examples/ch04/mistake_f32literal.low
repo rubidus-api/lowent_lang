@@ -6,13 +6,13 @@ rem ko: ✘ 리터럴을 그대로 담은 f32 — 이 판에서는 32 비트로 
 fn stored output bool . do
   let a f32 0.1 .
   let b f64 0.1 .
-  return eq (widen f64 a) b .
-end
+  return eq widen f64 a. . b. . .
+end .
 
 rem ko: 셈을 한 번 거친 f32(0.1 + 0)는 32 비트로 반올림되어 다르다고 나온다 /// en: an f32 that went through one operation (0.1 + 0) is rounded to 32 bits and compares unequal
 fn computed output bool . do
   let a f32 0.1 .
-  let c f32 add a 0.0 .
+  let c f32 add a. 0.0 . .
   let b f64 0.1 .
-  return eq (widen f64 c) b .
-end
+  return eq widen f64 c. . b. . .
+end .

@@ -5,8 +5,8 @@ def type buffer u8 .
 
 fn maybe input h owned buffer . input c bool . output u8 .
 do
-  if c do
-    drop h .
-  end
+  if c. do
+    drop h. .
+  end .
   return 0 .
-end
+end .

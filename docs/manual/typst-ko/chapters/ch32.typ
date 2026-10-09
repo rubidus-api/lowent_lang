@@ -53,9 +53,9 @@
 
 ```lowent
 export fn starts_with input s str . input prefix str . output bool . do
-  guard le (len prefix) (len s) else return false .
-  return eq_str (subslice s 0 (len prefix)) prefix .
-end
+  guard le len prefix. . len s. . . else return false . .
+  return eq_str subslice s. 0 len prefix. . . prefix. . .
+end .
 ```
 
 이 책에서 배운 것만으로 읽힌다. 라이브러리만 쓸 수 있는 숨은 통로가 있으면 그 통로를 지나는 순간 프로그램의 보장이 끊기기 때문이다.
@@ -221,8 +221,8 @@ end
   caption: [표준 라이브러리를 쓰는 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`use strings .`], [표준 모듈을 들여온다 --- 이름은 파일 안의 `module` 선언], [`lib/str.low` 의 모듈은 `strings`],
-  [`strings.starts_with line "GET "`], [들여온 이름은 모듈로 한정한다], [글롭 들여오기가 없다],
-  [`fmt.put_str buf pos s` → `option u64`], [호출자의 버퍼에 쓰고 다음 자리를 준다], [L0 은 할당하지 않는다 --- 재진입이 공짜],
+  [`strings.starts_with line. "GET " .`], [들여온 이름은 모듈로 한정한다], [글롭 들여오기가 없다],
+  [`fmt.put_str buf. pos. s. .` → `option u64`], [호출자의 버퍼에 쓰고 다음 자리를 준다], [L0 은 할당하지 않는다 --- 재진입이 공짜],
   [`none`(자리가 모자람)], [한 바이트도 쓰지 않았다], [전량 아니면 무 --- op 한 번의 약속],
   [`result t e`], [무엇이 실패했는지 말하는 실패], [트랩도 조용한 잘림도 없다],
   [`owned` 핸들 · 남은 바이트], [갚아야 하는 소유], [잊으면 번역이 거절한다],

@@ -7,18 +7,18 @@ def type bytes slice u8 .
 
 rem 원소 < 50 이면 index 값 ≤ 49 → x+10 ≤ 59 → u8 오버플로 검사가 **없어진다**.
 fn clamp_elem input s bytes . output u8 .
-  requires static ge (len s) 1 .
-  requires elem_lt s 50 .
+  requires static ge len s. . 1 . .
+  requires elem_lt s. 50 . .
 do
-  let x u8 idx s 0 .
-  return add x 10 .
-end
+  let x u8 idx s. 0 . .
+  return add x. 10 . .
+end .
 
 rem 두 경계 → 원소가 [10,99] → index 값도 그 구간. 두 원소의 합도 묶인다.
 fn bounded_sum input s bytes . output u8 .
-  requires static ge (len s) 2 .
-  requires elem_ge s 10 .
-  requires elem_lt s 100 .
+  requires static ge len s. . 2 . .
+  requires elem_ge s. 10 . .
+  requires elem_lt s. 100 . .
 do
-  return add (idx s 0) (idx s 1) .
-end
+  return add idx s. 0 . idx s. 1 . . .
+end .

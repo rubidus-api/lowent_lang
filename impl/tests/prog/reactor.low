@@ -34,7 +34,7 @@ def struct tickq do
   storage reserved .
   posted u32 rw .            rem ISR 만 쓴다
   taken  u32 rw .            rem 루프만 쓴다  → SPSC: 한쪽만 쓰는 칸이 각각 하나
-end
+end .
 
 rem ── 큐 조작은 **라이브러리다** ──────────────────────────────────────────
 rem ★★★ 여기가 MMIO 와 갈리는 자리이고, 이 갈래를 고른 이유다. 예약 블록은 **평범한 메모리**라
@@ -57,9 +57,9 @@ proc post
   output void .
   effects state .            rem ★ 예약 블록은 모듈 가변 전역이다(RFC-0029)
 do
-  write_volatile q posted (add (read_volatile q posted) 1) .
+  write_volatile q. posted add read_volatile q. posted . 1 . .
   return .
-end
+end .
 
 rem ★★ `fn` 이 아니라 `proc` 이다 — ISR 이 바꾸는 값을 읽는 것은 **순수가 아니다.**
 proc pending
@@ -68,17 +68,17 @@ proc pending
   effects state .
 do
   rem ★ 여기가 **volatile 이어야 하는 자리**다 — 루프가 이것을 반복해서 묻는다.
-  return sub (read_volatile q posted) (read_volatile q taken) .
-end
+  return sub read_volatile q. posted . read_volatile q. taken . . .
+end .
 
 proc take
   input q mut tickq .
   output void .
   effects state .
 do
-  write_volatile q taken (add (read_volatile q taken) 1) .
+  write_volatile q. taken add read_volatile q. taken . 1 . .
   return .
-end
+end .
 
 rem ── 장치 — blink 에서 검증된 것 그대로 ──────────────────────────────────
 def struct rcc do
@@ -87,20 +87,20 @@ def struct rcc do
   ahb1rstr u32 rw . ahb2rstr u32 rw . ahb3rstr u32 rw . rsv0 u32 rw .
   apb1rstr u32 rw . apb2rstr u32 rw . rsv1 u32 rw . rsv2 u32 rw .
   ahb1enr u32 rw .
-end
+end .
 
 def struct gpioa do
   mmio 0x40020000 .
   moder u32 rw . otyper u32 rw . ospeedr u32 rw . pupdr u32 rw .
   idr u32 ro . odr u32 rw .
-end
+end .
 
 def struct systick do
   mmio 0xE000E010 .
   ctrl u32 rw . load u32 rw . val u32 rw .
-end
+end .
 
-fn led_bit output u32 . do return shl 1 5 . end
+fn led_bit output u32 . do return shl 1 5 . . end .
 
 rem ── ISR: **게시만 한다** ────────────────────────────────────────────────
 rem ★★★★ 이것이 축 ③의 주장이다. blink 의 ISR 은 장치를 만졌다 — 그래서 `unsafe` 였다.
@@ -115,10 +115,10 @@ proc on_systick
   output void .
   effects device state .
 do
-  var q tickq view tickq .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
-  post q .                             rem ★ 그리고 **라이브러리에 넘어간다**
+  var q tickq view tickq . .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
+  post q. .                             rem ★ 그리고 **라이브러리에 넘어간다**
   return .
-end
+end .
 
 rem ── 리셋 진입 — 초기화하고, 그다음이 리액터 루프다 (RFC-0042 D5-c) ──────
 rem ★ 권한은 넘겨줄 수 없으므로 장치 초기화는 여기서 직접 한다(blink 과 같은 이유·같은 대가).
@@ -128,29 +128,29 @@ unsafe proc reset
   effects device unsafe state .
 do
   rem ① 클럭 → ② LED 핀 출력 → ③ SysTick 1kHz
-  var c rcc view rcc .
-  write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
-  var g gpioa view gpioa .
-  var m u32 read_volatile g moder .
-  set m (bit_and m (bit_not (shl 3 10))) .
-  set m (bit_or m (shl 1 10)) .
-  write_volatile g moder m .
-  var s systick view systick .
-  write_volatile s load 15999 .
-  write_volatile s val 0 .
-  write_volatile s ctrl 7 .
+  var c rcc view rcc . .
+  write_volatile c. ahb1enr bit_or read_volatile c. ahb1enr . 1 . .
+  var g gpioa view gpioa . .
+  var m u32 read_volatile g. moder . .
+  set m. bit_and m. bit_not shl 3 10 . . . .
+  set m. bit_or m. shl 1 10 . . .
+  write_volatile g. moder m. .
+  var s systick view systick . .
+  write_volatile s. load 15999 .
+  write_volatile s. val 0 .
+  write_volatile s. ctrl 7 .
 
   rem ④ ★★★ **리액터 루프** — 잡이 있으면 처리하고, 없으면 돈다.
   rem   ISR 이 올린 눈금을 루프가 내려 받는다. 한쪽만 쓰는 칸이 각각 하나이므로(SPSC)
   rem   단일 코어에서 원자 명령이 필요 없다 — 그것이 T1 프로파일이 atomic 을 금지하고도
   rem   ISR→잡 이 설 수 있는 이유다(RFC-0039 §116 vs §8-4 의 긴장).
-  var q tickq view tickq .
+  var q tickq view tickq . .
   while true do
-    if (gt (pending q) 0) do
-      var cur u32 read_volatile g odr .
-      write_volatile g odr (bit_xor cur led_bit) .
-      take q .
-    end
-  end
+    if gt pending q. . 0 . do
+      var cur u32 read_volatile g. odr . .
+      write_volatile g. odr bit_xor cur. led_bit. . .
+      take q. .
+    end .
+  end .
   return .
-end
+end .

@@ -7,4 +7,4 @@ unsafe extern proc c_area do
   output i64 .
   effects unsafe .
   link "lw_c_area" .
-end
+end .

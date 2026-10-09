@@ -664,7 +664,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <a class="skip" href="#content">본문으로 건너뛰기</a>
 <div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">17장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch16.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch18.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch17.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s17-1"><span class="tf-no">17.1</span>경계와 안쪽</a><a class="lv3" href="#s17-2"><span class="tf-no">17.2</span>오류 열거형을 나누는 기준</a><a class="lv3" href="#s17-3"><span class="tf-no">17.3</span>층을 올라가며</a><a class="lv3" href="#s17-4"><span class="tf-no">17.4</span>정보를 버려도 되는 자리</a><a class="lv3" href="#s17-5"><span class="tf-no">17.5</span>panic 을 써도 되는 자리</a><a class="lv3" href="#s17-6"><span class="tf-no">17.6</span>흔한 실수</a><a class="lv3" href="#s17-7"><span class="tf-no">17.7</span>이 장의 문법을 한눈에</a></div></div>
 <main id="content"><div class="wrap">
-<h2>17 실패를 설계하기</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>11장 답을 담는 타입 · 실패를 말하는 세 길</div><div>14장 계약 · <code>requires</code> 는 부르는 쪽, <code>errors</code> 는 op 의 책임</div><div>16장 권한 · 시작점만 보면 바깥과 닿는 자리를 안다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>11장은 <code>result</code>·<code>option</code>·<code>panic</code> 을 가르는 물음을 무엇이라 했는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> “부르는 쪽이 무엇을 할 수 있는가” 였다. 다른 길을 시도할 수 있으면 <code>result</code>, 그냥 없는 것이면 <code>option</code>, 부르는 쪽이 이미 약속을 어긴 것이라 고칠 수 없으면 멈춘다. 이 장은 그 물음을 op 하나가 아니라 <strong>프로그램의 층</strong> 전체에 적용한다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">문법을 다 알아도 실패를 어디서 무엇으로 말할지는 저절로 정해지지 않는다. 같은 “잘못된 포트 번호” 가 설정 파일을 읽는 층에서는 <code>result</code> 여야 하고, 이미 검사를 마친 안쪽 층에서는 계약이어야 한다. 이 선택을 틀리면 검사가 여러 겹으로 되풀이되거나, 반대로 아무 층도 검사하지 않는다. 제4부의 마지막 장으로, 계약·오류·권한을 함께 써서 실패의 자리를 정하는 법을 정리한다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body">바깥에서 온 값과 안쪽의 불변식을 가르고, 경계에서는 <code>result</code> 로, 안쪽에서는 계약으로 말하는 설계를 익힌다. 오류 열거형을 어떻게 나누고 <code>errors</code> 절에 무엇을 적을지, 층을 올라가며 <code>try</code> 로 넘길지 그 자리에서 다룰지 정하는 기준을 알게 된다. <code>option</code> 으로 정보를 버려도 되는 자리와 <code>panic</code> 을 써도 되는 자리도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>errors not_digit .</code> 처럼 조건 없이 적은 오류와 <code>errors empty eq (len s) 0 .</code> 처럼 조건을 붙인 오류는 무엇이 다른가?</li></ol></div></div><div></div><h3 id="s17-1">17.1 경계와 안쪽<a class="plink" href="#s17-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>프로그램에는 <strong>바깥에서 값이 들어오는 자리</strong>가 있다. 프로그램 인자, 파일 내용, 네트워크에서 온 바이트, 사용자의 입력이다. 그 값에는 아무 약속도 없다. 반대로 한 번 검사를 통과한 값이 흘러 다니는 <strong>안쪽</strong>이 있다.</p><p>설계의 첫 원칙은 이 둘을 가르는 것이다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>자리</strong></th><th><strong>값의 성격</strong></th><th><strong>말하는 법</strong></th></tr><tr><td>경계(파싱·입력)</td><td>무엇이든 올 수 있다</td><td><code>result</code> 와 <code>errors</code></td></tr><tr><td>안쪽(계산)</td><td>이미 검사를 통과했다</td><td><code>requires</code>·<code>range</code>·<code>newtype</code></td></tr><tr><td>어느 층도 다룰 수 없음</td><td>있어서는 안 되는 상태</td><td><code>panic</code></td></tr></table></div><p class="float-caption">표 17.1 — 실패를 말하는 자리</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/parse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> parse .
+<h2>17 실패를 설계하기</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>11장 답을 담는 타입 · 실패를 말하는 세 길</div><div>14장 계약 · <code>requires</code> 는 부르는 쪽, <code>errors</code> 는 op 의 책임</div><div>16장 권한 · 시작점만 보면 바깥과 닿는 자리를 안다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>11장은 <code>result</code>·<code>option</code>·<code>panic</code> 을 가르는 물음을 무엇이라 했는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> “부르는 쪽이 무엇을 할 수 있는가” 였다. 다른 길을 시도할 수 있으면 <code>result</code>, 그냥 없는 것이면 <code>option</code>, 부르는 쪽이 이미 약속을 어긴 것이라 고칠 수 없으면 멈춘다. 이 장은 그 물음을 op 하나가 아니라 <strong>프로그램의 층</strong> 전체에 적용한다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">문법을 다 알아도 실패를 어디서 무엇으로 말할지는 저절로 정해지지 않는다. 같은 “잘못된 포트 번호” 가 설정 파일을 읽는 층에서는 <code>result</code> 여야 하고, 이미 검사를 마친 안쪽 층에서는 계약이어야 한다. 이 선택을 틀리면 검사가 여러 겹으로 되풀이되거나, 반대로 아무 층도 검사하지 않는다. 제4부의 마지막 장으로, 계약·오류·권한을 함께 써서 실패의 자리를 정하는 법을 정리한다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body">바깥에서 온 값과 안쪽의 불변식을 가르고, 경계에서는 <code>result</code> 로, 안쪽에서는 계약으로 말하는 설계를 익힌다. 오류 열거형을 어떻게 나누고 <code>errors</code> 절에 무엇을 적을지, 층을 올라가며 <code>try</code> 로 넘길지 그 자리에서 다룰지 정하는 기준을 알게 된다. <code>option</code> 으로 정보를 버려도 되는 자리와 <code>panic</code> 을 써도 되는 자리도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>errors not_digit .</code> 처럼 조건 없이 적은 오류와 <code>errors empty eq len s. . 0 . .</code> 처럼 조건을 붙인 오류는 무엇이 다른가?</li></ol></div></div><div></div><h3 id="s17-1">17.1 경계와 안쪽<a class="plink" href="#s17-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>프로그램에는 <strong>바깥에서 값이 들어오는 자리</strong>가 있다. 프로그램 인자, 파일 내용, 네트워크에서 온 바이트, 사용자의 입력이다. 그 값에는 아무 약속도 없다. 반대로 한 번 검사를 통과한 값이 흘러 다니는 <strong>안쪽</strong>이 있다.</p><p>설계의 첫 원칙은 이 둘을 가르는 것이다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>자리</strong></th><th><strong>값의 성격</strong></th><th><strong>말하는 법</strong></th></tr><tr><td>경계(파싱·입력)</td><td>무엇이든 올 수 있다</td><td><code>result</code> 와 <code>errors</code></td></tr><tr><td>안쪽(계산)</td><td>이미 검사를 통과했다</td><td><code>requires</code>·<code>range</code>·<code>newtype</code></td></tr><tr><td>어느 층도 다룰 수 없음</td><td>있어서는 안 되는 상태</td><td><code>panic</code></td></tr></table></div><p class="float-caption">표 17.1 — 실패를 말하는 자리</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/parse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> parse .
 <em><span class="tok-c">rem run: parse_u16 [52,50]</span></em>
 <em><span class="tok-c">rem run: parse_u16 []</span></em>
 <em><span class="tok-c">rem run: parse_u16 [52,120]</span></em>
@@ -676,36 +676,36 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   empty .
   not_digit .
   too_big .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 바깥에서 온 바이트 — 무엇이든 올 수 있으므로 실패는 값이다</span></em>
 <strong><span class="tok-k">fn</span></strong> parse_u16 <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
   <strong><span class="tok-k">errors</span></strong> too_big .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">for</span></strong> c s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">guard</span></strong> is_digit c <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-    <strong><span class="tok-k">set</span></strong> acc (add (mul acc <span class="tok-n">10</span>) (widen <strong><span class="tok-t">u64</span></strong> (sub c <span class="tok-n">48</span>))) .
-    <strong><span class="tok-k">guard</span></strong> le acc <span class="tok-n">65535</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> ok (narrow <strong><span class="tok-t">u16</span></strong> acc) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">for</span></strong> c s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">guard</span></strong> is_digit c. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+    <strong><span class="tok-k">set</span></strong> acc. add mul acc. <span class="tok-n">10</span> . widen <strong><span class="tok-t">u64</span></strong> sub c. <span class="tok-n">48</span> . . . .
+    <strong><span class="tok-k">guard</span></strong> le acc. <span class="tok-n">65535</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big . . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> ok narrow <strong><span class="tok-t">u16</span></strong> acc. . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 이 층은 «왜» 가 필요 없다 — 없으면 기본값을 쓴다</span></em>
 <strong><span class="tok-k">fn</span></strong> port_or_default <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u16</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> parse_error parse_u16 s .
-  <strong><span class="tok-k">guard</span></strong> not (is_error r) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">8080</span> .
-  <strong><span class="tok-k">return</span></strong> ok_value r .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> parse_error parse_u16 s. . .
+  <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">8080</span> . .
+  <strong><span class="tok-k">return</span></strong> ok_value r. . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run parse_u16 parse.low [52,50]
 parse_u16([52,50]) = ok 42
   arg0 (written) = [52,50]
@@ -729,50 +729,50 @@ port_or_default([120]) = 8080
                           result + errors      requires · range · newtype
                              │ error
                              ▼
-                          부르는 층이 무엇을 할지 고른다</code></pre><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>errors not_digit .</code> 처럼 조건 없이 적은 오류와 <code>errors empty eq (len s) 0 .</code> 처럼 조건을 붙인 오류는 무엇이 다른가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 조건을 붙이면 “이 조건일 때 <strong>정확히</strong> 이 오류가 난다” 는 나가는 쪽의 계약이 된다. 조건이 참인데 정상으로 돌아오면 계약 위반이다. 부르는 쪽은 그 조건만 피하면 그 오류를 다루지 않아도 된다고 믿을 수 있다. 조건을 계약의 식으로 적을 수 없는 오류(모든 바이트가 숫자인가)는 조건 없이 적어 “날 수 있다” 만 약속한다. 적을 수 있는 조건은 적는 편이 부르는 쪽에 더 많은 것을 알려 준다.</p></div></div><h3 id="s17-2">17.2 오류 열거형을 나누는 기준<a class="plink" href="#s17-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>오류 갈래는 <strong>부르는 쪽이 다르게 행동할 경우</strong>마다 하나씩 둔다. <code>empty</code>·<code>not_digit</code>·<code>too_big</code> 을 가른 것은 화면에 다른 안내를 보여 줄 수 있기 때문이다. 부르는 쪽이 모두 같은 일을 한다면 갈래를 합친다. 갈래가 많을수록 <code>match</code> 로 다루는 쪽의 짐이 는다.</p><p>반대로 한 op 이 서로 관계없는 층의 오류를 모두 담는 거대한 열거형은 피한다. 파일 오류와 파싱 오류와 설정 오류가 한 열거형에 섞이면, 머리의 <code>errors</code> 절이 그 op 이 실제로 낼 수 있는 것보다 넓은 그림을 그리게 되고, 일어날 수 없는 오류 선언은 번역이 거절한다(14장).</p><h3 id="s17-3">17.3 층을 올라가며<a class="plink" href="#s17-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>실패를 받은 층은 둘 중 하나를 한다. <strong>넘기거나</strong>, <strong>그 자리에서 다루거나</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/layers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layers .
+                          부르는 층이 무엇을 할지 고른다</code></pre><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>errors not_digit .</code> 처럼 조건 없이 적은 오류와 <code>errors empty eq len s. . 0 . .</code> 처럼 조건을 붙인 오류는 무엇이 다른가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 조건을 붙이면 “이 조건일 때 <strong>정확히</strong> 이 오류가 난다” 는 나가는 쪽의 계약이 된다. 조건이 참인데 정상으로 돌아오면 계약 위반이다. 부르는 쪽은 그 조건만 피하면 그 오류를 다루지 않아도 된다고 믿을 수 있다. 조건을 계약의 식으로 적을 수 없는 오류(모든 바이트가 숫자인가)는 조건 없이 적어 “날 수 있다” 만 약속한다. 적을 수 있는 조건은 적는 편이 부르는 쪽에 더 많은 것을 알려 준다.</p></div></div><h3 id="s17-2">17.2 오류 열거형을 나누는 기준<a class="plink" href="#s17-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>오류 갈래는 <strong>부르는 쪽이 다르게 행동할 경우</strong>마다 하나씩 둔다. <code>empty</code>·<code>not_digit</code>·<code>too_big</code> 을 가른 것은 화면에 다른 안내를 보여 줄 수 있기 때문이다. 부르는 쪽이 모두 같은 일을 한다면 갈래를 합친다. 갈래가 많을수록 <code>match</code> 로 다루는 쪽의 짐이 는다.</p><p>반대로 한 op 이 서로 관계없는 층의 오류를 모두 담는 거대한 열거형은 피한다. 파일 오류와 파싱 오류와 설정 오류가 한 열거형에 섞이면, 머리의 <code>errors</code> 절이 그 op 이 실제로 낼 수 있는 것보다 넓은 그림을 그리게 되고, 일어날 수 없는 오류 선언은 번역이 거절한다(14장).</p><h3 id="s17-3">17.3 층을 올라가며<a class="plink" href="#s17-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>실패를 받은 층은 둘 중 하나를 한다. <strong>넘기거나</strong>, <strong>그 자리에서 다루거나</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/layers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layers .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> config_error <strong><span class="tok-k">do</span></strong>
   bad_port .
   port_zero .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 안쪽 불변식 — 부르는 쪽이 이미 걸렀어야 하는 것은 계약이다</span></em>
 <strong><span class="tok-k">fn</span></strong> slot_of <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">input</span></strong> slots <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> gt slots <span class="tok-n">0</span> .
+  <strong><span class="tok-k">requires</span></strong> gt slots. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> mod (widen <strong><span class="tok-t">u64</span></strong> port) slots .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> mod widen <strong><span class="tok-t">u64</span></strong> port. . slots. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 바깥 입력 — 틀릴 수 있는 것은 result 다</span></em>
 <strong><span class="tok-k">fn</span></strong> check_port <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> config_error .
-  <strong><span class="tok-k">errors</span></strong> port_zero eq port <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> ne port <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero .
-  <strong><span class="tok-k">return</span></strong> ok port .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> ne port. <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero . . .
+  <strong><span class="tok-k">return</span></strong> ok port. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> pick_slot <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error .
-  <strong><span class="tok-k">errors</span></strong> port_zero eq port <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">try</span></strong> check_port port .
-  <strong><span class="tok-k">return</span></strong> ok (slot_of p <span class="tok-n">16</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">try</span></strong> check_port port. . . .
+  <strong><span class="tok-k">return</span></strong> ok slot_of p. <span class="tok-n">16</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error pick_slot <span class="tok-n">8080</span> .
-  <strong><span class="tok-k">guard</span></strong> not (is_error r) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">bad port</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error pick_slot <span class="tok-n">8080</span> . .
+  <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">bad port</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">slot ok</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (ok_value r) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">slot ok</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> ok_value r. . . .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main layers.low
 slot ok
 main() = 0
-</code></pre></div></div><ul><li><code>slot_of</code> 는 안쪽이다. 슬롯 수가 0 이면 나머지 연산이 멈추지만, 그것은 부르는 쪽의 잘못이므로 <code>requires gt slots 0 .</code> 으로 적었다.</li><li><code>check_port</code> 는 경계에 가깝다. 0 번 포트는 설정이 틀린 것이고 고칠 수 있으므로 <code>result</code> 다.</li><li><code>pick_slot</code> 은 <code>try</code> 로 실패를 위로 넘긴다. 자기도 같은 오류를 <code>errors</code> 에 적었다. 성공한 뒤에는 <code>p</code> 가 0 이 아님을 알므로 안쪽 op 을 부른다.</li><li><code>main</code> 은 가장 바깥 층이다. 더 넘길 곳이 없으므로 실패를 <strong>다룬다</strong> — 메시지를 쓰고 종료 코드 1 을 돌려준다.</li></ul><p><code>port</code> 가 0 일 때 실패가 올라가는 길을 그리면 이렇다. 내려갈 때는 부르고, 올라올 때는 넘기거나 다룬다.</p><pre><code data-lang="text"> main ─────────────────────────  다룬다: "bad port" 를 쓰고 1 을 돌려준다
+</code></pre></div></div><ul><li><code>slot_of</code> 는 안쪽이다. 슬롯 수가 0 이면 나머지 연산이 멈추지만, 그것은 부르는 쪽의 잘못이므로 <code>requires gt slots. 0 . .</code> 으로 적었다.</li><li><code>check_port</code> 는 경계에 가깝다. 0 번 포트는 설정이 틀린 것이고 고칠 수 있으므로 <code>result</code> 다.</li><li><code>pick_slot</code> 은 <code>try</code> 로 실패를 위로 넘긴다. 자기도 같은 오류를 <code>errors</code> 에 적었다. 성공한 뒤에는 <code>p</code> 가 0 이 아님을 알므로 안쪽 op 을 부른다.</li><li><code>main</code> 은 가장 바깥 층이다. 더 넘길 곳이 없으므로 실패를 <strong>다룬다</strong> — 메시지를 쓰고 종료 코드 1 을 돌려준다.</li></ul><p><code>port</code> 가 0 일 때 실패가 올라가는 길을 그리면 이렇다. 내려갈 때는 부르고, 올라올 때는 넘기거나 다룬다.</p><pre><code data-lang="text"> main ─────────────────────────  다룬다: "bad port" 를 쓰고 1 을 돌려준다
   │  ▲ error port_zero
   ▼  │
  pick_slot ────────────────────  넘긴다: try 가 그대로 위로
@@ -787,13 +787,13 @@ main() = 0
 <strong><span class="tok-k">proc</span></strong> parse_or_die <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">for</span></strong> c s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> or (lt c <span class="tok-n">48</span>) (gt c <span class="tok-n">57</span>) <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">not a digit</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">set</span></strong> acc (add (mul acc <span class="tok-n">10</span>) (widen <strong><span class="tok-t">u64</span></strong> (sub c <span class="tok-n">48</span>))) .
-    <strong><span class="tok-k">if</span></strong> gt acc <span class="tok-n">65535</span> <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">too big</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">for</span></strong> c s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> or lt c. <span class="tok-n">48</span> . gt c. <span class="tok-n">57</span> . . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">not a digit</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> acc. add mul acc. <span class="tok-n">10</span> . widen <strong><span class="tok-t">u64</span></strong> sub c. <span class="tok-n">48</span> . . . .
+    <strong><span class="tok-k">if</span></strong> gt acc. <span class="tok-n">65535</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">too big</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> acc. .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run parse_or_die mistake_panicinput.low [52,50]
 parse_or_die([52,50]) = 42
   arg0 (written) = [52,50]
@@ -807,31 +807,31 @@ $ lowentc --run parse_or_die mistake_panicinput.low [52,120]
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   not_digit .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> parse_digit <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-  <strong><span class="tok-k">return</span></strong> ok (sub c <span class="tok-n">48</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">guard</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+  <strong><span class="tok-k">return</span></strong> ok sub c. <span class="tok-n">48</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem ✘ 아래 층이 미리 이유를 버렸다</span></em>
 <strong><span class="tok-k">fn</span></strong> digit_or_none <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> (parse_digit s) else_none .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> parse_digit s. . else_none . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 위 층은 빈 입력과 숫자 아닌 입력을 다르게 안내하고 싶지만 둘 다 0 만 본다</span></em>
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> d <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> digit_or_none s .
-  <strong><span class="tok-k">guard</span></strong> is_some d <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> d <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> digit_or_none s. . .
+  <strong><span class="tok-k">guard</span></strong> is_some d. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run explain mistake_dropwhy.low []
 explain([]) = 0
   arg0 (written) = []
@@ -846,32 +846,32 @@ explain([120]) = 0
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   not_digit .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> parse_digit <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-  <strong><span class="tok-k">return</span></strong> ok (sub c <span class="tok-n">48</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">guard</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+  <strong><span class="tok-k">return</span></strong> ok sub c. <span class="tok-n">48</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 이유를 끝까지 들고 올라와, 필요한 층에서 가른다</span></em>
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">match</span></strong> parse_digit s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
+  <strong><span class="tok-k">match</span></strong> parse_digit s. . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> . <strong><span class="tok-k">end</span></strong> .
     <strong><span class="tok-k">case</span></strong> error e <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem 오류 값에 이름을 묶고, 그 열거형을 한 번 더 가른다</span></em>
-      <strong><span class="tok-k">match</span></strong> e <strong><span class="tok-k">do</span></strong>
-        <strong><span class="tok-k">case</span></strong> empty . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-        <strong><span class="tok-k">case</span></strong> not_digit . <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-      <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">end</span></strong>
-<strong><span class="tok-k">end</span></strong>
+      <strong><span class="tok-k">match</span></strong> e. <strong><span class="tok-k">do</span></strong>
+        <strong><span class="tok-k">case</span></strong> empty <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+        <strong><span class="tok-k">case</span></strong> not_digit <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run explain dropwhy_fixed.low []
 explain([]) = 1
   arg0 (written) = []
@@ -889,27 +889,27 @@ explain([55]) = 9
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   not_digit .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> parse_digit <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
-  <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> empty eq len s. . <span class="tok-n">0</span> . .
   <strong><span class="tok-k">errors</span></strong> not_digit .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s <span class="tok-n">0</span> .
-  <strong><span class="tok-k">guard</span></strong> and (ge c <span class="tok-n">48</span>) (le c <span class="tok-n">57</span>) <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit .
-  <strong><span class="tok-k">return</span></strong> ok (sub c <span class="tok-n">48</span>) .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">guard</span></strong> gt len s. . <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty . . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> idx s. <span class="tok-n">0</span> . .
+  <strong><span class="tok-k">guard</span></strong> and ge c. <span class="tok-n">48</span> . le c. <span class="tok-n">57</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error not_digit . . .
+  <strong><span class="tok-k">return</span></strong> ok sub c. <span class="tok-n">48</span> . . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `case error &lt;갈래>` 의 이름이 선언된 갈래면 그 갈래만 받는다</span></em>
-  <strong><span class="tok-k">match</span></strong> parse_digit s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
-    <strong><span class="tok-k">case</span></strong> error empty . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-    <strong><span class="tok-k">case</span></strong> error not_digit . <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-  <strong><span class="tok-k">end</span></strong>
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">match</span></strong> parse_digit s. . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> error empty <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> error not_digit <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run explain errvariant.low []
 explain([]) = 1
   arg0 (written) = []
@@ -924,26 +924,26 @@ explain([53]) = 9
 
 <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> config_error <strong><span class="tok-k">do</span></strong>
   port_zero .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> check_port <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> config_error . <strong><span class="tok-k">effects</span></strong> io .
-  <strong><span class="tok-k">errors</span></strong> port_zero eq port <span class="tok-n">0</span> .
+  <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">checking</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">guard</span></strong> ne port <span class="tok-n">0</span> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero .
-  <strong><span class="tok-k">return</span></strong> ok port .
-<strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">checking</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">guard</span></strong> ne port. <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero . . .
+  <strong><span class="tok-k">return</span></strong> ok port. . .
+<strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 검사의 결과를 문장으로 버렸다 --- 포트가 0 인데 "started" 가 나온다</span></em>
-  check_port out <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">started</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  check_port out. <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">started</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_dropresult.low
 mistake_dropresult.low:19:0 W-RESULT-DISCARD: this op returns a `result` — it says failure is a VALUE — and the value is dropped here, so a failure leaves no trace at all. Bind it and look at it (`let r … …` then `is_error`), forward it (`try`), or say in the code why the failure does not matter
-</code></pre></div></div><p><code>check_port out 0 .</code> 은 오류를 돌려주었지만 아무도 받지 않았다. 포트가 0 인데 “started” 가 나오고 종료 코드도 0 이 된다 — 실패를 값으로 돌려준다는 설계는 부르는 쪽이 그 값을 <strong>볼 때만</strong> 지켜진다. 그래서 도구가 <code>W-RESULT-DISCARD</code> 로 알린다. <code>result</code> 를 돌려주는 op 은 <code>let</code> 으로 받아 묻거나 <code>try</code> 로 넘기거나 <code>match</code> 로 가른다. 이름에 담기만 하고 한 번도 읽지 않는 것도 같은 알림을 받는다 — 실패가 사라지는 것은 마찬가지이기 때문이다. 실패로 할 일이 정말 없는 자리(오류 경로에서 닫고 나가는 자리)에서는 <code>drop &lt;이름> .</code> 으로 «일부러 넘긴다» 를 적는다. 잘못은 무시하는 것이 아니라 <strong>말없이</strong> 무시하는 것이다.</p></div></div><h3 id="s17-7">17.7 이 장의 문법을 한눈에<a class="plink" href="#s17-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td>경계의 op <code>output result t e .</code> + <code>errors</code></td><td>바깥 값의 실패를 값으로 돌려준다</td><td>부르는 층이 무엇을 할지 고른다</td></tr><tr><td>안쪽의 op <code>requires</code> · <code>range</code> · <code>newtype</code></td><td>이미 걸러진 값의 불변식</td><td>검사가 경계에 한 번 남고 안쪽에서는 지워진다</td></tr><tr><td><code>def enum parse_error do empty . not_digit . end</code></td><td>부르는 쪽이 다르게 행동할 경우마다 갈래 하나</td><td>갈래가 많을수록 다루는 짐이 는다</td></tr><tr><td><code>let v u16 try check_port port .</code></td><td>다룰 수 없으면 위로 넘긴다</td><td>넘긴 사실이 <code>errors</code> 절에 남는다</td></tr><tr><td><code>case error e do match e do … end end</code></td><td>오류 값을 묶고 갈래를 한 번 더 가른다</td><td><code>case error &lt;이름></code> 의 이름이 선언된 갈래가 아니면 새 묶음이다</td></tr><tr><td><code>try … else_none</code> · <code>value_or</code></td><td>이유를 버린다</td><td>버리는 것은 가능한 한 위 층에서</td></tr><tr><td><code>proc … effects panic .</code> + <code>panic "…"</code></td><td>어느 층도 다룰 수 없는 상태에서 멈춘다</td><td>틀린 입력·없는 파일에는 쓰지 않는다</td></tr><tr><td>시작점 <code>output u8 .</code></td><td>가장 바깥 층 — 실패를 다루고 종료 코드로 알린다</td><td>더 넘길 곳이 없다</td></tr></table></div><p class="float-caption">표 17.2 — 실패를 설계하는 모양 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">바깥에서 값이 들어오는 경계에서는 실패를 <code>result</code> 와 <code>errors</code> 로 말하고, 검사를 통과한 안쪽에서는 계약과 타입으로 불변식을 적는다. 오류 갈래는 부르는 쪽이 다르게 행동할 경우마다 둔다. 실패를 받은 층은 다룰 수 있으면 다루고 없으면 <code>try</code> 로 넘긴다. 정보를 버리는 일은 가능한 한 위 층에서 하고, <code>panic</code> 은 어느 층도 다룰 수 없는 상태에만 쓴다.</div></div>
+</code></pre></div></div><p><code>check_port out 0 .</code> 은 오류를 돌려주었지만 아무도 받지 않았다. 포트가 0 인데 “started” 가 나오고 종료 코드도 0 이 된다 — 실패를 값으로 돌려준다는 설계는 부르는 쪽이 그 값을 <strong>볼 때만</strong> 지켜진다. 그래서 도구가 <code>W-RESULT-DISCARD</code> 로 알린다. <code>result</code> 를 돌려주는 op 은 <code>let</code> 으로 받아 묻거나 <code>try</code> 로 넘기거나 <code>match</code> 로 가른다. 이름에 담기만 하고 한 번도 읽지 않는 것도 같은 알림을 받는다 — 실패가 사라지는 것은 마찬가지이기 때문이다. 실패로 할 일이 정말 없는 자리(오류 경로에서 닫고 나가는 자리)에서는 <code>drop &lt;이름> .</code> 으로 «일부러 넘긴다» 를 적는다. 잘못은 무시하는 것이 아니라 <strong>말없이</strong> 무시하는 것이다.</p></div></div><h3 id="s17-7">17.7 이 장의 문법을 한눈에<a class="plink" href="#s17-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td>경계의 op <code>output result t e .</code> + <code>errors</code></td><td>바깥 값의 실패를 값으로 돌려준다</td><td>부르는 층이 무엇을 할지 고른다</td></tr><tr><td>안쪽의 op <code>requires</code> · <code>range</code> · <code>newtype</code></td><td>이미 걸러진 값의 불변식</td><td>검사가 경계에 한 번 남고 안쪽에서는 지워진다</td></tr><tr><td><code>def enum parse_error do empty . not_digit . end .</code></td><td>부르는 쪽이 다르게 행동할 경우마다 갈래 하나</td><td>갈래가 많을수록 다루는 짐이 는다</td></tr><tr><td><code>let v u16 try check_port port. . . .</code></td><td>다룰 수 없으면 위로 넘긴다</td><td>넘긴 사실이 <code>errors</code> 절에 남는다</td></tr><tr><td><code>case error e do match e. do … end . end .</code></td><td>오류 값을 묶고 갈래를 한 번 더 가른다</td><td><code>case error &lt;이름></code> 의 이름이 선언된 갈래가 아니면 새 묶음이다</td></tr><tr><td><code>try … else_none</code> · <code>value_or</code></td><td>이유를 버린다</td><td>버리는 것은 가능한 한 위 층에서</td></tr><tr><td><code>proc … effects panic .</code> + <code>panic "…"</code></td><td>어느 층도 다룰 수 없는 상태에서 멈춘다</td><td>틀린 입력·없는 파일에는 쓰지 않는다</td></tr><tr><td>시작점 <code>output u8 .</code></td><td>가장 바깥 층 — 실패를 다루고 종료 코드로 알린다</td><td>더 넘길 곳이 없다</td></tr></table></div><p class="float-caption">표 17.2 — 실패를 설계하는 모양 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">바깥에서 값이 들어오는 경계에서는 실패를 <code>result</code> 와 <code>errors</code> 로 말하고, 검사를 통과한 안쪽에서는 계약과 타입으로 불변식을 적는다. 오류 갈래는 부르는 쪽이 다르게 행동할 경우마다 둔다. 실패를 받은 층은 다룰 수 있으면 다루고 없으면 <code>try</code> 로 넘긴다. 정보를 버리는 일은 가능한 한 위 층에서 하고, <code>panic</code> 은 어느 층도 다룰 수 없는 상태에만 쓴다.</div></div>
 <div class="nav"><a href="ch16.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch18.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

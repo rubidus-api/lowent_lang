@@ -582,7 +582,7 @@ Searches headings and index terms --- not the full text
 - [ Statements](sec57.md#sx3)
 - [ Patterns](sec57.md#sx4)
 - [ Expressions](sec57.md#sx5)
-- [ Heads and closers](sec57.md#sx6)
+- [ Opening names and closers](sec57.md#sx6)
 
 [Appendix E — Standard library modules](sec58.md)
 

@@ -10,12 +10,12 @@ def newtype lru u32 .
 
 rem ✗ 여기가 거절돼야 한다.
 fn move_while_linked output u64 . do
-  var s (owned nodelist.site lru) nodelist.nl_open lru 3 .
-  let h (owned nodelist.held lru) nodelist.nl_link lru s .
-  let s2 (owned nodelist.site lru) nodelist.nl_relocate lru s 9 .
-  return nodelist.nl_slot_of lru s2 .
-end
+  var s (owned nodelist.site lru) nodelist.nl_open lru. 3 . .
+  let h (owned nodelist.held lru) nodelist.nl_link lru. s. . .
+  let s2 (owned nodelist.site lru) nodelist.nl_relocate lru. s. 9 . .
+  return nodelist.nl_slot_of lru. s2. . .
+end .
 
 proc main output u8 . effects none . do
   return 0 .
-end
+end .

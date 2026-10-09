@@ -10,10 +10,10 @@ them and handles backspace (line buffering and echo). To move the cursor the mom
 such byte strings as keys.
 
 ```lowent
-let p option u64 tty.parse_key buf 0 .
-guard is_some p else return none .
-let code u64 tty.key_of (some_value p) .
-let used u64 tty.len_of (some_value p) .
+let p option u64 tty.parse_key buf. 0 . .
+guard is_some p. . else return none . .
+let code u64 tty.key_of some_value p. . . .
+let used u64 tty.len_of some_value p. . . .
 ```
 
 #aside[Raw mode changes the user's terminal settings, and the change survives the program's death][
@@ -24,7 +24,7 @@ let used u64 tty.len_of (some_value p) .
 ]
 
 *One keycode distinguishes characters from special keys.* Ordinary bytes are their own value (1 … 255, control characters included --- Ctrl-C is 3), and special keys are above
-1000. So `is_char` is a single `lt keycode 1000`. *With no tuples*, the result packs into one value `keycode × 16 + length` (length 1 … 8). The length is needed to know where the
+1000. So `is_char` is a single `lt keycode. 1000 .`. *With no tuples*, the result packs into one value `keycode × 16 + length` (length 1 … 8). The length is needed to know where the
 next key starts in the buffer. Extract with `key_of` and `len_of` so code survives if the packing changes.
 
 #dtable(
@@ -37,9 +37,9 @@ next key starts in the buffer. Extract with `key_of` and `len_of` so code surviv
   [`key_unknown`], [pure], [1011 --- an unrecognised special key],
   [`parse_key buf at`], [pure (`effects none`)], [byte string → `some (keycode × 16 + length)` or `none`],
   [`key_of` · `len_of` · `is_char`], [pure], [keycode · length from a packed value · is it an ordinary character (pass a *keycode*)],
-  [`tty_raw t on` (core op)], [`cap tty`], [enter (`true`) · leave (`false`) raw mode],
-  [`tty_read t dst` (core op)], [`cap tty`], [bytes that have arrived into the buffer → `option u64` (`some 0` = nothing yet, not an error)],
-  [`tty_size t` (core op)], [`cap tty`], [screen size → `option u64` (rows = `div v 4294967296`, columns = `mod v 4294967296`)],
+  [`tty_raw t. on. .` (core op)], [`cap tty`], [enter (`true`) · leave (`false`) raw mode],
+  [`tty_read t. dst. .` (core op)], [`cap tty`], [bytes that have arrived into the buffer → `option u64` (`some 0 .` = nothing yet, not an error)],
+  [`tty_size t. .` (core op)], [`cap tty`], [screen size → `option u64` (rows = `div v. 4294967296 .`, columns = `mod v. 4294967296 .`)],
 )
 
 *What `parse_key` recognises* --- one non-ESC byte (length 1), `ESC` with nothing after (the ESC key, length 1), `ESC O A`–`D` · `H` · `F` and `ESC [ A`–`D` · `H` · `F` (arrows,
@@ -53,34 +53,34 @@ module keydemo .
 use tty .
 
 proc main input t cap tty . input al cap allocator . output u8 . effects alloc . do
-  let g option mut slice u8 alloc_bytes al capacity 32 .
-  guard is_some g else return 1 .
-  let buf mut slice u8 some_value g .
-  guard tty_raw t true else return 1 .
+  let g option mut slice u8 alloc_bytes al. capacity 32 . .
+  guard is_some g. . else return 1 . .
+  let buf mut slice u8 some_value g. . .
+  guard tty_raw t. true . else return 1 . .
   var going bool true .
   var last u64 0 .
-  while going do
-    let n option u64 tty_read t buf .
-    guard is_some n else do
-      set going false .
+  while going. do
+    let n option u64 tty_read t. buf. . .
+    guard is_some n. . else do
+      set going. false .
       continue .
-    end
+    end .
     var off u64 0 .
-    while lt off (some_value n) do
-      let p option u64 tty.parse_key (subslice buf 0 (some_value n)) off .
-      guard is_some p else do
-        set off (some_value n) .
+    while lt off. some_value n. . . do
+      let p option u64 tty.parse_key subslice buf. 0 some_value n. . . off. . .
+      guard is_some p. . else do
+        set off. some_value n. . .
         continue .
-      end
-      let code u64 tty.key_of (some_value p) .
-      set last code .
-      if eq code 113 do set going false . end
-      set off (add off (tty.len_of (some_value p))) .
-    end
-  end
-  let r bool tty_raw t false .
-  return narrow u8 last .
-end
+      end .
+      let code u64 tty.key_of some_value p. . . .
+      set last. code. .
+      if eq code. 113 . do set going. false . end .
+      set off. add off. tty.len_of some_value p. . . . .
+    end .
+  end .
+  let r bool tty_raw t. false . .
+  return narrow u8 last. . .
+end .
 ```
 
 Finish anything that can fail, like allocation, *before entering raw mode* --- failing and returning after entering leaves the terminal raw. Terminal core ops take `cap tty` *as
@@ -88,13 +88,13 @@ an argument* --- the op holding the capability is not enough; it must be handed 
 comparison without a terminal --- the dividend of the split.
 
 #antipattern[Not restoring raw mode][
-  Leaving through a `guard … else return 2` after `tty_raw t true` skips restoration and leaves the shell broken. The language has no `defer`, so call `tty_raw t false` on every
+  Leaving through a `guard … else return 2` after `tty_raw t. true .` skips restoration and leaves the shell broken. The language has no `defer`, so call `tty_raw t. false .` on every
   way out, or finish what can fail before entering raw mode. The example above is shaped so the loop always exits downwards.
 ]
 
 #antipattern[Reading `none` as an error and quitting · advancing by 1 regardless of length][
   `none` from `parse_key` usually means "more bytes needed" --- a read boundary can cut a sequence in the middle. Quitting there makes a program that dies on every arrow key.
-  `set off (add off 1)` reads `ESC [ A` as three keys --- always advance by `len_of`. Comparing the packed value directly with `1001` fails because the length is mixed in.
+  `set off. add off. 1 .` reads `ESC [ A` as three keys --- always advance by `len_of`. Comparing the packed value directly with `1001` fails because the length is mixed in.
 ]
 
 *Cautions.* Terminals differ in arrow sequences, so both `ESC [ A` and `ESC O A` are recognised. Sequences still not caught are `none` --- never silently another key. Korean input

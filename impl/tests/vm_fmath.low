@@ -5,11 +5,11 @@ fn hyp
   input b u64 .
   output f64 .
 do
-  return sqrt expr ((cast f64 a) * (cast f64 a)) + ((cast f64 b) * (cast f64 b)) .
-end
+  return sqrt expr ((cast f64 a. .) * (cast f64 a. .)) + ((cast f64 b. .) * (cast f64 b. .)) . . .
+end .
 
-fn iclamp input x u64 . output u64 . do return min (max x 3) 9 . end
-fn fwrap output f64 . do return fmod 7.5 2.0 . end
-fn ffloor output f64 . do return floor 2.7 . end
-fn fceil output f64 . do return ceil 2.1 . end
-fn iabs input x u64 . output u64 . do return abs neg x . end
+fn iclamp input x u64 . output u64 . do return min max x. 3 . 9 . . end .
+fn fwrap output f64 . do return fmod 7.5 2.0 . . end .
+fn ffloor output f64 . do return floor 2.7 . . end .
+fn fceil output f64 . do return ceil 2.1 . . end .
+fn iabs input x u64 . output u64 . do return abs neg x. . . . end .

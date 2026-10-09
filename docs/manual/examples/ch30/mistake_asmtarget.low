@@ -16,4 +16,4 @@ do
   text ASM
     add {r}, {a}, {b}
 ASM
-end
+end .

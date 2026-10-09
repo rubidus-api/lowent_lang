@@ -4,11 +4,11 @@ rem expect: E-STMT-ELSE
 fn pick input a u8 . output u8 .
 do
   var r u8 0 .
-  if gt a 5 do
-    set r 1 .
+  if gt a. 5 . do
+    set r. 1 .
   rem ko: ✘ C 처럼 블록 안에 `else` 를 한 줄로 두었다 --- `end else do` 로 앞 블록을 닫아야 한다 /// en: ✘ `else` sits on its own line inside the block, C style --- the previous block must be closed with `end else do`
   else
-    set r 2 .
-  end
-  return r .
-end
+    set r. 2 .
+  end .
+  return r. .
+end .

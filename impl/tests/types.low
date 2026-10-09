@@ -2,27 +2,27 @@ fn good
   input x u32 . input y u32 .
   output u32 .
 do
-  let z u32 add x y .
-  return z .
-end
+  let z u32 add x. y. . .
+  return z. .
+end .
 
 fn bad_var
   output u32 .
 do
   var i u32 true .
-  return i .
-end
+  return i. .
+end .
 
 fn bad_return
   input x u32 .
   output bool .
 do
-  return x .
-end
+  return x. .
+end .
 
 fn bad_arg
   input p bool .
   output bool .
 do
-  return good 1 2 .
-end
+  return good 1 2 . .
+end .

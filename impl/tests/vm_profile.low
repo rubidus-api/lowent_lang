@@ -18,5 +18,5 @@ module vm_profile .
 build profile freestanding .
 
 fn sum3 input a u64 . input b u64 . input c u64 . output u64 . do
-  return (add a (add b c)) .
-end
+  return add a. add b. c. . . .
+end .

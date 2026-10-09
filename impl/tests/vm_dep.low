@@ -13,5 +13,5 @@ module vm_dep .
 use lib_math from "lib_math.low" .   rem ★ 경로는 **이 파일 기준**이다 — CWD 기준이면 어디서 컴파일하느냐에 따라 뜻이 달라진다
 
 fn clamped input a u64 . output u64 . do
-    return lib_math.clamp255 a .
-end
+    return lib_math.clamp255 a. . .
+end .

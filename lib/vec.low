@@ -18,13 +18,13 @@ use allocs from "alloc.low" .
 
 export def struct vec_u8 do
   len u64 .
-end
+end .
 
 rem 다음 용량 — 비어 있으면 8, 아니면 두 배. (성장 정책은 **라이브러리의 몫**이다.)
 export fn next_cap input cur u64 . output u64 . do
-  guard gt cur 0 else return 8 .
-  return mul cur 2 .
-end
+  guard gt cur. 0 . else return 8 . .
+  return mul cur. 2 . .
+end .
 
 rem 한 바이트를 잇는다. 자리가 있으면 그대로 쓰고, 꽉 찼으면 **두 배를 받아 옮긴다**.
 rem   돌려주는 슬라이스가 **앞으로 쓸 자리**다 — 성장했으면 새 자리, 아니면 그대로.
@@ -36,22 +36,22 @@ export proc push_byte
   input x u8 .
   output option mut slice u8 .
   effects state via a .
-  requires allocs.byte_allocator a .
+  requires allocs.byte_allocator a. . .
 do
-  guard ge (field v len) (len buf) else do
-    set (idx buf (field v len)) x .
-    set (field v len) (add (field v len) 1) .
-    return some buf .
-  end
-  let nb option mut slice u8 send al reserve (next_cap (len buf)) .
-  guard is_some nb else return none .
-  let nbuf mut slice u8 some_value nb .
+  guard ge field v. len . len buf. . . else do
+    set idx buf. field v. len . . x. .
+    set field v. len . add field v. len . 1 . .
+    return some buf. . .
+  end .
+  let nb option mut slice u8 send al. reserve next_cap len buf. . . . .
+  guard is_some nb. . else return none . .
+  let nbuf mut slice u8 some_value nb. . .
   var i u64 0 .
-  while lt i (field v len) do
-    set (idx nbuf i) (idx buf i) .
-    set i (add i 1) .
-  end
-  set (idx nbuf (field v len)) x .
-  set (field v len) (add (field v len) 1) .
-  return some nbuf .
-end
+  while lt i. field v. len . . do
+    set idx nbuf. i. . idx buf. i. . .
+    set i. add i. 1 . .
+  end .
+  set idx nbuf. field v. len . . x. .
+  set field v. len . add field v. len . 1 . .
+  return some nbuf. . .
+end .

@@ -14,8 +14,8 @@
 
 ```lowent
 var s u64 12345 .
-set s (random.advance_seed s) .
-let c bool random.coin s .
+set s. random.advance_seed s. . .
+let c bool random.coin s. . .
 ```
 
 *The unpredictable side.* Callable only with `cap random`. It answers the number of bytes filled, and *0 if it could not fill* --- taking 0 and using the buffer anyway means
@@ -23,8 +23,8 @@ using an uninitialised buffer as a key.
 
 ```lowent
 proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
-  return eq (random.bytes k key) (len key) .
-end
+  return eq random.bytes k. key. . len key. . . .
+end .
 ```
 
 #dtable(

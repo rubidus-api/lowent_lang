@@ -19,19 +19,19 @@ build option trace bool default false depends smp .
 
 rem --- 꺼진 옵션의 가지는 **코드에 없다**(비용 0). 그런데 **검사는 받았다.**
 fn tick_rate output u64 . do
-    if config smp do
-        return config hz .
-    end
+    if config smp . do
+        return config hz . .
+    end .
     return 100 .
-end
+end .
 
 fn cpus output u64 . do
-    return config maxcpu .
-end
+    return config maxcpu . .
+end .
 
 fn traced output u64 . do
-    if config trace do
+    if config trace . do
         return 1 .
-    end
+    end .
     return 0 .
-end
+end .

@@ -21,8 +21,8 @@ none — sending is [`outbuf`](sec117.md#mod-outbuf)’s job
 ```lowent
 use term as t .
 
-let p option u64 t.goto buf 0 2 4 .
-guard is_some p else return 1 .
+let p option u64 t.goto buf. 0 2 4 . .
+guard is_some p. . else return 1 . .
 ```
 
 **Convention.** Sequence ops follow [`fmt`](sec61.md#mod-fmt)’s convention — `(buf, pos, …) → option u64` (new pos). Passing one op’s return as the next op’s `pos` chains sequences, and the last pos is the finished sequence’s length. **All or nothing** — short of room, not a single byte is written. A half-written escape is silently wrong output: the terminal reads the rest as characters and debris like `[3;5H` appears. Coordinates are taken **0-based** and emitted in ANSI’s 1-based form — 1-based is the wire’s business.
@@ -47,7 +47,7 @@ guard is_some p else return 1 .
 | `col_off row c` | byte offset of the c-th code point | invalid UTF-8 · row shorter than c cells = `none` |
 | `cp_width cp` | 0 · 1 · 2 cells | no failure — 1 if unknown |
 | `row_width row` | total cells of a row | invalid UTF-8 = `none` |
-| `fit_width row cols` | **bytes** fitting within `cols` cells (never cutting a character) | invalid UTF-8 = `none` · `some 0` if not even one cell fits |
+| `fit_width row cols` | **bytes** fitting within `cols` cells (never cutting a character) | invalid UTF-8 = `none` · `some 0 .` if not even one cell fits |
 | `cluster_len s at` | byte length of the character cluster starting at `at` (at least 1) | out of range · not a boundary · invalid UTF-8 = `none` |
 | `row_clusters row` | number of character clusters in a row | invalid UTF-8 = `none` |
 
@@ -57,20 +57,20 @@ guard is_some p else return 1 .
 
 ```lowent
 proc diff_frame input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 32 else return 90 .
+  guard ge len out. . 32 . else return 90 . .
   let prev slice u8 "aaaaaaaaaa" .
   let nxt slice u8 "aaaaaaxyaa" .
-  let p option u64 t.diff prev nxt 5 out 0 .
-  guard is_some p else return 1 .
-  guard eq (some_value p) 8 else return 2 .
-  let d option u64 t.diff_row_utf8 "가나다" "가라다" 0 out 0 .
-  guard is_some d else return 3 .
-  guard eq (some_value d) 9 else return 4 .
+  let p option u64 t.diff prev. nxt. 5 out. 0 . .
+  guard is_some p. . else return 1 . .
+  guard eq some_value p. . 8 . else return 2 . .
+  let d option u64 t.diff_row_utf8 "가나다" "가라다" 0 out. 0 . .
+  guard is_some d. . else return 3 . .
+  guard eq some_value d. . 9 . else return 4 . .
   return 42 .
-end
+end .
 ```
 
-The first diff changes only columns 1 and 2 of the second row: `ESC[2;2H` (6) + `xy` (2) = 8 bytes; the UTF-8 row diff is `ESC[1;2H` (6) + `라` (3) = 9 bytes. A render loop computes `nxt` → `diff` → on `some p` sends `subslice out 0 p` through `outbuf` and swaps `prev` and `nxt`. Forgetting the swap redraws the same runs every frame.
+The first diff changes only columns 1 and 2 of the second row: `ESC[2;2H` (6) + `xy` (2) = 8 bytes; the UTF-8 row diff is `ESC[1;2H` (6) + `라` (3) = 9 bytes. A render loop computes `nxt` → `diff` → on `some p. .` sends `subslice out. 0 p. .` through `outbuf` and swaps `prev` and `nxt`. Forgetting the swap redraws the same runs every frame.
 
 > **Counter-example. Sending `out` when `diff` returned `none`**
 >
@@ -82,9 +82,9 @@ The first diff changes only columns 1 and 2 of the second row: `ESC[2;2H` (6) + 
 
 > **Counter-example. Cutting by bytes or counting cells by code points**
 >
-> > `subslice row 0 3` has no guarantee that 3 bytes is a character boundary, sending half a character — `fit_width` keeps boundaries. `row_cells "한글"` is 2 but the cells are 4, so aligning by code points is off by two — ask `row_width` for cells.
+> > `subslice row. 0 3 .` has no guarantee that 3 bytes is a character boundary, sending half a character — `fit_width` keeps boundaries. `row_cells "한글"` is 2 but the cells are 4, so aligning by code points is off by two — ask `row_width` for cells.
 
-**Cautions.** If only `none` keeps coming, suspect the buffer size — measure by **room remaining after `pos`**. Estimate `out` at worst as rows × maximum goto width + screen size. Mistaking the no-change `some pos` for failure and falling back to a full redraw keeps the screen right but flickers every frame. Do not pass coordinates already 1-based — everything shifts by one cell. Feeding a UTF-8 screen to the one-byte-cell `diff` can cut multibyte characters — the two diffs are separate ops with different contracts. **Not built** — the remaining cluster rules such as flags (regional indicator pairs), emoji ZWJ sequences and Hangul jamo composition, and diffs of attribute (colour) cells. Better to write down what is not done than to pretend a partial rule is complete.
+**Cautions.** If only `none` keeps coming, suspect the buffer size — measure by **room remaining after `pos`**. Estimate `out` at worst as rows × maximum goto width + screen size. Mistaking the no-change `some pos. .` for failure and falling back to a full redraw keeps the screen right but flickers every frame. Do not pass coordinates already 1-based — everything shifts by one cell. Feeding a UTF-8 screen to the one-byte-cell `diff` can cut multibyte characters — the two diffs are separate ops with different contracts. **Not built** — the remaining cluster rules such as flags (regional indicator pairs), emoji ZWJ sequences and Hangul jamo composition, and diffs of attribute (colour) cells. Better to write down what is not done than to pretend a partial rule is complete.
 
 ---
 

@@ -76,7 +76,7 @@ not bytes.
 
 #demo("examples/ch49/h2_body.low")
 
-*H2 --- changing only the body changes only `def`.* Changing `add a a` to `mul a 2` left `iface` as it was and changed only `def`. This is the heart of incremental builds. When only
+*H2 --- changing only the body changes only `def`.* Changing `add a. a. .` to `mul a. 2 .` left `iface` as it was and changed only `def`. This is the heart of incremental builds. When only
 an op's body changes, its users are recompiled, but their `iface` stays the same too, so the next dependants hit the cache. Signature changes spread along the chain; body-only changes
 stop after one step.
 
@@ -97,7 +97,7 @@ addressed *spelling*, not meaning. The grammar says effects are a set, so they a
 
 #demo("examples/ch49/h4_contract.low")
 
-*Contracts are surface too.* Adding `requires le a 100 .` changed `iface`. Callers trust and check the contracts of the ops they call, and as seen in #chref("proofs-bounds"),
+*Contracts are surface too.* Adding `requires le a. 100 . .` changed `iface`. Callers trust and check the contracts of the ops they call, and as seen in #chref("proofs-bounds"),
 contracts are the grounds for removing bounds checks. If a contract changed but the hash stayed the same, the cache would keep using results that trusted the old contract --- like
 reusing a proof after its premises changed. The implementation once hashed only signatures and had this hole; it was fixed.
 

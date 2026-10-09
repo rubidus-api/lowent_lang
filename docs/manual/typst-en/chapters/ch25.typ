@@ -25,7 +25,7 @@
 ]
 
 #organizer[
-  You will learn to declare an actor with `actor … do state do … end … end`, make one with `spawn actor`, and send messages with `send`. You will see that ops
+  You will learn to declare an actor with `actor … do state do … end . … end .`, make one with `spawn actor`, and send messages with `send`. You will see that ops
   inside actors follow the `fn`/`proc` rules too, and how to carry values in messages and hand over ownership. You will also see mailboxes filled with
   `spawn send` and emptied later with `drain`, restarting crashed actors with `failure restart`, and `build profile`, which decides where actors may be used.
 ]
@@ -37,11 +37,11 @@
 #demo("examples/ch25/counter.low")
 
 #idx("actor")
-- `actor counter do … end` declares an actor. `state do value u64 . end` is its state, which exists only inside the actor and cannot be touched directly
+- `actor counter do … end .` declares an actor. `state do value u64 . end .` is its state, which exists only inside the actor and cannot be touched directly
   from outside.
 - `inc`, which changes the state, is a `proc` with `effects state`. `get`, which only reads, is a `fn`. Ops inside actors follow the kind rules of
   #chref("ops") as is.
-- `var c counter spawn actor counter .` makes one actor. Its state starts at 0.
+- `var c counter spawn actor counter . .` makes one actor. Its state starts at 0.
 - `send c inc` sends the `inc` message to `c`, waits until it is handled, and receives the result.
 
 An actor handles messages *one at a time*. So its state is never touched concurrently. That is why there is no need to take locks by hand.
@@ -97,7 +97,7 @@ travels only by message, only one party can touch the value at any moment, and a
 
 #demo("examples/ch25/mailbox.low")
 
-`drive` puts `inc` in three times, empties the mailbox in the order put in with `drain c`, and then reads 3. `nodrain` did not empty it, so the result is 0.
+`drive` puts `inc` in three times, empties the mailbox in the order put in with `drain c. .`, and then reads 3. `nodrain` did not empty it, so the result is 0.
 Messages in a mailbox *are not handled by themselves*.
 
 The processor does not decide delivery times on its own for the sake of *determinism*. The same program must give the same answer, and the delivery time is
@@ -190,7 +190,7 @@ turn.
 
 - The balance lives only in the state of `account`. The outside reaches an account only through three messages: `deposit`, `withdraw` and
   `peek_balance`.
-- When the balance is short, `withdraw` returns `error insufficient` *without touching the state*. It does not stop --- a short balance
+- When the balance is short, `withdraw` returns `error insufficient .` *without touching the state*. It does not stop --- a short balance
   is a failure the account's user can handle (#chref("errors-design")).
 - `move` deposits only when the withdrawal succeeded. `move 30` leaves 20 with the sender and 30 with the receiver, giving 20030. With
   `move 80` the withdrawal fails and both accounts stay at 50 and 0 (50000).
@@ -220,7 +220,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
 #antipattern[Reading an actor's state field from outside][
   #demo("examples/ch25/mistake_peekstate.low")
 
-  The first promise of this chapter was "the state lives only inside the actor and cannot be touched directly from outside". `field c value`
+  The first promise of this chapter was "the state lives only inside the actor and cannot be touched directly from outside". `field c. value .`
   tries to go around that door and is refused with `E-ACTOR-FIELD`. If state were readable from outside, handling one message at a time would
   buy nothing --- the reader would see a value between two messages. If you need the state, give the actor a read message such as `get` and
   ask with `send c get`.
@@ -233,7 +233,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   condition is read on the values the op was *entered* with (canon 6.4.2). `errors` stands on the same side as `requires` --- it says what
   the *caller* got wrong, and what the caller did is hand things over. So a name the body can change (a state field, a module `var`, a `mut`
   parameter) cannot stand in the condition, and translation refuses it with `E-ERRORS-STATE`. Read on exit, a successful run would accuse
-  itself: the balance dropped from 50 to 20, so on exit `gt 30 20` is true, which amounts to "the condition holds, yet the error was not
+  itself: the balance dropped from 50 to 20, so on exit `gt 30 20 .` is true, which amounts to "the condition holds, yet the error was not
   returned". Write the error condition over the *inputs*, and let the `guard` in the body judge the state --- as `transfer.low` above does
   with a bare `errors insufficient .`.
 ]
@@ -243,7 +243,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
 
   A borrow (`ref`) cannot outlive what it borrows (#chref("references")). An actor's state stays for as long as the actor lives, so the field
   has nowhere to say what it borrows. So the declaration is refused with `E-ACTOR-STATE-REF`. Until 2026-09-16 the declaration was accepted
-  and the actor spawned with the field empty; only at `deref r` did the VM stop with `E-VM-TYPE` and native code with a `panic`. Keep values
+  and the actor spawned with the field empty; only at `deref r. .` did the VM stop with `E-VM-TYPE` and native code with a `panic`. Keep values
   in state instead of borrows, and if a value is large, keep a slice the actor owns for its lifetime.
 ]
 
@@ -270,15 +270,15 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   id: "actors-glance",
   caption: [Actor syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`actor counter do state do value u64 . end … end`], [declare a unit of execution that encloses state], [there is no way to touch the state concurrently],
+  [`actor counter do state do value u64 . end . … end .`], [declare a unit of execution that encloses state], [there is no way to touch the state concurrently],
   [`proc inc … effects state .` · `fn get …`], [a message that changes state · one that only reads], [`fn`/`proc` rules unchanged --- a `fn` that writes is `E-EFFECT-PURITY`],
-  [`var c counter spawn actor counter .`], [create one actor (state starts at 0)], [each `spawn` has its own state],
+  [`var c counter spawn actor counter . .`], [create one actor (state starts at 0)], [each `spawn` has its own state],
   [`send c inc` · `send acct deposit a`], [send and wait until processed · carry a value], [actor first --- a message is an op taking the actor as first parameter],
-  [`spawn send c inc .` · `drain c .` · `schedule .`], [put in the mailbox · drain that actor's mailbox · drain all], [a person picks the delivery point --- determinism],
+  [`spawn send c. inc . .` · `drain c .` · `schedule .`], [put in the mailbox · drain that actor's mailbox · drain all], [a person picks the delivery point --- determinism],
   [`mailbox bounded 2 .` · `try spawn send`], [mailbox size · receive overflow as a value], [overflow stops, or becomes a `result`],
   [`failure restart max 3 .` · `never` · `always`], [restart a panicked actor from its initial state], [when used up, the failure goes upward],
   [`build profile server .`], [where actors (level 3) may be used], [only those who write it take on the promise],
-  [`state do root cap allocator . … end`], [a capability field --- size 0 at run time], [`E-CAP-FORGE` if the spawning op lacks that capability],
+  [`state do root cap allocator . … end .`], [a capability field --- size 0 at run time], [`E-CAP-FORGE` if the spawning op lacks that capability],
 )
 
 #recap[

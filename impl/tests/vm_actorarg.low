@@ -6,28 +6,28 @@ rem   잡는 최악 부류). 이제 `cbe_pmut` 이 전이 폐포로 잡아 되�
 module vm_actorarg .
 
 actor rec do
-  state do v u64 . end
-  proc put input n u64 . output u64 . effects state . do set v expr v + n . return v . end
-  fn get output u64 . do return v . end
-end
+  state do v u64 . end .
+  proc put input n u64 . output u64 . effects state . do set v. expr v. + n. . . return v. . end .
+  fn get output u64 . do return v. . end .
+end .
 
 rem 액터 인스턴스를 인자로 받아 send 로 변형한다 — 자신에는 FSTORE 가 없다.
-proc bump input x rec . output u64 . effects state . do return send x put 7 . end
-fn noop output u64 . do return 0 . end
+proc bump input x rec . output u64 . effects state . do return send x. put 7 . . end .
+fn noop output u64 . do return 0 . end .
 
 rem 직접 호출 경로 — 동시성 없이도 재현된다.
 proc drive output u64 . effects state . do
-  var i rec spawn actor rec .
-  let d u64 bump i .
-  return send i get .
-end
+  var i rec spawn actor rec . .
+  let d u64 bump i. . .
+  return send i. get . .
+end .
 
 rem 관용적 경로 — task_group 이 `spawn bump i` 로 인스턴스를 태스크에 인자로 넘긴다.
 proc drive_task output u64 . effects state . do
-  var i rec spawn actor rec .
+  var i rec spawn actor rec . .
   task_group do
-    spawn bump i .
+    spawn bump i. .
     spawn noop .
-  end
-  return send i get .
-end
+  end .
+  return send i. get . .
+end .

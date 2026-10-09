@@ -37,7 +37,7 @@
 == `option` — 값이 있거나 없거나
 
 #idx("option")
-`option t` 는 `t` 값이 있거나(`some v`) 없거나(`none`) 둘 중 하나다. 뒤에서 볼 `result` 와 함께, 값을 담는 *상자 두 종류*로
+`option t` 는 `t` 값이 있거나(`some v. .`) 없거나(`none`) 둘 중 하나다. 뒤에서 볼 `result` 와 함께, 값을 담는 *상자 두 종류*로
 그려 두면 구별이 쉽다.
 
 ```text
@@ -53,11 +53,11 @@
 
 #demo("examples/ch11/lookup.low")
 
-만드는 쪽인 `find` 는 `return none .` 과 `return some (mul k 10) .` 으로 값을 싼다. VM 은 결과를 `some 20`
+만드는 쪽인 `find` 는 `return none .` 과 `return some mul k. 10 . . .` 으로 값을 싼다. VM 은 결과를 `some 20 .`
 과 `none` 으로 보여 준다. 받는 쪽은 세 가지로 쓸 수 있다.
 
-- `find_or` --- `value_or (find k) 99` 는 값이 있으면 그 값을, 없으면 99 를 준다.
-- `find_asked` --- `guard is_some r else …` 로 먼저 묻고 `some_value r` 로 꺼낸다.
+- `find_or` --- `value_or find k. . 99 .` 는 값이 있으면 그 값을, 없으면 99 를 준다.
+- `find_asked` --- `guard is_some r else …` 로 먼저 묻고 `some_value r. .` 로 꺼낸다.
 - `find_match` --- `match` 로 `case some v` 와 `case none` 을 가른다. 두 갈래로 모든 경우가 덮인다.
 
 `find_raw` 는 묻지 않고 바로 꺼낸다. 번역은 통과하지만 값이 없는 7 에서 실행이 멈춘다(`E-VM-NONE`).
@@ -67,7 +67,7 @@
 #qa[
   `value_or` 의 기본값 자리에 비싼 계산을 적으면 매번 계산되는가?
 ][
-  아니다. 기본값은 *값이 없을 때만* 계산된다. `value_or (some 7) (div 1 0)` 은 7 이고 0 나누기는 일어나지
+  아니다. 기본값은 *값이 없을 때만* 계산된다. `value_or some 7 . div 1 0 . .` 은 7 이고 0 나누기는 일어나지
   않는다. 그래서 기본값 자리에 실패할 수 있는 계산을 적어도 된다. 이 동작은 한때 반대였다가 명세에 맞게
   고쳐졌다.
 ]
@@ -75,7 +75,7 @@
 == `result` 와 `errors` 절
 
 #idx("result")
-`result t e` 는 성공한 값(`ok v`) 또는 오류(`error <갈래>`) 중 하나다. 오류 타입 `e` 는 보통 `enum` 이다.
+`result t e` 는 성공한 값(`ok v. .`) 또는 오류(`error <갈래>`) 중 하나다. 오류 타입 `e` 는 보통 `enum` 이다.
 #idx("errors 절")
 그리고 `result` 를 돌려주는 op 은 *언제 어떤 오류를 내는지* `errors` 절에 적는다.
 
@@ -99,8 +99,8 @@
 모양이다.
 
 ```lowent
-let v u8 try halve a .
-return ok (add v 1) .
+let v u8 try halve a. . . .
+return ok add v. 1 . . .
 ```
 
 `halve_plus_one` 이 자기 머리에도 `errors` 를 적은 것에 주목한다. `try` 로 오류를 넘기려면 자기도 그
@@ -121,7 +121,7 @@ return ok (add v 1) .
 
 #demo("examples/ch11/bindelse.low")
 
-- `let at u64 find xs k else return 99 .` --- `find` 는 `option u64` 를 돌려준다. 값이 있으면 그 `u64` 가 `at` 에 묶이고,
+- `let at u64 find xs. k. . else return 99 . .` --- `find` 는 `option u64` 를 돌려준다. 값이 있으면 그 `u64` 가 `at` 에 묶이고,
   없으면 `else` 로 간다. `result` 도 같다 --- 오류면 `else` 로 간다.
 - `else` 는 *반드시 떠나야 한다*(`return` · `break` · `continue` · `panic`). 그래서 `at` 을 쓰는 줄에서는 값이 이미 꺼내져 있고,
   확인 없이 쓰는 실수가 생길 수 없다.
@@ -137,7 +137,7 @@ return ok (add v 1) .
 
 #demo("examples/ch11/elseerror.low")
 
-- `let p u64 check n else error e do … end` --- `check` 가 오류를 내면 그 오류 값이 `e` 에 묶이고 블록이 돈다. 블록의 모든 길은
+- `let p u64 check n. . else error e do … end .` --- `check` 가 오류를 내면 그 오류 값이 `e` 에 묶이고 블록이 돈다. 블록의 모든 길은
   떠나야 한다. `e` 는 블록 안에서만 산다.
 - `port 0` 은 `zero` 라서 80, `port 70000` 은 `too_big` 이라 65535 다. 값이 `option` 이면 받을 오류가 없으므로
   `else error <이름>` 은 `E-BIND-ELSE` 로 거절된다.
@@ -157,7 +157,7 @@ return ok (add v 1) .
   [`try <식> else_error <갈래>`], [`option` → `result`], [없음에 *이름을 붙인다*],
 )
 
-꼬리를 붙인 `try` 는 타입도 바꾼다. `try (halve a) else_none` 의 타입은 `option u8` 이지 `u8` 이 아니다.
+꼬리를 붙인 `try` 는 타입도 바꾼다. `try halve a. . else_none .` 의 타입은 `option u8` 이지 `u8` 이 아니다.
 그래서 `maybe_half` 는 그것을 그대로 돌려주고, `let v u8 try … else_error …` 처럼 값 타입에 담으려 하면
 거절된다.
 
@@ -212,15 +212,15 @@ return ok (add v 1) .
 
   `find k` 가 돌려주는 것은 `u64` 가 아니라 "`u64` 가 있을 수도 없을 수도 있는 상자" 다. 상자에 1 을 더할 수는 없다. 다른 언어라면
   없음(null)이 계산 속으로 흘러 들어가 한참 뒤에 터지지만, Lowent 는 여기서 `E-TYPE-RETURN` 으로 멈춰 세운다. 고치는 길은 셋이다.
-  `value_or (find k) 0` 으로 대신할 값을 주거나, `is_some` 으로 묻고 `some_value` 로 꺼내거나, `match` 로 가른다. 어느 것을 고를지는
+  `value_or find k. . 0 .` 으로 대신할 값을 주거나, `is_some` 으로 묻고 `some_value` 로 꺼내거나, `match` 로 가른다. 어느 것을 고를지는
   "없을 때 무엇을 해야 하는가" 가 정한다.
 ]
 
 #antipattern[`option` 을 돌려주는 op 에서 `some` 을 빠뜨린다][
   #demo("examples/ch11/mistake_nosome.low")
 
-  머리에 `output option u64` 라고 적었으면 돌려주는 값도 상자여야 한다. `none` 은 상자이지만 `mul k 10` 은 맨 수라서 `E-TYPE-RETURN`
-  이다. 몇몇 언어는 값을 알아서 감싸 주지만 Lowent 는 감싸지 않는다. `return some (mul k 10) .` 처럼 "있다" 를 적어야 읽는 사람이
+  머리에 `output option u64` 라고 적었으면 돌려주는 값도 상자여야 한다. `none` 은 상자이지만 `mul k. 10 .` 은 맨 수라서 `E-TYPE-RETURN`
+  이다. 몇몇 언어는 값을 알아서 감싸 주지만 Lowent 는 감싸지 않는다. `return some mul k. 10 . . .` 처럼 "있다" 를 적어야 읽는 사람이
   두 갈래를 모두 본다.
 ]
 
@@ -239,7 +239,7 @@ return ok (add v 1) .
 
 #demo("examples/ch11/nestedwild.low")
 
-`ok (some x)` 와 `ok none` 이 함께 `ok` 를 덮고 `error e` 가 나머지를 덮으므로 `_` 가 필요 없다. 하나라도 빠지면
+`ok some x. . .` 와 `ok none .` 이 함께 `ok` 를 덮고 `error e .` 가 나머지를 덮으므로 `_` 가 필요 없다. 하나라도 빠지면
 `E-MATCH-INEXHAUSTIVE` 로 거절된다 --- 쓸모없는 `_` 를 두는 것보다 낫다. `_` 는 나중에 갈래가 늘어도 아무 말을 하지 않는다.
 
 #misconception[`value_or` 를 쓰면 없는 경우도 알 수 있다][
@@ -258,15 +258,15 @@ return ok (add v 1) .
   caption: [답을 담는 타입의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`output option u8 .`], [값이 있거나 없다], [없음(null)을 타입에 드러낸다],
-  [`some v` · `none`], [있다 · 없다], ["있다" 도 적어야 두 갈래가 모두 보인다],
+  [`some v. .` · `none`], [있다 · 없다], ["있다" 도 적어야 두 갈래가 모두 보인다],
   [`output result u8 e .`], [값이거나 오류(`e` 의 갈래)], [실패도 값으로 돌려준다 --- 예외가 없다],
-  [`ok v` · `error too_big`], [성공 · 실패], [어느 갈래인지 소스에 적힌다],
+  [`ok v. .` · `error too_big .`], [성공 · 실패], [어느 갈래인지 소스에 적힌다],
   [`errors too_big <조건> .`], [어떤 오류가 언제 나는지 약속], [계약에 적어 부르는 쪽이 대비한다],
-  [`is_some r` · `some_value r`], [있는지 묻기 · 꺼내기], [꺼내기는 부분 연산 --- 묻고 꺼낸다],
-  [`is_error r` · `ok_value r`], [실패인지 묻기 · 성공 값 꺼내기], [같은 이유],
-  [`value_or r 99`], [없으면 대신할 값], [한 줄로 끝나지만 없음을 덮는다],
+  [`is_some r. .` · `some_value r. .`], [있는지 묻기 · 꺼내기], [꺼내기는 부분 연산 --- 묻고 꺼낸다],
+  [`is_error r. .` · `ok_value r. .`], [실패인지 묻기 · 성공 값 꺼내기], [같은 이유],
+  [`value_or r. 99 .`], [없으면 대신할 값], [한 줄로 끝나지만 없음을 덮는다],
   [`try <식>`], [실패면 그 오류를 돌려주며 떠난다], [확인 코드를 빼먹지 않게 --- Rust 의 `?`],
-  [`let n u64 find xs k else return 0 .`], [알맹이를 꺼내 묶거나 `else` 로 떠난다], [확인 없이 쓰는 실수가 없다],
+  [`let n u64 find xs. k. . else return 0 . .`], [알맹이를 꺼내 묶거나 `else` 로 떠난다], [확인 없이 쓰는 실수가 없다],
   [`try <식> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [채널을 바꿀 때 무엇을 잃는지 드러낸다],
   [`case ok (some x)` · `case a or b`], [겹친 패턴 · 여러 갈래 묶기], [한 번에 가르되 모든 경우를 덮는다],
 )

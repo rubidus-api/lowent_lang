@@ -17,8 +17,8 @@ UTF-8 바이트열을 **코드포인트 단위로** 훑고 검사한다. 코드�
 ```lowent
 use utf8 .
 
-let c option u64 utf8.decode s 0 .
-guard is_some c else return 1 .
+let c option u64 utf8.decode s. 0 . .
+guard is_some c. . else return 1 . .
 ```
 
 `0` 은 “첫 글자” 가 아니라 **바이트 0 번지**다. 이 모듈의 위치는 모두 바이트 오프셋이고, 글자 단위 전진은 `next_start` 가 한다.
@@ -62,12 +62,12 @@ guard is_some c else return 1 .
 
 이 모듈은 상태를 들지 않으므로 어디를 어디서부터 읽을지는 모두 호출자가 준다.
 
-- **`is_cont`** — 이어지는 바이트인가(`10xxxxxx`, 곧 `eq (bit_and b 192) 128`). 앞뒤 문맥이 필요 없는 판정이라 바이트 하나를 받는다.
+- **`is_cont`** — 이어지는 바이트인가(`10xxxxxx`, 곧 `eq bit_and b. 192 . 128 .`). 앞뒤 문맥이 필요 없는 판정이라 바이트 하나를 받는다.
 - **`seq_len`** — 선두 바이트로 그 코드포인트의 바이트 길이(1 … 4)를 안다. 길이 정보는 선두 바이트의 앞쪽 비트에만 있다. **0 은 길이가 아니라 오류 신호**다 — 그대로 더하면 커서가 움직이지 않아 반복이 끝나지 않는다.
-- **`decode`** — 바이트 오프셋 `at` 에서 코드포인트 하나를 읽어 **값**을 낸다. `at` 이 끝을 넘음, 선두가 이어지는 바이트, 시퀀스가 슬라이스 밖으로 잘림, 이어지는 바이트가 `10xxxxxx` 가 아님, 과길이, 서로게이트, U+10FFFF 초과면 `none` 이다. 한 글자가 최대 4 바이트에 걸치므로 슬라이스 전체를 받고, `len s` 가 잘림의 판정 근거다. `at` 은 반드시 글자의 **시작**이어야 한다 — `next_start` 가 준 위치만 넣는 것이 안전한 습관이다. 길이는 주지 않는다.
+- **`decode`** — 바이트 오프셋 `at` 에서 코드포인트 하나를 읽어 **값**을 낸다. `at` 이 끝을 넘음, 선두가 이어지는 바이트, 시퀀스가 슬라이스 밖으로 잘림, 이어지는 바이트가 `10xxxxxx` 가 아님, 과길이, 서로게이트, U+10FFFF 초과면 `none` 이다. 한 글자가 최대 4 바이트에 걸치므로 슬라이스 전체를 받고, `len s. .` 가 잘림의 판정 근거다. `at` 은 반드시 글자의 **시작**이어야 한다 — `next_start` 가 준 위치만 넣는 것이 안전한 습관이다. 길이는 주지 않는다.
 - **`next_start`** — 다음 코드포인트의 **시작 위치**. 무효면 `none` 이다 — 건너뛰며 뭉개지 않는다. 선두·길이·잘림만 보고 값 범위 검사는 `decode` 의 몫이다. 돌려받은 값을 그대로 다음 `at` 으로 쓰는 것이 순회 한 걸음이다.
 - **`count_chars`** — 전체를 훑어 코드포인트 수를 낸다. 무효 바이트를 만나면 `none`. “전체” 가 계약이라 시작 위치를 받지 않는다. 비용은 O(바이트 수)다.
-- **`is_valid`** — 전체가 올바른 UTF-8 인가. “검증은 따로 된 op 이지 타입 불변식이 아니다” 의 실물이고, 구현은 `is_some (count_chars s)` 다. 글자 수까지 필요하면 `count_chars` 를 한 번만 부르는 편이 낫다.
+- **`is_valid`** — 전체가 올바른 UTF-8 인가. “검증은 따로 된 op 이지 타입 불변식이 아니다” 의 실물이고, 구현은 `is_some count_chars s. . .` 다. 글자 수까지 필요하면 `count_chars` 를 한 번만 부르는 편이 낫다.
 
 ## <a id="sx4"></a>쓰는 법
 
@@ -86,41 +86,41 @@ proc main
   effects alloc io .
 do
   let s slice u8 "a한😀" .
-  guard utf8.is_valid s else return 65 .
+  guard utf8.is_valid s. . else return 65 . .
 
-  let g option mut slice u8 alloc_bytes al capacity 128 .
-  guard is_some g else return 70 .
-  let buf mut slice u8 some_value g .
+  let g option mut slice u8 alloc_bytes al. capacity 128 . .
+  guard is_some g. . else return 70 . .
+  let buf mut slice u8 some_value g. . .
   var pos u64 0 .
 
   var i u64 0 .
-  while lt i (len s) do
-    let c option u64 utf8.decode s i .
-    guard is_some c else return 66 .
-    let a option u64 fmt.put_str buf pos "U+" .
-    guard is_some a else return 71 .
-    let b option u64 fmt.put_hex buf (some_value a) (some_value c) .
-    guard is_some b else return 72 .
-    let d option u64 fmt.put_nl buf (some_value b) .
-    guard is_some d else return 73 .
-    set pos (some_value d) .
-    let nx option u64 utf8.next_start s i .
-    guard is_some nx else return 67 .
-    set i (some_value nx) .
-  end
+  while lt i. len s. . . do
+    let c option u64 utf8.decode s. i. . .
+    guard is_some c. . else return 66 . .
+    let a option u64 fmt.put_str buf. pos. "U+" . .
+    guard is_some a. . else return 71 . .
+    let b option u64 fmt.put_hex buf. some_value a. . some_value c. . . .
+    guard is_some b. . else return 72 . .
+    let d option u64 fmt.put_nl buf. some_value b. . . .
+    guard is_some d. . else return 73 . .
+    set pos. some_value d. . .
+    let nx option u64 utf8.next_start s. i. . .
+    guard is_some nx. . else return 67 . .
+    set i. some_value nx. . .
+  end .
 
-  let w u64 write_out out 1 (subslice buf 0 pos) .
+  let w u64 write_out out. 1 subslice buf. 0 pos. . . .
   return 0 .
-end
+end .
 ```
 
-출력은 `U+61` · `U+d55c` · `U+1f600` 세 줄이다. 한 바퀴에서 `i` 는 `a`(1 바이트) → `한`(3 바이트) → `😀`(4 바이트) 를 지나며 0 → 1 → 4 → 8 로 뛴다. **`add i 1` 로는 전진하지 않는다** — 둘째 바퀴에서 글자 한가운데를 가리키게 된다. 글자 수만 필요하면 `let n option u64 utf8.count_chars s .` 한 줄이다.
+출력은 `U+61` · `U+d55c` · `U+1f600` 세 줄이다. 한 바퀴에서 `i` 는 `a`(1 바이트) → `한`(3 바이트) → `😀`(4 바이트) 를 지나며 0 → 1 → 4 → 8 로 뛴다. **`add i. 1 .` 로는 전진하지 않는다** — 둘째 바퀴에서 글자 한가운데를 가리키게 된다. 글자 수만 필요하면 `let n option u64 utf8.count_chars s. . .` 한 줄이다.
 
 ## <a id="sx5"></a>반례
 
 > **반례. `none` 을 치환 문자로 때우고 계속 간다**
 >
-> > `next_start` 가 실패했을 때 `set i (add i 1)` 로 한 바이트 건너뛰면 무효 입력이 조용히 통과하고, 그 위의 비교와 필터가 거짓 전제 위에 선다. 오류는 없다 — **조용히 틀린 답**이고 글자 수만 슬쩍 는다. 무효 입력을 일부러 넣어 `is_valid` 가 `false` 인데도 뒤쪽 처리가 도는지 본다. 고치는 법은 `none` 에서 멈추는 것뿐이다.
+> > `next_start` 가 실패했을 때 `set i. add i. 1 .` 로 한 바이트 건너뛰면 무효 입력이 조용히 통과하고, 그 위의 비교와 필터가 거짓 전제 위에 선다. 오류는 없다 — **조용히 틀린 답**이고 글자 수만 슬쩍 는다. 무효 입력을 일부러 넣어 `is_valid` 가 `false` 인데도 뒤쪽 처리가 도는지 본다. 고치는 법은 `none` 에서 멈추는 것뿐이다.
 
 > **반례. 바이트 오프셋을 글자 번호로 여긴다**
 >
@@ -128,7 +128,7 @@ end
 
 > **반례. `count_chars` 의 `none` 을 0 으로 다룬다**
 >
-> > `none` 은 “글자 없음” 이 아니라 “무효 UTF-8” 이다. 빈 슬라이스는 `some 0` 이다. 둘을 합치면 깨진 입력과 글자가 없는 입력을 영영 구별할 수 없다. 검사 없이 `some_value` 로 꺼내면 실행 중 `E-VM-NONE` 으로 멈춘다.
+> > `none` 은 “글자 없음” 이 아니라 “무효 UTF-8” 이다. 빈 슬라이스는 `some 0 .` 이다. 둘을 합치면 깨진 입력과 글자가 없는 입력을 영영 구별할 수 없다. 검사 없이 `some_value` 로 꺼내면 실행 중 `E-VM-NONE` 으로 멈춘다.
 
 > **반례. 검증하지 않은 입력을 `subslice` 로 자른 뒤 올바르다고 여긴다**
 >
@@ -136,7 +136,7 @@ end
 
 ## <a id="sx6"></a>주의
 
-- **`len s` 는 바이트 수다.** 글자 수는 `count_chars` 만이 안다. “최대 10 글자” 를 `len` 으로 재면 어긋난다(`"한글"` 은 `len` 6, 글자 2).
+- **`len s. .` 는 바이트 수다.** 글자 수는 `count_chars` 만이 안다. “최대 10 글자” 를 `len` 으로 재면 어긋난다(`"한글"` 은 `len` 6, 글자 2).
 - **커서는 `next_start` 로 민다.** 1 씩 밀면 이어지는 바이트를 선두로 읽어 `none` 이 나오거나 글자 수가 부푼다.
 - **`decode` 와 `next_start` 의 `none` 은 판정 범위가 다르다.** `next_start` 는 구조만 보고 값 범위(과길이·서로게이트·상한)는 보지 않는다. 엄밀한 순회는 둘을 함께 쓰거나 먼저 `is_valid` 로 전체를 검증한다.
 - **`count_chars`·`is_valid` 는 O(바이트 수)다.** 반복 조건 안에서 매번 부르면 전체가 O(n²) 가 된다 — 한 번 세어 들고 다닌다.

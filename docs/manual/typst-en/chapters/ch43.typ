@@ -38,7 +38,7 @@
 #demo("examples/ch43/loop_stale.low")
 
 A read borrow `r` created outside the loop is used inside it, while inside the same loop the owner writes to `x`. Round 1 looks fine. But that write kills
-`r`, and round 2's `deref r` uses a dead borrow. It is fine when run once and blows up the second time. The processor rejects it at translation.
+`r`, and round 2's `deref r. .` uses a dead borrow. It is fine when run once and blows up the second time. The processor rejects it at translation.
 
 #demo("examples/ch43/loop_fresh.low")
 
@@ -105,7 +105,7 @@ wrong on the dangerous side, not the safe side.
 
 #demo("examples/ch43/nested.low")
 
-The inner loop runs 0, 1, 2 and 3 times on successive outer rounds. The borrow `mut_ref x` is born and ends in the inner body, so it is safe in every round.
+The inner loop runs 0, 1, 2 and 3 times on successive outer rounds. The borrow `mut_ref x .` is born and ends in the inner body, so it is safe in every round.
 
 The flat Theorem B imposes `unroll body k` --- "every round runs the same". Real programs do not. The nested loop proof (`LowentNest.v`) represents the program
 as a tree (`NLeaf`, `NSeq`, `NLoop`) and writes unfolding *as a relation, not a function*.

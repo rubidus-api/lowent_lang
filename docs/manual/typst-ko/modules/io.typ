@@ -8,9 +8,9 @@
 `read(buf) → n` 이 아니라 *peek · take · toss → 뷰*다 --- 호출자 메모리를 채우는 대신 원본의 한 구간을 가리키는 빌린 뷰를 건넨다(복사 0).
 
 ```lowent
-var r io.mem_reader spawn actor io.mem_reader .
-let z u64 send r attach src .
-let line option slice u8 send r take_line 4096 .
+var r io.mem_reader spawn actor io.mem_reader . .
+let z u64 send r. attach src. . .
+let line option slice u8 send r. take_line 4096 . .
 ```
 
 *왜 권한이 필요 없나.* 이 모듈은 이미 메모리에 있는 바이트를 자르기만 하고 커널에 닿지 않는다. 바이트를 실제로 채워 오는 쪽(`read_in` 은 `cap io`, `files.read` 는
@@ -47,21 +47,21 @@ let line option slice u8 send r take_line 4096 .
 
 ```lowent
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r io.mem_reader spawn actor io.mem_reader .
-  let z u64 send r attach src .
+  var r io.mem_reader spawn actor io.mem_reader . .
+  let z u64 send r. attach src. . .
   var lines u64 0 .
   var going bool true .
-  while going do
-    let l option slice u8 send r take_line 4096 .
-    if is_some l do set lines (add lines 1) . end
-    if eq (is_some l) false do set going false . end
-  end
-  if gt (send r remaining) 0 do set lines (add lines 1) . end
-  return lines .
-end
+  while going. do
+    let l option slice u8 send r. take_line 4096 . .
+    if is_some l. . do set lines. add lines. 1 . . end .
+    if eq is_some l. . false . do set going. false . end .
+  end .
+  if gt send r. remaining . 0 . do set lines. add lines. 1 . . end .
+  return lines. .
+end .
 ```
 
-`count_lines` 는 파일도 stdin 도 모른다 --- `main` 이 권한을 쥔 한 줄(`read_in out 0 buf`)로 바이트를 채워 `subslice` 로 넘기면 된다. 개행 없이 끝난 마지막 조각은
+`count_lines` 는 파일도 stdin 도 모른다 --- `main` 이 권한을 쥔 한 줄(`read_in out. 0 buf. .`)로 바이트를 채워 `subslice` 로 넘기면 된다. 개행 없이 끝난 마지막 조각은
 `take_line` 이 주지 못하므로 `remaining` 으로 확인한다.
 
 #antipattern[`take_line` 의 `none` 을 EOF 로 단정한다][
@@ -71,7 +71,7 @@ end
 
 #antipattern[CRLF 입력의 뷰를 그대로 비교한다][
   `take_line` 은 CR 을 지우지 않으므로 뷰는 `"data\r"` 다. 눈으로는 같아 보이는데 `eq` 비교가 언제나 `false` 다(길이가 1 크다). 비교 전에
-  `strings.remove_suffix line "\r"` 로 벗긴다.
+  `strings.remove_suffix line. "\r" .` 로 벗긴다.
 ]
 
 #antipattern[`attach` 를 빼먹는다 · 루프 계속 여부를 `guard` 로 고른다][

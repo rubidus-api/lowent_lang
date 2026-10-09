@@ -5,6 +5,6 @@ fn bump output u64 .
 do
   var total u64 0 .
   rem ko: ✘ `=` 는 이 언어의 기호가 아니다 --- 값을 다시 넣는 것은 `set` 이다 /// en: ✘ `=` is not a symbol of this language --- putting a new value in is `set`
-  total = add total 1 .
-  return total .
-end
+  total = add total. 1 . .
+  return total. .
+end .

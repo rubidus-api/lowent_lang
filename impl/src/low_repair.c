@@ -95,7 +95,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-TYPE-COND",           "R-USE-COMPARISON" },
     { "E-TYPE-LOGICAL",        "R-USE-COMPARISON" },
     { "E-EXPR-CHAIN",          "R-SPLIT-COMPARISON" },
-    { "E-EXPR-APP",            "R-PARENTHESISE-CALL" },
     // ★ 섬에는 단항이 없다 — 고치는 법은 **접두 op 을 쓰는 것**이다(`neg`·`not`·`bit_not`).
     { "E-EXPR-UNARY",          "R-USE-PREFIX-OP" },
     { "E-IR-UNDEF",            "R-DECLARE-HANDLER" },
@@ -278,7 +277,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-PAREN-ESCAPE",        "R-CLOSE-PAREN" },
     { "E-PAREN-STRAY",         "R-DROP-PAREN" },
     // ★ X-0052 ⓐ — `end`·`do` 뒤의 점은 닫을 것이 없다. 수리는 하나: 지운다.
-    { "E-DOT-STRAY",           "R-DROP-DOT" },
     // ★ 2026-09-25 — `end` 는 자기 `do` 만 닫는다: 닫히지 않은 문장은 자기 점을 받고, 머리 없는 블록은 머리를 받는다.
     { "E-DOT-MISSING",         "R-ADD-DOT" },
     { "E-BLOCK-NOHEAD",        "R-ADD-HEAD" },
@@ -311,8 +309,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-STMT-NODO",           "R-ADD-DO-END" },
     { "E-CTRL-NODO",           "R-ADD-DO-END" },   // RFC-0113 R4 — 한 폼 몸을 `do … end` 로 감싼다
     // ★ RFC-0141 — 옛 철자의 수리(`lowentc --migrate` 가 그대로 한다)
-    { "E-CTRL-DOT",            "R-DROP-DOT" },     // `if c . do` → `if c do` — 머리의 식은 `do` 에서 끝난다
-    { "E-ELSE-DOT",            "R-DROP-DOT" },     // `guard c . else …` → `guard c else …` — 실패 절은 문장 안에 선다
     { "E-LET-BE",              "R-DROP-BE" },      // `let n be u64 5 .` → `let n u64 5 .`
     { "E-USING-OLD",           "R-USE-KEEP" },     // `using al be` → `use al` · `using al keep be` → `keep al`
     { "E-FOR-OLD",             "R-LOOP-HEAD" },    // `for i count …` → `repeat` · `for i range …` → `range` · `for i be … while … next …` → `cycle`
@@ -474,6 +470,7 @@ static const low_repair_row_t NOREPAIR[] = {
     { "E-FORM-UNEXPECTED", "무엇이 와야 했는지는 **자리마다 다르다** — 파서가 그 자리에서 아는 것이고 코드가 아니다" },
     { "E-TEST-FAIL",       "고칠 자리가 **프로그램일 수도 기대값일 수도** 있다 — 어느 쪽인지는 도구가 모른다" },
     { "E-VM-ANALYSIS",     "**컴파일러의 결함**이다(구간 분석이 불건전) — 사용자가 고칠 것이 없다" },
+    { "E-IR-SURFACE",      "**컴파일러의 결함**이다(표면 패스가 파서가 받지 않는 모양을 내려 줬다 — RFC-0142) — 사용자가 고칠 것이 없다" },
     { "E-VM-BUDGET",       "오라클 실행의 스텝 예산일 뿐 — 프로그램의 결함이 아니다" },
     { "E-VM-CAST",         "메시지가 자리마다 달라 코드만으로 수리가 정해지지 않는다" },
     { "E-IR-LIMIT",        "무엇이 한계를 넘었는지가 자리마다 다르다 — 진단 문구가 그것을 말한다" },

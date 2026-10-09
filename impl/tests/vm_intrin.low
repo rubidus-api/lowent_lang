@@ -13,11 +13,11 @@ module vm_intrin .
 def type bytes slice u8 .
 
 proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
-  let xa slice u8 view_array u8 a .
-  let xb slice u8 view_array u8 b .
-  let va vec u8 4 load xa 0 .
-  let vb vec u8 4 load xb 0 .
-  var r vec u8 4 lane_avg va vb .
-  store out 0 r .
+  let xa slice u8 view_array u8 a. . .
+  let xb slice u8 view_array u8 b. . .
+  let va vec u8 4 load xa. 0 . .
+  let vb vec u8 4 load xb. 0 . .
+  var r vec u8 4 lane_avg va. vb. . .
+  store out. 0 r. .
   return 0 .
-end
+end .

@@ -3,18 +3,18 @@ rem expect: E-TRY-NORESULT
 
 def enum half_error do
   too_big .
-end
+end .
 
 fn halve input a u8 . output result u8 half_error .
-errors too_big gt a 200 .
+errors too_big gt a. 200 . .
 do
-  guard le a 200 else return error too_big .
-  return ok (div a 2) .
-end
+  guard le a. 200 . else return error too_big . . .
+  return ok div a. 2 . . .
+end .
 
 rem ko: ✘ `try` 를 썼는데 이 op 은 `result` 를 돌려주지 않고 `errors` 절도 없다 /// en: ✘ uses `try`, but this op neither returns a `result` nor has an `errors` clause
 fn plus input a u8 . output u8 .
 do
-  let v u8 try halve a .
-  return add v 1 .
-end
+  let v u8 try halve a. . . .
+  return add v. 1 . .
+end .

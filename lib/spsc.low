@@ -44,19 +44,19 @@ module spsc .
 rem ★ 담을 수 있는 최대 개수 = len buf − 1. 한 칸을 비워 두는 대가이고, 그 대가로
 rem   head == tail 이 **언제나** "비었다" 를 뜻한다(가득 참과 헷갈리지 않는다).
 export fn spsc_capacity input buf slice u64 . output u64 .
-  requires ge (len buf) 2 .
+  requires ge len buf. . 2 . .
 do
-  return sub (len buf) 1 .
-end
+  return sub len buf. . 1 . .
+end .
 
 rem 지금 들어 있는 개수. ★ 관찰값이다 — 읽는 순간 이미 달라졌을 수 있다(그래서 `about`).
 export proc spsc_count_about input k cap atomic . input ctl slice u64 . input buf slice u64 .
   output u64 . effects atomic .
-  requires ge (len ctl) 2 .
-  requires ge (len buf) 2 .
+  requires ge len ctl. . 2 . .
+  requires ge len buf. . 2 . .
 do
-  let h u64 atomic_load ctl 0 .
-  let t u64 atomic_load ctl 1 .
+  let h u64 atomic_load ctl. 0 . .
+  let t u64 atomic_load ctl. 1 . .
   rem ★★ **먼저 감싸고 그다음에 뺀다.** 순서를 반대로 적었다가 계약 오라클에 걸렸다:
   rem   `sub (add t (len buf)) h` 는 h 가 크면 **언더플로로 트랩**한다 — 그런데 계약은
   rem   ctl 의 **내용**을 제한하지 않으므로 그런 입력이 허용된다. 즉 **계약이 감당 못 하는
@@ -64,53 +64,53 @@ do
   rem   ⇒ 둘 다 `mod` 로 먼저 줄이면 각각 < len buf 이므로 뺄셈이 안전하다.
   rem   ★ 계약을 넓히는 대신 **코드를 전역적으로 만든** 것이 옳다: 계약은 호출자가 지켜야
   rem     하는 것이고, ctl 의 내용은 호출자가 아니라 **이 자료구조가** 관리하는 것이다.
-  let hm u64 mod h (len buf) .
-  let tm u64 mod t (len buf) .
-  return mod (sub (add tm (len buf)) hm) (len buf) .
-end
+  let hm u64 mod h. len buf. . . .
+  let tm u64 mod t. len buf. . . .
+  return mod sub add tm. len buf. . . hm. . len buf. . . .
+end .
 
 rem ★★★ **밀어 넣기 (생산자 전용).** 성공하면 1, 가득 차 있으면 0.
 export proc spsc_push input k cap atomic . input ctl mut slice u64 . input buf mut slice u64 .
   input v u64 .
   output u64 . effects atomic .
-  requires ge (len ctl) 2 .
-  requires ge (len buf) 2 .
+  requires ge len ctl. . 2 . .
+  requires ge len buf. . 2 . .
 do
   rem ★ACQ — 소비자가 공개한 head 를 읽는다(그 읽기 이후에만 그 칸을 덮어써도 된다).
-  let h u64 atomic_load ctl 0 order acquire .
+  let h u64 atomic_load ctl. 0 order acquire . .
   rem tail 은 **내가 쓴 것**이다 — 남과 동기화할 것이 없으므로 relaxed 면 충분하다.
-  let t u64 atomic_load ctl 1 order relaxed .
-  let ti u64 mod t (len buf) .
-  let nx u64 mod (add ti 1) (len buf) .
+  let t u64 atomic_load ctl. 1 order relaxed . .
+  let ti u64 mod t. len buf. . . .
+  let nx u64 mod add ti. 1 . len buf. . . .
   rem 다음 자리가 head 면 가득 찬 것이다(한 칸을 비워 두는 규칙).
-  guard ne nx (mod h (len buf)) else return 0 .
+  guard ne nx. mod h. len buf. . . . else return 0 . .
   rem 데이터를 **먼저** 쓴다. 그다음에 색인을 공개한다 — 순서가 뒤바뀌면 소비자가
   rem 쓰이지 않은 칸을 읽는다. 이것이 메시지 전달 패턴의 핵심이다.
-  set (idx buf ti) v .
+  set idx buf. ti. . v. .
   rem ★REL — 색인 공개. 위의 데이터 쓰기가 이 공개보다 **먼저** 보여야 한다.
-  atomic_store ctl 1 nx order release .
+  atomic_store ctl. 1 nx. order release .
   return 1 .
-end
+end .
 
 rem ★★★ **꺼내기 (소비자 전용).** 성공하면 1 을 돌려주고 `out[0]` 에 값을 놓는다. 비었으면 0.
 export proc spsc_pop input k cap atomic . input ctl mut slice u64 . input buf slice u64 .
   input out mut slice u64 .
   output u64 . effects atomic .
-  requires ge (len ctl) 2 .
-  requires ge (len buf) 2 .
-  requires ge (len out) 1 .
+  requires ge len ctl. . 2 . .
+  requires ge len buf. . 2 . .
+  requires ge len out. . 1 . .
 do
   rem head 는 **내가 쓴 것**이다 — relaxed 로 충분하다.
-  let h u64 atomic_load ctl 0 order relaxed .
+  let h u64 atomic_load ctl. 0 order relaxed . .
   rem ★ACQ — 생산자가 공개한 tail 을 읽는다. 이 관찰 이후에야 그 칸의 데이터를 읽어도 된다.
-  let t u64 atomic_load ctl 1 order acquire .
-  let hi u64 mod h (len buf) .
-  guard ne hi (mod t (len buf)) else return 0 .
-  set (idx out 0) (idx buf hi) .
+  let t u64 atomic_load ctl. 1 order acquire . .
+  let hi u64 mod h. len buf. . . .
+  guard ne hi. mod t. len buf. . . . else return 0 . .
+  set idx out. 0 . idx buf. hi. . .
   rem ★REL — 칸을 비웠음을 공개한다. 위의 읽기가 이 공개보다 먼저 보여야 한다.
-  atomic_store ctl 0 (mod (add hi 1) (len buf)) order release .
+  atomic_store ctl. 0 mod add hi. 1 . len buf. . . order release .
   return 1 .
-end
+end .
 
 rem ── 왜 이 세 op 뿐인가 ────────────────────────────────────────────────
 rem   `peek`·`drain`·`push_all` 을 넣고 싶어진다. 넣지 않는다:

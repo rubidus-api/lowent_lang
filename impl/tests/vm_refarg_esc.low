@@ -13,36 +13,36 @@ module vm_refarg_esc .
 
 def struct pt do
   x u64 .
-end
+end .
 
 fn peek input p ref pt . output u64 . do
-  return field p x .
-end
+  return field p. x . .
+end .
 
 proc bump input p mut pt . output u64 . effects none . do
-  set (field p x) (add (field p x) 1) .
-  return field p x .
-end
+  set field p. x . add field p. x . 1 . .
+  return field p. x . .
+end .
 
 rem ★★ 참조가 자기 프레임보다 오래 살면 거절된다 — 세대 검사가 **참조를 통과할 때마다** 돈다.
 rem   `make_ref` 가 돌려준 참조는 그 op 의 프레임을 가리키는데, 그 프레임은 이미 사라졌다.
 rem ★ 이 op 은 **일부러 탈출한다** — 정적 검사가 E-ESCAPE 로 잡는 것이 옳고, 아래는
 rem   그것을 통과했다 치고 **동적 검사도 잡는지** 보는 자리다(두 겹으로 지킨다).
 fn make_ref output ref pt . do
-  let inner lit pt do x 1 . end .
-  return ref inner .
-end
+  let inner lit pt do x 1 . end . .
+  return ref inner . .
+end .
 
 fn dangling output u64 . do
-  let r ref pt make_ref .
-  return peek r .
-end
+  let r ref pt make_ref. .
+  return peek r. . .
+end .
 
 rem ── 음성: 안전 성질이 살아 있다는 증거 (VM 에서만 트랩) ──────────────────
 
 rem ★★★ 공유 참조(`ref`)로 **쓰려 하면** 거절된다. 생 포인터였다면 조용히 성공했을 자리다.
 proc write_via_shared output u64 . effects none . do
-  var q lit pt do x 5 . end .
-  let v u64 bump (ref q) .
-  return v .
-end
+  var q lit pt do x 5 . end . .
+  let v u64 bump ref q . . .
+  return v. .
+end .

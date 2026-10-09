@@ -208,7 +208,7 @@ A file as a whole is skimmed, but a body is read top to bottom.
   `cycle_a` imports `cycle_b` and `cycle_b` imports `cycle_a`, yet it translates and runs. Unlike C headers, where only what was read first
   is known, names are resolved after the whole translation unit is gathered --- the same principle that makes the order of top-level
   declarations irrelevant. Still, modules that import each other are easier to read merged into one, or with the shared part moved into a
-  third module. The recursion depth is bounded by the contract (`requires le n 10 .`).
+  third module. The recursion depth is bounded by the contract (`requires le n. 10 . .`).
 ]
 
 == This chapter's syntax at a glance
@@ -222,7 +222,7 @@ A file as a whole is skimmed, but a body is read top to bottom.
   [`export fn manhattan …` · `export def struct point …`], [make it visible outside], [hidden by default --- what is visible is a promise],
   [`use geom from "geom.low" .`], [import from a place relative to the declaring file], [no search path --- dependencies are in the source],
   [`use allocs .`], [import from the same unit or the standard library], [otherwise `W-USE-EXTERNAL`],
-  [`geom.point` · `geom.manhattan a b`], [qualify imported names with the module name], [no spilling],
+  [`geom.point` · `geom.manhattan a. b. .`], [qualify imported names with the module name], [no spilling],
   [`geom.helper` (a hidden name)], [rejected (`E-VISIBILITY`)], [qualifying does not open the door],
   [one name declared twice · two imports with one name], [rejected (`E-NAME-DUP` · `E-NAME-COLLISION`)], [never decide quietly which one is reached],
   [order of top-level declarations], [irrelevant --- they may call each other], [a file is scanned; a body is read top to bottom],

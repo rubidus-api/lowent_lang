@@ -11,55 +11,55 @@ rem     스윕이 그것을 지킨다. `mailbox bounded N` 이면 **대기 중**
 module vm_async .
 
 actor counter do
-  state do v u64 . end
-  proc inc output u64 . effects state . do set v expr v + 1 . return v . end
-  fn get output u64 . do return v . end
-end
+  state do v u64 . end .
+  proc inc output u64 . effects state . do set v. expr v. + 1 . . return v. . end .
+  fn get output u64 . do return v. . end .
+end .
 
 rem 세 번 `spawn send`(큐에 셋) → `drain`(FIFO 로 셋 처리) → get = 3.
 proc drive output u64 . effects state . do
-  var c counter spawn actor counter .
-  spawn send c inc .
-  spawn send c inc .
-  spawn send c inc .
-  drain c .
-  return send c get .
-end
+  var c counter spawn actor counter . .
+  spawn send c. inc . .
+  spawn send c. inc . .
+  spawn send c. inc . .
+  drain c. .
+  return send c. get . .
+end .
 
 rem `drain` 을 **안 하면** 큐에 든 메시지는 안 돈다 — get = 0. (async 가 지연 배달임을 증명한다.)
 proc nodrain output u64 . effects state . do
-  var c counter spawn actor counter .
-  spawn send c inc .
-  spawn send c inc .
-  return send c get .
-end
+  var c counter spawn actor counter . .
+  spawn send c. inc . .
+  spawn send c. inc . .
+  return send c. get . .
+end .
 
 rem 넣고(2) 비우고(→2) 또 하나 넣고 비우면(→3) — drain 사이의 상태가 이어진다.
 proc drain_twice output u64 . effects state . do
-  var c counter spawn actor counter .
-  spawn send c inc .
-  spawn send c inc .
-  drain c .
-  spawn send c inc .
-  drain c .
-  return send c get .
-end
+  var c counter spawn actor counter . .
+  spawn send c. inc . .
+  spawn send c. inc . .
+  drain c. .
+  spawn send c. inc . .
+  drain c. .
+  return send c. get . .
+end .
 
 rem `mailbox bounded 2` — 대기 중 메시지가 2 를 넘으면 셋째 `spawn send` 가 패닉한다.
 actor bnd do
-  state do v u64 . end
+  state do v u64 . end .
   mailbox bounded 2 .
-  proc inc output u64 . effects state . do set v expr v + 1 . return v . end
-  fn get output u64 . do return v . end
-end
+  proc inc output u64 . effects state . do set v. expr v. + 1 . . return v. . end .
+  fn get output u64 . do return v. . end .
+end .
 
 proc overflow output u64 . effects state . do
-  var c bnd spawn actor bnd .
-  spawn send c inc .
-  spawn send c inc .
-  spawn send c inc .
+  var c bnd spawn actor bnd . .
+  spawn send c. inc . .
+  spawn send c. inc . .
+  spawn send c. inc . .
   return 0 .
-end
+end .
 
 rem ★★★ **회복 가능한 backpressure** (RFC-0009 §AC3) — `try spawn send` 는 트랩하지 않고
 rem   result<unit, mailbox_full> 를 돌려준다. `spawn send` 가 죽을 자리(bounded 초과)에서, `try`
@@ -69,28 +69,28 @@ rem 둘은 ok(넣었다), 셋째는 full → err. ok 마다 +1, err 면 +100 →
 rem ★ **bare** 형태(`var r be try spawn send …`) — arity 단일화가 `try (spawn send …)` 로 묶는
 rem   중첩 파싱 경로를 탄다. 괄호 형태(try_recover 의 `if is_error (…)`)와 **둘 다** 게이트한다.
 proc try_ok_err output u64 . effects state . do
-  var c bnd spawn actor bnd .
+  var c bnd spawn actor bnd . .
   var n u64 0 .
-  let r1 result u64 mailbox_full try spawn send c inc .
-  if is_ok r1 do set n expr n + 1 . end
-  let r2 result u64 mailbox_full try spawn send c inc .
-  if is_ok r2 do set n expr n + 1 . end
-  let r3 result u64 mailbox_full try spawn send c inc .
-  if is_error r3 do set n expr n + 100 . end
-  return n .
-end
+  let r1 result u64 mailbox_full try spawn send c. inc . . . .
+  if is_ok r1. . do set n. expr n. + 1 . . end .
+  let r2 result u64 mailbox_full try spawn send c. inc . . . .
+  if is_ok r2. . do set n. expr n. + 1 . . end .
+  let r3 result u64 mailbox_full try spawn send c. inc . . . .
+  if is_error r3. . do set n. expr n. + 100 . . end .
+  return n. .
+end .
 
 rem 찼을 때 err 를 받고(→ +100), **drain 으로 비운 뒤 다시 성공**한다(→ +1). 회복됨을 증명한다.
 rem 넣은 셋(2 + 회복된 1)이 다 처리돼 get = 3. r = 101, 반환 = 101 + 3 = 104.
 proc try_recover output u64 . effects state . do
-  var c bnd spawn actor bnd .
+  var c bnd spawn actor bnd . .
   var r u64 0 .
-  spawn send c inc .
-  spawn send c inc .
-  if is_error (try spawn send c inc) do set r expr r + 100 . end
-  drain c .
-  if is_ok (try spawn send c inc) do set r expr r + 1 . end
-  drain c .
-  let g u64 send c get .
-  return expr r + g .
-end
+  spawn send c. inc . .
+  spawn send c. inc . .
+  if is_error try spawn send c. inc . . . . do set r. expr r. + 100 . . end .
+  drain c. .
+  if is_ok try spawn send c. inc . . . . do set r. expr r. + 1 . . end .
+  drain c. .
+  let g u64 send c. get . .
+  return expr r. + g. . .
+end .

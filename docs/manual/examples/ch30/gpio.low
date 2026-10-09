@@ -8,7 +8,7 @@ def struct gpio do
   moder u32 rw .
   idr u32 ro .
   bsrr u32 wo .
-end
+end .
 
 unsafe proc drive
   input dev cap mmio .
@@ -16,8 +16,8 @@ unsafe proc drive
   output u32 .
   effects device unsafe .
 do
-  var g gpio view gpio regs .
-  write_volatile g moder 2 .
-  write_volatile g bsrr 1 .
-  return read_volatile g idr .
-end
+  var g gpio view gpio regs. . .
+  write_volatile g. moder 2 .
+  write_volatile g. bsrr 1 .
+  return read_volatile g. idr . .
+end .

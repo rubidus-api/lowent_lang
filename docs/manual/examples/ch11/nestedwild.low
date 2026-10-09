@@ -3,19 +3,19 @@ rem run: via_match
 
 def enum read_error do
   broken .
-end
+end .
 
 fn pick input r result (option u64) read_error . output u64 .
 do
   rem ko: 겹친 패턴 셋이 모든 경우다 --- `_` 를 따로 두지 않는다 /// en: three nested patterns are every case --- no separate `_`
-  match r do
-    case ok (some x) . return x .
-    case ok none . return 0 .
-    case error e . return 1 .
-  end
-end
+  match r. do
+    case ok (some x) do return x. . end .
+    case ok none do return 0 . end .
+    case error e do return 1 . end .
+  end .
+end .
 
 fn via_match output u64 .
 do
-  return pick (ok (some 42)) .
-end
+  return pick ok some 42 . . . .
+end .

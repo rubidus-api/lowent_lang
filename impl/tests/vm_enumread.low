@@ -1,0 +1,26 @@
+module vm_enumread .
+rem ★ RFC-0142 (1.8) — 열거의 딸린 값을 읽는 두 낱말의 증인: `isa`(지금 그 갈래인가) · `payload`(그 갈래가 지닌 것).
+rem   `payload` 는 1.7 까지의 `get` 이다 — 사용자 op 이름 `get` 과 한 철자를 다투지 않게 이름을 갈랐다.
+rem   `E-ENUM-UNCHECKED`: 좁히지 않고 `payload` 로 읽으면 거절된다 — 좁히는 것은 `guard isa <값> <갈래> else …` 다.
+
+def enum shape do
+  dot .
+  circle r u32 .
+end .
+
+fn pick input k u32 . output shape . do
+  if eq k. 0 . do return shape.dot . . end .
+  return shape.circle k. . .
+end .
+
+export fn radius input k u32 . output u32 . do
+  let s shape pick k. . .
+  guard isa s. circle . else return 0 . .
+  return payload s. circle r . .
+end .
+
+export fn doubled input k u32 . output u32 . do
+  let s shape pick k. . .
+  guard isa s. circle . else return 1 . .
+  return mul payload s. circle r . 2 . .
+end .

@@ -204,6 +204,28 @@
     /* ★ 고차 프렐류드 (RFC-0016). W 슬롯은 **op 이름**이다. fold=리덕션, map/filter=호출자 싱크에 쓴다. */\
     X(fold, "VWV")   X(map, "VWV")   X(filter, "VWV")
 
+// ★★★ **하강이 이름으로 읽는 특수형의 모양** (RFC-0142, 2026-10-09 · 소유자 «조사중에 찾은 틈도 채워주시고»).
+//   위의 두 표에 없지만 인자 꼴이 하나로 정해진 것들이다. 전엔 `low_ir.c` 의 이름 사슬에만 있어서, 이 헤더의 어휘 표도
+//   정본의 부록 D 도 이 낱말들을 몰랐다 — `check-builtins` 가 못 보던 스물셋이다. 이제 여기 적혀 게이트가 센다.
+//   ★ 새 표면(«이름은 열고, 점은 닫는다»)은 **낱말 자리**(W)를 글자만으로 알아야 한다. W 를 가진 머리는 모두 닫힌 표에
+//     있어야 하고, 사용자 op 의 인자는 전부 항이라 표가 필요 없다. (`low_closer.c` · `scripts/closer-migrate.py` 가 읽는다.)
+//   ★ 예약 이름(`LOW_SPECIAL` — E-NAME-BUILTIN)이 **아니다**: `copy` · `some` 은 같은 이름의 사용자 op · 지역 이름이 있으면
+//     그쪽이 이긴다(RFC-0132 P3). «우리 어휘인가» 와 «이름을 가로채는가» 는 다른 질문이다(아래 ★★★).
+#define LOW_NAMED_SHAPES(X)                                                    \
+    X(some, "V")  X(chrecv, "V")  X(chsend, "VV")  X(time_sleep, "VV")         \
+    X(time_now, "V")  X(time_local, "V")  X(await, "V")  X(channel, "W")       \
+    X(drain, "V")  X(unsafe_fn, "W")  X(random_bytes, "VV")  X(copy, "VV")     \
+    X(isa, "VW")  X(tty_size, "V")  X(tty_read, "VV")  X(tty_raw, "VV")        \
+    X(shuffle, "VR")  X(elem_le, "VV")  X(elem_lt, "VV")  X(elem_ge, "VV")     \
+    X(elem_gt, "VV")  X(elem_eq, "VV")  X(elem_ne, "VV")
+
+// ★ 위의 표와 같은 종류지만 이미 다른 목록(`LOW_SPECIAL` · `LOW_VOCAB_ONLY`)이 어휘로 세는 이름들 — 모양만 여기 적는다.
+//   (`X(이름, 모양)` 꼴이 아니라 `Y` 로 적는다: 어휘를 두 번 세지 않게.)
+#define LOW_NAMED_SHAPES_KNOWN(Y)                                              \
+    Y(is_none, "V")  Y(arg, "VV")  Y(write_out, "VVV")  Y(read_in, "VVV")      \
+    Y(reactor_new, "VVV")  Y(r_read, "VVVV")  Y(r_write, "VVVV")               \
+    Y(env_get, "VV")
+
 // ★ 그래도 **못 적는 것**이 남는다 — 선택적 표식을 가진 머리다.
 //   `stack_new R capacity n` 의 `capacity` 는 **있어도 되고 없어도 된다.** 모양이 하나가
 //   아니면 괄호를 칠 수 없다. 만나면 그 구간을 **평평하게 남긴다.**

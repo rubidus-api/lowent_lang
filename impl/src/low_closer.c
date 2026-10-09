@@ -17,6 +17,7 @@
 //   사용자 op 의 인자는 **전부 항**이다 — 타입을 넘길 때도(`max_of u64. a. b. .`).
 #include "low_closer.h"
 #include "low_arity.h"
+#include "low_lex.h"
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,21 +84,6 @@ static const char *const CL_CLAUSE[] = { "input","using","output","effects","err
                                          "lowdoc","vector","priority","inplace","invalidates","absorbs","reference","why","strlen",
                                          "link","variadic","schedule","cap","state","on","layout","align","mmio","requires","ensures",
                                          "asm", NULL };
-// ★★★ **하강이 이름으로 읽는 특수형의 모양.** `low_arity.h` 의 두 표(LOW_BUILTINS_CORE · LOW_SHAPES)에 없지만 인자 꼴이 하나로
-//   정해진 것들이다. 낱말 자리(W)를 가진 머리는 모두 닫힌 표에 있어야 글자만으로 읽힌다. 사용자 op 의 인자는 전부 항이라 표가
-//   필요 없다. (`scripts/closer-migrate.py` 가 이 표를 읽는다 — 사본을 두지 않는다.)
-//   ☞ 이 이름들은 `low_arity.h` 의 어휘 표에도, 부록 D 의 표에도 없다 — 하강이 이름으로만 안다. 그 틈은 이 편의 일이 아니다(RFC-0142 §8).
-#define LOW_CLOSER_SHAPES(X)                                                   \
-    X(some, "V")  X(is_none, "V")  X(arg, "VV")  X(write_out, "VVV")           \
-    X(chrecv, "V")  X(chsend, "VV")  X(time_sleep, "VV")  X(time_now, "V")     \
-    X(time_local, "V")  X(await, "V")  X(channel, "W")  X(drain, "V")          \
-    X(read_in, "VVV")  X(reactor_new, "VVV")  X(r_read, "VVVV")                \
-    X(r_write, "VVVV")  X(unsafe_fn, "W")  X(env_get, "VV")                    \
-    X(random_bytes, "VV")  X(copy, "VV")  X(isa, "VW")  X(tty_size, "V")       \
-    X(tty_read, "VV")  X(tty_raw, "VV")  X(shuffle, "VR")                      \
-    X(elem_le, "VV")  X(elem_lt, "VV")  X(elem_ge, "VV")  X(elem_gt, "VV")     \
-    X(elem_eq, "VV")  X(elem_ne, "VV")
-
 typedef struct { const char *name; const char *shape; } cl_shape_t;
 static const cl_shape_t CL_SHAPES[] = {
 #define X(n, w, a) { #n, (a) == 0 ? "" : (a) == 1 ? "V" : (a) == 2 ? "VV" : (a) == 3 ? "VVV" : (a) == 4 ? "VVVV" : "VVVVVV" },
@@ -105,7 +91,8 @@ static const cl_shape_t CL_SHAPES[] = {
 #undef X
 #define X(n, sh) { #n, sh },
     LOW_SHAPES(X)
-    LOW_CLOSER_SHAPES(X)
+    LOW_NAMED_SHAPES(X)
+    LOW_NAMED_SHAPES_KNOWN(X)
 #undef X
 };
 // 파이프 단계: W = op 이름(낱말) · V = 값 · i = `into`. 그 뒤에 값이 더 올 수 있고(`filter gt 2`), `with <값>` 이 올 수 있다.
@@ -310,6 +297,7 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
             j++;
         }
         c->del[j + 1] = 1;                               // op 이름의 점
+        c->T[j].aux = (proven_u8str_view_t){ .ptr = (const proven_byte_t *)".", .size = 1 };   // 서식기가 이 이름 뒤에 점을 다시 찍는다
         return cl_done(c, i, cl_args(c, j + 2), wrap, keep);
     }
     if (cl_eq(t, "stack_new")) {
@@ -322,7 +310,10 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
         if (!cl_dot(c, j)) j = cl_term(c, j, true, false);
         return cl_done(c, i, j, wrap, keep);
     }
+    // 모양에 낱말 자리(W)가 있는 머리만 표를 따른다. 인자가 전부 값인 머리는 사용자 op 과 꼴이 같다 — 표 없이 읽는다
+    // (같은 철자의 사용자 op 이 인자 수가 달라도 여기서는 갈리지 않는다. 인자 수는 뒤의 검사가 본다).
     const char *sh = cl_lookup(CL_SHAPES, CL_N(CL_SHAPES), t);
+    if (sh && !strchr(sh, 'W')) sh = NULL;
     if (sh) {
         proven_size_t j = i + 1;
         for (; *sh; sh++) {
@@ -331,6 +322,14 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
             else if (*sh == 'R') j = cl_args(c, j);
         }
         if (t->lex.size > 7 && memcmp(t->lex.ptr, "atomic_", 7) == 0 && cl_word(c, j, "order")) j += 2;
+        return cl_done(c, i, j, wrap, keep);
+    }
+    if (t->lex.size > 7 && memcmp(t->lex.ptr, "atomic_", 7) == 0) {   // 원자 연산 — 끝에 `order <낱말>` 이 올 수 있다
+        proven_size_t j = i + 1;
+        while (!cl_dot(c, j)) {
+            if (cl_word(c, j, "order") && !cl_dot(c, j + 1)) { j += 2; continue; }
+            j = cl_term(c, j, true, false);
+        }
         return cl_done(c, i, j, wrap, keep);
     }
     return cl_done(c, i, cl_args(c, i + 1), wrap, keep); // 사용자 op — 인자는 모두 항이다
@@ -540,7 +539,17 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
         return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`def struct … end .`)");
     }
     if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return cl_op_decl(c, j);
-    if (kw && cl_eq(t, "trait") && cl_kw(c, j + 2, "do")) return cl_endstop(c, cl_mate(c, j + 2) + 1, "a stop `.` must close the declaration (`trait … end .`)");
+    if (kw && cl_eq(t, "trait") && cl_kw(c, j + 2, "do")) {
+        // 서명 = op 이름 + 절들. 절은 제 점으로 닫히고 그 안의 식도 제 점으로 닫히므로, 절의 점 다음에 오는 «절 낱말이 아닌 이름» 이
+        // 곧 다음 서명의 이름이다 — 글자만으로 갈린다(1.7 에서는 갈리지 않던 자리다).
+        proven_size_t e = cl_mate(c, j + 2), k = j + 3;
+        while (k < e) {
+            if (cl_id(c, k) && cl_in(&c->T[k], CL_CLAUSE)) k = cl_clause(c, k);
+            else if (cl_id(c, k)) k++;
+            else cl_fail(c, k, "E-FORM-UNEXPECTED", "inside `trait` come signatures: `<op name> <clauses>`");
+        }
+        return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`trait … end .`)");
+    }
     if (kw && cl_eq(t, "contract") && cl_kw(c, j + 2, "do")) {
         proven_size_t e = cl_mate(c, j + 2), k = j + 3;
         while (k < e) k = cl_clause(c, k);
@@ -615,5 +624,595 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
         *tokens = out;
     }
     free(c.del); free(c.lp); free(c.rp); free(c.mate); free(st);
+    return ok;
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// ★★★ **거꾸로 — 서식기가 찍은 글을 새 표면으로 올린다** (`--fmt`).
+//
+//   서식기는 안쪽 나무를 걸어 «호출마다 괄호로 싼» 글을 찍는다(RFC-0046 R5 — 괄호 = 렌더링 계층). 그 글에서는 호출의 끝이
+//   괄호로 정해지므로, 새 표면으로 올리는 데에도 선언이 필요 없다: 괄호를 벗기고 닫는 점을 찍고(`(add a b)` → `add a. b. .`),
+//   값 자리의 이름에 점을 붙이고, 블록으로 끝난 것 뒤에 점을 찍는다. 위의 내림(`low_closer_lower`)의 정확한 역이다 —
+//   같은 닫힌 어휘를 읽는다. 줄바꿈과 들여쓰기는 서식기가 찍은 그대로 둔다(글자를 끼우고 지울 뿐이다).
+//
+//   `method` 의 op 이름은 글자로는 마디와 갈리지 않으므로, 내림이 그 토큰에 표시(aux = ".")를 남기고 서식기가 그 이름 뒤에
+//   점을 붙여 찍는다. 여기서는 «이름에 붙은 점» 을 그 표시로 읽는다.
+typedef struct {
+    low_token_t  *T;
+    proven_size_t n;
+    unsigned char *del, *dot;         // 지운다 · 뒤에 붙은 점 하나
+    unsigned short *close, *lp, *rp;  // 뒤에 ` .` 몇 개 · 앞에 `(` · 뒤에 `)`
+    proven_size_t *mate;
+    bool ext;
+    proven_size_t cur;                // 마지막으로 본 자리(못 올렸을 때 어디였는지 말한다)
+    jmp_buf jb;
+} up_t;
+
+static bool up_id(up_t *u, proven_size_t i) { return i < u->n && u->T[i].kind == LOW_TOK_IDENT; }
+static bool up_kw(up_t *u, proven_size_t i, const char *w) { return up_id(u, i) && u->T[i].kw != LOW_KW_NONE && cl_eq(&u->T[i], w); }
+static bool up_word(up_t *u, proven_size_t i, const char *w) { return up_id(u, i) && cl_eq(&u->T[i], w); }
+static bool up_dot(up_t *u, proven_size_t i) { return i < u->n && u->T[i].kind == LOW_TOK_DOT; }
+[[noreturn]] static void up_fail(up_t *u) { longjmp(u->jb, 1); }
+static const low_token_t *up_tk(up_t *u, proven_size_t i) { if (i < u->n) u->cur = i; if (i >= u->n || u->T[i].kind == LOW_TOK_EOF) up_fail(u); return &u->T[i]; }
+static proven_size_t up_mate(up_t *u, proven_size_t i) { if (i >= u->n || u->mate[i] == NOPE) up_fail(u); return u->mate[i]; }
+static bool up_stop(up_t *u, proven_size_t i) {
+    if (i >= u->n) return true;
+    const low_token_t *t = &u->T[i];
+    if (t->kind == LOW_TOK_DOT || t->kind == LOW_TOK_RPAREN || t->kind == LOW_TOK_EOF) return true;
+    return t->kind == LOW_TOK_IDENT && t->kw != LOW_KW_NONE &&
+           (cl_eq(t, "do") || cl_eq(t, "else") || cl_eq(t, "end") || cl_eq(t, "if") || cl_eq(t, "step") || cl_eq(t, "while") || cl_eq(t, "next"));
+}
+// 이름에 붙은 점(서식기가 `method` 의 op 이름 뒤에 찍은 표시)인가
+static bool up_glued(up_t *u, proven_size_t j) {
+    return j > 0 && up_dot(u, j) && u->T[j - 1].kind == LOW_TOK_IDENT && u->T[j - 1].line == u->T[j].line &&
+           u->T[j - 1].col + u->T[j - 1].lex.size == u->T[j].col;
+}
+static bool up_island_op(const low_token_t *t) {
+    static const char *const W[] = { "eq","ne","lt","le","gt","ge","and","or", NULL };
+    return t->kind == LOW_TOK_OP || (t->kind == LOW_TOK_IDENT && cl_in(t, W));
+}
+static proven_size_t up_item(up_t *u, proven_size_t i);
+static void up_call(up_t *u, proven_size_t h, proven_size_t e);
+static proven_size_t up_stmt(up_t *u, proven_size_t i);
+static proven_size_t up_block(up_t *u, proven_size_t i);
+static proven_size_t up_op_decl(up_t *u, proven_size_t i);
+
+// 타입 자리 [a, b): 한정사 뒤에 낱말이 둘 이상이고 머리가 생성자가 아니면 «인자를 받는 사용자 타입» 이다 — 괄호로 싼다.
+static void up_type_span(up_t *u, proven_size_t a, proven_size_t b) {
+    while (a < b && up_id(u, a) && cl_in(&u->T[a], CL_QUAL)) a++;
+    if (b <= a + 1 || !up_id(u, a)) return;
+    const low_token_t *h = &u->T[a];
+    if (cl_in(h, CL_T_ZERO) || cl_in(h, CL_T_PRE1) || cl_in(h, CL_T_CTOR)) return;
+    u->lp[a]++; u->rp[b - 1]++;
+}
+static proven_size_t up_tyend(up_t *u, proven_size_t i) {     // 글자만으로 끝나는 타입(바인딩 · 되풀이의 자리)
+    const low_token_t *t = up_tk(u, i);
+    if (t->kind == LOW_TOK_LPAREN) return up_mate(u, i) + 1;
+    if (t->kind != LOW_TOK_IDENT) up_fail(u);
+    if (cl_in(t, CL_T_ZERO)) return i + 1;
+    if (cl_in(t, CL_T_PRE1)) return up_tyend(u, i + 1);
+    if (cl_eq(t, "result")) return up_tyend(u, up_tyend(u, i + 1));
+    if (cl_eq(t, "array") || cl_eq(t, "vec")) { proven_size_t j = up_tyend(u, i + 1); up_tk(u, j); return u->T[j].kind == LOW_TOK_LPAREN ? up_mate(u, j) + 1 : j + 1; }
+    if (cl_eq(t, "bitset") || cl_eq(t, "mask") || cl_eq(t, "bits")) return (i + 1 < u->n && u->T[i + 1].kind == LOW_TOK_NUMBER) ? i + 2 : i + 1;
+    if (cl_eq(t, "cap") || cl_eq(t, "region")) return i + 2;
+    return i + 1;
+}
+static void up_island(up_t *u, proven_size_t j, proven_size_t e) {
+    bool operand = true;
+    while (j < e) {
+        const low_token_t *x = &u->T[j];
+        if (operand) {
+            if (x->kind == LOW_TOK_LPAREN) {
+                proven_size_t m = up_mate(u, j);
+                if (j + 2 < m && up_island_op(&u->T[u->T[j + 1].kind == LOW_TOK_LPAREN ? up_mate(u, j + 1) + 1 : j + 2])) up_island(u, j + 1, m);
+                else up_call(u, j + 1, m);               // 괄호로 싼 호출 — 섬 안에서는 괄호를 남긴다
+                j = m + 1;
+            }
+            else if (x->kind == LOW_TOK_OP) { j++; continue; }
+            else j = up_item(u, j);
+            operand = false;
+        } else { j++; operand = true; }
+    }
+}
+static proven_size_t up_top(up_t *u, proven_size_t i);
+// 서식기는 타입 인자를 받는 구조체 값을 `(lit <이름>) <타입 인자>… do … end` 로 찍는다. 그 꼴이면 읽고 끝 자리를 돌려준다(아니면 NOPE).
+static proven_size_t up_generic_lit(up_t *u, proven_size_t i) {
+    if (!(i + 3 < u->n && u->T[i].kind == LOW_TOK_LPAREN && up_kw(u, i + 1, "lit") && u->mate[i] == i + 3)) return NOPE;
+    proven_size_t j = i + 4;
+    while (j < u->n && !up_kw(u, j, "do")) {
+        if (u->T[j].kind == LOW_TOK_LPAREN) { j = up_mate(u, j) + 1; continue; }
+        if (u->T[j].kind != LOW_TOK_IDENT || u->T[j].kw != LOW_KW_NONE) return NOPE;
+        j++;
+    }
+    if (j >= u->n || j == i + 4) return NOPE;
+    u->del[i] = 1; u->del[i + 3] = 1;
+    u->lp[i + 2]++; u->rp[j - 1]++;                      // `lit (nest (nest u32)) do …`
+    proven_size_t m = up_mate(u, j), k = j + 1;
+    while (k < m) { k++; k = up_top(u, k); if (!up_dot(u, k)) up_fail(u); k++; }
+    u->close[m]++;
+    return m + 1;
+}
+// 값 자리의 한 마디: 리터럴 · 이름(→ `a.`) · 괄호로 싼 호출(→ 괄호를 벗기고 닫는 점).
+static proven_size_t up_item(up_t *u, proven_size_t i) {
+    const low_token_t *t = up_tk(u, i);
+    if (t->kind == LOW_TOK_LPAREN) {
+        proven_size_t g = up_generic_lit(u, i);
+        if (g != NOPE) return g;
+        proven_size_t j = up_mate(u, i);
+        if (j == i + 1) up_fail(u);
+        u->del[i] = 1; u->del[j] = 1;
+        up_call(u, i + 1, j);
+        // 서식기는 원자 연산의 `order <낱말>` 을 괄호 밖에 찍는다 — 그 낱말까지가 호출이다(닫는 점을 그 뒤로 옮긴다).
+        if (up_id(u, i + 1) && u->T[i + 1].lex.size > 7 && memcmp(u->T[i + 1].lex.ptr, "atomic_", 7) == 0 &&
+            up_word(u, j + 1, "order") && up_id(u, j + 2) && u->close[j - 1]) {
+            u->close[j - 1]--; u->close[j + 2]++;
+            return j + 3;
+        }
+        return j + 1;
+    }
+    if (t->kind == LOW_TOK_NUMBER || t->kind == LOW_TOK_STRING || t->kind == LOW_TOK_CHAR || t->kind == LOW_TOK_TEXTLIT) return i + 1;
+    if (t->kind != LOW_TOK_IDENT) up_fail(u);
+    if (t->kw != LOW_KW_NONE) {
+        if (cl_eq(t, "true") || cl_eq(t, "false") || cl_eq(t, "none")) return i + 1;
+        up_fail(u);
+    }
+    if (cl_eq(t, "_")) return i + 1;
+    u->dot[i] = 1;
+    return i + 1;
+}
+static proven_size_t up_open_end(up_t *u, proven_size_t i);
+// 인자 자리의 한 마디 — 서식기가 괄호 없이 찍는 값(`lit … do … end` · 섬 · `send` …)도 받는다. 그것은 제 끝까지가 한 항이다.
+static proven_size_t up_arg(up_t *u, proven_size_t j, proven_size_t e) {
+    const low_token_t *t = up_tk(u, j);
+    bool open = t->kind == LOW_TOK_IDENT && ((t->kw != LOW_KW_NONE && (cl_eq(t, "lit") || cl_eq(t, "expr") || cl_eq(t, "send") || cl_eq(t, "spawn") || cl_eq(t, "try"))) ||
+                                             (t->kw == LOW_KW_NONE && cl_eq(t, "pipe") && j + 1 < e));
+    if (!open) return up_item(u, j);
+    proven_size_t x = up_open_end(u, j);
+    if (x > e) x = e;
+    up_call(u, j, x);
+    return x;
+}
+static void up_items(up_t *u, proven_size_t j, proven_size_t e) { while (j < e) j = up_arg(u, j, e); }
+// 값이 시작하는 자리 i 에서 괄호 없이 적힌 값의 끝(다음 토큰의 번호)을 찾는다.
+static proven_size_t up_open_end(up_t *u, proven_size_t i) {
+    const low_token_t *t = up_tk(u, i);
+    if (t->kind == LOW_TOK_IDENT && t->kw != LOW_KW_NONE && cl_eq(t, "lit")) {
+        proven_size_t j = i + 1;
+        while (j < u->n && !up_kw(u, j, "do") && !up_dot(u, j) && u->T[j].kind != LOW_TOK_RPAREN && u->T[j].kind != LOW_TOK_EOF) {
+            if (u->T[j].kind == LOW_TOK_LPAREN) j = up_mate(u, j);
+            j++;
+        }
+        if (up_kw(u, j, "do")) return up_mate(u, j) + 1;
+        return up_dot(u, j) ? j + 1 : j;                 // 나열 — 제 점까지
+    }
+    proven_size_t j = i;
+    while (j < u->n) {
+        if (u->T[j].kind == LOW_TOK_LPAREN) { j = up_mate(u, j) + 1; continue; }
+        if (up_kw(u, j, "do") && up_word(u, i, "pipe") && u->T[i].kw == LOW_KW_NONE) { j = up_mate(u, j) + 1; break; }
+        if (up_glued(u, j)) { j++; continue; }
+        if (up_stop(u, j)) break;
+        j++;
+    }
+    return j;
+}
+// 맨 위의 값(문장 · 절 · 칸의 값). 괄호 없이 적힌 호출도 받는다.
+static proven_size_t up_top(up_t *u, proven_size_t i) {
+    const low_token_t *t = up_tk(u, i);
+    if (t->kind == LOW_TOK_LPAREN) return up_item(u, i);
+    proven_size_t e = up_open_end(u, i);
+    if (e == i + 1) return up_item(u, i);
+    up_call(u, i, e);
+    return e;
+}
+// 호출 하나: 머리 h, 그 범위 [h, e). 끝에 닫는 점을 찍는다(인자가 없으면 값의 점).
+static void up_call(up_t *u, proven_size_t h, proven_size_t e) {
+    const low_token_t *t = up_tk(u, h);
+    if (e <= h) up_fail(u);
+    if (e == h + 1) { (void)up_item(u, h); return; }     // `(x)` — 값 하나
+    if (t->kind != LOW_TOK_IDENT) {                      // `(1 …)` 같은 것은 호출이 아니다
+        if (t->kind == LOW_TOK_LPAREN && up_mate(u, h) == e - 1) { (void)up_item(u, h); return; }
+        up_fail(u);
+    }
+    proven_size_t last = e - 1;
+    if (t->kw != LOW_KW_NONE) {
+        if (cl_eq(t, "lit")) {
+            proven_size_t j = h + 1;
+            while (j < e && !up_kw(u, j, "do") && !up_dot(u, j)) { if (u->T[j].kind == LOW_TOK_LPAREN) j = up_mate(u, j); j++; }
+            if (j < e && up_kw(u, j, "do")) {
+                up_type_span(u, h + 1, j);
+                proven_size_t m = up_mate(u, j), k = j + 1;
+                while (k < m) {
+                    k++;
+                    k = up_top(u, k);
+                    if (!up_dot(u, k)) up_fail(u);
+                    k++;
+                }
+                u->close[m]++;
+                return;
+            }
+            proven_size_t k = up_tyend(u, h + 1);         // 나열 — 닫힌 어휘의 타입이다
+            while (k < e && !up_dot(u, k)) k = up_item(u, k);
+            if (!(k < e && up_dot(u, k))) u->close[last]++;   // 괄호가 닫던 나열 — 제 점을 찍는다
+            return;
+        }
+        if (cl_eq(t, "expr")) { up_island(u, h + 1, e); u->close[last]++; return; }
+        if (cl_eq(t, "send")) { proven_size_t j = up_item(u, h + 1); up_items(u, j + 1, e); u->close[last]++; return; }
+        if (cl_eq(t, "spawn")) {
+            if (up_kw(u, h + 1, "actor")) { u->close[last]++; return; }
+            if (up_kw(u, h + 1, "send")) { up_call(u, h + 1, e); u->close[last]++; return; }
+            up_items(u, h + 2, e); u->close[last]++; return;
+        }
+        if (cl_eq(t, "try")) { (void)up_item(u, h + 1); u->close[last]++; return; }
+        if (cl_eq(t, "true") || cl_eq(t, "false") || cl_eq(t, "none")) up_fail(u);
+        up_fail(u);
+    }
+    if (cl_eq(t, "pipe")) {
+        proven_size_t j = up_item(u, h + 1);
+        if (!up_kw(u, j, "do")) up_fail(u);
+        proven_size_t m = up_mate(u, j), k = j + 1;
+        while (k < m) {
+            const char *sh = up_id(u, k) ? cl_lookup(CL_STAGES, CL_N(CL_STAGES), &u->T[k]) : NULL;
+            if (!sh) up_fail(u);
+            k++;
+            for (; *sh; sh++) { if (*sh == 'V') k = up_item(u, k); else k++; }
+            while (!up_dot(u, k) && !up_word(u, k, "with")) k = up_item(u, k);
+            if (up_word(u, k, "with")) k = up_top(u, k + 1);
+            if (!up_dot(u, k)) up_fail(u);
+            k++;
+        }
+        u->close[m]++;
+        return;
+    }
+    if (cl_eq(t, "call_builtin")) { up_items(u, h + 2, e); u->close[last]++; return; }
+    if (cl_eq(t, "alloc_bytes")) {
+        proven_size_t j = h + 1;
+        if (!up_word(u, j, "capacity")) j = up_item(u, j);
+        if (!up_word(u, j, "capacity")) up_fail(u);
+        (void)up_item(u, j + 1); u->close[last]++; return;
+    }
+    if (cl_eq(t, "pop")) {
+        proven_size_t j = up_item(u, h + 1);
+        if (up_word(u, j, "into")) (void)up_item(u, j + 1);
+        u->close[last]++; return;
+    }
+    if (cl_eq(t, "field")) { (void)up_item(u, h + 1); u->close[last]++; return; }
+    if (cl_eq(t, "method")) {                            // 서식기가 op 이름 뒤에 점을 붙여 찍었다
+        proven_size_t j = up_item(u, h + 1);
+        while (j < e && !up_dot(u, j)) j++;
+        if (j >= e) up_fail(u);
+        up_items(u, j + 1, e);
+        u->close[last]++; return;
+    }
+    if (cl_eq(t, "stack_new")) { u->close[last]++; return; }
+    if (cl_eq(t, "view")) { if (h + 2 < e) (void)up_item(u, h + 2); u->close[last]++; return; }
+    const char *sh = cl_lookup(CL_SHAPES, CL_N(CL_SHAPES), t);
+    if (sh && !strchr(sh, 'W')) sh = NULL;
+    if (sh) {
+        proven_size_t j = h + 1;
+        for (; *sh && j < e; sh++) {
+            if (*sh == 'V') j = up_item(u, j);
+            else if (*sh == 'W') j++;
+            else if (*sh == 'R') { up_items(u, j, e); j = e; }
+        }
+        u->close[last]++; return;
+    }
+    proven_size_t j = h + 1;
+    while (j < e) {
+        if (t->lex.size > 7 && memcmp(t->lex.ptr, "atomic_", 7) == 0 && up_word(u, j, "order")) { j += 2; continue; }
+        j = up_arg(u, j, e);
+    }
+    u->close[last]++;
+}
+
+static proven_size_t up_block(up_t *u, proven_size_t i) {
+    if (!up_kw(u, i, "do")) up_fail(u);
+    proven_size_t e = up_mate(u, i), k = i + 1;
+    if (up_word(u, k, "asm") || u->T[k].kind == LOW_TOK_TEXTLIT) return e + 1;
+    while (k < e) k = up_stmt(u, k);
+    if (k != e) up_fail(u);
+    return e + 1;
+}
+// i = `else`. 실패 절을 읽고, 그것을 품은 문장의 닫는 점을 찍는다.
+static proven_size_t up_fail_clause(up_t *u, proven_size_t i) {
+    proven_size_t j = i + 1;
+    if (up_kw(u, j, "do")) { j = up_block(u, j); u->close[j - 1]++; return j; }
+    if (up_word(u, j, "error") && up_kw(u, j + 2, "do")) { j = up_block(u, j + 2); u->close[j - 1]++; return j; }
+    if (up_kw(u, j, "break") || up_kw(u, j, "continue")) j++;
+    else if (up_kw(u, j, "return")) j = up_dot(u, j + 1) ? j + 1 : up_top(u, j + 1);
+    else if (up_word(u, j, "panic")) j = up_top(u, j + 1);
+    else up_fail(u);
+    if (!up_dot(u, j)) up_fail(u);
+    u->close[j]++;
+    return j + 1;
+}
+static proven_size_t up_stmt(up_t *u, proven_size_t i) {
+    const low_token_t *t = up_tk(u, i);
+    if (t->kind != LOW_TOK_IDENT) up_fail(u);
+    bool kw = t->kw != LOW_KW_NONE;
+    if (kw && (cl_eq(t, "let") || cl_eq(t, "var"))) {
+        proven_size_t j = i + 2;
+        if (up_kw(u, j, "use") || up_kw(u, j, "keep")) { u->dot[j + 1] = 1; j += 2; }
+        // 값이 `lit` 로 시작하면 타입을 적지 않는다(서식기는 그 값도 괄호로 싸서 찍는다)
+        if (!up_kw(u, j, "lit") && !(j < u->n && u->T[j].kind == LOW_TOK_LPAREN && up_kw(u, j + 1, "lit"))) j = up_tyend(u, j);
+        if ((up_dot(u, j) || up_kw(u, j, "else")) && u->T[j - 1].kind == LOW_TOK_RPAREN && !(up_kw(u, i + 2, "use") || up_kw(u, i + 2, "keep") ? false : u->mate[j - 1] == i + 2 && up_kw(u, i + 3, "lit"))) {
+            // 서식기는 `view <타입>` 으로 끝나는 타입 뒤의 값을 `(view <타입> <값>)` 으로 한데 묶어 찍는다(`view` 가 연산의 이름이기도
+            // 하다). 그 괄호를 벗기면 타입과 값이 제자리로 간다.
+            proven_size_t m = up_mate(u, j - 1);
+            if (!up_word(u, m + 1, "view") || m + 3 >= j - 1) up_fail(u);
+            u->del[m] = 1; u->del[j - 1] = 1;
+            if (up_item(u, m + 3) != j - 1) up_fail(u);
+        } else
+        j = up_top(u, j);
+        if (up_kw(u, j, "else")) return up_fail_clause(u, j);
+        if (!up_dot(u, j)) up_fail(u);
+        return j + 1;
+    }
+    if (kw && cl_eq(t, "guard")) {
+        proven_size_t j = up_top(u, i + 1);
+        if (!up_kw(u, j, "else")) up_fail(u);
+        return up_fail_clause(u, j);
+    }
+    if (kw && cl_eq(t, "set")) {
+        proven_size_t j = up_item(u, i + 1);
+        j = up_top(u, j);
+        if (!up_dot(u, j)) up_fail(u);
+        return j + 1;
+    }
+    if (kw && cl_eq(t, "return")) {
+        proven_size_t j = up_dot(u, i + 1) ? i + 1 : up_top(u, i + 1);
+        if (!up_dot(u, j)) up_fail(u);
+        return j + 1;
+    }
+    if (kw && (cl_eq(t, "break") || cl_eq(t, "continue"))) { if (!up_dot(u, i + 1)) up_fail(u); return i + 2; }
+    if (kw && cl_eq(t, "expect")) { proven_size_t j = up_top(u, i + 1); if (!up_dot(u, j)) up_fail(u); return j + 1; }
+    if (kw && cl_eq(t, "drop")) { u->dot[i + 1] = 1; if (!up_dot(u, i + 2)) up_fail(u); return i + 3; }
+    if (kw && cl_eq(t, "if")) {
+        proven_size_t j = i;
+        for (;;) {
+            j = up_top(u, j + 1); j = up_block(u, j);
+            if (up_kw(u, j, "else")) {
+                if (up_kw(u, j + 1, "if")) { j++; continue; }
+                j = up_block(u, j + 1);
+            }
+            break;
+        }
+        u->close[j - 1]++;
+        return j;
+    }
+    if (kw && cl_eq(t, "while")) { proven_size_t j = up_block(u, up_top(u, i + 1)); u->close[j - 1]++; return j; }
+    if (kw && (cl_eq(t, "for") || cl_eq(t, "repeat") || cl_eq(t, "range") || cl_eq(t, "cycle"))) {
+        proven_size_t j = i + 2;
+        if (cl_eq(t, "for")) { if (up_word(u, j, "mut")) j++; j = up_item(u, j); }
+        else {
+            j = up_tyend(u, j); j = up_item(u, j);
+            if (cl_eq(t, "range")) { j = up_item(u, j); if (up_kw(u, j, "step")) j = up_item(u, j + 1); }
+            if (cl_eq(t, "cycle")) { j = up_item(u, j + 1); j = up_item(u, j + 1); }
+        }
+        if (up_kw(u, j, "if")) j = up_item(u, j + 1);
+        j = up_block(u, j); u->close[j - 1]++;
+        return j;
+    }
+    if (kw && cl_eq(t, "match")) {
+        proven_size_t j = up_word(u, i + 1, "comptime") ? up_item(u, i + 2) : up_top(u, i + 1);
+        if (!up_kw(u, j, "do")) up_fail(u);
+        proven_size_t e = up_mate(u, j), k = j + 1;
+        while (k < e) {
+            if (up_kw(u, k, "else")) {
+                k = up_block(u, k + 1);
+                if (up_dot(u, k)) { u->del[k] = 1; k++; }   // 서식기는 블록 안의 `else` 를 폼으로 닫아 찍는다 — 새 표면에는 그 점이 없다
+                continue;
+            }
+            k++;
+            while (k < e && !up_kw(u, k, "do")) { if (up_dot(u, k)) up_fail(u); k++; }
+            k = up_block(u, k); u->close[k - 1]++;
+        }
+        j = e + 1;
+        if (up_kw(u, j, "else")) j = up_block(u, j + 1);
+        u->close[j - 1]++;
+        return j;
+    }
+    if (cl_eq(t, "region") && up_kw(u, i + 3, "do")) { proven_size_t j = up_block(u, i + 3); u->close[j - 1]++; return j; }
+    if (cl_eq(t, "borrow") && up_id(u, i + 1) && !up_dot(u, i + 1) && !up_dot(u, i + 2)) {
+        proven_size_t j = up_block(u, up_top(u, i + 2)); u->close[j - 1]++; return j;
+    }
+    if (cl_eq(t, "task_group") && (up_kw(u, i + 1, "do") || up_kw(u, i + 2, "do"))) {
+        proven_size_t j = up_block(u, up_kw(u, i + 1, "do") ? i + 1 : i + 2); u->close[j - 1]++; return j;
+    }
+    if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return up_op_decl(u, i);
+    if (kw && !cl_eq(t, "send") && !cl_eq(t, "spawn") && !cl_eq(t, "try") && !cl_eq(t, "lit") && !cl_eq(t, "expr")) up_fail(u);
+    // 호출 문장 — 문장의 점이 그 호출의 닫는 점이다(따로 찍지 않는다).
+    proven_size_t e = up_open_end(u, i);
+    if (!kw && cl_eq(t, "pipe") && e > i + 1) { up_call(u, i, e); return e; }
+    if (!up_dot(u, e)) up_fail(u);
+    if (e > i + 1) { up_call(u, i, e); u->close[e - 1]--; }
+    return e + 1;
+}
+static proven_size_t up_clause(up_t *u, proven_size_t i) {
+    const low_token_t *t = up_tk(u, i);
+    if (t->kind != LOW_TOK_IDENT) up_fail(u);
+    if (cl_eq(t, "requires") || cl_eq(t, "ensures")) {
+        proven_size_t j = i + 1;
+        while (up_id(u, j) && cl_in(&u->T[j], CL_GRADE) && !up_dot(u, j + 1)) j++;
+        j = up_top(u, j);
+        if (!up_dot(u, j)) up_fail(u);
+        return j + 1;
+    }
+    proven_size_t d = i + 1;
+    if (cl_eq(t, "asm")) { while (!up_kw(u, d, "do") && !up_kw(u, d, "end")) { up_tk(u, d); d++; } return d; }
+    for (;;) {
+        const low_token_t *k = up_tk(u, d);
+        if (k->kind == LOW_TOK_LPAREN) { d = up_mate(u, d) + 1; continue; }
+        if (k->kind == LOW_TOK_DOT) break;
+        if (up_kw(u, d, "do") || up_kw(u, d, "end")) up_fail(u);
+        d++;
+    }
+    if (cl_eq(t, "input")) {
+        proven_size_t j = i + 1;
+        if (up_word(u, j, "comptime")) j++;
+        if (!up_word(u, j + 1, "type")) up_type_span(u, j + 1, d);
+    } else if (cl_eq(t, "using")) up_type_span(u, i + 2, d);
+    else if (cl_eq(t, "output") && d > i + 1) {
+        // output [<이름>] <타입> — 첫 낱말이 글자만으로 끝나는 타입이면 이름이 없다
+        proven_size_t a = i + 1;
+        jmp_buf saved; memcpy(saved, u->jb, sizeof saved);
+        bool whole = false;
+        if (setjmp(u->jb) == 0) { proven_size_t q = a; while (up_id(u, q) && cl_in(&u->T[q], CL_QUAL)) q++; whole = up_tyend(u, q) == d; }
+        memcpy(u->jb, saved, sizeof saved);
+        if (!whole) {
+            const low_token_t *h = &u->T[a];
+            bool tyhead = h->kind == LOW_TOK_IDENT && (cl_in(h, CL_T_ZERO) || cl_in(h, CL_T_PRE1) || cl_in(h, CL_T_CTOR) || cl_in(h, CL_QUAL));
+            if (tyhead) up_type_span(u, a, d);
+            else {                                       // 이름이 있는가 — 둘째부터가 글자만으로 끝나는 타입이면 그렇다
+                bool named = false;
+                memcpy(saved, u->jb, sizeof saved);
+                if (setjmp(u->jb) == 0) { proven_size_t q = a + 1; while (up_id(u, q) && cl_in(&u->T[q], CL_QUAL)) q++; named = d > a + 1 && up_tyend(u, q) == d; }
+                memcpy(u->jb, saved, sizeof saved);
+                if (named) { /* 이름 + 타입 하나 — 싸지 않는다 */ }
+                else up_type_span(u, a, d);
+            }
+        }
+    }
+    return d + 1;
+}
+static void up_fields(up_t *u, proven_size_t k, proven_size_t e) {
+    while (k < e) {
+        proven_size_t d = k;
+        while (d < e && !up_dot(u, d)) d++;
+        if (up_id(u, k) && !cl_eq(&u->T[k], "comptime") && !cl_eq(&u->T[k], "layout") && !cl_eq(&u->T[k], "align") && !cl_eq(&u->T[k], "mmio") && d > k + 1)
+            up_type_span(u, k + 1, d);
+        k = d + 1;
+    }
+}
+static proven_size_t up_op_decl(up_t *u, proven_size_t i) {
+    proven_size_t j = i + 2;
+    if (up_kw(u, j, "do") && u->ext && up_id(u, j + 1) && cl_in(&u->T[j + 1], CL_CLAUSE)) {
+        proven_size_t e = up_mate(u, j), k = j + 1;
+        while (k < e) k = up_clause(u, k);
+        u->close[e]++;
+        return e + 1;
+    }
+    while (!up_kw(u, j, "do")) j = up_clause(u, j);
+    j = up_block(u, j); u->close[j - 1]++;
+    return j;
+}
+static proven_size_t up_topform(up_t *u, proven_size_t i) {
+    u->ext = false;
+    proven_size_t j = i;
+    for (;;) {
+        if (up_kw(u, j, "export") || up_kw(u, j, "unsafe")) j++;
+        else if (up_kw(u, j, "extern")) { u->ext = true; j++; }
+        else if (up_word(u, j, "target") && up_id(u, j + 1) && (up_kw(u, j + 2, "fn") || up_kw(u, j + 2, "proc") || up_kw(u, j + 2, "extern") || up_kw(u, j + 2, "unsafe") || up_kw(u, j + 2, "export"))) j += 2;
+        else break;
+    }
+    const low_token_t *t = up_tk(u, j);
+    if (t->kind != LOW_TOK_IDENT) up_fail(u);
+    bool kw = t->kw != LOW_KW_NONE;
+    if (cl_eq(t, "module") || cl_eq(t, "use") || cl_eq(t, "package") || cl_eq(t, "build")) { while (!up_dot(u, j)) { up_tk(u, j); j++; } return j + 1; }
+    if (kw && cl_eq(t, "def")) {
+        const low_token_t *k = up_tk(u, j + 1);
+        if (cl_eq(k, "type") || cl_eq(k, "newtype")) {
+            proven_size_t d = j + 3;
+            while (!up_dot(u, d)) { up_tk(u, d); if (u->T[d].kind == LOW_TOK_LPAREN) d = up_mate(u, d); d++; }
+            up_type_span(u, j + 3, d);
+            return d + 1;
+        }
+        if (!up_kw(u, j + 3, "do")) up_fail(u);
+        proven_size_t e = up_mate(u, j + 3);
+        if (cl_eq(k, "struct")) up_fields(u, j + 4, e);
+        u->close[e]++;
+        return e + 1;
+    }
+    if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return up_op_decl(u, j);
+    if (kw && (cl_eq(t, "trait") || cl_eq(t, "contract")) && up_kw(u, j + 2, "do")) {
+        proven_size_t e = up_mate(u, j + 2), k = j + 3;
+        while (k < e) {
+            if (up_id(u, k) && cl_in(&u->T[k], CL_CLAUSE)) k = up_clause(u, k);
+            else if (cl_eq(t, "trait") && up_id(u, k)) k++;
+            else up_fail(u);
+        }
+        u->close[e]++;
+        return e + 1;
+    }
+    if (kw && cl_eq(t, "actor") && up_kw(u, j + 2, "do")) {
+        proven_size_t e = up_mate(u, j + 2), k = j + 3;
+        while (k < e) {
+            if (up_kw(u, k, "state") && up_kw(u, k + 1, "do")) { proven_size_t m = up_mate(u, k + 1); up_fields(u, k + 2, m); u->close[m]++; k = m + 1; }
+            else if (up_kw(u, k, "fn") || up_kw(u, k, "proc")) k = up_op_decl(u, k);
+            else if (up_kw(u, k, "export") || up_kw(u, k, "unsafe")) k++;
+            else k = up_clause(u, k);
+        }
+        u->close[e]++;
+        return e + 1;
+    }
+    if (kw && cl_eq(t, "test")) {
+        proven_size_t k = j + 2;
+        if (up_word(u, k, "schedule")) { while (!up_dot(u, k)) { up_tk(u, k); k++; } k++; }
+        k = up_block(u, k); u->close[k - 1]++;
+        return k;
+    }
+    if (kw && (cl_eq(t, "let") || cl_eq(t, "var"))) return up_stmt(u, j);
+    up_fail(u);
+}
+
+// 서식기가 찍은 글(text, n 바이트)을 새 표면으로 올려 `out` 에 쓴다. 올리지 못하면 false — 그때는 아무것도 쓰지 않는다.
+bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_size_t n, FILE *out) {
+    low_lex_result_t lx = low_lex(heap, (proven_u8str_view_t){ .ptr = (const proven_byte_t *)text, .size = n });
+    up_t u = { .T = (low_token_t *)lx.tokens.data, .n = lx.tokens.len };
+    bool ok = false;
+    proven_size_t *ls = NULL, *st = NULL, nl = 0;
+    u.del = (unsigned char *)calloc(u.n + 1, 1); u.dot = (unsigned char *)calloc(u.n + 1, 1);
+    u.close = (unsigned short *)calloc(u.n + 1, sizeof *u.close);
+    u.lp = (unsigned short *)calloc(u.n + 1, sizeof *u.lp); u.rp = (unsigned short *)calloc(u.n + 1, sizeof *u.rp);
+    u.mate = (proven_size_t *)malloc((u.n + 1) * sizeof *u.mate);
+    st = (proven_size_t *)malloc((u.n + 1) * sizeof *st);
+    ls = (proven_size_t *)malloc((n + 2) * sizeof *ls);
+    if (lx.ok && u.n && u.del && u.dot && u.close && u.lp && u.rp && u.mate && st && ls) {
+        proven_size_t np = 0, nd = 0;
+        for (proven_size_t i = 0; i < u.n; i++) u.mate[i] = NOPE;
+        for (proven_size_t i = 0; i < u.n; i++) {
+            const low_token_t *t = &u.T[i];
+            if (t->kind == LOW_TOK_LPAREN) st[np++] = i;
+            else if (t->kind == LOW_TOK_RPAREN) { if (np) { proven_size_t j = st[--np]; u.mate[j] = i; u.mate[i] = j; } }
+            else if (up_kw(&u, i, "do")) st[u.n - 1 - nd++] = i;
+            else if (up_kw(&u, i, "end")) { if (nd) { proven_size_t j = st[u.n - nd--]; u.mate[j] = i; } }
+        }
+        if (setjmp(u.jb) == 0) {
+            proven_size_t i = 0;
+            while (i < u.n && u.T[i].kind != LOW_TOK_EOF) i = up_topform(&u, i);
+            ok = true;
+        } else if (u.cur < u.n) {
+            fprintf(stderr, "lowentc: --fmt: the printed form could not be raised near its line %u, `%.*s`\n", (unsigned)u.T[u.cur].line,
+                    (int)(u.T[u.cur].lex.size > 30 ? 30 : u.T[u.cur].lex.size), (const char *)u.T[u.cur].lex.ptr);
+        }
+    }
+    if (ok) {
+        ls[nl++] = 0;
+        for (proven_size_t q = 0; q < n; q++) if (text[q] == '\n') ls[nl++] = q + 1;
+        proven_size_t at = 0;
+        for (proven_size_t i = 0; i < u.n && u.T[i].kind != LOW_TOK_EOF; i++) {
+            const low_token_t *t = &u.T[i];
+            proven_size_t off = ls[t->line - 1] + t->col - 1;
+            // 이 토큰의 끝 = 다음 토큰의 처음에서 빈칸을 거슬러 올라간 자리
+            proven_size_t nxt = (i + 1 < u.n && u.T[i + 1].kind != LOW_TOK_EOF) ? ls[u.T[i + 1].line - 1] + u.T[i + 1].col - 1 : n;
+            proven_size_t end = nxt;
+            while (end > off && (text[end - 1] == ' ' || text[end - 1] == '\n' || text[end - 1] == '\t' || text[end - 1] == '\r')) end--;
+            if (t->kind == LOW_TOK_IDENT || t->kind == LOW_TOK_NUMBER) { proven_size_t e2 = off + t->lex.size; if (e2 < end) end = e2; }
+            if (t->kind == LOW_TOK_LPAREN || t->kind == LOW_TOK_RPAREN || t->kind == LOW_TOK_DOT) end = off + 1;
+            fwrite(text + at, 1, off - at, out);
+            for (unsigned q = 0; q < u.lp[i]; q++) fputc('(', out);
+            if (!u.del[i]) fwrite(text + off, 1, end - off, out);
+            for (unsigned q = 0; q < u.rp[i]; q++) fputc(')', out);
+            if (u.dot[i]) fputc('.', out);
+            if (t->kind == LOW_TOK_TEXTLIT && u.close[i]) {      // 닫는 꼬리표의 줄에는 아무것도 못 온다 — 다음 토큰 앞에 찍는다
+                fwrite(text + end, 1, nxt - end, out); end = nxt;
+                for (unsigned q = 0; q < u.close[i]; q++) fputs(". ", out);
+            } else
+            for (unsigned q = 0; q < u.close[i]; q++) fputs(" .", out);
+            at = end;
+        }
+        fwrite(text + at, 1, n - at, out);
+    }
+    free(u.del); free(u.dot); free(u.close); free(u.lp); free(u.rp); free(u.mate); free(st); free(ls);
+    proven_array_destroy(&lx.diags); proven_array_destroy(&lx.tokens);
     return ok;
 }

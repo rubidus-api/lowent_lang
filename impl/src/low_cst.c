@@ -1668,7 +1668,12 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
             }
             // ★ RFC-0132 §6 (옮김 창) — 옛 `index` 는 `idx` 로 옮겨 찍는다(이름으로 쓴 `index` 는 없다 — E-VOCAB-REMOVED).
             else if (nd->tok.kind == LOW_TOK_IDENT && low_view_eq_cstr(nd->tok.lex, "index")) fputs("idx", stdout);
-            else low_pv(nd->tok.lex);
+            else {
+                low_pv(nd->tok.lex);
+                // ★ RFC-0142 — `method` 의 op 이름(내림이 표시해 둔다): 이름 뒤에 점을 붙여 찍는다. 올림(`low_closer_raise_text`)이 그 점으로
+                //   마디와 op 이름을 가른다.
+                if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.aux.size == 1 && nd->tok.aux.ptr[0] == '.') putchar('.');
+            }
             break;
         case LOW_CST_ACCESS: break;   // ★ 더는 만들어지지 않는다 — 중위 `to`/`in` 을 없앴다
         case LOW_CST_GROUP: low_fmt_node(nd->nkids ? nd->kids[0] : NULL, arg); break;

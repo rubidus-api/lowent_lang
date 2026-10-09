@@ -1976,7 +1976,30 @@ int main(int argc, char **argv) {
         //   ("서식이 뜻을 바꿨다"). 파일에 있던 것만 찍는다.
         low_parse_result_t p0 = pr;
         p0.nforms = nforms0;
-        low_cst_fmt(&p0);
+        if (!want_closer) low_cst_fmt(&p0);
+        else {
+            // ★ RFC-0142 — 서식기는 «호출마다 괄호» 로 찍는다. 그 글을 받아 새 표면으로 올려 낸다(괄호를 벗기고 닫는 점을 찍는다).
+            fflush(stdout);
+            FILE *tf = tmpfile();
+            int saved = tf ? dup(1) : -1;
+            if (!tf || saved < 0 || dup2(fileno(tf), 1) < 0) { fprintf(stderr, "lowentc: cannot open a scratch file for --fmt\n"); return 1; }
+            low_cst_fmt(&p0);
+            fflush(stdout);
+            dup2(saved, 1); close(saved);
+            long sz = ftell(tf) < 0 ? 0 : (fseek(tf, 0, SEEK_END), ftell(tf));
+            char *fbuf = (char *)malloc((size_t)sz + 1);
+            if (!fbuf) { fprintf(stderr, "lowentc: out of memory\n"); return 1; }
+            rewind(tf);
+            size_t got = fread(fbuf, 1, (size_t)sz, tf);
+            fclose(tf);
+            if (getenv("LOW_FMT_RAW")) { fwrite(fbuf, 1, got, stdout); free(fbuf); return 0; }   /* 디버그 — 올리기 전의 글 */
+            if (!low_closer_raise_text(heap, fbuf, got, stdout)) {
+                fprintf(stderr, "lowentc: --fmt could not print this file in the one-closer surface (RFC-0142) — nothing was written\n");
+                free(fbuf);
+                return 1;
+            }
+            free(fbuf);
+        }
     } else if (want_zones) {
         // ★★★ **안전지대 경계** (RFC-0065 §5) — 최상위 선언마다 이름·시작 줄·끝 줄.
         //   `--ops` 가 op 의 **모양**을 말하듯, `--zones` 는 각 선언의 **경계**를 말한다.

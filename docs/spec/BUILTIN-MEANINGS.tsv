@@ -16,11 +16,24 @@ add	두 수를 더한다. 넘치면 트랩한다
 aes_round	AES 한 라운드 — 상태 16 바이트를 제자리에서(SubBytes·ShiftRows·MixColumns·AddRoundKey). 낸 값은 16
 aes_round_last	마지막 AES 라운드 — MixColumns 없이. 낸 값은 16
 aes_ctr	AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수
+await	그 흐름이 끝날 때까지 기다렸다가 결과를 낸다
 chacha20	ChaCha20 (RFC 8439) — 키 32 · 카운터 블록 16(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce)을 제자리에서 올린다. 낸 값은 흐른 바이트 수
 chacha_poly	ChaCha20-Poly1305 한 덩이 — 흐름과 누산을 한 바퀴에. 뜻은 chacha20 을 돌리고 그 암호문을 poly1305 에 먹인 것과 같다. 낸 값은 흐른 바이트 수
 call_builtin	계산 잎과 파일·그물 잎을 부르는 머리 — 다음 원자가 잎의 이름이다(닫힌 집합). 그 이름은 전역 어휘가 아니라 이 자리에만 산다. 낸 값은 그 잎이 내는 값
 aes_gcm	AES-128-GCM 한 덩이 — 흐름(aes_ctr)과 누산(ghash)을 한 바퀴에. 뜻은 그 둘을 차례로 부른 것과 같다. 낸 값은 흐른 바이트 수
 all	모두 참인가 — 첫 거짓에서 멈춘다
+channel	채널을 만든다
+chrecv	채널에서 값을 뺀다
+chsend	채널에 값을 넣는다
+copy	주는 쪽의 원소를 받는 쪽에 베낀다
+drain	그 액터의 우편함에 든 것을 처리한다
+elem_eq	모든 원소가 그 값과 같다
+elem_ge	모든 원소가 그 값 이상이다
+elem_gt	모든 원소가 그 값보다 크다
+elem_le	모든 원소가 그 값 이하다
+elem_lt	모든 원소가 그 값보다 작다
+elem_ne	모든 원소가 그 값과 다르다
+isa	지금 그 갈래인가를 묻는다
 lane_all	가림막의 레인이 모두 켜졌나 (레인 판정 — pipe 종결자 `all` 과 다른 낱말)
 alloc_bytes	영역에서 바이트 자리를 얻는다
 and	논리 곱 — 앞이 거짓이면 뒤를 **안 본다**
@@ -154,6 +167,7 @@ proc_wait	띄운 프로그램이 끝날 때까지 기다리고 핸들을 닫는�
 push	뒤에 붙인다
 r_read	reactor 로 읽는다
 r_write	reactor 로 쓴다
+random_bytes	OS 엔트로피로 버퍼를 채운다
 range	값의 범위를 좁힌 매개변수 표시
 reactor_new	reactor 를 만든다
 read_in	표준 입력에서 읽는다
@@ -187,9 +201,11 @@ sha384	SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다
 sha512	SHA-512
 shl	왼쪽으로 민다. 시프트 양이 폭 이상이면 트랩한다
 shr	오른쪽으로 민다. 부호 있는 값은 산술 이동이다
+shuffle	레인을 주어진 차례로 다시 놓는다
 sin	사인
 size_of	그 타입이 차지하는 바이트 수
 skip	앞의 n 개를 건너뛴다
+some	값을 담은 option 을 만든다
 some_value	담긴 값을 꺼낸다
 spawn	새 실행 흐름을 만들고 핸들을 낸다
 splat	한 값을 모든 레인에 채운다
@@ -204,9 +220,16 @@ sum_neumaier	부동 조각을 **보정하며** 더한다 — 오차가 항의 �
 sum_seq	부동 조각을 앞에서 뒤로 한 번 더한다 — 빠르고, 오차가 항의 개수에 비례한다
 swap	두 자리를 맞바꾼다
 take	앞에서 n 개
+time_local	지금의 날짜와 시각(한 수에 묶어 낸다)
+time_now	단조 시계의 지금(나노초)
+time_sleep	주어진 밀리초만큼 잔다 — 실제로 잔 밀리초를 낸다
 trailing_zeros	맨 뒤의 0 비트 수
 try_view	`view` 와 같되 계약이 깨지면 `none` 을 낸다
 bitset_union	합집합
+tty_raw	터미널의 날 입력 모드를 켜거나 끈다
+tty_read	터미널에서 읽는다(지금 없으면 0)
+tty_size	터미널의 행과 열(한 수에 묶어 낸다)
+unsafe_fn	op 의 주소를 값으로 낸다(씨에 되부름으로 넘긴다)
 value_or	값이 있으면 그것, 없으면 기본값 — 기본값은 **성공 시 평가되지 아니한다**
 view	바이트를 구조체로 본다 — 복사 없음. 정렬·길이 계약을 확인한다
 view_array	바이트를 그 타입의 배열로 본다 — 복사 없음

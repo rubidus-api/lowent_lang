@@ -1065,7 +1065,7 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
     unsigned prev_ceiling = vm->cur_ceiling;
     vm->sched_base = base_depth;
     g_gt_err = false;
-    proven_size_t rr = 0;      // round-robin 커서(기본 pick)
+    volatile proven_size_t rr = 0;   // round-robin 커서(기본 pick) — volatile: 아래에서 문맥이 되돌아온다. -O2 가 레지스터에 두면 되돌아올 때 옛 값이 된다(-Wclobbered)
     for (;;) {
         // 1) mbox 의 대기 항목을 gthread 슬롯으로 흡수(도착 순서). 새로 온 것도 다음 라운드에 흡수.
         // ★★★ **게으른 재활용**: 상한 전엔 새 자리, **가득 찼을 때만** 끝난 자리(state 4)를 쓴다 (2026-07-21).

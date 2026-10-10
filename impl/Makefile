@@ -1,7 +1,8 @@
 # lowent front-end + lowent-mini interpreter — C23, built on vendored proven_c_lib.
 # Shared front-end (lexer + point-closure CST + resolver) per BOOTSTRAP.md / DECISION-0005.
 #
-#   make            debug build (-g -O0)         -> build/lowentc
+#   make            optimised build with symbols (-g -O2) -> build/lowentc   (the tests run this one — RFC-0145)
+#   make OPT='-g -O0'   unoptimised build, for a debugger (run `make clean` first)
 #   make asan       debug + ASan/UBSan
 #   make run ARGS=… build then run
 #   make test       build + run tests
@@ -10,7 +11,9 @@
 CC      ?= gcc
 CSTD    := -std=c23
 WARN    := -Wall -Wextra -Wshadow
-OPT     ?= -g -O0
+# ★ RFC-0145 (소유자 2026-10-11): 시험이 부르는 처리기를 최적화해서 짓는다 — 골든은 이 바이너리를 수만 번 부른다(`-O0` 보다 한 번에
+#   1.4–2.5 배 빠르다). 디버거로 볼 때는 `make clean && make OPT='-g -O0'`. `asan` · `alloccheck` 는 제 OPT 를 따로 쓴다.
+OPT     ?= -g -O2
 PROVEN  := vendor/proven
 INC     := -Isrc -I$(PROVEN)/include -I$(PROVEN)/platform
 # ★ 지연 확장(=)이어야 한다 — `dist: OPT := -O2` 같은 **목표별 변수**가 CFLAGS 에 반영되려면.

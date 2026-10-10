@@ -3961,7 +3961,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       else if ((E->param_cstr >> q) & 1u)       // ★ cstr — 널종단 char* (슬라이스 칸의 포인터, RFC-0137 P3)
                           fprintf(out, "%s(const char *)sloc[%zu].p", nn++ ? ", " : "", (size_t)q);
                       else if ((E->param_slice >> q) & 1u)
-                          fprintf(out, "%s(const %s *)sloc[%zu].p, sloc[%zu].n", nn++ ? ", " : "",
+                          fprintf(out, "%s(%s%s *)sloc[%zu].p, sloc[%zu].n", nn++ ? ", " : "", ((E->param_mutw >> q) & 1u) ? "" : "const ",
                                   cbe_slice_ctype(E->param_ebits[q], E->param_selem[q]), (size_t)q, (size_t)q);
                       else if ((E->param_flt >> q) & 1u)
                           fprintf(out, "%sfloc[%zu]", nn++ ? ", " : "", (size_t)q);
@@ -4594,7 +4594,8 @@ static void cbe_extern_proto(const low_ir_t *ir, const low_ir_def_t *d, FILE *ou
             continue;
         }
         if ((d->param_slice >> q) & 1u) {
-            fprintf(out, "%sconst %s *, size_t", n++ ? ", " : "",
+            // ★ 쓸 수 있는 슬라이스(`mut slice t`)는 `const` 없이 나간다 — C 가 그 칸에 쓴다(2026-10-11, extern-mut-slice-const).
+            fprintf(out, "%s%s%s *, size_t", n++ ? ", " : "", ((d->param_mutw >> q) & 1u) ? "" : "const ",
                     cbe_slice_ctype(d->param_ebits[q], d->param_selem[q]));   // ★ 폭으로 정직한 포인터 타입
             continue;
         }
@@ -6186,7 +6187,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             else if (vi < E->nparams && ((E->param_cstr >> vi) & 1u))   // ★ cstr — 슬라이스 칸의 포인터(RFC-0137 P3)
                                 fprintf(out, "%s(const char *)st[sp-%zu].p", sep, off);
                             else if (vi < E->nparams && ((E->param_slice >> vi) & 1u))
-                                fprintf(out, "%s(const %s *)st[sp-%zu].p, st[sp-%zu].n", sep,
+                                fprintf(out, "%s(%s%s *)st[sp-%zu].p, st[sp-%zu].n", sep, ((E->param_mutw >> vi) & 1u) ? "" : "const ",
                                         cbe_slice_ctype(E->param_ebits[vi], E->param_selem[vi]), off, off);
                             else if (vi < E->nparams && ((E->param_flt >> vi) & 1u))
                                 fprintf(out, "%slw_fval(st[sp-%zu])", sep, off);
@@ -6213,7 +6214,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         else if ((E->param_cstr >> q) & 1u)       // ★ cstr — 슬라이스 칸의 포인터(RFC-0137 P3)
                             fprintf(out, "%s(const char *)a[%zu].p", n++ ? ", " : "", (size_t)q);
                         else if ((E->param_slice >> q) & 1u)
-                            fprintf(out, "%s(const %s *)a[%zu].p, a[%zu].n", n++ ? ", " : "",
+                            fprintf(out, "%s(%s%s *)a[%zu].p, a[%zu].n", n++ ? ", " : "", ((E->param_mutw >> q) & 1u) ? "" : "const ",
                                     cbe_slice_ctype(E->param_ebits[q], E->param_selem[q]), (size_t)q, (size_t)q);
                         else if ((E->param_flt >> q) & 1u)
                             fprintf(out, "%slw_fval(a[%zu])", n++ ? ", " : "", (size_t)q);

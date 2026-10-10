@@ -13,7 +13,7 @@
 ## 짓기와 시험
 
 ```sh
-make            # 디버그 빌드 → build/lowentc
+make            # 최적화 빌드(-g -O2) → build/lowentc — 시험이 이것을 부른다. 디버거용: make clean && make OPT='-g -O0'
 make check      # 공개본의 회귀 시험: 단위 시험 + 표준 라이브러리 검사 + VM≡네이티브 + 거절 진단
 make test       # 단위 시험만 (tests/run_tests.c)
 make asan       # ASan/UBSan 빌드

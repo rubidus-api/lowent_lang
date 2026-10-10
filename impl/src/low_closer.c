@@ -993,7 +993,7 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
     c.rp = (unsigned short *)calloc(c.n, sizeof *c.rp);
     c.mate = (proven_size_t *)malloc(c.n * sizeof *c.mate);
     proven_size_t *st = (proven_size_t *)malloc(c.n * sizeof *st);
-    bool ok = false;
+    volatile bool ok = false;                            // setjmp 뒤에 읽는다(-Wclobbered)
     if (c.del && c.lp && c.rp && c.mate && st && c.pre && c.post && c.rep) {
         proven_size_t np = 0, nd = 0;                    // 괄호 · do/end 의 짝 — 두 벌의 더미를 한 배열의 양끝에 둔다
         for (proven_size_t i = 0; i < c.n; i++) c.mate[i] = NOPE;
@@ -1566,7 +1566,7 @@ static proven_size_t up_clause(up_t *u, proven_size_t i) {
             bool tyhead = h->kind == LOW_TOK_IDENT && (cl_in(h, CL_T_ZERO) || cl_in(h, CL_T_PRE1) || cl_in(h, CL_T_CTOR) || cl_in(h, CL_QUAL));
             if (tyhead) up_type_span(u, a, d);
             else {                                       // 이름이 있는가 — 둘째부터가 글자만으로 끝나는 타입이면 그렇다
-                bool named = false;
+                volatile bool named = false;
                 memcpy(saved, u->jb, sizeof saved);
                 if (setjmp(u->jb) == 0) { proven_size_t q = a + 1; while (up_id(u, q) && cl_in(&u->T[q], CL_QUAL)) q++; named = d > a + 1 && up_tyend(u, q) == d; }
                 memcpy(u->jb, saved, sizeof saved);

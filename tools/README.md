@@ -5,7 +5,7 @@ all taking their word lists from the compiler and the specification rather than 
 
 | folder | what it is | checked by |
 |---|---|---|
-| [`tree-sitter-lowent/`](tree-sitter-lowent/) | A tree-sitter grammar: a syntax tree for highlighting, folding and structural editing | `scripts/check-corpus.py` — every `.low` file the compiler reads at the surface parses with no `ERROR` / `MISSING` node (935 of 935 today), and every file the compiler refuses there is refused by the grammar too (21 of 21) |
+| [`tree-sitter-lowent/`](tree-sitter-lowent/) | A tree-sitter grammar: a syntax tree for highlighting, folding and structural editing | `scripts/check-corpus.py` — every `.low` file the compiler reads at the surface parses with no `ERROR` / `MISSING` node (942 of 942 today), and of the 22 files the compiler refuses there the grammar refuses 21 (the other is a `matrix` read with the wrong number of indexes — a matter of shape, not of syntax) |
 | [`lowent-lsp/`](lowent-lsp/) | A language server: on open and save it runs `lowentc --check --diag-json` and shows what the compiler said; on a keyword or a builtin op it shows the specification's line for that word (hover) and offers those words (completion) | `node test.js` — drives the server over the protocol, and compares `words.json` with the specification's tables |
 | [`vscode-lowent/`](vscode-lowent/) | A VS Code extension: regular-expression colours (`syntaxes/lowent.tmLanguage.json`) and a client for the server | `scripts/gen-syntax.py --check` — the word lists match the specification |
 

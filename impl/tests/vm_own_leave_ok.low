@@ -1,0 +1,32 @@
+rem The accepted side of own_leave_path.low: a loop whose condition is `true` ends only by `break`, so a value moved
+rem on that path is simply moved after the loop — nothing meets it there.
+module vm_own_leave_ok .
+
+def struct h do
+  fd u64 .
+end .
+
+fn take input p owned h . output u64 . do
+  return field p. fd . .
+end .
+
+fn spend input p owned h . output u64 . do
+  var n u64 0 .
+  var got u64 0 .
+  while true do
+    set n. add n. 1 . .
+    if ge n. 3 . do
+      set got. take p. . .
+      break .
+    end .
+  end .
+  return add got. n. . .
+end .
+
+export fn once input c u64 . output u64 .
+  requires le c. 1000 . .
+do
+  var p h lit h do fd c. . end . .
+  set field p. fd . add c. 0 . .
+  return spend p. . .
+end .

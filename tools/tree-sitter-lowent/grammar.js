@@ -138,6 +138,7 @@ module.exports = grammar({
       seq(choice(...T_PRE1), $._type),
       seq('result', optional(seq($._type, optional($._type)))),
       seq(choice('array', 'vec'), choice($._type, $.number), choice($.name, $.path, $.number, $.paren_type)),
+      prec(-1, seq('matrix', $._type, $.number, repeat1($.number))),   // element type, number of dimensions, one size each
       seq(choice('bitset', 'mask', 'bits'), optional($.number)),
       seq(choice('cap', 'region'), $.name),
       seq('range', optional($.type_name), $.number, $.number),
@@ -164,13 +165,13 @@ module.exports = grammar({
       seq('else', $.block),
       seq('else', 'error', $.name, $.block),
     ),
-    _leave: $ => choice($.return_leave, 'break', 'continue', seq('panic', $._term)),
+    _leave: $ => choice($.return_leave, seq(choice('break', 'continue'), optional($.number)), seq('panic', $._term)),
     return_leave: $ => prec.right(seq('return', optional($._term))),
 
     guard_statement: $ => seq('guard', $._term, 'else', choice(seq($._leave, $.stop), $.block), $.stop),
     set_statement: $ => seq('set', $._term, $._term, $.stop),
     return_statement: $ => seq('return', optional($._term), $.stop),
-    jump_statement: $ => seq(choice('break', 'continue'), $.stop),
+    jump_statement: $ => seq(choice('break', 'continue'), optional($.number), $.stop),   // `break 2 .` leaves two loops
     expect_statement: $ => seq('expect', $._term, $.stop),
     drop_statement: $ => seq('drop', $.name, $.stop, $.stop),
 
@@ -222,6 +223,7 @@ module.exports = grammar({
     fill_item: $ => seq(choice($.number, $.name, '_'), $._term, $.stop),
     list_literal: $ => seq('lit', choice(
       seq(choice('array', 'vec'), $._type, choice($.name, $.path, $.number)),
+      seq('matrix', $._type),                 // the dimensions and sizes read as the first numbers of the list
       seq('slice', $._type),
     ), repeat(choice($._term, '_')), $.stop),
 

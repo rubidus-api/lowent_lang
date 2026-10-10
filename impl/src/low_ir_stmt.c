@@ -399,8 +399,17 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         return;
     }
     if (kw == LOW_KW_GIVE) { ir_fail(c, "E-IR-UNSUP", "give is gone", line); return; }
+    // ★ RFC-0143 — `break <n> .` · `continue <n> .`: n 겹째 되풀이가 대상이다(없으면 1 = 가장 안쪽). 대상의 깊이까지
+    //   돌려주고 되감으므로, 사이에 낀 되풀이들이 연 것도 함께 닫힌다(그 깊이들은 대상의 깊이보다 얕지 않다).
+    proven_size_t lvn = 1;
+    if ((kw == LOW_KW_BREAK || kw == LOW_KW_CONTINUE) && n == 2 && is_atom(k[start + 1]) && k[start + 1]->tok.kind == LOW_TOK_NUMBER) {
+        proven_u8str_view_t lx = k[start + 1]->tok.lex; lvn = 0;
+        for (proven_size_t z = 0; z < lx.size && lx.ptr[z] >= '0' && lx.ptr[z] <= '9' && lvn <= IR_MAXLOOP; z++) lvn = lvn * 10 + (proven_size_t)(lx.ptr[z] - '0');
+        if (lvn == 0 || lvn > c->nloops) { ir_fail(c, "E-LOOP-COUNT", "`break <n>` / `continue <n>` counts the loops around it, from 1 (the innermost)", line); return; }
+        n = 1;
+    }
     if ((kw == LOW_KW_BREAK || kw == LOW_KW_CONTINUE) && n == 1 && c->nloops > 0) {
-        ir_loop_t *lp = &c->loops[c->nloops - 1];
+        ir_loop_t *lp = &c->loops[c->nloops - lvn];
         // ★ 루프 **안에서 연** 영역만 되감는다 — 루프를 감싼 영역은 계속 산다.
         ir_release_down_to(c, lp->reldepth);                // ★ RFC-0135 S2 — 루프 안에서 받은 것만 돌려준다
         for (proven_size_t d = g_nrg; d-- > lp->rgdepth; ) {

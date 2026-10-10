@@ -1,0 +1,76 @@
+rem `matrix <element> <number of dimensions> <sizes>` — several dimensions with the sizes in the type.
+rem Elements lie in one run, row-major (the last index moves fastest). `idx m. i. j. .` takes one index per dimension
+rem and checks each against its own size; `dim m. k .` is a size; `flat m. .` is the same elements as one row.
+module vm_matrix .
+
+fn sum_row input m matrix u32 2 3 4 . input r u64 . output u64 .
+  requires lt r. 3 . .
+do
+  var s u64 0 .
+  repeat c u64 dim m. 1 . do
+    set s. add s. widen u64 idx m. r. c. . . . .
+  end .
+  return s. .
+end .
+
+fn table output t matrix u32 2 3 4 .
+do
+  repeat r u64 3 do
+    repeat c u64 4 do
+      set idx t. r. c. . narrow u32 add mul r. 10 . c. . . .
+    end .
+  end .
+  return t. .
+end .
+
+fn total input xs slice u32 . output u64 .
+do
+  var s u64 0 .
+  for x xs. do set s. add s. widen u64 x. . . . end .
+  return s. .
+end .
+
+rem read one cell of a literal
+export fn cell input r u64 . input c u64 . output u64 .
+do
+  let m lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
+  return widen u64 idx m. r. c. . . .
+end .
+
+rem write one cell, read it back, and add the two sizes
+export fn poke input r u64 . input c u64 . output u64 .
+do
+  var z lit matrix u8 2 4 5 _ . .
+  set idx z. r. c. . 200 .
+  return add widen u64 idx z. r. c. . . add mul dim z. 0 . 10 . dim z. 1 . . . .
+end .
+
+rem three dimensions: every cell holds its own three indexes
+export fn cube input a u64 . input b u64 . input c u64 . output u64 .
+do
+  var t matrix u64 3 2 3 4 lit matrix u64 3 2 3 4 _ . .
+  repeat i u64 dim t. 0 . do
+    repeat j u64 dim t. 1 . do
+      repeat k u64 dim t. 2 . do
+        set idx t. i. j. k. . add mul i. 100 . add mul j. 10 . k. . . .
+      end .
+    end .
+  end .
+  return idx t. a. b. c. . .
+end .
+
+rem a matrix goes into an op whole, and comes out of one whole
+export fn rows input r u64 . output u64 .
+  requires lt r. 3 . .
+do
+  let t matrix u32 2 3 4 table . .
+  return add mul sum_row t. r. . 1000 . total flat t. . . . .
+end .
+
+rem an index may be any expression, and it is evaluated once
+export fn expr_index input r u64 . output u64 .
+  requires lt r. 2 . .
+do
+  let m lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
+  return widen u64 idx m. add r. 1 . sub 3 r. . . . .
+end .

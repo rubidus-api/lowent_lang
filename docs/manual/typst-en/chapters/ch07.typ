@@ -42,7 +42,7 @@
 - `count_big` counts from 0 up to `n` and counts only numbers greater than 5. Look at the shape `while lt i. n. . do … end .` --- the
   condition ends at the `do` that opens the body --- there is no full stop between them. A full stop only closes a statement.
 - `first_zero` leaves the loop with `break` when it meets a 0, and returns the length if there is none. `break` and `continue` act on
-  the innermost loop; there are no labels for an outer loop.
+  the innermost loop. To reach an outer loop, write a number after them (see "Leaving nested loops at once" below).
 - The condition of a `while` is checked *before* each round. If it is false at the start, the body never runs.
 - `odd_sum` walks the elements with `for x xs. do … end .` and skips even ones with `continue`. The `for` name `x` has the slice's element
   type (`u8`) and lives only inside the block.
@@ -73,6 +73,24 @@ elements --- the old form `for i count u64 n . do` is rejected with `E-FOR-OLD`.
 #demo("examples/ch07/doubling.low")
 
 - `steps 100` runs seven rounds: 1, 2, 4, 8, 16, 32, 64. 128 does not enter the body because `lt i. limit. .` is false.
+
+=== Leaving nested loops at once
+
+A number after `break` or `continue` counts loops outward. 1 is the innermost loop (the same as writing no number), and 2 is the
+loop around it. Loops have no labels.
+
+#demo("examples/ch07/breakout.low")
+
+- `first_cell 8` meets 8 in the third row, second column, and `break 2 .` leaves both loops together. The answer is
+  `2 × 3 + 1 = 7`. A plain `break .` would leave only the inner loop, and the outer one would go on with the remaining rows.
+- `rows_without 0` meets a row that holds 0 and `continue 2 .` skips the rest of that row and goes on with the next one, so
+  that row is not counted. The answer is 2.
+- Only loop heads are counted (`while`, `for`, `repeat`, `range`, `cycle`). The blocks of `if` and `match` are not.
+- When you wrap a loop in another one, or remove one, the same number points at a different loop. Count again when you do.
+
+A number larger than the loops around the statement is rejected.
+
+#demo("examples/ch07/mistake_breakfar.low")
 
 == `guard` --- turning a condition into a fact
 
@@ -259,6 +277,7 @@ Nothing may follow an `else` --- it has already taken everything, so a later arm
   [`cycle i u64 v while c next e do … end .`], [a loop whose next value you write], [start, condition and next value sit together in one head],
   [`for x xs. do … end .`], [each element of a slice in turn], [moving to the next element is the language's job],
   [`break .` · `continue .`], [leave the loop · go to the next round], [statements that change the flow],
+  [`break 2 .` · `continue 2 .`], [leave the second loop out · go to its next round], [nested loops are left without a flag variable],
   [`guard c else return … .`], [leave unless the condition holds --- afterwards it is a fact], [`else` must always leave],
   [`return e .`], [return a value and finish], [on every path of an op that produces a value],
   [`match v. do case … do … end . … end .`], [split by cases], [complete and non-overlapping --- no fall-through],

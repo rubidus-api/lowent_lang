@@ -1461,6 +1461,7 @@ static bool ty_is_builtin_word(proven_u8str_view_t v) {
         "file_system","net","clock","rng","device",
         "tty",   // ★ 터미널 (2026-07-26) — raw 모드·키 입력·화면 크기
         "process",   // ★ 프로그램 띄우기 (RFC-0136)
+        "matrix",    // ★ RFC-0144 — 표면 패스가 `array` 로 옮겨 적으므로 여기에는 서식 때만 온다. 타입 낱말의 표는 이것을 안다
     };
     for (proven_size_t i = 0; i < sizeof k / sizeof k[0]; i++) if (veq(v, k[i])) return true;
     return false;
@@ -1757,6 +1758,27 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     tc_emit(c, "E-TYPE-SET",
                             "a whole row is not replaced with `set (idx … )` — write its cells (`set (idx (idx g r) c) v .`), "
                             "or copy a row into it with `copy` (RFC-0132 §13.10)", f->line);
+            }
+            // ★★★ **자리의 뿌리까지 내려가 본다** (2026-10-10 · RFC-0144 를 짓다가 찾았다). 위의 검사는 `set (idx <이름> …)` 만
+            //   보았다 ⇒ `set (idx (subslice x …) i) v` · `set (idx (idx g r) c) v` 는 x · g 가 `let` 이거나 공유 입력이어도
+            //   통과했다(읽기 전용 자리에 쓴다). `idx` 와 `subslice` 는 받은 자리를 그대로 가리키므로, 받는 쪽을 따라 이름까지 간다.
+            if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids >= 2 &&
+                g->kids[0]->kids[0]->kind == LOW_CST_ATOM && veq(g->kids[0]->kids[0]->tok.lex, "idx") &&
+                g->kids[0]->kids[1]->kind != LOW_CST_ATOM) {
+                const low_cst_t *r = g->kids[0]->kids[1];
+                for (int hops = 0; r && hops < 64; hops++) {
+                    while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 2 || r->kids[0]->kind != LOW_CST_ATOM ||
+                        !(veq(r->kids[0]->tok.lex, "idx") || veq(r->kids[0]->tok.lex, "subslice"))) break;
+                    r = r->kids[1];
+                }
+                if (r && r->kind == LOW_CST_ATOM && r->tok.kind == LOW_TOK_IDENT) {
+                    bool fnd; ty_t st2 = env_find(env, *nenv, r->tok.lex, &fnd);
+                    if (fnd && st2.k == TK_SLICE && !st2.is_mut)
+                        tc_emit(c, "E-TYPE-MUT",
+                                "writing an element of a slice that is not declared `mut` "
+                                "(a shared slice is read-only) — the place is reached through `idx` / `subslice`, and it is the same storage", f->line);
+                }
             }
             // ★ `set (field q x) v .` — 필드가 존재해야 하고, 값의 타입이 맞아야 한다.
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 3 &&

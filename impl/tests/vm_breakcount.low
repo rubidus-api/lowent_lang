@@ -1,0 +1,78 @@
+rem `break <n> .` · `continue <n> .` — the number counts the loops around the statement: 1 is the innermost
+rem (the same as no number), 2 the loop around it. Every loop head takes part: while · for · repeat · range · cycle.
+module vm_breakcount .
+
+rem the first cell that holds `want`, as row * 3 + column; 99 when there is none
+export fn find input want u32 . output u64 .
+do
+  let g lit array (array u32 3) 3 lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
+  var hit u64 99 .
+  repeat r u64 len g. . do
+    repeat c u64 3 do
+      if eq idx idx g. r. . c. . want. . do
+        set hit. add mul r. 3 . c. . .
+        break 2 .
+      end .
+    end .
+  end .
+  return hit. .
+end .
+
+rem rows that hold no `bad` — `continue 2` goes on to the next row from inside the scan of one
+export fn clean_rows input bad u32 . output u64 .
+do
+  let g lit array (array u32 3) 3 lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
+  var n u64 0 .
+  for row g. do
+    for x row. do
+      guard ne x. bad. . else continue 2 . .
+    end .
+    set n. add n. 1 . .
+  end .
+  return n. .
+end .
+
+rem three loops of three kinds; `break 3` leaves all of them, `continue 2` skips the rest of the innermost
+export fn three input stop u64 . output u64 .
+  requires le stop. 1000 . .
+do
+  var n u64 0 .
+  while lt n. 2000 . do
+    range i u64 1 10 do
+      cycle k u64 1 while lt k. 100 . next mul k. 2 . do
+        set n. add n. 1 . .
+        if eq n. stop. . do break 3 . end .
+        if eq k. 2 . do continue 2 . end .
+      end .
+    end .
+  end .
+  return n. .
+end .
+
+rem `break 1 .` is `break .`
+export fn one input lim u64 . output u64 .
+  requires le lim. 1000 . .
+do
+  var n u64 0 .
+  while true do
+    if ge n. lim. . do break 1 . end .
+    set n. add n. 1 . .
+  end .
+  return n. .
+end .
+
+rem a loop that builds a list on every turn and leaves two loops from inside it
+export proc regioned input lim u64 . output u64 . effects state .
+  requires le lim. 100 . .
+do
+  var total u64 0 .
+  repeat a u64 4 do
+    repeat b u64 4 do
+      var buf lit array u64 8 _ . .
+      set idx buf. 0 . add mul a. 4 . b. . .
+      set total. add total. idx buf. 0 . . .
+      if ge total. lim. . do break 2 . end .
+    end .
+  end .
+  return total. .
+end .

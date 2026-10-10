@@ -1834,7 +1834,7 @@ int main(int argc, char **argv) {
                         lx.tokens.len = 1;
                     }
                 } else
-                if (!low_closer_lower(heap, &lx.tokens, &lx.diags)) {
+                if ((low_closer_set_file(fi != 0 ? paths[fi] : NULL), low_closer_matrix_keep = want_fmt, !low_closer_lower(heap, &lx.tokens, &lx.diags))) {
                     for (proven_size_t q = d0; q < lx.diags.len; q++) {
                         low_diag_t *dq = &((low_diag_t *)lx.diags.data)[q];
                         if (!dq->file && fi != 0) dq->file = paths[fi];
@@ -1903,6 +1903,12 @@ int main(int argc, char **argv) {
             else { proven_array_destroy(&lx.diags); proven_array_destroy(&lx.tokens); }
             if (p2.forms && fi != 0) heap.free_fn(heap.ctx, p2.forms);
             proven_array_destroy(&p2.diags);
+        }
+        if (!want_migrate) {                       // ★ RFC-0144 — op 의 경계를 넘는 matrix 의 모양은 파일을 다 읽은 뒤에 견준다
+            proven_result_array_t ma = PROVEN_ARRAY_INIT(heap, low_diag_t, 4);
+            proven_array_t md = ma.value;
+            if (!low_closer_matrix_verify(&md)) { dump_diags("surface diagnostics", &md); ok = false; }
+            proven_array_destroy(&md);
         }
         pr.forms = all; pr.nforms = nall; pr.diags = diags; pr.ok = ok;
     }

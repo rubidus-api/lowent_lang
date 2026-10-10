@@ -805,6 +805,14 @@ static proven_size_t dt_type_end_h(dt_ctx_t *c, low_cst_t *const *k, proven_size
         proven_size_t j = dt_type_end(c, k, i + 1, end);
         return (j != NO && j < end && us_is_int_lit(k[j])) ? j + 1 : NO;
     }
+    if (us_eq(w, "matrix")) {                                        // matrix <타입> <차원 수 k> <크기 k 개> — 서식 때만 여기 온다(RFC-0144)
+        proven_size_t j = dt_type_end(c, k, i + 1, end);
+        if (j == NO || j >= end || !us_is_int_lit(k[j])) return NO;
+        proven_size_t dims = 0;
+        for (proven_size_t z = 0; z < k[j]->tok.lex.size && z < 2; z++) dims = dims * 10 + (proven_size_t)(k[j]->tok.lex.ptr[z] - '0');
+        for (proven_size_t z = 0; z < dims; z++) if (j + 1 + z >= end || !us_is_int_lit(k[j + 1 + z])) return NO;
+        return j + 1 + dims;
+    }
     if (us_eq(w, "vec")) {                                           // vec <타입> <레인 수 | scalable 같은 낱말>
         proven_size_t j = dt_type_end(c, k, i + 1, end);
         return (j != NO && j < end && us_atom(k[j])) ? j + 1 : NO;

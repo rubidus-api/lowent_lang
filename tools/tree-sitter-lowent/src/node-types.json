@@ -3043,9 +3043,13 @@
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "number",
+          "named": true
+        },
         {
           "type": "stop",
           "named": true
@@ -6734,6 +6738,10 @@
   },
   {
     "type": "match",
+    "named": false
+  },
+  {
+    "type": "matrix",
     "named": false
   },
   {

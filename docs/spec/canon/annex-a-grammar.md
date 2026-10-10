@@ -82,8 +82,8 @@ cycle <이름> <타입> <처음> while <조건> next <다음 값> do <문장들>
 guard <조건> else <빠져나가는 문장> .
 
 return <식> .
-break .
-continue .
+break [<수>] .
+continue [<수>] .
 ```
 
 (1) 이 틀의 `<식>` · `<조건>` · `<원천>` · `<자리>` 는 **제 점까지 든 폼**이다 — 변수면 `a.`, 부름이면 `add a. 1 .`, 리터럴이면
@@ -275,10 +275,11 @@ cycle               cycle <이름> <타입> <폼> while <폼> next <폼> [if <�
 region              region <이름> <종류> do <폼>* end .
 borrow              borrow <이름> <폼> do <폼>* end .
 return              return [<폼>] .
-break               break .                   (라벨은 없다)
-continue            continue .
+break               break [<수>] .            (수 = 벗어날 되풀이의 겹 · 라벨은 없다)
+continue            continue [<수>] .
 lit                 lit <타입> do <칸초기>* end .  (칸초기 = <이름> <폼> .)
 lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .
+lit (matrix)        lit matrix <타입> <차원 수> <크기>… <값>… [_] .
 lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end .
 lit (SIMD)          lit vec <타입> <레인> <값>… [_] .
 extern              extern fn/proc <이름> do <절>* end .  (몸이 씨)
@@ -355,7 +356,7 @@ u8    i8    u16   i16   u32   i32   u64   i64   usize  isize   f32   f64
 bool  void
 
 rem 줄과 묶음
-slice   array   segments   set   stack   range   vec   bitset   mask
+slice   array   matrix   segments   set   stack   range   vec   bitset   mask
 
 rem 답을 담는 것
 result   option
@@ -595,11 +596,11 @@ alloc-clause ::= ( "use" | "keep" ) name "."
 fail-clause  ::= "else" leave "."
                | "else" block
                | "else" "error" name block
-leave        ::= "return" [ term ] | "break" | "continue" | "panic" term
+leave        ::= "return" [ term ] | "break" [ number ] | "continue" [ number ] | "panic" term
 guard-stmt     ::= "guard" term "else" ( leave "." | block ) "."
 set-stmt       ::= "set" term term "."
 return-stmt    ::= "return" [ term ] "."
-jump-stmt      ::= ( "break" | "continue" ) "."
+jump-stmt      ::= ( "break" | "continue" ) [ number ] "."
 expect-stmt    ::= "expect" term "."
 drop-stmt      ::= "drop" name "." "."
 call-stmt      ::= term
@@ -646,7 +647,7 @@ field-init     ::= name term "."
 fill-literal   ::= "lit" "array" type word "do" { fill-item } "end" "."
 fill-item      ::= ( word | "_" ) term "."
 list-literal   ::= "lit" list-kind { term | "_" } "."
-list-kind      ::= "array" type word | "slice" type | "vec" type word
+list-kind      ::= "array" type word | "slice" type | "vec" type word | "matrix" type number number { number }
 island         ::= "expr" island-item { operator island-item } "."
 island-item    ::= term | "(" island-item { operator island-item } ")"
 pipe-form      ::= "pipe" term "do" { stage } "end" "."
@@ -691,6 +692,7 @@ type-core      ::= name | path
                  | "(" applied-type ")"
                  | "slice" type
                  | "array" type word
+                 | "matrix" type number number { number }
                  | "option" type
                  | "result" type type
                  | "vec" type word

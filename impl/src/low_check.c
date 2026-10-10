@@ -6038,6 +6038,32 @@ static bool ck_type_needs_completion_d(const low_parse_result_t *pr, proven_u8st
 //     그래서 vm_own.low 의 `if eq h 0 . do return error . end`(발산) 은 살아남는다.
 typedef enum { OWN_LIVE, OWN_CONSUMED } ck_own_state_t;
 
+// ★★★ **되풀이를 떠나는 길도 상태를 나른다** (2026-10-10 · RFC-0143 §8-3 을 재다가 찾았다).
+//   전엔 `break` · `continue` 를 «이 길은 여기서 끝난다» 로만 읽었다 ⇒ 되풀이 안에서 값을 옮기고 `break` 한 길이
+//   되풀이 **뒤**에 닿는다는 것을 몰랐다: 뒤에서 그 값을 다시 옮겨도 통과했다(증인 known-defects/own-break-path).
+//   `continue` 도 같다 — 옮기고 `continue` 하면 다음 바퀴가 use-after-move 인데 «몸의 끝» 만 보고 있었다.
+//   ☞ 떠나는 자리의 상태를 **대상 되풀이의 칸**에 적어 두고, 그 되풀이를 다 읽은 뒤 합류시킨다. `break <n>` 은
+//     n 겹 밖의 칸에 적는다.
+#define CK_OWN_MAXLOOP 64
+static proven_size_t g_own_ld;                                   // 지금 읽는 자리를 감싼(이 값의 범위 안의) 되풀이 수
+static bool g_own_brk[CK_OWN_MAXLOOP], g_own_cnt[CK_OWN_MAXLOOP];
+static void ck_own_note_leave(const low_cst_t *nd, ck_own_state_t st) {
+    if (!nd || st != OWN_CONSUMED) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_WHILE || nd->kids[0]->tok.kw == LOW_KW_FOR)) return;   // 안의 되풀이는 제 칸을 가진다
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *a = nd->kids[i];
+        if (ck_atom(a) && (a->tok.kw == LOW_KW_BREAK || a->tok.kw == LOW_KW_CONTINUE)) {
+            proven_size_t n = 1;
+            if (i + 1 < nd->nkids && ck_atom(nd->kids[i + 1]) && nd->kids[i + 1]->tok.kind == LOW_TOK_NUMBER) {
+                proven_u8str_view_t lx = nd->kids[i + 1]->tok.lex; n = 0;
+                for (proven_size_t z = 0; z < lx.size && lx.ptr[z] >= '0' && lx.ptr[z] <= '9' && n <= CK_OWN_MAXLOOP; z++) n = n * 10 + (proven_size_t)(lx.ptr[z] - '0');
+            }
+            if (n >= 1 && n <= g_own_ld && g_own_ld - n < CK_OWN_MAXLOOP)
+                (a->tok.kw == LOW_KW_BREAK ? g_own_brk : g_own_cnt)[g_own_ld - n] = true;
+        } else if (!ck_atom(a)) ck_own_note_leave(a, st);
+    }
+}
 static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_result_t *pr,
                                   const low_cst_t **kids, proven_size_t nkids,
                                   proven_u8str_view_t name, proven_u8str_view_t fld,
@@ -6134,8 +6160,31 @@ static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_resul
                                     ? s->kids[s->nkids - 1] : NULL;
             if (lb) {
                 bool ad;
+                proven_size_t ld = g_own_ld;
+                if (ld < CK_OWN_MAXLOOP) { g_own_brk[ld] = false; g_own_cnt[ld] = false; }
+                g_own_ld = ld + 1;
                 ck_own_state_t ex = ck_own_flow(out, pr, (const low_cst_t **)lb->kids, lb->nkids,
                                                 name, fld, tab, nt, OWN_LIVE, decl_line, &ad);
+                g_own_ld = ld;
+                bool via_brk = ld < CK_OWN_MAXLOOP && g_own_brk[ld], via_cnt = ld < CK_OWN_MAXLOOP && g_own_cnt[ld];
+                if (via_cnt && !(!ad && ex == OWN_CONSUMED))
+                    emit(out, "E-OWN-MOVED",
+                         "this `owned` value is CONSUMED inside a LOOP on a path that goes on to the NEXT "
+                         "iteration with `continue` — that iteration would be a use-after-move. Consume it "
+                         "and REASSIGN the place before `continue`, or move the consumption out of the loop",
+                         s->kids[0]->tok.line);
+                if (via_brk && st == OWN_LIVE) {
+                    // 조건이 `true` 인 `while` 은 `break` 로만 끝난다 — 그때는 합류가 아니라 그 길의 상태가 곧 뒤의 상태다.
+                    bool only_break = kw == LOW_KW_WHILE && s->nkids >= 2 && ck_atom(s->kids[1]) && veq(s->kids[1]->tok.lex, "true");
+                    if (!only_break)
+                        emit(out, "E-OWN-JOIN",
+                             "this `owned` value is CONSUMED on a path that leaves this loop with `break`, "
+                             "but still LIVE when the loop ends the ordinary way — the two meet after the "
+                             "loop, and Lowent requires the ownership state to be STATICALLY consistent at "
+                             "a join (RFC-0044 §9.3). Consume it on both, or on neither",
+                             s->kids[0]->tok.line);
+                    st = OWN_CONSUMED;
+                }
                 if (!ad && ex == OWN_CONSUMED) {
                     emit(out, "E-OWN-MOVED",
                          "this `owned` value is CONSUMED inside a LOOP and never put back — the "
@@ -6150,12 +6199,15 @@ static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_resul
             }
         } else if (kw == LOW_KW_GUARD) {
             // guard 의 else 는 **발산**한다(§9.4 FD2) — 그 소비는 진행 경로에 반영하지 않는다. COND 는 읽기.
+            ck_own_note_leave(s, st);
             continue;
         } else {
+            if (kw != LOW_KW_BREAK && kw != LOW_KW_CONTINUE) ck_own_note_leave(s, st);   // 실패 절의 `… else break .` — 이 문장 **앞**의 상태로 떠난다
             if (st == OWN_LIVE && ck_own_consumes(s, name, fld, tab, nt, false)) st = OWN_CONSUMED;
             // ★ 재초기화는 자리를 **다시 살린다** — 그리고 새 값도 결국 완결돼야 한다
             //   (스코프 끝 검사가 그것을 요구한다). 그래서 LIVE 로 되돌린다.
             if (reinit) st = OWN_LIVE;
+            if (kw == LOW_KW_BREAK || kw == LOW_KW_CONTINUE) ck_own_note_leave(s, st);
             if (kw == LOW_KW_RETURN || kw == LOW_KW_GIVE || kw == LOW_KW_BREAK ||
                 kw == LOW_KW_CONTINUE || kw == LOW_KW_FAIL || head_panic) { *diverges = true; return st; }
         }
@@ -6299,6 +6351,7 @@ static ck_own_state_t ck_own_linear_r(low_check_result_t *out, const low_parse_r
                           proven_u8str_view_t ty, proven_u32 decl_line,
                           proven_size_t from, const low_opinfo_t *tab, proven_size_t nt, bool report) {
     bool diverges = false;
+    g_own_ld = 0;
     ck_own_state_t st = ck_own_flow(out, pr, (const low_cst_t **)(body->kids + from), body->nkids - from,
                                     name, fld, tab, nt, OWN_LIVE, decl_line, &diverges);
     // 흐름 끝에서 **live** 로 남았다 = 그 출구에서의 **자동 해제**. `return 0`(값을 안 넘기는 발산)도
@@ -10235,6 +10288,36 @@ static void ck_slashslash_walk(low_check_result_t *out, const low_cst_t *nd) {
              nd->line);
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_slashslash_walk(out, nd->kids[i]);
 }
+// ★ RFC-0143 — `break <n> .` · `continue <n> .`: n 은 둘러싼 되풀이의 수 안의 정수 리터럴이다(1 = 가장 안쪽).
+//   leave 낱말은 폼의 머리일 수도, 실패 절 안(`… else break 2 .`)의 낱말일 수도 있어 형제를 훑는다.
+static void ck_loopcount_at(low_check_result_t *out, const low_cst_t *nd, proven_size_t i, proven_size_t depth) {
+    if (i + 1 >= nd->nkids || !ck_atom(nd->kids[i + 1]) || nd->kids[i + 1]->tok.kind != LOW_TOK_NUMBER || depth == 0) return;
+    proven_u8str_view_t lx = nd->kids[i + 1]->tok.lex;
+    proven_size_t v = 0; bool digits = lx.size > 0;
+    for (proven_size_t z = 0; z < lx.size; z++) {
+        if (lx.ptr[z] < '0' || lx.ptr[z] > '9') { digits = false; break; }
+        if (v <= 1000) v = v * 10 + (proven_size_t)(lx.ptr[z] - '0');
+    }
+    if (!digits || v == 0 || v > depth)
+        emit(out, "E-LOOP-COUNT",
+             "the number after `break` / `continue` counts the loops around it: 1 is the innermost "
+             "(the same as writing no number), 2 is the loop around that one, and so on. It is a plain "
+             "decimal literal from 1 up to the number of loops this statement sits in — there is no "
+             "loop that far out here",
+             nd->kids[i]->tok.line);
+}
+static void ck_loopword_walk_d(low_check_result_t *out, const low_cst_t *nd, proven_size_t depth) {
+    if (!nd) return;
+    proven_size_t inner = depth;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_WHILE || nd->kids[0]->tok.kw == LOW_KW_FOR))
+        inner = depth + 1;
+    if (nd->kind == LOW_CST_FORM)
+        for (proven_size_t i = 0; i < nd->nkids; i++)
+            if (ck_atom(nd->kids[i]) && (nd->kids[i]->tok.kw == LOW_KW_BREAK || nd->kids[i]->tok.kw == LOW_KW_CONTINUE))
+                ck_loopcount_at(out, nd, i, depth);
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_loopword_walk_d(out, nd->kids[i], inner);
+}
 static void ck_loopword_walk(low_check_result_t *out, const low_cst_t *nd, bool in_loop) {
     if (!nd) return;
     bool opens_loop = in_loop;
@@ -10915,7 +10998,8 @@ static bool o4_stmt_writes(const low_cst_t *st, proven_u8str_view_t x, const low
                 if (veq(pv, "mut_ref") || veq(pv, "mut") || veq(pv, "into") || veq(pv, "using")) return true;
             }
             proven_size_t j = i;
-            while (j && (veq(a[j - 1]->tok.lex, "idx") || veq(a[j - 1]->tok.lex, "field"))) j--;
+            // `subslice` 도 자리를 그대로 가리킨다(복사하지 않는다) — `set idx subslice x … . i . v .` 는 x 를 쓴다
+            while (j && (veq(a[j - 1]->tok.lex, "idx") || veq(a[j - 1]->tok.lex, "field") || veq(a[j - 1]->tok.lex, "subslice"))) j--;
             if (j && a[j - 1]->tok.kw == LOW_KW_SET) return true;
         }
         if (o4_mutating_word(w) || o4_is_proc(tab, nt, w)) caller = true;
@@ -12265,6 +12349,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_errors_unraised(&out, f, h.body, tab0, ops.len);  // ★ 한 번도 내지 않는 오류 갈래 (#51)
             ck_slashslash_walk(&out, h.body);                // ★ `//` 는 주석이 아니다 (#28)
             ck_loopword_walk(&out, h.body, false);           // ★ 반복 밖의 break (#35)
+            ck_loopword_walk_d(&out, h.body, 0);             // ★ RFC-0143 — `break <n>` 의 n
             ck_fieldborrow_walk(&out, h.body);               // ★ 칸의 빌림은 안 지었다 (#20)
             ck_void_return(&out, h.body, f, &h);             // ★ void 는 값을 안 돌려준다 (#30)
             ck_inner_else(&out, h.body);                     // ★ 블록 안의 else (#66)

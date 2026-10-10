@@ -1,0 +1,36 @@
+module matrix .
+rem run: row_sum 2
+
+rem ko: 3 줄 4 칸의 표 --- 차원 수(2) 다음에 크기를 적는다 /// en: a table of 3 rows and 4 columns --- the number of dimensions (2), then the sizes
+fn table output t matrix u32 2 3 4 .
+do
+  repeat r u64 dim t. 0 . do
+    repeat c u64 dim t. 1 . do
+      set idx t. r. c. . narrow u32 add mul r. 10 . c. . . .
+    end .
+  end .
+  return t. .
+end .
+
+rem ko: 색인은 차원마다 하나 --- 저마다 제 크기로 검사한다 /// en: one index per dimension --- each is checked against its own size
+export fn row_sum input r u64 . output u64 .
+  requires lt r. 3 . .
+do
+  let t matrix u32 2 3 4 table . .
+  var s u64 0 .
+  repeat c u64 dim t. 1 . do
+    set s. add s. widen u64 idx t. r. c. . . . .
+  end .
+  return s. .
+end .
+
+rem ko: `flat` 은 같은 원소를 한 줄로 본다 /// en: `flat` sees the same elements as one row
+export fn total output u64 .
+do
+  let t matrix u32 2 3 4 table . .
+  var s u64 0 .
+  for x flat t. . do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .

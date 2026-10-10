@@ -39,7 +39,7 @@ alloc-clause ::= ( \"use\" | \"keep\" ) name \".\"
 fail-clause  ::= \"else\" leave \".\"
                | \"else\" block
                | \"else\" \"error\" name block
-leave        ::= \"return\" [ term ] | \"break\" | \"continue\" | \"panic\" term")
+leave        ::= \"return\" [ term ] | \"break\" [ number ] | \"continue\" [ number ] | \"panic\" term")
     #para("3")[
       이름을 짓는 문장은 `let <이름> <타입> <값> .`(`var` 도 같다)이다 — #strong[타입은 이름 뒤, 값 앞에 선다.];
       값이 그 타입에 맞지 않으면 번역이 거부된다. 타입은 추측하지 아니한다: `let x u64 300 .` 이지
@@ -282,8 +282,21 @@ end .", "E-CLOSER-EXTRA")
       (`E-CLOSER-EXTRA`). 문장은 `end` 다음의 점에서 끝난다(#cref("6.1.6") (2b)).
     ]
     #para("2")[
-      `break` 는 되풀이를 벗어나고, `continue` 는 다음 바퀴로 넘어간다. 둘은 #strong[가장 안쪽]; 되풀이에
-      듣는다 — 바깥 되풀이를 가리키는 표시(라벨)는 없다. `break` 는 값을 나르지 아니한다.
+      `break` 는 되풀이를 벗어나고, `continue` 는 다음 바퀴로 넘어간다. 수를 적지 않으면 둘은 #strong[가장 안쪽];
+      되풀이에 듣는다. `break` 는 값을 나르지 아니한다.
+    ]
+    #para("2b")[
+      낱말 뒤에 수를 적으면 그 수만큼 #strong[바깥으로 센]; 되풀이에 듣는다. `break 2 .` 는 가장 안쪽 되풀이와 그것을 감싼
+      되풀이를 함께 벗어난다. `continue 2 .` 는 가장 안쪽 되풀이를 벗어나, 그것을 감싼 되풀이의 다음 바퀴로 간다.
+      `1` 은 수를 적지 않은 것과 같다. 수는 꾸밈 없는 십진 리터럴이며, 1 이상이고 그 문장을 감싼 되풀이의 수를 넘지
+      못한다(`E-LOOP-COUNT`). 되풀이에 붙이는 이름(라벨)은 없다.
+    ]
+    #para("2c")[
+      세는 것은 되풀이의 다섯 머리(`while` · `for` · `repeat` · `range` · `cycle`)다. `if` 와 `match` 의 블록은 세지
+      아니한다. 벗어나는 길에서 지나가는 되풀이가 연 것은 그 되풀이를 여느 때 벗어날 때와 같이 닫힌다.
+    ]
+    #note[
+      되풀이를 한 겹 감싸거나 풀면 같은 수가 다른 되풀이를 가리킨다. 그때는 수를 다시 센다.
     ]
     #para("2a")[
       그 둘은 #strong[되풀이 안에서만]; 쓴다. 되풀이 밖에 적는 것은 적합하지 아니하다
@@ -295,6 +308,34 @@ end .", "E-CLOSER-EXTRA")
     #para("3a")[
       `while` 은 문장이며 값을 내지 아니한다. `else` 갈래를 갖지 아니한다(`E-STMT-ELSE`).
     ]
+    #ex("겹친 되풀이를 한 번에 벗어난다", "module ex_break_count .
+
+export fn first_zero input want u32 . output u64 .
+do
+  let g lit array (array u32 3) 2 lit array u32 3 4 7 1 . lit array u32 3 9 0 5 . . .
+  var hit u64 99 .
+  repeat r u64 len g. . do
+    repeat c u64 3 do
+      if eq idx idx g. r. . c. . want. . do
+        set hit. add mul r. 3 . c. . .
+        break 2 .
+      end .
+    end .
+  end .
+  return hit. .
+end .")
+    #rejected("감싼 되풀이는 둘인데 셋을 벗어나려 한다", "module ex_break_far .
+
+export fn f output u64 . do
+  var n u64 0 .
+  repeat a u64 3 do
+    repeat b u64 3 do
+      set n. add n. 1 . .
+      break 3 .
+    end .
+  end .
+  return n. .
+end .", "E-LOOP-COUNT")
     #ex("조건과 되풀이", "module ex_ctl .
 
 export fn count_big input n u32 . output u32 .

@@ -1,0 +1,59 @@
+rem A value moved on a path that LEAVES a loop is moved after the loop too; one moved before `continue` is moved in
+rem the next turn. Each op below is refused, on the line of its loop head, with the code named in its comment.
+rem (Until 2026-10-10 all of them passed: `break` and `continue` were read as "this path ends here".)
+module own_leave_path .
+
+def struct h do
+  fd u64 .
+end .
+
+fn take input p owned h . output u64 . do
+  return field p. fd . .
+end .
+
+rem E-OWN-JOIN — moved on the `break` path, live when the loop ends the ordinary way
+fn via_break input p owned h . input c u64 . output u64 . do
+  var n u64 c. .
+  while gt n. 0 . do
+    if gt n. 5 . do
+      let x h p. .
+      break .
+    end .
+    set n. sub n. 1 . .
+  end .
+  return 0 .
+end .
+
+rem E-OWN-JOIN on the OUTER loop — `break 2` carries the state two loops out
+fn via_break2 input p owned h . input c u64 . output u64 . do
+  repeat a u64 3 do
+    repeat b u64 3 do
+      if eq add a. b. . c. . do
+        let x h p. .
+        break 2 .
+      end .
+    end .
+  end .
+  return 0 .
+end .
+
+rem E-OWN-MOVED — moved, then `continue`: the next turn would move it again
+fn via_continue input p owned h . input c u64 . output u64 . do
+  repeat a u64 3 do
+    if eq a. c. . do
+      let x h p. .
+      continue .
+    end .
+  end .
+  return 0 .
+end .
+
+rem E-OWN-MOVED on the last line — a `while true` ends only by `break`, so after it the value IS moved
+fn only_break input p owned h . output u64 . do
+  var got u64 0 .
+  while true do
+    set got. take p. . .
+    break .
+  end .
+  return add got. take p. . . .
+end .

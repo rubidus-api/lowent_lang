@@ -24,7 +24,7 @@
       [부동소수점], [`f32` `f64`],
       [참거짓], [`bool`],
       [묶음], [`struct`(이름 붙은 칸의 모음) · `enum`(여럿 중 하나)],
-      [줄], [`array n t`(길이가 고정된 줄) · `slice t`(길이를 함께 갖는 구간)],
+      [줄], [`array n t`(길이가 고정된 줄) · `slice t`(길이를 함께 갖는 구간) · `matrix t k d…`(크기가 고정된 여러 차원의 줄)],
       [답], [`result t e`(성공 값 또는 오류) · `option t`(값이 있거나 없음)],
       [가리킴], [`ref t`(읽기 참조) · `mut_ref t`(쓰기 참조) · `owned t`(소유)],
       [권한], [`cap k`(효과를 낼 자격, #cref("7.2"))],
@@ -297,6 +297,8 @@ end .", "E-TYPE-ARRAY")
       `var` 에 묶은 나열은 #strong[쓸 수 있는]; 슬라이스다 — 칸은 `set idx buf. i. . v. .` 로 쓴다. 그 이름을 다른 저장소로
       다시 묶는 `set buf …` 은 거부된다(`E-ARRAY-SET`). 각 원소는 (6b) 의 폭 규칙을 따르고, 실행 중 원소는 원소
       타입과 맞아야 한다(`E-TYPE-SET` · `E-TYPE-WIDTH`).
+      `idx` 와 `subslice` 를 거쳐 닿은 칸도 같은 저장소다 — `set idx subslice buf. a. b. . i. . v. .` 에서 `buf` 가 쓸 수
+      있는 이름이 아니면 거부된다(`E-TYPE-MUT`).
     ]
     #para("7c")[
       한 op 의 ⓐ·ⓒ 칸을 모두 더한 크기에는 처리기가 밝히는 한도가 있고, 넘으면 거부된다(`E-FRAME-SIZE` — 조용히
@@ -418,6 +420,98 @@ end .", "E-LIT-COUNT")
       알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를
       읽는다. 슬라이스는 그 지식을 #strong[값 안에 넣어]; 그 문제를 없앤다.
     ]
+  ]
+  #sub("6.2.6.1", "여러 차원의 줄 — `matrix`")[
+    #para("1")[
+      `matrix t k d1 … dk` 는 타입 `t` 의 값이 `d1 × … × dk` 개 놓인, 차원이 `k` 개인 줄이다. 차원 수와 크기는 타입의
+      일부이며 번역 시점에 정해진다. 차원 수나 크기가 하나라도 다르면 다른 타입이다 — `matrix u32 2 3 4` 는
+      `matrix u32 2 4 3` 과도, `array u32 12` 와도 다르다.
+    ]
+    #para("1a")[
+      원소 타입을 먼저, 차원 수를 그다음에, 크기를 차원 수만큼 적는다. 차원 수는 2 이상 8 이하이고 크기는 1 이상이며,
+      모두 꾸밈 없는 십진 리터럴이다. 원소 수(크기들의 곱)는 2^32 를 넘지 못한다. 원소 타입에 `matrix` 나 `array` 를
+      적지 못한다. 어기면 거부된다(`E-MATRIX-TYPE`).
+    ]
+    #note[
+      차원 수를 먼저 적으므로 타입은 제 끝을 스스로 안다. 뒤에 원소가 나열되어도(`lit matrix u32 2 2 3 1 2 3 4 5 6 .`)
+      어디까지가 크기이고 어디부터가 원소인지 글자만으로 갈린다.
+    ]
+    #para("2")[
+      #strong[배치.]; 원소는 한 덩어리로 이어 놓으며 줄 우선이다 — 마지막 색인이 가장 빨리 돈다. 크기와 정렬은
+      `array t n`(`n` 은 크기들의 곱)과 같고, 덧붙는 머리는 없다.
+    ]
+    #para("3")[
+      `matrix` 타입은 #strong[이름을 짓는 자리];에 적는다 — `let` · `var` 의 타입, op 의 `input` 과 `output`. 구조체의 칸, 다른
+      타입의 원소, 타입 인자의 자리에는 적지 못한다(`E-MATRIX-USE`).
+    ]
+    #para("4")[
+      #strong[값.]; `lit matrix t k d1 … dk <원소>… .` 는 원소를 줄 우선 차례로 나열한다. 원소 수는 크기들의 곱과 같아야 하며,
+      모자라면 끝에 `_` 를 적어 나머지를 0 으로 채운다. 바인딩에 타입과 리터럴을 함께 적으면 둘의 모양이 같아야
+      한다. 어기면 거부된다(`E-MATRIX-SHAPE`).
+    ]
+    #para("5")[
+      #strong[읽기와 쓰기.]; `idx m. i1 … ik .` 는 색인을 차원마다 하나씩 받는다. 색인 수가 차원 수와 다르면 거부된다
+      (`E-MATRIX-INDEX`) — 줄 하나나 면 하나만 꺼내는 꼴은 없다. 색인은 저마다 #strong[제 차원의 크기];로 검사한다: 어느
+      하나라도 제 크기 이상이면 실행이 멈춘다. 색인 식은 적힌 차례로 한 번씩 계산한다.
+      `set idx m. i1 … ik . v. .` 는 그 칸에 쓰며, `m` 은 쓸 수 있는 이름이어야 한다(`E-TYPE-MUT`).
+    ]
+    #para("6")[
+      `dim m. j .` 는 차원 `j` 의 크기다(0 부터 센다). `j` 는 차원 수보다 작은 꾸밈 없는 십진 리터럴이어야 한다
+      (`E-MATRIX-INDEX`). 그 값은 번역 시점의 상수다.
+    ]
+    #para("7")[
+      `flat m. .` 는 같은 원소를 한 줄로 본 `slice t` 다. 복사하지 아니하며, 길이는 원소 수다.
+    ]
+    #para("8")[
+      `len m. .` 과 `for x m. do … end .` 는 거부된다(`E-MATRIX-USE`). 차원 하나의 크기는 `dim` 으로, 모든 원소를 도는
+      것은 `for x flat m. . do … end .` 로 적는다.
+    ]
+    #para("9")[
+      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `dim` · `flat` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
+      같은 모양의 결과를 가진 op 의 `return` 이다. 그 밖의 자리는 거부된다(`E-MATRIX-USE`). 인자와 입력, 바인딩의
+      타입과 부른 op 의 결과는 차원 수와 크기가 모두 같아야 한다(`E-MATRIX-SHAPE`).
+    ]
+    #para("10")[
+      이 타입은 #strong[자리];만 정한다. 행렬의 곱 같은 셈은 정하지 아니한다.
+    ]
+    #ex("3 줄 4 칸의 표를 채우고 한 줄을 더한다", "module ex_matrix .
+
+fn table output t matrix u32 2 3 4 .
+do
+  repeat r u64 dim t. 0 . do
+    repeat c u64 dim t. 1 . do
+      set idx t. r. c. . narrow u32 add mul r. 10 . c. . . .
+    end .
+  end .
+  return t. .
+end .
+
+export fn row_sum input r u64 . output u64 .
+  requires lt r. 3 . .
+do
+  let t matrix u32 2 3 4 table . .
+  var s u64 0 .
+  repeat c u64 dim t. 1 . do
+    set s. add s. widen u64 idx t. r. c. . . . .
+  end .
+  return s. .
+end .")
+    #rejected("차원은 둘인데 색인을 하나만 주었다", "module ex_matrix_row .
+
+export fn f output u64 . do
+  let m lit matrix u32 2 2 3 1 2 3 4 5 6 . .
+  return widen u64 idx m. 1 . . .
+end .", "E-MATRIX-INDEX")
+    #rejected("3 줄 4 칸을 받는 op 에 4 줄 3 칸을 넘긴다", "module ex_matrix_shape .
+
+fn first input m matrix u32 2 3 4 . output u32 . do
+  return idx m. 0 0 . .
+end .
+
+export fn f output u32 . do
+  let m lit matrix u32 2 4 3 _ . .
+  return first m. . .
+end .", "E-MATRIX-SHAPE")
   ]
   #sub("6.2.7", "묶음 — struct 와 enum")[
     #para("1")[

@@ -206,7 +206,9 @@ static low_cst_t *low_parse_primary(low_parser_t *p, bool headed_ok) {
     bool lit_list = false;
     if (low_curkw(p) == LOW_KW_LIT && p->pos + 1 < p->n && p->toks[p->pos + 1].kind == LOW_TOK_IDENT) {
         proven_u8str_view_t w1 = p->toks[p->pos + 1].lex;
-        if (proven_u8str_view_eq(w1, PROVEN_LIT("array")) || proven_u8str_view_eq(w1, PROVEN_LIT("slice"))) lit_list = true;
+        // `matrix` 는 표면 패스가 `array` 로 옮겨 적으므로 여기에는 서식(`--fmt` — 옮기지 않고 그대로 찍는다) 때만 온다(RFC-0144)
+        if (proven_u8str_view_eq(w1, PROVEN_LIT("array")) || proven_u8str_view_eq(w1, PROVEN_LIT("slice")) ||
+            proven_u8str_view_eq(w1, PROVEN_LIT("matrix"))) lit_list = true;
         else if (proven_u8str_view_eq(w1, PROVEN_LIT("vec"))) {
             lit_list = true;
             for (proven_size_t q = p->pos + 2; q < p->n; q++) {

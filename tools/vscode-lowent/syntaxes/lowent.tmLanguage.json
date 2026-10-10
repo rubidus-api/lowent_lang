@@ -90,7 +90,7 @@
     },
     {
       "name": "storage.type.lowent",
-      "match": "\\b(?:unsafe_ptr|segments|mut_ref|bitset|option|result|array|isize|owned|slice|stack|usize|bits|bool|mask|self|void|cap|f32|f64|i16|i32|i64|mut|ref|set|u16|u32|u64|vec|i8|u8)\\b(?!\\.)"
+      "match": "\\b(?:unsafe_ptr|segments|mut_ref|bitset|matrix|option|result|array|isize|owned|slice|stack|usize|bits|bool|mask|self|void|cap|f32|f64|i16|i32|i64|mut|ref|set|u16|u32|u64|vec|i8|u8)\\b(?!\\.)"
     },
     {
       "name": "support.function.core.lowent",

@@ -79,6 +79,7 @@ Searches headings and index terms --- not the full text
 [7 Flow — branches, loops and leaving early](ch07.md)
 
 - [7.1 Conditions and loops](ch07.md#s7-1)
+- [7.1.1 Leaving nested loops at once](ch07.md#s7-1-1)
 - [7.2 guard — turning a condition into a fact](ch07.md#s7-2)
 - [7.3 Every path returns a value](ch07.md#s7-3)
 - [7.4 match — every case, none missing](ch07.md#s7-4)
@@ -104,9 +105,10 @@ Searches headings and index terms --- not the full text
 - [9.2 Writing needs mut slice](ch09.md#s9-2)
 - [9.3 Narrowing the window](ch09.md#s9-3)
 - [9.4 Writing a sequence directly — list literals](ch09.md#s9-4)
-- [9.5 Contracts remove bounds checks](ch09.md#s9-5)
-- [9.6 Common mistakes](ch09.md#s9-6)
-- [9.7 This chapter’s syntax at a glance](ch09.md#s9-7)
+- [9.5 Several dimensions — matrix](ch09.md#s9-5)
+- [9.6 Contracts remove bounds checks](ch09.md#s9-6)
+- [9.7 Common mistakes](ch09.md#s9-7)
+- [9.8 This chapter’s syntax at a glance](ch09.md#s9-8)
 
 [10 Aggregates — struct and enum](ch10.md)
 

@@ -174,6 +174,32 @@ When the elements are fixed-length arrays, the list is a *list of rows*. Its typ
 - A row value must have the same shape (`lit array u8 4 …`). A row of a frame list views the frame's bytes, so returning
   it is `E-LIT-ESCAPE`.
 
+== Several dimensions --- `matrix`
+
+When there are two or more dimensions and the sizes are known in advance, write a `matrix`. `matrix u32 2 3 4` is a table of
+`u32` in 3 rows of 4: the element type, the number of dimensions (2), and one size per dimension. Because the number of
+dimensions comes first, the sizes can be told apart from elements listed after them.
+
+#demo("examples/ch09/matrix.low")
+
+- `idx t. r. c. .` takes one index per dimension, and each index is checked against *its own* size --- when `c` is 4 the
+  program stops, whether or not cells remain in the row. With a flat array and `r × 4 + c`, the same mistake silently reads
+  a cell of the next row.
+- `dim t. 0 .` is the size of the first dimension (3) and `dim t. 1 .` the second (4). Both become numbers at translation time.
+  `len t.` is rejected, because readers would disagree on whether it means the first size or the element count.
+- The elements lie in one run, row-major (the last index moves fastest). `flat t. .` sees that run as a `slice u32` --- it is
+  not a copy. To walk every element, write `for x flat t. . do`.
+- Another size is another type. Passing `matrix u32 2 4 3` or `array u32 12` to an op that takes `matrix u32 2 3 4` is
+  `E-MATRIX-SHAPE`. When a matrix is passed or returned whole, the shapes are compared at translation time.
+- To write the values directly, list them row by row: `lit matrix u32 2 2 3 1 2 3 4 5 6 .`. If there are fewer, end with `_`
+  to fill the rest with zero.
+- A `matrix` is written at `let`, `var`, and an op's `input` and `output`. It cannot be a struct field yet (`E-MATRIX-USE`).
+  The type fixes only where the elements lie --- arithmetic such as a matrix product is yours to write.
+
+Give as many indexes as there are dimensions. There is no form that takes a single row.
+
+#demo("examples/ch09/mistake_matrixrow.low")
+
 == Contracts remove bounds checks
 
 An `idx` bounds check remains only where it is not proven. Write the length condition as `requires`, and the check happens *once* on
@@ -283,6 +309,8 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`lit slice u32 4 5 .`], [a slice written as values], [the element count is the length],
   [`var buf lit array u8 8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
   [`lit array u8 8 do 2 5 . _ 0 . end .`], [an array with chosen cells filled], [every cell must be decided --- the rest by `_`],
+  [`matrix u32 2 3 4`], [`u32` in 3 rows of 4 --- the number of dimensions, then the sizes], [the shape is in the type --- another size is another type],
+  [`idx m. r. c. .` · `dim m. 0 .` · `flat m. .`], [one cell · the size of one dimension · the elements as one row], [each index is checked against its own size],
   [`requires le n. len xs. . . .`], [a length condition as a contract], [bounds checks in the body are removed],
 )
 

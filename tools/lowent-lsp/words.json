@@ -1,0 +1,992 @@
+{
+ "keywords": [
+  "actor",
+  "break",
+  "case",
+  "continue",
+  "contract",
+  "cycle",
+  "def",
+  "do",
+  "drop",
+  "else",
+  "end",
+  "enum",
+  "expect",
+  "export",
+  "expr",
+  "extern",
+  "false",
+  "fn",
+  "for",
+  "guard",
+  "if",
+  "keep",
+  "let",
+  "lit",
+  "match",
+  "module",
+  "newtype",
+  "next",
+  "none",
+  "proc",
+  "range",
+  "repeat",
+  "return",
+  "satisfies",
+  "send",
+  "set",
+  "spawn",
+  "state",
+  "step",
+  "struct",
+  "test",
+  "trait",
+  "true",
+  "try",
+  "type",
+  "unsafe",
+  "use",
+  "var",
+  "while"
+ ],
+ "ops": {
+  "abs": {
+   "meaning": "절댓값. 가장 작은 음수에서는 넘치므로 트랩한다",
+   "group": "산술",
+   "form": "abs a",
+   "takes": "`a` — 부호 있는 정수 또는 부동",
+   "gives": "`a` 의 타입"
+  },
+  "add": {
+   "meaning": "두 수를 더한다. 넘치면 트랩한다",
+   "group": "산술",
+   "form": "add a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "둘 중 넓은 쪽 타입"
+  },
+  "aes_ctr": {
+   "meaning": "AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수"
+  },
+  "aes_gcm": {
+   "meaning": "AES-128-GCM 한 덩이 — 흐름(aes_ctr)과 누산(ghash)을 한 바퀴에. 뜻은 그 둘을 차례로 부른 것과 같다. 낸 값은 흐른 바이트 수"
+  },
+  "aes_round": {
+   "meaning": "AES 한 라운드 — 상태 16 바이트를 제자리에서(SubBytes·ShiftRows·MixColumns·AddRoundKey). 낸 값은 16"
+  },
+  "aes_round_last": {
+   "meaning": "마지막 AES 라운드 — MixColumns 없이. 낸 값은 16"
+  },
+  "all": {
+   "meaning": "모두 참인가 — 첫 거짓에서 멈춘다"
+  },
+  "alloc_bytes": {
+   "meaning": "영역에서 바이트 자리를 얻는다"
+  },
+  "and": {
+   "meaning": "논리 곱 — 앞이 거짓이면 뒤를 **안 본다**",
+   "group": "논리",
+   "form": "and a b",
+   "takes": "`a` `b` — `bool`",
+   "gives": "`bool`. `a` 가 거짓이면 `b` 를 계산하지 않는다"
+  },
+  "any": {
+   "meaning": "참이 하나라도 있나 — 첫 참에서 멈춘다"
+  },
+  "arg": {
+   "meaning": "그 자리의 명령줄 인자"
+  },
+  "atomic_add": {
+   "meaning": "원자적으로 더한다"
+  },
+  "atomic_and": {
+   "meaning": "원자적 비트 곱"
+  },
+  "atomic_cas": {
+   "meaning": "기대한 값일 때만 바꾼다(compare-and-swap)"
+  },
+  "atomic_fence": {
+   "meaning": "메모리 순서의 울타리"
+  },
+  "atomic_load": {
+   "meaning": "원자적으로 읽는다"
+  },
+  "atomic_or": {
+   "meaning": "원자적 비트 합"
+  },
+  "atomic_store": {
+   "meaning": "원자적으로 쓴다"
+  },
+  "atomic_sub": {
+   "meaning": "원자적으로 뺀다"
+  },
+  "atomic_swap": {
+   "meaning": "원자적으로 바꿔 끼우고 옛 값을 낸다"
+  },
+  "atomic_xor": {
+   "meaning": "원자적 비트 배타합"
+  },
+  "await": {
+   "meaning": "그 흐름이 끝날 때까지 기다렸다가 결과를 낸다"
+  },
+  "bit_and": {
+   "meaning": "비트 곱",
+   "group": "비트",
+   "form": "bit_and a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입"
+  },
+  "bit_cast": {
+   "meaning": "비트를 그대로 두고 타입만 바꾼다",
+   "group": "변환",
+   "form": "bit_cast T a",
+   "takes": "`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수",
+   "gives": "`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408)"
+  },
+  "bit_not": {
+   "meaning": "비트 뒤집기 — **폭 안에서** 뒤집는다(C 처럼 int 로 승격하지 아니한다)",
+   "group": "비트",
+   "form": "bit_not a",
+   "takes": "`a` — 정수",
+   "gives": "`a` 의 타입 — 그 폭 안에서 뒤집는다(`bit_not` 을 `u8` 0 에 대면 255)"
+  },
+  "bit_or": {
+   "meaning": "비트 합",
+   "group": "비트",
+   "form": "bit_or a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입"
+  },
+  "bit_xor": {
+   "meaning": "비트 배타합",
+   "group": "비트",
+   "form": "bit_xor a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입"
+  },
+  "bitset_complement": {
+   "meaning": "여집합"
+  },
+  "bitset_contains": {
+   "meaning": "그 원소가 들어 있나"
+  },
+  "bitset_difference": {
+   "meaning": "차집합"
+  },
+  "bitset_insert": {
+   "meaning": "집합에 그 원소를 넣는다 — **제자리에서** 바꾼다"
+  },
+  "bitset_intersect": {
+   "meaning": "교집합"
+  },
+  "bitset_is_empty": {
+   "meaning": "비었는가"
+  },
+  "bitset_is_subset": {
+   "meaning": "앞이 뒤에 다 들어 있나"
+  },
+  "bitset_new": {
+   "meaning": "빈 비트 집합"
+  },
+  "bitset_remove": {
+   "meaning": "집합에서 그 원소를 지운다 — **제자리에서** 바꾼다"
+  },
+  "bitset_union": {
+   "meaning": "합집합"
+  },
+  "borrow": {
+   "meaning": "빌린 것의 수명을 스코프로 못 박는다"
+  },
+  "byte_swap": {
+   "meaning": "바이트 순서를 뒤집는다",
+   "group": "비트",
+   "form": "byte_swap a",
+   "takes": "`a` — 정수",
+   "gives": "`a` 의 타입 — 바이트 차례를 뒤집은 값. 한 바이트 타입에서는 그대로"
+  },
+  "call_builtin": {
+   "meaning": "계산 잎과 파일·그물 잎을 부르는 머리 — 다음 원자가 잎의 이름이다(닫힌 집합). 그 이름은 전역 어휘가 아니라 이 자리에만 산다. 낸 값은 그 잎이 내는 값"
+  },
+  "capacity": {
+   "meaning": "담을 수 있는 최대"
+  },
+  "cast": {
+   "meaning": "수치 변환(폭·부호·부동소수점)",
+   "group": "변환",
+   "form": "cast T a",
+   "takes": "`T` — 정수 또는 부동 타입 · `a` — 수, 또는 참거짓(`T` 가 정수 타입일 때)",
+   "gives": "`T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값. 참거짓에서 오면 참은 1, 거짓은 0"
+  },
+  "ceil": {
+   "meaning": "올림",
+   "group": "부동소수점 함수",
+   "form": "ceil a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 작지 않은 가장 작은 정수 값"
+  },
+  "chacha20": {
+   "meaning": "ChaCha20 (RFC 8439) — 키 32 · 카운터 블록 16(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce)을 제자리에서 올린다. 낸 값은 흐른 바이트 수"
+  },
+  "chacha_poly": {
+   "meaning": "ChaCha20-Poly1305 한 덩이 — 흐름과 누산을 한 바퀴에. 뜻은 chacha20 을 돌리고 그 암호문을 poly1305 에 먹인 것과 같다. 낸 값은 흐른 바이트 수"
+  },
+  "channel": {
+   "meaning": "채널을 만든다"
+  },
+  "chk_add": {
+   "meaning": "더하기 — 넘쳤는지 **답과 함께** 돌려준다",
+   "group": "넘침 처분",
+   "form": "chk_add a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "`option T`(`T` 는 둘 중 넓은 쪽) — `add` 의 결과가 폭에 들어가면 그 값, 넘치면 없음"
+  },
+  "chk_mul": {
+   "meaning": "곱하기 — 넘쳤는지 답과 함께 돌려준다",
+   "group": "넘침 처분",
+   "form": "chk_mul a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "`option T`(`T` 는 둘 중 넓은 쪽) — `mul` 의 결과가 폭에 들어가면 그 값, 넘치면 없음"
+  },
+  "chk_sub": {
+   "meaning": "빼기 — 넘쳤는지 답과 함께 돌려준다",
+   "group": "넘침 처분",
+   "form": "chk_sub a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "`option T`(`T` 는 둘 중 넓은 쪽) — `sub` 의 결과가 폭에 들어가면 그 값, 넘치면 없음"
+  },
+  "chrecv": {
+   "meaning": "채널에서 값을 뺀다"
+  },
+  "chsend": {
+   "meaning": "채널에 값을 넣는다"
+  },
+  "clmul_hi": {
+   "meaning": "캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다"
+  },
+  "clmul_lo": {
+   "meaning": "캐리 없는 곱셈의 **아랫말** — 64×64 비트 곱의 아래쪽 64 비트. 기계에 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로"
+  },
+  "collect": {
+   "meaning": "파이프라인의 결과를 자리에 담는다"
+  },
+  "config": {
+   "meaning": "번역 시점의 설정 값"
+  },
+  "copy": {
+   "meaning": "주는 쪽의 원소를 받는 쪽에 베낀다"
+  },
+  "cos": {
+   "meaning": "코사인",
+   "group": "부동소수점 함수",
+   "form": "cos a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입 — 코사인(라디안)"
+  },
+  "count": {
+   "meaning": "원소의 수를 센다"
+  },
+  "count_ones": {
+   "meaning": "선 비트의 수",
+   "group": "비트",
+   "form": "count_ones a",
+   "takes": "`a` — 정수",
+   "gives": "1 인 비트의 수 — 0 이상 폭 이하"
+  },
+  "crc32": {
+   "meaning": "CRC-32 검사값"
+  },
+  "cstr_of": {
+   "meaning": "C 문자열로 본다"
+  },
+  "deref": {
+   "meaning": "참조가 가리키는 값"
+  },
+  "dir_close": {
+   "meaning": "디렉터리를 닫는다"
+  },
+  "dir_make": {
+   "meaning": "디렉터리를 만든다"
+  },
+  "dir_open": {
+   "meaning": "디렉터리를 연다"
+  },
+  "dir_read": {
+   "meaning": "다음 항목을 읽는다"
+  },
+  "div": {
+   "meaning": "앞을 뒤로 나눈다. 0 으로 나누면 트랩한다",
+   "group": "산술",
+   "form": "div a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "둘 중 넓은 쪽 타입. 정수의 몫은 0 쪽으로 자른다(`div -7 2` 는 -3)"
+  },
+  "div_nz": {
+   "meaning": "0 이 아님이 증명된 나눗셈 — 검사 없이 나눈다",
+   "group": "넘침 처분",
+   "form": "div_nz a b",
+   "takes": "`a` — 정수 · `b` — `nonzero_of` 로 얻은 0 아닌 값",
+   "gives": "`a` 의 타입 — 몫"
+  },
+  "drain": {
+   "meaning": "그 액터의 우편함에 든 것을 처리한다"
+  },
+  "elem_ge": {
+   "meaning": "모든 원소가 그 값 이상이다"
+  },
+  "elem_gt": {
+   "meaning": "모든 원소가 그 값보다 크다"
+  },
+  "elem_le": {
+   "meaning": "모든 원소가 그 값 이하다"
+  },
+  "elem_lt": {
+   "meaning": "모든 원소가 그 값보다 작다"
+  },
+  "encode": {
+   "meaning": "주어진 부호로 바이트를 만든다"
+  },
+  "enumerate": {
+   "meaning": "원소에 차례 번호를 붙인다"
+  },
+  "env_get": {
+   "meaning": "환경 변수를 읽는다"
+  },
+  "eq": {
+   "meaning": "같은가",
+   "group": "비교",
+   "form": "eq a b",
+   "takes": "`a` `b` — 맞는 둘, 또는 두 `bool`",
+   "gives": "`bool` — 같으면 참. 부동의 NaN 은 자기 자신과도 같지 않다"
+  },
+  "error": {
+   "meaning": "오류를 담는다"
+  },
+  "error_value": {
+   "meaning": "담긴 오류를 꺼낸다"
+  },
+  "exp": {
+   "meaning": "e 의 거듭제곱",
+   "group": "부동소수점 함수",
+   "form": "exp a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입 — e 의 거듭제곱"
+  },
+  "expect": {
+   "meaning": "값을 꺼내되 없으면 멈춘다"
+  },
+  "field": {
+   "meaning": "값의 안을 읽는다"
+  },
+  "file_close": {
+   "meaning": "파일을 닫는다"
+  },
+  "file_open": {
+   "meaning": "파일을 연다"
+  },
+  "file_read": {
+   "meaning": "파일에서 읽는다"
+  },
+  "file_seek": {
+   "meaning": "읽고 쓸 자리를 옮긴다"
+  },
+  "file_type": {
+   "meaning": "그 경로가 무엇인가(파일·디렉터리…)"
+  },
+  "file_write": {
+   "meaning": "파일에 쓴다"
+  },
+  "filter": {
+   "meaning": "술어가 참인 원소만 지나보낸다"
+  },
+  "floor": {
+   "meaning": "내림",
+   "group": "부동소수점 함수",
+   "form": "floor a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 크지 않은 가장 큰 정수 값(`floor -1.5` 는 -2.0)"
+  },
+  "fmod": {
+   "meaning": "부동소수점 나머지",
+   "group": "부동소수점 함수",
+   "form": "fmod a b",
+   "takes": "`a` `b` — 같은 부동 타입",
+   "gives": "`a` 의 타입 — 나머지. 부호는 `a` 를 따른다(`fmod -7.5 2.0` 은 -1.5)"
+  },
+  "fold": {
+   "meaning": "누산기에 차례로 접는다"
+  },
+  "ge": {
+   "meaning": "앞이 크거나 같은가",
+   "group": "비교",
+   "form": "ge a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "`bool` — `a` 가 크거나 같으면 참. 부동에서 한쪽이 NaN 이면 거짓"
+  },
+  "ghash": {
+   "meaning": "GHASH — GF(2^128) 누산. h 16 · z 16 을 제자리에서 고친다. 낸 값은 먹인 바이트 수"
+  },
+  "gt": {
+   "meaning": "앞이 큰가",
+   "group": "비교",
+   "form": "gt a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "`bool` — `a` 가 크면 참. 부동에서 한쪽이 NaN 이면 거짓"
+  },
+  "hash_bytes": {
+   "meaning": "바이트열의 해시"
+  },
+  "idx": {
+   "meaning": "그 자리의 원소"
+  },
+  "into": {
+   "meaning": "같은 뜻의 다른 타입으로 옮긴다"
+  },
+  "is_error": {
+   "meaning": "오류인가"
+  },
+  "is_none": {
+   "meaning": "값이 없나"
+  },
+  "is_ok": {
+   "meaning": "성공인가"
+  },
+  "is_some": {
+   "meaning": "값이 있나"
+  },
+  "isa": {
+   "meaning": "지금 그 갈래인가를 묻는다"
+  },
+  "lane_all": {
+   "meaning": "가림막의 레인이 모두 켜졌나 (레인 판정 — pipe 종결자 `all` 과 다른 낱말)"
+  },
+  "lane_any": {
+   "meaning": "가림막의 레인이 하나라도 켜졌나 (레인 판정 — pipe 종결자 `any` 와 다른 낱말)"
+  },
+  "lane_avg": {
+   "meaning": "두 수의 평균 — 중간값을 넘침 없이 낸다"
+  },
+  "lane_reverse": {
+   "meaning": "차례를 뒤집는다"
+  },
+  "lane_rotate": {
+   "meaning": "주어진 방향으로 돌린다"
+  },
+  "lane_select": {
+   "meaning": "가림막에 따라 두 값 중 하나를 레인마다 고른다"
+  },
+  "le": {
+   "meaning": "앞이 작거나 같은가",
+   "group": "비교",
+   "form": "le a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "`bool` — `a` 가 작거나 같으면 참. 부동에서 한쪽이 NaN 이면 거짓"
+  },
+  "leading_zeros": {
+   "meaning": "맨 앞의 0 비트 수",
+   "group": "비트",
+   "form": "leading_zeros a",
+   "takes": "`a` — 정수",
+   "gives": "`a` 의 타입 — 맨 윗자리부터 이어지는 0 의 수. `a` 가 0 이면 폭(`u8` 에서 8)"
+  },
+  "len": {
+   "meaning": "길이 — **원소의 수**다(바이트 수가 아니다)"
+  },
+  "link_type": {
+   "meaning": "그 경로 자신이 무엇인가 — 심링크를 따라가지 아니한다"
+  },
+  "load": {
+   "meaning": "그 자리에서 읽는다"
+  },
+  "load_masked": {
+   "meaning": "가려진 자리만 읽는다"
+  },
+  "log": {
+   "meaning": "자연로그",
+   "group": "부동소수점 함수",
+   "form": "log a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입 — 자연로그. 0 이면 음의 무한, 음수면 NaN"
+  },
+  "lt": {
+   "meaning": "앞이 작은가",
+   "group": "비교",
+   "form": "lt a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "`bool` — `a` 가 작으면 참. 부동에서 한쪽이 NaN 이면 거짓"
+  },
+  "map": {
+   "meaning": "원소마다 op 을 적용한다"
+  },
+  "max": {
+   "meaning": "둘 중 큰 것",
+   "group": "산술",
+   "form": "max a b",
+   "takes": "`a` `b` — 같은 부호의 두 정수, 또는 두 부동",
+   "gives": "둘 중 큰 값"
+  },
+  "min": {
+   "meaning": "둘 중 작은 것",
+   "group": "산술",
+   "form": "min a b",
+   "takes": "`a` `b` — 같은 부호의 두 정수, 또는 두 부동",
+   "gives": "둘 중 작은 값"
+  },
+  "mod": {
+   "meaning": "나눈 나머지",
+   "group": "산술",
+   "form": "mod a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — 바닥 나눗셈의 나머지. 부호는 `b` 를 따른다(`mod -7 2` 는 1, `mod 7 -2` 는 -1). `b` 가 양수이면 0 이상이고 `b` 보다 작다. 가장 작은 값을 -1 로 나누면 0"
+  },
+  "mul": {
+   "meaning": "두 수를 곱한다. 넘치면 트랩한다",
+   "group": "산술",
+   "form": "mul a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "둘 중 넓은 쪽 타입"
+  },
+  "mut_ref": {
+   "meaning": "쓰기 참조를 만든다"
+  },
+  "narrow": {
+   "meaning": "더 좁은 폭으로. 안 들어가면 트랩한다",
+   "group": "변환",
+   "form": "narrow T a",
+   "takes": "`T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수",
+   "gives": "`T` — 값은 그대로다"
+  },
+  "narrow_sat": {
+   "meaning": "좁히되 안 들어가면 끝값에서 멈춘다",
+   "group": "변환",
+   "form": "narrow_sat T a",
+   "takes": "`T` — 정수 타입 · `a` — 수",
+   "gives": "`T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0)"
+  },
+  "narrow_try": {
+   "meaning": "좁히기 — 안 들어가면 `none` 을 낸다",
+   "group": "변환",
+   "form": "narrow_try T a",
+   "takes": "`T` — 정수 타입 · `a` — 정수",
+   "gives": "`option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음"
+  },
+  "narrow_wrap": {
+   "meaning": "좁히되 안 들어가면 감는다",
+   "group": "변환",
+   "form": "narrow_wrap T a",
+   "takes": "`T` — 정수 타입 · `a` — 수",
+   "gives": "`T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255)"
+  },
+  "native_lanes": {
+   "meaning": "이 기계가 한 번에 다루는 레인 수"
+  },
+  "ne": {
+   "meaning": "다른가",
+   "group": "비교",
+   "form": "ne a b",
+   "takes": "`a` `b` — 맞는 둘, 또는 두 `bool`",
+   "gives": "`bool` — 다르면 참. 부동의 NaN 은 자기 자신과도 같지 않다"
+  },
+  "neg": {
+   "meaning": "부호를 뒤집는다",
+   "group": "산술",
+   "form": "neg a",
+   "takes": "`a` — 부호 있는 정수 또는 부동",
+   "gives": "`a` 의 타입 — 부호를 뒤집은 값"
+  },
+  "net_accept": {
+   "meaning": "들어온 연결을 받는다"
+  },
+  "net_close": {
+   "meaning": "닫는다"
+  },
+  "net_connect": {
+   "meaning": "주소와 포트로 연결을 건다"
+  },
+  "net_listen": {
+   "meaning": "듣는 소켓을 연다"
+  },
+  "net_pair": {
+   "meaning": "맞물린 소켓 한 쌍"
+  },
+  "net_port": {
+   "meaning": "그 듣는 소켓의 포트"
+  },
+  "net_recv": {
+   "meaning": "받는다"
+  },
+  "net_resolve": {
+   "meaning": "이름을 IPv4 주소로 바꾼다 — DNS. 첫 A 레코드 하나"
+  },
+  "net_send": {
+   "meaning": "보낸다"
+  },
+  "nonzero_of": {
+   "meaning": "0 이 아님을 증명해 담는다",
+   "group": "넘침 처분",
+   "form": "nonzero_of a",
+   "takes": "`a` — 정수",
+   "gives": "`option nonzero T`(`T` 는 `a` 의 타입) — 0 이면 없음"
+  },
+  "not": {
+   "meaning": "논리 부정",
+   "group": "논리",
+   "form": "not a",
+   "takes": "`a` — `bool`",
+   "gives": "`bool`"
+  },
+  "ok": {
+   "meaning": "성공한 답을 담는다"
+  },
+  "ok_value": {
+   "meaning": "담긴 성공값을 꺼낸다"
+  },
+  "or": {
+   "meaning": "논리 합 — 앞이 참이면 뒤를 안 본다",
+   "group": "논리",
+   "form": "or a b",
+   "takes": "`a` `b` — `bool`",
+   "gives": "`bool`. `a` 가 참이면 `b` 를 계산하지 않는다"
+  },
+  "panic": {
+   "meaning": "계약이 깨졌음을 알리고 멈춘다"
+  },
+  "path_remove": {
+   "meaning": "지운다"
+  },
+  "path_rename": {
+   "meaning": "이름을 바꾼다"
+  },
+  "payload": {
+   "meaning": "갈래가 지닌 칸의 값을 꺼낸다(먼저 `isa` 로 그 갈래임을 확인해야 한다)"
+  },
+  "pipe": {
+   "meaning": "한 줄기로 흘린다 — **한 번의 훑기**다"
+  },
+  "poly1305": {
+   "meaning": "Poly1305 (RFC 8439) — 상태(h 다섯 · r 다섯)를 제자리에서 누산한다. 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 낸 값은 먹인 바이트 수"
+  },
+  "pop": {
+   "meaning": "뒤에서 하나 뺀다"
+  },
+  "pow": {
+   "meaning": "거듭제곱",
+   "group": "부동소수점 함수",
+   "form": "pow a b",
+   "takes": "`a` `b` — 같은 부동 타입",
+   "gives": "`a` 의 타입 — `a` 의 `b` 제곱. 음수 밑에 정수 아닌 지수면 NaN"
+  },
+  "prefetch": {
+   "meaning": "곧 쓸 자리를 미리 끌어 온다"
+  },
+  "proc_kill": {
+   "meaning": "띄운 프로그램을 강제로 끝낸다 — POSIX SIGKILL · Windows TerminateProcess. 손자는 끄지 않는다"
+  },
+  "proc_poll": {
+   "meaning": "안 막고 확인한다 — 끝났으면 종료 상태(낮은 32 비트 = 코드 · 비트 32 = 신호), 아직이면 UINT64_MAX"
+  },
+  "proc_read": {
+   "meaning": "띄운 프로그램의 출력(표준 출력 + 오류)을 안 막고 읽는다 — n 바이트 · 0 = 지금은 없다 · none = 끝"
+  },
+  "proc_spawn": {
+   "meaning": "NUL 로 이은 인자 목록으로 프로그램을 띄운다 — 표준 입력은 비고 출력은 파이프로 모인다"
+  },
+  "proc_wait": {
+   "meaning": "띄운 프로그램이 끝날 때까지 기다리고 핸들을 닫는다 — 종료 상태"
+  },
+  "push": {
+   "meaning": "뒤에 붙인다"
+  },
+  "r_read": {
+   "meaning": "reactor 로 읽는다"
+  },
+  "r_write": {
+   "meaning": "reactor 로 쓴다"
+  },
+  "random_bytes": {
+   "meaning": "OS 엔트로피로 버퍼를 채운다"
+  },
+  "range": {
+   "meaning": "값의 범위를 좁힌 매개변수 표시"
+  },
+  "reactor_new": {
+   "meaning": "reactor 를 만든다"
+  },
+  "read_in": {
+   "meaning": "표준 입력에서 읽는다"
+  },
+  "read_volatile": {
+   "meaning": "장치 레지스터를 읽는다 — 합치거나 재배치하지 아니한다"
+  },
+  "reduce_add": {
+   "meaning": "레인을 모두 더한다"
+  },
+  "reduce_max": {
+   "meaning": "레인 중 가장 큰 것"
+  },
+  "reduce_min": {
+   "meaning": "레인 중 가장 작은 것"
+  },
+  "reduce_mul": {
+   "meaning": "레인을 모두 곱한다"
+  },
+  "ref": {
+   "meaning": "읽기 참조를 만든다"
+  },
+  "region": {
+   "meaning": "영역을 연다 — 수명이 곧 스코프다"
+  },
+  "ret": {
+   "meaning": "오류를 위로 넘긴다"
+  },
+  "rng_next": {
+   "meaning": "난수를 낸다"
+  },
+  "rotl": {
+   "meaning": "왼쪽으로 돌린다",
+   "group": "비트",
+   "form": "rotl a n",
+   "takes": "`a` — 정수 · `n` — 정수",
+   "gives": "`a` 의 타입 — 왼쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다"
+  },
+  "rotr": {
+   "meaning": "오른쪽으로 돌린다",
+   "group": "비트",
+   "form": "rotr a n",
+   "takes": "`a` — 정수 · `n` — 정수",
+   "gives": "`a` 의 타입 — 오른쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다"
+  },
+  "round": {
+   "meaning": "반올림 — 0 에서 먼 쪽으로",
+   "group": "부동소수점 함수",
+   "form": "round a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — 가장 가까운 정수 값. 꼭 가운데면 0 에서 먼 쪽(`round 2.5` 는 3.0, `round -2.5` 는 -3.0)"
+  },
+  "same_slice": {
+   "meaning": "두 슬라이스가 같은 바이트인가(시작과 길이)"
+  },
+  "sat_add": {
+   "meaning": "더하되 넘치면 **끝값에서 멈춘다**(포화)",
+   "group": "넘침 처분",
+   "form": "sat_add a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — `add` 의 결과를 폭의 끝값에 붙인 값(위로 넘치면 가장 큰 값, 아래로 넘치면 가장 작은 값)"
+  },
+  "sat_mul": {
+   "meaning": "곱하되 넘치면 끝값에서 멈춘다",
+   "group": "넘침 처분",
+   "form": "sat_mul a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — `mul` 의 결과를 폭의 끝값에 붙인 값(위로 넘치면 가장 큰 값, 아래로 넘치면 가장 작은 값)"
+  },
+  "sat_sub": {
+   "meaning": "빼되 넘치면 끝값에서 멈춘다",
+   "group": "넘침 처분",
+   "form": "sat_sub a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — `sub` 의 결과를 폭의 끝값에 붙인 값(위로 넘치면 가장 큰 값, 아래로 넘치면 가장 작은 값)"
+  },
+  "scan": {
+   "meaning": "접으며 중간값을 낸다"
+  },
+  "seg": {
+   "meaning": "조각 사슬의 한 조각"
+  },
+  "segs": {
+   "meaning": "조각 사슬의 조각들"
+  },
+  "send": {
+   "meaning": "액터에 메시지를 보낸다"
+  },
+  "sha256": {
+   "meaning": "SHA-256"
+  },
+  "sha384": {
+   "meaning": "SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다"
+  },
+  "sha512": {
+   "meaning": "SHA-512"
+  },
+  "shl": {
+   "meaning": "왼쪽으로 민다. 시프트 양이 폭 이상이면 트랩한다",
+   "group": "비트",
+   "form": "shl a n",
+   "takes": "`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다",
+   "gives": "`a` 의 타입 — 왼쪽으로 옮긴다. 폭 밖으로 밀려난 비트는 버린다(넘침으로 치지 않는다)"
+  },
+  "shr": {
+   "meaning": "오른쪽으로 민다. 부호 있는 값은 산술 이동이다",
+   "group": "비트",
+   "form": "shr a n",
+   "takes": "`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다",
+   "gives": "`a` 의 타입 — 오른쪽으로 옮긴다. 부호 없는 타입은 0 이, 부호 있는 타입은 부호 비트가 들어온다"
+  },
+  "shuffle": {
+   "meaning": "레인을 주어진 차례로 다시 놓는다"
+  },
+  "sin": {
+   "meaning": "사인",
+   "group": "부동소수점 함수",
+   "form": "sin a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입 — 사인(라디안)"
+  },
+  "size_of": {
+   "meaning": "그 타입이 차지하는 바이트 수",
+   "group": "변환",
+   "form": "size_of T",
+   "takes": "`T` — 타입",
+   "gives": "정수 — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)"
+  },
+  "skip": {
+   "meaning": "앞의 n 개를 건너뛴다"
+  },
+  "some": {
+   "meaning": "값을 담은 option 을 만든다"
+  },
+  "some_value": {
+   "meaning": "담긴 값을 꺼낸다"
+  },
+  "spawn": {
+   "meaning": "새 실행 흐름을 만들고 핸들을 낸다"
+  },
+  "splat": {
+   "meaning": "한 값을 모든 레인에 채운다"
+  },
+  "sqrt": {
+   "meaning": "제곱근",
+   "group": "부동소수점 함수",
+   "form": "sqrt a",
+   "takes": "`a` — 부동",
+   "gives": "`a` 의 타입 — 제곱근. 음수면 NaN"
+  },
+  "stack_new": {
+   "meaning": "스택 자료를 만든다"
+  },
+  "store": {
+   "meaning": "그 자리에 쓴다"
+  },
+  "store_masked": {
+   "meaning": "가려진 자리만 쓴다"
+  },
+  "str_from_cstr": {
+   "meaning": "C 문자열에서 읽는다"
+  },
+  "sub": {
+   "meaning": "앞에서 뒤를 뺀다. 넘치면 트랩한다",
+   "group": "산술",
+   "form": "sub a b",
+   "takes": "`a` `b` — 맞는 둘",
+   "gives": "둘 중 넓은 쪽 타입"
+  },
+  "subslice": {
+   "meaning": "부분 슬라이스 — 복사하지 아니한다"
+  },
+  "sum_neumaier": {
+   "meaning": "부동 조각을 **보정하며** 더한다 — 오차가 항의 개수에 매이지 아니한다"
+  },
+  "sum_seq": {
+   "meaning": "부동 조각을 앞에서 뒤로 한 번 더한다 — 빠르고, 오차가 항의 개수에 비례한다"
+  },
+  "swap": {
+   "meaning": "두 자리를 맞바꾼다"
+  },
+  "take": {
+   "meaning": "앞에서 n 개"
+  },
+  "time_local": {
+   "meaning": "지금의 날짜와 시각(한 수에 묶어 낸다)"
+  },
+  "time_now": {
+   "meaning": "단조 시계의 지금(나노초)"
+  },
+  "time_sleep": {
+   "meaning": "주어진 밀리초만큼 잔다 — 실제로 잔 밀리초를 낸다"
+  },
+  "trailing_zeros": {
+   "meaning": "맨 뒤의 0 비트 수",
+   "group": "비트",
+   "form": "trailing_zeros a",
+   "takes": "`a` — 정수",
+   "gives": "`a` 의 타입 — 맨 아랫자리부터 이어지는 0 의 수. `a` 가 0 이면 폭"
+  },
+  "try_view": {
+   "meaning": "`view` 와 같되 계약이 깨지면 `none` 을 낸다"
+  },
+  "tty_raw": {
+   "meaning": "터미널의 날 입력 모드를 켜거나 끈다"
+  },
+  "tty_read": {
+   "meaning": "터미널에서 읽는다(지금 없으면 0)"
+  },
+  "tty_size": {
+   "meaning": "터미널의 행과 열(한 수에 묶어 낸다)"
+  },
+  "unsafe_fn": {
+   "meaning": "op 의 주소를 값으로 낸다(씨에 되부름으로 넘긴다)"
+  },
+  "value_or": {
+   "meaning": "값이 있으면 그것, 없으면 기본값 — 기본값은 **성공 시 평가되지 아니한다**"
+  },
+  "view": {
+   "meaning": "바이트를 구조체로 본다 — 복사 없음. 정렬·길이 계약을 확인한다"
+  },
+  "view_array": {
+   "meaning": "바이트를 그 타입의 배열로 본다 — 복사 없음"
+  },
+  "view_segments": {
+   "meaning": "조각 사슬을 하나의 배열처럼 본다"
+  },
+  "widen": {
+   "meaning": "더 넓은 폭으로 — 값이 보존된다",
+   "group": "변환",
+   "form": "widen T a",
+   "takes": "`T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수",
+   "gives": "`T` — 값은 그대로다"
+  },
+  "wrap_add": {
+   "meaning": "더하되 넘치면 **감는다**(모듈러)",
+   "group": "넘침 처분",
+   "form": "wrap_add a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — `add` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)"
+  },
+  "wrap_mul": {
+   "meaning": "곱하되 넘치면 감는다",
+   "group": "넘침 처분",
+   "form": "wrap_mul a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — `mul` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)"
+  },
+  "wrap_shl": {
+   "meaning": "왼쪽으로 밀되 시프트 양을 폭으로 감는다",
+   "group": "비트",
+   "form": "wrap_shl a n",
+   "takes": "`a` — 정수 · `n` — 정수",
+   "gives": "`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 왼쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)"
+  },
+  "wrap_shr": {
+   "meaning": "오른쪽으로 밀되 시프트 양을 폭으로 감는다",
+   "group": "비트",
+   "form": "wrap_shr a n",
+   "takes": "`a` — 정수 · `n` — 정수",
+   "gives": "`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 오른쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)"
+  },
+  "wrap_sub": {
+   "meaning": "빼되 넘치면 감는다",
+   "group": "넘침 처분",
+   "form": "wrap_sub a b",
+   "takes": "`a` `b` — 맞는 두 정수",
+   "gives": "둘 중 넓은 쪽 타입 — `sub` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)"
+  },
+  "write_out": {
+   "meaning": "표준 출력에 쓴다"
+  },
+  "write_volatile": {
+   "meaning": "장치 레지스터에 쓴다 — 합치거나 재배치하지 아니한다"
+  },
+  "zip": {
+   "meaning": "두 줄기를 짝지어 흘린다"
+  }
+ }
+}

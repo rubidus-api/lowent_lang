@@ -1,7 +1,7 @@
 {
   "name": "lowent-lsp",
   "version": "1.8.0",
-  "description": "Language server for Lowent: relays the compiler's diagnostics to the editor",
+  "description": "Language server for Lowent: the compiler's diagnostics, and hover and completion for keywords and builtin ops",
   "license": "MIT",
   "private": true,
   "bin": { "lowent-lsp": "server.js" },

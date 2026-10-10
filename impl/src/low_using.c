@@ -670,14 +670,8 @@ static void us_walk_op(us_ctx_t *c, low_cst_t *f) {
     if (h.body) us_walk(c, (low_cst_t *)h.body);
 }
 
-void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
-    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
-    if (!c) return;
-    memset(c, 0, sizeof *c);
-    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
-    c->cal = (us_callee_t *)work.alloc_fn(work.ctx, sizeof(us_callee_t) * US_MAXOPS, alignof(us_callee_t)).value.ptr;
-    if (!c->cal) return;
-    // ⓪ 고정 길이 입력(`array N T`)을 슬라이스 + 진입 계약으로 바꿔 적는다 — 아래 모든 소비자가 바뀐 머리를 본다
+// ⓪ 고정 길이 입력(`array N T`)을 슬라이스 + 진입 계약으로 바꿔 적는다 — 아래 모든 소비자가 바뀐 머리를 본다
+static void us_arrays_all(us_ctx_t *c, low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         low_cst_t *f = pr->forms[i];
         us_arrays_one(c, f);
@@ -687,6 +681,25 @@ void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_all
             for (proven_size_t j = 0; j < blk->nkids; j++) us_arrays_one(c, blk->kids[j]);
         }
     }
+}
+// ★ 대조 스위치 `--flat` 은 `low_using` 을 건너뛴다. 그러면 입력의 `array T N` 이 바뀌지 않은 채 검사기에 닿아 `E-TYPE-ARRAY` 로
+//   거절됐다(2026-10-10 에 찾음 — docs/known-defects/flat-mode-array-input.md). 이 걸음만은 평면 모드도 지난다.
+void low_using_arrays(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    us_arrays_all(c, pr);
+}
+
+void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    c->cal = (us_callee_t *)work.alloc_fn(work.ctx, sizeof(us_callee_t) * US_MAXOPS, alignof(us_callee_t)).value.ptr;
+    if (!c->cal) return;
+    us_arrays_all(c, pr);
     // ① 모은다
     proven_u8str_view_t mod = { 0 };
     bool any_using = false;

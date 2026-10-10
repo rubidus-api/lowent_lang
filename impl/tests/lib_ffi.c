@@ -76,3 +76,18 @@ long long lw_c_vsum(long long n, ...) {
     va_end(ap);
     return s;
 }
+
+/* A Lowent `matrix u32 2 3 4` handed over through `flat` (RFC-0144): row-major, the layout of `uint32_t a[3][4]`.
+   C gets the pointer and the element count, and indexes with two subscripts. */
+long long lw_c_cell34(const uint32_t *p, size_t n, long long r, long long c) {
+    const uint32_t (*a)[4] = (const uint32_t (*)[4])p;
+    if (n != 12) return -1;
+    return a[r][c];
+}
+long long lw_c_fill34(uint32_t *p, size_t n) {
+    uint32_t (*a)[4] = (uint32_t (*)[4])p;
+    if (n != 12) return -1;
+    for (int r = 0; r < 3; r++)
+        for (int c = 0; c < 4; c++) a[r][c] = (uint32_t)(r * 10 + c);
+    return 12;
+}

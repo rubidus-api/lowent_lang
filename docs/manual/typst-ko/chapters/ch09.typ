@@ -180,6 +180,10 @@ VM 이 보여 주는 `fill_two([10,20,5])` 는 op 이 끝난 뒤 인자의 모�
   복사가 아니다. 모든 원소를 도는 것은 `for x flat t. . do` 다.
 - 크기가 다르면 다른 타입이다. `matrix u32 2 3 4` 를 받는 op 에 `matrix u32 2 4 3` 이나 `array u32 12` 를 넘기면
   `E-MATRIX-SHAPE` 다. 통째로 넘기고 돌려받을 때 모양은 번역 시점에 견준다.
+- matrix 를 내는 op 의 결과가 갈 자리는 둘이다: 같은 모양으로 적은 이름(`let t matrix u32 2 3 4 table . .`), 그 모양을 내는
+  op 의 `return`. `array` 이름에 묶는 것도 `E-MATRIX-SHAPE` 다.
+- C 는 같은 배치를 `uint32_t a[3][4]` 로 본다. `slice u32` 를 받는 `extern` op 에 `flat t. .` 을 넘기면 C 는 포인터와 원소 수를
+  받는다.
 - 값을 바로 적으려면 `lit matrix u32 2 2 3 1 2 3 4 5 6 .` 처럼 줄 우선 차례로 나열한다. 모자라면 끝에 `_` 를 적어 0 으로 채운다.
 - `matrix` 는 `let` · `var` 와 op 의 `input` · `output` 에 적는다. 구조체의 칸으로는 아직 적지 못한다(`E-MATRIX-USE`). 이
   타입은 자리만 정한다 --- 행렬의 곱 같은 셈은 직접 적는다.

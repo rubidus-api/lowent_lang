@@ -1,0 +1,42 @@
+rem A `matrix` crosses to C through `flat` (RFC-0144 §8-8): its cells lie row-major in one run, so C reads the
+rem same bytes as `uint32_t a[3][4]`. C gets a pointer and a count of elements, as for any slice.
+module vm_ffi_mx .
+
+rem C reads cell [r][c] of a 3 x 4 table
+unsafe extern proc c_cell34 do
+  input k cap c .
+  input s slice u32 .
+  input r i64 .
+  input c i64 .
+  output i64 .
+  effects unsafe .
+  link lw_c_cell34 .
+  requires lt r. 3 . .
+  requires lt c. 4 . .
+  requires ge r. 0 . .
+  requires ge c. 0 . .
+end .
+
+rem C writes r * 10 + c into every cell of a 3 x 4 table
+unsafe extern proc c_fill34 do
+  input k cap c .
+  input s mut slice u32 .
+  output i64 .
+  effects unsafe .
+  link lw_c_fill34 .
+end .
+
+rem Lowent builds the table, C indexes it as a[r][c]
+unsafe proc read_in_c input k cap c . input r i64 . input c i64 . output i64 . effects unsafe .
+do
+  let m lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
+  return c_cell34 k. flat m. . r. c. . .
+end .
+
+rem C fills the table as a[r][c], Lowent indexes it with `idx m. r. c. .`
+unsafe proc write_in_c input k cap c . input r u64 . input c u64 . output u64 . effects unsafe .
+do
+  var m lit matrix u32 2 3 4 _ . .
+  let n i64 c_fill34 k. flat m. . . .
+  return widen u64 idx m. r. c. . . .
+end .

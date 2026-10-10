@@ -1,0 +1,57 @@
+rem `break <n> .` · `continue <n> .` out of loops whose bodies hold a list taken from an allocator (RFC-0143 §8-5).
+rem Leaving two loops at once gives back what both bodies took; the VM and native code agree on the answers.
+module vm_breakalloc .
+use allocs .
+
+rem each turn takes a list from the heap; `break 2` leaves both loops from inside the inner body
+export proc heap_leave input h cap heap . input stop u64 . output u64 . effects heap state .
+  requires le stop. 64 . .
+do
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes . .
+  var n u64 0 .
+  repeat r u64 8 do
+    let row use hb. mut slice u64 lit array u64 8 do 0 r. . _ 1 . end . else return 900 . .
+    repeat c u64 8 do
+      let cell use hb. mut slice u64 lit array u64 4 do 0 c. . _ 2 . end . else return 901 . .
+      set n. add n. add idx row. 0 . idx cell. 1 . . . .
+      if eq add mul r. 8 . c. . stop. . do break 2 . end .
+    end .
+  end .
+  return n. .
+end .
+
+rem `continue 2` goes on to the next outer turn while the inner body still holds its list
+export proc heap_next input h cap heap . input skip u64 . output u64 . effects heap state .
+  requires le skip. 8 . .
+do
+  var hb allocs.heap_bytes spawn actor allocs.heap_bytes . .
+  var n u64 0 .
+  repeat r u64 6 do
+    repeat c u64 6 do
+      let cell use hb. mut slice u64 lit array u64 4 do 0 c. . _ 1 . end . else return 902 . .
+      if eq c. skip. . do continue 2 . end .
+      set n. add n. idx cell. 0 . . .
+    end .
+    set n. add n. 100 . .
+  end .
+  return n. .
+end .
+
+rem the same with a bump allocator whose backing is an array in the frame: what it handed out is used after the loops
+export proc bump_leave input stop u64 . output u64 . effects state .
+  requires le stop. 16 . .
+do
+  var back lit array u8 512 _ . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got u64 send bb. init back. . .
+  var n u64 0 .
+  repeat r u64 4 do
+    repeat c u64 4 do
+      let cell use bb. mut slice u64 lit array u64 2 do 0 r. . 1 c. . end . else return 903 . .
+      set n. add n. add idx cell. 0 . idx cell. 1 . . . .
+      if eq add mul r. 4 . c. . stop. . do break 2 . end .
+    end .
+  end .
+  let after use bb. mut slice u64 lit array u64 2 7 9 . else return 904 . .
+  return add n. idx after. 1 . . .
+end .

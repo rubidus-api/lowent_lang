@@ -328,6 +328,38 @@ Proof. intros xs ys. rewrite nested_block_flattens. simpl. reflexivity. Qed.
 Theorem group_adds_nothing : forall f, denote (Group f) = denote f.
 Proof. intros f. reflexivity. Qed.
 
+(* ── 1.9 의 두 낱말 ──────────────────────────────────────────────────────── *)
+
+(* 언어 개정 1.9 는 `break <n> .` · `continue <n> .`(RFC-0143)와 `matrix`(RFC-0144)를 더했다. 둘 다 이 모델에 새 생성자를
+   요구하지 않는다: 겹의 수는 리터럴이고, `matrix u32 2 3 4` 는 타입이다 — 리터럴과 타입은 폼을 열지 않는 잎(`Lit`)이다.
+   그래서 위의 정리들이 그대로 덮는다. 아래는 그 사례를 정리로 적어 둔 것이다. 되풀이를 떠나는 **뜻**(어느 되풀이로 가는가)과
+   matrix 의 모양 견줌은 이 모델의 일이 아니다 — 이 모델은 글이 어떤 나무로 읽히는가만 말한다. *)
+
+(* 인자가 모두 잎인 폼은 적은 그대로 읽힌다 — `break 2 .` 는 Form break [Lit 2] 하나다. *)
+Lemma print_leaves : forall ns, flat_map print (map Lit ns) = map TLit ns.
+Proof. induction ns as [|n ns IH]; simpl; [reflexivity | rewrite IH; reflexivity]. Qed.
+
+Lemma erase_leaves : forall ns, map erase (map Lit ns) = map Lit ns.
+Proof. induction ns as [|n ns IH]; simpl; [reflexivity | rewrite IH; reflexivity]. Qed.
+
+Theorem leaf_arguments_read_back : forall h ns,
+  parse (TName h :: map TLit ns ++ [TDot]) = Some [Form h (map Lit ns)].
+Proof.
+  intros h ns.
+  assert (E : prints [Form h (map Lit ns)] = TName h :: map TLit ns ++ [TDot]).
+  { unfold prints. simpl. rewrite app_nil_r, print_leaves. reflexivity. }
+  rewrite <- E, parse_print. simpl. rewrite erase_leaves. reflexivity.
+Qed.
+
+(* `idx m. 1 2 .` — matrix 의 색인은 폼 하나이고, 그 안의 `m.` 은 인자 없는 폼이다(이름 0 = idx, 이름 1 = m). *)
+Example matrix_index_is_one_form :
+  parse [TName 0; TName 1; TDot; TLit 1; TLit 2; TDot] = Some [Form 0 [Form 1 []; Lit 1; Lit 2]].
+Proof. reflexivity. Qed.
+
+(* 수가 붙은 `break` 에서 점을 빼면 거절된다 — 수는 폼을 닫지 않는다. *)
+Example counted_break_needs_its_stop : parse [TName 0; TLit 2] = None.
+Proof. reflexivity. Qed.
+
 (* ── 개행 ────────────────────────────────────────────────────────────────── *)
 
 (* 개행은 이 모델의 글(tok)에 **없다.** 닫는 것은 점 하나뿐이므로 «개행이 닫느냐» 를 물을 자리가 없다 —
@@ -339,3 +371,4 @@ Print Assumptions parens_are_decoration.
 Print Assumptions one_text_one_tree.
 Print Assumptions stops_match_opens.
 Print Assumptions end_does_not_close_a_form.
+Print Assumptions leaf_arguments_read_back.

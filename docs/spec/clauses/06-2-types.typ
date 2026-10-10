@@ -440,6 +440,10 @@ end .", "E-LIT-COUNT")
       #strong[배치.]; 원소는 한 덩어리로 이어 놓으며 줄 우선이다 — 마지막 색인이 가장 빨리 돈다. 크기와 정렬은
       `array t n`(`n` 은 크기들의 곱)과 같고, 덧붙는 머리는 없다.
     ]
+    #note[
+      이 배치는 C 의 `t a[d1]…[dk]` 와 같다. `flat m. .` 을 `slice t` 입력을 가진 `extern` op 에 넘기면 C 는 포인터와 원소 수를
+      받고, 그 포인터를 `t (*)[d2]…[dk]` 로 읽어 같은 칸을 가리킨다.
+    ]
     #para("3")[
       `matrix` 타입은 #strong[이름을 짓는 자리];에 적는다 — `let` · `var` 의 타입, op 의 `input` 과 `output`. 구조체의 칸, 다른
       타입의 원소, 타입 인자의 자리에는 적지 못한다(`E-MATRIX-USE`).
@@ -470,6 +474,12 @@ end .", "E-LIT-COUNT")
       `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `dim` · `flat` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
       같은 모양의 결과를 가진 op 의 `return` 이다. 그 밖의 자리는 거부된다(`E-MATRIX-USE`). 인자와 입력, 바인딩의
       타입과 부른 op 의 결과는 차원 수와 크기가 모두 같아야 한다(`E-MATRIX-SHAPE`).
+    ]
+    #para("9a")[
+      결과가 `matrix` 인 op 의 호출은 두 자리에만 놓인다 — 같은 모양의 `matrix` 이름을 짓는 바인딩의 값, 같은 모양의
+      결과를 가진 op 의 `return` 의 값. 결과가 `matrix` 인 op 의 `return` 은 그 모양의 `matrix` 이름이나 그 모양을 내는
+      op 의 호출을 준다. `array` 이름에 묶거나 `array` 를 내는 op 에서 돌려주는 것을 포함하여, 어기면 거부된다
+      (`E-MATRIX-SHAPE`).
     ]
     #para("10")[
       이 타입은 #strong[자리];만 정한다. 행렬의 곱 같은 셈은 정하지 아니한다.

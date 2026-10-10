@@ -191,6 +191,11 @@ dimensions comes first, the sizes can be told apart from elements listed after t
   not a copy. To walk every element, write `for x flat t. . do`.
 - Another size is another type. Passing `matrix u32 2 4 3` or `array u32 12` to an op that takes `matrix u32 2 3 4` is
   `E-MATRIX-SHAPE`. When a matrix is passed or returned whole, the shapes are compared at translation time.
+- The result of an op that returns a matrix goes to one of two places: a name declared with the same shape
+  (`let t matrix u32 2 3 4 table . .`), or the `return` of an op whose output is that shape. Binding it to an `array` name is
+  `E-MATRIX-SHAPE` too.
+- C sees the same layout as `uint32_t a[3][4]`. Pass `flat t. .` to an `extern` op that takes a `slice u32`; C receives a
+  pointer and the element count.
 - To write the values directly, list them row by row: `lit matrix u32 2 2 3 1 2 3 4 5 6 .`. If there are fewer, end with `_`
   to fill the rest with zero.
 - A `matrix` is written at `let`, `var`, and an op's `input` and `output`. It cannot be a struct field yet (`E-MATRIX-USE`).

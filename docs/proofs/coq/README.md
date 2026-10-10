@@ -79,7 +79,7 @@ make -C docs/proofs/coq     # 전부 컴파일 (Qed 실패 시 비0 종료)
 | **`LowentLoop.v`** | 토큰 기반 동적 의미 · **루프 정리(보조정리 B, 무계·모든 k)** | **전부 Qed** |
 | **`LowentPlace.v`** | **place 일반화** — 지역을 사영 경로로, 동등성을 **겹침**으로 | **전부 Qed** |
 | **`LowentLaunder.v`** | **op 경계** — 차용 세탁·별칭 등록 · 옛 규칙의 **반례** | **전부 Qed** |
-| **`LowentBlock.v`** | **이름은 열고 점은 닫는다(1.8)** — 찍은 글을 읽으면 그 나무(왕복) · 괄호는 꾸밈 · 한 글에 한 나무 · 점의 수는 검사합 · `end` 는 폼을 닫지 않는다 · 블록의 결합법칙 | **전부 Qed** |
+| **`LowentBlock.v`** | **이름은 열고 점은 닫는다(1.8 · 1.9)** — 찍은 글을 읽으면 그 나무(왕복) · 괄호는 꾸밈 · 한 글에 한 나무 · 점의 수는 검사합 · `end` 는 폼을 닫지 않는다 · 블록의 결합법칙 · 1.9 의 `break <n> .` 와 `matrix` 는 잎이라 같은 모델의 사례다(`leaf_arguments_read_back`) | **전부 Qed** |
 | **`LowentRC11.v`** | **R7-(3) RC11 유한 litmus** — 기본 seq_cst 가 SB 를 막고, relaxed 는 허용한다 | **전부 Qed** |
 | **`LowentRC11SC.v`** | **R7-(3) 일반 방향** — 모든 접근이 seq_cst 면 `po∪rf∪mo∪fr` 가 **∀실행에서** 비순환 · 부분관계 비순환성 · mode 단조성 | **전부 Qed** |
 | **`LowentRC11Sweep.v`** | **litmus 전수 열거** — 이름 있는 일곱(SB·LB·MP·CoRR·CoWR·2+2W·IRIW) + 유계 전수 단조성 | **전부 Qed**(93초) |

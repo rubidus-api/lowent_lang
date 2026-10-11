@@ -58,6 +58,9 @@ static proven_allocator_t lw_heap(void) {
 #include "low_pkg.h"
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <time.h>
 
 static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *out_len) {
     FILE *f = fopen(path, "rb");
@@ -1078,6 +1081,7 @@ static void print_usage(const char *argv0) {
         "    --check              검사만 한다 (계약·효과·소유·가시성·계층·능력)\n"
         "    --stack-report       검사하고, 진입 op·태스크마다 스택에 한꺼번에 사는 나열 바이트와 예산을 찍는다\n"
         "    --run OP [args…]     VM 으로 그 op 을 돌린다 (슬라이스 인자는 [a,b,c])\n"
+        "    --run-batch          한 번 번역하고 표준 입력의 줄마다(`OP args…`) 돌린다 — 줄 끝마다 표시 줄을 적는다\n"
         "    --emit-c             C 를 찍는다 — **네이티브 빌드**(volatile·인라인 asm 이 여기서 진짜가 된다)\n"
         "    --test               `test` 블록을 돌린다\n"
         "    --fmt                정규형으로 찍는다 (괄호 = 렌더링 계층, RFC-0046 R5)\n"
@@ -1111,6 +1115,115 @@ static void print_usage(const char *argv0) {
         "\n  여러 .low 를 주면 **하나의 컴파일 단위**로 잇는다. `use <n> from \"<path>\" .` 는\n"
         "  스스로 링크된다 — 경로는 **그것을 선언한 파일 기준**이다.\n",
         argv0);
+}
+
+// ★ `--run` 의 인자 하나를 받는다 — 명령줄의 낱말이든(`--run`) 묶음 줄의 낱말이든(`--run-batch`) 같은 규칙이다.
+//   0 = 받았다 · 1 = 인자가 아니다(부른 쪽이 정한다) · 2 = 말하고 멈춘다.
+#define LOW_ARGFILE_MAX (16u * 1024u * 1024u)   // `@file` 인자 한 개의 상한 — 정적 칸이 아니라 **읽어서 잡는다**(X-0034 ⓑ)
+static int run_arg_take(const char *tok, const char *run_op,
+                        proven_i64 *run_args, proven_size_t *nrun_args,
+                        low_ir_arg_t *shaped, proven_size_t *nshaped, bool *any_bracket,
+                        const char **rawargs, proven_size_t *nraw, proven_u8 (*sbufs)[8192]) {
+    // ★ D2′ — 엔트리 실행(`--run main`)의 나머지 CLI 는 **프로그램 인자 원문**이다.
+    //   다른 op 의 --run 인자 규칙(숫자·[슬라이스])은 그대로 둔다 — main 만 소비한다.
+    if (strcmp(run_op, "main") == 0 && (*nraw) < 64) {
+        rawargs[(*nraw)++] = tok;
+        return 0;
+    }
+    // ★★★★ **`@파일` — 배열 인자를 파일에서 읽는다** (X-0034 ⓑ, 소유자 선택 2026-09-19).
+    //   브래킷 인자는 정적 칸(8192 B)에 담겨 **1024 조각**이 상한이었고, 그 벽이
+    //   라이브러리의 자리 배치를 바꾸고 있었다 — `lib/p256.low` 의 머리글이 적어 둔 그대로다
+    //   (*"처음엔 1400 을 요구했는데 그러면 --run 의 배열 인자 상한을 넘어 시험이 못 돈다"*).
+    //   ⇒ 도구가 못 재서 코드를 줄이는 일을 끝낸다. 파일의 **바이트 그대로**가 조각이 된다.
+    //   ☞ 자르지 않는다: 못 읽거나 너무 크면 **말하고 멈춘다**.
+    if (tok[0] == '@' && tok[1] && (*nshaped) < LOW_HDR_MAXP) {
+        const char *fp = tok + 1;
+        FILE *af = fopen(fp, "rb");
+        if (!af) {
+            fprintf(stderr, "E-CLI-ARGFILE: cannot read `%s` — a `@file` argument is the "
+                    "BYTES of that file, used as one slice argument\n", fp);
+            return 2;
+        }
+        if (fseek(af, 0, SEEK_END) != 0) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: `%s` is not seekable\n", fp); return 2; }
+        long alen = ftell(af);
+        rewind(af);
+        if (alen < 0) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: cannot size `%s`\n", fp); return 2; }
+        if ((unsigned long)alen > LOW_ARGFILE_MAX) {
+            fclose(af);
+            fprintf(stderr, "E-CLI-ARGTOOBIG: `%s` is %ld bytes and this tool carries %llu per "
+                    "`@file` argument — refusing rather than truncating (a silently short slice "
+                    "makes the program answer \"buffer too small\" and sends you hunting in your "
+                    "own code)\n", fp, alen, (unsigned long long)LOW_ARGFILE_MAX);
+            return 2;
+        }
+        proven_u8 *ab = (proven_u8 *)calloc((size_t)alen ? (size_t)alen : 1, 1);
+        if (!ab) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: out of memory for `%s`\n", fp); return 2; }
+        if (alen > 0 && fread(ab, 1, (size_t)alen, af) != (size_t)alen) {
+            fclose(af); free(ab);
+            fprintf(stderr, "E-CLI-ARGFILE: short read on `%s` — a half-read argument is not an argument\n", fp);
+            return 2;
+        }
+        fclose(af);
+        (*any_bracket) = true;
+        shaped[(*nshaped)++] = (low_ir_arg_t){ .is_slice = true, .bytes = ab, .n = (proven_size_t)alen };
+        return 0;
+    }
+    if (tok[0] == '[' && (*nshaped) < LOW_HDR_MAXP) {
+        (*any_bracket) = true;
+        proven_size_t k = (*nshaped), n = 0;
+        bool over = false;
+        for (const char *p = tok + 1; *p && *p != ']'; ) {
+            if (*p == ',' || *p == ' ') { p++; continue; }
+            char *e = NULL; long long v = strtoll(p, &e, 10);
+            if (e == p) break;
+            // ★★★ **조용히 자르지 않는다.** 전에는 `n < 8192` 를 루프 조건에 두어
+            //   8192 바이트를 넘는 배열이 **말 없이 잘렸다** — 12000 을 주면 1024 개
+            //   u64 가 들어오고, 프로그램은 *"버퍼가 짧다"* 며 0 을 답했다.
+            //   그 0 을 보고 사람은 **자기 코드를 뒤진다.** 자름은 도구가 말해야 한다.
+            if (n >= sizeof sbufs[0]) { over = true; break; }
+            sbufs[k][n++] = (proven_u8)v; p = e;
+        }
+        if (over) {
+            fprintf(stderr,
+                    "E-CLI-ARGTOOBIG: this `[...]` argument has more than %zu elements — "
+                    "refusing rather than truncating (a silently short slice makes the "
+                    "program answer \"buffer too small\" and sends you hunting in your own "
+                    "code). Split the run, or raise the limit in impl/src/main.c.\n",
+                    sizeof sbufs[0]);
+            return 2;
+        }
+
+        shaped[(*nshaped)++] = (low_ir_arg_t){ .is_slice = true, .bytes = sbufs[k], .n = n };
+        return 0;
+    }
+    // ★ f64 인자. 예전엔 `.` 이 있어야만 부동소수로 봤다 — 그래서 **`1e10` 은
+    //   파일 이름으로 읽혔고**(VM), 네이티브는 그것을 **조용히 1 로** 읽었다
+    //   (strtoll 이 앞 글자만 먹는다). **같은 인자, 두 해석.** 차등 퍼저가 찾았다.
+    //   ⇒ 규칙: **strtod 가 토큰을 끝까지 먹으면** 부동소수다(`.` 이든 지수든).
+    if ((*nshaped) < LOW_HDR_MAXP && tok[0] &&
+             (strchr(tok, '.') || strchr(tok, 'e') || strchr(tok, 'E')) &&
+             ({ char *e_ = NULL; (void)strtod(tok, &e_); e_ && *e_ == '\0'; })) {
+        double dv = strtod(tok, NULL);
+        proven_i64 bits; memcpy(&bits, &dv, 8);
+        shaped[(*nshaped)++] = (low_ir_arg_t){ .is_flt = true, .v = bits };
+        (*any_bracket) = true;   // 모양 있는 매핑으로 간다(평평한 매핑은 정수만 안다)
+        return 0;
+    }
+    if ((*nrun_args) < 64 &&
+             strspn(tok, "-0123456789") == strlen(tok) && tok[0]) {
+        // ★★★★ **u64 의 위쪽 절반도 인자다** (결함 노트 #19·#69, 2026-09-16).
+        //   `strtoll` 은 18446744073709551615 를 **9223372036854775807 로 잘라** 넣었다 —
+        //   조용히 다른 수를 준 것이고, 표시까지 그 잘린 수였다. 부호 없는 글자에는
+        //   `strtoull` 을 쓰고 **비트 그대로** 싣는다(안쪽은 64 비트 두 해석을 같이 쓴다).
+        proven_i64 av;
+        if (tok[0] != '-') av = (proven_i64)strtoull(tok, NULL, 10);
+        else                   av = (proven_i64)strtoll(tok, NULL, 10);
+        run_args[(*nrun_args)++] = av;
+        if ((*nshaped) < LOW_HDR_MAXP)
+            shaped[(*nshaped)++] = (low_ir_arg_t){ .is_slice = false, .v = av };
+        return 0;
+    }
+    return 1;
 }
 
 int main(int argc, char **argv) {
@@ -1164,6 +1277,8 @@ int main(int argc, char **argv) {
     bool want_emitproof = false;
     bool want_emitevents = false;
     const char *doc_out = NULL, *run_op = NULL;
+    bool run_batch = false;       // ★ `--run-batch` — 표준 입력의 줄마다 `--run` 한 번(RFC-0146)
+    double batch_limit_s = 0;     //   한 줄의 시간 한도(초) — 0 이면 없다
     bool run_unchecked = false;   // ★ `--unchecked` — 거절당한 단위를 일부러 돌린다(오라클 픽스처)
     bool run_refused = false;     // ★ 검사가 거절했다 — 돌리지 않는다
     bool want_test = false, want_ops = false, want_nest = false, want_flat = false;
@@ -1184,8 +1299,6 @@ int main(int argc, char **argv) {
     //   상한이었고, 스크래치를 명령 수에 비례해 받는 op(regex 의 캡처 슬롯 ni×16)은 그 벽에
     //   막혀 **CLI 로 시험할 수가 없었다.** 도구가 못 재는 것은 아무도 안 재게 된다(교훈 4).
     static proven_u8 sbufs[16][8192];
-    // ★ `@file` 인자 한 개의 상한 — 정적 칸이 아니라 **읽어서 잡는다**(X-0034 ⓑ).
-    #define LOW_ARGFILE_MAX (16u * 1024u * 1024u)
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-t") == 0) want_tokens = true;
         else if (strcmp(argv[i], "--cst") == 0) want_cst = true;
@@ -1334,6 +1447,10 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--ir") == 0) want_ir = true;
         else if (strcmp(argv[i], "--emit-c") == 0) want_emitc = true;
         else if (strcmp(argv[i], "--run") == 0 && i + 1 < argc) run_op = argv[++i];
+        // ★ `--run-batch` — **한 번 번역하고 여러 번 돌린다** (RFC-0146). 표준 입력의 한 줄이 `--run` 한 번이다
+        //   (`<op> <인자>…`). 줄마다 프로세스를 갈라(fork) 돌리므로 한 줄이 남긴 것은 다음 줄에 닿지 않는다.
+        else if (strcmp(argv[i], "--run-batch") == 0) run_batch = true;
+        else if (strcmp(argv[i], "--batch-limit") == 0 && i + 1 < argc) batch_limit_s = strtod(argv[++i], NULL);
         else if (strcmp(argv[i], "--unchecked") == 0) run_unchecked = true;
         else if (strcmp(argv[i], "--target") == 0 && i + 1 < argc) {
             // ★ 정본 §5.6 (3) — 기계의 이름은 닫힌 집합이다. 모르는 이름을 받아 주면 조용히 호스트로 짓는다.
@@ -1389,100 +1506,11 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--nest") == 0) want_nest = true;
         // ★ 나무를 **끈다** — 대조용. 세 오라클(해시·진단·런타임)이 이 둘을 매번 맞대 본다.
         else if (strcmp(argv[i], "--flat") == 0) want_flat = true;
-        // ★ D2′ — 엔트리 실행(`--run main`)의 나머지 CLI 는 **프로그램 인자 원문**이다.
-        //   다른 op 의 --run 인자 규칙(숫자·[슬라이스])은 그대로 둔다 — main 만 소비한다.
-        else if (run_op && npaths && strcmp(run_op, "main") == 0 && nraw < 64) {
-            rawargs[nraw++] = argv[i];
-        }
-        // ★★★★ **`@파일` — 배열 인자를 파일에서 읽는다** (X-0034 ⓑ, 소유자 선택 2026-09-19).
-        //   브래킷 인자는 정적 칸(8192 B)에 담겨 **1024 조각**이 상한이었고, 그 벽이
-        //   라이브러리의 자리 배치를 바꾸고 있었다 — `lib/p256.low` 의 머리글이 적어 둔 그대로다
-        //   (*"처음엔 1400 을 요구했는데 그러면 --run 의 배열 인자 상한을 넘어 시험이 못 돈다"*).
-        //   ⇒ 도구가 못 재서 코드를 줄이는 일을 끝낸다. 파일의 **바이트 그대로**가 조각이 된다.
-        //   ☞ 자르지 않는다: 못 읽거나 너무 크면 **말하고 멈춘다**.
-        else if (run_op && npaths && argv[i][0] == '@' && argv[i][1] && nshaped < LOW_HDR_MAXP) {
-            const char *fp = argv[i] + 1;
-            FILE *af = fopen(fp, "rb");
-            if (!af) {
-                fprintf(stderr, "E-CLI-ARGFILE: cannot read `%s` — a `@file` argument is the "
-                        "BYTES of that file, used as one slice argument\n", fp);
-                return 2;
-            }
-            if (fseek(af, 0, SEEK_END) != 0) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: `%s` is not seekable\n", fp); return 2; }
-            long alen = ftell(af);
-            rewind(af);
-            if (alen < 0) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: cannot size `%s`\n", fp); return 2; }
-            if ((unsigned long)alen > LOW_ARGFILE_MAX) {
-                fclose(af);
-                fprintf(stderr, "E-CLI-ARGTOOBIG: `%s` is %ld bytes and this tool carries %llu per "
-                        "`@file` argument — refusing rather than truncating (a silently short slice "
-                        "makes the program answer \"buffer too small\" and sends you hunting in your "
-                        "own code)\n", fp, alen, (unsigned long long)LOW_ARGFILE_MAX);
-                return 2;
-            }
-            proven_u8 *ab = (proven_u8 *)calloc((size_t)alen ? (size_t)alen : 1, 1);
-            if (!ab) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: out of memory for `%s`\n", fp); return 2; }
-            if (alen > 0 && fread(ab, 1, (size_t)alen, af) != (size_t)alen) {
-                fclose(af); free(ab);
-                fprintf(stderr, "E-CLI-ARGFILE: short read on `%s` — a half-read argument is not an argument\n", fp);
-                return 2;
-            }
-            fclose(af);
-            any_bracket = true;
-            shaped[nshaped++] = (low_ir_arg_t){ .is_slice = true, .bytes = ab, .n = (proven_size_t)alen };
-        }
-        else if (run_op && npaths && argv[i][0] == '[' && nshaped < LOW_HDR_MAXP) {
-            any_bracket = true;
-            proven_size_t k = nshaped, n = 0;
-            bool over = false;
-            for (const char *p = argv[i] + 1; *p && *p != ']'; ) {
-                if (*p == ',' || *p == ' ') { p++; continue; }
-                char *e = NULL; long long v = strtoll(p, &e, 10);
-                if (e == p) break;
-                // ★★★ **조용히 자르지 않는다.** 전에는 `n < 8192` 를 루프 조건에 두어
-                //   8192 바이트를 넘는 배열이 **말 없이 잘렸다** — 12000 을 주면 1024 개
-                //   u64 가 들어오고, 프로그램은 *"버퍼가 짧다"* 며 0 을 답했다.
-                //   그 0 을 보고 사람은 **자기 코드를 뒤진다.** 자름은 도구가 말해야 한다.
-                if (n >= sizeof sbufs[0]) { over = true; break; }
-                sbufs[k][n++] = (proven_u8)v; p = e;
-            }
-            if (over) {
-                fprintf(stderr,
-                        "E-CLI-ARGTOOBIG: this `[...]` argument has more than %zu elements — "
-                        "refusing rather than truncating (a silently short slice makes the "
-                        "program answer \"buffer too small\" and sends you hunting in your own "
-                        "code). Split the run, or raise the limit in impl/src/main.c.\n",
-                        sizeof sbufs[0]);
-                return 2;
-            }
-
-            shaped[nshaped++] = (low_ir_arg_t){ .is_slice = true, .bytes = sbufs[k], .n = n };
-        }
-        // ★ f64 인자. 예전엔 `.` 이 있어야만 부동소수로 봤다 — 그래서 **`1e10` 은
-        //   파일 이름으로 읽혔고**(VM), 네이티브는 그것을 **조용히 1 로** 읽었다
-        //   (strtoll 이 앞 글자만 먹는다). **같은 인자, 두 해석.** 차등 퍼저가 찾았다.
-        //   ⇒ 규칙: **strtod 가 토큰을 끝까지 먹으면** 부동소수다(`.` 이든 지수든).
-        else if (run_op && npaths && nshaped < LOW_HDR_MAXP && argv[i][0] &&
-                 (strchr(argv[i], '.') || strchr(argv[i], 'e') || strchr(argv[i], 'E')) &&
-                 ({ char *e_ = NULL; (void)strtod(argv[i], &e_); e_ && *e_ == '\0'; })) {
-            double dv = strtod(argv[i], NULL);
-            proven_i64 bits; memcpy(&bits, &dv, 8);
-            shaped[nshaped++] = (low_ir_arg_t){ .is_flt = true, .v = bits };
-            any_bracket = true;   // 모양 있는 매핑으로 간다(평평한 매핑은 정수만 안다)
-        }
-        else if (run_op && npaths && nrun_args < 64 &&
-                 strspn(argv[i], "-0123456789") == strlen(argv[i]) && argv[i][0]) {
-            // ★★★★ **u64 의 위쪽 절반도 인자다** (결함 노트 #19·#69, 2026-09-16).
-            //   `strtoll` 은 18446744073709551615 를 **9223372036854775807 로 잘라** 넣었다 —
-            //   조용히 다른 수를 준 것이고, 표시까지 그 잘린 수였다. 부호 없는 글자에는
-            //   `strtoull` 을 쓰고 **비트 그대로** 싣는다(안쪽은 64 비트 두 해석을 같이 쓴다).
-            proven_i64 av;
-            if (argv[i][0] != '-') av = (proven_i64)strtoull(argv[i], NULL, 10);
-            else                   av = (proven_i64)strtoll(argv[i], NULL, 10);
-            run_args[nrun_args++] = av;
-            if (nshaped < LOW_HDR_MAXP)
-                shaped[nshaped++] = (low_ir_arg_t){ .is_slice = false, .v = av };
-        }
+        else if (run_op && npaths &&
+                 ({ int t_ = run_arg_take(argv[i], run_op, run_args, &nrun_args, shaped, &nshaped, &any_bracket,
+                                          rawargs, &nraw, sbufs);
+                    if (t_ == 2) return 2;
+                    t_ == 0; })) { }
         else if (npaths < MAX_FILES) paths[npaths++] = argv[i];
         // ★★★ **넘치는 인자를 조용히 버리지 않는다** (2026-09-09 · REQ-0012).
         //   전에는 서른세 번째 파일이 그냥 사라졌고, 그 파일의 틀린 몸통은 검사되지 않은 채
@@ -2104,7 +2132,7 @@ int main(int argc, char **argv) {
         low_ir_t ir = low_ir_build(heap, &pr);
         int n = low_ir_emit_proof(&ir, stdout);
         rc = (n >= 0 && ir.ok) ? 0 : 1;
-    } else if (want_ir || want_emitc || run_op || want_test || want_ops) {
+    } else if (want_ir || want_emitc || run_op || run_batch || want_test || want_ops) {
         // ★ `--ir` 은 **사람이 읽는 덤프**다 — 저자를 향한 경고를 여기서도 켠다.
         //   `--run`/`--emit-c`/`--test` 는 켜지 않는다: 그 출력은 답이거나 C 소스이고,
         //   VM 과 네이티브를 **바이트로** 견주는 검사들이 그것을 읽는다.
@@ -2126,8 +2154,8 @@ int main(int argc, char **argv) {
         // ★★ 2026-10-03 — **`--emit-c` 도 같은 문을 쓴다.** `--check` 가 E-TYPE-WIDTH 로 거절한 단위(`return add c 256 .`,
         //   c 는 u8)를 `--emit-c` 는 아무 말 없이 C 로 내고 종료 0 이었다 — 그 C 를 짓고 돌리면 «선언 폭 넘침» 으로 멈춘다(벤치를
         //   새로 짜다 실측). C 를 내는 것은 돌리는 것의 앞 단계다: 거절당한 프로그램의 C 를 내 주면 #86 의 약속이 한 단계 뒤로 샌다.
-        const bool gate_unit = run_op || want_test || (want_emitc && !want_ir && !want_why);   // ★ --ir · --why-slow 는 진단이라 문 밖이다
-        const char *gate_flag = run_op ? "--run" : want_test ? "--test" : want_emitdb ? "--emit-db" : want_emith ? "--emit-h" : want_emitld ? "--emit-ld" : "--emit-c";
+        const bool gate_unit = run_op || run_batch || want_test || (want_emitc && !want_ir && !want_why);   // ★ --ir · --why-slow 는 진단이라 문 밖이다
+        const char *gate_flag = (run_op || run_batch) ? "--run" : want_test ? "--test" : want_emitdb ? "--emit-db" : want_emith ? "--emit-h" : want_emitld ? "--emit-ld" : "--emit-c";
         if (gate_unit && !run_unchecked && !pr.ok) {
             printf("   ^ `%s` REFUSED this unit: it has lex/parse errors (above), so `--check` rejects it too. "
                    "A program the language rejects must not run — that is the whole of the promise. "
@@ -2361,6 +2389,81 @@ int main(int argc, char **argv) {
             if (tr.total == 0)
                 printf("   (no `test` blocks in this unit — nothing was run, and this says so)\n");
             rc = tr.failed ? 1 : 0;
+        }
+        // ★★ RFC-0146 — `--run-batch`. 여기까지(읽기 · 검사 · 하강)는 **한 번** 했다. 이제 표준 입력의 줄마다 프로세스를
+        //   갈라, 갈린 쪽이 그 줄을 `--run <op> <인자>…` 로 삼아 아래의 여느 길을 그대로 걷고 끝난다. 그래서 한 줄의 출력은
+        //   `--run` 을 따로 부른 것의 «여기부터» 와 바이트가 같고, 트랩 · 풀 · 스케줄러의 상태는 줄 사이에 새지 않는다
+        //   (새지 않게 걷어 낸 것이 아니라 프로세스가 다르다). 어미는 줄이 끝날 때마다 두 흐름에 같은 표시 줄을 적는다:
+        //     `\x1e<차례> rc=<종료 코드>` · `\x1e<차례> sig=<신호>` · `\x1e<차례> timeout`.
+        //   첫 줄을 돌리기 전에는 `\x1ebegin` 을 적는다 — 그 앞은 번역하며 나온 말이다.
+        if (run_batch && !run_op && !run_refused && !lex.diags.len && !pr.diags.len) {
+            proven_size_t cap = 1 << 16, blen = 0;
+            char *all = (char *)malloc(cap);
+            for (size_t got; all && (got = fread(all + blen, 1, cap - blen - 1, stdin)) > 0; ) {
+                blen += got;
+                if (cap - blen < 2) { cap *= 2; all = (char *)realloc(all, cap); }
+            }
+            if (!all) { fprintf(stderr, "E-CLI-BATCH: out of memory reading the batch\n"); return 2; }
+            all[blen] = '\0';
+            printf("\n\x1e" "begin\n"); fprintf(stderr, "\n\x1e" "begin\n");
+            static char *btok[80];
+            bool child = false;
+            proven_size_t seq = 0;
+            for (char *line = all, *nl; *line; line = nl) {
+                nl = strchr(line, '\n');
+                if (nl) *nl++ = '\0'; else nl = line + strlen(line);
+                proven_size_t nt = 0;
+                for (char *q = strtok(line, " \t\r"); q && nt < 80; q = strtok(NULL, " \t\r")) btok[nt++] = q;
+                if (!nt) continue;
+                fflush(stdout); fflush(stderr);
+                pid_t kid = fork();
+                if (kid < 0) { fprintf(stderr, "E-CLI-BATCH: cannot fork\n"); return 2; }
+                if (kid == 0) {
+                    if (!freopen("/dev/null", "r", stdin)) { /* 읽을 것이 없을 뿐이다 */ }
+                    run_op = btok[0];
+                    for (proven_size_t t = 1; t < nt; t++) {
+                        int t_ = run_arg_take(btok[t], run_op, run_args, &nrun_args, shaped, &nshaped, &any_bracket,
+                                              rawargs, &nraw, sbufs);
+                        if (t_ == 2) { fflush(stderr); _exit(2); }
+                        if (t_ == 1) {
+                            fprintf(stderr, "E-CLI-BATCH: `%s` is not a `--run` argument (a batch line is "
+                                    "`<op> <argument>…`, split on spaces)\n", btok[t]);
+                            fflush(stderr); _exit(2);
+                        }
+                    }
+                    child = true;
+                    break;
+                }
+                int st = 0; bool timed_out = false;
+                if (batch_limit_s > 0) {
+                    struct timespec t0, now; clock_gettime(CLOCK_MONOTONIC, &t0);
+                    for (;;) {
+                        pid_t w = waitpid(kid, &st, WNOHANG);
+                        if (w == kid || w < 0) break;
+                        clock_gettime(CLOCK_MONOTONIC, &now);
+                        if ((double)(now.tv_sec - t0.tv_sec) + (double)(now.tv_nsec - t0.tv_nsec) / 1e9 > batch_limit_s) {
+                            kill(kid, SIGKILL); waitpid(kid, &st, 0); timed_out = true; break;
+                        }
+                        nanosleep(&(struct timespec){ .tv_nsec = 300000 }, NULL);
+                    }
+                } else {
+                    waitpid(kid, &st, 0);
+                }
+                char mark[64];
+                if (timed_out)            snprintf(mark, sizeof mark, "timeout");
+                else if (WIFSIGNALED(st)) snprintf(mark, sizeof mark, "sig=%d", WTERMSIG(st));
+                else                      snprintf(mark, sizeof mark, "rc=%d", WEXITSTATUS(st));
+                printf("\n\x1e%zu %s\n", (size_t)seq, mark); fprintf(stderr, "\n\x1e%zu %s\n", (size_t)seq, mark);
+                seq++;
+            }
+            if (!child) {
+                fflush(stdout); fflush(stderr);
+                free(all);
+                low_ir_free(heap, &ir);
+                return 0;
+            }
+        } else if (run_batch && !run_op) {
+            rc = rc ? rc : 1;   // 거절됐다 — 위에서 까닭을 말했다. 줄은 하나도 돌리지 않는다
         }
         if (run_op && !run_refused && !lex.diags.len && !pr.diags.len) {
             // ★ RFC-0030 D2′ — 엔트리(main)가 cap 파라미터를 선언했으면 CLI 의 나머지는

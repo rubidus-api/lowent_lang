@@ -35,6 +35,7 @@ make clean       # 지은 것을 지운다(build/*.stamp 는 남긴다 — 시�
 ```sh
 build/lowentc --check FILE.low              # 검사만 (타입·계약·효과·소유·능력)
 build/lowentc --run OP FILE.low ARGS…       # VM 으로 op 하나를 돌린다 (슬라이스 인자는 [1,2,3])
+build/lowentc --run-batch FILE.low < 줄들    # 한 번 번역하고 줄마다(`OP ARGS…`) 돌린다 — 줄 끝마다 두 흐름에 `\x1e<차례> rc=N`
 build/lowentc --emit-c FILE.low > out.c     # C 를 낸다 → cc -O2 out.c -lm -lpthread
 build/lowentc --test FILE.low               # test 블록을 돌린다
 build/lowentc --fmt FILE.low                # 정규형으로 다시 찍는다

@@ -10,14 +10,14 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-ACTOR-FIELD` | an actor’s state field is read from outside | chapter 25 |
 | `E-ACTOR-STATE-REF` | a borrow is kept in an actor state field | chapter 25 |
 | `E-ACTOR-UNINIT` | a just-spawned actor’s slice state field is read before it is set | chapter 20 |
-| `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `using` | chapter 20 |
+| `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `use` | chapter 20 |
 | `E-ALLOC-NESTED` | allocated from an outer source while an inner region of the same root is open | chapter 18 |
 | `E-ALLOC-NOCAP` | declares `alloc` but receives no allocation capability | chapter 16 |
 | `E-ALLOC-NOSOURCE` | a call draws from an allocator but no fitting one is visible in this op | chapter 20 |
 | `E-ALLOC-OUTLIVES` | region bytes handed to an actor born outside the region | chapter 18 |
 | `E-ALLOC-SHARED` | an allocator whose cursor is not atomic is handed to a task | chapter 26 |
 | `E-ALLOC-TASK` | an op that carves from a root is spawned as a task | chapter 26 |
-| `E-ALLOC-USING-UNUSED` | `using` on a call that does not draw from an allocator | chapter 20, chapter 34 |
+| `E-ALLOC-USING-UNUSED` | `use` on a call that does not draw from an allocator | chapter 20, chapter 34 |
 | `E-ASM-TARGET-UNKNOWN` | the machine name in an `asm` clause is not a known target | chapter 30 |
 | `E-ASM-UNBOUND` | the assembly template names an undeclared operand | chapter 30 |
 | `E-ATOMIC-NOCAP` | declares `atomic` but receives no `cap atomic` | chapter 27 |

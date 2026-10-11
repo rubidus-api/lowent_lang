@@ -2,7 +2,7 @@
 
 = `vecs` --- growable byte vectors with caller-held buffers <mod-vecs>
 
-#modhead(file: "lib/vec.low", layer: [L1 --- allocator via `using`], caps: [none --- an allocator is handed in])
+#modhead(file: "lib/vec.low", layer: [L1 --- allocator via `use`], caps: [none --- an allocator is handed in])
 
 A byte vector that, when short of room, *takes a larger place and moves*. Used to gather byte strings of unknown final size. What is missing is reallocation, not growth ---
 take a larger place and move the old contents, which can be written in Lowent. So it is a library, not a core op, and the growth policy (doubling) belongs to the library too.
@@ -14,7 +14,7 @@ take a larger place and move the old contents, which can be written in Lowent. S
   [], [*`vecs`*], [*#modref("vecgen")[`vecgen`]*],
   [Storage], [*held by the caller* --- buffers are passed to ops], [owned by the container],
   [Growth], [the new place is *returned as a value* (the caller rebinds)], [swapped inside],
-  [Allocator], [handed over with `using` on each call], [held as a field],
+  [Allocator], [handed over with `use` on each call], [held as a field],
 )
 
 `vecs` is for when you want to hold buffer lifetimes *directly* inside a region. A vector lives as *a pair of two values*: `vec_u8` (a single length `len`) and `mut slice u8`
@@ -27,11 +27,11 @@ take a larger place and move the old contents, which can be written in Lowent. S
   [*op*], [*Shape*], [*Failure*],
   [`vec_u8`], [struct --- `len u64`], [---],
   [`next_cap`], [`fn (cur u64) → u64` --- 8 from 0, otherwise double], [none],
-  [`push_byte`], [`proc (comptime a, using al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a`], [`none` on OOM --- `v` and `buf` unchanged],
+  [`push_byte`], [`proc (comptime a, use al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a`], [`none` on OOM --- `v` and `buf` unchanged],
 )
 
 With room, `push_byte` writes in place and returns `some buf. .`; when full it takes double with `send al. reserve next_cap len buf. . . .`, copies the old contents and returns
-`some <new buffer>`. The allocator is handed over with a `using` clause, not a positional argument --- the type `a` is filled from that source and monomorphised, so passing
+`some <new buffer>`. The allocator is handed over with a `use` clause, not a positional argument --- the type `a` is filled from that source and monomorphised, so passing
 it costs nothing (#chref("lib-alloc")). No hidden allocation, so code without an allocator cannot call this op.
 
 ```lowent

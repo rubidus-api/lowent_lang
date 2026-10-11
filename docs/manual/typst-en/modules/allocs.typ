@@ -64,14 +64,14 @@ allocator.
 - `fixed_bytes` and `heap_bytes` have no `init`, and `grow` is always `none` (the root does not know whose the last allocation was). A capability slot is not a runtime value
   --- the op spawning that actor must hold the same kind of capability (`E-CAP-FORGE`). A heap cannot be conjured in one line where no capability exists.
 
-Code taking an allocator accepts any implementation with `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a. . .`. Callers pass it not as a positional
-argument but with `let x (… using <source>) …`, and if the op has only one source it is the default without being written. Monomorphisation means no vtables and no indirect
+Code taking an allocator accepts any implementation with `input comptime a type .` + `use al a .` + `requires allocs.byte_allocator a. . .`. Callers pass it not as a positional
+argument but with `let x use <source>. …`, and if the op has only one source it is the default without being written. Monomorphisation means no vtables and no indirect
 calls.
 
 ```lowent
 proc two_from
   input comptime a type .
-  using al a .
+  use al a .
   output u64 .
   effects state via a .
   requires allocs.byte_allocator a. . .

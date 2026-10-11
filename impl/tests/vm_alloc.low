@@ -91,7 +91,7 @@ rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계�
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계(trait bound)가 인터페이스를 보장한다.
 proc two_takes
   input comptime a type .
-  using al a .
+  use al a .
   output u64 .
   effects state .
   requires allocator a. . .        rem ★ 경계는 **타입 파라미터**를 가리킨다

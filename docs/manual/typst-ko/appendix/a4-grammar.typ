@@ -12,7 +12,7 @@
   vector · priority                        ② op 전체의 성격
   input <이름> comptime …                  ③ 번역 시점 입력
   input <이름> cap … · region …            ④ 권한·영역 입력
-  using <이름> <타입> .                    ⑤ 깎아 쓰는 할당기
+  use <이름> <타입> .                    ⑤ 깎아 쓰는 할당기
   input <이름> <타입> .                    ⑥ 데이터 입력
   output <타입> .                          ⑦
   effects <원자…> [via <타입>] .           ⑧

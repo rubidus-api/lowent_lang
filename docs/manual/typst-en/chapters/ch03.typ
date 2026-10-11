@@ -283,7 +283,7 @@ An op head is a name followed by *clauses*. Each clause is closed by a full stop
   [2], [`vector` · `priority`], [The character of the op as a whole],
   [3], [`comptime` inputs], [Later input and output types use these names],
   [4], [Capability and region inputs (`cap …` · `region …`)], [Who allowed it is visible before what it receives],
-  [5], [`using`], [Which allocator the following data uses],
+  [5], [`use`], [Which allocator the following data uses],
   [6], [Data inputs], [The values the op receives],
   [7], [`output`], [The output type may use the inputs' type parameters],
   [8], [`effects`], [*What it does* with the capabilities received above],

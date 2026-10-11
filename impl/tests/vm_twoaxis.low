@@ -28,7 +28,7 @@ rem 빈 컨테이너를 연다. 자리를 못 받으면 none — OOM 은 값이�
 export proc open
   input comptime t type .
   input comptime a type .
-  using al a .
+  use al a .
   input cap0 u64 .
   output option (gv t a) .
   effects state .

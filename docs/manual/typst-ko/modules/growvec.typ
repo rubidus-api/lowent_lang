@@ -27,7 +27,7 @@ let s slice u8 growvec.view_of v. . .
   caption: [`growvec` 의 op],
   [*op*], [*effects*], [*하는 일*],
   [`gvec`], [---], [`vecgen.vec u8 allocs.bump_bytes` 의 별칭],
-  [`open cap0`(`using al`)], [state], [빈 벡터를 연다. `cap0` 은 0 도 된다(첫 push 에서 8 로). 못 받으면 `none`],
+  [`open cap0`(`use al`)], [state], [빈 벡터를 연다. `cap0` 은 0 도 된다(첫 push 에서 8 로). 못 받으면 `none`],
   [`count_of g` · `cap_of g`], [none], [담긴 개수 · 지금 용량],
   [`add_byte g b`], [state], [바이트 하나 --- 모자라면 두 배 + 8 로 늘린다. `false` = 새 자리를 못 받음(벡터는 여전히 유효)],
   [`add_all g s`], [state], [바이트열 통째로. *중간에 실패하면 앞부분은 들어가 있다*],

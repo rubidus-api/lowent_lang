@@ -26,7 +26,7 @@
 
 #organizer[
   You will learn that an allocator is made of three parts: a capability, a policy and state. You will use a bump allocator that cuts borrowed bytes, and confirm
-  that running out of memory is a value. You will pick up how to take an allocator as a type parameter (the `using` clause) and hand it over from the caller with `use`, and the default allocators
+  that running out of memory is a value. You will pick up how to take an allocator as a type parameter (the `use` clause) and hand it over from the caller with `use`, and the default allocators
   that carve straight from a root, with the rule for capability fields. You will also see how the linker sets the size of the fixed window on machines without an
   operating system, and `bit_cast`, which keeps the bits and changes only how they are read.
 ]
@@ -86,13 +86,13 @@ capability draws the line --- code without an allocation capability can still al
 == Swapping allocators
 
 Code that uses an allocator need not know which implementation it is. It takes the allocator's *type* as a translation-time parameter and its *value* with a
-`using` clause.
+`use` clause.
 
 #demo("examples/ch20/generic.low")
 
 - `input comptime a type .` is the allocator's type, fixed to a concrete type at translation (#chref("generics")).
-#idx("using")
-- `using al a .` receives the allocator value of that type under the name `al`. `using` is not an input. The caller does not write it in an argument position but
+#idx("use (allocator)")
+- `use al a .` receives the allocator value of that type under the name `al`. `use` is not an input. The caller does not write it in an argument position but
   in the binding, as `let n use b. u64 two_from. .`.
 - `requires allocs.byte_allocator a. . .` is the condition that `a` satisfies the trait (#chref("traits")).
 - `effects state via a .` means the effects of the allocator's `reserve` are this op's effects.
@@ -100,7 +100,12 @@ Code that uses an allocator need not know which implementation it is. It takes t
 Given `bump_bytes`, the same `two_from` uses 3 + 5 = 8; given `bump_aligned`, which aligns start positions to multiples of 8, the second piece starts at 8 and it
 uses 13. Because the type is fixed at translation, there is no virtual function table and no indirect call. Swapping costs nothing at run time.
 
-If no source is written, a default is chosen: the binding's `use` or `keep`, the op's own `using` name, and otherwise the input or binding of matching type if there is
+The receiving side and the choosing side use *the same word*. In an op's head, `use al a .` says "this op carves from `al`"; in a binding,
+`let n use b. …` says "this call, from `b`". The `use allocs .` that imports a module is told apart by where it stands --- an import stands outside
+declarations, this clause stands between the op's name and its `do`. An op writes one `use` clause (two is `E-USING-DUP`). The clause in the head has no
+give-back / keep distinction. `keep` stands only in a binding (see "Given back when the block ends" below).
+
+If no source is written, a default is chosen: the binding's `use` or `keep`, the op's own `use` name, and otherwise the input or binding of matching type if there is
 *only one*. With two or more it does not guess and asks you to write it with `E-ALLOC-AMBIGUOUS`. Defaults do not cross op boundaries --- an allocator from the
 caller never flows in on its own, so *there is no global allocator*.
 
@@ -110,7 +115,7 @@ caller never flows in on its own, so *there is no global allocator*.
   caption: [The order that picks an allocator source --- the first match from the top],
   [*Order*], [*Source*], [*Why here*],
   [1], [`use <name>` or `keep <name>` written on the binding], [what you write always wins],
-  [2], [the *only* name of fitting type among this op's `using` clauses], [the allocator the op said it takes],
+  [2], [the *only* name of fitting type among this op's `use` clauses], [the allocator the op said it takes],
   [3], [the *only* input or binding of fitting type in this op], [one visible value leaves nothing to confuse],
   [none], [`E-ALLOC-NOSOURCE`], [no global allocator fills the gap],
   [two or more], [`E-ALLOC-AMBIGUOUS`], [no guessing; every candidate is named],
@@ -122,8 +127,8 @@ With no source at all, the call is refused.
 
 #demo("examples/ch20/nosource.low")
 
-`caller` has no input, no spawned actor and no `using` clause. In another language a global heap would quietly step in here. Lowent asks you to take an
-allocator as an input, create one here, or write a `using` clause. Because the call is refused, `caller` never really uses `state` either, so `W-EFFECT-OVER`
+`caller` has no input, no spawned actor and no `use` clause. In another language a global heap would quietly step in here. Lowent asks you to take an
+allocator as an input, create one here, or write a `use` clause. Because the call is refused, `caller` never really uses `state` either, so `W-EFFECT-OVER`
 comes along. It goes away once the first error is fixed.
 
 The other way round, writing `use` on the binding of a call that draws from no allocator is refused too.
@@ -251,7 +256,7 @@ A struct value is built in an allocator's bytes with the same spelling. The bind
   [*Module · name*], [*Capability*], [*Policy (type)*], [*State (value)*],
   [`allocs.bump_bytes` · `bump_aligned`], [none --- borrowed bytes], [an actor with `byte_allocator` · `freeing_allocator`], [backing bytes · cursor],
   [`allocs.fixed_bytes` · `heap_bytes`], [capability field `cap allocator` · `cap heap`], [`byte_allocator`], [amount used],
-  [`vecgen.vec t a`], [none], [takes the allocator type `a` as a parameter], [element count · buffer --- `open` takes the allocator with `using`],
+  [`vecgen.vec t a`], [none], [takes the allocator type `a` as a parameter], [element count · buffer --- `open` takes the allocator with `use`],
   [`growvec.gvec`], [none], [a name fixed to `vecgen.vec u8 allocs.bump_bytes`], [same as `vecgen`],
   [`pool.block_pool b`], [none --- borrowed bytes], [not an allocator --- a struct that takes blocks back one by one through generation handles], [blocks · generation array],
 )
@@ -334,6 +339,22 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   which buffer shrinks.
 ]
 
+#antipattern[Writing the clause in an op's head with the old spelling `using`][
+  #demo("examples/ch20/mistake_usingold.low")
+
+  Up to 1.9 the clause in the head was `using al a .` and only the binding said `use`. The receiving side and the choosing side used different words, so
+  nothing in the text showed that the two are a pair. Now both are `use`. The old spelling is refused with `E-USING-OLD`, and the diagnostic names the letters to change.
+]
+
+#antipattern[Leaving out the root of `alloc_bytes` outside a region block][
+  #demo("examples/ch20/mistake_noroot.low")
+
+  The root may be left out, as in `alloc_bytes capacity 8`, only *inside a region block*; the innermost region is then the root (#chref("regions")).
+  A root received as a capability cannot be left out. Write its name: `alloc_bytes a. capacity 8`. If a root could be reached without a name, reading the
+  head would no longer tell you where the op gets its memory. The `capacity` in front of the size cannot be dropped either
+  (`E-ALLOC-CAPACITY-MARK`). That word is what tells the shortened form from the named one.
+]
+
 #antipattern[Leaving out `via a` in a generic op][
   #demo("examples/ch20/mistake_novia.low")
 
@@ -363,19 +384,20 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   [`send a init buf`], [attach the bytes to hand out], [an allocator never creates memory behind your back],
   [`send a reserve 3` · `send a used`], [request a piece (`option`) · amount used], [shortage is a value, not a trap],
   [`input comptime a type .`], [receive the allocator's type (policy) at translation time], [swapping costs nothing at run time],
-  [`using al a .`], [receive an allocator value of that type --- not an input], [it does not sit among the call's arguments],
+  [`use al a .`], [receive an allocator value of that type --- not an input], [it does not sit among the call's arguments],
   [`let n use g. u64 two_from. .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
   [`effects state via a .` · `requires allocs.byte_allocator a. . .`], [inherit the type's effects · trait condition], [exact effects per instance],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
   [no source · an unused `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
+  [`alloc_bytes a. capacity 8` · `alloc_bytes capacity 8` inside a region block], [take bytes from a root · from the innermost region], [a root is written by name --- `E-ALLOC-NOROOT`],
   [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
   [`bit_cast u32 x. .`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 
 #recap[
   An allocator is a capability, a policy (a type satisfying a trait) and state (an actor value). A bump allocator cuts borrowed bytes and reports shortage as
-  `none`. Allocators are received with `input comptime a type .` and `using al a .`, swapped at no run-time cost, and there is no global allocator.
+  `none`. Allocators are received with `input comptime a type .` and `use al a .`, swapped at no run-time cost, and there is no global allocator.
   `fixed_bytes` and `heap_bytes` are default allocators with capability fields and can be spawned only from ops holding the same kind of capability. The linker
   sets the size of the fixed window. `bit_cast` keeps the bits and never reads them as `bool` or `enum`.
 ]

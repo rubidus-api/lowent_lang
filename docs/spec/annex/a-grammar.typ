@@ -248,7 +248,7 @@ fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end .
 test                test <이름> [schedule <절>] do <폼>* end .
 expect              expect <조건> .           (시험 블록의 단언)
 input               input [comptime] <이름> <타입> .
-using               using <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터)
+use (op 머리)       use <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터)
 output              output <타입> .   |   output <이름> <타입> .     (이름 붙은 결과 — 0 에서 시작하는 지역, §6.4.1 (3e))
 effects             effects <원자>* .
 access              access <이름> <모드> .
@@ -280,7 +280,7 @@ extern              extern fn/proc <이름> do <절>* end .  (몸이 씨)
 match               match <폼> do <가지>* end [else do <폼>* end] .   (가지 = case <패턴> do <폼>* end .)")
     #para("2a")[
       `fn`/`proc` 머리의 `<절>*` 은 #cref("6.4.1") (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·
-      comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` ·
+      comptime 입력 · 권한·영역 입력 · `use` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` ·
       `asm`·`absorbs`·`reference`·`why` · `access`·`inplace`·`invalidates`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
     ]
     #para("2b")[
@@ -547,7 +547,7 @@ op-decl        ::= ( \"fn\" | \"proc\" ) op-name { clause } block \".\"
 extern-decl    ::= ( \"fn\" | \"proc\" ) op-name \"do\" { clause } \"end\" \".\"
 op-name        ::= name | path
 clause         ::= \"input\" [ \"comptime\" ] name type \".\"
-                 | \"using\" name type \".\"
+                 | \"use\" name type \".\"
                  | \"output\" [ name ] type \".\"
                  | \"effects\" { name } \".\"
                  | ( \"requires\" | \"ensures\" ) [ grade ] term \".\"

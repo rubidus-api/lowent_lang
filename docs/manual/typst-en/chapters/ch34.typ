@@ -20,7 +20,7 @@
 #why[
   Sorting, searching, hash maps and growing arrays go into almost every program. In other languages such containers usually allocate on the heap secretly and grow
   quietly when full. Lowent's containers come in two kinds: *fixed containers* whose backing slice the caller hands over (`hashmap`, `sortlib`), and *generic containers*
-  that receive an allocator with `using` and grow themselves (`vecgen`, `mapgen`). Either way, where memory comes from is visible in the head.
+  that receive an allocator with `use` and grow themselves (`vecgen`, `mapgen`). Either way, where memory comes from is visible in the head.
 ]
 
 #organizer[
@@ -172,6 +172,6 @@ in a weak-memory model. Multi-producer multi-consumer queues and seqlocks have n
 
 #recap[
   `sortlib` and `searchlib` sort and search `u64` slices in place, and with `sortgen` a type satisfying `ordered` brings the criterion. `hashmap` and `strmap` are fixed
-  containers over the caller's slice that delete with tombstones. `vecgen` and `mapgen` receive an allocator with `using` and grow, their effects following the allocator
+  containers over the caller's slice that delete with tombstones. `vecgen` and `mapgen` receive an allocator with `use` and grow, their effects following the allocator
   type. `spsc` passes values between flows with atomic operations, and its correctness was confirmed with a borrowed proof.
 ]

@@ -1,0 +1,12 @@
+module mistake_noroot .
+rem expect: E-ALLOC-NOROOT
+
+proc scratch input a cap allocator . output u64 . effects alloc .
+do
+  rem ko: ✘ 영역 블록 밖인데 뿌리를 적지 않았다 --- 권한 `a` 를 받았어도 이름으로 적어야 한다 /// en: ✘ outside a region block, yet no root is named --- the capability `a` must still be written
+  let g option mut slice u8 alloc_bytes capacity 8 . .
+  if is_some g. . do
+    return len some_value g. . . .
+  end .
+  return 0 .
+end .

@@ -26,7 +26,7 @@
 ] @keyword
 
 [
-  "input" "output" "using" "effects" "requires" "ensures" "errors" "tests" "satisfies"
+  "input" "output" "effects" "requires" "ensures" "errors" "tests" "satisfies"
   "comptime" "assume" "static" "debug" "keep"
 ] @keyword.modifier
 

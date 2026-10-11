@@ -1084,7 +1084,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             //   채 값을 묶으면 타입과 값이 어긋난다(RFC-0132 §13.7 에서 드러남). 정직하게 거절한다.
             for (proven_size_t i = 2; i < be && i < f->nkids; i++)
                 if (is_atom(f->kids[i]) && veq(f->kids[i]->tok.lex, "using") && !f->kids[i]->synth) {
-                    ir_fail(c, "E-IR-UNSUP", "a binding that names its allocator (`using`) is resolved by the tree pass — "
+                    ir_fail(c, "E-IR-UNSUP", "a binding that names its allocator (`use`) is resolved by the tree pass — "
                             "`--flat` does not run it (RFC-0112 D8(6))", f->line);
                     return;
                 }

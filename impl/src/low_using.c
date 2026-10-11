@@ -149,7 +149,7 @@ static void us_collect_one(us_ctx_t *c, const low_cst_t *f, proven_u8str_view_t 
         if (us_atom(f->kids[i]) && us_eq(f->kids[i]->tok.lex, "using")) {
             if (at != f->nkids) {
                 low_pdiag(&c->p, "E-USING-DUP",
-                          "an op draws from at most ONE allocator — this header has two `using` clauses. Take the "
+                          "an op draws from at most ONE allocator — this header has two `use` clauses. Take the "
                           "second one as an ordinary input (RFC-0112 D8)", f->kids[i]->tok.line, f->kids[i]->tok.col);
                 return;
             }
@@ -158,7 +158,7 @@ static void us_collect_one(us_ctx_t *c, const low_cst_t *f, proven_u8str_view_t 
     if (at == f->nkids) return;
     if (!us_atom(f->kids[at + 1]) || !us_atom(f->kids[at + 2]) || low_is_clause_word(f->kids[at + 2]->tok.lex)) {
         low_pdiag(&c->p, "E-USING-FORM",
-                  "a `using` clause names the allocator and its type: `using <name> <type> .` (RFC-0112 D8)",
+                  "a `use` clause names the allocator and its type: `use <name> <type> .` (RFC-0112 D8)",
                   f->kids[at]->tok.line, f->kids[at]->tok.col);
         return;
     }
@@ -172,15 +172,15 @@ static void us_collect_one(us_ctx_t *c, const low_cst_t *f, proven_u8str_view_t 
         if (r < 0) continue;
         if (i < at && r > 4) {
             low_pdiag(&c->p, "E-CLAUSE-ORDER",
-                      "`using` comes after a clause that belongs behind it. `using` stands after the `comptime` and "
+                      "`use` comes after a clause that belongs behind it. `use` stands after the `comptime` and "
                       "capability/region inputs and before the data inputs, `output` and everything after them (WO-0217)",
                       f->kids[at]->tok.line, f->kids[at]->tok.col);
             break;
         }
         if (i > at && r < 4) {
             low_pdiag(&c->p, "E-CLAUSE-ORDER",
-                      "`using` comes before a clause that belongs in front of it — a `comptime` input, a capability/region "
-                      "input, `satisfies`/`lowdoc` or `vector`/`priority`. `using` stands after those and before the data inputs (WO-0217)",
+                      "`use` comes before a clause that belongs in front of it — a `comptime` input, a capability/region "
+                      "input, `satisfies`/`lowdoc` or `vector`/`priority`. `use` stands after those and before the data inputs (WO-0217)",
                       f->kids[at]->tok.line, f->kids[at]->tok.col);
             break;
         }
@@ -306,7 +306,7 @@ static bool us_fill_call(us_ctx_t *c, low_cst_t *call, const us_callee_t *u, con
         srctype = us_bind_type(c, src);
         if (!srctype.size) {
             low_pdiag(&c->p, "E-ALLOC-NOSOURCE",
-                      "`using` names something that is not an input or a binding of THIS op. The allocator an "
+                      "`use` names something that is not an input or a binding of THIS op. The allocator an "
                       "object draws from must be visible in the op that creates it — a default never crosses the "
                       "op boundary (RFC-0112 D1(4))", explicit_src->tok.line, explicit_src->tok.col);
             return false;
@@ -336,8 +336,8 @@ static bool us_fill_call(us_ctx_t *c, low_cst_t *call, const us_callee_t *u, con
             if (!hits) {
                 low_pdiag(&c->p, "E-ALLOC-NOSOURCE",
                           "this call draws from an allocator, but NO value of a fitting type is visible in this op — "
-                          "no input, no binding, no `using` clause. There is no global allocator: take one as an "
-                          "input, create one here, or declare `using <name> <type> .` on this op (RFC-0112 D8(4))",
+                          "no input, no binding, no `use` clause. There is no global allocator: take one as an "
+                          "input, create one here, or declare `use <name> <type> .` on this op (RFC-0112 D8(4))",
                           call->kids[0]->tok.line, call->kids[0]->tok.col);
                 return false;
             }
@@ -474,7 +474,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                 if ((is_list && us_eq(lg->kids[1]->tok.lex, "vec")) || !opt) {
                     explicit_src_told = true;
                     low_pdiag(&c->p, "E-LIT-USING", is_list && us_eq(lg->kids[1]->tok.lex, "vec")
-                              ? "a SIMD value lives in lanes, not in bytes an allocator hands out — `using` does not apply to `lit vec`"
+                              ? "a SIMD value lives in lanes, not in bytes an allocator hands out — `use` does not apply to `lit vec`"
                               : sl ? "a struct built in an allocator's bytes can fail to get them — say what happens then: "
                                 "`var q use al pt lit pt do … end else return … .`, or keep the option: "
                                 "`let qo use al option pt lit pt do … end .` (RFC-0135 §4.2)"
@@ -607,7 +607,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
         if (explicit_src && !u && !explicit_src_told) {
             low_pdiag(&c->p, "E-ALLOC-USING-UNUSED",
                       "this binding says which allocator to use, but the call it initialises does not draw from one "
-                      "(no `using` clause on that op). An object that already carries its allocator — like "
+                      "(no `use` clause on that op). An object that already carries its allocator — like "
                       "`vecgen.append` on a vector — does not take the caller's choice (RFC-0112 D8(5))",
                       explicit_src->tok.line, explicit_src->tok.col);
         }

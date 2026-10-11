@@ -4,7 +4,7 @@ rem ★★★ **타입 파라미터가 둘이다.** `vec t` 가 하나로 길을
 rem   서는지**를 묻는 자리다. 접기가 인자를 개수만큼 먹고, 파스가 갈라지는 `make` 도 인자 개수만큼
 rem   봉합된다 — 그게 안 되면 `map` 은 못 선다(그래서 이 순서였다: vec 먼저, 그다음 map).
 rem
-rem       let m using bump be option (table u32 u64) open u32 u64 8 .
+rem       let m use bump. option (table u32 u64) open u32 u64 8 .
 rem       let ok be bool insert u32 u64 m 7 900 .
 rem       let v be option u64 lookup u32 u64 m 7 .        rem some 900
 rem
@@ -84,7 +84,7 @@ rem ★ 호출자가 준 쌍의 수는 어떤 값이든 올 수 있다 — `(wan
 rem   **곱하기 전에** 잰다(2026-09-04 보안 검토). 못 담을 수는 none 이다: OOM 은 값이다(RFC-0043 D5).
 rem   `want ≤ 2^62 − 1` 이면 `(want+1)×2 ≤ 2^63` 이고 `pow2_up` 도 그 안에서 끝난다. 바이트 상한은
 rem   2^63 − 1 이다(그보다 큰 바닥은 없고, 2^64 − 1 리터럴은 상수 접기가 부호 있는 수로 다룬다 — `lib/vecgen.low` 참조).
-export proc open input comptime k type . input comptime v type . using al allocs.bump_bytes . input want u64 . output option (table k v) . effects state . do
+export proc open input comptime k type . input comptime v type . use al allocs.bump_bytes . input want u64 . output option (table k v) . effects state . do
   guard le want. 4611686018427387903 . else return none . .
   let s u64 pow2_up mul add want. 1 . 2 . . .
   guard le s. div 9223372036854775807 size_of k . . . else return none . .

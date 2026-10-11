@@ -12,7 +12,7 @@ The normative text is the specification; this appendix is a reference gathering 
   vector · priority                        ② character of the whole op
   input <name> comptime …                  ③ translation-time inputs
   input <name> cap … · region …            ④ capability and region inputs
-  using <name> <type> .                    ⑤ allocator drawn from
+  use <name> <type> .                    ⑤ allocator drawn from
   input <name> <type> .                    ⑥ data inputs
   output <type> .                          ⑦
   effects <atoms…> [via <type>] .          ⑧

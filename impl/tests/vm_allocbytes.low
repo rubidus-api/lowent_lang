@@ -67,7 +67,7 @@ rem   `input comptime a type .` + `requires byte_allocator a .` 로 구현을 �
 rem   ★★ 단형화된다: vtable 도 간접 호출도 없다 ⇒ **갈아끼우기의 비용이 0** 이다.
 proc two_from
   input comptime a type .
-  using al a .
+  use al a .
   input buf mut slice u8 .
   output u64 .
   effects state .

@@ -1664,6 +1664,9 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
             }
             // ★ RFC-0132 §6 (옮김 창) — 옛 `index` 는 `idx` 로 옮겨 찍는다(이름으로 쓴 `index` 는 없다 — E-VOCAB-REMOVED).
             else if (nd->tok.kind == LOW_TOK_IDENT && low_view_eq_cstr(nd->tok.lex, "index")) fputs("idx", stdout);
+            // RFC-0147 — op 머리의 얼로케이터 절은 표면에서 `use` 다. 안쪽 낱말 `using` 은 저자의 글에 설 수 없으므로(E-USING-OLD)
+            //   여기 닿은 `using` 은 모두 그 절이다.
+            else if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && low_view_eq_cstr(nd->tok.lex, "using")) fputs("use", stdout);
             else {
                 low_pv(nd->tok.lex);
                 // ★ RFC-0142 — `method` 의 op 이름(내림이 표시해 둔다): 이름 뒤에 점을 붙여 찍는다. 올림(`low_closer_raise_text`)이 그 점으로

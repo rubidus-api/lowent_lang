@@ -108,7 +108,7 @@ module.exports = grammar({
 
     clause: $ => choice(
       seq('input', optional('comptime'), field('name', $.name), $._type, repeat($._word), $.stop),
-      seq('using', field('name', $.name), $._type, $.stop),
+      seq('use', field('name', $.name), $._type, $.stop),
       seq('output', optional(field('name', $.name)), $._type, $.stop),
       seq(choice('requires', 'ensures'), optional(choice('assume', 'static', 'debug')), $._term, $.stop),
       seq('errors', field('name', choice($.name, $.path)), optional($._term), $.stop),

@@ -86,7 +86,7 @@
     },
     {
       "name": "keyword.other.clause.lowent",
-      "match": "\\b(?:capacity|comptime|requires|effects|ensures|assume|errors|output|static|debug|input|order|tests|using|from|into|with|as)\\b"
+      "match": "\\b(?:capacity|comptime|requires|effects|ensures|assume|errors|output|static|debug|input|order|tests|from|into|with|as)\\b"
     },
     {
       "name": "storage.type.lowent",

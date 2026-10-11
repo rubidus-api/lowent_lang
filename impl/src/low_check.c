@@ -1455,8 +1455,8 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
             //   절이 남아 있다면 그 패스가 돌지 않은 것이다 — 나무를 끄는 대조 스위치(`--flat`)가 그렇다. 조용히
             //   «입력 하나 모자란 op» 로 검사하면 엉뚱한 진단이 나므로 여기서 말한다.
             emit(out, "E-USING-UNRESOLVED",
-                 "this op still carries a `using` clause at check time, so the allocator was never threaded in. "
-                 "`using` is resolved on the TREE, before monomorphisation; the `--flat` contrast switch does not "
+                 "this op still carries a `use` clause at check time, so the allocator was never threaded in. "
+                 "`use` is resolved on the TREE, before monomorphisation; the `--flat` contrast switch does not "
                  "build the tree. Check without `--flat` (RFC-0112 D8)", f->line);
         } else if (veq(w, "effects")) {          // ★ effect 어휘는 닫혀 있다
             // ★★ **effect 절 위생** (RFC-0057 E2·E3, DECISION-0009) — 형제 E1(UNDEF)·E4·E5 는 이미 섰다.
@@ -4352,7 +4352,7 @@ static void ck_task_alloc(low_check_result_t *out, const low_parse_result_t *pr)
 static const char *ck_rank_name(int r) {
     switch (r) {
         case 0: return "`satisfies`/`lowdoc`"; case 1: return "`vector`/`priority`"; case 2: return "a `comptime` input";
-        case 3: return "a capability/region input"; case 4: return "`using`"; case 5: return "a data input";
+        case 3: return "a capability/region input"; case 4: return "`use`"; case 5: return "a data input";
         case 6: return "`output`"; case 7: return "`effects`"; case 8: return "`link`/`variadic`"; case 9: return "`asm`";
         case 10: return "`access`/`inplace`/`invalidates`/`parallel`/`reduce`"; case 11: return "`requires`"; case 12: return "`ensures`";
         case 13: return "`errors`"; case 14: return "`tests`"; case 15: return "`schedule`"; default: return "a clause";
@@ -4375,7 +4375,7 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
             char *buf = msgs[r][maxr];
             snprintf(buf, sizeof msgs[0][0],
                      "%s comes after %s. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
-                     "capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · "
+                     "capability/region inputs · `use` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · "
                      "`access`/`inplace`/`invalidates`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
                      "clauses for you; inputs are call positions, so reorder those and their call sites yourself)",
                      ck_rank_name(r), ck_rank_name(maxr));
@@ -8143,7 +8143,7 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
         static char fb[320];
         snprintf(fb, sizeof fb, "this op's list literals need %zu bytes of frame storage — more than one op may hold on this "
                  "machine (%u). A frame this large is a stack overflow waiting for a deep call; keep big tables constant (`let`, "
-                 "read-only) or take them from an allocator (`using`, RFC-0135)", (size_t)x.bytes, low_lbuf_max());
+                 "read-only) or take them from an allocator (`use`, RFC-0135)", (size_t)x.bytes, low_lbuf_max());
         emit(out, "E-FRAME-SIZE", fb, f->line);
     } else if (x.bytes && ck_r1_tab) {
         // ★★ RFC-0135 S3 (D7) — 재귀는 깊이만큼 틀을 곱하고, 그 깊이는 번역 시점에 모른다. 그러면 스택이 넘치지 않음을
@@ -8247,7 +8247,7 @@ static void ck_stack_bound(low_check_result_t *out) {
                     static char gbuf[360];
                     snprintf(gbuf, sizeof gbuf, "this op runs as a task (a green thread, `spawn`), and the deepest call path from it "
                              "keeps %llu bytes of list literals on the stack at once — more than a green thread's stack budget (%ld). "
-                             "Take the big lists from an allocator (`using`), or split the path (RFC-0135 S3)", p, (long)LOW_SBUDGET_GT);
+                             "Take the big lists from an allocator (`use`), or split the path (RFC-0135 S3)", p, (long)LOW_SBUDGET_GT);
                     emit(out, "E-STACK-BUDGET", gbuf, ck_r1_tab[i].form->line);
                 }
             }
@@ -8260,7 +8260,7 @@ static void ck_stack_bound(low_check_result_t *out) {
                 static char sbuf[360];
                 snprintf(sbuf, sizeof sbuf, "the deepest call path from this op keeps %llu bytes of list literals on the stack at "
                          "once — more than the stack budget on this machine (%ld). The program would stop there at run time; "
-                         "take the big lists from an allocator (`using`), or split the path (RFC-0135 S3)", p, budget);
+                         "take the big lists from an allocator (`use`), or split the path (RFC-0135 S3)", p, budget);
                 emit(out, "E-STACK-BUDGET", sbuf, ck_r1_tab[i].form->line);
             }
         }

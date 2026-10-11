@@ -27,7 +27,7 @@ defect structurally. There is still no magic --- the allocator was still handed 
   caption: [Ops of `growvec`],
   [*op*], [*effects*], [*What it does*],
   [`gvec`], [---], [alias of `vecgen.vec u8 allocs.bump_bytes`],
-  [`open cap0` (`using al`)], [state], [Opens an empty vector. `cap0` may be 0 (becomes 8 on the first push). `none` if no place],
+  [`open cap0` (`use al`)], [state], [Opens an empty vector. `cap0` may be 0 (becomes 8 on the first push). `none` if no place],
   [`count_of g` · `cap_of g`], [none], [Bytes held · current capacity],
   [`add_byte g b`], [state], [One byte --- grows to double + 8 when short. `false` = no new place (the vector stays valid)],
   [`add_all g s`], [state], [A whole byte string. *If it fails midway, the front part is already in*],

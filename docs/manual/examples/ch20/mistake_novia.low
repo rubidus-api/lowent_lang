@@ -5,7 +5,7 @@ use allocs .
 
 proc one_from
   input comptime a type .
-  using al a .
+  use al a .
   output u64 .
   rem ko: ✘ `via a` 가 없다 --- 할당기가 내는 `alloc` 이 이 op 의 선언에 들어오지 않는다 /// en: ✘ no `via a` --- the `alloc` the allocator performs is not part of this op's declaration
   effects state .

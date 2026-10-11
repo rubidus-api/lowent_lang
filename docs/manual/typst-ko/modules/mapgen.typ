@@ -29,7 +29,7 @@ guard mapgen.erase u32. u64. m. 7 . else return 3 . .
   caption: [`mapgen` 의 op --- 첫 두 인자가 키 타입 · 값 타입],
   [*op*], [*effects*], [*하는 일*],
   [`table`], [---], [구조체 --- `al` · `keys` · `vals` · `flags`(바이트) · `n`(담긴 쌍 수)],
-  [`open k v want`(`using al`)], [state], [빈 맵을 연다(쌍 `want` 개 준비, 슬롯은 `(want+1)*2` 를 2 의 거듭제곱으로, 최소 8)],
+  [`open k v want`(`use al`)], [state], [빈 맵을 연다(쌍 `want` 개 준비, 슬롯은 `(want+1)*2` 를 2 의 거듭제곱으로, 최소 8)],
   [`insert k v m key val`], [state], [넣는다(있으면 덮어쓴다). 부하율을 넘게 되면 먼저 다시 뿌린다. `false` = 자리 부족],
   [`lookup k v m key` · `has k v m key`], [none], [값 → `option v` · 있는가],
   [`erase k v m key`], [none], [지운다(무덤을 남긴다). 있었으면 `true`],

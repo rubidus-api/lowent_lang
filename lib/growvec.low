@@ -31,7 +31,7 @@ export def type gvec (vecgen.vec u8 allocs.bump_bytes) .
 
 rem ★ 빈 벡터를 연다. `al` 은 **이미 초기화된** 범프 얼로케이터다(누가 만들었는지가 권한의 자리다).
 rem   첫 자리를 못 받으면 none — 값으로 답한다.
-export proc open using al allocs.bump_bytes . input cap0 u64 . output option gvec . effects state . do
+export proc open use al allocs.bump_bytes . input cap0 u64 . output option gvec . effects state . do
   return vecgen.open u8. cap0. . .
 end .
 

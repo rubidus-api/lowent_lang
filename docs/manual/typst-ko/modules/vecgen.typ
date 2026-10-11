@@ -32,7 +32,7 @@ let x option u32 vecgen.at u32. allocs.bump_bytes. v. 0 . .
   caption: [`vecgen` 의 op --- 첫 두 인자가 원소 타입 · 얼로케이터 타입(`open` 은 원소 타입만)],
   [*op*], [*effects*], [*하는 일*],
   [`vec`], [---], [구조체 --- `al a` · `store mut slice u8` · `n u64`(담긴 *원소* 수)],
-  [`open t cap0`(`using al`)], [state via a], [빈 벡터를 연다(원소 `cap0` 개 자리). 첫 자리를 못 받으면 `none`],
+  [`open t cap0`(`use al`)], [state via a], [빈 벡터를 연다(원소 `cap0` 개 자리). 첫 자리를 못 받으면 `none`],
   [`count_of t a g` · `cap_of t a g`], [none], [담긴 원소 수 · 지금 용량(원소 수)],
   [`append t a g x`], [state via a], [원소 하나 --- 모자라면 두 배 + 8 원소로 커진다. `false` = 새 자리를 못 받음],
   [`at t a g i`], [none], [i 번째 원소 → `option t`],

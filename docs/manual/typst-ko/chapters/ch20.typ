@@ -27,7 +27,7 @@
 
 #organizer[
   할당기가 권한·정책·상태 셋으로 이루어진다는 것을 알게 된다. 빌린 바이트를 잘라 주는 범프 할당기를 쓰고, 메모리
-  부족이 값이라는 것을 확인한다. 할당기를 타입 매개변수로 받고(`using` 절) 부르는 쪽이 `use` 로 건네는 법, 뿌리에서 곧장 깎는 기본 할당기와
+  부족이 값이라는 것을 확인한다. 할당기를 타입 매개변수로 받고(`use` 절) 부르는 쪽이 `use` 로 건네는 법, 뿌리에서 곧장 깎는 기본 할당기와
   권한 칸의 규칙을 익힌다. 운영체제 없는 기계의 고정 창 크기를 링커가 정하는 방식과, 비트를 그대로 둔 채 읽는 법만 바꾸는
   `bit_cast` 도 보게 된다.
 ]
@@ -88,14 +88,14 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 
 == 할당기를 갈아 끼운다
 
-할당기를 쓰는 코드는 어느 구현인지 몰라도 된다. 할당기의 *타입*을 번역 시점 매개변수로 받고, 그 *값*은 `using` 절로
+할당기를 쓰는 코드는 어느 구현인지 몰라도 된다. 할당기의 *타입*을 번역 시점 매개변수로 받고, 그 *값*은 `use` 절로
 받는다.
 
 #demo("examples/ch20/generic.low")
 
 - `input comptime a type .` 은 할당기의 타입이다. 번역할 때 구체 타입으로 정해진다(#chref("generics")).
-#idx("using")
-- `using al a .` 은 그 타입의 할당기 값을 `al` 이라는 이름으로 받는다. `using` 은 입력이 아니다. 부르는 쪽은 인자
+#idx("use (얼로케이터)")
+- `use al a .` 는 그 타입의 할당기 값을 `al` 이라는 이름으로 받는다. 이 절은 입력이 아니다. 부르는 쪽은 인자
   자리에 적지 않고, 바인딩에 `let n use b. u64 two_from. .` 으로 적는다.
 - `requires allocs.byte_allocator a. . .` 는 `a` 가 트레이트를 갖추어야 한다는 조건이다(#chref("traits")).
 - `effects state via a .` 는 할당기의 `reserve` 가 내는 효과가 곧 이 op 의 효과라는 뜻이다.
@@ -104,7 +104,12 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 조각이 8 에서 시작해 13 을 쓴다. 번역할 때 타입이 확정되므로 가상 함수 표도 간접 호출도 없다. 갈아 끼우기의 실행
 비용이 0 이다.
 
-출처를 적지 않으면 기본값이 정해진다. 바인딩의 `use`·`keep`, 그 op 의 `using` 이름, 그리고 타입이 맞는 입력·바인딩이
+받는 쪽과 고르는 쪽이 *같은 낱말*을 쓴다. op 머리의 `use al a .` 는 "이 op 은 `al` 에서 깎는다" 이고, 바인딩의
+`let n use b. …` 는 "이 호출은 `b` 로" 다. 모듈을 가져오는 `use allocs .` 와는 선 자리로 갈린다 --- 가져오기는 선언 밖에
+서고, 이 절은 op 의 이름과 `do` 사이에 선다. 한 op 이 적는 `use` 절은 하나다(둘이면 `E-USING-DUP`). 머리의 절에는
+돌려주기와 들고 나가기의 구별이 없다. `keep` 은 바인딩에만 선다(아래 "블록을 나가면 돌려준다").
+
+출처를 적지 않으면 기본값이 정해진다. 바인딩의 `use`·`keep`, 그 op 의 `use` 이름, 그리고 타입이 맞는 입력·바인딩이
 *하나뿐*이면 그것을 쓴다. 둘 이상이면 짐작하지 않고 `E-ALLOC-AMBIGUOUS` 로 적으라고 한다. 기본값은 op 경계를 넘지
 않는다. 부른 쪽의 할당기가 저절로 흘러드는 일이 없으니, *전역 할당기는 없다.*
 
@@ -114,7 +119,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
   caption: [할당기 출처를 정하는 차례 --- 위에서 처음 맞는 것],
   [*차례*], [*출처*], [*왜 이 자리인가*],
   [1], [바인딩에 적은 `use <이름>` · `keep <이름>`], [적은 것이 언제나 이긴다],
-  [2], [이 op 의 `using` 절 이름 가운데 타입이 맞는 *유일한* 것], [op 이 스스로 받겠다고 한 할당기],
+  [2], [이 op 의 `use` 절 이름 가운데 타입이 맞는 *유일한* 것], [op 이 스스로 받겠다고 한 할당기],
   [3], [이 op 의 입력·바인딩 가운데 타입이 맞는 *유일한* 것], [눈에 보이는 값이 하나뿐이면 헷갈릴 일이 없다],
   [없음], [`E-ALLOC-NOSOURCE`], [전역 할당기로 메우지 않는다],
   [둘 이상], [`E-ALLOC-AMBIGUOUS`], [짐작하지 않고 후보 이름을 모두 말한다],
@@ -126,8 +131,8 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 
 #demo("examples/ch20/nosource.low")
 
-`caller` 에는 입력도, 띄운 액터도, `using` 절도 없다. 다른 언어라면 여기서 전역 힙이 조용히 쓰였을 것이다. Lowent 는 할당기를
-입력으로 받거나, 이 자리에서 만들거나, `using` 절을 적으라고 한다. 호출이 거절되었으니 `caller` 의 `state` 도 실제로 쓰이지 않아
+`caller` 에는 입력도, 띄운 액터도, `use` 절도 없다. 다른 언어라면 여기서 전역 힙이 조용히 쓰였을 것이다. Lowent 는 할당기를
+입력으로 받거나, 이 자리에서 만들거나, `use` 절을 적으라고 한다. 호출이 거절되었으니 `caller` 의 `state` 도 실제로 쓰이지 않아
 `W-EFFECT-OVER` 가 함께 붙는다. 첫 오류를 고치면 사라진다.
 
 거꾸로, 할당기를 쓰지 않는 호출의 바인딩에 `use` 를 적어도 거절된다.
@@ -250,7 +255,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
   [*모듈 · 이름*], [*권한*], [*정책(타입)*], [*상태(값)*],
   [`allocs.bump_bytes` · `bump_aligned`], [없다 --- 빌린 바이트], [`byte_allocator` · `freeing_allocator` 를 갖춘 액터], [받침 바이트 · 커서],
   [`allocs.fixed_bytes` · `heap_bytes`], [권한 칸 `cap allocator` · `cap heap`], [`byte_allocator`], [쓴 양],
-  [`vecgen.vec t a`], [없다], [할당기 타입 `a` 를 매개변수로 받는다], [원소 수 · 버퍼 --- 할당기는 `open` 이 `using` 으로 받는다],
+  [`vecgen.vec t a`], [없다], [할당기 타입 `a` 를 매개변수로 받는다], [원소 수 · 버퍼 --- 할당기는 `open` 이 `use` 로 받는다],
   [`growvec.gvec`], [없다], [`vecgen.vec u8 allocs.bump_bytes` 로 고정한 이름], [`vecgen` 과 같다],
   [`pool.block_pool b`], [없다 --- 빌린 바이트], [할당기가 아니다 --- 세대 핸들로 블록을 낱낱이 돌려받는 구조체], [블록 · 세대 배열],
 )
@@ -331,6 +336,22 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   읽어서 안다.
 ]
 
+#antipattern[op 머리의 절을 옛 철자 `using` 으로 적는다][
+  #demo("examples/ch20/mistake_usingold.low")
+
+  1.9 까지는 머리의 절이 `using al a .` 였고 바인딩만 `use` 였다. 받는 쪽과 고르는 쪽이 다른 낱말을 써서, 둘이 한 쌍이라는 것이
+  글자에 보이지 않았다. 이제 둘 다 `use` 다. 옛 철자는 `E-USING-OLD` 로 거절되고, 진단이 고칠 글자를 말한다.
+]
+
+#antipattern[영역 블록 밖에서 `alloc_bytes` 의 뿌리를 적지 않는다][
+  #demo("examples/ch20/mistake_noroot.low")
+
+  `alloc_bytes capacity 8` 처럼 뿌리를 생략할 수 있는 곳은 *영역 블록 안*뿐이다. 그때는 가장 안쪽 영역이 뿌리가 된다(#chref("regions")).
+  권한으로 받은 뿌리는 생략하지 못한다. `alloc_bytes a. capacity 8` 로 이름을 적는다. 이름 없이 뿌리에 닿는 길이 생기면
+  "이 op 이 어디서 메모리를 얻는가" 를 머리만 읽어서는 알 수 없게 되기 때문이다. 크기 앞의 `capacity` 도 빼지 못한다
+  (`E-ALLOC-CAPACITY-MARK`). 생략한 꼴과 이름을 적은 꼴을 가르는 것이 그 낱말이다.
+]
+
 #antipattern[제네릭 op 에서 `via a` 를 빠뜨린다][
   #demo("examples/ch20/mistake_novia.low")
 
@@ -358,19 +379,20 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   [`send a init buf`], [잘라 줄 바이트를 건다], [할당기는 몰래 메모리를 만들지 않는다],
   [`send a reserve 3` · `send a used`], [조각을 청한다(`option`) · 쓴 양], [부족은 트랩이 아니라 값],
   [`input comptime a type .`], [할당기의 타입(정책)을 번역 때 받는다], [갈아 끼우기의 실행 비용이 0],
-  [`using al a .`], [그 타입의 할당기 값을 받는다 --- 입력이 아니다], [부르는 자리의 인자에 끼지 않는다],
+  [`use al a .`], [그 타입의 할당기 값을 받는다 --- 입력이 아니다], [부르는 자리의 인자에 끼지 않는다],
   [`let n use g. u64 two_from. .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
   [`effects state via a .` · `requires allocs.byte_allocator a. . .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],
   [출처 없음 · 쓰이지 않는 `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
+  [`alloc_bytes a. capacity 8` · 영역 블록 안의 `alloc_bytes capacity 8`], [뿌리에서 바이트를 얻는다 · 가장 안쪽 영역에서], [뿌리는 이름으로 적는다 --- `E-ALLOC-NOROOT`],
   [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [나열을 고른 할당기에서 받는다], [못 받으면 `else` --- 반드시 벗어난다],
   [`bit_cast u32 x. .`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
 )
 
 #recap[
   할당기는 권한·정책(트레이트를 갖춘 타입)·상태(액터 값) 셋이다. 범프 할당기는 빌린 바이트를 잘라 주고 부족을 `none`
-  으로 알린다. 할당기는 `input comptime a type .` 과 `using al a .` 로 받아 갈아 끼우며 실행 비용이 없고, 전역 할당기는
+  으로 알린다. 할당기는 `input comptime a type .` 과 `use al a .` 로 받아 갈아 끼우며 실행 비용이 없고, 전역 할당기는
   없다. `fixed_bytes`·`heap_bytes` 는 권한 칸을 가진 기본 할당기이고, 같은 종류의 권한을 쥔 op 만 띄울 수 있다. 고정
   창의 크기는 링커가 정한다. `bit_cast` 는 비트를 그대로 두고, `bool`·`enum` 으로는 읽지 않는다.
 ]

@@ -757,5 +757,34 @@ low_lex_result_t low_lex(proven_allocator_t alloc, proven_u8str_view_t src) {
             low_diag(&l, "E-PAREN-UNCLOSED", "a `(` was never closed", l.line, l.col);
         l.nopen--;
     }
+    // ★★★ RFC-0147 (2026-10-12 소유자 «using은 use 쪽으로 통일») — op 머리의 얼로케이터 절은 `use <이름> <타입> .` 이다.
+    //   바인딩의 할당기 절이 이미 `use` 였다(RFC-0141) — 받는 쪽과 고르는 쪽이 한 낱말을 쓴다.
+    //   머리(`fn` · `proc` 에서 그 `do` 까지) 안의 `use` 는 가져오기일 수 없으므로 자리만으로 갈린다. 안쪽에서 이 절의 낱말은
+    //   여전히 `using` 이다(바인딩의 `use` 도 안쪽 나무에서는 `using` 이다) — 그래서 여기서 한 번 옮겨 적으면 뒤의 단계는
+    //   그대로다. 저자가 머리에 적은 `using` 은 옛 철자다: 고칠 글자를 말하고 거절한다.
+    {
+        low_token_t *T = (low_token_t *)out.tokens.data;
+        bool head = false;
+        for (proven_size_t i = 0; i + 1 < out.tokens.len; i++) {
+            if (T[i].kind != LOW_TOK_IDENT) continue;
+            if (T[i].kw == LOW_KW_FN || T[i].kw == LOW_KW_PROC) { head = true; continue; }
+            // `fn` 은 타입의 낱말이기도 하다(`input f fn u64 u64 .`) — 머리가 아닌 자리에서 켜진 표시는 블록의 끝 · 바인딩에서 꺼진다.
+            if (T[i].kw == LOW_KW_DO || T[i].kw == LOW_KW_END || T[i].kw == LOW_KW_LET || T[i].kw == LOW_KW_VAR) { head = false; continue; }
+            if (!head || T[i + 1].kind != LOW_TOK_IDENT) continue;
+            if (i >= 2 && (T[i - 2].kw == LOW_KW_LET || T[i - 2].kw == LOW_KW_VAR)) continue;   // 바인딩의 할당기 절
+            if (i >= 1 && (T[i - 1].kw == LOW_KW_FN || T[i - 1].kw == LOW_KW_PROC)) continue;    // op 의 이름 자리 — 낱말을 이름으로 지은 잘못은 뒤가 말한다(E-NAME-KEYWORD)
+            if (T[i].kw == LOW_KW_USE) {
+                T[i].kw = LOW_KW_NONE;
+                T[i].lex = PROVEN_LIT("using");
+            } else if (T[i].kw == LOW_KW_NONE && proven_u8str_view_eq(T[i].lex, PROVEN_LIT("using")) &&
+                       i > 0 && (T[i - 1].kind == LOW_TOK_DOT || T[i - 1].kind == LOW_TOK_IDENT) &&
+                       !(T[i - 1].kind == LOW_TOK_IDENT && proven_u8str_view_eq(T[i - 1].lex, PROVEN_LIT("input")))) {
+                low_diag(&l, "E-USING-OLD",
+                         "the allocator clause of an op is `use <name> <type> .` — the same word a binding picks its "
+                         "allocator with (`let b use al. …`). Write `use` where this `using` stands (RFC-0147)",
+                         T[i].line, T[i].col);
+            }
+        }
+    }
     return out;
 }

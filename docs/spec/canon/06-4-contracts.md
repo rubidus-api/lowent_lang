@@ -25,13 +25,13 @@
 
 (3a) 머리의 절은 **한 가지 차례로만** 적는다. 앞에서 뒤로:
 `satisfies`·`lowdoc` · `vector`·`priority` · `comptime` 입력 · 권한·영역 입력(타입이 `cap …`·`region …`) ·
-      `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm`·`absorbs`·`reference`·`why` · `access`·`inplace`·`invalidates`·`parallel`·`reduce` ·
+      `use` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm`·`absorbs`·`reference`·`why` · `access`·`inplace`·`invalidates`·`parallel`·`reduce` ·
       `requires` · `ensures` · `errors` · `tests` · `schedule`. 같은 자리의 절끼리는 적힌 차례를 지킨다.
       trait 의 메서드 서명(⟦§6.11.2⟧)과 actor 안의 `proc` 도 같은 차례를 따른다.
       이 차례를 어기면 번역이 거부된다(`E-CLAUSE-ORDER`). 입력의 차례는 부르는 쪽 인자의 차례이기도 하다 —
       그러므로 권한은 언제나 데이터보다 **먼저** 건넨다.
 
-(3b) 서식기(`--fmt`)는 입력이 아닌 절과 `using` 을 이 차례로 옮겨 적는다. 입력끼리의 차례는 옮기지 아니한다 —
+(3b) 서식기(`--fmt`)는 입력이 아닌 절과 `use` 절을 이 차례로 옮겨 적는다. 입력끼리의 차례는 옮기지 아니한다 —
       입력을 옮기면 호출의 뜻이 바뀌기 때문이다.
 
 (3c) 머리의 절은 **저마다 자기 점으로 닫는다** — 문장과 같다(⟦§6.1.6⟧ (2)). 절 낱말은 앞 절을 닫지 아니하고,
@@ -43,7 +43,7 @@
       - `satisfies` — 이 op 이 지키는 이름 붙은 약속(⟦§6.4.5⟧ · ⟦§6.11.2⟧). `lowdoc` — 사람이 읽는 설명(⟦§6.4.3⟧).
       - `vector` · `priority` — 이 op 을 인터럽트 처리기로 만든다: 받는 인터럽트의 번호와 그 급함(⟦§7.7⟧).
       - `comptime` 입력 — 번역 시점에 정해지는 매개변수(⟦§6.8⟧). 권한 입력 — 효과를 낼 자격(⟦§7.2⟧).
-      - `using` — 이 op 이 쓰는 얼로케이터(⟦§8.14⟧).
+      - `use` — 이 op 이 쓰는 얼로케이터(⟦§8.14⟧).
       - `link` · `variadic` — C 쪽의 이름 · 개수가 정해지지 않은 인자(⟦§7.4⟧).
       - `asm` — 기계 명령을 직접 적는 자리(⟦§6.9.1⟧).
       - `absorbs` · `reference` · `why` — `unsafe` 가 번지는 것을 여기서 멈춘다는 선언과, 그 근거가 되는 순수한 판 · 가정한 것(⟦§7.2.1⟧).

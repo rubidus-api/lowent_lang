@@ -5,7 +5,7 @@ use allocs .
 
 proc one_from
   input comptime a type .
-  using al a .
+  use al a .
   output u64 .
   effects state via a .
   requires allocs.byte_allocator a. . .

@@ -30,7 +30,7 @@ the next occupied slot. There is no object to invalidate.
   caption: [Ops of `mapgen` --- the first two arguments are key type and value type],
   [*op*], [*effects*], [*What it does*],
   [`table`], [---], [struct --- `al` · `keys` · `vals` · `flags` (bytes) · `n` (pairs held)],
-  [`open k v want` (`using al`)], [state], [Opens an empty map (ready for `want` pairs; slots are `(want+1)*2` rounded up to a power of two, at least 8)],
+  [`open k v want` (`use al`)], [state], [Opens an empty map (ready for `want` pairs; slots are `(want+1)*2` rounded up to a power of two, at least 8)],
   [`insert k v m key val`], [state], [Inserts (overwrites if present). Rehashes first if the load factor would be exceeded. `false` = no room],
   [`lookup k v m key` · `has k v m key`], [none], [Value → `option v` · is it present],
   [`erase k v m key`], [none], [Deletes (leaving a tombstone). `true` if it was present],

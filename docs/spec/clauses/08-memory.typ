@@ -784,24 +784,30 @@ proc f output u64 . effects heap state . do
   return send g. take 8 . .
 end .", "E-CAP-FORGE")
   ]
-  #sub("8.14", "객체마다 얼로케이터를 고르기 — `using` 절과 `use` · `keep`")[
+  #sub("8.14", "객체마다 얼로케이터를 고르기 — op 머리의 `use` 절과 바인딩의 `use` · `keep`")[
     #para("1")[
-      op 은 머리에 `using <이름> <타입> .` 절을 적어 #strong[자기가 깎아 쓰는 얼로케이터];를 밝힐 수 있다.
+      op 은 머리에 `use <이름> <타입> .` 절을 적어 #strong[자기가 깎아 쓰는 얼로케이터];를 밝힐 수 있다.
       `<타입>` 은 `byte_allocator` 를 갖춘 타입이거나, 그런 경계(`requires allocs.byte_allocator a. . .`)를
       가진 comptime 타입 매개변수다. 본문에서 `<이름>` 은 평범한 이름이다.
     ]
     #para("1a")[
-      한 op 은 `using` 절을 #strong[하나만]; 적는다(`E-USING-DUP`). 절은 이름과 타입 두 낱말이다. 바인딩의 할당기 절은
+      한 op 은 `use` 절을 #strong[하나만]; 적는다(`E-USING-DUP`). 절은 이름과 타입 두 낱말이다. 바인딩의 할당기 절은
       이름 바로 뒤에 `use <출처>`(블록 끝에 돌려준다) 또는 `keep <출처>`(돌려주지 아니한다)로 적는다(#cref("6.5.1") (3c)) —
       모양이 어긋나면 `E-USING-FORM` 이다.
     ]
+    #para("1b")[
+      받는 쪽과 고르는 쪽이 #strong[한 낱말];을 쓴다 — op 머리의 `use <이름> <타입> .` 은 «이 op 이 여기서 깎는다» 이고, 바인딩의
+      `use <출처>.` 는 «이 객체는 이것으로» 다. 머리의 `use` 는 가져오기(#cref("6.10"))와 자리로 갈린다: 가져오기는 선언 밖에 서고,
+      이 절은 op 의 이름과 `do` 사이에 선다. 머리의 절에는 돌려주기와 들고 나가기의 구별이 없다 — `keep` 은 바인딩에만 선다.
+      옛 철자 `using <이름> <타입> .` 은 거부된다(`E-USING-OLD`).
+    ]
     #para("2")[
-      `using` 절은 #strong[입력이 아니다.]; 부르는 쪽은 그 얼로케이터를 위치로 적지 않으며, `<타입>` 이 타입
+      `use` 절은 #strong[입력이 아니다.]; 부르는 쪽은 그 얼로케이터를 위치로 적지 않으며, `<타입>` 이 타입
       매개변수이면 그 타입 인자도 적지 않는다 — 얼로케이터의 타입에서 온다.
     ]
     #para("3")[
       부르는 쪽은 바인딩에서 얼로케이터를 고른다: `let <이름> use <출처> <타입> <식> .` 고른 출처는 그
-      초기식의 #strong[머리 호출];에 들어간다. 머리 호출이 `using` 절을 갖지 않은 op 이면 적합하지 아니하다
+      초기식의 #strong[머리 호출];에 들어간다. 머리 호출이 `use` 절을 갖지 않은 op 이면 적합하지 아니하다
       (`E-ALLOC-USING-UNUSED`) — 자기 얼로케이터를 이미 든 객체는 부르는 쪽의 선택을 받지 아니한다.
     ]
     #para("4")[
@@ -811,7 +817,7 @@ end .", "E-CAP-FORGE")
       #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*차례*], [*출처*],
       [1], [바인딩의 `use <출처>` · `keep <출처>`],
-      [2], [이 op 자신의 `using` 절 이름(타입이 맞으면)],
+      [2], [이 op 자신의 `use` 절 이름(타입이 맞으면)],
       [3], [이 op 의 입력·바인딩 가운데 타입이 맞는 #strong[하나뿐인]; 것],
       [없음], [`E-ALLOC-NOSOURCE` — 보이는 얼로케이터가 없다],
       [둘 이상], [`E-ALLOC-AMBIGUOUS` — 짐작하지 않는다. 바인딩에 적어라],
@@ -838,7 +844,7 @@ end .", "E-CAP-FORGE")
       표식이 없으면 적합하지 아니하다(`E-ALLOC-CAPACITY-MARK`) — 생략형과 이름을 댄 형을 가르는 것이 그 표식이다.
     ]
     #plain[
-      얼로케이터는 값이다 — 커서와 받침 바이트는 실행 중에 어딘가 살아야 한다. `using` 은 그 값을 #strong[숨기지 않고];
+      얼로케이터는 값이다 — 커서와 받침 바이트는 실행 중에 어딘가 살아야 한다. op 머리의 `use` 는 그 값을 #strong[숨기지 않고];
       적는 자리를 옮긴 것이다: 받는 쪽은 서명에 «나는 이 얼로케이터에서 깎는다» 를 적고, 부르는 쪽은 객체를 만드는
       줄에 «이것으로» 를 적는다. 둘 사이의 기계어는 인자 하나를 넘기는 것과 같다.
     ]
@@ -872,7 +878,7 @@ actor doubled do
 end .
 
 rem 받는 쪽 — 부르는 쪽은 얼로케이터도, 그 타입도 적지 않는다
-proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a. . . do
+proc take input comptime a type . use al a . input n u64 . output u64 . effects state . requires carver a. . . do
   return send al. reserve n. . .
 end .
 
@@ -883,6 +889,15 @@ proc main output u8 . effects state . do
   let y use d. u64 take 3 . .      rem 6
   return narrow u8 add x. y. . . .
 end .")
+    #rejected("op 머리의 얼로케이터 절은 `use` 다 — (1b) 를 시험한다", "module ex_using_head_old .
+
+trait carver do
+  reserve input s self . input n u64 . output u64 . effects state .
+end .
+
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a. . . do
+  return send al. reserve n. . .
+end .", "E-USING-OLD")
     #rejected("보이는 얼로케이터가 둘인데 고르지 않았다", "module ex_using_ambiguous .
 
 trait carver do
@@ -900,7 +915,7 @@ actor exact do
   end .
 end .
 
-proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a. . . do
+proc take input comptime a type . use al a . input n u64 . output u64 . effects state . requires carver a. . . do
   return send al. reserve n. . .
 end .
 

@@ -125,6 +125,17 @@ There are three policies --- `restart max <count>` (that many times), `never` (p
 Restarting applies only to `panic`. A contract violation is the program breaking a promise it wrote itself, and doing it again gives the same result, so it is
 not restarted. Only *the actor's own state* is revived; other actors are not touched.
 
+A period can be attached, as in `restart max 3 within 1 minute`. The units are `second`, `minute` and `hour`, written `seconds` and so on for more than
+one. This edition's processor only *records* the period, though. It keeps the count (`max`) but does not yet count "within one minute", and says so with
+the warning `W-NOT-YET`. If a design leans on time for its recovery, read that warning and check that the count alone is safe.
+
+An actor has one failure policy. The same holds for the mailbox policy (`mailbox`).
+
+#demo("examples/ch25/mistake_twopolicies.low")
+
+With two policies the text does not say which one stands, and the answer becomes the processor's private business. So it is refused with
+`E-ACTOR-FAILURE` (two mailbox policies are `E-ACTOR-MAILBOX`).
+
 Code that undoes, one by one, failures where state became strange by chance is long, and long code is itself wrong. Resetting the state to the beginning is a
 short recovery that is always right.
 

@@ -1359,7 +1359,7 @@ bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_siz
             proven_size_t nxt = (i + 1 < u.n && u.T[i + 1].kind != LOW_TOK_EOF) ? ls[u.T[i + 1].line - 1] + u.T[i + 1].col - 1 : n;
             proven_size_t end = nxt;
             while (end > off && (text[end - 1] == ' ' || text[end - 1] == '\n' || text[end - 1] == '\t' || text[end - 1] == '\r')) end--;
-            if (t->kind == LOW_TOK_IDENT || t->kind == LOW_TOK_NUMBER) { proven_size_t e2 = off + t->lex.size; if (e2 < end) end = e2; }
+            if (t->kind == LOW_TOK_IDENT || t->kind == LOW_TOK_NUMBER) { proven_size_t e2 = off + (t->kw == LOW_KW_NONE && cl_eq(t, "using") ? 3 : t->lex.size);   /* 머리의 `use` — 안쪽 낱말은 `using` 이다(RFC-0147) */ if (e2 < end) end = e2; }
             if (t->kind == LOW_TOK_LPAREN || t->kind == LOW_TOK_RPAREN || t->kind == LOW_TOK_DOT) end = off + 1;
             fwrite(text + at, 1, off - at, out);
             for (unsigned q = 0; q < u.lp[i]; q++) fputc('(', out);

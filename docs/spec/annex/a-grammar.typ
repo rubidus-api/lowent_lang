@@ -303,7 +303,7 @@ match               match <폼> do <가지>* end [else do <폼>* end] .   (가�
       (`E-VOCAB-REMOVED`), 처리기는 그 자리에서 무엇을 대신 쓰는지 말한다.
     ]
     #tbl("없앤 낱말 — 그리고 대신 쓰는 것")[
-      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      #table(columns: (22%, 24%, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*없앤 것*], [*대신*], [*왜*],
       [`loop`], [`while true do`], [똑같은 뜻의 두 철자였다],
       [`give`], [`return`], [똑같은 뜻의 두 철자였다],

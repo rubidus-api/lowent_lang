@@ -79,124 +79,89 @@
   }
 }
 
+// ── 장치의 모양 — 왼쪽 세로선 하나 (2026-10-12 소유자) ───────────────────────
+// ★ 장치는 **왼쪽 세로선만** 가진다. 전에는 장치마다 모양이 달랐다 — 회색 바탕(참고) · 네 변 테두리(주의) ·
+//   굵은 왼쪽 선에 가는 세 변(자유 선택 · 모호) · 옅은 바탕에 테두리(예제 · 문법 틀 · 도해 · 거부되는 예제).
+//   매뉴얼의 규율(`docs/manual/typst-ko/style.typ` 의 `rail-*`)을 그대로 따른다: 표지 줄의 선이 굵고, 내용의 선이
+//   가늘고, 둘은 붙지 않는다. 선의 색은 하나이고, 자유 선택과 모호만 제 색을 지킨다(본문에서 찾아야 하는 자리다).
+// ★ 소스 코드와 실행 결과는 매뉴얼의 시연 상자와 같다 — 표제 줄과 내용을 가로선으로 가른 가는 실선 상자(`_cell`).
+#let _rule = rgb("#d5d5d5")
+#let _rail-pad = 9pt
+#let _sans = ("Noto Sans CJK KR", "Noto Sans")
+#let _dev(label, body, paint: _rule, ink: black, breakable: true) = block(
+  width: 100%, above: 1em, below: 1em, breakable: breakable)[
+  #if label != none {
+    block(width: 100%, above: 0pt, below: 3pt, sticky: true,
+          inset: (left: _rail-pad, top: 2pt, bottom: 3.5pt), stroke: (left: 3.2pt + paint))[
+      #text(font: _sans, size: 0.88em, weight: "bold", fill: ink)[#label]
+    ]
+  }
+  #block(width: 100%, above: 0pt, below: 0pt,
+         inset: (left: _rail-pad, top: 6pt, bottom: 6pt), stroke: (left: 1.2pt + paint))[#body]
+]
+#let _cell(head, body) = block(width: 100%, breakable: true, stroke: 0.5pt + _rule, inset: 0pt,
+                               above: 0.55em, below: 0.55em)[
+  #block(width: 100%, inset: (x: 8pt, y: 5pt), above: 0pt, below: 0pt, stroke: (bottom: 0.5pt + _rule))[
+    #text(font: _sans, size: 0.86em, weight: "bold")[#head]]
+  #block(width: 100%, inset: (x: 8pt, y: 6pt), above: 0pt, below: 0pt)[#body]
+]
+// 표제 줄이 없는 테두리 상자 — 문법 틀 · 도해 · 구문처럼 글자 그대로 옮기는 자리.
+#let _box(body) = block(width: 100%, breakable: true, stroke: 0.5pt + _rule, inset: (x: 8pt, y: 6pt),
+                        above: 0.55em, below: 0.55em)[#body]
+// HTML 쪽의 같은 두 모양. 모양은 `scripts/wrap-spec-html.py` 의 CSS 가 준다(`.dev` · `.demo`).
+#let _hdev(cls, label, body) = html.elem("div", attrs: (class: "dev " + cls), {
+  if label != none { html.elem("p", attrs: (class: "dev-label"), label) }
+  html.elem("div", attrs: (class: "dev-body"), body)
+})
+#let _hcell(cls, head, code) = html.elem("div", attrs: (class: "demo " + cls), {
+  html.elem("p", attrs: (class: "demo-head"), head)
+  html.elem("div", attrs: (class: "demo-body"), html.elem("pre", html.elem("code", code)))
+})
+
 // ── 용어 병기 (D5) ───────────────────────────────────────────────────────────
 // **모든 용어는 처음 나올 때 괄호로 영어를 병기하고 뜻을 적는다.**
 #let term(ko, en, body) = if _html {
-  html.elem("dl", attrs: (class: "term"), {
-    html.elem("dt", [#ko (#en)])
-    html.elem("dd", body)
-  })
+  _hdev("term", [#ko (#en)], body)
 } else {
-  block(above: 0.9em, below: 0.9em, width: 100%, inset: (left: 0.8em),
-        stroke: (left: 2pt + rgb("#111")))[
-    #text(weight: "bold")[#ko] #text(fill: rgb("#555"))[(#en)]
-
-    #body
-  ]
+  _dev([#ko #text(weight: "regular", fill: rgb("#555"))[(#en)]], body)
 }
 
 // 본문에서 용어를 처음 쓸 때: #t("계약", "contract")
 // ★ «자유 선택 (free choice)» 은 일반 낱말이 아니라 §4.3 이 정의한 용어다 — 본문에서 쓰일 때마다 눈에 띄게 낸다(2026-10-08 소유자).
 #let t(ko, en) = if en == "free choice" {
-  if _html { html.elem("span", attrs: (class: "t fc"), [#ko (#en)]) }
-  else { text(weight: "bold", fill: rgb("#17574a"))[#ko (#text(size: 0.92em)[#en])] }
+  if _html { html.elem("span", attrs: (class: "t fc"), [#ko (#en)]) } else { text(weight: "bold", fill: rgb("#17574a"))[#ko (#text(size: 0.92em)[#en])] }
 } else if _html {
   html.elem("span", attrs: (class: "t"), [#ko (#en)])
 } else { [#ko (#text(fill: rgb("#555"), size: 0.92em)[#en])] }
 
 // ── 규범과 참고를 가른다 (D7) ────────────────────────────────────────────────
-#let note(body) = if _html {
-  html.elem("div", attrs: (class: "note"), {
-    html.elem("b", [참고 (informative)])
-    body
-  })
-} else {
-  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, fill: rgb("#f4f4f4"))[
-    #text(size: 0.88em, weight: "bold")[참고 (informative)]
+#let note(body) = if _html { _hdev("note", [참고 (informative)], body) } else { _dev([참고 (informative)], text(size: 0.95em)[#body]) }
 
-    #text(size: 0.95em)[#body]
-  ]
-}
-
-#let plain(body) = if _html {
-  html.elem("div", attrs: (class: "plain"), {
-    html.elem("b", [쉬운 말로])
-    body
-  })
-} else {
-  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em,
-        stroke: (left: 2.5pt + rgb("#666")))[
-    #text(size: 0.88em, weight: "bold", fill: rgb("#444"))[쉬운 말로]
-
-    #text(size: 0.95em)[#body]
-  ]
-}
+#let plain(body) = if _html { _hdev("plain", [쉬운 말로], body) } else { _dev([쉬운 말로], text(size: 0.95em)[#body]) }
 
 // 자유 선택 — 처리기가 범위 안에서 골라도 되고, 무엇을 골랐는지 적지 않아도 되는 자리 (정본 §4.3). 부록 F 가 모은다.
-#let freechoice(title, body) = if _html {
-  html.elem("div", attrs: (class: "freechoice"), {
-    html.elem("b", [자유 선택 (free choice) — #_inl(title)])
-    body
-  })
-} else {
-  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#1f6f5c"), rest: 0.5pt + rgb("#1f6f5c")))[
-    #text(size: 0.88em, weight: "bold", fill: rgb("#17574a"))[자유 선택 (free choice) — #_inl(title)]
-
-    #text(size: 0.95em)[#body]
-  ]
-}
+#let freechoice(title, body) = if _html { _hdev("freechoice", [자유 선택 (free choice) — #_inl(title)], body) } else { _dev([자유 선택 (free choice) — #_inl(title)], text(size: 0.95em)[#body],
+              paint: rgb("#1f6f5c"), ink: rgb("#17574a")) }
 
 // 모호 — 이 문서만으로는 뜻이 둘 이상으로 읽히는 자리 (RFC-0139 §6). 고르지 않고 풀이를 나란히 적는다. 부록 E 가 모은다.
-#let ambig(title, body) = if _html {
-  html.elem("div", attrs: (class: "ambig"), {
-    html.elem("b", [모호 (open issue) — #_inl(title)])
-    body
-  })
-} else {
-  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#a05a00"), rest: 0.5pt + rgb("#a05a00")))[
-    #text(size: 0.88em, weight: "bold", fill: rgb("#7a4300"))[모호 (open issue) — #_inl(title)]
+#let ambig(title, body) = if _html { _hdev("ambig", [모호 (open issue) — #_inl(title)], body) } else { _dev([모호 (open issue) — #_inl(title)], text(size: 0.95em)[#body],
+              paint: rgb("#a05a00"), ink: rgb("#7a4300")) }
 
-    #text(size: 0.95em)[#body]
-  ]
-}
-
-#let caution(title, body) = if _html {
-  html.elem("div", attrs: (class: "caution"), {
-    html.elem("b", [주의 — #_inl(title)])
-    body
-  })
-} else {
-  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: 1pt + rgb("#111"))[
-    #text(size: 0.88em, weight: "bold")[주의 — #_inl(title)]
-
-    #text(size: 0.95em)[#body]
-  ]
-}
+#let caution(title, body) = if _html { _hdev("caution", [주의 — #_inl(title)], body) } else { _dev([주의 — #_inl(title)], text(size: 0.95em)[#body]) }
 
 // ── 예제 ────────────────────────────────────────────────────────────────────
 // ★ 명세의 예제는 **실제로 컴파일된다**(`check-spec.py --code`).
 #let ex(caption, code, out: none) = {
   if _html {
-    html.elem("div", attrs: (class: "ex"), {
-      html.elem("b", [예제 (example) — #_inl(caption)])
-      html.elem("pre", html.elem("code", code))
-      if out != none { html.elem("pre", attrs: (class: "out"), out) }
+    _hdev("ex", [예제 (example) — #_inl(caption)], {
+      _hcell("demo-src", [소스 코드 (source)], code)
+      if out != none { _hcell("demo-out", [실행 결과 (output)], out) }
     })
   } else {
-    block(above: 1em, below: 1em, width: 100%)[
-      #text(size: 0.88em, weight: "bold")[예제 (example) — #_inl(caption)]
-
-      #block(width: 100%, inset: 0.6em, fill: rgb("#fafafa"), stroke: 0.5pt + rgb("#ccc"))[
-        #raw(code)
-      ]
-      #if out != none [
-        #block(width: 100%, inset: 0.6em, fill: rgb("#f0f0f0"))[
-          #text(size: 0.82em)[결과 (output)]
-
-          #raw(out)
-        ]
-      ]
-    ]
+    _dev([예제 (example) — #_inl(caption)], {
+      _cell([소스 코드 (source)], raw(code))
+      if out != none { _cell([실행 결과 (output)], raw(out)) }
+    })
   }
 }
 
@@ -230,33 +195,26 @@
   block(above: 1.1em, below: 0.5em)[#text(size: 0.92em, weight: "bold", fill: rgb("#333"))[#name]]
 }
 // 구문 — EBNF 생성 규칙. 문법틀(#shape)은 한눈에 보는 모양이고, 이것이 문법의 정의다.
+// 표지 줄이 없다 — 바로 위의 칸 제목(«구문»)이 표지다. 테두리 상자 하나로 선다.
 #let syntax(caption, code) = {
   if _html {
     html.elem("div", attrs: (class: "syntax"), {
       html.elem("pre", html.elem("code", code))
     })
   } else {
-    block(above: 0.7em, below: 0.9em, width: 100%, inset: (left: 0.9em, y: 0.5em), stroke: (left: 2pt + rgb("#111")))[
+    block(above: 0.7em, below: 0.9em, width: 100%)[
       #set text(font: ("D2Coding", "Noto Sans Mono"), size: 0.9em)
-      #raw(code)
+      #_box(raw(code))
     ]
   }
 }
 
+// ★ 문법 틀과 도해는 돌리는 프로그램이 아니어서 표제 줄(«소스 코드»)이 없다 — 테두리 상자만 가진다.
 #let shape(caption, code) = {
   if _html {
-    html.elem("div", attrs: (class: "shape"), {
-      html.elem("b", [문법 틀 (grammar shape) — #_inl(caption)])
-      html.elem("pre", html.elem("code", code))
-    })
+    _hdev("shape", [문법 틀 (grammar shape) — #_inl(caption)], html.elem("pre", html.elem("code", code)))
   } else {
-    block(above: 1em, below: 1em, width: 100%)[
-      #text(size: 0.88em, weight: "bold")[문법 틀 (grammar shape) — #_inl(caption)]
-
-      #block(width: 100%, inset: 0.6em, fill: rgb("#f7f7f7"), stroke: (dash: "dashed", paint: rgb("#bbb"), thickness: 0.5pt))[
-        #raw(code)
-      ]
-    ]
+    _dev([문법 틀 (grammar shape) — #_inl(caption)], _box(raw(code)))
   }
 }
 
@@ -265,18 +223,9 @@
 //   프로그램)와도 다르다: 이것은 규범이 아니라 규범을 읽기 쉽게 하는 그림이고, 검사기는 코드로 보지 않는다.
 #let diagram(caption, code) = {
   if _html {
-    html.elem("div", attrs: (class: "diagram"), {
-      html.elem("b", [도해 (diagram) — #_inl(caption)])
-      html.elem("pre", html.elem("code", code))
-    })
+    _hdev("diagram", [도해 (diagram) — #_inl(caption)], html.elem("pre", html.elem("code", code)))
   } else {
-    block(above: 1em, below: 1em, width: 100%, breakable: false)[
-      #text(size: 0.88em, weight: "bold")[도해 (diagram) — #_inl(caption)]
-
-      #block(width: 100%, inset: 0.6em, fill: rgb("#f5f8fb"), stroke: 0.5pt + rgb("#9ab"))[
-        #raw(code)
-      ]
-    ]
+    _dev([도해 (diagram) — #_inl(caption)], _box(raw(code)), breakable: false)
   }
 }
 
@@ -286,19 +235,14 @@
 //   (컴파일 검사기는 이 블록을 **컴파일하지 않는다** — 거부되는 것이 정상이기 때문이다.)
 #let rejected(caption, code, diag) = {
   if _html {
-    html.elem("div", attrs: (class: "rejected"), {
-      html.elem("b", [거부되는 예제 (rejected) — #_inl(caption)])
-      html.elem("pre", html.elem("code", code))
+    _hdev("rejected", [거부되는 예제 (rejected) — #_inl(caption)], {
+      _hcell("demo-src", [소스 코드 (source)], code)
       html.elem("p", attrs: (class: "diag"), [진단: #raw(diag)])
     })
   } else {
-    block(above: 1em, below: 1em, width: 100%)[
-      #text(size: 0.88em, weight: "bold")[거부되는 예제 (rejected) — #_inl(caption)]
-
-      #block(width: 100%, inset: 0.6em, fill: rgb("#faf6f6"), stroke: 0.5pt + rgb("#c99"))[
-        #raw(code)
-      ]
-      #text(size: 0.85em)[진단: #raw(diag)]
-    ]
+    _dev([거부되는 예제 (rejected) — #_inl(caption)], {
+      _cell([소스 코드 (source)], raw(code))
+      text(size: 0.85em)[진단: #raw(diag)]
+    })
   }
 }

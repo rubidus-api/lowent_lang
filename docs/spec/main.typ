@@ -47,7 +47,9 @@
   ]
   #v(1fr)
   #align(center)[
-    #block(width: 80%, inset: 0.8em, stroke: 0.5pt + rgb("#999"))[
+    // 겉장의 한마디도 본문의 장치와 같은 모양이다 — 왼쪽 세로선 하나(2026-10-12).
+    #block(width: 80%, inset: (left: 9pt, top: 6pt, bottom: 6pt), stroke: (left: 1.2pt + rgb("#d5d5d5")))[
+      #set align(left)
       #text(size: 0.9em)[
         이 문서는 로우엔트 언어 자체를 정의한다. 이 문서만으로 언어를 배우고 구현할 수
         있어야 하며, 다른 문서를 읽어야 알 수 있는 자리를 남기지 않는다.

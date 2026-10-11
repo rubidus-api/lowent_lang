@@ -244,7 +244,7 @@ end 에 닿으면:
   [`effects alloc` · `effects heap`], [고정 창에서 얻는다 · 자라는 힙에서 얻는다], [어느 뿌리를 딛는지 머리에 보인다],
   [`input al cap allocator .` · `cap heap`], [시작점이 받는 할당 권한], [효과를 허락하는 짝],
   [`input temp region scratch .`], [부르는 쪽이 연 영역을 받는다], [버퍼의 수명을 부르는 쪽이 정한다],
-  [`stack`·`frame`·`arena`·`static`·`heap`·`mmap`·`disk`·`device`], [닫힌 영역 종류 여덟], [낱말이 뜻을 말하게 --- 밖의 낱말은 `E-REGION-KIND`],
+  [`stack` · `frame` · `arena` · `static` · `heap` · `mmap` · `disk` · `device`], [닫힌 영역 종류 여덟], [낱말이 뜻을 말하게 --- 밖의 낱말은 `E-REGION-KIND`],
   [영역 밖 이름에 담기 · 돌려주기], [거절(`E-REGION-ESCAPE`)], [걷힌 바이트를 가리키지 않게],
   [안쪽 영역이 열린 동안 바깥 이름으로 깎기], [거절(`E-ALLOC-NESTED`)], [뿌리마다 커서는 하나],
   [`--target cortex_m` + `heap`], [거절(`E-HEAP-NOHOST`)], [운영체제 없는 기계에는 힙이 없다],

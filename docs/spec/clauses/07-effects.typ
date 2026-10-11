@@ -243,7 +243,7 @@ end .", "E-EFFECT-CALC")
       - 권한을 받아 두는 것만으로 효과가 생기지는 아니한다 — 받고 안 쓰는 권한은 일을 하지 않는다.
     ]
     #tbl("효과와 그것을 허락하는 권한")[
-      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      #table(columns: (auto, 1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*효과*], [*허락하는 권한*], [*없을 때*],
       [`io`], [`cap io` · `cap file_system` · `cap net` · `cap tty` · `cap clock` · `cap random`], [`E-EFFECT-NO-CAP`],
       [`alloc`], [`cap allocator` (또는 어휘 `region` 블록)], [`E-ALLOC-NOCAP`],

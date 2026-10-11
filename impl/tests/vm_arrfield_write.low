@@ -1,0 +1,26 @@
+rem A write into an array field of a local struct, then a read of the same field — directly and through `subslice`.
+rem Native code built with -O2 used to answer 1 where the VM answers 100: the fast path carried the field as a slice of the
+rem literal's read-only constant (docs/known-defects, 2026-10-11). Structs with array fields stay on the tagged path now.
+module vm_arrfield_write .
+def struct bd do
+  id u64 .
+  body array u32 12 .
+end .
+export fn viasub output u64 .
+do
+  var b lit bd do id 1 . body lit array u32 12 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
+  set idx subslice field b. body . 0 4 . 0 . 100 .
+  return widen u64 idx field b. body . 0 . . .
+end .
+export fn direct output u64 .
+do
+  var b lit bd do id 1 . body lit array u32 12 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
+  set idx field b. body . 0 . 100 .
+  return widen u64 idx field b. body . 0 . . .
+end .
+export fn readsub output u64 .
+do
+  var b lit bd do id 1 . body lit array u32 12 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
+  set idx field b. body . 5 . 100 .
+  return widen u64 idx subslice field b. body . 4 8 . 1 . . .
+end .

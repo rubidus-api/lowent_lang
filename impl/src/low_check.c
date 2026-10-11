@@ -8824,6 +8824,16 @@ static void rw_field_lits(low_check_result_t *out, const low_cst_t *sf) {
                  "must carry the same element type and exactly that length", fl->kids[0]->tok.line);
     }
 }
+// `subslice` 와 `idx` 는 받은 자리를 그대로 가리킨다 — 그 받는 쪽을 따라 내려간다(RFC-0144: matrix 칸의 원소 · 줄이 이 꼴로 온다).
+static const low_cst_t *rw_through_views(const low_cst_t *sv) {
+    for (int hops = 0; hops < 64; hops++) {
+        sv = rw_unwrap(sv);
+        if (!sv || sv->kind != LOW_CST_FORM || sv->nkids < 3 || !ck_atom(sv->kids[0]) ||
+            !(veq(sv->kids[0]->tok.lex, "subslice") || (veq(sv->kids[0]->tok.lex, "idx") && sv->nkids == 3))) break;
+        sv = sv->kids[1];
+    }
+    return sv;
+}
 static void rw_walk(low_check_result_t *out, const rw_t *x, const low_cst_t *nd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK &&
@@ -8841,7 +8851,7 @@ static void rw_walk(low_check_result_t *out, const rw_t *x, const low_cst_t *nd)
                                     rw_is_array_field(x, pl->kids[1]->tok.lex, pl->kids[pl->nkids - 2]->tok.lex))))
                     rw_refuse(out, k, ln);
             } else if (veq(pl->kids[0]->tok.lex, "idx")) {
-                const low_cst_t *sv = rw_unwrap(pl->kids[1]);
+                const low_cst_t *sv = rw_through_views(pl->kids[1]);
                 if (sv && sv->kind == LOW_CST_FORM && sv->nkids == 3 && ck_atom(sv->kids[0]) && veq(sv->kids[0]->tok.lex, "field") &&
                     ck_atom(sv->kids[1]) && ck_atom(sv->kids[2])) {
                     int k = rw_base_kind(x, sv->kids[1]->tok.lex);
@@ -8858,7 +8868,7 @@ static void rw_walk(low_check_result_t *out, const rw_t *x, const low_cst_t *nd)
             if (ck_atom(nd->kids[z]) && nd->kids[z]->tok.kw == LOW_KW_BE) { be = z; break; }
             if (ck_atom(nd->kids[z]) && (veq(nd->kids[z]->tok.lex, "mut") || veq(nd->kids[z]->tok.lex, "mut_ref"))) mutw = true;
         }
-        const low_cst_t *v = be + 2 == nd->nkids ? rw_unwrap(nd->kids[be + 1]) : NULL;
+        const low_cst_t *v = be + 2 == nd->nkids ? rw_through_views(nd->kids[be + 1]) : NULL;
         if (mutw && v && v->kind == LOW_CST_FORM && v->nkids == 3 && ck_atom(v->kids[0]) && veq(v->kids[0]->tok.lex, "field") &&
             ck_atom(v->kids[1]) && ck_atom(v->kids[2])) {
             int k = rw_base_kind(x, v->kids[1]->tok.lex);
@@ -11001,6 +11011,9 @@ static bool o4_stmt_writes(const low_cst_t *st, proven_u8str_view_t x, const low
             // `subslice` 도 자리를 그대로 가리킨다(복사하지 않는다) — `set idx subslice x … . i . v .` 는 x 를 쓴다
             while (j && (veq(a[j - 1]->tok.lex, "idx") || veq(a[j - 1]->tok.lex, "field") || veq(a[j - 1]->tok.lex, "subslice"))) j--;
             if (j && a[j - 1]->tok.kw == LOW_KW_SET) return true;
+            // `let w mut slice t subslice x … .` — 쓸 수 있는 보기로 묶는 것도 x 를 쓰는 길이다(그 이름으로 쓴다)
+            if (j && a[j - 1]->tok.kw == LOW_KW_BE)
+                for (proven_size_t z = 0; z + 1 < j; z++) if (veq(a[z]->tok.lex, "mut") || veq(a[z]->tok.lex, "mut_ref")) return true;
         }
         if (o4_mutating_word(w) || o4_is_proc(tab, nt, w)) caller = true;
     }

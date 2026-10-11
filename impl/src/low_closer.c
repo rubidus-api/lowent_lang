@@ -31,15 +31,6 @@ typedef struct {
     unsigned short *lp, *rp; // 이 토큰 앞에 `(` · 뒤에 `)` 를 몇 개 끼우나
     proven_size_t *mate;     // 괄호 · do/end 의 짝 (없으면 SIZE_MAX)
     bool          ext;       // `extern` 선언 안인가
-    // ── RFC-0144 `matrix` — 이 단계가 기존 꼴(`array` · `subslice` · `idx`)로 옮겨 적는다 ──
-    const char  **pre, **post; // 이 토큰 앞 · 뒤에 끼울 글(빈칸으로 가른 토큰들)
-    const char  **rep;         // 이 토큰의 글자를 이것으로 바꾼다
-    struct cl_mxty *tys; proven_size_t ntys, ctys;       // 읽은 matrix 타입(시작 자리 · 모양 · 받아 준 자리가 있었나)
-    struct cl_mxname *names; proven_size_t nnames, cnames; // 지금 op 안의 matrix 이름
-    proven_size_t opstart;     // 지금 op 선언의 첫 토큰 — 그 앞에서 지은 이름은 보이지 않는다
-    long          sig;         // 지금 op 의 시그니처 칸(g_mx_sigs) — 없으면 -1
-    int           mx_ctx;      // 다음 항이 matrix 이름이어도 되는 자리인가(인자 · return) — 항을 읽으면 지워진다
-    const char   *file;        // 뒤로 미룬 진단에 적을 파일
     unsigned      depth;     // 지금 몇 겹 안인가(값 + 블록) — 렉서의 괄호 한도와 같은 한도를 여기서도 지킨다
     jmp_buf       jb;
     low_diag_t    err;
@@ -47,46 +38,11 @@ typedef struct {
 
 #define NOPE ((proven_size_t)-1)
 
-// ══ RFC-0144 — `matrix <원소> <차원 수> <크기>…` ══════════════════════════════════════════════════════════════════════
-//   크기가 타입에 적힌 여러 차원의 줄. 이 단계에서 **이미 있는 꼴로 옮겨 적는다** — 뒤의 파서 · 검사 · 하강은 그대로다:
-//     matrix u32 2 3 4                 →  array u32 12                          (줄 우선으로 이어 놓는다)
-//     idx m. r. c. .                   →  idx (subslice (subslice m (mul r 4) 12) 0 4) c
-//       한 차원마다 «그 색인부터 끝까지» 를 자르고 «앞의 한 덩어리» 를 다시 자른다 — 색인이 제 차원을 넘으면 둘 중 하나가
-//       범위 밖이다(E-VM-BOUNDS). 색인 식은 한 번만 적힌다(두 번 셈하지 않는다).
-//     dim m. 1 .                       →  4            flat m. .  →  m
-//   모양은 **이름**에 붙는다: `let` · `var` · `input` · `output` 이 지은 이름만 matrix 다. 그 이름을 통째로 쓰는 자리는
-//   `idx` · `dim` · `flat` · 같은 모양의 입력을 가진 op 의 인자 · 같은 모양을 내는 op 의 `return` 뿐이다.
-//   op 의 경계를 넘는 모양(인자 · 결과)은 파일들을 다 읽은 뒤 `low_closer_matrix_verify` 가 견준다.
+// ══ RFC-0144 — `matrix <원소> <차원 수> <크기>…` ════════════════════════════════════════════════════════════
+//   이 단계는 matrix 의 **글자 꼴**만 본다: 타입이 어디서 끝나는가(차원 수가 먼저 와서 타입이 제 끝을 안다), 차원 수와 크기가
+//   제 범위 안인가. 옮겨 적기와 모양 견줌은 파스 뒤의 나무에서 `low_matrix.c` 가 한다(2026-10-11 — 첫 걸음은 여기서 토큰을
+//   고쳐 적었고, 토큰에는 타입이 없어 모양을 이름에만 붙일 수 있었다).
 #define MX_MAXRANK 8
-#define MX_MAXARGS 16
-typedef struct { unsigned k; unsigned long long d[MX_MAXRANK]; } mx_shape_t;
-struct cl_mxty { proven_size_t at, num; mx_shape_t sh; bool claimed; };
-struct cl_mxname { proven_u8str_view_t name; proven_size_t pos; mx_shape_t sh; bool dead; };
-typedef struct { proven_u8str_view_t name; const char *file; unsigned np; unsigned short mask; mx_shape_t par[MX_MAXARGS]; bool out_has; mx_shape_t out; } mx_sig_t;
-typedef struct { proven_u8str_view_t callee; const char *file; proven_u32 line, col; unsigned char na; bool bind, nomx, bare; unsigned short mask; proven_size_t sh0; } mx_call_t;
-bool low_closer_matrix_keep = false;                     // `--fmt` — matrix 를 옮겨 적지 않고 그대로 둔다
-static char g_mx_pool[1 << 18]; static size_t g_mx_poolp;
-static mx_sig_t *g_mx_sigs; static size_t g_mx_nsigs, g_mx_csigs;
-static mx_call_t *g_mx_calls; static size_t g_mx_ncalls, g_mx_ccalls;
-static mx_shape_t *g_mx_shapes; static size_t g_mx_nshapes, g_mx_cshapes;
-
-static bool mx_same(const mx_shape_t *a, const mx_shape_t *b) {
-    if (a->k != b->k) return false;
-    for (unsigned q = 0; q < a->k; q++) if (a->d[q] != b->d[q]) return false;
-    return true;
-}
-static unsigned long long mx_total(const mx_shape_t *a) { unsigned long long n = 1; for (unsigned q = 0; q < a->k; q++) n *= a->d[q]; return n; }
-static const char *mx_shape_text(const mx_shape_t *a, char *buf, size_t cap) {
-    size_t o = (size_t)snprintf(buf, cap, "%u", a->k);
-    for (unsigned q = 0; q < a->k && o < cap; q++) o += (size_t)snprintf(buf + o, cap - o, " %llu", a->d[q]);
-    return buf;
-}
-static bool mx_grow(void **p, size_t *cap, size_t need, size_t el) {
-    if (need <= *cap) return true;
-    size_t nc = *cap ? *cap * 2 : 64; while (nc < need) nc *= 2;
-    void *q = realloc(*p, nc * el); if (!q) return false;
-    *p = q; *cap = nc; return true;
-}
 
 static bool cl_eq(const low_token_t *t, const char *s) {
     proven_size_t n = strlen(s);
@@ -128,63 +84,6 @@ static proven_size_t cl_mate(cl_t *c, proven_size_t i) {
     return c->mate[i];
 }
 static void cl_wrap(cl_t *c, proven_size_t a, proven_size_t b) { c->lp[a]++; c->rp[b]++; }
-
-// ── matrix 의 도구들 ──
-static const char *mx_text(cl_t *c, proven_size_t at, const char *a, const char *b) {   // a 뒤에 b 를 이은 글을 못에 놓는다(a 는 없어도 된다)
-    size_t la = a ? strlen(a) : 0, lb = strlen(b), need = la + (la ? 1 : 0) + lb + 1;
-    if (g_mx_poolp + need > sizeof g_mx_pool) cl_fail(c, at, "E-MATRIX-TYPE", "too many `matrix` forms for this compiler to rewrite in one run");
-    char *o = g_mx_pool + g_mx_poolp; g_mx_poolp += need;
-    if (la) { memcpy(o, a, la); o[la] = ' '; }
-    memcpy(o + la + (la ? 1 : 0), b, lb + 1);
-    return o;
-}
-static void mx_pre(cl_t *c, proven_size_t i, const char *s) { c->pre[i] = mx_text(c, i, c->pre[i], s); }
-static void mx_post(cl_t *c, proven_size_t i, const char *s) { c->post[i] = mx_text(c, i, c->post[i], s); }
-static struct cl_mxty *mx_ty_at(cl_t *c, proven_size_t at) {
-    for (proven_size_t q = c->ntys; q-- > 0; ) if (c->tys[q].at == at) return &c->tys[q];
-    return NULL;
-}
-static struct cl_mxname *mx_find(cl_t *c, const low_token_t *t) {
-    if (t->kind != LOW_TOK_IDENT || t->kw != LOW_KW_NONE) return NULL;
-    for (proven_size_t q = c->nnames; q-- > 0; ) {
-        struct cl_mxname *m = &c->names[q];
-        if (m->pos < c->opstart) break;
-        if (!m->dead && m->name.size == t->lex.size && memcmp(m->name.ptr, t->lex.ptr, t->lex.size) == 0) return m;
-    }
-    return NULL;
-}
-static void mx_kill(cl_t *c, const low_token_t *t) { struct cl_mxname *m; while ((m = mx_find(c, t)) != NULL) m->dead = true; }
-static void mx_bind(cl_t *c, proven_size_t name_at, const mx_shape_t *sh) {
-    if (!cl_id(c, name_at) || c->T[name_at].kw != LOW_KW_NONE) cl_fail(c, name_at, "E-MATRIX-TYPE", "a `matrix` type belongs to a NAME — `let m matrix u32 2 3 4 … .`");
-    mx_kill(c, &c->T[name_at]);
-    if (!mx_grow((void **)&c->names, &c->cnames, c->nnames + 1, sizeof *c->names)) cl_fail(c, name_at, "E-MATRIX-TYPE", "out of memory");
-    c->names[c->nnames++] = (struct cl_mxname){ .name = c->T[name_at].lex, .pos = name_at, .sh = *sh };
-}
-static proven_size_t mx_skipq(cl_t *c, proven_size_t i);
-// 호출 하나를 적어 둔다 — 인자 자리마다 matrix 였는지와 그 모양. 견주는 것은 파일을 다 읽은 뒤다(op 선언이 뒤에 올 수 있다).
-static void mx_note_call(cl_t *c, proven_size_t at, unsigned na, unsigned mask, const mx_shape_t *sh, unsigned nsh, bool bind) {
-    if (low_closer_matrix_keep) return;
-    if (!mx_grow((void **)&g_mx_calls, &g_mx_ccalls, g_mx_ncalls + 1, sizeof *g_mx_calls) ||
-        !mx_grow((void **)&g_mx_shapes, &g_mx_cshapes, g_mx_nshapes + nsh + 1, sizeof *g_mx_shapes))
-        cl_fail(c, at, "E-MATRIX-TYPE", "out of memory");
-    const low_token_t *t = &c->T[at];
-    g_mx_calls[g_mx_ncalls++] = (mx_call_t){ .callee = t->lex, .file = c->file, .line = t->line, .col = t->col,
-                                             .na = (unsigned char)na, .bind = bind, .mask = (unsigned short)mask, .sh0 = g_mx_nshapes };
-    for (unsigned q = 0; q < nsh; q++) g_mx_shapes[g_mx_nshapes++] = sh[q];
-}
-
-// 값 자리가 호출(또는 맨 이름)로 시작하는가 — 꾸밈 괄호는 건너뛴다. 그 이름의 자리를 돌려준다(아니면 0).
-static proven_size_t mx_value_head(cl_t *c, proven_size_t at) {
-    while (at < c->n && c->T[at].kind == LOW_TOK_LPAREN) at++;
-    return (cl_id(c, at) && c->T[at].kw == LOW_KW_NONE && c->T[at].kind == LOW_TOK_IDENT) ? at : 0;
-}
-// matrix 가 아닌 자리(`array` 이름 · matrix 를 내지 않는 op 의 `return`)에 놓인 호출 — 그 op 가 matrix 를 내면 모양이 사라진다.
-static void mx_note_plain(cl_t *c, proven_size_t at) {
-    if (low_closer_matrix_keep || !at || mx_find(c, &c->T[at])) return;
-    mx_note_call(c, at, 0, 0, NULL, 0, false);
-    g_mx_calls[g_mx_ncalls - 1].nomx = true;
-    g_mx_calls[g_mx_ncalls - 1].bare = cl_dot(c, at + 1);    // 인자가 없다 — 지역 이름일 수도 있다
-}
 
 // ── 닫힌 어휘 ────────────────────────────────────────────────────────────────────────────────────
 static const char *const CL_T_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64",
@@ -238,25 +137,15 @@ static proven_size_t cl_matrix_ty(cl_t *c, proven_size_t i) {
                                      "the number of dimensions is 2 to 8 and every size is a plain decimal literal, 1 or more";
     if (cl_word(c, i + 1, "matrix") || cl_word(c, i + 1, "array")) cl_fail(c, i + 1, "E-MATRIX-TYPE", "the element of a `matrix` is a single value type — add a dimension instead of nesting");
     proven_size_t j = cl_tyend(c, i + 1, false);
-    mx_shape_t sh = { 0 };
-    unsigned long long k = 0, total = 1;
+    unsigned long long k = 0, total = 1, d = 0;
     if (j >= c->n || !cl_decimal(&c->T[j], &k) || k < 2 || k > MX_MAXRANK) cl_fail(c, j < c->n ? j : c->n - 1, "E-MATRIX-TYPE", SHAPE);
-    sh.k = (unsigned)k;
-    for (unsigned q = 0; q < sh.k; q++) {
+    for (unsigned q = 0; q < (unsigned)k; q++) {
         proven_size_t at = j + 1 + q;
-        if (at >= c->n || !cl_decimal(&c->T[at], &sh.d[q]) || sh.d[q] == 0) cl_fail(c, at < c->n ? at : c->n - 1, "E-MATRIX-TYPE", SHAPE);
-        if (sh.d[q] > (1ull << 32) || total > (1ull << 32) / sh.d[q]) cl_fail(c, at, "E-MATRIX-TYPE", "this `matrix` holds more than 2^32 elements — more than this compiler lays out in one place");
-        total *= sh.d[q];
+        if (at >= c->n || !cl_decimal(&c->T[at], &d) || d == 0) cl_fail(c, at < c->n ? at : c->n - 1, "E-MATRIX-TYPE", SHAPE);
+        if (d > (1ull << 32) || total > (1ull << 32) / d) cl_fail(c, at, "E-MATRIX-TYPE", "this `matrix` holds more than 2^32 elements — more than this compiler lays out in one place");
+        total *= d;
     }
-    proven_size_t end = j + 1 + sh.k;
-    if (low_closer_matrix_keep || mx_ty_at(c, i)) return end;       // `--fmt` 는 그대로 둔다 · 같은 자리를 두 번 읽어도 한 번만 적는다
-    if (!mx_grow((void **)&c->tys, &c->ctys, c->ntys + 1, sizeof *c->tys)) cl_fail(c, i, "E-MATRIX-TYPE", "out of memory");
-    c->tys[c->ntys++] = (struct cl_mxty){ .at = i, .num = j, .sh = sh };
-    char nb[32]; snprintf(nb, sizeof nb, "%llu", total);
-    c->rep[i] = "array";
-    c->rep[j] = mx_text(c, j, NULL, nb);
-    for (unsigned q = 0; q < sh.k; q++) c->del[j + 1 + q] = 1;
-    return end;
+    return j + 1 + (proven_size_t)k;
 }
 // 타입 하나의 끝. top: 맨 위의 `(사용자타입 인자…)` 는 괄호를 벗긴다 — 뒤의 파서가 그 자리(절 · 칸 · `lit` · 별칭)에서는 괄호를 받지 않는다.
 static proven_size_t cl_tyend(cl_t *c, proven_size_t i, bool top) {
@@ -287,12 +176,6 @@ static proven_size_t cl_tyq(cl_t *c, proven_size_t i) {  // 한정사 뒤의 맨
     while (cl_id(c, i) && cl_in(&c->T[i], CL_QUAL)) i++;
     return cl_tyend(c, i, true);
 }
-static proven_size_t mx_skipq(cl_t *c, proven_size_t i) { while (cl_id(c, i) && cl_in(&c->T[i], CL_QUAL)) i++; return i; }
-static struct cl_mxty *mx_ty_from(cl_t *c, proven_size_t i) {  // 이 자리에서 시작하는 타입이 matrix 인가 — 한정사와 꾸밈 괄호를 건너 본다
-    i = mx_skipq(c, i);
-    if (i < c->n && c->T[i].kind == LOW_TOK_LPAREN) i++;
-    return mx_ty_at(c, i);
-}
 // 타입으로 읽히면 읽고(괄호를 벗기고), 아니면 아무것도 하지 않는다. want != NOPE 면 그 자리에서 끝나야 한다.
 static bool cl_ty_try(cl_t *c, proven_size_t i, proven_size_t want, bool qual) {
     jmp_buf saved; memcpy(saved, c->jb, sizeof saved);
@@ -300,13 +183,11 @@ static bool cl_ty_try(cl_t *c, proven_size_t i, proven_size_t want, bool qual) {
     if (!snap) return false;
     memcpy(snap, c->del, c->n);
     bool ok = false;
-    proven_size_t ntys0 = c->ntys;
     if (setjmp(c->jb) == 0) {
         proven_size_t j = qual ? cl_tyq(c, i) : cl_tyend(c, i, true);
         ok = want == NOPE || j == want;
     }
     if (!ok) memcpy(c->del, snap, c->n);
-    if (!ok) while (c->ntys > ntys0) { struct cl_mxty *m = &c->tys[--c->ntys]; c->rep[m->at] = NULL; c->rep[m->num] = NULL; }
     free(snap);
     memcpy(c->jb, saved, sizeof saved);
     return ok;
@@ -349,10 +230,8 @@ static proven_size_t cl_term(cl_t *c, proven_size_t i, bool wrap, bool keep) {
     c->depth--;
     return r;
 }
-static proven_size_t cl_mx_idx(cl_t *c, proven_size_t i, const struct cl_mxname *m, bool wrap, bool keep);
 static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) {
     const low_token_t *t = cl_tk(c, i);
-    int mx_ctx = c->mx_ctx; c->mx_ctx = 0;              // matrix 이름을 통째로 받아 주는 자리였나 — 이 항에만 듣는다
     if (t->kind == LOW_TOK_LPAREN) {
         proven_size_t j = cl_mate(c, i);
         proven_size_t k = cl_term(c, i + 1, false, false);
@@ -379,14 +258,9 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
                 return cl_done(c, i, e + 1, wrap, keep);
             }
             proven_size_t k = j;                         // 나열 — 제 점을 그대로 갖는다
-            unsigned long long nel = 0; bool fill = false;
             while (!cl_dot(c, k)) {
-                if (cl_word(c, k, "_")) { k++; fill = true; continue; }
-                k = cl_term(c, k, true, false); nel++;
-            }
-            {   struct cl_mxty *mt = mx_ty_from(c, i + 1);  // `lit matrix …` — 원소는 줄 우선 차례로, 수는 크기들의 곱과 같다
-                if (mt && (nel > mx_total(&mt->sh) || (!fill && nel != mx_total(&mt->sh))))
-                    cl_fail(c, i, "E-MATRIX-SHAPE", "a `lit matrix` lists exactly as many elements as its sizes multiply to, in row-major order — or fewer, followed by `_` to fill the rest with zero");
+                if (cl_word(c, k, "_")) { k++; continue; }
+                k = cl_term(c, k, true, false);
             }
             if (wrap) cl_wrap(c, i, k);
             return k + 1;
@@ -436,31 +310,8 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
         cl_fail(c, i, "E-FORM-UNEXPECTED", "a value belongs here, not a reserved word");
     }
     if (cl_dot(c, i + 1)) {                              // 곧바로 닫힌 이름 — 값(또는 인자 없는 호출)
-        if (!mx_ctx && mx_find(c, t))
-            cl_fail(c, i, "E-MATRIX-USE", "a `matrix` name stands whole only in four places: `idx m. i. j. .` (one index per dimension), `dim m. 0 .`, `flat m. .` "
-                                           "(the same elements as one row, a slice), and as an argument or a `return` where the op declares the same shape");
         if (!keep) c->del[i + 1] = 1;
         return i + 2;
-    }
-    if (cl_id(c, i + 1) && cl_dot(c, i + 2)) {           // RFC-0144 — 첫 인자가 matrix 이름인 `idx` · `dim` · `flat` · `len`
-        const struct cl_mxname *m = mx_find(c, &c->T[i + 1]);
-        if (m && cl_eq(t, "idx")) return cl_mx_idx(c, i, m, wrap, keep);
-        if (m && cl_eq(t, "dim")) {
-            unsigned long long q = 0;
-            if (keep || i + 4 >= c->n || !cl_decimal(&c->T[i + 3], &q) || q >= m->sh.k || !cl_dot(c, i + 4))
-                cl_fail(c, i, "E-MATRIX-INDEX", "`dim <matrix>. <k> .` gives the size of dimension k — k is a plain decimal literal, counted from 0, below the number of dimensions");
-            char nb[32]; snprintf(nb, sizeof nb, "%llu", m->sh.d[q]);
-            c->rep[i] = mx_text(c, i, NULL, nb);
-            for (proven_size_t z = i + 1; z <= i + 4; z++) c->del[z] = 1;
-            return i + 5;
-        }
-        if (m && cl_eq(t, "flat")) {
-            if (keep || !cl_dot(c, i + 3)) cl_fail(c, i, "E-MATRIX-USE", "`flat <matrix>. .` takes the matrix and nothing else — it is the same elements seen as one row");
-            c->del[i] = 1; c->del[i + 2] = 1; c->del[i + 3] = 1;
-            return i + 4;
-        }
-        if (m && cl_eq(t, "len"))
-            cl_fail(c, i, "E-MATRIX-USE", "`len` of a `matrix` could mean the first size or the element count, so it is not offered — `dim m. 0 .` is one size, `len flat m. . .` is the element count");
     }
     if (cl_eq(t, "pipe")) {
         proven_size_t j = cl_term(c, i + 1, true, false);
@@ -546,47 +397,17 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
         }
         return cl_done(c, i, j, wrap, keep);
     }
-    {   // 사용자 op — 인자는 모두 항이다. matrix 이름을 통째로 넘기는 자리이므로 자리마다 적어 둔다(RFC-0144).
-        proven_size_t j = i + 1; unsigned na = 0, mask = 0, nsh = 0; mx_shape_t shs[MX_MAXARGS];
+    {   // 사용자 op — 인자는 모두 항이다
+        proven_size_t j = i + 1; unsigned na = 0;
         while (!cl_dot(c, j)) {
-            const struct cl_mxname *m = (cl_id(c, j) && cl_dot(c, j + 1)) ? mx_find(c, &c->T[j]) : NULL;
-            if (m) {
-                if (na >= MX_MAXARGS) cl_fail(c, j, "E-MATRIX-USE", "a `matrix` is passed within the first 16 arguments of a call");
-                mask |= 1u << na; shs[nsh++] = m->sh; c->mx_ctx = 1;
-            }
             j = cl_term(c, j, true, false);
             na++;
         }
-        mx_note_call(c, i, na > 255 ? 255 : na, mask, shs, nsh, false);
-        // 서식은 matrix 를 옮기지 않는다 — 색인이 여럿인 `idx` 를 뒤의 파서가 인자 둘로 끊지 않게 괄호로 싸서 넘긴다
-        if (low_closer_matrix_keep && cl_eq(t, "idx") && na > 2 && !wrap && !keep && cl_dot(c, j)) cl_wrap(c, i, j - 1);
+        // matrix 의 `idx` 는 색인이 여럿이다 — 뒤의 파서가 인자 둘로 끊지 않게 괄호로 싸서 넘긴다(옮겨 적는 것은 low_matrix.c)
+        if (cl_eq(t, "idx") && na > 2 && !wrap && !keep && cl_dot(c, j)) cl_wrap(c, i, j - 1);
         return cl_done(c, i, j, wrap, keep);
     }
 }
-// `idx m. i1 … ik .` — 차원마다 색인 하나. 한 차원을 벗길 때마다 «그 색인부터 끝까지 · 그 앞의 한 덩어리» 로 두 번 자른다.
-static proven_size_t cl_mx_idx(cl_t *c, proven_size_t i, const struct cl_mxname *m, bool wrap, bool keep) {
-    static const char *const RANK = "a `matrix` is read with one index per dimension — `idx m. r. c. .` for two dimensions. A row or a plane on its own is not a value yet";
-    mx_shape_t sh = m->sh;                               // 인자를 읽는 동안 이름 표가 옮겨질 수 있다
-    proven_size_t st[MX_MAXRANK], en[MX_MAXRANK], j = i + 3; unsigned n = 0;
-    c->del[i + 2] = 1;
-    while (!cl_dot(c, j)) {
-        if (n >= sh.k) cl_fail(c, j, "E-MATRIX-INDEX", RANK);
-        st[n] = j; j = cl_term(c, j, true, false); en[n] = j - 1; n++;
-    }
-    if (n != sh.k) cl_fail(c, i, "E-MATRIX-INDEX", RANK);
-    unsigned long long stride[MX_MAXRANK]; stride[sh.k - 1] = 1;
-    for (unsigned q = sh.k - 1; q-- > 0; ) stride[q] = stride[q + 1] * sh.d[q + 1];
-    for (unsigned q = 0; q + 1 < sh.k; q++) {
-        char tail[96];
-        unsigned long long whole = q == 0 ? stride[0] * sh.d[0] : stride[q - 1];
-        snprintf(tail, sizeof tail, "%llu ) %llu ) 0 %llu )", stride[q], whole, stride[q]);
-        mx_pre(c, i + 1, "( subslice ( subslice");
-        mx_pre(c, st[q], "( mul");
-        mx_post(c, en[q], tail);
-    }
-    return cl_done(c, i, j, wrap, keep);
-}
-
 static proven_size_t cl_endstop(cl_t *c, proven_size_t j, const char *what) {   // 블록으로 끝난 것의 닫는 점
     cl_need_dot(c, j, what); c->del[j] = 1; return j + 1;
 }
@@ -646,32 +467,13 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
             cl_fail(c, j, "E-LET-NOTYPE", "a binding shows its type in front of the value — `let x u64 300 .`; the type is never guessed");
         bool paren_ty = j < c->n && c->T[j].kind == LOW_TOK_LPAREN;
         // `option lit …` is the removed second spelling (RFC-0135 D6): let it through so the binding pass names it (E-LIT-USING)
-        proven_size_t ty0 = j;
         if (cl_word(c, j, "option") && cl_kw(c, j + 1, "lit")) { cl_tk(c, j); j++; }
         else if (!cl_kw(c, j, "lit")) j = cl_tyend(c, j, false);
-        proven_size_t val0 = j;
         if (cl_dot(c, j) && paren_ty) cl_fail(c, j, "E-LET-NOTYPE", "a binding shows its type in front of the value — `let x u64 (add a. 1 .) .`; the type is never guessed");
         if (cl_dot(c, j) && j + 1 < c->n && c->T[j + 1].kind == LOW_TOK_NUMBER)
             cl_fail(c, j, "E-LET-NOVALUE", "a binding names its value, and this one has none — a LEADING DOT is a stop, not part of a number: `.5` reads as `.` then `5`. Write `0.5`");
         if (cl_dot(c, j)) cl_fail(c, j, "E-LET-NOVALUE", "a binding names its value — `let x f64 0.5 .` (a number needs a digit on both sides of its point)");
         j = cl_term(c, j, false, false);
-        {   // RFC-0144 — matrix 를 짓는 바인딩: 적은 타입과 값의 모양이 같아야 하고, 값은 `lit matrix …` 이거나 그 모양을 내는 op 이다
-            struct cl_mxty *decl = mx_ty_from(c, ty0), *lit = cl_kw(c, val0, "lit") ? mx_ty_from(c, val0 + 1) : NULL;
-            if (decl && cl_kw(c, val0, "lit") && !lit) cl_fail(c, val0, "E-MATRIX-SHAPE", "this name is a `matrix`, so its value is a `lit matrix` of the same shape (or an op that returns that shape)");
-            if (decl && lit && !mx_same(&decl->sh, &lit->sh)) cl_fail(c, val0, "E-MATRIX-SHAPE", "the `lit matrix` has a different shape from the type written before it — the number of dimensions and every size must agree");
-            if (decl && !lit) {
-                if (!cl_id(c, val0) || c->T[val0].kw != LOW_KW_NONE)
-                    cl_fail(c, val0, "E-MATRIX-SHAPE", "the value of a `matrix` name is a `lit matrix` of the same shape, or a call of an op whose output is that shape");
-                mx_note_call(c, val0, 0, 1, &decl->sh, 1, true);
-            }
-            if (!decl && !lit) mx_note_plain(c, mx_value_head(c, val0));   // `let a array u32 6 f . .` — f 가 matrix 를 내면 거절
-            if (decl) decl->claimed = true;
-            if (lit) lit->claimed = true;
-            // 뒤의 파서는 나열 리터럴의 타입을 리터럴에서 읽는다(`let m lit array t n … .`) — 앞에 적은 타입은 여기서 견주었으니 지운다
-            if (decl && lit) for (proven_size_t z = ty0; z < val0; z++) c->del[z] = 1;
-            if (decl || lit) mx_bind(c, i + 1, decl ? &decl->sh : &lit->sh);
-            else if (cl_id(c, i + 1)) mx_kill(c, &c->T[i + 1]);
-        }
         if (cl_kw(c, j, "else")) return cl_fail_clause(c, j);
         return cl_need_dot(c, j, "a stop `.` must close the binding") + 1;
     }
@@ -686,20 +488,6 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
         return cl_need_dot(c, j, "a stop `.` must close `set`") + 1;
     }
     if (kw && cl_eq(t, "return")) {
-        const struct cl_mxname *rm = (cl_id(c, i + 1) && cl_dot(c, i + 2)) ? mx_find(c, &c->T[i + 1]) : NULL;
-        if (rm) {                                        // matrix 를 통째로 돌려준다 — op 의 결과가 같은 모양이어야 한다
-            if (c->sig < 0 || !g_mx_sigs[c->sig].out_has || !mx_same(&g_mx_sigs[c->sig].out, &rm->sh))
-                cl_fail(c, i + 1, "E-MATRIX-SHAPE", "this `return` gives a `matrix`, and the op's `output` does not declare the same shape");
-            c->mx_ctx = 1;
-        } else if (!low_closer_matrix_keep) {            // 이름을 거치지 않는 결과 — `return f x. .` (RFC-0144 §8-7)
-            proven_size_t h = mx_value_head(c, i + 1);
-            bool mo = c->sig >= 0 && g_mx_sigs[c->sig].out_has;
-            if (mo && !cl_dot(c, i + 1) && !cl_kw(c, i + 1, "lit")) {
-                if (!h) cl_fail(c, i + 1, "E-MATRIX-SHAPE", "this op's `output` is a `matrix`, so `return` gives a `matrix` name of that shape or a call of an op that returns that shape");
-                mx_note_call(c, h, 0, 1, &g_mx_sigs[c->sig].out, 1, true);
-                g_mx_calls[g_mx_ncalls - 1].bare = true;     // 알림 글을 `return` 의 것으로
-            } else if (!mo) mx_note_plain(c, h);
-        }
         proven_size_t j = cl_dot(c, i + 1) ? i + 1 : cl_term(c, i + 1, false, false);
         return cl_need_dot(c, j, "a stop `.` must close `return`") + 1;
     }
@@ -731,8 +519,6 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
         proven_size_t j = i + 2;                         // 뒤의 파서는 되풀이 머리의 식을 인자 수로 묶지 않는다 — 괄호로 싸서 넘긴다
         if (cl_eq(t, "for")) {
             if (cl_word(c, j, "mut")) j++;
-            if (cl_id(c, j) && cl_dot(c, j + 1) && mx_find(c, &c->T[j]))
-                cl_fail(c, j, "E-MATRIX-USE", "`for` does not walk a `matrix` — count the dimensions (`repeat r u64 dim m. 0 . do …`) or walk the elements as one row (`for x flat m. . do …`)");
             j = cl_term(c, j, true, false);
         } else {
             j = cl_tyend(c, j, false); j = cl_term(c, j, true, false);
@@ -808,27 +594,12 @@ static proven_size_t cl_clause(cl_t *c, proven_size_t i) {
         proven_size_t j = i + 1;
         if (cl_word(c, j, "comptime")) j++;
         if (!cl_word(c, j + 1, "type") && !cl_dot(c, j + 1)) (void)cl_ty_try(c, j + 1, NOPE, true);
-        struct cl_mxty *mt = mx_ty_from(c, j + 1);        // RFC-0144 — matrix 입력: 이름에 모양을 붙이고 시그니처에 적는다
-        mx_sig_t *sg = c->sig >= 0 ? &g_mx_sigs[c->sig] : NULL;
-        if (mt) {
-            mt->claimed = true; mx_bind(c, j, &mt->sh);
-            if (!sg || sg->np >= MX_MAXARGS) cl_fail(c, j, "E-MATRIX-USE", "a `matrix` input belongs to a `fn` or `proc`, within its first 16 inputs");
-            sg->mask |= (unsigned short)(1u << sg->np); sg->par[sg->np] = mt->sh;
-        } else if (cl_id(c, j)) mx_kill(c, &c->T[j]);
-        if (sg) sg->np++;
     }
     if (cl_eq(t, "using") && !cl_dot(c, i + 2)) (void)cl_ty_try(c, i + 2, NOPE, true);
     if (cl_eq(t, "output") && !cl_dot(c, i + 1)) {
         proven_size_t d = i + 1;
         while (d < c->n && !cl_dot(c, d) && c->T[d].kind != LOW_TOK_EOF) d++;
         if (!cl_ty_try(c, i + 1, d, true)) (void)cl_ty_try(c, i + 2, d, true);
-        struct cl_mxty *anon = mx_ty_from(c, i + 1), *named = anon ? NULL : mx_ty_from(c, i + 2);
-        struct cl_mxty *mt = anon ? anon : named;                    // RFC-0144 — matrix 결과(이름을 붙였으면 그 이름도 matrix 다)
-        if (mt) {
-            if (c->sig < 0) cl_fail(c, i, "E-MATRIX-USE", "a `matrix` output belongs to a `fn` or `proc`");
-            mt->claimed = true; g_mx_sigs[c->sig].out_has = true; g_mx_sigs[c->sig].out = mt->sh;
-            if (named) mx_bind(c, i + 1, &mt->sh);
-        }
     }
     if (cl_eq(t, "asm")) {
         proven_size_t j = i;
@@ -862,22 +633,8 @@ static void cl_fields(cl_t *c, proven_size_t k, proven_size_t e) {
         k = d + 1;
     }
 }
-static proven_size_t cl_op_decl_in(cl_t *c, proven_size_t i);
-static proven_size_t cl_op_decl(cl_t *c, proven_size_t i) {  // 지역 op 을 읽고 나면 바깥 op 의 matrix 이름 · 시그니처로 돌아온다
-    proven_size_t os = c->opstart; long sg = c->sig;
-    proven_size_t r = cl_op_decl_in(c, i);
-    c->opstart = os; c->sig = sg;
-    return r;
-}
-static proven_size_t cl_op_decl_in(cl_t *c, proven_size_t i) {
+static proven_size_t cl_op_decl(cl_t *c, proven_size_t i) {
     proven_size_t j = i + 2;
-    c->opstart = i; c->sig = -1;                         // RFC-0144 — 이 op 의 matrix 이름과 시그니처는 여기서 새로 시작한다
-    if (!low_closer_matrix_keep && cl_id(c, i + 1) && mx_grow((void **)&g_mx_sigs, &g_mx_csigs, g_mx_nsigs + 1, sizeof *g_mx_sigs)) {
-        memset(&g_mx_sigs[g_mx_nsigs], 0, sizeof *g_mx_sigs);
-        g_mx_sigs[g_mx_nsigs].name = c->T[i + 1].lex;
-        g_mx_sigs[g_mx_nsigs].file = c->file;
-        c->sig = (long)g_mx_nsigs++;
-    }
     if (cl_kw(c, j, "do") && c->ext && cl_id(c, j + 1) && cl_in(&c->T[j + 1], CL_CLAUSE)) {   // extern — 블록 안에 절
         proven_size_t e = cl_mate(c, j), k = j + 1;
         while (k < e) k = cl_clause(c, k);
@@ -966,35 +723,16 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
     cl_fail(c, j, "E-TOPLEVEL", "this word does not start a declaration");
 }
 
-static const char *g_mx_file;                            // 지금 내리는 파일 — 미룬 진단에 적는다(low_closer_set_file)
-static void cl_emit_text(proven_array_t *out, const char *text, const low_token_t *at) {   // 끼울 글을 토큰으로 — 빈칸으로 갈려 있다
-    if (!text) return;
-    for (const char *p = text; *p; ) {
-        while (*p == ' ') p++;
-        const char *e = p; while (*e && *e != ' ') e++;
-        if (e == p) break;
-        low_token_t t = { .lex = { .ptr = (const proven_byte_t *)p, .size = (proven_size_t)(e - p) }, .line = at->line, .col = at->col };
-        if (*p == '(') t.kind = LOW_TOK_LPAREN;
-        else if (*p == ')') t.kind = LOW_TOK_RPAREN;
-        else if (*p >= '0' && *p <= '9') t.kind = LOW_TOK_NUMBER;
-        else { t.kind = LOW_TOK_IDENT; t.kw = low_kw_lookup(t.lex); }
-        (void)proven_array_push(out, &t);
-        p = e;
-    }
-}
 bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_array_t *diags) {
-    cl_t c = { .T = (low_token_t *)tokens->data, .n = tokens->len, .sig = -1, .file = g_mx_file };
+    cl_t c = { .T = (low_token_t *)tokens->data, .n = tokens->len };
     if (c.n == 0) return true;
-    c.pre = (const char **)calloc(c.n, sizeof *c.pre);
-    c.post = (const char **)calloc(c.n, sizeof *c.post);
-    c.rep = (const char **)calloc(c.n, sizeof *c.rep);
     c.del = (unsigned char *)calloc(c.n, 1);
     c.lp = (unsigned short *)calloc(c.n, sizeof *c.lp);
     c.rp = (unsigned short *)calloc(c.n, sizeof *c.rp);
     c.mate = (proven_size_t *)malloc(c.n * sizeof *c.mate);
     proven_size_t *st = (proven_size_t *)malloc(c.n * sizeof *st);
     volatile bool ok = false;                            // setjmp 뒤에 읽는다(-Wclobbered)
-    if (c.del && c.lp && c.rp && c.mate && st && c.pre && c.post && c.rep) {
+    if (c.del && c.lp && c.rp && c.mate && st) {
         proven_size_t np = 0, nd = 0;                    // 괄호 · do/end 의 짝 — 두 벌의 더미를 한 배열의 양끝에 둔다
         for (proven_size_t i = 0; i < c.n; i++) c.mate[i] = NOPE;
         for (proven_size_t i = 0; i < c.n; i++) {
@@ -1007,9 +745,6 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
         if (setjmp(c.jb) == 0) {
             proven_size_t i = 0;
             while (i < c.n && c.T[i].kind != LOW_TOK_EOF) i = cl_top(&c, i);
-            for (proven_size_t q = 0; q < c.ntys; q++)   // RFC-0144 — 받아 주는 자리가 아닌 곳에 적힌 matrix 타입
-                if (!c.tys[q].claimed)
-                    cl_fail(&c, c.tys[q].at, "E-MATRIX-USE", "a `matrix` type is written where a NAME is made — `let` / `var`, an op's `input`, an op's `output`. It is not yet a field type, an element type or a type argument");
             ok = true;
         } else {
             (void)proven_array_push(diags, &c.err);
@@ -1017,20 +752,10 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
     }
     if (ok) {
         proven_size_t extra = 0;
-        for (proven_size_t i = 0; i < c.n; i++) {
-            extra += c.lp[i] + c.rp[i];
-            if (c.pre[i]) extra += strlen(c.pre[i]) / 2 + 1;
-            if (c.post[i]) extra += strlen(c.post[i]) / 2 + 1;
-        }
+        for (proven_size_t i = 0; i < c.n; i++) extra += c.lp[i] + c.rp[i];
         proven_array_t out = PROVEN_ARRAY_INIT(heap, low_token_t, c.n + extra + 1).value;
         for (proven_size_t i = 0; i < c.n; i++) {
             low_token_t t = c.T[i];
-            if (c.rep[i]) {                              // matrix — 낱말을 바꾼다(`matrix` → `array` · 차원 수 → 원소 수 · `dim …` → 그 크기)
-                t.lex = (proven_u8str_view_t){ .ptr = (const proven_byte_t *)c.rep[i], .size = strlen(c.rep[i]) };
-                t.kind = (c.rep[i][0] >= '0' && c.rep[i][0] <= '9') ? LOW_TOK_NUMBER : LOW_TOK_IDENT;
-                t.kw = t.kind == LOW_TOK_IDENT ? low_kw_lookup(t.lex) : LOW_KW_NONE;
-            }
-            cl_emit_text(&out, c.pre[i], &c.T[i]);
             for (unsigned q = 0; q < c.lp[i]; q++) {
                 low_token_t p = { .kind = LOW_TOK_LPAREN, .lex = { .ptr = (const proven_byte_t *)"(", .size = 1 }, .line = t.line, .col = t.col };
                 (void)proven_array_push(&out, &p);
@@ -1040,80 +765,15 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
                 low_token_t p = { .kind = LOW_TOK_RPAREN, .lex = { .ptr = (const proven_byte_t *)")", .size = 1 }, .line = t.line, .col = t.col };
                 (void)proven_array_push(&out, &p);
             }
-            cl_emit_text(&out, c.post[i], &c.T[i]);
         }
         proven_array_destroy(tokens);
         *tokens = out;
     }
     free(c.del); free(c.lp); free(c.rp); free(c.mate); free(st);
-    free(c.pre); free(c.post); free(c.rep); free(c.tys); free(c.names);
     return ok;
 }
 
-// RFC-0144 — 파일들을 다 내린 뒤: op 의 경계를 넘는 matrix 의 모양을 견준다. 호출의 인자 자리마다 «matrix 였나 · 어떤 모양»
-//   을 적어 두었고(mx_note_call), op 선언마다 입력 · 결과의 모양을 적어 두었다. 같은 이름의 op 가운데 하나와 맞으면 통과다
-//   (한정된 이름 `m.f` 는 끝 마디로 찾는다). 틀린 것은 진단으로 낸다.
-bool low_closer_matrix_verify(proven_array_t *diags) {
-    bool ok = true;
-    for (size_t q = 0; q < g_mx_ncalls; q++) {
-        const mx_call_t *cl = &g_mx_calls[q];
-        proven_u8str_view_t nm = cl->callee;
-        for (proven_size_t z = nm.size; z-- > 0; ) if (nm.ptr[z] == '.') { nm.ptr += z + 1; nm.size -= z + 1; break; }
-        bool known = false, fits = false; const mx_sig_t *first = NULL;
-        for (size_t g = 0; g < g_mx_nsigs && !fits; g++) {
-            const mx_sig_t *sg = &g_mx_sigs[g];
-            if (sg->name.size != nm.size || memcmp(sg->name.ptr, nm.ptr, nm.size) != 0) continue;
-            // matrix 가 아닌 자리의, 한정 없고 인자 없는 이름은 제 파일의 op 만 본다 — 다른 파일의 op 와 이름만 같은 지역일 수 있다
-            if (cl->nomx && cl->bare && nm.size == cl->callee.size && sg->file != cl->file) continue;
-            if (!known) first = sg;
-            known = true;
-            if (cl->nomx) { fits = !sg->out_has; continue; }   // 이 이름의 op 가 하나라도 matrix 를 안 내면 통과
-            if (cl->bind) { fits = sg->out_has && mx_same(&sg->out, &g_mx_shapes[cl->sh0]); continue; }
-            bool same = true; size_t si = cl->sh0;
-            for (unsigned a = 0; a < MX_MAXARGS && same; a++) {
-                bool ca = (cl->mask >> a) & 1u, sa = (sg->mask >> a) & 1u;
-                if (ca != sa) same = false;
-                else if (ca && !mx_same(&g_mx_shapes[si], &sg->par[a])) same = false;
-                if (ca) si++;
-            }
-            fits = same;
-        }
-        if (fits || (!known && !cl->mask && !cl->bind)) continue;
-        if (cl->nomx) {
-            low_diag_t dn = { .sev = LOW_SEV_ERROR, .code = "E-MATRIX-SHAPE", .line = cl->line, .col = cl->col, .file = cl->file };
-            char sh[48] = ""; if (first) mx_shape_text(&first->out, sh, sizeof sh);
-            snprintf(dn.detail, sizeof dn.detail, "`%.*s` returns a `matrix` (shape `%s`), and this place is not a `matrix` of that shape — bind it to a name declared with that shape, or return it from an op whose `output` is that shape",
-                     (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr, sh);
-            (void)proven_array_push(diags, &dn);
-            ok = false; continue;
-        }
-        if (!known && !cl->mask) continue;
-        if (known && !cl->bind && !cl->mask && !first->mask) continue;
-        low_diag_t d = { .sev = LOW_SEV_ERROR, .code = "E-MATRIX-SHAPE", .line = cl->line, .col = cl->col, .file = cl->file };
-        char want[48] = "", got[48] = "";
-        if (cl->bind) {
-            mx_shape_text(&g_mx_shapes[cl->sh0], got, sizeof got);
-            if (known && first->out_has) mx_shape_text(&first->out, want, sizeof want);
-            snprintf(d.detail, sizeof d.detail, "%s `%s`, but its value `%.*s` %s%s%s — the shapes must be the same",
-                     cl->bare ? "this op's `output` is a `matrix` of shape" : "this `matrix` name has shape", got, (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr,
-                     !known ? "is neither a `matrix` name here nor an op of this program" : first->out_has ? "returns shape `" : "does not return a `matrix`",
-                     known && first->out_has ? want : "", known && first->out_has ? "`" : "");
-        } else if (!known) {
-            snprintf(d.detail, sizeof d.detail, "a `matrix` is passed whole to `%.*s`, which declares no `matrix` input — read one element (`idx m. i. j. .`) or pass one row of all elements (`flat m. .`)",
-                     (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr);
-        } else {
-            snprintf(d.detail, sizeof d.detail, "the call of `%.*s` and its inputs disagree about a `matrix` — the number of dimensions and every size must be the same (`matrix u32 2 3 4` is not `matrix u32 2 4 3`, nor `array u32 12`)",
-                     (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr);
-        }
-        (void)proven_array_push(diags, &d);
-        ok = false;
-    }
-    free(g_mx_calls); g_mx_calls = NULL; g_mx_ncalls = g_mx_ccalls = 0;
-    free(g_mx_sigs); g_mx_sigs = NULL; g_mx_nsigs = g_mx_csigs = 0;
-    free(g_mx_shapes); g_mx_shapes = NULL; g_mx_nshapes = g_mx_cshapes = 0;
-    return ok;
-}
-void low_closer_set_file(const char *path) { g_mx_file = path; }
+
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // ★★★ **거꾸로 — 서식기가 찍은 글을 새 표면으로 올린다** (`--fmt`).

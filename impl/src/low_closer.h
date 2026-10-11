@@ -10,10 +10,6 @@
 // RFC-0142 §5-2 — 새 표면(«이름은 열고, 점은 닫는다»)의 토큰 열을 파서가 읽는 꼴로 옮긴다. 선언을 읽지 않는다.
 //   성공하면 `tokens` 를 새 열로 바꾸고 true. 실패하면 진단 하나를 `diags` 에 넣고 false(토큰 열은 그대로다).
 [[nodiscard]] bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_array_t *diags);
-// RFC-0144 `matrix` — 이 단계가 기존 꼴로 옮겨 적는다. op 의 경계를 넘는 모양은 파일을 다 내린 뒤 한 번 견준다.
-extern bool low_closer_matrix_keep;                      // `--fmt` — 옮겨 적지 않고 그대로 둔다
-void low_closer_set_file(const char *path);              // 다음에 내릴 파일의 이름(미룬 진단에 적는다)
-[[nodiscard]] bool low_closer_matrix_verify(proven_array_t *diags);
 
 // 서식기가 찍은 글(호출마다 괄호로 싼 1.7 의 꼴)을 새 표면으로 올려 `out` 에 쓴다. 선언을 읽지 않는다.
 //   올리지 못하면 false — 그때는 아무것도 쓰지 않는다.

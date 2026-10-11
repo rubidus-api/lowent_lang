@@ -138,7 +138,7 @@ module.exports = grammar({
       seq(choice(...T_PRE1), $._type),
       seq('result', optional(seq($._type, optional($._type)))),
       seq(choice('array', 'vec'), choice($._type, $.number), choice($.name, $.path, $.number, $.paren_type)),
-      prec(-1, seq('matrix', $._type, $.number, repeat1($.number))),   // element type, number of dimensions, one size each
+      prec(-1, seq('matrix', $._type, $.number, repeat($.number))),   // element type, number of dimensions, one size each — a size that is the name of a translation-time input (inputs only) reads as a clause word after the type
       seq(choice('bitset', 'mask', 'bits'), optional($.number)),
       seq(choice('cap', 'region'), $.name),
       seq('range', optional($.type_name), $.number, $.number),

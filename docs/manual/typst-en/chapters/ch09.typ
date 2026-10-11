@@ -198,12 +198,25 @@ dimensions comes first, the sizes can be told apart from elements listed after t
   pointer and the element count.
 - To write the values directly, list them row by row: `lit matrix u32 2 2 3 1 2 3 4 5 6 .`. If there are fewer, end with `_`
   to fill the rest with zero.
-- A `matrix` is written at `let`, `var`, and an op's `input` and `output`. It cannot be a struct field yet (`E-MATRIX-USE`).
-  The type fixes only where the elements lie --- arithmetic such as a matrix product is yours to write.
+- A `matrix` is written at `let`, `var`, an op's `input` and `output`, and a struct field. The type fixes only where the elements
+  lie --- arithmetic such as a matrix product is yours to write.
 
-Give as many indexes as there are dimensions. There is no form that takes a single row.
+Give as many indexes as there are dimensions. An `idx` with one index fewer does not mean a row --- it could not be told apart from a forgotten index.
 
 #demo("examples/ch09/mistake_matrixrow.low")
+
+When you want one row, say `row`. The same example holds a table as a struct field and an op that does not fix its sizes.
+
+#demo("examples/ch09/matrixmore.low")
+
+- `row m. i. .` sees that row as a `slice u32` --- it is not a copy. It takes one index for every dimension but the last (two for
+  three dimensions). When `m` is a `var`, `let w mut slice u32 row m. i. . .` binds the row for writing; when `m` is a `let`, that
+  binding is `E-TYPE-MUT`.
+- A struct whose field is a `matrix` is read and written with `idx field b. g . r. c. .`. In a literal, the value of that field
+  is a `lit matrix` of the same shape.
+- To leave the sizes open, take them as translation-time inputs: write `input comptime r u64 .` and use `matrix u32 2 r c` as the
+  type. The caller writes the sizes (`sum 2 2 small. .`), and passing a table of another shape is `E-MATRIX-SHAPE`. A size given by
+  name stands only in an input --- locals, outputs and fields write their sizes as numbers.
 
 == Contracts remove bounds checks
 

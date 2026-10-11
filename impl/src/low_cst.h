@@ -225,6 +225,14 @@ int low_input_rank(const low_cst_t *opform, proven_size_t at, proven_size_t end)
 //   나무(`low_nest`) **뒤**, 단형화(`low_mono`) **앞**에 한 번 돈다.
 void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 void low_using_arrays(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   // 그 가운데 입력 배열 걸음만(`--flat`)
+// ★ RFC-0144 §6-2 — `matrix` 를 나무 위에서 `array` · `subslice` 로 옮겨 적는다(low_matrix.c). 선언 차례 패스 앞에서 한 번 돈다.
+//   거절했으면 false — 진단은 `pr->diags` 에 있다.
+bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+void *low_tyctx_open(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+void low_tyctx_form(void *ctx, const low_cst_t *topform);
+proven_size_t low_tyctx_enter(void *ctx, const low_cst_t *opform);
+void low_tyctx_leave(void *ctx, proven_size_t mark);
+proven_size_t low_tyctx_type_end(void *ctx, low_cst_t *const *kids, proven_size_t i, proven_size_t end);
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0135 S1 */
 void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);          /* RFC-0135 S1 */
 void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict);   /* RFC-0132 T1 */

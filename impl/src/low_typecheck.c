@@ -1633,6 +1633,27 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                             "it is empty: add `else return … .` (or `else panic \"…\" .`), or declare the binding `option …`/`result …` "
                             "and check it later (RFC-0135 §4.2)"
                           : "the initializer's type does not match the declared type", declared, actual, f->line);
+            // ★★★ **읽기 전용 줄을 쓸 수 있는 이름으로 다시 묶지 못한다** (2026-10-11 · RFC-0144 의 `row` 를 짓다가 찾았다).
+            //   `let w mut slice u32 g. .` · `let w mut slice u32 subslice g. 0 4 . .` 가 `g` 가 `let` 이거나 공유 입력이어도
+            //   통과했고, `set idx w. 0 . 99 .` 가 부른 쪽의 `let` 나열을 바꿨다(VM · 네이티브 모두 99). `set` 의 자리는 뿌리까지
+            //   따라가 보는데(위) 묶기는 보지 않았다. 값이 이름이거나 그 이름의 `subslice` 이면 같은 자리다 — 뿌리가 `mut` 이어야 한다.
+            //   `idx` 는 따라가지 않는다: 원소가 다시 슬라이스인 줄에서는 원소의 `mut` 이 따로 정한다.
+            if (declared.k == TK_SLICE && declared.is_mut && be + 2 == f->nkids) {
+                const low_cst_t *r = f->kids[be + 1];
+                for (int hops = 0; r && hops < 64; hops++) {
+                    while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 3 || r->kids[0]->kind != LOW_CST_ATOM ||
+                        !veq(r->kids[0]->tok.lex, "subslice")) break;
+                    r = r->kids[1];
+                }
+                if (r && r->kind == LOW_CST_ATOM && r->tok.kind == LOW_TOK_IDENT) {
+                    bool fnd; ty_t st2 = env_find(env, *nenv, r->tok.lex, &fnd);
+                    if (fnd && st2.k == TK_SLICE && !st2.is_mut)
+                        tc_emit(c, "E-TYPE-MUT",
+                                "binding a `mut` slice to a slice that is not declared `mut` — it is the same storage, and the new name "
+                                "would write what the old one may only read. Declare the source `var` / `mut`, or bind a plain `slice`", f->line);
+                }
+            }
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {
             tc_check_return(c, f->kids, 1, f->nkids - 1, env, *nenv, ret, f->line);

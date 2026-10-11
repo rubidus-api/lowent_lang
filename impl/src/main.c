@@ -1834,7 +1834,7 @@ int main(int argc, char **argv) {
                         lx.tokens.len = 1;
                     }
                 } else
-                if ((low_closer_set_file(fi != 0 ? paths[fi] : NULL), low_closer_matrix_keep = want_fmt, !low_closer_lower(heap, &lx.tokens, &lx.diags))) {
+                if (!low_closer_lower(heap, &lx.tokens, &lx.diags)) {
                     for (proven_size_t q = d0; q < lx.diags.len; q++) {
                         low_diag_t *dq = &((low_diag_t *)lx.diags.data)[q];
                         if (!dq->file && fi != 0) dq->file = paths[fi];
@@ -1904,12 +1904,6 @@ int main(int argc, char **argv) {
             if (p2.forms && fi != 0) heap.free_fn(heap.ctx, p2.forms);
             proven_array_destroy(&p2.diags);
         }
-        if (!want_migrate) {                       // ★ RFC-0144 — op 의 경계를 넘는 matrix 의 모양은 파일을 다 읽은 뒤에 견준다
-            proven_result_array_t ma = PROVEN_ARRAY_INIT(heap, low_diag_t, 4);
-            proven_array_t md = ma.value;
-            if (!low_closer_matrix_verify(&md)) { dump_diags("surface diagnostics", &md); ok = false; }
-            proven_array_destroy(&md);
-        }
         pr.forms = all; pr.nforms = nall; pr.diags = diags; pr.ok = ok;
     }
 
@@ -1924,7 +1918,11 @@ int main(int argc, char **argv) {
         //   공개 저장소의 사용자가 옮길 길이 없었다). 타입 없는 묶기는 알리고 실패로 끝난다.
         if (want_fmt) { low_surface_lower(&pr, nodes0, heap);   // ★ RFC-0141 — 서식기도 안쪽 나무에서 값을 묶는다(찍는 것은 새 표면)
                         low_decl_migrate(&pr, nodes0, heap); }
-        else { low_surface_lower(&pr, nodes0, heap);        // ★ RFC-0141 — 새 표면(`be` 없음 · `use`/`keep` · 네 되풀이)을 안쪽 나무로
+        else { low_surface_lower(&pr, nodes0, heap);
+               // ★ RFC-0144 §6-2 — `matrix` 를 `array` · `subslice` 로. 뒤의 걸음(이름 붙은 결과 · 배열 결과 · 입력 배열의 계약)이
+               //   옮겨 적힌 것을 본다. 거절했으면 뒤따르는 진단은 전부 헛것이라 폼을 비운다(표면 패스가 토큰을 비우는 것과 같다).
+               if (!low_matrix_lower(&pr, nodes0, heap)) pr.nforms = 0;
+       // ★ RFC-0141 — 새 표면(`be` 없음 · `use`/`keep` · 네 되풀이)을 안쪽 나무로
                low_def_require(&pr, nodes0, heap);         // ★ RFC-0132 §5.2 — 타입 선언은 `def` 로 시작한다
                low_call_host_strip(&pr, nodes0, heap);     // ★ RFC-0127 ⓒ — 권한 잎은 `call_builtin` 뒤에서만
                low_local_lift(&pr, nodes0, heap, &nforms0);  // ★ RFC-0121 — 몸 안의 fn/proc 을 `<바깥>::<로컬>` 로 끌어올린다

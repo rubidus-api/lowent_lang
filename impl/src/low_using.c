@@ -1564,6 +1564,57 @@ static void dt_run(low_parse_result_t *pr, proven_allocator_t node_alloc, proven
 }
 
 
+// ── 타입의 끝을 묻는 문 (RFC-0144 §6-2) ─────────────────────────────────────────────────────────────
+// `low_matrix.c` 는 선언 차례 패스 **앞**에서 돈다(이 패스의 배열 결과 · 이름 붙은 결과 풀이가 `array` 를 보아야 한다). 그 자리의
+// 묶기는 `let <이름> be <타입> <값>` 이라 타입이 어디서 끝나는지를 알아야 값이 보인다. 그 답은 이 파일이 이미 안다.
+void *low_tyctx_open(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    dt_ctx_t *c = (dt_ctx_t *)work.alloc_fn(work.ctx, sizeof(dt_ctx_t), alignof(dt_ctx_t)).value.ptr;
+    if (!c) return NULL;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
+            us_atom(f->kids[1])) c->curmod = f->kids[1]->tok.lex;
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 4 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_USE &&
+            us_atom(f->kids[1]) && c->nal < 512) {
+            for (proven_size_t q = 2; q + 1 < f->nkids; q++)
+                if (us_atom(f->kids[q]) && us_eq(f->kids[q]->tok.lex, "as") && us_atom(f->kids[q + 1])) {
+                    c->al[c->nal].mod = c->curmod; c->al[c->nal].alias = f->kids[q + 1]->tok.lex;
+                    c->al[c->nal].target = us_bare(f->kids[1]->tok.lex); c->nal++;
+                    break;
+                }
+        }
+        dt_collect(c, f);
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR &&
+            f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {
+            const low_cst_t *blk = f->kids[f->nkids - 1];
+            for (proven_size_t j = 0; j < blk->nkids; j++) dt_collect(c, blk->kids[j]);
+        }
+    }
+    c->curmod = (proven_u8str_view_t){ 0 };
+    return c;
+}
+void low_tyctx_form(void *x, const low_cst_t *f) {       // 맨 위 폼을 차례로 알려 준다 — 지금의 모듈을 따라간다
+    dt_ctx_t *c = (dt_ctx_t *)x;
+    if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
+        us_atom(f->kids[1])) c->curmod = f->kids[1]->tok.lex;
+}
+proven_size_t low_tyctx_enter(void *x, const low_cst_t *nd) {   // op 에 들어선다 — 그 op 의 타입 매개변수가 타입 이름이 된다
+    dt_ctx_t *c = (dt_ctx_t *)x;
+    proven_size_t save = c->ntp;
+    for (proven_size_t q = 0; q + 2 < nd->nkids && c->ntp < 32; q++)
+        if (us_atom(nd->kids[q]) && us_eq(nd->kids[q]->tok.lex, "comptime") && us_atom(nd->kids[q + 1]) &&
+            us_atom(nd->kids[q + 2]) && us_eq(nd->kids[q + 2]->tok.lex, "type"))
+            c->tp[c->ntp++] = nd->kids[q + 1]->tok.lex;
+    return save;
+}
+void low_tyctx_leave(void *x, proven_size_t mark) { ((dt_ctx_t *)x)->ntp = mark; }
+proven_size_t low_tyctx_type_end(void *x, low_cst_t *const *k, proven_size_t i, proven_size_t end) {
+    return dt_type_end_h((dt_ctx_t *)x, k, i, end, true);
+}
+
+
 /* ══ RFC-0135 S1 — 바인딩 `else` ══════════════════════════════════════════════════════════════════════════
  * `let n be T v . else S` 는 값 v 가 option/result 일 때 알맹이를 꺼내 n 에 묶고, 비었으면 S(반드시 벗어난다)로 간다.
  * 모든 뒤따르는 소비자(검사 · 타입 · 하강 · 두 뒤끝)가 이미 아는 모양으로 **펼친다**:

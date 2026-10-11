@@ -838,6 +838,11 @@ static bool cbe_rec_ok_f(const low_ir_t *ir, int sidx, bool allow_flt) {
     if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
     const low_ir_struct_t *S = &ir->structs[sidx];
     if (S->nf == 0 || S->nf > K_REC_MAX || S->total > K_REC_BYTES) return false;
+    // ★★★ **배열 칸을 가진 구조체는 빠른 경로가 나르지 않는다** (2026-10-11 · RFC-0144 의 matrix 칸이 찾았다). 아래 `cbe_rec_slice_ok`
+    //   는 그렇게 막는데 이 관문은 막지 않았다 — 배열 칸 구조체는 `viewable` 이라 그대로 통과했고, 빠른 경로의 `make` 는 그 칸을
+    //   **슬라이스 칸**으로 실어 나열 리터럴의 읽기 전용 상수를 가리키게 했다. 칸에 쓰면 상수에 쓰고(`-O2` 는 그 쓰기를 못 본
+    //   것으로 읽는다), VM 은 100 · 네이티브는 1 이었다. 값 복사(칸의 바이트를 레코드가 가진다)는 태그 경로가 한다.
+    for (proven_size_t q = 0; q < S->nf; q++) if (S->f[q].arrn) return false;
     // ★★★ **필드가 전부 *크기 있는 스칼라* 여야 한다 — 그리고 그것을 이제 진짜로 검사한다**
     //   (2026-07-19, lib/alloc.low 이 찾았다). 위 주석은 그렇게 **단언하면서** 중첩·부동만 봤다.
     //   `state mem mut slice u8 . .` 를 가진 actor 는 그냥 통과했고, 경계 어댑터가
@@ -951,6 +956,7 @@ static bool cbe_rec_nest_ok(const low_ir_t *ir, int sidx) {
     if (S->nf == 0) return false;
     if (S->total > K_REC_BYTES) return false;   // ★ 잎을 세지 않는다 — 칸에 들어가면 된다
     for (proven_size_t q = 0; q < S->nf; q++) {
+        if (S->f[q].arrn) return false;        // ★ 배열 칸 — 값 복사는 태그 경로가 한다(위 `cbe_rec_ok_f` 의 까닭)
         if (S->f[q].sidx >= 0) { if (!cbe_rec_nest_ok(ir, (int)S->f[q].sidx)) return false; }
         else if (S->f[q].flt) return false;   // 부동 중첩 잎은 아직
     }

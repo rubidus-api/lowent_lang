@@ -299,6 +299,9 @@ end .", "E-TYPE-ARRAY")
       타입과 맞아야 한다(`E-TYPE-SET` · `E-TYPE-WIDTH`).
       `idx` 와 `subslice` 를 거쳐 닿은 칸도 같은 저장소다 — `set idx subslice buf. a. b. . i. . v. .` 에서 `buf` 가 쓸 수
       있는 이름이 아니면 거부된다(`E-TYPE-MUT`).
+      쓸 수 없는 슬라이스를 `mut slice` 이름에 다시 묶지 못한다 — `let w mut slice u32 g. .` 와
+      `let w mut slice u32 subslice g. a. b. . .` 는 `g` 가 쓸 수 있는 이름이 아니면 거부된다(`E-TYPE-MUT`). 새 이름은
+      같은 저장소를 가리키므로, 그것으로 쓰는 것은 `g` 에 쓰는 것이다.
     ]
     #para("7c")[
       한 op 의 ⓐ·ⓒ 칸을 모두 더한 크기에는 처리기가 밝히는 한도가 있고, 넘으면 거부된다(`E-FRAME-SIZE` — 조용히
@@ -445,17 +448,28 @@ end .", "E-LIT-COUNT")
       받고, 그 포인터를 `t (*)[d2]…[dk]` 로 읽어 같은 칸을 가리킨다.
     ]
     #para("3")[
-      `matrix` 타입은 #strong[이름을 짓는 자리];에 적는다 — `let` · `var` 의 타입, op 의 `input` 과 `output`. 구조체의 칸, 다른
-      타입의 원소, 타입 인자의 자리에는 적지 못한다(`E-MATRIX-USE`).
+      `matrix` 타입은 #strong[이름을 짓는 자리];에 적는다 — `let` · `var` 의 타입, op 의 `input` 과 `output`, 구조체의 칸. 다른
+      타입의 원소, 타입 인자, 별칭의 자리에는 적지 못한다(`E-MATRIX-USE`).
+    ]
+    #para("3a")[
+      op 의 `input` 에 한하여, 크기 자리에 그 op 의 번역 시점 값 입력의 이름을 적을 수 있다 —
+      `input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c .`. 부르는 쪽은 그 입력에 수를 적고
+      (`sum 3 4 a. .`), 인자의 모양은 그 수로 읽은 모양과 같아야 한다(`E-MATRIX-SHAPE`). `let` · `var` · `output` · 구조체의
+      칸과 `lit matrix` 의 크기는 수여야 한다(`E-MATRIX-TYPE`).
+    ]
+    #note[
+      크기를 이름으로 받는 입력에는 길이의 진입 계약이 붙지 않는다. 그 자리에 올 수 있는 것은 부르는 쪽에서 모양을 견준
+      `matrix` 뿐이고, 원소를 읽고 쓰는 것은 (5) 의 검사를 그대로 받는다.
     ]
     #para("4")[
       #strong[값.]; `lit matrix t k d1 … dk <원소>… .` 는 원소를 줄 우선 차례로 나열한다. 원소 수는 크기들의 곱과 같아야 하며,
       모자라면 끝에 `_` 를 적어 나머지를 0 으로 채운다. 바인딩에 타입과 리터럴을 함께 적으면 둘의 모양이 같아야
-      한다. 어기면 거부된다(`E-MATRIX-SHAPE`).
+      한다. 어기면 거부된다(`E-MATRIX-SHAPE`). 구조체 리터럴에서 `matrix` 칸의 값은 그 칸과 같은 모양의
+      `lit matrix` 다.
     ]
     #para("5")[
       #strong[읽기와 쓰기.]; `idx m. i1 … ik .` 는 색인을 차원마다 하나씩 받는다. 색인 수가 차원 수와 다르면 거부된다
-      (`E-MATRIX-INDEX`) — 줄 하나나 면 하나만 꺼내는 꼴은 없다. 색인은 저마다 #strong[제 차원의 크기];로 검사한다: 어느
+      (`E-MATRIX-INDEX`) — 색인을 덜 준 `idx` 가 줄을 뜻하지는 아니한다(줄은 (7a) 의 `row` 다). 색인은 저마다 #strong[제 차원의 크기];로 검사한다: 어느
       하나라도 제 크기 이상이면 실행이 멈춘다. 색인 식은 적힌 차례로 한 번씩 계산한다.
       `set idx m. i1 … ik . v. .` 는 그 칸에 쓰며, `m` 은 쓸 수 있는 이름이어야 한다(`E-TYPE-MUT`).
     ]
@@ -466,12 +480,23 @@ end .", "E-LIT-COUNT")
     #para("7")[
       `flat m. .` 는 같은 원소를 한 줄로 본 `slice t` 다. 복사하지 아니하며, 길이는 원소 수다.
     ]
+    #para("7a")[
+      `row m. i1 … i(k−1) .` 는 마지막 차원 하나를 남긴 #strong[줄];이다 — 색인은 마지막을 뺀 차원마다 하나씩이고, 값은 그 줄의
+      원소를 보는 `slice t` 다. 복사하지 아니하며 길이는 마지막 차원의 크기다. 색인 수가 다르면 거부되고(`E-MATRIX-INDEX`),
+      색인은 (5) 와 같이 저마다 제 차원의 크기로 검사한다. `m` 이 쓸 수 있는 이름이면 그 줄을 `mut slice t` 이름에 묶어
+      쓸 수 있고, 아니면 그렇게 묶지 못한다(`E-TYPE-MUT` · `let` 으로 묶은 구조체의 칸이면 `E-IMMUTABLE`). 남는 차원이 둘
+      이상인 보기(면)는 없다.
+    ]
+    #para("7b")[
+      (5) · (6) · (7) · (7a) 의 `m` 자리에는 `matrix` 로 적힌 이름뿐 아니라 `matrix` 칸을 가리키는 `field x. g .` 도 선다 —
+      `idx field b. g . r. c. .`.
+    ]
     #para("8")[
       `len m. .` 과 `for x m. do … end .` 는 거부된다(`E-MATRIX-USE`). 차원 하나의 크기는 `dim` 으로, 모든 원소를 도는
       것은 `for x flat m. . do … end .` 로 적는다.
     ]
     #para("9")[
-      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `dim` · `flat` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
+      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
       같은 모양의 결과를 가진 op 의 `return` 이다. 그 밖의 자리는 거부된다(`E-MATRIX-USE`). 인자와 입력, 바인딩의
       타입과 부른 op 의 결과는 차원 수와 크기가 모두 같아야 한다(`E-MATRIX-SHAPE`).
     ]
@@ -505,6 +530,29 @@ do
     set s. add s. widen u64 idx t. r. c. . . . .
   end .
   return s. .
+end .")
+    #ex("구조체의 칸인 표, 줄 하나, 어떤 크기든 받는 op", "module ex_matrix_more .
+
+def struct board do
+  id u64 .
+  g matrix u32 2 3 4 .
+end .
+
+fn sum input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c . output u64 .
+do
+  var t u64 0 .
+  repeat i u64 dim m. 0 . do
+    for x row m. i. . do set t. add t. widen u64 x. . . . end .
+  end .
+  return t. .
+end .
+
+export fn total output u64 .
+do
+  var b lit board do id 1 . g lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
+  set idx field b. g . 0 0 . 100 .
+  let small lit matrix u32 2 2 2 1 2 3 4 . .
+  return add widen u64 idx field b. g . 0 0 . . sum 2 2 small. . . .
 end .")
     #rejected("차원은 둘인데 색인을 하나만 주었다", "module ex_matrix_row .
 

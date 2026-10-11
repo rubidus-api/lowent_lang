@@ -280,6 +280,7 @@ continue            continue [<수>] .
 lit                 lit <타입> do <칸초기>* end .  (칸초기 = <이름> <폼> .)
 lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .
 lit (matrix)        lit matrix <타입> <차원 수> <크기>… <값>… [_] .
+matrix              idx <matrix> <번호>… .  ·  row <matrix> <번호>… .  ·  dim <matrix> <수> .  ·  flat <matrix> .
 lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end .
 lit (SIMD)          lit vec <타입> <레인> <값>… [_] .
 extern              extern fn/proc <이름> do <절>* end .  (몸이 씨)
@@ -692,7 +693,7 @@ type-core      ::= name | path
                  | "(" applied-type ")"
                  | "slice" type
                  | "array" type word
-                 | "matrix" type number number { number }
+                 | "matrix" type number matrix-size { matrix-size }
                  | "option" type
                  | "result" type type
                  | "vec" type word
@@ -705,7 +706,11 @@ type-core      ::= name | path
                  | other-type
 applied-type   ::= type | ( name | path ) type { type }
 other-type     ::= ? ⟦§6.2⟧ 가 정하는 그 밖의 타입 꼴(`mask` · `set` · `stack` · `fn` · `unsafe_fn` · `mmio`) ?
+matrix-size    ::= number | name
 ```
+
+> [!참고]
+> `matrix-size` 의 `name` 은 op 의 `input` 에서만 쓴다 — 그 op 의 번역 시점 값 입력의 이름이다(⟦§6.2.6.1⟧ (3a)).
 
 (1) `u8` · `bool` · `void` 같은 타입 낱말(A.9)과 저자가 지은 타입의 이름은 `name` 이다.
 

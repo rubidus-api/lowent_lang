@@ -764,10 +764,12 @@ low_lex_result_t low_lex(proven_allocator_t alloc, proven_u8str_view_t src) {
     //   그대로다. 저자가 머리에 적은 `using` 은 옛 철자다: 고칠 글자를 말하고 거절한다.
     {
         low_token_t *T = (low_token_t *)out.tokens.data;
-        bool head = false;
+        bool head = false, trait_open = false;   // trait 의 몸은 서명(이름 + 절)들이다 — 그 안도 머리다
         for (proven_size_t i = 0; i + 1 < out.tokens.len; i++) {
             if (T[i].kind != LOW_TOK_IDENT) continue;
             if (T[i].kw == LOW_KW_FN || T[i].kw == LOW_KW_PROC) { head = true; continue; }
+            if (T[i].kw == LOW_KW_TRAIT) { trait_open = true; continue; }
+            if (T[i].kw == LOW_KW_DO && trait_open) { trait_open = false; head = true; continue; }
             // `fn` 은 타입의 낱말이기도 하다(`input f fn u64 u64 .`) — 머리가 아닌 자리에서 켜진 표시는 블록의 끝 · 바인딩에서 꺼진다.
             if (T[i].kw == LOW_KW_DO || T[i].kw == LOW_KW_END || T[i].kw == LOW_KW_LET || T[i].kw == LOW_KW_VAR) { head = false; continue; }
             if (!head || T[i + 1].kind != LOW_TOK_IDENT) continue;

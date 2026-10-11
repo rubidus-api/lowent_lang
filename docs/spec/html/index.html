@@ -2611,7 +2611,6 @@ continue            continue [&lt;수>] .
 lit                 lit &lt;타입> do &lt;칸초기>* end .  (칸초기 = &lt;이름> &lt;폼> .)
 lit (나열)          lit array &lt;타입> &lt;길이> &lt;값>… [_] .  ·  lit slice &lt;타입> &lt;값>… .
 lit (matrix)        lit matrix &lt;타입> &lt;차원 수> &lt;크기>… &lt;값>… [_] .
-matrix              idx &lt;matrix> &lt;번호>… .  ·  row &lt;matrix> &lt;번호>… .  ·  dim &lt;matrix> &lt;수> .  ·  flat &lt;matrix> .
 lit (칸 채우기)     lit array &lt;타입> &lt;길이> do &lt;번호> &lt;값> . … [_ &lt;값> .] end .
 lit (SIMD)          lit vec &lt;타입> &lt;레인> &lt;값>… [_] .
 extern              extern fn/proc &lt;이름> do &lt;절>* end .  (몸이 씨)

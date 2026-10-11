@@ -64,7 +64,7 @@ PROVEN_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(PROVEN_SRC))
 BIN  := $(BUILD)/lowentc
 TESTBIN := $(BUILD)/lowtest
 
-.PHONY: check all clean asan alloccheck run test
+.PHONY: check all clean distclean asan alloccheck run test
 all: $(BIN)
 
 $(BIN): $(PROVEN_OBJ) $(LOW_OBJ) $(BUILD)/src/main.o
@@ -128,7 +128,14 @@ check: all $(TESTBIN)
 golden: all
 	@if [ -f tests/golden.sh ]; then sh tests/golden.sh; else echo "golden: 골든 스위트는 개발 저장소에 있다 — 공개본은 \`make test\` 로 단위 시험을 돈다"; fi
 
+# clean keeps the equivalence stamps (build/*.stamp). Each one is a fingerprint of a test
+# script — not of anything built here — recording that its parallel run was compared with
+# its sequential run. Removing them makes the next full check repeat those comparisons
+# (about 80 minutes). `make distclean` removes them too.
 clean:
+	@if [ -d $(BUILD) ]; then find $(BUILD) -mindepth 1 ! -name '*.stamp' -delete 2>/dev/null || true; fi
+
+distclean:
 	rm -rf $(BUILD)
 
 # auto-generated header dependencies (-MMD) so header edits trigger recompiles

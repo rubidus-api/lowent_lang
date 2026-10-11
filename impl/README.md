@@ -18,7 +18,7 @@ make check      # 공개본의 회귀 시험: 단위 시험 + 표준 라이브�
 make test       # 단위 시험만 (tests/run_tests.c)
 make asan       # ASan/UBSan 빌드
 make dist       # 정적 배포본 (dist/lowent-linux-x64/)
-make clean
+make clean       # 지은 것을 지운다(build/*.stamp 는 남긴다 — 시험 글의 지문). 다 지우려면 make distclean
 ```
 
 - **필요한 것:** C23 컴파일러(gcc 또는 clang)와 POSIX 셸, 이것뿐이다.

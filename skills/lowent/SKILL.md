@@ -137,7 +137,9 @@ Shape rules you will hit immediately:
   A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: an op that needs a capability takes it as the first
   operand (`stdio.write out. 1 s. .`, `alloc_bytes al. capacity n. .`); holding it is not enough
-  (`E-CAP-MISSING`). Pass the parameter you received, never a local copy (`E-CAP-LOCAL`).
+  (`E-CAP-MISSING`). Pass the parameter you received. A capability is never bound to a local
+  (`let k cap io out.` is `E-CAP-LOCAL` at that line) and never returned (`output cap io .` is
+  `E-CAP-OUTPUT`): it travels from input to input only.
 - **I/O, clock, terminal, arguments and float functions live in the library**: `use stdio .` then
   `stdio.write`; likewise `args.get`, `env.get`, `clock.now_ns`, `tty.raw`, `random.bytes`,
   `math.sqrt` / `math.sin` / `math.floor` …. The bare names (`write_out`, `sqrt`) are builtin ops that

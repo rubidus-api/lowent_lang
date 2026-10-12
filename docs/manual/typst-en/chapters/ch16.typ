@@ -64,6 +64,9 @@ head would no longer say "what this op can do".
 
 Passing a capability on needs no special notation. Write the received name like any other argument.
 
+A capability travels this one way --- from input to input. It cannot be kept in a local name (`E-CAP-LOCAL`), and an op cannot
+give one back as its output (`E-CAP-OUTPUT`). So every capability an op holds is written in its head.
+
 #demo("examples/ch16/chain.low")
 
 The chain looks like this --- outside → `main`'s `k` → `say_twice`'s `k` → `say`'s `k` → `stdio.write`. Drawn together with effects, the two arrows run in opposite directions.

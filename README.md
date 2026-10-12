@@ -147,7 +147,7 @@ You write `requires` (what the caller must guarantee), `ensures` (what the funct
 
 ### 5. One meaning, one spelling
 
-Every form is opened by a name and closed by a period: `add total. x. .`, not `total + x`. A variable is written with its period glued on (`total.`), and one period closes the innermost open form, so no parentheses and no operator precedence are needed. Long arithmetic can go infix inside `expr`, with exactly the same meaning. There are **43 keywords**, and the set is closed. No second spelling for the same thing.
+Every form is opened by a name and closed by a period: `add total. x. .`, not `total + x`. A variable is written with its period glued on (`total.`), and one period closes the innermost open form, so no parentheses and no operator precedence are needed. Long arithmetic can go infix inside `expr`, with exactly the same meaning. There are **48 keywords**, and the set is closed. No second spelling for the same thing.
 
 This buys some unusual properties. The whole grammar can be highlighted with plain regular expressions, so an editor's highlighter is exact rather than approximate. There's almost no punctuation, so it's comfortable to type even on a phone keyboard. Every diagnostic carries a stable code, and `--diag-json` emits one JSON line per diagnostic for tools and AI agents.
 
@@ -168,7 +168,7 @@ Lowent is not just a design document. It grows together with a working compiler 
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.
 - **Caught at run time:** bounds checks where nothing was proven, overflow, and contract violations. The VM and native code stop at the same place with the same diagnostic.
 - **Proven:** memory safety for the sequential fragment (no use-after-free, no dangling references) and freedom from data races are machine-checked in Coq, with no axioms and no `admit`. These proofs are about the language's **model**. Whether the implementation follows the model is checked by the regression suite and bounded model checking. What has *not* been proven gets its own chapter in the manual.
-- **Scale:** 2,065 regression checks and 64 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
+- **Scale:** 2,153 regression checks and 70 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
 
 ## What you give up
 
@@ -178,8 +178,8 @@ Lowent makes some deliberate trade-offs. You should know them before you pick it
 - **It's wordy.** Effects, capabilities and width conversions are all written out, so code runs longer than the equivalent C. In exchange, the reader has less to guess.
 - **No inheritance, no lambdas, no exceptions.** Familiar tools are missing. The next section shows what to use instead.
 - **No dynamic dispatch yet.** `dyn` is reserved but not implemented. Polymorphism is done with compile-time generics, which generate code for every combination used, so binaries can grow.
-- **A small ecosystem.** There is no package registry or language server (LSP) yet, and few libraries beyond the standard one.
-- **No compatibility promise.** A language revision may break existing code. The changelog and the formatter (`--fmt`) help with migration.
+- **A small ecosystem.** There is no package registry yet, the editor tooling (`tools/`: syntax highlighting and a language server that explains words) is basic, and there are few libraries beyond the standard one.
+- **No compatibility promise.** A language revision may break existing code. A changed spelling is usually refused with a diagnostic that names the new one, and the release notes carry a migration table. There is no automatic migration tool.
 
 ## Living without inheritance, lambdas and exceptions
 
@@ -269,7 +269,6 @@ These items are on the plan today. No dates are promised.
 - **Dynamic dispatch and an optional runtime:** giving `dyn` a meaning, plus a small dynamic runtime that only programs asking for it pull in.
 - **Async I/O:** adding io_uring and IOCP back ends and a work-stealing scheduler to today's reactor (poll, epoll and POSIX AIO).
 - **Wider proofs:** extending the proofs to weak memory ordering (atomics).
-- **A web edition:** making the manual and the specification readable directly in the browser.
 
 ## The goal
 

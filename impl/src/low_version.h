@@ -59,7 +59,7 @@
 // ★ 1.9 → 1.10 (2026-10-12, RFC-0147 · 소유자 «using은 use 쪽으로 … 통합» · «라이브러리 안으로 옮기도록 합시다»): 표면이 깨지는 방향의
 //   변경 둘 — op 머리의 얼로케이터 절이 `use <이름> <타입> .` 이 됐고(옛 `using` 은 `E-USING-OLD`), 세상에 닿는 열넷(`write_out` ·
 //   `read_in` · `arg` · `env_get` · `time_*` · `tty_*` · `random_bytes` · reactor 셋)과 셈 라이브러리 열둘(`sqrt` … `fmod` · `sum_seq` ·
-//   `sum_neumaier`)이 `call_builtin` 뒤로 갔다(맨 이름은 `E-BUILTIN-BARE` — 진단이 감싸개 `stdio.write_out` · `math.sqrt` 를 댄다).
+//   `sum_neumaier`)이 `call_builtin` 뒤로 갔다(맨 이름은 `E-BUILTIN-BARE` — 진단이 감싸개 `stdio.write` · `math.sqrt` 를 댄다).
 //   이 축의 규칙(«키워드/빌트인이 바뀌면 움직인다» — 1.0 → 1.1 이 같은 종류의 변경이었다)을 따라 에이전트가 올렸다.
 //   같은 개정에 든 것(같은 날): 줄 타입(`slice` · `array` · `matrix`)에는 `type` · `newtype` 이름을 붙이지 않는다(`E-TYPE-ROWNAME`) · 타입 선언에서
 //   `def` 를 뺐다(낱말 49 → 48, 옛 머리는 `E-DEF-OLD`). 릴리스 1.10.0 (소유자 2026-10-12 «커밋 푸쉬 릴리즈 바랍니다» — 번호는 개정 번호를 따른 에이전트의 선택).

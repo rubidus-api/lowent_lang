@@ -83,7 +83,7 @@ Read the head one clause at a time.
 - `output u8 .` --- returns a `u8`.
 - `effects io .` --- declares that it performs input/output.
 
-The body lies between `do` and `end`. `stdio.write_out out 1 "…"` takes the capability `out` as its first argument, writes bytes to file
+The body lies between `do` and `end`. `stdio.write out 1 "…"` takes the capability `out` as its first argument, writes bytes to file
 descriptor `1` (standard output), and returns *the number of bytes written*. `hello, entropy!\n` is 16 bytes, so it returns 16. That
 is narrowed to fit a `u8` with `narrow u8`. Narrowing carries a check that stops execution if the value does not fit
 (#chref("numbers")).
@@ -108,7 +108,7 @@ byte.
   The VM and native code start from the same intermediate representation. If they produce different output, it is a defect in the
   *compiler*, not the program. The development repository runs hundreds of ops on both back ends with boundary-value arguments and
   compares them byte for byte, and this book's verification script also runs every example carrying `rem run:` twice and compares.
-  One discrepancy surfaced while writing this book --- `args.arg`, which reads program arguments, counts positions differently on the VM
+  One discrepancy surfaced while writing this book --- `args.get`, which reads program arguments, counts positions differently on the VM
   and in native code. So examples that read arguments are only checked in this edition, and their run results are not shown.
 ]
 
@@ -148,7 +148,7 @@ conversation. Every diagnostic carries a stable code, and that code keeps its me
 #demo("examples/ch01/twice_bad.low")
 
 A diagnostic line has the shape `file:line:column code: explanation`. In this example `fn shout` is declared pure but its body does
-input/output with `stdio.write_out`. The compiler rejects it with `E-EFFECT-CALC` and names two ways to fix it --- make it a `proc` with
+input/output with `stdio.write`. The compiler rejects it with `E-EFFECT-CALC` and names two ways to fix it --- make it a `proc` with
 `effects`, or remove the effect.
 
 With `--diag-json` the same diagnostic comes out as one line of JSON. The rule code (`rule`), location (`span`) and the name of the
@@ -184,7 +184,7 @@ Reading program arguments is a capability too. The next program greets its first
 
 #demo("examples/ch02/greet.low")
 
-`input a cap args .` receives the argument capability, and `args.arg a. 0 .` reads the first argument. There may be no argument, so the
+`input a cap args .` receives the argument capability, and `args.get a. 0 .` reads the first argument. There may be no argument, so the
 result is `option slice u8`. `guard is_some who else …` leaves on the spot when there is no value, and below it you may trust that
 the value exists (#chref("option-result")). Capability inputs come before data inputs, and the two capabilities take argument
 positions in the order written.
@@ -210,7 +210,7 @@ These are the rejections and stops you meet most often in a first program. When 
   `effects io .` *declares* that the op does I/O; what actually *allows* it is the capability received as an input
   (`input out cap io .`). Declaring the effect without the capability is `E-EFFECT-NO-CAP`. I/O is not a power you can grab anywhere: it is
   a right handed to `main` when the program starts and passed on to the ops that need it (#chref("capabilities")). The fix: add
-  `input out cap io .` to the head and pass `out` as the first argument of `stdio.write_out`.
+  `input out cap io .` to the head and pass `out` as the first argument of `stdio.write`.
 ]
 
 #antipattern[Returning an exit code larger than 255][
@@ -241,7 +241,7 @@ These are the rejections and stops you meet most often in a first program. When 
   [`rem …`], [line comment (to the end of the line)], [a word rather than a symbol --- this book also uses it for check directives],
   [`proc main input out cap io . output u8 . effects io .`], [where the program starts], [rights received, exit code returned and what it does are all in the head],
   [`do … end`], [a body], [an opener and a closer that pair up],
-  [`stdio.write_out out 1 "…"`], [write to standard output (1) and return the byte count], [the capability `out` comes first --- no right, no writing],
+  [`stdio.write out 1 "…"`], [write to standard output (1) and return the byte count], [the capability `out` comes first --- no right, no writing],
   [`narrow u8 n. .`], [narrow to `u8` (stops if it does not fit)], [so values never change silently],
   [`requires c .` · `test t do … end .` · `expect c .`], [contract · test block · assertion inside a test], [promises are checked; tests run separately],
   [`lowentc --check f.low`], [check only], [the command line shows what was done --- there is no default mode],

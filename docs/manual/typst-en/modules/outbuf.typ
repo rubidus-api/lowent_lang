@@ -4,7 +4,7 @@
 
 #modhead(file: "lib/out.low", layer: [L2 --- the outside world], caps: [`cap io` for `buf_flush` · `buf_write` · `buf_finish`])
 
-Output is *gathered and sent at once*. `stdio.write_out` flushes on every call, so calling it per piece costs a system call per piece --- this writer accumulates bytes in a caller
+Output is *gathered and sent at once*. `stdio.write` flushes on every call, so calling it per piece costs a system call per piece --- this writer accumulates bytes in a caller
 buffer and flushes only when full, reducing system calls from the number of bytes to the number of buffers. And it forces a final `finish`, preventing "ended without sending
 what was gathered" *at compile time*.
 
@@ -89,5 +89,5 @@ Pure formatting (`fmt`) assembles bytes and buffered output (`outbuf`) sends the
 ]
 
 *Cautions.* Flushing without a capability is a compile error (declaring `effects io` without receiving a capability is `E-EFFECT-NO-CAP`). The fd is an integer not checked for
-openness. If the whole output is already in one buffer, no writer is needed --- one `stdio.write_out` does it. Vectored writes (writev), retry after a failed flush and interruptible
+openness. If the whole output is already in one buffer, no writer is needed --- one `stdio.write` does it. Vectored writes (writev), retry after a failed flush and interruptible
 output were not built.

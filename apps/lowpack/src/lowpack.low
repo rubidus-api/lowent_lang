@@ -480,7 +480,7 @@ proc do_create input fs cap file_system . input out cap io . input a cap args . 
   let st mut slice u64 view_array u64 subslice mem. 799232 799296 . . .
   var ai u64 2 .
   while true do
-    let p0 option slice u8 args.arg a. ai. . .
+    let p0 option slice u8 args.get a. ai. . .
     guard is_some p0. . else break . .
     set ai. add ai. 1 . .
     var root slice u8 some_value p0. . .
@@ -772,8 +772,8 @@ proc main
   output u8 .
   effects heap io .
 do
-  let a0 option slice u8 args.arg a. 0 . .
-  let a1 option slice u8 args.arg a. 1 . .
+  let a0 option slice u8 args.get a. 0 . .
+  let a1 option slice u8 args.get a. 1 . .
   guard and is_some a0. . is_some a1. . . else do
     let w0 option u64 outbuf.write_all out. 2 usage_text. . .
     return 2 .
@@ -784,7 +784,7 @@ do
   guard is_some got. . else return 70 . .
   let mem mut slice u8 some_value got. . .
   if same_bytes cmd. "create" . do
-    guard is_some args.arg a. 2 . . else do
+    guard is_some args.get a. 2 . . else do
       let w1 option u64 outbuf.write_all out. 2 usage_text. . .
       return 2 .
     end .
@@ -817,7 +817,7 @@ do
   end .
   var dest slice u8 "" .
   if eq mode. 2 . do
-    let a2 option slice u8 args.arg a. 2 . .
+    let a2 option slice u8 args.get a. 2 . .
     guard is_some a2. . else do
       let w3 option u64 outbuf.write_all out. 2 usage_text. . .
       return 2 .

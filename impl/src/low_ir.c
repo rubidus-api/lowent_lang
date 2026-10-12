@@ -1129,12 +1129,12 @@ static bool ir_widen_units(ir_ctx_t *c, proven_u8str_view_t utf8, proven_i32 w,
 //   `E-BUILTIN-BARE` 가 읽는다: 맨 이름으로 부른 사람에게 `call_builtin` 이 아니라 **라이브러리의 이름**을 먼저 댄다.
 const char *low_builtin_wrapper(proven_u8str_view_t name) {
     static const struct { const char *w; const char *lib; } WR[] = {
-        { "write_out", "stdio.write_out" }, { "read_in", "stdio.read_in" },
-        { "arg", "args.arg" }, { "env_get", "env.env_get" },
+        { "write_out", "stdio.write" }, { "read_in", "stdio.read" },
+        { "arg", "args.get" }, { "env_get", "env.get" },
         { "time_now", "clock.now_ns" }, { "time_local", "clock.local_packed" }, { "time_sleep", "clock.sleep_ms" },
-        { "tty_raw", "tty.tty_raw" }, { "tty_read", "tty.tty_read" }, { "tty_size", "tty.tty_size" },
+        { "tty_raw", "tty.raw" }, { "tty_read", "tty.read" }, { "tty_size", "tty.size" },
         { "random_bytes", "random.bytes" },
-        { "reactor_new", "reactor.reactor_new" }, { "r_read", "reactor.r_read" }, { "r_write", "reactor.r_write" },
+        { "reactor_new", "reactor.new" }, { "r_read", "reactor.read" }, { "r_write", "reactor.write" },
         { "sqrt", "math.sqrt" }, { "floor", "math.floor" }, { "ceil", "math.ceil" }, { "round", "math.round" },
         { "sin", "math.sin" }, { "cos", "math.cos" }, { "exp", "math.exp" }, { "log", "math.log" },
         { "pow", "math.pow" }, { "fmod", "math.fmod" },
@@ -4724,7 +4724,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 proven_size_t np = c->out->defs[di].nparams;
                 // ★★★ RFC-0147 (2026-10-12) — **권한은 받은 이름 그대로 넘긴다**(정본 §7.2.1 (1b)). 지역 이름에 옮겨 담은 권한을
                 //   op 의 권한 자리에 대면 거절한다. 전엔 이 검사가 잎에만 있었다 — 잎이 라이브러리 뒤로 가면서, 그대로 두면
-                //   `let k cap io out.` 뒤에 `stdio.write_out k. …` 가 서게 된다(옮기기 전의 `write_out k. …` 는 거절이었다).
+                //   `let k cap io out.` 뒤에 `stdio.write k. …` 가 서게 된다(옮기기 전의 `write_out k. …` 는 거절이었다).
                 for (proven_size_t ci = 0; ci < np && ci < 32 && *pos + ci < end; ci++) {
                     if (!((c->out->defs[di].param_cap >> ci) & 1u) || !is_atom(k[*pos + ci])) continue;
                     proven_u8str_view_t cn = k[*pos + ci]->tok.lex, cgot = { 0 };

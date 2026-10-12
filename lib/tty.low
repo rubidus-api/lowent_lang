@@ -147,16 +147,16 @@ rem ★ 위의 것은 전부 순수한 계산이고, 커널이 필요한 것은 
 rem   그대로 넘긴다 — 첫 입력이 `cap tty` 다(들고 있는 자만 남의 터미널 설정을 바꾼다).
 
 rem 날 입력 모드를 켜거나(`true`) 끈다(`false`). 바꿨으면 참이다 — 터미널이 아니면 거짓이다.
-export proc tty_raw input k cap tty . input enable bool . output bool . effects none . do
+export proc raw input k cap tty . input enable bool . output bool . effects none . do
   return call_builtin tty_raw k. enable. . .
 end .
 
 rem 터미널에서 `dst` 로 읽는다. 읽은 바이트 수(지금 없으면 0), 읽지 못하면 `none`.
-export proc tty_read input k cap tty . input dst mut slice u8 . output option u64 . effects none . do
+export proc read input k cap tty . input dst mut slice u8 . output option u64 . effects none . do
   return call_builtin tty_read k. dst. . .
 end .
 
 rem 터미널의 행과 열을 한 수에 묶어 낸다(행은 위 32 비트 · 열은 아래 32 비트). 터미널이 아니면 `none`.
-export proc tty_size input k cap tty . output option u64 . effects none . do
+export proc size input k cap tty . output option u64 . effects none . do
   return call_builtin tty_size k. . .
 end .

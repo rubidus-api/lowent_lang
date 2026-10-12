@@ -43,13 +43,13 @@ Let us look at a small program that actually runs.
 
 - `module heads .` is this file's name tag. Every file starts with this one line.
 - Lines starting with `rem` are words for people (comments). The compiler does not read them.
-- `use stdio .` brings in the standard library module `stdio`. The op that writes to the screen, `stdio.write_out`, lives there.
+- `use stdio .` brings in the standard library module `stdio`. The op that writes to the screen, `stdio.write`, lives there.
 - `fn area … do … end .` is an op that computes an area. `input w u64 .` means "take an unsigned 64-bit integer under the name `w`",
   and `output u64 .` is the type of the value returned. `requires le w. 1000 . .` is a promise: "`w` must be at most 1000". It is there
   so the product cannot overflow.
 - `return mul w. h. . .` returns `w` times `h`. The operation name comes first and the arguments follow. A statement ends with a detached
   period.
-- `main` is the op where the program starts. `let a u64 area 3 4 . .` gets 12 into `a`, and `stdio.write_out out 1 "…"` writes a line to
+- `main` is the op where the program starts. `let a u64 area 3 4 . .` gets 12 into `a`, and `stdio.write out 1 "…"` writes a line to
   standard output (number 1). That line is possible because the head receives `cap io` and declares `effects io`. The 12 it returns
   becomes the exit value handed to the operating system.
 

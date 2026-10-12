@@ -252,7 +252,7 @@ use stdio .
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 stdio.write_out out. 1 "hello\n" . .
+  let n u64 stdio.write out. 1 "hello\n" . .
   return narrow u8 n. . .
 end .
 ```
@@ -264,7 +264,7 @@ use stdio .
 
 proc main output u8 . effects io .
 do
-  let n u64 stdio.write_out 1 "hello\n" . .   rem 권한을 안 받았다
+  let n u64 stdio.write 1 "hello\n" . .   rem 권한을 안 받았다
   return narrow u8 n. . .
 end .
 ```
@@ -285,7 +285,7 @@ use stdio .
 rem 권한을 인자로 받는다 — 이름은 `k`, 타입은 `cap io` 다.
 proc say input k cap io . input msg slice u8 . output u64 . effects io .
 do
-  return stdio.write_out k. 1 msg. . .
+  return stdio.write k. 1 msg. . .
 end .
 
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
@@ -307,7 +307,7 @@ end .
 
 > [!산문]
 > 사슬이 이렇게 생긴다 — 바깥 → `main` 의 `k` → `say_twice` 의 `k` → `say` 의 `k` →
-> `stdio.write_out` → 빌트인 연산 `write_out`. 권한을 안 받은 op 은 `say` 를 부를 수가 없다. **넘길 것이 없기 때문이다.**
+> `stdio.write` → 빌트인 연산 `write_out`. 권한을 안 받은 op 은 `say` 를 부를 수가 없다. **넘길 것이 없기 때문이다.**
 > 곧 경계를 지키는 것이 문법이 아니라 **인자**다. 규칙을 외울 것이 없고, 부르는 자리를
 > 보면 자격이 어디서 왔는지 눈으로 따라갈 수 있다.
 
@@ -502,14 +502,38 @@ end .
       적지 않으면 적합하지 아니하다(`E-CAP-MISSING`) — 권한을 받아 두는 것만으로는 쓰지 못하고, 이름 없이 권한에 닿는
       길은 없다.
 
-(1b) 그 자리에 적는 이름은 **이 op 이 입력으로 받은 권한의 이름**이다. 받은 권한을 지역 이름에
-      옮겨 담고 그 이름을 적으면 적합하지 아니하다(`E-CAP-LOCAL`). 권한은 값처럼 옮겨 담는 것이
-      아니라 서명에서 서명으로 건네는 것이다(⟦§7.2⟧).
+(1b) 그 자리에 적는 이름은 **이 op 이 입력으로 받은 권한의 이름**이다. 권한은 값처럼 옮겨 담는 것이
+      아니라 머리 줄에서 머리 줄로 건네는 것이다(⟦§7.2⟧). 그러므로 권한을 **지역 이름에 묶는 줄**
+      (`let` · `var` 로 `cap <종류>` 를 적은 것)은 그 자체로 적합하지 아니하다(`E-CAP-LOCAL`) —
+      그 이름을 쓰는 자리가 있든 없든 같다.
 
 (1c) 권한을 입력으로 받는 **op 을 부르는 자리**도 같다. 그 op 의 권한 자리에 적는 이름은 부르는 op 이 입력으로 받은
       권한의 이름이어야 하고(`E-CAP-LOCAL`), 종류가 같아야 하며(`E-CAP-KIND`), 첫 입력이 권한인 op 을 권한 없이
       부를 수 없다(`E-CAP-MISSING`). 권한을 요구하는 빌트인 연산은 표준 라이브러리가 감싸 내놓으므로(⟦§9.3⟧ (1a)),
       응용 프로그램이 이 규칙을 만나는 자리는 대개 그 감싸개를 부르는 줄이다.
+
+(1d) op 은 권한을 **내놓지 아니한다**. `output` 절에 `cap <종류>` 를 적은 op 은 — 그대로든, `option` 같은
+      다른 타입의 안에 적었든 — 적합하지 아니하다(`E-CAP-OUTPUT`). 권한을 돌려주는 op 은 부르는 쪽의
+      머리 줄에 보이지 않는 둘째 출처가 된다. 권한 칸을 가진 actor 를 띄우는 일은 ⟦§8.6⟧ 이 따로 정한다(`E-CAP-FORGE`).
+
+```lowent-거부: 받은 권한을 지역 이름에 묶는다 · E-CAP-LOCAL
+module ex_cap_local .
+
+proc main input out cap io . output u8 . effects none .
+do
+  let k cap io out. .   rem 쓰지 않아도 이 줄이 거부된다
+  return 0 .
+end .
+```
+
+```lowent-거부: 권한을 내놓는 op · E-CAP-OUTPUT
+module ex_cap_output .
+
+fn screen input out cap io . output cap io .
+do
+  return out. .
+end .
+```
 
 (2) 지금 짓는 기계가 줄 수 없는 권한을 요구하면 거부된다(`E-CAP-NOHOST`).
 

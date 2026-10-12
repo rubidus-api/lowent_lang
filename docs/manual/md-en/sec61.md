@@ -23,7 +23,7 @@ guard is_some p. . else return 1 . .
 
 `0` is `pos` (the next place to write), and the `option u64` returned is **the new `pos` on success, `none` if room ran out**.
 
-**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `stdio.write_out` or [`outbuf`](sec120.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no core op was added, and the whole file is inside the VM/native cross-check.
+**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `stdio.write` or [`outbuf`](sec120.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no core op was added, and the whole file is inside the VM/native cross-check.
 
 ## <a id="sx1"></a>Design and boundaries
 
@@ -96,7 +96,7 @@ do
   guard is_some p5. . else return 75 . .
 
   rem output --- only the assembled front part (0 … p5) goes out
-  let w u64 stdio.write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  let w u64 stdio.write out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .
 ```
@@ -116,7 +116,7 @@ end .
 >
 > > ```lowent
 > > proc bad input out cap io . output u64 . effects none . do
-> >   return stdio.write_out out. 1 "x" . .
+> >   return stdio.write out. 1 "x" . .
 > > end .
 > > ```
 > >
@@ -135,7 +135,7 @@ end .
 >
 > > If room runs out, that piece **was never written**. Carrying on without `guard is_some … else return …` sends the output with the middle piece missing. If output goes wrong only for long values, the buffer is short. All or nothing guarantees one op, not a whole sequence of calls. Conversely, taking out with `some_value` without `guard` stops with `E-VM-NONE` the moment room runs out — testing only with short values never reveals it.
 
-> **Counter-example. Giving the whole buffer to `stdio.write_out`**
+> **Counter-example. Giving the whole buffer to `stdio.write`**
 >
 > > Giving `buf` instead of `subslice buf. 0 some_value p5. . .` sends the unwritten back part too. Mysterious bytes stick to the end of the line. The last `pos` is **the length written**.
 

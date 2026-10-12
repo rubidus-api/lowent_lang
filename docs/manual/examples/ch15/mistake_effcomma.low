@@ -7,5 +7,5 @@ rem ko: ✘ 효과 사이에 쉼표를 넣었다 --- 낱말을 띄어 적기만 
 proc greet input out cap io . input x u64 . output u64 . effects io, panic .
 do
   if eq x. 0 . do panic "zero" . end .
-  return stdio.write_out out. 1 "hi\n" . .
+  return stdio.write out. 1 "hi\n" . .
 end .

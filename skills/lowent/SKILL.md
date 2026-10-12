@@ -136,10 +136,10 @@ Shape rules you will hit immediately:
   `actor c do state do v u64 . end . … end .` (`struct p .` / a bare line break → `E-STMT-NODO`).
   A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: an op that needs a capability takes it as the first
-  operand (`stdio.write_out out. 1 s. .`, `alloc_bytes al. capacity n. .`); holding it is not enough
+  operand (`stdio.write out. 1 s. .`, `alloc_bytes al. capacity n. .`); holding it is not enough
   (`E-CAP-MISSING`). Pass the parameter you received, never a local copy (`E-CAP-LOCAL`).
 - **I/O, clock, terminal, arguments and float functions live in the library**: `use stdio .` then
-  `stdio.write_out`; likewise `args.arg`, `env.env_get`, `clock.now_ns`, `tty.tty_raw`, `random.bytes`,
+  `stdio.write`; likewise `args.get`, `env.get`, `clock.now_ns`, `tty.raw`, `random.bytes`,
   `math.sqrt` / `math.sin` / `math.floor` …. The bare names (`write_out`, `sqrt`) are builtin ops that
   stand only after `call_builtin` and answer `E-BUILTIN-BARE` otherwise.
 - **Infix arithmetic only inside `expr`** (`+ - * /`), and the island closes with its own stop:

@@ -34,6 +34,7 @@
   [`E-CAP-FORGE`], [권한 칸을 가진 액터를 그 권한 없이 띄운다], [#chref("capabilities"), #chref("fixed-memory"), #chref("actors")],
   [`E-CAP-KIND`], [다른 종류의 권한을 건넸다], [#chref("capabilities")],
   [`E-CAP-LOCAL`], [받은 권한을 지역 이름에 옮겨 담았다], [#chref("capabilities")],
+  [`E-CAP-OUTPUT`], [op 의 출력이 권한이다], [#chref("capabilities")],
   [`E-CAP-MISSING`], [권한이 필요한 기본 연산에 권한을 첫 피연산자로 적지 않았다], [#chref("capabilities")],
   [`E-CHAR`], [이 언어에 없는 글자(기호)다], [#chref("locals"), #chref("control"), #chref("expr"), #chref("slices")],
   [`E-CHAR-WIDTH`], [글자 리터럴이 글자 하나가 아니다], [#chref("surface")],

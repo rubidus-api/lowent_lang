@@ -41,7 +41,7 @@
   along).
 - `outbuf.buf_finish` emits the remaining bytes and ends the pending value.
 
-The buffer is only 8 bytes, so it is flushed once partway through writing "buffered ". The output is the same. Gathering and emitting instead of `stdio.write_out` byte by byte is
+The buffer is only 8 bytes, so it is flushed once partway through writing "buffered ". The output is the same. Gathering and emitting instead of `stdio.write` byte by byte is
 the value of buffering. Forget the final `buf_finish` and the bytes left in the buffer vanish. So translation refuses.
 
 #demo("examples/ch36/unflushed.low")

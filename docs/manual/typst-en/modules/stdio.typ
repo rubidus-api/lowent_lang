@@ -12,7 +12,7 @@ of this module. A wrapper passes its arguments through unchanged; in native code
 use stdio .
 
 proc main input out cap io . output u8 . effects io . do
-  let n u64 stdio.write_out out. 1 "hello\n" . .
+  let n u64 stdio.write out. 1 "hello\n" . .
   return 0 .
 end .
 ```

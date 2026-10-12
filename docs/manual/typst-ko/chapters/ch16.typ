@@ -68,7 +68,7 @@ op 의 머리가 "이 op 이 무엇을 할 수 있는가" 를 더는 말해 주�
 
 #demo("examples/ch16/chain.low")
 
-사슬은 이렇게 생긴다 --- 바깥 → `main` 의 `k` → `say_twice` 의 `k` → `say` 의 `k` → `stdio.write_out`. 효과와 함께 그리면
+사슬은 이렇게 생긴다 --- 바깥 → `main` 의 `k` → `say_twice` 의 `k` → `say` 의 `k` → `stdio.write`. 효과와 함께 그리면
 두 화살표가 반대로 흐른다.
 
 ```text
@@ -83,7 +83,7 @@ op 의 머리가 "이 op 이 무엇을 할 수 있는가" 를 더는 말해 주�
   say_twice  k ─────────────┐                  ▲ effects io
       │                     │                  │
       ▼                     ▼                  │
-  say        k ─────▶ stdio.write_out k 1 msg        ▲ effects io   ← 여기서 io 가 생긴다
+  say        k ─────▶ stdio.write k 1 msg        ▲ effects io   ← 여기서 io 가 생긴다
 ```
 
 권한은 *위에서* 건네받아야 쓸 수 있고, 효과는 *아래에서* 생겨 부르는 쪽 머리마다 적힌다. 그래서 어느 op 의 머리만
@@ -179,9 +179,9 @@ C 의 `argv` 같은 마법의 인자는 없다. 프로그램 인자도 `cap args
 
 #demo("examples/ch16/envrandom.low")
 
-`env.env_get e "…"` 은 `cap env` 가, `random.bytes r. buf. .` 는 `cap random` 이 있어야 부를 수 있다. 환경 변수는 프로그램 밖에서 조용히 동작을 바꾸는
+`env.get e "…"` 은 `cap env` 가, `random.bytes r. buf. .` 는 `cap random` 이 있어야 부를 수 있다. 환경 변수는 프로그램 밖에서 조용히 동작을 바꾸는
 통로이고, 난수는 같은 입력에도 답을 바꾸는 통로다. 둘 다 머리에 보여야 "이 프로그램의 답은 입력만으로 정해지는가" 를 머리만 보고 판단할 수 있다.
-변수가 없으면 `env.env_get` 은 `none` 이고, 예제는 채운 바이트 수 8 을 돌려준다. 시험에서 되풀이할 수 있는 난수가 필요하면 권한이 필요 없는 `random.advance_seed`
+변수가 없으면 `env.get` 은 `none` 이고, 예제는 채운 바이트 수 8 을 돌려준다. 시험에서 되풀이할 수 있는 난수가 필요하면 권한이 필요 없는 `random.advance_seed`
 (씨앗에서 다음 수)를 쓴다.
 
 == 흔한 실수
@@ -198,7 +198,16 @@ C 의 `argv` 같은 마법의 인자는 없다. 프로그램 인자도 `cap args
   #demo("examples/ch16/mistake_caplocal.low")
 
   권한은 사슬을 따라 *받은 이름 그대로* 넘긴다. 지역 이름에 옮겨 담으면 권한이 어디서 왔는지 사슬이 끊겨 보이므로 `E-CAP-LOCAL`
-  로 거절한다. 진단은 옮겨 담은 지역 이름과 그 종류를 짚어 원인을 말한다. `stdio.write_out out 1 …` 처럼 매개변수 이름을 곧바로 적는다.
+  로 거절한다. 거절되는 것은 *옮겨 담는 줄*이다 --- 그 이름을 뒤에서 쓰지 않아도 같다. 그 줄을 지우고
+  `stdio.write out 1 …` 처럼 매개변수 이름을 곧바로 적는다.
+]
+
+#antipattern[권한을 내놓는 op 을 쓴다][
+  #demo("examples/ch16/mistake_capoutput.low")
+
+  권한은 진입점에서 시작해 입력에서 입력으로만 내려간다. `output` 에 `cap …` 를 적은 op 은 부르는 쪽 머리 줄에 보이지 않는
+  둘째 출처가 되므로 `E-CAP-OUTPUT` 으로 거절한다(`option cap io` 처럼 다른 타입 안에 적어도 같다). 권한이 필요한 op 이
+  그것을 `input` 으로 받는다.
 ]
 
 #antipattern[다른 종류의 권한으로 표준출력에 쓴다][
@@ -236,12 +245,12 @@ C 의 `argv` 같은 마법의 인자는 없다. 프로그램 인자도 `cap args
   [`input out cap io .`], [표준 입출력의 권한을 받는다], [주변 권한이 없다 --- 힘은 인자로 건네받는다],
   [`input fs cap file_system .` · `cap net` · `cap clock` …], [종류마다 여는 일이 다르다], [최소 권한 --- 머리가 닿을 수 있는 바깥을 말한다],
   [`say k msg`], [받은 권한 이름을 그대로 넘긴다], [사슬이 시작점까지 이어져 보인다],
-  [`stdio.write_out out 1 "…"`], [권한을 받는 op 은 권한을 첫 인자로], [이름 없이 권한에 닿는 길이 없다],
+  [`stdio.write out 1 "…"`], [권한을 받는 op 은 권한을 첫 인자로], [이름 없이 권한에 닿는 길이 없다],
   [`effects io` + `cap io`], [효과와 그것을 허락하는 권한의 짝], [없으면 `E-EFFECT-NO-CAP`],
   [`effects alloc` + `cap allocator`], [고정 창 할당의 짝], [없으면 `E-ALLOC-NOCAP`],
   [`proc main input … cap … . output u8 .`], [시작점은 권한만 받는다], [건네줄 사람이 없으니 자료는 받지 않는다],
   [`input logger cap audit .`], [저자가 이름 지은 권한], [그 권한을 받은 op 만 부를 수 있게 한다],
-  [`env.env_get e "…"` · `random.bytes r. buf. .`], [환경 변수 · 운영체제 난수 --- `cap env` · `cap random`], [답을 바꾸는 바깥 통로가 머리에 보인다],
+  [`env.get e "…"` · `random.bytes r. buf. .`], [환경 변수 · 운영체제 난수 --- `cap env` · `cap random`], [답을 바꾸는 바깥 통로가 머리에 보인다],
 )
 
 #recap[

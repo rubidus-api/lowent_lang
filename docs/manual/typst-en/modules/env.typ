@@ -11,7 +11,7 @@ in the head of the op (#chref("capabilities")). The module is one wrapper that p
 use env .
 
 proc has_home input e cap env . output bool . effects none . do
-  let v option slice u8 env.env_get e. "HOME" . .
+  let v option slice u8 env.get e. "HOME" . .
   return is_some v. . .
 end .
 ```

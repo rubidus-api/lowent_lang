@@ -91,21 +91,21 @@ too few bytes are `none`.
 
 == Raw mode is a capability
 
-The part touching the operating system is only three ops of the `tty` module (wrappers over builtin ops): `tty.tty_raw t. on. .` (enter and leave raw mode), `tty.tty_read t. buf. .` (read key bytes) and `tty.tty_size t. .` (screen size).
+The part touching the operating system is only three ops of the `tty` module (wrappers over builtin ops): `tty.raw t. on. .` (enter and leave raw mode), `tty.read t. buf. .` (read key bytes) and `tty.size t. .` (screen size).
 All take `cap tty` as their first argument.
 
 #demo("examples/ch37/rawmode.low")
 
 - The buffer is obtained *before* entering raw mode. If allocation failed after entering and it returned, the terminal would be left in raw mode.
-- Bytes read with `tty.tty_read` are interpreted with `tty.parse_key`, and pressing `q` ends it.
-- At the end it always restores with `tty.tty_raw t. false .`.
+- Bytes read with `tty.read` are interpreted with `tty.parse_key`, and pressing `q` ends it.
+- At the end it always restores with `tty.raw t. false .`.
 
 Raw mode *changes the user's terminal settings*. Even if the program dies, the change remains, and in the user's shell input becomes invisible and line breaks stop working.
 If such a capability floated around ambiently, any library could wreck someone's shell. So only its holder exercises it. This example waits for key input, so the verification
 script only checks it.
 
 #misconception[Restoring raw mode could just be enforced with ownership too][
-  A good idea, but this edition does not do so. `tty.tty_raw` is an op returning a boolean, and there is no owned value representing "in raw mode". So forgetting to restore
+  A good idea, but this edition does not do so. `tty.raw` is an op returning a boolean, and there is no owned value representing "in raw mode". So forgetting to restore
   is not stopped at translation. It contrasts with `outbuf` and `files` enforcing completion through ownership, and for now it is a discipline a person must remember. The
   module document warns about this in bold too.
 ]
@@ -121,10 +121,10 @@ it.
 #antipattern[Creating a path that leaves raw mode without restoring it][
   #demo("examples/ch37/mistake_rawleak.low")
 
-  This code passes translation (restoring `tty.tty_raw` is not enforced by ownership). But if allocation fails, it leaves through `return 2` with
+  This code passes translation (restoring `tty.raw` is not enforced by ownership). But if allocation fails, it leaves through `return 2` with
   the terminal still in raw mode. The user's shell stops echoing input and line breaks go wrong. As `rawmode.low` in this chapter does, finish
   every preparation that can fail (getting the buffer) *before* entering raw mode, and make every path after entering it pass through
-  `tty.tty_raw t. false .`.
+  `tty.raw t. false .`.
 ]
 
 #antipattern[Cutting a row by byte count to fit the screen width][
@@ -155,12 +155,12 @@ it.
   [`term.row_width row. .` · `term.row_clusters row. .` · `term.cp_width cp. .`], [columns · grapheme clusters · code point width], [columns are not bytes],
   [`term.fit_width row. cols. .`], [byte length of the longest prefix fitting the columns], [never cut inside a character],
   [`tty.parse_key buf. at. .` · `tty.key_of` · `tty.len_of`], [interpret key bytes (pure) --- `none` when incomplete], [reading keys is computation],
-  [`tty.tty_raw t. true .` · `tty.tty_read t. buf. .` · `tty.tty_size t. .`], [raw mode · read key bytes · screen size], [`cap tty` --- always restore raw mode],
+  [`tty.raw t. true .` · `tty.read t. buf. .` · `tty.size t. .`], [raw mode · read key bytes · screen size], [`cap tty` --- always restore raw mode],
   [`term.goto buf. 0 2 5 .`], [row and column counted from 0 --- the bytes are `ESC [ 3 ; 6 H`], [same base as array indexes; the op adapts to the terminal's 1-based count],
 )
 
 #recap[
   `term` is a pure module assembling ANSI control bytes into the caller's buffer, and emitting to the screen is `outbuf`'s job. `diff` redraws only changed cells and is 0
-  bytes when nothing changed. Cell counts differ from byte counts, so count with `row_width` and `row_clusters`. `tty.parse_key` interprets key bytes purely. `tty.tty_raw`,
-  `tty.tty_read` and `tty.tty_size`, which touch the operating system, receive `cap tty`, and raw mode must always be restored.
+  bytes when nothing changed. Cell counts differ from byte counts, so count with `row_width` and `row_clusters`. `tty.parse_key` interprets key bytes purely. `tty.raw`,
+  `tty.read` and `tty.size`, which touch the operating system, receive `cap tty`, and raw mode must always be restored.
 ]

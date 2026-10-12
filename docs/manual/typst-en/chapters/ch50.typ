@@ -84,7 +84,7 @@ real grammar. Closing this place requires a second independent implementation of
 #realcase[Discrepancies this book found][
   Every example in this book was run on the VM and natively and compared, and rejected examples were checked down to their diagnostic codes. In the process, close to twenty
   discrepancies between the compiler and the specification came to light. Some are written in the text --- the effects of ops called through `method` not spreading to the caller
-  (#chref("traits")), `ensures` with an expression going unchecked without warning (#chref("contracts")), `args.arg` numbering differing between the two back ends (#chref("first-program")),
+  (#chref("traits")), `ensures` with an expression going unchecked without warning (#chref("contracts")), `args.get` numbering differing between the two back ends (#chref("first-program")),
   and the precedence of comparisons and `and` in the `expr` island differing from the specification's table (#chref("expr")). All are discrepancies on the side of *implementation* and
   *documentation*, not the proofs' *model*. Without the discipline of actually running examples before printing them, this book would have written those discrepancies as facts.
 ]

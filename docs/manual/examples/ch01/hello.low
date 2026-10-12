@@ -4,5 +4,5 @@ rem run: main
 use stdio .
 
 proc main input out cap io . output u8 . effects io . do
-  return narrow u8 stdio.write_out out. 1 "hello, entropy!\n" . . .
+  return narrow u8 stdio.write out. 1 "hello, entropy!\n" . . .
 end .

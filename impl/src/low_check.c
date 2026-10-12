@@ -4647,6 +4647,46 @@ static void ck_io_cap(low_check_result_t *out, const low_parse_result_t *pr) {
                  f->kids[1]->tok.line);
     }
 }
+// ★★★ **권한은 머리 줄에서 머리 줄로만 건넨다** (RFC-0147 §5.3 · 2026-10-12 소유자 «1번 c … 3번 막으세요» · 정본 §7.2.1 (1b) · (1d)).
+//   ① 권한을 **지역 이름에 옮겨 담는 줄** 자체를 거절한다(`let k cap io out.` → `E-CAP-LOCAL`). 전엔 담는 줄은 서고 그 이름을
+//      쓰는 자리에서 거절했다 — 잘못은 담는 줄에 있으므로 그 줄을 가리킨다. (쓰는 자리의 검사는 `low_ir.c` 에 그대로 남는다.)
+//   ② 권한을 **내놓는 op** 을 거절한다(`output cap io .` → `E-CAP-OUTPUT`). 권한은 받는 것이지 op 이 지어 돌려주는 값이 아니다.
+//      출력 절에 적힌 타입을 본다(`option cap io` · 괄호 안도). 권한 칸을 가진 구조체 · actor 는 여기서 보지 않는다(`E-CAP-FORGE` 의 자리).
+static bool ck_span_has_cap(const low_cst_t *nd) {
+    if (!nd) return false;
+    if (ck_atom(nd)) return veq(nd->tok.lex, "cap");
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_span_has_cap(nd->kids[i])) return true;
+    return false;
+}
+static void ck_cap_carry_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd || ck_atom(nd)) return;
+    if (nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) &&
+        ck_atom(nd->kids[1]) && ck_atom(nd->kids[2]) && veq(nd->kids[2]->tok.lex, "cap") && ck_atom(nd->kids[3]))
+        emit(out, "E-CAP-LOCAL",
+             "a capability is copied into a LOCAL name here. A capability is not a value you carry in a local: "
+             "only an input of this op names a right it was handed. Delete this binding and write the input's own "
+             "name wherever the capability is needed (RFC-0030 D2)",
+             nd->kids[0]->tok.line);
+    if (nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_FN || nd->kids[0]->tok.kw == LOW_KW_PROC)) {
+        low_op_header_t h = low_op_header(nd);
+        for (proven_size_t j = h.out_s; j < h.out_e && j < nd->nkids; j++)
+            if (ck_span_has_cap(nd->kids[j])) {
+                emit(out, "E-CAP-OUTPUT",
+                     "this op's `output` is a capability. A capability is HANDED IN — from the entry point, input to "
+                     "input — and no op gives one back: an op that returned a right would be a second source of it, "
+                     "one the signatures of its callers do not show. Take the capability as an `input` where it is "
+                     "needed (RFC-0030 D2)",
+                     nd->kids[0]->tok.line);
+                break;
+            }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_cap_carry_walk(out, nd->kids[i]);
+}
+static void ck_cap_carry(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) { ck_cur_form = pr->forms[i]; ck_cap_carry_walk(out, pr->forms[i]); }
+}
 // ★★★ **no_float 타깃에서 float 은 없다** (RFC-0038 D5 — 임베디드 floor; E-HEAP-NOHOST 의 형제).
 //   no-float 프로파일(cortex_m 등)엔 FPU 도 소프트플로트 런타임도 없다 — f32/f64 는 계산할 수 있는
 //   값이 아니라 **존재하지 않는다**. 선언 어디에든 f32/f64 타입 낱말이 있으면 거절한다(선언당 한 번).
@@ -11906,6 +11946,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_alloc_cap(&out, pr);       // ★★★ **할당 = 명시 권한** (RFC-0043 D1)
         ck_atomic_cap(&out, pr);      // ★ 2026-09-15 — atomic 도 권한 효과다
         ck_io_cap(&out, pr);          // ★★★ **io 도 권한이다** (RFC-0007 §6.7 LINK — cap-effect)
+        ck_cap_carry(&out, pr);       // ★★★ RFC-0147 §5.3 — 권한은 지역에 담지도, op 이 내놓지도 않는다
         ck_float_target(&out, pr);    // ★★★ **no_float 타깃엔 float 이 없다** (RFC-0038 D5)
         ck_vec_value(&out, pr);       // ★★★ **벡터/마스크엔 소유·빌림 수식자가 못 붙는다** (RFC-0040)
         ck_target_intrin(&out, pr);   // ★★★ **unsafe target <iset> — intrinsic 격리 게이트** (RFC-0040 D5)

@@ -94,7 +94,7 @@ use stdio .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 stdio.write_out out. 1 "hello, entropy!\n" . .
+  let n u64 stdio.write out. 1 "hello, entropy!\n" . .
   return 0 .
 end .
 ```
@@ -108,7 +108,7 @@ use stdio .
 
 fn shout input out cap io . output u64 .
 do
-  return stdio.write_out out. 1 "hi\n" . .
+  return stdio.write out. 1 "hi\n" . .
 end .
 ```
 

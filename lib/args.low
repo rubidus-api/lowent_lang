@@ -7,6 +7,6 @@ rem ☞ 인자의 수는 기본 연산 `count <cap args>` 가 낸다.
 module args .
 
 rem `i` 번째 인자(0 부터). 그 자리에 인자가 없으면 `none` 이다.
-export proc arg input k cap args . input i u64 . output option slice u8 . effects none . do
+export proc get input k cap args . input i u64 . output option slice u8 . effects none . do
   return call_builtin arg k. i. . .
 end .

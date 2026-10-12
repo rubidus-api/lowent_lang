@@ -12,9 +12,9 @@ a `u64` and can be made up, so the *capability (`cap io`) shows at every call*. 
 use reactor .
 
 proc echo_once input k cap io . input buf mut slice u8 . output u64 . effects io . do
-  let r option u64 reactor.reactor_new k. subslice buf. 0 32 . 1 . .
+  let r option u64 reactor.new k. subslice buf. 0 32 . 1 . .
   guard is_some r. . else return 0 . .
-  let n option u64 reactor.r_read k. some_value r. . 0 subslice buf. 32 64 . . .
+  let n option u64 reactor.read k. some_value r. . 0 subslice buf. 32 64 . . .
   guard is_some n. . else return 0 . .
   return some_value n. . .
 end .

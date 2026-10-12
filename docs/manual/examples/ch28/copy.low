@@ -13,6 +13,6 @@ do
   let c result void files.file_error files.close fs. h. . .
   guard is_ok w. . else return 2 . .
   guard is_ok c. . else return 3 . .
-  let m u64 stdio.write_out out. 1 "wrote and closed\n" . .
+  let m u64 stdio.write out. 1 "wrote and closed\n" . .
   return 0 .
 end .

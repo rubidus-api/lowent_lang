@@ -35,6 +35,7 @@ machine-readable form).
   [`E-CAP-FORGE`], [spawns an actor holding a capability without holding that capability], [#chref("capabilities"), #chref("fixed-memory"), #chref("actors")],
   [`E-CAP-KIND`], [a capability of the wrong kind was handed over], [#chref("capabilities")],
   [`E-CAP-LOCAL`], [a received capability was copied into a local name], [#chref("capabilities")],
+  [`E-CAP-OUTPUT`], [the output of an op is a capability], [#chref("capabilities")],
   [`E-CAP-MISSING`], [a capability-requiring core op was not given its capability as the first operand], [#chref("capabilities")],
   [`E-CHAR`], [a character (symbol) this language does not have], [#chref("locals"), #chref("control"), #chref("expr"), #chref("slices")],
   [`E-CHAR-WIDTH`], [a character literal is not a single character], [#chref("surface")],

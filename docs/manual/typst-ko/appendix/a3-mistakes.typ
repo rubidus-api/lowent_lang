@@ -58,7 +58,7 @@
   [`fn` 에 `effects none` 을 적는다], [`E-EFFECT-REDUNDANT`], [절을 지운다],
   [`fn` 이 `mut` 매개변수로 호출자에게 쓴다], [`E-EFFECT-PURITY`], [`proc` 으로],
   [`effects io` 인데 권한을 받지 않았다], [`E-EFFECT-NO-CAP`], [`input out cap io .`],
-  [권한을 받아 두고 그것을 쓰는 op 에 넘기지 않는다], [`E-CAP-MISSING`], [`stdio.write_out out. 1 …` 처럼 첫 피연산자로],
+  [권한을 받아 두고 그것을 쓰는 op 에 넘기지 않는다], [`E-CAP-MISSING`], [`stdio.write out. 1 …` 처럼 첫 피연산자로],
   [시작점이 데이터를 받는다], [`E-ENTRY-PARAMS`], [시작점은 권한만 받는다. 인자는 `cap args`],
   [`mut` 없는 슬라이스에 쓴다], [`E-TYPE-MUT`], [`mut slice`],
   [`ref` 로 쓴다], [`E-TYPE-REF`], [`mut_ref`],

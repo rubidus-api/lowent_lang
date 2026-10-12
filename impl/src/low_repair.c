@@ -419,6 +419,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-BUILTIN-BARE",        "R-USE-CALL-BUILTIN" },   // `call_builtin <이름> …`
     { "E-BUILTIN-NAME",        "R-USE-KNOWN-BUILTIN" },  // 닫힌 집합의 이름을 첫 피연산자로
     { "E-CAP-LOCAL",           "R-PASS-CAP-PARAM" },     // 지역 이름 대신 받은 매개변수를 잎에 건넨다
+    { "E-CAP-OUTPUT",          "R-PASS-CAP-PARAM" },     // 권한을 내놓지 않고, 쓰는 op 이 입력으로 받는다
     { "E-FFI-LINK",            "R-ADD-LINK" },           // `link "<C 이름>" .`
     { "E-FOLD-ORDER",          "R-MATCH-TYPE" },         // 첫 입력을 출력과 같은 타입으로
     { "E-INPLACE-FORM",        "R-USE-INPLACE-FORM" },   // `inplace <쓰는 mut 입력> <읽는 입력> .`

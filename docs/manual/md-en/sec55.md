@@ -28,6 +28,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 16, chapter 20, chapter 25 |
 | `E-CAP-KIND` | a capability of the wrong kind was handed over | chapter 16 |
 | `E-CAP-LOCAL` | a received capability was copied into a local name | chapter 16 |
+| `E-CAP-OUTPUT` | the output of an op is a capability | chapter 16 |
 | `E-CAP-MISSING` | a capability-requiring core op was not given its capability as the first operand | chapter 16 |
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
 | `E-CHAR-WIDTH` | a character literal is not a single character | chapter 3 |

@@ -66,7 +66,7 @@ Passing a capability on needs no special notation. Write the received name like 
 
 #demo("examples/ch16/chain.low")
 
-The chain looks like this --- outside → `main`'s `k` → `say_twice`'s `k` → `say`'s `k` → `stdio.write_out`. Drawn together with effects, the two arrows run in opposite directions.
+The chain looks like this --- outside → `main`'s `k` → `say_twice`'s `k` → `say`'s `k` → `stdio.write`. Drawn together with effects, the two arrows run in opposite directions.
 
 ```text
                   capability (permission)          effect (what was done)
@@ -80,7 +80,7 @@ The chain looks like this --- outside → `main`'s `k` → `say_twice`'s `k` →
   say_twice  k ─────────────┐                  ▲ effects io
       │                     │                  │
       ▼                     ▼                  │
-  say        k ─────▶ stdio.write_out k 1 msg        ▲ effects io   ← io arises here
+  say        k ─────▶ stdio.write k 1 msg        ▲ effects io   ← io arises here
 ```
 
 A capability must be handed down *from above* to be used; an effect arises *below* and is written in the head of every caller. So the head of
@@ -173,9 +173,9 @@ Environment variables and operating-system randomness are also received as capab
 
 #demo("examples/ch16/envrandom.low")
 
-`env.env_get e "…"` needs `cap env`, and `random.bytes r. buf. .` needs `cap random`. An environment variable is a channel that quietly changes behaviour
+`env.get e "…"` needs `cap env`, and `random.bytes r. buf. .` needs `cap random`. An environment variable is a channel that quietly changes behaviour
 from outside the program, and randomness is a channel that changes the answer for the same input. Both must be visible in the head so that the
-head alone tells whether "this program's answer is decided by its inputs". With no variable, `env.env_get` gives `none` and the example returns 8,
+head alone tells whether "this program's answer is decided by its inputs". With no variable, `env.get` gives `none` and the example returns 8,
 the number of bytes filled. When tests need repeatable random numbers, use `random.advance_seed` (the next number from a seed), which needs no capability.
 
 == Common mistakes
@@ -192,8 +192,17 @@ the number of bytes filled. When tests need repeatable random numbers, use `rand
   #demo("examples/ch16/mistake_caplocal.low")
 
   A capability is passed down the chain *under the name it was received with*. Moving it into a local name makes the chain look
-  broken, so it is rejected with `E-CAP-LOCAL`; the message names the local and the kind that was copied into it. Write the
-  parameter name directly, as in `stdio.write_out out 1 …`.
+  broken, so it is rejected with `E-CAP-LOCAL`. What is rejected is *the binding line*, whether or not the local is used
+  afterwards. Delete that line and write the parameter name directly, as in `stdio.write out 1 …`.
+]
+
+#antipattern[Writing an op that gives a capability back][
+  #demo("examples/ch16/mistake_capoutput.low")
+
+  A capability starts at the entry point and travels down from input to input, and no other way. An op with `cap …` in its
+  `output` would be a second source that the heads of its callers do not show, so it is rejected with `E-CAP-OUTPUT` (the same
+  holds when the capability sits inside another type, as in `option cap io`). The op that needs the capability takes it as an
+  `input`.
 ]
 
 #antipattern[Writing to standard output with a capability of another kind][
@@ -232,12 +241,12 @@ the number of bytes filled. When tests need repeatable random numbers, use `rand
   [`input out cap io .`], [receive the standard I/O capability], [no ambient authority --- power is handed in as an argument],
   [`input fs cap file_system .` · `cap net` · `cap clock` …], [each kind opens different things], [least authority --- the head says what it can reach],
   [`say k msg`], [pass a received capability name as is], [the chain is visible up to the entry point],
-  [`stdio.write_out out 1 "…"`], [an op that takes a capability takes it as the first argument], [no way to reach a capability without a name],
+  [`stdio.write out 1 "…"`], [an op that takes a capability takes it as the first argument], [no way to reach a capability without a name],
   [`effects io` + `cap io`], [an effect and the capability that allows it], [missing: `E-EFFECT-NO-CAP`],
   [`effects alloc` + `cap allocator`], [the pair for fixed-window allocation], [missing: `E-ALLOC-NOCAP`],
   [`proc main input … cap … . output u8 .`], [the entry point receives only capabilities], [nobody can hand it data],
   [`input logger cap audit .`], [a capability named by the author], [only ops that received it can call the guarded op],
-  [`env.env_get e "…"` · `random.bytes r. buf. .`], [environment variable · OS randomness --- `cap env` · `cap random`], [outside channels that change the answer show in the head],
+  [`env.get e "…"` · `random.bytes r. buf. .`], [environment variable · OS randomness --- `cap env` · `cap random`], [outside channels that change the answer show in the head],
 )
 
 #recap[

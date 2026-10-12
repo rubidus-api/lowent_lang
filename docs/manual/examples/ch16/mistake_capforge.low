@@ -5,7 +5,7 @@ use stdio .
 
 proc say input k cap io . output u64 . effects io .
 do
-  return stdio.write_out k. 1 "hi\n" . .
+  return stdio.write k. 1 "hi\n" . .
 end .
 
 rem ko: ✘ 권한을 하나도 받지 않았는데, 권한 자리에 수 0 을 넘겨 출력한다 /// en: ✘ receives no capability at all, yet prints by passing the number 0 where a capability belongs

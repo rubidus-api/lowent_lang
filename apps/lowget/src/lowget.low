@@ -738,7 +738,7 @@ proc main
   output u8 .
   effects heap io .
 do
-  let a0 option slice u8 args.arg a. 0 . .
+  let a0 option slice u8 args.get a. 0 . .
   guard is_some a0. . else do
     say out. "usage: lowget https://<host>[:<port>]/<path> [-i] [-L] [--insecure] [--cafile <path>]\n" .
     return 2 .
@@ -749,7 +749,7 @@ do
   var cabundle slice u8 "/etc/ssl/certs/ca-certificates.crt" .
   var ai u64 1 .
   while true do
-    let ax option slice u8 args.arg a. ai. . .
+    let ax option slice u8 args.get a. ai. . .
     guard is_some ax. . else break . .
     let f slice u8 some_value ax. . .
     set ai. add ai. 1 . .
@@ -761,7 +761,7 @@ do
     end else if same_word f. "-L" . do
       set follow. true .
     end else if same_word f. "--cafile" . do
-      let cx option slice u8 args.arg a. ai. . .
+      let cx option slice u8 args.get a. ai. . .
       guard is_some cx. . else do
         say out. "lowget: --cafile needs a path\n" .
         return 2 .

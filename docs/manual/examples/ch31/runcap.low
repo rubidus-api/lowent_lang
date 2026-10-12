@@ -8,5 +8,5 @@ rem ko: `--run` 은 권한 자리를 **비워 두면 채워 준다**(2026-09-20)
 proc say input out cap io . input n u64 . output u64 . effects io .
   requires le n. 100 . .
 do
-  return stdio.write_out out. 1 "hi\n" . .
+  return stdio.write out. 1 "hi\n" . .
 end .

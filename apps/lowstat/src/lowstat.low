@@ -721,7 +721,7 @@ proc read_some input fs cap file_system . input out cap io . input from_stdin bo
   requires ge len st. . 1 . .
 do
   if from_stdin. do
-    let r option u64 stdio.read_in out. 0 buf. . .
+    let r option u64 stdio.read out. 0 buf. . .
     guard is_some r. . else do
       set idx st. 0 . 4 .
       return 0 .
@@ -820,7 +820,7 @@ do
   var gname slice u8 "" .
   var ai u64 1 .
   while true do
-    let opt option slice u8 args.arg a. ai. . .
+    let opt option slice u8 args.get a. ai. . .
     guard is_some opt. . else break . .
     let o slice u8 some_value opt. . .
     if same_bytes o. "--count" . do
@@ -828,7 +828,7 @@ do
       set ai. add ai. 1 . .
       continue .
     end .
-    let val option slice u8 args.arg a. add ai. 1 . . .
+    let val option slice u8 args.get a. add ai. 1 . . .
     guard is_some val. . else return false . .
     let v slice u8 some_value val. . .
     set ai. add ai. 2 . .
@@ -920,7 +920,7 @@ do
   let opts mut slice u64 view_array u64 subslice mem. 8605864 8605888 . . .
 
   rem ── 인자. 첫 자리는 입력(`-` = 표준 입력), 나머지는 선택.
-  let a0 option slice u8 args.arg a. 0 . .
+  let a0 option slice u8 args.get a. 0 . .
   guard and is_some a0. . parse_args a. names. wl. wval. opts. okbuf. . . else do
     let w0 option u64 outbuf.write_all out. 2 usage_text. . .
     return 2 .

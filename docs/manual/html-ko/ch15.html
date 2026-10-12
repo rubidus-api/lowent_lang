@@ -680,7 +680,7 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
 
 <strong><span class="tok-k">proc</span></strong> log_line <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> msg. . .
+  <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> msg. . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> compute <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
@@ -710,14 +710,14 @@ spread.low:13:1 E-EFFECT: this op performs `io`, which its `effects` clause does
   <strong><span class="tok-k">requires</span></strong> le d. <span class="tok-n">9</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
+  <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-t">i64</span></strong> celsius_to_f <span class="tok-n">100</span> . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> print_digit out. narrow <strong><span class="tok-t">u8</span></strong> mod f. <span class="tok-n">10</span> . . . .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main layered.low
@@ -816,7 +816,7 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io, panic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> eq x. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_effcomma.low
 7:68 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.

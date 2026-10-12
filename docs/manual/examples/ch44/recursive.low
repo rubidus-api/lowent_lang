@@ -7,9 +7,9 @@ proc stars input out cap io . input n u64 . output u64 . effects io .
   requires le n. 10 . .
 do
   if eq n. 0 . do
-    return stdio.write_out out. 1 "\n" . .
+    return stdio.write out. 1 "\n" . .
   end .
-  let w u64 stdio.write_out out. 1 "*" . .
+  let w u64 stdio.write out. 1 "*" . .
   return add w. stars out. sub n. 1 . . . .
 end .
 

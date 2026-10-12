@@ -5,5 +5,5 @@ use stdio .
 
 fn shout input out cap io . output u64 .
 do
-  return stdio.write_out out. 1 "hi\n" . .
+  return stdio.write out. 1 "hi\n" . .
 end .

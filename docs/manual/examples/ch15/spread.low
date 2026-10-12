@@ -5,7 +5,7 @@ use stdio .
 
 proc log_line input out cap io . input msg slice u8 . output u64 . effects io .
 do
-  return stdio.write_out out. 1 msg. . .
+  return stdio.write out. 1 msg. . .
 end .
 
 proc compute input out cap io . input x u64 . output u64 . effects panic .

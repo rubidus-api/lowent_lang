@@ -59,6 +59,7 @@ wrap_shl	비트	`wrap_shl a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 �
 wrap_shr	비트	`wrap_shr a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 오른쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
 rotl	비트	`rotl a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — 왼쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 rotr	비트	`rotr a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — 오른쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+len	읽기	`len s`	`s` — 슬라이스 · 배열 · 문자열 리터럴	`usize` — 원소의 수(바이트 수가 아니다)	`E-IR-ARITY`	—	6.2.6
 count_ones	비트	`count_ones a`	`a` — 정수	1 인 비트의 수 — 0 이상 폭 이하	`E-IR-ARITY`	—	6.3.5
 leading_zeros	비트	`leading_zeros a`	`a` — 정수	`a` 의 타입 — 맨 윗자리부터 이어지는 0 의 수. `a` 가 0 이면 폭(`u8` 에서 8)	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 trailing_zeros	비트	`trailing_zeros a`	`a` — 정수	`a` 의 타입 — 맨 아랫자리부터 이어지는 0 의 수. `a` 가 0 이면 폭	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5

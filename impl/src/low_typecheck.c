@@ -63,6 +63,11 @@ typedef struct {
     proven_u8   pk;
     proven_u8str_view_t nname;  // TK_NAMED: 머리 타입 이름
     proven_u32  targ;           // TK_NAMED: 틀 인자 낱말들의 해시(0 = 인자 없음/미상)
+    // ★★★ RFC-0149 (2026-10-13 소유자 «len의 결과값은 usize가 맞겠지요») — **옮기는 동안의 `usize`**. `len` · `count` · `capacity` 의
+    //   결과는 `usize` 다(nominal 1). 코퍼스는 그것을 `u64` 로 받아 왔으므로(1,533 자리), 한 번에 조이면 서던 글의 3 분의 1 이 선다.
+    //   그래서 그 결과에만 이 표시를 달아 **`u64` 자리에도 서게 두고 센다**(`LOWENT_LIST_LEN_U64=1` · 게이트 `check-len-usize`).
+    //   수가 0 이 되면 이 칸과 아래 `tc_soft_*` 를 지운다 — 그때 `usize` 는 어디서나 `u64` 와 다른 타입이다.
+    bool        softsz;
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -398,6 +403,9 @@ static bool tc_is_instance_name(proven_u8str_view_t v) {
     return false;
 }
 
+static bool g_soft_hit = false;   // ★ RFC-0149 — compat 가 «옮기는 동안의 usize → u64» 를 받아 주었다(부른 쪽이 줄을 알고 센다)
+static int  g_soft_list = -1;
+static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line);
 static tc_reason_t compat(ty_t decl, ty_t actual) {
     // ★★★ **이름 타입끼리도 newtype 이면 구별한다** (RFC-0002 §6.3.1 — struct core).
     //   ★ 범위를 좁게 둔다: **명목 id 를 가진 쪽이 있을 때만** 본다. 투명 `type X Y .` 별칭은
@@ -450,6 +458,8 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
         // ★ D7: 두 범위가 **서로소**면 모든 값이 계약을 어긴다 — 검사가 아니라 컴파일 오류다.
         if (decl.has_rng && actual.has_rng && (actual.rlo > decl.rhi || actual.rhi < decl.rlo)) return TC_RANGE;
         if (!decl.bits || !actual.bits) return TC_OK;
+        // RFC-0149 — 옮기는 동안: 길이(usize)가 `usize` 아닌 정수 자리에 오면 **전처럼 `u64` 로 보고** 센다(폭 · 부호의 판정은 그대로).
+        if (actual.softsz && decl.nominal == 0) { g_soft_hit = true; actual.nominal = 0; actual.softsz = false; }
         if (decl.nominal != actual.nominal) return TC_NOMINAL;              // D11
         if (ty_sub(actual, decl)) return TC_OK;                             // ★ 값 보존 확대만 암묵
         return decl.sign != actual.sign ? TC_SIGN : TC_WIDTH;
@@ -543,8 +553,18 @@ static bool tc_param_cap_kind(const low_cst_t *def, proven_u8str_view_t name, pr
     }
     return false;
 }
+// ★ RFC-0149 — 옮기는 동안의 집계. `LENU64 <꼴> <줄> <파일>` 한 줄(꼴: bind = `u64` 선언 · 반환 · 칸에 묶었다, arg = `u64` 입력에 넘겼다,
+//   mix = `u64` 와 셈 · 견줌을 했다, idx = `u64` 를 첨자 · 경계로 댔다).
+static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line) {
+    (void)c;
+    if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
+    if (!g_soft_list) return;
+    const char *fl = c->curform ? low_cst_file_for_line(c->curform, line) : NULL;
+    fprintf(stderr, "LENU64\t%s\t%u\t%s\n", what, (unsigned)line, fl ? fl : "");
+}
 // kind mismatches keep their site-specific code; width/sign get dedicated codes
 static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg, proven_u32 line) {
+    if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "bind", line); }
     if (r == TC_OK) return;
     if (r == TC_WIDTH)        tc_emit(c, "E-TYPE-WIDTH", "value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)", line);
     else if (r == TC_SIGN)    tc_emit(c, "E-TYPE-SIGN", "sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)", line);
@@ -632,6 +652,13 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     }
     if (a.k != TK_INT && a.k != TK_FLOAT) return is_cmp ? tk(TK_BOOL) : a;
     if (!a.bits || !b.bits) return is_cmp ? tk(TK_BOOL) : (a.bits ? a : b);   // 폭 미상 — 보수적
+    // ★ RFC-0149 — 옮기는 동안: `len` 의 결과(usize)와 `u64` 의 셈 · 견줌을 세면서 받아 준다. 결과는 `u64` 쪽이다.
+    //   상대가 `usize` 아닌 정수면 길이를 **전처럼 `u64` 로 보고** 아래의 판정을 그대로 탄다(`u8` 과의 셈은 `u64` 로 넓어진다).
+    if (a.k == TK_INT && b.k == TK_INT && ((a.softsz && b.nominal == 0) || (b.softsz && a.nominal == 0))) {
+        tc_soft_note(c, "mix", line);
+        if (a.softsz) { a.nominal = 0; a.softsz = false; } else { b.nominal = 0; b.softsz = false; }
+    }
+    if (a.k == TK_INT && a.softsz != b.softsz && a.nominal == 1 && b.nominal == 1) { a.softsz = b.softsz = false; }   // 진짜 usize 를 만나면 진짜가 된다
     if (!ty_comparable(a, b)) {
         tc_flag(c, a.nominal != b.nominal ? TC_NOMINAL
                 : (a.k == TK_INT && a.sign != b.sign) ? TC_SIGN : TC_WIDTH, NULL, NULL, line);
@@ -760,7 +787,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             proven_u8str_view_t h2 = k[start]->tok.lex;
             if (veq(h2, "len") || veq(h2, "count") || veq(h2, "capacity")) {
                 for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
-                return tk_int(64, false);
+                { ty_t ut = tk_int(64, false); ut.nominal = 1; ut.softsz = true; return ut; }   // RFC-0149 — `usize`
             }
             // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
             //   없으면 그 위의 `index` 가 원소를 u8 로 보았다(`array f64 2` 칸의 원소가 u8 로 읽혔다). 좁게: 타입 있는 슬라이스만.
@@ -773,7 +800,11 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             }
             if (veq(h2, "idx") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
                 ty_t sq = tc_infer(c, k[start + 1], env, nenv);
-                for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                for (proven_size_t q = 2; q < n; q++) {
+                    ty_t it = tc_infer(c, k[start + q], env, nenv);
+                    // ★ RFC-0149 — 첨자는 `usize` 다. 옮기는 동안은 다른 정수도 받고 센다.
+                    if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) tc_soft_note(c, "idx", k[start]->tok.line);
+                }
                 if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
                     ty_t rv = sq; rv.erow = false;
                     return rv;
@@ -796,7 +827,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             if (veq(h2, "subslice")) {
                 // ★ subslice 는 원소 타입을 **물려준다** — 슬라이스 X 의 원소가 곧 결과의 원소다.
                 ty_t sx = (n >= 2) ? tc_infer(c, k[start + 1], env, nenv) : tk(TK_UNKNOWN);
-                for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                for (proven_size_t q = 2; q < n; q++) {
+                    ty_t it = tc_infer(c, k[start + q], env, nenv);
+                    if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) tc_soft_note(c, "idx", k[start]->tok.line);   // RFC-0149 — 경계도 `usize`
+                }
                 if (sx.k == TK_SLICE && sx.ebits) return sx;         // 타입 있는 슬라이스는 그대로
                 return tk(TK_SLICE);
             }
@@ -1132,6 +1166,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
                 tc_reason_t ar = compat(s->params[i], at);
+                if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "arg", k[start]->tok.line); }
                 // ★ RFC-0147 (2026-10-12) — 권한 자리에 **다른 종류의 권한**을 댔으면 그 말로 한다(`E-CAP-KIND`). 권한을 받는
                 //   빌트인 연산이 라이브러리 뒤로 가면서, 프로그램이 이 실수를 하는 자리가 잎이 아니라 감싸개의 부름이 됐다.
                 //   전엔 «이름만 다른 같은 표현의 타입» (`E-TYPE-NOMINAL`)이라고 했다 — 맞는 거절에 틀린 설명이었다.

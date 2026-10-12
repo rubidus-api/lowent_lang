@@ -1,7 +1,5 @@
 module packed .
 
-def type bytes slice u8 .
-
 def struct wire_header do
   layout packed .
   magic u32 big .
@@ -9,7 +7,7 @@ def struct wire_header do
   kind u8 .
 end .
 
-fn header_kind input b bytes . output u64 .
+fn header_kind input b slice u8 . output u64 .
 do
   let v view wire_header view wire_header b. . .
   return widen u64 field v. kind . . .

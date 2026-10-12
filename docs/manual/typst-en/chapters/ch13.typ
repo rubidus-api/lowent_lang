@@ -39,7 +39,7 @@
 #demo("examples/ch13/aliases.low")
 
 `meters` is just another name for `u64`, so the result of `mul w. h. .` can be returned as a `u64`. Aliases shorten long types
-(`def type bytes slice u8 .`) or leave meaning in the source. `pct` is an alias for a type with a range attached, and every place that takes this
+(`def type found option u64 .`) or leave meaning in the source. `pct` is an alias for a type with a range attached, and every place that takes this
 name inherits the range (covered below).
 
 #idx("newtype")
@@ -255,6 +255,18 @@ without a word. It is recorded as a defect in the development repository.
   places where *no value changes*, so this is `E-WIDEN-SIGN`. If you know no negative value can arrive, write `cast u64 x. .` to leave
   that judgement in the source; `cast` stops if a negative value does arrive. If negatives need their own handling, put
   `guard ge x 0` first.
+]
+
+#antipattern[Naming a slice, an array or a matrix with `def type` or `def newtype`][
+  #demo("examples/ch13/mistake_rowname.low")
+
+  `slice`, `array` and `matrix` are types whose element type, length and dimensions are spelled out in the words themselves. Give one
+  another name and the reader has to find the declaration to learn what is behind it. So `def type` and `def newtype` do not take any of
+  the three *as the whole type* --- a slice is rejected with `E-TYPE-ROWNAME`, an array with `E-TYPE-ARRAY`, a matrix with
+  `E-MATRIX-USE`. Write the type where it is used. One *inside* another type may be named (`def type found option slice u8 .`). When a
+  type with a name of its own is needed, make it a struct field --- a struct with a different name is a different type.
+
+  #demo("examples/ch13/rowname_fixed.low")
 ]
 
 #antipattern[Turning a number into a `bool` with `cast`][

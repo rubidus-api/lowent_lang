@@ -857,6 +857,31 @@ def newtype node_id u64 .
 fn f input a node_id . input b u64 . output u64 . do
   return add a. b. . .
 end .", "E-TYPE-NOMINAL")
+    #para("2b")[
+      `def type` 과 `def newtype` 의 타입은 #strong[줄 타입]; — `slice` · `array` · `matrix` — 그 자체일 수 없다. `mut` 를
+      앞에 붙인 것도 같다. 줄 타입은 쓰는 자리에 그대로 적는다. 다른 타입 #strong[안에]; 든 줄 타입은 이름을 붙일 수
+      있다(`def type found option slice u8 .`). 제 이름을 가진 타입이 필요하면 구조체의 칸으로 둔다(#cref("6.2.7")).
+    ]
+    #tbl("줄 타입에 이름을 붙였을 때의 진단")[
+      #table(columns: (1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*어긴 것*], [*진단*],
+      [(2b) — 타입 전체가 `slice`], [`E-TYPE-ROWNAME`],
+      [(2b) — 타입 전체가 `array`], [`E-TYPE-ARRAY`],
+      [(2b) — 타입 전체가 `matrix`], [`E-MATRIX-USE`],
+      )
+    ]
+    #rejected("슬라이스에 다른 이름을 붙였다 — (2b) 를 시험한다", "module ex_rowname .
+
+def type bytes slice u8 .
+
+fn f input b bytes . output u64 . do
+  return len b. . .
+end .", "E-TYPE-ROWNAME")
+    #plain[
+      줄 타입은 원소의 타입과 길이 · 차원이 낱말에 그대로 드러난다. 다른 이름 뒤에 숨기면 읽는 사람이 선언을
+      찾아가야 그것을 안다 — 같은 타입을 적는 길도 둘이 된다. 구조체의 칸은 다르다: 이름이 다르면 타입이 다르므로
+      그 이름은 숨기는 것이 아니라 #strong[가르는]; 것이다.
+    ]
     #note[
       둘을 가르는 이유는 실수를 막기 위해서다. 사용자 번호와 주문 번호가 둘 다 `u64` 라면
       바꿔 넣어도 처리기가 모른다. `newtype` 으로 갈라 두면 처리기가 그 실수를 잡는다.
@@ -1072,8 +1097,6 @@ end .", "E-TYPE-WIDTH")
     ]
     #ex("선으로 나가는 머리 — 채움 없이, 빅 엔디언으로", "module ex_layout .
 
-def type bytes slice u8 .
-
 def struct wire_header do
   layout packed .
   magic u32 big .
@@ -1081,7 +1104,7 @@ def struct wire_header do
   kind u8 .
 end .
 
-fn hdr_kind input b bytes . output u64 . do
+fn hdr_kind input b slice u8 . output u64 . do
   var v view wire_header view wire_header b. . .
   return widen u64 field v. kind . . .
 end .
@@ -1177,12 +1200,12 @@ end .", "E-TYPE-KIND")
     ]
     #para("3")[
       이름에 뜻을 주는 길은 둘이다. #strong[바탕이 되는 타입을 직접 적거나];, 그 이름을 선언하는
-      것이다(`def type str slice u8 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
+      것이다(`def type str option u64 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
     ]
     #ex("뜻 없는 이름은 경고를 받되 거절되지는 않는다", "module ex_name_only .
 
-rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다.
-def type str slice u8 .
+rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다. 여기서는 선언하여 뜻을 주었다.
+def type str option u64 .
 
 fn f input s str . output u8 . do return 1 . end .",
       out: "f() = 1")

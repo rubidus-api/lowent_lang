@@ -52,7 +52,7 @@
 이렇다.
 
 ```lowent
-export fn starts_with input s str . input prefix str . output bool . do
+export fn starts_with input s slice u8 . input prefix slice u8 . output bool . do
   guard le len prefix. . len s. . . else return false . .
   return eq_str subslice s. 0 len prefix. . . prefix. . .
 end .
@@ -166,8 +166,8 @@ end .
   id: "libmap-leaves",
   caption: [잎 op 과 그것을 감싸는 모듈],
   [*잎 op*], [*하는 일*], [*감싸는 모듈 · 권한*],
-  [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close`], [파일을 열고 읽고 쓰고 자리를 옮기고 닫는다], [`files` · `cap file_system`],
-  [`dir_make` · `dir_read` · `dir_close`], [디렉터리를 만들고 항목을 읽고 닫는다], [`files` · `cap file_system`],
+  [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close` · `file_type`], [파일을 열고 읽고 쓰고 자리를 옮기고 닫는다 · 경로가 무엇인지 묻는다], [`files` · `cap file_system`],
+  [`dir_make` · `dir_open` · `dir_read` · `dir_close`], [디렉터리를 만들고 열고 항목을 읽고 닫는다], [`files` · `cap file_system`],
   [`path_remove` · `path_rename` · `link_type`], [경로를 지우고 이름을 바꾸고, 심링크를 따라가지 않고 그 자신이 무엇인지 묻는다], [`files` · `cap file_system`],
   [`net_listen` · `net_accept` · `net_connect` · `net_port`], [듣는 소켓 · 연결 받기 · 주소와 포트로 연결 걸기 · 포트 묻기], [`net` · `cap net`],
   [`net_resolve`], [이름을 IPv4 주소로 --- DNS. 연결과 *가른 잎*이라, 주소를 이미 가진 프로그램은 이름 해석에 닿지 않는다], [`net` · `cap net`],
@@ -190,7 +190,7 @@ end .
   [`aes_gcm`], [AES-128-GCM 한 덩이 --- 흐름과 누산을 *한 바퀴에* 돈다. 뜻은 `aes_ctr` 를 돌리고 그 암호문을 `ghash` 에 먹인 것과 *같다*; 다른 것은 빠르기뿐이다(실측 2848 → 3661 MB/s). 봉인만 쓴다 --- 복호는 태그를 먼저 증언하고 맞을 때만 풀어야 하므로 두 바퀴로 남는다], [`gcm` --- 권한 없음],
   [`chacha20` · `poly1305`], [ChaCha20 흐름 · Poly1305 누산 --- 키 32 · 카운터 블록 16(앞 4 가 블록 번호, 리틀엔디언)이고 카운터는 *제자리에서* 올라간다. `poly1305` 은 상태(h 다섯 · r 다섯)를 누산하고, 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 폭은 빌드가 정한다(`lowentc --hw sse2` · `avx2`)], [`chacha` · `poly` · `aead` --- 권한 없음],
   [`aes_round` · `aes_round_last`], [AES 한 라운드 --- 상태 16 바이트를 제자리에서. 기계에 그 명령이 있으면 처리기가 그것으로 내리고(`lowentc --hw aes`), 없으면 같은 답을 내는 표 셈으로 내린다], [`aes` --- 권한 없음],
-  [`str_from_cstr`], [C 문자열(NUL 로 끝남)을 훑어 `str` 로 만든다], [C 경계 --- VM 은 `E-VM-CSTR` 로 못 한다고 말한다],
+  [`str_from_cstr`], [C 문자열(NUL 로 끝남)을 훑어 `slice u8` 로 만든다], [C 경계 --- VM 은 `E-VM-CSTR` 로 못 한다고 말한다],
 )
 
 *빌트인 연산은 `call_builtin` 뒤에서만 선다.* `call_builtin sha256 msg out` 처럼 이름이 그 자리에만 산다. 어디서나 제 이름으로 부르는 `add` · `len` 같은 *기본 연산*(core op)과 달리, *빌트인 연산*(builtin op)은 *제 이름공간을 따로* 갖는다 --- `call_builtin` 바로 뒤의 낱말은 언제나 빌트인 연산의 이름이고, 그 밖의 자리에 선 같은 철자는 언제나 저자의 이름이다. 그래서 라이브러리가 `sha256` 이라는 이름의 op 을 내놓을 수 있고, 지역 이름을 `file_type` 이라 지어도 된다. 파일 · 그물 · 프로세스에 닿는 것(`file_open` · `net_send` …)은 첫 피연산자가 권한이다 --- `call_builtin net_send k fd b`. *빌트인 연산은 응용 프로그램이 쓰라고 둔 것이 아니다.* 라이브러리로는 적을 수 없는 일을 처리기가 가려서 내놓는 문이고, 시스템 라이브러리와 처리기를 짓는 사람이 쓴다. 프로그램은 그것을 감싼 표준 라이브러리 모듈을 부른다. `env_get` · `reactor_new` 같은 나머지 호스트 잎은 기본 연산이라 그대로 부른다.

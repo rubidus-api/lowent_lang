@@ -22,14 +22,14 @@ needs a writable buffer, such as appending, belongs to #modref("strbuf")[`strbuf
 == Design and boundaries
 
 - *What it does* --- byte-level comparison, search, prefixes and suffixes, trimming and splitting. Every `fn` is `effects none` and allocates nothing.
-- *It does not interpret encodings.* `str` is bytes. UTF-8 validation and decoding belong to #modref("utf8")[`utf8`].
+- *It does not interpret encodings.* A string is bytes. UTF-8 validation and decoding belong to #modref("utf8")[`utf8`].
 - *It does not own or modify.* It never changes a byte of the original.
-- *There is no `str_len` or `str_sub`.* `str` is an alias of `slice u8`, so the core ops `len` and `subslice` work as they are. One meaning does not get two
+- *There is no `str_len` or `str_sub`.* A string is a `slice u8`, so the core ops `len` and `subslice` work as they are. One meaning does not get two
   names.
 - *No sentinel values.* Conventions like "−1 means not found" are not used. Not found is `none` of an `option`.
 
-`def type str slice u8 .` is a *transparent alias*. It is not a `newtype`, so string literals, `slice u8` values and `subslice` results all fit a `str` position
-as they are. Only the `str_splitter` actor holds state --- the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
+There is no type name for strings --- the ops take and return `slice u8`, so string literals, `slice u8` values and `subslice` results all fit
+as they are. A slice cannot be given another name with `def type` (chapter 13). Only the `str_splitter` actor holds state --- the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
 
 == Ops at a glance
 
@@ -40,17 +40,17 @@ Every `fn` is `effects none`, and the actor's two `proc`s are `effects state`. C
   id: "mod-strings-ops",
   caption: [Ops of `strings`],
   [*op*], [*Signature*], [*When it cannot*],
-  [`eq_str`], [`(a str, b str) → bool`], [`false` if different],
-  [`has_byte`], [`(s str, b u8) → bool`], [`false` if absent],
-  [`find`], [`(hay str, needle str, from u64) → option u64`], [`none` if not found or `from > len hay`],
-  [`has`], [`(hay str, needle str) → bool`], [---],
-  [`starts_with`], [`(s str, prefix str) → bool`], [---],
-  [`ends_with`], [`(s str, suffix str) → bool`], [---],
-  [`remove_prefix`], [`(s str, prefix str) → str`], [*The original as is* if no prefix],
-  [`remove_suffix`], [`(s str, suffix str) → str`], [The original as is if no suffix],
-  [`trim_start`], [`(s str, cut str) → str`], [An empty view if everything is cut],
-  [`trim_end`], [`(s str, cut str) → str`], [An empty view if everything is cut],
-  [`split_next`], [`(src str, sep u8, pos u64) → option str`], [`none` if `pos > len src`],
+  [`eq_str`], [`(a slice u8, b slice u8) → bool`], [`false` if different],
+  [`has_byte`], [`(s slice u8, b u8) → bool`], [`false` if absent],
+  [`find`], [`(hay slice u8, needle slice u8, from u64) → option u64`], [`none` if not found or `from > len hay`],
+  [`has`], [`(hay slice u8, needle slice u8) → bool`], [---],
+  [`starts_with`], [`(s slice u8, prefix slice u8) → bool`], [---],
+  [`ends_with`], [`(s slice u8, suffix slice u8) → bool`], [---],
+  [`remove_prefix`], [`(s slice u8, prefix slice u8) → slice u8`], [*The original as is* if no prefix],
+  [`remove_suffix`], [`(s slice u8, suffix slice u8) → slice u8`], [The original as is if no suffix],
+  [`trim_start`], [`(s slice u8, cut slice u8) → slice u8`], [An empty view if everything is cut],
+  [`trim_end`], [`(s slice u8, cut slice u8) → slice u8`], [An empty view if everything is cut],
+  [`split_next`], [`(src slice u8, sep u8, pos u64) → option slice u8`], [`none` if `pos > len src`],
   [`str_splitter`], [actor: `init(s2 slice u8, b u8) → u64` · `next → option slice u8`], [`next` is `none` after exhaustion],
 )
 

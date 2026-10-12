@@ -1,7 +1,5 @@
 module vm_simd .
 
-def type bytes slice u8 .
-
 rem ★★★ **여백(margin) 증인** — WO-0056 P1·P2 (2026-08-16).
 rem
 rem   재는 것은 속도가 아니라 **판정**이다: 계약이 있으면 벡터 로드의 경계 검사가 사라지고,
@@ -60,12 +58,12 @@ end .
 rem ── 부르는 자리 — 바이트 하나를 두 슬라이스로 나눠 실제로 돌린다 ─────────────
 rem    VM 과 방출 네이티브가 **같은 답**을 내야 한다(diff-sweep). 계약이 있는 판과 없는 판이
 rem    같은 수를 내는 것도 요점이다: **검사를 지워도 답은 그대로다.**
-fn run_c input b bytes . output u64 . do
+fn run_c input b slice u8 . output u64 . do
   var xs slice u32 view_array u32 b. . .
   return dot_c xs. xs. len xs. . . .
 end .
 
-fn run_u input b bytes . output u64 . do
+fn run_u input b slice u8 . output u64 . do
   var xs slice u32 view_array u32 b. . .
   return dot_u xs. xs. len xs. . . .
 end .
@@ -110,7 +108,7 @@ do
 end .
 
 rem 부르는 자리 — 바이트를 두 배로 만들고 합을 낸다(VM≡native 가 이 변경의 오라클이다).
-fn run_w input b bytes . output u64 . do
+fn run_w input b slice u8 . output u64 . do
   var xs slice u32 view_array u32 b. . .
   let z u64 dbl_c xs. len xs. . . .
   var s u64 0 .

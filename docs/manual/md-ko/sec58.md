@@ -27,12 +27,12 @@ end .
 ## <a id="sx1"></a>설계와 경계
 
 - **하는 것** — 바이트 단위 비교·탐색·접두와 접미·다듬기·분할. 모든 `fn` 이 `effects none` 이고 아무것도 할당하지 않는다.
-- **인코딩을 해석하지 않는다.** `str` 은 바이트다. UTF-8 검증과 해독은 [`utf8`](sec61.md#mod-utf8) 의 일이다.
+- **인코딩을 해석하지 않는다.** 문자열은 바이트다. UTF-8 검증과 해독은 [`utf8`](sec61.md#mod-utf8) 의 일이다.
 - **소유와 수정을 하지 않는다.** 원본을 한 바이트도 바꾸지 않는다.
-- **`str_len`·`str_sub` 는 없다.** `str` 은 `slice u8` 의 별칭이므로 기본 연산 `len`·`subslice` 가 그대로 돈다. 같은 뜻에 두 이름을 두지 않는다.
+- **`str_len`·`str_sub` 는 없다.** 문자열이 `slice u8` 이므로 기본 연산 `len`·`subslice` 가 그대로 돈다. 같은 뜻에 두 이름을 두지 않는다.
 - **자리표 값이 없다.** “−1 이면 못 찾음” 같은 관례를 쓰지 않는다. 못 찾음은 `option` 의 `none` 이다.
 
-`def type str slice u8 .` 은 **투명 별칭**이다. `newtype` 이 아니므로 문자열 리터럴, `slice u8` 값, `subslice` 결과가 모두 그대로 `str` 자리에 들어간다. 상태를 드는 것은 `str_splitter` 액터 하나뿐이다 — 원본 `src`, 구분 바이트 `sep`, 커서 `pos`, 소진 여부 `fin`.
+문자열을 위한 타입 이름은 따로 없다 — op 은 `slice u8` 를 받고 돌려준다. 그래서 문자열 리터럴, `slice u8` 값, `subslice` 결과가 모두 그대로 들어간다. 슬라이스에는 `def type` 으로 다른 이름을 붙이지 못한다(13장). 상태를 드는 것은 `str_splitter` 액터 하나뿐이다 — 원본 `src`, 구분 바이트 `sep`, 커서 `pos`, 소진 여부 `fin`.
 
 ## <a id="sx2"></a>op 한눈에
 
@@ -40,17 +40,17 @@ end .
 
 | **op** | **시그니처** | **안 될 때** |
 |---|---|---|
-| `eq_str` | `(a str, b str) → bool` | 다르면 `false` |
-| `has_byte` | `(s str, b u8) → bool` | 없으면 `false` |
-| `find` | `(hay str, needle str, from u64) → option u64` | 못 찾거나 `from > len hay` 이면 `none` |
-| `has` | `(hay str, needle str) → bool` | — |
-| `starts_with` | `(s str, prefix str) → bool` | — |
-| `ends_with` | `(s str, suffix str) → bool` | — |
-| `remove_prefix` | `(s str, prefix str) → str` | 접두사가 없으면 **원본 그대로** |
-| `remove_suffix` | `(s str, suffix str) → str` | 접미사가 없으면 원본 그대로 |
-| `trim_start` | `(s str, cut str) → str` | 모두 잘리면 빈 뷰 |
-| `trim_end` | `(s str, cut str) → str` | 모두 잘리면 빈 뷰 |
-| `split_next` | `(src str, sep u8, pos u64) → option str` | `pos > len src` 이면 `none` |
+| `eq_str` | `(a slice u8, b slice u8) → bool` | 다르면 `false` |
+| `has_byte` | `(s slice u8, b u8) → bool` | 없으면 `false` |
+| `find` | `(hay slice u8, needle slice u8, from u64) → option u64` | 못 찾거나 `from > len hay` 이면 `none` |
+| `has` | `(hay slice u8, needle slice u8) → bool` | — |
+| `starts_with` | `(s slice u8, prefix slice u8) → bool` | — |
+| `ends_with` | `(s slice u8, suffix slice u8) → bool` | — |
+| `remove_prefix` | `(s slice u8, prefix slice u8) → slice u8` | 접두사가 없으면 **원본 그대로** |
+| `remove_suffix` | `(s slice u8, suffix slice u8) → slice u8` | 접미사가 없으면 원본 그대로 |
+| `trim_start` | `(s slice u8, cut slice u8) → slice u8` | 모두 잘리면 빈 뷰 |
+| `trim_end` | `(s slice u8, cut slice u8) → slice u8` | 모두 잘리면 빈 뷰 |
+| `split_next` | `(src slice u8, sep u8, pos u64) → option slice u8` | `pos > len src` 이면 `none` |
 | `str_splitter` | 액터: `init(s2 slice u8, b u8) → u64` · `next → option slice u8` | 소진 뒤 `next` 는 `none` |
 
 *표 50.1 — `strings` 의 op*

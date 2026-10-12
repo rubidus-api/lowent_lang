@@ -1,9 +1,8 @@
 rem view_array + string-literal fixture — typed array views (le decode, for-in)
 rem and strings as byte slices (len/index/for-in).
-def type bytes slice u8 .
 
 fn va_sum
-  input b bytes .
+  input b slice u8 .
   output u64 .
 do
   var t u64 0 .
@@ -14,7 +13,7 @@ do
 end .
 
 fn va_at
-  input b bytes .
+  input b slice u8 .
   output u64 .
 do
   return idx view_array u32 b. . 1 . .

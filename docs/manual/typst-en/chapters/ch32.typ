@@ -53,7 +53,7 @@ The standard library has no privileges. It gets the same rules as code the autho
 `strings.starts_with`.
 
 ```lowent
-export fn starts_with input s str . input prefix str . output bool . do
+export fn starts_with input s slice u8 . input prefix slice u8 . output bool . do
   guard le len prefix. . len s. . . else return false . .
   return eq_str subslice s. 0 len prefix. . . prefix. . .
 end .
@@ -169,8 +169,8 @@ what keeps you oriented when reading module documentation or building a new modu
   id: "libmap-leaves",
   caption: [Leaf ops and the modules that wrap them],
   [*Leaf op*], [*What it does*], [*Wrapping module · capability*],
-  [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close`], [open, read, write, move the position of, and close a file], [`files` · `cap file_system`],
-  [`dir_make` · `dir_read` · `dir_close`], [make a directory, read its entries, close it], [`files` · `cap file_system`],
+  [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close` · `file_type`], [open, read, write, move the position of, and close a file · ask what a path is], [`files` · `cap file_system`],
+  [`dir_make` · `dir_open` · `dir_read` · `dir_close`], [make a directory, open it, read its entries, close it], [`files` · `cap file_system`],
   [`path_remove` · `path_rename` · `link_type`], [remove or rename a path, and ask what the path itself is without following symlinks], [`files` · `cap file_system`],
   [`net_listen` · `net_accept` · `net_connect` · `net_port`], [listening socket · accept · connect to an address and port · ask the port], [`net` · `cap net`],
   [`net_resolve`], [a name to an IPv4 address --- DNS. A *separate* leaf from connecting, so a program that already has an address never touches name resolution], [`net` · `cap net`],
@@ -193,7 +193,7 @@ what keeps you oriented when reading module documentation or building a new modu
   [`aes_gcm`], [one round of AES-128-GCM --- keystream and accumulation in *one pass*. Its meaning is exactly `aes_ctr` followed by `ghash` over the ciphertext it just made; only the speed differs (measured 2848 → 3661 MB/s). Sealing only --- opening must attest the tag before it unseals, so it stays two passes], [`gcm` --- no capability],
   [`chacha20` · `poly1305`], [ChaCha20 keystream · Poly1305 accumulation --- key 32, counter block 16 (its first four bytes are the block number, little-endian), and the counter moves *in place*. `poly1305` accumulates into the state (five limbs of h, five of r) and zero-pads a tail that is not a multiple of sixteen. The width is chosen by the build (`lowentc --hw sse2` · `avx2`)], [`chacha` · `poly` · `aead` --- no capability],
   [`aes_round` · `aes_round_last`], [one AES round --- the 16-byte state in place. When the machine has the instruction the processor lowers to it (`lowentc --hw aes`); when it does not, to the same answer computed from tables], [`aes` --- no capability],
-  [`str_from_cstr`], [scan a NUL-terminated C string into a `str`], [C boundary --- the VM says it cannot, with `E-VM-CSTR`],
+  [`str_from_cstr`], [scan a NUL-terminated C string into a `slice u8`], [C boundary --- the VM says it cannot, with `E-VM-CSTR`],
 )
 
 *Builtin ops stand only after `call_builtin`* --- `call_builtin sha256 msg out`. Unlike the *core ops* (`add`, `len`, …), which are called by their bare names everywhere, the *builtin ops* have *a name space of their own*: the word right after `call_builtin` is always the name of a builtin op, and the same spelling anywhere else is always a name of yours. So a library can export an op called `sha256`, and a local may be called `file_type`. Those that touch files, the network and processes (`file_open`, `net_send`, …) take the capability as their first operand --- `call_builtin net_send k fd b`. *Builtin ops are not meant for application programs.* They are the door through which the processor offers what a library cannot write, and the people who use it are those who write the system library and the processor. A program calls the standard library module that wraps them. The other host leaves, such as `env_get` and `reactor_new`, are core ops and are called plainly.

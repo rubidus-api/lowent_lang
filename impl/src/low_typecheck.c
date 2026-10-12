@@ -1419,7 +1419,7 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
                         "this type NAME is accepted but carries NO MEANING yet: lowering cannot "
                         "read it, so every op in its signature falls to the interpreter (~80x). "
                         "The answer stays right, so no oracle will ever see this. Declare it "
-                        "(`def type str slice u8 .`) or write the underlying type",
+                        "(`def type id u64 .`) or write the underlying type",
                         t->line ? t->line : f->line);
             continue;
         }

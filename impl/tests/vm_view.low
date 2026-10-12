@@ -1,6 +1,5 @@
 rem RFC-0025 §6.6/6.7 view/try_view fixture — packed wire header with be fields;
 rem zero-copy struct views over a byte slice, endian decoded at field access.
-def type bytes slice u8 .
 
 def struct wire_header do
   layout packed .
@@ -10,7 +9,7 @@ def struct wire_header do
 end .
 
 fn hdr_kind
-  input b bytes .
+  input b slice u8 .
   output u64 .
 do
   let o wire_header try_view wire_header b. . .
@@ -20,7 +19,7 @@ do
 end .
 
 fn hdr_summary
-  input b bytes .
+  input b slice u8 .
   output u64 .
 do
   let h wire_header view wire_header b. . .
@@ -28,7 +27,7 @@ do
 end .
 
 fn hdr_magic
-  input b bytes .
+  input b slice u8 .
   output u64 .
 do
   let h wire_header view wire_header b. . .
@@ -46,7 +45,7 @@ do
 end .
 
 fn wire_bytes
-  output bytes .
+  output slice u8 .
 do
   return encode wire_header mk_hdr. . .
 end .

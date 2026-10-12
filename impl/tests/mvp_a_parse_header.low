@@ -2,8 +2,6 @@ rem SPEC-MVP §8 gate — example A: slice-based parser (fn + contracts).
 rem Source: SPEC-015 §17.1 (normative point-closure form). --check must be clean.
 module packet .
 
-def type bytes slice u8 .
-
 def struct header do
   version u8 .
   flags u8 .
@@ -21,14 +19,16 @@ rem    프렐류드에도 없다. 즉 예제가 **존재하지 않는 op 을 부
 rem    --check 가 초록불이었다(IR 은 E-IR-UNDEF 를 냈지만 --check 가 그것을 보지 않았다).
 rem    예제를 자립시킨다. 이제 --check 가 없는 이름을 오류로 잡는다.
 fn read_u16_be
-  input d bytes .
+  input d slice u8 .
   output u16 .
 do
-  return expr ((idx d. 0 .) * 256) + (idx d. 1 .) . .
+  rem ★ 원소는 `u8` 다 — 256 을 곱하기 전에 넓힌다. 전에는 `d` 의 타입을 별칭(`bytes`)으로 적어 처리기가 원소의 폭을
+  rem   몰랐고, `u8` 폭의 넘침 검사가 **서지 않아** 이 줄이 통과했다. 별칭을 거두자(정본 §6.2.9 (2b)) 검사가 섰다.
+  return expr ((widen u16 idx d. 0 . .) * 256) + (widen u16 idx d. 1 . .) . .
 end .
 
 fn parse_header
-  input data bytes .
+  input data slice u8 .
   output result header parse_error .
   access data sequential .
   errors too_short lt len data. . 4 . .
@@ -51,17 +51,17 @@ rem ── `tests` 절이 이름으로 건 세 op. 명세의 예제(SPEC-015 §1
 rem    이 이름들을 적어 놓고 **정의하지 않았다.** 검사기가 그것을 잡았다(E-CONTRACT-UNDEF).
 rem    선언된 이름이 아무것도 가리키지 않는 것 — 그것이 곧 엔트로피다(PRINCIPLES.md §0).
 rem    약속했으니 쓴다.
-fn parse_header_short input data bytes . output bool . do
+fn parse_header_short input data slice u8 . output bool . do
   let r result header parse_error parse_header data. . .
   return is_error r. . .
 end .
 
-fn parse_header_bad_version input data bytes . output bool . do
+fn parse_header_bad_version input data slice u8 . output bool . do
   let r result header parse_error parse_header data. . .
   return is_error r. . .
 end .
 
-fn parse_header_ok input data bytes . output bool . do
+fn parse_header_ok input data slice u8 . output bool . do
   let r result header parse_error parse_header data. . .
   return is_ok r. . .
 end .

@@ -139,7 +139,10 @@ end .
       터미널(`tty_raw` · `tty_read` · `tty_size`), 난수(`random_bytes`), reactor(`reactor_new` · `r_read` · `r_write`) — 은
       첫 피연산자가 권한이다: `call_builtin net_send <권한> <핸들> <바이트>`.
 
-(1c-1) 부동소수점 함수(⟦§6.3.9⟧)와 조각의 합(⟦§6.3.7.1⟧)도 빌트인 연산이다. 권한을 받지 아니한다.
+(1c-1) 권한을 받지 아니하는 빌트인 연산은 **계산**이다 — 부동소수점 함수(⟦§6.3.9⟧), 조각의 합(⟦§6.3.7.1⟧), 그리고
+      해시 · 암호 · 캐리 없는 곱셈 · 난수 열(`hash_bytes` · `crc32` · `sha256` · `sha384` · `sha512` · `aes_round` ·
+      `aes_round_last` · `aes_ctr` · `ghash` · `aes_gcm` · `chacha20` · `poly1305` · `chacha_poly` · `clmul_lo` · `clmul_hi` ·
+      `rng_next`).
 
 (1c-2) 표준 라이브러리는 이 빌트인 연산들을 감싼 op 을 내놓는다(⟦§9.3⟧ (1a)) — `stdio` · `args` · `env` · `clock` · `tty` ·
       `random` · `reactor` · `math` 따위다. 감싸개는 피연산자를 그대로 넘기므로 뜻이 같다.
@@ -512,9 +515,7 @@ module ex_slice_sum .
 
 use math .
 
-def type bytes slice u8 .
-
-fn total input b bytes . output u64 .
+fn total input b slice u8 . output u64 .
 do
   var xs slice f64 view_array f64 b. . .
   return math.sum_neumaier xs. . .      rem 결과는 부동소수점 수인데 머리는 `u64` 라고 적었다

@@ -1874,6 +1874,23 @@ static void dr_walk(us_ctx_t *c, const low_cst_t *nd) {
                           k == LOW_KW_TYPE ? DR_MSG("type") : k == LOW_KW_NEWTYPE ? DR_MSG("newtype") : NULL;
         if (msg) low_pdiag(&c->p, "E-VOCAB-REMOVED", msg, nd->kids[0]->tok.line, nd->kids[0]->tok.col);
     }
+    // ★ 줄 타입에는 이름을 붙이지 않는다(소유자 결정 2026-10-12) — `def type` · `def newtype` 의 **맨 위**가 `slice` 면 거절한다.
+    //   `array` 는 검사기가(`E-TYPE-ARRAY`), `matrix` 는 `low_matrix` 가(`E-MATRIX-USE`) 이미 거절한다. 안에 든 것(`option slice u8`)은 둔다.
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && us_atom(nd->kids[0]) && nd->has_def &&
+        (nd->kids[0]->tok.kw == LOW_KW_TYPE || nd->kids[0]->tok.kw == LOW_KW_NEWTYPE)) {
+        const low_cst_t *t = nd->kids[2];
+        const low_cst_t *const *row = (const low_cst_t *const *)&nd->kids[2];
+        proven_size_t n = nd->nkids - 2;
+        while (t->kind == LOW_CST_GROUP && t->nkids == 1) t = t->kids[0];
+        if (t->kind == LOW_CST_FORM && t->nkids) { row = (const low_cst_t *const *)t->kids; n = t->nkids; }
+        proven_size_t q = 0;
+        while (q < n && us_atom(row[q]) && us_eq(row[q]->tok.lex, "mut")) q++;
+        if (q < n && us_atom(row[q]) && us_eq(row[q]->tok.lex, "slice"))
+            low_pdiag(&c->p, "E-TYPE-ROWNAME", "a row type — `slice`, `array`, `matrix` — is not given another name: `def type` and "
+                      "`def newtype` do not take one as the whole type. Write `slice <type>` where it is used; to give a row a name "
+                      "of its own, make it a struct field (`def struct name do bytes slice u8 . end .`). A row INSIDE another "
+                      "type may be named (`def type maybe option slice u8 .`)", row[q]->tok.line, row[q]->tok.col);
+    }
     for (proven_size_t i = 0; i < nd->nkids; i++) dr_walk(c, nd->kids[i]);
 }
 // ★★★★★ RFC-0127 ⓒ — 권한 잎(`file_*`·`dir_*`·`path_*`·`link_type`·`net_*`)은 `call_builtin <이름> …` 뒤에서만 선다.

@@ -1,6 +1,4 @@
 rem ★ doc 픽스처도 bytes·path 를 선언 없이 썼다.
-def type bytes slice u8 .
-def type path slice u8 .
 
 rem ★ errors 절이 거는 변형들이 **선언돼 있지 않았다**(E-ERR-UNDEF 가 잡았다).
 def enum parse_error do
@@ -20,7 +18,7 @@ Parse the 4-byte header, returning version and length.
 Fails if the input is shorter than the header.
 DOC
 .
-  input data bytes .
+  input data slice u8 .
   output result .
   requires static ge len data. . 4 . .
   errors too_short .
@@ -37,7 +35,7 @@ proc load_file
                                rem   `effects io` 를 선언하면서 io 를 인가하는 cap 을 **안 들고
                                rem   있었다.** 검사가 `cap` 토큰 유무만 봐서 `cap allocator` 로
                                rem   통과했다 — **할당 권한이 파일 읽기를 인가했다.**
-  input p path .
+  input p slice u8 .
   output result .
   effects io alloc .
   errors open_failed .

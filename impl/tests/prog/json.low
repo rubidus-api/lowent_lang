@@ -7,8 +7,6 @@ rem 하는 일: 바이트 열을 훑어 토큰 종류를 센다(아주 작은 JS
 
 module json .
 
-def type bytes slice u8 .
-
 def enum kind do
   lbrace .
   rbrace .
@@ -46,7 +44,7 @@ fn weight input k kind . output u8 . do
 end .
 
 rem 훑어서 센다. struct 필드 **쓰기**를 쓴다.
-fn scan input src bytes . output u16 . do
+fn scan input src slice u8 . output u16 . do
   var c lit counts do braces 0 . quotes 0 . digits 0 . end . .
   var i u64 0 .
   while lt i. len src. . . do

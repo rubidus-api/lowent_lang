@@ -41,7 +41,7 @@
 #demo("examples/ch13/aliases.low")
 
 `meters` 는 `u64` 의 다른 이름일 뿐이다. 그래서 `mul w. h. .` 의 결과를 `u64` 로 돌려줄 수 있다. 별칭은 긴
-타입을 짧게 부르거나(`def type bytes slice u8 .`), 뜻을 소스에 남길 때 쓴다. `pct` 는 범위가 붙은 타입의
+타입을 짧게 부르거나(`def type found option u64 .`), 뜻을 소스에 남길 때 쓴다. `pct` 는 범위가 붙은 타입의
 별칭이고, 이 이름을 받는 모든 자리가 그 범위를 물려받는다(아래에서 다룬다).
 
 #idx("newtype")
@@ -255,6 +255,18 @@
   `i32` 에서 `u64` 로 가면 폭은 넓어지지만, −1 같은 음수는 `u64` 에 자리가 없다. `widen` 은 *어떤 값도 변하지 않는* 자리에만
   쓰므로 `E-WIDEN-SIGN` 이다. 음수가 올 수 없다고 알고 있다면 `cast u64 x. .` 라고 적어 그 판단을 소스에 남긴다. 음수가 오면 `cast`
   가 멈춘다. 음수를 따로 다뤄야 한다면 `guard ge x 0` 을 먼저 둔다.
+]
+
+#antipattern[슬라이스 · 배열 · 매트릭스에 `def type` 이나 `def newtype` 으로 이름을 붙인다][
+  #demo("examples/ch13/mistake_rowname.low")
+
+  `slice` · `array` · `matrix` 는 원소 타입과 길이 · 차원이 낱말에 그대로 드러나는 타입이다. 여기에 다른 이름을 붙이면 읽는 사람이
+  그 이름 뒤에 무엇이 있는지 선언을 찾아가야 안다. 그래서 `def type` 과 `def newtype` 은 이 셋을 *타입 전체로* 받지 않는다 ---
+  슬라이스는 `E-TYPE-ROWNAME`, 배열은 `E-TYPE-ARRAY`, 매트릭스는 `E-MATRIX-USE` 로 거절된다. 쓰는 자리에 타입을 그대로 적는다. 다른
+  타입 *안에* 든 것은 이름을 붙일 수 있다(`def type found option slice u8 .`). 제 이름을 가진 타입이 필요하면 구조체의 칸으로
+  둔다 --- 구조체는 이름이 다르면 다른 타입이다.
+
+  #demo("examples/ch13/rowname_fixed.low")
 ]
 
 #antipattern[수를 `cast` 로 `bool` 로 바꾼다][

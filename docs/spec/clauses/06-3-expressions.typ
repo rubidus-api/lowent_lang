@@ -534,9 +534,7 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
 
 use math .
 
-def type bytes slice u8 .
-
-fn total input b bytes . output u64 .
+fn total input b slice u8 . output u64 .
 do
   var xs slice f64 view_array f64 b. . .
   return math.sum_neumaier xs. . .      rem 결과는 부동소수점 수인데 머리는 `u64` 라고 적었다

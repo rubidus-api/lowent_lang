@@ -8,23 +8,19 @@ rem ★★ **빌트인 op 증가 0.** 이 파일은 언어가 이미 가진 것(
 rem   while·actor)만으로 지어졌다 — check-builtins 가 세는 137 은 그대로다. 그리고 이것이 곧
 rem   RFC-0068 D5 의 시험이었다: "언어가 자기 라이브러리를 자기로 쓸 수 있는가?" — 쓸 수 있었다.
 rem
-rem ★ **`str` 은 투명 별칭이다 — newtype 이 아니다** (D1 을 실측이 정정, RFC-0068 §3-D1′).
-rem   D3 이 "str 은 바이트다"(인코딩 불가지)를 확정했으므로 str 에는 slice u8 이상의 **불변식이
-rem   없고**, 불변식 없는 타입에 명목 벽을 세우면 지키는 것 없이 cast 마찰만 남는다. 실측:
-rem   slice 코어 newtype 은 현재 명목 검사가 물지 않아(장식 — §0 금지) 어차피 그대로 못 쓴다.
-rem   newtype 은 UTF-8 검증 타입(F2-b)이 생겨 **지킬 불변식이 생기면** 그때 쓴다.
+rem ★ **문자열은 `slice u8` 이다 — 따로 지은 타입 이름이 없다.** D3 이 «문자열은 바이트다»(인코딩 불가지)를
+rem   확정했으므로 slice u8 이상의 불변식이 없다. 처음에는 별칭 `str` 을 두었으나(RFC-0068 §3-D1′), 줄 타입에는
+rem   이름을 붙이지 않기로 하여(소유자 결정 2026-10-12, 정본 §6.2.9 (2b)) 별칭을 거두고 타입을 그대로 적는다.
 rem
-rem ★ 없는 것도 뜻이 있다: str_len·str_sub 는 **없다** — 별칭이므로 len·subslice 가 그대로 str 에
+rem ★ 없는 것도 뜻이 있다: str_len·str_sub 는 **없다** — 문자열이 slice u8 이므로 len·subslice 가 그대로
 rem   작동하고, 같은 뜻의 두 이름은 §2.5(동의어 금지)가 거부한다. 표면이 저절로 작아졌다.
 
 module strings .
 
-def type str slice u8 .
-
 rem ── 비교 ──────────────────────────────────────────────────────────────
 
 rem 바이트 단위 동등 — 빌트인 `eq` 는 스칼라 전용이라(E-VM-TYPE) 슬라이스 비교는 여기 산다.
-export fn eq_str input a str . input b str . output bool . do
+export fn eq_str input a slice u8 . input b slice u8 . output bool . do
   guard eq len a. . len b. . . else return false . .
   var i u64 0 .
   while lt i. len a. . . do
@@ -35,7 +31,7 @@ export fn eq_str input a str . input b str . output bool . do
 end .
 
 rem 바이트 멤버십 — 빌트인 `contains` 는 bitset 전용이다. cut 집합 검사(trim)가 쓴다.
-export fn has_byte input s str . input b u8 . output bool . do
+export fn has_byte input s slice u8 . input b u8 . output bool . do
   var i u64 0 .
   while lt i. len s. . . do
     if eq idx s. i. . b. . do return true . end .
@@ -49,7 +45,7 @@ rem ── 찾기 ────────────────────�
 rem 부분열 탐색, from 부터. ★ **없음은 값이다** — option u64. proven 의 (size_t)-1 센티널도,
 rem Go 의 -1 도 필요 없다(RFC-0068 §5.1). from 인자가 기본이다: 커서는 호출자가 드는 u64 값
 rem (RFC-0069 §4 위치 지정 원칙 — 커서를 상태에 숨기지 않는다).
-export fn find input hay str . input needle str . input from u64 . output option u64 .
+export fn find input hay slice u8 . input needle slice u8 . input from u64 . output option u64 .
 do
   guard le from. len hay. . . else return none . .
   guard gt len needle. . 0 . else return some from. . . .   rem 빈 needle = 그 자리(규약)
@@ -63,36 +59,36 @@ do
   return none .
 end .
 
-export fn has input hay str . input needle str . output bool . do
+export fn has input hay slice u8 . input needle slice u8 . output bool . do
   return is_some find hay. needle. 0 . . .
 end .
 
 rem ── 접두 · 접미 ───────────────────────────────────────────────────────
 
-export fn starts_with input s str . input prefix str . output bool . do
+export fn starts_with input s slice u8 . input prefix slice u8 . output bool . do
   guard le len prefix. . len s. . . else return false . .
   return eq_str subslice s. 0 len prefix. . . prefix. . .
 end .
 
-export fn ends_with input s str . input suffix str . output bool . do
+export fn ends_with input s slice u8 . input suffix slice u8 . output bool . do
   guard le len suffix. . len s. . . else return false . .
   return eq_str subslice s. sub len s. . len suffix. . . len s. . . suffix. . .
 end .
 
 rem 접두/접미 제거 — 없으면 **원본 그대로**(Luca Sas 의 모양). 뷰라 복사 0.
-export fn remove_prefix input s str . input prefix str . output str . do
+export fn remove_prefix input s slice u8 . input prefix slice u8 . output slice u8 . do
   if starts_with s. prefix. . do return subslice s. len prefix. . len s. . . . end .
   return s. .
 end .
 
-export fn remove_suffix input s str . input suffix str . output str . do
+export fn remove_suffix input s slice u8 . input suffix slice u8 . output slice u8 . do
   if ends_with s. suffix. . do return subslice s. 0 sub len s. . len suffix. . . . . end .
   return s. .
 end .
 
 rem ── 다듬기 — cut 은 "잘라낼 바이트들의 집합" (예: " \t\n") ──────────────
 
-export fn trim_start input s str . input cut str . output str . do
+export fn trim_start input s slice u8 . input cut slice u8 . output slice u8 . do
   var i u64 0 .
   while lt i. len s. . . do
     guard has_byte cut. idx s. i. . . else return subslice s. i. len s. . . . .
@@ -101,7 +97,7 @@ export fn trim_start input s str . input cut str . output str . do
   return subslice s. len s. . len s. . . .                 rem 전부 잘림 → 빈 뷰
 end .
 
-export fn trim_end input s str . input cut str . output str . do
+export fn trim_end input s slice u8 . input cut slice u8 . output slice u8 . do
   var j u64 len s. . .
   while gt j. 0 . do
     guard has_byte cut. idx s. sub j. 1 . . . else return subslice s. 0 j. . . .
@@ -116,7 +112,7 @@ rem ★ **커서가 값이다** (RFC-0069 §4 — Rust 의 Seek &mut 참사의 �
 rem   조각을 받으면 `pos + len 조각 + 1` 로 스스로 전진한다. pos 가 len 을 넘으면 끝(none).
 rem     "a,b" → "a"·"b"    "a," → "a"·""(꼬리 빈 조각)    "" → ""(빈 조각 하나)
 rem   상태를 나눠 갖지 않으므로 같은 src 를 여러 커서가 **동시에** 읽어도 자유다.
-export fn split_next input src str . input sep u8 . input pos u64 . output option str .
+export fn split_next input src slice u8 . input sep u8 . input pos u64 . output option slice u8 .
 do
   guard le pos. len src. . . else return none . .
   var j u64 pos. .

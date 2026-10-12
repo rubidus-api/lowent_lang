@@ -16,5 +16,4 @@ rem unsigned control — index of 0xFFFFFFFF stays 4294967295, NOT -1.
 fn u32 input s slice u32 . output i64 . do return widen i64 idx s. 0 . . . end .
 
 rem view_array route — a signed typed view must sign-extend too.
-def type bytes slice u8 .
-fn v32 input b bytes . output i64 . do return widen i64 idx view_array i32 b. . 0 . . . end .
+fn v32 input b slice u8 . output i64 . do return widen i64 idx view_array i32 b. . 0 . . . end .

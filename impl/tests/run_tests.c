@@ -1254,7 +1254,7 @@ int main(void) {
     // ── S5b: values — guard/error/ok/try/make/slice on the VM ──
     {
         const char *src =
-            "def type bytes slice u8 . "
+            ""
             "def enum e2 do neg end "
             "def struct pairr do a u64 . b u64 . end "
             "fn chk input n u64 . output result u64 e2 .  do "
@@ -1264,7 +1264,7 @@ int main(void) {
             "return lit pairr do a n . b mul n 2 . end end "
             "fn use_try input n u64 . output u64 .  do "
             "let v u64 be try chk n . . return v . end "
-            "fn first input d bytes . output u64 . do return idx d 0 . end";
+            "fn first input d slice u8 . output u64 . do return idx d 0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -1291,7 +1291,7 @@ int main(void) {
     // ── S5c: containers — stack (pop-into), bitset (poly add/contains/count), for ──
     {
         const char *src =
-            "def type bytes slice u8 . "
+            ""
             "proc drain input n u64 . output u64 . effects none . do "
             "var work stack u64 . be stack_new r capacity 8 . . "
             "var i u64 be 0 . "
@@ -1304,7 +1304,7 @@ int main(void) {
             "add s a . add s b . add s a . "
             "guard bitset_contains s a . else return 99 . . "
             "return count s . end "
-            "fn sum_bytes input xs bytes . output u64 .  do "
+            "fn sum_bytes input xs slice u8 . output u64 .  do "
             "var t u64 be 0 . "
             "for x xs do set t expr t + x . . end "
             "return t . end";
@@ -1465,14 +1465,14 @@ int main(void) {
     // ── view/try_view (RFC-0025 §6.6): packed layout + be fields, zero-copy ──
     {
         const char *src =
-            "def type bytes slice u8 . "
+            ""
             "def struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
-            "fn hdr_kind input b bytes . output u64 .  do "
+            "fn hdr_kind input b slice u8 . output u64 .  do "
             "var o wire_header . be try_view wire_header b . . "
             "guard is_some o . else return 999 . . "
             "var h wire_header . be some_value o . "
             "return field h kind . end "
-            "fn hdr_sum input b bytes . output u64 .  do "
+            "fn hdr_sum input b slice u8 . output u64 .  do "
             "var h wire_header . be view wire_header b . . "
             "return expr (field h length) * 1000 + (field h kind) . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1547,10 +1547,10 @@ int main(void) {
     // ── view_array + strings + view-EXCL ──
     {
         const char *src =
-            "def type bytes slice u8 . "
-            "fn va_sum input b bytes . output u64 .  do "
+            ""
+            "fn va_sum input b slice u8 . output u64 .  do "
             "var t u64 be 0 . for x view_array u16 b . do set t expr t + x . . end return t . end "
-            "fn va_at input b bytes . output u64 .  do "
+            "fn va_at input b slice u8 . output u64 .  do "
             "return idx (view_array u32 b) 1 . end "
             "fn slen output u64 .  do return len \"hello\" . end "
             "fn ssum output u64 .  do "
@@ -1612,20 +1612,20 @@ int main(void) {
     // ── portable SIMD (RFC-0040): comptime lanes, arith/compare lift, reductions ──
     {
         const char *src =
-            "def type bytes slice u8 . "
-            "fn dot4 input b bytes . output u64 .  do "
+            ""
+            "fn dot4 input b slice u8 . output u64 .  do "
             "var xs u64 . be view_array u32 b . "
             "var va vec u32 4 . be load xs 0 . "
             "var vb vec u32 4 . be load xs 4 . "
             "return reduce_add mul va vb . end "
-            "fn clampsum input b bytes . output u64 .  do "
+            "fn clampsum input b slice u8 . output u64 .  do "
             "var xs u64 . be view_array u32 b . "
             "var v vec u32 4 . be load xs 0 . "
             "var lim vec u32 4 . be splat 10 . "
             "var m u64 . be gt v lim . "
             "var cc vec u32 4 . be lane_select m lim v . "
             "return reduce_add cc . end "
-            "fn over input b bytes . output u64 .  do "
+            "fn over input b slice u8 . output u64 .  do "
             "var xs u64 . be view_array u32 b . "
             "var v vec u32 4 . be load xs 0 . "
             "var lim vec u32 4 . be splat 10 . "
@@ -1720,7 +1720,7 @@ int main(void) {
     // ── float layouts + float SIMD lanes (RFC-0025 §6.6 / RFC-0040) ──
     {
         const char *src =
-            "def type bytes slice u8 . "
+            ""
             "def struct sample do layout packed . temp f32 big . scale f64 . tag u8 . end "
             "fn mk output sample .  do "
             "  return lit sample do temp 1.5 . scale 2.25 . tag 3 . end end "
@@ -1728,7 +1728,7 @@ int main(void) {
             "  var h sample . be view sample encode sample mk . . "
             "  return expr (field h temp) + (field h scale) . . end "
             "fn wire output u64 .  do return len encode sample mk . . end "
-            "fn dot input b bytes . output f64 .  do "
+            "fn dot input b slice u8 . output f64 .  do "
             "  var xs u64 . be view_array f32 b . "
             "  var va vec f32 4 . be load xs 0 . "
             "  var vb vec f32 4 . be load xs 4 . "
@@ -1760,14 +1760,14 @@ int main(void) {
     // ── `align n` — alignment contract, enforced at the view boundary (RFC-0051 §5.1) ──
     {
         const char *src =
-            "def type bytes slice u8 . "
+            ""
             "def struct reg do align 16 . ctrl u32 . stat u16 . end "
             "def struct nat do ctrl u32 . stat u16 . end "
             "fn mk output reg .  do return lit reg do ctrl 7 . stat 2 . end . end "
             "fn mkn output nat .  do return lit nat do ctrl 7 . stat 2 . end . end "
             "fn wide output u64 .  do return len encode reg mk . . end "
             "fn narrow output u64 .  do return len encode nat mkn . . end "
-            "fn tv_at input off u64 . input b bytes . output u64 .  do "
+            "fn tv_at input off u64 . input b slice u8 . output u64 .  do "
             "  var o reg . be try_view reg (subslice b off (len b)) . . "
             "  guard is_some o . else return 0 . . "
             "  var h reg . be some_value o . "
@@ -2288,15 +2288,15 @@ int main(void) {
     // 벡터 비교의 결과가 마스크인데, 지금까지 마스크는 **아무 타입도 아니었다.**
     // vm_vec 픽스처가 실제로 `var m u64 . be gt v lim .` 라고 적어 놨다 — **마스크를 정수로**.
     // 그래서 select 에 아무거나 넘겨도·any 에 정수를 넘겨도 통과했다.
-    check(TYCK("def type bytes slice u8 . "
-               "fn f input b bytes . output bool .  do "
+    check(TYCK(""
+               "fn f input b slice u8 . output bool .  do "
                "  var n u64 be 5 . return lane_any n . end") == false,
           "mask: ★ `any` on an integer → E-TYPE-MASK (a mask is the result of a lanewise compare, "
           "not a number)");
     // ★ 2026-07-24: `var xs u64 . be view_array u32 b .` 였다 — 초기식은 **슬라이스**인데 선언은
     //   스칼라라 이제 E-TYPE-VAR 다(타입검사가 자랐고 픽스처가 안 따라가 유닛 게이트가 빨간불이었다).
-    check(TYCK("def type bytes slice u8 . "
-               "fn f input b bytes . output bool .  do "
+    check(TYCK(""
+               "fn f input b slice u8 . output bool .  do "
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
                "  var lim vec u32 4 . be splat 10 . "
@@ -2306,8 +2306,8 @@ int main(void) {
           "way — it used to say `u64`)");
     // ★ 여기도 `xs` 를 고친다 — 안 고치면 E-TYPE-VAR 로 거부돼 **정작 재려던 E-TYPE-MASK 를
     //   안 재고도 통과한다**(맞는 답, 틀린 이유 — 이 프로젝트가 가장 싫어하는 초록불이다).
-    check(TYCK("def type bytes slice u8 . "
-               "fn f input b bytes . output u64 .  do "
+    check(TYCK(""
+               "fn f input b slice u8 . output u64 .  do "
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
                "  var lim vec u32 4 . be splat 10 . "
@@ -2891,14 +2891,14 @@ int main(void) {
     // ★ 그리고 정직한 선언은 **공짜다** — 술어 기억이 guard 의 조건과 when 을 같은 식으로 알아본다.
     {
         const char *src =
-            "module t . def type bytes slice u8 . def enum e do small end "
+            "module t . def enum e do small end "
             // ① 정직 — guard 의 조건과 when 이 같은 식 ⇒ **증명되어 검사가 사라진다**
-            "fn honest input data bytes . output result u8 e . .  "
+            "fn honest input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
             "   return ok idx data 0 . . end "
             // ② 거짓말 — 선언은 len<2, 본문은 len<9 ⇒ 증명 실패 ⇒ 검사 유지
-            "fn liar input data bytes . output result u8 e . .  "
+            "fn liar input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 2 . . "
             " do guard ge len data . 9 . else return error small . . . "
             "   return ok idx data 0 . . end "
@@ -2907,7 +2907,7 @@ int main(void) {
             //    지문이 같으므로 술어 기억이 그 식을 알아본다. **극성을 안 보면**
             //    "이 경로에서 알려진 식" 이라는 이유로 잘못 증명하고 검사를 지운다.
             //    극성(pneg)이 건전성의 축이다 — 실제로 그것을 빼면 E-VM-ANALYSIS 가 터진다.
-            "fn inverted input data bytes . output result u8 e . .  "
+            "fn inverted input data slice u8 . output result u8 e . .  "
             "  errors small ge len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
             "   return ok idx data 0 . . end";
@@ -3046,14 +3046,14 @@ int main(void) {
     //   자기 선언을 어기지 않는다. 어기면 E-VM-CONTRACT 가 나오고, 그것이 곧 실패다.
     {
         const char *src =
-            "module t . def type bytes slice u8 . def enum e do small end "
+            "module t . def enum e do small end "
             // 정직 — 선언과 본문이 같은 경계(4)
-            "fn honest input data bytes . output result u8 e . .  "
+            "fn honest input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
             "   return ok idx data 0 . . end "
             // 거짓말 — 선언은 2, 본문은 9
-            "fn liar input data bytes . output result u8 e . .  "
+            "fn liar input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 2 . . "
             " do guard ge len data . 9 . else return error small . . . "
             "   return ok idx data 0 . . end";
@@ -3075,8 +3075,8 @@ int main(void) {
     // 그리고 **정직한 op 은 통과한다** — 과잉 고발이 아니다.
     {
         const char *src =
-            "module t . def type bytes slice u8 . def enum e do small end "
-            "fn honest input data bytes . output result u8 e . .  "
+            "module t . def enum e do small end "
+            "fn honest input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
             "   return ok idx data 0 . . end";
@@ -3359,10 +3359,10 @@ int main(void) {
     // ── RFC-0053 E5 (P2′ 오차 가시): sum_neumaier(보정) vs sum_seq(축차) — 오차가 이름에 있다 ──
     {
         const char *src =
-            "def type bytes slice u8 . "
-            "fn s_good input b bytes . output f64 .  do "
+            ""
+            "fn s_good input b slice u8 . output f64 .  do "
             "  var xs u64 . be view_array f64 b . return call_builtin sum_neumaier xs . end "
-            "fn s_fast input b bytes . output f64 .  do "
+            "fn s_fast input b slice u8 . output f64 .  do "
             "  var xs u64 . be view_array f64 b . return call_builtin sum_seq xs . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3657,10 +3657,10 @@ int main(void) {
         //   섞으면 지표가 거짓말을 한다 — 도구가 검사한 것만 주장해야 하듯이.
         {
             const char *base =
-                "module m . def type bytes slice u8 . def enum e do small . end "
+                "module m . def enum e do small . end "
                 "def struct p do x u8 . y u8 . end "
                 "fn helper input a u8 . output u8 .  do return a . end "
-                "fn f input d bytes . output result u8 e .  "
+                "fn f input d slice u8 . output result u8 e .  "
                 "  errors small lt len d 4 . tests helper . "
                 " do guard ge (len d) 4 . else return error small . "
                 "   return ok idx d 0 . end "

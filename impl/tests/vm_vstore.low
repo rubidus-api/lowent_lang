@@ -7,10 +7,8 @@ rem   ★ VM(레인 시뮬)과 C(벡터) 가 **같은 바이트**를 쓴다 ⇒ 
 
 module vm_vstore .
 
-def type bytes slice u8 .
-
 rem 각 u32 레인을 2배로 만들어 out 에 되쓴다.
-proc scale2 input b bytes . input out mut slice u8 . output u64 . effects none . do
+proc scale2 input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xs slice u32 view_array u32 b. . .
   let v vec u32 4 load xs. 0 . .
   let two vec u32 4 splat 2 . .
@@ -20,7 +18,7 @@ proc scale2 input b bytes . input out mut slice u8 . output u64 . effects none .
 end .
 
 rem 레인별 덧셈 후 되쓰기 — 두 입력을 더해 out 에.
-proc add_lanes input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
+proc add_lanes input a slice u8 . input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xa slice u32 view_array u32 a. . .
   let xb slice u32 view_array u32 b. . .
   let va vec u32 4 load xa. 0 . .

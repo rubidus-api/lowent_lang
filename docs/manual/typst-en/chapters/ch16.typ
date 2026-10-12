@@ -176,7 +176,7 @@ Environment variables and operating-system randomness are also received as capab
 `env.env_get e "…"` needs `cap env`, and `random.bytes r. buf. .` needs `cap random`. An environment variable is a channel that quietly changes behaviour
 from outside the program, and randomness is a channel that changes the answer for the same input. Both must be visible in the head so that the
 head alone tells whether "this program's answer is decided by its inputs". With no variable, `env.env_get` gives `none` and the example returns 8,
-the number of bytes filled. When tests need repeatable random numbers, use `rng_next` (the next number from a seed), which needs no capability.
+the number of bytes filled. When tests need repeatable random numbers, use `random.advance_seed` (the next number from a seed), which needs no capability.
 
 == Common mistakes
 

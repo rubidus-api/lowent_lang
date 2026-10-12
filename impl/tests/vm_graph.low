@@ -5,24 +5,22 @@ rem ★ 모듈 이름이 op 이름과 같았다(`module reach` + `fn reach`) —
 rem   자격 있는 경로가 생기면 `reach.x` 가 **두 뜻**이 된다. 이름공간이 하나면 유일해야 한다.
 module reachability .
 
-def type bytes slice u8 .
-def type graph slice u8 .
 rem ★ 이 셋도 선언 없이 쓰이고 있었다 — 이름이 아무것도 가리키지 않았다(E-TYPE-UNDEF 가 잡았다).
 def type node_id u64 .
 def type node_count u64 .
 def type frame u64 .
 
 fn node_count_of
-  input g graph .
+  input g slice u8 .
   output u64 .
 do
   return idx g. 0 . .
 end .
 
 fn children_of
-  input g graph .
+  input g slice u8 .
   input node u64 .
-  output bytes .
+  output slice u8 .
 do
   var at u64 1 .
   var i u64 0 .
@@ -35,7 +33,7 @@ end .
 
 proc graph_reachable
   input temp region frame .
-  input g graph .
+  input g slice u8 .
   input root node_id .
   input out mut bitset node_count .
   output void .
@@ -60,7 +58,7 @@ rem   그것이 정확히 이 모델이 없애는 **숨은 의존**이다.
 proc reach
   input temp region frame . rem ★ 할당 권한 — region 은 arena allocator 다(D7)
   input root u64 .
-  input g graph .
+  input g slice u8 .
   output u64 .
   effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
 do

@@ -1,5 +1,4 @@
 rem float struct fields (f32/f64 layout, be) + float SIMD lanes (RFC-0040 f32).
-def type bytes slice u8 .
 
 def struct sample do
   layout packed .
@@ -28,7 +27,7 @@ end .
 fn f_len output u64 . do return len encode sample mk_sample. . . . end .
 
 fn fdot
-  input b bytes .
+  input b slice u8 .
   output f64 .
 do
   let xs slice f32 view_array f32 b. . .
@@ -38,7 +37,7 @@ do
 end .
 
 fn fmax
-  input b bytes .
+  input b slice u8 .
   output f64 .
 do
   let xs slice f32 view_array f32 b. . .

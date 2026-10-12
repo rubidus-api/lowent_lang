@@ -415,7 +415,7 @@ static void low_empty_form_dot(low_parser_t *p, const low_cst_t *f) {
     }
     low_pdiag(p, "E-CLOSER-EXTRA",
               "this stop closes nothing — the form before it was already closed. A form ends with ONE `.`; "
-              "a type takes no stop of its own (`def type bytes slice u8 .`, not `slice u8 . .`). Delete it (RFC-0113 R6)",
+              "a type takes no stop of its own (`def type word u64 .`, not `u64 . .`). Delete it (RFC-0113 R6)",
               dt->line, dt->col);
 }
 // block body: form* "end" — shared by `do…end` blocks and the headless

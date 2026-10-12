@@ -68,6 +68,7 @@ typedef struct {
     //   그래서 그 결과에만 이 표시를 달아 **`u64` 자리에도 서게 두고 센다**(`LOWENT_LIST_LEN_U64=1` · 게이트 `check-len-usize`).
     //   수가 0 이 되면 이 칸과 아래 `tc_soft_*` 를 지운다 — 그때 `usize` 는 어디서나 `u64` 와 다른 타입이다.
     bool        softsz;
+    proven_u8str_view_t vname;   // ★ RFC-0149 — 이 타입이 **이름을 읽어** 나왔으면 그 이름(옮김 지시 `RETYPE` 가 읽는다. 뜻에는 쓰지 않는다)
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -403,6 +404,7 @@ static bool tc_is_instance_name(proven_u8str_view_t v) {
     return false;
 }
 
+static ty_t g_nom_decl, g_nom_actual;   // ★ RFC-0149 — compat 가 TC_NOMINAL 을 낸 두 타입(옮김 지시용)
 static bool g_soft_hit = false;   // ★ RFC-0149 — compat 가 «옮기는 동안의 usize → u64» 를 받아 주었다(부른 쪽이 줄을 알고 센다)
 static int  g_soft_list = -1;
 static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line);
@@ -460,7 +462,7 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
         if (!decl.bits || !actual.bits) return TC_OK;
         // RFC-0149 — 옮기는 동안: 길이(usize)가 `usize` 아닌 정수 자리에 오면 **전처럼 `u64` 로 보고** 센다(폭 · 부호의 판정은 그대로).
         if (actual.softsz && decl.nominal == 0) { g_soft_hit = true; actual.nominal = 0; actual.softsz = false; }
-        if (decl.nominal != actual.nominal) return TC_NOMINAL;              // D11
+        if (decl.nominal != actual.nominal) { g_nom_decl = decl; g_nom_actual = actual; return TC_NOMINAL; }   // D11
         if (ty_sub(actual, decl)) return TC_OK;                             // ★ 값 보존 확대만 암묵
         return decl.sign != actual.sign ? TC_SIGN : TC_WIDTH;
     }
@@ -555,6 +557,18 @@ static bool tc_param_cap_kind(const low_cst_t *def, proven_u8str_view_t name, pr
 }
 // ★ RFC-0149 — 옮기는 동안의 집계. `LENU64 <꼴> <줄> <파일>` 한 줄(꼴: bind = `u64` 선언 · 반환 · 칸에 묶었다, arg = `u64` 입력에 넘겼다,
 //   mix = `u64` 와 셈 · 견줌을 했다, idx = `u64` 를 첨자 · 경계로 댔다).
+// ★ RFC-0149 — **옮김 지시**(`LOWENT_LIST_LEN_U64=1` 일 때만). 사설 `scripts/usize-migrate.py` 가 읽어 선언의 `u64` 를 `usize` 로 바꾼다.
+//   `RETYPE V <이름> <줄> <파일>` 그 줄에서 읽힌 이름의 선언을 · `RETYPE L - <줄> <파일>` 그 줄의 문장이 받는 자리(선언 · return · set)를 ·
+//   `RETYPE P <부른 op>:<입력 번호> <줄> <파일>` 부른 op 의 그 입력을.
+static void tc_retype(tc_ctx_t *c, char kind, proven_u8str_view_t nm, long idx, proven_u32 line) {
+    if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
+    if (!g_soft_list) return;
+    const char *fl = c->curform ? low_cst_file_for_line(c->curform, line) : NULL;
+    if (kind == 'P') fprintf(stderr, "RETYPE\tP\t%.*s:%ld\t%u\t%s\n", (int)nm.size, (const char *)nm.ptr, idx, (unsigned)line, fl ? fl : "");
+    else fprintf(stderr, "RETYPE\t%c\t%.*s\t%u\t%s\n", kind, nm.size ? (int)nm.size : 1, nm.size ? (const char *)nm.ptr : "-", (unsigned)line, fl ? fl : "");
+}
+static bool tc_is_usz(ty_t t) { return t.k == TK_INT && t.nominal == 1 && !t.sign; }
+static bool tc_is_plain(ty_t t) { return t.k == TK_INT && t.nominal == 0 && !t.lit && t.bits; }
 static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line) {
     (void)c;
     if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
@@ -564,7 +578,12 @@ static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line) {
 }
 // kind mismatches keep their site-specific code; width/sign get dedicated codes
 static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg, proven_u32 line) {
-    if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "bind", line); }
+    if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "bind", line); tc_retype(c, 'L', (proven_u8str_view_t){ 0 }, 0, line); }
+    if (r == TC_NOMINAL) {   // RFC-0149 — 이미 `usize` 가 된 것과 `u64` 가 만났다: 어느 선언을 바꿀지 댄다
+        if (tc_is_usz(g_nom_decl) && tc_is_plain(g_nom_actual) && g_nom_actual.vname.size) tc_retype(c, 'V', g_nom_actual.vname, 0, line);
+        else if (tc_is_plain(g_nom_decl) && tc_is_usz(g_nom_actual)) tc_retype(c, 'L', (proven_u8str_view_t){ 0 }, 0, line);
+        g_nom_decl = g_nom_actual = (ty_t){ 0 };
+    }
     if (r == TC_OK) return;
     if (r == TC_WIDTH)        tc_emit(c, "E-TYPE-WIDTH", "value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)", line);
     else if (r == TC_SIGN)    tc_emit(c, "E-TYPE-SIGN", "sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)", line);
@@ -607,7 +626,7 @@ static const tc_sig_t *sig_find_at(tc_ctx_t *c, const low_cst_t *at) {
     return at ? sig_find(c, at->tok.lex) : NULL;
 }
 static ty_t env_find(const tc_var_t *env, proven_size_t n, proven_u8str_view_t name, bool *found) {
-    for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; return env[i].ty; }
+    for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; ty_t t_ = env[i].ty; t_.vname = name; return t_; }
     *found = false; return tk(TK_UNKNOWN);
 }
 
@@ -656,7 +675,12 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     //   상대가 `usize` 아닌 정수면 길이를 **전처럼 `u64` 로 보고** 아래의 판정을 그대로 탄다(`u8` 과의 셈은 `u64` 로 넓어진다).
     if (a.k == TK_INT && b.k == TK_INT && ((a.softsz && b.nominal == 0) || (b.softsz && a.nominal == 0))) {
         tc_soft_note(c, "mix", line);
-        if (a.softsz) { a.nominal = 0; a.softsz = false; } else { b.nominal = 0; b.softsz = false; }
+        if (a.softsz) { if (b.vname.size) tc_retype(c, 'V', b.vname, 0, line); a.nominal = 0; a.softsz = false; }
+        else          { if (a.vname.size) tc_retype(c, 'V', a.vname, 0, line); b.nominal = 0; b.softsz = false; }
+    }
+    if (a.k == TK_INT && b.k == TK_INT && a.bits && b.bits) {   // RFC-0149 — 굳은 `usize` 와 `u64` 이름이 만났다(거절 앞에서 지시를 낸다)
+        if (tc_is_usz(a) && !a.softsz && tc_is_plain(b) && b.vname.size) tc_retype(c, 'V', b.vname, 0, line);
+        if (tc_is_usz(b) && !b.softsz && tc_is_plain(a) && a.vname.size) tc_retype(c, 'V', a.vname, 0, line);
     }
     if (a.k == TK_INT && a.softsz != b.softsz && a.nominal == 1 && b.nominal == 1) { a.softsz = b.softsz = false; }   // 진짜 usize 를 만나면 진짜가 된다
     if (!ty_comparable(a, b)) {
@@ -803,7 +827,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 for (proven_size_t q = 2; q < n; q++) {
                     ty_t it = tc_infer(c, k[start + q], env, nenv);
                     // ★ RFC-0149 — 첨자는 `usize` 다. 옮기는 동안은 다른 정수도 받고 센다.
-                    if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) tc_soft_note(c, "idx", k[start]->tok.line);
+                    if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {
+                        tc_soft_note(c, "idx", k[start]->tok.line);
+                        if (it.vname.size) tc_retype(c, 'V', it.vname, 0, k[start]->tok.line);
+                    }
                 }
                 if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
                     ty_t rv = sq; rv.erow = false;
@@ -829,7 +856,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 ty_t sx = (n >= 2) ? tc_infer(c, k[start + 1], env, nenv) : tk(TK_UNKNOWN);
                 for (proven_size_t q = 2; q < n; q++) {
                     ty_t it = tc_infer(c, k[start + q], env, nenv);
-                    if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) tc_soft_note(c, "idx", k[start]->tok.line);   // RFC-0149 — 경계도 `usize`
+                    if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {   // RFC-0149 — 경계도 `usize`
+                        tc_soft_note(c, "idx", k[start]->tok.line);
+                        if (it.vname.size) tc_retype(c, 'V', it.vname, 0, k[start]->tok.line);
+                    }
                 }
                 if (sx.k == TK_SLICE && sx.ebits) return sx;         // 타입 있는 슬라이스는 그대로
                 return tk(TK_SLICE);
@@ -1166,7 +1196,11 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
                 tc_reason_t ar = compat(s->params[i], at);
-                if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "arg", k[start]->tok.line); }
+                if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "arg", k[start]->tok.line); tc_retype(c, 'P', k[start]->tok.lex, (long)i, k[start]->tok.line); }
+                if (ar == TC_NOMINAL) {
+                    if (tc_is_plain(s->params[i]) && tc_is_usz(at)) tc_retype(c, 'P', k[start]->tok.lex, (long)i, k[start]->tok.line);
+                    else if (tc_is_usz(s->params[i]) && tc_is_plain(at) && at.vname.size) tc_retype(c, 'V', at.vname, 0, k[start]->tok.line);
+                }
                 // ★ RFC-0147 (2026-10-12) — 권한 자리에 **다른 종류의 권한**을 댔으면 그 말로 한다(`E-CAP-KIND`). 권한을 받는
                 //   빌트인 연산이 라이브러리 뒤로 가면서, 프로그램이 이 실수를 하는 자리가 잎이 아니라 감싸개의 부름이 됐다.
                 //   전엔 «이름만 다른 같은 표현의 타입» (`E-TYPE-NOMINAL`)이라고 했다 — 맞는 거절에 틀린 설명이었다.

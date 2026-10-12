@@ -227,6 +227,9 @@ static proven_i64 ity_meta(ityp_t t) {
     return IR_TY_KNOWN | (t.sign ? IR_TY_SIGNED : 0) | (t.flt ? IR_TY_FLT : 0) | t.bits;
 }
 
+static low_irw_t ir_tsrc[64];        // ★ RFC-0148 S0 — 그림자 스택의 칸마다, 그 값을 낸 낱말
+static int ir_list_untyped = -1;
+const char *low_irw_name(low_irw_t w);
 static void ir_tpush(ir_ctx_t *c, ityp_t t) {
     if (c->tsp >= 64) { c->tstk_bad = true; return; }
     c->tstk[c->tsp++] = t;
@@ -458,7 +461,11 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
     ityp_t res = ITY_UNK;
     if (ar >= 0) {
         ityp_t ops[3] = { ITY_UNK, ITY_UNK, ITY_UNK };
-        for (int i = ar - 1; i >= 0; i--) { ityp_t t = ir_tpop(c); if (i < 3) ops[i] = t; }
+        low_irw_t osrc[3] = { IRW_CONST, IRW_CONST, IRW_CONST };   // ★ RFC-0148 S0 — 피연산자를 낸 낱말(집계용)
+        for (int i = ar - 1; i >= 0; i--) {
+            ityp_t t = ir_tpop(c);
+            if (i < 3) { ops[i] = t; if (c->tsp < 64) osrc[i] = ir_tsrc[c->tsp]; }
+        }
         switch (w) {
             case IRW_LOAD:
                 res = ((proven_size_t)a < c->nlocals) ? c->locals[a].ty : ITY_UNK;
@@ -550,10 +557,29 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 res = ITY_UNK;
                 break;
         }
-        if (ar > 0 || w == IRW_CONST || w == IRW_LOAD || w == IRW_FCONST ||
-            w == IRW_STR || w == IRW_REF || w == IRW_MREF || w == IRW_WRAP_ERR)
-            ir_tpush(c, res);
-        else ir_tpush(c, res);
+        // ★★★ RFC-0148 S0 — **폭을 모르는 채 나가는 셈을 처리기가 센다** (`LOWENT_LIST_UNTYPED=1`).
+        //   넘침은 선언 폭에서 본다(정본 §6.3) — 그런데 피연산자의 폭이 미상이면 64 비트 길로 물러나고, 그 자리의 약속은
+        //   아무도 지키지 않는다. 미상의 출처가 리터럴뿐이면 빈틈이 아니다(무타입 상수끼리의 셈). 리터럴이 아닌 낱말이
+        //   미상을 냈으면 그 낱말이 **빈틈의 출처**다. 한 줄: `UNTYPED <셈> <출처> <op> <줄>` / 폭을 안 것은 `TYPED <셈>`.
+        if (ir_list_untyped < 0) ir_list_untyped = getenv("LOWENT_LIST_UNTYPED") ? 1 : 0;
+        if (ir_list_untyped && !c->tstk_bad &&
+            (w == IRW_ADD || w == IRW_SUB || w == IRW_MUL || w == IRW_DIV || w == IRW_MOD || w == IRW_NEG ||
+             w == IRW_SHL || w == IRW_SHR || w == IRW_BAND || w == IRW_BOR || w == IRW_BXOR || w == IRW_BNOT)) {
+            if (res.known) fprintf(stderr, "TYPED\t%s\n", low_irw_name(w));
+            else {
+                low_irw_t src = IRW_CONST;
+                for (int i = 0; i < ar && i < 3; i++)
+                    if (!ops[i].known && osrc[i] != IRW_CONST && osrc[i] != IRW_FCONST) { src = osrc[i]; break; }
+                if (src != IRW_CONST) {
+                    proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
+                    fprintf(stderr, "UNTYPED\t%s\t%s\t%.*s\t%u\n", low_irw_name(w), low_irw_name(src),
+                            (int)dn.size, (const char *)dn.ptr,
+                            (c->cur_form && c->cur_form->nkids) ? (unsigned)c->cur_form->kids[0]->tok.line : 0u);
+                }
+            }
+        }
+        if (c->tsp < 64) ir_tsrc[c->tsp] = w;
+        ir_tpush(c, res);
     } else {
         c->tsp = 0;   // 문장 경계 — 스택이 비는 지점
     }

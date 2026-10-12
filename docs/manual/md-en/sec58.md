@@ -74,13 +74,13 @@ Module names may differ from file names. What `use` looks for is the `module` de
 
 | **Module** | **In one line** |
 |---|---|
-| [`io`](sec116.md#mod-io) | Stream reading over slices |
-| [`outbuf`](sec117.md#mod-outbuf) | Buffered output — forgetting to flush is rejected |
-| [`files`](sec118.md#mod-files) | Files and directories — forgetting to close is rejected |
-| [`tty`](sec119.md#mod-tty) | Terminal input — raw mode · reading keys · pure key parsing |
-| [`net`](sec120.md#mod-net) | Sockets — TCP loopback · in-process connection pairs |
-| [`clock`](sec121.md#mod-clock) | Time and deadlines — monotonic and wall clocks |
-| [`trust`](sec122.md#mod-trust) | Finding a trusted root in the trust store — the bundle is streamed |
+| [`io`](sec119.md#mod-io) | Stream reading over slices |
+| [`outbuf`](sec120.md#mod-outbuf) | Buffered output — forgetting to flush is rejected |
+| [`files`](sec121.md#mod-files) | Files and directories — forgetting to close is rejected |
+| [`tty`](sec122.md#mod-tty) | Terminal input — raw mode · reading keys · pure key parsing |
+| [`net`](sec124.md#mod-net) | Sockets — TCP loopback · in-process connection pairs |
+| [`clock`](sec125.md#mod-clock) | Time and deadlines — monotonic and wall clocks |
+| [`trust`](sec126.md#mod-trust) | Finding a trusted root in the trust store — the bundle is streamed |
 
 *Table 50.3 — L2 — host (needs capabilities)*
 

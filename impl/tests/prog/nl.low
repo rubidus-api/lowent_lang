@@ -91,7 +91,7 @@ do
   let ing option mut slice u8 alloc_bytes al. capacity 16384 . .
   guard is_some ing. . else return 70 . .
   let inbuf mut slice u8 some_value ing. . .
-  let n option u64 read_in out. 0 inbuf. . .
+  let n option u64 call_builtin read_in out. 0 inbuf. . .
   guard is_some n. . else return 71 . .
 
   rem ② 출력 버퍼에 조립. 아직 **한 바이트도 밖으로 안 나갔다**.
@@ -102,6 +102,6 @@ do
   guard is_some w. . else return 73 . .
 
   rem ③ **한 번 비운다.** 줄마다 불렀다면 줄마다 flush 였다.
-  let put u64 write_out out. 1 subslice outbuf. 0 some_value w. . . . .
+  let put u64 call_builtin write_out out. 1 subslice outbuf. 0 some_value w. . . . .
   return 0 .
 end .

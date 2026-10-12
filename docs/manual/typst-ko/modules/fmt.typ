@@ -17,7 +17,7 @@ guard is_some p. . else return 1 . .
 `0` 은 `pos`(다음에 쓸 자리)이고, 돌려받는 `option u64` 는 *성공하면 새 `pos`, 자리가 모자라면 `none`* 이다.
 
 *포매팅은 출력이 아니다.* 모든 op 이 호출자의 버퍼에 바이트를 조립할 뿐이고 하나의 예외 없이 `effects none` 이다. 실제 출력은 `cap io` 를 든 호출자가
-`write_out` 이나 #modref("outbuf")[`outbuf`] 로 따로 한다. 그래서 조립 코드는 권한 없이 아무 데서나 부를 수 있고, 시험은 화면이 아니라 버퍼를 대조하면
+`stdio.write_out` 이나 #modref("outbuf")[`outbuf`] 로 따로 한다. 그래서 조립 코드는 권한 없이 아무 데서나 부를 수 있고, 시험은 화면이 아니라 버퍼를 대조하면
 되며, 무엇을 언제 내보낼지는 호출자가 정한다. 수를 바이트로 바꾸는 일은 커널도 할당도 필요 없어 라이브러리다 --- 기본 연산은 하나도 늘지 않았고, 파일
 전체가 VM·네이티브 대조 안에 있다.
 
@@ -75,6 +75,7 @@ guard is_some p. . else return 1 . .
 module report .
 
 use fmt .
+use stdio .
 
 proc main
   input out cap io .
@@ -99,7 +100,7 @@ do
   guard is_some p5. . else return 75 . .
 
   rem 출력 --- 조립된 앞부분(0 … p5)만 내보낸다
-  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  let w u64 stdio.write_out out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .
 ```
@@ -118,7 +119,7 @@ end .
 #antipattern[`effects none` op 안에서 출력한다][
   ```lowent
   proc bad input out cap io . output u64 . effects none . do
-    return write_out out. 1 "x" . .
+    return stdio.write_out out. 1 "x" . .
   end .
   ```
   선언이 거짓말이 되어 `E-EFFECT`(`fn` 이면 `E-EFFECT-CALC`)로 거절된다. `effects io` 로 바꿔도 `cap io` 입력이 없으면 `E-EFFECT-NO-CAP` 이다.
@@ -138,7 +139,7 @@ end .
   순간 `E-VM-NONE` 으로 멈춘다 --- 짧은 값으로만 시험하면 드러나지 않는다.
 ]
 
-#antipattern[`write_out` 에 버퍼 전체를 준다][
+#antipattern[`stdio.write_out` 에 버퍼 전체를 준다][
   `subslice buf. 0 some_value p5. . .` 대신 `buf` 를 주면 쓰지 않은 뒷부분까지 나간다. 줄 끝에 정체 모를 바이트가 붙는다. 마지막 `pos` 가 곧 *쓴 길이*다.
 ]
 

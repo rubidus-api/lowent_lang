@@ -99,9 +99,9 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let m0 option slice u8 arg a. 0 . .
+  let m0 option slice u8 call_builtin arg a. 0 . .
   guard is_some m0. . else return 64 . .
-  let p0 option slice u8 arg a. 1 . .
+  let p0 option slice u8 call_builtin arg a. 1 . .
   guard is_some p0. . else return 64 . .
   let mode slice u8 some_value m0. . .
   let path slice u8 some_value p0. . .
@@ -131,7 +131,7 @@ do
       let b option u64 codec.hex_dec enc. backbuf. . .
       guard is_some b. . else return 2 . .
       guard same_bytes src. subslice backbuf. 0 some_value b. . . . else return 2 . .
-      let w u64 write_out out. 1 enc. . .
+      let w u64 call_builtin write_out out. 1 enc. . .
       return 0 .
     end .
     if eq idx mode. 0 . 98 . do
@@ -142,7 +142,7 @@ do
       let b6 option u64 codec.b64_dec enc6. backbuf. . .
       guard is_some b6. . else return 2 . .
       guard same_bytes src. subslice backbuf. 0 some_value b6. . . . else return 2 . .
-      let w6 u64 write_out out. 1 enc6. . .
+      let w6 u64 call_builtin write_out out. 1 enc6. . .
       return 0 .
     end .
   end .
@@ -155,7 +155,7 @@ do
       guard is_some e. . else return 72 . .
       let e2 option u64 fmt.put_nl encbuf. some_value e. . . .
       guard is_some e2. . else return 72 . .
-      let w u64 write_out out. 1 subslice encbuf. 0 some_value e2. . . . .
+      let w u64 call_builtin write_out out. 1 subslice encbuf. 0 some_value e2. . . . .
       return 0 .
     end .
   end .
@@ -218,7 +218,7 @@ do
       guard is_some e3. . else return 72 . .
       let e4 option u64 fmt.put_nl backbuf. some_value e3. . . .
       guard is_some e4. . else return 72 . .
-      let w4 u64 write_out out. 1 subslice backbuf. 0 some_value e4. . . . .
+      let w4 u64 call_builtin write_out out. 1 subslice backbuf. 0 some_value e4. . . . .
       return 0 .
     end .
   end .

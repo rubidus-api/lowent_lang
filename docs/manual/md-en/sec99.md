@@ -16,7 +16,7 @@ The **mirror image** of [`tlssrv`](sec98.md#mod-tlssrv). The server side reads a
 
 > **This alone is not a TLS client**
 >
-> > **No transport** — no sockets, no reassembly; the caller gathers the bytes. That is why this module is `effects none`. **It does not check certificates** — it only takes certificates out of the `Certificate` message; the chain, validity and names are checked by the caller with [`x509`](sec95.md#mod-x509) · [`verify`](sec96.md#mod-verify) · [`trust`](sec122.md#mod-trust). A tool that does not check must say so (`lowget`’s `--insecure`). Not built: HelloRetryRequest · PSK/0-RTT · session resumption · client certificates · key-exchange groups other than x25519 · suites other than `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256`.
+> > **No transport** — no sockets, no reassembly; the caller gathers the bytes. That is why this module is `effects none`. **It does not check certificates** — it only takes certificates out of the `Certificate` message; the chain, validity and names are checked by the caller with [`x509`](sec95.md#mod-x509) · [`verify`](sec96.md#mod-verify) · [`trust`](sec126.md#mod-trust). A tool that does not check must say so (`lowget`’s `--insecure`). Not built: HelloRetryRequest · PSK/0-RTT · session resumption · client certificates · key-exchange groups other than x25519 · suites other than `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256`.
 
 ## <a id="sx1"></a>The order of the handshake
 

@@ -1,0 +1,22 @@
+rem ★★★ **reactor** — 막지 않는 읽기 · 쓰기를 한 자리에서 기다린다 (RFC-0071 A1 · 감싸개는 RFC-0147, 2026-10-12).
+rem
+rem ★ 빌트인 연산 셋(`reactor_new` · `r_read` · `r_write`)의 얇은 감싸개다. 핸들은 u64 라 지어낼 수 있으므로
+rem   **권한(`cap io`)을 부를 때마다 보인다.**
+rem ☞ reactor 의 상태는 부르는 쪽이 준 자리(`backing`)에 산다 — 이 모듈은 메모리를 얻지 않는다.
+
+module reactor .
+
+rem reactor 를 만든다. `backing` 은 reactor 의 상태가 살 자리, `n` 은 한 번에 다룰 통로의 수다. 못 만들면 `none`.
+export proc reactor_new input k cap io . input backing mut slice u8 . input n u64 . output option u64 . effects io . do
+  return call_builtin reactor_new k. backing. n. . .
+end .
+
+rem 통로 `d` 에서 `dst` 로 읽는다. 읽은 바이트 수(지금 없으면 0), 못 읽으면 `none`.
+export proc r_read input k cap io . input r u64 . input d u64 . input dst mut slice u8 . output option u64 . effects io . do
+  return call_builtin r_read k. r. d. dst. . .
+end .
+
+rem 통로 `d` 에 `b` 를 쓴다. 쓴 바이트 수, 못 쓰면 `none`.
+export proc r_write input k cap io . input r u64 . input d u64 . input b slice u8 . output option u64 . effects io . do
+  return call_builtin r_write k. r. d. b. . .
+end .

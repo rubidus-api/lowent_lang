@@ -90,9 +90,11 @@ Functions come in two kinds. A `fn` is pure: same input, same output, no trace l
 ```lowent
 module hello .
 
+use stdio .
+
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out. 1 "hello, entropy!\n" . .
+  let n u64 stdio.write_out out. 1 "hello, entropy!\n" . .
   return 0 .
 end .
 ```
@@ -102,15 +104,17 @@ A `fn` that sneaks in some I/O doesn't compile:
 ```lowent-거부: a pure fn does I/O · E-EFFECT-CALC
 module leak .
 
+use stdio .
+
 fn shout input out cap io . output u64 .
 do
-  return write_out out. 1 "hi\n" . .
+  return stdio.write_out out. 1 "hi\n" . .
 end .
 ```
 
 ```text
 $ lowentc --check leak.low
-  leak.low:4:1 E-EFFECT-CALC: this fn is declared pure but performs `io` — make it a `proc` with `effects …`, or remove the effect
+  leak.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `io` — make it a `proc` with `effects …`, or remove the effect
 ```
 
 So the header alone tells you "this never touches the network" or "this never allocates." Code review, security audits and AI-assisted edits can all start from the signature instead of the whole body.

@@ -669,6 +669,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">use</span></strong> strings .
 <strong><span class="tok-k">use</span></strong> fmt .
+<strong><span class="tok-k">use</span></strong> stdio .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -691,7 +692,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">guard</span></strong> is_some p4. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> . .
   <strong><span class="tok-k">let</span></strong> p5 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_nl buf. some_value p4. . . .
   <strong><span class="tok-k">guard</span></strong> is_some p5. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> subslice buf. <span class="tok-n">0</span> some_value p5. . . . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write_out out. <span class="tok-n">1</span> subslice buf. <span class="tok-n">0</span> some_value p5. . . . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main request.low
@@ -734,6 +735,7 @@ first_char([236,149,136,235,133,149]) = 50504
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">use</span></strong> codec .
+<strong><span class="tok-k">use</span></strong> stdio .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -742,8 +744,8 @@ first_char([236,149,136,235,133,149]) = 50504
   <strong><span class="tok-k">let</span></strong> dst <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> codec.hex_enc <span class="tok-s">"</span><span class="tok-s">Lowent</span><span class="tok-s">"</span> dst. . .
   <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> subslice dst. <span class="tok-n">0</span> some_value n. . . . .
-  <strong><span class="tok-k">let</span></strong> nl <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write_out out. <span class="tok-n">1</span> subslice dst. <span class="tok-n">0</span> some_value n. . . . .
+  <strong><span class="tok-k">let</span></strong> nl <strong><span class="tok-t">u64</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">let</span></strong> small <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> codec.hex_enc <span class="tok-s">"</span><span class="tok-s">too long for eight</span><span class="tok-s">"</span> subslice dst. <span class="tok-n">0</span> <span class="tok-n">8</span> . . .
   <strong><span class="tok-k">guard</span></strong> is_none small. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .

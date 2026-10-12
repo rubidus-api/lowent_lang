@@ -676,9 +676,11 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
 </code></pre></div></div><p>Quietly accepting a typo would make that op read as having no effect — the case the diagnostic describes as “a typo here silently declares the op PURE”.</p><h3 id="s15-2">15.2 Effects spread to the caller<a class="plink" href="#s15-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Calling an op adds its effects to the caller’s. Performing more effects than declared is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/spread.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> spread .
 <em><span class="tok-c">rem expect: E-EFFECT</span></em>
 
+<strong><span class="tok-k">use</span></strong> stdio .
+
 <strong><span class="tok-k">proc</span></strong> log_line <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> msg. . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> msg. . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> compute <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
@@ -691,9 +693,11 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
   <strong><span class="tok-k">return</span></strong> mul x. <span class="tok-n">2</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check spread.low
-spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
+spread.low:13:1 E-EFFECT: this op performs `io`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
 </code></pre></div></div><p><code>compute</code> declares only <code>effects panic .</code>, but calls <code>log_line</code> and so also performs <code>io</code>. The diagnostic says “add it to <code>effects</code>, or stop calling what needs it”. Conversely, the layers effects do not spread into are clear too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/layered.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layered .
 <em><span class="tok-c">rem run: main</span></em>
+
+<strong><span class="tok-k">use</span></strong> stdio .
 
 <strong><span class="tok-k">fn</span></strong> celsius_to_f <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge c. -<span class="tok-n">1000</span> . .
@@ -706,14 +710,14 @@ spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does
   <strong><span class="tok-k">requires</span></strong> le d. <span class="tok-n">9</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-t">i64</span></strong> celsius_to_f <span class="tok-n">100</span> . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> print_digit out. narrow <strong><span class="tok-t">u8</span></strong> mod f. <span class="tok-n">10</span> . . . .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main layered.low
@@ -806,14 +810,16 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
 </code></pre></div></div><p>The zeros written by <code>clear</code> stay in the caller’s slice. To the caller the outside has changed, and such an op cannot be memoised, removed or reordered. Hence <code>E-EFFECT-PURITY</code>. Change the head to <code>proc clear … effects state .</code>. As the diagnostic adds, changing locals inside an op does not break purity (see the misconception below).</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting commas between effects</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/mistake_effcomma.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_effcomma .
 <em><span class="tok-c">rem expect: E-VOCAB-REMOVED</span></em>
 
+<strong><span class="tok-k">use</span></strong> stdio .
+
 <em><span class="tok-c">rem ✘ a comma between effects --- just separate the words with spaces</span></em>
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io, panic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> eq x. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_effcomma.low
-5:68 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
+7:68 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
 </code></pre></div></div><p>The habit of separating a list with commas becomes <code>E-VOCAB-REMOVED</code> here. The comma was once in the grammar but was only ever used to continue a line; newlines no longer close a form, so it was removed. Separate the words with spaces, as in <code>effects io panic .</code>. The form ends at the stop.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Using <code>var</code> and <code>set</code> makes an op impure</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/pure_local.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pure_local .
 <em><span class="tok-c">rem run: sum_to 10</span></em>
 

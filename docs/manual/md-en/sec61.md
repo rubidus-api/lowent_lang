@@ -23,13 +23,13 @@ guard is_some p. . else return 1 . .
 
 `0` is `pos` (the next place to write), and the `option u64` returned is **the new `pos` on success, `none` if room ran out**.
 
-**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `write_out` or [`outbuf`](sec117.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no core op was added, and the whole file is inside the VM/native cross-check.
+**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `stdio.write_out` or [`outbuf`](sec120.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no core op was added, and the whole file is inside the VM/native cross-check.
 
 ## <a id="sx1"></a>Design and boundaries
 
 - **There is one convention — every writer is `(buf, pos) → new pos`.** Success gives `some newpos`, shortage gives `none`. It refuses with a value rather than stopping. Give the new `pos` to the next call as it is and the text joins up.
 - **All or nothing.** If room runs out, not a byte is written — if “12” remains instead of “1234”, nobody notices. That is why `put_u64` and `put_hex` count the digits first (`dec_width`, `hex_width`) and write from the front.
-- **A line break is one LF** (`put_nl`). It is the same convention as `take_line` in [`io`](sec116.md#mod-io), and CRLF is neither made nor removed.
+- **A line break is one LF** (`put_nl`). It is the same convention as `take_line` in [`io`](sec119.md#mod-io), and CRLF is neither made nor removed.
 - **What it does not do** — floating-point formatting, padding and alignment, locale (thousands separators). If needed, measure the width with `dec_width` and fill spaces yourself with `put_byte`.
 - **No state.** No struct, no enum. The buffer and cursor both belong to the caller, so any number of uses anywhere at once do not interfere.
 
@@ -71,6 +71,7 @@ Assemble purely, output once at the end with `cap io`. The key is **passing the 
 module report .
 
 use fmt .
+use stdio .
 
 proc main
   input out cap io .
@@ -95,7 +96,7 @@ do
   guard is_some p5. . else return 75 . .
 
   rem output --- only the assembled front part (0 … p5) goes out
-  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  let w u64 stdio.write_out out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .
 ```
@@ -115,7 +116,7 @@ end .
 >
 > > ```lowent
 > > proc bad input out cap io . output u64 . effects none . do
-> >   return write_out out. 1 "x" . .
+> >   return stdio.write_out out. 1 "x" . .
 > > end .
 > > ```
 > >
@@ -134,7 +135,7 @@ end .
 >
 > > If room runs out, that piece **was never written**. Carrying on without `guard is_some … else return …` sends the output with the middle piece missing. If output goes wrong only for long values, the buffer is short. All or nothing guarantees one op, not a whole sequence of calls. Conversely, taking out with `some_value` without `guard` stops with `E-VM-NONE` the moment room runs out — testing only with short values never reveals it.
 
-> **Counter-example. Giving the whole buffer to `write_out`**
+> **Counter-example. Giving the whole buffer to `stdio.write_out`**
 >
 > > Giving `buf` instead of `subslice buf. 0 some_value p5. . .` sends the unwritten back part too. Mysterious bytes stick to the end of the line. The last `pos` is **the length written**.
 

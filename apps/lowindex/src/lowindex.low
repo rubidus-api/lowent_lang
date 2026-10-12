@@ -16,6 +16,7 @@ module lowindex .
 
 use files .
 use outbuf .
+use args .
 
 fn max_docs output u64 . do
   return 65536 .
@@ -803,7 +804,7 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
   var qused u64 0 .
   var ai u64 2 .
   while true do
-    let w option slice u8 arg a. ai. . .
+    let w option slice u8 args.arg a. ai. . .
     guard is_some w. . else break . .
     set nq. query_tokens some_value w. . qbuf. qoff. qlen. nq. qused. . .
     if gt nq. 0 . do
@@ -887,9 +888,9 @@ proc main
   output u8 .
   effects heap io .
 do
-  let a0 option slice u8 arg a. 0 . .
-  let a1 option slice u8 arg a. 1 . .
-  let a2 option slice u8 arg a. 2 . .
+  let a0 option slice u8 args.arg a. 0 . .
+  let a1 option slice u8 args.arg a. 1 . .
+  let a2 option slice u8 args.arg a. 2 . .
   guard and is_some a0. . and is_some a1. . is_some a2. . . . else do
     let w0 option u64 outbuf.write_all out. 2 usage_text. . .
     return 2 .

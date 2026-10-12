@@ -63,7 +63,7 @@ do
   var wrote u64 0 .
   var spin u64 0 .
   while lt wrote. len b. . . do
-    let n u64 write_out out. d. subslice b. wrote. len b. . . . .
+    let n u64 call_builtin write_out out. d. subslice b. wrote. len b. . . . .
     rem 0 은 «더는 못 쓴다» 다 — 무한히 되돌지 않는다.
     guard gt n. 0 . else return none . .
     set wrote. add wrote. n. . .

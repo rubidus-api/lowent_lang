@@ -38,7 +38,7 @@ end .
 
 rem ★ e = exp(1) — 이것은 **계산으로 낸다**. 상수를 적을 이유가 없다.
 export fn e output f64 . do
-  return exp 1.0 . .
+  return call_builtin exp 1.0 . .
 end .
 
 rem ── 각도 ───────────────────────────────────────────────────────────────────
@@ -56,15 +56,48 @@ rem ── 자주 쓰는 조합 ────────────────
 rem ★ 빗변 — `hypot` 이 없으므로 조합한다. 큰 값에서 넘칠 수 있다는 점은 이름이 못 말한다.
 rem   ☞ 안 지은 것에 적었다: 넘침에 강한 `hypot` 은 별도 리프가 필요하다.
 export fn hyp input x f64 . input y f64 . output f64 . do
-  return sqrt add mul x. x. . mul y. y. . . . .
+  return call_builtin sqrt add mul x. x. . mul y. y. . . . .
 end .
 
 rem ★ 밑이 임의인 로그 — log_b(x) = ln x / ln b.
 export fn log_base input x f64 . input b f64 . output f64 . do
-  return div log x. . log b. . . .
+  return div call_builtin log x. . call_builtin log b. . . .
 end .
 
 rem ★ 선형 보간. t 를 [0,1] 로 가정하지 **않는다** — 밖이면 외삽이고, 그것도 쓸모가 있다.
 export fn lerp input a f64 . input b f64 . input t f64 . output f64 . do
   return add a. mul t. sub b. a. . . . .
 end .
+
+rem ── 부동소수점 함수 (빌트인 연산의 감싸개 · RFC-0147, 2026-10-12) ─────────────────
+
+rem ★★★ 아래 열둘은 **빌트인 연산을 그대로 넘기는 얇은 감싸개**다. 기계 명령이나 C 의 셈 라이브러리로 내려가는
+rem   일이라 언어로는 적을 수 없고, 처리기가 `call_builtin <이름>` 으로 내놓는다. 프로그램은 `math.sqrt x` 로 부른다.
+rem ★ 네이티브 코드에서는 C 컴파일러가 감싸개를 펼친다(잰 값은 RFC-0147 §5). VM 에서는 호출 한 번이 더 든다.
+rem ★ 정수를 넘기면 번역이 거절한다 — 조용히 틀린 답을 내지 않는다(정본 §6.3.9).
+
+rem 제곱근.
+export fn sqrt input x f64 . output f64 . do return call_builtin sqrt x. . . end .
+rem 내림 — 그 수보다 크지 않은 가장 큰 정수.
+export fn floor input x f64 . output f64 . do return call_builtin floor x. . . end .
+rem 올림 — 그 수보다 작지 않은 가장 작은 정수.
+export fn ceil input x f64 . output f64 . do return call_builtin ceil x. . . end .
+rem 반올림 — 가운데(…​.5)는 0 에서 먼 쪽으로.
+export fn round input x f64 . output f64 . do return call_builtin round x. . . end .
+rem 사인(라디안).
+export fn sin input x f64 . output f64 . do return call_builtin sin x. . . end .
+rem 코사인(라디안).
+export fn cos input x f64 . output f64 . do return call_builtin cos x. . . end .
+rem e 의 거듭제곱.
+export fn exp input x f64 . output f64 . do return call_builtin exp x. . . end .
+rem 자연로그.
+export fn log input x f64 . output f64 . do return call_builtin log x. . . end .
+rem 거듭제곱 — `x` 의 `y` 제곱.
+export fn pow input x f64 . input y f64 . output f64 . do return call_builtin pow x. y. . . end .
+rem 부동소수점 나머지 — 부호는 `x` 를 따른다.
+export fn fmod input x f64 . input y f64 . output f64 . do return call_builtin fmod x. y. . . end .
+
+rem ★ 합 둘 — 이름이 오차를 말한다. `sum_seq` 는 앞에서 뒤로 한 번 더한다(오차가 항의 수에 비례한다).
+rem   `sum_neumaier` 는 보정하며 더한다(오차가 항의 수에 매이지 않는다).
+export fn sum_seq input xs slice f64 . output f64 . do return call_builtin sum_seq xs. . . end .
+export fn sum_neumaier input xs slice f64 . output f64 . do return call_builtin sum_neumaier xs. . . end .

@@ -121,7 +121,7 @@ When an actor's op `panic`s, the actor can be restarted. Its state returns to th
   message is handled again, giving 42.
 - `doomed` always crashes. If it still crashes after two restarts, the failure *goes upwards* and the program stops. No actor is left silently stopped.
 
-There are three policies --- `restart max <count>` (that many times), `never` (pass upwards on the first crash) and `always` (restart without counting).
+There are three policies, all written after `failure restart` --- `max <count>` (that many times), `never` (pass upwards on the first crash) and `always` (restart without counting).
 Restarting applies only to `panic`. A contract violation is the program breaking a promise it wrote itself, and doing it again gives the same result, so it is
 not restarted. Only *the actor's own state* is revived; other actors are not touched.
 
@@ -287,7 +287,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   [`send c inc` · `send acct deposit a`], [send and wait until processed · carry a value], [actor first --- a message is an op taking the actor as first parameter],
   [`spawn send c. inc . .` · `drain c .` · `schedule .`], [put in the mailbox · drain that actor's mailbox · drain all], [a person picks the delivery point --- determinism],
   [`mailbox bounded 2 .` · `try spawn send`], [mailbox size · receive overflow as a value], [overflow stops, or becomes a `result`],
-  [`failure restart max 3 .` · `never` · `always`], [restart a panicked actor from its initial state], [when used up, the failure goes upward],
+  [`failure restart max 3 .` · `failure restart never .` · `failure restart always .`], [restart a panicked actor from its initial state], [when used up, the failure goes upward],
   [`build profile server .`], [where actors (level 3) may be used], [only those who write it take on the promise],
   [`state do root cap allocator . … end .`], [a capability field --- size 0 at run time], [`E-CAP-FORGE` if the spawning op lacks that capability],
 )

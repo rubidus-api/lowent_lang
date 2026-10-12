@@ -45,6 +45,6 @@ do
   guard is_ok closed. . else return 6 . .
 
   rem 받은 바이트를 그대로 낸다 — 종료 코드는 받은 길이.
-  let m u64 write_out out. 1 subslice dst. 0 n. . . .
+  let m u64 call_builtin write_out out. 1 subslice dst. 0 n. . . .
   return narrow u8 n. . .
 end .

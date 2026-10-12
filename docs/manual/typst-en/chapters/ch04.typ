@@ -177,7 +177,7 @@ floating-point values do not convert to each other automatically.
 #demo("examples/ch04/floats.low")
 
 The VM shows floating-point results briefly (`0.333333`). Dividing a floating-point value by zero does not stop; it becomes infinity as
-IEEE 754 prescribes. Transcendental functions such as `sqrt`, `sin` and `exp` are floating-point only and available only on machines
+IEEE 754 prescribes. Transcendental functions such as `sqrt`, `sin` and `exp` live in the standard library `math` (`use math .`, then `math.sqrt x. .`); they are floating-point only and available only on machines
 with an operating system. The exact last bit of their results is up to the machine and its maths library.
 
 #misconception[Floating-point values can be compared with `eq` too][
@@ -267,11 +267,11 @@ Lowent stops --- and the place it stops is the place to fix.
   `div d. 2 .` before dividing, for example --- because the language never rounds for you.
 ]
 
-The floating-point remainder gets its own name, `fmod`, separate from the integer `mod`.
+The floating-point remainder gets its own name, `math.fmod`, separate from the integer `mod`.
 
 #demo("examples/ch04/floatmod.low")
 
-`fmod 7.5 2.0 .` is 1.5 and `mod 7 2 .` is 1. Not loading two kinds onto one name is the same reason as for `div` --- what is computed shows in the
+`math.fmod 7.5 2.0 .` is 1.5 and `mod 7 2 .` is 1. Not loading two kinds onto one name is the same reason as for `div` --- what is computed shows in the
 name.
 
 == This chapter's syntax at a glance

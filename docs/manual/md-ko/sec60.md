@@ -23,13 +23,13 @@ guard is_some p. . else return 1 . .
 
 `0` 은 `pos`(다음에 쓸 자리)이고, 돌려받는 `option u64` 는 **성공하면 새 `pos`, 자리가 모자라면 `none`** 이다.
 
-**포매팅은 출력이 아니다.** 모든 op 이 호출자의 버퍼에 바이트를 조립할 뿐이고 하나의 예외 없이 `effects none` 이다. 실제 출력은 `cap io` 를 든 호출자가 `write_out` 이나 [`outbuf`](sec116.md#mod-outbuf) 로 따로 한다. 그래서 조립 코드는 권한 없이 아무 데서나 부를 수 있고, 시험은 화면이 아니라 버퍼를 대조하면 되며, 무엇을 언제 내보낼지는 호출자가 정한다. 수를 바이트로 바꾸는 일은 커널도 할당도 필요 없어 라이브러리다 — 기본 연산은 하나도 늘지 않았고, 파일 전체가 VM·네이티브 대조 안에 있다.
+**포매팅은 출력이 아니다.** 모든 op 이 호출자의 버퍼에 바이트를 조립할 뿐이고 하나의 예외 없이 `effects none` 이다. 실제 출력은 `cap io` 를 든 호출자가 `stdio.write_out` 이나 [`outbuf`](sec119.md#mod-outbuf) 로 따로 한다. 그래서 조립 코드는 권한 없이 아무 데서나 부를 수 있고, 시험은 화면이 아니라 버퍼를 대조하면 되며, 무엇을 언제 내보낼지는 호출자가 정한다. 수를 바이트로 바꾸는 일은 커널도 할당도 필요 없어 라이브러리다 — 기본 연산은 하나도 늘지 않았고, 파일 전체가 VM·네이티브 대조 안에 있다.
 
 ## <a id="sx1"></a>설계와 경계
 
 - **규약은 하나다 — 모든 라이터는 `(buf, pos) → 새 pos`.** 성공하면 `some 새pos`, 모자라면 `none` 이다. 멈추지 않고 값으로 거절한다. 새 `pos` 를 그대로 다음 호출에 주면 글자가 이어 붙는다.
 - **전량 아니면 무.** 자리가 모자라면 한 바이트도 쓰지 않는다 — “1234” 대신 “12” 가 남으면 아무도 알아채지 못한다. 그래서 `put_u64`·`put_hex` 는 자릿수를 먼저 세고(`dec_width`·`hex_width`) 앞에서부터 쓴다.
-- **줄바꿈은 LF 하나다**(`put_nl`). [`io`](sec115.md#mod-io) 의 `take_line` 과 같은 규약이고, CRLF 는 만들지도 지우지도 않는다.
+- **줄바꿈은 LF 하나다**(`put_nl`). [`io`](sec118.md#mod-io) 의 `take_line` 과 같은 규약이고, CRLF 는 만들지도 지우지도 않는다.
 - **하지 않는 것** — 부동소수점 포매팅, 폭 맞춤과 정렬, 로케일(천 단위 구분). 필요하면 `dec_width` 로 폭을 재서 `put_byte` 로 빈칸을 직접 채운다.
 - **상태가 없다.** 구조체도 열거도 없다. 버퍼와 커서는 모두 호출자의 것이라, 어디서 몇 개를 동시에 써도 서로 간섭하지 않는다.
 
@@ -71,6 +71,7 @@ guard is_some p. . else return 1 . .
 module report .
 
 use fmt .
+use stdio .
 
 proc main
   input out cap io .
@@ -95,7 +96,7 @@ do
   guard is_some p5. . else return 75 . .
 
   rem 출력 --- 조립된 앞부분(0 … p5)만 내보낸다
-  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  let w u64 stdio.write_out out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .
 ```
@@ -115,7 +116,7 @@ end .
 >
 > > ```lowent
 > > proc bad input out cap io . output u64 . effects none . do
-> >   return write_out out. 1 "x" . .
+> >   return stdio.write_out out. 1 "x" . .
 > > end .
 > > ```
 > >
@@ -134,7 +135,7 @@ end .
 >
 > > 자리가 모자라면 그 조각은 **아예 쓰이지 않은 것**이다. `guard is_some … else return …` 없이 진행하면 중간 조각이 빠진 채 나간다. 긴 값일 때만 출력이 이상하면 버퍼 부족이다. 전량 아니면 무는 op 하나의 보장이지 이어진 호출 전체의 보장이 아니다. 거꾸로 `guard` 없이 `some_value` 로 꺼내면, 자리가 모자란 순간 `E-VM-NONE` 으로 멈춘다 — 짧은 값으로만 시험하면 드러나지 않는다.
 
-> **반례. `write_out` 에 버퍼 전체를 준다**
+> **반례. `stdio.write_out` 에 버퍼 전체를 준다**
 >
 > > `subslice buf. 0 some_value p5. . .` 대신 `buf` 를 주면 쓰지 않은 뒷부분까지 나간다. 줄 끝에 정체 모를 바이트가 붙는다. 마지막 `pos` 가 곧 **쓴 길이**다.
 

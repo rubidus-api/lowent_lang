@@ -528,6 +528,21 @@ static void tc_warn(tc_ctx_t *c, const char *code, const char *msg, proven_u32 l
                      .file = low_cst_file_for_line(c->curform, line) };
     (void)proven_array_push(c->diags, &d);
 }
+// 이 op 의 입력 가운데 그 이름이 `cap <종류>` 로 선언됐으면 종류를 낸다 (RFC-0147 — 부름 자리의 `E-CAP-KIND`).
+static bool tc_param_cap_kind(const low_cst_t *def, proven_u8str_view_t name, proven_u8str_view_t *kind) {
+    if (!def || def->kind != LOW_CST_FORM) return false;
+    low_op_header_t h = low_op_header(def);
+    for (proven_size_t q = 0; q < h.np; q++) {
+        if (!proven_u8str_view_eq(h.p[q].name, name)) continue;
+        proven_size_t cw = h.p[q].core;
+        if (cw + 1 < h.p[q].te && cw + 1 < def->nkids && def->kids[cw]->kind == LOW_CST_ATOM &&
+            def->kids[cw + 1]->kind == LOW_CST_ATOM && veq(def->kids[cw]->tok.lex, "cap")) {
+            *kind = def->kids[cw + 1]->tok.lex; return true;
+        }
+        return false;
+    }
+    return false;
+}
 // kind mismatches keep their site-specific code; width/sign get dedicated codes
 static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg, proven_u32 line) {
     if (r == TC_OK) return;
@@ -802,7 +817,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             {
                 static const struct { const char *w; unsigned char kind; } LEAF[] = {
                     // ── option 을 낸다 (실패할 수 있다는 사실을 타입이 든다)
-                    { "alloc_bytes", 1 }, { "read_in", 1 }, { "env_get", 1 },
+                    { "alloc_bytes", 1 }, { "@read_in", 1 }, { "@env_get", 1 },
                     { "@file_open", 1 }, { "@file_read", 1 }, { "@file_write", 1 },
                     { "@file_seek", 1 }, { "@file_type", 1 }, { "@link_type", 1 },
                     { "@dir_open", 1 }, { "@dir_read", 1 },
@@ -815,10 +830,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "@proc_kill", 2 },
                     { "@dir_make", 2 }, { "@path_remove", 2 }, { "@path_rename", 2 },
                     // ── 정수를 낸다 (쓴 길이 · 해시 · 시계 · 난수 · 비트)
-                    { "write_out", 3 }, { "crc32", 3 }, { "hash64", 3 },
+                    { "@write_out", 3 }, { "crc32", 3 }, { "hash64", 3 },
                     { "sha256", 3 }, { "sha512", 3 }, { "blake3", 3 },
-                    { "time_now", 3 }, { "time_local", 3 }, { "rng_next", 3 },
-                    { "random_bytes", 3 }, { "argc", 3 },
+                    { "@time_now", 3 }, { "@time_local", 3 }, { "rng_next", 3 },
+                    { "@random_bytes", 3 }, { "argc", 3 },
                     { "bit_and", 3 }, { "bit_or", 3 }, { "bit_xor", 3 }, { "bit_not", 3 },
                     { "shl", 3 }, { "shr", 3 }, { "wshl", 3 }, { "wshr", 3 },
                     { "rotl", 3 }, { "rotr", 3 },
@@ -1043,8 +1058,8 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             //   라고 멈추는데 `pow` 만 조용히 답을 냈다. 조용히 틀린 답이 가장 나쁜 갈래다.
             //   ⇒ 정수 피연산자를 **번역에서** 거절한다. 실행까지 갈 이유가 없다.
             {
-                bool transc = veq(h, "pow") || veq(h, "sqrt") || veq(h, "sin") || veq(h, "cos") ||
-                              veq(h, "exp") || veq(h, "log") || veq(h, "fmod");
+                bool transc = veq(h, "@pow") || veq(h, "@sqrt") || veq(h, "@sin") || veq(h, "@cos") ||
+                              veq(h, "@exp") || veq(h, "@log") || veq(h, "@fmod");
                 if (transc && n >= 2 && !sig_find(c, h)) {
                     for (proven_size_t q = 1; q < n; q++) {
                         c->quiet++;
@@ -1116,8 +1131,18 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         if (s) {
             for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
-                tc_flag(c, compat(s->params[i], at),
-                        "E-TYPE-ARG", "call argument type does not match parameter", k[start + 1 + i]->line);
+                tc_reason_t ar = compat(s->params[i], at);
+                // ★ RFC-0147 (2026-10-12) — 권한 자리에 **다른 종류의 권한**을 댔으면 그 말로 한다(`E-CAP-KIND`). 권한을 받는
+                //   빌트인 연산이 라이브러리 뒤로 가면서, 프로그램이 이 실수를 하는 자리가 잎이 아니라 감싸개의 부름이 됐다.
+                //   전엔 «이름만 다른 같은 표현의 타입» (`E-TYPE-NOMINAL`)이라고 했다 — 맞는 거절에 틀린 설명이었다.
+                proven_u8str_view_t ck = { 0 };
+                if (ar == TC_NOMINAL && k[start + 1 + i]->kind == LOW_CST_ATOM &&
+                    tc_param_cap_kind(c->curform, k[start + 1 + i]->tok.lex, &ck)) {
+                    tc_emit(c, "E-CAP-KIND", "a capability of ANOTHER KIND is handed to this op: the parameter here is declared "
+                            "`cap <kind>` with a different kind. One capability never stands in for another — each names a "
+                            "different right, and holding one says nothing about the other (RFC-0011)", k[start + 1 + i]->line);
+                } else
+                tc_flag(c, ar, "E-TYPE-ARG", "call argument type does not match parameter", k[start + 1 + i]->line);
             }
             return s->ret;
         }

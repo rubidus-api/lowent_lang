@@ -48,7 +48,7 @@ let mixed u64 add 1 mul 2 3 . . .
 
 Prefix notation has no precedence. Someone reading `1 + 2 * 3` knows that multiplication comes first because they *memorised* it,
 but in `add 1 mul 2 3 . .` the stops already say so --- the first stop closes `mul`, the second closes `add`. The principle is the same
-for ops you write yourself. `write_out out. 1 "hi" .`, `field p. x .` and `mean xs. .` all put the name first.
+for ops you write yourself. `stdio.write_out out. 1 "hi" .`, `field p. x .` and `mean xs. .` all put the name first.
 
 Parentheses are *decoration*: they never change the meaning. Use them to make an inner form stand out, as in `add 1 (mul 2 3 .) .`.
 The form inside the parentheses still closes with its own stop --- parentheses do not replace it.
@@ -304,7 +304,7 @@ proc copy_upper
   effects io .
   requires gt len src. . 0 . .
 do
-  return write_out out. 1 src. . .
+  return stdio.write_out out. 1 src. . .
 end .
 ```
 

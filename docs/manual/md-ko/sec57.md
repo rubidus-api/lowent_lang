@@ -74,13 +74,13 @@
 
 | **모듈** | **한 줄** |
 |---|---|
-| [`io`](sec115.md#mod-io) | 슬라이스 위의 스트림 읽기 |
-| [`outbuf`](sec116.md#mod-outbuf) | 버퍼링 출력 — 비우기를 잊으면 번역이 거절한다 |
-| [`files`](sec117.md#mod-files) | 파일과 디렉터리 — 닫기를 잊으면 번역이 거절한다 |
-| [`tty`](sec118.md#mod-tty) | 터미널 입력 — raw 모드 · 키 읽기 · 순수 키 파싱 |
-| [`net`](sec119.md#mod-net) | 소켓 — TCP 루프백 · 프로세스 안 연결 쌍 |
-| [`clock`](sec120.md#mod-clock) | 시각과 마감 — 단조 시계와 벽시계 |
-| [`trust`](sec121.md#mod-trust) | 신뢰 저장소에서 믿는 뿌리 찾기 — 묶음을 흘려 읽는다 |
+| [`io`](sec118.md#mod-io) | 슬라이스 위의 스트림 읽기 |
+| [`outbuf`](sec119.md#mod-outbuf) | 버퍼링 출력 — 비우기를 잊으면 번역이 거절한다 |
+| [`files`](sec120.md#mod-files) | 파일과 디렉터리 — 닫기를 잊으면 번역이 거절한다 |
+| [`tty`](sec121.md#mod-tty) | 터미널 입력 — raw 모드 · 키 읽기 · 순수 키 파싱 |
+| [`net`](sec123.md#mod-net) | 소켓 — TCP 루프백 · 프로세스 안 연결 쌍 |
+| [`clock`](sec124.md#mod-clock) | 시각과 마감 — 단조 시계와 벽시계 |
+| [`trust`](sec125.md#mod-trust) | 신뢰 저장소에서 믿는 뿌리 찾기 — 묶음을 흘려 읽는다 |
 
 *표 50.3 — L2 — 호스트(권한이 필요하다)*
 

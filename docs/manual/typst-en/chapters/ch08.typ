@@ -148,15 +148,13 @@ Writing the parentheses anyway spares the reader from recalling the table. Below
   #demo("examples/ch08/percent_fixed.low")
 ]
 
-#antipattern[Writing powers as `^`, or using `pow` on integers][
+#antipattern[Writing powers as `^`, or using `math.pow` on integers][
   `^` is not an island operator (`E-CHAR`) --- it means power in some languages and exclusive or in others, so it was left out. Square an
-  integer with `mul a. a. .`. And `pow` is the power of *floating-point* numbers. This edition's tool does not reject `pow` on integers; it
-  gives a wrong value.
+  integer with `mul a. a. .`. And `math.pow` is the power of *floating-point* numbers --- both inputs are `f64`.
 
   #demo("examples/ch08/mistake_pow.low")
 
-  The canon makes `pow`, `sqrt`, `sin`, `cos`, `exp`, `log` and `fmod` floating-point only (§6.3.9). Given an integer they are refused
-  with `E-TYPE-KIND`. Until 2026-09-16 they were not: `square 5` answered 5 instead of 25, and neither translation nor the run said
+  The canon makes `pow`, `sqrt`, `sin`, `cos`, `exp`, `log` and `fmod` floating-point only (§6.3.9). The ops of `math` declare their inputs as `f64`, so an integer is refused with `E-TYPE-ARG` --- the argument type does not match. Until 2026-09-16 it was not: `square 5` answered 5 instead of 25, and neither translation nor the run said
   anything --- a quiet wrong answer. Write an integer power as multiplication, and convert with `cast f64 n. .` to compute in floating point.
 ]
 

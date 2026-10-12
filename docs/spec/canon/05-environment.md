@@ -150,10 +150,12 @@
 ```lowent 예제: 시작점이 권한을 받는다
 module ex_env .
 
+use stdio .
+
 rem 안 받은 권한은 이 프로그램 어디에도 없다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out. 1 "hello\n" . .
+  let n u64 stdio.write_out out. 1 "hello\n" . .
   return narrow u8 n. . .
 end .
 ```

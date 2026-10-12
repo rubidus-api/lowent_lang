@@ -1,9 +1,11 @@
 module calls .
 rem expect: E-EFFECT-CALC
 
+use stdio .
+
 proc say input out cap io . output u64 . effects io .
 do
-  return write_out out. 1 "hi\n" . .
+  return stdio.write_out out. 1 "hi\n" . .
 end .
 
 fn helper input out cap io . output u64 .

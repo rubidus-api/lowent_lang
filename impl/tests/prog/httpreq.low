@@ -34,7 +34,7 @@ do
   guard is_some g. . else return 70 . .
   let buf mut slice u8 some_value g. . .
 
-  let rn option u64 read_in k. 0 buf. . .
+  let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 71 . .
   let got u64 some_value rn. . .
   guard ne got. 0 . else return 46 . .

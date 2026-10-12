@@ -171,11 +171,9 @@
     X(widen, "WV")      X(narrow, "WV")     X(narrow_wrap, "WV")               \
     X(narrow_sat, "WV") X(narrow_try, "WV") X(cast, "WV")                      \
     /* 수치 프렐류드 */                                                        \
-    X(sqrt, "V")  X(abs, "V")  X(floor, "V")  X(ceil, "V")                     \
-    /* ★ 초월 함수 (RFC-0090 N2) — libm. 부동 전용 · 권한 없음 · 호스트 전용 */    \
-    X(sin, "V")   X(cos, "V")  X(exp, "V")    X(log, "V")   X(round, "V")      \
-    X(nonzero_of, "V")  X(sum_neumaier, "V")  X(sum_seq, "V")                          \
-    X(fmod, "VV") X(min, "VV") X(max, "VV")   X(pow, "VV")                     \
+    /* ★ RFC-0147 (2026-10-12) — 부동소수점 함수 열(`sqrt` · `floor` · `ceil` · `round` · `sin` · `cos` · `exp` · `log` · `pow` · `fmod`)과 \
+       합 둘(`sum_seq` · `sum_neumaier`)은 빌트인 연산이 됐다(`LOW_CALL_HOST`). 저자는 `math` 모듈의 op 으로 부른다. */ \
+    X(abs, "V")  X(nonzero_of, "V")  X(min, "VV") X(max, "VV")                 \
     /* SIMD */                                                                 \
     X(splat, "V")       X(load, "VV")       X(store, "VVV")                    \
     X(lane_reverse, "V") X(lane_rotate, "VW")                                  \
@@ -212,19 +210,17 @@
 //   ★ 예약 이름(`LOW_SPECIAL` — E-NAME-BUILTIN)이 **아니다**: `copy` · `some` 은 같은 이름의 사용자 op · 지역 이름이 있으면
 //     그쪽이 이긴다(RFC-0132 P3). «우리 어휘인가» 와 «이름을 가로채는가» 는 다른 질문이다(아래 ★★★).
 #define LOW_NAMED_SHAPES(X)                                                    \
-    X(some, "V")  X(chrecv, "V")  X(chsend, "VV")  X(time_sleep, "VV")         \
-    X(time_now, "V")  X(time_local, "V")  X(await, "V")  X(channel, "W")       \
-    X(drain, "V")  X(unsafe_fn, "W")  X(random_bytes, "VV")  X(copy, "VV")     \
-    X(isa, "VW")  X(tty_size, "V")  X(tty_read, "VV")  X(tty_raw, "VV")        \
+    X(some, "V")  X(chrecv, "V")  X(chsend, "VV")                              \
+    X(await, "V")  X(channel, "W")                                             \
+    X(drain, "V")  X(unsafe_fn, "W")  X(copy, "VV")                            \
+    X(isa, "VW")                                                               \
     X(shuffle, "VR")  X(elem_le, "VV")  X(elem_lt, "VV")  X(elem_ge, "VV")     \
     X(elem_gt, "VV")  X(payload, "VWW")
 
 // ★ 위의 표와 같은 종류지만 이미 다른 목록(`LOW_SPECIAL` · `LOW_VOCAB_ONLY`)이 어휘로 세는 이름들 — 모양만 여기 적는다.
 //   (`X(이름, 모양)` 꼴이 아니라 `Y` 로 적는다: 어휘를 두 번 세지 않게.)
 #define LOW_NAMED_SHAPES_KNOWN(Y)                                              \
-    Y(is_none, "V")  Y(arg, "VV")  Y(write_out, "VVV")  Y(read_in, "VVV")      \
-    Y(reactor_new, "VVV")  Y(r_read, "VVVV")  Y(r_write, "VVVV")               \
-    Y(env_get, "VV")
+    Y(is_none, "V")
 
 // ★ 그래도 **못 적는 것**이 남는다 — 선택적 표식을 가진 머리다.
 //   `stack_new R capacity n` 의 `capacity` 는 **있어도 되고 없어도 된다.** 모양이 하나가
@@ -259,8 +255,7 @@
 // ★ **예약 이름** — 전위 자리에서 해석기가 가로채는 특수형. 지역/파라미터로 쓰면 문장이
 //   다르게 묶인다 ⇒ E-NAME-BUILTIN 이 본다. (`low_ir_is_builtin_name` 이 읽는 목록.)
 #define LOW_SPECIAL(X)                                                         \
-    X(spawn)  X(send)  X(expect)  X(arg)  X(env_get)  X(write_out)  X(alloc_bytes)         \
-    X(read_in)  X(reactor_new)  X(r_read)  X(r_write)                        \
+    X(spawn)  X(send)  X(expect)  X(alloc_bytes)                               \
     LOW_CALL_HOST(X)
 
 // ★★★★★ **권한 잎도 `call_builtin` 뒤에서만 선다** (RFC-0127 ⓒ, 2026-10-02 · 소유자 «ⓐⓑⓒ 까지 진행»).
@@ -276,7 +271,17 @@
     X(dir_make)  X(path_remove)  X(path_rename)         \
     X(net_pair)  X(net_send)  X(net_recv)  X(net_close)         \
     X(net_listen)  X(net_port)  X(net_connect)  X(net_accept)  X(net_resolve)  \
-    X(proc_spawn)  X(proc_read)  X(proc_poll)  X(proc_wait)  X(proc_kill)
+    X(proc_spawn)  X(proc_read)  X(proc_poll)  X(proc_wait)  X(proc_kill)      \
+    /* ★★★★★ RFC-0147 (2026-10-12 · 소유자 «라이브러리 안으로 옮기도록 합시다») — 세상에 닿는 나머지 열넷과 셈 라이브러리 열둘도 \
+       `call_builtin` 뒤로 갔다. 저자는 라이브러리의 감싸개를 부른다: `stdio`(write_out · read_in) · `args`(arg) · `env`(env_get) · \
+       `clock`(time_*) · `tty`(tty_*) · `random`(random_bytes) · `reactor`(reactor_new · r_read · r_write) · `math`(나머지). \
+       권한을 받지 않는 것(셈)도 같은 표에 둔다 — 이 표의 뜻은 «머리 이름으로 읽는 빌트인 연산» 이다. */ \
+    X(write_out)  X(read_in)  X(arg)  X(env_get)                              \
+    X(time_now)  X(time_local)  X(time_sleep)                                 \
+    X(tty_raw)  X(tty_read)  X(tty_size)  X(random_bytes)                     \
+    X(reactor_new)  X(r_read)  X(r_write)                                     \
+    X(sqrt)  X(floor)  X(ceil)  X(round)  X(sin)  X(cos)  X(exp)  X(log)      \
+    X(pow)  X(fmod)  X(sum_seq)  X(sum_neumaier)
 
 // ★ **어휘이지만 예약어는 아닌 것** — 자리가 정해져 있어 사용자 이름과 안 부딪친다.
 //   · 절 표식: `into`(pop 의 두 번째 모양) · `capacity`(stack_new) · `ret`(ensures 반환 바인딩)

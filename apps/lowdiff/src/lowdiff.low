@@ -13,6 +13,7 @@ module lowdiff .
 
 use files .
 use outbuf .
+use args .
 
 rem ── 한도: «기계가 못 해서» 가 아니라 «여기까지는 본다». 넘치면 말하고 3 으로 끝난다.
 fn max_entries output u64 . do
@@ -290,8 +291,8 @@ proc main
   effects heap io .
 do
   let usage slice u8 "usage: lowdiff <before-dir> <after-dir>\n" .
-  let a0 option slice u8 arg a. 0 . .
-  let a1 option slice u8 arg a. 1 . .
+  let a0 option slice u8 args.arg a. 0 . .
+  let a1 option slice u8 args.arg a. 1 . .
   guard and is_some a0. . is_some a1. . . else do
     let wu option u64 outbuf.write_all out. 2 usage. . .
     return 2 .

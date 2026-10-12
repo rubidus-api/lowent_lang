@@ -676,9 +676,11 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
 </code></pre></div></div><p>오타를 조용히 받아 주면 그 op 은 효과가 없는 것으로 읽힌다. 진단의 말대로 “a typo here silently declares the op PURE” 가 되는 자리를 막는다.</p><h3 id="s15-2">15.2 효과는 부르는 쪽으로 번진다<a class="plink" href="#s15-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>op 을 부르면 그 op 의 효과가 부르는 쪽 효과에 더해진다. 적은 것보다 많은 효과를 내면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/spread.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> spread .
 <em><span class="tok-c">rem expect: E-EFFECT</span></em>
 
+<strong><span class="tok-k">use</span></strong> stdio .
+
 <strong><span class="tok-k">proc</span></strong> log_line <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> msg. . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> msg. . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> compute <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
@@ -691,9 +693,11 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
   <strong><span class="tok-k">return</span></strong> mul x. <span class="tok-n">2</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check spread.low
-spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
+spread.low:13:1 E-EFFECT: this op performs `io`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
 </code></pre></div></div><p><code>compute</code> 는 <code>effects panic .</code> 만 적었는데 <code>log_line</code> 을 부르므로 <code>io</code> 도 낸다. 진단은 “<code>effects</code> 에 더하거나, 그것이 필요한 것을 부르지 말라” 고 한다. 반대로 효과가 번지지 않는 층도 분명하다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/layered.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layered .
 <em><span class="tok-c">rem run: main</span></em>
+
+<strong><span class="tok-k">use</span></strong> stdio .
 
 <strong><span class="tok-k">fn</span></strong> celsius_to_f <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge c. -<span class="tok-n">1000</span> . .
@@ -706,14 +710,14 @@ spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does
   <strong><span class="tok-k">requires</span></strong> le d. <span class="tok-n">9</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-t">i64</span></strong> celsius_to_f <span class="tok-n">100</span> . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> print_digit out. narrow <strong><span class="tok-t">u8</span></strong> mod f. <span class="tok-n">10</span> . . . .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main layered.low
@@ -806,14 +810,16 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
 </code></pre></div></div><p><code>clear</code> 가 쓴 0 은 호출자의 줄에 남는다. 호출자가 보기에 이것은 바깥이 바뀐 것이고, 그런 op 은 기억해 두거나 지우거나 차례를 바꿀 수 없다. 그래서 <code>E-EFFECT-PURITY</code> 다. 머리를 <code>proc clear … effects state .</code> 로 바꾼다. 진단이 덧붙인 말대로 op 안의 지역을 고치는 것은 순수함을 깨지 않는다(아래 오개념).</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 효과 사이에 쉼표를 넣는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/mistake_effcomma.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_effcomma .
 <em><span class="tok-c">rem expect: E-VOCAB-REMOVED</span></em>
 
+<strong><span class="tok-k">use</span></strong> stdio .
+
 <em><span class="tok-c">rem ✘ 효과 사이에 쉼표를 넣었다 --- 낱말을 띄어 적기만 한다</span></em>
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io, panic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> eq x. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_effcomma.low
-5:68 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
+7:68 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
 </code></pre></div></div><p>목록을 쉼표로 가르는 습관이 여기서는 <code>E-VOCAB-REMOVED</code> 가 된다. 쉼표는 한때 문법에 있었으나 한 줄을 이어 적는 데에만 쓰였고, 지금은 줄바꿈이 형식을 닫지 않으므로 필요 없어 빠졌다. <code>effects io panic .</code> 처럼 띄어 적는다. 형식은 마침표에서 끝난다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>var</code> 와 <code>set</code> 을 쓰면 순수하지 않다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/pure_local.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pure_local .
 <em><span class="tok-c">rem run: sum_to 10</span></em>
 

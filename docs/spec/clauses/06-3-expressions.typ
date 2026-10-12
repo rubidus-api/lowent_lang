@@ -142,8 +142,10 @@ end .", "E-EXPR-CHAIN")
     #para("1c")[
       빌트인 연산은 머리말 `call_builtin` 뒤에서만 선다: `call_builtin <이름> <피연산자>*`. 그 이름은
       #strong[닫힌 집합];이며 부르는 자리는 그 하나뿐이다. 어느 이름이 그러한지는 부록 D 가 적는다.
-      파일 · 그물 · 프로세스에 닿는 것(`file_*` · `dir_*` · `path_remove` · `path_rename` · `link_type` · `net_*` · `proc_*`)은
-      첫 피연산자가 권한이다 — `call_builtin net_send <권한> <핸들> <바이트>`.
+      바깥 세상에 닿는 것 — 파일 · 그물 · 프로세스(`file_*` · `dir_*` · `path_remove` · `path_rename` · `link_type` · `net_*` · `proc_*`),
+      표준 입출력(`write_out` · `read_in`), 인자와 환경(`arg` · `env_get`), 시계(`time_now` · `time_local` · `time_sleep`),
+      터미널(`tty_raw` · `tty_read` · `tty_size`), 난수(`random_bytes`), reactor(`reactor_new` · `r_read` · `r_write`) — 은
+      첫 피연산자가 권한이다: `call_builtin net_send <권한> <핸들> <바이트>`.
     ]
     #para("1f")[
       #strong[빌트인 연산의 이름공간은 저자의 이름공간과 따로다.]; `call_builtin` 바로 뒤의 낱말은 언제나 빌트인
@@ -518,8 +520,8 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
   ]
   #sub("6.3.7.1", "조각을 더한다")[
     #para("1")[
-      조각(⟦slice⟧)에 담긴 #strong[부동소수점 수];를 모두 더하는 op 은 둘이며, 이름이 #strong[어떻게 더하는지];를
-      말한다.
+      조각(⟦slice⟧)에 담긴 #strong[부동소수점 수];를 모두 더하는 빌트인 연산은 둘이며, 이름이 #strong[어떻게 더하는지];를
+      말한다. 표준 라이브러리 `math` 가 같은 이름의 op 으로 감싼다(`math.sum_neumaier` · `math.sum_seq`).
     ]
     #para("1a")[
       `sum_neumaier <조각>` 은 더하며 #strong[잃은 자리를 따로 모아 되돌린다.]; 그래서 오차가 항의
@@ -530,12 +532,14 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
     ]
     #rejected("부동소수점 합을 정수 자리에 돌려준다", "module ex_slice_sum .
 
+use math .
+
 def type bytes slice u8 .
 
 fn total input b bytes . output u64 .
 do
   var xs slice f64 view_array f64 b. . .
-  return sum_neumaier xs. . .      rem 결과는 부동소수점 수인데 머리는 `u64` 라고 적었다
+  return math.sum_neumaier xs. . .      rem 결과는 부동소수점 수인데 머리는 `u64` 라고 적었다
 end .", "E-TYPE-RETURN")
     #para("2")[
       두 op 의 결과는 #strong[부동소수점 수];다. 정수로 적은 자리에 그대로 돌려주면 거부된다
@@ -568,7 +572,8 @@ end .", "E-TYPE-RETURN")
   ]
   #sub("6.3.9", "초월 함수")[
     #para("1")[
-      `sin` · `cos` · `exp` · `log` · `pow` · `sqrt` · `floor` · `ceil` · `round` · `fmod` 는 #strong[부동소수점 전용];이다.
+      빌트인 연산 `sin` · `cos` · `exp` · `log` · `pow` · `sqrt` · `floor` · `ceil` · `round` · `fmod` 는 #strong[부동소수점 전용];이다.
+      표준 라이브러리 `math` 가 같은 이름의 op 으로 감싼다(`math.sqrt x.`). 응용 프로그램은 그 op 을 부른다.
     ]
     #para("1a")[
       `abs` 는 부동소수점 수와 #strong[부호 있는 정수];를 받는다. 결과의 타입은 피연산자의 타입이다. 부호 있는 정수의

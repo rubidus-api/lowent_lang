@@ -28,15 +28,15 @@ proc reader input k cap io . input buf mut slice u8 . output result u64 oops .
   effects io . errors bad .
 do
   rem ★ reactor 뒷받침과 읽기 자리를 **가른다**(RFC-0022 D-B — completion 은 그 자리에 읽는다).
-  let r option u64 reactor_new k. subslice buf. 0 32 . 1 . .
+  let r option u64 call_builtin reactor_new k. subslice buf. 0 32 . 1 . .
   guard is_some r. . else return error bad . . .
-  let n option u64 r_read k. some_value r. . 0 subslice buf. 32 64 . . .
+  let n option u64 call_builtin r_read k. some_value r. . 0 subslice buf. 32 64 . . .
   if is_some n. . do return ok some_value n. . . . end .
   return ok 0 . .
 end .
 rem 태스크 B: 즉시 실패한다 → cancel_on_error 가 형제를 취소해야 한다.
 proc failer input k cap io . output result u64 oops . effects io . errors bad . do
-  let w u64 write_out k. 1 "FAIL\n" . .
+  let w u64 call_builtin write_out k. 1 "FAIL\n" . .
   guard eq w. 0 . else return error bad . . .
   return ok w. . .
 end .
@@ -50,7 +50,7 @@ do
     spawn reader k. buf. .
     spawn failer k. .
   end .
-  let w2 u64 write_out k. 1 "DONE\n" . .
+  let w2 u64 call_builtin write_out k. 1 "DONE\n" . .
   guard eq w2. 5 . else return 71 . .
   return 0 .
 end .

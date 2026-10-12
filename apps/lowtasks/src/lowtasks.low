@@ -18,6 +18,9 @@ module lowtasks .
 
 use outbuf .
 use fmt .
+use args .
+use clock .
+use stdio .
 
 fn max_tasks output u64 . do
   return 256 .
@@ -384,14 +387,14 @@ rem 표준 입력을 끝까지 읽는다(최대 len buf). 읽은 수, 넘치면 
 proc read_all input out cap io . input buf mut slice u8 . output u64 . effects io . do
   var got u64 0 .
   while lt got. len buf. . . do
-    let r option u64 read_in out. 0 subslice buf. got. len buf. . . . .
+    let r option u64 stdio.read_in out. 0 subslice buf. got. len buf. . . . .
     guard is_some r. . else break . .
     let n u64 some_value r. . .
     guard gt n. 0 . else break . .
     set got. add got. n. . .
   end .
   if eq got. len buf. . . do
-    let probe option u64 read_in out. 0 subslice buf. 0 1 . . .
+    let probe option u64 stdio.read_in out. 0 subslice buf. 0 1 . . .
     if and is_some probe. . gt value_or probe. 0 . 0 . . do
       return add len buf. . 1 . .
     end .
@@ -490,7 +493,7 @@ do
       end .
     end .
     if not progress. . do
-      let z u64 time_sleep ck. 2 . .
+      let z u64 clock.sleep_ms ck. 2 . .
     end .
   end .
   rem 건너뛴 것을 알린다.
@@ -515,9 +518,9 @@ proc main
   effects heap io wait .
 do
   var jobs u64 2 .
-  let a0 option slice u8 arg a. 0 . .
+  let a0 option slice u8 args.arg a. 0 . .
   if is_some a0. . do
-    let a1 option slice u8 arg a. 1 . .
+    let a1 option slice u8 args.arg a. 1 . .
     guard and same_bytes some_value a0. . "-j" . is_some a1. . . else do
       let w0 option u64 outbuf.write_all out. 2 usage_text. . .
       return 2 .

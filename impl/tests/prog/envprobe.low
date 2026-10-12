@@ -11,7 +11,7 @@ module envprobe .
 use strings from "../../../lib/str.low" .
 
 proc main input e cap env . output u8 . effects none . do
-  let v option slice u8 env_get e. "LOWENT_PROBE" . .
+  let v option slice u8 call_builtin env_get e. "LOWENT_PROBE" . .
   guard is_some v. . else return 0 . .                    rem 없으면 0
   let s slice u8 some_value v. . .
   rem 값의 길이 + 접두가 "on" 이면 100 을 더한다(라이브러리가 환경 값에 그대로 작동한다).

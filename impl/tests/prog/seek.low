@@ -23,7 +23,7 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let src option slice u8 arg a. 0 . .
+  let src option slice u8 call_builtin arg a. 0 . .
   guard is_some src. . else return 64 . .
 
   let g option mut slice u8 alloc_bytes al. capacity 8 . .

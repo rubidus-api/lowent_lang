@@ -1,8 +1,10 @@
 module nocap .
 rem expect: E-EFFECT-NO-CAP
 
+use stdio .
+
 proc main output u8 . effects io .
 do
-  let n u64 write_out 1 "hello\n" . .
+  let n u64 stdio.write_out 1 "hello\n" . .
   return narrow u8 n. . .
 end .

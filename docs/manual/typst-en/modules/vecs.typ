@@ -38,6 +38,7 @@ it costs nothing (#chref("lib-alloc")). No hidden allocation, so code without an
 module vecgrow .
 use vecs .
 use allocs .
+use stdio .
 
 proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
   let memopt option mut slice u8 alloc_bytes al. capacity 256 . .
@@ -56,7 +57,7 @@ proc main input al cap allocator . input out cap io . output u8 . effects io all
     set buf. some_value r. . .
     set i. add i. 1 . .
   end .
-  let m u64 write_out out. 1 subslice buf. 0 field v. len . . . .
+  let m u64 stdio.write_out out. 1 subslice buf. 0 field v. len . . . .
   return narrow u8 field v. len . . .
 end .
 ```

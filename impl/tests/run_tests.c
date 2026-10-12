@@ -19,7 +19,9 @@
 //   거치지 않고 검사 · 하강에 바로 준다. 파서를 안쪽 모양 모드(RFC-0141 전의 읽기)로 둔다.
 static low_parse_result_t ut_parse(proven_allocator_t nodes, proven_allocator_t heap, const proven_array_t *toks) {
     low_parse_inner_shape(true);
-    return low_parse(nodes, heap, toks);
+    low_parse_result_t r = low_parse(nodes, heap, toks);
+    low_call_host_strip(&r, nodes, heap);       // ★ RFC-0127 ⓒ · RFC-0147 — 빌트인 연산은 `call_builtin` 뒤에서만 선다(몰이꾼 main.c 와 같은 차례)
+    return r;
 }
 #define low_parse(a, b, c) ut_parse(a, b, c)
 
@@ -933,15 +935,15 @@ int main(void) {
     //   언어가 아니라 그 표였다.** 실제 op 으로 다시 쓴다.
     //   ☞ *죽은 코드를 지울 때 무엇이 빨개지는지 보면, 그 코드가 무엇을 떠받치고 있었는지
     //     알 수 있다. 시험이 빨개지면 시험 쪽을 먼저 의심한다.*
-    check(CHECK("fn f input k cap io . do var n u64 be write_out k \"x\" . return . end") == false,
+    check(CHECK("fn f input k cap io . do var n u64 be call_builtin write_out k \"x\" . return . end") == false,
           "fn doing io (write_out) → rejected");
     // ★ 2026-07-24: `effects io` 는 이제 그것을 **인가하는 cap** 을 요구한다(E-EFFECT-NO-CAP,
     //   RFC-0007 §6.7) — io 는 손에 쥐여 주는 **권리**이지 주변 권능이 아니다. 그리고 `print`
     //   는 op 이 아니다(정의 없는 이름 → E-IR-UNDEF); 실제 출력은 `write_out <cap> <바이트>` 다.
     //   이 테스트는 그 둘이 착지하기 전에 쓰여 **낡아 있었다**(그 사이 유닛 게이트가 빨간불이었다).
-    check(CHECK("proc g input k cap io . effects io . do var n u64 be write_out k \"x\" . return . end") == true,
+    check(CHECK("proc g input k cap io . effects io . do var n u64 be call_builtin write_out k \"x\" . return . end") == true,
           "proc doing io: ok (declared + cap io that authorizes it)");
-    check(CHECK("proc p input k cap io . effects io . do var n u64 be write_out k \"x\" . return . end  fn c input k cap io . do p k . end") == false,
+    check(CHECK("proc p input k cap io . effects io . do var n u64 be call_builtin write_out k \"x\" . return . end  fn c input k cap io . do p k . end") == false,
           "fn calling a proc → rejected (transitive effect)");
     check(CHECK("fn a  do return add 1 2 . end") == true, "fn calling a pure builtin: ok");
 
@@ -1681,10 +1683,10 @@ int main(void) {
     {
         const char *src =
             "fn hyp input a u64 . input b u64 . output f64 .  do "
-            "  return sqrt expr ((cast f64 a) * (cast f64 a)) + ((cast f64 b) * (cast f64 b)) . . end "
+            "  return call_builtin sqrt expr ((cast f64 a) * (cast f64 a)) + ((cast f64 b) * (cast f64 b)) . . end "
             "fn iclamp input x u64 . output u64 .  do return min (max x 3) 9 . end "
-            "fn fwrap output f64 .  do return fmod 7.5 2.0 . end "
-            "fn ffloor output f64 .  do return floor 2.7 . end "
+            "fn fwrap output f64 .  do return call_builtin fmod 7.5 2.0 . end "
+            "fn ffloor output f64 .  do return call_builtin floor 2.7 . end "
             "fn iabs input x i64 . output i64 .  do return abs neg x . end "
             "fn mixed output f64 .  do return min 1 2.0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -2163,7 +2165,7 @@ int main(void) {
           "here used to silently declare the op PURE)");
     // ★ 2026-07-24: 위(§`proc doing io`)와 **같은 낡음**이 여기 한 번 더 있었다 — `effects io`
     //   는 그것을 인가하는 `cap` 을 요구하고(E-EFFECT-NO-CAP), `print` 는 op 이 아니다.
-    check(CHECK("proc g input k cap io . effects io . do var n u64 be write_out k \"x\" . return . end") == true,
+    check(CHECK("proc g input k cap io . effects io . do var n u64 be call_builtin write_out k \"x\" . return . end") == true,
           "effects: a real effect word still passes");
     check(CHECK("fn f output u8 .  do return 1 . end") == true,
           "effects: `none` is a real effect word");
@@ -3359,9 +3361,9 @@ int main(void) {
         const char *src =
             "def type bytes slice u8 . "
             "fn s_good input b bytes . output f64 .  do "
-            "  var xs u64 . be view_array f64 b . return sum_neumaier xs . end "
+            "  var xs u64 . be view_array f64 b . return call_builtin sum_neumaier xs . end "
             "fn s_fast input b bytes . output f64 .  do "
-            "  var xs u64 . be view_array f64 b . return sum_seq xs . end";
+            "  var xs u64 . be view_array f64 b . return call_builtin sum_seq xs . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3476,8 +3478,8 @@ int main(void) {
             "  var a f32 be 16777216.0 . return eq (add a 1.0) a . end "
             "fn f64k output bool .  do "
             "  var a f64 be 16777216.0 . return eq (add a 1.0) a . end "
-            "fn isqrt input x u64 . output u64 .  do return sqrt x . end "
-            "fn fsqrt input x u64 . output f64 .  do return sqrt (cast f64 x) . end";
+            "fn isqrt input x u64 . output u64 .  do return call_builtin sqrt x . end "
+            "fn fsqrt input x u64 . output f64 .  do return call_builtin sqrt (cast f64 x) . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);

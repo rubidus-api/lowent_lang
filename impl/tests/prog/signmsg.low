@@ -109,7 +109,7 @@ do
   guard is_some gi. . else return 89 . .
   let inbuf mut slice u8 some_value gi. . .
 
-  let rn option u64 read_in k. 0 inbuf. . .
+  let rn option u64 call_builtin read_in k. 0 inbuf. . .
   guard is_some rn. . else return 89 . .
   let got u64 some_value rn. . .
   guard ne got. 0 . else return 46 . .

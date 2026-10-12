@@ -247,10 +247,12 @@ end .
 ```lowent 예제: 권한을 받아야 낼 수 있다
 module ex_io .
 
+use stdio .
+
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 write_out out. 1 "hello\n" . .
+  let n u64 stdio.write_out out. 1 "hello\n" . .
   return narrow u8 n. . .
 end .
 ```
@@ -258,9 +260,11 @@ end .
 ```lowent-거부: 권한 없이는 한 바이트도 낼 수 없다 · E-EFFECT-NO-CAP
 module ex_io_bad .
 
+use stdio .
+
 proc main output u8 . effects io .
 do
-  let n u64 write_out 1 "hello\n" . .   rem 권한을 안 받았다
+  let n u64 stdio.write_out 1 "hello\n" . .   rem 권한을 안 받았다
   return narrow u8 n. . .
 end .
 ```
@@ -276,10 +280,12 @@ end .
 ```lowent 예제: 권한은 사슬을 타고 내려간다
 module ex_cap_chain .
 
+use stdio .
+
 rem 권한을 인자로 받는다 — 이름은 `k`, 타입은 `cap io` 다.
 proc say input k cap io . input msg slice u8 . output u64 . effects io .
 do
-  return write_out k. 1 msg. . .
+  return stdio.write_out k. 1 msg. . .
 end .
 
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
@@ -301,7 +307,7 @@ end .
 
 > [!산문]
 > 사슬이 이렇게 생긴다 — 바깥 → `main` 의 `k` → `say_twice` 의 `k` → `say` 의 `k` →
-> `write_out`. 권한을 안 받은 op 은 `say` 를 부를 수가 없다. **넘길 것이 없기 때문이다.**
+> `stdio.write_out` → 빌트인 연산 `write_out`. 권한을 안 받은 op 은 `say` 를 부를 수가 없다. **넘길 것이 없기 때문이다.**
 > 곧 경계를 지키는 것이 문법이 아니라 **인자**다. 규칙을 외울 것이 없고, 부르는 자리를
 > 보면 자격이 어디서 왔는지 눈으로 따라갈 수 있다.
 
@@ -499,6 +505,11 @@ end .
 (1b) 그 자리에 적는 이름은 **이 op 이 입력으로 받은 권한의 이름**이다. 받은 권한을 지역 이름에
       옮겨 담고 그 이름을 적으면 적합하지 아니하다(`E-CAP-LOCAL`). 권한은 값처럼 옮겨 담는 것이
       아니라 서명에서 서명으로 건네는 것이다(⟦§7.2⟧).
+
+(1c) 권한을 입력으로 받는 **op 을 부르는 자리**도 같다. 그 op 의 권한 자리에 적는 이름은 부르는 op 이 입력으로 받은
+      권한의 이름이어야 하고(`E-CAP-LOCAL`), 종류가 같아야 하며(`E-CAP-KIND`), 첫 입력이 권한인 op 을 권한 없이
+      부를 수 없다(`E-CAP-MISSING`). 권한을 요구하는 빌트인 연산은 표준 라이브러리가 감싸 내놓으므로(⟦§9.3⟧ (1a)),
+      응용 프로그램이 이 규칙을 만나는 자리는 대개 그 감싸개를 부르는 줄이다.
 
 (2) 지금 짓는 기계가 줄 수 없는 권한을 요구하면 거부된다(`E-CAP-NOHOST`).
 

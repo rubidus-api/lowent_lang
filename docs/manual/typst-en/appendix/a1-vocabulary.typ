@@ -66,12 +66,10 @@ are not words but cannot be used as names.
   [Answer-carrying types], [`some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or`],
   [Translation time], [`size_of` `comptime` `config`],
   [Allocation], [`alloc_bytes`],
-  [I/O leaves], [`write_out` `read_in` `arg` · file, connection, clock, random and terminal leaves are wrapped by the standard library],
   [Atomic], [`atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence`],
   [Devices], [`read_volatile` `write_volatile`],
   [Concurrency], [`await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send`],
   [Atomic (bits)], [`atomic_and` `atomic_or` `atomic_xor`],
-  [Floating-point maths --- #chref("numbers")], [`sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq`],
   [Pipe stages --- #chref("pipe")], [`pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into`],
   [Lanes (SIMD) --- #chref("parallel-atomic")], [`splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch`],
   [Small-number sets --- #chref("named-types")], [`bitset_new` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove`],
@@ -81,7 +79,8 @@ are not words but cannot be used as names.
   [Builtin ops (computation) --- stand only after `call_builtin`], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
   [C strings --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
   [Builtin ops (files, network, processes) --- only after `call_builtin`], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port`],
-  [Host leaves --- #chref("lib-map")], [`env_get` `reactor_new` `r_read` `r_write` `random_bytes` `time_local` `time_sleep`],
+  [Builtin ops (standard I/O · arguments · environment · clock · terminal · random · reactor) --- stand only after `call_builtin`], [`write_out` `read_in` `arg` `env_get` `time_now` `time_local` `time_sleep` `tty_raw` `tty_read` `tty_size` `random_bytes` `reactor_new` `r_read` `r_write`],
+  [Builtin ops (floating-point functions) --- stand only after `call_builtin` · #chref("numbers")], [`sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq`],
 )
 
 ★ *Builtin ops have a name space of their own.* They stand only in that position --- `call_builtin sha256 msg. out. .` --- and you may use the same spelling for a name of yours. Calling one bare when no name of yours is spelt that way is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. Builtin ops are the material the system library is built from; a program calls the module that wraps them (#chref("lib-map")).

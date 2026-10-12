@@ -16,7 +16,7 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 > **이것만으로는 TLS 클라이언트가 아니다**
 >
-> > **전송이 없다** — 소켓도 재조립도 없고, 바이트열은 부르는 쪽이 모아 온다. 그래서 이 모듈은 `effects none` 이다. **인증서를 확인하지 않는다** — `Certificate` 메시지에서 인증서를 꺼내 줄 뿐이고, 체인 · 유효기간 · 이름은 [`x509`](sec94.md#mod-x509) · [`verify`](sec95.md#mod-verify) · [`trust`](sec121.md#mod-trust) 로 부르는 쪽이 확인한다. 확인하지 않는 도구는 그렇다고 말해야 한다(`lowget` 의 `--insecure`). 짓지 않은 것: HelloRetryRequest · PSK/0-RTT · 세션 재개 · 클라이언트 인증서 · x25519 가 아닌 키 교환 그룹 · `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256` 이 아닌 스위트.
+> > **전송이 없다** — 소켓도 재조립도 없고, 바이트열은 부르는 쪽이 모아 온다. 그래서 이 모듈은 `effects none` 이다. **인증서를 확인하지 않는다** — `Certificate` 메시지에서 인증서를 꺼내 줄 뿐이고, 체인 · 유효기간 · 이름은 [`x509`](sec94.md#mod-x509) · [`verify`](sec95.md#mod-verify) · [`trust`](sec125.md#mod-trust) 로 부르는 쪽이 확인한다. 확인하지 않는 도구는 그렇다고 말해야 한다(`lowget` 의 `--insecure`). 짓지 않은 것: HelloRetryRequest · PSK/0-RTT · 세션 재개 · 클라이언트 인증서 · x25519 가 아닌 키 교환 그룹 · `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256` 이 아닌 스위트.
 
 ## <a id="sx1"></a>핸드셰이크의 차례
 

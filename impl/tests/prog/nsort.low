@@ -89,9 +89,9 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let pa option slice u8 arg a. 0 . .
+  let pa option slice u8 call_builtin arg a. 0 . .
   guard is_some pa. . else return 64 . .
-  let pb option slice u8 arg a. 1 . .
+  let pb option slice u8 call_builtin arg a. 1 . .
   guard is_some pb. . else return 64 . .
   let path slice u8 some_value pa. . .
   let qq option u64 parse_u64 some_value pb. . . .
@@ -168,7 +168,7 @@ do
   guard is_some p5. . else return 72 . .
   let p6 option u64 fmt.put_nl ob. some_value p5. . . .
   guard is_some p6. . else return 72 . .
-  let w u64 write_out out. 1 subslice ob. 0 some_value p6. . . . .
+  let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value p6. . . . .
 
   if is_some hit. . do return 0 . end .
   return 1 .

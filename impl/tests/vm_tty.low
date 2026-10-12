@@ -84,7 +84,7 @@ rem   ⇒ **구현했다**(단계 AD · `lw_tty_raw`·`lw_tty_read`·`lw_tty_siz
 rem     같은 답을 내고, 이 셋은 그 일치를 지키는 증인이다.
 
 proc size_is_none input t cap tty . output u64 . effects io . do
-  let s option u64 tty_size t. . .
+  let s option u64 call_builtin tty_size t. . .
   if is_some s. . do return 1 . end .
   return 0 .
 end .
@@ -92,15 +92,15 @@ end .
 rem raw 모드를 요청한다. 터미널이 아니면 들어갈 수 없다. 복귀도 부른다 — 못 들어갔어도
 rem 짝을 맞추는 것이 이 API 의 규율이다.
 proc raw_refused input t cap tty . output u64 . effects io . do
-  let entered bool tty_raw t. true . .
-  let left bool tty_raw t. false . .
+  let entered bool call_builtin tty_raw t. true . .
+  let left bool call_builtin tty_raw t. false . .
   if entered. do return 1 . end .
   if left. do return 2 . end .
   return 0 .
 end .
 
 proc read_nothing input t cap tty . input dst mut slice u8 . output u64 . effects io . do
-  let n option u64 tty_read t. dst. . .
+  let n option u64 call_builtin tty_read t. dst. . .
   if is_some n. . do return some_value n. . . end .
   return 0 .
 end .

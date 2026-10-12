@@ -25,7 +25,7 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let sp option slice u8 arg a. 0 . .
+  let sp option slice u8 call_builtin arg a. 0 . .
   guard is_some sp. . else return 64 . .
   let path slice u8 some_value sp. . .
 

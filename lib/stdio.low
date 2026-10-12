@@ -1,0 +1,22 @@
+rem ★★★ **표준 입출력** — 프로세스가 태어날 때 받는 세 통로(0 입력 · 1 출력 · 2 오류)에 닿는 두 op (RFC-0147, 2026-10-12).
+rem
+rem ★ 여기 있는 것은 **빌트인 연산의 얇은 감싸개**다. 화면에 쓰고 입력에서 읽는 일은 언어로 적을 수 없으므로
+rem   처리기가 빌트인 연산(`call_builtin write_out` · `call_builtin read_in`)으로 내놓고, 프로그램은 이 모듈의 op 을 부른다.
+rem   감싸개는 인자를 그대로 넘길 뿐이라 네이티브 코드에서는 C 컴파일러가 펼친다.
+rem
+rem ★ 이름을 `write_out` · `read_in` 그대로 둔 까닭: 흔한 낱말(`write` · `read`)은 다른 모듈의 op · 지역 이름과 겹친다
+rem   (`lib/out.low` 가 `open` · `write` 를 `buf_*` 로 바꾼 것이 그 때문이다).
+rem
+rem ☞ 끝까지 쓰기(`write_all`)와 모아 쓰기(`buf_*`)는 `outbuf`(lib/out.low), 줄 단위 읽기는 `io`(lib/io.low)에 있다.
+
+module stdio .
+
+rem 통로 `d` 에 바이트를 쓴다. **쓴 바이트 수**를 낸다 — 파이프에서는 `len b` 보다 적을 수 있고, 0 은 «더는 못 쓴다» 다.
+export proc write_out input k cap io . input d u64 . input b slice u8 . output u64 . effects io . do
+  return call_builtin write_out k. d. b. . .
+end .
+
+rem 통로 `d` 에서 `dst` 로 읽는다. 읽은 바이트 수를 낸다 — 0 은 입력의 끝이고, `none` 은 읽지 못한 것이다.
+export proc read_in input k cap io . input d u64 . input dst mut slice u8 . output option u64 . effects io . do
+  return call_builtin read_in k. d. dst. . .
+end .

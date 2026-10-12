@@ -7,11 +7,11 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 32 . .
   guard is_some g. . else return 1 . .
   let buf mut slice u8 some_value g. . .
-  guard tty_raw t. true . else return 1 . .
+  guard tty.tty_raw t. true . else return 1 . .
   var going bool true .
   var last u64 0 .
   while going. do
-    let n option u64 tty_read t. buf. . .
+    let n option u64 tty.tty_read t. buf. . .
     guard is_some n. . else do
       set going. false .
       continue .
@@ -24,6 +24,6 @@ do
       end .
     end .
   end .
-  let restored bool tty_raw t. false . .
+  let restored bool tty.tty_raw t. false . .
   return narrow_sat u8 last. . .
 end .

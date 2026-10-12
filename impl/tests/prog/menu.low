@@ -98,7 +98,7 @@ do
   let ing option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some ing. . else return 70 . .
   let inbuf mut slice u8 some_value ing. . .
-  let rn option u64 read_in in_c. 0 inbuf. . .
+  let rn option u64 call_builtin read_in in_c. 0 inbuf. . .
   guard is_some rn. . else return 71 . .
   let n u64 some_value rn. . .
 
@@ -138,7 +138,7 @@ do
   rem ③ 마지막 화면을 한 번에 낸다(그리는 동안엔 한 바이트도 안 나갔다).
   let e option u64 render outbuf. 0 cur. . .
   guard is_some e. . else return 72 . .
-  let w u64 write_out in_c. 1 subslice outbuf. 0 some_value e. . . . .
+  let w u64 call_builtin write_out in_c. 1 subslice outbuf. 0 some_value e. . . . .
 
   if done. do return narrow u8 cur. . . end .
   return 4 .

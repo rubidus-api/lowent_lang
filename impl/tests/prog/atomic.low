@@ -24,7 +24,7 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let bp option slice u8 arg a. 0 . .
+  let bp option slice u8 call_builtin arg a. 0 . .
   guard is_some bp. . else return 64 . .
   let base slice u8 some_value bp. . .
 

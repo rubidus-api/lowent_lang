@@ -48,9 +48,9 @@ proc main
   output u8 .
   effects alloc io state .
 do
-  let pa option slice u8 arg a. 0 . .
+  let pa option slice u8 call_builtin arg a. 0 . .
   guard is_some pa. . else return 64 . .
-  let pb option slice u8 arg a. 1 . .
+  let pb option slice u8 call_builtin arg a. 1 . .
   guard is_some pb. . else return 64 . .
   let pat slice u8 some_value pa. . .
   let path slice u8 some_value pb. . .
@@ -134,7 +134,7 @@ do
         guard is_some q3. . else return 72 . .
         let q4 option u64 fmt.put_nl ob. some_value q3. . . .
         guard is_some q4. . else return 72 . .
-        let w u64 write_out out. 1 subslice ob. 0 some_value q4. . . . .
+        let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value q4. . . . .
       end .
     end .
     if eq is_some l. . false . do set going. false . end .

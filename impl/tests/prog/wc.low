@@ -59,7 +59,7 @@ proc main
   effects alloc io state .
 do
   rem 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.
-  let given option slice u8 arg a. 0 . .
+  let given option slice u8 call_builtin arg a. 0 . .
   guard is_some given. . else return 64 . .
 
   let g option mut slice u8 alloc_bytes al. capacity 8192 . .
@@ -87,6 +87,6 @@ do
   let p5 option u64 fmt.put_nl ob. some_value p4. . . .
   guard is_some p5. . else return 76 . .
 
-  let w u64 write_out out. 1 subslice ob. 0 some_value p5. . . . .
+  let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value p5. . . . .
   return narrow u8 lines. . .
 end .

@@ -34,7 +34,7 @@ do
 
   rem ★ `read_in <cap> <fd> <buf>` — 0 번이 표준 입력이고, 답은 **option** 이다
   rem   (읽기가 실패할 수 있다는 사실을 타입이 든다).
-  let rn option u64 read_in k. 0 buf. . .
+  let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 71 . .
   let got u64 some_value rn. . .
   guard ne got. 0 . else return 44 . .
@@ -67,7 +67,7 @@ do
   let a5 option u64 fmt.put_nl line. at. . .
   guard is_some a5. . else return 71 . .
   set at. some_value a5. . .
-  let z1 u64 write_out k. 1 subslice line. 0 at. . . .
+  let z1 u64 call_builtin write_out k. 1 subslice line. 0 at. . . .
 
   rem ── 값으로 말한다 ───────────────────────────────────────────────────
   guard eq got. 9 . else return 45 . .

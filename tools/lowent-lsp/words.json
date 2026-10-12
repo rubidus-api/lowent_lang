@@ -220,7 +220,7 @@
   "ceil": {
    "meaning": "올림",
    "group": "부동소수점 함수",
-   "form": "ceil a",
+   "form": "call_builtin ceil a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 작지 않은 가장 작은 정수 값"
   },
@@ -278,7 +278,7 @@
   "cos": {
    "meaning": "코사인",
    "group": "부동소수점 함수",
-   "form": "cos a",
+   "form": "call_builtin cos a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입 — 코사인(라디안)"
   },
@@ -367,12 +367,12 @@
   "exp": {
    "meaning": "e 의 거듭제곱",
    "group": "부동소수점 함수",
-   "form": "exp a",
+   "form": "call_builtin exp a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입 — e 의 거듭제곱"
   },
   "expect": {
-   "meaning": "값을 꺼내되 없으면 멈춘다"
+   "meaning": "시험 블록 안의 단언 — 조건이 거짓이면 그 시험이 실패한다"
   },
   "field": {
    "meaning": "값의 안을 읽는다"
@@ -401,14 +401,14 @@
   "floor": {
    "meaning": "내림",
    "group": "부동소수점 함수",
-   "form": "floor a",
+   "form": "call_builtin floor a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 크지 않은 가장 큰 정수 값(`floor -1.5` 는 -2.0)"
   },
   "fmod": {
    "meaning": "부동소수점 나머지",
    "group": "부동소수점 함수",
-   "form": "fmod a b",
+   "form": "call_builtin fmod a b",
    "takes": "`a` `b` — 같은 부동 타입",
    "gives": "`a` 의 타입 — 나머지. 부호는 `a` 를 따른다(`fmod -7.5 2.0` 은 -1.5)"
   },
@@ -503,7 +503,7 @@
   "log": {
    "meaning": "자연로그",
    "group": "부동소수점 함수",
-   "form": "log a",
+   "form": "call_builtin log a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입 — 자연로그. 0 이면 음의 무한, 음수면 NaN"
   },
@@ -671,7 +671,7 @@
   "pow": {
    "meaning": "거듭제곱",
    "group": "부동소수점 함수",
-   "form": "pow a b",
+   "form": "call_builtin pow a b",
    "takes": "`a` `b` — 같은 부동 타입",
    "gives": "`a` 의 타입 — `a` 의 `b` 제곱. 음수 밑에 정수 아닌 지수면 NaN"
   },
@@ -758,7 +758,7 @@
   "round": {
    "meaning": "반올림 — 0 에서 먼 쪽으로",
    "group": "부동소수점 함수",
-   "form": "round a",
+   "form": "call_builtin round a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — 가장 가까운 정수 값. 꼭 가운데면 0 에서 먼 쪽(`round 2.5` 는 3.0, `round -2.5` 는 -3.0)"
   },
@@ -827,7 +827,7 @@
   "sin": {
    "meaning": "사인",
    "group": "부동소수점 함수",
-   "form": "sin a",
+   "form": "call_builtin sin a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입 — 사인(라디안)"
   },
@@ -856,7 +856,7 @@
   "sqrt": {
    "meaning": "제곱근",
    "group": "부동소수점 함수",
-   "form": "sqrt a",
+   "form": "call_builtin sqrt a",
    "takes": "`a` — 부동",
    "gives": "`a` 의 타입 — 제곱근. 음수면 NaN"
   },

@@ -3,6 +3,7 @@ rem run: main
 
 use strings .
 use fmt .
+use stdio .
 
 proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
 do
@@ -25,6 +26,6 @@ do
   guard is_some p4. . else return 4 . .
   let p5 option u64 fmt.put_nl buf. some_value p4. . . .
   guard is_some p5. . else return 4 . .
-  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  let w u64 stdio.write_out out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .

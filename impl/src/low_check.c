@@ -157,15 +157,15 @@ static bool effect_word_known(proven_u8str_view_t v) {
 }
 // io-performing prelude/builtin names
 static unsigned builtin_effect(proven_u8str_view_t v) {
-    if (veq(v, "write_out"))                              return EFF_IO;   // ★ RFC-0069 A2 — 실제 출력
-    if (veq(v, "read_in"))                                return EFF_IO;   // ★ A5 — 표준입력
+    if (veq(v, "@write_out"))                              return EFF_IO;   // ★ RFC-0069 A2 — 실제 출력
+    if (veq(v, "@read_in"))                                return EFF_IO;   // ★ A5 — 표준입력
     // ★★★★ **reactor 세 리프도 io 다** (2026-08-22, N4 단계1 에서 드러났다).
     //   `r_write` 를 넣고 `--check` 를 돌리자 **W-EFFECT-OVER** 가 났다: *"io 를 선언했는데
     //   안 한다"*. 그런데 그 프로그램은 stdout 에 쓴다 — **표가 낡았던 것**이고,
     //   `reactor_new`·`r_read` 도 **처음부터 빠져 있었다.**
     //   ☞ 효과가 안 세어지면 **순수 op 이 reactor 를 돌릴 수 있다** — effect 절이 거짓말이 된다.
     //     새 리프가 옛 구멍을 드러낸 자리다(RFC-0007: 선언과 행동이 어긋나면 둘 다 거짓).
-    if (veq(v, "reactor_new") || veq(v, "r_read") || veq(v, "r_write"))
+    if (veq(v, "@reactor_new") || veq(v, "@r_read") || veq(v, "@r_write"))
         return EFF_IO;
     if (veq(v, "@file_open") || veq(v, "@file_read") ||                      // ★ §6 스트림 리프
         veq(v, "@file_write") || veq(v, "@file_close") ||
@@ -222,7 +222,7 @@ static unsigned builtin_effect(proven_u8str_view_t v) {
     //   자는 것은 자료를 주고받지 않는다. ⇒ 잎이 **맞는 원자**를 낸다.
     //   ☞ *어떤 효과인지 모를 때 가장 가까운 큰 것을 적으면, 그 계약은 부르는 쪽에게
     //     없는 비용을 물린다 — 순수한 호출자가 시계를 못 쓰게 된다.*
-    if (veq(v, "time_sleep"))                             return EFF_WAIT;
+    if (veq(v, "@time_sleep"))                             return EFF_WAIT;
     // ★★★ **level-3 atomic** (RFC-0018 G1) — atomic op 은 `atomic` 효과를 방출한다.
     //   방출하는데 선언 안 하면 오류다(효과가 장식이 아니려면). op 이름이 `atomic_` 로 시작한다.
     if (v.size >= 7 && memcmp(v.ptr, "atomic_", 7) == 0) return EFF_ATOMIC;
@@ -10871,7 +10871,7 @@ static void ck_sum_return(low_check_result_t *out, const low_cst_t *nd, const lo
         while (rv && rv->kind == LOW_CST_GROUP && rv->nkids == 1) rv = rv->kids[0];
         if (rv && rv->kind == LOW_CST_FORM && rv->nkids >= 1) rv = rv->kids[0];   // 감싼 폼의 머리
     }
-    if (rv && ck_atom(rv) && (veq(rv->tok.lex, "sum_neumaier") || veq(rv->tok.lex, "sum_seq")) &&
+    if (rv && ck_atom(rv) && (veq(rv->tok.lex, "@sum_neumaier") || veq(rv->tok.lex, "@sum_seq")) &&
         h->out_s && h->out_s < f->nkids && ck_atom(f->kids[h->out_s])) {
         proven_u8str_view_t ow = f->kids[h->out_s]->tok.lex;
         bool is_int_out = ow.size >= 2 &&
@@ -10924,7 +10924,7 @@ static bool ck_pure_value_word(proven_u8str_view_t w) {
         "bit_and","bit_or","bit_xor","bit_not","shl","shr","rotl","rotr",
         "wrap_add","wrap_sub","wrap_mul","sat_add","sat_sub","sat_mul","chk_add","chk_sub","chk_mul","div_nz",
         "widen","narrow","narrow_wrap","narrow_sat","narrow_try","cast","len","idx","field","subslice",
-        "min","max","abs","sqrt","floor","ceil","sin","cos","exp","log","round","pow","fmod",
+        "min","max","abs","@sqrt","@floor","@ceil","@sin","@cos","@exp","@log","@round","@pow","@fmod",
         "count_ones","leading_zeros","trailing_zeros","byte_swap",
         "is_some","is_none","is_ok","is_error","some_value","value_or","ok_value","error_value",
         "bitset_contains","bitset_union","bitset_intersect","bitset_difference","bitset_complement",

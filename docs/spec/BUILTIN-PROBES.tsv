@@ -225,33 +225,33 @@ byte_swap	a i8	i8	return byte_swap a. . .	-1	= -1
 leading_zeros	a f64	u64	return leading_zeros a. . .	1.5	TRAP E-BITOP-TYPE
 trailing_zeros	a f64	u64	return trailing_zeros a. . .	1.5	TRAP E-BITOP-TYPE
 byte_swap	a f64	u64	return byte_swap a. . .	1.5	TRAP E-BITOP-TYPE
-sqrt	a f64	f64	return sqrt a. . .	4.0	= 2.0
-sqrt	a f64	f64	return sqrt a. . .	-1.0	= -nan
-sin	a f64	f64	return sin a. . .	0.0	= 0.0
-cos	a f64	f64	return cos a. . .	0.0	= 1.0
-exp	a f64	f64	return exp a. . .	0.0	= 1.0
-log	a f64	f64	return log a. . .	1.0	= 0.0
-log	a f64	f64	return log a. . .	0.0	= -inf
-log	a f64	f64	return log a. . .	-1.0	= -nan
-floor	a f64	f64	return floor a. . .	1.5	= 1.0
-floor	a f64	f64	return floor a. . .	-1.5	= -2.0
-ceil	a f64	f64	return ceil a. . .	1.5	= 2.0
-ceil	a f64	f64	return ceil a. . .	-1.5	= -1.0
-round	a f64	f64	return round a. . .	2.5	= 3.0
-round	a f64	f64	return round a. . .	-2.5	= -3.0
-round	a f64	f64	return round a. . .	2.4	= 2.0
-sqrt	a u8	u8	return sqrt a. . .	1	CHECK E-TYPE-KIND
-sin	a u8	u8	return sin a. . .	1	CHECK E-TYPE-KIND
-cos	a u8	u8	return cos a. . .	1	CHECK E-TYPE-KIND
-exp	a u8	u8	return exp a. . .	1	CHECK E-TYPE-KIND
-log	a u8	u8	return log a. . .	1	CHECK E-TYPE-KIND
-pow	a f64, b f64	f64	return pow a. b. . .	2.0 10.0	= 1024.0
-pow	a f64, b f64	f64	return pow a. b. . .	2.0 0.5	= 1.41421
-pow	a f64, b f64	f64	return pow a. b. . .	-8.0 0.5	= -nan
-fmod	a f64, b f64	f64	return fmod a. b. . .	7.5 2.0	= 1.5
-fmod	a f64, b f64	f64	return fmod a. b. . .	-7.5 2.0	= -1.5
-pow	a u8, b u8	u8	return pow a. b. . .	2 3	CHECK E-TYPE-KIND
-fmod	a u8, b u8	u8	return fmod a. b. . .	7 2	CHECK E-TYPE-KIND
+sqrt	a f64	f64	return call_builtin sqrt a. . .	4.0	= 2.0
+sqrt	a f64	f64	return call_builtin sqrt a. . .	-1.0	= -nan
+sin	a f64	f64	return call_builtin sin a. . .	0.0	= 0.0
+cos	a f64	f64	return call_builtin cos a. . .	0.0	= 1.0
+exp	a f64	f64	return call_builtin exp a. . .	0.0	= 1.0
+log	a f64	f64	return call_builtin log a. . .	1.0	= 0.0
+log	a f64	f64	return call_builtin log a. . .	0.0	= -inf
+log	a f64	f64	return call_builtin log a. . .	-1.0	= -nan
+floor	a f64	f64	return call_builtin floor a. . .	1.5	= 1.0
+floor	a f64	f64	return call_builtin floor a. . .	-1.5	= -2.0
+ceil	a f64	f64	return call_builtin ceil a. . .	1.5	= 2.0
+ceil	a f64	f64	return call_builtin ceil a. . .	-1.5	= -1.0
+round	a f64	f64	return call_builtin round a. . .	2.5	= 3.0
+round	a f64	f64	return call_builtin round a. . .	-2.5	= -3.0
+round	a f64	f64	return call_builtin round a. . .	2.4	= 2.0
+sqrt	a u8	u8	return call_builtin sqrt a. . .	1	CHECK E-TYPE-KIND
+sin	a u8	u8	return call_builtin sin a. . .	1	CHECK E-TYPE-KIND
+cos	a u8	u8	return call_builtin cos a. . .	1	CHECK E-TYPE-KIND
+exp	a u8	u8	return call_builtin exp a. . .	1	CHECK E-TYPE-KIND
+log	a u8	u8	return call_builtin log a. . .	1	CHECK E-TYPE-KIND
+pow	a f64, b f64	f64	return call_builtin pow a. b. . .	2.0 10.0	= 1024.0
+pow	a f64, b f64	f64	return call_builtin pow a. b. . .	2.0 0.5	= 1.41421
+pow	a f64, b f64	f64	return call_builtin pow a. b. . .	-8.0 0.5	= -nan
+fmod	a f64, b f64	f64	return call_builtin fmod a. b. . .	7.5 2.0	= 1.5
+fmod	a f64, b f64	f64	return call_builtin fmod a. b. . .	-7.5 2.0	= -1.5
+pow	a u8, b u8	u8	return call_builtin pow a. b. . .	2 3	CHECK E-TYPE-KIND
+fmod	a u8, b u8	u8	return call_builtin fmod a. b. . .	7 2	CHECK E-TYPE-KIND
 widen	a u8	u16	return widen u16 a. . .	255	= 255
 widen	a u8	i16	return widen i16 a. . .	255	= 255
 widen	a i8	i16	return widen i16 a. . .	-1	= -1

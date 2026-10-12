@@ -1,0 +1,12 @@
+rem ★★★ **명령줄 인자** — `cap args` 를 든 자만 읽는다 (RFC-0147, 2026-10-12).
+rem
+rem ★ 빌트인 연산 `call_builtin arg` 의 얇은 감싸개다. 인자는 프로그램이 받은 **권한**이지 어디서나 보이는 값이 아니다
+rem   (RFC-0030 D2) — 그래서 첫 입력이 `cap args` 다.
+rem ☞ 인자의 수는 기본 연산 `count <cap args>` 가 낸다.
+
+module args .
+
+rem `i` 번째 인자(0 부터). 그 자리에 인자가 없으면 `none` 이다.
+export proc arg input k cap args . input i u64 . output option slice u8 . effects none . do
+  return call_builtin arg k. i. . .
+end .

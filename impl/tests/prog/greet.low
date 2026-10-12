@@ -34,11 +34,11 @@ fn pick_name input given option slice u8 . output slice u8 . do
 end .
 
 proc main input out cap io . input a cap args . output u8 . effects io . do
-  let name slice u8 pick_name arg a. 0 . . .
+  let name slice u8 pick_name call_builtin arg a. 0 . . .
   var total u64 0 .
-  set total. add total. write_out out. 1 "hello, " . . .
-  set total. add total. write_out out. 1 name. . . .
-  set total. add total. write_out out. 1 "!\n" . . .
+  set total. add total. call_builtin write_out out. 1 "hello, " . . .
+  set total. add total. call_builtin write_out out. 1 name. . . .
+  set total. add total. call_builtin write_out out. 1 "!\n" . . .
   rem 답은 쓴 바이트 수 — 종료 코드로 관측된다(RFC-0030 D3).
   return narrow u8 total. . .
 end .

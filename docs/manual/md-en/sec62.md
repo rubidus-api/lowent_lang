@@ -78,6 +78,7 @@ module cpdump .
 
 use utf8 .
 use fmt .
+use stdio .
 
 proc main
   input out cap io .
@@ -109,7 +110,7 @@ do
     set i. some_value nx. . .
   end .
 
-  let w u64 write_out out. 1 subslice buf. 0 pos. . . .
+  let w u64 stdio.write_out out. 1 subslice buf. 0 pos. . . .
   return 0 .
 end .
 ```

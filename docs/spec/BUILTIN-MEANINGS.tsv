@@ -89,7 +89,7 @@ eq	같은가
 error	오류를 담는다
 error_value	담긴 오류를 꺼낸다
 exp	e 의 거듭제곱
-expect	값을 꺼내되 없으면 멈춘다
+expect	시험 블록 안의 단언 — 조건이 거짓이면 그 시험이 실패한다
 field	값의 안을 읽는다
 file_close	파일을 닫는다
 file_open	파일을 연다

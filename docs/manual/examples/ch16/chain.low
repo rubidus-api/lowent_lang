@@ -1,9 +1,11 @@
 module chain .
 rem run: main
 
+use stdio .
+
 proc say input k cap io . input msg slice u8 . output u64 . effects io .
 do
-  return write_out k. 1 msg. . .
+  return stdio.write_out k. 1 msg. . .
 end .
 
 proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .

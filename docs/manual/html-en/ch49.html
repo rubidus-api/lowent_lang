@@ -705,25 +705,33 @@ fn twice/1 iface:6630705cb68be394 def:64a7865b02486293
  leaf   def changes · iface stays
  util   recompiled · its iface stays too
  main   cache hit — it stops here</code></pre><div class="demo demo-src"><p class="demo-head"><code>examples/ch49/h3_effects_a.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> hashed .
+
+<strong><span class="tok-k">use</span></strong> stdio .
 <em><span class="tok-c">rem db</span></em>
 
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">4</span> . .
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --emit-db h3_effects_a.low
-proc greet/2 iface:d864e930303f7437 def:d6bdabbbb23d30ab
+proc greet/2 iface:d864e930303f7437 def:2397c62a5e4fadee
+proc write_out/3 iface:1d7917bd77c73613 def:dd50e1235aafadba
+proc read_in/3 iface:98d02a37cf0f1615 def:4791aebc7981110f
 </code></pre></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch49/h3_effects_b.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> hashed .
+
+<strong><span class="tok-k">use</span></strong> stdio .
 <em><span class="tok-c">rem db</span></em>
 
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">4</span> . .
-  <strong><span class="tok-k">return</span></strong> write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> stdio.write_out out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --emit-db h3_effects_b.low
-proc greet/2 iface:d864e930303f7437 def:d6bdabbbb23d30ab
+proc greet/2 iface:d864e930303f7437 def:2397c62a5e4fadee
+proc write_out/3 iface:1d7917bd77c73613 def:dd50e1235aafadba
+proc read_in/3 iface:98d02a37cf0f1615 def:4791aebc7981110f
 </code></pre></div></div><p><strong>H3 — effects are a set.</strong> <code>effects io alloc</code> and <code>effects alloc io</code> give the same hash. They once differed, because the clause’s source text was hashed. Then content addressing addressed <strong>spelling</strong>, not meaning. The grammar says effects are a set, so they are hashed in normalised order.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch49/h4_contract.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> hashed .
 <em><span class="tok-c">rem db</span></em>
 

@@ -55,12 +55,10 @@
 | 답을 담는 타입 | `some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or` |
 | 번역 시점 | `size_of` `comptime` `config` |
 | 할당 | `alloc_bytes` |
-| 입출력 잎 | `write_out` `read_in` `arg` · 파일·연결·시계·난수·터미널 잎은 표준 라이브러리가 감싼다 |
 | 원자 | `atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence` |
 | 장치 | `read_volatile` `write_volatile` |
 | 동시성 | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
 | 원자(비트) | `atomic_and` `atomic_or` `atomic_xor` |
-| 부동소수점 수학 — 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
 | 파이프 단계 — 24장 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into` |
 | 레인(SIMD) — 27장 | `splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch` |
 | 작은 수의 집합 — 13장 | `bitset_new` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |
@@ -70,13 +68,14 @@
 | 빌트인 연산(계산) — `call_builtin` 뒤에서만 선다 | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
 | C 문자열 — 29장 | `cstr_of` `str_from_cstr` |
 | 빌트인 연산(파일 · 그물 · 프로세스) — `call_builtin` 뒤에서만 선다 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` |
-| 호스트 잎 — 32장 | `env_get` `reactor_new` `r_read` `r_write` `random_bytes` `time_local` `time_sleep` |
+| 빌트인 연산(표준 입출력 · 인자 · 환경 · 시계 · 터미널 · 난수 · reactor) — `call_builtin` 뒤에서만 선다 | `write_out` `read_in` `arg` `env_get` `time_now` `time_local` `time_sleep` `tty_raw` `tty_read` `tty_size` `random_bytes` `reactor_new` `r_read` `r_write` |
+| 빌트인 연산(부동소수점 함수) — `call_builtin` 뒤에서만 선다 · 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
 
 *표 50.3 — 기본 연산의 갈래*
 
 ★ **빌트인 연산은 제 이름공간을 갖는다.** `call_builtin sha256 msg. out. .` 처럼 그 자리에서만 서고, 저자는 같은 철자를 제 이름으로 지을 수 있다. 저자의 이름 가운데 없는 것을 맨 이름으로 부르면 `E-BUILTIN-BARE`, `call_builtin` 뒤에 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 빌트인 연산은 시스템 라이브러리를 짓는 재료이고, 프로그램은 그것을 감싼 모듈을 부른다(32장).
 
-이 표는 정본의 기본 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
+이 표는 정본의 기본 연산과 빌트인 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
 
 ## <a id="sx4"></a>효과와 권한
 

@@ -1,6 +1,8 @@
 module heads .
 rem run: main
 
+use stdio .
+
 rem ko: fn — 같은 입력이면 같은 답. 화면에도 파일에도 닿지 않는다 /// en: fn: the same input always gives the same answer, and it touches neither the screen nor files
 fn area input w u64 . input h u64 . output u64 .
   requires le w. 1000 . .
@@ -13,6 +15,6 @@ rem ko: proc — 바깥에 흔적을 남길 수 있다. 무엇을 하는지(effe
 proc main input out cap io . output u8 . effects io .
 do
   let a u64 area 3 4 . .
-  let n u64 write_out out. 1 "area is twelve\n" . .
+  let n u64 stdio.write_out out. 1 "area is twelve\n" . .
   return narrow u8 a. . .
 end .

@@ -769,8 +769,8 @@ static const ir_builtin_t *ir_call_builtin(proven_u8str_view_t name) {
 //   ★ 표를 여기 한 곳에 두고 검사기가 **빌려 쓴다**(두 벌이면 갈린다 — 이 저장소의 규율).
 const char *low_ir_leaf_cap_kind(proven_u8str_view_t name) {
     static const struct { const char *w; const char *kind; } LEAF_CAP[] = {
-        { "tty_raw", "tty" }, { "tty_read", "tty" }, { "tty_size", "tty" },
-        { "time_now", "clock" }, { "time_sleep", "clock" }, { "time_local", "clock" },
+        { "@tty_raw", "tty" }, { "@tty_read", "tty" }, { "@tty_size", "tty" },
+        { "@time_now", "clock" }, { "@time_sleep", "clock" }, { "@time_local", "clock" },
         { "@file_open", "file_system" }, { "@file_read", "file_system" },
         { "@file_write", "file_system" }, { "@file_close", "file_system" },
         { "@file_seek", "file_system" }, { "@file_type", "file_system" }, { "@link_type", "file_system" },
@@ -781,8 +781,8 @@ const char *low_ir_leaf_cap_kind(proven_u8str_view_t name) {
         { "@net_resolve", "net" },
         { "@proc_spawn", "process" }, { "@proc_read", "process" }, { "@proc_poll", "process" },
         { "@proc_wait", "process" }, { "@proc_kill", "process" },
-        { "random_bytes", "random" },
-        { "env_get", "env" },
+        { "@random_bytes", "random" },
+        { "@env_get", "env" },
         { "alloc_bytes", "allocator" },
     };
     for (size_t i = 0; i < sizeof LEAF_CAP / sizeof LEAF_CAP[0]; i++)
@@ -1121,6 +1121,24 @@ static bool ir_widen_units(ir_ctx_t *c, proven_u8str_view_t utf8, proven_i32 w,
 //   해석기가 언제나 빌트인을 고른다. `fn count …` 이 컴파일되고, `count a` 는
 //   **빌트인 count** 를 부른다. 사용자의 op 은 **존재하지만 존재하지 않는다.**
 //   이름공간이 평면이므로(E-NAME-DUP · E-NAME-SHADOW) 이것도 같은 죄다: **조용히 다른 것을 고른다.**
+// ★ RFC-0147 (2026-10-12) — 빌트인 연산을 감싼 표준 라이브러리 op 의 이름(`모듈.op`). 없으면 NULL.
+//   `E-BUILTIN-BARE` 가 읽는다: 맨 이름으로 부른 사람에게 `call_builtin` 이 아니라 **라이브러리의 이름**을 먼저 댄다.
+const char *low_builtin_wrapper(proven_u8str_view_t name) {
+    static const struct { const char *w; const char *lib; } WR[] = {
+        { "write_out", "stdio.write_out" }, { "read_in", "stdio.read_in" },
+        { "arg", "args.arg" }, { "env_get", "env.env_get" },
+        { "time_now", "clock.now_ns" }, { "time_local", "clock.local_packed" }, { "time_sleep", "clock.sleep_ms" },
+        { "tty_raw", "tty.tty_raw" }, { "tty_read", "tty.tty_read" }, { "tty_size", "tty.tty_size" },
+        { "random_bytes", "random.bytes" },
+        { "reactor_new", "reactor.reactor_new" }, { "r_read", "reactor.r_read" }, { "r_write", "reactor.r_write" },
+        { "sqrt", "math.sqrt" }, { "floor", "math.floor" }, { "ceil", "math.ceil" }, { "round", "math.round" },
+        { "sin", "math.sin" }, { "cos", "math.cos" }, { "exp", "math.exp" }, { "log", "math.log" },
+        { "pow", "math.pow" }, { "fmod", "math.fmod" },
+        { "sum_seq", "math.sum_seq" }, { "sum_neumaier", "math.sum_neumaier" },
+    };
+    for (proven_size_t i = 0; i < sizeof WR / sizeof WR[0]; i++) if (veq(name, WR[i].w)) return WR[i].lib;
+    return NULL;
+}
 bool low_ir_is_builtin_op(proven_u8str_view_t name) {      // `call_builtin` 뒤에 서는 이름인가 (저자가 적는 철자로)
     if (ir_call_builtin(name)) return true;
 #define X(w) if (veq(name, #w)) return true;
@@ -1325,7 +1343,7 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
         proven_size_t i = low_view_last(lex, '.');
         if (i != PROVEN_INDEX_NOT_FOUND) { head = (proven_u8str_view_t){ .ptr = lex.ptr, .size = i }; tail = low_view_after_last(lex, '.'); }
     }
-    char buf[256];
+    char buf[640];
     if (head.size) {
         char vl[160]; size_t vn = 0; vl[0] = 0; int nv = 0;
         for (proven_size_t i = 0; i < c->nenumv; i++)
@@ -1358,6 +1376,14 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
                  (veq(lex, "any") || veq(lex, "all")) ? ". Inside `pipe … do … end` the terminal stays `any`/`all`" : "");
     else if (low_ir_is_builtin_op(lex)) {
         // ★ 저자의 이름 가운데 이 철자가 없다 — 빌트인 연산을 맨 이름으로 부르려던 것이다.
+        // ★ RFC-0147 (2026-10-12) — 감싸개가 있는 것은 그 이름을 댄다. 배우는 사람이 다음에 칠 글자를 진단이 말한다.
+        const char *wr = low_builtin_wrapper(lex);
+        if (wr) {
+            const char *dot = strchr(wr, '.');
+            snprintf(buf, sizeof buf, "no op, local or input named `%.*s` is in scope. It is a builtin op: write `use %.*s .` "
+                     "and call the library op `%s ...`. The builtin itself stands only after `call_builtin`",
+                     (int)lex.size, (const char *)lex.ptr, (int)(dot ? dot - wr : 0), wr, wr);
+        } else
         snprintf(buf, sizeof buf, "no op, local or input named `%.*s` is in scope. A builtin op has this name, and a builtin op "
                  "stands only after `call_builtin` — write `call_builtin %.*s ...`. Builtin ops live in their own "
                  "namespace: they are for the system library, and a program normally calls the library wrapper",
@@ -3184,22 +3210,22 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             }
             {   // numeric builtins — fixed arity, tag-dispatched (int and float)
                 static const struct { const char *n; low_irw_t w; proven_i64 a; proven_size_t ar; } NB[] = {
-                    { "sqrt", IRW_UNM, 0, 1 }, { "abs", IRW_UNM, 1, 1 },
-                    { "floor", IRW_UNM, 2, 1 }, { "ceil", IRW_UNM, 3, 1 },
+                    { "@sqrt", IRW_UNM, 0, 1 }, { "abs", IRW_UNM, 1, 1 },
+                    { "@floor", IRW_UNM, 2, 1 }, { "@ceil", IRW_UNM, 3, 1 },
                     { "nonzero_of", IRW_UNM, 4, 1 },   // D6: τ → option (nonzero τ)
                     // RFC-0053 E5 (P2′ 오차 가시): 오차 특성을 **이름이** 말한다.
-                    { "sum_neumaier", IRW_UNM, 5, 1 },   // 보정합(Neumaier). 오차 O(ε) — 항의 개수에 무관
-                    { "sum_seq",      IRW_UNM, 6, 1 },   // 축차합(앞에서 뒤로 한 번). 오차 O(n·ε)
+                    { "@sum_neumaier", IRW_UNM, 5, 1 },   // 보정합(Neumaier). 오차 O(ε) — 항의 개수에 무관
+                    { "@sum_seq",      IRW_UNM, 6, 1 },   // 축차합(앞에서 뒤로 한 번). 오차 O(n·ε)
                     // ★★★ **초월 함수 여섯** (RFC-0090 N2, 2026-08-11) — libm 에 붙는다.
                     //   권한 없음(순수 계산). ★ 오라클은 **알려진 답과 항등식**이다:
                     //   sin 0 = 0 · exp 0 = 1 · log 1 = 0 · sin²+cos² = 1 (오차 한계 안에서).
                     //   ☞ 정확한 비트를 주장하지 않는다 — libm 은 구현마다 마지막 자리가
                     //     다를 수 있고, 그것을 오라클로 삼으면 **거짓 실패**가 난다.
-                    { "sin", IRW_UNM, 7, 1 },  { "cos", IRW_UNM, 8, 1 },
-                    { "exp", IRW_UNM, 9, 1 },  { "log", IRW_UNM, 10, 1 },
-                    { "round", IRW_UNM, 11, 1 },
-                    { "fmod", IRW_BINM, 0, 2 }, { "min", IRW_BINM, 1, 2 }, { "max", IRW_BINM, 2, 2 },
-                    { "pow", IRW_BINM, 3, 2 },
+                    { "@sin", IRW_UNM, 7, 1 },  { "@cos", IRW_UNM, 8, 1 },
+                    { "@exp", IRW_UNM, 9, 1 },  { "@log", IRW_UNM, 10, 1 },
+                    { "@round", IRW_UNM, 11, 1 },
+                    { "@fmod", IRW_BINM, 0, 2 }, { "min", IRW_BINM, 1, 2 }, { "max", IRW_BINM, 2, 2 },
+                    { "@pow", IRW_BINM, 3, 2 },
                 };
                 for (proven_size_t bi = 0; bi < sizeof NB / sizeof NB[0]; bi++)
                     if (veq(nd->tok.lex, NB[bi].n)) {
@@ -3945,7 +3971,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 //   cap 을 **대야** 통과한다(ambient 금지). 없으면 none — 센티널 없음.
                 // ★ `write_out <cap io> <fd> <bytes>` — 표준출력/표준오류로 바이트를 낸다.
                 //   args·env 와 **같은 규율**: cap 을 대야 통과한다. **숨은 stdout 이 없다.**
-                if (veq(nd->tok.lex, "write_out")) {
+                if (veq(nd->tok.lex, "@write_out")) {
                     proven_u8str_view_t ic = ir_capname_of(c->def_form, "io");
                     // ★★★ WO-0221 (소유자 결정 A3-a) — 권한을 안 댄 호스트 잎은 **프로그램이 틀린 것**이다(`E-CAP-MISSING`). 전엔 `E-IR-UNSUP`
                     //   («처리기가 아직 못 한다») 이라 `--check` 가 «낮출 수 없는 op» 주석과 함께 초록이었다. 아래 열 자리가 같은 코드다.
@@ -4045,7 +4071,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 //     쓰기는 **비우기**(syscall·ENOSPC·데이터 손실). mirror image 이지 parallel 이 아니고,
                 //     그것이 `finish`+E-OWN-LEAK 을 **쓰기에만** 두는 이유다.
                 //   ★ 여기(리프)가 하는 일은 **채우기**다. 비우기의 갈래(peek/take/toss)는 `lib/io.low`.
-                if (veq(nd->tok.lex, "read_in")) {
+                if (veq(nd->tok.lex, "@read_in")) {
                     proven_u8str_view_t ic = ir_capname_of(c->def_form, "io");
                     if (!(ic.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "io"))) {
@@ -4064,10 +4090,10 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 // ★★★ **reactor** (RFC-0071 A1). `read_in` 과 **같은 규율**: `cap io` 를 첫
                 //   피연산자로 이름 대조한다 — 핸들은 u64 라 **지어낼 수 있으므로**, 권한은
                 //   매 호출에서 보여야 한다(`lib/pool.low` 이 세대로 하는 일을 여기선 cap 이 한다).
-                if (veq(nd->tok.lex, "reactor_new") || veq(nd->tok.lex, "r_read") ||
-                    veq(nd->tok.lex, "r_write")) {
-                    bool is_new = veq(nd->tok.lex, "reactor_new");
-                    bool is_wr  = veq(nd->tok.lex, "r_write");
+                if (veq(nd->tok.lex, "@reactor_new") || veq(nd->tok.lex, "@r_read") ||
+                    veq(nd->tok.lex, "@r_write")) {
+                    bool is_new = veq(nd->tok.lex, "@reactor_new");
+                    bool is_wr  = veq(nd->tok.lex, "@r_write");
                     proven_u8str_view_t ic = ir_capname_of(c->def_form, "io");
                     if (!(ic.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "io"))) {
@@ -4105,9 +4131,9 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     //   셋뿐이다: raw 모드·키 읽기·화면 크기. 파일 리프와 **같은 규율**로
                     //   `cap tty` 를 든 op 만 부를 수 있다(안 들었으면 E-IR-UNSUP).
                     static const struct { const char *w; low_irw_t k; int n; } TOPS[] = {
-                        { "tty_raw",  IRW_TTYRAW,  1 },   // (on)  → bool
-                        { "tty_read", IRW_TTYREAD, 1 },   // (dst) → option u64 (0 = 지금은 없음)
-                        { "tty_size", IRW_TTYSIZE, 0 },   // ()    → option u64 (행<<32 | 열)
+                        { "@tty_raw",  IRW_TTYRAW,  1 },   // (on)  → bool
+                        { "@tty_read", IRW_TTYREAD, 1 },   // (dst) → option u64 (0 = 지금은 없음)
+                        { "@tty_size", IRW_TTYSIZE, 0 },   // ()    → option u64 (행<<32 | 열)
                     };
                     for (size_t ti = 0; ti < sizeof TOPS / sizeof TOPS[0]; ti++) {
                         if (!veq(nd->tok.lex, TOPS[ti].w)) continue;
@@ -4132,9 +4158,9 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     // ★★★★★ **시계 리프** (RFC-0090 N1, 2026-08-07). tty 와 **같은 규율**:
                     //   `cap clock` 을 든 op 만 부를 수 있고, 안 들었으면 E-IR-UNSUP.
                     static const struct { const char *w; low_irw_t k; int n; } CLOPS[] = {
-                        { "time_now",   IRW_TIMENOW,   0 },   // ()   → u64 단조 ns
-                        { "time_sleep", IRW_TIMESLEEP, 1 },   // (ms) → u64 실제로 잔 ms
-                        { "time_local", IRW_TIMELOCAL, 0 },   // ()   → u64 날짜시각 팩
+                        { "@time_now",   IRW_TIMENOW,   0 },   // ()   → u64 단조 ns
+                        { "@time_sleep", IRW_TIMESLEEP, 1 },   // (ms) → u64 실제로 잔 ms
+                        { "@time_local", IRW_TIMELOCAL, 0 },   // ()   → u64 날짜시각 팩
                     };
                     for (size_t ci = 0; ci < sizeof CLOPS / sizeof CLOPS[0]; ci++) {
                         if (!veq(nd->tok.lex, CLOPS[ci].w)) continue;
@@ -4162,7 +4188,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     //   시계와 같은 자리: 결정성을 깨므로 계산이 아니라 **권리**다.
                     //   ★ 재현 가능한 `rng_next` 와 **일부러 갈라 뒀다**: 시험은 재현되어야
                     //     하고 열쇠는 예측되면 안 된다. 한 낱말로는 둘 다 못 한다.
-                    if (veq(nd->tok.lex, "random_bytes")) {
+                    if (veq(nd->tok.lex, "@random_bytes")) {
                         proven_u8str_view_t rc = ir_capname_of(c->def_form, "random");
                         if (!(rc.size && *pos < end && is_atom(k[*pos]) &&
                               ir_names_cap(c->def_form, k[*pos]->tok.lex, "random"))) {
@@ -4270,7 +4296,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         ir_emit(c, POPS[pi].k, 0); return;
                     }
                 }
-                if (veq(nd->tok.lex, "env_get")) {
+                if (veq(nd->tok.lex, "@env_get")) {
                     proven_u8str_view_t ec = ir_capname_of(c->def_form, "env");
                     if (!(ec.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "env"))) {
@@ -4284,7 +4310,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     ir_value(c, k, pos, end);
                     ir_emit(c, IRW_ENVGET, 0); return;
                 }
-                if (veq(nd->tok.lex, "arg")) {
+                if (veq(nd->tok.lex, "@arg")) {
                     if (!(ac.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "args"))) {
                         ir_fail(c, "E-CAP-MISSING",
@@ -4337,7 +4363,9 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             "this is not a builtin op. The names that stand after `call_builtin` "
                             "are a closed set (clmul_lo, clmul_hi, aes_round, aes_round_last, aes_ctr, "
                             "ghash, chacha20, poly1305, aes_gcm, sha256, sha384, sha512, crc32, "
-                            "hash_bytes, rng_next, chacha_poly — and those that take a capability: file_*, dir_*, path_remove, path_rename, link_type, net_*, proc_*).", nd->line);
+                            "hash_bytes, rng_next, chacha_poly — those that take a capability: file_*, dir_*, path_remove, path_rename, link_type, net_*, proc_*, "
+                            "write_out, read_in, arg, env_get, time_*, tty_*, random_bytes, reactor_new, r_read, r_write — and the float functions: "
+                            "sqrt, floor, ceil, round, sin, cos, exp, log, pow, fmod, sum_seq, sum_neumaier).", nd->line);
                     return;
                 }
                 (*pos)++;
@@ -4690,6 +4718,34 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             }
             if (isdef) {
                 proven_size_t np = c->out->defs[di].nparams;
+                // ★★★ RFC-0147 (2026-10-12) — **권한은 받은 이름 그대로 넘긴다**(정본 §7.2.1 (1b)). 지역 이름에 옮겨 담은 권한을
+                //   op 의 권한 자리에 대면 거절한다. 전엔 이 검사가 잎에만 있었다 — 잎이 라이브러리 뒤로 가면서, 그대로 두면
+                //   `let k cap io out.` 뒤에 `stdio.write_out k. …` 가 서게 된다(옮기기 전의 `write_out k. …` 는 거절이었다).
+                for (proven_size_t ci = 0; ci < np && ci < 32 && *pos + ci < end; ci++) {
+                    if (!((c->out->defs[di].param_cap >> ci) & 1u) || !is_atom(k[*pos + ci])) continue;
+                    proven_u8str_view_t cn = k[*pos + ci]->tok.lex, cgot = { 0 };
+                    if (ir_param_cap_kind(c->def_form, cn, &cgot) || !ir_local_cap_kind(c->def_form, cn, &cgot)) continue;
+                    char abuf[256];
+                    snprintf(abuf, sizeof abuf, "`%.*s` is a LOCAL that a `cap %.*s` was copied into. A capability is not a value "
+                             "you carry in a local name: only a parameter of this op names a right it was handed, so pass the "
+                             "parameter itself (RFC-0030 D2)", (int)cn.size, (const char *)cn.ptr, (int)cgot.size, (const char *)cgot.ptr);
+                    ir_fail_buf(c, "E-CAP-LOCAL", abuf, nd->line);
+                    return;
+                }
+                // ★ RFC-0147 (2026-10-12) — 첫 입력이 권한인 op 을 **권한 없이** 불렀다. 수가 모자란 것이 아니라 권한을 빠뜨린 것이다.
+                //   (권한을 받는 빌트인 연산이 라이브러리 뒤로 가면서, 이 실수는 감싸개를 부르는 자리에서 난다.)
+                if (*pos + np == end + 1 && (c->out->defs[di].param_cap & 1u)) {
+                    proven_u8str_view_t ck0 = { 0 };
+                    if (!(*pos < end && is_atom(k[*pos]) && ir_param_cap_kind(c->def_form, k[*pos]->tok.lex, &ck0))) {
+                        char abuf[256];
+                        snprintf(abuf, sizeof abuf, "`%.*s` takes a capability as its FIRST argument, and none is given here. A "
+                                 "right is handed down by name from the entry (`input out cap io .`), never ambient — pass the "
+                                 "capability this op received (RFC-0030 D2)",
+                                 (int)nd->tok.lex.size, (const char *)nd->tok.lex.ptr);
+                        ir_fail_buf(c, "E-CAP-MISSING", abuf, nd->line);
+                        return;
+                    }
+                }
                 if (*pos + np > end) {
                     // ★ 2026-09-14 — 이름과 수를 댄다. 옛 문장의 «줄 끝에 `,`» 권고는 RFC-0103 에서 죽은 규칙이었다.
                     char abuf[256];

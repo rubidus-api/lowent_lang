@@ -54,14 +54,14 @@ end .
 proc main input a cap args . input e cap env . output u8 . effects state . do
   rem ── 인자: 구분자. 없으면 ',' (44). 있으면 그 첫 바이트.
   var sep u8 44 .
-  let first option slice u8 arg a. 0 . .
+  let first option slice u8 call_builtin arg a. 0 . .
   if is_some first. . do
     let s slice u8 some_value first. . .
     if gt len s. . 0 . do set sep. idx s. 0 . . end .
   end .
 
   rem ── 환경: 다듬기 스위치. 있으면 켠다(값은 안 본다 — 존재가 곧 스위치다).
-  let sw option slice u8 env_get e. "FIELDS_TRIM" . .
+  let sw option slice u8 call_builtin env_get e. "FIELDS_TRIM" . .
   let trim bool is_some sw. . .
 
   rem ── 입력을 줄 단위로 (텍스트 리터럴 — 원문 그대로, 이스케이프 불요)

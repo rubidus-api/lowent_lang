@@ -29,26 +29,26 @@ do
   guard is_some b1. . else return 68 . .
   let rmem mut slice u8 some_value b1. . .
   rem ★ reactor 를 만든다. 자리가 모자라면 **none** — 트랩이 아니다(OOM 은 값이다).
-  let r option u64 reactor_new k. rmem. 1 . .
+  let r option u64 call_builtin reactor_new k. rmem. 1 . .
   guard is_some r. . else return 70 . .
   let rh u64 some_value r. . .
 
   var total u64 0 .
   var done bool false .
   while eq done. false . do
-    let n option u64 r_read k. rh. 0 buf. . .
+    let n option u64 call_builtin r_read k. rh. 0 buf. . .
     rem ★ `n` 을 **한 번만** 본다 — 옵션을 두 번 묻는 판이 있었는데 상자가 재활용되며 죽었다.
     if is_some n. . do
       rem `some` = 다 들어갔다(EOF). 마지막 조각을 내보내고 끝낸다.
       let g u64 some_value n. . .
       set total. add total. g. . .
-      let w u64 write_out k. 1 subslice buf. 0 g. . . .
+      let w u64 call_builtin write_out k. 1 subslice buf. 0 g. . . .
       guard eq w. g. . else return 71 . .
       set done. true .
     end else do
       rem `none` = 더 남았다. 버퍼가 가득 찼으니 통째로 내보낸다.
       set total. add total. len buf. . . .
-      let w2 u64 write_out k. 1 buf. . .
+      let w2 u64 call_builtin write_out k. 1 buf. . .
       guard eq w2. len buf. . . else return 72 . .
     end .
   end .

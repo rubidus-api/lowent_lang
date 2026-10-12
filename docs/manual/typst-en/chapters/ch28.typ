@@ -25,7 +25,7 @@
 ]
 
 #organizer[
-  You will learn to write to standard output with `write_out`, and to open, close, read and write files with the standard library's `files`. You will confirm that a
+  You will learn to write to standard output with `stdio.write_out`, and to open, close, read and write files with the standard library's `files`. You will confirm that a
   file handle is an owned value needing completion, so forgetting to close it is refused at translation. You will also see why a read's answer splits three ways,
   "read · end · failure", and how to trigger failures on purpose to test them.
 ]
@@ -34,7 +34,7 @@
 
 == Standard output
 
-The only channel to standard output is `write_out <cap io> <fd> <bytes>`. File descriptor 1 is standard output and 2 is standard error. It returns the number of
+The only channel to standard output is `stdio.write_out <cap io> <fd> <bytes>`. File descriptor 1 is standard output and 2 is standard error. It returns the number of
 bytes written. It has already appeared in several chapters, so there is nothing new, but one point is worth making. That this op takes the capability as its *first
 operand* means `cap io` shows in the head of every op that emits even one byte to standard output. There is no debug print slipped in secretly.
 
@@ -224,7 +224,7 @@ the failure arrives as an answer different from the end, so only code that tells
   id: "io-files-glance",
   caption: [I/O and file syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`write_out out 1 "…"`], [write to standard output (1) · standard error (2) --- returns the count], [the capability comes first --- no hidden printing],
+  [`stdio.write_out out 1 "…"`], [write to standard output (1) · standard error (2) --- returns the count], [the capability comes first --- no hidden printing],
   [`use files .` + `input fs cap file_system .`], [the file module and its capability], [the head shows whether files are reached],
   [`files.open fs. "notes.txt" 0 .`], [open --- 0 read · 1 write · 2 append · `result handle file_error`], [opening has no "end" --- two places],
   [`var h owned files.handle ok_value o. . .`], [hold the handle as owned], [forgetting it: `E-OWN-INCOMPLETE` · writing after close: `E-OWN-MOVED`],
@@ -236,7 +236,7 @@ the failure arrives as an answer different from the end, so only code that tells
 )
 
 #recap[
-  Standard output is `write_out <cap io> <fd> <bytes>`, with the capability as first operand. The `files` module takes `cap file_system` to open, close, read and write
+  Standard output is `stdio.write_out <cap io> <fd> <bytes>`, with the capability as first operand. The `files` module takes `cap file_system` to open, close, read and write
   files. A file handle needs completion because `close` takes it `owned` and returns a `result`, so forgetting to close is refused at translation. `read` answers in
   three positions --- read, end, failure --- and failure paths are exercised on purpose with the `LOW_HOST_FAULT` injector.
 ]

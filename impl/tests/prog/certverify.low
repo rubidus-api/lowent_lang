@@ -16,7 +16,7 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 65536 . .
   guard is_some g. . else return 9 . .
   let buf mut slice u8 some_value g. . .
-  let rn option u64 read_in k. 0 buf. . .
+  let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 9 . .
   let n u64 some_value rn. . .
   guard gt n. 8 . else return 9 . .
@@ -54,7 +54,7 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 65536 . .
   guard is_some g. . else return 99 . .
   let buf mut slice u8 some_value g. . .
-  let rn option u64 read_in k. 0 buf. . .
+  let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 99 . .
   let l1 u64 add add mul cast u64 idx buf. 0 . . 16777216 . mul cast u64 idx buf. 1 . . 65536 . .
                     add mul cast u64 idx buf. 2 . . 256 . cast u64 idx buf. 3 . . . . .
@@ -73,7 +73,7 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 65536 . .
   guard is_some g. . else return 99 . .
   let buf mut slice u8 some_value g. . .
-  let rn option u64 read_in k. 0 buf. . .
+  let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 99 . .
   let l1 u64 add add mul cast u64 idx buf. 0 . . 16777216 . mul cast u64 idx buf. 1 . . 65536 . .
                     add mul cast u64 idx buf. 2 . . 256 . cast u64 idx buf. 3 . . . . .

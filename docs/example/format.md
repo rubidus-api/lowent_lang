@@ -12,6 +12,8 @@ errors 절 없이 본문 `return error`. (라이브러리=MVP, print=post-MVP)
 ```lowent
 module fmt .
 
+use stdio .
+
 def type scratch u64 .
 
 def enum write_error do
@@ -130,7 +132,7 @@ do
   guard is_some g. . else return error overflow . . .
   let buf mut slice u8 some_value g. . .
   let n u64 try format_point buf. p. . . .
-  let w u64 write_out sink. 1 subslice buf. 0 n. . . .     rem cap 경유 출력(1 = stdout)
+  let w u64 stdio.write_out sink. 1 subslice buf. 0 n. . . .     rem cap 경유 출력(1 = stdout)
   return ok. .
 end .
 ```

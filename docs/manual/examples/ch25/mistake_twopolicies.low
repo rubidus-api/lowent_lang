@@ -7,7 +7,7 @@ actor worker do
   end .
   rem ko: ✘ 실패 정책이 둘이다 /// en: ✘ two failure policies
   failure restart max 3 .
-  failure never .
+  failure restart never .
   proc tick output u64 . effects state .
   do
     set n. add n. 1 . .

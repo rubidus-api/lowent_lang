@@ -21,8 +21,8 @@ proc main input k cap io . output u8 . effects io . do
   var n u64 0 .
   while flags.has_any rest. . do
     let b u64 flags.lowest rest. . .
-    let w1 u64 write_out k. 1 "*" . .
-    let w2 u64 write_out k. 1 "\x0a" . .
+    let w1 u64 call_builtin write_out k. 1 "*" . .
+    let w2 u64 call_builtin write_out k. 1 "\x0a" . .
     set rest. flags.without rest. b. . .
     set n. add n. 1 . .
   end .

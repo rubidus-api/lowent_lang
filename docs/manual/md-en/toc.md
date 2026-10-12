@@ -768,24 +768,32 @@ Searches headings and index terms --- not the full text
 
 [lifemode · lifeatom — when a value ends](sec115.md)
 
-[io — stream reading over slices](sec116.md)
+[stdio — standard input and output](sec116.md)
 
-[outbuf — buffered output where forgetting to flush is a compile error](sec117.md)
+[args — command-line arguments](sec117.md)
 
-[files — file and directory streams where forgetting to close is a compile error](sec118.md)
+[env — environment variables](sec118.md)
 
-[tty — terminal input](sec119.md)
+[io — stream reading over slices](sec119.md)
 
-[net — sockets (TCP loopback · in-process pairs)](sec120.md)
+[outbuf — buffered output where forgetting to flush is a compile error](sec120.md)
 
-[clock — time and deadlines](sec121.md)
+[files — file and directory streams where forgetting to close is a compile error](sec121.md)
 
-[trust — finding a trusted root in the trust store](sec122.md)
+[tty — terminal input](sec122.md)
 
-- [ It never holds the whole bundle](sec122.md#sx1)
-- [ ops](sec122.md#sx2)
+[reactor — non-blocking reads and writes](sec123.md)
 
-[Index](sec123.md)
+[net — sockets (TCP loopback · in-process pairs)](sec124.md)
+
+[clock — time and deadlines](sec125.md)
+
+[trust — finding a trusted root in the trust store](sec126.md)
+
+- [ It never holds the whole bundle](sec126.md#sx1)
+- [ ops](sec126.md#sx2)
+
+[Index](sec127.md)
 
 ---
 

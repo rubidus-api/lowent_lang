@@ -2,7 +2,7 @@
 
 = `tty` --- 터미널 입력 <mod-tty>
 
-#modhead(file: "lib/tty.low", layer: [L2 --- 권한이 필요한 절반(기본 연산) + 순수 파싱(이 모듈)], caps: [기본 연산 `tty_raw` · `tty_read` · `tty_size` 에 `cap tty`])
+#modhead(file: "lib/tty.low", layer: [L2 --- 권한이 필요한 셋(빌트인 연산의 감싸개) + 순수 파싱], caps: [`tty.tty_raw` · `tty.tty_read` · `tty.tty_size` 에 `cap tty`])
 
 에디터나 메뉴처럼 *키를 하나씩 받아 반응하는* 프로그램을 만들 때 쓴다. 보통 터미널은 사용자가 Enter 를 눌러야 줄을 넘기고, 그 전까지 커널이 글자를 모으고 되비치고
 백스페이스도 처리한다(행 버퍼링과 에코). 방향키를 누르는 즉시 커서를 옮기려면 이 편의가 방해가 되므로 *raw 모드*로 바꿔 "누른 즉시, 되비침 없이" 받는다. 그리고
@@ -17,7 +17,7 @@ let used u64 tty.len_of some_value p. . . .
 
 #aside[raw 모드는 사용자의 터미널 설정을 바꾸고, 그 변경은 프로그램이 죽어도 남는다][
   raw 모드로 들어간 채 프로그램이 죽으면 사용자의 셸은 에코가 없는 상태로 남는다. 그런 권한을 아무 코드나 부를 수 있다면 아무 라이브러리나 남의 셸을 망가뜨릴 수
-  있다. 그래서 `cap tty` 를 든 자만 행사한다 --- 권한 없이 `tty_raw` 를 부르면 컴파일 때 `E-CAP-MISSING` 이다. 동시에 키 파싱까지 권한 뒤에 두면 실제 터미널 없이는
+  있다. 그래서 `cap tty` 를 든 자만 행사한다 --- 권한 없이 `tty.tty_raw` 를 부르면 컴파일 때 `E-CAP-MISSING` 이다. 동시에 키 파싱까지 권한 뒤에 두면 실제 터미널 없이는
   시험할 수 없게 된다. 그래서 반을 갈랐다 --- *순수한 절반이 훨씬 크다*. 권한 절반은 raw 모드 · 읽기 · 화면 크기 셋뿐이고, 키 파싱(여기)과 ANSI 조립 · 화면 diff ·
   표시 폭(#modref("term")[`term`])은 순수하다(#chref("lib-terminal")).
 ]
@@ -36,9 +36,9 @@ let used u64 tty.len_of some_value p. . . .
   [`key_unknown`], [순수], [1011 --- 알아보지 못한 특수키],
   [`parse_key buf at`], [순수(`effects none`)], [바이트열 → `some (키코드 × 16 + 길이)` 또는 `none`],
   [`key_of` · `len_of` · `is_char`], [순수], [포장 값에서 키코드 · 길이 꺼내기 · 평범한 글자인가(*키코드*를 넣는다)],
-  [`tty_raw t. on. .`(기본 연산)], [`cap tty`], [raw 모드 진입(`true`) · 복귀(`false`)],
-  [`tty_read t. dst. .`(기본 연산)], [`cap tty`], [지금 온 바이트를 버퍼로 → `option u64`(`some 0 .` = 지금은 없음, 에러가 아니다)],
-  [`tty_size t. .`(기본 연산)], [`cap tty`], [화면 크기 → `option u64`(행 = `div v. 4294967296 .`, 열 = `mod v. 4294967296 .`)],
+  [`tty.tty_raw t. on. .`], [`cap tty`], [raw 모드 진입(`true`) · 복귀(`false`)],
+  [`tty.tty_read t. dst. .`], [`cap tty`], [지금 온 바이트를 버퍼로 → `option u64`(`some 0 .` = 지금은 없음, 에러가 아니다)],
+  [`tty.tty_size t. .`], [`cap tty`], [화면 크기 → `option u64`(행 = `div v. 4294967296 .`, 열 = `mod v. 4294967296 .`)],
 )
 
 *`parse_key` 가 알아보는 것* --- ESC 아닌 한 바이트(길이 1), 뒤가 없는 `ESC`(ESC 키, 길이 1), `ESC O A`–`D` · `H` · `F` 와 `ESC [ A`–`D` · `H` · `F`(방향키 · Home ·
@@ -55,11 +55,11 @@ proc main input t cap tty . input al cap allocator . output u8 . effects alloc .
   let g option mut slice u8 alloc_bytes al. capacity 32 . .
   guard is_some g. . else return 1 . .
   let buf mut slice u8 some_value g. . .
-  guard tty_raw t. true . else return 1 . .
+  guard tty.tty_raw t. true . else return 1 . .
   var going bool true .
   var last u64 0 .
   while going. do
-    let n option u64 tty_read t. buf. . .
+    let n option u64 tty.tty_read t. buf. . .
     guard is_some n. . else do
       set going. false .
       continue .
@@ -77,7 +77,7 @@ proc main input t cap tty . input al cap allocator . output u8 . effects alloc .
       set off. add off. tty.len_of some_value p. . . . .
     end .
   end .
-  let r bool tty_raw t. false . .
+  let r bool tty.tty_raw t. false . .
   return narrow u8 last. . .
 end .
 ```
@@ -87,7 +87,7 @@ op 이 가졌다는 것만으로는 안 되고 쓰는 자리에 건네야 한다
 배당금이다.
 
 #antipattern[raw 모드를 복귀시키지 않는다][
-  `tty_raw t. true .` 뒤 중간의 `guard … else return 2` 로 빠지면 복귀가 없어 셸이 망가진 채 남는다. 언어에 `defer` 가 없으므로 모든 나가는 길에서 `tty_raw t. false .` 를
+  `tty.tty_raw t. true .` 뒤 중간의 `guard … else return 2` 로 빠지면 복귀가 없어 셸이 망가진 채 남는다. 언어에 `defer` 가 없으므로 모든 나가는 길에서 `tty.tty_raw t. false .` 를
   부르거나, 실패할 수 있는 부분을 raw 진입 전에 끝낸다. 위 예제는 루프가 언제나 아래로 빠져나오게 짜여 있다.
 ]
 
@@ -98,5 +98,5 @@ op 이 가졌다는 것만으로는 안 되고 쓰는 자리에 건네야 한다
 
 *주의.* 터미널마다 방향키 시퀀스가 달라 `ESC [ A` 와 `ESC O A` 둘 다 알아본다. 그래도 못 잡는 시퀀스는 `none` 이다 --- 조용히 다른 키로 답하지 않는다. 한글을 입력하면
 `parse_key` 가 *바이트 하나씩* 돌려주므로 코드포인트는 #modref("utf8")[`utf8`] 로 조립한다. `is_char` 의 "글자" 는 "특수키가 아니다" 라는 뜻이지 출력할 수 있다는 뜻이
-아니다. raw 모드에서 Ctrl-C 는 시그널이 아니라 바이트 3 으로 온다. 화면 크기 변화(SIGWINCH)는 알려 주지 않는다 --- 필요하면 매 프레임 `tty_size` 를 다시 묻는다. 마우스
+아니다. raw 모드에서 Ctrl-C 는 시그널이 아니라 바이트 3 으로 온다. 화면 크기 변화(SIGWINCH)는 알려 주지 않는다 --- 필요하면 매 프레임 `tty.tty_size` 를 다시 묻는다. 마우스
 보고 · bracketed paste · 터미널 질의 응답 파싱은 짓지 않았다.

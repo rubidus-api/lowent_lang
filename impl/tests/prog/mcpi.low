@@ -63,13 +63,13 @@ do
   guard is_some a1. . else return 71 . .
   set at. some_value a1. . .
   rem 소수점 셋째 자리까지 정수로 찍는다(fmt 에 부동 출력이 아직 없다 — 안 지은 것).
-  let a2 option u64 fmt.put_u64 line. at. cast u64 round mul est. 1000.0 . . . . .
+  let a2 option u64 fmt.put_u64 line. at. cast u64 call_builtin round mul est. 1000.0 . . . . .
   guard is_some a2. . else return 71 . .
   set at. some_value a2. . .
   let a3 option u64 fmt.put_str line. at. " /1000\n" . .
   guard is_some a3. . else return 71 . .
   set at. some_value a3. . .
-  let z u64 write_out k. 1 subslice line. 0 at. . . .
+  let z u64 call_builtin write_out k. 1 subslice line. 0 at. . . .
 
   rem ★ 오라클: 추정값이 π 에 가까운가. `math.close` 가 허용 오차를 **인자로** 받는다.
   guard math.close est. math.pi. 0.05 . else return 43 . .

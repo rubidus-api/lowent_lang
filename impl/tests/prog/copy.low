@@ -25,9 +25,9 @@ proc main
   effects alloc io .
 do
   rem 입력 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.
-  let src option slice u8 arg a. 0 . .
+  let src option slice u8 call_builtin arg a. 0 . .
   guard is_some src. . else return 64 . .
-  let dst option slice u8 arg a. 1 . .
+  let dst option slice u8 call_builtin arg a. 1 . .
   guard is_some dst. . else return 64 . .
 
   rem ★ 일부러 **작은** 버퍼다 — 조각으로 오간다는 것이 실제로 드러나야 한다.

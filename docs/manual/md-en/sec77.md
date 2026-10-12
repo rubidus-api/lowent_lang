@@ -12,7 +12,7 @@ Capabilities
 
 none
 
-Adds commonly used things on top of core ops like `sqrt`, `sin` and `exp` — comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a base, and linear interpolation. It has no capabilities but links to the C maths library, so it is **host only** — targets without an operating system may have no floating point at all (`cortex_m` is `no_float`).
+Offers the floating-point functions (`math.sqrt`, `math.sin`, `math.exp`, …) and commonly used things on top of them — comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a base, and linear interpolation. It has no capabilities but links to the C maths library, so it is **host only** — targets without an operating system may have no floating point at all (`cortex_m` is `no_float`).
 
 > **Do not compare with `==` — use `close`**
 >
@@ -35,9 +35,9 @@ Adds commonly used things on top of core ops like `sqrt`, `sin` and `exp` — co
 
 *Table 50.1 — Ops of `math`*
 
-Used directly as core ops — `sqrt`, `abs`, `floor`, `ceil`, `round`, `sin`, `cos`, `exp`, `log`, `pow`.
+Wrappers that pass a builtin op through — `sqrt`, `floor`, `ceil`, `round`, `sin`, `cos`, `exp`, `log`, `pow`, `fmod` (all take `f64` and give `f64`), and the slice sums `sum_seq` and `sum_neumaier`. Call them as `math.sqrt x. .`. The absolute value `abs` is a core op and needs no module.
 
-**Not built** — `atan2`, `asin`, `acos`, `tan`, `log2`, `log10`, `cbrt`, complex numbers, fixed point, an `f32`-only face. If needed they attach as one core op plus one line here. `hyp` computes `sqrt(x²+y²)` as is — unlike libm’s `hypot` it does not rescale to avoid overflow, so it can answer differently for very large values.
+**Not built** — `atan2`, `asin`, `acos`, `tan`, `log2`, `log10`, `cbrt`, complex numbers, fixed point, an `f32`-only face. If needed they attach as one builtin op plus one line here. `hyp` computes `sqrt(x²+y²)` as is — unlike libm’s `hypot` it does not rescale to avoid overflow, so it can answer differently for very large values.
 
 ---
 

@@ -124,7 +124,7 @@
 - `doomed` 는 언제나 터진다. 두 번 다시 세운 뒤에도 터지면 그 실패는 *위로 넘어가* 프로그램이 멈춘다. 조용히 멈추어
   있는 액터를 남기지 않는다.
 
-정책은 셋이다 --- `restart max <수>`(그 수만큼), `never`(처음 터질 때 바로 위로), `always`(셈하지 않고 계속). 다시 세우는
+정책은 셋이고 모두 `failure restart` 뒤에 적는다 --- `max <수>`(그 수만큼), `never`(처음 터질 때 바로 위로), `always`(셈하지 않고 계속). 다시 세우는
 것은 `panic` 에만 해당한다. 계약 위반은 프로그램이 스스로 적은 약속을 어긴 것이라 다시 해도 같으므로 다시 세우지 않는다.
 되살아나는 것은 *자기 상태뿐*이고 다른 액터는 건드리지 않는다.
 
@@ -285,7 +285,7 @@
   [`send c inc` · `send acct deposit a`], [보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다], [액터가 먼저 --- 메시지는 액터를 첫 매개변수로 받는 op],
   [`spawn send c. inc . .` · `drain c .` · `schedule .`], [우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기], [배달 시점을 사람이 고른다 --- 결정성],
   [`mailbox bounded 2 .` · `try spawn send`], [우편함 크기 · 넘침을 값으로 받기], [넘치면 멈추거나 `result`],
-  [`failure restart max 3 .` · `never` · `always`], [`panic` 한 액터를 처음 상태로 다시 세운다], [다 쓰면 실패를 위로 넘긴다],
+  [`failure restart max 3 .` · `failure restart never .` · `failure restart always .`], [`panic` 한 액터를 처음 상태로 다시 세운다], [다 쓰면 실패를 위로 넘긴다],
   [`build profile server .`], [액터(3 등급)를 쓸 수 있는 자리], [적은 사람만 그 약속을 진다],
   [`state do root cap allocator . … end .`], [권한 칸 --- 실행 중 크기 0], [띄우는 op 에 같은 권한이 없으면 `E-CAP-FORGE`],
 )

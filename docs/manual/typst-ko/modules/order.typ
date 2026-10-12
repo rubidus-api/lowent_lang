@@ -12,7 +12,7 @@
     "growvec", "vecgen", "mapgen", "nodelist", "segview", "lifemode",
   )),
   (ko: "L2 --- 호스트", en: "L2 --- host", modules: (
-    "io", "outbuf", "files", "tty", "net", "clock", "trust",
+    "stdio", "args", "env", "io", "outbuf", "files", "tty", "reactor", "net", "clock", "trust",
   )),
 )
 #let module-names = module-layers.map(l => l.modules).flatten()

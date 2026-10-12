@@ -16,8 +16,8 @@ module capdet .
 
 rem 시계는 뒤로 가지 않는다 — 그것이 단조 시계에 대해 말할 수 있는 전부다.
 export proc mono input k cap clock . output u64 . effects none . do
-  let a u64 time_now k. . .
-  let b u64 time_now k. . .
+  let a u64 call_builtin time_now k. . .
+  let b u64 call_builtin time_now k. . .
   guard ge b. a. . else return 0 . .
   return 1 .
 end .
@@ -28,7 +28,7 @@ export proc entropy input al cap allocator . input k cap random . output u64 . e
   let g option mut slice u8 alloc_bytes al. capacity 8 . .
   guard is_some g. . else return 0 . .
   let buf mut slice u8 some_value g. . .
-  return random_bytes k. buf. . .
+  return call_builtin random_bytes k. buf. . .
 end .
 
 rem ★ 진입점 — **권한은 여기서 들어온다**(RFC-0030 D2′). `--run` 이 건네주는 자리는 `main` 뿐이고,

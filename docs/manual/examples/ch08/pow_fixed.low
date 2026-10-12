@@ -2,10 +2,12 @@ module pow_fixed .
 rem run: square_f 1.5
 rem run: square_i 5
 
+use math .
+
 fn square_f input a f64 . output f64 .
 do
   rem ko: `pow` 는 부동소수점에서 맞게 돈다 /// en: `pow` works correctly on floats
-  return pow a. 2.0 . .
+  return math.pow a. 2.0 . .
 end .
 
 fn square_i input a u64 . output u64 .

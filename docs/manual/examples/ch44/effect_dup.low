@@ -1,6 +1,8 @@
 module effect_dup .
 rem expect: E-EFFECT-DUP
 
+use stdio .
+
 proc shout input out cap io . output u64 . effects io io . do
-  return write_out out. 1 "hi\n" . .
+  return stdio.write_out out. 1 "hi\n" . .
 end .

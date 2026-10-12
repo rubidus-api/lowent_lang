@@ -91,21 +91,21 @@
 
 == raw 모드는 권한이다
 
-운영체제와 닿는 부분은 세 기본 연산 뿐이다. `tty_raw t. on. .`(raw 모드 들어가기·나오기), `tty_read t. buf. .`(키 바이트 읽기), `tty_size t. .`(화면
+운영체제와 닿는 부분은 `tty` 모듈의 세 op 뿐이다(빌트인 연산을 감싼 것). `tty.tty_raw t. on. .`(raw 모드 들어가기·나오기), `tty.tty_read t. buf. .`(키 바이트 읽기), `tty.tty_size t. .`(화면
 크기). 모두 `cap tty` 를 첫 인자로 받는다.
 
 #demo("examples/ch37/rawmode.low")
 
 - 버퍼를 raw 모드에 들어가기 *전에* 받는다. 들어간 뒤에 할당이 실패해 돌아가면 터미널이 raw 모드로 남는다.
-- `tty_read` 로 읽은 바이트를 `tty.parse_key` 로 해석하고, `q` 를 누르면 끝낸다.
-- 마지막에 `tty_raw t. false .` 로 반드시 되돌린다.
+- `tty.tty_read` 로 읽은 바이트를 `tty.parse_key` 로 해석하고, `q` 를 누르면 끝낸다.
+- 마지막에 `tty.tty_raw t. false .` 로 반드시 되돌린다.
 
 raw 모드는 *사용자의 터미널 설정을 바꾼다*. 프로그램이 죽어도 그 변경은 남아서, 사용자의 셸에서 입력이 보이지 않고 줄바꿈이 먹지 않는다.
 그런 권한이 주변에 떠돌면 아무 라이브러리나 남의 셸을 망가뜨릴 수 있다. 그래서 들고 있는 자만 행사한다. 이 예제는 키 입력을 기다리므로
 검증 스크립트는 검사만 한다.
 
 #misconception[raw 모드를 되돌리는 코드도 소유로 강제하면 된다][
-  좋은 생각이지만 이 판에서는 그렇게 되어 있지 않다. `tty_raw` 는 불리언을 돌려주는 기본 연산 이고, "raw 모드에 들어가 있음" 을 나타내는
+  좋은 생각이지만 이 판에서는 그렇게 되어 있지 않다. `tty.tty_raw` 는 불리언을 돌려주는 op 이고, "raw 모드에 들어가 있음" 을 나타내는
   소유 값이 없다. 그래서 되돌리기를 잊어도 번역이 막지 않는다. `outbuf` 와 `files` 가 완결을 소유로 강제하는 것과 대조되는 자리이고,
   지금은 사람이 기억해야 하는 규율이다. 모듈 문서도 이 점을 굵게 경고한다.
 ]
@@ -121,9 +121,9 @@ raw 모드는 *사용자의 터미널 설정을 바꾼다*. 프로그램이 죽�
 #antipattern[raw 모드에 들어간 뒤 되돌리지 않고 떠나는 길을 만든다][
   #demo("examples/ch37/mistake_rawleak.low")
 
-  이 코드는 번역을 통과한다(`tty_raw` 의 되돌리기는 소유로 강제되지 않는다). 그런데 할당이 실패하면 `return 2` 로 떠나면서 터미널을 raw 모드로 남긴다.
+  이 코드는 번역을 통과한다(`tty.tty_raw` 의 되돌리기는 소유로 강제되지 않는다). 그런데 할당이 실패하면 `return 2` 로 떠나면서 터미널을 raw 모드로 남긴다.
   사용자의 셸에서 입력이 보이지 않고 줄바꿈이 어긋난다. 이 장의 `rawmode.low` 처럼 실패할 수 있는 준비(버퍼 받기)를 raw 모드에 들어가기 *전에* 모두
-  끝내고, 들어간 뒤의 모든 길이 `tty_raw t. false .` 를 지나게 짠다.
+  끝내고, 들어간 뒤의 모든 길이 `tty.tty_raw t. false .` 를 지나게 짠다.
 ]
 
 #antipattern[줄을 바이트 수로 잘라 화면 폭에 맞춘다][
@@ -153,12 +153,12 @@ raw 모드는 *사용자의 터미널 설정을 바꾼다*. 프로그램이 죽�
   [`term.row_width row. .` · `term.row_clusters row. .` · `term.cp_width cp. .`], [칸 수 · 글자 묶음 수 · 코드포인트 폭], [칸은 바이트가 아니다],
   [`term.fit_width row. cols. .`], [칸에 들어가는 가장 긴 앞부분의 바이트 길이], [글자 한가운데서 자르지 않는다],
   [`tty.parse_key buf. at. .` · `tty.key_of` · `tty.len_of`], [키 바이트 해석(순수) --- 모자라면 `none`], [키 읽기는 계산이다],
-  [`tty_raw t. true .` · `tty_read t. buf. .` · `tty_size t. .`], [raw 모드 · 키 바이트 읽기 · 화면 크기], [`cap tty` --- raw 모드는 반드시 되돌린다],
+  [`tty.tty_raw t. true .` · `tty.tty_read t. buf. .` · `tty.tty_size t. .`], [raw 모드 · 키 바이트 읽기 · 화면 크기], [`cap tty` --- raw 모드는 반드시 되돌린다],
   [`term.goto buf. 0 2 5 .`], [0 부터 센 행·열 --- 바이트는 `ESC [ 3 ; 6 H`], [배열 색인과 같은 기준, 터미널의 1 기준은 op 이 맞춘다],
 )
 
 #recap[
   `term` 은 ANSI 제어 바이트를 호출자의 버퍼에 조립하는 순수 모듈이고, 화면에 내보내는 일은 `outbuf` 가 한다. `diff` 는 바뀐 칸만 다시
   그리며 같으면 0 바이트다. 칸의 수는 바이트 수와 다르므로 `row_width`·`row_clusters` 로 센다. `tty.parse_key` 는 키 바이트를 순수하게
-  해석한다. 운영체제와 닿는 `tty_raw`·`tty_read`·`tty_size` 는 `cap tty` 를 받고, raw 모드는 반드시 되돌린다.
+  해석한다. 운영체제와 닿는 `tty.tty_raw`·`tty.tty_read`·`tty.tty_size` 는 `cap tty` 를 받고, raw 모드는 반드시 되돌린다.
 ]

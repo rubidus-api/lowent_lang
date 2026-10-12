@@ -17,7 +17,7 @@ guard is_some p. . else return 1 . .
 `0` is `pos` (the next place to write), and the `option u64` returned is *the new `pos` on success, `none` if room ran out*.
 
 *Formatting is not output.* Every op only assembles bytes into the caller's buffer and, without exception, is `effects none`. Actual output is done separately
-by a caller holding `cap io`, with `write_out` or #modref("outbuf")[`outbuf`]. So assembly code can be called from anywhere without capabilities, tests compare
+by a caller holding `cap io`, with `stdio.write_out` or #modref("outbuf")[`outbuf`]. So assembly code can be called from anywhere without capabilities, tests compare
 buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library ---
 no core op was added, and the whole file is inside the VM/native cross-check.
 
@@ -76,6 +76,7 @@ Assemble purely, output once at the end with `cap io`. The key is *passing the r
 module report .
 
 use fmt .
+use stdio .
 
 proc main
   input out cap io .
@@ -100,7 +101,7 @@ do
   guard is_some p5. . else return 75 . .
 
   rem output --- only the assembled front part (0 … p5) goes out
-  let w u64 write_out out. 1 subslice buf. 0 some_value p5. . . . .
+  let w u64 stdio.write_out out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .
 ```
@@ -120,7 +121,7 @@ end .
 #antipattern[Outputting inside an `effects none` op][
   ```lowent
   proc bad input out cap io . output u64 . effects none . do
-    return write_out out. 1 "x" . .
+    return stdio.write_out out. 1 "x" . .
   end .
   ```
   The declaration becomes a lie and is rejected with `E-EFFECT` (`E-EFFECT-CALC` for a `fn`). Even changed to `effects io`, it is `E-EFFECT-NO-CAP` without a
@@ -141,7 +142,7 @@ end .
   without `guard` stops with `E-VM-NONE` the moment room runs out --- testing only with short values never reveals it.
 ]
 
-#antipattern[Giving the whole buffer to `write_out`][
+#antipattern[Giving the whole buffer to `stdio.write_out`][
   Giving `buf` instead of `subslice buf. 0 some_value p5. . .` sends the unwritten back part too. Mysterious bytes stick to the end of the line. The last `pos` is *the
   length written*.
 ]

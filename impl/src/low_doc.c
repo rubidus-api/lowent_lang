@@ -200,6 +200,17 @@ static void render_contract_kind(FILE *o, const low_cst_t *f, const char *kw, co
     }
 }
 
+// 이 단위에 그 이름의 모듈이 들어와 있는가 (RFC-0147 — 오차 주석이 `math` 의 감싸개를 따라간다).
+static bool doc_unit_has_module(const char *name) {
+    if (!g_pr) return false;
+    for (proven_size_t i = 0; i < g_pr->nforms; i++) {
+        const low_cst_t *m = g_pr->forms[i];
+        if (m && m->kind == LOW_CST_FORM && m->nkids >= 2 && m->kids[0]->kind == LOW_CST_ATOM && m->kids[0]->tok.kw == LOW_KW_MODULE &&
+            m->kids[1]->kind == LOW_CST_ATOM && proven_u8str_view_eq(m->kids[1]->tok.lex, proven_u8str_view_from_cstr(name)))
+            return true;
+    }
+    return false;
+}
 static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
                       const sd_t *ds, proven_size_t nds, proven_u32 lo, proven_u32 hi) {
     proven_u8str_view_t name = f->kids[1]->tok.lex;
@@ -240,16 +251,22 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
     {   // RFC-0053 E5 / P2′ — **오차 가시**. 수치 오차는 숨은 비용이다: 본문이 쓰는 op 의
         // 오차 특성을 문서가 *반드시* 드러낸다. 이름만으로 구별되는 계열이라 더더욱 그렇다.
         static const struct { const char *op; const char *bound; } ERRB[] = {
+            // ★ RFC-0147 — 이 둘은 빌트인 연산이 됐다. 안쪽 철자(`@…` — `call_builtin` 을 벗긴 것)와 감싸개를 부른 철자를 둘 다 본다.
+            //   감싸개의 부름 `math.sum_seq` 은 이 단계에서 한정자가 벗겨진 맨 낱말이다 — 그래서 **이 단위에 모듈 `math` 가 들어와 있을 때만** 맨 낱말을 센다
+            //   (그 철자는 이제 저자의 이름일 수도 있다).
+            //   문서에는 저자가 적는 철자로 찍는다(아래 `+ (op[0] == '@')`).
             { "@sum_neumaier", "|result - Σxᵢ| ≤ 2ε·|Σ|xᵢ||   (Kahan-Babuška-Neumaier — **항의 개수에 무관**)" },
+            { "sum_neumaier", "|result - Σxᵢ| ≤ 2ε·|Σ|xᵢ||   (Kahan-Babuška-Neumaier — **항의 개수에 무관**)" },
             { "@sum_seq",      "|result - Σxᵢ| ≤ n·ε·Σ|xᵢ|    (축차합 — 오차가 항의 개수에 **비례**한다)" },
+            { "sum_seq",      "|result - Σxᵢ| ≤ n·ε·Σ|xᵢ|    (축차합 — 오차가 항의 개수에 **비례**한다)" },
             { "fma",       "단일 반올림(융합) — 명시 호출 시에만. fp-contraction 은 기본 off" },
         };
         const low_cst_t *b0 = (f->nkids && f->kids[f->nkids-1]->kind == LOW_CST_BLOCK) ? f->kids[f->nkids-1] : NULL;
         bool hdr = false;
         for (proven_size_t e = 0; e < sizeof ERRB / sizeof ERRB[0]; e++)
-            if (b0 && walk_mentions(b0, ERRB[e].op)) {
+            if (b0 && (ERRB[e].op[0] == '@' || doc_unit_has_module("math")) && walk_mentions(b0, ERRB[e].op)) {
                 if (!hdr) { fputs("\n### Numeric error\n\n", o); hdr = true; }
-                fprintf(o, "- `%s`: %s\n", ERRB[e].op, ERRB[e].bound);
+                fprintf(o, "- `%s`: %s\n", ERRB[e].op + (ERRB[e].op[0] == '@'), ERRB[e].bound);
             }
     }
 

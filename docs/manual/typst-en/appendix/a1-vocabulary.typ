@@ -5,7 +5,7 @@
 The text is where words are *explained*. This appendix gathers only tables to skim when you get stuck reading code. The word list is the same as the
 specification's Appendix A, and anything not in that list is not a word.
 
-== The forty-four words
+== The forty-nine words
 
 #dtable(
   columns: 3,

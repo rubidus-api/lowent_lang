@@ -1816,7 +1816,7 @@ int main(void) {
                 // so `cast u64` recovers them and the sum oracle still holds
                 vals[i] = flts[i] ? fz_rnd(1000)
                                   : ((fz_state * 2862933555777941757ull + (proven_u64)i) & mask);
-                expect_sum += vals[i];   // u64 wrap matches the VM's wrap semantics
+                expect_sum += vals[i];   // u64 wrap — the program says so too: it sums with `wrap_add` (RFC-0148 S1: a plain `add` of typed u64 values traps)
                 FPUT("f%d %s%s . ", i, tys[t], bes[i] ? " big" : " little");
                 if (!packed) {           // independent oracle for the layout rules
                     if (off % sizes[i]) off += sizes[i] - off % sizes[i];
@@ -1830,7 +1830,7 @@ int main(void) {
             FPUT("end . end fn rt output u64 .  do "
                  "var h s . be view s encode s mk . return ");
             #define FTERM(i) do { if (flts[i]) FPUT("(cast u64 (field h f%d))", i); else FPUT("(field h f%d)", i); } while (0)
-            for (int i = 0; i < nf - 1; i++) { FPUT("add "); FTERM(i); FPUT(" ("); }
+            for (int i = 0; i < nf - 1; i++) { FPUT("wrap_add "); FTERM(i); FPUT(" ("); }
             FTERM(nf - 1);
             for (int i = 0; i < nf - 1; i++) FPUT(")");
             #undef FTERM

@@ -480,6 +480,14 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             case IRW_FCONST:
                 res = ITY_UNK;   // D3: 부동 리터럴도 **comptime 무타입** — 상대 피연산자가 타입을 준다
                 break;
+            // ★★★ RFC-0148 S1 (2026-10-12 소유자 «모두 추천대로») — `len` 은 u64 이고(검사층의 답과 같다), `cast` · `widen` · `narrow` 의 결과는 대상 타입이다.
+            case IRW_LEN:
+                res = (ityp_t){ true, 64, false, false, false, 0, 0 };
+                break;
+            case IRW_CAST:
+                if ((a & 0xff) >= 1 && (a & 0xff) <= 8)
+                    res = (ityp_t){ true, (proven_u8)((a & 0xff) * 8), (a & IR_SGN_BIT) != 0, false, false, 0, 0 };
+                break;
             case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD:
                 res = ity_join(ops[0], ops[1]);
                 if (!c->tstk_bad) a = ity_meta(res) | (a & (IR_POL_MASK | IR_POL_CHK | IR_POL_NZ));   // ★ 부호·폭 + 정책

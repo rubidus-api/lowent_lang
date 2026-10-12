@@ -100,7 +100,7 @@ let mixed u64 add 1 mul 2 3 . . .
 `match` 의 갈래, 그리고 `struct`·`enum`·`trait`·`actor` 같은 선언의 몸이 모두 그렇다.
 
 ```lowent
-def struct point do
+struct point do
   x u64 .
   y u64 .
 end .

@@ -539,7 +539,11 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             case IRW_CALL:
                 if (c->out) {
                     proven_size_t ci_ = (proven_size_t)IR_CALL_IDX(a);
-                    if (ci_ < c->out->ndefs) res = ity_of_word(c->out->defs[ci_].out_tyname);
+                    if (ci_ < c->out->ndefs) {
+                        res = ity_of_word(c->out->defs[ci_].out_tyname);
+                        // ★ 출력 타입이 스칼라 별칭이면 바탕의 폭이다(RFC-0147 §7.2) — 전에는 «모른다» 가 되어 넘침 검사가 서지 않았다.
+                        if (!res.known) res = ity_alias_lookup(c, c->out->defs[ci_].out_tyname);
+                    }
                 }
                 break;
             default:

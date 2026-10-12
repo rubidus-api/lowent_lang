@@ -10,7 +10,7 @@
 #ifndef LOW_VERSION_H
 #define LOW_VERSION_H
 
-#define LOW_VERSION "1.9.0"
+#define LOW_VERSION "1.10.0"
 
 // ★★★ **"버전" 은 한 낱말이 아니라 네 축이다** (RFC-0089 R4 · 단계 E, 2026-08-03).
 //
@@ -60,7 +60,9 @@
 //   변경 둘 — op 머리의 얼로케이터 절이 `use <이름> <타입> .` 이 됐고(옛 `using` 은 `E-USING-OLD`), 세상에 닿는 열넷(`write_out` ·
 //   `read_in` · `arg` · `env_get` · `time_*` · `tty_*` · `random_bytes` · reactor 셋)과 셈 라이브러리 열둘(`sqrt` … `fmod` · `sum_seq` ·
 //   `sum_neumaier`)이 `call_builtin` 뒤로 갔다(맨 이름은 `E-BUILTIN-BARE` — 진단이 감싸개 `stdio.write_out` · `math.sqrt` 를 댄다).
-//   이 축의 규칙(«키워드/빌트인이 바뀌면 움직인다» — 1.0 → 1.1 이 같은 종류의 변경이었다)을 따라 에이전트가 올렸다. 릴리스 번호는 그대로다.
+//   이 축의 규칙(«키워드/빌트인이 바뀌면 움직인다» — 1.0 → 1.1 이 같은 종류의 변경이었다)을 따라 에이전트가 올렸다.
+//   같은 개정에 든 것(같은 날): 줄 타입(`slice` · `array` · `matrix`)에는 `type` · `newtype` 이름을 붙이지 않는다(`E-TYPE-ROWNAME`) · 타입 선언에서
+//   `def` 를 뺐다(낱말 49 → 48, 옛 머리는 `E-DEF-OLD`). 릴리스 1.10.0 (소유자 2026-10-12 «커밋 푸쉬 릴리즈 바랍니다» — 번호는 개정 번호를 따른 에이전트의 선택).
 // ★ 1.3 → 1.4 (2026-10-03, 소유자 결정 RFC-0127 «ⓐⓑⓒ» · RFC-0113 §7b): 표면이 깨지는 방향의 변경이 여럿 들어왔다 —
 //   비트셋·레인 op 접두사(`bitset_*`·`lane_*`) · 파일·그물 잎은 `call_builtin` 뒤 · `<식> . do` 와 한 폼 몸 거절 · `.name` 폐기 ·
 //   `not is_some` → `is_none` · `proc` 의 `effects` 필수 · `bitset_insert` 와 값 버리는 문장 거절 · 아무것도 안 닫는 점 거절.

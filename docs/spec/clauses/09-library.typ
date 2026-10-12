@@ -69,7 +69,7 @@
     ]
     #ex("라이브러리도 같은 규칙을 지킨다", "module ex_lib .
 
-def enum parse_error do
+enum parse_error do
   too_short .
 end .
 

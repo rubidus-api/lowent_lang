@@ -666,7 +666,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <main id="content"><div class="wrap">
 <h2 id="mod-sortgen"><code>sortgen</code> — generic sorting (the type brings the comparison)</h2><div></div><dl class="metalist"><dt>Source</dt><dd><code>lib/sortgen.low</code></dd><dt>Layer</dt><dd>L0 — pure computation</dd><dt>Capabilities</dt><dd>none</dd></dl><p>Sorts even when elements are not <code>u64</code>. What is smaller <strong>the type says for itself</strong>. Used to order records by some field — for plain <code>u64</code> elements <a href="sec68.html#mod-sortlib"><code>sortlib</code></a> is simpler and faster. Three things go together — ① declare that the type satisfies <code>ordered</code>, ② write that type’s <code>less</code>, ③ call with the type as an argument.</p><pre><code data-lang="lowent"><strong><span class="tok-k">use</span></strong> sortgen .
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> keyed <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> keyed <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> sortgen.ordered .
   k <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .

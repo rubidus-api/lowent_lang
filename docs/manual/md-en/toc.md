@@ -560,7 +560,7 @@ Searches headings and index terms --- not the full text
 
 [Appendix A — Words, core ops and builtin ops](sec54.md)
 
-- [ The forty-nine words](sec54.md#sx1)
+- [ The forty-eight words](sec54.md#sx1)
 - [ Removed words](sec54.md#sx2)
 - [ Frequently used core ops](sec54.md#sx3)
 - [ Effects and capabilities](sec54.md#sx4)

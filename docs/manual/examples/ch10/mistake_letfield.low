@@ -1,7 +1,7 @@
 module mistake_letfield .
 rem expect: E-IMMUTABLE
 
-def struct pkt do
+struct pkt do
   body array u8 4 .
 end .
 

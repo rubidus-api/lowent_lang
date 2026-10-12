@@ -2,7 +2,7 @@ rem The accepted side of own_leave_path.low: a loop whose condition is `true` en
 rem on that path is simply moved after the loop — nothing meets it there.
 module vm_own_leave_ok .
 
-def struct h do
+struct h do
   fd u64 .
 end .
 

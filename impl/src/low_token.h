@@ -60,8 +60,7 @@ typedef enum {
     LOW_KW_CONTRACT,
     // ★ SPEC-004 §4.8 은 `drop` 을 규정해 두고도 **어휘에 없었다** — `E-IR-UNDEF`(오진).
     LOW_KW_DROP,
-    // ★ RFC-0132 §5.2 (옮김 창) — `def` 가 타입을 짓는다: `def struct` · `def enum` · `def type` · `def newtype`.
-    LOW_KW_DEF,
+    // ★ RFC-0132 §5.2 (옮김 창) — `def` 가 타입을 짓는다: `struct` · `enum` · `type` · `newtype`.
     // ★ RFC-0141 — 되풀이의 머리말 셋(`repeat` · `range` · `cycle`), 머리 안에서 식을 끝내는 낱말 둘(`next` · `step`),
     //   할당기 절의 `keep`(`use` 는 이미 있다). `be` 는 어휘에서 빠졌다 — 열거값 LOW_KW_BE 는 안쪽 나무의 표식으로만 남는다.
     LOW_KW_REPEAT, LOW_KW_RANGE, LOW_KW_CYCLE, LOW_KW_NEXT, LOW_KW_STEP, LOW_KW_KEEP,

@@ -9,23 +9,23 @@ rem   · 채널 전환 (try … else_none)        · test/expect (Lowent 로 쓴
 
 module vm_stats .
 
-def enum stat_err do
+enum stat_err do
   empty_stream .
 end .
 
 rem 표본 하나: 센서 id + 값.
-def struct sample do
+struct sample do
   id u8 .
   value u8 .
 end .
 
 rem 헤더 안의 헤더 — 와이어 포맷의 기본 모양.
-def struct version do
+struct version do
   major u8 .
   minor u8 .
 end .
 
-def struct header do
+struct header do
   ver version .
   count u8 .
 end .

@@ -13,7 +13,7 @@ export fn copied input a u8 . output u64 . do
   return add mul s. 1000 . add mul widen u64 idx dst. 0 . . 100 . widen u64 idx dst. 2 . . . . .
 end .
 
-def struct pt do
+struct pt do
   x u32 .
   y u64 .
   z u8 .

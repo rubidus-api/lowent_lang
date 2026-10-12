@@ -111,13 +111,13 @@ fn f output u8 . do return 1 . end .",
   ]
   #sub("6.1.2", "낱말 (Keywords)")[
     #part("구문")
-    #syntax("keyword", "keyword ::= \"actor\" | \"break\" | \"case\" | \"continue\" | \"contract\" | \"cycle\" | \"def\"
-          | \"do\" | \"drop\" | \"else\" | \"end\" | \"enum\" | \"expect\" | \"export\"
-          | \"expr\" | \"extern\" | \"false\" | \"fn\" | \"for\" | \"guard\" | \"if\"
-          | \"keep\" | \"let\" | \"lit\" | \"match\" | \"module\" | \"newtype\" | \"next\"
-          | \"none\" | \"proc\" | \"range\" | \"repeat\" | \"return\" | \"satisfies\" | \"send\"
-          | \"set\" | \"spawn\" | \"state\" | \"step\" | \"struct\" | \"test\" | \"trait\"
-          | \"true\" | \"try\" | \"type\" | \"unsafe\" | \"use\" | \"var\" | \"while\"")
+    #syntax("keyword", "keyword ::= \"actor\" | \"break\" | \"case\" | \"continue\" | \"contract\" | \"cycle\" | \"do\"
+          | \"drop\" | \"else\" | \"end\" | \"enum\" | \"expect\" | \"export\" | \"expr\"
+          | \"extern\" | \"false\" | \"fn\" | \"for\" | \"guard\" | \"if\" | \"keep\"
+          | \"let\" | \"lit\" | \"match\" | \"module\" | \"newtype\" | \"next\" | \"none\"
+          | \"proc\" | \"range\" | \"repeat\" | \"return\" | \"satisfies\" | \"send\" | \"set\"
+          | \"spawn\" | \"state\" | \"step\" | \"struct\" | \"test\" | \"trait\" | \"true\"
+          | \"try\" | \"type\" | \"unsafe\" | \"use\" | \"var\" | \"while\"")
     #part("제약")
     #para("1")[
       #t("낱말", "keyword") 은 언어가 뜻을 정해 둔 이름이며, 다른 뜻으로 쓸 수 없다. 낱말과 같은 철자는 이름이 될 수 없다.
@@ -129,35 +129,40 @@ fn f output u8 . do return 1 . end .",
       예약만 해 두고 쓰지 아니하는 낱말은 없다. 낱말마다 그것을 쓰는 구문이 이 문서에 있다.
     ]
     #para("3")[
-      타입을 짓는 낱말은 `def` 하나다. 타입 선언은 `def struct` · `def enum` · `def type` · `def newtype` 으로 시작한다.
+      타입 선언은 제 낱말로 시작한다 — `struct` · `enum` · `type` · `newtype`. 다른 선언(`fn` · `proc` · `actor` · `trait` ·
+      `test` · `module`)과 같이 앞에 붙는 낱말이 없다.
     ]
     #para("4")[
-      `def` 뒤에는 그 넷만 온다. `fn` · `proc` · `actor` · `trait` · `test` · `module` 은 `def` 없이 적는다.
+      `def` 는 낱말이 아니다. 저자의 이름이 될 수 있다. 다만 옛 머리 `def struct` · `def enum` · `def type` · `def newtype` 은
+      그 꼴로 알아보고 거부한다.
     ]
     #para("5")[
-      `export` 는 `def` 앞에 온다: `export def struct rect do … end .`.
+      `export` 는 선언의 낱말 앞에 온다: `export struct rect do … end .`.
     ]
     #part("진단")
     #tbl("낱말의 진단")[
       #table(columns: (1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*어긴 것*], [*진단*],
       [(1) — 낱말을 이름으로 지었다], [`E-NAME-KEYWORD`],
-      [(3) — `def` 없이 `struct` · `enum` · `type` · `newtype` 으로 시작했다], [`E-VOCAB-REMOVED`],
-      [(4) — `def` 뒤에 그 넷이 아닌 것이 왔다], [`E-DEF-HEAD`],
+      [(4) — 타입 선언을 `def` 로 시작했다], [`E-DEF-OLD`],
       )
     ]
     #part("예제")
-    #rejected("타입 선언은 `def` 로 시작한다", "module ex_nodef .
+    #rejected("타입 선언을 옛 머리 `def` 로 시작했다", "module ex_defold .
+
+def struct pt do
+  x u32 .
+end .", "E-DEF-OLD")
+    #ex("`def` 는 저자의 이름이 될 수 있다", "module ex_defname .
 
 struct pt do
   x u32 .
-end .", "E-VOCAB-REMOVED")
-    #rejected("`def` 는 타입만 짓는다", "module ex_defop .
+end .
 
-def fn f output u8 .
-do
-  return 1 .
-end .", "E-DEF-HEAD")
+fn twice input def u64 . output u64 . do
+  return add def. def. . .
+end .",
+      out: "twice(4) = 8")
     #part("참고")
     #note[
       낱말은 #strong[예산];이다. 새 낱말을 더하는 것은 언어가 커지는 일이므로, 기존 낱말로 표현할 수 있는 것에는 새 낱말을 주지 아니한다.
@@ -646,8 +651,8 @@ let mixed u32 add 1 mul 2 3 . . .")
     ]
     #para("2b")[
       #strong[블록을 가진 것도 제 점으로 닫힌다.]; 블록을 몸으로 갖는 문장(`if` · `while` · 네 되풀이 ·
-      `match` · `case` · `region` · `borrow` · `task_group` · `pipe`)과 선언(`fn` · `proc` · `def struct` ·
-      `def enum` · `trait` · `actor` · `state` · `contract` · `test`)은 `end` 다음의 점에서 끝난다 —
+      `match` · `case` · `region` · `borrow` · `task_group` · `pipe`)과 선언(`fn` · `proc` · `struct` ·
+      `enum` · `trait` · `actor` · `state` · `contract` · `test`)은 `end` 다음의 점에서 끝난다 —
       `if c. do … end .` · `fn f … do … end .`. `else` 로 이어지는 사슬은 한 문장이고, 점은 사슬의
       맨 끝에 하나다(`if a. do … end else do … end .`). 그 점이 빠지면 번역이 거부된다(`E-DOT-MISSING`).
     ]
@@ -685,7 +690,7 @@ fn f input a u64 . output u64 . do
 end .", "E-DOT-MISSING")
     #rejected("블록을 값으로 쓰는 문장은 자기 점으로 닫는다", "module ex_dot_missing .
 
-def struct pt do
+struct pt do
   x u64 .
 end .
 

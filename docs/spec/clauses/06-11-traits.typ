@@ -28,13 +28,13 @@ trait shape do
   area input s self . output u64 .
 end .
 
-def struct rect do
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
 end .
 
-def struct square do
+struct square do
   satisfies shape .
   side u64 .
 end .
@@ -114,7 +114,7 @@ trait shape do
 end .
 
 rem `satisfies` 를 적으면 그 목록을 갖췄는지 검사받는다.
-def struct rect do
+struct rect do
   satisfies shape .
   w u8 .
   h u8 .
@@ -130,7 +130,7 @@ trait shape do
   area input s self . output u64 . effects none .
 end .
 
-def struct rect do
+struct rect do
   satisfies shape .     rem 갖추겠다고 적었는데
   w u8 .
   h u8 .
@@ -147,7 +147,7 @@ trait shape do
   checked_area input s self . output u64 . effects panic .
 end .
 
-def struct rect do
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
@@ -181,7 +181,7 @@ trait shape do
   area input s self . output u64 .
 end .
 
-def struct rect do
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
@@ -223,7 +223,7 @@ end .", "E-TRAIT-EFFECT")
     ]
     #ex("붙은 op 을 부른다", "module ex_method .
 
-def struct rect do
+struct rect do
   w u64 .
   h u64 .
 end .
@@ -257,7 +257,7 @@ end .")
     ]
     #rejected("그 타입에 그 이름의 붙은 op 이 없다", "module ex_method_undef .
 
-def struct p do
+struct p do
   x u8 .
 end .
 

@@ -533,7 +533,7 @@ do
 end .")
     #ex("구조체의 칸인 표, 줄 하나, 어떤 크기든 받는 op", "module ex_matrix_more .
 
-def struct board do
+struct board do
   id u64 .
   g matrix u32 2 3 4 .
 end .
@@ -605,12 +605,12 @@ end .", "E-MATRIX-SHAPE")
     ]
     #ex("struct 와 enum", "module ex_shape .
 
-def struct point do
+struct point do
   x u32 .
   y u32 .
 end .
 
-def enum color do
+enum color do
   red .
   green .
 end .")
@@ -636,7 +636,7 @@ end .")
     ]
     #ex("struct 를 만들고 읽는다", "module ex_make .
 
-def struct point do
+struct point do
   x u32 .
   y u32 .
 end .
@@ -652,7 +652,7 @@ do
 end .")
     #ex("배열 칸을 가진 struct 를 베낀다", "module ex_struct_array .
 
-def struct pkt do
+struct pkt do
   len u8 .
   body array u8 4 .
 end .
@@ -665,7 +665,7 @@ export fn copy_keeps input a u8 . output u64 . do
 end .")
     #rejected("let 으로 묶은 레코드의 배열 칸에 쓴다", "module ex_struct_array_let .
 
-def struct pkt do
+struct pkt do
   body array u8 4 .
 end .
 
@@ -676,7 +676,7 @@ export fn f output u64 . do
 end .", "E-IMMUTABLE")
     #rejected("갈래를 점으로 닫지 않았다", "module ex_enum_dot .
 
-def enum color do
+enum color do
   red
   green
 end .", "E-ENUM-DOT")
@@ -703,7 +703,7 @@ end .", "E-ENUM-DOT")
     ]
     #ex("result 로 실패를 돌려준다", "module ex_result .
 
-def enum err do
+enum err do
   too_small .
 end .
 
@@ -805,7 +805,7 @@ end .",
     ]
     #ex("result — 묻고 꺼내기, 그리고 `try` 로 넘기기", "module ex_result_use .
 
-def enum io_error do
+enum io_error do
   too_big .
 end .
 
@@ -847,20 +847,20 @@ end .",
       `newtype` 은 기존 타입과 같은 표현을 갖되 #strong[다른 타입];을 만든다. 서로 바꿔 쓸 수 없다.
     ]
     #para("2a")[
-      모양은 `def type <이름> <타입> .` 과 `def newtype <이름> <타입> .` 이다. 이름과 타입 사이에 낱말을 끼우지
+      모양은 `type <이름> <타입> .` 과 `newtype <이름> <타입> .` 이다. 이름과 타입 사이에 낱말을 끼우지
       아니한다.
     ]
     #rejected("`newtype` 은 바탕 타입과 섞이지 아니한다 — (2) 를 시험한다", "module ex_newtype_mix .
 
-def newtype node_id u64 .
+newtype node_id u64 .
 
 fn f input a node_id . input b u64 . output u64 . do
   return add a. b. . .
 end .", "E-TYPE-NOMINAL")
     #para("2b")[
-      `def type` 과 `def newtype` 의 타입은 #strong[줄 타입]; — `slice` · `array` · `matrix` — 그 자체일 수 없다. `mut` 를
+      `type` 과 `newtype` 의 타입은 #strong[줄 타입]; — `slice` · `array` · `matrix` — 그 자체일 수 없다. `mut` 를
       앞에 붙인 것도 같다. 줄 타입은 쓰는 자리에 그대로 적는다. 다른 타입 #strong[안에]; 든 줄 타입은 이름을 붙일 수
-      있다(`def type found option slice u8 .`). 제 이름을 가진 타입이 필요하면 구조체의 칸으로 둔다(#cref("6.2.7")).
+      있다(`type found option slice u8 .`). 제 이름을 가진 타입이 필요하면 구조체의 칸으로 둔다(#cref("6.2.7")).
     ]
     #tbl("줄 타입에 이름을 붙였을 때의 진단")[
       #table(columns: (1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
@@ -872,7 +872,7 @@ end .", "E-TYPE-NOMINAL")
     ]
     #rejected("슬라이스에 다른 이름을 붙였다 — (2b) 를 시험한다", "module ex_rowname .
 
-def type bytes slice u8 .
+type bytes slice u8 .
 
 fn f input b bytes . output u64 . do
   return len b. . .
@@ -915,11 +915,11 @@ end .", "E-TYPE-ROWNAME")
     ]
     #ex("다단 필드 읽기와 쓰기", "module ex_field .
 
-def struct inner do
+struct inner do
   a u64 .
 end .
 
-def struct outer do
+struct outer do
   i inner .
 end .
 
@@ -1097,7 +1097,7 @@ end .", "E-TYPE-WIDTH")
     ]
     #ex("선으로 나가는 머리 — 채움 없이, 빅 엔디언으로", "module ex_layout .
 
-def struct wire_header do
+struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .
@@ -1200,12 +1200,12 @@ end .", "E-TYPE-KIND")
     ]
     #para("3")[
       이름에 뜻을 주는 길은 둘이다. #strong[바탕이 되는 타입을 직접 적거나];, 그 이름을 선언하는
-      것이다(`def type str option u64 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
+      것이다(`type str option u64 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
     ]
     #ex("뜻 없는 이름은 경고를 받되 거절되지는 않는다", "module ex_name_only .
 
 rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다. 여기서는 선언하여 뜻을 주었다.
-def type str option u64 .
+type str option u64 .
 
 fn f input s str . output u8 . do return 1 . end .",
       out: "f() = 1")
@@ -1316,7 +1316,7 @@ fn f input s str . output u8 . do return 1 . end .",
       )
     ]
     #para("2")[
-      묶음과 열거는 `def struct <이름> do … end .` · `def enum <이름> do … end .` 로 선언한다. 다른 모양으로
+      묶음과 열거는 `struct <이름> do … end .` · `enum <이름> do … end .` 로 선언한다. 다른 모양으로
       선언하려 하면 거부된다(`E-TYPE-DECL`).
     ]
     #para("3")[
@@ -1343,7 +1343,7 @@ fn f input s str . output u8 . do return 1 . end .",
     ]
     #rejected("칸은 이름 다음에 타입이다", "module ex_field_form .
 
-def struct p do
+struct p do
   x .              rem 타입이 없다
 end .
 
@@ -1351,7 +1351,7 @@ fn f output u8 . do return 1 . end .", "E-FIELD-FORM")
   ]
   #sub("6.2.24", "임의 폭 정수 — `bits`")[
     #para("1")[
-      `def type <이름> bits <수> .` 은 그 수만큼의 비트를 가진 정수 타입을 만든다. 폭은
+      `type <이름> bits <수> .` 은 그 수만큼의 비트를 가진 정수 타입을 만든다. 폭은
       #strong[1 부터 64 까지];다.
     ]
     #para("2")[

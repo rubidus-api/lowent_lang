@@ -904,7 +904,7 @@ table(3, 1) = 1
 </code></pre></div></div><p>값은 식이어도 되고 적은 차례로 계산된다.</p><p>원소가 구조체여도 된다. 다만 바이트 배치가 있는 구조체여야 한다 — 칸이 모두 크기 있는 수인 구조체다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/structlist.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> structlist .
 <em><span class="tok-c">rem run: total 7</span></em>
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u32</span></strong> .
   y <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
@@ -1015,7 +1015,7 @@ mistake_matrixrow.low:8:20 E-MATRIX-INDEX: `idx &lt;matrix>. i1 … ik .` takes 
 <em><span class="tok-c">rem run: total</span></em>
 
 <em><span class="tok-c">rem 구조체의 칸으로 쓰는 표</span></em>
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> board <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> board <strong><span class="tok-k">do</span></strong>
   id <strong><span class="tok-t">u64</span></strong> .
   g matrix <strong><span class="tok-t">u32</span></strong> <span class="tok-n">2</span> <span class="tok-n">3</span> <span class="tok-n">4</span> .
 <strong><span class="tok-k">end</span></strong> .

@@ -2,7 +2,7 @@ module vm_slicefield .
 rem ★★ RFC-0135 D13 (소유자 «슬라이스 칸만 연다», 2026-10-01) — 슬라이스 칸을 가진 구조체도 할당기 바이트에 짓는다. 슬라이스 칸은
 rem   바이트 안에 (주소, 길이) 두 낱말이다(C 의 `struct { const T *p; size_t n; }`). 가리키는 바이트의 수명은 지금의 수명 검사가 본다.
 use allocs .
-def struct packet do
+struct packet do
   tag u8 .
   body slice u8 .
   nums slice u64 .
@@ -20,12 +20,12 @@ export proc build input a u8 . output u64 . effects state . do
   return add add widen u64 field m. tag . . widen u64 idx b. 3 . . . add idx n. 2 . mul len b. . 1000 . . . .
 end .
 
-def struct msg do
+struct msg do
   tag u8 .
   body slice u8 .
 end .
 
-def struct sv do
+struct sv do
   v slice i16 .
 end .
 

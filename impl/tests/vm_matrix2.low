@@ -3,7 +3,7 @@ rem (the sizes are translation-time inputs). The shape travels with the declared
 rem each index against its own size just as `idx m. r. c. .` does.
 module vm_matrix2 .
 
-def struct board do
+struct board do
   id u64 .
   g matrix u32 2 3 4 .
 end .

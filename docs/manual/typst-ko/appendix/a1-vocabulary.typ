@@ -5,14 +5,14 @@
 낱말을 *설명*하는 곳은 본문이다. 이 부록은 코드를 읽다 막혔을 때 훑어볼 표만 모은다. 낱말 목록은 명세의 부록 A 와 같고, 그 목록에
 없는 것은 낱말이 아니다.
 
-== 낱말 마흔아홉
+== 낱말 마흔여덟
 
 #dtable(
   columns: 3,
   id: "a1-keywords",
   caption: [낱말의 전부],
   [*갈래*], [*낱말*], [*다루는 장*],
-  [선언], [`module` `use` `def` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`], [#chrefs("modules", "named-types")],
+  [선언], [`module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`], [#chrefs("modules", "named-types")],
   [op], [`fn` `proc` `export` `unsafe` `extern` `satisfies`], [#chref("ops")],
   [지역], [`let` `var` `set` `keep`], [#chref("locals")],
   [흐름], [`if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `return` `break` `continue` `try`], [#chref("control")],
@@ -44,7 +44,7 @@
   [`;` · `,`], [`.`],
   [`make`], [`lit`],
   [`index`], [`idx`],
-  [`def` 없는 `struct`·`enum`·`type`·`newtype` 선언], [`def struct` · `def enum` · `def type` · `def newtype`],
+  [`def struct`·`def enum`·`def type`·`def newtype` (`E-DEF-OLD`)], [`def` 를 지운다 --- `struct` · `enum` · `type` · `newtype`],
 )
 
 `as` 와 `to` 는 `use … as <별칭>` 과 `case <아래> to <위>` 의 자리 표식으로만 남아 있다.

@@ -3,7 +3,7 @@ rem run: port 8080
 rem run: port 0
 rem run: port 70000
 
-def enum port_error do
+enum port_error do
   zero .
   too_big .
 end .

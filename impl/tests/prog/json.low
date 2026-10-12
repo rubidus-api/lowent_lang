@@ -7,7 +7,7 @@ rem 하는 일: 바이트 열을 훑어 토큰 종류를 센다(아주 작은 JS
 
 module json .
 
-def enum kind do
+enum kind do
   lbrace .
   rbrace .
   quote .
@@ -15,7 +15,7 @@ def enum kind do
   other .
 end .
 
-def struct counts do
+struct counts do
   braces u16 .
   quotes u16 .
   digits u16 .

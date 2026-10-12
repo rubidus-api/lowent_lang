@@ -91,13 +91,13 @@ module.exports = grammar({
     ),
     modifier: $ => choice('export', 'extern', seq('unsafe', optional(seq('target', $.name)))),
 
-    type_declaration: $ => seq(repeat($.modifier), 'def', choice('type', 'newtype'),
+    type_declaration: $ => seq(repeat($.modifier), choice('type', 'newtype'),
       field('name', $.name), $._type, $.stop),
-    struct_declaration: $ => seq(repeat($.modifier), 'def', 'struct', field('name', $.name),
+    struct_declaration: $ => seq(repeat($.modifier), 'struct', field('name', $.name),
       'do', repeat(choice($.struct_attribute, $.field_declaration)), 'end', $.stop),
     field_declaration: $ => seq(field('name', $.name), $._type, repeat($._word), $.stop),
     struct_attribute: $ => seq(choice('layout', 'align', 'mmio', 'storage', 'satisfies'), repeat1($._word), $.stop),
-    enum_declaration: $ => seq(repeat($.modifier), 'def', 'enum', field('name', $.name),
+    enum_declaration: $ => seq(repeat($.modifier), 'enum', field('name', $.name),
       'do', repeat($.variant), 'end', $.stop),
     variant: $ => seq(field('name', $.name), repeat(seq($.name, $._type)), $.stop),
 

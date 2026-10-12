@@ -402,7 +402,7 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
     return false;
 }
 
-// ★★★ RFC-0113 R6 — **빈 폼은 아무것도 안 닫은 점이다.** 겹친 점(`def type b slice u8 . .`)의 둘째가 그렇다. 파서는 빈 폼을
+// ★★★ RFC-0113 R6 — **빈 폼은 아무것도 안 닫은 점이다.** 겹친 점(`type b slice u8 . .`)의 둘째가 그렇다. 파서는 빈 폼을
 //   조용히 버려 왔다 — 장식이 문법이 되면 «점을 몇 개 찍어도 같다» 가 되고, 점이 닫개라는 말이 거짓이 된다.
 //   `end`·`do` 뒤의 점은 X-0052 의 `E-DOT-STRAY` 가 따로 말하므로 여기서는 뺀다.
 static void low_empty_form_dot(low_parser_t *p, const low_cst_t *f) {
@@ -415,7 +415,7 @@ static void low_empty_form_dot(low_parser_t *p, const low_cst_t *f) {
     }
     low_pdiag(p, "E-CLOSER-EXTRA",
               "this stop closes nothing — the form before it was already closed. A form ends with ONE `.`; "
-              "a type takes no stop of its own (`def type word u64 .`, not `u64 . .`). Delete it (RFC-0113 R6)",
+              "a type takes no stop of its own (`type word u64 .`, not `u64 . .`). Delete it (RFC-0113 R6)",
               dt->line, dt->col);
 }
 // block body: form* "end" — shared by `do…end` blocks and the headless
@@ -531,7 +531,7 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         else {
             low_pdiag(p, "E-STMT-NODO",
                       "a block declaration (struct/enum/trait/actor/contract/state) opens its body with `do` and closes "
-                      "it with `end`: `def struct rect do w u64 . end` — not `def struct rect .` and not a bare line break "
+                      "it with `end`: `struct rect do w u64 . end` — not `struct rect .` and not a bare line break "
                       "(a newline closes nothing). `--fmt` writes it for you", head.line, head.col);
             (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block_body(p, *low_cur(p)));
         }
@@ -1070,22 +1070,6 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
             return low_parse_export(p);
         case LOW_KW_MODULE: // module NAME do … end (namespace) OR bare `module NAME .` (MVP)
             return low_parse_module(p);
-        // ★★ RFC-0132 §5.2 (옮김 창) — `def` 는 **타입을 짓는다**: `def struct` · `def enum` · `def type` · `def newtype`.
-        //   낱말을 먹고 뒤의 선언을 그대로 읽은 뒤 표시만 남긴다 — 뒤의 소비자는 전처럼 `struct`… 머리를 본다.
-        //   `export def struct …` 는 `export` 가 안쪽 폼을 이 함수로 읽으므로 저절로 선다.
-        case LOW_KW_DEF: {
-            low_token_t d = low_adv(p);
-            low_kw_t nk = (low_curk(p) == LOW_TOK_IDENT) ? low_curkw(p) : LOW_KW_NONE;
-            bool ok = nk == LOW_KW_STRUCT || nk == LOW_KW_ENUM || nk == LOW_KW_TYPE || nk == LOW_KW_NEWTYPE;
-            if (!ok)
-                low_pdiag(p, "E-DEF-HEAD",
-                          "`def` declares a TYPE and must be followed by `struct`, `enum`, `type` or `newtype` — "
-                          "`def struct point do x u32 . end`. Ops (`fn`/`proc`), `actor`, `trait`, `test` and `module` "
-                          "are written without it (RFC-0132 §5.2)", d.line, d.col);
-            low_cst_t *f = low_parse_form(p);
-            if (f && ok) { f->has_def = true; f->line = d.line; f->col = d.col; }   // 선언은 `def` 자리에서 시작한다(W-COL0)
-            return f;
-        }
         case LOW_KW_FOR: case LOW_KW_REPEAT: case LOW_KW_RANGE: case LOW_KW_CYCLE:
             return low_parse_loop(p);
         case LOW_KW_IF:
@@ -1583,8 +1567,6 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
     // ★ X-0059 — 안에 놓인 선언(actor 몸의 `proc` 따위)도 머리 절마다 점을 찍는다. 파서가 머리의 점을 버리므로
     //   여기서 되살린다: 열린 절은 다음 절 낱말이나 몸 블록 앞에서 닫는다. (맨 위 선언은 low_fmt_decl 이 줄마다 찍는다.)
     bool decl = (hk == LOW_KW_FN || hk == LOW_KW_PROC || hk == LOW_KW_TEST), dopen = false;
-    // ★ RFC-0132 §5.2 (옮김 창) — 타입 선언은 `def` 로 찍는다. 옛 파일(`struct p do … end`)도 새 모양으로 옮겨 찍는다.
-    if (hk == LOW_KW_STRUCT || hk == LOW_KW_ENUM || hk == LOW_KW_TYPE || hk == LOW_KW_NEWTYPE) fputs("def ", stdout);
     // ★★ RFC-0141 — 서식기는 값을 괄호로 싸려고(구조를 글자에 싣는다) 안쪽 나무를 받는다: `let x be T v` · `let x using al be …` ·
     //   `for i count T n where c` · `for i range …` · `for i be T v while c next e` · `borrow b be v`. 찍는 것은 **새 표면**이다 —
     //   `be` 는 찍지 않고, `using` 은 `use`/`keep` 으로, 되풀이는 제 머리말로, `where` 는 `if` 로 찍는다.

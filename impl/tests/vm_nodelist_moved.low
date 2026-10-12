@@ -6,7 +6,7 @@ module vm_nodelist_moved .
 
 use nodelist .
 
-def newtype lru u32 .
+newtype lru u32 .
 
 rem ✗ 여기가 거절돼야 한다.
 fn move_while_linked output u64 . do

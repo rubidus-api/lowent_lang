@@ -2,7 +2,7 @@ module vm_structarr .
 rem ★★ RFC-0132 T2b-3b — 구조체의 배열 칸 `body array u8 8 .`: 칸의 바이트는 레코드의 것이다 — 만들 때·베낄 때·칸에 쓸 때
 rem   바이트를 베낀다(값 복사). `mut` 매개변수로 넘긴 레코드의 배열 칸에 쓰면 부른 쪽이 바뀐다. VM 과 네이티브가 같은가를 잰다.
 
-def struct pkt do
+struct pkt do
   len u8 .
   body array u8 8 .
 end .
@@ -22,7 +22,7 @@ export fn copy_is_value input a u64 . output u64 . do
   return add mul total p. . 1000 . total q. . . .
 end .
 
-def struct rec do
+struct rec do
   tag u8 .
   w array i16 3 .
   f array f64 2 .
@@ -65,7 +65,7 @@ export fn fsum input a u64 . output f64 . do
 end .
 
 rem 레코드 풀이 되감기고 압축될 때 배열 칸 버퍼가 자리와 함께 옮는가(맞바꿈) — 같은 틀에서 레코드를 계속 만든다.
-def struct cell do
+struct cell do
   k u64 .
   v array u64 4 .
 end .

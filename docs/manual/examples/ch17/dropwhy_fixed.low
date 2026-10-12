@@ -3,7 +3,7 @@ rem run: explain []
 rem run: explain [120]
 rem run: explain [55]
 
-def enum parse_error do
+enum parse_error do
   empty .
   not_digit .
 end .

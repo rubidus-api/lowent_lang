@@ -6,9 +6,9 @@ rem   자격 있는 경로가 생기면 `reach.x` 가 **두 뜻**이 된다. 이
 module reachability .
 
 rem ★ 이 셋도 선언 없이 쓰이고 있었다 — 이름이 아무것도 가리키지 않았다(E-TYPE-UNDEF 가 잡았다).
-def type node_id u64 .
-def type node_count u64 .
-def type frame u64 .
+type node_id u64 .
+type node_count u64 .
+type frame u64 .
 
 fn node_count_of
   input g slice u8 .

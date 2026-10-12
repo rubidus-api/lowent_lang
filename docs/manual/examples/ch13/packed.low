@@ -1,6 +1,6 @@
 module packed .
 
-def struct wire_header do
+struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .

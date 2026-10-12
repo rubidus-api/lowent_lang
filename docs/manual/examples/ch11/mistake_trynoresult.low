@@ -1,7 +1,7 @@
 module mistake_trynoresult .
 rem expect: E-TRY-NORESULT
 
-def enum half_error do
+enum half_error do
   too_big .
 end .
 

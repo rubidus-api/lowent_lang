@@ -70,7 +70,7 @@ In `let b u8 add a. 1 . .`, `b` is a `u8`, so adding 1 to 255 overflows `u8` and
 
 Leaving the type out --- `let x 300 .` --- is rejected with `E-LET-NOTYPE`. When guessing was allowed, that bare literal slipped past the
 width check and an op returning `u8` answered 300. The old form with `be` between the name and the type, `let x be u8 4 .`, is `E-LET-BE` --- `be` is no longer a word of the language. A long
-type gets a name with `def type`.
+type gets a name with `type`.
 
 #demo("examples/ch06/mistake_be.low")
 

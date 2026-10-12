@@ -11,7 +11,7 @@
 ```lowent
 use sortgen .
 
-def struct keyed do
+struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end .

@@ -1,7 +1,7 @@
 module nestedwild .
 rem run: via_match
 
-def enum read_error do
+enum read_error do
   broken .
 end .
 

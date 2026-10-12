@@ -2,13 +2,13 @@ rem SPEC-MVP §8 gate — example A: slice-based parser (fn + contracts).
 rem Source: SPEC-015 §17.1 (normative point-closure form). --check must be clean.
 module packet .
 
-def struct header do
+struct header do
   version u8 .
   flags u8 .
   length u16 .
 end .
 
-def enum parse_error do
+enum parse_error do
   too_short .
   bad_version .
   too_long .

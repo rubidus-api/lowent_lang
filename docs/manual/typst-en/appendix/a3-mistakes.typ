@@ -13,7 +13,7 @@ explanations are in the chapters named in the tables.
   caption: [Mistakes on the surface],
   [*Mistake*], [*Diagnostic*], [*Fix*],
   [Writing `output` before `input`], [`E-CLAUSE-ORDER`], [Follow the clause order table. Clauses other than inputs are moved by `--fmt` (#chref("surface"))],
-  [Opening a block with a period or line break, as in `def struct p .`], [`E-STMT-NODO`], [`def struct p do … end .`],
+  [Opening a block with a period or line break, as in `struct p .`], [`E-STMT-NODO`], [`struct p do … end .`],
   [Closing with `;` or `,`], [`E-VOCAB-REMOVED`], [The full stop `.`],
   [Reading a field with `p.x`], [`E-FIELD-GLUED`], [`field p. x .`],
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs. do … end .`],

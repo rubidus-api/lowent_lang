@@ -9,13 +9,13 @@ rem   모듈 `let` 은 **컴파일타임 상수**이고 값이 **그 자리에 �
 let HEADER_LEN u8 4 .
 let VERSION u8 1 .
 
-def struct header do
+struct header do
   version u8 .
   flags u8 .
   length u16 .
 end .
 
-def enum parse_error do
+enum parse_error do
   too_short .
   bad_version .
   too_long .

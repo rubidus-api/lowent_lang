@@ -2340,6 +2340,27 @@ static bool ir_param_written(const low_cst_t *nd, proven_u8str_view_t nm, const 
     for (proven_size_t i = 0; i < nd->nkids; i++) if (ir_param_written(nd->kids[i], nm, sd)) return true;
     return false;
 }
+// ★ RFC-0147 §7.2 — 칸의 타입이 스칼라 **별칭**(`type small u8 .` · `newtype id u32 .` · 별칭의 별칭)이면 그 바탕의 폭을 준다.
+//   구조체는 별칭이 표에 오르기 전에 읽히고 선언 차례도 정해져 있지 않으므로, 여기서는 표가 아니라 선언을 직접 훑는다.
+//   전에는 이런 칸의 크기가 0 이 되어 «바이트 표현이 없는 칸» 으로 남았고, 네이티브와 VM 이 다른 답을 냈다.
+static ityp_t ir_scan_scalar_alias(const low_parse_result_t *pr, proven_u8str_view_t w) {
+    for (int hop = 0; hop < 8; hop++) {
+        const low_cst_t *d = NULL;
+        for (proven_size_t i = 0; i < pr->nforms && !d; i++) {
+            const low_cst_t *f = pr->forms[i];
+            if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && is_atom(f->kids[0]) && is_atom(f->kids[1]) &&
+                (f->kids[0]->tok.kw == LOW_KW_TYPE || f->kids[0]->tok.kw == LOW_KW_NEWTYPE) &&
+                proven_u8str_view_eq(f->kids[1]->tok.lex, w)) d = f;
+        }
+        if (!d) return ITY_UNK;
+        ityp_t t = ity_of_decl_c(NULL, d, 2, d->nkids);
+        if (t.known) return t;
+        if (d->nkids != 3 || !is_atom(d->kids[2])) return ITY_UNK;
+        w = d->kids[2]->tok.lex;
+    }
+    return ITY_UNK;
+}
+
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     // ★★★ `build <mode> .` — **처리표를 켠다** (RFC-0008 §6.5).
     g_bmode = IR_BM_DEBUG; g_bdropped = 0;
@@ -2553,6 +2574,9 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     !is_atom(fld->kids[0]) || !is_atom(fld->kids[1])) continue;
                 proven_u8 sz = ir_field_size(fld->kids[1]->tok.lex);
                 bool boxed_ = ir_field_tywords(fld) > 1;   // ★ 매개변수 타입 — 태그 값 한 칸
+                bool aflt_ = false;
+                if (!sz && !boxed_) { ityp_t at_ = ir_scan_scalar_alias(pr, fld->kids[1]->tok.lex); if (at_.known) { sz = (proven_u8)(at_.bits / 8); aflt_ = at_.flt; } }
+                (void)aflt_;
                 proven_u8 capk_ = (fld->nkids >= 3 && is_atom(fld->kids[1]) && is_atom(fld->kids[2]) &&
                                    veq(fld->kids[1]->tok.lex, "cap"))
                                   ? (veq(fld->kids[2]->tok.lex, "allocator") ? 1 :
@@ -2903,6 +2927,11 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 proven_size_t tw_ = ir_field_tywords(fld);
                 bool param_ty_ = tw_ > 1;
                 s->f[s->nf].size = is_atom(fld->kids[1]) ? ir_field_size(fld->kids[1]->tok.lex) : 0;
+                bool aflt_ = false;                                  // ★ 스칼라 별칭 칸 — 바탕의 폭과 갈래(RFC-0147 §7.2)
+                if (!s->f[s->nf].size && !param_ty_ && is_atom(fld->kids[1])) {
+                    ityp_t at_ = ir_scan_scalar_alias(pr, fld->kids[1]->tok.lex);
+                    if (at_.known) { s->f[s->nf].size = (proven_u8)(at_.bits / 8); aflt_ = at_.flt; }
+                }
                 // ★★ 매개변수 타입 필드는 **바이트 레이아웃이 없다** — 태그 값 한 칸이다.
                 //   그래서 `viewable` 이 false 가 되고(아래 자동 계산), view/encode 는 이 구조체를
                 //   거절한다. **없는 레이아웃을 있는 척하지 않는다.**
@@ -2952,7 +2981,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                         s->f[s->nf].sidx = (proven_i16)ni;
                     }
                 }
-                s->f[s->nf].flt = is_atom(fld->kids[1]) && ir_is_float_ty(fld->kids[1]->tok.lex);
+                s->f[s->nf].flt = aflt_ || (is_atom(fld->kids[1]) && ir_is_float_ty(fld->kids[1]->tok.lex));
                 // ★★ 엔디안 표기 — `big` / `little` (2026-07-13 개명).
                 //   그전엔 `be` / `le` 였고, **둘 다 충돌했다**:
                 //     `be` = **바인딩 표시자**(`var x be u8 5 .`)와 같은 철자. 위치로만 갈렸다.

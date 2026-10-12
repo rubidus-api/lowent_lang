@@ -666,7 +666,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <main id="content"><div class="wrap">
 <h2 id="mod-sortgen"><code>sortgen</code> — 제네릭 정렬(비교는 타입이 들고 온다)</h2><div></div><dl class="metalist"><dt>소스</dt><dd><code>lib/sortgen.low</code></dd><dt>층</dt><dd>L0 — 순수 계산</dd><dt>권한</dt><dd>없음</dd></dl><p>원소가 <code>u64</code> 가 아니어도 정렬한다. 무엇이 더 작은지는 <strong>타입이 스스로 말한다</strong>. 레코드를 어떤 필드 기준으로 줄 세울 때 쓴다 — 원소가 그냥 <code>u64</code> 면 <a href="sec67.html#mod-sortlib"><code>sortlib</code></a> 이 더 간단하고 빠르다. 세 가지가 한 벌이다 — ① 타입이 <code>ordered</code> 를 충족한다고 선언하고 ② 그 타입의 <code>less</code> 를 쓰고 ③ 타입을 인자로 주며 부른다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">use</span></strong> sortgen .
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> keyed <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> keyed <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> sortgen.ordered .
   k <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .

@@ -20,7 +20,7 @@ module jobq .
 use pool   from "../../../lib/pool.low" .
 
 rem ★ 브랜드 — RFC-0104 §8-2. 이 프로그램의 풀 하나에 이름 하나(§5.11).
-def newtype jobs u8 .
+newtype jobs u8 .
 use mapgen from "../../../lib/mapgen.low" .
 use vecgen from "../../../lib/vecgen.low" .
 use allocs from "../../../lib/alloc.low" .

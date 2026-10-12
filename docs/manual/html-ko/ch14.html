@@ -789,7 +789,7 @@ impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requir
 </code></pre></div></div><p>진단이 적은 사연대로, 이것은 한때 초록으로 번역되어 실행 중에야 멈췄다. 맞지 않는 비트 예산을 지닌 프로그램이 실행할 수 있는 모습으로 배포되었다. 답이 지금 나는 계약은 지금 말한다.</p><p>반대쪽 실수도 거절된다. <code>requires</code> 가 이미 배제한 조건에 오류를 선언하면, 그 오류는 결코 나지 않는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/dead.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead .
 <em><span class="tok-c">rem expect: E-CONTRACT-DEAD</span></em>
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> div_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">enum</span></strong> div_error <strong><span class="tok-k">do</span></strong>
   by_zero .
 <strong><span class="tok-k">end</span></strong> .
 
@@ -889,7 +889,7 @@ mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input
 <em><span class="tok-c">rem trap: age_strict 200</span></em>
 <em><span class="tok-c">rem run: age_checked 200</span></em>
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> age_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">enum</span></strong> age_error <strong><span class="tok-k">do</span></strong>
   too_old .
 <strong><span class="tok-k">end</span></strong> .
 

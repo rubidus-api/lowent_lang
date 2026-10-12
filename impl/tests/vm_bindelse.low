@@ -3,7 +3,7 @@ rem ★★ RFC-0135 S1 — 바인딩 `else`: `let n be T v . else <벗어남> .`
 rem   op 부름(option · result) · 이름 · var · 할당기 나열 · send reserve. VM 과 네이티브가 같은 답인가를 잰다.
 use allocs .
 
-def enum perr do
+enum perr do
   bad .
 end .
 

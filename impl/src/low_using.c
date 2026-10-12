@@ -1862,21 +1862,11 @@ void low_surface_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, pr
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     for (proven_size_t i = 0; i < pr->nforms; i++) sl_walk(c, pr->forms[i]);
 }
-// ★★ RFC-0132 §5.2 (옮김 창) — 타입 선언은 `def` 로 시작한다. 파서가 `def` 를 먹고 `has_def` 를 남기므로, 여기서는 표시 없는
-//   `struct`·`enum`·`type`·`newtype` 머리를 옛 모양으로 거절한다(`--fmt` 는 이 패스를 지나지 않고 `def` 를 붙여 찍는다).
-#define DR_MSG(w) "a type declaration now starts with `def` — write `def " w " …` (RFC-0132 §5.2: one word builds a type; " \
-                  "`fn`/`proc`/`actor`/`trait`/`test`/`module` stay as they are). `lowentc --fmt` rewrites the old form"
 static void dr_walk(us_ctx_t *c, const low_cst_t *nd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
-    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) && !nd->has_def) {
-        low_kw_t k = nd->kids[0]->tok.kw;
-        const char *msg = k == LOW_KW_STRUCT ? DR_MSG("struct") : k == LOW_KW_ENUM ? DR_MSG("enum") :
-                          k == LOW_KW_TYPE ? DR_MSG("type") : k == LOW_KW_NEWTYPE ? DR_MSG("newtype") : NULL;
-        if (msg) low_pdiag(&c->p, "E-VOCAB-REMOVED", msg, nd->kids[0]->tok.line, nd->kids[0]->tok.col);
-    }
-    // ★ 줄 타입에는 이름을 붙이지 않는다(소유자 결정 2026-10-12) — `def type` · `def newtype` 의 **맨 위**가 `slice` 면 거절한다.
+    // ★ 줄 타입에는 이름을 붙이지 않는다(소유자 결정 2026-10-12) — `type` · `newtype` 선언의 **맨 위**가 `slice` 면 거절한다.
     //   `array` 는 검사기가(`E-TYPE-ARRAY`), `matrix` 는 `low_matrix` 가(`E-MATRIX-USE`) 이미 거절한다. 안에 든 것(`option slice u8`)은 둔다.
-    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && us_atom(nd->kids[0]) && nd->has_def &&
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && us_atom(nd->kids[0]) &&
         (nd->kids[0]->tok.kw == LOW_KW_TYPE || nd->kids[0]->tok.kw == LOW_KW_NEWTYPE)) {
         const low_cst_t *t = nd->kids[2];
         const low_cst_t *const *row = (const low_cst_t *const *)&nd->kids[2];
@@ -1886,10 +1876,10 @@ static void dr_walk(us_ctx_t *c, const low_cst_t *nd) {
         proven_size_t q = 0;
         while (q < n && us_atom(row[q]) && us_eq(row[q]->tok.lex, "mut")) q++;
         if (q < n && us_atom(row[q]) && us_eq(row[q]->tok.lex, "slice"))
-            low_pdiag(&c->p, "E-TYPE-ROWNAME", "a row type — `slice`, `array`, `matrix` — is not given another name: `def type` and "
-                      "`def newtype` do not take one as the whole type. Write `slice <type>` where it is used; to give a row a name "
-                      "of its own, make it a struct field (`def struct name do bytes slice u8 . end .`). A row INSIDE another "
-                      "type may be named (`def type maybe option slice u8 .`)", row[q]->tok.line, row[q]->tok.col);
+            low_pdiag(&c->p, "E-TYPE-ROWNAME", "a row type — `slice`, `array`, `matrix` — is not given another name: `type` and "
+                      "`newtype` do not take one as the whole type. Write `slice <type>` where it is used; to give a row a name "
+                      "of its own, make it a struct field (`struct name do bytes slice u8 . end .`). A row INSIDE another "
+                      "type may be named (`type maybe option slice u8 .`)", row[q]->tok.line, row[q]->tok.col);
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) dr_walk(c, nd->kids[i]);
 }

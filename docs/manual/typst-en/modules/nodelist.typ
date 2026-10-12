@@ -11,7 +11,7 @@ kernel's `list_head`. Only two things are dangerous --- *moving* a linked node r
 to hand over and is rejected at compile time.
 
 ```lowent
-def newtype lru u32 .
+newtype lru u32 .
 var s (owned nodelist.site lru) nodelist.nl_open lru. 3 . .
 var h (owned nodelist.held lru) nodelist.nl_link lru. s. . .
 rem nodelist.nl_relocate lru s 9  →  E-OWN-MOVED (s was already consumed)

@@ -23,9 +23,9 @@ use segarena  from "../../lib/segarena.low" .
 use lifeatom  from "../../lib/lifeatom.low" .
 use lifemode  from "../../lib/lifemode.low" .
 
-def newtype pf u8 .
-def newtype pc u8 .
-def newtype sg u8 .
+newtype pf u8 .
+newtype pc u8 .
+newtype sg u8 .
 
 rem ── strbuf: 빈 버퍼 · 꽉 찬 str_buf 에서 `append_trunc`/`room` 은 0 이다 (전에는 밑으로 감겨 경계 밖 쓰기) ──
 proc t_sb input buf mut slice u8 . output u64 . effects none . do

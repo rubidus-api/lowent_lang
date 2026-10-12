@@ -4,13 +4,13 @@ rem run: order_loose 0
 
 use sortgen .
 
-def struct strict_score do
+struct strict_score do
   satisfies sortgen.ordered .
   points u64 .
   id u64 .
 end .
 
-def struct loose_score do
+struct loose_score do
   satisfies sortgen.ordered .
   points u64 .
   id u64 .

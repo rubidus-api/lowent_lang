@@ -18,12 +18,12 @@ use pool from "../../lib/pool.low" .
 rem ★★★ **브랜드 — RFC-0104 §8-2**(소유자 서명 2026-08-28, §5.11). 새 낱말이 아니라
 rem   이미 있는 `newtype` 이다. 풀마다 **다른 브랜드**를 준다: 그래야 한 풀의 핸들을
 rem   다른 풀에 넣는 것을 **타입검사가** 거절한다(§6.1 S1). 런타임 칸은 안 는다.
-def newtype p_many u8 .
-def newtype p_stale u8 .
-def newtype p_copy u8 .
-def newtype p_reuse u8 .
-def newtype p_lifo u8 .
-def newtype p_borrow u8 .
+newtype p_many u8 .
+newtype p_stale u8 .
+newtype p_copy u8 .
+newtype p_reuse u8 .
+newtype p_lifo u8 .
+newtype p_borrow u8 .
 
 rem ★ 뭉텡이를 여럿 받아 쓴다 — 부족하면 더 받는 그 모양.
 proc take_many input mem mut slice u8 . input gens mut slice u64 . output u64 .

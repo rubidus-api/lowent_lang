@@ -1,6 +1,6 @@
 module tree .
 
-def enum node do
+enum node do
   num v u32 .
   add l u32 r u32 .
   mul l u32 r u32 .

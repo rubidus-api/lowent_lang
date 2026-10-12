@@ -14,9 +14,9 @@ module fmt .
 
 use stdio .
 
-def type scratch u64 .
+type scratch u64 .
 
-def enum write_error do
+enum write_error do
   overflow .         rem 버퍼 부족 — 실행-유도 오류(조건 없이 errors 절에 이름만)
 end .
 
@@ -96,7 +96,7 @@ end .
 
 rem ── 고수준: 라이터들을 합성 ──
 
-def struct point do
+struct point do
   x u32 .
   y u32 .
 end .

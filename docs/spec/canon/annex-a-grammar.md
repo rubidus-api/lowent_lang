@@ -15,13 +15,13 @@
 (1) 다음이 낱말의 전부다. 이 목록에 없는 것은 낱말이 아니다.
 
 ```문법틀: 낱말 목록 — 이 목록이 전부다
-actor      break      case       continue   contract   cycle      def
-do         drop       else       end        enum       expect     export
-expr       extern     false      fn         for        guard      if
-keep       let        lit        match      module     newtype    next
-none       proc       range      repeat     return     satisfies  send
-set        spawn      state      step       struct     test       trait
-true       try        type       unsafe     use        var        while
+actor      break      case       continue   contract   cycle      do
+drop       else       end        enum       expect     export     expr
+extern     false      fn         for        guard      if         keep
+let        lit        match      module     newtype    next       none
+proc       range      repeat     return     satisfies  send       set
+spawn      state      step       struct     test       trait      true
+try        type       unsafe     use        var        while
 ```
 
 (2) 예약된 낱말은 이름이 될 수 없다(⟦§6.1.2⟧). 이 목록의 낱말은 모두 이 문서가
@@ -40,14 +40,14 @@ module <이름> .
 
 use <모듈이름> .
 
-def type <이름> <타입> .
-def newtype <이름> <타입> .
+type <이름> <타입> .
+newtype <이름> <타입> .
 
-def struct <이름> do
+struct <이름> do
   <칸이름> <타입> .
 end .
 
-def enum <이름> do
+enum <이름> do
   <갈래이름> .
 end .
 
@@ -242,10 +242,10 @@ letter  = 'a'…'z' | 'A'…'Z' ;
 ──────────────────  ────────────────────────────────────────────────  ──────
 module              module <이름> .
 use                 use <이름> from "<경로>" [as <별칭>] .
-def type            def type <이름> <타입> .
-def newtype         def newtype <이름> <타입> .
-def struct          def struct <이름> do <칸>* end .  (칸 = <이름> <타입> .)
-def enum            def enum <이름> do <갈래>* end .  (갈래 = <이름> [<칸>*] .)
+type            type <이름> <타입> .
+newtype         newtype <이름> <타입> .
+struct          struct <이름> do <칸>* end .  (칸 = <이름> <타입> .)
+enum            enum <이름> do <갈래>* end .  (갈래 = <이름> [<칸>*] .)
 trait               trait <이름> do <서명>* end . (서명 = <이름> <절>*)
 actor               actor <이름> do <state·절·op>* end .
 state               state do <칸>* end .        (actor 안)
@@ -291,7 +291,7 @@ match               match <폼> do <가지>* end [else do <폼>* end] .   (가�
       `asm`·`absorbs`·`reference`·`why` · `access`·`inplace`·`invalidates`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
 
 (2b) **블록 선언**(`struct`·`enum`·`trait`·`actor`·`state`·`contract`)의 몸은 `do` 로 열고 `end` 로 닫는다 — `fn` 의 몸과 제어
-      블록과 같은 한 규칙이다. `def struct <이름> .` 처럼 점으로 열거나 이름 뒤에서 줄만 바꾸는 꼴은 거부된다(`E-STMT-NODO`).
+      블록과 같은 한 규칙이다. `struct <이름> .` 처럼 점으로 열거나 이름 뒤에서 줄만 바꾸는 꼴은 거부된다(`E-STMT-NODO`).
       개행은 닫개가 아니므로(⟦§6.1.6⟧) 줄바꿈으로는 머리가 닫히지 않는다.
 
 (3) 이 표는 **머리와 그 모양**을 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한
@@ -313,7 +313,7 @@ match               match <폼> do <가지>* end [else do <폼>* end] .   (가�
 > [`unit`], [`void`], [한 뜻에 두 철자 — 명세와 도구가 다르게 불렀다],
 > [`calcop`], [`fn`], [순수한 셈은 함수다. 그리고 «op» 은 이제 프렐류드 연산만 가리킨다],
 > [`procop`], [`proc`], [효과를 내는 것은 수학의 함수가 아니다],
-> [`is`], [(적지 않는다)], [장식이었다 — 아무도 읽지 않아 `def type h zzz u8 .` 이 통과했다],
+> [`is`], [(적지 않는다)], [장식이었다 — 아무도 읽지 않아 `type h zzz u8 .` 이 통과했다],
 > [`as`], [(적지 않는다)], [어디서도 무게가 없었다 — 블록 이름은 읽히고 **버려졌다**],
 > [`local`], [(적지 않는다)], [기본값이 이미 그것이다 — `export` 아닌 것은 밖에서 안 보인다],
 > [`to`], [`field a. b .`], [중위 접근을 없앴다 — 한 뜻에 철자가 넷이었다],
@@ -333,9 +333,9 @@ match               match <폼> do <가지>* end [else do <폼>* end] .   (가�
 (2) 없앤 까닭은 대개 **같은 뜻의 두 철자**이거나 **아무것도 사지 못하는 낱말**이었기
       때문이다. 낱말은 목록에 오르는 값을 해야 하며, 하지 못하면 내려온다.
 
-(2a) 타입 선언의 옛 머리 — `def` 없이 `struct`·`enum`·`type`·`newtype` 으로 시작하는 선언 — 도 거부된다
-      (`E-VOCAB-REMOVED`). 타입을 짓는 낱말은 `def` 하나다(⟦§6.1.2⟧ (3)). 네 낱말은 `def` 뒤의 갈래 이름으로,
-      그리고 `type` 은 타입 매개변수의 종류(`input comptime t type .`)로 남는다. `lowentc --fmt` 가 옛 모양을 옮겨 쓴다.
+(2a) 타입 선언의 옛 머리 — `def struct` · `def enum` · `def type` · `def newtype` — 도 거부된다(`E-DEF-OLD`). 타입 선언은
+      제 낱말로 시작한다(⟦§6.1.2⟧ (3)). `def` 는 낱말이 아니므로 그 꼴이 아닌 자리에서는 저자의 이름이다. `type` 은
+      타입 매개변수의 종류(`input comptime t type .`)로도 쓰인다.
 
 (3) `as` 와 `to` 는 **자리 표식**으로만 남아 있다 — `use … as <별칭>` 과
       `case <아래> to <위>` 에서다. 그 자리 밖에서는 낱말이 아니다.
@@ -464,13 +464,13 @@ line-char       ::= ? newline 이 아닌 글자 ?
 comment-line    ::= ? 닫는 줄이 아닌 줄 ?
 end-of-source   ::= ? 소스의 끝 ?
 
-keyword ::= "actor" | "break" | "case" | "continue" | "contract" | "cycle" | "def"
-          | "do" | "drop" | "else" | "end" | "enum" | "expect" | "export"
-          | "expr" | "extern" | "false" | "fn" | "for" | "guard" | "if"
-          | "keep" | "let" | "lit" | "match" | "module" | "newtype" | "next"
-          | "none" | "proc" | "range" | "repeat" | "return" | "satisfies" | "send"
-          | "set" | "spawn" | "state" | "step" | "struct" | "test" | "trait"
-          | "true" | "try" | "type" | "unsafe" | "use" | "var" | "while"
+keyword ::= "actor" | "break" | "case" | "continue" | "contract" | "cycle" | "do"
+          | "drop" | "else" | "end" | "enum" | "expect" | "export" | "expr"
+          | "extern" | "false" | "fn" | "for" | "guard" | "if" | "keep"
+          | "let" | "lit" | "match" | "module" | "newtype" | "next" | "none"
+          | "proc" | "range" | "repeat" | "return" | "satisfies" | "send" | "set"
+          | "spawn" | "state" | "step" | "struct" | "test" | "trait" | "true"
+          | "try" | "type" | "unsafe" | "use" | "var" | "while"
 
 name       ::= name-start { name-char }
 name-start ::= "a" … "z" | "A" … "Z" | "_"
@@ -536,9 +536,9 @@ declaration    ::= { modifier } ( type-decl | op-decl | extern-decl | actor-decl
                  | contract-decl
                  | test-decl
 modifier       ::= "export" | "extern" | "unsafe" [ "target" name ]
-type-decl      ::= "def" ( "type" | "newtype" ) name type "."
-                 | "def" "struct" name "do" { field | struct-attr } "end" "."
-                 | "def" "enum" name "do" { variant } "end" "."
+type-decl      ::= ( "type" | "newtype" ) name type "."
+                 | "struct" name "do" { field | struct-attr } "end" "."
+                 | "enum" name "do" { variant } "end" "."
 field          ::= name type "."
 struct-attr    ::= ( "layout" name | "align" word | "mmio" number ) "."
 variant        ::= name { name type } "."

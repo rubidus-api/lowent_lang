@@ -2,7 +2,7 @@ rem A write into an array field of a local struct, then a read of the same field
 rem Native code built with -O2 used to answer 1 where the VM answers 100: the fast path carried the field as a slice of the
 rem literal's read-only constant (docs/known-defects, 2026-10-11). Structs with array fields stay on the tagged path now.
 module vm_arrfield_write .
-def struct bd do
+struct bd do
   id u64 .
   body array u32 12 .
 end .

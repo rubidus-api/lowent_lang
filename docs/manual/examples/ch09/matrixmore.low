@@ -2,7 +2,7 @@ module matrixmore .
 rem run: total
 
 rem ko: 구조체의 칸으로 쓰는 표 /// en: a table as a struct field
-def struct board do
+struct board do
   id u64 .
   g matrix u32 2 3 4 .
 end .

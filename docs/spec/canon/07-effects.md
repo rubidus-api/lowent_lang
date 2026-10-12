@@ -426,7 +426,7 @@ module ex_mmio_plain .
 
 build tier t1 .
 
-def struct gpio do
+struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
 end .

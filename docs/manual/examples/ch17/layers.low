@@ -3,7 +3,7 @@ rem run: main
 
 use stdio .
 
-def enum config_error do
+enum config_error do
   bad_port .
   port_zero .
 end .

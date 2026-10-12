@@ -5,14 +5,14 @@
 The text is where words are *explained*. This appendix gathers only tables to skim when you get stuck reading code. The word list is the same as the
 specification's Appendix A, and anything not in that list is not a word.
 
-== The forty-nine words
+== The forty-eight words
 
 #dtable(
   columns: 3,
   id: "a1-keywords",
   caption: [All the words],
   [*Kind*], [*Words*], [*Chapter*],
-  [Declarations], [`module` `use` `def` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`], [#chrefs("modules", "named-types")],
+  [Declarations], [`module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`], [#chrefs("modules", "named-types")],
   [ops], [`fn` `proc` `export` `unsafe` `extern` `satisfies`], [#chref("ops")],
   [Locals], [`let` `var` `set` `keep`], [#chref("locals")],
   [Flow], [`if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `return` `break` `continue` `try`], [#chref("control")],
@@ -44,7 +44,7 @@ are not words but cannot be used as names.
   [`;` · `,`], [`.`],
   [`make`], [`lit`],
   [`index`], [`idx`],
-  [a `struct`·`enum`·`type`·`newtype` declaration without `def`], [`def struct` · `def enum` · `def type` · `def newtype`],
+  [`def struct`·`def enum`·`def type`·`def newtype` (`E-DEF-OLD`)], [delete `def` --- `struct` · `enum` · `type` · `newtype`],
 )
 
 `as` and `to` remain only as position markers in `use … as <alias>` and `case <low> to <high>`.

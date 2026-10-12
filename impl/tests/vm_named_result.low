@@ -2,12 +2,12 @@ rem named results (RFC-0132 P4a) — `output <name> <type> .` is a local of the 
 rem an option none, a struct all its fields' zeros (nested structs too). The body writes it and returns it. VM and native agree.
 module vm_named_result .
 
-def struct inner do
+struct inner do
   a i32 .
   f f64 .
 end .
 
-export def struct span do
+export struct span do
   lo u64 .
   hi u64 .
   seen bool .

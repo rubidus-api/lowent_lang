@@ -1,7 +1,7 @@
 module dead .
 rem expect: E-CONTRACT-DEAD
 
-def enum div_error do
+enum div_error do
   by_zero .
 end .
 

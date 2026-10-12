@@ -34,9 +34,9 @@
 == `struct` --- a collection of named fields
 
 #idx("struct")
-A `struct` is a collection of named fields, each with its own type. The declaration starts with `def struct <name>` --- every
-declaration that builds a type (`def struct` · `def enum` · `def type` · `def newtype`) starts with `def`, while `fn` and `proc` are
-written without it. The declaration's body is `do … end`, and each field is closed with a full stop.
+A `struct` is a collection of named fields, each with its own type. The declaration starts with `struct <name>` --- every
+declaration that builds a type starts with its own word (`struct` · `enum` · `type` · `newtype`), with no word in front, just like
+`fn` and `proc`. The declaration's body is `do … end`, and each field is closed with a full stop.
 
 #demo("examples/ch10/points.low")
 
@@ -188,12 +188,12 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   id: "structs-glance",
   caption: [Struct and enum syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`def struct point do x u64 . y u64 . end .`], [a bundle of named fields], [one line per field, name and type],
+  [`struct point do x u64 . y u64 . end .`], [a bundle of named fields], [one line per field, name and type],
   [`lit point do x 1 . y 2 . end .`], [build a value --- fill every field], [no field silently becomes 0],
   [`field p. x .` · `field s. stop x .`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
   [`set field p. x . 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
   [`body array u8 4 .` · `set idx field p. body . 0 . 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
-  [`def enum shape do dot . circle r u32 . end .`], [one of several --- variants may carry values], [each variant is closed with a stop],
+  [`enum shape do dot . circle r u32 . end .`], [one of several --- variants may carry values], [each variant is closed with a stop],
   [`shape.circle 2 .` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
   [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
   [`isa s. circle .`], [is it that variant (`bool`)], [for asking without taking values out],

@@ -84,7 +84,7 @@
     ]
     #ex("영역을 받아 자리를 얻는다", "module ex_region .
 
-def type scratch u64 .
+type scratch u64 .
 
 proc build input temp region scratch . output u64 . effects alloc .
 do
@@ -117,7 +117,7 @@ end .")
     ]
     #rejected("영역의 슬라이스를 바깥 묶음의 칸에 넣는다", "module ex_region_field .
 
-def struct holder do store mut slice u8 . end .
+struct holder do store mut slice u8 . end .
 
 proc f output u64 . effects alloc . do
   var h lit holder do store subslice \"abcd\" 0 0 . . end . .
@@ -360,7 +360,7 @@ end .", "E-ESCAPE: reference to a local escapes the op (dangling)")
     ]
     #ex("해제 — 실패할 수 없으므로 `drop` 이면 된다", "module ex_own .
 
-def type buffer u8 .
+type buffer u8 .
 
 fn sink input h owned buffer . output u8 .
 do
@@ -369,7 +369,7 @@ do
 end .")
     #rejected("두 번 없앨 수 없다", "module ex_own_bad .
 
-def type buffer u8 .
+type buffer u8 .
 
 fn twice input h owned buffer . output u8 .
 do
@@ -679,7 +679,7 @@ end .", "E-INPLACE-UNPROVEN")
     ]
     #rejected("자라며 옮기는 op 뒤에 옛 뷰를 쓴다", "module ex_view_invalidated .
 
-def struct buf do
+struct buf do
   data mut slice u8 .
   n u64 .
 end .

@@ -1419,7 +1419,7 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
                         "this type NAME is accepted but carries NO MEANING yet: lowering cannot "
                         "read it, so every op in its signature falls to the interpreter (~80x). "
                         "The answer stays right, so no oracle will ever see this. Declare it "
-                        "(`def type id u64 .`) or write the underlying type",
+                        "(`type id u64 .`) or write the underlying type",
                         t->line ? t->line : f->line);
             continue;
         }
@@ -2419,7 +2419,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                     "problem is not layout but LIFETIME: nothing here says what keeps that reference "
                     "alive. Lowent has no managed pointer graph yet, so an unowned back-edge cannot "
                     "be accepted. Build the graph with INDICES into a slice (an arena) the way "
-                    "`hashmap`/`pool`/`vec` do, and name the index with `def newtype node_id u32 .` "
+                    "`hashmap`/`pool`/`vec` do, and name the index with `newtype node_id u32 .` "
                     "(RFC-0104 §5.1: a value cycle is a layout error and can never work; an "
                     "indirect cycle is a policy question and may be answered later)",
                     c.strs[si].name.size ? pr->forms[0]->line : 0);
@@ -2429,7 +2429,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                     "is not finite — the declaration cannot describe any layout. There are no "
                     "pointer trees in this language: build trees with INDICES into a slice (an "
                     "arena), the way `hashmap`/`pool`/`vec` already do, and give the index a name "
-                    "with `def newtype node_id u32 .`",
+                    "with `newtype node_id u32 .`",
                     c.strs[si].name.size ? pr->forms[0]->line : 0);
     }
 

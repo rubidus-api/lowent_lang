@@ -1,6 +1,6 @@
 module geom .
 
-export def struct point do
+export struct point do
   x i64 .
   y i64 .
 end .

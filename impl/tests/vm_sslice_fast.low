@@ -2,7 +2,7 @@ rem signed-slice fast path (2026-10-04) — i8/i16/i32 slices now lower to typed
 rem byte for byte with the VM on negative elements: loops, subslices, swaps, struct slice fields, min/max.
 module m .
 
-def struct box do
+struct box do
   s slice i16 .
 end .
 
@@ -67,7 +67,7 @@ fn cmp8 input s slice i8 . output u64 . do
 end .
 
 rem a float slice in a struct field read on the fast path used to come back as raw bits (VM 1.5, native 4609434218613702656).
-def struct fbox do
+struct fbox do
   s slice f64 .
 end .
 

@@ -29,7 +29,7 @@ needs a writable buffer, such as appending, belongs to #modref("strbuf")[`strbuf
 - *No sentinel values.* Conventions like "−1 means not found" are not used. Not found is `none` of an `option`.
 
 There is no type name for strings --- the ops take and return `slice u8`, so string literals, `slice u8` values and `subslice` results all fit
-as they are. A slice cannot be given another name with `def type` (chapter 13). Only the `str_splitter` actor holds state --- the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
+as they are. A slice cannot be given another name with `type` (chapter 13). Only the `str_splitter` actor holds state --- the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
 
 == Ops at a glance
 

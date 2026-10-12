@@ -9,7 +9,7 @@ and you want to stop the defect of reusing something already deleted (use-after-
 time that is not lexical, so neither `region` nor a bump will do --- so instead of static checking, generational handles (#chref("regions"), #chref("lib-alloc")).
 
 ```lowent
-def newtype pa u8 .
+newtype pa u8 .
 let po option (pool.block_pool pa) pool.init pa. mem. gens. 4096 . .
 guard is_some po. . else return 1 . .
 var p (pool.block_pool pa) some_value po. . .
@@ -53,7 +53,7 @@ release *after* the block (#chref("references")). Taken that way, the processor 
 (`release`, `take`) or opening a second borrow from the same pool while the borrow lives: `E-BORROW-EXCL`.
 
 ```lowent
-def newtype demo_brand u8 .
+newtype demo_brand u8 .
 
 proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
 do

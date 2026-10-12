@@ -2,7 +2,7 @@ module vm_viewarr .
 rem ★★ RFC-0132 T2b-3d ⓓ (소유자 «C 와 같은 인라인 배치») — 배열 칸을 가진 구조체도 바이트 배치가 있다: 배열 칸은 구조체
 rem   바이트 안에 그대로 놓이고(C 의 `uint8_t body[4];`) 정렬은 원소의 것이다. `view` 의 칸은 그 바이트를 보는 슬라이스,
 rem   칸에 쓰면 그 자리에 베낀다 · `encode` · 구조체 원소 나열 · 원소에 통째로 쓰기 · `size_of` 가 같은 배치를 쓴다.
-def struct pkt do
+struct pkt do
   len u8 .
   body array u8 4 .
   tail u16 .

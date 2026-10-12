@@ -3,7 +3,7 @@ rem ★ RFC-0142 (1.8) — 열거의 딸린 값을 읽는 두 낱말의 증인: 
 rem   `payload` 는 1.7 까지의 `get` 이다 — 사용자 op 이름 `get` 과 한 철자를 다투지 않게 이름을 갈랐다.
 rem   `E-ENUM-UNCHECKED`: 좁히지 않고 `payload` 로 읽으면 거절된다 — 좁히는 것은 `guard isa <값> <갈래> else …` 다.
 
-def enum shape do
+enum shape do
   dot .
   circle r u32 .
 end .

@@ -3,7 +3,7 @@ rem run: main
 
 use sortgen .
 
-def struct score do
+struct score do
   satisfies sortgen.ordered .
   points u64 .
   id u64 .

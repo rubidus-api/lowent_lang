@@ -18,7 +18,7 @@ module twoax .
 
 use allocs .
 
-export def struct gv do input comptime t type . input comptime a type .
+export struct gv do input comptime t type . input comptime a type .
   al a .
   store mut slice u8 . rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                    rem 담긴 **원소** 개수

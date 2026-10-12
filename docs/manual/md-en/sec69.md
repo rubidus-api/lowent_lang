@@ -17,7 +17,7 @@ Sorts even when elements are not `u64`. What is smaller **the type says for itse
 ```lowent
 use sortgen .
 
-def struct keyed do
+struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end .

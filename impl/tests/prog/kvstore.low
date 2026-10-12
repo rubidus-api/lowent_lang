@@ -28,14 +28,14 @@ use allocs    from "../../../lib/alloc.low" .
 use clock     from "../../../lib/clock.low" .
 
 rem 브랜드 — **선언마다 하나**(§8-2: 브랜드는 값이 아니라 타입이다).
-def newtype kv_rec u8 .
-def newtype kv_page u8 .
-def newtype kv_bytes u8 .
-def newtype kv_keys u8 .
-def newtype kv_lru u32 .
+newtype kv_rec u8 .
+newtype kv_page u8 .
+newtype kv_bytes u8 .
+newtype kv_keys u8 .
+newtype kv_lru u32 .
 rem 측정 하네스는 **제 저장소를 따로 연다** — 브랜드는 저장소 하나에 하나다(§8-2).
-def newtype kv_bench_rec u8 .
-def newtype kv_bench_keys u8 .
+newtype kv_bench_rec u8 .
+newtype kv_bench_keys u8 .
 
 rem ── ① budget — 핸들 한 낱말에 slot·shard·gen 이 들어가는가 ────────────
 fn handles output u64 . do

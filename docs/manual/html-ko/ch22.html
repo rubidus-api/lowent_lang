@@ -717,7 +717,7 @@ rt_arg.low:12:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> score <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> score <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> ordered .
   v <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
@@ -752,7 +752,7 @@ bigger(12, 5) = 12
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> plain <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> plain <strong><span class="tok-k">do</span></strong>
   v <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
@@ -786,7 +786,7 @@ bigger(12, 5) = 12
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> score <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> score <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> ordered .
   v <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
@@ -820,7 +820,7 @@ mistake_notypearg.low:30:0 E-MONO-NOTYPE: this op takes a TYPE as its first inpu
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> plain <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">struct</span></strong> plain <strong><span class="tok-k">do</span></strong>
   v <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 

@@ -1,6 +1,6 @@
 module m .
 rem expect: E-TYPE-FIELD
-def struct p do
+struct p do
   x u64 .
 end .
 fn f input q p . output u64 . do

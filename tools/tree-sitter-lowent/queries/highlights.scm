@@ -17,7 +17,7 @@
 
 [
   "module" "use" "from" "as" "package" "build"
-  "def" "type" "newtype" "struct" "enum" "trait" "actor" "state" "contract" "test"
+  "type" "newtype" "struct" "enum" "trait" "actor" "state" "contract" "test"
   "fn" "proc" "export" "extern" "unsafe"
   "let" "var" "set" "return" "break" "continue" "guard" "expect" "drop"
   "if" "else" "while" "for" "repeat" "range" "cycle" "next" "step"

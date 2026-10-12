@@ -11,7 +11,7 @@
 거절한다.
 
 ```lowent
-def newtype lru u32 .
+newtype lru u32 .
 var s (owned nodelist.site lru) nodelist.nl_open lru. 3 . .
 var h (owned nodelist.held lru) nodelist.nl_link lru. s. . .
 rem nodelist.nl_relocate lru s 9  →  E-OWN-MOVED (s 는 이미 먹혔다)

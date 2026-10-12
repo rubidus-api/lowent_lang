@@ -9,7 +9,7 @@ bytes. SQLite's page cache has this shape. Pages move (eviction, relocation). Wh
 hunting down scattered pointers is unusable.
 
 ```lowent
-def newtype db u8 .
+newtype db u8 .
 var c (owned pagecache.cache db) pagecache.open db. 16 . .
 var p (pagecache.pin db) pagecache.acquire db. c. 42 . .
 rem evict cannot be called in between --- it does not compile

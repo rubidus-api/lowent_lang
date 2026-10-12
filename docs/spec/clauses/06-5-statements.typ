@@ -156,7 +156,7 @@ do
 end .", "E-USING-OLD")
     #ex("실패 절 셋 — (5)(5c) 를 시험한다", "module ex_fail_clause .
 
-def enum perr do bad . empty . end .
+enum perr do bad . empty . end .
 
 fn parse input s u64 . output result u64 perr .
   errors empty eq s. 0 . .
@@ -604,7 +604,7 @@ end .", "E-GUARD-FALLTHROUGH")
     ]
     #rejected("`result` 자리에 맨값을 돌려준다", "module ex_bare_under_result .
 
-def enum short do
+enum short do
   too_short .
 end .
 
@@ -710,7 +710,7 @@ end .", "E-NAME-SCOPE")
     ]
     #ex("세 채널이 각기 다른 모양으로 답한다", "module ex_channels .
 
-def enum io_error do
+enum io_error do
   too_big .
 end .
 
@@ -905,7 +905,7 @@ end .                      rem `a` 가 5 이하인 길에는 값이 없다", "E-
     ]
     #rejected("적지 않은 오류를 낸다", "module ex_err_undeclared .
 
-def enum e do
+enum e do
   bad .
 end .
 
@@ -915,11 +915,11 @@ do
 end .", "E-ERR-UNDECLARED")
     #rejected("남의 실패를 `return` 으로 넘긴다", "module ex_err_handed_on .
 
-def enum parse_error do
+enum parse_error do
   bad_digit .
 end .
 
-def enum load_error do
+enum load_error do
   too_long .
 end .
 
@@ -938,11 +938,11 @@ do
 end .", "E-ERR-UNDECLARED")
     #rejected("절 없는 op 이 넘겨받은 실패를 다시 넘긴다", "module ex_err_clauseless .
 
-def enum parse_error do
+enum parse_error do
   bad_digit .
 end .
 
-def enum load_error do
+enum load_error do
   too_long .
 end .
 

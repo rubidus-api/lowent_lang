@@ -1,7 +1,7 @@
 module undeclared .
 rem expect: E-ERR-UNDECLARED
 
-def enum parse_error do
+enum parse_error do
   empty .
   too_long .
 end .

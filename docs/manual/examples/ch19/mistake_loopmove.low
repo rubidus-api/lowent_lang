@@ -1,7 +1,7 @@
 module mistake_loopmove .
 rem expect: E-OWN-MOVED
 
-def type buffer u8 .
+type buffer u8 .
 
 fn consume input h owned buffer . output u8 .
 do

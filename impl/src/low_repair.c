@@ -358,7 +358,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-IR-UNSUP",            "R-SHORTEN-LITERAL" },
     { "E-IR-EXTRA",            "R-DROP-OPERANDS" },
     { "E-VOCAB-REMOVED",       "R-USE-REPLACEMENT" },
-    { "E-DEF-HEAD",            "R-USE-REPLACEMENT" },   // `def` 는 타입만 짓는다 — 낱말을 빼거나 struct·enum·type·newtype 을 적는다
+    { "E-DEF-OLD",             "R-USE-REPLACEMENT" },   // 타입 선언은 제 낱말로 시작한다 — `def` 를 지운다
     { "W-USE-EXTERNAL",        "R-INLINE-MODULE" },
     { "W-TEST-NOT-RUN",        "R-RUN-TESTS" },
 

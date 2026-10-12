@@ -53,7 +53,6 @@ static const low_kwent_t LOW_KW_TABLE[] = {
     // ★ RFC-0141 (2026-10-09) — `be` 를 **없앴다**(`let n u64 5 .`). 아래 `low_kw_lookup` 이 옛 철자를 알아보게만 한다.
     {"repeat", LOW_KW_REPEAT}, {"range", LOW_KW_RANGE}, {"cycle", LOW_KW_CYCLE},
     {"next", LOW_KW_NEXT}, {"step", LOW_KW_STEP}, {"keep", LOW_KW_KEEP},
-    {"def", LOW_KW_DEF},   // ★ RFC-0132 §5.2 — 타입을 짓는 낱말 하나(옮김 창)
 };
 
 low_kw_t low_kw_lookup(proven_u8str_view_t word) {

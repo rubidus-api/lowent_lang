@@ -1,7 +1,7 @@
 module mistake_glued .
 rem expect: E-FIELD-GLUED
 
-def struct point do
+struct point do
   x u64 .
   y u64 .
 end .

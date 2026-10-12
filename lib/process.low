@@ -7,11 +7,11 @@ rem   상태 수: 낮은 32 비트 = 종료 코드 · 비트 32 = 신호로 끝�
 
 module process .
 
-export def struct child do
+export struct child do
   h u64 .
 end .
 
-export def enum process_error do
+export enum process_error do
   wait_failed .
 end .
 

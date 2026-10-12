@@ -2,8 +2,8 @@ rem ★ 증인 — RFC-0141: 실패 절 셋 · 머리 안의 블록 값 · 네 �
 rem   VM 과 네이티브가 같은 답을 내야 한다(골든이 둘 다 돌린다).
 module vm_failclause .
 
-def enum perr do bad . empty . end .
-def struct pt do x u64 . y u64 . end .
+enum perr do bad . empty . end .
+struct pt do x u64 . y u64 . end .
 
 fn parse input s u64 . output result u64 perr .
   errors empty eq s. 0 . .

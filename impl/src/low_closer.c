@@ -563,7 +563,7 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
         return cl_endstop(c, cl_block(c, cl_kw(c, i + 1, "do") ? i + 1 : i + 2), "a stop `.` must close `task_group … end`");
     if (kw && (cl_eq(t, "export") || cl_eq(t, "unsafe") || cl_eq(t, "extern")) && (cl_kw(c, i + 1, "fn") || cl_kw(c, i + 1, "proc")))
         cl_fail(c, i, "E-LOCAL-EXPORT", "a local op is never exported, `extern` or `unsafe` — it is visible only inside its owner. Declare it at the top level to share it (RFC-0121 §6.6)");
-    if (kw && (cl_eq(t, "def") || cl_eq(t, "struct") || cl_eq(t, "enum") || cl_eq(t, "newtype") || cl_eq(t, "trait") || cl_eq(t, "test") || cl_eq(t, "module")))
+    if (kw && (cl_eq(t, "type") || cl_eq(t, "struct") || cl_eq(t, "enum") || cl_eq(t, "newtype") || cl_eq(t, "trait") || cl_eq(t, "test") || cl_eq(t, "module")))
         cl_fail(c, i, "E-LOCAL-PLACE", "only `fn` and `proc` may be declared inside an op's body — types, actors, traits, tests and modules are declared at the top level (RFC-0121 §6.6)");
     if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return cl_op_decl(c, i);
     if (kw && cl_eq(t, "else"))
@@ -664,18 +664,20 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
         while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
         return j + 1;
     }
-    if (kw && cl_eq(t, "def")) {
-        const low_token_t *k = cl_tk(c, j + 1);
-        if (cl_eq(k, "type") || cl_eq(k, "newtype")) {
-            (void)cl_ty_try(c, j + 3, NOPE, false);
-            while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
-            return j + 1;
-        }
-        if (!cl_eq(k, "struct") && !cl_eq(k, "enum")) cl_fail(c, j + 1, "E-DEF-HEAD", "`def` builds types only — `def struct` · `def enum` · `def type` · `def newtype`");
-        if (!cl_kw(c, j + 3, "do")) cl_fail(c, j + 3, cl_dot(c, j + 3) ? "E-STMT-NODO" : "E-FORM-UNEXPECTED", "`def struct <name> do … end .`");
-        proven_size_t e = cl_mate(c, j + 3);
-        if (cl_eq(k, "struct")) cl_fields(c, j + 4, e);
-        return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`def struct … end .`)");
+    // ★ RFC-0147 §7.1 (소유자 결정 2026-10-12 «def 뺍시다») — 타입 선언은 제 낱말로 시작한다: `struct` · `enum` · `type` · `newtype`.
+    //   `def` 는 낱말이 아니다(저자의 이름이 될 수 있다). 옛 머리 `struct …` 는 그 꼴일 때만 알아보고 거절한다.
+    if (!kw && cl_eq(t, "def") && (cl_kw(c, j + 1, "struct") || cl_kw(c, j + 1, "enum") || cl_kw(c, j + 1, "type") || cl_kw(c, j + 1, "newtype")))
+        cl_fail(c, j, "E-DEF-OLD", "a type declaration starts with its own word — delete `def`: `struct <name> do … end .` · `enum <name> do … end .` · `type <name> <type> .` · `newtype <name> <type> .`");
+    if (kw && (cl_eq(t, "type") || cl_eq(t, "newtype"))) {
+        (void)cl_ty_try(c, j + 2, NOPE, false);
+        while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
+        return j + 1;
+    }
+    if (kw && (cl_eq(t, "struct") || cl_eq(t, "enum"))) {
+        if (!cl_kw(c, j + 2, "do")) cl_fail(c, j + 2, cl_dot(c, j + 2) ? "E-STMT-NODO" : "E-FORM-UNEXPECTED", "`struct <name> do … end .`");
+        proven_size_t e = cl_mate(c, j + 2);
+        if (cl_eq(t, "struct")) cl_fields(c, j + 3, e);
+        return cl_endstop(c, e + 1, "a stop `.` must close the declaration (`struct … end .`)");
     }
     if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return cl_op_decl(c, j);
     if (kw && cl_eq(t, "trait") && cl_kw(c, j + 2, "do")) {
@@ -718,8 +720,6 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
     {   const char *why = low_removed_word_why(t->lex);
         if (why) cl_fail(c, j, "E-VOCAB-REMOVED", why);
     }
-    if (kw && (cl_eq(t, "struct") || cl_eq(t, "enum") || cl_eq(t, "type") || cl_eq(t, "newtype")))
-        cl_fail(c, j, "E-VOCAB-REMOVED", "a type declaration starts with `def` — `def struct <name> do … end .`");
     cl_fail(c, j, "E-TOPLEVEL", "this word does not start a declaration");
 }
 
@@ -1271,17 +1271,16 @@ static proven_size_t up_topform(up_t *u, proven_size_t i) {
     if (t->kind != LOW_TOK_IDENT) up_fail(u);
     bool kw = t->kw != LOW_KW_NONE;
     if (cl_eq(t, "module") || cl_eq(t, "use") || cl_eq(t, "package") || cl_eq(t, "build")) { while (!up_dot(u, j)) { up_tk(u, j); j++; } return j + 1; }
-    if (kw && cl_eq(t, "def")) {
-        const low_token_t *k = up_tk(u, j + 1);
-        if (cl_eq(k, "type") || cl_eq(k, "newtype")) {
-            proven_size_t d = j + 3;
-            while (!up_dot(u, d)) { up_tk(u, d); if (u->T[d].kind == LOW_TOK_LPAREN) d = up_mate(u, d); d++; }
-            up_type_span(u, j + 3, d);
-            return d + 1;
-        }
-        if (!up_kw(u, j + 3, "do")) up_fail(u);
-        proven_size_t e = up_mate(u, j + 3);
-        if (cl_eq(k, "struct")) up_fields(u, j + 4, e);
+    if (kw && (cl_eq(t, "type") || cl_eq(t, "newtype"))) {
+        proven_size_t d = j + 2;
+        while (!up_dot(u, d)) { up_tk(u, d); if (u->T[d].kind == LOW_TOK_LPAREN) d = up_mate(u, d); d++; }
+        up_type_span(u, j + 2, d);
+        return d + 1;
+    }
+    if (kw && (cl_eq(t, "struct") || cl_eq(t, "enum"))) {
+        if (!up_kw(u, j + 2, "do")) up_fail(u);
+        proven_size_t e = up_mate(u, j + 2);
+        if (cl_eq(t, "struct")) up_fields(u, j + 3, e);
         u->close[e]++;
         return e + 1;
     }

@@ -2,11 +2,11 @@
 
 The text is where words are **explained**. This appendix gathers only tables to skim when you get stuck reading code. The word list is the same as the specification’s Appendix A, and anything not in that list is not a word.
 
-## <a id="sx1"></a>The forty-nine words
+## <a id="sx1"></a>The forty-eight words
 
 | **Kind** | **Words** | **Chapter** |
 |---|---|---|
-| Declarations | `module` `use` `def` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | chapters 21 and 13 |
+| Declarations | `module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | chapters 21 and 13 |
 | ops | `fn` `proc` `export` `unsafe` `extern` `satisfies` | chapter 5 |
 | Locals | `let` `var` `set` `keep` | chapter 6 |
 | Flow | `if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `return` `break` `continue` `try` | chapter 7 |
@@ -35,7 +35,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | `;` · `,` | `.` |
 | `make` | `lit` |
 | `index` | `idx` |
-| a `struct`·`enum`·`type`·`newtype` declaration without `def` | `def struct` · `def enum` · `def type` · `def newtype` |
+| `def struct`·`def enum`·`def type`·`def newtype` (`E-DEF-OLD`) | delete `def` — `struct` · `enum` · `type` · `newtype` |
 
 *Table 50.2 — Removed words and what to use instead (`E-VOCAB-REMOVED`)*
 

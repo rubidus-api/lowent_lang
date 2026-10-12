@@ -32,7 +32,7 @@ end .
 - **There is no `str_len` or `str_sub`.** A string is a `slice u8`, so the core ops `len` and `subslice` work as they are. One meaning does not get two names.
 - **No sentinel values.** Conventions like “−1 means not found” are not used. Not found is `none` of an `option`.
 
-There is no type name for strings — the ops take and return `slice u8`, so string literals, `slice u8` values and `subslice` results all fit as they are. A slice cannot be given another name with `def type` (chapter 13). Only the `str_splitter` actor holds state — the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
+There is no type name for strings — the ops take and return `slice u8`, so string literals, `slice u8` values and `subslice` results all fit as they are. A slice cannot be given another name with `type` (chapter 13). Only the `str_splitter` actor holds state — the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
 
 ## <a id="sx2"></a>Ops at a glance
 

@@ -17,7 +17,7 @@ L0 — 순수 계산
 ```lowent
 use sortgen .
 
-def struct keyed do
+struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end .

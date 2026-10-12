@@ -2,7 +2,7 @@ module arrayfield .
 rem run: copy_keeps 7
 rem run: fill_in 3
 
-def struct pkt do
+struct pkt do
   len u8 .
   body array u8 4 .
 end .

@@ -4,7 +4,7 @@ rem run: lookup 4
 rem run: doubled 30
 rem run: doubled 300
 
-def enum perr do
+enum perr do
   too_big .
 end .
 

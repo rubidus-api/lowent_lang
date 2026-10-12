@@ -82,7 +82,7 @@
     },
     {
       "name": "keyword.other.lowent",
-      "match": "\\b(?:satisfies|contract|newtype|expect|export|extern|module|struct|unsafe|actor|spawn|state|trait|drop|enum|expr|keep|proc|send|test|type|def|let|lit|set|use|var|fn)\\b"
+      "match": "\\b(?:satisfies|contract|newtype|expect|export|extern|module|struct|unsafe|actor|spawn|state|trait|drop|enum|expr|keep|proc|send|test|type|let|lit|set|use|var|fn)\\b"
     },
     {
       "name": "keyword.other.clause.lowent",

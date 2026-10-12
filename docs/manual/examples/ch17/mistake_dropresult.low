@@ -3,7 +3,7 @@ rem expect: W-RESULT-DISCARD
 
 use stdio .
 
-def enum config_error do
+enum config_error do
   port_zero .
 end .
 

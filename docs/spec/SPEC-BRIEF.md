@@ -33,14 +33,14 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 
 ☞ 새 기능의 시금석: *"이게 이 원칙들의 귀결인가, 새 축인가?"* 새 축이면 뺀다.
 
-## 2. 어휘 — 하드 키워드 **49**  ·  *출처: 정본 §6.1 · 부록 A*
+## 2. 어휘 — 하드 키워드 **48**  ·  *출처: 정본 §6.1 · 부록 A*
 
 ```text
-  actor         break         case          continue      contract      cycle         def           do            drop          else
-  end           enum          expect        export        expr          extern        false         fn            for           guard
-  if            keep          let           lit           match         module        newtype       next          none          proc
-  range         repeat        return        satisfies     send          set           spawn         state         step          struct
-  test          trait         true          try           type          unsafe        use           var           while
+  actor         break         case          continue      contract      cycle         do            drop          else          end
+  enum          expect        export        expr          extern        false         fn            for           guard         if
+  keep          let           lit           match         module        newtype       next          none          proc          range
+  repeat        return        satisfies     send          set           spawn         state         step          struct        test
+  trait         true          try           type          unsafe        use           var           while
 ```
 
 ## 3. 빌트인 op **231**  ·  *출처: `impl/src/low_arity.h` · 부록 D*

@@ -20,13 +20,13 @@ use budget from "../../lib/budget.low" .
 
 rem ★ 브랜드 — **저장소 하나에 `newtype` 하나**(`E-BRAND-REUSED`, RFC-0104 §5.11). 시험마다 저장소를
 rem   따로 여니 시험마다 브랜드가 따로다 — `vm_pool.low` 가 여섯을 둔 것과 같은 이유다.
-def newtype g_tree u8 .
-def newtype g_stale u8 .
-def newtype g_self u8 .
-def newtype g_churn u8 .
+newtype g_tree u8 .
+newtype g_stale u8 .
+newtype g_self u8 .
+newtype g_churn u8 .
 
 rem ★ 공개 손잡이 — **word 하나**. 브랜드는 타입 인자로만 든다(§5.4 "brand 0 byte").
-export def struct handle do
+export struct handle do
   input comptime b type .
   w u64 .
 end .

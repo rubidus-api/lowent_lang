@@ -2,12 +2,12 @@ module vm_pipewith .
 rem ★★ RFC-0121 §6.1~§6.3 — pipe 단계의 문맥 `with <식>`. 식은 순회 **전에 한 번** 평가되고, 그 값이 단계 op 의
 rem   **마지막 인자**로 값 복사로 건너간다. 람다·클로저가 아니다: 단계 op 은 이름 있는 op 그대로이고, 바깥 이름을 몰래 읽지 않는다.
 
-def struct band do
+struct band do
   lo u8 .
   hi u8 .
 end .
 
-def enum mode do
+enum mode do
   keep_small .
   keep_big .
 end .

@@ -68,7 +68,7 @@
 ```lowent 예제: 이름 붙은 결과는 0 에서 시작한다
 module ex_named_result .
 
-def struct span do
+struct span do
   lo u64 .
   hi u64 .
   seen bool .

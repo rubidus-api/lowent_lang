@@ -1,7 +1,7 @@
 module structlist .
 rem run: total 7
 
-def struct pt do
+struct pt do
   x u32 .
   y u64 .
 end .

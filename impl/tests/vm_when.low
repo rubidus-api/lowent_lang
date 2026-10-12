@@ -2,7 +2,7 @@ rem RFC-0008 — `errors … when <조건>` 은 **한 번도 평가되지 않았
 rem 오류 이름만 검사됐다. 조건을 본문과 정반대로 적어도 통과했다 — 순수 장식이었다.
 rem 이제 오류를 낼 때 **그 자리에서** 조건이 참인지 검사한다(ensures 와 같은 규칙).
 module t .
-def enum e do
+enum e do
   small .
 end .
 

@@ -3,7 +3,7 @@ rem the next turn. Each op below is refused, on the line of its loop head, with 
 rem (Until 2026-10-10 all of them passed: `break` and `continue` were read as "this path ends here".)
 module own_leave_path .
 
-def struct h do
+struct h do
   fd u64 .
 end .
 

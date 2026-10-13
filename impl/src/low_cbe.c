@@ -2987,7 +2987,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     int stride = (int)ir->structs[sx].total;
                     fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n", out);
                     if (!(in->a & IR_POL_PROVEN))
-                        fputs("      if (LW_UNLIKELY(i_ < 0 || (size_t)i_ >= s_.n))"
+                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
                               " lw_panic(\"slice index out of bounds\");\n", out);
                     fprintf(out, "      ss[ssp-1].p = s_.p + (size_t)i_ * %d; ss[ssp-1].n = %d; }\n",
                             stride, stride);
@@ -3004,7 +3004,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
                 if (cq >= 0) fprintf(out, "      if (LW_UNLIKELY(!lw_cv%d)) {\n", cq);
                 if (!(in->a & IR_POL_PROVEN))
-                    fputs("      if (LW_UNLIKELY(i_ < 0 || (size_t)i_ >= s_.n))"
+                    fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
                           " lw_panic(\"slice index out of bounds\");\n", out);
                 if (esz == 1) fputs(esgn ? "      st[sp++] = (long long)(signed char)s_.p[i_];\n"
                                          : "      st[sp++] = (long long)s_.p[i_];\n", out);
@@ -3141,7 +3141,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 fprintf(out, "    { long long m_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
                              "      for (int k_ = 0; k_ < %d; k_++) {\n"
                              "        if (!((m_ >> k_) & 1)) continue;\n"
-                             "        if (LW_UNLIKELY(i_ < 0 || (size_t)i_ + (size_t)k_ >= s_.n))"
+                             "        if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + (unsigned long long)k_ >= s_.n))"
                              " lw_panic(\"load_masked active lane out of bounds\");\n"
                              "        vs[vsp-1].%s[k_] = lw_ld_le(s_.p + ((size_t)i_ + (size_t)k_) * %d, %d); } }\n",
                         ln, m, ez, ez);
@@ -3158,7 +3158,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                              " long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
                              "      for (int k_ = 0; k_ < %d; k_++) {\n"
                              "        if (!((m_ >> k_) & 1)) continue;\n"
-                             "        if (LW_UNLIKELY(i_ < 0 || (size_t)i_ + (size_t)k_ >= s_.n))"
+                             "        if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + (unsigned long long)k_ >= s_.n))"
                              " lw_panic(\"store_masked active lane out of bounds\");\n"
                              "        lw_st_le((unsigned char *)s_.p + ((size_t)i_ + (size_t)k_) * %d, %d,"
                              " (unsigned long long)v_.%s[k_]); }\n"
@@ -3189,7 +3189,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 int esz = (int)ks.ve[ks.n-3]; if (esz <= 0) esz = 1;
                 fputs("    { long long v_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
                 if (!(in->a & IR_POL_PROVEN))
-                    fputs("      if (LW_UNLIKELY(i_ < 0 || (size_t)i_ >= s_.n))"
+                    fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
                           " lw_panic(\"slice index out of bounds\");\n", out);
                 // ★★★ **쓰기도 읽기와 같은 근거로 증명된다** (2026-07-30).
                 //   IR 은 `index` 와 `index.store` 를 **같은 관계 사실**로 증명한다(RFC-0055 D5 ·
@@ -3252,7 +3252,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 구간 분석이 두 색인을 `i < len(s)` 로 증명했으면(IR_POL_PROVEN) 검사를 내지 않는다 — `index` 와 같다.
                 fputs("    { long long j_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
                 if (!(in->a & IR_POL_PROVEN))
-                    fputs("      if (LW_UNLIKELY(i_ < 0 || j_ < 0 || (size_t)i_ >= s_.n || (size_t)j_ >= s_.n))"
+                    fputs("      if (LW_UNLIKELY(i_ < 0 || j_ < 0 || (unsigned long long)i_ >= s_.n || (unsigned long long)j_ >= s_.n))"
                           " lw_panic(\"swap index out of bounds\");\n", out);
                 fprintf(out, "      unsigned char *a_ = (unsigned char *)s_.p + (size_t)i_ * %du;\n"
                              "      unsigned char *b_ = (unsigned char *)s_.p + (size_t)j_ * %du;\n"
@@ -3270,7 +3270,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   ★★ 원소 폭을 곱한다(`.n` 은 원소 수, 포인터는 바이트) — 색인과 같은 규약.
                 int sez = (int)ks.ve[ks.n-3]; if (sez <= 0) sez = 1;
                 fputs("    { long long hi_ = st[--sp], lo_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n"
-                      "      if (LW_UNLIKELY(lo_ < 0 || hi_ < lo_ || (size_t)hi_ > s_.n))"
+                      "      if (LW_UNLIKELY(lo_ < 0 || hi_ < lo_ || (unsigned long long)hi_ > s_.n))"
                       " lw_panic(\"subslice out of bounds\");\n", out);
                 if (sez == 1)
                     fputs("      ss[ssp-1].p = s_.p + lo_; ss[ssp-1].n = (size_t)(hi_ - lo_); }\n", out);
@@ -3301,7 +3301,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_ALOAD: {
                 int e = (int)ks.ve[ks.n-2]; if (e <= 0) e = 8;
                 int mo = (int)(in->a & 7);
-                fprintf(out, "    { long long i_=st[--sp]; lw_sl s_=ss[--ssp];"
+                fprintf(out, "    { long long i_=st[--sp]; lw_sl s_=ss[--ssp]; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
                              " st[sp++]=lw_at_rmw((unsigned char*)s_.p,i_,%d,0,0,%d); }\n", e, mo);
                 ks.n--; ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             }
@@ -3311,14 +3311,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         :in->w==IRW_AOR?5:in->w==IRW_AXOR?6:7;
                 int e = (int)ks.ve[ks.n-3]; if (e <= 0) e = 8;
                 int mo = (int)(in->a & 7);
-                fprintf(out, "    { long long v_=st[--sp], i_=st[--sp]; lw_sl s_=ss[--ssp];"
+                fprintf(out, "    { long long v_=st[--sp], i_=st[--sp]; lw_sl s_=ss[--ssp]; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
                              " st[sp++]=lw_at_rmw((unsigned char*)s_.p,i_,%d,%d,v_,%d); }\n", e, op2, mo);
                 ks.n -= 2; ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             }
             case IRW_ACAS: {
                 int e = (int)ks.ve[ks.n-4]; if (e <= 0) e = 8;
                 int mo = (int)(in->a & 7);
-                fprintf(out, "    { long long d_=st[--sp], x_=st[--sp], i_=st[--sp]; lw_sl s_=ss[--ssp];"
+                fprintf(out, "    { long long d_=st[--sp], x_=st[--sp], i_=st[--sp]; lw_sl s_=ss[--ssp]; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
                              " st[sp++]=lw_at_cas((unsigned char*)s_.p,i_,%d,x_,d_,%d); }\n", e, mo);
                 ks.n -= 3; ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             }
@@ -3432,7 +3432,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 char vchk[128];
                 if (vproven) vchk[0] = 0;
                 else snprintf(vchk, sizeof vchk,
-                              "      if (LW_UNLIKELY(i_ < 0 || (size_t)i_ + %d > limit_))"
+                              "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + %d > limit_))"
                               " lw_panic(\"vector load out of bounds\");\n", ln);
                 g_vspush++; fputs("@@VSG@@", out);
                 fprintf(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
@@ -3491,7 +3491,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 char schk[128];
                 if (sproven) schk[0] = 0;
                 else snprintf(schk, sizeof schk,
-                              "      if (LW_UNLIKELY(i_ < 0 || (size_t)i_ + %d > limit_))"
+                              "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + %d > limit_))"
                               " lw_panic(\"vector store out of bounds\");\n", ln);
                 fprintf(out, "    { lw_v v_ = vs[--vsp]; long long i_ = st[--sp];"
                              " lw_sl s_ = ss[--ssp];\n"
@@ -4042,7 +4042,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             // ★★★★ WO-0222 — 뿌리에서 깎는다. 태그 경로와 **같은 함수**(`lw_root_take`)·같은 규칙(음수 → none, 못 얻으면 none).
             //   박스 풀을 안 쓰므로 박스 가드도 없다.
             case IRW_ALLOCB:
-                fprintf(out, "    { long long n_ = st[--sp]; unsigned char *b_ = (n_ < 0) ? 0 : lw_root_take(%d, (size_t)n_);\n"
+                fprintf(out, "    { long long n_ = st[--sp]; unsigned char *b_ = (n_ < 0 || LW_NOFIT(n_)) ? 0 : lw_root_take(%d, (size_t)n_);\n"
                              "      if (!b_) { ws[wsp].v = 0; ws[wsp].tag = 2; }\n"
                              "      else { ws[wsp].s.p = b_; ws[wsp].s.n = (size_t)n_; ws[wsp].v = 0; ws[wsp].tag = 1; } wsp++; }\n",
                         (int)in->a);
@@ -6261,7 +6261,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_SUBSLICE: fputs("    st[sp-3] = lw_subslice(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n", out); break;
                 // ★★★ **level-3 atomic** (RFC-0018) — place = 슬라이스 + 인덱스. esz 는 런타임 box.
                 case IRW_ALOAD:
-                    fprintf(out, "    { lowv s_=st[sp-2]; long long i_=st[sp-1].i; int e_=s_.box?s_.box:8;"
+                    fprintf(out, "    { lowv s_=st[sp-2]; long long i_=st[sp-1].i; int e_=s_.box?s_.box:8; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
                           " st[sp-2]=lw_int(lw_at_rmw((unsigned char*)s_.p,i_,e_,0,0,%d)); sp--; }\n", (int)(in->a & 7));
                     break;
                 case IRW_ASTORE: case IRW_AADD: case IRW_ASUB: case IRW_AAND:
@@ -6269,13 +6269,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     int op2 = in->w==IRW_ASTORE?1:in->w==IRW_AADD?2:in->w==IRW_ASUB?3:in->w==IRW_AAND?4
                             :in->w==IRW_AOR?5:in->w==IRW_AXOR?6:7;
                     fprintf(out, "    { lowv s_=st[sp-3]; long long i_=st[sp-2].i, v_=st[sp-1].i;"
-                                 " int e_=s_.box?s_.box:8;"
+                                 " int e_=s_.box?s_.box:8; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
                                  " st[sp-3]=lw_int(lw_at_rmw((unsigned char*)s_.p,i_,e_,%d,v_,%d)); sp-=2; }\n", op2, (int)(in->a & 7));
                     break;
                 }
                 case IRW_ACAS:
                     fprintf(out, "    { lowv s_=st[sp-4]; long long i_=st[sp-3].i, x_=st[sp-2].i, d_=st[sp-1].i;"
-                          " int e_=s_.box?s_.box:8;"
+                          " int e_=s_.box?s_.box:8; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
                           " st[sp-4]=lw_int(lw_at_cas((unsigned char*)s_.p,i_,e_,x_,d_,%d)); sp-=3; }\n", (int)(in->a & 7));
                     break;
                 case IRW_TIMENOW:
@@ -6356,7 +6356,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     //   특례 117.5 ms = **+25.2%**, 문턱 5% 를 넘는다. 그리고 순수 힌트라
                     //   **결과를 안 바꾼다** — VM 은 이 op 을 무시하고, 답은 여전히 같다.
                     fputs("    { long long i_=st[--sp].i; lowv s_=st[--sp];\n"
-                          "      if (s_.p && (size_t)i_ < s_.n) __builtin_prefetch(s_.p + i_, 0, 1);\n"
+                          "      if (s_.p && (unsigned long long)i_ < s_.n) __builtin_prefetch(s_.p + i_, 0, 1);\n"
                           "      st[sp++] = lw_int(0); }\n", out); break;
                 case IRW_AFENCE:
                     // ★ 규약대로 자리 하나를 민다(위 빠른 경로의 주석 참조).
@@ -6387,7 +6387,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 //   ★ 박스 풀 가드도 VM 과 같은 자리에서 먼저 본다(전엔 가드 없이 `lw_boxes[lw_nbox]` 에 썼다).
                 case IRW_ALLOCB:
                     fprintf(out, "    { lowv nv = st[--sp]; unsigned char *b_;\n"
-                          "      if (nv.i < 0) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
+                          "      if (nv.i < 0 || LW_NOFIT(nv.i)) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
                           "      else if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\");\n"
                           "      else if (!(b_ = lw_root_take(%d, (size_t)nv.i))) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
                           "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = b_, .n = (size_t)nv.i };\n"

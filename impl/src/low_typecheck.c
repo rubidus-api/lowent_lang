@@ -900,6 +900,18 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             //     죽는다. 안 갈린 것은 **안 싣는다** — 여기 잘못 적으면 **멀쩡한 프로그램을
             //     거절**하고, 그것은 안 잡는 것보다 나쁘다.
             //   ★ 문맥이 결과를 정하는 낱말(`index`·`subslice`·`view_array`)은 위에서 따로 본다.
+            // ★★ RFC-0149 L4 뒤(2026-10-14) — **`alloc_bytes <뿌리> capacity <n>` 의 `n` 은 `usize` 다.** 위의 `capacity` 갈래는 그 낱말이 폼의 머리일
+            //   때만 서는데, 이 꼴에서는 `capacity` 가 `alloc_bytes` 의 인자 사이에 선 표지다 — 그래서 흔한 철자에서 규칙이 한 번도 서지 않았다
+            //   (릴리스 노트의 표를 처리기에 넣어 보다 찾았다). 표지 바로 뒤의 인자를 본다.
+            if (veq(h2, "alloc_bytes"))
+                for (proven_size_t q = 1; q + 1 < n; q++)
+                    if (k[start + q]->kind == LOW_CST_ATOM && veq(k[start + q]->tok.lex, "capacity")) {
+                        ty_t at = tc_infer(c, k[start + q + 1], env, nenv);
+                        if (at.k == TK_INT && !at.lit && at.bits && at.nominal != 1)
+                            tc_emit(c, "E-TYPE-NOMINAL", "a capacity is a `usize` — this one has a fixed-width integer type. Declare it `usize`, or write "
+                                    "`cast usize <value> .`", k[start]->tok.line);
+                        break;
+                    }
             {
                 static const struct { const char *w; unsigned char kind; } LEAF[] = {
                     // ── option 을 낸다 (실패할 수 있다는 사실을 타입이 든다)

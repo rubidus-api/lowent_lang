@@ -1093,7 +1093,7 @@ static void print_usage(const char *argv0) {
         "    --lock FILE          의존을 **내용 해시**로 고정한다. 바이트가 바뀌면 거절 (RFC-0032)\n"
         "    --lock-write         지금 무엇을 상대로 빌드하는지 락파일로 찍는다 (매니페스트 옆 pkg.lock 에도)\n"
         "    --pkg FILE           pkg.low 매니페스트 위치를 명시한다 (기본: 첫 파일 dir 에서 위로 찾는다)\n"
-        "    --target T           x86_64 | arm64 | cortex_m | riscv64 | mips_be  (machine.* 를 결정, RFC-0054)\n"
+        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | win64 | cheriot | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
@@ -1523,6 +1523,12 @@ int main(int argc, char **argv) {
         }
     }
     const char *path = npaths ? paths[0] : NULL;
+    // ★★ RFC-0149 §6.14 — 번역까지만 재는 대상(`word16`)은 내지도 돌리지도 않는다. 잰 적 없는 폭의 C 나 답을 내는 것보다 거절이 낫다.
+    if (low_ir_target()->check_only && (want_emitc || run_op || run_batch || want_test || want_ir || want_emitproof || want_emitevents)) {
+        fprintf(stderr, "E-CLI-TARGET: `%s` is a check-only target — `--check` translates and checks a text at that address width, "
+                        "but nothing is emitted or run for it (no machine of that width has been measured).\n", low_ir_target()->name);
+        return 2;
+    }
     if (!path) {
         fprintf(stderr, "lowentc %s — the Lowent compiler (VM + C back end) — on %s\n",
                 LOW_VERSION, PROVEN_VERSION_STRING);

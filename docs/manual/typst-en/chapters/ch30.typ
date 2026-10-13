@@ -257,7 +257,7 @@ What is carried is not only an instruction that replaces a computation. What `ss
   #demo("examples/ch30/mistake_asmtarget.low")
 
   GCC and LLVM say `aarch64`, but this processor's target name is `arm64`. The names are a closed list (`x86_64`·`arm64`·`cortex_m`·
-  `riscv64`·`mips_be`), and a name outside it matches no build, so the op would never be built. Instead of skipping it silently, the tool
+  `riscv64`·`mips_be`·`win64`·`cheriot`·`word16`), and a name outside it matches no build, so the op would never be built. Instead of skipping it silently, the tool
   stops with `E-ASM-TARGET-UNKNOWN`.
 ]
 

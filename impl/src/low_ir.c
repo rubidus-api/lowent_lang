@@ -274,6 +274,10 @@ static const low_target_t IR_TARGETS[] = {
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
     //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
     { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0 },
+    // ★★ RFC-0149 §6.14 — **16 비트 주소: 번역까지만** (2026-10-13, 소유자 결정 «가»). 실제 기계의 이름이 아니다 — `usize` · `idiff` 가
+    //   16 비트일 때 같은 글이 서는지를 재는 자리다(`scripts/check-size-width.py`). 힙 · 부동 · POSIX 가 없는 프리스탠딩 칸이고,
+    //   슬라이스 길이의 상한은 2^15 다(두 위치의 차가 `idiff` 에 든다). 마지막 칸(check_only)이 참이라 방출 · 실행은 거절된다.
+    { "word16",   false, 16, 2, 2, false, false, true,  true,  0,  false, (proven_i64)1 << 15, 2, 0, true },
 };
  const low_target_t *ir_tgt = &IR_TARGETS[0];
  bool g_smt_on = true;

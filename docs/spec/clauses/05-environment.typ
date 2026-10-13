@@ -221,6 +221,7 @@ end .", "E-ENTRY-OUTPUT")
       [`cortex_m`], [32], [리틀 엔디언], [#strong[힙(heap) 없음 · 부동소수점 수 없음]; — 홀로 도는 기계],
       [`win64`], [64], [리틀 엔디언], [건너가기만 한다(⟦§5.6⟧ (4))],
       [`cheriot`], [32], [리틀 엔디언], [#strong[포인터가 능력이다];(8 바이트, ⟦§5.3⟧ (4a)) · 힙 없음 · 부동소수점 수 없음 · 건너가기만 한다(⟦§5.6⟧ (6))],
+      [`word16`], [16], [리틀 엔디언], [힙 없음 · 부동소수점 수 없음 · #strong[번역까지만 선다];(⟦§5.6⟧ (7))],
       )
     ]
     #para("3")[
@@ -234,8 +235,8 @@ end .", "E-ENTRY-OUTPUT")
     #tbl("기계가 갖지 못한 것 — 그 자리에서 거절된다")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*무엇이 없나*], [*어느 기계*], [*쓰면*],
-      [자라는 뿌리(힙)], [`cortex_m` · `cheriot`], [`heap` 효과 · `cap heap` · `region <이름> heap` 이 거절된다(`E-HEAP-NOHOST`). 고정 창에서 깎는 `alloc` 은 쓸 수 있다(⟦§8.1⟧)],
-      [부동소수점 수(floating-point number)], [`cortex_m` · `cheriot`], [`f32`·`f64` 가 거절된다(`E-FLOAT-NOFLOAT`)],
+      [자라는 뿌리(힙)], [`cortex_m` · `cheriot` · `word16`], [`heap` 효과 · `cap heap` · `region <이름> heap` 이 거절된다(`E-HEAP-NOHOST`). 고정 창에서 깎는 `alloc` 은 쓸 수 있다(⟦§8.1⟧)],
+      [부동소수점 수(floating-point number)], [`cortex_m` · `cheriot` · `word16`], [`f32`·`f64` 가 거절된다(`E-FLOAT-NOFLOAT`)],
       )
     ]
     #para("5")[
@@ -284,6 +285,11 @@ end .", "E-ENTRY-OUTPUT")
       `cheriot` 도 #strong[건너가는 데까지만]; 뜻이 있다 — 그 기계를 위한 씨 소스를 내고 그것이 지어지는 것까지다. 이 기계의
       포인터는 능력이며(#cref("5.3") (4a)), `machine.ptr_caps` 가 참이다. 레지스터 묶음의 포인터는 실행 환경이 주는 장치 메모리의
       능력에서 파생된다(#cref("7.6.1") (3)).
+    ]
+    #para("7")[
+      `word16` 은 #strong[번역하는 데까지만]; 뜻이 있다. 실제 기계의 이름이 아니라 `usize` · `idiff` 의 폭이 16 비트인 구현(#cref("6.2") (3-1))에서
+      같은 글이 서는지를 재는 자리다. 처리기는 이 대상으로 글을 번역하고 검사하되, 씨 소스를 내지도 그 글을 돌리지도 아니한다 —
+      그 폭에서 낸 것이 옳은지 잰 적이 없기 때문이다. 슬라이스 길이의 상한은 2¹⁵ 이다.
     ]
   ]
   #sub("5.7", "이 단위가 무엇인지 밝히는 자리 — `package`")[

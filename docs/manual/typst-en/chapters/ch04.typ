@@ -215,7 +215,7 @@ the target machine, which `--target` selects.
   id: "numbers-usize-width",
   caption: [The range of `usize` and `idiff` by width],
   [*Width*], [*Largest `usize`*], [*Range of `idiff`*], [*Such a machine*],
-  [16], [65 535], [−32 768 … 32 767], [a small microcontroller],
+  [16], [65 535], [−32 768 … 32 767], [a small microcontroller --- `word16` (translation only)],
   [32], [4 294 967 295], [−2 147 483 648 … 2 147 483 647], [a 32-bit board such as `cortex_m`],
   [64], [2#super[64]−1], [−2#super[63] … 2#super[63]−1], [`x86_64` · `arm64` · `riscv64`],
 )

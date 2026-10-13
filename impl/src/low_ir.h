@@ -889,7 +889,7 @@ typedef struct {
 // 빌드 타깃을 바꾸면 접히는 가지가 달라진다 — 그러나 **두 가지 모두 타입 검사**를 받는다.
 // (그것이 #ifdef 와의 결정적 차이다: 검사되지 않는 코드는 썩는다 — PRINCIPLES.md §0.)
 typedef struct {
-    const char *name;      // x86_64 · arm64 · cortex_m · riscv64
+    const char *name;      // x86_64 · arm64 · cortex_m · riscv64 · … · word16(번역까지만)
     bool        big_endian;
     // ★★ RFC-0137 D2 — **주소와 포인터를 가른다** (2026-10-04, 소유자 «추천대로»). 전엔 `ptr_width` 한 칸이 주소 폭이자 포인터 크기였다.
     //   능력 포인터 기계(CHERI · CHERIoT)는 포인터가 주소의 두 배이고 정수에서 만들 수 없다 — 그날 이 표 한 줄로 들어오게 칸을 넷으로 둔다.
@@ -930,6 +930,9 @@ typedef struct {
     //     페이지가 없다"* 는 정직한 답이고, `cache_line` 은 **정렬 하한**(워드)으로 둔다.
     proven_u32  cache_line;
     proven_u32  page_size;
+    // ★★ RFC-0149 §6.14 — **번역까지만 재는 대상** (2026-10-13, 소유자 결정 «가»). 이 칸이 참인 대상은 `--check` 까지만 선다:
+    //   C 를 내지도, VM 으로 돌리지도 않는다(`E-CLI-TARGET`). 방출과 실행이 그 폭에서 옳은지 잰 적이 없으므로 내지 않는 것이다.
+    bool        check_only;
 } low_target_t;
 bool low_ir_set_target(const char *name);      // 기본: x86_64 (호스트) · 표에 없는 이름이면 false(정본 §5.6 (3))
 proven_size_t low_ir_target_count(void);

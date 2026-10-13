@@ -11,7 +11,7 @@ export proc both input h slice u8 . input blk slice u8 . input w mut slice u64 .
   guard ge len z. . 16 . else return 0 . .
   var i usize 0 .
   while lt i. 16 . do  set idx z. i. . 0 .  set i. add i. 1 . .  end .
-  let g u64 call_builtin ghash h. z. blk. . .
+  let g usize call_builtin ghash h. z. blk. . .
   rem 조각으로 읽어 crypto_hw 로 같은 곱을 한다
   var j usize 0 .
   var xh u64 0 .  var xl u64 0 .  var hh u64 0 .  var hl u64 0 .

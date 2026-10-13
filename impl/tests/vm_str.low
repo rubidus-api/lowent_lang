@@ -19,13 +19,13 @@ fn t_eq output u64 . do
   return 1 .
 end .
 
-fn t_find output u64 . do
+fn t_find output usize . do
   let r option usize strings.find "hello world" "world" 0 . .
   guard is_some r. . else return 99 . .
   return some_value r. . .                       rem 6
 end .
 
-fn t_find_from output u64 . do
+fn t_find_from output usize . do
   rem from 이 커서다 — 두 번째 "ab" 는 4 에서 찾아야 나온다.
   let r option usize strings.find "ab--ab" "ab" 1 . .
   guard is_some r. . else return 99 . .

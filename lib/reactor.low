@@ -12,11 +12,11 @@ export proc new input k cap io . input backing mut slice u8 . input n u64 . outp
 end .
 
 rem 통로 `d` 에서 `dst` 로 읽는다. 읽은 바이트 수(지금 없으면 0), 못 읽으면 `none`.
-export proc read input k cap io . input r u64 . input d u64 . input dst mut slice u8 . output option u64 . effects io . do
+export proc read input k cap io . input r u64 . input d u64 . input dst mut slice u8 . output option usize . effects io . do
   return call_builtin r_read k. r. d. dst. . .
 end .
 
 rem 통로 `d` 에 `b` 를 쓴다. 쓴 바이트 수, 못 쓰면 `none`.
-export proc write input k cap io . input r u64 . input d u64 . input b slice u8 . output option u64 . effects io . do
+export proc write input k cap io . input r u64 . input d u64 . input b slice u8 . output option usize . effects io . do
   return call_builtin r_write k. r. d. b. . .
 end .

@@ -197,7 +197,7 @@ do
   var v u64 field p. freehead . .
   var k usize 0 .
   while lt k. 8 . do
-    set idx mem. add off. k. . . mod v. 256 . .
+    set idx mem. add off. k. . . cast u8 mod v. 256 . . .
     set v. div v. 256 . .
     set k. add k. 1 . .
   end .
@@ -217,7 +217,7 @@ do
   guard eq idx g. field h. blk . . field h. gen . . else return none . .
   let off u64 mul field h. blk . field p. bsize . . .
   rem ★ 뷰의 길이는 **풀이** 안다 — 핸들의 `len` 은 호출자가 지어 낼 수 있는 값이다.
-  return some subslice mem. off. add off. field p. bsize . . . . .
+  return some subslice mem. cast usize off. . add off. field p. bsize . . . . .
 end .
 
 rem 살아 있는 핸들인가 — 묻기만 한다(바이트를 안 꺼낸다).

@@ -842,7 +842,7 @@ inside() = 16
   <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">8</span> _ . .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">8</span> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> idx buf. i. . mul i. i. . .
+    <strong><span class="tok-k">set</span></strong> idx buf. i. . cast <strong><span class="tok-t">u64</span></strong> mul i. i. . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">guard</span></strong> lt n. <span class="tok-n">8</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
@@ -946,19 +946,19 @@ shift(9) = 112345903
 <em><span class="tok-c">rem run: grid 5</span></em>
 
 <em><span class="tok-c">rem a list of rows --- `index g 1` is a view of that row (no copy)</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> grid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> grid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> g <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> (<strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">4</span>) <span class="tok-n">3</span> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">4</span> <span class="tok-n">1</span> <span class="tok-n">2</span> <span class="tok-n">3</span> <span class="tok-n">4</span> . _ . .
   <strong><span class="tok-k">let</span></strong> row <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> idx g. <span class="tok-n">1</span> . .
   <strong><span class="tok-k">set</span></strong> idx row. <span class="tok-n">2</span> . a. .
   <strong><span class="tok-k">set</span></strong> idx idx g. <span class="tok-n">2</span> . <span class="tok-n">3</span> . <span class="tok-n">9</span> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> r g. <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">for</span></strong> x r. <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> s. add s. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> x. . . . .
+      <strong><span class="tok-k">set</span></strong> s. add s. widen <strong><span class="tok-t">u64</span></strong> x. . . .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> add mul s. <span class="tok-n">100</span> . add len g. . mul len idx g. <span class="tok-n">0</span> . . <span class="tok-n">10</span> . . . .
+  <strong><span class="tok-k">return</span></strong> add mul s. <span class="tok-n">100</span> . add cast <strong><span class="tok-t">u64</span></strong> len g. . . mul cast <strong><span class="tok-t">u64</span></strong> len idx g. <span class="tok-n">0</span> . . . <span class="tok-n">10</span> . . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run grid rows.low 5
 grid(5) = 2443

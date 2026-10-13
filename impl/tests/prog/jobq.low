@@ -59,7 +59,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ④ 생산: 작업 id 다섯을 민다 ──────────────────────────────────────
   var i usize 0 .
   while lt i. 5 . do
-    set idx buf. i. . add 100 i. . .
+    set idx buf. i. . cast u64 add 100 i. . . .
     set qn. add qn. 1 . .
     set i. add i. 1 . .
   end .

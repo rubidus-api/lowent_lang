@@ -38,7 +38,7 @@ proc rle_encode input src slice u8 . input dst mut slice u8 . output usize . eff
   while lt i. len src. . . do
     let n usize run_len i. src. . .
     if lt add o. 1 . len dst. . . do
-      set idx dst. o. . n. .
+      set idx dst. o. . cast u8 n. . .
       set idx dst. add o. 1 . . idx src. i. . .
       set o. expr o. + 2 . .
     end .

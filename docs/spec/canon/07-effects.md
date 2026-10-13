@@ -252,8 +252,8 @@ use stdio .
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 stdio.write out. 1 "hello\n" . .
-  return narrow u8 n. . .
+  let n usize stdio.write out. 1 "hello\n" . .
+  return cast u8 n. . .
 end .
 ```
 
@@ -283,23 +283,23 @@ module ex_cap_chain .
 use stdio .
 
 rem 권한을 인자로 받는다 — 이름은 `k`, 타입은 `cap io` 다.
-proc say input k cap io . input msg slice u8 . output u64 . effects io .
+proc say input k cap io . input msg slice u8 . output usize . effects io .
 do
   return stdio.write k. 1 msg. . .
 end .
 
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
-proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .
+proc say_twice input k cap io . input msg slice u8 . output usize . effects io .
 do
-  let a u64 say k. msg. . .
-  let b u64 say k. msg. . .
+  let a usize say k. msg. . .
+  let b usize say k. msg. . .
   return add a. b. . .
 end .
 
 rem 시작점은 권한을 **바깥에서** 받는다 — 아무도 스스로 만들지 못한다.
 proc main input k cap io . output u8 . effects io .
 do
-  let n u64 say_twice k. "hi\n" . .
+  let n usize say_twice k. "hi\n" . .
   guard eq n. 6 . else return 1 . .
   return 0 .
 end .

@@ -902,17 +902,17 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
 <strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
 
 <em><span class="tok-c">rem 영역을 연 쪽이 아니라 받은 쪽이 깎는다 --- 버퍼의 수명은 부르는 쪽의 블록이 정한다</span></em>
-<strong><span class="tok-k">proc</span></strong> filled_sum <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">proc</span></strong> filled_sum <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
   <strong><span class="tok-k">requires</span></strong> le n. <span class="tok-n">100</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes temp. capacity n. . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> b buf. <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> s. add s. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> b. . . . .
+    <strong><span class="tok-k">set</span></strong> s. add s. widen <strong><span class="tok-t">u64</span></strong> b. . . .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> add s. len buf. . . .
+  <strong><span class="tok-k">return</span></strong> add s. cast <strong><span class="tok-t">u64</span></strong> len buf. . . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .

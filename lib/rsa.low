@@ -29,7 +29,7 @@ use bigint from "bigint.low" .
 
 rem ★ MGF1(SHA-256): seed 로부터 `n` 바이트 마스크를 만든다(RFC 8017 부록 B.2.1).
 rem   `w` 는 작업 공간(≥ len(seed) + 4 + 32).
-export proc mgf1 input seed slice u8 . input n usize . input out mut slice u8 . input w mut slice u8 . output result u64 rsa_error . effects none .
+export proc mgf1 input seed slice u8 . input n usize . input out mut slice u8 . input w mut slice u8 . output result usize rsa_error . effects none .
 errors short_workspace . do
   guard ge len out. . n. . else return ok 0 . . .
   let sl usize len seed. . .
@@ -79,7 +79,7 @@ errors short_workspace . do
   guard eq bit_and cast u64 idx em. 0 . . 128 . 0 . else return ok 0 . . .
 
   rem ③ dbMask = MGF1(H, dblen),  DB = maskedDB xor dbMask
-  let _u0 result u64 rsa_error mgf1 subslice em. dblen. add dblen. hlen. . . dblen. subslice w. 0 dblen. . subslice w. emlen. add emlen. 128 . . . .
+  let _u0 result usize rsa_error mgf1 subslice em. dblen. add dblen. hlen. . . dblen. subslice w. 0 dblen. . subslice w. emlen. add emlen. 128 . . . .
   guard is_ok _u0. . else return error short_workspace . . .
   guard eq ok_value _u0. . dblen. . else return ok 0 . . .
   var i usize 0 .

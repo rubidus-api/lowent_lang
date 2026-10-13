@@ -214,8 +214,9 @@ let back u8 narrow u8 wide. . .")
 fn squares input n u64 . output r array u64 3 .
   requires le n. 1000 . .
 do
-  repeat i u64 3 do
-    set idx r. i. . mul add n. i. . add n. i. . . .
+  repeat i usize 3 do
+    let v u64 add n. cast u64 i. . . .
+    set idx r. i. . mul v. v. . .
   end .
   return r. .
 end .
@@ -419,11 +420,11 @@ export fn f output u64 . do
 end .")
     #ex("var 배열을 반복으로 채운다", "module ex_frame_list .
 
-export fn squares input n u64 . output u64 . do
+export fn squares input n usize . output u64 . do
   var buf lit array u64 8 _ . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
-    set idx buf. i. . mul i. i. . .
+    set idx buf. i. . cast u64 mul i. i. . . .
     set i. add i. 1 . .
   end .
   guard lt n. 8 . else return 0 . .
@@ -431,7 +432,7 @@ export fn squares input n u64 . output u64 . do
 end .")
     #ex("칸을 골라 채운다", "module ex_cell_fill .
 
-export fn pick input a u64 . input i u64 . output u64 . do
+export fn pick input a u64 . input i usize . output u64 . do
   let t lit array u64 6 do 0 100 . 5 mul a. 2 . . _ 1 . end . .
   guard lt i. 6 . else return 0 . .
   return idx t. i. . .
@@ -549,20 +550,20 @@ end .", "E-LIT-COUNT")
 
 fn table output t matrix u32 2 3 4 .
 do
-  repeat r u64 dim t. 0 . do
-    repeat c u64 dim t. 1 . do
-      set idx t. r. c. . narrow u32 add mul r. 10 . c. . . .
+  repeat r usize dim t. 0 . do
+    repeat c usize dim t. 1 . do
+      set idx t. r. c. . cast u32 add mul r. 10 . c. . . .
     end .
   end .
   return t. .
 end .
 
-export fn row_sum input r u64 . output u64 .
+export fn row_sum input r usize . output u64 .
   requires lt r. 3 . .
 do
   let t matrix u32 2 3 4 table . .
   var s u64 0 .
-  repeat c u64 dim t. 1 . do
+  repeat c usize dim t. 1 . do
     set s. add s. widen u64 idx t. r. c. . . . .
   end .
   return s. .
@@ -574,10 +575,10 @@ struct board do
   g matrix u32 2 3 4 .
 end .
 
-fn sum input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c . output u64 .
+fn sum input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
 do
   var t u64 0 .
-  repeat i u64 dim m. 0 . do
+  repeat i usize dim m. 0 . do
     for x row m. i. . do set t. add t. widen u64 x. . . . end .
   end .
   return t. .
@@ -736,6 +737,11 @@ end .", "E-ENUM-DOT")
       꺼내는 연산은 #strong[부분 연산];이다 — 확인하지 않고 꺼내는 것 자체는 번역이 거부하지
       아니하며, 실행 중에 없는 쪽을 꺼내면 #strong[트랩한다];. 곧 확인은 번역이 대신해 주는 것이
       아니라 저자가 하는 것이다.
+    ]
+    #para("3b")[
+      담긴 값의 타입은 그 타입의 일부다. `option usize` 와 `option u64`, `result u32 e` 와 `result u64 e` 는 서로 다른
+      타입이며, 한쪽을 다른 쪽의 자리에 대면 번역이 거부된다(`E-TYPE-NOMINAL` · `E-TYPE-WIDTH` · `E-TYPE-SIGN`). 꺼낸 값
+      (`some_value` · `ok_value`)의 타입은 담긴 값의 타입이다. `some` · `ok` 가 리터럴을 감쌀 때는 받는 자리의 타입을 따른다.
     ]
     #ex("result 로 실패를 돌려준다", "module ex_result .
 
@@ -1010,7 +1016,7 @@ end .")
     ]
     #ex("집합에 넣고 지운다", "module ex_bitset .
 
-fn members output u64 . do
+fn members output usize . do
   var s bitset 8 bitset_new 8 . .
   bitset_insert s. 3 .
   bitset_insert s. 5 .

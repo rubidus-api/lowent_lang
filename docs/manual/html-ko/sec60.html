@@ -683,19 +683,19 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
 
   <em><span class="tok-c">rem 조립 --- 여기까지 한 바이트도 밖으로 나가지 않았다</span></em>
-  <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_str buf. <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">answer=</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_str buf. <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">answer=</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p1. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">71</span> . .
-  <strong><span class="tok-k">let</span></strong> p2 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_u64 buf. some_value p1. . <span class="tok-n">42</span> . .
+  <strong><span class="tok-k">let</span></strong> p2 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_u64 buf. some_value p1. . <span class="tok-n">42</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p2. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">72</span> . .
-  <strong><span class="tok-k">let</span></strong> p3 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_str buf. some_value p2. . <span class="tok-s">"</span><span class="tok-s"> hex=</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> p3 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_str buf. some_value p2. . <span class="tok-s">"</span><span class="tok-s"> hex=</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p3. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">73</span> . .
-  <strong><span class="tok-k">let</span></strong> p4 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_hex buf. some_value p3. . <span class="tok-n">255</span> . .
+  <strong><span class="tok-k">let</span></strong> p4 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_hex buf. some_value p3. . <span class="tok-n">255</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p4. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">74</span> . .
-  <strong><span class="tok-k">let</span></strong> p5 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_nl buf. some_value p4. . . .
+  <strong><span class="tok-k">let</span></strong> p5 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_nl buf. some_value p4. . . .
   <strong><span class="tok-k">guard</span></strong> is_some p5. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">75</span> . .
 
   <em><span class="tok-c">rem 출력 --- 조립된 앞부분(0 … p5)만 내보낸다</span></em>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. <span class="tok-n">0</span> some_value p5. . . . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. <span class="tok-n">0</span> some_value p5. . . . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .</code></pre><p>출력은 <code>answer=42 hex=ff</code> 와 줄바꿈 하나다. 조각마다 종료 코드를 달리 두면 어디서 모자랐는지 바로 안다. 버퍼 크기를 미리 재는 것도 같은 도구로 된다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> need_for <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> fmt.dec_width n. . .

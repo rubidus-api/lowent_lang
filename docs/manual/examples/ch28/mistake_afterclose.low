@@ -11,7 +11,7 @@ do
   let c result void files.file_error files.close fs. h. . .
   drop c. .
   rem ko: ✘ 닫은 핸들로 또 쓴다 --- `close` 가 소유를 가져갔다 /// en: ✘ writes again with the closed handle --- `close` took ownership
-  let w result u64 files.file_error files.write fs. h. "late\n" . .
+  let w result usize files.file_error files.write fs. h. "late\n" . .
   drop w. .
   return 0 .
 end .

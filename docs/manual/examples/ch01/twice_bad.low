@@ -3,7 +3,7 @@ rem expect: E-EFFECT-CALC
 
 use stdio .
 
-fn shout input out cap io . output u64 .
+fn shout input out cap io . output usize .
 do
   return stdio.write out. 1 "hi\n" . .
 end .

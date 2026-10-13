@@ -2,6 +2,6 @@ module mistake_usizewiden .
 rem expect: E-TYPE-NOMINAL
 
 rem ko: ✘ usize 를 widen 으로 옮긴다 --- 넓어지는지는 기계에 달렸다. cast 로 적는다 /// en: ✘ moving a usize with widen --- whether it widens depends on the machine. Write cast
-fn as_u64 input n usize . output u64 . do
+fn as_u64 input n usize . output usize . do
   return widen u64 n. . .
 end .

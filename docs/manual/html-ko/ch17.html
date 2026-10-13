@@ -765,10 +765,10 @@ port_or_default([120]) = 8080
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> config_error pick_slot <span class="tok-n">8080</span> . .
   <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">bad port</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">bad port</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">slot ok</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">slot ok</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> ok_value r. . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main layers.low
@@ -933,7 +933,7 @@ explain([53]) = 9
 <strong><span class="tok-k">proc</span></strong> check_port <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> port <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u16</span></strong> config_error . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">errors</span></strong> port_zero eq port. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">checking</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">checking</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">guard</span></strong> ne port. <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error port_zero . . .
   <strong><span class="tok-k">return</span></strong> ok port. . .
 <strong><span class="tok-k">end</span></strong> .
@@ -942,7 +942,7 @@ explain([53]) = 9
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 검사의 결과를 문장으로 버렸다 --- 포트가 0 인데 "started" 가 나온다</span></em>
   check_port out. <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">started</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">started</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_dropresult.low

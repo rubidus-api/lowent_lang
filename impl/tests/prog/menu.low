@@ -52,7 +52,7 @@ end .
 rem ── 화면 한 장을 **바이트로** 만든다. 순수하다: 아무 데도 안 쓴다.
 rem   `pos` 에서 시작해 새 pos 를 돌려준다(모자라면 none — 자르지 않는다).
 proc render input buf mut slice u8 . input pos0 usize . input cur usize .
-  output option u64 . effects none .
+  output option usize . effects none .
 do
   let c0 option usize term.clear buf. pos0. . .
   guard is_some c0. . else return none . .
@@ -98,7 +98,7 @@ do
   let ing option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some ing. . else return 70 . .
   let inbuf mut slice u8 some_value ing. . .
-  let rn option u64 call_builtin read_in in_c. 0 inbuf. . .
+  let rn option usize call_builtin read_in in_c. 0 inbuf. . .
   guard is_some rn. . else return 71 . .
   let n usize some_value rn. . .
 
@@ -136,9 +136,9 @@ do
   end .
 
   rem ③ 마지막 화면을 한 번에 낸다(그리는 동안엔 한 바이트도 안 나갔다).
-  let e option u64 render outbuf. 0 cur. . .
+  let e option usize render outbuf. 0 cur. . .
   guard is_some e. . else return 72 . .
-  let w u64 call_builtin write_out in_c. 1 subslice outbuf. 0 some_value e. . . . .
+  let w usize call_builtin write_out in_c. 1 subslice outbuf. 0 some_value e. . . . .
 
   if done. do return cast u8 cur. . . end .
   return 4 .

@@ -35,8 +35,8 @@ do
   return ok 0 . .
 end .
 rem 태스크 B: 즉시 실패한다 → cancel_on_error 가 형제를 취소해야 한다.
-proc failer input k cap io . output result u64 oops . effects io . errors bad . do
-  let w u64 call_builtin write_out k. 1 "FAIL\n" . .
+proc failer input k cap io . output result usize oops . effects io . errors bad . do
+  let w usize call_builtin write_out k. 1 "FAIL\n" . .
   guard eq w. 0 . else return error bad . . .
   return ok w. . .
 end .
@@ -50,7 +50,7 @@ do
     spawn reader k. buf. .
     spawn failer k. .
   end .
-  let w2 u64 call_builtin write_out k. 1 "DONE\n" . .
+  let w2 usize call_builtin write_out k. 1 "DONE\n" . .
   guard eq w2. 5 . else return 71 . .
   return 0 .
 end .

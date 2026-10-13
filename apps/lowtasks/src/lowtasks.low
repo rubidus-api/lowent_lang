@@ -113,8 +113,8 @@ do
     set idx tb. 4 . 2 .
     return false .
   end .
-  set idx noff. t. . add base. ns. . .
-  set idx nlen. t. . sub name_end. ns. . .
+  set idx noff. t. . cast u64 add base. ns. . . .
+  set idx nlen. t. . cast u64 sub name_end. ns. . . .
   rem 의존: '--' 가 나올 때까지 낱말들
   var p usize add colon. 1 . .
   set idx doff. t. . idx tb. 2 . .
@@ -144,9 +144,9 @@ do
       set idx tb. 4 . 3 .
       return false .
     end .
-    set idx depn. di. . add base. sub q. len word. . . . .
-    set idx depl. di. . len word. . .
-    set idx tb. 2 . add di. 1 . .
+    set idx depn. di. . cast u64 add base. sub q. len word. . . . . .
+    set idx depl. di. . cast u64 len word. . . .
+    set idx tb. 2 . cast u64 add di. 1 . . .
     set nd. add nd. 1 . .
   end .
   guard seen_sep. else do
@@ -214,8 +214,8 @@ do
     return false .
   end .
   set idx alen. t. . sub w. idx tb. 1 . . .
-  set idx tb. 1 . w. .
-  set idx tb. 0 . add t. 1 . .
+  set idx tb. 1 . cast u64 w. . .
+  set idx tb. 0 . cast u64 add t. 1 . . .
   return true .
 end .
 
@@ -248,7 +248,7 @@ do
       set idx tb. 4 . 5 .
       return false .
     end .
-    set idx depn. d. . found. .
+    set idx depn. d. . cast u64 found. . .
   end .
   return true .
 end .
@@ -266,7 +266,7 @@ do
   repeat t usize n. do
     set idx indeg. t. . idx dcnt. t. . .
     if eq idx dcnt. t. . 0 . do
-      set idx queue. qt. . t. .
+      set idx queue. qt. . cast u64 t. . .
       set qt. add qt. 1 . .
     end .
   end .
@@ -282,7 +282,7 @@ do
           set idx indeg. t2. . sub idx indeg. t2. . 1 . .
           if eq idx indeg. t2. . 0 . do
             guard lt qt. len queue. . . else return true . .
-            set idx queue. qt. . t2. .
+            set idx queue. qt. . cast u64 t2. . .
             set qt. add qt. 1 . .
           end .
         end .
@@ -351,15 +351,15 @@ proc pull_output input k cap process . input h u64 . input held mut slice u8 . i
   requires lt t. len dropped. . . .
 do
   repeat spin u64 64 do
-    let r option u64 call_builtin proc_read k. h. scratch. . .
+    let r option usize call_builtin proc_read k. h. scratch. . .
     guard is_some r. . else return true . .
-    let n u64 some_value r. . .
+    let n usize some_value r. . .
     guard gt n. 0 . else return false . .
     let have usize cast usize idx kept. t. . . .
     let room u64 sub len held. . min have. len held. . . . .
     let take usize min room. n. . .
     copy subslice held. have. add have. take. . . subslice scratch. 0 take. . .
-    set idx kept. t. . add have. take. . .
+    set idx kept. t. . cast u64 add have. take. . . .
     set idx dropped. t. . add idx dropped. t. . sub n. take. . . .
   end .
   return false .
@@ -393,14 +393,14 @@ rem 표준 입력을 끝까지 읽는다(최대 len buf). 읽은 수, 넘치면 
 proc read_all input out cap io . input buf mut slice u8 . output usize . effects io . do
   var got usize 0 .
   while lt got. len buf. . . do
-    let r option u64 stdio.read out. 0 subslice buf. got. len buf. . . . .
+    let r option usize stdio.read out. 0 subslice buf. got. len buf. . . . .
     guard is_some r. . else break . .
     let n usize some_value r. . .
     guard gt n. 0 . else break . .
     set got. add got. n. . .
   end .
   if eq got. len buf. . . do
-    let probe option u64 stdio.read out. 0 subslice buf. 0 1 . . .
+    let probe option usize stdio.read out. 0 subslice buf. 0 1 . . .
     if and is_some probe. . gt value_or probe. 0 . 0 . . do
       return add len buf. . 1 . .
     end .

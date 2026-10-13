@@ -9,7 +9,7 @@ do
   return 0 .
 end .
 
-fn mistake input u user_id . output u64 .
+fn mistake input u user_id . output usize .
 do
   return load_order u. . .
 end .

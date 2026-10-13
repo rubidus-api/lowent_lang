@@ -41,7 +41,7 @@ rem ★ **줄 하나를 버퍼에 조립한다** — `effects none` 이다. 이 
 rem   **호출자가 준 버퍼**에만 쓴다. 안 들어가면 `none` — 잘린 줄을 내보내지 않는다(전량-아니면-무).
 rem     "hello, <name>! (<n> args, <len> bytes)\n"
 proc compose input buf mut slice u8 . input name slice u8 . input nargs usize .
-  output option u64 . effects none .
+  output option usize . effects none .
 do
   let a option usize fmt.put_str buf. 0 "hello, " . .
   guard is_some a. . else return none . .
@@ -85,10 +85,10 @@ do
   let buf mut slice u8 some_value line. . .
 
   rem ④ 조립한다 — 순수하다. 여기까지 **한 바이트도 밖으로 안 나갔다.**
-  let n option u64 compose buf. pick call_builtin arg a. 0 . . count a. . . .
+  let n option usize compose buf. pick call_builtin arg a. 0 . . count a. . . .
   guard is_some n. . else return 73 . .
 
   rem ⑤ **한 번 쓴다.** greet 은 세 번 썼다 — 조립할 곳이 없어서.
-  let wrote u64 call_builtin write_out out. 1 subslice buf. 0 some_value n. . . . .
-  return narrow u8 wrote. . .
+  let wrote usize call_builtin write_out out. 1 subslice buf. 0 some_value n. . . . .
+  return cast u8 wrote. . .
 end .

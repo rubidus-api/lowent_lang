@@ -3,7 +3,7 @@ rem run: find42 0
 
 use searchlib .
 
-proc find42 input al cap allocator . output u64 . effects alloc .
+proc find42 input al cap allocator . output usize . effects alloc .
 do
   let g option mut slice u8 alloc_bytes al. capacity 40 . .
   guard is_some g. . else return 255 . .

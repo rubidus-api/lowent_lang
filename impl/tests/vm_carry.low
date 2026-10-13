@@ -43,7 +43,7 @@ do
   while le k. m. . do
     let x u64 add idx a. sub k. 1 . . cast u64 k. . . .
     set idx a. k. . x. .
-    set idx a. 0 . k. .
+    set idx a. 0 . cast u64 k. . .
     set k. add k. 1 . .
   end .
   return idx a. m. . .
@@ -127,7 +127,7 @@ do
   var k usize 1 .
   while le k. m. . do
     let x usize add k. 1 . .
-    set idx a. k. . x. .
+    set idx a. k. . cast u64 x. . .
     set acc. add acc. idx a. sub k. 1 . . . .
     set k. add k. 1 . .
   end .

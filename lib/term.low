@@ -175,7 +175,7 @@ end .
 rem 행의 **코드포인트 개수**. 유효하지 않은 UTF-8 이면 none(값으로 답한다).
 export proc row_cells input row_bytes slice u8 . output option usize . effects none . do
   var off usize 0 .
-  var cells u64 0 .
+  var cells usize 0 .
   while lt off. len row_bytes. . . do
     let n option usize t_cp_len row_bytes. off. . .
     guard is_some n. . else return none . .
@@ -341,14 +341,14 @@ end .
 rem ★ 한 행(개행 없는 UTF-8)의 **표시 폭**. 유효하지 않은 UTF-8 이면 none.
 export proc row_width input row_bytes slice u8 . output option usize . effects none . do
   var off usize 0 .
-  var w u64 0 .
+  var w usize 0 .
   while lt off. len row_bytes. . . do
     let c option u64 utf8.decode row_bytes. off. . .
     guard is_some c. . else return none . .
     let n usize utf8.seq_len idx row_bytes. off. . . .
     guard gt n. 0 . else return none . .
     guard le add off. n. . len row_bytes. . . else return none . .
-    set w. add w. cp_width some_value c. . . . .
+    set w. add w. cast usize cp_width some_value c. . . . . .
     set off. add off. n. . .
   end .
   return some w. . .
@@ -410,7 +410,7 @@ end .
 rem ★ 행의 **덩어리 개수** — 사람이 세는 글자 수다(코드포인트 수와 다르다).
 export proc row_clusters input row_bytes slice u8 . output option usize . effects none . do
   var off usize 0 .
-  var cnt u64 0 .
+  var cnt usize 0 .
   while lt off. len row_bytes. . . do
     let n option usize cluster_len row_bytes. off. . .
     guard is_some n. . else return none . .

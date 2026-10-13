@@ -132,7 +132,7 @@ export proc parse_key input buf slice u8 . input at usize . output option u64 . 
     end .
   end .
   rem 완전하지만 모르는 시퀀스 — 통째로 먹었다고 답한다. 호출자는 한 바이트씩 글자로 배달하지 않게 된다.
-  return some add mul 1011 16 . used. . . .
+  return some add mul 1011 16 . cast u64 used. . . . .
 end .
 
 rem 파싱 결과에서 키코드만 / 먹은 길이만 꺼낸다.
@@ -152,7 +152,7 @@ export proc raw input k cap tty . input enable bool . output bool . effects none
 end .
 
 rem 터미널에서 `dst` 로 읽는다. 읽은 바이트 수(지금 없으면 0), 읽지 못하면 `none`.
-export proc read input k cap tty . input dst mut slice u8 . output option u64 . effects none . do
+export proc read input k cap tty . input dst mut slice u8 . output option usize . effects none . do
   return call_builtin tty_read k. dst. . .
 end .
 

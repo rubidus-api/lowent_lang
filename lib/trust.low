@@ -94,11 +94,11 @@ do
   var failed u64 0 .
   var cut u64 0 .
   while eq done. 0 . do
-    let rr result (option u64) files.file_error files.read fs. h. subslice win. held. len win. . . . .
+    let rr result (option usize) files.file_error files.read fs. h. subslice win. held. len win. . . . .
     var got usize 0 .
     var bad u64 0 .
     if is_ok rr. . do
-      let mo option u64 ok_value rr. . .
+      let mo option usize ok_value rr. . .
       if is_some mo. . do  set got. some_value mo. . . end .
     end .
     if eq is_ok rr. . false . do  set bad. 1 . end .

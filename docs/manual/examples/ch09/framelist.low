@@ -9,7 +9,7 @@ do
   var buf lit array u64 8 _ . .
   var i usize 0 .
   while lt i. 8 . do
-    set idx buf. i. . mul i. i. . .
+    set idx buf. i. . cast u64 mul i. i. . . .
     set i. add i. 1 . .
   end .
   guard lt n. 8 . else return 0 . .

@@ -30,8 +30,8 @@ proc write_byte
   effects none .
   errors overflow .
 do
-  guard lt pos. len buf. . . else return error overflow . . .
-  set idx buf. pos. . b. .
+  guard lt cast usize pos. . len buf. . . else return error overflow . . .
+  set idx buf. cast usize pos. . . b. .
   return ok add pos. 1 . . .
 end .
 
@@ -63,10 +63,10 @@ do
   var i u64 lo. .
   var j u64 sub hi. 1 . .
   while lt i. j. . do
-    guard lt j. len buf. . . else return . .
-    let t u8 idx buf. i. . .
-    set idx buf. i. . idx buf. j. . .
-    set idx buf. j. . t. .
+    guard lt cast usize j. . len buf. . . else return . .
+    let t u8 idx buf. cast usize i. . . .
+    set idx buf. cast usize i. . . idx buf. j. . .
+    set idx buf. cast usize j. . . t. .
     set i. add i. 1 . .
     set j. sub j. 1 . .
   end .
@@ -132,7 +132,7 @@ do
   guard is_some g. . else return error overflow . . .
   let buf mut slice u8 some_value g. . .
   let n u64 try format_point buf. p. . . .
-  let w u64 stdio.write sink. 1 subslice buf. 0 n. . . .     rem cap 경유 출력(1 = stdout)
+  let w usize stdio.write sink. 1 subslice buf. 0 cast usize n. . . . .     rem cap 경유 출력(1 = stdout)
   return ok. .
 end .
 ```

@@ -709,29 +709,29 @@ fn twice/1 iface:6630705cb68be394 def:64a7865b02486293
 <strong><span class="tok-k">use</span></strong> stdio .
 <em><span class="tok-c">rem db</span></em>
 
-<strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io alloc .
+<strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> io alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">4</span> . .
   <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --emit-db h3_effects_a.low
-proc greet/2 iface:d864e930303f7437 def:2397c62a5e4fadee
-proc write/3 iface:1d7917bd77c73613 def:dd50e1235aafadba
-proc read/3 iface:98d02a37cf0f1615 def:4791aebc7981110f
+proc greet/2 iface:b9b0f885468beb85 def:11f769b9ece4fa8e
+proc write/3 iface:2313c6cddc01d995 def:b7a9024469a668ca
+proc read/3 iface:1b6cdb892b48843d def:2998effebad2fd6f
 </code></pre></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch49/h3_effects_b.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> hashed .
 
 <strong><span class="tok-k">use</span></strong> stdio .
 <em><span class="tok-c">rem db</span></em>
 
-<strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc io .
+<strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">4</span> . .
   <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --emit-db h3_effects_b.low
-proc greet/2 iface:d864e930303f7437 def:2397c62a5e4fadee
-proc write/3 iface:1d7917bd77c73613 def:dd50e1235aafadba
-proc read/3 iface:98d02a37cf0f1615 def:4791aebc7981110f
+proc greet/2 iface:b9b0f885468beb85 def:11f769b9ece4fa8e
+proc write/3 iface:2313c6cddc01d995 def:b7a9024469a668ca
+proc read/3 iface:1b6cdb892b48843d def:2998effebad2fd6f
 </code></pre></div></div><p><strong>H3 — 효과는 집합이다.</strong> <code>effects io alloc</code> 과 <code>effects alloc io</code> 가 같은 해시를 낸다. 한때는 달랐다. 절의 원문을 해싱했기 때문이다. 그러면 내용 주소화가 뜻이 아니라 <strong>철자</strong>를 주소화한 것이 된다. 효과는 문법이 집합이라고 말하므로 정규화된 차례로 해싱한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch49/h4_contract.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> hashed .
 <em><span class="tok-c">rem db</span></em>
 

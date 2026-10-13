@@ -38,7 +38,7 @@ end .
 
 rem MGF1 은 카운터를 **돌려야** 한다: 32 바이트를 넘게 달라고 하면 뒷부분이 앞과 달라야 한다.
 proc t_mgf_extends input seed slice u8 . input out mut slice u8 . input w mut slice u8 . output u64 . effects none . do
-  let _u4 result u64 rsa.rsa_error rsa.mgf1 seed. 64 out. w. . .
+  let _u4 result usize rsa.rsa_error rsa.mgf1 seed. 64 out. w. . .
   guard is_ok _u4. . else return 0 . .
   guard eq ok_value _u4. . 64 . else return 0 . .
   var diff u64 0 .

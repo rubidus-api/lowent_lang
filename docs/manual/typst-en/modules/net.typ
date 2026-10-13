@@ -33,7 +33,7 @@ end .
   [`take`], [`(cap net, l listener) → option conn`], [`none` --- could not accept],
   [`pair_of`], [`(cap net) → option pair`], [`none`],
   [`send_all`], [`(cap net, fd u64, buf slice u8) → option u64`], [answers *how much was sent*],
-  [`recv_once`], [`(cap net, fd u64, dst mut slice u8) → option u64`], [`some 0 .` = peer closed · `none` = failure],
+  [`recv_once`], [`(cap net, fd u64, dst mut slice u8) → option usize`], [`some 0 .` = peer closed · `none` = failure],
   [`shut` · `shut_listener` · `shut_pair`], [`(cap net, owned X) → result void net_error`], [`error close_failed .`. A pair closes both ends *separately*],
   [`conn_fd` · `pair_a` · `pair_b`], [`→ u64`], [*pure* --- no capability needed],
 )

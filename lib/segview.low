@@ -14,7 +14,7 @@ rem 총길이 — 서술자만 읽는다. 바이트는 안 만진다(그래서 O
 export fn total_len input ss segments u8 . output usize . do
   var i u64 0 .
   var acc usize 0 .
-  while lt i. segs ss. . . do
+  while lt cast usize i. . segs ss. . . do
     set acc. add acc. len seg ss. i. . . . .
     set i. add i. 1 . .
   end .
@@ -31,7 +31,7 @@ end .
 export fn seek input ss segments u8 . input pos usize . output option segview.cursor . do
   var i u64 0 .
   var left usize pos. .
-  while lt i. segs ss. . . do
+  while lt cast usize i. . segs ss. . . do
     let n usize len seg ss. i. . . .
     if lt left. n. . do
       return some lit cursor do piece i. . at left. . end . . .
@@ -58,7 +58,7 @@ export proc coalesce input ss segments u8 . input out mut slice u8 . output opti
   guard le need. len out. . . else return none . .
   var w usize 0 .
   var i u64 0 .
-  while lt i. segs ss. . . do
+  while lt cast usize i. . segs ss. . . do
     let p slice u8 seg ss. i. . .
     var j usize 0 .
     while lt j. len p. . . do

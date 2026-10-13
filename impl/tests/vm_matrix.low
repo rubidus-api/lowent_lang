@@ -52,7 +52,7 @@ do
   repeat i usize dim t. 0 . do
     repeat j usize dim t. 1 . do
       repeat k usize dim t. 2 . do
-        set idx t. i. j. k. . add mul i. 100 . add mul j. 10 . k. . . .
+        set idx t. i. j. k. . cast u64 add mul i. 100 . add mul j. 10 . k. . . . .
       end .
     end .
   end .

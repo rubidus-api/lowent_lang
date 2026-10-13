@@ -16,9 +16,9 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some g. . else return 1 . .
   let buf mut slice u8 some_value g. . .
-  let r result u64 files.file_error files.slurp fs. "notes.txt" buf. . .
+  let r result usize files.file_error files.slurp fs. "notes.txt" buf. . .
   guard not is_error r. . . else do
-    let e u64 stdio.write out. 1 "cannot read notes.txt\n" . .
+    let e usize stdio.write out. 1 "cannot read notes.txt\n" . .
     return 2 .
   end .
   let body slice u8 subslice buf. 0 ok_value r. . . .
@@ -26,6 +26,6 @@ do
     filter is_newline .
     count .
   end . .
-  let w u64 stdio.write out. 1 body. . .
+  let w usize stdio.write out. 1 body. . .
   return narrow u8 n. . .
 end .

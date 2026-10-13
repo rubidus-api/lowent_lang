@@ -34,10 +34,10 @@ do
   let fd1 u64 net.pair_b p. . .
 
   rem fd0 으로 보내고 fd1 에서 받는다(loopback).
-  let sent option u64 net.send_all k. fd0. "hello, socket" . .
+  let sent option usize net.send_all k. fd0. "hello, socket" . .
   guard is_some sent. . else return 3 . .
   guard eq some_value sent. . 13 . else return 5 . .
-  let got option u64 net.recv_once k. fd1. dst. . .
+  let got option usize net.recv_once k. fd1. dst. . .
   guard is_some got. . else return 4 . .
   let n usize some_value got. . .
 
@@ -45,6 +45,6 @@ do
   guard is_ok closed. . else return 6 . .
 
   rem 받은 바이트를 그대로 낸다 — 종료 코드는 받은 길이.
-  let m u64 call_builtin write_out out. 1 subslice dst. 0 n. . . .
+  let m usize call_builtin write_out out. 1 subslice dst. 0 n. . . .
   return cast u8 n. . .
 end .

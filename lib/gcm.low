@@ -53,7 +53,7 @@ export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice 
   var b u64 0 .
   while lt b. 128 . do
     rem h 의 비트 b — **첫 바이트의 최상위 비트가 b=0** 이다.
-    let byte u64 cast u64 idx h. shr b. 3 . . . .
+    let byte u64 cast u64 idx h. cast usize shr b. 3 . . . . .
     let bit u64 bit_and shr byte. sub 7 bit_and b. 7 . . . 1 . .
     if eq bit. 1 . do
       let zz u64 xor16 z. v. . .
@@ -87,7 +87,7 @@ rem   ☞ `gmul128` 은 지우지 않았다 — 이 모듈이 말하는 **뜻의
 proc ghash_feed input z mut slice u8 . input h slice u8 . input data slice u8 . output u64 . effects none . do
   guard ge len z. . 16 . else return 0 . .
   guard ge len h. . 16 . else return 0 . .
-  let g u64 call_builtin ghash subslice h. 0 16 . subslice z. 0 16 . data. . .
+  let g usize call_builtin ghash subslice h. 0 16 . subslice z. 0 16 . data. . .
   return 1 .
 end .
 
@@ -171,7 +171,7 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
     set idx w. add 208 i. . . 0 .
     set i. add i. 1 . .
   end .
-  let h1 u64 call_builtin aes_ctr subslice w. 304 320 . subslice w. 208 224 . subslice w. 176 192 . subslice w. 176 192 . . .
+  let h1 usize call_builtin aes_ctr subslice w. 304 320 . subslice w. 208 224 . subslice w. 176 192 . subslice w. 176 192 . . .
   guard eq h1. 16 . else return 0 . .
 
   rem J0 = nonce ‖ 0x00000001. 카운터를 J0 으로 놓고 한 블록을 흘리면 **둘이 한 번에** 온다:
@@ -188,7 +188,7 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
     set idx w. add 272 c. . . 0 .
     set c. add c. 1 . .
   end .
-  let j1 u64 call_builtin aes_ctr subslice w. 304 320 . subslice w. 240 256 . subslice w. 272 288 . subslice w. 272 288 . . .
+  let j1 usize call_builtin aes_ctr subslice w. 304 320 . subslice w. 240 256 . subslice w. 272 288 . subslice w. 272 288 . . .
   guard eq j1. 16 . else return 0 . .
   return 16 .
 end .

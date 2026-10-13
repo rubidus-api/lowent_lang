@@ -61,9 +61,9 @@ proc rx_emit input prog mut slice u64 . input st mut slice u64 . input op u64 . 
     return .
   end .
   set idx prog. add 2 mul 3 ni. . . . op. .
-  set idx prog. add 3 mul 3 ni. . . . a. .
-  set idx prog. add 4 mul 3 ni. . . . b. .
-  set idx st. 0 . add ni. 1 . .
+  set idx prog. add 3 mul 3 ni. . . . cast u64 a. . .
+  set idx prog. add 4 mul 3 ni. . . . cast u64 b. . .
+  set idx st. 0 . cast u64 add ni. 1 . . .
 end .
 
 rem [method from to] 를 한 명령 위로 민다(그 안을 가리키는 목표는 +1). `? * |` 가 앞에 SPLIT 을 심는 길.
@@ -83,7 +83,7 @@ proc rx_shift input prog mut slice u64 . input st mut slice u64 . input from usi
     set idx prog. add 4 mul 3 i. . . . idx prog. add 4 mul 3 s. . . . .
     set i. s. .
   end .
-  set idx st. 0 . add ni. 1 . .
+  set idx st. 0 . cast u64 add ni. 1 . . .
   rem 옮겨진 [from+method 1 ni] 안의 SPLIT/JMP 목표가 [method from ni-1] 를 가리키면 +1.
   var q usize add from. 1 . .
   while le q. ni. . do
@@ -114,7 +114,7 @@ proc rx_class_new input prog mut slice u64 . input st mut slice u64 . output usi
   set idx prog. add base. 1 . . 0 .
   set idx prog. add base. 2 . . 0 .
   set idx prog. add base. 3 . . 0 .
-  set idx st. 1 . add k. 1 . .
+  set idx st. 1 . cast u64 add k. 1 . . .
   return k. .
 end .
 
@@ -240,13 +240,13 @@ proc rx_atom_utf8 input prog mut slice u64 . input st mut slice u64 . output voi
   let fin u64 idx st. 0 . .
 
   rem 자리 메우기 — SPLIT 의 첫 갈래는 바로 다음, 둘째 갈래는 다음 후보. JMP 는 전부 끝으로.
-  set idx prog. add 3 mul 3 s1. . . . add s1. 1 . .
-  set idx prog. add 4 mul 3 s1. . . . s2. .
+  set idx prog. add 3 mul 3 s1. . . . cast u64 add s1. 1 . . .
+  set idx prog. add 4 mul 3 s1. . . . cast u64 s2. . .
   set idx prog. add 3 mul 3 j1. . . . fin. .
-  set idx prog. add 3 mul 3 s2. . . . add s2. 1 . .
-  set idx prog. add 4 mul 3 s2. . . . s3. .
+  set idx prog. add 3 mul 3 s2. . . . cast u64 add s2. 1 . . .
+  set idx prog. add 4 mul 3 s2. . . . cast u64 s3. . .
   set idx prog. add 3 mul 3 j2. . . . fin. .
-  set idx prog. add 3 mul 3 s3. . . . add s3. 1 . .
+  set idx prog. add 3 mul 3 s3. . . . cast u64 add s3. 1 . . .
   set idx prog. add 4 mul 3 s3. . . . a4. .
   set idx prog. add 3 mul 3 j3. . . . fin. .
 end .
@@ -514,7 +514,7 @@ proc rx_atom input pat slice u8 . input prog mut slice u64 . input st mut slice 
     var capturing u64 0 .
     if lt grp. 8 . do
       set capturing. 1 .
-      set idx st. 4 . add grp. 1 . .
+      set idx st. 4 . cast u64 add grp. 1 . . .
       rx_emit prog. st. 8 mul 2 grp. . 0 .
       guard eq idx st. 3 . 0 . else return . .
     end .
@@ -593,7 +593,7 @@ proc rx_post input pat slice u8 . input prog mut slice u64 . input st mut slice 
     guard eq idx st. 3 . 0 . else return . .
     let cur u64 idx st. 0 . .
     set idx prog. add 2 mul 3 s. . . . 3 .
-    set idx prog. add 3 mul 3 s. . . . add s. 1 . .
+    set idx prog. add 3 mul 3 s. . . . cast u64 add s. 1 . . .
     set idx prog. add 4 mul 3 s. . . . add cur. 1 . .
     rx_emit prog. st. 4 s. 0 .
     return .
@@ -612,7 +612,7 @@ proc rx_post input pat slice u8 . input prog mut slice u64 . input st mut slice 
     guard eq idx st. 3 . 0 . else return . .
     let cur u64 idx st. 0 . .
     set idx prog. add 2 mul 3 s. . . . 3 .
-    set idx prog. add 3 mul 3 s. . . . add s. 1 . .
+    set idx prog. add 3 mul 3 s. . . . cast u64 add s. 1 . . .
     set idx prog. add 4 mul 3 s. . . . cur. .
     return .
   end .
@@ -722,7 +722,7 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . input st mut slic
   rem   본체가 열어 둔 클래스 비트맵은 그대로 둔다(자리만 차지하고 해가 없다).
   if eq cls_open. 0 . do
     if eq hi. 0 . do
-      set idx st. 0 . s. .
+      set idx st. 0 . cast u64 s. . .
       return .
     end .
   end .
@@ -745,7 +745,7 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . input st mut slic
     guard eq idx st. 3 . 0 . else return . .
     let cur u64 idx st. 0 . .
     set idx prog. add 2 mul 3 bs. . . . 3 .
-    set idx prog. add 3 mul 3 bs. . . . add bs. 1 . .
+    set idx prog. add 3 mul 3 bs. . . . cast u64 add bs. 1 . . .
     set idx prog. add 4 mul 3 bs. . . . add cur. 1 . .
     rx_emit prog. st. 4 bs. 0 .
     return .
@@ -759,7 +759,7 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . input st mut slic
     rx_shift prog. st. bs. .
     guard eq idx st. 3 . 0 . else return . .
     set idx prog. add 2 mul 3 bs. . . . 3 .
-    set idx prog. add 3 mul 3 bs. . . . add bs. 1 . .
+    set idx prog. add 3 mul 3 bs. . . . cast u64 add bs. 1 . . .
     set idx prog. add 4 mul 3 bs. . . . 0 .
     set j. add j. 1 . .
   end .
@@ -845,8 +845,8 @@ proc rx_alt input pat slice u8 . input prog mut slice u64 . input st mut slice u
       guard eq idx st. 3 . 0 . else return . .
       let e2 usize cast usize idx st. 0 . . .
       set idx prog. add 2 mul 3 s. . . . 3 .
-      set idx prog. add 3 mul 3 s. . . . add s. 1 . .
-      set idx prog. add 4 mul 3 s. . . . e2. .
+      set idx prog. add 3 mul 3 s. . . . cast u64 add s. 1 . . .
+      set idx prog. add 4 mul 3 s. . . . cast u64 e2. . .
       set s. e2. .
     end .
   end .
@@ -856,7 +856,7 @@ proc rx_alt input pat slice u8 . input prog mut slice u64 . input st mut slice u
   while lt q. endp. . do
     if eq idx prog. add 2 mul 3 q. . . . 4 . do
       if eq idx prog. add 4 mul 3 q. . . . 1 . do
-        set idx prog. add 3 mul 3 q. . . . endp. .
+        set idx prog. add 3 mul 3 q. . . . cast u64 endp. . .
         set idx prog. add 4 mul 3 q. . . . 0 .
       end .
     end .
@@ -949,7 +949,7 @@ proc rx_add input prog slice u64 . input s slice u8 . input pos usize . input pc
   guard lt depth. 64 . else return bit_not 0 . . .
   guard lt pc. cast usize idx prog. 0 . . . else return n. . .
   guard ne cast usize idx marks. pc. . . token. . else return n. . .
-  set idx marks. pc. . token. .
+  set idx marks. pc. . cast u64 token. . .
   let op u64 idx prog. add 2 mul 3 pc. . . . .
   if eq op. 3 . do
     let n2 usize rx_add prog. s. pos. cast usize idx prog. add 3 mul 3 pc. . . . . list. n. marks. token. add depth. 1 . . .
@@ -977,7 +977,7 @@ proc rx_add input prog slice u64 . input s slice u8 . input pos usize . input pc
     return rx_add prog. s. pos. add pc. 1 . list. n. marks. token. add depth. 1 . . .
   end .
   guard lt n. len list. . . else return n. . .
-  set idx list. n. . pc. .
+  set idx list. n. . cast u64 pc. . .
   return add n. 1 . .
 end .
 
@@ -1080,7 +1080,7 @@ proc rx_add_s input prog slice u64 . input s slice u8 . input pos usize . input 
   guard lt depth. 64 . else return bit_not 0 . . .
   guard lt pc. cast usize idx prog. 0 . . . else return n. . .
   guard ne cast usize idx marks. pc. . . token. . else return n. . .
-  set idx marks. pc. . token. .
+  set idx marks. pc. . cast u64 token. . .
   let op u64 idx prog. add 2 mul 3 pc. . . . .
   if eq op. 3 . do
     let n2 usize rx_add_s prog. s. pos. cast usize idx prog. add 3 mul 3 pc. . . . . start. list. starts. n. marks. token. add depth. 1 . . .
@@ -1108,8 +1108,8 @@ proc rx_add_s input prog slice u64 . input s slice u8 . input pos usize . input 
   end .
   guard lt n. len list. . . else return n. . .
   guard lt n. len starts. . . else return n. . .
-  set idx list. n. . pc. .
-  set idx starts. n. . start. .
+  set idx list. n. . cast u64 pc. . .
+  set idx starts. n. . cast u64 start. . .
   return add n. 1 . .
 end .
 
@@ -1233,7 +1233,7 @@ proc rx_add_c input prog slice u64 . input s slice u8 . input pos usize . input 
   guard lt depth. 64 . else return bit_not 0 . . .
   guard lt pc. cast usize idx prog. 0 . . . else return n. . .
   guard ne cast usize idx marks. pc. . . token. . else return n. . .
-  set idx marks. pc. . token. .
+  set idx marks. pc. . cast u64 token. . .
   let op u64 idx prog. add 2 mul 3 pc. . . . .
   if eq op. 3 . do
     let n2 usize rx_add_c prog. s. pos. cast usize idx prog. add 3 mul 3 pc. . . . . list. slots. n. marks. token. cur. add depth. 1 . . .
@@ -1254,7 +1254,7 @@ proc rx_add_c input prog slice u64 . input s slice u8 . input pos usize . input 
     var old u64 0 .
     if lt sl. 16 . do
       set old. idx cur. sl. . .
-      set idx cur. sl. . pos. .
+      set idx cur. sl. . cast u64 pos. . .
     end .
     let r usize rx_add_c prog. s. pos. add pc. 1 . list. slots. n. marks. token. cur. add depth. 1 . . .
     if lt sl. 16 . do set idx cur. sl. . old. . end .
@@ -1270,7 +1270,7 @@ proc rx_add_c input prog slice u64 . input s slice u8 . input pos usize . input 
   end .
   guard lt n. len list. . . else return n. . .
   guard le mul add n. 1 . 16 . len slots. . . else return n. . .
-  set idx list. n. . pc. .
+  set idx list. n. . cast u64 pc. . .
   rx_slots_copy slots. n. cur. 0 .
   return add n. 1 . .
 end .

@@ -37,7 +37,7 @@ end .
 
 rem 지금 담긴 개수 · 지금 자리(용량).
 export proc count_of input g gvec . output u64 . effects none . do return vecgen.count_of u8. allocs.bump_bytes. g. . . end .
-export proc cap_of   input g gvec . output u64 . effects none . do return vecgen.cap_of u8. allocs.bump_bytes. g. . . end .
+export proc cap_of   input g gvec . output usize . effects none . do return vecgen.cap_of u8. allocs.bump_bytes. g. . . end .
 
 rem ★ 바이트 하나를 민다. 자리가 모자라면 **스스로** 더 큰 자리를 받아 옮긴다.
 rem   못 받으면 false — 트랩이 아니라 값이다(OOM 은 값이다, RFC-0043 D5).

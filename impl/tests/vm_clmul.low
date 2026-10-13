@@ -53,7 +53,7 @@ end .
 rem ★★★★★ GHASH 는 이 곱셈 위에 선다 — **기계 판과 셈 판이 같은 답인지 여기서 본다.**
 rem   ☞ 2026-09-23 에 이 증인이 없어서 틀린 축약이 통과할 뻔했다: AEAD 드라이버는 봉인→개봉
 rem     왕복만 보므로 **곱셈이 통째로 달라도** 스스로 일관되면 통과한다. 소프트 판과 맞대야 잡힌다.
-export proc gh input h slice u8 . input z mut slice u8 . input d slice u8 . output u64 . effects none . do
+export proc gh input h slice u8 . input z mut slice u8 . input d slice u8 . output usize . effects none . do
   return call_builtin ghash h. z. d. . .
 end .
 
@@ -61,7 +61,7 @@ rem ★★★★★ 흐름 잎도 같은 자로 (X-0051, 2026-09-24). 기계 판
 rem   꼬리만 한 덩이씩 간다 — 즉 길이가 128 을 넘나드는 자리에서 **두 길이 갈린다**.
 rem   ☞ 그래서 골든이 128 의 앞뒤(112·128·144·5)를 모두 소프트 판과 맞댄다. 카운터를 제자리에서
 rem     올리는 규약도 같은 비교로 증언된다 — 여덟을 한 번에 올리며 규약을 바꾸면 여기서 드러난다.
-export proc ctr input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+export proc ctr input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output usize . effects none . do
   return call_builtin aes_ctr key. c. s. d. . .
 end .
 
@@ -76,7 +76,7 @@ end .
 
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc gcmpair input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
-  input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  input s slice u8 . input d mut slice u8 . output usize . effects none . do
   let n usize call_builtin aes_ctr key. c. s. d. . .
   guard eq n. len s. . . else return 0 . .
   return call_builtin ghash h. z. d. . .

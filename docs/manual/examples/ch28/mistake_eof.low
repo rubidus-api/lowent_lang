@@ -16,7 +16,7 @@ do
   var total u64 0 .
   var i u64 0 .
   while lt i. 3 . do
-    let r result (option u64) files.file_error files.read fs. h. buf. . .
+    let r result (option usize) files.file_error files.read fs. h. buf. . .
     guard is_ok r. . else return 3 . .
     rem ko: ✘ 실패만 물었다 --- 파일 끝의 `ok none` 에서 `some_value` 가 멈춘다 /// en: ✘ only failure is checked --- `some_value` stops at the end-of-file `ok none`
     set total. add total. some_value ok_value r. . . . .

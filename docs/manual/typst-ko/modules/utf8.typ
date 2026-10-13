@@ -119,7 +119,7 @@ do
     set i. some_value nx. . .
   end .
 
-  let w u64 stdio.write out. 1 subslice buf. 0 pos. . . .
+  let w usize stdio.write out. 1 subslice buf. 0 pos. . . .
   return 0 .
 end .
 ```

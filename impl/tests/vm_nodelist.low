@@ -19,8 +19,8 @@ proc walks input al cap allocator . output u64 . effects alloc . do
   guard is_some mn. . else return 89 . .
   let mp option mut slice u8 alloc_bytes al. capacity 32 . .
   guard is_some mp. . else return 88 . .
-  var nx mut slice u64 view_array u64 some_value mn. . . .
-  var pv mut slice u64 view_array u64 some_value mp. . . .
+  var nx mut slice usize view_array usize some_value mn. . . .
+  var pv mut slice usize view_array usize some_value mp. . . .
   rem 0 을 혼자로 만들고 1·2·3 을 차례로 뒤에 끼운다 ⇒ 0→1→2→3.
   guard nodelist.nl_solo nx. pv. 0 . else return 1 . .
   guard nodelist.nl_after nx. pv. 0 1 . else return 2 . .

@@ -3194,7 +3194,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     if (f->nkids >= 4 && is_atom(f->kids[3])) {
                         proven_u8str_view_t e = f->kids[3]->tok.lex;
                         mod.alias_ebits[mod.nalias] = veq(e, "u8") ? 8 : veq(e, "u16") ? 16
-                                                    : veq(e, "u32") ? 32 : veq(e, "u64") ? 64 : 255;
+                                                    : veq(e, "u32") ? 32 : veq(e, "u64") ? 64 : veq(e, "usize") ? low_ir_target()->addr_bits : 255;
                     }
                     mod.slice_alias[mod.nalias++] = f->kids[1]->tok.lex;
                 }
@@ -3420,7 +3420,11 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                                    : veq(e, "u16") ? 16 : veq(e, "u32") ? 32
                                    : veq(e, "u64") ? 64
                                    : veq(e, "i16") ? 116 : veq(e, "i32") ? 132   // 부호형=100+비트(i8=108)
-                                   : veq(e, "i64") ? 164 : 255;
+                                   : veq(e, "i64") ? 164
+                                   // RFC-0149 L4 — `slice usize` · `slice idiff`: 폭은 대상의 주소 폭이다. 여기서 모르면 그 op 이 통째로
+                                   //   태그 경로로 떨어진다(위치만 담는 표를 `slice usize` 로 적은 값이 느린 길이 된다).
+                                   : veq(e, "usize") ? low_ir_target()->addr_bits
+                                   : veq(e, "idiff") ? (proven_u8)(100 + low_ir_target()->addr_bits) : 255;
                             }
                             d->param_ebits[d->nparams] = eb;
                             // ★ 원소가 **구조체**면 그 인덱스를 든다(폭 대신).

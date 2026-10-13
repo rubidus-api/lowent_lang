@@ -49,9 +49,9 @@ ge	비교	`ge a b`	`a` `b` — 맞는 둘	`bool` — `a` 가 크거나 같으면
 and	논리	`and a b`	`a` `b` — `bool`	`bool`. `a` 가 거짓이면 `b` 를 계산하지 않는다	`bool` 이 아니면 `E-TYPE-LOGICAL` · `E-IR-ARITY`	—	6.3.3
 or	논리	`or a b`	`a` `b` — `bool`	`bool`. `a` 가 참이면 `b` 를 계산하지 않는다	`bool` 이 아니면 `E-TYPE-LOGICAL` · `E-IR-ARITY`	—	6.3.3
 not	논리	`not a`	`a` — `bool`	`bool`	`bool` 이 아니면 `E-TYPE-LOGICAL` · `E-IR-ARITY`	—	6.3.3
-bit_and	비트	`bit_and a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
-bit_or	비트	`bit_or a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
-bit_xor	비트	`bit_xor a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+bit_and	비트	`bit_and a b`	`a` `b` — 맞는 두 정수	두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입	`E-IR-ARITY` · `usize` · `idiff` 와 고정 폭을 섞으면 `E-TYPE-NOMINAL`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+bit_or	비트	`bit_or a b`	`a` `b` — 맞는 두 정수	두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입	`E-IR-ARITY` · `usize` · `idiff` 와 고정 폭을 섞으면 `E-TYPE-NOMINAL`	부동을 주면 `E-BITOP-TYPE`	6.3.5
+bit_xor	비트	`bit_xor a b`	`a` `b` — 맞는 두 정수	두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입	`E-IR-ARITY` · `usize` · `idiff` 와 고정 폭을 섞으면 `E-TYPE-NOMINAL`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 bit_not	비트	`bit_not a`	`a` — 정수	`a` 의 타입 — 그 폭 안에서 뒤집는다(`bit_not` 을 `u8` 0 에 대면 255)	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 shl	비트	`shl a n`	`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다	`a` 의 타입 — 왼쪽으로 옮긴다. 폭 밖으로 밀려난 비트는 버린다(넘침으로 치지 않는다)	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
 shr	비트	`shr a n`	`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다	`a` 의 타입 — 오른쪽으로 옮긴다. 부호 없는 타입은 0 이, 부호 있는 타입은 부호 비트가 들어온다	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
@@ -81,4 +81,4 @@ narrow_sat	변환	`narrow_sat T a`	`T` — 정수 타입 · `a` — 수	`T` — 
 narrow_try	변환	`narrow_try T a`	`T` — 정수 타입 · `a` — 정수	`option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
 cast	변환	`cast T a`	`T` — 정수 또는 부동 타입 · `a` — 수, 또는 참거짓(`T` 가 정수 타입일 때)	`T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값. 참거짓에서 오면 참은 1, 거짓은 0	`T` 가 `bool` 이면 `E-TYPE-KIND`(수를 참거짓으로 바꾸는 `cast` 는 없다 — `ne a. 0 .`) · 참거짓을 부동 타입으로 바꾸면 `E-TYPE-KIND`	정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`	6.2.16
 bit_cast	변환	`bit_cast T a`	`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수	`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408)		—	6.2.5
-size_of	변환	`size_of T`	`T` — 타입	정수 — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)		—	6.3.8
+size_of	변환	`size_of T`	`T` — 타입	`usize` — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)		—	6.3.8

@@ -10,7 +10,7 @@ do
   return add div mul c. 9 . 5 . 32 . .
 end .
 
-proc print_digit input out cap io . input d u8 . output u64 . effects io .
+proc print_digit input out cap io . input d u8 . output usize . effects io .
   requires le d. 9 . .
 do
   let buf slice u8 "0123456789" .
@@ -20,7 +20,7 @@ end .
 proc main input out cap io . output u8 . effects io .
 do
   let f i64 celsius_to_f 100 . .
-  let n u64 print_digit out. narrow u8 mod f. 10 . . . .
-  let m u64 stdio.write out. 1 "\n" . .
+  let n usize print_digit out. narrow u8 mod f. 10 . . . .
+  let m usize stdio.write out. 1 "\n" . .
   return 0 .
 end .

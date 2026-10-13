@@ -17,7 +17,7 @@ do
   var more bool true .
   var rounds u64 0 .
   while and more. lt rounds. 100 . . do
-    let r result (option u64) files.file_error files.read fs. h. buf. . .
+    let r result (option usize) files.file_error files.read fs. h. buf. . .
     guard is_ok r. . else do
       let c1 result void files.file_error files.close fs. h. . .
       drop c1. .

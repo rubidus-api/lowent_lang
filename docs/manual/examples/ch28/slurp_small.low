@@ -11,8 +11,8 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 8 . .
   guard is_some g. . else return 1 . .
   let buf mut slice u8 some_value g. . .
-  let r result u64 files.file_error files.slurp fs. "notes.txt" buf. . .
+  let r result usize files.file_error files.slurp fs. "notes.txt" buf. . .
   rem ko: 앞 8 바이트로 잘려 오지 않는다 --- 오류다 /// en: it does not come back cut to the first 8 bytes --- it is an error
   guard not is_error r. . . else return 2 . .
-  return narrow u8 ok_value r. . . .
+  return cast u8 ok_value r. . . .
 end .

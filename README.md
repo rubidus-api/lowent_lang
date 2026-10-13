@@ -15,12 +15,12 @@ Lowent is a **low-entropy** systems programming language. The idea is simple: yo
 module stats .
 
 rem Pure: no I/O, no allocation, no hidden state. The contract is checked.
-fn mean input xs slice u8 . output u64 .
+fn mean input xs slice u8 . output usize .
   requires gt len xs. . 0 . .
 do
-  var total u64 0 .
+  var total usize 0 .
   for x xs. do
-    set total. add total. widen u64 x. . . .
+    set total. add total. cast usize widen u64 x. . . . .
   end .
   return div total. len xs. . . .
 end .
@@ -94,7 +94,7 @@ use stdio .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 stdio.write out. 1 "hello, entropy!\n" . .
+  let n usize stdio.write out. 1 "hello, entropy!\n" . .
   return 0 .
 end .
 ```

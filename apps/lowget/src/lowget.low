@@ -48,7 +48,7 @@ proc recv_exact input k cap net . input fd u64 . input dst mut slice u8 . input 
   var got usize 0 .
   repeat spin u64 8192 do
     guard lt got. n. . else break . .
-    let r option u64 net.recv_once k. fd. subslice dst. got. n. . . .
+    let r option usize net.recv_once k. fd. subslice dst. got. n. . . .
     guard is_some r. . else return 0 . .
     let m usize some_value r. . .
     guard gt m. 0 . else return 0 . .
@@ -93,7 +93,7 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
   guard and gt chn. 0 . le chn. 16384 . . else return 92 . .
   guard eq tlscli.plain_hdr cast u64 chn. . subslice buf. 20000 20005 . . 5 . else return 92 . .
   copy subslice buf. 20005 add 20005 chn. . . subslice buf. 0 chn. . .
-  let sent option u64 net.send_all k. fd. subslice buf. 20000 add 20005 chn. . . . .
+  let sent option usize net.send_all k. fd. subslice buf. 20000 add 20005 chn. . . . .
   guard is_some sent. . else return 93 . .
   var mn usize chn. .
 
@@ -122,7 +122,7 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
   rem ④ 키 사다리 — 여기서부터 읽을 수 있다
   let hs u64 tlscli.hs_secrets subslice buf. 56496 56528 . subslice buf. 0 mn. . subslice buf. 56200 56296 . w. . else return 99 . .
   guard eq hs. 96 . else return 99 . .
-  let sk u64 tlssrv.traffic_keys subslice buf. 56232 56264 . ksz. subslice buf. 56296 56340 . w. . else return 100 . .
+  let sk usize tlssrv.traffic_keys subslice buf. 56232 56264 . ksz. subslice buf. 56296 56340 . w. . else return 100 . .
   guard eq cast usize sk. . add ksz. 12 . . else return 100 . .
 
   rem ⑤ EE · Certificate · CertificateVerify · Finished 를 연다. ChangeCipherSpec(20)은 1.3 에서 뜻이 없어 버린다.
@@ -136,7 +136,7 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
     if ne tlscli.rec_type subslice buf. 20000 20005 . . 23 . do
       continue .
     end .
-    let pl u64 tls13.record_open suite. subslice buf. 56296 add 56296 ksz. . . subslice buf. add 56296 ksz. . add 56296 add ksz. 12 . . . seq. subslice buf. 20000 add 20000 rn. . . subslice buf. 36700 53100 . subslice buf. 53100 53740 . u. . else return 102 . .
+    let pl usize tls13.record_open suite. subslice buf. 56296 add 56296 ksz. . . subslice buf. add 56296 ksz. . add 56296 add ksz. 12 . . . seq. subslice buf. 20000 add 20000 rn. . . subslice buf. 36700 53100 . subslice buf. 53100 53740 . u. . else return 102 . .
     guard gt pl. 0 . else return 102 . .
     set seq. add seq. 1 . .
     guard eq tls13.inner_type subslice buf. 36700 cast usize add 36700 pl. . . . . 22 . else return 103 . .
@@ -173,21 +173,21 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
   guard fin_ok. else return 106 . .
 
   rem ⑦ 우리 Finished — 전사는 서버 Finished 까지 들어간다.
-  let ck u64 tlssrv.traffic_keys subslice buf. 56200 56232 . ksz. subslice buf. 56340 56384 . w. . else return 107 . .
+  let ck usize tlssrv.traffic_keys subslice buf. 56200 56232 . ksz. subslice buf. 56340 56384 . w. . else return 107 . .
   guard eq cast usize ck. . add ksz. 12 . . else return 107 . .
-  let fn2 u64 tlscli.build_client_fin subslice buf. 56200 56232 . subslice buf. 0 mn. . subslice buf. 56400 56440 . w. . else return 108 . .
+  let fn2 usize tlscli.build_client_fin subslice buf. 56200 56232 . subslice buf. 0 mn. . subslice buf. 56400 56440 . w. . else return 108 . .
   guard eq fn2. 36 . else return 108 . .
-  let sn u64 tlscli.seal_rec suite. subslice buf. 56340 56384 . ksz. 0 22 subslice buf. 56400 56436 . subslice buf. 20000 36700 . w. u. . else return 109 . .
+  let sn usize tlscli.seal_rec suite. subslice buf. 56340 56384 . ksz. 0 22 subslice buf. 56400 56436 . subslice buf. 20000 36700 . w. u. . else return 109 . .
   guard gt sn. 0 . else return 109 . .
-  let s2 option u64 net.send_all k. fd. subslice buf. 20000 cast usize add 20000 sn. . . . . .
+  let s2 option usize net.send_all k. fd. subslice buf. 20000 cast usize add 20000 sn. . . . . .
   guard is_some s2. . else return 110 . .
 
   rem ⑧ 응용 트래픽 키
   let ap u64 tlssrv.app_secrets subslice buf. 56264 56296 . subslice buf. 0 mn. . subslice buf. 56440 56504 . w. . else return 111 . .
   guard eq ap. 64 . else return 111 . .
-  let ct u64 tlssrv.traffic_keys subslice buf. 56440 56472 . ksz. subslice buf. 56504 56548 . w. . else return 112 . .
+  let ct usize tlssrv.traffic_keys subslice buf. 56440 56472 . ksz. subslice buf. 56504 56548 . w. . else return 112 . .
   guard eq cast usize ct. . add ksz. 12 . . else return 112 . .
-  let st u64 tlssrv.traffic_keys subslice buf. 56472 56504 . ksz. subslice buf. 56548 56592 . w. . else return 113 . .
+  let st usize tlssrv.traffic_keys subslice buf. 56472 56504 . ksz. subslice buf. 56548 56592 . w. . else return 113 . .
   guard eq cast usize st. . add ksz. 12 . . else return 113 . .
   return 0 .
 end .
@@ -421,7 +421,7 @@ do
         set idx loc. 0 . narrow u8 shr ln. 8 . . .
         set idx loc. 1 . narrow u8 bit_and ln. 255 . . .
         copy subslice loc. 2 add 2 ln. . . subslice h. lo. le2. . .
-        set idx st. 8 . ln. .
+        set idx st. 8 . cast u64 ln. . .
       end .
     end .
   end .
@@ -462,7 +462,7 @@ do
       guard lt n0. len hdr. . . else return 0 . .
       set idx hdr. n0. . idx p. i. . .
       let n usize add n0. 1 . .
-      set idx st. 1 . n. .
+      set idx st. 1 . cast u64 n. . .
       set i. add i. 1 . .
       if ge n. 4 . do
         if and and eq idx hdr. sub n. 4 . . '\r' . eq idx hdr. sub n. 3 . . '\n' . . and eq idx hdr. sub n. 2 . . '\r' . eq idx hdr. sub n. 1 . . '\n' . . . do
@@ -573,9 +573,9 @@ proc http_get input k cap net . input out cap io . input fd u64 . input buf mut 
   let q5 option usize fmt.put_str rq. value_or q4. 0 . "\r\nUser-Agent: lowget/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n" . .
   guard and is_some q1. . and is_some q2. . and is_some q3. . and is_some q4. . is_some q5. . . . . . else return 125 . .
   let at usize some_value q5. . .
-  let sn u64 tlscli.seal_rec suite. subslice buf. 56504 56548 . ksz. 0 23 subslice rq. 0 at. . subslice buf. 20000 36700 . w. u. . else return 120 . .
+  let sn usize tlscli.seal_rec suite. subslice buf. 56504 56548 . ksz. 0 23 subslice rq. 0 at. . subslice buf. 20000 36700 . w. u. . else return 120 . .
   guard gt sn. 0 . else return 120 . .
-  let s1 option u64 net.send_all k. fd. subslice buf. 20000 cast usize add 20000 sn. . . . . .
+  let s1 option usize net.send_all k. fd. subslice buf. 20000 cast usize add 20000 sn. . . . . .
   guard is_some s1. . else return 121 . .
 
   var seq u64 0 .
@@ -585,7 +585,7 @@ proc http_get input k cap net . input out cap io . input fd u64 . input buf mut 
     if ne tlscli.rec_type subslice buf. 20000 20005 . . 23 . do
       continue .
     end .
-    let pl u64 tls13.record_open suite. subslice buf. 56548 add 56548 ksz. . . subslice buf. add 56548 ksz. . add 56548 add ksz. 12 . . . seq. subslice buf. 20000 add 20000 rn. . . subslice buf. 36700 53100 . subslice buf. 53100 53740 . u. . else return 122 . .
+    let pl usize tls13.record_open suite. subslice buf. 56548 add 56548 ksz. . . subslice buf. add 56548 ksz. . add 56548 add ksz. 12 . . . seq. subslice buf. 20000 add 20000 rn. . . subslice buf. 36700 53100 . subslice buf. 53100 53740 . u. . else return 122 . .
     guard gt pl. 0 . else return 122 . .
     set seq. add seq. 1 . .
     let it u64 tls13.inner_type subslice buf. 36700 cast usize add 36700 pl. . . . . .

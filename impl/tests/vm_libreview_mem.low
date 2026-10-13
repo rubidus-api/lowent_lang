@@ -64,7 +64,7 @@ fn t_budget output u64 . do
 end .
 
 rem ── nodelist: 머리를 자르며 돌아도 셈은 고리의 크기다 (전에는 len nx + 1) ──
-proc t_nl input nx mut slice u64 . input pv mut slice u64 . output u64 . effects none . do
+proc t_nl input nx mut slice usize . input pv mut slice usize . output u64 . effects none . do
   guard ge len nx. . 8 . else return 90 . .
   guard nodelist.nl_solo nx. pv. 0 . else return 91 . .
   guard nodelist.nl_after nx. pv. 0 1 . else return 92 . .
@@ -207,7 +207,7 @@ proc t_seg input dir mut slice u64 . input mem slice u64 . output u64 . effects 
   let b0 option u64 segarena.grow sg. a. dir. 32 . .
   guard is_some b0. . else return 91 . .
   let big u64 bit_not 0 . .
-  guard eq segarena.sum_global sg. a. dir. mem. big. . 0 . else return 92 . .
+  guard eq segarena.sum_global sg. a. dir. mem. cast usize big. . . 0 . else return 92 . .
   guard eq segarena.sum_global sg. a. dir. mem. 1 . 0 . else return 93 . .
   guard eq segarena.sum_global sg. a. dir. mem. 0 . segarena.sum_seg sg. a. dir. mem. 0 . . else return 94 . .
   return 11 .

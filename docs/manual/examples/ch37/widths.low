@@ -6,7 +6,7 @@ rem run: clusters [101,204,129,120]
 
 use term .
 
-proc columns input row slice u8 . output u64 . effects none .
+proc columns input row slice u8 . output usize . effects none .
 do
   let w option usize term.row_width row. . .
   guard is_some w. . else return 999 . .
@@ -18,7 +18,7 @@ do
   return term.cp_width cp. . .
 end .
 
-proc clusters input row slice u8 . output u64 . effects none .
+proc clusters input row slice u8 . output usize . effects none .
 do
   let n option usize term.row_clusters row. . .
   guard is_some n. . else return 999 . .

@@ -682,9 +682,9 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">4096</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error files.slurp fs. <span class="tok-s">"</span><span class="tok-s">notes.txt</span><span class="tok-s">"</span> buf. . .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">usize</span></strong> files.file_error files.slurp fs. <span class="tok-s">"</span><span class="tok-s">notes.txt</span><span class="tok-s">"</span> buf. . .
   <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> e <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">cannot read notes.txt</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+    <strong><span class="tok-k">let</span></strong> e <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">cannot read notes.txt</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> body <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> subslice buf. <span class="tok-n">0</span> ok_value r. . . .
@@ -692,7 +692,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
     filter is_newline .
     count .
   <strong><span class="tok-k">end</span></strong> . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> body. . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> body. . .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main lines.low
@@ -714,11 +714,11 @@ main() = 3
   <strong><span class="tok-k">let</span></strong> o <strong><span class="tok-k">result</span></strong> files.handle files.file_error files.open fs. <span class="tok-s">"</span><span class="tok-s">../../build/ch28-copy.txt</span><span class="tok-s">"</span> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">guard</span></strong> is_ok o. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> files.handle ok_value o. . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error files.write fs. h. <span class="tok-s">"</span><span class="tok-s">hello, file</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">usize</span></strong> files.file_error files.write fs. h. <span class="tok-s">"</span><span class="tok-s">hello, file</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error files.close fs. h. . .
   <strong><span class="tok-k">guard</span></strong> is_ok w. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
   <strong><span class="tok-k">guard</span></strong> is_ok c. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> . .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">wrote and closed</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">wrote and closed</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main copy.low
@@ -771,7 +771,7 @@ LOW_HOST_FAULT="close:err"       closing fails</code></pre><p>The VM and native 
   <strong><span class="tok-k">let</span></strong> o <strong><span class="tok-k">result</span></strong> files.handle files.file_error files.open fs. <span class="tok-s">"</span><span class="tok-s">notes.txt</span><span class="tok-s">"</span> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">guard</span></strong> is_ok o. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> files.handle ok_value o. . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error files.write fs. h. <span class="tok-s">"</span><span class="tok-s">extra line</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">usize</span></strong> files.file_error files.write fs. h. <span class="tok-s">"</span><span class="tok-s">extra line</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error files.close fs. h. . .
   <strong><span class="tok-k">drop</span></strong> c. .
   <strong><span class="tok-k">guard</span></strong> is_ok w. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
@@ -794,7 +794,7 @@ main() = 2
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error files.close fs. h. . .
   <strong><span class="tok-k">drop</span></strong> c. .
   <em><span class="tok-c">rem ✘ writes again with the closed handle --- `close` took ownership</span></em>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error files.write fs. h. <span class="tok-s">"</span><span class="tok-s">late</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">usize</span></strong> files.file_error files.write fs. h. <span class="tok-s">"</span><span class="tok-s">late</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">drop</span></strong> w. .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
@@ -818,7 +818,7 @@ mistake_afterclose.low:14:0 E-OWN-MOVED: this `owned` value was already MOVED (c
   <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) files.file_error files.read fs. h. buf. . .
+    <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong>) files.file_error files.read fs. h. buf. . .
     <strong><span class="tok-k">guard</span></strong> is_ok r. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> . .
     <em><span class="tok-c">rem ✘ only failure is checked --- `some_value` stops at the end-of-file `ok none`</span></em>
     <strong><span class="tok-k">set</span></strong> total. add total. some_value ok_value r. . . . .
@@ -850,7 +850,7 @@ mistake_afterclose.low:14:0 E-OWN-MOVED: this `owned` value was already MOVED (c
   <strong><span class="tok-k">var</span></strong> more <strong><span class="tok-t">bool</span></strong> <span class="tok-n">true</span> .
   <strong><span class="tok-k">var</span></strong> rounds <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> and more. lt rounds. <span class="tok-n">100</span> . . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) files.file_error files.read fs. h. buf. . .
+    <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong>) files.file_error files.read fs. h. buf. . .
     <strong><span class="tok-k">guard</span></strong> is_ok r. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> c1 <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error files.close fs. h. . .
       <strong><span class="tok-k">drop</span></strong> c1. .
@@ -884,10 +884,10 @@ main() = 34
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">8</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error files.slurp fs. <span class="tok-s">"</span><span class="tok-s">notes.txt</span><span class="tok-s">"</span> buf. . .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">usize</span></strong> files.file_error files.slurp fs. <span class="tok-s">"</span><span class="tok-s">notes.txt</span><span class="tok-s">"</span> buf. . .
   <em><span class="tok-c">rem it does not come back cut to the first 8 bytes --- it is an error</span></em>
   <strong><span class="tok-k">guard</span></strong> not is_error r. . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> ok_value r. . . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> ok_value r. . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main slurp_small.low
 main() = 2

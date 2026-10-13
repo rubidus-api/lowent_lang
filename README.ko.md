@@ -15,12 +15,12 @@ Lowent 는 **엔트로피가 낮은** 시스템 프로그래밍 언어입니다.
 module stats .
 
 rem 순수 함수입니다: 입출력도, 할당도, 숨은 상태도 없습니다. 계약은 검사됩니다.
-fn mean input xs slice u8 . output u64 .
+fn mean input xs slice u8 . output usize .
   requires gt len xs. . 0 . .
 do
-  var total u64 0 .
+  var total usize 0 .
   for x xs. do
-    set total. add total. widen u64 x. . . .
+    set total. add total. cast usize widen u64 x. . . . .
   end .
   return div total. len xs. . . .
 end .
@@ -94,7 +94,7 @@ use stdio .
 
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 stdio.write out. 1 "hello, entropy!\n" . .
+  let n usize stdio.write out. 1 "hello, entropy!\n" . .
   return 0 .
 end .
 ```

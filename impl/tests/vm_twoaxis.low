@@ -49,7 +49,7 @@ export proc add_one
   effects none .
   requires allocs.byte_allocator a. . .
 do
-  let room u64 div len field g. store . . size_of t . . .
+  let room usize div len field g. store . . size_of t . . .
   guard lt field g. n . room. . else return false . .
   let cur mut slice u8 field g. store . .
   var cells mut slice t view_array t cur. . .
@@ -69,7 +69,7 @@ do
   guard lt i. field g. n . . else return none . .
   let cur mut slice u8 field g. store . .
   let cells mut slice t view_array t cur. . .
-  return some idx cells. i. . . .
+  return some idx cells. cast usize i. . . . .
 end .
 
 export fn count_of

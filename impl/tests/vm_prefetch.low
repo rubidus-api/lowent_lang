@@ -49,7 +49,7 @@ proc same input al cap allocator . output u64 . effects alloc . do
   var xs mut slice u64 view_array u64 some_value mb. . . .
   var i usize 0 .
   while lt i. len xs. . . do
-    set idx xs. i. . add i. 1 . .
+    set idx xs. i. . cast u64 add i. 1 . . .
     set i. add i. 1 . .
   end .
   rem 1..8 의 합 = 36. 힌트를 줘도 안 줘도 같아야 한다.

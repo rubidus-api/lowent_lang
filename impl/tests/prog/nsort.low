@@ -102,7 +102,7 @@ do
   guard is_some gtx. . else return 70 . .
   let txt mut slice u8 some_value gtx. . .
 
-  let sn result u64 files.file_error files.slurp fs. path. txt. . .
+  let sn result usize files.file_error files.slurp fs. path. txt. . .
   guard is_ok sn. . else return 66 . .
   let n usize ok_value sn. . .
 
@@ -162,13 +162,13 @@ do
   guard is_some p3. . else return 72 . .
   let p4 option usize fmt.put_str ob. some_value p3. . " at " . .
   guard is_some p4. . else return 72 . .
-  var p5 option u64 none .
-  if is_some hit. . do set p5. fmt.put_u64 ob. some_value p4. . some_value hit. . . . end .
+  var p5 option usize none .
+  if is_some hit. . do set p5. fmt.put_u64 ob. some_value p4. . cast u64 some_value hit. . . . . end .
   if eq is_some hit. . false . do set p5. fmt.put_str ob. some_value p4. . "none" . . end .
   guard is_some p5. . else return 72 . .
-  let p6 option usize fmt.put_nl ob. some_value p5. . . .
+  let p6 option usize fmt.put_nl ob. cast usize some_value p5. . . . .
   guard is_some p6. . else return 72 . .
-  let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value p6. . . . .
+  let w usize call_builtin write_out out. 1 subslice ob. 0 some_value p6. . . . .
 
   if is_some hit. . do return 0 . end .
   return 1 .

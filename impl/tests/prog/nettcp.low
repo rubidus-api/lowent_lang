@@ -55,10 +55,10 @@ do
   let afd u64 net.conn_fd a. . .
 
   rem ★ **끝까지 보낸다** — 한 번의 send 가 전부를 보낸다는 보장은 없다.
-  let sent option u64 net.send_all k. cfd. "tcp works" . .
+  let sent option usize net.send_all k. cfd. "tcp works" . .
   guard is_some sent. . else return 6 . .
   guard eq some_value sent. . 9 . else return 8 . .
-  let got option u64 net.recv_once k. afd. dst. . .
+  let got option usize net.recv_once k. afd. dst. . .
   guard is_some got. . else return 7 . .
   let n usize some_value got. . .
 
@@ -69,6 +69,6 @@ do
   let x3 result void net.net_error net.shut_listener k. l. . .
   guard is_ok x3. . else return 11 . .
 
-  let m u64 call_builtin write_out out. 1 subslice dst. 0 n. . . .
+  let m usize call_builtin write_out out. 1 subslice dst. 0 n. . . .
   return cast u8 n. . .
 end .

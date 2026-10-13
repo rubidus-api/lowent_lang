@@ -37,7 +37,7 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some g. . else return 70 . .
   let buf mut slice u8 some_value g. . .
-  let rn option u64 call_builtin read_in k. 0 buf. . .
+  let rn option usize call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 71 . .
   let got usize some_value rn. . .
 
@@ -80,7 +80,7 @@ do
     set idx line. 75 . 10 .
 
     let ln slice u8 subslice line. 0 76 . .
-    let wrote u64 call_builtin write_out k. 1 ln. . .
+    let wrote usize call_builtin write_out k. 1 ln. . .
     guard eq wrote. 76 . else return 72 . .
     set off. add off. 16 . .
   end .

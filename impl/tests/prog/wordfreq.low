@@ -45,7 +45,7 @@ do
   let keys mut slice u8 some_value gky. . .
 
   rem 파일을 통째로 읽는다.
-  let sn result u64 files.file_error files.slurp fs. path. tbuf. . .
+  let sn result usize files.file_error files.slurp fs. path. tbuf. . .
   guard is_ok sn. . else return 71 . .
   let n usize ok_value sn. . .
 

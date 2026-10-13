@@ -67,7 +67,7 @@ do
   let buf mut slice u8 some_value g. . .
 
   rem ★ 못 열어도, 버퍼보다 커도 **none** — 죽지 않는다. 답을 종료 코드로 구별한다.
-  let n result u64 files.file_error files.slurp fs. some_value given. . buf. . .
+  let n result usize files.file_error files.slurp fs. some_value given. . buf. . .
   guard is_ok n. . else return 66 . .
 
   let lines u64 count_lines subslice buf. 0 ok_value n. . . . .
@@ -80,13 +80,13 @@ do
   guard is_some p1. . else return 72 . .
   let p2 option usize fmt.put_str ob. some_value p1. . " lines, " . .
   guard is_some p2. . else return 73 . .
-  let p3 option usize fmt.put_u64 ob. some_value p2. . ok_value n. . . .
+  let p3 option usize fmt.put_u64 ob. some_value p2. . cast u64 ok_value n. . . . .
   guard is_some p3. . else return 74 . .
   let p4 option usize fmt.put_str ob. some_value p3. . " bytes" . .
   guard is_some p4. . else return 75 . .
   let p5 option usize fmt.put_nl ob. some_value p4. . . .
   guard is_some p5. . else return 76 . .
 
-  let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value p5. . . . .
+  let w usize call_builtin write_out out. 1 subslice ob. 0 some_value p5. . . . .
   return narrow u8 lines. . .
 end .

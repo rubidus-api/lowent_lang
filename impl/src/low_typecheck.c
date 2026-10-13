@@ -42,6 +42,7 @@ typedef struct {
     proven_u8   lanes;  // TK_VEC / TK_MASK: 레인 수
     proven_u8   vflt;   // TK_VEC: 원소가 부동인가
     proven_u8   ebits;  // TK_SLICE: 원소 폭(비트). 0 = 미상
+    proven_u8   enom;   // TK_SLICE: 원소의 명목(1 = `usize` · `idiff`) — `slice usize` 와 `slice u64` 는 다른 타입이다(32 비트 대상에서는 원소의 크기도 다르다). RFC-0149 L4
     bool        esign;  // TK_SLICE: 원소 부호
     bool        eflt;   // TK_SLICE: 원소가 부동인가
     bool        erow;   // TK_SLICE: 원소가 **줄**(`slice (array T M)`, RFC-0132 §13.10) — ebits 등은 줄 안 원소의 것
@@ -62,14 +63,12 @@ typedef struct {
     // ★ X-0085 — 감싸개의 **알맹이 종류**(tk_t: 정수·부동·bool·슬라이스만, 0 = 미상). `option u64` 자리에 `option slice u8`
     //   이 들어가도 말이 없었다. 좁게 싣는다: 선언에 한 낱말로 적힌 알맹이만. 둘 다 알 때만 문다.
     proven_u8   pk;
+    // ★★★ RFC-0149 L4 (2026-10-13 소유자 «깨져도 되니까 다 제대로») — 알맹이가 **정수 · 부동**이면 그 폭 · 부호 · 명목도 싣는다.
+    //   `output option u64` 인 op 이 `usize` 를 `some` 으로 내도 서고, `some_value` 는 «모름» 을 내서 받는 쪽도 검사받지 않았다 —
+    //   `usize` 와 `u64` 가 감싸개 속에서는 섞였다. pbits 0 = 미상(리터럴을 감쌌거나 선언이 한 낱말이 아니다) — 모르면 물지 않는다.
+    proven_u8   pbits; bool psign; proven_u8 pnom;
     proven_u8str_view_t nname;  // TK_NAMED: 머리 타입 이름
     proven_u32  targ;           // TK_NAMED: 틀 인자 낱말들의 해시(0 = 인자 없음/미상)
-    // ★★★ RFC-0149 (2026-10-13 소유자 «len의 결과값은 usize가 맞겠지요») — **옮기는 동안의 `usize`**. `len` · `count` · `capacity` 의
-    //   결과는 `usize` 다(nominal 1). 코퍼스는 그것을 `u64` 로 받아 왔으므로(1,533 자리), 한 번에 조이면 서던 글의 3 분의 1 이 선다.
-    //   그래서 그 결과에만 이 표시를 달아 **`u64` 자리에도 서게 두고 센다**(`LOWENT_LIST_LEN_U64=1` · 게이트 `check-len-usize`).
-    //   수가 0 이 되면 이 칸과 아래 `tc_soft_*` 를 지운다 — 그때 `usize` 는 어디서나 `u64` 와 다른 타입이다.
-    bool        softsz;
-    proven_u8str_view_t vname;   // ★ RFC-0149 — 이 타입이 **이름을 읽어** 나왔으면 그 이름(옮김 지시 `RETYPE` 가 읽는다. 뜻에는 쓰지 않는다)
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -405,10 +404,6 @@ static bool tc_is_instance_name(proven_u8str_view_t v) {
     return false;
 }
 
-static ty_t g_nom_decl, g_nom_actual;   // ★ RFC-0149 — compat 가 TC_NOMINAL 을 낸 두 타입(옮김 지시용)
-static bool g_soft_hit = false;   // ★ RFC-0149 — compat 가 «옮기는 동안의 usize → u64» 를 받아 주었다(부른 쪽이 줄을 알고 센다)
-static int  g_soft_list = -1;
-static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line);
 static tc_reason_t compat(ty_t decl, ty_t actual) {
     // ★★★ **이름 타입끼리도 newtype 이면 구별한다** (RFC-0002 §6.3.1 — struct core).
     //   ★ 범위를 좁게 둔다: **명목 id 를 가진 쪽이 있을 때만** 본다. 투명 `type X Y .` 별칭은
@@ -451,8 +446,15 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
         decl.wrap && actual.wrap && decl.wrap != actual.wrap) return TC_WRAP;
     if (decl.k == TK_WRAPPED && actual.k == TK_WRAPPED && decl.wrap == actual.wrap &&
         decl.pk && actual.pk && decl.pk != actual.pk) return TC_PAYLOAD;
+    if (decl.k == TK_WRAPPED && actual.k == TK_WRAPPED && decl.wrap == actual.wrap && decl.pk == actual.pk &&
+        (decl.pk == TK_INT || decl.pk == TK_FLOAT) && decl.pbits && actual.pbits) {     // RFC-0149 L4 — 알맹이의 타입도 같아야 한다
+        if (decl.pnom != actual.pnom) return TC_NOMINAL;
+        if (decl.pbits != actual.pbits || decl.psign != actual.psign) return decl.psign != actual.psign ? TC_SIGN : TC_WIDTH;
+    }
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
+    if (decl.k == TK_SLICE && decl.ebits && actual.ebits && !decl.eflt && !actual.eflt && !decl.erow && !actual.erow &&
+        decl.ebits == actual.ebits && decl.enom != actual.enom) return TC_NOMINAL;   // RFC-0149 L4 — `slice usize` ≠ `slice u64`
     if (decl.k == TK_INT) {
         if (actual.lit) {                                                   // D3: 리터럴은 comptime 무타입
             if (!lit_fits(actual, decl)) return TC_WIDTH;
@@ -461,9 +463,7 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
         // ★ D7: 두 범위가 **서로소**면 모든 값이 계약을 어긴다 — 검사가 아니라 컴파일 오류다.
         if (decl.has_rng && actual.has_rng && (actual.rlo > decl.rhi || actual.rhi < decl.rlo)) return TC_RANGE;
         if (!decl.bits || !actual.bits) return TC_OK;
-        // RFC-0149 — 옮기는 동안: 길이(usize)가 `usize` 아닌 정수 자리에 오면 **전처럼 `u64` 로 보고** 센다(폭 · 부호의 판정은 그대로).
-        if (actual.softsz && decl.nominal == 0) { g_soft_hit = true; actual.nominal = 0; actual.softsz = false; }
-        if (decl.nominal != actual.nominal) { g_nom_decl = decl; g_nom_actual = actual; return TC_NOMINAL; }   // D11
+        if (decl.nominal != actual.nominal) return TC_NOMINAL;   // D11
         if (ty_sub(actual, decl)) return TC_OK;                             // ★ 값 보존 확대만 암묵
         return decl.sign != actual.sign ? TC_SIGN : TC_WIDTH;
     }
@@ -516,6 +516,7 @@ static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
             snprintf(buf, n, "%sf%u", ref, (unsigned)t.bits); return buf;
         case TK_SLICE:
             if (!t.ebits) { snprintf(buf, n, "%sslice", ref); return buf; }
+            if (t.enom && !t.eflt) { snprintf(buf, n, "%sslice %s", ref, t.esign ? "idiff" : "usize"); return buf; }
             snprintf(buf, n, "%sslice %c%u", ref, t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits); return buf;
         case TK_NAMED:
             if (!t.nname.size) return NULL;
@@ -556,55 +557,8 @@ static bool tc_param_cap_kind(const low_cst_t *def, proven_u8str_view_t name, pr
     }
     return false;
 }
-// ★ RFC-0149 — 옮기는 동안의 집계. `LENU64 <꼴> <줄> <파일>` 한 줄(꼴: bind = `u64` 선언 · 반환 · 칸에 묶었다, arg = `u64` 입력에 넘겼다,
-//   mix = `u64` 와 셈 · 견줌을 했다, idx = `u64` 를 첨자 · 경계로 댔다).
-// ★ RFC-0149 — **옮김 지시**(`LOWENT_LIST_LEN_U64=1` 일 때만). 사설 `scripts/usize-migrate.py` 가 읽어 선언의 `u64` 를 `usize` 로 바꾼다.
-//   `RETYPE V <이름> <줄> <파일>` 그 줄에서 읽힌 이름의 선언을 · `RETYPE L - <줄> <파일>` 그 줄의 문장이 받는 자리(선언 · return · set)를 ·
-//   `RETYPE P <부른 op>:<입력 번호> <줄> <파일>` 부른 op 의 그 입력을.
-static void tc_retype(tc_ctx_t *c, char kind, proven_u8str_view_t nm, long idx, proven_u32 line) {
-    if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
-    if (!g_soft_list) return;
-    const char *fl = c->curform ? low_cst_file_for_line(c->curform, line) : NULL;
-    if (kind == 'P') fprintf(stderr, "RETYPE\tP\t%.*s:%ld\t%u\t%s\n", (int)nm.size, (const char *)nm.ptr, idx, (unsigned)line, fl ? fl : "");
-    else fprintf(stderr, "RETYPE\t%c\t%.*s\t%u\t%s\n", kind, nm.size ? (int)nm.size : 1, nm.size ? (const char *)nm.ptr : "-", (unsigned)line, fl ? fl : "");
-}
-static bool tc_is_usz(ty_t t) { return t.k == TK_INT && t.nominal == 1 && !t.sign; }
-static bool tc_is_plain(ty_t t) { return t.k == TK_INT && t.nominal == 0 && !t.lit && t.bits; }
-static int g_soft_mute = 0;   // ★ 같은 식을 «묻기만» 하려고 한 번 더 추론하는 동안에는 세지 않는다(두 번 세면 래칫이 거짓으로 는다)
-static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line) {
-    (void)c;
-    if (g_soft_mute) return;
-    if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
-    if (!g_soft_list) return;
-    const char *fl = c->curform ? low_cst_file_for_line(c->curform, line) : NULL;
-    fprintf(stderr, "LENU64\t%s\t%u\t%s\n", what, (unsigned)line, fl ? fl : "");
-}
-// ★ RFC-0149 L2 — `WRAP <줄> <열> <파일>`: `usize` 가 아닌 정수를 첨자 · 경계로 댄 **그 식의 첫 낱말**. 옮김 도구가 그 식을 `cast usize` 로 감싼다.
-static void tc_wrap_note_as(tc_ctx_t *c, const low_cst_t *e, const char *ty);
-static void tc_wrap_note(tc_ctx_t *c, const low_cst_t *e) { tc_wrap_note_as(c, e, "usize"); }
-static const char *tc_plain_word(ty_t t) {   // 고정 폭 정수의 이름(옮김 지시용)
-    if (t.k != TK_INT || t.nominal != 0) return NULL;
-    switch (t.bits) { case 8: return t.sign ? "i8" : "u8"; case 16: return t.sign ? "i16" : "u16";
-                      case 32: return t.sign ? "i32" : "u32"; case 64: return t.sign ? "i64" : "u64"; default: return NULL; }
-}
-static void tc_wrap_note_as(tc_ctx_t *c, const low_cst_t *e, const char *ty) {
-    if (g_soft_mute) return;
-    if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
-    if (!g_soft_list) return;
-    for (int hops = 0; e && hops < 64 && e->kind != LOW_CST_ATOM && e->nkids; hops++) e = e->kids[0];
-    if (!e || e->kind != LOW_CST_ATOM) return;
-    const char *fl = c->curform ? low_cst_file_for_line(c->curform, e->tok.line) : NULL;
-    if (!ty) return;
-    fprintf(stderr, "WRAP\t%u\t%u\t%s\t%s\n", (unsigned)e->tok.line, (unsigned)e->tok.col, fl ? fl : "", ty);
-}
 // kind mismatches keep their site-specific code; width/sign get dedicated codes
 static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg, proven_u32 line) {
-    if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "bind", line); tc_retype(c, 'L', (proven_u8str_view_t){ 0 }, 0, line); }
-    if (r == TC_NOMINAL) {   // RFC-0149 — 이미 `usize` 가 된 것과 `u64` 가 만났다: 어느 선언을 바꿀지 댄다
-        if (tc_is_usz(g_nom_decl) && tc_is_plain(g_nom_actual) && g_nom_actual.vname.size) tc_retype(c, 'V', g_nom_actual.vname, 0, line);
-        else if (tc_is_plain(g_nom_decl) && tc_is_usz(g_nom_actual)) tc_retype(c, 'L', (proven_u8str_view_t){ 0 }, 0, line);
-        g_nom_decl = g_nom_actual = (ty_t){ 0 };
-    }
     if (r == TC_OK) return;
     if (r == TC_WIDTH)        tc_emit(c, "E-TYPE-WIDTH", "value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)", line);
     else if (r == TC_SIGN)    tc_emit(c, "E-TYPE-SIGN", "sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)", line);
@@ -647,7 +601,7 @@ static const tc_sig_t *sig_find_at(tc_ctx_t *c, const low_cst_t *at) {
     return at ? sig_find(c, at->tok.lex) : NULL;
 }
 static ty_t env_find(const tc_var_t *env, proven_size_t n, proven_u8str_view_t name, bool *found) {
-    for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; ty_t t_ = env[i].ty; t_.vname = name; return t_; }
+    for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; return env[i].ty; }
     *found = false; return tk(TK_UNKNOWN);
 }
 
@@ -658,6 +612,11 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
 // 두 피연산자는 ⊑ 로 **비교 가능**해야 한다. 결과 = join(넓은 쪽).
 // ★ join_sound (Qed): 비교 가능하면 join 이 둘 다를 손실 없이 담는다.
 // 리터럴은 comptime 무타입이므로 상대 타입을 취한다(D3).
+// RFC-0149 L4 — 감싼 값의 타입을 감싸개에 싣는다(리터럴 · 폭 미상은 «모름» 으로 남긴다).
+static void tc_wrap_payload(ty_t *w, ty_t pv) {
+    if (pv.k == TK_INT || pv.k == TK_FLOAT || pv.k == TK_BOOL || pv.k == TK_SLICE) w->pk = (proven_u8)pv.k;
+    if ((pv.k == TK_INT || pv.k == TK_FLOAT) && !pv.lit && pv.bits && !pv.rk) { w->pbits = pv.bits; w->psign = pv.sign; w->pnom = pv.nominal; }
+}
 static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) {
     if (a.k == TK_UNKNOWN || b.k == TK_UNKNOWN || a.k == TK_NAMED || b.k == TK_NAMED)
         return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);          // 보수적: 모르면 넘어간다
@@ -692,18 +651,6 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     }
     if (a.k != TK_INT && a.k != TK_FLOAT) return is_cmp ? tk(TK_BOOL) : a;
     if (!a.bits || !b.bits) return is_cmp ? tk(TK_BOOL) : (a.bits ? a : b);   // 폭 미상 — 보수적
-    // ★ RFC-0149 — 옮기는 동안: `len` 의 결과(usize)와 `u64` 의 셈 · 견줌을 세면서 받아 준다. 결과는 `u64` 쪽이다.
-    //   상대가 `usize` 아닌 정수면 길이를 **전처럼 `u64` 로 보고** 아래의 판정을 그대로 탄다(`u8` 과의 셈은 `u64` 로 넓어진다).
-    if (a.k == TK_INT && b.k == TK_INT && ((a.softsz && b.nominal == 0) || (b.softsz && a.nominal == 0))) {
-        tc_soft_note(c, "mix", line);
-        if (a.softsz) { if (b.vname.size) tc_retype(c, 'V', b.vname, 0, line); a.nominal = 0; a.softsz = false; }
-        else          { if (a.vname.size) tc_retype(c, 'V', a.vname, 0, line); b.nominal = 0; b.softsz = false; }
-    }
-    if (a.k == TK_INT && b.k == TK_INT && a.bits && b.bits) {   // RFC-0149 — 굳은 `usize` 와 `u64` 이름이 만났다(거절 앞에서 지시를 낸다)
-        if (tc_is_usz(a) && !a.softsz && tc_is_plain(b) && b.vname.size) tc_retype(c, 'V', b.vname, 0, line);
-        if (tc_is_usz(b) && !b.softsz && tc_is_plain(a) && a.vname.size) tc_retype(c, 'V', a.vname, 0, line);
-    }
-    if (a.k == TK_INT && a.softsz != b.softsz && a.nominal == 1 && b.nominal == 1) { a.softsz = b.softsz = false; }   // 진짜 usize 를 만나면 진짜가 된다
     if (!ty_comparable(a, b)) {
         tc_flag(c, a.nominal != b.nominal ? TC_NOMINAL
                 : (a.k == TK_INT && a.sign != b.sign) ? TC_SIGN : TC_WIDTH, NULL, NULL, line);
@@ -718,7 +665,7 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
 // 원소 타입 → **타입 있는 슬라이스** ty_t (ebits/eflt/esign 를 실어). view_array·subslice 결과용.
 static ty_t tc_slice_of_elem(ty_t e) {
     ty_t sl = tk(TK_SLICE);
-    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT);
+    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0;
     return sl;
 }
 
@@ -831,8 +778,20 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         {
             proven_u8str_view_t h2 = k[start]->tok.lex;
             if (veq(h2, "len") || veq(h2, "count") || veq(h2, "capacity")) {
-                for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
-                { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; ut.softsz = true; return ut; }   // RFC-0149 — `usize`
+                for (proven_size_t q = 1; q < n; q++) {
+                    ty_t at = tc_infer(c, k[start + q], env, nenv);
+                    // RFC-0149 L4 — `alloc_bytes … capacity <n>` 의 `n` 은 바이트 수다: `usize`.
+                    if (veq(h2, "capacity") && at.k == TK_INT && !at.lit && at.bits && at.nominal != 1) {
+                        tc_emit(c, "E-TYPE-NOMINAL", "a capacity is a `usize` — this one has a fixed-width integer type. Declare it `usize`, or write "
+                                "`cast usize <value> .`", k[start]->tok.line);
+                    }
+                }
+                { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut; }   // RFC-0149 — `usize`
+            }
+            // RFC-0149 L4 — 크기 · 정렬 · 조각 수 · 레인 수도 `usize` 다(전에는 타입이 «모름» 이어서 어느 선언에나 들어갔다).
+            if (!sig_find(c, h2) && (veq(h2, "size_of") || veq(h2, "align_of") || veq(h2, "segs") || veq(h2, "native_lanes"))) {
+                if (veq(h2, "segs")) for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut;
             }
             // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
             //   없으면 그 위의 `index` 가 원소를 u8 로 보았다(`array f64 2` 칸의 원소가 u8 로 읽혔다). 좁게: 타입 있는 슬라이스만.
@@ -843,15 +802,54 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     if (proven_u8str_view_eq(st->fname[q], k[start + 2]->tok.lex) && st->fty[q].k == TK_SLICE && st->fty[q].ebits)
                         return st->fty[q];
             }
+            // ★★★ RFC-0149 L4 (2026-10-13) — **비트 연산의 결과에도 타입이 있다.** 전에는 «폭 모르는 정수» 여서 `usize` 와 `u64` 가
+            //   `bit_and` · `shr` 를 한 번 거치면 섞였고, 그 결과는 어느 선언에나 들어갔다. 두 피연산자의 타입이 같으면 그 타입,
+            //   한쪽이 리터럴이면 다른 쪽의 타입, `usize` · `idiff` 와 고정 폭이 만나면 셈과 같이 거절한다. 폭만 다른 고정 폭끼리는
+            //   전처럼 «폭 모름» 으로 둔다(그 규칙은 이 변경의 일이 아니다). 시프트의 결과는 왼쪽 피연산자의 타입이다.
+            if (!sig_find(c, h2) && n == 3 && (veq(h2, "bit_and") || veq(h2, "bit_or") || veq(h2, "bit_xor"))) {
+                ty_t a = tc_infer(c, k[start + 1], env, nenv), b = tc_infer(c, k[start + 2], env, nenv);
+                if (a.k == TK_INT && b.k == TK_INT) {
+                    if (a.lit && !b.lit) { return b; }
+                    if (b.lit && !a.lit) { return a; }
+                    if (!a.lit && !b.lit && a.bits && b.bits) {
+                        if (a.nominal != b.nominal && (a.nominal == 1 || b.nominal == 1)) {
+                            return tc_binop(c, a, b, false, k[start]->line);
+                        }
+                        if (a.bits == b.bits && a.sign == b.sign && a.nominal == b.nominal) { a.has_rng = false; return a; }
+                    }
+                }
+                return tk_int(0, false);
+            }
+            if (!sig_find(c, h2) && n == 3 && (veq(h2, "shl") || veq(h2, "shr") || veq(h2, "wrap_shl") || veq(h2, "wrap_shr") ||
+                                               veq(h2, "rotl") || veq(h2, "rotr"))) {
+                ty_t a = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
+                return tk_int(0, false);
+            }
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "bit_not")) {
+                ty_t a = tc_infer(c, k[start + 1], env, nenv);
+                if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
+                return tk_int(0, false);
+            }
+            // ★ `atomic_load s i …` — 읽은 값의 타입은 그 슬라이스의 원소다(전에는 «모름»).
+            if (!sig_find(c, h2) && veq(h2, "atomic_load") && n >= 3) {
+                ty_t sq = tc_infer(c, k[start + 1], env, nenv);
+                ty_t it = tc_infer(c, k[start + 2], env, nenv);
+                if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {
+                    tc_emit(c, "E-TYPE-NOMINAL", "the index of an atomic operation is a `usize` — declare it `usize`, or write `cast usize <value> .`", k[start]->tok.line);
+                }
+                if (sq.k == TK_SLICE && sq.ebits && !sq.eflt && !sq.erow) { ty_t ev = tk_int(sq.ebits, sq.esign); ev.nominal = sq.enom; return ev; }
+                return tk(TK_UNKNOWN);
+            }
             if (veq(h2, "idx") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
                 ty_t sq = tc_infer(c, k[start + 1], env, nenv);
                 for (proven_size_t q = 2; q < n; q++) {
                     ty_t it = tc_infer(c, k[start + q], env, nenv);
                     // ★ RFC-0149 — 첨자는 `usize` 다. 옮기는 동안은 다른 정수도 받고 센다.
                     if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {
-                        tc_soft_note(c, "idx", k[start]->tok.line);
-                        if (it.vname.size) tc_retype(c, 'V', it.vname, 0, k[start]->tok.line);
-                        tc_wrap_note(c, k[start + q]);
+                        tc_emit(c, "E-TYPE-NOMINAL", "an index or a bound is a `usize` — this one has a fixed-width integer type. Declare it `usize`, "
+                                "or convert where it is used: `cast usize <value> .` (the conversion stops when the value does not fit the "
+                                "target's `usize`; canon 6.2.6 (3a))", k[start + q]->line ? k[start + q]->line : k[start]->tok.line);
                     }
                 }
                 if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
@@ -860,7 +858,8 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 }
                 if (sq.k == TK_SLICE && sq.ebits) {
                     if (sq.eflt) return (ty_t){ .k = TK_FLOAT, .bits = sq.ebits };
-                    return tk_int(sq.ebits, sq.esign);
+                    ty_t ev = tk_int(sq.ebits, sq.esign); ev.nominal = sq.enom;
+                    return ev;
                 }
                 return tk_int(8, false);                 // 미상 — u8 로 보수적
             }
@@ -879,9 +878,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 for (proven_size_t q = 2; q < n; q++) {
                     ty_t it = tc_infer(c, k[start + q], env, nenv);
                     if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {   // RFC-0149 — 경계도 `usize`
-                        tc_soft_note(c, "idx", k[start]->tok.line);
-                        if (it.vname.size) tc_retype(c, 'V', it.vname, 0, k[start]->tok.line);
-                        tc_wrap_note(c, k[start + q]);
+                        tc_emit(c, "E-TYPE-NOMINAL", "an index or a bound is a `usize` — this one has a fixed-width integer type. Declare it `usize`, "
+                                "or convert where it is used: `cast usize <value> .` (the conversion stops when the value does not fit the "
+                                "target's `usize`; canon 6.2.6 (3a))", k[start + q]->line ? k[start + q]->line : k[start]->tok.line);
                     }
                 }
                 if (sx.k == TK_SLICE && sx.ebits) return sx;         // 타입 있는 슬라이스는 그대로
@@ -904,20 +903,20 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             {
                 static const struct { const char *w; unsigned char kind; } LEAF[] = {
                     // ── option 을 낸다 (실패할 수 있다는 사실을 타입이 든다)
-                    { "alloc_bytes", 1 }, { "@read_in", 1 }, { "@env_get", 1 },
-                    { "@file_open", 1 }, { "@file_read", 1 }, { "@file_write", 1 },
+                    { "alloc_bytes", 1 }, { "@read_in", 4 }, { "@env_get", 1 },
+                    { "@file_open", 1 }, { "@file_read", 4 }, { "@file_write", 4 },
                     { "@file_seek", 1 }, { "@file_type", 1 }, { "@link_type", 1 },
-                    { "@dir_open", 1 }, { "@dir_read", 1 },
-                    { "@net_pair", 1 }, { "@net_send", 1 }, { "@net_recv", 1 },
+                    { "@dir_open", 1 }, { "@dir_read", 4 },
+                    { "@net_pair", 1 }, { "@net_send", 4 }, { "@net_recv", 4 },
                     { "@net_listen", 1 }, { "@net_port", 1 }, { "@net_connect", 1 },
                     { "@net_accept", 1 },
-                    { "@proc_spawn", 1 }, { "@proc_read", 1 }, { "@proc_poll", 1 }, { "@proc_wait", 1 },   // ★ RFC-0136
+                    { "@proc_spawn", 1 }, { "@proc_read", 4 }, { "@proc_poll", 1 }, { "@proc_wait", 1 },   // ★ RFC-0136
                     // ── 참거짓을 낸다 (닫기·파일시스템 변경은 됐나 안 됐나뿐이다)
                     { "@file_close", 2 }, { "@dir_close", 2 }, { "@net_close", 2 }, { "same_slice", 2 },
                     { "@proc_kill", 2 },
                     { "@dir_make", 2 }, { "@path_remove", 2 }, { "@path_rename", 2 },
                     // ── 정수를 낸다 (쓴 길이 · 해시 · 시계 · 난수 · 비트)
-                    { "@write_out", 3 }, { "crc32", 3 }, { "hash64", 3 },
+                    { "@write_out", 5 }, { "crc32", 3 }, { "hash64", 3 },
                     { "sha256", 3 }, { "sha512", 3 }, { "blake3", 3 },
                     { "@time_now", 3 }, { "@time_local", 3 }, { "rng_next", 3 },
                     { "@random_bytes", 3 }, { "argc", 3 },
@@ -930,9 +929,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     //   `lw_int(...)` 로 싣는다. 표에 없어서 `let n be u64 aes_ctr …` 같은 선언이
                     //   **비틀어도 초록**이었다(돌연변이 측정 `check-decl-types`). RFC-0122 로 낱말이
                     //   둘 늘면서 그 자리가 하나 더 늘길래, 늘리는 대신 **줄였다**.
-                    { "aes_ctr", 3 }, { "ghash", 3 },
-                    { "aes_round", 3 }, { "aes_round_last", 3 },
-                    { "chacha20", 3 }, { "poly1305", 3 },
+                    { "aes_ctr", 5 }, { "ghash", 5 },
+                    { "aes_round", 5 }, { "aes_round_last", 5 },
+                    { "chacha20", 5 }, { "poly1305", 5 },
                     { "sha384", 3 },
                     { "popcount", 3 }, { "leading_zeros", 3 }, { "trailing_zeros", 3 },
                     { "byte_swap", 3 },
@@ -951,6 +950,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     if (!veq(hleaf, LEAF[li].w)) continue;
                     for (proven_size_t q = lskip; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                     if (LEAF[li].kind == 1) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; return w; }
+                    // ★ RFC-0149 L4 — 읽고 쓴 **바이트 수**는 `usize` 다(4 = `option usize` · 5 = `usize`). 길이를 세는 수가 `u64` 로 나오면
+                    //   받는 쪽이 매번 `cast` 를 적어야 하고, 좁은 대상에서는 버퍼의 길이와 다른 폭이 된다.
+                    if (LEAF[li].kind == 4) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; w.pk = (proven_u8)TK_INT; w.pbits = low_ir_target()->addr_bits; w.psign = false; w.pnom = 1; return w; }
+                    if (LEAF[li].kind == 5) { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut; }
                     if (LEAF[li].kind == 2) return tk(TK_BOOL);
                     // ★ **폭은 안 말한다**(bits = 0 = 미상). 비트 낱말은 피연산자의 폭을
                     //   물려받으므로 여기서 64 라고 박으면 `u32` 자리를 **틀리게 거절**한다
@@ -1008,8 +1011,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         //   이것을 안 해서 `return ok try index d 0 .` 의 try 가 검사되지 않았다
         //   (try 분기는 try 가 **머리**일 때만 걸린다). 변이 지표가 그것을 잡아냈다.
         if (veq(k[start]->tok.lex, "ok") && n >= 2) {
-            (void)tc_infer_run(c, k, start + 1, n - 1, env, nenv);   // payload 를 검사한다
-            ty_t w = tk(TK_WRAPPED); w.wrap = 2; return w;           // ★ `ok` 는 result 다
+            ty_t pv = tc_infer_run(c, k, start + 1, n - 1, env, nenv);   // payload 를 검사한다
+            ty_t w = tk(TK_WRAPPED); w.wrap = 2;                         // ★ `ok` 는 result 다
+            tc_wrap_payload(&w, pv);
+            return w;
+        }
+        if (veq(k[start]->tok.lex, "some") && n >= 2 && !sig_find(c, k[start]->tok.lex)) {   // RFC-0149 L4 — `some` 은 알맹이를 지닌 option 이다
+            ty_t pv = tc_infer_run(c, k, start + 1, n - 1, env, nenv);
+            ty_t w = tk(TK_WRAPPED); w.wrap = 1;
+            tc_wrap_payload(&w, pv);
+            if (pv.k == TK_NAMED) { w.nname = pv.nname; w.targ = pv.targ; }
+            return w;
         }
         if (veq(k[start]->tok.lex, "error") && n >= 2) { ty_t w = tk(TK_WRAPPED); w.wrap = 2; return w; }
         // ★ `try <expr>` — 풀 수 있는 것에만 붙는다.
@@ -1095,9 +1107,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         //   원천의 타입은 **묻기만** 한다(quiet) — 이 낱말의 나머지 판정은 아래의 길이 그대로 한다.
         if (veq(k[start]->tok.lex, "narrow") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start])) {
             ty_t ntgt = ty_of_word(k[start + 1]->tok.lex);
-            c->quiet++; g_soft_mute++;
+            c->quiet++;
             ty_t nsrc = tc_infer(c, k[start + 2], env, nenv);
-            c->quiet--; g_soft_mute--;
+            c->quiet--;
             if ((nsrc.k == TK_INT && nsrc.nominal == 1) || (ntgt.k == TK_INT && ntgt.nominal == 1))
                 tc_emit(c, "E-TYPE-NOMINAL",
                         "`usize` / `idiff` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
@@ -1204,8 +1216,6 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);
                 // RFC-0149 L2 — 굳은 `usize` 와 고정 폭 정수가 셈 · 견줌에서 만났다: 고정 폭 쪽의 식을 댄다(도구가 `cast usize` 로 감싼다)
-                if (tc_is_usz(a) && !a.softsz && tc_is_plain(b)) tc_wrap_note(c, k[start + 2]);
-                if (tc_is_usz(b) && !b.softsz && tc_is_plain(a)) tc_wrap_note(c, k[start + 1]);
                 return tc_binop(c, a, b, cmp, k[start]->line);
             }
             // ★★★ **논리 op 은 두 경로로 들어온다** — `expr` 섬(중위)과 **여기**(전위 호출).
@@ -1238,6 +1248,12 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     ty_t pv = tk(TK_NAMED); pv.nname = w.nname; pv.targ = w.targ;
                     return pv;
                 }
+                if (w.k == TK_WRAPPED && w.pbits && (w.pk == TK_INT || w.pk == TK_FLOAT)) {   // RFC-0149 L4 — 정수 · 부동 알맹이는 제 타입으로 나온다
+                    ty_t pv = w.pk == TK_INT ? tk_int(w.pbits, w.psign) : (ty_t){ .k = TK_FLOAT, .bits = w.pbits };
+                    pv.nominal = w.pnom;
+                    return pv;
+                }
+                if (w.k == TK_WRAPPED && w.pk == TK_BOOL) return tk(TK_BOOL);
                 return tk(TK_UNKNOWN);
             }
         }
@@ -1247,13 +1263,6 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
                 tc_reason_t ar = compat(s->params[i], at);
-                if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "arg", k[start]->tok.line); tc_retype(c, 'P', k[start]->tok.lex, (long)i, k[start]->tok.line); }
-                if (ar == TC_NOMINAL) {
-                    if (tc_is_usz(s->params[i]) && tc_is_plain(at)) tc_wrap_note(c, k[start + 1 + i]);
-                    else if (tc_is_plain(s->params[i]) && tc_is_usz(at)) tc_wrap_note_as(c, k[start + 1 + i], tc_plain_word(s->params[i]));
-                    if (tc_is_plain(s->params[i]) && tc_is_usz(at)) tc_retype(c, 'P', k[start]->tok.lex, (long)i, k[start]->tok.line);
-                    else if (tc_is_usz(s->params[i]) && tc_is_plain(at) && at.vname.size) tc_retype(c, 'V', at.vname, 0, k[start]->tok.line);
-                }
                 // ★ RFC-0147 (2026-10-12) — 권한 자리에 **다른 종류의 권한**을 댔으면 그 말로 한다(`E-CAP-KIND`). 권한을 받는
                 //   빌트인 연산이 라이브러리 뒤로 가면서, 프로그램이 이 실수를 하는 자리가 잎이 아니라 감싸개의 부름이 됐다.
                 //   전엔 «이름만 다른 같은 표현의 타입» (`E-TYPE-NOMINAL`)이라고 했다 — 맞는 거절에 틀린 설명이었다.
@@ -1368,7 +1377,7 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
                 ty_t e = ty_of_word(rt->kids[1]->tok.lex);
                 if (e.k == TK_INT || e.k == TK_FLOAT) {
                     ty_t sl = tk(TK_SLICE);
-                    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.erow = true;
+                    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0; sl.erow = true;
                     sl.rk = t.rk; sl.is_mut = mut_seen;
                     return sl;
                 }
@@ -1379,7 +1388,7 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
             ty_t e = ty_of_word(f->kids[i + 1]->tok.lex);
             if (e.k == TK_INT || e.k == TK_FLOAT) {
                 ty_t sl = tk(TK_SLICE);
-                sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT);
+                sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0;
                 sl.rk = t.rk; sl.is_mut = mut_seen;
                 return sl;
             }
@@ -1446,6 +1455,7 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
                 if (q < end && q < f->nkids && f->kids[q]->kind == LOW_CST_ATOM) {
                     ty_t pt = ty_of_word(f->kids[q]->tok.lex);
                     if (pt.k == TK_INT || pt.k == TK_FLOAT || pt.k == TK_BOOL || pt.k == TK_SLICE) core.pk = (proven_u8)pt.k;
+                    if ((pt.k == TK_INT || pt.k == TK_FLOAT) && pt.bits) { core.pbits = pt.bits; core.psign = pt.sign; core.pnom = pt.nominal; }
                 }
             }
             const low_cst_t *pl = f->kids[i + 1];
@@ -1887,6 +1897,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 else if (seq.k == TK_SLICE && seq.ebits)
                     ev = seq.eflt ? (ty_t){ .k = TK_FLOAT, .bits = seq.ebits }
                                   : tk_int(seq.ebits, seq.esign);
+                if (seq.k == TK_SLICE && seq.ebits && !seq.eflt) ev.nominal = seq.enom;
                 env[*nenv].name = f->kids[1]->tok.lex;
                 env[(*nenv)++].ty = ev;
             }
@@ -1916,8 +1927,21 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             // ★★★ RFC-0149 L2 (2026-10-13) — **쓰는 자리의 첨자도 첨자다.** `set (idx s i) v .` 의 `i` 는 어디서도 추론되지 않아서,
             //   옮길 자리를 세는 집계(`LENU64 idx`)가 읽는 자리만 세고 있었다. 자리를 한 번 추론해 첨자를 같은 길로 보낸다.
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids >= 3 &&
-                g->kids[0]->kids[0]->kind == LOW_CST_ATOM && veq(g->kids[0]->kids[0]->tok.lex, "idx"))
-                (void)tc_infer(c, g->kids[0], env, *nenv);
+                g->kids[0]->kids[0]->kind == LOW_CST_ATOM && veq(g->kids[0]->kids[0]->tok.lex, "idx")) {
+                ty_t et = tc_infer(c, g->kids[0], env, *nenv);
+                // ★★★ RFC-0149 L4 — **쓰는 값도 원소의 타입이어야 한다.** `set (idx s i) v .` 의 `v` 는 원소 타입과 견주어지지 않아서
+                //   `usize` 를 `u64` 칸에, `u64` 를 `u8` 칸에 적어도 섰다(뒤의 것은 실행 중에 멈추거나 잘렸다). 정수 · 부동 원소만 본다.
+                if ((et.k == TK_INT || et.k == TK_FLOAT) && et.bits && f->nkids >= 3) {
+                    c->quiet++;
+                    ty_t vt = tc_infer_run(c, f->kids, 2, f->nkids - 2, env, *nenv);
+                    c->quiet--;
+                    et.lit = false; et.has_rng = false;
+                    if (vt.k == TK_INT || vt.k == TK_FLOAT) {
+                        tc_reason_t vr = compat(et, vt);
+                        if (vr != TC_OK) tc_flag(c, vr, "E-TYPE-SET", "the value written does not have the element's type", f->line);
+                    }
+                }
+            }
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 3 &&
                 g->kids[0]->kids[0]->kind == LOW_CST_ATOM &&
                 veq(g->kids[0]->kids[0]->tok.lex, "idx") &&

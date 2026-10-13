@@ -63,7 +63,7 @@ proc totals input al cap allocator . output u64 . effects alloc . do
   let ss segments u8 view_segments back. d. . .
   var i u64 0 .
   var acc usize 0 .
-  while lt i. segs ss. . . do
+  while lt cast usize i. . segs ss. . . do
     set acc. add acc. len seg ss. i. . . . .
     set i. add i. 1 . .
   end .

@@ -3,7 +3,7 @@ rem expect: E-CAP-MISSING
 
 use stdio .
 
-proc hello input out cap io . output u64 . effects io .
+proc hello input out cap io . output usize . effects io .
 do
   return stdio.write 1 "hello\n" . .
 end .

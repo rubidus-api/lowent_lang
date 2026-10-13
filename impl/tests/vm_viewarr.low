@@ -8,12 +8,12 @@ struct pkt do
   tail u16 .
 end .
 
-export fn viewed input b mut slice u8 . output u64 . do
+export fn viewed input b mut slice u8 . output usize . do
   var v pkt view pkt b. . .
   let bd slice u8 field v. body . .
   set idx field v. body . 3 . 77 .
   set field v. tail . 513 .
-  return add add widen u64 idx bd. 0 . . mul widen u64 field v. len . . 100 . . mul size_of pkt . 10000 . . .
+  return add cast usize add widen u64 idx bd. 0 . . mul widen u64 field v. len . . 100 . . . mul size_of pkt . 10000 . . .
 end .
 
 export fn encoded input a u8 . output u64 . do

@@ -133,7 +133,7 @@
    "group": "비트",
    "form": "bit_and a b",
    "takes": "`a` `b` — 맞는 두 정수",
-   "gives": "둘 중 넓은 쪽 타입"
+   "gives": "두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입"
   },
   "bit_cast": {
    "meaning": "비트를 그대로 두고 타입만 바꾼다",
@@ -154,14 +154,14 @@
    "group": "비트",
    "form": "bit_or a b",
    "takes": "`a` `b` — 맞는 두 정수",
-   "gives": "둘 중 넓은 쪽 타입"
+   "gives": "두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입"
   },
   "bit_xor": {
    "meaning": "비트 배타합",
    "group": "비트",
    "form": "bit_xor a b",
    "takes": "`a` `b` — 맞는 두 정수",
-   "gives": "둘 중 넓은 쪽 타입"
+   "gives": "두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입"
   },
   "bitset_complement": {
    "meaning": "여집합"
@@ -839,7 +839,7 @@
    "group": "변환",
    "form": "size_of T",
    "takes": "`T` — 타입",
-   "gives": "정수 — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)"
+   "gives": "`usize` — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)"
   },
   "skip": {
    "meaning": "앞의 n 개를 건너뛴다"

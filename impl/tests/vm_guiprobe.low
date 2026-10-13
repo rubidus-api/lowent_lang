@@ -57,7 +57,7 @@ do
   end .
   if gt n. 0 . do wr hot. sub n. 1 . 4 0 . end .
   set idx meta. 0 . 1 .            rem 머리 = 슬롯 0
-  set idx meta. 1 . n. .
+  set idx meta. 1 . cast u64 n. . .
   set idx meta. 2 . 0 .
   set idx meta. 3 . 0 .
   set idx meta. 4 . 0 .
@@ -160,7 +160,7 @@ do
     wr hot. x. 6 3 .                                           rem alive | pending
     let pc usize cast usize idx meta. 2 . . .
     set idx pend. pc. . narrow u32 x. . .
-    set idx meta. 2 . add pc. 1 . .
+    set idx meta. 2 . cast u64 add pc. 1 . . .
     set marked. add marked. 1 . .
     var c usize cast usize rd hot. x. 1 . . .
     while gt c. 0 . do
@@ -181,7 +181,7 @@ do
   var freed u64 0 .
   while gt idx meta. 2 . 0 . do
     let pc usize cast usize sub idx meta. 2 . 1 . . .
-    set idx meta. 2 . pc. .
+    set idx meta. 2 . cast u64 pc. . .
     let s usize cast usize idx pend. pc. . . .
     wr hot. s. 6 0 .
     wr hot. s. 0 0 .
@@ -193,7 +193,7 @@ do
     if is_some ng. . do
       set idx gen. s. . some_value ng. . .
       wr hot. s. 4 cast usize idx meta. 0 . . .
-      set idx meta. 0 . add s. 1 . .
+      set idx meta. 0 . cast u64 add s. 1 . . .
       set freed. add freed. 1 . .
     end .
     if is_none ng. . do
@@ -242,13 +242,13 @@ do
   guard is_some ds. . else return 94 . .
   let ri usize some_value rs. . .
   let ai usize some_value asl. . .
-  let bi u64 some_value bs. . .
+  let bi usize some_value bs. . .
   let ci usize some_value cs. . .
   let di usize some_value ds. . .
   guard eq cast usize rd hot. ri. 1 . . add ai. 1 . . else return 95 . .     rem first(root) = a
   guard eq cast usize rd hot. ri. 2 . . add ci. 1 . . else return 96 . .     rem last(root) = c
-  guard eq rd hot. ai. 4 . add bi. 1 . . else return 97 . .     rem next(a) = b
-  guard eq rd hot. ci. 3 . add bi. 1 . . else return 98 . .     rem prev(c) = b
+  guard eq cast usize rd hot. ai. 4 . . add bi. 1 . . else return 97 . .     rem next(a) = b
+  guard eq cast usize rd hot. ci. 3 . . add bi. 1 . . else return 98 . .     rem prev(c) = b
   guard eq cast usize rd hot. di. 0 . . add ai. 1 . . else return 99 . .     rem parent(d) = a
   guard eq child_count hot. ri. . 3 . else return 100 . .
   guard eq idx meta. 4 . 5 . else return 101 . .
@@ -303,24 +303,24 @@ do
   let bo option (handle g_self) create g_self. hot. gen. meta. a. 3 . .
   guard is_some bo. . else return 93 . .
   let nb (handle g_self) some_value bo. . .
-  let ri u64 some_value resolve g_self. hot. gen. meta. root. . . .
-  let ai u64 some_value resolve g_self. hot. gen. meta. a. . . .
-  let bi u64 some_value resolve g_self. hot. gen. meta. nb. . . .
+  let ri usize some_value resolve g_self. hot. gen. meta. root. . . .
+  let ai usize some_value resolve g_self. hot. gen. meta. a. . . .
+  let bi usize some_value resolve g_self. hot. gen. meta. nb. . . .
   rem 경로를 frame scratch 에 복사한다(§5.7): target 에서 root 까지.
-  let route0 u64 bi. .
-  let route1 u64 ai. .
-  let route2 u64 ri. .
+  let route0 usize bi. .
+  let route1 usize ai. .
+  let route2 usize ri. .
   var visited u64 0 .
   var queued u64 0 .                                     rem 「명령 큐」— 요청은 값이다
   var i u64 0 .
   while lt i. 3 . do
-    var cur u64 route0. .
+    var cur usize route0. .
     if eq i. 1 . do set cur. route1. . end .
     if eq i. 2 . do set cur. route2. . end .
     rem 처리기: a 에서 destroy 를 요청한다 — 나무는 안 만진다.
-    if eq cur. ai. . do set queued. add queued. 1 . . end .
+    if eq cast usize cur. . ai. . do set queued. add queued. 1 . . end .
     rem 걷는 동안 링크는 그대로다(I4): root 의 first 는 여전히 a.
-    guard eq rd hot. cast usize ri. . 1 . add ai. 1 . . else return 94 . .
+    guard eq cast usize rd hot. cast usize ri. . 1 . . add ai. 1 . . else return 94 . .
     set visited. add visited. 1 . .
     set i. add i. 1 . .
   end .
@@ -368,6 +368,6 @@ end .
 
 rem ⑤ 크기 — 문서가 아니라 도구가 답한다: hot 레코드 = 8 × size_of u32 · 손잡이 = size_of u64.
 rem   답 = 레코드 × 100 + 손잡이 = 3208.
-export fn t_sizes output u64 . do
+export fn t_sizes output usize . do
   return add mul 100 mul 8 size_of u32 . . . size_of u64 . . .
 end .

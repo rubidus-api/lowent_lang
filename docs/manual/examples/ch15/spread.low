@@ -3,7 +3,7 @@ rem expect: E-EFFECT
 
 use stdio .
 
-proc log_line input out cap io . input msg slice u8 . output u64 . effects io .
+proc log_line input out cap io . input msg slice u8 . output usize . effects io .
 do
   return stdio.write out. 1 msg. . .
 end .
@@ -11,7 +11,7 @@ end .
 proc compute input out cap io . input x u64 . output u64 . effects panic .
   requires le x. 1000 . .
 do
-  let n u64 log_line out. "computing\n" . .
+  let n usize log_line out. "computing\n" . .
   if eq x. 0 . do
     panic "zero" .
   end .

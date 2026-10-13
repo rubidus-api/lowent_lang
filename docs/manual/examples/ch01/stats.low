@@ -1,12 +1,12 @@
 module stats .
 rem run: mean [3,4,8]
 
-fn mean input xs slice u8 . output usize .
+fn mean input xs slice u8 . output u64 .
   requires gt len xs. . 0 . .
 do
-  var total usize 0 .
+  var total u64 0 .
   for x xs. do
-    set total. add total. cast usize widen u64 x. . . . .
+    set total. add total. widen u64 x. . . .
   end .
-  return div total. len xs. . . .
+  return div total. cast u64 len xs. . . . .
 end .

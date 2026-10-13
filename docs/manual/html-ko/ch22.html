@@ -667,10 +667,10 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <h2>22 제네릭 — 번역 시점에 정해지는 매개변수</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>8장 식 · <code>size_of</code> 와 <code>comptime</code> 은 번역할 때 계산된다</div><div>20장 할당기와 고정 메모리 · 할당기를 <code>input comptime a type .</code> 으로 받아 갈아 끼운다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>20장의 <code>two_from</code> 은 <code>bump_bytes</code> 와 <code>bump_aligned</code> 를 모두 받았다. 할당기를 갈아 끼우는 비용이 왜 0 이라고 했는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> 할당기의 <strong>타입</strong>이 번역할 때 구체 타입으로 정해져서, 호출마다 그 타입 전용 코드가 만들어지기 때문이다. 가상 함수 표도 간접 호출도 없다. 이 장은 그 “번역할 때 정해지는 매개변수” — <code>comptime</code> — 를 일반적으로 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">같은 알고리즘을 타입마다 베껴 쓰면 고칠 자리가 타입 수만큼 늘어난다. 함수 포인터로 비교를 넘기면 호출 자리에서는 공짜처럼 보이지만 간접 호출의 비용이 숨는다. Lowent 는 타입과 상수를 <strong>번역 시점 매개변수</strong>로 받고, 쓰인 조합마다 실물을 만든다. 무엇이 만들어지는지는 부르는 자리에 보인다. 트레이트(23장)와 <code>pipe</code>(24장)가 모두 이 위에 서므로, 추상의 도구로 먼저 세운다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>input comptime n u8 .</code> 처럼 값을, <code>input comptime t type .</code> 처럼 타입을 번역 시점에 받는 법을 익힌다. 번역 시점에 알 수 없는 값을 주면 거절된다는 것, 쓰인 조합마다 실물이 만들어지고(단형화) 그 수가 곧 코드의 양이라는 것을 알게 된다. 타입 매개변수에 <code>requires &lt;트레이트> t .</code> 로 조건을 걸고, 조건을 갖추지 못한 타입을 주면 무엇이 일어나는지도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li>타입 인자를 추론하지 않는 이유는 무엇인가? <code>max_of a b</code> 라고만 써도 <code>a</code> 의 타입에서 알 수 있지 않은가?</li></ol></div></div><div></div><h3 id="s22-1">22.1 값과 타입을 번역 시점에 받는다<a class="plink" href="#s22-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-52"></span><p><code>comptime</code> 을 붙인 매개변수는 번역 시점에 값이 정해져야 한다. 타입도 그렇게 받는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
 <em><span class="tok-c">rem run: report</span></em>
 
-<strong><span class="tok-k">fn</span></strong> bytes_for <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> items <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> bytes_for <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> items <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le items. <span class="tok-n">1000000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> mul size_of t . items. . .
+  <strong><span class="tok-k">return</span></strong> mul size_of t . cast <strong><span class="tok-t">usize</span></strong> items. . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> add_const <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> n <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
@@ -679,12 +679,12 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">return</span></strong> add a. n. . .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> report <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> report <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> bytes_for <strong><span class="tok-t">u8</span></strong>. <span class="tok-n">100</span> . .
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> bytes_for <strong><span class="tok-t">u64</span></strong>. <span class="tok-n">100</span> . .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">usize</span></strong> bytes_for <strong><span class="tok-t">u8</span></strong>. <span class="tok-n">100</span> . .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">usize</span></strong> bytes_for <strong><span class="tok-t">u64</span></strong>. <span class="tok-n">100</span> . .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> add_const <span class="tok-n">7</span> <span class="tok-n">10</span> . .
-  <strong><span class="tok-k">return</span></strong> add add a. b. . widen <strong><span class="tok-t">u64</span></strong> c. . . .
+  <strong><span class="tok-k">return</span></strong> add add a. b. . cast <strong><span class="tok-t">usize</span></strong> c. . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run report sizes.low
 report() = 917
@@ -844,13 +844,13 @@ mistake_nobound.low:15:0 E-METHOD-UNDEF: no op of that name is associated with t
 </code></pre></div></div><p><code>max_of</code> 의 본문은 <code>less</code> 를 부르지만 머리에 <code>requires ordered t. . .</code> 가 없다. 그러면 <code>plain</code> 으로 부른 잘못이 <strong>템플릿 안</strong>의 줄에서 <code>E-METHOD-UNDEF</code> 로 나고, 도구는 <code>N-MONO-SITE</code> 로 “그 인스턴스를 청한 줄은 여기” 라고 덧붙인다. 조건을 적은 <code>unsat.low</code> 는 같은 잘못을 부르는 자리에서 <code>E-BOUND-UNSAT</code> 으로 곧바로 말한다. 타입 조건은 부르는 쪽에게 주는 약속이면서 진단을 제자리로 데려오는 표시다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 타입 자리에 크기를 넘긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/mistake_valuetype.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_valuetype .
 <em><span class="tok-c">rem expect: E-IR-UNDEF</span></em>
 
-<strong><span class="tok-k">fn</span></strong> bytes_for <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> items <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> bytes_for <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> items <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le items. <span class="tok-n">1000000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> mul size_of t . items. . .
+  <strong><span class="tok-k">return</span></strong> mul size_of t . cast <strong><span class="tok-t">usize</span></strong> items. . . .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 타입 자리에 크기(8)를 넘겼다 --- `u64` 라고 적는다</span></em>
   <strong><span class="tok-k">return</span></strong> bytes_for <span class="tok-n">8</span> <span class="tok-n">100</span> . .

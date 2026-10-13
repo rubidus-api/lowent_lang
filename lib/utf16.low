@@ -93,13 +93,13 @@ do
   let h option u64 unit_hi c. . .
   guard is_some h. . else return none . .
   if eq n. 1 . do
-    set idx dst. at. . some_value h. . .
+    set idx dst. at. . cast u16 some_value h. . . .
     return some add at. 1 . . .
   end .
   let l option u64 unit_lo c. . .
   guard is_some l. . else return none . .
-  set idx dst. at. . some_value h. . .
-  set idx dst. add at. 1 . . some_value l. . .
+  set idx dst. at. . cast u16 some_value h. . . .
+  set idx dst. add at. 1 . . cast u16 some_value l. . . .
   return some add at. 2 . . .
 end .
 
@@ -133,7 +133,7 @@ end .
 rem ── ④ 전체를 훑는다 ──────────────────────────────────────────────────
 
 export fn count_chars input s slice u16 . output option usize . link "utf16_count_chars" . do
-  var n u64 0 .
+  var n usize 0 .
   var i usize 0 .
   while lt i. len s. . . do
     let nx option usize next_start s. i. . .

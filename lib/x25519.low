@@ -270,7 +270,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   var j u64 0 .
   while lt j. 255 . do
     let bi u64 sub 254 j. . .
-    let r u64 bit_and shr cast u64 idx z. shr bi. 3 . . . bit_and bi. 7 . . 1 . .
+    let r u64 bit_and shr cast u64 idx z. cast usize shr bi. 3 . . . . bit_and bi. 7 . . 1 . .
     set sk. fsel fa. fb. r. . .
     set sk. fsel fc. fd. r. . .
     set sk. fadd fe. fa. fc. . .

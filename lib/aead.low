@@ -81,7 +81,7 @@ errors short_workspace . do
   while lt j. 12 . do  set idx ks. add 4 j. . . idx nonce. j. . .  set j. add j. 1 . .  end .
   var z usize 0 .
   while lt z. 32 . do  set idx otk. z. . 0 .  set z. add z. 1 . .  end .
-  let n u64 call_builtin chacha20 key. subslice ks. 0 16 . subslice otk. 0 32 . subslice otk. 0 32 . . .
+  let n usize call_builtin chacha20 key. subslice ks. 0 16 . subslice otk. 0 32 . subslice otk. 0 32 . . .
   guard eq n. 32 . else return ok 0 . . .
   return ok 32 . .
 end .
@@ -144,7 +144,7 @@ errors short_workspace . do
     set i. add i. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .
-  let n_r result u64 chacha.chacha_error chacha.stream key. nonce. 1 ct. msg. st. work. ks. . .
+  let n_r result usize chacha.chacha_error chacha.stream key. nonce. 1 ct. msg. st. work. ks. . .
   guard is_ok n_r. . else return error short_workspace . . .
   let n usize ok_value n_r. . .
   guard eq n. len ct. . . else return ok 0 . . .

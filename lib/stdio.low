@@ -12,11 +12,11 @@ rem ☞ 끝까지 쓰기(`write_all`)와 모아 쓰기(`buf_*`)는 `outbuf`(lib/
 module stdio .
 
 rem 통로 `d` 에 바이트를 쓴다. **쓴 바이트 수**를 낸다 — 파이프에서는 `len b` 보다 적을 수 있고, 0 은 «더는 못 쓴다» 다.
-export proc write input k cap io . input d u64 . input b slice u8 . output u64 . effects io . do
+export proc write input k cap io . input d u64 . input b slice u8 . output usize . effects io . do
   return call_builtin write_out k. d. b. . .
 end .
 
 rem 통로 `d` 에서 `dst` 로 읽는다. 읽은 바이트 수를 낸다 — 0 은 입력의 끝이고, `none` 은 읽지 못한 것이다.
-export proc read input k cap io . input d u64 . input dst mut slice u8 . output option u64 . effects io . do
+export proc read input k cap io . input d u64 . input dst mut slice u8 . output option usize . effects io . do
   return call_builtin read_in k. d. dst. . .
 end .

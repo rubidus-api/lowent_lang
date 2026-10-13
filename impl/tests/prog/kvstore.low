@@ -71,7 +71,7 @@ end .
 
 
 rem ── ③ nodelist — 슬롯 위의 **고리형 LRU**: 넷을 잇고 가운데를 끊는다 ──────
-proc lru input nx mut slice u64 . input pv mut slice u64 . output u64 . effects none . do
+proc lru input nx mut slice usize . input pv mut slice usize . output u64 . effects none . do
   guard nodelist.nl_solo nx. pv. 0 . else return 91 . .
   guard nodelist.nl_after nx. pv. 0 1 . else return 92 . .
   guard nodelist.nl_after nx. pv. 1 2 . else return 93 . .
@@ -178,7 +178,7 @@ rem   ☞ 못 재는 것은 안 잰다: TLB miss(도구 없음) · atomic retry(
 rem     `미측정` 으로 남고 그 까닭을 표가 적는다.
 
 rem 고리 목록 — 넣고(nl_after) 세고(nl_count) 끊는다(nl_walk_cut).
-proc bench_list input nx mut slice u64 . input pv mut slice u64 . input reps u64 . output u64 .
+proc bench_list input nx mut slice usize . input pv mut slice usize . input reps u64 . output u64 .
   effects none .
 do
   var acc u64 0 .
@@ -188,8 +188,8 @@ do
     guard nodelist.nl_after nx. pv. 0 1 . else return 0 . .
     guard nodelist.nl_after nx. pv. 1 2 . else return 0 . .
     guard nodelist.nl_after nx. pv. 2 3 . else return 0 . .
-    set acc. add acc. nodelist.nl_count nx. 0 . . .
-    set acc. add acc. nodelist.nl_walk_cut nx. pv. 0 2 . . .
+    set acc. add acc. cast u64 nodelist.nl_count nx. 0 . . . .
+    set acc. add acc. cast u64 nodelist.nl_walk_cut nx. pv. 0 2 . . . .
     set r. add r. 1 . .
   end .
   return acc. .
@@ -264,8 +264,11 @@ do
   if eq which. 0 . do
     let cb option mut slice u8 alloc_bytes al. capacity 512 . .
     guard is_some cb. . else return 0 . .
-    var pv mut slice u64 view_array u64 some_value cb. . . .
-    set work. bench_list m64. pv. reps. . .
+    var pv mut slice usize view_array usize some_value cb. . . .
+    let cn option mut slice u8 alloc_bytes al. capacity 512 . .
+    guard is_some cn. . else return 0 . .
+    var nx mut slice usize view_array usize some_value cn. . . .
+    set work. bench_list nx. pv. reps. . .
   end .
   if eq which. 1 . do set work. bench_pool m8. m64. reps. . . end .
   if eq which. 2 . do set work. bench_shard m64. reps. . . end .
@@ -297,8 +300,8 @@ export proc stands input al cap allocator . output u8 . effects alloc . do
   guard is_some nb. . else return 87 . .
   let pb option mut slice u8 alloc_bytes al. capacity 64 . .
   guard is_some pb. . else return 86 . .
-  var nx mut slice u64 view_array u64 some_value nb. . . .
-  var pv mut slice u64 view_array u64 some_value pb. . . .
+  var nx mut slice usize view_array usize some_value nb. . . .
+  var pv mut slice usize view_array usize some_value pb. . . .
   guard eq lru nx. pv. . 3 . else return 3 . .
 
   guard eq index_read. 4 . else return 4 . .

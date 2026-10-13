@@ -91,7 +91,7 @@ rem ★★ 코드포인트 개수. 유효하지 않은 바이트를 만나면 `n
 rem   (`lib/fmt.low` 의 전량-아니면-무와 같은 규율: 반쯤 맞는 답이 가장 나쁘다).
 export fn count_chars input s slice u8 . output option usize . link "utf8_count_chars" . do
   var i usize 0 .
-  var n u64 0 .
+  var n usize 0 .
   while lt i. len s. . . do
     let d option u64 decode s. i. . .
     guard is_some d. . else return none . .

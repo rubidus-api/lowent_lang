@@ -681,7 +681,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> area <span class="tok-n">3</span> <span class="tok-n">4</span> . .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">area is twelve</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">area is twelve</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> a. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main heads.low
@@ -697,7 +697,7 @@ main() = 12
   <strong><span class="tok-k">requires</span></strong> le w. <span class="tok-n">1000</span> . .
   <strong><span class="tok-k">requires</span></strong> le h. <span class="tok-n">1000</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">computing</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">computing</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> mul w. h. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_hiddenio.low

@@ -683,11 +683,11 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">var</span></strong> p <strong><span class="tok-k">owned</span></strong> outbuf.pending outbuf.buf_open <span class="tok-n">1</span> . .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">while</span></strong> le i. <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_str nb. <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">line </span><span class="tok-s">"</span> . .
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_str nb. <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">line </span><span class="tok-s">"</span> . .
     <strong><span class="tok-k">guard</span></strong> is_some a. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">72</span> . .
-    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_u64 nb. some_value a. . i. . .
+    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_u64 nb. some_value a. . i. . .
     <strong><span class="tok-k">guard</span></strong> is_some b. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">73</span> . .
-    <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_nl nb. some_value b. . . .
+    <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_nl nb. some_value b. . . .
     <strong><span class="tok-k">guard</span></strong> is_some c. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">74</span> . .
     <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">owned</span></strong> outbuf.pending) outbuf.io_error
       outbuf.buf_write out. p. buf. subslice nb. <span class="tok-n">0</span> some_value c. . . . .

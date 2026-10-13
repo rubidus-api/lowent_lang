@@ -122,7 +122,7 @@ errors short_workspace . do
   while eq done. 0 . do
     set bi. sub bi. 1 . .
     let sq u64 bigint.mont_mul subslice w. 54 72 . subslice w. 54 72 . subslice w. 54 72 . m. 16 n0i. subslice w. 90 108 . . .
-    let limb u64 idx w. add 18 shr bi. 4 . . . .
+    let limb u64 idx w. cast usize add 18 shr bi. 4 . . . . .
     if eq bit_and shr limb. bit_and bi. 15 . . 1 . 1 . do
       let mu u64 bigint.mont_mul subslice w. 54 72 . subslice w. 54 72 . subslice w. 72 90 . m. 16 n0i. subslice w. 90 108 . . .
     end .
@@ -308,7 +308,7 @@ errors short_workspace . do
     guard is_ok d_r. . else return error short_workspace . . .
     let d u64 ok_value d_r. . .
     let c u64 copy48 acc. subslice w. 0 48 . . .
-    if eq bit_and shr idx k. shr bi. 4 . . bit_and bi. 15 . . 1 . 1 . do
+    if eq bit_and shr idx k. cast usize shr bi. 4 . . . bit_and bi. 15 . . 1 . 1 . do
       let a_r result u64 p256_error padd subslice w. 48 96 . acc. pt. p. r2. n0i. subslice w. 96 396 . . .
       guard is_ok a_r. . else return error short_workspace . . .
       let a u64 ok_value a_r. . .
@@ -364,7 +364,7 @@ errors short_workspace . do
     let a_r result u64 p256_error padd subslice w. 48 96 . subslice w. 0 48 . pt. p. r2. n0i. subslice w. 96 396 . . .
     guard is_ok a_r. . else return error short_workspace . . .
     let a u64 ok_value a_r. . .
-    let bit u64 bit_and shr idx k. shr bi. 4 . . bit_and bi. 15 . . 1 . .
+    let bit u64 bit_and shr idx k. cast usize shr bi. 4 . . . bit_and bi. 15 . . 1 . .
     let c u64 csel48 acc. subslice w. 0 48 . subslice w. 48 96 . bit. . .
     if eq bi. 0 . do  set done. 1 .  end .
   end .

@@ -145,7 +145,7 @@ export proc send_all input k cap net . input fd u64 . input buf slice u8 . outpu
 do
   var off usize 0 .
   while lt off. len buf. . . do
-    let s option u64 call_builtin net_send k. fd. subslice buf. off. len buf. . . . .
+    let s option usize call_builtin net_send k. fd. subslice buf. off. len buf. . . . .
     guard is_some s. . else return some off. . . .
     let n usize some_value s. . .
     guard gt n. 0 . else return some off. . . .
@@ -156,7 +156,7 @@ end .
 
 rem 한 번 받는다 — 받은 바이트 수. 0 은 상대가 닫았다는 뜻이다.
 export proc recv_once input k cap net . input fd u64 . input dst mut slice u8 .
-  output option u64 . effects io .
+  output option usize . effects io .
 do
   return call_builtin net_recv k. fd. dst. . .
 end .

@@ -50,7 +50,7 @@ end .
 
 rem ★ 글자 종류를 센다 — `unicode` 의 표가 실제로 쓰이는 자리.
 proc scan_kinds input src slice u8 . input dst mut slice u8 . input pos0 usize .
-  output option u64 . effects none .
+  output option usize . effects none .
 do
   var at usize 0 .
   var n_letters u64 0 .
@@ -109,7 +109,7 @@ do
   let gsrc option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some gsrc. . else return 70 . .
   let srcbuf mut slice u8 some_value gsrc. . .
-  let sn result u64 files.file_error files.slurp fs. path. srcbuf. . .
+  let sn result usize files.file_error files.slurp fs. path. srcbuf. . .
   guard is_ok sn. . else return 66 . .
   let src slice u8 subslice srcbuf. 0 ok_value sn. . . .
 
@@ -131,7 +131,7 @@ do
       let b option usize codec.hex_dec enc. backbuf. . .
       guard is_some b. . else return 2 . .
       guard same_bytes src. subslice backbuf. 0 some_value b. . . . else return 2 . .
-      let w u64 call_builtin write_out out. 1 enc. . .
+      let w usize call_builtin write_out out. 1 enc. . .
       return 0 .
     end .
     if eq idx mode. 0 . 98 . do
@@ -142,7 +142,7 @@ do
       let b6 option usize codec.b64_dec enc6. backbuf. . .
       guard is_some b6. . else return 2 . .
       guard same_bytes src. subslice backbuf. 0 some_value b6. . . . else return 2 . .
-      let w6 u64 call_builtin write_out out. 1 enc6. . .
+      let w6 usize call_builtin write_out out. 1 enc6. . .
       return 0 .
     end .
   end .
@@ -151,11 +151,11 @@ do
   if eq len mode. . 4 . do
     if eq idx mode. 0 . 115 . do
       guard utf8.is_valid src. . else return 65 . .
-      let e option u64 scan_kinds src. encbuf. 0 . .
+      let e option usize scan_kinds src. encbuf. 0 . .
       guard is_some e. . else return 72 . .
       let e2 option usize fmt.put_nl encbuf. some_value e. . . .
       guard is_some e2. . else return 72 . .
-      let w u64 call_builtin write_out out. 1 subslice encbuf. 0 some_value e2. . . . .
+      let w usize call_builtin write_out out. 1 subslice encbuf. 0 some_value e2. . . . .
       return 0 .
     end .
   end .
@@ -218,7 +218,7 @@ do
       guard is_some e3. . else return 72 . .
       let e4 option usize fmt.put_nl backbuf. some_value e3. . . .
       guard is_some e4. . else return 72 . .
-      let w4 u64 call_builtin write_out out. 1 subslice backbuf. 0 some_value e4. . . . .
+      let w4 usize call_builtin write_out out. 1 subslice backbuf. 0 some_value e4. . . . .
       return 0 .
     end .
   end .

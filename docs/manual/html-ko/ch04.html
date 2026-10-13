@@ -949,11 +949,12 @@ mistake_usizemix.low:6:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with
 <em><span class="tok-c">rem expect: E-TYPE-NOMINAL</span></em>
 
 <em><span class="tok-c">rem ✘ usize 를 widen 으로 옮긴다 --- 넓어지는지는 기계에 달렸다. cast 로 적는다</span></em>
-<strong><span class="tok-k">fn</span></strong> as_u64 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">fn</span></strong> as_u64 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> n. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_usizewiden.low
 mistake_usizewiden.low:6:0 E-TYPE-NOMINAL: `usize` / `idiff` convert with `cast` only — their width is the implementation's (16 bits up to the widest integer), so whether this WIDENS or NARROWS depends on the target, and `widen` promises a direction. Write `cast &lt;type> &lt;value>`: it asks no direction and stops when the value does not fit
+mistake_usizewiden.low:6:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p>64 비트 기계만 보면 <code>usize</code> 에서 <code>u64</code> 로는 늘 넓어지는 것 같지만, 폭은 구현이 정한다. <code>cast u64 n. .</code> 로 적는다.</p></div></div><h3 id="s4-9">4.9 흔한 실수<a class="plink" href="#s4-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>수의 실수는 번역을 통과하고 <strong>실행 중에</strong> 드러나는 것이 많다. 다른 언어라면 조용히 틀린 값이 나올 자리에서 Lowent 는 멈춘다. 멈춘 자리가 곧 고칠 자리다.</p><div class="dev antipattern"><p class="dev-label">반례. 둘을 더한 뒤 반으로 나눠 가운데 값을 구한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_midpoint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_midpoint .
 <em><span class="tok-c">rem trap: mid 200 100</span></em>
 

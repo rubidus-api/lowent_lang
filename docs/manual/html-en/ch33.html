@@ -692,7 +692,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">guard</span></strong> is_some p4. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> . .
   <strong><span class="tok-k">let</span></strong> p5 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> fmt.put_nl buf. some_value p4. . . .
   <strong><span class="tok-k">guard</span></strong> is_some p5. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. <span class="tok-n">0</span> some_value p5. . . . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. <span class="tok-n">0</span> some_value p5. . . . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main request.low
@@ -706,7 +706,7 @@ main() = 0
 
 <strong><span class="tok-k">use</span></strong> utf8 .
 
-<strong><span class="tok-k">fn</span></strong> characters <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> characters <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> utf8.count_chars s. . .
   <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . .
@@ -744,8 +744,8 @@ first_char([236,149,136,235,133,149]) = 50504
   <strong><span class="tok-k">let</span></strong> dst <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> codec.hex_enc <span class="tok-s">"</span><span class="tok-s">Lowent</span><span class="tok-s">"</span> dst. . .
   <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> subslice dst. <span class="tok-n">0</span> some_value n. . . . .
-  <strong><span class="tok-k">let</span></strong> nl <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> subslice dst. <span class="tok-n">0</span> some_value n. . . . .
+  <strong><span class="tok-k">let</span></strong> nl <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">let</span></strong> small <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> codec.hex_enc <span class="tok-s">"</span><span class="tok-s">too long for eight</span><span class="tok-s">"</span> subslice dst. <span class="tok-n">0</span> <span class="tok-n">8</span> . . .
   <strong><span class="tok-k">guard</span></strong> is_none small. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -816,7 +816,7 @@ path_len([80,79,83,84,32,47,97]) = 0
 
 <strong><span class="tok-k">use</span></strong> codec .
 
-<strong><span class="tok-k">proc</span></strong> sizes <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">proc</span></strong> sizes <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">16</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
@@ -836,7 +836,7 @@ sizes(0) = 1612
 <strong><span class="tok-k">use</span></strong> utf8 .
 
 <em><span class="tok-c">rem `len` counts bytes --- "안녕" is 6 bytes, 2 characters</span></em>
-<strong><span class="tok-k">fn</span></strong> lengths <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> lengths <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> chars <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> utf8.count_chars s. . .
   <strong><span class="tok-k">guard</span></strong> is_some chars. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .

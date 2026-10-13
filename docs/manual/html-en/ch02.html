@@ -672,7 +672,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">use</span></strong> stdio .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello, entropy!</span><span class="tok-n">\n</span><span class="tok-s">"</span> . . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello, entropy!</span><span class="tok-n">\n</span><span class="tok-s">"</span> . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main hello.low
 hello, entropy!
@@ -682,14 +682,14 @@ main() = 16
 <strong>./hello</strong><strong> main</strong></code></pre><p>The native executable takes the name of the op to run as its first argument. Running <code>main</code> prints the same line, and the return value 16 comes out as <strong>the process exit code</strong> (see it with <code>echo $?</code>). That is why <code>main</code>’s <code>output</code> is <code>u8</code> — an exit code is one byte.</p><div class="dev realcase"><p class="dev-label">In practice. When the two results differ, whose fault is it?</p><div class="dev-body">The VM and native code start from the same intermediate representation. If they produce different output, it is a defect in the <strong>compiler</strong>, not the program. The development repository runs hundreds of ops on both back ends with boundary-value arguments and compares them byte for byte, and this book’s verification script also runs every example carrying <code>rem run:</code> twice and compares. One discrepancy surfaced while writing this book — <code>args.get</code>, which reads program arguments, counts positions differently on the VM and in native code. So examples that read arguments are only checked in this edition, and their run results are not shown.</div></div><p>Slice arguments are given in brackets. The next op computes the mean of a byte slice.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch01/stats.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stats .
 <em><span class="tok-c">rem run: mean [3,4,8]</span></em>
 
-<strong><span class="tok-k">fn</span></strong> mean <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">fn</span></strong> mean <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt len xs. . <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs. <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> total. add total. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> x. . . . .
+    <strong><span class="tok-k">set</span></strong> total. add total. widen <strong><span class="tok-t">u64</span></strong> x. . . .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> div total. len xs. . . .
+  <strong><span class="tok-k">return</span></strong> div total. cast <strong><span class="tok-t">u64</span></strong> len xs. . . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mean stats.low [3,4,8]
 mean([3,4,8]) = 5
@@ -719,7 +719,7 @@ $ lowentc --test twice.low
 
 <strong><span class="tok-k">use</span></strong> stdio .
 
-<strong><span class="tok-k">fn</span></strong> shout <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> shout <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
 <strong><span class="tok-k">end</span></strong> .
@@ -743,10 +743,10 @@ messy.low:4:22 E-CLAUSE-ORDER: a data input comes after `output`. An op header h
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">cap</span></strong> args . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> who <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> args.get a. <span class="tok-n">0</span> . .
-  <strong><span class="tok-k">guard</span></strong> is_some who. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">no name</span><span class="tok-n">\n</span><span class="tok-s">"</span> . . . .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello, </span><span class="tok-s">"</span> . .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> some_value who. . . .
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">guard</span></strong> is_some who. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">no name</span><span class="tok-n">\n</span><span class="tok-s">"</span> . . . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello, </span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> some_value who. . . .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check greet.low
@@ -771,8 +771,8 @@ messy.low:4:22 E-CLAUSE-ORDER: a data input comes after `output`. An op header h
 <em><span class="tok-c">rem ✘ declares `io` but never receives the right to do it (`cap io`)</span></em>
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n. . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> n. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nocap.low
 mistake_nocap.low:7:0 E-EFFECT-NO-CAP: this op declares the `io` effect but receives NO capability that authorizes it. `io` is a cap-effect (RFC-0007 §6.7): I/O is a RIGHT you are HANDED, not an ambient power — `input fs cap file_system .` (or another `cap …` input). An effect you declare but hold no capability for is a claim the signature cannot back
@@ -783,14 +783,14 @@ mistake_nocap.low:7:0 E-EFFECT-NO-CAP: this op declares the `io` effect but rece
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">8</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> n. add n. stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">32 bytes of text on every line.</span><span class="tok-n">\n</span><span class="tok-s">"</span> . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
   <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ 256 bytes were written --- an exit code is one byte (0 … 255), so it does not fit</span></em>
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n. . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> n. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main mistake_exitcode.low
 32 bytes of text on every line.
@@ -810,8 +810,8 @@ mistake_nocap.low:7:0 E-EFFECT-NO-CAP: this op declares the `io` effect but rece
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n. . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> n. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mian mistake_opname.low
 == ir diagnostics (1) ==

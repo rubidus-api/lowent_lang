@@ -95,14 +95,14 @@ end .
 
 rem 담긴 개수 · 지금 자리(원소 단위).
 export fn count_of input comptime t type . input comptime a type . input g vec t a . output u64 . requires allocs.byte_allocator a. . . do return field g. n . . end .
-export proc cap_of  input comptime t type . input comptime a type . input g vec t a . output u64 . effects none . requires allocs.byte_allocator a. . . do
+export proc cap_of  input comptime t type . input comptime a type . input g vec t a . output usize . effects none . requires allocs.byte_allocator a. . . do
   return div len field g. store . . size_of t . . .
 end .
 
 rem ★ 원소를 하나 민다. 자리가 모자라면 **스스로** 더 받아 옮긴다(두 배 + 8 원소).
 rem   못 받으면 false — 트랩이 아니라 값이다(OOM 은 값이다, RFC-0043 D5).
 export proc append input comptime t type . input comptime a type . input g mut vec t a . input x t . output bool . effects state via a . invalidates g . requires allocs.byte_allocator a. . . do
-  let room u64 div len field g. store . . size_of t . . .
+  let room usize div len field g. store . . size_of t . . .
   if lt field g. n . room. . do
     var cur mut slice u8 field g. store . .
     var cells mut slice t view_array t cur. . .
@@ -110,13 +110,13 @@ export proc append input comptime t type . input comptime a type . input g mut v
     set field g. n . add field g. n . 1 . .
     return true .
   end .
-  let want u64 add mul room. 2 . 8 . .
+  let want usize add mul room. 2 . 8 . .
   rem ★★★★★ **먼저 제자리에서 늘려 본다** (2026-08-18). 범프는 되돌리지 않으므로 자랄 때마다
   rem   옛 버퍼가 아레나에 **버려진 채 남는다** — 실측 고수위가 요청의 약 4배였다.
   rem   마지막 할당이 우리 버퍼면 그 자리를 늘리면 되고, 그러면 **세대가 하나뿐**이다.
   rem ★ 실패는 값(none)이고, 그때는 **아래 옛 길 그대로** 새로 받아 복사한다.
   rem   즉 이것은 최적화이지 계약이 아니다 — 있으나 없으나 **답이 같아야 한다**.
-  let ip option mut slice u8 try_grow t. a. g. mul want. size_of t . . . .
+  let ip option mut slice u8 try_grow t. a. g. cast u64 mul cast usize want. . size_of t . . . . .
   if is_some ip. . do
     set field g. store . some_value ip. . .
     set field g. tail . send field g. al . used . .
@@ -148,7 +148,7 @@ export proc at input comptime t type . input comptime a type . input g vec t a .
   guard lt i. field g. n . . else return none . .
   var cur mut slice u8 field g. store . .
   var cells mut slice t view_array t cur. . .
-  return some idx cells. i. . . .
+  return some idx cells. cast usize i. . . . .
 end .
 
 rem ★ i 번째 원소를 고친다. 범위 밖이면 false — 조용히 늘리지 않는다.
@@ -168,8 +168,8 @@ export proc reserve_more input comptime t type . input comptime a type . input g
   let need0 option u64 chk_add field g. n . more. . .
   guard is_some need0. . else return false . .
   let need u64 some_value need0. . .
-  let room u64 div len field g. store . . size_of t . . .
-  if le need. room. . do return true . end .
+  let room usize div len field g. store . . size_of t . . .
+  if le cast usize need. . room. . do return true . end .
   let nbytes0 option u64 chk_mul need. size_of t . . .
   guard is_some nbytes0. . else return false . .
   let nbytes u64 some_value nbytes0. . .

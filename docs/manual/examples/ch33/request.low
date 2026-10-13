@@ -26,6 +26,6 @@ do
   guard is_some p4. . else return 4 . .
   let p5 option usize fmt.put_nl buf. some_value p4. . . .
   guard is_some p5. . else return 4 . .
-  let w u64 stdio.write out. 1 subslice buf. 0 some_value p5. . . . .
+  let w usize stdio.write out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .

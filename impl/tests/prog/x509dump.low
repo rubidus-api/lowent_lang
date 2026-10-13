@@ -30,11 +30,11 @@ do
     set idx d. i. . narrow u8 add 48 mod x. 10 . . . .
     set x. div x. 10 . .
   end .
-  let w1 u64 call_builtin write_out out. 1 tag. . .
+  let w1 usize call_builtin write_out out. 1 tag. . .
   guard gt w1. 0 . else return 0 . .
-  let w2 u64 call_builtin write_out out. 1 subslice d. i. 20 . . .
+  let w2 usize call_builtin write_out out. 1 subslice d. i. 20 . . .
   guard gt w2. 0 . else return 0 . .
-  let w3 u64 call_builtin write_out out. 1 "\n" . .
+  let w3 usize call_builtin write_out out. 1 "\n" . .
   guard gt w3. 0 . else return 0 . .
   return 1 .
 end .
@@ -49,7 +49,7 @@ do
     let lo u64 bit_and cast u64 idx b. i. . . 15 . .
     set idx d. 0 . narrow u8 add add 48 hi. . mul div hi. 10 . 39 . . . .
     set idx d. 1 . narrow u8 add add 48 lo. . mul div lo. 10 . 39 . . . .
-    let w u64 call_builtin write_out out. 1 subslice d. 0 2 . . .
+    let w usize call_builtin write_out out. 1 subslice d. 0 2 . . .
     guard gt w. 0 . else return 0 . .
     set i. add i. 1 . .
   end .
@@ -61,7 +61,7 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 16384 . .
   guard is_some g. . else return 9 . .
   let buf mut slice u8 some_value g. . .
-  let rn option u64 call_builtin read_in k. 0 buf. . .
+  let rn option usize call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 9 . .
   let n usize some_value rn. . .
   guard gt n. 0 . else return 9 . .
@@ -85,13 +85,13 @@ do
   var s usize x509.san_next c. 0 . .
   var guard_ u64 0 .
   while gt s. 0 . do
-    let w1 u64 call_builtin write_out k. 1 "san " . .
+    let w1 usize call_builtin write_out k. 1 "san " . .
     guard gt w1. 0 . else return 9 . .
     rem ★★★ 이름을 **날바이트로 찍지 않는다.** 차등 퍼저는 이 op 에 **쓰레기 인자**를 준다 —
     rem   그러면 아무 바이트나 표준출력으로 나가고, 그것을 글로 읽는 도구(스윕)가 그 자리에서
     rem   죽는다(실측 2026-09-18: UTF-8 아닌 0xFF 에서 멈췄다). 증인의 출력은 **언제나 글**이어야 한다.
     guard gt puthex k. subslice c. der.value_off c. s. . add der.value_off c. s. . der.value_len c. s. . . . subslice buf. 15040 15048 . . 0 . else return 9 . .
-    let w3 u64 call_builtin write_out k. 1 "\n" . .
+    let w3 usize call_builtin write_out k. 1 "\n" . .
     guard gt w3. 0 . else return 9 . .
     set s. x509.san_next c. s. . .
     set guard_. add guard_. 1 . .

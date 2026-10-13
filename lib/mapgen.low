@@ -87,8 +87,8 @@ rem   2^63 − 1 이다(그보다 큰 바닥은 없고, 2^64 − 1 리터럴은 
 export proc open input comptime k type . input comptime v type . use al allocs.bump_bytes . input want u64 . output option (table k v) . effects state . do
   guard le want. 4611686018427387903 . else return none . .
   let s u64 pow2_up mul add want. 1 . 2 . . .
-  guard le s. div 9223372036854775807 size_of k . . . else return none . .
-  guard le s. div 9223372036854775807 size_of v . . . else return none . .
+  guard le cast usize s. . div 9223372036854775807 size_of k . . . else return none . .
+  guard le cast usize s. . div 9223372036854775807 size_of v . . . else return none . .
   let kb option mut slice u8 send al. reserve mul s. size_of k . . . .
   guard is_some kb. . else return none . .
   let vb option mut slice u8 send al. reserve mul s. size_of v . . . .
@@ -173,7 +173,7 @@ proc regrow input comptime k type . input comptime v type . input m mut (table k
   while lt i. len pf. . . do
     if eq idx pf. i. . 1 . do
       rem 새 표에 다시 뿌린다 — 새 표에는 무덤이 없으므로 빈칸만 찾으면 된다.
-      var j usize bit_and mix widen u64 idx okc. i. . . . mask. . .
+      var j usize bit_and cast usize mix widen u64 idx okc. i. . . . . mask. . .
       var placing bool true .
       var tries usize 0 .
       while placing. do

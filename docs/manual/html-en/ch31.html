@@ -887,7 +887,7 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">use</span></strong> stdio .
 
 <em><span class="tok-c">rem `--run` FILLS capability positions when you leave them out (2026-09-20). The old placeholder `0` still works too</span></em>
-<strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
+<strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">requires</span></strong> le n. <span class="tok-n">100</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> . .

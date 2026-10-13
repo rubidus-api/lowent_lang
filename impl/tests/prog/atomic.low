@@ -64,7 +64,7 @@ do
   let wi result files.handle files.file_error files.open fs. strbuf.as_str bt. ptmp. . 1 . .
   guard is_ok wi. . else return 12 . .
   var wh owned files.handle ok_value wi. . .
-  let w result u64 files.file_error files.write fs. wh. "hello" . .
+  let w result usize files.file_error files.write fs. wh. "hello" . .
   guard is_ok w. . else return 13 . .
   let c1 result void files.file_error files.close fs. wh. . .
   guard is_ok c1. . else return 14 . .
@@ -82,7 +82,7 @@ do
   let ri result files.handle files.file_error files.open fs. strbuf.as_str bf. pfin. . 0 . .
   guard is_ok ri. . else return 18 . .
   var rh owned files.handle ok_value ri. . .
-  let n result (option u64) files.file_error files.read fs. rh. rbuf. . .
+  let n result (option usize) files.file_error files.read fs. rh. rbuf. . .
   guard is_ok n. . else return 19 . .
   let nv option u64 ok_value n. . .
   guard is_some nv. . else return 19 . .

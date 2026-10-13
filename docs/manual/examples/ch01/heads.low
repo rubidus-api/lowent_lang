@@ -15,6 +15,6 @@ rem ko: proc — 바깥에 흔적을 남길 수 있다. 무엇을 하는지(effe
 proc main input out cap io . output u8 . effects io .
 do
   let a u64 area 3 4 . .
-  let n u64 stdio.write out. 1 "area is twelve\n" . .
+  let n usize stdio.write out. 1 "area is twelve\n" . .
   return narrow u8 a. . .
 end .

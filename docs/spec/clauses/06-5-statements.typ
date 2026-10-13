@@ -310,12 +310,12 @@ end .", "E-CLOSER-EXTRA")
     ]
     #ex("겹친 되풀이를 한 번에 벗어난다", "module ex_break_count .
 
-export fn first_zero input want u32 . output u64 .
+export fn first_zero input want u32 . output usize .
 do
   let g lit array (array u32 3) 2 lit array u32 3 4 7 1 . lit array u32 3 9 0 5 . . .
-  var hit u64 99 .
-  repeat r u64 len g. . do
-    repeat c u64 3 do
+  var hit usize 99 .
+  repeat r usize len g. . do
+    repeat c usize 3 do
       if eq idx idx g. r. . c. . want. . do
         set hit. add mul r. 3 . c. . .
         break 2 .

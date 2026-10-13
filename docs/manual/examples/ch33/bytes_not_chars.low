@@ -6,7 +6,7 @@ rem run: decode_at [236,149,136,235,133,149] 3
 use utf8 .
 
 rem ko: `len` 은 바이트 수다 --- "안녕" 은 6 바이트, 2 글자 /// en: `len` counts bytes --- "안녕" is 6 bytes, 2 characters
-fn lengths input s slice u8 . output u64 .
+fn lengths input s slice u8 . output usize .
 do
   let chars option usize utf8.count_chars s. . .
   guard is_some chars. . else return 0 . .

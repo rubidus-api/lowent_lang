@@ -150,7 +150,7 @@ end .
 rem ★★ 스트림 암·복호(같은 연산이다). `counter` 는 시작 블록 번호.
 rem   `st`·`work` 16 원소, `ks` 64 바이트를 호출자가 준다 — 이 언어에서 할당은
 rem   **호출자의 몫**이다. 그래서 이 프로시저는 effects none 이다.
-export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
+export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result usize chacha_error . effects none .
 errors short_workspace . do
   guard ge len out. . len inp. . . else return ok 0 . . .
   guard eq len key. . 32 . else return ok 0 . . .

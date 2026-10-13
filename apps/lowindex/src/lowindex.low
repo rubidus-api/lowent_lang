@@ -109,7 +109,7 @@ proc add_term input tok slice u8 . input tb mut slice u64 . input slots mut slic
   requires ge len slots. . 1 . .
 do
   let cap usize len slots. . .
-  var at usize bit_and fnv1a tok. . sub cap. 1 . . .
+  var at usize bit_and cast usize fnv1a tok. . . sub cap. 1 . . .
   let doc u64 idx tb. 3 . .
   var term usize no_pos. .
   repeat probe usize cap. do
@@ -128,12 +128,12 @@ do
       repeat c usize len tok. . do
         set idx tarena. add used. c. . . idx tok. c. . .
       end .
-      set idx toff. t. . used. .
-      set idx tlen. t. . len tok. . .
+      set idx toff. t. . cast u64 used. . .
+      set idx tlen. t. . cast u64 len tok. . . .
       set idx lastdoc. t. . 18446744073709551615 .
-      set idx tb. 0 . add t. 1 . .
-      set idx tb. 1 . add used. len tok. . . .
-      set idx slots. at. . add t. 1 . .
+      set idx tb. 0 . cast u64 add t. 1 . . .
+      set idx tb. 1 . cast u64 add used. len tok. . . . .
+      set idx slots. at. . cast u64 add t. 1 . . .
       set term. t. .
       break .
     end .
@@ -158,9 +158,9 @@ do
     set idx tb. 4 . 3 .
     return .
   end .
-  set idx pterm. np. . term. .
+  set idx pterm. np. . cast u64 term. . .
   set idx pdoc. np. . doc. .
-  set idx tb. 2 . add np. 1 . .
+  set idx tb. 2 . cast u64 add np. 1 . . .
   return .
 end .
 
@@ -173,7 +173,7 @@ do
       let n usize cast usize idx tb. 5 . . .
       if and lt n. max_token. . lt n. len tok. . . . do
         set idx tok. n. . lower_ascii c. . .
-        set idx tb. 5 . add n. 1 . .
+        set idx tb. 5 . cast u64 add n. 1 . . .
       end else do
         set idx tb. 6 . 1 .
       end .
@@ -206,7 +206,7 @@ proc sort_by_name input arena slice u8 . input offs slice u64 . input lens slice
   requires le n. len tmp. . . .
 do
   repeat i usize n. do
-    set idx order. i. . i. .
+    set idx order. i. . cast u64 i. . .
   end .
   cycle w usize 1 while lt w. n. . next mul w. 2 . do
     cycle lo usize 0 while lt lo. n. . next add lo. mul w. 2 . . do
@@ -242,7 +242,7 @@ proc read_full input fs cap file_system . input h files.handle . input buf mut s
 do
   var got usize 0 .
   while lt got. len buf. . . do
-    let r result (option u64) files.file_error files.read fs. h. subslice buf. got. len buf. . . . .
+    let r result (option usize) files.file_error files.read fs. h. subslice buf. got. len buf. . . . .
     guard is_ok r. . else do
       set idx st. 0 . 4 .
       return got. .
@@ -258,7 +258,7 @@ proc write_full input fs cap file_system . input h files.handle . input buf slic
   var put usize 0 .
   var spins usize 0 .
   while lt put. len buf. . . do
-    let r result u64 files.file_error files.write fs. h. subslice buf. put. len buf. . . . .
+    let r result usize files.file_error files.write fs. h. subslice buf. put. len buf. . . . .
     guard is_ok r. . else return false . .
     let n usize ok_value r. . .
     guard gt n. 0 . else return false . .
@@ -287,7 +287,7 @@ do
   repeat ni usize len name. . do
     set idx buf. add head. ni. . . idx name. ni. . .
   end .
-  set idx st. 0 . total. .
+  set idx st. 0 . cast u64 total. . .
   return true .
 end .
 
@@ -310,12 +310,12 @@ do
   var n usize 0 .
   var used usize 0 .
   while true do
-    let r result (option u64) files.file_error files.read_dir fs. dh. namebuf. . .
+    let r result (option usize) files.file_error files.read_dir fs. dh. namebuf. . .
     guard is_ok r. . else do
       set idx st. 0 . 4 .
       break .
     end .
-    let got option u64 ok_value r. . .
+    let got option usize ok_value r. . .
     guard is_some got. . else break . .
     let nl usize some_value got. . .
     guard and gt nl. 0 . le nl. len namebuf. . . . else break . .
@@ -326,8 +326,8 @@ do
       set idx st. 0 . 3 .
       break .
     end .
-    set idx offs. n. . used. .
-    set idx lens. n. . nl. .
+    set idx offs. n. . cast u64 used. . .
+    set idx lens. n. . cast u64 nl. . .
     repeat c usize nl. do
       set idx arena. add used. c. . . idx namebuf. c. . .
     end .
@@ -425,7 +425,7 @@ do
     set fill. add fill. dl. . .
     set d. add d. 1 . .
   end .
-  set idx olen. 0 . fill. .
+  set idx olen. 0 . cast u64 fill. . .
   return d. .
 end .
 
@@ -460,7 +460,7 @@ do
     end .
     set r. add r. 1 . .
   end .
-  set idx olen. 0 . fill. .
+  set idx olen. 0 . cast u64 fill. . .
   return r. .
 end .
 
@@ -492,7 +492,7 @@ do
     let at usize cast usize idx start. t3. . . .
     guard lt at. len post. . . else return 3 . .
     set idx post. at. . idx pdoc. p2. . .
-    set idx start. t3. . add at. 1 . .
+    set idx start. t3. . cast u64 add at. 1 . . .
   end .
   rem start 는 이제 각 낱말의 끝 자리다 — 시작은 끝 - 수.
   sort_by_name tarena. toff. tlen. order. tmp. nt. .
@@ -587,7 +587,7 @@ do
     set idx pend. r. . idx root. r. . .
   end .
   set idx poffs. 0 . 0 .
-  set idx plens. 0 . len root. . .
+  set idx plens. 0 . cast u64 len root. . . .
   var np usize 1 .
   while gt np. 0 . do
     set np. sub np. 1 . .
@@ -610,8 +610,8 @@ do
       let k u64 value_or files.type_of fs. cp. . 9 . .
       if eq k. 1 . do
         guard and lt np. 4096 . and lt np. len poffs. . . le add pused. len cp. . . len pend. . . . . else return 3 . .
-        set idx poffs. np. . pused. .
-        set idx plens. np. . len cp. . .
+        set idx poffs. np. . cast u64 pused. . .
+        set idx plens. np. . cast u64 len cp. . . .
         repeat z usize len cp. . do
           set idx pend. add pused. z. . . idx cp. z. . .
         end .
@@ -626,7 +626,7 @@ do
         say out. limit_text 4 . "" .
         return 3 .
       end .
-      set idx tb. 3 . ndocs. .
+      set idx tb. 3 . cast u64 ndocs. . .
       set idx st. 0 . 0 .
       let is_text bool index_file fs. cp. chunk. tok. tb. slots. tarena. toff. tlen. lastdoc. pterm. pdoc. st. . .
       guard ne idx st. 0 . 4 . else do
@@ -638,8 +638,8 @@ do
         return 3 .
       end .
       if is_text. do
-        set idx doff. ndocs. . dused. .
-        set idx dlen. ndocs. . len cp. . .
+        set idx doff. ndocs. . cast u64 dused. . .
+        set idx dlen. ndocs. . cast u64 len cp. . . .
         repeat z2 usize len cp. . do
           set idx darena. add dused. z2. . . idx cp. z2. . .
         end .
@@ -648,7 +648,7 @@ do
       end .
     end .
   end .
-  set idx tb. 7 . ndocs. .
+  set idx tb. 7 . cast u64 ndocs. . .
   return 0 .
 end .
 
@@ -697,14 +697,14 @@ proc map_index input b slice u8 . input dpos mut slice u64 . input tpos mut slic
   var p usize 40 .
   repeat d usize nd. do
     guard le add p. 8 . len b. . . else return false . .
-    set idx dpos. d. . p. .
+    set idx dpos. d. . cast u64 p. . .
     let l usize cast usize get_le b. p. . . .
     guard le l. sub len b. . add p. 8 . . . else return false . .
     set p. add add p. 8 . l. . .
   end .
   repeat t usize nt. do
     guard le add p. 8 . len b. . . else return false . .
-    set idx tpos. t. . p. .
+    set idx tpos. t. . cast u64 p. . .
     let l2 usize cast usize get_le b. p. . . .
     guard le l2. sub len b. . add p. 8 . . . else return false . .
     set p. add add p. 8 . l2. . .

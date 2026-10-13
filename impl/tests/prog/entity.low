@@ -68,7 +68,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem 색인이 실제로 자리를 짚는가 — 없는 id 는 none 이어야 한다.
   let i20 option u64 hashmap.lookup bk. 20 . .
   guard is_some i20. . else return 9 . .
-  guard eq soa.get_x xs. some_value i20. . . 202 . else return 10 . .
+  guard eq soa.get_x xs. cast usize some_value i20. . . . 202 . else return 10 . .
   let miss option u64 hashmap.lookup bk. 99 . .
   guard is_none miss. . else return 11 . .
 

@@ -77,7 +77,7 @@ rem   순수 자료다. 위의 토큰이 **누가 이 일을 할 자격이 있�
 rem   아래 op 들이 **그 일을 한다**. 둘을 갈라 놓는 것이 요점이다.
 
 rem 혼자인 노드로 만든다 — 고리 하나다.
-export proc nl_solo input nx mut slice u64 . input pv mut slice u64 . input i usize .
+export proc nl_solo input nx mut slice usize . input pv mut slice usize . input i usize .
   output bool . effects none .
 do
   guard lt i. len nx. . . else return false . .
@@ -88,12 +88,12 @@ do
 end .
 
 rem `i` 를 `at` 뒤에 끼운다.
-export proc nl_after input nx mut slice u64 . input pv mut slice u64 . input at usize . input i usize .
+export proc nl_after input nx mut slice usize . input pv mut slice usize . input at usize . input i usize .
   output bool . effects none .
 do
   guard lt at. len nx. . . else return false . .
   guard lt i. len nx. . . else return false . .
-  let n usize cast usize idx nx. at. . . .
+  let n usize idx nx. at. . .
   set idx nx. at. . i. .
   set idx pv. i. . at. .
   set idx nx. i. . n. .
@@ -102,12 +102,12 @@ do
 end .
 
 rem `i` 를 뺀다 — 이웃을 서로 잇고, 자신은 혼자가 된다.
-export proc nl_cut input nx mut slice u64 . input pv mut slice u64 . input i usize .
+export proc nl_cut input nx mut slice usize . input pv mut slice usize . input i usize .
   output bool . effects none .
 do
   guard lt i. len nx. . . else return false . .
-  let p usize cast usize idx pv. i. . . .
-  let n usize cast usize idx nx. i. . . .
+  let p usize idx pv. i. . .
+  let n usize idx nx. i. . .
   set idx nx. p. . n. .
   set idx pv. n. . p. .
   set idx nx. i. . i. .
@@ -122,15 +122,15 @@ rem   ☞ 셈은 훑은 노드 수다. `cut_at` 이 목록 안에 있으면 그�
 rem ★ **머리를 자르는 경우** (2026-09-04 보안 검토): 머리를 고리에서 빼면 *"머리로 돌아오면 한 바퀴"*
 rem   가 **자기 변이로 깨진다** — 머리는 영영 안 돌아오고, 걸음 상한까지 돌아 `len nx + 1` 을 답했다.
 rem   그래서 머리는 고리에 들기 전에 따로 자르고, 바퀴는 머리의 **옛 다음 노드**에서 닫는다.
-export proc nl_walk_cut input nx mut slice u64 . input pv mut slice u64 . input head usize .
+export proc nl_walk_cut input nx mut slice usize . input pv mut slice usize . input head usize .
   input cut_at usize . output u64 . effects none .
 do
   guard lt head. len nx. . . else return 0 . .
   var start usize head. .
   var seen u64 0 .
   if eq cut_at. head. . do
-    let n0 usize cast usize idx nx. head. . . .
-    let p0 usize cast usize idx pv. head. . . .
+    let n0 usize idx nx. head. . .
+    let p0 usize idx pv. head. . .
     set idx nx. p0. . n0. .
     set idx pv. n0. . p0. .
     set idx nx. head. . head. .
@@ -143,10 +143,10 @@ do
   var steps usize 0 .
   while le steps. len nx. . . do
     rem ★ **다음을 먼저 읽는다** — 지금 노드를 빼면 그 `next` 가 자기 자신이 되기 때문이다.
-    let nxt usize cast usize idx nx. i. . . .
+    let nxt usize idx nx. i. . .
     if eq i. cut_at. . do
-      let p usize cast usize idx pv. i. . . .
-      let n usize cast usize idx nx. i. . . .
+      let p usize idx pv. i. . .
+      let n usize idx nx. i. . .
       set idx nx. p. . n. .
       set idx pv. n. . p. .
       set idx nx. i. . i. .
@@ -163,14 +163,14 @@ do
 end .
 
 rem 고리 한 바퀴의 길이를 센다 — 훑기만 한다. 머리로 돌아오면 끝이다.
-export fn nl_count input nx slice u64 . input head usize . output u64 . do
+export fn nl_count input nx slice usize . input head usize . output usize . do
   guard lt head. len nx. . . else return 0 . .
   var i usize head. .
-  var seen u64 0 .
+  var seen usize 0 .
   var steps usize 0 .
   while le steps. len nx. . . do
     set seen. add seen. 1 . .
-    set i. cast usize idx nx. i. . . .
+    set i. idx nx. i. . .
     if eq i. head. . do
       return seen. .
     end .

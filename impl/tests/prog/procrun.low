@@ -14,11 +14,11 @@ do
   var got usize 0 .
   repeat spin u64 2000000 do
     guard lt got. len buf. . . else break . .
-    let r option u64 process.read_output k. c. subslice buf. got. len buf. . . . .
+    let r option usize process.read_output k. c. subslice buf. got. len buf. . . . .
     guard is_some r. . else break . .
     set got. add got. some_value r. . . .
   end .
-  set idx st. 0 . got. .
+  set idx st. 0 . cast u64 got. . .
   let s u64 process.wait_exit k. c. . else return 998 . .
   return s. .
 end .

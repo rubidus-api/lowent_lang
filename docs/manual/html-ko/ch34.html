@@ -769,7 +769,7 @@ main() = 100
 
 <strong><span class="tok-k">use</span></strong> searchlib .
 
-<strong><span class="tok-k">proc</span></strong> find42 <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">proc</span></strong> find42 <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">40</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> . .

@@ -52,10 +52,10 @@ proc sm_write input slots mut slice u64 . input keys mut slice u8 . input base u
     set idx keys. add cursor. j. . . idx k. j. . .
     set j. add j. 1 . .
   end .
-  set idx slots. base. . cursor. .
-  set idx slots. add base. 1 . . len k. . .
+  set idx slots. base. . cast u64 cursor. . .
+  set idx slots. add base. 1 . . cast u64 len k. . . .
   set idx slots. add base. 2 . . v. .
-  set idx slots. 0 . add cursor. len k. . . .
+  set idx slots. 0 . cast u64 add cursor. len k. . . . .
   return true .
 end .
 

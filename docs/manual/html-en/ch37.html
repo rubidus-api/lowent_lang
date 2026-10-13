@@ -670,7 +670,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">use</span></strong> term .
 
 <em><span class="tok-c">rem writes nothing to the screen; it appends control bytes to buf and returns how many bytes were written</span></em>
-<strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem move the cursor to row 2, column 5 counted from 0; the terminal counts from 1, so ESC [ 3 ; 6 H</span></em>
   <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> term.goto buf. <span class="tok-n">0</span> <span class="tok-n">2</span> <span class="tok-n">5</span> . .
@@ -703,7 +703,7 @@ paint([27,91,51,59,54,72,27,91,49,109,104,105,27,91,48,109,0,0,0,0,0,0,0,0]) = 1
   <strong><span class="tok-k">guard</span></strong> is_some same. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> . .
   <strong><span class="tok-k">let</span></strong> changed <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> term.diff <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-s">"</span><span class="tok-s">help!   </span><span class="tok-s">"</span> <span class="tok-n">8</span> out. <span class="tok-n">0</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some changed. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> . .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> add mul some_value same. . <span class="tok-n">100</span> . some_value changed. . . . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> add mul some_value same. . <span class="tok-n">100</span> . some_value changed. . . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main diffing.low
 main() = 8
@@ -715,7 +715,7 @@ main() = 8
 
 <strong><span class="tok-k">use</span></strong> term .
 
-<strong><span class="tok-k">proc</span></strong> columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> term.row_width row. . .
   <strong><span class="tok-k">guard</span></strong> is_some w. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . .
@@ -727,7 +727,7 @@ main() = 8
   <strong><span class="tok-k">return</span></strong> term.cp_width cp. . .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">proc</span></strong> clusters <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> clusters <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> term.row_clusters row. . .
   <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . .
@@ -782,7 +782,7 @@ first_key([113]) = 2
   <strong><span class="tok-k">var</span></strong> going <strong><span class="tok-t">bool</span></strong> <span class="tok-n">true</span> .
   <strong><span class="tok-k">var</span></strong> last <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> going. <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.read t. buf. . .
+    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> tty.read t. buf. . .
     <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> going. <span class="tok-n">false</span> .
       <strong><span class="tok-k">continue</span></strong> .
@@ -810,7 +810,7 @@ first_key([113]) = 2
   <em><span class="tok-c">rem ✘ allocates *after* entering raw mode, and leaves without restoring if that fails</span></em>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al. capacity <span class="tok-n">32</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.read t. some_value g. . . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> tty.read t. some_value g. . . .
   <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-t">bool</span></strong> tty.raw t. <span class="tok-n">false</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
@@ -823,7 +823,7 @@ first_key([113]) = 2
 <strong><span class="tok-k">use</span></strong> term .
 
 <em><span class="tok-c">rem ✘ cuts at five bytes --- it splits the second character, leaving invalid text</span></em>
-<strong><span class="tok-k">proc</span></strong> cut_bytes <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> cut_bytes <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> ge len row. . <span class="tok-n">5</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> term.row_width subslice row. <span class="tok-n">0</span> <span class="tok-n">5</span> . . .
@@ -832,7 +832,7 @@ first_key([113]) = 2
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem ask where to cut by columns --- the longest prefix fitting three columns is the 3 bytes of "안"</span></em>
-<strong><span class="tok-k">proc</span></strong> cut_columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> cut_columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> term.fit_width row. <span class="tok-n">3</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . .

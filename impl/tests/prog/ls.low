@@ -36,7 +36,7 @@ do
   var going bool true .
   while going. do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`**.
-    let n result (option u64) files.file_error files.read_dir fs. dh. buf. . .
+    let n result (option usize) files.file_error files.read_dir fs. dh. buf. . .
     if eq is_ok n. . false . do set going. false . end .
     if is_ok n. . do
       let nvo option u64 ok_value n. . .

@@ -84,19 +84,19 @@ do
   let buf mut slice u8 some_value g. . .
 
   rem assembly --- not a byte has gone out yet
-  let p1 option u64 fmt.put_str buf. 0 "answer=" . .
+  let p1 option usize fmt.put_str buf. 0 "answer=" . .
   guard is_some p1. . else return 71 . .
-  let p2 option u64 fmt.put_u64 buf. some_value p1. . 42 . .
+  let p2 option usize fmt.put_u64 buf. some_value p1. . 42 . .
   guard is_some p2. . else return 72 . .
-  let p3 option u64 fmt.put_str buf. some_value p2. . " hex=" . .
+  let p3 option usize fmt.put_str buf. some_value p2. . " hex=" . .
   guard is_some p3. . else return 73 . .
-  let p4 option u64 fmt.put_hex buf. some_value p3. . 255 . .
+  let p4 option usize fmt.put_hex buf. some_value p3. . 255 . .
   guard is_some p4. . else return 74 . .
-  let p5 option u64 fmt.put_nl buf. some_value p4. . . .
+  let p5 option usize fmt.put_nl buf. some_value p4. . . .
   guard is_some p5. . else return 75 . .
 
   rem output --- only the assembled front part (0 … p5) goes out
-  let w u64 stdio.write out. 1 subslice buf. 0 some_value p5. . . . .
+  let w usize stdio.write out. 1 subslice buf. 0 some_value p5. . . . .
   return 0 .
 end .
 ```

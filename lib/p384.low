@@ -142,7 +142,7 @@ proc q_minv input o mut slice u64 . input a slice u64 . input m slice u64 . inpu
   while eq done. 0 . do
     set bi. sub bi. 1 . .
     let sq u64 bigint.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 78 104 . m. 24 n0i. subslice w. 130 156 . . .
-    let limb u64 idx w. add 26 shr bi. 4 . . . .
+    let limb u64 idx w. cast usize add 26 shr bi. 4 . . . . .
     if eq bit_and shr limb. bit_and bi. 15 . . 1 . 1 . do
       let mu u64 bigint.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 104 130 . m. 24 n0i. subslice w. 130 156 . . .
     end .
@@ -323,7 +323,7 @@ proc q_smul input acc mut slice u64 . input k slice u64 . input pt slice u64 . i
     set bi. sub bi. 1 . .
     let d u64 q_pdbl subslice w. 0 72 . acc. p. r2. n0i. subslice w. 144 580 . . .
     let c u64 q_copy72 acc. subslice w. 0 72 . . .
-    if eq bit_and shr idx k. shr bi. 4 . . bit_and bi. 15 . . 1 . 1 . do
+    if eq bit_and shr idx k. cast usize shr bi. 4 . . . bit_and bi. 15 . . 1 . 1 . do
       let a u64 q_padd subslice w. 72 144 . acc. pt. p. r2. n0i. subslice w. 144 580 . . .
       let c2 u64 q_copy72 acc. subslice w. 72 144 . . .
     end .

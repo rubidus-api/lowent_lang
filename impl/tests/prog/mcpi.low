@@ -69,7 +69,7 @@ do
   let a3 option usize fmt.put_str line. at. " /1000\n" . .
   guard is_some a3. . else return 71 . .
   set at. some_value a3. . .
-  let z u64 call_builtin write_out k. 1 subslice line. 0 at. . . .
+  let z usize call_builtin write_out k. 1 subslice line. 0 at. . . .
 
   rem ★ 오라클: 추정값이 π 에 가까운가. `math.close` 가 허용 오차를 **인자로** 받는다.
   guard math.close est. math.pi. 0.05 . else return 43 . .

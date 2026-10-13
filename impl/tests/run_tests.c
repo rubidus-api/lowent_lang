@@ -150,7 +150,7 @@ static void fz_stmt(fz_t *g, int nest) {
         }
         case 8: {         // string literal: len / in-bounds index
             char s[12]; fz_str(g, s, 3);
-            if (fz_rnd(2)) { fz_putf(g, "var v%d u64 be len \"", g->nv, 0); fz_put(g, s); fz_put(g, "\" . "); }
+            if (fz_rnd(2)) { fz_putf(g, "var v%d u64 be cast u64 (len \"", g->nv, 0); fz_put(g, s); fz_put(g, "\") . "); }
             else {
                 fz_putf(g, "var v%d u64 be idx \"", g->nv, 0); fz_put(g, s);
                 fz_putf(g, "\" %d . ", (int)fz_rnd((proven_u32)strlen(s)), 0);
@@ -2153,7 +2153,7 @@ int main(void) {
                "  set (idx s 0) 9 . return len s . end") == false,
           "slice write: ★ writing an element of a NON-mut slice → E-TYPE-MUT (a shared slice is "
           "read-only; mutability is enforced statically because the runtime value has no mut flag)");
-    check(TYCK("proc f input s mut slice u8 . output u64 . effects none . do "
+    check(TYCK("proc f input s mut slice u8 . output usize . effects none . do "
                "  set (idx s 0) 9 . return len s . end") == true,
           "slice write: a `mut` slice accepts the write");
 

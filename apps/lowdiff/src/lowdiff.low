@@ -111,12 +111,12 @@ do
   var n usize 0 .
   var used usize 0 .
   while true do
-    let r result (option u64) files.file_error files.read_dir fs. dh. namebuf. . .
+    let r result (option usize) files.file_error files.read_dir fs. dh. namebuf. . .
     guard is_ok r. . else do
       set idx st. 0 . 71 .
       break .
     end .
-    let got option u64 ok_value r. . .
+    let got option usize ok_value r. . .
     guard is_some got. . else break . .
     let nl usize some_value got. . .
     guard and gt nl. 0 . le nl. len namebuf. . . . else break . .
@@ -131,8 +131,8 @@ do
       set idx st. 0 . 3 .
       break .
     end .
-    set idx offs. n. . used. .
-    set idx lens. n. . nl. .
+    set idx offs. n. . cast u64 used. . .
+    set idx lens. n. . cast u64 nl. . .
     repeat c usize nl. do
       set idx arena. add used. c. . . idx namebuf. c. . .
     end .
@@ -174,16 +174,16 @@ proc same_file input fs cap file_system . input pa slice u8 . input pb slice u8 
   var fb owned files.handle ok_value hb. . .
   var verdict u64 0 .
   while true do
-    let ra result (option u64) files.file_error files.read fs. fa. ba. . .
-    let rb result (option u64) files.file_error files.read fs. fb. bb. . .
+    let ra result (option usize) files.file_error files.read fs. fa. ba. . .
+    let rb result (option usize) files.file_error files.read fs. fb. bb. . .
     guard and is_ok ra. . is_ok rb. . . else do
       set verdict. 2 .
       break .
     end .
     var na usize 0 .
     var nb usize 0 .
-    let oa option u64 ok_value ra. . .
-    let ob option u64 ok_value rb. . .
+    let oa option usize ok_value ra. . .
+    let ob option usize ok_value rb. . .
     if is_some oa. . do
       set na. some_value oa. . .
     end .
@@ -240,7 +240,7 @@ do
   repeat ni usize len name. . do
     set idx buf. add head. ni. . . idx name. ni. . .
   end .
-  set idx st. 0 . total. .
+  set idx st. 0 . cast u64 total. . .
   return true .
 end .
 
@@ -419,8 +419,8 @@ do
           set limit_hit. true .
           break .
         end .
-        set idx poffs. np. . pused. .
-        set idx plens. np. . cl. .
+        set idx poffs. np. . cast u64 pused. . .
+        set idx plens. np. . cast u64 cl. . .
         repeat z usize cl. do
           set idx pend. add pused. z. . . idx child. z. . .
         end .

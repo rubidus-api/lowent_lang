@@ -13,8 +13,8 @@ fn sorted
   access xs sequential .
 do
   var i u64 1 .
-  while lt i. len xs. . . do
-    if gt idx xs. sub i. 1 . . idx xs. i. . . do
+  while lt cast usize i. . len xs. . . do
+    if gt idx xs. cast usize sub i. 1 . . . idx xs. cast usize i. . . . do
       return false .
     end .
     set i. add i. 1 . .
@@ -27,14 +27,14 @@ rem 비용 가시: effects none(순수) · access random(이진 탐색은 비순
 fn bsearch
   input xs slice u32 .
   input target u32 .
-  output option u64 .
+  output option usize .
   access xs random .
   requires sorted xs. . . rem ★ 술어 op 를 계약으로 — debug 검사 / release assume(RFC-0008 등급)
 do
-  var lo u64 0 .
-  var hi u64 len xs. . . rem 반개구간 [lo, hi)  (슬라이스 규약과 동일, G4)
+  var lo usize 0 .
+  var hi usize len xs. . . rem 반개구간 [lo, hi)  (슬라이스 규약과 동일, G4)
   while lt lo. hi. . do
-    let mid u64 add lo. div sub hi. lo. . 2 . . . rem overflow-안전 중점
+    let mid usize add lo. div sub hi. lo. . 2 . . . rem overflow-안전 중점
     let v u32 idx xs. mid. . .
     if eq v. target. . do return some mid. . . end .
     if lt v. target. . do

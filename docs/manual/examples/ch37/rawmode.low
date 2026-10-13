@@ -11,7 +11,7 @@ do
   var going bool true .
   var last u64 0 .
   while going. do
-    let n option u64 tty.read t. buf. . .
+    let n option usize tty.read t. buf. . .
     guard is_some n. . else do
       set going. false .
       continue .

@@ -230,8 +230,9 @@ module ex_array_result .
 fn squares input n u64 . output r array u64 3 .
   requires le n. 1000 . .
 do
-  repeat i u64 3 do
-    set idx r. i. . mul add n. i. . add n. i. . . .
+  repeat i usize 3 do
+    let v u64 add n. cast u64 i. . . .
+    set idx r. i. . mul v. v. . .
   end .
   return r. .
 end .
@@ -266,9 +267,15 @@ end .
 (3) 슬라이스의 길이는 `len` 으로 읽는다. `len s. .` 는 `s` 의 원소 개수이고, 그 타입은 `usize` 다(⟦§6.2⟧ (3a)).
       `count` 와 `capacity` 가 내는 수도 `usize` 다.
 
-(3′) 첨자와 경계(`idx` 의 `i`, `subslice` 의 시작과 끝)는 `usize` 로 적는다. 길이가 아닌 수와 섞을 때는 변환을 적는다 —
-      `cast u64 n. .` 는 `usize` 를 `u64` 로, `cast usize x. .` 는 `u64` 를 `usize` 로 옮기며, 어느 쪽이든 들어가지 않으면
-      트랩한다(⟦§6.2⟧ (3-3)).
+(3′) 첨자와 경계(`idx` 의 `i`, `subslice` 의 시작과 끝, 원자 연산의 첨자, `alloc_bytes` 의 `capacity`)는 `usize` **다**. 다른 정수
+      타입의 값을 그 자리에 대면 번역이 거부된다(`E-TYPE-NOMINAL`). 정수 리터럴은 그대로 적는다. 길이가 아닌 수와 만날 때는
+      변환을 적는다 — `cast u64 n. .` 는 `usize` 를 `u64` 로, `cast usize x. .` 는 `u64` 를 `usize` 로 옮기며, 어느 쪽이든
+      들어가지 않으면 트랩한다(⟦§6.2⟧ (3-3)).
+
+(3″) 원소에 쓰는 값은 그 슬라이스의 **원소 타입**이어야 한다 — `set idx s. i. . v .` 에서 `v` 가 원소 타입으로 넓혀지지 않으면
+      번역이 거부된다(`E-TYPE-WIDTH` · `E-TYPE-SIGN` · `E-TYPE-NOMINAL`). `slice usize` 와 `slice u64` 는 원소의 폭이 같은
+      구현에서도 **다른 타입**이다(`E-TYPE-NOMINAL`) — 위치만 담는 표는 `slice usize` 로 선언하고, 여러 뜻의 수를 함께 담는 표는
+      고정 폭으로 두고 읽고 쓰는 자리에 `cast` 를 적는다.
 
 (4) `idx s. i. .` 는 `s` 의 `i` 번째 원소다. 첫 원소의 번호는 0 이다.
 
@@ -443,11 +450,11 @@ end .
 ```lowent 예제: var 배열을 반복으로 채운다
 module ex_frame_list .
 
-export fn squares input n u64 . output u64 . do
+export fn squares input n usize . output u64 . do
   var buf lit array u64 8 _ . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
-    set idx buf. i. . mul i. i. . .
+    set idx buf. i. . cast u64 mul i. i. . . .
     set i. add i. 1 . .
   end .
   guard lt n. 8 . else return 0 . .
@@ -458,7 +465,7 @@ end .
 ```lowent 예제: 칸을 골라 채운다
 module ex_cell_fill .
 
-export fn pick input a u64 . input i u64 . output u64 . do
+export fn pick input a u64 . input i usize . output u64 . do
   let t lit array u64 6 do 0 100 . 5 mul a. 2 . . _ 1 . end . .
   guard lt i. 6 . else return 0 . .
   return idx t. i. . .
@@ -573,20 +580,20 @@ module ex_matrix .
 
 fn table output t matrix u32 2 3 4 .
 do
-  repeat r u64 dim t. 0 . do
-    repeat c u64 dim t. 1 . do
-      set idx t. r. c. . narrow u32 add mul r. 10 . c. . . .
+  repeat r usize dim t. 0 . do
+    repeat c usize dim t. 1 . do
+      set idx t. r. c. . cast u32 add mul r. 10 . c. . . .
     end .
   end .
   return t. .
 end .
 
-export fn row_sum input r u64 . output u64 .
+export fn row_sum input r usize . output u64 .
   requires lt r. 3 . .
 do
   let t matrix u32 2 3 4 table . .
   var s u64 0 .
-  repeat c u64 dim t. 1 . do
+  repeat c usize dim t. 1 . do
     set s. add s. widen u64 idx t. r. c. . . . .
   end .
   return s. .
@@ -601,10 +608,10 @@ struct board do
   g matrix u32 2 3 4 .
 end .
 
-fn sum input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c . output u64 .
+fn sum input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
 do
   var t u64 0 .
-  repeat i u64 dim m. 0 . do
+  repeat i usize dim m. 0 . do
     for x row m. i. . do set t. add t. widen u64 x. . . . end .
   end .
   return t. .
@@ -772,6 +779,10 @@ end .
 (3a) 꺼내는 연산은 **부분 연산**이다 — 확인하지 않고 꺼내는 것 자체는 번역이 거부하지
       아니하며, 실행 중에 없는 쪽을 꺼내면 **트랩한다**. 곧 확인은 번역이 대신해 주는 것이
       아니라 저자가 하는 것이다.
+
+(3b) 담긴 값의 타입은 그 타입의 일부다. `option usize` 와 `option u64`, `result u32 e` 와 `result u64 e` 는 서로 다른
+      타입이며, 한쪽을 다른 쪽의 자리에 대면 번역이 거부된다(`E-TYPE-NOMINAL` · `E-TYPE-WIDTH` · `E-TYPE-SIGN`). 꺼낸 값
+      (`some_value` · `ok_value`)의 타입은 담긴 값의 타입이다. `some` · `ok` 가 리터럴을 감쌀 때는 받는 자리의 타입을 따른다.
 
 ```lowent 예제: result 로 실패를 돌려준다
 module ex_result .
@@ -1046,7 +1057,7 @@ end .
 ```lowent 예제: 집합에 넣고 지운다 · 결과: members() = 1
 module ex_bitset .
 
-fn members output u64 . do
+fn members output usize . do
   var s bitset 8 bitset_new 8 . .
   bitset_insert s. 3 .
   bitset_insert s. 5 .

@@ -446,9 +446,9 @@ fn emoji  output u32 . do return widen u32 U'😀' . . end .",
       out: "letter() = 97 · tab() = 9 · quote() = 39 · hangul() = 54620 · emoji() = 128512")
     #ex("코드포인트를 적고, 인코딩은 접두사가 정한다", "module ex_escape .
 
-fn bytes  output u64 . do return len  \"\\U0001F600\" . . end .
-fn units  output u64 . do return len u\"\\U0001F600\" . . end .
-fn points output u64 . do return len U\"\\U0001F600\" . . end .
+fn bytes  output usize . do return len  \"\\U0001F600\" . . end .
+fn units  output usize . do return len u\"\\U0001F600\" . . end .
+fn points output usize . do return len U\"\\U0001F600\" . . end .
 
 rem 이름이 있는 제어 문자.
 fn bell   output u32 . do return widen u32 '\\a' . . end .
@@ -469,19 +469,19 @@ do
 end .", "E-STR-ESCAPE")
     #rejected("이스케이프 집합 밖은 거부된다", "module ex_esc .
 
-fn f output u64 .
+fn f output usize .
 do
   return len \"a\\qb\" . .
 end .", "E-STR-ESCAPE")
     #rejected("접두사는 둘뿐이다 — `u8` 은 없다", "module ex_pfx .
 
-fn f output u64 .
+fn f output usize .
 do
   return len u8\"ab\" . .
 end .", "E-STR-PREFIX")
     #ex("텍스트 리터럴 — 여러 줄을 그대로", "module ex_textlit .
 
-fn doc output u64 .
+fn doc output usize .
 do
   return len text DOC
 line one
@@ -491,7 +491,7 @@ DOC
 end .
 
 rem 본문에서는 이스케이프를 풀지 않는다 — `a\\nb` 는 네 바이트다.
-fn raw output u64 .
+fn raw output usize .
 do
   return len text RAW
 a\\nb

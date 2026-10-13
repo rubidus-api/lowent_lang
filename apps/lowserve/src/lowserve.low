@@ -204,10 +204,10 @@ proc send_error input k cap net . input fd u64 . input code u64 . input head_onl
   let body slice u8 reason code. . .
   let hl usize build_head buf. code. "text/plain; charset=utf-8" add len body. . 1 . . .
   guard and gt hl. 0 . le hl. len buf. . . . else return . .
-  let s1 option u64 net.send_all k. fd. subslice buf. 0 hl. . . .
+  let s1 option usize net.send_all k. fd. subslice buf. 0 hl. . . .
   guard not head_only. . else return . .
-  let s2 option u64 net.send_all k. fd. body. . .
-  let s3 option u64 net.send_all k. fd. "\n" . .
+  let s2 option usize net.send_all k. fd. body. . .
+  let s3 option usize net.send_all k. fd. "\n" . .
   return .
 end .
 
@@ -238,21 +238,21 @@ proc send_file input fs cap file_system . input k cap net . input fd u64 . input
     set code. 500 .
   end .
   if eq code. 200 . do
-    let size usize ok_value endr. . .
+    let size usize cast usize ok_value endr. . . .
     let hl usize build_head buf. 200 content_type path. . size. . .
     if or eq hl. 0 . gt hl. len buf. . . . do
       set code. 500 .
     end else do
-      let s1 option u64 net.send_all k. fd. subslice buf. 0 hl. . . .
+      let s1 option usize net.send_all k. fd. subslice buf. 0 hl. . . .
       if not head_only. . do
         var left usize size. .
         while gt left. 0 . do
           let want usize min left. len buf. . . .
-          let r result (option u64) files.file_error files.read fs. h. subslice buf. 0 want. . . .
+          let r result (option usize) files.file_error files.read fs. h. subslice buf. 0 want. . . .
           guard is_ok r. . else break . .
           let n usize value_or ok_value r. . 0 . .
           guard and gt n. 0 . le n. want. . . else break . .
-          let s2 option u64 net.send_all k. fd. subslice buf. 0 n. . . .
+          let s2 option usize net.send_all k. fd. subslice buf. 0 n. . . .
           guard and is_some s2. . eq value_or s2. 0 . n. . . else break . .
           set left. sub left. n. . .
         end .
@@ -277,7 +277,7 @@ proc serve_one input fs cap file_system . input k cap net . input fd u64 . input
       send_error k. fd. 431 false buf. .
       return 431 .
     end .
-    let r option u64 net.recv_once k. fd. subslice req. got. len req. . . . .
+    let r option usize net.recv_once k. fd. subslice req. got. len req. . . . .
     guard is_some r. . else return 0 . .
     let n usize some_value r. . .
     guard gt n. 0 . else return 0 . .

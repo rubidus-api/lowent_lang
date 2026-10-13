@@ -9,10 +9,10 @@ do
   let o result files.handle files.file_error files.open fs. "../../build/ch28-copy.txt" 1 . .
   guard is_ok o. . else return 1 . .
   var h owned files.handle ok_value o. . .
-  let w result u64 files.file_error files.write fs. h. "hello, file\n" . .
+  let w result usize files.file_error files.write fs. h. "hello, file\n" . .
   let c result void files.file_error files.close fs. h. . .
   guard is_ok w. . else return 2 . .
   guard is_ok c. . else return 3 . .
-  let m u64 stdio.write out. 1 "wrote and closed\n" . .
+  let m usize stdio.write out. 1 "wrote and closed\n" . .
   return 0 .
 end .

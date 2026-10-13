@@ -13,7 +13,7 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 65536 . .
   guard is_some g. . else return 9 . .
   let buf mut slice u8 some_value g. . .
-  let rn option u64 call_builtin read_in k. 0 buf. . .
+  let rn option usize call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 9 . .
   let n usize some_value rn. . .
   guard gt n. 0 . else return 9 . .

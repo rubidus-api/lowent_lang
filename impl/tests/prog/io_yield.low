@@ -19,7 +19,7 @@ proc reader input k cap io . input buf mut slice u8 . output u64 . effects io . 
   if is_some n. . do return some_value n. . . end .
   return 0 .
 end .
-proc marker input k cap io . output u64 . effects io . do
+proc marker input k cap io . output usize . effects io . do
   return call_builtin write_out k. 1 "MARK\n" . .
 end .
 proc main input k cap io . input al cap allocator . output u8 . effects alloc io state . do

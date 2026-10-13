@@ -6,7 +6,7 @@ rem run: first_char [236,149,136,235,133,149]
 
 use utf8 .
 
-fn characters input s slice u8 . output u64 .
+fn characters input s slice u8 . output usize .
 do
   let n option usize utf8.count_chars s. . .
   guard is_some n. . else return 999 . .

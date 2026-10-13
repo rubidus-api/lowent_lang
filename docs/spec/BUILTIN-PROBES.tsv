@@ -309,12 +309,12 @@ bit_cast	a f64	u64	return bit_cast u64 a. . .	1.0	= 4607182418800017408
 bit_cast	a u64	f64	return bit_cast f64 a. . .	4607182418800017408	= 1.0
 bit_cast	a f32	u32	return bit_cast u32 a. . .	1.0	= 1065353216
 bit_cast	a i64	u64	return bit_cast u64 a. . .	-1	= 18446744073709551615
-size_of		u64	return size_of u8 . .		= 1
-size_of		u64	return size_of u16 . .		= 2
-size_of		u64	return size_of u32 . .		= 4
-size_of		u64	return size_of u64 . .		= 8
-size_of		u64	return size_of f32 . .		= 4
-size_of		u64	return size_of f64 . .		= 8
+size_of		usize	return size_of u8 . .		= 1
+size_of		usize	return size_of u16 . .		= 2
+size_of		usize	return size_of u32 . .		= 4
+size_of		usize	return size_of u64 . .		= 8
+size_of		usize	return size_of f32 . .		= 4
+size_of		usize	return size_of f64 . .		= 8
 sub	a u8, b i8	u8	return sub a. b. . .	1 2	CHECK E-TYPE-SIGN
 sub	a u8	u8	return sub a. 300 . .	1	CHECK E-TYPE-WIDTH
 mul	a u8, b i8	u8	return mul a. b. . .	1 2	CHECK E-TYPE-SIGN
@@ -393,3 +393,9 @@ neg	a i8	i8	return neg a. . .	-128	TRAP E-VM-OVERFLOW
 neg	a u8	u8	return neg a. . .	7	CHECK E-TYPE-SIGN
 for		u64	var s u64 0 . ␤ let xs slice u64 lit slice u64 10 20 30 . . ␤ for x xs. do set x. 1 . end . ␤ for y xs. do set s. add s. y. . . end . ␤ return s. .		CHECK E-FOR-HEAD
 note	a u64	u64	note ␤ return add a. 1 . .	1	CHECK E-NOTE-TERM
+bit_and	a usize, b u64	u64	return bit_and a. b. . .	1 1	CHECK E-TYPE-NOMINAL
+bit_or	a usize, b u64	u64	return bit_or a. b. . .	1 1	CHECK E-TYPE-NOMINAL
+bit_xor	a usize, b u64	u64	return bit_xor a. b. . .	1 1	CHECK E-TYPE-NOMINAL
+bit_and	a usize, b usize	usize	return bit_and a. b. . .	6 3	= 2
+shl	a usize, b u8	usize	return shl a. b. . .	1 4	= 16
+size_of		u64	return size_of u32 . .		CHECK E-TYPE-NOMINAL

@@ -491,14 +491,14 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                         if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && us_atom(rt->kids[1]) && us_atom(rt->kids[2])) {
                             proven_u8str_view_t it = rt->kids[1]->tok.lex;
                             unsigned ie = us_eq(it, "u16") || us_eq(it, "i16") ? 2 : us_eq(it, "u32") || us_eq(it, "i32") || us_eq(it, "f32") ? 4 :
-                                          us_eq(it, "u64") || us_eq(it, "i64") || us_eq(it, "f64") || us_eq(it, "usize") || us_eq(it, "isize") ? 8 : 1;
+                                          us_eq(it, "usize") || us_eq(it, "isize") ? (unsigned)(low_ir_target()->addr_bits / 8) : us_eq(it, "u64") || us_eq(it, "i64") || us_eq(it, "f64") ? 8 : 1;
                             rowb = (unsigned long long)ie * strtoull((const char *)rt->kids[2]->tok.lex.ptr, NULL, 0);
                         }
                     }
                     proven_u8str_view_t ty = is_list && !row ? lg->kids[2]->tok.lex : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"u8", .size = 2 };
                     unsigned esz = row ? (unsigned)rowb :
                                    us_eq(ty, "u16") || us_eq(ty, "i16") ? 2 : us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "f32") ? 4 :
-                                   us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "isize") ? 8 : 1;
+                                   us_eq(ty, "usize") || us_eq(ty, "isize") ? (unsigned)(low_ir_target()->addr_bits / 8) : us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f64") ? 8 : 1;
                     unsigned long long cnt = 0;
                     if (!is_list) cnt = 0;
                     else if (us_eq(lg->kids[1]->tok.lex, "array")) {

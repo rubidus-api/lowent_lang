@@ -50,8 +50,13 @@ Searches headings and index terms --- not the full text
 - [4.5 Booleans are not numbers](ch04.md#s4-5)
 - [4.6 Bitwise operations](ch04.md#s4-6)
 - [4.7 Floating point](ch04.md#s4-7)
-- [4.8 Common mistakes](ch04.md#s4-8)
-- [4.9 This chapter’s syntax at a glance](ch04.md#s4-9)
+- [4.8 The size types — usize and isize](ch04.md#s4-8)
+- [4.8.1 The implementation sets the width](ch04.md#s4-8-1)
+- [4.8.2 They do not mix with other integers — the crossing is cast](ch04.md#s4-8-2)
+- [4.8.3 Moving without stopping](ch04.md#s4-8-3)
+- [4.8.4 What to watch for at each width](ch04.md#s4-8-4)
+- [4.9 Common mistakes](ch04.md#s4-9)
+- [4.10 This chapter’s syntax at a glance](ch04.md#s4-10)
 
 [5 Ops — fn and proc](ch05.md)
 

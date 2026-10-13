@@ -3,7 +3,7 @@ rem run: advance 5 -8
 rem run: third32 1.0
 rem run: same_third 1.0 1.0
 
-rem ko: usize · isize — 기계의 주소 폭(64 비트 기계에서 64 비트). 길이와 색인을 C 와 주고받을 때 쓴다 /// en: usize and isize have the machine's address width (64 bits on a 64-bit machine); use them to exchange lengths and indexes with C
+rem ko: usize · isize — 길이 · 첨자와 그 차이. 폭은 구현이 정한다(16 비트 이상). 다른 정수와는 cast 로만 오간다 /// en: usize and isize are for lengths, indexes and their differences; the implementation sets the width (16 bits or more), and they cross to other integers through cast only
 fn advance input n usize . input k isize . output isize .
   requires le n. 1000 . .
   requires ge k. -1000 . .

@@ -4,6 +4,7 @@
 
 #include "low_token.h"
 #include "low_diag.h"
+#include "low_ir.h"   // RFC-0149 L5 — `usize` 의 폭은 대상의 주소 폭(`low_ir_target()`)
 
 #include <math.h>
 bool low_ir_is_builtin_op(proven_u8str_view_t name);     /* low_ir.c — `call_builtin` 뒤의 이름공간에 있는 철자인가 */
@@ -194,8 +195,8 @@ static ty_t ty_of_word(proven_u8str_view_t v) {
     if (veq(v, "i32")) return tk_int(32, true);
     if (veq(v, "u64")) return tk_int(64, false);
     if (veq(v, "i64")) return tk_int(64, true);
-    if (veq(v, "usize")) { ty_t t = tk_int(64, false); t.nominal = 1; return t; }   // D11: u64 별칭 아님
-    if (veq(v, "isize")) { ty_t t = tk_int(64, true);  t.nominal = 1; return t; }
+    if (veq(v, "usize")) { ty_t t = tk_int(low_ir_target()->addr_bits, false); t.nominal = 1; return t; }   // D11: u64 별칭 아님
+    if (veq(v, "isize")) { ty_t t = tk_int(low_ir_target()->addr_bits, true);  t.nominal = 1; return t; }
     if (veq(v, "f32")) return (ty_t){ .k = TK_FLOAT, .bits = 32 };
     if (veq(v, "f64")) return (ty_t){ .k = TK_FLOAT, .bits = 64 };
     if (veq(v, "slice") || veq(v, "array")) return tk(TK_SLICE);
@@ -569,8 +570,10 @@ static void tc_retype(tc_ctx_t *c, char kind, proven_u8str_view_t nm, long idx, 
 }
 static bool tc_is_usz(ty_t t) { return t.k == TK_INT && t.nominal == 1 && !t.sign; }
 static bool tc_is_plain(ty_t t) { return t.k == TK_INT && t.nominal == 0 && !t.lit && t.bits; }
+static int g_soft_mute = 0;   // ★ 같은 식을 «묻기만» 하려고 한 번 더 추론하는 동안에는 세지 않는다(두 번 세면 래칫이 거짓으로 는다)
 static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line) {
     (void)c;
+    if (g_soft_mute) return;
     if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
     if (!g_soft_list) return;
     const char *fl = c->curform ? low_cst_file_for_line(c->curform, line) : NULL;
@@ -811,7 +814,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             proven_u8str_view_t h2 = k[start]->tok.lex;
             if (veq(h2, "len") || veq(h2, "count") || veq(h2, "capacity")) {
                 for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
-                { ty_t ut = tk_int(64, false); ut.nominal = 1; ut.softsz = true; return ut; }   // RFC-0149 — `usize`
+                { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; ut.softsz = true; return ut; }   // RFC-0149 — `usize`
             }
             // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
             //   없으면 그 위의 `index` 가 원소를 u8 로 보았다(`array f64 2` 칸의 원소가 u8 로 읽혔다). 좁게: 타입 있는 슬라이스만.
@@ -1067,11 +1070,36 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         //     좁히려면 `narrow`(안 맞으면 트랩), 갈래를 넘거나 부호를 바꾸려면 `cast` 다 —
         //     둘 다 **소스에 적히므로** 읽는 사람이 값이 변할 수 있는 자리를 본다(P5).
         //   ☞ *«번역할 때 거부한다» 고 적어 놓고 실행할 때 트랩하면, 그 규범은 반만 참이다.*
+        // ★★★ RFC-0149 §6.7 — `narrow` 도 방향을 말한다: `usize` · `isize` 가 끼면 `cast` 다. 멈추지 않는 셋(`narrow_try` ·
+        //   `narrow_sat` · `narrow_wrap`)은 «안 들어갈 때 무엇을 할지» 를 이름이 고르므로 그대로 선다(소유자 «다 추천대로»).
+        //   원천의 타입은 **묻기만** 한다(quiet) — 이 낱말의 나머지 판정은 아래의 길이 그대로 한다.
+        if (veq(k[start]->tok.lex, "narrow") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start])) {
+            ty_t ntgt = ty_of_word(k[start + 1]->tok.lex);
+            c->quiet++; g_soft_mute++;
+            ty_t nsrc = tc_infer(c, k[start + 2], env, nenv);
+            c->quiet--; g_soft_mute--;
+            if ((nsrc.k == TK_INT && nsrc.nominal == 1) || (ntgt.k == TK_INT && ntgt.nominal == 1))
+                tc_emit(c, "E-TYPE-NOMINAL",
+                        "`usize` / `isize` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
+                        "integer), so whether this NARROWS at all depends on the target. Write `cast <type> <value>` (it stops when "
+                        "the value does not fit), or pick what happens instead: `narrow_try` / `narrow_sat` / `narrow_wrap`",
+                        k[start]->line);
+        }
         if (veq(k[start]->tok.lex, "widen") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM
             && !sig_find_at(c, k[start])) {
             ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
             ty_t src = tc_infer(c, k[start + 2], env, nenv);
             for (proven_size_t i = 3; i < n; i++) (void)tc_infer(c, k[start + i], env, nenv);
+            // ★★★ RFC-0149 §6.7 (2026-10-13 소유자 «usize 와 관련된 형변환은 꼭 cast를 쓰게 합시다») — `usize` · `isize` 는 넓히기의
+            //   표 밖이다. 그 폭은 구현이 정하므로(16 비트부터 가장 넓은 정수까지) «넓히는가 좁히는가» 가 대상마다 다르다 —
+            //   방향을 말하는 낱말로는 적을 수 없다. `cast` 는 방향을 묻지 않고 안 들어가면 멈춘다.
+            if ((src.k == TK_INT && src.nominal == 1) || (tgt.k == TK_INT && tgt.nominal == 1)) {
+                tc_emit(c, "E-TYPE-NOMINAL",
+                        "`usize` / `isize` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
+                        "integer), so whether this WIDENS or NARROWS depends on the target, and `widen` promises a direction. "
+                        "Write `cast <type> <value>`: it asks no direction and stops when the value does not fit", k[start]->line);
+                return tgt;
+            }
             // ★ 모르면 안 문다 — 폭이 안 실린 값(리터럴·혼합식)은 이 검사의 물음 밖이다.
             //   (거짓양성 하나가 거짓음성 여럿보다 비싸다: 사람이 게이트를 끄게 만든다.)
             bool known = (src.k == TK_INT || src.k == TK_FLOAT) && src.bits

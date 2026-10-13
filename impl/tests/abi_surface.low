@@ -33,11 +33,11 @@ export fn abi_no_params output u64 . do
 end .
 
 export fn abi_slice_param input s slice u8 . output u64 . do
-  return widen u64 len s. . . .
+  return cast u64 len s. . . .
 end .
 
 export fn abi_many input a u64 . input b f64 . input s slice u8 . output f64 . do
-  return add b. cast f64 add a. widen u64 len s. . . . . . .
+  return add b. cast f64 add a. cast u64 len s. . . . . . .
 end .
 
 rem ── `export extern` — 같은 이름이 C 헤더로 그대로 나간다(비용 0 경로).

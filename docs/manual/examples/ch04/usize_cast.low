@@ -1,0 +1,45 @@
+module usize_cast .
+rem run: last [3,4,5]
+rem run: bucket [1,2,3,4] 1000003
+rem run: from_outside [9,9,9] 2
+rem run: from_outside [9,9,9] 7
+rem run: gap 3 10
+rem run: packed [5,6,7,8] 3
+
+rem ko: 길이와 첨자는 usize 로 끝까지 들고 다닌다 --- 변환이 하나도 없다 /// en: carry lengths and indexes as usize all the way --- no conversion at all
+fn last input xs slice u8 . output u8 .
+  requires gt len xs. . 0 . .
+do
+  let n usize len xs. . .
+  return idx xs. sub n. 1 . . .
+end .
+
+rem ko: 길이가 아닌 수(해시)와 만나는 자리 --- 넓은 쪽(u64)에서 셈하고, 첨자로 쓸 때 cast 한다 /// en: where a length meets a number that is not one (a hash) --- compute on the wide side (u64), cast when it becomes an index
+fn bucket input xs slice u8 . input h u64 . output u8 .
+  requires gt len xs. . 0 . .
+do
+  let slot u64 mod h. cast u64 len xs. . . . .
+  return idx xs. cast usize slot. . . .
+end .
+
+rem ko: 바깥에서 온 수는 멈추지 않는 narrow_try 로 받는다 --- 안 들어가면 none 이고 프로그램이 정한다 /// en: take a number from outside with narrow_try, which does not stop --- none when it does not fit, and the program decides
+fn from_outside input xs slice u8 . input want u64 . output u8 . do
+  let p option usize narrow_try usize want. . .
+  guard is_some p. . else return 255 . .
+  let i usize some_value p. . .
+  guard lt i. len xs. . . else return 254 . .
+  return idx xs. i. . .
+end .
+
+rem ko: 두 위치의 차이는 isize --- 범위가 usize 의 절반이라 cast 가 지킨다 /// en: the difference of two positions is an isize --- it holds half the range of usize, and cast guards that
+fn gap input a usize . input b usize . output isize . do
+  return sub cast isize a. . cast isize b. . . .
+end .
+
+rem ko: 첨자를 좁은 칸(u8)에 줄여 담는다 --- 넣을 때와 꺼낼 때 cast 를 적는다 /// en: an index kept in a narrow field (u8) --- write cast on the way in and on the way out
+fn packed input xs slice u8 . input i usize . output u8 .
+  requires lt i. len xs. . . .
+do
+  let small u8 cast u8 i. . .
+  return idx xs. cast usize small. . . .
+end .

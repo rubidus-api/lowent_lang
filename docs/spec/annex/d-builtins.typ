@@ -463,8 +463,8 @@ write_out             write_volatile        zip")
   #tbl("변환")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
-        [`widen T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `a` 가 참거짓이면 `E-WIDEN-KIND`(`cast` 로 적는다) \ *실행 때 멈춤:* —],
-        [`narrow T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* 정수 값이 `T` 에 안 들어가면 `E-VM-CAST`],
+        [`widen T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `a` 가 참거짓이면 `E-WIDEN-KIND`(`cast` 로 적는다) · `usize` · `isize` 가 원천이나 `T` 이면 `E-TYPE-NOMINAL`(`cast` 로 적는다 — 폭이 구현에 달려 있다) \ *실행 때 멈춤:* —],
+        [`narrow T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `usize` · `isize` 가 원천이나 `T` 이면 `E-TYPE-NOMINAL`(`cast` 로 적는다) \ *실행 때 멈춤:* 정수 값이 `T` 에 안 들어가면 `E-VM-CAST`],
         [`narrow_wrap T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`narrow_sat T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`narrow_try T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 정수 \ *내는 것:* `option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],

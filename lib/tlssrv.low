@@ -389,7 +389,7 @@ do
     set idx out. add 6 i. . . idx rnd. i. . .
     set i. add i. 1 . .
   end .
-  set idx out. 38 . narrow u8 len sid. . . .
+  set idx out. 38 . cast u8 len sid. . . .
   var j u64 0 .
   while lt j. len sid. . . do
     set idx out. add 39 j. . . idx sid. j. . .

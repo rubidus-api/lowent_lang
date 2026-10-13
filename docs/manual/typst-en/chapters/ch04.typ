@@ -44,12 +44,13 @@ An integer type's name is its sign and bit width. `u` means unsigned, `i` means 
   [*Type*], [*Width*], [*Range*],
   [`u8` · `u16` · `u32` · `u64`], [8 · 16 · 32 · 64], [0 … 2#super[N]−1],
   [`i8` · `i16` · `i32` · `i64`], [8 · 16 · 32 · 64], [−2#super[N−1] … 2#super[N−1]−1],
-  [`usize` · `isize`], [address width], [set by the execution environment],
+  [`usize` · `isize`], [16 or more --- set by the implementation], [by width (see "The size types" below)],
 )
 
 C's `int` can have different sizes on different machines, but Lowent's `u32` is 32 bits everywhere. Negative numbers use two's
 complement. `usize` is a *different type* from `u64` even on a machine where they have the same width, and the two do not convert
-automatically --- so that places mixing address counts with plain numbers show in the source.
+automatically --- so that places mixing lengths with plain numbers show in the source. The one word that crosses is `cast` (see "The size
+types" below).
 
 == Widening is automatic, narrowing is written
 
@@ -191,13 +192,116 @@ with an operating system. The exact last bit of their results is up to the machi
 
 #demo("examples/ch04/sizes.low")
 
-- `usize` and `isize` are unsigned and signed integers with the machine's address width. Use them to exchange lengths and indexes with C's
-  `size_t` and `ptrdiff_t` (#chref("ffi")). Their width may differ between machines, so use `u64` and `i64` for fixed-width arithmetic. Moving to a
-  type of the other signedness goes through a named operation such as `cast isize n. .`.
+- `usize` and `isize` are the unsigned and signed integers for lengths, indexes and their differences. They correspond to C's `size_t` and
+  `ptrdiff_t` (#chref("ffi")). The implementation sets their width, so use `u64` and `i64` for fixed-width arithmetic. They move to another
+  integer type through `cast` only, as in `cast isize n. .` --- the next section gives the rule.
 - `f32` takes half the memory and has about seven significant digits. Use it where quantity matters more than precision, as in large arrays or
   graphics.
 - `same_third` computes the same 1/3 as `f32` and as `f64`, widens, and compares. The answer is false (0). Even though the VM shows both briefly
   as `0.333333`, they are different numbers.
+
+== The size types --- `usize` and `isize`
+
+Lengths, indexes and byte counts are written `usize`. The numbers that `len`, `count` and `capacity` give are `usize`. `isize` is its signed
+partner, and it has one use: the *difference of two positions*. Unlike the other integers, these two do *not name their width*.
+
+=== The implementation sets the width
+
+`usize` and `isize` are at least 16 bits wide, and at most as wide as the implementation's widest integer. This compiler uses the address width of
+the target machine, which `--target` selects.
+
+#dtable(
+  columns: 4,
+  id: "numbers-usize-width",
+  caption: [The range of `usize` and `isize` by width],
+  [*Width*], [*Largest `usize`*], [*Range of `isize`*], [*Such a machine*],
+  [16], [65 535], [−32 768 … 32 767], [a small microcontroller],
+  [32], [4 294 967 295], [−2 147 483 648 … 2 147 483 647], [a 32-bit board such as `cortex_m`],
+  [64], [2#super[64]−1], [−2#super[63] … 2#super[63]−1], [`x86_64` · `arm64` · `riscv64`],
+)
+
+The aim is source that translates on all three. The rules below therefore hold *without asking the width*.
+
+=== They do not mix with other integers --- the crossing is `cast`
+
+`usize` and `isize` never convert automatically to or from any other integer type: not from `u8` to `usize`, and not from `usize` to `u64`. They
+do not mix in arithmetic or comparison either --- to add or compare a `usize` and a `u64`, move one of them first. The word that moves is `cast`,
+and only `cast`.
+
+- `cast u64 n. .` --- a `usize` to `u64`.
+- `cast usize x. .` --- another integer to `usize`.
+- `cast isize n. .` --- a `usize` to `isize` (and back the same way).
+
+`cast` gives the value unchanged when it fits the target type and *stops* when it does not (`E-VM-CAST`). It never cuts silently.
+
+`widen` and `narrow` cannot be used with `usize` or `isize`. Those two words state a direction, and going from `usize` to `u32` narrows on a
+64-bit machine and widens on a 16-bit one. A conversion whose direction depends on the machine, written with a word of direction, is true on one
+machine only. `cast` asks no direction.
+
+Number literals are written as they are --- the `1` in `add i. 1 .` and the `0` in `idx xs. 0 .` take the type of their place.
+
+#demo("examples/ch04/usize_cast.low")
+
+- `last` takes the length as `usize` and uses it as `usize`. There is no conversion. Carry lengths and indexes as `usize` from start to finish
+  and `cast` hardly appears.
+- `bucket` uses the remainder of a hash (`u64`) by the length as an index. *Compute on the wide side*: raise the length to `u64`, take the
+  remainder, and move the result to `usize`. The remainder is smaller than the length, so this `cast` stops on no machine. Moving the hash to
+  `usize` first would run on a 64-bit machine and stop on a 32-bit one.
+- `from_outside` takes a number from outside with `narrow_try usize`. When it does not fit the answer is `none`, and the program decides what to do.
+- `gap` moves two positions to `isize` and then subtracts. Subtracting `usize` from `usize` stops when the result would go below 0.
+- `packed` keeps an index in a `u8` field and takes it out again. `cast` is written once on the way in and once on the way out.
+
+=== Moving without stopping
+
+When `cast` stops, the program ends. If the value came from outside the program --- a header field in a file, a length received from the network,
+a number the user typed --- its not fitting is no defect but *input to refuse*. For those places use one of the three words whose name picks what
+happens.
+
+#dtable(
+  columns: 2,
+  id: "numbers-usize-policy",
+  caption: [Moving to `usize` when the value does not fit],
+  [*Word*], [*What it does*],
+  [`cast usize x. .`], [stops --- when not fitting is a defect],
+  [`narrow_try usize x. .`], [gives an `option usize` --- `none` when it does not fit],
+  [`narrow_sat usize x. .`], [sticks to the largest value],
+  [`narrow_wrap usize x. .`], [keeps the low bits --- only where wrapping is the meaning, as in a hash],
+)
+
+=== What to watch for at each width
+
+To keep one source standing at 16, 32 and 64 bits:
+
+- *Keep numbers that are not lengths in fixed-width types.* A position in a file, a time, a hash and a protocol field are `u64` or `u32`. A
+  32-bit machine still has files larger than 4 GiB, and 32 bits hold little more than four seconds of nanoseconds. Use `usize` only for lengths
+  and positions in memory.
+- *Where they meet, raise to the wide side and compute there.* Raise the length, as in `add off. cast u64 len buf. . . .`. Computing on the
+  narrow side gives source that runs on large machines only.
+- *`usize` arithmetic overflows at its width.* `mul n. size_of rec . .` has room on a 64-bit machine and stops past 65 535 on a 16-bit one. No
+  wrong value comes out, but where sizes are multiplied it is better to take the overflow as a value with `chk_mul` (see "Overflow stops" above).
+- *A large constant does not translate for a small machine.* `100000` in a `usize` place is refused with `E-TYPE-WIDTH` for a 16-bit target.
+  That is earlier than stopping at run time. A program that writes a buffer size as a constant stands only on machines that size fits.
+- *A `usize` field of a struct has a different size on each machine*: 8 bytes at 64 bits, 4 at 32. Do not put `usize` in a layout that goes to a
+  file or onto the wire; write `u32` or `u64` there and move the value when reading it in.
+- *`isize` holds only half of `usize`.* On a 16-bit machine a position past 32 767 stops at `cast isize`. When the distance between two
+  positions is needed, another way is to subtract the smaller from the larger in `usize` and carry the direction separately as a `bool`.
+- *Keeping an index in a narrow field sets a limit.* With an index in a `u32` field, the `cast u32` on the way in stops once there are more than
+  2#super[32] elements. Whoever chose the type chose that limit, so write it as a `requires` too.
+- *Check for another target.* `lowentc --target cortex_m --check prog.low` translates with a 32-bit `usize`. Large constants and layout
+  differences show up there.
+
+#antipattern[Mixing a `usize` with another integer as they are][
+  #demo("examples/ch04/mistake_usizemix.low")
+
+  `start` is a position in memory and `more` is a `u64`. The source does not say at which width to add. Write `add cast u64 start. . more. .`
+  to add on the wide side. When the result is used as a position again, bring it down with `cast usize`.
+]
+
+#antipattern[Moving a `usize` with `widen`][
+  #demo("examples/ch04/mistake_usizewiden.low")
+
+  Looking at 64-bit machines only, `usize` to `u64` seems always to widen, but the implementation sets the width. Write `cast u64 n. .`.
+]
 
 == Common mistakes
 
@@ -282,7 +386,7 @@ name.
   id: "numbers-glance",
   caption: [Number syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`u8` … `u64` · `i8` … `i64` · `usize` · `isize`], [integers with the width in the name], [sizes never change from machine to machine],
+  [`u8` … `u64` · `i8` … `i64`], [integers with the width in the name], [sizes never change from machine to machine],
   [`f32` · `f64`], [IEEE 754 floating point], [never mixed with integers --- the literal is `2.0` too],
   [`widen u64 x. .`], [widening (loses nothing)], [happens automatically, but can be written to make it visible],
   [`narrow u8 x. .`], [narrowing --- stops if it does not fit], [so values never change silently],
@@ -296,7 +400,8 @@ name.
   [`call_builtin clmul_lo` · `call_builtin clmul_hi`], [carry-less multiply (builtin ops) — two words out], [the machine instruction when there is one, the computation when there is not],
   [`count_ones` · `leading_zeros` · `trailing_zeros` · `byte_swap`], [count bits · reverse bytes], [common jobs get one name],
   [`true` · `false` · `and` · `or` · `not`], [booleans and their logic], [numbers are never used as conditions],
-  [`usize` · `isize` · `f32`], [address-width integers · 32-bit float], [lengths exchanged with C · when quantity matters more than precision],
+  [`usize` · `isize` · `f32`], [integers for lengths and indexes (width set by the implementation) · 32-bit float], [writing lengths and positions · when quantity matters more than precision],
+  [`cast usize x` · `cast u64 n`], [moves between `usize` · `isize` and another integer], [the same meaning whatever the machine's width],
 )
 
 #recap[

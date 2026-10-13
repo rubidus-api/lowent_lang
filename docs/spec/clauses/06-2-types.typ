@@ -48,6 +48,38 @@
       `usize` 와 `isize` 는 주소 공간의 #strong[크기와 첨자];를 셀 수 있을 만큼 넓은 정수다. 이 둘은 `u64`·`i64` 와 폭이
       같더라도 #strong[다른 타입];이며, 서로 자동으로 바뀌지 아니한다.
     ]
+    #caution("`usize` 의 폭에 기대지 않는 글")[
+      같은 글이 16 · 32 · 64 비트 구현 어디서나 서려면 — ① 길이 · 첨자 · 바이트 수만 `usize` 로 적고, 파일 안의 위치 · 시각 ·
+      해시 · 프로토콜의 칸은 폭이 정해진 타입으로 둔다. ② 둘이 만나는 셈은 #strong[넓은 쪽에서]; 한다(`add off. cast u64 len b. . . .`).
+      ③ 바깥에서 온 수를 `usize` 로 옮길 때는 `narrow_try` 로 받아, 들어가지 않는 것을 프로그램이 거절한다. ④ `usize` 의 셈은
+      그 폭에서 넘치므로(#cref("6.3")), 크기를 곱하는 자리는 `chk_mul` 로 받는다. ⑤ 구조체의 `usize` 칸은 구현마다 크기가 다르므로,
+      바깥으로 나가는 배치에는 두지 아니한다. ⑥ 두 위치의 차이를 `isize` 로 받을 때 `cast isize` 는 `usize` 범위의 위쪽 절반에서
+      트랩한다.
+    ]
+    #ex("`usize` 와 다른 정수 사이는 `cast`", "module ex_usize .
+
+fn bucket input xs slice u8 . input h u64 . output u8 .
+  requires gt len xs. . 0 . .
+do
+  let slot u64 mod h. cast u64 len xs. . . . .
+  return idx xs. cast usize slot. . . .
+end .
+
+fn checked input want u64 . output usize . do
+  let p option usize narrow_try usize want. . .
+  guard is_some p. . else return 0 . .
+  return some_value p. . .
+end .")
+    #rejected("`usize` 와 `u64` 를 그대로 섞었다", "module ex_usize_mix .
+
+fn end_of input start usize . input more u64 . output u64 . do
+  return add start. more. . .
+end .", "E-TYPE-NOMINAL")
+    #rejected("`usize` 를 `widen` 으로 옮겼다", "module ex_usize_widen .
+
+fn as_u64 input n usize . output u64 . do
+  return widen u64 n. . .
+end .", "E-TYPE-NOMINAL")
     #para("3a")[
       `usize` 는 #strong[포인터를 담는 타입이 아니다.]; 그 폭은 주소의 폭을 따르지만, 포인터 값은 주소보다 클 수 있고(#cref("5.3") (4a))
       정수에서 되살릴 수 없다. 크기 · 길이 · 첨자에는 `usize` 를 쓰고, 가리키는 것은 슬라이스와 참조로 적는다.
@@ -63,7 +95,7 @@
       [`i16`], [16], [−32 768 … 32 767],
       [`i32`], [32], [−2 147 483 648 … 2 147 483 647],
       [`i64`], [64], [−2#super[63] … 2#super[63]−1],
-      [`usize`/`isize`], [주소 폭], [실행 환경이 정한다(구현 정의)],
+      [`usize`/`isize`], [16 이상(구현 정의)], [폭에 따른다 — (3-1)],
       )
     ]
   ]
@@ -134,13 +166,15 @@ end .", "E-TYPE-COND")
       [`iN` → `uM`], [#strong[허용되지 아니한다]; — 음수가 표현되지 않는다],
       [`f32` → `f64`], [부동소수점 수를 더 넓은 부동소수점으로],
       [정수 ↔ 부동소수점], [#strong[넓히기가 아니다]; — 갈래가 다르면 명시적으로 바꿔야 한다],
+      [`usize` · `isize` ↔ 다른 정수], [#strong[넓히기가 아니다]; — 폭이 구현에 달려 있다. `cast` 로 적는다(⟦§6.2⟧ (3-3))],
       )
     ]
     #diagram("넓히기 — 화살을 따라가면 값이 그대로 들어간다", " u8 ──▶ u16 ──▶ u32 ──▶ u64          f32 ──▶ f64
    ╲       ╲       ╲
     ▼       ▼       ▼
  i8 ──▶ i16 ──▶ i32 ──▶ i64
- 같은 폭으로 내려가는 화살(u8 → i8)도, i 줄에서 u 줄로 가는 화살도 없다")
+ 같은 폭으로 내려가는 화살(u8 → i8)도, i 줄에서 u 줄로 가는 화살도 없다
+ usize · isize 는 이 그림에 없다 — 어느 쪽으로도 화살이 없고, 건너는 낱말은 cast 다")
     #ex("넓히기와 좁히기", "let small u8 200 .
 let wide u64 widen u64 small. . .
 let back u8 narrow u8 wide. . .")
@@ -1134,6 +1168,11 @@ end .
       소수부가 버려지는 것은 #strong[트랩하지 아니한다.]; 그러므로 `cast` 는 §6.2.5 (1) 의
       #emph["값을 잃는 암묵적 변환이 없다"]; 를 어기지 않는다 — 그 변환은 #strong[암묵적이지 않기];
       때문이다. 저자가 `cast` 라고 적었고, 그 낱말이 곧 «여기서 값이 변할 수 있다» 는 표시다.
+    ]
+    #para("3a")[
+      #strong[`usize` · `isize` 와 다른 정수 타입 사이];는 `cast` 로만 건넌다(#cref("6.2") (3-3)). 이 변환은 구현의 폭에 따라 넓히기이기도
+      좁히기이기도 하므로 `cast` 가 그 철자다 — 값이 들어가면 그대로 내고, 들어가지 않으면 (2) 대로 트랩한다. 폭이 같거나
+      넓어지는 구현에서 이 `cast` 는 검사를 남기지 아니한다.
     ]
     #para("4")[
       #strong[참거짓에서 정수로];는 `cast` 로 간다 — `cast <정수 타입> <참거짓>` 은 참이면 `1`, 거짓이면 `0` 이다. 그 값은 어느

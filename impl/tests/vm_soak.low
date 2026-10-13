@@ -156,7 +156,7 @@ fn box_tag input a slice u8 . input n u64 . output u64 . do
   var acc u64 0 .
   var i u64 0 .
   while lt i. n. . do
-    let o option u64 some widen u64 len mk4 a. . . . . .
+    let o option u64 some cast u64 len mk4 a. . . . . .
     set acc. add acc. some_value o. . . .
     set i. add i. 1 . .
   end .

@@ -1,0 +1,7 @@
+module mistake_usizemix .
+rem expect: E-TYPE-NOMINAL
+
+rem ko: ✘ usize 와 u64 를 그대로 더한다 --- 어느 폭에서 셈할지를 적지 않았다 /// en: ✘ adding a usize to a u64 as they are --- the width of the sum was never written
+fn end_of input start usize . input more u64 . output u64 . do
+  return add start. more. . .
+end .

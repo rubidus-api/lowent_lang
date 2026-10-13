@@ -681,7 +681,7 @@ a × b ∈ [0, 10000]      with mixed signs, min and max of four products</code>
 small_sum(100, 100) = 200
 $ lowentc --ir sum_contract.low
 -- runtime checks (interval analysis: overflow · division · narrowing) --
-   2 / 2 removed  (100%)
+   3 / 3 removed  (100%)
 </code></pre></div></div><p>The contract bounds both inputs to 100 or less, so the sum does not exceed 200 and does not overflow <code>u16</code>. Every check disappears. With the same shape but unbounded inputs, the checks remain.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch41/product_bare.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> product_bare .
 <em><span class="tok-c">rem run: product 1000 1000</span></em>
 <em><span class="tok-c">rem ir</span></em>

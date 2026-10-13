@@ -7205,7 +7205,8 @@ static bool ck_elem_sized(proven_u8str_view_t t) {
 }
 static unsigned ck_elem_bytes(proven_u8str_view_t t) {
     return veq(t, "u16") || veq(t, "i16") ? 2 : veq(t, "u32") || veq(t, "i32") || veq(t, "f32") ? 4 :
-           veq(t, "u64") || veq(t, "i64") || veq(t, "f64") || veq(t, "usize") || veq(t, "isize") ? 8 : 1;
+           veq(t, "usize") || veq(t, "isize") ? (unsigned)(low_ir_target()->addr_bits / 8) :   // RFC-0149 L5
+           veq(t, "u64") || veq(t, "i64") || veq(t, "f64") ? 8 : 1;
 }
 // ★★ RFC-0132 T2b-3b (C5 · N1 · N2) — **구조체의 배열 칸** `body array u8 16 .` 은 받는다: 길이가 타입에 있으니 칸이 제
 //   바이트를 가진다(구조체를 값으로 베끼면 그 바이트도 베껴진다). 원소는 크기 있는 수·`bool`. 원소가 구조체이거나 배열인 칸은
@@ -7607,8 +7608,8 @@ static bool lc_const(const low_cst_t *l) {
 static proven_size_t lc_bytes(const low_cst_t *l) {
     proven_size_t esz = ck_atom(l->kids[2]) ? (veq(l->kids[2]->tok.lex, "u16") || veq(l->kids[2]->tok.lex, "i16") ? 2 :
                         veq(l->kids[2]->tok.lex, "u32") || veq(l->kids[2]->tok.lex, "i32") || veq(l->kids[2]->tok.lex, "f32") ? 4 :
-                        veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ||
-                        veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "isize") ? 8 : 1) : 1;
+                        veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "isize") ? (proven_size_t)(low_ir_target()->addr_bits / 8) :
+                        veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ? 8 : 1) : 1;
     { unsigned sb, sa; if (ck_atom(l->kids[2]) && !ck_elem_sized(l->kids[2]->tok.lex) && ck_struct_layout(l->kids[2]->tok.lex, &sb, &sa, 0)) esz = sb; }
     if (!ck_atom(l->kids[2])) {                                  // §13.10 — 줄: 원소 크기 = m × |T|
         const low_cst_t *rt = l->kids[2];

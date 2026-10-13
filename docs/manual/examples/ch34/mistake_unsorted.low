@@ -14,7 +14,7 @@ do
   set idx xs. 3 . 3 .
   set idx xs. 4 . 25 .
   rem ko: ✘ 정렬하지 않고 이진 탐색한다 --- 42 가 있는데 못 찾는다 /// en: ✘ binary search without sorting --- 42 is there, yet it is not found
-  let at option u64 searchlib.bsearch xs. 42 . .
+  let at option usize searchlib.bsearch xs. 42 . .
   guard is_some at. . else return 99 . .
   return some_value at. . .
 end .

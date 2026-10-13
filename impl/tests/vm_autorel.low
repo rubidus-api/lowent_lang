@@ -10,23 +10,23 @@ actor keep_bytes do
   satisfies allocs.byte_allocator .
   state do
     mem mut slice u8 .
-    off u64 .
+    off usize .
   end .
-  proc init input m mut slice u8 . output u64 . effects state . do
+  proc init input m mut slice u8 . output usize . effects state . do
     set mem. m. .
     set off. 0 .
     return len m. . .
   end .
-  proc reserve input n u64 . output option mut slice u8 . effects state . do
+  proc reserve input n usize . output option mut slice u8 . effects state . do
     guard le n. sub len mem. . off. . . else return none . .
     let s mut slice u8 subslice mem. off. add off. n. . . .
     set off. add off. n. . .
     return some s. . .
   end .
-  proc grow input old mut slice u8 . input newn u64 . output option mut slice u8 . effects none . do
+  proc grow input old mut slice u8 . input newn usize . output option mut slice u8 . effects none . do
     return none .
   end .
-  proc used output u64 . effects none . do
+  proc used output usize . effects none . do
     return off. .
   end .
 end .

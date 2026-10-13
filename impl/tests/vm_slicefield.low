@@ -17,7 +17,7 @@ export proc build input a u8 . output u64 . effects state . do
   let m use bb. packet lit packet do tag 7 . body body_bytes. . nums ws. . end . else return 999 . .
   let b slice u8 field m. body . .
   let n slice u64 field m. nums . .
-  return add add widen u64 field m. tag . . widen u64 idx b. 3 . . . add idx n. 2 . mul len b. . 1000 . . . .
+  return add add widen u64 field m. tag . . widen u64 idx b. 3 . . . add idx n. 2 . mul cast u64 len b. . . 1000 . . . .
 end .
 
 struct msg do
@@ -38,7 +38,7 @@ export proc rewrite input a u8 . output u64 . effects state . do
   var m use bb. msg lit msg do tag 1 . body one. . end . else return 999 . .
   set field m. body . two. .
   let b slice u8 field m. body . .
-  return add mul len b. . 100 . widen u64 idx b. 2 . . . .
+  return add mul cast u64 len b. . . 100 . widen u64 idx b. 2 . . . .
 end .
 
 export proc signed output i64 . effects state . do

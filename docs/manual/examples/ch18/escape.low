@@ -1,7 +1,7 @@
 module escape .
 rem expect: E-REGION-ESCAPE
 
-proc leak output u64 . effects alloc .
+proc leak output usize . effects alloc .
 do
   var held mut slice u8 subslice "abcd" 0 0 . .
   region r arena do

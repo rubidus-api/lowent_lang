@@ -707,7 +707,7 @@ lerel[i] = n     local i is less than local n</code></pre><p>These facts come fr
 <em><span class="tok-c">rem 1 --- the loop condition looks at len directly</span></em>
 <strong><span class="tok-k">fn</span></strong> direct <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t. wrap_add t. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -717,9 +717,9 @@ lerel[i] = n     local i is less than local n</code></pre><p>These facts come fr
 
 <em><span class="tok-c">rem 2 --- the length is stored in a local</span></em>
 <strong><span class="tok-k">fn</span></strong> stored <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> len s. . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">usize</span></strong> len s. . .
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. n. . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t. wrap_add t. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .

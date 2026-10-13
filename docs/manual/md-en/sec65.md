@@ -50,12 +50,12 @@ If `dst` is smaller than the formula the result is always `none`; if larger it d
 |---|---|---|
 | `hex_digit` | `fn (v u64) → u8` | never fails (assumes 0 … 15) |
 | `hex_val` | `fn (c u8) → option u64` | `none` outside `0-9 a-f A-F` |
-| `hex_enc` | `proc (src slice u8, dst mut slice u8) → option u64` | `none` if `dst` too small |
-| `hex_dec` | `proc (src slice u8, dst mut slice u8) → option u64` | `none` for odd length · non-hex characters · `dst` too small |
+| `hex_enc` | `proc (src slice u8, dst mut slice u8) → option usize` | `none` if `dst` too small |
+| `hex_dec` | `proc (src slice u8, dst mut slice u8) → option usize` | `none` for odd length · non-hex characters · `dst` too small |
 | `b64_digit` | `fn (v u64) → u8` | never fails (assumes 0 … 63) |
 | `b64_val` | `fn (c u8) → option u64` | `none` outside the alphabet (`=` too) |
-| `b64_enc` | `proc (src slice u8, dst mut slice u8) → option u64` | `none` if `dst` too small |
-| `b64_dec` | `proc (src slice u8, dst mut slice u8) → option u64` | `none` if length not a multiple of 4 · outside the alphabet · misplaced padding · `dst` too small |
+| `b64_enc` | `proc (src slice u8, dst mut slice u8) → option usize` | `none` if `dst` too small |
+| `b64_dec` | `proc (src slice u8, dst mut slice u8) → option usize` | `none` if length not a multiple of 4 · outside the alphabet · misplaced padding · `dst` too small |
 
 *Table 50.2 — Ops of `codec`*
 
@@ -83,7 +83,7 @@ module ex_codec .
 
 use codec as c .
 
-proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
+proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output usize . effects none . do
   guard ge len enc. . 6 . else return 90 . .
   guard ge len dec. . 3 . else return 91 . .
   let en option u64 c.hex_enc "abc" enc. . .
@@ -101,7 +101,7 @@ proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 
   return 42 .
 end .
 
-proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
+proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output usize . effects none . do
   rem 2 bytes make one group (4 characters) with one = at the end: "aGk="
   guard ge len enc. . 4 . else return 90 . .
   guard ge len dec. . 2 . else return 91 . .

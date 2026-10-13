@@ -26,8 +26,8 @@ let i option u64 searchlib.bsearch s. 42 . .
   id: "mod-searchlib-ops",
   caption: [Ops of `searchlib` --- all `fn` · `effects none`],
   [*op*], [*Shape*], [*Answer*],
-  [`bsearch`], [`(s slice u64, target u64) → option u64`], [index of `target`, or `none`. With duplicates, *one* of them (which one is unspecified)],
-  [`lower_bound`], [`(s slice u64, target u64) → u64`], [first index at or above `target`. `len s. .` if all are smaller],
+  [`bsearch`], [`(s slice u64, target u64) → option usize`], [index of `target`, or `none`. With duplicates, *one* of them (which one is unspecified)],
+  [`lower_bound`], [`(s slice u64, target u64) → usize`], [first index at or above `target`. `len s. .` if all are smaller],
 )
 
 How to choose --- "is it there, and where" is `bsearch`; "where would it go" or "where do values at or above this start" is `lower_bound`. `lower_bound` is both *insertion

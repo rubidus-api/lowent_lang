@@ -131,14 +131,14 @@ end .
 rem ★ 준비 차례(§6.3) — 원천 · 그다음 절 차례대로(zip 의 짝 → with → 끝 단계의 받는 자리). 빈 원천이어도 준비는 한다.
 rem   `rec` 의 첫 칸이 쓴 개수, 그 뒤가 기록이다.
 proc mark input rec mut slice u8 . input tag u8 . input v u8 . output u8 . effects state . do
-  let n u64 widen u64 idx rec. 0 . . .
+  let n usize cast usize idx rec. 0 . . .
   set idx rec. add n. 1 . . tag. .
   set idx rec. 0 . narrow_wrap u8 add n. 1 . . .
   return v. .
 end .
 
 proc mark_s input rec mut slice u8 . input tag u8 . input s slice u8 . output slice u8 . effects state . do
-  let n u64 widen u64 idx rec. 0 . . .
+  let n usize cast usize idx rec. 0 . . .
   set idx rec. add n. 1 . . tag. .
   set idx rec. 0 . narrow_wrap u8 add n. 1 . . .
   return s. .

@@ -222,7 +222,7 @@ do
   rem   (close 의 파라미터가 owned 라 거기서 이동한다). 파라미터의 타입이 이동을 정한다
   rem   — SPEC-004 §4.8. 이 흔한 모양이 2026-07-19 까지 표현 불가능했다(과엄격 결함).
   var h owned handle ok_value ho. . .
-  var total u64 0 .
+  var total usize 0 .
   var going bool true .
   var overflow bool false .
   rem ★★★ **읽기 실패는 EOF 가 아니다** (RFC-0075 S5 · 2026-08-15). 여기 있던 코드는 `none` 을
@@ -257,7 +257,7 @@ do
   if eq failed. false . do
     if eq total. len buf. . . do
       if gt len buf. . 0 . do
-        let last u64 sub len buf. . 1 . .
+        let last usize sub len buf. . 1 . .
         let pr result (option u64) file_error read fs. h. subslice buf. last. len buf. . . . .
         if eq is_ok pr. . false . do set failed. true . end .
         if is_ok pr. . do

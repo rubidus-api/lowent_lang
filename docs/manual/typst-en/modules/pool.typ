@@ -35,7 +35,7 @@ reach it, so using its first 8 bytes as the ledger is free. The pool is a struct
   caption: [Ops of `pool` --- the first argument is the brand, all `effects none`],
   [*op*], [*Shape*], [*Failure*],
   [`handle b` · `block_pool b`], [structs --- a handle has `blk` · `len` · `gen`; a pool has sealed `mem` · `gens` and cursors], [---],
-  [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs u64 → option (block_pool b)`], [`none` if `bs < 8`],
+  [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs usize → option (block_pool b)`], [`none` if `bs < 8`],
   [`blocks`], [`fn (comptime b, p) → u64` --- `min(len mem / bs, len g)`], [none],
   [`take`], [`(comptime b, p mut block_pool b) → option (handle b)`], [`none` if no blocks remain],
   [`release`], [`(comptime b, p mut, h handle b) → bool`], [`false` for stale or out-of-range handles (double release included)],
@@ -55,7 +55,7 @@ release *after* the block (#chref("references")). Taken that way, the processor 
 ```lowent
 newtype demo_brand u8 .
 
-proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
+proc demo input mem mut slice u8 . input gens mut slice u64 . output usize . effects none .
 do
   let po option (pool.block_pool demo_brand) pool.init demo_brand. mem. gens. 16 . .
   guard is_some po. . else return 89 . .

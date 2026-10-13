@@ -29,7 +29,7 @@ leave --- *the writer cannot flush behind your back* (#chref("capabilities")).
   id: "mod-outbuf-ops",
   caption: [Ops of `outbuf`],
   [*op*], [*Shape*], [*Failure*],
-  [`write_all`], [`proc (out cap io, d u64, b slice u8) → option u64` --- writes one slice *to the end*, bypassing the buffer], [`none` --- cannot write any more],
+  [`write_all`], [`proc (out cap io, d u64, b slice u8) → option usize` --- writes one slice *to the end*, bypassing the buffer], [`none` --- cannot write any more],
   [`io_error` · `pending`], [enum `write_failed` · struct `pos u64` (bytes accumulated) · `fd u64` (1 = stdout, 2 = stderr)], [---],
   [`buf_open`], [`fn (d u64) → pending`, effects none], [none --- but opening creates a debt],
   [`buf_flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed .`],

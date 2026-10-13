@@ -31,9 +31,9 @@ ratio constant).
   [`put`], [`proc (b mut slice u64, k u64, v u64) → bool`], [full · reserved key → `false`],
   [`lookup`], [`proc (b slice u64, k u64) → option u64`], [absent · reserved key → `none`],
   [`del`], [`proc (b mut slice u64, k u64) → bool`], [absent · reserved key → `false`],
-  [`size`], [`fn (b slice u64) → u64`], [slot count (not the item count)],
-  [`occupied_at`], [`fn (b slice u64, slot u64) → bool`], [out of range → `false`],
-  [`key_at` · `val_at`], [`fn (b slice u64, slot u64) → u64`], [meaningful only when occupied],
+  [`size`], [`fn (b slice u64) → usize`], [slot count (not the item count)],
+  [`occupied_at`], [`fn (b slice u64, slot usize) → bool`], [out of range → `false`],
+  [`key_at` · `val_at`], [`fn (b slice u64, slot usize) → u64`], [meaningful only when occupied],
   [`rehash`], [`proc (nb mut slice u64, ob slice u64) → bool`], [`false` midway if `nb` is too small],
 )
 
@@ -46,7 +46,7 @@ ratio constant).
   #modref("sortlib")[`sortlib`].
 
 ```lowent
-proc hm_sum input b mut slice u64 . output u64 . effects none . do
+proc hm_sum input b mut slice u64 . output usize . effects none . do
   var i u64 0 .
   while lt i. len b. . . do
     set idx b. i. . 0 .

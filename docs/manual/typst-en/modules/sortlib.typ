@@ -42,7 +42,7 @@ the values beforehand.
 A self-verifying pattern --- is it ascending *and* is the sum preserved. It catches order defects and element loss or duplication together.
 
 ```lowent
-proc sort_verify input s mut slice u64 . output u64 . effects none . do
+proc sort_verify input s mut slice u64 . output usize . effects none . do
   var pre u64 0 .
   var i u64 0 .
   while lt i. len s. . . do

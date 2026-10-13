@@ -29,9 +29,9 @@ do
 end .
 
 rem 루프마다 **새 스택**을 만든다 — 태그 경로는 9번째에 죽는다.
-proc many input temp region frame . input k u64 . output u64 . effects alloc .
+proc many input temp region frame . input k u64 . output usize . effects alloc .
 do
-    var t u64 0 .
+    var t usize 0 .
     var j u64 0 .
     while lt j. k. . do
         let s stack u64 stack_new temp capacity 128 . .

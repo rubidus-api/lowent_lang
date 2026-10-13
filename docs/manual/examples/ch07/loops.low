@@ -18,9 +18,9 @@ do
   return total. .
 end .
 
-fn first_zero input xs slice u8 . output u64 .
+fn first_zero input xs slice u8 . output usize .
 do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len xs. . . do
     if eq idx xs. i. . 0 . do
       break .

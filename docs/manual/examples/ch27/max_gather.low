@@ -6,7 +6,7 @@ fn biggest input s slice u8 . output u64 .
   reduce best max .
 do
   var best u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     set best. max best. widen u64 idx s. i. . . . .
     set i. add i. 1 . .

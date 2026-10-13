@@ -84,10 +84,10 @@ export proc at input comptime b type . input a (arena b) . input dir slice u64 .
   input mem slice u64 . input i u64 . output option u64 . effects none .
 do
   guard le field a. kbits . 20 . else return none . .
-  let s u64 shr i. field a. kbits . . .
+  let s usize shr i. field a. kbits . . .
   guard lt s. field a. nseg . . else return none . .
   guard lt s. len dir. . . else return none . .
-  let at0 u64 add idx dir. s. . bit_and i. sub shl 1 field a. kbits . . 1 . . . .
+  let at0 usize cast usize add idx dir. s. . bit_and i. sub shl 1 field a. kbits . . 1 . . . . .
   guard lt at0. len mem. . . else return none . .
   return some idx mem. at0. . . .
 end .
@@ -95,7 +95,7 @@ end .
 rem ★★★ **조각을 한 번 빌린다** — 그 뒤 순회는 directory 를 **안 본다**.
 rem   이 op 이 있는 이유가 종료 조건 그 자체다(세그먼트당 directory load 1회).
 export proc walk_base input comptime b type . input a (arena b) . input dir slice u64 .
-  input s u64 . output option u64 . effects none .
+  input s usize . output option u64 . effects none .
 do
   guard lt s. field a. nseg . . else return none . .
   guard lt s. len dir. . . else return none . .
@@ -104,17 +104,17 @@ end .
 
 rem 조각 하나를 더한다 — 빌린 base 로 도는 합. **루프 안에 directory 가 없다.**
 export proc sum_seg input comptime b type . input a (arena b) . input dir slice u64 .
-  input mem slice u64 . input s u64 . output u64 . effects none .
+  input mem slice u64 . input s usize . output u64 . effects none .
 do
   guard le field a. kbits . 20 . else return 0 . .
   let bo option u64 walk_base b. a. dir. s. . .
   guard is_some bo. . else return 0 . .
-  let base u64 some_value bo. . .
-  let width u64 shl 1 field a. kbits . . .
+  let base usize some_value bo. . .
+  let width usize shl 1 field a. kbits . . .
   var acc u64 0 .
-  var k u64 0 .
+  var k usize 0 .
   while lt k. width. . do
-    let at0 u64 add base. k. . .
+    let at0 usize add base. k. . .
     if lt at0. len mem. . . do
       set acc. wrap_add acc. idx mem. at0. . . .
     end .

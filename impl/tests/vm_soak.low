@@ -126,8 +126,8 @@ fn rec_pool input n u64 . output u64 . do
 end .
 
 type slot u64 .
-proc stk_pool input temp region slot . input n u64 . output u64 . effects alloc . do
-  var acc u64 0 .
+proc stk_pool input temp region slot . input n u64 . output usize . effects alloc . do
+  var acc usize 0 .
   var i u64 0 .
   while lt i. n. . do
     let s stack u64 stack_new temp capacity 4 . .
@@ -138,8 +138,8 @@ proc stk_pool input temp region slot . input n u64 . output u64 . effects alloc 
   return acc. .
 end .
 
-fn bset_pool input n u64 . output u64 . do
-  var acc u64 0 .
+fn bset_pool input n u64 . output usize . do
+  var acc usize 0 .
   var i u64 0 .
   while lt i. n. . do
     var b bitset 8 bitset_new 8 . .

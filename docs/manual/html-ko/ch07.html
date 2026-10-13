@@ -684,9 +684,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">return</span></strong> total. .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> first_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> first_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len xs. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq idx xs. i. . <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">break</span></strong> .
@@ -754,12 +754,12 @@ steps(100) = 7
 <em><span class="tok-c">rem run: first_cell 8</span></em>
 
 <em><span class="tok-c">rem 겹친 되풀이에서 찾던 칸을 만나면 `break 2 .` 로 둘을 한 번에 벗어난다</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> first_cell <strong><span class="tok-k">input</span></strong> want <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> first_cell <strong><span class="tok-k">input</span></strong> want <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> (<strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">3</span>) <span class="tok-n">3</span> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">3</span> <span class="tok-n">1</span> <span class="tok-n">2</span> <span class="tok-n">3</span> . <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">3</span> <span class="tok-n">4</span> <span class="tok-n">0</span> <span class="tok-n">6</span> . <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">3</span> <span class="tok-n">7</span> <span class="tok-n">8</span> <span class="tok-n">9</span> . . .
-  <strong><span class="tok-k">var</span></strong> hit <strong><span class="tok-t">u64</span></strong> <span class="tok-n">99</span> .
-  <strong><span class="tok-k">repeat</span></strong> r <strong><span class="tok-t">u64</span></strong> len g. . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">u64</span></strong> <span class="tok-n">3</span> <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> hit <strong><span class="tok-t">usize</span></strong> <span class="tok-n">99</span> .
+  <strong><span class="tok-k">repeat</span></strong> r <strong><span class="tok-t">usize</span></strong> len g. . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">usize</span></strong> <span class="tok-n">3</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">if</span></strong> eq idx idx g. r. . c. . want. . <strong><span class="tok-k">do</span></strong>
         <strong><span class="tok-k">set</span></strong> hit. add mul r. <span class="tok-n">3</span> . c. . .
         <strong><span class="tok-k">break</span></strong> <span class="tok-n">2</span> .

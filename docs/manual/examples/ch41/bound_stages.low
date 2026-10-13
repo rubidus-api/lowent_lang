@@ -8,7 +8,7 @@ rem proof
 rem ko: 1 --- 반복 조건이 len 을 직접 본다 /// en: 1 --- the loop condition looks at len directly
 fn direct input s slice u8 . output u64 . do
   var t u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     set t. wrap_add t. widen u64 idx s. i. . . . .
     set i. add i. 1 . .
@@ -18,9 +18,9 @@ end .
 
 rem ko: 2 --- 길이를 지역에 담았다 /// en: 2 --- the length is stored in a local
 fn stored input s slice u8 . output u64 . do
-  let n u64 len s. . .
+  let n usize len s. . .
   var t u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. n. . do
     set t. wrap_add t. widen u64 idx s. i. . . . .
     set i. add i. 1 . .

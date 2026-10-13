@@ -140,14 +140,14 @@ rem ★★★★ **끝까지 보낸다.** `net_send` 가 한 번에 전부를 �
 rem   그것이 소켓의 성질이고, 그 사실을 프로그램마다 다시 배우게 두는 것이 라이브러리가
 rem   없을 때 치르는 값이다. 보낸 총 바이트를 답하고, 도중에 막히면 **거기까지**를 답한다
 rem   (거짓말하지 않는다: 전량 성공만 성공이라고 부르지 않는다).
-export proc send_all input k cap net . input fd u64 . input buf slice u8 . output option u64 .
+export proc send_all input k cap net . input fd u64 . input buf slice u8 . output option usize .
   effects io .
 do
-  var off u64 0 .
+  var off usize 0 .
   while lt off. len buf. . . do
     let s option u64 call_builtin net_send k. fd. subslice buf. off. len buf. . . . .
     guard is_some s. . else return some off. . . .
-    let n u64 some_value s. . .
+    let n usize some_value s. . .
     guard gt n. 0 . else return some off. . . .
     set off. add off. n. . .
   end .

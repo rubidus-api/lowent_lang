@@ -19,12 +19,12 @@ export proc setup input key slice u8 . input st mut slice u64 . output u64 . eff
   rem r = key[0..16] little-endian, clamp.
   var t0 u64 0 .
   var t1 u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
     set t0. bit_or t0. shl cast u64 idx key. i. . . mul i. 8 . . . .
     set i. add i. 1 . .
   end .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. 8 . do
     set t1. bit_or t1. shl cast u64 idx key. add 8 j. . . . mul j. 8 . . . .
     set j. add j. 1 . .
@@ -39,7 +39,7 @@ export proc setup input key slice u8 . input st mut slice u64 . output u64 . eff
   set idx st. 8 . bit_and shr t1. 14 . 67108863 . .
   set idx st. 9 . bit_and shr t1. 40 . 67108863 . .
   rem h = 0
-  var k u64 0 .
+  var k usize 0 .
   while lt k. 5 . do
     set idx st. k. . 0 .
     set k. add k. 1 . .
@@ -57,14 +57,14 @@ export proc block input st mut slice u64 . input blk slice u8 . input addhi u64 
   rem 16 바이트를 128비트로 모은 뒤 26비트 다섯 조각으로 쪼갠다.
   var lo u64 0 .
   var hi u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
     if lt i. len blk. . . do
       set lo. bit_or lo. shl cast u64 idx blk. i. . . mul i. 8 . . . .
     end .
     set i. add i. 1 . .
   end .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. 8 . do
     if lt add 8 j. . len blk. . . do
       set hi. bit_or hi. shl cast u64 idx blk. add 8 j. . . . mul j. 8 . . . .
@@ -192,10 +192,10 @@ export proc emit input st mut slice u64 . input key slice u8 . input tag mut sli
 
   rem + s (key[16..32], little-endian 32비트 넷) — 자리올림을 이어 간다.
   var acc u64 0 .
-  var w u64 0 .
+  var w usize 0 .
   while lt w. 4 . do
     var sw u64 0 .
-    var b u64 0 .
+    var b usize 0 .
     while lt b. 4 . do
       set sw. bit_or sw. shl cast u64 idx key. add 16 add mul w. 4 . b. . . . . mul b. 8 . . . .
       set b. add b. 1 . .
@@ -209,7 +209,7 @@ export proc emit input st mut slice u64 . input key slice u8 . input tag mut sli
     set acc. add add base. sw. . acc. . .
     var t u64 0 .
     set t. bit_and acc. 4294967295 . .
-    var q u64 0 .
+    var q usize 0 .
     while lt q. 4 . do
       set idx tag. add mul w. 4 . q. . . cast u8 bit_and shr t. mul q. 8 . . 255 . . .
       set q. add q. 1 . .

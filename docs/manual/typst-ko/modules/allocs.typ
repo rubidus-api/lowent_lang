@@ -20,9 +20,9 @@ let b option mut slice u8 send bump. reserve 64 . .
 
 ```lowent
 export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
-  grow    input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
-  used    input s self . output u64 . effects state .
+  reserve input s self . input n usize . output option mut slice u8 . effects state via self .
+  grow    input s self . input old mut slice u8 . input newn usize . output option mut slice u8 . effects state via self .
+  used    input s self . output usize . effects state .
 end .
 ```
 
@@ -46,10 +46,10 @@ end .
   caption: [범프의 op],
   [*op*], [*모양*], [*실패*],
   [`init`(trait 밖)], [`backing mut slice u8 → u64`(용량), `effects state`], [없음. 다시 부르면 새 버퍼로 갈아타고 커서가 0],
-  [`reserve`], [`n u64 → option mut slice u8`], [`none` --- 커서는 움직이지 않는다(부분 할당 없음)],
-  [`grow`], [`old mut slice u8, newn u64 → option mut slice u8`], [`none` --- 마지막 조각이 아니거나 자리 부족],
+  [`reserve`], [`n usize → option mut slice u8`], [`none` --- 커서는 움직이지 않는다(부분 할당 없음)],
+  [`grow`], [`old mut slice u8, newn usize → option mut slice u8`], [`none` --- 마지막 조각이 아니거나 자리 부족],
   [`release`], [`v mut slice u8 → bool`], [`false` --- 마지막 조각이 아니면 아무것도 바꾸지 않는다],
-  [`used`], [`→ u64`(커서 위치, 패딩 포함), `effects none`], [없음],
+  [`used`], [`→ usize`(커서 위치, 패딩 포함), `effects none`], [없음],
 )
 
 - *OOM 은 값이다.* `reserve` 는 멈추는 대신 `none` 을 돌려준다. `guard is_some …` 없이는 바이트에 닿을 수 없다.

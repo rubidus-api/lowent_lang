@@ -16,30 +16,30 @@ use outbuf .
 use args .
 
 rem ── 한도: «기계가 못 해서» 가 아니라 «여기까지는 본다». 넘치면 말하고 3 으로 끝난다.
-fn max_entries output u64 . do
+fn max_entries output usize . do
   return 4096 .
 end .
 
-fn max_names output u64 . do
+fn max_names output usize . do
   return 262144 .
 end .
 
-fn max_pend output u64 . do
+fn max_pend output usize . do
   return 4096 .
 end .
 
 rem 발견 한 줄을 끝까지 쓴다(잎은 짧게 쓸 수 있다 — outbuf.write_all 이 되풀이한다).
 proc say input out cap io . input kind slice u8 . input rel slice u8 . output void . effects io . do
-  let w1 option u64 outbuf.write_all out. 1 kind. . .
-  let w2 option u64 outbuf.write_all out. 1 " " . .
-  let w3 option u64 outbuf.write_all out. 1 rel. . .
-  let w4 option u64 outbuf.write_all out. 1 "\n" . .
+  let w1 option usize outbuf.write_all out. 1 kind. . .
+  let w2 option usize outbuf.write_all out. 1 " " . .
+  let w3 option usize outbuf.write_all out. 1 rel. . .
+  let w4 option usize outbuf.write_all out. 1 "\n" . .
   return .
 end .
 
 rem 바이트 사전순으로 a < b 인가.
 fn less input a slice u8 . input b slice u8 . output bool . do
-  repeat i u64 min len a. . len b. . . do
+  repeat i usize min len a. . len b. . . do
     if ne idx a. i. . idx b. i. . . do
       return lt idx a. i. . idx b. i. . . .
     end .
@@ -48,24 +48,24 @@ fn less input a slice u8 . input b slice u8 . output bool . do
 end .
 
 rem arena 안의 i 번째 이름.
-fn name_of input arena slice u8 . input offs slice u64 . input lens slice u64 . input i u64 . output slice u8 . do
-  return subslice arena. idx offs. i. . add idx offs. i. . idx lens. i. . . . .
+fn name_of input arena slice u8 . input offs slice u64 . input lens slice u64 . input i usize . output slice u8 . do
+  return subslice arena. cast usize idx offs. i. . . cast usize add idx offs. i. . idx lens. i. . . . . .
 end .
 
 rem 이름 색인을 바닥에서 위로 합쳐 정렬한다(안정 — 같으면 왼쪽). tmpo · tmpl 은 같은 크기의 임시 자리.
-proc sort_names input arena slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input n u64 . output void . effects none .
+proc sort_names input arena slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input n usize . output void . effects none .
   requires le n. len offs. . . .
   requires le n. len lens. . . .
   requires le n. len tmpo. . . .
   requires le n. len tmpl. . . .
 do
-  cycle w u64 1 while lt w. n. . next mul w. 2 . do
-    cycle lo u64 0 while lt lo. n. . next add lo. mul w. 2 . . do
-      let mid u64 min add lo. w. . n. . .
-      let hi u64 min add lo. mul w. 2 . . n. . .
-      var ia u64 lo. .
-      var ib u64 mid. .
-      cycle k u64 lo. while lt k. hi. . next add k. 1 . do
+  cycle w usize 1 while lt w. n. . next mul w. 2 . do
+    cycle lo usize 0 while lt lo. n. . next add lo. mul w. 2 . . do
+      let mid usize min add lo. w. . n. . .
+      let hi usize min add lo. mul w. 2 . . n. . .
+      var ia usize lo. .
+      var ib usize mid. .
+      cycle k usize lo. while lt k. hi. . next add k. 1 . do
         var take_b bool false .
         if and lt ib. hi. . lt ia. mid. . . do
           set take_b. less name_of arena. offs. lens. ib. . name_of arena. offs. lens. ia. . . .
@@ -82,7 +82,7 @@ do
           set ia. add ia. 1 . .
         end .
       end .
-      cycle m u64 lo. while lt m. hi. . next add m. 1 . do
+      cycle m usize lo. while lt m. hi. . next add m. 1 . do
         set idx offs. m. . idx tmpo. m. . .
         set idx lens. m. . idx tmpl. m. . .
       end .
@@ -98,7 +98,7 @@ end .
 
 rem 한 디렉터리의 이름을 모아 정렬한다(`.`·`..` 은 뺀다). 개수를 내고, 상태를 st[0] 에 적는다:
 rem 0 = 됐다 · 3 = 한도 · 71 = 열기·읽기 실패 · 72 = 닫기 실패.
-proc list_dir input fs cap file_system . input path slice u8 . input namebuf mut slice u8 . input arena mut slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input st mut slice u64 . output u64 . effects io .
+proc list_dir input fs cap file_system . input path slice u8 . input namebuf mut slice u8 . input arena mut slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input st mut slice u64 . output usize . effects io .
   requires ge len st. . 1 . .
 do
   set idx st. 0 . 0 .
@@ -108,8 +108,8 @@ do
     return 0 .
   end .
   var dh owned files.dir_handle ok_value opened. . .
-  var n u64 0 .
-  var used u64 0 .
+  var n usize 0 .
+  var used usize 0 .
   while true do
     let r result (option u64) files.file_error files.read_dir fs. dh. namebuf. . .
     guard is_ok r. . else do
@@ -118,7 +118,7 @@ do
     end .
     let got option u64 ok_value r. . .
     guard is_some got. . else break . .
-    let nl u64 some_value got. . .
+    let nl usize some_value got. . .
     guard and gt nl. 0 . le nl. len namebuf. . . . else break . .
     if is_dot_name subslice namebuf. 0 nl. . . do
       continue .
@@ -133,7 +133,7 @@ do
     end .
     set idx offs. n. . used. .
     set idx lens. n. . nl. .
-    repeat c u64 nl. do
+    repeat c usize nl. do
       set idx arena. add used. c. . . idx namebuf. c. . .
     end .
     set used. add used. nl. . .
@@ -153,7 +153,7 @@ rem   바이트마다 도는 고리를 그 안에 두면 바이트마다 느린 
 rem   3,042 개 파일(110 MB)에서 56 초 걸렸다(옛 판 0.6 초, 2026-10-03 실측).
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
   guard eq len a. . len b. . . else return false . .
-  repeat i u64 len a. . do
+  repeat i usize len a. . do
     guard eq idx a. i. . idx b. i. . . else return false . .
   end .
   return true .
@@ -180,8 +180,8 @@ proc same_file input fs cap file_system . input pa slice u8 . input pb slice u8 
       set verdict. 2 .
       break .
     end .
-    var na u64 0 .
-    var nb u64 0 .
+    var na usize 0 .
+    var nb usize 0 .
     let oa option u64 ok_value ra. . .
     let ob option u64 ok_value rb. . .
     if is_some oa. . do
@@ -225,19 +225,19 @@ rem base + "/" + name 을 buf 에 짓는다(base 가 비었으면 name 만). 길
 proc join_path input base slice u8 . input name slice u8 . input buf mut slice u8 . input st mut slice u64 . output bool . effects none .
   requires ge len st. . 1 . .
 do
-  var head u64 0 .
+  var head usize 0 .
   if gt len base. . 0 . do
     set head. add len base. . 1 . .
   end .
-  let total u64 add head. len name. . . .
+  let total usize add head. len name. . . .
   guard le total. len buf. . . else return false . .
-  repeat bi u64 len base. . do
+  repeat bi usize len base. . do
     set idx buf. bi. . idx base. bi. . .
   end .
   if gt head. 0 . do
     set idx buf. len base. . . '/' .
   end .
-  repeat ni u64 len name. . do
+  repeat ni usize len name. . do
     set idx buf. add head. ni. . . idx name. ni. . .
   end .
   set idx st. 0 . total. .
@@ -294,7 +294,7 @@ do
   let a0 option slice u8 args.get a. 0 . .
   let a1 option slice u8 args.get a. 1 . .
   guard and is_some a0. . is_some a1. . . else do
-    let wu option u64 outbuf.write_all out. 2 usage. . .
+    let wu option usize outbuf.write_all out. 2 usage. . .
     return 2 .
   end .
   let root_a slice u8 some_value a0. . .
@@ -326,7 +326,7 @@ do
   let tmpl mut slice u64 view_array u64 subslice mem. 1163328 1196096 . . .
 
   rem 대기 목록 = 아직 안 본 상대 경로. 뒤에서 꺼낸다. 시작은 뿌리(빈 경로) 하나.
-  var np u64 1 .
+  var np usize 1 .
   set idx poffs. 0 . 0 .
   set idx plens. 0 . 0 .
   var diffs u64 0 .
@@ -334,22 +334,22 @@ do
 
   while and gt np. 0 . not limit_hit. . . do
     set np. sub np. 1 . .
-    let ro u64 idx poffs. np. . .
-    let rel slice u8 subslice pend. ro. add ro. idx plens. np. . . . .
-    var pused u64 ro. .
+    let ro usize cast usize idx poffs. np. . . .
+    let rel slice u8 subslice pend. ro. add ro. cast usize idx plens. np. . . . . .
+    var pused usize ro. .
     guard join_path root_a. rel. path_a. st. . else do
       set limit_hit. true .
       break .
     end .
-    let la u64 idx st. 0 . .
+    let la usize cast usize idx st. 0 . . .
     guard join_path root_b. rel. path_b. st. . else do
       set limit_hit. true .
       break .
     end .
-    let lb u64 idx st. 0 . .
-    let n_a u64 list_dir fs. subslice path_a. 0 la. . namebuf. arena_a. offs_a. lens_a. tmpo. tmpl. st. . .
+    let lb usize cast usize idx st. 0 . . .
+    let n_a usize list_dir fs. subslice path_a. 0 la. . namebuf. arena_a. offs_a. lens_a. tmpo. tmpl. st. . .
     let st_a u64 idx st. 0 . .
-    let n_b u64 list_dir fs. subslice path_b. 0 lb. . namebuf. arena_b. offs_b. lens_b. tmpo. tmpl. st. . .
+    let n_b usize list_dir fs. subslice path_b. 0 lb. . namebuf. arena_b. offs_b. lens_b. tmpo. tmpl. st. . .
     let st_b u64 idx st. 0 . .
     if or eq st_a. 3 . eq st_b. 3 . . do
       set limit_hit. true .
@@ -361,8 +361,8 @@ do
 
     rem 두 정렬 목록을 합친다. 하위 디렉터리는 대기 목록 끝에 쌓는다 — 꺼낸 경로의 바이트 자리부터 덮어쓰므로
     rem (자식 경로는 부모 경로로 시작해 앞부분이 그대로다) 대기 목록은 늘 «마지막에 넣은 것을 먼저» 꺼내야 한다.
-    var ia u64 0 .
-    var ib u64 0 .
+    var ia usize 0 .
+    var ib usize 0 .
     while or lt ia. n_a. . lt ib. n_b. . . do
       var side u64 0 .
       if ge ia. n_a. . do
@@ -384,7 +384,7 @@ do
         set limit_hit. true .
         break .
       end .
-      let child slice u8 subslice relbuf. 0 idx st. 0 . . .
+      let child slice u8 subslice relbuf. 0 cast usize idx st. 0 . . . .
       if eq side. 1 . do
         say out. "deleted" child. .
         set diffs. add diffs. 1 . .
@@ -403,25 +403,25 @@ do
         set limit_hit. true .
         break .
       end .
-      let pa_len u64 idx st. 0 . .
+      let pa_len usize cast usize idx st. 0 . . .
       guard join_path root_b. child. path_b. st. . else do
         set limit_hit. true .
         break .
       end .
-      let pb_len u64 idx st. 0 . .
+      let pb_len usize cast usize idx st. 0 . . .
       let v u64 visit_both fs. out. subslice path_a. 0 pa_len. . subslice path_b. 0 pb_len. . child. chunk_a. chunk_b. . .
       if or eq v. 1 . eq v. 2 . . do
         set diffs. add diffs. 1 . .
       end .
       if eq v. 4 . do
-        let cl u64 len child. . .
+        let cl usize len child. . .
         guard and lt np. max_pend. . le add pused. cl. . len pend. . . . else do
           set limit_hit. true .
           break .
         end .
         set idx poffs. np. . pused. .
         set idx plens. np. . cl. .
-        repeat z u64 cl. do
+        repeat z usize cl. do
           set idx pend. add pused. z. . . idx child. z. . .
         end .
         set pused. add pused. cl. . .
@@ -431,7 +431,7 @@ do
   end .
 
   if limit_hit. do
-    let wl option u64 outbuf.write_all out. 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) - the comparison is INCOMPLETE\n" . .
+    let wl option usize outbuf.write_all out. 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) - the comparison is INCOMPLETE\n" . .
     return 3 .
   end .
   guard eq diffs. 0 . else return 1 . .

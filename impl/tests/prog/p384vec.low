@@ -26,15 +26,15 @@ proc prep input buf mut slice u8 . input wu mut slice u64 . output u64 . effects
   let _u0 result u64 verify.verify_error verify.curve384 subslice wu. 0 96 . subslice buf. 0 48 . . .
   guard is_ok _u0. . else return 0 . .
   guard eq ok_value _u0. . 1 . else return 0 . .
-  let dr option u64 codec.hex_dec "6ae4768089f6801184a788b4df81f008c71b7f652d0ac0cf20143a84c4dfa6e352eb9194879159892d04ff27d133d4e6" subslice buf. 64 112 . . .
+  let dr option usize codec.hex_dec "6ae4768089f6801184a788b4df81f008c71b7f652d0ac0cf20143a84c4dfa6e352eb9194879159892d04ff27d133d4e6" subslice buf. 64 112 . . .
   guard is_some dr. . else return 0 . .
-  let ds option u64 codec.hex_dec "95daf82a122a9cbe5dc29d099b27251c1780dc94eb9d7142efa9087b25aa8c78b7897404b7e3473caf18ec227619c2d9" subslice buf. 112 160 . . .
+  let ds option usize codec.hex_dec "95daf82a122a9cbe5dc29d099b27251c1780dc94eb9d7142efa9087b25aa8c78b7897404b7e3473caf18ec227619c2d9" subslice buf. 112 160 . . .
   guard is_some ds. . else return 0 . .
-  let de option u64 codec.hex_dec "ba5f97c70250696c963d22d00d6cb64979953edf06a80af0c258a25f18f029c0f76e10af1bbf8b3014f64fbd320f4c91" subslice buf. 160 208 . . .
+  let de option usize codec.hex_dec "ba5f97c70250696c963d22d00d6cb64979953edf06a80af0c258a25f18f029c0f76e10af1bbf8b3014f64fbd320f4c91" subslice buf. 160 208 . . .
   guard is_some de. . else return 0 . .
-  let dx option u64 codec.hex_dec "e376542c785dafe78338bb6afbb0f744f7c1ad99ca32bb5eacaba8d5e4a7e139bf0555020a8ed6614e6fed595d9aa1a7" subslice buf. 208 256 . . .
+  let dx option usize codec.hex_dec "e376542c785dafe78338bb6afbb0f744f7c1ad99ca32bb5eacaba8d5e4a7e139bf0555020a8ed6614e6fed595d9aa1a7" subslice buf. 208 256 . . .
   guard is_some dx. . else return 0 . .
-  let dy option u64 codec.hex_dec "e28eb6f7bde42f610829f8c42bfdfe666cd29ba93cf2cb06ad97a253a4e47ce8ce4ce5b916e69113a79eea43c0df7c34" subslice buf. 256 304 . . .
+  let dy option usize codec.hex_dec "e28eb6f7bde42f610829f8c42bfdfe666cd29ba93cf2cb06ad97a253a4e47ce8ce4ce5b916e69113a79eea43c0df7c34" subslice buf. 256 304 . . .
   guard is_some dy. . else return 0 . .
   return 1 .
 end .
@@ -89,7 +89,7 @@ proc main input al cap allocator . output u8 . effects alloc . do
 
   rem ✘ s = 0 은 **점 연산 이전에** 걸려야 한다. 이 갈래를 빠뜨린 검증기는 아무 서명이나 받는다.
   guard eq prep buf. wu. . 1 . else return 9 . .
-  var i u64 112 .
+  var i usize 112 .
   while lt i. 160 . do  set idx buf. i. . 0 .  set i. add i. 1 . .  end .
   guard eq fill buf. wu. . 1 . else return 9 . .
   guard eq judge wu. . 0 . else return 4 . .

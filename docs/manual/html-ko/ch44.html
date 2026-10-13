@@ -696,7 +696,7 @@ effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: no
 <em><span class="tok-c">rem trap: pick [1,2,3] 7</span></em>
 
 <em><span class="tok-c">rem 범위를 벗어나면 멈추지만, 이 op 은 여전히 순수한 fn 이다</span></em>
-<strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> idx s. i. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run pick trap_not_effect.low [1,2,3] 1

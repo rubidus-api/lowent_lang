@@ -46,7 +46,7 @@ end .
 rem 훑어서 센다. struct 필드 **쓰기**를 쓴다.
 fn scan input src slice u8 . output u16 . do
   var c lit counts do braces 0 . quotes 0 . digits 0 . end . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len src. . . do
     let k kind classify idx src. i. . . .
     match k. do

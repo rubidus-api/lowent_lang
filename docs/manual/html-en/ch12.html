@@ -778,13 +778,13 @@ mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` 
 </code></pre></div></div><p>Passing a <code>mut slice</code> already makes the elements writable. The slice value <code>{start, length}</code> is copied, but the bytes it points to are the same. So what <code>mut ref slice</code> adds is exactly one thing — <strong>secretly changing the length and start of the caller’s slice</strong>. Then the caller’s loop has its length change even though its own code contains no assignment. Return the new slice instead.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/head.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> head .
 <em><span class="tok-c">rem run: first_two [9,8,7,6]</span></em>
 
-<strong><span class="tok-k">fn</span></strong> take_front <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">fn</span></strong> take_front <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n. len p. . . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> subslice p. <span class="tok-n">0</span> n. . .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge len xs. . <span class="tok-n">2</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> take_front xs. <span class="tok-n">2</span> . .

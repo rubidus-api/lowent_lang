@@ -14,7 +14,7 @@ end .
 export fn ok_post output u64 . do
   return http.method_code "POST /a HTTP/1.1\r\n\r\n" . .
 end .
-export fn ok_target output u64 . do
+export fn ok_target output usize . do
   rem 대상은 "/api/x" — 자리 4, 길이 6.
   let b slice u8 "GET /api/x HTTP/1.1\r\nHost: y\r\n\r\n" .
   return add mul http.target_off b. . 100 . http.target_len b. . . .
@@ -22,11 +22,11 @@ end .
 export fn ok_version output bool . do
   return http.version_ok "GET / HTTP/1.1\r\n\r\n" . .
 end .
-export fn ok_body output u64 . do
+export fn ok_body output usize . do
   rem "GET / HTTP/1.1\r\n" = 16, "Host: x\r\n" = 9, "\r\n" = 2  ⇒ 몸통은 27
   return http.body_off "GET / HTTP/1.1\r\nHost: x\r\n\r\nBODY" . .
 end .
-export fn ok_find output u64 . do
+export fn ok_find output usize . do
   let b slice u8 "GET / HTTP/1.1\r\nHost: example\r\n\r\n" .
   return add mul http.header_find b. "host" . 100 . http.header_find_len b. "host" . . .
 end .
@@ -44,11 +44,11 @@ end .
 
 rem ── ✘ 거절돼야 하는 것들 (전부 0/false/none 이어야 한다) ──────────────────
 rem ✘ 맨 LF 를 줄 끝으로 받으면 앞단과 다르게 읽는다.
-export fn no_bare_lf output u64 . do
+export fn no_bare_lf output usize . do
   return http.body_off "GET / HTTP/1.1\nHost: x\n\n" . .
 end .
 rem ✘ 이름과 콜론 사이의 공백 — RFC 9112 §5.1 이 거절을 요구한다.
-export fn no_space_before_colon output u64 . do
+export fn no_space_before_colon output usize . do
   return http.name_len "Host : x\r\n" 0 . .
 end .
 rem ✘ `Content-Length` 가 둘 — 값이 같아도 거절한다.
@@ -73,15 +73,15 @@ export fn no_http10 output bool . do
   return http.version_ok "GET / HTTP/1.0\r\n\r\n" . .
 end .
 rem ✘ 같은 헤더가 둘이면 `header_find` 는 0 이다(모르면 거절한다).
-export fn no_dup_header output u64 . do
+export fn no_dup_header output usize . do
   return http.header_find "GET / HTTP/1.1\r\nX: a\r\nX: b\r\n\r\n" "x" . .
 end .
 rem ✘ 빈 대상.
-export fn no_empty_target output u64 . do
+export fn no_empty_target output usize . do
   return http.target_len "GET  HTTP/1.1\r\n\r\n" . .
 end .
 rem ✘ 헤더가 안 끝났다(빈 줄이 없다).
-export fn no_unterminated output u64 . do
+export fn no_unterminated output usize . do
   return http.body_off "GET / HTTP/1.1\r\nHost: x\r\n" . .
 end .
 

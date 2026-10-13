@@ -23,7 +23,7 @@ use x25519 from "../../lib/x25519.low" .
 rem 결과 앞 8 바이트를 하나의 수로 — 골든이 한 줄로 대조할 수 있게.
 fn head8 input d slice u8 . output u64 . do
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
     set acc. add shl acc. 8 . cast u64 idx d. i. . . . .
     set i. add i. 1 . .
@@ -59,15 +59,15 @@ end .
 rem RFC 8439 §2.5.2 — Poly1305 태그.
 proc t_poly input key slice u8 . input msg slice u8 . input st mut slice u64 . input pad mut slice u8 . input tag mut slice u8 . output u64 . effects none . do
   guard eq poly.setup key. st. . 1 . else return 0 . .
-  var off u64 0 .
+  var off usize 0 .
   while le add off. 16 . len msg. . . do
     let z u64 poly.block st. subslice msg. off. add off. 16 . . 1 . .
     set off. add off. 16 . .
   end .
   if lt off. len msg. . . do
-    var i u64 0 .
+    var i usize 0 .
     while lt i. 16 . do  set idx pad. i. . 0 .  set i. add i. 1 . .  end .
-    var j u64 0 .
+    var j usize 0 .
     while lt add off. j. . len msg. . . do
       set idx pad. j. . idx msg. add off. j. . . .
       set j. add j. 1 . .

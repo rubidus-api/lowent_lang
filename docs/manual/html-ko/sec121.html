@@ -684,11 +684,12 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
       <strong><span class="tok-k">set</span></strong> going. <span class="tok-n">false</span> .
       <strong><span class="tok-k">continue</span></strong> .
     <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">var</span></strong> off <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-    <strong><span class="tok-k">while</span></strong> lt off. some_value n. . . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.parse_key subslice buf. <span class="tok-n">0</span> some_value n. . . off. . .
+    <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">usize</span></strong> cast <strong><span class="tok-t">usize</span></strong> some_value n. . . .
+    <strong><span class="tok-k">var</span></strong> off <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">while</span></strong> lt off. got. . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.parse_key subslice buf. <span class="tok-n">0</span> got. . off. . .
       <strong><span class="tok-k">guard</span></strong> is_some p. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-        <strong><span class="tok-k">set</span></strong> off. some_value n. . .
+        <strong><span class="tok-k">set</span></strong> off. got. .
         <strong><span class="tok-k">continue</span></strong> .
       <strong><span class="tok-k">end</span></strong> .
       <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-t">u64</span></strong> tty.key_of some_value p. . . .

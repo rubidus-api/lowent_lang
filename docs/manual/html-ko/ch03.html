@@ -770,11 +770,11 @@ END
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 문자열 — \x41 은 정확히 두 자리라 "\x41e" 는 두 바이트, u"가나" 는 코드 유닛 둘</span></em>
-<strong><span class="tok-k">fn</span></strong> texts <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> len <span class="tok-s">"</span><span class="tok-n">\x</span><span class="tok-s">41e</span><span class="tok-s">"</span> . .
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> len u<span class="tok-s">"</span><span class="tok-s">가나</span><span class="tok-s">"</span> . .
+<strong><span class="tok-k">fn</span></strong> texts <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">usize</span></strong> len <span class="tok-s">"</span><span class="tok-n">\x</span><span class="tok-s">41e</span><span class="tok-s">"</span> . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">usize</span></strong> len u<span class="tok-s">"</span><span class="tok-s">가나</span><span class="tok-s">"</span> . .
   <em><span class="tok-c">rem text 태그 … 태그 — 여러 줄을 그대로. 본문의 \n 은 풀지 않는다</span></em>
-  <strong><span class="tok-k">let</span></strong> h <strong><span class="tok-t">u64</span></strong> len text DOC
+  <strong><span class="tok-k">let</span></strong> h <strong><span class="tok-t">usize</span></strong> len text DOC
 line one
 a\nb
 DOC
@@ -868,7 +868,7 @@ mistake_order.low:5:23 E-CLAUSE-ORDER: a data input comes after `output`. An op 
 </code></pre></div></div><p>Python 처럼 들여쓰기로 몸을 여는 문법이 아니다. 조건이 제 점으로 닫히고 나면 그 다음에는 <code>do</code> 가 와야 한다. 다른 것이 오면 <code>E-CTRL-NODO</code>(여기에 <code>do … end</code> 블록이 와야 한다)로 거절된다. 고치는 법: <code>if gt a. 3 . do</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 문자열을 작은따옴표로 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch03/mistake_quote.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_quote .
 <em><span class="tok-c">rem expect: E-CHAR-WIDTH</span></em>
 
-<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 작은따옴표는 글자 하나다 --- 문자열은 큰따옴표 "hi" 로 쓴다</span></em>
   <strong><span class="tok-k">return</span></strong> len 'hi' . .

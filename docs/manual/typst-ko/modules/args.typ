@@ -10,7 +10,7 @@
 ```lowent
 use args .
 
-proc first_len input a cap args . output u64 . effects none . do
+proc first_len input a cap args . output usize . effects none . do
   let who option slice u8 args.get a. 0 . .
   guard is_some who. . else return 0 . .
   return len some_value who. . . .

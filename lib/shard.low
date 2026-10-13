@@ -104,19 +104,19 @@ rem   토큰이 이미 *"이 범위는 내 것"* 을 말했으므로 더 물을 
 rem   **범위 검사 하나**이고, 그것은 서로소를 지키는 값이지 동기화가 아니다.
 rem   ☞ 골든이 방출된 C 를 읽어 이 경로에 원자 연산이 없다는 것을 잰다(§8-6 종료 조건 셋째).
 export proc write input comptime b type . input t (token b) . input mem mut slice u64 .
-  input i u64 . input v u64 . output bool . effects none .
+  input i usize . input v u64 . output bool . effects none .
 do
-  guard covers b. t. i. . else return false . .
+  guard covers b. t. cast u64 i. . . else return false . .
   guard lt i. len mem. . . else return false . .
   set idx mem. i. . v. .
   return true .
 end .
 
 rem 같은 규율의 읽기.
-export proc read input comptime b type . input t (token b) . input mem slice u64 . input i u64 .
+export proc read input comptime b type . input t (token b) . input mem slice u64 . input i usize .
   output option u64 . effects none .
 do
-  guard covers b. t. i. . else return none . .
+  guard covers b. t. cast u64 i. . . else return none . .
   guard lt i. len mem. . . else return none . .
   return some idx mem. i. . . .
 end .

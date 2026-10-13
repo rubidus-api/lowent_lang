@@ -34,11 +34,11 @@ fn chars output u64 . do
 end .
 
 rem ko: 문자열 — \x41 은 정확히 두 자리라 "\x41e" 는 두 바이트, u"가나" 는 코드 유닛 둘 /// en: strings: \x41 takes exactly two digits so "\x41e" is two bytes; u"가나" is two code units
-fn texts output u64 . do
-  let x u64 len "\x41e" . .
-  let w u64 len u"가나" . .
+fn texts output usize . do
+  let x usize len "\x41e" . .
+  let w usize len u"가나" . .
   rem ko: text 태그 … 태그 — 여러 줄을 그대로. 본문의 \n 은 풀지 않는다 /// en: text TAG … TAG holds several lines as written; a \n in the body is not unescaped
-  let h u64 len text DOC
+  let h usize len text DOC
 line one
 a\nb
 DOC

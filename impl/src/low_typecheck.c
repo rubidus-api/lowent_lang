@@ -579,6 +579,24 @@ static void tc_soft_note(tc_ctx_t *c, const char *what, proven_u32 line) {
     const char *fl = c->curform ? low_cst_file_for_line(c->curform, line) : NULL;
     fprintf(stderr, "LENU64\t%s\t%u\t%s\n", what, (unsigned)line, fl ? fl : "");
 }
+// ★ RFC-0149 L2 — `WRAP <줄> <열> <파일>`: `usize` 가 아닌 정수를 첨자 · 경계로 댄 **그 식의 첫 낱말**. 옮김 도구가 그 식을 `cast usize` 로 감싼다.
+static void tc_wrap_note_as(tc_ctx_t *c, const low_cst_t *e, const char *ty);
+static void tc_wrap_note(tc_ctx_t *c, const low_cst_t *e) { tc_wrap_note_as(c, e, "usize"); }
+static const char *tc_plain_word(ty_t t) {   // 고정 폭 정수의 이름(옮김 지시용)
+    if (t.k != TK_INT || t.nominal != 0) return NULL;
+    switch (t.bits) { case 8: return t.sign ? "i8" : "u8"; case 16: return t.sign ? "i16" : "u16";
+                      case 32: return t.sign ? "i32" : "u32"; case 64: return t.sign ? "i64" : "u64"; default: return NULL; }
+}
+static void tc_wrap_note_as(tc_ctx_t *c, const low_cst_t *e, const char *ty) {
+    if (g_soft_mute) return;
+    if (g_soft_list < 0) g_soft_list = getenv("LOWENT_LIST_LEN_U64") ? 1 : 0;
+    if (!g_soft_list) return;
+    for (int hops = 0; e && hops < 64 && e->kind != LOW_CST_ATOM && e->nkids; hops++) e = e->kids[0];
+    if (!e || e->kind != LOW_CST_ATOM) return;
+    const char *fl = c->curform ? low_cst_file_for_line(c->curform, e->tok.line) : NULL;
+    if (!ty) return;
+    fprintf(stderr, "WRAP\t%u\t%u\t%s\t%s\n", (unsigned)e->tok.line, (unsigned)e->tok.col, fl ? fl : "", ty);
+}
 // kind mismatches keep their site-specific code; width/sign get dedicated codes
 static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg, proven_u32 line) {
     if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "bind", line); tc_retype(c, 'L', (proven_u8str_view_t){ 0 }, 0, line); }
@@ -833,6 +851,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {
                         tc_soft_note(c, "idx", k[start]->tok.line);
                         if (it.vname.size) tc_retype(c, 'V', it.vname, 0, k[start]->tok.line);
+                        tc_wrap_note(c, k[start + q]);
                     }
                 }
                 if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
@@ -862,6 +881,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {   // RFC-0149 — 경계도 `usize`
                         tc_soft_note(c, "idx", k[start]->tok.line);
                         if (it.vname.size) tc_retype(c, 'V', it.vname, 0, k[start]->tok.line);
+                        tc_wrap_note(c, k[start + q]);
                     }
                 }
                 if (sx.k == TK_SLICE && sx.ebits) return sx;         // 타입 있는 슬라이스는 그대로
@@ -1183,6 +1203,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             if ((arith || cmp) && n == 3 && !sig_find(c, h)) {   // 사용자 op 가 가리지 않을 때만
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);
+                // RFC-0149 L2 — 굳은 `usize` 와 고정 폭 정수가 셈 · 견줌에서 만났다: 고정 폭 쪽의 식을 댄다(도구가 `cast usize` 로 감싼다)
+                if (tc_is_usz(a) && !a.softsz && tc_is_plain(b)) tc_wrap_note(c, k[start + 2]);
+                if (tc_is_usz(b) && !b.softsz && tc_is_plain(a)) tc_wrap_note(c, k[start + 1]);
                 return tc_binop(c, a, b, cmp, k[start]->line);
             }
             // ★★★ **논리 op 은 두 경로로 들어온다** — `expr` 섬(중위)과 **여기**(전위 호출).
@@ -1226,6 +1249,8 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 tc_reason_t ar = compat(s->params[i], at);
                 if (g_soft_hit) { g_soft_hit = false; tc_soft_note(c, "arg", k[start]->tok.line); tc_retype(c, 'P', k[start]->tok.lex, (long)i, k[start]->tok.line); }
                 if (ar == TC_NOMINAL) {
+                    if (tc_is_usz(s->params[i]) && tc_is_plain(at)) tc_wrap_note(c, k[start + 1 + i]);
+                    else if (tc_is_plain(s->params[i]) && tc_is_usz(at)) tc_wrap_note_as(c, k[start + 1 + i], tc_plain_word(s->params[i]));
                     if (tc_is_plain(s->params[i]) && tc_is_usz(at)) tc_retype(c, 'P', k[start]->tok.lex, (long)i, k[start]->tok.line);
                     else if (tc_is_usz(s->params[i]) && tc_is_plain(at) && at.vname.size) tc_retype(c, 'V', at.vname, 0, k[start]->tok.line);
                 }
@@ -1888,6 +1913,11 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             // ★ `set (index s i) v .` — s 는 **mut** 로 선언돼 있어야 한다.
             //   가변성은 정적으로 강제된다(런타임 슬라이스 값에는 mut 표시가 없다 — 포인터가 const 다).
             const low_cst_t *g = f->kids[1];
+            // ★★★ RFC-0149 L2 (2026-10-13) — **쓰는 자리의 첨자도 첨자다.** `set (idx s i) v .` 의 `i` 는 어디서도 추론되지 않아서,
+            //   옮길 자리를 세는 집계(`LENU64 idx`)가 읽는 자리만 세고 있었다. 자리를 한 번 추론해 첨자를 같은 길로 보낸다.
+            if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids >= 3 &&
+                g->kids[0]->kids[0]->kind == LOW_CST_ATOM && veq(g->kids[0]->kids[0]->tok.lex, "idx"))
+                (void)tc_infer(c, g->kids[0], env, *nenv);
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 3 &&
                 g->kids[0]->kids[0]->kind == LOW_CST_ATOM &&
                 veq(g->kids[0]->kids[0]->tok.lex, "idx") &&

@@ -778,13 +778,13 @@ mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` 
 </code></pre></div></div><p><code>mut slice</code> 를 넘기면 원소는 이미 쓸 수 있다. 슬라이스 값 <code>{시작, 길이}</code> 는 베껴 가지만 가리키는 바이트는 같기 때문이다. 그러니 <code>mut ref slice</code> 가 더 주는 능력은 하나뿐이다 — <strong>호출자 쪽 슬라이스의 길이와 시작을 몰래 바꾸는 것.</strong> 그러면 호출자의 반복문은 자기 코드 어디에도 대입이 없는데 길이가 달라진다. 새 슬라이스는 돌려주면 된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/head.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> head .
 <em><span class="tok-c">rem run: first_two [9,8,7,6]</span></em>
 
-<strong><span class="tok-k">fn</span></strong> take_front <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">fn</span></strong> take_front <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n. len p. . . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> subslice p. <span class="tok-n">0</span> n. . .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge len xs. . <span class="tok-n">2</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> take_front xs. <span class="tok-n">2</span> . .

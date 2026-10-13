@@ -42,9 +42,9 @@ struct b2 do
   b u8 .
 end .
 fn mk2 output b2 . do return lit b2 do a 3 . b 4 . end . . end .
-fn blen input s slice u8 . output u64 . do return len s. . . end .
-fn enc_len input f slice u64 . output u64 . do
-  let t u64 len f. . .
+fn blen input s slice u8 . output usize . do return len s. . . end .
+fn enc_len input f slice u64 . output usize . do
+  let t usize len f. . .
   return add blen encode b2 mk2. . . mul t. 0 . . .
 end .
 
@@ -56,6 +56,6 @@ struct pt2 do
   px u64 .
   py u8 .
 end .
-fn fl_stale input v u64 . output u64 . do
-  return field some_value some lit pt2 do px len view_array f32 "12345678" . . . py 9 . end . . . px . .
+fn fl_stale input v u64 . output usize . do
+  return field some_value some lit pt2 do px cast u64 len view_array f32 "12345678" . . . . py 9 . end . . . px . .
 end .

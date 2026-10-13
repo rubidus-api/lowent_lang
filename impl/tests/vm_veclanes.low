@@ -14,10 +14,10 @@ module vm_veclanes .
 
 rem ① 성립 — 폭을 **한 번만** 적는다. 두 뒤끝이 같은 답을 낸다.
 export fn dot input a slice u32 . input b slice u32 . output u32 . do
-  let L u64 native_lanes u32 . .
+  let L usize native_lanes u32 . .
   var acc vec u32 L splat 0 . .
-  var i u64 0 .
-  let n u64 len a. . .
+  var i usize 0 .
+  let n usize len a. . .
   while le add i. L. . n. . do
     let x vec u32 L load a. i. . .
     let y vec u32 L load b. i. . .
@@ -30,8 +30,8 @@ end .
 rem ② 성립 — 같은 커널을 **리터럴 폭**으로 적으면 같은 답이다(이름이 뜻을 안 바꾼다).
 export fn dot4 input a slice u32 . input b slice u32 . output u32 . do
   var acc vec u32 4 splat 0 . .
-  var i u64 0 .
-  let n u64 len a. . .
+  var i usize 0 .
+  let n usize len a. . .
   while le add i. 4 . n. . do
     let x vec u32 4 load a. i. . .
     let y vec u32 4 load b. i. . .

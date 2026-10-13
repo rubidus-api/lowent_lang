@@ -28,7 +28,7 @@ use allocs from "../../../lib/alloc.low" .
 rem ── 상태는 수 하나다: 어느 줄에 커서가 있나(0..3).
 rem ★ 키 하나가 상태를 어떻게 옮기는가 — **순수하고, 이것이 이 프로그램의 알맹이다.**
 rem   범위 밖으로 나가지 않는다(맨 위에서 위로 = 그대로). 모르는 키는 상태를 안 바꾼다.
-fn move_cursor input cur u64 . input keycode u64 . output u64 . do
+fn move_cursor input cur usize . input keycode u64 . output usize . do
   if eq keycode. 1002 . do
     if lt cur. 3 . do return add cur. 1 . . end .
     return cur. .
@@ -51,34 +51,34 @@ end .
 
 rem ── 화면 한 장을 **바이트로** 만든다. 순수하다: 아무 데도 안 쓴다.
 rem   `pos` 에서 시작해 새 pos 를 돌려준다(모자라면 none — 자르지 않는다).
-proc render input buf mut slice u8 . input pos0 u64 . input cur u64 .
+proc render input buf mut slice u8 . input pos0 usize . input cur usize .
   output option u64 . effects none .
 do
-  let c0 option u64 term.clear buf. pos0. . .
+  let c0 option usize term.clear buf. pos0. . .
   guard is_some c0. . else return none . .
-  var pos u64 some_value c0. . .
+  var pos usize some_value c0. . .
 
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 4 . do
-    let g option u64 term.goto buf. pos. i. 0 . .
+    let g option usize term.goto buf. pos. i. 0 . .
     guard is_some g. . else return none . .
     set pos. some_value g. . .
 
     rem 고른 줄만 반전 — 그리고 **반드시 되돌린다**(안 되돌리면 뒤가 다 반전된다).
     if eq i. cur. . do
-      let s option u64 term.sgr buf. pos. 7 . .
+      let s option usize term.sgr buf. pos. 7 . .
       guard is_some s. . else return none . .
       set pos. some_value s. . .
     end .
 
-    let t1 option u64 fmt.put_str buf. pos. "item " . .
+    let t1 option usize fmt.put_str buf. pos. "item " . .
     guard is_some t1. . else return none . .
-    let t2 option u64 fmt.put_u64 buf. some_value t1. . i. . .
+    let t2 option usize fmt.put_u64 buf. some_value t1. . cast u64 i. . . .
     guard is_some t2. . else return none . .
     set pos. some_value t2. . .
 
     if eq i. cur. . do
-      let s2 option u64 term.sgr buf. pos. 0 . .
+      let s2 option usize term.sgr buf. pos. 0 . .
       guard is_some s2. . else return none . .
       set pos. some_value s2. . .
     end .
@@ -100,15 +100,15 @@ do
   let inbuf mut slice u8 some_value ing. . .
   let rn option u64 call_builtin read_in in_c. 0 inbuf. . .
   guard is_some rn. . else return 71 . .
-  let n u64 some_value rn. . .
+  let n usize some_value rn. . .
 
   let outg option mut slice u8 alloc_bytes al. capacity 8192 . .
   guard is_some outg. . else return 70 . .
   let outbuf mut slice u8 some_value outg. . .
 
   rem ② 키를 하나씩 먹으며 상태를 옮긴다. 확정 키를 만나면 거기서 끝이다.
-  var cur u64 0 .
-  var at u64 0 .
+  var cur usize 0 .
+  var at usize 0 .
   var done bool false .
   var going bool true .
   while going. do
@@ -122,7 +122,7 @@ do
       if is_some p. . do
         let packed u64 some_value p. . .
         let k u64 tty.key_of packed. . .
-        let used u64 tty.len_of packed. . .
+        let used usize tty.len_of packed. . .
         if is_commit k. . do
           set done. true .
           set going. false .
@@ -140,6 +140,6 @@ do
   guard is_some e. . else return 72 . .
   let w u64 call_builtin write_out in_c. 1 subslice outbuf. 0 some_value e. . . . .
 
-  if done. do return narrow u8 cur. . . end .
+  if done. do return cast u8 cur. . . end .
   return 4 .
 end .

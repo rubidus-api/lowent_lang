@@ -8,7 +8,7 @@ end .
 
 fn eval input nodes slice node . input i u32 . output u32 .
 do
-  let n node idx nodes. i. . .
+  let n node idx nodes. cast usize i. . . .
   match n. do
     case num v do return v. . end .
     case add l r do return add eval nodes. l. . eval nodes. r. . . . end .

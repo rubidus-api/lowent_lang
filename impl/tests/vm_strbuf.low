@@ -50,7 +50,7 @@ proc trunc_writes_part input buf mut slice u8 . output u64 . effects none . do
   var b strbuf.str_buf strbuf.new. .
   let r1 result void strbuf.sb_error strbuf.append b. subslice buf. 0 5 . "ab" . .
   guard is_ok r1. . else return 90 . .
-  let n u64 strbuf.append_trunc b. subslice buf. 0 5 . "xyz" . .
+  let n usize strbuf.append_trunc b. subslice buf. 0 5 . "xyz" . .
   guard eq n. 2 . else return 91 . .                       rem 3 을 달랬는데 2 를 썼다(내용 4 − 2 = 2) — 값으로 안다
   guard eq field b. len . 4 . else return 92 . .
   guard eq idx buf. 2 . 120 . else return 93 . .          rem 'x'

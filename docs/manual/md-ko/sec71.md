@@ -31,9 +31,9 @@ let v option u64 strmap.lookup slots. keys. "apple" . .
 | `put` | `proc (slots mut slice u64, keys mut slice u8, k slice u8, v u64) → bool` | 꽉 참 · 아레나 부족 · 빈 키 → `false` |
 | `lookup` | `proc (slots slice u64, keys slice u8, k slice u8) → option u64` | 없음 · 빈 키 → `none` |
 | `del` | `proc (slots mut slice u64, keys slice u8, k slice u8) → bool` | 없던 키 · 빈 키 → `false` |
-| `size` | `fn (slots slice u64) → u64` | `len slots < 4` → 0 |
-| `occupied_at` | `fn (slots, slot u64) → bool` | 범위 밖 → `false` |
-| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot u64) → u64` | 범위 밖 → 0 |
+| `size` | `fn (slots slice u64) → usize` | `len slots < 4` → 0 |
+| `occupied_at` | `fn (slots, slot usize) → bool` | 범위 밖 → `false` |
+| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot usize) → usize` (`val_at` 은 `→ u64`) | 범위 밖 → 0 |
 | `rehash` | `proc (ns mut slice u64, na mut slice u8, os slice u64, oa slice u8) → bool` | `ns` · `na` 가 작으면 도중 `false` |
 
 *표 50.1 — `strmap` 의 op — 모두 `effects none`*

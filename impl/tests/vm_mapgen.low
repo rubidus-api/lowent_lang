@@ -109,15 +109,15 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
   var ksum u64 0 .
   var vsum u64 0 .
   var seen u64 0 .
-  var at u64 0 .
+  var at usize 0 .
   var going bool true .
   while going. do
-    let nx option u64 mapgen.next_used u32. u64. m. at. . .
+    let nx option usize mapgen.next_used u32. u64. m. at. . .
     guard is_some nx. . else do
       set going. false .
       continue .
     end .
-    let s u64 some_value nx. . .
+    let s usize some_value nx. . .
     let kk option u32 mapgen.key_at u32. u64. m. s. . .
     guard is_some kk. . else return 2 . .
     let vv option u64 mapgen.val_at u32. u64. m. s. . .
@@ -133,10 +133,10 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
   rem 지운 자리는 순회에서 빠진다(무덤은 찬 자리가 아니다).
   guard mapgen.erase u32. u64. m. 3 . else return 7 . .
   var cnt u64 0 .
-  var at2 u64 0 .
+  var at2 usize 0 .
   var more bool true .
   while more. do
-    let nx2 option u64 mapgen.next_used u32. u64. m. at2. . .
+    let nx2 option usize mapgen.next_used u32. u64. m. at2. . .
     guard is_some nx2. . else do
       set more. false .
       continue .

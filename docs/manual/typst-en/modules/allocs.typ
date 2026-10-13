@@ -21,9 +21,9 @@ subslices only, so it is a library, not a core op.
 
 ```lowent
 export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
-  grow    input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
-  used    input s self . output u64 . effects state .
+  reserve input s self . input n usize . output option mut slice u8 . effects state via self .
+  grow    input s self . input old mut slice u8 . input newn usize . output option mut slice u8 . effects state via self .
+  used    input s self . output usize . effects state .
 end .
 ```
 
@@ -48,10 +48,10 @@ allocator.
   caption: [Ops of the bumps],
   [*op*], [*Shape*], [*Failure*],
   [`init` (outside the trait)], [`backing mut slice u8 → u64` (capacity), `effects state`], [none. Calling again switches to the new buffer with the cursor at 0],
-  [`reserve`], [`n u64 → option mut slice u8`], [`none` --- the cursor does not move (no partial allocation)],
-  [`grow`], [`old mut slice u8, newn u64 → option mut slice u8`], [`none` --- not the last piece, or no room],
+  [`reserve`], [`n usize → option mut slice u8`], [`none` --- the cursor does not move (no partial allocation)],
+  [`grow`], [`old mut slice u8, newn usize → option mut slice u8`], [`none` --- not the last piece, or no room],
   [`release`], [`v mut slice u8 → bool`], [`false` --- changes nothing unless it is the last piece],
-  [`used`], [`→ u64` (cursor position, including padding), `effects none`], [none],
+  [`used`], [`→ usize` (cursor position, including padding), `effects none`], [none],
 )
 
 - *OOM is a value.* `reserve` returns `none` instead of stopping. Bytes cannot be reached without `guard is_some …`.

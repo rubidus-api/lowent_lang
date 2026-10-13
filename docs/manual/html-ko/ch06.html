@@ -802,10 +802,10 @@ mistake_typo.low:8:0 E-IR-UNDEF: set of an undeclared name
 </code></pre></div></div><p>대부분의 언어에서 <code>=</code> 는 대입이지만 수학에서는 같음이다. 한 기호가 두 뜻을 오가며 <code>if (x = 0)</code> 같은 결함을 낳아 왔다. Lowent 는 기호를 쓰지 않는다 — 짓는 것은 <code>let</code>/<code>var … </code>, 바꾸는 것은 <code>set</code>, 같은지 묻는 것은 <code>eq</code> 다. <code>=</code> 는 아예 모르는 글자라 <code>E-CHAR</code> 가 나온다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 흔한 영어 낱말로 지역 이름을 짓는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/mistake_localname.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_localname .
 <em><span class="tok-c">rem expect: E-NAME-BUILTIN</span></em>
 
-<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `count` 는 내장 op 의 이름이다 --- 지역 이름으로 쓸 수 없다</span></em>
-  <strong><span class="tok-k">let</span></strong> count <strong><span class="tok-t">u64</span></strong> len xs. . .
+  <strong><span class="tok-k">let</span></strong> count <strong><span class="tok-t">usize</span></strong> len xs. . .
   <strong><span class="tok-k">return</span></strong> count. .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_localname.low

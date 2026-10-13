@@ -35,7 +35,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   set idx vxs. 0 . 1 . set idx vxs. 1 . 2 .
   set idx vxs. 2 . 3 . set idx vxs. 3 . 4 .
 
-  let moved u64 soa.step_x xs. vxs. 4 . .
+  let moved usize soa.step_x xs. vxs. 4 . .
   guard eq moved. 4 . else return 1 . .
   guard eq soa.get_x xs. 0 . 101 . else return 2 . .
   guard eq soa.get_x xs. 3 . 404 . else return 3 . .
@@ -44,7 +44,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   let bko option mut slice u8 alloc_bytes al. capacity 128 . .
   guard is_some bko. . else return 92 . .
   var bk mut slice u64 view_array u64 some_value bko. . . .
-  var s u64 0 .
+  var s usize 0 .
   while lt s. len bk. . . do
     set idx bk. s. . 0 .
     set s. add s. 1 . .
@@ -58,7 +58,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem   해시맵에서 `size` 는 대개 개수를 뜻하므로, 이름이 독자를 그쪽으로 민다.
   guard eq hashmap.size bk. . 8 . else return 8 . .
   var occ u64 0 .
-  var sl u64 0 .
+  var sl usize 0 .
   while lt sl. hashmap.size bk. . . do
     if hashmap.occupied_at bk. sl. . do set occ. add occ. 1 . . end .
     set sl. add sl. 1 . .

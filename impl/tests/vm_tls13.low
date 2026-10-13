@@ -9,7 +9,7 @@ use tls13 from "../../lib/tls13.low" .
 
 fn head8 input d slice u8 . output u64 . do
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
     set acc. add shl acc. 8 . cast u64 idx d. i. . . . .
     set i. add i. 1 . .
@@ -18,7 +18,7 @@ fn head8 input d slice u8 . output u64 . do
 end .
 
 rem Expand-Label 한 번 — 라벨과 문맥과 길이를 그대로 받는다.
-proc t_expand input secret slice u8 . input label slice u8 . input ctx slice u8 . input outlen u64 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
+proc t_expand input secret slice u8 . input label slice u8 . input ctx slice u8 . input outlen usize . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
   let _u11 result u64 tls13.tls13_error tls13.expand_label secret. label. ctx. outlen. info. scratch. out. . .
   guard is_ok _u11. . else return 0 . .
   guard eq ok_value _u11. . outlen. . else return 0 . .
@@ -34,7 +34,7 @@ proc t_advance input prev slice u8 . input ikm slice u8 . input ehash slice u8 .
 end .
 
 rem 레코드 키와 IV.
-proc t_key input secret slice u8 . input klen u64 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
+proc t_key input secret slice u8 . input klen usize . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
   let _u9 result u64 tls13.tls13_error tls13.traffic_key secret. klen. info. scratch. out. . .
   guard is_ok _u9. . else return 0 . .
   guard eq ok_value _u9. . klen. . else return 0 . .
@@ -63,7 +63,7 @@ rem ★★ 레코드 nonce — 시퀀스 번호가 IV 의 **뒤쪽 8 바이트**
 proc t_nonce input iv slice u8 . input seq u64 . input out mut slice u8 . output u64 . effects none . do
   guard eq tls13.record_nonce iv. seq. out. . 12 . else return 0 . .
   var acc u64 0 .
-  var i u64 4 .
+  var i usize 4 .
   while lt i. 12 . do
     set acc. add shl acc. 8 . cast u64 idx out. i. . . . .
     set i. add i. 1 . .
@@ -80,7 +80,7 @@ proc t_extract input salt slice u8 . input ikm slice u8 . input scratch mut slic
 end .
 
 rem ★ 레코드 헤더 — 겉은 언제나 23 ‖ 0x0303 ‖ 길이다.
-proc t_header input n u64 . input out mut slice u8 . output u64 . effects none . do
+proc t_header input n usize . input out mut slice u8 . output u64 . effects none . do
   return tls13.record_header n. out. . .
 end .
 
@@ -94,13 +94,13 @@ proc t_record input suite u64 . input key slice u8 . input iv slice u8 . input s
      input rec mut slice u8 . input back mut slice u8 . input w mut slice u8 . input u mut slice u64 . output u64 . effects none . do
   let n_r result u64 tls13.tls13_error tls13.record_seal suite. key. iv. seq. inner. rec. w. u. . .
   guard is_ok n_r. . else return 0 . .
-  let n u64 ok_value n_r. . .
+  let n usize ok_value n_r. . .
   guard eq n. add 5 add len inner. . 16 . . . else return 90 . .
   let m_r result u64 tls13.tls13_error tls13.record_open suite. key. iv. seq. subslice rec. 0 n. . back. w. u. . .
   guard is_ok m_r. . else return 0 . .
-  let m u64 ok_value m_r. . .
+  let m usize ok_value m_r. . .
   guard eq m. len inner. . . else return 91 . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len inner. . . do
     guard eq idx back. i. . idx inner. i. . . else return 92 . .
     set i. add i. 1 . .
@@ -113,7 +113,7 @@ proc t_record_seq input suite u64 . input key slice u8 . input iv slice u8 . inp
      input rec mut slice u8 . input back mut slice u8 . input w mut slice u8 . input u mut slice u64 . output u64 . effects none . do
   let n_r result u64 tls13.tls13_error tls13.record_seal suite. key. iv. 7 inner. rec. w. u. . .
   guard is_ok n_r. . else return 0 . .
-  let n u64 ok_value n_r. . .
+  let n usize ok_value n_r. . .
   guard gt n. 0 . else return 90 . .
   let _u4 result u64 tls13.tls13_error tls13.record_open suite. key. iv. 8 subslice rec. 0 n. . back. w. u. . .
   guard is_ok _u4. . else return 91 . .
@@ -135,13 +135,13 @@ proc t_record_exact input suite u64 . input key slice u8 . input iv slice u8 . i
 end .
 
 rem ★ 전사 해시 — 버퍼 앞 n 바이트.
-proc t_transcript input buf slice u8 . input n u64 . input out mut slice u8 . output u64 . effects none . do
+proc t_transcript input buf slice u8 . input n usize . input out mut slice u8 . output u64 . effects none . do
   return tls13.transcript buf. n. out. . .
 end .
 
 rem ★ 핸드셰이크 메시지 걷기 — 타입 · 크기 · 개수.
-fn t_hs_type input buf slice u8 . input off u64 . output u64 . do  return tls13.hs_type buf. off. . . end .
-fn t_hs_size input buf slice u8 . input off u64 . output u64 . do  return tls13.hs_size buf. off. . . end .
+fn t_hs_type input buf slice u8 . input off usize . output u64 . do  return tls13.hs_type buf. off. . . end .
+fn t_hs_size input buf slice u8 . input off usize . output usize . do  return tls13.hs_size buf. off. . . end .
 fn t_hs_count input buf slice u8 . output u64 . do  return tls13.hs_count buf. . . end .
 
 rem ★★ 서버 Finished 가 우리가 본 전사와 맞는가. 1 이면 맞다.
@@ -164,7 +164,7 @@ proc t_fin_exact input secret slice u8 . input thash slice u8 . input info mut s
   let _u1 result u64 tls13.tls13_error tls13.verify_data subslice w. 0 32 . thash. subslice w. 576 1152 . subslice got. 0 32 . . .
   guard is_ok _u1. . else return 0 . .
   guard eq ok_value _u1. . 32 . else return 0 . .
-  var i u64 32 .
+  var i usize 32 .
   while lt i. 40 . do  set idx got. i. . 255 .  set i. add i. 1 . .  end .
   let _u2 result u64 tls13.tls13_error tls13.check_finished secret. thash. subslice got. 0 32 . info. subslice w. 0 576 . . .
   guard is_ok _u2. . else return 91 . .

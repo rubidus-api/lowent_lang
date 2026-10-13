@@ -860,7 +860,7 @@ mistake_result.low:6:0 E-ENS-UNDEF: ensures references an undefined name — an 
 <em><span class="tok-c">rem run: at [1,2,3] 2</span></em>
 <em><span class="tok-c">rem trap: at [1,2,3] 3</span></em>
 
-<strong><span class="tok-k">fn</span></strong> at <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">fn</span></strong> at <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <em><span class="tok-c">rem ✘ `le` allows `i = len xs` --- that slot is one past the end</span></em>
   <strong><span class="tok-k">requires</span></strong> le i. len xs. . . .
 <strong><span class="tok-k">do</span></strong>

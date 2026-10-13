@@ -13,7 +13,7 @@ do
   return s. .
 end .
 
-fn prefix_char input k u64 . output u8 .
+fn prefix_char input k usize . output u8 .
   requires lt k. 11 . .
 do
   return idx "/api/users/" k. . .

@@ -101,8 +101,8 @@ rem   안 나간 블록**(`blk ≥ freetop`, 세대 1 그대로)을 거절한다
 rem   목록에 넣고 같은 블록을 두 번 내줬다. `len` 은 정보로만 남는다(= bsize).
 export struct handle do
   input comptime b type .
-  blk u64 .
-  len u64 .
+  blk usize .
+  len usize .
   gen u64 .
 end .
 
@@ -113,9 +113,9 @@ export struct block_pool do
   input comptime b type .
   mem mut slice u8 .
   gens mut slice u64 .
-  bsize u64 .
-  nblk u64 .
-  freetop u64 .
+  bsize usize .
+  nblk usize .
+  freetop usize .
   rem ★ 자유 목록 머리. **인덱스 + 1** 을 담는다 — 0 이 "비었음" 이다(0 번 블록과 안 헷갈린다).
   freehead u64 .
 end .
@@ -124,14 +124,14 @@ rem 뒷받침을 걸고 **봉한다**. `bs` = 블록 크기(예: 4096). 블록 �
 rem ★ 전에는 블록 수를 돌려줬다. 이제는 **풀을 돌려준다** — 못 열면 `none` 이다(트랩 아님).
 rem   블록 수는 `blocks` 로 묻는다.
 export proc init input comptime b type . input mem mut slice u8 . input g mut slice u64 .
-  input bs u64 . output option (block_pool b) . effects none .
+  input bs usize . output option (block_pool b) . effects none .
 do
   rem ★ 링크 한 칸이 u64 다 — 블록이 그보다 작으면 자유 목록을 못 든다. 거절한다(§0).
   guard ge bs. 8 . else return none . .
-  var n u64 div len mem. . bs. . .
+  var n usize div len mem. . bs. . .
   if gt n. len g. . . do set n. len g. . . end .
   rem 세대는 1 부터 — 0 은 "한 번도 안 준 블록" 으로 남겨 둔다.
-  var i u64 0 .
+  var i usize 0 .
   while lt i. n. . do
     set idx g. i. . 1 .
     set i. add i. 1 . .
@@ -160,11 +160,11 @@ do
   var mem mut slice u8 field p. mem . .
   var g mut slice u64 field p. gens . .
   if gt field p. freehead . 0 . do
-    let bk u64 sub field p. freehead . 1 . .
+    let bk usize sub field p. freehead . 1 . .
     rem 블록 안에 적어 둔 "다음" 을 꺼내 머리로 삼는다 (리틀엔디언 u64)
-    let off u64 mul bk. field p. bsize . . .
+    let off usize mul bk. field p. bsize . . .
     var v u64 0 .
-    var k u64 8 .
+    var k usize 8 .
     while gt k. 0 . do
       set k. sub k. 1 . .
       set v. add mul v. 256 . idx mem. add off. k. . . . .
@@ -173,7 +173,7 @@ do
     return some lit (handle b) do blk bk. . len field p. bsize . . gen idx g. bk. . . end . . .
   end .
   guard lt field p. freetop . field p. nblk . . else return none . .
-  let b2 u64 field p. freetop . .
+  let b2 usize field p. freetop . .
   set field p. freetop . add field p. freetop . 1 . .
   return some lit (handle b) do blk b2. . len field p. bsize . . gen idx g. b2. . . end . . .
 end .
@@ -193,9 +193,9 @@ do
   guard eq idx g. field h. blk . . field h. gen . . else return false . .   rem 이미 낡았다 (이중 해제도 여기서 걸린다)
   set idx g. field h. blk . . add field h. gen . 1 . .
   rem 옛 머리를 이 블록 안에 적고, 이 블록이 새 머리가 된다
-  let off u64 mul field h. blk . field p. bsize . . .
+  let off usize mul field h. blk . field p. bsize . . .
   var v u64 field p. freehead . .
-  var k u64 0 .
+  var k usize 0 .
   while lt k. 8 . do
     set idx mem. add off. k. . . mod v. 256 . .
     set v. div v. 256 . .
@@ -249,9 +249,9 @@ export proc outstanding input comptime b type . input p (block_pool b) . output 
     guard lt n. field p. freetop . . else return 0 . .
     guard le cur. field p. nblk . . else return 0 . .
     set n. add n. 1 . .
-    let off u64 mul sub cur. 1 . field p. bsize . . .
+    let off usize mul sub cur. 1 . field p. bsize . . .
     var v u64 0 .
-    var k u64 8 .
+    var k usize 8 .
     while gt k. 0 . do
       set k. sub k. 1 . .
       set v. add mul v. 256 . idx mem. add off. k. . . . .

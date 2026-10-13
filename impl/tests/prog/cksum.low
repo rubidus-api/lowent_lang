@@ -36,7 +36,7 @@ do
   rem   (읽기가 실패할 수 있다는 사실을 타입이 든다).
   let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 71 . .
-  let got u64 some_value rn. . .
+  let got usize some_value rn. . .
   guard ne got. 0 . else return 44 . .
 
   rem ── 순수한 알맹이: 접기 ─────────────────────────────────────────────
@@ -51,20 +51,20 @@ do
   let line mut slice u8 some_value g2. . .
   rem ★ `fmt` 의 자리 옮김은 **option** 이다 — 버퍼가 모자라면 `none` 으로 답한다.
   rem   가정하지 않고 **검사해서** 답하는 규율이라, 받는 쪽도 매번 풀어야 한다.
-  var at u64 0 .
-  let a1 option u64 fmt.put_str line. at. "crc32=" . .
+  var at usize 0 .
+  let a1 option usize fmt.put_str line. at. "crc32=" . .
   guard is_some a1. . else return 71 . .
   set at. some_value a1. . .
-  let a2 option u64 fmt.put_u64 line. at. crcv. . .
+  let a2 option usize fmt.put_u64 line. at. crcv. . .
   guard is_some a2. . else return 71 . .
   set at. some_value a2. . .
-  let a3 option u64 fmt.put_str line. at. " len=" . .
+  let a3 option usize fmt.put_str line. at. " len=" . .
   guard is_some a3. . else return 71 . .
   set at. some_value a3. . .
-  let a4 option u64 fmt.put_u64 line. at. got. . .
+  let a4 option usize fmt.put_u64 line. at. cast u64 got. . . .
   guard is_some a4. . else return 71 . .
   set at. some_value a4. . .
-  let a5 option u64 fmt.put_nl line. at. . .
+  let a5 option usize fmt.put_nl line. at. . .
   guard is_some a5. . else return 71 . .
   set at. some_value a5. . .
   let z1 u64 call_builtin write_out k. 1 subslice line. 0 at. . . .

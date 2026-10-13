@@ -9,7 +9,7 @@ do
   return idx b. 0 . .
 end .
 
-fn size input p packet . output u64 .
+fn size input p packet . output usize .
 do
   return len field p. body . . .
 end .

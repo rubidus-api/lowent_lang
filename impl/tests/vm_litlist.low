@@ -11,7 +11,7 @@ fn sum32 input xs slice u32 . output u64 . do
   return s. .
 end .
 
-fn pick16 input xs slice i16 . input i u64 . output i64 . do
+fn pick16 input xs slice i16 . input i usize . output i64 . do
   guard lt i. len xs. . . else return 0 . .
   return widen i64 idx xs. i. . . .
 end .
@@ -28,26 +28,26 @@ export fn lit_arg output u64 . do
 end .
 
 rem 한가운데 자리: 나열은 제 점으로 닫히고 다음 인자 `i` 가 이어진다. 부호 있는 원소.
-export fn lit_mid input i u64 . output i64 . do
+export fn lit_mid input i usize . output i64 . do
   return pick16 lit array i16 3 -5 7 -9 . i. . .
 end .
 
 rem 끝의 `_` = 나머지 칸은 0.
-export fn lit_fill input i u64 . output u64 . do
+export fn lit_fill input i usize . output u64 . do
   let z lit array u8 6 1 2 _ . .
   guard lt i. len z. . . else return 99 . .
   return widen u64 idx z. i. . . .
 end .
 
 rem 64 비트 끝값.
-export fn lit_u64max input i u64 . output u64 . do
+export fn lit_u64max input i usize . output u64 . do
   let t lit array u64 2 18446744073709551615 3 . .
   guard lt i. len t. . . else return 0 . .
   return idx t. i. . .
 end .
 
 rem 부동 원소.
-export fn lit_f64 input i u64 . output f64 . do
+export fn lit_f64 input i usize . output f64 . do
   let t lit array f64 3 1.5 2.25 -3.0 . .
   guard lt i. len t. . . else return 0.0 . .
   return idx t. i. . .

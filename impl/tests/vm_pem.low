@@ -27,28 +27,28 @@ export proc der_len_cert input sc mut slice u8 . input out mut slice u8 . output
 end .
 
 rem ✔ PKCS#8 안의 스칼라 — **자리**를 낸다(openssl asn1parse 가 36 이라 했다).
-export fn priv_at input b slice u8 . output u64 . do
-  let inner u64 der.p8_inner_off b. . .
+export fn priv_at input b slice u8 . output usize . do
+  let inner usize der.p8_inner_off b. . .
   if eq inner. 0 . do return 0 . end .
   return der.ec_priv_off b. inner. . .
 end .
 
 rem ✔ 그 길이 — P-256 이면 32 다.
-export fn priv_size input b slice u8 . output u64 . do
-  let inner u64 der.p8_inner_off b. . .
+export fn priv_size input b slice u8 . output usize . do
+  let inner usize der.p8_inner_off b. . .
   if eq inner. 0 . do return 0 . end .
   return der.ec_priv_len b. inner. . .
 end .
 
 rem ✔ 스칼라의 첫 4 바이트를 한 수로 — 합성값이므로 0x01020304 = 16909060 이어야 한다.
 export fn priv_head input b slice u8 . output u64 . do
-  let inner u64 der.p8_inner_off b. . .
+  let inner usize der.p8_inner_off b. . .
   if eq inner. 0 . do return 0 . end .
-  let s u64 der.ec_priv_off b. inner. . .
+  let s usize der.ec_priv_off b. inner. . .
   if eq s. 0 . do return 0 . end .
   if ne der.ec_priv_len b. inner. . 32 . do return 0 . end .
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 4 . do
     set acc. bit_or shl acc. 8 . cast u64 idx b. add s. i. . . . . .
     set i. add i. 1 . .

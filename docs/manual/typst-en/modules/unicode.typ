@@ -101,13 +101,13 @@ use unicode .
 use utf8 .
 
 export proc count_words input s slice u8 . output option u64 . effects none . do
-  var off u64 0 .
+  var off usize 0 .
   var words u64 0 .
   var inword bool false .
   while lt off. len s. . . do
     let cp option u64 utf8.decode s. off. . .
     guard is_some cp. . else return none . .
-    let n u64 utf8.seq_len idx s. off. . . .
+    let n usize utf8.seq_len idx s. off. . . .
     guard gt n. 0 . else return none . .
     if unicode.is_alnum some_value cp. . . do
       if eq inword. false . do set words. add words. 1 . . end .

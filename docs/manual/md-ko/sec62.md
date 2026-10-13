@@ -53,13 +53,13 @@ BMP(U+0000 … U+FFFF, 서로게이트 구간 제외)의 코드포인트는 한 
 | `is_high` | `fn (u u64) → bool` | 실패 없음 |
 | `is_low` | `fn (u u64) → bool` | 실패 없음 |
 | `cp_valid` | `fn (c u64) → bool` | 실패 없음(거짓이 곧 답) |
-| `units` | `fn (c u64) → u64` | 실패 없음(1 또는 2) |
+| `units` | `fn (c u64) → usize` | 실패 없음(1 또는 2) |
 | `unit_hi` | `fn (c u64) → option u64` | 유효하지 않은 코드포인트면 `none` |
 | `unit_lo` | `fn (c u64) → option u64` | 무효 코드포인트나 BMP(칸 하나)면 `none` |
-| `put` | `proc (dst mut slice u16, at u64, c u64) → option u64` | 무효 코드포인트나 자리 부족이면 `none` |
-| `decode` | `fn (s slice u16, at u64) → option u64` | 범위 밖이거나 짝이 맞지 않으면 `none` |
-| `next_start` | `fn (s slice u16, at u64) → option u64` | 끝이거나 망가진 자리면 `none` |
-| `count_chars` | `fn (s slice u16) → option u64` | 망가진 자리를 만나면 `none` |
+| `put` | `proc (dst mut slice u16, at usize, c u64) → option usize` | 무효 코드포인트나 자리 부족이면 `none` |
+| `decode` | `fn (s slice u16, at usize) → option u64` | 범위 밖이거나 짝이 맞지 않으면 `none` |
+| `next_start` | `fn (s slice u16, at usize) → option usize` | 끝이거나 망가진 자리면 `none` |
+| `count_chars` | `fn (s slice u16) → option usize` | 망가진 자리를 만나면 `none` |
 | `is_valid` | `fn (s slice u16) → bool` | 실패 없음 |
 
 *표 50.2 — `utf16` 의 op*
@@ -88,7 +88,7 @@ module ex_utf16 .
 
 use utf16 as u .
 
-proc round_trip input buf mut slice u16 . output u64 . effects none . do
+proc round_trip input buf mut slice u16 . output usize . effects none . do
   guard ge len buf. . 4 . else return 90 . .
   rem '가'(U+AC00) --- BMP 라서 한 칸. put 은 다음에 쓸 위치를 돌려준다
   let a option u64 u.put buf. 0 44032 . .

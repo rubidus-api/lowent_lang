@@ -60,7 +60,7 @@ do
   guard eq some_value sent. . 9 . else return 8 . .
   let got option u64 net.recv_once k. afd. dst. . .
   guard is_some got. . else return 7 . .
-  let n u64 some_value got. . .
+  let n usize some_value got. . .
 
   let x1 result void net.net_error net.shut k. c. . .
   guard is_ok x1. . else return 9 . .
@@ -70,5 +70,5 @@ do
   guard is_ok x3. . else return 11 . .
 
   let m u64 call_builtin write_out out. 1 subslice dst. 0 n. . . .
-  return narrow u8 n. . .
+  return cast u8 n. . .
 end .

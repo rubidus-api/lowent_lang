@@ -40,22 +40,22 @@ end .
 rem ★ **줄 하나를 버퍼에 조립한다** — `effects none` 이다. 이 op 은 출력도 할당도 하지 않고,
 rem   **호출자가 준 버퍼**에만 쓴다. 안 들어가면 `none` — 잘린 줄을 내보내지 않는다(전량-아니면-무).
 rem     "hello, <name>! (<n> args, <len> bytes)\n"
-proc compose input buf mut slice u8 . input name slice u8 . input nargs u64 .
+proc compose input buf mut slice u8 . input name slice u8 . input nargs usize .
   output option u64 . effects none .
 do
-  let a option u64 fmt.put_str buf. 0 "hello, " . .
+  let a option usize fmt.put_str buf. 0 "hello, " . .
   guard is_some a. . else return none . .
-  let b option u64 fmt.put_str buf. some_value a. . name. . .
+  let b option usize fmt.put_str buf. some_value a. . name. . .
   guard is_some b. . else return none . .
-  let c option u64 fmt.put_str buf. some_value b. . "! (" . .
+  let c option usize fmt.put_str buf. some_value b. . "! (" . .
   guard is_some c. . else return none . .
-  let d option u64 fmt.put_u64 buf. some_value c. . nargs. . .
+  let d option usize fmt.put_u64 buf. some_value c. . cast u64 nargs. . . .
   guard is_some d. . else return none . .
-  let e option u64 fmt.put_str buf. some_value d. . " args, " . .
+  let e option usize fmt.put_str buf. some_value d. . " args, " . .
   guard is_some e. . else return none . .
-  let f option u64 fmt.put_u64 buf. some_value e. . len name. . . .
+  let f option usize fmt.put_u64 buf. some_value e. . cast u64 len name. . . . .
   guard is_some f. . else return none . .
-  let g option u64 fmt.put_str buf. some_value f. . " bytes)" . .
+  let g option usize fmt.put_str buf. some_value f. . " bytes)" . .
   guard is_some g. . else return none . .
   return fmt.put_nl buf. some_value g. . . .
 end .

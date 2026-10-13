@@ -6,9 +6,9 @@ module vm_hash_lib .
 
 use hash from "../../lib/hash.low" .
 
-fn be8 input d slice u8 . input at u64 . output u64 . do
+fn be8 input d slice u8 . input at usize . output u64 . do
   var acc u64 0 .
-  repeat i u64 8 do
+  repeat i usize 8 do
     set acc. bit_or shl acc. 8 . widen u64 idx d. add at. i. . . . . .
   end .
   return acc. .
@@ -37,7 +37,7 @@ end .
 rem 버퍼가 모자라면 0 — 아무것도 안 쓴다.
 proc h512_short input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
   guard eq hash.sha512 src. dst. . 0 . else return 0 . .
-  repeat i u64 len dst. . do
+  repeat i usize len dst. . do
     guard eq idx dst. i. . 0 . else return 0 . .
   end .
   return 1 .

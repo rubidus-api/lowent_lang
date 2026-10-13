@@ -35,7 +35,7 @@ do
 
   let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 89 . .
-  let got u64 some_value rn. . .
+  let got usize some_value rn. . .
   guard ne got. 0 . else return 46 . .
   let ch slice u8 subslice buf. 0 got. . .
 

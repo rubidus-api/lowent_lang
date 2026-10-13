@@ -47,8 +47,8 @@ fn pass_vec input xs slice u32 . output u32 . do
   return take_vec v. . .                   rem **vec** 를 넘긴다
 end .
 
-fn take_typed input s slice u32 . output u64 . do return len s. . . end .
-fn pass_typed input s slice u32 . output u64 . do
+fn take_typed input s slice u32 . output usize . do return len s. . . end .
+fn pass_typed input s slice u32 . output usize . do
   return take_typed s. . .                 rem ★ **타입 있는 슬라이스** — 여기가 깨지던 자리다
 end .
 
@@ -60,7 +60,7 @@ fn get_view input s slice u8 . output u8 . do
 end .
 
 fn give_typed input s slice pt . output slice pt . do return s. . end .
-fn get_typed input s slice pt . output u64 . do
+fn get_typed input s slice pt . output usize . do
   let t slice pt give_typed s. . . rem 타입 있는 슬라이스를 **반환**받는다
   return len t. . .
 end .

@@ -20,7 +20,7 @@ fn keyed.less input a keyed . input b keyed . output bool . do
   return lt field a. k . field b. k . . .
 end .
 
-proc sorted3 input s mut slice keyed . output u64 . effects none . do
+proc sorted3 input s mut slice keyed . output usize . effects none . do
   guard ge len s. . 3 . else return 90 . .
   sortgen.sort_by keyed. s. .
   let f0 keyed idx s. 0 . .
@@ -43,8 +43,8 @@ the comparison is embedded as a direct call. Zero indirect calls, zero space for
   [`ordered`], [trait --- `less (self, self) → bool`], [unsatisfied = `E-BOUND-UNSAT` (compile time)],
   [`sort_by`], [`(comptime t, mut slice t) → void`, `requires ordered t` --- insertion sort (stable)], [none],
   [`sort_fast`], [same shape --- quicksort, for large arrays], [none],
-  [`lower_by`], [`(comptime t, slice t, key t) → u64`], [none --- the insertion point if absent (may be `len s. .`)],
-  [`find_by`], [`(comptime t, slice t, key t) → option u64`], [`none` if absent],
+  [`lower_by`], [`(comptime t, slice t, key t) → usize`], [none --- the insertion point if absent (may be `len s. .`)],
+  [`find_by`], [`(comptime t, slice t, key t) → option usize`], [`none` if absent],
 )
 
 If `less a b` is true, a comes before b. The relation must be a *strict weak order* --- in particular `less a a` must be false. Without `requires ordered t` the body would call

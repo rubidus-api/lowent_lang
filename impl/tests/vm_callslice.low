@@ -18,7 +18,7 @@ rem stride 증명: [10,11,12,13,20,21,22,23] 원소1 = 0x17161514 = 387323156 (�
 fn stride input c slice u8 . output u32 . do return idx mk4 c. . 1 . . end .
 
 rem len 은 원소 수 — 원래 일치(불변 대조). 2 원소.
-fn mlen input c slice u8 . output u64 . do return len mk4 c. . . . end .
+fn mlen input c slice u8 . output usize . do return len mk4 c. . . . end .
 
 rem 부호형 i32 반환 — 원래 일치했다(태그 경로). 원소1 = -5.
 fn mk4i input b slice u8 . output slice i32 . do return view_array i32 b. . . end .

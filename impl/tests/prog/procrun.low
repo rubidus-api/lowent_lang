@@ -11,7 +11,7 @@ do
   let co option process.child process.launch k. argv. . .
   guard is_some co. . else return 999 . .
   var c owned process.child some_value co. . .
-  var got u64 0 .
+  var got usize 0 .
   repeat spin u64 2000000 do
     guard lt got. len buf. . . else break . .
     let r option u64 process.read_output k. c. subslice buf. got. len buf. . . . .

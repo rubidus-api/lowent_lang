@@ -15,10 +15,10 @@ do
   let buf mut slice u8 some_value g. . .
   let rn option u64 call_builtin read_in k. 0 buf. . .
   guard is_some rn. . else return 9 . .
-  let n u64 some_value rn. . .
+  let n usize some_value rn. . .
   guard gt n. 0 . else return 9 . .
   let c slice u8 subslice buf. 0 n. . .
-  let io_ u64 x509.issuer_off c. . .
+  let io_ usize x509.issuer_off c. . .
   guard gt io_. 0 . else return 9 . .
 
   let dn mut slice u64 view_array u64 subslice buf. 60000 60008 . . .

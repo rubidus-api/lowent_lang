@@ -22,7 +22,7 @@ rem ── 비교 ────────────────────�
 rem 바이트 단위 동등 — 빌트인 `eq` 는 스칼라 전용이라(E-VM-TYPE) 슬라이스 비교는 여기 산다.
 export fn eq_str input a slice u8 . input b slice u8 . output bool . do
   guard eq len a. . len b. . . else return false . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len a. . . do
     guard eq idx a. i. . idx b. i. . . else return false . .
     set i. add i. 1 . .
@@ -32,7 +32,7 @@ end .
 
 rem 바이트 멤버십 — 빌트인 `contains` 는 bitset 전용이다. cut 집합 검사(trim)가 쓴다.
 export fn has_byte input s slice u8 . input b u8 . output bool . do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     if eq idx s. i. . b. . do return true . end .
     set i. add i. 1 . .
@@ -45,11 +45,11 @@ rem ── 찾기 ────────────────────�
 rem 부분열 탐색, from 부터. ★ **없음은 값이다** — option u64. proven 의 (size_t)-1 센티널도,
 rem Go 의 -1 도 필요 없다(RFC-0068 §5.1). from 인자가 기본이다: 커서는 호출자가 드는 u64 값
 rem (RFC-0069 §4 위치 지정 원칙 — 커서를 상태에 숨기지 않는다).
-export fn find input hay slice u8 . input needle slice u8 . input from u64 . output option u64 .
+export fn find input hay slice u8 . input needle slice u8 . input from usize . output option usize .
 do
   guard le from. len hay. . . else return none . .
   guard gt len needle. . 0 . else return some from. . . .   rem 빈 needle = 그 자리(규약)
-  var i u64 from. .
+  var i usize from. .
   while le add i. len needle. . . len hay. . . do
     if eq_str subslice hay. i. add i. len needle. . . . needle. . do
       return some i. . .
@@ -89,7 +89,7 @@ end .
 rem ── 다듬기 — cut 은 "잘라낼 바이트들의 집합" (예: " \t\n") ──────────────
 
 export fn trim_start input s slice u8 . input cut slice u8 . output slice u8 . do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     guard has_byte cut. idx s. i. . . else return subslice s. i. len s. . . . .
     set i. add i. 1 . .
@@ -98,7 +98,7 @@ export fn trim_start input s slice u8 . input cut slice u8 . output slice u8 . d
 end .
 
 export fn trim_end input s slice u8 . input cut slice u8 . output slice u8 . do
-  var j u64 len s. . .
+  var j usize len s. . .
   while gt j. 0 . do
     guard has_byte cut. idx s. sub j. 1 . . . else return subslice s. 0 j. . . .
     set j. sub j. 1 . .
@@ -112,10 +112,10 @@ rem ★ **커서가 값이다** (RFC-0069 §4 — Rust 의 Seek &mut 참사의 �
 rem   조각을 받으면 `pos + len 조각 + 1` 로 스스로 전진한다. pos 가 len 을 넘으면 끝(none).
 rem     "a,b" → "a"·"b"    "a," → "a"·""(꼬리 빈 조각)    "" → ""(빈 조각 하나)
 rem   상태를 나눠 갖지 않으므로 같은 src 를 여러 커서가 **동시에** 읽어도 자유다.
-export fn split_next input src slice u8 . input sep u8 . input pos u64 . output option slice u8 .
+export fn split_next input src slice u8 . input sep u8 . input pos usize . output option slice u8 .
 do
   guard le pos. len src. . . else return none . .
-  var j u64 pos. .
+  var j usize pos. .
   while lt j. len src. . . do
     if eq idx src. j. . sep. . do return some subslice src. pos. j. . . . end .
     set j. add j. 1 . .
@@ -129,7 +129,7 @@ export actor str_splitter do
   state do
     src slice u8 .
     sep u8 .
-    pos u64 .
+    pos usize .
     fin bool .
   end .
   proc init input s2 slice u8 . input b u8 . output u64 . effects state . do
@@ -141,7 +141,7 @@ export actor str_splitter do
   end .
   proc pull output option slice u8 . effects state . do
     guard eq fin. false . else return none . .
-    var j u64 pos. .
+    var j usize pos. .
     while lt j. len src. . . do
       if eq idx src. j. . sep. . do
         let piece slice u8 subslice src. pos. j. . .

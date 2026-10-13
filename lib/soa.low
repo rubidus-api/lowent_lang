@@ -35,11 +35,11 @@ rem ── 필드마다 배열 하나. 보폭이 없다 — 한 필드를 훑으
 
 rem ★ 위치를 속도만큼 전진시킨다. **x 와 vx 두 배열만** 만진다 — y·vy 는 캐시에 안 올라온다.
 rem   이것이 SoA 가 이기는 자리다(사전 조사 §5.1 의 useful_ratio ≈ U/R).
-export proc step_x input xs mut slice u64 . input vxs slice u64 . input n u64 .
-  output u64 . effects none .
+export proc step_x input xs mut slice u64 . input vxs slice u64 . input n usize .
+  output usize . effects none .
 do
-  var i u64 0 .
-  var m u64 n. .
+  var i usize 0 .
+  var m usize n. .
   if gt m. len xs. . . do set m. len xs. . . end .
   if gt m. len vxs. . . do set m. len vxs. . . end .
   while lt i. m. . do
@@ -52,7 +52,7 @@ end .
 rem ★ 한 필드만 합친다 — 다른 필드는 **읽지도 않는다**.
 export fn sum_field input f slice u64 . output u64 . do
   var t u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len f. . . do
     set t. add t. idx f. i. . . .
     set i. add i. 1 . .
@@ -62,7 +62,7 @@ end .
 
 rem ☞ **막히는 자리 ①**: 원소 하나를 "한 덩어리" 로 못 준다. 필드마다 따로 꺼낸다.
 rem   사전 조사의 `load i` / `row i` 가 풀려던 문제이고, 지금은 **불편할 뿐** 불가능하지는 않다.
-export fn get_x input xs slice u64 . input i u64 . output u64 . do
+export fn get_x input xs slice u64 . input i usize . output u64 . do
   guard lt i. len xs. . . else return 0 . .
   return idx xs. i. . .
 end .
@@ -71,11 +71,11 @@ rem ☞ **막히는 자리 ②**: 필드 수만큼 인자가 는다. 넷이면 �
 rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 **그게 안 된다** — 이것이 이 시범이
 rem   찾아낸 **가장 싼 언어 작업**이다(그 하나가 풀리면 SoA 컨테이너를 값으로 묶을 수 있다).
 export proc step_all input xs mut slice u64 . input ys mut slice u64 .
-  input vxs slice u64 . input vys slice u64 . input n u64 .
-  output u64 . effects none .
+  input vxs slice u64 . input vys slice u64 . input n usize .
+  output usize . effects none .
 do
-  let a u64 step_x xs. vxs. n. . .
-  let b u64 step_x ys. vys. n. . .
+  let a usize step_x xs. vxs. n. . .
+  let b usize step_x ys. vys. n. . .
   if lt b. a. . do return b. . end .
   return a. .
 end .
@@ -87,13 +87,13 @@ rem   사전 조사의 `store[T, L]` 은 이것을 타입 하나로 묶으려는
 rem   다만 그 대가가 키워드 15~20·op 20+ 이라 RFC-0070 이 보류했다.
 rem   ★ 지금 여기서 잰 것: **두 판을 나란히 쓰는 것 자체는 된다.** 고를 수 있다는 뜻이고,
 rem     그것이 사전 조사 §1.2(*"SoA 가 항상 빠르지 않다"*)가 요구하는 최소한이다.
-export proc step_x_aos input rows mut slice u64 . input stride u64 . input xoff u64 .
-  input voff u64 . input n u64 .
-  output u64 . effects none .
+export proc step_x_aos input rows mut slice u64 . input stride usize . input xoff usize .
+  input voff usize . input n usize .
+  output usize . effects none .
 do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. n. . do
-    let base u64 mul i. stride. . .
+    let base usize mul i. stride. . .
     rem ★ 두 필드 자리를 **둘 다** 지킨다 — `xoff > voff` 이면 voff 만 보던 옛 검사가 통과하고
     rem   다음 줄이 경계 밖을 밟았다(2026-09-04 보안 검토). 약속대로 멈춘 자리 i 를 답한다.
     guard lt add base. voff. . len rows. . . else return i. . .

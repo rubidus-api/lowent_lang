@@ -30,7 +30,7 @@ do
   return lt a. 10 . .
 end .
 
-proc big_doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+proc big_doubled input xs slice u8 . input out mut slice u8 . output usize . effects none .
 do
   pipe xs. do
     filter over2 .
@@ -62,7 +62,7 @@ do
   end . .
 end .
 
-proc middle input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+proc middle input xs slice u8 . input out mut slice u8 . output usize . effects none .
 do
   pipe xs. do
     skip 1 .

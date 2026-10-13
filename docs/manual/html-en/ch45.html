@@ -670,10 +670,10 @@ R₁ ∩ W₂ = ∅      nor the reverse</code></pre><p>Three lines saying inter
 <em><span class="tok-c">rem expect: E-PAR-WRITE</span></em>
 
 <em><span class="tok-c">rem every piece writes the first cell --- what remains depends on who went last</span></em>
-<strong><span class="tok-k">proc</span></strong> stamp <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> stamp <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> idx s. <span class="tok-n">0</span> . i. .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .

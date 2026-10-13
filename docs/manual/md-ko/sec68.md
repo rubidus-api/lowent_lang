@@ -26,7 +26,7 @@ fn keyed.less input a keyed . input b keyed . output bool . do
   return lt field a. k . field b. k . . .
 end .
 
-proc sorted3 input s mut slice keyed . output u64 . effects none . do
+proc sorted3 input s mut slice keyed . output usize . effects none . do
   guard ge len s. . 3 . else return 90 . .
   sortgen.sort_by keyed. s. .
   let f0 keyed idx s. 0 . .
@@ -43,8 +43,8 @@ end .
 | `ordered` | trait — `less (self, self) → bool` | 미충족 = `E-BOUND-UNSAT`(컴파일) |
 | `sort_by` | `(comptime t, mut slice t) → void`, `requires ordered t` — 삽입정렬(안정) | 없음 |
 | `sort_fast` | 같은 모양 — quicksort, 큰 배열용 | 없음 |
-| `lower_by` | `(comptime t, slice t, key t) → u64` | 없음 — 없으면 삽입점(`len s. .` 가능) |
-| `find_by` | `(comptime t, slice t, key t) → option u64` | 없으면 `none` |
+| `lower_by` | `(comptime t, slice t, key t) → usize` | 없음 — 없으면 삽입점(`len s. .` 가능) |
+| `find_by` | `(comptime t, slice t, key t) → option usize` | 없으면 `none` |
 
 *표 50.1 — `sortgen` 의 op*
 

@@ -118,7 +118,7 @@ export proc run
   effects none .
   requires ge len st. . 3 . .
 do
-  var i u64 0 .
+  var i usize 0 .
   var out u32 0 .
   while true do
     guard lt i. len xs. . . else break . .

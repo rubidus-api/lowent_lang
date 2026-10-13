@@ -42,7 +42,7 @@ end .
 |---|---|---|
 | `eq_str` | `(a slice u8, b slice u8) → bool` | 다르면 `false` |
 | `has_byte` | `(s slice u8, b u8) → bool` | 없으면 `false` |
-| `find` | `(hay slice u8, needle slice u8, from u64) → option u64` | 못 찾거나 `from > len hay` 이면 `none` |
+| `find` | `(hay slice u8, needle slice u8, from usize) → option usize` | 못 찾거나 `from > len hay` 이면 `none` |
 | `has` | `(hay slice u8, needle slice u8) → bool` | — |
 | `starts_with` | `(s slice u8, prefix slice u8) → bool` | — |
 | `ends_with` | `(s slice u8, suffix slice u8) → bool` | — |
@@ -50,7 +50,7 @@ end .
 | `remove_suffix` | `(s slice u8, suffix slice u8) → slice u8` | 접미사가 없으면 원본 그대로 |
 | `trim_start` | `(s slice u8, cut slice u8) → slice u8` | 모두 잘리면 빈 뷰 |
 | `trim_end` | `(s slice u8, cut slice u8) → slice u8` | 모두 잘리면 빈 뷰 |
-| `split_next` | `(src slice u8, sep u8, pos u64) → option slice u8` | `pos > len src` 이면 `none` |
+| `split_next` | `(src slice u8, sep u8, pos usize) → option slice u8` | `pos > len src` 이면 `none` |
 | `str_splitter` | 액터: `init(s2 slice u8, b u8) → u64` · `next → option slice u8` | 소진 뒤 `next` 는 `none` |
 
 *표 50.1 — `strings` 의 op*
@@ -94,15 +94,15 @@ module demo .
 
 use strings .
 
-fn t_find output u64 . do
-  let r option u64 strings.find "hello world" "world" 0 . .
+fn t_find output usize . do
+  let r option usize strings.find "hello world" "world" 0 . .
   guard is_some r. . else return 99 . .
   return some_value r. . .
 end .
 
 fn t_split output u64 . do
   rem "aa,b,,cc" 를 ',' (바이트 44) 로: "aa"·"b"·""·"cc" --- 네 조각
-  var pos u64 0 .
+  var pos usize 0 .
   var pieces u64 0 .
   var r option slice u8 strings.split_next "aa,b,,cc" 44 pos. . .
   while is_some r. . do
@@ -156,7 +156,7 @@ end .
 > **반례. `option` 을 값처럼 쓴다**
 >
 > > ```lowent
-> > let r option u64 strings.find "abc" "zz" 0 . .
+> > let r option usize strings.find "abc" "zz" 0 . .
 > > return some_value r. . .                         rem ✗ none 검사가 없다
 > > ```
 > >

@@ -58,8 +58,8 @@ fn f output u64 . do
   rem 글자 수는 표현이 달라도 같아야 한다 — 이것이 두 모듈을 함께 쓰는 이유다.
   let m8 slice u8 "A한😀" .
   let m16 slice u16 u"A한😀" .
-  let n8 option u64 utf8.count_chars m8. . .
-  let n16 option u64 utf16.count_chars m16. . .
+  let n8 option usize utf8.count_chars m8. . .
+  let n16 option usize utf16.count_chars m16. . .
   guard is_some n8. . else return 106 . .
   guard is_some n16. . else return 107 . .
   guard eq some_value n8. . some_value n16. . . else return 108 . .

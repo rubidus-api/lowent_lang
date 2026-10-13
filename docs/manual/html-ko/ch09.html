@@ -691,7 +691,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">return</span></strong> acc. .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> at <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">fn</span></strong> at <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> idx xs. i. . .
 <strong><span class="tok-k">end</span></strong> .
@@ -758,7 +758,7 @@ readonly.low:6:0 E-TYPE-MUT: writing an element of a slice that is not declared 
   <strong><span class="tok-k">return</span></strong> s. .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> prefix_char <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">fn</span></strong> prefix_char <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt k. <span class="tok-n">11</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> idx <span class="tok-s">"</span><span class="tok-s">/api/users/</span><span class="tok-s">"</span> k. . .
@@ -773,7 +773,7 @@ prefix_char(4) = 47
 <em><span class="tok-c">rem run: prefix_chain 4</span></em>
 
 <em><span class="tok-c">rem 문자열 리터럴은 slice u8 이고 그대로 색인된다</span></em>
-<strong><span class="tok-k">fn</span></strong> prefix_char <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">fn</span></strong> prefix_char <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt k. <span class="tok-n">11</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> idx <span class="tok-s">"</span><span class="tok-s">/api/users/</span><span class="tok-s">"</span> k. . .
@@ -817,7 +817,7 @@ prefix_chain(4) = 47
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> padded <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">6</span> <span class="tok-n">1</span> <span class="tok-n">2</span> _ . .
-  <strong><span class="tok-k">return</span></strong> add len p. . total p. . . .
+  <strong><span class="tok-k">return</span></strong> add cast <strong><span class="tok-t">u64</span></strong> len p. . . total p. . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 슬라이스 나열은 길이를 적지 않는다 --- 원소 수가 길이다. 한가운데서도 점 하나로 닫힌다</span></em>
@@ -837,10 +837,10 @@ inside() = 16
 <em><span class="tok-c">rem run: again 3</span></em>
 
 <em><span class="tok-c">rem var 에 묶은 나열은 이 op 의 틀 안 칸이다 --- 칸은 set (index …) 로 쓴다</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> squares <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> squares <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">8</span> _ . .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">8</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> idx buf. i. . mul i. i. . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -853,7 +853,7 @@ inside() = 16
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> spread <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">3</span> a. b. mul a. b. . . .
-  <strong><span class="tok-k">return</span></strong> add idx t. <span class="tok-n">2</span> . len t. . . .
+  <strong><span class="tok-k">return</span></strong> add idx t. <span class="tok-n">2</span> . cast <strong><span class="tok-t">u64</span></strong> len t. . . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 반복 안의 선언은 바퀴마다 새로 채워진다 --- 앞 바퀴의 값을 보지 않는다</span></em>
@@ -891,7 +891,7 @@ mistake_frameescape.low:6:0 W-VAR-NEVER-SET: this `var` is never changed — wri
 <em><span class="tok-c">rem run: table 3 1</span></em>
 
 <em><span class="tok-c">rem 칸을 골라 채운다 --- 0 번과 5 번만 적고, 나머지 칸은 모두 1</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> table <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> table <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">6</span> <strong><span class="tok-k">do</span></strong> <span class="tok-n">0</span> <span class="tok-n">100</span> . <span class="tok-n">5</span> mul a. <span class="tok-n">2</span> . . _ <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> . .
   <strong><span class="tok-k">guard</span></strong> lt i. <span class="tok-n">6</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
@@ -946,16 +946,16 @@ shift(9) = 112345903
 <em><span class="tok-c">rem run: grid 5</span></em>
 
 <em><span class="tok-c">rem 줄의 나열 --- `index g 1` 은 그 줄을 보는 슬라이스다(복사 없음)</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> grid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> grid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> g <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> (<strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">4</span>) <span class="tok-n">3</span> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">4</span> <span class="tok-n">1</span> <span class="tok-n">2</span> <span class="tok-n">3</span> <span class="tok-n">4</span> . _ . .
   <strong><span class="tok-k">let</span></strong> row <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> idx g. <span class="tok-n">1</span> . .
   <strong><span class="tok-k">set</span></strong> idx row. <span class="tok-n">2</span> . a. .
   <strong><span class="tok-k">set</span></strong> idx idx g. <span class="tok-n">2</span> . <span class="tok-n">3</span> . <span class="tok-n">9</span> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> r g. <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">for</span></strong> x r. <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> s. add s. widen <strong><span class="tok-t">u64</span></strong> x. . . .
+      <strong><span class="tok-k">set</span></strong> s. add s. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> x. . . . .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> add mul s. <span class="tok-n">100</span> . add len g. . mul len idx g. <span class="tok-n">0</span> . . <span class="tok-n">10</span> . . . .
@@ -968,8 +968,8 @@ grid(5) = 2443
 <em><span class="tok-c">rem 3 줄 4 칸의 표 --- 차원 수(2) 다음에 크기를 적는다</span></em>
 <strong><span class="tok-k">fn</span></strong> table <strong><span class="tok-k">output</span></strong> t matrix <strong><span class="tok-t">u32</span></strong> <span class="tok-n">2</span> <span class="tok-n">3</span> <span class="tok-n">4</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">repeat</span></strong> r <strong><span class="tok-t">u64</span></strong> dim t. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">u64</span></strong> dim t. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">repeat</span></strong> r <strong><span class="tok-t">usize</span></strong> dim t. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">usize</span></strong> dim t. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> idx t. r. c. . narrow <strong><span class="tok-t">u32</span></strong> add mul r. <span class="tok-n">10</span> . c. . . .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
@@ -977,12 +977,12 @@ grid(5) = 2443
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 색인은 차원마다 하나 --- 저마다 제 크기로 검사한다</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> row_sum <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> row_sum <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt r. <span class="tok-n">3</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> t matrix <strong><span class="tok-t">u32</span></strong> <span class="tok-n">2</span> <span class="tok-n">3</span> <span class="tok-n">4</span> table . .
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">u64</span></strong> dim t. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">usize</span></strong> dim t. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s. add s. widen <strong><span class="tok-t">u64</span></strong> idx t. r. c. . . . .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> s. .
@@ -1021,10 +1021,10 @@ mistake_matrixrow.low:8:20 E-MATRIX-INDEX: `idx &lt;matrix>. i1 … ik .` takes 
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 어떤 크기든 받는다 --- 크기는 번역 시점의 입력이다</span></em>
-<strong><span class="tok-k">fn</span></strong> sum <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> r <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> c <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> m matrix <strong><span class="tok-t">u32</span></strong> <span class="tok-n">2</span> r c . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> sum <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> r <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> c <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">input</span></strong> m matrix <strong><span class="tok-t">u32</span></strong> <span class="tok-n">2</span> r c . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">repeat</span></strong> i <strong><span class="tok-t">u64</span></strong> dim m. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">repeat</span></strong> i <strong><span class="tok-t">usize</span></strong> dim m. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem `row` 는 줄 하나를 슬라이스로 본다</span></em>
     <strong><span class="tok-k">for</span></strong> x row m. i. . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> t. add t. widen <strong><span class="tok-t">u64</span></strong> x. . . .
@@ -1045,11 +1045,11 @@ total() = 110
 </code></pre></div></div><ul><li><code>row m. i. .</code> 는 그 줄을 <code>slice u32</code> 로 본다 — 복사가 아니다. 색인은 마지막을 뺀 차원마다 하나다(3 차원이면 둘). <code>m</code> 이 <code>var</code> 이면 <code>let w mut slice u32 row m. i. . .</code> 로 묶어 그 줄에 쓸 수 있고, <code>let</code> 이면 그렇게 묶지 못한다(<code>E-TYPE-MUT</code>).</li><li>칸이 <code>matrix</code> 인 구조체는 <code>idx field b. g . r. c. .</code> 로 읽고 쓴다. 리터럴에서 그 칸의 값은 같은 모양의 <code>lit matrix</code> 다.</li><li>크기를 정해 두지 않으려면 그 크기를 번역 시점의 입력으로 받는다: <code>input comptime r u64 .</code> 을 적고 타입에 <code>matrix u32 2 r c</code> 라고 쓴다. 부르는 쪽이 크기를 적고(<code>sum 2 2 small. .</code>), 넘긴 표의 모양이 그 수와 다르면 <code>E-MATRIX-SHAPE</code> 다. 이름으로 적은 크기는 입력에만 설 수 있다 — 지역과 결과와 칸은 수로 적는다.</li></ul><h3 id="s9-6">9.6 계약이 경계 검사를 지운다<a class="plink" href="#s9-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>idx</code> 의 경계 검사는 증명되지 않은 자리에만 남는다. 길이 조건을 <code>requires</code> 로 적으면 검사는 op 진입에서 <strong>한 번</strong>만 일어나고, 본문의 색인 검사는 사라진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/bounds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bounds .
 <em><span class="tok-c">rem run: sum_first [3,4,5,6] 3</span></em>
 
-<strong><span class="tok-k">fn</span></strong> sum_first <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> sum_first <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n. len a. . . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. n. . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s. add s. widen <strong><span class="tok-t">u64</span></strong> idx a. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -1067,7 +1067,7 @@ sum_first([3,4,5,6], 3) = 12
 <strong><span class="tok-k">fn</span></strong> fresh <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> xs. .
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t. wrap_add t. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> s. subslice s. <span class="tok-n">0</span> <span class="tok-n">2</span> . .
@@ -1079,9 +1079,9 @@ sum_first([3,4,5,6], 3) = 12
 <em><span class="tok-c">rem 길이를 미리 담았다 --- s 가 짧아져도 m 은 그대로다</span></em>
 <strong><span class="tok-k">fn</span></strong> stale <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> xs. .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> len s. . .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">usize</span></strong> len s. . .
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. m. . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t. wrap_add t. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> s. subslice s. <span class="tok-n">0</span> <span class="tok-n">2</span> . .
@@ -1101,7 +1101,7 @@ $ lowentc --run stale stale_len.low [1,2,3,4]
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ `le` 라서 i 가 3 일 때도 돈다 --- 길이 3 인 줄의 번호는 0, 1, 2 뿐이다</span></em>
   <strong><span class="tok-k">while</span></strong> le i. len xs. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t. add t. widen <strong><span class="tok-t">u64</span></strong> idx xs. i. . . . .
@@ -1153,7 +1153,7 @@ first_or([7,8], 0) = 7
 </code></pre></div></div><p><code>guard</code> 를 지난 아래에서는 “비지 않았다” 가 사실이므로 <code>idx xs. 0 .</code> 이 안전하고, 컴파일러도 그 사실로 경계 검사를 지운다 (7장).</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>subslice</code> 의 시작과 끝을 뒤집는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/mistake_subrev.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_subrev .
 <em><span class="tok-c">rem trap: tail_len [1,2,3,4]</span></em>
 
-<strong><span class="tok-k">fn</span></strong> tail_len <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> tail_len <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 시작(3)이 끝(1)보다 뒤다 --- `subslice s from to` 는 from ≤ to ≤ len 이어야 한다</span></em>
   <strong><span class="tok-k">return</span></strong> len subslice xs. <span class="tok-n">3</span> <span class="tok-n">1</span> . . .
@@ -1164,7 +1164,7 @@ first_or([7,8], 0) = 7
 </code></pre></div></div><p><code>subslice s. from. to. .</code> 는 <code>from ≤ to ≤ len s</code> 여야 한다. 뒤집으면 빈 창이 되는 것이 아니라 멈춘다 — 잘못 계산한 경계가 조용히 빈 결과로 바뀌면 그 결함은 한참 뒤에야 드러나기 때문이다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>subslice s. 1 3 .</code> 은 1 번부터 3 번까지 세 칸이다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/subslice_end.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> subslice_end .
 <em><span class="tok-c">rem run: middle [10,20,30,40,50]</span></em>
 
-<strong><span class="tok-k">fn</span></strong> middle <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> middle <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem 1 번부터 3 번 앞까지 --- 1 번과 2 번, 둘이다</span></em>
   <strong><span class="tok-k">return</span></strong> len subslice xs. <span class="tok-n">1</span> <span class="tok-n">3</span> . . .

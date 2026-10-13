@@ -20,7 +20,7 @@ export proc sum_mid input a slice u64 . output u64 . effects none . do
   guard ge len a. . 4 . else return 0 . .
   let m slice u64 subslice a. 1 3 . .
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len m. . . do
     set acc. wrap_add acc. idx m. i. . . .
     set i. add i. 1 . .
@@ -33,7 +33,7 @@ export proc sum_mid_u8 input a slice u8 . output u64 . effects none . do
   guard ge len a. . 4 . else return 0 . .
   let m slice u8 subslice a. 1 3 . .
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len m. . . do
     set acc. wrap_add acc. idx m. i. . . .
     set i. add i. 1 . .

@@ -53,13 +53,13 @@ The code point upper limit is 1114111 (U+10FFFF). Surrogate values themselves ar
 | `is_high` | `fn (u u64) → bool` | never fails |
 | `is_low` | `fn (u u64) → bool` | never fails |
 | `cp_valid` | `fn (c u64) → bool` | never fails (false is the answer) |
-| `units` | `fn (c u64) → u64` | never fails (1 or 2) |
+| `units` | `fn (c u64) → usize` | never fails (1 or 2) |
 | `unit_hi` | `fn (c u64) → option u64` | `none` for an invalid code point |
 | `unit_lo` | `fn (c u64) → option u64` | `none` for an invalid code point or BMP (one unit) |
-| `put` | `proc (dst mut slice u16, at u64, c u64) → option u64` | `none` for an invalid code point or no room |
-| `decode` | `fn (s slice u16, at u64) → option u64` | `none` if out of range or unpaired |
-| `next_start` | `fn (s slice u16, at u64) → option u64` | `none` at the end or at a broken place |
-| `count_chars` | `fn (s slice u16) → option u64` | `none` on meeting a broken place |
+| `put` | `proc (dst mut slice u16, at usize, c u64) → option usize` | `none` for an invalid code point or no room |
+| `decode` | `fn (s slice u16, at usize) → option u64` | `none` if out of range or unpaired |
+| `next_start` | `fn (s slice u16, at usize) → option usize` | `none` at the end or at a broken place |
+| `count_chars` | `fn (s slice u16) → option usize` | `none` on meeting a broken place |
 | `is_valid` | `fn (s slice u16) → bool` | never fails |
 
 *Table 50.2 — Ops of `utf16`*
@@ -88,7 +88,7 @@ module ex_utf16 .
 
 use utf16 as u .
 
-proc round_trip input buf mut slice u16 . output u64 . effects none . do
+proc round_trip input buf mut slice u16 . output usize . effects none . do
   guard ge len buf. . 4 . else return 90 . .
   rem '가' (U+AC00) --- BMP, so one unit. put returns the next position to write
   let a option u64 u.put buf. 0 44032 . .

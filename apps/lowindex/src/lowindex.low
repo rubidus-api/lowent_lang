@@ -18,19 +18,25 @@ use files .
 use outbuf .
 use args .
 
-fn max_docs output u64 . do
+rem «없음» 을 나타내는 자리 — 그 구현의 `usize` 가 담는 가장 큰 값(폭이 달라도 같은 글이다: 0 에서 1 을 감아 뺀다).
+fn no_pos output usize . do
+  let zero usize 0 .
+  return wrap_sub zero. 1 . .
+end .
+
+fn max_docs output usize . do
   return 65536 .
 end .
 
-fn max_terms output u64 . do
+fn max_terms output usize . do
   return 524288 .
 end .
 
-fn max_pairs output u64 . do
+fn max_pairs output usize . do
   return 4194304 .
 end .
 
-fn max_token output u64 . do
+fn max_token output usize . do
   return 255 .
 end .
 
@@ -38,14 +44,14 @@ rem ── 순수 도움
 
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
   guard eq len a. . len b. . . else return false . .
-  repeat i u64 len a. . do
+  repeat i usize len a. . do
     guard eq idx a. i. . idx b. i. . . else return false . .
   end .
   return true .
 end .
 
 fn less_bytes input a slice u8 . input b slice u8 . output bool . do
-  repeat i u64 min len a. . len b. . . do
+  repeat i usize min len a. . len b. . . do
     if ne idx a. i. . idx b. i. . . do
       return lt idx a. i. . idx b. i. . . .
     end .
@@ -77,20 +83,20 @@ fn has_nul input s slice u8 . output bool . do
   return false .
 end .
 
-proc put_le input buf mut slice u8 . input at u64 . input v u64 . output void . effects none . do
+proc put_le input buf mut slice u8 . input at usize . input v u64 . output void . effects none . do
   guard and le at. len buf. . . le 8 sub len buf. . at. . . . else return . .
   var x u64 v. .
-  repeat k u64 8 do
+  repeat k usize 8 do
     set idx buf. add at. k. . . narrow u8 bit_and x. 255 . . .
     set x. shr x. 8 . .
   end .
   return .
 end .
 
-fn get_le input buf slice u8 . input at u64 . output u64 . do
+fn get_le input buf slice u8 . input at usize . output u64 . do
   guard and le at. len buf. . . le 8 sub len buf. . at. . . . else return 0 . .
   var v u64 0 .
-  repeat k u64 8 do
+  repeat k usize 8 do
     set v. bit_or v. shl widen u64 idx buf. add at. k. . . . mul 8 k. . . . .
   end .
   return v. .
@@ -102,15 +108,15 @@ proc add_term input tok slice u8 . input tb mut slice u64 . input slots mut slic
   requires ge len tb. . 5 . .
   requires ge len slots. . 1 . .
 do
-  let cap u64 len slots. . .
-  var at u64 bit_and fnv1a tok. . sub cap. 1 . . .
+  let cap usize len slots. . .
+  var at usize bit_and fnv1a tok. . sub cap. 1 . . .
   let doc u64 idx tb. 3 . .
-  var term u64 18446744073709551615 .
-  repeat probe u64 cap. do
-    let s u64 idx slots. at. . .
+  var term usize no_pos. .
+  repeat probe usize cap. do
+    let s usize cast usize idx slots. at. . . .
     if eq s. 0 . do
-      let t u64 idx tb. 0 . .
-      let used u64 idx tb. 1 . .
+      let t usize cast usize idx tb. 0 . . .
+      let used usize cast usize idx tb. 1 . . .
       guard and lt t. max_terms. . and lt t. len toff. . . and lt t. len tlen. . . lt t. len lastdoc. . . . . . else do
         set idx tb. 4 . 1 .
         return .
@@ -119,7 +125,7 @@ do
         set idx tb. 4 . 2 .
         return .
       end .
-      repeat c u64 len tok. . do
+      repeat c usize len tok. . do
         set idx tarena. add used. c. . . idx tok. c. . .
       end .
       set idx toff. t. . used. .
@@ -131,11 +137,11 @@ do
       set term. t. .
       break .
     end .
-    let t2 u64 sub s. 1 . .
+    let t2 usize sub s. 1 . .
     guard and lt t2. len toff. . . lt t2. len tlen. . . . else return . .
-    let o u64 idx toff. t2. . .
-    guard le add o. idx tlen. t2. . . len tarena. . . else return . .
-    if same_bytes subslice tarena. o. add o. idx tlen. t2. . . . tok. . do
+    let o usize cast usize idx toff. t2. . . .
+    guard le add o. cast usize idx tlen. t2. . . . len tarena. . . else return . .
+    if same_bytes subslice tarena. o. add o. cast usize idx tlen. t2. . . . . tok. . do
       set term. t2. .
       break .
     end .
@@ -147,7 +153,7 @@ do
   end .
   guard ne idx lastdoc. term. . doc. . else return . .
   set idx lastdoc. term. . doc. .
-  let np u64 idx tb. 2 . .
+  let np usize cast usize idx tb. 2 . . .
   guard and lt np. max_pairs. . and lt np. len pterm. . . lt np. len pdoc. . . . . else do
     set idx tb. 4 . 3 .
     return .
@@ -164,7 +170,7 @@ proc tokenize input chunk slice u8 . input tok mut slice u8 . input tb mut slice
 do
   for c chunk. do
     if is_token_byte c. . do
-      let n u64 idx tb. 5 . .
+      let n usize cast usize idx tb. 5 . . .
       if and lt n. max_token. . lt n. len tok. . . . do
         set idx tok. n. . lower_ascii c. . .
         set idx tb. 5 . add n. 1 . .
@@ -181,7 +187,7 @@ end .
 proc end_token input tok mut slice u8 . input tb mut slice u64 . input slots mut slice u64 . input tarena mut slice u8 . input toff mut slice u64 . input tlen mut slice u64 . input lastdoc mut slice u64 . input pterm mut slice u64 . input pdoc mut slice u64 . output void . effects none .
   requires ge len tb. . 8 . .
 do
-  let n u64 idx tb. 5 . .
+  let n usize cast usize idx tb. 5 . . .
   if and gt n. 0 . and eq idx tb. 6 . 0 . le n. len tok. . . . . do
     add_term subslice tok. 0 n. . tb. slots. tarena. toff. tlen. lastdoc. pterm. pdoc. .
   end .
@@ -191,27 +197,27 @@ do
 end .
 
 rem ── 이름 정렬(색인 · 경로 공용): arena 의 [offs, offs+lens) 를 바이트 순으로. order 에 번호를 낸다.
-fn name_of input arena slice u8 . input offs slice u64 . input lens slice u64 . input i u64 . output slice u8 . do
-  return subslice arena. idx offs. i. . add idx offs. i. . idx lens. i. . . . .
+fn name_of input arena slice u8 . input offs slice u64 . input lens slice u64 . input i usize . output slice u8 . do
+  return subslice arena. cast usize idx offs. i. . . cast usize add idx offs. i. . idx lens. i. . . . . .
 end .
 
-proc sort_by_name input arena slice u8 . input offs slice u64 . input lens slice u64 . input order mut slice u64 . input tmp mut slice u64 . input n u64 . output void . effects none .
+proc sort_by_name input arena slice u8 . input offs slice u64 . input lens slice u64 . input order mut slice u64 . input tmp mut slice u64 . input n usize . output void . effects none .
   requires le n. len order. . . .
   requires le n. len tmp. . . .
 do
-  repeat i u64 n. do
+  repeat i usize n. do
     set idx order. i. . i. .
   end .
-  cycle w u64 1 while lt w. n. . next mul w. 2 . do
-    cycle lo u64 0 while lt lo. n. . next add lo. mul w. 2 . . do
-      let mid u64 min add lo. w. . n. . .
-      let hi u64 min add lo. mul w. 2 . . n. . .
-      var ia u64 lo. .
-      var ib u64 mid. .
-      cycle k u64 lo. while lt k. hi. . next add k. 1 . do
+  cycle w usize 1 while lt w. n. . next mul w. 2 . do
+    cycle lo usize 0 while lt lo. n. . next add lo. mul w. 2 . . do
+      let mid usize min add lo. w. . n. . .
+      let hi usize min add lo. mul w. 2 . . n. . .
+      var ia usize lo. .
+      var ib usize mid. .
+      cycle k usize lo. while lt k. hi. . next add k. 1 . do
         var take_b bool ge ia. mid. . .
         if and lt ia. mid. . lt ib. hi. . . do
-          set take_b. less_bytes name_of arena. offs. lens. idx order. ib. . . name_of arena. offs. lens. idx order. ia. . . . .
+          set take_b. less_bytes name_of arena. offs. lens. cast usize idx order. ib. . . . name_of arena. offs. lens. cast usize idx order. ia. . . . . .
         end .
         if take_b. do
           set idx tmp. k. . idx order. ib. . .
@@ -221,7 +227,7 @@ do
           set ia. add ia. 1 . .
         end .
       end .
-      cycle m u64 lo. while lt m. hi. . next add m. 1 . do
+      cycle m usize lo. while lt m. hi. . next add m. 1 . do
         set idx order. m. . idx tmp. m. . .
       end .
     end .
@@ -231,17 +237,17 @@ end .
 
 rem ── 파일 도움
 
-proc read_full input fs cap file_system . input h files.handle . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
+proc read_full input fs cap file_system . input h files.handle . input buf mut slice u8 . input st mut slice u64 . output usize . effects io .
   requires ge len st. . 1 . .
 do
-  var got u64 0 .
+  var got usize 0 .
   while lt got. len buf. . . do
     let r result (option u64) files.file_error files.read fs. h. subslice buf. got. len buf. . . . .
     guard is_ok r. . else do
       set idx st. 0 . 4 .
       return got. .
     end .
-    let n u64 value_or ok_value r. . 0 . .
+    let n usize value_or ok_value r. . 0 . .
     guard gt n. 0 . else return got. . .
     set got. add got. n. . .
   end .
@@ -249,12 +255,12 @@ do
 end .
 
 proc write_full input fs cap file_system . input h files.handle . input buf slice u8 . output bool . effects io . do
-  var put u64 0 .
-  var spins u64 0 .
+  var put usize 0 .
+  var spins usize 0 .
   while lt put. len buf. . . do
     let r result u64 files.file_error files.write fs. h. subslice buf. put. len buf. . . . .
     guard is_ok r. . else return false . .
-    let n u64 ok_value r. . .
+    let n usize ok_value r. . .
     guard gt n. 0 . else return false . .
     set put. add put. n. . .
     set spins. add spins. 1 . .
@@ -266,19 +272,19 @@ end .
 proc join_path input base slice u8 . input name slice u8 . input buf mut slice u8 . input st mut slice u64 . output bool . effects none .
   requires ge len st. . 1 . .
 do
-  var head u64 0 .
+  var head usize 0 .
   if gt len base. . 0 . do
     set head. add len base. . 1 . .
   end .
-  let total u64 add head. len name. . . .
+  let total usize add head. len name. . . .
   guard le total. len buf. . . else return false . .
-  repeat bi u64 len base. . do
+  repeat bi usize len base. . do
     set idx buf. bi. . idx base. bi. . .
   end .
   if gt head. 0 . do
     set idx buf. len base. . . '/' .
   end .
-  repeat ni u64 len name. . do
+  repeat ni usize len name. . do
     set idx buf. add head. ni. . . idx name. ni. . .
   end .
   set idx st. 0 . total. .
@@ -291,7 +297,7 @@ fn is_dot_name input nm slice u8 . output bool . do
 end .
 
 rem 한 디렉터리의 이름(정렬 전)을 arena 에 모은다. 개수, 상태 st[0](0 · 3 한도 · 4 입출력).
-proc list_dir input fs cap file_system . input path slice u8 . input namebuf mut slice u8 . input arena mut slice u8 . input offs mut slice u64 . input lens mut slice u64 . input st mut slice u64 . output u64 . effects io .
+proc list_dir input fs cap file_system . input path slice u8 . input namebuf mut slice u8 . input arena mut slice u8 . input offs mut slice u64 . input lens mut slice u64 . input st mut slice u64 . output usize . effects io .
   requires ge len st. . 1 . .
 do
   set idx st. 0 . 0 .
@@ -301,8 +307,8 @@ do
     return 0 .
   end .
   var dh owned files.dir_handle ok_value opened. . .
-  var n u64 0 .
-  var used u64 0 .
+  var n usize 0 .
+  var used usize 0 .
   while true do
     let r result (option u64) files.file_error files.read_dir fs. dh. namebuf. . .
     guard is_ok r. . else do
@@ -311,7 +317,7 @@ do
     end .
     let got option u64 ok_value r. . .
     guard is_some got. . else break . .
-    let nl u64 some_value got. . .
+    let nl usize some_value got. . .
     guard and gt nl. 0 . le nl. len namebuf. . . . else break . .
     if is_dot_name subslice namebuf. 0 nl. . . do
       continue .
@@ -322,7 +328,7 @@ do
     end .
     set idx offs. n. . used. .
     set idx lens. n. . nl. .
-    repeat c u64 nl. do
+    repeat c usize nl. do
       set idx arena. add used. c. . . idx namebuf. c. . .
     end .
     set used. add used. nl. . .
@@ -351,9 +357,9 @@ fn usage_text output slice u8 . do
 end .
 
 proc say input out cap io . input a slice u8 . input b slice u8 . output void . effects io . do
-  let w1 option u64 outbuf.write_all out. 2 a. . .
-  let w2 option u64 outbuf.write_all out. 2 b. . .
-  let w3 option u64 outbuf.write_all out. 2 "\n" . .
+  let w1 option usize outbuf.write_all out. 2 a. . .
+  let w2 option usize outbuf.write_all out. 2 b. . .
+  let w3 option usize outbuf.write_all out. 2 "\n" . .
   return .
 end .
 
@@ -374,7 +380,7 @@ do
   var textual bool true .
   while true do
     set idx st. 0 . 0 .
-    let n u64 read_full fs. h. chunk. st. . .
+    let n usize read_full fs. h. chunk. st. . .
     if eq idx st. 0 . 4 . do
       break .
     end .
@@ -401,19 +407,19 @@ do
 end .
 
 rem 문서 표를 obuf 에 채운다(from 부터 들어가는 만큼). 다음 문서 번호를 내고, 채운 길이는 olen[0].
-proc fill_docs input darena slice u8 . input doff slice u64 . input dlen slice u64 . input from u64 . input ndocs u64 . input obuf mut slice u8 . input olen mut slice u64 . output u64 . effects none .
+proc fill_docs input darena slice u8 . input doff slice u64 . input dlen slice u64 . input from usize . input ndocs usize . input obuf mut slice u8 . input olen mut slice u64 . output usize . effects none .
   requires ge len olen. . 1 . .
 do
-  var fill u64 0 .
-  var d u64 from. .
+  var fill usize 0 .
+  var d usize from. .
   while and lt d. ndocs. . and lt d. len doff. . . lt d. len dlen. . . . . do
-    let dl u64 idx dlen. d. . .
-    let dofs u64 idx doff. d. . .
+    let dl usize cast usize idx dlen. d. . . .
+    let dofs usize cast usize idx doff. d. . . .
     guard le add dofs. dl. . len darena. . . else break . .
     guard le add add fill. 8 . dl. . len obuf. . . else break . .
-    put_le obuf. fill. dl. .
+    put_le obuf. fill. cast u64 dl. . .
     set fill. add fill. 8 . .
-    repeat c u64 dl. do
+    repeat c usize dl. do
       set idx obuf. add fill. c. . . idx darena. add dofs. c. . . .
     end .
     set fill. add fill. dl. . .
@@ -424,31 +430,31 @@ do
 end .
 
 rem 낱말(바이트 순)과 문서 목록을 obuf 에 채운다 — 낱말 하나가 통째로 들어갈 때만. 다음 차례를 내고, 길이는 olen[0].
-proc fill_terms input tarena slice u8 . input toff slice u64 . input tlen slice u64 . input cnt slice u64 . input start slice u64 . input post slice u64 . input order slice u64 . input from u64 . input nt u64 . input obuf mut slice u8 . input olen mut slice u64 . output u64 . effects none .
+proc fill_terms input tarena slice u8 . input toff slice u64 . input tlen slice u64 . input cnt slice u64 . input start slice u64 . input post slice u64 . input order slice u64 . input from usize . input nt usize . input obuf mut slice u8 . input olen mut slice u64 . output usize . effects none .
   requires ge len olen. . 1 . .
 do
-  var fill u64 0 .
-  var r u64 from. .
+  var fill usize 0 .
+  var r usize from. .
   while and lt r. nt. . lt r. len order. . . . do
-    let t4 u64 idx order. r. . .
+    let t4 usize cast usize idx order. r. . . .
     guard and lt t4. len tlen. . . and lt t4. len toff. . . and lt t4. len cnt. . . lt t4. len start. . . . . . else break . .
-    let tl u64 idx tlen. t4. . .
-    let n4 u64 idx cnt. t4. . .
-    let e4 u64 idx start. t4. . .
+    let tl usize cast usize idx tlen. t4. . . .
+    let n4 usize cast usize idx cnt. t4. . . .
+    let e4 usize cast usize idx start. t4. . . .
     guard le n4. e4. . else break . .
-    let need u64 add add 16 tl. . mul n4. 8 . . .
+    let need usize add add 16 tl. . mul n4. 8 . . .
     guard le add fill. need. . len obuf. . . else break . .
-    let tof u64 idx toff. t4. . .
+    let tof usize cast usize idx toff. t4. . . .
     guard and le add tof. tl. . len tarena. . . le e4. len post. . . . else break . .
-    put_le obuf. fill. tl. .
+    put_le obuf. fill. cast u64 tl. . .
     set fill. add fill. 8 . .
-    repeat c2 u64 tl. do
+    repeat c2 usize tl. do
       set idx obuf. add fill. c2. . . idx tarena. add tof. c2. . . .
     end .
     set fill. add fill. tl. . .
-    put_le obuf. fill. n4. .
+    put_le obuf. fill. cast u64 n4. . .
     set fill. add fill. 8 . .
-    cycle q u64 sub e4. n4. . while lt q. e4. . next add q. 1 . do
+    cycle q usize sub e4. n4. . while lt q. e4. . next add q. 1 . do
       put_le obuf. fill. idx post. q. . .
       set fill. add fill. 8 . .
     end .
@@ -460,30 +466,30 @@ end .
 
 rem 색인 몸을 짓고 쓴다: 문서 표 · 낱말(바이트 순)과 문서 목록. 쓴 바이트에 검사합을 넣는다.
 rem 쌍(낱말, 문서)을 낱말별로 세어 자리를 잡고(세기 정렬) 채운다 — 문서 번호는 이미 오름차순이다.
-proc write_index input fs cap file_system . input h files.handle . input tb slice u64 . input darena slice u8 . input doff slice u64 . input dlen slice u64 . input tarena slice u8 . input toff slice u64 . input tlen slice u64 . input pterm slice u64 . input pdoc slice u64 . input cnt mut slice u64 . input start mut slice u64 . input post mut slice u64 . input order mut slice u64 . input tmp mut slice u64 . input obuf mut slice u8 . input obuf_len mut slice u64 . input ndocs u64 . output u64 . effects io .
+proc write_index input fs cap file_system . input h files.handle . input tb slice u64 . input darena slice u8 . input doff slice u64 . input dlen slice u64 . input tarena slice u8 . input toff slice u64 . input tlen slice u64 . input pterm slice u64 . input pdoc slice u64 . input cnt mut slice u64 . input start mut slice u64 . input post mut slice u64 . input order mut slice u64 . input tmp mut slice u64 . input obuf mut slice u8 . input obuf_len mut slice u64 . input ndocs usize . output u64 . effects io .
   requires ge len tb. . 5 . .
   requires ge len obuf. . 65536 . .
   requires ge len obuf_len. . 1 . .
 do
-  let nt u64 idx tb. 0 . .
-  let np u64 idx tb. 2 . .
+  let nt usize cast usize idx tb. 0 . . .
+  let np usize cast usize idx tb. 2 . . .
   guard and le nt. len cnt. . . and le nt. len start. . . and le nt. len order. . . and le nt. len tmp. . . and le np. len post. . . and le np. len pterm. . . le np. len pdoc. . . . . . . . . else return 3 . .
-  repeat z u64 nt. do
+  repeat z usize nt. do
     set idx cnt. z. . 0 .
   end .
-  repeat p u64 np. do
-    let t u64 idx pterm. p. . .
+  repeat p usize np. do
+    let t usize cast usize idx pterm. p. . . .
     guard lt t. nt. . else return 3 . .
     set idx cnt. t. . add idx cnt. t. . 1 . .
   end .
   var acc u64 0 .
-  repeat t2 u64 nt. do
+  repeat t2 usize nt. do
     set idx start. t2. . acc. .
     set acc. add acc. idx cnt. t2. . . .
   end .
-  repeat p2 u64 np. do
-    let t3 u64 idx pterm. p2. . .
-    let at u64 idx start. t3. . .
+  repeat p2 usize np. do
+    let t3 usize cast usize idx pterm. p2. . . .
+    let at usize cast usize idx start. t3. . . .
     guard lt at. len post. . . else return 3 . .
     set idx post. at. . idx pdoc. p2. . .
     set idx start. t3. . add at. 1 . .
@@ -492,27 +498,27 @@ do
   sort_by_name tarena. toff. tlen. order. tmp. nt. .
   rem 머리 40 바이트는 마지막에 채운다(길이 · 검사합). 몸은 순수 proc 이 obuf 에 채우고(빠른 길), 여기서는 흘리기만 한다 —
   rem 파일 잎을 부르는 proc 은 느린 길에 남으므로, 칸마다 도는 직렬화를 여기 두면 칸마다 느린 길을 탄다.
-  repeat z2 u64 40 do
+  repeat z2 usize 40 do
     set idx obuf. z2. . 0 .
   end .
   guard write_full fs. h. subslice obuf. 0 40 . . else return 4 . .
-  var total u64 40 .
+  var total usize 40 .
   var sum u64 14695981039346656037 .
-  var d u64 0 .
+  var d usize 0 .
   while lt d. ndocs. . do
-    let nd2 u64 fill_docs darena. doff. dlen. d. ndocs. obuf. obuf_len. . .
+    let nd2 usize fill_docs darena. doff. dlen. d. ndocs. obuf. obuf_len. . .
     guard gt nd2. d. . else return 3 . .
-    let used u64 idx obuf_len. 0 . .
+    let used usize cast usize idx obuf_len. 0 . . .
     set sum. fnv_more sum. subslice obuf. 0 used. . . .
     guard write_full fs. h. subslice obuf. 0 used. . . else return 4 . .
     set total. add total. used. . .
     set d. nd2. .
   end .
-  var r u64 0 .
+  var r usize 0 .
   while lt r. nt. . do
-    let r2 u64 fill_terms tarena. toff. tlen. cnt. start. post. order. r. nt. obuf. obuf_len. . .
+    let r2 usize fill_terms tarena. toff. tlen. cnt. start. post. order. r. nt. obuf. obuf_len. . .
     guard gt r2. r. . else return 3 . .
-    let used2 u64 idx obuf_len. 0 . .
+    let used2 usize cast usize idx obuf_len. 0 . . .
     set sum. fnv_more sum. subslice obuf. 0 used2. . . .
     guard write_full fs. h. subslice obuf. 0 used2. . . else return 4 . .
     set total. add total. used2. . .
@@ -520,15 +526,15 @@ do
   end .
   rem 머리: 매직 · 길이 · 문서 수 · 낱말 수 · 검사합
   let magic slice u8 "LWIDX" .
-  repeat m u64 5 do
+  repeat m usize 5 do
     set idx obuf. m. . idx magic. m. . .
   end .
   set idx obuf. 5 . 0 .
   set idx obuf. 6 . 0 .
   set idx obuf. 7 . 1 .
-  put_le obuf. 8 total. .
-  put_le obuf. 16 ndocs. .
-  put_le obuf. 24 nt. .
+  put_le obuf. 8 cast u64 total. . .
+  put_le obuf. 16 cast u64 ndocs. . .
+  put_le obuf. 24 cast u64 nt. . .
   put_le obuf. 32 sum. .
   let back result u64 files.file_error files.seek_to fs. h. 0 0 . .
   guard is_ok back. . else return 4 . .
@@ -574,29 +580,29 @@ do
   for zs mut slots. do
     set zs. 0 .
   end .
-  var ndocs u64 0 .
-  var dused u64 0 .
+  var ndocs usize 0 .
+  var dused usize 0 .
   guard le len root. . len pend. . . else return 3 . .
-  repeat r u64 len root. . do
+  repeat r usize len root. . do
     set idx pend. r. . idx root. r. . .
   end .
   set idx poffs. 0 . 0 .
   set idx plens. 0 . len root. . .
-  var np u64 1 .
+  var np usize 1 .
   while gt np. 0 . do
     set np. sub np. 1 . .
-    let ro u64 idx poffs. np. . .
-    let dir slice u8 subslice pend. ro. add ro. idx plens. np. . . . .
-    var pused u64 ro. .
-    let n u64 list_dir fs. dir. namebuf. narena. noffs. nlens. st. . .
+    let ro usize cast usize idx poffs. np. . . .
+    let dir slice u8 subslice pend. ro. add ro. cast usize idx plens. np. . . . . .
+    var pused usize ro. .
+    let n usize list_dir fs. dir. namebuf. narena. noffs. nlens. st. . .
     guard eq idx st. 0 . 0 . else do
       say out. "lowindex: cannot list " dir. .
       return idx st. 0 . .
     end .
     sort_by_name narena. noffs. nlens. norder. ntmp. n. .
-    repeat e u64 n. do
-      guard join_path dir. name_of narena. noffs. nlens. idx norder. e. . . child. st. . else return 3 . .
-      let cp slice u8 subslice child. 0 idx st. 0 . . .
+    repeat e usize n. do
+      guard join_path dir. name_of narena. noffs. nlens. cast usize idx norder. e. . . . child. st. . else return 3 . .
+      let cp slice u8 subslice child. 0 cast usize idx st. 0 . . . .
       let lk u64 value_or files.link_type_of fs. cp. . 9 . .
       if eq lk. 3 . do
         continue .
@@ -606,7 +612,7 @@ do
         guard and lt np. 4096 . and lt np. len poffs. . . le add pused. len cp. . . len pend. . . . . else return 3 . .
         set idx poffs. np. . pused. .
         set idx plens. np. . len cp. . .
-        repeat z u64 len cp. . do
+        repeat z usize len cp. . do
           set idx pend. add pused. z. . . idx cp. z. . .
         end .
         set pused. add pused. len cp. . . .
@@ -634,7 +640,7 @@ do
       if is_text. do
         set idx doff. ndocs. . dused. .
         set idx dlen. ndocs. . len cp. . .
-        repeat z2 u64 len cp. . do
+        repeat z2 usize len cp. . do
           set idx darena. add dused. z2. . . idx cp. z2. . .
         end .
         set dused. add dused. len cp. . . .
@@ -649,7 +655,7 @@ end .
 rem ── search ────────────────────────────────────────────────────────────────
 
 rem 색인을 통째로 읽어 검사한다(매직 · 길이 · 검사합). 몸의 길이를 내고, 틀리면 0.
-proc load_index input fs cap file_system . input path slice u8 . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
+proc load_index input fs cap file_system . input path slice u8 . input buf mut slice u8 . input st mut slice u64 . output usize . effects io .
   requires ge len st. . 1 . .
 do
   set idx st. 0 . 0 .
@@ -659,7 +665,7 @@ do
     return 0 .
   end .
   var h owned files.handle ok_value opened. . .
-  let n u64 read_full fs. h. buf. st. . .
+  let n usize read_full fs. h. buf. st. . .
   let closed result void files.file_error files.close fs. h. . .
   drop closed. .
   guard ne idx st. 0 . 4 . else return 0 . .
@@ -678,55 +684,55 @@ fn index_ok input b slice u8 . output bool . do
   guard ge len b. . 40 . else return false . .
   guard same_bytes subslice b. 0 5 . "LWIDX" . else return false . .
   guard and eq idx b. 5 . 0 . and eq idx b. 6 . 0 . eq idx b. 7 . 1 . . . else return false . .
-  guard eq get_le b. 8 . len b. . . else return false . .
+  guard eq get_le b. 8 . cast u64 len b. . . . else return false . .
   return eq get_le b. 32 . fnv1a subslice b. 40 len b. . . . . .
 end .
 
 rem 색인을 훑어 문서 자리와 낱말 자리를 표로 만든다. 모양이 틀리면 거짓.
 proc map_index input b slice u8 . input dpos mut slice u64 . input tpos mut slice u64 . output bool . effects none . do
   guard ge len b. . 40 . else return false . .
-  let nd u64 get_le b. 16 . .
-  let nt u64 get_le b. 24 . .
+  let nd usize cast usize get_le b. 16 . . .
+  let nt usize cast usize get_le b. 24 . . .
   guard and le nd. len dpos. . . le nt. len tpos. . . . else return false . .
-  var p u64 40 .
-  repeat d u64 nd. do
+  var p usize 40 .
+  repeat d usize nd. do
     guard le add p. 8 . len b. . . else return false . .
     set idx dpos. d. . p. .
-    let l u64 get_le b. p. . .
+    let l usize cast usize get_le b. p. . . .
     guard le l. sub len b. . add p. 8 . . . else return false . .
     set p. add add p. 8 . l. . .
   end .
-  repeat t u64 nt. do
+  repeat t usize nt. do
     guard le add p. 8 . len b. . . else return false . .
     set idx tpos. t. . p. .
-    let l2 u64 get_le b. p. . .
+    let l2 usize cast usize get_le b. p. . . .
     guard le l2. sub len b. . add p. 8 . . . else return false . .
     set p. add add p. 8 . l2. . .
     guard le add p. 8 . len b. . . else return false . .
-    let c u64 get_le b. p. . .
+    let c usize cast usize get_le b. p. . . .
     guard le c. div sub len b. . add p. 8 . . 8 . . else return false . .
     set p. add add p. 8 . mul c. 8 . . .
   end .
   return eq p. len b. . . .
 end .
 
-fn term_at input b slice u8 . input pos u64 . output slice u8 . do
+fn term_at input b slice u8 . input pos usize . output slice u8 . do
   guard and le pos. len b. . . le 8 sub len b. . pos. . . . else return subslice b. 0 0 . . .
-  let l u64 get_le b. pos. . .
+  let l usize cast usize get_le b. pos. . . .
   guard le l. sub sub len b. . pos. . 8 . . else return subslice b. 0 0 . . .
   return subslice b. add pos. 8 . add add pos. 8 . l. . . .
 end .
 
 rem 낱말을 이분 탐색한다. 찾으면 그 낱말 자리, 없으면 18446744073709551615.
-fn find_term input b slice u8 . input tpos slice u64 . input nt u64 . input word slice u8 . output u64 .
+fn find_term input b slice u8 . input tpos slice u64 . input nt usize . input word slice u8 . output usize .
   requires le nt. len tpos. . . .
 do
-  var lo u64 0 .
-  var hi u64 nt. .
+  var lo usize 0 .
+  var hi usize nt. .
   while lt lo. hi. . do
-    let mid u64 add lo. div sub hi. lo. . 2 . . .
-    let pos u64 idx tpos. mid. . .
-    guard le add pos. 8 . len b. . . else return 18446744073709551615 . .
+    let mid usize add lo. div sub hi. lo. . 2 . . .
+    let pos usize cast usize idx tpos. mid. . . .
+    guard le add pos. 8 . len b. . . else return no_pos. . .
     let t slice u8 term_at b. pos. . .
     if same_bytes t. word. . do
       return pos. .
@@ -737,21 +743,21 @@ do
       set hi. mid. .
     end .
   end .
-  return 18446744073709551615 .
+  return no_pos. .
 end .
 
 rem 질의 낱말들을 같은 규칙으로 토큰으로 자른다(qbuf 에 이어 담고 qoff · qlen). 토큰 수를 낸다.
-proc query_tokens input words slice u8 . input qbuf mut slice u8 . input qoff mut slice u64 . input qlen mut slice u64 . input start u64 . input used0 u64 . output u64 . effects none . do
-  var n u64 start. .
-  var used u64 used0. .
+proc query_tokens input words slice u8 . input qbuf mut slice u8 . input qoff mut slice u64 . input qlen mut slice u64 . input start usize . input used0 usize . output usize . effects none . do
+  var n usize start. .
+  var used usize used0. .
   var cur u64 0 .
-  repeat i u64 add len words. . 1 . do
+  repeat i usize add len words. . 1 . do
     var c u8 0 .
     if lt i. len words. . . do
       set c. idx words. i. . .
     end .
     if and lt i. len words. . . is_token_byte c. . . do
-      guard and lt used. len qbuf. . . lt cur. max_token. . . else return n. . .
+      guard and lt used. len qbuf. . . lt cast usize cur. . max_token. . . else return n. . .
       set idx qbuf. used. . lower_ascii c. . .
       set used. add used. 1 . .
       set cur. add cur. 1 . .
@@ -786,7 +792,7 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
   let qlen mut slice u64 view_array u64 subslice m3. 74453504 74454016 . . .
   let st mut slice u64 view_array u64 subslice m3. 74454016 74454080 . . .
   let obuf2 mut slice u8 subslice m3. 74454080 74519616 . .
-  let n u64 load_index fs. index_path. ib. st. . .
+  let n usize load_index fs. index_path. ib. st. . .
   guard ne n. 0 . else do
     say out. "lowindex: cannot read a valid index: " index_path. .
     guard eq idx st. 0 . 4 . else return narrow u8 max idx st. 0 . 1 . . . .
@@ -797,46 +803,46 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
     say out. "lowindex: the index is malformed: " index_path. .
     return 1 .
   end .
-  let nd u64 get_le b. 16 . .
-  let nt u64 get_le b. 24 . .
+  let nd usize cast usize get_le b. 16 . . .
+  let nt usize cast usize get_le b. 24 . . .
   rem 질의 토큰
-  var nq u64 0 .
-  var qused u64 0 .
+  var nq usize 0 .
+  var qused usize 0 .
   var ai u64 2 .
   while true do
     let w option slice u8 args.get a. ai. . .
     guard is_some w. . else break . .
     set nq. query_tokens some_value w. . qbuf. qoff. qlen. nq. qused. . .
     if gt nq. 0 . do
-      set qused. add idx qoff. sub nq. 1 . . idx qlen. sub nq. 1 . . . .
+      set qused. cast usize add idx qoff. sub nq. 1 . . idx qlen. sub nq. 1 . . . . .
     end .
     set ai. add ai. 1 . .
   end .
   guard gt nq. 0 . else return 0 . .
   rem 첫 낱말의 문서 목록에서 시작해 다음 낱말마다 걸러 낸다(두 목록 모두 오름차순).
-  var nh u64 0 .
-  repeat qi u64 nq. do
-    let qo u64 idx qoff. qi. . .
-    let pos u64 find_term b. tpos. nt. subslice qbuf. qo. add qo. idx qlen. qi. . . . . .
-    if eq pos. 18446744073709551615 . do
+  var nh usize 0 .
+  repeat qi usize nq. do
+    let qo usize cast usize idx qoff. qi. . . .
+    let pos usize find_term b. tpos. nt. subslice qbuf. qo. add qo. cast usize idx qlen. qi. . . . . . .
+    if eq pos. no_pos. . do
       set nh. 0 .
       break .
     end .
-    let tl u64 get_le b. pos. . .
-    let cpos u64 add add pos. 8 . tl. . .
-    let c u64 get_le b. cpos. . .
-    let lp u64 add cpos. 8 . .
+    let tl usize cast usize get_le b. pos. . . .
+    let cpos usize add add pos. 8 . tl. . .
+    let c usize cast usize get_le b. cpos. . . .
+    let lp usize add cpos. 8 . .
     if eq qi. 0 . do
       guard le c. len hits. . . else return 3 . .
-      repeat k u64 c. do
+      repeat k usize c. do
         set idx hits. k. . get_le b. add lp. mul k. 8 . . . .
       end .
       set nh. c. .
       continue .
     end .
-    var held u64 0 .
-    var j u64 0 .
-    repeat k2 u64 nh. do
+    var held usize 0 .
+    var j usize 0 .
+    repeat k2 usize nh. do
       let want u64 idx hits. k2. . .
       while and lt j. c. . lt get_le b. add lp. mul j. 8 . . . want. . . do
         set j. add j. 1 . .
@@ -850,32 +856,32 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
   end .
   rem 경로순으로 낸다.
   guard and le nh. len hoff. . . le nh. len hlen. . . . else return 3 . .
-  repeat hi2 u64 nh. do
-    let d u64 idx hits. hi2. . .
+  repeat hi2 usize nh. do
+    let d usize cast usize idx hits. hi2. . . .
     guard lt d. nd. . else return 1 . .
     let dp u64 idx dpos. d. . .
     set idx hoff. hi2. . add dp. 8 . .
     set idx hlen. hi2. . get_le b. dp. . .
   end .
   sort_by_name b. hoff. hlen. horder. htmp. nh. .
-  var fill u64 0 .
-  repeat r u64 nh. do
-    let hix u64 idx horder. r. . .
-    let pl u64 idx hlen. hix. . .
+  var fill usize 0 .
+  repeat r usize nh. do
+    let hix usize cast usize idx horder. r. . . .
+    let pl usize cast usize idx hlen. hix. . . .
     let po u64 idx hoff. hix. . .
     if gt add add fill. pl. . 1 . len obuf2. . . do
-      let wf option u64 outbuf.write_all out. 1 subslice obuf2. 0 fill. . . .
+      let wf option usize outbuf.write_all out. 1 subslice obuf2. 0 fill. . . .
       guard is_some wf. . else return 4 . .
       set fill. 0 .
     end .
     guard le add add fill. pl. . 1 . len obuf2. . . else return 3 . .
-    repeat c3 u64 pl. do
+    repeat c3 usize pl. do
       set idx obuf2. add fill. c3. . . idx b. add po. c3. . . .
     end .
     set idx obuf2. add fill. pl. . . '\n' .
     set fill. add add fill. pl. . 1 . .
   end .
-  let wl option u64 outbuf.write_all out. 1 subslice obuf2. 0 fill. . . .
+  let wl option usize outbuf.write_all out. 1 subslice obuf2. 0 fill. . . .
   guard is_some wl. . else return 4 . .
   return 0 .
 end .
@@ -892,7 +898,7 @@ do
   let a1 option slice u8 args.get a. 1 . .
   let a2 option slice u8 args.get a. 2 . .
   guard and is_some a0. . and is_some a1. . is_some a2. . . . else do
-    let w0 option u64 outbuf.write_all out. 2 usage_text. . .
+    let w0 option usize outbuf.write_all out. 2 usage_text. . .
     return 2 .
   end .
   let cmd slice u8 some_value a0. . .
@@ -910,7 +916,7 @@ do
       return narrow u8 min rc. 255 . . .
     end .
     rem 색인 쓰기용 자리는 따로 받는다(걷기 자리를 읽으며 쓰므로 겹치면 안 된다).
-    let ndocs u64 idx tb. 7 . .
+    let ndocs usize cast usize idx tb. 7 . . .
     let got2 option mut slice u8 alloc_bytes hp. capacity 51384384 . .
     guard is_some got2. . else return 70 . .
     let w2 mut slice u8 some_value got2. . .
@@ -923,7 +929,7 @@ do
     let tmpname mut slice u8 subslice w2. 51380224 51384320 . .
     let st0 mut slice u64 view_array u64 subslice w2. 51384320 51384384 . . .
     guard join_path index_path. "" tmpname. st0. . else return 3 . .
-    let il u64 idx st0. 0 . .
+    let il usize cast usize idx st0. 0 . . .
     guard le add il. 4 . len tmpname. . . else return 3 . .
     set idx tmpname. sub il. 1 . . '.' .
     set idx tmpname. il. . 't' .
@@ -951,7 +957,7 @@ do
     return 0 .
   end .
   guard same_bytes cmd. "search" . else do
-    let w1 option u64 outbuf.write_all out. 2 usage_text. . .
+    let w1 option usize outbuf.write_all out. 2 usage_text. . .
     return 2 .
   end .
   return do_search fs. out. a. hp. index_path. . .

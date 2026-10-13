@@ -24,12 +24,12 @@ fn is_flag input s slice u8 . output bool . do
 end .
 
 proc main input a cap args . output u8 . effects none . do
-  let n u64 count a. . .
+  let n usize count a. . .
   var flags u64 0 .
   var plain u64 0 .
-  var firstlen u64 0 .
+  var firstlen usize 0 .
   var seen bool false .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. n. . do
     let cur option slice u8 call_builtin arg a. i. . .
     guard is_some cur. . else return 250 . .        rem i < n 인데 none 이면 count 가 거짓말이다
@@ -50,5 +50,5 @@ proc main input a cap args . output u8 . effects none . do
   let past option slice u8 call_builtin arg a. n. . .
   guard eq is_some past. . false . else return 251 . .
   rem 답: flags*100 + plain*10 + firstlen  (u8 로 좁힌다 — 종료 코드는 1 바이트다)
-  return narrow u8 add add mul flags. 100 . mul plain. 10 . . firstlen. . . .
+  return narrow u8 add add mul flags. 100 . mul plain. 10 . . cast u64 firstlen. . . . .
 end .

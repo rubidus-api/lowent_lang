@@ -56,10 +56,10 @@ than the minimum code point each length can hold (at least 128 for 2 bytes, 2048
   caption: [Ops of `utf8` --- all `fn` · `effects none`],
   [*op*], [*Signature*], [*When it cannot*],
   [`is_cont`], [`(b u8) → bool`], [never fails],
-  [`seq_len`], [`(b u8) → u64`], [`0` if not a lead byte],
-  [`decode`], [`(s slice u8, at u64) → option u64`], [`none` if invalid, truncated or out of range],
-  [`next_start`], [`(s slice u8, at u64) → option u64`], [`none` if invalid, truncated or at the end],
-  [`count_chars`], [`(s slice u8) → option u64`], [`none` if any byte is invalid],
+  [`seq_len`], [`(b u8) → usize`], [`0` if not a lead byte],
+  [`decode`], [`(s slice u8, at usize) → option u64`], [`none` if invalid, truncated or out of range],
+  [`next_start`], [`(s slice u8, at usize) → option usize`], [`none` if invalid, truncated or at the end],
+  [`count_chars`], [`(s slice u8) → option usize`], [`none` if any byte is invalid],
   [`is_valid`], [`(s slice u8) → bool`], [never fails],
 )
 
@@ -104,20 +104,20 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 128 . .
   guard is_some g. . else return 70 . .
   let buf mut slice u8 some_value g. . .
-  var pos u64 0 .
+  var pos usize 0 .
 
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     let c option u64 utf8.decode s. i. . .
     guard is_some c. . else return 66 . .
-    let a option u64 fmt.put_str buf. pos. "U+" . .
+    let a option usize fmt.put_str buf. pos. "U+" . .
     guard is_some a. . else return 71 . .
-    let b option u64 fmt.put_hex buf. some_value a. . some_value c. . . .
+    let b option usize fmt.put_hex buf. some_value a. . some_value c. . . .
     guard is_some b. . else return 72 . .
-    let d option u64 fmt.put_nl buf. some_value b. . . .
+    let d option usize fmt.put_nl buf. some_value b. . . .
     guard is_some d. . else return 73 . .
     set pos. some_value d. . .
-    let nx option u64 utf8.next_start s. i. . .
+    let nx option usize utf8.next_start s. i. . .
     guard is_some nx. . else return 67 . .
     set i. some_value nx. . .
   end .

@@ -156,29 +156,29 @@ rem   **조용히 무시한다**(등재: `docs/known-defects/compound-requires-i
 rem   그러면 «믿는데 아무도 강제하지 않는» 계약이 된다(정전 교훈 1). 그래서 안 적는다.
 
 rem 이 배열이 몇 자리인가.
-export fn wide_bits input s slice u8 . output u64 . do return mul len s. . 8 . . end .
+export fn wide_bits input s slice u8 . output usize . do return mul len s. . 8 . . end .
 
 rem 그 자리가 섰나. 범위 밖이면 **거짓**이다(없는 자리는 서 있지 않다).
-export fn wide_has input s slice u8 . input n u64 . output bool . do
+export fn wide_has input s slice u8 . input n usize . output bool . do
   guard lt div n. 8 . len s. . . else return false . .
   return ne bit_and idx s. div n. 8 . . shl 1 mod n. 8 . . . 0 . .
 end .
 
 rem 켜기 · 끄기 · 뒤집기 — 부르는 쪽의 배열을 **제자리에서** 고친다.
 rem 답은 1(했다) 또는 0(범위 밖이라 아무것도 안 했다)이다.
-export proc wide_with input s mut slice u8 . input n u64 . output u64 . effects none . do
+export proc wide_with input s mut slice u8 . input n usize . output u64 . effects none . do
   guard lt div n. 8 . len s. . . else return 0 . .
   set idx s. div n. 8 . . bit_or idx s. div n. 8 . . narrow u8 shl 1 mod n. 8 . . . . .
   return 1 .
 end .
 
-export proc wide_without input s mut slice u8 . input n u64 . output u64 . effects none . do
+export proc wide_without input s mut slice u8 . input n usize . output u64 . effects none . do
   guard lt div n. 8 . len s. . . else return 0 . .
   set idx s. div n. 8 . . bit_and idx s. div n. 8 . . narrow u8 bit_xor 255 shl 1 mod n. 8 . . . . . .
   return 1 .
 end .
 
-export proc wide_toggle input s mut slice u8 . input n u64 . output u64 . effects none . do
+export proc wide_toggle input s mut slice u8 . input n usize . output u64 . effects none . do
   guard lt div n. 8 . len s. . . else return 0 . .
   set idx s. div n. 8 . . bit_xor idx s. div n. 8 . . narrow u8 shl 1 mod n. 8 . . . . .
   return 1 .
@@ -187,7 +187,7 @@ end .
 rem 몇 자리가 섰나.
 export fn wide_ones input s slice u8 . output u64 . do
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     set acc. add acc. count_ones widen u64 idx s. i. . . . . .
     set i. add i. 1 . .
@@ -202,9 +202,9 @@ rem       var i be u64 flags.wide_next s 0 .
 rem       while lt i (flags.wide_bits s) . do  …  set i (flags.wide_next s (add i 1)) . end .
 rem
 rem   빈 바이트는 통째로 건너뛴다 — 0 인 바이트에서 여덟 번 묻지 않는다.
-export fn wide_next input s slice u8 . input from u64 . output u64 . do
-  let bits u64 mul len s. . 8 . .
-  var i u64 from. .
+export fn wide_next input s slice u8 . input from usize . output usize . do
+  let bits usize mul len s. . 8 . .
+  var i usize from. .
   while lt i. bits. . do
     let b u64 widen u64 idx s. div i. 8 . . . .
     if eq b. 0 . do
@@ -236,8 +236,8 @@ rem   없다), 자리 번호가 곧 순서다. 없는 자리를 물으면 **빈 
 rem n 번 자리의 이름. 표에 없으면 빈 조각.
 export fn label_in input tab slice u8 . input n u64 . output slice u8 . do
   var i u64 0 .          rem 지금 보는 자리
-  var st u64 0 .         rem 지금 이름의 시작
-  var k u64 0 .
+  var st usize 0 .         rem 지금 이름의 시작
+  var k usize 0 .
   while lt k. len tab. . . do
     if eq idx tab. k. . 0 . do
       if eq i. n. . do return subslice tab. st. k. . . end .          rem subslice 는 (시작, 끝) 이다 — 길이가 아니다
@@ -252,7 +252,7 @@ end .
 rem 표에 이름이 몇 개 있나 (설정 화면이 «전부 훑기» 를 할 때 쓴다).
 export fn label_count input tab slice u8 . output u64 . do
   var c u64 0 .
-  var k u64 0 .
+  var k usize 0 .
   while lt k. len tab. . . do
     if eq idx tab. k. . 0 . do set c. add c. 1 . . end .
     set k. add k. 1 . .

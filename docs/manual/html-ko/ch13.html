@@ -823,7 +823,7 @@ $ lowentc --run grow tiny.low 1023
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> h <strong><span class="tok-k">lit</span></strong> wire_header <strong><span class="tok-k">do</span></strong> magic <span class="tok-n">1</span> . length <span class="tok-n">2</span> . kind k. . <strong><span class="tok-k">end</span></strong> . .
   <strong><span class="tok-k">let</span></strong> bytes <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> encode wire_header h. . .
-  <strong><span class="tok-k">return</span></strong> add mul len bytes. . <span class="tok-n">1000</span> . widen <strong><span class="tok-t">u64</span></strong> idx bytes. <span class="tok-n">6</span> . . . .
+  <strong><span class="tok-k">return</span></strong> add mul cast <strong><span class="tok-t">u64</span></strong> len bytes. . . <span class="tok-n">1000</span> . widen <strong><span class="tok-t">u64</span></strong> idx bytes. <span class="tok-n">6</span> . . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run header_bytes encoded.low 9
 header_bytes(9) = 7009
@@ -859,7 +859,7 @@ kind_or_zero([1,2,3]) = 0
 <em><span class="tok-c">rem run: flipped</span></em>
 
 <em><span class="tok-c">rem 0 … 63 가운데 들어 있는 수의 모음 --- 워드의 비트가 아니라 집합이다</span></em>
-<strong><span class="tok-k">fn</span></strong> overlap <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> overlap <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n. <span class="tok-n">60</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> a bitset <span class="tok-n">64</span> bitset_new <span class="tok-n">64</span> . .
@@ -873,14 +873,14 @@ kind_or_zero([1,2,3]) = 0
   <strong><span class="tok-k">let</span></strong> only_a bitset <span class="tok-n">64</span> bitset_difference a. b. . .
   <em><span class="tok-c">rem 집합에서 1 을 지운다 --- 제자리에서 바뀐다</span></em>
   bitset_remove a. <span class="tok-n">1</span> .
-  <strong><span class="tok-k">var</span></strong> code <strong><span class="tok-t">u64</span></strong> add mul count both. . <span class="tok-n">100</span> . mul count only_a. . <span class="tok-n">10</span> . . .
+  <strong><span class="tok-k">var</span></strong> code <strong><span class="tok-t">usize</span></strong> add mul count both. . <span class="tok-n">100</span> . mul count only_a. . <span class="tok-n">10</span> . . .
   <strong><span class="tok-k">if</span></strong> bitset_is_subset both. a. . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code. add code. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">if</span></strong> bitset_is_empty only_a. . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code. add code. <span class="tok-n">1000</span> . . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> code. .
 <strong><span class="tok-k">end</span></strong> .
 
 <em><span class="tok-c">rem 여집합은 폭 안에서만 뜻이 있다 --- 여덟 칸 가운데 하나를 넣었으면 나머지 일곱</span></em>
-<strong><span class="tok-k">fn</span></strong> flipped <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> flipped <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> a bitset <span class="tok-n">8</span> bitset_new <span class="tok-n">8</span> . .
   bitset_insert a. <span class="tok-n">0</span> .
@@ -1004,7 +1004,7 @@ mistake_widensign.low:7:0 E-WIDEN-SIGN: a signed integer cannot widen into an un
   <strong><span class="tok-k">return</span></strong> idx b. <span class="tok-n">0</span> . .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">input</span></strong> p packet . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">input</span></strong> p packet . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> len field p. body . . .
 <strong><span class="tok-k">end</span></strong> .

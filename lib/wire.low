@@ -156,9 +156,9 @@ rem   그것이 런타임 표에서 «항등은 공짜» 를 얻는 유일하게
 rem   루프를 접을 수 없다).
 
 export fn is_identity input tab slice u8 . output bool . do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len tab. . . do
-    if ne widen u64 idx tab. i. . . i. . do return false . end .
+    if ne cast usize widen u64 idx tab. i. . . . i. . do return false . end .
     set i. add i. 1 . .
   end .
   return true .
@@ -166,7 +166,7 @@ end .
 
 export fn permute input v u64 . input tab slice u8 . output u64 . do
   var r u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len tab. . . do
     if ne bit_and v. shl 1 i. . . 0 . do
       let dst u64 widen u64 idx tab. i. . . .    rem 이름이 `to` 가 아닌 까닭: `to` 는 **없앤 낱말**이다

@@ -26,8 +26,8 @@ let i option u64 searchlib.bsearch s. 42 . .
   id: "mod-searchlib-ops",
   caption: [`searchlib` 의 op --- 모두 `fn` · `effects none`],
   [*op*], [*모양*], [*답*],
-  [`bsearch`], [`(s slice u64, target u64) → option u64`], [`target` 의 인덱스, 없으면 `none`. 중복이면 그중 *하나*(어느 것인지 규정하지 않는다)],
-  [`lower_bound`], [`(s slice u64, target u64) → u64`], [`target` 이상인 첫 인덱스. 모두 작으면 `len s. .`],
+  [`bsearch`], [`(s slice u64, target u64) → option usize`], [`target` 의 인덱스, 없으면 `none`. 중복이면 그중 *하나*(어느 것인지 규정하지 않는다)],
+  [`lower_bound`], [`(s slice u64, target u64) → usize`], [`target` 이상인 첫 인덱스. 모두 작으면 `len s. .`],
 )
 
 고르는 법 --- "있나 없나, 있으면 어디" 는 `bsearch`, "여기 끼우면 어디" 또는 "이 값 이상이 어디부터" 는 `lower_bound` 다. `lower_bound` 는 *삽입점*이자 *범위의

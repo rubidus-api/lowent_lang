@@ -76,15 +76,15 @@ do
   let line option mut slice u8 alloc_bytes al. capacity 64 . .
   guard is_some line. . else return 71 . .
   let ob mut slice u8 some_value line. . .
-  let p1 option u64 fmt.put_u64 ob. 0 lines. . .
+  let p1 option usize fmt.put_u64 ob. 0 lines. . .
   guard is_some p1. . else return 72 . .
-  let p2 option u64 fmt.put_str ob. some_value p1. . " lines, " . .
+  let p2 option usize fmt.put_str ob. some_value p1. . " lines, " . .
   guard is_some p2. . else return 73 . .
-  let p3 option u64 fmt.put_u64 ob. some_value p2. . ok_value n. . . .
+  let p3 option usize fmt.put_u64 ob. some_value p2. . ok_value n. . . .
   guard is_some p3. . else return 74 . .
-  let p4 option u64 fmt.put_str ob. some_value p3. . " bytes" . .
+  let p4 option usize fmt.put_str ob. some_value p3. . " bytes" . .
   guard is_some p4. . else return 75 . .
-  let p5 option u64 fmt.put_nl ob. some_value p4. . . .
+  let p5 option usize fmt.put_nl ob. some_value p4. . . .
   guard is_some p5. . else return 76 . .
 
   let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value p5. . . . .

@@ -13,7 +13,7 @@ rem     낮춘다 ⇒ 지금 넣으면 두 백엔드가 갈린다. 폭을 하강
 
 module vm_set .
 
-fn ops output u64 . do
+fn ops output usize . do
   var a bitset 8 bitset_new 8 . .
   bitset_insert a. 1 .
   bitset_insert a. 2 .
@@ -43,7 +43,7 @@ fn subs output u64 . do
 end .
 
 rem ★ remove 는 제자리 변이다 — 원소 둘에서 하나를 빼면 count 는 1 이다.
-fn rem1 output u64 . do
+fn rem1 output usize . do
   var a bitset 8 bitset_new 8 . .
   bitset_insert a. 1 .
   bitset_insert a. 2 .
@@ -58,7 +58,7 @@ rem   ⇒ **폭을 하강 시점에 immediate 로 박는다**(바인딩 타입 `
 rem     백엔드가 **같은 마스크**를 쓴다. 폭을 알 수 없는 자리에서는 **거절한다**(E-IR-UNSUP) —
 rem     추측해서 64 로 두면 조용히 틀린 답이 나오고, 그것이 이 프로젝트가 가장 싫어하는 것이다.
 
-fn comp output u64 . do
+fn comp output usize . do
   var a bitset 8 bitset_new 8 . .
   bitset_insert a. 1 .
   bitset_insert a. 2 .

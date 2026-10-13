@@ -64,11 +64,12 @@ proc main input t cap tty . input al cap allocator . output u8 . effects alloc .
       set going. false .
       continue .
     end .
-    var off u64 0 .
-    while lt off. some_value n. . . do
-      let p option u64 tty.parse_key subslice buf. 0 some_value n. . . off. . .
+    let got usize cast usize some_value n. . . .
+    var off usize 0 .
+    while lt off. got. . do
+      let p option u64 tty.parse_key subslice buf. 0 got. . off. . .
       guard is_some p. . else do
-        set off. some_value n. . .
+        set off. got. .
         continue .
       end .
       let code u64 tty.key_of some_value p. . . .

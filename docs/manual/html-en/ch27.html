@@ -668,10 +668,10 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <em><span class="tok-c">rem run: double_all [1,2,3,4,5,6]</span></em>
 <em><span class="tok-c">rem run: total [1,2,3,4,5,6]</span></em>
 
-<strong><span class="tok-k">proc</span></strong> double_all <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> double_all <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> idx s. i. . wrap_mul idx s. i. . <span class="tok-n">2</span> . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -684,7 +684,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">reduce</span></strong> acc add .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc. add acc. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -707,10 +707,10 @@ total([1,2,3,4,5,6]) = 21
    piece C: acc_C = 8+9+10+11    = 38 ─┘</code></pre><p><code>add</code> gives the same answer however it is grouped (it is associative), so any split matches the sequential result. Floating-point addition is not, so it cannot be split with <code>reduce</code> (see “The combining operation must be associative” below).</p><p>When the processor confirms such a declaration, it reports <code>W-PAR-OK</code>, and that note contains something important: the VM still runs sequentially. That is <strong>a correct implementation</strong> because a theorem is proven that, under the splittable conditions, the parallel result is bit-for-bit identical to the sequential result (chapter 45). Native code really does split into pieces and run them on several threads. The two back ends agreeing is a measurement of that theorem.</p><h3 id="s27-2">27.2 The three conditions the processor checks<a class="plink" href="#s27-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Condition</strong></th><th><strong>When broken</strong></th><th><strong>What goes wrong</strong></th></tr><tr><td>Read only your own share</td><td><code>E-PAR-READ</code></td><td>Reading another’s place makes old-or-new depend on who runs first</td></tr><tr><td>Write only your own share</td><td><code>E-PAR-WRITE</code></td><td>Two steps writing the same place leave a value that depends on order</td></tr><tr><td>Do not write places that live across steps</td><td><code>E-PAR-CARRY</code></td><td>Such places tie steps together; to gather, state it with <code>reduce</code></td></tr></table></div><p class="float-caption">Table 27.1 — Conditions for a loop that may be split</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/par_read.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> par_read .
 <em><span class="tok-c">rem expect: E-PAR-READ</span></em>
 
-<strong><span class="tok-k">proc</span></strong> relative <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> relative <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> idx s. i. . wrap_sub idx s. i. . idx s. <span class="tok-n">0</span> . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -726,7 +726,7 @@ par_read.low:9:0 E-PAR-READ: a splittable loop may only read its OWN element of 
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc. add acc. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -743,7 +743,7 @@ par_carry.low:10:0 E-PAR-CARRY: a splittable loop may not write a local that liv
   <strong><span class="tok-k">reduce</span></strong> acc sub .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1000</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc. sub acc. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -761,7 +761,7 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
   <strong><span class="tok-k">effects</span></strong> atomic .
   <strong><span class="tok-k">parallel</span></strong> data split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len data. . . <strong><span class="tok-k">do</span></strong>
     atomic_add counter. <span class="tok-n">0</span> <span class="tok-n">1</span> .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -967,7 +967,7 @@ peek([9,8,7]) = 9
 <strong><span class="tok-k">proc</span></strong> count_par <strong><span class="tok-k">input</span></strong> data <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> counter <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> data split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len data. . . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ every piece reads, adds to and writes the same place `index counter 0`</span></em>
     <strong><span class="tok-k">set</span></strong> idx counter. <span class="tok-n">0</span> . wrap_add idx counter. <span class="tok-n">0</span> . <span class="tok-n">1</span> . .
@@ -986,7 +986,7 @@ mistake_sharedwrite.low:10:0 E-PAR-WRITE: a splittable loop may only write its O
   <strong><span class="tok-k">reduce</span></strong> acc add .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">f64</span></strong> <span class="tok-n">0.0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc. add acc. idx s. i. . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -1006,7 +1006,7 @@ mistake_floatreduce.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditio
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ the accumulator starts at 100 --- once split, every piece starts at 100</span></em>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <span class="tok-n">100</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc. add acc. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
@@ -1019,10 +1019,10 @@ mistake_reduceinit.low:4:0 W-PAR-OK: this loop satisfies the Bernstein condition
 </code></pre></div></div><p>Run sequentially, <code>total [1,2,3,4,5,6]</code> is 100 + 21 = 121. Split, <strong>each piece</strong> starts <code>acc</code> at 100, and six pieces of native code gave 621 — the promise that a split answer equals the sequential one breaks there. So it is refused with <code>E-PAR-IDENTITY</code> (until 2026-09-16 it passed with <code>W-PAR-OK</code>). The starting value of a <code>reduce</code> must be the <strong>identity</strong> of the gathering operation — 0 for <code>add</code>, <code>bit_or</code> and <code>bit_xor</code>, 1 for <code>mul</code>, 0 for <code>max</code> on an unsigned width. If there is a value to add, add it to the result outside the loop.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing the loop to split in a different shape</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/mistake_noloop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noloop .
 <em><span class="tok-c">rem expect: E-PAR-NOLOOP</span></em>
 
-<strong><span class="tok-k">proc</span></strong> smooth <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">proc</span></strong> smooth <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ a loop to split must have the shape `while lt i (len s)` --- and this one reads a neighbouring element too</span></em>
   <strong><span class="tok-k">while</span></strong> lt add i. <span class="tok-n">1</span> . len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> idx s. i. . div wrap_add idx s. i. . idx s. add i. <span class="tok-n">1</span> . . . <span class="tok-n">2</span> . .
@@ -1053,7 +1053,7 @@ mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORM
   <strong><span class="tok-k">reduce</span></strong> best max .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> best <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len s. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> best. max best. widen <strong><span class="tok-t">u64</span></strong> idx s. i. . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .

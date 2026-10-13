@@ -42,7 +42,7 @@ Every `fn` is `effects none`, and the actor's two `proc`s are `effects state`. C
   [*op*], [*Signature*], [*When it cannot*],
   [`eq_str`], [`(a slice u8, b slice u8) → bool`], [`false` if different],
   [`has_byte`], [`(s slice u8, b u8) → bool`], [`false` if absent],
-  [`find`], [`(hay slice u8, needle slice u8, from u64) → option u64`], [`none` if not found or `from > len hay`],
+  [`find`], [`(hay slice u8, needle slice u8, from usize) → option usize`], [`none` if not found or `from > len hay`],
   [`has`], [`(hay slice u8, needle slice u8) → bool`], [---],
   [`starts_with`], [`(s slice u8, prefix slice u8) → bool`], [---],
   [`ends_with`], [`(s slice u8, suffix slice u8) → bool`], [---],
@@ -50,7 +50,7 @@ Every `fn` is `effects none`, and the actor's two `proc`s are `effects state`. C
   [`remove_suffix`], [`(s slice u8, suffix slice u8) → slice u8`], [The original as is if no suffix],
   [`trim_start`], [`(s slice u8, cut slice u8) → slice u8`], [An empty view if everything is cut],
   [`trim_end`], [`(s slice u8, cut slice u8) → slice u8`], [An empty view if everything is cut],
-  [`split_next`], [`(src slice u8, sep u8, pos u64) → option slice u8`], [`none` if `pos > len src`],
+  [`split_next`], [`(src slice u8, sep u8, pos usize) → option slice u8`], [`none` if `pos > len src`],
   [`str_splitter`], [actor: `init(s2 slice u8, b u8) → u64` · `next → option slice u8`], [`next` is `none` after exhaustion],
 )
 
@@ -102,15 +102,15 @@ module demo .
 
 use strings .
 
-fn t_find output u64 . do
-  let r option u64 strings.find "hello world" "world" 0 . .
+fn t_find output usize . do
+  let r option usize strings.find "hello world" "world" 0 . .
   guard is_some r. . else return 99 . .
   return some_value r. . .
 end .
 
 fn t_split output u64 . do
   rem "aa,b,,cc" split on ',' (byte 44): "aa", "b", "", "cc" --- four pieces
-  var pos u64 0 .
+  var pos usize 0 .
   var pieces u64 0 .
   var r option slice u8 strings.split_next "aa,b,,cc" 44 pos. . .
   while is_some r. . do
@@ -162,7 +162,7 @@ loop just pulls to the end, the actor version is shorter.
 
 #antipattern[Using an `option` as a value][
   ```lowent
-  let r option u64 strings.find "abc" "zz" 0 . .
+  let r option usize strings.find "abc" "zz" 0 . .
   return some_value r. . .                         rem ✗ no none check
   ```
   It translates, and stops at run time with `E-VM-NONE` the moment nothing is found. Testing only with inputs that are found never reveals it. `guard is_some r else …` comes first (#chref("option-result")).

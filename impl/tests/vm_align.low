@@ -7,7 +7,7 @@ struct reg do
   stat u16 .
 end .
 
-fn reg_size output u64 . do return len encode reg mk. . . . end .
+fn reg_size output usize . do return len encode reg mk. . . . end .
 
 fn mk output reg . do
   return lit reg do ctrl 7 . stat 2 . end . .

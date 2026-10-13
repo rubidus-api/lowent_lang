@@ -57,14 +57,14 @@ struct pset do
 end .
 
 rem ★ n 을 **가장 짧은 배열에 맞춰 줄인다** — 받아들인 입력은 전부 다룬다.
-fn step_bundled input p pset . input n u64 . output u64 .
+fn step_bundled input p pset . input n usize . output usize .
 do
   let xs mut slice u64 field p. xs . .
   let vxs slice u64 field p. vxs . .
-  var m u64 n. .
+  var m usize n. .
   if gt m. len xs. . . do set m. len xs. . . end .
   if gt m. len vxs. . . do set m. len vxs. . . end .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. m. . do
     set idx xs. i. . add idx xs. i. . idx vxs. i. . . .
     set i. add i. 1 . .
@@ -81,7 +81,7 @@ do
   set idx a. 0 . 1 .
   set idx c. 0 . 10 .
   let p lit pset do xs a. . ys b. . vxs c. . vys d. . end . .
-  let m u64 step_bundled p. 1 . .
+  let m usize step_bundled p. 1 . .
   guard eq m. 1 . else return 90 . .
   return idx a. 0 . .                                       rem 1 + 10 = 11
 end .

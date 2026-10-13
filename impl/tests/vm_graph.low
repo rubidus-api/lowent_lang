@@ -22,13 +22,13 @@ fn children_of
   input node u64 .
   output slice u8 .
 do
-  var at u64 1 .
+  var at usize 1 .
   var i u64 0 .
   while lt i. node. . do
-    set at. expr at. + (idx g. at. .) + 1 . .
+    set at. expr at. + (cast usize idx g. at. . .) + 1 . .
     set i. expr i. + 1 . .
   end .
-  return subslice g. add at. 1 . add add at. 1 . idx g. at. . . . .
+  return subslice g. add at. 1 . add add at. 1 . cast usize idx g. at. . . . . .
 end .
 
 proc graph_reachable
@@ -59,7 +59,7 @@ proc reach
   input temp region frame . rem ★ 할당 권한 — region 은 arena allocator 다(D7)
   input root u64 .
   input g slice u8 .
-  output u64 .
+  output usize .
   effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
 do
   var out bitset bitset_new 64 . .

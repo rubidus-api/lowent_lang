@@ -838,7 +838,7 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 
 <strong><span class="tok-k">fn</span></strong> eval <strong><span class="tok-k">input</span></strong> nodes <strong><span class="tok-k">slice</span></strong> node . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n node idx nodes. i. . .
+  <strong><span class="tok-k">let</span></strong> n node idx nodes. cast <strong><span class="tok-t">usize</span></strong> i. . . .
   <strong><span class="tok-k">match</span></strong> n. <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> num v <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v. . <strong><span class="tok-k">end</span></strong> .
     <strong><span class="tok-k">case</span></strong> add l r <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add eval nodes. l. . eval nodes. r. . . . <strong><span class="tok-k">end</span></strong> .

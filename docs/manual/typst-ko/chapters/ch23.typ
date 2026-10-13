@@ -158,7 +158,7 @@ op 에 들어올 수 있다.
 
 ```lowent
 export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
+  reserve input s self . input n usize . output option mut slice u8 . effects state via self .
   grow input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used input s self . output u64 . effects state .
 end .

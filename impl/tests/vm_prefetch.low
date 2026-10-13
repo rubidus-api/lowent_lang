@@ -20,7 +20,7 @@ use allocs .
 
 rem 힌트를 **주고** 훑는다.
 export proc walk_hinted input xs slice u64 . output u64 . effects none . do
-  var i u64 0 .
+  var i usize 0 .
   var s u64 0 .
   while lt i. len xs. . . do
     prefetch xs. add i. 8 . .
@@ -32,7 +32,7 @@ end .
 
 rem 힌트 **없이** 훑는다 — 답이 같아야 한다.
 export proc walk_plain input xs slice u64 . output u64 . effects none . do
-  var i u64 0 .
+  var i usize 0 .
   var s u64 0 .
   while lt i. len xs. . . do
     set s. add s. idx xs. i. . . .
@@ -47,7 +47,7 @@ proc same input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 alloc_bytes al. capacity 64 . .
   guard is_some mb. . else return 89 . .
   var xs mut slice u64 view_array u64 some_value mb. . . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len xs. . . do
     set idx xs. i. . add i. 1 . .
     set i. add i. 1 . .

@@ -48,7 +48,7 @@ fn mix input x u64 . output u64 . do
 end .
 
 rem 슬롯 수 = flags 의 길이. **2의 거듭제곱**이라 `mod` 대신 마스크를 쓴다.
-export proc slots_of input comptime k type . input comptime v type . input m (table k v) . output u64 . effects none . do
+export proc slots_of input comptime k type . input comptime v type . input m (table k v) . output usize . effects none . do
   return len field m. flags . . .
 end .
 
@@ -69,8 +69,8 @@ rem ★★ **상태 배열은 우리가 0 으로 깐다** (2026-09-04 보안 검
 rem   않는다 — 다시 `init` 한 범프 · 정적 버퍼 · 스택은 옛 바이트를 그대로 준다. 그 위에서는 빈 맵이
 rem   **옛 쌍을 되살리고**(count 0 인데 lookup 이 some), 전부 1 인 자리에서는 `insert` 가 빈 맵에 false
 rem   를 내고 `regrow` 의 자리 찾기가 **영영 돈다**. 키·값 배열은 상태가 0 인 칸에서 안 읽으므로 안 깐다.
-proc clear input f mut slice u8 . output u64 . effects none . do
-  var i u64 0 .
+proc clear input f mut slice u8 . output usize . effects none . do
+  var i usize 0 .
   while lt i. len f. . . do
     set idx f. i. . 0 .
     set i. add i. 1 . .
@@ -96,7 +96,7 @@ export proc open input comptime k type . input comptime v type . use al allocs.b
   let fb option mut slice u8 send al. reserve s. . .
   guard is_some fb. . else return none . .
   var f0 mut slice u8 some_value fb. . .
-  let z u64 clear f0. . .
+  let z usize clear f0. . .
   return some lit (table k v) do
     al al. .
     keys some_value kb. . .
@@ -109,14 +109,14 @@ end .
 rem ★ 키가 있는 칸을 찾는다. 있으면 그 자리, 없으면 **넣을 수 있는 첫 자리**를 준다.
 rem   반환 = 자리 * 2 + (있으면 1) — 한 값에 둘을 담는다(튜플이 없다).
 rem   ★ 무덤(2)은 **넣을 자리로는 쓰되 탐침은 멈추지 않는다**: 멈추면 그 뒤에 있는 키를 못 찾는다.
-proc probe input comptime k type . input comptime v type . input m (table k v) . input key k . output u64 . effects none . do
+proc probe input comptime k type . input comptime v type . input m (table k v) . input key k . output usize . effects none . do
   var kc mut slice u8 field m. keys . .
   var fc mut slice u8 field m. flags . .
   var kcells mut slice k view_array k kc. . .
-  let mask u64 sub len fc. . 1 . .
-  var i u64 bit_and mix widen u64 key. . . mask. . .
-  var first u64 len fc. . .
-  var steps u64 0 .
+  let mask usize sub len fc. . 1 . .
+  var i usize cast usize bit_and mix widen u64 key. . . cast u64 mask. . . . .
+  var first usize len fc. . .
+  var steps usize 0 .
   while lt steps. len fc. . . do
     let f u8 idx fc. i. . .
     if eq f. 0 . do
@@ -137,7 +137,7 @@ end .
 
 rem ★ 값을 찾는다. 없으면 none — **값으로 답한다**.
 export proc lookup input comptime k type . input comptime v type . input m (table k v) . input key k . output option v . effects none . do
-  let p u64 probe k. v. m. key. . .
+  let p usize probe k. v. m. key. . .
   guard eq mod p. 2 . 1 . else return none . .
   var vc mut slice u8 field m. vals . .
   var vcells mut slice v view_array v vc. . .
@@ -150,7 +150,7 @@ end .
 
 rem 지금 저장소에 그대로 다시 뿌린다(같은 크기의 새 자리로). 자리를 못 받으면 false.
 proc regrow input comptime k type . input comptime v type . input m mut (table k v) . output bool . effects state . do
-  let s2 u64 mul len field m. flags . . 2 . .
+  let s2 usize mul len field m. flags . . 2 . .
   let kb option mut slice u8 send field m. al . reserve mul s2. size_of k . . . .
   guard is_some kb. . else return false . .
   let vb option mut slice u8 send field m. al . reserve mul s2. size_of v . . . .
@@ -160,7 +160,7 @@ proc regrow input comptime k type . input comptime v type . input m mut (table k
   var nk mut slice u8 some_value kb. . .
   var nv mut slice u8 some_value vb. . .
   var nf mut slice u8 some_value fb. . .
-  let z u64 clear nf. . .                        rem ★ 새 상태 배열도 0 으로 — 얼로케이터는 약속 안 한다
+  let z usize clear nf. . .                        rem ★ 새 상태 배열도 0 으로 — 얼로케이터는 약속 안 한다
   var pk mut slice u8 field m. keys . .
   var pv mut slice u8 field m. vals . .
   var pf mut slice u8 field m. flags . .
@@ -168,14 +168,14 @@ proc regrow input comptime k type . input comptime v type . input m mut (table k
   var ovc mut slice v view_array v pv. . .
   var nkc mut slice k view_array k nk. . .
   var nvc mut slice v view_array v nv. . .
-  let mask u64 sub s2. 1 . .
-  var i u64 0 .
+  let mask usize sub s2. 1 . .
+  var i usize 0 .
   while lt i. len pf. . . do
     if eq idx pf. i. . 1 . do
       rem 새 표에 다시 뿌린다 — 새 표에는 무덤이 없으므로 빈칸만 찾으면 된다.
-      var j u64 bit_and mix widen u64 idx okc. i. . . . mask. . .
+      var j usize bit_and mix widen u64 idx okc. i. . . . mask. . .
       var placing bool true .
-      var tries u64 0 .
+      var tries usize 0 .
       while placing. do
         rem ★ 한 바퀴를 다 돌고도 빈칸이 없으면 **값으로 거절한다** — 0 을 깔았으니 올 리 없지만,
         rem   온다면 옛 표를 그대로 두고 false 다. 끝나지 않는 고리는 두지 않는다.
@@ -204,8 +204,8 @@ export proc insert input comptime k type . input comptime v type . input m mut (
   if ge mul add field m. n . 1 . 2 . len field m. flags . . . do
     guard regrow k. v. m. . else return false . .
   end .
-  let p u64 probe k. v. m. key. . .
-  let at u64 div p. 2 . .
+  let p usize probe k. v. m. key. . .
+  let at usize div p. 2 . .
   guard lt at. len field m. flags . . . else return false . .
   var kc mut slice u8 field m. keys . .
   var vc mut slice u8 field m. vals . .
@@ -224,7 +224,7 @@ end .
 rem ★ 지운다. 있었으면 true. **무덤(2)을 남긴다** — 0 으로 되돌리면 그 자리를 지나 놓인 키를
 rem   영영 못 찾는다(선형 탐침의 사슬이 끊긴다).
 export proc erase input comptime k type . input comptime v type . input m mut (table k v) . input key k . output bool . effects none . do
-  let p u64 probe k. v. m. key. . .
+  let p usize probe k. v. m. key. . .
   guard eq mod p. 2 . 1 . else return false . .
   var fc mut slice u8 field m. flags . .
   set idx fc. div p. 2 . . 2 .
@@ -246,9 +246,9 @@ rem   **순회 중에는 넣지 않는다**(지우는 것은 안전하다 — �
 
 rem ★ `from` 자리부터 보고 **처음으로 찬 자리**를 준다. 없으면 none — 그것이 끝이다.
 rem   시작은 `next_used k v m 0`, 다음은 `next_used k v m (add 앞자리 1)` 이다.
-export proc next_used input comptime k type . input comptime v type . input m (table k v) . input from u64 . output option u64 . effects none . do
+export proc next_used input comptime k type . input comptime v type . input m (table k v) . input from usize . output option usize . effects none . do
   var fc mut slice u8 field m. flags . .
-  var i u64 from. .
+  var i usize from. .
   while lt i. len fc. . . do
     if eq idx fc. i. . 1 . do return some i. . . end .
     set i. add i. 1 . .
@@ -257,7 +257,7 @@ export proc next_used input comptime k type . input comptime v type . input m (t
 end .
 
 rem ★ 그 자리의 키 · 값. 찬 자리가 아니면 none — **자리 번호를 믿지 않는다**.
-export proc key_at input comptime k type . input comptime v type . input m (table k v) . input at u64 . output option k . effects none . do
+export proc key_at input comptime k type . input comptime v type . input m (table k v) . input at usize . output option k . effects none . do
   var fc mut slice u8 field m. flags . .
   guard lt at. len fc. . . else return none . .
   guard eq idx fc. at. . 1 . else return none . .
@@ -266,7 +266,7 @@ export proc key_at input comptime k type . input comptime v type . input m (tabl
   return some idx kcells. at. . . .
 end .
 
-export proc val_at input comptime k type . input comptime v type . input m (table k v) . input at u64 . output option v . effects none . do
+export proc val_at input comptime k type . input comptime v type . input m (table k v) . input at usize . output option v . effects none . do
   var fc mut slice u8 field m. flags . .
   guard lt at. len fc. . . else return none . .
   guard eq idx fc. at. . 1 . else return none . .

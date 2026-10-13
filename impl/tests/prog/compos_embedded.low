@@ -10,7 +10,7 @@ build profile embedded .
 
 fn stage_sum input buf slice u8 . output u64 . do
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len buf. . . do
     set acc. add acc. idx buf. i. . . .
     set i. add i. 1 . .

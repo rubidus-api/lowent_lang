@@ -24,7 +24,7 @@ do
   return expr ((field h. temp .)) + ((field h. scale .)) . .
 end .
 
-fn f_len output u64 . do return len encode sample mk_sample. . . . end .
+fn f_len output usize . do return len encode sample mk_sample. . . . end .
 
 fn fdot
   input b slice u8 .

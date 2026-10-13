@@ -78,11 +78,11 @@ let m option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
   caption: [`regex` 의 op --- 모두 `effects none`],
   [*op*], [*시그니처*], [*안 될 때*],
   [`compile`], [`proc (pat slice u8, prog mut slice u64, st mut slice u64) → option u64`], [문법 오류나 버퍼 부족이면 `none`],
-  [`match_at`], [`proc (prog slice u64, s slice u8, at u64, clist, nlist, marks) → option u64`], [매치 없음 · 빈 프로그램 · 스크래치 부족이면 `none`],
-  [`find`], [`proc (prog slice u64, s slice u8, clist, nlist, marks) → option u64`], [어디에도 매치가 없으면 `none`],
-  [`search`], [`proc (prog slice u64, s slice u8, clist, nlist, marks, cstart, nstart) → option u64`], [어디에도 매치 없음 · 빈 프로그램 · 스크래치 부족이면 `none`],
+  [`match_at`], [`proc (prog slice u64, s slice u8, at usize, clist, nlist, marks) → option usize`], [매치 없음 · 빈 프로그램 · 스크래치 부족이면 `none`],
+  [`find`], [`proc (prog slice u64, s slice u8, clist, nlist, marks) → option usize`], [어디에도 매치가 없으면 `none`],
+  [`search`], [`proc (prog slice u64, s slice u8, clist, nlist, marks, cstart, nstart) → option usize`], [어디에도 매치 없음 · 빈 프로그램 · 스크래치 부족이면 `none`],
   [`test_at`], [`proc (prog slice u64, s slice u8, clist, nlist, marks) → bool`], [실패 없음(거짓이 곧 답)],
-  [`class_has`], [`fn (prog slice u64, k u64, b u64) → bool`], [실패 없음],
+  [`class_has`], [`fn (prog slice u64, k usize, b u64) → bool`], [실패 없음],
 )
 
 `rx_` 로 시작하는 이름들은 컴파일러와 매처의 내부이고 밖에서 보이지 않는다. 스크래치 매개변수는 모두 `mut slice u64` 다.
@@ -116,7 +116,7 @@ use regex as rx .
 
 proc demo input prog mut slice u64 . input st mut slice u64 .
   input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
-  output u64 . effects none .
+  output usize . effects none .
 do
   guard ge len prog. . 32 . else return 90 . .
 
@@ -152,7 +152,7 @@ end .
 proc demo_search input prog mut slice u64 . input st mut slice u64 .
   input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
   input cs mut slice u64 . input ns mut slice u64 .
-  output u64 . effects none .
+  output usize . effects none .
 do
   guard ge len prog. . 32 . else return 90 . .
   let n option u64 rx.compile "b+c" prog. st. . .

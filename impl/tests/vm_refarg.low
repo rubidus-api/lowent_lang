@@ -68,7 +68,7 @@ rem ★ 참조가 가리키는 것이 레코드든 슬라이스든 **통과 지�
 rem   `len`·`index`·`subslice`·인덱스 쓰기가 전부 같은 규칙으로 참조를 따라가고,
 rem   같은 자리에서 세대·빌림을 검사한다. 연산마다 따로 뚫었다면 그중 하나를 빠뜨렸을 것이다.
 
-proc slen input s mut slice u8 . output u64 . effects none . do
+proc slen input s mut slice u8 . output usize . effects none . do
   return len s. . .
 end .
 
@@ -78,8 +78,8 @@ proc spoke input s mut slice u8 . output u64 . effects none . do
 end .
 
 rem 참조로 길이를 읽는다 — 원본 3 바이트.
-proc slice_len input buf mut slice u8 . output u64 . effects none . do
-  var t u64 0 .
+proc slice_len input buf mut slice u8 . output usize . effects none . do
+  var t usize 0 .
   var i u64 0 .
   while lt i. 1 . do
     set t. slen mut_ref buf . . .

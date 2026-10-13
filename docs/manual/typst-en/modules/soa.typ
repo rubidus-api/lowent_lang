@@ -19,16 +19,16 @@ by side. For a computation scanning only x, SoA reads just the needed values con
   id: "mod-soa-ops",
   caption: [Ops of `soa` --- all `effects none`],
   [*op*], [*Shape*], [*Failure*],
-  [`step_x`], [`proc (xs mut slice u64, vxs slice u64, n u64) → u64` --- `xs[i] += vxs[i]`], [none --- processes only `min(n, len xs, len vxs)` and answers that count],
+  [`step_x`], [`proc (xs mut slice u64, vxs slice u64, n usize) → usize` --- `xs[i] += vxs[i]`], [none --- processes only `min(n, len xs, len vxs)` and answers that count],
   [`sum_field`], [`fn (f slice u64) → u64`], [none],
-  [`get_x`], [`fn (xs slice u64, i u64) → u64`], [`0` out of range],
-  [`step_all`], [`proc (xs, ys mut slice u64, vxs, vys slice u64, n u64) → u64`], [none --- the smaller of two counts],
-  [`step_x_aos`], [`proc (rows mut slice u64, stride, xoff, voff, n u64) → u64` --- the AoS version], [stops at the element whose velocity slot is out of range and answers that `i`],
+  [`get_x`], [`fn (xs slice u64, i usize) → u64`], [`0` out of range],
+  [`step_all`], [`proc (xs, ys mut slice u64, vxs, vys slice u64, n usize) → usize`], [none --- the smaller of two counts],
+  [`step_x_aos`], [`proc (rows mut slice u64, stride, xoff, voff, n usize) → usize` --- the AoS version], [stops at the element whose velocity slot is out of range and answers that `i`],
 )
 
 ```lowent
 proc demo input xs mut slice u64 . input vxs mut slice u64 .
-  input rows mut slice u64 . output u64 . effects none .
+  input rows mut slice u64 . output usize . effects none .
 do
   set idx xs. 0 . 1 .
   set idx xs. 1 . 2 .

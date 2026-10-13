@@ -57,7 +57,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   var order (vecgen.vec u64 allocs.bump_bytes) some_value vco. . .
 
   rem ── ④ 생산: 작업 id 다섯을 민다 ──────────────────────────────────────
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 5 . do
     set idx buf. i. . add 100 i. . .
     set qn. add qn. 1 . .
@@ -66,7 +66,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   guard eq qn. 5 . else return 6 . .
 
   rem ── ⑤ 소비: 꺼내면서 블록을 빌리고, 결과를 색인하고, 순서를 남긴다 ────
-  var done u64 0 .
+  var done usize 0 .
   while lt done. 5 . do
     let id u64 idx buf. done. . .
     rem 블록을 빌린다 — 작업 하나가 쓰는 자리다.

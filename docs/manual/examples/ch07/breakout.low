@@ -2,12 +2,12 @@ module breakout .
 rem run: first_cell 8
 
 rem ko: 겹친 되풀이에서 찾던 칸을 만나면 `break 2 .` 로 둘을 한 번에 벗어난다 /// en: in nested loops, `break 2 .` leaves both at once when the cell is found
-export fn first_cell input want u32 . output u64 .
+export fn first_cell input want u32 . output usize .
 do
   let g lit array (array u32 3) 3 lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
-  var hit u64 99 .
-  repeat r u64 len g. . do
-    repeat c u64 3 do
+  var hit usize 99 .
+  repeat r usize len g. . do
+    repeat c usize 3 do
       if eq idx idx g. r. . c. . want. . do
         set hit. add mul r. 3 . c. . .
         break 2 .

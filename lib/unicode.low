@@ -48,10 +48,10 @@ end .
 rem ── 조회 ──
 
 rem 표에서 6자리 16진수 하나를 읽는다(구간 i 의 시작 = 12i, 끝 = 12i+6).
-fn hex6_at input tab slice u8 . input off u64 . output option u64 . do
+fn hex6_at input tab slice u8 . input off usize . output option u64 . do
   guard le add off. 6 . len tab. . . else return none . .
   var v u64 0 .
-  var k u64 0 .
+  var k usize 0 .
   while lt k. 6 . do
     let d option u64 codec.hex_val idx tab. add off. k. . . . .
     guard is_some d. . else return none . .
@@ -62,17 +62,17 @@ fn hex6_at input tab slice u8 . input off u64 . output option u64 . do
 end .
 
 rem 표의 구간 개수.
-export fn range_count input tab slice u8 . output u64 . do
+export fn range_count input tab slice u8 . output usize . do
   return div len tab. . 12 . .
 end .
 
 rem ★ 이 코드포인트가 표의 어느 구간에 드는가 — **이진 탐색**(구간이 정렬돼 있고 겹치지 않는다).
 rem   표가 망가졌으면(16진수가 아니면) `false` — 지어내지 않는다.
 export proc has_cp input tab slice u8 . input cp u64 . output bool . effects none . do
-  var lo u64 0 .
-  var hi u64 range_count tab. . .
+  var lo usize 0 .
+  var hi usize range_count tab. . .
   while lt lo. hi. . do
-    let mid u64 add lo. div sub hi. lo. . 2 . . .
+    let mid usize add lo. div sub hi. lo. . 2 . . .
     let s option u64 hex6_at tab. mul mid. 12 . . .
     guard is_some s. . else return false . .
     let e option u64 hex6_at tab. add mul mid. 12 . 6 . . .
@@ -194,10 +194,10 @@ end .
 
 rem 짝 표에서 앞자리(from)로 찾아 뒷자리(to)를 준다. 없으면 none.
 fn map_cp input tab slice u8 . input cp u64 . output option u64 . do
-  var lo u64 0 .
-  var hi u64 range_count tab. . .
+  var lo usize 0 .
+  var hi usize range_count tab. . .
   while lt lo. hi. . do
-    let mid u64 add lo. div sub hi. lo. . 2 . . .
+    let mid usize add lo. div sub hi. lo. . 2 . . .
     let f option u64 hex6_at tab. mul mid. 12 . . .
     guard is_some f. . else return none . .
     if lt cp. some_value f. . . do

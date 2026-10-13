@@ -25,7 +25,7 @@ do
   return acc. .
 end .
 
-fn at input xs slice u8 . input i u64 . output u8 .
+fn at input xs slice u8 . input i usize . output u8 .
 do
   return idx xs. i. . .
 end .

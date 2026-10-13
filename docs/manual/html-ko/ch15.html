@@ -710,7 +710,7 @@ spread.low:13:1 E-EFFECT: this op performs `io`, which its `effects` clause does
   <strong><span class="tok-k">requires</span></strong> le d. <span class="tok-n">9</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. widen <strong><span class="tok-t">u64</span></strong> d. . add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . .
+  <strong><span class="tok-k">return</span></strong> stdio.write out. <span class="tok-n">1</span> subslice buf. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> d. . . cast <strong><span class="tok-t">usize</span></strong> add widen <strong><span class="tok-t">u64</span></strong> d. . <span class="tok-n">1</span> . . . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
@@ -799,7 +799,7 @@ $ lowentc --run nonzero_strict fnpanic_fixed.low 0
 <em><span class="tok-c">rem ✘ `fn` 이 `mut` 로 받은 호출자의 줄에 쓴다</span></em>
 <strong><span class="tok-k">fn</span></strong> clear <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len xs. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> idx xs. i. . <span class="tok-n">0</span> .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .

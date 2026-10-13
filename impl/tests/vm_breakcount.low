@@ -3,12 +3,12 @@ rem (the same as no number), 2 the loop around it. Every loop head takes part: w
 module vm_breakcount .
 
 rem the first cell that holds `want`, as row * 3 + column; 99 when there is none
-export fn find input want u32 . output u64 .
+export fn find input want u32 . output usize .
 do
   let g lit array (array u32 3) 3 lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
-  var hit u64 99 .
-  repeat r u64 len g. . do
-    repeat c u64 3 do
+  var hit usize 99 .
+  repeat r usize len g. . do
+    repeat c usize 3 do
       if eq idx idx g. r. . c. . want. . do
         set hit. add mul r. 3 . c. . .
         break 2 .

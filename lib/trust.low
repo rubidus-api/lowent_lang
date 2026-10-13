@@ -37,8 +37,8 @@ use verify from "verify.low" .
 
 rem ★ 창 안에서 PEM 덩이 하나를 찾아 풀어 본다. 낸 값: 그 덩이가 끝나는 자리(0 = 없다).
 rem   푼 DER 은 `der` 에 담기고 그 길이는 `dn` 으로 나간다.
-proc one input win slice u8 . input from u64 . input scratch mut slice u8 . input out mut slice u8 .
-     input dn mut slice u64 . output u64 . effects none .
+proc one input win slice u8 . input from usize . input scratch mut slice u8 . input out mut slice u8 .
+     input dn mut slice u64 . output usize . effects none .
 do
   guard ge len dn. . 1 . else return 0 . .
   set idx dn. 0 . 0 .
@@ -48,13 +48,13 @@ do
   rem   둘째부터 맞아떨어져 문제가 안 보였다. **가장 작은 입력이 가장 늦게 시험된다.**
   rem   ⇒ 2026-09-20(X-0036): 그 op 이 이제 `option` 을 답한다. 「없다」가 **타입**이 됐으므로
   rem     이 자리에서 규약을 외울 일이 없다.
-  let bo option u64 pem.find_from win. "-----BEGIN CERTIFICATE-----" from. . .
+  let bo option usize pem.find_from win. "-----BEGIN CERTIFICATE-----" from. . .
   guard is_some bo. . else return 0 . .
-  let b u64 some_value bo. . .
-  let eo option u64 pem.find_from win. "-----END CERTIFICATE-----" b. . .
+  let b usize some_value bo. . .
+  let eo option usize pem.find_from win. "-----END CERTIFICATE-----" b. . .
   guard is_some eo. . else return 0 . .
-  let e u64 some_value eo. . .
-  let stop u64 add e. 25 . .
+  let e usize some_value eo. . .
+  let stop usize add e. 25 . .
   guard le stop. len win. . . else return 0 . .
   rem ★ `pem.unwrap` 도 이제 «자리가 모자라다» 를 실패로 말한다 — 그 말을 삼키지 않는다.
   let gr result (option u64) pem.pem_error pem.unwrap subslice win. b. stop. . "CERTIFICATE" scratch. out. . .
@@ -75,7 +75,7 @@ rem ☞ 한 덩이가 창 경계에 걸치면 그 덩이는 이번 창에서 안
 rem   당기고** 그 뒤를 다음 읽기로 채운다 — 그러지 않으면 경계에 걸친 인증서 하나가 조용히
 rem   없는 것이 된다(그리고 그 하나가 하필 우리 앵커일 수 있다).
 export proc find_anchor input fs cap file_system . input path slice u8 .
-     input want slice u8 . input wo u64 .
+     input want slice u8 . input wo usize .
      input win mut slice u8 . input scratch mut slice u8 . input out mut slice u8 .
      input dn mut slice u64 . output result u64 trust_error . effects io .
 errors short_workspace .
@@ -87,7 +87,7 @@ do
   guard is_ok ho. . else return error unreadable . . .
   var h owned files.handle ok_value ho. . .
 
-  var held u64 0 .
+  var held usize 0 .
   var found u64 0 .
   var done u64 0 .
   var rounds u64 0 .
@@ -95,7 +95,7 @@ do
   var cut u64 0 .
   while eq done. 0 . do
     let rr result (option u64) files.file_error files.read fs. h. subslice win. held. len win. . . . .
-    var got u64 0 .
+    var got usize 0 .
     var bad u64 0 .
     if is_ok rr. . do
       let mo option u64 ok_value rr. . .
@@ -108,16 +108,16 @@ do
     end .
 
     if eq done. 0 . do
-      let have u64 add held. got. . .
-      var at u64 0 .
+      let have usize add held. got. . .
+      var at usize 0 .
       var scanning u64 1 .
       while eq scanning. 1 . do
-        let stop u64 one subslice win. 0 have. . at. scratch. out. dn. . .
+        let stop usize one subslice win. 0 have. . at. scratch. out. dn. . .
         if eq stop. 0 . do  set scanning. 0 . end .
         if eq scanning. 1 . do
           set at. stop. .
           if gt idx dn. 0 . 0 . do
-            let cand slice u8 subslice out. 0 idx dn. 0 . . .
+            let cand slice u8 subslice out. 0 cast usize idx dn. 0 . . . .
             if verify.dn_eq cand. x509.subject_off cand. . want. wo. . do
               set found. idx dn. 0 . .
               set scanning. 0 .
@@ -129,7 +129,7 @@ do
       if eq got. 0 . do  set done. 1 . end .
       if eq done. 0 . do
         rem 남은 꼬리를 앞으로 당긴다.
-        var i u64 0 .
+        var i usize 0 .
         while lt i. sub have. at. . . do
           set idx win. i. . idx win. add at. i. . . .
           set i. add i. 1 . .

@@ -763,7 +763,7 @@ main() = 30
 </code></pre></div></div><p><code>sum_squares</code> opens no region itself; it carves inside the region <code>r</code> the caller opened. So the lifetime of the buffer it received is decided by the caller’s region. What is obtained from a region cannot outlive the region; when the region ends, what came from it ends too.</p><h3 id="s18-4">18.4 Nothing is carried out of a region<a class="plink" href="#s18-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Putting bytes obtained from a region into a name outside the region is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/escape.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> escape .
 <em><span class="tok-c">rem expect: E-REGION-ESCAPE</span></em>
 
-<strong><span class="tok-k">proc</span></strong> leak <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">proc</span></strong> leak <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> held <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">abcd</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
@@ -821,7 +821,7 @@ main() = 0
 <em><span class="tok-c">rem flags: --target cortex_m</span></em>
 <em><span class="tok-c">rem expect: E-HEAP-NOHOST</span></em>
 
-<strong><span class="tok-k">proc</span></strong> grow <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
+<strong><span class="tok-k">proc</span></strong> grow <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes h. capacity <span class="tok-n">4096</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some a. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
@@ -902,15 +902,15 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
 <strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
 
 <em><span class="tok-c">rem the op that receives the region carves from it --- the caller's block decides how long the buffer lives</span></em>
-<strong><span class="tok-k">proc</span></strong> filled_sum <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">proc</span></strong> filled_sum <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
   <strong><span class="tok-k">requires</span></strong> le n. <span class="tok-n">100</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes temp. capacity n. . .
   <strong><span class="tok-k">guard</span></strong> is_some g. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g. . .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> b buf. <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> s. add s. widen <strong><span class="tok-t">u64</span></strong> b. . . .
+    <strong><span class="tok-k">set</span></strong> s. add s. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> b. . . . .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> add s. len buf. . . .
 <strong><span class="tok-k">end</span></strong> .

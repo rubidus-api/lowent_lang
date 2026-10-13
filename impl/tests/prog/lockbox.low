@@ -63,8 +63,8 @@ rem   ☞ 여기서 중요한 것은 양성이 아니라 **음성**이다: 서�
 rem     `verify_pss` 가 0 을 답하면 이 프로시저는 거기서 끝난다.
 proc check_peer input sig slice u8 . input nb slice u8 . input mhash slice u8 .
      input em mut slice u8 . input w mut slice u8 . input bw mut slice u64 . output u64 . effects none . do
-  let k u64 shr len nb. . 1 . .
-  let need u64 add k. 4 . .
+  let k usize shr len nb. . 1 . .
+  let need usize add k. 4 . .
   guard ge len bw. . mul need. 7 . . else return 0 . .
   let _rr result u64 rsa.rsa_error rsa.verify_pss sig. nb. 65537 mhash. 32 em. w. subslice bw. 0 need. . subslice bw. need. mul need. 2 . . subslice bw. mul need. 2 . mul need. 3 . . subslice bw. mul need. 3 . mul need. 4 . . subslice bw. mul need. 4 . mul need. 5 . . subslice bw. mul need. 5 . mul need. 6 . . subslice bw. mul need. 6 . mul need. 7 . . . .
   guard is_ok _rr. . else return 0 . .
@@ -98,28 +98,28 @@ rem ★★ 상대의 **인증서에서 공개키를 꺼낸다**(N7c: 체인은 �
 rem   ☞ 이 프로시저가 답하는 것은 *"이 인증서 안의 키가 무엇인가"* 뿐이다.
 rem     *"이 인증서를 믿을 만한가"* 는 **호출자의 물음**이고, 여기서 답하지 않는다.
 rem     안 지은 것을 지은 척하지 않는 자리다.
-proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64 . effects none . do
-  let sp u64 der.find_spki cert. . .
+proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output usize . effects none . do
+  let sp usize der.find_spki cert. . .
   guard gt sp. 0 . else return 0 . .
-  let ko u64 der.spki_key_off cert. sp. . .
+  let ko usize der.spki_key_off cert. sp. . .
   guard gt ko. 0 . else return 0 . .
-  let no u64 der.rsa_n_off cert. ko. . .
+  let no usize der.rsa_n_off cert. ko. . .
   guard gt no. 0 . else return 0 . .
-  let nl u64 der.rsa_n_len cert. ko. . .
+  let nl usize der.rsa_n_len cert. ko. . .
   guard gt nl. 0 . else return 0 . .
   guard ge len nb. . nl. . else return 0 . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. nl. . do  set idx nb. i. . idx cert. add no. i. . . .  set i. add i. 1 . .  end .
   return nl. .
 end .
 
 rem ★ 공유 비밀 → 레코드 키·IV·nonce. **TLS 1.3 사다리를 그대로 탄다.**
 rem ★ 공유 비밀은 `b` 안(오프셋 `so`)에 산다 — 별도 슬라이스로 받으면 쓰기 자리 `b` 와 **겹친다**(E-EXCL-INPLACE, RFC-0116 D2).
-proc derive input so u64 . input label slice u8 . input b mut slice u8 . output u64 . effects none . do
+proc derive input so usize . input label slice u8 . input b mut slice u8 . output u64 . effects none . do
   guard ge len b. . 1228 . else return 0 . .
 
   rem 사다리가 요구하는 두 상수를 **여기서 만들어 넘긴다** — 라이브러리가 몰래 만들지 않는다.
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 32 . do  set idx b. add 572 i. . . 0 .  set i. add i. 1 . .  end .
   guard eq call_builtin sha256 subslice b. 0 0 . subslice b. 288 320 . . 32 . else return 0 . .
 
@@ -160,7 +160,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   guard ge len tag. . 16 . else return 90 . .
 
   rem ① 기저점 9 를 세우고 공개키 둘을 낸다.
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 32 . do  set idx b. add 64 i. . . 0 .  set i. add i. 1 . .  end .
   set idx b. 64 . 9 .
   let _u0 result u64 x25519.x25519_error x25519.agree subslice b. 0 32 . ska. subslice b. 64 96 . subslice b. 396 428 . w. . .
@@ -177,7 +177,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   let _u3 result u64 x25519.x25519_error x25519.agree subslice b. 128 160 . skb. subslice b. 0 32 . subslice b. 396 428 . w. . .
   guard is_ok _u3. . else return 94 . .
   guard eq ok_value _u3. . 32 . else return 94 . .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. 32 . do
     guard eq idx b. add 96 j. . . idx b. add 128 j. . . . else return 95 . .
     set j. add j. 1 . .
@@ -221,7 +221,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
     return 0 .
   end .
   guard eq verdict. 1 . else return 100 . .
-  var q u64 0 .
+  var q usize 0 .
   while lt q. len msg. . . do
     guard eq idx out. q. . idx msg. q. . . else return 101 . .
     set q. add q. 1 . .

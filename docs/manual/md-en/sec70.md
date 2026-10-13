@@ -28,8 +28,8 @@ let i option u64 searchlib.bsearch s. 42 . .
 
 | **op** | **Shape** | **Answer** |
 |---|---|---|
-| `bsearch` | `(s slice u64, target u64) → option u64` | index of `target`, or `none`. With duplicates, **one** of them (which one is unspecified) |
-| `lower_bound` | `(s slice u64, target u64) → u64` | first index at or above `target`. `len s. .` if all are smaller |
+| `bsearch` | `(s slice u64, target u64) → option usize` | index of `target`, or `none`. With duplicates, **one** of them (which one is unspecified) |
+| `lower_bound` | `(s slice u64, target u64) → usize` | first index at or above `target`. `len s. .` if all are smaller |
 
 *Table 50.1 — Ops of `searchlib` — all `fn` · `effects none`*
 

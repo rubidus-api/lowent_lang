@@ -802,10 +802,10 @@ mistake_typo.low:8:0 E-IR-UNDEF: set of an undeclared name
 </code></pre></div></div><p>In most languages <code>=</code> means assignment, while in mathematics it means equality. One symbol switching between two meanings has produced bugs like <code>if (x = 0)</code>. Lowent uses no symbol for either: declaring is <code>let</code>/<code>var … </code>, changing is <code>set</code>, and asking whether two values are equal is <code>eq</code>. <code>=</code> is not a character the language knows at all, hence <code>E-CHAR</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Naming a local after a common English word</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/mistake_localname.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_localname .
 <em><span class="tok-c">rem expect: E-NAME-BUILTIN</span></em>
 
-<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> size <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `count` is the name of a builtin op --- it cannot be a local name</span></em>
-  <strong><span class="tok-k">let</span></strong> count <strong><span class="tok-t">u64</span></strong> len xs. . .
+  <strong><span class="tok-k">let</span></strong> count <strong><span class="tok-t">usize</span></strong> len xs. . .
   <strong><span class="tok-k">return</span></strong> count. .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_localname.low

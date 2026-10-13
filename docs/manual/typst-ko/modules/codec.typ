@@ -55,12 +55,12 @@ guard is_some n. . else return 1 . .
   [*op*], [*시그니처*], [*안 될 때*],
   [`hex_digit`], [`fn (v u64) → u8`], [실패 없음(0 … 15 가 전제)],
   [`hex_val`], [`fn (c u8) → option u64`], [`0-9 a-f A-F` 밖이면 `none`],
-  [`hex_enc`], [`proc (src slice u8, dst mut slice u8) → option u64`], [`dst` 부족이면 `none`],
-  [`hex_dec`], [`proc (src slice u8, dst mut slice u8) → option u64`], [홀수 길이 · 16 진이 아닌 글자 · `dst` 부족이면 `none`],
+  [`hex_enc`], [`proc (src slice u8, dst mut slice u8) → option usize`], [`dst` 부족이면 `none`],
+  [`hex_dec`], [`proc (src slice u8, dst mut slice u8) → option usize`], [홀수 길이 · 16 진이 아닌 글자 · `dst` 부족이면 `none`],
   [`b64_digit`], [`fn (v u64) → u8`], [실패 없음(0 … 63 이 전제)],
   [`b64_val`], [`fn (c u8) → option u64`], [알파벳 밖이면 `none`(`=` 도 `none`)],
-  [`b64_enc`], [`proc (src slice u8, dst mut slice u8) → option u64`], [`dst` 부족이면 `none`],
-  [`b64_dec`], [`proc (src slice u8, dst mut slice u8) → option u64`], [길이가 4 의 배수가 아님 · 알파벳 밖 · 어긋난 패딩 · `dst` 부족이면 `none`],
+  [`b64_enc`], [`proc (src slice u8, dst mut slice u8) → option usize`], [`dst` 부족이면 `none`],
+  [`b64_dec`], [`proc (src slice u8, dst mut slice u8) → option usize`], [길이가 4 의 배수가 아님 · 알파벳 밖 · 어긋난 패딩 · `dst` 부족이면 `none`],
 )
 
 보통은 `hex_enc`·`hex_dec`·`b64_enc`·`b64_dec` 넷만 쓰고, 나머지 넷은 글자 하나짜리 부품이다.
@@ -92,7 +92,7 @@ module ex_codec .
 
 use codec as c .
 
-proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
+proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output usize . effects none . do
   guard ge len enc. . 6 . else return 90 . .
   guard ge len dec. . 3 . else return 91 . .
   let en option u64 c.hex_enc "abc" enc. . .
@@ -110,7 +110,7 @@ proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 
   return 42 .
 end .
 
-proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
+proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output usize . effects none . do
   rem 2 바이트는 한 묶음(4 글자)이 되고 끝에 = 하나가 붙는다: "aGk="
   guard ge len enc. . 4 . else return 90 . .
   guard ge len dec. . 2 . else return 91 . .

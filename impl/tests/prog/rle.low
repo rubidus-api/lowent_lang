@@ -14,10 +14,10 @@ module rle .
 
 rem 한 실행(run)의 길이를 센다 — i 부터 같은 값이 몇 개인가.
 rem ★ 계약: 결과는 1 이상이고 255 이하다(u8 카운트에 담아야 하므로).
-fn run_len input i u64 . input src slice u8 . output u64 .
+fn run_len input i usize . input src slice u8 . output usize .
   ensures ge ret. 1 . .
 do
-  var n u64 1 .
+  var n usize 1 .
   while lt add i. n. . len src. . . do
     if ne idx src. add i. n. . . idx src. i. . . do
       return n. .
@@ -32,11 +32,11 @@ end .
 
 rem ★ 인코딩. 출력 슬라이스에 (개수, 값) 쌍을 쓴다 — **슬라이스 원소 쓰기**.
 rem   ensures: 쓴 바이트 수는 짝수다… 는 구간으로 표현 못 하므로, 상한만 건다.
-proc rle_encode input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  var i u64 0 .
-  var o u64 0 .
+proc rle_encode input src slice u8 . input dst mut slice u8 . output usize . effects none . do
+  var i usize 0 .
+  var o usize 0 .
   while lt i. len src. . . do
-    let n u64 run_len i. src. . .
+    let n usize run_len i. src. . .
     if lt add o. 1 . len dst. . . do
       set idx dst. o. . n. .
       set idx dst. add o. 1 . . idx src. i. . .
@@ -48,9 +48,9 @@ proc rle_encode input src slice u8 . input dst mut slice u8 . output u64 . effec
 end .
 
 rem ★ 디코딩 — 왕복이 원본을 돌려주는가. 이것이 진짜 검증이다.
-proc rle_decode input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  var i u64 0 .
-  var o u64 0 .
+proc rle_decode input src slice u8 . input dst mut slice u8 . output usize . effects none . do
+  var i usize 0 .
+  var o usize 0 .
   while lt add i. 1 . len src. . . do
     let n u8 idx src. i. . .
     let v u8 idx src. add i. 1 . . .

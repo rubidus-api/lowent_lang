@@ -55,10 +55,10 @@ guard is_some c. . else return 1 . .
   caption: [`utf8` 의 op --- 모두 `fn` · `effects none`],
   [*op*], [*시그니처*], [*안 될 때*],
   [`is_cont`], [`(b u8) → bool`], [실패 없음],
-  [`seq_len`], [`(b u8) → u64`], [선두 바이트가 아니면 `0`],
-  [`decode`], [`(s slice u8, at u64) → option u64`], [무효·잘림·범위 밖이면 `none`],
-  [`next_start`], [`(s slice u8, at u64) → option u64`], [무효·잘림·끝이면 `none`],
-  [`count_chars`], [`(s slice u8) → option u64`], [무효 바이트가 하나라도 있으면 `none`],
+  [`seq_len`], [`(b u8) → usize`], [선두 바이트가 아니면 `0`],
+  [`decode`], [`(s slice u8, at usize) → option u64`], [무효·잘림·범위 밖이면 `none`],
+  [`next_start`], [`(s slice u8, at usize) → option usize`], [무효·잘림·끝이면 `none`],
+  [`count_chars`], [`(s slice u8) → option usize`], [무효 바이트가 하나라도 있으면 `none`],
   [`is_valid`], [`(s slice u8) → bool`], [실패 없음],
 )
 
@@ -101,20 +101,20 @@ do
   let g option mut slice u8 alloc_bytes al. capacity 128 . .
   guard is_some g. . else return 70 . .
   let buf mut slice u8 some_value g. . .
-  var pos u64 0 .
+  var pos usize 0 .
 
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     let c option u64 utf8.decode s. i. . .
     guard is_some c. . else return 66 . .
-    let a option u64 fmt.put_str buf. pos. "U+" . .
+    let a option usize fmt.put_str buf. pos. "U+" . .
     guard is_some a. . else return 71 . .
-    let b option u64 fmt.put_hex buf. some_value a. . some_value c. . . .
+    let b option usize fmt.put_hex buf. some_value a. . some_value c. . . .
     guard is_some b. . else return 72 . .
-    let d option u64 fmt.put_nl buf. some_value b. . . .
+    let d option usize fmt.put_nl buf. some_value b. . . .
     guard is_some d. . else return 73 . .
     set pos. some_value d. . .
-    let nx option u64 utf8.next_start s. i. . .
+    let nx option usize utf8.next_start s. i. . .
     guard is_some nx. . else return 67 . .
     set i. some_value nx. . .
   end .

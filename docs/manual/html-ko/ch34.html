@@ -681,9 +681,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">set</span></strong> idx xs. <span class="tok-n">3</span> . <span class="tok-n">3</span> .
   <strong><span class="tok-k">set</span></strong> idx xs. <span class="tok-n">4</span> . <span class="tok-n">25</span> .
   sortlib.sort xs. .
-  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> searchlib.bsearch xs. <span class="tok-n">19</span> . .
+  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> searchlib.bsearch xs. <span class="tok-n">19</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some at. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> . .
-  <strong><span class="tok-k">let</span></strong> missing <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> searchlib.bsearch xs. <span class="tok-n">20</span> . .
+  <strong><span class="tok-k">let</span></strong> missing <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> searchlib.bsearch xs. <span class="tok-n">20</span> . .
   <strong><span class="tok-k">guard</span></strong> is_none missing. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> . .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> add mul idx xs. <span class="tok-n">0</span> . <span class="tok-n">10</span> . some_value at. . . . .
 <strong><span class="tok-k">end</span></strong> .
@@ -780,7 +780,7 @@ main() = 100
   <strong><span class="tok-k">set</span></strong> idx xs. <span class="tok-n">3</span> . <span class="tok-n">3</span> .
   <strong><span class="tok-k">set</span></strong> idx xs. <span class="tok-n">4</span> . <span class="tok-n">25</span> .
   <em><span class="tok-c">rem ✘ 정렬하지 않고 이진 탐색한다 --- 42 가 있는데 못 찾는다</span></em>
-  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> searchlib.bsearch xs. <span class="tok-n">42</span> . .
+  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> searchlib.bsearch xs. <span class="tok-n">42</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some at. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . .
   <strong><span class="tok-k">return</span></strong> some_value at. . .
 <strong><span class="tok-k">end</span></strong> .

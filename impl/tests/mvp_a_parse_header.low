@@ -39,7 +39,7 @@ do
   guard ge len data. . 4 . else return error too_short . . .
   guard eq idx data. 0 . 1 . else return error bad_version . . .
   let length u16 read_u16_be subslice data. 2 4 . . .
-  guard le length. len data. . . else return error too_long . . .
+  guard le length. cast u64 len data. . . . else return error too_long . . .
   return ok lit header do
     version idx data. 0 . .
     flags idx data. 1 . .

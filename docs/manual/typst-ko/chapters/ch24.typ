@@ -175,7 +175,7 @@ module sink_map .
 
 fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
 
-proc doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+proc doubled input xs slice u8 . input out mut slice u8 . output usize . effects none .
 do
   map out. dbl xs. .
   return 0 .

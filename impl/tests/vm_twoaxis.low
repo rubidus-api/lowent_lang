@@ -134,11 +134,11 @@ export actor pair_bytes do
   satisfies allocs.byte_allocator .
   state do
     mem mut slice u8 .
-    off u64 .
-    last u64 .
+    off usize .
+    last usize .
   end .
 
-  proc init input backing mut slice u8 . output u64 . effects state . do
+  proc init input backing mut slice u8 . output usize . effects state . do
     set mem. backing. .
     set off. 0 .
     set last. 0 .
@@ -146,8 +146,8 @@ export actor pair_bytes do
   end .
 
   rem ★ 한 번에 **두 배**를 떼어 준다 — bump 와 **다른 정책**이라 타입이 달라야 할 이유가 된다.
-  proc reserve input n u64 . output option mut slice u8 . effects state . do
-    let want u64 mul n. 2 . .
+  proc reserve input n usize . output option mut slice u8 . effects state . do
+    let want usize mul n. 2 . .
     guard le add off. want. . len mem. . . else return none . .
     let v mut slice u8 subslice mem. off. add off. want. . . .
     set last. off. .
@@ -161,7 +161,7 @@ export actor pair_bytes do
   rem   **그것이 이 트레이트가 정책에 안 매여 있다는 증거다.**
   rem ★ 못 늘리는 얼로케이터라면 `return none .` 한 줄로 두어도 완전한 구현이다:
   rem   `grow` 는 **최적화이지 계약이 아니고**, 부르는 쪽은 none 을 받으면 새로 받아 복사한다.
-  proc grow input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state . do
+  proc grow input old mut slice u8 . input newn usize . output option mut slice u8 . effects state . do
     guard le len old. . newn. . else return none . .
     guard eq add last. len old. . . off. . else return none . .
     guard same_slice old. subslice mem. last. off. . . else return none . .
@@ -170,7 +170,7 @@ export actor pair_bytes do
     return some subslice mem. last. add last. newn. . . . .
   end .
 
-  proc used output u64 . effects none . do
+  proc used output usize . effects none . do
     return off. .
   end .
 end .

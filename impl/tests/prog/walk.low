@@ -45,7 +45,7 @@ do
     if is_ok n. . do
       let nvo option u64 ok_value n. . .
       if eq is_some nvo. . false . do set going. false . end .
-      var nl u64 0 .
+      var nl usize 0 .
       if is_some nvo. . do set nl. some_value nvo. . . end .
       if eq nl. 0 . do set going. false . end .
       if gt nl. 0 . do

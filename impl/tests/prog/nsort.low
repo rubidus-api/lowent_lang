@@ -37,7 +37,7 @@ rem ★ 십진수 한 줄을 읽는다 — **순수하다**. 빈 줄·숫자 아
 fn parse_u64 input s slice u8 . output option u64 . do
   if eq len s. . 0 . do return none . end .
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     let c u8 idx s. i. . .
     if lt c. 48 . do return none . end .
@@ -52,8 +52,8 @@ end .
 
 rem ★ 다음 개행의 자리 — 없으면 none. (`io` 를 안 부른다: 줄 나누기 하나 때문에 액터를
 rem   데려오면 그 모듈의 effects 까지 딸려 온다.)
-fn find_nl input s slice u8 . input from u64 . output option u64 . do
-  var i u64 from. .
+fn find_nl input s slice u8 . input from usize . output option usize . do
+  var i usize from. .
   while lt i. len s. . . do
     if eq idx s. i. . 10 . do return some i. . . end .
     set i. add i. 1 . .
@@ -72,7 +72,7 @@ fn keyed.less input a keyed . input b keyed . output bool . do return lt field a
 rem ★ 두 슬라이스가 원소별로 같은가 — 두 정렬기의 답을 대는 데 쓴다.
 fn same_keyed input a slice u64 . input b slice keyed . output bool . do
   if ne len a. . len b. . . do return false . end .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len a. . . do
     let e keyed idx b. i. . .
     if ne idx a. i. . field e. k . . do return false . end .
@@ -104,7 +104,7 @@ do
 
   let sn result u64 files.file_error files.slurp fs. path. txt. . .
   guard is_ok sn. . else return 66 . .
-  let n u64 ok_value sn. . .
+  let n usize ok_value sn. . .
 
   rem ── 버퍼 둘(같은 수를 담는다: 하나는 sortlib 가, 하나는 sortgen 이 정렬한다).
   rem   ★ 고정 용량이다 — 넘치면 **거절**한다(자르지 않는다: 잘린 답은 틀린 답이다).
@@ -119,14 +119,14 @@ do
   let braw mut slice keyed view_array keyed bbytes. . .
 
   rem ── 줄마다 수 하나. 숫자가 아닌 줄은 **건너뛴다**(파일 끝 빈 줄이 흔하다).
-  var pos u64 0 .
-  var cnt u64 0 .
+  var pos usize 0 .
+  var cnt usize 0 .
   var going bool true .
   while going. do
     if ge pos. n. . do set going. false . end .
     if going. do
-      let e option u64 find_nl subslice txt. 0 n. . pos. . .
-      var stop u64 n. .
+      let e option usize find_nl subslice txt. 0 n. . pos. . .
+      var stop usize n. .
       if is_some e. . do set stop. some_value e. . . end .
       let piece slice u8 subslice txt. pos. stop. . .
       let v option u64 parse_u64 piece. . .
@@ -149,24 +149,24 @@ do
   guard same_keyed sa. sb. . else return 2 . .
 
   rem ── 정렬된 뒤에만 뜻이 있는 질문: 이분 탐색.
-  let hit option u64 searchlib.bsearch sa. target. . .
+  let hit option usize searchlib.bsearch sa. target. . .
 
   let go option mut slice u8 alloc_bytes al. capacity 128 . .
   guard is_some go. . else return 70 . .
   let ob mut slice u8 some_value go. . .
-  let p1 option u64 fmt.put_u64 ob. 0 len sa. . . .
+  let p1 option usize fmt.put_u64 ob. 0 cast u64 len sa. . . . .
   guard is_some p1. . else return 72 . .
-  let p2 option u64 fmt.put_str ob. some_value p1. . " sorted, " . .
+  let p2 option usize fmt.put_str ob. some_value p1. . " sorted, " . .
   guard is_some p2. . else return 72 . .
-  let p3 option u64 fmt.put_u64 ob. some_value p2. . target. . .
+  let p3 option usize fmt.put_u64 ob. some_value p2. . target. . .
   guard is_some p3. . else return 72 . .
-  let p4 option u64 fmt.put_str ob. some_value p3. . " at " . .
+  let p4 option usize fmt.put_str ob. some_value p3. . " at " . .
   guard is_some p4. . else return 72 . .
   var p5 option u64 none .
   if is_some hit. . do set p5. fmt.put_u64 ob. some_value p4. . some_value hit. . . . end .
   if eq is_some hit. . false . do set p5. fmt.put_str ob. some_value p4. . "none" . . end .
   guard is_some p5. . else return 72 . .
-  let p6 option u64 fmt.put_nl ob. some_value p5. . . .
+  let p6 option usize fmt.put_nl ob. some_value p5. . . .
   guard is_some p6. . else return 72 . .
   let w u64 call_builtin write_out out. 1 subslice ob. 0 some_value p6. . . . .
 

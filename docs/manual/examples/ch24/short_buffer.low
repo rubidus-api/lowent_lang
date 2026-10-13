@@ -13,7 +13,7 @@ do
 end .
 
 rem ko: 버퍼는 두 칸 --- 남는 원소가 둘이면 담기고, 넷이면 셋째를 담으려는 순간 멈춘다 /// en: the buffer has two slots --- two remaining elements fit; with four, the run stops as the third is stored
-proc big_doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+proc big_doubled input xs slice u8 . input out mut slice u8 . output usize . effects none .
 do
   pipe xs. do
     filter over2 .

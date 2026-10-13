@@ -31,7 +31,7 @@ rem ── strbuf: 빈 버퍼 · 꽉 찬 str_buf 에서 `append_trunc`/`room` �
 proc t_sb input buf mut slice u8 . output u64 . effects none . do
   guard ge len buf. . 4 . else return 90 . .
   var b strbuf.str_buf strbuf.new. .
-  let n0 u64 strbuf.append_trunc b. subslice buf. 0 0 . "abc" . .
+  let n0 usize strbuf.append_trunc b. subslice buf. 0 0 . "abc" . .
   guard eq n0. 0 . else return 91 . .
   guard eq field b. len . 0 . else return 92 . .
   guard eq strbuf.room b. subslice buf. 0 0 . . 0 . else return 93 . .
@@ -39,7 +39,7 @@ proc t_sb input buf mut slice u8 . output u64 . effects none . do
   let r result void strbuf.sb_error strbuf.append b. subslice buf. 0 4 . "abc" . .
   guard is_ok r. . else return 94 . .
   guard eq strbuf.room b. subslice buf. 0 3 . . 0 . else return 95 . .
-  let n1 u64 strbuf.append_trunc b. subslice buf. 0 3 . "x" . .
+  let n1 usize strbuf.append_trunc b. subslice buf. 0 3 . "x" . .
   guard eq n1. 0 . else return 96 . .
   guard eq field b. len . 3 . else return 97 . .
   rem 정상 경로는 그대로다: 4 바이트 버퍼(내용 3 + 널)에 len 3 → 자리 0, 봉인은 산다
@@ -133,7 +133,7 @@ end .
 rem ── hashmap: 빈칸의 `key_at` 은 0 이다 (전에는 `sub 0 1`) ──
 proc t_hm input b mut slice u64 . output u64 . effects none . do
   guard ge len b. . 8 . else return 90 . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len b. . . do
     set idx b. i. . 0 .
     set i. add i. 1 . .
@@ -141,7 +141,7 @@ proc t_hm input b mut slice u64 . output u64 . effects none . do
   guard eq hashmap.key_at b. 0 . 0 . else return 91 . .
   guard eq hashmap.occupied_at b. 0 . false . else return 92 . .
   guard eq hashmap.put b. 10 100 . true . else return 93 . .
-  var slot u64 0 .
+  var slot usize 0 .
   var total u64 0 .
   while lt slot. hashmap.size b. . . do
     if hashmap.occupied_at b. slot. . do

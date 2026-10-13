@@ -14,14 +14,14 @@ rem    ⇒ i + 4 ≤ n ≤ len(a)  ⇒ 네 레인을 읽어도 안전하다 (R-V
 export proc dot_c
   input a slice u32 .
   input b slice u32 .
-  input n u64 .
+  input n usize .
   output u64 .
   effects none .
   requires ge len a. . n. . .
   requires ge len b. . n. . .
 do
   var acc vec u32 4 splat 0 . .
-  var i u64 0 .
+  var i usize 0 .
   while le add i. 4 . n. . do
     let va vec u32 4 load a. i. . .
     let vb vec u32 4 load b. i. . .
@@ -38,12 +38,12 @@ rem    ⇒ len(a) 와 n 사이에 아무 사실도 없다 ⇒ 검사는 **남아
 export proc dot_u
   input a slice u32 .
   input b slice u32 .
-  input n u64 .
+  input n usize .
   output u64 .
   effects none .
 do
   var acc vec u32 4 splat 0 . .
-  var i u64 0 .
+  var i usize 0 .
   while le add i. 4 . n. . do
     let va vec u32 4 load a. i. . .
     let vb vec u32 4 load b. i. . .
@@ -76,12 +76,12 @@ rem  ☞ 여기도 계약 있는 판/없는 판 두 짝을 둔다 — 쓰기에�
 rem    밟으므로, *지워지는 쪽만* 재면 불건전과 구별이 안 된다.
 export proc dbl_c
   input a mut slice u32 .
-  input n u64 .
+  input n usize .
   output u64 .
   effects none .
   requires ge len a. . n. . .
 do
-  var i u64 0 .
+  var i usize 0 .
   while le add i. 4 . n. . do
     let v vec u32 4 load a. i. . .
     var t vec u32 4 add v. v. . .
@@ -112,7 +112,7 @@ fn run_w input b slice u8 . output u64 . do
   var xs slice u32 view_array u32 b. . .
   let z u64 dbl_c xs. len xs. . . .
   var s u64 0 .
-  var k u64 0 .
+  var k usize 0 .
   while lt k. len xs. . . do
     set s. add s. idx xs. k. . . .
     set k. add k. 1 . .

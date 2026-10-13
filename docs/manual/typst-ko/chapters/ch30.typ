@@ -173,7 +173,7 @@ op 에 `vector <번호> .` 절을 붙이면 그 op 은 인터럽트 처리기가
 
 // snippet: skip — 흡수는 매니페스트가 그 모듈을 허락해야 선다(`build absorb …`). 감싼 조각에는 매니페스트가 없다
 ```lowent
-export proc add2 input a u64 . input b u64 . output u64 . effects none .
+export proc add2 input a u64 . input b u64 . output usize . effects none .
   absorbs machine k .          rem 여기서 멈춘다. `k` 가 이 몸 안의 `cap machine` 이다
   reference add2_soft .        rem 같은 답을 내야 하는 순수한 판
   why "레지스터 둘을 더할 뿐 메모리를 만지지 않는다(options pure nomem nostack)." .

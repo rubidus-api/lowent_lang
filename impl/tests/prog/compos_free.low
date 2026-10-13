@@ -13,11 +13,11 @@ module compos_free .
 build profile freestanding .
 
 rem 고정 크기 링 버퍼의 합 — 임베디드가 실제로 하는 모양(호출자 버퍼·할당 0).
-export fn ring_sum input buf slice u8 . input from u64 . input n u64 . output u64 . do
+export fn ring_sum input buf slice u8 . input from usize . input n usize . output u64 . do
   var acc u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. n. . do
-    let at u64 mod add from. i. . len buf. . . .
+    let at usize mod add from. i. . len buf. . . .
     set acc. add acc. idx buf. at. . . .
     set i. add i. 1 . .
   end .

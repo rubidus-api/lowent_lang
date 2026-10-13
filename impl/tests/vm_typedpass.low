@@ -21,12 +21,12 @@ struct pt do
   y u8 .
 end .
 
-fn inner_len input s slice u32 . output u64 . do
+fn inner_len input s slice u32 . output usize . do
   return len s. . .
 end .
 
 rem ★ 넘긴다 — 여기가 깨지던 자리다.
-fn outer_len input s slice u32 . output u64 . do
+fn outer_len input s slice u32 . output usize . do
   return inner_len s. . .
 end .
 

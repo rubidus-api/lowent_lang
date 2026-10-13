@@ -12,7 +12,7 @@ has the `wait` effect. Declaring a larger effect would saddle callers with a cos
 for the same reason (#chref("capabilities")).
 
 ```lowent
-proc work input k cap clock . output u64 . effects none . do
+proc work input k cap clock . output usize . effects none . do
   let due u64 clock.deadline_in k. 50 . .
   var n u64 0 .
   while eq clock.past k. due. . false . do set n. add n. 1 . . end .

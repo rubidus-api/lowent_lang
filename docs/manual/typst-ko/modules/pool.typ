@@ -35,7 +35,7 @@ struct 다(actor state 는 슬라이스를 들 수 없다).
   caption: [`pool` 의 op --- 첫 인자가 브랜드, 모두 `effects none`],
   [*op*], [*모양*], [*실패*],
   [`handle b` · `block_pool b`], [구조체 --- 핸들은 `blk` · `len` · `gen`, 풀은 봉인된 `mem` · `gens` 와 커서들], [---],
-  [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs u64 → option (block_pool b)`], [`bs < 8` 이면 `none`],
+  [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs usize → option (block_pool b)`], [`bs < 8` 이면 `none`],
   [`blocks`], [`fn (comptime b, p) → u64` --- `min(len mem / bs, len g)`], [없음],
   [`take`], [`(comptime b, p mut block_pool b) → option (handle b)`], [블록이 없으면 `none`],
   [`release`], [`(comptime b, p mut, h handle b) → bool`], [낡은 · 범위 밖 핸들(이중 해제 포함)이면 `false`],
@@ -55,7 +55,7 @@ struct 다(actor state 는 슬라이스를 들 수 없다).
 ```lowent
 newtype demo_brand u8 .
 
-proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
+proc demo input mem mut slice u8 . input gens mut slice u64 . output usize . effects none .
 do
   let po option (pool.block_pool demo_brand) pool.init demo_brand. mem. gens. 16 . .
   guard is_some po. . else return 89 . .

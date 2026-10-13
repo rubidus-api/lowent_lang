@@ -31,9 +31,9 @@ let v option u64 strmap.lookup slots. keys. "apple" . .
 | `put` | `proc (slots mut slice u64, keys mut slice u8, k slice u8, v u64) → bool` | full · arena short · empty key → `false` |
 | `lookup` | `proc (slots slice u64, keys slice u8, k slice u8) → option u64` | absent · empty key → `none` |
 | `del` | `proc (slots mut slice u64, keys slice u8, k slice u8) → bool` | absent · empty key → `false` |
-| `size` | `fn (slots slice u64) → u64` | `len slots < 4` → 0 |
-| `occupied_at` | `fn (slots, slot u64) → bool` | out of range → `false` |
-| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot u64) → u64` | out of range → 0 |
+| `size` | `fn (slots slice u64) → usize` | `len slots < 4` → 0 |
+| `occupied_at` | `fn (slots, slot usize) → bool` | out of range → `false` |
+| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot usize) → usize` (`val_at` gives `→ u64`) | out of range → 0 |
 | `rehash` | `proc (ns mut slice u64, na mut slice u8, os slice u64, oa slice u8) → bool` | `false` midway if `ns` or `na` is too small |
 
 *Table 50.1 — Ops of `strmap` — all `effects none`*

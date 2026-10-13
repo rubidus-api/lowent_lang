@@ -39,15 +39,15 @@ no core op was added, and the whole file is inside the VM/native cross-check.
   id: "mod-fmt-ops",
   caption: [Ops of `fmt` --- all `effects none`],
   [*op*], [*Signature*], [*When it cannot*],
-  [`put_byte`], [`proc (buf mut slice u8, pos u64, b u8) → option u64`], [`none` if no room, buffer unchanged],
-  [`put_str`], [`proc (buf, pos, s slice u8) → option u64`], [`none` unless all fits, buffer unchanged],
-  [`dec_width`], [`fn (n u64) → u64`], [never fails],
-  [`put_u64`], [`proc (buf, pos, n u64) → option u64`], [`none` if no room, buffer unchanged],
-  [`put_i64`], [`proc (buf, pos, n i64) → option u64`], [`none` if no room],
-  [`hex_width`], [`fn (n u64) → u64`], [never fails],
-  [`put_hex`], [`proc (buf, pos, n u64) → option u64`], [`none` if no room, buffer unchanged],
-  [`put_bool`], [`proc (buf, pos, b bool) → option u64`], [`none` if no room],
-  [`put_nl`], [`proc (buf, pos) → option u64`], [`none` if no room],
+  [`put_byte`], [`proc (buf mut slice u8, pos usize, b u8) → option usize`], [`none` if no room, buffer unchanged],
+  [`put_str`], [`proc (buf, pos, s slice u8) → option usize`], [`none` unless all fits, buffer unchanged],
+  [`dec_width`], [`fn (n u64) → usize`], [never fails],
+  [`put_u64`], [`proc (buf, pos, n u64) → option usize`], [`none` if no room, buffer unchanged],
+  [`put_i64`], [`proc (buf, pos, n i64) → option usize`], [`none` if no room],
+  [`hex_width`], [`fn (n u64) → usize`], [never fails],
+  [`put_hex`], [`proc (buf, pos, n u64) → option usize`], [`none` if no room, buffer unchanged],
+  [`put_bool`], [`proc (buf, pos, b bool) → option usize`], [`none` if no room],
+  [`put_nl`], [`proc (buf, pos) → option usize`], [`none` if no room],
 )
 
 `put_` in a name means "write into the buffer" and `_width` means "only count how many bytes are needed". Those that change the buffer are `proc`, those that
@@ -120,7 +120,7 @@ end .
 
 #antipattern[Outputting inside an `effects none` op][
   ```lowent
-  proc bad input out cap io . output u64 . effects none . do
+  proc bad input out cap io . output usize . effects none . do
     return stdio.write out. 1 "x" . .
   end .
   ```

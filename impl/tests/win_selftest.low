@@ -29,7 +29,7 @@ end .
 
 rem ② 문자열 리터럴 표 — 정적 데이터가 PE 의 rodata 로 제대로 건너가는가.
 export fn tbl_sum output u64 . do
-  var k u64 0 .
+  var k usize 0 .
   var acc u64 0 .
   while lt k. len "lowent-win64" . . do
     set acc. add acc. widen u64 idx "lowent-win64" k. . . . .

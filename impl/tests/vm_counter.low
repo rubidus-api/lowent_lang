@@ -20,9 +20,9 @@ rem ✔ 셋 다 필요하다: 길이 상계 → n → 반복 수 → cnt. 하나
 export proc ones_count input s slice u8 . output u64 . effects none .
   requires le len s. . 65536 . .
 do
-  let n u64 len s. . .
+  let n usize len s. . .
   var cnt u64 0 .
-  var k u64 0 .
+  var k usize 0 .
   while lt k. n. . do
     if eq idx s. k. . 1 . do
       set cnt. add cnt. 1 . .
@@ -54,12 +54,12 @@ export proc count_pairs input a slice u8 . input b slice u8 . output u64 . effec
   requires le len a. . 256 . .
   requires le len b. . 64 . .
 do
-  let na u64 len a. . .
-  let nb u64 len b. . .
+  let na usize len a. . .
+  let nb usize len b. . .
   var hits u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. na. . do
-    var j u64 0 .
+    var j usize 0 .
     while lt j. nb. . do
       if eq idx a. i. . idx b. j. . . do
         set hits. add hits. 1 . .

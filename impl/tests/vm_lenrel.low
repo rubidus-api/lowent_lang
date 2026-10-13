@@ -12,7 +12,7 @@ rem              ② 절을 **어기면 진입에서 죽는다**(강제되지 �
 
 module lenrel .
 
-export proc copy_at input a slice u8 . input b mut slice u8 . input i u64 .
+export proc copy_at input a slice u8 . input b mut slice u8 . input i usize .
   output u64 .
   effects none .
   requires le len a. . len b. . . . requires lt i. len a. . . .

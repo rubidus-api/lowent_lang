@@ -3,7 +3,7 @@ rem run: prefix_char 4
 rem run: prefix_chain 4
 
 rem ko: 문자열 리터럴은 slice u8 이고 그대로 색인된다 /// en: a string literal is a slice u8 and can be indexed as it is
-fn prefix_char input k u64 . output u8 .
+fn prefix_char input k usize . output u8 .
   requires lt k. 11 . .
 do
   return idx "/api/users/" k. . .

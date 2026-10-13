@@ -9,28 +9,28 @@ struct board do
 end .
 
 rem any size: `r` and `c` are written by the caller and fixed at translation time
-fn sum input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c . output u64 .
+fn sum input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
 do
   var t u64 0 .
-  repeat i u64 dim m. 0 . do
+  repeat i usize dim m. 0 . do
     for x row m. i. . do set t. add t. widen u64 x. . . . end .
   end .
   return t. .
 end .
 
 rem the corner cell of any size
-fn corner input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c . output u64 .
+fn corner input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
 do
   return widen u64 idx m. sub r. 1 . sub c. 1 . . . .
 end .
 
-fn cellb input b board . input r u64 . input c u64 . output u64 .
+fn cellb input b board . input r usize . input c usize . output u64 .
 do
   return widen u64 idx field b. g . r. c. . . .
 end .
 
 rem a matrix field is filled by a literal, written cell by cell, and read back — also through an op that takes the struct
-export fn fieldrw input r u64 . input c u64 . output u64 .
+export fn fieldrw input r usize . input c usize . output u64 .
 do
   var z lit board do id 1 . g lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
   set idx field z. g . 1 2 . 70 .
@@ -38,7 +38,7 @@ do
 end .
 
 rem a list of structs: the field of one element
-export fn listfield input i u64 . input r u64 . input c u64 . output u64 .
+export fn listfield input i u64 . input r usize . input c usize . output u64 .
 do
   let a lit board do id 1 . g lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
   let b lit board do id 2 . g lit matrix u32 2 3 4 _ . . end . .
@@ -56,26 +56,26 @@ do
 end .
 
 rem one row as a slice: read it, write through it, take its length
-export fn rowsum input r u64 . output u64 .
+export fn rowsum input r usize . output usize .
 do
   var a lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
   let w mut slice u32 row a. r. . .
   set idx w. 0 . 100 .
-  var t u64 0 .
-  for x row a. r. . do set t. add t. widen u64 x. . . . end .
+  var t usize 0 .
+  for x row a. r. . do set t. add t. cast usize widen u64 x. . . . . end .
   return add t. len row a. 0 . . . .
 end .
 
 rem three dimensions: a row takes two indexes
-export fn deeprow input i u64 . input j u64 . output u64 .
+export fn deeprow input i usize . input j usize . output u64 .
 do
   var q lit matrix u32 3 2 3 4 _ . .
   set idx q. 1 2 3 . 9 .
-  return add len row q. i. j. . . widen u64 idx row q. i. j. . 3 . . . .
+  return add cast u64 len row q. i. j. . . . widen u64 idx row q. i. j. . 3 . . . .
 end .
 
 rem a contract may speak of a size
-export fn guarded input r u64 . output u64 .
+export fn guarded input r usize . output u64 .
   requires lt r. 3 . .
 do
   let a lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .

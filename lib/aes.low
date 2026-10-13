@@ -89,13 +89,13 @@ rem     뿐이므로 다른 길이는 *다른 알고리즘을 달라는 말*이�
 export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 . effects none . do
   guard eq len key. . 16 . else return 0 . .
   guard ge len rk. . 176 . else return 0 . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 16 . do
     set idx rk. i. . idx key. i. . .
     set i. add i. 1 . .
   end .
   var rcon u64 1 .
-  var w u64 16 .
+  var w usize 16 .
   while lt w. 176 . do
     var t0 u64 cast u64 idx rk. sub w. 4 . . . .
     var t1 u64 cast u64 idx rk. sub w. 3 . . . .
@@ -121,7 +121,7 @@ end .
 
 rem 라운드 키를 더한다(XOR).
 proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 16 . do
     set idx st. i. . cast u8 bit_xor cast u64 idx st. i. . . cast u64 idx rk. add mul r. 16 . i. . . . . . .
     set i. add i. 1 . .
@@ -142,7 +142,7 @@ export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp 
   rem   ☞ 전에는 SubBytes·ShiftRows·MixColumns 를 이 자리에 손으로 폈다 — 뜻은 같고, 이제
   rem     그 셈이 **한 곳**(처리기의 잎)에 있다.
   let z0 u64 add_round_key st. rk. 0 . .
-  var r u64 1 .
+  var r usize 1 .
   while lt r. 10 . do
     guard eq call_builtin aes_round st. subslice rk. mul r. 16 . add mul r. 16 . 16 . . . 16 . else return 0 . .
     set r. add r. 1 . .

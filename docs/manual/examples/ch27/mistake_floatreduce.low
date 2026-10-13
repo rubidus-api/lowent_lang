@@ -7,7 +7,7 @@ fn mean input s slice f64 . output f64 .
   reduce acc add .
 do
   var acc f64 0.0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     set acc. add acc. idx s. i. . . .
     set i. add i. 1 . .

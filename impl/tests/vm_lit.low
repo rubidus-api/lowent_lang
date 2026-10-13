@@ -63,7 +63,7 @@ end .
 
 rem ── ② text literal ─────────────────────────────────────────────────────────
 
-fn t_textlit_one output u64 . do
+fn t_textlit_one output usize . do
   rem ★ 한 줄이면 **개행이 없다** — TERM 직전 개행 하나를 렉서가 떨어낸다.
   let s slice u8 text END
 abc
@@ -86,7 +86,7 @@ end .
 
 rem ★ 닫는 낱말은 **맨 첫 칸에 홀로** 선다(2026-10-07). 들여 쓴 태그와 더 긴 낱말은 본문이다.
 rem   "a\n  END\nENDx\nEND_1" — 1+1+5+1+4+1+5 = 18 바이트.
-fn t_textlit_col1 output u64 . do
+fn t_textlit_col1 output usize . do
   let s slice u8 text END
 a
   END

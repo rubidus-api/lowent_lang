@@ -44,7 +44,7 @@ end .
 
 rem ★ 쿼터라운드 하나를 상태 슬라이스 위에서 제자리로 돈다.
 rem   `st` 는 원소 16 개(각 32비트 값을 u64 로 담는다).
-proc qround input st mut slice u64 . input a u64 . input b u64 . input c u64 . input d u64 . output u64 . effects none . do
+proc qround input st mut slice u64 . input a usize . input b usize . input c usize . input d usize . output u64 . effects none . do
   set idx st. a. . add32 idx st. a. . idx st. b. . . .
   set idx st. d. . rotl32 bit_xor idx st. d. . idx st. a. . . 16 . .
   set idx st. c. . add32 idx st. c. . idx st. d. . . .
@@ -62,7 +62,7 @@ export proc rounds input st slice u64 . input work mut slice u64 . output result
 errors short_workspace . do
   guard ge len st. . 16 . else return ok 0 . . .
   guard ge len work. . 16 . else return error short_workspace . . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 16 . do
     set idx work. i. . idx st. i. . .
     set i. add i. 1 . .
@@ -81,7 +81,7 @@ errors short_workspace . do
     let z8 u64 qround work. 3 4 9 14 . .
     set r. add r. 1 . .
   end .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. 16 . do
     set idx work. j. . add32 idx work. j. . idx st. j. . . .
     set j. add j. 1 . .
@@ -102,10 +102,10 @@ export proc prep input key slice u8 . input nonce slice u8 . input counter u64 .
   set idx st. 1 . 857760878 .
   set idx st. 2 . 2036477234 .
   set idx st. 3 . 1797285236 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 8 . do
     var w u64 0 .
-    var b u64 0 .
+    var b usize 0 .
     while lt b. 4 . do
       set w. bit_or w. shl cast u64 idx key. add mul i. 4 . b. . . . mul b. 8 . . . .
       set b. add b. 1 . .
@@ -114,10 +114,10 @@ export proc prep input key slice u8 . input nonce slice u8 . input counter u64 .
     set i. add i. 1 . .
   end .
   set idx st. 12 . bit_and counter. 4294967295 . .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. 3 . do
     var v u64 0 .
-    var c u64 0 .
+    var c usize 0 .
     while lt c. 4 . do
       set v. bit_or v. shl cast u64 idx nonce. add mul j. 4 . c. . . . mul c. 8 . . . .
       set c. add c. 1 . .
@@ -135,9 +135,9 @@ errors short_workspace . do
   let _u1 result u64 chacha_error rounds st. work. . .
   guard is_ok _u1. . else return error short_workspace . . .
   guard eq ok_value _u1. . 16 . else return ok 0 . . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 16 . do
-    var b u64 0 .
+    var b usize 0 .
     while lt b. 4 . do
       set idx ks. add mul i. 4 . b. . . cast u8 bit_and shr idx work. i. . mul b. 8 . . 255 . . .
       set b. add b. 1 . .
@@ -161,17 +161,17 @@ errors short_workspace . do
   rem ★ 카운터 블록을 `ks` 의 앞 16 바이트에 세운다 — 앞 4 는 블록 번호(리틀엔디언),
   rem   뒤 12 는 nonce. 이 언어에서 뒷받침은 **호출자의 몫**이므로 새 버퍼를 얻지 않고
   rem   이미 받은 작업 공간을 쓴다(`ks` 는 이 부름 동안 낱말이 채우지 않는다).
-  var b u64 0 .
+  var b usize 0 .
   while lt b. 4 . do
     set idx ks. b. . cast u8 bit_and shr counter. mul b. 8 . . 255 . . .
     set b. add b. 1 . .
   end .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. 12 . do
     set idx ks. add 4 j. . . idx nonce. j. . .
     set j. add j. 1 . .
   end .
-  let n u64 call_builtin chacha20 key. subslice ks. 0 16 . inp. out. . .
+  let n usize call_builtin chacha20 key. subslice ks. 0 16 . inp. out. . .
   guard eq n. len inp. . . else return ok 0 . . .
   return ok len inp. . . .
 end .

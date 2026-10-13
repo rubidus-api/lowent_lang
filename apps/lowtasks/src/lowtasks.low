@@ -22,11 +22,17 @@ use args .
 use clock .
 use stdio .
 
-fn max_tasks output u64 . do
+rem «없음» 을 나타내는 자리 — 그 구현의 `usize` 가 담는 가장 큰 값(폭이 달라도 같은 글이다: 0 에서 1 을 감아 뺀다).
+fn no_pos output usize . do
+  let zero usize 0 .
+  return wrap_sub zero. 1 . .
+end .
+
+fn max_tasks output usize . do
   return 256 .
 end .
 
-fn keep_bytes output u64 . do
+fn keep_bytes output usize . do
   return 65536 .
 end .
 
@@ -53,7 +59,7 @@ end .
 
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
   guard eq len a. . len b. . . else return false . .
-  repeat i u64 len a. . do
+  repeat i usize len a. . do
     guard eq idx a. i. . idx b. i. . . else return false . .
   end .
   return true .
@@ -75,17 +81,17 @@ rem ── 목록 읽기. 표 tb: [0] 작업 수 · [1] argv 바이트 · [2] �
 rem    작업 t: 이름 = src[noff, noff+nlen) · argv = argv[aoff, aoff+alen) · 의존 = deps[doff, doff+dcnt)(이름 자리, 뒤에 번호로 푼다).
 
 rem 줄 하나를 푼다. 맞으면 참. 틀리면 tb[4] 에 까닭(1 모양 · 2 이름 · 3 한도).
-proc parse_line input line slice u8 . input base u64 . input tb mut slice u64 . input noff mut slice u64 . input nlen mut slice u64 . input aoff mut slice u64 . input alen mut slice u64 . input doff mut slice u64 . input dcnt mut slice u64 . input depn mut slice u64 . input depl mut slice u64 . input argv mut slice u8 . output bool . effects none .
+proc parse_line input line slice u8 . input base usize . input tb mut slice u64 . input noff mut slice u64 . input nlen mut slice u64 . input aoff mut slice u64 . input alen mut slice u64 . input doff mut slice u64 . input dcnt mut slice u64 . input depn mut slice u64 . input depl mut slice u64 . input argv mut slice u8 . output bool . effects none .
   requires ge len tb. . 5 . .
 do
-  let t u64 idx tb. 0 . .
+  let t usize cast usize idx tb. 0 . . .
   guard and lt t. max_tasks. . and lt t. len noff. . . and lt t. len nlen. . . and lt t. len aoff. . . and lt t. len alen. . . and lt t. len doff. . . lt t. len dcnt. . . . . . . . . else do
     set idx tb. 4 . 3 .
     return false .
   end .
   rem 이름: 처음부터 ':' 앞까지(앞뒤 빈칸 무시)
-  var colon u64 len line. . .
-  repeat i u64 len line. . do
+  var colon usize len line. . .
+  repeat i usize len line. . do
     if eq idx line. i. . ':' . do
       set colon. i. .
       break .
@@ -95,11 +101,11 @@ do
     set idx tb. 4 . 1 .
     return false .
   end .
-  var ns u64 0 .
+  var ns usize 0 .
   while and lt ns. colon. . is_space idx line. ns. . . . do
     set ns. add ns. 1 . .
   end .
-  var name_end u64 colon. .
+  var name_end usize colon. .
   while and gt name_end. ns. . is_space idx line. sub name_end. 1 . . . . do
     set name_end. sub name_end. 1 . .
   end .
@@ -110,7 +116,7 @@ do
   set idx noff. t. . add base. ns. . .
   set idx nlen. t. . sub name_end. ns. . .
   rem 의존: '--' 가 나올 때까지 낱말들
-  var p u64 add colon. 1 . .
+  var p usize add colon. 1 . .
   set idx doff. t. . idx tb. 2 . .
   var nd u64 0 .
   var seen_sep bool false .
@@ -119,7 +125,7 @@ do
       set p. add p. 1 . .
     end .
     guard lt p. len line. . . else break . .
-    var q u64 p. .
+    var q usize p. .
     while and lt q. len line. . . not is_space idx line. q. . . . . do
       set q. add q. 1 . .
     end .
@@ -133,7 +139,7 @@ do
       set idx tb. 4 . 2 .
       return false .
     end .
-    let di u64 idx tb. 2 . .
+    let di usize cast usize idx tb. 2 . . .
     guard and lt di. len depn. . . lt di. len depl. . . . else do
       set idx tb. 4 . 3 .
       return false .
@@ -150,7 +156,7 @@ do
   set idx dcnt. t. . nd. .
   rem 인자: 빈칸으로 가르고 큰따옴표는 한 인자로. NUL 로 잇는다.
   set idx aoff. t. . idx tb. 1 . .
-  var w u64 idx tb. 1 . .
+  var w usize cast usize idx tb. 1 . . .
   var nargs u64 0 .
   while lt p. len line. . . do
     while and lt p. len line. . . is_space idx line. p. . . . do
@@ -217,28 +223,28 @@ rem 의존 이름을 작업 번호로 푼다(같은 이름의 작업이 둘이�
 proc resolve input src slice u8 . input tb mut slice u64 . input noff slice u64 . input nlen slice u64 . input depn mut slice u64 . input depl slice u64 . output bool . effects none .
   requires ge len tb. . 5 . .
 do
-  let n u64 idx tb. 0 . .
+  let n usize cast usize idx tb. 0 . . .
   guard and le n. len noff. . . le n. len nlen. . . . else return false . .
-  repeat a u64 n. do
-    cycle b u64 add a. 1 . while lt b. n. . next add b. 1 . do
-      if same_bytes subslice src. idx noff. a. . add idx noff. a. . idx nlen. a. . . . subslice src. idx noff. b. . add idx noff. b. . idx nlen. b. . . . . do
+  repeat a usize n. do
+    cycle b usize add a. 1 . while lt b. n. . next add b. 1 . do
+      if same_bytes subslice src. cast usize idx noff. a. . . cast usize add idx noff. a. . idx nlen. a. . . . . subslice src. cast usize idx noff. b. . . cast usize add idx noff. b. . idx nlen. b. . . . . . do
         set idx tb. 4 . 4 .
         return false .
       end .
     end .
   end .
-  let nd u64 idx tb. 2 . .
+  let nd usize cast usize idx tb. 2 . . .
   guard and le nd. len depn. . . le nd. len depl. . . . else return false . .
-  repeat d u64 nd. do
-    let dn slice u8 subslice src. idx depn. d. . add idx depn. d. . idx depl. d. . . . .
-    var found u64 18446744073709551615 .
-    repeat t u64 n. do
-      if same_bytes subslice src. idx noff. t. . add idx noff. t. . idx nlen. t. . . . dn. . do
+  repeat d usize nd. do
+    let dn slice u8 subslice src. cast usize idx depn. d. . . cast usize add idx depn. d. . idx depl. d. . . . . .
+    var found usize no_pos. .
+    repeat t usize n. do
+      if same_bytes subslice src. cast usize idx noff. t. . . cast usize add idx noff. t. . idx nlen. t. . . . . dn. . do
         set found. t. .
         break .
       end .
     end .
-    guard ne found. 18446744073709551615 . else do
+    guard ne found. no_pos. . else do
       set idx tb. 4 . 5 .
       return false .
     end .
@@ -248,16 +254,16 @@ do
 end .
 
 rem 고리가 있는가(칸 의 차수를 세어 Kahn). indeg · queue 는 작업 수만큼.
-proc has_cycle input n u64 . input doff slice u64 . input dcnt slice u64 . input depn slice u64 . input indeg mut slice u64 . input queue mut slice u64 . output bool . effects none .
+proc has_cycle input n usize . input doff slice u64 . input dcnt slice u64 . input depn slice u64 . input indeg mut slice u64 . input queue mut slice u64 . output bool . effects none .
   requires le n. len doff. . . .
   requires le n. len dcnt. . . .
   requires le n. len indeg. . . .
   requires le n. len queue. . . .
 do
   rem indeg[t] = t 가 기다리는 작업 수. 끝난 작업 u 를 기다리던 t 들의 차수를 내린다(u 를 의존으로 가진 t 를 훑는다).
-  var qh u64 0 .
-  var qt u64 0 .
-  repeat t u64 n. do
+  var qh usize 0 .
+  var qt usize 0 .
+  repeat t usize n. do
     set idx indeg. t. . idx dcnt. t. . .
     if eq idx dcnt. t. . 0 . do
       set idx queue. qt. . t. .
@@ -267,9 +273,9 @@ do
   while lt qh. qt. . do
     let u u64 idx queue. qh. . .
     set qh. add qh. 1 . .
-    repeat t2 u64 n. do
-      let o u64 idx doff. t2. . .
-      repeat k u64 idx dcnt. t2. . do
+    repeat t2 usize n. do
+      let o usize cast usize idx doff. t2. . . .
+      repeat k usize cast usize idx dcnt. t2. . . do
         guard lt add o. k. . len depn. . . else return true . .
         if eq idx depn. add o. k. . . u. . do
           guard gt idx indeg. t2. . 0 . else return true . .
@@ -287,11 +293,11 @@ do
 end .
 
 rem 의존이 모두 성공했는가 · 하나라도 실패/건너뜀인가.
-fn deps_state input t u64 . input doff slice u64 . input dcnt slice u64 . input depn slice u64 . input phase slice u64 . output u64 . do
-  let o u64 idx doff. t. . .
+fn deps_state input t usize . input doff slice u64 . input dcnt slice u64 . input depn slice u64 . input phase slice u64 . output u64 . do
+  let o usize cast usize idx doff. t. . . .
   var all_ok bool true .
-  repeat k u64 idx dcnt. t. . do
-    let d u64 idx depn. add o. k. . . .
+  repeat k usize cast usize idx dcnt. t. . . do
+    let d usize cast usize idx depn. add o. k. . . . .
     let s u64 idx phase. d. . .
     if or eq s. s_fail. . eq s. s_skip. . . do
       return 2 .
@@ -308,39 +314,39 @@ rem ── 돌리기 ───────────────────�
 
 rem 끝난 작업 하나를 알린다: «== 이름: exit N» (또는 signal N · could not start) + 모은 출력 + 넘친 수.
 proc report input out cap io . input name slice u8 . input how u64 . input status u64 . input kept slice u8 . input dropped u64 . input line mut slice u8 . output void . effects io . do
-  let p1 option u64 fmt.put_str line. 0 "== " . .
-  let p2 option u64 fmt.put_str line. value_or p1. 0 . name. . .
-  var p u64 value_or p2. 0 . .
+  let p1 option usize fmt.put_str line. 0 "== " . .
+  let p2 option usize fmt.put_str line. value_or p1. 0 . name. . .
+  var p usize value_or p2. 0 . .
   if eq how. 0 . do
-    let p3 option u64 fmt.put_str line. p. ": could not start\n" . .
+    let p3 option usize fmt.put_str line. p. ": could not start\n" . .
     set p. value_or p3. p. . .
   end else if lt status. 4294967296 . do
-    let p4 option u64 fmt.put_str line. p. ": exit " . .
-    let p5 option u64 fmt.put_u64 line. value_or p4. p. . bit_and status. 4294967295 . . .
-    let p6 option u64 fmt.put_str line. value_or p5. p. . "\n" . .
+    let p4 option usize fmt.put_str line. p. ": exit " . .
+    let p5 option usize fmt.put_u64 line. value_or p4. p. . bit_and status. 4294967295 . . .
+    let p6 option usize fmt.put_str line. value_or p5. p. . "\n" . .
     set p. value_or p6. p. . .
   end else do
-    let p7 option u64 fmt.put_str line. p. ": signal " . .
-    let p8 option u64 fmt.put_u64 line. value_or p7. p. . bit_and status. 4294967295 . . .
-    let p9 option u64 fmt.put_str line. value_or p8. p. . "\n" . .
+    let p7 option usize fmt.put_str line. p. ": signal " . .
+    let p8 option usize fmt.put_u64 line. value_or p7. p. . bit_and status. 4294967295 . . .
+    let p9 option usize fmt.put_str line. value_or p8. p. . "\n" . .
     set p. value_or p9. p. . .
   end .
-  let w1 option u64 outbuf.write_all out. 1 subslice line. 0 min p. len line. . . . . .
-  let w2 option u64 outbuf.write_all out. 1 kept. . .
+  let w1 option usize outbuf.write_all out. 1 subslice line. 0 min p. len line. . . . . .
+  let w2 option usize outbuf.write_all out. 1 kept. . .
   if and gt len kept. . 0 . ne idx kept. sub len kept. . 1 . . '\n' . . do
-    let w3 option u64 outbuf.write_all out. 1 "\n" . .
+    let w3 option usize outbuf.write_all out. 1 "\n" . .
   end .
   if gt dropped. 0 . do
-    let q1 option u64 fmt.put_str line. 0 "== (" . .
-    let q2 option u64 fmt.put_u64 line. value_or q1. 0 . dropped. . .
-    let q3 option u64 fmt.put_str line. value_or q2. 0 . " more bytes of output were not kept)\n" . .
-    let w4 option u64 outbuf.write_all out. 1 subslice line. 0 min value_or q3. 0 . len line. . . . . .
+    let q1 option usize fmt.put_str line. 0 "== (" . .
+    let q2 option usize fmt.put_u64 line. value_or q1. 0 . dropped. . .
+    let q3 option usize fmt.put_str line. value_or q2. 0 . " more bytes of output were not kept)\n" . .
+    let w4 option usize outbuf.write_all out. 1 subslice line. 0 min value_or q3. 0 . len line. . . . . .
   end .
   return .
 end .
 
 rem 작업 t 의 출력을 읽을 수 있는 만큼 읽어 모은다(64 KiB 넘은 것은 수만 센다). 출력이 끝났으면 참.
-proc pull_output input k cap process . input h u64 . input held mut slice u8 . input kept mut slice u64 . input dropped mut slice u64 . input t u64 . input scratch mut slice u8 . output bool . effects io .
+proc pull_output input k cap process . input h u64 . input held mut slice u8 . input kept mut slice u64 . input dropped mut slice u64 . input t usize . input scratch mut slice u8 . output bool . effects io .
   requires lt t. len kept. . . .
   requires lt t. len dropped. . . .
 do
@@ -349,9 +355,9 @@ do
     guard is_some r. . else return true . .
     let n u64 some_value r. . .
     guard gt n. 0 . else return false . .
-    let have u64 idx kept. t. . .
+    let have usize cast usize idx kept. t. . . .
     let room u64 sub len held. . min have. len held. . . . .
-    let take u64 min room. n. . .
+    let take usize min room. n. . .
     copy subslice held. have. add have. take. . . subslice scratch. 0 take. . .
     set idx kept. t. . add have. take. . .
     set idx dropped. t. . add idx dropped. t. . sub n. take. . . .
@@ -384,12 +390,12 @@ fn parse_err input kind u64 . output slice u8 . do
 end .
 
 rem 표준 입력을 끝까지 읽는다(최대 len buf). 읽은 수, 넘치면 len buf + 1.
-proc read_all input out cap io . input buf mut slice u8 . output u64 . effects io . do
-  var got u64 0 .
+proc read_all input out cap io . input buf mut slice u8 . output usize . effects io . do
+  var got usize 0 .
   while lt got. len buf. . . do
     let r option u64 stdio.read out. 0 subslice buf. got. len buf. . . . .
     guard is_some r. . else break . .
-    let n u64 some_value r. . .
+    let n usize some_value r. . .
     guard gt n. 0 . else break . .
     set got. add got. n. . .
   end .
@@ -403,7 +409,7 @@ proc read_all input out cap io . input buf mut slice u8 . output u64 . effects i
 end .
 
 rem 돌리기의 몸. 0 = 모두 성공 · 1 = 실패가 있었다.
-proc run_all input k cap process . input out cap io . input ck cap clock . input src slice u8 . input n u64 . input jobs u64 . input noff slice u64 . input nlen slice u64 . input aoff slice u64 . input alen slice u64 . input doff slice u64 . input dcnt slice u64 . input depn slice u64 . input argv slice u8 . input mem mut slice u8 . output u64 . effects io wait .
+proc run_all input k cap process . input out cap io . input ck cap clock . input src slice u8 . input n usize . input jobs u64 . input noff slice u64 . input nlen slice u64 . input aoff slice u64 . input alen slice u64 . input doff slice u64 . input dcnt slice u64 . input depn slice u64 . input argv slice u8 . input mem mut slice u8 . output u64 . effects io wait .
   requires le n. 256 . .
 do
   let phase mut slice u64 view_array u64 subslice mem. 0 2048 . . .
@@ -414,7 +420,7 @@ do
   let scratch mut slice u8 subslice mem. 8704 74240 . .
   let held mut slice u8 subslice mem. 74240 16851456 . .
   guard and le n. len phase. . . and le n. len handle. . . and le n. len kept. . . le n. len dropped. . . . . . else return 1 . .
-  repeat t0 u64 n. do
+  repeat t0 usize n. do
     set idx phase. t0. . s_wait. .
     set idx kept. t0. . 0 .
     set idx dropped. t0. . 0 .
@@ -426,7 +432,7 @@ do
     var progress bool false .
     rem ① 띄울 수 있는 것을 파일 차례로 띄운다.
     if not stopping. . do
-      repeat t u64 n. do
+      repeat t usize n. do
         guard lt running. jobs. . else break . .
         guard eq idx phase. t. . s_wait. . else continue . .
         let ds u64 deps_state t. doff. dcnt. depn. phase. . .
@@ -436,14 +442,14 @@ do
           continue .
         end .
         guard eq ds. 1 . else continue . .
-        let ao u64 idx aoff. t. . .
-        let h option u64 call_builtin proc_spawn k. subslice argv. ao. add ao. idx alen. t. . . . . .
+        let ao usize cast usize idx aoff. t. . . .
+        let h option u64 call_builtin proc_spawn k. subslice argv. ao. add ao. cast usize idx alen. t. . . . . . .
         set progress. true .
         if is_none h. . do
           set idx phase. t. . s_fail. .
           set any_fail. true .
           set stopping. true .
-          report out. subslice src. idx noff. t. . add idx noff. t. . idx nlen. t. . . . 0 0 "" 0 line. .
+          report out. subslice src. cast usize idx noff. t. . . cast usize add idx noff. t. . idx nlen. t. . . . . 0 0 "" 0 line. .
           break .
         end .
         set idx handle. t. . some_value h. . .
@@ -452,7 +458,7 @@ do
       end .
     end .
     rem ② 도는 것의 출력을 읽고, 끝난 것을 거둔다.
-    repeat t2 u64 n. do
+    repeat t2 usize n. do
       guard eq idx phase. t2. . s_run. . else continue . .
       let h2 u64 idx handle. t2. . .
       let mine mut slice u8 subslice held. mul t2. keep_bytes. . mul add t2. 1 . keep_bytes. . . .
@@ -473,13 +479,13 @@ do
         set any_fail. true .
         set stopping. true .
       end .
-      let ko u64 mul t2. keep_bytes. . .
-      report out. subslice src. idx noff. t2. . add idx noff. t2. . idx nlen. t2. . . . 1 status. subslice held. ko. add ko. min idx kept. t2. . keep_bytes. . . . idx dropped. t2. . line. .
+      let ko usize mul t2. keep_bytes. . .
+      report out. subslice src. cast usize idx noff. t2. . . cast usize add idx noff. t2. . idx nlen. t2. . . . . 1 status. subslice held. ko. add ko. min idx kept. t2. . keep_bytes. . . . idx dropped. t2. . line. .
     end .
     rem ③ 끝났는가
     if eq running. 0 . do
       var waiting bool false .
-      repeat t3 u64 n. do
+      repeat t3 usize n. do
         if eq idx phase. t3. . s_wait. . do
           if stopping. do
             set idx phase. t3. . s_skip. .
@@ -497,11 +503,11 @@ do
     end .
   end .
   rem 건너뛴 것을 알린다.
-  repeat t4 u64 n. do
+  repeat t4 usize n. do
     if eq idx phase. t4. . s_skip. . do
-      let w1 option u64 outbuf.write_all out. 1 "== " . .
-      let w2 option u64 outbuf.write_all out. 1 subslice src. idx noff. t4. . add idx noff. t4. . idx nlen. t4. . . . . .
-      let w3 option u64 outbuf.write_all out. 1 ": skipped\n" . .
+      let w1 option usize outbuf.write_all out. 1 "== " . .
+      let w2 option usize outbuf.write_all out. 1 subslice src. cast usize idx noff. t4. . . cast usize add idx noff. t4. . idx nlen. t4. . . . . . .
+      let w3 option usize outbuf.write_all out. 1 ": skipped\n" . .
     end .
   end .
   guard not any_fail. . else return 1 . .
@@ -522,12 +528,12 @@ do
   if is_some a0. . do
     let a1 option slice u8 args.get a. 1 . .
     guard and same_bytes some_value a0. . "-j" . is_some a1. . . else do
-      let w0 option u64 outbuf.write_all out. 2 usage_text. . .
+      let w0 option usize outbuf.write_all out. 2 usage_text. . .
       return 2 .
     end .
     set jobs. parse_num some_value a1. . . .
     guard and ge jobs. 1 . le jobs. 32 . . else do
-      let w1 option u64 outbuf.write_all out. 2 usage_text. . .
+      let w1 option usize outbuf.write_all out. 2 usage_text. . .
       return 2 .
     end .
   end .
@@ -552,54 +558,54 @@ do
   for z mut tb. do
     set z. 0 .
   end .
-  let n_in u64 read_all out. src. . .
+  let n_in usize read_all out. src. . .
   guard le n_in. len src. . . else do
-    let w2 option u64 outbuf.write_all out. 2 "lowtasks: the task list is larger than 256 KiB\n" . .
+    let w2 option usize outbuf.write_all out. 2 "lowtasks: the task list is larger than 256 KiB\n" . .
     return 3 .
   end .
   rem 줄마다 푼다
-  var ls u64 0 .
+  var ls usize 0 .
   var lineno u64 0 .
-  repeat i u64 add n_in. 1 . do
+  repeat i usize add n_in. 1 . do
     guard or eq i. n_in. . eq idx src. min i. sub len src. . 1 . . . '\n' . . else continue . .
     set lineno. add lineno. 1 . .
-    var line_end u64 i. .
+    var line_end usize i. .
     if and gt line_end. ls. . eq idx src. sub line_end. 1 . . '\r' . . do
       set line_end. sub line_end. 1 . .
     end .
-    var fs u64 ls. .
+    var fs usize ls. .
     while and lt fs. line_end. . is_space idx src. fs. . . . do
       set fs. add fs. 1 . .
     end .
-    let l0 u64 ls. .
+    let l0 usize ls. .
     set ls. add i. 1 . .
     if or eq fs. line_end. . eq idx src. fs. . '#' . . do
       continue .
     end .
     if not parse_line subslice src. l0. line_end. . l0. tb. noff. nlen. aoff. alen. doff. dcnt. depn. depl. argv. . . do
-      let pe option u64 fmt.put_str argv. 0 parse_err idx tb. 4 . . . .
-      let pn option u64 fmt.put_u64 argv. value_or pe. 0 . lineno. . .
-      let pc option u64 fmt.put_str argv. value_or pn. 0 . ")\n" . .
-      let w3 option u64 outbuf.write_all out. 2 subslice argv. 0 min value_or pc. 0 . len argv. . . . . .
+      let pe option usize fmt.put_str argv. 0 parse_err idx tb. 4 . . . .
+      let pn option usize fmt.put_u64 argv. value_or pe. 0 . lineno. . .
+      let pc option usize fmt.put_str argv. value_or pn. 0 . ")\n" . .
+      let w3 option usize outbuf.write_all out. 2 subslice argv. 0 min value_or pc. 0 . len argv. . . . . .
       guard eq idx tb. 4 . 3 . else return 1 . .
       return 3 .
     end .
   end .
-  let n u64 idx tb. 0 . .
+  let n usize cast usize idx tb. 0 . . .
   guard gt n. 0 . else do
-    let w4 option u64 outbuf.write_all out. 2 "lowtasks: no tasks\n" . .
+    let w4 option usize outbuf.write_all out. 2 "lowtasks: no tasks\n" . .
     return 1 .
   end .
   guard resolve src. tb. noff. nlen. depn. depl. . else do
     if eq idx tb. 4 . 4 . do
-      let w5 option u64 outbuf.write_all out. 2 "lowtasks: two tasks have the same name\n" . .
+      let w5 option usize outbuf.write_all out. 2 "lowtasks: two tasks have the same name\n" . .
     end else do
-      let w6 option u64 outbuf.write_all out. 2 "lowtasks: a dependency names no task\n" . .
+      let w6 option usize outbuf.write_all out. 2 "lowtasks: a dependency names no task\n" . .
     end .
     return 1 .
   end .
   guard not has_cycle n. doff. dcnt. depn. indeg. queue. . . else do
-    let w7 option u64 outbuf.write_all out. 2 "lowtasks: the dependencies form a cycle — nothing was run\n" . .
+    let w7 option usize outbuf.write_all out. 2 "lowtasks: the dependencies form a cycle — nothing was run\n" . .
     return 1 .
   end .
   let rc u64 run_all k. out. ck. src. n. jobs. noff. nlen. aoff. alen. doff. dcnt. depn. argv. runm. . .

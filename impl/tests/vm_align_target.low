@@ -15,7 +15,7 @@ struct counter do
 end .
 
 rem 한 칸의 크기 = 정렬로 올림된 크기. x86_64·arm64 는 64, cortex_m 은 4 다.
-fn cell_size output u64 . do
+fn cell_size output usize . do
   return len encode counter mk. . . .
 end .
 

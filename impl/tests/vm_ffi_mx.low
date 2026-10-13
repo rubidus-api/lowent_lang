@@ -34,7 +34,7 @@ do
 end .
 
 rem C fills the table as a[r][c], Lowent indexes it with `idx m. r. c. .`
-unsafe proc write_in_c input k cap c . input r u64 . input c u64 . output u64 . effects unsafe .
+unsafe proc write_in_c input k cap c . input r usize . input c usize . output u64 . effects unsafe .
 do
   var m lit matrix u32 2 3 4 _ . .
   let n i64 c_fill34 k. flat m. . . .

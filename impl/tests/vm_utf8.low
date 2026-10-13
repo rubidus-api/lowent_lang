@@ -23,7 +23,7 @@ rem ── 유효한 것 ──────────────────�
 
 rem ASCII 는 1 바이트. "hi" → 2 글자.
 fn t_ascii output u64 . do
-  let n option u64 utf8.count_chars "hi" . .
+  let n option usize utf8.count_chars "hi" . .
   guard is_some n. . else return 90 . .
   guard eq some_value n. . 2 . else return 91 . .
   let c option u64 utf8.decode "hi" 0 . .
@@ -36,7 +36,7 @@ rem 한글은 3 바이트. "한" = EA 9C … 아니라 ED 95 9C (U+D55C).
 fn t_hangul output u64 . do
   let s slice u8 "한" .
   guard eq len s. . 3 . else return 90 . .                   rem ★ 바이트로는 3
-  let n option u64 utf8.count_chars s. . .
+  let n option usize utf8.count_chars s. . .
   guard is_some n. . else return 91 . .
   guard eq some_value n. . 1 . else return 92 . .            rem ★ 글자로는 1
   let c option u64 utf8.decode s. 0 . .
@@ -48,7 +48,7 @@ end .
 rem 2 바이트(U+00E9 'é' = C3 A9)와 4 바이트(U+1F600 = F0 9F 98 80) 섞기.
 fn t_mixed output u64 . do
   let s slice u8 "aé😀" .
-  let n option u64 utf8.count_chars s. . .
+  let n option usize utf8.count_chars s. . .
   guard is_some n. . else return 90 . .
   guard eq some_value n. . 3 . else return 91 . .            rem 글자 3, 바이트 7
   guard eq len s. . 7 . else return 92 . .

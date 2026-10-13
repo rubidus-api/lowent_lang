@@ -17,19 +17,19 @@ use args .
 use stdio .
 
 rem ── 한도(«여기까지는 본다»). 넘치면 말하고 3 으로 끝난다.
-fn max_fields output u64 . do
+fn max_fields output usize . do
   return 256 .
 end .
 
-fn max_record output u64 . do
+fn max_record output usize . do
   return 65536 .
 end .
 
-fn max_groups output u64 . do
+fn max_groups output usize . do
   return 65536 .
 end .
 
-fn max_keybytes output u64 . do
+fn max_keybytes output usize . do
   return 4194304 .
 end .
 
@@ -38,67 +38,67 @@ fn table_slots output u64 . do
 end .
 
 rem ── 상태 칸(ctx 의 자리). 이 언어에는 모듈 수준의 바뀌는 상태가 없으므로 부르는 쪽이 준 칸에 든다.
-fn k_state output u64 . do
+fn k_state output usize . do
   return 0 .
 end .
 
-fn k_reclen output u64 . do
+fn k_reclen output usize . do
   return 1 .
 end .
 
-fn k_nfields output u64 . do
+fn k_nfields output usize . do
   return 2 .
 end .
 
-fn k_record output u64 . do
+fn k_record output usize . do
   return 3 .
 end .
 
-fn k_err output u64 . do
+fn k_err output usize . do
   return 4 .
 end .
 
-fn k_header output u64 . do
+fn k_header output usize . do
   return 5 .
 end .
 
-fn k_ncols output u64 . do
+fn k_ncols output usize . do
   return 6 .
 end .
 
-fn k_wcol output u64 . do
+fn k_wcol output usize . do
   return 7 .
 end .
 
-fn k_acol output u64 . do
+fn k_acol output usize . do
   return 8 .
 end .
 
-fn k_gcol output u64 . do
+fn k_gcol output usize . do
   return 9 .
 end .
 
-fn k_count output u64 . do
+fn k_count output usize . do
   return 10 .
 end .
 
-fn k_groups output u64 . do
+fn k_groups output usize . do
   return 11 .
 end .
 
-fn k_keyused output u64 . do
+fn k_keyused output usize . do
   return 12 .
 end .
 
-fn k_seen output u64 . do
+fn k_seen output usize . do
   return 13 .
 end .
 
-fn k_skiplf output u64 . do
+fn k_skiplf output usize . do
   return 14 .
 end .
 
-fn k_fstart output u64 . do
+fn k_fstart output usize . do
   return 15 .
 end .
 
@@ -147,22 +147,23 @@ fn e_empty output u64 . do
   return 11 .
 end .
 
-fn none_col output u64 . do
-  return 18446744073709551615 .
+fn none_col output usize . do
+  let zero usize 0 .
+  return wrap_sub zero. 1 . .
 end .
 
 rem ── 바이트 도움
 
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
   guard eq len a. . len b. . . else return false . .
-  repeat i u64 len a. . do
+  repeat i usize len a. . do
     guard eq idx a. i. . idx b. i. . . else return false . .
   end .
   return true .
 end .
 
 fn less_bytes input a slice u8 . input b slice u8 . output bool . do
-  repeat i u64 min len a. . len b. . . do
+  repeat i usize min len a. . len b. . . do
     if ne idx a. i. . idx b. i. . . do
       return lt idx a. i. . idx b. i. . . .
     end .
@@ -172,14 +173,14 @@ end .
 
 rem 올바른 UTF-8 인가(넘치게 긴 꼴 · 대리 · U+10FFFF 너머를 거절한다).
 fn valid_utf8 input s slice u8 . output bool . do
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     let c u8 idx s. i. . .
     if lt c. 128 . do
       set i. add i. 1 . .
       continue .
     end .
-    var need u64 0 .
+    var need usize 0 .
     var lo u8 128 .
     var hi u8 191 .
     if and ge c. 194 . le c. 223 . . do
@@ -206,7 +207,7 @@ fn valid_utf8 input s slice u8 . output bool . do
     guard le add i. need. . sub len s. . 1 . . else return false . .
     let c1 u8 idx s. add i. 1 . . .
     guard and ge c1. lo. . le c1. hi. . . else return false . .
-    cycle k u64 2 while le k. need. . next add k. 1 . do
+    cycle k usize 2 while le k. need. . next add k. 1 . do
       let ck u8 idx s. add i. k. . . .
       guard and ge ck. 128 . le ck. 191 . . else return false . .
     end .
@@ -222,7 +223,7 @@ proc parse_i64 input s slice u8 . input okv mut slice u64 . output i64 . effects
 do
   set idx okv. 0 . 0 .
   guard gt len s. . 0 . else return 0 . .
-  var start u64 0 .
+  var start usize 0 .
   var negative bool false .
   if or eq idx s. 0 . '-' . eq idx s. 0 . '+' . . do
     set negative. eq idx s. 0 . '-' . .
@@ -231,7 +232,7 @@ do
   guard lt start. len s. . . else return 0 . .
   let limit u64 if_neg_limit negative. . .
   var mag u64 0 .
-  cycle i u64 start. while lt i. len s. . . next add i. 1 . do
+  cycle i usize start. while lt i. len s. . . next add i. 1 . do
     let c u8 idx s. i. . .
     guard and ge c. '0' . le c. '9' . . else return 0 . .
     let d u64 sub c. '0' . .
@@ -278,20 +279,20 @@ fn fnv1a input s slice u8 . output u64 . do
 end .
 
 rem 키의 그룹 번호(없으면 새로 단다). 한도에 닿으면 none_col.
-proc group_of input key slice u8 . input ctx mut slice u64 . input slots mut slice u64 . input koff mut slice u64 . input klen mut slice u64 . input keys mut slice u8 . output u64 . effects none .
+proc group_of input key slice u8 . input ctx mut slice u64 . input slots mut slice u64 . input koff mut slice u64 . input klen mut slice u64 . input keys mut slice u8 . output usize . effects none .
   requires ge len ctx. . 16 . .
   requires ge len slots. . 1 . .
 do
-  let cap u64 len slots. . .
-  var at u64 mod fnv1a key. . cap. . .
-  repeat probe u64 cap. do
-    let s u64 idx slots. at. . .
+  let cap usize len slots. . .
+  var at usize cast usize mod fnv1a key. . cast u64 cap. . . . .
+  repeat probe usize cap. do
+    let s usize cast usize idx slots. at. . . .
     if eq s. 0 . do
-      let g u64 idx ctx. k_groups. . .
-      let used u64 idx ctx. k_keyused. . .
+      let g usize cast usize idx ctx. k_groups. . . .
+      let used usize cast usize idx ctx. k_keyused. . . .
       guard and lt g. max_groups. . lt g. len koff. . . . else return none_col. . .
       guard and lt g. len klen. . . le add used. len key. . . len keys. . . . else return none_col. . .
-      repeat c u64 len key. . do
+      repeat c usize len key. . do
         set idx keys. add used. c. . . idx key. c. . .
       end .
       set idx koff. g. . used. .
@@ -301,11 +302,11 @@ do
       set idx slots. at. . add g. 1 . .
       return g. .
     end .
-    let g2 u64 sub s. 1 . .
+    let g2 usize sub s. 1 . .
     guard and lt g2. len koff. . . lt g2. len klen. . . . else return none_col. . .
-    let ko u64 idx koff. g2. . .
-    guard le add ko. idx klen. g2. . . len keys. . . else return none_col. . .
-    if same_bytes subslice keys. ko. add ko. idx klen. g2. . . . key. . do
+    let ko usize cast usize idx koff. g2. . . .
+    guard le add ko. cast usize idx klen. g2. . . . len keys. . . else return none_col. . .
+    if same_bytes subslice keys. ko. add ko. cast usize idx klen. g2. . . . . key. . do
       return g2. .
     end .
     set at. mod add at. 1 . cap. . .
@@ -314,7 +315,7 @@ do
 end .
 
 rem 머리 레코드: 열 수를 적고 이름 셋(where · agg · group)을 열 번호로 푼다. 같은 이름이 둘이면 그 이름을 부른 경우만 오류.
-proc take_header input rec slice u8 . input foffs slice u64 . input flens slice u64 . input ctx mut slice u64 . input names slice u8 . input wl slice u64 . input nf u64 . output void . effects none .
+proc take_header input rec slice u8 . input foffs slice u64 . input flens slice u64 . input ctx mut slice u64 . input names slice u8 . input wl slice u64 . input nf usize . output void . effects none .
   requires ge len ctx. . 16 . .
   requires ge len wl. . 3 . .
   requires le nf. len foffs. . . .
@@ -323,25 +324,25 @@ do
   set idx ctx. k_header. . 1 .
   set idx ctx. k_ncols. . nf. .
   rem 열 이름 셋을 찾는다. 같은 이름이 둘이면 그 이름을 부른 경우에만 오류다.
-  var base u64 0 .
-  repeat which u64 3 do
-    let nl u64 idx wl. which. . .
-    let slot u64 add k_wcol. which. . .
+  var base usize 0 .
+  repeat which usize 3 do
+    let nl usize cast usize idx wl. which. . . .
+    let slot usize add k_wcol. which. . .
     set idx ctx. slot. . none_col. .
     guard le add base. nl. . len names. . . else return . .
     if gt nl. 0 . do
       let want slice u8 subslice names. base. add base. nl. . . .
-      repeat col u64 nf. do
-        let fo u64 idx foffs. col. . .
-        if same_bytes subslice rec. fo. add fo. idx flens. col. . . . want. . do
-          if ne idx ctx. slot. . none_col. . do
+      repeat col usize nf. do
+        let fo usize cast usize idx foffs. col. . . .
+        if same_bytes subslice rec. fo. add fo. cast usize idx flens. col. . . . . want. . do
+          if ne cast usize idx ctx. slot. . . none_col. . do
             set idx ctx. k_err. . e_ambiguous. .
             return .
           end .
           set idx ctx. slot. . col. .
         end .
       end .
-      if eq idx ctx. slot. . none_col. . do
+      if eq cast usize idx ctx. slot. . . none_col. . do
         set idx ctx. k_err. . e_column. .
         return .
       end .
@@ -362,18 +363,18 @@ do
   if eq idx ctx. k_header. . 1 . do
     set idx ctx. k_record. . add idx ctx. k_record. . 1 . .
   end .
-  let nf u64 idx ctx. k_nfields. . .
+  let nf usize cast usize idx ctx. k_nfields. . . .
   guard and le nf. len foffs. . . le nf. len flens. . . . else do
     set idx ctx. k_err. . e_limit. .
     return .
   end .
-  repeat f u64 nf. do
-    let fo u64 idx foffs. f. . .
-    guard le add fo. idx flens. f. . . len rec. . . else do
+  repeat f usize nf. do
+    let fo usize cast usize idx foffs. f. . . .
+    guard le add fo. cast usize idx flens. f. . . . len rec. . . else do
       set idx ctx. k_err. . e_limit. .
       return .
     end .
-    guard valid_utf8 subslice rec. fo. add fo. idx flens. f. . . . . else do
+    guard valid_utf8 subslice rec. fo. add fo. cast usize idx flens. f. . . . . . else do
       set idx ctx. k_err. . e_utf8. .
       return .
     end .
@@ -382,20 +383,20 @@ do
     take_header rec. foffs. flens. ctx. names. wl. nf. .
     return .
   end .
-  guard eq nf. idx ctx. k_ncols. . . else do
+  guard eq nf. cast usize idx ctx. k_ncols. . . . else do
     set idx ctx. k_err. . e_fields. .
     return .
   end .
-  let wc u64 idx ctx. k_wcol. . .
+  let wc usize cast usize idx ctx. k_wcol. . . .
   if ne wc. none_col. . do
-    let wo u64 idx foffs. wc. . .
-    guard same_bytes subslice rec. wo. add wo. idx flens. wc. . . . wval. . else return . .
+    let wo usize cast usize idx foffs. wc. . . .
+    guard same_bytes subslice rec. wo. add wo. cast usize idx flens. wc. . . . . wval. . else return . .
   end .
   var v i64 1 .
-  let ac u64 idx ctx. k_acol. . .
+  let ac usize cast usize idx ctx. k_acol. . . .
   if ne ac. none_col. . do
-    let ao u64 idx foffs. ac. . .
-    set v. parse_i64 subslice rec. ao. add ao. idx flens. ac. . . . okbuf. . .
+    let ao usize cast usize idx foffs. ac. . . .
+    set v. parse_i64 subslice rec. ao. add ao. cast usize idx flens. ac. . . . . okbuf. . .
     if eq idx okbuf. 0 . 0 . do
       set idx ctx. k_err. . e_number. .
       return .
@@ -406,7 +407,7 @@ do
     end .
   end .
   set idx ctx. k_count. . add idx ctx. k_count. . 1 . .
-  let gc u64 idx ctx. k_gcol. . .
+  let gc usize cast usize idx ctx. k_gcol. . . .
   if eq gc. none_col. . do
     if ne ac. none_col. . do
       let s i64 add_i64 idx acc. 0 . v. okbuf. . .
@@ -418,8 +419,8 @@ do
     end .
     return .
   end .
-  let go u64 idx foffs. gc. . .
-  let g u64 group_of subslice rec. go. add go. idx flens. gc. . . . ctx. slots. koff. klen. keys. . .
+  let go usize cast usize idx foffs. gc. . . .
+  let g usize group_of subslice rec. go. add go. cast usize idx flens. gc. . . . . ctx. slots. koff. klen. keys. . .
   guard and ne g. none_col. . and lt g. len gcnt. . . lt g. len gsum. . . . . else do
     set idx ctx. k_err. . e_limit. .
     return .
@@ -505,7 +506,7 @@ do
       end .
     end .
     if put. do
-      let rl u64 idx ctx. k_reclen. . .
+      let rl usize cast usize idx ctx. k_reclen. . . .
       guard and lt rl. max_record. . lt rl. len rec. . . . else do
         fail_open ctx. e_limit. .
         return .
@@ -523,7 +524,7 @@ do
         set idx ctx. k_state. . 0 .
         continue .
       end .
-      let nf u64 idx ctx. k_nfields. . .
+      let nf usize cast usize idx ctx. k_nfields. . . .
       guard and lt nf. max_fields. . and lt nf. len foffs. . . lt nf. len flens. . . . . else do
         fail_open ctx. e_limit. .
         return .
@@ -549,15 +550,15 @@ end .
 rem ── 출력
 
 rem 버퍼가 차면 비운다. 실패하면 거짓.
-proc flush input out cap io . input buf slice u8 . input n u64 . output bool . effects io . do
+proc flush input out cap io . input buf slice u8 . input n usize . output bool . effects io . do
   guard le n. len buf. . . else return false . .
   guard gt n. 0 . else return true . .
-  let w option u64 outbuf.write_all out. 1 subslice buf. 0 n. . . .
+  let w option usize outbuf.write_all out. 1 subslice buf. 0 n. . . .
   return is_some w. . .
 end .
 
 rem CSV 한 필드로 쓴다(쉼표 · 따옴표 · 줄바꿈이 있으면 따옴표로 싸고 따옴표는 겹친다). 새 자리, 모자라면 none.
-proc put_csv input buf mut slice u8 . input pos u64 . input s slice u8 . output option u64 . effects none . do
+proc put_csv input buf mut slice u8 . input pos usize . input s slice u8 . output option u64 . effects none . do
   var quote bool false .
   for c s. do
     if or or eq c. ',' . eq c. '"' . . or eq c. '\n' . eq c. '\r' . . . do
@@ -565,7 +566,7 @@ proc put_csv input buf mut slice u8 . input pos u64 . input s slice u8 . output 
     end .
   end .
   guard quote. else return fmt.put_str buf. pos. s. . . .
-  var p u64 pos. .
+  var p usize pos. .
   guard lt p. len buf. . . else return none . .
   set idx buf. p. . '"' .
   set p. add p. 1 . .
@@ -585,34 +586,34 @@ proc put_csv input buf mut slice u8 . input pos u64 . input s slice u8 . output 
 end .
 
 rem 그룹 순서를 정한다. by_value 면 값 내림차순 · 동률은 키 오름차순, 아니면 키 오름차순(안정 병합 정렬).
-fn before input keys slice u8 . input koff slice u64 . input klen slice u64 . input val slice i64 . input by_value bool . input x u64 . input y u64 . output bool . do
+fn before input keys slice u8 . input koff slice u64 . input klen slice u64 . input val slice i64 . input by_value bool . input x usize . input y usize . output bool . do
   if by_value. do
     if ne idx val. x. . idx val. y. . . do
       return gt idx val. x. . idx val. y. . . .
     end .
   end .
-  let xo u64 idx koff. x. . .
-  let yo u64 idx koff. y. . .
-  return less_bytes subslice keys. xo. add xo. idx klen. x. . . . subslice keys. yo. add yo. idx klen. y. . . . . .
+  let xo usize cast usize idx koff. x. . . .
+  let yo usize cast usize idx koff. y. . . .
+  return less_bytes subslice keys. xo. add xo. cast usize idx klen. x. . . . . subslice keys. yo. add yo. cast usize idx klen. y. . . . . . .
 end .
 
-proc sort_groups input keys slice u8 . input koff slice u64 . input klen slice u64 . input val slice i64 . input by_value bool . input order mut slice u64 . input tmp mut slice u64 . input n u64 . output void . effects none .
+proc sort_groups input keys slice u8 . input koff slice u64 . input klen slice u64 . input val slice i64 . input by_value bool . input order mut slice u64 . input tmp mut slice u64 . input n usize . output void . effects none .
   requires le n. len order. . . .
   requires le n. len tmp. . . .
 do
-  repeat i u64 n. do
+  repeat i usize n. do
     set idx order. i. . i. .
   end .
-  cycle w u64 1 while lt w. n. . next mul w. 2 . do
-    cycle lo u64 0 while lt lo. n. . next add lo. mul w. 2 . . do
-      let mid u64 min add lo. w. . n. . .
-      let hi u64 min add lo. mul w. 2 . . n. . .
-      var ia u64 lo. .
-      var ib u64 mid. .
-      cycle k u64 lo. while lt k. hi. . next add k. 1 . do
+  cycle w usize 1 while lt w. n. . next mul w. 2 . do
+    cycle lo usize 0 while lt lo. n. . next add lo. mul w. 2 . . do
+      let mid usize min add lo. w. . n. . .
+      let hi usize min add lo. mul w. 2 . . n. . .
+      var ia usize lo. .
+      var ib usize mid. .
+      cycle k usize lo. while lt k. hi. . next add k. 1 . do
         var take_b bool ge ia. mid. . .
         if and lt ia. mid. . lt ib. hi. . . do
-          set take_b. before keys. koff. klen. val. by_value. idx order. ib. . idx order. ia. . . .
+          set take_b. before keys. koff. klen. val. by_value. cast usize idx order. ib. . . cast usize idx order. ia. . . . .
         end .
         if take_b. do
           set idx tmp. k. . idx order. ib. . .
@@ -622,7 +623,7 @@ do
           set ia. add ia. 1 . .
         end .
       end .
-      cycle m u64 lo. while lt m. hi. . next add m. 1 . do
+      cycle m usize lo. while lt m. hi. . next add m. 1 . do
         set idx order. m. . idx tmp. m. . .
       end .
     end .
@@ -631,35 +632,35 @@ do
 end .
 
 proc say_err input out cap io . input msg slice u8 . input record u64 . input buf mut slice u8 . output void . effects io . do
-  var p u64 0 .
-  let a option u64 fmt.put_str buf. p. "lowstat: " . .
+  var p usize 0 .
+  let a option usize fmt.put_str buf. p. "lowstat: " . .
   if is_some a. . do
     set p. some_value a. . .
   end .
-  let b option u64 fmt.put_str buf. p. msg. . .
+  let b option usize fmt.put_str buf. p. msg. . .
   if is_some b. . do
     set p. some_value b. . .
   end .
   if gt record. 0 . do
-    let c option u64 fmt.put_str buf. p. " (data record " . .
+    let c option usize fmt.put_str buf. p. " (data record " . .
     if is_some c. . do
       set p. some_value c. . .
     end .
-    let d option u64 fmt.put_u64 buf. p. record. . .
+    let d option usize fmt.put_u64 buf. p. record. . .
     if is_some d. . do
       set p. some_value d. . .
     end .
-    let e option u64 fmt.put_str buf. p. ")" . .
+    let e option usize fmt.put_str buf. p. ")" . .
     if is_some e. . do
       set p. some_value e. . .
     end .
   end .
-  let f option u64 fmt.put_str buf. p. "\n" . .
+  let f option usize fmt.put_str buf. p. "\n" . .
   if is_some f. . do
     set p. some_value f. . .
   end .
   guard le p. len buf. . . else return . .
-  let w option u64 outbuf.write_all out. 2 subslice buf. 0 p. . . .
+  let w option usize outbuf.write_all out. 2 subslice buf. 0 p. . . .
   return .
 end .
 
@@ -717,7 +718,7 @@ do
 end .
 
 rem 읽기: 파일(files.read) 또는 표준 입력(read_in). 낸 수 = 읽은 바이트, 0 = 끝. 실패는 ctx 에 4 를 둔다.
-proc read_some input fs cap file_system . input out cap io . input from_stdin bool . input h files.handle . input buf mut slice u8 . input st mut slice u64 . output u64 . effects io .
+proc read_some input fs cap file_system . input out cap io . input from_stdin bool . input h files.handle . input buf mut slice u8 . input st mut slice u64 . output usize . effects io .
   requires ge len st. . 1 . .
 do
   if from_stdin. do
@@ -737,25 +738,25 @@ do
 end .
 
 rem 결과를 쓴다. 그룹이 없으면 한 줄, 있으면 키 순서(또는 --top 이면 값 내림차순)로. 종료 코드를 낸다.
-proc write_result input out cap io . input ctx slice u64 . input acc slice i64 . input gname slice u8 . input want_count bool . input top_k u64 . input keys slice u8 . input koff slice u64 . input klen slice u64 . input gcnt slice u64 . input gsum mut slice i64 . input order mut slice u64 . input tmp mut slice u64 . input obuf mut slice u8 . output u8 . effects io .
+proc write_result input out cap io . input ctx slice u64 . input acc slice i64 . input gname slice u8 . input want_count bool . input top_k usize . input keys slice u8 . input koff slice u64 . input klen slice u64 . input gcnt slice u64 . input gsum mut slice i64 . input order mut slice u64 . input tmp mut slice u64 . input obuf mut slice u8 . output u8 . effects io .
   requires ge len ctx. . 16 . .
   requires ge len acc. . 1 . .
 do
-  var p u64 0 .
-  let ng u64 idx ctx. k_groups. . .
+  var p usize 0 .
+  let ng usize cast usize idx ctx. k_groups. . . .
   if eq len gname. . 0 . do
     if want_count. do
-      let r1 option u64 fmt.put_str obuf. 0 "count\n" . .
+      let r1 option usize fmt.put_str obuf. 0 "count\n" . .
       set p. value_or r1. 0 . .
-      let r2 option u64 fmt.put_u64 obuf. p. idx ctx. k_count. . . .
+      let r2 option usize fmt.put_u64 obuf. p. idx ctx. k_count. . . .
       set p. value_or r2. 0 . .
     end else do
-      let r3 option u64 fmt.put_str obuf. 0 "sum\n" . .
+      let r3 option usize fmt.put_str obuf. 0 "sum\n" . .
       set p. value_or r3. 0 . .
-      let r4 option u64 fmt.put_i64 obuf. p. idx acc. 0 . . .
+      let r4 option usize fmt.put_i64 obuf. p. idx acc. 0 . . .
       set p. value_or r4. 0 . .
     end .
-    let r5 option u64 fmt.put_str obuf. p. "\n" . .
+    let r5 option usize fmt.put_str obuf. p. "\n" . .
     set p. value_or r5. 0 . .
     guard flush out. obuf. p. . else return 4 . .
     return 0 .
@@ -763,41 +764,41 @@ do
   rem 그룹 출력: 값을 gsum 자리에 모아 정렬에 쓴다(count 면 그 수를 i64 로).
   guard and le ng. len gsum. . . and le ng. len gcnt. . . and le ng. len order. . . le ng. len tmp. . . . . . else return 3 . .
   if want_count. do
-    repeat g u64 ng. do
+    repeat g usize ng. do
       set idx gsum. g. . cast i64 idx gcnt. g. . . .
     end .
   end .
   sort_groups keys. koff. klen. gsum. gt top_k. 0 . order. tmp. ng. .
-  var shown u64 ng. .
+  var shown usize ng. .
   if and gt top_k. 0 . lt top_k. ng. . . do
     set shown. top_k. .
   end .
   let hp1 option u64 put_csv obuf. 0 gname. . .
   set p. value_or hp1. 0 . .
   if want_count. do
-    let hp2 option u64 fmt.put_str obuf. p. ",count\n" . .
+    let hp2 option usize fmt.put_str obuf. p. ",count\n" . .
     set p. value_or hp2. 0 . .
   end else do
-    let hp3 option u64 fmt.put_str obuf. p. ",sum\n" . .
+    let hp3 option usize fmt.put_str obuf. p. ",sum\n" . .
     set p. value_or hp3. 0 . .
   end .
-  repeat r u64 shown. do
+  repeat r usize shown. do
     rem 줄 하나가 넉넉히 들어갈 자리가 없으면 먼저 비운다(키는 4 KiB 를 넘지 않는다 — 레코드 상한 안).
     if gt add p. 8256 . len obuf. . . do
       guard flush out. obuf. p. . else return 4 . .
       set p. 0 .
     end .
-    let g u64 idx order. r. . .
-    let ko u64 idx koff. g. . .
-    guard le add ko. idx klen. g. . . len keys. . . else return 3 . .
-    let q1 option u64 put_csv obuf. p. subslice keys. ko. add ko. idx klen. g. . . . . .
+    let g usize cast usize idx order. r. . . .
+    let ko usize cast usize idx koff. g. . . .
+    guard le add ko. cast usize idx klen. g. . . . len keys. . . else return 3 . .
+    let q1 option u64 put_csv obuf. p. subslice keys. ko. add ko. cast usize idx klen. g. . . . . . .
     guard is_some q1. . else return 3 . .
     set p. some_value q1. . .
-    let q2 option u64 fmt.put_str obuf. p. "," . .
+    let q2 option usize fmt.put_str obuf. p. "," . .
     set p. value_or q2. p. . .
-    let q3 option u64 fmt.put_i64 obuf. p. idx gsum. g. . . .
+    let q3 option usize fmt.put_i64 obuf. p. idx gsum. g. . . .
     set p. value_or q3. p. . .
-    let q4 option u64 fmt.put_str obuf. p. "\n" . .
+    let q4 option usize fmt.put_str obuf. p. "\n" . .
     set p. value_or q4. p. . .
   end .
   guard flush out. obuf. p. . else return 4 . .
@@ -863,18 +864,18 @@ do
   rem --count 와 --sum 은 정확히 하나. --top 은 --group-by 가 있어야 뜻이 있다.
   guard ne want_count. want_sum. . else return false . .
   guard or eq top_k. 0 . gt len gname. . 0 . . else return false . .
-  let total u64 add add len wname. . len aname. . . len gname. . . .
+  let total usize add add len wname. . len aname. . . len gname. . . .
   guard le total. len names. . . else return false . .
   set idx wl. 0 . len wname. . .
   set idx wl. 1 . len aname. . .
   set idx wl. 2 . len gname. . .
-  repeat i1 u64 len wname. . do
+  repeat i1 usize len wname. . do
     set idx names. i1. . idx wname. i1. . .
   end .
-  repeat i2 u64 len aname. . do
+  repeat i2 usize len aname. . do
     set idx names. add len wname. . i2. . . idx aname. i2. . .
   end .
-  repeat i3 u64 len gname. . do
+  repeat i3 usize len gname. . do
     set idx names. add add len wname. . len aname. . . i3. . . idx gname. i3. . .
   end .
   set idx opts. 0 . 2 .
@@ -922,15 +923,15 @@ do
   rem ── 인자. 첫 자리는 입력(`-` = 표준 입력), 나머지는 선택.
   let a0 option slice u8 args.get a. 0 . .
   guard and is_some a0. . parse_args a. names. wl. wval. opts. okbuf. . . else do
-    let w0 option u64 outbuf.write_all out. 2 usage_text. . .
+    let w0 option usize outbuf.write_all out. 2 usage_text. . .
     return 2 .
   end .
   let input_path slice u8 some_value a0. . .
   let want_count bool eq idx opts. 0 . 1 . .
-  let nm_len u64 add add idx wl. 0 . idx wl. 1 . . idx wl. 2 . . .
-  let gname slice u8 subslice names. add idx wl. 0 . idx wl. 1 . . nm_len. . .
+  let nm_len usize cast usize add add idx wl. 0 . idx wl. 1 . . idx wl. 2 . . . .
+  let gname slice u8 subslice names. cast usize add idx wl. 0 . idx wl. 1 . . . nm_len. . .
   let nm slice u8 subslice names. 0 nm_len. . .
-  let wv2 slice u8 subslice wval. 0 idx opts. 2 . . .
+  let wv2 slice u8 subslice wval. 0 cast usize idx opts. 2 . . . .
   for z mut ctx. do
     set z. 0 .
   end .
@@ -953,7 +954,7 @@ do
   var h owned files.handle ok_value opened. . .
   var io_bad bool false .
   while true do
-    let n u64 read_some fs. out. from_stdin. h. chunk. okbuf. . .
+    let n usize read_some fs. out. from_stdin. h. chunk. okbuf. . .
     if eq idx okbuf. 0 . 4 . do
       set io_bad. true .
       break .
@@ -988,5 +989,5 @@ do
   end .
 
   rem ── 출력(입력 전체가 맞은 뒤에만)
-  return write_result out. ctx. acc. gname. want_count. idx opts. 1 . keys. koff. klen. gcnt. gsum. order. tmp. obuf. . .
+  return write_result out. ctx. acc. gname. want_count. cast usize idx opts. 1 . . keys. koff. klen. gcnt. gsum. order. tmp. obuf. . .
 end .

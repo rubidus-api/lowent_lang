@@ -38,15 +38,15 @@ guard is_some p. . else return 1 . .
   id: "mod-fmt-ops",
   caption: [`fmt` 의 op --- 모두 `effects none`],
   [*op*], [*시그니처*], [*안 될 때*],
-  [`put_byte`], [`proc (buf mut slice u8, pos u64, b u8) → option u64`], [자리가 없으면 `none`, 버퍼 그대로],
-  [`put_str`], [`proc (buf, pos, s slice u8) → option u64`], [모두 들어가지 않으면 `none`, 버퍼 그대로],
-  [`dec_width`], [`fn (n u64) → u64`], [실패 없음],
-  [`put_u64`], [`proc (buf, pos, n u64) → option u64`], [자리가 없으면 `none`, 버퍼 그대로],
-  [`put_i64`], [`proc (buf, pos, n i64) → option u64`], [자리가 없으면 `none`],
-  [`hex_width`], [`fn (n u64) → u64`], [실패 없음],
-  [`put_hex`], [`proc (buf, pos, n u64) → option u64`], [자리가 없으면 `none`, 버퍼 그대로],
-  [`put_bool`], [`proc (buf, pos, b bool) → option u64`], [자리가 없으면 `none`],
-  [`put_nl`], [`proc (buf, pos) → option u64`], [자리가 없으면 `none`],
+  [`put_byte`], [`proc (buf mut slice u8, pos usize, b u8) → option usize`], [자리가 없으면 `none`, 버퍼 그대로],
+  [`put_str`], [`proc (buf, pos, s slice u8) → option usize`], [모두 들어가지 않으면 `none`, 버퍼 그대로],
+  [`dec_width`], [`fn (n u64) → usize`], [실패 없음],
+  [`put_u64`], [`proc (buf, pos, n u64) → option usize`], [자리가 없으면 `none`, 버퍼 그대로],
+  [`put_i64`], [`proc (buf, pos, n i64) → option usize`], [자리가 없으면 `none`],
+  [`hex_width`], [`fn (n u64) → usize`], [실패 없음],
+  [`put_hex`], [`proc (buf, pos, n u64) → option usize`], [자리가 없으면 `none`, 버퍼 그대로],
+  [`put_bool`], [`proc (buf, pos, b bool) → option usize`], [자리가 없으면 `none`],
+  [`put_nl`], [`proc (buf, pos) → option usize`], [자리가 없으면 `none`],
 )
 
 이름의 `put_` 은 "버퍼에 써 넣는다", `_width` 는 "몇 바이트가 필요한지 세기만 한다" 는 뜻이다. 버퍼를 고치는 것은 `proc`, 세기만 하는 것은 `fn` 이지만
@@ -118,7 +118,7 @@ end .
 
 #antipattern[`effects none` op 안에서 출력한다][
   ```lowent
-  proc bad input out cap io . output u64 . effects none . do
+  proc bad input out cap io . output usize . effects none . do
     return stdio.write out. 1 "x" . .
   end .
   ```

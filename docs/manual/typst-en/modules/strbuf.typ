@@ -60,7 +60,7 @@ pointer to a null-terminated `char*`, only for the boundary with other languages
   [`room`], [`fn (b str_buf, buf slice u8) → u64`], [stops on underflow for an empty (length 0) buffer],
   [`as_cstr`], [`unsafe proc (b str_buf, buf mut slice u8) → cstr`], [stops out of bounds if `len + 1 > len(buf)`],
   [`append`], [`proc (b mut str_buf, buf mut slice u8, s slice u8) → result void sb_error`], [`error no_room .` (buffer unchanged)],
-  [`append_trunc`], [`proc (b mut str_buf, buf mut slice u8, s slice u8) → u64`], [--- (known from count written \< `len s. .`)],
+  [`append_trunc`], [`proc (b mut str_buf, buf mut slice u8, s slice u8) → usize`], [--- (known from count written \< `len s. .`)],
   [`append_grow`], [`proc (b mut str_buf, old mut slice u8, new_buf mut slice u8, s slice u8) → result void sb_error`], [`error no_room .` (original unchanged)],
 )
 
@@ -87,7 +87,7 @@ module demo .
 
 use strbuf .
 
-proc build input buf mut slice u8 . output u64 . effects none . do
+proc build input buf mut slice u8 . output usize . effects none . do
   var b strbuf.str_buf strbuf.new. .
   let r1 result void strbuf.sb_error strbuf.append b. buf. "ab" . .
   guard is_ok r1. . else return 90 . .
@@ -99,7 +99,7 @@ proc build input buf mut slice u8 . output u64 . effects none . do
   guard is_error r2. . else return 93 . .
   guard eq field b. len . 2 . else return 94 . .
   rem in the same situation trunc writes as much as fits (2) and returns 2
-  let n u64 strbuf.append_trunc b. subslice buf. 0 5 . "xyz" . .
+  let n usize strbuf.append_trunc b. subslice buf. 0 5 . "xyz" . .
   guard eq n. 2 . else return 95 . .
   return field b. len . .
 end .
@@ -108,7 +108,7 @@ end .
 Growth is expressed by the caller giving a new place.
 
 ```lowent
-proc grow input small mut slice u8 . input big mut slice u8 . output u64 . effects none . do
+proc grow input small mut slice u8 . input big mut slice u8 . output usize . effects none . do
   var b strbuf.str_buf strbuf.new. .
   let r1 result void strbuf.sb_error strbuf.append b. small. "ab" . .
   guard is_ok r1. . else return 90 . .

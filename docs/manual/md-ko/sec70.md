@@ -30,9 +30,9 @@ let v option u64 hashmap.lookup b. 7 . .
 | `put` | `proc (b mut slice u64, k u64, v u64) → bool` | 꽉 참 · 예약 키 → `false` |
 | `lookup` | `proc (b slice u64, k u64) → option u64` | 없음 · 예약 키 → `none` |
 | `del` | `proc (b mut slice u64, k u64) → bool` | 없던 키 · 예약 키 → `false` |
-| `size` | `fn (b slice u64) → u64` | 슬롯 수(항목 수가 아니다) |
-| `occupied_at` | `fn (b slice u64, slot u64) → bool` | 범위 밖 → `false` |
-| `key_at` · `val_at` | `fn (b slice u64, slot u64) → u64` | occupied 일 때만 뜻이 있다 |
+| `size` | `fn (b slice u64) → usize` | 슬롯 수(항목 수가 아니다) |
+| `occupied_at` | `fn (b slice u64, slot usize) → bool` | 범위 밖 → `false` |
+| `key_at` · `val_at` | `fn (b slice u64, slot usize) → u64` | occupied 일 때만 뜻이 있다 |
 | `rehash` | `proc (nb mut slice u64, ob slice u64) → bool` | `nb` 가 작으면 도중 `false` |
 
 *표 50.1 — `hashmap` 의 op — 모두 `effects none`*
@@ -43,7 +43,7 @@ let v option u64 hashmap.lookup b. 7 . .
 - 순회는 `0 .. size` 를 훑으며 `occupied_at` 인 슬롯만 처리한다. 순서는 해시 순서다 — 정렬된 열거가 필요하면 키를 뽑아 [`sortlib`](sec67.md#mod-sortlib) 로 정렬한다.
 
 ```lowent
-proc hm_sum input b mut slice u64 . output u64 . effects none . do
+proc hm_sum input b mut slice u64 . output usize . effects none . do
   var i u64 0 .
   while lt i. len b. . . do
     set idx b. i. . 0 .

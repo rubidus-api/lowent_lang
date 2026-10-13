@@ -33,7 +33,7 @@ rem ★ 커서는 **값**이다(RFC-0069 §4) — 호출자가 pos 를 들고 �
 fn count_line input line slice u8 . input sep u8 . input trim bool .
   output u64 .
 do
-  var pos u64 0 .
+  var pos usize 0 .
   var total u64 0 .
   var nonempty u64 0 .
   var f option slice u8 strings.split_next line. sep. pos. . .

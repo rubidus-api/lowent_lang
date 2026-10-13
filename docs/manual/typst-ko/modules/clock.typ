@@ -11,7 +11,7 @@
 쪽이 없는 비용을 떠안는다 --- 순수한 op 이 시계를 쓰지 못하게 된다. `cap random` 이 같은 이유로 갈린 짝이다(#chref("capabilities")).
 
 ```lowent
-proc work input k cap clock . output u64 . effects none . do
+proc work input k cap clock . output usize . effects none . do
   let due u64 clock.deadline_in k. 50 . .
   var n u64 0 .
   while eq clock.past k. due. . false . do set n. add n. 1 . . end .

@@ -77,7 +77,7 @@ end .
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc gcmpair input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  let n u64 call_builtin aes_ctr key. c. s. d. . .
+  let n usize call_builtin aes_ctr key. c. s. d. . .
   guard eq n. len s. . . else return 0 . .
   return call_builtin ghash h. z. d. . .
 end .

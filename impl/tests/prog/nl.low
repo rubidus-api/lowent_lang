@@ -42,7 +42,7 @@ proc number_lines input src slice u8 . input dst mut slice u8 . output option u6
 do
   var r io.mem_reader spawn actor io.mem_reader . .
   let z u64 send r. attach src. . .
-  var pos u64 0 .
+  var pos usize 0 .
   var n u64 0 .
   var going bool true .
   while going. do
@@ -50,13 +50,13 @@ do
     if eq is_some l. . false . do set going. false . end .
     if is_some l. . do
       set n. add n. 1 . .
-      let a option u64 fmt.put_u64 dst. pos. n. . .
+      let a option usize fmt.put_u64 dst. pos. n. . .
       guard is_some a. . else return none . .
-      let b option u64 fmt.put_str dst. some_value a. . "  " . .
+      let b option usize fmt.put_str dst. some_value a. . "  " . .
       guard is_some b. . else return none . .
-      let c option u64 fmt.put_str dst. some_value b. . some_value l. . . .
+      let c option usize fmt.put_str dst. some_value b. . some_value l. . . .
       guard is_some c. . else return none . .
-      let d option u64 fmt.put_nl dst. some_value c. . . .
+      let d option usize fmt.put_nl dst. some_value c. . . .
       guard is_some d. . else return none . .
       set pos. some_value d. . .
     end .
@@ -68,13 +68,13 @@ do
     rem   "끝났다" 와 "0 바이트 읽었다" 는 다르고 여기선 후자다(lib/io.low 의 규약).
     let tail slice u8 send r. take_rest . .
     set n. add n. 1 . .
-    let a option u64 fmt.put_u64 dst. pos. n. . .
+    let a option usize fmt.put_u64 dst. pos. n. . .
     guard is_some a. . else return none . .
-    let b option u64 fmt.put_str dst. some_value a. . "  " . .
+    let b option usize fmt.put_str dst. some_value a. . "  " . .
     guard is_some b. . else return none . .
-    let c option u64 fmt.put_str dst. some_value b. . tail. . .
+    let c option usize fmt.put_str dst. some_value b. . tail. . .
     guard is_some c. . else return none . .
-    let d option u64 fmt.put_nl dst. some_value c. . . .
+    let d option usize fmt.put_nl dst. some_value c. . . .
     guard is_some d. . else return none . .
     set pos. some_value d. . .
   end .

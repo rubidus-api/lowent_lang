@@ -29,8 +29,8 @@ proc read_through input s mut slice u8 . output u64 . effects none . do
 end .
 
 rem ★ 블록 안에서 기존 라이브러리가 그대로 돈다 — 빌림이라고 특별한 op 이 필요하지 않다.
-proc plain_ops_work input s mut slice u8 . output u64 . effects none . do
-  var t u64 0 .
+proc plain_ops_work input s mut slice u8 . output usize . effects none . do
+  var t usize 0 .
   borrow b subslice s. 0 4 . do
     set t. len b. . .
   end .

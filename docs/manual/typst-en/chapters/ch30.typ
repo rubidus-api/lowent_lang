@@ -170,7 +170,7 @@ The travelling is right --- if the caller does not know about work the processor
 
 // snippet: skip — absorption needs the manifest to allow the module (`build absorb …`); a wrapped snippet has no manifest
 ```lowent
-export proc add2 input a u64 . input b u64 . output u64 . effects none .
+export proc add2 input a u64 . input b u64 . output usize . effects none .
   absorbs machine k .          rem it stops here; `k` is this body's `cap machine`
   reference add2_soft .        rem a pure version that must give the same answer
   why "it adds two registers and touches no memory (options pure nomem nostack)." .

@@ -28,8 +28,8 @@ let i option u64 searchlib.bsearch s. 42 . .
 
 | **op** | **모양** | **답** |
 |---|---|---|
-| `bsearch` | `(s slice u64, target u64) → option u64` | `target` 의 인덱스, 없으면 `none`. 중복이면 그중 **하나**(어느 것인지 규정하지 않는다) |
-| `lower_bound` | `(s slice u64, target u64) → u64` | `target` 이상인 첫 인덱스. 모두 작으면 `len s. .` |
+| `bsearch` | `(s slice u64, target u64) → option usize` | `target` 의 인덱스, 없으면 `none`. 중복이면 그중 **하나**(어느 것인지 규정하지 않는다) |
+| `lower_bound` | `(s slice u64, target u64) → usize` | `target` 이상인 첫 인덱스. 모두 작으면 `len s. .` |
 
 *표 50.1 — `searchlib` 의 op — 모두 `fn` · `effects none`*
 

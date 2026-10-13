@@ -46,7 +46,7 @@ do
   let nb option mut slice u8 send al. reserve next_cap len buf. . . . .
   guard is_some nb. . else return none . .
   let nbuf mut slice u8 some_value nb. . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. field v. len . . do
     set idx nbuf. i. . idx buf. i. . .
     set i. add i. 1 . .

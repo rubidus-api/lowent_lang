@@ -941,7 +941,7 @@ packed([5,6,7,8], 3) = 8
 
 <em><span class="tok-c">rem ✘ adding a usize to a u64 as they are --- the width of the sum was never written</span></em>
 <strong><span class="tok-k">fn</span></strong> end_of <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">input</span></strong> more <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> add start. more. . .
+  <strong><span class="tok-k">return</span></strong> add start. cast <strong><span class="tok-t">usize</span></strong> more. . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_usizemix.low
 mistake_usizemix.low:6:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)

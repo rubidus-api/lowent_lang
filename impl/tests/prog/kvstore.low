@@ -134,7 +134,7 @@ proc spanning input al cap allocator . output u64 . effects alloc . do
   let bo option u8 segview.byte_at ss. 2 . .
   guard is_some bo. . else return 96 . .
   guard eq some_value bo. . 9 . else return 97 . .
-  let no option u64 segview.coalesce ss. out. . .
+  let no option usize segview.coalesce ss. out. . .
   guard is_some no. . else return 98 . .
   guard eq some_value no. . 4 . else return 99 . .
   return 6 .
@@ -239,7 +239,7 @@ do
   var acc u64 0 .
   var r u64 0 .
   while lt r. reps. . do
-    let b option u8 segview.byte_at ss. mod r. 4 . . .
+    let b option u8 segview.byte_at ss. cast usize mod r. 4 . . . .
     if is_some b. . do set acc. add acc. 1 . . end .
     set r. add r. 1 . .
   end .

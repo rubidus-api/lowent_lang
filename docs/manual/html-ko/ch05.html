@@ -710,7 +710,7 @@ mutparam.low:4:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parameter — th
 </code></pre></div></div><p>진단이 설명하는 대로, <code>fn</code> 은 강제되는 순수 계약이다. 호출자는 <code>fn</code> 의 결과를 기억해 두거나(memoise), 부르는 차례를 바꾸거나, 결과를 쓰지 않으면 호출을 지워도 된다. 호출자의 저장소를 바꾸는 op 에는 그 어느 것도 할 수 없다. 그래서 <code>proc</code> 이어야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mutproc.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mutproc .
 <em><span class="tok-c">rem run: zero_first [7,8,9]</span></em>
 
-<strong><span class="tok-k">proc</span></strong> zero_first <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">proc</span></strong> zero_first <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt len xs. . <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> idx xs. <span class="tok-n">0</span> . <span class="tok-n">0</span> .

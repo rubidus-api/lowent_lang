@@ -682,12 +682,12 @@ main() = 16
 <strong>./hello</strong><strong> main</strong></code></pre><p>네이티브 실행 파일은 첫 인자로 돌릴 op 의 이름을 받는다. <code>main</code> 을 돌리면 화면에는 같은 한 줄이 찍히고, 반환값 16 은 <strong>프로세스의 종료 코드</strong>로 나온다(<code>echo $?</code> 로 본다). <code>main</code> 의 <code>output</code> 이 <code>u8</code> 인 까닭이다 — 종료 코드는 한 바이트다.</p><div class="dev realcase"><p class="dev-label">실제 사례. 두 결과가 다르면 누구의 잘못인가</p><div class="dev-body">VM 과 네이티브는 같은 중간 표현에서 출발한다. 둘이 다른 출력을 내면 프로그램이 아니라 <strong>컴파일러</strong>의 결함이다. 개발 저장소는 수백 개의 op 을 경계값 인자로 두 백엔드에서 돌려 바이트 단위로 맞대고, 이 책의 검증 스크립트도 <code>rem run:</code> 이 붙은 모든 예제를 두 번 돌려 비교한다. 이 책을 쓰는 동안에도 한 가지 어긋남이 드러났다 — 프로그램 인자를 읽는 <code>args.get</code> 가 VM 과 네이티브에서 번호를 다르게 센다. 그래서 인자를 읽는 예제는 이 판에서 검사만 하고 실행 결과를 싣지 않는다.</div></div><p>슬라이스 인자는 대괄호로 준다. 다음 op 은 바이트 슬라이스의 평균을 구한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch01/stats.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stats .
 <em><span class="tok-c">rem run: mean [3,4,8]</span></em>
 
-<strong><span class="tok-k">fn</span></strong> mean <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">fn</span></strong> mean <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt len xs. . <span class="tok-n">0</span> . .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs. <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> total. add total. widen <strong><span class="tok-t">u64</span></strong> x. . . .
+    <strong><span class="tok-k">set</span></strong> total. add total. cast <strong><span class="tok-t">usize</span></strong> widen <strong><span class="tok-t">u64</span></strong> x. . . . .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> div total. len xs. . . .
 <strong><span class="tok-k">end</span></strong> .

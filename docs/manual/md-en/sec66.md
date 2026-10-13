@@ -66,11 +66,11 @@ Property codes are 0=L · 1=N · 2=P · 3=Z · 4=M · 5=Lu · 6=Ll · 7=Nd · 8=
 | **op** | **Signature** | **When it cannot** |
 |---|---|---|
 | `compile` | `proc (pat slice u8, prog mut slice u64, st mut slice u64) → option u64` | `none` on syntax error or short buffer |
-| `match_at` | `proc (prog slice u64, s slice u8, at u64, clist, nlist, marks) → option u64` | `none` for no match · empty program · short scratch |
-| `find` | `proc (prog slice u64, s slice u8, clist, nlist, marks) → option u64` | `none` if no match anywhere |
-| `search` | `proc (prog slice u64, s slice u8, clist, nlist, marks, cstart, nstart) → option u64` | `none` for no match anywhere · empty program · short scratch |
+| `match_at` | `proc (prog slice u64, s slice u8, at usize, clist, nlist, marks) → option usize` | `none` for no match · empty program · short scratch |
+| `find` | `proc (prog slice u64, s slice u8, clist, nlist, marks) → option usize` | `none` if no match anywhere |
+| `search` | `proc (prog slice u64, s slice u8, clist, nlist, marks, cstart, nstart) → option usize` | `none` for no match anywhere · empty program · short scratch |
 | `test_at` | `proc (prog slice u64, s slice u8, clist, nlist, marks) → bool` | never fails (false is the answer) |
-| `class_has` | `fn (prog slice u64, k u64, b u64) → bool` | never fails |
+| `class_has` | `fn (prog slice u64, k usize, b u64) → bool` | never fails |
 
 *Table 50.2 — Ops of `regex` — all `effects none`*
 
@@ -96,7 +96,7 @@ use regex as rx .
 
 proc demo input prog mut slice u64 . input st mut slice u64 .
   input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
-  output u64 . effects none .
+  output usize . effects none .
 do
   guard ge len prog. . 32 . else return 90 . .
 
@@ -132,7 +132,7 @@ end .
 proc demo_search input prog mut slice u64 . input st mut slice u64 .
   input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
   input cs mut slice u64 . input ns mut slice u64 .
-  output u64 . effects none .
+  output usize . effects none .
 do
   guard ge len prog. . 32 . else return 90 . .
   let n option u64 rx.compile "b+c" prog. st. . .

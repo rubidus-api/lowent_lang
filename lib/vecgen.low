@@ -132,7 +132,7 @@ export proc append input comptime t type . input comptime a type . input g mut v
   var old mut slice u8 field g. store . .
   var dst mut slice t view_array t fresh. . .
   var src mut slice t view_array t old. . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. field g. n . . do
     set idx dst. i. . idx src. i. . .
     set i. add i. 1 . .
@@ -152,7 +152,7 @@ export proc at input comptime t type . input comptime a type . input g vec t a .
 end .
 
 rem ★ i 번째 원소를 고친다. 범위 밖이면 false — 조용히 늘리지 않는다.
-export proc set_at input comptime t type . input comptime a type . input g mut vec t a . input i u64 . input x t . output bool . effects none . requires allocs.byte_allocator a. . . do
+export proc set_at input comptime t type . input comptime a type . input g mut vec t a . input i usize . input x t . output bool . effects none . requires allocs.byte_allocator a. . . do
   guard lt i. field g. n . . else return false . .
   var cur mut slice u8 field g. store . .
   var cells mut slice t view_array t cur. . .
@@ -188,7 +188,7 @@ export proc reserve_more input comptime t type . input comptime a type . input g
   var old mut slice u8 field g. store . .
   var dst mut slice t view_array t fresh. . .
   var src mut slice t view_array t old. . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. field g. n . . do
     set idx dst. i. . idx src. i. . .
     set i. add i. 1 . .

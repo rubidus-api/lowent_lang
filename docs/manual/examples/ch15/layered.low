@@ -14,7 +14,7 @@ proc print_digit input out cap io . input d u8 . output u64 . effects io .
   requires le d. 9 . .
 do
   let buf slice u8 "0123456789" .
-  return stdio.write out. 1 subslice buf. widen u64 d. . add widen u64 d. . 1 . . . .
+  return stdio.write out. 1 subslice buf. cast usize widen u64 d. . . cast usize add widen u64 d. . 1 . . . . .
 end .
 
 proc main input out cap io . output u8 . effects io .

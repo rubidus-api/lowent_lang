@@ -62,7 +62,7 @@ do
   guard eq len h1. . 32 . else return ok 0 . . .
 
   rem V ← 01…01, K ← 00…00
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 32 . do
     set idx w. i. . 1 .
     set idx w. add 32 i. . . 0 .
@@ -73,7 +73,7 @@ do
   var phase u64 0 .
   while lt phase. 2 . do
     rem msg = V ‖ phase ‖ x ‖ h1  (97 바이트) — w 96..193 에 조립한다.
-    var j u64 0 .
+    var j usize 0 .
     while lt j. 32 . do
       set idx w. add 96 j. . . idx w. j. . .
       set idx w. add 129 j. . . idx x. j. . .
@@ -84,13 +84,13 @@ do
     let _u3 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 96 193 . subslice w. 256 480 . subslice w. 64 96 . . .
     guard is_ok _u3. . else return error short_workspace . . .
     guard eq ok_value _u3. . 32 . else return ok 0 . . .
-    var c u64 0 .
+    var c usize 0 .
     while lt c. 32 . do  set idx w. add 32 c. . . idx w. add 64 c. . . .  set c. add c. 1 . .  end .
     rem V = HMAC_K(V)
     let _u4 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 0 32 . subslice w. 256 480 . subslice w. 64 96 . . .
     guard is_ok _u4. . else return error short_workspace . . .
     guard eq ok_value _u4. . 32 . else return ok 0 . . .
-    var c2 u64 0 .
+    var c2 usize 0 .
     while lt c2. 32 . do  set idx w. c2. . idx w. add 64 c2. . . .  set c2. add c2. 1 . .  end .
     set phase. add phase. 1 . .
   end .
@@ -104,36 +104,36 @@ do
     let _u5 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 0 32 . subslice w. 256 480 . subslice w. 64 96 . . .
     guard is_ok _u5. . else return error short_workspace . . .
     guard eq ok_value _u5. . 32 . else return ok 0 . . .
-    var c3 u64 0 .
+    var c3 usize 0 .
     while lt c3. 32 . do  set idx w. c3. . idx w. add 64 c3. . . .  set c3. add c3. 1 . .  end .
     rem 후보를 조각으로 바꿔 [1, n−1] 인지 본다.
     guard eq bigint.from_bytes subslice w. 0 32 . wu. 16 . 16 . else return ok 0 . . .
     var nz u64 0 .
-    var q u64 0 .
+    var q usize 0 .
     while lt q. 16 . do
       if ne idx wu. q. . 0 . do  set nz. 1 .  end .
       set q. add q. 1 . .
     end .
     if eq nz. 1 . do
       if eq bigint.ge_mod wu. nl. 16 . 0 . do
-        var o u64 0 .
+        var o usize 0 .
         while lt o. 32 . do  set idx out. o. . idx w. o. . .  set o. add o. 1 . .  end .
         return ok 32 . .
       end .
     end .
     rem 다시: K = HMAC_K(V ‖ 00) · V = HMAC_K(V)
-    var r2 u64 0 .
+    var r2 usize 0 .
     while lt r2. 32 . do  set idx w. add 96 r2. . . idx w. r2. . .  set r2. add r2. 1 . .  end .
     set idx w. 128 . 0 .
     let _u6 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 96 129 . subslice w. 256 480 . subslice w. 64 96 . . .
     guard is_ok _u6. . else return error short_workspace . . .
     guard eq ok_value _u6. . 32 . else return ok 0 . . .
-    var c4 u64 0 .
+    var c4 usize 0 .
     while lt c4. 32 . do  set idx w. add 32 c4. . . idx w. add 64 c4. . . .  set c4. add c4. 1 . .  end .
     let _u7 result u64 hmac.hmac_error hmac.mac subslice w. 32 64 . subslice w. 0 32 . subslice w. 256 480 . subslice w. 64 96 . . .
     guard is_ok _u7. . else return error short_workspace . . .
     guard eq ok_value _u7. . 32 . else return ok 0 . . .
-    var c5 u64 0 .
+    var c5 usize 0 .
     while lt c5. 32 . do  set idx w. c5. . idx w. add 64 c5. . . .  set c5. add c5. 1 . .  end .
     set tries. add tries. 1 . .
   end .
@@ -189,7 +189,7 @@ do
   guard eq p256.make_r2 subslice wu. 80 96 . n. . 1 . else return ok 0 . . .
 
   rem ③ R = [k]G — G 를 야코비로(Z=1) 올리고 **상수시간** 곱.
-  var i u64 0 .
+  var i usize 0 .
   while lt i. 16 . do
     set idx wu. add 96 i. . . idx gx. i. . .
     set idx wu. add 112 i. . . idx gy. i. . .
@@ -208,7 +208,7 @@ do
   guard eq ok_value _u1. . 1 . else return ok 0 . . .
   guard eq p256.pmul subslice wu. 208 224 . subslice wu. 192 208 . subslice wu. 192 208 . p. subslice wu. 64 80 . n0p. subslice wu. 320 338 . subslice wu. 338 356 . . 1 . else return ok 0 . . .
   guard eq p256.pmul subslice wu. 224 240 . subslice wu. 144 160 . subslice wu. 208 224 . p. subslice wu. 64 80 . n0p. subslice wu. 320 338 . subslice wu. 338 356 . . 1 . else return ok 0 . . .
-  var c u64 0 .
+  var c usize 0 .
   while lt c. 16 . do  set idx wu. add 240 c. . . idx wu. add 224 c. . . .  set c. add c. 1 . .  end .
   if eq bigint.ge_mod subslice wu. 240 256 . n. 16 . 1 . do
     let z1 u64 p256.msub subslice wu. 240 256 . subslice wu. 240 256 . n. n. . .

@@ -42,7 +42,7 @@ do
 end .
 
 rem 용량 = len buf − 1 (한 칸은 늘 비워 둔다).
-export fn cap_is_len_minus_one input buf slice u64 . output u64 .
+export fn cap_is_len_minus_one input buf slice u64 . output usize .
   requires ge len buf. . 2 . .
 do
   return spsc.spsc_capacity buf. . .
@@ -51,15 +51,15 @@ end .
 rem ★★ 가득 채우고 한 번 더 넣어 본다 — 마지막 넣기는 **실패해야** 한다(0).
 export proc fill_then_overflow input k cap atomic . input ctl mut slice u64 .
   input buf mut slice u64 .
-  output u64 . effects atomic .
+  output usize . effects atomic .
   requires ge len ctl. . 2 . .
   requires ge len buf. . 2 . .
 do
-  var i u64 0 .
-  var okc u64 0 .
-  let capn u64 spsc.spsc_capacity buf. . .
+  var i usize 0 .
+  var okc usize 0 .
+  let capn usize spsc.spsc_capacity buf. . .
   while lt i. capn. . do
-    set okc. add okc. spsc.spsc_push k. ctl. buf. i. . . .
+    set okc. add okc. cast usize spsc.spsc_push k. ctl. buf. cast u64 i. . . . . .
     set i. add i. 1 . .
   end .
   rem 여기서 한 번 더 — 가득 찼으므로 0 이어야 한다.

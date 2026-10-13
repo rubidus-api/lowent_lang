@@ -8,10 +8,10 @@ struct board do
 end .
 
 rem ko: 어떤 크기든 받는다 --- 크기는 번역 시점의 입력이다 /// en: any size --- the sizes are translation-time inputs
-fn sum input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c . output u64 .
+fn sum input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
 do
   var t u64 0 .
-  repeat i u64 dim m. 0 . do
+  repeat i usize dim m. 0 . do
     rem ko: `row` 는 줄 하나를 슬라이스로 본다 /// en: `row` sees one row as a slice
     for x row m. i. . do
       set t. add t. widen u64 x. . . .

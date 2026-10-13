@@ -2686,6 +2686,7 @@ static int cbe_carry_scan(const low_ir_def_t *d, const unsigned char *lk, cbe_ca
                 case IRW_AND: case IRW_OR: case IRW_NOT:
                 case IRW_EQ: case IRW_NE: case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE:
                 case IRW_RET: case IRW_LEN: case IRW_INDEX: break;
+                case IRW_CAST: break;   // RFC-0149 — 첨자(`usize`)를 값과 셈하려면 `cast` 가 낀다. 값 하나를 값 하나로 바꿀 뿐 메모리는 건드리지 않는다
                 case IRW_BR: case IRW_BRZ:
                     if (q != B && c[q].a >= h && c[q].a <= q) bad = true;    // 안쪽 루프 — 가장 안쪽만
                     break;

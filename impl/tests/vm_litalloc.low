@@ -26,5 +26,5 @@ export proc bump_list input a u64 . output u64 . effects state . do
   let s2 use bb. mut slice u64 lit slice u64 5 6 . else return 2 . .
   let x3 use bb. option mut slice u64 lit array u64 8 _ . .
   guard is_none x3. . else return 3 . .
-  return add add widen u64 idx s1. 3 . . idx s2. 1 . . len s2. . . .
+  return add add widen u64 idx s1. 3 . . idx s2. 1 . . cast u64 len s2. . . . .
 end .

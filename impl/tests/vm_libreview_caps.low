@@ -86,7 +86,7 @@ proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some memo. . else return 89 . .
   var dirty mut slice u8 some_value memo. . .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len dirty. . . do
     set idx dirty. i. . 1 .
     set i. add i. 1 . .

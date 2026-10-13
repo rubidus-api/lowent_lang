@@ -213,6 +213,7 @@ static void ir_fail_buf(ir_ctx_t *c, const char *code, const char *msg, proven_u
 // ⊑ 격자의 join (NumericLattice.v 의 join — 두 피연산자 중 하나, 발명하지 않는다).
 // 미상(known=false)은 항등원처럼 작동한다: join(unk, T) = T.
 static ityp_t ity_of_word(proven_u8str_view_t v);   // ★ 아래 정의를 앞당겨 쓴다(IRW_CALL 의 결과 타입)
+ ityp_t ity_alias_lookup(const void *cv, proven_u8str_view_t w);
 static ityp_t ity_join(ityp_t a, ityp_t b) {
     if (!a.known) return b;
     if (!b.known) return a;
@@ -243,6 +244,33 @@ static bool ir_cast_is_identity(ir_ctx_t *c, proven_i64 meta) {
     if (!t.known || t.flt || t.bits != 64 || t.sign != ((meta & IR_SGN_BIT) != 0)) return false;
     c->tstk[c->tsp - 1] = (ityp_t){ true, 64, t.sign, false, false, 0, 0 };
     return true;
+}
+// ★★★ RFC-0148 S2 — **알맹이 타입 낱말**: 선언의 타입 낱말들에서 한정자와 그릇을 벗긴 첫 낱말. `mut slice u8` → `u8` · `option pt` → `pt` ·
+//   `result u8 e` → `u8`. 그림자는 그릇의 칸에 «거기서 꺼내면 나오는 것» 을 싣는다(슬라이스 지역이 원소 타입을 싣는 것과 같은 규칙이다).
+proven_u8str_view_t ir_content_word(const low_cst_t *f, proven_size_t s, proven_size_t e) {
+    for (proven_size_t z = s; z < e && z < f->nkids; z++) {
+        if (!is_atom(f->kids[z])) break;
+        proven_u8str_view_t w = f->kids[z]->tok.lex;
+        if (veq(w, "mut") || veq(w, "owned") || veq(w, "ref") || veq(w, "mut_ref") || veq(w, "slice") || veq(w, "vec") ||
+            veq(w, "option") || veq(w, "result") || veq(w, "array")) continue;
+        return w;
+    }
+    return (proven_u8str_view_t){ 0 };
+}
+static ityp_t ity_of_cname(ir_ctx_t *c, proven_u8str_view_t w) {
+    if (!w.size) return ITY_UNK;
+    ityp_t t = ity_of_word(w);
+    if (!t.known) t = ity_alias_lookup(c, w);
+    if (!t.known) t = ity_alias_lookup(c, ir_strip_mod(c, w));
+    return t;
+}
+// ★ 낱말을 낸 자리가 결과의 타입을 더 잘 알 때(갈래의 알맹이 칸 · 상태 칸) 그림자의 꼭대기를 고쳐 적는다.
+ityp_t ity_of_word_c(ir_ctx_t *c, proven_u8str_view_t w) { return ity_of_cname(c, w); }
+void ir_tset_top(ir_ctx_t *c, proven_u8str_view_t cname) {
+    if (c->tstk_bad || c->tsp == 0 || c->tsp > 64 || !cname.size) return;
+    ityp_t t = ity_of_cname(c, cname);
+    if (t.known) c->tstk[c->tsp - 1] = t;
+    c->tnam[c->tsp - 1] = cname;
 }
 static ityp_t ir_tpop(ir_ctx_t *c) {
     if (c->tsp == 0) { c->tstk_bad = true; return ITY_UNK; }
@@ -476,9 +504,11 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
     if (ar >= 0) {
         ityp_t ops[3] = { ITY_UNK, ITY_UNK, ITY_UNK };
         low_irw_t osrc[3] = { IRW_CONST, IRW_CONST, IRW_CONST };   // ★ RFC-0148 S0 — 피연산자를 낸 낱말(집계용)
+        proven_u8str_view_t onam0 = { 0 }, rnam = { 0 };   // ★ RFC-0148 S2 — 첫 피연산자와 결과의 알맹이 타입 낱말
         for (int i = ar - 1; i >= 0; i--) {
             ityp_t t = ir_tpop(c);
             if (i < 3) { ops[i] = t; if (c->tsp < 64) osrc[i] = ir_tsrc[c->tsp]; }
+            if (i == 0 && c->tsp < 64 && !c->tstk_bad) onam0 = c->tnam[c->tsp];
         }
         switch (w) {
             case IRW_LOAD:
@@ -490,6 +520,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 //     아무 말도 안 하면, 거기서 꺼낸 값도 아무 말을 못 한다.*
                 if (!res.known && (proven_size_t)a < c->nlocals && c->locals[a].elem.known)
                     res = c->locals[a].elem;
+                if ((proven_size_t)a < c->nlocals) rnam = c->locals[a].cname;
                 break;
             case IRW_FCONST:
                 res = ITY_UNK;   // D3: 부동 리터럴도 **comptime 무타입** — 상대 피연산자가 타입을 준다
@@ -549,7 +580,14 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 if ((a & 0xf) == 1 && !c->tstk_bad && ops[0].known && ops[0].bits && !ops[0].flt)
                     a |= 0x200000 | (ops[0].sign ? 0x400000 : 0)
                        | ((proven_i64)(ops[0].bits & 0xff) << 24);
-                res = ITY_UNK;
+                // RFC-0148 S3 — `abs` · `nonzero_of` 는 받은 타입을 그대로 낸다(그릇은 알맹이를 싣는다). 부동 함수는 받은 부동 타입을 낸다.
+                res = ((a & 0xf) == 1 || (a & 0xf) == 4 || (ops[0].known && ops[0].flt)) ? ops[0] : ITY_UNK;
+                break;
+            case IRW_BINM:
+                res = ity_join(ops[0], ops[1]);   // RFC-0148 S3 — `min` · `max` · `@fmod` · `@pow` 는 피연산자의 타입이다
+                break;
+            case IRW_RNGNEXT:
+                res = (ityp_t){ true, 64, false, false, false, 0, 0 };   // RFC-0148 S3 — `rng_next` 는 u64 다
                 break;
             // ★★★★ **원소를 꺼내면 원소의 타입이 나온다** (2026-09-09, REQ-0013 / 결함
             //   `u64-index-comparison`). 여기가 `default` 로 떨어져 `index s 0` 의 결과가
@@ -560,7 +598,25 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             //   ⇒ 슬라이스의 그림자 타입(`ops[0]`)이 곧 원소의 타입이다. 그것을 그대로 민다.
             //   ☞ *«모르면 부호 있는 것으로 친다» 는 기본값이 조용한 오답을 만든다.*
             case IRW_INDEX:
-                res = ops[0];
+                res = ops[0]; rnam = onam0;
+                break;
+            // ★★★ RFC-0148 S2 — **담긴 값을 꺼내면 담긴 값의 타입이 나온다.** `option u8` · `result u8 e` 의 칸은 알맹이의 타입을 싣고 있다.
+            case IRW_SOMEVAL: case IRW_OKVAL:
+                res = ops[0]; rnam = onam0;
+                break;
+            // ★★★ RFC-0148 S2 — **칸을 읽으면 칸의 선언 타입이 나온다.** 묶음은 피연산자의 알맹이 낱말로 찾는다. 전에는 미상이라
+            //   `mul field q. x . field q. x . .`(`x u8`, 200)이 40000 을 냈다(VM · 네이티브가 같이 틀렸다).
+            case IRW_FIELD:
+                if (c->out && onam0.size && (proven_size_t)a < c->out->nfields) {
+                    bool sf_; proven_size_t si_ = ir_struct_find(c->out, ir_strip_mod(c, onam0), &sf_);
+                    if (sf_) {
+                        const low_ir_struct_t *st_ = &c->out->structs[si_];
+                        for (proven_size_t z = 0; z < st_->nf; z++)
+                            if (proven_u8str_view_eq(st_->f[z].name, c->out->fields[a])) {
+                                rnam = st_->f[z].cname; res = ity_of_cname(c, rnam); break;
+                            }
+                    }
+                }
                 break;
             // ★★★★★ **부른 op 의 결과도 타입이 있다** (결함 노트 #69, 2026-09-16).
             //   `fn top output u64 .` 을 부른 자리의 그림자가 «미상» 이라, 그 값을 쓰는
@@ -574,6 +630,8 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                         res = ity_of_word(c->out->defs[ci_].out_tyname);
                         // ★ 출력 타입이 스칼라 별칭이면 바탕의 폭이다(RFC-0147 §7.2) — 전에는 «모른다» 가 되어 넘침 검사가 서지 않았다.
                         if (!res.known) res = ity_alias_lookup(c, c->out->defs[ci_].out_tyname);
+                        rnam = c->out->defs[ci_].out_cname;                 // RFC-0148 S2 — 그릇을 내는 op 은 알맹이의 타입을 싣는다
+                        if (!res.known) res = ity_of_cname(c, rnam);
                     }
                 }
                 break;
@@ -585,6 +643,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
         //   넘침은 선언 폭에서 본다(정본 §6.3) — 그런데 피연산자의 폭이 미상이면 64 비트 길로 물러나고, 그 자리의 약속은
         //   아무도 지키지 않는다. 미상의 출처가 리터럴뿐이면 빈틈이 아니다(무타입 상수끼리의 셈). 리터럴이 아닌 낱말이
         //   미상을 냈으면 그 낱말이 **빈틈의 출처**다. 한 줄: `UNTYPED <셈> <출처> <op> <줄>` / 폭을 안 것은 `TYPED <셈>`.
+        bool w_lit = false;
         if (ir_list_untyped < 0) ir_list_untyped = getenv("LOWENT_LIST_UNTYPED") ? 1 : 0;
         if (ir_list_untyped && !c->tstk_bad &&
             (w == IRW_ADD || w == IRW_SUB || w == IRW_MUL || w == IRW_DIV || w == IRW_MOD || w == IRW_NEG ||
@@ -594,6 +653,14 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 low_irw_t src = IRW_CONST;
                 for (int i = 0; i < ar && i < 3; i++)
                     if (!ops[i].known && osrc[i] != IRW_CONST && osrc[i] != IRW_FCONST) { src = osrc[i]; break; }
+                // ★ 결과의 타입을 정하는 피연산자가 **전부 무타입 리터럴**이면 결과도 무타입이다 — 리터럴처럼 상대가 타입을 준다.
+                //   밀기는 왼쪽이 타입을 정한다(정본 §6.3.8 (1) · 검사층과 같은 규칙): `shl 1 n.` 은 `1` 의 타입, 곧 무타입이다.
+                //   그 값은 타입을 받는 자리(`bit_and h. …`)에 닿을 때까지 64 비트로 셈한다.
+                if (src == IRW_CONST) {
+                    int nty = (w == IRW_SHL || w == IRW_SHR) ? 1 : ar;
+                    w_lit = true;
+                    for (int i = 0; i < nty && i < 3; i++) if (ops[i].known || (osrc[i] != IRW_CONST && osrc[i] != IRW_FCONST)) w_lit = false;
+                }
                 if (src != IRW_CONST) {
                     proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
                     fprintf(stderr, "UNTYPED\t%s\t%s\t%.*s\t%u\n", low_irw_name(w), low_irw_name(src),
@@ -602,7 +669,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 }
             }
         }
-        if (c->tsp < 64) ir_tsrc[c->tsp] = w;
+        if (c->tsp < 64) { ir_tsrc[c->tsp] = w_lit ? IRW_CONST : w; c->tnam[c->tsp] = rnam; }
         ir_tpush(c, res);
     } else {
         c->tsp = 0;   // 문장 경계 — 스택이 비는 지점
@@ -777,6 +844,7 @@ static proven_u8 ir_region_root(proven_u8str_view_t n) {
     c->locals[c->nlocals].name = name;
     c->locals[c->nlocals].bset_w = 0;   // ★ 기본은 '비트셋 아님' — 바인딩이 폭을 실어 준다
     c->locals[c->nlocals].narrowed = (proven_u8str_view_t){0};   // ★ 새 지역은 안 좁혀짐(RFC-0080 §4.6)
+    c->locals[c->nlocals].cname = (proven_u8str_view_t){0};
     return c->nlocals++;
 }
 
@@ -3170,6 +3238,8 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     }
                 }
                 ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, fname));
+                for (proven_u8 fi = 0; fi < c->enum_np[gvi]; fi++)      // RFC-0148 S2 — 갈래의 알맹이 칸은 선언 타입을 안다
+                    if (proven_u8str_view_eq(c->enum_pname[gvi][fi], fname)) { ir_tset_top(c, c->enum_pty[gvi][fi]); break; }
                 return;
             }
             if (veq(nd->tok.lex, "some")) {           // ★ option 생성자 (D5: OOM 은 값이다)
@@ -3310,6 +3380,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 (*pos)++;
                 ir_value(c, k, pos, end);
                 if (!ir_cast_is_identity(c, meta)) ir_emit(c, IRW_CAST, meta);
+                if (!meta) ir_tset_top(c, tw);   // RFC-0148 S3 — 부동으로 가는 변환의 결과는 그 부동 타입이다
                 return;
             }
             if (veq(nd->tok.lex, "splat") || veq(nd->tok.lex, "load")) {
@@ -3524,6 +3595,8 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 c->locals[lv].name = (proven_u8str_view_t){ 0 };
                 c->locals[li].name = (proven_u8str_view_t){ 0 };
                 c->locals[lat].name = (proven_u8str_view_t){ 0 };
+                // RFC-0148 S3 — 빌린 지역에도 타입을 적는다: 색인과 자리는 u64 다(조각 표가 `slice u64` 다). 안 적으면 아래의 `2i` · `at + n` 이 폭 없이 나간다.
+                c->locals[li].ty = c->locals[lat].ty = (ityp_t){ true, 64, false, false, false, 0, 0 };
                 ir_value(c, k, pos, end);  ir_emit(c, IRW_STORE, (proven_i64)lv);   // 뷰
                 ir_value(c, k, pos, end);  ir_emit(c, IRW_STORE, (proven_i64)li);   // i
                 proven_size_t fdesc = ir_field_intern(c, proven_u8str_view_from_cstr("descs"));

@@ -23,7 +23,8 @@ fn hdr_summary
   output u64 .
 do
   let h wire_header view wire_header b. . .
-  return expr (field h. length .) * 1000 + ((field h. kind .)) . .
+  rem RFC-0148 S2 — 칸은 제 폭을 안다: `length` 는 u16 이라 258 × 1000 은 u16 에서 넘친다. u64 로 옮겨서 셈한다.
+  return expr (cast u64 field h. length . .) * 1000 + (cast u64 field h. kind . .) . .
 end .
 
 fn hdr_magic

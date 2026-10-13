@@ -1211,7 +1211,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 for (proven_size_t z = 2; z + 1 < de; z++) {
                     if (!is_atom(f->kids[z])) continue;
                     proven_u8str_view_t w0 = f->kids[z]->tok.lex;
-                    if (veq(w0, "slice") || veq(w0, "vec") || veq(w0, "array")) {
+                    if (veq(w0, "slice") || veq(w0, "vec") || veq(w0, "array") || veq(w0, "option") || veq(w0, "result")) {   // RFC-0148 S2 — 담긴 값도
                         c->locals[slot].elem = ity_of_decl_c(c, f, z + 1, z + 2);
                         break;
                     }
@@ -1231,6 +1231,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                         veq(f->kids[tw]->tok.lex, "ref") || veq(f->kids[tw]->tok.lex, "mut_ref")))
                     tw++;
                 if (tw < f->nkids && is_atom(f->kids[tw])) c->locals[slot].tyname = ir_strip_mod(c, f->kids[tw]->tok.lex);
+                c->locals[slot].cname = ir_content_word(f, 2, (be < f->nkids) ? be : f->nkids);   // RFC-0148 S2
             }
             // ★ 생성 기반 narrowing (RFC-0080 §4.6). `let b be box.val 42 .` 는 b 가 **val 임을
             //   증명**한다 — guard 없이도 `get b val v` 가 안전하다. RHS 첫 원자가 `<enum>.<변형>`
@@ -2063,8 +2064,11 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
                 proven_u8str_view_t bn = f->kids[2 + j]->tok.lex;
                 proven_size_t bslot = ir_local_declare(c, bn, m->line);
                 c->locals[bslot].tyname = c->enum_pty[bind_vi][j];
+                c->locals[bslot].cname = c->enum_pty[bind_vi][j];                       // RFC-0148 S2 — 갈래가 꺼낸 값도 선언 타입을 안다
+                c->locals[bslot].ty = ity_of_word_c(c, c->enum_pty[bind_vi][j]);
                 ir_emit(c, IRW_LOAD, (proven_i64)tmp);
                 ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, c->enum_pname[bind_vi][j]));
+                ir_tset_top(c, c->enum_pty[bind_vi][j]);
                 ir_emit(c, IRW_STORE, (proven_i64)bslot);
             }
         }
@@ -2616,6 +2620,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     }
                 }
                 s->f[s->nf].flt = ir_is_float_ty(fld->kids[1]->tok.lex);
+                s->f[s->nf].cname = ir_content_word(fld, 1, fld->nkids);   // RFC-0148 S3
                 s->f[s->nf].off = s->total;
                 s->total = (proven_u16)(s->total + sz);
                 s->nf++;
@@ -2971,6 +2976,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     }
                 }
                 s->f[s->nf].tyname = is_atom(fld->kids[1]) ? fld->kids[1]->tok.lex : (proven_u8str_view_t){0};
+                s->f[s->nf].cname = ir_content_word(fld, 1, fld->nkids);   // RFC-0148 S2
                 // ★ **중첩 구조체** — 필드의 타입이 이미 선언된 구조체면 그 레이아웃을 쓴다.
                 //   (앞에서 선언된 것만 — 순환 구조체는 크기가 없다.)
                 if (!param_ty_ && !s->f[s->nf].size && is_atom(fld->kids[1])) {
@@ -3543,6 +3549,15 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
         //   자기를 자기와 비교하는 셈이 됐으므로 걷어낸다.
         //   ★ 표현을 통일하는 일의 순서는 이것이다: **먼저 대조를 켜고, 그다음 옮기고, 그다음
         //     대조를 끈다.** 대조 없이 옮기는 것은 통일이 아니라 **희망**이다.
+        // ★★★ RFC-0148 S3 — **출력 타입은 몸을 내리기 전에 안다.** 전에는 이 둘을 몸을 내릴 때(pass 2) 적어서, **뒤에 적힌** op 을
+        //   부른 자리는 결과의 폭을 몰랐다: `mul b x. . b x. . .`(`b` 가 아래에 있고 u8 을 낸다, 200)이 40000 을 냈다.
+        {
+            low_op_header_t oh_ = low_op_header(f);
+            if (oh_.out_s < oh_.out_e && is_atom(f->kids[oh_.out_s])) {
+                d->out_tyname = f->kids[oh_.out_s]->tok.lex;
+                d->out_cname = ir_content_word(f, oh_.out_s, oh_.out_e);
+            }
+        }
         ir_iface_hash(work, f, d);
     }
 
@@ -3562,6 +3577,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             const low_ir_struct_t *as = &ir.structs[opf[i].sidx];
             (void)ir_local_declare(&c, as->name, f->line);
             c.locals[0].ty = ITY_UNK;
+            c.locals[0].cname = as->name;   // RFC-0148 S3 — 상태 칸을 읽으면 그 칸의 선언 타입이 나온다
             for (proven_size_t q = 0; q < as->nf && q < IR_MAKE_MAXF; q++) {
                 c.sfcap[c.nsfield] = as->f[q].capkind;
                 c.sfield[c.nsfield++] = as->f[q].name;
@@ -3578,6 +3594,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             // ★ 출력 타입의 **이름** — `output rect .` 의 `rect`. 메서드 사슬이 이것을 쓴다.
             if (hh.out_s < hh.out_e && is_atom(f->kids[hh.out_s])) {
                 d->out_tyname = f->kids[hh.out_s]->tok.lex;
+                d->out_cname = ir_content_word(f, hh.out_s, hh.out_e);   // RFC-0148 S2
                 // ★★★ **출력이 생 포인터 newtype 이면 표시한다** (RFC-0068 S4 · C1) — extern 이 C 의
                 //   char* 를 돌려줄 자리. cbe 가 프로토타입 반환을 `const char *` 로 낸다.
                 for (proven_size_t pa = 0; pa < mod.nptr_alias; pa++)
@@ -3594,7 +3611,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 for (proven_size_t z = hh.p[q].ts; z + 1 < hh.p[q].te && z + 1 < f->nkids; z++) {
                     if (!is_atom(f->kids[z])) continue;
                     proven_u8str_view_t w0 = f->kids[z]->tok.lex;
-                    if (veq(w0, "slice") || veq(w0, "vec") || veq(w0, "array")) {
+                    if (veq(w0, "slice") || veq(w0, "vec") || veq(w0, "array") || veq(w0, "option") || veq(w0, "result")) {   // RFC-0148 S2
                         c.locals[sl].elem = ity_of_decl_c(&c, f, z + 1, z + 2);
                         break;
                     }
@@ -3608,6 +3625,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 // ★ 파라미터의 **선언 타입 이름** — 한정자(mut/owned)를 벗긴 알맹이 자리
                 if (hh.p[q].core < f->nkids && is_atom(f->kids[hh.p[q].core]))
                     c.locals[sl].tyname = ir_strip_mod(&c, f->kids[hh.p[q].core]->tok.lex);
+                c.locals[sl].cname = ir_content_word(f, hh.p[q].ts, hh.p[q].te);   // RFC-0148 S2
                 if (sl < LOW_MAX_PARAMS) {                        // RFC-0055: 시그니처의 범위
                     ityp_t pt = c.locals[sl].ty;
                     d->prng[sl].has_rng = pt.has_rng;

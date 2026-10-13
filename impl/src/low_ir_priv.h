@@ -104,7 +104,9 @@ typedef struct {
 //   **VM 과 네이티브가 사이좋게 틀린 답**을 냈다(둘 다 틀리니 차등 훑기도 못 잡는다).
 //   ⇒ 원소의 타입을 따로 들고, `index` 가 그것을 결과로 민다.
 typedef struct { proven_u8str_view_t name; ityp_t ty; proven_u8str_view_t tyname; proven_u8 bset_w;
-                 proven_u8str_view_t narrowed; ityp_t elem; } ir_local_t;
+                 proven_u8str_view_t narrowed; ityp_t elem;
+                 proven_u8str_view_t cname;   // ★ RFC-0148 S2 — 알맹이 타입 낱말(그릇을 벗긴 것) — 칸을 읽을 때 묶음을 찾는다
+               } ir_local_t;
 
 typedef struct {
     proven_size_t brk[IR_MAXPATCH]; proven_size_t nbrk;   // break → loop end
@@ -181,6 +183,7 @@ typedef struct {
     ir_loop_t            loops[IR_MAXLOOP];
     proven_size_t        nloops;
     ityp_t               tstk[64];          // 로워링 시점의 타입 그림자 스택
+    proven_u8str_view_t  tnam[64];          // ★ RFC-0148 S2 — 그 칸의 **알맹이 타입 낱말**(묶음이면 묶음의 이름) — `field` 가 칸의 타입을 여기서 찾는다
     proven_size_t        tsp;
     bool                 tstk_bad;          // 스택이 어긋나면 추적을 포기한다(보수적)
     proven_u8            vec_lanes, vec_esz;   // comptime vector context (binding type)
@@ -430,6 +433,9 @@ void ir_def_hashes(proven_allocator_t work, low_ir_t *ir);                     /
 bool ir_ensures_at(const low_cst_t *f, proven_size_t i, proven_size_t *k);     /* 1회 */
 proven_i64 ir_machine(proven_u8str_view_t v, bool *found);                     /* 1회 */
 void ir_named_contracts(ir_ctx_t *c, const low_parse_result_t *pr, const low_cst_t *f); /* 1회 */
+proven_u8str_view_t ir_content_word(const low_cst_t *f, proven_size_t s, proven_size_t e);   /* RFC-0148 S2 */
+ityp_t ity_of_word_c(ir_ctx_t *c, proven_u8str_view_t w);
+void ir_tset_top(ir_ctx_t *c, proven_u8str_view_t cname);                                    /* RFC-0148 S2 */
 proven_u8str_view_t ir_strip_mod(ir_ctx_t *c, proven_u8str_view_t v);          /* 1회 */
 void ir_struct_layout(const low_ir_t *ir, low_ir_struct_t *s);                 /* 1회 */
 int ir_word_arity(const low_ir_t *ir, low_irw_t w, proven_i64 a);              /* 1회 */

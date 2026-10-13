@@ -1,0 +1,41 @@
+rem RFC-0148 S2 · S3 — 칸 · 담긴 값 · 갈래가 꺼낸 값 · 상태 칸 · 뒤에 적힌 op 의 결과로 한 셈은 그 값의 선언 폭에서 멈춘다.
+rem   전에는 하강층이 그 폭을 몰라 u8 200 의 제곱이 40000 으로 나갔다(VM 과 네이티브가 같이). 골든 `typewidth2` 가 읽는다.
+module tw2 .
+struct q do x u8 . y u16 . end .
+enum box do val v u8 . nil . end .
+fn mk input a u8 . output q . do return lit q do x a. . y 0 . end . . end .
+fn field_sq input a u8 . output u64 . do
+  let r q mk a. . .
+  return cast u64 mul field r. x . field r. x . . . .
+end .
+fn some_sq input a u8 . output u64 . do
+  let o option u8 some a. . .
+  return cast u64 mul some_value o. . some_value o. . . . .
+end .
+fn opt_of input a u8 . output option u8 . do return some a. . . end .
+fn call_some_sq input a u8 . output u64 . do
+  return cast u64 mul some_value opt_of a. . . some_value opt_of a. . . . . .
+end .
+fn match_sq input a u8 . output u64 . do
+  let b box box.val a. . .
+  match b. do
+    case val s do return cast u64 mul s. s. . . . end .
+    case nil do return 0 . end .
+  end .
+end .
+fn fwd_sq input a u8 . output u64 . do return cast u64 mul later a. . later a. . . . . end .
+fn later input a u8 . output u8 . do return a. . end .
+fn wrap_field input a u8 . output u64 . do
+  let r q mk a. . .
+  return cast u64 wrap_mul field r. x . field r. x . . . .
+end .
+actor cell do
+  state do v u8 . end .
+  proc put input a u8 . output u64 . effects state . do set v. a. . return 0 . end .
+  proc sq output u64 . effects none . do return cast u64 mul v. v. . . . end .
+end .
+proc state_sq input a u8 . output u64 . effects state . do
+  var c cell spawn actor cell . .
+  let z u64 send c. put a. . .
+  return send c. sq . .
+end .

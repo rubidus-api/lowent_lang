@@ -542,6 +542,9 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  proven_u8 capkind;
                  // ★ 칸의 **타입 낱말**(첫 낱말) — `send (field g al) m` 이 받는 actor 를 타입으로 찾는다(WO-0213).
                  proven_u8str_view_t tyname;
+                 // ★ RFC-0148 S2 — 칸의 **알맹이 타입 낱말**: 한정자와 그릇(`slice` · `option` · `result` · `array` · `vec`)을 벗긴 첫 낱말.
+                 //   `x u8` 도 `xs slice u8` 도 `o option u8` 도 `u8` 이다. 하강의 타입 그림자가 칸을 읽은 값의 폭을 여기서 안다.
+                 proven_u8str_view_t cname;
                  // ★★ RFC-0132 T2b-3b — **배열 칸** `body array u8 16 .`: 원소 수(0 = 배열 칸이 아니다)와 원소 폭·종류(IRW_VARRAY
                  //   의 meta 와 같은 모양). 값은 태그 한 칸(보는 슬라이스)이지만 바이트는 **레코드의 것**이다 — 만들 때와 칸에
                  //   쓸 때 바이트를 베낀다(값 복사). 그래서 이 칸이 있으면 구조체는 `viewable` 이 아니다(C 레이아웃은 뒤로).
@@ -708,6 +711,7 @@ typedef struct {
     //   그 모양을 표현하지 못해서, 구조체를 받는 op 은 **바깥에서 한 번도 실행된 적이 없었다**
     //   — 경계 범위 검사도, 계약 테스트도, 네이티브 차등도 그 자리를 못 봤다(교훈 4).
     //   경계에서는 **바이트를 받아 `view` 한다**(T1 무복사 — 길이·정렬을 그대로 검사한다).
+    proven_u8str_view_t out_cname;     // ★ RFC-0148 S2 — 출력의 알맹이 타입 낱말(`output option u8` 의 `u8`)
     proven_u8str_view_t out_tyname;    // ★ 선언된 **출력 타입 이름** — 메서드 사슬의 수신자 타입
     // ★★★ **출력이 생 포인터 newtype 인가** (RFC-0068 S4 · C1) — `output cstr`(= newtype cstr
     //   unsafe_ptr u8) 처럼 extern 이 C 의 `char*` 를 돌려줄 때 참. 그러면 프로토타입 반환 타입이

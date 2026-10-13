@@ -1474,7 +1474,7 @@ int main(void) {
             "return field h kind . end "
             "fn hdr_sum input b slice u8 . output u64 .  do "
             "var h wire_header . be view wire_header b . . "
-            "return expr (field h length) * 1000 + (field h kind) . . end";
+            "return expr (cast u64 (field h length)) * 1000 + (cast u64 (field h kind)) . . end";   /* RFC-0148 S2 — u16 칸 258 × 1000 은 u16 에서 넘친다 */
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -1829,7 +1829,7 @@ int main(void) {
             for (int i = 0; i < nf; i++) FPUT("f%d %llu . ", i, (unsigned long long)vals[i]);
             FPUT("end . end fn rt output u64 .  do "
                  "var h s . be view s encode s mk . return ");
-            #define FTERM(i) do { if (flts[i]) FPUT("(cast u64 (field h f%d))", i); else FPUT("(field h f%d)", i); } while (0)
+            #define FTERM(i) do { (void)flts[i]; FPUT("(cast u64 (field h f%d))", i);   /* RFC-0148 S2 — 칸은 제 폭을 안다: u64 로 옮겨서 더한다(전에는 폭을 몰라 64 비트로 더해졌다) */ } while (0)
             for (int i = 0; i < nf - 1; i++) { FPUT("wrap_add "); FTERM(i); FPUT(" ("); }
             FTERM(nf - 1);
             for (int i = 0; i < nf - 1; i++) FPUT(")");

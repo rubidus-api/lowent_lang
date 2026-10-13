@@ -1,4 +1,4 @@
-[한국어](README.ko.md) | **English** — **Lowent v1.10.1** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.10.1) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+[한국어](README.ko.md) | **English** — **Lowent v1.11.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.11.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent
 
@@ -157,18 +157,18 @@ This buys some unusual properties. The whole grammar can be highlighted with pla
 - **Costs are visible.** No hidden allocation, no hidden control flow, no hidden concurrency. `--why-slow` tells you which functions are stuck on the slow path, and why.
 - **Local reasoning.** You should be able to understand, write and verify a function from its signature and contract alone.
 - **Two back ends keep each other honest.** The compiler runs the same intermediate representation on a VM and also emits C. If the two ever disagree, that's a compiler bug, not yours. Every compiler change is checked against tens of thousands of cases this way.
-- **Built for real hardware.** Targets go down to boards with 16-bit pointers and no heap. Portable SIMD, inline assembly, MMIO registers, interrupt handlers and a two-way C FFI are part of the language.
+- **Built for real hardware.** Targets go down to 32-bit boards with no heap, and the size types are checked at a 16-bit address width too (translation only). Portable SIMD, inline assembly, MMIO registers, interrupt handlers and a two-way C FFI are part of the language.
 - **Unfinished features say so.** A feature whose name is reserved but whose meaning isn't implemented yet raises `W-NOT-YET` instead of being silently ignored.
 
 ## Where it stands today
 
-Lowent is not just a design document. It grows together with a working compiler (compiler 1.10.1, language revision 1.10).
+Lowent is not just a design document. It grows together with a working compiler (compiler 1.11.0, language revision 1.11).
 
 - **The compiler, `lowentc`,** is written in C23. Its only external dependency is one vendored library (`proven_c_lib`, MIT). Native code goes out as C and is built by your system's C compiler. Targets: `x86_64`, `arm64`, `riscv64`, `cortex_m` and `mips_be`.
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.
 - **Caught at run time:** bounds checks where nothing was proven, overflow, and contract violations. The VM and native code stop at the same place with the same diagnostic.
 - **Proven:** memory safety for the sequential fragment (no use-after-free, no dangling references) and freedom from data races are machine-checked in Coq, with no axioms and no `admit`. These proofs are about the language's **model**. Whether the implementation follows the model is checked by the regression suite and bounded model checking. What has *not* been proven gets its own chapter in the manual.
-- **Scale:** 2,153 regression checks and 70 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
+- **Scale:** 2,160 regression checks and 70 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
 
 ## What you give up
 

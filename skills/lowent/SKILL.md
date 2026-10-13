@@ -101,7 +101,7 @@ fn sorted                         rem  fn = pure (never write `effects`). proc =
   output bool .
   requires ge len xs. . 1 . .        rem  contract flows into the caller
 do
-  var i u64 1 .
+  var i usize 1 .                     rem  a length or an index is `usize`
   while lt i. len xs. . . do
     guard le idx xs. sub i. 1 . . idx xs. i. . . else return false . .
     set i. add i. 1 . .
@@ -123,6 +123,16 @@ Shape rules you will hit immediately:
   at the very end). One stop too few is `E-DOT-MISSING`, one too many `E-CLOSER-EXTRA`. A newline
   is just whitespace: it never closes anything. Glued *inside* a name, `.` qualifies it
   (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p. x .`.
+- **Sizes are `usize`, and nothing converts by itself.** `len` / `count` / `capacity` / `size_of` and the
+  byte counts of I/O give `usize`; an index, a bound and an `alloc_bytes` capacity must be `usize`
+  (`E-TYPE-NOMINAL`). `usize` (and its signed partner `idiff`, the difference of two positions) mixes
+  with no other integer in arithmetic or comparison: write `cast u64 len xs. . .` or
+  `cast usize n. .` at the seam (`widen` / `narrow` refuse `usize`). «None» is `option usize`, never a
+  sentinel. `usize` is as wide as the target's addresses, so a literal past 65,535 in a `usize` place
+  does not translate for a 16-bit target.
+- **Arithmetic stops at the declared width** — of a field, a payload, an element or a call's result
+  too: a `u8` field squared stops past 255. Cast to the wide type first, or say `wrap_mul` / `sat_mul`.
+  `cast` across the sign is checked (`cast u64` of `-1` stops); `bit_cast` reinterprets bits.
 - **Statements you will write constantly**: `let n u64 add a. 1 . .` (the call's stop, then the
   binding's) · `set i. add i. 1 . .` (the place is a value too) · `return x. .` ·
   `guard gt n. 0 . else return 0 . .` · `method o. name. arg. .` · `payload v. variant field .`.

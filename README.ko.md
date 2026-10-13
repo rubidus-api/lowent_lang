@@ -1,4 +1,4 @@
-**한국어** | [English](README.md) — **Lowent v1.10.1** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.10.1) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+**한국어** | [English](README.md) — **Lowent v1.11.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.11.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent (로우엔트)
 
@@ -157,18 +157,18 @@ end .
 - **비용이 보입니다.** 숨은 할당, 숨은 제어 흐름, 숨은 동시성이 없습니다. 느린 길에 남은 함수는 `--why-slow` 가 이유와 함께 알려 줍니다.
 - **머리만 읽고 압니다.** 한 함수를 서명과 계약만으로 이해하고, 만들고, 검증할 수 있어야 합니다.
 - **두 백엔드가 서로를 검사합니다.** 컴파일러는 같은 중간 표현을 VM 으로도 돌리고 C 로도 내보냅니다. 둘의 답이 다르면 사용자 잘못이 아니라 컴파일러 결함입니다. 컴파일러를 고칠 때마다 이 대조를 수만 건씩 돌립니다.
-- **하드웨어의 현실에 맞춥니다.** 포인터가 16 비트이고 힙이 없는 보드까지 대상으로 삼습니다. 이식 가능한 SIMD, 인라인 어셈블리, MMIO 레지스터, 인터럽트 처리기, 양방향 C FFI 를 언어가 직접 다룹니다.
+- **하드웨어의 현실에 맞춥니다.** 힙이 없는 32 비트 보드까지 대상으로 삼고, 크기 타입은 주소 폭 16 비트에서도 검사합니다(번역까지만). 이식 가능한 SIMD, 인라인 어셈블리, MMIO 레지스터, 인터럽트 처리기, 양방향 C FFI 를 언어가 직접 다룹니다.
 - **안 된 것은 안 됐다고 말합니다.** 이름만 받아 두고 아직 뜻이 없는 기능은 조용히 무시하지 않고 `W-NOT-YET` 으로 경고합니다.
 
 ## 지금 어디까지 왔나
 
-Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.10.1, 언어 개정 1.10).
+Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.11.0, 언어 개정 1.11).
 
 - **컴파일러 `lowentc`** 는 C23 으로 쓰였고, 외부 의존은 들여온 라이브러리 하나(`proven_c_lib`, MIT)뿐입니다. 네이티브 코드는 C 로 내보내 시스템의 C 컴파일러로 짓습니다. 대상은 `x86_64`·`arm64`·`riscv64`·`cortex_m`·`mips_be` 입니다.
 - **컴파일할 때 막는 것**: 효과와 권한 위반, 차용·수명 위반, 옮긴 값 재사용, 완결되지 않은 자원, 값을 잃을 수 있는 정수 변환, 모순되거나 죽은 계약.
 - **실행할 때 막는 것**: 증명되지 않은 자리의 경계 검사, 넘침, 계약 위반. VM 과 네이티브가 같은 자리에서 같은 진단으로 멈춥니다.
 - **증명된 것**: 순차 단편의 메모리 안전(해제 뒤 사용·매달린 참조 없음)과 데이터 경합 없음이 Coq 로 기계 증명되어 있습니다(공리·`admit` 없음). 다만 이 증명은 언어의 **모델**에 대한 것이고, 구현이 모델을 따르는지는 회귀 시험과 유계 모델 검사로 확인합니다. 무엇을 증명하지 **않았는지**도 매뉴얼의 한 장으로 따로 정리해 두었습니다.
-- **검증 규모**: 회귀 시험 2,153 개, 표준 라이브러리 70 개 모듈. 매뉴얼의 모든 예제는 두 백엔드로 돌려 출력이 같은지 확인한 것입니다.
+- **검증 규모**: 회귀 시험 2,160 개, 표준 라이브러리 70 개 모듈. 매뉴얼의 모든 예제는 두 백엔드로 돌려 출력이 같은지 확인한 것입니다.
 
 ## 감수하셔야 할 것
 

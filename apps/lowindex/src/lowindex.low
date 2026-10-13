@@ -18,12 +18,6 @@ use files .
 use outbuf .
 use args .
 
-rem «없음» 을 나타내는 자리 — 그 구현의 `usize` 가 담는 가장 큰 값(폭이 달라도 같은 글이다: 0 에서 1 을 감아 뺀다).
-fn no_pos output usize . do
-  let zero usize 0 .
-  return wrap_sub zero. 1 . .
-end .
-
 fn max_docs output usize . do
   return 65536 .
 end .
@@ -111,7 +105,7 @@ do
   let cap usize len slots. . .
   var at usize bit_and cast usize fnv1a tok. . . sub cap. 1 . . .
   let doc u64 idx tb. 3 . .
-  var term usize no_pos. .
+  var term usize len lastdoc. . .                    rem 표의 길이 = «아직 못 찾았다»(아래의 범위 검사가 그것을 건다)
   repeat probe usize cap. do
     let s usize cast usize idx slots. at. . . .
     if eq s. 0 . do
@@ -723,8 +717,8 @@ fn term_at input b slice u8 . input pos usize . output slice u8 . do
   return subslice b. add pos. 8 . add add pos. 8 . l. . . .
 end .
 
-rem 낱말을 이분 탐색한다. 찾으면 그 낱말 자리, 없으면 18446744073709551615.
-fn find_term input b slice u8 . input tpos slice u64 . input nt usize . input word slice u8 . output usize .
+rem 낱말을 이분 탐색한다. 찾으면 그 낱말 자리, 없으면 `none`.
+fn find_term input b slice u8 . input tpos slice u64 . input nt usize . input word slice u8 . output option usize .
   requires le nt. len tpos. . . .
 do
   var lo usize 0 .
@@ -732,10 +726,10 @@ do
   while lt lo. hi. . do
     let mid usize add lo. div sub hi. lo. . 2 . . .
     let pos usize cast usize idx tpos. mid. . . .
-    guard le add pos. 8 . len b. . . else return no_pos. . .
+    guard le add pos. 8 . len b. . . else return none . .
     let t slice u8 term_at b. pos. . .
     if same_bytes t. word. . do
-      return pos. .
+      return some pos. . .
     end .
     if less_bytes t. word. . do
       set lo. add mid. 1 . .
@@ -743,7 +737,7 @@ do
       set hi. mid. .
     end .
   end .
-  return no_pos. .
+  return none .
 end .
 
 rem 질의 낱말들을 같은 규칙으로 토큰으로 자른다(qbuf 에 이어 담고 qoff · qlen). 토큰 수를 낸다.
@@ -823,11 +817,12 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
   var nh usize 0 .
   repeat qi usize nq. do
     let qo usize cast usize idx qoff. qi. . . .
-    let pos usize find_term b. tpos. nt. subslice qbuf. qo. add qo. cast usize idx qlen. qi. . . . . . .
-    if eq pos. no_pos. . do
+    let po option usize find_term b. tpos. nt. subslice qbuf. qo. add qo. cast usize idx qlen. qi. . . . . . .
+    if is_none po. . do
       set nh. 0 .
       break .
     end .
+    let pos usize some_value po. . .
     let tl usize cast usize get_le b. pos. . . .
     let cpos usize add add pos. 8 . tl. . .
     let c usize cast usize get_le b. cpos. . . .

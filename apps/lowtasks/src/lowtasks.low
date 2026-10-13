@@ -22,12 +22,6 @@ use args .
 use clock .
 use stdio .
 
-rem «없음» 을 나타내는 자리 — 그 구현의 `usize` 가 담는 가장 큰 값(폭이 달라도 같은 글이다: 0 에서 1 을 감아 뺀다).
-fn no_pos output usize . do
-  let zero usize 0 .
-  return wrap_sub zero. 1 . .
-end .
-
 fn max_tasks output usize . do
   return 256 .
 end .
@@ -237,18 +231,18 @@ do
   guard and le nd. len depn. . . le nd. len depl. . . . else return false . .
   repeat d usize nd. do
     let dn slice u8 subslice src. cast usize idx depn. d. . . cast usize add idx depn. d. . idx depl. d. . . . . .
-    var found usize no_pos. .
+    var found option usize none .
     repeat t usize n. do
       if same_bytes subslice src. cast usize idx noff. t. . . cast usize add idx noff. t. . idx nlen. t. . . . . dn. . do
-        set found. t. .
+        set found. some t. . .
         break .
       end .
     end .
-    guard ne found. no_pos. . else do
+    guard is_some found. . else do
       set idx tb. 4 . 5 .
       return false .
     end .
-    set idx depn. d. . cast u64 found. . .
+    set idx depn. d. . cast u64 some_value found. . . .
   end .
   return true .
 end .

@@ -22,8 +22,8 @@ end .
   id: "mod-stdio-ops",
   caption: [The ops of `stdio`],
   [*op*], [*shape*], [*notes*],
-  [`write_out`], [`(cap io, d u64, b slice u8) → u64`], [Writes to channel `d`. Returns *the number of bytes written*: on a pipe it may be less than `len b. .`, and 0 means "cannot write any more"],
-  [`read_in`], [`(cap io, d u64, dst mut slice u8) → option u64`], [Reads from channel `d`. 0 is the end of input; `none` means the read failed],
+  [`write_out`], [`(cap io, d u64, b slice u8) → usize`], [Writes to channel `d`. Returns *the number of bytes written*: on a pipe it may be less than `len b. .`, and 0 means "cannot write any more"],
+  [`read_in`], [`(cap io, d u64, dst mut slice u8) → option usize`], [Reads from channel `d`. 0 is the end of input; `none` means the read failed],
 )
 
 Writing to the end (`write_all`) and buffered writing live in #modref("outbuf")[`outbuf`]; cutting the bytes into lines lives in #modref("io")[`io`].

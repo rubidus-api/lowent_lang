@@ -17,12 +17,6 @@ use net .
 use fmt .
 use args .
 
-rem «없음» 을 나타내는 자리 — 그 구현의 `usize` 가 담는 가장 큰 값(폭이 달라도 같은 글이다: 0 에서 1 을 감아 뺀다).
-fn no_pos output usize . do
-  let zero usize 0 .
-  return wrap_sub zero. 1 . .
-end .
-
 fn head_max output u64 . do
   return 8192 .
 end .
@@ -66,9 +60,8 @@ fn hexval input c u8 . output u64 . do
   return 16 .
 end .
 
-rem 요청 대상(쿼리 앞까지)의 퍼센트 부호를 풀어 dst 에. 길이를 내고, 틀리면(잘못된 %xx · NUL) 18446744073709551615.
-proc decode_target input t slice u8 . input dst mut slice u8 . output usize . effects none . do
-  let bad usize no_pos. .
+rem 요청 대상(쿼리 앞까지)의 퍼센트 부호를 풀어 dst 에. 길이를 내고, 틀리면(잘못된 %xx · NUL) `none` 을 낸다.
+proc decode_target input t slice u8 . input dst mut slice u8 . output option usize . effects none . do
   var n usize 0 .
   var i usize 0 .
   while lt i. len t. . . do
@@ -78,20 +71,20 @@ proc decode_target input t slice u8 . input dst mut slice u8 . output usize . ef
     end .
     var v u8 c. .
     if eq c. '%' . do
-      guard lt add i. 2 . len t. . . else return bad. . .
+      guard lt add i. 2 . len t. . . else return none . .
       let hi u64 hexval idx t. add i. 1 . . . .
       let lo u64 hexval idx t. add i. 2 . . . .
-      guard and lt hi. 16 . lt lo. 16 . . else return bad. . .
+      guard and lt hi. 16 . lt lo. 16 . . else return none . .
       set v. narrow u8 add mul hi. 16 . lo. . . .
       set i. add i. 2 . .
     end .
-    guard ne v. 0 . else return bad. . .
-    guard lt n. len dst. . . else return bad. . .
+    guard ne v. 0 . else return none . .
+    guard lt n. len dst. . . else return none . .
     set idx dst. n. . v. .
     set n. add n. 1 . .
     set i. add i. 1 . .
   end .
-  return n. .
+  return some n. . .
 end .
 
 rem 풀린 경로가 안전한가: `/` 로 시작하고 `..` 마디가 없다.
@@ -321,11 +314,12 @@ proc serve_one input fs cap file_system . input k cap net . input fd u64 . input
     send_error k. fd. 405 false buf. .
     return 405 .
   end .
-  let tl usize decode_target target. tgt. . .
-  guard ne tl. no_pos. . else do
+  let tlo option usize decode_target target. tgt. . .
+  guard is_some tlo. . else do
     send_error k. fd. 400 is_head. buf. .
     return 400 .
   end .
+  let tl usize some_value tlo. . .
   let path slice u8 subslice tgt. 0 tl. . .
   guard safe_path path. . else do
     send_error k. fd. 400 is_head. buf. .

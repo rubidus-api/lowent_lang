@@ -22,8 +22,8 @@ end .
   id: "mod-stdio-ops",
   caption: [`stdio` 의 op],
   [*op*], [*모양*], [*비고*],
-  [`write_out`], [`(cap io, d u64, b slice u8) → u64`], [통로 `d` 에 쓴다. *쓴 바이트 수* --- 파이프에서는 `len b. .` 보다 적을 수 있고, 0 은 "더는 못 쓴다" 다],
-  [`read_in`], [`(cap io, d u64, dst mut slice u8) → option u64`], [통로 `d` 에서 읽는다. 0 은 입력의 끝, `none` 은 읽지 못한 것],
+  [`write_out`], [`(cap io, d u64, b slice u8) → usize`], [통로 `d` 에 쓴다. *쓴 바이트 수* --- 파이프에서는 `len b. .` 보다 적을 수 있고, 0 은 "더는 못 쓴다" 다],
+  [`read_in`], [`(cap io, d u64, dst mut slice u8) → option usize`], [통로 `d` 에서 읽는다. 0 은 입력의 끝, `none` 은 읽지 못한 것],
 )
 
 끝까지 쓰기(`write_all`)와 모아 쓰기는 #modref("outbuf")[`outbuf`] 에, 읽은 바이트를 줄로 자르는 일은 #modref("io")[`io`] 에 있다.

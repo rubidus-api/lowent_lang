@@ -82,7 +82,8 @@ export proc put_i64 input buf mut slice u8 . input pos usize . input n i64 .
   output option usize . effects none .
 do
   guard lt n. 0 . else return put_u64 buf. pos. cast u64 n. . . . .
-  let mag u64 wrap_sub 0 cast u64 n. . . .
+  let bits u64 bit_cast u64 n. . .                    rem 음수의 비트를 그대로 읽는다(값을 옮기는 `cast` 가 아니다)
+  let mag u64 wrap_sub 0 bits. . .
   guard le add pos. add dec_width mag. . 1 . . len buf. . . else return none . .
   let m option usize put_byte buf. pos. 45 . .          rem '-'
   guard is_some m. . else return none . .

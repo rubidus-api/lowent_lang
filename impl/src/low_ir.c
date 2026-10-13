@@ -234,6 +234,16 @@ static void ir_tpush(ir_ctx_t *c, ityp_t t) {
     if (c->tsp >= 64) { c->tstk_bad = true; return; }
     c->tstk[c->tsp++] = t;
 }
+// ★★★ RFC-0149 §6.12 — **값이 그대로인 변환은 내지 않는다.** 원천과 대상이 둘 다 64 비트이고 부호가 같으면(64 비트 대상의
+//   `usize` ↔ `u64` 가 그렇다) 어떤 값도 그대로 들어간다 — 검사할 것이 없다. 옮김 뒤로 첨자와 값이 만나는 자리마다 `cast` 가
+//   끼는데, 그 하나하나가 실행 중의 범위 검사였다. 타입 그림자의 꼭대기만 대상 타입으로 바꾼다. (`narrow_try` 는 꼴이 달라 낸다.)
+static bool ir_cast_is_identity(ir_ctx_t *c, proven_i64 meta) {
+    if (c->tstk_bad || c->tsp == 0 || (meta & IR_POL_CHK) || (meta & 0xff) != 8) return false;
+    ityp_t t = c->tstk[c->tsp - 1];
+    if (!t.known || t.flt || t.bits != 64 || t.sign != ((meta & IR_SGN_BIT) != 0)) return false;
+    c->tstk[c->tsp - 1] = (ityp_t){ true, 64, t.sign, false, false, 0, 0 };
+    return true;
+}
 static ityp_t ir_tpop(ir_ctx_t *c) {
     if (c->tsp == 0) { c->tstk_bad = true; return ITY_UNK; }
     return c->tstk[--c->tsp];
@@ -487,6 +497,8 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             case IRW_CAST:
                 if ((a & 0xff) >= 1 && (a & 0xff) <= 8)
                     res = (ityp_t){ true, (proven_u8)((a & 0xff) * 8), (a & IR_SGN_BIT) != 0, false, false, 0, 0 };
+                // RFC-0149 §6.12 — 원천이 정수이고 부호를 알면 싣는다(정수로 가는 변환에만 뜻이 있다).
+                if ((a & 0xff) && ops[0].known && !ops[0].flt && ops[0].bits) a |= ops[0].sign ? IR_SRC_SGN : IR_SRC_UNS;
                 break;
             case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD:
                 res = ity_join(ops[0], ops[1]);
@@ -3243,7 +3255,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         }
                         (*pos)++;
                         ir_value(c, k, pos, end);
-                        ir_emit(c, IRW_CAST, meta);
+                        if (!ir_cast_is_identity(c, meta)) ir_emit(c, IRW_CAST, meta);
                         return;
                     }
             }
@@ -3293,7 +3305,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 }
                 (*pos)++;
                 ir_value(c, k, pos, end);
-                ir_emit(c, IRW_CAST, meta);
+                if (!ir_cast_is_identity(c, meta)) ir_emit(c, IRW_CAST, meta);
                 return;
             }
             if (veq(nd->tok.lex, "splat") || veq(nd->tok.lex, "load")) {

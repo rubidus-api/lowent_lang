@@ -1939,7 +1939,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     else if (v.tag == VMV_FLT) x = (proven_i64)vmv_f(v);
                     else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return false; }
                     bool nsign = (in->a & IR_SGN_BIT) != 0;   // ★ widen 은 대상 부호를 싣는다 → 부호 범위로 판정(전역성). narrow 는 무부호(손실 트랩 계약 유지)
-                    bool fits = nb >= 64 || ity_fits(x, nb, nsign);
+                    // RFC-0149 §6.12 — 원천의 부호를 알면 64 비트 경계를 제대로 가른다: 부호 없는 원천의 «음수» 는 2^63 이상의 값이고,
+                    //   부호 있는 원천의 음수는 부호 없는 대상에 들어가지 않는다. 모르면 전과 같다.
+                    bool src_big = (in->a & IR_SRC_UNS) && x < 0;                 // 참값 ≥ 2^63
+                    bool src_neg = (in->a & IR_SRC_SGN) && x < 0;                 // 참값 < 0
+                    bool fits = src_big ? (!nsign && nb >= 64) : (src_neg && !nsign) ? false : (nb >= 64 || ity_fits(x, nb, nsign));
                     if (in->a & IR_POL_CHK) {   // narrow_try: option τ
                         if (!fits) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                         if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL",
@@ -1953,7 +1957,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     }
                     if (fits) { stack[sp++] = vmv_int(x); break; }
                     if (in->a & IR_POL_WRAP) { stack[sp++] = vmv_int(ity_wrap(x, nb, nsign)); break; }
-                    if (in->a & IR_POL_SAT)  { stack[sp++] = vmv_int(ity_sat(x, nb, nsign)); break; }
+                    if (in->a & IR_POL_SAT)  {
+                        proven_i64 sv = src_big ? (nb >= 64 ? INT64_MAX : ity_hi(nb, nsign))   // 위로 넘쳤다 → 대상의 가장 큰 값
+                                      : (src_neg && !nsign) ? 0 : ity_sat(x, nb, nsign);
+                        stack[sp++] = vmv_int(sv); break;
+                    }
                     vm_diag(vm->diags, (in->a & IR_POL_PROVEN) ? "E-VM-ANALYSIS" : "E-VM-CAST",
                             (in->a & IR_POL_PROVEN)
                               ? "interval analysis claimed this narrowing always fits, but it did not"

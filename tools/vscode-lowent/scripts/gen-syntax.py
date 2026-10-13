@@ -19,7 +19,7 @@ ops = sorted({l.split('\t')[0] for l in (ROOT / 'docs' / 'spec' / 'BUILTIN-MEANI
               if l and not l.startswith('#') and re.fullmatch(r'[a-z_][a-z0-9_]*', l.split('\t')[0])} - set(keywords))
 clause = ['input', 'output', 'effects', 'requires', 'ensures', 'errors', 'tests', 'comptime', 'from', 'as',
           'assume', 'static', 'debug', 'into', 'with', 'capacity', 'order']
-types = ['bool', 'u8', 'i8', 'u16', 'i16', 'u32', 'i32', 'u64', 'i64', 'usize', 'isize', 'f32', 'f64', 'void', 'self',
+types = ['bool', 'u8', 'i8', 'u16', 'i16', 'u32', 'i32', 'u64', 'i64', 'usize', 'idiff', 'f32', 'f64', 'void', 'self',
          'slice', 'array', 'matrix', 'option', 'result', 'vec', 'segments', 'bitset', 'bits', 'mask', 'cap', 'mut', 'owned',
          'mut_ref', 'ref', 'unsafe_ptr', 'stack', 'set']
 constants = ['true', 'false', 'none']

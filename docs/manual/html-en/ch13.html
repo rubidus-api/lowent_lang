@@ -702,7 +702,7 @@ half_percent(90) = 45
   <strong><span class="tok-k">return</span></strong> load_order u. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check ids.low
-ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/isize) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
+ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p><code>user_id</code> and <code>order_id</code> are both represented as 64-bit numbers, but cannot be swapped. Such mistakes are hard to find with tests — when the numbers happen to coincide, the wrong order is fetched without a sound. Split them with <code>newtype</code> and translation catches it.</p><pre><code data-lang="text"> type meters u64 .                newtype user_id u64 .
 
    meters ──┐                     user_id ◀── cast ──▶ u64

@@ -3,13 +3,13 @@ rem run: advance 5 -8
 rem run: third32 1.0
 rem run: same_third 1.0 1.0
 
-rem ko: usize · isize — 길이 · 첨자와 그 차이. 폭은 구현이 정한다(16 비트 이상). 다른 정수와는 cast 로만 오간다 /// en: usize and isize are for lengths, indexes and their differences; the implementation sets the width (16 bits or more), and they cross to other integers through cast only
-fn advance input n usize . input k isize . output isize .
+rem ko: usize · idiff — 길이 · 첨자와 그 차이. 폭은 구현이 정한다(16 비트 이상). 다른 정수와는 cast 로만 오간다 /// en: usize and idiff are for lengths, indexes and their differences; the implementation sets the width (16 bits or more), and they cross to other integers through cast only
+fn advance input n usize . input k idiff . output idiff .
   requires le n. 1000 . .
   requires ge k. -1000 . .
   requires le k. 1000 . .
 do
-  return add cast isize n. . k. . .
+  return add cast idiff n. . k. . .
 end .
 
 rem ko: f32 — 32 비트 부동소수점. 메모리가 절반이고 정밀도는 약 일곱 자리 /// en: f32 is a 32-bit float: half the memory, about seven significant digits

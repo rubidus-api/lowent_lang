@@ -702,7 +702,7 @@ half_percent(90) = 45
   <strong><span class="tok-k">return</span></strong> load_order u. . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check ids.low
-ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/isize) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
+ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p><code>user_id</code> 와 <code>order_id</code> 는 둘 다 64 비트 수로 표현되지만 서로 바꿔 넣을 수 없다. 이런 실수는 테스트로 찾기 어렵다 — 번호가 우연히 겹치면 엉뚱한 주문을 불러오고도 조용하다. <code>newtype</code> 으로 갈라 두면 번역이 잡는다.</p><pre><code data-lang="text"> type meters u64 .                newtype user_id u64 .
 
    meters ──┐                     user_id ◀── cast ──▶ u64

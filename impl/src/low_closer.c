@@ -86,7 +86,7 @@ static proven_size_t cl_mate(cl_t *c, proven_size_t i) {
 static void cl_wrap(cl_t *c, proven_size_t a, proven_size_t b) { c->lp[a]++; c->rp[b]++; }
 
 // ── 닫힌 어휘 ────────────────────────────────────────────────────────────────────────────────────
-static const char *const CL_T_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64",
+static const char *const CL_T_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64",
                                          "void","self","str","string","char","byte","bytes_view", NULL };
 static const char *const CL_T_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero",
                                          "atomic","lock","rwlock","shared_read","view", NULL };

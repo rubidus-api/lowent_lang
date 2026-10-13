@@ -34,7 +34,7 @@ typedef struct {
     proven_u64  val;
     bool        neg;
     proven_u8   rk;     // reference kind: 0 = value, 1 = ref (shared), 2 = mut_ref
-    proven_u8   nominal;// 0 = plain uN/iN · 1 = usize/isize (RFC-0052 D11 — 구분 타입)
+    proven_u8   nominal;// 0 = plain uN/iN · 1 = usize/idiff (RFC-0052 D11 — 구분 타입)
     double      fval;   // float literal 의 값 (lit && k == TK_FLOAT 일 때)
     bool        has_rng;// RFC-0055 D7: 선언된 **범위**를 가진 정수 (range [τ] lo hi)
     proven_i64  rlo, rhi;
@@ -196,7 +196,7 @@ static ty_t ty_of_word(proven_u8str_view_t v) {
     if (veq(v, "u64")) return tk_int(64, false);
     if (veq(v, "i64")) return tk_int(64, true);
     if (veq(v, "usize")) { ty_t t = tk_int(low_ir_target()->addr_bits, false); t.nominal = 1; return t; }   // D11: u64 별칭 아님
-    if (veq(v, "isize")) { ty_t t = tk_int(low_ir_target()->addr_bits, true);  t.nominal = 1; return t; }
+    if (veq(v, "idiff")) { ty_t t = tk_int(low_ir_target()->addr_bits, true);  t.nominal = 1; return t; }
     if (veq(v, "f32")) return (ty_t){ .k = TK_FLOAT, .bits = 32 };
     if (veq(v, "f64")) return (ty_t){ .k = TK_FLOAT, .bits = 64 };
     if (veq(v, "slice") || veq(v, "array")) return tk(TK_SLICE);
@@ -508,7 +508,7 @@ static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
         case TK_BOOL:  snprintf(buf, n, "%sbool", ref); return buf;
         case TK_INT:
             if (t.lit) { snprintf(buf, n, "an integer literal"); return buf; }
-            if (t.nominal) snprintf(buf, n, "%s%s", ref, t.sign ? "isize" : "usize");
+            if (t.nominal) snprintf(buf, n, "%s%s", ref, t.sign ? "idiff" : "usize");
             else snprintf(buf, n, "%s%c%u", ref, t.sign ? 'i' : 'u', (unsigned)t.bits);
             return buf;
         case TK_FLOAT:
@@ -590,7 +590,7 @@ static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *ms
     if (r == TC_OK) return;
     if (r == TC_WIDTH)        tc_emit(c, "E-TYPE-WIDTH", "value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)", line);
     else if (r == TC_SIGN)    tc_emit(c, "E-TYPE-SIGN", "sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)", line);
-    else if (r == TC_NOMINAL) tc_emit(c, "E-TYPE-NOMINAL", "these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/isize) is not interchangeable with its base or with another newtype. Convert explicitly with `cast <type> <value>` (RFC-0002 §6.3.1)", line);
+    else if (r == TC_NOMINAL) tc_emit(c, "E-TYPE-NOMINAL", "these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast <type> <value>` (RFC-0002 §6.3.1)", line);
     else if (r == TC_RANGE)   tc_emit(c, "E-TYPE-RANGE", "the value is outside the declared range (no value can satisfy it — this is a lie, not a check)", line);
     else if (r == TC_INSTANCE) tc_emit(c, "E-TYPE-INSTANCE", "two instances of the same generic template are DIFFERENT concrete types — a container opened for one element type cannot be bound to a variable declared for another. Monomorphization makes each instance a distinct struct (visible as `name#arg` in `--ir`), and their layouts differ; binding across them reads the same storage at the wrong element width and yields a wrong value with no error at all. Declare the variable with the SAME instance, or convert explicitly (RFC-0021 · RFC-0084)", line);
     else if (r == TC_WRAP) tc_emit(c, "E-TYPE-WRAP", "`option` and `result` are not the same shape — one says a value may be ABSENT, the other says producing it may FAIL, and code that reads the wrong one silently treats a failure as an absence (or the reverse). That confusion is exactly what the three-place answer exists to prevent, so the checker must not paper over it here. Unwrap what you were given, or change the declaration to match", line);
@@ -1070,7 +1070,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         //     좁히려면 `narrow`(안 맞으면 트랩), 갈래를 넘거나 부호를 바꾸려면 `cast` 다 —
         //     둘 다 **소스에 적히므로** 읽는 사람이 값이 변할 수 있는 자리를 본다(P5).
         //   ☞ *«번역할 때 거부한다» 고 적어 놓고 실행할 때 트랩하면, 그 규범은 반만 참이다.*
-        // ★★★ RFC-0149 §6.7 — `narrow` 도 방향을 말한다: `usize` · `isize` 가 끼면 `cast` 다. 멈추지 않는 셋(`narrow_try` ·
+        // ★★★ RFC-0149 §6.7 — `narrow` 도 방향을 말한다: `usize` · `idiff` 가 끼면 `cast` 다. 멈추지 않는 셋(`narrow_try` ·
         //   `narrow_sat` · `narrow_wrap`)은 «안 들어갈 때 무엇을 할지» 를 이름이 고르므로 그대로 선다(소유자 «다 추천대로»).
         //   원천의 타입은 **묻기만** 한다(quiet) — 이 낱말의 나머지 판정은 아래의 길이 그대로 한다.
         if (veq(k[start]->tok.lex, "narrow") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start])) {
@@ -1080,7 +1080,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             c->quiet--; g_soft_mute--;
             if ((nsrc.k == TK_INT && nsrc.nominal == 1) || (ntgt.k == TK_INT && ntgt.nominal == 1))
                 tc_emit(c, "E-TYPE-NOMINAL",
-                        "`usize` / `isize` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
+                        "`usize` / `idiff` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
                         "integer), so whether this NARROWS at all depends on the target. Write `cast <type> <value>` (it stops when "
                         "the value does not fit), or pick what happens instead: `narrow_try` / `narrow_sat` / `narrow_wrap`",
                         k[start]->line);
@@ -1090,12 +1090,12 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
             ty_t src = tc_infer(c, k[start + 2], env, nenv);
             for (proven_size_t i = 3; i < n; i++) (void)tc_infer(c, k[start + i], env, nenv);
-            // ★★★ RFC-0149 §6.7 (2026-10-13 소유자 «usize 와 관련된 형변환은 꼭 cast를 쓰게 합시다») — `usize` · `isize` 는 넓히기의
+            // ★★★ RFC-0149 §6.7 (2026-10-13 소유자 «usize 와 관련된 형변환은 꼭 cast를 쓰게 합시다») — `usize` · `idiff` 는 넓히기의
             //   표 밖이다. 그 폭은 구현이 정하므로(16 비트부터 가장 넓은 정수까지) «넓히는가 좁히는가» 가 대상마다 다르다 —
             //   방향을 말하는 낱말로는 적을 수 없다. `cast` 는 방향을 묻지 않고 안 들어가면 멈춘다.
             if ((src.k == TK_INT && src.nominal == 1) || (tgt.k == TK_INT && tgt.nominal == 1)) {
                 tc_emit(c, "E-TYPE-NOMINAL",
-                        "`usize` / `isize` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
+                        "`usize` / `idiff` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
                         "integer), so whether this WIDENS or NARROWS depends on the target, and `widen` promises a direction. "
                         "Write `cast <type> <value>`: it asks no direction and stops when the value does not fit", k[start]->line);
                 return tgt;
@@ -1528,8 +1528,11 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
             proven_u8str_view_eq(f->kids[i-1]->tok.lex, proven_u8str_view_from_cstr("cap")))
             continue;
         tc_emitf(c, "E-TYPE-UNDEF", t->line ? t->line : f->line,
-                 "`%.*s` is not a type — no `type` / `struct` / `enum` declares it, and it is not a built-in type",
-                 (int)t->lex.size, (const char *)t->lex.ptr);
+                 "`%.*s` is not a type — no `type` / `struct` / `enum` declares it, and it is not a built-in type%s",
+                 (int)t->lex.size, (const char *)t->lex.ptr,
+                 // RFC-0149 §6.9 (2026-10-13) — 옛 이름을 쓴 글에는 새 이름을 일러 준다.
+                 proven_u8str_view_eq(t->lex, proven_u8str_view_from_cstr("isize"))
+                     ? " (the signed size type is spelt `idiff` — the difference of two positions)" : "");
     }
 }
 // range 선언의 오류를 진단으로 낸다. **선언 자체가 거짓말이면 프로그램이 서지 않는다.**
@@ -1562,7 +1565,7 @@ static proven_size_t kw_index(const low_cst_t *f, low_kw_t kw) {
 // 내장 타입 낱말 — 이것들은 선언이 필요 없다.
 static bool ty_is_builtin_word(proven_u8str_view_t v) {
     static const char *k[] = {
-        "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64",
+        "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64",
         "slice","array","list","result","option","stack","set","region","ref","mut_ref",
         // ★ `segments T` — 흩어진 조각 여럿을 **한 값으로** (RFC-0104 §8-8, 서명 2026-08-29).
         //   타입 낱말 하나가 늘었다. 그 값은 백업 슬라이스와 (at, n) 서술자 슬라이스 두 칸이고,
@@ -2249,7 +2252,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             if (core.k == TK_INT || core.k == TK_FLOAT) {   // ★ int·float 코어 둘 다 명목 정체성을 준다
                 g_nt[g_nnt].name = f->kids[1]->tok.lex;
                 g_nt[g_nnt].bits = core.bits; g_nt[g_nnt].sign = core.sign; g_nt[g_nnt].flt = (core.k == TK_FLOAT);
-                g_nt[g_nnt].nominal = (proven_u8)(2 + g_nnt);   // 0=plain · 1=usize/isize · ≥2=newtype
+                g_nt[g_nnt].nominal = (proven_u8)(2 + g_nnt);   // 0=plain · 1=usize/idiff · ≥2=newtype
                 g_nnt++;
             }
         }

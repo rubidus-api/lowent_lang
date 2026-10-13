@@ -31,9 +31,9 @@ fn from_outside input xs slice u8 . input want u64 . output u8 . do
   return idx xs. i. . .
 end .
 
-rem ko: 두 위치의 차이는 isize --- 범위가 usize 의 절반이라 cast 가 지킨다 /// en: the difference of two positions is an isize --- it holds half the range of usize, and cast guards that
-fn gap input a usize . input b usize . output isize . do
-  return sub cast isize a. . cast isize b. . . .
+rem ko: 두 위치의 차이는 idiff --- 범위가 usize 의 절반이라 cast 가 지킨다 /// en: the difference of two positions is an idiff --- it holds half the range of usize, and cast guards that
+fn gap input a usize . input b usize . output idiff . do
+  return sub cast idiff a. . cast idiff b. . . .
 end .
 
 rem ko: 첨자를 좁은 칸(u8)에 줄여 담는다 --- 넣을 때와 꺼낼 때 cast 를 적는다 /// en: an index kept in a narrow field (u8) --- write cast on the way in and on the way out

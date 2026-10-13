@@ -361,7 +361,7 @@ write_out             write_volatile        zip")
   #para("5")[
     타입을 줄여 적는 말. *정수* 는 `u8` `u16` `u32` `u64` `i8` `i16` `i32` `i64`, *부동* 은 `f32` `f64`, *수* 는 정수 또는 부동이다.
     *맞는 둘* 은 넓히기로 한 타입에 맞출 수 있는 두 수다(#cref("6.3.4")) — 폭만 다르면 넓은 쪽으로, 부호가 섞이면 둘을 다 담는
-    부호 있는 쪽으로 맞춘다. `T` 는 그 자리에 적는 타입 이름이다. `usize` 와 `isize` 는 이름이 다른 타입이라 위의 정수와 섞이지 아니한다.
+    부호 있는 쪽으로 맞춘다. `T` 는 그 자리에 적는 타입 이름이다. `usize` 와 `idiff` 는 이름이 다른 타입이라 위의 정수와 섞이지 아니한다.
   ]
 
   #tbl("산술")[
@@ -463,8 +463,8 @@ write_out             write_volatile        zip")
   #tbl("변환")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
-        [`widen T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `a` 가 참거짓이면 `E-WIDEN-KIND`(`cast` 로 적는다) · `usize` · `isize` 가 원천이나 `T` 이면 `E-TYPE-NOMINAL`(`cast` 로 적는다 — 폭이 구현에 달려 있다) \ *실행 때 멈춤:* —],
-        [`narrow T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `usize` · `isize` 가 원천이나 `T` 이면 `E-TYPE-NOMINAL`(`cast` 로 적는다) \ *실행 때 멈춤:* 정수 값이 `T` 에 안 들어가면 `E-VM-CAST`],
+        [`widen T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 같은 갈래이고 `T` 보다 넓지 않은 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 가 더 좁으면 `E-WIDEN-NARROW` · 부호 있는 값을 부호 없는 `T` 로 넓히면 `E-WIDEN-SIGN` · 정수와 부동을 건너면 `E-WIDEN-KIND` · `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `a` 가 참거짓이면 `E-WIDEN-KIND`(`cast` 로 적는다) · `usize` · `idiff` 가 원천이나 `T` 이면 `E-TYPE-NOMINAL`(`cast` 로 적는다 — 폭이 구현에 달려 있다) \ *실행 때 멈춤:* —],
+        [`narrow T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — `T` 와 같은 갈래의 수 \ *내는 것:* `T` — 값은 그대로다 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` · `usize` · `idiff` 가 원천이나 `T` 이면 `E-TYPE-NOMINAL`(`cast` 로 적는다) \ *실행 때 멈춤:* 정수 값이 `T` 에 안 들어가면 `E-VM-CAST`],
         [`narrow_wrap T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — 아랫비트만 남긴 값(`narrow_wrap u8` 에 256 은 0, -1 은 255) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`narrow_sat T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`narrow_try T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 정수 \ *내는 것:* `option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],

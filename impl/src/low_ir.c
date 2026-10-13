@@ -646,7 +646,7 @@ static ityp_t ity_of_word(proven_u8str_view_t v) {
     if (veq(v, "u64"))   return (ityp_t){ true, 64, false, false, false, 0, 0 };
     if (veq(v, "i64"))   return (ityp_t){ true, 64, true, false, false, 0, 0 };
     if (veq(v, "usize")) return (ityp_t){ true, low_ir_target()->addr_bits, false, false, false, 0, 0 };   // RFC-0149 L5 — 폭은 대상의 주소 폭
-    if (veq(v, "isize")) return (ityp_t){ true, low_ir_target()->addr_bits, true, false, false, 0, 0 };
+    if (veq(v, "idiff")) return (ityp_t){ true, low_ir_target()->addr_bits, true, false, false, 0, 0 };
     if (veq(v, "f32"))   return (ityp_t){ true, 32, false, true, false, 0, 0 };   // D9: f32 는 f32 정밀도
     if (veq(v, "f64"))   return (ityp_t){ true, 64, false, true, false, 0, 0 };
     return ITY_UNK;
@@ -1504,7 +1504,7 @@ static bool ir_field_tyhead(proven_u8str_view_t w) {
     if (veq(w, "u8") || veq(w, "i8")) return 1;
     if (veq(w, "u16") || veq(w, "i16")) return 2;
     if (veq(w, "u32") || veq(w, "i32") || veq(w, "f32")) return 4;
-    if (veq(w, "usize") || veq(w, "isize")) return (proven_u8)(low_ir_target()->addr_bits / 8);   // RFC-0149 L5
+    if (veq(w, "usize") || veq(w, "idiff")) return (proven_u8)(low_ir_target()->addr_bits / 8);   // RFC-0149 L5
     if (veq(w, "u64") || veq(w, "i64") || veq(w, "f64")) return 8;
     return 0;
 }

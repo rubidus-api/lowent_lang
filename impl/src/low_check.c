@@ -7201,11 +7201,11 @@ static void ck_mref_slice(low_check_result_t *out, const low_cst_t *f) {
 //   **길이를 지킬 곳이 없다**. 전엔 둘 다 `slice` 로 조용히 읽혔다 — 길이를 버린 채로.
 static bool ck_elem_sized(proven_u8str_view_t t) {
     return veq(t, "u8") || veq(t, "i8") || veq(t, "u16") || veq(t, "i16") || veq(t, "u32") || veq(t, "i32") || veq(t, "u64") ||
-           veq(t, "i64") || veq(t, "usize") || veq(t, "isize") || veq(t, "f32") || veq(t, "f64") || veq(t, "bool");
+           veq(t, "i64") || veq(t, "usize") || veq(t, "idiff") || veq(t, "f32") || veq(t, "f64") || veq(t, "bool");
 }
 static unsigned ck_elem_bytes(proven_u8str_view_t t) {
     return veq(t, "u16") || veq(t, "i16") ? 2 : veq(t, "u32") || veq(t, "i32") || veq(t, "f32") ? 4 :
-           veq(t, "usize") || veq(t, "isize") ? (unsigned)(low_ir_target()->addr_bits / 8) :   // RFC-0149 L5
+           veq(t, "usize") || veq(t, "idiff") ? (unsigned)(low_ir_target()->addr_bits / 8) :   // RFC-0149 L5
            veq(t, "u64") || veq(t, "i64") || veq(t, "f64") ? 8 : 1;
 }
 // ★★ RFC-0132 T2b-3b (C5 · N1 · N2) — **구조체의 배열 칸** `body array u8 16 .` 은 받는다: 길이가 타입에 있으니 칸이 제
@@ -7385,7 +7385,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         proven_u8str_view_t ty = nd->kids[2]->tok.lex;
         bool flt = veq(ty, "f32") || veq(ty, "f64"), isbool = veq(ty, "bool");
         bool sized = flt || isbool || veq(ty, "u8") || veq(ty, "i8") || veq(ty, "u16") || veq(ty, "i16") || veq(ty, "u32") ||
-                     veq(ty, "i32") || veq(ty, "u64") || veq(ty, "i64") || veq(ty, "usize") || veq(ty, "isize");
+                     veq(ty, "i32") || veq(ty, "u64") || veq(ty, "i64") || veq(ty, "usize") || veq(ty, "idiff");
         unsigned sbytes = 0, salign = 0;
         bool is_struct = !sized && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_layout(ty, &sbytes, &salign, 0);
         if (!sized && !is_struct) {
@@ -7608,7 +7608,7 @@ static bool lc_const(const low_cst_t *l) {
 static proven_size_t lc_bytes(const low_cst_t *l) {
     proven_size_t esz = ck_atom(l->kids[2]) ? (veq(l->kids[2]->tok.lex, "u16") || veq(l->kids[2]->tok.lex, "i16") ? 2 :
                         veq(l->kids[2]->tok.lex, "u32") || veq(l->kids[2]->tok.lex, "i32") || veq(l->kids[2]->tok.lex, "f32") ? 4 :
-                        veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "isize") ? (proven_size_t)(low_ir_target()->addr_bits / 8) :
+                        veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "idiff") ? (proven_size_t)(low_ir_target()->addr_bits / 8) :
                         veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ? 8 : 1) : 1;
     { unsigned sb, sa; if (ck_atom(l->kids[2]) && !ck_elem_sized(l->kids[2]->tok.lex) && ck_struct_layout(l->kids[2]->tok.lex, &sb, &sa, 0)) esz = sb; }
     if (!ck_atom(l->kids[2])) {                                  // §13.10 — 줄: 원소 크기 = m × |T|

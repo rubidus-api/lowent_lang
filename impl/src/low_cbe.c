@@ -2444,7 +2444,7 @@ static const char *cbe_ret_ctype(const low_ir_def_t *d) {
     if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u32")))   return "unsigned int ";
     if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u64"))
      || proven_u8str_view_eq(t, proven_u8str_view_from_cstr("usize"))) return "unsigned long long ";
-    return "long long ";                            // i64 · isize · 기본
+    return "long long ";                            // i64 · idiff · 기본
 }
 
 static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE *out);

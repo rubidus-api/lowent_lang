@@ -971,7 +971,7 @@ int main(void) {
     check(TYCK("fn f input x u32 . output u8 . do return x . end") == false, "u32 → u8 implicit narrowing → E-TYPE-WIDTH");
     check(TYCK("fn f input x u32 . output u8 . do return cast u8 x . end") == true, "narrowing via explicit cast: ok");
     check(TYCK("fn f input x i32 . output u32 . do return x . end") == false, "i32 → u32 sign mismatch → E-TYPE-SIGN");
-    // RFC-0052 D11: usize/isize are DISTINCT types, not u64/i64 aliases — a 32-bit
+    // RFC-0052 D11: usize/idiff are DISTINCT types, not u64/i64 aliases — a 32-bit
     // target would silently break code that mixes them.
     check(TYCK("fn f input x u64 . output usize . do return x . end") == false,
           "u64 → usize is rejected: usize is a distinct nominal type (D11)");

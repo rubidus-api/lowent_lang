@@ -21,7 +21,7 @@ contexts:
       scope: storage.modifier.lowent
     - match: '\b(true|false|none|void|self)\b'
       scope: constant.language.lowent
-    - match: '\b(u8|u16|u32|u64|i8|i16|i32|i64|usize|isize|f32|f64|bool|c8|type)\b'
+    - match: '\b(u8|u16|u32|u64|i8|i16|i32|i64|usize|idiff|f32|f64|bool|c8|type)\b'
       scope: storage.type.lowent
   string:
     - meta_scope: string.quoted.double.lowent

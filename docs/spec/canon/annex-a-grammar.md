@@ -352,7 +352,7 @@ match               match <폼> do <가지>* end [else do <폼>* end] .   (가�
 
 ```문법틀: 쓸 수 있는 타입 낱말
 rem 수
-u8    i8    u16   i16   u32   i32   u64   i64   usize  isize   f32   f64
+u8    i8    u16   i16   u32   i32   u64   i64   usize  idiff   f32   f64
 bool  void
 
 rem 줄과 묶음

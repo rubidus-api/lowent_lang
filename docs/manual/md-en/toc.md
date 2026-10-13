@@ -50,7 +50,7 @@ Searches headings and index terms --- not the full text
 - [4.5 Booleans are not numbers](ch04.md#s4-5)
 - [4.6 Bitwise operations](ch04.md#s4-6)
 - [4.7 Floating point](ch04.md#s4-7)
-- [4.8 The size types — usize and isize](ch04.md#s4-8)
+- [4.8 The size types — usize and idiff](ch04.md#s4-8)
 - [4.8.1 The implementation sets the width](ch04.md#s4-8-1)
 - [4.8.2 They do not mix with other integers — the crossing is cast](ch04.md#s4-8-2)
 - [4.8.3 Moving without stopping](ch04.md#s4-8-3)

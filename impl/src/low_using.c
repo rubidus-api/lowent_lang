@@ -491,14 +491,14 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                         if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && us_atom(rt->kids[1]) && us_atom(rt->kids[2])) {
                             proven_u8str_view_t it = rt->kids[1]->tok.lex;
                             unsigned ie = us_eq(it, "u16") || us_eq(it, "i16") ? 2 : us_eq(it, "u32") || us_eq(it, "i32") || us_eq(it, "f32") ? 4 :
-                                          us_eq(it, "usize") || us_eq(it, "isize") ? (unsigned)(low_ir_target()->addr_bits / 8) : us_eq(it, "u64") || us_eq(it, "i64") || us_eq(it, "f64") ? 8 : 1;
+                                          us_eq(it, "usize") || us_eq(it, "idiff") ? (unsigned)(low_ir_target()->addr_bits / 8) : us_eq(it, "u64") || us_eq(it, "i64") || us_eq(it, "f64") ? 8 : 1;
                             rowb = (unsigned long long)ie * strtoull((const char *)rt->kids[2]->tok.lex.ptr, NULL, 0);
                         }
                     }
                     proven_u8str_view_t ty = is_list && !row ? lg->kids[2]->tok.lex : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"u8", .size = 2 };
                     unsigned esz = row ? (unsigned)rowb :
                                    us_eq(ty, "u16") || us_eq(ty, "i16") ? 2 : us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "f32") ? 4 :
-                                   us_eq(ty, "usize") || us_eq(ty, "isize") ? (unsigned)(low_ir_target()->addr_bits / 8) : us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f64") ? 8 : 1;
+                                   us_eq(ty, "usize") || us_eq(ty, "idiff") ? (unsigned)(low_ir_target()->addr_bits / 8) : us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f64") ? 8 : 1;
                     unsigned long long cnt = 0;
                     if (!is_list) cnt = 0;
                     else if (us_eq(lg->kids[1]->tok.lex, "array")) {
@@ -519,7 +519,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                         // ★ RFC-0132 T2b-3d — 원소가 구조체인 나열: 바이트 수는 (mul <개수> (size_of <구조체>))
                         bool elem_struct = is_list && !row && !(us_eq(ty, "u8") || us_eq(ty, "i8") || us_eq(ty, "u16") || us_eq(ty, "i16") ||
                                            us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f32") ||
-                                           us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "isize") || us_eq(ty, "bool"));
+                                           us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "idiff") || us_eq(ty, "bool"));
                         if (elem_struct && sk[3]) {
                             char *cn = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, 24, 1).value.ptr;
                             low_cst_t **mk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 3, alignof(low_cst_t *)).value.ptr;
@@ -761,7 +761,7 @@ static bool dt_in(proven_u8str_view_t v, const char *const *set) {
     for (proven_size_t i = 0; set[i]; i++) if (us_eq(v, set[i])) return true;
     return false;
 }
-static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64",
+static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64",
                                        "void","self","str","string","char","byte","bytes_view", NULL };
 static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero",
                                        "atomic","lock","rwlock","shared_read","view", NULL };
@@ -1129,7 +1129,7 @@ static low_cst_t *dt_mk(dt_ctx_t *c, low_cst_kind_t kind, const low_cst_t *model
 // k[ts..te) 타입의 0 을 out[*n..] 에 덧붙인다. 0 이 없으면 false.
 static bool dt_zero(dt_ctx_t *c, low_cst_t *const *k, proven_size_t ts, proven_size_t te, const low_cst_t *model,
                     low_cst_t **out, proven_size_t cap, proven_size_t *n, int depth) {
-    static const char *const INTS[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","byte", NULL };
+    static const char *const INTS[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","byte", NULL };
     if (depth > 8 || ts >= te || *n + 2 > cap || !us_atom(k[ts]) || k[ts]->tok.kind != LOW_TOK_IDENT) return false;
     proven_u8str_view_t w = k[ts]->tok.lex;
     if (te == ts + 1 && dt_in(w, INTS)) { out[(*n)++] = dt_word(c, model, "0"); return true; }
@@ -1190,7 +1190,7 @@ static void dt_drop_out_name(dt_ctx_t *c, low_cst_t *f, proven_size_t at) {
  * 받는 것이고, 돌아오기 전에는 아무도 볼 수 없다. 원소는 수만(그 밖은 E-TYPE-ARRAY — bool 은 지역 배열의 `idx` 가 수를 내는 기존 제약 때문에 뒤로). */
 static bool dt_ar_elem_ok(proven_u8str_view_t t) {
     // ★ bool 은 아직 뺀다 — `lit array bool` 의 `idx` 가 수를 낸다(지역 배열의 기존 제약, P4b 와 무관). 고쳐지면 더한다.
-    static const char *const OK[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64", NULL };
+    static const char *const OK[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64", NULL };
     return dt_in(t, OK);
 }
 // 이 op 머리가 배열 결과면 (이름 자리 · 원소 · 길이) 를 낸다. 이름이 없으면 *named=false.
@@ -1953,7 +1953,7 @@ static const low_cst_t *lr_struct_block(us_ctx_t *c, proven_u8str_view_t ty) {
     return NULL;
 }
 static bool lr_scalar_word(proven_u8str_view_t w) {
-    static const char *S[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64","bool" };
+    static const char *S[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64","bool" };
     for (proven_size_t i = 0; i < sizeof S / sizeof S[0]; i++) if (us_eq(w, S[i])) return true;
     return false;
 }

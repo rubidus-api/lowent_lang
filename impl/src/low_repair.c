@@ -396,6 +396,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-VM-DEADLOCK",         "R-ADD-SENDER" },
     { "E-VM-MAILBOX-FULL",     "R-BOUND-CHANNEL" },
     { "E-VM-AWAIT",            "R-USE-JOB-HANDLE" },
+    { "E-VM-HANDLE-ZERO",      "R-USE-JOB-HANDLE" },   // 비워 둔 핸들(0) — 흐름 · 채널을 받은 핸들을 준다(정본 §10.3 (2d))
     { "E-VM-FHANDLE",          "R-USE-OPEN-HANDLE" },
     { "E-VM-SHANDLE",          "R-USE-OPEN-HANDLE" },
     { "E-VM-REACTOR",          "R-USE-OPEN-HANDLE" },

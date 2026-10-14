@@ -1,0 +1,13 @@
+module mistake_enumnum .
+rem expect: E-TYPE-RETURN
+
+enum volume do
+  quiet .
+  loud .
+end .
+
+fn code input v volume . output u8 .
+do
+  rem ko: ✘ 열거 값은 수가 아니다 --- `cast u8 v. .` 로 적는다 /// en: ✘ an enum value is not a number --- write `cast u8 v. .`
+  return v. .
+end .

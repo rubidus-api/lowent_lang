@@ -169,7 +169,8 @@ end .", "E-TYPE-COND")
   ]
   #sub("6.2.5", "타입 사이의 변환")[
     #para("1")[
-      로우엔트에는 #strong[값을 잃는 암묵적 변환이 없다.]; 좁아지는 자리는 언제나 소스에 적혀 있다.
+      로우엔트에는 #strong[값을 잃는 암묵적 변환이 없다.]; 좁아지는 자리는 언제나 소스에 적혀 있다. 처리기가 스스로 하는 변환은 아래의
+      넓히기뿐이고, 그 밖의 변환을 적는 낱말은 `cast` 다(#cref("6.2.16")).
     ]
     #para("2")[
       값을 잃지 않는 변환을 #t("넓히기", "widening") 라 한다. 넓히기는 값을 바꾸지 않으므로
@@ -687,6 +688,9 @@ end .", "E-MATRIX-SHAPE")
       갈래는 #strong[하나마다 `.` 으로 닫는다.]; 개행은 닫개가 아니므로, 점 없이 줄마다 적은 갈래는 한 갈래로
       이어지며 거부된다(`E-ENUM-DOT`). 갈래가 지니는 값은 `<칸 이름> <타입>` 짝으로 적는다 — 짝이 맞지
       않으면 거부된다(`E-ENUM-FIELD`).
+    ]
+    #para("2b")[
+      열거 값은 수가 아니다 — 갈래의 번호를 수로 쓰려면 `cast` 로 적는다(#cref("6.2.16") (5)).
     ]
     #para("3")[
       struct 는 #strong[자기 자신을 칸으로 가질 수 없다.]; 직접이든 다른 타입을 거쳐서든 순환하면
@@ -1215,10 +1219,33 @@ end .
       나가거나 장치가 읽는 것은 그래야 한다. 그러니 필요한 자리에만 박는다.
     ]
   ]
-  #sub("6.2.16", "갈래를 넘는 변환 — `cast`")[
+  #sub("6.2.16", "명시적 변환 — `cast`")[
     #para("1")[
-      `widen`(#cref("6.2.5"))은 #strong[값이 변하지 않는]; 자리에만 쓴다. 값이 변할 수 있는 변환은
-      `cast <타입> <값>` 으로 적는다 — 부호를 바꾸거나, 갈래를 넘거나, 좁히는 자리다.
+      #strong[값을 다른 타입으로 읽는 일은 소스에 적힌 곳에서만 일어난다.]; 처리기가 스스로 하는 변환은 넓히기(#cref("6.2.5") (2)) 하나이며,
+      그 밖의 변환은 모두 저자가 낱말로 적는다. 그 낱말의 중심이 `cast <타입> <값>` 이다 — #strong[`cast` 는 이 언어에서 명시적 변환을
+      맡는 낱말이다.]; `widen` 은 #strong[값이 변하지 않는]; 자리에만 쓰고, 값이 변할 수 있는 변환은 `cast` 로 적는다 — 부호를 바꾸거나,
+      갈래를 넘거나, 좁히는 자리다.
+    ]
+    #para("1a")[
+      변환을 적는 낱말은 셋이며 각자 맡은 자리가 다르다.
+    ]
+    #tbl("변환을 적는 세 낱말")[
+      #table(columns: (auto, 1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*낱말*], [*맡는 자리*], [*값이 안 맞으면*],
+      [`widen`], [값이 #strong[그대로]; 들어가는 넓히기(⟦§6.2.5⟧ (4) 의 표). 처리기가 스스로도 한다 — 적는 것은 눈에 보이게 하려는 것이다], [일어나지 않는다],
+      [`narrow`], [같은 갈래 안에서 폭을 줄인다(정수 → 더 좁은 정수)], [트랩한다],
+      [`cast`], [#strong[그 밖의 모든 변환]; — 부호를 바꾼다 · 정수와 부동소수점 사이 · 폭이 구현에 달린 `usize` · `idiff` 와 다른 정수 사이 · 참거짓 → 정수 · 열거 → 정수], [트랩한다],
+      )
+    ]
+    #para("1b")[
+      #strong[어느 쪽으로 읽을지 갈릴 수 있는 변환은 저절로 일어나지 아니하며 `cast` 를 거친다.]; 같은 비트가 두 가지 수로 읽힐 수 있거나,
+      대상 기계에 따라 넓히기도 되고 좁히기도 되거나, 값의 갈래가 바뀌는 변환이 그렇다. 이 규칙은 앞으로 언어에 들어오는 타입과
+      변환에도 적용된다 — 새 변환이 애매하면 그 철자는 `cast` 이고, 암묵 변환을 늘리는 쪽으로 정하지 아니한다.
+    ]
+    #plain[
+      변환이 소스에 적혀 있으면 읽는 사람은 #strong[값이 바뀔 수 있는 자리를 모두 눈으로 찾을 수 있다.]; `cast` 를 찾아 읽으면 그 프로그램에서
+      타입이 바뀌는 곳을 다 본 것이다. 처리기가 몰래 바꾸는 자리가 하나라도 있으면 그 약속은 깨진다. 그래서 이 언어는 편의를 위한 암묵
+      변환을 두지 않는다. 적는 품은 조금 들지만, 읽을 때 «여기서 무엇이 바뀌었나» 를 추측할 일이 없다.
     ]
     #para("2")[
       `cast` 는 #strong[값이 목표 타입에 들어가지 아니하면 트랩한다.]; 조용히 잘리지 아니한다.
@@ -1264,6 +1291,70 @@ end .",
     #rejected("수를 참거짓으로 바꾸는 cast 는 없다", "module ex_cast_to_bool .
 fn nonzero input n u64 . output bool . do
   return cast bool n. . .     rem 무엇을 묻는지 적는다 — `ne n. 0 .`
+end .", "E-TYPE-KIND")
+    #para("5")[
+      #strong[열거 값은 수가 아니다.]; 수를 받는 자리 — 수로 선언된 이름 · 칸 · 인자 · 반환, 셈, 크기 견줌(`lt` · `le` · `gt` · `ge`), 첨자,
+      비트 연산, 넓히기 · 좁히기 — 에 열거 값을 두면 번역이 거부되고(`E-TYPE-KIND` · `E-TYPE-LET` · `E-TYPE-RETURN` · `E-TYPE-ARG` ·
+      `E-WIDEN-KIND`), 열거를 받는 자리에 수를 두는 것도 리터럴까지 거부된다. 갈래의 번호가 필요하면 `cast <정수 타입> <열거 값>` 으로
+      적는다. 그 번호는 #strong[선언된 차례이며 0 부터]; 센다. 같은 열거의 두 값은 `eq` · `ne` 로 견줄 수 있다 — 그것은 수를 묻는 일이 아니다.
+    ]
+    #para("5a")[
+      #strong[수에서 열거로]; 가는 `cast` 는 없다(`E-TYPE-KIND`). 어느 수가 어느 갈래인지, 갈래에 없는 수는 어떻게 할지는 프로그램이 정할
+      일이다 — 수를 `if` · `match` 로 갈라 적는다.
+    ]
+    #para("5b")[
+      값을 지닌 갈래(#cref("6.2.19"))가 하나라도 있는 열거는 `cast` 의 원천이 될 수 없다(`E-TYPE-KIND`). 번호 하나로는 그 값이 다
+      말해지지 않는다 — 어느 갈래인지는 `isa` · `match` 로 묻는다.
+    ]
+    #ex("갈래의 번호는 cast 로 읽는다", "module ex_enum_cast .
+
+enum color do
+  red .
+  green .
+  blue .
+end .
+
+fn code input c color . output u8 . do
+  return cast u8 c. . .
+end .
+
+fn code_of_blue output u8 . do
+  return code blue. . .
+end .
+
+fn same output u8 . do
+  return cast u8 eq green. green. . . .
+end .",
+      out: "code_of_blue() = 2 · same() = 1")
+    #rejected("열거 값을 수로 낸다", "module ex_enum_as_number .
+
+enum color do
+  red .
+  green .
+end .
+
+fn code input c color . output u8 . do
+  return c. .     rem 갈래의 번호는 `cast u8 c. .` 로 읽는다
+end .", "E-TYPE-RETURN")
+    #rejected("수를 열거로 바꾸는 cast 는 없다", "module ex_cast_to_enum .
+
+enum color do
+  red .
+  green .
+end .
+
+fn pick input n u8 . output color . do
+  return cast color n. . .     rem 수를 갈라 적는다 — `if eq n. 0 . do return red. . end .`
+end .", "E-TYPE-KIND")
+    #rejected("열거로 셈한다", "module ex_enum_arith .
+
+enum level do
+  low .
+  high .
+end .
+
+fn next input l level . output u8 . do
+  return add l. 1 . .
 end .", "E-TYPE-KIND")
   ]
   #sub("6.2.17", "글자를 담는 것 — 문자열은 타입이 아니다")[

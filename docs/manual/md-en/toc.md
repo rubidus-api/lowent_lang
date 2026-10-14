@@ -55,8 +55,9 @@ Searches headings and index terms --- not the full text
 - [4.8.2 They do not mix with other integers — the crossing is cast](ch04.md#s4-8-2)
 - [4.8.3 Moving without stopping](ch04.md#s4-8-3)
 - [4.8.4 What to watch for at each width](ch04.md#s4-8-4)
-- [4.9 Common mistakes](ch04.md#s4-9)
-- [4.10 This chapter’s syntax at a glance](ch04.md#s4-10)
+- [4.9 Explicit conversion is cast’s job](ch04.md#s4-9)
+- [4.10 Common mistakes](ch04.md#s4-10)
+- [4.11 This chapter’s syntax at a glance](ch04.md#s4-11)
 
 [5 Ops — fn and proc](ch05.md)
 
@@ -120,6 +121,7 @@ Searches headings and index terms --- not the full text
 - [10.1 struct — a collection of named fields](ch10.md#s10-1)
 - [10.1.1 Array fields — a field that holds bytes](ch10.md#s10-1-1)
 - [10.2 enum — one of several](ch10.md#s10-2)
+- [10.2.1 A variant’s number is read with cast](ch10.md#s10-2-1)
 - [10.3 Variants are closed with full stops](ch10.md#s10-3)
 - [10.4 Nothing may contain itself](ch10.md#s10-4)
 - [10.5 Common mistakes](ch10.md#s10-5)
@@ -308,6 +310,7 @@ Searches headings and index terms --- not the full text
 [26 Tasks and channels — exchange between bound flows](ch26.md)
 
 - [26.1 Flows are bound to blocks](ch26.md#s26-1)
+- [26.1.1 An empty handle — 0](ch26.md#s26-1-1)
 - [26.2 Channels — containers with an order](ch26.md#s26-2)
 - [26.3 Deadlocks you can see from what is written](ch26.md#s26-3)
 - [26.4 Flows and memory](ch26.md#s26-4)

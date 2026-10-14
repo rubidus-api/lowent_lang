@@ -7089,11 +7089,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 // ★★★ **chsend** [ch, v] — 채널에 넣는다(full 이면 lw_gyield 로 블록). 단위 push.
                 case IRW_CHSEND:
-                    fprintf(out, "    { lowv v_ = st[sp-1]; int ci_ = (int)st[sp-2].i; sp -= 2; st[sp++] = lw_chsend(ci_, v_); }\n");
+                    fprintf(out, "    { lowv v_ = st[sp-1]; long long ci_ = (long long)st[sp-2].i; sp -= 2; st[sp++] = lw_chsend(ci_, v_); }\n");
                     break;
                 // ★★★ **chrecv** [ch] — 채널에서 뺀다(empty 면 lw_gyield 로 블록). 값 push.
                 case IRW_CHRECV:
-                    fprintf(out, "    { int ci_ = (int)st[sp-1].i; sp -= 1; st[sp++] = lw_chrecv(ci_); }\n");
+                    fprintf(out, "    { long long ci_ = (long long)st[sp-1].i; sp -= 1; st[sp++] = lw_chrecv(ci_); }\n");
                     break;
                 // ★★★ **task spawn** (task_group) — op 를 태스크 큐(box=-1)에 넣는다. [args…] 팝 → 단위 push.
                 case IRW_TSPAWN: {
@@ -7110,12 +7110,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                  np, cbe_needs_peer(ir, (proven_size_t)in->a, 0) ? 1 : 0);
                     for (size_t g = 0; g < np; g++)
                         fprintf(out, "      lw_ambox[qi_].args[%zu] = st[sp-%zu];\n", g, np - g);
-                    fprintf(out, "      sp -= %zu; st[sp++] = lw_int(jid_); }\n", np);
+                    fprintf(out, "      sp -= %zu; st[sp++] = lw_int(jid_ + 1); }\n", np);
                     break;
                 }
                 // ★★★ **await** — job 핸들 팝 → 완료까지 기다렸다 결과 push.
                 case IRW_AWAIT:
-                    fprintf(out, "    { int jid_ = (int)st[sp-1].i; sp -= 1; st[sp++] = lw_await(jid_); }\n");
+                    fprintf(out, "    { long long jid_ = (long long)st[sp-1].i; sp -= 1; st[sp++] = lw_await(jid_); }\n");
                     break;
                 // ★★★ **cancel_on_error** 스코프 — 전역만 세운다(스택 무변화).
                 case IRW_CANCELSCOPE:

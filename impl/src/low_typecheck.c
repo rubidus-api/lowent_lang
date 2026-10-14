@@ -441,6 +441,14 @@ static bool tc_is_struct_name(proven_u8str_view_t v) {
     for (proven_size_t i = 0; i < g_nsname; i++) if (proven_u8str_view_eq(g_sname[i], v) || proven_u8str_view_eq(g_sname[i], b)) return true;
     return false;
 }
+static proven_u8str_view_t g_ename_t[1024]; static proven_size_t g_nename_t;   // 선언된 열거 이름(검사 시작에 채운다)
+static bool tc_is_enum_name(proven_u8str_view_t v) {
+    proven_u8str_view_t b = v;
+    for (proven_size_t i = 0; i < v.size; i++) if (v.ptr[i] == (proven_u8)'.') b = (proven_u8str_view_t){ v.ptr + i + 1, v.size - i - 1 };
+    for (proven_size_t i = 0; i < g_nename_t; i++) if (proven_u8str_view_eq(g_ename_t[i], v) || proven_u8str_view_eq(g_ename_t[i], b)) return true;
+    return false;
+}
+static bool tc_enum_has_payload(proven_u8str_view_t en);
 static bool tc_is_tc(ty_t t) { return t.k == TK_NAMED && (veq(t.nname, "task") || veq(t.nname, "chan")); }
 static tc_reason_t compat_known(ty_t decl, ty_t actual) {
     // ★ RFC-0148 S5 (소유자 2026-10-14 «핸들·채널에 타입을») — `task T` · `chan T` 는 정수가 아니고, 원소 타입이 타입의 일부다
@@ -456,7 +464,9 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
             return TC_OK;
         }
         ty_t o = tc_is_tc(decl) ? actual : decl;
-        if ((o.k == TK_INT && !o.lit) || o.k == TK_FLOAT || o.k == TK_BOOL || o.k == TK_SLICE || o.k == TK_WRAPPED) return TC_KIND;
+        // 수 가운데 핸들 자리에 들어가는 것은 리터럴 0 하나다 — «아직 흐름 · 채널을 받지 않은 핸들»(널, 정본 §10.3 (2c)).
+        //   다른 수는 어느 흐름도 가리키지 않으므로 받지 않는다(`var h task u64 7 .`).
+        if ((o.k == TK_INT && (!o.lit || o.neg || o.val != 0 || !tc_is_tc(decl))) || o.k == TK_FLOAT || o.k == TK_BOOL || o.k == TK_SLICE || o.k == TK_WRAPPED) return TC_KIND;
     }
     // ★★★ **이름 타입끼리도 newtype 이면 구별한다** (RFC-0002 §6.3.1 — struct core).
     //   ★ 범위를 좁게 둔다: **명목 id 를 가진 쪽이 있을 때만** 본다. 투명 `type X Y .` 별칭은
@@ -507,12 +517,17 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
     // ★ RFC-0148 S5 — 선언된 구조체 · 열거형 값과 수 · 참거짓 · 슬라이스는 서로의 자리에 들어가지 않는다. 전에는 이름 타입이면 무엇이든 통과했다
     //   (`let q u8 ok_value r. .` 에 구조체가 섰다). 별칭이 수를 가리키면 이미 수로 풀렸다(ty_of_decl_r) — 남은 이름은 진짜 이름 타입이다.
     {
-        // 구조체만 — 열거 값을 수로 쓰는 자리는 정본이 아직 정하지 않았다(RFC-0148 §8-15)
         bool dn = decl.k == TK_NAMED && decl.nname.size && tc_is_struct_name(tc_canon_name(decl.nname)) && !tc_is_tc(decl);
         bool an = actual.k == TK_NAMED && actual.nname.size && tc_is_struct_name(tc_canon_name(actual.nname)) && !tc_is_tc(actual);
         bool ds = decl.k == TK_INT || decl.k == TK_FLOAT || decl.k == TK_BOOL || decl.k == TK_SLICE;
         bool as = (actual.k == TK_INT && !actual.lit) || (actual.k == TK_FLOAT && !actual.lit) || actual.k == TK_BOOL || actual.k == TK_SLICE;
         if ((ds && an) || (dn && as)) return TC_KIND;
+        // ★ 열거 값은 수가 아니다(소유자 2026-10-15 «열거 값을 수 자리에 쓰려면 cast»; 정본 §6.2.16 (5)) — 수 자리에 열거를,
+        //   열거 자리에 수를(리터럴도) 두면 거절한다. 갈래의 번호가 필요하면 `cast <정수> <열거>` 로 적는다.
+        bool de = decl.k == TK_NAMED && decl.nname.size && tc_is_enum_name(tc_canon_name(decl.nname));
+        bool ae = actual.k == TK_NAMED && actual.nname.size && tc_is_enum_name(tc_canon_name(actual.nname));
+        bool ass = actual.k == TK_INT || actual.k == TK_FLOAT || actual.k == TK_BOOL || actual.k == TK_SLICE;
+        if ((ds && ae) || (de && ass)) return TC_KIND;
     }
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
@@ -686,6 +701,13 @@ static tc_variant_t g_var[1024];
 static proven_size_t g_nvar;
 typedef struct { const tc_variant_t *v; proven_u8str_view_t fname; proven_u8 idx; } tc_varf_t;
 static tc_varf_t g_varf[4096];
+static bool tc_enum_has_payload(proven_u8str_view_t en) {
+    proven_u8str_view_t b = en;
+    for (proven_size_t i = 0; i < en.size; i++) if (en.ptr[i] == (proven_u8)'.') b = (proven_u8str_view_t){ en.ptr + i + 1, en.size - i - 1 };
+    for (proven_size_t i = 0; i < g_nvar; i++)
+        if ((proven_u8str_view_eq(g_var[i].en, en) || proven_u8str_view_eq(g_var[i].en, b)) && g_var[i].np) return true;
+    return false;
+}
 static proven_size_t g_nvarf;
 typedef struct { proven_u8str_view_t name, mod; ty_t ty; } tc_mconst_t;   // 모듈 맨 위의 `let` · `var` — 몸에서 이름으로 읽힌다
 static tc_mconst_t g_mc[512];
@@ -733,7 +755,38 @@ static void tc_wrap_payload(ty_t *w, ty_t pv) {
         else if (pv.pk == TK_BOOL) w->ipk = TK_BOOL;
     }
 }
+// ★ 열거 값이 수를 받는 자리(비트 연산 · 시프트 · 첨자 · 좁히기 · 넓히기)에 왔는가 — 왔으면 말하고 참(소유자 2026-10-15; 정본 §6.2.16 (5))
+static bool tc_enum_as_num(tc_ctx_t *c, ty_t t, const char *code, proven_u32 line) {
+    if (!(t.k == TK_NAMED && t.nname.size && tc_is_enum_name(tc_canon_name(t.nname)))) return false;
+    tc_emit(c, code, "an enum value is used where a number goes — an enum is not a number. "
+            "Write `cast <integer> <value>` to take the variant's number (canon 6.2.16 (5))", line);
+    return true;
+}
+static bool g_cmp_eq;    // tc_binop 을 부르는 쪽이 세운다 — 견줌이 `eq` · `ne` 인가(열거는 같음만 묻는다)
+static bool g_cmp_ctx;   // 중위 `expr` 의 견줌 — 그 길은 견줌도 셈처럼 이어 재므로(is_cmp=false) 열거 판정에만 따로 알린다
 static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) {
+    bool eqop = g_cmp_eq, cctx = g_cmp_ctx; g_cmp_eq = false; g_cmp_ctx = false;
+    {
+        // ★ 열거 값은 수가 아니다(소유자 2026-10-15; 정본 §6.2.16 (5)). 같은 열거의 두 값은 `eq` · `ne` 로 견줄 수 있고,
+        //   그 밖(셈 · 크기 견줌 · 수와 섞기)은 갈래의 번호를 쓰는 일이므로 `cast <정수> <열거>` 로 적는다.
+        bool ae = a.k == TK_NAMED && a.nname.size && tc_is_enum_name(tc_canon_name(a.nname));
+        bool be = b.k == TK_NAMED && b.nname.size && tc_is_enum_name(tc_canon_name(b.nname));
+        if (ae || be) {
+            bool same = ae && be && proven_u8str_view_eq(tc_canon_name(a.nname), tc_canon_name(b.nname));
+            bool other_unknown = (ae && b.k == TK_UNKNOWN) || (be && a.k == TK_UNKNOWN);
+            bool cmpish = is_cmp || cctx;
+            if (!(cmpish && eqop && (same || other_unknown))) {
+                tc_emit(c, "E-TYPE-KIND",
+                        cmpish && eqop
+                        ? "an enum value is compared with something that is not the same enum — an enum is not a number. "
+                          "Compare two values of the same enum, or write `cast <integer> <value>` to take the variant's number (canon 6.2.16 (5))"
+                        : "an enum value is used as a number (arithmetic or ordering) — an enum is not a number. "
+                          "Write `cast <integer> <value>` to take the variant's number; that conversion is explicit (canon 6.2.16 (5))", line);
+                ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u;
+            }
+            return is_cmp ? tk(TK_BOOL) : (ae ? a : b);   // 중위 견줌은 결과를 끝에서 bool 로 낸다
+        }
+    }
     if (a.k == TK_UNKNOWN || b.k == TK_UNKNOWN || a.k == TK_NAMED || b.k == TK_NAMED)
         return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);          // 보수적: 모르면 넘어간다
     // 리터럴은 상대의 타입을 취한다(값 적합은 그쪽 경계에서 검사)
@@ -833,7 +886,7 @@ static bool tc_expr_logic_split(tc_ctx_t *c, low_cst_t *const *k, proven_size_t 
 static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, const tc_var_t *env, proven_size_t nenv) {
     { ty_t split_out; if (tc_expr_logic_split(c, k, n, env, nenv, &split_out)) return split_out; }
     ty_t acc = tk(TK_UNKNOWN);
-    bool have = false, cmp_seen = false;
+    bool have = false, cmp_seen = false, pend_cmp = false, pend_eq = false;
     for (proven_size_t i = 0; i < n; i++) {
         if (k[i]->kind == LOW_CST_ATOM) {
             proven_u8str_view_t v = k[i]->tok.lex;
@@ -862,7 +915,7 @@ static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, con
                 return tk(TK_BOOL);
             }
             if (veq(v, "eq") || veq(v, "ne") || veq(v, "lt") || veq(v, "le") ||
-                veq(v, "gt") || veq(v, "ge")) { cmp_seen = true; continue; }
+                veq(v, "gt") || veq(v, "ge")) { cmp_seen = true; pend_cmp = true; pend_eq = veq(v, "eq") || veq(v, "ne"); continue; }
             if (v.size == 1 && (v.ptr[0] == '+' || v.ptr[0] == '-' || v.ptr[0] == '*' ||
                                 v.ptr[0] == '/' || v.ptr[0] == '%')) continue;   // 중위 연산자
         }
@@ -875,7 +928,7 @@ static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, con
             for (proven_size_t q = 1; q < gi->nkids && !sub; q++) sub = tc_prec(gi->kids[q]) >= 0;
         ty_t t = sub ? tc_infer_expr(c, gi->kids, gi->nkids, env, nenv) : tc_infer(c, k[i], env, nenv);
         if (!have) { acc = t; have = true; }
-        else acc = tc_binop(c, acc, t, false, k[i]->line);   // 좌결합 — 짝마다 규칙 적용
+        else { g_cmp_eq = pend_cmp && pend_eq; g_cmp_ctx = pend_cmp; acc = tc_binop(c, acc, t, false, k[i]->line); pend_cmp = false; }   // 좌결합 — 짝마다 규칙 적용
     }
     if (cmp_seen) return tk(TK_BOOL);
     return have ? acc : tk(TK_UNKNOWN);
@@ -930,6 +983,7 @@ static ty_t tc_prefix2(tc_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pro
         ty_t a = tc_prefix2(c, k, pos, end, env, nenv), b = tc_prefix2(c, k, pos, end, env, nenv);
         bool cmp = veq(h->tok.lex, "eq") || veq(h->tok.lex, "ne") || veq(h->tok.lex, "lt") || veq(h->tok.lex, "le") ||
                    veq(h->tok.lex, "gt") || veq(h->tok.lex, "ge");
+        g_cmp_eq = veq(h->tok.lex, "eq") || veq(h->tok.lex, "ne");
         return tc_binop(c, a, b, cmp, h->line);
     }
     return tc_infer(c, h, env, nenv);
@@ -1149,6 +1203,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             //   이제 셈과 같다(아래 · RFC-0148 S4). 시프트의 결과는 왼쪽 피연산자의 타입이다.
             if (!sig_find(c, h2) && n == 3 && (veq(h2, "bit_and") || veq(h2, "bit_or") || veq(h2, "bit_xor"))) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv), b = tc_infer(c, k[start + 2], env, nenv);
+                if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line) | tc_enum_as_num(c, b, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
                 if (a.k == TK_INT && b.k == TK_INT) {
                     if (a.lit && !b.lit) { return b; }
                     if (b.lit && !a.lit) { return a; }
@@ -1170,7 +1225,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             if (!sig_find(c, h2) && n == 3 && (veq(h2, "shl") || veq(h2, "shr") || veq(h2, "wrap_shl") || veq(h2, "wrap_shr") ||
                                                veq(h2, "rotl") || veq(h2, "rotr"))) {
-                ty_t a = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t a = tc_infer(c, k[start + 1], env, nenv), sb = tc_infer(c, k[start + 2], env, nenv);
+                if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line) | tc_enum_as_num(c, sb, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
                 return tk_int(0, false);
             }
@@ -1179,6 +1235,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             //   `count_ones` 도 같다(2026-10-14 소유자 «둘 다 피연산자 타입» — 셋 다 «몇 개» 를 세지만 결과는 `a` 의 폭이다).
             if (!sig_find(c, h2) && n == 2 && (veq(h2, "leading_zeros") || veq(h2, "trailing_zeros") || veq(h2, "byte_swap") || veq(h2, "count_ones"))) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
+                if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
                 return tk_int(0, false);
             }
@@ -1441,6 +1498,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t sq = tc_infer(c, k[start + 1], env, nenv);
                 for (proven_size_t q = 2; q < n; q++) {
                     ty_t it = tc_infer(c, k[start + q], env, nenv);
+                    (void)tc_enum_as_num(c, it, "E-TYPE-KIND", k[start + q]->line ? k[start + q]->line : k[start]->tok.line);
                     // ★ RFC-0149 — 첨자는 `usize` 다. 옮기는 동안은 다른 정수도 받고 센다.
                     if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {
                         tc_emit(c, "E-TYPE-NOMINAL", "an index or a bound is a `usize` — this one has a fixed-width integer type. Declare it `usize`, "
@@ -1737,6 +1795,24 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                         "a bool casts to an INTEGER type only (`cast u8 b. .` gives 1 for true and 0 for false) — "
                         "not to a floating-point type",
                         k[start + 1]->line);
+            // ★ 열거 → 정수(소유자 2026-10-15 «열거 값을 수 자리에 쓰려면 cast»; 정본 §6.2.16 (5)) — 갈래의 번호(선언 차례, 0 부터)를 낸다.
+            //   값을 지닌 갈래가 있는 열거는 번호 하나로 값이 다 말해지지 않으므로 받지 않는다. 정수 → 열거는 없다(§6.2.16 (5a)).
+            else if (have_src && src0.k == TK_NAMED && src0.nname.size && tc_is_enum_name(tc_canon_name(src0.nname))) {
+                if (tgt.k != TK_INT)
+                    tc_emit(c, "E-TYPE-KIND", "an enum value casts to an INTEGER type only — the variant's number (declaration order from 0)",
+                            k[start + 1]->line);
+                else if (tc_enum_has_payload(tc_canon_name(src0.nname)))
+                    tc_emit(c, "E-TYPE-KIND",
+                            "this enum has a variant that carries values, so a number alone does not say what the value is — "
+                            "`cast` takes the number only of an enum whose variants carry nothing. Ask with `isa` / `match` (canon 6.2.16 (5))",
+                            k[start + 1]->line);
+            }
+            if (k[start + 1]->kind == LOW_CST_ATOM && tc_is_enum_name(tc_canon_name(k[start + 1]->tok.lex))) {
+                tc_emit(c, "E-TYPE-KIND",
+                        "a number does not cast to an enum — which variant a number stands for is the program's decision, not the language's. "
+                        "Write it with `if` / `match` on the number (canon 6.2.16 (5a))", k[start + 1]->line);
+                ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+            }
             return tgt;
         }
         // ★★★★★ **`widen` 은 표에 있는 관계로만 간다** (2026-09-01, 소유자 결정).
@@ -1762,6 +1838,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
         if (veq(k[start]->tok.lex, "narrow") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start])) {
             ty_t ntgt = ty_of_word(k[start + 1]->tok.lex);
             ty_t nsrc = tc_infer(c, k[start + 2], env, nenv);
+            (void)tc_enum_as_num(c, nsrc, "E-TYPE-KIND", k[start]->line);
             if ((nsrc.k == TK_INT && nsrc.nominal == 1) || (ntgt.k == TK_INT && ntgt.nominal == 1))
                 tc_emit(c, "E-TYPE-NOMINAL",
                         "`usize` / `idiff` convert with `cast` only — their width is the implementation's (16 bits up to the widest "
@@ -1776,7 +1853,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
         if (n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start]) &&
             (veq(k[start]->tok.lex, "narrow_sat") || veq(k[start]->tok.lex, "narrow_wrap") || veq(k[start]->tok.lex, "narrow_try"))) {
             ty_t ntgt = ty_of_word(k[start + 1]->tok.lex);
-            for (proven_size_t i = 2; i < n; i++) (void)tc_infer(c, k[start + i], env, nenv);
+            for (proven_size_t i = 2; i < n; i++) (void)tc_enum_as_num(c, tc_infer(c, k[start + i], env, nenv), "E-TYPE-KIND", k[start]->line);
             if (ntgt.k == TK_INT && ntgt.bits) {
                 if (!veq(k[start]->tok.lex, "narrow_try")) return ntgt;
                 ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, ntgt);
@@ -1788,6 +1865,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
             ty_t src = tc_infer(c, k[start + 2], env, nenv);
             for (proven_size_t i = 3; i < n; i++) (void)tc_infer(c, k[start + i], env, nenv);
+            if (tc_enum_as_num(c, src, "E-WIDEN-KIND", k[start]->line)) return tgt;
             // ★★★ RFC-0149 §6.7 (2026-10-13 소유자 «usize 와 관련된 형변환은 꼭 cast를 쓰게 합시다») — `usize` · `idiff` 는 넓히기의
             //   표 밖이다. 그 폭은 구현이 정하므로(16 비트부터 가장 넓은 정수까지) «넓히는가 좁히는가» 가 대상마다 다르다 —
             //   방향을 말하는 낱말로는 적을 수 없다. `cast` 는 방향을 묻지 않고 안 들어가면 멈춘다.
@@ -1924,6 +2002,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);
                 // RFC-0149 L2 — 굳은 `usize` 와 고정 폭 정수가 셈 · 견줌에서 만났다: 고정 폭 쪽의 식을 댄다(도구가 `cast usize` 로 감싼다)
+                g_cmp_eq = veq(h, "eq") || veq(h, "ne");
                 return tc_binop(c, a, b, cmp, k[start]->line);
             }
             // ★★★ **논리 op 은 두 경로로 들어온다** — `expr` 섬(중위)과 **여기**(전위 호출).
@@ -2908,7 +2987,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     ty_t vt = tc_infer_run(c, f->kids, 2, f->nkids - 2, env, *nenv);
                     vdone = true;
                     et.lit = false; et.has_rng = false;
-                    if (vt.k == TK_INT || vt.k == TK_FLOAT) {
+                    if (vt.k == TK_INT || vt.k == TK_FLOAT || (vt.k == TK_NAMED && vt.nname.size && tc_is_enum_name(tc_canon_name(vt.nname)))) {
                         tc_reason_t vr = compat(et, vt);
                         if (vr != TC_OK) tc_flag(c, vr, "E-TYPE-SET", "the value written does not have the element's type", f->line);
                     }
@@ -3342,11 +3421,13 @@ static void tc_brand_walk(tc_ctx_t *c, const low_cst_t *nd,
 
 low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr) {
     tc_notes_reset();
-    g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_tc_full = false;
+    g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_nename_t = 0; g_tc_full = false;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
             f->kids[1]->kind == LOW_CST_ATOM) { if (g_nsname >= 1024) { g_tc_full = true; break; } g_sname[g_nsname++] = f->kids[1]->tok.lex; }
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_ENUM &&
+            f->kids[1]->kind == LOW_CST_ATOM) { if (g_nename_t >= 1024) { g_tc_full = true; break; } g_ename_t[g_nename_t++] = f->kids[1]->tok.lex; }
     }
     {
         proven_u8str_view_t cm = { 0 };

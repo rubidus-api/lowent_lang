@@ -1,0 +1,26 @@
+module enum_number .
+rem run: code 0
+rem run: code 2
+rem run: louder 1
+
+enum volume do
+  quiet .
+  normal .
+  loud .
+end .
+
+fn of input k u8 . output volume . do
+  if eq k. 0 . do return quiet. . end .
+  if eq k. 1 . do return normal. . end .
+  return loud. .
+end .
+
+rem ko: 갈래의 번호가 필요하면 cast 로 읽는다 --- 선언 차례이고 0 부터 센다 /// en: when you need the variant's number, read it with cast --- declaration order, from 0
+fn code input k u8 . output u8 . do
+  return cast u8 of k. . . .
+end .
+
+rem ko: 크기를 견주는 것도 번호를 쓰는 일이다 --- 양쪽을 cast 한다 /// en: comparing sizes uses the numbers too --- cast both sides
+fn louder input k u8 . output bool . do
+  return gt cast u8 of k. . . cast u8 normal. . . .
+end .

@@ -1459,16 +1459,21 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vm->mbox[qi].job = (proven_i32)jid;
                 for (proven_size_t g = 0; g < np; g++) vm->mbox[qi].args[g] = stack[sp - np + g];
                 sp -= np;
-                stack[sp++] = vmv_int((proven_i64)jid);   // job 핸들
+                stack[sp++] = vmv_int((proven_i64)jid + 1);   // job 핸들 — 1 부터(0 은 널)
                 break;
             }
             case IRW_AWAIT: {
                 // ★★★ **await** — job 완료까지 블록(green thread yield)했다가 결과를 준다.
                 if (sp < 1) return false;
                 vmv_t hv = stack[--sp];
-                if (hv.tag != VMV_INT || (proven_size_t)hv.i >= vm->njobs) {
+                // ★★★ 핸들은 **1 부터** 센다 — 0 은 «아직 흐름을 받지 않은 핸들»(널)이다(정본 §10.3 (2c)).
+                //   전에는 0 부터 세어, 지정하지 않은 `var h task u64 0 .` 가 **첫 흐름을 조용히 가리켰다**
+                //   (두 뒤끝이 같은 틀린 답을 내 차등 스윕이 못 봤다).
+                if (hv.tag == VMV_INT && hv.i == 0) {
+                    vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`await` on handle 0 — this `task` was never given a flow (0 is the handle that points at nothing; assign `spawn <op>` to it first)"); return false; }
+                if (hv.tag != VMV_INT || (proven_size_t)hv.i - 1 >= vm->njobs) {
                     vm_diag(vm->diags, "E-VM-AWAIT", "`await` needs a job handle (from `spawn <op>`)"); return false; }
-                proven_size_t jid = (proven_size_t)hv.i;
+                proven_size_t jid = (proven_size_t)hv.i - 1;
                 if (!vm->jobs[jid].done) {
                     if (vm->in_gsched) {
                         // ★ 우리가 **태스크** 다 — 대상이 끝날 때까지 블록(yield). 완료가 깨운다.
@@ -1512,16 +1517,18 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t ci = vm->nchan++;
                 vm->chans[ci].head = vm->chans[ci].tail = vm->chans[ci].count = 0;
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
-                stack[sp++] = vmv_int((proven_i64)ci);
+                stack[sp++] = vmv_int((proven_i64)ci + 1);   // 채널 핸들 — 1 부터(0 은 널)
                 break;
             }
             case IRW_CHSEND: {
                 // ★★★ **chsend** — 채널에 값을 넣는다. full 이면 **yield 로 블록**(recver 가 빼면 재개).
                 if (sp < 2) return false;
                 vmv_t v = stack[--sp], chv = stack[--sp];
-                if (chv.tag != VMV_INT || (proven_size_t)chv.i >= vm->nchan) {
+                if (chv.tag == VMV_INT && chv.i == 0) {
+                    vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`chsend` on handle 0 — this `chan` was never given a channel (0 is the handle that points at nothing; assign `channel <T>` to it first)"); return false; }
+                if (chv.tag != VMV_INT || (proven_size_t)chv.i - 1 >= vm->nchan) {
                     vm_diag(vm->diags, "E-VM-CHAN", "`chsend` needs a channel handle (from `channel`)"); return false; }
-                proven_size_t ci = (proven_size_t)chv.i;
+                proven_size_t ci = (proven_size_t)chv.i - 1;
                 while (vm->chans[ci].count >= VM_CHAN_CAP) {
                     if (!vm->in_gsched) { vm_diag(vm->diags, "E-VM-CHAN-FULL",
                         "`chsend` on a FULL channel with no scheduler to yield to — nobody can receive. "
@@ -1545,9 +1552,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 // ★★★ **chrecv** — 채널에서 하나 뺀다. empty 면 **yield 로 블록**(sender 가 넣으면 재개).
                 if (sp < 1) return false;
                 vmv_t chv = stack[--sp];
-                if (chv.tag != VMV_INT || (proven_size_t)chv.i >= vm->nchan) {
+                if (chv.tag == VMV_INT && chv.i == 0) {
+                    vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`chrecv` on handle 0 — this `chan` was never given a channel (0 is the handle that points at nothing; assign `channel <T>` to it first)"); return false; }
+                if (chv.tag != VMV_INT || (proven_size_t)chv.i - 1 >= vm->nchan) {
                     vm_diag(vm->diags, "E-VM-CHAN", "`chrecv` needs a channel handle (from `channel`)"); return false; }
-                proven_size_t ci = (proven_size_t)chv.i;
+                proven_size_t ci = (proven_size_t)chv.i - 1;
                 while (vm->chans[ci].count == 0) {
                     if (!vm->in_gsched) { vm_diag(vm->diags, "E-VM-CHAN-EMPTY",
                         "`chrecv` on an EMPTY channel with no scheduler to yield to — nobody can send. "

@@ -73,6 +73,21 @@ agree, exhaustive" in the result line says so.
   which the specification does not fix. The error itself shows up through `await`.
 ]
 
+=== An empty handle --- 0
+
+A handle may start at 0: that is how a place is left empty before it is given a flow. No other number can be a handle --- a number
+does not point at a flow (`var h task u64 7 .` is refused).
+
+#demo("examples/ch26/handle_zero.low")
+
+- `both` leaves two handles empty at 0, gives them flows inside the block, then waits: 25 plus 36 is 61.
+- `forgot` waits on `a` without ever giving it a flow. The run stops right there (`E-VM-HANDLE-ZERO`). A channel (`chan T`) is the
+  same --- putting into or taking from a channel that is 0 stops.
+
+0 plays the part of the null pointer in other languages. Being able to leave a place empty is convenient, but using the empty thing
+must stop on the spot rather than pick up something else. So the handles `spawn` and `channel` give count from 1, and every place
+that uses a handle checks for 0.
+
 == Channels --- containers with an order
 
 #idx("channel")
@@ -189,6 +204,7 @@ yet". Until then, when a count must be shared, use atomic operations (#chref("pa
   [`task_group do … end .`], [bind flows to a block --- all finish at its end], [forgotten flows vanish by grammar],
   [`var h1 task u64 spawn square 5 . .`], [start a flow and receive its handle], [outside a group: `E-SPAWN-SCOPE`],
   [`await h1. .`], [wait for that flow's result], [other flows progress meanwhile],
+  [`var h task u64 0 .`], [an empty handle --- using it stops (`E-VM-HANDLE-ZERO`)], [like a null pointer --- it never picks up another flow],
   [`task_group cancel_on_error do … end .`], [cancel siblings on the first error], [cancellation does not roll back],
   [`var ch chan u64 channel u64 . .`], [a bounded, ordered container], [no unbounded channels yet --- `E-CHAN-UNBOUNDED`],
   [`chsend ch. n. .` · `chrecv ch. .`], [put · take --- blocks when full or empty], [`concurrent` effect --- completion depends on others],

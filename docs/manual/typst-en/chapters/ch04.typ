@@ -303,6 +303,45 @@ To keep one source standing at 16, 32 and 64 bits:
   Looking at 64-bit machines only, `usize` to `u64` seems always to widen, but the implementation sets the width. Write `cast u64 n. .`.
 ]
 
+== Explicit conversion is `cast`'s job
+
+#idx("cast")
+Reading a value as another type happens *only where the source says so*. The one conversion the compiler makes by itself is widening;
+every other conversion is written by the author as a word. At the centre is `cast <type> <value>`. In this language, explicit
+conversion is what `cast` is for.
+
+#dtable(
+  columns: 3,
+  id: "numbers-convert",
+  caption: [The three words that write a conversion],
+  [*Word*], [*What it covers*], [*When the value does not fit*],
+  [`widen`], [widening that keeps the value --- the compiler also does it by itself], [cannot happen],
+  [`narrow`], [a smaller width within the same kind], [stops],
+  [`cast`], [every other conversion --- changing the sign · between integers and floating point · between `usize`/`idiff` and other integers · a bool to a number · an enum to a number], [stops],
+)
+
+#demo("examples/ch04/cast_kinds.low")
+
+- `sign` reads a `u32` as an `i16`. 200 fits and comes out unchanged; 40000 does not fit in `i16`, so it stops. `cast` is not a sign
+  that "anything goes" but a sign that *"I know the value may change here"*. It never truncates quietly.
+- `to_float` and `to_int` cross kinds. Converting a floating-point number to an integer drops the fraction toward 0 --- 7.9 becomes 7.
+- `bool_num` turns a bool into a number: true is 1, false is 0. There is no `cast` the other way, from a number to a bool; write
+  what you are asking, as in `ne n. 0 .`.
+- `level_num` reads the number of an enum value. The number is the declaration order, counted from 0. An enum value is not a
+  number, so without this `cast` it does not go into a number place (#chref("structs-enums")).
+
+A conversion that could be read more than one way *never happens by itself*: the same bits could be read as two different numbers,
+the conversion widens on one machine and narrows on another, or the value changes kind. Types and conversions added to the language
+later follow the same rule --- if it is ambiguous, it is written `cast`.
+
+#qa[
+  Isn't writing `cast` every time a chore?
+][
+  It costs some typing. In return a reader *can find every place a value may change by eye*. Search the program for `cast` and you
+  have seen every place a type changes. One place where the compiler changes a type silently --- like C's integer promotions or mixed
+  signs --- and that promise is broken.
+]
+
 == Common mistakes
 
 Many number mistakes pass compilation and only show up *while running*. Where other languages would quietly produce a wrong value,
@@ -391,6 +430,7 @@ name.
   [`widen u64 x. .`], [widening (loses nothing)], [happens automatically, but can be written to make it visible],
   [`narrow u8 x. .`], [narrowing --- stops if it does not fit], [so values never change silently],
   [`narrow_sat` · `narrow_wrap` · `narrow_try`], [clamp to the end value · wrap · as an `option`], [pick the outcome by name],
+  [`cast i16 n. .`], [every other conversion --- stops when the value does not fit], [so every place a value changes shows in the source],
   [`add` · `sub` · `mul`], [arithmetic that stops on overflow], [overflow is a bug by default],
   [`wrap_add` · `sat_add` · `chk_add`], [wrap · saturate · `option`], [the intended outcome stays in the source],
   [`div` · `mod`], [quotient (towards zero) · remainder (sign of the divisor)], [division by zero and `MIN / −1` stop],

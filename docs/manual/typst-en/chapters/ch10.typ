@@ -99,6 +99,25 @@ included, stops at translation. Nobody has to remember the places to fix.
 
 To ask only which variant without a `match`, `isa n. num .` gives a `bool`.
 
+=== A variant's number is read with `cast`
+
+An enum value is not a number. Putting one as it is into a name, argument or return declared as a number, into arithmetic, an ordering
+comparison or an index is refused.
+
+#demo("examples/ch10/mistake_enumnum.low")
+
+Each variant does have a number --- its declaration order, counted from 0. When you need that number, read it with `cast`
+(#chref("numbers")).
+
+#demo("examples/ch10/enum_number.low")
+
+- `code` reads the number of the variant `of k` gives with `cast u8`. `quiet` is 0 and `loud` is 2.
+- `louder` compares sizes. An ordering comparison uses the numbers too, so both sides are cast. To ask only whether two values of
+  one enum are the same, compare them as they are with `eq` / `ne` --- that does not ask for a number.
+- There is no `cast` from a number to an enum. Which number stands for which variant, and what to do with a number that has no
+  variant, is the program's decision, so split the number as `of` does. An enum whose variants carry values is not cast either ---
+  one number does not say everything the value holds.
+
 == Variants are closed with full stops
 
 A newline is not a closer (#chref("surface")). So writing variants one per line without full stops runs several variants together into one.
@@ -197,6 +216,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   [`shape.circle 2 .` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
   [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
   [`isa s. circle .`], [is it that variant (`bool`)], [for asking without taking values out],
+  [`cast u8 v. .`], [the variant's number (declaration order, from 0)], [an enum is not a number --- the number is read by writing it],
   [trees linked by index (`l u32` · `r u32`)], [slice indexes instead of containing itself], [the size is fixed and indexes are bounds-checked],
 )
 

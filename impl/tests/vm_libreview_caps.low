@@ -138,9 +138,9 @@ proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   guard is_some x. . else return 96 . .
   guard eq some_value x. . 7 . else return 97 . .
   rem mapgen: 쌍의 수가 커도 `(want + 1) × 2` · `slots × size_of` 가 트랩하지 않는다
-  let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. big. . .
+  let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. cast usize big. . . .
   guard eq is_some mo. . false . else return 98 . .
-  let m2 use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 4611686018427387903 . .
+  let m2 use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. shr cast usize big. . 2 . . .
   guard eq is_some m2. . false . else return 99 . .
   return 13 .
 end .

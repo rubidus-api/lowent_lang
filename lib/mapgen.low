@@ -35,7 +35,7 @@ export struct table do
   keys mut slice u8 . rem 키 배열의 바이트
   vals mut slice u8 . rem 값 배열의 바이트
   flags mut slice u8 . rem 0 빈칸 · 1 참 · 2 무덤
-  n u64 .                  rem 담긴 쌍의 수
+  n usize .                rem 담긴 쌍의 수
 end .
 
 rem 섞는다. 암호용이 아니라 **분포용**이다 — 이웃한 키가 이웃한 칸으로 몰리지 않게 한다.
@@ -52,13 +52,13 @@ export proc slots_of input comptime k type . input comptime v type . input m (ta
   return len field m. flags . . .
 end .
 
-export fn count_of input comptime k type . input comptime v type . input m (table k v) . output u64 . do
+export fn count_of input comptime k type . input comptime v type . input m (table k v) . output usize . do
   return field m. n . .
 end .
 
 rem 2의 거듭제곱으로 올린다(최소 8) — 마스크 탐침이 성립하는 조건이다.
-fn pow2_up input n u64 . output u64 . do
-  var p u64 8 .
+fn pow2_up input n usize . output usize . do
+  var p usize 8 .
   while lt p. n. . do
     set p. mul p. 2 . .
   end .
@@ -82,18 +82,20 @@ rem ★ 빈 맵을 연다. `want` 는 **담을 쌍의 수**다 — 슬롯은 그
 rem   부하율을 낮게 잡는 이유: 선형 탐침은 꽉 찰수록 **군집**이 생겨 비용이 급히 오른다.
 rem ★ 호출자가 준 쌍의 수는 어떤 값이든 올 수 있다 — `(want + 1) × 2` 와 `슬롯 × 크기` 가 넘치면 트랩이므로
 rem   **곱하기 전에** 잰다(2026-09-04 보안 검토). 못 담을 수는 none 이다: OOM 은 값이다(RFC-0043 D5).
-rem   `want ≤ 2^62 − 1` 이면 `(want+1)×2 ≤ 2^63` 이고 `pow2_up` 도 그 안에서 끝난다. 바이트 상한은
-rem   2^63 − 1 이다(그보다 큰 바닥은 없고, 2^64 − 1 리터럴은 상수 접기가 부호 있는 수로 다룬다 — `lib/vecgen.low` 참조).
-export proc open input comptime k type . input comptime v type . use al allocs.bump_bytes . input want u64 . output option (table k v) . effects state . do
-  guard le want. 4611686018427387903 . else return none . .
-  let s u64 pow2_up mul add want. 1 . 2 . . .
-  guard le cast usize s. . div 9223372036854775807 size_of k . . . else return none . .
-  guard le cast usize s. . div 9223372036854775807 size_of v . . . else return none . .
-  let kb option mut slice u8 send al. reserve mul cast usize s. . size_of k . . . .
+rem   `want` 가 `usize` 의 가장 큰 값의 1/4 이하면 `(want+1)×2` 는 그 1/2 을 한 칸 넘는 데서 그치고 `pow2_up` 도 그 안에서 끝난다
+rem   (64 비트에서 `want ≤ 2^62 − 1` · `(want+1)×2 ≤ 2^63`). 바이트 상한은 가장 큰 값의 1/2 이다. 쌍의 수는 `usize` 다(2026-10-14 소유자).
+export proc open input comptime k type . input comptime v type . use al allocs.bump_bytes . input want usize . output option (table k v) . effects state . do
+  rem 상한은 `usize` 의 폭에서 낸다(수로 적으면 좁은 대상에서 번역이 거절된다): top = 가장 큰 값, 그 1/4 과 1/2.
+  let top usize bit_not cast usize 0 . . .
+  guard le want. shr top. 2 . . else return none . .
+  let s usize pow2_up mul add want. 1 . 2 . . .
+  guard le s. div shr top. 1 . size_of k . . . else return none . .
+  guard le s. div shr top. 1 . size_of v . . . else return none . .
+  let kb option mut slice u8 send al. reserve mul s. size_of k . . . .
   guard is_some kb. . else return none . .
-  let vb option mut slice u8 send al. reserve mul cast usize s. . size_of v . . . .
+  let vb option mut slice u8 send al. reserve mul s. size_of v . . . .
   guard is_some vb. . else return none . .
-  let fb option mut slice u8 send al. reserve cast usize s. . . .
+  let fb option mut slice u8 send al. reserve s. . .
   guard is_some fb. . else return none . .
   var f0 mut slice u8 some_value fb. . .
   let z usize clear f0. . .

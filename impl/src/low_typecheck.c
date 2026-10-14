@@ -795,12 +795,13 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             }
             // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
             //   없으면 그 위의 `index` 가 원소를 u8 로 보았다(`array f64 2` 칸의 원소가 u8 로 읽혔다). 좁게: 타입 있는 슬라이스만.
-            if (veq(h2, "field") && n == 3 && k[start + 1]->kind == LOW_CST_ATOM && k[start + 2]->kind == LOW_CST_ATOM) {
-                bool fnd; ty_t rt = env_find(env, nenv, k[start + 1]->tok.lex, &fnd);
-                const tc_struct_t *st = (fnd && rt.k == TK_NAMED) ? struct_find(c, rt.nname) : NULL;
+            // ★★★ RFC-0148 S4 — **칸에서 읽은 값의 타입은 그 칸의 선언이다** — 어느 칸이든, 어느 식의 칸이든(`field field a. b . c .`).
+            //   전에는 타입 있는 슬라이스 칸만 답했다: `let n u8 field q. total . .`(`total u64`)이 섰다. 하강층은 S2 부터 알고 있었다.
+            if (veq(h2, "field") && n == 3 && k[start + 2]->kind == LOW_CST_ATOM && !sig_find(c, h2)) {
+                ty_t rt = tc_infer(c, k[start + 1], env, nenv);
+                const tc_struct_t *st = rt.k == TK_NAMED && rt.nname.size ? struct_find(c, rt.nname) : NULL;
                 if (st) for (proven_size_t q = 0; q < st->nf; q++)
-                    if (proven_u8str_view_eq(st->fname[q], k[start + 2]->tok.lex) && st->fty[q].k == TK_SLICE && st->fty[q].ebits)
-                        return st->fty[q];
+                    if (proven_u8str_view_eq(st->fname[q], k[start + 2]->tok.lex)) { ty_t ft = st->fty[q]; ft.is_mut = false; return ft; }
             }
             // ★★★ RFC-0149 L4 (2026-10-13) — **비트 연산의 결과에도 타입이 있다.** 전에는 «폭 모르는 정수» 여서 `usize` 와 `u64` 가
             //   `bit_and` · `shr` 를 한 번 거치면 섞였고, 그 결과는 어느 선언에나 들어갔다. 두 피연산자의 타입이 같으면 그 타입,
@@ -1128,6 +1129,20 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                         "integer), so whether this NARROWS at all depends on the target. Write `cast <type> <value>` (it stops when "
                         "the value does not fit), or pick what happens instead: `narrow_try` / `narrow_sat` / `narrow_wrap`",
                         k[start]->line);
+            // ★★★ RFC-0148 S4 — **좁힌 값의 타입은 적힌 대상 타입이다.** 전에는 여기서 답 없이 흘러 «모름» 이 됐다: `narrow u8 x.` 를
+            //   어느 선언에나 넣을 수 있었다(하강층은 `u8` 로 알고 있었다 — 두 층을 맞대자 321 자리에서 보였다).
+            if (ntgt.k == TK_INT && ntgt.bits) return ntgt;
+        }
+        // RFC-0148 S4 — 멈추지 않는 좁히기 셋도 같다: `narrow_sat` · `narrow_wrap` 은 `T`, `narrow_try` 는 `option T` (시그니처 표 · §6.3.6).
+        if (n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start]) &&
+            (veq(k[start]->tok.lex, "narrow_sat") || veq(k[start]->tok.lex, "narrow_wrap") || veq(k[start]->tok.lex, "narrow_try"))) {
+            ty_t ntgt = ty_of_word(k[start + 1]->tok.lex);
+            for (proven_size_t i = 2; i < n; i++) (void)tc_infer(c, k[start + i], env, nenv);
+            if (ntgt.k == TK_INT && ntgt.bits) {
+                if (!veq(k[start]->tok.lex, "narrow_try")) return ntgt;
+                ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, ntgt);
+                return w;
+            }
         }
         if (veq(k[start]->tok.lex, "widen") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM
             && !sig_find_at(c, k[start])) {
@@ -1224,6 +1239,23 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                             "(`neg (widen i16 x)`), or write the subtraction you mean (`wrap_sub 0 x`)", k[start]->line);
                 return o;
             }
+            // ★★★ RFC-0148 S4 — **넘침 처분을 적은 셈도 셈이다**: `wrap_*` · `sat_*` 의 결과는 `add` 와 같은 타입이고 `chk_*` 는 그
+            //   `option` 이다(시그니처 표 · §6.3.6 «맞는 두 정수 → 둘 중 넓은 쪽»). 전에는 «모름» 이어서 `wrap_sub` 의 결과가 어느
+            //   선언에나 들어갔고, 피연산자가 맞는지도 보지 않았다.
+            {
+                bool wr = veq(h, "wrap_add") || veq(h, "wrap_sub") || veq(h, "wrap_mul") ||
+                          veq(h, "sat_add") || veq(h, "sat_sub") || veq(h, "sat_mul");
+                bool ch = veq(h, "chk_add") || veq(h, "chk_sub") || veq(h, "chk_mul");
+                if ((wr || ch) && n == 3 && !sig_find(c, h)) {
+                    ty_t a = tc_infer(c, k[start + 1], env, nenv);
+                    ty_t b = tc_infer(c, k[start + 2], env, nenv);
+                    ty_t r = tc_binop(c, a, b, false, k[start]->line);
+                    if (!ch) return r;
+                    ty_t w = tk(TK_WRAPPED); w.wrap = 1;
+                    if (r.k == TK_INT && !r.lit && r.bits) tc_wrap_payload(&w, r);
+                    return w;
+                }
+            }
             if ((arith || cmp) && n == 3 && !sig_find(c, h)) {   // 사용자 op 가 가리지 않을 때만
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);
@@ -1292,7 +1324,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
     }
     return tk(TK_UNKNOWN);
 }
-static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv) {
+static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv) {
     if (!nd) return tk(TK_UNKNOWN);
     if (nd->kind == LOW_CST_ATOM) {
         switch (nd->tok.kind) {
@@ -1363,6 +1395,53 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
     }
     if (nd->kind == LOW_CST_FORM) return tc_infer_run(c, nd->kids, 0, nd->nkids, env, nenv);
     return tk(TK_UNKNOWN);
+}
+
+// ★★★ RFC-0148 S4-0 — 마디마다 낸 답을 적는다(재는 도구 · `LOWENT_LIST_TYPES=1`). 같은 마디를 두 번 물으면 **아는 답이 남는다**
+//   (조건 자리의 입 막은 추론과 본 검사가 같은 마디를 본다).
+#define TC_NOTE_CAP (1u << 19)
+static struct { const void *nd; low_tcnote_t t; } *g_note;
+static int g_note_on = -1;
+bool low_tc_notes_on(void) {
+    if (g_note_on < 0) {
+        g_note_on = getenv("LOWENT_LIST_TYPES") ? 1 : 0;
+        if (g_note_on && !(g_note = calloc(TC_NOTE_CAP, sizeof *g_note))) g_note_on = 0;
+    }
+    return g_note_on == 1;
+}
+static proven_u32 tc_note_slot(const void *nd) {
+    proven_u64 h = (proven_u64)(uintptr_t)nd * 0x9E3779B97F4A7C15ull;
+    proven_u32 i = (proven_u32)(h >> 40) & (TC_NOTE_CAP - 1);
+    for (proven_u32 n = 0; n < TC_NOTE_CAP; n++, i = (i + 1) & (TC_NOTE_CAP - 1))
+        if (!g_note[i].nd || g_note[i].nd == nd) return i;
+    return TC_NOTE_CAP;
+}
+static proven_u8 tc_note_kind(tk_t k) {
+    switch (k) {
+        case TK_UNKNOWN: return 0; case TK_INT: return 1; case TK_FLOAT: return 2; case TK_BOOL: return 3;
+        case TK_SLICE: return 4; case TK_WRAPPED: return 5; case TK_NAMED: return 6; default: return 7;
+    }
+}
+static void tc_note(const low_cst_t *nd, ty_t t) {
+    proven_u32 i = tc_note_slot(nd);
+    if (i == TC_NOTE_CAP) return;
+    if (g_note[i].nd && g_note[i].t.k && !tc_note_kind(t.k)) return;
+    g_note[i].nd = nd;
+    g_note[i].t = (low_tcnote_t){ .k = tc_note_kind(t.k), .bits = t.bits, .nominal = t.nominal, .sign = t.sign, .lit = t.lit,
+        .wrap = t.wrap, .pk = t.pk ? tc_note_kind((tk_t)t.pk) : 0, .pbits = t.pbits, .pnom = t.pnom, .psign = t.psign,
+        .ebits = t.ebits, .enom = t.enom, .esign = t.esign, .eflt = t.eflt };
+}
+bool low_tc_note_of(const void *node, low_tcnote_t *out) {
+    if (!low_tc_notes_on()) return false;
+    proven_u32 i = tc_note_slot(node);
+    if (i == TC_NOTE_CAP || !g_note[i].nd) return false;
+    *out = g_note[i].t;
+    return true;
+}
+static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv) {
+    ty_t t = tc_infer_impl(c, nd, env, nenv);
+    if (nd && low_tc_notes_on()) tc_note(nd, t);
+    return t;
 }
 
 // declared type of a var: `[mut] [ref|mut_ref] core …` (words up to `be`/form end)
@@ -2001,7 +2080,6 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 proven_u8str_view_t rn = g->kids[0]->kids[1]->tok.lex;
                 proven_u8str_view_t fn = g->kids[0]->kids[2]->tok.lex;
                 bool fnd; ty_t rt = env_find(env, *nenv, rn, &fnd);
-                (void)rt;
                 // ★★★ **정수 세그먼트는 필드 이름이 아니다 — 슬라이스 첨자다.**
                 //   `field` 가 다단이 되면서 `set (field s 0) 11 .` 이 legal 이 됐는데
                 //   (예전 `set s.0 11 .` 이 하던 일), 이 검사는 **선언된 구조체에서 이름을
@@ -2013,12 +2091,21 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 if (all_digit) continue;
                 // 레코드의 구조체 타입을 이름으로 찾을 수 없으므로(현재 ty_t 에 이름이 없다),
                 // **모든 선언된 구조체**에서 그 필드를 찾는다 — 보수적이지만 없는 필드는 잡는다.
-                bool any_has = false; ty_t fty = tk(TK_UNKNOWN);
-                for (proven_size_t q = 0; q < c->nstrs; q++)
+                // ★★★ RFC-0148 S4 (2026-10-14) — 이제 `ty_t` 에 이름이 있다: **그 레코드의 구조체**에서 칸을 찾는다. 이름을 모를 때만
+                //   옛 길(모든 구조체)로 가되, 같은 이름의 칸이 구조체마다 타입이 다르면 타입은 맞대지 않는다 — 옛 길은 **마지막에
+                //   선언된** 구조체의 칸을 집었다(`mapgen.table` 의 `n u64` 에 쓰는 글이 `vecgen.vec` 의 `n usize` 로 재어졌다).
+                bool any_has = false, amb = false; ty_t fty = tk(TK_UNKNOWN);
+                const tc_struct_t *rst = (fnd && rt.k == TK_NAMED && rt.nname.size) ? struct_find(c, rt.nname) : NULL;
+                for (proven_size_t q = 0; q < c->nstrs; q++) {
+                    if (rst && rst != &c->strs[q]) continue;
                     for (proven_size_t v = 0; v < c->strs[q].nf; v++)
                         if (proven_u8str_view_eq(c->strs[q].fname[v], fn)) {
-                            any_has = true; fty = c->strs[q].fty[v];
+                            ty_t ft = c->strs[q].fty[v];
+                            if (any_has && (ft.k != fty.k || ft.bits != fty.bits || ft.sign != fty.sign || ft.nominal != fty.nominal)) amb = true;
+                            any_has = true; fty = ft;
                         }
+                }
+                if (amb) fty = tk(TK_UNKNOWN);
                 if (c->nstrs && !any_has)
                     tc_emit(c, "E-TYPE-FIELD",
                             "no declared struct has this field (the name points at nothing)", f->line);

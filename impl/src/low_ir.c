@@ -3,6 +3,7 @@
 #include "low_hwm.h"
 #include "low_ir.h"
 proven_u64 low_oracle_budget(void);
+#include "low_typecheck.h"
 #include "low_ir_priv.h"
 #include "low_arity.h"
 extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파일 전용
@@ -2852,7 +2853,21 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
     return true;
 }
 
+static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end);
+static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd);
  void ir_value(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {
+    if (*pos >= end || c->failed || !low_tc_notes_on()) { ir_value_impl(c, k, pos, end); return; }
+    proven_size_t t0 = c->tsp, p0 = *pos;
+    const low_cst_t *nd0 = k[p0];
+    ir_value_impl(c, k, pos, end);
+    if (!c->failed && !c->tstk_bad && c->tsp == t0 + 1 && c->tsp <= 64 && *pos == p0 + 1) {
+        const low_cst_t *in = nd0;
+        while (in->kind == LOW_CST_GROUP && in->nkids == 1) in = in->kids[0];
+        low_tcnote_t t;
+        ir_types_line(c, low_tc_note_of(in, &t) ? in : nd0);
+    }
+}
+static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {
     if (*pos >= end || c->failed) { ir_emit(c, IRW_CONST, 0); return; }
     const low_cst_t *nd = k[(*pos)++];
     if (g_relsub_atom && nd == g_relsub_atom) { ir_emit(c, IRW_LOAD, (proven_i64)g_relsub_slot); return; }   // ★ RFC-0135 S2
@@ -5093,6 +5108,32 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
     }
 }
 
+// ★★★ RFC-0148 S4-0 — **두 층의 답을 같은 마디에서 맞댄다** (`LOWENT_LIST_TYPES=1` · 재는 도구). 마디 하나가 값 하나를 그림자에 올렸으면
+//   (마디가 뒤따르는 낱말을 먹지 않고 — 닫힌 식 하나다)
+//   검사층이 그 마디에 적어 둔 답(`low_tc_note_of`)과 그림자의 꼭대기를 한 줄로 낸다: `TYPES <op> <줄> <머리> <검사층> <하강층>`.
+//   판정은 `scripts/check-type-layers.py` 가 한다 — 여기는 사실만 낸다.
+static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
+    low_tcnote_t t; bool seen = low_tc_note_of(nd, &t);
+    char tb[64], ib[96];
+    static const char *K[] = { "?", "int", "float", "bool", "slice", "wrap", "named", "other" };
+    if (!seen) snprintf(tb, sizeof tb, "-");
+    else if (t.k == 1) snprintf(tb, sizeof tb, t.lit ? "lit" : "int%u%c%s", (unsigned)t.bits, t.sign ? 's' : 'u', t.nominal == 1 ? "z" : t.nominal ? "n" : "");
+    else if (t.k == 2) snprintf(tb, sizeof tb, t.lit ? "flit" : "float%u", (unsigned)t.bits);
+    else if (t.k == 4) snprintf(tb, sizeof tb, "slice:%s%u%c%s", t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
+    else if (t.k == 5) snprintf(tb, sizeof tb, "wrap%u:%s%u%c%s", (unsigned)t.wrap, K[t.pk & 7], (unsigned)t.pbits, t.psign ? 's' : 'u', t.pnom == 1 ? "z" : "");
+    else snprintf(tb, sizeof tb, "%s", K[t.k & 7]);
+    ityp_t it = c->tstk[c->tsp - 1];
+    proven_u8str_view_t cn = c->tnam[c->tsp - 1];
+    if (!it.known) snprintf(ib, sizeof ib, "?|%.*s", (int)(cn.size > 60 ? 60 : cn.size), (const char *)cn.ptr);
+    else snprintf(ib, sizeof ib, "%s%u%c|%.*s", it.flt ? "float" : "int", (unsigned)it.bits, it.sign ? 's' : 'u',
+                  (int)(cn.size > 60 ? 60 : cn.size), (const char *)cn.ptr);
+    proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
+    while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    const low_cst_t *h = (nd->kind == LOW_CST_FORM && nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) ? nd->kids[0] : nd;
+    const char *hk = nd->kind == LOW_CST_ATOM ? (nd->tok.kind == LOW_TOK_NUMBER ? "<num>" : nd->tok.kind == LOW_TOK_STRING ? "<str>" : "<name>") : NULL;
+    fprintf(stderr, "TYPES\t%.*s\t%u\t%.*s\t%s\t%s\n", (int)dn.size, (const char *)dn.ptr, (unsigned)(h->tok.line ? h->tok.line : nd->line),
+            hk ? (int)strlen(hk) : (int)(h->kind == LOW_CST_ATOM ? h->tok.lex.size : 1), hk ? hk : (h->kind == LOW_CST_ATOM ? (const char *)h->tok.lex.ptr : "("), tb, ib);
+}
  void ir_node(ir_ctx_t *c, const low_cst_t *nd) {
     if (c->failed) return;
     switch (nd->kind) {

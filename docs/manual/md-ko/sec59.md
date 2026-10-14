@@ -44,7 +44,7 @@ guard is_ok r. . else return 1 . .
 >
 > > 모든 이어 붙이기는 **1 바이트를 남겨 둔다** — 내용 용량은 `len(buf) − 1` 이다. 쓴 뒤 `buf[len] = 0` 으로 봉인하므로 `as_cstr` 가 O(1)·무할당이다. 버퍼는 최소 1 바이트여야 하고, 실용적으로는 **내용 n 바이트에 버퍼 n + 1 바이트**로 외워 둔다.
 
-타입은 셋이다. `str_buf`(상태 `len u64`), `sb_error`(실패 이름 `no_room` 하나 — 실패는 멈춤이 아니라 값이다), `cstr`(널 종단 `char*` 를 가리키는 생 포인터의 `newtype`, 다른 언어와 주고받는 경계 전용).
+타입은 셋이다. `str_buf`(상태 `len usize`), `sb_error`(실패 이름 `no_room` 하나 — 실패는 멈춤이 아니라 값이다), `cstr`(널 종단 `char*` 를 가리키는 생 포인터의 `newtype`, 다른 언어와 주고받는 경계 전용).
 
 ## <a id="sx2"></a>op 한눈에
 
@@ -52,7 +52,7 @@ guard is_ok r. . else return 1 . .
 |---|---|---|
 | `new` | `fn () → str_buf` | — |
 | `as_str` | `fn (b str_buf, buf slice u8) → slice u8` | — (뷰, 복사가 아니다) |
-| `room` | `fn (b str_buf, buf slice u8) → u64` | 빈 버퍼(길이 0)면 넘침으로 멈춘다 |
+| `room` | `fn (b str_buf, buf slice u8) → usize` | 빈 버퍼(길이 0)면 넘침으로 멈춘다 |
 | `as_cstr` | `unsafe proc (b str_buf, buf mut slice u8) → cstr` | `len + 1 > len(buf)` 면 경계 밖으로 멈춘다 |
 | `append` | `proc (b mut str_buf, buf mut slice u8, s slice u8) → result void sb_error` | `error no_room .`(버퍼 그대로) |
 | `append_trunc` | `proc (b mut str_buf, buf mut slice u8, s slice u8) → usize` | — (쓴 개수 < `len s. .` 로 안다) |

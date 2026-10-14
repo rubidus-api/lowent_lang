@@ -402,5 +402,5 @@ size_of		u64	return size_of u32 . .		CHECK E-TYPE-NOMINAL
 cast	a i64	u64	return cast u64 a. . .	-1	TRAP E-VM-CAST
 cast	a i64	u64	return cast u64 a. . .	7	= 7
 narrow_sat	a i64	u64	return narrow_sat u64 a. . .	-5	= 0
-narrow_try	a i64	u64	return narrow_try u64 a. . .	-1	= none
+narrow_try	a i64	option u64	return narrow_try u64 a. . .	-1	= none
 narrow_wrap	a i64	u64	return narrow_wrap u64 a. . .	-1	= 18446744073709551615

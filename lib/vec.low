@@ -17,11 +17,11 @@ module vecs .
 use allocs from "alloc.low" .
 
 export struct vec_u8 do
-  len u64 .
+  len usize .
 end .
 
 rem 다음 용량 — 비어 있으면 8, 아니면 두 배. (성장 정책은 **라이브러리의 몫**이다.)
-export fn next_cap input cur u64 . output u64 . do
+export fn next_cap input cur usize . output usize . do
   guard gt cur. 0 . else return 8 . .
   return mul cur. 2 . .
 end .

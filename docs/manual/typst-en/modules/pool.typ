@@ -36,12 +36,12 @@ reach it, so using its first 8 bytes as the ledger is free. The pool is a struct
   [*op*], [*Shape*], [*Failure*],
   [`handle b` · `block_pool b`], [structs --- a handle has `blk` · `len` · `gen`; a pool has sealed `mem` · `gens` and cursors], [---],
   [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs usize → option (block_pool b)`], [`none` if `bs < 8`],
-  [`blocks`], [`fn (comptime b, p) → u64` --- `min(len mem / bs, len g)`], [none],
+  [`blocks`], [`fn (comptime b, p) → usize` --- `min(len mem / bs, len g)`], [none],
   [`take`], [`(comptime b, p mut block_pool b) → option (handle b)`], [`none` if no blocks remain],
   [`release`], [`(comptime b, p mut, h handle b) → bool`], [`false` for stale or out-of-range handles (double release included)],
   [`bytes`], [`(comptime b, p, h) → option mut slice u8` --- the only gate to the bytes], [`none` if stale or out of range],
   [`alive`], [`(comptime b, p, h) → bool`], [none (false is the answer)],
-  [`used` · `outstanding`], [`→ u64` --- blocks ever handed out sequentially · blocks out right now], [none],
+  [`used` · `outstanding`], [`→ usize` --- blocks ever handed out sequentially · blocks out right now], [none],
 )
 
 `take` *gives back released blocks first* (the free list is LIFO) --- repeated take and release never dries the pool. A reused block's handle is a new handle with a bumped

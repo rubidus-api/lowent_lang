@@ -168,7 +168,7 @@ Lowent is not just a design document. It grows together with a working compiler 
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.
 - **Caught at run time:** bounds checks where nothing was proven, overflow, and contract violations. The VM and native code stop at the same place with the same diagnostic.
 - **Proven:** memory safety for the sequential fragment (no use-after-free, no dangling references) and freedom from data races are machine-checked in Coq, with no axioms and no `admit`. These proofs are about the language's **model**. Whether the implementation follows the model is checked by the regression suite and bounded model checking. What has *not* been proven gets its own chapter in the manual.
-- **Scale:** 2,161 regression checks and 70 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
+- **Scale:** 2,162 regression checks and 70 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
 
 ## What you give up
 

@@ -20,5 +20,5 @@ proc main input al cap allocator . input out cap io . output u8 . effects io all
     set i. add i. 1 . .
   end .
   let m usize call_builtin write_out out. 1 subslice buf. 0 field v. len . . . .
-  return narrow u8 field v. len . . .
+  return cast u8 field v. len . . .
 end .

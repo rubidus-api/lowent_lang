@@ -36,12 +36,12 @@ struct 다(actor state 는 슬라이스를 들 수 없다).
   [*op*], [*모양*], [*실패*],
   [`handle b` · `block_pool b`], [구조체 --- 핸들은 `blk` · `len` · `gen`, 풀은 봉인된 `mem` · `gens` 와 커서들], [---],
   [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs usize → option (block_pool b)`], [`bs < 8` 이면 `none`],
-  [`blocks`], [`fn (comptime b, p) → u64` --- `min(len mem / bs, len g)`], [없음],
+  [`blocks`], [`fn (comptime b, p) → usize` --- `min(len mem / bs, len g)`], [없음],
   [`take`], [`(comptime b, p mut block_pool b) → option (handle b)`], [블록이 없으면 `none`],
   [`release`], [`(comptime b, p mut, h handle b) → bool`], [낡은 · 범위 밖 핸들(이중 해제 포함)이면 `false`],
   [`bytes`], [`(comptime b, p, h) → option mut slice u8` --- 바이트에 닿는 유일한 문], [낡은 · 범위 밖이면 `none`],
   [`alive`], [`(comptime b, p, h) → bool`], [없음(거짓이 답)],
-  [`used` · `outstanding`], [`→ u64` --- 순차로 꺼내 본 블록 수 · 지금 밖에 나가 있는 블록 수], [없음],
+  [`used` · `outstanding`], [`→ usize` --- 순차로 꺼내 본 블록 수 · 지금 밖에 나가 있는 블록 수], [없음],
 )
 
 `take` 는 *놓은 것을 먼저 준다*(자유 목록은 LIFO) --- 받고 놓기를 되풀이해도 풀이 마르지 않는다. 재사용된 블록의 핸들은 세대가 올라간 새 핸들이다. 브랜드를 매번 적는

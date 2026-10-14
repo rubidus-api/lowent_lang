@@ -47,7 +47,7 @@ end .
 rem ★ 상태만. 바이트는 호출자가 든다.
 rem   `cap` 은 **호출자가 준 버퍼의 길이**를 그대로 적는다 — 두 곳에 적으면 어긋난다(§0).
 export struct str_buf do
-  len u64 .
+  len usize .
 end .
 
 export fn new output str_buf . do
@@ -62,7 +62,7 @@ end .
 rem ★ 내용 용량 = len(buf) − 1 (마지막 1 바이트는 널 봉인 자리, D2).
 rem ★ 빈 버퍼거나 `len` 이 버퍼 길이에 닿았으면(낡은 str_buf 를 짧은 버퍼에 댄 경우) **0** 이다 —
 rem   전에는 뺄셈이 밑으로 감겨 2^64−1 을 냈다(2026-09-04 보안 검토). 자리가 없다는 사실은 0 으로 말한다.
-export fn room input b str_buf . input buf slice u8 . output u64 . do
+export fn room input b str_buf . input buf slice u8 . output usize . do
   guard lt field b. len . len buf. . . else return 0 . .
   return sub sub len buf. . 1 . field b. len . . .
 end .

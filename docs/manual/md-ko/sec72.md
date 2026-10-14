@@ -26,8 +26,8 @@ region 안에서 버퍼 수명을 **직접** 쥐고 싶을 때가 `vecs` 다. �
 
 | **op** | **모양** | **실패** |
 |---|---|---|
-| `vec_u8` | 구조체 — `len u64` | — |
-| `next_cap` | `fn (cur u64) → u64` — 0 이면 8, 아니면 두 배 | 없음 |
+| `vec_u8` | 구조체 — `len usize` | — |
+| `next_cap` | `fn (cur usize) → usize` — 0 이면 8, 아니면 두 배 | 없음 |
 | `push_byte` | `proc (comptime a, use al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a` | OOM 이면 `none` — 이때 `v` · `buf` 는 그대로 |
 
 *표 50.2 — `vecs` 의 op*
@@ -58,7 +58,7 @@ proc main input al cap allocator . input out cap io . output u8 . effects io all
     set i. add i. 1 . .
   end .
   let m usize stdio.write out. 1 subslice buf. 0 field v. len . . . .
-  return narrow u8 field v. len . . .
+  return cast u8 field v. len . . .
 end .
 ```
 

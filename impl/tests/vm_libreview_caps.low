@@ -120,7 +120,9 @@ proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let c u64 send bump. init some_value memo. . . .
   rem 2^62 개의 u64 — 바이트 수가 2^65 라 곱셈이 넘쳤다. 지금은 none.
-  let huge use bump. option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64. 4611686018427387904 . .
+  rem 개수는 `usize` 다 — 그 폭의 2^(폭−2) 를 적는다(64 비트에서 2^62 · 리터럴로 적으면 32 비트 대상에서 번역이 거절된다)
+  let hugen usize shl 1 sub mul size_of usize . 8 . 2 . . .
+  let huge use bump. option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64. hugen. . .
   guard eq is_some huge. . false . else return 91 . .
   let go use bump. option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64. 1 . .
   guard is_some go. . else return 92 . .

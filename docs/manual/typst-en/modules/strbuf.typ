@@ -45,7 +45,7 @@ itself depending on the situation.
   The buffer must be at least 1 byte; in practice, remember *a buffer of n + 1 bytes for n bytes of content*.
 ]
 
-There are three types. `str_buf` (state `len u64`), `sb_error` (one failure name, `no_room` --- failure is a value, not a stop), and `cstr` (a `newtype` of a raw
+There are three types. `str_buf` (state `len usize`), `sb_error` (one failure name, `no_room` --- failure is a value, not a stop), and `cstr` (a `newtype` of a raw
 pointer to a null-terminated `char*`, only for the boundary with other languages).
 
 == Ops at a glance
@@ -57,7 +57,7 @@ pointer to a null-terminated `char*`, only for the boundary with other languages
   [*op*], [*Signature*], [*When it cannot*],
   [`new`], [`fn () → str_buf`], [---],
   [`as_str`], [`fn (b str_buf, buf slice u8) → slice u8`], [--- (a view, not a copy)],
-  [`room`], [`fn (b str_buf, buf slice u8) → u64`], [stops on underflow for an empty (length 0) buffer],
+  [`room`], [`fn (b str_buf, buf slice u8) → usize`], [stops on underflow for an empty (length 0) buffer],
   [`as_cstr`], [`unsafe proc (b str_buf, buf mut slice u8) → cstr`], [stops out of bounds if `len + 1 > len(buf)`],
   [`append`], [`proc (b mut str_buf, buf mut slice u8, s slice u8) → result void sb_error`], [`error no_room .` (buffer unchanged)],
   [`append_trunc`], [`proc (b mut str_buf, buf mut slice u8, s slice u8) → usize`], [--- (known from count written \< `len s. .`)],

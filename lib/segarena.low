@@ -29,7 +29,7 @@ rem 아레나 하나. `kbits` 가 조각 크기를 정한다(조각당 `2^kbits`
 export struct arena do
   input comptime b type .
   kbits u64 .
-  nseg u64 .      rem 지금까지 연 조각 수
+  nseg usize .    rem 지금까지 연 조각 수
   used u64 .      rem 마지막 조각에서 쓴 칸 수
 end .
 
@@ -70,7 +70,7 @@ do
   guard le field a. kbits . 20 . else return none . .
   guard lt field a. nseg . len dir. . . else return none . .
   let width u64 shl 1 field a. kbits . . .
-  let base u64 mul field a. nseg . width. . .
+  let base u64 mul cast u64 field a. nseg . . width. . .
   guard le add base. width. . cap0. . else return none . .
   set idx dir. field a. nseg . . base. .
   set field a. nseg . add field a. nseg . 1 . .

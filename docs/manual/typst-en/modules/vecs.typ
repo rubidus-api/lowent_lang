@@ -25,8 +25,8 @@ take a larger place and move the old contents, which can be written in Lowent. S
   id: "mod-vecs-ops",
   caption: [Ops of `vecs`],
   [*op*], [*Shape*], [*Failure*],
-  [`vec_u8`], [struct --- `len u64`], [---],
-  [`next_cap`], [`fn (cur u64) → u64` --- 8 from 0, otherwise double], [none],
+  [`vec_u8`], [struct --- `len usize`], [---],
+  [`next_cap`], [`fn (cur usize) → usize` --- 8 from 0, otherwise double], [none],
   [`push_byte`], [`proc (comptime a, use al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a`], [`none` on OOM --- `v` and `buf` unchanged],
 )
 
@@ -58,7 +58,7 @@ proc main input al cap allocator . input out cap io . output u8 . effects io all
     set i. add i. 1 . .
   end .
   let m usize stdio.write out. 1 subslice buf. 0 field v. len . . . .
-  return narrow u8 field v. len . . .
+  return cast u8 field v. len . . .
 end .
 ```
 

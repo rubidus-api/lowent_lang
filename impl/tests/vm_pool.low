@@ -32,7 +32,7 @@ do
     let po option (pool.block_pool p_many) pool.init p_many. mem. gens. 16 . .
   guard is_some po. . else return 89 . .
   var p (pool.block_pool p_many) some_value po. . .
-  let n u64 pool.blocks p_many. p. . .           rem 블록 크기 16 바이트(시험용 — 링크 8 + 자료 8)
+  let n usize pool.blocks p_many. p. . .           rem 블록 크기 16 바이트(시험용 — 링크 8 + 자료 8)
   var got u64 0 .
   var i u64 0 .
   while lt i. n. . do
@@ -54,7 +54,7 @@ do
     let po option (pool.block_pool p_stale) pool.init p_stale. mem. gens. 16 . .
   guard is_some po. . else return 89 . .
   var p (pool.block_pool p_stale) some_value po. . .
-  let n u64 pool.blocks p_stale. p. . .
+  let n usize pool.blocks p_stale. p. . .
   let h option (pool.handle p_stale) pool.take p_stale. p. . .
   guard is_some h. . else return 90 . .
   let hh (pool.handle p_stale) some_value h. . .
@@ -96,7 +96,7 @@ do
     let po option (pool.block_pool p_copy) pool.init p_copy. mem. gens. 16 . .
   guard is_some po. . else return 89 . .
   var p (pool.block_pool p_copy) some_value po. . .
-  let n u64 pool.blocks p_copy. p. . .
+  let n usize pool.blocks p_copy. p. . .
   guard ge n. 2 . else return 90 . .
 
   let ha option (pool.handle p_copy) pool.take p_copy. p. . .
@@ -143,12 +143,12 @@ do
     let po option (pool.block_pool p_reuse) pool.init p_reuse. mem. gens. 16 . .
   guard is_some po. . else return 89 . .
   var p (pool.block_pool p_reuse) some_value po. . .
-  let n u64 pool.blocks p_reuse. p. . .
+  let n usize pool.blocks p_reuse. p. . .
   guard ge n. 2 . else return 90 . .
 
   rem 블록이 n 개뿐인데 **n 의 열 배**를 받고 놓는다 — 자유 목록이 없으면 여기서 마른다.
-  var i u64 0 .
-  let rounds u64 mul n. 10 . .
+  var i usize 0 .
+  let rounds usize mul n. 10 . .
   while lt i. rounds. . do
     let h option (pool.handle p_reuse) pool.take p_reuse. p. . .
     guard is_some h. . else return 91 . .              rem ★ 없었다면 여기서 죽었다
@@ -163,7 +163,7 @@ do
   end .
 
   rem ★★ 그리고 **밖에 나가 있는 블록이 0** 이다 — 전부 돌아왔다.
-  let out_n u64 pool.outstanding p_reuse. p. . .
+  let out_n usize pool.outstanding p_reuse. p. . .
   guard eq out_n. 0 . else return 94 . .
   return 1 .
 end .
@@ -175,7 +175,7 @@ do
     let po option (pool.block_pool p_lifo) pool.init p_lifo. mem. gens. 16 . .
   guard is_some po. . else return 89 . .
   var p (pool.block_pool p_lifo) some_value po. . .
-  let n u64 pool.blocks p_lifo. p. . .
+  let n usize pool.blocks p_lifo. p. . .
   guard ge n. 3 . else return 90 . .
 
   let h0 option (pool.handle p_lifo) pool.take p_lifo. p. . .
@@ -220,7 +220,7 @@ do
     let po option (pool.block_pool p_borrow) pool.init p_borrow. mem. gens. 16 . .
   guard is_some po. . else return 89 . .
   var p (pool.block_pool p_borrow) some_value po. . .
-  let n u64 pool.blocks p_borrow. p. . .
+  let n usize pool.blocks p_borrow. p. . .
   guard ge n. 1 . else return 90 . .
   let h option (pool.handle p_borrow) pool.take p_borrow. p. . .
   guard is_some h. . else return 91 . .

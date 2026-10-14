@@ -31,12 +31,12 @@ export type gvec (vecgen.vec u8 allocs.bump_bytes) .
 
 rem ★ 빈 벡터를 연다. `al` 은 **이미 초기화된** 범프 얼로케이터다(누가 만들었는지가 권한의 자리다).
 rem   첫 자리를 못 받으면 none — 값으로 답한다.
-export proc open use al allocs.bump_bytes . input cap0 u64 . output option gvec . effects state . do
+export proc open use al allocs.bump_bytes . input cap0 usize . output option gvec . effects state . do
   return vecgen.open u8. cap0. . .
 end .
 
 rem 지금 담긴 개수 · 지금 자리(용량).
-export proc count_of input g gvec . output u64 . effects none . do return vecgen.count_of u8. allocs.bump_bytes. g. . . end .
+export proc count_of input g gvec . output usize . effects none . do return vecgen.count_of u8. allocs.bump_bytes. g. . . end .
 export proc cap_of   input g gvec . output usize . effects none . do return vecgen.cap_of u8. allocs.bump_bytes. g. . . end .
 
 rem ★ 바이트 하나를 민다. 자리가 모자라면 **스스로** 더 큰 자리를 받아 옮긴다.
@@ -58,7 +58,7 @@ end .
 
 rem ★ 앞으로 n 개가 더 들어갈 자리를 **미리** 확보한다. 이걸 먼저 부르면 add_all 이 도중에
 rem   실패하지 않는다 — "전량 아니면 무" 를 원하면 이 순서로 쓴다.
-export proc reserve_more input g mut gvec . input more u64 . output bool . effects state . invalidates g . do
+export proc reserve_more input g mut gvec . input more usize . output bool . effects state . invalidates g . do
   return vecgen.reserve_more u8. allocs.bump_bytes. g. more. . .
 end .
 

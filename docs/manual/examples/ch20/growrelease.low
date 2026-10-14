@@ -6,7 +6,7 @@ use allocs .
 proc regrow input buf mut slice u8 . output u64 . effects state .
 do
   var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send b. init buf. . .
+  let c usize send b. init buf. . .
   let p option mut slice u8 send b. reserve 4 . .
   guard is_some p. . else return 91 . .
   let pv mut slice u8 some_value p. . .
@@ -21,7 +21,7 @@ do
   let back1 bool send b. release gv. . .
   rem ko: qv 는 마지막 조각이다 — 돌려받는다 /// en: qv is the last piece, so it is taken back
   let back2 bool send b. release qv. . .
-  let u u64 send b. used . .
+  let u usize send b. used . .
   var d1 u64 0 .
   if back1. do
     set d1. 1 .
@@ -31,5 +31,5 @@ do
     set d2. 1 .
   end .
   rem ko: 쓴 양 · 첫 답 · 둘째 답을 세 자리 수로 묶어 돌려준다 /// en: pack the amount used, the first answer and the second answer into one three-digit number
-  return add mul u. 100 . add mul d1. 10 . d2. . . .
+  return add mul cast u64 u. . 100 . add mul d1. 10 . d2. . . .
 end .

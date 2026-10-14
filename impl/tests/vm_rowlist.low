@@ -24,9 +24,9 @@ end .
 export proc heaprows input a u32 . output u64 . effects state . do
   var back lit array u8 64 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let got u64 send bb. init back. . .
+  let got usize send bb. init back. . .
   let g use bb. mut slice (array u32 3) lit array (array u32 3) 2 lit array u32 3 a. a. a. . _ . else return 999 . .
-  return add rsum g. . mul send bb. used . 100 . . .
+  return add rsum g. . mul cast u64 send bb. used . . 100 . . .
 end .
 
 export fn bytes input a u8 . output usize . do

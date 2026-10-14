@@ -38,9 +38,9 @@ end .
 export proc onheap input a u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let got u64 send bb. init back. . .
+  let got usize send bb. init back. . .
   let ps use bb. mut slice pt lit array pt 2 do 0 lit pt do x 1 . y a. . end . . _ lit pt do x 0 . y 0 . end . . end . else return 999 . .
-  return add sum ps. . mul send bb. used . 100 . . .
+  return add sum ps. . mul cast u64 send bb. used . . 100 . . .
 end .
 
 rem 원소는 값의 **사본**이다 — 나열의 칸을 바꿔도 넣은 이름은 그대로다(정본 §6.2.6 (9) · 매뉴얼 9장이 말하는 것).

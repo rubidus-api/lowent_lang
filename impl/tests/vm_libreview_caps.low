@@ -32,7 +32,7 @@ proc t_vec input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 alloc_bytes al. capacity 256 . .
   guard is_some memo. . else return 89 . .
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send bump. init some_value memo. . . .
+  let c usize send bump. init some_value memo. . . .
   let ga use bump. option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8. 4 . .
   guard is_some ga. . else return 90 . .
   var a (vecgen.vec u8 allocs.bump_bytes) some_value ga. . .
@@ -92,7 +92,7 @@ proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
     set i. add i. 1 . .
   end .
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send bump. init dirty. . .
+  let c usize send bump. init dirty. . .
   let mo use bump. option (mapgen.table u32 u64) mapgen.open u32. u64. 2 . .
   guard is_some mo. . else return 90 . .
   var m (mapgen.table u32 u64) some_value mo. . .
@@ -118,7 +118,7 @@ proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 alloc_bytes al. capacity 64 . .
   guard is_some memo. . else return 89 . .
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send bump. init some_value memo. . . .
+  let c usize send bump. init some_value memo. . . .
   rem 2^62 개의 u64 — 바이트 수가 2^65 라 곱셈이 넘쳤다. 지금은 none.
   rem 개수는 `usize` 다 — 그 폭의 2^(폭−2) 를 적는다(64 비트에서 2^62 · 리터럴로 적으면 32 비트 대상에서 번역이 거절된다)
   let hugen usize shl 1 sub mul size_of usize . 8 . 2 . . .

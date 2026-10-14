@@ -8,7 +8,7 @@ export proc fill input a u64 . output u64 . effects state .
 do
   var back lit array u8 48 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let got u64 send bb. init back. . .
+  let got usize send bb. init back. . .
   var xs use bb. mut slice u64 lit array u64 4 do 0 a. . _ 1 . end . else return 0 . .
   set idx xs. 3 . 100 .
   let big use bb. option mut slice u64 lit array u64 8 _ . .

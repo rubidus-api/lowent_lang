@@ -15,13 +15,13 @@ do
   guard is_some p. . else return 91 . .
   let q option mut slice u8 send al. reserve 5 . .
   guard is_some q. . else return 92 . .
-  return send al. used . .
+  return cast u64 send al. used . . .
 end .
 
 proc with_bump input buf mut slice u8 . output u64 . effects state .
 do
   var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send b. init buf. . .
+  let c usize send b. init buf. . .
   let n use b. u64 two_from. .
   return n. .
 end .
@@ -29,7 +29,7 @@ end .
 proc with_aligned input buf mut slice u8 . output u64 . effects state .
 do
   var b allocs.bump_aligned spawn actor allocs.bump_aligned . .
-  let c u64 send b. init buf. . .
+  let c usize send b. init buf. . .
   let n use b. u64 two_from. .
   return n. .
 end .

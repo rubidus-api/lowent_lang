@@ -952,7 +952,7 @@ mistake_fnregion.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `a
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r. capacity <span class="tok-n">16</span> . .
     <strong><span class="tok-k">if</span></strong> is_some g. . <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem ✘ handing region bytes to an actor born outside the region</span></em>
-      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a. init some_value g. . . .
+      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> a. init some_value g. . . .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -972,7 +972,7 @@ mistake_outlives.low:13:0 E-ALLOC-OUTLIVES: this hands bytes from a `region` blo
     <strong><span class="tok-k">if</span></strong> is_some g. . <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem the actor is born inside the region too, so both go away together</span></em>
       <strong><span class="tok-k">var</span></strong> a allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a. init some_value g. . . .
+      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> a. init some_value g. . . .
       <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a. reserve <span class="tok-n">10</span> . .
       <strong><span class="tok-k">if</span></strong> is_some p. . <strong><span class="tok-k">do</span></strong>
         <strong><span class="tok-k">set</span></strong> n. <strong><span class="tok-k">send</span></strong> a. used . .

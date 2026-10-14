@@ -62,7 +62,7 @@ do
     end .
   end .
   rem 개행 없이 끝난 마지막 조각도 한 줄이다.
-  let rest u64 send r. remaining . .
+  let rest usize send r. remaining . .
   if gt rest. 0 . do
     rem ★ `take_rest` 는 option 이 아니라 **slice** 를 낸다 — 이미 끝이면 **빈 뷰**다.
     rem   "끝났다" 와 "0 바이트 읽었다" 는 다르고 여기선 후자다(lib/io.low 의 규약).

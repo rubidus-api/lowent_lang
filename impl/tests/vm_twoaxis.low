@@ -29,7 +29,7 @@ export proc open
   input comptime t type .
   input comptime a type .
   use al a .
-  input cap0 u64 .
+  input cap0 usize .
   output option (gv t a) .
   effects state .
   requires allocs.byte_allocator a. . .
@@ -84,7 +84,7 @@ proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 alloc_bytes al. capacity 256 . .
   guard is_some mo. . else return 1 . .
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send bump. init some_value mo. . . .
+  let c usize send bump. init some_value mo. . . .
 
   let go use bump. option (gv u32 allocs.bump_bytes) open u32. 4 . .
   guard is_some go. . else return 2 . .
@@ -113,7 +113,7 @@ proc part_u16 input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 alloc_bytes al. capacity 256 . .
   guard is_some mo. . else return 1 . .
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send bump. init some_value mo. . . .
+  let c usize send bump. init some_value mo. . . .
 
   let go use bump. option (gv u16 allocs.bump_bytes) open u16. 3 . .
   guard is_some go. . else return 2 . .
@@ -179,7 +179,7 @@ proc part_pair input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 alloc_bytes al. capacity 256 . .
   guard is_some mo. . else return 1 . .
   var pp pair_bytes spawn actor pair_bytes . .
-  let c u64 send pp. init some_value mo. . . .
+  let c usize send pp. init some_value mo. . . .
 
   rem 같은 `open`·`add_one`·`get` — 얼로케이터 타입만 다르다.
   let go use pp. option (gv u32 pair_bytes) open u32. 2 . .

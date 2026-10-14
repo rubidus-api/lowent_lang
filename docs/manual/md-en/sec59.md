@@ -119,7 +119,7 @@ end .
 ```lowent
 proc t_splitter output u64 . effects state . do
   var sp strings.str_splitter spawn actor strings.str_splitter . .
-  let d u64 send sp. init "one,two,three" 44 . .
+  let d usize send sp. init "one,two,three" 44 . .
   var pieces u64 0 .
   var r option slice u8 send sp. next . .
   while is_some r. . do

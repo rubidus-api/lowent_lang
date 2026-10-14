@@ -76,7 +76,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   let memo option mut slice u8 alloc_bytes al. capacity 512 . .
   guard is_some memo. . else return 93 . .
   var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send bump. init some_value memo. . . .
+  let c usize send bump. init some_value memo. . . .
   let go use bump. option growvec.gvec growvec.open 2 . .
   guard is_some go. . else return 12 . .
   var g growvec.gvec some_value go. . .

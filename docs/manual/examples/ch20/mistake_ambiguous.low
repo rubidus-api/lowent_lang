@@ -19,8 +19,8 @@ proc with_two input small mut slice u8 . input big mut slice u8 . output u64 . e
 do
   var s allocs.bump_bytes spawn actor allocs.bump_bytes . .
   var g allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let x u64 send s. init small. . .
-  let y u64 send g. init big. . .
+  let x usize send s. init small. . .
+  let y usize send g. init big. . .
   rem ko: ✘ 맞는 타입의 할당기가 둘인데 어느 것인지 적지 않았다 /// en: ✘ two allocators of a fitting type are in scope, and the call does not say which
   let n u64 two_from. .
   return n. .

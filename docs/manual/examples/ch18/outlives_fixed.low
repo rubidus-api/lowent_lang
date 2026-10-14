@@ -11,7 +11,7 @@ do
     if is_some g. . do
       rem ko: 액터도 영역 안에서 태어난다 — 둘이 함께 사라진다 /// en: the actor is born inside the region too, so both go away together
       var a allocs.bump_bytes spawn actor allocs.bump_bytes . .
-      let c u64 send a. init some_value g. . . .
+      let c usize send a. init some_value g. . . .
       let p option mut slice u8 send a. reserve 10 . .
       if is_some p. . do
         set n. send a. used . .

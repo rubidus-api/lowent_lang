@@ -157,8 +157,8 @@ rem ── alloc: 큰 n 의 `reserve`/`grow` 는 none 이다 (전에는 `add off
 proc t_alloc input buf mut slice u8 . output u64 . effects state . do
   guard ge len buf. . 16 . else return 90 . .
   var a allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send a. init buf. . .
-  let big u64 bit_not 0 . .
+  let c usize send a. init buf. . .
+  let big usize bit_not 0 . .
   let r0 option mut slice u8 send a. reserve big. . .
   guard eq is_some r0. . false . else return 91 . .
   let r1 option mut slice u8 send a. reserve 4 . .
@@ -174,7 +174,7 @@ proc t_alloc input buf mut slice u8 . output u64 . effects state . do
   guard eq send a. used . 8 . else return 96 . .
   rem 정렬판: 패딩이 끝을 넘는 자리에서도 값이다
   var al allocs.bump_aligned spawn actor allocs.bump_aligned . .
-  let c2 u64 send al. init subslice buf. 0 3 . . .
+  let c2 usize send al. init subslice buf. 0 3 . . .
   let q0 option mut slice u8 send al. reserve 3 . .
   guard is_some q0. . else return 97 . .
   let q1 option mut slice u8 send al. reserve 1 . .       rem at = 8 > 3

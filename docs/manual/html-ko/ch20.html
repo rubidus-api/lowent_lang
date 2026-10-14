@@ -678,14 +678,14 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 <strong><span class="tok-k">proc</span></strong> carve <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> a allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> room <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a. init buf. . .
+  <strong><span class="tok-k">let</span></strong> room <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> a. init buf. . .
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a. reserve <span class="tok-n">3</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> . .
   <strong><span class="tok-k">let</span></strong> pv <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value p. . .
   <strong><span class="tok-k">set</span></strong> idx pv. <span class="tok-n">0</span> . <span class="tok-n">65</span> .
   <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a. reserve <span class="tok-n">99</span> . .
   <strong><span class="tok-k">guard</span></strong> is_none q. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> . .
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a. used . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a. used . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve borrowed.low [0,0,0,0,0,0,0,0]
 carve([65,0,0,0,0,0,0,0]) = 3
@@ -707,13 +707,13 @@ carve([65,0,0,0,0,0,0,0]) = 3
   <strong><span class="tok-k">guard</span></strong> is_some p. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> . .
   <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al. reserve <span class="tok-n">5</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some q. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> . .
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al. used . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> al. used . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> with_bump <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> b allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">use</span></strong> b. <strong><span class="tok-t">u64</span></strong> two_from. .
   <strong><span class="tok-k">return</span></strong> n. .
 <strong><span class="tok-k">end</span></strong> .
@@ -721,7 +721,7 @@ carve([65,0,0,0,0,0,0,0]) = 3
 <strong><span class="tok-k">proc</span></strong> with_aligned <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> b allocs.bump_aligned <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_aligned . .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">use</span></strong> b. <strong><span class="tok-t">u64</span></strong> two_from. .
   <strong><span class="tok-k">return</span></strong> n. .
 <strong><span class="tok-k">end</span></strong> .
@@ -769,7 +769,7 @@ nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it.
 <strong><span class="tok-k">proc</span></strong> caller <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> b allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
   <em><span class="tok-c">rem ✘ twice 는 할당기를 쓰지 않는데 use 로 골라 준다</span></em>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">use</span></strong> b. <strong><span class="tok-t">u64</span></strong> twice <span class="tok-n">4</span> . .
   <strong><span class="tok-k">return</span></strong> n. .
@@ -788,7 +788,7 @@ nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it.
   <strong><span class="tok-k">guard</span></strong> is_some a. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> fb. reserve <span class="tok-n">64</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some b. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> fb. used . . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> fb. used . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main fixed.low
 main() = 128
@@ -805,6 +805,7 @@ main() = 128
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check forge.low
 forge.low:8:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a capability (`cap allocator` / `cap heap`), but the op spawning it holds no capability of that kind. A capability field means nothing at run time — it is only real because the place that creates the actor already had the right. Without that, one `spawn` would forge authority out of thin air (RFC-0112 D6). Take the capability as an input of this op
 forge.low:7:1 W-EFFECT-OVER: this op DECLARES `heap` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
+forge.low:9:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p><code>sneaky</code> 는 <code>cap heap</code> 을 받지 않았는데 <code>heap_bytes</code> 를 띄우려 했다. 이것이 허락되면 권한 없는 곳에서 한 줄로 힙을 지어낼 수 있다. 권한은 건네받는 것이지 주워 쓰는 것이 아니다.</p><p>권한을 받으면 같은 일이 된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/heapbytes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heapbytes .
 <em><span class="tok-c">rem run: main</span></em>
 
@@ -830,7 +831,7 @@ main() = 0
 <strong><span class="tok-k">proc</span></strong> regrow <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> b allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> b. reserve <span class="tok-n">4</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> . .
   <strong><span class="tok-k">let</span></strong> pv <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value p. . .
@@ -845,7 +846,7 @@ main() = 0
   <strong><span class="tok-k">let</span></strong> back1 <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> b. release gv. . .
   <em><span class="tok-c">rem qv 는 마지막 조각이다 — 돌려받는다</span></em>
   <strong><span class="tok-k">let</span></strong> back2 <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> b. release qv. . .
-  <strong><span class="tok-k">let</span></strong> u <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b. used . .
+  <strong><span class="tok-k">let</span></strong> u <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> b. used . .
   <strong><span class="tok-k">var</span></strong> d1 <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">if</span></strong> back1. <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> d1. <span class="tok-n">1</span> .
@@ -855,7 +856,7 @@ main() = 0
     <strong><span class="tok-k">set</span></strong> d2. <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem 쓴 양 · 첫 답 · 둘째 답을 세 자리 수로 묶어 돌려준다</span></em>
-  <strong><span class="tok-k">return</span></strong> add mul u. <span class="tok-n">100</span> . add mul d1. <span class="tok-n">10</span> . d2. . . .
+  <strong><span class="tok-k">return</span></strong> add mul cast <strong><span class="tok-t">u64</span></strong> u. . <span class="tok-n">100</span> . add mul d1. <span class="tok-n">10</span> . d2. . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run regrow growrelease.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 regrow([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 601
@@ -870,7 +871,7 @@ regrow([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 601
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">48</span> _ . .
   <strong><span class="tok-k">var</span></strong> bb allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
   <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">use</span></strong> bb. <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">do</span></strong> <span class="tok-n">0</span> a. . _ <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">set</span></strong> idx xs. <span class="tok-n">3</span> . <span class="tok-n">100</span> .
   <strong><span class="tok-k">let</span></strong> big <strong><span class="tok-k">use</span></strong> bb. <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">8</span> _ . .
@@ -889,7 +890,7 @@ fill(9) = 109
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">64</span> _ . .
   <strong><span class="tok-k">var</span></strong> bb allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. n. . <strong><span class="tok-k">do</span></strong>
@@ -897,7 +898,7 @@ fill(9) = 109
     <strong><span class="tok-k">set</span></strong> s. add s. idx t. <span class="tok-n">0</span> . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> add s. mul <strong><span class="tok-k">send</span></strong> bb. used . <span class="tok-n">1000</span> . . .
+  <strong><span class="tok-k">return</span></strong> add s. mul cast <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. used . . <span class="tok-n">1000</span> . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run rounds autorel.low 10
 rounds(10) = 45
@@ -918,9 +919,9 @@ rounds(10) = 45
   <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">64</span> _ . .
   <strong><span class="tok-k">var</span></strong> d <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> _ . .
   <strong><span class="tok-k">var</span></strong> bb allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
   <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> make_buf bb. d. . .
-  <strong><span class="tok-k">return</span></strong> add idx s. <span class="tok-n">1</span> . mul <strong><span class="tok-k">send</span></strong> bb. used . <span class="tok-n">100</span> . . .
+  <strong><span class="tok-k">return</span></strong> add idx s. <span class="tok-n">1</span> . mul cast <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. used . . <span class="tok-n">100</span> . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run handoff keepbuf.low
 handoff() = 1608
@@ -939,10 +940,10 @@ handoff() = 1608
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">64</span> _ . .
   <strong><span class="tok-k">var</span></strong> bb allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> bb. init back. . .
   <strong><span class="tok-k">var</span></strong> q <strong><span class="tok-k">use</span></strong> bb. pt <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y a. . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . .
   <strong><span class="tok-k">set</span></strong> field q. y . add field q. y . <span class="tok-n">1</span> . .
-  <strong><span class="tok-k">return</span></strong> add widen <strong><span class="tok-t">u64</span></strong> field q. x . . mul <strong><span class="tok-k">send</span></strong> bb. used . <span class="tok-n">100</span> . . .
+  <strong><span class="tok-k">return</span></strong> add widen <strong><span class="tok-t">u64</span></strong> field q. x . . mul cast <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb. used . . <span class="tok-n">100</span> . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run place structalloc.low 5
 place(5) = 1607
@@ -993,6 +994,7 @@ bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar 
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noinit.low
 mistake_noinit.low:10:0 E-ACTOR-UNINIT: this is the FIRST message sent to an actor that was just spawned, and the handler READS a state field that holds a slice without setting it. A fresh actor's state is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while native quietly answers `none` — the two back ends disagree, which means one of them is lying. Send the message that sets it up first (the one whose handler `set`s that field, typically `init`)
+mistake_noinit.low:12:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p><code>bump_bytes</code> 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 <code>send a init buf</code> 로 걸기 전에는 나눠 줄 것이 없다. 갓 띄운 액터의 상태 칸은 모두 0 이고, 0 은 슬라이스가 아니다 — 그 자리를 읽으면 VM 과 네이티브가 서로 다르게 돈다. 그래서 번역이 거절한다 (<code>E-ACTOR-UNINIT</code>). 할당기를 띄우는 줄 바로 다음에 <code>init</code> 을 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 같은 바이트를 두 할당기에 건다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_sharedbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sharedbuf .
 <em><span class="tok-c">rem expect: E-EXCL</span></em>
 
@@ -1003,8 +1005,8 @@ mistake_noinit.low:10:0 E-ACTOR-UNINIT: this is the FIRST message sent to an act
   <strong><span class="tok-k">var</span></strong> a allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
   <strong><span class="tok-k">var</span></strong> b allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
   <em><span class="tok-c">rem ✘ 같은 바이트를 두 할당기에 걸었다 --- 두 할당기가 같은 자리를 나눠 준다</span></em>
-  <strong><span class="tok-k">let</span></strong> c1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a. init buf. . .
-  <strong><span class="tok-k">let</span></strong> c2 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
+  <strong><span class="tok-k">let</span></strong> c1 <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> a. init buf. . .
+  <strong><span class="tok-k">let</span></strong> c2 <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> b. init buf. . .
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a. reserve <span class="tok-n">3</span> . .
   <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> b. reserve <span class="tok-n">3</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> . .
@@ -1039,8 +1041,8 @@ mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECON
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> s allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
   <strong><span class="tok-k">var</span></strong> g allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> s. init small. . .
-  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> g. init big. . .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> s. init small. . .
+  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> g. init big. . .
   <em><span class="tok-c">rem ✘ 맞는 타입의 할당기가 둘인데 어느 것인지 적지 않았다</span></em>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> two_from. .
   <strong><span class="tok-k">return</span></strong> n. .
@@ -1061,15 +1063,15 @@ mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECON
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al. reserve <span class="tok-n">3</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some p. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> . .
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al. used . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> al. used . . .
 <strong><span class="tok-k">end</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> with_two <strong><span class="tok-k">input</span></strong> small <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> big <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> s allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
   <strong><span class="tok-k">var</span></strong> g allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes . .
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> s. init small. . .
-  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> g. init big. . .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> s. init small. . .
+  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">send</span></strong> g. init big. . .
   <em><span class="tok-c">rem 바인딩에 `use` 로 출처를 적는다</span></em>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">use</span></strong> g. <strong><span class="tok-t">u64</span></strong> two_from. .
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">use</span></strong> g. <strong><span class="tok-t">u64</span></strong> two_from. .
@@ -1139,6 +1141,7 @@ mistake_noroot.low:7:0 E-ALLOC-NOROOT: `alloc_bytes` needs the ROOT it carves fr
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_novia.low
 mistake_novia.low:13:1 E-EFFECT: this op performs `alloc`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
 mistake_novia.low:20:1 W-EFFECT-OVER: this op DECLARES `alloc` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
+mistake_novia.low:16:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p><code>one_from</code> 은 <code>effects state .</code> 만 적었지만, <code>fixed_bytes</code> 로 단형화하면 <code>reserve</code> 가 <code>alloc</code> 을 낸다. <code>via a</code> 가 있어야 “타입 <code>a</code> 가 내는 할당 계열 효과도 내 선언이다” 가 되어 인스턴스마다 효과가 정확해진다. 없으면 <code>E-EFFECT</code> 가 나고, 효과가 부르는 쪽에 번지지 않아 <code>with_fixed</code> 에는 엉뚱하게 <code>W-EFFECT-OVER</code> 까지 붙는다. 첫 오류를 고치면 둘째도 사라진다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>할당기를 하나 더 띄우면 창도 하나 더 생긴다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/shared_window.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> shared_window .
 <em><span class="tok-c">rem run: main</span></em>
 

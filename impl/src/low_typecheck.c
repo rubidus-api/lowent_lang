@@ -758,6 +758,39 @@ static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, con
     return have ? acc : tk(TK_UNKNOWN);
 }
 // operand run: 1 → itself; expr → island; cast → target scalar; else → call
+// ★★★ RFC-0148 S4 (2026-10-14) — **액터의 proc 에도 서명이 있다.** `send <액터> <proc> <인자…>` 는 검사층에 아예 없었다: 인자는 보지 않았고
+//   결과는 «모름» 이어서 어느 선언에나 들어갔다(`let a u8 send t. total . .`). 액터의 처리기 이름은 op 표(`sigs`)에 넣지 않는다 —
+//   넣으면 같은 이름의 모듈 op 을 가린다. 그래서 (액터, proc) 으로 찾는 표를 따로 둔다.
+typedef struct {
+    proven_u8str_view_t actor, mod, proc;
+    ty_t                params[TC_MAXP];
+    proven_size_t       nparams;
+    ty_t                ret;
+} tc_asig_t;
+static tc_asig_t g_asig[TC_MAXSIG];
+static proven_size_t g_nasig;
+static proven_u8str_view_t tc_base_name(proven_u8str_view_t v, proven_u8str_view_t *pre) {
+    proven_size_t dot = v.size;
+    for (proven_size_t i = 0; i < v.size; i++) { if (v.ptr[i] == '#') break; if (v.ptr[i] == '.') dot = i; }
+    if (pre) *pre = dot < v.size ? (proven_u8str_view_t){ v.ptr, dot } : (proven_u8str_view_t){ 0 };
+    return dot < v.size ? (proven_u8str_view_t){ v.ptr + dot + 1, v.size - dot - 1 } : v;
+}
+// 액터 타입 이름(`allocs.bump_bytes` · `bump_bytes`)과 proc 이름으로 찾는다. 같은 이름의 액터가 여러 모듈에 있으면 한정자나 제 모듈이
+// 가리는 것만 답한다 — 가릴 수 없으면 모른다고 답한다(틀린 서명으로 재느니 재지 않는다).
+static const tc_asig_t *asig_find(tc_ctx_t *c, proven_u8str_view_t tname, proven_u8str_view_t proc) {
+    proven_u8str_view_t pre, base = tc_base_name(tname, &pre);
+    const tc_asig_t *one = NULL, *best = NULL; proven_size_t nact = 0;
+    proven_u8str_view_t seen_mod = { 0 }; bool have_seen = false;
+    for (proven_size_t i = 0; i < g_nasig; i++) {
+        const tc_asig_t *a = &g_asig[i];
+        if (!proven_u8str_view_eq(a->actor, base) && !proven_u8str_view_eq(a->actor, tname)) continue;
+        if (!have_seen || !proven_u8str_view_eq(seen_mod, a->mod)) { nact++; seen_mod = a->mod; have_seen = true; }
+        if (!proven_u8str_view_eq(a->proc, proc)) continue;
+        one = a;
+        if ((pre.size && proven_u8str_view_eq(a->mod, pre)) || (!pre.size && c->curmod.size && proven_u8str_view_eq(a->mod, c->curmod))) best = a;
+    }
+    return best ? best : (nact == 1 ? one : NULL);
+}
 static const tc_struct_t *struct_find(tc_ctx_t *c, proven_u8str_view_t name);   // 아래에 정의
 static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n,
                          const tc_var_t *env, proven_size_t nenv) {
@@ -766,6 +799,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
     if (k[start]->kind == LOW_CST_ATOM && k[start]->tok.kw == LOW_KW_EXPR)
         return tc_infer_expr(c, k + start + 1, n - 1, env, nenv);
     if (k[start]->kind == LOW_CST_ATOM) {
+        if (k[start]->tok.kw == LOW_KW_SEND && n >= 3 && k[start + 2]->kind == LOW_CST_ATOM) {
+            ty_t tt = tc_infer(c, k[start + 1], env, nenv);
+            const tc_asig_t *as = (tt.k == TK_NAMED && tt.nname.size) ? asig_find(c, tc_canon_name(tt.nname), k[start + 2]->tok.lex) : NULL;
+            for (proven_size_t i = 3; i < n; i++) {
+                ty_t at = tc_infer(c, k[start + i], env, nenv);
+                if (as && i - 3 < as->nparams)
+                    tc_flag(c, compat(as->params[i - 3], at), "E-TYPE-ARG", "the argument sent to the actor's proc does not match its parameter",
+                            k[start + i]->line ? k[start + i]->line : k[start]->tok.line);
+            }
+            return as ? as->ret : tk(TK_UNKNOWN);
+        }
         // a fresh borrow: `ref X` / `mut_ref X` (core type conservative, rk known)
         if (veq(k[start]->tok.lex, "ref") || veq(k[start]->tok.lex, "mut_ref")) {
             ty_t t = tk(TK_UNKNOWN);
@@ -2744,6 +2788,31 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             s->ret = ty_of_decl_r(f, h.out_s, h.out_e, &rr);
             tc_check_rng(&c, rr, f->line);
             tc_check_tnames(&c, f, h.out_s, h.out_e);
+        }
+    }
+    // RFC-0148 S4 — 액터의 proc 서명을 모은다(위 `tc_asig_t`). 표가 차면 그 뒤의 `send` 는 «모름» 으로 남는다 — 재지 않을 뿐 틀리게 재지 않는다.
+    g_nasig = 0;
+    {
+        proven_u8str_view_t amod = { 0 };
+        for (proven_size_t i = 0; i < pr->nforms; i++) {
+            const low_cst_t *f = pr->forms[i];
+            if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
+            if (f->kids[0]->tok.kw == LOW_KW_MODULE && f->kids[1]->kind == LOW_CST_ATOM) { amod = f->kids[1]->tok.lex; continue; }
+            if (f->kids[0]->tok.kw != LOW_KW_ACTOR || f->kids[1]->kind != LOW_CST_ATOM || f->kids[f->nkids - 1]->kind != LOW_CST_BLOCK) continue;
+            const low_cst_t *blk = f->kids[f->nkids - 1];
+            for (proven_size_t j = 0; j < blk->nkids && g_nasig < TC_MAXSIG; j++) {
+                const low_cst_t *op = blk->kids[j];
+                if (op->kind != LOW_CST_FORM || op->nkids < 3 || op->kids[0]->kind != LOW_CST_ATOM) continue;
+                if (op->kids[0]->tok.kw != LOW_KW_PROC && op->kids[0]->tok.kw != LOW_KW_FN) continue;
+                low_op_header_t hh = low_op_header(op);
+                tc_asig_t *a = &g_asig[g_nasig++];
+                *a = (tc_asig_t){ .actor = f->kids[1]->tok.lex, .mod = amod, .proc = hh.name, .ret = tk(TK_UNKNOWN) };
+                for (proven_size_t q = 0; q < hh.np && a->nparams < TC_MAXP; q++) {
+                    rng_res_t rr;
+                    a->params[a->nparams++] = ty_of_decl_r(op, hh.p[q].ts, hh.p[q].te, &rr);
+                }
+                if (hh.out_e > hh.out_s) { rng_res_t rr; a->ret = ty_of_decl_r(op, hh.out_s, hh.out_e, &rr); }
+            }
         }
     }
 

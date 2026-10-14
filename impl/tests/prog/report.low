@@ -76,7 +76,7 @@ do
   rem ② 그 바닥 위에 **사용자 얼로케이터**를 세운다. 이 actor 는 바이트가 어디서 왔는지 모른다 —
   rem    빌린 버퍼를 줬어도 똑같이 돈다(vm_allocbytes.low 가 정확히 그렇게 시험한다).
   var mem allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let cap0 u64 send mem. init some_value root. . . .
+  let cap0 usize send mem. init some_value root. . . .
   guard ge cap0. 128 . else return 71 . .
 
   rem ③ 줄 버퍼를 **얼로케이터에서** 받는다.

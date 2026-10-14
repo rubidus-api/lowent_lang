@@ -13,8 +13,8 @@ export proc place input a u64 . output u64 . effects state .
 do
   var back lit array u8 64 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let got u64 send bb. init back. . .
+  let got usize send bb. init back. . .
   var q use bb. pt lit pt do x 7 . y a. . end . else return 0 . .
   set field q. y . add field q. y . 1 . .
-  return add widen u64 field q. x . . mul send bb. used . 100 . . .
+  return add widen u64 field q. x . . mul cast u64 send bb. used . . 100 . . .
 end .

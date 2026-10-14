@@ -9,7 +9,7 @@
 
 ```lowent
 var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-var c u64 send bump. init mem. . .
+var c usize send bump. init mem. . .
 let b option mut slice u8 send bump. reserve 64 . .
 ```
 
@@ -82,7 +82,7 @@ end .
 
 proc borrowed2 input buf mut slice u8 . output u64 . effects state . do
   var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let c u64 send b. init buf. . .
+  let c usize send b. init buf. . .
   let n use b. u64 two_from. .
   return n. .
 end .

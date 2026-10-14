@@ -15,7 +15,7 @@ do
   var back lit array u8 64 _ . .
   var d lit array u64 1 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let got u64 send bb. init back. . .
+  let got usize send bb. init back. . .
   let s mut slice u64 make_buf bb. d. . .
-  return add idx s. 1 . mul send bb. used . 100 . . .
+  return add idx s. 1 . mul cast u64 send bb. used . . 100 . . .
 end .

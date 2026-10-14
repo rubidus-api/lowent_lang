@@ -45,7 +45,7 @@ proc count_lines input src slice u8 . output u64 . effects state . do
     if eq is_some l. . false . do set going. false . end .
   end .
   rem 마지막 개행 뒤에 남은 바이트가 있으면 그것도 한 줄이다(개행 없이 끝난 파일).
-  let rest u64 send r. remaining . .
+  let rest usize send r. remaining . .
   if gt rest. 0 . do set lines. add lines. 1 . . end .
   return lines. .
 end .

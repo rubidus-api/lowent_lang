@@ -89,11 +89,11 @@ export proc open input comptime k type . input comptime v type . use al allocs.b
   let s u64 pow2_up mul add want. 1 . 2 . . .
   guard le cast usize s. . div 9223372036854775807 size_of k . . . else return none . .
   guard le cast usize s. . div 9223372036854775807 size_of v . . . else return none . .
-  let kb option mut slice u8 send al. reserve mul s. size_of k . . . .
+  let kb option mut slice u8 send al. reserve mul cast usize s. . size_of k . . . .
   guard is_some kb. . else return none . .
-  let vb option mut slice u8 send al. reserve mul s. size_of v . . . .
+  let vb option mut slice u8 send al. reserve mul cast usize s. . size_of v . . . .
   guard is_some vb. . else return none . .
-  let fb option mut slice u8 send al. reserve s. . .
+  let fb option mut slice u8 send al. reserve cast usize s. . . .
   guard is_some fb. . else return none . .
   var f0 mut slice u8 some_value fb. . .
   let z usize clear f0. . .

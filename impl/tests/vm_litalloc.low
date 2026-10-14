@@ -21,7 +21,7 @@ end .
 export proc bump_list input a u64 . output u64 . effects state . do
   var back lit array u8 64 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  let got u64 send bb. init back. . .
+  let got usize send bb. init back. . .
   let s1 use bb. mut slice u32 lit array u32 4 1 2 3 narrow u32 a. . . else return 1 . .
   let s2 use bb. mut slice u64 lit slice u64 5 6 . else return 2 . .
   let x3 use bb. option mut slice u64 lit array u64 8 _ . .

@@ -8,8 +8,8 @@ do
   var a allocs.bump_bytes spawn actor allocs.bump_bytes . .
   var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
   rem ko: ✘ 같은 바이트를 두 할당기에 걸었다 --- 두 할당기가 같은 자리를 나눠 준다 /// en: ✘ the same bytes are given to two allocators --- both hand out the same place
-  let c1 u64 send a. init buf. . .
-  let c2 u64 send b. init buf. . .
+  let c1 usize send a. init buf. . .
+  let c2 usize send b. init buf. . .
   let p option mut slice u8 send a. reserve 3 . .
   let q option mut slice u8 send b. reserve 3 . .
   guard is_some p. . else return 91 . .

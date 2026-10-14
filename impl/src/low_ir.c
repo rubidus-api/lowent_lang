@@ -2868,8 +2868,20 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
 
 static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end);
 static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd);
+ // ★★★ RFC-0148 S4-2 (2026-10-14 소유자 «검사기 답이 권위») — **식의 타입은 검사층이 정한다.** 닫힌 식 마디 하나가 값 하나를 올렸으면
+//   검사층이 그 마디에 적은 답을 읽는다: 하강층의 그림자가 모르면 그 답으로 채우고, 둘 다 알면 같아야 한다 — 다르면 **처리기의 결함**이다
+//   (`E-IR-TYPE-SPLIT` · 맞대는 게이트가 0 을 지킨다). 검사를 건너뛴 경로(`--unchecked` · `--emit-proof`)는 답이 없어 그림자만 쓴다.
+//   그릇(슬라이스 · option · result)의 칸은 «꺼내면 나오는 것» 을 싣는다는 규칙 그대로, 검사층의 원소 · 알맹이를 싣는다.
+static ityp_t ir_note_ity(const low_tcnote_t *t) {
+    if (t->k == 1 && t->bits && !t->lit) return (ityp_t){ true, t->bits, t->sign, false, false, 0, 0 };
+    if (t->k == 2 && t->bits && !t->lit) return (ityp_t){ true, t->bits, false, true, false, 0, 0 };
+    if (t->k == 4 && t->ebits) return (ityp_t){ true, t->ebits, t->esign, t->eflt, false, 0, 0 };
+    if (t->k == 5 && t->pbits && (t->pk == 1 || t->pk == 2)) return (ityp_t){ true, t->pbits, t->psign, t->pk == 2, false, 0, 0 };
+    return ITY_UNK;
+}
  void ir_value(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {
-    if (*pos >= end || c->failed || !low_tc_notes_on()) { ir_value_impl(c, k, pos, end); return; }
+    bool live = low_tc_notes_live();
+    if (*pos >= end || c->failed || !live) { ir_value_impl(c, k, pos, end); return; }
     proven_size_t t0 = c->tsp, p0 = *pos;
     const low_cst_t *nd0 = k[p0];
     ir_value_impl(c, k, pos, end);
@@ -2877,7 +2889,18 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd);
         const low_cst_t *in = nd0;
         while (in->kind == LOW_CST_GROUP && in->nkids == 1) in = in->kids[0];
         low_tcnote_t t;
-        ir_types_line(c, low_tc_note_of(in, &t) ? in : nd0);
+        bool seen = low_tc_note_of(in, &t) || low_tc_note_of(nd0, &t);
+        if (low_tc_list_types()) ir_types_line(c, low_tc_note_of(in, &t) ? in : nd0);
+        if (seen) {
+            ityp_t nt = ir_note_ity(&t), *top = &c->tstk[c->tsp - 1];
+            if (nt.known && !top->known) {
+                *top = nt;
+            } else if (nt.known && top->known && (nt.bits != top->bits || nt.flt != top->flt || (!nt.flt && nt.sign != top->sign))) {
+                ir_fail(c, "E-IR-TYPE-SPLIT", "compiler defect: the type checker and the lowering give this expression different "
+                        "types. Please report it with the text — the checker's answer is the language's, and the lowering must agree",
+                        in->line ? in->line : nd0->line);
+            }
+        }
     }
 }
 static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {

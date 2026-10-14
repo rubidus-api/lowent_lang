@@ -1475,15 +1475,23 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
 
 // ★★★ RFC-0148 S4-0 — 마디마다 낸 답을 적는다(재는 도구 · `LOWENT_LIST_TYPES=1`). 같은 마디를 두 번 물으면 **아는 답이 남는다**
 //   (조건 자리의 입 막은 추론과 본 검사가 같은 마디를 본다).
-#define TC_NOTE_CAP (1u << 19)
+#define TC_NOTE_CAP (1u << 18)
 static struct { const void *nd; low_tcnote_t t; } *g_note;
 static int g_note_on = -1;
+static bool g_note_live;    // 이 단위의 검사가 답을 적었는가 — 하강층은 그때만 읽는다
+// ★★★ RFC-0148 S4-2 (2026-10-14 소유자 «검사기 답이 권위») — 답은 **늘** 적는다. 하강층이 그것을 권위로 읽는다(`low_ir.c` 의 `ir_value`).
+//   `LOWENT_LIST_TYPES=1` 은 이제 두 답을 한 줄로 **내는 것**만 켠다(`low_tc_list_types`).
 bool low_tc_notes_on(void) {
-    if (g_note_on < 0) {
-        g_note_on = getenv("LOWENT_LIST_TYPES") ? 1 : 0;
-        if (g_note_on && !(g_note = calloc(TC_NOTE_CAP, sizeof *g_note))) g_note_on = 0;
-    }
+    if (g_note_on < 0) g_note_on = (g_note = calloc(TC_NOTE_CAP, sizeof *g_note)) ? 1 : 0;
     return g_note_on == 1;
+}
+bool low_tc_notes_live(void) { return g_note_live && low_tc_notes_on(); }
+// 하강이 한 단위를 끝내면 답을 닫는다 — 검사 없이 하강하는 다음 단위가 옛 마디의 답을 읽지 않게(마디의 주소는 다시 쓰인다).
+void low_tc_notes_close(void) { g_note_live = false; }
+bool low_tc_list_types(void) { static int on = -1; if (on < 0) on = getenv("LOWENT_LIST_TYPES") ? 1 : 0; return on == 1; }
+static void tc_notes_reset(void) {
+    if (low_tc_notes_on()) memset(g_note, 0, TC_NOTE_CAP * sizeof *g_note);   // ★ 한 프로세스가 여러 단위를 검사한다(단위 시험) — 옛 마디의 주소가 새 마디와 겹친다
+    g_note_live = true;
 }
 static proven_u32 tc_note_slot(const void *nd) {
     proven_u64 h = (proven_u64)(uintptr_t)nd * 0x9E3779B97F4A7C15ull;
@@ -2459,6 +2467,7 @@ static void tc_brand_walk(tc_ctx_t *c, const low_cst_t *nd,
 }
 
 low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr) {
+    tc_notes_reset();
     low_typecheck_result_t out = { .ok = true };
     proven_result_array_t da = PROVEN_ARRAY_INIT(work, low_diag_t, 8);
     if (da.err != PROVEN_OK) { out.ok = false; return out; }

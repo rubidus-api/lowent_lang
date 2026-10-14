@@ -11,6 +11,7 @@
  * ★★★ 들여오는 28 은 대부분 **공용 어휘**다(`veq`·`is_atom`·`ir_emit`…). `low_ir_priv.h` 가
  *   어휘와 **진짜 결합**을 나누어 적는다 — 짧아야 하는 것은 결합이다.
  */
+#include "low_typecheck.h"
 #include "low_ir_priv.h"
 
 #include "low_hwm.h"
@@ -2365,7 +2366,14 @@ static ityp_t ir_scan_scalar_alias(const low_parse_result_t *pr, proven_u8str_vi
     return ITY_UNK;
 }
 
+static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr);
+// RFC-0148 S4-2 — 단위 하나를 낮춘 뒤 검사층의 답을 닫는다(다음 단위가 옛 마디의 답을 읽지 않게).
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
+    low_ir_t ir = low_ir_build_impl(work, pr);
+    low_tc_notes_close();
+    return ir;
+}
+static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr) {
     // ★★★ `build <mode> .` — **처리표를 켠다** (RFC-0008 §6.5).
     g_bmode = IR_BM_DEBUG; g_bdropped = 0;
     cert_reset();      // ★ 증명서는 **이 빌드의 것**이다 — 앞선 빌드의 것을 물려받지 않는다

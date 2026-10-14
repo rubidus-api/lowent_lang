@@ -64,5 +64,8 @@ do
   guard eq is_some v. . false . else return 92 . .
   let w option u64 segarena.at grid3. a. dir. mem. 3 . .
   guard is_some w. . else return 93 . .
+  rem 연 조각은 하나 — 0 번의 바닥은 있고 1 번은 없다(`segarena.walk_base` 를 부르는 시험이 없어 그 본문이 검사되지 않았다)
+  guard is_some segarena.walk_base grid3. a. dir. 0 . . else return 94 . .
+  guard is_none segarena.walk_base grid3. a. dir. 1 . . else return 95 . .
   return 2 .
 end .

@@ -145,6 +145,8 @@ do
   var p (pool.block_pool p_reuse) some_value po. . .
   let n usize pool.blocks p_reuse. p. . .
   guard ge n. 2 . else return 90 . .
+  rem 아직 아무것도 꺼내지 않았다 — 차례로 내준 블록은 0 이다(`pool.used` 를 부르는 시험이 없어 그 본문이 검사되지 않았다)
+  guard eq pool.used p_reuse. p. . 0 . else return 88 . .
 
   rem 블록이 n 개뿐인데 **n 의 열 배**를 받고 놓는다 — 자유 목록이 없으면 여기서 마른다.
   var i usize 0 .

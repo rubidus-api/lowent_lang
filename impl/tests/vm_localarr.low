@@ -13,7 +13,7 @@ export fn la_fill input n u64 . output u64 . do
   var buf lit array u8 8 _ . .
   var i usize 0 .
   while lt i. 8 . do
-    set idx buf. i. . narrow_wrap u8 mul i. n. . . .
+    set idx buf. i. . narrow_wrap u8 mul cast u64 i. . n. . . .
     set i. add i. 1 . .
   end .
   var s u64 0 .

@@ -36,7 +36,7 @@ fn parse_header
   access data sequential .
   errors too_short lt len data. . HEADER_LEN. . .
   errors bad_version ne idx data. 0 . VERSION. . .
-  errors too_long gt read_u16_be subslice data. 2 4 . . len data. . . .
+  errors too_long gt cast usize read_u16_be subslice data. 2 4 . . . len data. . . .
   tests parse_header_short parse_header_bad_version parse_header_ok .
 do
   guard ge len data. . HEADER_LEN. . else return error too_short . . .

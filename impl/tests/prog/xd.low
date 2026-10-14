@@ -52,7 +52,7 @@ do
     var d usize 0 .
     while lt d. 8 . do
       let sh usize mul sub 7 d. . 4 . .
-      set idx line. d. . hexit bit_and shr off. sh. . 15 . . .
+      set idx line. d. . hexit cast u64 bit_and shr off. sh. . 15 . . . .
       set d. add d. 1 . .
     end .
     set idx line. 8 . 32 .

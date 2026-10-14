@@ -53,5 +53,5 @@ do
   let r1 use rb. u64 take 40 . .
   let r2 use rb. u64 take 40 . .
   let lap usize send rb. used . .
-  return narrow u8 add add div x. 100 . add y. w. . . div lap. 100 . . . .
+  return narrow u8 add add div x. 100 . add y. w. . . div cast u64 lap. . 100 . . . .
 end .

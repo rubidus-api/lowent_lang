@@ -842,8 +842,8 @@ do
       set top_k. parse_u64 v. okv. . .
       guard and eq idx okv. 0 . 1 . gt top_k. 0 . . else return false . .
     end else if same_bytes o. "--where" . do
-      var eqat u64 len v. . .
-      repeat i u64 len v. . do
+      var eqat usize len v. . .
+      repeat i usize len v. . do
         if eq idx v. i. . '=' . do
           set eqat. i. .
           break .
@@ -853,10 +853,10 @@ do
       set wname. subslice v. 0 eqat. . .
       let wv slice u8 subslice v. add eqat. 1 . len v. . . .
       guard le len wv. . len wval. . . else return false . .
-      repeat j u64 len wv. . do
+      repeat j usize len wv. . do
         set idx wval. j. . idx wv. j. . .
       end .
-      set wval_len. len wv. . .
+      set wval_len. cast u64 len wv. . . .
     end else do
       return false .
     end .

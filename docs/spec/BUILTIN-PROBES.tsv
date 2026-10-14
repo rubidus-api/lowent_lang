@@ -396,6 +396,15 @@ note	a u64	u64	note ␤ return add a. 1 . .	1	CHECK E-NOTE-TERM
 bit_and	a usize, b u64	u64	return bit_and a. b. . .	1 1	CHECK E-TYPE-NOMINAL
 bit_or	a usize, b u64	u64	return bit_or a. b. . .	1 1	CHECK E-TYPE-NOMINAL
 bit_xor	a usize, b u64	u64	return bit_xor a. b. . .	1 1	CHECK E-TYPE-NOMINAL
+bit_xor	a u8, b u64	u64	return bit_xor a. b. . .	12 10	= 6
+bit_xor	a u8, b u64	u8	return bit_xor a. b. . .	12 10	CHECK E-TYPE-WIDTH
+bit_and	a u8, b i16	i16	return bit_and a. b. . .	12 10	= 8
+bit_or	a u64, b i8	u64	return bit_or a. b. . .	1 1	CHECK E-TYPE-SIGN
+bit_and	a u64, b i8	u64	return bit_and a. b. . .	1 1	CHECK E-TYPE-SIGN
+bit_xor	a u32, b i32	i32	return bit_xor a. b. . .	1 1	CHECK E-TYPE-SIGN
+count_ones	a u16	u8	return count_ones a. . .	1	CHECK E-TYPE-WIDTH
+min	a u8, b u16	u16	return min a. b. . .	3 300	= 3
+min	a u8, b u16	u8	return min a. b. . .	3 300	CHECK E-TYPE-WIDTH
 bit_and	a usize, b usize	usize	return bit_and a. b. . .	6 3	= 2
 shl	a usize, b u8	usize	return shl a. b. . .	1 4	= 16
 size_of		u64	return size_of u32 . .		CHECK E-TYPE-NOMINAL

@@ -87,7 +87,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
     let ido u64 add 10 mul k. 10 . . .
     let po option u64 hashmap.lookup bk. ido. . .
     guard is_some po. . else return 13 . .
-    guard growvec.add_byte g. narrow u8 mod soa.get_x xs. some_value po. . . 256 . . . else return 14 . .
+    guard growvec.add_byte g. narrow u8 mod soa.get_x xs. cast usize some_value po. . . . 256 . . . else return 14 . .
     set k. add k. 1 . .
   end .
   guard eq growvec.count_of g. . 4 . else return 15 . .

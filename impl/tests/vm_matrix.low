@@ -17,7 +17,7 @@ fn table output t matrix u32 2 3 4 .
 do
   repeat r usize 3 do
     repeat c usize 4 do
-      set idx t. r. c. . narrow u32 add mul r. 10 . c. . . .
+      set idx t. r. c. . cast u32 add mul r. 10 . c. . . .
     end .
   end .
   return t. .

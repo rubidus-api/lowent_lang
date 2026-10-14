@@ -916,7 +916,7 @@ flipped() = 7
   <strong><span class="tok-k">let</span></strong> ss segments <strong><span class="tok-t">u8</span></strong> view_segments back. d. . .
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> seg ss. <span class="tok-n">1</span> . .
   <em><span class="tok-c">rem 조각 수 2 에 10 을 곱하고, 둘째 조각의 1 번 바이트(원래 9 번 자리의 30)를 더한다</span></em>
-  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> add mul segs ss. . <span class="tok-n">10</span> . idx p. <span class="tok-n">1</span> . . . .
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> add mul segs ss. . <span class="tok-n">10</span> . cast <strong><span class="tok-t">usize</span></strong> idx p. <span class="tok-n">1</span> . . . . .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main pieces.low
 main() = 50

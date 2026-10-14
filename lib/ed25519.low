@@ -346,7 +346,7 @@ errors short_workspace . do
   guard ge len w. . 40 . else return error short_workspace . . .
   guard ge len h. . 64 . else return ok 0 . . .
   guard eq bigint.zero subslice w. 0 16 . 16 . 1 . else return ok 0 . . .
-  var i u64 64 .
+  var i usize 64 .
   var done u64 0 .
   while eq done. 0 . do
     set i. sub i. 1 . .

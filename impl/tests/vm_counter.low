@@ -18,7 +18,7 @@ module vm_counter .
 
 rem ✔ 셋 다 필요하다: 길이 상계 → n → 반복 수 → cnt. 하나라도 없으면 `add cnt 1` 이 남는다.
 export proc ones_count input s slice u8 . output u64 . effects none .
-  requires le len s. . 65536 . .
+  requires le len s. . 65535 . .
 do
   let n usize len s. . .
   var cnt u64 0 .

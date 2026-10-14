@@ -30,7 +30,7 @@ struct rec do
 end .
 
 fn mk input a u64 . output rec . do
-  return lit rec do tag 7 . w lit array i16 3 -1 narrow i16 widen i64 a. . . _ . . f lit array f64 2 1.5 _ . . b lit array bool 2 true false . . end . .
+  return lit rec do tag 7 . w lit array i16 3 -1 cast i16 a. . _ . . f lit array f64 2 1.5 _ . . b lit array bool 2 true false . . end . .
 end .
 
 proc bump input r mut rec . output u64 . effects none . do

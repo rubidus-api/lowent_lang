@@ -100,7 +100,7 @@ proc raw_refused input t cap tty . output u64 . effects io . do
 end .
 
 proc read_nothing input t cap tty . input dst mut slice u8 . output u64 . effects io . do
-  let n option u64 call_builtin tty_read t. dst. . .
-  if is_some n. . do return some_value n. . . end .
+  let n option usize call_builtin tty_read t. dst. . .
+  if is_some n. . do return cast u64 some_value n. . . . end .
   return 0 .
 end .

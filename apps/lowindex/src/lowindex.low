@@ -759,7 +759,7 @@ proc query_tokens input words slice u8 . input qbuf mut slice u8 . input qoff mu
     end .
     if gt cur. 0 . do
       guard and lt n. len qoff. . . lt n. len qlen. . . . else return n. . .
-      set idx qoff. n. . sub used. cur. . .
+      set idx qoff. n. . sub cast u64 used. . cur. . .
       set idx qlen. n. . cur. .
       set n. add n. 1 . .
       set cur. 0 .
@@ -856,7 +856,7 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
     guard lt d. nd. . else return 1 . .
     let dp u64 idx dpos. d. . .
     set idx hoff. hi2. . add dp. 8 . .
-    set idx hlen. hi2. . get_le b. dp. . .
+    set idx hlen. hi2. . get_le b. cast usize dp. . . .
   end .
   sort_by_name b. hoff. hlen. horder. htmp. nh. .
   var fill usize 0 .
@@ -871,7 +871,7 @@ proc do_search input fs cap file_system . input out cap io . input a cap args . 
     end .
     guard le add add fill. pl. . 1 . len obuf2. . . else return 3 . .
     repeat c3 usize pl. do
-      set idx obuf2. add fill. c3. . . idx b. add po. c3. . . .
+      set idx obuf2. add fill. c3. . . idx b. add cast usize po. . c3. . . .
     end .
     set idx obuf2. add fill. pl. . . '\n' .
     set fill. add add fill. pl. . 1 . .

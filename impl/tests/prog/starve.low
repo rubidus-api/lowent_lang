@@ -22,8 +22,8 @@ proc reader input k cap io . input buf mut slice u8 . output u64 . effects io . 
   rem ★ 앞 절반은 reactor 것, 뒤 절반이 읽기 자리 — **겹치지 않는 두 구간**이다.
   let r option u64 call_builtin reactor_new k. subslice buf. 0 32 . 1 . .
   guard is_some r. . else return 90 . .
-  let n option u64 call_builtin r_read k. some_value r. . 0 subslice buf. 32 64 . . .
-  if is_some n. . do return some_value n. . . end .
+  let n option usize call_builtin r_read k. some_value r. . 0 subslice buf. 32 64 . . .
+  if is_some n. . do return cast u64 some_value n. . . . end .
   return 0 .
 end .
 proc marker input k cap io . output usize . effects io . do

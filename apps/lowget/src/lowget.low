@@ -156,10 +156,10 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
         set fin_len. hsz. .
       end else if eq ht. 11 . do
         rem Certificate 메시지의 자리를 네 바이트로 남긴다 — 확인(check_chain)이 읽는다.
-        set idx buf. 56592 . narrow u8 shr mn. 24 . . .
-        set idx buf. 56593 . narrow u8 bit_and shr mn. 16 . 255 . . .
-        set idx buf. 56594 . narrow u8 bit_and shr mn. 8 . 255 . . .
-        set idx buf. 56595 . narrow u8 bit_and mn. 255 . . .
+        set idx buf. 56592 . cast u8 shr mn. 24 . . .
+        set idx buf. 56593 . cast u8 bit_and shr mn. 16 . 255 . . .
+        set idx buf. 56594 . cast u8 bit_and shr mn. 8 . 255 . . .
+        set idx buf. 56595 . cast u8 bit_and mn. 255 . . .
       end .
       set mn. add mn. hsz. . .
       set at. add at. hsz. . .
@@ -236,9 +236,9 @@ proc session input k cap net . input fs cap file_system . input hp cap heap . in
   guard is_some g. . else return 3 . .
   let buf mut slice u8 some_value g. . .
   repeat i usize 32 do
-    set idx buf. add 60000 i. . . narrow u8 bit_and add mul seed. 7 . add i. 1 . . 255 . . .
-    set idx buf. add 60032 i. . . narrow u8 bit_and add mul seed. 11 . add i. 41 . . 255 . . .
-    set idx buf. add 60064 i. . . narrow u8 bit_and add mul seed. 13 . add i. 91 . . 255 . . .
+    set idx buf. add 60000 i. . . narrow u8 bit_and add mul seed. 7 . cast u64 add i. 1 . . . 255 . . .
+    set idx buf. add 60032 i. . . narrow u8 bit_and add mul seed. 11 . cast u64 add i. 41 . . . 255 . . .
+    set idx buf. add 60064 i. . . narrow u8 bit_and add mul seed. 13 . cast u64 add i. 91 . . . 255 . . .
   end .
   rem x25519 비밀 열쇠 다듬기(RFC 7748 §5)
   set idx buf. 60000 . narrow u8 bit_and widen u64 idx buf. 60000 . . 248 . . .
@@ -400,7 +400,7 @@ rem 머리가 다 왔다 — 이 답의 모양(몸통 · 청크 · 끝)을 정�
 proc on_headers input out cap io . input hdr slice u8 . input st mut slice u64 . input loc mut slice u8 . output bool . effects io .
   requires ge len st. . 11 . .
 do
-  let h slice u8 subslice hdr. 0 min idx st. 1 . len hdr. . . . .
+  let h slice u8 subslice hdr. 0 min cast usize idx st. 1 . . len hdr. . . . .
   let status u64 status_of h. . .
   set idx st. 6 . status. .
   rem 따라갈 참이면 중간 3xx 의 본문은 내지 않는다(curl -L 과 같은 몸가짐).
@@ -418,8 +418,8 @@ do
       let le2 usize hdr_val_end h. lo. . .
       let ln usize sub le2. lo. . .
       if and gt ln. 0 . le add ln. 2 . len loc. . . . do
-        set idx loc. 0 . narrow u8 shr ln. 8 . . .
-        set idx loc. 1 . narrow u8 bit_and ln. 255 . . .
+        set idx loc. 0 . cast u8 shr ln. 8 . . .
+        set idx loc. 1 . cast u8 bit_and ln. 255 . . .
         copy subslice loc. 2 add 2 ln. . . subslice h. lo. le2. . .
         set idx st. 8 . cast u64 ln. . .
       end .
@@ -471,17 +471,17 @@ do
       end .
     end else if eq phase. 1 . do
       rem 길이를 아는/모르는 몸통. Content-Length 를 알면 거기서 멈춘다(안 그러면 안 닫는 서버에서 매달린다).
-      var nn u64 sub len p. . i. . .
+      var nn usize sub len p. . i. . .
       let rest u64 idx st. 7 . .
       if gt rest. 0 . do
-        set nn. min nn. sub rest. 1 . . .
+        set nn. min nn. cast usize sub rest. 1 . . . .
       end .
       if eq idx st. 10 . 1 . do
         guard put_all out. subslice p. i. add i. nn. . . . else return 0 . .
       end .
       set i. add i. nn. . .
       if gt rest. 0 . do
-        set idx st. 7 . sub rest. nn. . .
+        set idx st. 7 . sub rest. cast u64 nn. . . .
         if eq idx st. 7 . 1 . do
           set idx st. 0 . 3 .
         end .
@@ -493,7 +493,7 @@ do
         let c2 u8 idx p. i. . .
         set i. add i. 1 . .
         if eq c2. '\n' . do
-          let ll u64 min idx st. 4 . len line. . . .
+          let ll usize min cast usize idx st. 4 . . len line. . . .
           let sz u64 chunk_size subslice line. 0 ll. . . .
           if eq sz. 0 . do
             set idx st. 3 . 9 .
@@ -507,19 +507,19 @@ do
             set idx st. 3 . 1 .
           end .
         end else do
-          let lp u64 idx st. 4 . .
+          let lp usize cast usize idx st. 4 . . .
           guard lt lp. len line. . . else return 0 . .
           set idx line. lp. . c2. .
-          set idx st. 4 . add lp. 1 . .
+          set idx st. 4 . cast u64 add lp. 1 . . .
         end .
       end else if eq part. 1 . do
         rem 자료
-        let nc u64 min sub len p. . i. . idx st. 2 . . .
+        let nc usize min sub len p. . i. . cast usize idx st. 2 . . . .
         if eq idx st. 10 . 1 . do
           guard put_all out. subslice p. i. add i. nc. . . . else return 0 . .
         end .
         set i. add i. nc. . .
-        set idx st. 2 . sub idx st. 2 . nc. . .
+        set idx st. 2 . sub idx st. 2 . cast u64 nc. . . .
         if eq idx st. 2 . 0 . do
           set idx st. 3 . 2 .
           set idx st. 4 . 0 .

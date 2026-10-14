@@ -65,7 +65,7 @@ do
   while lt i. j. . do
     guard lt cast usize j. . len buf. . . else return . .
     let t u8 idx buf. cast usize i. . . .
-    set idx buf. cast usize i. . . idx buf. j. . .
+    set idx buf. cast usize i. . . idx buf. cast usize j. . . .
     set idx buf. cast usize j. . . t. .
     set i. add i. 1 . .
     set j. sub j. 1 . .

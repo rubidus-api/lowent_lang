@@ -39,7 +39,7 @@ fn rd input hot slice u32 . input i usize . input f usize . output u64 . do
 end .
 
 proc wr input hot mut slice u32 . input i usize . input f usize . input v usize . output void . effects none . do
-  set idx hot. add mul i. 8 . f. . . narrow u32 v. . .
+  set idx hot. add mul i. 8 . f. . . cast u32 v. . .
 end .
 
 rem ★ 저장소를 연다: 세대는 1 부터(0 = 한 번도 안 준 슬롯), 자유 목록은 `next` 칸에 **intrusive** 로.
@@ -151,7 +151,7 @@ do
   let root usize some_value so. . .
   unlink hot. root. .
   var top usize 0 .
-  set idx stk. 0 . narrow u32 root. . .
+  set idx stk. 0 . cast u32 root. . .
   set top. 1 .
   var marked u64 0 .
   while gt top. 0 . do
@@ -159,12 +159,12 @@ do
     let x usize cast usize idx stk. top. . . .
     wr hot. x. 6 3 .                                           rem alive | pending
     let pc usize cast usize idx meta. 2 . . .
-    set idx pend. pc. . narrow u32 x. . .
+    set idx pend. pc. . cast u32 x. . .
     set idx meta. 2 . cast u64 add pc. 1 . . .
     set marked. add marked. 1 . .
     var c usize cast usize rd hot. x. 1 . . .
     while gt c. 0 . do
-      set idx stk. top. . narrow u32 sub c. 1 . . .
+      set idx stk. top. . cast u32 sub c. 1 . . .
       set top. add top. 1 . .
       set c. cast usize rd hot. sub c. 1 . 4 . . .
     end .

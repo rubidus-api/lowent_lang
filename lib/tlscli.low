@@ -110,8 +110,8 @@ do
 
   set idx out. 0 . 1 .
   set idx out. 1 . 0 .
-  set idx out. 2 . narrow u8 shr body. 8 . . .
-  set idx out. 3 . narrow u8 bit_and body. 255 . . .
+  set idx out. 2 . cast u8 shr body. 8 . . .
+  set idx out. 3 . cast u8 bit_and body. 255 . . .
   set idx out. 4 . 3 .
   set idx out. 5 . 3 .
   var i usize 0 .
@@ -142,21 +142,21 @@ do
   set idx out. 75 . 19 .  set idx out. 76 . 1 .
   rem legacy_compression_methods: 01 00
   set idx out. 77 . 1 .   set idx out. 78 . 0 .
-  set idx out. 79 . narrow u8 shr extlen. 8 . . .
-  set idx out. 80 . narrow u8 bit_and extlen. 255 . . .
+  set idx out. 79 . cast u8 shr extlen. 8 . . .
+  set idx out. 80 . cast u8 bit_and extlen. 255 . . .
   var at usize 81 .
 
   rem ① server_name — 이름은 **바이트 그대로** 싣는다(A-라벨은 부르는 쪽이 만든다).
   let n1 usize add 5 len host. . . .
   let n2 usize add 3 len host. . . .
   set idx out. at. . 0 .              set idx out. add at. 1 . . 0 .
-  set idx out. add at. 2 . . narrow u8 shr n1. 8 . . .
-  set idx out. add at. 3 . . narrow u8 bit_and n1. 255 . . .
-  set idx out. add at. 4 . . narrow u8 shr n2. 8 . . .
-  set idx out. add at. 5 . . narrow u8 bit_and n2. 255 . . .
+  set idx out. add at. 2 . . cast u8 shr n1. 8 . . .
+  set idx out. add at. 3 . . cast u8 bit_and n1. 255 . . .
+  set idx out. add at. 4 . . cast u8 shr n2. 8 . . .
+  set idx out. add at. 5 . . cast u8 bit_and n2. 255 . . .
   set idx out. add at. 6 . . 0 .
-  set idx out. add at. 7 . . narrow u8 shr len host. . 8 . . .
-  set idx out. add at. 8 . . narrow u8 bit_and len host. . 255 . . .
+  set idx out. add at. 7 . . cast u8 shr len host. . 8 . . .
+  set idx out. add at. 8 . . cast u8 bit_and len host. . 255 . . .
   var h usize 0 .
   while lt h. len host. . . do
     set idx out. add add at. 9 . h. . . idx host. h. . .

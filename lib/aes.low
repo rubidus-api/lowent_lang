@@ -123,7 +123,7 @@ rem 라운드 키를 더한다(XOR).
 proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
   var i usize 0 .
   while lt i. 16 . do
-    set idx st. i. . cast u8 bit_xor cast u64 idx st. i. . . cast u64 idx rk. add mul r. 16 . i. . . . . . .
+    set idx st. i. . cast u8 bit_xor cast u64 idx st. i. . . cast u64 idx rk. add mul cast usize r. . 16 . i. . . . . . .
     set i. add i. 1 . .
   end .
   return 1 .

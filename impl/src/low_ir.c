@@ -570,7 +570,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 break;
             case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ:
                 if (!c->tstk_bad) a = ity_meta(ops[0]);   // 폭은 **입력**의 것이다
-                res = w == IRW_POPCNT ? ITY_UNK : ops[0];  // `leading_zeros` · `trailing_zeros` 의 결과는 `a` 의 타입(시그니처 표). 개수 세기는 표가 타입을 안 적었다
+                res = ops[0];   // 셋 다 결과는 `a` 의 타입(시그니처 표 · `count_ones` 는 2026-10-14 소유자 «둘 다 피연산자 타입»)
                 break;
             // ★★★ **abs 는 선언 폭을 알아야 한다** — abs(폭-MIN) = +2^(N-1) 은 그 폭에 안 맞는다
             //   (사용자 결정 2026-07-23: div 와 함께 트랩). 그런데 UNM 의 `a` 는 **op 선택자**(0~6)라
@@ -2877,6 +2877,8 @@ static ityp_t ir_note_ity(const low_tcnote_t *t) {
     if (t->k == 2 && t->bits && !t->lit) return (ityp_t){ true, t->bits, false, true, false, 0, 0 };
     if (t->k == 4 && t->ebits) return (ityp_t){ true, t->ebits, t->esign, t->eflt, false, 0, 0 };
     if (t->k == 5 && t->pbits && (t->pk == 1 || t->pk == 2)) return (ityp_t){ true, t->pbits, t->psign, t->pk == 2, false, 0, 0 };
+    if (t->k == 6 && t->ebits) return (ityp_t){ true, t->ebits, t->esign, t->eflt, false, 0, 0 };   // `segments T` — 꺼내면 나오는 원소
+    if (t->k == 5 && t->pk == 4 && t->ebits) return (ityp_t){ true, t->ebits, t->esign, t->eflt, false, 0, 0 };
     return ITY_UNK;
 }
  void ir_value(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {
@@ -5156,6 +5158,8 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
     else if (t.k == 1) snprintf(tb, sizeof tb, t.lit ? "lit" : "int%u%c%s", (unsigned)t.bits, t.sign ? 's' : 'u', t.nominal == 1 ? "z" : t.nominal ? "n" : "");
     else if (t.k == 2) snprintf(tb, sizeof tb, t.lit ? "flit" : "float%u", (unsigned)t.bits);
     else if (t.k == 4) snprintf(tb, sizeof tb, "slice:%s%u%c%s", t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
+    else if (t.k == 6 && t.ebits) snprintf(tb, sizeof tb, "segs:%s%u%c%s", t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
+    else if (t.k == 5 && t.pk == 4) snprintf(tb, sizeof tb, "wrap%u:slice:%s%u%c%s", (unsigned)t.wrap, t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
     else if (t.k == 5) snprintf(tb, sizeof tb, "wrap%u:%s%u%c%s", (unsigned)t.wrap, K[t.pk & 7], (unsigned)t.pbits, t.psign ? 's' : 'u', t.pnom == 1 ? "z" : "");
     else snprintf(tb, sizeof tb, "%s", K[t.k & 7]);
     ityp_t it = c->tstk[c->tsp - 1];

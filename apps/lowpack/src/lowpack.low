@@ -554,9 +554,9 @@ proc do_create input fs cap file_system . input out cap io . input a cap args . 
             return narrow u8 c3. . .
           end .
           guard and lt np. max_pend. . and lt np. len poffs. . . le add pused. len cp. . . len pend. . . . . else return 3 . .
-          set idx poffs. np. . pused. .
-          set idx plens. np. . len cp. . .
-          repeat z u64 len cp. . do
+          set idx poffs. np. . cast u64 pused. . .
+          set idx plens. np. . cast u64 len cp. . . .
+          repeat z usize len cp. . do
             set idx pend. add pused. z. . . idx cp. z. . .
           end .
           set pused. add pused. len cp. . . .

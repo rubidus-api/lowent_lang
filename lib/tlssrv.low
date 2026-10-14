@@ -380,8 +380,8 @@ do
 
   set idx out. 0 . 2 .
   set idx out. 1 . 0 .
-  set idx out. 2 . narrow u8 shr body. 8 . . .
-  set idx out. 3 . narrow u8 bit_and body. 255 . . .
+  set idx out. 2 . cast u8 shr body. 8 . . .
+  set idx out. 3 . cast u8 bit_and body. 255 . . .
   set idx out. 4 . 3 .
   set idx out. 5 . 3 .
   var i usize 0 .
@@ -399,8 +399,8 @@ do
   set idx out. at. . narrow u8 shr suite. 8 . . .
   set idx out. add at. 1 . . narrow u8 bit_and suite. 255 . . .
   set idx out. add at. 2 . . 0 .                     rem legacy_compression_method
-  set idx out. add at. 3 . . narrow u8 shr extlen. 8 . . .
-  set idx out. add at. 4 . . narrow u8 bit_and extlen. 255 . . .
+  set idx out. add at. 3 . . cast u8 shr extlen. 8 . . .
+  set idx out. add at. 4 . . cast u8 bit_and extlen. 255 . . .
   set at. add at. 5 . .
 
   rem key_share: 0033 0024 001d 0020 <키>
@@ -428,9 +428,9 @@ rem   ☞ 그래서 틀을 한 번만 적는다 — 네 곳에 같은 산술을 
 proc put_hdr input kind u64 . input body usize . input out mut slice u8 . output usize . effects none . do
   guard ge len out. . add body. 4 . . else return 0 . .
   set idx out. 0 . narrow u8 kind. . .
-  set idx out. 1 . narrow u8 bit_and shr body. 16 . 255 . . .
-  set idx out. 2 . narrow u8 bit_and shr body. 8 . 255 . . .
-  set idx out. 3 . narrow u8 bit_and body. 255 . . .
+  set idx out. 1 . cast u8 bit_and shr body. 16 . 255 . . .
+  set idx out. 2 . cast u8 bit_and shr body. 8 . 255 . . .
+  set idx out. 3 . cast u8 bit_and body. 255 . . .
   return add body. 4 . .
 end .
 
@@ -454,8 +454,8 @@ export proc build_ee input exts slice u8 . input out mut slice u8 . output usize
   guard le len exts. . 65535 . else return 0 . .
   let body usize add 2 len exts. . . .
   guard eq put_hdr 8 body. out. . add body. 4 . . else return 0 . .
-  set idx out. 4 . narrow u8 bit_and shr len exts. . 8 . 255 . . .
-  set idx out. 5 . narrow u8 bit_and len exts. . 255 . . .
+  set idx out. 4 . cast u8 bit_and shr len exts. . 8 . 255 . . .
+  set idx out. 5 . cast u8 bit_and len exts. . 255 . . .
   guard eq put_bytes exts. 6 out. . add 6 len exts. . . . else return 0 . .
   return add body. 4 . .
 end .
@@ -469,12 +469,12 @@ export proc build_cert input der slice u8 . input out mut slice u8 . output usiz
   let body usize add add 1 3 . one. . .
   guard eq put_hdr 11 body. out. . add body. 4 . . else return 0 . .
   set idx out. 4 . 0 .                                rem certificate_request_context 없음
-  set idx out. 5 . narrow u8 bit_and shr one. 16 . 255 . . .
-  set idx out. 6 . narrow u8 bit_and shr one. 8 . 255 . . .
-  set idx out. 7 . narrow u8 bit_and one. 255 . . .
-  set idx out. 8 . narrow u8 bit_and shr len der. . 16 . 255 . . .
-  set idx out. 9 . narrow u8 bit_and shr len der. . 8 . 255 . . .
-  set idx out. 10 . narrow u8 bit_and len der. . 255 . . .
+  set idx out. 5 . cast u8 bit_and shr one. 16 . 255 . . .
+  set idx out. 6 . cast u8 bit_and shr one. 8 . 255 . . .
+  set idx out. 7 . cast u8 bit_and one. 255 . . .
+  set idx out. 8 . cast u8 bit_and shr len der. . 16 . 255 . . .
+  set idx out. 9 . cast u8 bit_and shr len der. . 8 . 255 . . .
+  set idx out. 10 . cast u8 bit_and len der. . 255 . . .
   guard eq put_bytes der. 11 out. . add 11 len der. . . . else return 0 . .
   set idx out. add 11 len der. . . . 0 .
   set idx out. add 12 len der. . . . 0 .               rem 확장 없음
@@ -512,8 +512,8 @@ export proc build_cv input alg u64 . input sig slice u8 . input out mut slice u8
   guard eq put_hdr 15 body. out. . add body. 4 . . else return 0 . .
   set idx out. 4 . narrow u8 bit_and shr alg. 8 . 255 . . .
   set idx out. 5 . narrow u8 bit_and alg. 255 . . .
-  set idx out. 6 . narrow u8 bit_and shr len sig. . 8 . 255 . . .
-  set idx out. 7 . narrow u8 bit_and len sig. . 255 . . .
+  set idx out. 6 . cast u8 bit_and shr len sig. . 8 . 255 . . .
+  set idx out. 7 . cast u8 bit_and len sig. . 255 . . .
   guard eq put_bytes sig. 8 out. . add 8 len sig. . . . else return 0 . .
   return add body. 4 . .
 end .

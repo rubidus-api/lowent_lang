@@ -207,7 +207,7 @@ do
     set idx tb. 4 . 1 .
     return false .
   end .
-  set idx alen. t. . sub w. idx tb. 1 . . .
+  set idx alen. t. . sub cast u64 w. . idx tb. 1 . . .
   set idx tb. 1 . cast u64 w. . .
   set idx tb. 0 . cast u64 add t. 1 . . .
   return true .
@@ -350,11 +350,11 @@ do
     let n usize some_value r. . .
     guard gt n. 0 . else return false . .
     let have usize cast usize idx kept. t. . . .
-    let room u64 sub len held. . min have. len held. . . . .
+    let room usize sub len held. . min have. len held. . . . .
     let take usize min room. n. . .
     copy subslice held. have. add have. take. . . subslice scratch. 0 take. . .
     set idx kept. t. . cast u64 add have. take. . . .
-    set idx dropped. t. . add idx dropped. t. . sub n. take. . . .
+    set idx dropped. t. . add idx dropped. t. . cast u64 sub n. take. . . . .
   end .
   return false .
 end .
@@ -474,7 +474,7 @@ do
         set stopping. true .
       end .
       let ko usize mul t2. keep_bytes. . .
-      report out. subslice src. cast usize idx noff. t2. . . cast usize add idx noff. t2. . idx nlen. t2. . . . . 1 status. subslice held. ko. add ko. min idx kept. t2. . keep_bytes. . . . idx dropped. t2. . line. .
+      report out. subslice src. cast usize idx noff. t2. . . cast usize add idx noff. t2. . idx nlen. t2. . . . . 1 status. subslice held. ko. add ko. min cast usize idx kept. t2. . . keep_bytes. . . . idx dropped. t2. . line. .
     end .
     rem ③ 끝났는가
     if eq running. 0 . do

@@ -970,7 +970,7 @@ grid(5) = 2443
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">repeat</span></strong> r <strong><span class="tok-t">usize</span></strong> dim t. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">repeat</span></strong> c <strong><span class="tok-t">usize</span></strong> dim t. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> idx t. r. c. . narrow <strong><span class="tok-t">u32</span></strong> add mul r. <span class="tok-n">10</span> . c. . . .
+      <strong><span class="tok-k">set</span></strong> idx t. r. c. . cast <strong><span class="tok-t">u32</span></strong> add mul r. <span class="tok-n">10</span> . c. . . .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> t. .

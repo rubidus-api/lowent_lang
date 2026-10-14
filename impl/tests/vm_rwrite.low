@@ -25,9 +25,9 @@ rem ✔ stdout 에 쓴다 — 낸 수가 **보낸 바이트 수**여야 한다.
 export proc write_out_bytes input k cap io . input buf mut slice u8 . output u64 . effects io . do
   let r option u64 call_builtin reactor_new k. subslice buf. 0 32 . 1 . .
   guard is_some r. . else return 90 . .
-  let n option u64 call_builtin r_write k. some_value r. . 1 "abcdefghij" . .
+  let n option usize call_builtin r_write k. some_value r. . 1 "abcdefghij" . .
   guard is_some n. . else return 91 . .
-  return some_value n. . .
+  return cast u64 some_value n. . . .
 end .
 
 rem ✔ 빈 버퍼를 쓰면 **0** 이다 — 실패가 아니다.
@@ -36,9 +36,9 @@ rem     빈 쓰기마다 재시도한다.
 export proc empty_write input k cap io . input buf mut slice u8 . output u64 . effects io . do
   let r option u64 call_builtin reactor_new k. subslice buf. 0 32 . 1 . .
   guard is_some r. . else return 90 . .
-  let n option u64 call_builtin r_write k. some_value r. . 2 subslice buf. 0 0 . . .
+  let n option usize call_builtin r_write k. some_value r. . 2 subslice buf. 0 0 . . .
   guard is_some n. . else return 91 . .
-  return some_value n. . .
+  return cast u64 some_value n. . . .
 end .
 
 rem ★ `cap io` 를 받으므로 `--run` 으로는 못 부른다 — **entry 의 종료 코드**로 잰다.

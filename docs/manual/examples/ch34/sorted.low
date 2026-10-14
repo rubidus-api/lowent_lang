@@ -19,5 +19,5 @@ do
   guard is_some at. . else return 254 . .
   let missing option usize searchlib.bsearch xs. 20 . .
   guard is_none missing. . else return 253 . .
-  return narrow u8 add mul idx xs. 0 . 10 . some_value at. . . . .
+  return narrow u8 add mul idx xs. 0 . 10 . cast u64 some_value at. . . . . .
 end .

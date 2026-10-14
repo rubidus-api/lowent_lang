@@ -175,7 +175,7 @@ rem   ☞ 그 공백과 문맥 문자열이 없으면 이 서명이 **다른 문
 export proc cv_content_shape input w mut slice u8 . output u64 . effects none . do
   guard ge len w. . 256 . else return 0 . .
   var z usize 0 .
-  while lt z. 32 . do  set idx w. z. . narrow u8 z. . .  set z. add z. 1 . . end .
+  while lt z. 32 . do  set idx w. z. . cast u8 z. . .  set z. add z. 1 . . end .
   let n u64 tlssrv.cv_content subslice w. 0 32 . subslice w. 64 200 . . .
   guard eq n. 130 . else return 0 . .
   var acc u64 0 .

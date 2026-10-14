@@ -12,7 +12,7 @@ fn hdr_kind
   input b slice u8 .
   output u64 .
 do
-  let o wire_header try_view wire_header b. . .
+  let o option wire_header try_view wire_header b. . .
   guard is_some o. . else return 999 . .
   let h wire_header some_value o. . .
   return field h. kind . .

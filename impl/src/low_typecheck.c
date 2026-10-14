@@ -415,7 +415,11 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual);
 static proven_u8str_view_t g_unk_head;   // ★ RFC-0148 S5 — 마지막으로 «모름» 을 낸 식의 머리 낱말(진단이 무엇을 모르는지 말하게)
 // ★★★ RFC-0148 S5 — **타입이 적힌 자리에 타입을 모르는 값이 오면 거절한다**(D2). 측정 단계: `LOWENT_S5=1` 일 때만 문다.
 static bool tc_s5_on(void) { return true; }   // 2026-10-14 — 켰다(D2 «수가 0 이 된 뒤»): 코퍼스에서 정상 글의 «모름» 이 0 이 됐다
+static bool tc_is_declared_tname(proven_u8str_view_t v);
+static proven_u8str_view_t tc_canon_name(proven_u8str_view_t v);
 static bool tc_decl_concrete(ty_t d) {
+    // 선언된 이름 타입(구조체 · 열거 · 액터 · newtype)도 구체다 — 틀의 타입 인자(`t`)는 선언된 적이 없어 빠진다
+    if (d.k == TK_NAMED) return d.nname.size && tc_is_declared_tname(tc_canon_name(d.nname));   // 별칭은 풀어서 — `type ten_bits bits 10 .` 은 이름 타입이 아니다
     return (d.k == TK_INT && (d.bits || d.nominal)) || d.k == TK_FLOAT || d.k == TK_BOOL || d.k == TK_SLICE || d.k == TK_WRAPPED ||
            d.k == TK_VEC || d.k == TK_MASK;
 }
@@ -443,12 +447,12 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
     if (tc_is_tc(decl) || tc_is_tc(actual)) {
         if (tc_is_tc(decl) && tc_is_tc(actual)) {
             if (!proven_u8str_view_eq(decl.nname, actual.nname)) return TC_KIND;
-            if (decl.ebits && actual.ebits) {
-                if (decl.enom != actual.enom) return TC_NOMINAL;
-                if (decl.eflt != actual.eflt || decl.ebits != actual.ebits) return TC_WIDTH;
-                if (decl.esign != actual.esign) return TC_SIGN;
+            if (decl.pbits && actual.pbits) {
+                if (decl.pnom != actual.pnom) return TC_NOMINAL;
+                if (decl.pk != actual.pk || decl.pbits != actual.pbits) return TC_WIDTH;
+                if (decl.psign != actual.psign) return TC_SIGN;
             }
-            if ((decl.ebits && actual.pname.size) || (decl.pname.size && actual.ebits)) return TC_KIND;
+            if ((decl.pbits && actual.pname.size) || (decl.pname.size && actual.pbits)) return TC_KIND;
             return TC_OK;
         }
         ty_t o = tc_is_tc(decl) ? actual : decl;
@@ -989,6 +993,15 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
         ty_t t = tc_prefix2(c, k, &pos, start + n, env, nenv);
         if (pos == start + n) return t;
     }
+    // [lit, (<구조체> 몸)] 꼴의 줄(파이프 `with` 의 값 따위)
+    if (n == 2 && k[start]->kind == LOW_CST_ATOM && k[start]->tok.kw == LOW_KW_LIT) {
+        const low_cst_t *r = k[start + 1];
+        while (r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+        if (r->kind == LOW_CST_FORM && r->nkids >= 2 && r->kids[0]->kind == LOW_CST_ATOM && r->kids[r->nkids - 1]->kind == LOW_CST_BLOCK) {
+            ty_t t = ty_of_word(r->kids[0]->tok.lex);
+            if (t.k == TK_NAMED) { t.nname = r->kids[0]->tok.lex; t.lit = true; return t; }
+        }
+    }
     // 낱말 줄로 온 구조체 리터럴 [lit, <구조체>, 몸] — 폼으로 온 것과 같다(RFC-0148 S5)
     if (n >= 3 && k[start]->kind == LOW_CST_ATOM && k[start]->tok.kw == LOW_KW_LIT && k[start + 1]->kind == LOW_CST_ATOM &&
         k[start + n - 1]->kind == LOW_CST_BLOCK && !veq(k[start + 1]->tok.lex, "array") && !veq(k[start + 1]->tok.lex, "slice") &&
@@ -1280,8 +1293,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t t = tk(TK_NAMED); t.nname = (proven_u8str_view_t){ (const proven_byte_t *)"task", 4 };
                 if (ss) {
                     ty_t r = ss->ret;
-                    if ((r.k == TK_INT || r.k == TK_FLOAT) && r.bits) { t.ebits = r.bits; t.esign = r.sign; t.eflt = r.k == TK_FLOAT; t.enom = r.nominal == 1; }
-                    else if (r.k == TK_BOOL) t.ipk = TK_BOOL;
+                    if ((r.k == TK_INT || r.k == TK_FLOAT) && r.bits) { t.pk = (proven_u8)r.k; t.pbits = r.bits; t.psign = r.sign; t.pnom = r.nominal; }
+                    else if (r.k == TK_BOOL) t.pk = TK_BOOL;
                     else if (r.k == TK_NAMED && r.nname.size) t.pname = r.nname;
                 }
                 return t;
@@ -1293,8 +1306,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     tc_emit(c, "E-TYPE-KIND", want_task ? "`await` takes a `task T` — the handle `spawn` gives (RFC-0148 S5)"
                                                         : "`chrecv` takes a `chan T` — the channel `channel T` makes (RFC-0148 S5)", k[start]->line);
                 if (tc_is_tc(h)) {
-                    if (h.ebits) { ty_t e = h.eflt ? (ty_t){ .k = TK_FLOAT, .bits = h.ebits } : tk_int(h.ebits, h.esign); e.nominal = h.enom; return e; }
-                    if (h.ipk == TK_BOOL) return tk(TK_BOOL);
+                    if (h.pbits) { ty_t e = h.pk == TK_FLOAT ? (ty_t){ .k = TK_FLOAT, .bits = h.pbits } : tk_int(h.pbits, h.psign); e.nominal = h.pnom; return e; }
+                    if (h.pk == TK_BOOL) return tk(TK_BOOL);
                     if (h.pname.size) { ty_t e = tk(TK_NAMED); e.nname = h.pname; return e; }
                 }
                 return tk(TK_UNKNOWN);
@@ -1303,8 +1316,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t t = tk(TK_NAMED); t.nname = (proven_u8str_view_t){ (const proven_byte_t *)"chan", 4 };
                 if (n >= 2 && k[start + 1]->kind == LOW_CST_ATOM) {
                     ty_t e = ty_of_word(tc_canon_name(k[start + 1]->tok.lex));
-                    if ((e.k == TK_INT || e.k == TK_FLOAT) && e.bits) { t.ebits = e.bits; t.esign = e.sign; t.eflt = e.k == TK_FLOAT; t.enom = e.nominal == 1; }
-                    else if (e.k == TK_BOOL) t.ipk = TK_BOOL;
+                    if ((e.k == TK_INT || e.k == TK_FLOAT) && e.bits) { t.pk = (proven_u8)e.k; t.pbits = e.bits; t.psign = e.sign; t.pnom = e.nominal; }
+                    else if (e.k == TK_BOOL) t.pk = TK_BOOL;
                     else if (e.k == TK_NAMED) t.pname = k[start + 1]->tok.lex;
                 }
                 return t;
@@ -1313,8 +1326,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t h = tc_infer(c, k[start + 1], env, nenv), v = tc_infer(c, k[start + 2], env, nenv);
                 if (h.k != TK_UNKNOWN && !(tc_is_tc(h) && veq(h.nname, "chan")))
                     tc_emit(c, "E-TYPE-KIND", "`chsend` takes a `chan T` — the channel `channel T` makes (RFC-0148 S5)", k[start]->line);
-                if (tc_is_tc(h) && h.ebits) {
-                    ty_t e = h.eflt ? (ty_t){ .k = TK_FLOAT, .bits = h.ebits } : tk_int(h.ebits, h.esign); e.nominal = h.enom;
+                if (tc_is_tc(h) && h.pbits) {
+                    ty_t e = h.pk == TK_FLOAT ? (ty_t){ .k = TK_FLOAT, .bits = h.pbits } : tk_int(h.pbits, h.psign); e.nominal = h.pnom;
                     tc_flag(c, compat(e, v), "E-TYPE-ARG", "the value sent does not have the channel's element type", k[start]->line);
                 }
                 return tk_int(64, false);
@@ -2293,12 +2306,18 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
             }
             core.targ = any ? (h ? h : 1u) : 0u;
             // ★ RFC-0148 S4 (2026-10-14) — `segments T` 는 조각들의 뷰다. 꺼내면 나오는 원소(`T`)를 e* 칸에 싣는다 — 하강층의 그림자가 싣는 것과 같다.
-            if ((veq(w, "segments") || veq(w, "stack") || veq(w, "task") || veq(w, "chan")) && i + 1 < end && i + 1 < f->nkids && f->kids[i + 1]->kind == LOW_CST_ATOM) {
+            if ((veq(w, "segments") || veq(w, "stack")) && i + 1 < end && i + 1 < f->nkids && f->kids[i + 1]->kind == LOW_CST_ATOM) {
                 ty_t e = ty_of_word(tc_canon_name(f->kids[i + 1]->tok.lex));
                 if ((e.k == TK_INT || e.k == TK_FLOAT) && e.bits) { core.ebits = e.bits; core.esign = e.sign; core.eflt = (e.k == TK_FLOAT); core.enom = e.nominal == 1 ? 1 : 0; }
-                else if (e.k == TK_BOOL) core.ipk = (proven_u8)TK_BOOL;
+            }
+            // `task T` · `chan T` — 결과 · 원소의 타입은 **알맹이 칸**(pk · pbits)에 싣는다. e* 칸은 «꺼내면 나오는 것» 이라 하강층이 그 값 자체의
+            //   폭으로 읽는다 — 핸들 번호가 `u8` 폭 검사를 받게 된다.
+            if ((veq(w, "task") || veq(w, "chan")) && i + 1 < end && i + 1 < f->nkids && f->kids[i + 1]->kind == LOW_CST_ATOM) {
+                ty_t e = ty_of_word(tc_canon_name(f->kids[i + 1]->tok.lex));
+                if ((e.k == TK_INT || e.k == TK_FLOAT) && e.bits) { core.pk = (proven_u8)e.k; core.pbits = e.bits; core.psign = e.sign; core.pnom = e.nominal; }
+                else if (e.k == TK_BOOL) core.pk = (proven_u8)TK_BOOL;
                 else if (e.k == TK_NAMED) core.pname = f->kids[i + 1]->tok.lex;
-                if (veq(w, "task") || veq(w, "chan")) core.targ = 0u;   // 원소는 e* 칸으로 맞댄다(아래 compat)
+                core.targ = 0u;   // 원소는 알맹이 칸으로 맞댄다(아래 compat)
             }
         }
         // ★★★ **감싸개도 알맹이의 이름을 나른다** (RFC-0104 §8-2 · 2026-08-28).

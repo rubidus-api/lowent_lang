@@ -15,7 +15,7 @@ end .
 
 rem a view of a slice that starts mid-buffer breaks the contract → none / panic.
 fn tv_at
-  input off u64 .
+  input off usize .
   input b slice u8 .
   output u64 .
 do

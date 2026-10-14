@@ -5130,6 +5130,7 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
     proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
     while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
     const low_cst_t *h = (nd->kind == LOW_CST_FORM && nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) ? nd->kids[0] : nd;
+    if (h != nd && nd->nkids >= 2 && veq(h->tok.lex, "call_builtin") && nd->kids[1]->kind == LOW_CST_ATOM) h = nd->kids[1];   // 잎의 이름을 낸다
     const char *hk = nd->kind == LOW_CST_ATOM ? (nd->tok.kind == LOW_TOK_NUMBER ? "<num>" : nd->tok.kind == LOW_TOK_STRING ? "<str>" : "<name>") : NULL;
     fprintf(stderr, "TYPES\t%.*s\t%u\t%.*s\t%s\t%s\n", (int)dn.size, (const char *)dn.ptr, (unsigned)(h->tok.line ? h->tok.line : nd->line),
             hk ? (int)strlen(hk) : (int)(h->kind == LOW_CST_ATOM ? h->tok.lex.size : 1), hk ? hk : (h->kind == LOW_CST_ATOM ? (const char *)h->tok.lex.ptr : "("), tb, ib);

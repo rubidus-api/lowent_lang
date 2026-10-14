@@ -871,6 +871,19 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
                 return tk_int(0, false);
             }
+            // ★★★ RFC-0148 S4 — 시그니처 표가 이미 답한 낱말들: `leading_zeros` · `trailing_zeros` · `byte_swap` 의 결과는 **`a` 의 타입**이고
+            //   `bit_cast T a` 의 결과는 `T` 다(§6.3.8). 검사층은 앞의 셋을 «폭 모르는 정수» 로, `bit_cast` 는 «모름» 으로 답하고 있었다.
+            if (!sig_find(c, h2) && n == 2 && (veq(h2, "leading_zeros") || veq(h2, "trailing_zeros") || veq(h2, "byte_swap"))) {
+                ty_t a = tc_infer(c, k[start + 1], env, nenv);
+                if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
+                return tk_int(0, false);
+            }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "bit_cast") && k[start + 1]->kind == LOW_CST_ATOM) {
+                ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
+                (void)tc_infer(c, k[start + 2], env, nenv);
+                if ((tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits) return tgt;
+                return tk(TK_UNKNOWN);
+            }
             if (!sig_find(c, h2) && n == 2 && veq(h2, "bit_not")) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
@@ -1365,6 +1378,15 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             }
             return s->ret;
         }
+        // ★★★ RFC-0148 S4 — **모르는 머리의 피연산자도 본다.** 검사층이 답을 모르는 낱말(잎 낱말 · `cstr_of` …)이면 그 안쪽 식은 아무도
+        //   보지 않았다: `call_builtin hash_bytes subslice d. i. j. . .` 의 `subslice` 가 `u64` 첨자를 받아도 말이 없었다. 결과는 여전히
+        //   «모름» 이지만 안쪽의 규칙은 선다. 블록(`do … end`)은 문장이라 여기서 보지 않는다.
+        //   ★ 머리가 **문장의 낱말**(`if` · `guard` · `while` …)이면 건드리지 않는다 — 조건 자리의 타입 검사는 따로 정할 일이다
+        //     (RFC-0092 의 입 막은 추론 · 위 `tc_ctx_t.quiet`). 처음엔 가르지 않아 조건 속의 섞임이 한꺼번에 울었다(시험 글 6).
+        if (k[start]->tok.kw == LOW_KW_NONE || veq(k[start]->tok.lex, "call_builtin"))
+            for (proven_size_t i = 1; i < n; i++)
+                if (k[start + i]->kind == LOW_CST_GROUP || k[start + i]->kind == LOW_CST_FORM || k[start + i]->kind == LOW_CST_ATOM)
+                    (void)tc_infer(c, k[start + i], env, nenv);
     }
     return tk(TK_UNKNOWN);
 }

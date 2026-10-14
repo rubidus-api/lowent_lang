@@ -128,6 +128,7 @@ typedef struct {
     //   `fty` 는 이미 해석된 타입이라 *"어느 struct 를 가리키는가"* 를 되물을 수 없다.
     const low_cst_t    *fform[TC_MAXF];
     proven_size_t       nf;
+    proven_u8str_view_t mod;   // ★ RFC-0148 S4 — 선언한 모듈. 같은 이름의 구조체가 여러 모듈에 선다(`file.handle` · `pool.handle`)
 } tc_struct_t;
 
 typedef struct {
@@ -856,6 +857,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 if (a.k == TK_INT && b.k == TK_INT) {
                     if (a.lit && !b.lit) { return b; }
                     if (b.lit && !a.lit) { return a; }
+                    // RFC-0148 S4 — 한쪽의 폭을 모르면(무타입 리터럴을 민 `shl 1 n.` 따위) 아는 쪽의 타입이다 — 하강층의 join 과 같다
+                    if (!a.bits && b.bits && !b.lit) { b.has_rng = false; return b; }
+                    if (!b.bits && a.bits && !a.lit) { a.has_rng = false; return a; }
                     if (!a.lit && !b.lit && a.bits && b.bits) {
                         if (a.nominal != b.nominal && (a.nominal == 1 || b.nominal == 1)) {
                             return tc_binop(c, a, b, false, k[start]->line);
@@ -1527,6 +1531,9 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         proven_u8str_view_t w = f->kids[i]->tok.lex;
         if (veq(w, "mut")) { mut_seen = true; continue; }
         if (veq(w, "unsafe_ptr")) continue;   // ★ 생 포인터 한정자 — 알맹이는 그 뒤 구조체 타입이다
+        // ★ RFC-0148 S4 (2026-10-14) — `owned` 도 한정자다(소유는 소유 검사가 본다). 전에는 `owned` 를 **타입 이름**으로 읽어
+        //   `input h owned handle .` 의 타입이 «`owned` 라는 이름» 이 됐다 — `field h. fd .` 가 칸을 못 찾았고 구조체 대조도 비었다.
+        if (veq(w, "owned")) continue;
         if (veq(w, "ref"))     { t.rk = 1; continue; }
         if (veq(w, "mut_ref")) { t.rk = 2; continue; }
         // ★ `slice <T>` — **원소 타입이 타입의 일부다.**
@@ -1812,8 +1819,28 @@ static bool tname_known(tc_ctx_t *c, proven_u8str_view_t v) {
     return false;
 }
 static const tc_struct_t *struct_find(tc_ctx_t *c, proven_u8str_view_t name) {
+    // ★★★ RFC-0148 S4 (2026-10-14) — **이름이 같은 구조체가 여러 모듈에 있다.** 전에는 첫 일치를 집어, `file.close` 의 `field h. fd .` 가
+    //   `pool.handle`(칸 `fd` 가 없다)에서 찾아져 «모름» 이 됐다. 한정자가 가리키는 모듈 → 지금 모듈 → 하나뿐인 것 → (예전처럼) 첫 일치.
     for (proven_size_t i = 0; i < c->nstrs; i++)
-        if (proven_u8str_view_eq(c->strs[i].name, name)) return &c->strs[i];
+        if (proven_u8str_view_eq(c->strs[i].name, name)) {
+            // 한정 없이 적힌 이름 — 같은 이름이 또 있으면 아래에서 가린다
+            bool more = false;
+            for (proven_size_t j = i + 1; j < c->nstrs && !more; j++) more = proven_u8str_view_eq(c->strs[j].name, name);
+            if (!more) return &c->strs[i];
+            for (proven_size_t j = i; j < c->nstrs; j++)
+                if (proven_u8str_view_eq(c->strs[j].name, name) && c->curmod.size && proven_u8str_view_eq(c->strs[j].mod, c->curmod)) return &c->strs[j];
+            return &c->strs[i];
+        }
+    proven_u8str_view_t pre, base = tc_base_name(name, &pre);
+    if (pre.size) {
+        const tc_struct_t *one = NULL; proven_size_t nb = 0;
+        for (proven_size_t i = 0; i < c->nstrs; i++)
+            if (proven_u8str_view_eq(c->strs[i].name, base)) {
+                if (proven_u8str_view_eq(c->strs[i].mod, pre)) return &c->strs[i];
+                one = &c->strs[i]; nb++;
+            }
+        if (nb == 1) return one;
+    }
     return NULL;
 }
 // ★ `make T do <field> <value> . … end` — 선언과 대조한다.
@@ -2545,15 +2572,18 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
 
     // ★ pass 0: 구조체 선언을 모은다. 타입체커가 이것을 **몰라서** make 리터럴이
     //   필드 타입도·누락도·없는 필드도 검사받지 않고 있었다.
+    proven_u8str_view_t smod = { 0 };
     for (proven_size_t i = 0; i < pr->nforms && c.nstrs < TC_MAXSIG; i++) {
         const low_cst_t *f = pr->forms[i]; c.curform = f;
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_MODULE &&
+            f->kids[1]->kind == LOW_CST_ATOM) smod = f->kids[1]->tok.lex;
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
         if (f->kids[1]->kind != LOW_CST_ATOM) continue;
         const low_cst_t *blk = f->kids[f->nkids - 1];
         if (blk->kind != LOW_CST_BLOCK) continue;
         tc_struct_t *st = &c.strs[c.nstrs++];
-        st->name = f->kids[1]->tok.lex; st->nf = 0;
+        st->name = f->kids[1]->tok.lex; st->nf = 0; st->mod = smod;
         // ★★ 한계를 넘는 필드는 **조용히 잘렸다** — `--check` 는 초록불이었고, 레이아웃이
         //   짧게 나와 `encode` 가 바이트를 덜 썼다. 임의의 배열 크기가 조용히 자르는 병
         //   (`prng[8]` 과 같은 자리). **거절이 정직한 답이다.**

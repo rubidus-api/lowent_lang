@@ -87,7 +87,7 @@ do
   let s usize shr i. field a. kbits . . .
   guard lt s. field a. nseg . . else return none . .
   guard lt s. len dir. . . else return none . .
-  let at0 usize cast usize add idx dir. s. . bit_and i. sub shl 1 field a. kbits . . 1 . . . . .
+  let at0 usize cast usize add idx dir. s. . cast u64 bit_and i. sub shl 1 field a. kbits . . 1 . . . . . .
   guard lt at0. len mem. . . else return none . .
   return some idx mem. at0. . . .
 end .

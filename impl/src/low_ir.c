@@ -594,7 +594,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             //   한 번의 부름이 조각 하나에서 처리한 **바이트 수**는 `usize` 다(그 조각의 길이를 넘지 못한다 — 정본 §6.2.6 (3‴)).
             //   해시 값은 길이가 아니다: `hash_bytes` 는 `u64`, `crc32` 는 그 값의 폭 `u32` 다.
             case IRW_SHA256: case IRW_SHA384: case IRW_SHA512: case IRW_AESCTR: case IRW_GHASH:
-            case IRW_CHACHA20: case IRW_POLY1305: case IRW_AESGCM: case IRW_CHAPOLY:
+            case IRW_CHACHA20: case IRW_POLY1305: case IRW_AESGCM: case IRW_CHAPOLY: case IRW_AESROUND: case IRW_AESLAST:
                 res = (ityp_t){ true, low_ir_target()->addr_bits, false, false, false, 0, 0 };
                 break;
             case IRW_HASH64:
@@ -5145,7 +5145,10 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
     const low_cst_t *h = (nd->kind == LOW_CST_FORM && nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) ? nd->kids[0] : nd;
     if (h != nd && nd->nkids >= 2 && veq(h->tok.lex, "call_builtin") && nd->kids[1]->kind == LOW_CST_ATOM) h = nd->kids[1];   // 잎의 이름을 낸다
     const char *hk = nd->kind == LOW_CST_ATOM ? (nd->tok.kind == LOW_TOK_NUMBER ? "<num>" : nd->tok.kind == LOW_TOK_STRING ? "<str>" : "<name>") : NULL;
-    fprintf(stderr, "TYPES\t%.*s\t%u\t%.*s\t%s\t%s\n", (int)dn.size, (const char *)dn.ptr, (unsigned)(h->tok.line ? h->tok.line : nd->line),
+    proven_u32 ln = h->tok.line ? h->tok.line : nd->line;
+    const char *fl = c->def_form ? low_cst_file_for_line(c->def_form, ln) : NULL;
+    if (fl) { const char *b = strrchr(fl, '/'); fl = b ? b + 1 : fl; }
+    fprintf(stderr, "TYPES\t%s:%.*s\t%u\t%.*s\t%s\t%s\n", fl ? fl : "", (int)dn.size, (const char *)dn.ptr, (unsigned)ln,
             hk ? (int)strlen(hk) : (int)(h->kind == LOW_CST_ATOM ? h->tok.lex.size : 1), hk ? hk : (h->kind == LOW_CST_ATOM ? (const char *)h->tok.lex.ptr : "("), tb, ib);
 }
  void ir_node(ir_ctx_t *c, const low_cst_t *nd) {

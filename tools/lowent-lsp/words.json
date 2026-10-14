@@ -65,16 +65,32 @@
    "gives": "둘 중 넓은 쪽 타입"
   },
   "aes_ctr": {
-   "meaning": "AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수"
+   "meaning": "AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수",
+   "group": "암호",
+   "form": "call_builtin aes_ctr k c s d",
+   "takes": "`k` — `slice u8`(16) · `c` — `mut slice u8`(카운터 16 · 제자리에서 올린다) · `s` — `slice u8` · `d` — `mut slice u8`",
+   "gives": "`usize` — 흐른 바이트 수(`s` 의 길이를 넘지 않는다)"
   },
   "aes_gcm": {
-   "meaning": "AES-128-GCM 한 덩이 — 흐름(aes_ctr)과 누산(ghash)을 한 바퀴에. 뜻은 그 둘을 차례로 부른 것과 같다. 낸 값은 흐른 바이트 수"
+   "meaning": "AES-128-GCM 한 덩이 — 흐름(aes_ctr)과 누산(ghash)을 한 바퀴에. 뜻은 그 둘을 차례로 부른 것과 같다. 낸 값은 흐른 바이트 수",
+   "group": "암호",
+   "form": "call_builtin aes_gcm k c h z s d",
+   "takes": "`k` — `slice u8`(16) · `c` — `mut slice u8`(카운터 16) · `h` — `slice u8`(16) · `z` — `mut slice u8`(누산 16) · `s` — `slice u8` · `d` — `mut slice u8`",
+   "gives": "`usize` — 흐른 바이트 수. 뜻은 `aes_ctr` 뒤에 `ghash` 를 부른 것과 같다"
   },
   "aes_round": {
-   "meaning": "AES 한 라운드 — 상태 16 바이트를 제자리에서(SubBytes·ShiftRows·MixColumns·AddRoundKey). 낸 값은 16"
+   "meaning": "AES 한 라운드 — 상태 16 바이트를 제자리에서(SubBytes·ShiftRows·MixColumns·AddRoundKey). 낸 값은 16",
+   "group": "암호",
+   "form": "call_builtin aes_round st rk",
+   "takes": "`st` — `mut slice u8`(16 바이트 상태) · `rk` — `slice u8`(16 바이트 라운드 키)",
+   "gives": "`usize` — 고친 상태의 바이트 수(16). SubBytes · ShiftRows · MixColumns · AddRoundKey 를 `st` 에 제자리에서"
   },
   "aes_round_last": {
-   "meaning": "마지막 AES 라운드 — MixColumns 없이. 낸 값은 16"
+   "meaning": "마지막 AES 라운드 — MixColumns 없이. 낸 값은 16",
+   "group": "암호",
+   "form": "call_builtin aes_round_last st rk",
+   "takes": "`st` — `mut slice u8`(16) · `rk` — `slice u8`(16)",
+   "gives": "`usize` — 고친 상태의 바이트 수(16). MixColumns 없이"
   },
   "all": {
    "meaning": "모두 참인가 — 첫 거짓에서 멈춘다"
@@ -224,10 +240,18 @@
    "gives": "`a` 의 타입(부동 그대로다 — 정수 타입으로 바꾸려면 `cast`) — `a` 보다 작지 않은 가장 작은 정수 값"
   },
   "chacha20": {
-   "meaning": "ChaCha20 (RFC 8439) — 키 32 · 카운터 블록 16(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce)을 제자리에서 올린다. 낸 값은 흐른 바이트 수"
+   "meaning": "ChaCha20 (RFC 8439) — 키 32 · 카운터 블록 16(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce)을 제자리에서 올린다. 낸 값은 흐른 바이트 수",
+   "group": "암호",
+   "form": "call_builtin chacha20 k c s d",
+   "takes": "`k` — `slice u8`(32) · `c` — `mut slice u8`(카운터 블록 16 · 제자리에서 올린다) · `s` — `slice u8` · `d` — `mut slice u8`",
+   "gives": "`usize` — 흐른 바이트 수"
   },
   "chacha_poly": {
-   "meaning": "ChaCha20-Poly1305 한 덩이 — 흐름과 누산을 한 바퀴에. 뜻은 chacha20 을 돌리고 그 암호문을 poly1305 에 먹인 것과 같다. 낸 값은 흐른 바이트 수"
+   "meaning": "ChaCha20-Poly1305 한 덩이 — 흐름과 누산을 한 바퀴에. 뜻은 chacha20 을 돌리고 그 암호문을 poly1305 에 먹인 것과 같다. 낸 값은 흐른 바이트 수",
+   "group": "암호",
+   "form": "call_builtin chacha_poly k c st s d",
+   "takes": "`k` — `slice u8`(32) · `c` — `mut slice u8`(카운터 블록 16) · `st` — `mut slice u64`(원소 열 이상) · `s` — `slice u8` · `d` — `mut slice u8`",
+   "gives": "`usize` — 흐른 바이트 수. 뜻은 `chacha20` 뒤에 그 암호문을 `poly1305` 에 먹인 것과 같다"
   },
   "channel": {
    "meaning": "채널을 만든다"
@@ -260,10 +284,18 @@
    "meaning": "채널에 값을 넣는다"
   },
   "clmul_hi": {
-   "meaning": "캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다"
+   "meaning": "캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다",
+   "group": "비트",
+   "form": "call_builtin clmul_hi a b",
+   "takes": "`a` `b` — `u64`",
+   "gives": "`u64` — 캐리 없는 64×64 비트 곱의 위쪽 64 비트"
   },
   "clmul_lo": {
-   "meaning": "캐리 없는 곱셈의 **아랫말** — 64×64 비트 곱의 아래쪽 64 비트. 기계에 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로"
+   "meaning": "캐리 없는 곱셈의 **아랫말** — 64×64 비트 곱의 아래쪽 64 비트. 기계에 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로",
+   "group": "비트",
+   "form": "call_builtin clmul_lo a b",
+   "takes": "`a` `b` — `u64`",
+   "gives": "`u64` — 캐리 없는 64×64 비트 곱의 아래쪽 64 비트"
   },
   "collect": {
    "meaning": "파이프라인의 결과를 자리에 담는다"
@@ -426,7 +458,11 @@
    "gives": "`bool` — `a` 가 크거나 같으면 참. 부동에서 한쪽이 NaN 이면 거짓"
   },
   "ghash": {
-   "meaning": "GHASH — GF(2^128) 누산. h 16 · z 16 을 제자리에서 고친다. 낸 값은 먹인 바이트 수"
+   "meaning": "GHASH — GF(2^128) 누산. h 16 · z 16 을 제자리에서 고친다. 낸 값은 먹인 바이트 수",
+   "group": "암호",
+   "form": "call_builtin ghash h z data",
+   "takes": "`h` — `slice u8`(16) · `z` — `mut slice u8`(누산 16 · 제자리에서) · `data` — `slice u8`",
+   "gives": "`usize` — 먹인 바이트 수"
   },
   "gt": {
    "meaning": "앞이 큰가",
@@ -674,7 +710,11 @@
    "meaning": "한 줄기로 흘린다 — **한 번의 훑기**다"
   },
   "poly1305": {
-   "meaning": "Poly1305 (RFC 8439) — 상태(h 다섯 · r 다섯)를 제자리에서 누산한다. 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 낸 값은 먹인 바이트 수"
+   "meaning": "Poly1305 (RFC 8439) — 상태(h 다섯 · r 다섯)를 제자리에서 누산한다. 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 낸 값은 먹인 바이트 수",
+   "group": "암호",
+   "form": "call_builtin poly1305 st data",
+   "takes": "`st` — `mut slice`(원소 열 이상 · 제자리에서 누산) · `data` — `slice u8`",
+   "gives": "`usize` — 먹인 바이트 수"
   },
   "pop": {
    "meaning": "뒤에서 하나 뺀다"
@@ -750,7 +790,11 @@
    "meaning": "오류를 위로 넘긴다"
   },
   "rng_next": {
-   "meaning": "난수를 낸다"
+   "meaning": "난수를 낸다",
+   "group": "난수",
+   "form": "call_builtin rng_next s",
+   "takes": "`s` — `u64`(상태 — 씨는 부르는 쪽이 든다)",
+   "gives": "`u64` — 다음 값. 같은 상태에는 늘 같은 값"
   },
   "rotl": {
    "meaning": "왼쪽으로 돌린다",

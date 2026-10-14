@@ -354,7 +354,7 @@ write_out             write_volatile        zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *67 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *78 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -434,6 +434,8 @@ write_out             write_volatile        zip")
         [`leading_zeros a` #cref("6.3.5")], [*받는 것:* `a` — 정수 \ *내는 것:* `a` 의 타입 — 맨 윗자리부터 이어지는 0 의 수. `a` 가 0 이면 폭(`u8` 에서 8) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 부동을 주면 `E-BITOP-TYPE`],
         [`trailing_zeros a` #cref("6.3.5")], [*받는 것:* `a` — 정수 \ *내는 것:* `a` 의 타입 — 맨 아랫자리부터 이어지는 0 의 수. `a` 가 0 이면 폭 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 부동을 주면 `E-BITOP-TYPE`],
         [`byte_swap a` #cref("6.3.5")], [*받는 것:* `a` — 정수 \ *내는 것:* `a` 의 타입 — 바이트 차례를 뒤집은 값. 한 바이트 타입에서는 그대로 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 부동을 주면 `E-BITOP-TYPE`],
+        [`call_builtin clmul_lo a b` #cref("6.3.3")], [*받는 것:* `a` `b` — `u64` \ *내는 것:* `u64` — 캐리 없는 64×64 비트 곱의 아래쪽 64 비트 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin clmul_hi a b` #cref("6.3.3")], [*받는 것:* `a` `b` — `u64` \ *내는 것:* `u64` — 캐리 없는 64×64 비트 곱의 위쪽 64 비트 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 
@@ -482,6 +484,27 @@ write_out             write_volatile        zip")
         [`call_builtin sha256 s o` #cref("6.3.3")], [*받는 것:* `s` — `slice u8` · `o` — `mut slice u8`(32 바이트 이상) \ *내는 것:* `usize` — `o` 에 써 넣은 바이트 수(32). `o` 가 짧으면 아무것도 쓰지 않고 0 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`call_builtin sha384 s o` #cref("6.3.3")], [*받는 것:* `s` — `slice u8` · `o` — `mut slice u8`(48 바이트 이상) \ *내는 것:* `usize` — `o` 에 써 넣은 바이트 수(48). `o` 가 짧으면 아무것도 쓰지 않고 0 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`call_builtin sha512 s o` #cref("6.3.3")], [*받는 것:* `s` — `slice u8` · `o` — `mut slice u8`(64 바이트 이상) \ *내는 것:* `usize` — `o` 에 써 넣은 바이트 수(64). `o` 가 짧으면 아무것도 쓰지 않고 0 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+    )
+  ]
+
+  #tbl("암호")[
+    #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
+      [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`call_builtin aes_round st rk` #cref("6.3.3")], [*받는 것:* `st` — `mut slice u8`(16 바이트 상태) · `rk` — `slice u8`(16 바이트 라운드 키) \ *내는 것:* `usize` — 고친 상태의 바이트 수(16). SubBytes · ShiftRows · MixColumns · AddRoundKey 를 `st` 에 제자리에서 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin aes_round_last st rk` #cref("6.3.3")], [*받는 것:* `st` — `mut slice u8`(16) · `rk` — `slice u8`(16) \ *내는 것:* `usize` — 고친 상태의 바이트 수(16). MixColumns 없이 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin aes_ctr k c s d` #cref("6.3.3")], [*받는 것:* `k` — `slice u8`(16) · `c` — `mut slice u8`(카운터 16 · 제자리에서 올린다) · `s` — `slice u8` · `d` — `mut slice u8` \ *내는 것:* `usize` — 흐른 바이트 수(`s` 의 길이를 넘지 않는다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin ghash h z data` #cref("6.3.3")], [*받는 것:* `h` — `slice u8`(16) · `z` — `mut slice u8`(누산 16 · 제자리에서) · `data` — `slice u8` \ *내는 것:* `usize` — 먹인 바이트 수 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin chacha20 k c s d` #cref("6.3.3")], [*받는 것:* `k` — `slice u8`(32) · `c` — `mut slice u8`(카운터 블록 16 · 제자리에서 올린다) · `s` — `slice u8` · `d` — `mut slice u8` \ *내는 것:* `usize` — 흐른 바이트 수 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin poly1305 st data` #cref("6.3.3")], [*받는 것:* `st` — `mut slice`(원소 열 이상 · 제자리에서 누산) · `data` — `slice u8` \ *내는 것:* `usize` — 먹인 바이트 수 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin aes_gcm k c h z s d` #cref("6.3.3")], [*받는 것:* `k` — `slice u8`(16) · `c` — `mut slice u8`(카운터 16) · `h` — `slice u8`(16) · `z` — `mut slice u8`(누산 16) · `s` — `slice u8` · `d` — `mut slice u8` \ *내는 것:* `usize` — 흐른 바이트 수. 뜻은 `aes_ctr` 뒤에 `ghash` 를 부른 것과 같다 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin chacha_poly k c st s d` #cref("6.3.3")], [*받는 것:* `k` — `slice u8`(32) · `c` — `mut slice u8`(카운터 블록 16) · `st` — `mut slice u64`(원소 열 이상) · `s` — `slice u8` · `d` — `mut slice u8` \ *내는 것:* `usize` — 흐른 바이트 수. 뜻은 `chacha20` 뒤에 그 암호문을 `poly1305` 에 먹인 것과 같다 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+    )
+  ]
+
+  #tbl("난수")[
+    #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
+      [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`call_builtin rng_next s` #cref("6.3.3")], [*받는 것:* `s` — `u64`(상태 — 씨는 부르는 쪽이 든다) \ *내는 것:* `u64` — 다음 값. 같은 상태에는 늘 같은 값 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 

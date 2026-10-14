@@ -292,7 +292,11 @@
    "gives": "1 인 비트의 수 — 0 이상 폭 이하"
   },
   "crc32": {
-   "meaning": "CRC-32 검사값"
+   "meaning": "CRC-32 검사값",
+   "group": "해시",
+   "form": "call_builtin crc32 s",
+   "takes": "`s` — `slice u8`",
+   "gives": "`u32` — 반사 CRC-32(다항식 0xEDB88320) 검사값"
   },
   "cstr_of": {
    "meaning": "C 문자열로 본다"
@@ -432,7 +436,11 @@
    "gives": "`bool` — `a` 가 크면 참. 부동에서 한쪽이 NaN 이면 거짓"
   },
   "hash_bytes": {
-   "meaning": "바이트열의 해시"
+   "meaning": "바이트열의 해시",
+   "group": "해시",
+   "form": "call_builtin hash_bytes s",
+   "takes": "`s` — `slice u8`",
+   "gives": "`u64` — 바이트열의 해시 값(FNV-1a 64). 길이가 아니다"
   },
   "idx": {
    "meaning": "그 자리의 원소"
@@ -802,13 +810,25 @@
    "meaning": "액터에 메시지를 보낸다"
   },
   "sha256": {
-   "meaning": "SHA-256"
+   "meaning": "SHA-256",
+   "group": "해시",
+   "form": "call_builtin sha256 s o",
+   "takes": "`s` — `slice u8` · `o` — `mut slice u8`(32 바이트 이상)",
+   "gives": "`usize` — `o` 에 써 넣은 바이트 수(32). `o` 가 짧으면 아무것도 쓰지 않고 0"
   },
   "sha384": {
-   "meaning": "SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다"
+   "meaning": "SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다",
+   "group": "해시",
+   "form": "call_builtin sha384 s o",
+   "takes": "`s` — `slice u8` · `o` — `mut slice u8`(48 바이트 이상)",
+   "gives": "`usize` — `o` 에 써 넣은 바이트 수(48). `o` 가 짧으면 아무것도 쓰지 않고 0"
   },
   "sha512": {
-   "meaning": "SHA-512"
+   "meaning": "SHA-512",
+   "group": "해시",
+   "form": "call_builtin sha512 s o",
+   "takes": "`s` — `slice u8` · `o` — `mut slice u8`(64 바이트 이상)",
+   "gives": "`usize` — `o` 에 써 넣은 바이트 수(64). `o` 가 짧으면 아무것도 쓰지 않고 0"
   },
   "shl": {
    "meaning": "왼쪽으로 민다. 시프트 양이 폭 이상이면 트랩한다",

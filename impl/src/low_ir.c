@@ -570,7 +570,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 break;
             case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ:
                 if (!c->tstk_bad) a = ity_meta(ops[0]);   // 폭은 **입력**의 것이다
-                res = ITY_UNK;                            // 결과는 **개수**(작은 수)
+                res = w == IRW_POPCNT ? ITY_UNK : ops[0];  // `leading_zeros` · `trailing_zeros` 의 결과는 `a` 의 타입(시그니처 표). 개수 세기는 표가 타입을 안 적었다
                 break;
             // ★★★ **abs 는 선언 폭을 알아야 한다** — abs(폭-MIN) = +2^(N-1) 은 그 폭에 안 맞는다
             //   (사용자 결정 2026-07-23: div 와 함께 트랩). 그런데 UNM 의 `a` 는 **op 선택자**(0~6)라
@@ -589,6 +589,19 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 break;
             case IRW_RNGNEXT:
                 res = (ityp_t){ true, 64, false, false, false, 0, 0 };   // RFC-0148 S3 — `rng_next` 는 u64 다
+                break;
+            // ★★★ RFC-0148 D5 (2026-10-14 소유자 «셋 다 권고대로») — **잎 낱말의 결과에도 타입이 있다.** 두 층이 다 모르던 자리다.
+            //   한 번의 부름이 조각 하나에서 처리한 **바이트 수**는 `usize` 다(그 조각의 길이를 넘지 못한다 — 정본 §6.2.6 (3‴)).
+            //   해시 값은 길이가 아니다: `hash_bytes` 는 `u64`, `crc32` 는 그 값의 폭 `u32` 다.
+            case IRW_SHA256: case IRW_SHA384: case IRW_SHA512: case IRW_AESCTR: case IRW_GHASH:
+            case IRW_CHACHA20: case IRW_POLY1305: case IRW_AESGCM: case IRW_CHAPOLY:
+                res = (ityp_t){ true, low_ir_target()->addr_bits, false, false, false, 0, 0 };
+                break;
+            case IRW_HASH64:
+                res = (ityp_t){ true, 64, false, false, false, 0, 0 };
+                break;
+            case IRW_CRC32:
+                res = (ityp_t){ true, 32, false, false, false, 0, 0 };
                 break;
             // ★★★★ **원소를 꺼내면 원소의 타입이 나온다** (2026-09-09, REQ-0013 / 결함
             //   `u64-index-comparison`). 여기가 `default` 로 떨어져 `index s 0` 의 결과가

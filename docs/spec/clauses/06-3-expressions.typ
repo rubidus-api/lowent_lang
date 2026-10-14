@@ -147,6 +147,16 @@ end .", "E-EXPR-CHAIN")
       터미널(`tty_raw` · `tty_read` · `tty_size`), 난수(`random_bytes`), reactor(`reactor_new` · `r_read` · `r_write`) — 은
       첫 피연산자가 권한이다: `call_builtin net_send <권한> <핸들> <바이트>`.
     ]
+    #para("1c-1")[
+      권한을 받지 아니하는 빌트인 연산은 #strong[계산];이다 — 부동소수점 함수(#cref("6.3.9")), 조각의 합(#cref("6.3.7.1")), 그리고
+      해시 · 암호 · 캐리 없는 곱셈 · 난수 열(`hash_bytes` · `crc32` · `sha256` · `sha384` · `sha512` · `aes_round` ·
+      `aes_round_last` · `aes_ctr` · `ghash` · `aes_gcm` · `chacha20` · `poly1305` · `chacha_poly` · `clmul_lo` · `clmul_hi` ·
+      `rng_next`).
+    ]
+    #para("1c-2")[
+      표준 라이브러리는 이 빌트인 연산들을 감싼 op 을 내놓는다(#cref("9.3") (1a)) — `stdio` · `args` · `env` · `clock` · `tty` ·
+      `random` · `reactor` · `math` 따위다. 감싸개는 피연산자를 그대로 넘기므로 뜻이 같다.
+    ]
     #para("1f")[
       #strong[빌트인 연산의 이름공간은 저자의 이름공간과 따로다.]; `call_builtin` 바로 뒤의 낱말은 언제나 빌트인
       연산의 이름으로 읽고, 그 밖의 자리에 선 같은 철자는 언제나 저자의 이름으로 읽는다. 그러므로 저자는
@@ -178,7 +188,7 @@ do
 end .", "E-BUILTIN-BARE")
     #ex("같은 것을 자리에 맞게 적으면 선다", "module ex_call .
 
-proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
+proc p input s slice u8 . input o mut slice u8 . output usize . effects none .
 do
   return call_builtin sha256 s. o. . .
 end .")
@@ -190,8 +200,8 @@ end .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  let n u64 call_builtin sha256 s. o. . .
-  return sha256 n. . .
+  let n usize call_builtin sha256 s. o. . .
+  return sha256 cast u64 n. . . .
 end .")
     #para("1e")[
       언어가 뜻을 정한 이름을 전역 어휘에서 가두는 길은 셋이다.
@@ -324,6 +334,11 @@ end .", "E-TYPE-SIGN")
     #para("1")[
       비트 연산은 값을 #strong[비트의 나열];로 보고 다룬다. 피연산자와 결과는 정수이며, 부호 있는
       정수도 다룰 수 있다.
+    ]
+    #para("1′")[
+      `bit_and` · `bit_or` · `bit_xor` 의 두 피연산자가 같은 타입이면 결과도 그 타입이고, 한쪽이 리터럴이면 다른 쪽의 타입이다.
+      `bit_not` 과 옮기기 · 돌리기(`shl` · `shr` · `rotl` · `rotr`)의 결과는 (왼쪽) 피연산자의 타입이다. `usize` · `idiff` 와
+      고정 폭 정수를 한 연산에 대면 번역이 거부된다(`E-TYPE-NOMINAL`, #cref("6.2") (3-2)) — 옮기는 양은 이 규칙에 들지 않는다.
     ]
     #para("1a")[
       오른쪽 옮기기 `shr` 는 부호에 따라 뜻이 다르다. 부호 없는 정수에서는 빈자리에 0 이

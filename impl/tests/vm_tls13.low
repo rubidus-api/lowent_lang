@@ -27,7 +27,7 @@ end .
 
 rem 사다리 한 칸: prev 에서 "derived" 를 뽑아 ikm 을 Extract 한다.
 proc t_advance input prev slice u8 . input ikm slice u8 . input ehash slice u8 . input derived mut slice u8 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let _u10 result u64 tls13.tls13_error tls13.advance prev. ikm. ehash. derived. info. scratch. out. . .
+  let _u10 result usize tls13.tls13_error tls13.advance prev. ikm. ehash. derived. info. scratch. out. . .
   guard is_ok _u10. . else return 0 . .
   guard eq ok_value _u10. . 32 . else return 0 . .
   return head8 out. . .
@@ -53,7 +53,7 @@ proc t_finished input secret slice u8 . input thash slice u8 . input info mut sl
   let _u6 result usize tls13.tls13_error tls13.finished_key secret. info. scratch. fkey. . .
   guard is_ok _u6. . else return 0 . .
   guard eq ok_value _u6. . 32 . else return 0 . .
-  let _u7 result u64 tls13.tls13_error tls13.verify_data fkey. thash. scratch. out. . .
+  let _u7 result usize tls13.tls13_error tls13.verify_data fkey. thash. scratch. out. . .
   guard is_ok _u7. . else return 0 . .
   guard eq ok_value _u7. . 32 . else return 0 . .
   return head8 out. . .
@@ -73,7 +73,7 @@ end .
 
 rem HKDF-Extract 한 번 — RFC 8448 이 사다리의 각 칸에 salt/IKM/secret 을 적어 둔다.
 proc t_extract input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
-  let _u5 result u64 hmac.hmac_error hmac.extract salt. ikm. scratch. prk. . .
+  let _u5 result usize hmac.hmac_error hmac.extract salt. ikm. scratch. prk. . .
   guard is_ok _u5. . else return 0 . .
   guard eq ok_value _u5. . 32 . else return 0 . .
   return head8 prk. . .
@@ -135,7 +135,7 @@ proc t_record_exact input suite u64 . input key slice u8 . input iv slice u8 . i
 end .
 
 rem ★ 전사 해시 — 버퍼 앞 n 바이트.
-proc t_transcript input buf slice u8 . input n usize . input out mut slice u8 . output u64 . effects none . do
+proc t_transcript input buf slice u8 . input n usize . input out mut slice u8 . output usize . effects none . do
   return tls13.transcript buf. n. out. . .
 end .
 
@@ -161,7 +161,7 @@ proc t_fin_exact input secret slice u8 . input thash slice u8 . input info mut s
   let _u0 result usize tls13.tls13_error tls13.finished_key secret. info. subslice w. 576 1152 . subslice w. 0 32 . . .
   guard is_ok _u0. . else return 0 . .
   guard eq ok_value _u0. . 32 . else return 0 . .
-  let _u1 result u64 tls13.tls13_error tls13.verify_data subslice w. 0 32 . thash. subslice w. 576 1152 . subslice got. 0 32 . . .
+  let _u1 result usize tls13.tls13_error tls13.verify_data subslice w. 0 32 . thash. subslice w. 576 1152 . subslice got. 0 32 . . .
   guard is_ok _u1. . else return 0 . .
   guard eq ok_value _u1. . 32 . else return 0 . .
   var i usize 32 .

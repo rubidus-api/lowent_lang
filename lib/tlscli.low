@@ -361,12 +361,12 @@ do
     set idx w. add 64 z. . . 0 .
     set z. add z. 1 . .
   end .
-  let _u0 result u64 hmac.hmac_error hmac.extract subslice w. 32 64 . subslice w. 64 96 . subslice w. 512 1024 . subslice w. 96 128 . . .
+  let _u0 result usize hmac.hmac_error hmac.extract subslice w. 32 64 . subslice w. 64 96 . subslice w. 512 1024 . subslice w. 96 128 . . .
   guard is_ok _u0. . else return error short_workspace . . .
   guard eq ok_value _u0. . 32 . else return ok 0 . . .
 
   rem ③ handshake secret = advance(early, ECDHE)
-  let _u1 result u64 tls13.tls13_error tls13.advance subslice w. 96 128 . ecdhe. subslice w. 0 32 . subslice w. 128 160 . subslice w. 160 288 . subslice w. 512 1024 . subslice w. 288 320 . . .
+  let _u1 result usize tls13.tls13_error tls13.advance subslice w. 96 128 . ecdhe. subslice w. 0 32 . subslice w. 128 160 . subslice w. 160 288 . subslice w. 512 1024 . subslice w. 288 320 . . .
   guard is_ok _u1. . else return error short_workspace . . .
   guard eq ok_value _u1. . 32 . else return ok 0 . . .
 
@@ -392,7 +392,7 @@ end .
 rem ★ 어떤 트래픽 비밀로든 verify_data 를 낸다 — 서버 것을 검산할 때도, 우리 것을 지을 때도
 rem   **같은 계산**이다. 한 자리에 둔다.
 export proc finished_vd input secret slice u8 . input msgs slice u8 .
-     input out mut slice u8 . input w mut slice u8 . output result u64 tlscli_error . effects none .
+     input out mut slice u8 . input w mut slice u8 . output result usize tlscli_error . effects none .
 errors short_workspace .
 do
   guard eq len secret. . 32 . else return ok 0 . . .
@@ -419,7 +419,7 @@ do
   guard eq cast u64 idx fin. 1 . . 0 . else return ok false . . .
   guard eq tlssrv.be16 fin. 2 . 32 . else return ok false . . .
   guard ge len w. . 1216 . else return ok false . . .
-  let _u1 result u64 tlscli_error finished_vd s_hs. msgs2. subslice w. 1024 1056 . subslice w. 0 1024 . . .
+  let _u1 result usize tlscli_error finished_vd s_hs. msgs2. subslice w. 1024 1056 . subslice w. 0 1024 . . .
   guard is_ok _u1. . else return error short_workspace . . .
   guard eq ok_value _u1. . 32 . else return ok false . . .
   var diff u64 0 .
@@ -437,7 +437,7 @@ export proc build_client_fin input c_hs slice u8 . input msgs3 slice u8 .
 errors short_workspace .
 do
   guard ge len w. . 1216 . else return ok 0 . . .
-  let _u0 result u64 tlscli_error finished_vd c_hs. msgs3. subslice w. 1024 1056 . subslice w. 0 1024 . . .
+  let _u0 result usize tlscli_error finished_vd c_hs. msgs3. subslice w. 1024 1056 . subslice w. 0 1024 . . .
   guard is_ok _u0. . else return error short_workspace . . .
   guard eq ok_value _u0. . 32 . else return ok 0 . . .
   return ok tlssrv.build_fin subslice w. 1024 1056 . out. . . .

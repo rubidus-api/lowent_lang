@@ -24,7 +24,7 @@ rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 �
 fn digits_loop input s slice u8 . output u64 .
 do
   var n u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     if is_digit idx s. i. . . do set n. add n. 1 . . end .
     set i. add i. 1 . .

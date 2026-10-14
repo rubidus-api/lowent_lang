@@ -19,7 +19,7 @@ end .
 
 rem 한 op 안에서 둘 다: 빌트인 연산은 32(쓴 바이트 수)를, 저자의 op 은 그 다음 수를 낸다.
 proc both input data slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let n u64 call_builtin sha256 data. out. . .
+  let n u64 cast u64 call_builtin sha256 data. out. . . .
   return add n. sha256 n. . . .
 end .
 

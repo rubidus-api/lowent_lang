@@ -62,7 +62,7 @@ export fn get
   input comptime t type .
   input comptime a type .
   input g (gv t a) .
-  input i u64 .
+  input i usize .
   output option t .
   requires allocs.byte_allocator a. . .
 do

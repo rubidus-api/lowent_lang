@@ -404,3 +404,11 @@ cast	a i64	u64	return cast u64 a. . .	7	= 7
 narrow_sat	a i64	u64	return narrow_sat u64 a. . .	-5	= 0
 narrow_try	a i64	option u64	return narrow_try u64 a. . .	-1	= none
 narrow_wrap	a i64	u64	return narrow_wrap u64 a. . .	-1	= 18446744073709551615
+hash_bytes		u64	return call_builtin hash_bytes "abc" . .		= 16654208175385433931
+hash_bytes		u8	return call_builtin hash_bytes "abc" . .		CHECK E-TYPE-WIDTH
+crc32		u32	return call_builtin crc32 "123456789" . .		= 3421780262
+crc32		u64	return call_builtin crc32 "123456789" . .		= 3421780262
+crc32		u8	return call_builtin crc32 "123456789" . .		CHECK E-TYPE-WIDTH
+sha256	d slice u8, o mut slice u8	u64	return call_builtin sha256 d. o. . .	[97] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]	CHECK E-TYPE-NOMINAL
+sha384	d slice u8, o mut slice u8	u64	return call_builtin sha384 d. o. . .	[97] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]	CHECK E-TYPE-NOMINAL
+sha512	d slice u8, o mut slice u8	u64	return call_builtin sha512 d. o. . .	[97] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]	CHECK E-TYPE-NOMINAL

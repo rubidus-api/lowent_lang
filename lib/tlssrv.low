@@ -576,12 +576,12 @@ do
     set idx w. add 64 z. . . 0 .
     set z. add z. 1 . .
   end .
-  let _u2 result u64 hmac.hmac_error hmac.extract subslice w. 32 64 . subslice w. 64 96 . subslice w. 512 1024 . subslice w. 96 128 . . .
+  let _u2 result usize hmac.hmac_error hmac.extract subslice w. 32 64 . subslice w. 64 96 . subslice w. 512 1024 . subslice w. 96 128 . . .
   guard is_ok _u2. . else return error short_workspace . . .
   guard eq ok_value _u2. . 32 . else return ok 0 . . .
 
   rem ③ handshake secret = advance(early, ECDHE) — "derived" 한 칸을 건너뛴다.
-  let _u3 result u64 tls13.tls13_error tls13.advance subslice w. 96 128 . ecdhe. subslice w. 0 32 . subslice w. 128 160 . subslice w. 160 288 . subslice w. 512 1024 . subslice w. 288 320 . . .
+  let _u3 result usize tls13.tls13_error tls13.advance subslice w. 96 128 . ecdhe. subslice w. 0 32 . subslice w. 128 160 . subslice w. 160 288 . subslice w. 512 1024 . subslice w. 288 320 . . .
   guard is_ok _u3. . else return error short_workspace . . .
   guard eq ok_value _u3. . 32 . else return ok 0 . . .
 
@@ -598,7 +598,7 @@ do
 
   rem ⑥ verify_data = HMAC(finished_key, H(CH‖SH‖EE‖Cert‖CV))  ← **다른 전사**다
   guard eq tls13.transcript msgs2. len msgs2. . subslice w. 416 448 . . 32 . else return ok 0 . . .
-  let _u6 result u64 tls13.tls13_error tls13.verify_data subslice w. 384 416 . subslice w. 416 448 . subslice w. 512 1024 . subslice w. 448 480 . . .
+  let _u6 result usize tls13.tls13_error tls13.verify_data subslice w. 384 416 . subslice w. 416 448 . subslice w. 512 1024 . subslice w. 448 480 . . .
   guard is_ok _u6. . else return error short_workspace . . .
   guard eq ok_value _u6. . 32 . else return ok 0 . . .
 
@@ -640,7 +640,7 @@ do
   while lt z. 32 . do  set idx w. add 32 z. . . 0 .  set z. add z. 1 . . end .
 
   rem master = advance(handshake, 0) — "derived" 한 칸을 건너뛴다.
-  let _u0 result u64 tls13.tls13_error tls13.advance hs. subslice w. 32 64 . subslice w. 0 32 . subslice w. 64 96 . subslice w. 96 224 . subslice w. 512 1024 . subslice w. 224 256 . . .
+  let _u0 result usize tls13.tls13_error tls13.advance hs. subslice w. 32 64 . subslice w. 0 32 . subslice w. 64 96 . subslice w. 96 224 . subslice w. 512 1024 . subslice w. 224 256 . . .
   guard is_ok _u0. . else return error short_workspace . . .
   guard eq ok_value _u0. . 32 . else return ok 0 . . .
 

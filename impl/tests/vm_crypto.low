@@ -33,7 +33,7 @@ end .
 
 rem RFC 4231 case 1 — key 20×0x0b, msg "Hi There".
 proc t_hmac input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let _u6 result u64 hmac.hmac_error hmac.mac key. msg. scratch. out. . .
+  let _u6 result usize hmac.hmac_error hmac.mac key. msg. scratch. out. . .
   guard is_ok _u6. . else return 0 . .
   guard eq ok_value _u6. . 32 . else return 0 . .
   return head8 out. . .
@@ -41,7 +41,7 @@ end .
 
 rem RFC 5869 case 1 — PRK = HKDF-Extract(salt, IKM).
 proc t_hkdf input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
-  let _u5 result u64 hmac.hmac_error hmac.extract salt. ikm. scratch. prk. . .
+  let _u5 result usize hmac.hmac_error hmac.extract salt. ikm. scratch. prk. . .
   guard is_ok _u5. . else return 0 . .
   guard eq ok_value _u5. . 32 . else return 0 . .
   return head8 prk. . .

@@ -11,11 +11,11 @@ rem   비용이 op 이름으로 보인다 — 이 저장소가 `slice` 에 대�
 module segview .
 
 rem 총길이 — 서술자만 읽는다. 바이트는 안 만진다(그래서 O(조각 수)).
-export fn total_len input ss segments u8 . output usize . do
+export fn total_len input ss segments u8 . output u64 . do
   var i u64 0 .
-  var acc usize 0 .
+  var acc u64 0 .
   while lt cast usize i. . segs ss. . . do
-    set acc. add acc. len seg ss. i. . . . .
+    set acc. add acc. cast u64 len seg ss. i. . . . . .
     set i. add i. 1 . .
   end .
   return acc. .
@@ -54,8 +54,9 @@ end .
 rem ★ `coalesce` — 한 덩어리로 편다. **여기서만 복사가 일어난다**, 그리고 부른 자리에 보인다.
 rem   저장은 호출자 것이다(이 저장소의 규율): 받은 버퍼에 쓰고 쓴 길이를 답한다.
 export proc coalesce input ss segments u8 . input out mut slice u8 . output option usize . effects none . do
-  let need usize segview.total_len ss. . .
-  guard le need. len out. . . else return none . .
+  rem 합은 누계다(`u64`) — 버퍼의 길이와 견줄 때 길이 쪽을 넓힌다. 들어가면 그 뒤의 `w` 는 `out` 의 길이를 넘지 않는다.
+  let need u64 segview.total_len ss. . .
+  guard le need. cast u64 len out. . . . else return none . .
   var w usize 0 .
   var i u64 0 .
   while lt cast usize i. . segs ss. . . do

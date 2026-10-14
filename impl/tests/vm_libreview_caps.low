@@ -130,9 +130,9 @@ proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   guard vecgen.append u64. allocs.bump_bytes. g. 7 . else return 93 . .
   let big u64 bit_not 0 . .
   rem n + more 가 넘친다 → false (트랩 아님)
-  guard eq vecgen.reserve_more u64. allocs.bump_bytes. g. big. . false . else return 94 . .
+  guard eq vecgen.reserve_more u64. allocs.bump_bytes. g. cast usize big. . . false . else return 94 . .
   rem need 는 들어가지만 need × 8 이 넘친다 → false
-  guard eq vecgen.reserve_more u64. allocs.bump_bytes. g. 4611686018427387904 . false . else return 95 . .
+  guard eq vecgen.reserve_more u64. allocs.bump_bytes. g. shl 1 sub mul size_of usize . 8 . 2 . . . false . else return 95 . .
   rem 그리고 벡터는 멀쩡하다
   let x option u64 vecgen.at u64. allocs.bump_bytes. g. 0 . .
   guard is_some x. . else return 96 . .

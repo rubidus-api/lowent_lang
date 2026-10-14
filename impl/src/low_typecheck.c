@@ -919,7 +919,11 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     ty_t ev = tk_int(sq.ebits, sq.esign); ev.nominal = sq.enom;
                     return ev;
                 }
-                return tk_int(8, false);                 // 미상 — u8 로 보수적
+                // ★ RFC-0148 S4 (2026-10-14) — 원소를 모르는 슬라이스(`slice bool` · `slice <묶음>` · 틀의 `slice t`)의 원소를 `u8` 이라
+                //   답하고 있었다. 조건 자리를 검사하자 `eq idx t. i. . true .`(`slice bool`)가 «정수와 bool» 로 거절됐다 — 지어낸 답이다.
+                //   모르면 모른다고 답한다. 글 리터럴(`idx "abc" 0 .`)만 바이트다.
+                if (sq.k == TK_SLICE || sq.k == TK_UNKNOWN || sq.k == TK_WRAPPED) return tk(TK_UNKNOWN);
+                return tk_int(8, false);
             }
             // ★ `view_array <스칼라> <byteslice>` — 바이트 슬라이스를 **타입 배열**로 재해석한다.
             //   원소 타입을 슬라이스 ty_t 에 실어(ebits/eflt/esign) index·subslice·for-in·map 등
@@ -986,14 +990,14 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "@proc_kill", 2 },
                     { "@dir_make", 2 }, { "@path_remove", 2 }, { "@path_rename", 2 },
                     // ── 정수를 낸다 (쓴 길이 · 해시 · 시계 · 난수 · 비트)
-                    { "@write_out", 5 }, { "crc32", 3 }, { "hash64", 3 },
-                    { "sha256", 3 }, { "sha512", 3 }, { "blake3", 3 },
-                    { "@time_now", 3 }, { "@time_local", 3 }, { "rng_next", 3 },
+                    { "@write_out", 5 }, { "crc32", 7 }, { "hash_bytes", 6 },
+                    { "sha256", 5 }, { "sha512", 5 },
+                    { "@time_now", 3 }, { "@time_local", 3 }, { "rng_next", 6 },
                     { "@random_bytes", 3 }, { "argc", 3 },
                     { "bit_and", 3 }, { "bit_or", 3 }, { "bit_xor", 3 }, { "bit_not", 3 },
                     { "shl", 3 }, { "shr", 3 }, { "wshl", 3 }, { "wshr", 3 },
                     { "rotl", 3 }, { "rotr", 3 },
-                    { "clmul_lo", 3 }, { "clmul_hi", 3 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
+                    { "clmul_lo", 6 }, { "clmul_hi", 6 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
                     // ★★ 암호 잎 — **낸 값은 처리한 바이트 수**다(option 도 참거짓도 아니다).
                     //   근거는 구현 자신이다: VM 의 이 자리들이 전부 `vmv_int` 를 쌓고, C 뒤끝은
                     //   `lw_int(...)` 로 싣는다. 표에 없어서 `let n be u64 aes_ctr …` 같은 선언이
@@ -1001,8 +1005,8 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     //   둘 늘면서 그 자리가 하나 더 늘길래, 늘리는 대신 **줄였다**.
                     { "aes_ctr", 5 }, { "ghash", 5 },
                     { "aes_round", 5 }, { "aes_round_last", 5 },
-                    { "chacha20", 5 }, { "poly1305", 5 },
-                    { "sha384", 3 },
+                    { "chacha20", 5 }, { "poly1305", 5 }, { "aes_gcm", 5 }, { "chacha_poly", 5 },
+                    { "sha384", 5 },
                     { "popcount", 3 }, { "leading_zeros", 3 }, { "trailing_zeros", 3 },
                     { "byte_swap", 3 },
                 };
@@ -1024,6 +1028,8 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     //   받는 쪽이 매번 `cast` 를 적어야 하고, 좁은 대상에서는 버퍼의 길이와 다른 폭이 된다.
                     if (LEAF[li].kind == 4) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; w.pk = (proven_u8)TK_INT; w.pbits = low_ir_target()->addr_bits; w.psign = false; w.pnom = 1; return w; }
                     if (LEAF[li].kind == 5) { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut; }
+                    if (LEAF[li].kind == 6) return tk_int(64, false);   // RFC-0148 D5 — 해시 값 · 난수 · 캐리 없는 곱의 말: `u64`
+                    if (LEAF[li].kind == 7) return tk_int(32, false);   // RFC-0148 D5 — `crc32` 의 값은 32 비트다
                     if (LEAF[li].kind == 2) return tk(TK_BOOL);
                     // ★ **폭은 안 말한다**(bits = 0 = 미상). 비트 낱말은 피연산자의 폭을
                     //   물려받으므로 여기서 64 라고 박으면 `u32` 자리를 **틀리게 거절**한다
@@ -2234,9 +2240,10 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     if (stop) { cend = j; break; }
                 }
                 if (cend > 1) {
-                    c->quiet++;   // ★ 타입만 묻는다 — 딸린 진단은 내 관심 밖이다
+                    // ★★★ RFC-0148 §8-14 (2026-10-14 소유자 «셋 다 권고대로») — **조건 자리의 식도 타입 검사를 받는다.** RFC-0092 는 여기서
+                    //   타입만 묻고 딸린 진단은 막아 두었다(`quiet`): `while lt i. n. .` 에서 `usize` 와 `u64` 가 섞여도, 조건 속의
+                    //   `idx` 가 `u64` 첨자를 받아도 말이 없었다. 조건은 식이다 — 다른 자리의 식과 같은 규칙을 받는다.
                     ty_t ct = tc_infer_run(c, f->kids, 1, cend - 1, env, *nenv);
-                    c->quiet--;
                     if (ct.k == TK_INT || ct.k == TK_FLOAT)
                         tc_emit(c, "E-TYPE-COND",
                                 "a condition must be bool, not a number — this language has no "

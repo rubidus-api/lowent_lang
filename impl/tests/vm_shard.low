@@ -72,8 +72,8 @@ fn nested output u64 . do
   return 3 .
 end .
 
-fn covers_all input a (shard.token grid) . input b (shard.token grid) . output bool . do
-  if eq shard.covers grid. a. 4 . false . do return false . end .
-  if eq shard.covers grid. a. 6 . true . do return false . end .
-  return shard.covers grid. b. 6 . .
+fn covers_all input a (shard.token grid3) . input b (shard.token grid3) . output bool . do
+  if eq shard.covers grid3. a. 4 . false . do return false . end .
+  if eq shard.covers grid3. a. 6 . true . do return false . end .
+  return shard.covers grid3. b. 6 . .
 end .

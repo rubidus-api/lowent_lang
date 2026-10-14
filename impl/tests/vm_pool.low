@@ -34,7 +34,7 @@ do
   var p (pool.block_pool p_many) some_value po. . .
   let n usize pool.blocks p_many. p. . .           rem 블록 크기 16 바이트(시험용 — 링크 8 + 자료 8)
   var got u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. n. . do
     let h option (pool.handle p_many) pool.take p_many. p. . .
     if is_some h. . do set got. add got. 1 . . end .

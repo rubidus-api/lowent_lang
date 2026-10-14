@@ -180,7 +180,7 @@ end .
 ```lowent 예제: 같은 것을 자리에 맞게 적으면 선다
 module ex_call .
 
-proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
+proc p input s slice u8 . input o mut slice u8 . output usize . effects none .
 do
   return call_builtin sha256 s. o. . .
 end .
@@ -195,8 +195,8 @@ end .
 
 proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
 do
-  let n u64 call_builtin sha256 s. o. . .
-  return sha256 n. . .
+  let n usize call_builtin sha256 s. o. . .
+  return sha256 cast u64 n. . . .
 end .
 ```
 

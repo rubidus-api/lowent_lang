@@ -33,13 +33,13 @@ end .
 | `of` | `(data slice u8) → u64` | FNV-1a 64 — 해시맵 자리 |
 | `bucket_of` | `(data, nslots u64) → u64` | 칸 고르기(나머지 연산) |
 | `bucket_mask` | `(data, mask u64) → u64` | 칸 수가 2 의 거듭제곱일 때 |
-| `crc` | `(data slice u8) → u64` | 반사 CRC-32 — 손상 검출 |
-| `crc_ok` | `(data, want u64) → bool` | 검사값 대조 |
+| `crc` | `(data slice u8) → u32` | 반사 CRC-32 — 손상 검출 |
+| `crc_ok` | `(data, want u32) → bool` | 검사값 대조 |
 | `maybe_same` | `(a, b slice u8) → bool` | 해시가 같은가 — 같다는 증명이 아니다 |
-| `sha256` | `(data, out mut slice u8) → u64` | SHA-256 — 쓴 바이트 수(32) |
+| `sha256` | `(data, out mut slice u8) → usize` | SHA-256 — 쓴 바이트 수(32) |
 | `sha256_ok` | `(data, out mut slice u8, want slice u8) → bool` | 받은 다이제스트와 대조 |
-| `sha384` | `(data, out mut slice u8) → u64` | SHA-384 — 쓴 바이트 수(48) |
-| `sha512` | `(data, out mut slice u8) → u64` | SHA-512 — 쓴 바이트 수(64) |
+| `sha384` | `(data, out mut slice u8) → usize` | SHA-384 — 쓴 바이트 수(48) |
+| `sha512` | `(data, out mut slice u8) → usize` | SHA-512 — 쓴 바이트 수(64) |
 | `digest_eq` | `(a, b slice u8) → bool` | 다이제스트 둘이 같은가 — 길이에 상관없이 끝까지 본다 |
 
 *표 50.1 — `hash` 의 op*

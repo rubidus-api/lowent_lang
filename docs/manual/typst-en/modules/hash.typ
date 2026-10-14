@@ -31,13 +31,13 @@ values become the tests' reference (CRC-32 of `"123456789"` → `0xCBF43926`), a
   [`of`], [`(data slice u8) → u64`], [FNV-1a 64 --- hash map slots],
   [`bucket_of`], [`(data, nslots u64) → u64`], [Choosing a slot (remainder)],
   [`bucket_mask`], [`(data, mask u64) → u64`], [When the slot count is a power of two],
-  [`crc`], [`(data slice u8) → u64`], [Reflected CRC-32 --- corruption detection],
-  [`crc_ok`], [`(data, want u64) → bool`], [Compare with a check value],
+  [`crc`], [`(data slice u8) → u32`], [Reflected CRC-32 --- corruption detection],
+  [`crc_ok`], [`(data, want u32) → bool`], [Compare with a check value],
   [`maybe_same`], [`(a, b slice u8) → bool`], [Are the hashes equal --- not proof of equality],
-  [`sha256`], [`(data, out mut slice u8) → u64`], [SHA-256 --- bytes written (32)],
+  [`sha256`], [`(data, out mut slice u8) → usize`], [SHA-256 --- bytes written (32)],
   [`sha256_ok`], [`(data, out mut slice u8, want slice u8) → bool`], [Compare with a received digest],
-  [`sha384`], [`(data, out mut slice u8) → u64`], [SHA-384 --- bytes written (48)],
-  [`sha512`], [`(data, out mut slice u8) → u64`], [SHA-512 --- bytes written (64)],
+  [`sha384`], [`(data, out mut slice u8) → usize`], [SHA-384 --- bytes written (48)],
+  [`sha512`], [`(data, out mut slice u8) → usize`], [SHA-512 --- bytes written (64)],
   [`digest_eq`], [`(a, b slice u8) → bool`], [Are two digests equal --- reads to the end whatever the length],
 )
 

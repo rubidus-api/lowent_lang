@@ -105,17 +105,17 @@ proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut 
   while lt i. 32 . do  set idx out. i. . 0 .  set i. add i. 1 . .  end .
   rem ★ X-0035 뒤로 «자리가 모자라다» 는 **0 이 아니라 실패**다 — 그것이 이 검사의 요점이다:
   rem   재지 못한 것과 재고 나서 «아니다» 하는 것이 이제 타입으로 갈린다.
-  let _u0 result u64 hmac.hmac_error hmac.mac key. msg. subslice scratch. 0 66 . out. . .
+  let _u0 result usize hmac.hmac_error hmac.mac key. msg. subslice scratch. 0 66 . out. . .
   guard is_error _u0. . else return 91 . .
   var j usize 0 .
   while lt j. 32 . do
     guard eq idx out. j. . 0 . else return 92 . .
     set j. add j. 1 . .
   end .
-  let _u1 result u64 hmac.hmac_error hmac.mac key. msg. subslice scratch. 0 96 . out. . .
+  let _u1 result usize hmac.hmac_error hmac.mac key. msg. subslice scratch. 0 96 . out. . .
   guard is_ok _u1. . else return 93 . .
   guard eq ok_value _u1. . 32 . else return 93 . .
-  let _u2 result u64 hmac.hmac_error hmac.mac key. msg. scratch. out2. . .
+  let _u2 result usize hmac.hmac_error hmac.mac key. msg. scratch. out2. . .
   guard is_ok _u2. . else return 94 . .
   guard eq ok_value _u2. . 32 . else return 94 . .
   var k usize 0 .
@@ -123,7 +123,7 @@ proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut 
     guard eq idx out. k. . idx out2. k. . . else return 95 . .
     set k. add k. 1 . .
   end .
-  let _u3 result u64 hmac.hmac_error hmac.extract key. msg. subslice scratch. 0 66 . out. . .
+  let _u3 result usize hmac.hmac_error hmac.extract key. msg. subslice scratch. 0 66 . out. . .
   guard is_error _u3. . else return 96 . .
   return 1 .
 end .

@@ -496,7 +496,7 @@ do
     set idx obuf. z2. . 0 .
   end .
   guard write_full fs. h. subslice obuf. 0 40 . . else return 4 . .
-  var total usize 40 .
+  var total u64 40 .
   var sum u64 14695981039346656037 .
   var d usize 0 .
   while lt d. ndocs. . do
@@ -505,7 +505,7 @@ do
     let used usize cast usize idx obuf_len. 0 . . .
     set sum. fnv_more sum. subslice obuf. 0 used. . . .
     guard write_full fs. h. subslice obuf. 0 used. . . else return 4 . .
-    set total. add total. used. . .
+    set total. add total. cast u64 used. . . .
     set d. nd2. .
   end .
   var r usize 0 .
@@ -515,7 +515,7 @@ do
     let used2 usize cast usize idx obuf_len. 0 . . .
     set sum. fnv_more sum. subslice obuf. 0 used2. . . .
     guard write_full fs. h. subslice obuf. 0 used2. . . else return 4 . .
-    set total. add total. used2. . .
+    set total. add total. cast u64 used2. . . .
     set r. r2. .
   end .
   rem 머리: 매직 · 길이 · 문서 수 · 낱말 수 · 검사합
@@ -526,7 +526,7 @@ do
   set idx obuf. 5 . 0 .
   set idx obuf. 6 . 0 .
   set idx obuf. 7 . 1 .
-  put_le obuf. 8 cast u64 total. . .
+  put_le obuf. 8 total. .
   put_le obuf. 16 cast u64 ndocs. . .
   put_le obuf. 24 cast u64 nt. . .
   put_le obuf. 32 sum. .

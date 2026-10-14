@@ -124,11 +124,11 @@ proc derive input so usize . input label slice u8 . input b mut slice u8 . outpu
   guard eq call_builtin sha256 subslice b. 0 0 . subslice b. 288 320 . . 32 . else return 0 . .
 
   rem Early Secret = HKDF-Extract(0, 0)
-  let _u6 result u64 hmac.hmac_error hmac.extract subslice b. 572 604 . subslice b. 572 604 . subslice b. 604 1116 . subslice b. 160 192 . . .
+  let _u6 result usize hmac.hmac_error hmac.extract subslice b. 572 604 . subslice b. 572 604 . subslice b. 604 1116 . subslice b. 160 192 . . .
   guard is_ok _u6. . else return 0 . .
   guard eq ok_value _u6. . 32 . else return 0 . .
   rem Handshake Secret = Extract(Derive-Secret(Early,"derived",""), ECDHE)
-  let _u7 result u64 tls13.tls13_error tls13.advance subslice b. 160 192 . subslice b. so. add so. 32 . . subslice b. 288 320 . subslice b. 256 288 . subslice b. 428 556 . subslice b. 604 1116 . subslice b. 192 224 . . .
+  let _u7 result usize tls13.tls13_error tls13.advance subslice b. 160 192 . subslice b. so. add so. 32 . . subslice b. 288 320 . subslice b. 256 288 . subslice b. 428 556 . subslice b. 604 1116 . subslice b. 192 224 . . .
   guard is_ok _u7. . else return 0 . .
   guard eq ok_value _u7. . 32 . else return 0 . .
   rem 이 프로그램의 비밀 — TLS 라면 "c ap traffic" 이 올 자리다.

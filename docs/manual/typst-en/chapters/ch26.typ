@@ -40,7 +40,7 @@
 
 #idx("task_group")
 - `task_group do … end .` binds the flows made inside it into one. Where the block ends, all bound flows end, and none leave with any still running.
-- `spawn square 5` makes a flow running `square 5` and gives that flow's *handle*.
+- `spawn square 5` makes a flow running `square 5` and gives that flow's *handle*. The handle's type is `task u64` --- the type of the value the flow will give (`square`'s output) is part of the type, and `await` gives a value of that type.
 - `await h1. .` waits until that flow ends and gives its result. While waiting, other flows progress.
 
 Drawn on a time axis, the lifetimes look like this.
@@ -80,7 +80,7 @@ A channel is a container for putting and taking values between flows. Values com
 
 #demo("examples/ch26/chan.low")
 
-- `channel u64` makes a channel. `chsend ch. n. .` puts in and `chrecv ch. .` takes out.
+- `channel u64` makes a channel --- its type is `chan u64` (the type of the values it holds is part of the type). `chsend ch. n. .` puts in (`n` must be a `u64`) and `chrecv ch. .` takes out (it gives a `u64`).
 - A flow taking from an empty channel stops, and so does a flow putting into a full one. A stopped flow continues when its counterpart comes.
 - Two consumers and two producers are bound in one group. Whatever the ordering, both 10 and 32 go into `sink` and the result is 42.
 
@@ -187,10 +187,10 @@ yet". Until then, when a count must be shared, use atomic operations (#chref("pa
   caption: [Task and channel syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`task_group do … end .`], [bind flows to a block --- all finish at its end], [forgotten flows vanish by grammar],
-  [`var h1 u64 spawn square 5 . .`], [start a flow and receive its handle], [outside a group: `E-SPAWN-SCOPE`],
+  [`var h1 task u64 spawn square 5 . .`], [start a flow and receive its handle], [outside a group: `E-SPAWN-SCOPE`],
   [`await h1. .`], [wait for that flow's result], [other flows progress meanwhile],
   [`task_group cancel_on_error do … end .`], [cancel siblings on the first error], [cancellation does not roll back],
-  [`var ch u64 channel u64 . .`], [a bounded, ordered container], [no unbounded channels yet --- `E-CHAN-UNBOUNDED`],
+  [`var ch chan u64 channel u64 . .`], [a bounded, ordered container], [no unbounded channels yet --- `E-CHAN-UNBOUNDED`],
   [`chsend ch. n. .` · `chrecv ch. .`], [put · take --- blocks when full or empty], [`concurrent` effect --- completion depends on others],
   [a lone wait · receives with no sender], [rejected at translation (`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [deadlocks visible from the source],
   [`test … schedule explore_interleavings . do … end .`], [run every possible order and compare answers], [tests find bugs of rare orders],

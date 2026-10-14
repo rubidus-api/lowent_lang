@@ -39,10 +39,10 @@ do
     let n result (option usize) files.file_error files.read_dir fs. dh. buf. . .
     if eq is_ok n. . false . do set going. false . end .
     if is_ok n. . do
-      let nvo option u64 ok_value n. . .
+      let nvo option usize ok_value n. . .
       if eq is_some nvo. . false . do set going. false . end .
       var nl u64 0 .
-      if is_some nvo. . do set nl. some_value nvo. . . end .
+      if is_some nvo. . do set nl. cast u64 some_value nvo. . . . end .
       if eq nl. 0 . do set going. false . end .          rem 끝 . .
       if gt nl. 0 . do
         rem `.`(길이 1) 와 `..`(길이 2) 를 거른다 — readdir 이 낸 것이니 프로그램이 판단한다

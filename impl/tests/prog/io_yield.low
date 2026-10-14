@@ -26,8 +26,8 @@ proc main input k cap io . input al cap allocator . output u8 . effects alloc io
   let b0 option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some b0. . else return 69 . .
   var buf mut slice u8 some_value b0. . .
-  var m1 u64 0 .
-  var m2 u64 0 .
+  var m1 task u64 0 .
+  var m2 task usize 0 .
   task_group do
     set m1. spawn reader k. buf. . .
     set m2. spawn marker k. . .

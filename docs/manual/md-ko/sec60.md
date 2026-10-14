@@ -17,7 +17,7 @@ L0 — 순수 계산(호출자의 버퍼)
 ```lowent
 use fmt .
 
-let p option u64 fmt.put_u64 buf. 0 1234 . .
+let p option usize fmt.put_u64 buf. 0 1234 . .
 guard is_some p. . else return 1 . .
 ```
 
@@ -125,8 +125,8 @@ end .
 > **반례. 돌려받은 `pos` 를 버리고 옛 `pos` 를 다시 쓴다**
 >
 > > ```lowent
-> > let p1 option u64 fmt.put_str buf. 0 "answer=" . .
-> > let p2 option u64 fmt.put_u64 buf. 0 42 . .        rem ✗ pos 는 some_value p1 이어야 한다
+> > let p1 option usize fmt.put_str buf. 0 "answer=" . .
+> > let p2 option usize fmt.put_u64 buf. 0 42 . .        rem ✗ pos 는 some_value p1 이어야 한다
 > > ```
 > >
 > > 번역은 통과하고 결과가 `answer=42` 대신 `42swer=` 처럼 겹쳐 나온다. 출력 앞부분이 뭉개져 있으면 `pos` 를 이어 넘겼는지부터 본다.

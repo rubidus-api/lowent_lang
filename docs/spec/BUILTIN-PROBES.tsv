@@ -434,3 +434,57 @@ clmul_hi		u64	return call_builtin clmul_hi 9223372036854775808 2 . .		= 1
 clmul_lo		u8	return call_builtin clmul_lo 3 5 . .		CHECK E-TYPE-WIDTH
 rng_next		u64	return call_builtin rng_next 1 . .		= 10451216379200822465
 rng_next		u8	return call_builtin rng_next 1 . .		CHECK E-TYPE-WIDTH
+atomic_load	s mut slice u64	u64	return atomic_load s. 0 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_load	s mut slice u64, i u64	u64	return atomic_load s. i. . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_load	s mut slice u64	u64	return atomic_load s. 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_add	s mut slice u64	u64	return atomic_add s. 0 10 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_add	s mut slice u64	u8	return atomic_add s. 0 10 . .	[5,0,0,0,0,0,0,0]	CHECK E-TYPE-WIDTH
+atomic_add	s mut slice u64, i u64	u64	return atomic_add s. i. 1 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_add	s mut slice u64	u64	return atomic_add s. 1 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_sub	s mut slice u64	u64	return atomic_sub s. 0 3 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_sub	s mut slice u64, i u64	u64	return atomic_sub s. i. 1 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_sub	s mut slice u64	u64	return atomic_sub s. 1 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_and	s mut slice u64	u64	return atomic_and s. 0 3 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_and	s mut slice u64, i u64	u64	return atomic_and s. i. 1 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_and	s mut slice u64	u64	return atomic_and s. 1 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_or	s mut slice u64	u64	return atomic_or s. 0 8 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_or	s mut slice u64, i u64	u64	return atomic_or s. i. 1 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_or	s mut slice u64	u64	return atomic_or s. 1 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_xor	s mut slice u64	u64	return atomic_xor s. 0 1 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_xor	s mut slice u64, i u64	u64	return atomic_xor s. i. 1 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_xor	s mut slice u64	u64	return atomic_xor s. 1 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_swap	s mut slice u64	u64	return atomic_swap s. 0 99 . .	[5,0,0,0,0,0,0,0]	= 5
+atomic_swap	s mut slice u64, i u64	u64	return atomic_swap s. i. 1 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_swap	s mut slice u64	u64	return atomic_swap s. 1 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+atomic_cas	s mut slice u64	u64	return atomic_cas s. 0 5 42 . .	[5,0,0,0,0,0,0,0]	= 1
+atomic_cas	s mut slice u64	u64	return atomic_cas s. 0 7 42 . .	[5,0,0,0,0,0,0,0]	= 0
+atomic_cas	s mut slice u64, i u64	u64	return atomic_cas s. i. 5 42 . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
+atomic_cas	s mut slice u64	u64	return atomic_cas s. 1 5 42 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS
+some	a u8	u64	let o option u8 some a. . . ␤ return widen u64 some_value o. . . .	7	= 7
+some	a u8	u64	let o option u64 some a. . . ␤ return 0 .	7	CHECK E-TYPE-WIDTH
+some_value	a u8	u64	let o option u8 some a. . . ␤ return widen u64 some_value o. . . .	9	= 9
+some_value	a u8	u64	let o option u8 none . ␤ return widen u64 some_value o. . . .	9	TRAP E-VM-NONE
+is_some	a u8	bool	let o option u8 some a. . . ␤ return is_some o. . .	1	= 1
+is_some	a u8	bool	let o option u8 none . ␤ return is_some o. . .	1	= 0
+is_none	a u8	bool	let o option u8 none . ␤ return is_none o. . .	1	= 1
+value_or	a u8	u64	let o option u8 some a. . . ␤ return widen u64 value_or o. 9 . . .	4	= 4
+value_or	a u8	u64	let o option u8 none . ␤ return widen u64 value_or o. 9 . . .	4	= 9
+value_or	a u8, b u64	u64	let o option u8 some a. . . ␤ return widen u64 value_or o. b. . . .	4 5	CHECK E-TYPE-WIDTH
+idx	xs slice u8	u8	return idx xs. 1 . .	[4,5]	= 5
+idx	xs slice u8	u8	return idx xs. 5 . .	[4,5]	TRAP E-VM-BOUNDS
+idx	xs slice u8, i u64	u8	return idx xs. i. . .	[4,5] 0	CHECK E-TYPE-NOMINAL
+subslice	xs slice u8	usize	return len subslice xs. 1 3 . . .	[4,5,6]	= 2
+subslice	xs slice u8	usize	return len subslice xs. 1 5 . . .	[4,5,6]	TRAP E-VM-BOUNDS
+subslice	xs slice u8, a u64	usize	return len subslice xs. a. 2 . . .	[4,5,6] 0	CHECK E-TYPE-NOMINAL
+view_array	xs slice u8	usize	return len view_array u32 xs. . . .	[1,2,3,4,5,6,7,8]	= 2
+view_array	xs slice u8	usize	return len view_array u32 xs. . . .	[1,2,3]	TRAP E-VM-VIEW
+splat	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_add v. . . .	3	= 12
+reduce_add	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_add v. . . .	5	= 20
+reduce_add	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_add v. . . .	2000000000	TRAP E-VM-OVERFLOW
+reduce_max	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_max v. . . .	3	= 3
+reduce_min	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_min v. . . .	3	= 3
+reduce_add	a i32	i64	var v vec i32 4 splat a. . . ␤ return widen i64 reduce_add v. . . .	-3	= -12
+reduce_add	a i8	i64	var v vec i8 4 splat a. . . ␤ return widen i64 reduce_add v. . . .	-40	TRAP E-VM-OVERFLOW
+reduce_max	a i32	i64	var v vec i32 4 splat a. . . ␤ return widen i64 reduce_max v. . . .	-7	= -7
+min	a u8, b i16	i16	return min a. b. . .	3 5	CHECK E-TYPE-SIGN
+max	a u8, b i8	i16	return widen i16 max a. b. . . .	3 5	CHECK E-TYPE-SIGN

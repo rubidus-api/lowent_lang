@@ -38,5 +38,5 @@ rem 무부호 대조 — 같은 바이트를 u16 으로 보면 131174 그대로�
 fn ured input b slice u8 . output i64 . do
   let xs slice u16 view_array u16 b. . .
   let v vec u16 4 load xs. 0 . .
-  return widen i64 reduce_add v. . . .
+  return widen i64 reduce_max v. . . .
 end .

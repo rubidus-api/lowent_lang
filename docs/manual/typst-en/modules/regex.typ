@@ -12,7 +12,7 @@ use regex as rx .
 
 let n option u64 rx.compile "a{2,4}b" prog. st. . .
 guard is_some n. . else return 1 . .
-let m option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
+let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 ```
 
 The program (`slice u64`), the compiler state and the matcher's workspace are all the caller's slices. So it is `effects none` with no hidden allocation, reentrancy
@@ -127,24 +127,24 @@ do
   rem "ab.d*" on "abcdddx": . consumes c, greedy d* consumes ddd, end = 6
   let n option u64 rx.compile "ab.d*" prog. st. . .
   guard is_some n. . else return 1 . .
-  let m option u64 rx.match_at prog. "abcdddx" 0 cl. nl. mk. . .
+  let m option usize rx.match_at prog. "abcdddx" 0 cl. nl. mk. . .
   guard is_some m. . else return 2 . .
   guard eq some_value m. . 6 . else return 3 . .
 
   rem as a regex this is [a-c]+z\d --- in source, "\\d"
   let n2 option u64 rx.compile "[a-c]+z\\d" prog. st. . .
   guard is_some n2. . else return 4 . .
-  let m2 option u64 rx.match_at prog. "abz7" 0 cl. nl. mk. . .
+  let m2 option usize rx.match_at prog. "abz7" 0 cl. nl. mk. . .
   guard is_some m2. . else return 5 . .
   guard eq some_value m2. . 4 . else return 6 . .
 
   rem "ab$" only at the end --- find gives the leftmost start
   let n3 option u64 rx.compile "ab$" prog. st. . .
   guard is_some n3. . else return 7 . .
-  let f option u64 rx.find prog. "xxab" cl. nl. mk. . .
+  let f option usize rx.find prog. "xxab" cl. nl. mk. . .
   guard is_some f. . else return 8 . .
   guard eq some_value f. . 2 . else return 9 . .
-  let g option u64 rx.find prog. "abx" cl. nl. mk. . .
+  let g option usize rx.find prog. "abx" cl. nl. mk. . .
   guard eq is_some g. . false . else return 10 . .
   return 42 .
 end .
@@ -161,20 +161,20 @@ do
   guard ge len prog. . 32 . else return 90 . .
   let n option u64 rx.compile "b+c" prog. st. . .
   guard is_some n. . else return 1 . .
-  let a option u64 rx.find prog. "xxbbbc" cl. nl. mk. . .
+  let a option usize rx.find prog. "xxbbbc" cl. nl. mk. . .
   guard is_some a. . else return 2 . .
-  let b option u64 rx.search prog. "xxbbbc" cl. nl. mk. cs. ns. . .
+  let b option usize rx.search prog. "xxbbbc" cl. nl. mk. cs. ns. . .
   guard is_some b. . else return 3 . .
   guard eq some_value a. . some_value b. . . else return 4 . .
   guard eq some_value b. . 2 . else return 5 . .
 
   let n3 option u64 rx.compile "a{2,4}b" prog. st. . .
   guard is_some n3. . else return 9 . .
-  let m3 option u64 rx.match_at prog. "aaab" 0 cl. nl. mk. . .
+  let m3 option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
   guard is_some m3. . else return 10 . .
   guard eq some_value m3. . 4 . else return 11 . .
   rem below the lower bound is not a match
-  let f option u64 rx.match_at prog. "ab" 0 cl. nl. mk. . .
+  let f option usize rx.match_at prog. "ab" 0 cl. nl. mk. . .
   guard eq is_some f. . false . else return 12 . .
   return 42 .
 end .
@@ -188,7 +188,7 @@ A backtracking engine would wander through 2#super[64] paths giving `(a*)*b` six
 ```lowent
 let n option u64 rx.compile "(a*)*b" prog. st. . .
 guard is_some n. . else return 1 . .
-let f option u64 rx.match_at prog.
+let f option usize rx.match_at prog.
   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl. nl. mk. . .
 guard eq is_some f. . false . else return 2 . .
 ```

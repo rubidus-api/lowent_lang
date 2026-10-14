@@ -41,7 +41,7 @@
 #idx("task_group")
 - `task_group do … end .` 는 그 안에서 만든 흐름들을 하나로 묶는다. 블록이 끝나는 자리에서 묶인 흐름이 모두 끝나며,
   하나라도 남은 채로 나가지 않는다.
-- `spawn square 5` 는 `square 5` 를 도는 흐름을 만들고 그 흐름의 *핸들*을 준다.
+- `spawn square 5` 는 `square 5` 를 도는 흐름을 만들고 그 흐름의 *핸들*을 준다. 핸들의 타입은 `task u64` 다 --- 그 흐름이 낼 값의 타입(`square` 의 출력)이 타입에 실리고, `await` 는 그 타입의 값을 낸다.
 - `await h1. .` 은 그 흐름이 끝날 때까지 기다렸다가 결과를 준다. 기다리는 동안 다른 흐름이 나아간다.
 
 흐름의 수명을 시간 축에 그리면 이렇다.
@@ -81,7 +81,7 @@ drive       ──┬── task_group do                                   end 
 
 #demo("examples/ch26/chan.low")
 
-- `channel u64` 가 채널을 만든다. `chsend ch. n. .` 은 넣고, `chrecv ch. .` 는 뺀다.
+- `channel u64` 가 채널을 만든다 --- 그 타입은 `chan u64` 다(담는 값의 타입이 타입에 실린다). `chsend ch. n. .` 은 넣고(`n` 은 `u64` 여야 한다), `chrecv ch. .` 는 뺀다(`u64` 를 낸다).
 - 빈 채널에서 빼려는 흐름은 멈추고, 가득 찬 채널에 넣으려는 흐름도 멈춘다. 멈춘 흐름은 상대가 오면 다시 이어 간다.
 - 소비자 둘과 생산자 둘을 한 그룹에 묶었다. 어떤 차례로 돌든 `sink` 에는 10 과 32 가 모두 들어가 42 가 된다.
 
@@ -190,10 +190,10 @@ drive       ──┬── task_group do                                   end 
   caption: [태스크와 채널의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`task_group do … end .`], [흐름들을 블록에 묶는다 --- 끝에서 모두 끝난다], [만들어 놓고 잊은 흐름이 문법으로 사라진다],
-  [`var h1 u64 spawn square 5 . .`], [흐름을 만들고 핸들을 받는다], [묶는 자리 밖이면 `E-SPAWN-SCOPE`],
+  [`var h1 task u64 spawn square 5 . .`], [흐름을 만들고 핸들을 받는다], [묶는 자리 밖이면 `E-SPAWN-SCOPE`],
   [`await h1. .`], [그 흐름의 결과를 기다려 받는다], [기다리는 동안 다른 흐름이 나아간다],
   [`task_group cancel_on_error do … end .`], [오류 하나에 형제를 취소한다], [취소는 되감지 않는다],
-  [`var ch u64 channel u64 . .`], [크기가 정해진 차례 있는 그릇], [끝없는 채널은 아직 없다 --- `E-CHAN-UNBOUNDED`],
+  [`var ch chan u64 channel u64 . .`], [크기가 정해진 차례 있는 그릇], [끝없는 채널은 아직 없다 --- `E-CHAN-UNBOUNDED`],
   [`chsend ch. n. .` · `chrecv ch. .`], [넣기 · 빼기 --- 차거나 비면 멈춘다], [`concurrent` 효과 --- 완결이 남에게 달렸다],
   [짝 없는 기다림 · 보내는 쪽 없는 받기], [번역에서 거절(`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [적힌 것만 봐도 아는 교착],
   [`test … schedule explore_interleavings . do … end .`], [가능한 모든 차례를 돌려 답을 맞댄다], [드문 차례의 결함을 시험이 찾는다],

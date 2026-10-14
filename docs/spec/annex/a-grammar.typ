@@ -361,6 +361,9 @@ slice   array   matrix   segments   set   stack   range   vec   bitset   mask
 rem 답을 담는 것
 result   option
 
+rem 흐름과 채널(⟦§10.3⟧ · ⟦§10.6⟧)
+task   chan
+
 rem 자리와 빌림
 ref   mut_ref   mut   owned   region
 
@@ -707,6 +710,8 @@ type-core      ::= name | path
                  | \"result\" type type
                  | \"vec\" type word
                  | \"segments\" type
+                 | \"task\" type
+                 | \"chan\" type
                  | \"bitset\" [ number ]
                  | \"bits\" number
                  | \"cap\" name

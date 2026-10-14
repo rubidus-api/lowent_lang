@@ -763,7 +763,8 @@ static bool dt_in(proven_u8str_view_t v, const char *const *set) {
 }
 static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64",
                                        "void","self","str","string","char","byte","bytes_view", NULL };
-static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero",
+static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero","task","chan",   /* RFC-0148 S5 */
+                                       
                                        "atomic","lock","rwlock","shared_read","view", NULL };
 // ★ 이름은 **모듈과 함께** 맞춘다(check-lib-pairs 가 잡았다: `trust` 의 `files.handle` 이 `pool` 의 브랜드 타입 `handle`
 //   (인자 하나)로 읽혀 다음 낱말을 삼켰다). `m.t` 는 모듈 m 의 t 만, 맨 `t` 는 **자기 모듈 것만**.

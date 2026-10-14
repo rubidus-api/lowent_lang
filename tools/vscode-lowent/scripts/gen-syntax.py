@@ -20,7 +20,7 @@ ops = sorted({l.split('\t')[0] for l in (ROOT / 'docs' / 'spec' / 'BUILTIN-MEANI
 clause = ['input', 'output', 'effects', 'requires', 'ensures', 'errors', 'tests', 'comptime', 'from', 'as',
           'assume', 'static', 'debug', 'into', 'with', 'capacity', 'order']
 types = ['bool', 'u8', 'i8', 'u16', 'i16', 'u32', 'i32', 'u64', 'i64', 'usize', 'idiff', 'f32', 'f64', 'void', 'self',
-         'slice', 'array', 'matrix', 'option', 'result', 'vec', 'segments', 'bitset', 'bits', 'mask', 'cap', 'mut', 'owned',
+         'slice', 'array', 'matrix', 'option', 'result', 'vec', 'segments', 'task', 'chan', 'bitset', 'bits', 'mask', 'cap', 'mut', 'owned',
          'mut_ref', 'ref', 'unsafe_ptr', 'stack', 'set']
 constants = ['true', 'false', 'none']
 control = [k for k in keywords if k in ('if', 'else', 'while', 'for', 'repeat', 'range', 'cycle', 'next', 'step', 'match',

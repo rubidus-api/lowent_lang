@@ -20,8 +20,8 @@ do
   rem ko: 버퍼를 겹치지 않는 두 조각으로 나눠 태스크마다 하나씩 준다 /// en: split the buffer into two pieces that do not overlap and give one to each task
   var r u64 0 .
   task_group do
-    let h1 u64 spawn user subslice buf. 0 8 . . .
-    let h2 u64 spawn user subslice buf. 8 16 . . .
+    let h1 task u64 spawn user subslice buf. 0 8 . . .
+    let h2 task u64 spawn user subslice buf. 8 16 . . .
     let a u64 await h1. . .
     let b u64 await h2. . .
     set r. add a. b. . .

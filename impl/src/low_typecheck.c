@@ -5,6 +5,7 @@
 #include "low_token.h"
 #include "low_diag.h"
 #include "low_ir.h"   // RFC-0149 L5 — `usize` 의 폭은 대상의 주소 폭(`low_ir_target()`)
+#include "low_arity.h"   // RFC-0148 S5 — 빌트인 op 의 인자 수(표 하나)
 
 #include <math.h>
 bool low_ir_is_builtin_op(proven_u8str_view_t name);     /* low_ir.c — `call_builtin` 뒤의 이름공간에 있는 철자인가 */
@@ -67,6 +68,11 @@ typedef struct {
     //   `output option u64` 인 op 이 `usize` 를 `some` 으로 내도 서고, `some_value` 는 «모름» 을 내서 받는 쪽도 검사받지 않았다 —
     //   `usize` 와 `u64` 가 감싸개 속에서는 섞였다. pbits 0 = 미상(리터럴을 감쌌거나 선언이 한 낱말이 아니다) — 모르면 물지 않는다.
     proven_u8   pbits; bool psign; proven_u8 pnom;
+    proven_u8str_view_t ename;  // ★ RFC-0148 S5 — `result T E` 의 오류 타입 이름(`error_value` 가 꺼낸다)
+    proven_u8str_view_t pname;  // ★ RFC-0148 S5 — 알맹이의 이름(구조체 · 열거형). **꺼낼 때만** 쓴다 — 대조에는 쓰지 않는다(X-0085 의 «넓게 실었더니 빨개졌다»)
+    proven_u8   pwrap, ipk;     // ★ RFC-0148 S5 — 알맹이가 또 감싼 것(pk == TK_WRAPPED)이면 그 감싸개의 종류와 **안쪽** 알맹이의 종류(폭은 pbits · psign · pnom 에)
+    bool        bydecl;         // ★ RFC-0148 S5 — 모름이어도 S5 가 거절하지 않는다: 값의 타입이 **구성상** 받는 자리의 선언이다(`using` 패스가 선언대로 짓는 값)
+                                //   이거나, 이 식이 이미 다른 진단으로 거절됐다(같은 자리를 두 번 말하지 않는다)
     proven_u8str_view_t nname;  // TK_NAMED: 머리 타입 이름
     proven_u32  targ;           // TK_NAMED: 틀 인자 낱말들의 해시(0 = 인자 없음/미상)
 } ty_t;
@@ -172,7 +178,7 @@ static bool g_ntval[TC_MAXSIG];
 //   int/float 코어는 위 표가 명목 id 를 주지만, 이름 코어는 TK_NAMED 로 떨어져 **아무 구별도 없었다**:
 //   `newtype spot pt .` 라 적어도 `pt` 를 `spot` 자리에 그냥 넣을 수 있었다 — 낱말이 **약속만 하고
 //   아무것도 안 바꾸는 장식**(PRINCIPLES.md §0). 여기에도 명목 id 를 준다.
-static struct { proven_u8str_view_t name; proven_u8 nominal; } g_nts[TC_MAXSIG];
+static struct { proven_u8str_view_t name, target; proven_u8 nominal; } g_nts[TC_MAXSIG];
 // ★★★ **투명 별칭 레지스트리** (X-0010 · 2026-08-15). `type X Y … .` 은 명세가 *같은 타입*이라
 //   했다(SPEC-004 §89). 그래서 이름으로 타입을 가르려면 **먼저 펴야** 한다 — 안 펴고 이름만
 //   맞대면 `gvec` 과 `vecgen.vec` 이 다른 타입이 되어, 명세가 같다고 한 둘을 도구가 갈라 놓는다.
@@ -374,7 +380,7 @@ static ty_t ty_join(ty_t t, ty_t u) { return ty_sub(t, u) ? u : t; }
 // conservative: never flag when either side is unknown/named; then kind, then
 // (integers/floats) literal fit / ⊑ 확대 판정 (D2: 암묵 변환은 ⊑ 를 따를 때만).
 typedef enum { TC_OK, TC_KIND, TC_WIDTH, TC_SIGN, TC_NOMINAL, TC_RANGE, TC_LANES,
-               TC_INSTANCE, TC_STRUCT, TC_WRAP, TC_PAYLOAD } tc_reason_t;   // TC_WRAP: option ↔ result   // TC_STRUCT: 서로 다른 명명 타입(X-0010)   // ★ TC_INSTANCE: 같은 틀의 **다른 인스턴스**(X-0009)
+               TC_INSTANCE, TC_STRUCT, TC_WRAP, TC_PAYLOAD, TC_UNKNOWN } tc_reason_t;   // TC_WRAP: option ↔ result   // TC_STRUCT: 서로 다른 명명 타입(X-0010)   // ★ TC_INSTANCE: 같은 틀의 **다른 인스턴스**(X-0009)
 // RFC-0055 D7: 리터럴은 선언된 **범위**에 들어야 한다 — 폭이 아니라 범위가 계약이다.
 static bool lit_in_rng(ty_t lit, ty_t decl) {
     if (!decl.has_rng || !lit.lit) return true;
@@ -405,13 +411,55 @@ static bool tc_is_instance_name(proven_u8str_view_t v) {
     return false;
 }
 
+static tc_reason_t compat_known(ty_t decl, ty_t actual);
+static proven_u8str_view_t g_unk_head;   // ★ RFC-0148 S5 — 마지막으로 «모름» 을 낸 식의 머리 낱말(진단이 무엇을 모르는지 말하게)
+// ★★★ RFC-0148 S5 — **타입이 적힌 자리에 타입을 모르는 값이 오면 거절한다**(D2). 측정 단계: `LOWENT_S5=1` 일 때만 문다.
+static bool tc_s5_on(void) { return true; }   // 2026-10-14 — 켰다(D2 «수가 0 이 된 뒤»): 코퍼스에서 정상 글의 «모름» 이 0 이 됐다
+static bool tc_decl_concrete(ty_t d) {
+    return (d.k == TK_INT && (d.bits || d.nominal)) || d.k == TK_FLOAT || d.k == TK_BOOL || d.k == TK_SLICE || d.k == TK_WRAPPED ||
+           d.k == TK_VEC || d.k == TK_MASK;
+}
 static tc_reason_t compat(ty_t decl, ty_t actual) {
+    if (actual.k == TK_UNKNOWN && !actual.bydecl && tc_decl_concrete(decl) && tc_s5_on()) return TC_UNKNOWN;
+    return compat_known(decl, actual);
+}
+// `newtype spot pt .` 의 값은 `lit pt do … end` 로 짓는다 — 리터럴(pt)이 newtype(spot)의 핵이면 그 자리에 들어간다
+static bool tc_lit_builds(ty_t decl, ty_t actual) {
+    if (!actual.lit || actual.k != TK_NAMED || decl.k != TK_NAMED || !decl.nname.size || !actual.nname.size) return false;
+    for (proven_size_t q = 0; q < g_nnts; q++)
+        if (proven_u8str_view_eq(g_nts[q].name, decl.nname) && proven_u8str_view_eq(g_nts[q].target, actual.nname)) return true;
+    return false;
+}
+static proven_u8str_view_t g_sname[1024]; static proven_size_t g_nsname;   // 선언된 구조체 이름(검사 시작에 채운다)
+static bool tc_is_struct_name(proven_u8str_view_t v) {
+    proven_u8str_view_t b = v;
+    for (proven_size_t i = 0; i < v.size; i++) if (v.ptr[i] == (proven_u8)'.') b = (proven_u8str_view_t){ v.ptr + i + 1, v.size - i - 1 };
+    for (proven_size_t i = 0; i < g_nsname; i++) if (proven_u8str_view_eq(g_sname[i], v) || proven_u8str_view_eq(g_sname[i], b)) return true;
+    return false;
+}
+static bool tc_is_tc(ty_t t) { return t.k == TK_NAMED && (veq(t.nname, "task") || veq(t.nname, "chan")); }
+static tc_reason_t compat_known(ty_t decl, ty_t actual) {
+    // ★ RFC-0148 S5 (소유자 2026-10-14 «핸들·채널에 타입을») — `task T` · `chan T` 는 정수가 아니고, 원소 타입이 타입의 일부다
+    if (tc_is_tc(decl) || tc_is_tc(actual)) {
+        if (tc_is_tc(decl) && tc_is_tc(actual)) {
+            if (!proven_u8str_view_eq(decl.nname, actual.nname)) return TC_KIND;
+            if (decl.ebits && actual.ebits) {
+                if (decl.enom != actual.enom) return TC_NOMINAL;
+                if (decl.eflt != actual.eflt || decl.ebits != actual.ebits) return TC_WIDTH;
+                if (decl.esign != actual.esign) return TC_SIGN;
+            }
+            if ((decl.ebits && actual.pname.size) || (decl.pname.size && actual.ebits)) return TC_KIND;
+            return TC_OK;
+        }
+        ty_t o = tc_is_tc(decl) ? actual : decl;
+        if ((o.k == TK_INT && !o.lit) || o.k == TK_FLOAT || o.k == TK_BOOL || o.k == TK_SLICE || o.k == TK_WRAPPED) return TC_KIND;
+    }
     // ★★★ **이름 타입끼리도 newtype 이면 구별한다** (RFC-0002 §6.3.1 — struct core).
     //   ★ 범위를 좁게 둔다: **명목 id 를 가진 쪽이 있을 때만** 본다. 투명 `type X Y .` 별칭은
     //     명세가 *같은 타입*이라 했으므로(SPEC-004 §89) 오늘처럼 호환이어야 하고, 일반 struct 끼리의
     //     검사(`rc` 를 `pt` 자리에)는 **아직 없다** — 그건 이 항목과 별개의 더 넓은 틈이라 손대지 않는다.
     if (decl.k == TK_NAMED && actual.k == TK_NAMED && (decl.nominal || actual.nominal) &&
-        decl.nominal != actual.nominal) return TC_NOMINAL;
+        decl.nominal != actual.nominal && !tc_lit_builds(decl, actual)) return TC_NOMINAL;   // 구조체 리터럴은 그 구조체를 핵으로 하는 newtype 을 짓는 길이다
     // ★★★ **같은 틀의 다른 인스턴스는 다른 타입이다** (X-0009 · 2026-08-15).
     //   `gv u32 …` 값을 `gv u8 …` 변수에 묶는 것이 통과하고 **3 대신 1** 을 냈다. 여기서 문다.
     //   ★ 범위를 좁게 둔다: **머리 이름이 같고**, 양쪽 다 인자를 갖고, 그 인자가 다를 때만.
@@ -439,7 +487,7 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
     //     아니어서** 여기 안 온다. 모르면 안 무는 쪽이 옳다.
     if (decl.k == TK_NAMED && actual.k == TK_NAMED && decl.nname.size && actual.nname.size) {
         proven_u8str_view_t a = tc_canon_name(decl.nname), b = tc_canon_name(actual.nname);
-        if (!proven_u8str_view_eq(a, b) && tc_is_declared_tname(a) && tc_is_declared_tname(b))
+        if (!proven_u8str_view_eq(a, b) && tc_is_declared_tname(a) && tc_is_declared_tname(b) && !tc_lit_builds(decl, actual))
             return TC_STRUCT;
     }
     // ★★★★★ **`option` 자리에 `result` 를 넣지 않는다**(그 반대도). 둘 다 종류를 아는 때만 문다.
@@ -451,6 +499,16 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
         (decl.pk == TK_INT || decl.pk == TK_FLOAT) && decl.pbits && actual.pbits) {     // RFC-0149 L4 — 알맹이의 타입도 같아야 한다
         if (decl.pnom != actual.pnom) return TC_NOMINAL;
         if (decl.pbits != actual.pbits || decl.psign != actual.psign) return decl.psign != actual.psign ? TC_SIGN : TC_WIDTH;
+    }
+    // ★ RFC-0148 S5 — 선언된 구조체 · 열거형 값과 수 · 참거짓 · 슬라이스는 서로의 자리에 들어가지 않는다. 전에는 이름 타입이면 무엇이든 통과했다
+    //   (`let q u8 ok_value r. .` 에 구조체가 섰다). 별칭이 수를 가리키면 이미 수로 풀렸다(ty_of_decl_r) — 남은 이름은 진짜 이름 타입이다.
+    {
+        // 구조체만 — 열거 값을 수로 쓰는 자리는 정본이 아직 정하지 않았다(RFC-0148 §8-15)
+        bool dn = decl.k == TK_NAMED && decl.nname.size && tc_is_struct_name(tc_canon_name(decl.nname)) && !tc_is_tc(decl);
+        bool an = actual.k == TK_NAMED && actual.nname.size && tc_is_struct_name(tc_canon_name(actual.nname)) && !tc_is_tc(actual);
+        bool ds = decl.k == TK_INT || decl.k == TK_FLOAT || decl.k == TK_BOOL || decl.k == TK_SLICE;
+        bool as = (actual.k == TK_INT && !actual.lit) || (actual.k == TK_FLOAT && !actual.lit) || actual.k == TK_BOOL || actual.k == TK_SLICE;
+        if ((ds && an) || (dn && as)) return TC_KIND;
     }
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
@@ -477,9 +535,10 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
     if (decl.k == TK_VEC) {
         // ★ 벡터는 **정확히** 같아야 한다 — 레인 수도, 원소 종류도, 폭도.
         //   암묵 확대는 없다(레인이 다른 두 벡터는 아예 다른 것이다).
-        if (decl.lanes != actual.lanes) return TC_LANES;
+        if (actual.lanes && decl.lanes != actual.lanes) return TC_LANES;   // 레인 0 = 받는 자리가 정한다(`load` · `splat`)
+        if (!actual.lanes && !actual.bits) return TC_OK;                  // 레인도 원소도 받는 자리가 정한다(`load`)
         if (decl.vflt != actual.vflt) return TC_KIND;
-        if (decl.bits != actual.bits) return TC_WIDTH;
+        if (actual.bits && decl.bits != actual.bits) return TC_WIDTH;
         return TC_OK;
     }
     return TC_OK;
@@ -572,6 +631,12 @@ static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *ms
                                       "content out would read one as the other (X-0085). Declare the content type the value really has", line);
     else if (r == TC_STRUCT) tc_emit(c, "E-TYPE-STRUCT", "these are two DIFFERENT named types — the same field layout does not make them the same type. `meters` and `seconds` may both hold one u64 and still mean different things, and a checker that only compares representation lets that confusion through silently. Transparent `type` aliases are expanded before this comparison, so an alias and its target remain interchangeable exactly as the spec says (SPEC-004 §89); what is rejected here is a genuinely different name. Use the declared type, or convert explicitly", line);
     else if (r == TC_LANES)   tc_emit(c, "E-TYPE-LANES", "vector lane counts differ — two vectors of different width are different types (there is no implicit widening between them)", line);
+    else if (r == TC_UNKNOWN && getenv("LOWENT_S5_HEAD")) tc_emitf(c, "E-TYPE-UNKNOWN", line, "HEAD[%.*s]", (int)g_unk_head.size, (const char *)g_unk_head.ptr);
+    else if (r == TC_UNKNOWN) tc_emitf(c, "E-TYPE-UNKNOWN", line,
+                                       "the checker does not know the type of this value (it comes from `%.*s`), and the place it goes to has a declared "
+                                       "type — a value whose type is not known cannot be checked, so it is refused (RFC-0148 S5, canon 6.2 (2a)). "
+                                       "Bind it through a name with a written type, convert it (`cast`), or report the word whose result type is missing",
+                                       (int)(g_unk_head.size < 40 ? g_unk_head.size : 40), (const char *)g_unk_head.ptr);
     else                      tc_emit(c, code, msg, line);
 }
 static void tc_flag_types(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg,
@@ -594,7 +659,47 @@ static const tc_sig_t *sig_find(tc_ctx_t *c, proven_u8str_view_t name) {
 }
 // ★ X-0076 — 자격 붙은 부름(`files.open`)은 좁혀진 뒤 맨이름(`open`)이지만 가리킨 모듈을 `qual_mod` 에 남긴다. 그 모듈의
 //   시그니처를 **먼저** 본다 — 안 그러면 같은 단위의 다른 모듈이 내보낸 `open` 을 집었다(growvec+trust).
+// ★ RFC-0148 S5 (2026-10-14) — `use regex as rx .` 의 별칭. 모듈 이름은 좁혀져(`qual_mod`) 오는데 별칭은 그대로 와서
+//   `rx.compile` 의 서명을 못 찾았다 — 결과가 «모름» 이었다(시험 글 · 매뉴얼에 110 자리).
+static proven_u8str_view_t g_al_old[64], g_al_new[64];
+static proven_size_t g_nal;
+static const tc_sig_t *sig_find_alias(tc_ctx_t *c, proven_u8str_view_t v) {
+    proven_size_t dot = v.size;
+    for (proven_size_t i = 0; i < v.size; i++) if (v.ptr[i] == (proven_u8)'.') { if (dot != v.size) return NULL; dot = i; }
+    if (dot == v.size || dot == 0 || dot + 1 >= v.size) return NULL;
+    proven_u8str_view_t head = { v.ptr, dot }, rest = { v.ptr + dot + 1, v.size - dot - 1 };
+    for (proven_size_t a = 0; a < g_nal; a++) {
+        if (!proven_u8str_view_eq(head, g_al_new[a])) continue;
+        for (proven_size_t i = 0; i < c->nsigs; i++)
+            if (proven_u8str_view_eq(c->sigs[i].name, rest) && proven_u8str_view_eq(c->sigs[i].mod, g_al_old[a])) return &c->sigs[i];
+    }
+    return NULL;
+}
+// ★ RFC-0148 S5 (2026-10-14) — 열거형 변형의 알맹이 타입(`case rect w h` 의 `w` · `h`). 검사층에 이 표가 없어 갈래가 꺼낸 이름이 전부 «모름» 이었다.
+typedef struct { proven_u8str_view_t en, vn; ty_t pt[8]; proven_u8 np; } tc_variant_t;
+static bool g_tc_full;   // ★ RFC-0148 S5 — 아래 표가 찼다: 잘라 버리지 않고 `E-TYPE-LIMIT` 로 말한다(check-limits · RFC-0077 P1-5)
+static tc_variant_t g_var[1024];
+static proven_size_t g_nvar;
+typedef struct { const tc_variant_t *v; proven_u8str_view_t fname; proven_u8 idx; } tc_varf_t;
+static tc_varf_t g_varf[4096];
+static proven_size_t g_nvarf;
+typedef struct { proven_u8str_view_t name, mod; ty_t ty; } tc_mconst_t;   // 모듈 맨 위의 `let` · `var` — 몸에서 이름으로 읽힌다
+static tc_mconst_t g_mc[512];
+static proven_size_t g_nmc;
+typedef struct { proven_u8str_view_t name; bool isbool; } tc_opt_t;
+static tc_opt_t g_opt[128];
+static proven_size_t g_nopt;
+static const tc_variant_t *variant_find(proven_u8str_view_t en, proven_u8str_view_t vn) {
+    const tc_variant_t *only = NULL; proven_size_t hits = 0;
+    for (proven_size_t i = 0; i < g_nvar; i++) {
+        if (!proven_u8str_view_eq(g_var[i].vn, vn)) continue;
+        if (en.size && proven_u8str_view_eq(g_var[i].en, en)) return &g_var[i];
+        only = &g_var[i]; hits++;
+    }
+    return hits == 1 ? only : NULL;
+}
 static const tc_sig_t *sig_find_at(tc_ctx_t *c, const low_cst_t *at) {
+    if (at && !at->qual_mod.size && g_nal) { const tc_sig_t *s = sig_find_alias(c, at->tok.lex); if (s) return s; }
     if (at && at->qual_mod.size)
         for (proven_size_t i = 0; i < c->nsigs; i++)
             if (proven_u8str_view_eq(c->sigs[i].name, at->tok.lex) && c->sigs[i].mod.size &&
@@ -618,6 +723,11 @@ static void tc_wrap_payload(ty_t *w, ty_t pv) {
     if (pv.k == TK_INT || pv.k == TK_FLOAT || pv.k == TK_BOOL || pv.k == TK_SLICE || pv.k == TK_WRAPPED) w->pk = (proven_u8)pv.k;
     if ((pv.k == TK_INT || pv.k == TK_FLOAT) && !pv.lit && pv.bits && !pv.rk) { w->pbits = pv.bits; w->psign = pv.sign; w->pnom = pv.nominal; }
     if (pv.k == TK_SLICE && pv.ebits && !pv.erow) { w->ebits = pv.ebits; w->esign = pv.esign; w->eflt = pv.eflt; w->enom = pv.enom; }
+    if (pv.k == TK_WRAPPED) {   // 안쪽 감싸개의 종류와 알맹이(정수 · 부동 · 참거짓)를 싣는다
+        w->pwrap = pv.wrap;
+        if ((pv.pk == TK_INT || pv.pk == TK_FLOAT) && pv.pbits) { w->ipk = pv.pk; w->pbits = pv.pbits; w->psign = pv.psign; w->pnom = pv.pnom; }
+        else if (pv.pk == TK_BOOL) w->ipk = TK_BOOL;
+    }
 }
 static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) {
     if (a.k == TK_UNKNOWN || b.k == TK_UNKNOWN || a.k == TK_NAMED || b.k == TK_NAMED)
@@ -631,7 +741,7 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     if (a.k != b.k) {                                           // D8: kind 변경은 암묵 아님
         tc_emit(c, "E-TYPE-MIX",
                 "int and float do not mix: convert explicitly (float_of / round_to / trunc_to)", line);
-        return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);
+        { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u; }   // 이미 말했다 — S5 가 다시 말하지 않는다
     }
     // ★ 벡터의 이항 연산 — **레인 수와 원소 종류가 정확히 같아야** 한다.
     //   레인이 다른 두 벡터는 아예 다른 것이다. 암묵 확대는 없다.
@@ -656,7 +766,7 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     if (!ty_comparable(a, b)) {
         tc_flag(c, a.nominal != b.nominal ? TC_NOMINAL
                 : (a.k == TK_INT && a.sign != b.sign) ? TC_SIGN : TC_WIDTH, NULL, NULL, line);
-        return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);
+        { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u; }   // 이미 말했다 — S5 가 다시 말하지 않는다
     }
     return is_cmp ? tk(TK_BOOL) : ty_join(a, b);                // ★ 발명하지 않는다
 }
@@ -801,7 +911,69 @@ static const tc_asig_t *asig_find(tc_ctx_t *c, proven_u8str_view_t tname, proven
     return best ? best : (nact == 1 ? one : NULL);
 }
 static const tc_struct_t *struct_find(tc_ctx_t *c, proven_u8str_view_t name);   // 아래에 정의
+static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n,
+                         const tc_var_t *env, proven_size_t nenv);
+static bool tc_bin2(proven_u8str_view_t v) {
+    return veq(v, "add") || veq(v, "sub") || veq(v, "mul") || veq(v, "div") || veq(v, "mod") ||
+           veq(v, "eq") || veq(v, "ne") || veq(v, "lt") || veq(v, "le") || veq(v, "gt") || veq(v, "ge");
+}
+static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line);
+// 납작한 줄 하나를 인자 수 2 의 산술 · 비교로 읽는다 — 그 밖의 낱말은 한 마디로 잰다
+static ty_t tc_prefix2(tc_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, const tc_var_t *env, proven_size_t nenv) {
+    if (*pos >= end) return tk(TK_UNKNOWN);
+    const low_cst_t *h = k[(*pos)++];
+    if (h->kind == LOW_CST_ATOM && tc_bin2(h->tok.lex)) {
+        ty_t a = tc_prefix2(c, k, pos, end, env, nenv), b = tc_prefix2(c, k, pos, end, env, nenv);
+        bool cmp = veq(h->tok.lex, "eq") || veq(h->tok.lex, "ne") || veq(h->tok.lex, "lt") || veq(h->tok.lex, "le") ||
+                   veq(h->tok.lex, "gt") || veq(h->tok.lex, "ge");
+        return tc_binop(c, a, b, cmp, h->line);
+    }
+    return tc_infer(c, h, env, nenv);
+}
+// 감싼 것의 알맹이 — `some_value` · `ok_value` · `try` 가 꺼내는 것(RFC-0148 S5). 모르면 «모름».
+static ty_t tc_payload_of(ty_t w) {
+    if (w.k != TK_WRAPPED) return tk(TK_UNKNOWN);
+    if (w.pbits && (w.pk == TK_INT || w.pk == TK_FLOAT)) { ty_t pv = w.pk == TK_INT ? tk_int(w.pbits, w.psign) : (ty_t){ .k = TK_FLOAT, .bits = w.pbits }; pv.nominal = w.pnom; return pv; }
+    if (w.pk == TK_BOOL) return tk(TK_BOOL);
+    if (w.pk == TK_SLICE) { ty_t sl = tk(TK_SLICE); sl.ebits = w.ebits; sl.esign = w.esign; sl.eflt = w.eflt; sl.enom = w.enom; return sl; }
+    if (w.pk == TK_WRAPPED) {
+        ty_t in = tk(TK_WRAPPED); in.wrap = w.pwrap; in.pk = w.ipk;
+        if (w.ipk == TK_INT || w.ipk == TK_FLOAT) { in.pbits = w.pbits; in.psign = w.psign; in.pnom = w.pnom; }
+        return in;
+    }
+    if (w.nname.size) { ty_t pv = tk(TK_NAMED); pv.nname = w.nname; pv.targ = w.targ; return pv; }
+    if (w.pname.size) { ty_t pv = tk(TK_NAMED); pv.nname = w.pname; return pv; }
+    return tk(TK_UNKNOWN);
+}
+static void tc_unk_mark(const low_cst_t *nd);
+// 빌트인 op 의 인자 수(표 하나 — low_arity.h). 모르면 -1
+static int tc_builtin_arity(proven_u8str_view_t v) {
+#define X(nm, w, a) if (veq(v, #nm)) return (a);
+    LOW_BUILTINS_CORE(X)
+#undef X
+    return -1;
+}
 static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n,
+                         const tc_var_t *env, proven_size_t nenv) {
+    ty_t t = tc_infer_run_impl(c, k, start, n, env, nenv);
+    if (t.k == TK_UNKNOWN && n) {
+        tc_unk_mark(k[start]);
+        // 머리 낱말이 op 도, 지역 이름도, 빌트인 연산도 아니면 그 이름을 이름 검사(또는 하강층)가 거절한다
+        //   (`E-NAME-…` · `E-BUILTIN-BARE`) — S5 가 같은 자리에 «모름» 을 덧붙이지 않는다
+        if (k[start]->kind == LOW_CST_ATOM && k[start]->tok.kind == LOW_TOK_IDENT && k[start]->tok.kw == LOW_KW_NONE && n >= 2 &&
+            !sig_find_at(c, k[start]) && !low_ir_is_builtin_op(k[start]->tok.lex)) {
+            bool fnd = false; (void)env_find(env, nenv, k[start]->tok.lex, &fnd);
+            if (!fnd && tc_builtin_arity(k[start]->tok.lex) < 0) t.bydecl = true;
+        }
+        // 인자 수가 틀린 빌트인 op 은 하강층이 `E-IR-ARITY` 로 말한다 — S5 가 앞서 «모름» 이라 하지 않는다
+        if (k[start]->kind == LOW_CST_ATOM && !sig_find(c, k[start]->tok.lex)) {
+            int ar = tc_builtin_arity(k[start]->tok.lex);
+            if (ar >= 0 && (proven_size_t)ar != n - 1) t.bydecl = true;
+        }
+    }
+    return t;
+}
+static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n,
                          const tc_var_t *env, proven_size_t nenv) {
     if (n == 0) return tk(TK_UNIT);
     if (n == 1) return tc_infer(c, k[start], env, nenv);
@@ -810,6 +982,20 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
     if (n == 3 && k[start]->kind != LOW_CST_ATOM && k[start + 1]->kind == LOW_CST_ATOM && veq(k[start + 1]->tok.lex, "order") &&
         k[start + 2]->kind == LOW_CST_ATOM)
         return tc_infer(c, k[start], env, nenv);
+    // ★ RFC-0148 S5 — 납작한 줄의 산술 · 비교(`add 14 add 30 45`): 인자 수 2 로 차례로 읽는다(하강층이 인자 수 표로 하는 것과 같다).
+    //   정규화된 나무에서는 폼으로 묶여 오지만, 옛 표면을 읽는 단위 시험의 생성기는 납작한 줄을 낸다.
+    if (n > 3 && k[start]->kind == LOW_CST_ATOM && tc_bin2(k[start]->tok.lex) && !sig_find(c, k[start]->tok.lex)) {
+        proven_size_t pos = start;
+        ty_t t = tc_prefix2(c, k, &pos, start + n, env, nenv);
+        if (pos == start + n) return t;
+    }
+    // 낱말 줄로 온 구조체 리터럴 [lit, <구조체>, 몸] — 폼으로 온 것과 같다(RFC-0148 S5)
+    if (n >= 3 && k[start]->kind == LOW_CST_ATOM && k[start]->tok.kw == LOW_KW_LIT && k[start + 1]->kind == LOW_CST_ATOM &&
+        k[start + n - 1]->kind == LOW_CST_BLOCK && !veq(k[start + 1]->tok.lex, "array") && !veq(k[start + 1]->tok.lex, "slice") &&
+        !veq(k[start + 1]->tok.lex, "vec")) {
+        ty_t t = ty_of_word(k[start + 1]->tok.lex);
+        if (t.k == TK_NAMED) { t.nname = k[start + 1]->tok.lex; return t; }
+    }
     if (k[start]->kind == LOW_CST_ATOM && k[start]->tok.kw == LOW_KW_EXPR)
         return tc_infer_expr(c, k + start + 1, n - 1, env, nenv);
     if (k[start]->kind == LOW_CST_ATOM) {
@@ -822,11 +1008,15 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     tc_flag(c, compat(as->params[i - 3], at), "E-TYPE-ARG", "the argument sent to the actor's proc does not match its parameter",
                             k[start + i]->line ? k[start + i]->line : k[start]->tok.line);
             }
-            return as ? as->ret : tk(TK_UNKNOWN);
+            if (as) return as->ret;
+            // 액터는 아는데 그 처리기가 없으면 하강층이 `E-IR-UNDEF` 로 말한다 — S5 가 «모름» 을 덧붙이지 않는다
+            { ty_t u = tk(TK_UNKNOWN); if (tt.k == TK_NAMED && tt.nname.size) u.bydecl = true; return u; }
         }
         // a fresh borrow: `ref X` / `mut_ref X` (core type conservative, rk known)
         if (veq(k[start]->tok.lex, "ref") || veq(k[start]->tok.lex, "mut_ref")) {
-            ty_t t = tk(TK_UNKNOWN);
+            // ★ RFC-0148 S5 — 빌린 것의 타입은 빌린 값의 타입이다(참조 표시만 붙는다). 전에는 핵이 «모름» 이라 `mut_ref u64` 자리에 무엇이든 섰다.
+            ty_t t = n >= 2 ? tc_infer_run(c, k, start + 1, n - 1, env, nenv) : tk(TK_UNKNOWN);
+            if (t.k == TK_INT || t.k == TK_FLOAT) { t.lit = false; t.has_rng = false; }
             t.rk = veq(k[start]->tok.lex, "mut_ref") ? 2 : 1;
             return t;
         }
@@ -857,9 +1047,33 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             //   전에는 타입 있는 슬라이스 칸만 답했다: `let n u8 field q. total . .`(`total u64`)이 섰다. 하강층은 S2 부터 알고 있었다.
             // ★ RFC-0148 S4 (2026-10-14) — `method <받는 값> <이름> <인자…>` 는 받는 값의 타입에 딸린 op `<타입>.<이름>` 을 부른다(하강층이
             //   그렇게 푼다). 검사층은 이 낱말을 몰라 결과가 «모름» 이었다. 받는 값이 이름 하나이고 그 타입의 op 이 있을 때만 답한다.
-            if (veq(h2, "method") && n >= 3 && !sig_find(c, h2) && k[start + 1]->kind == LOW_CST_ATOM && k[start + 2]->kind == LOW_CST_ATOM) {
+            if (veq(h2, "method") && n >= 3 && !sig_find(c, h2) && k[start + 2]->kind == LOW_CST_ATOM) {
+                // 받는 값 뒤로 낱말 원자가 이어지는 동안이 칸 경로 + 이름이고 마지막이 이름이다(하강층과 같은 규칙) · 받는 값이 폼이면 사슬이다
                 ty_t rt = tc_infer(c, k[start + 1], env, nenv);
-                for (proven_size_t q = 3; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                proven_size_t ne = start + 2;
+                while (ne + 1 < start + n && k[ne + 1]->kind == LOW_CST_ATOM && k[ne + 1]->tok.kind == LOW_TOK_IDENT && k[ne + 1]->tok.kw == LOW_KW_NONE) {
+                    bool fnd = false; (void)env_find(env, nenv, k[ne + 1]->tok.lex, &fnd);
+                    if (fnd) break;                                   // 지역 이름이면 인자다
+                    const tc_struct_t *st = rt.k == TK_NAMED && rt.nname.size ? struct_find(c, rt.nname) : NULL;
+                    if (!st) break;
+                    bool got = false;
+                    for (proven_size_t z = 0; z < st->nf; z++)
+                        if (proven_u8str_view_eq(st->fname[z], k[ne]->tok.lex)) { rt = st->fty[z]; got = true; break; }
+                    if (!got) break;
+                    ne++;
+                }
+                for (proven_size_t q = ne + 1; q < start + n; q++) (void)tc_infer(c, k[q], env, nenv);
+                if (ne != start + 2) {   // 칸 경로를 지났다 — 이름은 ne 의 것
+                    if (rt.k == TK_NAMED && rt.nname.size) {
+                        proven_u8str_view_t tb = tc_base_name(rt.nname, NULL), mn = k[ne]->tok.lex; char nb[256];
+                        if (tb.size + 1 + mn.size < sizeof nb) {
+                            memcpy(nb, tb.ptr, tb.size); nb[tb.size] = '.'; memcpy(nb + tb.size + 1, mn.ptr, mn.size);
+                            const tc_sig_t *ms = sig_find(c, (proven_u8str_view_t){ (const proven_byte_t *)nb, tb.size + 1 + mn.size });
+                            if (ms) return ms->ret;
+                        }
+                    }
+                    return tk(TK_UNKNOWN);
+                }
                 if (rt.k == TK_NAMED && rt.nname.size) {
                     proven_u8str_view_t tb = tc_base_name(rt.nname, NULL), mn = k[start + 2]->tok.lex;
                     char nb[256];
@@ -868,13 +1082,51 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                         const tc_sig_t *ms = sig_find(c, (proven_u8str_view_t){ (const proven_byte_t *)nb, tb.size + 1 + mn.size });
                         if (ms) return ms->ret;
                     }
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;   // 그 타입에 그 메서드가 없다 — `E-METHOD-UNDEF` 가 말한다
                 }
                 return tk(TK_UNKNOWN);
             }
             //   `read_volatile <묶음> <레지스터>` 도 같은 칸을 읽는다(§7.6 — 다른 것은 합치거나 없애지 않는다는 것뿐이다).
+            // 여러 단 `field r. a b .` — 칸을 차례로 따라간다(RFC-0148 S5)
+            if (veq(h2, "field") && n >= 4 && !sig_find(c, h2)) {
+                ty_t rt = tc_infer(c, k[start + 1], env, nenv);
+                proven_size_t q0 = 2;
+                // 값이 폼으로 묶이지 않고 낱말 줄로 왔으면(`field some_value some lit pt2 do … end . . px .`) 마지막 낱말이 칸이다
+                if (k[start + 1]->kind == LOW_CST_ATOM && k[start + 1]->tok.kind == LOW_TOK_IDENT && rt.k == TK_UNKNOWN) {
+                    bool fnd = false; (void)env_find(env, nenv, k[start + 1]->tok.lex, &fnd);
+                    if (!fnd) { rt = tc_infer_run(c, k, start + 1, n - 2, env, nenv); q0 = n - 1; }
+                }
+                for (proven_size_t q = q0; q < n; q++) {
+                    if (k[start + q]->kind != LOW_CST_ATOM) return tk(TK_UNKNOWN);
+                    if (rt.k == TK_SLICE && k[start + q]->tok.kind == LOW_TOK_NUMBER) {   // 숫자 칸 = 첨자
+                        if (rt.erow) { rt.erow = false; continue; }
+                        if (rt.ebits) { ty_t ev = rt.eflt ? (ty_t){ .k = TK_FLOAT, .bits = rt.ebits } : tk_int(rt.ebits, rt.esign); ev.nominal = rt.enom; rt = ev; continue; }
+                        if (rt.nname.size) { ty_t ev = tk(TK_NAMED); ev.nname = rt.nname; rt = ev; continue; }
+                        return tk(TK_UNKNOWN);
+                    }
+                    const tc_struct_t *st = rt.k == TK_NAMED && rt.nname.size ? struct_find(c, rt.nname) : NULL;
+                    if (!st && rt.k == TK_NAMED && rt.nname.size) st = struct_find(c, tc_canon_name(rt.nname));
+                    if (!st) return tk(TK_UNKNOWN);
+                    bool got = false;
+                    for (proven_size_t z = 0; z < st->nf; z++)
+                        if (proven_u8str_view_eq(st->fname[z], k[start + q]->tok.lex)) { rt = st->fty[z]; rt.is_mut = false; got = true; break; }
+                    if (!got) return tk(TK_UNKNOWN);
+                }
+                return rt;
+            }
             if ((veq(h2, "field") || veq(h2, "read_volatile")) && n == 3 && k[start + 2]->kind == LOW_CST_ATOM && !sig_find(c, h2)) {
                 ty_t rt = tc_infer(c, k[start + 1], env, nenv);
+                // 숫자 칸은 슬라이스의 첨자다(`field s. 0 .` ≡ `idx s. 0 .`)
+                if (rt.k == TK_SLICE && k[start + 2]->tok.kind == LOW_TOK_NUMBER) {
+                    if (rt.erow) { rt.erow = false; return rt; }
+                    if (rt.ebits) { if (rt.eflt) return (ty_t){ .k = TK_FLOAT, .bits = rt.ebits }; ty_t ev = tk_int(rt.ebits, rt.esign); ev.nominal = rt.enom; return ev; }
+                    if (rt.nname.size) { ty_t ev = tk(TK_NAMED); ev.nname = rt.nname; return ev; }
+                    return tk(TK_UNKNOWN);
+                }
                 const tc_struct_t *st = rt.k == TK_NAMED && rt.nname.size ? struct_find(c, rt.nname) : NULL;
+                if (!st && rt.k == TK_NAMED && rt.nname.size) st = struct_find(c, tc_canon_name(rt.nname));   // 투명 별칭(`type p2 pt .`)
+                if (!st && rt.k == TK_NAMED && rt.nname.size)   // `newtype spot pt .` — 이름은 다르고 칸은 핵의 것이다
+                    for (proven_size_t q = 0; q < g_nnts && !st; q++) if (proven_u8str_view_eq(g_nts[q].name, rt.nname)) st = struct_find(c, g_nts[q].target);
                 if (st) for (proven_size_t q = 0; q < st->nf; q++)
                     if (proven_u8str_view_eq(st->fname[q], k[start + 2]->tok.lex)) { ty_t ft = st->fty[q]; ft.is_mut = false; return ft; }
             }
@@ -921,6 +1173,228 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
                 (void)tc_infer(c, k[start + 2], env, nenv);
                 if ((tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits) return tgt;
+                if (tgt.k == TK_BOOL) return tgt;   // 덫 표현이 있는 대상은 배치 검사가 따로 거절한다(E-TYPE-BITCAST)
+                return tk(TK_UNKNOWN);
+            }
+            // ★★★ RFC-0148 S5 (2026-10-14) — 결과 타입이 피연산자에서 나오는 낱말들(검사층이 «모름» 으로 답하던 것).
+            //   `value_or w d` — `w` 의 알맹이(모르면 `d` 의 타입) · `deref p` — 가리키는 값 · `ref x` / `mut_ref x` — `x` 를 빌린 것 ·
+            //   `view_array T b` — 원소가 `T` 인 슬라이스 · `load s i` / `load_masked` · `splat v` — 원소가 정해진 벡터(레인 수는 받는 자리가 정한다).
+            // `pipe <원천> do … <종결자> end` 의 값은 종결자가 낸 값이다(정본 §6.12 (2b)): `count` · `collect into` → `u64`,
+            //   `any` · `all` → `bool`, `fold <초기값> <op>` → 그 op 의 출력.
+            const low_cst_t *pbl = NULL;
+            if (!sig_find(c, h2) && veq(h2, "pipe") && n >= 2) {
+                if (k[start + n - 1]->kind == LOW_CST_BLOCK) pbl = k[start + n - 1];
+                else if (n == 2 && k[start + 1]->kind == LOW_CST_FORM && k[start + 1]->nkids &&
+                         k[start + 1]->kids[k[start + 1]->nkids - 1]->kind == LOW_CST_BLOCK) pbl = k[start + 1]->kids[k[start + 1]->nkids - 1];
+            }
+            if (pbl) {
+                if (k[start + n - 1]->kind == LOW_CST_BLOCK) (void)tc_infer(c, k[start + 1], env, nenv);
+                else if (k[start + 1]->nkids >= 2) (void)tc_infer(c, k[start + 1]->kids[0], env, nenv);
+                const low_cst_t *bl = pbl;
+                const low_cst_t *tf = bl->nkids ? bl->kids[bl->nkids - 1] : NULL;
+                if (tf && tf->kind == LOW_CST_FORM && tf->nkids && tf->kids[0]->kind == LOW_CST_ATOM) {
+                    proven_u8str_view_t tw = tf->kids[0]->tok.lex;
+                    if (veq(tw, "count") || veq(tw, "collect")) return tk_int(64, false);
+                    if (veq(tw, "any") || veq(tw, "all")) return tk(TK_BOOL);
+                    if (veq(tw, "fold") && tf->nkids >= 3 && tf->kids[2]->kind == LOW_CST_ATOM) {
+                        const tc_sig_t *fs = sig_find_at(c, tf->kids[2]);
+                        if (fs) return fs->ret;
+                    }
+                }
+                if (tf && tf->kind == LOW_CST_ATOM && veq(tf->tok.lex, "count")) return tk_int(64, false);
+                return tk(TK_UNKNOWN);
+            }
+            // `config <이름>` — 번역 시점의 상수(빌드 선택지): `bool` 선택지는 bool, `int` · `choice` 는 무타입 정수 상수다(D3)
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "config") && k[start + 1]->kind == LOW_CST_ATOM) {
+                proven_u8str_view_t on = k[start + 1]->tok.lex;
+                for (proven_size_t q = 0; q < g_nopt; q++)
+                    if (proven_u8str_view_eq(g_opt[q].name, on)) {
+                        if (g_opt[q].isbool) return tk(TK_BOOL);
+                        ty_t t = tk_int(0, false); t.lit = true; t.val = 0; return t;
+                    }
+                return tk(TK_UNKNOWN);
+            }
+            // `isa <값> <갈래>` — 참거짓 · `encode <짜임> <값>` — 바이트(`slice u8`) · `try_view T b` — `option` · `seg ss i` — 조각(원소는 조각 뷰의 것)
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "isa")) { (void)tc_infer(c, k[start + 1], env, nenv); return tk(TK_BOOL); }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "encode")) { (void)tc_infer(c, k[start + 2], env, nenv); return tc_slice_of_elem(tk_int(8, false)); }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "try_view")) {
+                (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t w = tk(TK_WRAPPED); w.wrap = 1;
+                if (k[start + 1]->kind == LOW_CST_ATOM) { w.nname = k[start + 1]->tok.lex; }
+                return w;
+            }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "seg")) {
+                ty_t ss = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);   // 첨자의 타입 규칙은 정하지 않았다(1.11 의 목록 밖)
+                if (ss.ebits) { ty_t sl = tk(TK_SLICE); sl.ebits = ss.ebits; sl.esign = ss.esign; sl.eflt = ss.eflt; sl.enom = ss.enom; return sl; }
+                return tk(TK_SLICE);
+            }
+            // `nonzero_of a` — `option nonzero T`(표): 알맹이는 `a` 의 타입이다
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "nonzero_of")) {
+                ty_t a0 = tc_infer(c, k[start + 1], env, nenv);
+                ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, a0); return w;
+            }
+            // `fold <초기값> <op> <원천>`(앞 꼴) — 그 op 의 출력
+            if (!sig_find(c, h2) && n == 4 && veq(h2, "fold") && k[start + 2]->kind == LOW_CST_ATOM) {
+                (void)tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 3], env, nenv);
+                const tc_sig_t *fs = sig_find_at(c, k[start + 2]);
+                return fs ? fs->ret : tk(TK_UNKNOWN);
+            }
+            // `payload <값> <갈래> <칸>` — 그 갈래의 그 칸의 타입
+            if (!sig_find(c, h2) && n == 4 && veq(h2, "payload") && k[start + 2]->kind == LOW_CST_ATOM && k[start + 3]->kind == LOW_CST_ATOM) {
+                ty_t sv = tc_infer(c, k[start + 1], env, nenv);
+                proven_u8str_view_t en = sv.k == TK_NAMED ? tc_base_name(sv.nname, NULL) : (proven_u8str_view_t){ 0 };
+                const tc_variant_t *vv = variant_find(en, tc_base_name(k[start + 2]->tok.lex, NULL));
+                if (vv) {
+                    // 칸 이름의 자리를 찾는다 — 선언의 짝(칸 타입)을 다시 읽는다
+                    for (proven_size_t q = 0; q < g_nvarf; q++)
+                        if (g_varf[q].v == vv && proven_u8str_view_eq(g_varf[q].fname, k[start + 3]->tok.lex) && g_varf[q].idx < vv->np) return vv->pt[g_varf[q].idx];
+                }
+                return tk(TK_UNKNOWN);
+            }
+            // `div_nz a b` — `a` 의 타입(표) · `pop s` — 쌓개 원소의 option · `str_from_cstr` — 바이트 슬라이스
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "div_nz")) {
+                ty_t a0 = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                if ((a0.k == TK_INT) && a0.bits && !a0.lit) { a0.has_rng = false; a0.is_mut = false; return a0; }
+                return a0.lit ? a0 : tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "pop")) {
+                ty_t sv = tc_infer(c, k[start + 1], env, nenv);
+                ty_t w = tk(TK_WRAPPED); w.wrap = 1;
+                if (sv.k == TK_NAMED && sv.ebits) { ty_t ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tk_int(sv.ebits, sv.esign); ev.nominal = sv.enom; tc_wrap_payload(&w, ev); }
+                return w;
+            }
+            if (!sig_find(c, h2) && n >= 2 && veq(h2, "str_from_cstr")) {
+                for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                return tc_slice_of_elem(tk_int(8, false));
+            }
+            // ★★★ RFC-0148 S5 (소유자 2026-10-14 «핸들·채널에 타입을») — 흐름과 채널의 타입:
+            //   `spawn <op> …` → `task <그 op 의 출력>` · `await h` → 그 출력 · `channel T` → `chan T` · `chrecv ch` → `T` ·
+            //   `chsend ch v` → `v` 는 `T` 여야 하고 결과는 `u64`(0) · `try spawn send …` → `result u64 mailbox_full`.
+            if (!sig_find(c, h2) && n >= 2 && veq(h2, "spawn") && k[start + 1]->kind == LOW_CST_ATOM &&
+                !veq(k[start + 1]->tok.lex, "actor") && k[start + 1]->tok.kw != LOW_KW_SEND && !veq(k[start + 1]->tok.lex, "send")) {
+                const tc_sig_t *ss = sig_find_at(c, k[start + 1]);
+                if (ss) for (proven_size_t q = 2; q < n && q - 2 < ss->nparams; q++) {
+                    ty_t at = tc_infer(c, k[start + q], env, nenv);
+                    tc_flag(c, compat(ss->params[q - 2], at), "E-TYPE-ARG", "the argument given to the spawned op does not match its parameter", k[start]->line);
+                }
+                ty_t t = tk(TK_NAMED); t.nname = (proven_u8str_view_t){ (const proven_byte_t *)"task", 4 };
+                if (ss) {
+                    ty_t r = ss->ret;
+                    if ((r.k == TK_INT || r.k == TK_FLOAT) && r.bits) { t.ebits = r.bits; t.esign = r.sign; t.eflt = r.k == TK_FLOAT; t.enom = r.nominal == 1; }
+                    else if (r.k == TK_BOOL) t.ipk = TK_BOOL;
+                    else if (r.k == TK_NAMED && r.nname.size) t.pname = r.nname;
+                }
+                return t;
+            }
+            if (!sig_find(c, h2) && n == 2 && (veq(h2, "await") || veq(h2, "chrecv"))) {
+                ty_t h = tc_infer(c, k[start + 1], env, nenv);
+                bool want_task = veq(h2, "await");
+                if (h.k != TK_UNKNOWN && !(tc_is_tc(h) && veq(h.nname, want_task ? "task" : "chan")))
+                    tc_emit(c, "E-TYPE-KIND", want_task ? "`await` takes a `task T` — the handle `spawn` gives (RFC-0148 S5)"
+                                                        : "`chrecv` takes a `chan T` — the channel `channel T` makes (RFC-0148 S5)", k[start]->line);
+                if (tc_is_tc(h)) {
+                    if (h.ebits) { ty_t e = h.eflt ? (ty_t){ .k = TK_FLOAT, .bits = h.ebits } : tk_int(h.ebits, h.esign); e.nominal = h.enom; return e; }
+                    if (h.ipk == TK_BOOL) return tk(TK_BOOL);
+                    if (h.pname.size) { ty_t e = tk(TK_NAMED); e.nname = h.pname; return e; }
+                }
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n >= 1 && veq(h2, "channel")) {
+                ty_t t = tk(TK_NAMED); t.nname = (proven_u8str_view_t){ (const proven_byte_t *)"chan", 4 };
+                if (n >= 2 && k[start + 1]->kind == LOW_CST_ATOM) {
+                    ty_t e = ty_of_word(tc_canon_name(k[start + 1]->tok.lex));
+                    if ((e.k == TK_INT || e.k == TK_FLOAT) && e.bits) { t.ebits = e.bits; t.esign = e.sign; t.eflt = e.k == TK_FLOAT; t.enom = e.nominal == 1; }
+                    else if (e.k == TK_BOOL) t.ipk = TK_BOOL;
+                    else if (e.k == TK_NAMED) t.pname = k[start + 1]->tok.lex;
+                }
+                return t;
+            }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "chsend")) {
+                ty_t h = tc_infer(c, k[start + 1], env, nenv), v = tc_infer(c, k[start + 2], env, nenv);
+                if (h.k != TK_UNKNOWN && !(tc_is_tc(h) && veq(h.nname, "chan")))
+                    tc_emit(c, "E-TYPE-KIND", "`chsend` takes a `chan T` — the channel `channel T` makes (RFC-0148 S5)", k[start]->line);
+                if (tc_is_tc(h) && h.ebits) {
+                    ty_t e = h.eflt ? (ty_t){ .k = TK_FLOAT, .bits = h.ebits } : tk_int(h.ebits, h.esign); e.nominal = h.enom;
+                    tc_flag(c, compat(e, v), "E-TYPE-ARG", "the value sent does not have the channel's element type", k[start]->line);
+                }
+                return tk_int(64, false);
+            }
+            // 앞 꼴 `map <자리> <op> <원천>` · `filter <자리> <op> <원천>` — 담은 개수(`u64`), `collect into` 와 같다(소유자 2026-10-14 «u64 개수»)
+            if (!sig_find(c, h2) && n == 4 && (veq(h2, "map") || veq(h2, "filter")) && k[start + 2]->kind == LOW_CST_ATOM) {
+                (void)tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 3], env, nenv);
+                return tk_int(64, false);
+            }
+            // `error_value r` — 오류 열거형 · `spawn actor X` — 그 액터 · `view T b` — 그 짜임 · `view_segments b d` — `segments u8` · `cstr_of s` — `cstr`
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "error_value")) {
+                ty_t r = tc_infer(c, k[start + 1], env, nenv);
+                if (r.k == TK_WRAPPED && r.ename.size) { ty_t e = tk(TK_NAMED); e.nname = r.ename; return e; }
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "spawn") && k[start + 1]->kind == LOW_CST_ATOM && veq(k[start + 1]->tok.lex, "actor") &&
+                k[start + 2]->kind == LOW_CST_ATOM) { ty_t a = tk(TK_NAMED); a.nname = k[start + 2]->tok.lex; return a; }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "view") && k[start + 1]->kind == LOW_CST_ATOM) {
+                (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t t = tk(TK_NAMED); t.nname = k[start + 1]->tok.lex; return t;
+            }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "view_segments")) {
+                ty_t b0 = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t t = tk(TK_NAMED); t.nname = (proven_u8str_view_t){ (const proven_byte_t *)"segments", 8 };
+                if (b0.k == TK_SLICE && b0.ebits) { t.ebits = b0.ebits; t.esign = b0.esign; t.eflt = b0.eflt; t.enom = b0.enom; }
+                return t;
+            }
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "cstr_of")) {
+                (void)tc_infer(c, k[start + 1], env, nenv);
+                proven_u8str_view_t cw = { (const proven_byte_t *)"cstr", 4 };
+                ty_t t = ty_of_word(cw); if (t.k == TK_NAMED) t.nname = cw; return t;   // 선언과 같은 길로(명목 정체성까지)
+            }
+            // `comptime <식>` — 그 식의 타입이다(번역 시점에 값이 나오는지는 하강층이 본다 — E-COMPTIME-NONCONST)
+            if (!sig_find(c, h2) && n >= 2 && veq(h2, "comptime")) return tc_infer_run(c, k, start + 1, n - 1, env, nenv);
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "value_or")) {
+                ty_t w = tc_infer(c, k[start + 1], env, nenv), d = tc_infer(c, k[start + 2], env, nenv);
+                if (w.k == TK_WRAPPED && w.pbits && (w.pk == TK_INT || w.pk == TK_FLOAT)) {
+                    ty_t pv = w.pk == TK_INT ? tk_int(w.pbits, w.psign) : (ty_t){ .k = TK_FLOAT, .bits = w.pbits };
+                    pv.nominal = w.pnom;
+                    if (d.k == TK_INT || d.k == TK_FLOAT) tc_flag(c, compat(pv, d), "E-TYPE-ARG", "the fallback of `value_or` does not have the option's content type", k[start]->line);
+                    return pv;
+                }
+                if (w.k == TK_WRAPPED && w.pk == TK_BOOL) return tk(TK_BOOL);
+                if (w.k == TK_WRAPPED && w.pk == TK_SLICE) { ty_t sl = tk(TK_SLICE); sl.ebits = w.ebits; sl.esign = w.esign; sl.eflt = w.eflt; sl.enom = w.enom; return sl; }
+                if (w.k == TK_WRAPPED && w.nname.size) { ty_t pv = tk(TK_NAMED); pv.nname = w.nname; pv.targ = w.targ; return pv; }
+                if (!d.lit && d.k != TK_UNKNOWN) { d.is_mut = false; return d; }
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "deref")) {
+                ty_t p = tc_infer(c, k[start + 1], env, nenv);
+                if (p.rk) { p.rk = 0; return p; }
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "view_array") && k[start + 1]->kind == LOW_CST_ATOM) {
+                (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t e = ty_of_word(k[start + 1]->tok.lex);
+                if (e.k == TK_INT || e.k == TK_FLOAT) return tc_slice_of_elem(e);
+                { ty_t sl = tk(TK_SLICE); sl.nname = k[start + 1]->tok.lex; return sl; }
+            }
+            if (!sig_find(c, h2) && n >= 3 && (veq(h2, "load") || veq(h2, "load_masked"))) {
+                ty_t sq = tc_infer(c, k[start + 1], env, nenv);
+                for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                // 레인 수와 원소는 받는 자리(`vec T N`)가 정한다 — 바이트 슬라이스에서 `vec u32 4` 를 읽는 것이 보통이다(SIMD 픽스처)
+                if (sq.k == TK_SLICE || sq.k == TK_NAMED) return (ty_t){ .k = TK_VEC, .bits = 0, .lanes = 0 };   // 글 리터럴도 바이트다
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "splat")) {
+                ty_t v = tc_infer(c, k[start + 1], env, nenv);
+                if ((v.k == TK_INT || v.k == TK_FLOAT) && v.bits && !v.lit) return (ty_t){ .k = TK_VEC, .bits = v.bits, .sign = v.sign, .lanes = 0, .vflt = v.k == TK_FLOAT };
+                if (v.lit) return (ty_t){ .k = TK_VEC, .lanes = 0, .vflt = v.k == TK_FLOAT };   // 원소 폭은 받는 자리가 정한다
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 3 && (veq(h2, "lane_avg") || veq(h2, "lane_rotate"))) {
+                ty_t v = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                if (v.k == TK_VEC) return v;
+                return tk(TK_UNKNOWN);
+            }
+            if (!sig_find(c, h2) && n == 2 && (veq(h2, "lane_reverse") || veq(h2, "lane_rotate"))) {
+                ty_t v = tc_infer(c, k[start + 1], env, nenv);
+                if (v.k == TK_VEC) return v;
                 return tk(TK_UNKNOWN);
             }
             if (!sig_find(c, h2) && n == 2 && veq(h2, "bit_not")) {
@@ -973,6 +1447,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 // ★ RFC-0148 S4 (2026-10-14) — 원소를 모르는 슬라이스(`slice bool` · `slice <묶음>` · 틀의 `slice t`)의 원소를 `u8` 이라
                 //   답하고 있었다. 조건 자리를 검사하자 `eq idx t. i. . true .`(`slice bool`)가 «정수와 bool» 로 거절됐다 — 지어낸 답이다.
                 //   모르면 모른다고 답한다. 글 리터럴(`idx "abc" 0 .`)만 바이트다.
+                if (sq.k == TK_SLICE && sq.nname.size && n == 3) { ty_t ev = tk(TK_NAMED); ev.nname = sq.nname; return ev; }   // 구조체 원소
                 if (sq.k == TK_SLICE || sq.k == TK_UNKNOWN || sq.k == TK_WRAPPED) return tk(TK_UNKNOWN);
                 return tk_int(8, false);
             }
@@ -1040,6 +1515,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     //   8 = `option slice u8` · 9 = `option u64`. 읽고 쓴 바이트 수는 4(`option usize`)다(정본 6.2.6 (3‴)).
                     { "@arg", 8 }, { "@reactor_new", 9 }, { "@r_read", 4 }, { "@r_write", 4 },
                     { "@tty_read", 4 }, { "@tty_size", 9 }, { "@tty_raw", 2 },
+                    { "@time_sleep", 6 }, { "@net_resolve", 9 }, { "@sum_seq", 10 }, { "@sum_neumaier", 10 },
                     // ── 참거짓을 낸다 (닫기·파일시스템 변경은 됐나 안 됐나뿐이다)
                     { "@file_close", 2 }, { "@dir_close", 2 }, { "@net_close", 2 }, { "same_slice", 2 },
                     { "@proc_kill", 2 },
@@ -1075,6 +1551,11 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 }
                 // ★ 맨 머리가 빌트인 연산과 같은 철자이면 그것은 **저자의 op** 이다(이름공간이 따로다) — 이 표가 답하지 않는다.
                 bool own = lskip == 1 && low_ir_is_builtin_op(h2);
+                // `call_builtin` 없이 맨 이름으로 부른 잎(`sha256 s. o.`)은 하강층이 `E-BUILTIN-BARE` 로 거절한다 — S5 는 물러선다
+                if (own && !sig_find(c, h2)) {
+                    for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
                 for (proven_size_t li = 0; li < sizeof LEAF / sizeof LEAF[0] && !own; li++) {
                     if (!veq(hleaf, LEAF[li].w)) continue;
                     for (proven_size_t q = lskip; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
@@ -1082,6 +1563,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     // ★ RFC-0149 L4 — 읽고 쓴 **바이트 수**는 `usize` 다(4 = `option usize` · 5 = `usize`). 길이를 세는 수가 `u64` 로 나오면
                     //   받는 쪽이 매번 `cast` 를 적어야 하고, 좁은 대상에서는 버퍼의 길이와 다른 폭이 된다.
                     if (LEAF[li].kind == 4) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; w.pk = (proven_u8)TK_INT; w.pbits = low_ir_target()->addr_bits; w.psign = false; w.pnom = 1; return w; }
+                    if (LEAF[li].kind == 10) return (ty_t){ .k = TK_FLOAT, .bits = 64 };   // `math.sum_seq` · `sum_neumaier` 의 감싸개가 `f64` 를 낸다
                     if (LEAF[li].kind == 8) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; w.pk = (proven_u8)TK_SLICE; w.ebits = 8; return w; }
                     if (LEAF[li].kind == 9) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; w.pk = (proven_u8)TK_INT; w.pbits = 64; return w; }
                     if (LEAF[li].kind == 5) { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut; }
@@ -1147,13 +1629,14 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             ty_t pv = tc_infer_run(c, k, start + 1, n - 1, env, nenv);   // payload 를 검사한다
             ty_t w = tk(TK_WRAPPED); w.wrap = 2;                         // ★ `ok` 는 result 다
             tc_wrap_payload(&w, pv);
+            if (pv.k == TK_NAMED && pv.nname.size) w.pname = pv.nname;
             return w;
         }
         if (veq(k[start]->tok.lex, "some") && n >= 2 && !sig_find(c, k[start]->tok.lex)) {   // RFC-0149 L4 — `some` 은 알맹이를 지닌 option 이다
             ty_t pv = tc_infer_run(c, k, start + 1, n - 1, env, nenv);
             ty_t w = tk(TK_WRAPPED); w.wrap = 1;
             tc_wrap_payload(&w, pv);
-            if (pv.k == TK_NAMED) { w.nname = pv.nname; w.targ = pv.targ; }
+            if (pv.k == TK_NAMED) { w.nname = pv.nname; w.targ = pv.targ; w.pname = pv.nname; }
             return w;
         }
         if (veq(k[start]->tok.lex, "error") && n >= 2) { ty_t w = tk(TK_WRAPPED); w.wrap = 2; return w; }
@@ -1167,7 +1650,19 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             //   [폼, else_none] 이 «모르는 꼴» 이 되고 앞의 폼(`mean s.`)은 아예 재지 않았다.
             proven_size_t te = start + n;
             for (proven_size_t q = start + 1; q < start + n; q++)
-                if (k[q]->kind == LOW_CST_ATOM && (veq(k[q]->tok.lex, "else_none") || veq(k[q]->tok.lex, "else_error"))) { te = q; break; }
+                if (k[q]->kind == LOW_CST_ATOM && (veq(k[q]->tok.lex, "else_none") || veq(k[q]->tok.lex, "else_error") || veq(k[q]->tok.lex, "map_error"))) { te = q; break; }
+            const low_cst_t *sf = te - start - 1 == 1 ? k[start + 1] : NULL;   // [try, (spawn send …)] 꼴
+            while (sf && sf->kind == LOW_CST_GROUP && sf->nkids == 1) sf = sf->kids[0];
+            if (sf && sf->kind == LOW_CST_FORM && sf->nkids >= 3 && sf->kids[0]->kind == LOW_CST_ATOM && veq(sf->kids[0]->tok.lex, "spawn") &&
+                sf->kids[1]->kind == LOW_CST_ATOM && (sf->kids[1]->tok.kw == LOW_KW_SEND || veq(sf->kids[1]->tok.lex, "send"))) {
+                for (proven_size_t q = 2; q < sf->nkids; q++) if (sf->kids[q]->kind != LOW_CST_ATOM) (void)tc_infer(c, sf->kids[q], env, nenv);
+                ty_t w = tk(TK_WRAPPED); w.wrap = 2; w.pk = TK_INT; w.pbits = 64; return w;
+            }
+            if (te - start - 1 >= 3 && k[start + 1]->kind == LOW_CST_ATOM && veq(k[start + 1]->tok.lex, "spawn") &&
+                k[start + 2]->kind == LOW_CST_ATOM && (k[start + 2]->tok.kw == LOW_KW_SEND || veq(k[start + 2]->tok.lex, "send"))) {
+                for (proven_size_t q = start + 3; q < te; q++) (void)tc_infer(c, k[q], env, nenv);
+                ty_t w = tk(TK_WRAPPED); w.wrap = 2; w.pk = TK_INT; w.pbits = 64; return w;   // 넣지 못하면 `mailbox_full` 을 값으로
+            }
             ty_t inner = tc_infer_run(c, k, start + 1, te - start - 1, env, nenv);
             for (proven_size_t q = te + 1; q < start + n; q++) (void)tc_infer(c, k[q], env, nenv);   // else_error 의 값
             if (inner.k == TK_INT || inner.k == TK_FLOAT || inner.k == TK_BOOL || inner.k == TK_SLICE)
@@ -1185,6 +1680,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             //
             //   **컴파일되고 실행되고 틀린 타입을 냈다** — 그리고 `--check` 는 초록불이었다.
             //   (제네릭을 시험하다 나왔는데, 제네릭과는 **아무 상관도 없는** 옛 구멍이었다.)
+            if (te < start + n && veq(k[te]->tok.lex, "map_error")) return tc_payload_of(inner);   // 오류만 바꿔 전파한다 — 값은 알맹이다
             if (te < start + n) {   // 채널이 **바뀐다** — option / result 다. 알맹이는 안의 것 그대로다
                 ty_t w = tk(TK_WRAPPED); w.wrap = veq(k[te]->tok.lex, "else_none") ? 1 : 2;
                 if (inner.k == TK_WRAPPED) {
@@ -1194,7 +1690,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 }
                 return w;
             }
-            return tk(TK_UNKNOWN);           // payload 타입은 아직 추적하지 않는다(보수적)
+            return tc_payload_of(inner);     // RFC-0148 S5 — 알맹이를 꺼낸다(모르면 «모름»)
         }
         // explicit conversion: `cast <scalar> <expr>` (G2) yields the target type.
         // D12: bool 은 수치가 아니다 — cast 대상이 될 수 없다.
@@ -1261,7 +1757,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                         k[start]->line);
             // ★★★ RFC-0148 S4 — **좁힌 값의 타입은 적힌 대상 타입이다.** 전에는 여기서 답 없이 흘러 «모름» 이 됐다: `narrow u8 x.` 를
             //   어느 선언에나 넣을 수 있었다(하강층은 `u8` 로 알고 있었다 — 두 층을 맞대자 321 자리에서 보였다).
-            if (ntgt.k == TK_INT && ntgt.bits) return ntgt;
+            if ((ntgt.k == TK_INT || ntgt.k == TK_FLOAT) && ntgt.bits) return ntgt;   // `narrow f32` 도 대상 타입이다
         }
         // RFC-0148 S4 — 멈추지 않는 좁히기 셋도 같다: `narrow_sat` · `narrow_wrap` 은 `T`, `narrow_try` 는 `option T` (시그니처 표 · §6.3.6).
         if (n >= 3 && k[start + 1]->kind == LOW_CST_ATOM && !sig_find_at(c, k[start]) &&
@@ -1368,11 +1864,18 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     ty_t a0 = tc_infer(c, k[start + 1], env, nenv);
                     for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                     if ((a0.k == TK_FLOAT || (!ffn && a0.k == TK_INT)) && a0.bits && !a0.lit) { a0.has_rng = false; a0.is_mut = false; return a0; }
+                    if (a0.k == TK_FLOAT && a0.lit) return (ty_t){ .k = TK_FLOAT, .lit = true, .fval = 0 };   // 리터럴의 함수는 무타입 부동 상수 — 받는 자리가 폭을 정한다
                     return tk(TK_UNKNOWN);
                 }
                 if ((veq(h, "min") || veq(h, "max")) && n == 3 && !sig_find(c, h)) {
                     ty_t a0 = tc_infer(c, k[start + 1], env, nenv), b0 = tc_infer(c, k[start + 2], env, nenv);
                     a0.has_rng = false; b0.has_rng = false; a0.is_mut = false; b0.is_mut = false;
+                    // 같은 부호의 두 정수만(시그니처 표 · 소유자 2026-10-14 «같은 부호만») — 셈과 달리 값을 지키는 넓히기로 건너지 않는다
+                    if (a0.k == TK_INT && b0.k == TK_INT && !a0.lit && !b0.lit && a0.bits && b0.bits && a0.sign != b0.sign) {
+                        tc_emit(c, "E-TYPE-SIGN", "`min` / `max` take two integers of the SAME sign — one signed and one unsigned operand has no "
+                                "single answer type here. Convert one side first (`cast`)", k[start]->line);
+                        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                    }
                     return tc_binop(c, a0, b0, false, k[start]->line);
                 }
             }
@@ -1432,8 +1935,8 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         //   모르는 것은 물지 않으므로 **인자 검사가 조용히 빈다**.
         {
             proven_u8str_view_t uh = k[start]->tok.lex;
-            if ((veq(uh, "some_value") || veq(uh, "ok_value")) && n == 2 && !sig_find(c, uh)) {
-                ty_t w = tc_infer(c, k[start + 1], env, nenv);
+            if ((veq(uh, "some_value") || veq(uh, "ok_value")) && n >= 2 && !sig_find(c, uh)) {
+                ty_t w = n == 2 ? tc_infer(c, k[start + 1], env, nenv) : tc_infer_run(c, k, start + 1, n - 1, env, nenv);   // 안쪽이 낱말 줄로 올 수 있다
                 if (w.k == TK_WRAPPED && w.nname.size) {
                     ty_t pv = tk(TK_NAMED); pv.nname = w.nname; pv.targ = w.targ;
                     return pv;
@@ -1444,7 +1947,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     return pv;
                 }
                 if (w.k == TK_WRAPPED && w.pk == TK_BOOL) return tk(TK_BOOL);
-                if (w.k == TK_WRAPPED && w.pk == TK_WRAPPED) return tk(TK_WRAPPED);   // 감싼 것 안의 감싼 것 — 종류만 안다
+                if (w.k == TK_WRAPPED && w.pk == TK_WRAPPED) return tc_payload_of(w);   // 감싼 것 안의 감싼 것
+                if (w.k == TK_WRAPPED && w.pname.size) { ty_t pv = tk(TK_NAMED); pv.nname = w.pname; return pv; }
+                if (k[start]->synth) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }   // `using` 패스가 지은 꺼냄 — 값은 선언대로 지어진다
                 if (w.k == TK_WRAPPED && w.pk == TK_SLICE && w.ebits) {   // 알맹이 슬라이스는 제 원소와 함께 나온다
                     ty_t sl = tk(TK_SLICE); sl.ebits = w.ebits; sl.esign = w.esign; sl.eflt = w.eflt; sl.enom = w.enom;
                     return sl;
@@ -1493,7 +1998,21 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
             default: break;
         }
         if (nd->tok.kw == LOW_KW_TRUE || nd->tok.kw == LOW_KW_FALSE) return tk(TK_BOOL);
-        if (nd->tok.kw == LOW_KW_NONEVAL || nd->tok.kw == LOW_KW_UNIT) return tk(TK_UNKNOWN);
+        // ★ RFC-0148 S5 (2026-10-14) — `none` 은 알맹이를 모르는 **option** 이다(받는 자리의 `option T` 와 맞는다 — 알맹이 0 은 늘 호환).
+        //   전에는 «모름» 이라 `result` 를 내는 op 이 `return none .` 해도 섰다.
+        if (nd->tok.kw == LOW_KW_NONEVAL) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; return w; }
+        if (nd->tok.kw == LOW_KW_UNIT) return tk(TK_UNIT);
+        // 문자 리터럴은 정수 상수다(정본 §6.1.4 (23)) — 숫자 리터럴처럼 받는 자리의 타입을 취한다
+        if (nd->tok.kind == LOW_TOK_CHAR) {
+            ty_t t = tk_int(0, false); t.lit = true;
+            t.val = nd->tok.lex.size == 1 ? (proven_u64)nd->tok.lex.ptr[0] : 0;
+            return t;
+        }
+        // 맨 `ok` — 알맹이 없는 result(`output result void e` 의 성공)
+        if (nd->tok.kw == LOW_KW_NONE && veq(nd->tok.lex, "ok") && !sig_find_at(c, nd)) {
+            bool f0; (void)env_find(env, nenv, nd->tok.lex, &f0);
+            if (!f0) { ty_t w = tk(TK_WRAPPED); w.wrap = 2; return w; }
+        }
         bool f; ty_t t = env_find(env, nenv, nd->tok.lex, &f);
         if (f) return t;
         // ★★★ **인자 없는 호출도 타입이 있다** (X-0010 · 2026-08-15). `be dist .` 처럼 인자가
@@ -1505,16 +2024,37 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
             const tc_sig_t *s0 = sig_find_at(c, nd);
             if (s0 && s0->nparams == 0) return s0->ret;
         }
+        // ★ RFC-0148 S5 — 모듈 맨 위의 상수(`let LIMIT u8 10 .`)는 제 선언의 타입이다(제 모듈 것을 먼저 본다)
+        {
+            const tc_mconst_t *hit = NULL;
+            for (proven_size_t q = 0; q < g_nmc; q++)
+                if (proven_u8str_view_eq(g_mc[q].name, nd->tok.lex)) { if (!hit || proven_u8str_view_eq(g_mc[q].mod, c->curmod)) hit = &g_mc[q]; }
+            if (hit) return hit->ty;
+        }
+        // ★ RFC-0148 S5 — 지역도 op 도 상수도 아닌 이름은 하강층이 `E-IR-UNDEF` 로 거절한다 — S5 가 «모름» 을 덧붙이지 않는다
+        if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && !low_ir_is_builtin_op(nd->tok.lex) &&
+            !(nd->tok.lex.size > 8 && memcmp(nd->tok.lex.ptr, "machine.", 8) == 0) && !sig_find_at(c, nd)) {
+            ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+        }
+        // `machine.<이름>` 은 번역 시점에 정해지는 상수다(정본 §5 (4a)) — 무타입 정수 상수(D3), `machine.ptr_caps` 만 참거짓
+        if (nd->tok.lex.size > 8 && memcmp(nd->tok.lex.ptr, "machine.", 8) == 0) {
+            proven_u8str_view_t mv = nd->tok.lex;   // 참인지 묻는 것들(low_ir.c 의 표와 같다)
+            if (veq(mv, "machine.ptr_caps") || veq(mv, "machine.big_endian") || veq(mv, "machine.little_endian") || veq(mv, "machine.has_fpu") ||
+                veq(mv, "machine.no_heap") || veq(mv, "machine.no_float") || (mv.size > 11 && memcmp(mv.ptr, "machine.is_", 11) == 0)) return tk(TK_BOOL);
+            ty_t t = tk_int(0, false); t.lit = true; t.val = 0; return t;
+        }
         return tk(TK_UNKNOWN);
     }
-    if (nd->kind == LOW_CST_GROUP) return nd->nkids ? tc_infer(c, nd->kids[0], env, nenv) : tk(TK_UNKNOWN);
+    // ★ RFC-0148 S5 (2026-10-14) — 묶음 안이 낱말 줄이면(`(some_value some lit pt2 do … end .)`) 줄 전체가 값이다. 전에는 첫 낱말만 쟀다.
+    if (nd->kind == LOW_CST_GROUP) return nd->nkids == 1 ? tc_infer(c, nd->kids[0], env, nenv)
+                                        : nd->nkids ? tc_infer_run(c, (low_cst_t *const *)nd->kids, 0, nd->nkids, env, nenv) : tk(TK_UNKNOWN);
     if (nd->kind == LOW_CST_ACCESS) return tk(TK_UNKNOWN);  // struct/slice element typing: future
     // ★★ RFC-0132 §13.7 — using 패스가 만든 [using, (send …), <나열>]: send 와 나열 원소를 재고, 값의 타입은 선언이 말한다.
     if (nd->kind == LOW_CST_FORM && (nd->nkids == 3 || nd->nkids == 4) && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->synth &&
         veq(nd->kids[0]->tok.lex, "using")) {
         (void)tc_infer(c, nd->kids[1], env, nenv);
         (void)tc_infer(c, nd->kids[2], env, nenv);
-        return tk(TK_UNKNOWN);
+        ty_t t = tk(TK_UNKNOWN); t.bydecl = true; return t;
     }
     // ★★ RFC-0132 T2b-2 — 나열 리터럴의 **실행 중 원소**도 원소 타입에 들어가야 한다. 상수 원소는 검사층
     //   (`ck_lit_walk`)이 이미 폭을 잰다. 틀 안 자리에 쓰는 원소가 말없이 잘리면(`u8` 칸에 1000) X-0074 의 병이다.
@@ -1551,7 +2091,39 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
             if (tc_int_lit(nd->kids[3]->tok.lex, &ln) && ln > 0 && ln <= 64)
                 return (ty_t){ .k = TK_VEC, .bits = et.bits, .sign = et.sign, .lanes = (proven_u8)ln, .vflt = (et.k == TK_FLOAT) };
         }
+        // ★ RFC-0148 S5 — `lit array T N …` · `lit slice T …` 의 타입은 원소가 `T` 인 슬라이스다(구조체 원소면 종류만 안다)
+        if (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice")) {
+            if (et.k == TK_INT || et.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(et); sl.is_mut = true; return sl; }
+            ty_t sl = tk(TK_SLICE); sl.is_mut = true; if (et.k == TK_NAMED) sl.nname = et.nname; return sl;
+        }
         return tk(TK_UNKNOWN);
+    }
+    // ★ RFC-0148 S5 — `lit <구조체> do … end` 의 타입은 그 구조체다(칸의 값은 `tc_walk_makes` 가 잰다). 나무에서는 [lit, (<구조체> 몸)] 꼴이다.
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 2 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT) {
+        const low_cst_t *r = nd->kids[1];
+        while (r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+        if (r->kind == LOW_CST_FORM && r->nkids >= 2 && r->kids[0]->kind == LOW_CST_ATOM && r->kids[r->nkids - 1]->kind == LOW_CST_BLOCK) {
+            ty_t t = ty_of_word(r->kids[0]->tok.lex);
+            if (t.k == TK_NAMED) { t.nname = r->kids[0]->tok.lex; t.lit = true; return t; }
+        }
+    }
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT &&
+        nd->kids[1]->kind == LOW_CST_ATOM && nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK &&
+        !veq(nd->kids[1]->tok.lex, "array") && !veq(nd->kids[1]->tok.lex, "slice") && !veq(nd->kids[1]->tok.lex, "vec")) {
+        ty_t t = ty_of_word(nd->kids[1]->tok.lex);
+        if (t.k == TK_NAMED) { t.nname = nd->kids[1]->tok.lex; return t; }
+    }
+    // `lit array (array T M) N …` — 줄의 배열(§13.10): 원소가 줄인 슬라이스
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT &&
+        nd->kids[1]->kind == LOW_CST_ATOM && veq(nd->kids[1]->tok.lex, "array") && nd->kids[2]->kind != LOW_CST_ATOM) {
+        const low_cst_t *rt = nd->kids[2];
+        while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+        for (proven_size_t q = 3; q < nd->nkids; q++) if (nd->kids[q]->kind != LOW_CST_ATOM) (void)tc_infer(c, nd->kids[q], env, nenv);
+        if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[1]->kind == LOW_CST_ATOM) {
+            ty_t e = ty_of_word(rt->kids[1]->tok.lex);
+            if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = true; sl.is_mut = true; return sl; }
+        }
+        ty_t sl = tk(TK_SLICE); sl.is_mut = true; return sl;
     }
     if (nd->kind == LOW_CST_FORM) return tc_infer_run(c, nd->kids, 0, nd->nkids, env, nenv);
     return tk(TK_UNKNOWN);
@@ -1606,9 +2178,16 @@ bool low_tc_note_of(const void *node, low_tcnote_t *out) {
     *out = g_note[i].t;
     return true;
 }
+static void tc_unk_mark(const low_cst_t *nd) {
+    while (nd && nd->kind == LOW_CST_GROUP && nd->nkids) nd = nd->kids[0];
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) g_unk_head = nd->tok.lex;
+    else if (nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) g_unk_head = nd->kids[0]->tok.lex;
+}
 static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv) {
     ty_t t = tc_infer_impl(c, nd, env, nenv);
     if (nd && low_tc_notes_on()) tc_note(nd, t);
+    if (t.k == TK_UNKNOWN) tc_unk_mark(nd);
     return t;
 }
 
@@ -1648,6 +2227,11 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         if ((veq(w, "slice") || veq(w, "array")) && i + 1 < end && i + 1 < f->nkids &&
             f->kids[i + 1]->kind == LOW_CST_ATOM) {
             ty_t e = ty_of_word(f->kids[i + 1]->tok.lex);
+            if (e.k == TK_NAMED && veq(w, "slice")) {   // RFC-0148 S5 — 구조체 원소의 이름을 싣는다(`for q ps.` 의 `q` · `idx ps. i.` 가 그 구조체다)
+                proven_u8str_view_t cn = tc_canon_name(f->kids[i + 1]->tok.lex); ty_t ce = ty_of_word(cn);
+                if (ce.k == TK_INT || ce.k == TK_FLOAT) e = ce;
+                else { ty_t sl = tk(TK_SLICE); sl.nname = f->kids[i + 1]->tok.lex; sl.rk = t.rk; sl.is_mut = mut_seen; return sl; }
+            }
             if (e.k == TK_INT || e.k == TK_FLOAT) {
                 ty_t sl = tk(TK_SLICE);
                 sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0;
@@ -1670,6 +2254,11 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
             f->kids[i + 1]->kind == LOW_CST_ATOM && f->kids[i + 2]->kind == LOW_CST_ATOM) {
             ty_t ew = ty_of_word(f->kids[i + 1]->tok.lex);
             proven_i64 ln;
+            if ((ew.k == TK_INT || ew.k == TK_FLOAT) && !tc_int_lit(f->kids[i + 2]->tok.lex, &ln)) {   // 레인 수가 이름(틀의 `L`)이면 레인은 모른다
+                ty_t v = { .k = TK_VEC, .bits = ew.bits, .sign = ew.sign, .lanes = 0, .vflt = (ew.k == TK_FLOAT) };
+                v.rk = t.rk; v.is_mut = mut_seen;
+                return v;
+            }
             if ((ew.k == TK_INT || ew.k == TK_FLOAT) && tc_int_lit(f->kids[i + 2]->tok.lex, &ln) &&
                 ln > 0 && ln <= 64) {
                 ty_t v = { .k = TK_VEC, .bits = ew.bits, .sign = ew.sign,
@@ -1682,6 +2271,12 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         rng_res_t r = ty_of_range_at(f, i, end, &core, &used);   // ★ RFC-0055 D7
         if (r != RNG_NONE) { if (rr) *rr = r; core.rk = t.rk; core.is_mut = mut_seen; return core; }
         core = ty_of_word(w);
+        // ★ RFC-0148 S5 — 투명 별칭이 수 · 참거짓을 가리키면(`type meters u64 .`) 그 타입이다(SPEC-004 §89 «같은 타입»). 전에는 이름 타입으로
+        //   남아 셈과 대조가 모두 «모름» 이었다.
+        if (core.k == TK_NAMED && !core.nominal) {
+            proven_u8str_view_t cn = tc_canon_name(w);
+            if (!proven_u8str_view_eq(cn, w)) { ty_t ct = ty_of_word(cn); if (ct.k == TK_INT || ct.k == TK_FLOAT || ct.k == TK_BOOL) core = ct; }
+        }
         core.rk = t.rk;
         core.is_mut = mut_seen;
         if (core.k == TK_NAMED) {          // ★ 머리 이름과 틀 인자를 싣는다 (X-0009)
@@ -1698,9 +2293,12 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
             }
             core.targ = any ? (h ? h : 1u) : 0u;
             // ★ RFC-0148 S4 (2026-10-14) — `segments T` 는 조각들의 뷰다. 꺼내면 나오는 원소(`T`)를 e* 칸에 싣는다 — 하강층의 그림자가 싣는 것과 같다.
-            if (veq(w, "segments") && i + 1 < end && i + 1 < f->nkids && f->kids[i + 1]->kind == LOW_CST_ATOM) {
-                ty_t e = ty_of_word(f->kids[i + 1]->tok.lex);
+            if ((veq(w, "segments") || veq(w, "stack") || veq(w, "task") || veq(w, "chan")) && i + 1 < end && i + 1 < f->nkids && f->kids[i + 1]->kind == LOW_CST_ATOM) {
+                ty_t e = ty_of_word(tc_canon_name(f->kids[i + 1]->tok.lex));
                 if ((e.k == TK_INT || e.k == TK_FLOAT) && e.bits) { core.ebits = e.bits; core.esign = e.sign; core.eflt = (e.k == TK_FLOAT); core.enom = e.nominal == 1 ? 1 : 0; }
+                else if (e.k == TK_BOOL) core.ipk = (proven_u8)TK_BOOL;
+                else if (e.k == TK_NAMED) core.pname = f->kids[i + 1]->tok.lex;
+                if (veq(w, "task") || veq(w, "chan")) core.targ = 0u;   // 원소는 e* 칸으로 맞댄다(아래 compat)
             }
         }
         // ★★★ **감싸개도 알맹이의 이름을 나른다** (RFC-0104 §8-2 · 2026-08-28).
@@ -1715,21 +2313,44 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         //     **인자 자리**가 `handle#pa` 로 바뀐다(형제 쌍을 접는 규칙이 FORM 의 kids 에서
         //     돈 결과다). 그래서 *머리 이름 + 인자 해시* 로 읽으면 같은 타입이 두 철자를 갖고
         //     멀쩡한 프로그램이 빨개진다. **접힌 이름이 있으면 그것이 곧 그 타입의 이름이다.**
-        if (core.k == TK_WRAPPED && i + 1 < end && i + 1 < f->nkids) {
+        if (core.k == TK_WRAPPED && i + 1 < f->nkids && (i + 1 < end || (i + 1 == end && f->kids[i + 1]->kind != LOW_CST_ATOM))) {   // 머리의 절 범위는 첫 괄호 앞에서 끝난다 — 바로 뒤 괄호가 알맹이다
             {   // X-0085 — 알맹이의 종류(한 낱말 · 앞의 mut 는 건너뛴다)
                 proven_size_t q = i + 1;
                 while (q < end && q < f->nkids && f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "mut")) q++;
                 // ★ RFC-0148 S4 (2026-10-14) — 알맹이가 또 감싼 것이면(`result (option usize) e` · `result option u64 e`) 그 종류도 싣는다.
                 //   전에는 «모름» 이라 `ok_value` 로 꺼낸 `option` 을 `u64` 이름에 담아도 섰다.
-                if (q < end && q < f->nkids && f->kids[q]->kind != LOW_CST_ATOM) {
+                if (q <= end && q < f->nkids && f->kids[q]->kind != LOW_CST_ATOM) {
                     const low_cst_t *pg = f->kids[q];
                     while (pg->kind == LOW_CST_GROUP && pg->nkids == 1) pg = pg->kids[0];
                     const low_cst_t *ph = pg->kind == LOW_CST_FORM && pg->nkids ? pg->kids[0] : pg->kind == LOW_CST_GROUP && pg->nkids ? pg->kids[0] : NULL;
-                    if (ph && ph->kind == LOW_CST_ATOM && (veq(ph->tok.lex, "option") || veq(ph->tok.lex, "result"))) core.pk = (proven_u8)TK_WRAPPED;
+                    if (ph && ph->kind == LOW_CST_ATOM && (veq(ph->tok.lex, "option") || veq(ph->tok.lex, "result"))) {
+                        core.pk = (proven_u8)TK_WRAPPED; core.pwrap = veq(ph->tok.lex, "option") ? 1 : 2;
+                        if (pg->nkids >= 2 && pg->kids[1]->kind == LOW_CST_ATOM) {
+                            ty_t it = ty_of_word(pg->kids[1]->tok.lex);
+                            if ((it.k == TK_INT || it.k == TK_FLOAT) && it.bits) { core.ipk = (proven_u8)it.k; core.pbits = it.bits; core.psign = it.sign; core.pnom = it.nominal; }
+                            else if (it.k == TK_BOOL) core.ipk = (proven_u8)TK_BOOL;
+                        }
+                    }
                 }
+                if (core.wrap == 2) {   // `result T E` — 알맹이 다음 낱말이 오류 타입이다(알맹이가 한 낱말 · 괄호 하나일 때)
+                    proven_size_t eq0 = q;
+                    if (eq0 < f->nkids && f->kids[eq0]->kind == LOW_CST_ATOM) {
+                        ty_t pw = ty_of_word(f->kids[eq0]->tok.lex);
+                        eq0 += (pw.k == TK_SLICE || pw.k == TK_WRAPPED) ? 2 : 1;
+                    } else eq0 += 1;
+                    if (eq0 < f->nkids && f->kids[eq0]->kind == LOW_CST_ATOM && f->kids[eq0]->tok.kind == LOW_TOK_IDENT) core.ename = f->kids[eq0]->tok.lex;
+                }
+                if (q + 1 < end && q + 1 < f->nkids && f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "nonzero") &&
+                    f->kids[q + 1]->kind == LOW_CST_ATOM) q++;   // `option nonzero T` — 알맹이는 0 아닌 `T` 다(값의 타입은 `T`)
                 if (q < end && q < f->nkids && f->kids[q]->kind == LOW_CST_ATOM) {
                     ty_t pt = ty_of_word(f->kids[q]->tok.lex);
                     if (pt.k == TK_INT || pt.k == TK_FLOAT || pt.k == TK_BOOL || pt.k == TK_SLICE || pt.k == TK_WRAPPED) core.pk = (proven_u8)pt.k;
+                    if (pt.k == TK_WRAPPED && q + 1 < end && q + 1 < f->nkids && f->kids[q + 1]->kind == LOW_CST_ATOM) {   // `result option u64 e`
+                        core.pwrap = veq(f->kids[q]->tok.lex, "option") ? 1 : 2;
+                        ty_t it = ty_of_word(f->kids[q + 1]->tok.lex);
+                        if ((it.k == TK_INT || it.k == TK_FLOAT) && it.bits) { core.ipk = (proven_u8)it.k; core.pbits = it.bits; core.psign = it.sign; core.pnom = it.nominal; }
+                        else if (it.k == TK_BOOL) core.ipk = (proven_u8)TK_BOOL;
+                    }
                     if ((pt.k == TK_INT || pt.k == TK_FLOAT) && pt.bits) { core.pbits = pt.bits; core.psign = pt.sign; core.pnom = pt.nominal; }
                     // ★ RFC-0148 S4 — 알맹이가 `slice T` 면 그 원소도 싣는다(e* 칸 · 감싸개에서는 알맹이 슬라이스의 원소). 전에는 `option slice u8` 의
                     //   원소를 잃어, `some_value` 로 꺼낸 슬라이스의 `idx` 가 «모름» 이었다.
@@ -1767,6 +2388,11 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
                     if (a.ptr[b] == (proven_byte_t)'#') { folded = a; break; }
             }
             if (folded.size) { core.nname = folded; core.targ = 0u; }
+            else if (pl->kind == LOW_CST_ATOM && !core.pk) { ty_t pw = ty_of_word(phead); if (pw.k == TK_NAMED) core.pname = phead; }
+            else if (pl->kind == LOW_CST_FORM && pl->nkids && pl->kids[0]->kind == LOW_CST_ATOM && !core.pk) {
+                ty_t pw = ty_of_word(pl->kids[0]->tok.lex); if (pw.k == TK_NAMED) core.pname = pl->kids[0]->tok.lex;   // `(owned pending)` 의 머리는 한정자
+                if (veq(pl->kids[0]->tok.lex, "owned") && pl->nkids >= 2 && pl->kids[1]->kind == LOW_CST_ATOM) core.pname = pl->kids[1]->tok.lex;
+            }
         }
         return core;
     }
@@ -1887,6 +2513,8 @@ static bool ty_is_builtin_word(proven_u8str_view_t v) {
         //   타입 낱말 하나가 늘었다. 그 값은 백업 슬라이스와 (at, n) 서술자 슬라이스 두 칸이고,
         //   `view_segments`·`segs`·`seg` 로만 짓고 읽는다.
         "segments",
+        // ★ `task T` · `chan T` — 흐름의 핸들과 채널(RFC-0148 S5 · 소유자 2026-10-14 «핸들·채널에 타입을»). 값은 u64 칸이고, 타입이 결과 · 원소를 싣는다.
+        "task", "chan",
         "owned","raw","addr","mmio","bitset","cap","vec","mask","range","mut","void","unit",
         "unsafe_ptr",   // ★ 생 포인터 한정자(RFC-0066 가족) — mut/owned 처럼 타입 앞에 붙는 낱말
         "unsafe_fn",    // ★ 콜백 타입(RFC-0066) — 씨에 함수 포인터로. 값은 `unsafe_fn <op>`.
@@ -2021,7 +2649,18 @@ static void tc_walk_makes(tc_ctx_t *c, const low_cst_t *nd,
             tc_check_make(c, arg, env, nenv);
         }
     }
-    for (proven_size_t j = 0; j < nd->nkids; j++) tc_walk_makes(c, nd->kids[j], env, nenv);
+    // ★ RFC-0148 S5 (2026-10-14) — 문장 몸(블록)으로는 미리 내려가지 않는다: 그 안의 문장은 몸을 걸을 때 **제 환경으로** 다시 본다.
+    //   미리 내려가면 몸 안에서 묶인 이름(`if … do let bk … . return some lit (handle b) do blk bk. … end`)이 아직 없어 «모름» 이었다.
+    bool stmt_head = nd->kind == LOW_CST_FORM && nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM &&
+        (nd->kids[0]->tok.kw == LOW_KW_IF || nd->kids[0]->tok.kw == LOW_KW_WHILE || nd->kids[0]->tok.kw == LOW_KW_FOR ||
+         nd->kids[0]->tok.kw == LOW_KW_MATCH || nd->kids[0]->tok.kw == LOW_KW_CASE || nd->kids[0]->tok.kw == LOW_KW_ELSE ||
+         nd->kids[0]->tok.kw == LOW_KW_GUARD || veq(nd->kids[0]->tok.lex, "repeat") || veq(nd->kids[0]->tok.lex, "task_group"));
+    for (proven_size_t j = 0; j < nd->nkids; j++) {
+        if (stmt_head && (nd->kids[j]->kind == LOW_CST_BLOCK ||
+                          (nd->kids[j]->kind == LOW_CST_FORM && nd->kids[j]->nkids && nd->kids[j]->kids[0]->kind == LOW_CST_ATOM &&
+                           (nd->kids[j]->kids[0]->tok.kw == LOW_KW_IF || nd->kids[j]->kids[0]->tok.kw == LOW_KW_ELSE)))) continue;
+        tc_walk_makes(c, nd->kids[j], env, nenv);
+    }
 }
 
 // ★★ RFC-0121 §6.1 — `with` 문맥의 타입은 단계 op 의 **마지막 매개변수** 타입과 맞아야 한다. 문맥은 값으로 건너가므로
@@ -2085,7 +2724,12 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     nx->kids[0]->kind == LOW_CST_ATOM && nx->kids[0]->tok.kw == LOW_KW_BE)
                     actual = tc_infer_run(c, nx->kids, 1, nx->nkids - 1, env, *nenv);
             }
-            if (declared.rk == 0)   // ref initializers are conservative (value = a borrow)
+            // `--flat` 은 `use <할당기>.` · `keep` 묶음을 풀지 않는다 — 하강층이 `E-IR-UNSUP` 으로 거절하므로 여기서 타입을 맞대지 않는다
+            bool unresolved_use = false;   // [let, $b, option …, using, hb, …] — 풀리지 않은 채 남은 `using` 낱말
+            for (proven_size_t q = 2; q < f->nkids && !unresolved_use; q++)
+                if (f->kids[q]->kind == LOW_CST_ATOM && (veq(f->kids[q]->tok.lex, "using") || veq(f->kids[q]->tok.lex, "use") || veq(f->kids[q]->tok.lex, "keep")))
+                    unresolved_use = true;
+            if (declared.rk == 0 && !unresolved_use)   // ref initializers are conservative (value = a borrow)
                 tc_flag_types(c, compat(declared, actual),
                         (kw == LOW_KW_LET) ? "E-TYPE-LET" : "E-TYPE-VAR",
                         // ★ RFC-0135 D3 — 값이 option/result 인데 알맹이 타입으로 묶었다: 고칠 길을 말한다
@@ -2194,6 +2838,11 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 // ★ 루프 변수는 **슬라이스의 원소 타입**을 갖는다.
                 //   (u8 고정이었다 — `slice T` 가 원소 타입을 나르게 되면서 고칠 수 있게 됐다.)
                 ty_t ev = tk_int(8, false);
+                // ★ RFC-0148 S5 — 원소를 모르는 슬라이스에서 `u8` 을 지어내지 않는다(`idx` 와 같은 병). 구조체 원소면 그 구조체다.
+                if (seq.k == TK_SLICE && !seq.ebits && !seq.erow) {
+                    if (seq.nname.size) { ev = tk(TK_NAMED); ev.nname = seq.nname; } else ev = tk(TK_UNKNOWN);
+                }
+                if (seq.k == TK_UNKNOWN || seq.k == TK_WRAPPED) ev = tk(TK_UNKNOWN);
                 if (seq.k == TK_SLICE && seq.erow) { ev = seq; ev.erow = false; }   // §13.10 — 줄마다 도는 변수는 줄 슬라이스
                 else if (seq.k == TK_SLICE && seq.ebits)
                     ev = seq.eflt ? (ty_t){ .k = TK_FLOAT, .bits = seq.ebits }
@@ -2394,6 +3043,93 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                                 "`ne x 0`", f->line);
                 }
             }
+            // ★★★ RFC-0148 S5 (2026-10-14) — **갈래가 꺼낸 이름에도 타입이 있다.** `match s. do case rect w h do … end . end .` 의 `w` · `h` 는
+            //   그 변형의 알맹이 타입이고, `option` 의 `some v` · `result` 의 `ok v` 는 알맹이, `error e` 는 오류 열거형이다. 전에는 환경에 없어
+            //   몸 안의 셈과 반환이 모두 «모름» 이었다(하강층은 S2 부터 알았다).
+            if (kw == LOW_KW_MATCH && f->nkids >= 3 && f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {
+                ty_t st = tc_infer_run(c, f->kids, 1, f->nkids - 2, env, *nenv);
+                const low_cst_t *mb = f->kids[f->nkids - 1];
+                for (proven_size_t q = 0; q < mb->nkids; q++) {
+                    const low_cst_t *cf = mb->kids[q];
+                    if (cf->kind != LOW_CST_FORM || cf->nkids < 2 || cf->kids[0]->kind != LOW_CST_ATOM || cf->kids[0]->tok.kw != LOW_KW_CASE) {
+                        if (cf->kind == LOW_CST_FORM) { low_cst_t *one[1] = { (low_cst_t *)cf }; low_cst_t b1 = *cf; b1.kind = LOW_CST_BLOCK; b1.kids = one; b1.nkids = 1; tc_check_body(c, &b1, env, nenv, ret); }
+                        continue;
+                    }
+                    proven_size_t save = *nenv, pos = 1;
+                    // 갈래 하나에 `or` 로 이은 꼴이 여럿일 수 있다 — 첫 꼴의 이름만 묶는다(나머지 꼴도 같은 이름을 같은 자리에 둔다)
+                    if (cf->kids[1]->kind == LOW_CST_ATOM) {
+                        proven_u8str_view_t vn = cf->kids[1]->tok.lex;
+                        pos = 2;
+                        ty_t bt[8]; proven_size_t nb = 0;
+                        if (st.k == TK_WRAPPED && (veq(vn, "some") || veq(vn, "ok"))) {
+                            ty_t pv = tc_payload_of(st);
+                            // 겹친 꼴 `case ok (some x)` — 안쪽 꼴의 이름은 알맹이의 알맹이다
+                            if (cf->nkids > 2 && cf->kids[2]->kind != LOW_CST_ATOM && cf->kids[2]->kind != LOW_CST_BLOCK) {
+                                const low_cst_t *ig = cf->kids[2];
+                                while (ig->kind == LOW_CST_GROUP && ig->nkids == 1) ig = ig->kids[0];
+                                if (ig->nkids >= 2 && ig->kids[1]->kind == LOW_CST_ATOM && *nenv < TC_MAXENV) {
+                                    env[*nenv].name = ig->kids[1]->tok.lex; env[(*nenv)++].ty = tc_payload_of(pv);
+                                }
+                            }
+                            bt[nb++] = pv;
+                        } else if (st.k == TK_WRAPPED && veq(vn, "error") && st.ename.size) {
+                            ty_t ev = tk(TK_NAMED); ev.nname = st.ename; bt[nb++] = ev;
+                        } else if (st.k == TK_NAMED && st.nname.size && struct_find(c, st.nname) &&
+                                   proven_u8str_view_eq(tc_base_name(st.nname, NULL), tc_base_name(vn, NULL))) {
+                            // 구조체 분해 `case point x a y b` — 칸 이름 다음이 묶는 이름이다(`_` 는 묶지 않는다)
+                            const tc_struct_t *sd = struct_find(c, st.nname);
+                            for (proven_size_t t = 2; t + 1 < cf->nkids && cf->kids[t]->kind == LOW_CST_ATOM && cf->kids[t + 1]->kind == LOW_CST_ATOM; t += 2) {
+                                if (veq(cf->kids[t + 1]->tok.lex, "_") || *nenv >= TC_MAXENV) continue;
+                                ty_t ft = tk(TK_UNKNOWN);
+                                for (proven_size_t z = 0; z < sd->nf; z++) if (proven_u8str_view_eq(sd->fname[z], cf->kids[t]->tok.lex)) { ft = sd->fty[z]; ft.is_mut = false; }
+                                env[*nenv].name = cf->kids[t + 1]->tok.lex; env[(*nenv)++].ty = ft;
+                            }
+                            for (proven_size_t t = 1; t < cf->nkids; t++)
+                                if (cf->kids[t]->kind == LOW_CST_BLOCK) tc_check_body(c, cf->kids[t], env, nenv, ret);
+                            *nenv = save;
+                            continue;
+                        } else {
+                            proven_u8str_view_t en = st.k == TK_NAMED ? tc_base_name(st.nname, NULL) : (proven_u8str_view_t){ 0 };
+                            proven_u8str_view_t vb = tc_base_name(vn, NULL);
+                            const tc_variant_t *vv = variant_find(en, vb);
+                            if (vv) for (proven_size_t t = 0; t < vv->np && nb < 8; t++) bt[nb++] = vv->pt[t];
+                        }
+                        for (proven_size_t t = 2, bi = 0; t < cf->nkids && cf->kids[t]->kind == LOW_CST_ATOM && !veq(cf->kids[t]->tok.lex, "or"); t++, bi++) {
+                            if (*nenv >= TC_MAXENV) break;
+                            env[*nenv].name = cf->kids[t]->tok.lex;
+                            env[(*nenv)++].ty = bi < nb ? bt[bi] : tk(TK_UNKNOWN);
+                        }
+                    }
+                    (void)pos;
+                    for (proven_size_t t = 1; t < cf->nkids; t++)
+                        if (cf->kids[t]->kind == LOW_CST_BLOCK) tc_check_body(c, cf->kids[t], env, nenv, ret);
+                    *nenv = save;
+                }
+                continue;
+            }
+            // ★ RFC-0148 S5 — `while pop <쌓개> into <이름> . do … end` 의 이름은 쌓개의 원소 타입이다(몸에서 읽힌다)
+            if (kw == LOW_KW_WHILE) {
+                // 평평한 꼴 [while, pop, <쌓개>, into, <이름>, 몸]
+                if (f->nkids >= 6 && f->kids[1]->kind == LOW_CST_ATOM && veq(f->kids[1]->tok.lex, "pop") && f->kids[3]->kind == LOW_CST_ATOM &&
+                    veq(f->kids[3]->tok.lex, "into") && f->kids[4]->kind == LOW_CST_ATOM && *nenv < TC_MAXENV) {
+                    ty_t sv = tc_infer(c, f->kids[2], env, *nenv);
+                    ty_t ev = tk(TK_UNKNOWN);
+                    if (sv.k == TK_NAMED && sv.ebits) { ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tk_int(sv.ebits, sv.esign); ev.nominal = sv.enom; }
+                    env[*nenv].name = f->kids[4]->tok.lex; env[(*nenv)++].ty = ev;
+                }
+                for (proven_size_t j = 1; j + 1 < f->nkids; j++) {
+                    const low_cst_t *pf = f->kids[j];
+                    while (pf->kind == LOW_CST_GROUP && pf->nkids == 1) pf = pf->kids[0];
+                    if (pf->kind != LOW_CST_FORM || pf->nkids < 4 || pf->kids[0]->kind != LOW_CST_ATOM || !veq(pf->kids[0]->tok.lex, "pop")) continue;
+                    for (proven_size_t q = 2; q + 1 < pf->nkids; q++)
+                        if (pf->kids[q]->kind == LOW_CST_ATOM && veq(pf->kids[q]->tok.lex, "into") && pf->kids[q + 1]->kind == LOW_CST_ATOM && *nenv < TC_MAXENV) {
+                            ty_t sv = tc_infer(c, pf->kids[1], env, *nenv);
+                            ty_t ev = tk(TK_UNKNOWN);
+                            if (sv.k == TK_NAMED && sv.ebits) { ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tk_int(sv.ebits, sv.esign); ev.nominal = sv.enom; }
+                            env[*nenv].name = pf->kids[q + 1]->tok.lex; env[(*nenv)++].ty = ev;
+                        }
+                }
+            }
             // recurse into nested blocks (if/while/for bodies); also type the call itself
             (void)tc_infer(c, f, env, *nenv);
             for (proven_size_t j = 0; j < f->nkids; j++)
@@ -2587,12 +3323,88 @@ static void tc_brand_walk(tc_ctx_t *c, const low_cst_t *nd,
 
 low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr) {
     tc_notes_reset();
+    g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_tc_full = false;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
+            f->kids[1]->kind == LOW_CST_ATOM) { if (g_nsname >= 1024) { g_tc_full = true; break; } g_sname[g_nsname++] = f->kids[1]->tok.lex; }
+    }
+    {
+        proven_u8str_view_t cm = { 0 };
+        for (proven_size_t i = 0; i < pr->nforms; i++) {
+            const low_cst_t *f = pr->forms[i];
+            if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
+            if (f->kids[0]->tok.kw == LOW_KW_MODULE && f->kids[1]->kind == LOW_CST_ATOM) { cm = f->kids[1]->tok.lex; continue; }
+            if ((f->kids[0]->tok.kw != LOW_KW_LET && f->kids[0]->tok.kw != LOW_KW_VAR) || f->kids[1]->kind != LOW_CST_ATOM) continue;
+            proven_size_t be = kw_index(f, LOW_KW_BE);
+            ty_t d = ty_of_decl_r(f, 2, be < f->nkids ? be : f->nkids, NULL);
+            if (d.k == TK_UNKNOWN) continue;
+            d.is_mut = false;
+            if (g_nmc >= 512) { g_tc_full = true; break; }
+            g_mc[g_nmc++] = (tc_mconst_t){ f->kids[1]->tok.lex, cm, d };
+        }
+    }
+    for (proven_size_t i = 0; i < pr->nforms; i++) {   // `build option <이름> <bool|int|choice> …`
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 4 || f->kids[0]->kind != LOW_CST_ATOM || !veq(f->kids[0]->tok.lex, "build") ||
+            f->kids[1]->kind != LOW_CST_ATOM || !veq(f->kids[1]->tok.lex, "option") || f->kids[2]->kind != LOW_CST_ATOM || f->kids[3]->kind != LOW_CST_ATOM) continue;
+        if (g_nopt >= 128) { g_tc_full = true; break; }
+        g_opt[g_nopt++] = (tc_opt_t){ f->kids[2]->tok.lex, veq(f->kids[3]->tok.lex, "bool") };
+    }
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM || f->kids[0]->tok.kw != LOW_KW_ENUM ||
+            f->kids[1]->kind != LOW_CST_ATOM) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *vf = blk->kids[j];
+            if (vf->kind != LOW_CST_FORM || !vf->nkids || vf->kids[0]->kind != LOW_CST_ATOM) continue;
+            if (g_nvar >= 1024) { g_tc_full = true; break; }
+            tc_variant_t *v = &g_var[g_nvar++];
+            v->en = f->kids[1]->tok.lex; v->vn = vf->kids[0]->tok.lex; v->np = 0;
+            if (vf->nkids > 2 + 2 * 8) g_tc_full = true;   // 알맹이 칸이 여덟을 넘는다
+            for (proven_size_t t = 2; t < vf->nkids && v->np < 8; t += 2) {
+                if (vf->kids[t]->kind != LOW_CST_ATOM) { v->pt[v->np++] = tk(TK_UNKNOWN); continue; }
+                ty_t pt = ty_of_word(vf->kids[t]->tok.lex);
+                if (pt.k == TK_NAMED) pt.nname = vf->kids[t]->tok.lex;
+                if (vf->kids[t - 1]->kind == LOW_CST_ATOM) {
+                    if (g_nvarf >= 4096) g_tc_full = true;
+                    else g_varf[g_nvarf++] = (tc_varf_t){ v, vf->kids[t - 1]->tok.lex, v->np };
+                }
+                v->pt[v->np++] = pt;
+            }
+        }
+    }
+    g_nal = 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM || f->kids[0]->tok.kw != LOW_KW_USE ||
+            f->kids[1]->kind != LOW_CST_ATOM) continue;
+        for (proven_size_t j = 2; j + 1 < f->nkids; j++)
+            if (f->kids[j]->kind == LOW_CST_ATOM && veq(f->kids[j]->tok.lex, "as") && f->kids[j + 1]->kind == LOW_CST_ATOM) {
+                if (g_nal >= 64) { g_tc_full = true; break; }
+                g_al_old[g_nal] = f->kids[1]->tok.lex; g_al_new[g_nal++] = f->kids[j + 1]->tok.lex; break;
+            }
+        // `use <이름> from "<길>" .` — 이름이 그 파일의 모듈 이름과 다르면 별칭이다(모듈 이름 = 파일 이름)
+        if (g_nal >= 64) g_tc_full = true;
+        if (g_nal < 64 && f->nkids >= 4 && f->kids[2]->kind == LOW_CST_ATOM && veq(f->kids[2]->tok.lex, "from") && f->kids[3]->kind == LOW_CST_ATOM &&
+            f->kids[3]->tok.kind == LOW_TOK_STRING) {
+            proven_u8str_view_t pth = f->kids[3]->tok.lex; proven_size_t b0 = 0, e0 = pth.size;
+            for (proven_size_t q = 0; q < pth.size; q++) if (pth.ptr[q] == (proven_u8)'/') b0 = q + 1;
+            if (e0 > b0 + 4 && memcmp(pth.ptr + e0 - 4, ".low", 4) == 0) e0 -= 4;
+            proven_u8str_view_t mn = { pth.ptr + b0, e0 - b0 };
+            if (!proven_u8str_view_eq(mn, f->kids[1]->tok.lex)) { g_al_old[g_nal] = mn; g_al_new[g_nal++] = f->kids[1]->tok.lex; }
+        }
+    }
     low_typecheck_result_t out = { .ok = true };
     proven_result_array_t da = PROVEN_ARRAY_INIT(work, low_diag_t, 8);
     if (da.err != PROVEN_OK) { out.ok = false; return out; }
     out.diags = da.value;
 
     tc_ctx_t c = { .nsigs = 0, .nstrs = 0, .diags = &out.diags, .ok = &out.ok };
+    if (g_tc_full) tc_emit(&c, "E-TYPE-LIMIT", "the checker's tables for enum variants, module constants, build options, struct names or module aliases are full — "
+                            "this unit is refused rather than checked in part (RFC-0148 S5)", 1);
     g_nnt = 0; g_nnts = 0;   // ★ newtype 레지스트리 — 컴파일 단위마다 새로
     for (proven_size_t z = 0; z < TC_MAXSIG; z++) g_ntval[z] = false;
 
@@ -2627,6 +3439,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             ty_t core = ty_of_word(f->kids[2]->tok.lex);
             if (core.k == TK_NAMED && g_nnts < TC_MAXSIG) {   // ★ **struct/enum/actor 코어**도 명목 정체성을 준다
                 g_nts[g_nnts].name = f->kids[1]->tok.lex;
+                g_nts[g_nnts].target = f->kids[2]->tok.lex;   // RFC-0148 S5 — 칸을 읽을 때 핵의 구조체를 찾는다
                 g_nts[g_nnts].nominal = (proven_u8)(2 + TC_MAXSIG + g_nnts);   // int 계열과 겹치지 않는 대역
                 g_nnts++;
             }
@@ -3034,7 +3847,14 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                 if (vs < e && of->kids[vs]->kind == LOW_CST_ATOM &&
                     (veq(of->kids[vs]->tok.lex, "static") || veq(of->kids[vs]->tok.lex, "debug") || veq(of->kids[vs]->tok.lex, "assume"))) vs++;
                 if (veq(kj->tok.lex, "errors") && vs < e && of->kids[vs]->kind == LOW_CST_ATOM) vs++;   // 변형 이름
+                // `ensures` 는 결과를 `ret` 으로 가리킨다(정본 §6.4 (…)) — 그 이름은 op 의 출력 타입이다
+                proven_size_t nsave = nenv;
+                if (veq(kj->tok.lex, "ensures")) {
+                    if (nenv >= TC_MAXENV) tc_emit(&c, "E-TYPE-LIMIT", "too many names in scope to check this `ensures` (the checker's table is full) — refused, not skipped", of->line);
+                    else { env[nenv].name = (proven_u8str_view_t){ (const proven_byte_t *)"ret", 3 }; env[nenv++].ty = c.sigs[i].ret; }
+                }
                 if (vs < e) (void)tc_infer_run(&c, of->kids, vs, e - vs, env, nenv);
+                nenv = nsave;
             }
         }
         tc_check_body(&c, c.sigs[i].body, env, &nenv, c.sigs[i].ret);

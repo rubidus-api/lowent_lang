@@ -12,8 +12,8 @@ proc drive output u64 . effects state .
 do
   var r u64 0 .
   task_group do
-    let h1 u64 spawn square 5 . .
-    let h2 u64 spawn square 6 . .
+    let h1 task u64 spawn square 5 . .
+    let h2 task u64 spawn square 6 . .
     let a u64 await h1. . .
     let b u64 await h2. . .
     set r. add a. b. . .
@@ -25,8 +25,8 @@ test join_any_order schedule explore_interleavings .
 do
   var r u64 0 .
   task_group do
-    var h1 u64 spawn square 5 . .
-    var h2 u64 spawn square 6 . .
+    var h1 task u64 spawn square 5 . .
+    var h2 task u64 spawn square 6 . .
     let a u64 await h1. . .
     let b u64 await h2. . .
     set r. add a. b. . .

@@ -6,7 +6,7 @@ rem ★★★ **이름 붙은 상수** — 같은 사실을 두 번 쓰지 않�
 rem   전엔 `4` 가 **errors 절과 guard 에 각각** 박혀 있었다. 하나를 고치고 다른 하나를 잊으면
 rem   **계약이 본문과 갈린다** — 그것이 이 프로젝트가 쫓는 결함의 전부다(교훈 7).
 rem   모듈 `let` 은 **컴파일타임 상수**이고 값이 **그 자리에 박힌다**(분석이 리터럴처럼 쓴다).
-let HEADER_LEN u8 4 .
+let HEADER_LEN usize 4 .
 let VERSION u8 1 .
 
 struct header do

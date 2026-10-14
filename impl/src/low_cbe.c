@@ -1560,6 +1560,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             }
             case IRW_SPLAT: {
                 // splat: 스칼라 → 벡터(레인 수·폭은 meta 가 안다). 부동이면 입력도 f64.
+                // ★ 2026-10-14 (RFC-0148 S5 의 탐침이 찾았다) — 빠른 길의 벡터에는 **레인의 부호**가 없다. 부호 있는 레인의 `reduce_*` 가
+                //   부호 없이 접혀 VM 과 다른 값을 냈다(`vec i32 4` 의 -3 넷의 합: VM -12 · 네이티브 17179869172). 부호를 아는 태그 길로 보낸다.
+                if (in->a & IR_SGN_BIT) return false;
                 unsigned ln = (unsigned)((in->a >> 8) & 0xff), ez = (unsigned)(in->a & 0xff);
                 if (!lw_v_ok(ln, ez)) return false;
                 bool fv = (in->a & 0x10000) != 0;
@@ -1572,6 +1575,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             }
             case IRW_VLOAD: {
                 // load <slice> <i> → 벡터. 부동 슬라이스면 부동 벡터.
+                if (in->a & IR_SGN_BIT) return false;   // 부호 있는 레인은 태그 길로(위 splat 과 같은 까닭)
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_SL) return false;
                 unsigned ln = (unsigned)((in->a >> 8) & 0xff), ez = (unsigned)(in->a & 0xff);
                 if (!lw_v_ok(ln, ez)) return false;
@@ -3536,10 +3540,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                  : in->w == IRW_RMIN ? "~0ull" : "0ull";
                 const char *rm = lw_vmem((unsigned)ks.ve[ks.n-1]);
                 fprintf(out, "    { unsigned long long a_ = %s; vsp--;\n", init);
-                if (in->w == IRW_RADD)
-                    fprintf(out, "      for (int k_ = 0; k_ < %d; k_++) a_ += vs[vsp].%s[k_];\n", ln, rm);
-                else if (in->w == IRW_RMUL)
-                    fprintf(out, "      for (int k_ = 0; k_ < %d; k_++) a_ *= vs[vsp].%s[k_];\n", ln, rm);
+                // ★ 결과의 타입은 레인의 타입이다(정본 §6.3.7 (2)) — 합 · 곱이 그 폭에 안 들어가면 멈춘다(VM 과 같다)
+                if (in->w == IRW_RADD || in->w == IRW_RMUL) {
+                    unsigned bw = (unsigned)ks.ve[ks.n-1] * 8u;
+                    fprintf(out, "      for (int k_ = 0; k_ < %d; k_++) { if (__builtin_%s_overflow(a_, (unsigned long long)vs[vsp].%s[k_], &a_)%s) lw_panic(\"integer overflow at the declared width\"); }\n",
+                            ln, in->w == IRW_RADD ? "add" : "mul", rm, bw < 64 ? (bw == 8 ? " || (a_ >> 8)" : bw == 16 ? " || (a_ >> 16)" : " || (a_ >> 32)") : "");
+                }
                 else if (in->w == IRW_RMIN)
                     fprintf(out, "      for (int k_ = 0; k_ < %d; k_++) if (vs[vsp].%s[k_] < a_) a_ = vs[vsp].%s[k_];\n", ln, rm, rm);
                 else

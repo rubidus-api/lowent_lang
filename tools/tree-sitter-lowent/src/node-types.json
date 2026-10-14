@@ -6516,6 +6516,10 @@
     "named": false
   },
   {
+    "type": "chan",
+    "named": false
+  },
+  {
     "type": "channel",
     "named": false
   },
@@ -6974,6 +6978,10 @@
   },
   {
     "type": "target",
+    "named": false
+  },
+  {
+    "type": "task",
     "named": false
   },
   {

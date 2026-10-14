@@ -7,7 +7,7 @@ fn chk input a u8 . output u64 . do
 end .
 
 fn dz input a u32 . input b u32 . output u32 . do
-  let nb u32 nonzero_of b. . .
+  let nb option nonzero u32 nonzero_of b. . .
   guard is_some nb. . else return 0 . .
   return div_nz a. some_value nb. . . .        rem 제수가 0 이 아님이 여기서 보장된다
 end .

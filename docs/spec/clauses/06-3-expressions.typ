@@ -529,7 +529,8 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
     ]
     #para("2")[
-      레인을 가로지르는 op 은 레인 수만큼을 #strong[하나로]; 모은다. 결과의 타입은 레인의 타입이다.
+      레인을 가로지르는 op 은 레인 수만큼을 #strong[하나로]; 모은다. 결과의 타입은 레인의 타입이다. 부호 있는 레인은 부호로
+      더하고 곱하며, `reduce_add` · `reduce_mul` 의 값이 그 타입에 들어가지 않으면 멈춘다(#cref("6.3.4") (3)).
     ]
     #note[
       이 표의 앞자리에는 `sum` 과 `sum_fast` 가 «모든 레인을 더한다» 로 적혀 있었다.

@@ -18,7 +18,7 @@ const SHAPES = require('./shapes.json');
 const sep = (rule) => repeat(rule);
 
 // type words that take one more type after them
-const T_PRE1 = ['slice', 'mut', 'owned', 'ref', 'mut_ref', 'option', 'segments', 'stack', 'set',
+const T_PRE1 = ['slice', 'mut', 'owned', 'ref', 'mut_ref', 'option', 'segments', 'task', 'chan', 'stack', 'set',
                 'unsafe_ptr', 'nonzero', 'atomic', 'lock', 'rwlock', 'shared_read', 'view'];
 
 const CLAUSE_WORDS = ['reduce', 'lowdoc', 'vector', 'priority', 'inplace', 'invalidates', 'absorbs',

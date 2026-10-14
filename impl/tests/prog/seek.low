@@ -42,7 +42,7 @@ do
   rem 거기서 4 바이트 읽으면 "beta" 여야 한다 — "alpha\n" 을 건너뛴 증거
   let n result (option usize) files.file_error files.read fs. rh. subslice buf. 0 4 . . .
   guard is_ok n. . else return 74 . .
-  let nv option u64 ok_value n. . .
+  let nv option usize ok_value n. . .
   guard is_some nv. . else return 74 . .
   guard eq some_value nv. . 4 . else return 75 . .
   guard eq idx buf. 0 . 98 . else return 80 . .           rem 'b'

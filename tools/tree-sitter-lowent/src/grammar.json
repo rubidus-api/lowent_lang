@@ -1615,6 +1615,14 @@
                   },
                   {
                     "type": "STRING",
+                    "value": "task"
+                  },
+                  {
+                    "type": "STRING",
+                    "value": "chan"
+                  },
+                  {
+                    "type": "STRING",
                     "value": "stack"
                   },
                   {

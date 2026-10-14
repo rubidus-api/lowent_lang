@@ -48,10 +48,10 @@ do
   guard eq lifeatom.rc_open k. c. . 1 . else return 43 . .
 
   rem ── 흐름 넷이 저마다 나눠 갖는다 ──
-  var h0 u64 0 .
-  var h1 u64 0 .
-  var h2 u64 0 .
-  var h3 u64 0 .
+  var h0 task u64 0 .
+  var h1 task u64 0 .
+  var h2 task u64 0 .
+  var h3 task u64 0 .
   task_group do
     set h0. spawn share_one k. c. . .
     set h1. spawn share_one k. c. . .

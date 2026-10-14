@@ -18,11 +18,11 @@ actor first_seen do
     return v. .
   end .
 end .
-proc producer input ch u64 . input n u64 . output u64 . effects concurrent .
+proc producer input ch chan u64 . input n u64 . output u64 . effects concurrent .
 do
   return chsend ch. n. . .
 end .
-proc consumer input ch u64 . input s first_seen . output u64 . effects state concurrent .
+proc consumer input ch chan u64 . input s first_seen . output u64 . effects state concurrent .
 do
   let x u64 chrecv ch. . .
   let y u64 chrecv ch. . .
@@ -31,7 +31,7 @@ do
 end .
 proc drive output u64 . effects state .
 do
-  var ch u64 channel u64 . .
+  var ch chan u64 channel u64 . .
   var s first_seen spawn actor first_seen . .
   task_group do
     spawn consumer ch. s. .
@@ -42,7 +42,7 @@ do
 end .
 test first_is_ten schedule explore_interleavings .
 do
-  var ch u64 channel u64 . .
+  var ch chan u64 channel u64 . .
   var s first_seen spawn actor first_seen . .
   task_group do
     spawn consumer ch. s. .

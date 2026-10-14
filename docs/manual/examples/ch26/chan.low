@@ -18,12 +18,12 @@ actor sink do
   end .
 end .
 
-proc producer input ch u64 . input n u64 . output u64 . effects concurrent .
+proc producer input ch chan u64 . input n u64 . output u64 . effects concurrent .
 do
   return chsend ch. n. . .
 end .
 
-proc consumer input ch u64 . input s sink . output u64 . effects state concurrent .
+proc consumer input ch chan u64 . input s sink . output u64 . effects state concurrent .
 do
   let x u64 chrecv ch. . .
   return send s. put min x. 1000 . . .
@@ -31,7 +31,7 @@ end .
 
 proc drive output u64 . effects state .
 do
-  var ch u64 channel u64 . .
+  var ch chan u64 channel u64 . .
   var s sink spawn actor sink . .
   task_group do
     spawn consumer ch. s. .
@@ -44,7 +44,7 @@ end .
 
 test every_interleaving schedule explore_interleavings .
 do
-  var ch u64 channel u64 . .
+  var ch chan u64 channel u64 . .
   var s sink spawn actor sink . .
   task_group do
     spawn consumer ch. s. .

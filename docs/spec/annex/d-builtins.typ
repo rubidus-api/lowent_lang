@@ -354,7 +354,7 @@ write_out             write_volatile        zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *78 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *98 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -374,8 +374,8 @@ write_out             write_volatile        zip")
         [`mod a b` #cref("6.3.4")], [*받는 것:* `a` `b` — 맞는 두 정수 \ *내는 것:* 둘 중 넓은 쪽 타입 — 바닥 나눗셈의 나머지. 부호는 `b` 를 따른다(`mod -7 2` 는 1, `mod 7 -2` 는 -1). `b` 가 양수이면 0 이상이고 `b` 보다 작다. 가장 작은 값을 -1 로 나누면 0 \ *번역 때 거절:* 정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY` \ *실행 때 멈춤:* `b` 가 0 이면 `E-VM-DIV0` · 부동을 주면 `E-VM-TYPE`(부동의 나머지는 `fmod`)],
         [`neg a` #cref("6.3.3")], [*받는 것:* `a` — 부호 있는 정수 또는 부동 \ *내는 것:* `a` 의 타입 — 부호를 뒤집은 값 \ *번역 때 거절:* 부호 없는 정수를 주면 `E-TYPE-SIGN` · `E-IR-ARITY` \ *실행 때 멈춤:* 부호 있는 정수의 가장 작은 값이면 `E-VM-OVERFLOW`(뒤집은 값이 그 폭에 없다). 부동: 멈추지 않는다],
         [`abs a` #cref("6.3.9")], [*받는 것:* `a` — 부호 있는 정수 또는 부동 \ *내는 것:* `a` 의 타입 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 부호 있는 정수의 가장 작은 값이면 `E-VM-OVERFLOW`(절댓값이 그 폭에 없다). 부동: 멈추지 않는다],
-        [`min a b` #cref("6.3.3")], [*받는 것:* `a` `b` — 같은 부호의 두 정수, 또는 두 부동 \ *내는 것:* 둘 중 작은 값 — 둘 중 넓은 쪽 타입 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
-        [`max a b` #cref("6.3.3")], [*받는 것:* `a` `b` — 같은 부호의 두 정수, 또는 두 부동 \ *내는 것:* 둘 중 큰 값 — 둘 중 넓은 쪽 타입 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`min a b` #cref("6.3.3")], [*받는 것:* `a` `b` — 같은 부호의 두 정수, 또는 두 부동 \ *내는 것:* 둘 중 작은 값 — 둘 중 넓은 쪽 타입 \ *번역 때 거절:* 부호가 다른 두 정수면 `E-TYPE-SIGN` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`max a b` #cref("6.3.3")], [*받는 것:* `a` `b` — 같은 부호의 두 정수, 또는 두 부동 \ *내는 것:* 둘 중 큰 값 — 둘 중 넓은 쪽 타입 \ *번역 때 거절:* 부호가 다른 두 정수면 `E-TYPE-SIGN` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 
@@ -443,6 +443,9 @@ write_out             write_volatile        zip")
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
         [`len s` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · 배열 · 문자열 리터럴 \ *내는 것:* `usize` — 원소의 수(바이트 수가 아니다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`idx s i` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · 배열 · `i` — `usize` \ *내는 것:* 원소의 타입 — `i` 번째 원소 \ *번역 때 거절:* `i` 가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* `i` 가 길이 밖이면 `E-VM-BOUNDS`],
+        [`subslice s a b` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · `a` `b` — `usize` \ *내는 것:* `slice T`(`T` 는 `s` 의 원소) — `[a, b)` 를 복사 없이 보는 슬라이스 \ *번역 때 거절:* 경계가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* `a` 가 `b` 보다 크거나 `b` 가 길이 밖이면 `E-VM-BOUNDS`],
+        [`view_array T s` #cref("6.2.13")], [*받는 것:* `T` — 정수 또는 부동 타입 · `s` — 바이트 슬라이스 \ *내는 것:* `slice T` — 같은 바이트를 `T` 의 나열로 본다(복사 없음) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* `s` 의 길이가 `T` 의 크기의 배수가 아니면 `E-VM-VIEW`],
     )
   ]
 
@@ -505,6 +508,41 @@ write_out             write_volatile        zip")
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
         [`call_builtin rng_next s` #cref("6.3.3")], [*받는 것:* `s` — `u64`(상태 — 씨는 부르는 쪽이 든다) \ *내는 것:* `u64` — 다음 값. 같은 상태에는 늘 같은 값 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+    )
+  ]
+
+  #tbl("원자")[
+    #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
+      [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`atomic_load s i [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` \ *내는 것:* 원소의 타입 — 그 칸의 값 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_add s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 합이 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_sub s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 차가 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_and s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 비트 곱이 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_or s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 비트 합이 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_xor s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 배타적 비트 합이 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_swap s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 `v` 가 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+        [`atomic_cas s i want v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `want` `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 칸이 `want` 였으면 `v` 로 바꾸고 1, 아니면 그대로 두고 0 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
+    )
+  ]
+
+  #tbl("감싸개")[
+    #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
+      [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`some a` #cref("6.2")], [*받는 것:* `a` — 값 \ *내는 것:* `option T`(`T` 는 `a` 의 타입) — 있음 \ *번역 때 거절:* 알맹이 타입이 다른 `option` 자리에 넣으면 `E-TYPE-WIDTH` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`some_value o` #cref("6.2")], [*받는 것:* `o` — `option T` \ *내는 것:* `T` — 알맹이 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* `o` 가 없음이면 `E-VM-NONE`],
+        [`is_some o` #cref("6.2")], [*받는 것:* `o` — `option T` \ *내는 것:* `bool` — 있음이면 참 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`is_none o` #cref("6.2")], [*받는 것:* `o` — `option T` \ *내는 것:* `bool` — 없음이면 참 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`value_or o d` #cref("6.2")], [*받는 것:* `o` — `option T` · `d` — `T` \ *내는 것:* `T` — 있음이면 알맹이, 없음이면 `d` \ *번역 때 거절:* `d` 가 `T` 에 들어가지 않으면 `E-TYPE-WIDTH` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
+    )
+  ]
+
+  #tbl("SIMD")[
+    #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
+      [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`splat a` #cref("6.3.11")], [*받는 것:* `a` — 정수 또는 부동 \ *내는 것:* `vec T N` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec T N`)가 정한다 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`reduce_add v` #cref("6.3.11")], [*받는 것:* `v` — `vec T N` \ *내는 것:* `T` — 레인의 합(부호 있는 레인은 부호로 더한다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`],
+        [`reduce_max v` #cref("6.3.11")], [*받는 것:* `v` — `vec T N` \ *내는 것:* `T` — 가장 큰 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`reduce_min v` #cref("6.3.11")], [*받는 것:* `v` — `vec T N` \ *내는 것:* `T` — 가장 작은 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 

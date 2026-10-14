@@ -50,12 +50,12 @@ do
     let n result (option usize) files.file_error files.read fs. rh. buf. . .
     if eq is_ok n. . false . do set going. false . end .
     if is_ok n. . do
-      let v option u64 ok_value n. . .
+      let v option usize ok_value n. . .
       if eq is_some v. . false . do set going. false . end .
       if is_some v. . do
         let w result usize files.file_error files.write fs. wh. subslice buf. 0 cast usize some_value v. . . . . .
         if eq is_ok w. . false . do set going. false . end .
-        set total. add total. some_value v. . . .
+        set total. add total. cast u64 some_value v. . . . .
       end .
     end .
   end .

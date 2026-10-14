@@ -40,8 +40,8 @@ rem 오류 전파(결정적): 오류 자식을 await 하면 오류가 온다 →
 test coe_error_propagates schedule explore_interleavings . do
   var got u64 0 .
   task_group cancel_on_error do
-    var h1 u64 spawn mk 1 . .
-    var h2 u64 spawn mk 0 . .
+    var h1 task u64 spawn mk 1 . .
+    var h2 task u64 spawn mk 0 . .
     if is_error await h1. . . do set got. 1 . end .
   end .
   expect eq got. 1 . .
@@ -51,8 +51,8 @@ rem 취소 메커니즘(결정적 --run): erra(h1) 먼저 오류 → okb(h2) 취
 proc drive_cancel output u64 . effects state . do
   var x cnt spawn actor cnt . .
   task_group cancel_on_error do
-    let h1 u64 spawn mk 1 . .
-    let h2 u64 spawn okb x. . .
+    let h1 task u64 spawn mk 1 . .
+    let h2 task u64 spawn okb x. . .
     let r u64 await h1. . .
   end .
   return send x. get . .
@@ -61,8 +61,8 @@ rem 취소 없이(대조): erra 오류(효과 없음) + okb 실행(inc) → get=
 proc drive_plain output u64 . effects state . do
   var x cnt spawn actor cnt . .
   task_group do
-    let h1 u64 spawn mk 1 . .
-    let h2 u64 spawn okb x. . .
+    let h1 task u64 spawn mk 1 . .
+    let h2 task u64 spawn okb x. . .
     let r u64 await h1. . .
   end .
   return send x. get . .
@@ -74,8 +74,8 @@ proc drive_nested output u64 . effects state . do
   var x cnt spawn actor cnt . .
   task_group cancel_on_error do
     task_group do
-      let h1 u64 spawn mk 1 . .
-      let h2 u64 spawn okb x. . .
+      let h1 task u64 spawn mk 1 . .
+      let h2 task u64 spawn okb x. . .
       let r u64 await h1. . .
     end .
   end .
@@ -88,11 +88,11 @@ proc drive_restore output u64 . effects state . do
   var x cnt spawn actor cnt . .
   task_group cancel_on_error do
     task_group do
-      let hp u64 spawn mk 0 . .
+      let hp task u64 spawn mk 0 . .
       let rp u64 await hp. . .
     end .
-    let h1 u64 spawn mk 1 . .
-    let h2 u64 spawn okb x. . .
+    let h1 task u64 spawn mk 1 . .
+    let h2 task u64 spawn okb x. . .
     let r u64 await h1. . .
   end .
   return send x. get . .

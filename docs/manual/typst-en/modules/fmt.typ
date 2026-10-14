@@ -10,7 +10,7 @@ paper; it only writes on the paper handed to it (`mut slice u8`).
 ```lowent
 use fmt .
 
-let p option u64 fmt.put_u64 buf. 0 1234 . .
+let p option usize fmt.put_u64 buf. 0 1234 . .
 guard is_some p. . else return 1 . .
 ```
 
@@ -130,8 +130,8 @@ end .
 
 #antipattern[Discarding the returned `pos` and reusing the old one][
   ```lowent
-  let p1 option u64 fmt.put_str buf. 0 "answer=" . .
-  let p2 option u64 fmt.put_u64 buf. 0 42 . .        rem ✗ pos should be some_value p1
+  let p1 option usize fmt.put_str buf. 0 "answer=" . .
+  let p2 option usize fmt.put_u64 buf. 0 42 . .        rem ✗ pos should be some_value p1
   ```
   It translates, and the result overlaps like `42swer=` instead of `answer=42`. If the front of the output is mangled, first check whether `pos` was passed on.
 ]

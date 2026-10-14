@@ -91,12 +91,12 @@ use utf16 as u .
 proc round_trip input buf mut slice u16 . output usize . effects none . do
   guard ge len buf. . 4 . else return 90 . .
   rem '가'(U+AC00) --- BMP 라서 한 칸. put 은 다음에 쓸 위치를 돌려준다
-  let a option u64 u.put buf. 0 44032 . .
+  let a option usize u.put buf. 0 44032 . .
   guard is_some a. . else return 1 . .
   guard eq some_value a. . 1 . else return 2 . .
 
   rem U+1F4A9 --- BMP 밖이라 두 칸(서로게이트 짝)으로 갈라진다
-  let b option u64 u.put buf. some_value a. . 128169 . .
+  let b option usize u.put buf. some_value a. . 128169 . .
   guard is_some b. . else return 3 . .
   guard eq some_value b. . 3 . else return 4 . .
   guard eq idx buf. 1 . 55357 . else return 5 . .
@@ -110,7 +110,7 @@ proc round_trip input buf mut slice u16 . output usize . effects none . do
   rem 'A' + 이모지(짝) + '가' = 칸 넷, 문자 셋
   set idx buf. 0 . 65 .
   set idx buf. 3 . 44032 .
-  let n option u64 u.count_chars subslice buf. 0 4 . . .
+  let n option usize u.count_chars subslice buf. 0 4 . . .
   guard is_some n. . else return 9 . .
   guard eq some_value n. . 3 . else return 10 . .
   return 42 .

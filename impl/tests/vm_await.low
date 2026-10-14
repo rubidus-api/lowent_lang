@@ -15,8 +15,8 @@ rem 두 태스크를 spawn 하고 await 로 결과를 모아 합한다. 각 결�
 test await_join schedule explore_interleavings . do
   var r u64 0 .
   task_group do
-    var h1 u64 spawn square 5 . .
-    var h2 u64 spawn square 6 . .
+    var h1 task u64 spawn square 5 . .
+    var h2 task u64 spawn square 6 . .
     var a u64 await h1. . .
     var b u64 await h2. . .
     set r. expr a. + b. . .
@@ -28,8 +28,8 @@ rem `spawn`+`await` 스칼라 반환 — VM≡네이티브(차등 스윕).
 proc drive output u64 . effects state . do
   var r u64 0 .
   task_group do
-    let h1 u64 spawn square 5 . .
-    let h2 u64 spawn square 6 . .
+    let h1 task u64 spawn square 5 . .
+    let h2 task u64 spawn square 6 . .
     let a u64 await h1. . .
     let b u64 await h2. . .
     set r. expr a. + b. . .

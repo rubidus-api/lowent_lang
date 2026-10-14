@@ -133,6 +133,10 @@ Shape rules you will hit immediately:
 - **Arithmetic stops at the declared width** — of a field, a payload, an element or a call's result
   too: a `u8` field squared stops past 255. Cast to the wide type first, or say `wrap_mul` / `sat_mul`.
   `cast` across the sign is checked (`cast u64` of `-1` stops); `bit_cast` reinterprets bits.
+- **Every value in a typed place has a type the checker knows.** A value whose type cannot be settled
+  is refused where it is bound, assigned, passed or returned (`E-TYPE-UNKNOWN`); a struct value and a
+  number never take each other's place. A flow's handle is `task T` (`let h task u64 spawn f 5 . .`,
+  `await h. .` gives `T`) and a channel is `chan T` (`var ch chan u64 channel u64 . .`) — not `u64`.
 - **Statements you will write constantly**: `let n u64 add a. 1 . .` (the call's stop, then the
   binding's) · `set i. add i. 1 . .` (the place is a value too) · `return x. .` ·
   `guard gt n. 0 . else return 0 . .` · `method o. name. arg. .` · `payload v. variant field .`.

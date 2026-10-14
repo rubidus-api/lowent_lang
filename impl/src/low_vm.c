@@ -3990,7 +3990,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             else sacc = x > sacc ? x : sacc;
                             continue;
                         }
-                        if (in->w == IRW_RADD) sacc += x; else sacc *= x;
+                        bool ov = in->w == IRW_RADD ? __builtin_add_overflow(sacc, x, &sacc) : __builtin_mul_overflow(sacc, x, &sacc);
+                        // ★ 결과의 타입은 레인의 타입이다(정본 §6.3.7 (2)) — 그 폭에 안 들어가면 셈처럼 멈춘다(§6.3.4 (3))
+                        unsigned bw = (unsigned)vesz * 8u;
+                        if (!ov && bw < 64) { proven_i64 lo = -((proven_i64)1 << (bw - 1)), hi = ((proven_i64)1 << (bw - 1)) - 1; ov = sacc < lo || sacc > hi; }
+                        if (ov) { vm_diag(vm->diags, "E-VM-OVERFLOW", "integer overflow at the declared width: the lanes' sum or product does not fit the lane type"); return false; }
                     }
                     stack[sp++] = vmv_int(sacc);
                     break;
@@ -4000,10 +4004,14 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                : (in->w == IRW_RMAX) ? 0 : 0;
                 for (proven_u8 k = 0; k < vn; k++) {
                     proven_u64 x = vm->vecs[v.box].l[k];
-                    if (in->w == IRW_RADD) acc += x;
-                    else if (in->w == IRW_RMUL) acc *= x;
+                    bool ov = false;
+                    if (in->w == IRW_RADD) ov = __builtin_add_overflow(acc, x, &acc);
+                    else if (in->w == IRW_RMUL) ov = __builtin_mul_overflow(acc, x, &acc);
                     else if (in->w == IRW_RMIN) acc = x < acc ? x : acc;
                     else acc = x > acc ? x : acc;
+                    unsigned bw = (unsigned)vesz * 8u;   // ★ 레인의 폭에서 셈한다(정본 §6.3.7 (2) · §6.3.4 (3))
+                    if (!ov && bw < 64 && (in->w == IRW_RADD || in->w == IRW_RMUL) && (acc >> bw)) ov = true;
+                    if (ov) { vm_diag(vm->diags, "E-VM-OVERFLOW", "integer overflow at the declared width: the lanes' sum or product does not fit the lane type"); return false; }
                 }
                 stack[sp++] = vmv_int((proven_i64)acc);
                 break;

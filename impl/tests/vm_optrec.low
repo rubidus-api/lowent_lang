@@ -56,6 +56,6 @@ struct pt2 do
   px u64 .
   py u8 .
 end .
-fn fl_stale input v u64 . output usize . do
+fn fl_stale input v u64 . output u64 . do
   return field some_value some lit pt2 do px cast u64 len view_array f32 "12345678" . . . . py 9 . end . . . px . .
 end .

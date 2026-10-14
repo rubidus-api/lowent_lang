@@ -674,12 +674,12 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">proc</span></strong> round_trip <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ge len buf. . <span class="tok-n">4</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">90</span> . .
   <em><span class="tok-c">rem '가' (U+AC00) --- BMP, so one unit. put returns the next position to write</span></em>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> u.put buf. <span class="tok-n">0</span> <span class="tok-n">44032</span> . .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> u.put buf. <span class="tok-n">0</span> <span class="tok-n">44032</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some a. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . .
   <strong><span class="tok-k">guard</span></strong> eq some_value a. . <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . .
 
   <em><span class="tok-c">rem U+1F4A9 --- outside the BMP, so split into two units (a surrogate pair)</span></em>
-  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> u.put buf. some_value a. . <span class="tok-n">128169</span> . .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> u.put buf. some_value a. . <span class="tok-n">128169</span> . .
   <strong><span class="tok-k">guard</span></strong> is_some b. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> . .
   <strong><span class="tok-k">guard</span></strong> eq some_value b. . <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> . .
   <strong><span class="tok-k">guard</span></strong> eq idx buf. <span class="tok-n">1</span> . <span class="tok-n">55357</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">5</span> . .
@@ -693,7 +693,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <em><span class="tok-c">rem 'A' + emoji (pair) + '가' = four units, three characters</span></em>
   <strong><span class="tok-k">set</span></strong> idx buf. <span class="tok-n">0</span> . <span class="tok-n">65</span> .
   <strong><span class="tok-k">set</span></strong> idx buf. <span class="tok-n">3</span> . <span class="tok-n">44032</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> u.count_chars subslice buf. <span class="tok-n">0</span> <span class="tok-n">4</span> . . .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> u.count_chars subslice buf. <span class="tok-n">0</span> <span class="tok-n">4</span> . . .
   <strong><span class="tok-k">guard</span></strong> is_some n. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> . .
   <strong><span class="tok-k">guard</span></strong> eq some_value n. . <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">10</span> . .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">42</span> .

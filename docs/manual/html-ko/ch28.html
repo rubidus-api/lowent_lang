@@ -821,7 +821,7 @@ mistake_afterclose.low:14:0 E-OWN-MOVED: this `owned` value was already MOVED (c
     <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong>) files.file_error files.read fs. h. buf. . .
     <strong><span class="tok-k">guard</span></strong> is_ok r. . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> . .
     <em><span class="tok-c">rem ✘ 실패만 물었다 --- 파일 끝의 `ok none` 에서 `some_value` 가 멈춘다</span></em>
-    <strong><span class="tok-k">set</span></strong> total. add total. some_value ok_value r. . . . .
+    <strong><span class="tok-k">set</span></strong> total. add total. cast <strong><span class="tok-t">u64</span></strong> some_value ok_value r. . . . . .
     <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error files.close fs. h. . .
@@ -857,9 +857,9 @@ mistake_afterclose.low:14:0 E-OWN-MOVED: this `owned` value was already MOVED (c
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
     <strong><span class="tok-k">end</span></strong> .
     <em><span class="tok-c">rem 세 자리를 모두 가른다 --- 읽었다 · 끝이다 · 실패다</span></em>
-    <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> ok_value r. . .
+    <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">usize</span></strong> ok_value r. . .
     <strong><span class="tok-k">if</span></strong> is_some got. . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> total. add total. some_value got. . . .
+      <strong><span class="tok-k">set</span></strong> total. add total. cast <strong><span class="tok-t">u64</span></strong> some_value got. . . . .
     <strong><span class="tok-k">end</span></strong> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> more. <span class="tok-n">false</span> .
     <strong><span class="tok-k">end</span></strong> .

@@ -35,26 +35,26 @@ fn w19 output u64 . do return 19 . end .
 
 rem 태스크 스물을 한 그룹에 — 협조·워커N·워커1 이 모두 190(=0+1+..+19)을 내야 한다.
 proc twenty output u8 . effects state . do
-  var h0 u64 0 .
-  var h1 u64 0 .
-  var h2 u64 0 .
-  var h3 u64 0 .
-  var h4 u64 0 .
-  var h5 u64 0 .
-  var h6 u64 0 .
-  var h7 u64 0 .
-  var h8 u64 0 .
-  var h9 u64 0 .
-  var h10 u64 0 .
-  var h11 u64 0 .
-  var h12 u64 0 .
-  var h13 u64 0 .
-  var h14 u64 0 .
-  var h15 u64 0 .
-  var h16 u64 0 .
-  var h17 u64 0 .
-  var h18 u64 0 .
-  var h19 u64 0 .
+  var h0 task u64 0 .
+  var h1 task u64 0 .
+  var h2 task u64 0 .
+  var h3 task u64 0 .
+  var h4 task u64 0 .
+  var h5 task u64 0 .
+  var h6 task u64 0 .
+  var h7 task u64 0 .
+  var h8 task u64 0 .
+  var h9 task u64 0 .
+  var h10 task u64 0 .
+  var h11 task u64 0 .
+  var h12 task u64 0 .
+  var h13 task u64 0 .
+  var h14 task u64 0 .
+  var h15 task u64 0 .
+  var h16 task u64 0 .
+  var h17 task u64 0 .
+  var h18 task u64 0 .
+  var h19 task u64 0 .
   task_group do
     set h0. spawn w0 . .
     set h1. spawn w1 . .

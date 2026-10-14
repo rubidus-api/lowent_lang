@@ -84,7 +84,7 @@ do
   var rh owned files.handle ok_value ri. . .
   let n result (option usize) files.file_error files.read fs. rh. rbuf. . .
   guard is_ok n. . else return 19 . .
-  let nv option u64 ok_value n. . .
+  let nv option usize ok_value n. . .
   guard is_some nv. . else return 19 . .
   let c2 result void files.file_error files.close fs. rh. . .
   guard is_ok c2. . else return 20 . .
@@ -95,5 +95,5 @@ do
   rem 5. 정리한다 — 스스로 되돌린다(재실행 가능)
   guard eq call_builtin path_remove fs. strbuf.as_str bf. pfin. . . true . else return 24 . .
   guard eq call_builtin path_remove fs. strbuf.as_str bd. pdir. . . true . else return 25 . .
-  return narrow u8 some_value nv. . . .                       rem 5
+  return cast u8 some_value nv. . . .                       rem 5
 end .

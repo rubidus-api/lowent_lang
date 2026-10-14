@@ -141,11 +141,11 @@ end .
 (2) 만든 흐름이 **끝나기를 기다리는지**, 아니면 떼어 놓는지가 효과로 갈린다 —
       떼어 놓으면 `detach` 다.
 
-(2a) `spawn <op> [인자…]` 는 그 흐름을 가리키는 **핸들**을 낸다. 핸들을 받지 아니하고
-      문장으로만 쓰면 그 흐름은 떼어 놓은 것이다.
+(2a) `spawn <op> [인자…]` 는 그 흐름을 가리키는 **핸들**을 낸다. 핸들의 타입은 `task T` 이고 `T` 는 그 op 의
+      출력 타입이다. 핸들을 받지 아니하고 문장으로만 쓰면 그 흐름은 떼어 놓은 것이다.
 
-(2b) `await <핸들>` 은 그 흐름이 끝날 때까지 기다렸다가 결과를 낸다. 기다리는 동안 다른
-      흐름이 나아간다 — 기다림이 기계를 멈추지 아니한다.
+(2b) `await <핸들>` 은 그 흐름이 끝날 때까지 기다렸다가 결과를 낸다. 결과의 타입은 핸들의 `T` 다. `task T` 가
+      아닌 값을 기다리는 것은 거부된다(`E-TYPE-KIND`). 기다리는 동안 다른 흐름이 나아간다 — 기다림이 기계를 멈추지 아니한다.
 
 (2c) 끝날 수 없는 것을 기다리면 프로그램이 멈춘다. 처리기는 그 자리를 말하여야 한다.
 
@@ -241,6 +241,9 @@ h2          │       spawn ├── 일 ──────────┤ 끝
 (1) `send`(⟦§10.3⟧ (3))는 액터가 메시지를 처리할 때까지 기다린다. `spawn send <액터>
       <메시지> [인자…]` 는 기다리지 아니하고 **우편함에 넣고 곧바로 돌아온다.**
 
+(1a) `try spawn send …` 는 우편함이 가득 차 있으면 멈추지 아니하고 그것을 값으로 낸다 — 그 타입은
+      `result u64 mailbox_full` 이다.
+
 (2) 우편함에 든 것은 **저절로 처리되지 아니한다.** `drain <액터>` 가 그 액터의 우편함을
       **넣은 차례대로** 비운다.
 
@@ -262,6 +265,63 @@ h2          │       spawn ├── 일 ──────────┤ 끝
 
 (1) ⟦채널|channel⟧ 은 흐름 사이에 값을 넣고 빼는 **차례 있는 그릇**이다. `channel [<타입>]`
       으로 만들고, `chsend <채널> <값>` 으로 넣고, `chrecv <채널>` 로 뺀다.
+
+(1a) `channel T` 의 타입은 `chan T` 다. `chsend` 에 넣는 값은 `T` 에 들어가야 하고(`E-TYPE-WIDTH` · `E-TYPE-SIGN`), `chsend` 는 `u64` 0 을
+      낸다. `chrecv` 는 `T` 를 낸다. `chan T` 가 아닌 값에 넣거나 빼는 것은 거부된다(`E-TYPE-KIND`).
+
+```lowent 예제: 핸들과 채널의 타입 · 결과: both() = 61
+module ex_typed_flow .
+
+fn square input n u64 . output u64 .
+  requires le n. 1000 . .
+do
+  return mul n. n. . .
+end .
+
+proc producer input ch chan u64 . output u64 . effects concurrent .
+do
+  return chsend ch. 25 . .
+end .
+
+proc consumer input ch chan u64 . output u64 . effects concurrent .
+do
+  return chrecv ch. . .
+end .
+
+rem 핸들은 `task u64`, 채널은 `chan u64` — 흐름이 낼 값과 채널에 담기는 값의 타입이 타입에 실린다.
+export proc both output u64 . effects state concurrent .
+do
+  var r u64 0 .
+  var ch chan u64 channel u64 . .
+  task_group do
+    let h task u64 spawn square 6 . .
+    let g task u64 spawn consumer ch. . .
+    spawn producer ch. .
+    set r. add await h. . await g. . . .
+  end .
+  return r. .
+end .
+```
+
+```lowent-거부: 핸들을 수로 받는다 · E-TYPE-LET
+module ex_handle_as_number .
+
+fn square input n u64 . output u64 .
+  requires le n. 1000 . .
+do
+  return mul n. n. . .
+end .
+
+export proc loose output u64 . effects state concurrent .
+do
+  var r u64 0 .
+  task_group do
+    let h u64 spawn square 5 . .
+    set r. 1 .
+  end .
+  return r. .
+end .
+```
 
 (2) 채널은 **크기가 정해져 있다.** 가득 찬 채널에 넣으려 하면 넣는 흐름이 멈추고, 빈
       채널에서 빼려 하면 빼는 흐름이 멈춘다. 멈춘 흐름은 상대가 오면 **다시 이어 간다.**

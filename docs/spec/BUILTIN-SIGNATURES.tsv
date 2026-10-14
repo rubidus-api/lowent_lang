@@ -27,8 +27,8 @@ div	산술	`div a b`	`a` `b` — 맞는 둘	둘 중 넓은 쪽 타입. 정수의
 mod	산술	`mod a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — 바닥 나눗셈의 나머지. 부호는 `b` 를 따른다(`mod -7 2` 는 1, `mod 7 -2` 는 -1). `b` 가 양수이면 0 이상이고 `b` 보다 작다. 가장 작은 값을 -1 로 나누면 0	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞여 값을 지키는 넓히기가 없으면 `E-TYPE-SIGN` · 리터럴이 타입에 안 들어가면 `E-TYPE-WIDTH` · 인자 수가 다르면 `E-IR-ARITY`	`b` 가 0 이면 `E-VM-DIV0` · 부동을 주면 `E-VM-TYPE`(부동의 나머지는 `fmod`)	6.3.4
 neg	산술	`neg a`	`a` — 부호 있는 정수 또는 부동	`a` 의 타입 — 부호를 뒤집은 값	부호 없는 정수를 주면 `E-TYPE-SIGN` · `E-IR-ARITY`	부호 있는 정수의 가장 작은 값이면 `E-VM-OVERFLOW`(뒤집은 값이 그 폭에 없다). 부동: 멈추지 않는다	6.3.3
 abs	산술	`abs a`	`a` — 부호 있는 정수 또는 부동	`a` 의 타입	`E-IR-ARITY`	부호 있는 정수의 가장 작은 값이면 `E-VM-OVERFLOW`(절댓값이 그 폭에 없다). 부동: 멈추지 않는다	6.3.9
-min	산술	`min a b`	`a` `b` — 같은 부호의 두 정수, 또는 두 부동	둘 중 작은 값 — 둘 중 넓은 쪽 타입	`E-IR-ARITY`	—	6.3.3
-max	산술	`max a b`	`a` `b` — 같은 부호의 두 정수, 또는 두 부동	둘 중 큰 값 — 둘 중 넓은 쪽 타입	`E-IR-ARITY`	—	6.3.3
+min	산술	`min a b`	`a` `b` — 같은 부호의 두 정수, 또는 두 부동	둘 중 작은 값 — 둘 중 넓은 쪽 타입	부호가 다른 두 정수면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
+max	산술	`max a b`	`a` `b` — 같은 부호의 두 정수, 또는 두 부동	둘 중 큰 값 — 둘 중 넓은 쪽 타입	부호가 다른 두 정수면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
 wrap_add	넘침 처분	`wrap_add a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `add` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)	`E-IR-ARITY`	—	6.3.6
 wrap_sub	넘침 처분	`wrap_sub a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `sub` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)	`E-IR-ARITY`	—	6.3.6
 wrap_mul	넘침 처분	`wrap_mul a b`	`a` `b` — 맞는 두 정수	둘 중 넓은 쪽 타입 — `mul` 의 결과를 폭 안으로 감은 값(2 의 거듭제곱으로 나눈 나머지)	`E-IR-ARITY`	—	6.3.6
@@ -98,3 +98,23 @@ chacha_poly	암호	`call_builtin chacha_poly k c st s d`	`k` — `slice u8`(32) 
 clmul_lo	비트	`call_builtin clmul_lo a b`	`a` `b` — `u64`	`u64` — 캐리 없는 64×64 비트 곱의 아래쪽 64 비트	`E-IR-ARITY`	—	6.3.3
 clmul_hi	비트	`call_builtin clmul_hi a b`	`a` `b` — `u64`	`u64` — 캐리 없는 64×64 비트 곱의 위쪽 64 비트	`E-IR-ARITY`	—	6.3.3
 rng_next	난수	`call_builtin rng_next s`	`s` — `u64`(상태 — 씨는 부르는 쪽이 든다)	`u64` — 다음 값. 같은 상태에는 늘 같은 값	`E-IR-ARITY`	—	6.3.3
+atomic_load	원자	`atomic_load s i [order o]`	`s` — `mut slice` 정수 · `i` — `usize`	원소의 타입 — 그 칸의 값	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_add	원자	`atomic_add s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 합이 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_sub	원자	`atomic_sub s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 차가 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_and	원자	`atomic_and s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 비트 곱이 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_or	원자	`atomic_or s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 비트 합이 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_xor	원자	`atomic_xor s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 배타적 비트 합이 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_swap	원자	`atomic_swap s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 `v` 가 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+atomic_cas	원자	`atomic_cas s i want v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `want` `v` — 원소의 타입	원소의 타입 — 칸이 `want` 였으면 `v` 로 바꾸고 1, 아니면 그대로 두고 0	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
+some	감싸개	`some a`	`a` — 값	`option T`(`T` 는 `a` 의 타입) — 있음	알맹이 타입이 다른 `option` 자리에 넣으면 `E-TYPE-WIDTH` · `E-IR-ARITY`	—	6.2
+some_value	감싸개	`some_value o`	`o` — `option T`	`T` — 알맹이	`E-IR-ARITY`	`o` 가 없음이면 `E-VM-NONE`	6.2
+is_some	감싸개	`is_some o`	`o` — `option T`	`bool` — 있음이면 참	`E-IR-ARITY`	—	6.2
+is_none	감싸개	`is_none o`	`o` — `option T`	`bool` — 없음이면 참	`E-IR-ARITY`	—	6.2
+value_or	감싸개	`value_or o d`	`o` — `option T` · `d` — `T`	`T` — 있음이면 알맹이, 없음이면 `d`	`d` 가 `T` 에 들어가지 않으면 `E-TYPE-WIDTH` · `E-IR-ARITY`	—	6.2
+idx	읽기	`idx s i`	`s` — 슬라이스 · 배열 · `i` — `usize`	원소의 타입 — `i` 번째 원소	`i` 가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	`i` 가 길이 밖이면 `E-VM-BOUNDS`	6.2.6
+subslice	읽기	`subslice s a b`	`s` — 슬라이스 · `a` `b` — `usize`	`slice T`(`T` 는 `s` 의 원소) — `[a, b)` 를 복사 없이 보는 슬라이스	경계가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	`a` 가 `b` 보다 크거나 `b` 가 길이 밖이면 `E-VM-BOUNDS`	6.2.6
+view_array	읽기	`view_array T s`	`T` — 정수 또는 부동 타입 · `s` — 바이트 슬라이스	`slice T` — 같은 바이트를 `T` 의 나열로 본다(복사 없음)	`E-IR-ARITY`	`s` 의 길이가 `T` 의 크기의 배수가 아니면 `E-VM-VIEW`	6.2.13
+splat	SIMD	`splat a`	`a` — 정수 또는 부동	`vec T N` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec T N`)가 정한다	`E-IR-ARITY`	—	6.3.11
+reduce_add	SIMD	`reduce_add v`	`v` — `vec T N`	`T` — 레인의 합(부호 있는 레인은 부호로 더한다)	`E-IR-ARITY`	합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`	6.3.11
+reduce_max	SIMD	`reduce_max v`	`v` — `vec T N`	`T` — 가장 큰 레인	`E-IR-ARITY`	—	6.3.11
+reduce_min	SIMD	`reduce_min v`	`v` — `vec T N`	`T` — 가장 작은 레인	`E-IR-ARITY`	—	6.3.11

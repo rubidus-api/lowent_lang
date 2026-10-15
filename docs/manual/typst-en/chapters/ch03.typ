@@ -156,6 +156,7 @@ clause word does not close the one before it; leaving the stop out is `E-DOT-MIS
   [Floating point], [`3.14` · `6e-3` · `0x1.8p3`],
   [Strings (bytes)], [`"hello\n"`],
   [Strings (UTF-16 · code points)], [`u"…"` · `U"…"`],
+  [raw string (no escapes)], [`r"\d+\.\d+"`],
   [Booleans · absence], [`true` · `false` · `none`],
 )
 
@@ -204,6 +205,19 @@ Using every shape in the table in one file looks like this.
   written*, everything from the tag after `text` to the line where the same tag stands alone, starting in the first column. An indented tag is part of the text, and the dot that closes the statement goes on the next line. The `\n` in the body is two characters, not a
   newline, and no newline is added after the last line. It is there to paste long descriptions or test input without escapes.
 - The `note END … END` at the top is a multi-line comment. It turns a whole block into a comment without `rem` on every line.
+
+#idx("raw string")
+An `r` glued before the quote makes a *raw string*. Its body has no escapes, so a backslash is one byte as written. The literal ends
+at the closing double quote --- so a raw string cannot hold a double quote; when you need one, use an ordinary string's `\"`.
+
+#demo("examples/ch03/raw_string.low")
+
+- `r"\\s192kf%d"` in `raw_len` is 10 bytes: both backslashes stay. `escaped_len` writes the same text as an ordinary string, where
+  `\\` becomes one backslash: 9 bytes.
+- Text full of backslashes --- a regex, a file path, a format string --- need not be written twice over as a raw string. `r"^\d+\.\d+$"`
+  in `pattern_len` would be `"^\\d+\\.\\d+$"` as an ordinary string.
+- `r` goes only before a double quote; `r'x'` is refused with `E-STR-PREFIX`. For several lines use a text literal (`text DOC … DOC`)
+  --- it does not process escapes either.
 
 == Names
 
@@ -390,6 +404,7 @@ to remember the shapes too.
   [Clause order in an op head], [#tblref("surface-clause-order")], [each clause comes before the ones that use it],
   [`0b1010` · `1_000_000` · `0x1.8p1` · `u'가'` · `U"…"`], [binary · digit separator · hex float · prefixed char and string], [no octal --- `0755` is 755],
   [`text DOC … DOC` · `note END … END`], [text literal (escapes are not processed) · multi-line comment], [long text goes in as written],
+  [`r"\d+"`], [raw string --- no escapes, ends at the closing `"`], [backslashes are not written twice],
 )
 
 #recap[

@@ -1186,6 +1186,7 @@ static proven_i32 ir_str_prefix_width(proven_u8str_view_t p) {
     //   ⇒ 접두사는 둘뿐이다: `u`(UTF-16 코드 유닛) · `U`(코드포인트).
     if (veq(p, "u"))   return 2;
     if (veq(p, "U"))   return 4;
+    if (veq(p, "r"))   return 1;   // ★ 날 문자열 `r"…"` — 바이트이고, 본문을 풀지 않는다(정본 §6.1 (13a))
     return -1;
 }
 
@@ -5266,10 +5267,12 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
             //     (`put_byte buf pos 45 . rem '-'`). **주석은 검사되지 않는다.**
             if (nd->tok.kind == LOW_TOK_CHAR) {
                 proven_i32 cw = ir_str_prefix_width(nd->tok.aux);
+                if (veq(nd->tok.aux, "r")) cw = -1;   // 날 문자열 접두사는 문자열에만 붙는다
                 if (cw < 0) {
                     ir_fail(c, "E-STR-PREFIX",
                             "unknown literal prefix. The set is CLOSED: `u` (a UTF-16 code unit) · "
-                            "`U` (a code point). Characters and strings share it. There is no `u8` "
+                            "`U` (a code point). Characters and strings share it (`r` is for strings only — a "
+                            "character literal has one unit, so there is nothing to keep raw). There is no `u8` "
                             "prefix: this language's default IS u8, so `u8'x'` said nothing that "
                             "`'x'` did not — a pure synonym, and synonyms are not kept (SPEC-002 2.5)", nd->line);
                     return;
@@ -5309,7 +5312,7 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
                 if (ew < 0) {
                     ir_fail(c, "E-STR-PREFIX",
                             "unknown literal prefix. The set is CLOSED: `u` (UTF-16 code units, "
-                            "slice u16) · `U` (code points, slice u32). Both surfaces share it — "
+                            "slice u16) · `U` (code points, slice u32) · `r` (a raw string: bytes, no escapes). Both surfaces share u and U — "
                             "`u\"AB\"` and `text TERM u`. There is no `u8` prefix: the default IS "
                             "u8, so `u8\"…\"` said nothing that `\"…\"` did not (SPEC-002 2.5 forbids "
                             "synonyms). "
@@ -5318,7 +5321,7 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
                     return;
                 }
                 // 텍스트 리터럴 본문은 **원문 그대로**다 — 풀지 않는다. 따옴표 리터럴만 푼다.
-                if (nd->tok.kind == LOW_TOK_STRING &&
+                if (nd->tok.kind == LOW_TOK_STRING && !veq(nd->tok.aux, "r") &&
                     !ir_unescape(c, nd->tok.lex, nd->line, &val)) return;
                 if (ew > 1 && !ir_widen_units(c, val, ew, nd->line, &val)) return;
                 proven_size_t si = c->out->nstrs;

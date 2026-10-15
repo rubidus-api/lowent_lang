@@ -283,6 +283,9 @@ hex-exponent   ::= ( "p" | "P" ) [ sign ] dec
 
 char-literal   ::= [ prefix ] single-quote ( char-char | escape ) single-quote
 string-literal ::= [ prefix ] double-quote { string-char | escape } double-quote
+                 | raw-string
+raw-string     ::= "r" double-quote { raw-char } double-quote
+raw-char       ::= ? 큰따옴표도 줄바꿈도 아닌 바이트 하나 ?
 prefix         ::= "u" | "U"
 escape         ::= backslash ( simple-escape
                              | "x" hex-digit hex-digit
@@ -356,7 +359,15 @@ text-line      ::= ? 닫는 줄이 아닌 줄 ?
 (12) `\uXXXX` 와 `\UXXXXXXXX` 가 적는 값은 코드포인트여야 한다. 서러게이트 자리(D800 ~ DFFF)와 10FFFF 를 넘는
       값은 적을 수 없다.
 
-(13) `prefix` 는 `u` 와 `U` 둘뿐이다. 그 밖의 낱말을 따옴표에 붙여 적을 수 없다.
+(13) `prefix` 는 `u` 와 `U` 둘뿐이다. 그 밖의 낱말을 따옴표에 붙여 적을 수 없다. 날 문자열의 `r`(13a)은 큰따옴표에만 붙는다 —
+      `r'…'` 은 없다.
+
+> [!용어] 날 문자열 (raw string)
+> 본문을 적힌 그대로 담는 문자열 리터럴. 역슬래시가 이스케이프를 열지 않고, 닫는 큰따옴표에서 끝난다.
+
+(13a) ⟦날 문자열|raw string⟧ `r"…"` 의 본문에는 **이스케이프가 없다.** 역슬래시도 그냥 바이트이며, 닫는 큰따옴표에서 리터럴이
+      끝난다. 그러므로 날 문자열에는 큰따옴표를 넣을 수 없다 — 넣어야 하면 보통 문자열(`\"`)을 쓴다. 원소는 바이트이고(`slice u8`)
+      `u` · `U` 와 함께 쓰지 아니한다. 정규식 · 경로 · 서식 문자열처럼 역슬래시가 많은 글을 적힌 그대로 담는 자리다.
 
 (14) `text-literal` 을 닫는 `tag` 뒤에는 `blank` 와 `newline` 만 올 수 있다. 문장을 닫는 점은 **다음 줄**에 적는다.
 
@@ -422,7 +433,7 @@ text-line      ::= ? 닫는 줄이 아닌 줄 ?
 > [(10) — 문자 리터럴이 비었다], [`E-CHAR-EMPTY`],
 > [(10) — 문자 리터럴이 원소 하나를 넘는다], [`E-CHAR-WIDTH`],
 > [(11) · (12) — 이스케이프가 집합 밖이거나 코드포인트가 아니다], [`E-STR-ESCAPE`],
-> [(13) — 접두사가 `u` · `U` 가 아니다], [`E-STR-PREFIX`],
+> [(13) — 접두사가 `u` · `U` 가 아니거나, `r` 을 작은따옴표에 붙였다], [`E-STR-PREFIX`],
 > [(14) — 닫는 태그 뒤에 다른 글자가 있다], [`E-TEXTLIT-TAIL`],
 > [(15) — 여는 줄의 태그 뒤에 처리기도 주석도 아닌 것이 있다], [`E-TEXTLIT-OPENER`],
 > [(15) — `text` 뒤에 태그가 없다], [`E-TEXTLIT-TERM`],
@@ -486,6 +497,42 @@ module ex_pfx .
 fn f output usize .
 do
   return len u8"ab" . .
+end .
+```
+
+```lowent 예제: 날 문자열 — 역슬래시가 그대로 남는다 · 결과: raw_len() = 10 · escaped_len() = 9 · second() = 110 · ends_in_backslash() = 92
+module ex_raw_string .
+
+rem 날 문자열의 `\\` 는 두 바이트다 — 보통 문자열에서는 역슬래시 하나다
+fn raw_len output usize .
+do
+  return len r"\\s192kf%d" . .
+end .
+
+fn escaped_len output usize .
+do
+  return len "\\s192kf%d" . .
+end .
+
+rem `r"\n"` 은 줄바꿈이 아니라 역슬래시와 `n` 두 바이트다
+fn second output u8 .
+do
+  return idx r"\n" 1 . .
+end .
+
+rem 닫는 큰따옴표 바로 앞의 역슬래시도 그냥 바이트다
+fn ends_in_backslash output u8 .
+do
+  return idx r"a\" 1 . .
+end .
+```
+
+```lowent-거부: 날 문자열의 r 은 작은따옴표에 붙지 않는다 · E-STR-PREFIX
+module ex_raw_char .
+
+fn f output u8 .
+do
+  return r'x' .
 end .
 ```
 

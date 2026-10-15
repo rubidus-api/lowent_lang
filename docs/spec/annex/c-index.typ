@@ -37,6 +37,7 @@
       [규범], [normative], [#cref("1.4")],
       [기계], [target], [#cref("5.6")],
       [기본 연산], [core op], [#cref("3.8")],
+      [날 문자열], [raw string], [#cref("6.1.4")],
       [낱말], [keyword], [#cref("3.7")],
       [넓히기], [widening], [#cref("3.8")],
       [능력], [capability], [#cref("5.3")],

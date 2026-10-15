@@ -341,11 +341,14 @@ static void low_scan_string_pfx(low_lexer_t *l, proven_u32 line, proven_u32 col,
                                 proven_u8str_view_t prefix) {
     low_adv(l);  // opening quote
     proven_size_t content = l->pos;
+    // ★ 날 문자열 `r"…"`(소유자 2026-10-15 «이스케이프 없는 raw 문자열 … 이중따옴표로 탈출하고, 나머지는 이스케이프가 없습니다»;
+    //   정본 §6.1 (13a)) — 역슬래시도 그냥 바이트다. 닫는 큰따옴표에서 끝난다(그래서 본문에 큰따옴표는 못 든다).
+    bool raw = prefix.size == 1 && prefix.ptr[0] == (proven_byte_t)'r';
     while (!low_at_end(l)) {
         proven_byte_t c = low_peek(l);
         if (c == '"') break;
         if (c == '\n') { low_diag(l, "E-STR-NEWLINE", "unterminated string (newline)", line, col); break; }
-        if (c == '\\' && !low_at_end(l)) { low_adv(l); if (!low_at_end(l)) low_adv(l); continue; }
+        if (c == '\\' && !raw && !low_at_end(l)) { low_adv(l); if (!low_at_end(l)) low_adv(l); continue; }
         low_adv(l);
     }
     proven_u8str_view_t body = { .ptr = l->src.ptr + content, .size = l->pos - content };

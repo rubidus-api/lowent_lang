@@ -10741,7 +10741,9 @@ static proven_u64 ck_param_array_len(const low_cst_t *f, const low_op_header_t *
 //   않는다). 이스케이프가 든 리터럴은 «모른다» 로 둔다 — 풀이는 한 곳(low_ir.c `ir_unescape`)에만 산다(X-0070 의 교훈).
 //   모르는 것은 실행 중 «받는 자리가 찼다» 가 잡는다.
 static proven_u64 ck_lit_len(const low_cst_t *a) {
-    if (!a || !ck_atom(a) || a->tok.kind != LOW_TOK_STRING || a->tok.aux.size) return 0;
+    if (!a || !ck_atom(a) || a->tok.kind != LOW_TOK_STRING) return 0;
+    if (a->tok.aux.size == 1 && a->tok.aux.ptr[0] == (proven_u8)'r') return a->tok.lex.size;   // 날 문자열 — 본문이 곧 바이트다
+    if (a->tok.aux.size) return 0;
     for (proven_size_t i = 0; i < a->tok.lex.size; i++) if (a->tok.lex.ptr[i] == (proven_u8)'\\') return 0;
     return a->tok.lex.size;
 }

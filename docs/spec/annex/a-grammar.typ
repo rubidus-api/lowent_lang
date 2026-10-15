@@ -173,11 +173,13 @@ hexp    = ( 'p' | 'P' ) , [ sign ] , dec ;")
       #strong[앞의 0 은 팔진이 아니다.]; `dec` 는 `0` 으로 시작할 수 있고 값은 십진이다.
     ]
     #shape("문자·문자열 리터럴", "CHAR    = [ prefix ] , \"'\" , ( charchar | escape ) , \"'\" ;
-STRING  = [ prefix ] , '\"' , { strchar | escape } , '\"' ;
+STRING  = [ prefix ] , '\"' , { strchar | escape } , '\"'
+        | 'r' , '\"' , { rawchar } , '\"' ;   (* 날 문자열 — 이스케이프 없음, §6.1 (13a) *)
 
 prefix  = 'u' | 'U' ;
 charchar= ? \"'\" 도 '\\' 도 아닌 글자 하나(UTF-8) ? ;
 strchar = ? '\"' 도 '\\' 도 아닌 바이트 하나 ? ;
+rawchar = ? '\"' 도 줄바꿈도 아닌 바이트 하나 ? ;
 escape  = ? ⟦§6.1.4⟧ 의 «이스케이프 — 닫힌 집합 열넷» 표에 있는 것 ? ;")
     #shape("텍스트 리터럴과 여러 줄 주석", "TEXTLIT = 'text' , sp , { sp } , tag , [ sp , { sp } , proc ] , { sp } , [ rem ] , nl ,
           { line , nl } ,
@@ -501,6 +503,9 @@ hex-exponent   ::= ( \"p\" | \"P\" ) [ sign ] dec
 
 char-literal   ::= [ prefix ] single-quote ( char-char | escape ) single-quote
 string-literal ::= [ prefix ] double-quote { string-char | escape } double-quote
+                 | raw-string
+raw-string     ::= \"r\" double-quote { raw-char } double-quote
+raw-char       ::= ? 큰따옴표도 줄바꿈도 아닌 바이트 하나 ?
 prefix         ::= \"u\" | \"U\"
 escape         ::= backslash ( simple-escape
                              | \"x\" hex-digit hex-digit

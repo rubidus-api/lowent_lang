@@ -61,11 +61,13 @@ module.exports = grammar({
       /[0-9](_?[0-9])*/,
     ))),
     escape: _ => token.immediate(/\\(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|[\\"'abfnrtv0])/),
-    string: $ => seq(
+    string: $ => choice($.raw_string, seq(
       choice('"', 'u"', 'U"'),
       repeat(choice(token.immediate(prec(1, /[^"\\\n]+/)), $.escape)),
       token.immediate('"'),
-    ),
+    )),
+    // 날 문자열 `r"…"` — 역슬래시도 그냥 바이트이고 닫는 큰따옴표에서 끝난다(정본 §6.1 (13a))
+    raw_string: _ => token(seq('r"', /[^"\n]*/, '"')),
     char: $ => seq(
       choice("'", "u'", "U'"),
       repeat1(choice(token.immediate(prec(1, /[^'\\\n]+/)), $.escape)),   // more than one character is refused later (E-CHAR-WIDTH)

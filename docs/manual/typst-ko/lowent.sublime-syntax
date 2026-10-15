@@ -8,6 +8,8 @@ contexts:
   main:
     - match: '\brem\b.*$'
       scope: comment.line.lowent
+    - match: '\br"[^"]*"'
+      scope: string.quoted.other.raw.lowent
     - match: '"'
       scope: punctuation.definition.string.begin.lowent
       push: string

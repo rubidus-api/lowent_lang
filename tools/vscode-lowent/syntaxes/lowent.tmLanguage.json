@@ -21,6 +21,10 @@
       "end": "^\\1[ \\t]*$"
     },
     {
+      "name": "string.quoted.other.raw.lowent",
+      "match": "(?<![A-Za-z0-9_])r\"[^\"\\n]*\""
+    },
+    {
       "name": "string.quoted.double.lowent",
       "begin": "[uU]?\"",
       "end": "\"|$",

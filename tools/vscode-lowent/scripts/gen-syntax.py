@@ -37,6 +37,7 @@ grammar = {
         {'name': 'comment.block.lowent', 'begin': r'\bnote[ \t]+(' + NAME + r')\b.*$', 'end': r'^\1[ \t]*$'},
         {'name': 'comment.line.rem.lowent', 'match': r'\brem(?:[ \t].*)?$'},
         {'name': 'string.unquoted.text.lowent', 'begin': r'\btext[ \t]+(' + NAME + r')\b.*$', 'end': r'^\1[ \t]*$'},
+        {'name': 'string.quoted.other.raw.lowent', 'match': r'(?<![A-Za-z0-9_])r"[^"\n]*"'},   # 날 문자열 — 이스케이프가 없다(정본 §6.1 (13a))
         {'name': 'string.quoted.double.lowent', 'begin': r'[uU]?"', 'end': r'"|$',
          'patterns': [{'name': 'constant.character.escape.lowent',
                        'match': r'\\(?:x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|[\\"\'abfnrtv0])'}]},

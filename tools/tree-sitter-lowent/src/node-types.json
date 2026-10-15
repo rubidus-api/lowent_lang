@@ -5599,6 +5599,10 @@
         {
           "type": "escape",
           "named": true
+        },
+        {
+          "type": "raw_string",
+          "named": true
         }
       ]
     }
@@ -6865,6 +6869,10 @@
   {
     "type": "range",
     "named": false
+  },
+  {
+    "type": "raw_string",
+    "named": true
   },
   {
     "type": "reduce",

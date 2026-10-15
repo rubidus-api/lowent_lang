@@ -128,11 +128,11 @@ end .
 상위 칸 `buf[1]` 은 55357(0xD83D), 하위 칸 `buf[2]` 는 56489(0xDCA9)다. 순회는 `next_start` 로 한다.
 
 ```lowent
-var i u64 0 .
+var i usize 0 .
 while lt i. len s. . . do
   let c option u64 u.decode s. i. . .
   guard is_some c. . else return 80 . .
-  let nx option u64 u.next s. i. . .
+  let nx option usize u.next_start s. i. . .
   guard is_some nx. . else return 81 . .
   set i. some_value nx. . .
 end .

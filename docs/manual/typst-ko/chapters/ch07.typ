@@ -233,7 +233,7 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   fn odd_count input xs slice u8 . output u64 .
   do
     var n u64 0 .
-    var i u64 0 .
+    var i usize 0 .
     while lt i. len xs. . . do
       if eq mod idx xs. i. . 2 . 0 . do
         continue .

@@ -8,6 +8,7 @@
 `vec#u32#allocs.bump_aligned` 같은 인스턴스가 나오고(`--ir` 에 보인다), vtable 도 간접 호출도 없다 --- 정책이 컨테이너 밖에 있고 고르는 값이 0 이다
 (#chref("generics"), #chref("lib-containers")).
 
+// snippet: skip — 앞에서 지은 할당기 `bump` 에서 받는다. 감싼 조각에는 그것이 없어 `open` 의 타입이 서지 않는다
 ```lowent
 let g use bump. option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32. 2 . .
 guard is_some g. . else return 1 . .
@@ -47,9 +48,10 @@ let x option u32 vecgen.at u32. allocs.bump_bytes. v. 0 . .
 
 *미리 자리를 잡으면 "전량 아니면 무" 가 된다.* `reserve_more` 가 성공한 뒤 이어지는 `append` 는 도중에 실패하지 않는다.
 
+// snippet: skip — 위 조각에 잇는다: `v` 와 `src` 는 둘러싼 op 의 것이다. 감싼 조각에는 둘 다 없다
 ```lowent
 guard vecgen.reserve_more u16. allocs.bump_bytes. v. len src. . . else return false . .
-var i u64 0 .
+var i usize 0 .
 while lt i. len src. . . do
   guard vecgen.append u16. allocs.bump_bytes. v. idx src. i. . . else return false . .
   set i. add i. 1 . .

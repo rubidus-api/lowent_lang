@@ -314,7 +314,7 @@ before effects, effects before contracts.
 proc copy_upper
   input out cap io .            rem capability input
   input src slice u8 .          rem data input
-  output u64 .
+  output usize .
   effects io .
   requires gt len src. . 0 . .
 do

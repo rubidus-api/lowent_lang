@@ -12,7 +12,7 @@
 let p option u64 tty.parse_key buf. 0 . .
 guard is_some p. . else return none . .
 let code u64 tty.key_of some_value p. . . .
-let used u64 tty.len_of some_value p. . . .
+let used usize tty.len_of some_value p. . . .
 ```
 
 #aside[raw 모드는 사용자의 터미널 설정을 바꾸고, 그 변경은 프로그램이 죽어도 남는다][

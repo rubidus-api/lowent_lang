@@ -23,7 +23,7 @@ let c bool random.coin s. . .
 
 ```lowent
 proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
-  return eq random.bytes k. key. . len key. . . .
+  return eq random.bytes k. key. . cast u64 len key. . . . .
 end .
 ```
 

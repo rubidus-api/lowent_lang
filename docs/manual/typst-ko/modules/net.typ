@@ -15,7 +15,7 @@ proc main input k cap net . output u8 . effects io . do
   let po option net.pair net.pair_of k. . .
   guard is_some po. . else return 1 . .
   var p owned net.pair some_value po. . .
-  let s option u64 net.send_all k. net.pair_a p. . "hi" . .
+  let s option usize net.send_all k. net.pair_a p. . "hi" . .
   guard is_some s. . else return 2 . .
   let c result void net.net_error net.shut_pair k. p. . .
   guard is_ok c. . else return 3 . .

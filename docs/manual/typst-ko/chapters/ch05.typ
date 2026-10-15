@@ -180,11 +180,11 @@ end .
 부를 수는 없다(`idx squares n. . 0 .` 은 `E-RESULT-PLACE`) --- 먼저 이름에 묶는다.
 
 ```lowent
-fn squares input n u64 . output r array u64 3 .
+fn squares input n usize . output r array u64 3 .
   requires le n. 1000 . .
 do
-  repeat i u64 3 do
-    set idx r. i. . mul add n. i. . add n. i. . . .
+  repeat i usize 3 do
+    set idx r. i. . cast u64 mul add n. i. . add n. i. . . . .
   end .
   return r. .
 end .

@@ -16,7 +16,7 @@ Produces MD5 and SHA-1. Neither may be used for *security*. Where security is no
 ```lowent
 use hash_legacy .
 
-proc sum input data slice u8 . input work mut slice u64 . input out mut slice u8 . output usize . effects none . do
+proc sum input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
   return hash_legacy.md5 data. work. out. . .
 end .
 ```

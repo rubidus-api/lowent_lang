@@ -28,20 +28,20 @@ by side. For a computation scanning only x, SoA reads just the needed values con
 
 ```lowent
 proc demo input xs mut slice u64 . input vxs mut slice u64 .
-  input rows mut slice u64 . output usize . effects none .
+  input rows mut slice u64 . output u64 . effects none .
 do
   set idx xs. 0 . 1 .
   set idx xs. 1 . 2 .
   set idx vxs. 0 . 10 .
   set idx vxs. 1 . 20 .
-  let n1 u64 soa.step_x xs. vxs. 2 . .
+  let n1 usize soa.step_x xs. vxs. 2 . .
   guard eq n1. 2 . else return 90 . .
   let s1 u64 soa.sum_field subslice xs. 0 2 . . .
   set idx rows. 0 . 1 .
   set idx rows. 1 . 10 .
   set idx rows. 2 . 2 .
   set idx rows. 3 . 20 .
-  let n2 u64 soa.step_x_aos rows. 2 0 1 2 . .
+  let n2 usize soa.step_x_aos rows. 2 0 1 2 . .
   guard eq n2. 2 . else return 91 . .
   var s2 u64 add idx rows. 0 . idx rows. 2 . . .
   guard eq s1. s2. . else return 92 . .

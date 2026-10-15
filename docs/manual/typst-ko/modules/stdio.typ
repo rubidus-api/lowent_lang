@@ -12,7 +12,7 @@
 use stdio .
 
 proc main input out cap io . output u8 . effects io . do
-  let n u64 stdio.write out. 1 "hello\n" . .
+  let n usize stdio.write out. 1 "hello\n" . .
   return 0 .
 end .
 ```

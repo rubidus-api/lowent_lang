@@ -43,8 +43,8 @@ let v option u64 hashmap.lookup b. 7 . .
 - 순회는 `0 .. size` 를 훑으며 `occupied_at` 인 슬롯만 처리한다. 순서는 해시 순서다 --- 정렬된 열거가 필요하면 키를 뽑아 #modref("sortlib")[`sortlib`] 로 정렬한다.
 
 ```lowent
-proc hm_sum input b mut slice u64 . output usize . effects none . do
-  var i u64 0 .
+proc hm_sum input b mut slice u64 . output u64 . effects none . do
+  var i usize 0 .
   while lt i. len b. . . do
     set idx b. i. . 0 .
     set i. add i. 1 . .
@@ -53,7 +53,7 @@ proc hm_sum input b mut slice u64 . output usize . effects none . do
   guard eq hashmap.put b. 10 100 . true . else return 0 . .
   guard eq hashmap.put b. 20 222 . true . else return 0 . .
   guard eq hashmap.del b. 10 . true . else return 0 . .
-  var slot u64 0 .
+  var slot usize 0 .
   var total u64 0 .
   while lt slot. hashmap.size b. . . do
     if hashmap.occupied_at b. slot. . do

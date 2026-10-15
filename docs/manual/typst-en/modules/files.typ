@@ -9,7 +9,7 @@ receive it can touch files (#chref("capabilities"), #chref("io-files")). The bui
 and know only integer handles. Holding a raw fd lets a forgotten close go unnoticed, so this module wraps it in *a value that cannot be forgotten* (`owned handle`).
 
 ```lowent
-let n result u64 files.file_error files.slurp fs. "data.txt" buf. . .
+let n result usize files.file_error files.slurp fs. "data.txt" buf. . .
 ```
 
 #dtable(

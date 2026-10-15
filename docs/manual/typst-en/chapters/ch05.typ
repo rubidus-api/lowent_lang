@@ -176,11 +176,11 @@ name's bytes. That is why it cannot be called in the middle of an expression (`i
 bind it to a name first.
 
 ```lowent
-fn squares input n u64 . output r array u64 3 .
+fn squares input n usize . output r array u64 3 .
   requires le n. 1000 . .
 do
-  repeat i u64 3 do
-    set idx r. i. . mul add n. i. . add n. i. . . .
+  repeat i usize 3 do
+    set idx r. i. . cast u64 mul add n. i. . add n. i. . . . .
   end .
   return r. .
 end .

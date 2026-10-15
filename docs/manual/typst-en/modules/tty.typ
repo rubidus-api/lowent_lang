@@ -13,7 +13,7 @@ such byte strings as keys.
 let p option u64 tty.parse_key buf. 0 . .
 guard is_some p. . else return none . .
 let code u64 tty.key_of some_value p. . . .
-let used u64 tty.len_of some_value p. . . .
+let used usize tty.len_of some_value p. . . .
 ```
 
 #aside[Raw mode changes the user's terminal settings, and the change survives the program's death][

@@ -16,7 +16,7 @@ instead of everything (#chref("lib-terminal")).
 ```lowent
 use term as t .
 
-let p option u64 t.goto buf. 0 2 4 . .
+let p option usize t.goto buf. 0 2 4 . .
 guard is_some p. . else return 1 . .
 ```
 

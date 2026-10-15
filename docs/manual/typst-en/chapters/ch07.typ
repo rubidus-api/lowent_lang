@@ -231,7 +231,7 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   fn odd_count input xs slice u8 . output u64 .
   do
     var n u64 0 .
-    var i u64 0 .
+    var i usize 0 .
     while lt i. len xs. . . do
       if eq mod idx xs. i. . 2 . 0 . do
         continue .

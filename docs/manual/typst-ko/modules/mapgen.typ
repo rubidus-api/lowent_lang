@@ -42,16 +42,16 @@ guard mapgen.erase u32. u64. m. 7 . else return 3 . .
 열면 104 바이트다. 산술이 인스턴스마다 다르다.
 
 ```lowent
-var at u64 0 .
+var at usize 0 .
 var total u64 0 .
 var going bool true .
 while going. do
-  let nx option u64 mapgen.next_used u32. u64. m. at. . .
+  let nx option usize mapgen.next_used u32. u64. m. at. . .
   guard is_some nx. . else do
     set going. false .
     continue .
   end .
-  let s u64 some_value nx. . .
+  let s usize some_value nx. . .
   let v option u64 mapgen.val_at u32. u64. m. s. . .
   guard is_some v. . else return none . .
   set total. add total. some_value v. . . .

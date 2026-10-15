@@ -68,7 +68,7 @@ end .
 proc two_from
   input comptime a type .
   use al a .
-  output u64 .
+  output usize .
   effects state via a .
   requires allocs.byte_allocator a. . .
 do
@@ -80,10 +80,10 @@ do
   return send al. used . .
 end .
 
-proc borrowed2 input buf mut slice u8 . output u64 . effects state . do
+proc borrowed2 input buf mut slice u8 . output usize . effects state . do
   var b allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let c usize send b. init buf. . .
-  let n use b. u64 two_from. .
+  let n use b. usize two_from. .
   return n. .
 end .
 ```

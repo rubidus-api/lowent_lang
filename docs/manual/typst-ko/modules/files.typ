@@ -9,7 +9,7 @@
 안다. 정수 fd 를 그대로 들면 닫기를 잊어도 아무도 모르므로, 이 모듈이 *잊을 수 없는 값*(`owned handle`)으로 감싼다.
 
 ```lowent
-let n result u64 files.file_error files.slurp fs. "data.txt" buf. . .
+let n result usize files.file_error files.slurp fs. "data.txt" buf. . .
 ```
 
 #dtable(

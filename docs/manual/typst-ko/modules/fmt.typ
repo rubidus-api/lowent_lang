@@ -108,8 +108,8 @@ end .
 출력은 `answer=42 hex=ff` 와 줄바꿈 하나다. 조각마다 종료 코드를 달리 두면 어디서 모자랐는지 바로 안다. 버퍼 크기를 미리 재는 것도 같은 도구로 된다.
 
 ```lowent
-fn need_for input n u64 . output u64 . do
-  let w u64 fmt.dec_width n. . .
+fn need_for input n u64 . output usize . do
+  let w usize fmt.dec_width n. . .
   return add add 7 w. . 1 . .
 end .
 ```

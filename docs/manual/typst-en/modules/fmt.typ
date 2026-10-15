@@ -110,8 +110,8 @@ The output is `answer=42 hex=ff` and one line break. Giving each piece a differe
 advance works with the same tools.
 
 ```lowent
-fn need_for input n u64 . output u64 . do
-  let w u64 fmt.dec_width n. . .
+fn need_for input n u64 . output usize . do
+  let w usize fmt.dec_width n. . .
   return add add 7 w. . 1 . .
 end .
 ```

@@ -17,7 +17,7 @@ set idx d. 0 . 0 .  set idx d. 1 . 4 .
 set idx d. 2 . 8 .  set idx d. 3 . 4 .
 let ss segments u8 view_segments back. d. . .
 let n u64 segview.total_len ss. . .
-let w option u64 segview.coalesce ss. out. . .
+let w option usize segview.coalesce ss. out. . .
 ```
 
 #dtable(

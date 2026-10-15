@@ -13,7 +13,7 @@ use searchlib .
 use sortlib .
 
 sortlib.sort s. .
-let i option u64 searchlib.bsearch s. 42 . .
+let i option usize searchlib.bsearch s. 42 . .
 ```
 
 #aside[정렬을 검사하지 않는다][
@@ -37,9 +37,9 @@ let i option u64 searchlib.bsearch s. 42 . .
 구현은 반열린 구간 `[lo, hi)` 로 돌고 중점은 `lo + (hi − lo)/2` 로 잡는다 --- `(lo + hi)/2` 는 큰 인덱스에서 넘칠 수 있다(고전적 결함).
 
 ```lowent
-fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i u64 searchlib.lower_bound s. a. . .
-  let j u64 searchlib.lower_bound s. b. . .
+fn count_in input s slice u64 . input a u64 . input b u64 . output usize . do
+  let i usize searchlib.lower_bound s. a. . .
+  let j usize searchlib.lower_bound s. b. . .
   guard lt i. j. . else return 0 . .
   return sub j. i. . .
 end .

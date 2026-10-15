@@ -8,6 +8,7 @@ An array holding any type that grows itself when short of room. It has two axes 
 `vec#u32#allocs.bump_bytes` and `vec#u32#allocs.bump_aligned` (visible in `--ir`), with no vtable and no indirect calls --- the policy sits outside the container, and choosing
 costs nothing (#chref("generics"), #chref("lib-containers")).
 
+// snippet: skip — draws from an allocator `bump` built earlier in the program; a wrapped snippet has none, so `open` has no type
 ```lowent
 let g use bump. option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32. 2 . .
 guard is_some g. . else return 1 . .
@@ -48,9 +49,10 @@ Units are not mixed --- `cap0`, `cap_of`, `count_of`, `at` and `set_at` all coun
 
 *Reserving first gives all-or-nothing.* After `reserve_more` succeeds, the following `append`s cannot fail midway.
 
+// snippet: skip — continues the snippet above: `v` and `src` come from the surrounding op; a wrapped snippet has neither
 ```lowent
 guard vecgen.reserve_more u16. allocs.bump_bytes. v. len src. . . else return false . .
-var i u64 0 .
+var i usize 0 .
 while lt i. len src. . . do
   guard vecgen.append u16. allocs.bump_bytes. v. idx src. i. . . else return false . .
   set i. add i. 1 . .

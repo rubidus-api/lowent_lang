@@ -1509,13 +1509,52 @@ fn f input s str . output u8 . do return 1 . end .",
       #strong[틀린 것을 읽는다.];
     ]
     #para("5b")[
-      갈래가 지니는 것의 타입은 오늘 #strong[한 낱말];이어야 한다(`E-ENUM-PAYLOAD`).
+      갈래가 지니는 것의 타입은 #strong[낱말 하나로 적는다];(`E-ENUM-PAYLOAD`). 갈래 한 줄에는 칸 사이를 가르는 표시가
+      없어서, 여러 낱말로 적는 타입(`slice u8` · `option t` · `owned t` · `ref t`)은 어디서 끊기는지 정해지지
+      아니하기 때문이다. 이것은 철자의 제한이지 크기의 제한이 아니다 — 지니는 값의 크기는 묻지 아니한다.
+      여러 낱말 타입은 그것을 칸으로 가진 구조체에 이름을 붙여 그 이름으로 적는다.
     ]
     #plain[
       (5) 가 하는 일은 「없는 것을 읽는 일」을 막는 것이다. 좁히지 않고 읽으면 그 값이 그
       갈래일 때만 맞고 아닐 때는 #strong[엉뚱한 바이트];를 읽는다 — 그것은 답이 틀리는 것이 아니라
       답이 #strong[어쩌다 맞는]; 것이며, 이 언어가 가장 싫어하는 모양이다.
     ]
+    #ex("여러 낱말 타입은 이름 붙인 구조체로 지닌다", "module ex_enum_named_payload .
+
+struct bytes do
+  b slice u8 .
+end .
+
+struct pt do
+  x u64 .
+  y u64 .
+  z u64 .
+end .
+
+enum msg do
+  data d bytes .
+  dot p pt .
+  blank .
+end .
+
+fn size_of_data input m msg . output usize . do
+  guard isa m. data . else return 0 . .
+  let d bytes payload m. data d . .
+  return len field d. b . . .
+end .
+
+export fn f input s slice u8 . output usize . do
+  let m msg msg.data lit bytes do b s. . end . . .
+  return size_of_data m. . .
+end .
+
+export fn g output u64 . do
+  let m msg msg.dot lit pt do x 1 . y 2 . z 7 . end . . .
+  guard isa m. dot . else return 0 . .
+  let p pt payload m. dot p . .
+  return add add field p. x . field p. y . . field p. z . . .
+end .",
+      out: "f([1,2,3]) = 3 · g() = 10")
     #para("6")[
       열거가 자기 자신을 값으로 지니면 크기가 정해지지 아니하므로 거부된다
       (`E-ENUM-INFINITE`). 되풀이되는 구조는 #strong[사이에 무언가를 두어]; 짓는다.

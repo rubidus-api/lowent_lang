@@ -99,6 +99,14 @@ included, stops at translation. Nobody has to remember the places to fix.
 
 To ask only which variant without a `match`, `isa n. num .` gives a `bool`.
 
+The type a variant holds is *written as one word*. A variant line has no mark between its fields, so a type spelled in several
+words such as `slice u8` would leave no way to tell where it ends (`E-ENUM-PAYLOAD`). It is not a limit on size. A type of several words,
+or a large value, is held through a struct that has it as a field, named and written by that name.
+
+#demo("examples/ch10/payload_struct.low")
+
+- `data d bytes .` holds a struct with a slice in it, and `dot p pt .` a struct of three fields. Both are written as one word (`bytes`, `pt`).
+
 === Variant numbers and `cast`
 
 An enum value is not a number. Putting one as it is into a name, argument or return declared as a number, into arithmetic or an index

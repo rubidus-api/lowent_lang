@@ -3847,6 +3847,18 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     //     섬/전위(논리 op).
     // ★ 진단은 **길을 알려 준다**: 이 언어에 포인터 나무는 없고, 나무는 **색인(arena)** 으로 짓는다.
     //   `hashmap`·`pool`·`vec` 이 이미 그 규율이고, `newtype nid u32 .` 로 색인에 이름도 준다.
+    // ★ RFC-0150 §8-22 (2026-10-16) — **별칭을 거친 자기 참조.** `type kid node .` 과 칸 `k option kid .` ·
+    //   `type kid option (option node) .` 과 칸 `k kid .` · `type kid ref node .` 과 칸 `k kid .` 가 모두 초록이었다 — 아래 걸음이
+    //   구조체 이름만 맞대고 별칭을 풀지 않았다. 정본 §6.2.7 (3) «다른 타입을 거쳐서든» 이 이미 답을 정했다.
+    //   ⇒ 칸의 타입 낱말에 별칭(`type` · `newtype`)의 이름이 있으면 그 별칭의 낱말을 덧붙인다(한 별칭은 한 번만 — 별칭끼리의
+    //     순환은 위의 E-TYPE-CYCLE 이 본다).
+    const low_cst_t *alf[TC_MAXSIG]; proven_size_t nal = 0;
+    for (proven_size_t i = 0; i < pr->nforms && nal < TC_MAXSIG; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM || f->kids[1]->kind != LOW_CST_ATOM) continue;
+        if (f->kids[0]->tok.kw != LOW_KW_TYPE && f->kids[0]->tok.kw != LOW_KW_NEWTYPE) continue;
+        alf[nal++] = f;
+    }
     for (proven_size_t si = 0; si < c.nstrs; si++) {
         proven_size_t stack[TC_MAXSIG]; proven_size_t sp = 0;
         bool seen[TC_MAXSIG];
@@ -3874,6 +3886,17 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                 if (!fd) continue;
                 proven_u8str_view_t tw[64]; proven_size_t ntw = 0; bool tw_over = false;
                 for (proven_size_t w = 1; w < fd->nkids; w++) tc_type_words(fd->kids[w], tw, &ntw, 64, &tw_over);
+                {   // 별칭을 푼다(위 §8-22) — 덧붙인 낱말도 다시 본다(별칭이 별칭을 가리킬 수 있다)
+                    bool used[TC_MAXSIG];
+                    for (proven_size_t z = 0; z < nal; z++) used[z] = false;
+                    for (proven_size_t w = 0; w < ntw && !tw_over; w++)
+                        for (proven_size_t a2 = 0; a2 < nal; a2++) {
+                            if (used[a2] || !proven_u8str_view_eq(alf[a2]->kids[1]->tok.lex, tw[w])) continue;
+                            used[a2] = true;
+                            for (proven_size_t q = 2; q < alf[a2]->nkids; q++) tc_type_words(alf[a2]->kids[q], tw, &ntw, 64, &tw_over);
+                            break;
+                        }
+                }
                 if (tw_over) { c.cycle_overflow = true; break; }     // 다 못 모았으면 «순환 없다» 의 근거가 없다
                 // 이 필드의 타입 낱말에 `ref`/`mut_ref` 가 있으면 **간접 간선**이다.
                 bool fref = false;

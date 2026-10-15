@@ -138,6 +138,7 @@ typedef struct {
     //   여는 일반화(§2). 재귀는 간접 강제(owned 또는 인덱스, §4.2) — 직접 자기포함은 무한 크기.
     proven_u8str_view_t  enum_owner[IR_MAXENUMV];        // 이 변형이 속한 enum 타입 이름
     proven_u8            enum_np[IR_MAXENUMV];           // 페이로드 필드 수 (0 = 페이로드 없음)
+    proven_i64           enum_num[IR_MAXENUMV];          // ★ 갈래의 번호(정본 §6.2.7 (2c)) — 적지 않으면 앞 + 1, 첫 갈래 1. `cast` 가 읽고 쓴다
     proven_u8str_view_t  enum_pname[IR_MAXENUMV][IR_MAXENUMPF];  // 페이로드 필드 이름
     proven_u8str_view_t  enum_pty[IR_MAXENUMV][IR_MAXENUMPF];    // 페이로드 필드 타입 이름
     // ★★★ **모듈 수준 `let` = 이름 붙은 상수** (2026-07-14).

@@ -3,6 +3,7 @@
 #include "low_cbe.h"
 #include "low_cbe_prelude.h"
 #define LW_EXPECT_MSG "E-TEST-FAIL: an `expect` is FALSE -- the test failed (this is not a contract violation)"   // ★ 2026-09-27 — 네이티브는 이것을 «requires violated at entry» 로 찍었다
+#define LW_ENUMCAST_MSG "cast to an enum: the number is not the number of any variant of that enum"   /* VM 의 E-VM-CAST 와 같은 말 */
 #define LW_SINKFULL_MSG "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N"   // ★ X-0065 — VM 의 E-VM-BOUNDS 와 같은 말
 #include "low_sha256.h"
 #include "low_sha512.h"   // ★ VM 과 **같은 매크로**를 방출한다 — 갈릴 자리가 없다
@@ -4175,6 +4176,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.n--; break;
             case IRW_PANIC:
                 if (in->a == IR_PANIC_SINKFULL) { fputs("    lw_panic(\"" LW_SINKFULL_MSG "\");\n", out); break; }   // ★ X-0065
+                if (in->a == IR_PANIC_ENUMCAST) { fputs("    lw_panic(\"" LW_ENUMCAST_MSG "\");\n", out); break; }
                 fputs("    lw_upanic(\"the program called `panic`\");\n", out); break;
             // ★★★ **asm 문장 — 빠른 경로** (RFC-0042 D11). 피연산자 없는 형태만 여기 온다
             //   (있으면 cbe_mark_scalar 가 이 def 을 태그 경로로 보내며 **이유를 말한다**).
@@ -6879,6 +6881,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_BITCAST:  fprintf(out, "    st[sp-1] = lw_bitcast(st[sp-1], %lld);\n", (long long)in->a); break;
                 // ★ `panic` — 즉시 트랩. 네이티브도 **같은 자리에서** 멈춘다.
                 case IRW_PANIC:    fputs(in->a == IR_PANIC_SINKFULL ? "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"   // ★ X-0065
+                                             : in->a == IR_PANIC_ENUMCAST ? "    lw_panic(\"" LW_ENUMCAST_MSG "\");\n"
                                              : "    lw_upanic(\"the program called `panic`\");\n", out); break;
                 // ★ SPEC-007 §28 — 채널 전환(값은 그대로, 채널만 바뀐다).
                 case IRW_ELSE_NONE: fputs("    st[sp-1] = lw_else_none(st[sp-1]);\n", out); break;
@@ -6932,6 +6935,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_MALL:     fputs("    st[sp-1] = lw_mred(1, st[sp-1]);\n", out); break;
                 case IRW_CALL: {
                     const low_ir_def_t *callee = &ir->defs[IR_CALL_IDX(in->a)];
+                    // ★ 비워 둔 액터(0)에 보낸 메시지는 멈춘다 — VM 의 E-VM-HANDLE-ZERO 와 같은 게이트(정수 0 만)
+                    if (callee->is_actor && callee->nparams > 0)
+                        fprintf(out, "    if (st[sp-%zu].tag == LWV_INT && st[sp-%zu].i == 0) lw_panic(\"`send` on actor handle 0 \xe2\x80\x94 this actor was never spawned\");\n",
+                                (size_t)callee->nparams, (size_t)callee->nparams);
                     // RFC-0055 D3: 증명 안 된 호출에는 파라미터 범위 검사를 방출한다
                     // (증명됐으면 아무것도 안 낸다 — 계약이 공짜).
                     if (!(in->a & IR_POL_PROVEN))
@@ -7008,9 +7015,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     // ★ 진짜 인스턴스(LWV_REC)가 아니면 **트랩한다** — VM 의 E-VM-TYPE 과 같은 게이트.
                     //   합성 바이트(차등 스윕이 파라미터로 조작한 구조체)는 진짜 spawn 인스턴스가 아니다.
                     //   전엔 조용히 건너뛰어(box<0 이면 큐잉 skip) VM 은 거절하는데 네이티브는 0 을 냈다 — 발산.
-                    fprintf(out, "    { if (st[sp-%zu].tag != LWV_REC) lw_panic(\"`spawn send` needs a spawned "
+                    fprintf(out, "    { if (st[sp-%zu].tag == LWV_INT && st[sp-%zu].i == 0) lw_panic(\"`spawn send` on actor handle 0 \xe2\x80\x94 this actor was never spawned\");\n"
+                                 "      if (st[sp-%zu].tag != LWV_REC) lw_panic(\"`spawn send` needs a spawned "
                                  "actor instance (a fabricated struct is not a real instance)\");\n"
-                                 "      int box_ = st[sp-%zu].box;\n", np, np);
+                                 "      int box_ = st[sp-%zu].box;\n", np, np, np, np);
                     if (amb)
                         fprintf(out, "      { int pend_ = 0; for (int qq_ = 0; qq_ < lw_nambox; qq_++)"
                                      " if (lw_ambox[qq_].box == box_) pend_++;\n"
@@ -7047,9 +7055,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         }
                     }
                     // ★ ASEND 와 같은 게이트 — 진짜 인스턴스가 아니면 트랩(VM 의 E-VM-TYPE 과 일치).
-                    fprintf(out, "    { if (st[sp-%zu].tag != LWV_REC) lw_panic(\"`try spawn send` needs a "
+                    fprintf(out, "    { if (st[sp-%zu].tag == LWV_INT && st[sp-%zu].i == 0) lw_panic(\"`try spawn send` on actor handle 0 \xe2\x80\x94 this actor was never spawned\");\n"
+                                 "      if (st[sp-%zu].tag != LWV_REC) lw_panic(\"`try spawn send` needs a "
                                  "spawned actor instance (a fabricated struct is not a real instance)\");\n"
-                                 "      int box_ = st[sp-%zu].box; int full_ = 0;\n", np, np);
+                                 "      int box_ = st[sp-%zu].box; int full_ = 0;\n", np, np, np, np);
                     if (amb)
                         fprintf(out, "      { int pend_ = 0; for (int qq_ = 0; qq_ < lw_nambox; qq_++)"
                                      " if (lw_ambox[qq_].box == box_) pend_++; if (pend_ >= %lldll) full_ = 1; }\n",
@@ -7071,7 +7080,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 }
                 // ★★★ **drain** — 이 인스턴스의 메일박스를 FIFO 로 비운다(도착 순서). [instance] 팝 → 단위 push.
                 case IRW_DRAIN:
-                    fprintf(out, "    { if (st[sp-1].tag == LWV_REC) lw_drain(st[sp-1].box);"
+                    fprintf(out, "    { if (st[sp-1].tag == LWV_INT && st[sp-1].i == 0) lw_panic(\"`drain` on actor handle 0 \xe2\x80\x94 this actor was never spawned\");"
+                                 " if (st[sp-1].tag == LWV_REC) lw_drain(st[sp-1].box);"
                                  " sp -= 1; st[sp++] = lw_int(0); }\n");
                     break;
                 // ★★★ **schedule** — 전역 메일박스를 quiescence 까지 FIFO 로 비운다(인자 없음). 단위 push.

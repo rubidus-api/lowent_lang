@@ -99,24 +99,26 @@ included, stops at translation. Nobody has to remember the places to fix.
 
 To ask only which variant without a `match`, `isa n. num .` gives a `bool`.
 
-=== A variant's number is read with `cast`
+=== Variant numbers and `cast`
 
-An enum value is not a number. Putting one as it is into a name, argument or return declared as a number, into arithmetic, an ordering
-comparison or an index is refused.
+An enum value is not a number. Putting one as it is into a name, argument or return declared as a number, into arithmetic or an index
+is refused.
 
 #demo("examples/ch10/mistake_enumnum.low")
 
-Each variant does have a number --- its declaration order, counted from 0. When you need that number, read it with `cast`
-(#chref("numbers")).
+Each variant has a *number*. The first variant is 1 and each next one counts up by one. A number written after a variant's name
+becomes that variant's number, and the following variants count on from it --- after `ga 11 .`, `na` is 12; after `da 101 .`, `ra` is
+102. Numbers must rise in the order they are written (falling or repeating is `E-ENUM-NUMBER`). Reading the number, or finding the
+variant for a number, is done with `cast` (#chref("numbers")).
 
 #demo("examples/ch10/enum_number.low")
 
-- `code` reads the number of the variant `of k` gives with `cast u8`. `quiet` is 0 and `loud` is 2.
-- `louder` compares sizes. An ordering comparison uses the numbers too, so both sides are cast. To ask only whether two values of
-  one enum are the same, compare them as they are with `eq` / `ne` --- that does not ask for a number.
-- There is no `cast` from a number to an enum. Which number stands for which variant, and what to do with a number that has no
-  variant, is the program's decision, so split the number as `of` does. An enum whose variants carry values is not cast either ---
-  one number does not say everything the value holds.
+- `code` reads a variant's number with `cast u8`. `quiet` is 1 and `loud` is 3.
+- `from_disk` turns a number read from a file or the wire back into a variant with `cast volume`. A number that belongs to no variant
+  (9) stops right there --- no variant is made up.
+- `is_weapon` orders values of one enum. Numbers rise in declaration order, so the variants declared between `weapon_start` and
+  `weapon_end` are filtered in one comparison. Values of different enums are not compared.
+- An enum with a value-carrying variant takes no numbers and no `cast` --- one number does not say everything the value holds.
 
 == Variants are closed with full stops
 
@@ -216,7 +218,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   [`shape.circle 2 .` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
   [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
   [`isa s. circle .`], [is it that variant (`bool`)], [for asking without taking values out],
-  [`cast u8 v. .`], [the variant's number (declaration order, from 0)], [an enum is not a number --- the number is read by writing it],
+  [`ga 11 .` · `cast u8 v. .` · `cast volume n. .`], [variant numbers (from 1, counting on from a written one) · reading one · finding the variant for one], [an enum is not a number --- crossing is written],
   [trees linked by index (`l u32` · `r u32`)], [slice indexes instead of containing itself], [the size is fixed and indexes are bounds-checked],
 )
 

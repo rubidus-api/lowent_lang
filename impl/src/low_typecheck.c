@@ -442,6 +442,13 @@ static bool tc_is_struct_name(proven_u8str_view_t v) {
     return false;
 }
 static proven_u8str_view_t g_ename_t[1024]; static proven_size_t g_nename_t;   // 선언된 열거 이름(검사 시작에 채운다)
+static proven_u8str_view_t g_aname_t[512]; static proven_size_t g_naname_t;   // 선언된 액터 이름(검사 시작에 채운다)
+static bool tc_is_actor_name(proven_u8str_view_t v) {
+    proven_u8str_view_t b = v;
+    for (proven_size_t i = 0; i < v.size; i++) if (v.ptr[i] == (proven_u8)'.') b = (proven_u8str_view_t){ v.ptr + i + 1, v.size - i - 1 };
+    for (proven_size_t i = 0; i < g_naname_t; i++) if (proven_u8str_view_eq(g_aname_t[i], v) || proven_u8str_view_eq(g_aname_t[i], b)) return true;
+    return false;
+}
 static bool tc_is_enum_name(proven_u8str_view_t v) {
     proven_u8str_view_t b = v;
     for (proven_size_t i = 0; i < v.size; i++) if (v.ptr[i] == (proven_u8)'.') b = (proven_u8str_view_t){ v.ptr + i + 1, v.size - i - 1 };
@@ -449,6 +456,7 @@ static bool tc_is_enum_name(proven_u8str_view_t v) {
     return false;
 }
 static bool tc_enum_has_payload(proven_u8str_view_t en);
+static void tc_cast_enum_note(const void *nd, proven_u8str_view_t en);
 static bool tc_is_tc(ty_t t) { return t.k == TK_NAMED && (veq(t.nname, "task") || veq(t.nname, "chan")); }
 static tc_reason_t compat_known(ty_t decl, ty_t actual) {
     // ★ RFC-0148 S5 (소유자 2026-10-14 «핸들·채널에 타입을») — `task T` · `chan T` 는 정수가 아니고, 원소 타입이 타입의 일부다
@@ -528,6 +536,10 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
         bool ae = actual.k == TK_NAMED && actual.nname.size && tc_is_enum_name(tc_canon_name(actual.nname));
         bool ass = actual.k == TK_INT || actual.k == TK_FLOAT || actual.k == TK_BOOL || actual.k == TK_SLICE;
         if ((ds && ae) || (de && ass)) return TC_KIND;
+        // ★ 액터 자리에 들어가는 수는 리터럴 0 하나다 — «아직 띄우지 않은 액터»(소유자 2026-10-15; 정본 §10.2 (1d)). 다른 수는 받지 않는다.
+        if (decl.k == TK_NAMED && decl.nname.size && tc_is_actor_name(tc_canon_name(decl.nname)) &&
+            (actual.k == TK_INT || actual.k == TK_FLOAT || actual.k == TK_BOOL || actual.k == TK_SLICE) &&
+            !(actual.k == TK_INT && actual.lit && !actual.neg && actual.val == 0)) return TC_KIND;
     }
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
@@ -775,12 +787,15 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
             bool same = ae && be && proven_u8str_view_eq(tc_canon_name(a.nname), tc_canon_name(b.nname));
             bool other_unknown = (ae && b.k == TK_UNKNOWN) || (be && a.k == TK_UNKNOWN);
             bool cmpish = is_cmp || cctx;
-            if (!(cmpish && eqop && (same || other_unknown))) {
+            // 같은 열거의 두 값은 크기로도 견준다(소유자 2026-10-15 «열거끼리 크기 비교를 넣읍시다») — 번호가 선언 차례대로 오르므로 차례가 곧 번호다
+            if (!(cmpish && (same || (eqop && other_unknown)))) {
                 tc_emit(c, "E-TYPE-KIND",
                         cmpish && eqop
                         ? "an enum value is compared with something that is not the same enum — an enum is not a number. "
                           "Compare two values of the same enum, or write `cast <integer> <value>` to take the variant's number (canon 6.2.16 (5))"
-                        : "an enum value is used as a number (arithmetic or ordering) — an enum is not a number. "
+                        : cmpish ? "an enum value is ordered against something that is not the same enum — an enum is not a number. "
+                          "Order two values of the same enum, or write `cast <integer> <value>` to take the variant's number (canon 6.2.16 (5))"
+                        : "an enum value is used in arithmetic — an enum is not a number. "
                           "Write `cast <integer> <value>` to take the variant's number; that conversion is explicit (canon 6.2.16 (5))", line);
                 ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u;
             }
@@ -1795,23 +1810,35 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                         "a bool casts to an INTEGER type only (`cast u8 b. .` gives 1 for true and 0 for false) — "
                         "not to a floating-point type",
                         k[start + 1]->line);
-            // ★ 열거 → 정수(소유자 2026-10-15 «열거 값을 수 자리에 쓰려면 cast»; 정본 §6.2.16 (5)) — 갈래의 번호(선언 차례, 0 부터)를 낸다.
-            //   값을 지닌 갈래가 있는 열거는 번호 하나로 값이 다 말해지지 않으므로 받지 않는다. 정수 → 열거는 없다(§6.2.16 (5a)).
+            // ★ 열거 → 정수(소유자 2026-10-15 «열거 값을 수 자리에 쓰려면 cast»; 정본 §6.2.16 (5)) — 갈래의 번호(정본 §6.2.7 (2c))를 낸다.
+            //   값을 지닌 갈래가 있는 열거는 번호 하나로 값이 다 말해지지 않으므로 받지 않는다.
             else if (have_src && src0.k == TK_NAMED && src0.nname.size && tc_is_enum_name(tc_canon_name(src0.nname))) {
                 if (tgt.k != TK_INT)
-                    tc_emit(c, "E-TYPE-KIND", "an enum value casts to an INTEGER type only — the variant's number (declaration order from 0)",
+                    tc_emit(c, "E-TYPE-KIND", "an enum value casts to an INTEGER type only — the variant's number (canon 6.2.7 (2c))",
                             k[start + 1]->line);
                 else if (tc_enum_has_payload(tc_canon_name(src0.nname)))
                     tc_emit(c, "E-TYPE-KIND",
                             "this enum has a variant that carries values, so a number alone does not say what the value is — "
-                            "`cast` takes the number only of an enum whose variants carry nothing. Ask with `isa` / `match` (canon 6.2.16 (5))",
+                            "`cast` takes the number only of an enum whose variants carry nothing. Ask with `isa` / `match` (canon 6.2.16 (5b))",
                             k[start + 1]->line);
+                else tc_cast_enum_note(k[start], tc_canon_name(src0.nname));
             }
+            // ★ 정수 → 열거(소유자 2026-10-15 «수->열거도 필요 … 파일에 enum 을 적거나 다시 읽어올 때») — 그 번호를 가진 갈래를 낸다.
+            //   어느 갈래의 번호도 아니면 멈춘다(§6.2.16 (5a)). 원천은 정수여야 하고, 값을 지닌 갈래가 있는 열거는 대상이 될 수 없다.
             if (k[start + 1]->kind == LOW_CST_ATOM && tc_is_enum_name(tc_canon_name(k[start + 1]->tok.lex))) {
-                tc_emit(c, "E-TYPE-KIND",
-                        "a number does not cast to an enum — which variant a number stands for is the program's decision, not the language's. "
-                        "Write it with `if` / `match` on the number (canon 6.2.16 (5a))", k[start + 1]->line);
-                ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                proven_u8str_view_t en = tc_canon_name(k[start + 1]->tok.lex);
+                if (tc_enum_has_payload(en)) {
+                    tc_emit(c, "E-TYPE-KIND", "a number does not cast to an enum whose variants carry values — the number does not say "
+                            "what the value holds. Build the variant with `<enum>.<variant> …` (canon 6.2.16 (5b))", k[start + 1]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
+                if (have_src && src0.k != TK_INT && src0.k != TK_UNKNOWN) {
+                    tc_emit(c, "E-TYPE-KIND", "only an integer casts to an enum — it gives the variant with that number (canon 6.2.16 (5a))",
+                            k[start + 1]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
+                ty_t et = tk(TK_NAMED); et.nname = k[start + 1]->tok.lex;
+                return et;
             }
             return tgt;
         }
@@ -2123,6 +2150,16 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
                 if (proven_u8str_view_eq(g_mc[q].name, nd->tok.lex)) { if (!hit || proven_u8str_view_eq(g_mc[q].mod, c->curmod)) hit = &g_mc[q]; }
             if (hit) return hit->ty;
         }
+        // ★ 값을 지니지 않은 갈래의 이름(`red.` · `color.red`)은 제 열거의 값이다(2026-10-15 — 열거끼리 견줌 · `cast`). 같은 이름의 갈래가
+        //   여러 열거에 있으면 한정하지 않은 이름은 정하지 않는다.
+        if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE) {
+            proven_u8str_view_t vn = nd->tok.lex, en = { 0 };
+            for (proven_size_t q = vn.size; q > 0; q--)
+                if (vn.ptr[q - 1] == (proven_byte_t)'.') { en = (proven_u8str_view_t){ vn.ptr, q - 1 }; vn = (proven_u8str_view_t){ vn.ptr + q, vn.size - q }; break; }
+            if (en.size) { proven_u8str_view_t eb = en; for (proven_size_t q = en.size; q > 0; q--) if (en.ptr[q - 1] == (proven_byte_t)'.') { eb = (proven_u8str_view_t){ en.ptr + q, en.size - q }; break; } en = eb; }
+            const tc_variant_t *vv = variant_find(en, vn);
+            if (vv && !vv->np && (!en.size || proven_u8str_view_eq(vv->en, en))) { ty_t et = tk(TK_NAMED); et.nname = vv->en; return et; }
+        }
         // ★ RFC-0148 S5 — 지역도 op 도 상수도 아닌 이름은 하강층이 `E-IR-UNDEF` 로 거절한다 — S5 가 «모름» 을 덧붙이지 않는다
         if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && !low_ir_is_builtin_op(nd->tok.lex) &&
             !(nd->tok.lex.size > 8 && memcmp(nd->tok.lex.ptr, "machine.", 8) == 0) && !sig_find_at(c, nd)) {
@@ -2237,7 +2274,17 @@ bool low_tc_notes_live(void) { return g_note_live && low_tc_notes_on(); }
 // 하강이 한 단위를 끝내면 답을 닫는다 — 검사 없이 하강하는 다음 단위가 옛 마디의 답을 읽지 않게(마디의 주소는 다시 쓰인다).
 void low_tc_notes_close(void) { g_note_live = false; }
 bool low_tc_list_types(void) { static int on = -1; if (on < 0) on = getenv("LOWENT_LIST_TYPES") ? 1 : 0; return on == 1; }
+// ★ 열거 → 수 `cast` 의 원천 열거(소유자 2026-10-15) — 하강층이 갈래의 번호를 내려면 원천이 어느 열거인지 알아야 한다(값은 단위 전체의
+//   갈래 순번이다). 검사층이 `cast` 마디에 적고 하강층이 읽는다. 다 차면 하강층은 원천의 선언 타입으로 찾는다.
+static struct { const void *nd; proven_u8str_view_t en; } g_castenum[1024]; static proven_size_t g_ncastenum;
+static void tc_cast_enum_note(const void *nd, proven_u8str_view_t en) { if (g_ncastenum >= 1024) { g_tc_full = true; return; } g_castenum[g_ncastenum++] = (typeof(g_castenum[0])){ nd, en }; }   // 다 차면 말한다(E-TYPE-LIMIT) — 빠진 자리의 번호가 틀린다
+bool low_tc_cast_enum(const void *node, proven_u8str_view_t *ename) {
+    if (!g_note_live) return false;
+    for (proven_size_t i = 0; i < g_ncastenum; i++) if (g_castenum[i].nd == node) { *ename = g_castenum[i].en; return true; }
+    return false;
+}
 static void tc_notes_reset(void) {
+    g_ncastenum = 0;
     if (low_tc_notes_on()) memset(g_note, 0, TC_NOTE_CAP * sizeof *g_note);   // ★ 한 프로세스가 여러 단위를 검사한다(단위 시험) — 옛 마디의 주소가 새 마디와 겹친다
     g_note_live = true;
 }
@@ -3421,13 +3468,15 @@ static void tc_brand_walk(tc_ctx_t *c, const low_cst_t *nd,
 
 low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr) {
     tc_notes_reset();
-    g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_nename_t = 0; g_tc_full = false;
+    g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_nename_t = 0; g_naname_t = 0; g_tc_full = false;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
             f->kids[1]->kind == LOW_CST_ATOM) { if (g_nsname >= 1024) { g_tc_full = true; break; } g_sname[g_nsname++] = f->kids[1]->tok.lex; }
         if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_ENUM &&
             f->kids[1]->kind == LOW_CST_ATOM) { if (g_nename_t >= 1024) { g_tc_full = true; break; } g_ename_t[g_nename_t++] = f->kids[1]->tok.lex; }
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_ACTOR &&
+            f->kids[1]->kind == LOW_CST_ATOM) { if (g_naname_t >= 512) { g_tc_full = true; break; } g_aname_t[g_naname_t++] = f->kids[1]->tok.lex; }
     }
     {
         proven_u8str_view_t cm = { 0 };
@@ -3726,6 +3775,9 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                 }
             }
             if (told) continue;
+            // ★ 갈래의 번호(소유자 2026-10-15 «가에 11 로 하면 나는 자동으로 12» · 철자 `ga 11 .`) — 이름 뒤의 정수 하나.
+            //   값을 지닌 갈래가 있는 열거에는 적지 않고, 적힌 번호는 앞 갈래의 번호보다 커야 한다(정본 §6.2.7 (2c)). 검사는 아래 pass 에서 열거마다 한 번.
+            if (vf->nkids == 2 && vf->kids[1]->kind == LOW_CST_ATOM && vf->kids[1]->tok.kind == LOW_TOK_NUMBER) continue;
             // 여러 낱말 타입(`slice u8` 따위)은 IR 이 더 정확한 말(`E-ENUM-PAYLOAD`)을 한다 — 여기선 한 낱말 짝만 본다
             bool multi = false;
             for (proven_size_t t = 1; t < vf->nkids; t++)
@@ -3739,6 +3791,45 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                 continue;
             }
             for (proven_size_t t = 2; t < vf->nkids; t += 2) tc_check_tnames(&c, vf, t, t + 1);
+        }
+        // 번호: 적지 않은 갈래는 앞 번호 + 1, 첫 갈래는 1(소유자 «열거는 무조건 1부터»). 적힌 번호는 정수이고 앞보다 커야 한다.
+        {
+            bool payload = false, numbered = false;
+            for (proven_size_t j = 0; j < blk->nkids; j++) {
+                const low_cst_t *vf = blk->kids[j];
+                if (vf->kind != LOW_CST_FORM || vf->nkids < 1 || vf->kids[0]->kind != LOW_CST_ATOM || vf->kids[0]->tok.kw == LOW_KW_SATISFIES) continue;
+                if (vf->nkids == 2 && vf->kids[1]->kind == LOW_CST_ATOM && vf->kids[1]->tok.kind == LOW_TOK_NUMBER) numbered = true;
+                else if (vf->nkids >= 3) payload = true;
+            }
+            bool have = false; proven_i64 prev = 0;
+            for (proven_size_t j = 0; j < blk->nkids && numbered; j++) {
+                const low_cst_t *vf = blk->kids[j];
+                if (vf->kind != LOW_CST_FORM || vf->nkids < 1 || vf->kids[0]->kind != LOW_CST_ATOM || vf->kids[0]->tok.kw == LOW_KW_SATISFIES) continue;
+                proven_i64 num = have ? prev + 1 : 1;
+                if (vf->nkids == 2 && vf->kids[1]->kind == LOW_CST_ATOM && vf->kids[1]->tok.kind == LOW_TOK_NUMBER) {
+                    proven_u64 u = 0; bool neg = false;
+                    proven_u32 ln = vf->kids[1]->tok.line ? vf->kids[1]->tok.line : vf->line;
+                    if (payload) {
+                        tc_emit(&c, "E-ENUM-NUMBER", "a variant number is written only in an enum whose variants carry nothing — "
+                                "a number does not say what a value-carrying variant holds (canon 6.2.7 (2c))", ln);
+                        break;
+                    }
+                    if (low_num_is_float(vf->kids[1]->tok.lex) || !num_value(vf->kids[1]->tok.lex, &u, &neg) ||
+                        (!neg && u > (proven_u64)INT64_MAX) || (neg && u > (proven_u64)INT64_MAX)) {
+                        tc_emit(&c, "E-ENUM-NUMBER", "a variant number is an integer (canon 6.2.7 (2c))", ln);
+                        break;
+                    }
+                    proven_i64 v = neg ? -(proven_i64)u : (proven_i64)u;
+                    if (have && v <= prev) {
+                        tc_emit(&c, "E-ENUM-NUMBER", "variant numbers rise in declaration order — this number is not larger than the "
+                                "variant before it (written or counted on from the one before). Declaration order is number order, "
+                                "so `lt` / `ge` between variants and the numbers `cast` reads agree (canon 6.2.7 (2c))", ln);
+                        break;
+                    }
+                    num = v;
+                }
+                prev = num; have = true;
+            }
         }
     }
 

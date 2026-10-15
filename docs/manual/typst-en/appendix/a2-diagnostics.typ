@@ -206,7 +206,7 @@ VM's size, not a defect of the program --- the same program built natively usual
   [`E-VM-READONLY`], [wrote through a read-only reference (`ref`) --- borrow with `mut_ref` to write],
   [`E-VM-FIELD`], [read a field that the record or register block does not have],
   [`E-VM-AWAIT`], [`await` was given something that is not a job handle --- handles come from `spawn <op>`],
-  [`E-VM-HANDLE-ZERO`], [waited on an empty handle (0), or put into / took from a channel that is 0 --- give it a handle from `spawn <op>` / `channel <T>` first],
+  [`E-VM-HANDLE-ZERO`], [waited on an empty handle (0), put into / took from a channel that is 0, or sent to an actor never spawned (0) --- give it what `spawn <op>` / `channel <T>` / `spawn actor <name>` gives first],
   [`E-VM-CHAN-EMPTY` · `E-VM-CHAN-FULL`], [received from an empty channel or sent to a full one with no scheduler to wait --- a wait that can never end],
   [`E-VM-SCHED-LOOP`], [handlers keep sending each other messages, so the scheduler cannot settle],
   [`E-VM-FD` · `E-VM-FMODE` · `E-VM-FWHENCE`], [a file number that cannot be written (only 1 · 2) · an unknown open mode (0 · 1 · 2) · an unknown `seek` origin (0 · 1 · 2)],

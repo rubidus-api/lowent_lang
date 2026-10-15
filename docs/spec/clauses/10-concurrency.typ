@@ -55,6 +55,27 @@
       아니다」로 멈추고 네이티브는 조용히 `none` 을 냈다(결함 노트 #53). 둘 중 하나는 거짓말인데
       어느 쪽인지 정본이 말하지 않았다. 답을 고르는 대신 #strong[그 자리에 닿지 못하게]; 한다.
     ]
+    #para("1d")[
+      #strong[액터를 담는 이름은 리터럴 `0` 으로 시작할 수 있다]; — 아직 띄우지 않은 액터다(#cref("10.3") (2d) 의 핸들 0 과 같다). 그 밖의 수는
+      액터 자리에 들어가지 아니한다(`E-TYPE-LET` · `E-TYPE-VAR`). 0 인 액터에 `send` · `spawn send` · `try spawn send` 로 말을 보내거나
+      `drain` 하면 프로그램이 멈춘다(`E-VM-HANDLE-ZERO`). `spawn actor <이름>` 을 담은 뒤에 쓴다.
+    ]
+    #rejected("0 이 아닌 수로 액터 자리를 채운다", "module ex_actor_number .
+
+actor counter do
+  state do
+    n u64 .
+  end .
+  fn get output u64 . do
+    return n. .
+  end .
+end .
+
+export proc f output u64 . effects state .
+do
+  var c counter 7 .
+  return 0 .
+end .", "E-TYPE-VAR")
     #para("2")[
       액터 안의 op 도 #cref("6.4.1") 의 갈래를 따른다 — 상태를 고치면 `proc` 이고
       `effects state` 를 적어야 하며, 읽기만 하면 `fn` 이다.

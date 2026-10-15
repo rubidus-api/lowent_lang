@@ -503,6 +503,7 @@ typedef struct {
 #define IR_SRC_SGN    0x400000   // 원천이 부호 있는 정수
 // ★ X-0065 — IRW_PANIC 의 a 가 이 값이면 «받는 자리가 찼다»(문자열 번호와 겹치지 않는 큰 수).
 #define IR_PANIC_SINKFULL 0x7fff0001
+#define IR_PANIC_ENUMCAST 0x7fff0002   /* ★ `cast <열거> n` — n 이 어느 갈래의 번호도 아니다(정본 §6.2.16 (5a)) */
 // IRW_CALL 의 a 는 def 인덱스 + 플래그다. RFC-0055 D3: PROVEN 이면 인자 범위 검사를
 // **호출 지점에서 이미 증명**했다는 뜻 — 진입 검사를 건너뛴다(계약이 공짜가 된다).
 #define IR_CALL_IDX(a) ((proven_size_t)((a) & 0xFFFF))

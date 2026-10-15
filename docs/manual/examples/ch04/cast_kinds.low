@@ -38,7 +38,7 @@ fn pick input k u8 . output level . do
   return high. .
 end .
 
-rem ko: 열거를 수로 --- 갈래의 번호(선언 차례, 0 부터) /// en: an enum to a number --- the variant's number (declaration order, from 0)
+rem ko: 열거를 수로 --- 갈래의 번호(첫 갈래 1) /// en: an enum to a number --- the variant's number (the first is 1)
 fn level_num input k u8 . output u8 . do
   return cast u8 pick k. . . .
 end .

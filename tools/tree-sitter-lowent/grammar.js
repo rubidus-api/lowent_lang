@@ -99,7 +99,8 @@ module.exports = grammar({
     struct_attribute: $ => seq(choice('layout', 'align', 'mmio', 'storage', 'satisfies'), repeat1($._word), $.stop),
     enum_declaration: $ => seq(repeat($.modifier), 'enum', field('name', $.name),
       'do', repeat($.variant), 'end', $.stop),
-    variant: $ => seq(field('name', $.name), repeat(seq($.name, $._type)), $.stop),
+    // 갈래의 번호(정본 §6.2.7 (2c)) — `ga 11 .`, 아니면 값의 칸 짝
+    variant: $ => seq(field('name', $.name), choice(field('number', $.number), repeat(seq($.name, $._type))), $.stop),
 
     op_declaration: $ => seq(repeat($.modifier), choice('fn', 'proc'),
       field('name', choice($.name, $.path)), repeat($.clause), $.block, $.stop),

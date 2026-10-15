@@ -689,6 +689,41 @@ end .
 
 (2b) 열거 값은 수가 아니다 — 갈래의 번호를 수로 쓰려면 `cast` 로 적는다(⟦§6.2.16⟧ (5)).
 
+(2c) **갈래마다 번호가 있다.** 첫 갈래는 1 이고, 다음 갈래는 앞 갈래의 번호에 1 을 더한 것이다. 갈래 이름 뒤에 정수를 적으면
+      (`ga 11 .`) 그 갈래의 번호가 되고, 다음 갈래는 거기서 이어 센다. 번호는 선언된 차례대로 **올라야** 한다 — 앞 갈래의 번호보다
+      크지 않은 번호는 거부된다(`E-ENUM-NUMBER`). 번호는 값을 지닌 갈래가 없는 열거에만 적는다(`E-ENUM-NUMBER`). 0 은 첫 갈래의
+      번호가 아니다 — 번호를 적지 않은 열거에서 0 은 어느 갈래도 아니다.
+
+```lowent 예제: 갈래에 번호를 적는다 · 결과: total() = 226
+module ex_enum_numbers .
+
+enum hangul do
+  ga 11 .
+  na .
+  da 101 .
+  ra .
+end .
+
+fn n input h hangul . output u32 . do
+  return cast u32 h. . .
+end .
+
+rem 11 + 12 + 101 + 102
+fn total output u32 . do
+  return add add n ga. . n na. . . add n da. . n ra. . . . .
+end .
+```
+
+```lowent-거부: 번호가 오르지 않는다 · E-ENUM-NUMBER
+module ex_enum_number_falls .
+
+enum level do
+  low 5 .
+  mid .
+  high 6 .
+end .
+```
+
 (3) struct 는 **자기 자신을 칸으로 가질 수 없다.** 직접이든 다른 타입을 거쳐서든 순환하면
       번역이 거부된다.
       (`E-STRUCT-CYCLE`). 크기가 정해지지 아니하기 때문이다.
@@ -1225,7 +1260,7 @@ end .
 > [*낱말*], [*맡는 자리*], [*값이 안 맞으면*],
 > [`widen`], [값이 **그대로** 들어가는 넓히기(⟦§6.2.5⟧ (4) 의 표). 처리기가 스스로도 한다 — 적는 것은 눈에 보이게 하려는 것이다], [일어나지 않는다],
 > [`narrow`], [같은 갈래 안에서 폭을 줄인다(정수 → 더 좁은 정수)], [트랩한다],
-> [`cast`], [**그 밖의 모든 변환** — 부호를 바꾼다 · 정수와 부동소수점 사이 · 폭이 구현에 달린 `usize` · `idiff` 와 다른 정수 사이 · 참거짓 → 정수 · 열거 → 정수], [트랩한다],
+> [`cast`], [**그 밖의 모든 변환** — 부호를 바꾼다 · 정수와 부동소수점 사이 · 폭이 구현에 달린 `usize` · `idiff` 와 다른 정수 사이 · 참거짓 → 정수 · 열거 ↔ 정수], [트랩한다],
 > )
 
 (1b) **어느 쪽으로 읽을지 갈릴 수 있는 변환은 저절로 일어나지 아니하며 `cast` 를 거친다.** 같은 비트가 두 가지 수로 읽힐 수 있거나,
@@ -1281,18 +1316,19 @@ fn nonzero input n u64 . output bool . do
 end .
 ```
 
-(5) **열거 값은 수가 아니다.** 수를 받는 자리 — 수로 선언된 이름 · 칸 · 인자 · 반환, 셈, 크기 견줌(`lt` · `le` · `gt` · `ge`), 첨자,
-      비트 연산, 넓히기 · 좁히기 — 에 열거 값을 두면 번역이 거부되고(`E-TYPE-KIND` · `E-TYPE-LET` · `E-TYPE-RETURN` · `E-TYPE-ARG` ·
-      `E-WIDEN-KIND`), 열거를 받는 자리에 수를 두는 것도 리터럴까지 거부된다. 갈래의 번호가 필요하면 `cast <정수 타입> <열거 값>` 으로
-      적는다. 그 번호는 **선언된 차례이며 0 부터** 센다. 같은 열거의 두 값은 `eq` · `ne` 로 견줄 수 있다 — 그것은 수를 묻는 일이 아니다.
+(5) **열거 값은 수가 아니다.** 수를 받는 자리 — 수로 선언된 이름 · 칸 · 인자 · 반환, 셈, 수와의 견줌, 첨자, 비트 연산, 넓히기 ·
+      좁히기 — 에 열거 값을 두면 번역이 거부되고(`E-TYPE-KIND` · `E-TYPE-LET` · `E-TYPE-RETURN` · `E-TYPE-ARG` · `E-WIDEN-KIND`), 열거를
+      받는 자리에 수를 두는 것도 리터럴까지 거부된다. 갈래의 번호(⟦§6.2.7⟧ (2c))가 필요하면 `cast <정수 타입> <열거 값>` 으로 적는다 —
+      번호가 그 타입에 들어가지 않으면 (2) 대로 트랩한다. 같은 열거의 두 값은 `eq` · `ne` 로, 그리고 `lt` · `le` · `gt` · `ge` 로 견줄 수
+      있다 — 크기는 번호의 차례이고, 번호는 선언된 차례대로 오르므로 선언의 차례와 같다. 다른 열거의 값끼리는 견주지 아니한다(`E-TYPE-KIND`).
 
-(5a) **수에서 열거로** 가는 `cast` 는 없다(`E-TYPE-KIND`). 어느 수가 어느 갈래인지, 갈래에 없는 수는 어떻게 할지는 프로그램이 정할
-      일이다 — 수를 `if` · `match` 로 갈라 적는다.
+(5a) **수에서 열거로**는 `cast <열거> <정수>` 로 간다 — 그 번호를 가진 갈래를 낸다. 어느 갈래의 번호도 아닌 수이면 **트랩한다**
+      (`E-VM-CAST`). 파일이나 선에서 읽은 수를 열거로 되돌리는 자리가 이것이다. 원천은 정수여야 한다(`E-TYPE-KIND`).
 
-(5b) 값을 지닌 갈래(⟦§6.2.19⟧)가 하나라도 있는 열거는 `cast` 의 원천이 될 수 없다(`E-TYPE-KIND`). 번호 하나로는 그 값이 다
-      말해지지 않는다 — 어느 갈래인지는 `isa` · `match` 로 묻는다.
+(5b) 값을 지닌 갈래(⟦§6.2.19⟧)가 하나라도 있는 열거는 `cast` 의 원천도 대상도 될 수 없다(`E-TYPE-KIND`). 번호 하나로는 그 값이 다
+      말해지지 않는다 — 어느 갈래인지는 `isa` · `match` 로 묻고, 값은 `<열거>.<갈래> …` 로 짓는다.
 
-```lowent 예제: 갈래의 번호는 cast 로 읽는다 · 결과: code_of_blue() = 2 · same() = 1
+```lowent 예제: 갈래의 번호는 cast 로 읽는다 · 결과: code_of_blue() = 3 · same() = 1
 module ex_enum_cast .
 
 enum color do
@@ -1327,16 +1363,54 @@ fn code input c color . output u8 . do
 end .
 ```
 
-```lowent-거부: 수를 열거로 바꾸는 cast 는 없다 · E-TYPE-KIND
-module ex_cast_to_enum .
+```lowent 예제: 읽은 수를 열거로 되돌리고 범위로 거른다 · 결과: kind_of(12) = 1 · kind_of(21) = 2 · round_trip(102) = 102
+module ex_enum_from_number .
+
+enum item do
+  weapon_start 10 .
+  sword .
+  stick .
+  weapon_end .
+  tool_start 20 .
+  hammer .
+  tool_end .
+end .
+
+rem 1 = 무기 · 2 = 도구 — 같은 열거의 값은 크기로 견준다
+fn kind_of input n u8 . output u8 . do
+  let it item cast item n. . .
+  if and gt it. weapon_start. . lt it. weapon_end. . . do return 1 . end .
+  if and gt it. tool_start. . lt it. tool_end. . . do return 2 . end .
+  return 0 .
+end .
+
+enum hangul do
+  ga 11 .
+  na .
+  da 101 .
+  ra .
+end .
+
+fn round_trip input n u32 . output u32 . do
+  return cast u32 cast hangul n. . . .
+end .
+```
+
+```lowent-거부: 다른 열거의 값끼리 견준다 · E-TYPE-KIND
+module ex_enum_cross_order .
 
 enum color do
   red .
   green .
 end .
 
-fn pick input n u8 . output color . do
-  return cast color n. . .     rem 수를 갈라 적는다 — `if eq n. 0 . do return red. . end .`
+enum size do
+  small .
+  large .
+end .
+
+fn f input c color . input s size . output bool . do
+  return lt c. s. . .
 end .
 ```
 

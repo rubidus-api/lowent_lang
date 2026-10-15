@@ -121,7 +121,7 @@ Searches headings and index terms --- not the full text
 - [10.1 struct — a collection of named fields](ch10.md#s10-1)
 - [10.1.1 Array fields — a field that holds bytes](ch10.md#s10-1-1)
 - [10.2 enum — one of several](ch10.md#s10-2)
-- [10.2.1 A variant’s number is read with cast](ch10.md#s10-2-1)
+- [10.2.1 Variant numbers and cast](ch10.md#s10-2-1)
 - [10.3 Variants are closed with full stops](ch10.md#s10-3)
 - [10.4 Nothing may contain itself](ch10.md#s10-4)
 - [10.5 Common mistakes](ch10.md#s10-5)

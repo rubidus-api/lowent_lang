@@ -2756,6 +2756,11 @@ static void ir_send(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven
         if (proven_u8str_view_eq(c->enumv[i], v)) return c->enum_owner[i];
     return (proven_u8str_view_t){0};
 }
+// 한정된 열거 이름(`m.color`)의 끝 낱말 — 갈래 표의 주인 이름은 맨 이름이다
+static proven_u8str_view_t ir_enum_base(proven_u8str_view_t v) {
+    for (proven_size_t i = v.size; i > 0; i--) if (v.ptr[i - 1] == (proven_byte_t)'.') return (proven_u8str_view_t){ v.ptr + i, v.size - i };
+    return v;
+}
 static proven_size_t ir_enum_nvariants(const ir_ctx_t *c, proven_u8str_view_t ename) {
     proven_size_t n = 0;
     if (!ename.size) return 0;
@@ -3415,6 +3420,52 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             if (veq(nd->tok.lex, "cast")) {   // G2 runtime: `cast <scalar> <e>`
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "cast needs a scalar type", nd->line); return; }
                 proven_u8str_view_t tw = k[*pos]->tok.lex;
+                // ★★★ 열거와 수 사이(소유자 2026-10-15; 정본 §6.2.7 (2c) · §6.2.16 (5)(5a)). 열거 값은 **단위 전체의 갈래 순번**으로 들고
+                //   다니므로 번호와 순번을 오간다: 비교 사슬(갈래 수만큼)로 낮춘다 — 새 기계 명령은 없다. 맞는 갈래가 없으면 멈춘다.
+                {
+                    proven_u8str_view_t en = ir_enum_base(tw);
+                    bool to_enum = ir_enum_nvariants(c, en) > 0;
+                    bool from_enum = false;
+                    if (!to_enum) {
+                        from_enum = low_tc_cast_enum(nd, &en);
+                        if (!from_enum && *pos + 1 < end && is_atom(k[*pos + 1])) {   // 검사 없이 낮출 때 — 원천이 열거로 선언된 이름이면
+                            bool fnd; proven_size_t sl = ir_local_find(c, k[*pos + 1]->tok.lex, &fnd);
+                            if (fnd && c->locals[sl].tyname.size && ir_enum_nvariants(c, ir_enum_base(c->locals[sl].tyname)) > 0) {
+                                en = ir_enum_base(c->locals[sl].tyname); from_enum = true;
+                            }
+                        }
+                        if (from_enum) en = ir_enum_base(en);
+                    }
+                    if (to_enum || from_enum) {
+                        (*pos)++;
+                        ir_value(c, k, pos, end);
+                        if (c->failed) return;
+                        proven_size_t tmp = ir_hidden_local(c, nd->line);
+                        if (c->failed) return;
+                        ir_emit(c, IRW_STORE, (proven_i64)tmp);
+                        proven_size_t ends[IR_MAXENUMV]; proven_size_t nend = 0;
+                        for (proven_size_t vi = 0; vi < c->nenumv; vi++) {
+                            if (!c->enum_owner[vi].size || !proven_u8str_view_eq(c->enum_owner[vi], en)) continue;
+                            ir_emit(c, IRW_LOAD, (proven_i64)tmp);
+                            ir_emit(c, IRW_CONST, to_enum ? c->enum_num[vi] : (proven_i64)vi);
+                            ir_emit(c, IRW_EQ, 0);
+                            proven_size_t nx = ir_emit(c, IRW_BRZ, 0);
+                            ir_emit(c, IRW_CONST, to_enum ? (proven_i64)vi : c->enum_num[vi]);
+                            ends[nend++] = ir_emit(c, IRW_BR, 0);
+                            ir_at(c, nx)->a = (proven_i64)c->code.len;
+                        }
+                        ir_emit(c, IRW_PANIC, IR_PANIC_ENUMCAST);
+                        for (proven_size_t e = 0; e < nend; e++) ir_at(c, ends[e])->a = (proven_i64)c->code.len;
+                        if (from_enum) {   // 번호를 대상 정수 타입에 담는다 — 안 들어가면 보통의 `cast` 처럼 멈춘다
+                            proven_u8 sz = ir_field_size(tw); bool tsign = ity_of_word(tw).sign;
+                            if (!sz) { ityp_t a = ity_alias_lookup(c, tw); if (a.known) { sz = (proven_u8)(a.bits / 8); tsign = a.sign; } }
+                            if (!sz) { ir_fail(c, "E-IR-UNDEF", "cast target must be a sized scalar", nd->line); return; }
+                            proven_i64 meta = sz | (tsign ? IR_SGN_BIT : 0);
+                            ir_emit(c, IRW_CAST, meta);
+                        }
+                        return;
+                    }
+                }
                 proven_i64 meta;
                 if (veq(tw, "f32") || veq(tw, "f64")) meta = 0;
                 else {

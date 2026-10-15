@@ -1269,6 +1269,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-BOUNDS", "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N");
                     return false;
                 }
+                if (in->a == IR_PANIC_ENUMCAST) {
+                    vm_diag(vm->diags, "E-VM-CAST", "cast to an enum: the number is not the number of any variant of that enum (canon 6.2.16 (5a))");
+                    return false;
+                }
                 const char *m = "panic";
                 (void)m;
                 vm_diag(vm->diags, "E-VM-PANIC",
@@ -1356,6 +1360,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t want = h->nparams;                 // instance + args
                 if (sp < want) return false;
                 vmv_t inst = stack[sp - want];
+                if (inst.tag == VMV_INT && inst.i == 0) {
+                    vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`spawn send` on actor handle 0 — this actor was never spawned (0 is the handle that points at nothing; assign `spawn actor <name>` to it first)"); return false; }
                 if (inst.tag != VMV_REC || (proven_size_t)inst.box >= VM_MAXREC) {
                     vm_diag(vm->diags, "E-VM-TYPE", "`spawn send` needs a spawned actor instance"); return false;
                 }
@@ -1390,6 +1396,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t want = h->nparams;
                 if (sp < want) return false;
                 vmv_t inst = stack[sp - want];
+                if (inst.tag == VMV_INT && inst.i == 0) {
+                    vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`try spawn send` on actor handle 0 — this actor was never spawned (0 is the handle that points at nothing; assign `spawn actor <name>` to it first)"); return false; }
                 if (inst.tag != VMV_REC || (proven_size_t)inst.box >= VM_MAXREC) {
                     vm_diag(vm->diags, "E-VM-TYPE", "`try spawn send` needs a spawned actor instance"); return false;
                 }
@@ -1423,6 +1431,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   재진입 send(핸들러가 또 spawn send)는 끝에 붙어 같은 drain 에서 처리된다.
                 if (sp < 1) return false;
                 vmv_t inst = stack[--sp];
+                if (inst.tag == VMV_INT && inst.i == 0) { vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`drain` on actor handle 0 — this actor was never spawned (0 is the handle that points at nothing)"); return false; }
                 if (inst.tag != VMV_REC) { vm_diag(vm->diags, "E-VM-TYPE", "`drain` needs a spawned actor instance"); return false; }
                 proven_i32 box = inst.box;
                 proven_size_t i = 0;
@@ -4108,6 +4117,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vmv_t cargs[VM_LOCALS], rv = vmv_int(0);
                 if (sp < callee->nparams) return false;
                 for (proven_size_t i = 0; i < callee->nparams; i++) cargs[callee->nparams - 1 - i] = stack[--sp];
+                // ★ 비워 둔 액터(0)에 보낸 메시지는 멈춘다(소유자 2026-10-15 «액터도 비어있는 경우를 위해 0» · 정본 §10.2 (1d)).
+                //   정수 0 만 본다 — 차등 스윕은 핸들러를 합성 구조체로 직접 부른다.
+                if (callee->is_actor && callee->nparams > 0 && cargs[0].tag == VMV_INT && cargs[0].i == 0) {
+                    vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`send` on actor handle 0 — this actor was never spawned (0 is the handle that points at nothing; assign `spawn actor <name>` to it first)");
+                    return false;
+                }
                 // ★ RFC-0055 D3: 파라미터 범위는 **계약**이다. 호출 지점에서 증명되지
                 //   않았으면 여기서 검사한다. 증명됐으면(PROVEN) 검사가 사라진다 —
                 //   계약이 공짜가 되는 지점.

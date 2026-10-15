@@ -317,7 +317,7 @@ conversion is what `cast` is for.
   [*Word*], [*What it covers*], [*When the value does not fit*],
   [`widen`], [widening that keeps the value --- the compiler also does it by itself], [cannot happen],
   [`narrow`], [a smaller width within the same kind], [stops],
-  [`cast`], [every other conversion --- changing the sign · between integers and floating point · between `usize`/`idiff` and other integers · a bool to a number · an enum to a number], [stops],
+  [`cast`], [every other conversion --- changing the sign · between integers and floating point · between `usize`/`idiff` and other integers · a bool to a number · between an enum and a number], [stops],
 )
 
 #demo("examples/ch04/cast_kinds.low")
@@ -327,8 +327,9 @@ conversion is what `cast` is for.
 - `to_float` and `to_int` cross kinds. Converting a floating-point number to an integer drops the fraction toward 0 --- 7.9 becomes 7.
 - `bool_num` turns a bool into a number: true is 1, false is 0. There is no `cast` the other way, from a number to a bool; write
   what you are asking, as in `ne n. 0 .`.
-- `level_num` reads the number of an enum value. The number is the declaration order, counted from 0. An enum value is not a
-  number, so without this `cast` it does not go into a number place (#chref("structs-enums")).
+- `level_num` reads the number of an enum value. The first variant is 1, so `high` is 3. The other way, `cast level n. .` gives the
+  variant numbered n and stops if there is none. An enum value is not a number, so without this `cast` it does not go into a number
+  place (#chref("structs-enums")).
 
 A conversion that could be read more than one way *never happens by itself*: the same bits could be read as two different numbers,
 the conversion widens on one machine and narrows on another, or the value changes kind. Types and conversions added to the language

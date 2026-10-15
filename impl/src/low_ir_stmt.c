@@ -3110,6 +3110,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
             //   값으로 담으면 무한 크기라 거절한다(RFC-0080 §4.2, 재귀는 owned/인덱스 경유).
             proven_u8str_view_t ename = (f->nkids >= 2 && is_atom(f->kids[1]))
                                             ? f->kids[1]->tok.lex : (proven_u8str_view_t){0};
+            proven_i64 next_num = 1;   // ★ 갈래의 번호 — 첫 갈래 1, 적지 않으면 앞 + 1, `ga 11 .` 이면 11(검사층이 오름 · 정수임을 본다)
             for (proven_size_t j = 0; j < blk->nkids; j++)
                 if (blk->kids[j]->kind == LOW_CST_FORM && blk->kids[j]->nkids >= 1 &&
                     is_atom(blk->kids[j]->kids[0])) {
@@ -3119,6 +3120,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                     proven_size_t vi = mod.nenumv++;
                     mod.enumv[vi] = vf->kids[0]->tok.lex;
                     mod.enum_owner[vi] = ename;
+                    if (vf->nkids == 2 && is_atom(vf->kids[1]) && vf->kids[1]->tok.kind == LOW_TOK_NUMBER) {
+                        proven_i64 nv = 0;
+                        if (ir_int_lit(vf->kids[1]->tok.lex, &nv)) next_num = nv;
+                    }
+                    mod.enum_num[vi] = next_num++;
                     // 나머지 kids = (필드이름, 필드타입) 쌍. 홀수/초과는 방어적으로 자른다.
                     // ★ 페이로드 타입은 **한 낱말**이어야 한다(스칼라나 인덱스 이름). 변형 한 줄에는
                     //   필드 구분자가 없어서(`add l u32 r u32 .`) `owned tree`·`slice u8` 같은 **여러

@@ -1,7 +1,10 @@
 module enum_number .
 rem run: code 0
 rem run: code 2
-rem run: louder 1
+rem run: from_disk 2
+rem run: is_weapon 12
+rem run: is_weapon 21
+rem trap: from_disk 9
 
 enum volume do
   quiet .
@@ -15,12 +18,29 @@ fn of input k u8 . output volume . do
   return loud. .
 end .
 
-rem ko: 갈래의 번호가 필요하면 cast 로 읽는다 --- 선언 차례이고 0 부터 센다 /// en: when you need the variant's number, read it with cast --- declaration order, from 0
+rem ko: 갈래의 번호를 읽는다 --- 첫 갈래가 1 이다 /// en: read a variant's number --- the first variant is 1
 fn code input k u8 . output u8 . do
   return cast u8 of k. . . .
 end .
 
-rem ko: 크기를 견주는 것도 번호를 쓰는 일이다 --- 양쪽을 cast 한다 /// en: comparing sizes uses the numbers too --- cast both sides
-fn louder input k u8 . output bool . do
-  return gt cast u8 of k. . . cast u8 normal. . . .
+rem ko: 파일에서 읽은 번호를 갈래로 되돌린다 --- 없는 번호면 멈춘다 /// en: turn a number read from a file back into a variant --- a number with no variant stops
+fn from_disk input n u8 . output bool . do
+  let v volume cast volume n. . .
+  return eq v. normal. . .
+end .
+
+enum item do
+  weapon_start 10 .
+  sword .
+  stick .
+  weapon_end .
+  tool_start 20 .
+  hammer .
+  tool_end .
+end .
+
+rem ko: 같은 열거의 값은 크기로 견준다 --- 시작과 끝 사이의 갈래를 한 번에 거른다 /// en: values of one enum are ordered --- one comparison filters the variants between start and end
+fn is_weapon input n u8 . output bool . do
+  let it item cast item n. . .
+  return and gt it. weapon_start. . lt it. weapon_end. . . .
 end .

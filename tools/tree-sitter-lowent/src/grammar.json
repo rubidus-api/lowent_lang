@@ -710,20 +710,33 @@
           }
         },
         {
-          "type": "REPEAT",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "number",
+              "content": {
                 "type": "SYMBOL",
-                "name": "name"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "_type"
+                "name": "number"
               }
-            ]
-          }
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "name"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "_type"
+                  }
+                ]
+              }
+            }
+          ]
         },
         {
           "type": "SYMBOL",

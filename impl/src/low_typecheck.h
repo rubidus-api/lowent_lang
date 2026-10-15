@@ -26,6 +26,7 @@ typedef struct {
 } low_tcnote_t;
 bool low_tc_note_of(const void *node, low_tcnote_t *out);
 bool low_tc_notes_on(void);
+bool low_tc_cast_enum(const void *node, proven_u8str_view_t *ename);   /* 열거 → 수 `cast` 의 원천 열거 — 하강층이 갈래의 번호를 낸다 */
 bool low_tc_notes_live(void);   /* 이 단위의 검사가 답을 적었다 — 하강층이 권위로 읽는다 (S4-2) */
 bool low_tc_list_types(void);
 void low_tc_notes_close(void);  /* 하강이 단위를 끝냈다 — 답을 닫는다 */   /* `LOWENT_LIST_TYPES=1` — 두 층의 답을 한 줄로 낸다 */

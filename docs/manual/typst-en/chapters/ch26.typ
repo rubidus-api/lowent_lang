@@ -84,6 +84,9 @@ does not point at a flow (`var h task u64 7 .` is refused).
 - `forgot` waits on `a` without ever giving it a flow. The run stops right there (`E-VM-HANDLE-ZERO`). A channel (`chan T`) is the
   same --- putting into or taking from a channel that is 0 stops.
 
+Actors are the same (#chref("actors")). `var s sink 0 .` is an actor not spawned yet, and sending it a message with `send` or
+`spawn send` stops. Spawn it first with `set s. spawn actor sink . .`. No other number goes into an actor place either.
+
 0 plays the part of the null pointer in other languages. Being able to leave a place empty is convenient, but using the empty thing
 must stop on the spot rather than pick up something else. So the handles `spawn` and `channel` give count from 1, and every place
 that uses a handle checks for 0.

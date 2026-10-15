@@ -7571,13 +7571,14 @@ static bool ck_param_mutq(const low_cst_t *f, const low_op_header_t *h, proven_s
 #define LC_MAX 1024
 typedef struct {
     struct { proven_u8str_view_t name; int depth; } t[LC_MAX]; proven_size_t nt;        // 이름 → 그것이 보는 틀 자리의 블록 깊이
-    struct { proven_u8str_view_t name; int depth; bool scalar; } d[LC_MAX]; proven_size_t nd;  // 선언된 이름 → 블록 깊이
+    struct { proven_u8str_view_t name; int depth; bool scalar; proven_u8str_view_t ty; } d[LC_MAX]; proven_size_t nd;  // 선언된 이름 → 블록 깊이 · 적힌 타입 낱말
     proven_u8str_view_t arr[LC_MAX]; proven_size_t narr;                                  // `var` 배열 이름
     proven_u8str_view_t vel[LC_MAX]; proven_size_t nvel;                                  // 원소가 **보기**인 나열 이름(줄 · 구조체) — `index` 가 자리를 싣는다
     proven_size_t bytes;                                                                  // 이 op 의 틀 안 나열 바이트
     bool told, over;                                                                      // over = 표가 찼다(부분 검사 대신 거절)
     bool autorel;                                                                         // 블록 끝에 돌려줄 할당기 바이트가 있다(RFC-0135 S2)
     bool scalar_out;                                                                      // op 의 출력이 스칼라 한 낱말 — `return` 이 자리를 싣지 못한다
+    bool sarr;                                                                            // 배열 칸을 가진 구조체를 지역으로 선언한다(RFC-0150 D5)
 } lc_t;
 static const low_cst_t *lc_list(const low_cst_t *nd) {
     while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
@@ -7632,6 +7633,12 @@ static int lc_decl(const lc_t *x, proven_u8str_view_t n, bool *scalar) {
     if (scalar) *scalar = false;
     return 0;                                                    // 매개변수 · 모듈 이름 — op 보다 오래 산다
 }
+// 선언된 지역 이름의 적힌 타입 낱말(없으면 빈 것) — 지역 구조체의 배열 칸을 가리기 위해(RFC-0150 D5)
+static proven_u8str_view_t lc_decl_ty(const lc_t *x, proven_u8str_view_t n) {
+    for (proven_size_t i = x->nd; i-- > 0; ) if (proven_u8str_view_eq(x->d[i].name, n)) return x->d[i].ty;
+    return (proven_u8str_view_t){ 0 };
+}
+static bool ck_is_array_field(proven_u8str_view_t ty, proven_u8str_view_t fname);   // 아래에 정의
 static void lc_set_taint(lc_t *x, proven_u8str_view_t n, int depth) {
     for (proven_size_t i = 0; i < x->nt; i++) if (proven_u8str_view_eq(x->t[i].name, n)) { if (depth > x->t[i].depth) x->t[i].depth = depth; return; }
     if (x->nt < LC_MAX) { x->t[x->nt].name = n; x->t[x->nt].depth = depth; x->nt++; } else x->over = true;
@@ -7701,6 +7708,24 @@ static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *
     }
     return false;
 }
+// 구조체 `ty` 에 배열 칸(`array T N`)이 하나라도 있는가 (RFC-0150 D5)
+static bool ck_struct_has_array(proven_u8str_view_t ty) {
+    if (!g_ck_pr) return false;
+    ty = low_view_after_last(ty, '.');
+    for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT ||
+            !ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) return false;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *fl = blk->kids[j];
+            if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && ck_atom(fl->kids[1]) && veq(fl->kids[1]->tok.lex, "array")) return true;
+        }
+        return false;
+    }
+    return false;
+}
 static bool ck_struct_exists(proven_u8str_view_t ty) {
     if (!g_ck_pr) return false;
     ty = low_view_after_last(ty, '.');
@@ -7764,6 +7789,20 @@ static bool lc_is_vel(const lc_t *x, proven_u8str_view_t n) {
 }
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n) {
     {
+        // ★★★★ 2026-10-15 (RFC-0150 D5) — **지역 구조체의 배열 칸은 그 op 의 자리다.** 구조체는 op 의 레코드 풀에 살고(정본 §8.1 (3a):
+        //   «이 풀은 그 op 의 암묵 frame 이다»), 배열 칸은 그 바이트 안에 있다. 그런데 이 검사는 따로 선언한 지역 배열의 보기만 세고
+        //   구조체의 배열 칸은 세지 않았다 — `return subslice field p. buf . 0 2 .` 가 `check: ok` 였다. 오늘 맞는 답이 나온 것은
+        //   op 이 돌아갈 때 풀을 되감지 않기 때문이다(구현의 우연). RFC-0135 S4 가 구조체를 틀로 옮기면 끝난 틀을 읽는다.
+        //   ⇒ 이 op 에서 선언한 구조체(깊이 > 0)의 배열 칸을 읽은 값은 그 선언 블록의 자리를 본다. 매개변수의 구조체(깊이 0)는
+        //     부른 쪽의 것이라 세지 않는다.
+        if (veq(k[0]->tok.lex, "field") && n >= 3 && ck_atom(k[1]) && k[1]->tok.kind == LOW_TOK_IDENT && ck_atom(k[2])) {
+            int dd = lc_decl(x, k[1]->tok.lex, NULL);
+            proven_u8str_view_t ty = lc_decl_ty(x, k[1]->tok.lex);
+            if (dd > 0 && ty.size && ck_is_array_field(ty, k[2]->tok.lex)) {
+                int t = lc_taint(x, k[1]->tok.lex);
+                return t > dd ? t : dd;
+            }
+        }
         // ★ RFC-0132 T2b-3d · §13.10 — 원소가 줄이나 구조체인 틀 안 나열의 `index` 는 수가 아니라 **그 바이트를 보는 보기**다
         if (veq(k[0]->tok.lex, "idx") && n >= 2 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex)) return lc_taint(x, k[1]->tok.lex);
         if (veq(k[0]->tok.lex, "field") && n >= 4 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex) && ck_atom(k[2]) &&
@@ -7853,7 +7892,11 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                 if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
                 else if (dv > 0) lc_set_taint(x, nd->kids[1]->tok.lex, dv);
             }
-            if (x->nd < LC_MAX) { x->d[x->nd].name = nd->kids[1]->tok.lex; x->d[x->nd].depth = depth; x->d[x->nd].scalar = scalar; x->nd++; }
+            if (x->nd < LC_MAX) {
+                x->d[x->nd].name = nd->kids[1]->tok.lex; x->d[x->nd].depth = depth; x->d[x->nd].scalar = scalar;
+                x->d[x->nd].ty = nd->nkids >= 4 && ck_atom(nd->kids[2]) ? nd->kids[2]->tok.lex : (proven_u8str_view_t){ 0 };
+                x->nd++;
+            }
             else x->over = true;
         } else if (kw == LOW_KW_SET && nd->nkids >= 3) {
             const low_cst_t *tg = nd->kids[1];
@@ -7877,6 +7920,18 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                     if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
                     else if (dv > bd) lc_escape(out, x, nd->kids[0]->tok.line, false);
                     else if (dv > 0 && bare) lc_set_taint(x, base, dv);
+                    else if (dv > 0 && bd > 0) {
+                        // ★★★ RFC-0150 D5 — 지역 구조체의 칸(슬라이스 칸 등)에 틀 자리를 보는 값을 넣으면 그 구조체도 그 자리를 본다.
+                        //   전에는 `bare` 가 아니면 아무것도 적지 않아, 제 배열 칸을 보는 뷰를 슬라이스 칸에 담은 구조체를
+                        //   돌려주는 것이 통과했다. 배열 칸에 주는 값은 바이트로 베껴지므로(T2b-3b) 그 자리는 빼고 적는다.
+                        const low_cst_t *ft = nd->kids[1];
+                        while (ft && ft->kind == LOW_CST_GROUP && ft->nkids == 1) ft = ft->kids[0];
+                        bool arr_field = ft && ft->kind == LOW_CST_FORM && ft->nkids >= 3 && ck_atom(ft->kids[0]) &&
+                                         veq(ft->kids[0]->tok.lex, "field") && ck_atom(ft->kids[1]) && ck_atom(ft->kids[2]) &&
+                                         proven_u8str_view_eq(ft->kids[1]->tok.lex, base) &&
+                                         lc_decl_ty(x, base).size && ck_is_array_field(lc_decl_ty(x, base), ft->kids[2]->tok.lex);
+                        if (!arr_field) lc_set_taint(x, base, dv);
+                    }
                 }
             }
         } else if (kw == LOW_KW_RETURN && !x->scalar_out) {   // 스칼라를 돌려주면 바이트 자리는 따라 나가지 못한다(X-0086)
@@ -7899,8 +7954,13 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
     for (proven_size_t i = 0; i < nd->nkids; i++) lc_walk(out, x, nd->kids[i], depth);
 }
 // 틀 안 나열 바이트를 센다 — `var` 에 묶은 것 · 실행 중 원소가 든 것 · `mut` 매개변수로 넘긴 것(IR 과 같은 가름).
+static bool ck_struct_has_array(proven_u8str_view_t ty);   // 아래에 정의
 static void lc_count(lc_t *x, const low_cst_t *nd, bool forced) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
+    // ★ RFC-0150 D5 — 바이트를 세지 않아도 볼 수명이 있다: 지역 구조체의 배열 칸(op 의 레코드 풀 = 그 op 의 틀)
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[2]) &&
+        ck_struct_has_array(nd->kids[2]->tok.lex)) x->sarr = true;
     if (lc_is_into(nd)) {                                        // 틀을 쓰지 않는다 — 원소 속만 센다
         if (nd->nkids == 4) x->autorel = true;                   // 그래도 그 바이트의 수명은 본다(블록 끝에 돌려준다)
         lc_count(x, nd->kids[1], false);
@@ -8168,7 +8228,7 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     static lc_t x;
     memset(&x, 0, sizeof x);
     lc_count(&x, f, false);
-    if (!x.bytes && !x.autorel) return;                          // 틀 안 나열도 돌려줄 바이트도 없으면 볼 수명이 없다
+    if (!x.bytes && !x.autorel && !x.sarr) return;               // 틀 안 나열도 돌려줄 바이트도 지역 구조체의 배열 칸도 없으면 볼 수명이 없다
     {
         low_op_header_t h = low_op_header(f);
         proven_size_t nw = 0; proven_u8str_view_t w0 = { 0 };

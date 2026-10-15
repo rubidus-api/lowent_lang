@@ -736,6 +736,25 @@ static const tc_variant_t *variant_find(proven_u8str_view_t en, proven_u8str_vie
     }
     return hits == 1 ? only : NULL;
 }
+// ★★ 2026-10-15 (RFC-0150 D4) — 칸 타입의 **모든 낱말**을 모은다, 괄호 안까지.
+//   순환 검사는 칸 타입의 맨 낱말(`option node`)만 보고 괄호(`option (option node)`)는 건너뛰었다. 그래서 크기가 무한한
+//   `option (option node)` 가 `--check` 와 `--emit-c` 를 지났고, `option (owned node)` · `option (ref node)` 도 같은 까닭으로
+//   지났다 — 맨 꼴(`owned node` · `ref node`)은 거절되는데. 괄호 꼴은 머리가 FORM 의 `tok` 에 있다(kids 가 아니다).
+//   ☞ *모양이 둘인 것을 하나만 보면, 다른 하나로 쓴 글은 검사 밖이다.*
+static void tc_type_words(const low_cst_t *n, proven_u8str_view_t *out, proven_size_t *nout, proven_size_t cap, bool *over) {
+    if (!n) return;
+    if (n->kind == LOW_CST_ATOM) {
+        if (*nout >= cap) { *over = true; return; }
+        out[(*nout)++] = n->tok.lex;
+        return;
+    }
+    if (n->kind == LOW_CST_FORM && n->tok.lex.size) {
+        if (*nout >= cap) { *over = true; return; }
+        out[(*nout)++] = n->tok.lex;
+    }
+    for (proven_size_t i = 0; i < n->nkids; i++) tc_type_words(n->kids[i], out, nout, cap, over);
+}
+
 static const tc_sig_t *sig_find_at(tc_ctx_t *c, const low_cst_t *at) {
     if (at && !at->qual_mod.size && g_nal) { const tc_sig_t *s = sig_find_alias(c, at->tok.lex); if (s) return s; }
     if (at && at->qual_mod.size)
@@ -3869,19 +3888,20 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             for (proven_size_t j = 0; j < c.strs[cur].nf && !cyc; j++) {
                 const low_cst_t *fd = c.strs[cur].fform[j];
                 if (!fd) continue;
+                proven_u8str_view_t tw[64]; proven_size_t ntw = 0; bool tw_over = false;
+                for (proven_size_t w = 1; w < fd->nkids; w++) tc_type_words(fd->kids[w], tw, &ntw, 64, &tw_over);
+                if (tw_over) { c.cycle_overflow = true; break; }     // 다 못 모았으면 «순환 없다» 의 근거가 없다
                 // 이 필드의 타입 낱말에 `ref`/`mut_ref` 가 있으면 **간접 간선**이다.
                 bool fref = false;
-                for (proven_size_t w = 1; w < fd->nkids; w++)
-                    if (fd->kids[w]->kind == LOW_CST_ATOM &&
-                        (proven_u8str_view_eq(fd->kids[w]->tok.lex, proven_u8str_view_from_cstr("ref")) ||
-                         proven_u8str_view_eq(fd->kids[w]->tok.lex, proven_u8str_view_from_cstr("mut_ref"))))
+                for (proven_size_t w = 0; w < ntw; w++)
+                    if (proven_u8str_view_eq(tw[w], proven_u8str_view_from_cstr("ref")) ||
+                        proven_u8str_view_eq(tw[w], proven_u8str_view_from_cstr("mut_ref")))
                         { fref = true; break; }
-                // 타입 낱말은 여럿일 수 있다(`option node` · `ref node` · `array node 4`).
+                // 타입 낱말은 여럿일 수 있다(`option node` · `ref node` · `array node 4` · `option (option node)`).
                 // 그 **어느 자리에든** struct 이름이 있으면 그 struct 를 품는다는 뜻이다.
-                for (proven_size_t w = 1; w < fd->nkids && !cyc; w++) {
-                    if (fd->kids[w]->kind != LOW_CST_ATOM) continue;
+                for (proven_size_t w = 0; w < ntw && !cyc; w++) {
                     for (proven_size_t k = 0; k < c.nstrs; k++) {
-                        if (!proven_u8str_view_eq(c.strs[k].name, fd->kids[w]->tok.lex)) continue;
+                        if (!proven_u8str_view_eq(c.strs[k].name, tw[w])) continue;
                         if (k == si) {
                             if (cur_ref || fref) indir = true;   // 경로에 참조가 있었다
                             else cyc = true;                     // 값만으로 돌아왔다

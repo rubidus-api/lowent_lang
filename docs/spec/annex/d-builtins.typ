@@ -442,7 +442,7 @@ write_out             write_volatile        zip")
   #tbl("읽기")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
-        [`len s` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · 배열 · 문자열 리터럴 \ *내는 것:* `usize` — 원소의 수(바이트 수가 아니다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`len s` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · 배열 · 문자열 리터럴 · 권한 `cap args`(받은 인자의 수 — 진입 `proc` 만 그 권한을 받으므로 `fn` 탐침은 없다) \ *내는 것:* `usize` — 원소의 수(바이트 수가 아니다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`idx s i` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · 배열 · `i` — `usize` \ *내는 것:* 원소의 타입 — `i` 번째 원소 \ *번역 때 거절:* `i` 가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* `i` 가 길이 밖이면 `E-VM-BOUNDS`],
         [`subslice s a b` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · `a` `b` — `usize` \ *내는 것:* `slice T`(`T` 는 `s` 의 원소) — `[a, b)` 를 복사 없이 보는 슬라이스 \ *번역 때 거절:* 경계가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* `a` 가 `b` 보다 크거나 `b` 가 길이 밖이면 `E-VM-BOUNDS`],
         [`view_array T s` #cref("6.2.13")], [*받는 것:* `T` — 정수 또는 부동 타입 · `s` — 바이트 슬라이스 \ *내는 것:* `slice T` — 같은 바이트를 `T` 의 나열로 본다(복사 없음) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* `s` 의 길이가 `T` 의 크기의 배수가 아니면 `E-VM-VIEW`],

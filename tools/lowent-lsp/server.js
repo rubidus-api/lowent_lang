@@ -115,7 +115,7 @@ function handle(msg) {
       if (opt.lowentc) lowentc = opt.lowentc;
       send({ jsonrpc: '2.0', id: msg.id, result: {
         capabilities: { textDocumentSync: { openClose: true, change: 1, save: { includeText: false } }, hoverProvider: true, completionProvider: {} },
-        serverInfo: { name: 'lowent-lsp', version: '1.11.0' },
+        serverInfo: { name: 'lowent-lsp', version: '1.12.0' },
       } });
       break;
     }

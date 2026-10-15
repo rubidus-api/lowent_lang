@@ -137,6 +137,13 @@ Shape rules you will hit immediately:
   is refused where it is bound, assigned, passed or returned (`E-TYPE-UNKNOWN`); a struct value and a
   number never take each other's place. A flow's handle is `task T` (`let h task u64 spawn f 5 . .`,
   `await h. .` gives `T`) and a channel is `chan T` (`var ch chan u64 channel u64 . .`) — not `u64`.
+  A handle, a channel or an actor may start at literal `0` (empty); using an empty one stops
+  (`E-VM-HANDLE-ZERO`). No other number goes into those places.
+- **An enum value is not a number.** Variants are numbered from 1 (`ga 11 .` fixes one, the next count
+  on; numbers must rise — `E-ENUM-NUMBER`). Cross with `cast u8 v. .` and `cast color n. .` (a number
+  with no variant stops). Two values of one enum compare with `eq` and by order (`lt` …); anything else
+  that mixes an enum with a number is refused. Any conversion that could be read two ways is a `cast`.
+- **Raw strings**: `r"\d+\.\d+"` keeps every backslash; it ends at the next `"` and has no escapes.
 - **Statements you will write constantly**: `let n u64 add a. 1 . .` (the call's stop, then the
   binding's) · `set i. add i. 1 . .` (the place is a value too) · `return x. .` ·
   `guard gt n. 0 . else return 0 . .` · `method o. name. arg. .` · `payload v. variant field .`.

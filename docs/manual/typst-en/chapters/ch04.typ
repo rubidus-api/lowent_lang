@@ -202,7 +202,7 @@ with an operating system. The exact last bit of their results is up to the machi
 
 == The size types --- `usize` and `idiff`
 
-Lengths, indexes and byte counts are written `usize`. The numbers that `len`, `count` and `capacity` give are `usize`. `idiff` is its signed
+Lengths, indexes and byte counts are written `usize`. The numbers that `len`, `bitset_count`, `stack_count` and `capacity` give are `usize`. `idiff` is its signed
 partner, and it has one use: the *difference of two positions*. Unlike the other integers, these two do *not name their width*.
 
 === The implementation sets the width

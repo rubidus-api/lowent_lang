@@ -579,7 +579,7 @@ end .", "E-TYPE-RETURN")
   #sub("6.3.8", "크기를 묻는다 — `size_of`")[
     #para("1")[
       `size_of <타입>` 은 그 타입 값 하나가 차지하는 바이트 수를 #strong[번역 시점에]; 준다. 그 수의 타입은 `usize` 다 — `align_of` 가 주는
-      정렬, `segs` 가 주는 조각의 수, `native_lanes` 가 주는 레인의 수도 같다.
+      정렬, `native_lanes` 가 주는 레인의 수도 같다.
     ]
     #para("2")[
       크기를 알 수 없는 타입에는 쓸 수 없다.

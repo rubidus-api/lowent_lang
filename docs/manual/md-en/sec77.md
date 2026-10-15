@@ -1,43 +1,47 @@
-# <a id="mod-math"></a>`math` — floating-point maths
+# <a id="mod-hash_legacy"></a>`hash_legacy` — old hashes (MD5 · SHA-1)
 
 Source
 
-`lib/math.low`
+`lib/hash_legacy.low`
 
 Layer
 
-L0 — pure computation (host only)
+L0 — pure computation
 
 Capabilities
 
 none
 
-Offers the floating-point functions (`math.sqrt`, `math.sin`, `math.exp`, …) and commonly used things on top of them — comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a base, and linear interpolation. It has no capabilities but links to the C maths library, so it is **host only** — targets without an operating system may have no floating point at all (`cortex_m` is `no_float`).
+Produces MD5 and SHA-1. Neither may be used for **security**. Where security is not the point — checksums, naming things by their content, reading old files — they are still widely used.
 
-> **Do not compare with `==` — use `close`**
+> **Not for security**
 >
-> > ```lowent
-> > guard math.close math.hyp 3.0 4.0 . 5.0 0.000001 . else return 1 . .
-> > ```
-> >
-> > “Equal” is not well defined for floating point (chapter 4). So this module provides `close(a, b, tol)`, and the library’s own tests judge with it.
+> > For both hashes, different inputs with the same digest can be built — real collisions appeared in 2004 for MD5 and in 2017 for SHA-1. They must not be used for signatures, certificates, passwords or tamper detection. That is the job of `sha256` (SHA-256), `sha384` and `sha512` in [`hash`](sec76.md#mod-hash). This module fits where nobody is trying to deceive: a checksum that tells whether a download arrived intact, a storage format that names things by their content, a cache key, and reading old files that were already written with MD5 or SHA-1.
 
-**Why checking is not bit-exact.** C maths libraries **may differ in the last digits between implementations**. Claiming exact bits would cause false failures on other machines and libcs, with tests failing while the tool is fine. So this module is checked against **known answers** (`sin(0) = 0`) and **identities** (`sin²+cos² = 1`, `exp(log x) = x`), judged with `close`. How close counts as equal (`tol`) is the caller’s question, not something the library should decide.
+```lowent
+use hash_legacy .
 
-| **op** | **What it does** |
-|---|---|
-| `close` | `\|a − b\| ≤ tol` — this module’s way of comparing |
-| `pi` · `e` | Constants |
-| `deg_to_rad` · `rad_to_deg` | Angle conversion |
-| `hyp` | `sqrt(x² + y²)` |
-| `log_base` | Logarithm with a base (`log x / log b`) |
-| `lerp` | Linear interpolation `a + (b − a)·t` |
+proc sum input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
+  return hash_legacy.md5 data. work. out. . .
+end .
+```
 
-*Table 50.1 — Ops of `math`*
+**Why a separate module.** The name is the warning. Written `hash.md5`, it would read with the same weight as `hash.sha256`. `hash_legacy.md5` makes the reader stop once. It does not mean the module is going away — it is kept apart so that it is not mixed with the hashes meant for security.
 
-Wrappers that pass a builtin op through — `sqrt`, `floor`, `ceil`, `round`, `sin`, `cos`, `exp`, `log`, `pow`, `fmod` (all take `f64` and give `f64`), and the slice sums `sum_seq` and `sum_neumaier`. Call them as `math.sqrt x. .`. The absolute value `abs` is a core op and needs no module.
+**Why not a builtin.** It is written entirely in this language. SHA-2 is a leaf of the compiler because of cost, and checksums and reading old files are not that hot a path. It is slower, but it leans on nothing in the compiler.
 
-**Not built** — `atan2`, `asin`, `acos`, `tan`, `log2`, `log10`, `cbrt`, complex numbers, fixed point, an `f32`-only face. If needed they attach as one builtin op plus one line here. `hyp` computes `sqrt(x²+y²)` as is — unlike libm’s `hypot` it does not rescale to avoid overflow, so it can answer differently for very large values.
+| **op** | **Shape** | **Use** |
+|---|---|---|
+| `md5` | `(data slice u8, work mut slice u64, out mut slice u8) → u64` | MD5 (RFC 1321) — bytes written (16) |
+| `sha1` | `(data slice u8, work mut slice u64, out mut slice u8) → u64` | SHA-1 (FIPS 180) — bytes written (20) |
+
+*Table 50.1 — The ops of `hash_legacy`*
+
+`work` is working space given by the caller — `md5` needs 16 words and `sha1` needs 80. The library does not allocate behind your back. If `out` or `work` is too short the answer is 0 and **nothing is written** — a digest that was quietly cut short looks right.
+
+The tests compare with the answers the standards give: the test suite of RFC 1321 Appendix A.5 for MD5 and the examples of FIPS 180 for SHA-1, and separately the boundaries where the padding takes one more block (lengths 55, 56, 63 and 64). The VM and the native build give the same answers.
+
+**Not built** — streaming (feeding in pieces), HMAC-MD5 and HMAC-SHA1, even older hashes such as MD4.
 
 ---
 

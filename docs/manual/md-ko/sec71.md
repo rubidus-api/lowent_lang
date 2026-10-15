@@ -1,8 +1,8 @@
-# <a id="mod-strmap"></a>`strmap` — 문자열 키 해시 맵
+# <a id="mod-hashmap"></a>`hashmap` — `u64` → `u64` 해시 맵
 
 소스
 
-`lib/strmap.low`
+`lib/hashmap.low`
 
 층
 
@@ -12,49 +12,68 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-바이트열(문자열) 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다 — 단어 세기 · 심볼 테이블 · 설정 맵. [`hashmap`](sec70.md#mod-hashmap) 을 가변 길이 바이트열 키로 넓힌 것이다. 키 바이트는 넣을 때 아레나로 **복사**되므로 원본 문자열의 수명에 매이지 않는다.
+`u64` 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다. 번호로 무언가를 빨리 찾아야 할 때(아이디 → 개수, 핸들 → 상태) 쓴다. 문자열 열쇠는 [`strmap`](sec72.md#mod-strmap), 원소 타입과 얼로케이터를 고르는 컨테이너는 [`mapgen`](sec112.md#mod-mapgen) 이다(34장).
 
 ```lowent
-let stored bool strmap.put slots. keys. "apple" 1 . .
-let v option u64 strmap.lookup slots. keys. "apple" . .
+let stored bool hashmap.put b. 7 42 . .
+let v option u64 hashmap.lookup b. 7 . .
 ```
 
-**버퍼 둘을 호출자가 마련한다.** 처음에 `slots` 는 전부 0 이어야 한다.
+> **꼭 알아 둘 것 둘**
+>
+> > ① 맵은 스스로 메모리를 만들지 않는다 — 저장 공간 `b` 를 호출자가 마련해 매번 넘긴다. ② 새 맵은 **반드시 전부 0 으로** 시작한다. 이 둘을 어기면 에러 없이 답이 틀린다 — 쓰레기 값이 든 슬라이스는 “이미 뭔가 들어 있는 맵” 으로 읽혀, 넣은 적 없는 키가 찾히거나 방금 넣은 키가 `none` 으로 나온다.
 
-- `slots`(`mut slice u64`) — 슬롯 표. `slots[0]` 은 **아레나 커서**(키 바이트가 얼마나 쓰였나)이고, 진짜 슬롯은 인덱스 1 부터 슬롯 하나 = u64 셋 `[keyoff, keylen, value]` 다. 슬롯 수 N = `(len slots − 1) / 3`.
-- `keys`(`mut slice u8`) — 키 바이트 아레나. 여러 키의 바이트를 한 버퍼에 이어 담는다(커서를 앞으로만 미는 bump).
-
-`keylen` 은 세 뜻이다 — `0` = 빈칸, `MAX_U64` = 묘비, 그 밖 = 살아 있는 키의 길이. 실제 키 길이는 MAX 일 수 없으므로 예약 없이 묘비 값이 된다. 해시는 FNV-1a 64 + 선형 프로빙이다.
+**오픈 어드레싱.** 키마다 연결 리스트를 달지 않고, 자리가 차 있으면 같은 표의 다음 슬롯으로 옮겨 가며 넣는다(선형 프로빙) — 버퍼 하나로 끝나 호출자 소유 규율과 맞는다. 백킹은 `mut slice u64` 하나이고 `[key0+1, val0, key1+1, val1, …]` 로 눕는다(슬롯 수 N = `len / 2`). key 슬롯에 `k+1` 을 저장하므로 `0` 이 빈칸 표식이 되고 **키 0 도 저장할 수 있다**. 삭제는 key 슬롯을 `MAX_U64` 인 **묘비**로 덮는다 — 빈칸으로 되돌리면 충돌로 뒤에 밀려 들어간 키들의 자취가 끊겨 그 뒤 키를 못 찾게 된다. `lookup` 은 묘비를 건너뛰고, `put` 은 재사용하고, 순회는 세지 않는다. 해시는 곱셈 해시(황금비 상수)다.
 
 | **op** | **모양** | **실패** |
 |---|---|---|
-| `put` | `proc (slots mut slice u64, keys mut slice u8, k slice u8, v u64) → bool` | 꽉 참 · 아레나 부족 · 빈 키 → `false` |
-| `lookup` | `proc (slots slice u64, keys slice u8, k slice u8) → option u64` | 없음 · 빈 키 → `none` |
-| `del` | `proc (slots mut slice u64, keys slice u8, k slice u8) → bool` | 없던 키 · 빈 키 → `false` |
-| `size` | `fn (slots slice u64) → usize` | `len slots < 4` → 0 |
-| `occupied_at` | `fn (slots, slot usize) → bool` | 범위 밖 → `false` |
-| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot usize) → usize` (`val_at` 은 `→ u64`) | 범위 밖 → 0 |
-| `rehash` | `proc (ns mut slice u64, na mut slice u8, os slice u64, oa slice u8) → bool` | `ns` · `na` 가 작으면 도중 `false` |
+| `put` | `proc (b mut slice u64, k u64, v u64) → bool` | 꽉 참 · 예약 키 → `false` |
+| `lookup` | `proc (b slice u64, k u64) → option u64` | 없음 · 예약 키 → `none` |
+| `del` | `proc (b mut slice u64, k u64) → bool` | 없던 키 · 예약 키 → `false` |
+| `size` | `fn (b slice u64) → usize` | 슬롯 수(항목 수가 아니다) |
+| `occupied_at` | `fn (b slice u64, slot usize) → bool` | 범위 밖 → `false` |
+| `key_at` · `val_at` | `fn (b slice u64, slot usize) → u64` | occupied 일 때만 뜻이 있다 |
+| `rehash` | `proc (nb mut slice u64, ob slice u64) → bool` | `nb` 가 작으면 도중 `false` |
 
-*표 50.1 — `strmap` 의 op — 모두 `effects none`*
+*표 50.1 — `hashmap` 의 op — 모두 `effects none`*
 
-- `put` 은 같은 키(길이 + 바이트 일치)면 값만 갱신한다 — 새 슬롯도 아레나도 쓰지 않는다. 새 키는 아레나에 복사된다. 프로브 중 처음 만난 묘비를 재사용한다.
-- `del` 은 keylen 을 묘비로 덮고 value 를 0 으로 지운다. **아레나의 옛 키 바이트는 남는다** — 회수는 `rehash` 가 새 아레나로 옮기며 한다(압축).
-- 키 바이트는 `subslice keys. off. add off. klen. . .` 으로 읽는다. 그 뷰는 아레나의 뷰라 아레나가 살아 있는 동안만 유효하다.
+- `put` 은 같은 키면 제자리 갱신이다. 프로브 중 처음 만난 묘비를 기억해 뒀다가 키가 뒤에 없음이 확인되면 거기 넣는다 — 묘비 재사용으로 클러스터가 자라지 않는다.
+- **자동으로 자라지 않는다.** 꽉 차면 `put` 이 `false` 를 낸다(멈추지 않는다). 자라려면 호출자가 큰 백킹을 0 으로 마련해 `rehash nb ob` 를 부른다. 살아 있는 항목만 옮기므로 묘비도 사라진다(압축). 옛 백킹은 읽기만 하므로 실패해도 온전하다.
+- **키 둘을 담지 못한다.** `MAX_U64` 와 `MAX_U64 − 1` 은 인코딩에 예약됐다 — 별도 상태 바이트 없이 삭제를 얻는 대가다.
+- 순회는 `0 .. size` 를 훑으며 `occupied_at` 인 슬롯만 처리한다. 순서는 해시 순서다 — 정렬된 열거가 필요하면 키를 뽑아 [`sortlib`](sec67.md#mod-sortlib) 로 정렬한다.
 
-> **반례. 빈 문자열 키**
+```lowent
+proc hm_sum input b mut slice u64 . output u64 . effects none . do
+  var i usize 0 .
+  while lt i. len b. . . do
+    set idx b. i. . 0 .
+    set i. add i. 1 . .
+  end .
+  guard ge div len b. . 2 . 4 . else return 0 . .
+  guard eq hashmap.put b. 10 100 . true . else return 0 . .
+  guard eq hashmap.put b. 20 222 . true . else return 0 . .
+  guard eq hashmap.del b. 10 . true . else return 0 . .
+  var slot usize 0 .
+  var total u64 0 .
+  while lt slot. hashmap.size b. . . do
+    if hashmap.occupied_at b. slot. . do
+      set total. add total. hashmap.val_at b. slot. . . .
+    end .
+    set slot. add slot. 1 . .
+  end .
+  return total. .
+end .
+```
+
+> **반례. `occupied_at` 없이 슬롯을 읽는다**
 >
-> > `strmap.put slots. keys. "" 7 .` 은 언제나 `false` 다. `keylen 0` 이 빈칸 표식이라 빈 키는 인코딩상 존재할 수 없다. `lookup ""` 도 언제나 `none` 이다.
+> > 빈칸 · 묘비의 `key_at` · `val_at` 은 뜻 없는 값이라(빈칸의 `key_at` 은 `0 − 1` 까지 간다) 에러 없이 합계가 틀린다. 순회는 언제나 `occupied_at` 으로 거른다.
 
-> **반례. 삭제 뒤 `keylen > 0` 으로 순회한다**
+> **반례. `put` 의 `false` 를 보지 않는다**
 >
-> > 묘비의 keylen 은 MAX 라 `gt keylen. 0 .` 이 참이다 — 지운 항목이 집계에 섞여 든다. `del` 을 한 번이라도 쓴 맵은 `occupied_at` 으로 거른다.
+> > 꽉 찬 맵은 멈추는 대신 `false` 를 내므로 그 줄은 조용히 지나가고, 나중에 `lookup` 이 `none` 을 내어 검사 없는 `some_value` 에서 `E-VM-NONE` 으로 멈춘다. 멈추는 자리가 원인에서 멀다 — `guard eq (hashmap.put …) true` 가 습관이어야 한다.
 
-> **반례. `slots[0]` 을 직접 만진다**
->
-> > 아레나 커서를 손대면 다음 `put` 이 키 바이트를 엉뚱한 곳에 복사한다. 멈추지 않고 조용히 틀린다. 초기화는 “전부 0”, 이후 수정은 op 으로만 한다.
-
-**주의.** 아레나는 bump 다 — 서로 다른 키를 넣었다 지웠다 되풀이하면 슬롯이 남아도 아레나 부족으로 `put` 이 `false` 가 될 수 있다. `put` 의 `false` 하나로 슬롯 부족과 아레나 부족이 구별되지는 않는다. 버퍼 크기는 슬롯 N 개 = `3N + 1` u64, 아레나는 살아 있는 키 길이 합 + 죽은 바이트로 짐작한다. 실제 쓰임은 파일을 읽어 [`strings`](sec58.md#mod-strings) 로 단어를 쪼개고 빈도를 세는 프로그램이다(34장).
+**주의.** op 이름이 `get` 이 아니라 `lookup`, `capacity` 가 아니라 `size` 인 이유 — `get` 은 페이로드 enum 해체 낱말이고 `capacity` 는 `alloc_bytes … capacity n` 의 문법 낱말이라 op 이 가질 수 없다. 넣고 지우기를 되풀이하면 묘비가 쌓여 프로브가 길어진다 — 같은 크기라도 `rehash` 로 옮겨 압축한다. 백킹 길이가 홀수면 마지막 u64 하나는 쓰이지 않는다.
 
 ---
 

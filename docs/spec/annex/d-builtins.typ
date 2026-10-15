@@ -49,6 +49,7 @@
         [`bit_xor`], [비트 배타합],
         [`bitset_complement`], [여집합],
         [`bitset_contains`], [그 원소가 들어 있나],
+        [`bitset_count`], [집합에 든 원소의 수],
         [`bitset_difference`], [차집합],
         [`bitset_insert`], [집합에 그 원소를 넣는다 — #strong[제자리에서]; 바꾼다],
         [`bitset_intersect`], [교집합],
@@ -71,7 +72,7 @@
         [`collect`], [파이프라인의 결과를 자리에 담는다],
         [`config`], [번역 시점의 설정 값],
         [`copy`], [주는 쪽의 원소를 받는 쪽에 베낀다],
-        [`count`], [원소의 수를 센다],
+        [`count`], [파이프라인의 원소 수를 센다(종결자)],
         [`count_ones`], [선 비트의 수],
         [`cstr_of`], [C 문자열로 본다],
         [`deref`], [참조가 가리키는 값],
@@ -89,8 +90,8 @@
         [`error_value`], [담긴 오류를 꺼낸다],
         [`expect`], [시험 블록 안의 단언 — 조건이 거짓이면 그 시험이 실패한다],
         [`field`], [값의 안을 읽는다],
-        [`filter`], [술어가 참인 원소만 지나보낸다],
-        [`fold`], [누산기에 차례로 접는다],
+        [`filter`], [술어가 참인 원소만 지나보낸다(파이프라인 스테이지)],
+        [`fold`], [누산기에 차례로 접는다(파이프라인 종결자)],
         [`ge`], [앞이 크거나 같은가],
         [`gt`], [앞이 큰가],
         [`idx`], [그 자리의 원소],
@@ -112,7 +113,7 @@
         [`load`], [그 자리에서 읽는다],
         [`load_masked`], [가려진 자리만 읽는다],
         [`lt`], [앞이 작은가],
-        [`map`], [원소마다 op 을 적용한다],
+        [`map`], [원소마다 op 을 적용한다(파이프라인 스테이지)],
         [`max`], [둘 중 큰 것],
         [`min`], [둘 중 작은 것],
         [`mod`], [나눈 나머지],
@@ -152,8 +153,6 @@
         [`sat_mul`], [곱하되 넘치면 끝값에서 멈춘다],
         [`sat_sub`], [빼되 넘치면 끝값에서 멈춘다],
         [`scan`], [접으며 중간값을 낸다],
-        [`seg`], [조각 사슬의 한 조각],
-        [`segs`], [조각 사슬의 조각들],
         [`send`], [액터에 메시지를 보낸다],
         [`shl`], [왼쪽으로 민다. 시프트 양이 폭 이상이면 트랩한다],
         [`shr`], [오른쪽으로 민다. 부호 있는 값은 산술 이동이다],
@@ -164,6 +163,7 @@
         [`some_value`], [담긴 값을 꺼낸다],
         [`spawn`], [새 실행 흐름을 만들고 핸들을 낸다],
         [`splat`], [한 값을 모든 레인에 채운다],
+        [`stack_count`], [스택에 든 원소의 수],
         [`stack_new`], [스택 자료를 만든다],
         [`store`], [그 자리에 쓴다],
         [`store_masked`], [가려진 자리만 쓴다],
@@ -280,8 +280,8 @@
   ]
 
   #note[
-    실측: 기본 연산 162 개 가운데 지역 이름 선언이 막히는 것은 #strong[143 개];,
-    쓸 수 있는 것은 #strong[19 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `copy` · `drain` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
+    실측: 기본 연산 162 개 가운데 지역 이름 선언이 막히는 것은 #strong[139 개];,
+    쓸 수 있는 것은 #strong[23 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `copy` · `count` · `drain` · `enumerate` · `filter` · `fold` · `into` · `is_none` · `map` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 #strong[이름 충돌 규칙을 틀리게 말하기];
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
   ]
@@ -293,49 +293,49 @@ atomic_and            atomic_cas            atomic_fence          atomic_load
 atomic_or             atomic_store          atomic_sub            atomic_swap
 atomic_xor            await                 bit_and               bit_cast
 bit_not               bit_or                bit_xor               bitset_complement
-bitset_contains       bitset_difference     bitset_insert         bitset_intersect
-bitset_is_empty       bitset_is_subset      bitset_new            bitset_remove
-bitset_union          borrow                byte_swap             call_builtin
-capacity              cast                  ceil                  chacha20
-chacha_poly           channel               chk_add               chk_mul
-chk_sub               chrecv                chsend                clmul_hi
-clmul_lo              collect               config                copy
-cos                   count                 count_ones            crc32
-cstr_of               deref                 dir_close             dir_make
-dir_open              dir_read              div                   div_nz
-drain                 elem_ge               elem_gt               elem_le
-elem_lt               encode                enumerate             env_get
-eq                    error                 error_value           exp
-expect                field                 file_close            file_open
-file_read             file_seek             file_type             file_write
-filter                floor                 fmod                  fold
-ge                    ghash                 gt                    hash_bytes
-idx                   into                  is_error              is_none
-is_ok                 is_some               isa                   lane_all
-lane_any              lane_avg              lane_reverse          lane_rotate
-lane_select           le                    leading_zeros         len
-link_type             load                  load_masked           log
-lt                    map                   max                   min
-mod                   mul                   mut_ref               narrow
-narrow_sat            narrow_try            narrow_wrap           native_lanes
-ne                    neg                   net_accept            net_close
-net_connect           net_listen            net_pair              net_port
-net_recv              net_resolve           net_send              nonzero_of
-not                   ok                    ok_value              or
-panic                 path_remove           path_rename           payload
-pipe                  poly1305              pop                   pow
-prefetch              proc_kill             proc_poll             proc_read
-proc_spawn            proc_wait             push                  r_read
-r_write               random_bytes          range                 reactor_new
-read_in               read_volatile         reduce_add            reduce_max
-reduce_min            reduce_mul            ref                   region
-ret                   rng_next              rotl                  rotr
-round                 same_slice            sat_add               sat_mul
-sat_sub               scan                  seg                   segs
-send                  sha256                sha384                sha512
-shl                   shr                   shuffle               sin
-size_of               skip                  some                  some_value
-spawn                 splat                 sqrt                  stack_new
+bitset_contains       bitset_count          bitset_difference     bitset_insert
+bitset_intersect      bitset_is_empty       bitset_is_subset      bitset_new
+bitset_remove         bitset_union          borrow                byte_swap
+call_builtin          capacity              cast                  ceil
+chacha20              chacha_poly           channel               chk_add
+chk_mul               chk_sub               chrecv                chsend
+clmul_hi              clmul_lo              collect               config
+copy                  cos                   count                 count_ones
+crc32                 cstr_of               deref                 dir_close
+dir_make              dir_open              dir_read              div
+div_nz                drain                 elem_ge               elem_gt
+elem_le               elem_lt               encode                enumerate
+env_get               eq                    error                 error_value
+exp                   expect                field                 file_close
+file_open             file_read             file_seek             file_type
+file_write            filter                floor                 fmod
+fold                  ge                    ghash                 gt
+hash_bytes            idx                   into                  is_error
+is_none               is_ok                 is_some               isa
+lane_all              lane_any              lane_avg              lane_reverse
+lane_rotate           lane_select           le                    leading_zeros
+len                   link_type             load                  load_masked
+log                   lt                    map                   max
+min                   mod                   mul                   mut_ref
+narrow                narrow_sat            narrow_try            narrow_wrap
+native_lanes          ne                    neg                   net_accept
+net_close             net_connect           net_listen            net_pair
+net_port              net_recv              net_resolve           net_send
+nonzero_of            not                   ok                    ok_value
+or                    panic                 path_remove           path_rename
+payload               pipe                  poly1305              pop
+pow                   prefetch              proc_kill             proc_poll
+proc_read             proc_spawn            proc_wait             push
+r_read                r_write               random_bytes          range
+reactor_new           read_in               read_volatile         reduce_add
+reduce_max            reduce_min            reduce_mul            ref
+region                ret                   rng_next              rotl
+rotr                  round                 same_slice            sat_add
+sat_mul               sat_sub               scan                  send
+sha256                sha384                sha512                shl
+shr                   shuffle               sin                   size_of
+skip                  some                  some_value            spawn
+splat                 sqrt                  stack_count           stack_new
 store                 store_masked          str_from_cstr         sub
 subslice              sum_neumaier          sum_seq               swap
 take                  time_local            time_now              time_sleep
@@ -354,7 +354,7 @@ write_out             write_volatile        zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *98 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *99 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -446,6 +446,13 @@ write_out             write_volatile        zip")
         [`idx s i` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · 배열 · `i` — `usize` \ *내는 것:* 원소의 타입 — `i` 번째 원소 \ *번역 때 거절:* `i` 가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* `i` 가 길이 밖이면 `E-VM-BOUNDS`],
         [`subslice s a b` #cref("6.2.6")], [*받는 것:* `s` — 슬라이스 · `a` `b` — `usize` \ *내는 것:* `slice T`(`T` 는 `s` 의 원소) — `[a, b)` 를 복사 없이 보는 슬라이스 \ *번역 때 거절:* 경계가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* `a` 가 `b` 보다 크거나 `b` 가 길이 밖이면 `E-VM-BOUNDS`],
         [`view_array T s` #cref("6.2.13")], [*받는 것:* `T` — 정수 또는 부동 타입 · `s` — 바이트 슬라이스 \ *내는 것:* `slice T` — 같은 바이트를 `T` 의 나열로 본다(복사 없음) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* `s` 의 길이가 `T` 의 크기의 배수가 아니면 `E-VM-VIEW`],
+    )
+  ]
+
+  #tbl("집합")[
+    #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
+      [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`bitset_count s` #cref("6.2.12")], [*받는 것:* `s` — `bitset n` \ *내는 것:* `usize` — 든 원소의 수(0 이상 `n` 이하) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 

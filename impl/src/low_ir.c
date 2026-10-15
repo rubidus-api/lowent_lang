@@ -3656,11 +3656,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_CONST, (proven_i64)sz);
                 return;
             }
-            // ★★★★★ **`segments` 세 op — 전부 기존 op 으로 탈설탕된다** (RFC-0104 §8-8).
+            // ★★★★★ **`segments` 짓기 — 기존 op 으로 탈설탕된다** (RFC-0104 §8-8 · 나머지 둘은 RFC-0150 Q3 에서 라이브러리로).
             //   새 옵코드 0: 뷰는 백업·서술자 두 슬라이스를 든 구조체이고, 그 그릇은 이미 있다.
             //     view_segments b d  →  make segments do back b . descs d . end
-            //     segs ss            →  div (len (field ss descs)) 2
-            //     seg ss i           →  subslice (field ss back) at (add at n)
+            //     (조각 수 · i 번째 조각은 lib/segview.low 가 칸 `descs` · `back` 을 읽어 짓는다)
             //   ☞ 서술자는 `slice u64` 에 (at, n) 쌍이다 — **새 구조체 타입도 안 만든다**.
             // ★★★★★ **prefetch — 유일하게 승격된 특례** (RFC-0104 §8-14).
             //   `prefetch <슬라이스> <색인>` — 순수 힌트다. 값을 안 남긴다.
@@ -3668,6 +3667,11 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_value(c, k, pos, end);      // 슬라이스
                 ir_value(c, k, pos, end);      // 색인
                 ir_emit(c, IRW_PREFETCH, 0);
+                return;
+            }
+            if (veq(nd->tok.lex, "stack_count")) {   // RFC-0150 Q3 — 옛 `count <스택>`; 셈은 비트셋 판과 같은 IRW_COUNT 다
+                ir_value(c, k, pos, end);
+                ir_emit(c, IRW_COUNT, 0);
                 return;
             }
             if (veq(nd->tok.lex, "view_segments")) {
@@ -3684,45 +3688,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_MAKE, (proven_i64)my);
                 return;
             }
-            if (veq(nd->tok.lex, "segs")) {
-                ir_value(c, k, pos, end);      // 뷰
-                ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, proven_u8str_view_from_cstr("descs")));
-                ir_emit(c, IRW_LEN, 0);
-                ir_emit(c, IRW_CONST, 2);
-                ir_emit(c, IRW_DIV, 0);
-                return;
-            }
-            if (veq(nd->tok.lex, "seg")) {
-                // seg ss i — i 번째 조각을 **복사 없이** 준다.
-                //   지역 둘을 빌려 뷰와 색인을 붙든다(스택 기계라 값을 두 번 못 읽는다).
-                if (c->nlocals + 3 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "seg: too many locals", nd->line); return; }
-                proven_size_t lv = c->nlocals++, li = c->nlocals++, lat = c->nlocals++;
-                c->locals[lv].name = (proven_u8str_view_t){ 0 };
-                c->locals[li].name = (proven_u8str_view_t){ 0 };
-                c->locals[lat].name = (proven_u8str_view_t){ 0 };
-                // RFC-0148 S3 — 빌린 지역에도 타입을 적는다: 색인과 자리는 u64 다(조각 표가 `slice u64` 다). 안 적으면 아래의 `2i` · `at + n` 이 폭 없이 나간다.
-                c->locals[li].ty = c->locals[lat].ty = (ityp_t){ true, 64, false, false, false, 0, 0 };
-                ir_value(c, k, pos, end);  ir_emit(c, IRW_STORE, (proven_i64)lv);   // 뷰
-                ir_value(c, k, pos, end);  ir_emit(c, IRW_STORE, (proven_i64)li);   // i
-                proven_size_t fdesc = ir_field_intern(c, proven_u8str_view_from_cstr("descs"));
-                proven_size_t fback = ir_field_intern(c, proven_u8str_view_from_cstr("back"));
-                // at = descs[2i]
-                ir_emit(c, IRW_LOAD, (proven_i64)lv); ir_emit(c, IRW_FIELD, (proven_i64)fdesc);
-                ir_emit(c, IRW_LOAD, (proven_i64)li); ir_emit(c, IRW_CONST, 2); ir_emit(c, IRW_MUL, 0);
-                ir_emit(c, IRW_INDEX, 0);
-                ir_emit(c, IRW_STORE, (proven_i64)lat);
-                // back, at, at + descs[2i+1]
-                ir_emit(c, IRW_LOAD, (proven_i64)lv); ir_emit(c, IRW_FIELD, (proven_i64)fback);
-                ir_emit(c, IRW_LOAD, (proven_i64)lat);
-                ir_emit(c, IRW_LOAD, (proven_i64)lat);
-                ir_emit(c, IRW_LOAD, (proven_i64)lv); ir_emit(c, IRW_FIELD, (proven_i64)fdesc);
-                ir_emit(c, IRW_LOAD, (proven_i64)li); ir_emit(c, IRW_CONST, 2); ir_emit(c, IRW_MUL, 0);
-                ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0);
-                ir_emit(c, IRW_INDEX, 0);
-                ir_emit(c, IRW_ADD, 0);
-                ir_emit(c, IRW_SUBSLICE, 0);
-                return;
-            }
+            // ☞ 옛 `segs` · `seg` 는 라이브러리 `segview` 의 `piece_count` · `piece` 다(RFC-0150 Q3) — 칸 읽기와 잘라내기로 쓰인다.
             if (veq(nd->tok.lex, "view_array")) {
                 // `view_array T b` — T = sized scalar **또는 viewable 구조체**; bytes → typed array
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "view_array needs a type word", nd->line); return; }
@@ -4191,12 +4157,12 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_CALL, (proven_i64)qi);
                 return;
             }
-            // ★ RFC-0030 D2′ — cap args 질의. `count <cap>` 는 전용 낱말로(타입 유도 —
+            // ★ RFC-0030 D2′ — cap args 질의. `len <cap>` 는 전용 낱말로(타입 유도 — 옛 철자 `count <cap>`, RFC-0150 Q3 에서 이름을 풀었다 ·
             //   런타임 태그 분기 0), `arg` 는 cap 을 **댈 때만** 통과한다(인자는 건네받는
             //   권리다 — ambient 금지). cap 토큰은 정적 권한이라 런타임 값이 필요 없다.
             {
                 proven_u8str_view_t ac = ir_argscap_of(c->def_form);
-                if (ac.size && veq(nd->tok.lex, "count") && *pos < end && is_atom(k[*pos]) &&
+                if (ac.size && veq(nd->tok.lex, "len") && *pos < end && is_atom(k[*pos]) &&
                     ir_names_cap(c->def_form, k[*pos]->tok.lex, "args")) {
                     (*pos)++; ir_emit(c, IRW_ARGC, 0); return;
                 }
@@ -4834,117 +4800,8 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_FNREF, (proven_i64)fi);
                 return;
             }
-            // ★★★ **fold** (RFC-0016 — 첫 고차 프렐류드 op). `fold <init> <op> <slice>` — 단일패스 리덕션.
-            //   op 은 이름 붙은 op (Acc,T)->Acc. 클로저·람다 **없이** op 이름을 참조하고(unsafe_fn 과 같은 결)
-            //   컴파일러가 **호출지에서 단형화**한다: 루프를 인라인하고 op 을 **직접 IRW_CALL** 한다.
-            //   ⇒ 백엔드는 fold 를 몰라도 된다 — 이미 있는 opcode(LOOP/INDEX/CALL)로만 낮아지므로 diff-sweep 자동.
-            if (veq(nd->tok.lex, "fold")) {
-                if (c->nlocals + 3 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "fold: too many locals", nd->line); return; }
-                proven_size_t acc = c->nlocals++, it = c->nlocals++, idx = c->nlocals++;
-                c->locals[acc].name = (proven_u8str_view_t){ 0 };
-                c->locals[it].name  = (proven_u8str_view_t){ 0 };
-                c->locals[idx].name = (proven_u8str_view_t){ 0 };
-                ir_value(c, k, pos, end);                        // <init>
-                ir_emit(c, IRW_STORE, (proven_i64)acc);
-                if (*pos >= end || !is_atom(k[*pos])) {
-                    ir_fail(c, "E-FOLD-OP", "fold needs an op NAME as its second argument — `fold <init> <op> <slice>`", nd->line); return;
-                }
-                bool of; proven_size_t oi = ir_def_find_in(c, k[*pos]->tok.lex, &of);
-                (*pos)++;
-                if (!of) { ir_fail(c, "E-FOLD-OP", "fold's op names an op that does not exist", nd->line); return; }
-                // ★ **건전성 바닥** (타입검사가 생략돼도 지켜야 한다): op 은 정확히 2 인자(Acc,T)·비가변·능력 불요.
-                //   arity≠2 면 IRW_CALL 이 스택을 망친다. (효과 순수성은 low_check 의 ck_fold 가 본다.)
-                if (c->out->defs[oi].nparams != 2 || c->out->defs[oi].is_variadic || c->out->defs[oi].param_cap) {
-                    ir_fail(c, "E-FOLD-OP", "fold's op must take exactly two arguments (Acc, T) and no capability — the result folds back as the next accumulator", nd->line); return;
-                }
-                ir_value(c, k, pos, end);                        // <slice>
-                ir_emit(c, IRW_STORE, (proven_i64)it);
-                ir_emit(c, IRW_CONST, 0);
-                ir_emit(c, IRW_STORE, (proven_i64)idx);
-                proven_size_t cond = c->code.len;
-                ir_emit(c, IRW_LOAD, (proven_i64)idx);
-                ir_emit(c, IRW_LOAD, (proven_i64)it);
-                ir_emit(c, IRW_LEN, 0);
-                ir_emit(c, IRW_LT, 0);
-                proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
-                ir_emit(c, IRW_LOAD, (proven_i64)acc);           // op 인자 0 = 누산기
-                ir_emit(c, IRW_LOAD, (proven_i64)it);
-                ir_emit(c, IRW_LOAD, (proven_i64)idx);
-                ir_emit(c, IRW_INDEX, 0);                        // op 인자 1 = 원소
-                ir_emit(c, IRW_CALL, (proven_i64)oi);            // acc = op(acc, elem)
-                ir_emit(c, IRW_STORE, (proven_i64)acc);
-                ir_emit(c, IRW_LOAD, (proven_i64)idx);
-                ir_emit(c, IRW_CONST, 1);
-                ir_emit(c, IRW_ADD, 0);
-                ir_emit(c, IRW_STORE, (proven_i64)idx);
-                ir_emit(c, IRW_BR, (proven_i64)cond);
-                proven_size_t fend = c->code.len;
-                ir_at(c, brz)->a = (proven_i64)fend;
-                ir_emit(c, IRW_LOAD, (proven_i64)acc);           // fold 결과 = 표현식 값
-                return;
-            }
-            // ★★★ **map / filter** (RFC-0016 — 원소별 스테이지). `map <out> <op> <in>` · `filter <out> <pred> <in>`.
-            //   결과는 **호출자가 준 mut slice `out` 에 쓴다**(할당 없음 — 유계 싱크, RFC-0016 collect-into 모델).
-            //   op/pred 은 이름 op **1 인자**(T->U · T->bool). 경계 안전: `idx < len(in) AND idx < len(out)` 까지만
-            //   쓰고, **쓴 개수를 반환**한다(out 이 짧으면 — X-0062 부터 — 쓰는 순간 멈춘다). fold 과 같은 기계 + ISTORE.
-            {
-                bool ismap = veq(nd->tok.lex, "map"), isfilter = veq(nd->tok.lex, "filter");
-                if (ismap || isfilter) {
-                    if (c->nlocals + 4 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "map/filter: too many locals", nd->line); return; }
-                    proven_size_t ou = c->nlocals++, in = c->nlocals++, i = c->nlocals++, j = c->nlocals++;
-                    c->locals[ou].name = (proven_u8str_view_t){ 0 };
-                    c->locals[in].name = (proven_u8str_view_t){ 0 };
-                    c->locals[i].name  = (proven_u8str_view_t){ 0 };
-                    c->locals[j].name  = (proven_u8str_view_t){ 0 };
-                    ir_value(c, k, pos, end);                     // <out> (mut slice)
-                    ir_emit(c, IRW_STORE, (proven_i64)ou);
-                    if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-FOLD-OP", "map/filter needs an op NAME as its second argument", nd->line); return; }
-                    bool of; proven_size_t oi = ir_def_find_in(c, k[*pos]->tok.lex, &of);
-                    (*pos)++;
-                    if (!of) { ir_fail(c, "E-FOLD-OP", "map/filter's op names an op that does not exist", nd->line); return; }
-                    if (c->out->defs[oi].nparams != 1 || c->out->defs[oi].is_variadic || c->out->defs[oi].param_cap) {
-                        ir_fail(c, "E-FOLD-OP", "map/filter's op must take exactly ONE argument (the element) and no capability", nd->line); return;
-                    }
-                    ir_value(c, k, pos, end);                     // <in> (slice)
-                    ir_emit(c, IRW_STORE, (proven_i64)in);
-                    ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)i);   // read index
-                    ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)j);   // write index (= count)
-                    proven_size_t cond = c->code.len;
-                    // ★★ X-0062 (소유자 결정 ⓒ, 2026-09-25) — 받는 자리가 차도 **말없이 멈추지 않는다.** 전엔 조건에
-                    //   `j < len(out)` 이 있어 남은 원소를 조용히 버렸다(원소 3 을 2 칸에 → 둘만 쓰고 끝). 이제 원천을 끝까지 돌고,
-                    //   찬 자리에 쓰려는 순간 경계 검사가 멈춘다(VM E-VM-BOUNDS · 네이티브 panic). 번역 시점에 알면 거절한다.
-                    ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
-                    proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
-                    proven_size_t skip = 0; bool have_skip = false;
-                    if (isfilter) {
-                        // if pred(in[i]) == 0 → skip the write (but still advance i)
-                        ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_INDEX, 0);
-                        ir_emit(c, IRW_CALL, (proven_i64)oi);     // pred(in[i]) → bool
-                        skip = ir_emit(c, IRW_BRZ, 0); have_skip = true;
-                        // out[j] = in[i]
-                        ir_emit_sinkfull_guard(c, ou, j);
-                        ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)j);
-                        ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_INDEX, 0);
-                        ir_emit(c, IRW_ISTORE, 0);
-                        ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)j);
-                    } else {
-                        // out[i] = op(in[i]); write index tracks read index for map (1:1)
-                        ir_emit_sinkfull_guard(c, ou, i);
-                        ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)i);
-                        ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_INDEX, 0);
-                        ir_emit(c, IRW_CALL, (proven_i64)oi);     // op(in[i]) → U
-                        ir_emit(c, IRW_ISTORE, 0);
-                        ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)j);
-                    }
-                    if (have_skip) ir_at(c, skip)->a = (proven_i64)c->code.len;   // skip lands on the i++
-                    ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)i);
-                    ir_emit(c, IRW_BR, (proven_i64)cond);
-                    proven_size_t mend = c->code.len;
-                    ir_at(c, brz)->a = (proven_i64)mend;
-                    ir_emit(c, IRW_LOAD, (proven_i64)j);          // 결과 = 쓴/거른 개수
-                    return;
-                }
-            }
+            // ☞ 옛 전위 `fold` · `map` · `filter`(RFC-0016)는 라이브러리 `collection` 이다(RFC-0150 Q3). 그 이름은 이제 저자의 것이다 —
+            //   여기서 이름으로 가로채면 같은 이름의 사용자 op 이 불리지 않는다.
             bool isdef; proven_size_t di = ir_def_find_q(c, nd, &isdef);
             if (!isdef) {   /* ★ 모듈 한정 op 참조 X.op → 뒤 마디로 해소 (RFC-0011) */
                 di = ir_modqual_find(c, nd->tok.lex, &isdef);

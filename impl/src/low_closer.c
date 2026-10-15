@@ -514,7 +514,9 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
         return cl_endstop(c, j, "a stop `.` must close `if … end`");
     }
     if (kw && cl_eq(t, "while")) return cl_endstop(c, cl_block(c, cl_term(c, i + 1, false, false)), "a stop `.` must close `while … end`");
-    if (kw && cl_eq(t, "for") && ((cl_word(c, i + 2, "count") || cl_word(c, i + 2, "range") || (cl_id(c, i + 2) && c->T[i + 2].kw == LOW_KW_BE)) && !cl_dot(c, i + 3)))
+    // ★ RFC-0150 Q3 — 원천 이름이 `count` 인 `for x count do` 는 옛 꼴이 아니다(뒤가 `do` · `if` 다).
+    if (kw && cl_eq(t, "for") && ((cl_word(c, i + 2, "count") || cl_word(c, i + 2, "range") || (cl_id(c, i + 2) && c->T[i + 2].kw == LOW_KW_BE)) && !cl_dot(c, i + 3) &&
+        !(cl_word(c, i + 2, "count") && cl_id(c, i + 3) && (c->T[i + 3].kw == LOW_KW_DO || c->T[i + 3].kw == LOW_KW_IF))))
         cl_fail(c, i, "E-FOR-OLD", "`for` walks elements only — counting is `repeat <name> <type> <n>. do … end .`, a range is `range <name> <type> <a>. <b>. do … end .`");
     if (kw && (cl_eq(t, "for") || cl_eq(t, "repeat") || cl_eq(t, "range") || cl_eq(t, "cycle"))) {
         proven_size_t j = i + 2;                         // 뒤의 파서는 되풀이 머리의 식을 인자 수로 묶지 않는다 — 괄호로 싸서 넘긴다

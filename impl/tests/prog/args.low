@@ -24,7 +24,7 @@ fn is_flag input s slice u8 . output bool . do
 end .
 
 proc main input a cap args . output u8 . effects none . do
-  let n usize count a. . .
+  let n usize len a. . .
   var flags u64 0 .
   var plain u64 0 .
   var firstlen usize 0 .
@@ -32,7 +32,7 @@ proc main input a cap args . output u8 . effects none . do
   var i usize 0 .
   while lt i. n. . do
     let cur option slice u8 call_builtin arg a. i. . .
-    guard is_some cur. . else return 250 . .        rem i < n 인데 none 이면 count 가 거짓말이다
+    guard is_some cur. . else return 250 . .        rem i < n 인데 none 이면 len 이 거짓말이다
     let s slice u8 some_value cur. . .
     if is_flag s. . do
       set flags. add flags. 1 . .

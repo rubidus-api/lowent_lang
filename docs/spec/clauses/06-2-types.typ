@@ -281,7 +281,7 @@ end .", "E-RESULT-PLACE")
     ]
     #para("3")[
       슬라이스의 길이는 `len` 으로 읽는다. `len s. .` 는 `s` 의 원소 개수이고, 그 타입은 `usize` 다(#cref("6.2") (3a)).
-      `count` 와 `capacity` 가 내는 수도 `usize` 다.
+      `bitset_count` · `stack_count` 와 `capacity` 가 내는 수도 `usize` 다. 권한 `cap args` 에 쓴 `len` 은 받은 인자의 수다.
     ]
     #para("3′")[
       첨자와 경계(`idx` 의 `i`, `subslice` 의 시작과 끝, 원자 연산의 첨자, `alloc_bytes` 의 `capacity`)는 `usize` #strong[다];. 다른 정수
@@ -1107,6 +1107,9 @@ end .")
       원소를 넣는 것은 `bitset_insert <집합> <값> .`, 지우는 것은 `bitset_remove <집합> <값> .` 이다 — 둘 다 그 자리에서
       집합을 바꾼다. `add` 는 수의 덧셈만 뜻하므로 집합에 쓰는 것은 적합하지 아니하다(`E-BITSET-ADD`).
     ]
+    #para("4a")[
+      집합에 든 원소의 수는 `bitset_count <집합>` 이고, 그 타입은 `usize` 다.
+    ]
     #ex("집합에 넣고 지운다", "module ex_bitset .
 
 fn members output usize . do
@@ -1114,7 +1117,7 @@ fn members output usize . do
   bitset_insert s. 3 .
   bitset_insert s. 5 .
   bitset_remove s. 3 .
-  return count s. . .
+  return bitset_count s. . .
 end .",
       out: "members() = 1")
   ]
@@ -1571,13 +1574,17 @@ end .",
       이어져 있지 않은 여러 조각을 #strong[하나의 눈];으로 볼 수 있다. 뒤에 놓인 바이트와,
       그 안에서 어디부터 얼마인지를 적은 서술자 둘로 이루어진다.
     ]
-    #tbl("흩어진 조각을 다루는 세 op")[
+    #tbl("흩어진 조각을 다루는 op")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*op*], [*모양*], [*무엇을 하나*],
       [`view_segments`], [`view_segments <바이트> <서술자>`], [둘을 묶어 하나의 눈을 만든다],
-      [`segs`], [`segs <눈>`], [조각이 몇인지 센다],
-      [`seg`], [`seg <눈> <번호>`], [그 번호의 조각을 조각(slice)으로 준다],
+      [`segview.piece_count`], [`segview.piece_count <눈>`], [조각이 몇인지 센다(표준 모듈 `segview`)],
+      [`segview.piece_at`], [`segview.piece_at <눈> <번호>`], [그 번호의 조각을 조각(slice)으로 준다(표준 모듈 `segview`)],
       )
+    ]
+    #para("1a")[
+      눈은 칸 `back`(뒤의 바이트)과 `descs`(서술자)를 든 묶음이다. 조각의 수와 번호의 조각은 그 칸을 읽고 잘라내는 것으로
+      쓰이므로 언어의 연산이 아니라 표준 모듈 `segview` 의 op 이다(#cref("9.3")).
     ]
     #para("2")[
       서술자는 「어디부터」와 「얼마」의 짝을 담은 조각이다. 그러므로 이 셋은 #strong[새 타입도

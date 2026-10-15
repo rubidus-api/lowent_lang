@@ -4,8 +4,9 @@
 
 #modhead(file: "lib/segview.low", layer: [L1 --- 호출자의 저장], caps: [없음])
 
-언어가 든 조각 뷰 연산은 셋뿐이다 --- `view_segments`(짓기), `segs`(조각 수), `seg`(i 번째 조각). 이 모듈은 그 위에 *커서 · 총길이 · 펴기(coalesce)* 를 얹는다. 셋 다 앞의
-셋으로 쓰이므로 기본 연산이 될 이유가 없다.
+언어가 든 조각 뷰 연산은 짓기(`view_segments`) 하나다. 이 모듈이 조각 수(`piece_count`)와 i 번째 조각(`piece_at`)을 주고, 그 위에 *커서 · 총길이 ·
+펴기(coalesce)* 를 얹는다. 조각 수와 i 번째 조각은 기본 연산 `segs` · `seg` 였는데, 칸을 읽고 잘라내는 것으로 쓰이므로 이름을 풀면서 이 모듈로
+옮겼다(2026-10-16). 나머지 셋도 그 둘로 쓰이므로 기본 연산이 될 이유가 없다.
 
 *왜 `segments` 가 언어에 있나.* 조각 여럿을 한 값으로 들지 못하면 밖으로 내보낼 때 조각마다 한 번씩 나가야 한다. 64 KiB 를 64 조각으로 내보낼 때 그 차이가 개발
 저장소의 측정에서 28 배였다(`writev` 한 번 대 `write` 64 번). 조각은 곧 `iovec` 이다 --- 방출 C 의 슬라이스가 `struct iovec` 과 크기도 두 오프셋도 같아서, `extern`
@@ -25,7 +26,7 @@ let w option usize segview.coalesce ss. out. . .
   id: "mod-segview-ops",
   caption: [비용이 op 이름에 적혀 있다],
   [*부르는 것*], [*무엇을 만지나*], [*값*],
-  [`segs` · `seg`(기본 연산)], [서술자만], [조각당 수 ns 이하, 복사 0],
+  [`segview.piece_count` · `piece_at`], [서술자만], [조각당 수 ns 이하, 복사 0],
   [`segview.total_len`], [서술자만], [O(조각 수)],
   [`segview.cursor` · `seek` · `byte_at`], [서술자만], [O(조각 수) --- 조각을 훑어 자리를 찾는다],
   [`segview.coalesce`], [*바이트 전부*], [O(n) --- 여기서만 복사가 일어난다],

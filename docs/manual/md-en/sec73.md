@@ -1,78 +1,60 @@
-# <a id="mod-vecs"></a>`vecs` — growable byte vectors with caller-held buffers
+# <a id="mod-strmap"></a>`strmap` — string-keyed hash map
 
 Source
 
-`lib/vec.low`
+`lib/strmap.low`
 
 Layer
 
-L1 — allocator via `use`
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
-none — an allocator is handed in
+none
 
-A byte vector that, when short of room, **takes a larger place and moves**. Used to gather byte strings of unknown final size. What is missing is reallocation, not growth — take a larger place and move the old contents, which can be written in Lowent. So it is a library, not a core op, and the growth policy (doubling) belongs to the library too.
+A hash map storing and finding `u64` values by byte string (string) keys — word counts, symbol tables, configuration maps. It widens [`hashmap`](sec72.md#mod-hashmap) to variable-length byte string keys. Key bytes are **copied** into an arena on insertion, so they are not tied to the original string’s lifetime.
 
-|  | **`vecs`** | **[`vecgen`](sec111.md#mod-vecgen)** |
-|---|---|---|
-| Storage | **held by the caller** — buffers are passed to ops | owned by the container |
-| Growth | the new place is **returned as a value** (the caller rebinds) | swapped inside |
-| Allocator | handed over with `use` on each call | held as a field |
+```lowent
+let stored bool strmap.put slots. keys. "apple" 1 . .
+let v option u64 strmap.lookup slots. keys. "apple" . .
+```
 
-*Table 50.1 — `vecs` and `vecgen` — ownership is the difference*
+**The caller prepares two buffers.** `slots` must start all zeros.
 
-`vecs` is for when you want to hold buffer lifetimes **directly** inside a region. A vector lives as **a pair of two values**: `vec_u8` (a single length `len`) and `mut slice u8` (storage). Capacity is not stored separately — `len buf. .` is the capacity. Push maintains the invariant `v.len ≤ len buf`.
+- `slots` (`mut slice u64`) — the slot table. `slots[0]` is **the arena cursor** (how many key bytes are used); real slots start at index 1, one slot = three u64 `[keyoff, keylen, value]`. N slots = `(len slots − 1) / 3`.
+- `keys` (`mut slice u8`) — the key byte arena. Bytes of many keys laid end to end in one buffer (a bump that only moves the cursor forward).
+
+`keylen` has three meanings — `0` = empty, `MAX_U64` = tombstone, anything else = the length of a live key. A real key length cannot be MAX, so it serves as the tombstone value without reserving anything. The hash is FNV-1a 64 with linear probing.
 
 | **op** | **Shape** | **Failure** |
 |---|---|---|
-| `vec_u8` | struct — `len usize` | — |
-| `next_cap` | `fn (cur usize) → usize` — 8 from 0, otherwise double | none |
-| `push_byte` | `proc (comptime a, use al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a` | `none` on OOM — `v` and `buf` unchanged |
+| `put` | `proc (slots mut slice u64, keys mut slice u8, k slice u8, v u64) → bool` | full · arena short · empty key → `false` |
+| `lookup` | `proc (slots slice u64, keys slice u8, k slice u8) → option u64` | absent · empty key → `none` |
+| `del` | `proc (slots mut slice u64, keys slice u8, k slice u8) → bool` | absent · empty key → `false` |
+| `size` | `fn (slots slice u64) → usize` | `len slots < 4` → 0 |
+| `occupied_at` | `fn (slots, slot usize) → bool` | out of range → `false` |
+| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot usize) → usize` (`val_at` gives `→ u64`) | out of range → 0 |
+| `rehash` | `proc (ns mut slice u64, na mut slice u8, os slice u64, oa slice u8) → bool` | `false` midway if `ns` or `na` is too small |
 
-*Table 50.2 — Ops of `vecs`*
+*Table 50.1 — Ops of `strmap` — all `effects none`*
 
-With room, `push_byte` writes in place and returns `some buf. .`; when full it takes double with `send al. reserve next_cap len buf. . . .`, copies the old contents and returns `some <new buffer>`. The allocator is handed over with a `use` clause, not a positional argument — the type `a` is filled from that source and monomorphised, so passing it costs nothing (chapter 35). No hidden allocation, so code without an allocator cannot call this op.
+- `put` updates only the value for the same key (length and bytes equal) — no new slot, no arena use. New keys are copied into the arena. The first tombstone met while probing is reused.
+- `del` overwrites keylen with a tombstone and zeroes the value. **The old key bytes stay in the arena** — reclamation happens when `rehash` moves to a new arena (compaction).
+- Read key bytes with `subslice keys. off. add off. klen. . .`. That is a view into the arena, valid only while the arena lives.
 
-```lowent
-module vecgrow .
-use vecs .
-use allocs .
-use stdio .
-
-proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
-  let memopt option mut slice u8 alloc_bytes al. capacity 256 . .
-  guard is_some memopt. . else return 1 . .
-  let mem mut slice u8 some_value memopt. . .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c usize send bump. init mem. . .
-  let b0 option mut slice u8 send bump. reserve 2 . .
-  guard is_some b0. . else return 2 . .
-  var buf mut slice u8 some_value b0. . .
-  var v lit vecs.vec_u8 do len 0 . end . .
-  var i u64 0 .
-  while lt i. 10 . do
-    let r use bump. option mut slice u8 vecs.push_byte v. buf. narrow u8 add 65 i. . . . .
-    guard is_some r. . else return 3 . .
-    set buf. some_value r. . .
-    set i. add i. 1 . .
-  end .
-  let m usize stdio.write out. 1 subslice buf. 0 field v. len . . . .
-  return cast u8 field v. len . . .
-end .
-```
-
-Starting at 2 bytes and pushing 10, it grows three times, 2 → 4 → 8 → 16, and prints `ABCDEFGHIJ`.
-
-> **Counter-example. Not rebinding to the returned buffer**
+> **Counter-example. An empty string key**
 >
-> > Forgetting `set buf. some_value r. . .` compiles and runs, but the result is silently wrong. After growth, passing the old `buf` keeps `v.len` counting against the new buffer while writes go to the old (small) one. **The return value is the next buffer** — the most dangerous mistake in this module.
+> > `strmap.put slots. keys. "" 7 .` is always `false`. `keylen 0` marks an empty slot, so an empty key cannot exist in the encoding. `lookup ""` is always `none` too.
 
-> **Counter-example. Ignoring OOM · calling from a pure fn**
+> **Counter-example. Traversing by `keylen > 0` after deletion**
 >
-> > Unwrapping `some_value r. .` unchecked stops with `E-VM-NONE` when the allocator runs dry. Calling from an `effects none` `fn` is `E-EFFECT-CALC` — `push_byte` is a proc with `effects state`. Passing a source that does not satisfy the trait (such as `u64`) is `E-BOUND-UNSAT`.
+> > A tombstone’s keylen is MAX, so `gt keylen. 0 .` is true — deleted items creep into totals. Filter with `occupied_at` in any map that has ever used `del`.
 
-**Cautions.** Growth is copying — one push is O(len) worst case, but doubling gives amortised O(1). If the size is known ahead, starting that large is cheaper. **Old buffers are not reclaimed** — growing to n on a bump consumes about 2n of backing, and old buffers are swept away together when the `region` ends (chapter 18). Header and buffer are a pair — nothing prevents mixing those of different vectors. There is no element type generalisation, pop, insert, remove or shrinking.
+> **Counter-example. Touching `slots[0]` directly**
+>
+> > Tampering with the arena cursor makes the next `put` copy key bytes to the wrong place. Nothing stops; it is silently wrong. Initialise as “all zeros”, then modify only through ops.
+
+**Cautions.** The arena is a bump — repeatedly inserting and deleting different keys can make `put` return `false` for lack of arena even with free slots. One `false` from `put` does not distinguish slot shortage from arena shortage. Estimate sizes as `3N + 1` u64 for N slots and, for the arena, the sum of live key lengths plus dead bytes. A real use reads a file, splits words with [`strings`](sec59.md#mod-strings) and counts frequencies (chapter 34).
 
 ---
 

@@ -195,7 +195,7 @@
 #demo("examples/ch13/sets.low")
 
 - `bitset_new 64 .` 가 빈 집합을 만든다. 폭은 번역 시점에 정해진 수다.
-- `bitset_insert a 1 .` 은 넣고 `bitset_remove a 1 .` 은 지운다. 둘 다 *제자리에서* 집합을 바꾸는 문장이다. `count a. .` 는 원소 수다.
+- `bitset_insert a 1 .` 은 넣고 `bitset_remove a 1 .` 은 지운다. 둘 다 *제자리에서* 집합을 바꾸는 문장이다. `bitset_count a. .` 는 원소 수다.
 - `bitset_intersect a. b. .` 는 교집합, `bitset_difference a. b. .` 는 `a` 에만 있는 것, `bitset_complement a. .` 는 여집합을 *새 집합으로* 준다.
 - `bitset_is_subset x. y. .` 는 `x` 가 `y` 에 다 들어 있는지, `bitset_is_empty x. .` 는 비었는지 묻는다.
 
@@ -211,8 +211,9 @@
 
 - `view_segments back. d. .` 는 뒤에 놓인 바이트 `back` 과 서술자 `d` 를 묶어 `segments u8` 타입의 눈을 만든다. 서술자는 (어디부터, 얼마) 짝의
   줄이다. 여기서는 0 부터 4 바이트, 8 부터 4 바이트다.
-- `segs ss. .` 는 조각 수 2 를, `seg ss. 1 .` 은 둘째 조각을 평범한 `slice u8` 로 준다. 둘째 조각의 1 번 바이트는 원래 9 번 자리의 30 이다.
-- 새 기계 명령은 없다. 묶음 짓기와 칸 읽기와 잘라내기로 낮아지므로 비용이 보인다.
+- 표준 모듈 `segview` 의 `segview.piece_count ss. .` 는 조각 수 2 를, `segview.piece_at ss. 1 .` 은 둘째 조각을 평범한 `slice u8` 로 준다. 둘째 조각의
+  1 번 바이트는 원래 9 번 자리의 30 이다.
+- 새 기계 명령은 없다. 짓기는 묶음 짓기로, 조각 꺼내기는 칸 읽기와 잘라내기로 낮아지므로 비용이 보인다.
 
 == 타입 낱말의 세 갈래
 
@@ -310,7 +311,7 @@
   [`view wire_header b. .`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
   [`try_view wire_header b. .` · `encode wire_header h. .`], [실패를 `none` 으로 주는 뷰 · 값을 그 배치의 바이트로], [경계에서는 멈추지 않는 쪽],
   [`var a bitset 64 bitset_new 64 . .` · `bitset_insert a 1 .` · `bitset_intersect a. b. .`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
-  [`view_segments back. d. .` · `segs ss. .` · `seg ss. i. .`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
+  [`view_segments back. d. .` · `segview.piece_count ss. .` · `segview.piece_at ss. i. .`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
   [`byte` · `lock` 같은 타입 낱말], [`W-NOT-YET` · `E-LOCK-NOTYET`], [뜻이 없으면 없다고 말한다],
 )
 

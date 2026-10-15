@@ -1,22 +1,40 @@
-rem ★★★ **fold** (RFC-0016) — 첫 고차 프렐류드 op. 이 언어가 처음으로 **op 을 인자로** 받는다.
+rem ★★★ **fold** — 라이브러리 `collection` (RFC-0150 Q3, 2026-10-16). 전엔 기본 연산이었다(RFC-0016 — 이 언어가 처음으로
+rem   op 을 인자로 받은 자리).
 rem
-rem   `fold <init> <op> <slice>` — 단일패스 리덕션. op 은 이름 붙은 op (Acc,T)->Acc.
-rem   ★ 클로저·람다 **없이** op 이름을 참조하고(unsafe_fn 과 같은 결), 컴파일러가 **호출지에서 단형화**한다:
-rem     루프를 인라인하고 op 을 **직접 호출**한다. 사용자 제네릭 기계가 노출되지 않는다(RFC-0002 정합).
-rem   ⇒ 백엔드는 fold 를 **모른다** — 이미 있는 opcode(loop·index·call)로만 낮아지므로 VM≡native.
-rem   ★ op 의 효과는 **호출자에게 전파된다**(효과 워커가 op 이름을 본다) — 순수 op 은 순수, 효과 op 은 계약대로.
+rem   `collection.fold t init src` — 단일패스 리덕션. 접는 법은 원소 타입의 `combine` 이다(트레이트 `foldable`).
+rem   ★ 클로저·람다 없이, 부를 때마다 단형화되어 `combine` 이 **직접 호출**로 박힌다 ⇒ VM≡native.
+rem   ★ 같은 바이트를 **다른 원소 타입**으로 보면 다른 접기가 된다 — 합과 최댓값이 그렇다. 접는 법이 인자인 셈이다.
+rem   ☞ 시험은 명령줄에서 바이트 조각을 받으므로 그 바이트를 원소 구조체로 본다(`view_array` — 칸 하나짜리라 배치가 같다).
 
 module vm_fold .
 
-fn add2 input a u8 . input b u8 . output u8 . do return add a. b. . . end .
+use collection .
 
-fn max2 input a u8 . input b u8 . output u8 . do
-  guard ge a. b. . else return b. . .
-  return a. .
+rem 합 — 0 에서 시작해 더한다.
+struct total do
+  satisfies collection.foldable .
+  v u8 .
+end .
+fn total.combine input acc total . input x total . output total . do
+  return lit total do v add field acc. v . field x. v . . . end . .
 end .
 
-rem 합 — init 0, add2 로 접는다.
-fn foldsum input xs slice u8 . output u8 . do return fold 0 add2 xs. . . end .
+rem 최댓값 — 같은 fold 에 **다른 접기**.
+struct most do
+  satisfies collection.foldable .
+  v u8 .
+end .
+fn most.combine input acc most . input x most . output most . do
+  guard ge field acc. v . field x. v . . else return x. . .
+  return acc. .
+end .
 
-rem 최댓값 — 같은 fold 에 **다른 op**. 고차의 핵심: op 이 인자다.
-fn foldmax input xs slice u8 . output u8 . do return fold 0 max2 xs. . . end .
+fn foldsum input xs slice u8 . output u8 . do
+  let r total collection.fold total. lit total do v 0 . end . view_array total xs. . . .
+  return field r. v . .
+end .
+
+fn foldmax input xs slice u8 . output u8 . do
+  let r most collection.fold most. lit most do v 0 . end . view_array most xs. . . .
+  return field r. v . .
+end .

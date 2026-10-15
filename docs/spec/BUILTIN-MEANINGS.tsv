@@ -55,6 +55,7 @@ bit_not	비트 뒤집기 — **폭 안에서** 뒤집는다(C 처럼 int 로 승
 bit_or	비트 합
 bit_xor	비트 배타합
 bitset_new	빈 비트 집합
+bitset_count	집합에 든 원소의 수
 borrow	빌린 것의 수명을 스코프로 못 박는다
 byte_swap	바이트 순서를 뒤집는다
 capacity	담을 수 있는 최대
@@ -68,7 +69,7 @@ bitset_complement	여집합
 config	번역 시점의 설정 값
 bitset_contains	그 원소가 들어 있나
 cos	코사인
-count	원소의 수를 센다
+count	파이프라인의 원소 수를 센다(종결자)
 clmul_hi	캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다
 clmul_lo	캐리 없는 곱셈의 **아랫말** — 64×64 비트 곱의 아래쪽 64 비트. 기계에 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로
 count_ones	선 비트의 수
@@ -101,10 +102,10 @@ payload	갈래가 지닌 칸의 값을 꺼낸다(먼저 `isa` 로 그 갈래임�
 poly1305	Poly1305 (RFC 8439) — 상태(h 다섯 · r 다섯)를 제자리에서 누산한다. 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 낸 값은 먹인 바이트 수
 link_type	그 경로 자신이 무엇인가 — 심링크를 따라가지 아니한다
 file_write	파일에 쓴다
-filter	술어가 참인 원소만 지나보낸다
+filter	술어가 참인 원소만 지나보낸다(파이프라인 스테이지)
 floor	내림
 fmod	부동소수점 나머지
-fold	누산기에 차례로 접는다
+fold	누산기에 차례로 접는다(파이프라인 종결자)
 ge	앞이 크거나 같은가
 gt	앞이 큰가
 hash_bytes	바이트열의 해시
@@ -124,7 +125,7 @@ load	그 자리에서 읽는다
 load_masked	가려진 자리만 읽는다
 log	자연로그
 lt	앞이 작은가
-map	원소마다 op 을 적용한다
+map	원소마다 op 을 적용한다(파이프라인 스테이지)
 max	둘 중 큰 것
 min	둘 중 작은 것
 mod	나눈 나머지
@@ -191,8 +192,6 @@ sat_add	더하되 넘치면 **끝값에서 멈춘다**(포화)
 sat_mul	곱하되 넘치면 끝값에서 멈춘다
 sat_sub	빼되 넘치면 끝값에서 멈춘다
 scan	접으며 중간값을 낸다
-seg	조각 사슬의 한 조각
-segs	조각 사슬의 조각들
 lane_select	가림막에 따라 두 값 중 하나를 레인마다 고른다
 send	액터에 메시지를 보낸다
 sha256	SHA-256
@@ -210,6 +209,7 @@ spawn	새 실행 흐름을 만들고 핸들을 낸다
 splat	한 값을 모든 레인에 채운다
 sqrt	제곱근
 stack_new	스택 자료를 만든다
+stack_count	스택에 든 원소의 수
 store	그 자리에 쓴다
 store_masked	가려진 자리만 쓴다
 str_from_cstr	C 문자열에서 읽는다

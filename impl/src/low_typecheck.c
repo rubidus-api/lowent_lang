@@ -1126,7 +1126,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
         //   보수적으로: 확실히 아는 것만 적는다.
         {
             proven_u8str_view_t h2 = k[start]->tok.lex;
-            if (veq(h2, "len") || veq(h2, "count") || veq(h2, "capacity")) {
+            if (veq(h2, "len") || veq(h2, "bitset_count") || veq(h2, "stack_count") || veq(h2, "capacity")) {
                 for (proven_size_t q = 1; q < n; q++) {
                     ty_t at = tc_infer(c, k[start + q], env, nenv);
                     // RFC-0149 L4 — `alloc_bytes … capacity <n>` 의 `n` 은 바이트 수다: `usize`.
@@ -1138,8 +1138,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut; }   // RFC-0149 — `usize`
             }
             // RFC-0149 L4 — 크기 · 정렬 · 조각 수 · 레인 수도 `usize` 다(전에는 타입이 «모름» 이어서 어느 선언에나 들어갔다).
-            if (!sig_find(c, h2) && (veq(h2, "size_of") || veq(h2, "align_of") || veq(h2, "segs") || veq(h2, "native_lanes"))) {
-                if (veq(h2, "segs")) for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+            if (!sig_find(c, h2) && (veq(h2, "size_of") || veq(h2, "align_of") || veq(h2, "native_lanes"))) {
                 ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut;
             }
             // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
@@ -1327,21 +1326,10 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if (k[start + 1]->kind == LOW_CST_ATOM) { w.nname = k[start + 1]->tok.lex; }
                 return w;
             }
-            if (!sig_find(c, h2) && n == 3 && veq(h2, "seg")) {
-                ty_t ss = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);   // 첨자의 타입 규칙은 정하지 않았다(1.11 의 목록 밖)
-                if (ss.ebits) { ty_t sl = tk(TK_SLICE); sl.ebits = ss.ebits; sl.esign = ss.esign; sl.eflt = ss.eflt; sl.enom = ss.enom; return sl; }
-                return tk(TK_SLICE);
-            }
             // `nonzero_of a` — `option nonzero T`(표): 알맹이는 `a` 의 타입이다
             if (!sig_find(c, h2) && n == 2 && veq(h2, "nonzero_of")) {
                 ty_t a0 = tc_infer(c, k[start + 1], env, nenv);
                 ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, a0); return w;
-            }
-            // `fold <초기값> <op> <원천>`(앞 꼴) — 그 op 의 출력
-            if (!sig_find(c, h2) && n == 4 && veq(h2, "fold") && k[start + 2]->kind == LOW_CST_ATOM) {
-                (void)tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 3], env, nenv);
-                const tc_sig_t *fs = sig_find_at(c, k[start + 2]);
-                return fs ? fs->ret : tk(TK_UNKNOWN);
             }
             // `payload <값> <갈래> <칸>` — 그 갈래의 그 칸의 타입
             if (!sig_find(c, h2) && n == 4 && veq(h2, "payload") && k[start + 2]->kind == LOW_CST_ATOM && k[start + 3]->kind == LOW_CST_ATOM) {
@@ -1421,11 +1409,6 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     ty_t e = h.pk == TK_FLOAT ? (ty_t){ .k = TK_FLOAT, .bits = h.pbits } : tk_int(h.pbits, h.psign); e.nominal = h.pnom;
                     tc_flag(c, compat(e, v), "E-TYPE-ARG", "the value sent does not have the channel's element type", k[start]->line);
                 }
-                return tk_int(64, false);
-            }
-            // 앞 꼴 `map <자리> <op> <원천>` · `filter <자리> <op> <원천>` — 담은 개수(`u64`), `collect into` 와 같다(소유자 2026-10-14 «u64 개수»)
-            if (!sig_find(c, h2) && n == 4 && (veq(h2, "map") || veq(h2, "filter")) && k[start + 2]->kind == LOW_CST_ATOM) {
-                (void)tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 3], env, nenv);
                 return tk_int(64, false);
             }
             // `error_value r` — 오류 열거형 · `spawn actor X` — 그 액터 · `view T b` — 그 짜임 · `view_segments b d` — `segments u8` · `cstr_of s` — `cstr`
@@ -2965,7 +2948,8 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             }
             // ★★ RFC-0132 P1 — `count τ n .` · `range τ a b [step k] .` : 셈의 타입 τ 는 늘 적고(N5), 끝은 τ 에 들어가야 한다(넓히기만).
             if (bi > 3 && f->kids[2]->kind == LOW_CST_ATOM && f->kids[2]->tok.kw == LOW_KW_NONE &&
-                (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range")) && f->kids[3]->kind == LOW_CST_ATOM) {
+                (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range")) && f->kids[3]->kind == LOW_CST_ATOM &&
+                f->kids[3]->tok.kw == LOW_KW_NONE && !veq(f->kids[3]->tok.lex, "where")) {   // RFC-0150 Q3 — `for x count if c do` 의 `count` 는 원천이다(거르기는 안에서 `where` 다)
                 ty_t tau = ty_of_word(f->kids[3]->tok.lex);
                 if (tau.k != TK_INT) {
                     tc_emit(c, "E-FOR-STEP", tau.k == TK_FLOAT

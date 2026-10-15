@@ -12,7 +12,7 @@ L0 — 순수 계산
 
 없음
 
-`u64` 슬라이스를 **제자리에서** 오름차순으로 정렬한다. 이진 탐색 전에([`searchlib`](sec69.md#mod-searchlib)), 결과를 순서대로 보여 줄 때 쓴다. 공개 op 은 `sort` 하나다.
+`u64` 슬라이스를 **제자리에서** 오름차순으로 정렬한다. 이진 탐색 전에([`searchlib`](sec70.md#mod-searchlib)), 결과를 순서대로 보여 줄 때 쓴다. 공개 op 은 `sort` 하나다.
 
 ```lowent
 use sortlib .
@@ -40,9 +40,9 @@ sortlib.sort s. .
 정렬 결과를 스스로 검증하는 모양 — 오름차순인가 **그리고** 합이 보존됐는가. 순서 결함과 원소 소실 · 복제 결함을 함께 잡는다.
 
 ```lowent
-proc sort_verify input s mut slice u64 . output usize . effects none . do
+proc sort_verify input s mut slice u64 . output u64 . effects none . do
   var pre u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     set pre. wrap_add pre. idx s. i. . . .
     set i. add i. 1 . .
@@ -50,7 +50,7 @@ proc sort_verify input s mut slice u64 . output usize . effects none . do
   sortlib.sort s. .
   var post u64 0 .
   var sorted u64 1 .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. len s. . . do
     set post. wrap_add post. idx s. j. . . .
     if gt j. 0 . do

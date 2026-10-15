@@ -143,9 +143,10 @@ from each branch. When the value is one of several cases over and over, `match` 
 #antipattern[Naming a local after a common English word][
   #demo("examples/ch06/mistake_localname.low")
 
-  Names such as `count`, `len`, `min`, `max`, `ok` and `abs` are already core ops. The name space is flat, so if a local took one
-  of them, `f count data` would group differently depending on whether `count` is the core op call or the local. The same letters would
-  build a different tree, so `E-NAME-BUILTIN` rules it out. Use names like `n`, `total` or `size`.
+  Names such as `len`, `min`, `max`, `ok` and `abs` are already core ops. The name space is flat, so if a local took one
+  of them, `f max data` would group differently depending on whether `max` is the core op call or the local. The same letters would
+  build a different tree, so `E-NAME-BUILTIN` rules it out. Use names like `n`, `total` or `size`. (`count`, `map`, `filter`, `fold`,
+  `seg` and `segs` are no longer core ops, so they can be local names.)
 ]
 
 #antipattern[Reading a local outside the block that declared it][

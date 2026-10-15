@@ -120,11 +120,11 @@ end .
 The high unit `buf[1]` is 55357 (0xD83D) and the low unit `buf[2]` is 56489 (0xDCA9). Iterate with `next_start`.
 
 ```lowent
-var i u64 0 .
+var i usize 0 .
 while lt i. len s. . . do
   let c option u64 u.decode s. i. . .
   guard is_some c. . else return 80 . .
-  let nx option u64 u.next s. i. . .
+  let nx option usize u.next_start s. i. . .
   guard is_some nx. . else return 81 . .
   set i. some_value nx. . .
 end .

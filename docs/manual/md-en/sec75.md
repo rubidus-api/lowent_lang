@@ -1,56 +1,41 @@
-# <a id="mod-hash"></a>`hash` — hashing (hash map slots · corruption detection · SHA-2)
+# <a id="mod-spsc"></a>`spsc` — lock-free SPSC ring buffer
 
 Source
 
-`lib/hash.low`
+`lib/spsc.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s storage)
 
 Capabilities
 
-none
+`cap atomic`
 
-Produces numbers from byte strings. Three things of different character live in one module, and mixing them goes wrong in the dangerous direction.
+The simplest way to pass values between threads is a lock. But with exactly one producer and one consumer no lock is needed — the producer writes only `tail`, the consumer only `head`, and each only **reads** the other’s atomically. That is SPSC (single-producer single-consumer), and almost the only lock-free structure that is honestly short.
 
-> **`of` and `crc` are not cryptographic**
+> **One producer and one consumer is the contract**
 >
-> > `of` (FNV-1a 64) is for **hash map slots** — fast and well spread, but not cryptographic. `crc` (reflected CRC-32) detects **accidental corruption** — matching a desired CRC is easy, so it does not stop forgery. `sha256` and `sha256_ok` (SHA-256), `sha384` and `sha512` are the cryptographic hashes; proof of integrity lives there. Keyed authentication is not `sha256` either but [`hmac`](sec79.md#mod-hmac) — a hash alone cannot answer **who sent it**.
+> > If two threads `push` or two threads `pop` it is no longer SPSC, and this module cannot prevent it. That is why convenience ops like `peek` or `drain` were not added — the more convenience ops, the more ways to break that contract. In a standard library a small surface is not laziness but a means of keeping the contract. There is no MPSC, MPMC or seqlock — with CAS retries and ABA attached, putting them in the standard would make unverified code standard.
 
-```lowent
-use hash .
+**One slot is always left empty.** So the real capacity is `len buf − 1`. In return `head == tail` **always** means “empty” and is never confused with full.
 
-fn slot input key slice u8 . input nslots u64 . output u64 . do
-  return hash.bucket_of key. nslots. . .
-end .
-```
-
-**Why the algorithms are fixed.** A hash looks right whenever a plausible number comes out. If not fixed, nothing is left to check. Because they are fixed, standard check values become the tests’ reference (CRC-32 of `"123456789"` → `0xCBF43926`), and if VM and native diverge it shows on the spot.
-
-| **op** | **Shape** | **Use** |
+| **op** | **What it does** | **Returns** |
 |---|---|---|
-| `of` | `(data slice u8) → u64` | FNV-1a 64 — hash map slots |
-| `bucket_of` | `(data, nslots u64) → u64` | Choosing a slot (remainder) |
-| `bucket_mask` | `(data, mask u64) → u64` | When the slot count is a power of two |
-| `crc` | `(data slice u8) → u32` | Reflected CRC-32 — corruption detection |
-| `crc_ok` | `(data, want u32) → bool` | Compare with a check value |
-| `maybe_same` | `(a, b slice u8) → bool` | Are the hashes equal — not proof of equality |
-| `sha256` | `(data, out mut slice u8) → usize` | SHA-256 — bytes written (32) |
-| `sha256_ok` | `(data, out mut slice u8, want slice u8) → bool` | Compare with a received digest |
-| `sha384` | `(data, out mut slice u8) → usize` | SHA-384 — bytes written (48) |
-| `sha512` | `(data, out mut slice u8) → usize` | SHA-512 — bytes written (64) |
-| `digest_eq` | `(a, b slice u8) → bool` | Are two digests equal — reads to the end whatever the length |
+| `spsc_capacity buf` | Maximum number it can hold | `len buf − 1` |
+| `spsc_push k ctl buf v` | Push (**producer only**) | 1 success · 0 full |
+| `spsc_pop k ctl buf out` | Pop (**consumer only**), value in `out[0]` | 1 success · 0 empty |
+| `spsc_count_about k ctl buf` | Current count (an observation) | count |
 
-*Table 50.1 — Ops of `hash`*
+*Table 50.1 — Ops of `spsc`*
 
-Why `sha256_ok` exists — the right use of a hash is not a round trip but **comparison**. Recomputing and matching against what was received is the only correct use, so that shape is an op (if `want` is not 32 bytes it is simply `false` — the contract starts with the length). Why `maybe_same` says `maybe` — equal hashes do not mean equal values. Calling it `same` would have made the name a lie.
+`ctl` is a `mut slice u64` of length at least 2, with `[0]` = head (consumer) and `[1]` = tail (producer). `k` is `cap atomic` — the right to touch shared places atomically. Why `count_about` says `about` — it may already have changed by the time it is read. If the name does not say so, users trust the value.
 
-`sha384` and `sha512` follow the same rule — the digest goes into the caller’s buffer, and a buffer that is too short gets the answer 0 and nothing written. To compare with a received digest use `digest_eq`. It does not stop at the first differing byte, so the time it takes does not tell how far the two agreed.
+**What holds this code up.** Two proofs. First, wrapping an index with `mod … (len buf)` always lands in range — `lowentc --emit-proof lib/spsc.low` records that the checks on both ring buffer accesses (`idx`, `index.store`) and on the two index-advancing additions were removed by proof (chapter 41). Second, write data → publish index → observe index → read data carries the data under the weak memory model (RC11) — and the correctness of the algorithm itself (on success the resource moves into the buffer, on failure it comes back) borrows an existing proof (gpfsl’s `circ_buff`). The correspondence that our `spsc_push` matches that proof’s code line by line was checked by a person reading it, not by machine (chapter 47).
 
-MD5 and SHA-1 are not in this module. They may not be used for security and live apart in [`hash_legacy`](sec76.md#mod-hash_legacy) — use that for checksums and for reading old files.
+**Orderings are exactly as strong as needed.** When the producer reads head it uses `acquire` (published by the consumer), when it reads its own tail `relaxed` (a value I wrote), when it publishes tail `release` (the preceding data write must be visible first). The consumer side is symmetric. Only two of the four places need synchronisation. This notation (`order <name>`) was once unreachable because of a parser defect, found and fixed while trying to use this library — a feature nobody uses might as well not exist.
 
-**Not built** — keyed hashing (that is `hmac`), seedable hashing (HashDoS defence), streaming (feeding in pieces), SHA-3.
+**What is checked** — pop from empty fails, push to full fails, FIFO order, and correctness after wrapping around the ring. Those tests are single-threaded (the VM is single-threaded). Correctness of memory ordering with two real threads comes from proof, not from running — the two are not mixed.
 
 ---
 

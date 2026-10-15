@@ -1,0 +1,76 @@
+rem ★★★ **원소마다 옮기기 · 거르기 · 접기** — `map` · `filter` · `fold` (RFC-0150 Q3, 소유자 2026-10-16).
+rem
+rem ★ 이 셋은 기본 연산이었다(RFC-0016 — 첫 고차 연산). 기본 연산의 이름은 저자의 이름이 될 수 없으므로
+rem   `map` 이라는 지역도 op 도 못 지었다. 소유자가 «모듈로 묶어 라이브러리로 제공하고 이름은 풀자» 고 정해서
+rem   여기로 왔다. pipe 안의 `map` · `filter` · `fold` 는 스테이지(문맥 낱말)로 그대로 있다.
+rem
+rem ★★ **할 일은 원소의 타입이 들고 온다** — `sortgen` 의 `ordered` 와 같은 길이다. 이 언어에는 op 을 값으로
+rem   넘기는 길이 없고, 트레이트는 원소 타입을 매개변수로 받지 않는다. 그래서 원소를 칸 하나짜리 구조체로
+rem   감싸고, 그 구조체가 `apply` · `keep` · `combine` 을 갖춘다. 부를 때마다 구체 op 이 만들어지고(단형화)
+rem   그 op 은 **직접 호출**로 박힌다 — 간접 호출 0. 갖추지 않은 타입을 주면 번역이 거절한다(E-BOUND-UNSAT).
+rem   ☞ 한 원소 타입에는 `apply` 가 하나다. 두 가지로 옮기려면 감싸개 타입이 둘이다. 이 불편을 덜 문법은
+rem     다음 일로 미뤘다(RFC-0150 §8).
+rem
+rem ★ 저장은 부르는 쪽이 준다: `map` · `filter` 는 받은 `dst` 에 쓰고 **쓴 원소의 수**(`u64`)를 답한다 —
+rem   pipe 의 `collect into` 와 같다. 받는 자리가 차면 쓰려는 순간 첨자 검사가 멈춘다(말없이 버리지 않는다).
+
+module collection .
+
+rem 원소 하나를 같은 타입의 원소 하나로 옮긴다.
+export trait mappable do
+  apply input x self . output self .
+end .
+
+rem 원소를 남길지 판정한다.
+export trait keepable do
+  keep input x self . output bool .
+end .
+
+rem 누산기와 원소 하나를 접어 새 누산기를 낸다.
+export trait foldable do
+  combine input acc self . input x self . output self .
+end .
+
+rem `src` 의 원소마다 `apply` 를 불러 `dst` 의 같은 자리에 쓴다.
+export proc map input comptime t type . input src slice t . input dst mut slice t . output u64 . effects none .
+  requires mappable t. . .
+do
+  var i usize 0 .
+  while lt i. len src. . . do
+    let elem t idx src. i. . .
+    set idx dst. i. . method elem. apply. . .
+    set i. add i. 1 . .
+  end .
+  return cast u64 i. . .
+end .
+
+rem `keep` 이 참인 원소만 `dst` 에 앞에서부터 차례대로 쓴다.
+export proc filter input comptime t type . input src slice t . input dst mut slice t . output u64 . effects none .
+  requires keepable t. . .
+do
+  var i usize 0 .
+  var j usize 0 .
+  while lt i. len src. . . do
+    let elem t idx src. i. . .
+    if method elem. keep. . do
+      set idx dst. j. . elem. .
+      set j. add j. 1 . .
+    end .
+    set i. add i. 1 . .
+  end .
+  return cast u64 j. . .
+end .
+
+rem `start` 에서 시작해 원소를 차례로 `combine` 한다. 원천이 비면 `start` 다.
+export fn fold input comptime t type . input start t . input src slice t . output t .
+  requires foldable t. . .
+do
+  var acc t start. .
+  var i usize 0 .
+  while lt i. len src. . . do
+    let elem t idx src. i. . .
+    set acc. method acc. combine. elem. . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

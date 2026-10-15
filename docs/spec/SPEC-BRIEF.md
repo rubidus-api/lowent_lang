@@ -51,28 +51,28 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   abs             add             aes_ctr         aes_gcm         aes_round       aes_round_last  all             alloc_bytes
   and             any             arg             atomic_add      atomic_and      atomic_cas      atomic_fence    atomic_load
   atomic_or       atomic_store    atomic_sub      atomic_swap     atomic_xor      await           bit_and         bit_cast
-  bit_not         bit_or          bit_xor         bitset_complement  bitset_contains  bitset_difference  bitset_insert   bitset_intersect
-  bitset_is_empty  bitset_is_subset  bitset_new      bitset_remove   bitset_union    borrow          byte_swap       call_builtin
-  capacity        cast            ceil            chacha20        chacha_poly     channel         chk_add         chk_mul
-  chk_sub         chrecv          chsend          clmul_hi        clmul_lo        collect         config          copy
-  cos             count           count_ones      crc32           cstr_of         deref           dir_close       dir_make
-  dir_open        dir_read        div             div_nz          drain           elem_ge         elem_gt         elem_le
-  elem_lt         encode          enumerate       env_get         eq              error           error_value     exp
-  expect          field           file_close      file_open       file_read       file_seek       file_type       file_write
-  filter          floor           fmod            fold            ge              ghash           gt              hash_bytes
-  idx             into            is_error        is_none         is_ok           is_some         isa             lane_all
-  lane_any        lane_avg        lane_reverse    lane_rotate     lane_select     le              leading_zeros   len
-  link_type       load            load_masked     log             lt              map             max             min
-  mod             mul             mut_ref         narrow          narrow_sat      narrow_try      narrow_wrap     native_lanes
-  ne              neg             net_accept      net_close       net_connect     net_listen      net_pair        net_port
-  net_recv        net_resolve     net_send        nonzero_of      not             ok              ok_value        or
-  panic           path_remove     path_rename     payload         pipe            poly1305        pop             pow
-  prefetch        proc_kill       proc_poll       proc_read       proc_spawn      proc_wait       push            r_read
-  r_write         random_bytes    range           reactor_new     read_in         read_volatile   reduce_add      reduce_max
-  reduce_min      reduce_mul      ref             region          ret             rng_next        rotl            rotr
-  round           same_slice      sat_add         sat_mul         sat_sub         scan            seg             segs
-  send            sha256          sha384          sha512          shl             shr             shuffle         sin
-  size_of         skip            some            some_value      spawn           splat           sqrt            stack_new
+  bit_not         bit_or          bit_xor         bitset_complement  bitset_contains  bitset_count    bitset_difference  bitset_insert
+  bitset_intersect  bitset_is_empty  bitset_is_subset  bitset_new      bitset_remove   bitset_union    borrow          byte_swap
+  call_builtin    capacity        cast            ceil            chacha20        chacha_poly     channel         chk_add
+  chk_mul         chk_sub         chrecv          chsend          clmul_hi        clmul_lo        collect         config
+  copy            cos             count           count_ones      crc32           cstr_of         deref           dir_close
+  dir_make        dir_open        dir_read        div             div_nz          drain           elem_ge         elem_gt
+  elem_le         elem_lt         encode          enumerate       env_get         eq              error           error_value
+  exp             expect          field           file_close      file_open       file_read       file_seek       file_type
+  file_write      filter          floor           fmod            fold            ge              ghash           gt
+  hash_bytes      idx             into            is_error        is_none         is_ok           is_some         isa
+  lane_all        lane_any        lane_avg        lane_reverse    lane_rotate     lane_select     le              leading_zeros
+  len             link_type       load            load_masked     log             lt              map             max
+  min             mod             mul             mut_ref         narrow          narrow_sat      narrow_try      narrow_wrap
+  native_lanes    ne              neg             net_accept      net_close       net_connect     net_listen      net_pair
+  net_port        net_recv        net_resolve     net_send        nonzero_of      not             ok              ok_value
+  or              panic           path_remove     path_rename     payload         pipe            poly1305        pop
+  pow             prefetch        proc_kill       proc_poll       proc_read       proc_spawn      proc_wait       push
+  r_read          r_write         random_bytes    range           reactor_new     read_in         read_volatile   reduce_add
+  reduce_max      reduce_min      reduce_mul      ref             region          ret             rng_next        rotl
+  rotr            round           same_slice      sat_add         sat_mul         sat_sub         scan            send
+  sha256          sha384          sha512          shl             shr             shuffle         sin             size_of
+  skip            some            some_value      spawn           splat           sqrt            stack_count     stack_new
   store           store_masked    str_from_cstr   sub             subslice        sum_neumaier    sum_seq         swap
   take            time_local      time_now        time_sleep      trailing_zeros  try_view        tty_raw         tty_read
   tty_size        unsafe_fn       value_or        view            view_array      view_segments   widen           wrap_add
@@ -96,7 +96,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   프로파일  freestanding  embedded  native  server
 ```
 
-## 6. 오류 코드 — 계열 **121**  ·  *출처: `impl/src/*.c`*
+## 6. 오류 코드 — 계열 **120**  ·  *출처: `impl/src/*.c`*
 
 **전부 적지 않는다**(수백 개다). 어느 계열이 얼마나 굵은지만 — 굵은 계열이 곧 이 언어가
 가장 자주 거절하는 자리다.
@@ -105,7 +105,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   E-VM(53)  E-TYPE(38)  E-NAME(13)  E-ASM(11)  E-ALLOC(10)
   E-ENUM(10)  E-EFFECT(9)  E-MMIO(9)  E-PKG(8)  E-IR(8)
   E-PAR(7)  E-FFI(7)  E-LIT(7)  E-ABSORB(6)
-  … 그 밖 107 계열
+  … 그 밖 106 계열
 ```
 
 ## 7. 지금의 수  ·  *가리키기만 한다*

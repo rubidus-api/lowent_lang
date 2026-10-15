@@ -289,7 +289,7 @@ Searches headings and index terms --- not the full text
 - [24.2.1 Context — with](ch24.md#s24-2-1)
 - [24.3 Walking once is the definition](ch24.md#s24-3)
 - [24.4 Reading only as much as needed](ch24.md#s24-4)
-- [24.5 The built-in map · filter with the same names](ch24.md#s24-5)
+- [24.5 Outside pipe — the module collection](ch24.md#s24-5)
 - [24.6 Common mistakes](ch24.md#s24-6)
 - [24.7 This chapter’s syntax at a glance](ch24.md#s24-7)
 
@@ -676,132 +676,134 @@ Searches headings and index terms --- not the full text
 
 [sortgen — generic sorting (the type brings the comparison)](sec69.md)
 
-[searchlib — binary search on sorted slices](sec70.md)
+[collection — map, filter and fold over a slice](sec70.md)
 
-[hashmap — u64 → u64 hash map](sec71.md)
+[searchlib — binary search on sorted slices](sec71.md)
 
-[strmap — string-keyed hash map](sec72.md)
+[hashmap — u64 → u64 hash map](sec72.md)
 
-[vecs — growable byte vectors with caller-held buffers](sec73.md)
+[strmap — string-keyed hash map](sec73.md)
 
-[spsc — lock-free SPSC ring buffer](sec74.md)
+[vecs — growable byte vectors with caller-held buffers](sec74.md)
 
-[hash — hashing (hash map slots · corruption detection · SHA-2)](sec75.md)
+[spsc — lock-free SPSC ring buffer](sec75.md)
 
-[hash_legacy — old hashes (MD5 · SHA-1)](sec76.md)
+[hash — hashing (hash map slots · corruption detection · SHA-2)](sec76.md)
 
-[math — floating-point maths](sec77.md)
+[hash_legacy — old hashes (MD5 · SHA-1)](sec77.md)
 
-[random — random numbers (reproducible sequences · OS entropy)](sec78.md)
+[math — floating-point maths](sec78.md)
 
-[hmac — HMAC-SHA256 and HKDF](sec79.md)
+[random — random numbers (reproducible sequences · OS entropy)](sec79.md)
 
-[chacha — ChaCha20 stream cipher](sec80.md)
+[hmac — HMAC-SHA256 and HKDF](sec80.md)
 
-[poly — Poly1305 one-time authenticator](sec81.md)
+[chacha — ChaCha20 stream cipher](sec81.md)
 
-[aead — ChaCha20-Poly1305 seal and open](sec82.md)
+[poly — Poly1305 one-time authenticator](sec82.md)
 
-[x25519 — key agreement on a curve](sec83.md)
+[aead — ChaCha20-Poly1305 seal and open](sec83.md)
 
-[aes — the AES-128 block cipher](sec84.md)
+[x25519 — key agreement on a curve](sec84.md)
 
-[gcm — AES-128-GCM authenticated encryption](sec85.md)
+[aes — the AES-128 block cipher](sec85.md)
 
-[crypto_hw — arithmetic the machine helps with](sec86.md)
+[gcm — AES-128-GCM authenticated encryption](sec86.md)
 
-[bigint — big-number modular arithmetic](sec87.md)
+[crypto_hw — arithmetic the machine helps with](sec87.md)
 
-[rsa — RSASSA-PSS verification](sec88.md)
+[bigint — big-number modular arithmetic](sec88.md)
 
-[p256 — the NIST P-256 curve and ECDSA verification](sec89.md)
+[rsa — RSASSA-PSS verification](sec89.md)
 
-[p384 — the NIST P-384 curve and ECDSA verification](sec90.md)
+[p256 — the NIST P-256 curve and ECDSA verification](sec90.md)
 
-[ecdsa — ECDSA P-256 signing](sec91.md)
+[p384 — the NIST P-384 curve and ECDSA verification](sec91.md)
 
-[ed25519 — Ed25519 signature verification](sec92.md)
+[ecdsa — ECDSA P-256 signing](sec92.md)
 
-[der — minimal DER parser](sec93.md)
+[ed25519 — Ed25519 signature verification](sec93.md)
 
-[pem — unwrapping PEM envelopes](sec94.md)
+[der — minimal DER parser](sec94.md)
 
-[x509 — reading X.509 certificates](sec95.md)
+[pem — unwrapping PEM envelopes](sec95.md)
 
-[verify — certificate signatures and one link of a chain](sec96.md)
+[x509 — reading X.509 certificates](sec96.md)
 
-- [ A chain is a line of links](sec96.md#sx1)
-- [ ops](sec96.md#sx2)
-- [ Design](sec96.md#sx3)
+[verify — certificate signatures and one link of a chain](sec97.md)
 
-[tls13 — the computational parts of TLS 1.3](sec97.md)
+- [ A chain is a line of links](sec97.md#sx1)
+- [ ops](sec97.md#sx2)
+- [ Design](sec97.md#sx3)
 
-[tlssrv — the TLS 1.3 server handshake](sec98.md)
+[tls13 — the computational parts of TLS 1.3](sec98.md)
 
-[tlscli — the TLS 1.3 client handshake](sec99.md)
+[tlssrv — the TLS 1.3 server handshake](sec99.md)
 
-- [ The order of the handshake](sec99.md#sx1)
-- [ ops](sec99.md#sx2)
-- [ Design](sec99.md#sx3)
+[tlscli — the TLS 1.3 client handshake](sec100.md)
 
-[http — HTTP/1.1 request parser](sec100.md)
+- [ The order of the handshake](sec100.md#sx1)
+- [ ops](sec100.md#sx2)
+- [ Design](sec100.md#sx3)
 
-[soa — an SoA layout trial: one array per field](sec101.md)
+[http — HTTP/1.1 request parser](sec101.md)
 
-[allocs — allocator traits, bumps and default allocators](sec102.md)
+[soa — an SoA layout trial: one array per field](sec102.md)
 
-[pool — generational-handle block pool](sec103.md)
+[allocs — allocator traits, bumps and default allocators](sec103.md)
 
-[shard — access units that split a store](sec104.md)
+[pool — generational-handle block pool](sec104.md)
 
-[budget — handle bit budgets and generation wraparound](sec105.md)
+[shard — access units that split a store](sec105.md)
 
-[wire — dividing one word into fields](sec106.md)
+[budget — handle bit budgets and generation wraparound](sec106.md)
 
-[flags — named on/off settings in one word](sec107.md)
+[wire — dividing one word into fields](sec107.md)
 
-[segarena — fixed-size segment arena](sec108.md)
+[flags — named on/off settings in one word](sec108.md)
 
-[pagecache — page ids and pinning cursors](sec109.md)
+[segarena — fixed-size segment arena](sec109.md)
 
-[growvec — self-growing byte vector](sec110.md)
+[pagecache — page ids and pinning cursors](sec110.md)
 
-[vecgen — generic self-growing vector vec t a](sec111.md)
+[growvec — self-growing byte vector](sec111.md)
 
-[mapgen — generic hash map table k v](sec112.md)
+[vecgen — generic self-growing vector vec t a](sec112.md)
 
-[nodelist — fixed intrusive lists](sec113.md)
+[mapgen — generic hash map table k v](sec113.md)
 
-[segview — cursors, total length and coalescing for segment views](sec114.md)
+[nodelist — fixed intrusive lists](sec114.md)
 
-[lifemode · lifeatom — when a value ends](sec115.md)
+[segview — cursors, total length and coalescing for segment views](sec115.md)
 
-[stdio — standard input and output](sec116.md)
+[lifemode · lifeatom — when a value ends](sec116.md)
 
-[args — command-line arguments](sec117.md)
+[stdio — standard input and output](sec117.md)
 
-[env — environment variables](sec118.md)
+[args — command-line arguments](sec118.md)
 
-[io — stream reading over slices](sec119.md)
+[env — environment variables](sec119.md)
 
-[outbuf — buffered output where forgetting to flush is a compile error](sec120.md)
+[io — stream reading over slices](sec120.md)
 
-[files — file and directory streams where forgetting to close is a compile error](sec121.md)
+[outbuf — buffered output where forgetting to flush is a compile error](sec121.md)
 
-[tty — terminal input](sec122.md)
+[files — file and directory streams where forgetting to close is a compile error](sec122.md)
 
-[reactor — non-blocking reads and writes](sec123.md)
+[tty — terminal input](sec123.md)
 
-[net — sockets (TCP loopback · in-process pairs)](sec124.md)
+[reactor — non-blocking reads and writes](sec124.md)
 
-[clock — time and deadlines](sec125.md)
+[net — sockets (TCP loopback · in-process pairs)](sec125.md)
 
-[trust — finding a trusted root in the trust store](sec126.md)
+[clock — time and deadlines](sec126.md)
 
-- [ It never holds the whole bundle](sec126.md#sx1)
-- [ ops](sec126.md#sx2)
+[trust — finding a trusted root in the trust store](sec127.md)
 
-[Index](sec127.md)
+- [ It never holds the whole bundle](sec127.md#sx1)
+- [ ops](sec127.md#sx2)
+
+[Index](sec128.md)
 
 ---
 

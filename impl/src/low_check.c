@@ -1377,11 +1377,6 @@ static bool ck_writes_place(const low_cst_t *nd, proven_u8str_view_t name) {
             (veq(pl->kids[0]->tok.lex, "idx") || veq(pl->kids[0]->tok.lex, "field")) &&
             proven_u8str_view_eq(pl->kids[1]->tok.lex, name)) return true;
     }
-    // ★ `map <out> …` · `filter <out> …` 도 out(첫 인자)에 **쓴다** — 관측적 순수성(RFC-0057)이
-    //   이 쓰기를 봐야 한다. 그래서 mut 파라미터에 map/filter 하는 fn 은 E-EFFECT-PURITY 로 잡힌다.
-    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
-        (veq(nd->kids[0]->tok.lex, "map") || veq(nd->kids[0]->tok.lex, "filter")) &&
-        nd->kids[1]->kind == LOW_CST_ATOM && proven_u8str_view_eq(nd->kids[1]->tok.lex, name)) return true;
     // ★★★ `collect into <자리>` 도 그 자리에 **쓴다** (결함 노트 #16, 2026-09-16). 호출자 저장소
     //   쓰기의 효과 판정이 세 갈래로 갈려 있었다: `mut slice` 원소 쓰기는 `state` 를 요구하고,
     //   `collect into` 는 세지 않으며(`effects state` 면 «선언했는데 안 한다»), `mut_ref` 는
@@ -4886,55 +4881,8 @@ static void ck_profile(low_check_result_t *out, const low_parse_result_t *pr) {
              "declared — it is COMPUTED from the constructs you used — and the profile caps it. "
              "Either raise the profile or stop using the feature", pline);
 }
-// ★★★ **map/filter 의 싱크는 mut 여야 한다** (RFC-0016 — 호출자-싱크 모델). map/filter 는 결과를 첫 인자
-//   `out` 에 **쓴다**(ISTORE). 그 자리가 읽기 전용 slice 면 읽기 전용에 쓰는 것이다 — mut 규율(E-TYPE-MUT)이
-//   `set (index …)` 만 보던 틈이다. out 은 **mut slice 파라미터**여야 한다(할당 없는 유계 싱크).
-static void ck_map_sink_walk(low_check_result_t *out, const low_cst_t *nd, const low_op_header_t *h,
-                             const low_cst_t *opf, const low_parse_result_t *pr) {
-    if (!nd) return;
-    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
-        (veq(nd->kids[0]->tok.lex, "map") || veq(nd->kids[0]->tok.lex, "filter")) &&
-        nd->kids[1]->kind == LOW_CST_ATOM) {
-        proven_u8str_view_t on = nd->kids[1]->tok.lex;
-        bool mut = false, found = false; proven_size_t pq = 0;
-        for (proven_size_t q = 0; q < h->np; q++)
-            if (proven_u8str_view_eq(h->p[q].name, on)) { mut = h->p[q].is_mut; found = true; pq = q; break; }
-        if (found && !mut)
-            emit(out, "E-MAP-SINK",
-                 "map/filter WRITES its result into the first argument (the sink), so that must be a "
-                 "`mut slice` PARAMETER — a caller-provided buffer (no allocation, RFC-0016). Writing "
-                 "into a read-only slice is exactly what the mut discipline forbids. Declare it "
-                 "`input <name> mut slice <T> .`", nd->kids[0]->tok.line);
-        // ★★ 원소는 **스칼라여야** 한다 — map/filter 는 원소를 index-store 로 쓴다(scalar-only). 구조체/enum
-        //   슬라이스는 백엔드가 낮출 수 없다(VM 은 E-VM-TYPE, native 는 panic). **정적으로 거절**한다.
-        if (found && opf) {
-            for (proven_size_t z = h->p[pq].core; z + 1 < h->p[pq].te; z++)
-                if (opf->kids[z]->kind == LOW_CST_ATOM &&
-                    (veq(opf->kids[z]->tok.lex, "slice") || veq(opf->kids[z]->tok.lex, "array")) &&
-                    opf->kids[z + 1]->kind == LOW_CST_ATOM &&
-                    ck_is_aggregate(pr, opf->kids[z + 1]->tok.lex)) {
-                    emit(out, "E-MAP-ELEM",
-                         "map/filter's element type is a STRUCT/ENUM, but these ops write each element "
-                         "with a scalar index-store — an aggregate element cannot be lowered that way "
-                         "(RFC-0016). Use a scalar element slice, or hand-write the loop", nd->kids[0]->tok.line);
-                    break;
-                }
-        }
-    }
-    for (proven_size_t i = 0; i < nd->nkids; i++) ck_map_sink_walk(out, nd->kids[i], h, opf, pr);
-}
-static void ck_map_sink(low_check_result_t *out, const low_parse_result_t *pr) {
-    for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
-        if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
-        low_kw_t kw = f->kids[0]->tok.kw;
-        if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
-        low_op_header_t h = low_op_header(f);
-        const low_cst_t *body = (f->nkids && f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK)
-                                    ? f->kids[f->nkids - 1] : NULL;
-        ck_map_sink_walk(out, body, &h, f, pr);
-    }
-}
+// ☞ 옛 전위 `map` · `filter` 의 받는 자리 검사(`E-MAP-SINK`)는 그 연산과 함께 갔다(RFC-0150 Q3) — `collection.map` 의 받는 자리는
+//   `mut slice` 매개변수이므로 보통 규칙이 본다.
 // ★★★ **plain `field`/`set` 도 MMIO 접근이다** (RFC-0042 건전성 구멍). `read_volatile`/`write_volatile`
 //   만 MMIO 로 보던 탓에, 같은 레지스터를 `field g idr` / `set (field g idr) …` / 붙임점 `g.idr` 로
 //   만지면 cap·effect 게이트를 통째로 우회했다. 여기서는 **타입으로** 판정한다: 접근의 base 가
@@ -10639,7 +10587,6 @@ static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
         proven_u8str_view_t w = nd->kids[0]->tok.lex;
         bool wth = nd->nkids >= 4 && ck_atom(nd->kids[2]) && veq(nd->kids[2]->tok.lex, "with");   // RFC-0121 — `filter op with <식>`
         if ((nd->nkids == 2 || wth) && (veq(w, "filter") || veq(w, "any") || veq(w, "all"))) opa = nd->kids[1];
-        else if (nd->nkids == 4 && veq(w, "filter")) opa = nd->kids[2];
     }
     if (opa && ck_atom(opa) && opa->tok.kw == LOW_KW_NONE) {
         for (proven_size_t i = 0; i < nt; i++) {
@@ -10863,9 +10810,6 @@ static void ck_collectfull_walk(low_check_result_t *out, const low_cst_t *nd,
                     break;
                 }
             }
-        } else if (nd->kind == LOW_CST_FORM && nd->nkids == 4 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "map")) {
-            proven_u64 n = ck_known_len(f, h, nd->kids[3]), cap = ck_known_len(f, h, nd->kids[1]);
-            if (n && cap && n > cap) ck_collectfull_emit(out, nd->kids[0]->tok.line, n, cap);
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_collectfull_walk(out, nd->kids[i], f, h);
@@ -11049,6 +10993,9 @@ static void ck_value_discard_walk(low_check_result_t *out, const low_cst_t *nd, 
     if (nd->kind == LOW_CST_FORM && nd->nkids && ck_atom(nd->kids[0])) {
         low_kw_t hk = nd->kids[0]->tok.kw;
         if (hk == LOW_KW_LIT || hk == LOW_KW_STRUCT || hk == LOW_KW_ENUM || hk == LOW_KW_TRAIT) return;
+        // ★ RFC-0150 Q3 — `pipe … do … end` 의 줄은 문장이 아니라 스테이지다. `map` · `filter` · `fold` 가 저자의 이름이 될 수 있게
+        //   되자, 같은 이름의 `fn` 이 있으면 스테이지 `map dbl .` 를 «값을 버리는 부름» 으로 읽었다.
+        if (hk == LOW_KW_NONE && veq(nd->kids[0]->tok.lex, "pipe")) return;
     }
     if (nd->kind == LOW_CST_BLOCK) {
         for (proven_size_t i = 0; i < nd->nkids; i++) {
@@ -11067,7 +11014,7 @@ static void ck_value_discard_walk(low_check_result_t *out, const low_cst_t *nd, 
     bool after_lit = false;
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         const low_cst_t *k = nd->kids[i];
-        if (ck_atom(k) && k->tok.kw == LOW_KW_LIT) after_lit = true;
+        if (ck_atom(k) && (k->tok.kw == LOW_KW_LIT || (k->tok.kw == LOW_KW_NONE && veq(k->tok.lex, "pipe")))) after_lit = true;
         if (after_lit && k && (k->kind == LOW_CST_BLOCK || k->kind == LOW_CST_FORM)) {   // `T do … end` 은 머리 붙은 블록 FORM 이다
             after_lit = false; continue;
         }
@@ -11088,7 +11035,7 @@ static void o4_atoms(const low_cst_t *nd, const low_cst_t **buf, proven_size_t *
 }
 static bool o4_mutating_word(proven_u8str_view_t w) {
     static const char *M[] = { "bitset_insert", "bitset_remove", "push", "pop", "swap", "store", "store_masked",
-                               "copy", "map", "filter", "write_volatile", "call_builtin", "collect", "send", "spawn" };
+                               "copy", "write_volatile", "call_builtin", "collect", "send", "spawn" };
     for (proven_size_t i = 0; i < sizeof M / sizeof M[0]; i++) if (veq(w, M[i])) return true;
     return w.size > 7 && memcmp(w.ptr, "atomic_", 7) == 0;
 }
@@ -12014,7 +11961,6 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_vec_value(&out, pr);       // ★★★ **벡터/마스크엔 소유·빌림 수식자가 못 붙는다** (RFC-0040)
         ck_target_intrin(&out, pr);   // ★★★ **unsafe target <iset> — intrinsic 격리 게이트** (RFC-0040 D5)
         ck_profile(&out, pr);         // ★★★ **profile 이 동시성 상한을 게이팅한다** (RFC-0009 §105)
-        ck_map_sink(&out, pr);        // ★★★ **map/filter 의 싱크는 mut slice 여야 한다** (RFC-0016)
         ck_mmio(&out, pr);            // ★★★ **MMIO 도 권한이다** (RFC-0042 D2/D7)
         ck_reserve(&out, pr);         // ★★★ **예약된 정적 블록도 권한이다** (RFC-0039 §9-2)
         ck_asm(&out, pr);             // ★★★ **인라인 asm = 검증 불가한 탈출구 ⇒ 격리** (RFC-0041)

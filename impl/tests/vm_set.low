@@ -26,7 +26,7 @@ fn ops output usize . do
   let i bitset 8 bitset_intersect a. b. . .
   let d bitset 8 bitset_difference a. b. . .
   rem union 은 원소 4 개, intersect 는 2 개, difference 는 1 개 — 합쳐 421 을 만든다.
-  return add mul count u. . 100 . add mul count i. . 10 . count d. . . . .
+  return add mul bitset_count u. . 100 . add mul bitset_count i. . 10 . bitset_count d. . . . .
 end .
 
 fn subs output u64 . do
@@ -48,7 +48,7 @@ fn rem1 output usize . do
   bitset_insert a. 1 .
   bitset_insert a. 2 .
   bitset_remove a. 1 .
-  return count a. . .
+  return bitset_count a. . .
 end .
 
 rem ★ **complement — 여집합은 폭이 있어야 옳다** (RFC-0010 §6.7.1).
@@ -65,5 +65,5 @@ fn comp output usize . do
   bitset_insert a. 3 .
   let c bitset 8 bitset_complement a. . .
   rem 8 비트 중 셋을 뺀 나머지 = 5
-  return count c. . .
+  return bitset_count c. . .
 end .

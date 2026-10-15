@@ -25,6 +25,6 @@ end .
   [`arg`], [`(cap args, i u64) → option slice u8`], [The `i`-th argument, from 0. `none` when there is no argument at that position],
 )
 
-The number of arguments comes from the core op `count a. .`.
+The number of arguments comes from the core op `len a. .` (the same word as the length of a slice).
 
 *Not built*: option parsing (`--name value`), reading an argument as a number.

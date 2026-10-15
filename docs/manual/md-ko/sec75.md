@@ -1,8 +1,8 @@
-# <a id="mod-hash_legacy"></a>`hash_legacy` — 옛 해시(MD5 · SHA-1)
+# <a id="mod-hash"></a>`hash` — 해시(해시맵 자리 · 손상 검출 · SHA-2)
 
 소스
 
-`lib/hash_legacy.low`
+`lib/hash.low`
 
 층
 
@@ -12,36 +12,45 @@ L0 — 순수 계산
 
 없음
 
-MD5 와 SHA-1 을 낸다. 둘 다 **보안에는 쓸 수 없는 해시**다. 보안이 아닌 자리 — 체크섬, 내용으로 이름 짓기, 옛 파일 읽기 — 에서는 지금도 널리 쓰인다.
+바이트열에서 수를 낸다. 성격이 다른 셋이 한 모듈에 있고, 섞으면 위험한 쪽으로 틀린다.
 
-> **보안에는 쓰지 않는다**
+> **`of` 와 `crc` 는 암호용이 아니다**
 >
-> > 두 해시는 같은 다이제스트를 내는 서로 다른 입력을 만들 수 있다 — MD5 는 2004 년에, SHA-1 은 2017 년에 실제 충돌이 나왔다. 서명 · 인증서 · 비밀번호 · 변조 검출에 쓰면 안 된다. 그 자리는 [`hash`](sec74.md#mod-hash) 의 `sha256`(SHA-256) · `sha384` · `sha512` 다. 이 모듈이 맞는 자리는 누군가 일부러 속이려 들지 않는 곳이다: 내려받은 파일이 깨지지 않았는지 보는 체크섬, 내용으로 이름을 짓는 저장소 형식, 캐시의 열쇠, 그리고 이미 MD5 나 SHA-1 로 적힌 옛 파일을 읽는 일.
+> > `of`(FNV-1a 64)는 **해시맵 자리** — 빠르고 잘 흩어지지만 암호용이 아니다. `crc`(반사 CRC-32)는 **우연한 손상** 검출 — 원하는 CRC 를 맞추는 것은 쉬우므로 위조를 막지 못한다. `sha256` · `sha256_ok`(SHA-256)와 `sha384` · `sha512` 는 암호 해시로, 무결성 증명은 이쪽이다. 키가 있는 인증은 `sha256` 도 아니고 [`hmac`](sec79.md#mod-hmac) 이다 — 해시 하나로는 **누가 보냈는가** 에 답할 수 없다.
 
 ```lowent
-use hash_legacy .
+use hash .
 
-proc sum input data slice u8 . input work mut slice u64 . input out mut slice u8 . output usize . effects none . do
-  return hash_legacy.md5 data. work. out. . .
+fn slot input key slice u8 . input nslots u64 . output u64 . do
+  return hash.bucket_of key. nslots. . .
 end .
 ```
 
-**왜 모듈을 갈랐나.** 이름이 경고다. `hash.md5` 라고 적히면 `hash.sha256` 와 같은 무게로 읽힌다. `hash_legacy.md5` 는 읽는 사람이 한 번 멈추게 한다. 없어질 모듈이라는 뜻은 아니다 — 보안용 해시와 섞이지 않게 따로 둔 것이다.
-
-**왜 빌트인이 아닌가.** 전부 이 언어로 썼다. SHA-2 가 컴파일러의 잎인 것은 비용 때문인데, 체크섬과 옛 파일 읽기는 그만큼 뜨거운 길이 아니다. 느린 대신 컴파일러에 기대는 것이 없다.
+**왜 알고리즘을 고정했나.** 해시는 그럴듯한 수가 나오면 맞아 보인다. 고정하지 않으면 검사할 것이 남지 않는다. 고정했기에 표준이 정한 검사값이 시험의 기준이 되고 (CRC-32 의 `"123456789"` → `0xCBF43926`), VM 과 네이티브가 갈리면 그 자리에서 드러난다.
 
 | **op** | **모양** | **쓸모** |
 |---|---|---|
-| `md5` | `(data slice u8, work mut slice u64, out mut slice u8) → u64` | MD5(RFC 1321) — 쓴 바이트 수(16) |
-| `sha1` | `(data slice u8, work mut slice u64, out mut slice u8) → u64` | SHA-1(FIPS 180) — 쓴 바이트 수(20) |
+| `of` | `(data slice u8) → u64` | FNV-1a 64 — 해시맵 자리 |
+| `bucket_of` | `(data, nslots u64) → u64` | 칸 고르기(나머지 연산) |
+| `bucket_mask` | `(data, mask u64) → u64` | 칸 수가 2 의 거듭제곱일 때 |
+| `crc` | `(data slice u8) → u32` | 반사 CRC-32 — 손상 검출 |
+| `crc_ok` | `(data, want u32) → bool` | 검사값 대조 |
+| `maybe_same` | `(a, b slice u8) → bool` | 해시가 같은가 — 같다는 증명이 아니다 |
+| `sha256` | `(data, out mut slice u8) → usize` | SHA-256 — 쓴 바이트 수(32) |
+| `sha256_ok` | `(data, out mut slice u8, want slice u8) → bool` | 받은 다이제스트와 대조 |
+| `sha384` | `(data, out mut slice u8) → usize` | SHA-384 — 쓴 바이트 수(48) |
+| `sha512` | `(data, out mut slice u8) → usize` | SHA-512 — 쓴 바이트 수(64) |
+| `digest_eq` | `(a, b slice u8) → bool` | 다이제스트 둘이 같은가 — 길이에 상관없이 끝까지 본다 |
 
-*표 50.1 — `hash_legacy` 의 op*
+*표 50.1 — `hash` 의 op*
 
-`work` 는 호출자가 주는 작업 공간이다 — `md5` 는 16 낱말, `sha1` 은 80 낱말이 있어야 한다. 라이브러리는 몰래 할당하지 않는다. `out` 이나 `work` 가 모자라면 0 을 답하고 **아무것도 쓰지 않는다** — 조용히 덜 쓴 다이제스트는 맞아 보이기 때문이다.
+`sha256_ok` 가 있는 이유 — 해시의 올바른 쓰임은 왕복이 아니라 **대조**다. 다시 계산해 받은 것과 맞대는 것이 유일하게 옳은 쓰임이라 그 모양이 op 으로 있다(`want` 가 32 바이트가 아니면 그대로 `false` — 길이부터 계약(op 이 스스로 적는 약속)이다). `maybe_same` 에 `maybe` 가 붙은 이유 — 해시가 같아도 값이 같다는 뜻은 아니다. `same` 이라 불렀으면 이름이 거짓말이 됐을 것이다.
 
-시험의 기준은 규격이 정한 답이다. MD5 는 RFC 1321 부록 A.5 의 시험 묶음, SHA-1 은 FIPS 180 의 예에 대고, 덧붙임이 블록을 하나 더 쓰는 경계(길이 55 · 56 · 63 · 64)를 따로 댄다. VM 과 네이티브가 같은 답을 낸다.
+`sha384` 와 `sha512` 도 규율이 같다 — 다이제스트를 호출자 버퍼에 쓰고, 버퍼가 모자라면 0 을 답하고 아무것도 쓰지 않는다. 받은 다이제스트와 맞댈 때는 `digest_eq` 를 쓴다. 첫 다른 바이트에서 멈추지 않으므로 걸린 시간이 «어디까지 맞았는지» 를 말해 주지 않는다.
 
-**짓지 않은 것** — 스트리밍(조각으로 이어 먹이기), HMAC-MD5 · HMAC-SHA1, MD4 같은 더 옛 해시.
+MD5 와 SHA-1 은 이 모듈에 없다. 보안에는 쓸 수 없는 해시여서 [`hash_legacy`](sec76.md#mod-hash_legacy) 에 따로 있다 — 체크섬과 옛 파일 읽기에는 그쪽을 쓴다.
+
+**짓지 않은 것** — 키드 해시(그 자리는 `hmac`), 시드 가능한 해시(HashDoS 방어), 스트리밍(조각으로 이어 먹이기), SHA-3.
 
 ---
 

@@ -61,9 +61,9 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Atomic (bits) | `atomic_and` `atomic_or` `atomic_xor` |
 | Pipe stages — chapter 24 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into` |
 | Lanes (SIMD) — chapter 27 | `splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch` |
-| Small-number sets — chapter 13 | `bitset_new` `bitset_insert` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |
-| Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
-| Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |
+| Small-number sets — chapter 13 | `bitset_new` `bitset_count` `bitset_insert` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |
+| Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `capacity` |
+| Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `stack_count` `push` `pop` `swap` |
 | Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` `elem_lt` `elem_le` `elem_gt` `elem_ge` |
 | Builtin ops (computation) — stand only after `call_builtin` | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
 | C strings and callbacks — chapter 29 | `cstr_of` `str_from_cstr` `unsafe_fn` |

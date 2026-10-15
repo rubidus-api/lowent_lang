@@ -129,7 +129,7 @@ proc spanning input al cap allocator . output u64 . effects alloc . do
   set idx d. 2 . 8 . set idx d. 3 . 2 .
   var out mut slice u8 some_value mo. . .
   let ss segments u8 view_segments back. d. . .
-  guard eq segs ss. . 2 . else return 94 . .
+  guard eq segview.piece_count ss. . 2 . else return 94 . .
   guard eq segview.total_len ss. . 4 . else return 95 . .
   let bo option u8 segview.byte_at ss. 2 . .
   guard is_some bo. . else return 96 . .

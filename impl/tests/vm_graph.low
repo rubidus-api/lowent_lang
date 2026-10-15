@@ -64,5 +64,5 @@ proc reach
 do
   var out bitset bitset_new 64 . .
   graph_reachable temp. g. root. out. .
-  return count out. . .
+  return bitset_count out. . .
 end .

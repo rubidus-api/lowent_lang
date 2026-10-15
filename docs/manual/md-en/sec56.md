@@ -13,7 +13,7 @@ These are the places people often trip when writing Lowent with habits from othe
 | `for x in xs` | `E-VOCAB-REMOVED` | `for x xs. do … end .` |
 | `let x f64 .5 .` | `E-LET-NOVALUE` | `0.5` |
 | Naming a local the same as a parameter | `E-NAME-SHADOW` | Pick a new name |
-| Using names like `count`, `text` or `len` | `E-NAME-BUILTIN` and others | Builtins and the word that opens a text literal cannot be names |
+| Using names like `len`, `max` or `text` | `E-NAME-BUILTIN` and others | Builtins and the word that opens a text literal cannot be names |
 | A module name equal to an op name | `E-NAME-DUP` | Rename the module |
 | Leaving the stop off a variable, as in `add a b .` | `E-DOT-MISSING` | `add a. b. .` — a variable is written `a.` (chapter 3) |
 | `let x be u8 4 .` | `E-LET-BE` | `let x u8 4 .` |

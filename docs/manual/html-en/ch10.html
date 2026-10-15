@@ -808,7 +808,49 @@ demo_area(2) = 0
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check missing_case.low
 missing_case.low:12:0 E-MATCH-INEXHAUSTIVE: this `match` does not handle every variant of the enum — add the missing `case` (that exhaustiveness is what a `match` buys you over an if-chain: add a variant later and the compiler finds every place that must change), or add a `case _ .` wildcard to cover the rest
-</code></pre></div></div><p>This check is the greatest value of an <code>enum</code>. When a <code>triangle</code> variant is added later, every <code>match</code> over <code>shape</code>, <code>area</code> and <code>corners</code> included, stops at translation. Nobody has to remember the places to fix.</p><p>To ask only which variant without a <code>match</code>, <code>isa n. num .</code> gives a <code>bool</code>.</p><h4 id="s10-2-1">10.2.1 Variant numbers and <code>cast</code><a class="plink" href="#s10-2-1" aria-label="Link to this section" title="Link to this section">#</a></h4><div></div><p>An enum value is not a number. Putting one as it is into a name, argument or return declared as a number, into arithmetic or an index is refused.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_enumnum.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_enumnum .
+</code></pre></div></div><p>This check is the greatest value of an <code>enum</code>. When a <code>triangle</code> variant is added later, every <code>match</code> over <code>shape</code>, <code>area</code> and <code>corners</code> included, stops at translation. Nobody has to remember the places to fix.</p><p>To ask only which variant without a <code>match</code>, <code>isa n. num .</code> gives a <code>bool</code>.</p><p>The type a variant holds is <strong>written as one word</strong>. A variant line has no mark between its fields, so a type spelled in several words such as <code>slice u8</code> would leave no way to tell where it ends (<code>E-ENUM-PAYLOAD</code>). It is not a limit on size. A type of several words, or a large value, is held through a struct that has it as a field, named and written by that name.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/payload_struct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> payload_struct .
+<em><span class="tok-c">rem run: demo 0</span></em>
+<em><span class="tok-c">rem run: demo 1</span></em>
+<em><span class="tok-c">rem run: demo 2</span></em>
+
+<strong><span class="tok-k">struct</span></strong> bytes <strong><span class="tok-k">do</span></strong>
+  b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+  z <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">enum</span></strong> msg <strong><span class="tok-k">do</span></strong>
+  data d bytes .
+  dot p pt .
+  blank .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> weigh <strong><span class="tok-k">input</span></strong> m msg . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> m. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> data d <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u64</span></strong> len field d. b . . . . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> dot p <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add add field p. x . field p. y . . field p. z . . . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> blank <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> demo <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq k. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> weigh msg.data <strong><span class="tok-k">lit</span></strong> bytes <strong><span class="tok-k">do</span></strong> b <span class="tok-s">"</span><span class="tok-s">abc</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> . . . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq k. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> weigh msg.dot <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . z <span class="tok-n">7</span> . <strong><span class="tok-k">end</span></strong> . . . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> weigh msg.blank. . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run demo payload_struct.low 0
+demo(0) = 3
+$ lowentc --run demo payload_struct.low 1
+demo(1) = 10
+$ lowentc --run demo payload_struct.low 2
+demo(2) = 0
+</code></pre></div></div><ul><li><code>data d bytes .</code> holds a struct with a slice in it, and <code>dot p pt .</code> a struct of three fields. Both are written as one word (<code>bytes</code>, <code>pt</code>).</li></ul><h4 id="s10-2-1">10.2.1 Variant numbers and <code>cast</code><a class="plink" href="#s10-2-1" aria-label="Link to this section" title="Link to this section">#</a></h4><div></div><p>An enum value is not a number. Putting one as it is into a name, argument or return declared as a number, into arithmetic or an index is refused.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_enumnum.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_enumnum .
 <em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
 
 <strong><span class="tok-k">enum</span></strong> volume <strong><span class="tok-k">do</span></strong>

@@ -126,7 +126,10 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     proven_u8str_view_t kind = f->kids[2]->tok.lex;
     proven_size_t wi = b;                                          // `where` 의 자리(없으면 b)
     for (proven_size_t q = 2; q < b; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "where")) { wi = q; break; }
-    bool counted = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE && (veq(kind, "count") || veq(kind, "range"));
+    // ★ RFC-0150 Q3 — `count` 는 이제 저자의 이름이 될 수 있다: `for x count. do` 의 셋째 낱말은 원천이다. 세는 꼴(`repeat` 이
+    //   풀린 `for i count τ n`)은 그 뒤에 타입 낱말과 끝이 온다 — 모양으로 가른다.
+    bool count_shape = veq(kind, "count") && b >= 5 && is_atom(f->kids[3]) && f->kids[3]->tok.kw == LOW_KW_NONE && !veq(f->kids[3]->tok.lex, "where");
+    bool counted = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE && (count_shape || veq(kind, "range"));
     bool recur = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_BE;
     bool mutk = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE && veq(kind, "mut");
     if (c->nloops >= IR_MAXLOOP || c->nlocals + 9 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "loop nesting too deep", f->line); return; }
@@ -208,7 +211,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         c->nloops--;
         return;
     }
-    if (veq(kind, "count") && ir_count_simple(c, f, b, wi)) {       // 지름길 — while 모양(위 ir_count_simple)
+    if (count_shape && ir_count_simple(c, f, b, wi)) {       // 지름길 — while 모양(위 ir_count_simple)
         ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)var);
         proven_size_t cond = c->code.len;
         ir_emit(c, IRW_LOAD, (proven_i64)var); ir_run(c, f->kids, 4, 1); ir_emit(c, IRW_LT, TM);
@@ -226,7 +229,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         c->nloops--;
         return;
     }
-    if (veq(kind, "count")) {                                      // for i count τ n .
+    if (count_shape) {                                             // for i count τ n .
         HID(endv); HID(iv);
         c->locals[endv].ty = ty; c->locals[iv].ty = ty;   // 숨은 끝·셈도 τ 다
         ir_run(c, f->kids, 4, wi - 4);
@@ -1458,7 +1461,8 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             for (proven_size_t q = 2; q < b; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "where")) has_where = true;
             if (has_where || (is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_BE) ||
                 (is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE &&
-                 (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range") || veq(f->kids[2]->tok.lex, "mut")))) {
+                 ((veq(f->kids[2]->tok.lex, "count") && b >= 5 && is_atom(f->kids[3]) && f->kids[3]->tok.kw == LOW_KW_NONE && !veq(f->kids[3]->tok.lex, "where")) ||
+                  veq(f->kids[2]->tok.lex, "range") || veq(f->kids[2]->tok.lex, "mut")))) {   // `count` 는 세는 모양일 때만(RFC-0150 Q3)
                 ir_for_p1(c, f, b);
                 return;
             }

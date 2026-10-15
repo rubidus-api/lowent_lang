@@ -1,0 +1,68 @@
+rem ★★★ **풀린 이름 여섯** (RFC-0150 Q3, 소유자 2026-10-16 «이름은 다 풀어버리세요»).
+rem
+rem   `map` · `filter` · `fold` · `count` · `seg` · `segs` 는 기본 연산이었고, 기본 연산의 이름은 저자의 이름이 될 수 없었다
+rem   (`E-NAME-BUILTIN`). 셋은 라이브러리 `collection` 으로, `count` 는 `bitset_count` · `stack_count` · `len <cap args>` 로,
+rem   `seg` · `segs` 는 라이브러리 `segview` 의 `piece_at` · `piece_count` 로 갔다. 이 파일은 그 이름을 op · 매개변수 · 지역으로 쓴다.
+rem   ★ 같은 낱말이 `pipe` 안에서는 여전히 스테이지다 — 사용자 op `map` 이 있어도 `pipe` 의 `map dbl` 은 스테이지다.
+rem   ★ `for x count. do` 의 `count` 는 원천이다. 안에서 `repeat` 은 `for i count τ n` 으로 풀리므로, 셈 꼴은 뒤의 타입 낱말로 가른다
+rem     (전엔 셋째 낱말이 `count` 인지만 봐서 원천 이름 `count` 를 세는 반복으로 읽었다 — 이 파일이 찾았다).
+
+module vm_freednames .
+
+fn map input seg u64 . output u64 . do
+  return add seg. 1 . .
+end .
+
+fn fold input filter u64 . input count u64 . output u64 . do
+  return add filter. count. . .
+end .
+
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
+
+rem segs = 3, count 는 네 번 올라 4 — map 3 = 4, fold 4 4 = 8.
+fn demo output u64 . do
+  let segs u64 3 .
+  var count u64 0 .
+  repeat i u64 4 do
+    set count. add count. 1 . .
+  end .
+  return fold map segs. . count. . .
+end .
+
+rem 원천의 이름이 `count` 다.
+fn walk input count slice u8 . output u64 . do
+  var s u64 0 .
+  for x count. do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
+
+rem 거르기를 단 꼴 — 안에서 `where` 로 풀린다.
+fn walkif input count slice u8 . output u64 . do
+  var s u64 0 .
+  for x count. if gt x. 1 . do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
+
+rem 사용자 op `map` 이 있어도 `pipe` 안의 `map` 은 스테이지, `count` 는 종결자다.
+fn piped input xs slice u8 . output u64 . do
+  let filter u64 1 .
+  let n u64 pipe xs. do
+    map dbl .
+    count .
+  end . .
+  return add filter. n. . .
+end .
+
+rem 같은 파일에 사용자 op `map` · `fold` 가 있어도 `pipe` 의 `map` 은 원소를 두 배로, `fold` 는 접는다: [1,2,3] → 2+4+6 = 12.
+fn add2 input acc u64 . input x u8 . output u64 . do return add acc. widen u64 x. . . . end .
+
+fn piped_sum input xs slice u8 . output u64 . do
+  return pipe xs. do
+    map dbl .
+    fold 0 add2 .
+  end . .
+end .

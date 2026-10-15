@@ -1,6 +1,8 @@
 module pieces .
 rem run: main
 
+use segview .
+
 proc main input al cap allocator . output u8 . effects alloc .
 do
   let mb option mut slice u8 alloc_bytes al. capacity 16 . .
@@ -19,7 +21,7 @@ do
   set idx d. 3 . 4 .
   rem ko: 복사 없이 두 조각을 한 눈으로 본다 /// en: see the two pieces as one view, without copying
   let ss segments u8 view_segments back. d. . .
-  let p slice u8 seg ss. 1 . .
+  let p slice u8 segview.piece_at ss. 1 . .
   rem ko: 조각 수 2 에 10 을 곱하고, 둘째 조각의 1 번 바이트(원래 9 번 자리의 30)를 더한다 /// en: the piece count 2 times 10, plus byte 1 of the second piece (the 30 at original position 9)
-  return cast u8 add mul segs ss. . 10 . cast usize idx p. 1 . . . . .
+  return cast u8 add mul segview.piece_count ss. . 10 . cast usize idx p. 1 . . . . .
 end .

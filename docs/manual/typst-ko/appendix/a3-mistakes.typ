@@ -18,7 +18,7 @@
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs. do … end .`],
   [`let x f64 .5 .`], [`E-LET-NOVALUE`], [`0.5`],
   [매개변수와 같은 이름의 지역을 짓는다], [`E-NAME-SHADOW`], [새 이름을 짓는다],
-  [`count`·`text`·`len` 같은 이름을 쓴다], [`E-NAME-BUILTIN` 따위], [기본 연산·텍스트 리터럴 낱말은 이름이 될 수 없다],
+  [`len`·`max`·`text` 같은 이름을 쓴다], [`E-NAME-BUILTIN` 따위], [기본 연산·텍스트 리터럴 낱말은 이름이 될 수 없다],
   [모듈 이름과 op 이름이 같다], [`E-NAME-DUP`], [모듈 이름을 바꾼다],
   [`add a b .` 처럼 변수에 점을 붙이지 않는다], [`E-DOT-MISSING`], [`add a. b. .` --- 변수는 `a.` 로 적는다(#chref("surface"))],
   [`let x be u8 4 .`], [`E-LET-BE`], [`let x u8 4 .`],

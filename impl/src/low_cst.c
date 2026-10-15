@@ -793,7 +793,10 @@ static low_cst_t *low_parse_loop(low_parser_t *p) {
     bool old = false;
     if (head.kw == LOW_KW_FOR && low_curk(p) == LOW_TOK_IDENT) {
         const low_token_t *t = low_cur(p);
-        const char *nw = (t->kw == LOW_KW_NONE && low_view_eq_cstr(t->lex, "count")) ? "repeat" : t->kw == LOW_KW_RANGE ? "range" : NULL;
+        // ★ RFC-0150 Q3 — `count` 는 저자의 이름일 수 있다(`for x count. do` · `for x count if c do`). 옛 세는 꼴은 뒤에 타입 낱말이 온다.
+        const low_token_t *t1 = p->pos + 1 < p->n ? &p->toks[p->pos + 1] : NULL;
+        bool src_count = t1 && (t1->kind == LOW_TOK_DOT || (t1->kind == LOW_TOK_IDENT && (t1->kw == LOW_KW_DO || t1->kw == LOW_KW_IF)));
+        const char *nw = (t->kw == LOW_KW_NONE && low_view_eq_cstr(t->lex, "count") && !src_count) ? "repeat" : t->kw == LOW_KW_RANGE ? "range" : NULL;
         if (nw) {
             low_fix(head.line, head.col, 3, nw);
             low_fix(t->line, t->col, (proven_u32)t->lex.size, "");
@@ -1576,7 +1579,8 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
     if (hk == LOW_KW_FOR && nd->nkids > 3 && nd->kids[2]->kind == LOW_CST_ATOM && nd->kids[2]->tok.kind == LOW_TOK_IDENT) {
         const low_token_t *t2 = &nd->kids[2]->tok;
         if (t2->kw == LOW_KW_BE) loop = "cycle";
-        else if (t2->kw == LOW_KW_NONE && low_view_eq_cstr(t2->lex, "count")) loop = "repeat";
+        else if (t2->kw == LOW_KW_NONE && low_view_eq_cstr(t2->lex, "count") && nd->kids[3]->kind == LOW_CST_ATOM &&
+                 nd->kids[3]->tok.kw == LOW_KW_NONE && !low_view_eq_cstr(nd->kids[3]->tok.lex, "where")) loop = "repeat";   // RFC-0150 Q3 — 원천 이름 `count` 는 세는 꼴이 아니다
         else if (t2->kw == LOW_KW_NONE && low_view_eq_cstr(t2->lex, "range")) loop = "range";
     }
     bool first = true;

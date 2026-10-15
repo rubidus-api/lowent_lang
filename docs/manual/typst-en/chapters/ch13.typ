@@ -191,7 +191,7 @@ bit operations such as `bit_and` and `shl`.
 #demo("examples/ch13/sets.low")
 
 - `bitset_new 64 .` makes an empty set. The width is a number fixed at translation time.
-- `bitset_insert a 1 .` inserts and `bitset_remove a 1 .` removes. Both are statements that change the set *in place*. `count a. .` is the number of members.
+- `bitset_insert a 1 .` inserts and `bitset_remove a 1 .` removes. Both are statements that change the set *in place*. `bitset_count a. .` is the number of members.
 - `bitset_intersect a. b. .` gives the intersection, `bitset_difference a. b. .` what is only in `a`, and `bitset_complement a. .` the complement, each *as a new set*.
 - `bitset_is_subset x. y. .` asks whether all of `x` is in `y`; `bitset_is_empty x. .` asks whether it is empty.
 
@@ -208,9 +208,9 @@ buffer. Gathering them into one place means copying. `segments` views the pieces
 
 - `view_segments back. d. .` binds the backing bytes `back` and the descriptor `d` into a view of type `segments u8`. The descriptor is a row of
   (start, length) pairs; here 4 bytes from 0 and 4 bytes from 8.
-- `segs ss. .` gives the piece count 2, and `seg ss. 1 .` gives the second piece as an ordinary `slice u8`. Byte 1 of the second piece is the 30 at
-  original position 9.
-- There is no new machine instruction. It lowers to building a grouping, reading fields and slicing, so the cost is visible.
+- From the standard module `segview`, `segview.piece_count ss. .` gives the piece count 2, and `segview.piece_at ss. 1 .` gives the second piece as an
+  ordinary `slice u8`. Byte 1 of the second piece is the 30 at original position 9.
+- There is no new machine instruction. Building lowers to building a grouping, and taking a piece to reading fields and slicing, so the cost is visible.
 
 == Three kinds of type words
 
@@ -311,7 +311,7 @@ without a word. It is recorded as a defect in the development repository.
   [`view wire_header b. .`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b. .` · `encode wire_header h. .`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
   [`var a bitset 64 bitset_new 64 . .` · `bitset_insert a 1 .` · `bitset_intersect a. b. .`], [a set of small numbers and its operations], [a set, not the bits of a word],
-  [`view_segments back. d. .` · `segs ss. .` · `seg ss. i. .`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
+  [`view_segments back. d. .` · `segview.piece_count ss. .` · `segview.piece_at ss. i. .`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
   [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],
 )
 

@@ -1288,7 +1288,7 @@ int main(void) {
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
 
-    // ── S5c: containers — stack (pop-into), bitset (poly add/contains/count), for ──
+    // ── S5c: containers — stack (pop-into), bitset (poly add/contains/bitset_count), for ──
     {
         const char *src =
             ""
@@ -1303,7 +1303,7 @@ int main(void) {
             "var s bitset be bitset_new 64 . . "
             "add s a . add s b . add s a . "
             "guard bitset_contains s a . else return 99 . . "
-            "return count s . end "
+            "return bitset_count s . end "
             "fn sum_bytes input xs slice u8 . output u64 .  do "
             "var t u64 be 0 . "
             "for x xs do set t expr t + x . . end "
@@ -2526,8 +2526,8 @@ int main(void) {
           "(W-UNBOUND). A contract that IS satisfied is enforced, and gets no notice");
 
     // ★★ 이름이 **빌트인**과 겹치면 그 선언은 **영원히 호출되지 않는다.**
-    //   세 픽스처가 실제로 그러고 있었다(encode · sum · count).
-    check(CHECK("fn count input a u8 . output u8 .  do return a . end") == false,
+    //   세 픽스처가 실제로 그러고 있었다(encode · sum · count). `count` 는 2026-10-16 에 풀렸다(RFC-0150 Q3) — 증인은 `max` 다.
+    check(CHECK("fn max input a u8 . output u8 .  do return a . end") == false,
           "names: ★ an op named like a BUILTIN can never be called — the resolver always picks "
           "the builtin. It exists and does not exist (E-NAME-BUILTIN)");
     check(CHECK("fn tally input a u8 . output u8 .  do return a . end") == true,

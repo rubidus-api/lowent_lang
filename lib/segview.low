@@ -1,8 +1,8 @@
 rem ★★★★★ **조각 뷰의 나머지 절반 — 라이브러리** (RFC-0104 §8-8, 소유자 서명 2026-08-29).
 rem
-rem   언어가 든 것은 셋뿐이다: `view_segments`(짓기) · `segs`(조각 수) · `seg`(i 번째 조각).
-rem   *커서 · 총길이 · `coalesce`* 는 **여기에 남는다** — 셋 다 앞의 셋으로 쓰이므로
-rem   빌트인이 될 이유가 없다. 표면 추가 0.
+rem   언어가 든 것은 `view_segments`(짓기) 하나다. 조각 수(`piece_count`)와 i 번째 조각(`piece_at`)도 여기 있다 —
+rem   둘은 기본 연산 `segs` · `seg` 였는데, 칸 `descs` · `back` 을 읽고 잘라내는 것으로 쓰이므로 이름을 풀면서
+rem   여기로 옮겼다(RFC-0150 Q3, 2026-10-16). *커서 · 총길이 · `coalesce`* 도 그 둘로 쓰인다. 표면 추가 0.
 rem
 rem ★ 그리고 그것이 §7.3 열 10 의 셋째 출구다: **`coalesce` 만 명시적으로 O(n)** 이다.
 rem   순회는 조각을 빌리기만 하고(복사 0), 한 덩어리로 펴는 값은 **부를 때만** 치른다.
@@ -10,12 +10,25 @@ rem   비용이 op 이름으로 보인다 — 이 저장소가 `slice` 에 대�
 
 module segview .
 
+rem 조각의 수 — 서술자는 (어디부터, 얼마) 짝이므로 그 길이의 절반이다.
+export fn piece_count input ss segments u8 . output usize . do
+  return div len field ss. descs . . 2 . .
+end .
+
+rem `i` 번째 조각(0 부터) — 복사 없이 뒤의 바이트를 본다. 범위 밖이면 멈춘다(첨자와 같다).
+export fn piece_at input ss segments u8 . input i usize . output slice u8 . do
+  let d slice u64 field ss. descs . .
+  let at usize cast usize idx d. mul i. 2 . . . .
+  let n usize cast usize idx d. add mul i. 2 . 1 . . . .
+  return subslice field ss. back . at. add at. n. . . .
+end .
+
 rem 총길이 — 서술자만 읽는다. 바이트는 안 만진다(그래서 O(조각 수)).
 export fn total_len input ss segments u8 . output u64 . do
-  var i u64 0 .
+  var i usize 0 .
   var acc u64 0 .
-  while lt cast usize i. . segs ss. . . do
-    set acc. add acc. cast u64 len seg ss. i. . . . . .
+  while lt i. segview.piece_count ss. . . do
+    set acc. add acc. cast u64 len segview.piece_at ss. i. . . . . .
     set i. add i. 1 . .
   end .
   return acc. .
@@ -29,12 +42,12 @@ export struct cursor do
 end .
 
 export fn seek input ss segments u8 . input pos usize . output option segview.cursor . do
-  var i u64 0 .
+  var i usize 0 .
   var left usize pos. .
-  while lt cast usize i. . segs ss. . . do
-    let n usize len seg ss. i. . . .
+  while lt i. segview.piece_count ss. . . do
+    let n usize len segview.piece_at ss. i. . . .
     if lt left. n. . do
-      return some lit cursor do piece i. . at left. . end . . .
+      return some lit cursor do piece cast u64 i. . . at left. . end . . .
     end .
     set left. sub left. n. . .
     set i. add i. 1 . .
@@ -48,7 +61,7 @@ export fn byte_at input ss segments u8 . input pos usize . output option u8 . do
   let co option segview.cursor segview.seek ss. pos. . .
   guard is_some co. . else return none . .
   let c segview.cursor some_value co. . .
-  return some idx seg ss. field c. piece . . field c. at . . . .
+  return some idx segview.piece_at ss. cast usize field c. piece . . . field c. at . . . .
 end .
 
 rem ★ `coalesce` — 한 덩어리로 편다. **여기서만 복사가 일어난다**, 그리고 부른 자리에 보인다.
@@ -58,9 +71,9 @@ export proc coalesce input ss segments u8 . input out mut slice u8 . output opti
   let need u64 segview.total_len ss. . .
   guard le need. cast u64 len out. . . . else return none . .
   var w usize 0 .
-  var i u64 0 .
-  while lt cast usize i. . segs ss. . . do
-    let p slice u8 seg ss. i. . .
+  var i usize 0 .
+  while lt i. segview.piece_count ss. . . do
+    let p slice u8 segview.piece_at ss. i. . .
     var j usize 0 .
     while lt j. len p. . . do
       set idx out. w. . idx p. j. . .

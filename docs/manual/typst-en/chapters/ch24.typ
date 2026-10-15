@@ -167,26 +167,41 @@ A terminal ends the flow. A stage after the terminal is rejected.
   The words were chosen so that the convenient way and the fast way do not diverge.
 ]
 
-== The built-in `map` · `filter` with the same names
+== Outside `pipe` --- the module `collection`
 
-`map` and `filter` also exist outside `pipe`. These are not stages but *core ops that copy one slice into another in a
-single statement*, and they take three arguments --- `map <sink> <op> <source> .` · `filter <sink> <op> <source> .`.
+To copy one slice into another, or fold one into a single value, outside `pipe`, call `map`, `filter` and `fold` from the standard module
+`collection`. The three used to be core ops, so `map` could not be a local name. They are library ops now, so `map`, `filter` and `fold`
+are names an author may use. The same words inside `pipe` are still stages.
+
+*The element type carries the work.* This language has no way to pass an op as a value, and a trait does not take the element type as a
+parameter. So the element is wrapped in a struct of one field, and that struct satisfies the traits `collection.mappable` (`apply`),
+`collection.keepable` (`keep`) and `collection.foldable` (`combine`). It is the same way the sorting module `sortgen` finds its comparison in
+the element type.
 
 ```lowent
 module sink_map .
 
-fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
+use collection .
 
-proc doubled input xs slice u8 . input out mut slice u8 . output usize . effects none .
+struct twice do
+  satisfies collection.mappable .
+  v u8 .
+end .
+
+fn twice.apply input x twice . output twice . do
+  return lit twice do v wrap_add field x. v . field x. v . . . end . .
+end .
+
+proc doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
-  map out. dbl xs. .
-  return 0 .
+  return collection.map twice. view_array twice xs. . view_array twice out. . . .
 end .
 ```
 
-Putting `[1,2]` into a three-slot `out` gives `[2,4,0]`. The other way round, putting `[1,2,3]` into two slots stops the run as the third is written ---
-a full sink never drops the rest in silence (the same as `collect into`). The sink must be a `mut slice` (`E-MAP-SINK`) and
-the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it takes one op --- the number of arguments tells which is meant.
+Putting `[1,2]` into a three-slot `out` gives `[2,4,0]`, and the answer is the number written, 2. The other way round, putting `[1,2,3]` into two
+slots stops the run as the third is written --- a full sink never drops the rest in silence (the same as `collect into`). `view_array twice xs.`
+sees the bytes as a slice of `twice`; a struct of one field has the same layout. One element type has one `apply`, so moving the same bytes in
+two ways takes two wrapper types. When the job is calling one named op per element, the `map` stage of `pipe` is shorter.
 
 == Common mistakes
 

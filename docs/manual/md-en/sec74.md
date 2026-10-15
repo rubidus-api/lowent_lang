@@ -1,41 +1,78 @@
-# <a id="mod-spsc"></a>`spsc` — lock-free SPSC ring buffer
+# <a id="mod-vecs"></a>`vecs` — growable byte vectors with caller-held buffers
 
 Source
 
-`lib/spsc.low`
+`lib/vec.low`
 
 Layer
 
-L0 — pure computation (the caller’s storage)
+L1 — allocator via `use`
 
 Capabilities
 
-`cap atomic`
+none — an allocator is handed in
 
-The simplest way to pass values between threads is a lock. But with exactly one producer and one consumer no lock is needed — the producer writes only `tail`, the consumer only `head`, and each only **reads** the other’s atomically. That is SPSC (single-producer single-consumer), and almost the only lock-free structure that is honestly short.
+A byte vector that, when short of room, **takes a larger place and moves**. Used to gather byte strings of unknown final size. What is missing is reallocation, not growth — take a larger place and move the old contents, which can be written in Lowent. So it is a library, not a core op, and the growth policy (doubling) belongs to the library too.
 
-> **One producer and one consumer is the contract**
->
-> > If two threads `push` or two threads `pop` it is no longer SPSC, and this module cannot prevent it. That is why convenience ops like `peek` or `drain` were not added — the more convenience ops, the more ways to break that contract. In a standard library a small surface is not laziness but a means of keeping the contract. There is no MPSC, MPMC or seqlock — with CAS retries and ABA attached, putting them in the standard would make unverified code standard.
-
-**One slot is always left empty.** So the real capacity is `len buf − 1`. In return `head == tail` **always** means “empty” and is never confused with full.
-
-| **op** | **What it does** | **Returns** |
+|  | **`vecs`** | **[`vecgen`](sec112.md#mod-vecgen)** |
 |---|---|---|
-| `spsc_capacity buf` | Maximum number it can hold | `len buf − 1` |
-| `spsc_push k ctl buf v` | Push (**producer only**) | 1 success · 0 full |
-| `spsc_pop k ctl buf out` | Pop (**consumer only**), value in `out[0]` | 1 success · 0 empty |
-| `spsc_count_about k ctl buf` | Current count (an observation) | count |
+| Storage | **held by the caller** — buffers are passed to ops | owned by the container |
+| Growth | the new place is **returned as a value** (the caller rebinds) | swapped inside |
+| Allocator | handed over with `use` on each call | held as a field |
 
-*Table 50.1 — Ops of `spsc`*
+*Table 50.1 — `vecs` and `vecgen` — ownership is the difference*
 
-`ctl` is a `mut slice u64` of length at least 2, with `[0]` = head (consumer) and `[1]` = tail (producer). `k` is `cap atomic` — the right to touch shared places atomically. Why `count_about` says `about` — it may already have changed by the time it is read. If the name does not say so, users trust the value.
+`vecs` is for when you want to hold buffer lifetimes **directly** inside a region. A vector lives as **a pair of two values**: `vec_u8` (a single length `len`) and `mut slice u8` (storage). Capacity is not stored separately — `len buf. .` is the capacity. Push maintains the invariant `v.len ≤ len buf`.
 
-**What holds this code up.** Two proofs. First, wrapping an index with `mod … (len buf)` always lands in range — `lowentc --emit-proof lib/spsc.low` records that the checks on both ring buffer accesses (`idx`, `index.store`) and on the two index-advancing additions were removed by proof (chapter 41). Second, write data → publish index → observe index → read data carries the data under the weak memory model (RC11) — and the correctness of the algorithm itself (on success the resource moves into the buffer, on failure it comes back) borrows an existing proof (gpfsl’s `circ_buff`). The correspondence that our `spsc_push` matches that proof’s code line by line was checked by a person reading it, not by machine (chapter 47).
+| **op** | **Shape** | **Failure** |
+|---|---|---|
+| `vec_u8` | struct — `len usize` | — |
+| `next_cap` | `fn (cur usize) → usize` — 8 from 0, otherwise double | none |
+| `push_byte` | `proc (comptime a, use al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a` | `none` on OOM — `v` and `buf` unchanged |
 
-**Orderings are exactly as strong as needed.** When the producer reads head it uses `acquire` (published by the consumer), when it reads its own tail `relaxed` (a value I wrote), when it publishes tail `release` (the preceding data write must be visible first). The consumer side is symmetric. Only two of the four places need synchronisation. This notation (`order <name>`) was once unreachable because of a parser defect, found and fixed while trying to use this library — a feature nobody uses might as well not exist.
+*Table 50.2 — Ops of `vecs`*
 
-**What is checked** — pop from empty fails, push to full fails, FIFO order, and correctness after wrapping around the ring. Those tests are single-threaded (the VM is single-threaded). Correctness of memory ordering with two real threads comes from proof, not from running — the two are not mixed.
+With room, `push_byte` writes in place and returns `some buf. .`; when full it takes double with `send al. reserve next_cap len buf. . . .`, copies the old contents and returns `some <new buffer>`. The allocator is handed over with a `use` clause, not a positional argument — the type `a` is filled from that source and monomorphised, so passing it costs nothing (chapter 35). No hidden allocation, so code without an allocator cannot call this op.
+
+```lowent
+module vecgrow .
+use vecs .
+use allocs .
+use stdio .
+
+proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
+  let memopt option mut slice u8 alloc_bytes al. capacity 256 . .
+  guard is_some memopt. . else return 1 . .
+  let mem mut slice u8 some_value memopt. . .
+  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c usize send bump. init mem. . .
+  let b0 option mut slice u8 send bump. reserve 2 . .
+  guard is_some b0. . else return 2 . .
+  var buf mut slice u8 some_value b0. . .
+  var v lit vecs.vec_u8 do len 0 . end . .
+  var i u64 0 .
+  while lt i. 10 . do
+    let r use bump. option mut slice u8 vecs.push_byte v. buf. narrow u8 add 65 i. . . . .
+    guard is_some r. . else return 3 . .
+    set buf. some_value r. . .
+    set i. add i. 1 . .
+  end .
+  let m usize stdio.write out. 1 subslice buf. 0 field v. len . . . .
+  return cast u8 field v. len . . .
+end .
+```
+
+Starting at 2 bytes and pushing 10, it grows three times, 2 → 4 → 8 → 16, and prints `ABCDEFGHIJ`.
+
+> **Counter-example. Not rebinding to the returned buffer**
+>
+> > Forgetting `set buf. some_value r. . .` compiles and runs, but the result is silently wrong. After growth, passing the old `buf` keeps `v.len` counting against the new buffer while writes go to the old (small) one. **The return value is the next buffer** — the most dangerous mistake in this module.
+
+> **Counter-example. Ignoring OOM · calling from a pure fn**
+>
+> > Unwrapping `some_value r. .` unchecked stops with `E-VM-NONE` when the allocator runs dry. Calling from an `effects none` `fn` is `E-EFFECT-CALC` — `push_byte` is a proc with `effects state`. Passing a source that does not satisfy the trait (such as `u64`) is `E-BOUND-UNSAT`.
+
+**Cautions.** Growth is copying — one push is O(len) worst case, but doubling gives amortised O(1). If the size is known ahead, starting that large is cheaper. **Old buffers are not reclaimed** — growing to n on a bump consumes about 2n of backing, and old buffers are swept away together when the `region` ends (chapter 18). Header and buffer are a pair — nothing prevents mixing those of different vectors. There is no element type generalisation, pop, insert, remove or shrinking.
 
 ---
 

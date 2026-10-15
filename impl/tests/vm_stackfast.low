@@ -37,7 +37,7 @@ do
         let s stack u64 stack_new temp capacity 128 . .
         push s. 7 .
         push s. 9 .
-        set t. add t. count s. . . .
+        set t. add t. stack_count s. . . .
         set j. add j. 1 . .
     end .
     return t. .

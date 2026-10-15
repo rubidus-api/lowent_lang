@@ -12,7 +12,7 @@ Capabilities
 
 none
 
-Sorts a `u64` slice **in place** in ascending order. Used before binary search ([`searchlib`](sec70.md#mod-searchlib)) and to present results in order. The one public op is `sort`.
+Sorts a `u64` slice **in place** in ascending order. Used before binary search ([`searchlib`](sec71.md#mod-searchlib)) and to present results in order. The one public op is `sort`.
 
 ```lowent
 use sortlib .
@@ -40,9 +40,9 @@ Sorting is **pure computation** almost every tool needs, and it reaches nothing 
 A self-verifying pattern — is it ascending **and** is the sum preserved. It catches order defects and element loss or duplication together.
 
 ```lowent
-proc sort_verify input s mut slice u64 . output usize . effects none . do
+proc sort_verify input s mut slice u64 . output u64 . effects none . do
   var pre u64 0 .
-  var i u64 0 .
+  var i usize 0 .
   while lt i. len s. . . do
     set pre. wrap_add pre. idx s. i. . . .
     set i. add i. 1 . .
@@ -50,7 +50,7 @@ proc sort_verify input s mut slice u64 . output usize . effects none . do
   sortlib.sort s. .
   var post u64 0 .
   var sorted u64 1 .
-  var j u64 0 .
+  var j usize 0 .
   while lt j. len s. . . do
     set post. wrap_add post. idx s. j. . . .
     if gt j. 0 . do

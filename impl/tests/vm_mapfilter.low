@@ -1,24 +1,34 @@
-rem ★★★ **map / filter** (RFC-0016) — fold 에 이은 원소별 고차 스테이지.
+rem ★★★ **map / filter** — 라이브러리 `collection` (RFC-0150 Q3, 2026-10-16). 전엔 기본 연산이었다(RFC-0016).
 rem
-rem   `map <out> <op> <in>`      — out[i] = op(in[i]).  op : T->U (인자 하나).
-rem   `filter <out> <pred> <in>` — pred(x) 가 참인 x 만 out 에 **압축**해 쓴다.  pred : T->bool.
-rem   ★ 결과는 **호출자가 준 mut slice `out` 에 쓴다**(할당 0 — 유계 싱크, RFC-0016 collect-into 모델).
-rem     쓴/거른 **개수를 반환**한다. out 이 짧으면 넘치지 않고 잘린다(경계 안전).
-rem   ★ op 이름 참조 + 호출지 단형화(fold 과 같은 기계) ⇒ 백엔드는 map/filter 를 모른다(VM≡native).
-rem   ★ out 에 쓰므로 **mut slice 파라미터**여야 하고(E-MAP-SINK), 쓰기가 보이므로 **proc** 이다
-rem     (fn 이면 E-EFFECT-PURITY — 관측적 순수성).
+rem   `collection.map t src dst`    — dst[i] = src[i] 의 `apply`.
+rem   `collection.filter t src dst` — `keep` 이 참인 원소만 dst 에 **압축**해 쓴다.
+rem   ★ 할 일은 원소 타입이 들고 온다(`sortgen` 의 `ordered` 와 같은 길): 원소를 칸 하나짜리 구조체로 감싸고 그 구조체가
+rem     `apply` · `keep` 을 갖춘다. 부를 때마다 단형화되어 **직접 호출**로 박힌다 ⇒ VM≡native.
+rem   ★ 결과는 **호출자가 준 mut slice 에 쓰고** 쓴 개수를 낸다(할당 0). dst 가 짧으면 쓰려는 순간 멈춘다.
+rem   ☞ 시험은 명령줄에서 바이트 조각을 받으므로 그 바이트를 원소 구조체로 본다(`view_array` — 칸 하나짜리라 배치가 같다).
 
 module vm_mapfilter .
 
-fn dbl    input a u8 . output u8 . do return wrap_mul a. 2 . . end .
-fn is_big input a u8 . output bool . do return ge a. 3 . . end .
+use collection .
 
-rem 각 원소를 2배로 — out 에 쓴다.
+rem 각 원소를 2배로.
+struct dbl do
+  satisfies collection.mappable .
+  v u8 .
+end .
+fn dbl.apply input x dbl . output dbl . do return lit dbl do v wrap_mul field x. v . 2 . . end . . end .
+
+rem 3 이상만 남긴다.
+struct big do
+  satisfies collection.keepable .
+  v u8 .
+end .
+fn big.keep input x big . output bool . do return ge field x. v . 3 . . end .
+
 proc domap input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
-  return map out. dbl xs. . .
+  return collection.map dbl. view_array dbl xs. . view_array dbl out. . . .
 end .
 
-rem 3 이상만 남긴다 — out 에 압축해 쓰고 개수를 낸다.
 proc dofilter input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
-  return filter out. is_big xs. . .
+  return collection.filter big. view_array big xs. . view_array big out. . . .
 end .

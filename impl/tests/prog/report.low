@@ -85,7 +85,7 @@ do
   let buf mut slice u8 some_value line. . .
 
   rem ④ 조립한다 — 순수하다. 여기까지 **한 바이트도 밖으로 안 나갔다.**
-  let n option usize compose buf. pick call_builtin arg a. 0 . . count a. . . .
+  let n option usize compose buf. pick call_builtin arg a. 0 . . len a. . . .
   guard is_some n. . else return 73 . .
 
   rem ⑤ **한 번 쓴다.** greet 은 세 번 썼다 — 조립할 곳이 없어서.

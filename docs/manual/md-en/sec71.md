@@ -1,79 +1,64 @@
-# <a id="mod-hashmap"></a>`hashmap` — `u64` → `u64` hash map
+# <a id="mod-searchlib"></a>`searchlib` — binary search on sorted slices
 
 Source
 
-`lib/hashmap.low`
+`lib/search.low`
 
 Layer
 
-L0 — pure computation (the caller’s backing)
+L0 — pure computation
 
 Capabilities
 
 none
 
-A hash map storing and finding `u64` values by `u64` keys. Used to look things up quickly by number (id → count, handle → state). String keys are [`strmap`](sec72.md#mod-strmap) the container that chooses element type and allocator is [`mapgen`](sec112.md#mod-mapgen) (chapter 34).
+Finds values in a **sorted** slice by binary search. Probe the middle, decide whether the target is left or right, and search only the remaining half — about twenty steps even for a million elements. In exchange, elements must already be in line to choose a direction. It is the partner of [`sortlib`](sec68.md#mod-sortlib), and together they make **sorted sets and maps** — unlike a hash map, order is kept, so range queries and “the next larger value” work. The file is `search.low`, but the module name is `searchlib`.
 
 ```lowent
-let stored bool hashmap.put b. 7 42 . .
-let v option u64 hashmap.lookup b. 7 . .
+use searchlib .
+use sortlib .
+
+sortlib.sort s. .
+let i option usize searchlib.bsearch s. 42 . .
 ```
 
-> **Two things to know**
+> **Sortedness is not checked**
 >
-> > ① The map makes no memory of its own — the caller provides storage `b` and passes it every time. ② A new map **must start all zeros**. Break either and answers go wrong without errors — a slice full of garbage reads as “a map that already holds things”, so keys never inserted are found, or a key just inserted comes back `none`.
+> > The premise that `s` is ascending is **the caller’s job**. If broken, answers are wrong but nothing stops — no out-of-range access happens, so there is nothing to stop for; instead **a silently wrong answer** comes out. “`none` for a value that is definitely there” almost always means it was not sorted.
 
-**Open addressing.** No linked list per key; if a slot is taken, insertion moves to the next slot of the same table (linear probing) — one buffer suffices, matching the caller-owned discipline. The backing is one `mut slice u64` laid out as `[key0+1, val0, key1+1, val1, …]` (N slots = `len / 2`). Key slots store `k+1`, so `0` marks an empty slot and **key 0 can be stored**. Deletion overwrites the key slot with a **tombstone**, `MAX_U64` — turning it back into an empty slot would break the trail of keys pushed further along by collisions, making later keys unfindable. `lookup` skips tombstones, `put` reuses them, traversal does not count them. The hash is multiplicative (golden ratio constant).
-
-| **op** | **Shape** | **Failure** |
+| **op** | **Shape** | **Answer** |
 |---|---|---|
-| `put` | `proc (b mut slice u64, k u64, v u64) → bool` | full · reserved key → `false` |
-| `lookup` | `proc (b slice u64, k u64) → option u64` | absent · reserved key → `none` |
-| `del` | `proc (b mut slice u64, k u64) → bool` | absent · reserved key → `false` |
-| `size` | `fn (b slice u64) → usize` | slot count (not the item count) |
-| `occupied_at` | `fn (b slice u64, slot usize) → bool` | out of range → `false` |
-| `key_at` · `val_at` | `fn (b slice u64, slot usize) → u64` | meaningful only when occupied |
-| `rehash` | `proc (nb mut slice u64, ob slice u64) → bool` | `false` midway if `nb` is too small |
+| `bsearch` | `(s slice u64, target u64) → option usize` | index of `target`, or `none`. With duplicates, **one** of them (which one is unspecified) |
+| `lower_bound` | `(s slice u64, target u64) → usize` | first index at or above `target`. `len s. .` if all are smaller |
 
-*Table 50.1 — Ops of `hashmap` — all `effects none`*
+*Table 50.1 — Ops of `searchlib` — all `fn` · `effects none`*
 
-- `put` updates in place for an existing key. It remembers the first tombstone met while probing and inserts there once the key is confirmed absent further on — tombstone reuse keeps clusters from growing.
-- **It does not grow by itself.** When full, `put` returns `false` (no stop). To grow, the caller prepares a larger zeroed backing and calls `rehash nb ob`. Only live items move, so tombstones disappear too (compaction). The old backing is only read, so it stays intact on failure.
-- **Two keys cannot be stored.** `MAX_U64` and `MAX_U64 − 1` are reserved by the encoding — the price of getting deletion without a separate status byte.
-- Traversal scans `0 .. size` and handles only `occupied_at` slots. Order is hash order — for sorted enumeration, extract the keys and sort them with [`sortlib`](sec68.md#mod-sortlib).
+How to choose — “is it there, and where” is `bsearch`; “where would it go” or “where do values at or above this start” is `lower_bound`. `lower_bound` is both **insertion point** and **start of a range** — `[lower_bound s a, lower_bound s b)` is the index range of elements with `a ≤ x < b`. It is not an `option` because the question has no “not found” (the end index is an answer too). There is no upper_bound, insert or delete — one lower bound gives membership, insertion point and range queries.
+
+The implementation runs on the half-open range `[lo, hi)` with midpoint `lo + (hi − lo)/2` — `(lo + hi)/2` can overflow at large indices (the classic defect).
 
 ```lowent
-proc hm_sum input b mut slice u64 . output usize . effects none . do
-  var i u64 0 .
-  while lt i. len b. . . do
-    set idx b. i. . 0 .
-    set i. add i. 1 . .
-  end .
-  guard ge div len b. . 2 . 4 . else return 0 . .
-  guard eq hashmap.put b. 10 100 . true . else return 0 . .
-  guard eq hashmap.put b. 20 222 . true . else return 0 . .
-  guard eq hashmap.del b. 10 . true . else return 0 . .
-  var slot u64 0 .
-  var total u64 0 .
-  while lt slot. hashmap.size b. . . do
-    if hashmap.occupied_at b. slot. . do
-      set total. add total. hashmap.val_at b. slot. . . .
-    end .
-    set slot. add slot. 1 . .
-  end .
-  return total. .
+fn count_in input s slice u64 . input a u64 . input b u64 . output usize . do
+  let i usize searchlib.lower_bound s. a. . .
+  let j usize searchlib.lower_bound s. b. . .
+  guard lt i. j. . else return 0 . .
+  return sub j. i. . .
 end .
 ```
 
-> **Counter-example. Reading slots without `occupied_at`**
+> **Counter-example. Not separating `bsearch`’s `none`**
 >
-> > `key_at` and `val_at` of empty or tombstone slots are meaningless (an empty slot’s `key_at` goes as far as `0 − 1`), so totals go wrong without errors. Always filter traversal with `occupied_at`.
+> > `return some_value r. . .` compiles, and stops with `E-VM-NONE` the moment nothing is found. Testing only with present values never triggers it — seeing an `option`, add `guard is_some` (chapter 11).
 
-> **Counter-example. Ignoring `put`’s `false`**
+> **Counter-example. Giving meaning to `bsearch`’s index among duplicates**
 >
-> > A full map answers `false` instead of stopping, so the line passes silently; later `lookup` returns `none` and an unchecked `some_value` stops with `E-VM-NONE`. The stop is far from the cause — `guard eq (hashmap.put …) true` should be habit.
+> > In `[5,5,5]`, `bsearch s 5` may yield 0, 1 or 2. If you need “the position of the first 5”, use `lower_bound s 5`.
 
-**Cautions.** Why `lookup`, not `get`, and `size`, not `capacity` — `get` is the payload enum destructuring word and `capacity` is syntax in `alloc_bytes … capacity n`, so ops cannot have those names. Repeated insert and delete pile up tombstones and lengthen probes — move to a same-size backing with `rehash` to compact. With an odd backing length the last u64 is unused.
+> **Counter-example. Indexing directly with `lower_bound`’s result**
+>
+> > If not found, `i` is `len s. .`, a position that does not exist — `idx s. i. .` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i. len s. . .` first.
+
+**Cautions.** It cannot be used as is on descending data (there is no place to swap in a comparator). **Sort once, search many times** — calling `sort` before each search loses the whole gain. After sorting, changing one element with `set` requires sorting again. Keep the order when subtracting two lower bounds — `sub` underflows. As pure ops, the same slice can be searched from many places at once (while nobody writes). Other element types are `lower_by` and `find_by` of [`sortgen`](sec69.md#mod-sortgen).
 
 ---
 

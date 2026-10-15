@@ -83,7 +83,10 @@
        코드가 남의 구조체를 복사할 방법이 없기 때문이다(필드 이름을 모른다). 그래서 이것은  \
        리프다: 언어로 못 쓰는 것이고, 할당 0 이며, 원소 타입을 몰라도 된다. */              \
     X(swap, IRW_SWAP, 3)                                                       \
-    X(push, IRW_SPUSH, 2)  X(bitset_contains, IRW_CONTAINS, 2)  X(count, IRW_COUNT, 1)\
+    X(push, IRW_SPUSH, 2)  X(bitset_contains, IRW_CONTAINS, 2)                \
+    /* ★ RFC-0150 Q3 (2026-10-16, 소유자 «이름은 다 풀어버리세요») — 옛 `count` 는 비트셋과 스택 둘에 쓰던 한 낱말이었다.  \
+       이름을 풀려고 갈래마다 제 이름을 준다: 비트셋은 `bitset_*` 집안, 스택은 `stack_*` 집안. 인자의 수는 `len <cap args>`. */ \
+    X(bitset_count, IRW_COUNT, 1)   /* `stack_count` 은 같은 셈이라 아래 모양 표에 산다(한 IR 낱말은 이 표에 한 번) */ \
     X(bitset_new, IRW_BNEW, 1)                                                 \
     /* ★ 집합 연산 (RFC-0010 §6.7.1) — 닫힌 어휘. 전부 워드별 bitwise, 할당 0 */    \
     X(bitset_remove, IRW_BREMOVE, 2)   X(bitset_union, IRW_BUNION, 2)          \
@@ -188,7 +191,10 @@
     X(view, "WV")  X(try_view, "WV")  X(encode, "WV")                          \
     X(view_array, "WV")  X(bit_cast, "WV")                                     \
     /* ★ 조각 뷰 (RFC-0104 §8-8) — 백업 슬라이스 + (at,n) 서술자 슬라이스.        */\
-    X(view_segments, "VV")   X(segs, "V")   X(seg, "VV")                       \
+    /* ☞ 조각 수와 i 번째 조각(옛 `segs` · `seg`)은 라이브러리 `segview` 의 `piece_count` · `piece` 다(RFC-0150 Q3). */\
+    X(view_segments, "VV")                                                     \
+    /* ★ RFC-0150 Q3 — 스택의 원소 수. 하강은 `bitset_count` 와 같은 IRW_COUNT 로 내린다. */ \
+    X(stack_count, "V")                                                        \
     /* ★ RFC-0113 R5 — 비트셋에 넣기(옛 `add <비트셋> x`). 하강은 `add` 의 집합 갈래 그대로 쓴다(IR 낱말을 새로 안 만든다). */\
     X(bitset_insert, "VV")                                                     \
     /* 트랩 */                                                                 \
@@ -198,9 +204,9 @@
     /* ★ MMIO — 디바이스 레지스터 (RFC-0042 D1). W 슬롯은 **레지스터 이름**이다. */\
     X(read_volatile, "VW")   X(write_volatile, "VWV")                          \
     /* ★ 구성 (RFC-0036 D5). W 슬롯은 **옵션 이름**이다 — 값이 아니라 손잡이의 이름. */\
-    X(config, "W")                                                             \
-    /* ★ 고차 프렐류드 (RFC-0016). W 슬롯은 **op 이름**이다. fold=리덕션, map/filter=호출자 싱크에 쓴다. */\
-    X(fold, "VWV")   X(map, "VWV")   X(filter, "VWV")
+    X(config, "W")
+    /* ☞ 옛 고차 프렐류드 `fold` · `map` · `filter`(RFC-0016)는 라이브러리 `collection` 으로 갔다(RFC-0150 Q3). pipe 안의 같은
+       이름은 스테이지(문맥 낱말)로 남는다. */
 
 // ★★★ **하강이 이름으로 읽는 특수형의 모양** (RFC-0142, 2026-10-09 · 소유자 «조사중에 찾은 틈도 채워주시고»).
 //   위의 두 표에 없지만 인자 꼴이 하나로 정해진 것들이다. 전엔 `low_ir.c` 의 이름 사슬에만 있어서, 이 헤더의 어휘 표도
@@ -295,6 +301,9 @@
     X(call_builtin)                                                            \
     X(pop)  X(range)  X(into)  X(is_none)  X(capacity)  X(ret)                 \
     X(pipe)  X(take)  X(skip)  X(enumerate)  X(zip)  X(scan)  X(collect)         \
+    /* ★ RFC-0150 Q3 (2026-10-16) — `map` · `filter` · `fold` · `count` 는 pipe 안에서만 스테이지 · 종결자다. pipe 밖의 전위 꼴은 \
+       기본 연산에서 빠졌다(`map` · `filter` · `fold` → 라이브러리 `collection`, `count` → `bitset_count` · `stack_count` · `len`). */ \
+    X(map)  X(filter)  X(fold)  X(count)                                       \
     X(any)  X(all)   /* RFC-0127 — pipe 종결자. 레인 판정은 `lane_any`·`lane_all` 로 갈라졌다 */ \
     X(region)  X(borrow)
 

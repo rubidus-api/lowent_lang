@@ -6,8 +6,9 @@ rem   조각마다 한 번씩 나가야 한다 — 64 KiB 를 64 조각으로:
 rem     `writev` 1 회 = 11.98 ms   ·   `write` 64 회 = 339.38 ms   → **28.3 배**.
 rem
 rem ☞ 그런데 **새 옵코드는 0** 이다. 뷰는 백업 슬라이스와 (at, n) 서술자 슬라이스 두 칸이고,
-rem   그 둘을 드는 그릇(슬라이스 필드를 든 구조체)은 이미 있었다. 세 op 은 하강에서
-rem   `make`·`field`·`len`·`index`·`subslice` 로 탈설탕된다.
+rem   그 둘을 드는 그릇(슬라이스 필드를 든 구조체)은 이미 있었다. 짓기(`view_segments`)는 하강에서 `make` 로
+rem   탈설탕되고, 조각 수와 i 번째 조각은 `lib/segview.low` 가 `field`·`len`·`index`·`subslice` 로 쓴다
+rem   (옛 기본 연산 `segs` · `seg` — RFC-0150 Q3 에서 이름을 풀며 옮겼다).
 rem   그러므로 이 파일이 지키는 것은 §7.3 열 10 의 네 출구다:
 rem     ① 평평한 슬라이스 의미 불변  ② 조각 순회 무복사  ③ coalesce 만 명시 O(n)
 rem     ④ FFI 서술자 대조(= (at,n) 쌍 그대로)
@@ -28,7 +29,7 @@ proc counts input al cap allocator . output u64 . effects alloc . do
   set idx d. 0 . 0 .  set idx d. 1 . 4 .
   set idx d. 2 . 8 .  set idx d. 3 . 4 .
   let ss segments u8 view_segments back. d. . .
-  guard eq segs ss. . 2 . else return 1 . .
+  guard eq segview.piece_count ss. . 2 . else return 1 . .
   return 42 .
 end .
 
@@ -44,7 +45,7 @@ proc reads input al cap allocator . output u64 . effects alloc . do
   set idx d. 2 . 8 .  set idx d. 3 . 4 .
   set idx back. 9 . 77 .
   let ss segments u8 view_segments back. d. . .
-  let p slice u8 seg ss. 1 . .
+  let p slice u8 segview.piece_at ss. 1 . .
   guard eq len p. . 4 . else return 1 . .
   guard eq widen u64 idx p. 1 . . 77 . else return 2 . .
   return 42 .
@@ -61,10 +62,10 @@ proc totals input al cap allocator . output u64 . effects alloc . do
   set idx d. 0 . 0 .  set idx d. 1 . 4 .
   set idx d. 2 . 8 .  set idx d. 3 . 6 .
   let ss segments u8 view_segments back. d. . .
-  var i u64 0 .
+  var i usize 0 .
   var acc usize 0 .
-  while lt cast usize i. . segs ss. . . do
-    set acc. add acc. len seg ss. i. . . . .
+  while lt i. segview.piece_count ss. . . do
+    set acc. add acc. len segview.piece_at ss. i. . . . .
     set i. add i. 1 . .
   end .
   guard eq acc. 10 . else return 1 . .
@@ -106,13 +107,13 @@ proc library input al cap allocator . output u64 . effects alloc . do
 end .
 
 rem ✔ 범위 밖 조각은 **기존 안전망이 잡는다** — 새 진단을 만들지 않았다.
-rem   서술자 슬라이스의 색인이 그대로 범위 검사를 받으므로 `seg ss 9` 는 실행 중 죽는다.
+rem   서술자 슬라이스의 색인이 그대로 범위 검사를 받으므로 `segview.piece_at ss 9` 는 실행 중 죽는다.
 rem   ★ 이 op 만 CLI 로 부를 수 있게 저장을 밖에서 받는다(cap 은 인자로 못 넘긴다).
 fn beyond input back slice u8 . input d slice u64 . input i u64 .
   output usize .
 do
   let ss segments u8 view_segments back. d. . .
-  return len seg ss. i. . . .
+  return len segview.piece_at ss. cast usize i. . . . .
 end .
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다.

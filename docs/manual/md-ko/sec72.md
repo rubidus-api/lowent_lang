@@ -1,78 +1,60 @@
-# <a id="mod-vecs"></a>`vecs` — 호출자가 버퍼를 드는 성장 바이트 벡터
+# <a id="mod-strmap"></a>`strmap` — 문자열 키 해시 맵
 
 소스
 
-`lib/vec.low`
+`lib/strmap.low`
 
 층
 
-L1 — 얼로케이터를 `use` 로
+L0 — 순수 계산(호출자의 뒷받침)
 
 권한
 
-없음 — 얼로케이터를 건네받는다
+없음
 
-자리가 모자라면 **더 큰 자리를 받아 옮기는** 바이트 벡터다. 얼마나 커질지 미리 모르는 바이트열을 모을 때 쓴다. 없는 것은 재할당이지 성장이 아니다 — 더 큰 자리를 받아 옛 내용을 옮기면 되고, 그것은 Lowent 로 쓸 수 있다. 그래서 빌트인이 아니라 라이브러리이고, 성장 정책(두 배)도 라이브러리의 몫이다.
+바이트열(문자열) 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다 — 단어 세기 · 심볼 테이블 · 설정 맵. [`hashmap`](sec71.md#mod-hashmap) 을 가변 길이 바이트열 키로 넓힌 것이다. 키 바이트는 넣을 때 아레나로 **복사**되므로 원본 문자열의 수명에 매이지 않는다.
 
-|  | **`vecs`** | **[`vecgen`](sec110.md#mod-vecgen)** |
-|---|---|---|
-| 저장소 | **호출자가 든다** — op 에 버퍼를 넘긴다 | 컨테이너가 소유한다 |
-| 성장 | 새 자리를 **값으로 돌려준다**(호출자가 다시 묶는다) | 안에서 갈아 끼운다 |
-| 얼로케이터 | 부를 때마다 `use` 로 건넨다 | 필드로 들고 있다 |
+```lowent
+let stored bool strmap.put slots. keys. "apple" 1 . .
+let v option u64 strmap.lookup slots. keys. "apple" . .
+```
 
-*표 50.1 — `vecs` 와 `vecgen` — 다른 것은 소유다*
+**버퍼 둘을 호출자가 마련한다.** 처음에 `slots` 는 전부 0 이어야 한다.
 
-region 안에서 버퍼 수명을 **직접** 쥐고 싶을 때가 `vecs` 다. 벡터는 `vec_u8`(길이 `len` 하나)과 `mut slice u8`(저장소) **두 값의 쌍**으로 산다. 용량은 따로 들지 않는다 — `len buf. .` 가 곧 용량이다. 불변식 `v.len ≤ len buf` 를 push 가 유지한다.
+- `slots`(`mut slice u64`) — 슬롯 표. `slots[0]` 은 **아레나 커서**(키 바이트가 얼마나 쓰였나)이고, 진짜 슬롯은 인덱스 1 부터 슬롯 하나 = u64 셋 `[keyoff, keylen, value]` 다. 슬롯 수 N = `(len slots − 1) / 3`.
+- `keys`(`mut slice u8`) — 키 바이트 아레나. 여러 키의 바이트를 한 버퍼에 이어 담는다(커서를 앞으로만 미는 bump).
+
+`keylen` 은 세 뜻이다 — `0` = 빈칸, `MAX_U64` = 묘비, 그 밖 = 살아 있는 키의 길이. 실제 키 길이는 MAX 일 수 없으므로 예약 없이 묘비 값이 된다. 해시는 FNV-1a 64 + 선형 프로빙이다.
 
 | **op** | **모양** | **실패** |
 |---|---|---|
-| `vec_u8` | 구조체 — `len usize` | — |
-| `next_cap` | `fn (cur usize) → usize` — 0 이면 8, 아니면 두 배 | 없음 |
-| `push_byte` | `proc (comptime a, use al a, v mut vec_u8, buf mut slice u8, x u8) → option (mut slice u8)`, `effects state via a`, `requires allocs.byte_allocator a` | OOM 이면 `none` — 이때 `v` · `buf` 는 그대로 |
+| `put` | `proc (slots mut slice u64, keys mut slice u8, k slice u8, v u64) → bool` | 꽉 참 · 아레나 부족 · 빈 키 → `false` |
+| `lookup` | `proc (slots slice u64, keys slice u8, k slice u8) → option u64` | 없음 · 빈 키 → `none` |
+| `del` | `proc (slots mut slice u64, keys slice u8, k slice u8) → bool` | 없던 키 · 빈 키 → `false` |
+| `size` | `fn (slots slice u64) → usize` | `len slots < 4` → 0 |
+| `occupied_at` | `fn (slots, slot usize) → bool` | 범위 밖 → `false` |
+| `keylen_at` · `keyoff_at` · `val_at` | `fn (slots, slot usize) → usize` (`val_at` 은 `→ u64`) | 범위 밖 → 0 |
+| `rehash` | `proc (ns mut slice u64, na mut slice u8, os slice u64, oa slice u8) → bool` | `ns` · `na` 가 작으면 도중 `false` |
 
-*표 50.2 — `vecs` 의 op*
+*표 50.1 — `strmap` 의 op — 모두 `effects none`*
 
-`push_byte` 는 자리가 있으면 그대로 쓰고 `some buf. .` 를, 꽉 찼으면 `send al. reserve next_cap len buf. . . .` 로 두 배를 받아 옛 내용을 복사한 뒤 `some <새 버퍼>` 를 돌려준다. 얼로케이터는 위치 인자가 아니라 `use` 절로 건넨다 — 타입 `a` 는 그 출처에서 채워지고 단형화되므로 전달 비용은 0 이다(35장). 몰래 할당하지 않으므로 얼로케이터를 가지지 않은 코드는 이 op 을 부를 수 없다.
+- `put` 은 같은 키(길이 + 바이트 일치)면 값만 갱신한다 — 새 슬롯도 아레나도 쓰지 않는다. 새 키는 아레나에 복사된다. 프로브 중 처음 만난 묘비를 재사용한다.
+- `del` 은 keylen 을 묘비로 덮고 value 를 0 으로 지운다. **아레나의 옛 키 바이트는 남는다** — 회수는 `rehash` 가 새 아레나로 옮기며 한다(압축).
+- 키 바이트는 `subslice keys. off. add off. klen. . .` 으로 읽는다. 그 뷰는 아레나의 뷰라 아레나가 살아 있는 동안만 유효하다.
 
-```lowent
-module vecgrow .
-use vecs .
-use allocs .
-use stdio .
-
-proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
-  let memopt option mut slice u8 alloc_bytes al. capacity 256 . .
-  guard is_some memopt. . else return 1 . .
-  let mem mut slice u8 some_value memopt. . .
-  var bump allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c usize send bump. init mem. . .
-  let b0 option mut slice u8 send bump. reserve 2 . .
-  guard is_some b0. . else return 2 . .
-  var buf mut slice u8 some_value b0. . .
-  var v lit vecs.vec_u8 do len 0 . end . .
-  var i u64 0 .
-  while lt i. 10 . do
-    let r use bump. option mut slice u8 vecs.push_byte v. buf. narrow u8 add 65 i. . . . .
-    guard is_some r. . else return 3 . .
-    set buf. some_value r. . .
-    set i. add i. 1 . .
-  end .
-  let m usize stdio.write out. 1 subslice buf. 0 field v. len . . . .
-  return cast u8 field v. len . . .
-end .
-```
-
-2 바이트로 시작해 10 개를 밀며 2 → 4 → 8 → 16 으로 세 번 자라고, `ABCDEFGHIJ` 를 출력한다.
-
-> **반례. 돌려받은 버퍼로 다시 묶지 않는다**
+> **반례. 빈 문자열 키**
 >
-> > `set buf. some_value r. . .` 를 빼먹으면 컴파일도 실행도 통과하는데 결과가 소리 없이 틀린다. 성장이 일어난 뒤 옛 `buf` 를 계속 주면 `v.len` 은 새 버퍼 기준으로 올라가 있는데 쓰기는 옛(작은) 버퍼에 간다. **반환값이 곧 다음 버퍼다** — 이 모듈에서 가장 위험한 실수다.
+> > `strmap.put slots. keys. "" 7 .` 은 언제나 `false` 다. `keylen 0` 이 빈칸 표식이라 빈 키는 인코딩상 존재할 수 없다. `lookup ""` 도 언제나 `none` 이다.
 
-> **반례. OOM 을 보지 않는다 · 순수 fn 에서 부른다**
+> **반례. 삭제 뒤 `keylen > 0` 으로 순회한다**
 >
-> > `some_value r. .` 를 검사 없이 꺼내면 얼로케이터가 말랐을 때 `E-VM-NONE` 으로 멈춘다. `effects none` 인 `fn` 에서 부르면 `E-EFFECT-CALC` 다 — `push_byte` 는 `effects state` 인 proc 이다. trait 을 충족하지 않는 값(예: `u64`)을 출처로 건네면 `E-BOUND-UNSAT` 이다.
+> > 묘비의 keylen 은 MAX 라 `gt keylen. 0 .` 이 참이다 — 지운 항목이 집계에 섞여 든다. `del` 을 한 번이라도 쓴 맵은 `occupied_at` 으로 거른다.
 
-**주의.** 성장은 복사다 — push 한 번이 최악 O(len)이지만 두 배 정책이라 상환 O(1)이다. 크기를 미리 알면 처음부터 그만큼 받는 쪽이 싸다. **옛 버퍼는 회수되지 않는다** — 범프 위에서 n 까지 키우면 뒷받침 소비는 대략 2n 이고, 옛 버퍼는 `region` 이 끝날 때 통째로 걷힌다(18장). 머리와 버퍼는 쌍이다 — 서로 다른 벡터의 것을 섞어 넘기는 것을 막을 장치는 없다. 원소 타입 일반화 · pop · insert · remove · 줄어들기는 없다.
+> **반례. `slots[0]` 을 직접 만진다**
+>
+> > 아레나 커서를 손대면 다음 `put` 이 키 바이트를 엉뚱한 곳에 복사한다. 멈추지 않고 조용히 틀린다. 초기화는 “전부 0”, 이후 수정은 op 으로만 한다.
+
+**주의.** 아레나는 bump 다 — 서로 다른 키를 넣었다 지웠다 되풀이하면 슬롯이 남아도 아레나 부족으로 `put` 이 `false` 가 될 수 있다. `put` 의 `false` 하나로 슬롯 부족과 아레나 부족이 구별되지는 않는다. 버퍼 크기는 슬롯 N 개 = `3N + 1` u64, 아레나는 살아 있는 키 길이 합 + 죽은 바이트로 짐작한다. 실제 쓰임은 파일을 읽어 [`strings`](sec58.md#mod-strings) 로 단어를 쪼개고 빈도를 세는 프로그램이다(34장).
 
 ---
 

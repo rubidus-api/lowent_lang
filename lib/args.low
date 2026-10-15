@@ -2,7 +2,7 @@ rem ★★★ **명령줄 인자** — `cap args` 를 든 자만 읽는다 (RFC-
 rem
 rem ★ 빌트인 연산 `call_builtin arg` 의 얇은 감싸개다. 인자는 프로그램이 받은 **권한**이지 어디서나 보이는 값이 아니다
 rem   (RFC-0030 D2) — 그래서 첫 입력이 `cap args` 다.
-rem ☞ 인자의 수는 기본 연산 `count <cap args>` 가 낸다.
+rem ☞ 인자의 수는 기본 연산 `len <cap args>` 가 낸다(옛 철자 `count` — RFC-0150 Q3 에서 이름을 풀었다).
 
 module args .
 

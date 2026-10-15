@@ -334,8 +334,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-LOCAL-CAPTURE",       "R-PASS-AS-INPUT" },      // RFC-0121 — 바깥 값은 매개변수로 건넨다
     { "E-LOCAL-PLACE",         "R-MOVE-TO-TOP" },        // 본문 바로 아래로, 아니면 최상위로
     { "E-LOCAL-EXPORT",        "R-MOVE-TO-TOP" },        // 밖에서 쓰려면 최상위 선언
-    { "E-MAP-SINK",            "R-USE-MUT-SINK" },
-    { "E-MAP-ELEM",            "R-USE-SCALAR-ELEM" },
 
     // comptime
     { "E-COMPTIME-ARG",        "R-USE-LITERAL" },

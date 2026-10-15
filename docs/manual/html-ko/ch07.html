@@ -1038,7 +1038,7 @@ grade(95) = 2
 </code></pre></div></div><p>비교는 낱말이다 — <code>lt</code>(작다)·<code>le</code>(작거나 같다)·<code>gt</code>·<code>ge</code>·<code>eq</code>·<code>ne</code>. <code>&lt;</code> 는 이 언어가 모르는 글자라 <code>E-CHAR</code> 가 난다. 기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 <code>expr</code> 섬이 있다(8장). 고치는 법: <code>while lt i. n. . do</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>continue</code> 가 증가를 건너뛴다</p><div class="dev-body"><p><code>while</code> 로 세면서 몸 가운데서 <code>continue</code> 하면, 그 아래에 둔 <code>set i. add i. 1 . .</code> 도 함께 건너뛴다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> odd_count <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i. len xs. . . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq mod idx xs. i. . <span class="tok-n">2</span> . <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .

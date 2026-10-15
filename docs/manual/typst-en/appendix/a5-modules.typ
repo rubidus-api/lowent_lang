@@ -29,6 +29,7 @@ Cross-module names are always called qualified (`strings.find`), and a frequentl
   [#modref("term")[`term`]], [The pure half of a terminal renderer --- ANSI assembly · screen diff · width],
   [#modref("sortlib")[`sortlib`]], [In-place quicksort for `u64`],
   [#modref("sortgen")[`sortgen`]], [Generic sort --- the type brings the comparison],
+  [#modref("collection")[`collection`]], [Map, filter and fold over a slice --- the element type brings the work],
   [#modref("searchlib")[`searchlib`]], [Binary search over sorted slices],
   [#modref("hashmap")[`hashmap`]], [`u64 → u64` open addressing],
   [#modref("strmap")[`strmap`]], [Byte string → `u64` hash map],

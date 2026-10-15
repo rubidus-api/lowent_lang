@@ -28,6 +28,7 @@
   [#modref("term")[`term`]], [터미널 렌더러의 순수한 절반 --- ANSI 조립 · 화면 diff · 폭],
   [#modref("sortlib")[`sortlib`]], [`u64` 제자리 quicksort],
   [#modref("sortgen")[`sortgen`]], [제네릭 정렬 --- 비교는 타입이 들고 온다],
+  [#modref("collection")[`collection`]], [원소마다 옮기기 · 거르기 · 접기(`map` · `filter` · `fold`) --- 할 일은 원소 타입이 들고 온다],
   [#modref("searchlib")[`searchlib`]], [정렬된 슬라이스의 이진 탐색],
   [#modref("hashmap")[`hashmap`]], [`u64 → u64` 오픈 어드레싱],
   [#modref("strmap")[`strmap`]], [바이트열 → `u64` 해시맵],

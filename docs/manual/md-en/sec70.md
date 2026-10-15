@@ -1,8 +1,8 @@
-# <a id="mod-searchlib"></a>`searchlib` — binary search on sorted slices
+# <a id="mod-collection"></a>`collection` — map, filter and fold over a slice
 
 Source
 
-`lib/search.low`
+`lib/collection.low`
 
 Layer
 
@@ -12,53 +12,52 @@ Capabilities
 
 none
 
-Finds values in a **sorted** slice by binary search. Probe the middle, decide whether the target is left or right, and search only the remaining half — about twenty steps even for a million elements. In exchange, elements must already be in line to choose a direction. It is the partner of [`sortlib`](sec68.md#mod-sortlib), and together they make **sorted sets and maps** — unlike a hash map, order is kept, so range queries and “the next larger value” work. The file is `search.low`, but the module name is `searchlib`.
+Does the same work on each element of a slice and puts the results into another slice (`map`), keeps only the elements that pass a test (`filter`), or folds them into one value (`fold`). **The element type brings the work** — the element is wrapped in a struct of one field, and that struct satisfies the traits `mappable`, `keepable` and `foldable`. It is the same way [`sortgen`](sec69.md#mod-sortgen) finds its comparison in the element type. When the job is calling one named op per element, a `pipe` stage is shorter (chapter 24).
 
 ```lowent
-use searchlib .
-use sortlib .
+use collection .
 
-sortlib.sort s. .
-let i option u64 searchlib.bsearch s. 42 . .
-```
+struct bump do
+  satisfies collection.mappable .
+  satisfies collection.foldable .
+  v u64 .
+end .
 
-> **Sortedness is not checked**
->
-> > The premise that `s` is ascending is **the caller’s job**. If broken, answers are wrong but nothing stops — no out-of-range access happens, so there is nothing to stop for; instead **a silently wrong answer** comes out. “`none` for a value that is definitely there” almost always means it was not sorted.
+fn bump.apply input x bump . output bump . do
+  return lit bump do v add field x. v . 1 . . end . .
+end .
 
-| **op** | **Shape** | **Answer** |
-|---|---|---|
-| `bsearch` | `(s slice u64, target u64) → option usize` | index of `target`, or `none`. With duplicates, **one** of them (which one is unspecified) |
-| `lower_bound` | `(s slice u64, target u64) → usize` | first index at or above `target`. `len s. .` if all are smaller |
+fn bump.combine input acc bump . input x bump . output bump . do
+  return lit bump do v add field acc. v . field x. v . . . end . .
+end .
 
-*Table 50.1 — Ops of `searchlib` — all `fn` · `effects none`*
-
-How to choose — “is it there, and where” is `bsearch`; “where would it go” or “where do values at or above this start” is `lower_bound`. `lower_bound` is both **insertion point** and **start of a range** — `[lower_bound s a, lower_bound s b)` is the index range of elements with `a ≤ x < b`. It is not an `option` because the question has no “not found” (the end index is an answer too). There is no upper_bound, insert or delete — one lower bound gives membership, insertion point and range queries.
-
-The implementation runs on the half-open range `[lo, hi)` with midpoint `lo + (hi − lo)/2` — `(lo + hi)/2` can overflow at large indices (the classic defect).
-
-```lowent
-fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i u64 searchlib.lower_bound s. a. . .
-  let j u64 searchlib.lower_bound s. b. . .
-  guard lt i. j. . else return 0 . .
-  return sub j. i. . .
+proc bumped_sum input s slice bump . input out mut slice bump . output u64 . effects none . do
+  let n u64 collection.map bump. s. out. . .
+  let total bump collection.fold bump. lit bump do v 0 . end . out. . .
+  return add n. field total. v . . .
 end .
 ```
 
-> **Counter-example. Not separating `bsearch`’s `none`**
->
-> > `return some_value r. . .` compiles, and stops with `E-VM-NONE` the moment nothing is found. Testing only with present values never triggers it — seeing an `option`, add `guard is_some` (chapter 11).
+| **op** | **shape** | **failure** |
+|---|---|---|
+| `mappable` · `keepable` · `foldable` | trait — `apply (self) → self` · `keep (self) → bool` · `combine (self, self) → self` | unsatisfied = `E-BOUND-UNSAT` (compile time) |
+| `map` | `(comptime t, slice t, mut slice t) → u64` — `dst[i]` gets the `apply` of `src[i]` | a short `dst` stops the run as it is written |
+| `filter` | `(comptime t, slice t, mut slice t) → u64` — elements whose `keep` is true, from the front | the same |
+| `fold` | `(comptime t, start t, slice t) → t` — the accumulator first, then the element | none — empty gives `start` |
 
-> **Counter-example. Giving meaning to `bsearch`’s index among duplicates**
->
-> > In `[5,5,5]`, `bsearch s 5` may yield 0, 1 or 2. If you need “the position of the first 5”, use `lower_bound s 5`.
+*Table 50.1 — Ops of `collection`*
 
-> **Counter-example. Indexing directly with `lower_bound`’s result**
->
-> > If not found, `i` is `len s. .`, a position that does not exist — `idx s. i. .` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i. len s. . .` first.
+`map` and `filter` give **the number of elements written** (a `u64`, the same as `collect into`). The caller gives the storage — this module does not allocate.
 
-**Cautions.** It cannot be used as is on descending data (there is no place to swap in a comparator). **Sort once, search many times** — calling `sort` before each search loses the whole gain. After sorting, changing one element with `set` requires sorting again. Keep the order when subtracting two lower bounds — `sub` underflows. As pure ops, the same slice can be searched from many places at once (while nobody writes). Other element types are `lower_by` and `find_by` of [`sortgen`](sec69.md#mod-sortgen).
+**Why these are not core ops.** Until 2026-10-16 the three were core ops. A core op’s name cannot be an author’s name, so no local or op could be called `map`, which is also why [`mapgen`](sec113.md#mod-mapgen) chose the name `table`. Moving them into a library freed the names.
+
+**Why not pass an op as a value.** This language has no way to pass an op as a value. Even if it had one, an indirect call would hide its cost at the call site. Each call builds an op for that type (monomorphisation), and `apply` is fixed in as a direct call. The price is that **one element type has one `apply`** — moving the same bytes in two ways takes two wrapper types. To see a byte slice as a slice of wrappers, use `view_array <wrapper> <slice>` (one field, the same layout).
+
+> **Counter-example. Passing a `u64` slice as it is**
+>
+> > `collection.map u64. s. out. .` is `E-BOUND-UNSAT`. `u64` has no place to attach a method, so it cannot satisfy a trait — wrap it in a struct of one field.
+
+**Not built** — a `map` that changes the element type (`t` to `u`), and a transformation that holds state (a factor `k`, say). Both need a trait that takes a type parameter, or an op taken as a translation-time argument — that syntax is left as the next piece of work.
 
 ---
 

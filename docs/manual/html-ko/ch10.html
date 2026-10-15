@@ -808,7 +808,49 @@ demo_area(2) = 0
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check missing_case.low
 missing_case.low:12:0 E-MATCH-INEXHAUSTIVE: this `match` does not handle every variant of the enum — add the missing `case` (that exhaustiveness is what a `match` buys you over an if-chain: add a variant later and the compiler finds every place that must change), or add a `case _ .` wildcard to cover the rest
-</code></pre></div></div><p>이 검사가 <code>enum</code> 의 가장 큰 값이다. 나중에 <code>triangle</code> 갈래를 더하면, <code>area</code> 와 <code>corners</code> 를 비롯해 <code>shape</code> 를 가르는 모든 <code>match</code> 가 번역에서 멈춘다. 고쳐야 할 자리를 사람이 기억할 필요가 없다.</p><p><code>match</code> 를 쓰지 않고 갈래만 물을 때는 <code>isa n. num .</code> 이 <code>bool</code> 을 준다.</p><h4 id="s10-2-1">10.2.1 갈래의 번호와 <code>cast</code><a class="plink" href="#s10-2-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h4><div></div><p>열거 값은 수가 아니다. 수로 선언한 이름 · 인자 · 반환, 셈, 첨자에 열거 값을 그대로 두면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_enumnum.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_enumnum .
+</code></pre></div></div><p>이 검사가 <code>enum</code> 의 가장 큰 값이다. 나중에 <code>triangle</code> 갈래를 더하면, <code>area</code> 와 <code>corners</code> 를 비롯해 <code>shape</code> 를 가르는 모든 <code>match</code> 가 번역에서 멈춘다. 고쳐야 할 자리를 사람이 기억할 필요가 없다.</p><p><code>match</code> 를 쓰지 않고 갈래만 물을 때는 <code>isa n. num .</code> 이 <code>bool</code> 을 준다.</p><p>갈래가 지니는 값의 타입은 <strong>낱말 하나로</strong> 적는다. 갈래 한 줄에는 칸 사이를 가르는 표시가 없어서 <code>slice u8</code> 처럼 여러 낱말로 적는 타입은 어디서 끊기는지 알 수 없기 때문이다(<code>E-ENUM-PAYLOAD</code>). 크기의 제한은 아니다. 여러 낱말 타입이나 큰 값은 그것을 칸으로 가진 구조체에 이름을 붙여 지닌다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/payload_struct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> payload_struct .
+<em><span class="tok-c">rem run: demo 0</span></em>
+<em><span class="tok-c">rem run: demo 1</span></em>
+<em><span class="tok-c">rem run: demo 2</span></em>
+
+<strong><span class="tok-k">struct</span></strong> bytes <strong><span class="tok-k">do</span></strong>
+  b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+  z <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">enum</span></strong> msg <strong><span class="tok-k">do</span></strong>
+  data d bytes .
+  dot p pt .
+  blank .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> weigh <strong><span class="tok-k">input</span></strong> m msg . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> m. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> data d <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u64</span></strong> len field d. b . . . . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> dot p <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add add field p. x . field p. y . . field p. z . . . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> blank <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> demo <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq k. <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> weigh msg.data <strong><span class="tok-k">lit</span></strong> bytes <strong><span class="tok-k">do</span></strong> b <span class="tok-s">"</span><span class="tok-s">abc</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> . . . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq k. <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> weigh msg.dot <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . z <span class="tok-n">7</span> . <strong><span class="tok-k">end</span></strong> . . . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> weigh msg.blank. . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run demo payload_struct.low 0
+demo(0) = 3
+$ lowentc --run demo payload_struct.low 1
+demo(1) = 10
+$ lowentc --run demo payload_struct.low 2
+demo(2) = 0
+</code></pre></div></div><ul><li><code>data d bytes .</code> 는 슬라이스를 품은 구조체를, <code>dot p pt .</code> 는 칸 셋짜리 구조체를 지닌다. 둘 다 낱말 하나(<code>bytes</code> · <code>pt</code>)로 적었다.</li></ul><h4 id="s10-2-1">10.2.1 갈래의 번호와 <code>cast</code><a class="plink" href="#s10-2-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h4><div></div><p>열거 값은 수가 아니다. 수로 선언한 이름 · 인자 · 반환, 셈, 첨자에 열거 값을 그대로 두면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_enumnum.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_enumnum .
 <em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
 
 <strong><span class="tok-k">enum</span></strong> volume <strong><span class="tok-k">do</span></strong>

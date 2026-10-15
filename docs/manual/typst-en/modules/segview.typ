@@ -4,8 +4,9 @@
 
 #modhead(file: "lib/segview.low", layer: [L1 --- the caller's storage], caps: [none])
 
-The language holds only three segment view operations --- `view_segments` (build), `segs` (segment count), `seg` (the i-th segment). This module adds *cursors, total length
-and coalescing* on top. All three are written with those three, so there is no reason for them to be core ops.
+The language holds one segment view operation, `view_segments` (build). This module gives the piece count (`piece_count`) and the i-th piece (`piece_at`), and adds
+*cursors, total length and coalescing* on top. The piece count and the i-th piece were the core ops `segs` and `seg`; they are written by reading fields and slicing, so they
+moved to this module when their names were freed (2026-10-16). The other three are written with those two, so there is no reason for them to be core ops.
 
 *Why `segments` is in the language.* Without holding several segments as one value, sending them out takes one call per segment. Sending 64 KiB as 64 segments differed by
 28× in the development repository's measurement (one `writev` versus 64 `write`s). A segment is an `iovec` --- a slice in emitted C has the same size and both offsets as
@@ -25,7 +26,7 @@ let w option usize segview.coalesce ss. out. . .
   id: "mod-segview-ops",
   caption: [The cost is written in the op name],
   [*Call*], [*What it touches*], [*Cost*],
-  [`segs` · `seg` (core op)], [descriptor only], [a few ns or less per segment, zero copies],
+  [`segview.piece_count` · `piece_at`], [descriptor only], [a few ns or less per segment, zero copies],
   [`segview.total_len`], [descriptor only], [O(segments)],
   [`segview.cursor` · `seek` · `byte_at`], [descriptor only], [O(segments) --- scans segments to find the position],
   [`segview.coalesce`], [*every byte*], [O(n) --- the only place copying happens],

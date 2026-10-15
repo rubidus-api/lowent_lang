@@ -75,8 +75,7 @@ end .")
   ]
   #para("2d")[
     `filter`·`any`·`all` 의 op 은 #strong[판정];이다 — 출력이 `bool` 이어야 한다. 수를 내는 op 을 주는 것은
-      적합하지 아니하다(`E-PIPE-PRED`). 0 이 아닌 수를 참으로 읽는 규칙은 이 언어에 없다(#cref("6.2.16") (4)). #cref("6.12.3") 의 기본 연산
-      `filter` 의 op 도 같다.
+      적합하지 아니하다(`E-PIPE-PRED`). 0 이 아닌 수를 참으로 읽는 규칙은 이 언어에 없다(#cref("6.2.16") (4)).
   ]
   #rejected("다섯을 셋 칸에 담는다 — 두 길이를 번역 시점에 안다", "module ex_collect_full .
 
@@ -245,30 +244,43 @@ end .
       경계를 눈에 보이게 못박는다.
     ]
   ]
-  #sub("6.12.3", "`pipe` 밖의 `map`·`filter` — 받는 자리에 써 넣는 기본 연산")[
-    #note[
-      이 절의 `map`·`filter` 는 `pipe` 의 스테이지가 #strong[아니다.]; 이름이 같은 기본 연산이며, 문 하나로
-      한 슬라이스를 다른 슬라이스에 옮겨 담는다: `map <받는 자리> <op> <원천> .` ·
-      `filter <받는 자리> <op> <원천> .`. `pipe` 안의 스테이지는 op 하나만 받는다(#cref("6.12") (2b)).
-    ]
+  #sub("6.12.3", "`pipe` 밖의 `map`·`filter`·`fold` — 라이브러리의 op")[
     #para("1")[
-      `map` 과 `filter` 는 결과를 #strong[첫 인자(받는 자리)에 써 넣는다.]; 그러므로 그 자리는
-      고칠 수 있어야 한다(`E-MAP-SINK`, #cref("8.8")).
-    ]
-    #para("1a")[
-      받는 자리가 차는 것은 #cref("6.12") (2c)와 같다 — 알면 번역이, 모르면 실행이 멈춘다. `map` 은 원천의 원소 수만큼,
-      `filter` 는 판정을 지난 원소 수만큼 자리가 있어야 한다.
-    ]
-    #para("1b")[
-      두 연산은 #strong[써 넣은 원소의 수];(`u64`)를 낸다 — `collect into` 와 같다.
+      `pipe` 밖에서 `map` · `filter` · `fold` 는 #strong[기본 연산이 아니다.]; 세 이름은 저자가 op · 매개변수 · 지역의 이름으로
+      지을 수 있다. `pipe` 안의 같은 낱말은 스테이지와 종결자다(#cref("6.12") (2)).
     ]
     #para("2")[
-      이 두 연산이 다루는 원소는 #strong[스칼라];여야 한다(`E-MAP-ELEM`). 묶음과 열거는
-      원소 하나를 한 번에 쓰는 이 길로는 다루지 아니한다.
+      한 슬라이스를 다른 슬라이스에 옮겨 담거나 거르거나 하나로 접는 일은 표준 모듈 `collection` 의 op
+      `map` · `filter` · `fold` 가 한다(#cref("9.3")). 할 일은 #strong[원소의 타입이 들고 온다]; — 원소 타입이 트레이트
+      `collection.mappable`(`apply`) · `collection.keepable`(`keep`) · `collection.foldable`(`combine`) 을
+      갖추고(#cref("6.11.2")), op 은 그 타입을 번역 시점 인자로 받는다. 갖추지 않은 타입을 주면 번역이 거부된다.
     ]
+    #para("2a")[
+      `collection.map` 과 `collection.filter` 는 받는 자리(`mut slice`)에 써 넣고 #strong[써 넣은 원소의 수];(`u64`)를 낸다 —
+      `collect into` 와 같다. 받는 자리가 차면 써 넣으려는 순간 실행이 멈춘다.
+    ]
+    #ex("원소 타입이 할 일을 들고 온다", "module ex_collection .
+
+use collection .
+
+struct twice do
+  satisfies collection.mappable .
+  v u8 .
+end .
+
+fn twice.apply input x twice . output twice . do
+  return lit twice do v wrap_add field x. v . field x. v . . . end . .
+end .
+
+proc twice_all input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
+  return collection.map twice. view_array twice xs. . view_array twice out. . . .
+end .",
+      out: "twice_all([1,2,3], [0,0,0]) = 3")
     #plain[
-      받는 자리를 인자로 받는 까닭은 #cref("9.2") 와 같다 — #strong[저장소를 부르는 쪽이 준다.]; 그러면
-      이 스테이지는 무더기를 쓰지 않아도 되고, 얼마나 쓰는지가 부르는 자리에 보인다.
+      이 셋은 한때 기본 연산이었다(`map <받는 자리> <op> <원천>` 꼴). 기본 연산의 이름은 저자의 이름이 될 수 없으므로
+      흔한 낱말 셋이 막혀 있었다. op 을 값으로 넘기는 길이 이 언어에 없으므로, 라이브러리의 제네릭은 할 일을 원소의
+      타입에서 찾는다 — 정렬이 비교를 그렇게 찾는 것과 같다. 부를 때마다 그 타입 전용 op 이 만들어지고 할 일은
+      직접 호출로 박힌다.
     ]
   ]
 ]

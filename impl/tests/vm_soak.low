@@ -132,7 +132,7 @@ proc stk_pool input temp region slot . input n u64 . output usize . effects allo
   while lt i. n. . do
     let s stack u64 stack_new temp capacity 4 . .
     push s. i. .
-    set acc. add acc. count s. . . .
+    set acc. add acc. stack_count s. . . .
     set i. add i. 1 . .
   end .
   return acc. .
@@ -144,7 +144,7 @@ fn bset_pool input n u64 . output usize . do
   while lt i. n. . do
     var b bitset 8 bitset_new 8 . .
     bitset_insert b. 1 .
-    set acc. add acc. count b. . . .
+    set acc. add acc. bitset_count b. . . .
     set i. add i. 1 . .
   end .
   return acc. .

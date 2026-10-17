@@ -259,6 +259,12 @@ end .
       `collection.map` 과 `collection.filter` 는 받는 자리(`mut slice`)에 써 넣고 #strong[써 넣은 원소의 수];(`u64`)를 낸다 —
       `collect into` 와 같다. 받는 자리가 차면 써 넣으려는 순간 실행이 멈춘다.
     ]
+    #para("2b")[
+      언어 개정 1.12 까지 기본 연산이던 이름은 여섯이다 — `map` · `filter` · `fold` · `count` · `seg` · `segs`. 개정 1.13 부터
+      여섯 모두 저자의 이름이다. 정의되지 않은 채 그 이름을 부르면 다른 이름처럼 거부되고(`E-IR-UNDEF`), 처리기는 옮길 곳을
+      함께 말한다 — `count` 는 `bitset_count` · `stack_count` · `len`(#cref("6.2.12") (4a)), `seg` · `segs` 는 `segview.piece_at` ·
+      `segview.piece_count`, 전위 `map` · `filter` · `fold` 는 위 (2) 의 `collection`.
+    ]
     #ex("원소 타입이 할 일을 들고 온다", "module ex_collection .
 
 use collection .

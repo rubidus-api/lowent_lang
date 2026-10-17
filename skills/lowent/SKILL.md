@@ -123,7 +123,7 @@ Shape rules you will hit immediately:
   at the very end). One stop too few is `E-DOT-MISSING`, one too many `E-CLOSER-EXTRA`. A newline
   is just whitespace: it never closes anything. Glued *inside* a name, `.` qualifies it
   (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p. x .`.
-- **Sizes are `usize`, and nothing converts by itself.** `len` / `count` / `capacity` / `size_of` and the
+- **Sizes are `usize`, and nothing converts by itself.** `len` / `bitset_count` / `stack_count` / `capacity` / `size_of` and the
   byte counts of I/O give `usize`; an index, a bound and an `alloc_bytes` capacity must be `usize`
   (`E-TYPE-NOMINAL`). `usize` (and its signed partner `idiff`, the difference of two positions) mixes
   with no other integer in arithmetic or comparison: write `cast u64 len xs. . .` or
@@ -144,6 +144,17 @@ Shape rules you will hit immediately:
   with no variant stops). Two values of one enum compare with `eq` and by order (`lt` …); anything else
   that mixes an enum with a number is refused. Any conversion that could be read two ways is a `cast`.
 - **Raw strings**: `r"\d+\.\d+"` keeps every backslash; it ends at the next `"` and has no escapes.
+- **`map` · `filter` · `fold` · `count` · `seg` · `segs` are ordinary names** (1.13). Inside `pipe` they are still
+  stages and terminals. Outside it, use the module `collection`: the element type is a one-field struct that
+  `satisfies collection.mappable .` (`apply`) / `keepable` (`keep`) / `foldable` (`combine`), then
+  `collection.map w. src. dst. .` writes into a `mut` slice and answers the count. A bitset's size is
+  `bitset_count s. .`, a stack's `stack_count s. .`, the arguments' `len k. .` on `cap args`; pieces of a
+  `segments` view are `segview.piece_at` / `piece_count`.
+- **A view does not copy.** A field write through `view T b` (or `view_array T b`) writes `b`, so the bytes must
+  be writable: a view of a read-only slice or a literal binds with `let`, never `var` (`E-TYPE-MUT`), and
+  cannot go to a `mut` input (`E-TYPE-ARGMUT`). A viewed struct has only `plain` fields — no `bool`
+  (`E-TYPE-BITCAST`; take a `u8` and compare it). A `fn` may not write its `mut` input through a view, a
+  local alias or a `proc` (`E-EFFECT-PURITY`).
 - **Statements you will write constantly**: `let n u64 add a. 1 . .` (the call's stop, then the
   binding's) · `set i. add i. 1 . .` (the place is a value too) · `return x. .` ·
   `guard gt n. 0 . else return 0 . .` · `method o. name. arg. .` · `payload v. variant field .`.

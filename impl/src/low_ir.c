@@ -1528,6 +1528,15 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
         ir_fail_buf(c, "E-BUILTIN-BARE", buf, nd->line);
         return;
     }
+    else if (veq(lex, "count") || veq(lex, "seg") || veq(lex, "segs") || veq(lex, "map") || veq(lex, "filter") || veq(lex, "fold"))
+        // ★ RFC-0150 Q3 (1.13) — 1.12 까지 기본 연산이던 이름이다. 옮길 곳을 말한다.
+        snprintf(buf, sizeof buf, "undefined name `%.*s` — it was a core op until 1.12 and is an ordinary name since 1.13 (RFC-0150). "
+                 "%s", (int)lex.size, (const char *)lex.ptr,
+                 veq(lex, "count") ? "A bitset's size is `bitset_count <set> .`, a stack's `stack_count <stack> .`, the number of "
+                                     "arguments `len <cap args> .`; inside `pipe` the terminal `count .` is unchanged"
+                 : veq(lex, "seg") ? "One piece of a segments view is `segview.piece_at <view> <i> .` (`use segview .`)"
+                 : veq(lex, "segs") ? "The number of pieces is `segview.piece_count <view> .` (`use segview .`)"
+                 : "Outside `pipe` use the module `collection` (`collection.map` / `filter` / `fold`); inside `pipe` the stage is unchanged");
     else
         snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
                  "variant in scope here", (int)lex.size, (const char *)lex.ptr);

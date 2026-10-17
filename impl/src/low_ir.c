@@ -2067,6 +2067,14 @@ static proven_u8 ir_operand_bset_w(ir_ctx_t *c, const low_cst_t *node) {
     if (!f) return 0;
     return c->locals[sl].bset_w;
 }
+// 지역 · 매개변수의 선언 타입 낱말(`bitset` · `stack` …) — 모르면 빈 낱말 (RFC-0150 §8-29)
+static proven_u8str_view_t ir_operand_kindword(ir_ctx_t *c, const low_cst_t *node) {
+    if (!node || !is_atom(node)) return (proven_u8str_view_t){ 0 };
+    bool f; proven_size_t sl = ir_local_find(c, node->tok.lex, &f);
+    if (!f) return (proven_u8str_view_t){ 0 };
+    if (c->locals[sl].bset_w) return proven_u8str_view_from_cstr("bitset");
+    return c->locals[sl].tyname;
+}
  void ir_bset_context(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, proven_size_t end) {
     c->bset_w = 0;
     for (proven_size_t i = start; i + 1 < end && i + 1 < f->nkids; i++) {
@@ -3670,6 +3678,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 return;
             }
             if (veq(nd->tok.lex, "stack_count")) {   // RFC-0150 Q3 — 옛 `count <스택>`; 셈은 비트셋 판과 같은 IRW_COUNT 다
+                if (*pos < end && veq(ir_operand_kindword(c, k[*pos]), "bitset")) {   // RFC-0150 §8-29
+                    ir_fail(c, "E-TYPE-ARG", "`stack_count` counts the elements of a stack — this is a bitset: write `bitset_count <set> .`", nd->line);
+                    return;
+                }
                 ir_value(c, k, pos, end);
                 ir_emit(c, IRW_COUNT, 0);
                 return;
@@ -4649,6 +4661,23 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             "`add` on a bitset is spelled `bitset_insert <set> <n> .` — `add` means numeric addition only "
                             "(RFC-0113 R5), pairing with `bitset_remove`", nd->line);
                     return;
+                }
+                // ★★★ RFC-0150 §8-29 (소유자 2026-10-17 «다 추천대로») — 옛 `count` 를 가른 이름은 **받는 종류**도 가른다.
+                //   `bitset_count` 와 `stack_count` 는 같은 셈(IRW_COUNT)으로 내려가서, 스택에 `bitset_count` 를 주면 스택의 원소 수가
+                //   나왔다. `len` 은 조각의 길이라 집합 · 스택에 주면 VM 에서 «len needs a slice» 로 멈췄다 — 번역 때 말한다.
+                //   (종류는 선언된 지역 · 매개변수의 타입 낱말로 판정한다. 모르는 자리는 전처럼 둔다.)
+                if ((b->w == IRW_COUNT || b->w == IRW_LEN) && *pos < end) {
+                    proven_u8str_view_t kw = ir_operand_kindword(c, k[*pos]);
+                    if (b->w == IRW_COUNT && veq(kw, "stack")) {
+                        ir_fail(c, "E-TYPE-ARG", "`bitset_count` counts the members of a bitset — this is a stack: write `stack_count <stack> .`", nd->line);
+                        return;
+                    }
+                    if (b->w == IRW_LEN && (veq(kw, "bitset") || veq(kw, "stack"))) {
+                        ir_fail(c, "E-TYPE-ARG", veq(kw, "bitset")
+                                ? "`len` is the length of a slice — this is a bitset: its member count is `bitset_count <set> .`"
+                                : "`len` is the length of a slice — this is a stack: its element count is `stack_count <stack> .`", nd->line);
+                        return;
+                    }
                 }
                 for (proven_size_t i = 0; i < b->arity; i++) ir_value(c, k, pos, end);
                 // ★★★ **atomic ordering** (RFC-0018 §6.1) — 선택 절 `order <name>`(어휘 안 늘림).

@@ -166,6 +166,18 @@ typedef struct {
 static bool veq(proven_u8str_view_t v, const char *s) { return proven_u8str_view_eq(v, proven_u8str_view_from_cstr(s)); }
 
 static ty_t tk(tk_t k) { return (ty_t){ .k = k }; }
+// ★ RFC-0150 §8-28 — `subslice X …` · `view_array T X` 는 X 와 **같은 저장소**다(베끼지 않는다, 정본 §8.7.2 (4)).
+//   쓰는 자리(`copy` · `store` 의 받는 쪽)는 그 뿌리 이름의 `mut` 을 본다 — 고칠 수 있음은 한 방향으로만 좁아진다(§8.8 (2)).
+static const low_cst_t *tc_view_root(const low_cst_t *r) {
+    for (int hops = 0; r && hops < 64; hops++) {
+        while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+        if (!r || r->kind != LOW_CST_FORM || r->nkids < 3 || r->kids[0]->kind != LOW_CST_ATOM) break;
+        if (veq(r->kids[0]->tok.lex, "subslice")) r = r->kids[1];
+        else if (veq(r->kids[0]->tok.lex, "view_array")) r = r->kids[2];
+        else break;
+    }
+    return r;
+}
 static ty_t tk_int(proven_u8 bits, bool sign) { return (ty_t){ .k = TK_INT, .bits = bits, .sign = sign }; }
 
 // ★★★ **newtype 레지스트리** (RFC-0002 §6.3.1 — 명목 newtype). `newtype N core .` 는 투명 별칭과 달리
@@ -2894,9 +2906,12 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 const low_cst_t *r = f->kids[be + 1];
                 for (int hops = 0; r && hops < 64; hops++) {
                     while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
-                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 3 || r->kids[0]->kind != LOW_CST_ATOM ||
-                        !veq(r->kids[0]->tok.lex, "subslice")) break;
-                    r = r->kids[1];
+                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 3 || r->kids[0]->kind != LOW_CST_ATOM) break;
+                    // ★ RFC-0150 §8-28 (소유자 2026-10-17 «다 추천대로») — `view_array <T> <조각>` 도 같은 자리다(베끼지 않는다,
+                    //   정본 §8.7.2 (4)). 그런데 따라가지 않아서 `let v mut slice u8 view_array u8 xs. .` 가 읽기 전용 `xs` 를 썼다.
+                    if (veq(r->kids[0]->tok.lex, "subslice")) r = r->kids[1];
+                    else if (veq(r->kids[0]->tok.lex, "view_array")) r = r->kids[2];
+                    else break;
                 }
                 if (r && r->kind == LOW_CST_ATOM && r->tok.kind == LOW_TOK_IDENT) {
                     bool fnd; ty_t st2 = env_find(env, *nenv, r->tok.lex, &fnd);
@@ -3012,8 +3027,11 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             else if (dt.k == TK_SLICE && st3.k == TK_SLICE && dt.ebits && st3.ebits &&
                      (dt.ebits != st3.ebits || dt.eflt != st3.eflt || dt.esign != st3.esign))
                 tc_emit(c, "E-TYPE-SET", "`copy` needs two slices of the same element type", f->line);
-            if (f->kids[1]->kind == LOW_CST_ATOM) {
-                bool fnd; ty_t d0 = env_find(env, *nenv, f->kids[1]->tok.lex, &fnd);
+            // ★ RFC-0150 §8-28 — 받는 쪽이 `subslice X …` · `view_array T X` 이면 X 의 자리다. 맨 이름만 보던 탓에
+            //   `copy subslice xs. 0 1 . ys. .` 가 읽기 전용 `xs` 에 썼다.
+            const low_cst_t *cr = tc_view_root(f->kids[1]);
+            if (cr && cr->kind == LOW_CST_ATOM) {
+                bool fnd; ty_t d0 = env_find(env, *nenv, cr->tok.lex, &fnd);
                 if (fnd && d0.k == TK_SLICE && !d0.is_mut)
                     tc_emit(c, "E-TYPE-MUT", "`copy` writes the receiving slice — it must be declared `mut` (a `let` list, a string or a "
                             "shared parameter is read-only)", f->line);
@@ -3069,9 +3087,10 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 const low_cst_t *r = g->kids[0]->kids[1];
                 for (int hops = 0; r && hops < 64; hops++) {
                     while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
-                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 2 || r->kids[0]->kind != LOW_CST_ATOM ||
-                        !(veq(r->kids[0]->tok.lex, "idx") || veq(r->kids[0]->tok.lex, "subslice"))) break;
-                    r = r->kids[1];
+                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 2 || r->kids[0]->kind != LOW_CST_ATOM) break;
+                    if (veq(r->kids[0]->tok.lex, "idx") || veq(r->kids[0]->tok.lex, "subslice")) r = r->kids[1];
+                    else if (veq(r->kids[0]->tok.lex, "view_array") && r->nkids >= 3) r = r->kids[2];   // RFC-0150 §8-28
+                    else break;
                 }
                 if (r && r->kind == LOW_CST_ATOM && r->tok.kind == LOW_TOK_IDENT) {
                     bool fnd; ty_t st2 = env_find(env, *nenv, r->tok.lex, &fnd);
@@ -3147,8 +3166,8 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             //   선언돼 있어야 한다(읽기 전용 슬라이스에 벡터를 쓸 수 없다). set (index) 의 mut 강제와 같은 규율.
             if (f->nkids >= 4 && f->kids[0]->kind == LOW_CST_ATOM &&
                 (veq(f->kids[0]->tok.lex, "store") || veq(f->kids[0]->tok.lex, "store_masked")) &&
-                f->kids[1]->kind == LOW_CST_ATOM) {
-                bool fnd; ty_t dt = env_find(env, *nenv, f->kids[1]->tok.lex, &fnd);
+                tc_view_root(f->kids[1]) && tc_view_root(f->kids[1])->kind == LOW_CST_ATOM) {   // RFC-0150 §8-28 — 뷰를 거쳐도 뿌리를 본다
+                bool fnd; ty_t dt = env_find(env, *nenv, tc_view_root(f->kids[1])->tok.lex, &fnd);
                 if (fnd && !dt.is_mut)
                     tc_emit(c, "E-TYPE-MUT",
                             "`store`/`store_masked` writes a vector into a slice that is not declared `mut` "

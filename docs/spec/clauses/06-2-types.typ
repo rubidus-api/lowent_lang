@@ -391,7 +391,9 @@ end .", "E-TYPE-ARRAY")
       있는 이름이 아니면 거부된다(`E-TYPE-MUT`).
       쓸 수 없는 슬라이스를 `mut slice` 이름에 다시 묶지 못한다 — `let w mut slice u32 g. .` 와
       `let w mut slice u32 subslice g. a. b. . .` 는 `g` 가 쓸 수 있는 이름이 아니면 거부된다(`E-TYPE-MUT`). 새 이름은
-      같은 저장소를 가리키므로, 그것으로 쓰는 것은 `g` 에 쓰는 것이다.
+      같은 저장소를 가리키므로, 그것으로 쓰는 것은 `g` 에 쓰는 것이다. 뷰 `view_array <타입> g.` 도 베끼지 않으므로 같다 —
+      그것을 `mut` 이름에 묶거나, `mut` 입력에 넘기거나, 그것을 거쳐 `set` · `copy` · `store` 하면 `g` 가 쓸 수 있는 이름이어야
+      한다(`E-TYPE-MUT` · `E-TYPE-ARGMUT`). `copy` 와 `store` 의 받는 쪽이 `subslice` 일 때도 그렇다.
     ]
     #para("7b-1")[
       #strong[내용 복사]; — `copy <받는 쪽> <주는 쪽> .` 는 주는 쪽 슬라이스의 내용을 받는 쪽에 베낀다. 받는 쪽은 쓸 수 있어야
@@ -1108,7 +1110,8 @@ end .")
       집합을 바꾼다. `add` 는 수의 덧셈만 뜻하므로 집합에 쓰는 것은 적합하지 아니하다(`E-BITSET-ADD`).
     ]
     #para("4a")[
-      집합에 든 원소의 수는 `bitset_count <집합>` 이고, 그 타입은 `usize` 다.
+      집합에 든 원소의 수는 `bitset_count <집합>` 이고, 그 타입은 `usize` 다. 스택의 원소 수는 `stack_count <스택>` 이다.
+      둘을 서로 바꿔 쓰거나 조각의 길이인 `len` 을 집합 · 스택에 쓰면 번역이 거부된다(`E-TYPE-ARG`).
     ]
     #ex("집합에 넣고 지운다", "module ex_bitset .
 

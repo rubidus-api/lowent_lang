@@ -5454,7 +5454,7 @@ static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, prove
 //   ⇒ 스칼라를 내는 머리 아래로는 provenance 가 **끊긴다**. 그 밖의 머리는 **보수적으로 잇는다**
 //     (모르는 것은 잇는 쪽이 안전하다 — 놓치면 use-after-free 이고, 과하면 거절일 뿐이다).
 static bool ck_scalar_head(proven_u8str_view_t w) {
-    static const char *S[] = { "idx","len","count","is_some","is_none","is_ok","is_error",
+    static const char *S[] = { "idx","len","bitset_count","stack_count","is_some","is_none","is_ok","is_error",
                                "eq","ne","lt","le","gt","ge","add","sub","mul","div","mod",
                                "narrow","cast","bit_cast","and","or","not","neg" };
     for (proven_size_t i = 0; i < sizeof S / sizeof S[0]; i++) if (veq(w, S[i])) return true;
@@ -8093,7 +8093,10 @@ static void fh_walk(low_check_result_t *out, const low_cst_t *nd) {
                   ck_atom(nd->kids[1]) && ck_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_BE;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_FOR && ck_atom(nd->kids[1]) &&
         ck_atom(nd->kids[2]) && (recur_ || (nd->kids[2]->tok.kw == LOW_KW_NONE &&
-        (veq(nd->kids[2]->tok.lex, "count") || veq(nd->kids[2]->tok.lex, "range") || veq(nd->kids[2]->tok.lex, "mut"))))) {
+        // ★ RFC-0150 §8-29 — `count` 는 이제 저자의 이름일 수 있다. 세는 꼴은 뒤에 타입 낱말이 온다(`for i count u64 n`);
+        //   `for x count. do` 는 원천 이름 `count` 를 도는 꼴이라 아래 «사본에 set» 갈래로 가야 한다(low_ir_stmt.c `count_shape` 와 같은 판정).
+        ((veq(nd->kids[2]->tok.lex, "count") && nd->nkids >= 5 && ck_atom(nd->kids[3]) && nd->kids[3]->tok.kw == LOW_KW_NONE &&
+          !veq(nd->kids[3]->tok.lex, "where")) || veq(nd->kids[2]->tok.lex, "range") || veq(nd->kids[2]->tok.lex, "mut"))))) {
         proven_size_t b = nd->nkids;
         for (proven_size_t q = 3; q < nd->nkids; q++) if (nd->kids[q]->kind == LOW_CST_BLOCK) { b = q; break; }
         proven_size_t wi = b;                                       // `where` 의 조건은 바퀴마다 다시 잰다 — 얼리지 않는다
@@ -8994,6 +8997,8 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
         if (veq(head, "ref"))     return true;                   // 공유 참조 — 읽기 전용, 거절
         if (veq(head, "subslice") || veq(head, "idx"))         // 슬라이스 X 의 가변성으로 재귀
             return arg->nkids >= 2 ? ck_arg_is_ro(arg->kids[1], binds, nb, pr) : false;
+        if (veq(head, "view_array"))                            // RFC-0150 §8-28 — `view_array T X` 도 X 의 자리다(베끼지 않는다)
+            return arg->nkids >= 3 ? ck_arg_is_ro(arg->kids[2], binds, nb, pr) : false;
         if (veq(head, "field")) {                                // `field X F` — 별칭 접근
             if (arg->nkids < 3 || arg->kids[2]->kind != LOW_CST_ATOM) return false;
             if (!ck_arg_is_ro(arg->kids[1], binds, nb, pr)) return false;  // 구조체 장소가 가변 → 통과
@@ -11423,6 +11428,74 @@ static void ck_launder_walk(low_check_result_t *out, const low_cst_t *nd,
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_launder_walk(out, nd->kids[i], tab, nt, binds, nb, pr);
 }
 
+// ★★★ RFC-0150 §8-25 (소유자 2026-10-17 «다 추천대로») — `fn` 이 받은 `mut` 조각을 **`proc` 의 `mut` 자리에 넘기면** 그것도 쓰기다.
+//   `fn f input out mut slice u8 .` 가 `set idx out. 0 . 7 .` 하면 E-EFFECT-PURITY 인데, 같은 쓰기를 `proc p` 에 맡기면 통과해서
+//   부른 쪽의 조각이 바뀌었다(관측적 순수성 — RFC-0057). 옛 전위 `map` 에는 그 자리만 보는 검사가 있었고 라이브러리
+//   `collection.map` 으로 옮기며 드러났다. 받는 쪽이 `fn` 이면 세지 않는다 — 그 `fn` 이 쓰면 그 `fn` 에서 거절된다.
+//   인자는 `subslice` · `view_array` · `idx` · 괄호를 거쳐 뿌리 이름까지 따라간다.
+static const low_cst_t *ck_fn_mut_to_proc(const low_cst_t *nd, proven_u8str_view_t name,
+                                          const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t callee = nd->kids[0]->tok.lex, qmod = nd->kids[0]->qual_mod;
+        for (proven_size_t i = 0; i < nt; i++) {
+            if (!proven_u8str_view_eq(tab[i].name, callee)) continue;
+            if (qmod.size && tab[i].mod.size && !proven_u8str_view_eq(tab[i].mod, qmod)) continue;
+            if (!tab[i].form || tab[i].is_calc) break;
+            low_op_header_t hc = low_op_header(tab[i].form);
+            for (proven_size_t q = 0; q < hc.np && 1 + q < nd->nkids; q++) {
+                if (!ck_param_mutq(tab[i].form, &hc, q)) continue;
+                const low_cst_t *a = nd->kids[1 + q];
+                for (int hops = 0; a && hops < 64; hops++) {
+                    while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+                    if (!a || a->kind != LOW_CST_FORM || a->nkids < 2 || !ck_atom(a->kids[0])) break;
+                    if (veq(a->kids[0]->tok.lex, "subslice") || veq(a->kids[0]->tok.lex, "idx")) a = a->kids[1];
+                    else if (veq(a->kids[0]->tok.lex, "view_array") && a->nkids >= 3) a = a->kids[2];
+                    else break;
+                }
+                if (a && ck_atom(a) && proven_u8str_view_eq(a->tok.lex, name)) return nd;
+            }
+            break;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *hit = ck_fn_mut_to_proc(nd->kids[i], name, tab, nt);
+        if (hit) return hit;
+    }
+    return NULL;
+}
+
+// RFC-0150 §8-25 — `let w mut slice u8 out. .` 처럼 `mut` 매개변수의 자리를 다시 묶은 지역 이름을 모은다(값의 뿌리가 그 이름이면).
+//   그 이름으로 쓰거나 `proc` 에 넘겨도 부른 쪽의 저장소다. 고치기 전에는 별칭으로 쓰면 아무도 안 봤다.
+static const low_cst_t *ck_view_root_atom(const low_cst_t *a) {
+    for (int hops = 0; a && hops < 64; hops++) {
+        while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+        if (!a || a->kind != LOW_CST_FORM || a->nkids < 2 || !ck_atom(a->kids[0])) break;
+        if (veq(a->kids[0]->tok.lex, "subslice")) a = a->kids[1];
+        else if (veq(a->kids[0]->tok.lex, "view_array") && a->nkids >= 3) a = a->kids[2];
+        else break;
+    }
+    return (a && ck_atom(a)) ? a : NULL;
+}
+static void ck_mut_aliases(const low_cst_t *nd, proven_u8str_view_t *nm, proven_size_t *n, proven_size_t cap) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
+        bool is_mut = false;
+        for (proven_size_t q = 2; q + 1 < nd->nkids; q++) if (ck_atom(nd->kids[q]) && veq(nd->kids[q]->tok.lex, "mut")) is_mut = true;
+        const low_cst_t *r = is_mut ? ck_view_root_atom(nd->kids[nd->nkids - 1]) : NULL;
+        if (r) {
+            bool in = false, dup = false;
+            for (proven_size_t q = 0; q < *n; q++) {
+                if (proven_u8str_view_eq(nm[q], r->tok.lex)) in = true;
+                if (proven_u8str_view_eq(nm[q], nd->kids[1]->tok.lex)) dup = true;
+            }
+            if (in && !dup && *n < cap) nm[(*n)++] = nd->kids[1]->tok.lex;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_mut_aliases(nd->kids[i], nm, n, cap);
+}
+
 // ★★★ RFC-0057 후속 — **반환값을 통한 세탁을 막는다** (2026-07-23, A2).
 //
 //   인자 세탁(위)의 쌍둥이 구멍: op 이 **공유(읽기 전용) 입력**을 `mut slice`/`mut_ref` 로 선언한
@@ -12361,6 +12434,28 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 }
                 // ★ `mut_ref` 는 장소를 거치지 않고 **이름에 바로** 쓴다(`set p (add p 1)`) —
                 //   `ck_writes_place` 만 보던 이 자리가 그 모양을 통째로 놓쳤다(결함 노트 #8).
+                // RFC-0150 §8-25 — 그 매개변수를 다시 묶은 지역 이름도 같은 자리다(차례대로 묶이므로 한 바퀴면 사슬도 모인다)
+                proven_u8str_view_t al[32]; proven_size_t nal = 0;
+                al[nal++] = h.p[q].name;
+                ck_mut_aliases(h.body, al, &nal, 32);
+                const low_cst_t *via = NULL; bool alias_write = false;
+                for (proven_size_t z2 = 0; z2 < nal && !via && !alias_write; z2++) {
+                    via = ck_fn_mut_to_proc(h.body, al[z2], (const low_opinfo_t *)ops.data, ops.len);
+                    if (z2 > 0 && ck_writes_place(h.body, al[z2])) alias_write = true;
+                }
+                if (alias_write) {
+                    emit(&out, "E-EFFECT-PURITY",
+                         "a `fn` WRITES through a local that views a `mut` parameter — it is the caller's storage, and that write "
+                         "is visible to the CALLER (RFC-0057). Declare this op a `proc`", f->kids[0]->tok.line);
+                    break;
+                }
+                if (via) {
+                    emit(&out, "E-EFFECT-PURITY",
+                         "a `fn` hands a `mut` parameter to a `proc`'s `mut` input — the proc may write it, and that write is "
+                         "visible to the CALLER, the same as writing it here (RFC-0057). Declare this op a `proc`",
+                         via->kids[0]->tok.line);
+                    break;
+                }
                 if (!ck_writes_place(h.body, h.p[q].name) &&
                     !ck_writes_name(h.body, h.p[q].name)) continue;
                 emit(&out, "E-EFFECT-PURITY",

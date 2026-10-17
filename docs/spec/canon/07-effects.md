@@ -332,6 +332,24 @@ end .
 
 (5) 순수한 op 은 순수하지 않은 op 을 부를 수 없다.
 
+(6) `fn` 이 `mut` 으로 받은 저장소에 쓰면 그 쓰기는 부른 쪽에 보이므로 순수하지 않다(`E-EFFECT-PURITY`). 직접 쓰든,
+      그 저장소를 보는 지역 이름(`subslice` · `view_array` 로 다시 묶은 것)으로 쓰든, 그것을 `proc` 의 `mut` 입력에
+      넘기든 같다 — 넘긴 쪽이 쓰면 부른 쪽의 저장소가 바뀐다. `fn` 의 `mut` 입력에 넘기는 것은 그 `fn` 이 같은 규칙으로
+      검사받으므로 여기서 세지 않는다. op 안에서 지은 저장소에 쓰는 것은 밖에서 보이지 않으므로 순수함을 깨지 않는다.
+
+```lowent-거부: `fn` 이 받은 `mut` 조각을 `proc` 에 맡겨 쓴다 · E-EFFECT-PURITY
+module ex_purity_via .
+
+proc put input out mut slice u8 . output u64 . effects none . do
+  set idx out. 0 . 7 .
+  return 0 .
+end .
+
+fn f input out mut slice u8 . output u64 . do
+  return put out. . .     rem 부른 쪽의 조각이 바뀐다
+end .
+```
+
 ## 7.4 다른 언어와 만나는 자리
 
 (1) 로우엔트는 C 와 주고받을 수 있다. 그 경계는 `extern` 으로 표시한다.

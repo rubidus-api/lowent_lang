@@ -1,0 +1,14 @@
+module pure_bad .
+rem expect: E-EFFECT-PURITY
+
+actor counter do
+  state do
+    value u64 .
+  end .
+
+  fn inc output u64 .
+  do
+    set value. add value. 1 . .
+    return value. .
+  end .
+end .

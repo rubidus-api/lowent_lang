@@ -1,0 +1,13 @@
+module mistake_viewbool .
+rem expect: E-TYPE-BITCAST
+
+struct flag do
+  active bool .
+  n u8 .
+end .
+
+fn is_on input b slice u8 . output bool . do
+  rem ko: ✘ bool 칸에 0 · 1 아닌 바이트가 오면 참도 거짓도 아닌 값이 된다 /// en: ✘ a byte other than 0 or 1 in a bool field would be neither true nor false
+  let h flag view flag b. . .
+  return field h. active . .
+end .

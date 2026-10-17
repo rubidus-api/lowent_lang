@@ -1,0 +1,12 @@
+module forgot .
+rem expect: E-OWN-INCOMPLETE
+
+use files .
+
+proc leak input fs cap file_system . output u8 . effects io .
+do
+  let o result files.handle files.file_error files.open fs. "notes.txt" 0 . .
+  guard is_ok o. . else return 1 . .
+  var h owned files.handle ok_value o. . .
+  return 0 .
+end .

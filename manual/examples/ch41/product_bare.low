@@ -1,0 +1,8 @@
+module product_bare .
+rem run: product 1000 1000
+rem ir
+
+fn product input a u64 . input b u64 . output u64 .
+do
+  return mul a. b. . .
+end .

@@ -1,0 +1,29 @@
+module mistake_bounded .
+rem trap: burst
+
+actor counter do
+  state do
+    value u64 .
+  end .
+  mailbox bounded 2 .
+  proc inc output u64 . effects state .
+  do
+    set value. add value. 1 . .
+    return value. .
+  end .
+  fn get output u64 .
+  do
+    return value. .
+  end .
+end .
+
+proc burst output u64 . effects state .
+do
+  var c counter spawn actor counter . .
+  spawn send c. inc . .
+  spawn send c. inc . .
+  rem ko: ✘ 우편함은 두 통까지인데 비우기 전에 셋째를 넣는다 /// en: ✘ the mailbox holds two, yet a third is put in before draining
+  spawn send c. inc . .
+  drain c. .
+  return send c. get . .
+end .

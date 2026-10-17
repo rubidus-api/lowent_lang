@@ -1,0 +1,17 @@
+module copying .
+rem run: shift 9
+
+rem ko: `copy` 는 한 조각의 내용을 다른 조각에 베낀다 --- 겹쳐도 옳다 /// en: `copy` copies one slice's contents into another --- overlap is fine
+export fn shift input a u8 . output u64 .
+do
+  var buf lit array u8 6 1 2 3 4 5 6 . .
+  var dst lit array u8 3 _ . .
+  copy dst. subslice buf. 0 3 . .
+  copy subslice buf. 1 6 . subslice buf. 0 5 . .
+  set idx dst. 0 . a. .
+  var s u64 0 .
+  for x buf. do
+    set s. add mul s. 10 . widen u64 x. . . .
+  end .
+  return add mul s. 1000 . add mul widen u64 idx dst. 0 . . 100 . widen u64 idx dst. 2 . . . . .
+end .

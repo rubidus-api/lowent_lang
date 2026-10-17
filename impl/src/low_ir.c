@@ -3794,9 +3794,45 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             : veq(nd->tok.lex, "try_view") ? IRW_TRYVIEW : IRW_ENCODE;
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "view/encode needs a struct type name", nd->line); return; }
                 bool sfound; proven_size_t si = ir_struct_find(c->out, k[*pos]->tok.lex, &sfound);
-                if (!sfound || !c->out->structs[si].viewable) {
-                    ir_fail(c, "E-IR-UNDEF", "view/encode type is not a declared sized struct", nd->line);
+                if (!sfound) {
+                    ir_fail(c, "E-IR-UNDEF", "view/encode needs a declared struct type — this name is not one", nd->line);
                     return;
+                }
+                if (!c->out->structs[si].viewable) {
+                    // ★ RFC-0150 §8-30 (2026-10-17) — 무엇이 모자란지 말한다. 옛 문장 «not a declared sized struct» 는 열거 칸 하나 때문에
+                    //   거절된 구조체를 «선언되지 않았다» 로 읽게 했다.
+                    ir_fail(c, "E-IR-UNDEF",
+                            "this struct has no byte layout, so it cannot be laid over bytes (`view` / `try_view`) or written to them "
+                            "(`encode`) — every field must be a sized number (u8…u64, i8…i64, f32, f64), a fixed array of them or a struct "
+                            "of such fields; an enum, a slice, an option or an owned handle field has no fixed bytes "
+                            "(canon 6.2.13)", nd->line);
+                    return;
+                }
+                // ★★★ RFC-0150 §8-30 — **얹어 읽는 구조체의 칸은 모두 `plain` 이어야 한다**(정본 §8.7.1 (2)·(3)). 뷰는 남의 바이트를
+                //   그대로 읽으므로 `bool` 칸은 0 · 1 아닌 바이트를 받는다 — 바이트 2 를 읽은 칸이 `if` 로는 참, `eq … true` 로는
+                //   거짓, `not` 으로도 거짓이었다(VM · 네이티브 같음). `bit_cast bool` 을 막은 까닭과 같다. 적어 내리는 `encode` 는
+                //   제 값을 쓰므로 된다. 안에 든 구조체의 칸도 본다.
+                if (w != IRW_ENCODE) {
+                    proven_size_t stack_[16]; proven_size_t ns_ = 0; stack_[ns_++] = si;
+                    proven_u8str_view_t bad = { 0 };
+                    for (proven_size_t guard_ = 0; ns_ && guard_ < 64 && !bad.size; guard_++) {
+                        const low_ir_struct_t *vs = &c->out->structs[stack_[--ns_]];
+                        for (proven_size_t q = 0; q < vs->nf && !bad.size; q++) {
+                            if (veq(vs->f[q].cname, "bool")) { bad = vs->f[q].name; break; }
+                            bool nf_; proven_size_t ni = ir_struct_find(c->out, vs->f[q].cname, &nf_);
+                            if (nf_ && ns_ < 16) stack_[ns_++] = ni;
+                        }
+                    }
+                    if (bad.size) {
+                        ir_fail(c, "E-TYPE-BITCAST", w == IRW_VIEW
+                                ? "a view reads the bytes as they are, and this struct has a `bool` field — a byte other than 0 or 1 "
+                                  "would be a bool that is neither true nor false. Every field of a viewed struct must be `plain` "
+                                  "(canon 8.7.1, as for `bit_cast`): declare the field `u8` and compare it with 0"
+                                : "this struct has a `bool` field, and `try_view` does not check such a field yet (a byte other than "
+                                  "0 or 1 would be a bool that is neither true nor false; RFC-0025 6.6 planned the check, it is not "
+                                  "built). Declare the field `u8` and compare it with 0", nd->line);
+                        return;
+                    }
                 }
                 (*pos)++;
                 // ★★★ **`view T .` — 피연산자가 없다** (RFC-0042 §8-2). 그러면 블록은 **타입 자신의

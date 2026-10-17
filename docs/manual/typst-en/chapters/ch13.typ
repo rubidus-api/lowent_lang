@@ -181,6 +181,71 @@ short. In such places use `try_view`, which does the same work but reports failu
 With seven bytes it reads `kind` 9; with three it gets `none` and returns 0. Use the stopping `view` inside, where things are already checked,
 and the value-reporting `try_view` at the boundary.
 
+== What a struct view looks at
+
+A view does *not copy* the bytes. Reading a field through the name that holds a view reads the bytes in that place; writing a field writes
+them. It is the same thing as turning the address of a byte array into a struct pointer in C, except that the length and the alignment are
+checked when the view is laid on, and the translation works out what may be written. The program below shows the difference in four shapes.
+
+#demo("examples/ch13/structview.low")
+
+```text
+ b:  ┌────┬────┐            var h pt view pt b. .
+     │ 01 │ 02 │  ◀──────── h.x  h.y      (the same bytes)
+     └────┴────┘
+       set field h. y . 9 .   →   b = [01, 09]
+
+     let h pt view pt b. .  ·  var k pt h. .
+       k = { x 1 · y 2 }      (a copy — it lives apart from b)
+       set field k. y . 7 .   →   b = [01, 02] unchanged
+```
+
+- `write_through` --- writing a field of the view turns `b` into `[1,9]`. A view is not a copy.
+- `copy_by_name` --- binding the name that holds a view to another name *copies the struct value*. Writing that copy leaves `b` as it was.
+  The usual rule --- a struct value is copied when it is bound to a name --- holds for views too.
+- `pass_mut` --- handed to an op that takes `mut pt`, the callee's write reaches `b`. A `mut` input passes the place, not a copy.
+- `replace_whole` --- giving the name a whole new struct, as in `set h. <new value> .`, makes `h` let go of the bytes and hold the new value.
+  `b` does not change. To rewrite the bytes whole, `set field` each field, or `copy` in the bytes `encode` built.
+
+Two views laid on the same bytes see each other's writes. The `some_value` of the `option` that `try_view` gives is the same bytes, and so
+is the result of an op that returns a view of its input. A name bound with the type word `view wire_header` (in `tryview.low` above) is
+«an eye on the bytes», so binding it to another name does not copy --- the new name looks at the same bytes. A name bound with the struct
+name `wire_header` copies, as `copy_by_name` does.
+
+=== A view inherits whether its bytes may be changed
+
+Whether a view can write is decided by *the bytes under it*. A slice received read-only, a slice bound without `mut` and a string literal
+are bytes that cannot be written. Binding a view of them to a `var` is refused with `E-TYPE-MUT`, handing it to a `mut` input with
+`E-TYPE-ARGMUT`. To only read, bind it with `let`. A struct bound with `let` cannot have its fields changed (`E-IMMUTABLE`), so the bytes
+under it are safe too.
+
+A `fn` cannot write through a view of bytes it took as `mut` either. That write is visible to the caller, so it breaks the `fn`'s purity
+(`E-EFFECT-PURITY`). An op that changes bytes through a view is written as a `proc`.
+
+=== Which structs a view can be laid on
+
+A view reads the bytes as they are, so the struct must have a *fixed byte layout*, and every field must be a meaningful value whatever
+bytes land in it.
+
+#dtable(
+  columns: 3,
+  id: "structview-fields",
+  caption: [fields a struct view can be laid on],
+  [*field type*], [*view*], [*why*],
+  [`u8`…`u64` · `i8`…`i64` · `f32` · `f64`], [yes], [fixed width, and every bit pattern is a value],
+  [a fixed array of those · a struct of only such fields], [yes], [the layout sits inside the struct as it is],
+  [`bool`], [no --- `E-TYPE-BITCAST`], [a byte other than 0 or 1 would be neither true nor false],
+  [enum · slice · `option` · owned handle], [no --- `E-IR-UNDEF`], [no fixed bytes (such a struct cannot be `encode`d either)],
+)
+
+You can measure why a `bool` field is a problem. Before it was refused, a field that read byte 2 was true to `if`, false to `eq … true`, and
+false to `not` as well. It is the same reason `bit_cast bool` is refused (#chref("fixed-memory")). To exchange true and false as bytes, take
+the field as `u8` and write the question that decides what counts as true, as in `ne field h. active . 0 .`. `encode`, which writes a value
+down into bytes, has no such limit --- it writes its own value.
+
+The length and alignment conditions are those of the previous section. `view` stops when they fail (`E-VM-VIEW` · `E-VM-ALIGN`);
+`try_view` gives `none`.
+
 == `bitset` --- a set of small numbers
 
 #idx("bitset")
@@ -277,6 +342,25 @@ without a word. It is recorded as a defect in the development repository.
   the meaning in the source. The other direction works --- `cast u8 b. .` is 1 for true and 0 for false.
 ]
 
+#antipattern[Binding a view of bytes received read-only to a `var`][
+  #demo("examples/ch13/mistake_viewro.low")
+
+  A view is not a copy, so writing a field of `h` writes `b`. But `b` was received read-only --- the caller trusts that this op does not
+  change its bytes. So it is refused with `E-TYPE-MUT`. To only read, bind it with `let`; to change it, take the bytes as `mut`. Then the
+  caller sees that in the signature.
+
+  #demo("examples/ch13/viewro_fixed.low")
+]
+
+#antipattern[A `bool` field in a struct read through a view][
+  #demo("examples/ch13/mistake_viewbool.low")
+
+  Bytes from outside can hold any value, not just 0 and 1. If a `bool` field gets 2, it would be neither true nor false, so it is
+  `E-TYPE-BITCAST`. Take the field as `u8` and write the question. Then whether 2 counts as true or as a wrong input is left in the source.
+
+  #demo("examples/ch13/viewbool_fixed.low")
+]
+
 #misconception[Giving a type another name with `type` keeps units from mixing][
   #demo("examples/ch13/type_units.low")
 
@@ -310,6 +394,7 @@ without a word. It is recorded as a defect in the development repository.
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
   [`view wire_header b. .`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b. .` · `encode wire_header h. .`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
+  [`var h pt view pt b. .` · `let h pt view pt b. .`], [a name on the bytes (a field write changes them) · a read-only name], [`var` is refused when the bytes cannot be written],
   [`var a bitset 64 bitset_new 64 . .` · `bitset_insert a 1 .` · `bitset_intersect a. b. .`], [a set of small numbers and its operations], [a set, not the bits of a word],
   [`view_segments back. d. .` · `segview.piece_count ss. .` · `segview.piece_at ss. i. .`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
   [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],

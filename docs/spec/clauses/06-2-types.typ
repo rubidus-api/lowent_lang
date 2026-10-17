@@ -1144,6 +1144,88 @@ end .",
       뷰의 반대는 `encode` 다. `encode <짜임> <값>` 은 그 값을 짜임이 정한 배치대로
       #strong[바이트에 적는다.]; 얹어 읽는 것이 `view` 라면, 적어 내리는 것이 `encode` 다.
     ]
+    #para("5")[
+      #strong[구조체 위에 얹는 뷰.]; `view <구조체> <바이트>` 는 바이트 슬라이스 위에 그 구조체의 배치를 얹은 값을 준다. 그 값의
+      칸을 읽으면 그 자리의 바이트를 읽고, 칸에 쓰면 그 자리의 바이트에 쓴다 — 베낀 사본이 아니다. `try_view` 는 같은 일을
+      하되 길이나 정렬이 맞지 않으면 `none` 을 주고, 그것의 `some_value` 도 같은 바이트를 본다. 길이와 정렬의 조건은
+      §8.7.2 가 정한다.
+    ]
+    #para("6")[
+      뷰를 담은 이름이 무엇을 보는지는 아래와 같다. 갈래는 #strong[그 이름이 어떻게 묶였는가];로 정해진다.
+    ]
+    #tbl("구조체 뷰를 담은 이름이 보는 것")[
+      #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*적은 것*], [*무엇을 보는가*],
+      [`var h pt view pt b. .`], [`b` 의 바이트. `set field h. y . 9 .` 는 `b` 를 바꾼다],
+      [`let h pt view pt b. .`], [`b` 의 바이트를 읽기만 한다. 칸을 고치면 거부된다(`E-IMMUTABLE`)],
+      [`var k pt h. .` (`h` 가 `pt` 로 묶였을 때)], [`h` 의 #strong[사본];. `k` 에 써도 `b` 는 그대로다 — 구조체 값을 이름에 묶으면 베낀다],
+      [`var k pt h. .` (`h` 가 `view pt` 로 묶였을 때)], [`b` 의 바이트. 타입 낱말 `view pt` 는 «바이트를 보는 눈» 이라 묶어도 같은 바이트를 본다],
+      [`set h. <새 구조체 값> .`], [새 값. `h` 는 더는 `b` 를 보지 않고, `b` 는 바뀌지 않는다],
+      [`put h. .` (`put` 의 입력이 `mut pt`)], [`b` 의 바이트. 받는 쪽이 칸에 쓰면 `b` 가 바뀐다],
+      [같은 `b` 위의 뷰 둘], [같은 바이트. 한쪽의 쓰기를 다른 쪽이 읽는다],
+      [입력의 뷰를 돌려주는 op 의 결과], [그 입력의 바이트],
+      )
+    ]
+    #para("7")[
+      뷰는 그 바이트의 #strong[고칠 수 있음을 물려받는다];(§8.8 (2)). 쓸 수 없는 바이트 — 공유 입력, `mut` 없이 묶은 슬라이스,
+      문자열 리터럴 — 의 뷰는 쓸 수 있는 이름(`var`)에 묶지 못하고(`E-TYPE-MUT`), `mut` 입력에 건네지 못한다
+      (`E-TYPE-ARGMUT`). `try_view` 의 `some_value` 와, 입력의 뷰를 돌려주는 op 에 그런 바이트를 준 결과도 같다.
+      읽으려면 `let` 에 묶는다. `fn` 이 `mut` 으로 받은 바이트의 뷰에 쓰면 부른 쪽에 보이므로 순수하지 않다
+      (`E-EFFECT-PURITY`, §7.3 (6)).
+    ]
+    #para("8")[
+      뷰를 얹을 수 있는 구조체는 #strong[바이트 배치가 정해진]; 구조체다. 칸마다 폭이 정해진 수(`u8`…`u64` · `i8`…`i64` ·
+      `f32` · `f64`), 그런 수의 고정 배열, 또는 그런 칸으로 된 구조체여야 한다. 열거 · 슬라이스 · `option` · 소유 핸들
+      칸은 정해진 바이트가 없으므로 그 구조체에는 뷰도 `encode` 도 쓸 수 없다(`E-IR-UNDEF`).
+    ]
+    #para("9")[
+      뷰로 읽는 구조체의 칸은 모두 `plain` 이어야 한다(§8.7.1 (2)). `bool` 칸은 0 · 1 아닌 바이트를 받으면 참도 거짓도 아닌
+      값이 되므로 거부된다(`E-TYPE-BITCAST`) — `bit_cast bool` 을 거부하는 것과 같은 까닭이다. 참거짓을 바이트로 주고받으려면
+      칸을 `u8` 로 적고 0 과 견준다. 값을 바이트로 적어 내리는 `encode` 에는 이 제한이 없다.
+    ]
+    #ex("뷰의 칸에 쓰면 바이트가 바뀌고, 이름에서 이름으로 묶으면 베낀다", "module ex_struct_view .
+
+struct pt do
+  x u8 .
+  y u8 .
+end .
+
+proc write_through input b mut slice u8 . output u8 . effects none . do
+  var h pt view pt b. . .
+  set field h. y . 9 .     rem b 가 [1,9] 가 된다
+  return idx b. 1 . .
+end .
+
+proc copy_by_name input b mut slice u8 . output u8 . effects none . do
+  let h pt view pt b. . .
+  var k pt h. .            rem 구조체 값의 사본
+  set field k. y . 7 .
+  return idx b. 1 . .      rem b 는 그대로다
+end .",
+      out: "write_through([1,2]) = 9 · copy_by_name([1,2]) = 2")
+    #rejected("읽기 전용으로 받은 바이트의 뷰를 쓸 수 있는 이름에 묶는다", "module ex_struct_view_ro .
+
+struct pt do
+  x u8 .
+  y u8 .
+end .
+
+proc f input b slice u8 . output u8 . effects none . do
+  var h pt view pt b. . .  rem 칸에 쓰면 부른 쪽의 b 가 바뀐다
+  set field h. y . 9 .
+  return 0 .
+end .", "E-TYPE-MUT")
+    #rejected("`bool` 칸은 0 · 1 아닌 바이트를 받을 수 있다", "module ex_struct_view_bool .
+
+struct flag do
+  active bool .
+  n u8 .
+end .
+
+fn f input b slice u8 . output u8 . do
+  let h flag view flag b. . .
+  return field h. n . .
+end .", "E-TYPE-BITCAST")
   ]
   #sub("6.2.14", "값의 범위를 좁힌 매개변수 — `range`")[
     #para("1")[
@@ -1246,7 +1328,7 @@ struct wire_header do
 end .
 
 fn hdr_kind input b slice u8 . output u64 . do
-  var v view wire_header view wire_header b. . .
+  let v view wire_header view wire_header b. . .
   return widen u64 field v. kind . . .
 end .
 ")

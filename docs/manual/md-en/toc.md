@@ -157,11 +157,14 @@ Searches headings and index terms --- not the full text
 - [13.4 bits — from 1 to 64 bits](ch13.md#s13-4)
 - [13.5 Pinning down byte layout](ch13.md#s13-5)
 - [13.6 Both directions of a layout, and a view that can fail](ch13.md#s13-6)
-- [13.7 bitset — a set of small numbers](ch13.md#s13-7)
-- [13.8 Scattered pieces as one view — segments](ch13.md#s13-8)
-- [13.9 Three kinds of type words](ch13.md#s13-9)
-- [13.10 Common mistakes](ch13.md#s13-10)
-- [13.11 This chapter’s syntax at a glance](ch13.md#s13-11)
+- [13.7 What a struct view looks at](ch13.md#s13-7)
+- [13.7.1 A view inherits whether its bytes may be changed](ch13.md#s13-7-1)
+- [13.7.2 Which structs a view can be laid on](ch13.md#s13-7-2)
+- [13.8 bitset — a set of small numbers](ch13.md#s13-8)
+- [13.9 Scattered pieces as one view — segments](ch13.md#s13-9)
+- [13.10 Three kinds of type words](ch13.md#s13-10)
+- [13.11 Common mistakes](ch13.md#s13-11)
+- [13.12 This chapter’s syntax at a glance](ch13.md#s13-12)
 
 ### Part IV — Contracts and effects
 

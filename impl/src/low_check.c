@@ -8997,7 +8997,7 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
         if (veq(head, "ref"))     return true;                   // 공유 참조 — 읽기 전용, 거절
         if (veq(head, "subslice") || veq(head, "idx"))         // 슬라이스 X 의 가변성으로 재귀
             return arg->nkids >= 2 ? ck_arg_is_ro(arg->kids[1], binds, nb, pr) : false;
-        if (veq(head, "view_array"))                            // RFC-0150 §8-28 — `view_array T X` 도 X 의 자리다(베끼지 않는다)
+        if (veq(head, "view_array") || veq(head, "view") || veq(head, "try_view"))   // RFC-0150 §8-28 · §8-30 — 뷰는 X 의 자리다(베끼지 않는다)
             return arg->nkids >= 3 ? ck_arg_is_ro(arg->kids[2], binds, nb, pr) : false;
         if (veq(head, "field")) {                                // `field X F` — 별칭 접근
             if (arg->nkids < 3 || arg->kids[2]->kind != LOW_CST_ATOM) return false;
@@ -11483,7 +11483,8 @@ static const low_cst_t *ck_view_root_atom(const low_cst_t *a) {
         while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
         if (!a || a->kind != LOW_CST_FORM || a->nkids < 2 || !ck_atom(a->kids[0])) break;
         if (veq(a->kids[0]->tok.lex, "subslice")) a = a->kids[1];
-        else if (veq(a->kids[0]->tok.lex, "view_array") && a->nkids >= 3) a = a->kids[2];
+        else if ((veq(a->kids[0]->tok.lex, "view_array") || veq(a->kids[0]->tok.lex, "view") || veq(a->kids[0]->tok.lex, "try_view")) &&
+                 a->nkids >= 3) a = a->kids[2];
         else break;
     }
     return (a && ck_atom(a)) ? a : NULL;
@@ -11494,6 +11495,12 @@ static void ck_mut_aliases(const low_cst_t *nd, proven_u8str_view_t *nm, proven_
         (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
         bool is_mut = false;
         for (proven_size_t q = 2; q + 1 < nd->nkids; q++) if (ck_atom(nd->kids[q]) && veq(nd->kids[q]->tok.lex, "mut")) is_mut = true;
+        {   // RFC-0150 §8-30 — `var h T view T out. .` 는 `mut` 이라 적지 않아도 쓸 수 있는 별칭이다(칸에 쓰면 바이트가 바뀐다)
+            const low_cst_t *iv = nd->kids[nd->nkids - 1];
+            while (iv && iv->kind == LOW_CST_GROUP && iv->nkids == 1) iv = iv->kids[0];
+            if (nd->kids[0]->tok.kw == LOW_KW_VAR && iv && iv->kind == LOW_CST_FORM && iv->nkids >= 3 && ck_atom(iv->kids[0]) &&
+                (veq(iv->kids[0]->tok.lex, "view") || veq(iv->kids[0]->tok.lex, "try_view"))) is_mut = true;
+        }
         const low_cst_t *r = is_mut ? ck_view_root_atom(nd->kids[nd->nkids - 1]) : NULL;
         if (r) {
             bool in = false, dup = false;
@@ -11505,6 +11512,89 @@ static void ck_mut_aliases(const low_cst_t *nd, proven_u8str_view_t *nm, proven_
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_mut_aliases(nd->kids[i], nm, n, cap);
+}
+
+// ★★★ RFC-0150 §8-30 (소유자 2026-10-17 «구조체 위에 얹는 뷰도 잘 살펴봐 주세요») — **읽기 전용 바이트의 뷰는 쓸 수 있는 이름에
+//   묶지 못한다.** 뷰는 베끼지 않으므로(정본 §6.2.13 (3)) `var h pt view pt b. .` 의 칸에 쓰면 `b` 가 바뀐다. `b` 가 읽기 전용
+//   입력이어도 통과해서 부른 쪽의 바이트가 바뀌었고(VM · 네이티브 모두), 문자열 리터럴 위의 뷰는 VM 이 고쳐 주고 네이티브가
+//   죽었다(segfault). `try_view` 의 `some_value` 도 같은 바이트다. `let` 으로 묶은 뷰는 칸을 못 고치므로(`E-IMMUTABLE`) 된다.
+// 이 op 이 **어느 입력의 뷰를 돌려주는가** — `return view T p .` 이거나, `view T p` 로 묶은 지역을 돌려준다. 없으면 -1.
+static bool ck_ret_views(const low_cst_t *nd, proven_u8str_view_t p, const proven_u8str_view_t *loc, proven_size_t nloc) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_RETURN) {
+        const low_cst_t *r = nd->kids[1];
+        while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+        if (r && r->kind == LOW_CST_FORM && r->nkids >= 3 && ck_atom(r->kids[0]) &&
+            (veq(r->kids[0]->tok.lex, "view") || veq(r->kids[0]->tok.lex, "try_view"))) {
+            const low_cst_t *a = ck_view_root_atom(r->kids[2]);
+            if (a && proven_u8str_view_eq(a->tok.lex, p)) return true;
+        }
+        if (r && ck_atom(r)) for (proven_size_t q = 0; q < nloc; q++) if (proven_u8str_view_eq(loc[q], r->tok.lex)) return true;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_ret_views(nd->kids[i], p, loc, nloc)) return true;
+    return false;
+}
+static void ck_view_locals(const low_cst_t *nd, proven_u8str_view_t p, proven_u8str_view_t *loc, proven_size_t *n) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
+        const low_cst_t *iv = nd->kids[nd->nkids - 1];
+        while (iv && iv->kind == LOW_CST_GROUP && iv->nkids == 1) iv = iv->kids[0];
+        if (iv && iv->kind == LOW_CST_FORM && iv->nkids >= 3 && ck_atom(iv->kids[0]) && veq(iv->kids[0]->tok.lex, "view")) {
+            const low_cst_t *a = ck_view_root_atom(iv->kids[2]);
+            if (a && proven_u8str_view_eq(a->tok.lex, p) && *n < 16) loc[(*n)++] = nd->kids[1]->tok.lex;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_view_locals(nd->kids[i], p, loc, n);
+}
+static long ck_view_param_of(const low_cst_t *opf) {
+    if (!opf) return -1;
+    low_op_header_t hc = low_op_header(opf);
+    if (!hc.body) return -1;
+    for (proven_size_t q = 0; q < hc.np; q++) {
+        proven_u8str_view_t loc[16]; proven_size_t nloc = 0;
+        ck_view_locals(hc.body, hc.p[q].name, loc, &nloc);
+        if (ck_ret_views(hc.body, hc.p[q].name, loc, nloc)) return (long)q;
+    }
+    return -1;
+}
+static void ck_view_ro_walk(low_check_result_t *out, const low_cst_t *nd, const ck_bind_t *binds, proven_size_t nb,
+                            const low_parse_result_t *pr, proven_u8str_view_t *rov, proven_size_t *nrov,
+                            const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
+        const low_cst_t *iv = nd->kids[nd->nkids - 1];
+        while (iv && iv->kind == LOW_CST_GROUP && iv->nkids == 1) iv = iv->kids[0];
+        bool ro = false;
+        if (iv && iv->kind == LOW_CST_FORM && iv->nkids >= 3 && ck_atom(iv->kids[0]) &&
+            (veq(iv->kids[0]->tok.lex, "view") || veq(iv->kids[0]->tok.lex, "try_view")))
+            ro = ck_arg_is_ro(iv->kids[2], binds, nb, pr);
+        else if (iv && iv->kind == LOW_CST_FORM && iv->nkids == 2 && ck_atom(iv->kids[0]) && veq(iv->kids[0]->tok.lex, "some_value") &&
+                 ck_atom(iv->kids[1])) {
+            for (proven_size_t q = 0; q < *nrov; q++) if (proven_u8str_view_eq(rov[q], iv->kids[1]->tok.lex)) ro = true;
+        } else if (iv && (iv->kind == LOW_CST_FORM || iv->kind == LOW_CST_GROUP) && iv->nkids >= 2 && ck_atom(iv->kids[0]) &&
+                 iv->kids[0]->tok.kw == LOW_KW_NONE) {   // (부름은 괄호 묶음으로도 온다 — 머리 원자 + 인자)
+            // 남의 op 이 입력의 뷰를 돌려준다 — 그 입력 자리에 읽기 전용 바이트를 주었으면 받은 것도 읽기 전용 바이트다
+            proven_u8str_view_t qm = iv->kids[0]->qual_mod;
+            for (proven_size_t i = 0; i < nt; i++) {
+                if (!proven_u8str_view_eq(tab[i].name, iv->kids[0]->tok.lex)) continue;
+                if (qm.size && tab[i].mod.size && !proven_u8str_view_eq(tab[i].mod, qm)) continue;
+                long vq = ck_view_param_of(tab[i].form);
+                if (vq >= 0 && (proven_size_t)vq + 1 < iv->nkids) ro = ck_arg_is_ro(iv->kids[vq + 1], binds, nb, pr);
+                break;
+            }
+        }
+        if (ro) {
+            if (nd->kids[0]->tok.kw == LOW_KW_VAR)
+                emit(out, "E-TYPE-MUT",
+                     "a view does not copy — writing a field of this `var` writes the bytes underneath, and those bytes are "
+                     "read-only here (a shared input, a `let` slice or a literal). Bind the view with `let` to read it, or take the "
+                     "bytes as `mut` (canon 6.2.13 · 8.8)", nd->kids[0]->tok.line);
+            else if (*nrov < 64) rov[(*nrov)++] = nd->kids[1]->tok.lex;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_view_ro_walk(out, nd->kids[i], binds, nb, pr, rov, nrov, tab, nt);
 }
 
 // ★★★ RFC-0057 후속 — **반환값을 통한 세탁을 막는다** (2026-07-23, A2).
@@ -12502,6 +12592,8 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             }
             ck_collect_binds(h.body, binds, &nb, 256);
             ck_launder_walk(&out, h.body, tab0, ops.len, binds, nb, pr);
+            {   proven_u8str_view_t rov[64]; proven_size_t nrov = 0;   // ★ 읽기 전용 바이트의 뷰를 쓸 수 있게 묶지 못한다 (RFC-0150 §8-30)
+                ck_view_ro_walk(&out, h.body, binds, nb, pr, rov, &nrov, tab0, ops.len); }
             ck_capkind_walk(&out, h.body, f);   // ★ 권위는 종류로 (RFC-0077 §P1-2)
             ck_capforge_walk(&out, h.body, tab0, ops.len);  // ★ 권한은 지어낼 수 없다 (RFC-0030 D2)
             ck_excl_args_walk(&out, h.body, tab0, ops.len); // ★ 쓰기 자리와 읽기 자리에 같은 저장소 (#9)

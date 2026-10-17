@@ -8,7 +8,7 @@ struct pkt do
   tail u16 .
 end .
 
-export fn viewed input b mut slice u8 . output usize . do
+export proc viewed input b mut slice u8 . output usize . effects none . do
   var v pkt view pkt b. . .
   let bd slice u8 field v. body . .
   set idx field v. body . 3 . 77 .

@@ -11350,6 +11350,17 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
                         (init->kids[q]->tok.kind == LOW_TOK_STRING ||
                          init->kids[q]->tok.kind == LOW_TOK_TEXTLIT)) { init = init->kids[q]; break; }
             }
+            // ★ RFC-0150 §8-28 (2026-10-17) — `subslice <리터럴> a b` 도 박힌 바이트다. 길이가 있으면 쓸 수 있어 보이고, 실제로
+            //   `let v mut slice u8 subslice "ab" 0 2 . .` 뒤 `set idx v. 0 . 57 .` 이 VM 57 · 네이티브 97 로 갈렸다(위와 같은 병).
+            //   길이 0 의 자리표(`subslice "ab" 0 0` — 끝과 시작이 같은 수 리터럴)만 그대로 둔다.
+            if (init && init->kind == LOW_CST_FORM && init->nkids == 4 && ck_atom(init->kids[0]) &&
+                veq(init->kids[0]->tok.lex, "subslice") && ck_atom(init->kids[1]) &&
+                (init->kids[1]->tok.kind == LOW_TOK_STRING || init->kids[1]->tok.kind == LOW_TOK_TEXTLIT)) {
+                bool empty = ck_atom(init->kids[2]) && ck_atom(init->kids[3]) &&
+                             init->kids[2]->tok.kind == LOW_TOK_NUMBER && init->kids[3]->tok.kind == LOW_TOK_NUMBER &&
+                             proven_u8str_view_eq(init->kids[2]->tok.lex, init->kids[3]->tok.lex);
+                if (!empty) init = init->kids[1];
+            }
             // ★ RFC-0132 T2b-1 — 상수 원소 나열 리터럴도 박힌 바이트다(§13.2 ⓑ). 쓸 수 있는 자리는 T2b-2 의 `var` 배열이다.
             if (nd->kids[0]->tok.kw == LOW_KW_LET &&                         // ★ T2b-2: `var` 는 쓸 수 있는 틀 안 자리(ⓐ)다
                 init && init->kind == LOW_CST_FORM && init->nkids >= 2 && ck_atom(init->kids[0]) &&

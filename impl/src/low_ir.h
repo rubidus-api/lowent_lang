@@ -552,7 +552,10 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  proven_u32 arrn; proven_u8 arresz; proven_i64 arrmeta;
                  // ★★ RFC-0135 D13 — **슬라이스 칸**의 원소 폭·종류(IRW_VARRAY meta 와 같은 모양, 0 = 슬라이스 칸이 아니거나 원소를
                  //   모른다). 할당기 바이트에 짓는 그림자 구조체(`is_shadow`)에서는 이 칸이 (주소, 길이) 16 바이트다.
-                 proven_i64 slmeta; } low_ir_sfield_t;
+                 proven_i64 slmeta;
+                 // ★★ RFC-0150 §8-31 — 폭을 적은 열거(`layout uN .`)의 칸: 바이트에는 갈래의 **번호**가, 값에는 단위 전체의 **순번**이 든다.
+                 //   이 칸을 바이트와 오갈 때 low_ir_t 의 enum_tab[elo .. ehi) 로 번호 ↔ 순번을 바꾼다. ename 이 비면 이 칸이 아니다.
+                 proven_u8str_view_t ename; proven_u16 elo, ehi; } low_ir_sfield_t;
 typedef struct {
     proven_u8str_view_t name;
     bool                packed;
@@ -857,6 +860,10 @@ typedef struct {
     proven_u8str_view_t *fields;   // field names referenced by access/`field`
     proven_size_t       nfields;
     low_ir_struct_t     *structs;  // declared struct layouts (for view/try_view)
+    // ★ RFC-0150 §8-31 — 폭을 적은 열거의 (번호, 순번) 짝. 구조체 칸의 elo .. ehi 가 이 표의 구간을 가리킨다.
+    proven_i64          enum_tab_num[512];
+    proven_i64          enum_tab_vi[512];
+    proven_size_t       nenum_tab;
     proven_size_t       nstructs;
     proven_u8str_view_t *strs;     // string literals (byte content — **escapes DECODED**)
     proven_size_t       nstrs;
@@ -939,6 +946,12 @@ typedef struct {
     //   C 를 내지도, VM 으로 돌리지도 않는다(`E-CLI-TARGET`). 방출과 실행이 그 폭에서 옳은지 잰 적이 없으므로 내지 않는 것이다.
     bool        check_only;
 } low_target_t;
+// RFC-0150 §8-31 — 구조체 배치 안의 **제약 있는 칸**(안에 든 구조체까지): `bool`(바이트가 0 · 1) · 폭을 적은 열거(번호가 표
+//   enum_tab[elo .. ehi) 에 있다). `try_view` 가 그 바이트를 재고, 아니면 `none` 이다. 수를 돌려준다.
+typedef struct { proven_u16 off; proven_u8 size; bool be; bool isbool; proven_u16 elo, ehi; } low_ir_cfield_t;
+proven_size_t low_ir_struct_cfields(const low_ir_t *ir, proven_size_t si, low_ir_cfield_t *out, proven_size_t cap);
+bool low_ir_cfield_ok(const low_ir_t *ir, const low_ir_cfield_t *cf, const unsigned char *p);   // 그 바이트가 맞는 값인가
+bool low_ir_struct_has_enumlayout(const low_ir_t *ir, proven_size_t si);                        // 폭을 적은 열거 칸이 (안쪽까지) 있는가
 bool low_ir_set_target(const char *name);      // 기본: x86_64 (호스트) · 표에 없는 이름이면 false(정본 §5.6 (3))
 proven_size_t low_ir_target_count(void);
 const char *low_ir_target_name(proven_size_t i);

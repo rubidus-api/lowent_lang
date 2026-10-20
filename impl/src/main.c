@@ -1958,6 +1958,7 @@ int main(int argc, char **argv) {
                if (!low_matrix_lower(&pr, nodes0, heap)) pr.nforms = 0;
        // ★ RFC-0141 — 새 표면(`be` 없음 · `use`/`keep` · 네 되풀이)을 안쪽 나무로
                low_def_require(&pr, nodes0, heap);         // ★ RFC-0132 §5.2 — 타입 선언은 `def` 로 시작한다
+               low_enum_layout(&pr, nodes0, heap);         // ★ RFC-0150 §8-31 — 열거의 `layout uN .` 은 갈래가 아니라 폭이다
                low_call_host_strip(&pr, nodes0, heap);     // ★ RFC-0127 ⓒ — 권한 잎은 `call_builtin` 뒤에서만
                low_local_lift(&pr, nodes0, heap, &nforms0);  // ★ RFC-0121 — 몸 안의 fn/proc 을 `<바깥>::<로컬>` 로 끌어올린다
                low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)

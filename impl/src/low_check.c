@@ -7338,8 +7338,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         bool is_struct = !sized && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_layout(ty, &sbytes, &salign, 0);
         if (!sized && !is_struct) {
             emit(out, "E-LIT-UNBUILT", ck_struct_exists(ty)
-                 ? "the elements of a list literal must have a byte layout — this struct has a slice or `owned` field, so it "
-                   "cannot be laid out in a list (RFC-0132 T2b-3d)"
+                 ? "the elements of a list literal must have a byte layout — this struct has a slice, `owned` or enum field, so it "
+                   "cannot be laid out in a list (RFC-0132 T2b-3d; an element left `_` would hold 0, which is no variant)"
                  : "the element type of a list literal must be a sized scalar (an integer, `f32`/`f64` or `bool`) or a struct "
                    "whose fields all are (RFC-0132 T2b-3d)", ln);
             return;

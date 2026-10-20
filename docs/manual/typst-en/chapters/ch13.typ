@@ -234,14 +234,29 @@ bytes land in it.
   [*field type*], [*view*], [*why*],
   [`u8`…`u64` · `i8`…`i64` · `f32` · `f64`], [yes], [fixed width, and every bit pattern is a value],
   [a fixed array of those · a struct of only such fields], [yes], [the layout sits inside the struct as it is],
-  [`bool`], [no --- `E-TYPE-BITCAST`], [a byte other than 0 or 1 would be neither true nor false],
-  [enum · slice · `option` · owned handle], [no --- `E-IR-UNDEF`], [no fixed bytes (such a struct cannot be `encode`d either)],
+  [`bool`], [`try_view` only --- `view` is `E-TYPE-BITCAST`], [a byte other than 0 or 1 would be neither true nor false --- `try_view` checks it],
+  [an enum with a width (`layout u8 .`)], [`try_view` only --- `view` is `E-TYPE-BITCAST`], [a number no variant has may arrive --- `try_view` checks it],
+  [an enum without a width · slice · `option` · owned handle], [no --- `E-IR-UNDEF`], [no fixed bytes (such a struct cannot be `encode`d either)],
 )
 
 You can measure why a `bool` field is a problem. Before it was refused, a field that read byte 2 was true to `if`, false to `eq … true`, and
-false to `not` as well. It is the same reason `bit_cast bool` is refused (#chref("fixed-memory")). To exchange true and false as bytes, take
-the field as `u8` and write the question that decides what counts as true, as in `ne field h. active . 0 .`. `encode`, which writes a value
-down into bytes, has no such limit --- it writes its own value.
+false to `not` as well. It is the same reason `bit_cast bool` is refused (#chref("fixed-memory")). Laying such a struct, or `bool`, with
+`view_array` is refused for the same reason. `encode`, which writes a value down into bytes, has no such limit --- it writes its own value.
+
+=== `try_view` checks the fields
+
+To read bytes from outside as a `bool` or an enum, use `try_view`. Besides the length and the alignment, it checks those fields: a `bool`
+byte other than 0 or 1, or an enum number that no variant has, gives `none`. Fields of a nested struct are checked too.
+
+To put an enum in bytes, write its *width* in the enum declaration --- one line, `layout u8 .` (#chref("structs-enums")). The bytes hold the
+variant's number: reading gives the variant with that number, writing puts the variant's number. The compiler does not pick the width
+itself, because adding one variant must not silently change a layout that crosses a wire.
+
+#demo("examples/ch13/trycheck.low")
+
+`kind_of` reads the 7 in byte 0 as `data` and returns 2; at 2, which is no variant's number, it gets `none` and returns 0. `active_of` does
+not take byte 2 as a `bool` --- it gets `none`. If the bytes underneath change by another path after the check, so that a field holds no
+variant's number, reading that field stops.
 
 The length and alignment conditions are those of the previous section. `view` stops when they fail (`E-VM-VIEW` · `E-VM-ALIGN`);
 `try_view` gives `none`.
@@ -356,7 +371,8 @@ without a word. It is recorded as a defect in the development repository.
   #demo("examples/ch13/mistake_viewbool.low")
 
   Bytes from outside can hold any value, not just 0 and 1. If a `bool` field gets 2, it would be neither true nor false, so it is
-  `E-TYPE-BITCAST`. Take the field as `u8` and write the question. Then whether 2 counts as true or as a wrong input is left in the source.
+  `E-TYPE-BITCAST`. To sort out a wrong input, lay it with `try_view` (the section above --- a 2 gives `none`). If 2 should count as true,
+  take the field as `u8` and write the question. Then whether 2 counts as true or as a wrong input is left in the source.
 
   #demo("examples/ch13/viewbool_fixed.low")
 ]

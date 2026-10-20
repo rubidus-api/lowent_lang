@@ -836,6 +836,7 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
 //   ★ `allow_flt`: 레코드 **값**(make·field·encode·반환)은 부동 필드를 **비트로** 슬롯에
 //     담을 수 있다. 하지만 구조체 **파라미터**는 안 된다 — 어댑터가 필드를 정수로 읽는다.
 static bool cbe_rec_ok_f(const low_ir_t *ir, int sidx, bool allow_flt) {
+    if (sidx >= 0 && (proven_size_t)sidx < ir->nstructs && low_ir_struct_has_enumlayout(ir, (proven_size_t)sidx)) return false;   // ★ RFC-0150 §8-31
     if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
     const low_ir_struct_t *S = &ir->structs[sidx];
     if (S->nf == 0 || S->nf > K_REC_MAX || S->total > K_REC_BYTES) return false;
@@ -970,6 +971,7 @@ static bool cbe_rec_nest_ok(const low_ir_t *ir, int sidx) {
 //   되는데도. **부동 필드만** 거절한다(뷰 필드 읽기는 아직 정수만 낸다). 중첩 필드는 그 자체가
 //   뷰 가능해야 한다(재귀) — 읽으면 **중첩 뷰**가 된다.
 static bool cbe_view_ok(const low_ir_t *ir, int sidx) {
+    if (low_ir_struct_has_enumlayout(ir, (proven_size_t)sidx)) return false;   // ★ RFC-0150 §8-31 — 번호 ↔ 순번은 태그 경로가 한다
     if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
     const low_ir_struct_t *S = &ir->structs[sidx];
     if (S->nf == 0 || !S->viewable || S->is_shadow) return false;   // ★ RFC-0135 D13 — 그림자(슬라이스 칸)는 태그 경로만
@@ -3949,9 +3951,15 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 const low_ir_struct_t *S = &ir->structs[sx];
                 fputs("    { lw_sl b_ = ss[--ssp];\n", out);
                 if (S->align > 1)
-                    fprintf(out, "      if (b_.n < %uu || ((uintptr_t)b_.p %% %uu))", (unsigned)S->total, (unsigned)S->align);
+                    fprintf(out, "      if (b_.n < %uu || ((uintptr_t)b_.p %% %uu)", (unsigned)S->total, (unsigned)S->align);
                 else
-                    fprintf(out, "      if (b_.n < %uu)", (unsigned)S->total);
+                    fprintf(out, "      if (b_.n < %uu", (unsigned)S->total);
+                {   // ★ RFC-0150 §8-31 — `bool` 칸의 바이트가 0 · 1 이 아니면 none(길이를 먼저 봤으므로 읽어도 된다 — `||` 는 차례대로).
+                    //   폭을 적은 열거 칸이 있는 구조체는 빠른 길에 오지 않는다(cbe_view_ok) — 태그 경로의 lw_tryview 가 번호를 잰다.
+                    low_ir_cfield_t cf[64]; proven_size_t nc = low_ir_struct_cfields(ir, (proven_size_t)sx, cf, 64);
+                    for (proven_size_t q = 0; q < nc; q++) if (cf[q].isbool) fprintf(out, " || ((const unsigned char *)b_.p)[%u] > 1", (unsigned)cf[q].off);
+                }
+                fputs(")", out);
                 fputs(" { ws[wsp].tag = 2; wsp++; }\n"
                       "      else { ws[wsp].s = b_; ws[wsp].tag = 1; wsp++; } }\n", out);
                 ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(sx + 1); ks.fl[ks.n-1] = 1;
@@ -5157,6 +5165,46 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     fprintf(out, "static const int lw_st_total[] = {");
     for (proven_size_t s = 0; s < ir->nstructs; s++) fprintf(out, "%s%u", s ? ", " : " ", (unsigned)ir->structs[s].total);
     fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    // ★ RFC-0150 §8-31 — 제약 있는 칸(태그 경로의 lw_tryview 가 잰다): 구조체 s 의 칸은 lw_cf_*[lw_st_cfb[s] .. lw_st_cfb[s+1]).
+    //   bool 칸은 lo == hi == -1, 폭을 적은 열거 칸은 lw_en_num / lw_en_vi 의 [lo, hi) 가 갈래들이다.
+    {
+        low_ir_cfield_t all[1024]; proven_size_t tot = 0, starts[257] = { 0 };
+        for (proven_size_t s2 = 0; s2 < ir->nstructs && s2 < 256; s2++) {
+            starts[s2] = tot;
+            tot += low_ir_struct_cfields(ir, s2, all + tot, 1024 - tot);
+        }
+        starts[ir->nstructs < 256 ? ir->nstructs : 256] = tot;
+        fputs("static const int lw_cf_off[] = {", out);  for (proven_size_t q = 0; q < tot; q++) fprintf(out, "%s%u", q ? ", " : " ", (unsigned)all[q].off);  fputs(tot ? " };\n" : " 0 };\n", out);
+        fputs("static const int lw_cf_sz[] = {", out);   for (proven_size_t q = 0; q < tot; q++) fprintf(out, "%s%u", q ? ", " : " ", (unsigned)all[q].size); fputs(tot ? " };\n" : " 0 };\n", out);
+        fputs("static const int lw_cf_be[] = {", out);   for (proven_size_t q = 0; q < tot; q++) fprintf(out, "%s%d", q ? ", " : " ", all[q].be ? 1 : 0); fputs(tot ? " };\n" : " 0 };\n", out);
+        fputs("static const int lw_cf_lo[] = {", out);   for (proven_size_t q = 0; q < tot; q++) fprintf(out, "%s%d", q ? ", " : " ", all[q].isbool ? -1 : (int)all[q].elo); fputs(tot ? " };\n" : " 0 };\n", out);
+        fputs("static const int lw_cf_hi[] = {", out);   for (proven_size_t q = 0; q < tot; q++) fprintf(out, "%s%d", q ? ", " : " ", all[q].isbool ? -1 : (int)all[q].ehi); fputs(tot ? " };\n" : " 0 };\n", out);
+        fputs("static const int lw_st_cfb[] = {", out);
+        for (proven_size_t s2 = 0; s2 <= ir->nstructs && s2 <= 256; s2++) fprintf(out, "%s%zu", s2 ? ", " : " ", starts[s2]);
+        fputs(" };\n", out);
+        fputs("static const long long lw_en_num[] = {", out);
+        for (proven_size_t q = 0; q < ir->nenum_tab; q++) fprintf(out, "%s%lldLL", q ? ", " : " ", (long long)ir->enum_tab_num[q]);
+        fputs(ir->nenum_tab ? " };\n" : " 0 };\n", out);
+        fputs("static const long long lw_en_vi[] = {", out);
+        for (proven_size_t q = 0; q < ir->nenum_tab; q++) fprintf(out, "%s%lldLL", q ? ", " : " ", (long long)ir->enum_tab_vi[q]);
+        fputs(ir->nenum_tab ? " };\n" : " 0 };\n", out);
+        // 번호 ↔ 순번 — [lo, hi) 가 비면(열거 칸이 아니면) 그대로. 짝이 없으면 멈춘다(VM 의 E-VM-CAST 와 같은 말)
+        fputs("static unsigned long long lw_en_tovi_r(int lo, int hi, unsigned long long x) {\n"
+              "    if (lo == hi) return x;\n"
+              "    for (int q = lo; q < hi; q++) if ((unsigned long long)lw_en_num[q] == x) return (unsigned long long)lw_en_vi[q];\n"
+              "    lw_panic(\"the bytes under an enum field hold a number no variant has\"); }\n"
+              "static unsigned long long lw_en_tonum_r(int lo, int hi, unsigned long long x) {\n"
+              "    if (lo == hi) return x;\n"
+              "    for (int q = lo; q < hi; q++) if ((unsigned long long)lw_en_vi[q] == x) return (unsigned long long)lw_en_num[q];\n"
+              "    lw_panic(\"an enum field holds no variant\"); }\n"
+              "static int lw_cf_ok(int q, const unsigned char *p) {\n"
+              "    p += lw_cf_off[q];\n"
+              "    if (lw_cf_lo[q] < 0) return p[0] <= 1;\n"
+              "    unsigned long long x = 0; int sz = lw_cf_sz[q];\n"
+              "    if (lw_cf_be[q]) { for (int k = 0; k < sz; k++) x = (x << 8) | p[k]; } else { for (int k = sz; k-- > 0; ) x = (x << 8) | p[k]; }\n"
+              "    for (int e = lw_cf_lo[q]; e < lw_cf_hi[q]; e++) if ((unsigned long long)lw_en_num[e] == x) return 1;\n"
+              "    return 0; }\n", out);
+    }
     fprintf(out, "static const int lw_st_align[] = {");
     for (proven_size_t s = 0; s < ir->nstructs; s++) fprintf(out, "%s%u", s ? ", " : " ", (unsigned)ir->structs[s].align);
     fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
@@ -5211,6 +5259,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 fprintf(out, "        memcpy(s_.f%zu, r_->f[%zu].p, sizeof s_.f%zu);\n", i, i, i);
             else if (ir->structs[s].f[i].flt)
                 fprintf(out, "        s_.f%zu = lw_fval(r_->f[%zu]);\n", i, i);
+            else if (ir->structs[s].f[i].ename.size)   // ★ RFC-0150 §8-31 — 열거 칸은 갈래의 번호로 넘긴다
+                fprintf(out, "        s_.f%zu = (long long)lw_en_tonum_r(%u, %u, (unsigned long long)r_->f[%zu].i);\n", i,
+                        (unsigned)ir->structs[s].f[i].elo, (unsigned)ir->structs[s].f[i].ehi, i);
             else
                 fprintf(out, "        s_.f%zu = r_->f[%zu].i;\n", i, i);
         }
@@ -5227,11 +5278,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 8; t++) {
+    for (int t = 0; t < 10; t++) {
         const char *nm = t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
                        : t == 3 ? "lw_st_fflt" : t == 4 ? "lw_st_fsidx"   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
                        : t == 5 ? "lw_st_farrn" : t == 6 ? "lw_st_farrm"  // ★ T2b-3d ⓓ 배열 칸: 원소 수 · 원소 메타(0=배열 칸 아님)
-                       : "lw_st_fslm";                                     // ★ RFC-0135 D13 슬라이스 칸(그림자): 원소 메타(0=아님)
+                       : t == 7 ? "lw_st_fslm"                             // ★ RFC-0135 D13 슬라이스 칸(그림자): 원소 메타(0=아님)
+                       : t == 8 ? "lw_st_felo" : "lw_st_fehi";             // ★ RFC-0150 §8-31 열거 칸의 (번호, 순번) 구간(같으면 열거 칸 아님)
         fprintf(out, "static const int %s[][16] = {", nm);
         for (proven_size_t s = 0; s < ir->nstructs; s++) {
             fputs(s ? ", {" : " {", out);
@@ -5244,7 +5296,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 4 ? (int)ir->structs[s].f[i].sidx :
                         t == 5 ? (int)ir->structs[s].f[i].arrn :
                         t == 6 ? (int)ir->structs[s].f[i].arrmeta :
-                                 (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].slmeta : 0));
+                        t == 7 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].slmeta : 0) :
+                        t == 8 ? (int)ir->structs[s].f[i].elo : (int)ir->structs[s].f[i].ehi);
             fputs(" }", out);
         }
         fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
@@ -5275,10 +5328,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    const volatile unsigned char *p = v.p + lw_st_foff[v.box][i];\n"
           "    unsigned long long x = 0; int sz = lw_st_fsize[v.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 로드 — 바이트 루프가 아니다. */
-          "    if (lw_st_mmio[v.box]) return lw_vld((const unsigned char *)p, (unsigned)sz);\n"
+          "    if (lw_st_mmio[v.box]) return lw_en_tovi_r(lw_st_felo[v.box][i], lw_st_fehi[v.box][i], lw_vld((const unsigned char *)p, (unsigned)sz));\n"
           "    if (lw_st_fbe[v.box][i]) { for (int k = 0; k < sz; k++) x = (x << 8) | p[k]; }\n"
           "    else { for (int k = sz; k-- > 0; ) x = (x << 8) | p[k]; }\n"
-          "    return x;\n"
+          "    return lw_en_tovi_r(lw_st_felo[v.box][i], lw_st_fehi[v.box][i], x);\n"
           "}\n"
           "static double lw_b2f(unsigned long long b, int sz) {\n"
           "    if (sz == 4) { float f; unsigned int u = (unsigned int)b; memcpy(&f, &u, 4); return (double)f; }\n"
@@ -5310,6 +5363,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                unsigned long long x = (rr->f[q].tag == LWV_FLT)\n"
           "                    ? lw_f2b(lw_b2f((unsigned long long)rr->f[q].i, 8), lw_st_fsize[sidx][fi])\n"
           "                    : (unsigned long long)rr->f[q].i;\n"
+          "                x = lw_en_tonum_r(lw_st_felo[sidx][fi], lw_st_fehi[sidx][fi], x);\n"
           "                unsigned char *fp = base + lw_st_foff[sidx][fi]; int sz = lw_st_fsize[sidx][fi];\n"
           "                if (lw_st_fbe[sidx][fi]) { for (int c = 0; c < sz; c++) fp[c] = (unsigned char)(x >> (8*(sz-1-c))); }\n"
           "                else { for (int c = 0; c < sz; c++) fp[c] = (unsigned char)(x >> (8*c)); }\n"
@@ -5376,7 +5430,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    if (v.tag != LWV_SLICE && v.tag != LWV_VARRAY) lw_panic(\"a slice field takes a slice\");\n"
           "                    const unsigned char *pp_ = v.p; unsigned long long pn_ = (unsigned long long)v.n;\n"
           "                    memcpy((void *)p, &pp_, sizeof pp_); memcpy((void *)(p + LW_PTRSLOT), &pn_, 8); return; }\n"
-          "                unsigned long long x = (unsigned long long)v.i;\n"
+          "                unsigned long long x = lw_en_tonum_r(lw_st_felo[r.box][i], lw_st_fehi[r.box][i], (unsigned long long)v.i);\n"
           "                int sz = lw_st_fsize[r.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 저장 — 바이트 네 번은 한 번과 다른 일이다. */
           "                if (lw_st_mmio[r.box]) { lw_vst((unsigned char *)(void *)p, (unsigned)sz, x); return; }\n"
@@ -5405,6 +5459,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "static lowv lw_tryview(lowv b, int s) {\n"
           "    if (b.tag != LWV_SLICE) lw_panic(\"view needs a byte slice\");\n"
           "    if (b.n < (size_t)lw_st_total[s] || !lw_aligned(b, s)) { lowv n = {0}; n.tag = LWV_NONE; return n; }\n"
+          "    for (int q = lw_st_cfb[s]; q < lw_st_cfb[s + 1]; q++)\n"   /* ★ RFC-0150 §8-31 — bool 칸이 0 · 1 이 아니거나 열거 칸의 번호가 어느 갈래의 것도 아니면 none */
+          "        if (!lw_cf_ok(q, (const unsigned char *)b.p)) { lowv n = {0}; n.tag = LWV_NONE; return n; }\n"
           "    if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
           "    lw_boxes[lw_nbox] = lw_view(b, s);\n"
           "    lowv r = {0}; r.tag = LWV_SOME; r.box = lw_nbox++; return r;\n"
@@ -5477,6 +5533,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    found = 1; }\n"
           "        } else lw_panic(\"encode needs a record/view\");\n"
           "        if (!found) lw_panic(\"encode: value lacks a layout field\");\n"
+          "        x = lw_en_tonum_r(lw_st_felo[s][i], lw_st_fehi[s][i], x);\n"
           "        unsigned char *p = ob + lw_st_foff[s][i]; int sz = lw_st_fsize[s][i];\n"
           "        if (lw_st_fbe[s][i]) { for (int k = sz; k-- > 0; ) { p[k] = (unsigned char)x; x >>= 8; } }\n"
           "        else { for (int k = 0; k < sz; k++) { p[k] = (unsigned char)x; x >>= 8; } }\n"

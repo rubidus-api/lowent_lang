@@ -1940,6 +1940,85 @@ void low_def_require(low_parse_result_t *pr, proven_allocator_t node_alloc, prov
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     for (proven_size_t i = 0; i < pr->nforms; i++) dr_walk(c, pr->forms[i]);
 }
+static void lr_drop(us_ctx_t *c, low_cst_t *blk, proven_size_t at);
+// ★★★ RFC-0150 §8-31 (소유자 2026-10-18 «열거에 폭을 적는다») — 열거 선언 안의 `layout u8 .`(u8 · u16 · u32 · u64)은 그 열거가 바이트
+//   배치에 들어갈 때의 폭이다. 갈래가 아니므로 블록에서 떼어 내고 폭만 표에 적는다(뒤의 걸음은 갈래만 본다). 번호가 폭을 넘거나,
+//   값을 지닌 갈래가 있거나, 줄이 둘이거나, 폭 낱말이 넷이 아니면 거절한다(`E-ENUM-LAYOUT`). `--fmt` 은 이 걸음을 거치지 않는다.
+static struct { proven_u8str_view_t name; proven_u8 width; } g_enum_layout[256];
+static proven_size_t g_nenum_layout;
+proven_u8 low_enum_layout_width(proven_u8str_view_t name) {
+    name = low_view_after_last(name, '.');
+    for (proven_size_t i = 0; i < g_nenum_layout; i++)
+        if (proven_u8str_view_eq(g_enum_layout[i].name, name)) return g_enum_layout[i].width;
+    return 0;
+}
+void low_enum_layout(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    g_nenum_layout = 0;
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        low_cst_t *f = pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !us_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_ENUM ||
+            !us_atom(f->kids[1]) || f->kids[f->nkids - 1]->kind != LOW_CST_BLOCK) continue;
+        low_cst_t *blk = f->kids[f->nkids - 1];
+        proven_size_t at = blk->nkids; proven_u8 width = 0; bool bad = false;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *vf = blk->kids[j];
+            if (vf->kind != LOW_CST_FORM || !vf->nkids || !us_atom(vf->kids[0]) || !us_eq(vf->kids[0]->tok.lex, "layout")) continue;
+            if (at != blk->nkids) {
+                low_pdiag(&c->p, "E-ENUM-LAYOUT", "an enum has one `layout` line", vf->kids[0]->tok.line, vf->kids[0]->tok.col);
+                bad = true; break;
+            }
+            at = j;
+            proven_u8str_view_t w = vf->nkids == 2 && us_atom(vf->kids[1]) ? vf->kids[1]->tok.lex : (proven_u8str_view_t){ 0 };
+            width = us_eq(w, "u8") ? 1 : us_eq(w, "u16") ? 2 : us_eq(w, "u32") ? 4 : us_eq(w, "u64") ? 8 : 0;
+            if (!width) {
+                low_pdiag(&c->p, "E-ENUM-LAYOUT", "an enum's `layout` is the width its number takes in bytes: `layout u8 .`, `u16`, `u32` "
+                          "or `u64` (canon 6.2.7 (2d))", vf->kids[0]->tok.line, vf->kids[0]->tok.col);
+                bad = true; break;
+            }
+        }
+        if (at == blk->nkids) continue;
+        const low_cst_t *lf = blk->kids[at];
+        if (!bad) {   // 번호를 세어 폭에 드는지 본다 — 첫 갈래 1, 적지 않으면 앞 + 1(정본 §6.2.7 (2c)). 값을 지닌 갈래가 있으면 폭이 뜻이 없다
+            proven_u64 next = 1, maxn = 0; bool payload = false;
+            for (proven_size_t j = 0; j < blk->nkids; j++) {
+                const low_cst_t *vf = blk->kids[j];
+                if (j == at || vf->kind != LOW_CST_FORM || !vf->nkids || !us_atom(vf->kids[0]) || vf->kids[0]->tok.kw == LOW_KW_SATISFIES) continue;
+                if (vf->nkids == 2 && us_atom(vf->kids[1]) && vf->kids[1]->tok.kind == LOW_TOK_NUMBER) {
+                    proven_u64 v = 0; bool okn = true;
+                    for (proven_size_t q = 0; q < vf->kids[1]->tok.lex.size && okn; q++) {
+                        char ch = (char)vf->kids[1]->tok.lex.ptr[q];
+                        if (ch == '_') continue;
+                        if (ch < '0' || ch > '9' || v > (UINT64_MAX - 9) / 10) okn = false; else v = v * 10 + (proven_u64)(ch - '0');
+                    }
+                    if (okn) next = v;
+                } else if (vf->nkids >= 3) payload = true;
+                if (next > maxn) maxn = next;
+                next++;
+            }
+            proven_u64 lim = width == 8 ? UINT64_MAX : ((1ull << (8 * width)) - 1);
+            if (payload) {
+                low_pdiag(&c->p, "E-ENUM-LAYOUT", "an enum whose variants carry values has no byte layout — `layout` is for an enum of numbered "
+                          "variants only (canon 6.2.7 (2d))", lf->kids[0]->tok.line, lf->kids[0]->tok.col);
+            } else if (maxn > lim) {
+                low_pdiag(&c->p, "E-ENUM-LAYOUT", "a variant's number does not fit the enum's `layout` width — widen the layout or renumber "
+                          "(canon 6.2.7 (2d))", lf->kids[0]->tok.line, lf->kids[0]->tok.col);
+            } else if (g_nenum_layout < 256) {
+                g_enum_layout[g_nenum_layout].name = f->kids[1]->tok.lex;
+                g_enum_layout[g_nenum_layout++].width = width;
+            }
+        }
+        // `layout` 줄은 모두 뗀다(둘째 줄이 남으면 갈래로 읽혀 엉뚱한 진단이 하나 더 붙는다) — 뒤에서부터
+        for (proven_size_t j = blk->nkids; j-- > 0; ) {
+            const low_cst_t *vf = blk->kids[j];
+            if (vf->kind == LOW_CST_FORM && vf->nkids && us_atom(vf->kids[0]) && us_eq(vf->kids[0]->tok.lex, "layout")) lr_drop(c, blk, j);
+        }
+    }
+}
+
 // ★★ RFC-0132 P3 (§5 · Q3 · MK4) — 구조체 값의 **나머지** `lit T do <칸> <값> . … _ <값> . end`: `_ <값> .` 을 선언에 있고 적지 않은
 //   칸마다 `<칸> <값> .` 으로 펼친다(값을 칸마다 다시 적는 것과 같다 — 그래서 값은 이름 하나 또는 리터럴 하나만 받는다). 넣을 수
 //   없는 칸(수 리터럴인데 칸이 수가 아니다)이 남으면 그 칸 이름을 대며 거절한다. 남은 칸이 없으면 `_` 가 채우는 것이 없다고 말한다.

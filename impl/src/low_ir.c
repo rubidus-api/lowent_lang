@@ -1637,6 +1637,42 @@ proven_u64 ir_f_to_bits(double d, proven_u8 size) {
 // total padded to the max alignment (RFC-0050 §6.6.1 — padding is visible policy).
 // `align n` (RFC-0051 §5.1) is an alignment CONTRACT: it raises the struct's
 // alignment (and hence the trailing pad) and is checked at every view boundary.
+static proven_size_t ir_cfields_rec(const low_ir_t *ir, proven_size_t si, proven_u16 base, low_ir_cfield_t *out, proven_size_t n,
+                                    proven_size_t cap, int depth) {
+    if (depth > 16 || si >= ir->nstructs) return n;
+    const low_ir_struct_t *s = &ir->structs[si];
+    for (proven_size_t i = 0; i < s->nf; i++) {
+        proven_u16 at = (proven_u16)(base + s->f[i].off);
+        if (proven_u8str_view_eq(s->f[i].cname, proven_u8str_view_from_cstr("bool"))) {
+            if (n < cap) out[n++] = (low_ir_cfield_t){ .off = at, .size = 1, .isbool = true };
+            continue;
+        }
+        if (s->f[i].ename.size) {
+            if (n < cap) out[n++] = (low_ir_cfield_t){ .off = at, .size = s->f[i].size, .be = s->f[i].be, .elo = s->f[i].elo, .ehi = s->f[i].ehi };
+            continue;
+        }
+        bool f; proven_size_t ni = ir_struct_find(ir, s->f[i].cname, &f);
+        if (f && ni != si && !s->f[i].arrn) n = ir_cfields_rec(ir, ni, at, out, n, cap, depth + 1);
+    }
+    return n;
+}
+proven_size_t low_ir_struct_cfields(const low_ir_t *ir, proven_size_t si, low_ir_cfield_t *out, proven_size_t cap) {
+    return ir_cfields_rec(ir, si, 0, out, 0, cap, 0);
+}
+bool low_ir_cfield_ok(const low_ir_t *ir, const low_ir_cfield_t *cf, const unsigned char *p) {
+    p += cf->off;
+    if (cf->isbool) return p[0] <= 1;
+    proven_u64 x = 0;
+    if (cf->be) for (proven_u8 k = 0; k < cf->size; k++) x = (x << 8) | p[k];
+    else        for (proven_u8 k = cf->size; k-- > 0; ) x = (x << 8) | p[k];
+    for (proven_u16 q = cf->elo; q < cf->ehi; q++) if ((proven_u64)ir->enum_tab_num[q] == x) return true;
+    return false;
+}
+bool low_ir_struct_has_enumlayout(const low_ir_t *ir, proven_size_t si) {
+    low_ir_cfield_t cf[64]; proven_size_t n = low_ir_struct_cfields(ir, si, cf, 64);
+    for (proven_size_t q = 0; q < n; q++) if (!cf[q].isbool) return true;
+    return false;
+}
  void ir_struct_layout(const low_ir_t *ir, low_ir_struct_t *s) {
     proven_u16 off = 0, maxal = 1;
     s->viewable = s->nf > 0;
@@ -3715,6 +3751,11 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "view_array needs a type word", nd->line); return; }
                 proven_u8 esz = ir_field_size(k[*pos]->tok.lex);
                 proven_i64 meta = 0;
+                if (veq(k[*pos]->tok.lex, "bool")) {   // ★ RFC-0150 §8-31 — 바이트를 그대로 읽으므로 원소는 `plain` 이어야 한다(view 와 같은 까닭)
+                    ir_fail(c, "E-TYPE-BITCAST", "`view_array bool` reads bytes as they are — a byte other than 0 or 1 would be a bool that is "
+                            "neither true nor false. View the bytes as `u8` and compare with 0 (canon 8.7.1)", nd->line);
+                    return;
+                }
                 if (esz) {
                     meta = esz | (ir_is_float_ty(k[*pos]->tok.lex) ? IR_FLT_BIT : 0)
                               | (ity_of_word(k[*pos]->tok.lex).sign ? IR_SGN_BIT : 0);
@@ -3733,6 +3774,15 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                                 "handles, total <= 255). A type with no layout has no array either",
                                 nd->line);
                         return;
+                    }
+                    {   // ★ RFC-0150 §8-31 — 원소 구조체에 `bool` · 열거 칸이 있으면 `view` 처럼 거절한다(조각에는 `try_view` 가 없다)
+                        low_ir_cfield_t cf_[4]; proven_size_t nc_ = low_ir_struct_cfields(c->out, si, cf_, 4);
+                        if (nc_) {
+                            ir_fail(c, "E-TYPE-BITCAST", "`view_array` reads the bytes as they are, and this struct has a `bool` or enum field — "
+                                    "a bad byte would be a value that is no value. Lay the elements one at a time with `try_view` "
+                                    "(it checks those fields), or declare the field as a number (canon 6.2.13 (9))", nd->line);
+                            return;
+                        }
                     }
                     esz = (proven_u8)c->out->structs[si].total;
                     meta = (proven_i64)esz | IR_STRUCT_BIT | ((proven_i64)si << 20);
@@ -3821,25 +3871,23 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 //   그대로 읽으므로 `bool` 칸은 0 · 1 아닌 바이트를 받는다 — 바이트 2 를 읽은 칸이 `if` 로는 참, `eq … true` 로는
                 //   거짓, `not` 으로도 거짓이었다(VM · 네이티브 같음). `bit_cast bool` 을 막은 까닭과 같다. 적어 내리는 `encode` 는
                 //   제 값을 쓰므로 된다. 안에 든 구조체의 칸도 본다.
-                if (w != IRW_ENCODE) {
+                if (w == IRW_VIEW) {   // ★ RFC-0150 §8-31 (2026-10-18) — `try_view` 는 `bool` 칸의 바이트를 재고 0 · 1 이 아니면 `none` 이다
                     proven_size_t stack_[16]; proven_size_t ns_ = 0; stack_[ns_++] = si;
                     proven_u8str_view_t bad = { 0 };
                     for (proven_size_t guard_ = 0; ns_ && guard_ < 64 && !bad.size; guard_++) {
                         const low_ir_struct_t *vs = &c->out->structs[stack_[--ns_]];
                         for (proven_size_t q = 0; q < vs->nf && !bad.size; q++) {
-                            if (veq(vs->f[q].cname, "bool")) { bad = vs->f[q].name; break; }
+                            if (veq(vs->f[q].cname, "bool") || vs->f[q].ename.size) { bad = vs->f[q].name; break; }
                             bool nf_; proven_size_t ni = ir_struct_find(c->out, vs->f[q].cname, &nf_);
                             if (nf_ && ns_ < 16) stack_[ns_++] = ni;
                         }
                     }
                     if (bad.size) {
-                        ir_fail(c, "E-TYPE-BITCAST", w == IRW_VIEW
-                                ? "a view reads the bytes as they are, and this struct has a `bool` field — a byte other than 0 or 1 "
-                                  "would be a bool that is neither true nor false. Every field of a viewed struct must be `plain` "
-                                  "(canon 8.7.1, as for `bit_cast`): declare the field `u8` and compare it with 0"
-                                : "this struct has a `bool` field, and `try_view` does not check such a field yet (a byte other than "
-                                  "0 or 1 would be a bool that is neither true nor false; RFC-0025 6.6 planned the check, it is not "
-                                  "built). Declare the field `u8` and compare it with 0", nd->line);
+                        ir_fail(c, "E-TYPE-BITCAST",
+                                "a view reads the bytes as they are, and this struct has a `bool` or enum field — a byte other than "
+                                "0 or 1 would be a bool that is neither true nor false, a number no variant has would be no variant. "
+                                "Every field of a viewed struct must be `plain` (canon 8.7.1, as for `bit_cast`): use `try_view`, "
+                                "which checks such fields and gives `none` for bad bytes, or declare the field as a number", nd->line);
                         return;
                     }
                 }

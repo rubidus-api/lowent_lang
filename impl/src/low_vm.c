@@ -729,6 +729,18 @@ static const low_ir_sfield_t *vm_arr_field(const vm_ctx_t *vm, proven_i32 sx, pr
     return NULL;
 }
 // 값 v 의 바이트를 dst 에 베낀다 — 길이가 칸의 길이와 꼭 같아야 한다.
+// ★ RFC-0150 §8-31 — 폭을 적은 열거의 칸: 바이트에는 갈래의 **번호**, 값에는 단위 전체의 **순번**. 이 두 함수가 그 경계다.
+//   열거 칸이 아니면(ename 이 비면) 그대로 돌려준다. 짝이 없으면 false — 부르는 쪽이 멈춘다.
+static bool vm_en_tonum(const low_ir_t *ir, const low_ir_sfield_t *sf, proven_u64 *x) {
+    if (!sf->ename.size) return true;
+    for (proven_u16 q = sf->elo; q < sf->ehi; q++) if ((proven_u64)ir->enum_tab_vi[q] == *x) { *x = (proven_u64)ir->enum_tab_num[q]; return true; }
+    return false;
+}
+static bool vm_en_tovi(const low_ir_t *ir, const low_ir_sfield_t *sf, proven_u64 *x) {
+    if (!sf->ename.size) return true;
+    for (proven_u16 q = sf->elo; q < sf->ehi; q++) if ((proven_u64)ir->enum_tab_num[q] == *x) { *x = (proven_u64)ir->enum_tab_vi[q]; return true; }
+    return false;
+}
 static bool vm_arr_copy(vm_ctx_t *vm, const low_ir_sfield_t *sf, vmv_t v, proven_u8 *dst) {
     proven_size_t need = (proven_size_t)sf->arrn * sf->arresz, have;
     if (v.tag == VMV_SLICE) have = v.n;
@@ -2092,6 +2104,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             proven_u64 x = (r->fields[q].tag == VMV_FLT)
                                              ? ir_f_to_bits(ir_bits_to_f((proven_u64)r->fields[q].i, 8), st->f[fi].size)
                                              : (proven_u64)r->fields[q].i;
+                            if (!vm_en_tonum(vm->ir, &st->f[fi], &x)) { vm_diag(vm->diags, "E-VM-TYPE", "an enum field holds no variant"); return false; }
                             proven_u8 *fp = base + st->f[fi].off;
                             if (st->f[fi].be)
                                 for (proven_u8 kk = 0; kk < st->f[fi].size; kk++)
@@ -3613,6 +3626,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             f2 = true; break;
                         }
                         proven_u64 x = (proven_u64)vv.i;
+                        if (!vm_en_tonum(vm->ir, &s2->f[q], &x)) { vm_diag(vm->diags, "E-VM-TYPE", "an enum field holds no variant"); return false; }
                         proven_u8 *p2 = (proven_u8 *)(void *)(rv.p + s2->f[q].off);
                         if (s2->f[q].be)
                             for (proven_u8 kk = 0; kk < s2->f[q].size; kk++)
@@ -3686,6 +3700,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             const proven_u8 *p = v.p + s->f[i].off;
                             if (s->f[i].be) for (proven_u8 k = 0; k < s->f[i].size; k++) x = (x << 8) | p[k];
                             else            for (proven_u8 k = s->f[i].size; k-- > 0; ) x = (x << 8) | p[k];
+                            if (!vm_en_tovi(vm->ir, &s->f[i], &x)) {   // ★ RFC-0150 §8-31 — 바이트의 번호를 갈래로
+                                vm_diag(vm->diags, "E-VM-CAST", "the bytes under this enum field hold a number no variant has (they changed "
+                                        "after `try_view` checked them)"); return false;
+                            }
                             stack[sp++] = s->f[i].flt ? vmv_flt(ir_bits_to_f(x, s->f[i].size))
                                                       : vmv_int((proven_i64)x);
                             found = true;
@@ -3712,6 +3730,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     stack[sp++] = (vmv_t){ .tag = VMV_VIEW, .p = b.p, .n = b.n, .box = (proven_i32)in->a };
                 } else if (!fits) {
                     stack[sp++] = (vmv_t){ .tag = VMV_NONE };
+                } else if (({ low_ir_cfield_t cf_[64]; proven_size_t nc_ = low_ir_struct_cfields(vm->ir, (proven_size_t)in->a, cf_, 64);
+                              bool bad_ = false; for (proven_size_t q = 0; q < nc_; q++) if (!low_ir_cfield_ok(vm->ir, &cf_[q], b.p)) bad_ = true; bad_; })) {
+                    stack[sp++] = (vmv_t){ .tag = VMV_NONE };   // ★ RFC-0150 §8-31 — `bool` 칸이 0 · 1 이 아니거나 열거 칸의 번호가 어느 갈래의 것도 아니다
                 } else {
                     if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL",
                         "the VM's box pool is exhausted. `some(v)` / `ok(v)` wrap a value, and this "
@@ -3768,6 +3789,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                     else { vm_diag(vm->diags, "E-VM-TYPE", "encode: float field needs a number"); return false; }
                                 } else if (fv.tag == VMV_INT) {
                                     x = (proven_u64)fv.i;
+                                    if (!vm_en_tonum(vm->ir, &s->f[i], &x)) { vm_diag(vm->diags, "E-VM-TYPE", "an enum field holds no variant"); return false; }
                                 } else {
                                     vm_diag(vm->diags, "E-VM-TYPE", "encode needs integer fields"); return false;
                                 }
@@ -3782,6 +3804,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                 const proven_u8 *p = v.p + vs->f[j].off;
                                 if (vs->f[j].be) for (proven_u8 kk = 0; kk < vs->f[j].size; kk++) x = (x << 8) | p[kk];
                                 else             for (proven_u8 kk = vs->f[j].size; kk-- > 0; ) x = (x << 8) | p[kk];
+                                // ★ RFC-0150 §8-31 — 뷰의 번호를 갈래로 읽고 받는 배치의 번호로 다시 쓴다
+                                if (!vm_en_tovi(vm->ir, &vs->f[j], &x) || !vm_en_tonum(vm->ir, &s->f[i], &x)) {
+                                    vm_diag(vm->diags, "E-VM-CAST", "the bytes under this enum field hold a number no variant has"); return false;
+                                }
                                 // re-normalize across differing float widths (f32 ⇄ f64)
                                 if (s->f[i].flt && vs->f[j].flt && s->f[i].size != vs->f[j].size)
                                     x = ir_f_to_bits(ir_bits_to_f(x, vs->f[j].size), s->f[i].size);

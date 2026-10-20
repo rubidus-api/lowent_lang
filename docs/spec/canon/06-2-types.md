@@ -726,6 +726,50 @@ enum level do
 end .
 ```
 
+(2d) **열거의 폭.** 갈래에 값을 지니지 않은 열거는 블록 안에 `layout <폭> .` 한 줄을 둘 수 있다. 폭은 `u8` · `u16` · `u32` ·
+      `u64` 가운데 하나이고, 그 열거가 바이트 배치(⟦§6.2.13⟧)에 들어갈 때 차지하는 바이트 수다 — 바이트에는 갈래의 **번호**(2c)가
+      든다. 이 줄은 갈래가 아니다. 폭을 적지 않은 열거에는 바이트 배치가 없다. 다음은 거부된다(`E-ENUM-LAYOUT`): 넷 밖의 폭,
+      어느 갈래의 번호가 폭에 들어가지 않는 것, 값을 지닌 갈래가 있는 열거, `layout` 줄이 둘인 것.
+      ☞ 폭을 저절로 고르지 않는 까닭: 갈래 하나를 더하는 일이 선이나 파일 너머의 배치를 말없이 바꾸면 안 된다.
+
+```lowent 예제: 폭을 적은 열거는 한 바이트에 번호로 놓인다 · 결과: kind_of([7,0,3]) = 2 · kind_of([2,0,3]) = 0
+module ex_enum_layout .
+
+enum kind do
+  layout u8 .
+  ping .
+  data 7 .
+  close .
+end .
+
+struct hdr do
+  layout packed .
+  k kind .
+  len u16 big .
+end .
+
+fn kind_of input b slice u8 . output u8 . do
+  let o option hdr try_view hdr b. . .
+  guard is_some o. . else return 0 . .   rem 2 는 어느 갈래의 번호도 아니다
+  let h hdr some_value o. . .
+  match field h. k . do
+    case ping do return 1 . end .
+    case data do return 2 . end .
+    case close do return 3 . end .
+  end .
+end .
+```
+
+```lowent-거부: 번호가 폭에 들어가지 않는다 · E-ENUM-LAYOUT
+module ex_enum_layout_fit .
+
+enum code do
+  layout u8 .
+  ok .
+  far 300 .
+end .
+```
+
 (3) struct 는 **자기 자신을 칸으로 가질 수 없다.** 직접이든 다른 타입을 거쳐서든 순환하면
       번역이 거부된다.
       (`E-STRUCT-CYCLE`). 크기가 정해지지 아니하기 때문이다.
@@ -1172,12 +1216,19 @@ end .
       (`E-EFFECT-PURITY`, §7.3 (6)).
 
 (8) 뷰를 얹을 수 있는 구조체는 **바이트 배치가 정해진** 구조체다. 칸마다 폭이 정해진 수(`u8`…`u64` · `i8`…`i64` ·
-      `f32` · `f64`), 그런 수의 고정 배열, 또는 그런 칸으로 된 구조체여야 한다. 열거 · 슬라이스 · `option` · 소유 핸들
-      칸은 정해진 바이트가 없으므로 그 구조체에는 뷰도 `encode` 도 쓸 수 없다(`E-IR-UNDEF`).
+      `f32` · `f64`), `bool`, 폭을 적은 열거(⟦§6.2.7⟧ (2d)), 그런 것들의 고정 배열, 또는 그런 칸으로 된 구조체여야 한다.
+      폭을 적지 않은 열거 · 슬라이스 · `option` · 소유 핸들 칸은 정해진 바이트가 없으므로 그 구조체에는 뷰도 `encode` 도 쓸 수
+      없다(`E-IR-UNDEF`).
 
-(9) 뷰로 읽는 구조체의 칸은 모두 `plain` 이어야 한다(§8.7.1 (2)). `bool` 칸은 0 · 1 아닌 바이트를 받으면 참도 거짓도 아닌
-      값이 되므로 거부된다(`E-TYPE-BITCAST`) — `bit_cast bool` 을 거부하는 것과 같은 까닭이다. 참거짓을 바이트로 주고받으려면
-      칸을 `u8` 로 적고 0 과 견준다. 값을 바이트로 적어 내리는 `encode` 에는 이 제한이 없다.
+(9) `view` 와 `view_array` 로 읽는 구조체의 칸은 모두 `plain` 이어야 한다(§8.7.1 (2)). `bool` 칸은 0 · 1 아닌 바이트를 받으면
+      참도 거짓도 아닌 값이 되고, 열거 칸은 어느 갈래의 것도 아닌 번호를 받으면 어느 갈래도 아닌 값이 되므로, 그런 칸이 (안에 든
+      구조체까지) 하나라도 있으면 거부된다(`E-TYPE-BITCAST`) — `bit_cast bool` 을 거부하는 것과 같은 까닭이다. `view_array bool`
+      도 같다. 값을 바이트로 적어 내리는 `encode` 에는 이 제한이 없다.
+
+(9a) `try_view` 는 그런 칸을 **잰다** — `bool` 칸의 바이트가 0 · 1 이 아니거나 열거 칸의 번호가 그 열거의 어느 갈래의 번호도
+      아니면 `none` 을 준다. 안에 든 구조체의 칸도 잰다. 그렇게 얻은 값의 열거 칸을 읽으면 그 번호의 갈래가, 열거 칸에 쓰면 그
+      갈래의 번호가 바이트에 든다. 잰 뒤에 아래 바이트가 다른 길로 바뀌어 어느 갈래의 번호도 아니게 되면 그 칸을 읽는 순간 실행이
+      멈춘다.
 
 ```lowent 예제: 뷰의 칸에 쓰면 바이트가 바뀌고, 이름에서 이름으로 묶으면 베낀다 · 결과: write_through([1,2]) = 9 · copy_by_name([1,2]) = 2
 module ex_struct_view .

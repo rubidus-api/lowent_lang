@@ -2949,6 +2949,12 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                     ityp_t at_ = ir_scan_scalar_alias(pr, fld->kids[1]->tok.lex);
                     if (at_.known) { s->f[s->nf].size = (proven_u8)(at_.bits / 8); aflt_ = at_.flt; }
                 }
+                // ★ RFC-0150 §8-31 — 폭을 적은 열거(`layout uN .`)의 칸은 그 폭으로 바이트에 놓이고 갈래의 번호가 든다
+                s->f[s->nf].ename = (proven_u8str_view_t){ 0 };
+                if (!s->f[s->nf].size && !param_ty_ && is_atom(fld->kids[1])) {
+                    proven_u8 ew_ = low_enum_layout_width(fld->kids[1]->tok.lex);
+                    if (ew_) { s->f[s->nf].size = ew_; s->f[s->nf].ename = fld->kids[1]->tok.lex; }
+                }
                 // ★★ 매개변수 타입 필드는 **바이트 레이아웃이 없다** — 태그 값 한 칸이다.
                 //   그래서 `viewable` 이 false 가 되고(아래 자동 계산), view/encode 는 이 구조체를
                 //   거절한다. **없는 레이아웃을 있는 척하지 않는다.**
@@ -3259,6 +3265,19 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
     //   ⇒ 두 표를 **하나의 번호로** 묶는다: 변형 이름들을 **변형 표와 같은 순서로** 오류 표에
     //     미리 심는다. 그러면 모든 enum 변형에서 `err-index == variant-index` 다.
     //     (enum 없이 쓰는 자유 오류 이름은 그 뒤에 붙는다 — 언어가 그 형태도 허용한다.)
+    // ★ RFC-0150 §8-31 — 폭을 적은 열거의 칸마다 (번호, 순번) 짝을 표에 싣는다. 모든 선언을 읽은 뒤라 열거가 구조체 뒤에 적혀도 된다.
+    for (proven_size_t si = 0; si < ir.nstructs; si++)
+        for (proven_size_t q = 0; q < ir.structs[si].nf; q++) {
+            low_ir_sfield_t *sf = &ir.structs[si].f[q];
+            if (!sf->ename.size) continue;
+            proven_u8str_view_t en = low_view_after_last(sf->ename, '.');
+            sf->elo = (proven_u16)ir.nenum_tab;
+            for (proven_size_t vi = 0; vi < mod.nenumv && ir.nenum_tab < 512; vi++)
+                if (proven_u8str_view_eq(mod.enum_owner[vi], en)) {
+                    ir.enum_tab_num[ir.nenum_tab] = mod.enum_num[vi]; ir.enum_tab_vi[ir.nenum_tab++] = (proven_i64)vi;
+                }
+            sf->ehi = (proven_u16)ir.nenum_tab;
+        }
     for (proven_size_t i = 0; i < mod.nenumv && ir.nerrs < IR_MAXERRS; i++) {
         bool have = false;
         for (proven_size_t q = 0; q < ir.nerrs; q++)

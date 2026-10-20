@@ -128,6 +128,10 @@ variant for a number, is done with `cast` (#chref("numbers")).
   `weapon_end` are filtered in one comparison. Values of different enums are not compared.
 - An enum with a value-carrying variant takes no numbers and no `cast` --- one number does not say everything the value holds.
 
+To put an enum inside a byte layout --- like the «kind» field of a header that crosses a wire --- write its *width* with one line in the enum
+block, `layout u8 .` (`u8` · `u16` · `u32` · `u64`). A field of that enum sits in that many bytes as the variant's number. A number that does
+not fit, or a value-carrying variant, is `E-ENUM-LAYOUT`. How to read it from bytes is `try_view` in #chref("named-types").
+
 == Variants are closed with full stops
 
 A newline is not a closer (#chref("surface")). So writing variants one per line without full stops runs several variants together into one.

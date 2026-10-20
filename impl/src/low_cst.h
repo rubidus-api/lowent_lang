@@ -221,7 +221,10 @@ int low_input_rank(const low_cst_t *opform, proven_size_t at, proven_size_t end)
 // ★★★★ RFC-0112 D8 — `using` 을 푼다: 부르는 자리에 얼로케이터 인자를 끼우고, 받는 쪽 절을 입력으로 바꾼다.
 //   나무(`low_nest`) **뒤**, 단형화(`low_mono`) **앞**에 한 번 돈다.
 void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
-void low_using_arrays(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   // 그 가운데 입력 배열 걸음만(`--flat`)
+void low_using_arrays(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+// RFC-0150 §8-31 — 열거의 `layout uN .` 줄을 떼어 폭을 적어 둔다(main.c 의 서식 아닌 길에서 한 번). 폭 = 바이트 수, 없으면 0.
+void low_enum_layout(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+proven_u8 low_enum_layout_width(proven_u8str_view_t name);   // 그 가운데 입력 배열 걸음만(`--flat`)
 // ★ RFC-0144 §6-2 — `matrix` 를 나무 위에서 `array` · `subslice` 로 옮겨 적는다(low_matrix.c). 선언 차례 패스 앞에서 한 번 돈다.
 //   거절했으면 false — 진단은 `pr->diags` 에 있다.
 bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);

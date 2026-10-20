@@ -160,6 +160,7 @@ Searches headings and index terms --- not the full text
 - [13.7 What a struct view looks at](ch13.md#s13-7)
 - [13.7.1 A view inherits whether its bytes may be changed](ch13.md#s13-7-1)
 - [13.7.2 Which structs a view can be laid on](ch13.md#s13-7-2)
+- [13.7.3 try_view checks the fields](ch13.md#s13-7-3)
 - [13.8 bitset — a set of small numbers](ch13.md#s13-8)
 - [13.9 Scattered pieces as one view — segments](ch13.md#s13-9)
 - [13.10 Three kinds of type words](ch13.md#s13-10)

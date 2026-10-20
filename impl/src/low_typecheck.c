@@ -2358,6 +2358,7 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         // ★ RFC-0148 S4 (2026-10-14) — `owned` 도 한정자다(소유는 소유 검사가 본다). 전에는 `owned` 를 **타입 이름**으로 읽어
         //   `input h owned handle .` 의 타입이 «`owned` 라는 이름» 이 됐다 — `field h. fd .` 가 칸을 못 찾았고 구조체 대조도 비었다.
         if (veq(w, "owned")) continue;
+        if (veq(w, "view")) continue;   // ★ RFC-0150 §8-32 — 창의 알맹이는 뒤의 구조체다(창인지는 검사층 `ck_window_check` 가 본다)
         if (veq(w, "ref"))     { t.rk = 1; continue; }
         if (veq(w, "mut_ref")) { t.rk = 2; continue; }
         // ★ `slice <T>` — **원소 타입이 타입의 일부다.**
@@ -2674,6 +2675,8 @@ static bool ty_is_builtin_word(proven_u8str_view_t v) {
         "segments",
         // ★ `task T` · `chan T` — 흐름의 핸들과 채널(RFC-0148 S5 · 소유자 2026-10-14 «핸들·채널에 타입을»). 값은 u64 칸이고, 타입이 결과 · 원소를 싣는다.
         "task", "chan",
+        // ★ `view T` · `mut view T` — 바이트 위의 창(RFC-0150 §8-32 · 소유자 2026-10-21). 알맹이 구조체 앞의 한정어다.
+        "view",
         "owned","raw","addr","mmio","bitset","cap","vec","mask","range","mut","void","unit",
         "unsafe_ptr",   // ★ 생 포인터 한정자(RFC-0066 가족) — mut/owned 처럼 타입 앞에 붙는 낱말
         "unsafe_fn",    // ★ 콜백 타입(RFC-0066) — 씨에 함수 포인터로. 값은 `unsafe_fn <op>`.

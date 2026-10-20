@@ -369,6 +369,9 @@ task   chan
 rem 자리와 빌림
 ref   mut_ref   mut   owned   region
 
+rem 바이트 위의 창(⟦§6.2.13⟧)
+view
+
 rem 바깥과 이어지는 것
 cap   mmio
 fn    unsafe_fn

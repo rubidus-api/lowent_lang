@@ -2,24 +2,23 @@ module structview .
 rem run: write_through [1,2]
 rem run: copy_by_name [1,2]
 rem run: pass_mut [1,2]
-rem run: replace_whole [1,2]
 
 struct pt do
   x u8 .
   y u8 .
 end .
 
-rem ko: 뷰의 칸에 쓰면 그 자리의 바이트에 쓴다 --- b 가 [1,9] 가 된다 /// en: writing a field of a view writes the bytes there --- b becomes [1,9]
+rem ko: 쓰기 창(mut view)의 칸에 쓰면 그 자리의 바이트에 쓴다 --- b 가 [1,9] 가 된다 /// en: writing a field of a write window (mut view) writes the bytes there --- b becomes [1,9]
 proc write_through input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
+  let h mut view pt view pt b. . .
   set field h. y . 9 .
   return idx b. 1 . .
 end .
 
-rem ko: 다른 이름에 묶으면 구조체 값을 베낀다 --- k 에 써도 b 는 그대로 /// en: binding it to another name copies the struct value --- writing k leaves b as it was
+rem ko: `cast` 로 사본을 짓는다 --- k 에 써도 b 는 그대로 /// en: `cast` builds a copy --- writing k leaves b as it was
 proc copy_by_name input b mut slice u8 . output u8 . effects none . do
-  let h pt view pt b. . .
-  var k pt h. .
+  let h view pt view pt b. . .
+  var k pt cast pt h. . .
   set field k. y . 7 .
   return idx b. 1 . .
 end .
@@ -30,14 +29,8 @@ proc put input p mut pt . output u8 . effects none . do
   return 0 .
 end .
 proc pass_mut input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
+  let h mut view pt view pt b. . .
   let r u8 put h. . .
   return add idx b. 1 . r. . .
 end .
 
-rem ko: 이름에 통째로 새 값을 주면 그 이름은 바이트를 놓는다 --- b 는 그대로 /// en: giving the name a whole new value lets go of the bytes --- b stays
-proc replace_whole input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
-  set h. lit pt do x 8 . y 8 . end . .
-  return idx b. 1 . .
-end .

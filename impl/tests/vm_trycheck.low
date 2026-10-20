@@ -40,18 +40,18 @@ end .
 
 rem 바이트 0 이 갈래의 번호(1 · 7 · 8)가 아니면 99 — 맞으면 갈래 · 길이
 export fn read input b slice u8 . output u64 . do
-  let o option hdr try_view hdr b. . .
+  let o option view hdr try_view hdr b. . .
   guard is_some o. . else return 99 . .
-  let h hdr some_value o. . .
+  let h view hdr some_value o. . .
   let c u64 code field h. k . . .
   return add mul c. 1000 . cast u64 field h. len . . . .
 end .
 
 rem 갈래를 바이트에 쓰면 그 번호(close = 8)가 든다
 export proc write input b mut slice u8 . output u8 . effects none . do
-  let o option hdr try_view hdr b. . .
+  let o option mut view hdr try_view hdr b. . .
   guard is_some o. . else return 99 . .
-  var h hdr some_value o. . .
+  let h mut view hdr some_value o. . .
   set field h. k . close. .
   return idx b. 0 . .
 end .
@@ -65,9 +65,9 @@ end .
 
 rem bool 칸 둘(바깥 · 안쪽)이 0 · 1 이 아니면 99
 export fn flag input b slice u8 . output u64 . do
-  let o option flags try_view flags b. . .
+  let o option view flags try_view flags b. . .
   guard is_some o. . else return 99 . .
-  let h flags some_value o. . .
+  let h view flags some_value o. . .
   if field h. active . do return add 10 cast u64 field h. n . . . . end .
   return cast u64 field h. n . . .
 end .

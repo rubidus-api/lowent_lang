@@ -9,7 +9,7 @@ struct pkt do
 end .
 
 export proc viewed input b mut slice u8 . output usize . effects none . do
-  var v pkt view pkt b. . .
+  var v mut view pkt view pkt b. . .
   let bd slice u8 field v. body . .
   set idx field v. body . 3 . 77 .
   set field v. tail . 513 .
@@ -23,7 +23,7 @@ export fn encoded input a u8 . output u64 . do
   for x b. do
     set s. add mul s. 3 . widen u64 x. . . .
   end .
-  let v pkt view pkt b. . .
+  let v view pkt view pkt b. . .
   return add s. mul widen u64 idx field v. body . 1 . . 1000000000 . . .
 end .
 

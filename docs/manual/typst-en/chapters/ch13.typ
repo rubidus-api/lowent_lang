@@ -183,44 +183,47 @@ and the value-reporting `try_view` at the boundary.
 
 == What a struct view looks at
 
-A view does *not copy* the bytes. Reading a field through the name that holds a view reads the bytes in that place; writing a field writes
-them. It is the same thing as turning the address of a byte array into a struct pointer in C, except that the length and the alignment are
-checked when the view is laid on, and the translation works out what may be written. The program below shows the difference in four shapes.
+A view does *not copy* the bytes. It is a *window*: the struct's shape laid over the bytes. Reading a field through it reads the bytes in that
+place; writing a field writes them. It is the same thing as turning the address of a byte array into a struct pointer in C, except that the
+length and the alignment are checked when the view is laid on, and the translation works out what may be written.
+
+A window says so in its type. `view pt` is a *read window*, `mut view pt` a *write window*. It is a different type from the struct value
+type `pt`, so one name is enough to tell whether it looks at bytes or lives apart from them. The program below shows three shapes.
 
 #demo("examples/ch13/structview.low")
 
 ```text
- b:  ┌────┬────┐            var h pt view pt b. .
-     │ 01 │ 02 │  ◀──────── h.x  h.y      (the same bytes)
+ b:  ┌────┬────┐            let h mut view pt view pt b. .
+     │ 01 │ 02 │  ◀──────── h.x  h.y      (a window on the same bytes)
      └────┴────┘
        set field h. y . 9 .   →   b = [01, 09]
 
-     let h pt view pt b. .  ·  var k pt h. .
+     let h view pt view pt b. .  ·  var k pt cast pt h. . .
        k = { x 1 · y 2 }      (a copy — it lives apart from b)
        set field k. y . 7 .   →   b = [01, 02] unchanged
 ```
 
-- `write_through` --- writing a field of the view turns `b` into `[1,9]`. A view is not a copy.
-- `copy_by_name` --- binding the name that holds a view to another name *copies the struct value*. Writing that copy leaves `b` as it was.
-  The usual rule --- a struct value is copied when it is bound to a name --- holds for views too.
-- `pass_mut` --- handed to an op that takes `mut pt`, the callee's write reaches `b`. A `mut` input passes the place, not a copy.
-- `replace_whole` --- giving the name a whole new struct, as in `set h. <new value> .`, makes `h` let go of the bytes and hold the new value.
-  `b` does not change. To rewrite the bytes whole, `set field` each field, or `copy` in the bytes `encode` built.
+- `write_through` --- writing a field of a write window turns `b` into `[1,9]`. A window is not a copy.
+- `copy_by_name` --- `cast pt h. .` reads the window's fields and *builds a struct value*. Writing that copy leaves `b` as it was. A copy
+  comes only from being written this way --- a window simply put where the struct name `pt` goes is refused with `E-VIEW-COPY`, because
+  whether it is a window or a copy must be left in the text.
+- `pass_mut` --- handed to an op that takes `mut pt`, a write window lets the callee's write reach `b`. A `mut` input passes the place, not a copy.
 
-Two views laid on the same bytes see each other's writes. The `some_value` of the `option` that `try_view` gives is the same bytes, and so
-is the result of an op that returns a view of its input. A name bound with the type word `view wire_header` (in `tryview.low` above) is
-«an eye on the bytes», so binding it to another name does not copy --- the new name looks at the same bytes. A name bound with the struct
-name `wire_header` copies, as `copy_by_name` does.
+Binding a window to another window name (`let k mut view pt h. .`) looks at the same bytes. Two windows laid on the same bytes see each
+other's writes. `try_view` gives `option view pt` (or `option mut view pt`), and its `some_value` is a window. Putting a whole struct value
+into a window name does not match its type and is refused too --- to change the bytes, `set field` each field, or `copy` in the bytes
+`encode` built. An op that returns a window on its input's bytes says `output view pt`.
 
-=== A view inherits whether its bytes may be changed
+=== Whether bytes may be changed is written in the window's type
 
-Whether a view can write is decided by *the bytes under it*. A slice received read-only, a slice bound without `mut` and a string literal
-are bytes that cannot be written. Binding a view of them to a `var` is refused with `E-TYPE-MUT`, handing it to a `mut` input with
-`E-TYPE-ARGMUT`. To only read, bind it with `let`. A struct bound with `let` cannot have its fields changed (`E-IMMUTABLE`), so the bytes
-under it are safe too.
+A write window comes only from *bytes that may be written*. Binding `mut view` from a slice received read-only, a slice bound without `mut`,
+a string literal, a read window or an op that gives one is refused with `E-TYPE-MUT`. Writing a field through a read window is `E-TYPE-MUT`,
+handing a read window to a `mut` input is `E-TYPE-ARGMUT`, returning a write window over a read-only input is `E-TYPE-RETMUT`. To only
+read, bind `view pt`.
 
-A `fn` cannot write through a view of bytes it took as `mut` either. That write is visible to the caller, so it breaks the `fn`'s purity
-(`E-EFFECT-PURITY`). An op that changes bytes through a view is written as a `proc`.
+A `fn` cannot write through a window on bytes it took as `mut` either --- whether it laid the window itself or another op gave it back, the
+write is visible to the caller, so it breaks the `fn`'s purity (`E-EFFECT-PURITY`). An op that changes bytes through a window is written
+as a `proc`.
 
 === Which structs a view can be laid on
 
@@ -357,12 +360,12 @@ without a word. It is recorded as a defect in the development repository.
   the meaning in the source. The other direction works --- `cast u8 b. .` is 1 for true and 0 for false.
 ]
 
-#antipattern[Binding a view of bytes received read-only to a `var`][
+#antipattern[Binding a write window over bytes received read-only][
   #demo("examples/ch13/mistake_viewro.low")
 
-  A view is not a copy, so writing a field of `h` writes `b`. But `b` was received read-only --- the caller trusts that this op does not
-  change its bytes. So it is refused with `E-TYPE-MUT`. To only read, bind it with `let`; to change it, take the bytes as `mut`. Then the
-  caller sees that in the signature.
+  A window is not a copy, so writing a field of `h` writes `b`. But `b` was received read-only --- the caller trusts that this op does not
+  change its bytes. So the `mut view` binding is refused with `E-TYPE-MUT`. To only read, bind `view pt`; to change it, take the bytes as
+  `mut`. Then the caller sees that in the signature.
 
   #demo("examples/ch13/viewro_fixed.low")
 ]
@@ -410,7 +413,7 @@ without a word. It is recorded as a defect in the development repository.
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
   [`view wire_header b. .`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b. .` · `encode wire_header h. .`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
-  [`var h pt view pt b. .` · `let h pt view pt b. .`], [a name on the bytes (a field write changes them) · a read-only name], [`var` is refused when the bytes cannot be written],
+  [`let h mut view pt view pt b. .` · `let h view pt view pt b. .` · `cast pt h. .`], [a write window · a read window · a copy apart from the bytes], [`mut view` is refused over bytes that cannot be written],
   [`var a bitset 64 bitset_new 64 . .` · `bitset_insert a 1 .` · `bitset_intersect a. b. .`], [a set of small numbers and its operations], [a set, not the bits of a word],
   [`view_segments back. d. .` · `segview.piece_count ss. .` · `segview.piece_at ss. i. .`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
   [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],

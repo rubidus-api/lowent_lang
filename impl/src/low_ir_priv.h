@@ -106,6 +106,7 @@ typedef struct {
 typedef struct { proven_u8str_view_t name; ityp_t ty; proven_u8str_view_t tyname; proven_u8 bset_w;
                  proven_u8str_view_t narrowed; ityp_t elem;
                  proven_u8str_view_t cname;   // ★ RFC-0148 S2 — 알맹이 타입 낱말(그릇을 벗긴 것) — 칸을 읽을 때 묶음을 찾는다
+                 bool isview;                 // ★ RFC-0150 §8-32 — `view T` · `mut view T` 로 묶은 창(다른 이름에 묶어도 베끼지 않는다)
                } ir_local_t;
 
 typedef struct {

@@ -7,15 +7,15 @@ struct pt do
   y u8 .
 end .
 
-rem ko: 읽기만 하면 let 에 묶는다 /// en: to read only, bind it with let
+rem ko: 읽기만 하면 읽기 창(view)으로 묶는다 /// en: to read only, bind a read window (view)
 fn peek input b slice u8 . output u8 . do
-  let h pt view pt b. . .
+  let h view pt view pt b. . .
   return field h. y . .
 end .
 
 rem ko: 고치려면 바이트를 mut 으로 받는다 --- 그러면 부르는 쪽이 그것을 서명에서 본다 /// en: to change it, take the bytes as mut --- then the caller sees that in the signature
 proc mark input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
+  let h mut view pt view pt b. . .
   set field h. y . 9 .
   return idx b. 1 . .
 end .

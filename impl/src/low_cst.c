@@ -2001,6 +2001,7 @@ low_op_header_t low_op_header(const low_cst_t *f) {
                 if      (low_view_eq_cstr(m, "mut"))        { p->is_mut = true;   k2++; }
                 else if (low_view_eq_cstr(m, "owned"))      { p->is_owned = true; k2++; }
                 else if (low_view_eq_cstr(m, "unsafe_ptr")) { p->is_uptr = true;  k2++; }  // ★ 생 포인터
+                else if (low_view_eq_cstr(m, "view"))       { p->is_view = true;  k2++; }  // ★ RFC-0150 §8-32 — 창
                 else break;
             }
             p->core = k2;

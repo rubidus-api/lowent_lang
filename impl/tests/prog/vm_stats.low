@@ -70,7 +70,7 @@ end .
 
 rem ★ 헤더 읽기 — 중첩 필드.
 fn header_major input b slice u8 . output u8 . do
-  let h header view header b. . .
+  let h view header view header b. . .
   let v version field h. ver . .
   return field v. major . .
 end .

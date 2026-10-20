@@ -859,6 +859,7 @@ static proven_u8 ir_region_root(proven_u8str_view_t n) {
     c->locals[c->nlocals].bset_w = 0;   // ★ 기본은 '비트셋 아님' — 바인딩이 폭을 실어 준다
     c->locals[c->nlocals].narrowed = (proven_u8str_view_t){0};   // ★ 새 지역은 안 좁혀짐(RFC-0080 §4.6)
     c->locals[c->nlocals].cname = (proven_u8str_view_t){0};
+    c->locals[c->nlocals].isview = false;
     return c->nlocals++;
 }
 
@@ -3474,6 +3475,33 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             if (veq(nd->tok.lex, "cast")) {   // G2 runtime: `cast <scalar> <e>`
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "cast needs a scalar type", nd->line); return; }
                 proven_u8str_view_t tw = k[*pos]->tok.lex;
+                // ★★★ RFC-0150 §8-32 G1 (소유자 2026-10-21) — `cast <구조체> <창>` 은 **사본**이다: 창의 칸을 읽어 바이트와 따로 사는
+                //   구조체 값을 짓는다(이름에 묶을 때 베끼는 것과 같은 꼴 — 칸마다 `field` 뒤 `make`). 원천은 숨은 지역에 한 번만 잰다.
+                {
+                    bool sfnd_; proven_size_t csi = ir_struct_find(c->out, ir_strip_mod(c, tw), &sfnd_);
+                    if (sfnd_ && ir_enum_nvariants(c, ir_enum_base(tw)) == 0) {
+                        const low_ir_struct_t *sd = &c->out->structs[csi];
+                        if (!sd->nf || sd->nf > IR_MAKE_MAXF || c->out->nmakes >= IR_MAXMAKES || sd->is_mmio) {
+                            ir_fail(c, "E-IR-UNSUP", "`cast <struct> <window>` copies a struct with fields, not a register block", nd->line); return;
+                        }
+                        (*pos)++;
+                        ir_value(c, k, pos, end);
+                        if (c->failed) return;
+                        proven_size_t tmp = ir_hidden_local(c, nd->line);
+                        if (c->failed) return;
+                        ir_emit(c, IRW_STORE, (proven_i64)tmp);
+                        proven_size_t my = c->out->nmakes++;
+                        low_ir_make_t mk = { .type_name = sd->name, .nfields = 0 };
+                        for (proven_size_t q = 0; q < sd->nf; q++) {
+                            mk.fields[mk.nfields++] = sd->f[q].name;
+                            ir_emit(c, IRW_LOAD, (proven_i64)tmp);
+                            ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, sd->f[q].name));
+                        }
+                        c->out->makes[my] = mk;
+                        ir_emit(c, IRW_MAKE, (proven_i64)my);
+                        return;
+                    }
+                }
                 // ★★★ 열거와 수 사이(소유자 2026-10-15; 정본 §6.2.7 (2c) · §6.2.16 (5)(5a)). 열거 값은 **단위 전체의 갈래 순번**으로 들고
                 //   다니므로 번호와 순번을 오간다: 비교 사슬(갈래 수만큼)로 낮춘다 — 새 기계 명령은 없다. 맞는 갈래가 없으면 멈춘다.
                 {

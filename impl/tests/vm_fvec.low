@@ -20,7 +20,7 @@ end .
 fn f_roundtrip
   output f64 .
 do
-  let h sample view sample encode sample mk_sample. . . .
+  let h view sample view sample encode sample mk_sample. . . .
   return expr ((field h. temp .)) + ((field h. scale .)) . .
 end .
 

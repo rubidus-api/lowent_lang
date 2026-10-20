@@ -180,6 +180,7 @@ typedef struct {
     bool                is_mut;
     bool                is_owned;
     bool                is_uptr;   // ★ `unsafe_ptr T` — C 로 넘길 **생 포인터**(RFC-0066 가족). unsafe.
+    bool                is_view;   // ★ RFC-0150 §8-32 — `view T` · `mut view T`: 바이트 위의 창(알맹이 T 앞의 한정어)
 } low_param_t;
 
 // ★★★ **파라미터 한도의 원본은 여기 하나다** (WO-0204, 2026-09-12). CST 가 가장 이른 층이라

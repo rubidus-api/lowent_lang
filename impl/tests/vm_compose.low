@@ -21,7 +21,7 @@ rem ── 넘기기 ───────────────────�
 fn take_view input p pt . output u8 . do return field p. x . . end .
 
 fn pass_view input s slice u8 . output u8 . do
-  let v pt view pt s. . .
+  let v view pt view pt s. . .
   return take_view v. . .                  rem 구조체 **뷰**를 넘긴다
 end .
 
@@ -53,9 +53,9 @@ fn pass_typed input s slice u32 . output usize . do
 end .
 
 rem ── 되돌려 받기 ─────────────────────────────────────────────────────────
-fn give_view input s slice u8 . output pt . do return view pt s. . . end .
+fn give_view input s slice u8 . output view pt . do return view pt s. . . end .
 fn get_view input s slice u8 . output u8 . do
-  let v pt give_view s. . . rem 구조체 뷰를 **반환**받는다
+  let v view pt give_view s. . . rem 구조체 뷰를 **반환**받는다
   return field v. x . .
 end .
 

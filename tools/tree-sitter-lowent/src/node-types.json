@@ -1437,6 +1437,41 @@
     }
   },
   {
+    "type": "enum_attribute",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "path",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "enum_declaration",
     "named": true,
     "fields": {
@@ -1455,6 +1490,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "enum_attribute",
+          "named": true
+        },
         {
           "type": "modifier",
           "named": true

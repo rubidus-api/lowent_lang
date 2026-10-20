@@ -51,7 +51,7 @@ unsafe proc drive
   output u32 .
   effects device unsafe .
 do
-  var u uart view uart regs. . .
+  var u mut view uart view uart regs. . .
 
   rem ★ 칸에 안 들어가는 값이면 **아무것도 안 쓰고** 1 을 답한다. 조용히 자르는 대신
   rem   물어볼 수 있다는 것이 이 라이브러리가 C 보다 나은 자리다.

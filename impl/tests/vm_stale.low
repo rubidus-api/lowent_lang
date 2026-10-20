@@ -11,7 +11,7 @@ fn stale_view
   output u64 .
 do
   var s slice u8 encode pairr mkp. . .
-  let h pairr view pairr s. . .
+  let h view pairr view pairr s. . .
   set s. encode pairr mkp. . .
   return field h. a . .
 end .

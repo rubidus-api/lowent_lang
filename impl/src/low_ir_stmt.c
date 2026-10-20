@@ -1126,7 +1126,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             if (vstart + 1 == f->nkids && is_atom(f->kids[vstart]) &&
                 f->kids[vstart]->tok.kind == LOW_TOK_IDENT && f->kids[vstart]->tok.kw == LOW_KW_NONE) {
                 bool sfnd; proven_size_t sslot2 = ir_local_find(c, f->kids[vstart]->tok.lex, &sfnd);
-                if (sfnd && c->locals[sslot2].tyname.size) {
+                if (sfnd && c->locals[sslot2].tyname.size && !c->locals[sslot2].isview) {   // 창(`view T`)은 같은 바이트를 그대로 넘긴다
                     bool stf; proven_size_t si2 = ir_struct_find(c->out, c->locals[sslot2].tyname, &stf);
                     if (stf) {
                         const low_ir_struct_t *sd = &c->out->structs[si2];
@@ -1230,10 +1230,13 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             //     (같은 규칙이 두 곳에 있고 **한 곳만 옳았다** — 교훈 7 의 작은 사례다.)
             {
                 proven_size_t tw = 2;
+                c->locals[slot].isview = false;
                 while (tw < f->nkids && is_atom(f->kids[tw]) &&
-                       (veq(f->kids[tw]->tok.lex, "mut") || veq(f->kids[tw]->tok.lex, "owned") ||
-                        veq(f->kids[tw]->tok.lex, "ref") || veq(f->kids[tw]->tok.lex, "mut_ref")))
+                       (veq(f->kids[tw]->tok.lex, "mut") || veq(f->kids[tw]->tok.lex, "owned") || veq(f->kids[tw]->tok.lex, "view") ||
+                        veq(f->kids[tw]->tok.lex, "ref") || veq(f->kids[tw]->tok.lex, "mut_ref"))) {
+                    if (veq(f->kids[tw]->tok.lex, "view")) c->locals[slot].isview = true;   // ★ RFC-0150 §8-32 — 창: 묶어도 베끼지 않는다
                     tw++;
+                }
                 if (tw < f->nkids && is_atom(f->kids[tw])) c->locals[slot].tyname = ir_strip_mod(c, f->kids[tw]->tok.lex);
                 c->locals[slot].cname = ir_content_word(f, 2, (be < f->nkids) ? be : f->nkids);   // RFC-0148 S2
             }
@@ -3662,6 +3665,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 // ★ 파라미터의 **선언 타입 이름** — 한정자(mut/owned)를 벗긴 알맹이 자리
                 if (hh.p[q].core < f->nkids && is_atom(f->kids[hh.p[q].core]))
                     c.locals[sl].tyname = ir_strip_mod(&c, f->kids[hh.p[q].core]->tok.lex);
+                c.locals[sl].isview = hh.p[q].is_view;   // ★ RFC-0150 §8-32
                 c.locals[sl].cname = ir_content_word(f, hh.p[q].ts, hh.p[q].te);   // RFC-0148 S2
                 if (sl < LOW_MAX_PARAMS) {                        // RFC-0055: 시그니처의 범위
                     ityp_t pt = c.locals[sl].ty;

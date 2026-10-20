@@ -150,11 +150,13 @@ Shape rules you will hit immediately:
   `collection.map w. src. dst. .` writes into a `mut` slice and answers the count. A bitset's size is
   `bitset_count s. .`, a stack's `stack_count s. .`, the arguments' `len k. .` on `cap args`; pieces of a
   `segments` view are `segview.piece_at` / `piece_count`.
-- **A view does not copy.** A field write through `view T b` (or `view_array T b`) writes `b`, so the bytes must
-  be writable: a view of a read-only slice or a literal binds with `let`, never `var` (`E-TYPE-MUT`), and
-  cannot go to a `mut` input (`E-TYPE-ARGMUT`). A viewed struct has only `plain` fields — no `bool`
-  (`E-TYPE-BITCAST`; take a `u8` and compare it). A `fn` may not write its `mut` input through a view, a
-  local alias or a `proc` (`E-EFFECT-PURITY`).
+- **A view is a window, and its type says so.** `let h view pt view pt b. .` is a read window, `let h mut view pt
+  view pt b. .` a write window — a field write through it writes `b`, so `b` must be writable (`E-TYPE-MUT`). A window
+  never sits where the struct type `pt` goes (`E-VIEW-COPY`); a copy apart from the bytes is `cast pt h. .`.
+  `try_view` gives `option view pt` / `option mut view pt`. A read window cannot go to a `mut` input (`E-TYPE-ARGMUT`);
+  an op returning a window says `output view pt`. A viewed struct has only `plain` fields — `bool` and enum fields are
+  read with `try_view`, which checks them; an enum in bytes declares its width (`layout u8 .`). A `fn` may not write
+  its `mut` input through a window, a local alias or a `proc` (`E-EFFECT-PURITY`).
 - **Statements you will write constantly**: `let n u64 add a. 1 . .` (the call's stop, then the
   binding's) · `set i. add i. 1 . .` (the place is a value too) · `return x. .` ·
   `guard gt n. 0 . else return 0 . .` · `method o. name. arg. .` · `payload v. variant field .`.

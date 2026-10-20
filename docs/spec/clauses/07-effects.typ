@@ -480,7 +480,7 @@ end .
 
 unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
-  var g gpio view gpio regs. . .
+  let g mut view gpio view gpio regs. . .
   set field g. moder . 2 .       rem 보통 칸 쓰기 — 처리기가 없애도 되는 연산이다
   return 0 .
 end .", "E-MMIO-PLAIN")

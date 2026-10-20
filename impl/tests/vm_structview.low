@@ -1,7 +1,7 @@
 rem ★★ **구조체 위에 얹는 뷰가 무엇을 보는가** (RFC-0150 §8-30, 2026-10-17 — 정본 §6.2.13 의 예들을 잰다).
 rem
-rem   `view T b` 는 바이트를 베끼지 않는다 — 그 칸을 읽으면 그 바이트를 읽고, 칸에 쓰면 그 바이트에 쓴다.
-rem   이름에서 이름으로 묶으면(`var k pt h.`) 구조체 값을 베낀다. 그래서 그 뒤의 쓰기는 바이트에 닿지 않는다.
+rem   `view T b` 는 바이트를 베끼지 않는 **창**이다(RFC-0150 §8-32) — `view T`(읽기) · `mut view T`(쓰기)로 묶는다. 쓰기 창의 칸에
+rem   쓰면 그 바이트에 쓴다. 바이트와 따로 사는 사본은 `cast T h.` 로 짓는다 — 그 뒤의 쓰기는 바이트에 닿지 않는다.
 rem   이 파일의 답은 VM 과 네이티브가 같아야 한다(골든이 둘을 맞댄다).
 
 module vm_structview .
@@ -13,15 +13,15 @@ end .
 
 rem 뷰의 칸에 쓰면 바이트가 바뀐다 — [1,2] → [1,9], 답 9.
 export proc write_through input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
+  let h mut view pt view pt b. . .
   set field h. y . 9 .
   return idx b. 1 . .
 end .
 
-rem 이름에서 이름으로 묶으면 베낀다 — 바이트는 그대로, 답 2.
+rem `cast` 로 사본을 지으면 바이트와 따로 산다 — 바이트는 그대로, 답 2.
 export proc copy_by_name input b mut slice u8 . output u8 . effects none . do
-  let h pt view pt b. . .
-  var k pt h. .
+  let h view pt view pt b. . .
+  var k pt cast pt h. . .
   set field k. y . 7 .
   return idx b. 1 . .
 end .
@@ -32,31 +32,24 @@ proc put input p mut pt . output u8 . effects none . do
   return 0 .
 end .
 export proc pass_mut input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
+  let h mut view pt view pt b. . .
   let r u8 put h. . .
   return add idx b. 1 . r. . .
 end .
 
-rem 이름에 통째로 새 값을 주면 그 이름은 더는 바이트를 보지 않는다 — 바이트는 그대로, 답 2.
-export proc replace_whole input b mut slice u8 . output u8 . effects none . do
-  var h pt view pt b. . .
-  set h. lit pt do x 8 . y 8 . end . .
-  return idx b. 1 . .
-end .
-
 rem 같은 바이트 위의 두 뷰는 서로의 쓰기를 본다 — 답 7.
 export proc two_views input b mut slice u8 . output u8 . effects none . do
-  let h pt view pt b. . .
-  var k pt view pt b. . .
+  let h view pt view pt b. . .
+  var k mut view pt view pt b. . .
   set field k. y . 7 .
   return field h. y . .
 end .
 
 rem `try_view` 가 준 값도 같은 바이트다 — 짧으면 없음(답 0), 아니면 [1,9], 답 9.
 export proc try_through input b mut slice u8 . output u8 . effects none . do
-  let o option pt try_view pt b. . .
+  let o option mut view pt try_view pt b. . .
   guard is_some o. . else return 0 . .
-  var h pt some_value o. . .
+  var h mut view pt some_value o. . .
   set field h. y . 9 .
   return idx b. 1 . .
 end .

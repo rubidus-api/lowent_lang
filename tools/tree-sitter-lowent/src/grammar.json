@@ -713,13 +713,51 @@
         {
           "type": "REPEAT",
           "content": {
-            "type": "SYMBOL",
-            "name": "variant"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "enum_attribute"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "variant"
+              }
+            ]
           }
         },
         {
           "type": "STRING",
           "value": "end"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "stop"
+        }
+      ]
+    },
+    "enum_attribute": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "layout"
+            },
+            {
+              "type": "STRING",
+              "value": "satisfies"
+            }
+          ]
+        },
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_word"
+          }
         },
         {
           "type": "SYMBOL",

@@ -9,6 +9,6 @@ end .
 
 rem ko: 칸을 u8 로 받고 무엇을 참으로 볼지는 물음으로 적는다 /// en: take the field as u8 and write the question that decides what counts as true
 fn is_on input b slice u8 . output bool . do
-  let h flag view flag b. . .
+  let h view flag view flag b. . .
   return ne field h. active . 0 . .
 end .

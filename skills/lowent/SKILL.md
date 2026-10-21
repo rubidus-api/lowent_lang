@@ -145,9 +145,10 @@ Shape rules you will hit immediately:
   that mixes an enum with a number is refused. Any conversion that could be read two ways is a `cast`.
 - **Raw strings**: `r"\d+\.\d+"` keeps every backslash; it ends at the next `"` and has no escapes.
 - **`map` · `filter` · `fold` · `count` · `seg` · `segs` are ordinary names** (1.13). Inside `pipe` they are still
-  stages and terminals. Outside it, use the module `collection`: the element type is a one-field struct that
-  `satisfies collection.mappable .` (`apply`) / `keepable` (`keep`) / `foldable` (`combine`), then
-  `collection.map w. src. dst. .` writes into a `mut` slice and answers the count. A bitset's size is
+  stages and terminals. To copy, keep or fold a slice, write a `pipe` (`map f with k. .` then
+  `collect into out. .`): it passes a run-time value, can change the element type, and needs no wrapper. The
+  module `collection` (a one-field struct that `satisfies collection.mappable .` …) is only for generic code
+  where the element type carries the work — usually not needed. A bitset's size is
   `bitset_count s. .`, a stack's `stack_count s. .`, the arguments' `len k. .` on `cap args`; pieces of a
   `segments` view are `segview.piece_at` / `piece_count`.
 - **A view is a window, and its type says so.** `let h view pt view pt b. .` is a read window, `let h mut view pt

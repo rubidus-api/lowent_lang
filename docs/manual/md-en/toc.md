@@ -293,7 +293,8 @@ Searches headings and index terms --- not the full text
 - [24.2.1 Context — with](ch24.md#s24-2-1)
 - [24.3 Walking once is the definition](ch24.md#s24-3)
 - [24.4 Reading only as much as needed](ch24.md#s24-4)
-- [24.5 Outside pipe — the module collection](ch24.md#s24-5)
+- [24.5 Copying, keeping, folding — write it with pipe](ch24.md#s24-5)
+- [24.5.1 When the element type carries the work — the module collection](ch24.md#s24-5-1)
 - [24.6 Common mistakes](ch24.md#s24-6)
 - [24.7 This chapter’s syntax at a glance](ch24.md#s24-7)
 

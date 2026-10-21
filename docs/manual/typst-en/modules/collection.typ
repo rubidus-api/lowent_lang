@@ -6,8 +6,9 @@
 
 Does the same work on each element of a slice and puts the results into another slice (`map`), keeps only the elements that pass a test (`filter`), or
 folds them into one value (`fold`). *The element type brings the work* --- the element is wrapped in a struct of one field, and that struct satisfies the
-traits `mappable`, `keepable` and `foldable`. It is the same way #modref("sortgen")[`sortgen`] finds its comparison in the element type. When the job is
-calling one named op per element, a `pipe` stage is shorter (#chref("pipe")).
+traits `mappable`, `keepable` and `foldable`. It is the same way #modref("sortgen")[`sortgen`] finds its comparison in the element type. *Usually this module
+is not needed* --- copying, keeping and folding are written with `pipe` (#chref("pipe")), which passes a run-time value with `with`, changes the
+element type, and wraps nothing. This module is for generic code where the element type has to carry the work.
 
 ```lowent
 use collection .

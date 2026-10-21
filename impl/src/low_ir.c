@@ -1530,14 +1530,17 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
         return;
     }
     else if (veq(lex, "count") || veq(lex, "seg") || veq(lex, "segs") || veq(lex, "map") || veq(lex, "filter") || veq(lex, "fold"))
-        // ★ RFC-0150 Q3 (1.13) — 1.12 까지 기본 연산이던 이름이다. 옮길 곳을 말한다.
+        // ★ RFC-0150 Q3 (1.13) — 1.12 까지 기본 연산이던 이름이다. 옮길 곳을 말한다. 전위 map · filter · fold 는 `pipe` 를 먼저 말한다
+        //   (§8-24, 소유자 2026-10-21 «ㄱ 새 문법 없음, pipe» — 세 제약을 pipe 가 이미 푼다).
         snprintf(buf, sizeof buf, "undefined name `%.*s` — it was a core op until 1.12 and is an ordinary name since 1.13 (RFC-0150). "
                  "%s", (int)lex.size, (const char *)lex.ptr,
                  veq(lex, "count") ? "A bitset's size is `bitset_count <set> .`, a stack's `stack_count <stack> .`, the number of "
                                      "arguments `len <cap args> .`; inside `pipe` the terminal `count .` is unchanged"
                  : veq(lex, "seg") ? "One piece of a segments view is `segview.piece_at <view> <i> .` (`use segview .`)"
                  : veq(lex, "segs") ? "The number of pieces is `segview.piece_count <view> .` (`use segview .`)"
-                 : "Outside `pipe` use the module `collection` (`collection.map` / `filter` / `fold`); inside `pipe` the stage is unchanged");
+                 : "Write it as a `pipe`: `pipe <src> do map <op> . collect into <dst> . end .` (also `filter <op> .`, `fold <start> <op> .`; "
+                   "`with <value>` passes a setting). The module `collection` (`collection.map` / `filter` / `fold`) is for code where "
+                   "the element type carries the work");
     else
         snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
                  "variant in scope here", (int)lex.size, (const char *)lex.ptr);

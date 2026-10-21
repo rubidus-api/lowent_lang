@@ -165,13 +165,39 @@
   자리에서 생긴다. 편한 쪽과 빠른 쪽이 갈리지 않도록 낱말을 고른 결과다.
 ]
 
-== `pipe` 밖에서 --- 모듈 `collection`
+== 옮겨 담기 · 거르기 · 접기 --- `pipe` 로 쓴다
 
-`pipe` 밖에서 한 슬라이스를 다른 슬라이스로 옮겨 담거나 하나로 접을 때는 표준 모듈 `collection` 의 `map`·`filter`·`fold` 를
-부른다. 이 셋은 예전에 기본 연산이었고, 그래서 `map` 이라는 이름은 지역 이름으로 쓸 수 없었다. 이제 라이브러리 op 이므로
-`map`·`filter`·`fold` 는 저자가 쓸 수 있는 이름이다. `pipe` 안의 같은 낱말은 그대로 스테이지다.
+한 슬라이스를 다른 슬라이스로 옮겨 담거나, 조건에 맞는 것만 담거나, 하나의 값으로 접는 일은 `pipe` 로 쓴다. 예전에는 기본 연산
+`map`·`filter`·`fold` 가 `pipe` 밖에서 이 일을 했고, 1.13 에서 그 자리를 모듈 `collection` 이 받았다. 그런데 `pipe` 가 이미 그
+일을 더 잘 한다 --- `collection` 은 이 일에 필요 없다(RFC-0150 §8-24, 2026-10-21).
 
-할 일은 *원소의 타입이 들고 온다*. 이 언어에는 op 을 값으로 넘기는 길이 없고, 트레이트는 원소 타입을 매개변수로 받지 않는다.
+```lowent
+module pipe_move .
+
+fn scale input x u8 . input k u16 . output u16 . do
+  return mul cast u16 x. . k. . .
+end .
+
+proc scaled input xs slice u8 . input k u16 . input out mut slice u16 . output u64 . effects none .
+do
+  return pipe xs. do
+    map scale with k. .
+    collect into out. .
+  end . .
+end .
+```
+
+`scaled [1,2,3] 300` 은 `out` 에 300 · 600 · 900 을 담고 답은 3 이다. 이 짧은 글에 `collection` 이 못 하는 셋이 들어 있다.
+
+- *실행 중에 정해지는 값*: `with k.` 가 `k` 를 매 원소에 건넨다(이 장 앞의 `with`).
+- *원소 타입이 바뀐다*: `scale` 이 `u16` 을 내므로 흐름의 원소가 `u8` 에서 `u16` 이 된다.
+- *op 은 이름으로 고른다*: 같은 `u8` 에 변환 · 판정이 몇 개든 된다. 원소를 칸 하나짜리 구조체로 감쌀 일도 없다.
+
+한 곳에서만 쓰는 op 은 그 몸 안에 지역 op 으로 둔다. 1.12 의 전위 `map f. src. dst. .` 를 쓰면 처리기가 이 꼴을 알려 준다.
+
+=== 원소 타입이 일을 들고 다닐 때 --- 모듈 `collection`
+
+`collection` 의 `map`·`filter`·`fold` 는 할 일을 *원소의 타입이 들고 다녀야* 하는 일반 코드를 위해 남아 있다. 이 언어에는 op 을 값으로 넘기는 길이 없고, 트레이트는 원소 타입을 매개변수로 받지 않는다.
 그래서 원소를 칸 하나짜리 구조체로 감싸고, 그 구조체가 트레이트 `collection.mappable`(`apply`) · `collection.keepable`(`keep`) ·
 `collection.foldable`(`combine`) 을 갖춘다. 정렬 모듈 `sortgen` 이 비교를 원소 타입에서 찾는 것과 같은 길이다.
 
@@ -198,7 +224,7 @@ end .
 `[1,2]` 를 세 칸짜리 `out` 에 담으면 `[2,4,0]` 이고 답은 쓴 원소의 수 2 다. 거꾸로 `[1,2,3]` 을 두 칸에 담으려 하면 셋째를 쓰는
 순간 멈춘다 --- 받는 자리가 차도 말없이 멈추는 일은 없다(`collect into` 와 같다). `view_array twice xs.` 는 바이트 조각을 `twice`
 의 조각으로 본다. 칸 하나짜리 구조체라 배치가 같다. 한 원소 타입에는 `apply` 가 하나뿐이므로, 같은 바이트를 두 가지로 옮기려면
-감싸개 타입이 둘 있어야 한다. 원소마다 이름 붙은 op 하나를 부르는 일이면 `pipe` 의 `map` 스테이지가 더 짧다.
+감싸개 타입이 둘 있어야 한다 --- 그런 일은 위의 `pipe` 로 쓴다.
 
 == 흔한 실수
 

@@ -288,5 +288,25 @@ end .",
       타입에서 찾는다 — 정렬이 비교를 그렇게 찾는 것과 같다. 부를 때마다 그 타입 전용 op 이 만들어지고 할 일은
       직접 호출로 박힌다.
     ]
+    #plain[
+      슬라이스를 옮겨 담거나 거르거나 접는 일은 대개 `collection` 없이 `pipe` 로 적는다(#cref("6.12") (2)). `pipe` 는 위 (2) 의 길이
+      못 하는 셋을 한다 — op 을 이름으로 고르므로 한 원소 타입에 변환 · 판정이 몇 개든 되고, 실행 중에 정해지는 값을 `with` 로
+      건네며(#cref("6.12") (7)), `map` 의 op 이 다른 타입을 내면 흐름의 원소 타입이 바뀐다. 원소를 칸 하나짜리 구조체로 감쌀 일도 없다.
+      한 곳에서만 쓰는 op 은 그 몸 안에 지역 op 으로 둔다(#cref("6.10.5")). `collection` 은 할 일을 원소의 타입이 들고 다녀야 하는 일반
+      코드를 위한 것이다. 옛 전위 `map` · `filter` · `fold` 를 부르면 처리기도 `pipe` 를 먼저 말한다.
+    ]
+    #ex("옮겨 담기는 pipe 로 — 실행 중의 값은 with 로", "module ex_pipe_move .
+
+fn add_k input x u8 . input k u8 . output u8 . do
+  return wrap_add x. k. . .
+end .
+
+proc shifted input xs slice u8 . input k u8 . input out mut slice u8 . output u64 . effects none . do
+  return pipe xs. do
+    map add_k with k. .
+    collect into out. .
+  end . .
+end .",
+      out: "shifted([1,2,3], 10, [0,0,0]) = 3")
   ]
 ]

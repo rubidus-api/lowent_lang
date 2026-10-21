@@ -39,6 +39,7 @@ let n result usize files.file_error files.slurp fs. "data.txt" buf. . .
   [`open_dir` · `read_dir fs h buf` · `close_dir`], [디렉터리 열거. `read_dir` 는 다음 이름을 버퍼에 넣는다(`.` · `..` 도 나온다)],
   [`type_of` · `link_type_of`], [`some 0 .` 파일 · `some 1 .` 디렉터리 · `some 2 .` 그 밖 · 없으면 `none`(`link_type_of` 는 링크를 따라가지 않는다)],
   [`is_dir` · `is_file` · `is_symlink`], [편의형 --- 경로가 없으면 `false`],
+  [`make_dir fs path` · `remove fs path` · `rename fs old_path new_path`], [디렉터리를 만든다 · 파일이나 빈 디렉터리를 지운다 · 이름을 바꾼다. 됐으면 `true` --- 왜 안 됐는지는 말하지 않는다(잎이 errno 를 주지 않는다)],
   [`slurp fs path buf`], [파일 전체를 버퍼로. 안 들어가면 `error buffer_too_small .` --- 자르지 않는다],
 )
 

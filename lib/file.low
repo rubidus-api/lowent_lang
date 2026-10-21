@@ -19,8 +19,9 @@ rem
 rem ☞ 안 지은 것(정직히): `wait`(중단 가능 IO — reactor 가 먼저다) · 소켓.
 rem   ★ `seek`(RFC-0069 §4 read_at)·**디렉터리 순회**(§6)·**파일 타입**(stat)·**파일시스템 변경**은
 rem     **지었다**(2026-07-22). 아래 `seek` · `dir_handle`+`open_dir`/`read_dir`/`close_dir` · `type_of`/
-rem     `is_dir`/`is_file`. **변경**(dir_make·path_remove·path_rename)은 상태 없는 경로→bool 리프라
-rem     여기 감싸지 않는다 — 감싸면 순수 전달이라 §2.5(동의어)에 걸린다. 프로그램이 직접 부른다.
+rem     `is_dir`/`is_file`. **변경**(dir_make·path_remove·path_rename)은 처음엔 감싸지 않았다(순수 전달은
+rem     동의어라 여겼다). RFC-0140 §5 가 그 판단을 뒤집었다 — 빌트인 연산은 라이브러리를 짓는 데 쓰고 응용은
+rem     라이브러리를 쓴다. 그래서 `make_dir` · `remove` · `rename` 이 아래에 있다(RFC-0140 §8-2, 2026-10-21).
 
 module files .
 
@@ -203,6 +204,20 @@ export proc is_file input fs cap file_system . input path slice u8 . output bool
   let t option u64 call_builtin file_type fs. path. . .
   guard is_some t. . else return false . .
   return eq some_value t. . 0 . .
+end .
+
+rem ★ **경로를 바꾸는 셋** (RFC-0140 §8-2). 잎과 같은 `bool` — 됐으면 true. 잎이 errno 를 안 주므로 왜 안 됐는지는
+rem   말할 수 없다(`file_error` 와 같은 해상도의 한계). `remove` 는 파일이나 빈 디렉터리를 지운다.
+export proc make_dir input fs cap file_system . input path slice u8 . output bool . effects io . do
+  return call_builtin dir_make fs. path. . .
+end .
+
+export proc remove input fs cap file_system . input path slice u8 . output bool . effects io . do
+  return call_builtin path_remove fs. path. . .
+end .
+
+export proc rename input fs cap file_system . input old_path slice u8 . input new_path slice u8 . output bool . effects io . do
+  return call_builtin path_rename fs. old_path. new_path. . .
 end .
 
 rem ★★ **`read_file` 을 Lowent 로 다시 쓴다** — 부채 상환의 실물.

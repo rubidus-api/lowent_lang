@@ -866,6 +866,7 @@ $ lowentc --run first fn_can_stop.low []
   <strong><span class="tok-k">return</span></strong> wait_for_device. .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_blocking.low
+mistake_blocking.low:6:1 W-NOT-YET: this op declares `blocking`, which the compiler takes on trust: no built-in op performs it, so nothing checks that the body really does. The word still reaches callers and counts against the tier (canon §7 (2a))
 mistake_blocking.low:11:23 E-EFFECT-CALC: this fn is declared pure but performs (이름 없는 효과 비트) — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p><code>blocking</code> 은 “흐름을 붙잡아 둘 수 있다” 이므로, 그런 op 을 부르는 <code>fn</code> 은 순수하지 않다. 그래서 <code>E-EFFECT-CALC</code> 로 거절된다. 2026-09-16 까지는 <code>lock</code>·<code>device</code>·<code>page_fault</code>·<code>blocking</code>·<code>cancel</code>·<code>detach</code> 여섯이 부르는 쪽으로 <strong>번지지 않아</strong> 통과했다 — 특히 장치를 직접 건드리는 <code>device</code> 가 순수 함수 뒤에 숨었다. 같은 모양에 <code>wait</code> 를 적으면 예전에도 거절됐다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/blocking_wait.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> blocking_wait .
 <em><span class="tok-c">rem expect: E-EFFECT-CALC</span></em>

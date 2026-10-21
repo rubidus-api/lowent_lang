@@ -39,6 +39,7 @@ library counts itself. The leaves give no errno, so the honest resolution stops 
   [`open_dir` · `read_dir fs h buf` · `close_dir`], [Directory listing. `read_dir` puts the next name in the buffer (`.` and `..` included)],
   [`type_of` · `link_type_of`], [`some 0 .` file · `some 1 .` directory · `some 2 .` other · `none` if absent (`link_type_of` does not follow links)],
   [`is_dir` · `is_file` · `is_symlink`], [Conveniences --- `false` if the path does not exist],
+  [`make_dir fs path` · `remove fs path` · `rename fs old_path new_path`], [Make a directory · remove a file or an empty directory · rename. `true` if it worked --- not why it failed (the leaf gives no errno)],
   [`slurp fs path buf`], [Whole file into the buffer. `error buffer_too_small .` if it does not fit --- never truncates],
 )
 

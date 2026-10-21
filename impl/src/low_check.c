@@ -12866,6 +12866,27 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 last->msg = NULL;
             }
         }
+        // ★★ **믿고 넘어간 선언을 알린다** (RFC-0150 Q7 ⓐ, 2026-10-21). `lock`·`device`·`page_fault`·
+        //   `blocking`·`cancel`·`detach` 는 그 일을 하는 기본 연산이 없다 — 처리기는 몸이 정말 그 일을
+        //   하는지 볼 수 없고, 적은 대로 믿는다(정본 §7 (2a)). 부르는 쪽으로 번지고 등급 검사에는 쓰인다.
+        //   읽는 사람이 «검사된 선언» 으로 알지 않게, 무엇을 믿었는지 말한다.
+        if (tab[i].explicit_eff && tab[i].body && (tab[i].declared & EFF_NOPRIM)) {
+            char names[96]; size_t no = 0; names[0] = 0;
+            static const unsigned np[] = { EFF_LOCK, EFF_DEVICE, EFF_PAGEFAULT, EFF_BLOCKING, EFF_CANCEL, EFF_DETACH };
+            for (size_t b = 0; b < sizeof np / sizeof np[0]; b++) {
+                if (!(tab[i].declared & np[b])) continue;
+                int w = snprintf(names + no, sizeof names - no, "%s`%s`", no ? ", " : "", low_effect_bit_name(np[b]));
+                if (w < 0 || (size_t)w >= sizeof names - no) break;
+                no += (size_t)w;
+            }
+            warn_at(&out, "W-NOT-YET", NULL, tab[i].body);
+            low_diag_t *last = (low_diag_t *)out.diags.data + (out.diags.len - 1);
+            snprintf(last->detail, sizeof last->detail,
+                     "this op declares %s, which the compiler takes on trust: no built-in op performs it, so "
+                     "nothing checks that the body really does. The word still reaches callers and counts "
+                     "against the tier (canon §7 (2a))", names);
+            last->msg = NULL;
+        }
     }
 
     proven_array_destroy(&ops);

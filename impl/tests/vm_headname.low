@@ -1,0 +1,37 @@
+rem ★ **블록 머리 이름을 지역 이름으로 쓴 뒤에도 블록이 블록으로 읽힌다** (RFC-0150 §8-20, 2026-10-21).
+rem
+rem   `borrow` · `region` · `pipe` · `call_builtin` 은 이름으로 풀려 있다. 같은 이름의 지역이 앞에 있어도 뒤의 블록은
+rem   블록이다. `pipe` 만 그렇지 않았다 — 식 자리의 `pipe xs. do … end` 가 지역으로 읽혀 «extra operands» 로 떨어졌다.
+rem   이 파일의 답은 VM 과 네이티브가 같아야 한다(골든이 둘을 맞댄다).
+
+module vm_headname .
+
+rem 지역 `pipe` 가 3 이고, 그 뒤의 pipe 블록이 원소를 센다
+export fn piped input xs slice u8 . output u64 . do
+  let pipe u64 3 .
+  let n u64 pipe xs. do
+    count .
+  end . .
+  return add n. pipe. . .
+end .
+
+export proc borrowed input s mut slice u8 . output u64 . effects none . do
+  let borrow u64 5 .
+  var t u64 0 .
+  borrow b subslice s. 0 2 . do
+    set t. narrow u64 idx b. 0 . . .
+  end .
+  return add t. borrow. . .
+end .
+
+export proc regioned output u64 . effects alloc . do
+  let region u64 5 .
+  var t u64 0 .
+  region r arena do
+    let g option mut slice u8 alloc_bytes r. capacity 32 . .
+    if is_some g. . do
+      set t. 1 .
+    end .
+  end .
+  return add t. region. . .
+end .

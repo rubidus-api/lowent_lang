@@ -158,9 +158,11 @@ uses 4 bytes; adding the two answers gives 8. Because the pieces do not overlap,
 
 == What does not exist yet
 
-Channels without an end (`channel … unbounded`) and lock state shared by several flows (`lock`, `rwlock`) are not accepted yet (`E-CHAN-UNBOUNDED`,
-`E-LOCK-NOTYET`). One could accept what does not exist and build it later, but then programs written meanwhile would find that what seemed to work does not. It
-is more honest to say it does not exist. Handling the same memory atomically from several flows is covered in #chref("parallel-atomic").
+Channels without an end (`channel … unbounded`) are not accepted (`E-CHAN-UNBOUNDED`). This is decided, not pending --- how much memory such a channel uses
+cannot be read from the source. A bounded channel makes the sender wait when it is full, and that wait is visible in the text.
+
+Lock state shared by several flows (`lock`, `rwlock`) is not accepted yet (`E-LOCK-NOTYET`). One could accept what does not exist and build it later, but then
+programs written meanwhile would find that what seemed to work does not. It is more honest to say it does not exist. Handling the same memory atomically from several flows is covered in #chref("parallel-atomic").
 
 #demo("examples/ch26/lock.low")
 
@@ -209,7 +211,7 @@ yet". Until then, when a count must be shared, use atomic operations (#chref("pa
   [`await h1. .`], [wait for that flow's result], [other flows progress meanwhile],
   [`var h task u64 0 .`], [an empty handle --- using it stops (`E-VM-HANDLE-ZERO`)], [like a null pointer --- it never picks up another flow],
   [`task_group cancel_on_error do … end .`], [cancel siblings on the first error], [cancellation does not roll back],
-  [`var ch chan u64 channel u64 . .`], [a bounded, ordered container], [no unbounded channels yet --- `E-CHAN-UNBOUNDED`],
+  [`var ch chan u64 channel u64 . .`], [a bounded, ordered container], [unbounded channels are refused --- `E-CHAN-UNBOUNDED`],
   [`chsend ch. n. .` · `chrecv ch. .`], [put · take --- blocks when full or empty], [`concurrent` effect --- completion depends on others],
   [a lone wait · receives with no sender], [rejected at translation (`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [deadlocks visible from the source],
   [`test … schedule explore_interleavings . do … end .`], [run every possible order and compare answers], [tests find bugs of rare orders],

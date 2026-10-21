@@ -3223,6 +3223,16 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     }
             bool isloc; proven_size_t slot = ir_local_find(c, nd->tok.lex, &isloc);
             if (isloc && nd->qual_mod.size) isloc = false;
+            // ★ **`pipe` 라는 지역 뒤의 `pipe` 블록** (RFC-0150 §8-20, 2026-10-21). 블록 머리 `pipe` 는 지역 이름으로 풀려
+            //   있다 — 그런데 그 지역이 있으면 뒤의 `pipe xs. do … end` 가 지역으로 읽혀 «extra operands» 로 떨어졌다
+            //   (`borrow`·`region` 은 문장 머리라 그렇지 않았다). 원천과 `do … end` 가 뒤따르면 그것은 블록이다.
+            if (isloc && veq(nd->tok.lex, "pipe")) {
+                const low_cst_t *nx = *pos < end ? k[*pos] : NULL;
+                if ((nd->kind == LOW_CST_FORM && nd->nkids && nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK) ||
+                    (nx && nx->kind == LOW_CST_FORM && nx->nkids && nx->kids[nx->nkids - 1]->kind == LOW_CST_BLOCK) ||
+                    (nx && nx->kind == LOW_CST_GROUP && *pos + 1 < end && k[*pos + 1] && k[*pos + 1]->kind == LOW_CST_BLOCK))
+                    isloc = false;
+            }
             if (isloc) { ir_emit(c, IRW_LOAD, (proven_i64)slot); return; }
             // ★ actor 의 상태 필드 — 지역이 아니라 **인스턴스의 필드**다(슬롯 0 = 인스턴스).
             if (ir_is_sfield(c, nd->tok.lex)) {
@@ -4882,19 +4892,17 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 // 선택적 원소 타입 토큰을 소비한다(런타임 값은 vmv_t 라 타입은 표식일 뿐 — 완전 타이핑은 후속).
                 if (*pos < end && is_atom(k[*pos]) && !veq(k[*pos]->tok.lex, "unbounded")) (*pos)++;
                 // ★★★ **`channel … unbounded` 는 거절한다** (RFC-0009 D5 · unbounded mailbox 와 같은 규율).
+                //   2026-10-21: «아직» 이 아니라 짓지 않기로 정했다(RFC-0150 Q6 ⓒ · 정본 §10 (4)).
                 //   채널 버퍼는 고정(VM_CHAN_CAP)이라 **진짜로 못 자란다** — 무한이라 하면 반쯤 거짓이다.
                 //   RFC 는 unbounded ⇒ alloc 효과(+ RFC-0043 allocator capability)를 요구하는데, 안 쓰는
                 //   권한을 요구하는 또 다른 반쪽 거짓이 된다. `bounded 0`·unbounded mailbox 를 거절한 그
                 //   규율(닿을 수 없는 약속은 거짓말)로. 진짜 성장(allocator 스레딩)이 오면 그때 연다.
                 if (*pos < end && is_atom(k[*pos]) && veq(k[*pos]->tok.lex, "unbounded")) {
                     ir_fail(c, "E-CHAN-UNBOUNDED",
-                            "`channel … unbounded` is not accepted yet — and refusing it is the honest thing. "
-                            "The channel buffer is a FIXED size under the hood, so it cannot actually grow "
-                            "without bound: it would block or trap, which is not `unbounded` at all. RFC-0009 "
-                            "says an unbounded channel must expose an `alloc` effect and (RFC-0043) carry an "
-                            "allocator capability — but a buffer that never really allocates would be demanding "
-                            "a permission it never uses. Use a bounded `channel` until real, allocator-backed "
-                            "growth lands (same discipline that refuses `mailbox unbounded`)", nd->line);
+                            "`channel … unbounded` is not accepted: a channel without an end has no memory "
+                            "bound you could read from the source, and the cost of a line must be written on "
+                            "it (canon §1.3, §10 (4)). Use a bounded `channel` — a full channel makes the "
+                            "sender wait, and that wait is visible", nd->line);
                     return;
                 }
                 ir_emit(c, IRW_CHNEW, 0);

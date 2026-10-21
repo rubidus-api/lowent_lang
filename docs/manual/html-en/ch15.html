@@ -866,6 +866,7 @@ $ lowentc --run first fn_can_stop.low []
   <strong><span class="tok-k">return</span></strong> wait_for_device. .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_blocking.low
+mistake_blocking.low:6:1 W-NOT-YET: this op declares `blocking`, which the compiler takes on trust: no built-in op performs it, so nothing checks that the body really does. The word still reaches callers and counts against the tier (canon §7 (2a))
 mistake_blocking.low:11:23 E-EFFECT-CALC: this fn is declared pure but performs (이름 없는 효과 비트) — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p><code>blocking</code> means “may hold the flow of execution”, so a <code>fn</code> calling such an op is not pure, and it is refused with <code>E-EFFECT-CALC</code>. Until 2026-09-16 six atoms — <code>lock</code>, <code>device</code>, <code>page_fault</code>, <code>blocking</code>, <code>cancel</code> and <code>detach</code> — did <strong>not</strong> spread to the caller, so this passed; <code>device</code>, which touches hardware directly, could hide behind a pure function. The same shape with <code>wait</code> was refused even then.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/blocking_wait.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> blocking_wait .
 <em><span class="tok-c">rem expect: E-EFFECT-CALC</span></em>

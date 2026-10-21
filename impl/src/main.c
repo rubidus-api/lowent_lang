@@ -62,6 +62,7 @@ static proven_allocator_t lw_heap(void) {
 #include <signal.h>
 #include <time.h>
 
+static bool g_text_stdin;   // `--text-stdin` — 첫 파일의 글을 표준 입력에서 받는다(경로는 자리만 말한다)
 static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *out_len) {
     FILE *f = fopen(path, "rb");
     if (!f) return false;
@@ -1313,6 +1314,9 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--check") == 0) want_check = true;
         else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); }   // RFC-0135 S3
         else if (strcmp(argv[i], "--diag-json") == 0) g_diag_json = true;
+        // ★ RFC-0150 §8-9 (2026-10-22) — 첫 파일의 **글**을 표준 입력에서 받는다. 경로는 그대로 그 파일이 사는 자리라 의존은 거기서 찾는다.
+        //   편집기(lowent-lsp)가 저장하지 않은 글 — 고치기 제안을 적용해 본 글 — 을 그 자리에서 검사하려고 둔다.
+        else if (strcmp(argv[i], "--text-stdin") == 0) g_text_stdin = true;
         else if (strcmp(argv[i], "--doc") == 0) want_doc = true;
         else if (strcmp(argv[i], "--doc-out") == 0 && i + 1 < argc) { want_doc = true; doc_out = argv[++i]; }
         // ★★★ `--config <file>` — **해결본**(RFC-0036 D5: `lowent.config`, 생성물·기계 소유).
@@ -1546,6 +1550,18 @@ int main(int argc, char **argv) {
     proven_size_t lens[MAX_FILES] = { 0 };
     proven_size_t total = 0;
     for (int fi = 0; fi < npaths; fi++) {
+        if (fi == 0 && g_text_stdin) {
+            proven_size_t cap = 1 << 16, blen = 0;
+            proven_byte_t *b = malloc(cap);
+            for (size_t got; b && (got = fread(b + blen, 1, cap - blen - 1, stdin)) > 0; ) {
+                blen += got;
+                if (cap - blen < 2) { proven_byte_t *nb = realloc(b, cap * 2); if (!nb) { free(b); b = NULL; break; } b = nb; cap *= 2; }
+            }
+            if (!b) { fprintf(stderr, "lowentc: out of memory reading the text from standard input\n"); return 1; }
+            b[blen] = 0;
+            bufs[0] = b; lens[0] = blen; total += blen;
+            continue;
+        }
         if (!read_file(paths[fi], &bufs[fi], &lens[fi])) {
             fprintf(stderr, "lowentc: cannot read '%s'\n", paths[fi]);
             return 1;
@@ -1807,6 +1823,21 @@ int main(int argc, char **argv) {
             }
         }
         if (want_lock_write) { if (g_lock_out) fclose(g_lock_out); return 0; }   // 락을 찍는 것이 이번 실행의 전부다
+    }
+    // ★★ RFC-0140 §8-1 ⓑ — 어느 파일이 표준 라이브러리 폴더에서 왔는가(실경로로 맞댄다 — `use x from "../lib/x.low"`
+    //   로 부른 라이브러리 파일도 라이브러리다). 검사기가 그 밖의 `call_builtin` 에 경고한다.
+    {
+        std_scan(argv[0]);
+        static const char *libs[MAX_FILES]; int nlib = 0;   // 단위의 파일 수만큼 — 자르지 않는다
+        for (int fi = 0; fi < npaths; fi++) {
+            char rp[PATH_MAX];
+            if (!realpath(paths[fi], rp)) continue;
+            for (int i = 0; i < g_nstd; i++) {
+                char rs[PATH_MAX];
+                if (realpath(g_std[i].path, rs) && strcmp(rp, rs) == 0) { libs[nlib++] = paths[fi]; break; }
+            }
+        }
+        low_check_set_library_files(libs, nlib);
     }
 
     proven_byte_t *buf = bufs[0];

@@ -58,10 +58,11 @@
   [`page_fault` · `blocking` · `cancel` · `detach`], [흐름이 멈추거나 끊기는 일들 --- 아직 이를 내는 원시 연산이 없다],
 )
 
-`io`·`alloc`·`heap`·`state`·`panic`·`atomic`·`concurrent`·`wait`·`unsafe` 아홉은 그것을 실제로 내는 원시 연산이 있고
-컴파일러가 강제한다 --- 몸이 그 일을 하면 적어야 하고, 적어 놓고 안 하면 알린다. 나머지 여섯(`lock`·`device`·`page_fault`·
-`blocking`·`cancel`·`detach`)은 그 일을 하는 원시 연산이 아직 없다. 그래서 선언으로 받아 부르는 쪽으로 *번지게*는 하지만,
-몸이 정말 그 일을 하는지는 묻지 못한다. 목록에 없는 낱말은 거절된다.
+`io`·`alloc`·`heap`·`state`·`panic`·`atomic`·`concurrent`·`wait`·`unsafe`·`device` 열은 그것을 실제로 내는 일이 있고
+컴파일러가 강제한다 --- 몸이 그 일을 하면 적어야 하고, 적어 놓고 안 하면 알린다. `device` 는 장치 레지스터를 만지는 일과
+인터럽트 처리기가 낸다(#chref("hardware")). 나머지 다섯(`lock`·`page_fault`·`blocking`·`cancel`·`detach`)은 그 일을 하는
+원시 연산이 아직 없다. 그래서 선언으로 받아 부르는 쪽으로 *번지게*는 하지만, 몸이 정말 그 일을 하는지는 묻지 못한다 ---
+`--check` 가 그렇게 믿고 넘어갔다고 알린다(`W-NOT-YET`). 목록에 없는 낱말은 거절된다.
 
 #demo("examples/ch15/undef.low")
 

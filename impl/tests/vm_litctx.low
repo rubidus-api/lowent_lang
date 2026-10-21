@@ -1,0 +1,29 @@
+rem ★★ **받는 자리의 타입이 무타입 리터럴까지 내려간다** (RFC-0148 §8-11, 2026-10-22).
+rem
+rem   리터럴은 상대가 타입을 준다. 리터럴끼리의 셈 · 왼쪽이 리터럴인 밀기(`shl 1 n.`)도 이제 받는 자리(반환 · 묶기 · 셈의
+rem   상대편 · 호출 인자 · `set`)의 타입에서 셈한다. 전에는 64 비트로 셈해 `u8` 을 내는 op 이 256 · 300 을 냈다.
+rem   이 파일의 답은 VM 과 네이티브가 같아야 한다(골든이 둘을 맞댄다 — 검사를 거친 길로).
+
+module vm_litctx .
+
+rem 반환 자리가 u8 — n 이 8 이면 밀기가 폭을 넘어 멈춘다
+export fn top input n u8 . output u8 . do
+  return shl 1 n. . .
+end .
+
+rem 상대편(h)이 u8 — `sub shl 1 n. . 1` 꼴(아래 n 비트)도 u8 에서 셈한다
+export fn mask input h u8 . input n u8 . output u8 . do
+  return bit_and h. sub shl 1 n. . 1 . . .
+end .
+
+rem 묶기 자리가 u8 — 리터럴끼리의 셈이 넘치면 멈춘다
+export fn sum input k u8 . output u8 . do
+  let x u8 add 200 k. . .
+  let y u8 add 100 155 . .
+  return wrap_add x. y. . .
+end .
+
+rem 받는 자리가 u64 면 넓게 셈한다
+export fn wide input n u8 . output u64 . do
+  return shl 1 n. . .
+end .

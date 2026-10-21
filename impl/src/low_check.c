@@ -43,7 +43,9 @@ enum { EFF_NONE = 0, EFF_IO = 1u, EFF_ALLOC = 2u, EFF_STATE = 4u,
        //     그 경고는 «몸이 그것을 하는가» 를 묻는데, 물을 몸이 없다.
        EFF_LOCK = 512u, EFF_DEVICE = 1024u, EFF_PAGEFAULT = 2048u,
        EFF_BLOCKING = 4096u, EFF_CANCEL = 8192u, EFF_DETACH = 16384u };
-#define EFF_NOPRIM (EFF_LOCK | EFF_DEVICE | EFF_PAGEFAULT | EFF_BLOCKING | EFF_CANCEL | EFF_DETACH)
+// ★ `device` 는 2026-10-22 에 이 묶음에서 나왔다(RFC-0150 Q7 ⓒ · 소유자 «추천대로»): 장치 레지스터를 만지는 일
+//   (`read_volatile` · `write_volatile` · mmio 뷰의 `field` · `set`)이 곧 그 일이다 — 계수는 아래 `used |= EFF_DEVICE`.
+#define EFF_NOPRIM (EFF_LOCK | EFF_PAGEFAULT | EFF_BLOCKING | EFF_CANCEL | EFF_DETACH)
 // ★★★ **폐포 연산자** close(S) = S ∪ {wait | concurrent ∈ S} (RFC-0083 §5·§1.4).
 //   확대(S⊆close(S))·멱등·단조를 만족하는 closure operator. concurrent 를 가지면 wait 을 파생한다 —
 //   포함관계를 **한 곳에서만** 강제(평평한 원자 표는 그대로). join 뒤·비교 전에 적용한다.
@@ -255,6 +257,7 @@ static const char *effect_name(unsigned e) {
     if (e & EFF_UNSAFE) return "unsafe";
     if (e & EFF_CONCURRENT) return "concurrent";
     if (e & EFF_WAIT) return "wait";
+    if (e & EFF_DEVICE) return "device";
     return e ? "(이름 없는 효과 비트)" : "none";
 }
 
@@ -411,6 +414,58 @@ void low_check_set_absorb_allow(const char *const *names, int n) {
         snprintf(ck_absorb_allow[ck_absorb_nallow], 64, "%s", names[i]);
         ck_absorb_nallow++;
     }
+}
+// ★★ RFC-0140 §8-1 ⓑ (2026-10-22 · 소유자 «추천대로») — **응용은 라이브러리를 쓴다** 를 경고로 지킨다.
+//   빌트인 연산은 표준 라이브러리를 짓는 데 쓰는 것이다(§5). 라이브러리 폴더 밖의 글이 `call_builtin` 을 적으면
+//   한 자리에 한 줄 알린다 — 거절하지 않는다. 몇 자리가 감싸개가 없어서인지를 이 경고로 센 뒤 규칙(ⓒ · ⓓ)을 정한다.
+static void warn_at(low_check_result_t *out, const char *code, const char *msg, const low_cst_t *nd);
+// 표를 베끼지 않는다 — 부르는 쪽(main.c)의 배열은 단위의 파일 수만큼이고 검사가 끝날 때까지 산다. 자르는 표가 없다.
+static const char *const *ck_lib_files;
+static int ck_nlib_files;
+void low_check_set_library_files(const char *const *paths, int n) {
+    ck_lib_files = paths;
+    ck_nlib_files = n;
+}
+static bool ck_is_library_file(const char *file) {
+    for (int i = 0; i < ck_nlib_files; i++) if (ck_lib_files[i] == file) return true;
+    return false;
+}
+static void ck_builtin_app_hit(low_check_result_t *out, const low_cst_t *at, proven_u8str_view_t name) {
+    warn_at(out, "W-BUILTIN-APP", NULL, at);
+    low_diag_t *last = (low_diag_t *)out->diags.data + (out->diags.len - 1);
+    const char *wr = name.size ? low_builtin_wrapper(name) : NULL;
+    if (wr) {
+        const char *dot = strchr(wr, '.');
+        snprintf(last->detail, sizeof last->detail,
+                 "`call_builtin %.*s` outside the standard library — builtin ops are for building the library, and a "
+                 "program calls the library (RFC-0140 §5): `use %.*s .` and call `%s`",
+                 (int)name.size, (const char *)name.ptr, (int)(dot ? dot - wr : 0), wr, wr);
+    } else
+        snprintf(last->detail, sizeof last->detail,
+                 "`call_builtin %.*s` outside the standard library — builtin ops are for building the library, and a "
+                 "program calls the library (RFC-0140 §5). No library op wraps this one yet — that is a gap worth reporting",
+                 (int)name.size, (const char *)name.ptr);
+    last->msg = NULL;
+}
+static void ck_builtin_app_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *k = nd->kids[i];
+        if (k && k->kind == LOW_CST_ATOM && !ck_is_library_file(k->file)) {
+            // `call_builtin <이름>`, 또는 그것을 벗기고 남은 안쪽 철자 `@이름`(권한 잎 — low_using.c `ch_walk`). 저자는 `@` 를 못 적는다.
+            if (veq(k->tok.lex, "call_builtin")) {
+                proven_u8str_view_t nm = { 0 };
+                if (i + 1 < nd->nkids && nd->kids[i + 1]->kind == LOW_CST_ATOM) nm = nd->kids[i + 1]->tok.lex;
+                ck_builtin_app_hit(out, k, nm);
+            } else if (k->tok.lex.size > 1 && k->tok.lex.ptr[0] == (proven_u8)'@') {
+                ck_builtin_app_hit(out, k, (proven_u8str_view_t){ .ptr = k->tok.lex.ptr + 1, .size = k->tok.lex.size - 1 });
+            }
+        }
+        ck_builtin_app_walk(out, k);
+    }
+}
+static void ck_builtin_app(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) ck_builtin_app_walk(out, pr->forms[i]);
 }
 // ★ 이 번역 단위의 모듈 이름 — `module <이름> .` 한 폼에서 읽는다.
 static proven_u8str_view_t ck_module_name(const low_parse_result_t *pr) {
@@ -12205,6 +12260,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_target_intrin(&out, pr);   // ★★★ **unsafe target <iset> — intrinsic 격리 게이트** (RFC-0040 D5)
         ck_profile(&out, pr);         // ★★★ **profile 이 동시성 상한을 게이팅한다** (RFC-0009 §105)
         ck_mmio(&out, pr);            // ★★★ **MMIO 도 권한이다** (RFC-0042 D2/D7)
+        ck_builtin_app(&out, pr);     // ★★ 응용은 라이브러리를 쓴다 (RFC-0140 §8-1 ⓑ)
         ck_reserve(&out, pr);         // ★★★ **예약된 정적 블록도 권한이다** (RFC-0039 §9-2)
         ck_asm(&out, pr);             // ★★★ **인라인 asm = 검증 불가한 탈출구 ⇒ 격리** (RFC-0041)
         ck_option(&out, pr);          // ★★★ **아무도 안 읽는 손잡이는 거짓말이다** (RFC-0036 D5)
@@ -12772,7 +12828,12 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         //       `ck_field_touches_mmio`)을 여기서도 쓴다. 요구와 계수가 **같은 자리에서** 난다.
         //   ☞ *한 사실을 두 곳이 다르게 판정하면 둘 중 하나는 반드시 거짓말이 된다.*
         if (tab[i].form && (ck_volatile_is_device(pr, tab[i].form) || ck_field_touches_mmio(pr, tab[i].form)))
-            used |= EFF_UNSAFE;
+            used |= EFF_UNSAFE | EFF_DEVICE;   // ★ `device` 도 — 요구(E-MMIO-NOEFFECT)와 같은 판정으로 센다(RFC-0150 Q7 ⓒ)
+        // ★ 인터럽트 처리기(`vector N .`)는 장치가 부른다 — `device` 를 요구하므로(E-ISR-EFFECT) 한 것으로도 센다.
+        //   안 그러면 몸이 빈 처리기가 «선언했는데 안 한다» 로 울어 요구와 경고가 서로를 부정한다.
+        if (tab[i].form)
+            for (proven_size_t z = 2; z + 1 < tab[i].form->nkids; z++)
+                if (ck_atom(tab[i].form->kids[z]) && veq(tab[i].form->kids[z]->tok.lex, "vector")) { used |= EFF_DEVICE & tab[i].declared; break; }   // 빠뜨린 것은 E-ISR-EFFECT 가 말한다 — 두 번 말하지 않는다
         // ★ 예약 블록(모듈 가변 전역)을 만지면 `state` 다 — 요구하는 쪽과 같은 판정으로(위 ★★★★★).
         if (tab[i].form && ck_touches_reserved(pr, tab[i].form))
             used |= EFF_STATE;
@@ -12858,11 +12919,19 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 //   대롱거린다(`ir_fail_buf` 가 같은 이유로 같은 자리를 쓴다).
                 warn_at(&out, "W-EFFECT-OVER", NULL, tab[i].body);
                 low_diag_t *last = (low_diag_t *)out.diags.data + (out.diags.len - 1);
+                // ★ 넘친 효과를 **모두** 말한다(2026-10-22) — 첫 하나만 말하면 `unsafe` 가 `device` 를 가렸다.
+                char onames[128]; size_t oo = 0; onames[0] = 0;
+                for (unsigned bit = 1; bit && bit <= EFF_DETACH; bit <<= 1) {
+                    if (!(over & bit)) continue;
+                    int w = snprintf(onames + oo, sizeof onames - oo, "%s`%s`", oo ? ", " : "", low_effect_bit_name(bit));
+                    if (w < 0 || (size_t)w >= sizeof onames - oo) break;
+                    oo += (size_t)w;
+                }
                 snprintf(last->detail, sizeof last->detail,
-                         "this op DECLARES `%s` but never PERFORMS it. A declared effect is a cost "
+                         "this op DECLARES %s but never PERFORMS it. A declared effect is a cost "
                          "the caller must budget for (a pure caller cannot call an `io` op). Drop it, "
                          "or — if a future version will perform it — say so (RFC-0007)",
-                         effect_name(over));
+                         onames);
                 last->msg = NULL;
             }
         }
@@ -12872,7 +12941,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         //   읽는 사람이 «검사된 선언» 으로 알지 않게, 무엇을 믿었는지 말한다.
         if (tab[i].explicit_eff && tab[i].body && (tab[i].declared & EFF_NOPRIM)) {
             char names[96]; size_t no = 0; names[0] = 0;
-            static const unsigned np[] = { EFF_LOCK, EFF_DEVICE, EFF_PAGEFAULT, EFF_BLOCKING, EFF_CANCEL, EFF_DETACH };
+            static const unsigned np[] = { EFF_LOCK, EFF_PAGEFAULT, EFF_BLOCKING, EFF_CANCEL, EFF_DETACH };
             for (size_t b = 0; b < sizeof np / sizeof np[0]; b++) {
                 if (!(tab[i].declared & np[b])) continue;
                 int w = snprintf(names + no, sizeof names - no, "%s`%s`", no ? ", " : "", low_effect_bit_name(np[b]));

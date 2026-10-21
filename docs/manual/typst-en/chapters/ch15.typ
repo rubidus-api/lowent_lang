@@ -57,10 +57,11 @@ An *effect* is an influence an op has on the outside. Authors cannot invent new 
   [`page_fault` · `blocking` · `cancel` · `detach`], [a flow stopping or being cut off --- no primitive produces them yet],
 )
 
-The nine `io`, `alloc`, `heap`, `state`, `panic`, `atomic`, `concurrent`, `wait` and `unsafe` have primitives that actually produce them, and the
-compiler enforces them --- a body that does it must say so, and saying it without doing it is reported. The other six (`lock`, `device`, `page_fault`,
-`blocking`, `cancel`, `detach`) have no primitive yet. They are accepted as declarations and *spread* to callers, but whether the body really does
-it cannot be asked. A word not on the list is rejected.
+The ten `io`, `alloc`, `heap`, `state`, `panic`, `atomic`, `concurrent`, `wait`, `unsafe` and `device` have work that actually produces them, and the
+compiler enforces them --- a body that does it must say so, and saying it without doing it is reported. `device` comes from touching device
+registers and from interrupt handlers (#chref("hardware")). The other five (`lock`, `page_fault`, `blocking`, `cancel`, `detach`) have no primitive
+yet. They are accepted as declarations and *spread* to callers, but whether the body really does it cannot be asked --- `--check` says it took
+them on trust (`W-NOT-YET`). A word not on the list is rejected.
 
 #demo("examples/ch15/undef.low")
 

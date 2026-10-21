@@ -782,6 +782,7 @@ static ty_t env_find(const tc_var_t *env, proven_size_t n, proven_u8str_view_t n
 
 // forward
 static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv);
+static void tc_push_ctx(low_cst_t *const *k, proven_size_t start, proven_size_t n, ty_t decl, ty_t actual);   // RFC-0148 §8-11
 
 // ── RFC-0052 D1: 이항 수치 연산의 피연산자 규칙 ──────────────────────────────
 // 두 피연산자는 ⊑ 로 **비교 가능**해야 한다. 결과 = join(넓은 쪽).
@@ -1250,6 +1251,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t a = tc_infer(c, k[start + 1], env, nenv), b = tc_infer(c, k[start + 2], env, nenv);
                 if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line) | tc_enum_as_num(c, b, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
                 if (a.k == TK_INT && b.k == TK_INT) {
+                    tc_push_ctx(k, start + 1, 1, b, a);   // RFC-0148 §8-11
+                    tc_push_ctx(k, start + 2, 1, a, b);
                     if (a.lit && !b.lit) { return b; }
                     if (b.lit && !a.lit) { return a; }
                     // RFC-0148 S4 — 한쪽의 폭을 모르면(무타입 리터럴을 민 `shl 1 n.` 따위) 아는 쪽의 타입이다 — 하강층의 join 과 같다
@@ -2032,6 +2035,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if ((wr || ch) && n == 3 && !sig_find(c, h)) {
                     ty_t a = tc_infer(c, k[start + 1], env, nenv);
                     ty_t b = tc_infer(c, k[start + 2], env, nenv);
+                    tc_push_ctx(k, start + 1, 1, b, a);   // RFC-0148 §8-11
+                    tc_push_ctx(k, start + 2, 1, a, b);
                     ty_t r = tc_binop(c, a, b, false, k[start]->line);
                     if (!ch) return r;
                     ty_t w = tk(TK_WRAPPED); w.wrap = 1;
@@ -2044,6 +2049,9 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);
                 // RFC-0149 L2 — 굳은 `usize` 와 고정 폭 정수가 셈 · 견줌에서 만났다: 고정 폭 쪽의 식을 댄다(도구가 `cast usize` 로 감싼다)
                 g_cmp_eq = veq(h, "eq") || veq(h, "ne");
+                // RFC-0148 §8-11 — 한쪽이 무타입이면 다른 쪽의 타입을 그 식까지 내려 보낸다(`bit_and h. sub shl 1 n. . 1 . .`)
+                tc_push_ctx(k, start + 1, 1, b, a);
+                tc_push_ctx(k, start + 2, 1, a, b);
                 return tc_binop(c, a, b, cmp, k[start]->line);
             }
             // ★★★ **논리 op 은 두 경로로 들어온다** — `expr` 섬(중위)과 **여기**(전위 호출).
@@ -2096,6 +2104,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
                 tc_reason_t ar = compat(s->params[i], at);
+                tc_push_ctx(k, start + 1 + i, 1, s->params[i], at);   // RFC-0148 §8-11
                 // ★ RFC-0147 (2026-10-12) — 권한 자리에 **다른 종류의 권한**을 댔으면 그 말로 한다(`E-CAP-KIND`). 권한을 받는
                 //   빌트인 연산이 라이브러리 뒤로 가면서, 프로그램이 이 실수를 하는 자리가 잎이 아니라 감싸개의 부름이 됐다.
                 //   전엔 «이름만 다른 같은 표현의 타입» (`E-TYPE-NOMINAL`)이라고 했다 — 맞는 거절에 틀린 설명이었다.
@@ -2275,7 +2284,7 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
 // ★★★ RFC-0148 S4-0 — 마디마다 낸 답을 적는다(재는 도구 · `LOWENT_LIST_TYPES=1`). 같은 마디를 두 번 물으면 **아는 답이 남는다**
 //   (조건 자리의 입 막은 추론과 본 검사가 같은 마디를 본다).
 #define TC_NOTE_CAP (1u << 18)
-static struct { const void *nd; low_tcnote_t t; } *g_note;
+static struct { const void *nd; low_tcnote_t t; bool pushed; } *g_note;
 static int g_note_on = -1;
 static bool g_note_live;    // 이 단위의 검사가 답을 적었는가 — 하강층은 그때만 읽는다
 // ★★★ RFC-0148 S4-2 (2026-10-14 소유자 «검사기 답이 권위») — 답은 **늘** 적는다. 하강층이 그것을 권위로 읽는다(`low_ir.c` 의 `ir_value`).
@@ -2319,6 +2328,8 @@ static void tc_note(const low_cst_t *nd, ty_t t) {
     proven_u32 i = tc_note_slot(nd);
     if (i == TC_NOTE_CAP) return;
     if (g_note[i].nd && g_note[i].t.k && !tc_note_kind(t.k)) return;
+    // RFC-0148 §8-11 — 받는 자리가 내려 준 타입(아래 tc_push_ctx)을 다시 추론한 «무타입» 이 덮지 않는다
+    if (g_note[i].nd && g_note[i].pushed && t.k == TK_INT && (t.lit || !t.bits)) return;
     g_note[i].nd = nd;
     g_note[i].t = (low_tcnote_t){ .k = tc_note_kind(t.k), .bits = t.bits, .nominal = t.nominal, .sign = t.sign, .lit = t.lit,
         .wrap = t.wrap, .pk = t.pk ? tc_note_kind((tk_t)t.pk) : 0, .pbits = t.pbits, .pnom = t.pnom, .psign = t.psign,
@@ -2336,6 +2347,70 @@ static void tc_unk_mark(const low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_ATOM) g_unk_head = nd->tok.lex;
     else if (nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) g_unk_head = nd->kids[0]->tok.lex;
+}
+// ★★★ RFC-0148 §8-11 (2026-10-22 · 소유자 «추천대로») — **받는 자리의 타입을 무타입 리터럴까지 내려 보낸다.**
+//   리터럴은 상대가 타입을 준다(D3). 그런데 리터럴끼리의 셈과 왼쪽이 리터럴인 밀기(`shl 1 n.`)는 받는 자리에 닿을 때까지
+//   타입이 없었고, 하강층은 그 사이를 64 비트로 셈했다 — `u8` 을 내는 op 이 `return shl 1 n. .` 로 256 을, `add 200 100` 으로
+//   300 을 냈다(그 타입에 없는 값). 이제 받는 자리(반환 · 묶기 · 셈의 상대편 · 호출 인자 · `set`)가 정수 타입을 알면 그 타입을
+//   무타입인 식의 마디마다 적는다. 하강층은 그 답을 따르므로(S4-2) 셈이 그 폭에서 일어나고, 넘치면 멈춘다(`E-VM-OVERFLOW` ·
+//   `E-VM-SHIFT`). 밀기는 왼쪽만 받는다 — 오른쪽은 미는 칸 수다.
+static bool tc_lit_int_atom(const low_cst_t *nd) {
+    low_tcnote_t t;
+    return nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_NUMBER && low_tc_note_of(nd, &t) && t.k == 1 && t.lit;
+}
+static bool tc_push_shift(proven_u8str_view_t w) { return veq(w, "shl") || veq(w, "shr") || veq(w, "rotl") || veq(w, "rotr"); }
+static bool tc_push_arith(proven_u8str_view_t w) {
+    return veq(w, "add") || veq(w, "sub") || veq(w, "mul") || veq(w, "div") || veq(w, "mod") || veq(w, "rem") ||
+           veq(w, "bit_and") || veq(w, "bit_or") || veq(w, "bit_xor") || veq(w, "bit_not") || veq(w, "neg") ||
+           veq(w, "min") || veq(w, "max") || veq(w, "wrap_add") || veq(w, "wrap_sub") || veq(w, "wrap_mul") ||
+           veq(w, "sat_add") || veq(w, "sat_sub") || veq(w, "sat_mul");
+}
+// **리터럴로만 된 식**인가 — 정수 리터럴, 피연산자가 모두 그런 셈, 왼쪽이 그런 밀기(오른쪽은 미는 칸 수라 따지지 않는다).
+static bool tc_litexpr_node(const low_cst_t *nd, int depth);
+static bool tc_litexpr_run(low_cst_t *const *k, proven_size_t start, proven_size_t n, int depth) {
+    if (!n || depth > 48) return false;
+    if (n == 1) return tc_litexpr_node(k[start], depth + 1);
+    const low_cst_t *h = k[start];
+    if (h->kind != LOW_CST_ATOM) return false;
+    if (tc_push_shift(h->tok.lex)) return n == 3 && tc_litexpr_node(k[start + 1], depth + 1);
+    if (!tc_push_arith(h->tok.lex)) return false;
+    for (proven_size_t j = 1; j < n; j++) if (!tc_litexpr_node(k[start + j], depth + 1)) return false;
+    return true;
+}
+static bool tc_litexpr_node(const low_cst_t *nd, int depth) {
+    if (!nd || depth > 48) return false;
+    while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    if (nd->kind == LOW_CST_ATOM) return tc_lit_int_atom(nd);
+    if (nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) return tc_litexpr_run(nd->kids, 0, nd->nkids, depth + 1);
+    return false;
+}
+static void tc_push_note(const low_cst_t *nd, ty_t T) {
+    tc_note(nd, T);
+    proven_u32 i = tc_note_slot(nd);
+    if (i < TC_NOTE_CAP && g_note[i].nd == nd) g_note[i].pushed = true;
+}
+static void tc_push_node(const low_cst_t *nd, ty_t T, int depth);
+static void tc_push_run(low_cst_t *const *k, proven_size_t start, proven_size_t n, ty_t T, int depth) {
+    if (!n || depth > 48) return;
+    if (n == 1) { tc_push_node(k[start], T, depth + 1); return; }
+    const low_cst_t *h = k[start];
+    if (h->kind != LOW_CST_ATOM) return;
+    if (tc_push_shift(h->tok.lex)) { if (n >= 2) tc_push_node(k[start + 1], T, depth + 1); return; }
+    if (tc_push_arith(h->tok.lex)) for (proven_size_t j = 1; j < n; j++) tc_push_node(k[start + j], T, depth + 1);
+}
+static void tc_push_node(const low_cst_t *nd, ty_t T, int depth) {
+    if (!nd || depth > 48 || !tc_litexpr_node(nd, 0)) return;   // 이름 · 이미 타입이 있는 식은 제 타입이 이긴다
+    const low_cst_t *in = nd;
+    while (in->kind == LOW_CST_GROUP && in->nkids == 1) in = in->kids[0];
+    if (in->kind == LOW_CST_FORM || in->kind == LOW_CST_GROUP) tc_push_run(in->kids, 0, in->nkids, T, depth);
+    tc_push_note(in, T);
+    if (nd != in) tc_push_note(nd, T);
+}
+static void tc_push_ctx(low_cst_t *const *k, proven_size_t start, proven_size_t n, ty_t decl, ty_t actual) {
+    if (!low_tc_notes_on() || decl.k != TK_INT || !decl.bits || decl.rk) return;
+    if (actual.k != TK_INT || !tc_litexpr_run(k, start, n, 0)) return;
+    ty_t T = decl; T.lit = false; T.has_rng = false; T.is_mut = false;
+    tc_push_run(k, start, n, T, 0);
 }
 static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv) {
     ty_t t = tc_infer_impl(c, nd, env, nenv);
@@ -2854,6 +2929,7 @@ static void tc_check_return(tc_ctx_t *c, low_cst_t *const *kids, proven_size_t f
     ty_t actual = tc_infer_run(c, kids, from, n, env, nenv);
     tc_flag_types(c, compat(ret, actual),
             "E-TYPE-RETURN", "the returned value does not match the op's `output`", ret, actual, line);
+    tc_push_ctx(kids, from, n, ret, actual);   // RFC-0148 §8-11
 }
 
 static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, proven_size_t *nenv, ty_t ret) {
@@ -2900,6 +2976,8 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                             "it is empty: add `else return … .` (or `else panic \"…\" .`), or declare the binding `option …`/`result …` "
                             "and check it later (RFC-0135 §4.2)"
                           : "the initializer's type does not match the declared type", declared, actual, f->line);
+            if (declared.rk == 0 && !unresolved_use && be + 1 < f->nkids)
+                tc_push_ctx(f->kids, be + 1, f->nkids - be - 1, declared, actual);   // RFC-0148 §8-11
             // ★★★ **읽기 전용 줄을 쓸 수 있는 이름으로 다시 묶지 못한다** (2026-10-11 · RFC-0144 의 `row` 를 짓다가 찾았다).
             //   `let w mut slice u32 g. .` · `let w mut slice u32 subslice g. 0 4 . .` 가 `g` 가 `let` 이거나 공유 입력이어도
             //   통과했고, `set idx w. 0 . 99 .` 가 부른 쪽의 `let` 나열을 바꿨다(VM · 네이티브 모두 99). `set` 의 자리는 뿌리까지
@@ -3163,6 +3241,8 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 ty_t core = vt; core.rk = 0;   // rk==2: check against the referent type
                 tc_flag(c, compat(core, actual),
                         "E-TYPE-SET", "assigned value type does not match variable", f->line);
+                if (to + 1 < f->nkids) tc_push_ctx(f->kids, to + 1, f->nkids - to - 1, core, actual);   // RFC-0148 §8-11
+                else tc_push_ctx(f->kids, 2, f->nkids - 2, core, actual);
             }
         } else {
             // ★ `store <dst> <idx> <vec>`·`store_masked <dst> <idx> <vec> <mask>` (RFC-0040) — dst 는 **mut** 로

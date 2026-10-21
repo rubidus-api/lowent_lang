@@ -1273,6 +1273,9 @@ const char *low_builtin_wrapper(proven_u8str_view_t name) {
         { "sin", "math.sin" }, { "cos", "math.cos" }, { "exp", "math.exp" }, { "log", "math.log" },
         { "pow", "math.pow" }, { "fmod", "math.fmod" },
         { "sum_seq", "math.sum_seq" }, { "sum_neumaier", "math.sum_neumaier" },
+        { "dir_make", "files.make_dir" }, { "path_remove", "files.remove" }, { "path_rename", "files.rename" },   // RFC-0140 §8-2
+        { "proc_spawn", "process.launch" }, { "proc_read", "process.read_output" }, { "proc_poll", "process.check" },
+        { "proc_wait", "process.wait_exit" }, { "sha256", "hash.sha256" },
     };
     for (proven_size_t i = 0; i < sizeof WR / sizeof WR[0]; i++) if (veq(name, WR[i].w)) return WR[i].lib;
     return NULL;

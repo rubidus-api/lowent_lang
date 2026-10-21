@@ -46,6 +46,10 @@ const char *low_effect_bit_name(unsigned bit);
 void low_check_set_absorb_allow(const char *const *names, int n);
 // RFC-0135 S3 — `--stack-report`: 진입 op · 태스크마다 가장 깊은 길의 틀 안 나열 바이트와 예산을 찍는다.
 void low_check_set_stack_report(bool on);
+// RFC-0140 §8-1 ⓑ — 표준 라이브러리 폴더에서 온 파일들(노드의 `file` 포인터와 같은 값). 그 밖의 파일이 `call_builtin` 을
+//   적으면 `W-BUILTIN-APP` 를 낸다. 주지 않으면(0 개) 아무 파일도 라이브러리로 치지 않는다.
+//   배열을 베끼지 않으므로 검사가 끝날 때까지 살아 있어야 한다.
+void low_check_set_library_files(const char *const *paths, int n);
 
 [[nodiscard]] low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *pr);
 

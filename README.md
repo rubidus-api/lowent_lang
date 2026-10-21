@@ -1,4 +1,4 @@
-[한국어](README.ko.md) | **English** — **Lowent v1.13.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.13.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+[한국어](README.ko.md) | **English** — **Lowent v1.14.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.14.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent
 
@@ -162,13 +162,13 @@ This buys some unusual properties. The whole grammar can be highlighted with pla
 
 ## Where it stands today
 
-Lowent is not just a design document. It grows together with a working compiler (compiler 1.13.0, language revision 1.13).
+Lowent is not just a design document. It grows together with a working compiler (compiler 1.14.0, language revision 1.14).
 
 - **The compiler, `lowentc`,** is written in C23. Its only external dependency is one vendored library (`proven_c_lib`, MIT). Native code goes out as C and is built by your system's C compiler. Targets: `x86_64`, `arm64`, `riscv64`, `cortex_m` and `mips_be`.
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.
 - **Caught at run time:** bounds checks where nothing was proven, overflow, and contract violations. The VM and native code stop at the same place with the same diagnostic.
 - **Proven:** memory safety for the sequential fragment (no use-after-free, no dangling references) and freedom from data races are machine-checked in Coq, with no axioms and no `admit`. These proofs are about the language's **model**. Whether the implementation follows the model is checked by the regression suite and bounded model checking. What has *not* been proven gets its own chapter in the manual.
-- **Scale:** 2,199 regression checks and 71 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
+- **Scale:** 2,207 regression checks and 71 standard library modules. Every example in the manual is run on both back ends and must produce the same output.
 
 ## What you give up
 

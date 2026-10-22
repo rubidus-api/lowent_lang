@@ -75,6 +75,7 @@ static const iv_t IV_LEN = { 0, INT64_MAX, 0 };   // 길이는 결코 음수가 
 static iv_t iv_of(proven_i64 v) { return (iv_t){ v, v }; }
  iv_t iv_ty(ityp_t t) {
     if (!t.known || t.flt || !t.bits) return IV_TOP;
+    if (t.bits > 64) return (iv_t){ INT64_MIN, INT64_MAX, 1 };   // ★ RFC-0151 — 128 비트 값은 64 비트 구간에 안 든다(넓다고 표시 · 증명하지 않는다)
     if (t.has_rng) return (iv_t){ t.rlo, t.rhi };   // ★ RFC-0055: 범위가 폭보다 정확하다
     // ★ 64비트 무부호의 hi 는 **자른 값**이다 — 그렇다고 표시한다(위 `wide` 주석).
     return (iv_t){ ity_lo(t.bits, t.sign),
@@ -83,6 +84,7 @@ static iv_t iv_of(proven_i64 v) { return (iv_t){ v, v }; }
 }
 static bool iv_in(iv_t v, ityp_t t) {
     if (!t.known || t.flt || !t.bits) return false;
+    if (t.bits > 64) return false;   // ★ RFC-0151 — 128 비트 셈은 이 분석이 증명하지 않는다(검사가 남는다)
     if (t.bits >= 64) {
         // ★★★ **자른 상계에 기대지 않았다면** 64비트도 결론할 수 있다 (2026-08-17).
         //   · `wide` 면 hi 가 타입에서 잘라 온 것이라 못 믿는다 ⇒ 거부(옛 동작).

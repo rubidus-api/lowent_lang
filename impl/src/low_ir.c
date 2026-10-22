@@ -287,10 +287,10 @@ static const low_target_t IR_TARGETS[] = {
     //    보수적으로 잡는다: 이 수를 넘는 슬라이스는 만들 수 없다는 **약속**이므로,
     //    크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다.
     //    조절은 **이 줄 하나**다(소유자 요구: "차후 조절 가능").
-    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096 },   // SSE2 baseline = 128-bit
-    { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096 },   // NEON mandatory (ARMv8) = 128-bit
+    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true },   // SSE2 baseline = 128-bit
+    { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true },   // NEON mandatory (ARMv8) = 128-bit
     { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0 },   // freestanding: no_heap · no_float · SIMD 없음
-    { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096 },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
+    { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
     { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
     // ★★★★★ **Windows — 크로스 빌드까지만** (2026-08-19, 소유자 결정).
     //   RFC-0069 §6.7 의 승격 조건 넷 중 ①②만 연다: 타깃이 있고, `--emit-c` 가 그 타깃에서
@@ -299,7 +299,7 @@ static const low_target_t IR_TARGETS[] = {
     //   ☞ 그래서 이 타깃은 *"Windows 를 지원한다"* 가 아니라 *"POSIX 를 안 쓰는 프로그램이
     //     Windows 로 건너간다"* 를 뜻한다. POSIX 전용 잎은 **컴파일 시 거절**한다 —
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
-    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096 },
+    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true },
     // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
     //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
@@ -527,15 +527,19 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             case IRW_FCONST:
                 res = ITY_UNK;   // D3: 부동 리터럴도 **comptime 무타입** — 상대 피연산자가 타입을 준다
                 break;
+            case IRW_MK128:
+                res = ITY_UNK;   // ★ 리터럴처럼 무타입으로 둔다 — 검사층이 그 마디에 적은 128 비트 타입(부호까지)을 ir_value 가 채운다
+                break;
             // ★★★ RFC-0148 S1 (2026-10-12 소유자 «모두 추천대로») — `len` 은 u64 이고(검사층의 답과 같다), `cast` · `widen` · `narrow` 의 결과는 대상 타입이다.
             case IRW_LEN:
                 res = (ityp_t){ true, low_ir_target()->addr_bits, false, false, false, 0, 0 };   // RFC-0149 L5 — `usize`
                 break;
             case IRW_CAST:
-                if ((a & 0xff) >= 1 && (a & 0xff) <= 8)
+                if (((a & 0xff) >= 1 && (a & 0xff) <= 8) || (a & 0xff) == 16)
                     res = (ityp_t){ true, (proven_u8)((a & 0xff) * 8), (a & IR_SGN_BIT) != 0, false, false, 0, 0 };
                 // RFC-0149 §6.12 — 원천이 정수이고 부호를 알면 싣는다(정수로 가는 변환에만 뜻이 있다).
                 if ((a & 0xff) && ops[0].known && !ops[0].flt && ops[0].bits) a |= ops[0].sign ? IR_SRC_SGN : IR_SRC_UNS;
+                if (ops[0].known && !ops[0].flt && ops[0].bits == 128) a |= IR_SRC_W128 | (ops[0].sign ? IR_SRC_SGN : IR_SRC_UNS);   // ★ RFC-0151 — f64 로 가는 변환도
                 break;
             case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD:
                 res = ity_join(ops[0], ops[1]);
@@ -744,6 +748,8 @@ static ityp_t ity_of_word(proven_u8str_view_t v) {
     if (veq(v, "i32"))   return (ityp_t){ true, 32, true, false, false, 0, 0 };
     if (veq(v, "u64"))   return (ityp_t){ true, 64, false, false, false, 0, 0 };
     if (veq(v, "i64"))   return (ityp_t){ true, 64, true, false, false, 0, 0 };
+    if (veq(v, "u128"))  return (ityp_t){ true, 128, false, false, false, 0, 0 };   // ★ RFC-0151 — 대상 · 자리는 검사층(ck_int128)이 정한다
+    if (veq(v, "i128"))  return (ityp_t){ true, 128, true, false, false, 0, 0 };
     if (veq(v, "usize")) return (ityp_t){ true, low_ir_target()->addr_bits, false, false, false, 0, 0 };   // RFC-0149 L5 — 폭은 대상의 주소 폭
     if (veq(v, "idiff")) return (ityp_t){ true, low_ir_target()->addr_bits, true, false, false, 0, 0 };
     if (veq(v, "f32"))   return (ityp_t){ true, 32, false, true, false, 0, 0 };   // D9: f32 는 f32 정밀도
@@ -1742,6 +1748,33 @@ bool low_ir_struct_has_enumlayout(const low_ir_t *ir, proven_size_t si) {
 }
 
 // integer literal → value (dec/hex/bin, '_' separators; floats are unsupported here)
+// ★ RFC-0151 — 정수 리터럴을 128 비트 2 의 보수(아래 · 위 64 비트)로 읽는다. 돌려주는 값: -1 정수가 아니다 · 0 `u64` · `i64` 안에 든다 ·
+//   1 64 비트를 넘는다. 128 비트 정수가 없는 처리기에서는 -1(넓은 수를 안 다룬다).
+int ir_int_lit128(proven_u8str_view_t v, proven_u64 *lo, proven_u64 *hi) {
+#if defined(__SIZEOF_INT128__)
+    proven_size_t i = 0; unsigned __int128 val = 0; proven_u64 base = 10; bool neg = false;
+    if (i < v.size && (v.ptr[i] == '-' || v.ptr[i] == '+')) { neg = v.ptr[i] == '-'; i++; if (i >= v.size) return -1; }
+    if (i + 1 < v.size && v.ptr[i] == '0' && (v.ptr[i + 1] == 'x' || v.ptr[i + 1] == 'X')) { base = 16; i += 2; }
+    else if (i + 1 < v.size && v.ptr[i] == '0' && (v.ptr[i + 1] == 'b' || v.ptr[i + 1] == 'B')) { base = 2; i += 2; }
+    for (; i < v.size; i++) {
+        char ch = (char)v.ptr[i];
+        if (ch == '_') continue;
+        proven_u64 d;
+        if (ch >= '0' && ch <= '9') d = (proven_u64)(ch - '0');
+        else if (base == 16 && ch >= 'a' && ch <= 'f') d = (proven_u64)(ch - 'a' + 10);
+        else if (base == 16 && ch >= 'A' && ch <= 'F') d = (proven_u64)(ch - 'A' + 10);
+        else return -1;
+        if (d >= base) return -1;
+        val = val * base + d;
+    }
+    const int wide = (val >> 64) != 0 || (neg && val > ((unsigned __int128)1 << 63));
+    if (neg) val = (unsigned __int128)0 - val;
+    *lo = (proven_u64)val; *hi = (proven_u64)(val >> 64);
+    return wide;
+#else
+    (void)v; (void)lo; (void)hi; return -1;
+#endif
+}
  bool ir_int_lit(proven_u8str_view_t v, proven_i64 *out) {
     proven_size_t i = 0; proven_u64 val = 0, base = 10; bool neg = false;
     // ★ **부호 있는 정수 리터럴** — 렉서는 `-5` 를 한 NUMBER 토큰으로 낸다. 이 부호를 안 봐서
@@ -3444,6 +3477,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         proven_u8str_view_t tw = k[*pos]->tok.lex;
                         proven_i64 meta;
                         if (veq(tw, "f32") || veq(tw, "f64")) meta = 0;
+                        else if (veq(tw, "u128") || veq(tw, "i128")) meta = 16 | NW[bi].pol | (veq(tw, "i128") ? IR_SGN_BIT : 0);   // ★ RFC-0151 — 16 바이트
                         else {
                             proven_u8 sz = ir_field_size(tw);
                             if (!sz) { ir_fail(c, "E-IR-UNDEF", "widen/narrow target must be a sized scalar", nd->line); return; }
@@ -3569,6 +3603,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 }
                 proven_i64 meta;
                 if (veq(tw, "f32") || veq(tw, "f64")) meta = 0;
+                else if (veq(tw, "u128") || veq(tw, "i128")) meta = 16 | (veq(tw, "i128") ? IR_SGN_BIT : 0);   // ★ RFC-0151
                 else {
                     proven_u8 sz = ir_field_size(tw);
                     bool tsign = ity_of_word(tw).sign;
@@ -5267,6 +5302,22 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
             }
             if (nd->tok.kind == LOW_TOK_NUMBER) {
                 proven_i64 v;
+                // ★ RFC-0151 — 받는 자리가 128 비트이면(검사층이 그 마디에 적은 답) 128 비트 상수로 싣는다: 아래 64 비트를 밀고
+                //   `w128.make` 가 위 64 비트(부호까지)를 붙인다. `u64` 를 넘는 리터럴이 다른 자리에 오면 거절한다(조용히 감지 않는다).
+                {
+                    low_tcnote_t tn; proven_u64 lo = 0, hi = 0;
+                    const bool w128 = low_tc_note_of(nd, &tn) && tn.k == 1 && tn.bits == 128;
+                    const int big = ir_int_lit128(nd->tok.lex, &lo, &hi);
+                    if (w128 && big >= 0) { ir_emit(c, IRW_CONST, (proven_i64)lo); ir_emit(c, IRW_MK128, (proven_i64)hi); return; }
+                    // 검사층의 답이 없는 길(`--ir` · `--why-slow` · `--unchecked`)에서는 64 비트를 넘는 리터럴이 설 곳이 128 비트 자리뿐이므로
+                    //   그대로 128 비트 상수로 싣는다. (작은 리터럴의 128 비트 자리는 그 길에서는 64 비트로 남는다 — 검사를 거친 길만 언어다.)
+                    if (big > 0 && !low_tc_notes_live()) { ir_emit(c, IRW_CONST, (proven_i64)lo); ir_emit(c, IRW_MK128, (proven_i64)hi); return; }
+                    if (big > 0) {
+                        ir_fail(c, "E-LIT-RANGE", "this literal is wider than 64 bits, and the place it goes to is not a 128-bit "
+                                "integer (`u128` / `i128`) — it has no value there (RFC-0151)", nd->line);
+                        return;
+                    }
+                }
                 if (ir_int_lit(nd->tok.lex, &v)) { ir_emit(c, IRW_CONST, v); return; }
                 double dv = low_num_to_double(nd->tok.lex);  // ★ 구분자 `_` 를 거른다(한 벌)
                 proven_i64 bits;
@@ -5825,6 +5876,7 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         LOW_BUILTINS(X)
 #undef X
         case IRW_CONST: return 0;
+        case IRW_MK128: return 1;                              // ★ RFC-0151 — 아래 64 비트를 받아 128 비트 정수를 낸다
         case IRW_LOAD: return 0;
         case IRW_STR: return 0;
         case IRW_REF: return 0;
@@ -6215,7 +6267,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_SHL: return "shl"; case IRW_SHR: return "shr";
         case IRW_WSHL: return "wrap.shl"; case IRW_WSHR: return "wrap.shr";
         case IRW_ROTL: return "rotl"; case IRW_ROTR: return "rotr";
-        case IRW_CLMULLO: return "clmul.lo"; case IRW_CLMULHI: return "clmul.hi"; case IRW_MULHI: return "mul.hi";
+        case IRW_CLMULLO: return "clmul.lo"; case IRW_CLMULHI: return "clmul.hi"; case IRW_MULHI: return "mul.hi"; case IRW_MK128: return "w128.make";
         case IRW_POPCNT: return "count.ones"; case IRW_CLZ: return "leading.zeros";
         case IRW_CTZ: return "trailing.zeros"; case IRW_BSWAP: return "byte.swap";
         case IRW_ALOAD: return "atomic.load"; case IRW_ASTORE: return "atomic.store";

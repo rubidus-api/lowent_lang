@@ -761,7 +761,7 @@ static bool dt_in(proven_u8str_view_t v, const char *const *set) {
     for (proven_size_t i = 0; set[i]; i++) if (us_eq(v, set[i])) return true;
     return false;
 }
-static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64",
+static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","f32","f64",
                                        "void","self","str","string","char","byte","bytes_view", NULL };
 static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero","task","chan",   /* RFC-0148 S5 */
                                        
@@ -1130,7 +1130,7 @@ static low_cst_t *dt_mk(dt_ctx_t *c, low_cst_kind_t kind, const low_cst_t *model
 // k[ts..te) 타입의 0 을 out[*n..] 에 덧붙인다. 0 이 없으면 false.
 static bool dt_zero(dt_ctx_t *c, low_cst_t *const *k, proven_size_t ts, proven_size_t te, const low_cst_t *model,
                     low_cst_t **out, proven_size_t cap, proven_size_t *n, int depth) {
-    static const char *const INTS[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","byte", NULL };
+    static const char *const INTS[] = { "u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","byte", NULL };
     if (depth > 8 || ts >= te || *n + 2 > cap || !us_atom(k[ts]) || k[ts]->tok.kind != LOW_TOK_IDENT) return false;
     proven_u8str_view_t w = k[ts]->tok.lex;
     if (te == ts + 1 && dt_in(w, INTS)) { out[(*n)++] = dt_word(c, model, "0"); return true; }
@@ -2033,7 +2033,7 @@ static const low_cst_t *lr_struct_block(us_ctx_t *c, proven_u8str_view_t ty) {
     return NULL;
 }
 static bool lr_scalar_word(proven_u8str_view_t w) {
-    static const char *S[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64","bool" };
+    static const char *S[] = { "u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","f32","f64","bool" };
     for (proven_size_t i = 0; i < sizeof S / sizeof S[0]; i++) if (us_eq(w, S[i])) return true;
     return false;
 }

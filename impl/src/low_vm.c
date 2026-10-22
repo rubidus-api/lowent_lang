@@ -331,6 +331,15 @@ static bool bstk_use(vmframe_t *fr, proven_u8 slot, proven_u32 tag, bool write) 
 }
 
 static vmv_t vmv_int(proven_i64 x) { return (vmv_t){ .tag = VMV_INT, .i = x }; }
+// ★★ RFC-0151 Q2 ㉠ (2026-10-22) — **128 비트 정수는 값 칸의 빈자리에 위 절반을 든다**: 정수 값은 `i` 만 쓰고 `n` 이 비어 있었다(늘 0).
+//   그래서 칸 크기가 그대로이고, 64 비트 이하의 값은 위 절반이 0 인 채로 지나간다. 128 비트 값은 넓히기(`widen u128`) · 128 비트 상수
+//   (`w128.make`) · 128 비트 셈만이 낸다 — 검사층이 다른 폭과 섞는 것을 막으므로(E-TYPE-WIDTH) 위 절반을 짐작할 자리가 없다.
+#if defined(__SIZEOF_INT128__)
+typedef unsigned __int128 vm_u128; typedef __int128 vm_i128;
+static_assert(sizeof(proven_size_t) >= 8, "the upper half of a 128-bit integer lives in the 64-bit size slot");
+static vmv_t vmv_w(vm_u128 v) { return (vmv_t){ .tag = VMV_INT, .i = (proven_i64)(proven_u64)v, .n = (proven_size_t)(proven_u64)(v >> 64) }; }
+static vm_u128 vmv_wv(vmv_t v) { return ((vm_u128)(proven_u64)v.n << 64) | (proven_u64)v.i; }
+#endif
 static double vmv_f(vmv_t v) { double d; memcpy(&d, &v.i, 8); return d; }
 static vmv_t vmv_flt(double d) { vmv_t v = { .tag = VMV_FLT }; memcpy(&v.i, &d, 8); return v; }
 
@@ -1181,6 +1190,182 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
     return true;
 }
 
+// ★★ RFC-0151 — 128 비트 정수의 낱말 하나를 돈다. 돌려주는 값: -1 이 낱말은 128 비트가 아니다(평소 길로) · 0 멈춤(진단을 냈다) · 1 끝.
+//   뜻은 64 비트 판과 같다: 넘치면 멈춤 · `wrap_*` 감기 · `sat_*` 포화 · `chk_*` 값으로 · `div` 는 0 쪽으로 자르고 `mod` 는 제수의 부호 ·
+//   시프트는 폭(128) 이상이면 멈춤 · 부호 있는 오른쪽 시프트는 산술.
+static bool vm_is_w128(const low_ir_ins_t *in) {
+    if (in->w == IRW_MK128) return true;
+    if (in->w == IRW_CAST) return (in->a & 0xff) == 16 || (in->a & IR_SRC_W128);
+    switch (in->w) {
+        case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD: case IRW_NEG:
+        case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE:
+        case IRW_BAND: case IRW_BOR: case IRW_BXOR: case IRW_BNOT: case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
+        case IRW_ROTL: case IRW_ROTR: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
+            return (in->a & IR_TY_KNOWN) && (in->a & 0xff) == 128 && !(in->a & IR_TY_FLT);
+        default: return false;
+    }
+}
+static int vm_w128_step(vm_ctx_t *vm, const low_ir_ins_t *in, vmv_t *stack, proven_size_t *spp) {
+#if defined(__SIZEOF_INT128__)
+    proven_size_t sp = *spp;
+    const vm_u128 UMAX = ~(vm_u128)0;
+    const vm_i128 IMAX = (vm_i128)(UMAX >> 1), IMIN = -IMAX - 1;
+    #define W128_BOX(val_) do { if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted"); return 0; } \
+        vm->boxes[vm->nbox] = (val_); stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ }; } while (0)
+    if (in->w == IRW_MK128) {
+        if (sp < 1 || stack[sp - 1].tag != VMV_INT) return 0;
+        stack[sp - 1] = vmv_w(((vm_u128)(proven_u64)in->a << 64) | (proven_u64)stack[sp - 1].i);
+        return 1;
+    }
+    if (in->w == IRW_CAST) {
+        if (sp < 1) return 0;
+        vmv_t v = stack[--sp];
+        const bool src_w = (in->a & IR_SRC_W128) != 0, src_sg = (in->a & IR_SRC_SGN) != 0;
+        if ((in->a & 0xff) == 0) {   // → f64
+            if (v.tag != VMV_INT) return 0;
+            vm_u128 u = vmv_wv(v);
+            stack[sp++] = vmv_flt(src_sg ? (double)(vm_i128)u : (double)u);
+            *spp = sp; return 1;
+        }
+        // 원천의 참값을 부호 있는 129 비트로 본다: (음수인가, 크기)
+        bool neg = false; vm_u128 mag = 0, raw = 0;
+        if (v.tag == VMV_FLT) {
+            double dv = vmv_f(v);
+            if (!(dv == dv) || dv >= 3.4028236692093846e38 || dv <= -1.7014118346046923e38) { vm_diag(vm->diags, "E-VM-CAST", "value does not fit the target width"); return 0; }
+            neg = dv < 0; mag = (vm_u128)(neg ? -dv : dv); raw = neg ? (vm_u128)0 - mag : mag;
+        } else if (v.tag == VMV_INT) {
+            if (src_w) raw = vmv_wv(v);
+            else raw = src_sg ? (vm_u128)(vm_i128)v.i : (vm_u128)(proven_u64)v.i;   // 64 비트 원천 — 부호를 늘리거나 0 을 채운다
+            neg = src_sg && (vm_i128)raw < 0;
+            mag = neg ? (vm_u128)0 - raw : raw;
+        } else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return 0; }
+        const proven_u8 nb = (proven_u8)((in->a & 0xff) * 8);
+        const bool nsign = (in->a & IR_SGN_BIT) != 0;
+        // 대상의 범위: 부호 없음 [0, 2^nb − 1] · 부호 있음 [−2^(nb−1), 2^(nb−1) − 1]
+        const vm_u128 hi = nsign ? (nb >= 128 ? (vm_u128)IMAX : (((vm_u128)1 << (nb - 1)) - 1)) : (nb >= 128 ? UMAX : (((vm_u128)1 << nb) - 1));
+        const vm_u128 lomag = nsign ? (nb >= 128 ? (vm_u128)IMAX + 1 : ((vm_u128)1 << (nb - 1))) : 0;   // 음수 쪽 크기 한도
+        const bool fits = neg ? (nsign && mag <= lomag) : (mag <= hi);
+        vm_u128 out;
+        if (fits) out = raw;
+        else if (in->a & IR_POL_CHK) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; *spp = sp; return 1; }
+        else if (in->a & IR_POL_WRAP) out = raw;   // 아래 비트를 남긴다(아래에서 폭으로 자른다)
+        else if (in->a & IR_POL_SAT) out = neg ? (nsign ? (vm_u128)0 - lomag : 0) : hi;
+        else {
+            vm_diag(vm->diags, (in->a & IR_POL_PROVEN) ? "E-VM-ANALYSIS" : "E-VM-CAST",
+                    (in->a & IR_POL_PROVEN) ? "interval analysis claimed this narrowing always fits, but it did not"
+                                            : "value does not fit the target width (use narrow_wrap / narrow_sat / narrow_try)");
+            return 0;
+        }
+        vmv_t r;
+        if (nb >= 128) r = vmv_w(out);
+        else {   // 64 비트 이하 — 폭으로 자르고 부호를 늘린 64 비트 칸
+            proven_u64 m = nb >= 64 ? ~0ull : ((1ull << nb) - 1), lo = (proven_u64)out & m;
+            if (nsign && nb < 64 && (lo >> (nb - 1)) & 1ull) lo |= ~m;
+            r = vmv_int((proven_i64)lo);
+        }
+        if (fits && (in->a & IR_POL_CHK)) { W128_BOX(r); *spp = sp; return 1; }
+        stack[sp++] = r; *spp = sp; return 1;
+    }
+    const bool sg = (in->a & IR_TY_SIGNED) != 0;
+    // 하나를 받는 낱말
+    if (in->w == IRW_NEG || in->w == IRW_BNOT || in->w == IRW_POPCNT || in->w == IRW_CLZ || in->w == IRW_CTZ || in->w == IRW_BSWAP) {
+        if (sp < 1 || stack[sp - 1].tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "a 128-bit operation needs an integer"); return 0; }
+        vm_u128 x = vmv_wv(stack[sp - 1]), r = 0;
+        switch (in->w) {
+            case IRW_NEG:
+                if ((!sg && x != 0) || (sg && (vm_i128)x == IMIN)) { vm_diag(vm->diags, "E-VM-OVERFLOW", "neg overflow: the negated value does not fit the declared width"); return 0; }
+                r = (vm_u128)0 - x; break;
+            case IRW_BNOT: r = ~x; break;
+            case IRW_POPCNT: { vm_u128 t = x; while (t) { r += t & 1; t >>= 1; } break; }
+            case IRW_CTZ: if (!x) r = 128; else while (!((x >> r) & 1)) r++; break;
+            case IRW_CLZ: if (!x) r = 128; else { int k = 127; while (k >= 0 && !((x >> k) & 1)) { r++; k--; } } break;
+            case IRW_BSWAP: for (int b = 0; b < 16; b++) r |= ((x >> (8 * b)) & 0xff) << (8 * (15 - b)); break;
+            default: break;
+        }
+        stack[sp - 1] = vmv_w(r);
+        return 1;
+    }
+    if (sp < 2) return 0;
+    vmv_t bv = stack[--sp], av = stack[--sp];
+    if (av.tag != VMV_INT || bv.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "a 128-bit operation needs integers"); return 0; }
+    vm_u128 a = vmv_wv(av), b = vmv_wv(bv), r = 0;
+    switch (in->w) {
+        case IRW_LT: stack[sp++] = vmv_int(sg ? (vm_i128)a <  (vm_i128)b : a <  b); *spp = sp; return 1;
+        case IRW_LE: stack[sp++] = vmv_int(sg ? (vm_i128)a <= (vm_i128)b : a <= b); *spp = sp; return 1;
+        case IRW_GT: stack[sp++] = vmv_int(sg ? (vm_i128)a >  (vm_i128)b : a >  b); *spp = sp; return 1;
+        case IRW_GE: stack[sp++] = vmv_int(sg ? (vm_i128)a >= (vm_i128)b : a >= b); *spp = sp; return 1;
+        case IRW_BAND: r = a & b; break;
+        case IRW_BOR:  r = a | b; break;
+        case IRW_BXOR: r = a ^ b; break;
+        case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR: case IRW_ROTL: case IRW_ROTR: {
+            proven_i64 n = bv.i;   // 옮기는 양은 64 비트 칸의 수다
+            if (in->w == IRW_SHL || in->w == IRW_SHR) {
+                if (n < 0 || n >= 128) {
+                    vm_diag(vm->diags, "E-VM-SHIFT", "the shift amount is not smaller than the type's width (128). Here it is a CONTRACT: it traps. "
+                            "(Want the masking? Say so by name: `wrap_shl` / `wrap_shr`.)");
+                    return 0;
+                }
+            }
+            unsigned k = (unsigned)((proven_u64)n & 127);
+            if (in->w == IRW_ROTL || in->w == IRW_ROTR) {
+                k = (unsigned)(((n % 128) + 128) % 128);
+                r = !k ? a : in->w == IRW_ROTL ? ((a << k) | (a >> (128 - k))) : ((a >> k) | (a << (128 - k)));
+            } else if (in->w == IRW_SHL || in->w == IRW_WSHL) r = a << k;
+            else r = sg ? (vm_u128)((vm_i128)a >> k) : (a >> k);
+            break;
+        }
+        case IRW_ADD: case IRW_SUB: case IRW_MUL: {
+            const proven_i64 pol = in->a & IR_POL_MASK;
+            bool ovf;
+            if (sg) {
+                vm_i128 e; vm_i128 x = (vm_i128)a, y = (vm_i128)b;
+                ovf = in->w == IRW_ADD ? __builtin_add_overflow(x, y, &e) : in->w == IRW_SUB ? __builtin_sub_overflow(x, y, &e) : __builtin_mul_overflow(x, y, &e);
+                r = (vm_u128)e;
+                if (ovf && (pol & IR_POL_SAT)) {
+                    bool up = in->w == IRW_MUL ? ((x < 0) == (y < 0)) : in->w == IRW_ADD ? x > 0 : x > y;
+                    r = up ? (vm_u128)IMAX : (vm_u128)IMIN;
+                }
+            } else {
+                ovf = in->w == IRW_ADD ? __builtin_add_overflow(a, b, &r) : in->w == IRW_SUB ? __builtin_sub_overflow(a, b, &r) : __builtin_mul_overflow(a, b, &r);
+                if (ovf && (pol & IR_POL_SAT)) r = in->w == IRW_SUB ? 0 : UMAX;
+            }
+            if (in->a & IR_POL_CHK) {
+                if (ovf) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; *spp = sp; return 1; }
+                W128_BOX(vmv_w(r)); *spp = sp; return 1;
+            }
+            if (ovf && !(pol & (IR_POL_WRAP | IR_POL_SAT))) {
+                if (in->a & IR_POL_PROVEN) { vm_diag(vm->diags, "E-VM-ANALYSIS", "interval analysis claimed this cannot overflow, but it did — the ANALYSIS is unsound"); return 0; }
+                vm_diag(vm->diags, "E-VM-OVERFLOW", "integer overflow at the declared width (use wrap_*/sat_*, or prove the range)");
+                return 0;
+            }
+            break;
+        }
+        case IRW_DIV: case IRW_MOD:
+            if (!b) { vm_diag(vm->diags, (in->a & IR_POL_PROVEN) ? "E-VM-ANALYSIS" : "E-VM-DIV0",
+                              in->w == IRW_DIV ? "divide by zero" : "modulo by zero"); return 0; }
+            if (sg) {
+                vm_i128 x = (vm_i128)a, y = (vm_i128)b;
+                if (x == IMIN && y == -1) {
+                    if (in->w == IRW_DIV) { vm_diag(vm->diags, "E-VM-OVERFLOW", "division overflow (MIN / -1) at the declared width"); return 0; }
+                    r = 0; break;
+                }
+                if (in->w == IRW_DIV) r = (vm_u128)(x / y);
+                else { vm_i128 m = x % y; if (m && ((m < 0) != (y < 0))) m += y; r = (vm_u128)m; }
+            } else r = in->w == IRW_DIV ? a / b : a % b;
+            break;
+        default: return -1;
+    }
+    stack[sp++] = vmv_w(r);
+    *spp = sp;
+    return 1;
+    #undef W128_BOX
+#else
+    (void)vm; (void)in; (void)stack; (void)spp;
+    vm_diag(vm->diags, "E-INT128-TARGET", "this build of the tool has no 128-bit integer");
+    return 0;
+#endif
+}
+
 // ★ P1b: 한 프레임을 **DONE·CALL·에러** 중 하나까지 돌린다(값 반환은 *ret, 단순 호출은 out_*).
 static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     const low_ir_def_t **out_callee, vmv_t *out_cargs) {
@@ -1201,6 +1386,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             return false;
         }
         const low_ir_ins_t *in = &d->code[pc];
+        if (vm_is_w128(in)) {   // ★ RFC-0151 — 128 비트 정수는 한 자리에서 돈다
+            if (sp + 2 >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
+            int w128 = vm_w128_step(vm, in, stack, &sp);
+            if (w128 == 0) return false;
+            if (w128 == 1) continue;
+        }
         switch (in->w) {
             case IRW_CONST: if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                             stack[sp++] = vmv_int(in->a); break;
@@ -4471,7 +4662,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         break;
                     case IRW_AND: r = (a != 0) && (b != 0); break;
                     case IRW_OR:  r = (a != 0) || (b != 0); break;
-                    case IRW_EQ:  r = a == b; break;  case IRW_NE: r = a != b; break;
+                    case IRW_EQ:  r = a == b && av.n == bv.n; break;  case IRW_NE: r = a != b || av.n != bv.n; break;   // ★ RFC-0151 — 위 절반까지(64 비트 이하는 늘 0)
                     case IRW_LT:  r = ty_signed ? (a <  b) : ((proven_u64)a <  (proven_u64)b); break;
                     case IRW_LE:  r = ty_signed ? (a <= b) : ((proven_u64)a <= (proven_u64)b); break;
                     case IRW_GT:  r = ty_signed ? (a >  b) : ((proven_u64)a >  (proven_u64)b); break;
@@ -4917,6 +5108,11 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
                 return out;
             }
             vargs[i] = vmv_int(args[i].v);
+#if defined(__SIZEOF_INT128__)
+            // ★ RFC-0151 — 128 비트 입력: 명령줄은 64 비트 수까지 나른다. 부호 있는 입력은 부호를 늘리고, 없는 입력은 0 을 채운다.
+            if ((d->param_w128 >> i) & 1u)
+                vargs[i] = vmv_w(((d->param_w128s >> i) & 1u) ? (vm_u128)(vm_i128)args[i].v : (vm_u128)(proven_u64)args[i].v);
+#endif
         }
     }
 
@@ -4946,6 +5142,18 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
         if (rv.tag == VMV_INT && rv.i < 0 && d->out_tyname.size &&
             d->out_tyname.ptr[0] == (proven_byte_t)'u')
             snprintf(out.text, sizeof out.text, "%llu", (unsigned long long)rv.i);
+#if defined(__SIZEOF_INT128__)
+        // ★ RFC-0151 — 128 비트 결과는 128 비트 십진으로 찍는다(네이티브 lw_fmt_w128 과 같은 글자)
+        if (rv.tag == VMV_INT && d->out_tyname.size == 4 &&
+            (memcmp(d->out_tyname.ptr, "u128", 4) == 0 || memcmp(d->out_tyname.ptr, "i128", 4) == 0)) {
+            vm_u128 u = vmv_wv(rv); bool ng = d->out_tyname.ptr[0] == (proven_byte_t)'i' && (vm_i128)u < 0;
+            if (ng) u = (vm_u128)0 - u;
+            char tmp[48]; int q = 47; tmp[q] = 0;
+            do { tmp[--q] = (char)('0' + (int)(u % 10)); u /= 10; } while (u);
+            if (ng) tmp[--q] = '-';
+            snprintf(out.text, sizeof out.text, "%s", tmp + q);
+        }
+#endif
     }
     return out;
 }

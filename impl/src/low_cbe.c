@@ -519,6 +519,22 @@ static kstack_t *cbe_at_ensure(int which, proven_size_t n) {
 }
 
 static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *sc);
+// ★ RFC-0151 — 128 비트 정수의 낱말인가(low_vm.c vm_is_w128 의 거울 — 그 판정이 바뀌면 여기도).
+static bool cbe_is_w128(const low_ir_ins_t *in) {
+    if (in->w == IRW_MK128) return true;
+    if (in->w == IRW_CAST) return (in->a & 0xff) == 16 || (in->a & IR_SRC_W128);
+    switch (in->w) {
+        case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD: case IRW_NEG:
+        case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE:
+        case IRW_BAND: case IRW_BOR: case IRW_BXOR: case IRW_BNOT: case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
+        case IRW_ROTL: case IRW_ROTR: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
+            return (in->a & IR_TY_KNOWN) && (in->a & 0xff) == 128 && !(in->a & IR_TY_FLT);
+        default: return false;
+    }
+}
+static bool cbe_out_w128(const low_ir_def_t *d) {
+    return d->out_tyname.size == 4 && (memcmp(d->out_tyname.ptr, "u128", 4) == 0 || memcmp(d->out_tyname.ptr, "i128", 4) == 0);
+}
 // ★ 각 def 이 **무엇을 돌려주는가**(정수인가 감싼 값인가) — 호출자가 스택을 고르려면
 //   그것을 **정적으로** 알아야 한다. 시뮬레이터가 채운다.
 static unsigned char g_retk[512];
@@ -1236,6 +1252,12 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                 sc[i] = false;
                 if (i < 512) snprintf(g_why[i], sizeof g_why[0],
                                       "the word `%s` is not lowered yet", low_irw_name(d->code[k].w));
+                break;
+            }
+            // ★ RFC-0151 — 128 비트 정수는 태그 경로에만 산다(빠른 길의 칸은 `long long` 하나다). 입력 · 결과 · 낱말 어느 하나라도.
+            if (cbe_is_w128(&d->code[k]) || d->param_w128 || cbe_out_w128(d)) {
+                sc[i] = false;
+                if (i < 512) snprintf(g_why[i], sizeof g_why[0], "128-bit integers stay on the tagged path (RFC-0151 — a fast slot is one `long long`)");
                 break;
             }
             // ★ 피연산자가 있는 asm 은 값을 **태그 프레임의 지역**에서 읽는다 — 빠른 프레임엔
@@ -5154,6 +5176,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs("#define LW_HOSTED 1\n", out);
         if (!low_ir_target()->posix) fputs("#define LW_NOPOSIX 1\n", out);
     }
+    {   // ★ RFC-0151 — 128 비트 정수를 쓰는 단위에만 그 도우미를 낸다(안 쓰는 프로그램 · 프리스탠딩 방출을 그대로 둔다)
+        bool w = false;
+        for (proven_size_t q = 0; q < ir->ndefs && !w; q++) {
+            if (ir->defs[q].param_w128 || cbe_out_w128(&ir->defs[q])) w = true;
+            for (proven_size_t j = 0; j < ir->defs[q].ncode && !w; j++) if (cbe_is_w128(&ir->defs[q].code[j])) w = true;
+        }
+        if (w) fputs("#define LW_W128 1\n", out);
+    }
     // ★ 세 칸이다: 프리스탠딩(아무것도 없음) · Windows(표준 C 만) · POSIX(다 있음).
     fputs(freestanding ? LW_HDR_FREE
                        : (low_ir_target()->posix ? LW_HDR_HOSTED : LW_HDR_WIN), out);
@@ -6224,6 +6254,24 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             const low_ir_ins_t *in = &d->code[j];
             cbe_line(out, ir, in, &lastln2_, &lastfid2_);
             if (target[j]) fprintf(out, "L%zu:\n", (size_t)j);
+            if (cbe_is_w128(in)) {   // ★ RFC-0151 — 128 비트 정수(프렐류드 lw_w_*)
+                static const struct { low_irw_t w; int op; } WB[] = {
+                    { IRW_ADD, 0 }, { IRW_SUB, 1 }, { IRW_MUL, 2 }, { IRW_DIV, 3 }, { IRW_MOD, 4 }, { IRW_LT, 5 }, { IRW_LE, 6 }, { IRW_GT, 7 },
+                    { IRW_GE, 8 }, { IRW_BAND, 9 }, { IRW_BOR, 10 }, { IRW_BXOR, 11 }, { IRW_SHL, 12 }, { IRW_SHR, 13 }, { IRW_WSHL, 14 },
+                    { IRW_WSHR, 15 }, { IRW_ROTL, 16 }, { IRW_ROTR, 17 } };
+                static const struct { low_irw_t w; int op; } WU[] = {
+                    { IRW_NEG, 0 }, { IRW_BNOT, 1 }, { IRW_POPCNT, 2 }, { IRW_CLZ, 3 }, { IRW_CTZ, 4 }, { IRW_BSWAP, 5 } };
+                if (in->w == IRW_MK128) fprintf(out, "    st[sp-1] = lw_w_make(st[sp-1], %lluull);\n", (unsigned long long)in->a);
+                else if (in->w == IRW_CAST) fprintf(out, "    st[sp-1] = lw_w_cast(%lldll, st[sp-1]);\n", (long long)in->a);
+                else {
+                    bool done = false;
+                    for (size_t q = 0; q < sizeof WB / sizeof WB[0] && !done; q++)
+                        if (WB[q].w == in->w) { fprintf(out, "    st[sp-2] = lw_w_bin(%lldll, %d, st[sp-2], st[sp-1]); sp--;\n", (long long)in->a, WB[q].op); done = true; }
+                    for (size_t q = 0; q < sizeof WU / sizeof WU[0] && !done; q++)
+                        if (WU[q].w == in->w) { fprintf(out, "    st[sp-1] = lw_w_un(%lldll, %d, st[sp-1]);\n", (long long)in->a, WU[q].op); done = true; }
+                }
+                continue;
+            }
             switch (in->w) {
                 case IRW_CONST: fprintf(out, "    st[sp++] = lw_int(%lldll);\n", (long long)in->a); break;
                 case IRW_LOAD:  fprintf(out, "    st[sp++] = loc[%lld];\n", (long long)in->a); break;
@@ -7303,7 +7351,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   프로그램 안의 `f32` 와 밖에서 들어온 `f32` 가 같은 정밀도를 갖는다(VM 도 같은 자리에서 한다).
     fputs("struct lw_entry { const char *name; lowv (*fn)(const lowv *); int nparams; unsigned pslice;"
           " unsigned pflt; unsigned pf32; unsigned pu64; unsigned pstruct; int ounsigned; unsigned char psidx[LW_MAXP];"
-          " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; unsigned pcap; };\n", out);
+          " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; unsigned pcap; unsigned pw128, pw128s; };\n", out);
     // ★★★ R2 — **진짜 스레드.** `parallel s split` op 마다 `<name>_par` 를 낸다:
     //   슬라이스를 K 조각으로 나누고 **각 조각을 pthread 로** 돌린 뒤, `reduce` 로 합친다.
     //   ★ 청크는 **부분 슬라이스**다 — 같은 버퍼를 가리키므로 쓰기가 그대로 반영된다.
@@ -7380,7 +7428,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 ir->defs[i].param_slice, ir->defs[i].param_flt, ir->defs[i].param_f32,
                 ir->defs[i].param_u64, ir->defs[i].param_struct,
                 // ★ 출력이 **부호 없는** 정수인가 — 표시를 VM 과 같게 한다(결함 노트 #69).
-                (ir->defs[i].out_tyname.size && ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'u') ? 1 : 0);
+                cbe_out_w128(&ir->defs[i]) ? (ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'i' ? 3 : 2)   // ★ RFC-0151 — 128 비트 결과
+                : (ir->defs[i].out_tyname.size && ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'u') ? 1 : 0);
         for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
             fprintf(out, "%s%u", p ? "," : "", (unsigned)ir->defs[i].param_sidx[p]);
         fputs("}, {", out);
@@ -7398,7 +7447,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             put_i64(out, ir->defs[i].ptype[p].rlo); fputs(",", out);
             put_i64(out, ir->defs[i].ptype[p].rhi); fputs("}", out);
         }
-        fprintf(out, "}, %uu },\n", ir->defs[i].param_cap);
+        fprintf(out, "}, %uu, %uu, %uu },\n", ir->defs[i].param_cap, ir->defs[i].param_w128, ir->defs[i].param_w128s);
         // ★★★ R2 — `parallel` op 은 **스레드판도** 등재한다: `<name>_par`.
         //   같은 인자로 부르면 pthread 로 쪼개 돈다. 결과는 **순차와 비트 동일**해야 한다
         //   (LowentPar.v Qed). 게이트가 그것을 **요구한다** — 그래야 증명이 값을 한다.

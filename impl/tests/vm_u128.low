@@ -1,0 +1,83 @@
+rem RFC-0151 Q1 ⓑ · Q2 ㉠ · Q3 ⓧ — 128 비트 정수(될 수 있는 대상에서 · 스칼라 자리에만).
+rem 입력은 64 비트로 받아 안에서 넓힌다 — 명령줄은 64 비트 수까지 나르고, 차등 스윕이 이 op 들을 VM 과 네이티브에서 흔든다.
+module vm_u128 .
+
+fn wide_mul input a u64 . input b u64 . output u128 . do
+  return mul widen u128 a. . widen u128 b. . . .
+end .
+fn top_half input a u64 . input b u64 . output u64 . do
+  return cast u64 shr wide_mul a. b. . 64 . . .
+end .
+fn sum3 input a u64 . output u128 . do
+  let m u128 340282366920938463463374607431768211455 .
+  return sub m. widen u128 a. . . .
+end .
+fn over input a u64 . output u128 . do
+  let m u128 340282366920938463463374607431768211455 .
+  return add m. widen u128 a. . . .
+end .
+fn wrapped input a u64 . output u128 . do
+  let m u128 340282366920938463463374607431768211455 .
+  return wrap_add m. widen u128 a. . . .
+end .
+fn saturated input a u64 . output u128 . do
+  let m u128 340282366920938463463374607431768211455 .
+  return sat_add m. widen u128 a. . . .
+end .
+fn checked input a u64 . output u64 . do
+  let m u128 340282366920938463463374607431768211455 .
+  let r option u128 chk_add m. widen u128 a. . . .
+  if is_none r. . do  return 1 .  end .
+  return 0 .
+end .
+fn sdiv input a i64 . input b i64 . output i128 . do
+  let x i128 mul widen i128 a. . 100000000000000000000 . .
+  return div x. widen i128 b. . . .
+end .
+fn smod input a i64 . input b i64 . output i128 . do
+  let x i128 mul widen i128 a. . 100000000000000000000 . .
+  return mod x. widen i128 b. . . .
+end .
+fn minneg input a i64 . output i128 . do
+  let m i128 -170141183460469231731687303715884105728 .
+  return div m. widen i128 a. . . .
+end .
+fn cmpw input a u64 . input b u64 . output bool . do
+  return lt wide_mul a. a. . wide_mul b. b. . . .
+end .
+fn eqhigh input a u64 . output bool . do
+  let x u128 shl widen u128 a. . 64 . .
+  let y u128 widen u128 a. . .
+  return eq x. y. . .
+end .
+fn shiftw input a u64 . input n u64 . output u128 . do
+  return shl widen u128 a. . n. . .
+end .
+fn sarw input a i64 . input n u64 . output i128 . do
+  return shr shl widen i128 a. . 64 . n. . .
+end .
+fn bits input a u64 . output u128 . do
+  let x u128 bit_or shl widen u128 a. . 64 . widen u128 a. . . .
+  return bit_xor x. bit_not x. . . .
+end .
+fn ones input a u64 . output u128 . do
+  return count_ones bit_or shl widen u128 a. . 70 . 1 . . .
+end .
+fn narrowed input a u64 . output u64 . do
+  return narrow u64 wide_mul a. a. . . .
+end .
+fn wrapnarrow input a u64 . output u64 . do
+  return narrow_wrap u64 wide_mul a. a. . . .
+end .
+fn satnarrow input a u64 . output u64 . do
+  return narrow_sat u64 wide_mul a. a. . . .
+end .
+fn widenneg input a i64 . output i128 . do
+  return mul widen i128 a. . 18446744073709551616 . .
+end .
+fn negw input a i64 . output i128 . do
+  return neg widen i128 a. . . .
+end .
+fn tof input a u64 . output f64 . do
+  return cast f64 wide_mul a. a. . . .
+end .

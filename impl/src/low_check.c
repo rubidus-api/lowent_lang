@@ -3792,7 +3792,7 @@ static bool ck_type_is_exported(const low_parse_result_t *pr, proven_u8str_view_
 //   있는데 «없다» 고 말하는 진단이다. 단형화가 타입 인자로 인스턴스를 만들므로, 인자가 없으면
 //   만들 인스턴스가 없어 이름이 안 풀린 것뿐이다. 원인은 «없음» 이 아니라 «앞자리가 비었음» 이다.
 static bool ck_is_type_word(const low_parse_result_t *pr, proven_u8str_view_t w) {
-    static const char *PRIM[] = { "u8","u16","u32","u64","usize","i8","i16","i32","i64",
+    static const char *PRIM[] = { "u8","u16","u32","u64","u128","usize","i8","i16","i32","i64","i128",
                                   "f32","f64","bool","str","void","slice","option","result" };
     for (size_t i = 0; i < sizeof PRIM / sizeof PRIM[0]; i++) if (veq(w, PRIM[i])) return true;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
@@ -4768,6 +4768,47 @@ static void ck_float_target(low_check_result_t *out, const low_parse_result_t *p
                  "(RFC-0038 D5): a no_float target has no FPU and no soft-float runtime, so a float is "
                  "not a value it can compute. Use fixed-point integers, or build for a target with float",
                  (f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM) ? f->kids[1]->tok.line : f->line);
+    }
+}
+// ★★ RFC-0151 Q1 ⓑ (2026-10-22) — **128 비트 정수는 될 수 있는 대상에서, 될 수 있는 자리에만** 선다.
+//   ① 대상이 128 비트 정수를 갖지 않으면(32 비트 셋 · `word16`) 그 낱말이 어디 있든 E-INT128-TARGET.
+//   ② 첫 판은 스칼라만이다 — 지역 · 입력 · 결과 · 셈 · 견줌 · 비트 · 넓히기 · 좁히기. 구조체 칸 · 슬라이스 · 배열 · 뷰 · 벡터의 원소와
+//      C 경계(`extern`)는 E-INT128-PLACE 로 거절한다 — 그 자리는 바이트 배치 · C ABI 를 정해야 선다(RFC-0151 §9.4).
+static bool ck_is_w128(const low_cst_t *a) { return ck_atom(a) && (veq(a->tok.lex, "u128") || veq(a->tok.lex, "i128")); }
+static void ck_int128_walk(low_check_result_t *out, const low_cst_t *nd, int in_struct, int in_extern) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t j = 0; j < nd->nkids; j++) {
+        const low_cst_t *a = nd->kids[j];
+        if (!ck_is_w128(a)) continue;
+        if (!low_ir_target()->int128) {
+            emit(out, "E-INT128-TARGET", "`u128` / `i128` are not on this target — it has no 128-bit integer (the 32-bit targets and `word16`; "
+                 "the emitted C would need `__int128`). Build for a 64-bit target, or carry the number in two `u64` (RFC-0151)", a->tok.line);
+            continue;
+        }
+        const low_cst_t *prev = j ? nd->kids[j - 1] : NULL;
+        const bool elem = prev && ck_atom(prev) && (veq(prev->tok.lex, "slice") || veq(prev->tok.lex, "array") || veq(prev->tok.lex, "view_array") ||
+                                                    veq(prev->tok.lex, "vec") || veq(prev->tok.lex, "matrix") || veq(prev->tok.lex, "stack"));
+        if (elem || in_struct || in_extern)
+            emit(out, "E-INT128-PLACE", in_extern ? "a 128-bit integer does not cross the C boundary yet (`extern`) — its C ABI is not settled; pass two `u64` (RFC-0151 §9.4)"
+                 : in_struct ? "a 128-bit integer cannot be a struct field yet — fields have a byte layout, and a 16-byte field's layout and alignment are not settled (RFC-0151 §9.4)"
+                 : "a 128-bit integer cannot be the element of a slice, array, view, vector or stack yet — elements have a byte layout that is not settled for 16 bytes (RFC-0151 §9.4)", a->tok.line);
+    }
+    int s2 = in_struct, e2 = in_extern;
+    if (nd->kind == LOW_CST_FORM && nd->nkids && ck_atom(nd->kids[0])) {
+        if (nd->kids[0]->tok.kw == LOW_KW_STRUCT) s2 = 1;
+        for (proven_size_t j = 0; j < nd->nkids; j++) if (ck_atom(nd->kids[j]) && veq(nd->kids[j]->tok.lex, "extern")) e2 = 1;
+    }
+    for (proven_size_t j = 0; j < nd->nkids; j++) if (nd->kids[j]->kind != LOW_CST_ATOM) ck_int128_walk(out, nd->kids[j], s2, e2);   // `extern` 의 머리는 블록 안에 있기도 하다(블록 머리) — C 경계로 본다
+}
+static void ck_int128(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        int ex = 0;
+        if (f->kind == LOW_CST_FORM)
+            for (proven_size_t j = 0; j < f->nkids; j++) if (ck_atom(f->kids[j]) && veq(f->kids[j]->tok.lex, "extern")) ex = 1;
+        // 머리의 낱말(입력 · 결과)은 그 폼의 아이들에 바로 있다 — 몸(블록)은 C 경계가 아니다
+        ck_int128_walk(out, f, f->kind == LOW_CST_FORM && f->nkids && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT, ex);
     }
 }
 // ★★★ **벡터/마스크는 순수 값이다 — 소유·빌림 수식자가 붙을 수 없다** (RFC-0040; PRINCIPLES.md §0).
@@ -5763,7 +5804,7 @@ static bool ck_carries_taint(const low_cst_t *nd, const proven_u8str_view_t *t, 
     return false;
 }
 static bool ck_type_word_scalar(proven_u8str_view_t w) {
-    static const char *SC[] = { "u8","u16","u32","u64","i8","i16","i32","i64","bool","f32","f64" };
+    static const char *SC[] = { "u8","u16","u32","u64","u128","i8","i16","i32","i64","i128","bool","f32","f64" };
     for (proven_size_t i = 0; i < sizeof SC / sizeof SC[0]; i++) if (veq(w, SC[i])) return true;
     return false;
 }
@@ -12256,6 +12297,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_io_cap(&out, pr);          // ★★★ **io 도 권한이다** (RFC-0007 §6.7 LINK — cap-effect)
         ck_cap_carry(&out, pr);       // ★★★ RFC-0147 §5.3 — 권한은 지역에 담지도, op 이 내놓지도 않는다
         ck_float_target(&out, pr);    // ★★★ **no_float 타깃엔 float 이 없다** (RFC-0038 D5)
+        ck_int128(&out, pr);          // ★★ RFC-0151 — 128 비트 정수는 될 수 있는 대상 · 자리에만
         ck_vec_value(&out, pr);       // ★★★ **벡터/마스크엔 소유·빌림 수식자가 못 붙는다** (RFC-0040)
         ck_target_intrin(&out, pr);   // ★★★ **unsafe target <iset> — intrinsic 격리 게이트** (RFC-0040 D5)
         ck_profile(&out, pr);         // ★★★ **profile 이 동시성 상한을 게이팅한다** (RFC-0009 §105)

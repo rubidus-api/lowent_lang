@@ -34,6 +34,7 @@ typedef struct {
     bool        lit;
     proven_u64  val;
     bool        neg;
+    proven_u64  valhi;  // ★ RFC-0151 Q3 ⓧ — 정수 리터럴의 위 64 비트(값이 `u64` 를 넘을 때만 0 이 아니다 · 128 비트 자리만 받는다)
     proven_u8   rk;     // reference kind: 0 = value, 1 = ref (shared), 2 = mut_ref
     proven_u8   nominal;// 0 = plain uN/iN · 1 = usize/idiff (RFC-0052 D11 — 구분 타입)
     double      fval;   // float literal 의 값 (lit && k == TK_FLOAT 일 때)
@@ -213,6 +214,8 @@ static ty_t ty_of_word(proven_u8str_view_t v) {
     if (veq(v, "i32")) return tk_int(32, true);
     if (veq(v, "u64")) return tk_int(64, false);
     if (veq(v, "i64")) return tk_int(64, true);
+    if (veq(v, "u128")) return tk_int(128, false);   // ★ RFC-0151 Q1 ⓑ — 대상이 128 비트 정수를 가질 때만 선다(하강이 E-INT128-TARGET)
+    if (veq(v, "i128")) return tk_int(128, true);
     if (veq(v, "usize")) { ty_t t = tk_int(low_ir_target()->addr_bits, false); t.nominal = 1; return t; }   // D11: u64 별칭 아님
     if (veq(v, "idiff")) { ty_t t = tk_int(low_ir_target()->addr_bits, true);  t.nominal = 1; return t; }
     if (veq(v, "f32")) return (ty_t){ .k = TK_FLOAT, .bits = 32 };
@@ -249,10 +252,12 @@ bool low_num_is_float(proven_u8str_view_t v);
 static bool num_value(proven_u8str_view_t v, proven_u64 *out, bool *neg);
 static proven_i64 ty_lo(proven_u8 bits, bool sign) {
     if (!sign) return 0;
+    if (bits >= 64) return INT64_MIN;   // ★ 128 비트는 64 비트 칸에 다 안 든다 — 범위 셈에는 64 비트 끝을 쓴다(범위 타입은 64 비트까지)
     return -(proven_i64)((proven_u64)1 << (bits - 1));
 }
 static proven_i64 ty_hi(proven_u8 bits, bool sign) {
     if (!sign) return (bits >= 64) ? INT64_MAX : (proven_i64)(((proven_u64)1 << bits) - 1);
+    if (bits >= 64) return INT64_MAX;
     return (proven_i64)(((proven_u64)1 << (bits - 1)) - 1);
 }
 static bool rng_fits_ty(proven_i64 lo, proven_i64 hi, ty_t t) {
@@ -321,8 +326,12 @@ bool low_num_is_float(proven_u8str_view_t v) {
     return false;
 }
 // plain integer literal → value (saturating at u64 max — still "does not fit u32")
-static bool num_value(proven_u8str_view_t v, proven_u64 *out, bool *neg) {
-    proven_size_t i = 0; *neg = false;
+static bool num_value_w(proven_u8str_view_t v, proven_u64 *out, bool *neg, proven_u64 *hi);
+static bool num_value(proven_u8str_view_t v, proven_u64 *out, bool *neg) { proven_u64 h; return num_value_w(v, out, neg, &h); }
+// ★ RFC-0151 Q3 ⓧ — 값을 128 비트까지 센다. `u64` 를 넘으면 `*out` 은 `u64` 끝에서 멈추고(전처럼 «u32 에 안 맞는다») 위 비트는 `*hi` 에.
+//   2^128 을 넘으면 `*hi` 도 끝에서 멈춘다(렉서가 이미 E-LIT-RANGE 로 거절했다).
+static bool num_value_w(proven_u8str_view_t v, proven_u64 *out, bool *neg, proven_u64 *hi) {
+    proven_size_t i = 0; *neg = false; *hi = 0;
     if (v.size && (v.ptr[0] == '-' || v.ptr[0] == '+')) { *neg = (v.ptr[0] == '-'); i = 1; }
     proven_u64 val = 0, base = 10;
     if (i + 1 < v.size && v.ptr[i] == '0' && (v.ptr[i + 1] == 'x' || v.ptr[i + 1] == 'X')) { base = 16; i += 2; }
@@ -336,16 +345,26 @@ static bool num_value(proven_u8str_view_t v, proven_u64 *out, bool *neg) {
         else if (base == 16 && ch >= 'A' && ch <= 'F') d = (proven_u64)(ch - 'A' + 10);
         else return false;
         if (d >= base) return false;
+#if defined(__SIZEOF_INT128__)
+        if (*hi || val > (UINT64_MAX - d) / base) {   // 64 비트를 넘었다 — 128 비트로 이어 센다
+            unsigned __int128 w = ((unsigned __int128)*hi << 64) | val;
+            const unsigned __int128 MAXW = ~(unsigned __int128)0;
+            w = (w > (MAXW - d) / base) ? MAXW : w * base + d;
+            *hi = (proven_u64)(w >> 64); val = (proven_u64)w;
+            continue;
+        }
+#endif
         val = (val > (UINT64_MAX - d) / base) ? UINT64_MAX : val * base + d;
     }
-    *out = val; return true;
+    *out = val;   // ★ 위 칸이 있으면 아래 칸은 정확한 아래 64 비트다 — 「`u64` 에 안 맞음」 은 `*hi` 가 말한다(lit_fits)
+    return true;
 }
 static ty_t ty_of_number(proven_u8str_view_t v) {
     if (low_num_is_float(v)) {   // D3: 부동 리터럴도 comptime 무타입 — 값은 적합 검사용으로 들고 간다
         return (ty_t){ .k = TK_FLOAT, .lit = true, .fval = low_num_to_double(v) };
     }
     ty_t t = tk_int(0, false);
-    t.lit = num_value(v, &t.val, &t.neg);
+    t.lit = num_value_w(v, &t.val, &t.neg, &t.valhi);
     return t;
 }
 
@@ -362,6 +381,14 @@ static bool flit_fits(ty_t lit, ty_t decl) {
 static bool lit_fits(ty_t lit, ty_t decl) {
     if (decl.k == TK_FLOAT) return flit_fits(lit, decl);
     if (!decl.bits) return true;
+    // ★ RFC-0151 Q3 ⓧ — `u64` 를 넘는 리터럴은 128 비트 자리에만 든다. 128 비트 자리: 부호 없음은 2^128 − 1 까지,
+    //   부호 있음은 2^127 − 1(음수는 2^127)까지 — 위 64 비트(`valhi`)로 판정한다.
+    if (lit.valhi && decl.bits != 128) return false;
+    if (decl.bits == 128) {
+        if (!decl.sign) return !(lit.neg && (lit.val || lit.valhi));
+        if (lit.valhi < 0x8000000000000000ull) return true;
+        return lit.neg && lit.valhi == 0x8000000000000000ull && lit.val == 0;   // −2^127
+    }
     if (!decl.sign) {
         if (lit.neg && lit.val != 0) return false;
         return decl.bits >= 64 || lit.val <= ((proven_u64)1 << decl.bits) - 1;
@@ -392,7 +419,7 @@ static ty_t ty_join(ty_t t, ty_t u) { return ty_sub(t, u) ? u : t; }
 // conservative: never flag when either side is unknown/named; then kind, then
 // (integers/floats) literal fit / ⊑ 확대 판정 (D2: 암묵 변환은 ⊑ 를 따를 때만).
 typedef enum { TC_OK, TC_KIND, TC_WIDTH, TC_SIGN, TC_NOMINAL, TC_RANGE, TC_LANES,
-               TC_INSTANCE, TC_STRUCT, TC_WRAP, TC_PAYLOAD, TC_UNKNOWN } tc_reason_t;   // TC_WRAP: option ↔ result   // TC_STRUCT: 서로 다른 명명 타입(X-0010)   // ★ TC_INSTANCE: 같은 틀의 **다른 인스턴스**(X-0009)
+               TC_INSTANCE, TC_STRUCT, TC_WRAP, TC_PAYLOAD, TC_UNKNOWN, TC_W128, TC_LITRANGE } tc_reason_t;   // TC_WRAP: option ↔ result   // TC_STRUCT: 서로 다른 명명 타입(X-0010)   // ★ TC_INSTANCE: 같은 틀의 **다른 인스턴스**(X-0009)
 // RFC-0055 D7: 리터럴은 선언된 **범위**에 들어야 한다 — 폭이 아니라 범위가 계약이다.
 static bool lit_in_rng(ty_t lit, ty_t decl) {
     if (!decl.has_rng || !lit.lit) return true;
@@ -559,6 +586,7 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
         decl.ebits == actual.ebits && decl.enom != actual.enom) return TC_NOMINAL;   // RFC-0149 L4 — `slice usize` ≠ `slice u64`
     if (decl.k == TK_INT) {
         if (actual.lit) {                                                   // D3: 리터럴은 comptime 무타입
+            if (actual.valhi && decl.bits != 128) return TC_LITRANGE;       // ★ RFC-0151 — 64 비트를 넘는 수는 128 비트 자리에만
             if (!lit_fits(actual, decl)) return TC_WIDTH;
             return lit_in_rng(actual, decl) ? TC_OK : TC_RANGE;             // ★ D7: 범위도 강제
         }
@@ -566,6 +594,9 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
         if (decl.has_rng && actual.has_rng && (actual.rlo > decl.rhi || actual.rhi < decl.rlo)) return TC_RANGE;
         if (!decl.bits || !actual.bits) return TC_OK;
         if (decl.nominal != actual.nominal) return TC_NOMINAL;   // D11
+        // ★ RFC-0151 (2026-10-22) — 128 비트 자리에는 128 비트 값만 암묵으로 든다. 넓히기는 `widen u128 …` 로 적는다: 64 비트 칸의 값은
+        //   위 절반을 들고 있지 않아서, 부호를 늘릴지 0 을 채울지를 넓히는 자리가 알아야 한다(원천의 부호가 그 자리에 실린다).
+        if ((decl.bits == 128) != (actual.bits == 128)) return decl.bits == 128 && ty_sub(actual, decl) ? TC_W128 : (decl.sign != actual.sign ? TC_SIGN : TC_WIDTH);
         if (ty_sub(actual, decl)) return TC_OK;                             // ★ 값 보존 확대만 암묵
         return decl.sign != actual.sign ? TC_SIGN : TC_WIDTH;
     }
@@ -664,6 +695,10 @@ static bool tc_param_cap_kind(const low_cst_t *def, proven_u8str_view_t name, pr
 static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg, proven_u32 line) {
     if (r == TC_OK) return;
     if (r == TC_WIDTH)        tc_emit(c, "E-TYPE-WIDTH", "value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)", line);
+    else if (r == TC_LITRANGE) tc_emit(c, "E-LIT-RANGE", "this integer literal is wider than 64 bits, and only a 128-bit place (`u128` / `i128`) can hold it — "
+                                       "the comptime precision is 128 bits, every other place is at most 64 (RFC-0052 D3 · RFC-0151)", line);
+    else if (r == TC_W128)    tc_emit(c, "E-TYPE-WIDTH", "a 128-bit place takes a 128-bit value — widen it by name: `widen u128 <value> .` / `widen i128 <value> .` "
+                                      "(a 64-bit value does not carry the upper half, and the widening is where its sign is known — RFC-0151)", line);
     else if (r == TC_SIGN)    tc_emit(c, "E-TYPE-SIGN", "sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)", line);
     else if (r == TC_NOMINAL) tc_emit(c, "E-TYPE-NOMINAL", "these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/idiff) is not interchangeable with its base or with another newtype. Convert explicitly with `cast <type> <value>` (RFC-0002 §6.3.1)", line);
     else if (r == TC_RANGE)   tc_emit(c, "E-TYPE-RANGE", "the value is outside the declared range (no value can satisfy it — this is a lie, not a check)", line);
@@ -837,9 +872,9 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     if (a.k == TK_UNKNOWN || b.k == TK_UNKNOWN || a.k == TK_NAMED || b.k == TK_NAMED)
         return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);          // 보수적: 모르면 넘어간다
     // 리터럴은 상대의 타입을 취한다(값 적합은 그쪽 경계에서 검사)
-    if (a.lit && !b.lit) { if (!lit_fits(a, b)) tc_flag(c, TC_WIDTH, NULL, NULL, line);
+    if (a.lit && !b.lit) { if (!lit_fits(a, b)) tc_flag(c, (a.valhi && b.bits != 128) ? TC_LITRANGE : TC_WIDTH, NULL, NULL, line);
                            a = b; }
-    else if (b.lit && !a.lit) { if (!lit_fits(b, a)) tc_flag(c, TC_WIDTH, NULL, NULL, line);
+    else if (b.lit && !a.lit) { if (!lit_fits(b, a)) tc_flag(c, (b.valhi && a.bits != 128) ? TC_LITRANGE : TC_WIDTH, NULL, NULL, line);
                                 b = a; }
     else if (a.lit && b.lit) return is_cmp ? tk(TK_BOOL) : a;   // comptime — 무타입 유지
     if (a.k != b.k) {                                           // D8: kind 변경은 암묵 아님
@@ -867,6 +902,10 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
     }
     if (a.k != TK_INT && a.k != TK_FLOAT) return is_cmp ? tk(TK_BOOL) : a;
     if (!a.bits || !b.bits) return is_cmp ? tk(TK_BOOL) : (a.bits ? a : b);   // 폭 미상 — 보수적
+    if (a.k == TK_INT && (a.bits == 128) != (b.bits == 128)) {   // ★ RFC-0151 — 128 비트와 다른 폭은 섞지 않는다(넓히기를 적는다)
+        tc_flag(c, TC_W128, NULL, NULL, line);
+        { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u; }
+    }
     if (!ty_comparable(a, b)) {
         tc_flag(c, a.nominal != b.nominal ? TC_NOMINAL
                 : (a.k == TK_INT && a.sign != b.sign) ? TC_SIGN : TC_WIDTH, NULL, NULL, line);
@@ -2750,7 +2789,7 @@ static proven_size_t kw_index(const low_cst_t *f, low_kw_t kw) {
 // 내장 타입 낱말 — 이것들은 선언이 필요 없다.
 static bool ty_is_builtin_word(proven_u8str_view_t v) {
     static const char *k[] = {
-        "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64",
+        "bool","u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","f32","f64",
         "slice","array","list","result","option","stack","set","region","ref","mut_ref",
         // ★ `segments T` — 흩어진 조각 여럿을 **한 값으로** (RFC-0104 §8-8, 서명 2026-08-29).
         //   타입 낱말 하나가 늘었다. 그 값은 백업 슬라이스와 (at, n) 서술자 슬라이스 두 칸이고,

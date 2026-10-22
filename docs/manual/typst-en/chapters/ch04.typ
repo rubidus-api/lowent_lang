@@ -45,12 +45,33 @@ An integer type's name is its sign and bit width. `u` means unsigned, `i` means 
   [`u8` · `u16` · `u32` · `u64`], [8 · 16 · 32 · 64], [0 … 2#super[N]−1],
   [`i8` · `i16` · `i32` · `i64`], [8 · 16 · 32 · 64], [−2#super[N−1] … 2#super[N−1]−1],
   [`usize` · `idiff`], [16 or more --- set by the implementation], [by width (see "The size types" below)],
+  [`u128` · `i128`], [128 --- on 64-bit targets only], [same pattern (see "128-bit integers" below)],
 )
 
 C's `int` can have different sizes on different machines, but Lowent's `u32` is 32 bits everywhere. Negative numbers use two's
 complement. `usize` is a *different type* from `u64` even on a machine where they have the same width, and the two do not convert
 automatically --- so that places mixing lengths with plain numbers show in the source. The one word that crosses is `cast` (see "The size
 types" below).
+
+== 128-bit integers
+
+#idx("u128")
+`u128` · `i128` exist on 64-bit targets only (`x86_64` · `arm64` · `riscv64` · `win64`). On a 32-bit target the words are refused
+(`E-INT128-TARGET`). Use them to hold, as one value, a computation wider than 64 bits --- such as the whole product of two 64-bit numbers.
+
+```lowent
+fn top_half input a u64 . input b u64 . output u64 . do
+  let x u128 widen u128 a. . .
+  return cast u64 shr mul x. widen u128 b. . . 64 . . .
+end .
+```
+
+- Nothing widens into a 128-bit place *automatically* --- write `widen u128 …`. A value in a 64-bit slot has no upper half, so the
+  widening is where it is decided whether to extend the sign or fill with zeros.
+- A literal wider than 64 bits (`340282366920938463463374607431768211455`) fits only a 128-bit place.
+- For now they stand only in *scalar places* (locals · inputs · results · the content of an `option`). As a struct field, a slice
+  element or across the C boundary they are `E-INT128-PLACE`. If you only need the upper half of a 64-bit product, `bigint.mul_hi` is
+  cheaper (it stays on the fast path) --- an op that uses 128-bit integers goes down the tagged path.
 
 == Widening is automatic, narrowing is written
 

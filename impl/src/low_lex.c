@@ -299,7 +299,9 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                 (lx.ptr[1] == 'x' || lx.ptr[1] == 'X'))) { isf = true; break; }
         }
         if (!isf) {
-            proven_size_t z = 0; proven_u64 base = 10, val = 0; bool ovf = false;
+            // ★ RFC-0151 Q3 ⓧ (2026-10-22) — 번역 때의 정밀도는 128 비트다. `u64` 를 넘는 리터럴은 128 비트 자리에서만 서고
+            //   (검사층 lit_fits · 하강층이 받는 자리의 타입을 본다), 2^128 을 넘으면 여기서 거절한다.
+            proven_size_t z = 0; proven_u64 base = 10, val = 0, vhi = 0; bool ovf = false;
             if (z < lx.size && (lx.ptr[z] == '-' || lx.ptr[z] == '+')) z++;
             if (z + 1 < lx.size && lx.ptr[z] == '0' &&
                 (lx.ptr[z + 1] == 'x' || lx.ptr[z + 1] == 'X')) { base = 16; z += 2; }
@@ -314,13 +316,21 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                 else if (base == 16 && ch >= 'A' && ch <= 'F') d = (proven_u64)(ch - 'A' + 10);
                 else break;
                 if (d >= base) break;
+#if defined(__SIZEOF_INT128__)
+                {
+                    unsigned __int128 w = ((unsigned __int128)vhi << 64) | val;
+                    if (w > (~(unsigned __int128)0 - d) / base) ovf = true;
+                    else { w = w * base + d; vhi = (proven_u64)(w >> 64); val = (proven_u64)w; }
+                }
+#else
                 if (val > (UINT64_MAX - d) / base) ovf = true;
                 else val = val * base + d;
+#endif
             }
             if (ovf)
                 low_diag(l, "E-LIT-RANGE",
                          "integer literal is too large to represent at compile time. The comptime "
-                         "precision floor is EXACTLY [i64 min, u64 max] (RFC-0052 D3) — a literal "
+                         "precision is EXACTLY 128 bits [i128 min, u128 max] (RFC-0052 D3 · RFC-0151) — a literal "
                          "beyond it has no value this language can carry, so it is refused here "
                          "rather than silently wrapped or saturated into a different number",
                          line, col);

@@ -3636,6 +3636,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                         d->param_f32 |= 1u << d->nparams;   // ★ 32 비트 — 경계에서 반올림한다 (#83)
                     if ((veq(t0, "u64") || veq(t0, "usize")) && d->nparams < LOW_MAX_PARAMS)
                         d->param_u64 |= 1u << d->nparams;   // ★ 위쪽 절반이 정당한 값이다 (#19·#69)
+                    if ((veq(t0, "u128") || veq(t0, "i128")) && d->nparams < LOW_MAX_PARAMS) {
+                        d->param_w128 |= 1u << d->nparams;   // ★ RFC-0151 — 명령줄 · 진입에서 128 비트 값으로 짓는다
+                        if (veq(t0, "i128")) d->param_w128s |= 1u << d->nparams;
+                        else d->param_u64 |= 1u << d->nparams;   // 위쪽 절반이 정당한 값이다(되비출 때 부호 없이)
+                    }
                     if (d->nparams < LOW_MAX_PARAMS)                    // ★ cstr 파라미터 → C 로 `const char *` (RFC-0068 S4)
                         for (proven_size_t pa = 0; pa < mod.nptr_alias; pa++)
                             if (proven_u8str_view_eq(mod.ptr_alias[pa], t0)) {

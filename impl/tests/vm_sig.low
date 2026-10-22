@@ -6,7 +6,7 @@ rem   *"언제나 참"* 을 반환하는 구현과 구별이 안 된다 — 그�
 
 module vm_sig .
 
-use bigint from "../../lib/bigint.low" .
+use bigint32 from "../../lib/bigint32.low" .
 use rsa from "../../lib/rsa.low" .
 use p256 from "../../lib/p256.low" .
 use ed25519 from "../../lib/ed25519.low" .

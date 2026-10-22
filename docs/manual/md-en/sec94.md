@@ -1,43 +1,43 @@
-# <a id="mod-der"></a>`der` — minimal DER parser
+# <a id="mod-ecdsa"></a>`ecdsa` — ECDSA P-256 signing
 
 Source
 
-`lib/der.low`
+`lib/ecdsa.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Tells **where the public key starts and how many bytes it is** in X.509 certificate bytes, and finds the EC scalar in a PKCS#8 private key file. Verifying signatures with that key is the job of [`p256`](sec90.md#mod-p256), [`rsa`](sec89.md#mod-rsa) and [`ed25519`](sec93.md#mod-ed25519).
+Takes a private key and a message hash and produces a signature `(r, s)` (RFC 6979). Verification is `ecdsa_verify` of [`p256`](sec92.md#mod-p256). A TLS server uses it to sign `CertificateVerify` with its own private key — without signing there is no server.
 
-> **This is not PKI**
+> **What it promises and what it does not**
 >
-> > Chain validation, CA trust stores, name matching, validity periods, revocation, extensions — **it does none of them**. So this alone cannot answer “can this certificate be trusted”. The caller must **pin** the public key or judge by its own rules. A half-built PKI is worse than none — it makes you believe you can trust it.
+> > **Constant time is promised here only, with its extent written down.** What is removed is branching and memory access that depend on secret scalars (private key d, nonce k). The final conditional subtraction of Montgomery multiplication, the cache hierarchy, power, electromagnetic leakage and whatever a compiler might introduce are not promised. It has not been audited. P-256 only, no key generation. If `r = 0` or `s = 0` it does not retry but answers failure (probability around 2^−128) — building that branch creates untestable code, and untested cryptographic code is worse than none.
 
-**Lengths were written by the other side.** Every DER length field is chosen by the attacker. So this parser keeps three rules — any length exceeding the buffer fails immediately (answers 0); long-form lengths are accepted up to 4 bytes only; there is no recursion (depth is a loop the caller controls). **Every failure is `0`** — a value, not an exception.
+**Why the nonce is derived, not random.** In ECDSA, a nonce leaked once or repeated once reveals the whole private key.
 
-| **op** | **What it does** |
-|---|---|
-| `tag_at` | Tag byte at `off` |
-| `value_off` · `value_len` | Where that TLV’s **value** starts · its length |
-| `next_off` | Position of the next sibling TLV |
-| `is_spki` | Is this position **shaped** like SubjectPublicKeyInfo |
-| `find_spki` | Finds the SPKI inside a certificate |
-| `alg_oid_off` · `alg_oid_len` | Position · length of the algorithm OID |
-| `key_off` · `key_len` | Position · length of the public key bit string |
-| `rsa_n_off` · `rsa_n_len` · `rsa_e` | Modulus and exponent inside an RSA key |
-| `p8_alg_off` · `p8_inner_off` · `p8_inner_len` | PKCS#8 algorithm · inner key position · length |
-| `ec_priv_off` · `ec_priv_len` | Position · length of the EC private key (scalar) |
+```text
+s = k⁻¹ (h + r·d)   ⇒   d = (s·k − h) / r
+```
 
-*Table 50.1 — Ops of `der`*
+Knowing `k` finishes it in that one line, and using the same `k` twice lets `k` be solved from two signatures. And the ways a random source fails are silent — empty entropy, identical state after a fork, a restored virtual machine snapshot. So **no random source is used at all.** `k = HMAC-DRBG(private key, message hash)`. The same (key, message) gives the same signature, and that is a property, not a defect.
 
-**Found by shape, not counted by position.** The SPKI is the sixth or seventh field of a certificate — depending on whether `version` is present. Counting positions goes silently wrong on old certificates. So `is_spki` looks at the shape `SEQUENCE { SEQUENCE { OID … }, BIT STRING }`. Counting breaks when what comes before changes; recognising does not.
+| **op** | **What it does** | **Requires** |
+|---|---|---|
+| `nonce6979` | RFC 6979 §3.2 — (d, h) → k | `w ≥ 480` bytes · `wu ≥ 16` limbs |
+| `sign` | (d, h) → `r ‖ s`, 64 bytes | `wb ≥ 512` bytes · `wu ≥ 908` limbs |
 
-**What is checked — parse results are not eyeballed.** The key is extracted from the real certificate of RFC 8448 §3 and used to **verify** that handshake’s CertificateVerify signature. If parsing slips by one byte the signature does not match. Two negatives (one bit each of signature and transcript) are checked too. A check where a person looks at whether the extracted value seems plausible is not a check.
+*Table 50.1 — Ops of `ecdsa`*
+
+Curve constants (p · n · Gx · Gy) are given by the caller — this module holds no tables. Signing uses only `smul_ct` of `p256`, and a test confirms it. `k⁻¹` is Fermat exponentiation whose exponent (n − 2) is public, so the order of operations is fixed.
+
+**Generosity is not free.** The workspace was first sized at 1052 limbs, which exceeded `--run`’s array argument limit (u64 1024) and could not be tested on the VM. Gaps were pulled in twice to reach 908 — a size that cannot be tested is not a size but a defect. **Performance** — `sign` has many parameters, locals and instructions and does not enter the typed fast path. One signature per connection makes that bearable for now.
+
+**What is checked** — the official RFC 6979 §A.2.5 vectors (nonce k and r · s for messages `"sample"` and `"test"`, byte for byte), whether our verifier accepts the signatures produced, and whether flipping one bit is rejected. Vector comparison asks “is it per the standard”; the round trip asks “do our two sides agree”.
 
 ---
 

@@ -65,7 +65,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `capacity` |
 | Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `stack_count` `push` `pop` `swap` |
 | Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` `elem_lt` `elem_le` `elem_gt` `elem_ge` |
-| Builtin ops (computation) — stand only after `call_builtin` | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
+| Builtin ops (computation) — stand only after `call_builtin` | `clmul_lo` `clmul_hi` `mul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
 | C strings and callbacks — chapter 29 | `cstr_of` `str_from_cstr` `unsafe_fn` |
 | Builtin ops (files, network, processes) — only after `call_builtin` | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `proc_spawn` `proc_read` `proc_poll` `proc_wait` `proc_kill` |
 | Builtin ops (standard I/O · arguments · environment · clock · terminal · random · reactor) — stand only after `call_builtin` | `write_out` `read_in` `arg` `env_get` `time_now` `time_local` `time_sleep` `tty_raw` `tty_read` `tty_size` `random_bytes` `reactor_new` `r_read` `r_write` |

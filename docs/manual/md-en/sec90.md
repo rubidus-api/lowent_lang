@@ -1,8 +1,8 @@
-# <a id="mod-p256"></a>`p256` — the NIST P-256 curve and ECDSA verification
+# <a id="mod-bigint64"></a>`bigint64` — big-number modular arithmetic (64-bit limbs)
 
 Source
 
-`lib/p256.low`
+`lib/bigint64.low`
 
 Layer
 
@@ -12,34 +12,15 @@ Capabilities
 
 none
 
-Point arithmetic on the elliptic curve `y² = x³ − 3x + b`, and **ECDSA signature verification** built on it. TLS 1.3′s `ecdsa_secp256r1_sha256` uses this curve.
+The op names, inputs and meanings are the same as [`bigint32`](sec89.md#mod-bigint32)′s; numbers are held in **64-bit limbs**. How to use it and the op table are on that page — change `use bigint32 .` to `use bigint64 .`.
 
-> **What it promises and what it does not**
->
-> > It has not been audited. The verification `smul` **branches** on scalar bits — in verification that scalar is public, so that is fine. For secret scalars (private key, nonce) use `smul_ct` — each step does both doubling and addition and chooses by mask, not by branch. That promise extends to **no secret-dependent branches or memory access**; cache hierarchy, power and electromagnetic leakage are not promised. There is no point decompression and no P-384 or P-521.
+**One product is 128 bits.** The lower half is `wrap_mul`, the upper half the builtin `mul_hi`, and a carry out of an addition is read as «the sum came out smaller than what was added». There are a quarter as many limb products as in `bigint32`, but each costs more. Measured (RSA-2048 exponentiation · native `-O2` · 2026-10-22): 1.6 to 1.9 times faster than `bigint32` on x86-64, and 1.35 times faster in a 32-bit build (x86 `-m32`) as well — values are `u64` anyway, so 32-bit limbs also do 64-bit arithmetic there. The same computation hand-written in C (product and addition in one 128-bit integer) is about 2 times faster than this module; of that, «multiply and add in one go» was about 10 %.
 
-**Why this curve.** What public CAs actually issue and browsers actually accept is P-256 and RSA. [`ed25519`](sec93.md#mod-ed25519) is mathematically cleaner but does not work on the public web — the ecosystem decides, not the maths. Signature **generation** is done by [`ecdsa`](sec92.md#mod-ecdsa) on top of this module.
+| **op** | **What it does** | **Notes** |
+|---|---|---|
+| `mul_hi` | The upper 64 bits of the product of two `u64` | the lower half is `wrap_mul` · wraps the builtin `mul_hi` (applications call this) |
 
-| **op** | **What it does** |
-|---|---|
-| `limbs` | Limb count (16 = 256 bits) |
-| `msub` · `madd` | Modular subtraction · addition |
-| `minv` | Modular inverse (Fermat exponentiation) |
-| `pmul` | Montgomery product (reusing [`bigint`](sec88.md#mod-bigint)’s) |
-| `make_r2` | `R² mod p` — the constant for entering the Montgomery domain |
-| `pdbl` · `padd` | Jacobian point doubling · point addition |
-| `is_zero` | Is it the point at infinity |
-| `smul` | Scalar multiplication `[k]P` — for public scalars |
-| `smul_ct` | Scalar multiplication — for secret scalars, choosing by mask without branches |
-| `ecdsa_verify` | Does signature `(r, s)` match hash `e` and the public key |
-
-*Table 50.1 — Ops of `p256`*
-
-Curve constants (p · n · Gx · Gy) are passed in by the caller.
-
-**Why Jacobian coordinates — to postpone the inverse.** Point addition in affine coordinates needs a modular inverse every time, and an inverse costs hundreds of times a product. Jacobian coordinates carry the denominator inside the coordinates and postpone the inverse to a single one at the end. For the same reason `ed25519` uses extended coordinates, but its addition formula is **complete** with no exceptional branch, and here there **is** one (a different formula when the points are equal). That branch lives inside `padd`.
-
-**What is checked** — NIST CAVP P-256/SHA-256 signature verification vectors, 2 positive and **8 negative**, field and scalar multiplication compared with a Python reference curve, VM/native agreement. A signature verification test without negatives cannot catch “always true” — a verification test with only positives verifies nothing.
+*Table 50.1 — The op only `bigint64` has*
 
 ---
 

@@ -21,7 +21,7 @@ three pieces.
 ③ does H' = SHA-256(0x00×8 ‖ mHash ‖ salt) equal H inside EM
 ```
 
-① is `mod_exp` of #modref("bigint")[`bigint`], and ② and ③ are this module's job. The eight `0x00×8` bytes are not decoration --- they are a prefix the standard added to
+① is `mod_exp` of #modref("bigint32")[`bigint32`], and ② and ③ are this module's job. The eight `0x00×8` bytes are not decoration --- they are a prefix the standard added to
 separate signed content from certificate signatures. Leaving them out lets signatures from another context be reused.
 
 #dtable(

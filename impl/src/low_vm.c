@@ -4839,7 +4839,7 @@ low_ir_par_t low_ir_par_check(const low_ir_t *ir, proven_allocator_t work, bool 
             a[p] = (p == d->par_param)
                      ? (low_ir_arg_t){ .is_slice = true, .bytes = work_buf, .n = PN }
                      : (low_ir_arg_t){ .v = 1 };
-        low_ir_run_result_t seq = low_ir_run_argv(ir, d->name, a, d->nparams, work, &diags, NULL, 0);
+        low_ir_run_result_t seq = low_ir_run_def(ir, di, a, d->nparams, work, &diags, NULL, 0);
         for (proven_size_t q = 0; q < PN; q++) golden[q] = work_buf[q];
 
         // ── 쪼개기: K = 2, 3, 4, PN — 그리고 **역순**으로도(스케줄이 결과를 바꾸면 안 된다).
@@ -4858,7 +4858,7 @@ low_ir_par_t low_ir_par_check(const low_ir_t *ir, proven_allocator_t work, bool 
                                  ? (low_ir_arg_t){ .is_slice = true, .bytes = work_buf + lo,
                                                    .n = hi - lo }
                                  : (low_ir_arg_t){ .v = 1 };
-                    low_ir_run_result_t rr = low_ir_run_argv(ir, d->name, a, d->nparams,
+                    low_ir_run_result_t rr = low_ir_run_def(ir, di, a, d->nparams,
                                                              work, &diags, NULL, 0);
                     if (!rr.ok) { op_fail++; r.failures++; break; }
                     acc = first ? rr.value : par_combine(d->red_op, acc, rr.value);
@@ -5008,10 +5008,25 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
                                     const low_ir_arg_t *args, proven_size_t nargs,
                                     proven_allocator_t work, proven_array_t *diags,
                                     const proven_u8str_view_t *pargs, proven_size_t npargs) {
+    bool found; proven_size_t di = ir_def_find(ir, op, &found);
+    if (!found) {
+        vm_diag(diags, "E-VM-UNDEF", "no such op");
+        return (low_ir_run_result_t){ .value = 0, .ok = false, .text = "" };
+    }
+    return low_ir_run_def(ir, di, args, nargs, work, diags, pargs, npargs);
+}
+
+// ★★★ **정의를 번호로 돌린다** (RFC-0151 §9.5, 2026-10-22). 이름으로 찾으면 `ir_def_find` 가 **첫 정의**를 집는다 —
+//   두 모듈이 같은 짧은 이름을 내보내면(`p256.limbs` 와 `bigint32.limbs`) 계약 오라클 · 차등 검사가 엉뚱한 op 을 돌렸다
+//   (인자 수가 달라 모든 경우가 E-VM-ARITY 로 떨어지고, 거절돼야 할 입력이 «트랩 안 함» 으로 세어져 오라클 실패가 났다).
+//   정의를 이미 손에 든 쪽은 이것을 부른다. 이름으로 찾는 길(`--run <op>`)은 위 감싸개가 그대로 맡는다.
+low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
+                                   const low_ir_arg_t *args, proven_size_t nargs,
+                                   proven_allocator_t work, proven_array_t *diags,
+                                   const proven_u8str_view_t *pargs, proven_size_t npargs) {
     (void)work;
     low_ir_run_result_t out = { .value = 0, .ok = false, .text = "" };
-    bool found; proven_size_t di = ir_def_find(ir, op, &found);
-    if (!found) { vm_diag(diags, "E-VM-UNDEF", "no such op"); return out; }
+    if (di >= ir->ndefs) { vm_diag(diags, "E-VM-UNDEF", "no such op"); return out; }
     const low_ir_def_t *d = &ir->defs[di];
 
     if (nargs != d->nparams || nargs > VM_LOCALS) {

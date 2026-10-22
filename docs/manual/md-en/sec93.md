@@ -1,8 +1,8 @@
-# <a id="mod-ed25519"></a>`ed25519` — Ed25519 signature verification
+# <a id="mod-p384"></a>`p384` — the NIST P-384 curve and ECDSA verification
 
 Source
 
-`lib/ed25519.low`
+`lib/p384.low`
 
 Layer
 
@@ -12,32 +12,44 @@ Capabilities
 
 none
 
-Verifies signatures on the twisted Edwards curve over **the same prime** as Curve25519, `p = 2^255 − 19` (RFC 8032 §5.1.7). Because the prime is the same, the field arithmetic of [`x25519`](sec84.md#mod-x25519) is reused as is — same prime, same field. That one does key agreement; this one verifies signatures.
+**ECDSA signature verification** on the curve `y² = x³ − 3x + b` over the prime `p = 2^384 − 2^128 − 2^96 + 2^32 − 1`. TLS 1.3′s `ecdsa_secp384r1_sha384` uses this curve. Many intermediate certificate authorities on the public web, and their roots, sign with P-384, so checking a certificate chain to its end needs this curve.
 
 > **What it promises and what it does not**
 >
-> > It does not promise constant time and has not been audited. **There is no signing.** No `ed25519ph`, `ed25519ctx` or Ed448. **This algorithm cannot be used for public web HTTPS server certificates** — public CAs practically do not issue Ed25519 server certificates. That is [`p256`](sec90.md#mod-p256)′s place. This module verifies **a peer’s** signatures.
+> > It has not been audited. It exports **verification** only — no signing, no point decompression, no constant-time scalar multiplication. The scalars in verification are public, so branching on them is fine; handling secret scalars is not this module’s job.
 
-**Edwards addition is complete.** It uses extended coordinates `(X:Y:Z:T)`, `xy = T/Z`. The Edwards addition formula has no exceptions — unlike Jacobian there is no “different formula when the points are equal”. The branch inside `p256`′s `padd` does not exist here at all, and without a branch nothing can go wrong in it or leak through its timing.
+**Why a new module instead of changing `p256`.** [`p256`](sec92.md#mod-p256) hard-codes its 16 limbs into loop bounds and workspace offsets, and several modules already use it, fully checked. Making it generic over the limb count would touch checked code. So each curve gets its own module — this file is `p256` carried from 16 limbs to 24, and **not one formula differs**. Only the sizes do.
 
-**Ambiguous input is rejected.** RFC 8032 lets implementations differ in handling non-canonical encodings and small-order points. Here they are rejected — `S < L` is enforced (otherwise one message has several valid signatures), and failed decompression is rejected. When a standard says “either is fine”, writing down the choice is the document’s job.
+| **place** | **`p256`** | **`p384`** |
+|---|---|---|
+| one number’s place (slots) | 16 | 24 |
+| 32-bit limbs used inside it (since 2026-10-22 — 16-bit limbs filled the place before) | 8 | 12 |
+| one point (Jacobian X · Y · Z) | 48 | 72 |
+| Montgomery scratch | 18 | 26 |
+| exponent bits | 256 | 384 |
 
-| **op** | **What it does** |
+*Table 50.1 — `p256` and `p384` differ only in sizes*
+
+| **op** | **what it does** |
 |---|---|
-| `verify` | Does signature `sig` match public key `pub` and message `msg` — usually the only one used |
-| `make_d` · `make_l` · `make_base` | Curve constant `d` · order `L` · base point `B` |
-| `eadd` · `esmul` | Point addition · scalar multiplication |
-| `compress` · `decompress` | Point ↔ 32-byte encoding |
-| `fpow` · `feq` · `fbit0` | Field exponentiation · equality · lowest bit |
-| `pow2_minus` · `reduce_l` | `2^n − k` · reduction `mod L` |
+| `ecdsa_ok` | does the signature `(r, s)` match hash `e` and public key `pub` — `ok 1 .` yes · `ok 0 .` no · `error short_workspace .` the workspace is too small |
 
-*Table 50.1 — Ops of `ed25519`*
+*Table 50.2 — ops of `p384`*
 
-The verification equation is `[S]B = R + [k]A` with `k = SHA-512(R ‖ A ‖ M) mod L`.
+`ecdsa_ok` takes the curve constants (`p` · `n` · `Gx` · `Gy`) from the caller, the public key in affine form `x ‖ y` (48 limbs), and a workspace `w` of at least 1364 limbs (1.5 × `p256`′s 924). **A short workspace is a failure, not an answer** — once “not enough room” and “bad signature” were both 0, and a program that passed the wrong workspace looked like it had a bad signature.
 
-**Constants that must be transcribed are checked by a property.** `d`, `√−1` and `B` are computed — nothing to write down. The order `L` cannot be derived and had to be written. So a test checks that `[L]B` is the identity. Write it wrong and that check breaks — a way to measure a transcription instead of trusting it.
+The computation: first check that `r` and `s` lie in `1 … n−1`, then
 
-**What is checked** — RFC 8032 §7.1, 3 positive and **6 negative**, `[L]B = identity`, VM/native agreement.
+```text
+w  = s⁻¹ mod n
+u1 = e·w mod n ,  u2 = r·w mod n
+R  = u1·G + u2·Q         (Q = the public key point)
+true if R.x ≡ r (mod n)
+```
+
+Modular multiplication reuses [`bigint32`](sec89.md#mod-bigint32)′s Montgomery product — `p` and `n` are both odd, so the condition holds and no new arithmetic is built. Coordinates are Jacobian for the same reason as `p256` (the inverse is postponed to one at the very end).
+
+**What is checked** — two oracles we did not build. ① A signature made by `openssl` (secp384r1 · SHA-384) and accepted by `openssl dgst -verify` — one positive and **three negatives** (one bit of `s` · one bit of the hash · `s = 0`). ② Real certificate chains signed by real CAs (the intermediate of several public sites is P-384). The NIST CAVP vectors have **not been run yet** — the file is not in the repository. The consumer of this module is [`verify`](sec99.md#mod-verify).
 
 ---
 

@@ -44,20 +44,21 @@
 [4 수 — 폭이 정해진 정수와 부동소수점](ch04.md)
 
 - [4.1 정수 타입은 이름에 폭을 적는다](ch04.md#s4-1)
-- [4.2 넓히기는 자동, 좁히기는 적는다](ch04.md#s4-2)
-- [4.3 넘치면 멈춘다](ch04.md#s4-3)
-- [4.4 나눗셈과 나머지](ch04.md#s4-4)
-- [4.5 참거짓은 수가 아니다](ch04.md#s4-5)
-- [4.6 비트 연산](ch04.md#s4-6)
-- [4.7 부동소수점](ch04.md#s4-7)
-- [4.8 크기 타입 — usize 와 idiff](ch04.md#s4-8)
-- [4.8.1 폭은 구현이 정한다](ch04.md#s4-8-1)
-- [4.8.2 다른 정수와 섞이지 않는다 — 건너는 자리는 cast](ch04.md#s4-8-2)
-- [4.8.3 멈추지 않고 옮기기](ch04.md#s4-8-3)
-- [4.8.4 폭에 따라 조심할 것](ch04.md#s4-8-4)
-- [4.9 명시적 변환은 cast 가 맡는다](ch04.md#s4-9)
-- [4.10 흔한 실수](ch04.md#s4-10)
-- [4.11 이 장의 문법을 한눈에](ch04.md#s4-11)
+- [4.2 128 비트 정수](ch04.md#s4-2)
+- [4.3 넓히기는 자동, 좁히기는 적는다](ch04.md#s4-3)
+- [4.4 넘치면 멈춘다](ch04.md#s4-4)
+- [4.5 나눗셈과 나머지](ch04.md#s4-5)
+- [4.6 참거짓은 수가 아니다](ch04.md#s4-6)
+- [4.7 비트 연산](ch04.md#s4-7)
+- [4.8 부동소수점](ch04.md#s4-8)
+- [4.9 크기 타입 — usize 와 idiff](ch04.md#s4-9)
+- [4.9.1 폭은 구현이 정한다](ch04.md#s4-9-1)
+- [4.9.2 다른 정수와 섞이지 않는다 — 건너는 자리는 cast](ch04.md#s4-9-2)
+- [4.9.3 멈추지 않고 옮기기](ch04.md#s4-9-3)
+- [4.9.4 폭에 따라 조심할 것](ch04.md#s4-9-4)
+- [4.10 명시적 변환은 cast 가 맡는다](ch04.md#s4-10)
+- [4.11 흔한 실수](ch04.md#s4-11)
+- [4.12 이 장의 문법을 한눈에](ch04.md#s4-12)
 
 [5 op — fn 과 proc](ch05.md)
 
@@ -717,98 +718,102 @@
 
 [crypto_hw — 기계가 도와주는 암호 셈](sec86.md)
 
-[bigint — 큰수 모듈러 산술](sec87.md)
+[bigint16 — 큰수 모듈러 산술(16 비트 조각)](sec87.md)
 
-[rsa — RSASSA-PSS 검증](sec88.md)
+[bigint32 — 큰수 모듈러 산술(32 비트 조각)](sec88.md)
 
-[p256 — NIST P-256 곡선과 ECDSA 검증](sec89.md)
+[bigint64 — 큰수 모듈러 산술(64 비트 조각)](sec89.md)
 
-[p384 — NIST P-384 곡선과 ECDSA 검증](sec90.md)
+[rsa — RSASSA-PSS 검증](sec90.md)
 
-[ecdsa — ECDSA P-256 서명 생성](sec91.md)
+[p256 — NIST P-256 곡선과 ECDSA 검증](sec91.md)
 
-[ed25519 — Ed25519 서명 검증](sec92.md)
+[p384 — NIST P-384 곡선과 ECDSA 검증](sec92.md)
 
-[der — DER 최소 파서](sec93.md)
+[ecdsa — ECDSA P-256 서명 생성](sec93.md)
 
-[pem — PEM 봉투 벗기기](sec94.md)
+[ed25519 — Ed25519 서명 검증](sec94.md)
 
-[x509 — X.509 인증서 읽기](sec95.md)
+[der — DER 최소 파서](sec95.md)
 
-[verify — 인증서 서명과 체인의 한 마디 확인](sec96.md)
+[pem — PEM 봉투 벗기기](sec96.md)
 
-- [ 체인은 마디의 줄이다](sec96.md#sx1)
-- [ op](sec96.md#sx2)
-- [ 설계](sec96.md#sx3)
+[x509 — X.509 인증서 읽기](sec97.md)
 
-[tls13 — TLS 1.3 의 계산 부품](sec97.md)
+[verify — 인증서 서명과 체인의 한 마디 확인](sec98.md)
 
-[tlssrv — TLS 1.3 서버 핸드셰이크](sec98.md)
+- [ 체인은 마디의 줄이다](sec98.md#sx1)
+- [ op](sec98.md#sx2)
+- [ 설계](sec98.md#sx3)
 
-[tlscli — TLS 1.3 클라이언트 핸드셰이크](sec99.md)
+[tls13 — TLS 1.3 의 계산 부품](sec99.md)
 
-- [ 핸드셰이크의 차례](sec99.md#sx1)
-- [ op](sec99.md#sx2)
-- [ 설계](sec99.md#sx3)
+[tlssrv — TLS 1.3 서버 핸드셰이크](sec100.md)
 
-[http — HTTP/1.1 요청 파서](sec100.md)
+[tlscli — TLS 1.3 클라이언트 핸드셰이크](sec101.md)
 
-[soa — SoA 배치 시범: 필드마다 배열 하나](sec101.md)
+- [ 핸드셰이크의 차례](sec101.md#sx1)
+- [ op](sec101.md#sx2)
+- [ 설계](sec101.md#sx3)
 
-[allocs — 얼로케이터 trait 과 범프 · 기본 얼로케이터](sec102.md)
+[http — HTTP/1.1 요청 파서](sec102.md)
 
-[pool — 세대 핸들 블록 풀](sec103.md)
+[soa — SoA 배치 시범: 필드마다 배열 하나](sec103.md)
 
-[shard — 저장소를 쪼개는 접근 단위](sec104.md)
+[allocs — 얼로케이터 trait 과 범프 · 기본 얼로케이터](sec104.md)
 
-[budget — 핸들 비트 예산과 세대 한 바퀴](sec105.md)
+[pool — 세대 핸들 블록 풀](sec105.md)
 
-[wire — 한 낱말을 칸으로 나눠 쓰기](sec106.md)
+[shard — 저장소를 쪼개는 접근 단위](sec106.md)
 
-[flags — 이름 붙은 켬 · 끔을 한 낱말에](sec107.md)
+[budget — 핸들 비트 예산과 세대 한 바퀴](sec107.md)
 
-[segarena — 고정 크기 세그먼트 아레나](sec108.md)
+[wire — 한 낱말을 칸으로 나눠 쓰기](sec108.md)
 
-[pagecache — 페이지 id 와 고정 커서](sec109.md)
+[flags — 이름 붙은 켬 · 끔을 한 낱말에](sec109.md)
 
-[growvec — 자가성장 바이트 벡터](sec110.md)
+[segarena — 고정 크기 세그먼트 아레나](sec110.md)
 
-[vecgen — 제네릭 자가성장 벡터 vec t a](sec111.md)
+[pagecache — 페이지 id 와 고정 커서](sec111.md)
 
-[mapgen — 제네릭 해시맵 table k v](sec112.md)
+[growvec — 자가성장 바이트 벡터](sec112.md)
 
-[nodelist — 고정 intrusive 목록](sec113.md)
+[vecgen — 제네릭 자가성장 벡터 vec t a](sec113.md)
 
-[segview — 조각 뷰의 커서 · 총길이 · 펴기](sec114.md)
+[mapgen — 제네릭 해시맵 table k v](sec114.md)
 
-[lifemode · lifeatom — 값이 언제 끝나는가](sec115.md)
+[nodelist — 고정 intrusive 목록](sec115.md)
 
-[stdio — 표준 입출력](sec116.md)
+[segview — 조각 뷰의 커서 · 총길이 · 펴기](sec116.md)
 
-[args — 명령줄 인자](sec117.md)
+[lifemode · lifeatom — 값이 언제 끝나는가](sec117.md)
 
-[env — 환경 변수](sec118.md)
+[stdio — 표준 입출력](sec118.md)
 
-[io — 슬라이스 위의 스트림 읽기](sec119.md)
+[args — 명령줄 인자](sec119.md)
 
-[outbuf — 버퍼링 출력, flush 망각은 컴파일 오류](sec120.md)
+[env — 환경 변수](sec120.md)
 
-[files — 파일 · 디렉터리 스트림, close 망각은 컴파일 오류](sec121.md)
+[io — 슬라이스 위의 스트림 읽기](sec121.md)
 
-[tty — 터미널 입력](sec122.md)
+[outbuf — 버퍼링 출력, flush 망각은 컴파일 오류](sec122.md)
 
-[reactor — 막지 않는 읽기와 쓰기](sec123.md)
+[files — 파일 · 디렉터리 스트림, close 망각은 컴파일 오류](sec123.md)
 
-[net — 소켓(TCP loopback · 프로세스 안 한 쌍)](sec124.md)
+[tty — 터미널 입력](sec124.md)
 
-[clock — 시각과 마감](sec125.md)
+[reactor — 막지 않는 읽기와 쓰기](sec125.md)
 
-[trust — 신뢰 저장소에서 믿는 뿌리 찾기](sec126.md)
+[net — 소켓(TCP loopback · 프로세스 안 한 쌍)](sec126.md)
 
-- [ 묶음을 통째로 들지 않는다](sec126.md#sx1)
-- [ op](sec126.md#sx2)
+[clock — 시각과 마감](sec127.md)
 
-[찾아보기](sec127.md)
+[trust — 신뢰 저장소에서 믿는 뿌리 찾기](sec128.md)
+
+- [ 묶음을 통째로 들지 않는다](sec128.md#sx1)
+- [ op](sec128.md#sx2)
+
+[찾아보기](sec129.md)
 
 ---
 

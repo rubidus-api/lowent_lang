@@ -50,7 +50,7 @@ R  = u1·G + u2·Q         (Q = the public key point)
 true if R.x ≡ r (mod n)
 ```
 
-Modular multiplication reuses #modref("bigint")[`bigint`]'s Montgomery product --- `p` and `n` are both odd, so the condition holds and no
+Modular multiplication reuses #modref("bigint32")[`bigint32`]'s Montgomery product --- `p` and `n` are both odd, so the condition holds and no
 new arithmetic is built. Coordinates are Jacobian for the same reason as `p256` (the inverse is postponed to one at the very end).
 
 *What is checked* --- two oracles we did not build. ① A signature made by `openssl` (secp384r1 · SHA-384) and accepted by `openssl dgst -verify`

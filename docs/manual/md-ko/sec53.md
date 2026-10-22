@@ -65,7 +65,7 @@
 | 배치와 뷰 — 13장 | `encode` `try_view` `view_segments` `capacity` |
 | 빌림과 영역 — 12장 · 18장 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `stack_count` `push` `pop` `swap` |
 | 계약과 오류 — 14장 | `range` `ret` `expect` `panic` `elem_lt` `elem_le` `elem_gt` `elem_ge` |
-| 빌트인 연산(계산) — `call_builtin` 뒤에서만 선다 | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
+| 빌트인 연산(계산) — `call_builtin` 뒤에서만 선다 | `clmul_lo` `clmul_hi` `mul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
 | C 문자열 · 되부름 — 29장 | `cstr_of` `str_from_cstr` `unsafe_fn` |
 | 빌트인 연산(파일 · 그물 · 프로세스) — `call_builtin` 뒤에서만 선다 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `proc_spawn` `proc_read` `proc_poll` `proc_wait` `proc_kill` |
 | 빌트인 연산(표준 입출력 · 인자 · 환경 · 시계 · 터미널 · 난수 · reactor) — `call_builtin` 뒤에서만 선다 | `write_out` `read_in` `arg` `env_get` `time_now` `time_local` `time_sleep` `tty_raw` `tty_read` `tty_size` `random_bytes` `reactor_new` `r_read` `r_write` |

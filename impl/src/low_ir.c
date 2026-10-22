@@ -1283,7 +1283,7 @@ const char *low_builtin_wrapper(proven_u8str_view_t name) {
         { "sum_seq", "math.sum_seq" }, { "sum_neumaier", "math.sum_neumaier" },
         { "dir_make", "files.make_dir" }, { "path_remove", "files.remove" }, { "path_rename", "files.rename" },   // RFC-0140 §8-2
         { "proc_spawn", "process.launch" }, { "proc_read", "process.read_output" }, { "proc_poll", "process.check" },
-        { "proc_wait", "process.wait_exit" }, { "sha256", "hash.sha256" }, { "mul_hi", "bigint.mul_hi" },
+        { "proc_wait", "process.wait_exit" }, { "sha256", "hash.sha256" }, { "mul_hi", "bigint64.mul_hi" },
     };
     for (proven_size_t i = 0; i < sizeof WR / sizeof WR[0]; i++) if (veq(name, WR[i].w)) return WR[i].lib;
     return NULL;
@@ -7345,7 +7345,7 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
                     sa[p] = (low_ir_arg_t){ .is_slice = false, .v = args[p] };
                 }
             }
-            low_ir_run_result_t res = low_ir_run_argv(ir, d->name, sa, d->nparams, work, &diags, NULL, 0);
+            low_ir_run_result_t res = low_ir_run_def(ir, di, sa, d->nparams, work, &diags, NULL, 0);
             (void)res;
             op_cases++; r.cases++;
             if (admitted) r.admitted++; else r.rejected++;
@@ -7433,7 +7433,7 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
                     }
                     if (bad_arg) continue;
                     proven_size_t base = diags.len;
-                    (void)low_ir_run_argv(ir, d->name, a, d->nparams, work, &diags, NULL, 0);
+                    (void)low_ir_run_def(ir, di, a, d->nparams, work, &diags, NULL, 0);
                     op_cases++; r.cases++; r.shape_cases++;
                     if (ct_diag_has(&diags, base, "E-VM-ANALYSIS")) { op_fail++; r.failures++; }
                 }

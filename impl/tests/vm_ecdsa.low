@@ -12,25 +12,25 @@ rem   않아도 되고, 이 파일이 그 값을 정본 그대로 적어 둔다(
 
 module vm_ecdsa .
 use ecdsa from "../../lib/ecdsa.low" .
-use bigint from "../../lib/bigint.low" .
+use bigint32 from "../../lib/bigint32.low" .
 use p256 from "../../lib/p256.low" .
 use codec from "../../lib/codec.low" .
 
-rem 16진 문자열 → 32 바이트 → 8 조각(32 비트 조각). 실패는 0.
+rem 16진 문자열 → 32 바이트 → `bigint32` 의 수(크기는 바이트 32 로 말한다). 실패는 0.
 proc limbs_of input hexs slice u8 . input out mut slice u64 . input w mut slice u8 . output usize . effects none . do
   guard ge len w. . 32 . else return 0 . .
   let d option usize codec.hex_dec hexs. subslice w. 0 32 . . .
   guard is_some d. . else return 0 . .
-  return bigint.from_bytes subslice w. 0 32 . out. 8 . .
+  return bigint32.from_bytes subslice w. 0 32 . out. 32 . .
 end .
 
 rem 상수 넷을 `cw` 조각 공간(64)에 깐다: p(0..16) n(16..32) gx(32..48) gy(48..64)
 proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . effects none . do
   guard ge len cw. . 64 . else return 0 . .
-  guard eq limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" subslice cw. 0 16 . w. . 8 . else return 0 . .
-  guard eq limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" subslice cw. 16 32 . w. . 8 . else return 0 . .
-  guard eq limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" subslice cw. 32 48 . w. . 8 . else return 0 . .
-  guard eq limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" subslice cw. 48 64 . w. . 8 . else return 0 . .
+  guard eq limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" subslice cw. 0 16 . w. . 32 . else return 0 . .
+  guard eq limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" subslice cw. 16 32 . w. . 32 . else return 0 . .
+  guard eq limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" subslice cw. 32 48 . w. . 32 . else return 0 . .
+  guard eq limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" subslice cw. 48 64 . w. . 32 . else return 0 . .
   return 1 .
 end .
 
@@ -39,7 +39,7 @@ rem   k = A6E3C57D… ⇒ 0xA6E3C57D = 2799961981
 export proc k_head input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
   guard ge len wu. . 1016 . else return 0 . .
   guard eq curve subslice wu. 0 64 . wb. . 1 . else return 0 . .
-  guard eq limbs_of "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wu. 64 80 . wb. . 8 . else return 0 . .
+  guard eq limbs_of "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wu. 64 80 . wb. . 32 . else return 0 . .
   let dh option usize codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wb. 0 32 . . .
   guard is_some dh. . else return 0 . .
   let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 32 64 . . .
@@ -102,13 +102,13 @@ rem ☞ 작업 공간을 **둘로 나눠 받는다**: `--run` 의 배열 인자 
 export proc sign_then_verify input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input vw mut slice u64 . output u64 . effects none . do
   guard ge len vw. . 924 . else return 0 . .
   guard eq sign_sample rs. wb. wu. . 64 . else return 0 . .
-  guard eq bigint.from_bytes subslice rs. 0 32 . subslice wu. 64 80 . 8 . 8 . else return 0 . .
-  guard eq bigint.from_bytes subslice rs. 32 64 . subslice wu. 80 96 . 8 . 8 . else return 0 . .
+  guard eq bigint32.from_bytes subslice rs. 0 32 . subslice wu. 64 80 . 32 . 32 . else return 0 . .
+  guard eq bigint32.from_bytes subslice rs. 32 64 . subslice wu. 80 96 . 32 . 32 . else return 0 . .
   let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 0 32 . . .
   guard is_some hh. . else return 0 . .
-  guard eq bigint.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 8 . 8 . else return 0 . .
-  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 112 128 . wb. . 8 . else return 0 . .
-  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 128 144 . wb. . 8 . else return 0 . .
+  guard eq bigint32.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 32 . 32 . else return 0 . .
+  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 112 128 . wb. . 32 . else return 0 . .
+  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 128 144 . wb. . 32 . else return 0 . .
   let _rr result u64 p256.p256_error p256.ecdsa_verify subslice wu. 64 80 . subslice wu. 80 96 . subslice wu. 96 112 . subslice wu. 112 144 . subslice wu. 0 16 . subslice wu. 16 32 . subslice wu. 32 48 . subslice wu. 48 64 . subslice vw. 0 924 . . .
   guard is_ok _rr. . else return 0 . .
   return ok_value _rr. . .
@@ -119,13 +119,13 @@ export proc tampered input rs mut slice u8 . input wb mut slice u8 . input wu mu
   guard ge len vw. . 924 . else return 0 . .
   guard eq sign_sample rs. wb. wu. . 64 . else return 0 . .
   set idx rs. 63 . cast u8 bit_xor cast u64 idx rs. 63 . . 1 . . .
-  guard eq bigint.from_bytes subslice rs. 0 32 . subslice wu. 64 80 . 8 . 8 . else return 0 . .
-  guard eq bigint.from_bytes subslice rs. 32 64 . subslice wu. 80 96 . 8 . 8 . else return 0 . .
+  guard eq bigint32.from_bytes subslice rs. 0 32 . subslice wu. 64 80 . 32 . 32 . else return 0 . .
+  guard eq bigint32.from_bytes subslice rs. 32 64 . subslice wu. 80 96 . 32 . 32 . else return 0 . .
   let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 0 32 . . .
   guard is_some hh. . else return 0 . .
-  guard eq bigint.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 8 . 8 . else return 0 . .
-  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 112 128 . wb. . 8 . else return 0 . .
-  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 128 144 . wb. . 8 . else return 0 . .
+  guard eq bigint32.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 32 . 32 . else return 0 . .
+  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 112 128 . wb. . 32 . else return 0 . .
+  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 128 144 . wb. . 32 . else return 0 . .
   let _rr result u64 p256.p256_error p256.ecdsa_verify subslice wu. 64 80 . subslice wu. 80 96 . subslice wu. 96 112 . subslice wu. 112 144 . subslice wu. 0 16 . subslice wu. 16 32 . subslice wu. 32 48 . subslice wu. 48 64 . subslice vw. 0 924 . . .
   guard is_ok _rr. . else return 0 . .
   return ok_value _rr. . .
@@ -158,13 +158,13 @@ rem ★ X-0050 ② 탐침 — 서명만·검증만 따로 반복해 어느 쪽�
 export proc verify_only input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input vw mut slice u64 . input reps u64 . output u64 . effects none . do
   guard ge len vw. . 924 . else return 0 . .
   guard eq sign_sample rs. wb. wu. . 64 . else return 0 . .
-  guard eq bigint.from_bytes subslice rs. 0 32 . subslice wu. 64 80 . 8 . 8 . else return 0 . .
-  guard eq bigint.from_bytes subslice rs. 32 64 . subslice wu. 80 96 . 8 . 8 . else return 0 . .
+  guard eq bigint32.from_bytes subslice rs. 0 32 . subslice wu. 64 80 . 32 . 32 . else return 0 . .
+  guard eq bigint32.from_bytes subslice rs. 32 64 . subslice wu. 80 96 . 32 . 32 . else return 0 . .
   let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 0 32 . . .
   guard is_some hh. . else return 0 . .
-  guard eq bigint.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 8 . 8 . else return 0 . .
-  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 112 128 . wb. . 8 . else return 0 . .
-  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 128 144 . wb. . 8 . else return 0 . .
+  guard eq bigint32.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 32 . 32 . else return 0 . .
+  guard eq limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" subslice wu. 112 128 . wb. . 32 . else return 0 . .
+  guard eq limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" subslice wu. 128 144 . wb. . 32 . else return 0 . .
   var i u64 0 .
   var acc u64 0 .
   while lt i. reps. . do

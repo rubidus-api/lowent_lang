@@ -44,20 +44,21 @@ Searches headings and index terms --- not the full text
 [4 Numbers — fixed-width integers and floating point](ch04.md)
 
 - [4.1 Integer types name their width](ch04.md#s4-1)
-- [4.2 Widening is automatic, narrowing is written](ch04.md#s4-2)
-- [4.3 Overflow stops](ch04.md#s4-3)
-- [4.4 Division and remainder](ch04.md#s4-4)
-- [4.5 Booleans are not numbers](ch04.md#s4-5)
-- [4.6 Bitwise operations](ch04.md#s4-6)
-- [4.7 Floating point](ch04.md#s4-7)
-- [4.8 The size types — usize and idiff](ch04.md#s4-8)
-- [4.8.1 The implementation sets the width](ch04.md#s4-8-1)
-- [4.8.2 They do not mix with other integers — the crossing is cast](ch04.md#s4-8-2)
-- [4.8.3 Moving without stopping](ch04.md#s4-8-3)
-- [4.8.4 What to watch for at each width](ch04.md#s4-8-4)
-- [4.9 Explicit conversion is cast’s job](ch04.md#s4-9)
-- [4.10 Common mistakes](ch04.md#s4-10)
-- [4.11 This chapter’s syntax at a glance](ch04.md#s4-11)
+- [4.2 128-bit integers](ch04.md#s4-2)
+- [4.3 Widening is automatic, narrowing is written](ch04.md#s4-3)
+- [4.4 Overflow stops](ch04.md#s4-4)
+- [4.5 Division and remainder](ch04.md#s4-5)
+- [4.6 Booleans are not numbers](ch04.md#s4-6)
+- [4.7 Bitwise operations](ch04.md#s4-7)
+- [4.8 Floating point](ch04.md#s4-8)
+- [4.9 The size types — usize and idiff](ch04.md#s4-9)
+- [4.9.1 The implementation sets the width](ch04.md#s4-9-1)
+- [4.9.2 They do not mix with other integers — the crossing is cast](ch04.md#s4-9-2)
+- [4.9.3 Moving without stopping](ch04.md#s4-9-3)
+- [4.9.4 What to watch for at each width](ch04.md#s4-9-4)
+- [4.10 Explicit conversion is cast’s job](ch04.md#s4-10)
+- [4.11 Common mistakes](ch04.md#s4-11)
+- [4.12 This chapter’s syntax at a glance](ch04.md#s4-12)
 
 [5 Ops — fn and proc](ch05.md)
 
@@ -717,98 +718,102 @@ Searches headings and index terms --- not the full text
 
 [crypto_hw — arithmetic the machine helps with](sec87.md)
 
-[bigint — big-number modular arithmetic](sec88.md)
+[bigint16 — big-number modular arithmetic (16-bit limbs)](sec88.md)
 
-[rsa — RSASSA-PSS verification](sec89.md)
+[bigint32 — big-number modular arithmetic (32-bit limbs)](sec89.md)
 
-[p256 — the NIST P-256 curve and ECDSA verification](sec90.md)
+[bigint64 — big-number modular arithmetic (64-bit limbs)](sec90.md)
 
-[p384 — the NIST P-384 curve and ECDSA verification](sec91.md)
+[rsa — RSASSA-PSS verification](sec91.md)
 
-[ecdsa — ECDSA P-256 signing](sec92.md)
+[p256 — the NIST P-256 curve and ECDSA verification](sec92.md)
 
-[ed25519 — Ed25519 signature verification](sec93.md)
+[p384 — the NIST P-384 curve and ECDSA verification](sec93.md)
 
-[der — minimal DER parser](sec94.md)
+[ecdsa — ECDSA P-256 signing](sec94.md)
 
-[pem — unwrapping PEM envelopes](sec95.md)
+[ed25519 — Ed25519 signature verification](sec95.md)
 
-[x509 — reading X.509 certificates](sec96.md)
+[der — minimal DER parser](sec96.md)
 
-[verify — certificate signatures and one link of a chain](sec97.md)
+[pem — unwrapping PEM envelopes](sec97.md)
 
-- [ A chain is a line of links](sec97.md#sx1)
-- [ ops](sec97.md#sx2)
-- [ Design](sec97.md#sx3)
+[x509 — reading X.509 certificates](sec98.md)
 
-[tls13 — the computational parts of TLS 1.3](sec98.md)
+[verify — certificate signatures and one link of a chain](sec99.md)
 
-[tlssrv — the TLS 1.3 server handshake](sec99.md)
+- [ A chain is a line of links](sec99.md#sx1)
+- [ ops](sec99.md#sx2)
+- [ Design](sec99.md#sx3)
 
-[tlscli — the TLS 1.3 client handshake](sec100.md)
+[tls13 — the computational parts of TLS 1.3](sec100.md)
 
-- [ The order of the handshake](sec100.md#sx1)
-- [ ops](sec100.md#sx2)
-- [ Design](sec100.md#sx3)
+[tlssrv — the TLS 1.3 server handshake](sec101.md)
 
-[http — HTTP/1.1 request parser](sec101.md)
+[tlscli — the TLS 1.3 client handshake](sec102.md)
 
-[soa — an SoA layout trial: one array per field](sec102.md)
+- [ The order of the handshake](sec102.md#sx1)
+- [ ops](sec102.md#sx2)
+- [ Design](sec102.md#sx3)
 
-[allocs — allocator traits, bumps and default allocators](sec103.md)
+[http — HTTP/1.1 request parser](sec103.md)
 
-[pool — generational-handle block pool](sec104.md)
+[soa — an SoA layout trial: one array per field](sec104.md)
 
-[shard — access units that split a store](sec105.md)
+[allocs — allocator traits, bumps and default allocators](sec105.md)
 
-[budget — handle bit budgets and generation wraparound](sec106.md)
+[pool — generational-handle block pool](sec106.md)
 
-[wire — dividing one word into fields](sec107.md)
+[shard — access units that split a store](sec107.md)
 
-[flags — named on/off settings in one word](sec108.md)
+[budget — handle bit budgets and generation wraparound](sec108.md)
 
-[segarena — fixed-size segment arena](sec109.md)
+[wire — dividing one word into fields](sec109.md)
 
-[pagecache — page ids and pinning cursors](sec110.md)
+[flags — named on/off settings in one word](sec110.md)
 
-[growvec — self-growing byte vector](sec111.md)
+[segarena — fixed-size segment arena](sec111.md)
 
-[vecgen — generic self-growing vector vec t a](sec112.md)
+[pagecache — page ids and pinning cursors](sec112.md)
 
-[mapgen — generic hash map table k v](sec113.md)
+[growvec — self-growing byte vector](sec113.md)
 
-[nodelist — fixed intrusive lists](sec114.md)
+[vecgen — generic self-growing vector vec t a](sec114.md)
 
-[segview — cursors, total length and coalescing for segment views](sec115.md)
+[mapgen — generic hash map table k v](sec115.md)
 
-[lifemode · lifeatom — when a value ends](sec116.md)
+[nodelist — fixed intrusive lists](sec116.md)
 
-[stdio — standard input and output](sec117.md)
+[segview — cursors, total length and coalescing for segment views](sec117.md)
 
-[args — command-line arguments](sec118.md)
+[lifemode · lifeatom — when a value ends](sec118.md)
 
-[env — environment variables](sec119.md)
+[stdio — standard input and output](sec119.md)
 
-[io — stream reading over slices](sec120.md)
+[args — command-line arguments](sec120.md)
 
-[outbuf — buffered output where forgetting to flush is a compile error](sec121.md)
+[env — environment variables](sec121.md)
 
-[files — file and directory streams where forgetting to close is a compile error](sec122.md)
+[io — stream reading over slices](sec122.md)
 
-[tty — terminal input](sec123.md)
+[outbuf — buffered output where forgetting to flush is a compile error](sec123.md)
 
-[reactor — non-blocking reads and writes](sec124.md)
+[files — file and directory streams where forgetting to close is a compile error](sec124.md)
 
-[net — sockets (TCP loopback · in-process pairs)](sec125.md)
+[tty — terminal input](sec125.md)
 
-[clock — time and deadlines](sec126.md)
+[reactor — non-blocking reads and writes](sec126.md)
 
-[trust — finding a trusted root in the trust store](sec127.md)
+[net — sockets (TCP loopback · in-process pairs)](sec127.md)
 
-- [ It never holds the whole bundle](sec127.md#sx1)
-- [ ops](sec127.md#sx2)
+[clock — time and deadlines](sec128.md)
 
-[Index](sec128.md)
+[trust — finding a trusted root in the trust store](sec129.md)
+
+- [ It never holds the whole bundle](sec129.md#sx1)
+- [ ops](sec129.md#sx2)
+
+[Index](sec130.md)
 
 ---
 

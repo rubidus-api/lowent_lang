@@ -23,7 +23,7 @@ on the public web --- the ecosystem decides, not the maths. Signature *generatio
   [`limbs`], [Limb count (16 = 256 bits)],
   [`msub` · `madd`], [Modular subtraction · addition],
   [`minv`], [Modular inverse (Fermat exponentiation)],
-  [`pmul`], [Montgomery product (reusing #modref("bigint")[`bigint`]'s)],
+  [`pmul`], [Montgomery product (reusing #modref("bigint32")[`bigint32`]'s)],
   [`make_r2`], [`R² mod p` --- the constant for entering the Montgomery domain],
   [`pdbl` · `padd`], [Jacobian point doubling · point addition],
   [`is_zero`], [Is it the point at infinity],

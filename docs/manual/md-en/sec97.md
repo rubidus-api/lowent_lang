@@ -1,8 +1,8 @@
-# <a id="mod-verify"></a>`verify` — certificate signatures and one link of a chain
+# <a id="mod-pem"></a>`pem` — unwrapping PEM envelopes
 
 Source
 
-`lib/verify.low`
+`lib/pem.low`
 
 Layer
 
@@ -12,67 +12,32 @@ Capabilities
 
 none
 
-Once [`x509`](sec96.md#mod-x509) has **read** a certificate, this module answers on top of it: **was this certificate signed by that one**. Besides the signature, it gathers what one **link** of a chain needs — validity, names that connect, and host name matching.
+Extracts **the bytes in the middle (DER)** from the folded base64 between `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` (RFC 7468). Key files have the same shape with a different label. [`codec`](sec65.md#mod-codec) knows base64 but not line folding — this module strips the header, unfolds and hands it on. Certificates come from outside (a tool like certbot leaves them as files). ACME is not built.
 
 > **What it promises and what it does not**
 >
-> > It has not been audited. It accepts four signature algorithms only — RSA v1.5 + SHA-256 · RSA v1.5 + SHA-384 · ECDSA + SHA-256 · ECDSA + SHA-384. Anything else (the SHA-512 family · RSA-PSS certificates · Ed25519 certificates · P-521) is **refused**. There is no revocation check. Letting an unknown algorithm through would turn this module’s answer from “checked” into “could not tell”.
+> > **It cannot open encrypted PEM** (`Proc-Type: 4,ENCRYPTED`). **It yields only the first one** — if a file holds several (a certificate chain), the caller calls again for the later ones. No URL-safe base64. **It is a parser, not a trust decision** — it verifies nothing.
 
-## <a id="sx1"></a>A chain is a line of links
-
-A web server usually sends three layers. Each is signed by the one above it, and the top (the root) must be one we **decided in advance to trust**.
-
-```text
-  root (in the trust store)     ← found by trust.find_anchor
-     │  signs
-     ▼
-  intermediate CA               ← link_ok intermediate · root
-     │  signs
-     ▼
-  leaf (example.com)            ← link_ok leaf · intermediate  +  host_ok leaf · "example.com"
-```
-
-Call `link_ok` for each link from the bottom up, and add `host_ok` for the leaf. If any answer is not 1, the chain is broken. **How** the chain is gathered (the order the server sent, how many links) is the caller’s choice — `apps/lowget` is a real example.
-
-| **value** | **meaning** |
+| **op** | **What it does** |
 |---|---|
-| `1` | links — signature, CA, names and validity all hold |
-| `2` | the child’s issuer name differs from the parent’s subject name |
-| `3` | the parent is not allowed to issue certificates (not a CA) |
-| `4` | one of the two is outside its validity period |
-| `5` | the signature does not hold (or the algorithm is unknown) |
-| `6` | the workspace for checking the signature was too small — not a result, but **could not measure** |
+| `find_from` | Finds `needle` in `hay` (`len hay. .` if absent) |
+| `body_off` | Position of **the line after** `-----BEGIN <label>-----`. 0 = absent |
+| `end_off` | Position of `-----END <label>-----`. 0 = absent |
+| `unwrap` | One PEM block → DER bytes. `option u64` (bytes written), `none` on failure |
 
-*Table 50.1 — what `link_ok` returns — anything but 1 says why it refused*
+*Table 50.1 — Ops of `pem`*
 
-## <a id="sx2"></a>ops
+In `unwrap src label scratch out`, `scratch` carries two loads — assembling the header (front) and the unfolded base64 (back). `len scratch ≥ len src + label length + 16` is enough.
 
-| **op** | **what it does** |
-|---|---|
-| `link_ok` | links one step (table above). Byte workspace ≥ 1024 · limb workspace ≥ 2200 |
-| `signed_by` | was the child signed by the parent — `ok 1 .` / `ok 0 .`, `error short_workspace .` if there is not enough room |
-| `sig_kind` | the algorithm the child names: 1 RSA+SHA-256 · 2 ECDSA+SHA-256 · 3 RSA+SHA-384 · 4 ECDSA+SHA-384 · 0 unknown |
-| `dn_eq` | are two names equal **as bytes** |
-| `dates_ok` | does the validity period contain now (one number `YYYYMMDDhhmmss`) |
-| `host_ok` · `san_matches` | does a host name match one of the subject alternative names |
-| `ecdsa_rs` | takes `r` · `s` out of a DER-wrapped ECDSA signature, right-aligned to the curve size (32 · 48 bytes) |
-| `curve` · `curve384` | fills the P-256 · P-384 constants (`p` · `n` · `Gx` · `Gy`) into a workspace |
+**Why a label is required.** `unwrap` takes by name what it opens, and rejects when the BEGIN and END labels differ. A file holding several blocks is normal. Without matching pairs, opening `CERTIFICATE` would swallow up to the next BEGIN and decode garbage — and base64 silently accepts garbage too.
 
-*Table 50.2 — ops of `verify`*
+**Line ends accept both LF and CRLF — the opposite of [`http`](sec103.md#mod-http).** There, the boundary is security, so a bare LF is rejected (request smuggling). Here it is a file format, and real files use both. Strictness is not a virtue but a tool — its strength depends on what it guards against.
 
-## <a id="sx3"></a>Design
+**Why `unwrap`, not `decode`.** `utf8.decode` already exists, and when names collide there is a known defect where the processor measures types with another module’s signature even when called qualified. A test using both modules together caught that combination breaking. A library green on its own is not enough — it must compose to be usable.
 
-**Signatures are checked over the original bytes.** `x509.tbs_off … tbs_end` is hashed as is. Checking a copy could make a signature look right even when the copy is wrong.
+The path PEM → DER → PKCS#8 → 32-byte scalar goes with [`der`](sec96.md#mod-der) — get DER with `pem.unwrap src. "PRIVATE KEY" sc. buf. .`, then find the scalar’s position with `der.p8_inner_off` and `der.ec_priv_off`.
 
-**The public key length picks the curve.** 65 bytes is P-256 ([`p256`](sec90.md#mod-p256)), 97 bytes is P-384 ([`p384`](sec91.md#mod-p384)). RSA goes to [`rsa`](sec89.md#mod-rsa).
-
-**Names are compared as bytes.** DER has one byte string per name, so that is right. Decoding and comparing as text lets case, encoding and whitespace rules in, and each rule shifts what “equal” means.
-
-**A wildcard covers the first label only.** `*.a.b` matches `x.a.b` but not `a.b` or `y.x.a.b` (RFC 6125 §6.4.3). Case folding is ASCII only.
-
-**`ecdsa_rs` right-aligns.** A DER integer may carry a leading 0 (when the top bit is 1) or be short. Copying it as is verifies a value shifted by one byte, and that mistake only ever shows up as “bad signature”.
-
-**A short workspace is a failure.** It is `error short_workspace .` — once “not enough room” and “not signed” were both 0, and a program that passed the wrong workspace looked like it had a bad signature.
+**What is checked** — comparison with openssl output (certificate DER of 375 bytes identical, the scalar inside PKCS#8 at position 36 with length 32), rejection of label mismatch and missing envelope, VM/native agreement. The test vector’s scalar is the synthetic value `01 02 … 20` — the structure is exactly what openssl produced, so it measures the parser just as well, and it is plainly not a secret.
 
 ---
 

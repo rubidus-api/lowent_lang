@@ -49,7 +49,7 @@ end .
 
 `map` and `filter` give **the number of elements written** (a `u64`, the same as `collect into`). The caller gives the storage — this module does not allocate.
 
-**Why these are not core ops.** Until 2026-10-16 the three were core ops. A core op’s name cannot be an author’s name, so no local or op could be called `map`, which is also why [`mapgen`](sec113.md#mod-mapgen) chose the name `table`. Moving them into a library freed the names.
+**Why these are not core ops.** Until 2026-10-16 the three were core ops. A core op’s name cannot be an author’s name, so no local or op could be called `map`, which is also why [`mapgen`](sec115.md#mod-mapgen) chose the name `table`. Moving them into a library freed the names.
 
 **Why not pass an op as a value.** This language has no way to pass an op as a value. Even if it had one, an indirect call would hide its cost at the call site. Each call builds an op for that type (monomorphisation), and `apply` is fixed in as a direct call. The price is that **one element type has one `apply`** — moving the same bytes in two ways takes two wrapper types. To see a byte slice as a slice of wrappers, use `view_array <wrapper> <slice>` (one field, the same layout).
 

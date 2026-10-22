@@ -14,7 +14,7 @@ module p384vec .
 
 use p384 from "../../../lib/p384.low" .
 use verify from "../../../lib/verify.low" .
-use bigint from "../../../lib/bigint.low" .
+use bigint32 from "../../../lib/bigint32.low" .
 use codec from "../../../lib/codec.low" .
 
 rem 자리표 — wu: 곡선 0..96 · r 96..120 · s 120..144 · e 144..168 · 키 168..216 · 일터 216..1580
@@ -41,11 +41,11 @@ end .
 
 rem 바이트 자리를 조각 자리로 옮긴다 — 손댄 뒤에 다시 부르면 손댄 값이 들어간다.
 proc fill input buf slice u8 . input wu mut slice u64 . output u64 . effects none . do
-  guard eq bigint.from_bytes subslice buf. 64 112 . subslice wu. 96 120 . 12 . 12 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 112 160 . subslice wu. 120 144 . 12 . 12 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 160 208 . subslice wu. 144 168 . 12 . 12 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 208 256 . subslice wu. 168 192 . 12 . 12 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 256 304 . subslice wu. 192 216 . 12 . 12 . else return 0 . .
+  guard eq bigint32.from_bytes subslice buf. 64 112 . subslice wu. 96 120 . 48 . 48 . else return 0 . .
+  guard eq bigint32.from_bytes subslice buf. 112 160 . subslice wu. 120 144 . 48 . 48 . else return 0 . .
+  guard eq bigint32.from_bytes subslice buf. 160 208 . subslice wu. 144 168 . 48 . 48 . else return 0 . .
+  guard eq bigint32.from_bytes subslice buf. 208 256 . subslice wu. 168 192 . 48 . 48 . else return 0 . .
+  guard eq bigint32.from_bytes subslice buf. 256 304 . subslice wu. 192 216 . 48 . 48 . else return 0 . .
   return 1 .
 end .
 

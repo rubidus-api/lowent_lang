@@ -70,7 +70,7 @@ end .
   widening is where it is decided whether to extend the sign or fill with zeros.
 - A literal wider than 64 bits (`340282366920938463463374607431768211455`) fits only a 128-bit place.
 - For now they stand only in *scalar places* (locals · inputs · results · the content of an `option`). As a struct field, a slice
-  element or across the C boundary they are `E-INT128-PLACE`. If you only need the upper half of a 64-bit product, `bigint.mul_hi` is
+  element or across the C boundary they are `E-INT128-PLACE`. If you only need the upper half of a 64-bit product, `bigint64.mul_hi` is
   cheaper (it stays on the fast path) --- an op that uses 128-bit integers goes down the tagged path.
 
 == Widening is automatic, narrowing is written
@@ -460,7 +460,7 @@ name.
   [`bit_and` · `bit_or` · `bit_xor` · `bit_not`], [bitwise logic], [no symbol-precedence traps],
   [`shl` · `shr` · `rotl` · `rotr`], [shift · rotate], [shifting by the width or more stops],
   [`call_builtin clmul_lo` · `call_builtin clmul_hi`], [carry-less multiply (builtin ops) — two words out], [the machine instruction when there is one, the computation when there is not],
-  [`call_builtin mul_hi` (`bigint.mul_hi`)], [the upper 64 bits of a `u64` product (builtin op) — the lower half is `wrap_mul`], [one multiply where the C compiler has a 128-bit integer, four 32-bit products where it does not],
+  [`call_builtin mul_hi` (`bigint64.mul_hi`)], [the upper 64 bits of a `u64` product (builtin op) — the lower half is `wrap_mul`], [one multiply where the C compiler has a 128-bit integer, four 32-bit products where it does not],
   [`count_ones` · `leading_zeros` · `trailing_zeros` · `byte_swap`], [count bits · reverse bytes], [common jobs get one name],
   [`true` · `false` · `and` · `or` · `not`], [booleans and their logic], [numbers are never used as conditions],
   [`usize` · `idiff` · `f32`], [integers for lengths and indexes (width set by the implementation) · 32-bit float], [writing lengths and positions · when quantity matters more than precision],

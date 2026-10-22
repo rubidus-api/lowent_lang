@@ -1063,6 +1063,11 @@ typedef struct {
                                                   const low_ir_arg_t *args, proven_size_t nargs,
                                                   proven_allocator_t work, proven_array_t *diags,
                                                   const proven_u8str_view_t *pargs, proven_size_t npargs);
+// 같은 일을 정의 번호로 — 짧은 이름이 두 모듈에 있을 때 이름으로 찾으면 첫 정의를 집는다(RFC-0151 §9.5).
+[[nodiscard]] low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
+                                                 const low_ir_arg_t *args, proven_size_t nargs,
+                                                 proven_allocator_t work, proven_array_t *diags,
+                                                 const proven_u8str_view_t *pargs, proven_size_t npargs);
 
 // ★★ **테스트 러너** — `test N do … end` 은 **죽은 문법이었다**(파싱되고 절대 실행 안 됨).
 //   초록불이 "검사됐다" 가 아니라 **"아무도 안 돌렸다"** 였다. 그것이 이 언어가 금지하는 거짓말이다.

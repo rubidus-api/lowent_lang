@@ -1,0 +1,68 @@
+rem RFC-0151 §9.5 — 큰 수 모듈 셋(`bigint16` · `bigint32` · `bigint64`)은 이름과 입력이 같고 조각 폭만 다르다.
+rem 같은 거듭제곱 b^65537 mod n 을 세 폭으로 셈해 결과 바이트의 지문(h ← h·31 + 바이트, 감김)을 낸다. 골든이 파이썬의 답과 견준다.
+module bigwidth .
+use bigint16 from "../../lib/bigint16.low" .
+use bigint32 from "../../lib/bigint32.low" .
+use bigint64 from "../../lib/bigint64.low" .
+
+fn print_of input o slice u8 . output u64 . do
+  var h u64 0 .
+  var i usize 0 .
+  while lt i. len o. . . do
+    set h. wrap_add wrap_mul h. 31 . cast u64 idx o. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return h. .
+end .
+
+rem 칸은 ⌈nb / 2⌉ + 2 — 세 폭 어디에나 맞는 규칙대로 잡는다(nb ≤ 256).
+proc exp16 input nb slice u8 . input bb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  var n lit array u64 130 _ . .
+  var b lit array u64 130 _ . .
+  var o lit array u64 130 _ . .
+  var r2 lit array u64 130 _ . .
+  var acc lit array u64 130 _ . .
+  var tmp lit array u64 130 _ . .
+  var t lit array u64 130 _ . .
+  let m usize len nb. . .
+  guard eq bigint16.from_bytes nb. n. m. . m. . else return 0 . .
+  guard eq bigint16.from_bytes bb. b. m. . m. . else return 0 . .
+  guard eq bigint16.mod_exp o. b. 65537 n. m. r2. acc. tmp. t. . 1 . else return 0 . .
+  guard eq bigint16.to_bytes o. m. out. . m. . else return 0 . .
+  return print_of out. . .
+end .
+proc exp32 input nb slice u8 . input bb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  var n lit array u64 130 _ . .
+  var b lit array u64 130 _ . .
+  var o lit array u64 130 _ . .
+  var r2 lit array u64 130 _ . .
+  var acc lit array u64 130 _ . .
+  var tmp lit array u64 130 _ . .
+  var t lit array u64 130 _ . .
+  let m usize len nb. . .
+  guard eq bigint32.from_bytes nb. n. m. . m. . else return 0 . .
+  guard eq bigint32.from_bytes bb. b. m. . m. . else return 0 . .
+  guard eq bigint32.mod_exp o. b. 65537 n. m. r2. acc. tmp. t. . 1 . else return 0 . .
+  guard eq bigint32.to_bytes o. m. out. . m. . else return 0 . .
+  return print_of out. . .
+end .
+proc exp64 input nb slice u8 . input bb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  var n lit array u64 130 _ . .
+  var b lit array u64 130 _ . .
+  var o lit array u64 130 _ . .
+  var r2 lit array u64 130 _ . .
+  var acc lit array u64 130 _ . .
+  var tmp lit array u64 130 _ . .
+  var t lit array u64 130 _ . .
+  let m usize len nb. . .
+  guard eq bigint64.from_bytes nb. n. m. . m. . else return 0 . .
+  guard eq bigint64.from_bytes bb. b. m. . m. . else return 0 . .
+  guard eq bigint64.mod_exp o. b. 65537 n. m. r2. acc. tmp. t. . 1 . else return 0 . .
+  guard eq bigint64.to_bytes o. m. out. . m. . else return 0 . .
+  return print_of out. . .
+end .
+
+rem 쪼개진 크기: 33 바이트는 16 · 32 · 64 비트 조각 어느 경계에도 안 맞는다 — 위쪽 채움이 셋에서 같아야 한다.
+fn limbs_of input nb usize . output u64 . do
+  return add add mul cast u64 bigint16.limbs nb. . . 10000 . mul cast u64 bigint32.limbs nb. . . 100 . . cast u64 bigint64.limbs nb. . . . .
+end .

@@ -128,7 +128,7 @@ proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 
                                     hexd cast u64 idx h. add mul i. 2 . 1 . . . . . . .
     set i. add i. 1 . .
   end .
-  return bigint.from_bytes subslice w. 0 32 . out. 16 . .
+  return bigint.from_bytes subslice w. 0 32 . out. 8 . .
 end .
 export proc curve input cw mut slice u64 . input w mut slice u8 . output result u64 verify_error . effects none .
 errors short_workspace . do
@@ -136,10 +136,10 @@ errors short_workspace . do
   rem   `w` 는 16진을 푸는 자리. 둘 중 하나라도 좁으면 우리는 **재지 못한 것**이다.
   guard ge len cw. . 64 . else return error short_workspace . . .
   guard ge len w. . 32 . else return error short_workspace . . .
-  guard eq limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" subslice cw. 0 16 . w. . 16 . else return ok 0 . . .
-  guard eq limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" subslice cw. 16 32 . w. . 16 . else return ok 0 . . .
-  guard eq limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" subslice cw. 32 48 . w. . 16 . else return ok 0 . . .
-  guard eq limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" subslice cw. 48 64 . w. . 16 . else return ok 0 . . .
+  guard eq limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" subslice cw. 0 16 . w. . 8 . else return ok 0 . . .
+  guard eq limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" subslice cw. 16 32 . w. . 8 . else return ok 0 . . .
+  guard eq limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" subslice cw. 32 48 . w. . 8 . else return ok 0 . . .
+  guard eq limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" subslice cw. 48 64 . w. . 8 . else return ok 0 . . .
   return ok 1 . .
 end .
 
@@ -154,16 +154,16 @@ proc limbs_of96 input h slice u8 . input out mut slice u64 . input w mut slice u
                                     hexd cast u64 idx h. add mul i. 2 . 1 . . . . . . .
     set i. add i. 1 . .
   end .
-  return bigint.from_bytes subslice w. 0 48 . out. 24 . .
+  return bigint.from_bytes subslice w. 0 48 . out. 12 . .
 end .
 export proc curve384 input cw mut slice u64 . input w mut slice u8 . output result u64 verify_error . effects none .
 errors short_workspace . do
   guard ge len cw. . 96 . else return error short_workspace . . .
   guard ge len w. . 48 . else return error short_workspace . . .
-  guard eq limbs_of96 "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" subslice cw. 0 24 . w. . 24 . else return ok 0 . . .
-  guard eq limbs_of96 "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" subslice cw. 24 48 . w. . 24 . else return ok 0 . . .
-  guard eq limbs_of96 "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" subslice cw. 48 72 . w. . 24 . else return ok 0 . . .
-  guard eq limbs_of96 "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" subslice cw. 72 96 . w. . 24 . else return ok 0 . . .
+  guard eq limbs_of96 "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" subslice cw. 0 24 . w. . 12 . else return ok 0 . . .
+  guard eq limbs_of96 "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" subslice cw. 24 48 . w. . 12 . else return ok 0 . . .
+  guard eq limbs_of96 "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" subslice cw. 48 72 . w. . 12 . else return ok 0 . . .
+  guard eq limbs_of96 "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" subslice cw. 72 96 . w. . 12 . else return ok 0 . . .
   return ok 1 . .
 end .
 
@@ -200,11 +200,11 @@ do
   let _u1 result u64 verify_error curve384 subslice wu. 0 96 . subslice wb. 208 256 . . .
   guard is_ok _u1. . else return ok 0 . . .
   guard eq ok_value _u1. . 1 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice wb. 64 112 . subslice wu. 96 120 . 24 . 24 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice wb. 112 160 . subslice wu. 120 144 . 24 . 24 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice wb. 160 208 . subslice wu. 144 168 . 24 . 24 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice issuer. add ko. 1 . add ko. 49 . . subslice wu. 168 192 . 24 . 24 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice issuer. add ko. 49 . add ko. 97 . . subslice wu. 192 216 . 24 . 24 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice wb. 64 112 . subslice wu. 96 120 . 12 . 12 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice wb. 112 160 . subslice wu. 120 144 . 12 . 12 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice wb. 160 208 . subslice wu. 144 168 . 12 . 12 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice issuer. add ko. 1 . add ko. 49 . . subslice wu. 168 192 . 12 . 12 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice issuer. add ko. 49 . add ko. 97 . . subslice wu. 192 216 . 12 . 12 . else return ok 0 . . .
   rem ★ P-384 의 실패(자리 모자람)를 **그대로 이어받는다** — 여기서 0 으로 뭉개면
   rem   «서명이 틀렸다» 가 되고, 그것은 우리가 재지 못한 것을 재고 나서 하는 말로 바꾸는 일이다.
   let pr result u64 p384.p384_error p384.ecdsa_ok subslice wu. 96 120 . subslice wu. 120 144 . subslice wu. 144 168 .
@@ -306,14 +306,14 @@ do
   let _u0 result u64 verify_error curve subslice wu. 0 64 . subslice wb. 128 256 . . .
   guard is_ok _u0. . else return error short_workspace . . .
   guard eq ok_value _u0. . 1 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice wb. 64 96 . subslice wu. 64 80 . 16 . 16 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice wb. 96 128 . subslice wu. 80 96 . 16 . 16 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice wb. 64 96 . subslice wu. 64 80 . 8 . 8 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice wb. 96 128 . subslice wu. 80 96 . 8 . 8 . else return ok 0 . . .
   rem ★★ ECDSA 는 해시를 **곡선의 크기만큼 왼쪽에서** 잘라 쓴다(RFC 6979 §2.3.2 · SEC1 §4.1.4).
   rem   P-256 에 SHA-384 을 쓰면 48 바이트 가운데 **앞 32**만 쓴다 — 뒤를 쓰거나 전체를 넣으면
   rem   서명이 언제나 틀린 것처럼 보인다(그리고 그 실패는 「서명 오류」로만 나온다).
-  guard eq bigint.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 16 . 16 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice issuer. add ko. 1 . add ko. 33 . . subslice wu. 112 128 . 16 . 16 . else return ok 0 . . .
-  guard eq bigint.from_bytes subslice issuer. add ko. 33 . add ko. 65 . . subslice wu. 128 144 . 16 . 16 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice wb. 0 32 . subslice wu. 96 112 . 8 . 8 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice issuer. add ko. 1 . add ko. 33 . . subslice wu. 112 128 . 8 . 8 . else return ok 0 . . .
+  guard eq bigint.from_bytes subslice issuer. add ko. 33 . add ko. 65 . . subslice wu. 128 144 . 8 . 8 . else return ok 0 . . .
   return p256.ecdsa_verify subslice wu. 64 80 . subslice wu. 80 96 . subslice wu. 96 112 .
                            subslice wu. 112 144 .
                            subslice wu. 0 16 . subslice wu. 16 32 .

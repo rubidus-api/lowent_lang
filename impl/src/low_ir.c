@@ -555,8 +555,9 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 res = ity_join(ops[0], ops[1]);
                 if (!c->tstk_bad) a = ity_meta(res);
                 break;
-            case IRW_CLMULLO: case IRW_CLMULHI:
-                res = ity_join(ops[0], ops[1]);
+            case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI:
+                // ★ 곱의 말은 `u64` 다 — 검사층(LEAF kind 6)과 같은 답. 피연산자가 다른 타입이면 검사층이 E-TYPE-ARG 로 거절한다.
+                res = (ityp_t){ .known = true, .bits = 64, .sign = false };
                 if (!c->tstk_bad) a = ity_meta(res);
                 break;
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
@@ -1275,7 +1276,7 @@ const char *low_builtin_wrapper(proven_u8str_view_t name) {
         { "sum_seq", "math.sum_seq" }, { "sum_neumaier", "math.sum_neumaier" },
         { "dir_make", "files.make_dir" }, { "path_remove", "files.remove" }, { "path_rename", "files.rename" },   // RFC-0140 §8-2
         { "proc_spawn", "process.launch" }, { "proc_read", "process.read_output" }, { "proc_poll", "process.check" },
-        { "proc_wait", "process.wait_exit" }, { "sha256", "hash.sha256" },
+        { "proc_wait", "process.wait_exit" }, { "sha256", "hash.sha256" }, { "mul_hi", "bigint.mul_hi" },
     };
     for (proven_size_t i = 0; i < sizeof WR / sizeof WR[0]; i++) if (veq(name, WR[i].w)) return WR[i].lib;
     return NULL;
@@ -2095,6 +2096,7 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
                 unsigned long long x = (unsigned long long)a, y = (unsigned long long)b, lo = 0, hi = 0;
                 for (int i = 0; i < 64; i++) if ((y >> i) & 1ull) { lo ^= x << i; if (i) hi ^= x >> (64 - i); }
                 *out = (proven_i64)(bt->w == IRW_CLMULLO ? lo : hi); return true; }
+            case IRW_MULHI: *out = (proven_i64)low_mulhi64((proven_u64)a, (proven_u64)b); return true;   // ★ RFC-0151 — 상수도 접는다(VM 과 같은 식)
             case IRW_SHL: if (b < 0 || b >= 64) return false; *out = a << b; return true;
             case IRW_SHR: if (b < 0 || b >= 64) return false; *out = a >> b; return true;
             case IRW_EQ:  *out = (a == b) ? 1 : 0; return true;
@@ -4709,7 +4711,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 if (!b) {
                     ir_fail(c, "E-BUILTIN-NAME",
                             "this is not a builtin op. The names that stand after `call_builtin` "
-                            "are a closed set (clmul_lo, clmul_hi, aes_round, aes_round_last, aes_ctr, "
+                            "are a closed set (clmul_lo, clmul_hi, mul_hi, aes_round, aes_round_last, aes_ctr, "
                             "ghash, chacha20, poly1305, aes_gcm, sha256, sha384, sha512, crc32, "
                             "hash_bytes, rng_next, chacha_poly — those that take a capability: file_*, dir_*, path_remove, path_rename, link_type, net_*, proc_*, "
                             "write_out, read_in, arg, env_get, time_*, tty_*, random_bytes, reactor_new, r_read, r_write — and the float functions: "
@@ -6212,7 +6214,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_SHL: return "shl"; case IRW_SHR: return "shr";
         case IRW_WSHL: return "wrap.shl"; case IRW_WSHR: return "wrap.shr";
         case IRW_ROTL: return "rotl"; case IRW_ROTR: return "rotr";
-        case IRW_CLMULLO: return "clmul.lo"; case IRW_CLMULHI: return "clmul.hi";
+        case IRW_CLMULLO: return "clmul.lo"; case IRW_CLMULHI: return "clmul.hi"; case IRW_MULHI: return "mul.hi";
         case IRW_POPCNT: return "count.ones"; case IRW_CLZ: return "leading.zeros";
         case IRW_CTZ: return "trailing.zeros"; case IRW_BSWAP: return "byte.swap";
         case IRW_ALOAD: return "atomic.load"; case IRW_ASTORE: return "atomic.store";

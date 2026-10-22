@@ -43,7 +43,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   trait         true          try           type          unsafe        use           var           while
 ```
 
-## 3. 빌트인 op **231**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
+## 3. 빌트인 op **232**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
 
 ★ 외워야 하는 것은 키워드 수가 아니라 **키워드 + op** 이다. 그래서 둘 다 센다.
 
@@ -63,20 +63,20 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   hash_bytes      idx             into            is_error        is_none         is_ok           is_some         isa
   lane_all        lane_any        lane_avg        lane_reverse    lane_rotate     lane_select     le              leading_zeros
   len             link_type       load            load_masked     log             lt              map             max
-  min             mod             mul             mut_ref         narrow          narrow_sat      narrow_try      narrow_wrap
-  native_lanes    ne              neg             net_accept      net_close       net_connect     net_listen      net_pair
-  net_port        net_recv        net_resolve     net_send        nonzero_of      not             ok              ok_value
-  or              panic           path_remove     path_rename     payload         pipe            poly1305        pop
-  pow             prefetch        proc_kill       proc_poll       proc_read       proc_spawn      proc_wait       push
-  r_read          r_write         random_bytes    range           reactor_new     read_in         read_volatile   reduce_add
-  reduce_max      reduce_min      reduce_mul      ref             region          ret             rng_next        rotl
-  rotr            round           same_slice      sat_add         sat_mul         sat_sub         scan            send
-  sha256          sha384          sha512          shl             shr             shuffle         sin             size_of
-  skip            some            some_value      spawn           splat           sqrt            stack_count     stack_new
-  store           store_masked    str_from_cstr   sub             subslice        sum_neumaier    sum_seq         swap
-  take            time_local      time_now        time_sleep      trailing_zeros  try_view        tty_raw         tty_read
-  tty_size        unsafe_fn       value_or        view            view_array      view_segments   widen           wrap_add
-  wrap_mul        wrap_shl        wrap_shr        wrap_sub        write_out       write_volatile  zip
+  min             mod             mul             mul_hi          mut_ref         narrow          narrow_sat      narrow_try
+  narrow_wrap     native_lanes    ne              neg             net_accept      net_close       net_connect     net_listen
+  net_pair        net_port        net_recv        net_resolve     net_send        nonzero_of      not             ok
+  ok_value        or              panic           path_remove     path_rename     payload         pipe            poly1305
+  pop             pow             prefetch        proc_kill       proc_poll       proc_read       proc_spawn      proc_wait
+  push            r_read          r_write         random_bytes    range           reactor_new     read_in         read_volatile
+  reduce_add      reduce_max      reduce_min      reduce_mul      ref             region          ret             rng_next
+  rotl            rotr            round           same_slice      sat_add         sat_mul         sat_sub         scan
+  send            sha256          sha384          sha512          shl             shr             shuffle         sin
+  size_of         skip            some            some_value      spawn           splat           sqrt            stack_count
+  stack_new       store           store_masked    str_from_cstr   sub             subslice        sum_neumaier    sum_seq
+  swap            take            time_local      time_now        time_sleep      trailing_zeros  try_view        tty_raw
+  tty_read        tty_size        unsafe_fn       value_or        view            view_array      view_segments   widen
+  wrap_add        wrap_mul        wrap_shl        wrap_shr        wrap_sub        write_out       write_volatile  zip
 ```
 
 ## 4. effect atom **15**  ·  *출처: 정본 §7.1*

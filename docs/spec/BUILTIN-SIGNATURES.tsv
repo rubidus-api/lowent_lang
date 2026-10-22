@@ -98,6 +98,7 @@ aes_gcm	암호	`call_builtin aes_gcm k c h z s d`	`k` — `slice u8`(16) · `c` 
 chacha_poly	암호	`call_builtin chacha_poly k c st s d`	`k` — `slice u8`(32) · `c` — `mut slice u8`(카운터 블록 16) · `st` — `mut slice u64`(원소 열 이상) · `s` — `slice u8` · `d` — `mut slice u8`	`usize` — 흐른 바이트 수. 뜻은 `chacha20` 뒤에 그 암호문을 `poly1305` 에 먹인 것과 같다	`E-IR-ARITY`	—	6.3.3
 clmul_lo	비트	`call_builtin clmul_lo a b`	`a` `b` — `u64`	`u64` — 캐리 없는 64×64 비트 곱의 아래쪽 64 비트	`E-IR-ARITY`	—	6.3.3
 clmul_hi	비트	`call_builtin clmul_hi a b`	`a` `b` — `u64`	`u64` — 캐리 없는 64×64 비트 곱의 위쪽 64 비트	`E-IR-ARITY`	—	6.3.3
+mul_hi	비트	`call_builtin mul_hi a b`	`a` `b` — `u64`	`u64` — 64×64 비트 곱(부호 없음)의 위쪽 64 비트. 아래쪽은 `wrap_mul`	`E-IR-ARITY` · `E-TYPE-ARG`(`u64` 가 아닌 입력)	—	6.3.3
 rng_next	난수	`call_builtin rng_next s`	`s` — `u64`(상태 — 씨는 부르는 쪽이 든다)	`u64` — 다음 값. 같은 상태에는 늘 같은 값	`E-IR-ARITY`	—	6.3.3
 atomic_load	원자	`atomic_load s i [order o]`	`s` — `mut slice` 정수 · `i` — `usize`	원소의 타입 — 그 칸의 값	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5
 atomic_add	원자	`atomic_add s i v [order o]`	`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입	원소의 타입 — 바꾸기 전의 값. 칸에는 합이 남는다	첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	첨자가 길이 밖이면 `E-VM-BOUNDS`	7.5

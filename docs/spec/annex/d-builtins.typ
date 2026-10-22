@@ -12,7 +12,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 231 개다 — 기본 연산 162 개와 빌트인 연산 69 개.]
+  #para("2")[모두 232 개다 — 기본 연산 162 개와 빌트인 연산 70 개.]
 
   == D.1 이름과 뜻
 
@@ -231,6 +231,7 @@
         [`hash_bytes`], [바이트열의 해시],
         [`link_type`], [그 경로 자신이 무엇인가 — 심링크를 따라가지 아니한다],
         [`log`], [자연로그],
+        [`mul_hi`], [곱의 #strong[윗말]; — 부호 없는 64×64 비트 곱의 위쪽 64 비트(아래쪽은 `wrap_mul`). 큰 수 산술의 가장 안쪽 셈이다],
         [`net_accept`], [들어온 연결을 받는다],
         [`net_close`], [닫는다],
         [`net_connect`], [주소와 포트로 연결을 건다],
@@ -316,34 +317,34 @@ lane_all              lane_any              lane_avg              lane_reverse
 lane_rotate           lane_select           le                    leading_zeros
 len                   link_type             load                  load_masked
 log                   lt                    map                   max
-min                   mod                   mul                   mut_ref
-narrow                narrow_sat            narrow_try            narrow_wrap
-native_lanes          ne                    neg                   net_accept
-net_close             net_connect           net_listen            net_pair
-net_port              net_recv              net_resolve           net_send
-nonzero_of            not                   ok                    ok_value
-or                    panic                 path_remove           path_rename
-payload               pipe                  poly1305              pop
-pow                   prefetch              proc_kill             proc_poll
-proc_read             proc_spawn            proc_wait             push
-r_read                r_write               random_bytes          range
-reactor_new           read_in               read_volatile         reduce_add
-reduce_max            reduce_min            reduce_mul            ref
-region                ret                   rng_next              rotl
-rotr                  round                 same_slice            sat_add
-sat_mul               sat_sub               scan                  send
-sha256                sha384                sha512                shl
-shr                   shuffle               sin                   size_of
-skip                  some                  some_value            spawn
-splat                 sqrt                  stack_count           stack_new
-store                 store_masked          str_from_cstr         sub
-subslice              sum_neumaier          sum_seq               swap
-take                  time_local            time_now              time_sleep
-trailing_zeros        try_view              tty_raw               tty_read
-tty_size              unsafe_fn             value_or              view
-view_array            view_segments         widen                 wrap_add
-wrap_mul              wrap_shl              wrap_shr              wrap_sub
-write_out             write_volatile        zip")
+min                   mod                   mul                   mul_hi
+mut_ref               narrow                narrow_sat            narrow_try
+narrow_wrap           native_lanes          ne                    neg
+net_accept            net_close             net_connect           net_listen
+net_pair              net_port              net_recv              net_resolve
+net_send              nonzero_of            not                   ok
+ok_value              or                    panic                 path_remove
+path_rename           payload               pipe                  poly1305
+pop                   pow                   prefetch              proc_kill
+proc_poll             proc_read             proc_spawn            proc_wait
+push                  r_read                r_write               random_bytes
+range                 reactor_new           read_in               read_volatile
+reduce_add            reduce_max            reduce_min            reduce_mul
+ref                   region                ret                   rng_next
+rotl                  rotr                  round                 same_slice
+sat_add               sat_mul               sat_sub               scan
+send                  sha256                sha384                sha512
+shl                   shr                   shuffle               sin
+size_of               skip                  some                  some_value
+spawn                 splat                 sqrt                  stack_count
+stack_new             store                 store_masked          str_from_cstr
+sub                   subslice              sum_neumaier          sum_seq
+swap                  take                  time_local            time_now
+time_sleep            trailing_zeros        try_view              tty_raw
+tty_read              tty_size              unsafe_fn             value_or
+view                  view_array            view_segments         widen
+wrap_add              wrap_mul              wrap_shl              wrap_shr
+wrap_sub              write_out             write_volatile        zip")
 
   == D.2 받는 것과 내는 것
 
@@ -354,7 +355,7 @@ write_out             write_volatile        zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 231 개 가운데 *99 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 232 개 가운데 *100 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -436,6 +437,7 @@ write_out             write_volatile        zip")
         [`byte_swap a` #cref("6.3.5")], [*받는 것:* `a` — 정수 \ *내는 것:* `a` 의 타입 — 바이트 차례를 뒤집은 값. 한 바이트 타입에서는 그대로 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 부동을 주면 `E-BITOP-TYPE`],
         [`call_builtin clmul_lo a b` #cref("6.3.3")], [*받는 것:* `a` `b` — `u64` \ *내는 것:* `u64` — 캐리 없는 64×64 비트 곱의 아래쪽 64 비트 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`call_builtin clmul_hi a b` #cref("6.3.3")], [*받는 것:* `a` `b` — `u64` \ *내는 것:* `u64` — 캐리 없는 64×64 비트 곱의 위쪽 64 비트 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`call_builtin mul_hi a b` #cref("6.3.3")], [*받는 것:* `a` `b` — `u64` \ *내는 것:* `u64` — 64×64 비트 곱(부호 없음)의 위쪽 64 비트. 아래쪽은 `wrap_mul` \ *번역 때 거절:* `E-IR-ARITY` · `E-TYPE-ARG`(`u64` 가 아닌 입력) \ *실행 때 멈춤:* —],
     )
   ]
 

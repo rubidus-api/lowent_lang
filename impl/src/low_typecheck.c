@@ -1631,7 +1631,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     { "bit_and", 3 }, { "bit_or", 3 }, { "bit_xor", 3 }, { "bit_not", 3 },
                     { "shl", 3 }, { "shr", 3 }, { "wshl", 3 }, { "wshr", 3 },
                     { "rotl", 3 }, { "rotr", 3 },
-                    { "clmul_lo", 6 }, { "clmul_hi", 6 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
+                    { "clmul_lo", 6 }, { "clmul_hi", 6 }, { "mul_hi", 6 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
                     // ★★ 암호 잎 — **낸 값은 처리한 바이트 수**다(option 도 참거짓도 아니다).
                     //   근거는 구현 자신이다: VM 의 이 자리들이 전부 `vmv_int` 를 쌓고, C 뒤끝은
                     //   `lw_int(...)` 로 싣는다. 표에 없어서 `let n be u64 aes_ctr …` 같은 선언이
@@ -1661,7 +1661,15 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 }
                 for (proven_size_t li = 0; li < sizeof LEAF / sizeof LEAF[0] && !own; li++) {
                     if (!veq(hleaf, LEAF[li].w)) continue;
-                    for (proven_size_t q = lskip; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                    // ★ RFC-0151 (2026-10-22) — 곱의 말(`mul_hi` · `clmul_lo` · `clmul_hi`)은 `u64` 둘을 받는다. 전에는 받는 타입을 안 봐서
+                    //   `i64` 를 주면 검사가 `u64` 를, 하강이 `i64` 를 답해 «compiler defect»(E-IR-TYPE-SPLIT)가 났다.
+                    const bool wordmul = veq(hleaf, "mul_hi") || veq(hleaf, "clmul_lo") || veq(hleaf, "clmul_hi");
+                    for (proven_size_t q = lskip; q < n; q++) {
+                        ty_t at = tc_infer(c, k[start + q], env, nenv);
+                        if (wordmul && at.k == TK_INT && !at.lit && at.bits && (at.bits != 64 || at.sign || at.nominal))
+                            tc_emit(c, "E-TYPE-ARG", "this word multiplies two `u64` — the product's halves are defined on unsigned 64-bit words. "
+                                    "Give it `u64` (`widen u64 …` for a narrower unsigned value, `cast u64 …` otherwise)", k[start]->tok.line);
+                    }
                     if (LEAF[li].kind == 1) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; return w; }
                     // ★ RFC-0149 L4 — 읽고 쓴 **바이트 수**는 `usize` 다(4 = `option usize` · 5 = `usize`). 길이를 세는 수가 `u64` 로 나오면
                     //   받는 쪽이 매번 `cast` 를 적어야 하고, 좁은 대상에서는 버퍼의 길이와 다른 폭이 된다.

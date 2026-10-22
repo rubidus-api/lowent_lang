@@ -1076,6 +1076,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
         case IRW_ROTL: case IRW_ROTR:
         case IRW_CLMULLO: case IRW_CLMULHI:                 // ★ 캐리 없는 곱셈 (RFC-0119)
+        case IRW_MULHI:                                     // ★ 곱의 윗말 (RFC-0151)
         case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
         case IRW_ALOAD: case IRW_ASTORE: case IRW_AADD: case IRW_ASUB:   // ★ atomic (RFC-0018)
         case IRW_AAND: case IRW_AOR: case IRW_AXOR: case IRW_ASWAP: case IRW_ACAS:
@@ -1667,7 +1668,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
             case IRW_ROTL: case IRW_ROTR:
-            case IRW_CLMULLO: case IRW_CLMULHI:
+            case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI:
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT) return false;
                 st.n--; st.o[st.n-1] = -1; break;
             case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
@@ -3385,11 +3386,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
-            case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: {
+            case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI: {
                 int op2 = in->w == IRW_BAND ? 0 : in->w == IRW_BOR ? 1 : in->w == IRW_BXOR ? 2
                         : in->w == IRW_SHL ? 3 : in->w == IRW_SHR ? 4 : in->w == IRW_WSHL ? 5
                         : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7
-                        : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : 8;
+                        : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : in->w == IRW_MULHI ? 11 : 8;
                 fprintf(out, "    st[sp-2] = lw_bit2(%lld, %d, st[sp-2], st[sp-1]); sp--;\n",
                         (long long)in->a, op2);
                 ks.n--; ks.o[ks.n-1] = -1; break;
@@ -6301,11 +6302,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★★★ **비트 연산** (RFC-0064) — 계산은 **스칼라 핵 하나**에 있다(교훈 7).
                 case IRW_BAND: case IRW_BOR: case IRW_BXOR:
                 case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
-                case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: {
+                case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI: {
                     int op2 = in->w == IRW_BAND ? 0 : in->w == IRW_BOR ? 1 : in->w == IRW_BXOR ? 2
                             : in->w == IRW_SHL ? 3 : in->w == IRW_SHR ? 4 : in->w == IRW_WSHL ? 5
                             : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7
-                            : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : 8;
+                            : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : in->w == IRW_MULHI ? 11 : 8;
                     fprintf(out, "    st[sp-2] = lw_int(lw_bit2(%lld, %d, lw_want_int(st[sp-2], \"ints\"),"
                                  " lw_want_int(st[sp-1], \"ints\"))); sp--;\n", (long long)in->a, op2);
                     break;

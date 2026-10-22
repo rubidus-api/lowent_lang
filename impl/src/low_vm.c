@@ -1678,7 +1678,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             //   u8 의 `bit_not 0` 은 **255** 다. 폭이 계약이면 **연산도 폭 안에 있어야 한다.**
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
-            case IRW_CLMULLO: case IRW_CLMULHI:
+            case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI:
             case IRW_ROTL: case IRW_ROTR: {
                 if (sp < 2) return false;
                 vmv_t bv = stack[--sp], av = stack[--sp];
@@ -1741,6 +1741,17 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         for (int q = 0; q < 64; q++)
                             if ((y >> q) & 1ull) { lo ^= x << q; if (q) hi ^= x >> (64 - q); }
                         r = (in->w == IRW_CLMULLO) ? lo : hi;
+                        break;
+                    }
+                    case IRW_MULHI: {
+                        // ★ RFC-0151 Q1 ⓐ — 곱의 윗말. 부호 없는 64 비트에서만 뜻이 하나다(부호 있는 수의 윗말은 다른 수다).
+                        if (bits != 64 || sg) {
+                            vm_diag(vm->diags, "E-BITOP-TYPE",
+                                    "`mul_hi` is defined on `u64` only — the upper 64 bits of the unsigned 128-bit product "
+                                    "(the lower 64 bits are `wrap_mul`)");
+                            return false;
+                        }
+                        r = low_mulhi64(x, (proven_u64)n);
                         break;
                     }
                     case IRW_ROTL: case IRW_ROTR: {

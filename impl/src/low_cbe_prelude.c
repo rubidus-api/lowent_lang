@@ -715,6 +715,18 @@ LOW_SHA512_C_SOURCE
 "    lw_clmul64_soft(a, b, lo, hi);\n"
 "#endif\n"
 "}\n"
+// ★ RFC-0151 Q1 ⓐ — 곱의 윗말. 128 비트 정수가 있는 컴파일러면 곱 하나(x86-64 · arm64 에서 기계 명령 하나)이고, 없으면(32 비트 대상)
+//   32 비트 넷으로 나눈 같은 식이다 — VM 의 `low_mulhi64`(low_ir.h)와 같은 식이라 답이 갈리지 않는다.
+"static unsigned long long lw_mulhi64(unsigned long long a, unsigned long long b) {\n"
+"#if defined(__SIZEOF_INT128__)\n"
+"    return (unsigned long long)(((unsigned __int128)a * b) >> 64);\n"
+"#else\n"
+"    unsigned long long al = a & 0xffffffffull, ah = a >> 32, bl = b & 0xffffffffull, bh = b >> 32;\n"
+"    unsigned long long ll = al * bl, lh = al * bh, hl = ah * bl, hh = ah * bh;\n"
+"    unsigned long long mid = (ll >> 32) + (lh & 0xffffffffull) + (hl & 0xffffffffull);\n"
+"    return hh + (lh >> 32) + (hl >> 32) + (mid >> 32);\n"
+"#endif\n"
+"}\n"
 LOW_AES_C_SOURCE
 // ★ `aes_round` 의 기계 판 — `aesenc`/`aesenclast` 한 명령이다(표를 안 읽는다 = 상수시간).
 "#if defined(__x86_64__) && (LW_HW_AES == 1 || LW_HW_AES == 2)\n"
@@ -2584,6 +2596,9 @@ const char LW_PRELUDE2[] =
 "        if (bits != 64) lw_panic(\"clmul is defined on 64-bit words only\");\n"
 "        unsigned long long cl = 0, ch = 0; lw_clmul64(x, (unsigned long long)b, &cl, &ch);\n"
 "        r = (op == 9) ? cl : ch; break; }\n"
+"      case 11: {                                               /* mul_hi — RFC-0151 */\n"
+"        if (bits != 64 || sg) lw_panic(\"mul_hi is defined on u64 only\");\n"
+"        r = lw_mulhi64(x, (unsigned long long)b); break; }\n"
 "      default: lw_panic(\"bit op\");\n"
 "    }\n"
 "    return lw_wrap((long long)r, bits, sg); }\n"

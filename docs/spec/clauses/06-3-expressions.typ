@@ -151,7 +151,7 @@ end .", "E-EXPR-CHAIN")
       권한을 받지 아니하는 빌트인 연산은 #strong[계산];이다 — 부동소수점 함수(#cref("6.3.9")), 조각의 합(#cref("6.3.7.1")), 그리고
       해시 · 암호 · 캐리 없는 곱셈 · 난수 열(`hash_bytes` · `crc32` · `sha256` · `sha384` · `sha512` · `aes_round` ·
       `aes_round_last` · `aes_ctr` · `ghash` · `aes_gcm` · `chacha20` · `poly1305` · `chacha_poly` · `clmul_lo` · `clmul_hi` ·
-      `rng_next`).
+      `mul_hi` · `rng_next`).
     ]
     #para("1c-2")[
       표준 라이브러리는 이 빌트인 연산들을 감싼 op 을 내놓는다(#cref("9.3") (1a)) — `stdio` · `args` · `env` · `clock` · `tty` ·

@@ -421,7 +421,17 @@ typedef enum {
     // ★★ RFC-0132 P3 (§6) — **내용 복사** `copy <받는 쪽> <주는 쪽> .`: (dst, src) → 0. 두 조각의 바이트 길이가 같아야 하고
     //   (다르면 멈춘다 — 번역 시점에 알면 검사층이 먼저 거절), 겹쳐도 옳게 옮긴다(memmove).
     IRW_SCOPY,
+    IRW_MULHI,      // ★ RFC-0151 Q1 ⓐ — `u64` 두 수의 곱의 위쪽 64 비트(아래는 `wrap_mul`). 비트 연산 가족과 같은 자리를 지난다
 } low_irw_t;
+
+// ★ RFC-0151 Q1 ⓐ — `mul_hi` 의 뜻(VM 과 상수 접기가 같은 식을 쓴다): 부호 없는 64 비트 둘의 곱의 위쪽 64 비트.
+//   32 비트 넷으로 나눠 셈한다 — 처리기를 짓는 컴파일러에 128 비트 정수가 없어도 같은 답이다.
+static inline proven_u64 low_mulhi64(proven_u64 a, proven_u64 b) {
+    proven_u64 al = a & 0xffffffffull, ah = a >> 32, bl = b & 0xffffffffull, bh = b >> 32;
+    proven_u64 ll = al * bl, lh = al * bh, hl = ah * bl, hh = ah * bh;
+    proven_u64 mid = (ll >> 32) + (lh & 0xffffffffull) + (hl & 0xffffffffull);
+    return hh + (lh >> 32) + (hl >> 32) + (mid >> 32);
+}
 
 // ★★ RFC-0135 S0 · X-0084 (2026-09-30) — **틀 안 나열의 스택 예산**(바이트). 호출 사슬 위에 동시에 살아 있는 틀 안
 //   나열(IRW_LBUF 자리)의 합이 이것을 넘으면 그 op 에 들어가지 않고 멈춘다 — VM 과 네이티브가 **같은 수로** 세어 같은

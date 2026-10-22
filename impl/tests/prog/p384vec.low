@@ -41,11 +41,11 @@ end .
 
 rem 바이트 자리를 조각 자리로 옮긴다 — 손댄 뒤에 다시 부르면 손댄 값이 들어간다.
 proc fill input buf slice u8 . input wu mut slice u64 . output u64 . effects none . do
-  guard eq bigint.from_bytes subslice buf. 64 112 . subslice wu. 96 120 . 24 . 24 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 112 160 . subslice wu. 120 144 . 24 . 24 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 160 208 . subslice wu. 144 168 . 24 . 24 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 208 256 . subslice wu. 168 192 . 24 . 24 . else return 0 . .
-  guard eq bigint.from_bytes subslice buf. 256 304 . subslice wu. 192 216 . 24 . 24 . else return 0 . .
+  guard eq bigint.from_bytes subslice buf. 64 112 . subslice wu. 96 120 . 12 . 12 . else return 0 . .
+  guard eq bigint.from_bytes subslice buf. 112 160 . subslice wu. 120 144 . 12 . 12 . else return 0 . .
+  guard eq bigint.from_bytes subslice buf. 160 208 . subslice wu. 144 168 . 12 . 12 . else return 0 . .
+  guard eq bigint.from_bytes subslice buf. 208 256 . subslice wu. 168 192 . 12 . 12 . else return 0 . .
+  guard eq bigint.from_bytes subslice buf. 256 304 . subslice wu. 192 216 . 12 . 12 . else return 0 . .
   return 1 .
 end .
 

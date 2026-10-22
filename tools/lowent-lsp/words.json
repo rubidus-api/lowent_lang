@@ -643,6 +643,13 @@
    "takes": "`a` `b` — 맞는 둘",
    "gives": "둘 중 넓은 쪽 타입"
   },
+  "mul_hi": {
+   "meaning": "곱의 **윗말** — 부호 없는 64×64 비트 곱의 위쪽 64 비트(아래쪽은 `wrap_mul`). 큰 수 산술의 가장 안쪽 셈이다",
+   "group": "비트",
+   "form": "call_builtin mul_hi a b",
+   "takes": "`a` `b` — `u64`",
+   "gives": "`u64` — 64×64 비트 곱(부호 없음)의 위쪽 64 비트. 아래쪽은 `wrap_mul`"
+  },
   "mut_ref": {
    "meaning": "쓰기 참조를 만든다"
   },

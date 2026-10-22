@@ -433,6 +433,7 @@ VM 은 부동소수점 결과를 짧게 보여 준다(`0.333333`). 부동소수�
   [`bit_and` · `bit_or` · `bit_xor` · `bit_not`], [비트별 논리], [기호 우선순위의 함정이 없다],
   [`shl` · `shr` · `rotl` · `rotr`], [옮기기 · 돌리기], [폭 이상 옮기면 멈춘다],
   [`call_builtin clmul_lo` · `call_builtin clmul_hi`], [캐리 없는 곱셈(빌트인 연산) — 답은 낱말 둘], [기계 명령이 있으면 그것으로, 없으면 셈으로],
+  [`call_builtin mul_hi`(`bigint.mul_hi`)], [`u64` 곱의 위쪽 64 비트(빌트인 연산) — 아래쪽은 `wrap_mul`], [C 컴파일러에 128 비트 정수가 있으면 곱 하나, 없으면 32 비트 곱 넷으로],
   [`count_ones` · `leading_zeros` · `trailing_zeros` · `byte_swap`], [비트 세기 · 바이트 뒤집기], [흔한 일은 이름 하나로],
   [`true` · `false` · `and` · `or` · `not`], [참거짓과 그 논리], [수를 조건에 쓰지 않는다],
   [`usize` · `idiff` · `f32`], [길이 · 첨자의 정수(폭은 구현이 정한다) · 32 비트 부동소수점], [길이와 위치를 적을 때 · 정밀도보다 양이 중요할 때],

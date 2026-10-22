@@ -434,6 +434,9 @@ aes_gcm	k slice u8, c mut slice u8, h slice u8, z mut slice u8, s slice u8, d mu
 chacha_poly	k slice u8, c mut slice u8, st mut slice u64, s slice u8, d mut slice u8	u64	return call_builtin chacha_poly k. c. st. s. d. . .		CHECK E-TYPE-NOMINAL
 clmul_lo		u64	return call_builtin clmul_lo 3 5 . .		= 15
 clmul_hi		u64	return call_builtin clmul_hi 9223372036854775808 2 . .		= 1
+mul_hi		u64	return call_builtin mul_hi 18446744073709551615 18446744073709551615 . .		= 18446744073709551614
+mul_hi		u64	return call_builtin mul_hi 4294967296 4294967296 . .		= 1
+mul_hi	a i64	u64	return call_builtin mul_hi a. a. . .	3	CHECK E-TYPE-ARG
 clmul_lo		u8	return call_builtin clmul_lo 3 5 . .		CHECK E-TYPE-WIDTH
 rng_next		u64	return call_builtin rng_next 1 . .		= 10451216379200822465
 rng_next		u8	return call_builtin rng_next 1 . .		CHECK E-TYPE-WIDTH

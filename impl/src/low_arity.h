@@ -141,7 +141,7 @@
 //   ★★ 고르는 잣대: **알고리즘을 처리기가 고정한 계산.** 권한 잎(`file_*`·`net_*`)은 여기 없다 —
 //     그것들은 첫 피연산자가 권한이라 이미 특별함이 보인다(그 재검토는 RFC-0127).
 #define LOW_CALL_BUILTIN(X)                                                    \
-    X(clmul_lo, IRW_CLMULLO, 2)  X(clmul_hi, IRW_CLMULHI, 2)  X(aes_round, IRW_AESROUND, 2) \
+    X(clmul_lo, IRW_CLMULLO, 2)  X(clmul_hi, IRW_CLMULHI, 2)  X(mul_hi, IRW_MULHI, 2)  X(aes_round, IRW_AESROUND, 2) \
     X(aes_round_last, IRW_AESLAST, 2)  X(aes_ctr, IRW_AESCTR, 4)  X(ghash, IRW_GHASH, 3) \
     X(chacha20, IRW_CHACHA20, 4)  X(poly1305, IRW_POLY1305, 2)  X(aes_gcm, IRW_AESGCM, 6) \
     X(sha256, IRW_SHA256, 2)  X(sha384, IRW_SHA384, 2)  X(sha512, IRW_SHA512, 2) \

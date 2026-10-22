@@ -130,13 +130,14 @@ export proc verify_pss input sig slice u8 . input nb slice u8 . input e u64 . in
 errors short_workspace . do
   guard eq len sig. . len nb. . . else return ok 0 . . .
   guard ge len em. . len nb. . . else return ok 0 . . .
-  let k usize shr len nb. . 1 . .
+  rem 32 비트 조각 수 = ⌈바이트 / 4⌉
+  let k usize shr add len nb. . 3 . 2 . .
   guard eq bigint.from_bytes nb. nw. k. . k. . else return ok 0 . . .
   guard eq bigint.from_bytes sig. sw. k. . k. . else return ok 0 . . .
   rem ☞ s < n 이어야 한다 — 아니면 같은 값에 여러 서명이 생긴다.
   guard eq bigint.ge_mod sw. nw. k. . 0 . else return ok 0 . . .
   guard eq bigint.mod_exp ow. sw. e. nw. k. r2. acc. mw. tw. . 1 . else return ok 0 . . .
-  guard eq bigint.to_bytes ow. k. em. . len nb. . . else return ok 0 . . .
+  guard eq bigint.to_bytes ow. k. subslice em. 0 len nb. . . . len nb. . . else return ok 0 . . .
   return pss_verify subslice em. 0 len nb. . . mhash. slen. w. . .
 end .
 
@@ -211,11 +212,12 @@ export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . 
      output u64 . effects none . do
   guard eq len sig. . len nb. . . else return 0 . .
   guard ge len em. . len nb. . . else return 0 . .
-  let k usize shr len nb. . 1 . .
+  rem 32 비트 조각 수 = ⌈바이트 / 4⌉
+  let k usize shr add len nb. . 3 . 2 . .
   guard eq bigint.from_bytes nb. nw. k. . k. . else return 0 . .
   guard eq bigint.from_bytes sig. sw. k. . k. . else return 0 . .
   guard eq bigint.ge_mod sw. nw. k. . 0 . else return 0 . .
   guard eq bigint.mod_exp ow. sw. e. nw. k. r2. acc. mw. tw. . 1 . else return 0 . .
-  guard eq bigint.to_bytes ow. k. em. . len nb. . . else return 0 . .
+  guard eq bigint.to_bytes ow. k. subslice em. 0 len nb. . . . len nb. . . else return 0 . .
   return pkcs1_verify subslice em. 0 len nb. . . mhash. di. . .
 end .

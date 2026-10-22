@@ -150,6 +150,7 @@ static void ir_mono_note(ir_ctx_t *c) {
 //   ☞ *진단 문장은 사람이 읽지만, 진단 «코드» 는 기계가 읽는다. 문장 안에 코드를 적으면 둘이 섞인다.*
 static bool g_warn_author = false;
 void low_ir_set_author_warnings(bool on) { g_warn_author = on; }
+bool low_ir_author_warnings(void) { return g_warn_author; }
 
 // ★★★ **어느 파일의 몇 째 줄인가, 그리고 한 번만** (2026-09-07, 130 자리를 가르다 드러남).
 //   처음엔 줄만 실었다. 그런데 이 경고가 붙는 절은 대개 **라이브러리**에 있고 단형화가

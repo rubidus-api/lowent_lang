@@ -1428,7 +1428,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     break;
                 }
                 if (vm->nmbox >= VM_MBOX) { vm_diag(vm->diags, "E-VM-MBOX", "async mailbox pool exhausted — 4096 slots, never rewound (docs/runtime-pools.md)"); return false; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
                 proven_size_t qi = vm->nmbox++;
                 vm->mbox[qi].box = inst.box; vm->mbox[qi].handler = (proven_u16)hidx;
                 vm->mbox[qi].nargs = (proven_u8)(want - 1); vm->mbox[qi].job = -1;
@@ -2373,7 +2373,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             }
             case IRW_WRAP_OK: {
                 if (sp == 0) return false;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
                 vm->boxes[vm->nbox] = stack[--sp];
                 stack[sp++] = (vmv_t){ .tag = VMV_OK, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2382,7 +2382,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             //   소비자(`is_some`·`some_value`)는 **있었는데** 생성자가 **없었다.**
             case IRW_WRAP_SOME: {
                 if (sp == 0) return false;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
                 vm->boxes[vm->nbox] = stack[--sp];
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2434,7 +2434,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-TYPE", "alloc_bytes needs a byte count"); return false;
                 }
                 if (nv.i < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 // ★ RFC-0112 D3 — 피연산자가 뿌리다(0 고정 창 · 1 힙)
                 proven_u8 *base = vm_root_take(vm, (int)in->a, (proven_size_t)nv.i);
                 if (!base) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }   // 더 못 잡는다 = 없음(값)
@@ -2477,7 +2477,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 int more = 0;
                 if (got == dv.n) { int pk = fgetc(stdin); if (pk != EOF) { ungetc(pk, stdin); more = 1; } }
                 if (more) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2502,7 +2502,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   나중에 커널 큐가 들어와도 호출자가 준 자리 안에서 돌아야 한다).
                 proven_i64 need = dv.i * 24;
                 if (dv.i <= 0 || (proven_i64)mv.n < need) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int(1);      // A1: 핸들은 1 하나뿐(폴백은 상태가 없다)
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2532,7 +2532,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 int more = 0;
                 if (got == dv.n) { int pk = fgetc(stdin); if (pk != EOF) { ungetc(pk, stdin); more = 1; } }
                 if (more) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2567,7 +2567,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 const proven_u8 *src = (const proven_u8 *)(const void *)(uintptr_t)sv.p;
                 size_t put = fwrite(src, 1, sv.n, fv.i == 1 ? stdout : stderr);
                 if (fv.i == 1) fflush(stdout); else fflush(stderr);
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)put);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2615,7 +2615,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 while (sl < VM_MAXFILE && vm->files[sl]) sl++;
                 if (sl >= VM_MAXFILE) { fclose(fh); vm_diag(vm->diags, "E-VM-FILEPOOL", "too many open files"); return false; }
                 vm->files[sl] = fh;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2634,7 +2634,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (hf_ == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }   // ★ 실패는 값이다
                 size_t want_ = (hf_ == 2) ? lw_hf_cap(dv.n, hfk_) : dv.n;
                 size_t got = fread((proven_u8 *)(void *)(uintptr_t)dv.p, 1, want_, vm->files[hv.i]);
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);   // ★ 0 = EOF (실패가 아니다)
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2662,7 +2662,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     stack[sp++] = (vmv_t){ .tag = VMV_NONE };
                     break;
                 }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)w);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2692,7 +2692,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-SOCKPOOL", "too many open sockets"); return false;
                 }
                 vm->socks[s0] = sv[0] + 1; vm->socks[s1] = sv[1] + 1;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)((proven_u64)s0 | ((proven_u64)s1 << 32)));
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2712,7 +2712,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 ssize_t w = send(vm->socks[hv.i] - 1, bv.p,
                                  (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n, 0);
                 if (w < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)w);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2732,7 +2732,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 ssize_t got = recv(vm->socks[hv.i] - 1, (proven_u8 *)(void *)(uintptr_t)dv.p,
                                    (hf_ == 2) ? lw_hf_cap(dv.n, hfk_) : dv.n, 0);
                 if (got < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);   // ★ 0 = 상대가 닫음(EOF, 실패 아님)
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2767,7 +2767,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t sl = 0; while (sl < VM_MAXSOCK && vm->socks[sl]) sl++;
                 if (sl >= VM_MAXSOCK) { close(fd); vm_diag(vm->diags, "E-VM-SOCKPOOL", "too many open sockets"); return false; }
                 vm->socks[sl] = fd + 1;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2783,7 +2783,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (getsockname(vm->socks[hv.i] - 1, (struct sockaddr *)&sa, &sl2) != 0) {
                     stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break;
                 }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)ntohs(sa.sin_port));
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2812,7 +2812,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t sl = 0; while (sl < VM_MAXSOCK && vm->socks[sl]) sl++;
                 if (sl >= VM_MAXSOCK) { close(fd); vm_diag(vm->diags, "E-VM-SOCKPOOL", "too many open sockets"); return false; }
                 vm->socks[sl] = fd + 1;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2904,7 +2904,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t sl = 0; while (sl < VM_MAXSOCK && vm->socks[sl]) sl++;
                 if (sl >= VM_MAXSOCK) { close(cfd); vm_diag(vm->diags, "E-VM-SOCKPOOL", "too many open sockets"); return false; }
                 vm->socks[sl] = cfd + 1;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2928,7 +2928,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (fseek(vm->files[hv.i], (long)ov.i, w) != 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 long pos = ftell(vm->files[hv.i]);
                 if (pos < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)pos);   // ★ 새 절대 위치
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2948,7 +2948,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 while (sl < VM_MAXFILE && vm->dirs[sl]) sl++;
                 if (sl >= VM_MAXFILE) { closedir(dh); vm_diag(vm->diags, "E-VM-FILEPOOL", "too many open directories"); return false; }
                 vm->dirs[sl] = dh;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -2983,7 +2983,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 ssize_t got = read(0, (void *)(uintptr_t)dv.p, (size_t)dv.n);
                 if (got < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }   // 오류 = none
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -3277,7 +3277,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (!isatty(1) || ioctl(1, TIOCGWINSZ, &ws) != 0 || ws.ws_col == 0) {
                     stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break;   // 모르면 **모른다고** 답한다
                 }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int(((proven_i64)ws.ws_row << 32) | (proven_i64)ws.ws_col);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -3296,7 +3296,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (!de) {
                     // ★ NULL 은 **끝**(errno==0)이거나 **오류**(errno!=0)다 — 둘을 가른다.
                     if (errno) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                    if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                    if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                     vm->boxes[vm->nbox] = vmv_int(0);   // ★ 0 = 끝(EOF 와 같은 규율 — 이름은 절대 0 길이가 아니다)
                     stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                     break;
@@ -3304,7 +3304,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 size_t nl = strlen(de->d_name);
                 if (nl > dv.n) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }   // 이름이 버퍼에 안 맞으면 none
                 memcpy((void *)(uintptr_t)dv.p, de->d_name, nl);
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)nl);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -3339,7 +3339,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 // 0 = 보통 파일 · 1 = 디렉터리 · 2 = 그 밖 · 3 = 심링크(link_type 에서만 나온다)
                 proven_i64 t = (nofollow && S_ISLNK(stbuf.st_mode)) ? 3
                              : S_ISDIR(stbuf.st_mode) ? 1 : S_ISREG(stbuf.st_mode) ? 0 : 2;
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int(t);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -3387,7 +3387,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     hit = eq + 1; hitn = strlen(eq + 1); break;
                 }
                 if (!hit) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = (vmv_t){ .tag = VMV_SLICE, .p = (const proven_u8 *)hit, .n = hitn };
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -3400,7 +3400,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     stack[sp++] = (vmv_t){ .tag = VMV_NONE };   // 범위 밖 = 없음(값)
                     break;
                 }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = (vmv_t){ .tag = VMV_SLICE, .p = vm->pargs[iv.i].ptr, .n = vm->pargs[iv.i].size };
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
@@ -3435,7 +3435,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (s.tag != VMV_STACK) { vm_diag(vm->diags, "E-VM-TYPE", "pop needs a stack"); return false; }
                 vmstk_t *st = &vm->stks[s.box];
                 if (st->n == 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
                 vm->boxes[vm->nbox] = st->items[--st->n];
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;

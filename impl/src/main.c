@@ -62,6 +62,7 @@ static proven_allocator_t lw_heap(void) {
 #include <signal.h>
 #include <time.h>
 
+static bool g_stack_report_on;   /* RFC-0150 §8-11 — `--stack-report` 의 풀 상한 머리줄 */
 static bool g_text_stdin;   // `--text-stdin` — 첫 파일의 글을 표준 입력에서 받는다(경로는 자리만 말한다)
 static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *out_len) {
     FILE *f = fopen(path, "rb");
@@ -1312,7 +1313,7 @@ int main(int argc, char **argv) {
             return 2;
         }
         else if (strcmp(argv[i], "--check") == 0) want_check = true;
-        else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); }   // RFC-0135 S3
+        else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); low_ir_set_pool_report(true); g_stack_report_on = true; }   // RFC-0135 S3
         else if (strcmp(argv[i], "--diag-json") == 0) g_diag_json = true;
         // ★ RFC-0150 §8-9 (2026-10-22) — 첫 파일의 **글**을 표준 입력에서 받는다. 경로는 그대로 그 파일이 사는 자리라 의존은 거기서 찾는다.
         //   편집기(lowent-lsp)가 저장하지 않은 글 — 고치기 제안을 적용해 본 글 — 을 그 자리에서 검사하려고 둔다.
@@ -2673,6 +2674,7 @@ int main(int argc, char **argv) {
         //   이 언어가 금지하는 바로 그것이다. 이제 말한다.
         if (ok) {
             low_ir_set_author_warnings(true);          // ★ 저자를 향한 경고는 `--check` 에서 켠다
+            if (g_stack_report_on) printf("pool-report: op · values made on the deepest path before a reclaim / pool (RFC-0150 §8-11)\n");
             low_ir_t ir2 = low_ir_build(heap, &pr);
             low_ir_set_author_warnings(false);
             proven_size_t nlow = 0;

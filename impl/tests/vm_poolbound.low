@@ -1,0 +1,80 @@
+rem RFC-0150 §8-11 — 진입 op 의 가장 깊은 부름 길이 풀에 남길 수 있는 값의 상한(만드는 자리의 수를 더한다). 프리스탠딩 대상(풀 64)에서 넘으면 거절한다.
+module poolbound .
+fn one input k u64 . output u64 . do
+  let o option u64 some k. . .
+  return value_or o. 0 . .
+end .
+fn many output u64 . do
+  var acc u64 0 .
+  set acc. add acc. one 0 . . .
+  set acc. add acc. one 1 . . .
+  set acc. add acc. one 2 . . .
+  set acc. add acc. one 3 . . .
+  set acc. add acc. one 4 . . .
+  set acc. add acc. one 5 . . .
+  set acc. add acc. one 6 . . .
+  set acc. add acc. one 7 . . .
+  set acc. add acc. one 8 . . .
+  set acc. add acc. one 9 . . .
+  set acc. add acc. one 10 . . .
+  set acc. add acc. one 11 . . .
+  set acc. add acc. one 12 . . .
+  set acc. add acc. one 13 . . .
+  set acc. add acc. one 14 . . .
+  set acc. add acc. one 15 . . .
+  set acc. add acc. one 16 . . .
+  set acc. add acc. one 17 . . .
+  set acc. add acc. one 18 . . .
+  set acc. add acc. one 19 . . .
+  set acc. add acc. one 20 . . .
+  set acc. add acc. one 21 . . .
+  set acc. add acc. one 22 . . .
+  set acc. add acc. one 23 . . .
+  set acc. add acc. one 24 . . .
+  set acc. add acc. one 25 . . .
+  set acc. add acc. one 26 . . .
+  set acc. add acc. one 27 . . .
+  set acc. add acc. one 28 . . .
+  set acc. add acc. one 29 . . .
+  set acc. add acc. one 30 . . .
+  set acc. add acc. one 31 . . .
+  set acc. add acc. one 32 . . .
+  set acc. add acc. one 33 . . .
+  set acc. add acc. one 34 . . .
+  set acc. add acc. one 35 . . .
+  set acc. add acc. one 36 . . .
+  set acc. add acc. one 37 . . .
+  set acc. add acc. one 38 . . .
+  set acc. add acc. one 39 . . .
+  set acc. add acc. one 40 . . .
+  set acc. add acc. one 41 . . .
+  set acc. add acc. one 42 . . .
+  set acc. add acc. one 43 . . .
+  set acc. add acc. one 44 . . .
+  set acc. add acc. one 45 . . .
+  set acc. add acc. one 46 . . .
+  set acc. add acc. one 47 . . .
+  set acc. add acc. one 48 . . .
+  set acc. add acc. one 49 . . .
+  set acc. add acc. one 50 . . .
+  set acc. add acc. one 51 . . .
+  set acc. add acc. one 52 . . .
+  set acc. add acc. one 53 . . .
+  set acc. add acc. one 54 . . .
+  set acc. add acc. one 55 . . .
+  set acc. add acc. one 56 . . .
+  set acc. add acc. one 57 . . .
+  set acc. add acc. one 58 . . .
+  set acc. add acc. one 59 . . .
+  set acc. add acc. one 60 . . .
+  set acc. add acc. one 61 . . .
+  set acc. add acc. one 62 . . .
+  set acc. add acc. one 63 . . .
+  set acc. add acc. one 64 . . .
+  set acc. add acc. one 65 . . .
+  set acc. add acc. one 66 . . .
+  set acc. add acc. one 67 . . .
+  set acc. add acc. one 68 . . .
+  set acc. add acc. one 69 . . .
+  return acc. .
+end .

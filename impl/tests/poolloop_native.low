@@ -1,0 +1,23 @@
+rem RFC-0150 §8-11 — 참조를 쥔 op 안의 반복이 option 을 만든다. VM 은 되감고 끝까지 돌지만, 네이티브는 그 op 의 풀을 되감지 못해
+rem 바퀴마다 자라 한도에서 멈춘다 — 그래서 `--check` 가 W-POOL-LOOP 로 말한다.
+rem ★ 이름이 `vm_` 로 시작하지 않는다 — 차등 스윕이 이 op 을 흔들면 알려진 갈림(결함 노트 native-pool-reclaim-with-refs.md)을 매번 다시 찾는다. 갈림은 골든 «pools» 가 증언한다.
+module pr .
+fn pick input i u64 . output option u64 . do
+  if eq bit_and i. 1 . 0 . do  return some i. . .  end .
+  return none .
+end .
+proc bump input p mut_ref u64 . input v u64 . output u64 . effects state . do
+  set p. expr (deref p. .) + v. . .
+  return 0 .
+end .
+proc loop_ref input n u64 . output u64 . effects state . do
+  var acc u64 0 .
+  var r mut_ref u64 mut_ref acc . .
+  var i u64 0 .
+  while lt i. n. . do
+    let o option u64 pick i. . .
+    let z u64 bump r. value_or o. 0 . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

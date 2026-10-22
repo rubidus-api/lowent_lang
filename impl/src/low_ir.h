@@ -1018,6 +1018,7 @@ int low_ir_emit_proof(const low_ir_t *ir, FILE *out);
 void low_ir_set_author_warnings(bool on);
 
 void low_ir_free(proven_allocator_t work, low_ir_t *ir);
+void low_ir_set_pool_report(bool on);   /* RFC-0150 §8-11 — `--stack-report` 가 풀 상한을 함께 찍는다 */
 
 // Run an op. CLI mapping: ints are positional args; if the op has exactly one
 // param and it is slice-typed, all ints become that byte slice. `text` is the

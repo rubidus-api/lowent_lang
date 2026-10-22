@@ -2374,6 +2374,148 @@ static ityp_t ir_scan_scalar_alias(const low_parse_result_t *pr, proven_u8str_vi
 }
 
 static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr);
+// ★★ RFC-0150 §8-11 (2026-10-22) — **풀에 남는 값의 상한**. 재 보니(§4.2 보탬) 풀은 «되감지 않는» 것이 아니었다: VM 은 뒤 간선마다
+//   모든 틀을 뿌리로 훑어 네 풀을 압축하고, 네이티브 태그 경로도 뒤 간선에서 압축한다(`lw_pool_gc`). 골든 전량과 차등 스윕
+//   33,852 벌에서 상자 풀의 최고치는 28 칸(한도 4,096 · 프리스탠딩 64)이었다. **한 곳만 그렇지 않다**: 네이티브는 부른 쪽의
+//   지역을 훑을 수 없으므로 `mut_ref` 로 남의 지역에 쓸 수 있는 op(참조를 받거나 만드는 op)에는 압축을 내지 않는다(cbe_pool_gc_ok).
+//   그런 op 의 반복 안에서 상자 · 레코드를 만들면 네이티브 풀은 바퀴마다 자라 한도에서 멈춘다 — VM 은 끝까지 돈다.
+//   ⇒ 그 꼴을 번역 때 말한다(W-POOL-LOOP). 반복 밖의 만듦은 셈이 정해지지만(자리 수의 합) 한도에 닿는 글을 코퍼스에서 찾지 못해
+//   거절을 두지 않았다 — 셈은 `--stack-report` 가 보인다.
+static bool g_pool_report;
+void low_ir_set_pool_report(bool on) { g_pool_report = on; }
+// 만드는 낱말 — VM 에서 상자 · 레코드 · 스택 풀의 칸을 얻는 자리(low_vm.c 의 `nbox++` · `nrecs++` · `nstk++` 를 낸 갈래)와 같은 목록이다.
+//   `chk_*` 셈 · `cast` 의 option 판 · `nonzero_of` 는 같은 낱말의 한 갈래라 낱말만 보고 센다(많게 세는 쪽이다).
+static bool ir_pool_allocs_ins(const low_ir_ins_t *in) {
+    switch (in->w) {
+        case IRW_WRAP_SOME: case IRW_WRAP_OK: case IRW_ELSE_NONE: case IRW_ELSE_ERR: case IRW_MAKE: case IRW_SNEW: case IRW_SPOP:
+        case IRW_VIEW: case IRW_TRYVIEW: case IRW_ALLOCB: case IRW_ARGV: case IRW_DOPEN: case IRW_DREAD: case IRW_ENVGET:
+        case IRW_FOPEN: case IRW_FREAD: case IRW_FSEEK: case IRW_FTYPE: case IRW_FWRITE: case IRW_NACCEPT: case IRW_NCONNECT:
+        case IRW_NLISTEN: case IRW_NPAIR: case IRW_NPORT: case IRW_NRECV: case IRW_NRESOLVE: case IRW_NSEND: case IRW_PPOLL:
+        case IRW_PWAIT: case IRW_PREAD: case IRW_PSPAWN: case IRW_RDIN: case IRW_RNEW: case IRW_RREAD: case IRW_RWRITE:
+        case IRW_TASEND: case IRW_TTYREAD: case IRW_TTYSIZE:
+            return true;
+        case IRW_ADD: case IRW_SUB: case IRW_MUL: return (in->a & IR_POL_CHK) != 0;
+        default: return false;
+    }
+}
+static bool ir_pool_no_gc(const low_ir_def_t *d) {   // low_cbe.c cbe_pool_gc_ok 의 거울 — 그 판정이 바뀌면 여기도
+    if (d->takes_ref_arg) return true;
+    for (proven_size_t j = 0; j < d->ncode; j++) if (d->code[j].w == IRW_REF || d->code[j].w == IRW_MREF) return true;
+    return false;
+}
+static void ir_pool_scan(low_ir_t *ir) {
+    if (!low_ir_author_warnings() || !ir->ndefs) return;
+    bool *al = calloc(ir->ndefs, sizeof *al);
+    if (!al) return;
+    // 만드는 op — 스스로 만들거나 만드는 op 을 부른다(고정점)
+    for (proven_size_t i = 0; i < ir->ndefs; i++)
+        for (proven_size_t j = 0; j < ir->defs[i].ncode; j++) if (ir_pool_allocs_ins(&ir->defs[i].code[j])) { al[i] = true; break; }
+    for (bool moved = true; moved; ) {
+        moved = false;
+        for (proven_size_t i = 0; i < ir->ndefs; i++) {
+            if (al[i]) continue;
+            for (proven_size_t j = 0; j < ir->defs[i].ncode; j++) {
+                const low_ir_ins_t *in = &ir->defs[i].code[j];
+                if (in->w == IRW_CALL && IR_CALL_IDX(in->a) < ir->ndefs && al[IR_CALL_IDX(in->a)]) { al[i] = moved = true; break; }
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < ir->ndefs; i++) {
+        const low_ir_def_t *d = &ir->defs[i];
+        if (!d->lowered || !ir_pool_no_gc(d)) continue;
+        for (proven_size_t j = 0; j < d->ncode; j++) {
+            const low_ir_ins_t *br = &d->code[j];
+            if ((br->w != IRW_BR && br->w != IRW_BRZ) || br->a < 0 || (proven_size_t)br->a > j) continue;   // 뒤 간선만
+            proven_u32 hit = 0;
+            for (proven_size_t q = (proven_size_t)br->a; q <= j && !hit; q++) {
+                const low_ir_ins_t *in = &d->code[q];
+                if (ir_pool_allocs_ins(in) || (in->w == IRW_CALL && IR_CALL_IDX(in->a) < ir->ndefs && al[IR_CALL_IDX(in->a)]))
+                    hit = in->line ? in->line : 1;
+            }
+            if (!hit) continue;
+            low_diag_t dg = { .sev = LOW_SEV_WARNING, .code = "W-POOL-LOOP", .line = hit, .col = 0,
+                              .file = (d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
+            snprintf(dg.detail, sizeof dg.detail,
+                     "this loop makes option/result/struct values in an op that holds a `ref`/`mut_ref`: the native build "
+                     "cannot reclaim its value pool here, so it grows each turn and stops at the limit (the VM keeps going). "
+                     "Put the loop in an op without the reference");
+            dg.msg = dg.detail;
+            (void)proven_array_push(&ir->diags, &dg);
+            break;
+        }
+    }
+    // ── 상한(진입 op 마다): 만드는 자리의 수를 부르는 길을 따라 더한다. 반복 안의 만듦은 뒤 간선에서 되감기므로 자리 하나로 센다.
+    //    셀 수 없는 셋은 수 대신 까닭을 적는다 — 되감지 못하는 반복(위 경고) · 재귀(깊이를 모른다) · 칸에 쌓기(`push` — 쌓인 만큼 산다).
+    //    수가 한도(호스트 4,096 · 프리스탠딩 64 — C 방출의 LW_BOXPOOL · LW_RECPOOL 과 같은 수)를 넘으면 거절한다(E-POOL-BOUND).
+    const unsigned long long cap = low_ir_target()->no_heap ? 64ull : 4096ull;
+    unsigned long long *own = calloc(ir->ndefs, sizeof *own), *memo = calloc(ir->ndefs, sizeof *memo);
+    unsigned char *why = calloc(ir->ndefs, 1), *st = calloc(ir->ndefs, 1), *called = calloc(ir->ndefs, 1);
+    if (own && memo && why && st && called) {
+        for (proven_size_t i = 0; i < ir->ndefs; i++) {
+            const low_ir_def_t *d = &ir->defs[i];
+            bool push = false;
+            for (proven_size_t j = 0; j < d->ncode; j++) {
+                if (ir_pool_allocs_ins(&d->code[j])) own[i]++;
+                if (d->code[j].w == IRW_SPUSH) push = true;
+                if (d->code[j].w == IRW_CALL && IR_CALL_IDX(d->code[j].a) < ir->ndefs && IR_CALL_IDX(d->code[j].a) != i)
+                    called[IR_CALL_IDX(d->code[j].a)] = 1;
+            }
+            if (push && al[i]) why[i] |= 4;
+            if (d->lowered && ir_pool_no_gc(d)) {
+                for (proven_size_t j = 0; j < d->ncode; j++) {
+                    const low_ir_ins_t *br = &d->code[j];
+                    if ((br->w != IRW_BR && br->w != IRW_BRZ) || br->a < 0 || (proven_size_t)br->a > j) continue;
+                    for (proven_size_t q = (proven_size_t)br->a; q <= j; q++)
+                        if (ir_pool_allocs_ins(&d->code[q]) || (d->code[q].w == IRW_CALL && IR_CALL_IDX(d->code[q].a) < ir->ndefs && al[IR_CALL_IDX(d->code[q].a)]))
+                            why[i] |= 1;
+                }
+            }
+        }
+        // 고정점: memo[i] = own[i] + max(memo[callee]) · why 는 부르는 쪽으로 번진다 · 순환을 만나면 재귀(2)
+        for (proven_size_t i = 0; i < ir->ndefs; i++) memo[i] = own[i];
+        for (int it = 0; it < 512; it++) {
+            bool moved = false;
+            for (proven_size_t i = 0; i < ir->ndefs; i++) {
+                const low_ir_def_t *d = &ir->defs[i];
+                unsigned long long best = 0; unsigned char w = why[i];
+                for (proven_size_t j = 0; j < d->ncode; j++) {
+                    if (d->code[j].w != IRW_CALL || IR_CALL_IDX(d->code[j].a) >= ir->ndefs) continue;
+                    proven_size_t k = IR_CALL_IDX(d->code[j].a);
+                    if (k == i) { w |= 2; continue; }
+                    // 부를 때마다 더한다 — 부름 받은 op 이 남긴 값은 부른 쪽의 다음 되감기까지 산다(스칼라를 돌려주면 VM 은 곧바로
+                    //   되감지만 네이티브의 같은 자리는 재지 않았다 — 많게 세는 쪽을 고른다).
+                    best += memo[k];
+                    w |= why[k];
+                }
+                unsigned long long v = own[i] + best;
+                if (v > cap * 4) { v = cap * 4; w |= 2; }   // 길이 끝없이 자라면 순환이다
+                if (v != memo[i] || w != why[i]) { memo[i] = v; why[i] = w; moved = true; }
+            }
+            if (!moved) break;
+        }
+        for (proven_size_t i = 0; i < ir->ndefs; i++) {
+            const low_ir_def_t *d = &ir->defs[i];
+            if (!d->lowered || called[i] || d->is_test) continue;
+            if (g_pool_report)
+                printf("  %-32.*s %8llu / %llu  %s%s%s%s\n", (int)d->name.size, (const char *)d->name.ptr, memo[i], cap,
+                       why[i] ? "uncountable:" : (memo[i] > cap ? "★ over" : "entry"),
+                       (why[i] & 1) ? " loop-without-reclaim" : "", (why[i] & 2) ? " recursion" : "", (why[i] & 4) ? " push" : "");
+            if (!why[i] && memo[i] > cap) {
+                low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = "E-POOL-BOUND", .line = d->ncode ? d->code[0].line : 0, .col = 0,
+                                  .file = (d->ncode && d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
+                snprintf(dg.detail, sizeof dg.detail,
+                         "the deepest call path from this op can keep up to %llu option/result/struct values at once (a bound: "
+                         "every one made on the path, counted without reclaim) — more than this machine's value pool (%llu). "
+                         "Split the path, or reuse values (RFC-0150 §8-11)", memo[i], cap);
+                dg.msg = dg.detail;
+                (void)proven_array_push(&ir->diags, &dg);
+                ir->ok = false;
+            }
+        }
+    }
+    free(own); free(memo); free(why); free(st); free(called);
+    free(al);
+}
 // RFC-0148 S4-2 — 단위 하나를 낮춘 뒤 검사층의 답을 닫는다(다음 단위가 옛 마디의 답을 읽지 않게).
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     low_ir_t ir = low_ir_build_impl(work, pr);
@@ -4151,6 +4293,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
 
     // pass 3: SCC fixed-point Merkle def-hashes
     ir_def_hashes(work, &ir);
+    ir_pool_scan(&ir);   // ★ RFC-0150 §8-11 — 풀을 되감지 못하는 반복을 찾는다(저자 경고 · 아래)
     // ★★★ **인스턴스 dedup** (RFC-0012) — iface·def 해시가 **둘 다** 같은 def 은 같은 정의다.
     //   내용주소화가 이미 그렇게 판정하는데(같은 해시) 뒤끝은 이름으로 심볼을 지어 본문을 두 번
     //   찍고 있었다. 정본을 가리켜 접는다. ★ export/extern 은 **심볼 자체가 계약**이라 접지 않는다.

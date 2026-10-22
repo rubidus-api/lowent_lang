@@ -512,4 +512,5 @@ void ir_pipe(ir_ctx_t *c, const low_cst_t *f, proven_size_t first, bool as_value
 void ir_run_ex(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, bool allow_infix);
 ityp_t ity_alias_lookup(const void *cv, proven_u8str_view_t w);
 
+bool low_ir_author_warnings(void);   /* low_ir.c — `--check` 가 켠 저자 경고 */
 #endif /* LOW_IR_PRIV_H */

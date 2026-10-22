@@ -4128,6 +4128,12 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
             d->code = (low_ir_ins_t *)(void *)c.code.data;
             d->ncode = c.code.len;
             d->nlocals = c.nlocals;
+            static_assert(IR_MAXLOCALS <= sizeof d->loc_meta / sizeof d->loc_meta[0], "loc_meta holds every local");
+            for (proven_size_t q = 0; q < c.nlocals; q++) {   // ★ RFC-0150 §8-10 — 선언 폭(8 · 16 · 32 비트 정수만)
+                const ityp_t t = c.locals[q].ty;
+                d->loc_meta[q] = (t.known && !t.flt && (t.bits == 8 || t.bits == 16 || t.bits == 32))
+                               ? (proven_u16)(IR_TY_KNOWN | (t.sign ? IR_TY_SIGNED : 0) | t.bits) : 0;
+            }
             d->lbuf_size = c.lbuf_off;   // ★ T2b-2 — 이 op 의 틀 안 나열 바이트
             d->lowered = true;
             {   // RFC-0053 — 파일 합계와 **def 몫**을 같이 센다(§8-9: 계수의 가중 교정)

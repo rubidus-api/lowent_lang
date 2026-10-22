@@ -2455,6 +2455,56 @@ static const char *cbe_ret_ctype(const low_ir_def_t *d) {
 }
 
 static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE *out);
+// ★★★ RFC-0150 §8-10 (2026-10-22) — **지역을 선언 폭의 C 타입으로** 낸다.
+//   재 보니(§4.11 보탬) 값 스택(`st[sp++]`)은 gcc 가 이미 지운다 — 그것을 지역 변수로 바꿔도 0.608 → 0.608 ms.
+//   느린 것은 누산기가 `long long` 칸에 살아 셈마다 폭을 다시 펴는 것이었다(`movl %eax, %eax` 가 의존 사슬에 든다 ·
+//   벡터화기는 «reduction: unknown pattern»). 지역을 `uint32_t` 로 두면 검사판 0.604 → 0.318 ms(손으로 쓴 C 0.317),
+//   감기판은 gcc 가 벡터화한다(0.09 ms).
+//   ★ 건전성: 좁은 칸에 담으면 폭 밖의 값은 잘린다. 그래서 그 지역에 **쓰는 자리가 모두** 폭에 맞는 값을 담는다고
+//     보일 때만 바꾼다 — 바로 앞 명령이 같은 폭 · 같은 부호의 셈(넘치면 멈춤 · 감기 · 포화 — 결과가 늘 폭 안)이거나
+//     폭에 드는 상수이고, 그 저장이 갈래가 모이는 자리가 아닐 때. 방출된 본문에서 그 지역에 쓰는 글자를 다시 세어
+//     (`loc[K] =` · `|=` · `&loc[K]` …) 그 수가 맞을 때만 이름을 바꾼다. 하나라도 모르는 쓰기가 있으면 옛 칸 그대로다.
+static unsigned short g_fitn[64];     // 지역마다: 폭에 맞는다고 보인 저장의 수
+static unsigned short g_wide[512];    // def 마다: 선언 폭이 좁은데 `long long` 으로 남은 지역의 수(`--why-slow`)
+unsigned low_cbe_wide_of(proven_size_t i) { return i < 512 ? g_wide[i] : 0; }
+static bool cbe_fits_meta(long long v, unsigned m) {
+    const int bits = (int)(m & 0xff); const bool sg = (m & IR_TY_SIGNED) != 0;
+    if (sg) return v >= -(1ll << (bits - 1)) && v <= (1ll << (bits - 1)) - 1;
+    return v >= 0 && v <= (long long)((1ull << bits) - 1);
+}
+// 폭 v(bits | 부호)의 값이 모두 폭 m 에 드는가.
+static bool cbe_meta_within(unsigned v, unsigned m) {
+    const unsigned b = v & 0xff, B = m & 0xff; const bool s = (v & IR_TY_SIGNED) != 0, S = (m & IR_TY_SIGNED) != 0;
+    if (!b || !B) return false;
+    return s ? (S && B >= b) : (S ? B > b : B >= b);
+}
+// 바로 앞 명령이 이 지역의 선언 폭에 맞는 값을 냈는가(그 저장이 갈래가 모이는 자리가 아닐 때만 묻는다).
+//   idxm = 바로 앞 명령이 슬라이스 칸을 읽었으면 그 칸의 폭(아니면 0).
+static bool cbe_store_fits(const low_ir_def_t *d, proven_size_t j, unsigned m, unsigned idxm) {
+    if (!m || j == 0) return false;
+    if (idxm) return cbe_meta_within(idxm, m);
+    const low_ir_ins_t *pv = &d->code[j - 1];
+    if (pv->w == IRW_CONST) return cbe_fits_meta((long long)pv->a, m);
+    if (pv->w != IRW_ADD && pv->w != IRW_SUB && pv->w != IRW_MUL) return false;
+    const long long a = (long long)pv->a;
+    if (!(a & IR_TY_KNOWN) || (a & (IR_TY_FLT | IR_POL_CHK | IR_POL_PROVEN))) return false;
+    return (a & 0xff) == (long long)(m & 0xff) && ((a & IR_TY_SIGNED) != 0) == ((m & IR_TY_SIGNED) != 0);
+}
+// 본문에서 `loc[K]` 에 쓰는 글자를 센다. 모르는 꼴(주소 · 증감)은 큰 수를 내서 바꾸지 못하게 한다.
+static unsigned cbe_loc_writes(const char *body, int k) {
+    char pat[24]; snprintf(pat, sizeof pat, "loc[%d]", k);
+    const size_t ln = strlen(pat); unsigned n = 0;
+    for (const char *p = body; (p = strstr(p, pat)); p += ln) {
+        if (p != body) { char c = p[-1]; if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') continue; }
+        if (p != body && (p[-1] == '&' || (p - body >= 2 && (p[-2] == '+' || p[-2] == '-') && p[-1] == p[-2]))) return 1000;
+        const char *q = p + ln; while (*q == ' ') q++;
+        if ((q[0] == '+' || q[0] == '-') && q[1] == q[0]) return 1000;
+        if (q[0] == '=' && q[1] != '=') { n++; continue; }
+        if (q[0] && strchr("+-*/%|&^", q[0]) && q[1] == '=') { n++; continue; }
+        if ((q[0] == '<' || q[0] == '>') && q[1] == q[0] && q[2] == '=') { n++; continue; }
+    }
+    return n;
+}
 
 // ★★★ **프레임은 호출마다 0 으로 채워진다 — 그러니 안 쓰는 칸을 잡으면 그대로 비용이다** (2026-07-27).
 //
@@ -2573,7 +2623,41 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     fwrite(buf, 1, (size_t)(mark - buf), out);
     size_t n = d->nlocals ? d->nlocals : 1;
     const char *body = mark + strlen("@@LWFRAME@@\n");
+    // ★ RFC-0150 §8-10 — 폭에 맞는 값만 담는다고 보인 지역은 `loc[K]` 를 그 폭의 C 지역 `nlocK_` 로 바꾼다(위 g_fitn).
+    char *nbody = NULL; unsigned narrowed[64] = {0}; unsigned nwide = 0;
+    {
+        const proven_size_t di = (proven_size_t)(d - ir->defs);
+        bool any = false;
+        for (proven_size_t k = 0; k < d->nlocals && k < 64; k++) {
+            if (!d->loc_meta[k]) continue;
+            char pat[24]; snprintf(pat, sizeof pat, "loc[%d]", (int)k);
+            bool used = false;
+            for (const char *p = body; (p = strstr(p, pat)); p += strlen(pat))
+                if (p == body || !((p[-1] >= 'a' && p[-1] <= 'z') || (p[-1] >= 'A' && p[-1] <= 'Z') || (p[-1] >= '0' && p[-1] <= '9') || p[-1] == '_')) { used = true; break; }
+            if (!used) continue;
+            if (g_fitn[k] && cbe_loc_writes(body, (int)k) == g_fitn[k]) { narrowed[k] = d->loc_meta[k]; any = true; }
+            else if (k >= d->nparams) nwide++;   // 파라미터는 들어올 때 한 번 쓰인다 — 그것은 세지 않는다
+        }
+        if (di < 512) g_wide[di] = (unsigned short)nwide;
+        if (any) {
+            size_t bl = strlen(body), cap = bl + bl / 4 + 64, o = 0;
+            nbody = (char *)malloc(cap);
+            for (const char *p = body; nbody && *p; ) {
+                if (o + 32 >= cap) { cap *= 2; char *t = (char *)realloc(nbody, cap); if (!t) { free(nbody); nbody = NULL; break; } nbody = t; }
+                if (p[0] == 'l' && p[1] == 'o' && p[2] == 'c' && p[3] == '[' &&
+                    (p == body || !((p[-1] >= 'a' && p[-1] <= 'z') || (p[-1] >= 'A' && p[-1] <= 'Z') || (p[-1] >= '0' && p[-1] <= '9') || p[-1] == '_'))) {
+                    char *e; unsigned long k = strtoul(p + 4, &e, 10);
+                    if (e != p + 4 && *e == ']' && k < 64 && narrowed[k]) { o += (size_t)sprintf(nbody + o, "nloc%lu_", k); p = e + 1; continue; }
+                }
+                nbody[o++] = *p++;
+            }
+            if (nbody) { nbody[o] = 0; body = nbody; }
+            else memset(narrowed, 0, sizeof narrowed);
+        }
+    }
     fputs("    ", out);
+    for (size_t k = 0; k < 64; k++) if (narrowed[k])
+        fprintf(out, "%sint%u_t nloc%zu_ = 0; ", (narrowed[k] & IR_TY_SIGNED) ? "" : "u", narrowed[k] & 0xffu, k);
     if (cbe_uses(body, "loc["))  fprintf(out, "long long loc[%zu] = {0}; ", n);
     if (cbe_uses(body, "sloc[")) fprintf(out, "lw_sl sloc[%zu] = {{0,0}}; ", n);
     // ★★★★ **레코드 지역은 이제 "어디를 가리키나" 다** (RFC-0039 §9-4 단계 2, 2026-08-03).
@@ -2629,6 +2713,7 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
             q = hit + 7;
         }
     }
+    free(nbody);
     free(buf);
 }
 
@@ -2732,6 +2817,8 @@ static int cbe_carry_scan(const low_ir_def_t *d, const unsigned char *lk, cbe_ca
 
 static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE *out) {
     g_vspush = 0;                     // ★ 이 함수가 벡터를 몇 번 밀어 넣는지 센다
+    memset(g_fitn, 0, sizeof g_fitn);
+    proven_size_t idx_at = (proven_size_t)-1; unsigned idx_m = 0;   // ★ §8-10 — 마지막으로 정수 칸을 읽은 자리와 그 칸의 폭
     kstack_t *at = cbe_at_ensure(0, d->ncode);
     if (!at || !cbe_lbuf_ensure(d->nlocals)) { fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
     unsigned char *lk = g_lb.lk, *slot = g_lb.slot;
@@ -2951,7 +3038,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                               (long long)in->a, (long long)in->a, (long long)in->a,
                                               (unsigned)ir->structs[kk - K_REC].total, (long long)in->a);
                 else if (kk == K_STK) fprintf(out, "    scap[%d] = st[sp-1]; sp--; sn[%d] = 0;\n", smap[in->a], smap[in->a]);
-                else fprintf(out, "    loc[%lld] = st[--sp];\n", (long long)in->a);
+                else {
+                    fprintf(out, "    loc[%lld] = st[--sp];\n", (long long)in->a);
+                    if (kk == K_INT && in->a >= 0 && in->a < 64 && (proven_size_t)in->a < d->nlocals && lk[in->a] == K_INT &&
+                        !target[j] && cbe_store_fits(d, j, d->loc_meta[in->a], (j > 0 && idx_at == j - 1) ? idx_m : 0) &&
+                        g_fitn[in->a] < 60000)
+                        g_fitn[in->a]++;
+                }
                 break;
             }
             case IRW_LEN:
@@ -3027,6 +3120,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     if (eflt) fprintf(out, "      fs[fsp++] = lw_b2f(x_, %d);\n", esz);
                     else if (esgn) fprintf(out, "      st[sp++] = (long long)(int%d_t)x_;\n", esz * 8);
                     else      fputs("      st[sp++] = (long long)x_;\n", out);
+                }
+                if (!eflt && (esz == 1 || esz == 2 || esz == 4)) {   // 읽은 값은 그 칸의 폭에 든다(부호 있는 칸은 부호를 늘렸다)
+                    idx_at = j; idx_m = (unsigned)(IR_TY_KNOWN | (esgn ? IR_TY_SIGNED : 0) | (esz * 8));
                 }
                 if (cq >= 0) fprintf(out, "      } else st[sp++] = lw_cc%d;\n", cq);
                 fputs("    }\n", out);

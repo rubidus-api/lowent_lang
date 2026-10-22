@@ -545,6 +545,10 @@ low_lex_result_t low_lex(proven_allocator_t alloc, proven_u8str_view_t src) {
                      "the source is not well-formed UTF-8 — an invalid byte sequence. Lowent source is "
                      "UTF-8 (RFC-0035); a stray byte is not a typo the tool should guess through, it is a "
                      "corrupt or mis-encoded file.", ln, 0);
+            // ★ 끝 토큰은 그래도 둔다 — 토큰 열은 늘 EOF 로 끝난다는 것이 파서의 약속이다. 빈 열을 넘겼더니 파서가
+            //   잡아 둔 칸 너머의 쓰레기를 토큰으로 읽어 진단 171 줄을 내고 타입 검사에서 죽었다(2026-10-22 — 힙의 모양이
+            //   바뀌자 드러났다. 그전에는 그 칸이 우연히 0 이었다).
+            low_emit(&l, LOW_TOK_EOF, LOW_KW_NONE, LOW_EMPTY_VIEW, LOW_EMPTY_VIEW, ln, 0);
             return out;   // 렉싱 중단 — 바이트 스트림을 믿을 수 없다
         }
     }

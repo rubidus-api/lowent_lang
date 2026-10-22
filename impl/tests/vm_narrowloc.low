@@ -1,0 +1,40 @@
+rem RFC-0150 §8-10 — 선언 폭이 좁은 지역은 C 에서 그 폭의 타입으로 산다(폭에 맞는 값만 담는다고 보일 때).
+rem 답은 VM 과 같아야 한다 — 넘치면 멈추고, 감기는 감고, 부호 있는 칸은 부호를 늘린다.
+module narrowloc .
+export fn sum_checked input xs slice u32 . output u32 . do
+  var acc u32 0 .
+  var i usize 0 .
+  while lt i. len xs. . . do
+    set acc. add acc. idx xs. i. . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
+export fn sum_wrap8 input xs slice u8 . output u8 . do
+  var acc u8 0 .
+  var i usize 0 .
+  while lt i. len xs. . . do
+    set acc. wrap_add acc. idx xs. i. . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
+fn neg_sum input n i16 . output i16 . do
+  var acc i16 0 .
+  var k i16 0 .
+  while lt k. n. . do
+    set acc. wrap_sub acc. 300 . .
+    set k. add k. 1 . .
+  end .
+  return acc. .
+end .
+fn biggest input xs slice u8 . output u16 . do
+  var best u16 0 .
+  var i usize 0 .
+  while lt i. len xs. . . do
+    let v u16 cast u16 idx xs. i. . . .
+    if gt v. best. . do set best. v. . end .
+    set i. add i. 1 . .
+  end .
+  return best. .
+end .

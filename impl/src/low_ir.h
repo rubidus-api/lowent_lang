@@ -761,6 +761,10 @@ typedef struct {
     proven_u32          param_vec;
     proven_u8           param_vlanes[LOW_MAX_PARAMS];
     proven_size_t       nlocals;   // params + vars
+    // ★ RFC-0150 §8-10 (2026-10-22) — 지역마다 **선언된 정수 폭**(bits | IR_TY_KNOWN | IR_TY_SIGNED, 8 · 16 · 32 비트만,
+    //   아니면 0). C 방출기가 그 지역에 드는 값이 모두 그 폭에 맞음을 보이면 `long long` 칸 대신 그 폭의 C 타입으로 낸다
+    //   — gcc 가 누산기를 합으로 알아보고 벡터화하는 조건이다. 칸 수는 IR_MAXLOCALS 와 같다(low_ir_stmt.c 가 맞댄다).
+    proven_u16          loc_meta[64];
     low_ir_ins_t       *code;
     proven_size_t       ncode;
     proven_u8           iface_hash[32];

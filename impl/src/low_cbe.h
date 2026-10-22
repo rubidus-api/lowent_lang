@@ -44,5 +44,6 @@ void low_cbe_set_conc_t0(bool v);
 void        low_cbe_set_no_main(bool v);   // ★ 라이브러리로 낸다(C 가 main 을 갖는다)
 void        low_cbe_why(bool on);
 const char *low_cbe_why_of(proven_size_t i);
+unsigned low_cbe_wide_of(proven_size_t i);   /* RFC-0150 §8-10 — 빠른 길이지만 선언 폭보다 넓은 칸에 남은 지역의 수 */
 
 #endif // LOW_CBE_H

@@ -2364,6 +2364,21 @@ int main(int argc, char **argv) {
                     printf("  %-24.*s  %s\n", (int)ir.defs[q].name.size,
                            (const char *)ir.defs[q].name.ptr, w);
                 }
+                // ★ RFC-0150 §8-3 (2026-10-22) — 빠른 길(태그 없음)도 **모양**이 느릴 수 있다. 재 보니 값 스택은 gcc 가
+                //   지우고, 남는 값은 선언 폭이 좁은 지역이 `long long` 칸에 사는 것이었다(§4.11 보탬). 그 수를 따로 말한다.
+                //   ☞ 마지막 줄(요약)은 그대로 둔다 — 골든과 check-tagged 가 그 줄을 읽는다.
+                proven_size_t wops = 0, wloc = 0;
+                for (proven_size_t q = 0; q < ir.ndefs; q++) {
+                    const char *w = low_cbe_why_of(q);
+                    const unsigned nw = low_cbe_wide_of(q);
+                    if ((w && w[0]) || !nw) continue;
+                    wops++; wloc += nw;
+                    if (!g_diag_json)
+                        printf("  %-24.*s  fast path, but %u local(s) stay 64-bit: a store into them was not shown to fit the declared width\n",
+                               (int)ir.defs[q].name.size, (const char *)ir.defs[q].name.ptr, nw);
+                }
+                if (wops)
+                    printf("why-slow: %zu op(s) on the fast path keep %zu narrow local(s) at 64 bits\n", (size_t)wops, (size_t)wloc);
                 printf("why-slow: %zu / %zu op(s) still on the tagged path\n",
                        (size_t)slow, (size_t)ir.ndefs);
                 rc = (n >= 0 && ir.ok) ? 0 : 1;

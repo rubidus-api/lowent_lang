@@ -2403,6 +2403,76 @@ static bool ir_pool_no_gc(const low_ir_def_t *d) {   // low_cbe.c cbe_pool_gc_ok
     for (proven_size_t j = 0; j < d->ncode; j++) if (d->code[j].w == IRW_REF || d->code[j].w == IRW_MREF) return true;
     return false;
 }
+/* ★ RFC-0152 §8-11 (2026-10-23, 소유자 «3-C») — **그대로 넘기기만 하는 op 을 건너뛰어 부른다.**
+ *   `bigint.mont_mul` 의 몸은 `if eq machine.limb_bits. 16 . do return bigint16.mont_mul … end .` 꼴이다. 상수 갈래를 접으면
+ *   «입력을 차례대로 다른 op 에 넘기고 그 답을 돌려준다» 뿐인데, C 에서는 따로 선 함수 하나라 부를 때마다 인자를 스택 기계의 틀에
+ *   옮겨 담았다 — 곡선 셈의 약 8 %(§9.6). 그런 op D 가 T 로 넘기고 두 op 의 겉모양(iface 해시 — 입력 · 출력 · 계약)이 같으면,
+ *   D 를 부르는 자리를 T 로 돌린다. D 의 몸은 그대로 남는다(심볼 · `--run` · 차등 스윕). def 해시는 다시 재지 않는다 — 넘기는
+ *   op 의 뜻은 T 의 뜻과 같다. 몸에 계약 검사 · 다른 셈이 한 줄이라도 있으면 모양이 맞지 않아 건너뛴다. */
+static proven_size_t ir_forward_target(const low_ir_t *ir, proven_size_t di) {
+    const low_ir_def_t *d = &ir->defs[di];
+    if (!d->lowered || d->is_extern || d->is_test || d->is_actor || d->is_par || d->isr_vector >= 0 || !d->code) return (proven_size_t)-1;
+    proven_i64 st[4]; int sp = 0; proven_size_t pc = 0, steps = 0, want = 0;
+    while (pc < d->ncode && steps++ < 256) {
+        const low_ir_ins_t *in = &d->code[pc];
+        if (want == 0 && sp == 0 && in->w == IRW_LOAD && pc + 2 < d->ncode && d->code[pc + 1].w == IRW_VARRAY &&
+            d->code[pc + 2].w == IRW_STORE && d->code[pc + 2].a == in->a) { pc += 3; continue; }   // 진입의 멱등 정규화
+        switch (in->w) {
+            case IRW_CONST:
+                if (want || sp >= 4 || in->a < 0 || in->a > 0x7fffffff) return (proven_size_t)-1;
+                st[sp++] = in->a; pc++; continue;
+            case IRW_EQ: case IRW_NE: case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE: {
+                if (want || sp < 2) return (proven_size_t)-1;
+                proven_i64 y = st[--sp], x = st[--sp];
+                st[sp++] = in->w == IRW_EQ ? x == y : in->w == IRW_NE ? x != y : in->w == IRW_LT ? x < y :
+                           in->w == IRW_LE ? x <= y : in->w == IRW_GT ? x > y : x >= y;
+                pc++; continue; }
+            case IRW_BRZ:
+                if (want || sp < 1) return (proven_size_t)-1;
+                pc = st[--sp] == 0 ? (proven_size_t)in->a : pc + 1; continue;
+            case IRW_BR:
+                if (want || sp) return (proven_size_t)-1;
+                pc = (proven_size_t)in->a; continue;
+            case IRW_LOAD:
+                if (sp || in->a != (proven_i64)want) return (proven_size_t)-1;
+                want++; pc++; continue;
+            case IRW_CALL: {
+                proven_size_t ti = IR_CALL_IDX(in->a);
+                if (sp || want != d->nparams || ti >= ir->ndefs || ti == di || pc + 1 >= d->ncode || d->code[pc + 1].w != IRW_RET)
+                    return (proven_size_t)-1;
+                const low_ir_def_t *t = &ir->defs[ti];
+                if (!t->lowered || t->is_extern || t->is_actor || t->nparams != d->nparams ||
+                    memcmp(t->iface_hash, d->iface_hash, 32) != 0) return (proven_size_t)-1;
+                return ti; }
+            default: return (proven_size_t)-1;
+        }
+    }
+    return (proven_size_t)-1;
+}
+
+static void ir_call_through_forwarders(low_ir_t *ir) {
+    if (getenv("LOW_NO_FORWARD")) return;   // 견줘 보기용 — 옛 길
+    proven_size_t *to = calloc(ir->ndefs ? ir->ndefs : 1, sizeof *to);
+    if (!to) return;
+    for (proven_size_t i = 0; i < ir->ndefs; i++) to[i] = ir_forward_target(ir, i);
+    for (proven_size_t i = 0; i < ir->ndefs; i++) {            // 사슬(D → D′ → T)은 끝까지 따라간다
+        proven_size_t t = to[i], hops = 0;
+        while (t != (proven_size_t)-1 && to[t] != (proven_size_t)-1 && hops++ < 8) t = to[t];
+        if (hops < 8) to[i] = t; else to[i] = (proven_size_t)-1;
+    }
+    for (proven_size_t i = 0; i < ir->ndefs; i++) {
+        low_ir_def_t *d = &ir->defs[i];
+        if (!d->code) continue;
+        for (proven_size_t k = 0; k < d->ncode; k++) {
+            if (d->code[k].w != IRW_CALL) continue;
+            proven_size_t ci = IR_CALL_IDX(d->code[k].a);
+            if (ci >= ir->ndefs || to[ci] == (proven_size_t)-1 || to[ci] == i) continue;
+            d->code[k].a = (d->code[k].a & ~(proven_i64)0xFFFF) | (proven_i64)to[ci];
+        }
+    }
+    free(to);
+}
+
 static void ir_pool_scan(low_ir_t *ir) {
     if (!low_ir_author_warnings() || !ir->ndefs) return;
     bool *al = calloc(ir->ndefs, sizeof *al);
@@ -2439,7 +2509,8 @@ static void ir_pool_scan(low_ir_t *ir) {
                      "this loop makes option/result/struct values in an op that holds a `ref`/`mut_ref`: the native build "
                      "cannot reclaim its value pool here, so it grows each turn and stops at the limit (the VM keeps going). "
                      "Put the loop in an op without the reference");
-            dg.msg = dg.detail;
+            // ★ `msg` 는 NULL 로 둔다(low_diag.h ★ 진단의 문장) — `detail` 을 가리키면 밀어 넣은 사본이 이 지역의 칸을 가리켜,
+            //   함수가 끝난 뒤 그 자리가 덮여 문구가 깨진다(2026-10-23 · 깨진 UTF-8 로 check-corpus 가 멈췄다).
             (void)proven_array_push(&ir->diags, &dg);
             break;
         }
@@ -2507,8 +2578,7 @@ static void ir_pool_scan(low_ir_t *ir) {
                          "the deepest call path from this op can keep up to %llu option/result/struct values at once (a bound: "
                          "every one made on the path, counted without reclaim) — more than this machine's value pool (%llu). "
                          "Split the path, or reuse values (RFC-0150 §8-11)", memo[i], cap);
-                dg.msg = dg.detail;
-                (void)proven_array_push(&ir->diags, &dg);
+                (void)proven_array_push(&ir->diags, &dg);   // `msg` 는 NULL — 위 W-POOL-LOOP 의 ★
                 ir->ok = false;
             }
         }
@@ -4315,6 +4385,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 memcmp(d->iface_hash, e->iface_hash, 32) == 0) { d->canon_of = (void *)e; break; }
         }
     }
+    ir_call_through_forwarders(&ir);
     return ir;
 }
 

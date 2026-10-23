@@ -547,6 +547,11 @@ static int cmd_build(int nargs, char **args) {
         size_t n = strlen(pass);
         snprintf(pass + n, sizeof pass - n, " --target %s", pkg.target);
     }
+    // ★ RFC-0152 §8-12 — 조각 폭도 같은 차례다: 명령줄이 있으면 명령줄, 없으면 최상위 매니페스트.
+    if (pkg.found && !strstr(pass, "--limb-bits") && pkg.limb_bits[0]) {
+        size_t n = strlen(pass);
+        snprintf(pass + n, sizeof pass - n, " --limb-bits %s", pkg.limb_bits);
+    }
     char self[512] = { 0 };
     ssize_t r = readlink("/proc/self/exe", self, sizeof self - 1);
     if (r <= 0) snprintf(self, sizeof self, "lowentc");
@@ -1096,7 +1101,7 @@ static void print_usage(const char *argv0) {
         "    --lock-write         지금 무엇을 상대로 빌드하는지 락파일로 찍는다 (매니페스트 옆 pkg.lock 에도)\n"
         "    --pkg FILE           pkg.low 매니페스트 위치를 명시한다 (기본: 첫 파일 dir 에서 위로 찾는다)\n"
         "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
-        "    --limb-bits N        큰 수 조각 폭 16 | 32 | 64 — 대상의 값을 덮는다(machine.limb_bits · 큰 수 모듈 bigint, RFC-0152)\n"
+        "    --limb-bits N        큰 수 조각 폭 16 | 32 | 64 — 대상의 값과 pkg.low 의 `build limb_bits` 를 덮는다(machine.limb_bits · 큰 수 모듈 bigint, RFC-0152)\n"
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
@@ -1254,10 +1259,12 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[1], "verify") == 0) return cmd_verify(argc - 2, argv + 2);
         else if (strcmp(argv[1], "run") == 0) {
             // `lowentc run [entry] [args…]` → `--run main <entry> [args…]` (엔트리 생략 = 매니페스트/관례)
-            static char entry[600]; char err[256]; low_pkg_t pk = { 0 };
+            static char entry[600]; char err[256]; static low_pkg_t pk;   // static — xargv 가 pk.limb_bits 를 가리킨다
             const char *earg = (argc >= 3 && strstr(argv[2], ".low")) ? argv[2] : NULL;
             if (!resolve_entry(earg, &pk, entry, err)) { fprintf(stderr, "lowentc run: %s\n", err); return 2; }
             xargv[xargc++] = argv[0];
+            // ★ RFC-0152 §8-12 — 최상위 매니페스트의 조각 폭(명령줄의 `--limb-bits` 가 뒤에 오면 그것이 덮는다)
+            if (pk.found && pk.limb_bits[0]) { xargv[xargc++] = (char *)"--limb-bits"; xargv[xargc++] = pk.limb_bits; }
             xargv[xargc++] = (char *)"--run"; xargv[xargc++] = (char *)"main";
             xargv[xargc++] = entry;
             for (int q = earg ? 3 : 2; q < argc && xargc < 79; q++) xargv[xargc++] = argv[q];

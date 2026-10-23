@@ -133,16 +133,25 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
                 }
             out->ndeps++;
         } else if (tveq(&t[i], "build")) {
-            // build <key> <value> . — 이 매니페스트가 아는 빌드 키는 entry/profile/target 뿐.
+            // build <key> <value> . — 이 매니페스트가 아는 빌드 키는 entry/profile/target/limb_bits/absorb 뿐.
             if (nf < 3) { snprintf(err, 512, "pkg.low:%u E-PKG-FORM: `build <key> <value> .`", t[i].line); return false; }
             if      (tveq(&t[i + 1], "entry"))   tcopy(out->entry,   sizeof out->entry,   &t[i + 2]);
             else if (tveq(&t[i + 1], "profile")) tcopy(out->profile, sizeof out->profile, &t[i + 2]);
             else if (tveq(&t[i + 1], "target"))  tcopy(out->target,  sizeof out->target,  &t[i + 2]);
+            else if (tveq(&t[i + 1], "limb_bits")) {
+                // ★ RFC-0152 §8-12 (2026-10-23, 소유자 «1-B») — 큰 수의 조각 폭을 적어 둔다(무엇을 짓는지는 적힌 곳에 남긴다 · RFC-0031).
+                //   `build` · `run` 이 최상위 패키지의 것만 쓴다 — 의존 패키지가 쓰는 쪽의 폭을 바꾸지 않는다.
+                tcopy(out->limb_bits, sizeof out->limb_bits, &t[i + 2]);
+                if (strcmp(out->limb_bits, "16") && strcmp(out->limb_bits, "32") && strcmp(out->limb_bits, "64")) {
+                    snprintf(err, 512, "pkg.low:%u E-PKG-FORM: `build limb_bits` takes 16, 32 or 64 (the limb widths the big-number modules have)", t[i + 2].line);
+                    return false;
+                }
+            }
             else if (tveq(&t[i + 1], "absorb")) {
                 // ★ RFC-0120 §5.2-10 — `build absorb <모듈> .` : 그 모듈만 `absorbs` 를 쓸 수 있다.
                 if (out->nabsorb < 16) tcopy(out->absorb[out->nabsorb++], 64, &t[i + 2]);
             }
-            else { snprintf(err, 512, "pkg.low:%u E-PKG-KEY: unknown `build` key in the manifest — it knows entry · profile · target · absorb (a key nobody reads is a key nobody checks)", t[i + 1].line); return false; }
+            else { snprintf(err, 512, "pkg.low:%u E-PKG-KEY: unknown `build` key in the manifest — it knows entry · profile · target · limb_bits · absorb (a key nobody reads is a key nobody checks)", t[i + 1].line); return false; }
         } else {
             snprintf(err, 512, "pkg.low:%u E-PKG-FORM: unknown declaration head `%.*s` — the manifest is a CLOSED set of flat forms: `package <k> <v> .` · `use <n> from \"<s>\" [hash \"<h>\"] .` · `build <k> <v> .`", t[i].line, (int)(t[i].lex.size < 32 ? t[i].lex.size : 32), (const char *)t[i].lex.ptr);
             return false;

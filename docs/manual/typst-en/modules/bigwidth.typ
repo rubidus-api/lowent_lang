@@ -23,4 +23,4 @@ choosing costs nothing (300 RSA-2048 exponentiations · native `-O2` · x86-64: 
 *Why a module of its own* --- the four width modules use it, and `bigint` uses three width modules. With the trait inside one of them, they would call
 each other in a cycle.
 
-There is a separate way to change the width *for the whole program* --- `lowentc --limb-bits` (#modref("bigint")[`bigint`]).
+There is a separate way to change the width *for the whole program* --- `build limb_bits` in `pkg.low` or `lowentc --limb-bits` (#modref("bigint")[`bigint`]).

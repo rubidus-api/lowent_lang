@@ -173,7 +173,7 @@ export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice
     var carry u64 0 .
     var j usize 0 .
     while lt j. k. . do
-      let s u64 add add idx t. j. . mul idx a. i. . idx b. j. . . . carry. . .
+      let s u64 add add idx t. j. . widen u64 wrap_mul narrow_wrap u32 idx a. i. . . narrow_wrap u32 idx b. j. . . . . . carry. . .
       set idx t. j. . bit_and s. 65535 . .
       set carry. shr s. 16 . .
       set j. add j. 1 . .
@@ -182,12 +182,12 @@ export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice
     set idx t. k. . bit_and s1. 65535 . .
     set idx t. add k. 1 . . add idx t. add k. 1 . . shr s1. 16 . . .
     rem m = t[0]·n0inv mod 2^16,  t ← (t + m·n) / 2^16
-    let m u64 bit_and mul idx t. 0 . ninv. . 65535 . .
-    let s2 u64 add idx t. 0 . mul m. idx n. 0 . . . .
+    let m u64 bit_and widen u64 wrap_mul narrow_wrap u32 idx t. 0 . . narrow_wrap u32 ninv. . . . 65535 . .
+    let s2 u64 add idx t. 0 . widen u64 wrap_mul narrow_wrap u32 m. . narrow_wrap u32 idx n. 0 . . . . . .
     var carry2 u64 shr s2. 16 . .
     var q usize 1 .
     while lt q. k. . do
-      let s3 u64 add add idx t. q. . mul m. idx n. q. . . . carry2. . .
+      let s3 u64 add add idx t. q. . widen u64 wrap_mul narrow_wrap u32 m. . narrow_wrap u32 idx n. q. . . . . . carry2. . .
       set idx t. sub q. 1 . . bit_and s3. 65535 . .
       set carry2. shr s3. 16 . .
       set q. add q. 1 . .

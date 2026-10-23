@@ -30,6 +30,7 @@ typedef struct {
     char           entry[256];    // build entry "<file>" (없으면 "")
     char           profile[64];   // build profile <word>
     char           target[64];    // build target <word>
+    char           limb_bits[8];  // build limb_bits 16|32|64 — RFC-0152 §8-12: 최상위 패키지의 것만 읽는다 · 명령줄 `--limb-bits` 가 이긴다
     low_pkg_dep_t  deps[32];
     int            ndeps;
     // ★★★★★ RFC-0120 §5.2-10 — **흡수를 허락한 모듈**(`build absorb <모듈> .`).

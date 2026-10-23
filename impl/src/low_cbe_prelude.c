@@ -555,9 +555,12 @@ const char LW_PRELUDE[] =
 "    //   감기: 무부호 64 비트 셈은 2^64 를 법으로 맞고, 그것을 선언 폭으로 감으면 옛 답과 비트가 같다.\n"
 "    //   검사: 두 입력이 선언 폭에 들 때 그 폭의 C 타입으로 넘침을 보면 «수학적 결과가 폭에 드는가» 와 같다.\n"
 "    //   입력이 폭 밖이면(타입 검사를 건너뛴 글) 옛길이 같은 답을 낸다.\n"
+"    // ★ RFC-0152 §8-13 (2026-10-23) — 폭이 32 비트 이하인 감기 곱은 32 비트로 곱한다. 곱의 아래 32 비트는 두 입력의 아래 32 비트만으로\n"
+"    //   정해지므로 답의 비트가 같다. 64 비트로 곱하면 곱셈기가 32 비트인 기계(Cortex-M0)에서 소프트웨어 부름(`__aeabi_lmul`)이 된다.\n"
 "    if ((meta & 0x1000) && !(meta & 0x100000) && bits > 0 && bits <= 64) {\n"
 "        unsigned long long ux_ = (unsigned long long)x, uy_ = (unsigned long long)y;\n"
-"        if (meta & 0x4000) return lw_wrap((long long)(op == 0 ? ux_ + uy_ : op == 1 ? ux_ - uy_ : ux_ * uy_), bits, sg);\n"
+"        if (meta & 0x4000) return lw_wrap((long long)(op == 0 ? ux_ + uy_ : op == 1 ? ux_ - uy_\n"
+"                                        : bits <= 32 ? (unsigned long long)((uint32_t)ux_ * (uint32_t)uy_) : ux_ * uy_), bits, sg);\n"
 "        if (!(meta & 0x8000) && bits <= 32 && lw_fits(x, bits, sg) && lw_fits(y, bits, sg)) {\n"
 "#define LW_NAR_(T) { T r_; int o_ = op == 0 ? __builtin_add_overflow((T)x, (T)y, &r_) : op == 1 ? __builtin_sub_overflow((T)x, (T)y, &r_)\\\n"
 "                                    : __builtin_mul_overflow((T)x, (T)y, &r_);\\\n"
@@ -2619,7 +2622,7 @@ const char LW_PRELUDE2[] =
 "    return lw_flt(op == 0 ? fmod(x, y) : op == 1 ? (x < y ? x : y)\n"
 "                : op == 2 ? (x > y ? x : y) : pow(x, y)); }\n"
 // ★ RFC-0149 §6.12 — 원천의 부호(0x200000 부호 없음 · 0x400000 부호 있음)를 알면 64 비트 경계를 가른다. VM 의 IRW_CAST 와 같은 식이다.
-"static int lw_cast_fits(long long meta, long long x, int nb, int sgn) {\n"
+"LW_HOT int lw_cast_fits(long long meta, long long x, int nb, int sgn) {\n"
 "    if ((meta & 0x200000) && x < 0) return !sgn && nb >= 64;\n"
 "    if ((meta & 0x400000) && x < 0 && !sgn) return 0;\n"
 "    return nb >= 64 || lw_fits(x, nb, sgn); }\n"
@@ -2710,7 +2713,9 @@ const char LW_PRELUDE2[] =
 "    }\n"
 "    if (op == 1 || op == 2 || op == 3) return (long long)r;\n"
 "    return lw_wrap((long long)r, bits, sg); }\n"
-"static long long lw_cast_i(long long meta, long long x) {\n"
+// ★ RFC-0152 §8-13 (2026-10-23) — `LW_HOT` 다. `lw_bit2` 와 같은 병이었다(위 ★): `static` 이라 호출로 남아, 곱 하나에 좁히기 둘 ·
+//   넓히기 하나를 쓰는 `bigint16` 의 몽고메리 곱이 x86-64 에서 네 배 느려졌다(P-256 서명 + 검증 36.9 → 140 ms). 메타가 상수라 인라인하면 접힌다.
+"LW_HOT long long lw_cast_i(long long meta, long long x) {\n"
 "    int nb = (int)(meta & 0xff) * 8;\n"
 "    int sgn = (meta & 0x20000) != 0;\n"   // ★ widen 은 대상 부호를 싣는다 → 부호 범위(전역성). narrow 는 무부호(손실 트랩)
 "    int fits = lw_cast_fits(meta, x, nb, sgn);\n"

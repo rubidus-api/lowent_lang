@@ -205,7 +205,7 @@ function handle(msg) {
       send({ jsonrpc: '2.0', id: msg.id, result: {
         capabilities: { textDocumentSync: { openClose: true, change: 1, save: { includeText: false } }, hoverProvider: true, completionProvider: {},
                         documentHighlightProvider: true, codeActionProvider: { codeActionKinds: ['quickfix'] } },
-        serverInfo: { name: 'lowent-lsp', version: '1.16.0' },
+        serverInfo: { name: 'lowent-lsp', version: '1.17.0' },
       } });
       break;
     }

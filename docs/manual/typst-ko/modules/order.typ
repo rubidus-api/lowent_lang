@@ -4,7 +4,7 @@
     "strings", "strbuf", "fmt", "utf8", "utf16", "unicode", "codec", "regex", "term",
     "sortlib", "sortgen", "collection", "searchlib", "hashmap", "strmap", "vecs", "spsc",
     "hash", "hash_legacy", "math", "random",
-    "hmac", "chacha", "poly", "aead", "x25519", "aes", "gcm", "crypto_hw", "bigint16", "bigint32", "bigint64", "rsa", "p256", "p384", "ecdsa", "ed25519",
+    "hmac", "chacha", "poly", "aead", "x25519", "aes", "gcm", "crypto_hw", "bigwidth", "bigint16", "bigint32", "bigint64", "bigint", "rsa", "p256", "p384", "ecdsa", "ed25519",
     "der", "pem", "x509", "verify", "tls13", "tlssrv", "tlscli", "http", "soa",
   )),
   (ko: "L1 --- 저장", en: "L1 --- storage", modules: (

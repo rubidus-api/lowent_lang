@@ -21,7 +21,7 @@ three pieces.
 ③ does H' = SHA-256(0x00×8 ‖ mHash ‖ salt) equal H inside EM
 ```
 
-① is `mod_exp` of #modref("bigint64")[`bigint64`], and ② and ③ are this module's job. The eight `0x00×8` bytes are not decoration --- they are a prefix the standard added to
+① is `mod_exp` of #modref("bigint")[`bigint`] (the machine picks the limb width --- `bigint64` on a 64-bit machine), and ② and ③ are this module's job. The eight `0x00×8` bytes are not decoration --- they are a prefix the standard added to
 separate signed content from certificate signatures. Leaving them out lets signatures from another context be reused.
 
 #dtable(
@@ -32,6 +32,7 @@ separate signed content from certificate signatures. Leaving them out lets signa
   [`mgf1`], [The MGF1-SHA256 mask generation function], [`out ≥ n` · `w` is backing],
   [`pss_verify`], [Given EM, is the PSS encoding right], [only ② and ③],
   [`verify_pss`], [signature · modulus · exponent · hash → 0 or 1], [all of ①②③],
+  [`verify_pss_by` · `verify_pkcs1_by`], [the same *at a chosen width*], [a width type and its value first --- `bigint16.limb. w.` (#modref("bigwidth")[`bigwidth`])],
 )
 
 Usually only `verify_pss` is used. `pss_verify` is exposed separately to test ① apart from ② and ③.

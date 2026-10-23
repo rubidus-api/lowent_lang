@@ -1,60 +1,43 @@
-# <a id="mod-x509"></a>`x509` — reading X.509 certificates
+# <a id="mod-der"></a>`der` — minimal DER parser
 
 Source
 
-`lib/x509.low`
+`lib/der.low`
 
 Layer
 
-L0 — pure computation (the caller’s backing)
+L0 — pure computation
 
 Capabilities
 
 none
 
-**Reads the skeleton** of an X.509 certificate (DER): where the signed part starts and ends, who the issuer and subject are, and where the public key, validity and extensions sit — all as **offsets and lengths**. It is the step after [`der`](sec96.md#mod-der), which stopped at “extract the public key”.
+Tells **where the public key starts and how many bytes it is** in X.509 certificate bytes, and finds the EC scalar in a PKCS#8 private key file. Verifying signatures with that key is the job of [`p256`](sec94.md#mod-p256), [`rsa`](sec93.md#mod-rsa) and [`ed25519`](sec97.md#mod-ed25519).
 
-> **It only reads**
+> **This is not PKI**
 >
-> > This module **does not check** a certificate. Whether the signature holds, whether a chain links, whether a name matches — that is [`verify`](sec99.md#mod-verify), built on top of this one. Not built: revocation (CRL · OCSP) · name constraints · policies · the old v1/v2 shapes · comparing names that are not UTF-8.
+> > Chain validation, CA trust stores, name matching, validity periods, revocation, extensions — **it does none of them**. So this alone cannot answer “can this certificate be trusted”. The caller must **pin** the public key or judge by its own rules. A half-built PKI is worse than none — it makes you believe you can trust it.
 
-The shape of a certificate and where this module’s ops point:
+**Lengths were written by the other side.** Every DER length field is chosen by the attacker. So this parser keeps three rules — any length exceeding the buffer fails immediately (answers 0); long-form lengths are accepted up to 4 bytes only; there is no recursion (depth is a loop the caller controls). **Every failure is `0`** — a value, not an exception.
 
-```text
-Certificate
-├─ tbsCertificate ─────────────── tbs_off … tbs_end   ← the bytes the signature covers
-│   ├─ [0] version (may be absent)
-│   ├─ serialNumber                tbs_field 0
-│   ├─ signature                   tbs_field 1
-│   ├─ issuer (issuer name)        issuer_off · elem_len
-│   ├─ validity                    not_before · not_after
-│   ├─ subject (subject name)      subject_off · elem_len
-│   ├─ subjectPublicKeyInfo        spki_off
-│   └─ [3] extensions              ext_value_off · is_ca · san_next
-├─ signatureAlgorithm ─────────── sigalg_oid_off · sigalg_oid_len
-└─ signatureValue ─────────────── sig_off · sig_len
-```
-
-| **op** | **what it does** |
+| **op** | **What it does** |
 |---|---|
-| `tbs_off` · `tbs_end` | start and end of the signed bytes. A signature is checked over **these original bytes** |
-| `sigalg_oid_off` · `sigalg_oid_len` | offset and length of the outer signature algorithm OID |
-| `sig_off` · `sig_len` | the signature value (past the BIT STRING’s “unused bits” byte) |
-| `tbs_field` | offset of the `n`-th field in tbsCertificate (0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 public key) |
-| `issuer_off` · `subject_off` · `elem_len` | offset and length of the **whole** issuer / subject name element — names are compared as bytes |
-| `spki_off` | offset of the public key (SubjectPublicKeyInfo) |
-| `not_before` · `not_after` | validity as one comparable number (`YYYYMMDDhhmmss`). Only the `Z` time zone is accepted |
-| `ext_value_off` | value offset of the extension whose OID is `2.5.29.<n>` (17 = subject alternative name · 19 = basicConstraints) |
-| `is_ca` | may this certificate issue others. **No extension means false** |
-| `san_next` | the DNS names of the subject alternative name, one at a time (`cur` 0 = the first, 0 back = no more) |
+| `tag_at` | Tag byte at `off` |
+| `value_off` · `value_len` | Where that TLV’s **value** starts · its length |
+| `next_off` | Position of the next sibling TLV |
+| `is_spki` | Is this position **shaped** like SubjectPublicKeyInfo |
+| `find_spki` | Finds the SPKI inside a certificate |
+| `alg_oid_off` · `alg_oid_len` | Position · length of the algorithm OID |
+| `key_off` · `key_len` | Position · length of the public key bit string |
+| `rsa_n_off` · `rsa_n_len` · `rsa_e` | Modulus and exponent inside an RSA key |
+| `p8_alg_off` · `p8_inner_off` · `p8_inner_len` | PKCS#8 algorithm · inner key position · length |
+| `ec_priv_off` · `ec_priv_len` | Position · length of the EC private key (scalar) |
 
-*Table 50.1 — ops of `x509` — an op that returns an offset returns 0 for “malformed”*
+*Table 50.1 — Ops of `der`*
 
-**No copies.** Every op returns only an offset and a length. A few certificates must fit in a 64 KiB arena at once, and a signature must be checked over the original bytes — checking a copy could make a signature look right even when the copy is wrong.
+**Found by shape, not counted by position.** The SPKI is the sixth or seventh field of a certificate — depending on whether `version` is present. Counting positions goes silently wrong on old certificates. So `is_spki` looks at the shape `SEQUENCE { SEQUENCE { OID … }, BIT STRING }`. Counting breaks when what comes before changes; recognising does not.
 
-**Every length was written by the other side.** A certificate is bytes nothing has vouched for yet. Every offset passes through `der.value_off` · `der.value_len`, which keep it inside the buffer. This module adds **order** on top: X.509 fields have no labels, so a field’s position is what it is — ignore the order and you read a field someone slipped in as if it were in its own place.
-
-**The default of `is_ca` matters.** Without a basicConstraints extension a certificate is not a CA (RFC 5280 §4.2.1.9). Miss that default and a leaf certificate can act as an intermediate — the most common hole in chain checking.
+**What is checked — parse results are not eyeballed.** The key is extracted from the real certificate of RFC 8448 §3 and used to **verify** that handshake’s CertificateVerify signature. If parsing slips by one byte the signature does not match. Two negatives (one bit each of signature and transcript) are checked too. A check where a person looks at whether the extracted value seems plausible is not a check.
 
 ---
 

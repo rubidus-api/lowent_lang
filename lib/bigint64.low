@@ -22,6 +22,7 @@ rem ☞ 안 지은 것: 상수시간 보장 · 큰수 나눗셈 · e 가 아주 
 rem   ☞ RSA 검증은 **공개** 정보만 다루므로 상수시간이 필요한 자리가 아니다 — 곡선 서명은 이 모듈 위에서 따로 짓는다.
 
 module bigint64 .
+use bigwidth from "bigwidth.low" .
 
 rem 바이트 nb 개짜리 수가 차지하는 조각 수 — ⌈nb / 8⌉. 더해서 나누지 않는다(`nb + 7` 은 맨 위에서 넘친다) — 몫에 나머지가 있으면 1 을 더한다.
 export fn limbs input nb usize . output usize . do
@@ -124,7 +125,7 @@ export fn ge_mod input a slice u64 . input n slice u64 . input nb usize . output
 end .
 
 rem a ← a − n (a >= n 일 때만 부른다). k 는 조각 수. 빌림은 «뺄 수가 더 컸나» 로 읽는다.
-proc sub_mod input a mut slice u64 . input n slice u64 . input k usize . output u64 . effects none . do
+proc sub_n input a mut slice u64 . input n slice u64 . input k usize . output u64 . effects none . do
   var borrow u64 0 .
   var i usize 0 .
   while lt i. k. . do
@@ -154,11 +155,11 @@ export proc dbl_mod input a mut slice u64 . input n slice u64 . input nb usize .
   end .
   rem 넘친 비트가 있거나 n 이상이면 한 번 뺀다. (2a < 2n 이므로 한 번이면 족하다.)
   if eq carry. 1 . do
-    let z1 u64 sub_mod a. n. k. . .
+    let z1 u64 sub_n a. n. k. . .
     return 1 .
   end .
   if eq ge_mod a. n. nb. . 1 . do
-    let z2 u64 sub_mod a. n. k. . .
+    let z2 u64 sub_n a. n. k. . .
   end .
   return 1 .
 end .
@@ -236,11 +237,11 @@ export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice
   while lt j. k. . do  set idx out. j. . idx t. j. . .  set j. add j. 1 . .  end .
   rem t[k] 가 서 있거나 n 이상이면 한 번 뺀다.
   if gt idx t. k. . 0 . do
-    let z3 u64 sub_mod out. n. k. . .
+    let z3 u64 sub_n out. n. k. . .
     return 1 .
   end .
   if eq ge_mod out. n. nb. . 1 . do
-    let z4 u64 sub_mod out. n. k. . .
+    let z4 u64 sub_n out. n. k. . .
   end .
   return 1 .
 end .
@@ -305,4 +306,171 @@ export proc mod_exp input out mut slice u64 . input bse slice u64 . input e u64 
   let z2 u64 zero tmp. nb. . .
   set idx tmp. 0 . 1 .
   return mont_mul out. acc. tmp. n. nb. n0i. t. . .
+end .
+
+rem ── RFC-0152 R6 (2026-10-23) — 곡선 모듈이 스스로 하던 조각 셈을 여기로 옮긴다. 세 폭이 같은 이름 · 같은 입력이다. ──
+
+rem a ← a + n, 넘친 올림은 버린다(sub_mod 가 빌림을 갚을 때 쓴다). k 는 조각 수. 올림은 «합이 더한 수보다 작아졌나» 로 읽는다.
+proc add_n input a mut slice u64 . input n slice u64 . input k usize . output u64 . effects none . do
+  var carry u64 0 .
+  var i usize 0 .
+  while lt i. k. . do
+    let x u64 idx a. i. . .
+    let s u64 wrap_add x. idx n. i. . . .
+    let s2 u64 wrap_add s. carry. . .
+    var c u64 0 .
+    if lt s. x. . do  set c. 1 .  end .
+    if lt s2. s. . do  set c. 1 .  end .
+    set idx a. i. . s2. .
+    set carry. c. .
+    set i. add i. 1 . .
+  end .
+  return 1 .
+end .
+
+rem ★ o ← (a + b) mod m — a, b 는 m 보다 작다. o 는 a 나 b 와 같은 칸이어도 된다.
+export proc add_mod input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize .
+     output u64 . effects none . inplace o a . inplace o b . do
+  let k usize limbs nb. . .
+  var carry u64 0 .
+  var i usize 0 .
+  while lt i. k. . do
+    rem ☞ 입력은 식 안에서만 읽는다(지역에 옮겨 담지 않는다) — 그래야 `inplace` 의 증명이 나무 없이 읽어도(`--flat`) 선다.
+    let s u64 wrap_add idx a. i. . idx b. i. . . .
+    let s2 u64 wrap_add s. carry. . .
+    var c u64 0 .
+    if lt s. idx a. i. . . do  set c. 1 .  end .
+    if lt s2. s. . do  set c. 1 .  end .
+    set idx o. i. . s2. .
+    set carry. c. .
+    set i. add i. 1 . .
+  end .
+  rem 넘쳤거나 m 이상이면 한 번 뺀다 — 넘쳤을 때의 빌림은 넘친 비트가 갚는다.
+  if eq carry. 1 . do
+    let z1 u64 sub_n o. m. k. . .
+    return 1 .
+  end .
+  if eq ge_mod o. m. nb. . 1 . do
+    let z2 u64 sub_n o. m. k. . .
+  end .
+  return 1 .
+end .
+
+rem ★ o ← (a − b) mod m — a, b 는 m 보다 작다. 빌림이 나면 m 을 더해 되돌린다.
+export proc sub_mod input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize .
+     output u64 . effects none . inplace o a . inplace o b . do
+  let k usize limbs nb. . .
+  var borrow u64 0 .
+  var i usize 0 .
+  while lt i. k. . do
+    rem ☞ 입력은 식 안에서만 읽는다 — `add_mod` 와 같은 까닭.
+    let d u64 wrap_sub idx a. i. . idx b. i. . . .
+    var nb2 u64 0 .
+    if lt idx a. i. . idx b. i. . . do  set nb2. 1 .  end .
+    if lt d. borrow. . do  set nb2. 1 .  end .
+    set idx o. i. . wrap_sub d. borrow. . .
+    set borrow. nb2. .
+    set i. add i. 1 . .
+  end .
+  if eq borrow. 1 . do
+    let z u64 add_n o. m. k. . .
+  end .
+  return 1 .
+end .
+
+rem nb 바이트짜리 수가 0 인가 — 1 이나 0.
+export fn is_zero input a slice u64 . input nb usize . output u64 . do
+  let k usize limbs nb. . .
+  var acc u64 0 .
+  var i usize 0 .
+  while lt i. k. . do  set acc. bit_or acc. idx a. i. . . .  set i. add i. 1 . .  end .
+  if eq acc. 0 . do  return 1 .  end .
+  return 0 .
+end .
+
+rem 두 수가 같은가(둘 다 nb 바이트) — 1 이나 0. 이름이 `eq` 가 아닌 것은 그것이 빌트인이기 때문이다.
+export fn equal input a slice u64 . input b slice u64 . input nb usize . output u64 . do
+  let k usize limbs nb. . .
+  var diff u64 0 .
+  var i usize 0 .
+  while lt i. k. . do  set diff. bit_or diff. bit_xor idx a. i. . idx b. i. . . . .  set i. add i. 1 . .  end .
+  if eq diff. 0 . do  return 1 .  end .
+  return 0 .
+end .
+
+rem 수의 i 번째 비트(0 이 가장 낮다) — 1 이나 0. 지수 · 스칼라를 위에서부터 읽을 때 쓴다.
+export fn bit input a slice u64 . input i usize . output u64 . do
+  return bit_and shr idx a. shr i. 6 . . cast u64 bit_and i. 63 . . . 1 . .
+end .
+
+rem ── RFC-0152 R3 (2026-10-23) — **이 폭을 고르는 타입.** 트레이트 `bigwidth.width` 를 갖춘다. ──
+rem   폭을 받는 라이브러리 op(`rsa.verify_pss_by` …)에 `bigint64.limb.` 을 넘기면 이 모듈의 셈으로 돈다. 메서드는 위의 op 을 그대로 부른다.
+
+export struct limb do
+  satisfies bigwidth.width .
+  tag u8 .
+end .
+
+export fn limb.limbs input w limb . input nb usize . output usize . do
+  return limbs nb. . .
+end .
+
+export proc limb.zero input w limb . input a mut slice u64 . input nb usize . output u64 . effects none . do
+  return zero a. nb. . .
+end .
+
+export proc limb.from_bytes input w limb . input src slice u8 . input a mut slice u64 . input nb usize . output usize . effects none . do
+  return from_bytes src. a. nb. . .
+end .
+
+export proc limb.to_bytes input w limb . input a slice u64 . input nb usize . input out mut slice u8 . output usize . effects none . do
+  return to_bytes a. nb. out. . .
+end .
+
+export proc limb.from_bytes_le input w limb . input src slice u8 . input a mut slice u64 . output u64 . effects none . do
+  return from_bytes_le src. a. . .
+end .
+
+export proc limb.to_bytes_le input w limb . input out mut slice u8 . input a slice u64 . output u64 . effects none . do
+  return to_bytes_le out. a. . .
+end .
+
+export fn limb.ge_mod input w limb . input a slice u64 . input n slice u64 . input nb usize . output u64 . do
+  return ge_mod a. n. nb. . .
+end .
+
+export proc limb.dbl_mod input w limb . input a mut slice u64 . input n slice u64 . input nb usize . output u64 . effects none . do
+  return dbl_mod a. n. nb. . .
+end .
+
+export proc limb.mont_mul input w limb . input out mut slice u64 . input a slice u64 . input b slice u64 . input n slice u64 . input nb usize . input ninv u64 . input t mut slice u64 . output u64 . effects none . do
+  return mont_mul out. a. b. n. nb. ninv. t. . .
+end .
+
+export fn limb.n0inv input w limb . input n slice u64 . output u64 . do
+  return n0inv n. . .
+end .
+
+export proc limb.mod_exp input w limb . input out mut slice u64 . input bse slice u64 . input e u64 . input n slice u64 . input nb usize . input r2 mut slice u64 . input acc mut slice u64 . input tmp mut slice u64 . input t mut slice u64 . output u64 . effects none . do
+  return mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .
+end .
+
+export proc limb.add_mod input w limb . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . do
+  return add_mod o. a. b. m. nb. . .
+end .
+
+export proc limb.sub_mod input w limb . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . do
+  return sub_mod o. a. b. m. nb. . .
+end .
+
+export fn limb.is_zero input w limb . input a slice u64 . input nb usize . output u64 . do
+  return is_zero a. nb. . .
+end .
+
+export fn limb.equal input w limb . input a slice u64 . input b slice u64 . input nb usize . output u64 . do
+  return equal a. b. nb. . .
+end .
+
+export fn limb.bit input w limb . input a slice u64 . input i usize . output u64 . do
+  return bit a. i. . .
 end .

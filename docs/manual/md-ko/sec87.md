@@ -1,22 +1,32 @@
-# <a id="mod-bigint16"></a>`bigint16` — 큰수 모듈러 산술(16 비트 조각)
+# <a id="mod-bigwidth"></a>`bigwidth` — 큰 수 폭의 트레이트
 
 소스
 
-`lib/bigint16.low`
+`lib/bigwidth.low`
 
 층
 
-L0 — 순수 계산(호출자의 뒷받침)
+L0 — 순수 계산
 
 권한
 
 없음
 
-[`bigint32`](sec88.md#mod-bigint32) 와 op 의 이름 · 입력 · 뜻이 모두 같고, 수를 **16 비트 조각**으로 나눠 담는다. 쓰는 법과 op 표는 그 쪽에 있다 — `use bigint32 .` 을 `use bigint16 .` 으로 바꾸면 된다.
+트레이트 `width` 하나만 든다. [`bigint16`](sec88.md#mod-bigint16) · [`bigint32`](sec89.md#mod-bigint32) · [`bigint64`](sec90.md#mod-bigint64) · [`bigint`](sec91.md#mod-bigint) 가 저마다 이것을 갖춘 타입 `limb` 을 낸다 — `bigint16.limb` 은 «16 비트 조각으로 셈한다» 는 뜻의 값이다. 큰 수를 쓰는 라이브러리 op 이 이 트레이트를 받으면, 부르는 쪽이 **부를 때마다** 폭을 고른다.
 
-조각 곱이 16×16 = 32 비트라 **곱셈기가 좁은 기계**(8 · 16 비트 CPU)를 위한 것이다. 한 칸의 합은 (2^16−1) + (2^16−1)^2 + (2^16−1) = 2^32 − 1 이다. 잰 기계(x86-64 · x86 `-m32`)에서는 셋 가운데 가장 느렸다 — RSA-2048 거듭제곱이 `bigint32` 의 3 4 배 걸렸다. 좁은 기계에서는 아직 재지 않았다.
+```text
+proc verify_pss_by input comptime wt type . input lw wt . … requires bigwidth.width wt. . .
+  … method lw. mod_exp. ow. sw. e. nw. mb. r2. acc. mw. tw. . …
 
-수 하나는 `limbs nb.` = ⌈`nb` / 2⌉ 칸을 쓴다 — 세 폭 가운데 가장 많다. 그래서 «⌈`nb` / 2⌉ + 2 칸이면 어느 폭에나 맞는다» 는 규칙이 이 모듈에서 나온다.
+let w lit bigint16.limb do tag 0 . end . .
+rsa.verify_pss_by bigint16.limb. w. sig. n. …     ← 이 한 번만 16 비트 조각으로
+```
+
+메서드는 큰 수 모듈의 op 과 이름 · 입력이 같다 — `limbs` · `zero` · `from_bytes` · `to_bytes` · `from_bytes_le` · `to_bytes_le` · `ge_mod` · `dbl_mod` · `mont_mul` · `n0inv` · `mod_exp` · `add_mod` · `sub_mod` · `is_zero` · `equal` · `bit`. 폭이 번역 때 정해지므로 고르는 비용이 없다(RSA-2048 거듭제곱 300 번 · 네이티브 `-O2` · x86-64: 직접 부름 0.101 초, 트레이트로 0.102 초 — 2026-10-23 잼).
+
+**왜 따로 둔 모듈인가** — 폭 모듈 넷이 이것을 쓰고, `bigint` 가 폭 모듈 셋을 쓴다. 트레이트가 그 가운데 하나에 있으면 서로를 부르는 고리가 생긴다.
+
+**프로그램 전체**의 폭을 바꾸는 길은 따로 있다 — `lowentc --mul-bits` ([`bigint`](sec91.md#mod-bigint)).
 
 ---
 

@@ -23,7 +23,7 @@ module --- this file is `p256` carried from 16 limbs to 24, and *not one formula
   caption: [`p256` and `p384` differ only in sizes],
   [*place*], [*`p256`*], [*`p384`*],
   [one number's place (slots)], [16], [24],
-  [32-bit limbs used inside it (since 2026-10-22 --- 16-bit limbs filled the place before)], [8], [12],
+  [Limbs used inside it (the machine picks the width --- 64-bit · 32-bit · 16-bit limbs)], [4 · 8 · 16], [6 · 12 · 24],
   [one point (Jacobian X · Y · Z)], [48], [72],
   [Montgomery scratch], [18], [26],
   [exponent bits], [256], [384],
@@ -50,7 +50,7 @@ R  = u1·G + u2·Q         (Q = the public key point)
 true if R.x ≡ r (mod n)
 ```
 
-Modular multiplication reuses #modref("bigint32")[`bigint32`]'s Montgomery product --- `p` and `n` are both odd, so the condition holds and no
+Modular multiplication reuses #modref("bigint")[`bigint`]'s Montgomery product (the machine picks the limb width --- RFC-0152) --- `p` and `n` are both odd, so the condition holds and no
 new arithmetic is built. Coordinates are Jacobian for the same reason as `p256` (the inverse is postponed to one at the very end).
 
 *What is checked* --- two oracles we did not build. ① A signature made by `openssl` (secp384r1 · SHA-384) and accepted by `openssl dgst -verify`

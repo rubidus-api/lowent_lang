@@ -1,44 +1,26 @@
-# <a id="mod-rsa"></a>`rsa` — RSASSA-PSS verification
+# <a id="mod-bigint64"></a>`bigint64` — big-number modular arithmetic (64-bit limbs)
 
 Source
 
-`lib/rsa.low`
+`lib/bigint64.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Answers whether an RSA-PSS signature from a peer matches the public key and message (RFC 8017 §8.1.2). TLS 1.3′s `rsa_pss_rsae_sha256` is this.
+The op names, inputs and meanings are the same as [`bigint32`](sec90.md#mod-bigint32)′s; numbers are held in **64-bit limbs**. How to use it and the op table are on that page — change `use bigint32 .` to `use bigint64 .`.
 
-> **What it promises and what it does not**
->
-> > It does not promise constant time and has not been audited. It does **PSS only** — PKCS#1 v1.5 is not built, because RFC 8446 §4.4.3 forbids it in CertificateVerify. There is no SHA-1 family, key generation or decryption (RSA encryption). Signing is not built either — a TLS 1.3 server may need it someday, but what came first is [`p256`](sec92.md#mod-p256), with smaller keys and signatures.
+**One product is 128 bits.** The lower half is `wrap_mul`, the upper half the builtin `mul_hi`, and a carry out of an addition is read as «the sum came out smaller than what was added». There are a quarter as many limb products as in `bigint32`, but each costs more. Measured (RSA-2048 exponentiation · native `-O2` · 2026-10-22): 1.6 to 1.9 times faster than `bigint32` on x86-64, and 1.35 times faster in a 32-bit build (x86 `-m32`) as well — values are `u64` anyway, so 32-bit limbs also do 64-bit arithmetic there. The same computation hand-written in C (product and addition in one 128-bit integer) is about 2 times faster than this module; of that, «multiply and add in one go» was about 10 %.
 
-The old PKCS#1 v1.5 had deterministic padding and shallow structure, and attracted several attacks. PSS mixes in a salt and covers it with a mask. PSS verification has three pieces.
-
-```text
-① s^e mod n  →  EM (encoded message, emLen = key length)
-② make a mask with MGF1(SHA-256) and strip DB
-③ does H' = SHA-256(0x00×8 ‖ mHash ‖ salt) equal H inside EM
-```
-
-① is `mod_exp` of [`bigint64`](sec90.md#mod-bigint64), and ② and ③ are this module’s job. The eight `0x00×8` bytes are not decoration — they are a prefix the standard added to separate signed content from certificate signatures. Leaving them out lets signatures from another context be reused.
-
-| **op** | **What it does** | **Requires** |
+| **op** | **What it does** | **Notes** |
 |---|---|---|
-| `mgf1` | The MGF1-SHA256 mask generation function | `out ≥ n` · `w` is backing |
-| `pss_verify` | Given EM, is the PSS encoding right | only ② and ③ |
-| `verify_pss` | signature · modulus · exponent · hash → 0 or 1 | all of ①②③ |
+| `mul_hi` | The upper 64 bits of the product of two `u64` | the lower half is `wrap_mul` · wraps the builtin `mul_hi` (applications call this) |
 
-*Table 50.1 — Ops of `rsa`*
-
-Usually only `verify_pss` is used. `pss_verify` is exposed separately to test ① apart from ② and ③.
-
-**What is checked** — standard PSS test vectors (positive), two negatives (one bit of signature · one bit of hash), MGF1 against a reference implementation, and VM/native agreement. There are two negatives because changing the signature and changing the message are different failures — checking only one cannot filter out an implementation that lets the other pass.
+*Table 50.1 — The op only `bigint64` has*
 
 ---
 

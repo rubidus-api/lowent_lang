@@ -13,9 +13,10 @@
 ]
 
 *There are three of this module --- only the limb width differs.* #modref("bigint16")[`bigint16`] · `bigint32` · #modref("bigint64")[`bigint64`] have the same op
-names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. The standard library's curve modules
-#modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`] use `bigint32` --- they do limb arithmetic of
-their own as well. #modref("rsa")[`rsa`] uses `bigint64` (since 2026-10-23). Until 2026-10-22 this was one module named `bigint`.
+names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. *A fourth*, #modref("bigint")[`bigint`], gives the same ops but lets *the machine* pick the
+width (the target's multiplier width · `--mul-bits`) --- the standard library's #modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] ·
+#modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`] use it (since 2026-10-23, RFC-0152). Until 2026-10-22 there was one module named `bigint`
+(16-bit limbs, then 32-bit the same day).
 
 #dtable(
   columns: 4,
@@ -23,8 +24,8 @@ their own as well. #modref("rsa")[`rsa`] uses `bigint64` (since 2026-10-23). Unt
   caption: [The three widths --- RSA-2048 exponentiation 300 times, native `-O2` (measured 2026-10-22)],
   [*module*], [*limb*], [*x86-64*], [*where it fits*],
   [`bigint16`], [16 bits], [0.71 s], [machines with a narrow multiplier (8- and 16-bit CPUs) --- not yet measured on one],
-  [`bigint32`], [32 bits], [0.22 s], [the default; the standard library's curve modules],
-  [`bigint64`], [64 bits], [0.12 s], [64-bit machines · the standard library's `rsa`; in a 32-bit build (x86 `-m32`) it was also 1.35 times faster than `bigint32`],
+  [`bigint32`], [32 bits], [0.22 s], [machines with a 32-bit multiplier (`bigint` picks it on `cortex_m` · `mips_be` · `cheriot`)],
+  [`bigint64`], [64 bits], [0.12 s], [64-bit machines (`bigint` picks it); in a 32-bit build (x86 `-m32`) it was also 1.35 times faster than `bigint32`],
 )
 
 *Sizes are given in bytes.* Every op takes the number's size in bytes, `nb` (RSA-2048 is 256 · P-256 is 32 · P-384 is 48), not a limb count. Only the module knows
@@ -49,7 +50,13 @@ overflowed, `add` would stop, so a wrong count shows at once.
   [`mont_mul`], [`out ← a·b·R⁻¹ mod n` (CIOS)], [`t` is workspace · the Montgomery constant comes from `n0inv`],
   [`n0inv`], [`−n⁻¹ mod 2^(limb width)` --- the Montgomery constant], [`n` is odd],
   [`mod_exp`], [`out ← bse^e mod n`], [`e` is `u64` · `r2`, `acc`, `tmp`, `t` are workspace],
+  [`add_mod` · `sub_mod`], [`o ← (a ± b) mod m`], [`a`, `b` are below `m` · `o` may be the same slots as `a` or `b` (2026-10-23)],
+  [`is_zero` · `equal`], [Is it 0 · are the two equal (0 · 1)], [2026-10-23],
+  [`bit`], [Bit `i` of the number], [0 is the lowest · 2026-10-23],
 )
+
+*The type `limb` picks a width* --- each of the four modules gives a type `limb` that satisfies the trait #modref("bigwidth")[`bigwidth.width`]. Pass
+`bigint32.limb.` to a library op that takes a width and only that call computes in 32-bit limbs (`rsa.verify_pss_by` …).
 
 #modref("bigint64")[`bigint64`] has one more --- the upper half of a product, `mul_hi`.
 

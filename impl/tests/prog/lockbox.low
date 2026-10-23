@@ -38,7 +38,7 @@ use poly from "../../../lib/poly.low" .
 use gcm from "../../../lib/gcm.low" .
 use aes from "../../../lib/aes.low" .
 use rsa from "../../../lib/rsa.low" .
-use bigint32 from "../../../lib/bigint32.low" .
+use bigint from "../../../lib/bigint.low" .
 use p256 from "../../../lib/p256.low" .
 use ed25519 from "../../../lib/ed25519.low" .
 use der from "../../../lib/der.low" .

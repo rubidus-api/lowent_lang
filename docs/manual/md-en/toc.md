@@ -718,102 +718,106 @@ Searches headings and index terms --- not the full text
 
 [crypto_hw — arithmetic the machine helps with](sec87.md)
 
-[bigint16 — big-number modular arithmetic (16-bit limbs)](sec88.md)
+[bigwidth — the trait of big-number widths](sec88.md)
 
-[bigint32 — big-number modular arithmetic (32-bit limbs)](sec89.md)
+[bigint16 — big-number modular arithmetic (16-bit limbs)](sec89.md)
 
-[bigint64 — big-number modular arithmetic (64-bit limbs)](sec90.md)
+[bigint32 — big-number modular arithmetic (32-bit limbs)](sec90.md)
 
-[rsa — RSASSA-PSS verification](sec91.md)
+[bigint64 — big-number modular arithmetic (64-bit limbs)](sec91.md)
 
-[p256 — the NIST P-256 curve and ECDSA verification](sec92.md)
+[bigint — big-number modular arithmetic (the machine picks the width)](sec92.md)
 
-[p384 — the NIST P-384 curve and ECDSA verification](sec93.md)
+[rsa — RSASSA-PSS verification](sec93.md)
 
-[ecdsa — ECDSA P-256 signing](sec94.md)
+[p256 — the NIST P-256 curve and ECDSA verification](sec94.md)
 
-[ed25519 — Ed25519 signature verification](sec95.md)
+[p384 — the NIST P-384 curve and ECDSA verification](sec95.md)
 
-[der — minimal DER parser](sec96.md)
+[ecdsa — ECDSA P-256 signing](sec96.md)
 
-[pem — unwrapping PEM envelopes](sec97.md)
+[ed25519 — Ed25519 signature verification](sec97.md)
 
-[x509 — reading X.509 certificates](sec98.md)
+[der — minimal DER parser](sec98.md)
 
-[verify — certificate signatures and one link of a chain](sec99.md)
+[pem — unwrapping PEM envelopes](sec99.md)
 
-- [ A chain is a line of links](sec99.md#sx1)
-- [ ops](sec99.md#sx2)
-- [ Design](sec99.md#sx3)
+[x509 — reading X.509 certificates](sec100.md)
 
-[tls13 — the computational parts of TLS 1.3](sec100.md)
+[verify — certificate signatures and one link of a chain](sec101.md)
 
-[tlssrv — the TLS 1.3 server handshake](sec101.md)
+- [ A chain is a line of links](sec101.md#sx1)
+- [ ops](sec101.md#sx2)
+- [ Design](sec101.md#sx3)
 
-[tlscli — the TLS 1.3 client handshake](sec102.md)
+[tls13 — the computational parts of TLS 1.3](sec102.md)
 
-- [ The order of the handshake](sec102.md#sx1)
-- [ ops](sec102.md#sx2)
-- [ Design](sec102.md#sx3)
+[tlssrv — the TLS 1.3 server handshake](sec103.md)
 
-[http — HTTP/1.1 request parser](sec103.md)
+[tlscli — the TLS 1.3 client handshake](sec104.md)
 
-[soa — an SoA layout trial: one array per field](sec104.md)
+- [ The order of the handshake](sec104.md#sx1)
+- [ ops](sec104.md#sx2)
+- [ Design](sec104.md#sx3)
 
-[allocs — allocator traits, bumps and default allocators](sec105.md)
+[http — HTTP/1.1 request parser](sec105.md)
 
-[pool — generational-handle block pool](sec106.md)
+[soa — an SoA layout trial: one array per field](sec106.md)
 
-[shard — access units that split a store](sec107.md)
+[allocs — allocator traits, bumps and default allocators](sec107.md)
 
-[budget — handle bit budgets and generation wraparound](sec108.md)
+[pool — generational-handle block pool](sec108.md)
 
-[wire — dividing one word into fields](sec109.md)
+[shard — access units that split a store](sec109.md)
 
-[flags — named on/off settings in one word](sec110.md)
+[budget — handle bit budgets and generation wraparound](sec110.md)
 
-[segarena — fixed-size segment arena](sec111.md)
+[wire — dividing one word into fields](sec111.md)
 
-[pagecache — page ids and pinning cursors](sec112.md)
+[flags — named on/off settings in one word](sec112.md)
 
-[growvec — self-growing byte vector](sec113.md)
+[segarena — fixed-size segment arena](sec113.md)
 
-[vecgen — generic self-growing vector vec t a](sec114.md)
+[pagecache — page ids and pinning cursors](sec114.md)
 
-[mapgen — generic hash map table k v](sec115.md)
+[growvec — self-growing byte vector](sec115.md)
 
-[nodelist — fixed intrusive lists](sec116.md)
+[vecgen — generic self-growing vector vec t a](sec116.md)
 
-[segview — cursors, total length and coalescing for segment views](sec117.md)
+[mapgen — generic hash map table k v](sec117.md)
 
-[lifemode · lifeatom — when a value ends](sec118.md)
+[nodelist — fixed intrusive lists](sec118.md)
 
-[stdio — standard input and output](sec119.md)
+[segview — cursors, total length and coalescing for segment views](sec119.md)
 
-[args — command-line arguments](sec120.md)
+[lifemode · lifeatom — when a value ends](sec120.md)
 
-[env — environment variables](sec121.md)
+[stdio — standard input and output](sec121.md)
 
-[io — stream reading over slices](sec122.md)
+[args — command-line arguments](sec122.md)
 
-[outbuf — buffered output where forgetting to flush is a compile error](sec123.md)
+[env — environment variables](sec123.md)
 
-[files — file and directory streams where forgetting to close is a compile error](sec124.md)
+[io — stream reading over slices](sec124.md)
 
-[tty — terminal input](sec125.md)
+[outbuf — buffered output where forgetting to flush is a compile error](sec125.md)
 
-[reactor — non-blocking reads and writes](sec126.md)
+[files — file and directory streams where forgetting to close is a compile error](sec126.md)
 
-[net — sockets (TCP loopback · in-process pairs)](sec127.md)
+[tty — terminal input](sec127.md)
 
-[clock — time and deadlines](sec128.md)
+[reactor — non-blocking reads and writes](sec128.md)
 
-[trust — finding a trusted root in the trust store](sec129.md)
+[net — sockets (TCP loopback · in-process pairs)](sec129.md)
 
-- [ It never holds the whole bundle](sec129.md#sx1)
-- [ ops](sec129.md#sx2)
+[clock — time and deadlines](sec130.md)
 
-[Index](sec130.md)
+[trust — finding a trusted root in the trust store](sec131.md)
+
+- [ It never holds the whole bundle](sec131.md#sx1)
+- [ ops](sec131.md#sx2)
+
+[Index](sec132.md)
 
 ---
 

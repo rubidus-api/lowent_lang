@@ -1,0 +1,28 @@
+rem ★★ **큰 수 폭의 트레이트** (`bigwidth`) — RFC-0152 R3 (2026-10-23, 소유자 «기계가 기본으로, 사용자가 원하면 추가 옵션으로 변경 가능»).
+rem
+rem   `bigint16.limb` · `bigint32.limb` · `bigint64.limb` · `bigint.limb`(기계가 고른 폭)이 이것을 갖춘다. 폭을 받는 라이브러리 op 은
+rem   `input comptime wt type . input lw wt . … requires bigwidth.width wt.` 로 받고 `method lw. mod_exp. …` 로 부른다.
+rem   폭이 번역 때 정해지므로 고르는 비용이 없다(RSA-2048 거듭제곱 · 네이티브 `-O2` · x86-64: 직접 0.101 초 · 트레이트로 0.102 초).
+rem   이 모듈은 트레이트만 든다 — 폭 모듈 넷이 이것을 쓰고, 기계가 고르는 `bigint` 가 셋을 쓰므로 고리가 생기지 않게 따로 둔다.
+rem   ☞ 이 파일은 `scripts/gen-bigint.py` 가 낸다 — 손으로 고치지 않는다.
+
+module bigwidth .
+
+export trait width do
+  limbs input w self . input nb usize . output usize .
+  zero input w self . input a mut slice u64 . input nb usize . output u64 . effects none .
+  from_bytes input w self . input src slice u8 . input a mut slice u64 . input nb usize . output usize . effects none .
+  to_bytes input w self . input a slice u64 . input nb usize . input out mut slice u8 . output usize . effects none .
+  from_bytes_le input w self . input src slice u8 . input a mut slice u64 . output u64 . effects none .
+  to_bytes_le input w self . input out mut slice u8 . input a slice u64 . output u64 . effects none .
+  ge_mod input w self . input a slice u64 . input n slice u64 . input nb usize . output u64 .
+  dbl_mod input w self . input a mut slice u64 . input n slice u64 . input nb usize . output u64 . effects none .
+  mont_mul input w self . input out mut slice u64 . input a slice u64 . input b slice u64 . input n slice u64 . input nb usize . input ninv u64 . input t mut slice u64 . output u64 . effects none .
+  n0inv input w self . input n slice u64 . output u64 .
+  mod_exp input w self . input out mut slice u64 . input bse slice u64 . input e u64 . input n slice u64 . input nb usize . input r2 mut slice u64 . input acc mut slice u64 . input tmp mut slice u64 . input t mut slice u64 . output u64 . effects none .
+  add_mod input w self . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none .
+  sub_mod input w self . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none .
+  is_zero input w self . input a slice u64 . input nb usize . output u64 .
+  equal input w self . input a slice u64 . input b slice u64 . input nb usize . output u64 .
+  bit input w self . input a slice u64 . input i usize . output u64 .
+end .

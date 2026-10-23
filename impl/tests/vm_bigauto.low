@@ -1,0 +1,137 @@
+rem RFC-0152 (2026-10-23) — 큰 수의 폭을 고른다. 세 폭(`bigint16/32/64`)과 기계가 고르는 폭(`bigint`)이 같은 답을 내는가.
+rem   ① 새 op(add_mod · sub_mod · bit · equal · is_zero)과 제자리 덧셈을 폭에 대해 제네릭인 `run` 이 트레이트 메서드로 부른다 — 골든이 파이썬의 답과 견준다.
+rem   ② `rsa.verify_pkcs1_by` 에 폭 타입을 넘겨 RSA-2048 서명(파이썬이 따로 지은 키와 서명)을 확인한다 — 받고(1), 한 비트 바꾸면 거절한다(0).
+module bigauto .
+use bigwidth from "../../lib/bigwidth.low" .
+use bigint16 from "../../lib/bigint16.low" .
+use bigint32 from "../../lib/bigint32.low" .
+use bigint64 from "../../lib/bigint64.low" .
+use bigint from "../../lib/bigint.low" .
+use rsa from "../../lib/rsa.low" .
+
+fn print_of input o slice u8 . output u64 . do
+  var h u64 0 .
+  var i usize 0 .
+  while lt i. len o. . . do
+    set h. wrap_add wrap_mul h. 31 . cast u64 idx o. i. . . . .
+    set i. add i. 1 . .
+  end .
+  return h. .
+end .
+
+rem (a + b) mod m, (a − b) mod m, (b − a) mod m 의 바이트 지문 셋을 섞고, 비트 몇 개와 equal · is_zero 를 더한다 — 폭에 대해 제네릭
+proc run input comptime wt type . input lw wt . input ab slice u8 . input bb slice u8 . input mb slice u8 . input out mut slice u8 .
+     output u64 . effects none . requires bigwidth.width wt. . . do
+  let nb usize len mb. . .
+  var a lit array u64 40 _ . .
+  var b lit array u64 40 _ . .
+  var m lit array u64 40 _ . .
+  var o lit array u64 40 _ . .
+  let z1 usize method lw. from_bytes. ab. a. nb. . .
+  let z2 usize method lw. from_bytes. bb. b. nb. . .
+  let z3 usize method lw. from_bytes. mb. m. nb. . .
+  var h u64 0 .
+  let s1 u64 method lw. add_mod. o. a. b. m. nb. . .
+  let y1 usize method lw. to_bytes. o. nb. out. . .
+  set h. wrap_add wrap_mul h. 7 . print_of out. . . .
+  let s2 u64 method lw. sub_mod. o. a. b. m. nb. . .
+  let y2 usize method lw. to_bytes. o. nb. out. . .
+  set h. wrap_add wrap_mul h. 7 . print_of out. . . .
+  let s3 u64 method lw. sub_mod. o. b. a. m. nb. . .
+  let y3 usize method lw. to_bytes. o. nb. out. . .
+  set h. wrap_add wrap_mul h. 7 . print_of out. . . .
+  rem 제자리: a ← a + a mod m
+  let s4 u64 method lw. add_mod. a. a. a. m. nb. . .
+  let y4 usize method lw. to_bytes. a. nb. out. . .
+  set h. wrap_add wrap_mul h. 7 . print_of out. . . .
+  set h. wrap_add wrap_mul h. 7 . method lw. bit. m. 0 . . .
+  set h. wrap_add wrap_mul h. 7 . method lw. bit. m. 77 . . .
+  let top usize sub mul nb. 8 . 1 . .
+  set h. wrap_add wrap_mul h. 7 . method lw. bit. m. top. . . .
+  set h. wrap_add wrap_mul h. 7 . method lw. equal. m. m. nb. . . .
+  set h. wrap_add wrap_mul h. 7 . method lw. equal. a. m. nb. . . .
+  set h. wrap_add wrap_mul h. 7 . method lw. is_zero. m. nb. . . .
+  let zz u64 method lw. zero. o. nb. . .
+  set h. wrap_add wrap_mul h. 7 . method lw. is_zero. o. nb. . . .
+  return h. .
+end .
+
+proc w16 input ab slice u8 . input bb slice u8 . input mb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  let x lit bigint16.limb do tag 0 . end . .
+  return run bigint16.limb. x. ab. bb. mb. out. . .
+end .
+proc w32 input ab slice u8 . input bb slice u8 . input mb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  let x lit bigint32.limb do tag 0 . end . .
+  return run bigint32.limb. x. ab. bb. mb. out. . .
+end .
+proc w64 input ab slice u8 . input bb slice u8 . input mb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  let x lit bigint64.limb do tag 0 . end . .
+  return run bigint64.limb. x. ab. bb. mb. out. . .
+end .
+proc wauto input ab slice u8 . input bb slice u8 . input mb slice u8 . input out mut slice u8 . output u64 . effects none . do
+  let x lit bigint.limb do tag 0 . end . .
+  return run bigint.limb. x. ab. bb. mb. out. . .
+end .
+
+rem ② RSA-2048 PKCS#1 v1.5 — 칸은 ⌈256 / 2⌉ + 2 = 130 이 세 폭 어디에나 맞는다.
+proc rsa_by input comptime wt type . input lw wt . input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 .
+     output u64 . effects none . requires bigwidth.width wt. . . do
+  var em lit array u8 256 _ . .
+  var sw lit array u64 130 _ . .
+  var nw lit array u64 130 _ . .
+  var ow lit array u64 130 _ . .
+  var r2 lit array u64 130 _ . .
+  var acc lit array u64 130 _ . .
+  var tw lit array u64 130 _ . .
+  var mw lit array u64 130 _ . .
+  return rsa.verify_pkcs1_by wt. lw. sig. nb. 65537 mh. di. em. sw. nw. ow. r2. acc. tw. mw. . .
+end .
+proc r16 input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 . output u64 . effects none . do
+  let x lit bigint16.limb do tag 0 . end . .
+  return rsa_by bigint16.limb. x. sig. nb. mh. di. . .
+end .
+proc r32 input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 . output u64 . effects none . do
+  let x lit bigint32.limb do tag 0 . end . .
+  return rsa_by bigint32.limb. x. sig. nb. mh. di. . .
+end .
+proc r64 input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 . output u64 . effects none . do
+  let x lit bigint64.limb do tag 0 . end . .
+  return rsa_by bigint64.limb. x. sig. nb. mh. di. . .
+end .
+rem 이름을 바꾸지 않은 `verify_pkcs1` — 기계가 고른 폭
+proc rauto input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 . output u64 . effects none . do
+  var em lit array u8 256 _ . .
+  var sw lit array u64 130 _ . .
+  var nw lit array u64 130 _ . .
+  var ow lit array u64 130 _ . .
+  var r2 lit array u64 130 _ . .
+  var acc lit array u64 130 _ . .
+  var tw lit array u64 130 _ . .
+  var mw lit array u64 130 _ . .
+  return rsa.verify_pkcs1 sig. nb. 65537 mh. di. em. sw. nw. ow. r2. acc. tw. mw. . .
+end .
+
+rem ③ RSA-2048 PSS(SHA-256 · 솔트 32) — `rsa.verify_pss_by` 에 폭 타입을 넘긴다. 서명은 파이썬이 RFC 8017 §9.1.1 대로 지었다.
+proc pss_by input comptime wt type . input lw wt . input sig slice u8 . input nb slice u8 . input mh slice u8 .
+     output u64 . effects none . requires bigwidth.width wt. . . do
+  var em lit array u8 256 _ . .
+  var w lit array u8 1024 _ . .
+  var sw lit array u64 130 _ . .
+  var nw lit array u64 130 _ . .
+  var ow lit array u64 130 _ . .
+  var r2 lit array u64 130 _ . .
+  var acc lit array u64 130 _ . .
+  var tw lit array u64 130 _ . .
+  var mw lit array u64 130 _ . .
+  let r result u64 rsa.rsa_error rsa.verify_pss_by wt. lw. sig. nb. 65537 mh. 32 em. w. sw. nw. ow. r2. acc. tw. mw. . .
+  guard is_ok r. . else return 9 . .
+  return ok_value r. . .
+end .
+proc p16 input sig slice u8 . input nb slice u8 . input mh slice u8 . output u64 . effects none . do
+  let x lit bigint16.limb do tag 0 . end . .
+  return pss_by bigint16.limb. x. sig. nb. mh. . .
+end .
+proc p64 input sig slice u8 . input nb slice u8 . input mh slice u8 . output u64 . effects none . do
+  let x lit bigint64.limb do tag 0 . end . .
+  return pss_by bigint64.limb. x. sig. nb. mh. . .
+end .

@@ -25,9 +25,13 @@ export enum rsa_error do
 end .
 
 
-rem ★ RSA 는 `bigint64` 를 쓴다 — 같은 op 이름 · 같은 입력이고, RSA-2048 거듭제곱(검증 시간의 대부분)이 `bigint32` 보다 x86-64 에서 약 1.9 배,
-rem   32 비트 빌드(x86 `-m32`)에서 약 1.35 배 빨랐다(RFC-0151 §9.5, 소유자 2026-10-23).
-use bigint64 from "bigint64.low" .
+rem ★★ **조각 폭은 고른다** (RFC-0152, 소유자 2026-10-23 «rsa는 꼭 32비트 혹은 64비트 CPU에서만 쓰라는 법은 없잖아요?»).
+rem   `verify_pss` · `verify_pkcs1` 은 기계가 고른 폭(`bigint` — 대상의 곱셈기 폭, `--mul-bits` 가 바꾼다)으로 돈다.
+rem   `verify_pss_by` · `verify_pkcs1_by` 는 폭을 받는다 — `bigint16.limb.` · `bigint32.limb.` · `bigint64.limb.` 을 넘긴다.
+rem   ☞ 64 비트 기계에서 `bigint` 는 1.16.0 의 `bigint64` 와 같은 셈이다(RSA-2048 거듭제곱이 `bigint32` 보다 x86-64 에서 약 1.9 배 빨랐다 — RFC-0151 §9.5).
+rem   담는 칸은 폭과 상관없이 같다 — 아래 «k» 는 ⌈nb / 2⌉ 로 잡으면 세 폭 어디에나 맞는다.
+use bigwidth from "bigwidth.low" .
+use bigint from "bigint.low" .
 
 rem ★ MGF1(SHA-256): seed 로부터 `n` 바이트 마스크를 만든다(RFC 8017 부록 B.2.1).
 rem   `w` 는 작업 공간(≥ len(seed) + 4 + 32).
@@ -122,7 +126,7 @@ errors short_workspace . do
   return ok 1 . .
 end .
 
-rem ★★ 한 번에: 서명 · 공개키(n, e) · 메시지 해시 → 맞으면 1.
+rem ★★ 한 번에: 서명 · 공개키(n, e) · 메시지 해시 → 맞으면 1. 조각 폭은 기계가 고른다(`bigint`).
 rem   `sw`/`nw`/`ow`/`r2`/`acc`/`tw`/`mw` 는 조각 작업 공간(각 k+2 이상), `w` 는 바이트 공간.
 export proc verify_pss input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 . input slen usize .
      input em mut slice u8 . input w mut slice u8 .
@@ -130,16 +134,37 @@ export proc verify_pss input sig slice u8 . input nb slice u8 . input e u64 . in
      input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
      output result u64 rsa_error . effects none .
 errors short_workspace . do
+  rem ☞ 몸을 `verify_pss_by bigint.limb. …` 로 넘기지 않는다 — 이 op 은 제네릭이 아니어야 한다(평평한 읽기 · `--flat` 이 제네릭 부름을
+  rem   단형화하지 못해, 넘기면 `rsa` 를 쓰는 모든 단위가 그 대조에서 빠진다). 두 몸이 같은 답을 내는지는 골든이 파이썬의 서명으로 잰다.
   guard eq len sig. . len nb. . . else return ok 0 . . .
   guard ge len em. . len nb. . . else return ok 0 . . .
-  rem 크기는 바이트로 말한다 — 조각 수는 `bigint64` 가 안다(RFC-0151 §9.5).
   let mb usize len nb. . .
-  guard eq bigint64.from_bytes nb. nw. mb. . mb. . else return ok 0 . . .
-  guard eq bigint64.from_bytes sig. sw. mb. . mb. . else return ok 0 . . .
+  guard eq bigint.from_bytes nb. nw. mb. . mb. . else return ok 0 . . .
+  guard eq bigint.from_bytes sig. sw. mb. . mb. . else return ok 0 . . .
+  guard eq bigint.ge_mod sw. nw. mb. . 0 . else return ok 0 . . .
+  guard eq bigint.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return ok 0 . . .
+  guard eq bigint.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return ok 0 . . .
+  return pss_verify subslice em. 0 len nb. . . mhash. slen. w. . .
+end .
+
+rem ★★ 같은 것을 **고른 폭으로** — `lw` 는 폭 타입의 값(`lit bigint32.limb do tag 0 . end`).
+export proc verify_pss_by input comptime wt type . input lw wt .
+     input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 . input slen usize .
+     input em mut slice u8 . input w mut slice u8 .
+     input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
+     input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
+     output result u64 rsa_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  guard eq len sig. . len nb. . . else return ok 0 . . .
+  guard ge len em. . len nb. . . else return ok 0 . . .
+  rem 크기는 바이트로 말한다 — 조각 수는 폭 모듈이 안다(RFC-0151 §9.5).
+  let mb usize len nb. . .
+  guard eq method lw. from_bytes. nb. nw. mb. . mb. . else return ok 0 . . .
+  guard eq method lw. from_bytes. sig. sw. mb. . mb. . else return ok 0 . . .
   rem ☞ s < n 이어야 한다 — 아니면 같은 값에 여러 서명이 생긴다.
-  guard eq bigint64.ge_mod sw. nw. mb. . 0 . else return ok 0 . . .
-  guard eq bigint64.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return ok 0 . . .
-  guard eq bigint64.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return ok 0 . . .
+  guard eq method lw. ge_mod. sw. nw. mb. . 0 . else return ok 0 . . .
+  guard eq method lw. mod_exp. ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return ok 0 . . .
+  guard eq method lw. to_bytes. ow. mb. subslice em. 0 len nb. . . . len nb. . . else return ok 0 . . .
   return pss_verify subslice em. 0 len nb. . . mhash. slen. w. . .
 end .
 
@@ -206,20 +231,39 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   return 0 .
 end .
 
-rem ★ 서명을 풀어 위 검사를 돌린다 — `verify_pss` 와 같은 앞자락(모듈러 거듭제곱)을 쓴다.
+rem ★ 서명을 풀어 위 검사를 돌린다 — `verify_pss` 와 같은 앞자락(모듈러 거듭제곱)을 쓴다. 조각 폭은 기계가 고른다(`bigint`).
 export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 .
      input di slice u8 . input em mut slice u8 .
      input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
      input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
      output u64 . effects none . do
+  rem ☞ `verify_pss` 와 같은 까닭으로 제 몸을 갖는다(제네릭이 아니다).
   guard eq len sig. . len nb. . . else return 0 . .
   guard ge len em. . len nb. . . else return 0 . .
-  rem 크기는 바이트로 말한다 — 조각 수는 `bigint64` 가 안다(RFC-0151 §9.5).
   let mb usize len nb. . .
-  guard eq bigint64.from_bytes nb. nw. mb. . mb. . else return 0 . .
-  guard eq bigint64.from_bytes sig. sw. mb. . mb. . else return 0 . .
-  guard eq bigint64.ge_mod sw. nw. mb. . 0 . else return 0 . .
-  guard eq bigint64.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return 0 . .
-  guard eq bigint64.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return 0 . .
+  guard eq bigint.from_bytes nb. nw. mb. . mb. . else return 0 . .
+  guard eq bigint.from_bytes sig. sw. mb. . mb. . else return 0 . .
+  guard eq bigint.ge_mod sw. nw. mb. . 0 . else return 0 . .
+  guard eq bigint.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return 0 . .
+  guard eq bigint.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return 0 . .
+  return pkcs1_verify subslice em. 0 len nb. . . mhash. di. . .
+end .
+
+rem ★ 같은 것을 **고른 폭으로**.
+export proc verify_pkcs1_by input comptime wt type . input lw wt .
+     input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 .
+     input di slice u8 . input em mut slice u8 .
+     input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
+     input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
+     output u64 . effects none . requires bigwidth.width wt. . . do
+  guard eq len sig. . len nb. . . else return 0 . .
+  guard ge len em. . len nb. . . else return 0 . .
+  rem 크기는 바이트로 말한다 — 조각 수는 폭 모듈이 안다(RFC-0151 §9.5).
+  let mb usize len nb. . .
+  guard eq method lw. from_bytes. nb. nw. mb. . mb. . else return 0 . .
+  guard eq method lw. from_bytes. sig. sw. mb. . mb. . else return 0 . .
+  guard eq method lw. ge_mod. sw. nw. mb. . 0 . else return 0 . .
+  guard eq method lw. mod_exp. ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return 0 . .
+  guard eq method lw. to_bytes. ow. mb. subslice em. 0 len nb. . . . len nb. . . else return 0 . .
   return pkcs1_verify subslice em. 0 len nb. . . mhash. di. . .
 end .

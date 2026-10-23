@@ -11,7 +11,7 @@ module vm_x509 .
 
 use der from "../../lib/der.low" .
 use rsa from "../../lib/rsa.low" .
-use bigint32 from "../../lib/bigint32.low" .
+use bigint from "../../lib/bigint.low" .
 
 rem 인증서에서 RSA 계수를 꺼내 out 에 쓰고, 지수를 답한다.
 proc t_spki input cert slice u8 . input out mut slice u8 . output u64 . effects none . do

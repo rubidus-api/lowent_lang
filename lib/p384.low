@@ -11,8 +11,11 @@ rem   이 저장소는 곡선마다 제 모듈을 준다(`x25519`·`ed25519`·`p
 rem   ☞ 이 파일은 `p256.low` 를 16 → 24 조각으로 옮긴 것이다. **식은 한 글자도 다르지 않다.**
 rem   자리 수만 다르다: 점 = 72 조각 · 몽고메리 임시 = 26 조각 · 지수 비트 = 384.
 rem
-rem ★★ **표현**: `bigint32` 와 같은 32비트 조각 × 12 개(2026-10-22 까지 16비트 × 24). 모듈러 곱은 **몽고메리**를 그대로
-rem   재사용한다 — p 도 n(위수)도 홀수라 조건이 맞는다.
+rem ★★ **표현**: 큰 수 모듈 `bigint` 의 조각 — 폭은 기계가 고른다(대상의 곱셈기 폭 · `--mul-bits` 가 바꾼다, RFC-0152 R5).
+rem   수 하나는 24 칸에 담는다(16 비트 조각 스물넷이 드는 칸 — 어느 폭에나 맞는다). 모듈러 곱은 **몽고메리**를 그대로
+rem   재사용한다 — p 도 n(위수)도 홀수라 조건이 맞는다. 조각 셈(덧셈 · 뺄셈 · 비트 읽기)도 `bigint` 의 것이다 — 이 모듈은 폭을 모른다.
+rem   ☞ 그래서 이 모듈의 op 에 넘기는 조각 배열은 **`bigint.from_bytes` 로** 만든다(다른 폭으로 만든 배열은 다른 수다).
+rem   (2026-10-22 까지 16 비트 × 24, 2026-10-23 까지 `bigint32` 의 32 비트 × 12.)
 rem   ☞ 새 산술을 또 짓지 않는다. 같은 곱을 두 모듈러스에 쓴다.
 rem
 rem ★★★ **왜 야코비 좌표인가**: 아핀 좌표의 점 덧셈은 매번 **모듈러 역원**을 요구하고,
@@ -49,67 +52,19 @@ end .
 rem ☞ **왜 `padd`/`pdbl` 인가**: `add` 는 빌트인이고 `dbl` 은 짧아 남과 부딪히기 쉽다.
 rem   이름공간이 평면이라 모듈 안이라고 안전하지 않다 — 도구가 E-VISIBILITY 로 잡았다.
 
-use bigint32 from "bigint32.low" .
+use bigint from "bigint.low" .
 
-rem 조각 수는 12(=384비트, 32 비트 조각) — `bigint32` 에는 바이트 수 48 로 말한다.
-fn q_limbs output u64 . do  return 12 . end .
+rem 조각 수(48 바이트를 기계가 고른 폭으로) — `bigint` 에는 바이트 수 48 로 말한다.
+fn q_limbs output u64 . do  return cast u64 bigint.limbs 48 . . .  end .
 
 rem ★ 모듈러 뺄셈: o ← (a − b) mod m. 빌림이 나면 m 을 더해 되돌린다.
 proc q_msub input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . do
-  var borrow u64 0 .
-  var i usize 0 .
-  while lt i. 12 . do
-    let d u64 wrap_sub wrap_sub idx a. i. . idx b. i. . . borrow. . .
-    set idx o. i. . bit_and d. 4294967295 . .
-    set borrow. bit_and shr d. 63 . 1 . .
-    set i. add i. 1 . .
-  end .
-  if eq borrow. 1 . do
-    var carry u64 0 .
-    var j usize 0 .
-    while lt j. 12 . do
-      let s u64 add add idx o. j. . idx m. j. . . carry. . .
-      set idx o. j. . bit_and s. 4294967295 . .
-      set carry. shr s. 32 . .
-      set j. add j. 1 . .
-    end .
-  end .
-  return 1 .
+  return bigint.sub_mod o. a. b. m. 48 . .
 end .
 
 rem ★ 모듈러 덧셈: o ← (a + b) mod m.
 proc q_madd input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . do
-  var carry u64 0 .
-  var i usize 0 .
-  while lt i. 12 . do
-    let s u64 add add idx a. i. . idx b. i. . . carry. . .
-    set idx o. i. . bit_and s. 4294967295 . .
-    set carry. shr s. 32 . .
-    set i. add i. 1 . .
-  end .
-  rem 넘쳤거나 m 이상이면 한 번 뺀다.
-  if eq carry. 1 . do
-    var borrow u64 0 .
-    var j usize 0 .
-    while lt j. 12 . do
-      let d u64 wrap_sub wrap_sub idx o. j. . idx m. j. . . borrow. . .
-      set idx o. j. . bit_and d. 4294967295 . .
-      set borrow. bit_and shr d. 63 . 1 . .
-      set j. add j. 1 . .
-    end .
-    return 1 .
-  end .
-  if eq bigint32.ge_mod o. m. 48 . 1 . do
-    var borrow2 u64 0 .
-    var q usize 0 .
-    while lt q. 12 . do
-      let d2 u64 wrap_sub wrap_sub idx o. q. . idx m. q. . . borrow2. . .
-      set idx o. q. . bit_and d2. 4294967295 . .
-      set borrow2. bit_and shr d2. 63 . 1 . .
-      set q. add q. 1 . .
-    end .
-  end .
-  return 1 .
+  return bigint.add_mod o. a. b. m. 48 . .
 end .
 
 rem ★★ 모듈러 역원 — 페르마(a^(m−2)). m 이 소수일 때만 옳다: p 도 n 도 소수다.
@@ -118,40 +73,39 @@ rem   `w` 는 조각 작업 공간(≥ 6·26 = 156).
 proc q_minv input o mut slice u64 . input a slice u64 . input m slice u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge len w. . 156 . else return 0 . .
   rem exp = m − 2 를 만든다.
-  let z0 u64 bigint32.zero subslice w. 0 26 . 48 . .
+  let z0 u64 bigint.zero subslice w. 0 26 . 48 . .
   set idx w. 0 . 2 .
   let z1 u64 q_msub subslice w. 26 52 . m. subslice w. 0 26 . m. . .
   rem 왼쪽→오른쪽 이진 거듭제곱을 조각 위에서 직접 돈다(몽고메리 형태로).
-  let n0i u64 bigint32.n0inv m. . .
+  let n0i u64 bigint.n0inv m. . .
   rem R^2 mod m
-  let z2 u64 bigint32.zero subslice w. 52 78 . 48 . .
+  let z2 u64 bigint.zero subslice w. 52 78 . 48 . .
   set idx w. 52 . 1 .
   var d u64 0 .
   while lt d. 768 . do
-    let zz u64 bigint32.dbl_mod subslice w. 52 78 . m. 48 . .
+    let zz u64 bigint.dbl_mod subslice w. 52 78 . m. 48 . .
     set d. add d. 1 . .
   end .
   rem acc ← R mod m,  base ← a·R mod m
-  let z3 u64 bigint32.zero subslice w. 78 104 . 48 . .
+  let z3 u64 bigint.zero subslice w. 78 104 . 48 . .
   set idx w. 78 . 1 .
-  let m1 u64 bigint32.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 52 78 . m. 48 n0i. subslice w. 130 156 . . .
-  let m2 u64 bigint32.mont_mul subslice w. 104 130 . a. subslice w. 52 78 . m. 48 n0i. subslice w. 130 156 . . .
+  let m1 u64 bigint.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 52 78 . m. 48 n0i. subslice w. 130 156 . . .
+  let m2 u64 bigint.mont_mul subslice w. 104 130 . a. subslice w. 52 78 . m. 48 n0i. subslice w. 130 156 . . .
   rem 지수 비트를 위에서부터 — 384 비트 고정으로 돈다(맨 위 0 들은 제곱만 한다).
   var bi u64 384 .
   var done u64 0 .
   while eq done. 0 . do
     set bi. sub bi. 1 . .
-    let sq u64 bigint32.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 78 104 . m. 48 n0i. subslice w. 130 156 . . .
-    let limb u64 idx w. cast usize add 26 shr bi. 5 . . . . .
-    if eq bit_and shr limb. bit_and bi. 31 . . 1 . 1 . do
-      let mu u64 bigint32.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 104 130 . m. 48 n0i. subslice w. 130 156 . . .
+    let sq u64 bigint.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 78 104 . m. 48 n0i. subslice w. 130 156 . . .
+    if eq bigint.bit subslice w. 26 52 . cast usize bi. . . 1 . do
+      let mu u64 bigint.mont_mul subslice w. 78 104 . subslice w. 78 104 . subslice w. 104 130 . m. 48 n0i. subslice w. 130 156 . . .
     end .
     if eq bi. 0 . do  set done. 1 .  end .
   end .
   rem 몽고메리 벗기기
-  let z4 u64 bigint32.zero subslice w. 104 130 . 48 . .
+  let z4 u64 bigint.zero subslice w. 104 130 . 48 . .
   set idx w. 104 . 1 .
-  return bigint32.mont_mul o. subslice w. 78 104 . subslice w. 104 130 . m. 48 n0i. subslice w. 130 156 . . .
+  return bigint.mont_mul o. subslice w. 78 104 . subslice w. 104 130 . m. 48 n0i. subslice w. 130 156 . . .
 end .
 
 rem ── 곡선 위의 점 (야코비 좌표) ────────────────────────────────────────────
@@ -166,17 +120,17 @@ rem   짓지 않는다** — 이 축에서는 그 편이 값싸다(검증은 한
 rem o ← a·b mod p (일반 형태). `t`·`u` 는 26 조각 작업 공간, r2 는 R² mod p.
 proc q_pmul input o mut slice u64 . input a slice u64 . input b slice u64 . input p slice u64 .
      input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . output u64 . effects none . inplace o a . inplace o b . do
-  guard eq bigint32.mont_mul u. a. b. p. 48 n0i. t. . 1 . else return 0 . .
-  return bigint32.mont_mul o. u. r2. p. 48 n0i. t. . .
+  guard eq bigint.mont_mul u. a. b. p. 48 n0i. t. . 1 . else return 0 . .
+  return bigint.mont_mul o. u. r2. p. 48 n0i. t. . .
 end .
 
 rem ★ R² mod p 를 한 번 만들어 둔다(1 을 768 번 배로 늘린다).
 proc q_make_r2 input r2 mut slice u64 . input p slice u64 . output u64 . effects none . do
-  let z u64 bigint32.zero r2. 48 . .
+  let z u64 bigint.zero r2. 48 . .
   set idx r2. 0 . 1 .
   var d u64 0 .
   while lt d. 768 . do
-    let zz u64 bigint32.dbl_mod r2. p. 48 . .
+    let zz u64 bigint.dbl_mod r2. p. 48 . .
     set d. add d. 1 . .
   end .
   return 1 .
@@ -228,11 +182,7 @@ end .
 
 rem 24 조각이 전부 0 인가 — 무한원점 판정과 H=0 판정에 쓴다.
 fn q_is_zero input a slice u64 . output u64 . do
-  var i usize 0 .
-  var acc u64 0 .
-  while lt i. 12 . do  set acc. bit_or acc. idx a. i. . . .  set i. add i. 1 . .  end .
-  if eq acc. 0 . do  return 1 .  end .
-  return 0 .
+  return bigint.is_zero a. 48 . .
 end .
 
 proc q_copy72 input o mut slice u64 . input a slice u64 . output u64 . effects none . do
@@ -301,7 +251,7 @@ proc q_padd input o mut slice u64 . input pa slice u64 . input pb slice u64 . in
   set sk. q_pmul subslice w. 360 384 . subslice w. 360 384 . subslice w. 144 168 . p. r2. n0i. subslice w. 384 410 . subslice w. 410 436 . . .
   rem 이제서야 o 에 쓴다 — pa/pb 와 겹쳐도 안전하도록 **읽기를 다 끝낸 뒤**다.
   var c usize 0 .
-  while lt c. 12 . do
+  while lt c. 24 . do
     set idx o. c. . idx w. add 312 c. . . .
     set idx o. add 24 c. . . idx w. add 336 c. . . .
     set idx o. add 48 c. . . idx w. add 360 c. . . .
@@ -323,7 +273,7 @@ proc q_smul input acc mut slice u64 . input k slice u64 . input pt slice u64 . i
     set bi. sub bi. 1 . .
     let d u64 q_pdbl subslice w. 0 72 . acc. p. r2. n0i. subslice w. 144 580 . . .
     let c u64 q_copy72 acc. subslice w. 0 72 . . .
-    if eq bit_and shr idx k. cast usize shr bi. 5 . . . bit_and bi. 31 . . 1 . 1 . do
+    if eq bigint.bit k. cast usize bi. . . 1 . do
       let a u64 q_padd subslice w. 72 144 . acc. pt. p. r2. n0i. subslice w. 144 580 . . .
       let c2 u64 q_copy72 acc. subslice w. 72 144 . . .
     end .
@@ -350,11 +300,11 @@ errors short_workspace . do
   rem ① r, s 가 [1, n−1] 인가
   guard eq q_is_zero r. . 0 . else return ok 0 . . .
   guard eq q_is_zero s. . 0 . else return ok 0 . . .
-  guard eq bigint32.ge_mod r. n. 48 . 0 . else return ok 0 . . .
-  guard eq bigint32.ge_mod s. n. 48 . 0 . else return ok 0 . . .
+  guard eq bigint.ge_mod r. n. 48 . 0 . else return ok 0 . . .
+  guard eq bigint.ge_mod s. n. 48 . 0 . else return ok 0 . . .
 
-  let n0p u64 bigint32.n0inv p. . .
-  let n0n u64 bigint32.n0inv n. . .
+  let n0p u64 bigint.n0inv p. . .
+  let n0n u64 bigint.n0inv n. . .
   rem R² — p 쪽(w 0..24)과 n 쪽(w 24..48)을 따로 만든다.
   guard eq q_make_r2 subslice w. 0 24 . p. . 1 . else return ok 0 . . .
   guard eq q_make_r2 subslice w. 24 48 . n. . 1 . else return ok 0 . . .
@@ -366,7 +316,7 @@ errors short_workspace . do
 
   rem ③ G 와 Q 를 야코비 점으로(Z=1)
   var i usize 0 .
-  while lt i. 12 . do
+  while lt i. 24 . do
     set idx w. add 120 i. . . idx gx. i. . .
     set idx w. add 144 i. . . idx gy. i. . .
     set idx w. add 168 i. . . 0 .
@@ -392,17 +342,11 @@ errors short_workspace . do
 
   rem ⑥ x mod n 이 r 과 같은가. x < p 이고 n < p 이므로 한 번 빼면 족하다.
   var c usize 0 .
-  while lt c. 12 . do  set idx w. add 552 c. . . idx w. add 528 c. . . .  set c. add c. 1 . .  end .
-  if eq bigint32.ge_mod subslice w. 552 576 . n. 48 . 1 . do
+  while lt c. 24 . do  set idx w. add 552 c. . . idx w. add 528 c. . . .  set c. add c. 1 . .  end .
+  if eq bigint.ge_mod subslice w. 552 576 . n. 48 . 1 . do
     let z u64 q_msub subslice w. 552 576 . subslice w. 552 576 . n. n. . .
   end .
   rem 비교는 XOR 누적 — 조기 반환이 없다.
-  var diff u64 0 .
-  var q usize 0 .
-  while lt q. 12 . do
-    set diff. bit_or diff. bit_xor idx w. add 552 q. . . idx r. q. . . . .
-    set q. add q. 1 . .
-  end .
-  guard eq diff. 0 . else return ok 0 . . .
+  guard eq bigint.equal subslice w. 552 576 . r. 48 . 1 . else return ok 0 . . .
   return ok 1 . .
 end .

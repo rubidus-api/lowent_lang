@@ -36,54 +36,56 @@ Module names may differ from file names. What `use` looks for is the `module` de
 | [`x25519`](sec84.md#mod-x25519) | Key agreement |
 | [`aes`](sec85.md#mod-aes) | AES-128 block cipher — usually wrong used alone |
 | [`gcm`](sec86.md#mod-gcm) | AES-128-GCM — never repeat a nonce |
-| [`bigint16`](sec88.md#mod-bigint16) | Big-number modular arithmetic — 16-bit limbs (narrow multipliers) |
-| [`bigint32`](sec89.md#mod-bigint32) | Big-number modular arithmetic — 32-bit limbs (the default) |
-| [`bigint64`](sec90.md#mod-bigint64) | Big-number modular arithmetic — 64-bit limbs (64-bit machines) |
-| [`rsa`](sec91.md#mod-rsa) | RSASSA-PSS verification |
-| [`p256`](sec92.md#mod-p256) | NIST P-256 curve and ECDSA verification |
-| [`p384`](sec93.md#mod-p384) | NIST P-384 curve and ECDSA verification — the public web’s intermediates |
-| [`ecdsa`](sec94.md#mod-ecdsa) | ECDSA P-256 signing — nonce derived without randomness |
-| [`ed25519`](sec95.md#mod-ed25519) | Ed25519 signature verification |
-| [`der`](sec96.md#mod-der) | Minimal DER parser — extracts public keys only |
-| [`pem`](sec97.md#mod-pem) | Unwrapping PEM envelopes |
-| [`x509`](sec98.md#mod-x509) | Reading X.509 certificates — offsets and lengths only |
-| [`verify`](sec99.md#mod-verify) | Certificate signatures and one link of a chain |
-| [`tls13`](sec100.md#mod-tls13) | TLS 1.3 parts — key schedule · records · transcript · Finished |
-| [`tlssrv`](sec101.md#mod-tlssrv) | Server TLS handshake and application data records |
-| [`tlscli`](sec102.md#mod-tlscli) | Client TLS 1.3 handshake — the caller checks certificates |
-| [`http`](sec103.md#mod-http) | HTTP/1.1 request parser — its heart is rejection |
-| [`soa`](sec104.md#mod-soa) | A trial of laying structs out as per-field arrays |
+| [`bigwidth`](sec88.md#mod-bigwidth) | The trait of big-number widths — pick the width on each call |
+| [`bigint16`](sec89.md#mod-bigint16) | Big-number modular arithmetic — 16-bit limbs (narrow multipliers) |
+| [`bigint32`](sec90.md#mod-bigint32) | Big-number modular arithmetic — 32-bit limbs (32-bit multipliers) |
+| [`bigint64`](sec91.md#mod-bigint64) | Big-number modular arithmetic — 64-bit limbs (64-bit machines) |
+| [`bigint`](sec92.md#mod-bigint) | Big-number modular arithmetic — the machine picks the width (multiplier width · `--mul-bits`) |
+| [`rsa`](sec93.md#mod-rsa) | RSASSA-PSS verification |
+| [`p256`](sec94.md#mod-p256) | NIST P-256 curve and ECDSA verification |
+| [`p384`](sec95.md#mod-p384) | NIST P-384 curve and ECDSA verification — the public web’s intermediates |
+| [`ecdsa`](sec96.md#mod-ecdsa) | ECDSA P-256 signing — nonce derived without randomness |
+| [`ed25519`](sec97.md#mod-ed25519) | Ed25519 signature verification |
+| [`der`](sec98.md#mod-der) | Minimal DER parser — extracts public keys only |
+| [`pem`](sec99.md#mod-pem) | Unwrapping PEM envelopes |
+| [`x509`](sec100.md#mod-x509) | Reading X.509 certificates — offsets and lengths only |
+| [`verify`](sec101.md#mod-verify) | Certificate signatures and one link of a chain |
+| [`tls13`](sec102.md#mod-tls13) | TLS 1.3 parts — key schedule · records · transcript · Finished |
+| [`tlssrv`](sec103.md#mod-tlssrv) | Server TLS handshake and application data records |
+| [`tlscli`](sec104.md#mod-tlscli) | Client TLS 1.3 handshake — the caller checks certificates |
+| [`http`](sec105.md#mod-http) | HTTP/1.1 request parser — its heart is rejection |
+| [`soa`](sec106.md#mod-soa) | A trial of laying structs out as per-field arrays |
 
 *Table 50.1 — L0 — pure computation (`effects none` · the caller’s buffer)*
 
 | **Module** | **In one line** |
 |---|---|
-| [`allocs`](sec105.md#mod-allocs) | Allocator trait · bump allocators · two default allocators |
-| [`pool`](sec106.md#mod-pool) | Generational-handle block pool |
-| [`shard`](sec107.md#mod-shard) | Tokens splitting storage into non-overlapping pieces |
-| [`budget`](sec108.md#mod-budget) | Bit budgets for handles and retiring generations |
-| [`wire`](sec109.md#mod-wire) | Fields in one word — a mask carries position and width |
-| [`flags`](sec110.md#mod-flags) | Named on/off settings in one word |
-| [`segarena`](sec111.md#mod-segarena) | Fixed-size segment arena |
-| [`pagecache`](sec112.md#mod-pagecache) | Page ids and pin tokens |
-| [`growvec`](sec113.md#mod-growvec) | Growing byte vector — short name for `vecgen.vec u8` |
-| [`vecgen`](sec114.md#mod-vecgen) | Generic growing vector `vec t` |
-| [`mapgen`](sec115.md#mod-mapgen) | Generic hash map `table k v` |
-| [`nodelist`](sec116.md#mod-nodelist) | Fixed-size intrusive list |
-| [`segview`](sec117.md#mod-segview) | Cursor, total length and flattening for scattered views |
-| [`lifemode`](sec118.md#mod-lifemode) | `lifemode` · `lifeatom` — when a value ends |
+| [`allocs`](sec107.md#mod-allocs) | Allocator trait · bump allocators · two default allocators |
+| [`pool`](sec108.md#mod-pool) | Generational-handle block pool |
+| [`shard`](sec109.md#mod-shard) | Tokens splitting storage into non-overlapping pieces |
+| [`budget`](sec110.md#mod-budget) | Bit budgets for handles and retiring generations |
+| [`wire`](sec111.md#mod-wire) | Fields in one word — a mask carries position and width |
+| [`flags`](sec112.md#mod-flags) | Named on/off settings in one word |
+| [`segarena`](sec113.md#mod-segarena) | Fixed-size segment arena |
+| [`pagecache`](sec114.md#mod-pagecache) | Page ids and pin tokens |
+| [`growvec`](sec115.md#mod-growvec) | Growing byte vector — short name for `vecgen.vec u8` |
+| [`vecgen`](sec116.md#mod-vecgen) | Generic growing vector `vec t` |
+| [`mapgen`](sec117.md#mod-mapgen) | Generic hash map `table k v` |
+| [`nodelist`](sec118.md#mod-nodelist) | Fixed-size intrusive list |
+| [`segview`](sec119.md#mod-segview) | Cursor, total length and flattening for scattered views |
+| [`lifemode`](sec120.md#mod-lifemode) | `lifemode` · `lifeatom` — when a value ends |
 
 *Table 50.2 — L1 — storage (needs the allocation capability or borrowed bytes)*
 
 | **Module** | **In one line** |
 |---|---|
-| [`io`](sec122.md#mod-io) | Stream reading over slices |
-| [`outbuf`](sec123.md#mod-outbuf) | Buffered output — forgetting to flush is rejected |
-| [`files`](sec124.md#mod-files) | Files and directories — forgetting to close is rejected |
-| [`tty`](sec125.md#mod-tty) | Terminal input — raw mode · reading keys · pure key parsing |
-| [`net`](sec127.md#mod-net) | Sockets — TCP loopback · in-process connection pairs |
-| [`clock`](sec128.md#mod-clock) | Time and deadlines — monotonic and wall clocks |
-| [`trust`](sec129.md#mod-trust) | Finding a trusted root in the trust store — the bundle is streamed |
+| [`io`](sec124.md#mod-io) | Stream reading over slices |
+| [`outbuf`](sec125.md#mod-outbuf) | Buffered output — forgetting to flush is rejected |
+| [`files`](sec126.md#mod-files) | Files and directories — forgetting to close is rejected |
+| [`tty`](sec127.md#mod-tty) | Terminal input — raw mode · reading keys · pure key parsing |
+| [`net`](sec129.md#mod-net) | Sockets — TCP loopback · in-process connection pairs |
+| [`clock`](sec130.md#mod-clock) | Time and deadlines — monotonic and wall clocks |
+| [`trust`](sec131.md#mod-trust) | Finding a trusted root in the trust store — the bundle is streamed |
 
 *Table 50.3 — L2 — host (needs capabilities)*
 

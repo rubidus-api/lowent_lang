@@ -1,6 +1,6 @@
 rem RFC-0151 §9.5 — 큰 수 모듈 셋(`bigint16` · `bigint32` · `bigint64`)은 이름과 입력이 같고 조각 폭만 다르다.
 rem 같은 거듭제곱 b^65537 mod n 을 세 폭으로 셈해 결과 바이트의 지문(h ← h·31 + 바이트, 감김)을 낸다. 골든이 파이썬의 답과 견준다.
-module bigwidth .
+module three_widths .
 use bigint16 from "../../lib/bigint16.low" .
 use bigint32 from "../../lib/bigint32.low" .
 use bigint64 from "../../lib/bigint64.low" .

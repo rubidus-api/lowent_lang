@@ -1,8 +1,8 @@
-# <a id="mod-tls13"></a>`tls13` — TLS 1.3 의 계산 부품
+# <a id="mod-x509"></a>`x509` — X.509 인증서 읽기
 
 소스
 
-`lib/tls13.low`
+`lib/x509.low`
 
 층
 
@@ -12,50 +12,49 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-TLS 1.3 이 요구하는 순수 계산 넷이다(RFC 8446) — **키 스케줄**(공유 비밀과 전사 해시에서 트래픽 키를 유도, §7.1), **레코드 계층**(레코드를 봉하고 연다, §5), **전사 해시**(지금까지 오간 메시지 전부의 해시, §4.4.1), **Finished**(핸드셰이크가 중간에 바뀌지 않았음을 증명, §4.4.4). 전부 순수해서 전송 없이 지을 수 있고 시험 벡터로 잴 수 있다 — 파서를 먼저, 전송을 나중에.
+X.509 인증서(DER)의 **뼈대를 읽어 준다**. 서명이 덮는 부분은 어디서 어디까지인지, 발급자와 주체는 누구인지, 공개키 · 유효기간 · 확장은 어디 있는지를 **자리(오프셋)와 길이**로 낸다. [`der`](sec97.md#mod-der) 가 «공개키만 꺼낸다» 에서 멈춘 자리의 다음 칸이다.
 
-> **이것은 TLS 구현이 아니다**
+> **읽기만 한다**
 >
-> > 상태 기계가 없다 — 핸드셰이크를 구동하지 않는다(메시지 층과 순서는 [`tlssrv`](sec100.md#mod-tlssrv) 가 한다). 전송이 없다. PSK · 0-RTT · exporter · resumption 비밀이 없고 1-RTT 한 갈래만 지었다. PKI 가 없다([`der`](sec95.md#mod-der)). 상수 시간을 약속하지 않고 감사받지 않았다. 스위트는 둘뿐이고 모르는 스위트는 거절한다.
+> > 이 모듈은 인증서를 **확인하지 않는다**. 서명이 맞는지, 체인이 이어지는지, 이름이 맞는지는 [`verify`](sec100.md#mod-verify) 가 이 모듈 위에서 답한다. 짓지 않은 것: 폐기 확인(CRL · OCSP) · 이름 제약 · 정책 · v1/v2 의 옛 모양 · UTF-8 이 아닌 이름 비교.
+
+인증서의 모양과 이 모듈의 op 이 가리키는 자리는 이렇다.
 
 ```text
-0 ─HKDF-Extract(PSK)→ Early Secret ─Derive-Secret("derived","")→ ┐
-ECDHE ─HKDF-Extract────────────────→ Handshake Secret ←──────────┘
-  ├─ Derive-Secret("c hs traffic", CH..SH)
-  └─ Derive-Secret("s hs traffic", CH..SH)
-─Derive-Secret("derived","")→ ┐
-0 ─HKDF-Extract──────────────→ Master Secret
-  ├─ Derive-Secret("c ap traffic", CH..server Finished)
-  └─ Derive-Secret("s ap traffic", CH..server Finished)
+Certificate
+├─ tbsCertificate ─────────────── tbs_off … tbs_end   ← 서명이 덮는 바이트
+│   ├─ [0] version (없을 수도 있다)
+│   ├─ serialNumber                tbs_field 0
+│   ├─ signature                   tbs_field 1
+│   ├─ issuer (발급자 이름)        issuer_off · elem_len
+│   ├─ validity                    not_before · not_after
+│   ├─ subject (주체 이름)         subject_off · elem_len
+│   ├─ subjectPublicKeyInfo        spki_off
+│   └─ [3] extensions              ext_value_off · is_ca · san_next
+├─ signatureAlgorithm ─────────── sigalg_oid_off · sigalg_oid_len
+└─ signatureValue ─────────────── sig_off · sig_len
 ```
-
-각 비밀에서 레코드 키가 나온다 — `key = Expand-Label(비밀, "key", "", 길이)`, `iv = Expand-Label(비밀, "iv", "", 12)`.
 
 | **op** | **하는 일** |
 |---|---|
-| `build_label` · `expand_label` | HkdfLabel 구조체를 바이트로 · `HKDF-Expand-Label` |
-| `derive_secret` | `Derive-Secret(비밀, 라벨, 전사 해시)` |
-| `advance` | 사다리 한 칸 — 위 그림의 화살표 하나 |
-| `traffic_key` · `traffic_iv` | 비밀 → 레코드 키 · IV |
-| `finished_key` · `verify_data` | Finished 의 키와 값 |
-| `record_header` · `record_nonce` | 5 바이트 헤더 `23 ‖ 0x0303 ‖ 길이` · IV 와 시퀀스 번호 → 논스 |
-| `record_seal` · `record_open` | 레코드 봉하기 · 열기 |
-| `inner_type` | 속 평문의 **끝**에서 진짜 내용 타입을 읽는다 |
-| `transcript` | 이어 붙인 메시지 버퍼의 해시 |
-| `hs_type` · `hs_size` · `hs_count` | 핸드셰이크 메시지 걷기 |
-| `check_finished` | 상대의 Finished 를 다시 계산해 맞춰 본다 |
+| `tbs_off` · `tbs_end` | 서명이 덮는 바이트의 시작과 끝. 서명은 이 구간의 **원본 바이트** 위에서 확인한다 |
+| `sigalg_oid_off` · `sigalg_oid_len` | 바깥 서명 알고리즘 OID 의 자리와 길이 |
+| `sig_off` · `sig_len` | 서명 값(BIT STRING 의 «남은 비트 수» 바이트를 건너뛴 자리) |
+| `tbs_field` | tbsCertificate 안의 `n` 번째 필드 자리(0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 공개키) |
+| `issuer_off` · `subject_off` · `elem_len` | 발급자 · 주체 이름 요소 **전체**의 자리와 길이 — 이름은 바이트로 견준다 |
+| `spki_off` | 공개키(SubjectPublicKeyInfo)의 자리 |
+| `not_before` · `not_after` | 유효기간을 견줄 수 있는 한 수(`YYYYMMDDhhmmss`)로. 시간대는 `Z` 만 받는다 |
+| `ext_value_off` | OID 가 `2.5.29.<n>` 인 확장의 값 자리(17 = 주체 대체 이름 · 19 = basicConstraints) |
+| `is_ca` | 남을 발급할 수 있는 인증서인가. 확장이 **없으면 거짓**이다 |
+| `san_next` | 주체 대체 이름의 DNS 이름을 하나씩 준다(`cur` 가 0 이면 첫째, 0 을 돌려주면 끝) |
 
-*표 50.1 — `tls13` 의 op*
+*표 50.1 — `x509` 의 op — 자리를 내는 op 은 0 이면 «성하지 않다»*
 
-**레코드는 겉과 속이 다르다.** 겉은 언제나 `23 ‖ 0x0303 ‖ 길이` 다 — 내용이 핸드셰이크든 응용 데이터든 똑같이 보인다. 진짜 내용 타입은 속 평문의 끝에 있다. 관찰자에게 감추려고 그렇게 짰다. AAD 는 그 5 바이트 헤더 자체다.
+**값을 베끼지 않는다.** 모든 op 이 자리와 길이만 낸다. 64 KiB 아레나에 인증서 몇 장을 한꺼번에 들어야 하고, 서명은 원본 바이트 위에서 확인해야 하기 때문이다 — 베낀 자리에서 확인하면 베끼기가 틀려도 서명이 맞는 것처럼 보일 수 있다.
 
-**스위트가 둘이라 협상이 뜻을 갖는다.** 스위트 1 = `TLS_AES_128_GCM_SHA256`(MUST, [`gcm`](sec85.md#mod-gcm)), 스위트 2 = `TLS_CHACHA20_POLY1305_SHA256`(SHOULD, [`aead`](sec82.md#mod-aead)). 하나만 지었을 때 이 자리는 죽은 분기였다. 모르는 스위트는 거절한다 — 조용히 하나를 고르지 않는다.
+**길이는 전부 상대가 쓴 것이다.** 인증서는 아직 아무것도 믿을 수 없는 바이트열이다. 자리를 내는 길은 모두 `der.value_off` · `der.value_len` 을 지나고, 그 둘이 버퍼 밖을 막는다. 이 모듈은 그 위에 **차례**를 얹는다 — X.509 의 필드에는 이름표가 없어서 몇 번째인지가 곧 무엇인지이고, 차례를 안 보면 남이 끼워 넣은 필드를 제 자리 것으로 읽는다.
 
-**전사 해시가 핸드셰이크의 뼈대다.** 키도 Finished 도 “지금까지 오간 메시지 전부” 의 해시 위에 서므로 중간자가 한 바이트라도 바꾸면 양쪽 키가 갈린다. **전사를 어디서 자르는지가 규격의 절반이다** — RFC 8448 이 각 Derive-Secret 의 해시로 그 자리를 적어 두었고, 시험이 세 자리(`CH…SH`, `CH…서버 Finished`, `CH…클라이언트 Finished`)를 전부 맞댄다. SHA-256 이 한 번에 하는 방식(스트리밍 없음)이라 전사는 **호출자가 이어 붙인 버퍼** 위에서 잰다. 메시지 걷기는 길이 필드를 믿지 않는다 — 버퍼를 넘는 길이가 적혀 있으면 거기서 멈춘다. `check_finished` 의 비교는 32 바이트를 XOR 로 누적해 마지막에 한 번 본다(조기 반환 없음).
-
-**작업 공간을 둘로 묶는 이유.** 파라미터 상한이 16 이라 스위트마다 버퍼를 늘어놓으면 금방 넘는다. 그래서 바이트 `w` 와 `u64` `u` 둘로 묶고 자리를 소스 주석에 적어 나눠 쓴다. 예쁘지 않다 — 언어의 상한이 만든 모양이고, 그 사실을 감추지 않는 편이 낫다.
-
-**확인하는 것 — 두 겹이다.** 파이썬 `hashlib` · `hmac` 로 §7.1 을 독립 구현해 바이트 대조하고, RFC 8448 §3 의 값들을 정본에서 기계로 뽑아 96 자리를 맞댄다. **그리고 정본이 결함을 하나 잡았다.** `traffic_key` 가 키 길이를 32 로 박아 두었는데, 그 길이는 HkdfLabel 안에 들어가므로 AES-128-GCM(16)을 쓰는 상대와는 키가 통째로 달라진다. 두 번째 구현으로는 잡히지 않았다 — 같은 사람이 같이 32 를 썼기 때문이다. 두 번째 구현은 정본이 아니다.
+**`is_ca` 의 기본값이 중요하다.** basicConstraints 확장이 없으면 CA 가 아니다(RFC 5280 §4.2.1.9). 이 기본값을 놓치면 잎 인증서가 중간 인증기관 노릇을 할 수 있다 — 체인 검증에서 가장 흔한 구멍이다.
 
 ---
 

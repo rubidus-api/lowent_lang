@@ -458,3 +458,118 @@ errors short_workspace . do
   guard eq diff. 0 . else return ok 0 . . .
   return ok 1 . .
 end .
+
+rem ── @@curve-by@@ (scripts/gen-curve-by.py 가 낸다 — 손으로 고치지 않는다) ──
+rem ★ 위의 op 가운데 큰 수를 셈하는 3 개를 **고른 폭으로** — 이름 뒤에 `_by`, 첫 입력 둘이 폭 타입과 그 값이다
+rem   (`ed25519.<op>_by bigint32.limb. lit bigint32.limb do tag 0 . end . …`). 몸은 위와 같고, `bigint.<op>` 이 `method limbw. <op>.` 로,
+rem   짝이 있는 op 의 부름이 그 짝으로 바뀐 것뿐이다(RFC-0152 §8-5). 넘기는 조각 배열은 **그 폭으로** 만든다(`bigint32.from_bytes` …).
+use bigwidth from "bigwidth.low" .
+
+rem (짝) `reduce_l` 을 고른 폭으로.
+export proc reduce_l_by input comptime wt type . input limbw wt . input out mut slice u8 . input h slice u8 . input lw slice u64 . input w mut slice u64 . output result u64 ed25519_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  guard ge len w. . 40 . else return error short_workspace . . .
+  guard ge len h. . 64 . else return ok 0 . . .
+  guard eq method limbw. zero. subslice w. 0 16 . 32 . 1 . else return ok 0 . . .
+  var i usize 64 .
+  var done u64 0 .
+  while eq done. 0 . do
+    set i. sub i. 1 . .
+    var s u64 0 .
+    while lt s. 8 . do
+      guard eq method limbw. dbl_mod. subslice w. 0 16 . lw. 32 . 1 . else return ok 0 . . .
+      set s. add s. 1 . .
+    end .
+    rem + byte (mod L) — 한 조각에 더하고 자리올림을 흘린 뒤 필요하면 L 을 한 번 뺀다.
+    guard eq method limbw. zero. subslice w. 16 32 . 32 . 1 . else return ok 0 . . .
+    set idx w. 16 . cast u64 idx h. i. . . .
+    guard eq addmod_l_by wt. limbw. subslice w. 0 16 . subslice w. 16 32 . lw. . 1 . else return ok 0 . . .
+    if eq i. 0 . do  set done. 1 .  end .
+  end .
+  return ok method limbw. to_bytes_le. out. subslice w. 0 16 . . . .
+end .
+
+rem (짝) `addmod_l` 을 고른 폭으로.
+proc addmod_l_by input comptime wt type . input limbw wt . input a mut slice u64 . input b slice u64 . input lw slice u64 . output u64 . effects none . requires bigwidth.width wt. . . do
+  return method limbw. add_mod. a. a. b. lw. 32 . .
+end .
+
+rem (짝) `verify` 을 고른 폭으로.
+export proc verify_by input comptime wt type . input limbw wt . input sig slice u8 . input pub slice u8 . input msg slice u8 .
+     input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output result u64 ed25519_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  guard eq len sig. . 64 . else return ok 0 . . .
+  guard eq len pub. . 32 . else return ok 0 . . .
+  guard ge len sc. . add 96 len msg. . . . else return ok 0 . . .
+  guard ge len bb. . 320 . else return ok 0 . . .
+  rem ★★ 자리 배치는 **1004 조각**이다. 처음엔 1400 을 넉넉히 잡았는데 그러면
+  rem   `--run` 의 인자 상한(u64 1024)을 넘어 시험이 못 돈다 — 겹칠 수 있는 것을 겹쳐
+  rem   하나의 **공용 스크래치**(432..1004)로 모았다. 넉넉함은 공짜가 아니다.
+  rem     0..16 S · 16..32 L · 32..48 d · 48..112 B · 112..176 R · 176..240 A
+  rem     240..304 [S]B · 304..368 [k]A · 368..432 R+[k]A · 432..1004 공용(572)
+  guard ge len w. . 1004 . else return error short_workspace . . .
+
+  rem ① S < L 인가 — 안 보면 **같은 메시지에 서명이 여럿** 생긴다(가변성).
+  guard eq make_l subslice bb. 0 32 . . 32 . else return ok 0 . . .
+  guard eq method limbw. from_bytes_le. subslice sig. 32 64 . subslice w. 0 16 . . 32 . else return ok 0 . . .
+  guard eq method limbw. from_bytes_le. subslice bb. 0 32 . subslice w. 16 32 . . 32 . else return ok 0 . . .
+  guard eq method limbw. ge_mod. subslice w. 0 16 . subslice w. 16 32 . 32 . 0 . else return ok 0 . . .
+
+  rem ② 곡선 상수 d 와 기저점 B — 둘 다 **계산으로** 낸다.
+  let _u0 result u64 ed25519_error make_d subslice w. 32 48 . subslice w. 432 560 . . .
+  guard is_ok _u0. . else return error short_workspace . . .
+  guard eq ok_value _u0. . 1 . else return ok 0 . . .
+  let _u1 result u64 ed25519_error make_base subslice w. 48 112 . subslice w. 32 48 . subslice w. 432 992 . subslice bb. 32 192 . . .
+  guard is_ok _u1. . else return error short_workspace . . .
+  guard eq ok_value _u1. . 1 . else return ok 0 . . .
+
+  rem ③ R 과 A 를 푼다 — 곡선 위가 아니면 거절이다.
+  let _u2 result u64 ed25519_error decompress subslice w. 112 176 . subslice sig. 0 32 . subslice w. 32 48 . subslice w. 432 852 . subslice bb. 32 160 . . .
+  guard is_ok _u2. . else return error short_workspace . . .
+  guard eq ok_value _u2. . 1 . else return ok 0 . . .
+  let _u3 result u64 ed25519_error decompress subslice w. 176 240 . pub. subslice w. 32 48 . subslice w. 432 852 . subslice bb. 32 160 . . .
+  guard is_ok _u3. . else return error short_workspace . . .
+  guard eq ok_value _u3. . 1 . else return ok 0 . . .
+
+  rem ④ k = SHA-512(R ‖ A ‖ M) mod L
+  var i usize 0 .
+  while lt i. 32 . do
+    set idx sc. i. . idx sig. i. . .
+    set idx sc. add 32 i. . . idx pub. i. . .
+    set i. add i. 1 . .
+  end .
+  var j usize 0 .
+  while lt j. len msg. . . do  set idx sc. add 64 j. . . idx msg. j. . .  set j. add j. 1 . .  end .
+  guard eq call_builtin sha512 subslice sc. 0 add 64 len msg. . . . subslice bb. 192 256 . . 64 . else return ok 0 . . .
+  let _u4 result u64 ed25519_error reduce_l_by wt. limbw. subslice bb. 256 288 . subslice bb. 192 256 . subslice w. 16 32 . subslice w. 432 472 . . .
+  guard is_ok _u4. . else return error short_workspace . . .
+  guard eq ok_value _u4. . 32 . else return ok 0 . . .
+
+  rem ⑤ [S]B  와  R + [k]A
+  let _u5 result u64 ed25519_error esmul subslice w. 240 304 . subslice sig. 32 64 . subslice w. 48 112 . subslice w. 32 48 . subslice w. 432 832 . . .
+  guard is_ok _u5. . else return error short_workspace . . .
+  guard eq ok_value _u5. . 1 . else return ok 0 . . .
+  let _u6 result u64 ed25519_error esmul subslice w. 304 368 . subslice bb. 256 288 . subslice w. 176 240 . subslice w. 32 48 . subslice w. 432 832 . . .
+  guard is_ok _u6. . else return error short_workspace . . .
+  guard eq ok_value _u6. . 1 . else return ok 0 . . .
+  let _u7 result u64 ed25519_error eadd subslice w. 368 432 . subslice w. 112 176 . subslice w. 304 368 . subslice w. 32 48 . subslice w. 432 632 . . .
+  guard is_ok _u7. . else return error short_workspace . . .
+  guard eq ok_value _u7. . 1 . else return ok 0 . . .
+
+  rem ⑥ 압축해서 바이트로 비교한다 — 사영 좌표는 같은 점이 여러 모양이므로
+  rem   **정규화가 곧 비교**다. XOR 누적: 조기 반환이 없다.
+  let _u8 result u64 ed25519_error compress subslice bb. 288 320 . subslice w. 240 304 . subslice w. 432 560 . subslice bb. 32 96 . . .
+  guard is_ok _u8. . else return error short_workspace . . .
+  guard eq ok_value _u8. . 32 . else return ok 0 . . .
+  let _u9 result u64 ed25519_error compress subslice bb. 0 32 . subslice w. 368 432 . subslice w. 432 560 . subslice bb. 32 96 . . .
+  guard is_ok _u9. . else return error short_workspace . . .
+  guard eq ok_value _u9. . 32 . else return ok 0 . . .
+  var diff u64 0 .
+  var q usize 0 .
+  while lt q. 32 . do
+    set diff. bit_or diff. bit_xor cast u64 idx bb. add 288 q. . . . cast u64 idx bb. q. . . . . .
+    set q. add q. 1 . .
+  end .
+  guard eq diff. 0 . else return ok 0 . . .
+  return ok 1 . .
+end .

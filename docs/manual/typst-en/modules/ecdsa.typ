@@ -31,6 +31,7 @@ message) gives the same signature, and that is a property, not a defect.
   [*op*], [*What it does*], [*Requires*],
   [`nonce6979`], [RFC 6979 §3.2 --- (d, h) → k], [`w ≥ 480` bytes · `wu ≥ 16` limbs],
   [`sign`], [(d, h) → `r ‖ s`, 64 bytes], [`wb ≥ 512` bytes · `wu ≥ 908` limbs],
+  [`nonce6979_by` · `sign_by`], [The same *at a chosen limb width* --- a width type and its value first (`bigint32.limb. w.` · #modref("bigwidth")[`bigwidth`]); the curve constants are built at that width. Generated (`scripts/gen-curve-by.py`)], [as above],
 )
 
 Curve constants (p · n · Gx · Gy) are given by the caller --- this module holds no tables. Signing uses only `smul_ct` of `p256`, and a test confirms it. `k⁻¹` is Fermat

@@ -107,6 +107,8 @@ typedef struct { proven_u8str_view_t name; ityp_t ty; proven_u8str_view_t tyname
                  proven_u8str_view_t narrowed; ityp_t elem;
                  proven_u8str_view_t cname;   // ★ RFC-0148 S2 — 알맹이 타입 낱말(그릇을 벗긴 것) — 칸을 읽을 때 묶음을 찾는다
                  bool isview;                 // ★ RFC-0150 §8-32 — `view T` · `mut view T` 로 묶은 창(다른 이름에 묶어도 베끼지 않는다)
+                 proven_u8str_view_t tymod;   // ★ RFC-0152 (2026-10-24) — 타입 낱말이 가리킨 **모듈**(`bigint64.limb` 의 `bigint64`). 비면 모른다.
+                                              //   `method x. op.` 이 `<타입>.<op>` 을 그 모듈에서 찾는다 — 세 모듈이 `limb` 를 두면 이름만으로는 첫 것이다.
                } ir_local_t;
 
 typedef struct {
@@ -439,6 +441,8 @@ proven_u8str_view_t ir_content_word(const low_cst_t *f, proven_size_t s, proven_
 ityp_t ity_of_word_c(ir_ctx_t *c, proven_u8str_view_t w);
 void ir_tset_top(ir_ctx_t *c, proven_u8str_view_t cname);                                    /* RFC-0148 S2 */
 proven_u8str_view_t ir_strip_mod(ir_ctx_t *c, proven_u8str_view_t v);          /* 1회 */
+proven_u8str_view_t ir_type_mod(ir_ctx_t *c, const low_cst_t *a);                /* RFC-0152 — 타입 낱말의 모듈 */
+proven_size_t ir_def_find_mod(ir_ctx_t *c, proven_u8str_view_t name, proven_u8str_view_t mod, bool *found);
 void ir_struct_layout(const low_ir_t *ir, low_ir_struct_t *s);                 /* 1회 */
 int ir_word_arity(const low_ir_t *ir, low_irw_t w, proven_i64 a);              /* 1회 */
 bool is_clause_word(proven_u8str_view_t v);

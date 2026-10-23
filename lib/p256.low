@@ -315,8 +315,8 @@ errors short_workspace . do
     let a_r result u64 p256_error padd subslice w. 48 96 . subslice w. 0 48 . pt. p. r2. n0i. subslice w. 96 396 . . .
     guard is_ok a_r. . else return error short_workspace . . .
     let a u64 ok_value a_r. . .
-    let bit u64 bigint.bit k. cast usize bi. . . .
-    let c u64 csel48 acc. subslice w. 0 48 . subslice w. 48 96 . bit. . .
+    let kbit u64 bigint.bit k. cast usize bi. . . .
+    let c u64 csel48 acc. subslice w. 0 48 . subslice w. 48 96 . kbit. . .
     if eq bi. 0 . do  set done. 1 .  end .
   end .
   return ok 1 . .
@@ -398,5 +398,324 @@ errors short_workspace . do
   end .
   rem 비교는 XOR 누적 — 조기 반환이 없다.
   guard eq bigint.equal subslice w. 368 384 . r. 32 . 1 . else return ok 0 . . .
+  return ok 1 . .
+end .
+
+rem ── @@curve-by@@ (scripts/gen-curve-by.py 가 낸다 — 손으로 고치지 않는다) ──
+rem ★ 위의 op 가운데 큰 수를 셈하는 12 개를 **고른 폭으로** — 이름 뒤에 `_by`, 첫 입력 둘이 폭 타입과 그 값이다
+rem   (`p256.<op>_by bigint32.limb. lit bigint32.limb do tag 0 . end . …`). 몸은 위와 같고, `bigint.<op>` 이 `method limbw. <op>.` 로,
+rem   짝이 있는 op 의 부름이 그 짝으로 바뀐 것뿐이다(RFC-0152 §8-5). 넘기는 조각 배열은 **그 폭으로** 만든다(`bigint32.from_bytes` …).
+use bigwidth from "bigwidth.low" .
+
+rem (짝) `limbs` 을 고른 폭으로.
+export fn limbs_by input comptime wt type . input limbw wt . output u64 . requires bigwidth.width wt. . . do  return cast u64 method limbw. limbs. 32 . . .  end .
+
+rem (짝) `msub` 을 고른 폭으로.
+export proc msub_by input comptime wt type . input limbw wt . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . requires bigwidth.width wt. . . do
+  return method limbw. sub_mod. o. a. b. m. 32 . .
+end .
+
+rem (짝) `madd` 을 고른 폭으로.
+export proc madd_by input comptime wt type . input limbw wt . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . requires bigwidth.width wt. . . do
+  return method limbw. add_mod. o. a. b. m. 32 . .
+end .
+
+rem (짝) `minv` 을 고른 폭으로.
+export proc minv_by input comptime wt type . input limbw wt . input o mut slice u64 . input a slice u64 . input m slice u64 . input w mut slice u64 . output result u64 p256_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  guard ge len w. . 108 . else return error short_workspace . . .
+  rem exp = m − 2 를 만든다.
+  let z0 u64 method limbw. zero. subslice w. 0 18 . 32 . .
+  set idx w. 0 . 2 .
+  let z1 u64 msub_by wt. limbw. subslice w. 18 36 . m. subslice w. 0 18 . m. . .
+  rem 왼쪽→오른쪽 이진 거듭제곱을 조각 위에서 직접 돈다(몽고메리 형태로).
+  let n0i u64 method limbw. n0inv. m. . .
+  rem R^2 mod m
+  let z2 u64 method limbw. zero. subslice w. 36 54 . 32 . .
+  set idx w. 36 . 1 .
+  var d u64 0 .
+  while lt d. 512 . do
+    let zz u64 method limbw. dbl_mod. subslice w. 36 54 . m. 32 . .
+    set d. add d. 1 . .
+  end .
+  rem acc ← R mod m,  base ← a·R mod m
+  let z3 u64 method limbw. zero. subslice w. 54 72 . 32 . .
+  set idx w. 54 . 1 .
+  let m1 u64 method limbw. mont_mul. subslice w. 54 72 . subslice w. 54 72 . subslice w. 36 54 . m. 32 n0i. subslice w. 90 108 . . .
+  let m2 u64 method limbw. mont_mul. subslice w. 72 90 . a. subslice w. 36 54 . m. 32 n0i. subslice w. 90 108 . . .
+  rem 지수 비트를 위에서부터 — 256 비트 고정으로 돈다(맨 위 0 들은 제곱만 한다).
+  var bi u64 256 .
+  var done u64 0 .
+  while eq done. 0 . do
+    set bi. sub bi. 1 . .
+    let sq u64 method limbw. mont_mul. subslice w. 54 72 . subslice w. 54 72 . subslice w. 54 72 . m. 32 n0i. subslice w. 90 108 . . .
+    if eq method limbw. bit. subslice w. 18 36 . cast usize bi. . . 1 . do
+      let mu u64 method limbw. mont_mul. subslice w. 54 72 . subslice w. 54 72 . subslice w. 72 90 . m. 32 n0i. subslice w. 90 108 . . .
+    end .
+    if eq bi. 0 . do  set done. 1 .  end .
+  end .
+  rem 몽고메리 벗기기
+  let z4 u64 method limbw. zero. subslice w. 72 90 . 32 . .
+  set idx w. 72 . 1 .
+  return ok method limbw. mont_mul. o. subslice w. 54 72 . subslice w. 72 90 . m. 32 n0i. subslice w. 90 108 . . . .
+end .
+
+rem (짝) `pmul` 을 고른 폭으로.
+export proc pmul_by input comptime wt type . input limbw wt . input o mut slice u64 . input a slice u64 . input b slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . output u64 . effects none . inplace o a . inplace o b . requires bigwidth.width wt. . . do
+  guard eq method limbw. mont_mul. u. a. b. p. 32 n0i. t. . 1 . else return 0 . .
+  return method limbw. mont_mul. o. u. r2. p. 32 n0i. t. . .
+end .
+
+rem (짝) `make_r2` 을 고른 폭으로.
+export proc make_r2_by input comptime wt type . input limbw wt . input r2 mut slice u64 . input p slice u64 . output u64 . effects none . requires bigwidth.width wt. . . do
+  let z u64 method limbw. zero. r2. 32 . .
+  set idx r2. 0 . 1 .
+  var d u64 0 .
+  while lt d. 512 . do
+    let zz u64 method limbw. dbl_mod. r2. p. 32 . .
+    set d. add d. 1 . .
+  end .
+  return 1 .
+end .
+
+rem (짝) `pdbl` 을 고른 폭으로.
+export proc pdbl_by input comptime wt type . input limbw wt . input o mut slice u64 . input pt slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  rem 버리는 답은 받이 하나(`sk`)에 받는다 — 받이마다 지역을 두면 32 를 넘어 태그 경로로 떨어진다(X-0050)
+  var sk u64 0 .
+  guard ge len w. . 180 . else return error short_workspace . . .
+  let X slice u64 subslice pt. 0 16 . .
+  let Y slice u64 subslice pt. 16 32 . .
+  let Z slice u64 subslice pt. 32 48 . .
+  rem delta = Z², gamma = Y², beta = X·gamma
+  set sk. pmul_by wt. limbw. subslice w. 0 16 . Z. Z. p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. pmul_by wt. limbw. subslice w. 16 32 . Y. Y. p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. pmul_by wt. limbw. subslice w. 32 48 . X. subslice w. 16 32 . p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  rem alpha = 3·(X − delta)·(X + delta)
+  set sk. msub_by wt. limbw. subslice w. 48 64 . X. subslice w. 0 16 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 64 80 . X. subslice w. 0 16 . p. . .
+  set sk. pmul_by wt. limbw. subslice w. 80 96 . subslice w. 48 64 . subslice w. 64 80 . p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. madd_by wt. limbw. subslice w. 96 112 . subslice w. 80 96 . subslice w. 80 96 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 96 112 . subslice w. 96 112 . subslice w. 80 96 . p. . .
+  rem X' = alpha² − 8·beta
+  set sk. pmul_by wt. limbw. subslice w. 112 128 . subslice w. 96 112 . subslice w. 96 112 . p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. madd_by wt. limbw. subslice w. 128 144 . subslice w. 32 48 . subslice w. 32 48 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 128 144 . subslice w. 128 144 . subslice w. 128 144 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 128 144 . subslice w. 128 144 . subslice w. 128 144 . p. . .
+  set sk. msub_by wt. limbw. subslice o. 0 16 . subslice w. 112 128 . subslice w. 128 144 . p. . .
+  rem Z' = (Y + Z)² − gamma − delta
+  set sk. madd_by wt. limbw. subslice w. 48 64 . Y. Z. p. . .
+  set sk. pmul_by wt. limbw. subslice w. 64 80 . subslice w. 48 64 . subslice w. 48 64 . p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. msub_by wt. limbw. subslice w. 64 80 . subslice w. 64 80 . subslice w. 16 32 . p. . .
+  set sk. msub_by wt. limbw. subslice o. 32 48 . subslice w. 64 80 . subslice w. 0 16 . p. . .
+  rem Y' = alpha·(4·beta − X') − 8·gamma²
+  set sk. madd_by wt. limbw. subslice w. 48 64 . subslice w. 32 48 . subslice w. 32 48 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 48 64 . subslice w. 48 64 . subslice w. 48 64 . p. . .
+  set sk. msub_by wt. limbw. subslice w. 48 64 . subslice w. 48 64 . subslice o. 0 16 . p. . .
+  set sk. pmul_by wt. limbw. subslice w. 64 80 . subslice w. 96 112 . subslice w. 48 64 . p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. pmul_by wt. limbw. subslice w. 80 96 . subslice w. 16 32 . subslice w. 16 32 . p. r2. n0i. subslice w. 144 162 . subslice w. 162 180 . . .
+  set sk. madd_by wt. limbw. subslice w. 80 96 . subslice w. 80 96 . subslice w. 80 96 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 80 96 . subslice w. 80 96 . subslice w. 80 96 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 80 96 . subslice w. 80 96 . subslice w. 80 96 . p. . .
+  set sk. msub_by wt. limbw. subslice o. 16 32 . subslice w. 64 80 . subslice w. 80 96 . p. . .
+  return ok 1 . .
+end .
+
+rem (짝) `is_zero` 을 고른 폭으로.
+export fn is_zero_by input comptime wt type . input limbw wt . input a slice u64 . output u64 . requires bigwidth.width wt. . . do
+  return method limbw. is_zero. a. 32 . .
+end .
+
+rem (짝) `padd` 을 고른 폭으로.
+export proc padd_by input comptime wt type . input limbw wt . input o mut slice u64 . input pa slice u64 . input pb slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  rem 버리는 답은 받이 하나(`sk`)에 받는다 — 받이마다 지역을 두면 32 를 넘어 태그 경로로 떨어진다(X-0050)
+  var sk u64 0 .
+  guard ge len w. . 300 . else return error short_workspace . . .
+  if eq is_zero_by wt. limbw. subslice pa. 32 48 . . 1 . do  return ok copy48 o. pb. . . .  end .
+  if eq is_zero_by wt. limbw. subslice pb. 32 48 . . 1 . do  return ok copy48 o. pa. . . .  end .
+  let T slice u64 subslice w. 264 282 . .
+  let U slice u64 subslice w. 282 300 . .
+  rem Z1Z1 = Z1² (w0) · Z2Z2 = Z2² (w1)
+  set sk. pmul_by wt. limbw. subslice w. 0 16 . subslice pa. 32 48 . subslice pa. 32 48 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 16 32 . subslice pb. 32 48 . subslice pb. 32 48 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  rem U1 = X1·Z2Z2 (w2) · U2 = X2·Z1Z1 (w3)
+  set sk. pmul_by wt. limbw. subslice w. 32 48 . subslice pa. 0 16 . subslice w. 16 32 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 48 64 . subslice pb. 0 16 . subslice w. 0 16 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  rem S1 = Y1·Z2·Z2Z2 (w4) · S2 = Y2·Z1·Z1Z1 (w5)
+  set sk. pmul_by wt. limbw. subslice w. 64 80 . subslice pa. 16 32 . subslice pb. 32 48 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 64 80 . subslice w. 64 80 . subslice w. 16 32 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 80 96 . subslice pb. 16 32 . subslice pa. 32 48 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 80 96 . subslice w. 80 96 . subslice w. 0 16 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  rem H = U2 − U1 (w6) · r = 2(S2 − S1) (w7)
+  set sk. msub_by wt. limbw. subslice w. 96 112 . subslice w. 48 64 . subslice w. 32 48 . p. . .
+  set sk. msub_by wt. limbw. subslice w. 112 128 . subslice w. 80 96 . subslice w. 64 80 . p. . .
+  rem ★ H = 0 이면 같은 x 다: r 도 0 이면 같은 점(두 배), 아니면 서로의 역(무한원점).
+  if eq is_zero_by wt. limbw. subslice w. 96 112 . . 1 . do
+    if eq is_zero_by wt. limbw. subslice w. 112 128 . . 1 . do
+      return pdbl_by wt. limbw. o. pa. p. r2. n0i. w. . .
+    end .
+    var zi usize 0 .
+    while lt zi. 48 . do  set idx o. zi. . 0 .  set zi. add zi. 1 . .  end .
+    return ok 1 . .
+  end .
+  set sk. madd_by wt. limbw. subslice w. 112 128 . subslice w. 112 128 . subslice w. 112 128 . p. . .
+  rem I = (2H)² (w8) · J = H·I (w9) · V = U1·I (w10)
+  set sk. madd_by wt. limbw. subslice w. 128 144 . subslice w. 96 112 . subslice w. 96 112 . p. . .
+  set sk. pmul_by wt. limbw. subslice w. 128 144 . subslice w. 128 144 . subslice w. 128 144 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 144 160 . subslice w. 96 112 . subslice w. 128 144 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 160 176 . subslice w. 32 48 . subslice w. 128 144 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  rem X3 = r² − J − 2V
+  set sk. pmul_by wt. limbw. subslice w. 176 192 . subslice w. 112 128 . subslice w. 112 128 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. msub_by wt. limbw. subslice w. 176 192 . subslice w. 176 192 . subslice w. 144 160 . p. . .
+  set sk. madd_by wt. limbw. subslice w. 192 208 . subslice w. 160 176 . subslice w. 160 176 . p. . .
+  set sk. msub_by wt. limbw. subslice w. 208 224 . subslice w. 176 192 . subslice w. 192 208 . p. . .
+  rem Y3 = r·(V − X3) − 2·S1·J
+  set sk. msub_by wt. limbw. subslice w. 224 240 . subslice w. 160 176 . subslice w. 208 224 . p. . .
+  set sk. pmul_by wt. limbw. subslice w. 224 240 . subslice w. 112 128 . subslice w. 224 240 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. pmul_by wt. limbw. subslice w. 240 256 . subslice w. 64 80 . subslice w. 144 160 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. madd_by wt. limbw. subslice w. 240 256 . subslice w. 240 256 . subslice w. 240 256 . p. . .
+  set sk. msub_by wt. limbw. subslice w. 224 240 . subslice w. 224 240 . subslice w. 240 256 . p. . .
+  rem Z3 = ((Z1+Z2)² − Z1Z1 − Z2Z2)·H
+  set sk. madd_by wt. limbw. subslice w. 240 256 . subslice pa. 32 48 . subslice pb. 32 48 . p. . .
+  set sk. pmul_by wt. limbw. subslice w. 240 256 . subslice w. 240 256 . subslice w. 240 256 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  set sk. msub_by wt. limbw. subslice w. 240 256 . subslice w. 240 256 . subslice w. 0 16 . p. . .
+  set sk. msub_by wt. limbw. subslice w. 240 256 . subslice w. 240 256 . subslice w. 16 32 . p. . .
+  set sk. pmul_by wt. limbw. subslice w. 240 256 . subslice w. 240 256 . subslice w. 96 112 . p. r2. n0i. subslice w. 264 282 . subslice w. 282 300 . . .
+  rem 이제서야 o 에 쓴다 — pa/pb 와 겹쳐도 안전하도록 **읽기를 다 끝낸 뒤**다.
+  var c usize 0 .
+  while lt c. 16 . do
+    set idx o. c. . idx w. add 208 c. . . .
+    set idx o. add 16 c. . . idx w. add 224 c. . . .
+    set idx o. add 32 c. . . idx w. add 240 c. . . .
+    set c. add c. 1 . .
+  end .
+  return ok 1 . .
+end .
+
+rem (짝) `smul` 을 고른 폭으로.
+export proc smul_by input comptime wt type . input limbw wt . input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  guard ge len w. . 396 . else return error short_workspace . . .
+  var zi usize 0 .
+  while lt zi. 48 . do  set idx acc. zi. . 0 .  set zi. add zi. 1 . .  end .
+  var bi u64 256 .
+  var done u64 0 .
+  while eq done. 0 . do
+    set bi. sub bi. 1 . .
+    let d_r result u64 p256_error pdbl_by wt. limbw. subslice w. 0 48 . acc. p. r2. n0i. subslice w. 96 396 . . .
+    guard is_ok d_r. . else return error short_workspace . . .
+    let d u64 ok_value d_r. . .
+    let c u64 copy48 acc. subslice w. 0 48 . . .
+    if eq method limbw. bit. k. cast usize bi. . . 1 . do
+      let a_r result u64 p256_error padd_by wt. limbw. subslice w. 48 96 . acc. pt. p. r2. n0i. subslice w. 96 396 . . .
+      guard is_ok a_r. . else return error short_workspace . . .
+      let a u64 ok_value a_r. . .
+      let c2 u64 copy48 acc. subslice w. 48 96 . . .
+    end .
+    if eq bi. 0 . do  set done. 1 .  end .
+  end .
+  return ok 1 . .
+end .
+
+rem (짝) `smul_ct` 을 고른 폭으로.
+export proc smul_ct_by input comptime wt type . input limbw wt . input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  guard ge len w. . 396 . else return error short_workspace . . .
+  var zi usize 0 .
+  while lt zi. 48 . do  set idx acc. zi. . 0 .  set zi. add zi. 1 . .  end .
+  var bi u64 256 .
+  var done u64 0 .
+  while eq done. 0 . do
+    set bi. sub bi. 1 . .
+    let d_r result u64 p256_error pdbl_by wt. limbw. subslice w. 0 48 . acc. p. r2. n0i. subslice w. 96 396 . . .
+    guard is_ok d_r. . else return error short_workspace . . .
+    let d u64 ok_value d_r. . .
+    rem ★ 덧셈을 **언제나** 한다 — 비트를 보고 하지 않는다.
+    let a_r result u64 p256_error padd_by wt. limbw. subslice w. 48 96 . subslice w. 0 48 . pt. p. r2. n0i. subslice w. 96 396 . . .
+    guard is_ok a_r. . else return error short_workspace . . .
+    let a u64 ok_value a_r. . .
+    let kbit u64 method limbw. bit. k. cast usize bi. . . .
+    let c u64 csel48 acc. subslice w. 0 48 . subslice w. 48 96 . kbit. . .
+    if eq bi. 0 . do  set done. 1 .  end .
+  end .
+  return ok 1 . .
+end .
+
+rem (짝) `ecdsa_verify` 을 고른 폭으로.
+export proc ecdsa_verify_by input comptime wt type . input limbw wt . input r slice u64 . input s slice u64 . input e slice u64 . input pub slice u64 .
+     input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
+     input w mut slice u64 . output result u64 p256_error . effects none . requires bigwidth.width wt. . .
+errors short_workspace . do
+  rem ☞ **작업 공간은 924 조각이면 족하다.** 처음엔 1400 을 요구했는데, 그러면
+  rem   `--run` 의 배열 인자 상한(8192 바이트 = u64 1024)을 넘어 시험이 못 돈다.
+  rem   자리를 겹치지 않게 다시 짜서 924 로 줄였다 — 넉넉함은 공짜가 아니다.
+  guard ge len w. . 924 . else return error short_workspace . . .
+  rem ① r, s 가 [1, n−1] 인가
+  guard eq is_zero_by wt. limbw. r. . 0 . else return ok 0 . . .
+  guard eq is_zero_by wt. limbw. s. . 0 . else return ok 0 . . .
+  guard eq method limbw. ge_mod. r. n. 32 . 0 . else return ok 0 . . .
+  guard eq method limbw. ge_mod. s. n. 32 . 0 . else return ok 0 . . .
+
+  let n0p u64 method limbw. n0inv. p. . .
+  let n0n u64 method limbw. n0inv. n. . .
+  rem R² — p 쪽(w 0..16)과 n 쪽(w 16..32)을 따로 만든다.
+  guard eq make_r2_by wt. limbw. subslice w. 0 16 . p. . 1 . else return ok 0 . . .
+  guard eq make_r2_by wt. limbw. subslice w. 16 32 . n. . 1 . else return ok 0 . . .
+
+  rem ② winv = s^-1 mod n · u1 = e·winv · u2 = r·winv
+  let _u0 result u64 p256_error minv_by wt. limbw. subslice w. 32 48 . s. n. subslice w. 780 888 . . .
+  guard is_ok _u0. . else return error short_workspace . . .
+  guard eq ok_value _u0. . 1 . else return ok 0 . . .
+  guard eq pmul_by wt. limbw. subslice w. 48 64 . e. subslice w. 32 48 . n. subslice w. 16 32 . n0n. subslice w. 888 906 . subslice w. 906 924 . . 1 . else return ok 0 . . .
+  guard eq pmul_by wt. limbw. subslice w. 64 80 . r. subslice w. 32 48 . n. subslice w. 16 32 . n0n. subslice w. 888 906 . subslice w. 906 924 . . 1 . else return ok 0 . . .
+
+  rem ③ G 와 Q 를 야코비 점으로(Z=1)
+  var i usize 0 .
+  while lt i. 16 . do
+    set idx w. add 80 i. . . idx gx. i. . .
+    set idx w. add 96 i. . . idx gy. i. . .
+    set idx w. add 112 i. . . 0 .
+    set idx w. add 128 i. . . idx pub. i. . .
+    set idx w. add 144 i. . . idx pub. add 16 i. . . .
+    set idx w. add 160 i. . . 0 .
+    set i. add i. 1 . .
+  end .
+  set idx w. 112 . 1 .
+  set idx w. 160 . 1 .
+
+  rem ④ R = u1·G + u2·Q
+  let _u1 result u64 p256_error smul_by wt. limbw. subslice w. 176 224 . subslice w. 48 64 . subslice w. 80 128 . p. subslice w. 0 16 . n0p. subslice w. 384 780 . . .
+  guard is_ok _u1. . else return error short_workspace . . .
+  guard eq ok_value _u1. . 1 . else return ok 0 . . .
+  let _u2 result u64 p256_error smul_by wt. limbw. subslice w. 224 272 . subslice w. 64 80 . subslice w. 128 176 . p. subslice w. 0 16 . n0p. subslice w. 384 780 . . .
+  guard is_ok _u2. . else return error short_workspace . . .
+  guard eq ok_value _u2. . 1 . else return ok 0 . . .
+  let _u3 result u64 p256_error padd_by wt. limbw. subslice w. 272 320 . subslice w. 176 224 . subslice w. 224 272 . p. subslice w. 0 16 . n0p. subslice w. 384 684 . . .
+  guard is_ok _u3. . else return error short_workspace . . .
+  guard eq ok_value _u3. . 1 . else return ok 0 . . .
+  rem 무한원점이면 거짓이다 — 여기서 참을 내면 **아무 서명이나 통과**한다.
+  guard eq is_zero_by wt. limbw. subslice w. 304 320 . . 0 . else return ok 0 . . .
+
+  rem ⑤ R 을 아핀으로: x = X/Z²
+  let _u4 result u64 p256_error minv_by wt. limbw. subslice w. 320 336 . subslice w. 304 320 . p. subslice w. 780 888 . . .
+  guard is_ok _u4. . else return error short_workspace . . .
+  guard eq ok_value _u4. . 1 . else return ok 0 . . .
+  guard eq pmul_by wt. limbw. subslice w. 336 352 . subslice w. 320 336 . subslice w. 320 336 . p. subslice w. 0 16 . n0p. subslice w. 888 906 . subslice w. 906 924 . . 1 . else return ok 0 . . .
+  guard eq pmul_by wt. limbw. subslice w. 352 368 . subslice w. 272 288 . subslice w. 336 352 . p. subslice w. 0 16 . n0p. subslice w. 888 906 . subslice w. 906 924 . . 1 . else return ok 0 . . .
+
+  rem ⑥ x mod n 이 r 과 같은가. x < p 이고 n < p 이므로 한 번 빼면 족하다.
+  var c usize 0 .
+  while lt c. 16 . do  set idx w. add 368 c. . . idx w. add 352 c. . . .  set c. add c. 1 . .  end .
+  if eq method limbw. ge_mod. subslice w. 368 384 . n. 32 . 1 . do
+    let z u64 msub_by wt. limbw. subslice w. 368 384 . subslice w. 368 384 . n. n. . .
+  end .
+  rem 비교는 XOR 누적 — 조기 반환이 없다.
+  guard eq method limbw. equal. subslice w. 368 384 . r. 32 . 1 . else return ok 0 . . .
   return ok 1 . .
 end .

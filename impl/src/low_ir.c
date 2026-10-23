@@ -877,6 +877,7 @@ static proven_u8 ir_region_root(proven_u8str_view_t n) {
     c->locals[c->nlocals].narrowed = (proven_u8str_view_t){0};   // ★ 새 지역은 안 좁혀짐(RFC-0080 §4.6)
     c->locals[c->nlocals].cname = (proven_u8str_view_t){0};
     c->locals[c->nlocals].isview = false;
+    c->locals[c->nlocals].tymod = (proven_u8str_view_t){0};   // ★ RFC-0152 — 타입의 모듈은 바인딩이 실어 준다
     return c->nlocals++;
 }
 
@@ -1484,6 +1485,30 @@ static bool ir_bare_is_ambiguous(ir_ctx_t *c, proven_u8str_view_t name,
         if (proven_u8str_view_eq(head, c->usebind[m]))
             return (proven_u8str_view_t){ .ptr = v.ptr + dot + 1, .size = v.size - dot - 1 };
     return v;
+}
+// ★★ RFC-0152 (2026-10-24) — 타입 낱말이 **어느 모듈의 타입인가**: 검사층이 좁힌 한정(`qual_mod`), 아니면 `M.Type` 의 머리(M 이 모듈일 때).
+//   별칭 머리(`use M as N`)와 맨 낱말은 비운다 — 모르면 모른다고 둔다(찾는 쪽이 옛 규칙으로 돌아간다).
+proven_u8str_view_t ir_type_mod(ir_ctx_t *c, const low_cst_t *a) {
+    if (!a || a->kind != LOW_CST_ATOM) return (proven_u8str_view_t){ 0 };
+    if (a->qual_mod.size) return a->qual_mod;
+    proven_u8str_view_t v = a->tok.lex;
+    proven_size_t dot = v.size, ndot = 0;
+    for (proven_size_t i = 0; i < v.size; i++)
+        if (v.ptr[i] == (proven_u8)'.') { if (dot == v.size) dot = i; ndot++; }
+    if (ndot != 1 || dot == 0 || dot + 1 >= v.size) return (proven_u8str_view_t){ 0 };
+    proven_u8str_view_t head = { .ptr = v.ptr, .size = dot };
+    for (proven_size_t m = 0; m < c->nmodnames; m++)
+        if (proven_u8str_view_eq(head, c->modnames[m])) return head;
+    return (proven_u8str_view_t){ 0 };
+}
+// ★★ RFC-0152 (2026-10-24) — `<타입>.<op>` 을 **그 타입의 모듈에서** 찾는다. 세 모듈(`bigint16/32/64`)이 같은 이름의 타입 `limb` 과 같은 이름의 op
+//   `limb.limbs` 를 두면, 이름만으로는 맨 앞의 것(`bigint16`)이 잡혔다 — `bigint64.limb` 값으로 `method x. limbs. 32` 를 불러도 16 이 나왔다.
+//   폭을 고르는 길(`rsa.verify_pss_by` · 곡선의 `_by`)이 한 단위에 세 폭 모듈이 있으면 **늘 16 비트 조각으로** 돌았다(답은 맞고 폭만 틀렸다).
+proven_size_t ir_def_find_mod(ir_ctx_t *c, proven_u8str_view_t name, proven_u8str_view_t mod, bool *found) {
+    if (mod.size)
+        for (proven_size_t i = 0; i < c->out->ndefs; i++)
+            if (proven_u8str_view_eq(c->out->defs[i].name, name) && proven_u8str_view_eq(c->out->defs[i].owner_mod, mod)) { *found = true; return i; }
+    return ir_def_find_in(c, name, found);
 }
 // ★★★ **없는 이름은 그 이름을 댄다** (2026-09-14 — 공개 전 점검). 전엔 `E-IR-UNDEF: undefined name in expression`
 //   한 줄이라, 처음 쓰는 사람은 **무엇이** 없는지 몰랐다(`strings.count_byte` 처럼 모듈에 없는 op 을 부른 흔한 실수).
@@ -4196,7 +4221,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     memcpy(nb, tnm.ptr, tnm.size); nb[tnm.size] = '.';
                     memcpy(nb + tnm.size + 1, mn3.ptr, mn3.size);
                     proven_u8str_view_t qn6 = { .ptr = nb, .size = tnm.size + 1 + mn3.size };
-                    bool qf6; proven_size_t di6 = ir_def_find_in(c, qn6, &qf6);
+                    // ★ RFC-0152 — 마디 없이 지역 · 입력이 바로 받는 쪽이면 그 타입의 모듈에서 찾는다
+                    proven_u8str_view_t tmod6 = { 0 };
+                    if (lastw == first + 1) { bool rf6; proven_size_t rs6 = ir_local_find(c, k[first]->tok.lex, &rf6); if (rf6) tmod6 = c->locals[rs6].tymod; }
+                    bool qf6; proven_size_t di6 = ir_def_find_mod(c, qn6, tmod6, &qf6);
                     if (!qf6) {
                         ir_fail(c, "E-METHOD-UNDEF", "method not found", nd->line); return;
                     }

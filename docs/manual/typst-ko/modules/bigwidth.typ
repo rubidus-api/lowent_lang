@@ -6,7 +6,8 @@
 
 트레이트 `width` 하나만 든다. #modref("bigint16")[`bigint16`] · #modref("bigint32")[`bigint32`] · #modref("bigint64")[`bigint64`] · #modref("bigint")[`bigint`] 가
 저마다 이것을 갖춘 타입 `limb` 을 낸다 --- `bigint16.limb` 은 «16 비트 조각으로 셈한다» 는 뜻의 값이다. 큰 수를 쓰는 라이브러리 op 이 이
-트레이트를 받으면, 부르는 쪽이 *부를 때마다* 폭을 고른다.
+트레이트를 받으면, 부르는 쪽이 *부를 때마다* 폭을 고른다. 이것을 받는 op 은 #modref("rsa")[`rsa`] 의 `verify_pss_by` · `verify_pkcs1_by`, 그리고 2026-10-24 부터 큰 수를 셈하는 곡선 op 마다의
+`_by` 짝이다(#modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ed25519")[`ed25519`] · #modref("ecdsa")[`ecdsa`] --- 손으로 쓴 op 에서 `scripts/gen-curve-by.py` 가 낸다).
 
 ```text
 proc verify_pss_by input comptime wt type . input lw wt . … requires bigwidth.width wt. . .

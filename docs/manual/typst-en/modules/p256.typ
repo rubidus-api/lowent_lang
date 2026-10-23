@@ -30,6 +30,7 @@ on the public web --- the ecosystem decides, not the maths. Signature *generatio
   [`smul`], [Scalar multiplication `[k]P` --- for public scalars],
   [`smul_ct`], [Scalar multiplication --- for secret scalars, choosing by mask without branches],
   [`ecdsa_verify`], [Does signature `(r, s)` match hash `e` and the public key],
+  [`<op>_by`], [Each op above, the same *at a chosen limb width* --- a width type and its value first (`bigint32.limb. w.` · #modref("bigwidth")[`bigwidth`]); limb arrays passed in are built at that width (`bigint32.from_bytes`). Generated from the ops above (`scripts/gen-curve-by.py`)],
 )
 
 Curve constants (p · n · Gx · Gy) are passed in by the caller.

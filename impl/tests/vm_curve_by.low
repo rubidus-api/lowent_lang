@@ -1,0 +1,240 @@
+rem RFC-0152 §8-5 (2026-10-24) — 곡선 op 을 **부를 때마다 고른 폭으로**(`_by` 짝, `scripts/gen-curve-by.py` 가 낸다).
+rem   세 폭(`bigint16/32/64`)으로 부른 짝이 기계의 폭으로 부른 원래 op 과 같은 답을 내는가:
+rem   ① P-256 서명 — RFC 6979 §A.2.5 의 벡터(메시지 "sample")의 r · s 첫 4 바이트, 그리고 낸 서명을 검증하는가 · 한 비트 바꾸면 거절하는가
+rem   ② P-384 검증 — 파이썬(`cryptography`)이 지은 키와 서명(SHA-384, 메시지 "lowent curve by")을 받는가 · 한 비트 바꾸면 거절하는가
+rem   ③ Ed25519 검증 — 파이썬이 RFC 8032 시험 1 의 키로 낸 서명(같은 메시지)을 받는가 · 한 비트 바꾸면 거절하는가
+rem   넘기는 조각 배열은 **그 폭으로** 만든다(`method lw. from_bytes.`) — 다른 폭으로 만든 배열은 다른 수다.
+rem   ☞ 입구 넷은 `go` 가 20261024 일 때만 셈한다 — 차등 훑기는 op 마다 VM 한 번에 20 초를 주는데, 이 셈은 VM 에서 그보다 길다(64 비트 42 초).
+rem     훑기가 흔드는 값에서는 0 을 바로 돌려주고(두 뒤끝이 같은 답), 셈 전체는 골든이 두 뒤끝에서 견준다.
+module vm_curve_by .
+use bigwidth from "../../lib/bigwidth.low" .
+use bigint16 from "../../lib/bigint16.low" .
+use bigint32 from "../../lib/bigint32.low" .
+use bigint64 from "../../lib/bigint64.low" .
+use bigint from "../../lib/bigint.low" .
+use p256 from "../../lib/p256.low" .
+use p384 from "../../lib/p384.low" .
+use ecdsa from "../../lib/ecdsa.low" .
+use ed25519 from "../../lib/ed25519.low" .
+use codec from "../../lib/codec.low" .
+
+rem 16진 → 바이트 `nb` 개 → 고른 폭의 수. 실패는 0.
+proc num_by input comptime wt type . input lw wt . input hexs slice u8 . input nb usize . input out mut slice u64 . input w mut slice u8 .
+     output usize . effects none . requires bigwidth.width wt. . . do
+  guard ge len w. . nb. . else return 0 . .
+  let d option usize codec.hex_dec hexs. subslice w. 0 nb. . . .
+  guard is_some d. . else return 0 . .
+  return method lw. from_bytes. subslice w. 0 nb. . out. nb. . .
+end .
+
+fn head4 input b slice u8 . input at usize . output u64 . do
+  var acc u64 0 .
+  var i usize 0 .
+  while lt i. 4 . do
+    set acc. bit_or shl acc. 8 . cast u64 idx b. add at. i. . . . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
+
+rem ① P-256: 서명하고(r · s 의 첫 4 바이트를 `rs` 에) 검증한다. `flip` 이 1 이면 검증 전에 s 의 끝 비트를 바꾼다. 답 = 검증의 답.
+proc p256_by input comptime wt type . input lw wt . input rs mut slice u8 . input flip u64 . output u64 . effects none . requires bigwidth.width wt. . . do
+  var wb lit array u8 640 _ . .
+  var wu lit array u64 1016 _ . .
+  var vw lit array u64 924 _ . .
+  guard eq num_by wt. lw. "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" 32 subslice wu. 0 16 . wb. . 32 . else return 0 . .
+  guard eq num_by wt. lw. "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" 32 subslice wu. 16 32 . wb. . 32 . else return 0 . .
+  guard eq num_by wt. lw. "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" 32 subslice wu. 32 48 . wb. . 32 . else return 0 . .
+  guard eq num_by wt. lw. "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" 32 subslice wu. 48 64 . wb. . 32 . else return 0 . .
+  let dh option usize codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wb. 0 32 . . .
+  guard is_some dh. . else return 0 . .
+  let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 32 64 . . .
+  guard is_some hh. . else return 0 . .
+  let sr result u64 ecdsa.ecdsa_error ecdsa.sign_by wt. lw. subslice wb. 0 32 . subslice wb. 32 64 . subslice wu. 0 16 . subslice wu. 16 32 . subslice wu. 32 48 . subslice wu. 48 64 . rs. subslice wb. 64 640 . subslice wu. 64 1016 . . .
+  guard is_ok sr. . else return 0 . .
+  guard eq ok_value sr. . 64 . else return 0 . .
+  if eq flip. 1 . do  set idx rs. 63 . cast u8 bit_xor cast u64 idx rs. 63 . . 1 . . .  end .
+  guard eq method lw. from_bytes. subslice rs. 0 32 . subslice wu. 64 80 . 32 . 32 . else return 0 . .
+  guard eq method lw. from_bytes. subslice rs. 32 64 . subslice wu. 80 96 . 32 . 32 . else return 0 . .
+  guard eq method lw. from_bytes. subslice wb. 32 64 . subslice wu. 96 112 . 32 . 32 . else return 0 . .
+  guard eq num_by wt. lw. "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" 32 subslice wu. 112 128 . wb. . 32 . else return 0 . .
+  guard eq num_by wt. lw. "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" 32 subslice wu. 128 144 . wb. . 32 . else return 0 . .
+  let vr result u64 p256.p256_error p256.ecdsa_verify_by wt. lw. subslice wu. 64 80 . subslice wu. 80 96 . subslice wu. 96 112 . subslice wu. 112 144 . subslice wu. 0 16 . subslice wu. 16 32 . subslice wu. 32 48 . subslice wu. 48 64 . vw. . .
+  guard is_ok vr. . else return 0 . .
+  return ok_value vr. . .
+end .
+
+rem ② P-384: 파이썬이 낸 서명을 검증한다.
+proc p384_by input comptime wt type . input lw wt . input flip u64 . output u64 . effects none . requires bigwidth.width wt. . . do
+  var wb lit array u8 64 _ . .
+  var wu lit array u64 1600 _ . .
+  guard eq num_by wt. lw. "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" 48 subslice wu. 0 24 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" 48 subslice wu. 24 48 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" 48 subslice wu. 48 72 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" 48 subslice wu. 72 96 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "80f9fed7939811732dd82534b364e0df764d1d3cd88a68efb034e08a194c8f2f14ed71279ed0c3e639f5c5c0f74496bb" 48 subslice wu. 96 120 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "c50d5d920cb4eacdb3992afcec73ded920134a789f103890eb83cc74cdaf91047529e1af562503b58a1130247cb006d6" 48 subslice wu. 120 144 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "f60805dcbc526db999040b03c915ead1ab62384d3dd066fa965b90e17a8b9cf6ae8f639b3e4aa4b47768783add62056d" 48 subslice wu. 144 168 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "5791dda2be193b4360914634252bab32a0286fae205c409cd0eeff3ae57a79b4d2d74ba28eb3f34e393042417fa3c63c" 48 subslice wu. 168 192 . wb. . 48 . else return 0 . .
+  guard eq num_by wt. lw. "6494360fa2fb5d943e895b4bd8f7030f63647eb90e346f9a20dee44f1bfe4b67134a8e3a26b807846cecde27e647b92a" 48 subslice wu. 192 216 . wb. . 48 . else return 0 . .
+  if eq flip. 1 . do  set idx wu. 120 . bit_xor idx wu. 120 . 1 . .  end .
+  let pr result u64 p384.p384_error p384.ecdsa_ok_by wt. lw. subslice wu. 96 120 . subslice wu. 120 144 . subslice wu. 144 168 . subslice wu. 168 216 . subslice wu. 0 24 . subslice wu. 24 48 . subslice wu. 48 72 . subslice wu. 72 96 . subslice wu. 216 1580 . . .
+  guard is_ok pr. . else return 0 . .
+  return ok_value pr. . .
+end .
+
+rem ③ Ed25519: 파이썬이 낸 서명을 검증한다.
+proc ed_by input comptime wt type . input lw wt . input flip u64 . output u64 . effects none . requires bigwidth.width wt. . . do
+  var kb lit array u8 160 _ . .
+  var sc lit array u8 160 _ . .
+  var bb lit array u8 320 _ . .
+  var w lit array u64 1004 _ . .
+  let a option usize codec.hex_dec "47ad8c53f0b212cf5fb1ceb7dfc4c0a506b030de1b3fef79c6ff99262e96e2ef9ff99990730435d74decb2fe745c3ed6a39eec7b5fdc5d5bed947dcfa93f8108" subslice kb. 0 64 . . .
+  guard is_some a. . else return 0 . .
+  let b option usize codec.hex_dec "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a" subslice kb. 64 96 . . .
+  guard is_some b. . else return 0 . .
+  let c option usize codec.hex_dec "6c6f77656e74206375727665206279" subslice kb. 96 111 . . .
+  guard is_some c. . else return 0 . .
+  if eq flip. 1 . do  set idx kb. 63 . cast u8 bit_xor cast u64 idx kb. 63 . . 1 . . .  end .
+  let r result u64 ed25519.ed25519_error ed25519.verify_by wt. lw. subslice kb. 0 64 . subslice kb. 64 96 . subslice kb. 96 111 . sc. bb. w. . .
+  guard is_ok r. . else return 0 . .
+  return ok_value r. . .
+end .
+
+rem 한 줄 요약: 세 곡선 × (받음 · 거절) 을 비트로 — 받음은 1, 거절은 0 이어야 하므로 기대값은 0b010101 = 21. P-256 r · s 의 머리는 따로.
+proc all_by input comptime wt type . input lw wt . output u64 . effects none . requires bigwidth.width wt. . . do
+  var rs lit array u8 64 _ . .
+  let a u64 p256_by wt. lw. rs. 0 . .
+  guard eq head4 rs. 0 . 4023683882 . else return 100 . .
+  guard eq head4 rs. 32 . 4157283476 . else return 101 . .
+  let b u64 p256_by wt. lw. rs. 1 . .
+  let c u64 p384_by wt. lw. 0 . .
+  let d u64 p384_by wt. lw. 1 . .
+  let e u64 ed_by wt. lw. 0 . .
+  let f u64 ed_by wt. lw. 1 . .
+  return add add add add add mul a. 1 . mul b. 2 . . mul c. 4 . . mul d. 8 . . mul e. 16 . . mul f. 32 . . .
+end .
+
+export proc w16 input go u64 . output u64 . effects none . do
+  guard eq go. 20261024 . else return 0 . .
+  let x lit bigint16.limb do tag 0 . end . .
+  return all_by bigint16.limb. x. . .
+end .
+export proc w32 input go u64 . output u64 . effects none . do
+  guard eq go. 20261024 . else return 0 . .
+  let x lit bigint32.limb do tag 0 . end . .
+  return all_by bigint32.limb. x. . .
+end .
+export proc w64 input go u64 . output u64 . effects none . do
+  guard eq go. 20261024 . else return 0 . .
+  let x lit bigint64.limb do tag 0 . end . .
+  return all_by bigint64.limb. x. . .
+end .
+export proc wauto input go u64 . output u64 . effects none . do
+  guard eq go. 20261024 . else return 0 . .
+  let x lit bigint.limb do tag 0 . end . .
+  return all_by bigint.limb. x. . .
+end .
+
+rem ④ 짝 하나하나를 **바로** 부른다(공개 틀 op 은 시험이 불러야 그 몸이 검사된다 — `check-generic-coverage`). 기계의 폭(`bigint.limb`)에서
+rem   짝이 원래 op 과 같은 칸을 내는가. 같으면 0, 다르면 그 차례의 수를 돌려준다. 입력은 P-256 의 상수(아무 수여도 된다 — 둘에 같은 것을 준다).
+fn same input a slice u64 . input b slice u64 . input n usize . output u64 . do
+  var i usize 0 .
+  while lt i. n. . do
+    guard eq idx a. i. . idx b. i. . . else return 1 . .
+    set i. add i. 1 . .
+  end .
+  return 0 .
+end .
+fn same8 input a slice u8 . input b slice u8 . input n usize . output u64 . do
+  var i usize 0 .
+  while lt i. n. . do
+    guard eq idx a. i. . idx b. i. . . else return 1 . .
+    set i. add i. 1 . .
+  end .
+  return 0 .
+end .
+proc twins_pt input c slice u64 . input a mut slice u64 . input b mut slice u64 . input w mut slice u64 . output u64 . effects none . do
+  let x lit bigint.limb do tag 0 . end . .
+  let p slice u64 subslice c. 0 16 . .
+  let r2 slice u64 subslice c. 64 80 . .
+  let n0i u64 bigint.n0inv p. . .
+  rem 점(x ‖ y ‖ z) — z 는 R² 칸을 그대로 쓴다
+  let pt slice u64 subslice c. 32 80 . .
+  let d1 result u64 p256.p256_error p256.pdbl subslice a. 0 48 . pt. p. r2. n0i. w. . .
+  let d2 result u64 p256.p256_error p256.pdbl_by bigint.limb. x. subslice b. 0 48 . pt. p. r2. n0i. w. . .
+  guard is_ok d1. . else return 20 . .
+  guard is_ok d2. . else return 21 . .
+  guard eq same subslice a. 0 48 . subslice b. 0 48 . 48 . 0 . else return 22 . .
+  let e1 result u64 p256.p256_error p256.padd subslice a. 48 96 . subslice a. 0 48 . pt. p. r2. n0i. w. . .
+  let e2 result u64 p256.p256_error p256.padd_by bigint.limb. x. subslice b. 48 96 . subslice b. 0 48 . pt. p. r2. n0i. w. . .
+  guard and is_ok e1. . is_ok e2. . . else return 23 . .
+  guard eq same subslice a. 48 96 . subslice b. 48 96 . 48 . 0 . else return 24 . .
+  guard eq p256.is_zero subslice a. 48 96 . . p256.is_zero_by bigint.limb. x. subslice b. 48 96 . . . else return 25 . .
+  let k slice u64 subslice c. 16 32 . .
+  let f1 result u64 p256.p256_error p256.smul subslice a. 96 144 . k. pt. p. r2. n0i. w. . .
+  let f2 result u64 p256.p256_error p256.smul_by bigint.limb. x. subslice b. 96 144 . k. pt. p. r2. n0i. w. . .
+  guard and is_ok f1. . is_ok f2. . . else return 26 . .
+  guard eq same subslice a. 96 144 . subslice b. 96 144 . 48 . 0 . else return 27 . .
+  let g1 result u64 p256.p256_error p256.smul_ct subslice a. 144 192 . k. pt. p. r2. n0i. w. . .
+  let g2 result u64 p256.p256_error p256.smul_ct_by bigint.limb. x. subslice b. 144 192 . k. pt. p. r2. n0i. w. . .
+  guard and is_ok g1. . is_ok g2. . . else return 28 . .
+  guard eq same subslice a. 144 192 . subslice b. 144 192 . 48 . 0 . else return 29 . .
+  return 0 .
+end .
+export proc twins input go u64 . output u64 . effects none . do
+  guard eq go. 20261024 . else return 0 . .
+  let x lit bigint.limb do tag 0 . end . .
+  var wb lit array u8 640 _ . .
+  var c lit array u64 80 _ . .
+  var a lit array u64 192 _ . .
+  var b lit array u64 192 _ . .
+  var w lit array u64 400 _ . .
+  guard eq num_by bigint.limb. x. "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" 32 subslice c. 0 16 . wb. . 32 . else return 90 . .
+  guard eq num_by bigint.limb. x. "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" 32 subslice c. 16 32 . wb. . 32 . else return 90 . .
+  guard eq num_by bigint.limb. x. "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" 32 subslice c. 32 48 . wb. . 32 . else return 90 . .
+  guard eq num_by bigint.limb. x. "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" 32 subslice c. 48 64 . wb. . 32 . else return 90 . .
+  let p slice u64 subslice c. 0 16 . .
+  guard eq p256.limbs_by bigint.limb. x. . p256.limbs . . else return 1 . .
+  let m1 u64 p256.msub subslice a. 0 16 . subslice c. 32 48 . subslice c. 48 64 . p. . .
+  let m2 u64 p256.msub_by bigint.limb. x. subslice b. 0 16 . subslice c. 32 48 . subslice c. 48 64 . p. . .
+  guard eq same subslice a. 0 16 . subslice b. 0 16 . 16 . 0 . else return 2 . .
+  let m3 u64 p256.madd subslice a. 16 32 . subslice c. 32 48 . subslice c. 48 64 . p. . .
+  let m4 u64 p256.madd_by bigint.limb. x. subslice b. 16 32 . subslice c. 32 48 . subslice c. 48 64 . p. . .
+  guard eq same subslice a. 16 32 . subslice b. 16 32 . 16 . 0 . else return 3 . .
+  let m5 u64 p256.make_r2 subslice c. 64 80 . p. . .
+  let m6 u64 p256.make_r2_by bigint.limb. x. subslice b. 32 48 . p. . .
+  guard eq same subslice c. 64 80 . subslice b. 32 48 . 16 . 0 . else return 4 . .
+  let n0i u64 bigint.n0inv p. . .
+  let m7 u64 p256.pmul subslice a. 48 64 . subslice c. 32 48 . subslice c. 48 64 . p. subslice c. 64 80 . n0i. subslice w. 0 18 . subslice w. 18 36 . . .
+  let m8 u64 p256.pmul_by bigint.limb. x. subslice b. 48 64 . subslice c. 32 48 . subslice c. 48 64 . p. subslice c. 64 80 . n0i. subslice w. 0 18 . subslice w. 18 36 . . .
+  guard eq same subslice a. 48 64 . subslice b. 48 64 . 16 . 0 . else return 5 . .
+  let i1 result u64 p256.p256_error p256.minv subslice a. 64 80 . subslice c. 32 48 . p. w. . .
+  let i2 result u64 p256.p256_error p256.minv_by bigint.limb. x. subslice b. 64 80 . subslice c. 32 48 . p. w. . .
+  guard and is_ok i1. . is_ok i2. . . else return 6 . .
+  guard eq same subslice a. 64 80 . subslice b. 64 80 . 16 . 0 . else return 7 . .
+  let q u64 twins_pt c. a. b. w. . .
+  guard eq q. 0 . else return q. . .
+  rem ecdsa.nonce6979 · ed25519.reduce_l — 바이트를 낸다
+  let dh option usize codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wb. 0 32 . . .
+  let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 32 64 . . .
+  guard and is_some dh. . is_some hh. . . else return 91 . .
+  var o1 lit array u8 64 _ . .
+  var o2 lit array u8 64 _ . .
+  var wa lit array u8 480 _ . .
+  let k1 result u64 ecdsa.ecdsa_error ecdsa.nonce6979 subslice wb. 0 32 . subslice wb. 32 64 . subslice c. 16 32 . subslice o1. 0 32 . wa. subslice w. 0 16 . . .
+  let k2 result u64 ecdsa.ecdsa_error ecdsa.nonce6979_by bigint.limb. x. subslice wb. 0 32 . subslice wb. 32 64 . subslice c. 16 32 . subslice o2. 0 32 . wa. subslice w. 0 16 . . .
+  guard and is_ok k1. . is_ok k2. . . else return 8 . .
+  guard eq same8 o1. o2. 32 . 0 . else return 9 . .
+  guard eq ed25519.make_l subslice wb. 64 96 . . 32 . else return 92 . .
+  guard eq bigint.from_bytes_le subslice wb. 64 96 . subslice c. 64 80 . . 32 . else return 92 . .
+  let l1 result u64 ed25519.ed25519_error ed25519.reduce_l subslice o1. 32 64 . subslice wa. 0 64 . subslice c. 64 80 . subslice w. 100 140 . . .
+  let l2 result u64 ed25519.ed25519_error ed25519.reduce_l_by bigint.limb. x. subslice o2. 32 64 . subslice wa. 0 64 . subslice c. 64 80 . subslice w. 100 140 . . .
+  guard and is_ok l1. . is_ok l2. . . else return 10 . .
+  guard eq same8 subslice o1. 32 64 . subslice o2. 32 64 . 32 . 0 . else return 11 . .
+  return 0 .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

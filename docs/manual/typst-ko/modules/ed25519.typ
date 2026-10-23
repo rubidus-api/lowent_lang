@@ -24,6 +24,7 @@ Curve25519 와 *같은 소수* `p = 2^255 − 19` 위의 비틀린 에드워즈 
   caption: [`ed25519` 의 op],
   [*op*], [*하는 일*],
   [`verify`], [서명 `sig` 가 공개키 `pub` 와 메시지 `msg` 에 맞는가 --- 보통은 이것만 쓴다],
+  [`verify_by` · `reduce_l_by`], [같은 op 을 *고른 조각 폭으로* --- 맨 앞에 폭 타입과 그 값(`bigint32.limb. w.` · #modref("bigwidth")[`bigwidth`]). 넘기는 조각 배열은 그 폭으로 만든다(`bigint32.from_bytes`). 위의 op 에서 낸다(`scripts/gen-curve-by.py`)],
   [`make_d` · `make_l` · `make_base`], [곡선 상수 `d` · 위수 `L` · 기저점 `B`],
   [`eadd` · `esmul`], [점 덧셈 · 스칼라 곱],
   [`compress` · `decompress`], [점 ↔ 32 바이트 인코딩],

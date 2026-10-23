@@ -1237,7 +1237,11 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                     if (veq(f->kids[tw]->tok.lex, "view")) c->locals[slot].isview = true;   // ★ RFC-0150 §8-32 — 창: 묶어도 베끼지 않는다
                     tw++;
                 }
-                if (tw < f->nkids && is_atom(f->kids[tw])) c->locals[slot].tyname = ir_strip_mod(c, f->kids[tw]->tok.lex);
+                c->locals[slot].tymod = (proven_u8str_view_t){ 0 };
+                if (tw < f->nkids && is_atom(f->kids[tw])) {
+                    c->locals[slot].tyname = ir_strip_mod(c, f->kids[tw]->tok.lex);
+                    c->locals[slot].tymod = ir_type_mod(c, f->kids[tw]);   // ★ RFC-0152 — 메서드를 그 모듈에서 찾는다
+                }
                 c->locals[slot].cname = ir_content_word(f, 2, (be < f->nkids) ? be : f->nkids);   // RFC-0148 S2
             }
             // ★ 생성 기반 narrowing (RFC-0080 §4.6). `let b be box.val 42 .` 는 b 가 **val 임을
@@ -3880,8 +3884,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 c.locals[sl].bset_w = c.bset_w;
                 c.bset_w = 0;
                 // ★ 파라미터의 **선언 타입 이름** — 한정자(mut/owned)를 벗긴 알맹이 자리
-                if (hh.p[q].core < f->nkids && is_atom(f->kids[hh.p[q].core]))
+                c.locals[sl].tymod = (proven_u8str_view_t){ 0 };
+                if (hh.p[q].core < f->nkids && is_atom(f->kids[hh.p[q].core])) {
                     c.locals[sl].tyname = ir_strip_mod(&c, f->kids[hh.p[q].core]->tok.lex);
+                    c.locals[sl].tymod = ir_type_mod(&c, f->kids[hh.p[q].core]);   // ★ RFC-0152
+                }
                 c.locals[sl].isview = hh.p[q].is_view;   // ★ RFC-0150 §8-32
                 c.locals[sl].cname = ir_content_word(f, hh.p[q].ts, hh.p[q].te);   // RFC-0148 S2
                 if (sl < LOW_MAX_PARAMS) {                        // RFC-0055: 시그니처의 범위

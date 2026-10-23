@@ -27,6 +27,7 @@ document's job.
   caption: [Ops of `ed25519`],
   [*op*], [*What it does*],
   [`verify`], [Does signature `sig` match public key `pub` and message `msg` --- usually the only one used],
+  [`verify_by` · `reduce_l_by`], [The same op *at a chosen limb width* --- a width type and its value first (`bigint32.limb. w.` · #modref("bigwidth")[`bigwidth`]); limb arrays passed in are built at that width (`bigint32.from_bytes`). Generated from the ops above (`scripts/gen-curve-by.py`)],
   [`make_d` · `make_l` · `make_base`], [Curve constant `d` · order `L` · base point `B`],
   [`eadd` · `esmul`], [Point addition · scalar multiplication],
   [`compress` · `decompress`], [Point ↔ 32-byte encoding],

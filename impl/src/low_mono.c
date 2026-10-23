@@ -736,8 +736,8 @@ void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
 // ★★ RFC-0152 §8-10 (2026-10-23) — **평평한 읽기는 부르지 않는 제네릭 틀을 뺀다.** 나무 모드는 단형화가 틀을 빼고 인스턴스만 남기므로
 //   부르지 않는 틀은 검사기에 닿지 않는다. 평면 모드(`--flat`)는 단형화를 하지 않아 그 틀이 그대로 남았고, 검사기가 타입 매개변수
 //   (`wt`)를 타입으로 찾다 E-TYPE-UNDEF · E-BOUND-UNSAT 을 냈다 — `rsa` 에 `_by` 틀이 생기자 그것을 쓰지도 않는 `vm_sig` · `vm_x509` 가
-//   나무/평면 대조에서 빠졌다. 그 이름(맨 이름 · `<모듈>.<이름>`)이 다른 form 어디에도 낱말로 서지 않는 틀만 뺀다 — 부르는 틀은
-//   평면 모드가 여전히 못 읽고, 그것은 대조의 제외 목록이 말한다.
+//   나무/평면 대조에서 빠졌다. 틀이 아닌 form 에서 닿지 않는 틀만 뺀다 — 닿는 틀(부르는 틀)은 평면 모드가 여전히 못 읽고,
+//   그것은 대조의 제외 목록이 말한다.
 static bool mono_names_atom(const low_cst_t *nd, proven_u8str_view_t nm) {
     if (!nd) return false;
     if (nd->kind == LOW_CST_ATOM) {
@@ -750,17 +750,27 @@ static bool mono_names_atom(const low_cst_t *nd, proven_u8str_view_t nm) {
     return false;
 }
 void low_flat_drop_uncalled(low_parse_result_t *pr) {
-    proven_size_t w = 0;
-    for (proven_size_t i = 0; i < pr->nforms; i++) {
+    // ★ 2026-10-24 — **닿지 않는 틀**을 뺀다. 처음엔 «이름이 다른 form 어디에도 없는 틀» 만 뺐는데, 곡선 모듈의 `_by` 짝은 서로를
+    //   부른다(`ecdsa_verify_by` → `smul_by` → `padd_by`) — 그 틀들은 이름이 남의 틀에 서 있어 남았고, 평면 모드가 그 몸을 읽다
+    //   E-TYPE-UNDEF 를 냈다(`vm_ecdsa` · `vm_sig`). 틀이 아닌 form 에서 이름이 서는 틀부터 살리고, 산 틀이 부르는 틀을 따라 살린다.
+    proven_size_t n = pr->nforms;
+    if (!n) return;
+    bool tpl[n], live[n];
+    for (proven_size_t i = 0; i < n; i++) {
         low_cst_t *f = pr->forms[i];
-        bool drop = false;
-        if (low_is_generic_template(f) && f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM) {
-            proven_u8str_view_t nm = f->kids[1]->tok.lex;
-            drop = true;
-            for (proven_size_t j = 0; j < pr->nforms && drop; j++)
-                if (j != i && mono_names_atom(pr->forms[j], nm)) drop = false;
-        }
-        if (!drop) pr->forms[w++] = f;
+        tpl[i] = low_is_generic_template(f) && f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM;
+        live[i] = !tpl[i];
     }
+    for (bool grew = true; grew; ) {
+        grew = false;
+        for (proven_size_t i = 0; i < n; i++) {
+            if (live[i]) continue;
+            proven_u8str_view_t nm = pr->forms[i]->kids[1]->tok.lex;
+            for (proven_size_t j = 0; j < n; j++)
+                if (j != i && live[j] && mono_names_atom(pr->forms[j], nm)) { live[i] = true; grew = true; break; }
+        }
+    }
+    proven_size_t w = 0;
+    for (proven_size_t i = 0; i < n; i++) if (live[i]) pr->forms[w++] = pr->forms[i];
     pr->nforms = w;
 }

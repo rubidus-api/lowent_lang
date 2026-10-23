@@ -1,0 +1,31 @@
+rem RFC-0152 (2026-10-24) — `method x. op.` 은 받는 값의 타입이 사는 **모듈**의 op 을 부른다.
+rem   `bigint16` · `bigint32` · `bigint64` 가 모두 타입 `limb` 과 op `limb.limbs` 를 둔다. 전에는 이름만으로 찾아 맨 앞(`bigint16`)이 잡혀,
+rem   `bigint64.limb` 값으로 불러도 16 이 나왔다 — 폭을 고르는 길(`rsa.verify_pss_by` · 곡선의 `_by`)이 한 단위에 세 폭 모듈이 있으면 늘 16 비트로 돌았다.
+rem   32 바이트의 조각 수: 16 비트 16 · 32 비트 8 · 64 비트 4 ⇒ 답 160804 (바로 부를 때도, 트레이트로 받는 틀 안에서도).
+module vm_method_module .
+use bigwidth from "../../lib/bigwidth.low" .
+use bigint16 from "../../lib/bigint16.low" .
+use bigint32 from "../../lib/bigint32.low" .
+use bigint64 from "../../lib/bigint64.low" .
+
+export proc direct output u64 . effects none . do
+  let a lit bigint16.limb do tag 0 . end . .
+  let b lit bigint32.limb do tag 0 . end . .
+  let c lit bigint64.limb do tag 0 . end . .
+  return add add mul 10000 cast u64 method a. limbs. 32 . . . mul 100 cast u64 method b. limbs. 32 . . . . cast u64 method c. limbs. 32 . . . .
+end .
+
+fn lb input comptime wt type . input lw wt . output u64 . requires bigwidth.width wt. . . do
+  return cast u64 method lw. limbs. 32 . . .
+end .
+
+export proc generic output u64 . effects none . do
+  let a lit bigint16.limb do tag 0 . end . .
+  let b lit bigint32.limb do tag 0 . end . .
+  let c lit bigint64.limb do tag 0 . end . .
+  return add add mul 10000 lb bigint16.limb. a. . . mul 100 lb bigint32.limb. b. . . . lb bigint64.limb. c. . . .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

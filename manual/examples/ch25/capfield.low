@@ -1,0 +1,30 @@
+module capfield .
+rem run: main
+
+rem ko: 기록 하나마다 고정 창에서 16 바이트를 깎아 두는 장부 /// en: a log book that carves 16 bytes from the fixed window for each entry
+actor logbook do
+  state do
+    rem ko: 권한 칸 — 실행 중 크기가 0 이고, 띄우는 자리의 권한으로 채워진다 /// en: a capability field; it has no size at run time and is filled from the capability at the spawn site
+    root cap allocator .
+    entries u64 .
+  end .
+  proc write input code u8 . output bool . effects alloc state . do
+    let g option mut slice u8 alloc_bytes root. capacity 16 . .
+    guard is_some g. . else return false . .
+    let v mut slice u8 some_value g. . .
+    set idx v. 0 . code. .
+    set entries. add entries. 1 . .
+    return true .
+  end .
+  fn count output u64 . do
+    return entries. .
+  end .
+end .
+
+proc main input al cap allocator . output u8 . effects alloc state .
+do
+  var book logbook spawn actor logbook . .
+  let a bool send book. write 7 . .
+  let b bool send book. write 9 . .
+  return narrow u8 send book. count . . .
+end .

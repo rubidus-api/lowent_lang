@@ -1,0 +1,29 @@
+module matrixmore .
+rem run: total
+
+rem ko: 구조체의 칸으로 쓰는 표 /// en: a table as a struct field
+struct board do
+  id u64 .
+  g matrix u32 2 3 4 .
+end .
+
+rem ko: 어떤 크기든 받는다 --- 크기는 번역 시점의 입력이다 /// en: any size --- the sizes are translation-time inputs
+fn sum input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
+do
+  var t u64 0 .
+  repeat i usize dim m. 0 . do
+    rem ko: `row` 는 줄 하나를 슬라이스로 본다 /// en: `row` sees one row as a slice
+    for x row m. i. . do
+      set t. add t. widen u64 x. . . .
+    end .
+  end .
+  return t. .
+end .
+
+export fn total output u64 .
+do
+  var b lit board do id 1 . g lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
+  set idx field b. g . 0 0 . 100 .
+  let small lit matrix u32 2 2 2 1 2 3 4 . .
+  return add widen u64 idx field b. g . 0 0 . . sum 2 2 small. . . .
+end .

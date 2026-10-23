@@ -1,0 +1,9 @@
+module mistake_slash .
+rem expect: E-VOCAB-REMOVED
+
+fn twice input a u64 . output u64 .
+do
+  rem ko: ✘ `//` 는 주석 표시가 아니다 /// en: ✘ `//` is not a comment marker
+  // double it
+  return mul a. 2 . .
+end .

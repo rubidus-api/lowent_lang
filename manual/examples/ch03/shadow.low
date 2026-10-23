@@ -1,0 +1,8 @@
+module shadow .
+rem expect: E-NAME-SHADOW
+
+fn f input n u64 . output u64 .
+do
+  let n u64 add n. 1 . .
+  return n. .
+end .

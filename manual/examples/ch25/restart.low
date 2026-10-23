@@ -1,0 +1,43 @@
+module restart .
+rem run: recover
+rem trap: escalate
+
+actor recov do
+  state do
+    bad u64 .
+  end .
+  failure restart max 3 .
+  proc tick output u64 . effects state panic .
+  do
+    if ne bad. 0 . do
+      panic "corrupted state" .
+    end .
+    set bad. 1 .
+    return 42 .
+  end .
+end .
+
+actor doomed do
+  state do
+    v u64 .
+  end .
+  failure restart max 2 .
+  proc boom output u64 . effects state panic .
+  do
+    panic "always fails" .
+    return 0 .
+  end .
+end .
+
+proc recover output u64 . effects state panic .
+do
+  var c recov spawn actor recov . .
+  let x u64 send c. tick . .
+  return send c. tick . .
+end .
+
+proc escalate output u64 . effects state panic .
+do
+  var c doomed spawn actor doomed . .
+  return send c. boom . .
+end .

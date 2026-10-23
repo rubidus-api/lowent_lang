@@ -1,0 +1,9 @@
+module mistake_matrixrow .
+rem expect: E-MATRIX-INDEX
+
+fn f output u64 .
+do
+  let m lit matrix u32 2 2 3 1 2 3 4 5 6 . .
+  rem ko: ✘ 차원은 둘인데 색인이 하나다 --- 줄 하나만 꺼내는 꼴은 없다 /// en: ✘ two dimensions, one index --- there is no form that takes a single row
+  return widen u64 idx m. 1 . . .
+end .

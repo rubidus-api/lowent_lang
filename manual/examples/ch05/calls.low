@@ -1,0 +1,14 @@
+module calls .
+rem expect: E-EFFECT-CALC
+
+use stdio .
+
+proc say input out cap io . output usize . effects io .
+do
+  return stdio.write out. 1 "hi\n" . .
+end .
+
+fn helper input out cap io . output usize .
+do
+  return say out. . .
+end .

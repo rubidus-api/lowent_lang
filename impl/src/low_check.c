@@ -717,27 +717,37 @@ static unsigned walk_effects_in(const low_cst_t *nd, const low_opinfo_t *tab, pr
     //     딱 하나일 때만** 센다 — 지어내지 않는다(여럿이면 어느 것인지 이 층은 모른다).
     //   ☞ CST 는 **평평하다** — `return method s boom .` 은 한 폼이라 `method` 가 머리가 아니다.
     //     그래서 자리를 가리지 않고 훑는다(`ck_capkind_walk` 가 같은 이유로 그렇게 돈다).
-    proven_size_t mpos = nd->nkids;
+    //   ★★ RFC-0152 §8-2 (2026-10-23): «하나일 때만» 은 여럿이면 **아무것도 세지 않았다** — 두 타입이 같은 이름의
+    //     메서드를 두면(`pa.boom` 순수 · `pb.boom` panic) 순수한 `fn` 이 panic 하는 쪽을 불러도 통과했다. 이제
+    //     수신자 이름의 타입 낱말을 알면 그 타입의 것을, 모르면(타입 매개변수 · 식) **같은 이름 모두의 합**을 센다 —
+    //     인스턴스가 고르는 것은 그 합 안에 있으므로 놓치지 않는다(많게 세는 쪽).
+    //   ☞ 자리마다 `method <수신자> <이름>` 을 본다. 전엔 첫 `method` 뒤의 낱말을 모두 이름으로 보아, 인자 이름이
+    //     메서드 이름과 같으면 그 메서드를 센 것으로 쳤다.
     if (nd->kind == LOW_CST_FORM)
-        for (proven_size_t z = 0; z < nd->nkids; z++)
-            if (nd->kids[z]->kind == LOW_CST_ATOM && nd->kids[z]->tok.kw == LOW_KW_NONE &&
-                veq(nd->kids[z]->tok.lex, "method")) { mpos = z; break; }
-    if (mpos + 2 < nd->nkids) {
-        for (proven_size_t q = mpos + 2; q < nd->nkids; q++) {
-            if (nd->kids[q]->kind != LOW_CST_ATOM || nd->kids[q]->tok.kw != LOW_KW_NONE) continue;
-            proven_u8str_view_t mn = nd->kids[q]->tok.lex;
-            proven_size_t hit = n, nhit = 0;
+        for (proven_size_t z = 0; z + 2 < nd->nkids; z++) {
+            if (nd->kids[z]->kind != LOW_CST_ATOM || nd->kids[z]->tok.kw != LOW_KW_NONE ||
+                !veq(nd->kids[z]->tok.lex, "method")) continue;
+            const low_cst_t *rv = nd->kids[z + 1], *mk = nd->kids[z + 2];
+            if (mk->kind != LOW_CST_ATOM || mk->tok.kw != LOW_KW_NONE) continue;
+            proven_u8str_view_t mn = mk->tok.lex;
+            proven_u8str_view_t rtw = { 0 };
+            if (rv->kind == LOW_CST_ATOM) rtw = ck_name_type_word(selfform, rv->tok.lex);
+            unsigned all = EFF_NONE, typed = EFF_NONE;
+            proven_size_t ntyped = 0;
             for (proven_size_t i = 0; i < n; i++) {
                 proven_u8str_view_t tn = tab[i].name;
                 proven_size_t dot = low_view_last(tn, '.');
                 if (dot == PROVEN_INDEX_NOT_FOUND) continue;
                 proven_u8str_view_t suf = { .ptr = tn.ptr + dot + 1, .size = tn.size - dot - 1 };
                 if (!proven_u8str_view_eq(suf, mn)) continue;
-                hit = i; nhit++;
+                all |= tab[i].declared;
+                // 타입 낱말이 `limb` 이면 `limb.x` · `bigint16.limb.x` 가 맞고 `xlimb.x` 는 아니다 — 낱말 경계로 견준다
+                if (rtw.size && dot >= rtw.size && memcmp(tn.ptr + dot - rtw.size, rtw.ptr, rtw.size) == 0 &&
+                    (dot == rtw.size || tn.ptr[dot - rtw.size - 1] == '.')) { typed |= tab[i].declared; ntyped++; }
             }
-            if (nhit == 1) e |= tab[hit].declared;
+            e |= ntyped ? typed : all;
+            z += 2;
         }
-    }
     // ★★★ **`task_group` 이 `concurrent` 를 흡수한다 — 멤버가 둘 이상일 때만** (RFC-0071 A5).
     //
     //   `concurrent` 는 *"동료가 돌아야 완결된다"* 는 요구다. 멤버가 **둘 이상인** 그룹은
@@ -2220,8 +2230,26 @@ static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *
 //
 //   ★ 오늘 아침까지 이것은 **불가능했다**: trait 충족이 검사되지 않았으니(W-NOT-YET)
 //     경계도 **아무것도 보장할 수 없었다.** 그래서 그것이 이것의 **선행 조건**이었다.
+static proven_u8str_view_t ck_module_of_file(const low_parse_result_t *pr, const char *file);
+// ★★ RFC-0152 §8-9 (2026-10-23) — 이름 `nm` 의 trait 이 **어느 모듈의 것인가**: `prefer` 모듈에 그 이름의 trait 이 있으면 그 모듈,
+//   없으면 같은 이름의 마지막 trait 의 모듈(옛 규칙 — 충족 검사 `ck_trait_satisfy` 와 같은 되돌이).
+static proven_u8str_view_t ck_trait_home(const low_parse_result_t *pr, proven_u8str_view_t nm,
+                                         proven_u8str_view_t prefer) {
+    proven_u8str_view_t last = { 0 };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_TRAIT ||
+            !ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, nm)) continue;
+        proven_u8str_view_t m = ck_module_of_file(pr, f->file);
+        if (prefer.size && proven_u8str_view_eq(m, prefer)) return m;
+        last = m;
+    }
+    return last;
+}
+// ★★ RFC-0152 §8-9 — 경계도 trait 을 **모듈까지** 견준다. 전엔 짧은 이름만 보아, 두 모듈이 같은 이름의 trait 을 두고 한 타입이
+//   한쪽만 갖추면 다른 쪽을 요구하는 경계를 통과했다. `want` 는 경계가 가리킨 trait 의 모듈이다.
 static bool ck_type_satisfies(const low_parse_result_t *pr, proven_u8str_view_t ty,
-                              proven_u8str_view_t tr) {
+                              proven_u8str_view_t tr, proven_u8str_view_t want) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
@@ -2237,7 +2265,11 @@ static bool ck_type_satisfies(const low_parse_result_t *pr, proven_u8str_view_t 
             const low_cst_t *cf = b->kids[q];
             if (cf->kind != LOW_CST_FORM || cf->nkids < 2 || !ck_atom(cf->kids[0])) continue;
             if (cf->kids[0]->tok.kw == LOW_KW_SATISFIES && ck_atom(cf->kids[1]) &&
-                proven_u8str_view_eq(cf->kids[1]->tok.lex, tr)) return true;
+                proven_u8str_view_eq(cf->kids[1]->tok.lex, tr)) {
+                const low_cst_t *sa = cf->kids[1];
+                proven_u8str_view_t home = ck_trait_home(pr, tr, sa->qual_mod.size ? sa->qual_mod : ck_module_of_file(pr, f->file));
+                if (!want.size || !home.size || proven_u8str_view_eq(home, want)) return true;
+            }
         }
     }
     return false;
@@ -2313,7 +2345,9 @@ static void ck_trait_bound(low_check_result_t *out, const low_parse_result_t *pr
             if (!ck_atom(f->kids[j+1]) || !ck_atom(f->kids[j+2])) continue;
             proven_u8str_view_t tr = f->kids[j+1]->tok.lex, ty = f->kids[j+2]->tok.lex;
             if (!ck_is_trait_name(pr, tr)) continue;               // 경계가 아니라 술어다
-            if (!ck_type_satisfies(pr, ty, tr))
+            const low_cst_t *ta = f->kids[j+1];
+            proven_u8str_view_t want = ck_trait_home(pr, tr, ta->qual_mod.size ? ta->qual_mod : ck_module_of_file(pr, f->file));
+            if (!ck_type_satisfies(pr, ty, tr, want))
                 emit(out, "E-BOUND-UNSAT",
                      "this generic was instantiated with a type that does NOT satisfy the required "
                      "trait. A bound is a PROMISE the callee relies on — instantiating past it would "

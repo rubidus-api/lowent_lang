@@ -732,3 +732,35 @@ void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
     if (ninst) *ninst = c.ni;
     if (nsub)  *nsub  = c.nsub;
 }
+
+// ★★ RFC-0152 §8-10 (2026-10-23) — **평평한 읽기는 부르지 않는 제네릭 틀을 뺀다.** 나무 모드는 단형화가 틀을 빼고 인스턴스만 남기므로
+//   부르지 않는 틀은 검사기에 닿지 않는다. 평면 모드(`--flat`)는 단형화를 하지 않아 그 틀이 그대로 남았고, 검사기가 타입 매개변수
+//   (`wt`)를 타입으로 찾다 E-TYPE-UNDEF · E-BOUND-UNSAT 을 냈다 — `rsa` 에 `_by` 틀이 생기자 그것을 쓰지도 않는 `vm_sig` · `vm_x509` 가
+//   나무/평면 대조에서 빠졌다. 그 이름(맨 이름 · `<모듈>.<이름>`)이 다른 form 어디에도 낱말로 서지 않는 틀만 뺀다 — 부르는 틀은
+//   평면 모드가 여전히 못 읽고, 그것은 대조의 제외 목록이 말한다.
+static bool mono_names_atom(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd) return false;
+    if (nd->kind == LOW_CST_ATOM) {
+        proven_u8str_view_t w = nd->tok.lex;
+        if (proven_u8str_view_eq(w, nm)) return true;
+        return w.size > nm.size && w.ptr[w.size - nm.size - 1] == '.' &&
+               memcmp(w.ptr + w.size - nm.size, nm.ptr, nm.size) == 0;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (mono_names_atom(nd->kids[i], nm)) return true;
+    return false;
+}
+void low_flat_drop_uncalled(low_parse_result_t *pr) {
+    proven_size_t w = 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        low_cst_t *f = pr->forms[i];
+        bool drop = false;
+        if (low_is_generic_template(f) && f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM) {
+            proven_u8str_view_t nm = f->kids[1]->tok.lex;
+            drop = true;
+            for (proven_size_t j = 0; j < pr->nforms && drop; j++)
+                if (j != i && mono_names_atom(pr->forms[j], nm)) drop = false;
+        }
+        if (!drop) pr->forms[w++] = f;
+    }
+    pr->nforms = w;
+}

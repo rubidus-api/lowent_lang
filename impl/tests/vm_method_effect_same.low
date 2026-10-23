@@ -1,0 +1,15 @@
+rem RFC-0152 §8-2 — 두 타입이 같은 이름의 메서드(`pa.boom` 순수 · `pb.boom` panic)를 두어도, 순수한 `fn` 이 panic 하는 쪽을 부르면 E-EFFECT-CALC.
+module vm_method_effect_same .
+struct pa do v u64 . end .
+struct pb do v u64 . end .
+fn pa.boom input s pa . output u64 . do return field s. v . . end .
+proc pb.boom input s pb . output u64 . effects panic . do
+  if eq field s. v . 0 . do panic "x" . end .
+  return field s. v . .
+end .
+fn f input x pb . output u64 . do
+  return method x. boom. . .
+end .
+proc main output u8 . effects none . do
+  return 0 .
+end .

@@ -2059,6 +2059,7 @@ int main(int argc, char **argv) {
         }
     } else if (!want_fmt) {
         low_using_arrays(&pr, nodes0, heap);   // ★ 입력의 `array T N` 은 평면 모드에서도 슬라이스 + 진입 계약이 된다
+        low_flat_drop_uncalled(&pr);           // ★ RFC-0152 §8-10 — 부르지 않는 제네릭 틀은 나무 모드처럼 검사기에 닿지 않는다
     }
 
     // ★ RFC-0135 S1 — 바인딩 `else` 의 숨은 임시에 타입(option/result)을 채운다. 단형화 뒤라 부르는 op 의 출력이 구체다.

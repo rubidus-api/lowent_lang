@@ -1,0 +1,16 @@
+rem RFC-0152 §8-2 — 수신자의 타입을 알면 그 타입의 메서드만 센다: `pa.boom` 을 부르는 `fn` 은 순수하다(`pb.boom` 의 panic 이 섞이지 않는다).
+module vm_method_effect_typed .
+struct pa do v u64 . end .
+struct pb do v u64 . end .
+fn pa.boom input s pa . output u64 . do return field s. v . . end .
+proc pb.boom input s pb . output u64 . effects panic . do
+  if eq field s. v . 0 . do panic "x" . end .
+  return field s. v . .
+end .
+fn f input x pa . output u64 . do
+  return method x. boom. . .
+end .
+proc main output u8 . effects panic . do
+  let b pb lit pb do v 1 . end . .
+  return narrow u8 add f lit pa do v 3 . end . . method b. boom. . . . .
+end .

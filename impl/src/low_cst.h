@@ -264,6 +264,8 @@ void low_nest_set_report_limit(proven_size_t n);
 // ★ 이 op 이 **제네릭 틀**인가 (comptime 타입 파라미터, 또는 타입 자리에 쓰인 comptime 값 파라미터).
 //   틀은 IR 로 낮추지 않는다 — 호출은 전부 인스턴스로 재작성되고, 틀의 몸은 지워진 파라미터를 참조한다.
 bool low_is_generic_template(const low_cst_t *f);
+// ★ RFC-0152 §8-10 — `--flat` 에서 부르지 않는 제네릭 틀을 뺀다(나무 모드는 단형화가 뺀다).
+void low_flat_drop_uncalled(low_parse_result_t *pr);
 
 void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work,
               proven_size_t *ninst, proven_size_t *nsub);

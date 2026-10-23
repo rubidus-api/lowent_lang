@@ -26,7 +26,7 @@ The methods have the names and inputs of the big-number ops — `limbs` · `zero
 
 **Why a module of its own** — the four width modules use it, and `bigint` uses three width modules. With the trait inside one of them, they would call each other in a cycle.
 
-There is a separate way to change the width **for the whole program** — `lowentc --mul-bits` ([`bigint`](sec92.md#mod-bigint)).
+There is a separate way to change the width **for the whole program** — `lowentc --limb-bits` ([`bigint`](sec92.md#mod-bigint)).
 
 ---
 

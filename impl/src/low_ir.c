@@ -287,9 +287,11 @@ static const low_target_t IR_TARGETS[] = {
     //    보수적으로 잡는다: 이 수를 넘는 슬라이스는 만들 수 없다는 **약속**이므로,
     //    크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다.
     //    조절은 **이 줄 하나**다(소유자 요구: "차후 조절 가능").
-    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // SSE2 baseline = 128-bit
+    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },   // SSE2 baseline = 128-bit · 조각 64 = 잰 값(RFC-0152 §9.5)
     { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // NEON mandatory (ARMv8) = 128-bit
     { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 32 },   // freestanding: no_heap · no_float · SIMD 없음
+    { "cortex_m0",false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 16 },   // RFC-0152 (2026-10-23, 소유자 «Cortex M0을 위한 줄을 따로 둡시다») — `cortex_m` 과 같고 곱셈기만 다르다: M0 · M0+ 는 32×32 곱의
+    //   아래 32 비트만 낸다고 알려져 있어(확인하지 않았다) 위 절반까지 한 번에 나오는 곱은 16×16 이다. 재지 않은 대상이라 조각 폭도 곱셈기 폭(16).
     { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
     { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096, .mul_bits = 32 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
     // ★★★★★ **Windows — 크로스 빌드까지만** (2026-08-19, 소유자 결정).
@@ -299,7 +301,7 @@ static const low_target_t IR_TARGETS[] = {
     //   ☞ 그래서 이 타깃은 *"Windows 를 지원한다"* 가 아니라 *"POSIX 를 안 쓰는 프로그램이
     //     Windows 로 건너간다"* 를 뜻한다. POSIX 전용 잎은 **컴파일 시 거절**한다 —
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
-    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },
+    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },   // 조각 64 = 잰 값(2026-10-23 · Windows 11 VM · RFC-0152 §9.8)
     // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
     //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
@@ -341,10 +343,10 @@ void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = stdout; }
 
 // ★ 정본 §5.6 (3) — 표에 없는 이름은 **거부**한다(false). 전에는 조용히 무시해 기본 기계(x86_64)로 지었다 —
 //   `--target cheriot` 를 잘못 친 `--target cheriott` 가 호스트 빌드로 «통과» 했다.
-// RFC-0152 R2 — 프로그램 전체의 곱셈기 폭을 바꾼다(`--mul-bits`). 0 이면 대상 표의 값.
-static unsigned g_mul_bits;
-void low_ir_set_mul_bits(unsigned bits) { g_mul_bits = bits; }
-unsigned low_ir_mul_bits(void) { return g_mul_bits ? g_mul_bits : ir_tgt->mul_bits; }
+// RFC-0152 — 큰 수 셈이 쓰는 조각 폭: `--limb-bits` 가 덮으면 그 값, 아니면 대상 표의 잰 값, 그것도 없으면 곱셈기 폭.
+static unsigned g_limb_bits;
+void low_ir_set_limb_bits(unsigned bits) { g_limb_bits = bits; }
+unsigned low_ir_limb_bits(void) { return g_limb_bits ? g_limb_bits : ir_tgt->limb_bits ? ir_tgt->limb_bits : ir_tgt->mul_bits; }
 bool low_ir_set_target(const char *name) {
     for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
         if (strcmp(IR_TARGETS[i].name, name) == 0) { ir_tgt = &IR_TARGETS[i]; return true; }
@@ -379,7 +381,8 @@ bool low_ir_target_known(proven_u8str_view_t name) {
     if (veq(v, "machine.little_endian")) return !t->big_endian;
     if (veq(v, "machine.ptr_width"))     return t->addr_bits;   // 옛 이름 — 주소 폭(RFC-0137: 포인터 크기와 다를 수 있다)
     if (veq(v, "machine.addr_bits"))     return t->addr_bits;
-    if (veq(v, "machine.mul_bits"))      return low_ir_mul_bits();   // RFC-0152 R1 — 곱셈기 폭(`--mul-bits` 가 덮을 수 있다)
+    if (veq(v, "machine.mul_bits"))      return t->mul_bits;            // RFC-0152 R1 — 곱셈기 폭(대상의 사실)
+    if (veq(v, "machine.limb_bits"))     return low_ir_limb_bits();     // RFC-0152 — 큰 수 셈이 쓰는 조각 폭(`--limb-bits` 가 덮는다)
     if (veq(v, "machine.ptr_bytes"))     return t->ptr_bytes;
     if (veq(v, "machine.ptr_align"))     return t->ptr_align;
     if (veq(v, "machine.ptr_caps"))      return t->ptr_caps;
@@ -392,7 +395,8 @@ bool low_ir_target_known(proven_u8str_view_t name) {
     if (veq(v, "machine.no_float"))      return t->no_float;
     if (veq(v, "machine.is_x86_64"))     return strcmp(t->name, "x86_64") == 0;
     if (veq(v, "machine.is_arm64"))      return strcmp(t->name, "arm64") == 0;
-    if (veq(v, "machine.is_cortex_m"))   return strcmp(t->name, "cortex_m") == 0;
+    if (veq(v, "machine.is_cortex_m"))   return strcmp(t->name, "cortex_m") == 0 || strcmp(t->name, "cortex_m0") == 0;   // M0 줄도 Cortex-M 이다
+    if (veq(v, "machine.is_cortex_m0"))  return strcmp(t->name, "cortex_m0") == 0;
     if (veq(v, "machine.is_riscv64"))    return strcmp(t->name, "riscv64") == 0;
     *found = false;
     return 0;

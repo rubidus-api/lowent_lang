@@ -40,7 +40,7 @@ Module names may differ from file names. What `use` looks for is the `module` de
 | [`bigint16`](sec89.md#mod-bigint16) | Big-number modular arithmetic — 16-bit limbs (narrow multipliers) |
 | [`bigint32`](sec90.md#mod-bigint32) | Big-number modular arithmetic — 32-bit limbs (32-bit multipliers) |
 | [`bigint64`](sec91.md#mod-bigint64) | Big-number modular arithmetic — 64-bit limbs (64-bit machines) |
-| [`bigint`](sec92.md#mod-bigint) | Big-number modular arithmetic — the machine picks the width (multiplier width · `--mul-bits`) |
+| [`bigint`](sec92.md#mod-bigint) | Big-number modular arithmetic — the machine picks the width (measured or multiplier width · `--limb-bits`) |
 | [`rsa`](sec93.md#mod-rsa) | RSASSA-PSS verification |
 | [`p256`](sec94.md#mod-p256) | NIST P-256 curve and ECDSA verification |
 | [`p384`](sec95.md#mod-p384) | NIST P-384 curve and ECDSA verification — the public web’s intermediates |

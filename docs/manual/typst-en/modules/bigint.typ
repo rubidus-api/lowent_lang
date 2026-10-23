@@ -5,28 +5,34 @@
 #modhead(file: "lib/bigint.low", layer: [L0 --- pure computation (the caller's backing)], caps: [none])
 
 The op names, inputs and meanings are the same as #modref("bigint32")[`bigint32`]'s. One thing differs: *the machine picks the limb width* --- when the
-target's *multiplier width* (`machine.mul_bits`) is 16 it calls #modref("bigint16")[`bigint16`], when 32 `bigint32`, otherwise #modref("bigint64")[`bigint64`].
+target's *limb width* (`machine.limb_bits`) is 16 it calls #modref("bigint16")[`bigint16`], when 32 `bigint32`, otherwise #modref("bigint64")[`bigint64`].
 The standard library's #modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`] · #modref("verify")[`verify`] use it.
 
+*How the limb width is chosen* --- on a target we can measure, the width measured fastest; on one we cannot, the machine's *multiplier width*
+(`machine.mul_bits` --- the widest product whose upper half one instruction gives). The value is one cell of the target table and can be changed at any time.
+
 #dtable(
-  columns: 3,
-  id: "mod-bigint-mulbits",
-  caption: [The multiplier width of each target --- the value of `machine.mul_bits`],
-  [*Target*], [*Multiplier width*], [*Module it picks*],
-  [`x86_64` · `arm64` · `riscv64` · `win64`], [64], [`bigint64`],
-  [`cortex_m` · `mips_be` · `cheriot`], [32], [`bigint32`],
-  [`word16`], [16], [`bigint16`],
+  columns: 4,
+  id: "mod-bigint-limbbits",
+  caption: [The limb width of each target --- the value of `machine.limb_bits` and where it comes from],
+  [*Target*], [*Multiplier width*], [*Limb width*], [*Source*],
+  [`x86_64`], [64], [64], [measured (2026-10-23, P-256 sign + verify: 64-bit 5.5 ms · 32-bit 13.4 ms · 16-bit 42.3 ms)],
+  [`win64`], [64], [64], [measured (2026-10-23, a Windows 11 virtual machine · x86-64: 64-bit 5.7 ms · 32-bit 12.7 ms · 16-bit 22.5 ms)],
+  [`arm64` · `riscv64`], [64], [64], [multiplier width (not measured)],
+  [`cortex_m` · `mips_be` · `cheriot`], [32], [32], [multiplier width (not measured)],
+  [`cortex_m0`], [16], [16], [multiplier width --- Cortex-M0 · M0+ are known to give only the lower 32 bits of a 32×32 product (not checked)],
+  [`word16`], [16], [16], [multiplier width (a translate-only target)],
 )
 
-*To change the width for the whole program*, `lowentc --mul-bits 16 …` (or `32` · `64`) --- the value of `machine.mul_bits` changes, and every library
-that uses `bigint` runs at that width. *To use another width in one place only*, pass a width type to an op that takes one (`rsa.verify_pss_by` …;
-see #modref("bigwidth")[`bigwidth`]).
+*To change the width for the whole program*, `lowentc --limb-bits 16 …` (or `32` · `64`) --- the value of `machine.limb_bits` changes, and every library
+that uses `bigint` runs at that width (the multiplier width is a fact of the machine and does not change). *To use another width in one place only*, pass a
+width type to an op that takes one (`rsa.verify_pss_by` …; see #modref("bigwidth")[`bigwidth`]).
 
-#aside[The multiplier width is a speed default][
-  Every width gives *the same answer* on every machine --- values sit in `u64` slots anyway. Nor does this rule always pick the fastest width: an x86
-  32-bit build (`-m32`) has a 32-bit multiplier, yet `bigint64` was 1.35 times faster than `bigint32` there (RSA-2048 exponentiation, 2026-10-22).
-  Cortex-M0 · M0+ are known to have no instruction for the upper half of a product, so 16 may suit them, but the one `cortex_m` row covers them
-  together with M3 · M4 (not checked).
+#aside[The limb width is a speed default][
+  Every width gives *the same answer* on every machine --- values sit in `u64` slots anyway. So if a width causes trouble on some target, falling back to
+  another width (the shared arithmetic) is enough. A measurement can also disagree with the multiplier width: an x86 32-bit build (`-m32`) has a 32-bit
+  multiplier, yet `bigint64` was 1.35 times faster than `bigint32` there (RSA-2048 exponentiation, 2026-10-22). There is no target row for 32-bit x86, so
+  that number is not in the table.
 ]
 
 The width is fixed *at translation*, so choosing costs nothing --- the value goes into the emitted C as a literal and `cc` folds the comparison. The
@@ -44,6 +50,6 @@ slots a number needs do not depend on the width: ⌈`nb` / 2⌉ + 2 slots are en
 )
 
 *What is checked* --- the new ops of the four modules (`bigint16` · `bigint32` · `bigint64` · `bigint`) against Python's integer arithmetic (17 · 32 ·
-33 · 48 bytes), and curve signature verification and RSA verification giving the same answer at all three widths (`--mul-bits 16 · 32 · 64`). The
+33 · 48 bytes), and curve signature verification and RSA verification giving the same answer at all three widths (`--limb-bits 16 · 32 · 64`). The
 five files (`bigint16/32/64` · `bigwidth` · `bigint`) come from one template (`scripts/gen-bigint.py`) --- editing one file alone fails the comparison
 with the template.

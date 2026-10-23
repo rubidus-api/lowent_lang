@@ -40,7 +40,7 @@
 | [`bigint16`](sec88.md#mod-bigint16) | 큰수 모듈러 산술 — 16 비트 조각(곱셈기가 좁은 기계) |
 | [`bigint32`](sec89.md#mod-bigint32) | 큰수 모듈러 산술 — 32 비트 조각(32 비트 곱셈기) |
 | [`bigint64`](sec90.md#mod-bigint64) | 큰수 모듈러 산술 — 64 비트 조각(64 비트 기계) |
-| [`bigint`](sec91.md#mod-bigint) | 큰수 모듈러 산술 — 기계가 고르는 폭(곱셈기 폭 · `--mul-bits`) |
+| [`bigint`](sec91.md#mod-bigint) | 큰수 모듈러 산술 — 기계가 고르는 폭(잰 폭 또는 곱셈기 폭 · `--limb-bits`) |
 | [`rsa`](sec92.md#mod-rsa) | RSASSA-PSS 검증 |
 | [`p256`](sec93.md#mod-p256) | NIST P-256 곡선과 ECDSA 검증 |
 | [`p384`](sec94.md#mod-p384) | NIST P-384 곡선과 ECDSA 검증 — 공개 웹의 중간 인증기관 |

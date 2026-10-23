@@ -521,7 +521,7 @@ static int cmd_build(int nargs, char **args) {
     const char *arg = NULL;
     char pass[1024] = { 0 };
     for (int i = 0; i < nargs; i++) {
-        if ((strcmp(args[i], "--target") == 0 || strcmp(args[i], "--config") == 0 || strcmp(args[i], "--mul-bits") == 0) && i + 1 < nargs) {
+        if ((strcmp(args[i], "--target") == 0 || strcmp(args[i], "--config") == 0 || strcmp(args[i], "--limb-bits") == 0) && i + 1 < nargs) {
             size_t n = strlen(pass);
             snprintf(pass + n, sizeof pass - n, " %s %s", args[i], args[i + 1]);
             i++;
@@ -1095,8 +1095,8 @@ static void print_usage(const char *argv0) {
         "    --lock FILE          의존을 **내용 해시**로 고정한다. 바이트가 바뀌면 거절 (RFC-0032)\n"
         "    --lock-write         지금 무엇을 상대로 빌드하는지 락파일로 찍는다 (매니페스트 옆 pkg.lock 에도)\n"
         "    --pkg FILE           pkg.low 매니페스트 위치를 명시한다 (기본: 첫 파일 dir 에서 위로 찾는다)\n"
-        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | win64 | cheriot | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
-        "    --mul-bits N         곱셈기 폭 16 | 32 | 64 — 대상의 값을 덮는다(machine.mul_bits · 큰 수 모듈 bigint 의 조각 폭, RFC-0152)\n"
+        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
+        "    --limb-bits N        큰 수 조각 폭 16 | 32 | 64 — 대상의 값을 덮는다(machine.limb_bits · 큰 수 모듈 bigint, RFC-0152)\n"
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
@@ -1467,15 +1467,16 @@ int main(int argc, char **argv) {
                 return 2;
             }
         }
-        // ★ RFC-0152 R2 (2026-10-23, 소유자 «사용자가 원하면 추가 옵션으로 변경 가능») — 프로그램 전체의 **곱셈기 폭**을 바꾼다.
-        //   `machine.mul_bits` 의 값이 되고, 큰 수 모듈 `bigint` 를 쓰는 라이브러리가 모두 그 폭으로 돈다. 받는 값은 16 · 32 · 64 뿐이다.
-        else if (strcmp(argv[i], "--mul-bits") == 0 && i + 1 < argc) {
+        // ★ RFC-0152 (2026-10-23, 소유자 «사용자가 원하면 추가 옵션으로 변경 가능») — 프로그램 전체의 **큰 수 조각 폭**을 바꾼다.
+        //   `machine.limb_bits` 의 값이 되고, 큰 수 모듈 `bigint` 를 쓰는 라이브러리가 모두 그 폭으로 돈다. 받는 값은 16 · 32 · 64 뿐이다.
+        //   곱셈기 폭(`machine.mul_bits`)은 대상의 사실이라 바꾸지 않는다.
+        else if (strcmp(argv[i], "--limb-bits") == 0 && i + 1 < argc) {
             const char *mv = argv[++i];
             if (strcmp(mv, "16") && strcmp(mv, "32") && strcmp(mv, "64")) {
-                fprintf(stderr, "E-CLI-MULBITS: --mul-bits takes 16, 32 or 64 (the limb widths the big-number modules have), got `%s`\n", mv);
+                fprintf(stderr, "E-CLI-LIMBBITS: --limb-bits takes 16, 32 or 64 (the limb widths the big-number modules have), got `%s`\n", mv);
                 return 2;
             }
-            low_ir_set_mul_bits((unsigned)atoi(mv));
+            low_ir_set_limb_bits((unsigned)atoi(mv));
         }
         // ★★★★ **고정 창의 크기** (RFC-0112 D3(5) · WO-0211) — VM 이 다른 보드를 흉내 낸다.
         //   안 주면 타깃이 정한다(호스티드 64 KiB · 프리스탠딩은 `--emit-ldscript` 가 적는 기본 크기).

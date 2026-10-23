@@ -49,7 +49,7 @@
   [#modref("bigint16")[`bigint16`]], [큰수 모듈러 산술 --- 16 비트 조각(곱셈기가 좁은 기계)],
   [#modref("bigint32")[`bigint32`]], [큰수 모듈러 산술 --- 32 비트 조각(32 비트 곱셈기)],
   [#modref("bigint64")[`bigint64`]], [큰수 모듈러 산술 --- 64 비트 조각(64 비트 기계)],
-  [#modref("bigint")[`bigint`]], [큰수 모듈러 산술 --- 기계가 고르는 폭(곱셈기 폭 · `--mul-bits`)],
+  [#modref("bigint")[`bigint`]], [큰수 모듈러 산술 --- 기계가 고르는 폭(잰 폭 또는 곱셈기 폭 · `--limb-bits`)],
   [#modref("rsa")[`rsa`]], [RSASSA-PSS 검증],
   [#modref("p256")[`p256`]], [NIST P-256 곡선과 ECDSA 검증],
   [#modref("p384")[`p384`]], [NIST P-384 곡선과 ECDSA 검증 --- 공개 웹의 중간 인증기관],

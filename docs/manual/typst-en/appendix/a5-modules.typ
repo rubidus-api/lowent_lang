@@ -50,7 +50,7 @@ Cross-module names are always called qualified (`strings.find`), and a frequentl
   [#modref("bigint16")[`bigint16`]], [Big-number modular arithmetic --- 16-bit limbs (narrow multipliers)],
   [#modref("bigint32")[`bigint32`]], [Big-number modular arithmetic --- 32-bit limbs (32-bit multipliers)],
   [#modref("bigint64")[`bigint64`]], [Big-number modular arithmetic --- 64-bit limbs (64-bit machines)],
-  [#modref("bigint")[`bigint`]], [Big-number modular arithmetic --- the machine picks the width (multiplier width · `--mul-bits`)],
+  [#modref("bigint")[`bigint`]], [Big-number modular arithmetic --- the machine picks the width (measured or multiplier width · `--limb-bits`)],
   [#modref("rsa")[`rsa`]], [RSASSA-PSS verification],
   [#modref("p256")[`p256`]], [NIST P-256 curve and ECDSA verification],
   [#modref("p384")[`p384`]], [NIST P-384 curve and ECDSA verification --- the public web's intermediates],

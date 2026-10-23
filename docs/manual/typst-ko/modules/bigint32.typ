@@ -12,8 +12,8 @@
 ]
 
 *같은 모듈이 셋 있다 --- 조각 폭만 다르다.* #modref("bigint16")[`bigint16`] · `bigint32` · #modref("bigint64")[`bigint64`] 는 op 의 이름과 입력이
-모두 같고, 수를 몇 비트 조각으로 나눠 담는지만 다르다. 부르는 쪽은 `use` 한 줄만 바꿔 폭을 고른다. *넷째* #modref("bigint")[`bigint`] 는 같은 op 을 내놓되 폭을 *기계가* 고른다(대상의 곱셈기 폭 ·
-`--mul-bits`) --- 표준 라이브러리의 #modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`]
+모두 같고, 수를 몇 비트 조각으로 나눠 담는지만 다르다. 부르는 쪽은 `use` 한 줄만 바꿔 폭을 고른다. *넷째* #modref("bigint")[`bigint`] 는 같은 op 을 내놓되 폭을 *기계가* 고른다(대상의 조각 폭 ·
+`--limb-bits`) --- 표준 라이브러리의 #modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`]
 가 그것을 쓴다(2026-10-23 부터, RFC-0152). 2026-10-22 까지는 `bigint` 라는 이름의 한 모듈(16 비트 조각 → 같은 날 32 비트)이었다.
 
 #dtable(

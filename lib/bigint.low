@@ -1,8 +1,10 @@
 rem ★★★ **큰수 모듈러 산술 — 기계가 고르는 폭** (`bigint`) — RFC-0152 (2026-10-23, 소유자 «기계가 기본으로, 사용자가 원하면 추가 옵션으로 변경 가능 · 기본 폭: 곱셈기의 폭»).
 rem
-rem   op 이름 · 입력이 `bigint16` · `bigint32` · `bigint64` 와 같다. 안에서 `machine.mul_bits`(대상의 곱셈기 폭)를 보고 셋 가운데 하나를 부른다:
-rem   16 → `bigint16`, 32 → `bigint32`, 그 밖 → `bigint64`. 그 값은 번역 때 정해지는 상수라 고르는 비용이 없다(방출된 C 에서는 `cc` 가 비교를 접는다).
-rem   프로그램 전체의 폭을 바꾸려면 `lowentc --mul-bits 16|32|64 …` — 이 모듈을 쓰는 모든 라이브러리가 함께 따라간다.
+rem   op 이름 · 입력이 `bigint16` · `bigint32` · `bigint64` 와 같다. 안에서 `machine.limb_bits`(대상의 조각 폭)를 보고 셋 가운데 하나를 부른다:
+rem   16 → `bigint16`, 32 → `bigint32`, 그 밖 → `bigint64`. 조각 폭은 **잰 대상은 잰 값**, 재지 않은 대상은 곱셈기 폭(`machine.mul_bits`)이다
+rem   (소유자 2026-10-23). 그 값은 번역 때 정해지는 상수라 갈래는 비용이 없다(방출된 C 에서 `cc` 가 비교를 접는다). 다만 이 모듈을 거치는 부름
+rem   하나가 C 함수 하나를 더 지나며, 곡선 셈에서 그것이 약 8 % 였다(x86-64 · 32 비트 조각 · RFC-0152 §9.6).
+rem   프로그램 전체의 폭을 바꾸려면 `lowentc --limb-bits 16|32|64 …` — 이 모듈을 쓰는 모든 라이브러리가 함께 따라간다.
 rem   ★ 이 값은 빠르기의 기본값이다. 어느 폭이든 어느 기계에서나 같은 답을 낸다(값은 어차피 u64 칸에 든다).
 rem   담는 칸: ⌈nb / 2⌉ + 2 칸을 잡으면 세 폭 어디에나 맞는다(폭마다 칸 수를 바꾸지 않는다).
 rem   ☞ 이 파일은 `scripts/gen-bigint.py` 가 낸다 — 손으로 고치지 않는다.
@@ -15,98 +17,98 @@ use bigint64 from "bigint64.low" .
 
 
 export fn limbs input nb usize . output usize . do
-  if eq machine.mul_bits. 16 . do  return bigint16.limbs nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.limbs nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.limbs nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.limbs nb. . .  end .
   return bigint64.limbs nb. . .
 end .
 
 export proc zero input a mut slice u64 . input nb usize . output u64 . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.zero a. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.zero a. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.zero a. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.zero a. nb. . .  end .
   return bigint64.zero a. nb. . .
 end .
 
 export proc from_bytes input src slice u8 . input a mut slice u64 . input nb usize . output usize . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.from_bytes src. a. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.from_bytes src. a. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.from_bytes src. a. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.from_bytes src. a. nb. . .  end .
   return bigint64.from_bytes src. a. nb. . .
 end .
 
 export proc to_bytes input a slice u64 . input nb usize . input out mut slice u8 . output usize . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.to_bytes a. nb. out. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.to_bytes a. nb. out. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.to_bytes a. nb. out. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.to_bytes a. nb. out. . .  end .
   return bigint64.to_bytes a. nb. out. . .
 end .
 
 export proc from_bytes_le input src slice u8 . input a mut slice u64 . output u64 . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.from_bytes_le src. a. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.from_bytes_le src. a. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.from_bytes_le src. a. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.from_bytes_le src. a. . .  end .
   return bigint64.from_bytes_le src. a. . .
 end .
 
 export proc to_bytes_le input out mut slice u8 . input a slice u64 . output u64 . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.to_bytes_le out. a. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.to_bytes_le out. a. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.to_bytes_le out. a. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.to_bytes_le out. a. . .  end .
   return bigint64.to_bytes_le out. a. . .
 end .
 
 export fn ge_mod input a slice u64 . input n slice u64 . input nb usize . output u64 . do
-  if eq machine.mul_bits. 16 . do  return bigint16.ge_mod a. n. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.ge_mod a. n. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.ge_mod a. n. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.ge_mod a. n. nb. . .  end .
   return bigint64.ge_mod a. n. nb. . .
 end .
 
 export proc dbl_mod input a mut slice u64 . input n slice u64 . input nb usize . output u64 . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.dbl_mod a. n. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.dbl_mod a. n. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.dbl_mod a. n. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.dbl_mod a. n. nb. . .  end .
   return bigint64.dbl_mod a. n. nb. . .
 end .
 
 export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice u64 . input n slice u64 . input nb usize . input ninv u64 . input t mut slice u64 . output u64 . effects none . inplace out a . inplace out b . do
-  if eq machine.mul_bits. 16 . do  return bigint16.mont_mul out. a. b. n. nb. ninv. t. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.mont_mul out. a. b. n. nb. ninv. t. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.mont_mul out. a. b. n. nb. ninv. t. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.mont_mul out. a. b. n. nb. ninv. t. . .  end .
   return bigint64.mont_mul out. a. b. n. nb. ninv. t. . .
 end .
 
 export fn n0inv input n slice u64 . output u64 . do
-  if eq machine.mul_bits. 16 . do  return bigint16.n0inv n. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.n0inv n. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.n0inv n. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.n0inv n. . .  end .
   return bigint64.n0inv n. . .
 end .
 
 export proc mod_exp input out mut slice u64 . input bse slice u64 . input e u64 . input n slice u64 . input nb usize . input r2 mut slice u64 . input acc mut slice u64 . input tmp mut slice u64 . input t mut slice u64 . output u64 . effects none . do
-  if eq machine.mul_bits. 16 . do  return bigint16.mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .  end .
   return bigint64.mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .
 end .
 
 export proc add_mod input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . inplace o a . inplace o b . do
-  if eq machine.mul_bits. 16 . do  return bigint16.add_mod o. a. b. m. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.add_mod o. a. b. m. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.add_mod o. a. b. m. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.add_mod o. a. b. m. nb. . .  end .
   return bigint64.add_mod o. a. b. m. nb. . .
 end .
 
 export proc sub_mod input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . inplace o a . inplace o b . do
-  if eq machine.mul_bits. 16 . do  return bigint16.sub_mod o. a. b. m. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.sub_mod o. a. b. m. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.sub_mod o. a. b. m. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.sub_mod o. a. b. m. nb. . .  end .
   return bigint64.sub_mod o. a. b. m. nb. . .
 end .
 
 export fn is_zero input a slice u64 . input nb usize . output u64 . do
-  if eq machine.mul_bits. 16 . do  return bigint16.is_zero a. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.is_zero a. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.is_zero a. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.is_zero a. nb. . .  end .
   return bigint64.is_zero a. nb. . .
 end .
 
 export fn equal input a slice u64 . input b slice u64 . input nb usize . output u64 . do
-  if eq machine.mul_bits. 16 . do  return bigint16.equal a. b. nb. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.equal a. b. nb. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.equal a. b. nb. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.equal a. b. nb. . .  end .
   return bigint64.equal a. b. nb. . .
 end .
 
 export fn bit input a slice u64 . input i usize . output u64 . do
-  if eq machine.mul_bits. 16 . do  return bigint16.bit a. i. . .  end .
-  if eq machine.mul_bits. 32 . do  return bigint32.bit a. i. . .  end .
+  if eq machine.limb_bits. 16 . do  return bigint16.bit a. i. . .  end .
+  if eq machine.limb_bits. 32 . do  return bigint32.bit a. i. . .  end .
   return bigint64.bit a. i. . .
 end .
 

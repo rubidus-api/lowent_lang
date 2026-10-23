@@ -968,8 +968,11 @@ typedef struct {
     bool        int128;
     // ★ RFC-0152 R1 (2026-10-23, 소유자 «기본 폭: 곱셈기의 폭») — **곱셈기의 폭**: 곱의 위 절반까지 명령 하나로 내는 가장 넓은 정수 폭(16 | 32 | 64).
     //   주소 폭과 다르다. `machine.mul_bits` 로 묻고, 큰 수 모듈 `bigint` 가 이 값으로 조각 폭을 고른다. 빠르기의 기본값이지 맞고 틀림의 경계가 아니다.
-    //   `--mul-bits` 가 프로그램 전체에서 이 값을 덮는다(`low_ir_set_mul_bits`).
     proven_u8   mul_bits;
+    // ★ RFC-0152 (2026-10-23, 소유자 «기준은 이미 우리가 아는 플랫폼은 재 보고 결정하고, 그렇지 않으면 일단 곱셈기 폭으로 … 언제든 변경 가능하게»)
+    //   — **큰 수 셈이 쓰는 조각 폭**(`machine.limb_bits`). 잰 대상은 잰 값, 0 이면 `mul_bits` 를 따른다. `--limb-bits` 가 프로그램 전체에서 덮는다.
+    //   곱셈기 폭(사실)과 조각 폭(고른 것)을 가른다 — 재 보면 둘이 다를 수 있다(x86 32 비트 빌드는 곱셈기 32 인데 64 비트 조각이 빨랐다).
+    proven_u8   limb_bits;
 } low_target_t;
 // RFC-0150 §8-31 — 구조체 배치 안의 **제약 있는 칸**(안에 든 구조체까지): `bool`(바이트가 0 · 1) · 폭을 적은 열거(번호가 표
 //   enum_tab[elo .. ehi) 에 있다). `try_view` 가 그 바이트를 재고, 아니면 `none` 이다. 수를 돌려준다.
@@ -978,8 +981,8 @@ proven_size_t low_ir_struct_cfields(const low_ir_t *ir, proven_size_t si, low_ir
 bool low_ir_cfield_ok(const low_ir_t *ir, const low_ir_cfield_t *cf, const unsigned char *p);   // 그 바이트가 맞는 값인가
 bool low_ir_struct_has_enumlayout(const low_ir_t *ir, proven_size_t si);                        // 폭을 적은 열거 칸이 (안쪽까지) 있는가
 bool low_ir_set_target(const char *name);
-void low_ir_set_mul_bits(unsigned bits);     // RFC-0152 R2 — `--mul-bits` (0 = 대상 표의 값)
-unsigned low_ir_mul_bits(void);              // 지금 쓰는 곱셈기 폭(선택이 덮었으면 그 값)      // 기본: x86_64 (호스트) · 표에 없는 이름이면 false(정본 §5.6 (3))
+void low_ir_set_limb_bits(unsigned bits);    // RFC-0152 — `--limb-bits` (0 = 대상 표의 값)
+unsigned low_ir_limb_bits(void);             // 큰 수 셈이 쓰는 조각 폭(선택 · 표의 잰 값 · 곱셈기 폭 차례로)      // 기본: x86_64 (호스트) · 표에 없는 이름이면 false(정본 §5.6 (3))
 proven_size_t low_ir_target_count(void);
 const char *low_ir_target_name(proven_size_t i);
 // ★★★ **SMT 백엔드를 끈다** (`--no-smt`) — 기능 스위치가 아니라 **측정 도구**다 (후속 M).

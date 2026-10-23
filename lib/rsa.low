@@ -26,7 +26,7 @@ end .
 
 
 rem ★★ **조각 폭은 고른다** (RFC-0152, 소유자 2026-10-23 «rsa는 꼭 32비트 혹은 64비트 CPU에서만 쓰라는 법은 없잖아요?»).
-rem   `verify_pss` · `verify_pkcs1` 은 기계가 고른 폭(`bigint` — 대상의 곱셈기 폭, `--mul-bits` 가 바꾼다)으로 돈다.
+rem   `verify_pss` · `verify_pkcs1` 은 기계가 고른 폭(`bigint` — 대상의 조각 폭, `--limb-bits` 가 바꾼다)으로 돈다.
 rem   `verify_pss_by` · `verify_pkcs1_by` 는 폭을 받는다 — `bigint16.limb.` · `bigint32.limb.` · `bigint64.limb.` 을 넘긴다.
 rem   ☞ 64 비트 기계에서 `bigint` 는 1.16.0 의 `bigint64` 와 같은 셈이다(RSA-2048 거듭제곱이 `bigint32` 보다 x86-64 에서 약 1.9 배 빨랐다 — RFC-0151 §9.5).
 rem   담는 칸은 폭과 상관없이 같다 — 아래 «k» 는 ⌈nb / 2⌉ 로 잡으면 세 폭 어디에나 맞는다.

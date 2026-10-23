@@ -22,4 +22,4 @@ rsa.verify_pss_by bigint16.limb. w. sig. n. …     ← 이 한 번만 16 비트
 
 *왜 따로 둔 모듈인가* --- 폭 모듈 넷이 이것을 쓰고, `bigint` 가 폭 모듈 셋을 쓴다. 트레이트가 그 가운데 하나에 있으면 서로를 부르는 고리가 생긴다.
 
-*프로그램 전체*의 폭을 바꾸는 길은 따로 있다 --- `lowentc --mul-bits` (#modref("bigint")[`bigint`]).
+*프로그램 전체*의 폭을 바꾸는 길은 따로 있다 --- `lowentc --limb-bits` (#modref("bigint")[`bigint`]).

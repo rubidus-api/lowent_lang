@@ -14,7 +14,7 @@
 
 *There are three of this module --- only the limb width differs.* #modref("bigint16")[`bigint16`] · `bigint32` · #modref("bigint64")[`bigint64`] have the same op
 names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. *A fourth*, #modref("bigint")[`bigint`], gives the same ops but lets *the machine* pick the
-width (the target's multiplier width · `--mul-bits`) --- the standard library's #modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] ·
+width (the target's limb width · `--limb-bits`) --- the standard library's #modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] ·
 #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`] use it (since 2026-10-23, RFC-0152). Until 2026-10-22 there was one module named `bigint`
 (16-bit limbs, then 32-bit the same day).
 

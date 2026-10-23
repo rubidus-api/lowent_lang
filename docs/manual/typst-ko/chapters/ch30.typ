@@ -258,7 +258,7 @@ absorbs: 1 op(s) stop `unsafe` here
 #antipattern[`asm` 의 기계 이름을 다른 도구의 철자로 적는다][
   #demo("examples/ch30/mistake_asmtarget.low")
 
-  GCC 나 LLVM 은 `aarch64` 라고 부르지만 이 처리기의 대상 이름은 `arm64` 다. 이름은 닫힌 목록(`x86_64`·`arm64`·`cortex_m`·`riscv64`·`mips_be`·`win64`·`cheriot`·`word16`)
+  GCC 나 LLVM 은 `aarch64` 라고 부르지만 이 처리기의 대상 이름은 `arm64` 다. 이름은 닫힌 목록(`x86_64`·`arm64`·`cortex_m`·`cortex_m0`·`riscv64`·`mips_be`·`win64`·`cheriot`·`word16`)
   이고, 목록 밖의 이름은 어떤 빌드와도 맞지 않으므로 그 op 은 영영 지어지지 않는다. 그래서 조용히 건너뛰지 않고 `E-ASM-TARGET-UNKNOWN` 으로
   멈춘다.
 ]

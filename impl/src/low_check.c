@@ -2401,8 +2401,42 @@ static proven_size_t ck_vis_method_words(const low_cst_t *nd, proven_size_t i) {
     return i;
 }
 static void ck_vis_walk(low_check_result_t *out, const low_cst_t *nd, const ck_vis_t *v,
+                        proven_size_t nv, proven_u8str_view_t cur);
+// ★★★ 2026-10-23 — **칸 이름은 그 구조체의 것이다** (결함 field-name-bare-export, 소유자 «칸 이름 결함은 고칩시다»).
+//   구조체 몸의 칸 선언(`limbs u64 .`) · 리터럴의 칸 자리(`lit box do limbs v. . end`)의 첫 낱말은 칸 이름이고, 모듈 이름공간에서
+//   찾는 이름이 아니다. 이 걸음은 그것을 참조로 읽어, 한 단위의 다른 모듈이 같은 철자를 내보내면(`bigint64.limbs`) E-VISIBILITY 를 냈다.
+//   나무를 세우는 층은 이미 칸 이름을 잎으로 읽는다(`nest_collect_fields`, 2026-08-30). 칸의 타입 · 값은 그대로 본다.
+static void ck_vis_fields(low_check_result_t *out, const low_cst_t *blk, const ck_vis_t *v,
+                          proven_size_t nv, proven_u8str_view_t cur) {
+    for (proven_size_t q = 0; q < blk->nkids; q++) {
+        const low_cst_t *f = blk->kids[q];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 1 && ck_atom(f->kids[0]) && f->kids[0]->tok.kind == LOW_TOK_IDENT &&
+            f->kids[0]->tok.kw == LOW_KW_NONE) {
+            for (proven_size_t i = 1; i < f->nkids; i++) ck_vis_walk(out, f->kids[i], v, nv, cur);
+        } else ck_vis_walk(out, f, v, nv, cur);
+    }
+}
+static void ck_vis_walk(low_check_result_t *out, const low_cst_t *nd, const ck_vis_t *v,
                         proven_size_t nv, proven_u8str_view_t cur) {
     if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0])) {
+        // `field <값> <칸>… .` — 값은 보고 칸 이름은 건너뛴다(칸 읽기 · `set field …` 의 자리 둘 다)
+        if (nd->kids[0]->tok.kw == LOW_KW_NONE && veq(nd->kids[0]->tok.lex, "field")) {
+            ck_vis_walk(out, nd->kids[1], v, nv, cur);
+            for (proven_size_t i = 2; i < nd->nkids; i++) if (!ck_atom(nd->kids[i])) ck_vis_walk(out, nd->kids[i], v, nv, cur);
+            return;
+        }
+        // `lit <타입 낱말…> do <칸> <값> . … end` — 타입은 보고 블록은 칸 자리로 읽는다
+        if (nd->kids[0]->tok.kw == LOW_KW_LIT && nd->kids[1]->kind == LOW_CST_FORM) {
+            const low_cst_t *tf = nd->kids[1];
+            for (proven_size_t i = 0; i < tf->nkids; i++) {
+                if (tf->kids[i]->kind == LOW_CST_BLOCK) ck_vis_fields(out, tf->kids[i], v, nv, cur);
+                else ck_vis_walk(out, tf->kids[i], v, nv, cur);
+            }
+            for (proven_size_t i = 2; i < nd->nkids; i++) ck_vis_walk(out, nd->kids[i], v, nv, cur);
+            return;
+        }
+    }
     if (nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE) {
         proven_u8str_view_t lx = nd->tok.lex;
         // ★ mono 인스턴스 이름(`op#type`)은 기계가 만든 것 — 한정 표면이 없다. 면제.
@@ -2475,6 +2509,13 @@ kids:
     {
         low_kw_t hk = (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM)
                         ? nd->kids[0]->tok.kw : LOW_KW_NONE;
+        if (hk == LOW_KW_STRUCT) {                    // 칸 선언의 이름은 참조가 아니다(위 ck_vis_fields)
+            for (proven_size_t i = 2; i < nd->nkids; i++) {
+                if (nd->kids[i]->kind == LOW_CST_BLOCK) ck_vis_fields(out, nd->kids[i], v, nv, cur);
+                else ck_vis_walk(out, nd->kids[i], v, nv, cur);
+            }
+            return;
+        }
         if (hk == LOW_KW_FN || hk == LOW_KW_PROC || hk == LOW_KW_STRUCT || hk == LOW_KW_ACTOR ||
             hk == LOW_KW_TRAIT || hk == LOW_KW_ENUM || hk == LOW_KW_TYPE || hk == LOW_KW_NEWTYPE) {
             ck_vis_walk(out, nd->kids[0], v, nv, cur);
@@ -5413,7 +5454,7 @@ static bool ck_is_contract(const low_parse_result_t *pr, proven_u8str_view_t nam
 //     말하면 그것도 틀린 말이다 — 그리고 큰 수 모듈 `bigint` 를 쓰는 모든 프로그램이 그 말을 듣게 된다. 나머지(`cache_line` …)는 그대로 센다.
 static bool ck_machine_sanctioned(proven_u8str_view_t v) {
     static const char *const ok[] = { "machine.addr_bits", "machine.ptr_width", "machine.ptr_bytes", "machine.ptr_align",
-                                      "machine.ptr_caps", "machine.mul_bits" };
+                                      "machine.ptr_caps", "machine.mul_bits", "machine.limb_bits" };
     for (proven_size_t i = 0; i < sizeof ok / sizeof *ok; i++) if (veq(v, ok[i])) return true;
     return false;
 }
@@ -10089,7 +10130,7 @@ static bool ck_b2_pair_ok(const low_cst_t *body, proven_u8str_view_t w, proven_u
                           const low_opinfo_t *tab, proven_size_t nt, bool *full);
 // ★ 2026-10-23 (RFC-0152 R3) — **`return` 으로 끝나는 갈래는 제 몸으로 본다.** `if <조건> do … return … end .` 의 몸이 w 에 쓰더라도
 //   그 갈래를 지나면 op 이 끝나므로 뒤의 r 읽기는 그 쓰기를 보지 않는다. 그 몸이 그 자체로 두 모양 가운데 하나이고 조건이 w 에
-//   쓰지 않으면 앞 문장으로 받아 준다. 기계가 폭을 고르는 `bigint` 의 갈래(`if eq machine.mul_bits. 16 . do return bigint16.mont_mul … end .`)가 이 꼴이다.
+//   쓰지 않으면 앞 문장으로 받아 준다. 기계가 폭을 고르는 `bigint` 의 갈래(`if eq machine.limb_bits. 16 . do return bigint16.mont_mul … end .`)가 이 꼴이다.
 //   ☞ 보수적으로: 별칭이 없을 때(이름이 w · r 둘뿐)만. 별칭이 있으면 갈래 안에서 다시 모은 별칭이 바깥 것과 같다고 보일 수 없다.
 static bool ck_b2_exit_branch_ok(const low_cst_t *st, const ck_b2_t *b, proven_u8str_view_t w, proven_u8str_view_t r,
                                  const low_opinfo_t *tab, proven_size_t nt) {

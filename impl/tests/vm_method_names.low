@@ -23,9 +23,9 @@ fn l64.mod_exp input w l64 . input nb usize . input k usize . output usize . do
   return add mul nb. 1000 . k. . .
 end .
 
-rem 칸을 지나서 부르는 자리 (칸 이름이 남의 export 와 같은 철자인 경우는 별개 결함 field-name-bare-export — 아직 막힌다)
+rem 칸을 지나서 부르는 자리 — 칸 이름도 `bigint64.limbs` 와 철자가 같다(결함 field-name-bare-export, 2026-10-23 고침)
 struct box do
-  inner l64 .
+  limbs l64 .
 end .
 
 rem 이름 하나인 받는 값
@@ -37,8 +37,8 @@ end .
 rem 칸을 지나서
 fn via_field input nb usize . output usize . do
   let x lit l64 do tag 0 . end . .
-  let b lit box do inner x. . end . .
-  return method b. inner limbs. nb. . .
+  let b lit box do limbs x. . end . .
+  return method b. limbs limbs. nb. . .
 end .
 
 rem 트레이트를 갖춘 아무 타입 — 인자 둘인 메서드
@@ -63,4 +63,15 @@ fn shapes input nb usize . output usize . do
   var r usize 0 .
   set r. method x. mod_exp. k. 1 . .
   return r. .
+end .
+
+rem 칸 이름이 남의 export 와 같아도 — 선언 · 리터럴 · 읽기 · 쓰기
+struct counts do
+  limbs u64 .
+  zero u64 .
+end .
+fn fields input nb usize . output u64 . do
+  var c lit counts do limbs cast u64 nb. . . zero 2 . end . .
+  set field c. limbs . add field c. limbs . 1 . .
+  return add field c. limbs . field c. zero . . .
 end .

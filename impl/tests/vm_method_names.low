@@ -1,0 +1,66 @@
+rem 결함 method-name-bare-op (2026-10-23) — `method` 의 칸 이름과 op 이름은 받는 값의 타입을 따라 찾는다.
+rem 한 단위의 다른 모듈(`bigint64`)이 같은 철자의 op(`limbs` · `mod_exp`)을 내보내도 그쪽으로 가지 않는다.
+rem 전에는 나무를 세우는 층이 `limbs` 를 `bigint64.limbs` 의 인자 수로 묶고(E-METHOD-UNDEF · E-TYPE-ARG),
+rem 효과 검사가 «남의 export 를 맨이름으로 불렀다»(E-VISIBILITY) 고 했다.
+module method_names .
+use bigint64 from "../../lib/bigint64.low" .
+
+trait width do
+  limbs input w self . input nb usize . output usize .
+  mod_exp input w self . input nb usize . input k usize . output usize .
+end .
+
+struct l64 do
+  satisfies width .
+  tag u8 .
+end .
+
+fn l64.limbs input w l64 . input nb usize . output usize . do
+  return add nb. 100 . .
+end .
+
+fn l64.mod_exp input w l64 . input nb usize . input k usize . output usize . do
+  return add mul nb. 1000 . k. . .
+end .
+
+rem 칸을 지나서 부르는 자리 (칸 이름이 남의 export 와 같은 철자인 경우는 별개 결함 field-name-bare-export — 아직 막힌다)
+struct box do
+  inner l64 .
+end .
+
+rem 이름 하나인 받는 값
+fn direct input nb usize . output usize . do
+  let x lit l64 do tag 0 . end . .
+  return method x. limbs. nb. . .
+end .
+
+rem 칸을 지나서
+fn via_field input nb usize . output usize . do
+  let x lit l64 do tag 0 . end . .
+  let b lit box do inner x. . end . .
+  return method b. inner limbs. nb. . .
+end .
+
+rem 트레이트를 갖춘 아무 타입 — 인자 둘인 메서드
+fn pick input comptime t type . input w t . input nb usize . output usize . requires width t. . . do
+  return method w. mod_exp. method w. limbs. nb. . 7 . .
+end .
+
+fn generic input nb usize . output usize . do
+  let x lit l64 do tag 0 . end . .
+  return pick l64. x. nb. . .
+end .
+
+rem 같은 단위에서 진짜 `bigint64.limbs` 는 그대로 선다
+fn real input nb usize . output usize . do
+  return bigint64.limbs nb. . .
+end .
+
+rem 문장의 세 모양 — `let` 의 값 · `set` 의 값(위의 `return` 과 함께)
+fn shapes input nb usize . output usize . do
+  let x lit l64 do tag 0 . end . .
+  let k usize method x. limbs. nb. . .
+  var r usize 0 .
+  set r. method x. mod_exp. k. 1 . .
+  return r. .
+end .

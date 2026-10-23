@@ -2088,18 +2088,23 @@ static const struct { const char *name; int ar; } NEST_CALL_BUILTIN[] = {
 #undef X
 };
 
-#define NEST_MAXOPS 256
+#define NEST_MAXOPS 256   // 표의 첫 용량 — 모자라면 두 배로 늘린다(nest_op_room · nest_loc_room)
 typedef struct {
     low_parser_t        p;
-    proven_u8str_view_t op[NEST_MAXOPS];    // 선언된 op 이름
+    // ★★★ 2026-10-23 (RFC-0152 S3 · 결함 nest-op-table-256) — **표는 단위만큼 자란다.** 전에는 op 이름 · 지역 이름 표가 256 칸에 고정이었고
+    //   넘치면 **말없이 더 안 담았다**. 그 뒤의 op 은 이 층에서 «모르는 이름» 이라 그 부름이 나무로 묶이지 않았다 — 하강층은 평평한 꼴도
+    //   읽으므로 대개 티가 안 났지만, **제네릭 op 의 부름**은 단형화가 묶인 부름만 알아보므로 인스턴스가 안 생겨 `E-IR-UNDEF` 가 났다
+    //   (`apps/lowget` — std 모듈 열둘을 쓰는 프로그램 — 에서 `rsa.verify_pss_by`). 지역 이름 표도 같았다: 넘친 뒤의 지역은 남의 op 에
+    //   «훔쳐질» 수 있었다. 이제 둘 다 모자라면 두 배로 늘린다(단형화기의 인스턴스 표와 같은 방식).
+    proven_u8str_view_t *op;                // 선언된 op 이름
     // ★★★ **어느 모듈이 선언했는가** (2026-07-26). 없으면 같은 이름의 op 이 두 모듈에 있을 때
     //   한정 호출(`vecgen.open`)이 **아무거나** 먼저 맞는 것으로 arity 를 잡는다 — 그러면 인자가
     //   덜 묶이고 `E-IR-ARITY: 인자가 너무 적다` 가 뜬다. 진단은 프로그램을 탓하지만 틀린 것은
     //   도구다. 자리(선언 순서)가 곧 모듈 소속이라 그것을 그대로 기록한다.
-    proven_u8str_view_t opmod[NEST_MAXOPS]; // 그 op 을 선언한 모듈
-    proven_size_t       ar[NEST_MAXOPS];    // 그 arity (low_op_header — 이미 IR 과 대조됐다)
-    bool                var[NEST_MAXOPS];   // ★ 가변인자 op 인가 — 모양에 'R'(나머지 전부)을 더한다
-    proven_size_t       nop;
+    proven_u8str_view_t *opmod;             // 그 op 을 선언한 모듈
+    proven_size_t       *ar;                // 그 arity (low_op_header — 이미 IR 과 대조됐다)
+    bool                *var;               // ★ 가변인자 op 인가 — 모양에 'R'(나머지 전부)을 더한다
+    proven_size_t       nop, opcap;
     // ★★★★★ **맨이름도 제 모듈부터** (2026-08-15). 한정 호출은 2026-07-26 에 갈랐는데
     //   **맨이름**은 여전히 *첫 일치*였다. 그래서 `str.low` 의 액터 핸들러 `next`(인자 0→
     //   슬롯 1)가 `utf8.next`(인자 2)의 **arity 를 대신 정해** 폼이 한 자리 짧게 묶였고,
@@ -2113,10 +2118,13 @@ typedef struct {
     //     (`E-GUARD-FALLTHROUGH`) 라고 **엉뚱한 것을 탓했다**. 이분해서 찾은 자리다.
     //   ☞ 되짚기 자체는 **제네릭 인스턴스가 쓴다**(없애면 코퍼스 14 개가 깨진다 — 실측).
     //     그래서 없애지 않고, **제 모듈의 지역 이름일 때만** 안 되짚는다.
-    proven_u8str_view_t loc[NEST_MAXOPS];   // 지역으로 묶인 이름
-    proven_u8str_view_t locmod[NEST_MAXOPS];// 그 지역이 사는 모듈
-    proven_size_t       nloc;
+    proven_u8str_view_t *loc;               // 지역으로 묶인 이름
+    proven_u8str_view_t *locmod;            // 그 지역이 사는 모듈
+    proven_size_t       nloc, loccap;
     proven_u8str_view_t curmod;             // 지금 묶고 있는 자리가 속한 모듈
+    // ★ `method <받는 값> <마디>* <op 이름>. <인자>*` — 받는 값 뒤의 마디와 op 이름은 **낱말**이다(그 타입에 딸린 이름).
+    //   1 = 다음이 받는 값 · 2 = 마디/이름을 읽는 중(내림이 op 이름에 점을 표시해 둔다 — 거기서 끝난다).
+    int                 meth;
     proven_size_t       nested;             // ★ 정직하게 센다: 괄호를 몇 개 박았나
     proven_size_t       gave_up;            // ★ 그리고 몇 번 **포기**했나
     // ★★ 그리고 **무엇 때문에** 포기했는지 말한다. 숫자만 있고 이유가 없으면 줄일 수 없다.
@@ -2124,6 +2132,33 @@ typedef struct {
     proven_size_t       whyn[16], nwhy;
 } nest_ctx_t;
 
+// 표 한 칸 더 — 모자라면 두 배로(작업 아레나에 새로 잡아 옮긴다). 못 늘리면 false(그 이름은 안 담긴다 — 메모리가 바닥난 때뿐이다).
+static void *nest_grow(nest_ctx_t *c, const void *old, proven_size_t n, proven_size_t cap, proven_size_t elt, proven_size_t al) {
+    proven_result_mem_mut_t r = c->p.work.alloc_fn(c->p.work.ctx, cap * elt, al);
+    if (r.err != PROVEN_OK) return NULL;
+    if (n && old) memcpy(r.value.ptr, old, n * elt);
+    return r.value.ptr;
+}
+static bool nest_op_room(nest_ctx_t *c) {
+    if (c->nop < c->opcap) return true;
+    proven_size_t cap = c->opcap ? c->opcap * 2 : NEST_MAXOPS;
+    proven_u8str_view_t *o  = nest_grow(c, c->op, c->nop, cap, sizeof *o, alignof(proven_u8str_view_t));
+    proven_u8str_view_t *om = nest_grow(c, c->opmod, c->nop, cap, sizeof *om, alignof(proven_u8str_view_t));
+    proven_size_t       *a  = nest_grow(c, c->ar, c->nop, cap, sizeof *a, alignof(proven_size_t));
+    bool                *v  = nest_grow(c, c->var, c->nop, cap, sizeof *v, alignof(bool));
+    if (!o || !om || !a || !v) return false;
+    c->op = o; c->opmod = om; c->ar = a; c->var = v; c->opcap = cap;
+    return true;
+}
+static bool nest_loc_room(nest_ctx_t *c) {
+    if (c->nloc < c->loccap) return true;
+    proven_size_t cap = c->loccap ? c->loccap * 2 : NEST_MAXOPS;
+    proven_u8str_view_t *l  = nest_grow(c, c->loc, c->nloc, cap, sizeof *l, alignof(proven_u8str_view_t));
+    proven_u8str_view_t *lm = nest_grow(c, c->locmod, c->nloc, cap, sizeof *lm, alignof(proven_u8str_view_t));
+    if (!l || !lm) return false;
+    c->loc = l; c->locmod = lm; c->loccap = cap;
+    return true;
+}
 static void nest_blame(nest_ctx_t *c, proven_u8str_view_t w) {
     for (proven_size_t i = 0; i < c->nwhy; i++)
         if (proven_u8str_view_eq(c->why[i], w)) { c->whyn[i]++; return; }
@@ -2217,6 +2252,27 @@ static low_cst_t *nest_value(nest_ctx_t *c, low_cst_t *const *k, proven_size_t *
                              proven_size_t end, bool *bad) {
     if (*pos >= end) { *bad = true; nest_blame(c, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"<피연산자부족>", .size = 20 }); return NULL; }
     low_cst_t *nd = k[(*pos)++];
+    // ★★★ 2026-10-23 — **`method` 의 op 이름은 단위의 op 이름공간에서 찾는 것이 아니다** (결함 method-name-bare-op).
+    //   그 이름은 받는 값의 타입에 딸린 `<타입>.<이름>` 이다(하강층이 그렇게 푼다). 그런데 이 층은 그 낱말을 맨이름으로 보고
+    //   모양표를 찾아, 다른 모듈이 같은 철자의 op 을 내보내면(`other.pw` · `bigint64.mod_exp`) **그 op 의 인자 수로 뒤를 묶었다**
+    //   — `method w. pw. out. k.` 가 `method w (pw out) k` 가 되어 하강이 E-METHOD-UNDEF 를, 검사층이 E-TYPE-ARG 를 말했다.
+    //   `call_builtin` 의 이름 자리, `order` 의 낱말과 같은 병이다: 낱말 자리는 낱말로 읽는다.
+    if (c->meth == 2) {
+        if (nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_IDENT) {
+            if (nd->tok.aux.size == 1 && nd->tok.aux.ptr[0] == '.') c->meth = 0;   // op 이름 — 여기서 끝난다
+            return nd;
+        }
+        c->meth = 0;
+    }
+    if (c->meth == 1) {
+        c->meth = 0;
+        (*pos)--;
+        low_cst_t *r = nest_value(c, k, pos, end, bad);
+        if (!*bad) c->meth = 2;
+        return r;
+    }
+    if (nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE &&
+        nest_veq(nd->tok.lex, "method")) { c->meth = 1; return nd; }
     if (nd->kind != LOW_CST_ATOM) return nd;              // GROUP/BLOCK/FORM — 이미 닫힌 것
     if (nd->tok.kind == LOW_TOK_NUMBER || nd->tok.kind == LOW_TOK_STRING ||
         nd->tok.kind == LOW_TOK_CHAR ||
@@ -2318,6 +2374,7 @@ static bool nest_region(nest_ctx_t *c, low_cst_t *f, proven_size_t vs, proven_si
     for (proven_size_t i = 0; i < vs; i++) (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *, f->kids[i]);
     bool bad = false;
     proven_size_t pos = vs, before = c->nested;
+    c->meth = 0;
     while (pos < ve && !bad) {
         // ★★★ **`order <낱말>` 은 절이다 — 그 낱말은 머리가 아니다** (RFC-0018 §6.1).
         //   원자 연산의 ordering 은 새 키워드를 안 늘리려고 **절 낱말**로 준다
@@ -2419,7 +2476,7 @@ static void nest_collect_locals(nest_ctx_t *c, const low_cst_t *nd, proven_u8str
             if (kw != LOW_KW_LET && kw != LOW_KW_VAR && !proven_u8str_view_eq(a->tok.lex, proven_u8str_view_from_cstr("input"))) continue;
             const low_cst_t *nm = nd->kids[i + 1];
             if (nm->kind != LOW_CST_ATOM || !nm->tok.lex.size) continue;
-            if (c->nloc >= NEST_MAXOPS) continue;   // ★ 넘치면 **더 안 담을 뿐** 답은 안 바꾼다
+            if (!nest_loc_room(c)) continue;          // ★ 표는 자란다(위 nest_ctx_t 의 주석)
             c->loc[c->nloc] = nm->tok.lex; c->locmod[c->nloc] = mod; c->nloc++;
         }
         for (proven_size_t i = 0; i < nd->nkids; i++) nest_collect_locals(c, nd->kids[i], mod);
@@ -2446,7 +2503,7 @@ static void nest_collect_fields(nest_ctx_t *c, const low_cst_t *nd, proven_u8str
                                   ? f->kids[0] : (f->kind == LOW_CST_ATOM ? f : NULL);
             if (!nm || !nm->tok.lex.size) continue;
             if (nm->tok.kw) continue;                 // `input comptime b type .` 같은 절은 아니다
-            if (c->nloc >= NEST_MAXOPS) continue;
+            if (!nest_loc_room(c)) continue;
             c->loc[c->nloc] = nm->tok.lex; c->locmod[c->nloc] = mod; c->nloc++;
         }
     }
@@ -2474,7 +2531,7 @@ void low_nest(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
         if (kw == LOW_KW_FN || kw == LOW_KW_PROC) {
             nest_collect_locals(&c, f, curmod);      // ★ 이 op 이 만든 지역 이름들
             low_op_header_t h = low_op_header(f);
-            if (h.name.size && c.nop < NEST_MAXOPS) { c.op[c.nop] = h.name; c.opmod[c.nop] = curmod; c.var[c.nop] = h.is_variadic; c.ar[c.nop++] = h.np_call; }
+            if (h.name.size && nest_op_room(&c)) { c.op[c.nop] = h.name; c.opmod[c.nop] = curmod; c.var[c.nop] = h.is_variadic; c.ar[c.nop++] = h.np_call; }
             // ★ RFC-0121 — 몸 바로 아래의 **로컬 op** 도 arity 를 알린다. 보통 경로에서는 이미 끌어올려져(`low_local_lift`) 몸에
             //   없고, `--fmt` 경로만 끌어올리지 않는다 — 그때 이것이 없으면 로컬 op 부름을 괄호로 묶지 못해 서식본이 «구조가
             //   글자에 없는» 꼴이 됐다(골든 순차 실행의 fmt 대조가 vm_localop 에서 4 를 셌다).
@@ -2484,7 +2541,7 @@ void low_nest(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
                     if (lf->kind != LOW_CST_FORM || lf->nkids < 2 || lf->kids[0]->kind != LOW_CST_ATOM) continue;
                     if (lf->kids[0]->tok.kw != LOW_KW_FN && lf->kids[0]->tok.kw != LOW_KW_PROC) continue;
                     low_op_header_t lh = low_op_header(lf);
-                    if (lh.name.size && c.nop < NEST_MAXOPS) { c.op[c.nop] = lh.name; c.opmod[c.nop] = curmod; c.var[c.nop] = lh.is_variadic; c.ar[c.nop++] = lh.np_call; }
+                    if (lh.name.size && nest_op_room(&c)) { c.op[c.nop] = lh.name; c.opmod[c.nop] = curmod; c.var[c.nop] = lh.is_variadic; c.ar[c.nop++] = lh.np_call; }
                 }
         } else if (kw == LOW_KW_ACTOR) {       // 액터 핸들러도 op 이다 — 슬롯 0 = 인스턴스
             // ★★★★★ **액터 핸들러의 지역 이름도 모은다** (2026-08-30, WO-0149).
@@ -2503,7 +2560,7 @@ void low_nest(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
                     low_kw_t hk = hf->kids[0]->tok.kw;
                     if (hk != LOW_KW_FN && hk != LOW_KW_PROC) continue;
                     low_op_header_t h = low_op_header(hf);
-                    if (h.name.size && c.nop < NEST_MAXOPS) { c.op[c.nop] = h.name; c.opmod[c.nop] = curmod; c.ar[c.nop++] = h.np_call + 1; }
+                    if (h.name.size && nest_op_room(&c)) { c.op[c.nop] = h.name; c.opmod[c.nop] = curmod; c.ar[c.nop++] = h.np_call + 1; }
                 }
             }
         }

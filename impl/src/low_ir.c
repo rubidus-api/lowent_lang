@@ -287,11 +287,11 @@ static const low_target_t IR_TARGETS[] = {
     //    보수적으로 잡는다: 이 수를 넘는 슬라이스는 만들 수 없다는 **약속**이므로,
     //    크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다.
     //    조절은 **이 줄 하나**다(소유자 요구: "차후 조절 가능").
-    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true },   // SSE2 baseline = 128-bit
-    { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true },   // NEON mandatory (ARMv8) = 128-bit
-    { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0 },   // freestanding: no_heap · no_float · SIMD 없음
-    { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
-    { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
+    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // SSE2 baseline = 128-bit
+    { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // NEON mandatory (ARMv8) = 128-bit
+    { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 32 },   // freestanding: no_heap · no_float · SIMD 없음
+    { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
+    { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096, .mul_bits = 32 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
     // ★★★★★ **Windows — 크로스 빌드까지만** (2026-08-19, 소유자 결정).
     //   RFC-0069 §6.7 의 승격 조건 넷 중 ①②만 연다: 타깃이 있고, `--emit-c` 가 그 타깃에서
     //   **빌드된다**. ③(왕복 성질을 골든이 잼)·④(host-fault 가 그쪽 잎에서 돎)는 **실행**이
@@ -299,15 +299,15 @@ static const low_target_t IR_TARGETS[] = {
     //   ☞ 그래서 이 타깃은 *"Windows 를 지원한다"* 가 아니라 *"POSIX 를 안 쓰는 프로그램이
     //     Windows 로 건너간다"* 를 뜻한다. POSIX 전용 잎은 **컴파일 시 거절**한다 —
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
-    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true },
+    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },
     // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
     //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
-    { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0 },
+    { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0, .mul_bits = 32 },
     // ★★ RFC-0149 §6.14 — **16 비트 주소: 번역까지만** (2026-10-13, 소유자 결정 «가»). 실제 기계의 이름이 아니다 — `usize` · `idiff` 가
     //   16 비트일 때 같은 글이 서는지를 재는 자리다(`scripts/check-size-width.py`). 힙 · 부동 · POSIX 가 없는 프리스탠딩 칸이고,
     //   슬라이스 길이의 상한은 2^15 다(두 위치의 차가 `idiff` 에 든다). 마지막 칸(check_only)이 참이라 방출 · 실행은 거절된다.
-    { "word16",   false, 16, 2, 2, false, false, true,  true,  0,  false, (proven_i64)1 << 15, 2, 0, true },
+    { "word16",   false, 16, 2, 2, false, false, true,  true,  0,  false, (proven_i64)1 << 15, 2, 0, true, .mul_bits = 16 },
 };
  const low_target_t *ir_tgt = &IR_TARGETS[0];
  bool g_smt_on = true;
@@ -341,6 +341,10 @@ void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = stdout; }
 
 // ★ 정본 §5.6 (3) — 표에 없는 이름은 **거부**한다(false). 전에는 조용히 무시해 기본 기계(x86_64)로 지었다 —
 //   `--target cheriot` 를 잘못 친 `--target cheriott` 가 호스트 빌드로 «통과» 했다.
+// RFC-0152 R2 — 프로그램 전체의 곱셈기 폭을 바꾼다(`--mul-bits`). 0 이면 대상 표의 값.
+static unsigned g_mul_bits;
+void low_ir_set_mul_bits(unsigned bits) { g_mul_bits = bits; }
+unsigned low_ir_mul_bits(void) { return g_mul_bits ? g_mul_bits : ir_tgt->mul_bits; }
 bool low_ir_set_target(const char *name) {
     for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
         if (strcmp(IR_TARGETS[i].name, name) == 0) { ir_tgt = &IR_TARGETS[i]; return true; }
@@ -375,6 +379,7 @@ bool low_ir_target_known(proven_u8str_view_t name) {
     if (veq(v, "machine.little_endian")) return !t->big_endian;
     if (veq(v, "machine.ptr_width"))     return t->addr_bits;   // 옛 이름 — 주소 폭(RFC-0137: 포인터 크기와 다를 수 있다)
     if (veq(v, "machine.addr_bits"))     return t->addr_bits;
+    if (veq(v, "machine.mul_bits"))      return low_ir_mul_bits();   // RFC-0152 R1 — 곱셈기 폭(`--mul-bits` 가 덮을 수 있다)
     if (veq(v, "machine.ptr_bytes"))     return t->ptr_bytes;
     if (veq(v, "machine.ptr_align"))     return t->ptr_align;
     if (veq(v, "machine.ptr_caps"))      return t->ptr_caps;

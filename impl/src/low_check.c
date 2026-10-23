@@ -2011,9 +2011,11 @@ static bool ck_is_aggregate(const low_parse_result_t *pr, proven_u8str_view_t na
 
 // ★★★ trait 충족 검사 본체.
 static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *pr) {
+    proven_u8str_view_t smod = { 0 };                               // 지금 보는 타입이 사는 모듈
     for (proven_size_t si = 0; si < pr->nforms; si++) {
         const low_cst_t *sf = pr->forms[si];
         if (sf->kind != LOW_CST_FORM || sf->nkids < 2 || !ck_atom(sf->kids[0])) continue;
+        if (sf->kids[0]->tok.kw == LOW_KW_MODULE && ck_atom(sf->kids[1])) { smod = sf->kids[1]->tok.lex; continue; }
         // ★★★ **액터도 타입이다** — 그리고 `satisfies` 를 적을 수 있다.
         //   그런데 검사기가 **`struct` 만** 봤다 ⇒ **액터의 주장은 아무도 확인하지 않았다.**
         //   *"없는 op 을 충족한다"* 고 적어도 **조용히 통과**했다 — 정확히 이 언어가
@@ -2033,14 +2035,25 @@ static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *
             proven_u32 line = cf->kids[1]->tok.line;
 
             // 그 trait 을 찾는다
-            const low_cst_t *tblk = NULL;
+            // ★★ 2026-10-23 (RFC-0152) — **그 이름이 가리키는 모듈의 trait 을 고른다.** 전에는 같은 짧은 이름의 trait 가운데
+            //   **마지막 것**을 집었다. 한정(`satisfies bigwidth.width .`)은 이 검사 전에 짧은 이름으로 좁혀지고(가리킨 모듈은
+            //   `qual_mod` 에 남는다), 한정하지 않은 이름은 그 타입의 모듈 것이다. 그래서 제 모듈에 `trait width` 를 둔 프로그램이
+            //   `bigint64`(→ `bigwidth.width`)를 쓰자 제 타입이 남의 trait 으로 재어져 E-TRAIT-MISSING 을 받았다(vm_method_names).
+            //   그 모듈에 그 이름의 trait 이 없을 때만 옛 규칙(같은 이름의 마지막 것)으로 돌아간다.
+            proven_u8str_view_t want = cf->kids[1]->qual_mod.size ? cf->kids[1]->qual_mod : smod;
+            const low_cst_t *tblk = NULL, *tany = NULL;
+            proven_u8str_view_t tmod = { 0 };
             for (proven_size_t ti = 0; ti < pr->nforms; ti++) {
                 const low_cst_t *tf = pr->forms[ti];
                 if (tf->kind != LOW_CST_FORM || tf->nkids < 2 || !ck_atom(tf->kids[0])) continue;
+                if (tf->kids[0]->tok.kw == LOW_KW_MODULE && ck_atom(tf->kids[1])) { tmod = tf->kids[1]->tok.lex; continue; }
                 if (tf->kids[0]->tok.kw != LOW_KW_TRAIT || !ck_atom(tf->kids[1])) continue;
                 if (!proven_u8str_view_eq(tf->kids[1]->tok.lex, tn)) continue;
-                if (tf->kids[tf->nkids - 1]->kind == LOW_CST_BLOCK) tblk = tf->kids[tf->nkids - 1];
+                if (tf->kids[tf->nkids - 1]->kind != LOW_CST_BLOCK) continue;
+                tany = tf->kids[tf->nkids - 1];
+                if (want.size && proven_u8str_view_eq(tmod, want)) tblk = tany;
             }
+            if (!tblk) tblk = tany;
             if (!tblk) {
                 emit(out, "E-TRAIT-UNDEF",
                      "`satisfies` names a trait that is not declared — a claim that points at "
@@ -2372,6 +2385,21 @@ static void ck_loc_collect(const low_cst_t *nd) {
             ck_loc_add(nd->kids[i + 1]->tok.lex);
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_loc_collect(nd->kids[i]);
 }
+// ★★★ 2026-10-23 — **`method <받는 값> <마디>* <op 이름>.` 의 마디와 op 이름은 모듈 이름공간의 것이 아니다** (결함 method-name-bare-op).
+//   그 낱말들은 받는 값의 타입을 따라 찾는다(칸 이름, `<타입>.<이름>`). 이 걸음은 그것도 참조로 읽어, 한 단위에 같은 철자를
+//   내보내는 모듈이 오면(`other.pw` · `bigint64.mod_exp`) «남의 export 를 맨이름으로 불렀다» 고 고발했다. `send` 의 메시지 자리와 같다.
+//   내림이 op 이름 토큰에 점을 표시해 둔다(aux = ".") — 거기까지가 낱말이다. 받는 값은 본다.
+//   돌려주는 값: 건너뛸 마지막 자식의 자리(없으면 i 그대로 — `method` 가 아니다).
+static proven_size_t ck_vis_method_words(const low_cst_t *nd, proven_size_t i) {
+    if (nd->kids[i]->kind != LOW_CST_ATOM || nd->kids[i]->tok.kw != LOW_KW_NONE ||
+        !veq(nd->kids[i]->tok.lex, "method") || i + 2 >= nd->nkids) return i;
+    for (proven_size_t j = i + 2; j < nd->nkids; j++) {
+        const low_cst_t *a = nd->kids[j];
+        if (a->kind != LOW_CST_ATOM || a->tok.kind != LOW_TOK_IDENT) return i;
+        if (a->tok.aux.size == 1 && a->tok.aux.ptr[0] == (proven_u8)'.') return j;
+    }
+    return i;
+}
 static void ck_vis_walk(low_check_result_t *out, const low_cst_t *nd, const ck_vis_t *v,
                         proven_size_t nv, proven_u8str_view_t cur) {
     if (!nd) return;
@@ -2471,6 +2499,8 @@ kids:
                     i += 2;
                     continue;
                 }
+                { proven_size_t mw = ck_vis_method_words(nd, i);
+                  if (mw != i) { ck_vis_walk(out, nd->kids[i + 1], v, nv, cur); i = mw; continue; } }
                 ck_vis_walk(out, nd->kids[i], v, nv, cur);
             }
             return;
@@ -2496,6 +2526,10 @@ kids:
             ck_vis_walk(out, nd->kids[i + 1], v, nv, cur);   // 액터는 본다
             i += 2;                                          // 메시지 이름만 건너뛴다
             continue;
+        }
+        {   // `method` 의 마디와 op 이름(위 ck_vis_method_words) — 받는 값은 본다
+            proven_size_t mw = ck_vis_method_words(nd, i);
+            if (mw != i) { ck_vis_walk(out, nd->kids[i + 1], v, nv, cur); i = mw; continue; }
         }
         ck_vis_walk(out, nd->kids[i], v, nv, cur);
     }
@@ -5373,12 +5407,21 @@ static bool ck_is_contract(const low_parse_result_t *pr, proven_u8str_view_t nam
     }
     return false;
 }
-// ★ 이 나무 어딘가에서 `machine.*` 를 쓰는가.
+// ★ 이 나무 어딘가에서 `machine.*` 를 쓰는가 — **정본이 아직 말하지 않은** 속성만 센다.
+//   ★ 2026-10-23 (RFC-0152 R1) — 정본 §5.3 (4a) · (4c) 는 주소 · 포인터의 속성(`machine.addr_bits` · `ptr_bytes` · `ptr_align` · `ptr_caps`,
+//     옛 이름 `ptr_width`)과 곱셈기 폭(`machine.mul_bits`)을 «번역 시점에 묻는다» 고 적는다. 정본이 보증하는 것을 «보증하지 않는다» 고
+//     말하면 그것도 틀린 말이다 — 그리고 큰 수 모듈 `bigint` 를 쓰는 모든 프로그램이 그 말을 듣게 된다. 나머지(`cache_line` …)는 그대로 센다.
+static bool ck_machine_sanctioned(proven_u8str_view_t v) {
+    static const char *const ok[] = { "machine.addr_bits", "machine.ptr_width", "machine.ptr_bytes", "machine.ptr_align",
+                                      "machine.ptr_caps", "machine.mul_bits" };
+    for (proven_size_t i = 0; i < sizeof ok / sizeof *ok; i++) if (veq(v, ok[i])) return true;
+    return false;
+}
 static bool ck_uses_machine(const low_cst_t *nd) {
     if (!nd) return false;
     if (nd->kind == LOW_CST_ATOM) {
         proven_u8str_view_t v = nd->tok.lex;
-        return v.size >= 8 && memcmp(v.ptr, "machine.", 8) == 0;
+        return v.size >= 8 && memcmp(v.ptr, "machine.", 8) == 0 && !ck_machine_sanctioned(v);
     }
     for (proven_size_t i = 0; i < nd->nkids; i++)
         if (ck_uses_machine(nd->kids[i])) return true;
@@ -10043,6 +10086,28 @@ static bool ck_b2_reads_indexed(const low_cst_t *nd, const ck_b2_t *b, proven_u8
     return true;
 }
 static bool ck_b2_pair_ok(const low_cst_t *body, proven_u8str_view_t w, proven_u8str_view_t r,
+                          const low_opinfo_t *tab, proven_size_t nt, bool *full);
+// ★ 2026-10-23 (RFC-0152 R3) — **`return` 으로 끝나는 갈래는 제 몸으로 본다.** `if <조건> do … return … end .` 의 몸이 w 에 쓰더라도
+//   그 갈래를 지나면 op 이 끝나므로 뒤의 r 읽기는 그 쓰기를 보지 않는다. 그 몸이 그 자체로 두 모양 가운데 하나이고 조건이 w 에
+//   쓰지 않으면 앞 문장으로 받아 준다. 기계가 폭을 고르는 `bigint` 의 갈래(`if eq machine.mul_bits. 16 . do return bigint16.mont_mul … end .`)가 이 꼴이다.
+//   ☞ 보수적으로: 별칭이 없을 때(이름이 w · r 둘뿐)만. 별칭이 있으면 갈래 안에서 다시 모은 별칭이 바깥 것과 같다고 보일 수 없다.
+static bool ck_b2_exit_branch_ok(const low_cst_t *st, const ck_b2_t *b, proven_u8str_view_t w, proven_u8str_view_t r,
+                                 const low_opinfo_t *tab, proven_size_t nt) {
+    if (b->nr != 1 || b->nw != 1) return false;
+    if (!st || st->kind != LOW_CST_FORM || st->nkids < 2 || !ck_atom(st->kids[0]) || st->kids[0]->tok.kw != LOW_KW_IF) return false;
+    const low_cst_t *blk = st->kids[st->nkids - 1];
+    if (blk->kind != LOW_CST_BLOCK || !blk->nkids) return false;
+    const low_cst_t *last = blk->kids[blk->nkids - 1];
+    if (last->kind != LOW_CST_FORM || !last->nkids || !ck_atom(last->kids[0]) || last->kids[0]->tok.kw != LOW_KW_RETURN) return false;
+    for (proven_size_t q = 1; q + 1 < st->nkids; q++) {               // 조건은 w 에 쓰지 않는다
+        proven_u8str_view_t v = { 0 }; bool any = false, bad = false;
+        ck_b2_writes(st->kids[q], b, tab, nt, &v, &any, &bad);
+        if (any) return false;
+    }
+    bool full = false;
+    return ck_b2_pair_ok(blk, w, r, tab, nt, &full) && !full;
+}
+static bool ck_b2_pair_ok(const low_cst_t *body, proven_u8str_view_t w, proven_u8str_view_t r,
                           const low_opinfo_t *tab, proven_size_t nt, bool *full) {
     ck_b2_t b; memset(&b, 0, sizeof b);
     b.r[b.nr++] = r; b.w[b.nw++] = w;
@@ -10054,7 +10119,7 @@ static bool ck_b2_pair_ok(const low_cst_t *body, proven_u8str_view_t w, proven_u
     for (proven_size_t i = 0; i < L; i++) {                            // ⓐ L 앞은 w 에 안 쓴다
         proven_u8str_view_t v = { 0 }; bool any = false, bad = false;
         ck_b2_writes(body->kids[i], &b, tab, nt, &v, &any, &bad);
-        if (any) return false;
+        if (any && !ck_b2_exit_branch_ok(body->kids[i], &b, w, r, tab, nt)) return false;
     }
     const low_cst_t *S = body->kids[L];
     proven_u8str_view_t v = { 0 }; bool any = false, bad = false;

@@ -26,7 +26,7 @@ The old PKCS#1 v1.5 had deterministic padding and shallow structure, and attract
 ③ does H' = SHA-256(0x00×8 ‖ mHash ‖ salt) equal H inside EM
 ```
 
-① is `mod_exp` of [`bigint32`](sec89.md#mod-bigint32), and ② and ③ are this module’s job. The eight `0x00×8` bytes are not decoration — they are a prefix the standard added to separate signed content from certificate signatures. Leaving them out lets signatures from another context be reused.
+① is `mod_exp` of [`bigint64`](sec90.md#mod-bigint64), and ② and ③ are this module’s job. The eight `0x00×8` bytes are not decoration — they are a prefix the standard added to separate signed content from certificate signatures. Leaving them out lets signatures from another context be reused.
 
 | **op** | **What it does** | **Requires** |
 |---|---|---|

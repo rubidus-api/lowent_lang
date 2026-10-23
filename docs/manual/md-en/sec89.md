@@ -18,13 +18,13 @@ none
 >
 > > It does not promise constant time and has not been audited. **Only what is needed was built** — what RSA verification (`s^e mod n`) and curve arithmetic require. There is no big-number division, no negatives, no GCD, no inverse. The exponent `e` is **one `u64`** — narrowed to hold RSA’s public exponent (usually 65537). What was not built cannot be wrong.
 
-**There are three of this module — only the limb width differs.** [`bigint16`](sec88.md#mod-bigint16) · `bigint32` · [`bigint64`](sec90.md#mod-bigint64) have the same op names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. The standard library’s [`rsa`](sec91.md#mod-rsa) · [`p256`](sec92.md#mod-p256) · [`p384`](sec93.md#mod-p384) · [`ecdsa`](sec94.md#mod-ecdsa) · [`ed25519`](sec95.md#mod-ed25519) use `bigint32` — the curve modules do limb arithmetic of their own as well. Until 2026-10-22 this was one module named `bigint`.
+**There are three of this module — only the limb width differs.** [`bigint16`](sec88.md#mod-bigint16) · `bigint32` · [`bigint64`](sec90.md#mod-bigint64) have the same op names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. The standard library’s curve modules [`p256`](sec92.md#mod-p256) · [`p384`](sec93.md#mod-p384) · [`ecdsa`](sec94.md#mod-ecdsa) · [`ed25519`](sec95.md#mod-ed25519) use `bigint32` — they do limb arithmetic of their own as well. [`rsa`](sec91.md#mod-rsa) uses `bigint64` (since 2026-10-23). Until 2026-10-22 this was one module named `bigint`.
 
 | **module** | **limb** | **x86-64** | **where it fits** |
 |---|---|---|---|
 | `bigint16` | 16 bits | 0.71 s | machines with a narrow multiplier (8- and 16-bit CPUs) — not yet measured on one |
-| `bigint32` | 32 bits | 0.22 s | the default; the standard library’s curve and RSA modules |
-| `bigint64` | 64 bits | 0.12 s | 64-bit machines; in a 32-bit build (x86 `-m32`) it was also 1.35 times faster than `bigint32` |
+| `bigint32` | 32 bits | 0.22 s | the default; the standard library’s curve modules |
+| `bigint64` | 64 bits | 0.12 s | 64-bit machines · the standard library’s `rsa`; in a 32-bit build (x86 `-m32`) it was also 1.35 times faster than `bigint32` |
 
 *Table 50.1 — The three widths — RSA-2048 exponentiation 300 times, native `-O2` (measured 2026-10-22)*
 

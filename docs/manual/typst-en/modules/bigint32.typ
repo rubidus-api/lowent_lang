@@ -13,9 +13,9 @@
 ]
 
 *There are three of this module --- only the limb width differs.* #modref("bigint16")[`bigint16`] · `bigint32` · #modref("bigint64")[`bigint64`] have the same op
-names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. The standard library's
-#modref("rsa")[`rsa`] · #modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`] use `bigint32` --- the curve
-modules do limb arithmetic of their own as well. Until 2026-10-22 this was one module named `bigint`.
+names and the same inputs; they differ only in how many bits each limb holds. The caller picks a width by changing one `use` line. The standard library's curve modules
+#modref("p256")[`p256`] · #modref("p384")[`p384`] · #modref("ecdsa")[`ecdsa`] · #modref("ed25519")[`ed25519`] use `bigint32` --- they do limb arithmetic of
+their own as well. #modref("rsa")[`rsa`] uses `bigint64` (since 2026-10-23). Until 2026-10-22 this was one module named `bigint`.
 
 #dtable(
   columns: 4,
@@ -23,8 +23,8 @@ modules do limb arithmetic of their own as well. Until 2026-10-22 this was one m
   caption: [The three widths --- RSA-2048 exponentiation 300 times, native `-O2` (measured 2026-10-22)],
   [*module*], [*limb*], [*x86-64*], [*where it fits*],
   [`bigint16`], [16 bits], [0.71 s], [machines with a narrow multiplier (8- and 16-bit CPUs) --- not yet measured on one],
-  [`bigint32`], [32 bits], [0.22 s], [the default; the standard library's curve and RSA modules],
-  [`bigint64`], [64 bits], [0.12 s], [64-bit machines; in a 32-bit build (x86 `-m32`) it was also 1.35 times faster than `bigint32`],
+  [`bigint32`], [32 bits], [0.22 s], [the default; the standard library's curve modules],
+  [`bigint64`], [64 bits], [0.12 s], [64-bit machines · the standard library's `rsa`; in a 32-bit build (x86 `-m32`) it was also 1.35 times faster than `bigint32`],
 )
 
 *Sizes are given in bytes.* Every op takes the number's size in bytes, `nb` (RSA-2048 is 256 · P-256 is 32 · P-384 is 48), not a limb count. Only the module knows

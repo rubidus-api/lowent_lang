@@ -25,7 +25,9 @@ export enum rsa_error do
 end .
 
 
-use bigint32 from "bigint32.low" .
+rem ★ RSA 는 `bigint64` 를 쓴다 — 같은 op 이름 · 같은 입력이고, RSA-2048 거듭제곱(검증 시간의 대부분)이 `bigint32` 보다 x86-64 에서 약 1.9 배,
+rem   32 비트 빌드(x86 `-m32`)에서 약 1.35 배 빨랐다(RFC-0151 §9.5, 소유자 2026-10-23).
+use bigint64 from "bigint64.low" .
 
 rem ★ MGF1(SHA-256): seed 로부터 `n` 바이트 마스크를 만든다(RFC 8017 부록 B.2.1).
 rem   `w` 는 작업 공간(≥ len(seed) + 4 + 32).
@@ -130,14 +132,14 @@ export proc verify_pss input sig slice u8 . input nb slice u8 . input e u64 . in
 errors short_workspace . do
   guard eq len sig. . len nb. . . else return ok 0 . . .
   guard ge len em. . len nb. . . else return ok 0 . . .
-  rem 크기는 바이트로 말한다 — 조각 수는 `bigint32` 가 안다(RFC-0151 §9.5).
+  rem 크기는 바이트로 말한다 — 조각 수는 `bigint64` 가 안다(RFC-0151 §9.5).
   let mb usize len nb. . .
-  guard eq bigint32.from_bytes nb. nw. mb. . mb. . else return ok 0 . . .
-  guard eq bigint32.from_bytes sig. sw. mb. . mb. . else return ok 0 . . .
+  guard eq bigint64.from_bytes nb. nw. mb. . mb. . else return ok 0 . . .
+  guard eq bigint64.from_bytes sig. sw. mb. . mb. . else return ok 0 . . .
   rem ☞ s < n 이어야 한다 — 아니면 같은 값에 여러 서명이 생긴다.
-  guard eq bigint32.ge_mod sw. nw. mb. . 0 . else return ok 0 . . .
-  guard eq bigint32.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return ok 0 . . .
-  guard eq bigint32.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return ok 0 . . .
+  guard eq bigint64.ge_mod sw. nw. mb. . 0 . else return ok 0 . . .
+  guard eq bigint64.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return ok 0 . . .
+  guard eq bigint64.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return ok 0 . . .
   return pss_verify subslice em. 0 len nb. . . mhash. slen. w. . .
 end .
 
@@ -212,12 +214,12 @@ export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . 
      output u64 . effects none . do
   guard eq len sig. . len nb. . . else return 0 . .
   guard ge len em. . len nb. . . else return 0 . .
-  rem 크기는 바이트로 말한다 — 조각 수는 `bigint32` 가 안다(RFC-0151 §9.5).
+  rem 크기는 바이트로 말한다 — 조각 수는 `bigint64` 가 안다(RFC-0151 §9.5).
   let mb usize len nb. . .
-  guard eq bigint32.from_bytes nb. nw. mb. . mb. . else return 0 . .
-  guard eq bigint32.from_bytes sig. sw. mb. . mb. . else return 0 . .
-  guard eq bigint32.ge_mod sw. nw. mb. . 0 . else return 0 . .
-  guard eq bigint32.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return 0 . .
-  guard eq bigint32.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return 0 . .
+  guard eq bigint64.from_bytes nb. nw. mb. . mb. . else return 0 . .
+  guard eq bigint64.from_bytes sig. sw. mb. . mb. . else return 0 . .
+  guard eq bigint64.ge_mod sw. nw. mb. . 0 . else return 0 . .
+  guard eq bigint64.mod_exp ow. sw. e. nw. mb. r2. acc. mw. tw. . 1 . else return 0 . .
+  guard eq bigint64.to_bytes ow. mb. subslice em. 0 len nb. . . . len nb. . . else return 0 . .
   return pkcs1_verify subslice em. 0 len nb. . . mhash. di. . .
 end .

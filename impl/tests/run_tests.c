@@ -3798,6 +3798,42 @@ int main(void) {
         check(!low_smt_check(&s, neg), "smt: **음수** 계수는 거절한다 (부등호가 뒤집힌다)");
     }
 
+    printf("target tree (RFC-0054 §8-6):\n");
+    {   // ★ 평평한 표(공개 307ec5e5)가 적던 아홉 줄 — 나무로 바꾼 뒤에도 칸마다 **같은 값**이어야 한다.
+        //   name BE addr ptr align caps fpu nohp nofl simd posix slice cache page check int128 mul limb
+        static const low_target_t want[] = {
+            { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },
+            { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },
+            { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 32 },
+            { "cortex_m0",false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 16 },
+            { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },
+            { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096, .mul_bits = 32 },
+            { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },
+            { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0, .mul_bits = 32 },
+            { "word16",   false, 16, 2, 2, false, false, true,  true,  0,  false, (proven_i64)1 << 15, 2, 0, true, .mul_bits = 16 },
+        };
+        char err[160] = "";
+        check(low_ir_target_tree_ok(err, sizeof err), "target tree: every node resolves");
+        if (err[0]) printf("    %s\n", err);
+        for (size_t i = 0; i < sizeof want / sizeof want[0]; i++) {
+            const low_target_t *w = &want[i], *g = low_ir_target_named(w->name);
+            char msg[96]; snprintf(msg, sizeof msg, "target tree: `%s` resolves to the old flat row", w->name);
+            check(g && g->big_endian == w->big_endian && g->addr_bits == w->addr_bits && g->ptr_bytes == w->ptr_bytes &&
+                  g->ptr_align == w->ptr_align && g->ptr_caps == w->ptr_caps && g->has_fpu == w->has_fpu && g->no_heap == w->no_heap &&
+                  g->no_float == w->no_float && g->simd_bytes == w->simd_bytes && g->posix == w->posix &&
+                  g->max_slice_len == w->max_slice_len && g->cache_line == w->cache_line && g->page_size == w->page_size &&
+                  g->check_only == w->check_only && g->int128 == w->int128 && g->mul_bits == w->mul_bits && g->limb_bits == w->limb_bits, msg);
+        }
+        const low_target_t *a = low_ir_target_named("atmega328p");
+        check(a && a->addr_bits == 16 && a->ptr_bytes == 2 && a->ptr_align == 1 && a->mul_bits == 8 && a->no_heap && a->no_float &&
+              !a->posix && !a->int128 && a->check_only && a->max_slice_len == (proven_i64)1 << 15, "target tree: atmega328p = avr (16-bit · align 1 · mul 8) + check only");
+        check(!low_ir_target_named("avr") && !low_ir_target_named("riscv32") && !low_ir_target_named("lowent") &&
+              low_ir_target_is_group("avr") && !low_ir_target_is_group("x86_64"), "target tree: group nodes are not targets");
+        check(low_ir_set_target("atmega328p") && low_ir_limb_bits() == 16, "target tree: an 8-bit multiplier still gives 16-bit limbs");
+        check(low_ir_set_target("cortex_m0") && low_ir_limb_bits() == 16 && low_ir_set_target("x86_64") && low_ir_limb_bits() == 64,
+              "target tree: limb widths unchanged elsewhere");
+    }
+
     free(amem);
     printf("\n%s (%d failures)\n", g_fail ? "FAILED" : "ALL PASS", g_fail);
     return g_fail ? 1 : 0;

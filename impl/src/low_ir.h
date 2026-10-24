@@ -975,7 +975,7 @@ typedef struct {
     bool        int128;
     // ★ RFC-0152 R1 (2026-10-23, 소유자 «기본 폭: 곱셈기의 폭») — **곱셈기의 폭**: 곱의 위 절반까지 명령 하나로 내는 가장 넓은 정수 폭(16 | 32 | 64).
     //   주소 폭과 다르다. `machine.mul_bits` 로 묻고, 큰 수 모듈 `bigint` 가 이 값으로 조각 폭을 고른다. 빠르기의 기본값이지 맞고 틀림의 경계가 아니다.
-    proven_u8   mul_bits;
+    proven_u8   mul_bits;  // 8 | 16 | 32 | 64 (8 = AVR · 2026-10-25 소유자 «곱셈기 폭 8비트 지원도 넣어 주세요»)
     // ★ RFC-0152 (2026-10-23, 소유자 «기준은 이미 우리가 아는 플랫폼은 재 보고 결정하고, 그렇지 않으면 일단 곱셈기 폭으로 … 언제든 변경 가능하게»)
     //   — **큰 수 셈이 쓰는 조각 폭**(`machine.limb_bits`). 잰 대상은 잰 값, 0 이면 `mul_bits` 를 따른다. `--limb-bits` 가 프로그램 전체에서 덮는다.
     //   곱셈기 폭(사실)과 조각 폭(고른 것)을 가른다 — 재 보면 둘이 다를 수 있다(x86 32 비트 빌드는 곱셈기 32 인데 64 비트 조각이 빨랐다).
@@ -991,6 +991,11 @@ bool low_ir_set_target(const char *name);
 void low_ir_set_limb_bits(unsigned bits);    // RFC-0152 — `--limb-bits` (0 = 대상 표의 값)
 unsigned low_ir_limb_bits(void);             // 큰 수 셈이 쓰는 조각 폭(선택 · 표의 잰 값 · 곱셈기 폭 차례로)      // 기본: x86_64 (호스트) · 표에 없는 이름이면 false(정본 §5.6 (3))
 proven_size_t low_ir_target_count(void);
+// RFC-0054 §8-6 — 대상 표는 나무다. 묶음 마디(`avr` · `riscv32` · 뿌리 `lowent`)는 기계 이름이 아니다.
+const low_target_t *low_ir_target_named(const char *name);   // 기계 이름이면 펼친 값, 아니면 NULL
+bool low_ir_target_is_group(const char *name);
+bool low_ir_target_tree_ok(char *err, size_t errn);          // 모든 마디가 펼쳐지는가(단위 시험)
+void low_ir_print_targets(FILE *f);                          // `--targets`
 const char *low_ir_target_name(proven_size_t i);
 // ★★★ **SMT 백엔드를 끈다** (`--no-smt`) — 기능 스위치가 아니라 **측정 도구**다 (후속 M).
 //   같은 바이너리로 켠 판과 끈 판을 재야 *"SMT 가 몇 개를 더 지웠나"* 가 **실측**이 된다.

@@ -1100,7 +1100,8 @@ static void print_usage(const char *argv0) {
         "    --lock FILE          의존을 **내용 해시**로 고정한다. 바이트가 바뀌면 거절 (RFC-0032)\n"
         "    --lock-write         지금 무엇을 상대로 빌드하는지 락파일로 찍는다 (매니페스트 옆 pkg.lock 에도)\n"
         "    --pkg FILE           pkg.low 매니페스트 위치를 명시한다 (기본: 첫 파일 dir 에서 위로 찾는다)\n"
-        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
+        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | atmega328p · word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
+        "    --targets            대상 나무와 마디마다 펼친 값을 낸다(RFC-0054 §8-6)\n"
         "    --limb-bits N        큰 수 조각 폭 16 | 32 | 64 — 대상의 값과 pkg.low 의 `build limb_bits` 를 덮는다(machine.limb_bits · 큰 수 모듈 bigint, RFC-0152)\n"
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
@@ -1496,6 +1497,11 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--target") == 0 && i + 1 < argc) {
             // ★ 정본 §5.6 (3) — 기계의 이름은 닫힌 집합이다. 모르는 이름을 받아 주면 조용히 호스트로 짓는다.
             if (!low_ir_set_target(argv[++i])) {
+                // ★ RFC-0054 §8-6 — 묶음 마디(`avr` · `riscv32`)는 나무의 가지이지 기계가 아니다. 그 아래 이름을 고른다.
+                if (low_ir_target_is_group(argv[i]))
+                    fprintf(stderr, "E-CLI-TARGET: `%s` is a group in the target tree, not a target — pick a name under it "
+                                    "(`--targets` shows the tree). The names are a closed set:", argv[i]);
+                else
                 fprintf(stderr, "E-CLI-TARGET: `%s` is not a build target — the names are a closed set:", argv[i]);
                 for (proven_size_t t = 0; t < low_ir_target_count(); t++) fprintf(stderr, " %s", low_ir_target_name(t));
                 fputc('\n', stderr);
@@ -1546,6 +1552,8 @@ int main(int argc, char **argv) {
         }
         else if (strcmp(argv[i], "--test") == 0) want_test = true;
         else if (strcmp(argv[i], "--ops") == 0) want_ops = true;
+        // ★ RFC-0054 §8-6 (2026-10-24 소유자 «나무 + 축 값» — «도구가 펼친 값을 보여 준다») — 대상 나무와 마디마다 펼친 값을 낸다.
+        else if (strcmp(argv[i], "--targets") == 0) { low_ir_print_targets(stdout); return 0; }
         else if (strcmp(argv[i], "--absorbs") == 0) want_absorbs = true;
         else if (strcmp(argv[i], "--zones") == 0) want_zones = true;
         // ★ **def 마다의 지우기 계수** (RFC-0053 §8-9). `--ir` 의 사람 읽는 요약은

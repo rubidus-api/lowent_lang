@@ -2227,7 +2227,7 @@ static bool ir_asm_clause(ir_ctx_t *c, low_ir_asm_t *a, const low_cst_t *f,
         ir_fail(c, "E-ASM-TARGET-UNKNOWN",
                 "this `asm` clause names something that is not a build target. The names are a "
                 "CLOSED set — the target table is the authority (x86_64 · arm64 · cortex_m · cortex_m0 · "
-                "riscv64 · mips_be · win64 · cheriot · word16). A name outside it matches NO build, so the op would be "
+                "riscv64 · mips_be · win64 · cheriot · atmega328p · word16 — `lowentc --targets`). A name outside it matches NO build, so the op would be "
                 "silently dropped or silently mis-built; both are what this RFC exists to prevent",
                 f->line);
         return false;

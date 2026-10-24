@@ -286,21 +286,28 @@ static ityp_t ir_tpop(ir_ctx_t *c) {
     return c->tstk[--c->tsp];
 }
 
-// ── RFC-0054: 타깃 표 ────────────────────────────────────────────────────────
-static const low_target_t IR_TARGETS[] = {
-    //  name        BE     ptr  fpu    nohp   nofl   simd  posix  max_slice_len       cache page
-    //  ★ max_slice_len — **주소공간에서 나온 상한**. 64 비트는 2^48(현실적 가상주소),
-    //    32 비트는 2^24(16 MiB — MMU 없는 프리스탠딩 기계의 넉넉한 상한).
-    //    보수적으로 잡는다: 이 수를 넘는 슬라이스는 만들 수 없다는 **약속**이므로,
-    //    크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다.
-    //    조절은 **이 줄 하나**다(소유자 요구: "차후 조절 가능").
-    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },   // SSE2 baseline = 128-bit · 조각 64 = 잰 값(RFC-0152 §9.5)
-    { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // NEON mandatory (ARMv8) = 128-bit
-    { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 32 },   // freestanding: no_heap · no_float · SIMD 없음
-    { "cortex_m0",false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 16 },   // RFC-0152 (2026-10-23, 소유자 «Cortex M0을 위한 줄을 따로 둡시다») — `cortex_m` 과 같고 곱셈기만 다르다: M0 · M0+ 는 32×32 곱의
-    //   아래 32 비트만 낸다고 알려져 있어(확인하지 않았다) 위 절반까지 한 번에 나오는 곱은 16×16 이다. 재지 않은 대상이라 조각 폭도 곱셈기 폭(16).
-    { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
-    { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096, .mul_bits = 32 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
+// ── RFC-0054: 타깃 표 — **나무 + 축 값** (§8-6, 2026-10-24 소유자 «2와 3을 섞는 것으로» · 2026-10-25 «대상 목록은 나무구조로 지금 변경해 주세요») ──
+//   전에는 아홉 줄이 평평했고, 줄마다 열일곱 칸을 다 적었다. 칩이 늘면 같은 값이 여러 줄에 되풀이되어 하나를 고칠 때 다른 줄을
+//   빠뜨리기 쉽다. ⇒ 마디마다 **부모를 물려받고, 그 마디가 바꾸는 축 값만** 적는다. 펼친 값은 도구가 보여 준다(`--targets`).
+//   묶음 마디(`pick` 이 거짓 — `lowent` · `riscv32` · `avr`)는 기계 이름이 아니다: `--target` 도 `asm target` 도 받지 않는다.
+//   ★ 축 낱말 — `word=64|32|16` 은 주소 폭 · 포인터 크기 · 정렬 · 슬라이스 상한 · 128 비트 정수 · 곱셈기 폭을 그 폭의 기본으로,
+//     `env=hosted|bare` 는 부동 장치 · 힙 · 부동 · POSIX · 쪽 크기를 그 환경의 기본으로 둔다. 뒤에 적은 낱말이 앞을 덮는다.
+//     나머지는 칸 하나씩: be addr ptr align caps fpu heap float simd posix slice cache page check int128 mul limb.
+//   ★ max_slice_len(`slice`) — **주소공간에서 나온 상한**. 64 비트는 2^48(현실적 가상주소), 32 비트는 2^24(16 MiB — MMU 없는
+//     프리스탠딩 기계의 넉넉한 상한), 16 비트는 2^15(두 위치의 차가 `idiff` 에 든다). 보수적으로 잡는다: 이 수를 넘는 슬라이스는
+//     만들 수 없다는 **약속**이므로, 크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다. 조절은 `word=` 의 기본 하나거나
+//     그 마디의 `slice=` 다(소유자 요구: "차후 조절 가능").
+typedef struct {
+    const char *name;
+    const char *parent;   // NULL = 뿌리. 부모는 표에서 **앞에** 선다(돌아오는 고리가 생길 수 없다)
+    bool        pick;     // 기계 이름인가
+    const char *axes;     // 이 마디가 바꾸는 축 값만
+} ir_tnode_t;
+static const ir_tnode_t IR_TREE[] = {
+    { "lowent",    NULL,       false, "word=64 env=hosted be=0 caps=0 simd=0 cache=64 check=0 limb=0" },
+    { "x86_64",    "lowent",   true,  "simd=16 limb=64" },   // SSE2 baseline = 128-bit · 조각 64 = 잰 값(RFC-0152 §9.5)
+    { "arm64",     "lowent",   true,  "simd=16" },           // NEON mandatory (ARMv8) = 128-bit
+    { "riscv64",   "lowent",   true,  "" },                  // baseline: 벡터(RVV) 는 opt-in ext → 없음
     // ★★★★★ **Windows — 크로스 빌드까지만** (2026-08-19, 소유자 결정).
     //   RFC-0069 §6.7 의 승격 조건 넷 중 ①②만 연다: 타깃이 있고, `--emit-c` 가 그 타깃에서
     //   **빌드된다**. ③(왕복 성질을 골든이 잼)·④(host-fault 가 그쪽 잎에서 돎)는 **실행**이
@@ -308,17 +315,158 @@ static const low_target_t IR_TARGETS[] = {
     //   ☞ 그래서 이 타깃은 *"Windows 를 지원한다"* 가 아니라 *"POSIX 를 안 쓰는 프로그램이
     //     Windows 로 건너간다"* 를 뜻한다. POSIX 전용 잎은 **컴파일 시 거절**한다 —
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
-    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },   // 조각 64 = 잰 값(2026-10-23 · Windows 11 VM · RFC-0152 §9.8)
+    { "win64",     "lowent",   true,  "simd=16 posix=0 limb=64" },   // 조각 64 = 잰 값(2026-10-23 · Windows 11 VM · RFC-0152 §9.8)
+    { "mips_be",   "lowent",   true,  "word=32 be=1 cache=32" },     // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
+    { "cortex_m",  "lowent",   true,  "word=32 env=bare cache=4" },  // freestanding: no_heap · no_float · SIMD 없음
+    // RFC-0152 (2026-10-23, 소유자 «Cortex M0을 위한 줄을 따로 둡시다») — `cortex_m` 과 같고 곱셈기만 다르다: M0 · M0+ 는 32×32 곱의
+    //   아래 32 비트만 낸다고 알려져 있어(확인하지 않았다) 위 절반까지 한 번에 나오는 곱은 16×16 이다. 재지 않은 대상이라 조각 폭도 곱셈기 폭(16).
+    { "cortex_m0", "cortex_m", true,  "mul=16" },
+    { "riscv32",   "lowent",   false, "word=32" },   // 묶음 — 일반 줄 · ESP32 줄은 아직 없다(RFC-0054 §8-6, 쓸 칩 작업이 생길 때)
     // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
     //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
-    { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0, .mul_bits = 32 },
+    { "cheriot",   "riscv32",  true,  "env=bare ptr=8 align=8 caps=1 cache=8" },
+    // ★★ RFC-0054 §8-7 — **AVR, 첫 8 비트 기계** (2026-10-25, 소유자 «곱셈기 폭 8비트 지원도 넣어 주세요»). 주소 16 비트 · 포인터 2 바이트 ·
+    //   정렬 1 · 곱셈 명령은 8×8→16(`mul`). 잰 값: clang `-mmcu=atmega328p` 의 `__SIZEOF_POINTER__` 2 · `__BIGGEST_ALIGNMENT__` 1 ·
+    //   `__AVR_HAVE_MUL__` 1 (2026-10-25). 조각 폭은 곱셈기보다 좁을 수 없다 — 16 이다(`low_ir_limb_bits`).
+    { "avr",       "lowent",   false, "word=16 env=bare align=1 cache=1 mul=8" },
+    //   ATmega328P(Arduino Uno · Nano). avr-gcc 로 짓고 QEMU 로 돌려 VM 과 맞대기 전까지는 **번역까지만** 선다(word16 과 같은 까닭).
+    { "atmega328p","avr",      true,  "check=1" },
     // ★★ RFC-0149 §6.14 — **16 비트 주소: 번역까지만** (2026-10-13, 소유자 결정 «가»). 실제 기계의 이름이 아니다 — `usize` · `idiff` 가
     //   16 비트일 때 같은 글이 서는지를 재는 자리다(`scripts/check-size-width.py`). 힙 · 부동 · POSIX 가 없는 프리스탠딩 칸이고,
-    //   슬라이스 길이의 상한은 2^15 다(두 위치의 차가 `idiff` 에 든다). 마지막 칸(check_only)이 참이라 방출 · 실행은 거절된다.
-    { "word16",   false, 16, 2, 2, false, false, true,  true,  0,  false, (proven_i64)1 << 15, 2, 0, true, .mul_bits = 16 },
+    //   슬라이스 길이의 상한은 2^15 다. `check` 가 참이라 방출 · 실행은 거절된다.
+    { "word16",    "lowent",   true,  "word=16 env=bare cache=2 check=1" },
 };
- const low_target_t *ir_tgt = &IR_TARGETS[0];
+enum { IR_NTREE = sizeof IR_TREE / sizeof IR_TREE[0] };
+static low_target_t ir_tres[IR_NTREE];   // 펼친 값 — 처음 물을 때 한 번 채운다
+static bool ir_tres_ok;
+static const low_target_t *ir_tgt;       // 고른 대상(안 고르면 x86_64)
+
+// 축 낱말 하나를 칸에 적는다. 모르는 낱말 · 값이면 false.
+static bool ir_axis(low_target_t *t, const char *k, size_t kn, const char *v) {
+    char *e = NULL;
+    long long n = 0;
+    if (v[0] == '2' && v[1] == '^') { long long p = strtoll(v + 2, &e, 10); if (p < 1 || p > 62) return false; n = 1LL << p; }
+    else n = strtoll(v, &e, 10);
+    const bool num = e && e != v && (*e == ' ' || *e == '\0');
+    #define K(s) (kn == sizeof(s) - 1 && memcmp(k, s, kn) == 0)
+    if (K("env")) {
+        const bool hosted = strncmp(v, "hosted", 6) == 0 && (v[6] == ' ' || v[6] == '\0');
+        const bool bare   = strncmp(v, "bare", 4) == 0 && (v[4] == ' ' || v[4] == '\0');
+        if (!hosted && !bare) return false;
+        t->has_fpu = hosted; t->no_heap = bare; t->no_float = bare; t->posix = hosted; t->page_size = hosted ? 4096 : 0;
+        return true;
+    }
+    if (!num) return false;
+    if (K("word")) {
+        if (n != 16 && n != 32 && n != 64) return false;
+        t->addr_bits = (proven_u8)n; t->ptr_bytes = t->ptr_align = (proven_u8)(n / 8);
+        t->max_slice_len = n == 64 ? (proven_i64)1 << 48 : n == 32 ? (proven_i64)1 << 24 : (proven_i64)1 << 15;
+        t->int128 = n == 64; t->mul_bits = (proven_u8)n;
+        return true;
+    }
+    if (K("addr"))   { if (n != 16 && n != 32 && n != 64) return false; t->addr_bits = (proven_u8)n; return true; }
+    if (K("ptr"))    { if (n < 1 || n > 16) return false; t->ptr_bytes = (proven_u8)n; return true; }
+    if (K("align"))  { if (n < 1 || n > 16) return false; t->ptr_align = (proven_u8)n; return true; }
+    if (K("mul"))    { if (n != 8 && n != 16 && n != 32 && n != 64) return false; t->mul_bits = (proven_u8)n; return true; }   // 정본 §5.3 (4c)
+    if (K("limb"))   { if (n != 0 && n != 16 && n != 32 && n != 64) return false; t->limb_bits = (proven_u8)n; return true; }
+    if (K("simd"))   { if (n < 0 || n > 64) return false; t->simd_bytes = (proven_u8)n; return true; }
+    if (K("slice"))  { if (n < 1) return false; t->max_slice_len = n; return true; }
+    if (K("cache"))  { if (n < 1) return false; t->cache_line = (proven_u32)n; return true; }
+    if (K("page"))   { if (n < 0) return false; t->page_size = (proven_u32)n; return true; }
+    if (n != 0 && n != 1) return false;
+    if (K("be"))     { t->big_endian = n; return true; }
+    if (K("caps"))   { t->ptr_caps = n; return true; }
+    if (K("fpu"))    { t->has_fpu = n; return true; }
+    if (K("heap"))   { t->no_heap = !n; return true; }
+    if (K("float"))  { t->no_float = !n; return true; }
+    if (K("posix"))  { t->posix = n; return true; }
+    if (K("check"))  { t->check_only = n; return true; }
+    if (K("int128")) { t->int128 = n; return true; }
+    #undef K
+    return false;
+}
+static proven_size_t ir_tnode_find(const char *name) {
+    for (proven_size_t i = 0; i < IR_NTREE; i++) if (strcmp(IR_TREE[i].name, name) == 0) return i;
+    return IR_NTREE;
+}
+// 마디 i 를 펼친다: 뿌리부터 i 까지 차례로 축 값을 덮는다. 표가 틀렸으면(모르는 부모 · 축) 무엇이 틀렸는지 적고 false.
+static bool ir_tnode_resolve(proven_size_t i, low_target_t *out, char *err, size_t errn) {
+    proven_size_t chain[16]; int depth = 0;
+    for (proven_size_t j = i; ; ) {
+        if (depth == 16) { snprintf(err, errn, "`%s`: the tree is deeper than 16", IR_TREE[i].name); return false; }
+        chain[depth++] = j;
+        if (!IR_TREE[j].parent) break;
+        proven_size_t p = ir_tnode_find(IR_TREE[j].parent);
+        if (p >= j) { snprintf(err, errn, "`%s`: parent `%s` is not an earlier node", IR_TREE[j].name, IR_TREE[j].parent); return false; }
+        j = p;
+    }
+    *out = (low_target_t){ 0 };
+    for (int d = depth - 1; d >= 0; d--) {
+        for (const char *s = IR_TREE[chain[d]].axes; *s; ) {
+            while (*s == ' ') s++;
+            if (!*s) break;
+            const char *k = s; while (*s && *s != '=' && *s != ' ') s++;
+            if (*s != '=' || !ir_axis(out, k, (size_t)(s - k), s + 1)) {
+                snprintf(err, errn, "`%s`: bad axis value near `%.24s`", IR_TREE[chain[d]].name, k); return false;
+            }
+            while (*s && *s != ' ') s++;
+        }
+    }
+    out->name = IR_TREE[i].name;
+    if (out->ptr_bytes * 8 < out->addr_bits) { snprintf(err, errn, "`%s`: a pointer narrower than the address", out->name); return false; }
+    return true;
+}
+// 표는 소스에 박혀 있으므로 틀리면 **처리기의 결함**이다 — 단위 시험이 모든 마디를 펼쳐 본다(`low_ir_target_tree_ok`).
+static void ir_tres_fill(void) {
+    if (ir_tres_ok) return;
+    for (proven_size_t i = 0; i < IR_NTREE; i++) {
+        char err[160];
+        if (!ir_tnode_resolve(i, &ir_tres[i], err, sizeof err)) { fprintf(stderr, "lowentc: internal: target table: %s\n", err); abort(); }
+    }
+    ir_tres_ok = true;
+    if (!ir_tgt) ir_tgt = &ir_tres[ir_tnode_find("x86_64")];
+}
+bool low_ir_target_tree_ok(char *err, size_t errn) {
+    low_target_t t;
+    for (proven_size_t i = 0; i < IR_NTREE; i++) if (!ir_tnode_resolve(i, &t, err, errn)) return false;
+    return true;
+}
+const low_target_t *low_ir_target_named(const char *name) {
+    ir_tres_fill();
+    proven_size_t i = ir_tnode_find(name);
+    return i < IR_NTREE && IR_TREE[i].pick ? &ir_tres[i] : NULL;
+}
+bool low_ir_target_is_group(const char *name) {
+    proven_size_t i = ir_tnode_find(name);
+    return i < IR_NTREE && !IR_TREE[i].pick;
+}
+// 고른 대상이 그 마디이거나 그 아래인가 — `machine.is_cortex_m` 이 `cortex_m0` 에서도 참인 까닭이 이것이다.
+static bool ir_tgt_under(const char *node) {
+    for (proven_size_t j = ir_tnode_find(low_ir_target()->name); j < IR_NTREE; ) {
+        if (strcmp(IR_TREE[j].name, node) == 0) return true;
+        if (!IR_TREE[j].parent) break;
+        j = ir_tnode_find(IR_TREE[j].parent);
+    }
+    return false;
+}
+// `--targets` — 나무와 펼친 값을 표로 낸다(탭으로 가른 줄). 마지막 칸이 그 마디가 적은 축 값이다.
+void low_ir_print_targets(FILE *f) {
+    ir_tres_fill();
+    fputs("tree\tname\tparent\tpick\taddr_bits\tptr_bytes\tptr_align\tptr_caps\tbig_endian\thas_fpu\tno_heap\tno_float\tsimd_bytes\t"
+          "posix\tmax_slice_len\tcache_line\tpage_size\tcheck_only\tint128\tmul_bits\tlimb_bits\taxes\n", f);
+    for (proven_size_t i = 0; i < IR_NTREE; i++) {
+        int depth = 0;
+        for (proven_size_t j = i; IR_TREE[j].parent; j = ir_tnode_find(IR_TREE[j].parent)) depth++;
+        const low_target_t *t = &ir_tres[i];
+        const unsigned limb = t->limb_bits ? t->limb_bits : t->mul_bits < 16 ? 16u : t->mul_bits;
+        fprintf(f, "%*s%s\t%s\t%s\t%d\t%u\t%u\t%u\t%d\t%d\t%d\t%d\t%d\t%u\t%d\t%lld\t%u\t%u\t%d\t%d\t%u\t%u\t%s\n",
+                depth * 2, "", IR_TREE[i].pick ? IR_TREE[i].name : "·", IR_TREE[i].name, IR_TREE[i].parent ? IR_TREE[i].parent : "-",
+                IR_TREE[i].pick, t->addr_bits, t->ptr_bytes, t->ptr_align, t->ptr_caps, t->big_endian, t->has_fpu, t->no_heap,
+                t->no_float, t->simd_bytes, t->posix, (long long)t->max_slice_len, t->cache_line, t->page_size, t->check_only,
+                t->int128, t->mul_bits, limb, IR_TREE[i].axes);
+    }
+}
  bool g_smt_on = true;
 void low_ir_set_smt(bool on) { g_smt_on = on; }
 
@@ -353,37 +501,49 @@ void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = stdout; }
 // RFC-0152 — 큰 수 셈이 쓰는 조각 폭: `--limb-bits` 가 덮으면 그 값, 아니면 대상 표의 잰 값, 그것도 없으면 곱셈기 폭.
 static unsigned g_limb_bits;
 void low_ir_set_limb_bits(unsigned bits) { g_limb_bits = bits; }
-unsigned low_ir_limb_bits(void) { return g_limb_bits ? g_limb_bits : ir_tgt->limb_bits ? ir_tgt->limb_bits : ir_tgt->mul_bits; }
-bool low_ir_set_target(const char *name) {
-    for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
-        if (strcmp(IR_TARGETS[i].name, name) == 0) { ir_tgt = &IR_TARGETS[i]; return true; }
-    return false;
+// ★ 정본 §5.3 (4c) — 잰 값이 없으면 곱셈기 폭을 따르되, 조각은 16 비트보다 좁지 않다(곱셈기 8 비트인 AVR 도 조각은 16).
+unsigned low_ir_limb_bits(void) {
+    const low_target_t *t = low_ir_target();
+    return g_limb_bits ? g_limb_bits : t->limb_bits ? t->limb_bits : t->mul_bits < 16 ? 16u : t->mul_bits;
 }
-proven_size_t low_ir_target_count(void) { return sizeof IR_TARGETS / sizeof IR_TARGETS[0]; }
-const char *low_ir_target_name(proven_size_t i) { return i < low_ir_target_count() ? IR_TARGETS[i].name : NULL; }
+bool low_ir_set_target(const char *name) {
+    const low_target_t *t = low_ir_target_named(name);
+    if (t) ir_tgt = t;
+    return t != NULL;
+}
+// 기계 이름(`pick`)만 센다 — 묶음 마디는 이름이 아니다.
+proven_size_t low_ir_target_count(void) {
+    proven_size_t n = 0;
+    for (proven_size_t i = 0; i < IR_NTREE; i++) n += IR_TREE[i].pick;
+    return n;
+}
+const char *low_ir_target_name(proven_size_t i) {
+    for (proven_size_t j = 0; j < IR_NTREE; j++) if (IR_TREE[j].pick && i-- == 0) return IR_TREE[j].name;
+    return NULL;
+}
 unsigned low_lbuf_max(void) { return low_ir_target()->no_heap ? LOW_LBUF_MAX_FREE : LOW_LBUF_MAX; }   // RFC-0135 S3
-const low_target_t *low_ir_target(void) { return ir_tgt; }
+const low_target_t *low_ir_target(void) { ir_tres_fill(); return ir_tgt; }
 static proven_size_t g_fixed_bytes;   // 0 = 타깃이 정한다
 void low_ir_set_fixed_bytes(proven_size_t n) { g_fixed_bytes = n; }
 proven_size_t low_ir_fixed_bytes(void) {
     if (g_fixed_bytes) return g_fixed_bytes;
-    return ir_tgt->no_heap ? (proven_size_t)LOW_FIXED_BYTES_BOARD : (proven_size_t)LOW_FIXED_BYTES;
+    return low_ir_target()->no_heap ? (proven_size_t)LOW_FIXED_BYTES_BOARD : (proven_size_t)LOW_FIXED_BYTES;
 }
 unsigned low_ptr_slot(void) {
-    unsigned b = ir_tgt->ptr_bytes < 8 ? 8u : (unsigned)ir_tgt->ptr_bytes;
+    unsigned b = low_ir_target()->ptr_bytes < 8 ? 8u : (unsigned)low_ir_target()->ptr_bytes;
     return (b + 7u) & ~7u;
 }
-unsigned low_ptr_slot_align(void) { return ir_tgt->ptr_align < 8 ? 8u : (unsigned)ir_tgt->ptr_align; }
+unsigned low_ptr_slot_align(void) { return low_ir_target()->ptr_align < 8 ? 8u : (unsigned)low_ir_target()->ptr_align; }
 bool low_ir_target_known(proven_u8str_view_t name) {
-    for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
-        if (proven_u8str_view_eq(name, proven_u8str_view_from_cstr(IR_TARGETS[i].name))) return true;
+    for (proven_size_t i = 0; i < IR_NTREE; i++)
+        if (IR_TREE[i].pick && proven_u8str_view_eq(name, proven_u8str_view_from_cstr(IR_TREE[i].name))) return true;
     return false;
 }
 
 // `machine.<prop>` → comptime 상수. 없는 속성이면 false 를 돌려주고 *found = false.
  proven_i64 ir_machine(proven_u8str_view_t v, bool *found) {
     *found = true;
-    const low_target_t *t = ir_tgt;
+    const low_target_t *t = low_ir_target();
     if (veq(v, "machine.big_endian"))    return t->big_endian;
     if (veq(v, "machine.little_endian")) return !t->big_endian;
     if (veq(v, "machine.ptr_width"))     return t->addr_bits;   // 옛 이름 — 주소 폭(RFC-0137: 포인터 크기와 다를 수 있다)
@@ -402,7 +562,7 @@ bool low_ir_target_known(proven_u8str_view_t name) {
     if (veq(v, "machine.no_float"))      return t->no_float;
     if (veq(v, "machine.is_x86_64"))     return strcmp(t->name, "x86_64") == 0;
     if (veq(v, "machine.is_arm64"))      return strcmp(t->name, "arm64") == 0;
-    if (veq(v, "machine.is_cortex_m"))   return strcmp(t->name, "cortex_m") == 0 || strcmp(t->name, "cortex_m0") == 0;   // M0 줄도 Cortex-M 이다
+    if (veq(v, "machine.is_cortex_m"))   return ir_tgt_under("cortex_m");   // M0 줄도 Cortex-M 이다 — 나무에서 그 아래다
     if (veq(v, "machine.is_cortex_m0"))  return strcmp(t->name, "cortex_m0") == 0;
     if (veq(v, "machine.is_riscv64"))    return strcmp(t->name, "riscv64") == 0;
     *found = false;

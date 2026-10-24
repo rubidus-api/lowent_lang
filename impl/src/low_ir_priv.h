@@ -424,7 +424,6 @@ void ir_diag(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line); /
 void ir_iface_hash(proven_allocator_t work, const low_cst_t *f, low_ir_def_t *d); /* 2회 */
 ir_opt_t *ir_opt_find(proven_u8str_view_t n);                                  /* 2회 */
 proven_u8 ir_slice_esz_ex(const low_ir_t *ir, const low_cst_t *f, proven_size_t from, proven_size_t to, bool *eflt, int *sidx, bool *esgn); /* 2회 */
-extern const low_target_t *ir_tgt;                                             /* 2회 */
 extern ir_bmode_t g_bmode;
 extern ir_opt_t g_opt[IR_MAXOPT];                                              /* 1회 */
 extern proven_size_t g_bdropped;                                               /* 1회 */

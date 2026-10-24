@@ -537,7 +537,7 @@ static void iv_kill_local(ivstate_t *st, proven_size_t sl, bool keep_lenge) {
     //     SPEC-004 §객체 크기에 명문화했다. 약속 없이 상계를 쓰는 것은 이 파일이
     //     경고하는 바로 그 잘못이다(*"정보가 없는 상계는 쓰지 않는다"*).
     st->lenv[sl].lo   = 0;
-    st->lenv[sl].hi   = ir_tgt->max_slice_len;
+    st->lenv[sl].hi   = low_ir_target()->max_slice_len;
     st->lenv[sl].wide = 0;
     st->elemv[sl]    = IV_TOP;
     // ★★★ **`lenge_p/q` 는 여기서 지우지 않는다** — 지웠다가 행우선 증명을 깨뜨렸다(실측).
@@ -2870,7 +2870,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
         //   ⇒ 상한은 **주소공간에서 나온다**: `machine.max_slice_len`(목표 표).
         //   ★ 이것은 **언어의 약속**이다 — SPEC-004 에 명문화했다. 약속 없이
         //     상계를 쓰는 것이 이 파일이 경고하는 바로 그 잘못이다.
-        e0.lenv[i].lo = 0; e0.lenv[i].hi = ir_tgt->max_slice_len; e0.lenv[i].wide = 0;
+        e0.lenv[i].lo = 0; e0.lenv[i].hi = low_ir_target()->max_slice_len; e0.lenv[i].wide = 0;
         e0.lerel[i] = -1; e0.lestr[i] = 0; e0.leoff[i] = 0; e0.vlanesloc[i] = 0;
         e0.elemv[i] = IV_TOP;                    // ★ 원소 구간 — 기본 미지(⊤)
     }

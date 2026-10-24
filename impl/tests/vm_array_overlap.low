@@ -1,0 +1,45 @@
+rem RFC-0132 P4c (소유자 2026-10-24 «P4c 부터 시작») — 결과 자리와 인자가 겹치면 임시 자리에 받고 한 번 베낀다.
+rem   back · via: 인자가 내 결과 자리(또는 그것에서 나온 지역)를 본다 — 겹친다. other: 다른 뿌리 — 바로 쓴다.
+module vm_array_overlap .
+
+fn rev input s array u8 4 . output r array u8 4 . do
+  set idx r. 0 . idx s. 3 . .
+  set idx r. 1 . idx s. 2 . .
+  set idx r. 2 . idx s. 1 . .
+  set idx r. 3 . idx s. 0 . .
+  return r. .
+end .
+
+rem 지역을 거친 겹침 — v 는 r 의 바이트를 본다
+fn via input a u8 . output r array u8 4 . do
+  set idx r. 0 . a. .
+  set idx r. 1 . 1 .
+  set idx r. 2 . 2 .
+  set idx r. 3 . 3 .
+  let v slice u8 r. .
+  return rev v. . .
+end .
+
+rem 자리 자신을 넘긴다 — 겹친다
+fn back input a u8 . output r array u8 4 . do
+  set idx r. 0 . a. .
+  set idx r. 1 . 1 .
+  set idx r. 2 . 2 .
+  set idx r. 3 . 3 .
+  return rev r. . .
+end .
+
+rem 겹치지 않는다 — 입력은 다른 뿌리다(바로 쓴다)
+fn other input s array u8 4 . output r array u8 4 . do
+  return rev s. . .
+end .
+
+fn pv input a u8 . output u64 . do
+  var x array u8 4 via a. . .
+  let y lit array u8 4 1 2 3 a. . .
+  let z array u8 4 other y. . .
+  let w array u8 4 back a. . .
+  let hx u64 add add add mul cast u64 idx x. 0 . . 1000 . mul cast u64 idx x. 1 . . 100 . . mul cast u64 idx x. 2 . . 10 . . cast u64 idx x. 3 . . . .
+  let hw u64 add add add mul cast u64 idx w. 0 . . 1000 . mul cast u64 idx w. 1 . . 100 . . mul cast u64 idx w. 2 . . 10 . . cast u64 idx w. 3 . . . .
+  return add add mul hx. 100000000 . mul hw. 10000 . . cast u64 idx z. 0 . . . .
+end .

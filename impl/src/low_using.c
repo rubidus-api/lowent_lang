@@ -811,6 +811,9 @@ typedef struct {
     // ★ RFC-0132 P4b — 배열을 돌려주는 op(이름 · 모듈 · 원소 타입 · 길이). 부르는 자리를 몸을 걷기 전에 알아야 해서 먼저 모은다.
     struct { proven_u8str_view_t name, mod, t, n; } ar[256]; proven_size_t nar;
     proven_size_t nplace;                               // 부르는 쪽의 숨은 묶기 이름 번호
+    // ★ RFC-0132 P4c — 내 결과 자리와 같은 바이트를 볼 수 있는 이름(자리 자신 + 그것에서 나온 지역). `return g … .` 의 인자가 이 가운데
+    //   하나라도 언급하면 겹칠 수 있다 — 임시 자리에 받고 한 번 베낀다.
+    proven_u8str_view_t ovl[64]; proven_size_t novl;
 } dt_ctx_t;
 
 static bool dt_in(proven_u8str_view_t v, const char *const *set) {
@@ -1300,6 +1303,33 @@ static low_cst_t *dt_ar_lit(dt_ctx_t *c, const low_cst_t *model, proven_u8str_vi
     if (f) f->closer = LOW_TOK_EOF;
     return f;
 }
+// ★ RFC-0132 P4c (소유자 2026-10-24 «P4c 부터 시작») — 이 마디가 겹침 이름(c->ovl) 가운데 하나를 언급하는가.
+static bool dt_ovl_mentions(dt_ctx_t *c, const low_cst_t *n) {
+    if (!n) return false;
+    if (n->kind == LOW_CST_ATOM) {
+        for (proven_size_t i = 0; i < c->novl; i++) if (proven_u8str_view_eq(n->tok.lex, c->ovl[i])) return true;
+        return false;
+    }
+    for (proven_size_t i = 0; i < n->nkids; i++) if (dt_ovl_mentions(c, n->kids[i])) return true;
+    return false;
+}
+// 몸 전체에서 자리와 같은 바이트를 볼 수 있는 지역을 모은다 — 초기식이나 `set` 의 오른쪽이 겹침 이름을 언급하는 묶기(흐름을 보지 않는다:
+//   어느 길에서든 그럴 수 있으면 넣는다). 더 늘지 않을 때까지 되풀이한다.
+static void dt_ovl_scan(dt_ctx_t *c, const low_cst_t *n, bool *grew) {
+    if (!n || n->kind == LOW_CST_ATOM) return;
+    if (n->kind == LOW_CST_FORM && n->nkids >= 3 && us_atom(n->kids[0]) && us_atom(n->kids[1]) &&
+        (n->kids[0]->tok.kw == LOW_KW_LET || n->kids[0]->tok.kw == LOW_KW_VAR || n->kids[0]->tok.kw == LOW_KW_SET)) {
+        proven_u8str_view_t nm = n->kids[1]->tok.lex;
+        bool have = false;
+        for (proven_size_t i = 0; i < c->novl; i++) if (proven_u8str_view_eq(nm, c->ovl[i])) have = true;
+        if (!have && c->novl < 64) {
+            bool m = false;
+            for (proven_size_t q = 2; q < n->nkids && !m; q++) if (dt_ovl_mentions(c, n->kids[q])) m = true;
+            if (m) { c->ovl[c->novl++] = nm; *grew = true; }
+        }
+    }
+    for (proven_size_t i = 0; i < n->nkids; i++) dt_ovl_scan(c, n->kids[i], grew);
+}
 // 몸의 블록들에서 부르는 자리를 고친다. place(배열 결과 op 안이면 내 자리의 이름 원자 · 아니면 NULL)와 그 모양.
 static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, proven_u8str_view_t pt, proven_u8str_view_t pn, bool named) {
     if (!blk || blk->kind != LOW_CST_BLOCK) return;
@@ -1349,6 +1379,41 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
             long ai = dt_ar_find(c, st->kids[1]);
             if (st->nkids == 2 && us_atom(st->kids[1]) && proven_u8str_view_eq(st->kids[1]->tok.lex, place->tok.lex)) {
                 // return <자리> . — 그대로
+            } else if (ai >= 0 && proven_u8str_view_eq(c->ar[ai].t, pt) && proven_u8str_view_eq(c->ar[ai].n, pn) && named &&
+                       ({ bool m_ = false; for (proven_size_t q = 1; q < st->nkids && !m_; q++) if (dt_ovl_mentions(c, st->kids[q])) m_ = true; m_; })) {
+                // ★ RFC-0132 P4c — 인자가 내 자리와 같은 바이트를 볼 수 있다: g 가 쓰는 동안 읽는 쪽이 새 값을 본다. 임시 자리에 받고 한 번 베낀다.
+                //   var $tK be (lit array T N _) .  ·  let $pK be slice T g … $tK .  ·  copy <자리> $tK .  ·  return <자리> .
+                const low_cst_t *r0 = st->kids[0];
+                char tnb[24]; snprintf(tnb, sizeof tnb, "$t%zu", ++c->nplace);
+                char pnb[24]; snprintf(pnb, sizeof pnb, "$p%zu", ++c->nplace);
+                char *tnh = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(tnb) + 1, 1).value.ptr;
+                char *pnh = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(pnb) + 1, 1).value.ptr;
+                if (tnh) memcpy(tnh, tnb, strlen(tnb) + 1);
+                if (pnh) memcpy(pnh, pnb, strlen(pnb) + 1);
+                low_cst_t *lit1 = dt_ar_lit(c, r0, pt, pn);
+                low_cst_t *g1k[1] = { lit1 };
+                low_cst_t *g1 = lit1 ? dt_mk(c, LOW_CST_GROUP, r0, g1k, 1) : NULL;
+                low_cst_t *k1[4] = { dt_word(c, r0, "var"), tnh ? dt_word(c, r0, tnh) : NULL, dt_word(c, r0, "be"), g1 };
+                low_cst_t *k2[300]; proven_size_t n2 = 0;
+                k2[n2++] = dt_word(c, r0, "let"); k2[n2++] = pnh ? dt_word(c, r0, pnh) : NULL; k2[n2++] = dt_word(c, r0, "be");
+                k2[n2++] = dt_word(c, r0, "slice"); k2[n2++] = dt_word(c, r0, "x");
+                if (k2[4]) k2[4]->tok.lex = pt;
+                for (proven_size_t q = 1; q < st->nkids && n2 < 298; q++) k2[n2++] = st->kids[q];
+                k2[n2++] = tnh ? dt_word(c, r0, tnh) : NULL;
+                low_cst_t *k3[3] = { dt_word(c, r0, "copy"), dt_deep(c, place, r0->tok.line), tnh ? dt_word(c, r0, tnh) : NULL };
+                low_cst_t *k4[2] = { dt_deep(c, r0, r0->tok.line), dt_deep(c, place, r0->tok.line) };
+                bool ok = g1 != NULL;
+                for (int q = 0; q < 4; q++) if (!k1[q]) ok = false;
+                for (proven_size_t q = 0; q < n2; q++) if (!k2[q]) ok = false;
+                for (int q = 0; q < 3; q++) if (!k3[q]) ok = false;
+                if (!k4[0] || !k4[1]) ok = false;
+                if (ok) {
+                    k1[0]->synth = true; k2[0]->synth = true; k3[0]->synth = true;
+                    low_cst_t *s1 = dt_mk(c, LOW_CST_FORM, r0, k1, 4), *s2 = dt_mk(c, LOW_CST_FORM, r0, k2, n2);
+                    low_cst_t *s3 = dt_mk(c, LOW_CST_FORM, r0, k3, 3), *s4 = dt_mk(c, LOW_CST_FORM, r0, k4, 2);
+                    if (s1 && s2 && s3 && s4) { nk[m++] = s1; nk[m++] = s2; nk[m++] = s3; nk[m++] = s4; done = changed = true; }
+                }
+                if (!done) { nk[m++] = st; done = true; }   // 짓지 못했으면 그대로 둔다 — 배타 검사(E-EXCL-INPLACE)가 막는다
             } else if (ai >= 0 && proven_u8str_view_eq(c->ar[ai].t, pt) && proven_u8str_view_eq(c->ar[ai].n, pn)) {
                 low_cst_t **rk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (st->nkids + 1), alignof(low_cst_t *)).value.ptr;
                 if (rk) {
@@ -1492,7 +1557,15 @@ static void dt_array_result(dt_ctx_t *c, low_cst_t *f) {
         (void)low_refit(&c->p, body, bk, body->nkids + 1);
     }
     dt_ar_unwrap_returns(c, body);
+    // ★ RFC-0132 P4c — 겹침 이름: 이름 붙은 결과 자리와, 그것에서 나온 지역(이름 없는 `$res` 는 몸이 부를 수 없으니 겹칠 길이 없다)
+    c->novl = 0;
+    if (named) {
+        c->ovl[c->novl++] = place->tok.lex;
+        bool grew = true;
+        for (int it = 0; grew && it < 64; it++) { grew = false; dt_ovl_scan(c, body, &grew); }
+    }
     dt_ar_block(c, body, place, tl, nl, named);
+    c->novl = 0;
     dt_ar_check_returns(c, body, place);
 }
 

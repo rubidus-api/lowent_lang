@@ -870,6 +870,8 @@ typedef struct {
     bool        emittable;        // 몸을 C 로 낼 수 있는가            (하강됨 + 크기 한계)
     bool        exported_symbol;  // **외부 심볼이 실제로 나오는가**   (헤더가 약속해도 되는가)
     bool        ret_flt;          // 그 심볼의 반환이 double 인가       (아니면 long long)
+    // ★ RFC-0132 P4d (2026-10-24) — 그 심볼이 구조체를 값으로 돌려주는가: 구조체 인덱스 + 1(0 = 아니다). C 쪽 모양은 `struct lw_sty_N`.
+    int         ret_sty1;
     const char *why;              // export 인데 심볼이 안 나오면 **왜** (없으면 NULL)
 } low_ir_plan_t;
 

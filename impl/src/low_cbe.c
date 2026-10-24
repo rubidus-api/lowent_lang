@@ -4782,6 +4782,41 @@ static const low_ir_t *g_planned_for;   // 같은 IR 이면 다시 안 센다(�
 static bool g_abi_dup;
 static char g_abi_dup_msg[320];
 
+static void cbe_hdr_structs(FILE *out, const low_ir_t *ir, int phase);
+// ★ RFC-0132 P4d — 이 구조체가 C 구조체(`struct lw_sty_N`)로 나가는가: 방출이 그것을 내는 조건과 같다.
+static bool cbe_sty_ok(const low_ir_t *ir, proven_size_t s) {
+    if (!(s < ir->nstructs && ir->structs[s].viewable && !ir->structs[s].is_shadow && ir->structs[s].total <= K_REC_BYTES &&
+          !ir->structs[s].is_mmio && !ir->structs[s].is_actor_state)) return false;
+    // ★ RFC-0151 §9.4.1 — 128 비트 칸은 C 경계를 넘지 않는다(소유자 — 열지 않는다): 그런 구조체는 C 구조체로 내보내지 않는다
+    for (proven_size_t q = 0; q < ir->structs[s].nf; q++) if (ir->structs[s].f[q].size == 16 && !ir->structs[s].f[q].arrn) return false;
+    return true;
+}
+// ★ RFC-0132 P4d — 내보내는 C 심볼의 서명은 **한 곳**에서 적는다. 헤더 · 앞 선언 · 정의가 이것을 부른다(전엔 세 자리가 따로 적었다).
+//   named = 정의(매개변수 이름을 붙인다).
+static void cbe_put_export_sig(FILE *out, const low_ir_def_t *d, const low_ir_plan_t *pl, bool named) {
+    if (pl->ret_sty1) fprintf(out, "struct lw_sty_%d ", pl->ret_sty1 - 1);
+    else fputs(pl->ret_flt ? "double " : "long long ", out);
+    put_export_name(out, d);
+    fputc('(', out);
+    proven_size_t n = 0;
+    for (proven_size_t q = 0; q < d->nparams; q++) {
+        if ((d->param_cap >> q) & 1u) continue;   // 능력은 C 에 없다
+        const char *sep = n++ ? ", " : "";
+        if ((d->param_slice >> q) & 1u) {
+            if (named) fprintf(out, "%sconst unsigned char *p%zu, size_t n%zu", sep, (size_t)q, (size_t)q);
+            else fprintf(out, "%sconst unsigned char *, size_t", sep);
+        } else if ((d->param_flt >> q) & 1u) {
+            if (named) fprintf(out, "%sdouble x%zu", sep, (size_t)q); else fprintf(out, "%sdouble", sep);
+        } else if ((d->param_struct >> q) & 1u) {
+            if (named) fprintf(out, "%sstruct lw_sty_%u s%zu", sep, (unsigned)d->param_sidx[q], (size_t)q);
+            else fprintf(out, "%sstruct lw_sty_%u", sep, (unsigned)d->param_sidx[q]);
+        } else {
+            if (named) fprintf(out, "%slong long x%zu", sep, (size_t)q); else fprintf(out, "%slong long", sep);
+        }
+    }
+    if (!n) fputs("void", out);
+    fputc(')', out);
+}
 void low_cbe_plan(const low_ir_t *ir) {
     g_ir_for_inline = ir;
     if (g_planned_for == ir) return;
@@ -4819,8 +4854,20 @@ void low_cbe_plan(const low_ir_t *ir) {
         else if (d->name.size == 4 && memcmp(d->name.ptr, "main", 4) == 0)
                                              why = "이름이 C 의 `main` 과 겹친다 — 진입 op 은 런처가 부른다";
         else if (!sc_tab[i])                 why = "타입 하강이 안 됐다 — 태그 경로 op 은 C 심볼을 내지 않는다(`--why-slow` 가 그 이유를 말한다)";
-        else if (g_retk[i] != K_INT && g_retk[i] != K_FLT)
-                                             why = "반환이 정수/부동이 아니다 — C 경계로 낼 모양이 아직 없다(슬라이스·레코드·option 반환)";
+        else if (g_retk[i] != K_INT && g_retk[i] != K_FLT && !(g_retk[i] >= K_REC && g_retk[i] < K_VIEW && cbe_sty_ok(ir, (proven_size_t)(g_retk[i] - K_REC))))
+                                             why = "반환이 정수 · 부동 · C 구조체가 아니다 — C 경계로 낼 모양이 아직 없다(슬라이스 · option 반환, 바이트 배치가 없는 구조체)";
+        // ★★★ RFC-0132 P4d (2026-10-24) — 매개변수도 C 로 낼 모양이 있어야 한다. 전엔 구조체 · 벡터 · option · 비트셋 매개변수가
+        //   C 서명에 `long long` 으로 나갔고, 감싸개는 그 값을 버린 채 0 으로 채운 칸에서 읽었다 — C 에서 무엇을 넘기든 답이 같았다
+        //   (조용히 틀린 답). 이제 구조체는 `struct lw_sty_N` 으로 받고, 나머지는 심볼을 내지 않고 까닭을 말한다.
+        if (!why && d->is_export && !d->is_extern)
+            for (proven_size_t q = 0; q < d->nparams && !why; q++) {
+                if ((d->param_cap >> q) & 1u) continue;
+                if (((d->param_vec >> q) & 1u) || ((d->param_opt >> q) & 1u) || ((d->param_bset >> q) & 1u))
+                    why = "매개변수가 벡터 · option · 비트셋이다 — C 경계로 낼 모양이 아직 없다";
+                else if (((d->param_struct >> q) & 1u) && !cbe_sty_ok(ir, d->param_sidx[q]))
+                    why = "구조체 매개변수에 C 구조체(바이트 배치)가 없다 — 슬라이스 · owned 칸을 가진 구조체";
+            }
+        pl->ret_sty1 = (!why && g_retk[i] >= K_REC && g_retk[i] < K_VIEW) ? (int)(g_retk[i] - K_REC) + 1 : 0;
         pl->exported_symbol = (d->is_export && !d->is_extern && why == NULL);
         if (why && d->is_export && !d->is_extern) {
             snprintf(g_plan_why[i], sizeof g_plan_why[0], "%s", why);
@@ -4863,6 +4910,40 @@ const low_ir_plan_t *low_cbe_plan_of(proven_size_t di) {
     static const low_ir_plan_t none = { 0 };
     return di < 512 ? &g_plan[di] : &none;
 }
+// ★★★ **구조체 by-value 경계가 쓰는 struct 의 C 정의를 헤더에 낸다** (2026-07-23 · RFC-0132 P4d 2026-10-24 에 내보내는 쪽을 더했다).
+//   extern 이 받는 구조체와, 내보내는 C 심볼이 받거나 돌려주는 구조체. 헤더의 **내보내는 선언보다 먼저** 낸다(전엔 뒤에 있어 쓸 자리에서
+//   타입이 없었다). 생성 C 의 struct 정의와 **같은 폭·순서**다 — 두 번역단위가 같은 `struct lw_sty_N` 을 보므로 갈리면 컴파일 에러다.
+//   phase 0 = 내보내는 심볼이 쓰는 구조체(그 선언보다 먼저) · phase 1 = extern 만 쓰는 구조체(원래 자리 — 기준선 헤더의 글이 그대로다).
+static bool cbe_hdr_struct_used(const low_ir_t *ir, proven_size_t s, bool exports) {
+    for (proven_size_t i = 0; i < ir->ndefs; i++) {
+        const low_ir_def_t *d = &ir->defs[i];
+        const low_ir_plan_t *pl = low_cbe_plan_of(i);
+        bool on = exports ? pl->exported_symbol : (d->is_extern && d->param_struct && cbe_c_name_ok(d->link_name));
+        if (!on) continue;
+        if (exports && pl->ret_sty1 == (int)s + 1) return true;
+        for (proven_size_t q = 0; q < d->nparams; q++)
+            if (((d->param_struct >> q) & 1u) && d->param_sidx[q] == s) return true;
+    }
+    return false;
+}
+static void cbe_hdr_structs(FILE *out, const low_ir_t *ir, int phase) {
+    for (proven_size_t s = 0; s < ir->nstructs; s++) {
+        bool ex = cbe_hdr_struct_used(ir, s, true);
+        bool used = phase == 0 ? ex : (!ex && cbe_hdr_struct_used(ir, s, false));
+        if (!used) continue;
+        fprintf(out, "struct lw_sty_%zu { ", s);
+        for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
+            const low_ir_sfield_t *fi_ = &ir->structs[s].f[i];
+            proven_u8 sz = fi_->arrn ? fi_->arresz : fi_->size;   // ★ T2b-3d ⓓ — 배열 칸은 C 배열(`int8_t f1[4];`)
+            bool fl_ = fi_->arrn ? (fi_->arrmeta & IR_FLT_BIT) != 0 : fi_->flt;
+            const char *ct = fl_ ? (sz == 4 ? "float" : "double")
+                           : sz == 1 ? "int8_t" : sz == 2 ? "int16_t" : sz == 4 ? "int32_t" : "int64_t";
+            if (fi_->arrn) fprintf(out, "%s f%zu[%u]; ", ct, i, (unsigned)fi_->arrn);
+            else fprintf(out, "%s f%zu; ", ct, i);
+        }
+        fputs("};\n", out);
+    }
+}
 
 int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
     int n = 0, nx = 0, skipped = 0;
@@ -4897,6 +4978,7 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
     }
     fputs("#include <stddef.h>\n#include <stdint.h>\n"
           "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n", out);
+    cbe_hdr_structs(out, ir, 0);   // ★ RFC-0132 P4d — 내보내는 심볼의 구조체는 그 선언보다 먼저
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         // ★★★ **헤더와 오브젝트는 같은 판별자를 써야 한다** (2026-08-02 실측 수리).
@@ -4930,21 +5012,8 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
         //   export op 이 헤더엔 `long long`(정수 레지스터)·정의엔 `double`(부동 레지스터)로 갈렸다.
         //   헤더를 믿는 C 소비자(콜백 등록 포함)가 정수 레지스터에서 반환을 읽어 쓰레기를 냈다.
         //   래퍼(g_retk==K_FLT?double)·정의는 정직했는데 헤더만 빠졌다 — 시그니처가 두 곳에 살고 갈렸다.
-        fputs(pl->ret_flt ? "double " : "long long ", out);
-        put_export_name(out, d);   // ★ 헤더·선언·정의가 **한 이름**을 쓴다
-        fputc('(', out);
-        proven_size_t k = 0;
-        for (proven_size_t q = 0; q < d->nparams; q++) {
-            if ((d->param_cap >> q) & 1u) continue;   // 능력은 C 에 없다
-            if ((d->param_slice >> q) & 1u)
-                fprintf(out, "%sconst unsigned char *, size_t", k++ ? ", " : "");
-            else if ((d->param_flt >> q) & 1u)
-                fprintf(out, "%sdouble", k++ ? ", " : "");
-            else
-                fprintf(out, "%slong long", k++ ? ", " : "");
-        }
-        if (!k) fputs("void", out);
-        fputs(");\n", out);
+        cbe_put_export_sig(out, d, pl, false);   // ★ RFC-0132 P4d — 서명은 한 곳에서
+        fputs(";\n", out);
         n++;
     }
 
@@ -4972,27 +5041,7 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
     //     다른 extern 과 똑같이 include 로 시그니처가 검사된다 — 헤더가 존재하는 바로 그 이유다.
     //   생성 C 의 struct 정의(line ~4332)와 **같은 폭·순서**로 낸다(두 곳이 갈리면 안 되지만, C
     //     컴파일러가 두 번역단위에서 같은 `struct lw_sty_N` 를 보므로 불일치는 컴파일 에러가 된다).
-    for (proven_size_t s = 0; s < ir->nstructs; s++) {
-        bool used = false;
-        for (proven_size_t i = 0; i < ir->ndefs && !used; i++) {
-            const low_ir_def_t *d = &ir->defs[i];
-            if (!d->is_extern || !d->param_struct || !cbe_c_name_ok(d->link_name)) continue;
-            for (proven_size_t q = 0; q < d->nparams; q++)
-                if (((d->param_struct >> q) & 1u) && d->param_sidx[q] == s) { used = true; break; }
-        }
-        if (!used) continue;
-        fprintf(out, "struct lw_sty_%zu { ", s);
-        for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
-            const low_ir_sfield_t *fi_ = &ir->structs[s].f[i];
-            proven_u8 sz = fi_->arrn ? fi_->arresz : fi_->size;   // ★ T2b-3d ⓓ — 배열 칸은 C 배열(`int8_t f1[4];`)
-            bool fl_ = fi_->arrn ? (fi_->arrmeta & IR_FLT_BIT) != 0 : fi_->flt;
-            const char *ct = fl_ ? (sz == 4 ? "float" : "double")
-                           : sz == 1 ? "int8_t" : sz == 2 ? "int16_t" : sz == 4 ? "int32_t" : "int64_t";
-            if (fi_->arrn) fprintf(out, "%s f%zu[%u]; ", ct, i, (unsigned)fi_->arrn);
-            else fprintf(out, "%s f%zu; ", ct, i);
-        }
-        fputs("};\n", out);
-    }
+    cbe_hdr_structs(out, ir, 1);   // extern 만 쓰는 구조체(내보내는 쪽이 쓰는 것은 위에서 이미 냈다 — RFC-0132 P4d)
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         if (!d->is_extern) continue;
@@ -5861,18 +5910,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   먼저 나올 수 있다(콜백을 넘기는 op 이 위에서 하강한다). 그래서 여기서 미리 선언한다.
         if (low_cbe_plan_of(i)->exported_symbol) {   // ★ 같은 기록(RFC-0089 R1) — 세 번째 독자다
             const low_ir_def_t *d = &ir->defs[i];
-            fputs(low_cbe_plan_of(i)->ret_flt ? "double " : "long long ", out);
-            put_export_name(out, d);   // ★ 헤더·선언·정의가 **한 이름**을 쓴다
-            fputc('(', out);
-            proven_size_t n = 0;
-            for (proven_size_t q = 0; q < d->nparams; q++) {
-                if ((d->param_cap >> q) & 1u) continue;
-                if ((d->param_slice >> q) & 1u) fprintf(out, "%sconst unsigned char *, size_t", n++ ? ", " : "");
-                else if ((d->param_flt >> q) & 1u) fprintf(out, "%sdouble", n++ ? ", " : "");
-                else fprintf(out, "%slong long", n++ ? ", " : "");
-            }
-            if (!n) fputs("void", out);
-            fputs(");\n", out);
+            cbe_put_export_sig(out, d, low_cbe_plan_of(i), false);   // ★ RFC-0132 P4d — 서명은 한 곳에서
+            fputs(";\n", out);
         }
         if (i < 512 && sc_tab[i]) {
             // ★★★ **작은 순수 op 은 `inline` 이라고 말해 준다** (2026-08-29, 실측).
@@ -7513,22 +7552,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         // ★ **헤더와 같은 기록을 읽는다**(RFC-0089 R1) — 조건을 여기서 다시 적지 않는다.
         const low_ir_plan_t *pl = low_cbe_plan_of(i);
         if (!pl->exported_symbol) continue;
-        fputs(pl->ret_flt ? "double " : "long long ", out);
-        put_export_name(out, d);
-        fputc('(', out);
-        { proven_size_t n = 0;
-          for (proven_size_t q = 0; q < d->nparams; q++) {
-              if ((d->param_cap >> q) & 1u) continue;
-              if ((d->param_slice >> q) & 1u)
-                  fprintf(out, "%sconst unsigned char *p%zu, size_t n%zu", n++ ? ", " : "",
-                          (size_t)q, (size_t)q);
-              else if ((d->param_flt >> q) & 1u)
-                  fprintf(out, "%sdouble x%zu", n++ ? ", " : "", (size_t)q);
-              else
-                  fprintf(out, "%slong long x%zu", n++ ? ", " : "", (size_t)q);
-          }
-          if (!n) fputs("void", out); }
-        fputs(") {\n", out);
+        cbe_put_export_sig(out, d, pl, true);   // ★ RFC-0132 P4d — 서명은 한 곳에서
+        fputs(" {\n", out);
         // ★★★★★ **한 배열을 두 가지 수로 세고 있었다** (2026-08-25 · RFC-0100 · WO-0080).
         //   크기를 재는 고리는 능력을 `continue` 로 **건너뛰고**, 채우는 고리는 `bi++` 로
         //   **세고 있었다**. 능력이 없으면 두 수가 우연히 같아 아무 일도 안 나고, 능력이
@@ -7544,11 +7569,15 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //     판정을 한 기록으로 모은다.)
         //   ★★ 그리고 능력 슬롯을 **0 으로 채운다.** 안 채우면 불린 쪽이 쓰레기를 읽는다 —
         //     C 에 안 나가는 것과 초기화하지 않는 것은 다른 일이다.
-        { char fill[LOW_MAX_PARAMS * 96]; proven_size_t fl = 0;
-          proven_size_t ni = 0, ns = 0, nfl = 0;
-          for (proven_size_t q = 0; q < d->nparams && fl + 96 < sizeof fill; q++) {
+        { char fill[LOW_MAX_PARAMS * 160]; proven_size_t fl = 0;
+          proven_size_t ni = 0, ns = 0, nfl = 0, nst = 0;
+          for (proven_size_t q = 0; q < d->nparams && fl + 160 < sizeof fill; q++) {
               int w;
-              if ((d->param_cap >> q) & 1u)
+              if ((d->param_struct >> q) & 1u)   // ★ RFC-0132 P4d — C 구조체를 그 바이트 그대로 칸에(배치가 같다 — 아래에서 C 컴파일러가 잰다)
+                  w = snprintf(fill + fl, sizeof fill - fl,
+                               "    _Static_assert(sizeof(struct lw_sty_%u) == %u, \"lw_sty layout\"); memcpy(arb[%zu], &s%zu, sizeof s%zu); ar[%zu] = arb[%zu];\n",
+                               (unsigned)d->param_sidx[q], (unsigned)ir->structs[d->param_sidx[q]].total, (size_t)nst, (size_t)q, (size_t)q, (size_t)nst, (size_t)nst), nst++;
+              else if ((d->param_cap >> q) & 1u)
                   w = snprintf(fill + fl, sizeof fill - fl,
                                "    ai[%zu] = 0;   /* cap: C 에 안 나가지만 슬롯은 있다 */\n",
                                (size_t)ni), ni++;
@@ -7565,15 +7594,19 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
               if (w > 0) fl += (proven_size_t)w;
           }
           fprintf(out, "    long long ai[%zu]; lw_sl as[%zu]; double af[%zu];"
-                       " _Alignas(8) unsigned char arb[1][64] = {{0}}; unsigned char *ar[1] = { arb[0] }; long long ab[1] = {0}; lw_r ao[1]; lw_v av[1];\n"
+                       " _Alignas(16) unsigned char arb[%zu][64] = {{0}}; unsigned char *ar[%zu] = { arb[0] }; long long ab[1] = {0}; lw_r ao[1]; lw_v av[1];\n"
                        "    lw_sl rsl[LW_RECF] = {{0,0}};\n    (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl;\n",
-                  (size_t)(ni ? ni : 1), (size_t)(ns ? ns : 1), (size_t)(nfl ? nfl : 1));
+                  (size_t)(ni ? ni : 1), (size_t)(ns ? ns : 1), (size_t)(nfl ? nfl : 1), (size_t)(nst ? nst : 1), (size_t)(nst ? nst : 1));
           fwrite(fill, 1, fl, out); }
         {
             unsigned am_ = i < 512 ? g_argmask[i] : LWA_ALL;
             fputs(cbe_ret_scalar(i) ? "    return lw_s_" : "    lw_r r_ = lw_s_", out);
             put_sym(out, d); fputs("(", out); cbe_put_args(out, am_, false, cbe_depparam(i) ? "0" : NULL); fputs(");\n", out);
-            if (!cbe_ret_scalar(i))
+            if (pl->ret_sty1)   // ★ RFC-0132 P4d — 구조체는 값으로 돌려준다: 레코드 바이트를 C 구조체로(sret 은 C 컴파일러가 고른다)
+                fprintf(out, "    _Static_assert(sizeof(struct lw_sty_%d) == %u, \"lw_sty layout\");\n"
+                             "    struct lw_sty_%d o_; memcpy(&o_, r_.r, sizeof o_); return o_;\n",
+                        pl->ret_sty1 - 1, (unsigned)ir->structs[pl->ret_sty1 - 1].total, pl->ret_sty1 - 1);
+            else if (!cbe_ret_scalar(i))
                 fputs(g_retk[i] == K_FLT ? "    return r_.f;\n" : "    return r_.v;\n", out);
             fputs("}\n", out);
         }

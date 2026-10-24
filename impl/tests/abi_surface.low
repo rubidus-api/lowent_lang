@@ -137,7 +137,7 @@ unsafe extern proc abi_c_cstr do
 end .
 
 rem ── struct by-value — viewable 구조체는 **진짜 C struct** 로 나간다(struct lw_sty_N)
-struct abi_pt do
+export struct abi_pt do
   x i64 .
   y i64 .
 end .
@@ -147,6 +147,16 @@ unsafe extern proc abi_c_pt do
   output i64 .
   effects unsafe .
   link abi_c_pt .
+end .
+
+rem ── struct 를 값으로 **내보낸다**(RFC-0132 P4d, 2026-10-24) — 받는 것도 돌려주는 것도 `struct lw_sty_N` 이고, 큰 구조체의 숨은
+rem   포인터(sret)는 C 컴파일러가 플랫폼 규약대로 고른다. 전엔 받는 쪽이 `long long` 으로 나가 값이 버려졌고(답이 늘 0), 돌려주는 쪽은
+rem   심볼이 없었다.
+export fn abi_mk_pt input a i64 . output abi_pt . do
+  return lit abi_pt do x a. . y add a. 2 . . end . .
+end .
+export fn abi_sum_pt input p abi_pt . output i64 . do
+  return add field p. x . field p. y . . .
 end .
 
 rem ══ ③ **약속하지 않는 것도 표면이다** ═══════════════════════════════════════════

@@ -53,7 +53,10 @@ int main(void) {
     struct lw_sty_0 pt = { 20, 22 };
     long long i = abi_c_pt(pt);                       /* 42  */
     long long j = (long long)strlen(abi_c_cstr());    /* 4   */
+    /* RFC-0132 P4d — 구조체를 값으로 받고 돌려주는 export(2026-10-24 에 기준선에 더했다) */
+    struct lw_sty_0 m = lw_11abi_surface_9abi_mk_pt(20);          /* {20, 22} */
+    long long k = lw_11abi_surface_10abi_sum_pt(m);               /* 42  */
 
-    printf("%lld %.2f %lld %lld %.2f %lld %lld %.2f %lld %lld\n", a, b, c, d, e, f, g, h, i, j);
+    printf("%lld %.2f %lld %lld %.2f %lld %lld %.2f %lld %lld %lld %lld\n", a, b, c, d, e, f, g, h, i, j, (long long)m.f1, k);
     return 0;
 }

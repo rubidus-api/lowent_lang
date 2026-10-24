@@ -4923,6 +4923,28 @@ static void ck_int128_walk(low_check_result_t *out, const low_cst_t *nd, int in_
     }
     for (proven_size_t j = 0; j < nd->nkids; j++) if (nd->kids[j]->kind != LOW_CST_ATOM) ck_int128_walk(out, nd->kids[j], s2, e2);   // `extern` 의 머리는 블록 안에 있기도 하다(블록 머리) — C 경계로 본다
 }
+// 구조체 `ty` 가 (안쪽 구조체를 거쳐서라도) 128 비트 정수 칸을 갖는가
+static bool ck_struct_has_w128(const low_parse_result_t *pr, proven_u8str_view_t ty, int depth) {
+    if (depth > 8) return false;
+    ty = low_view_after_last(ty, '.');
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
+        if (!ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) return false;
+        for (proven_size_t q = 0; q < blk->nkids; q++) {
+            const low_cst_t *fl = blk->kids[q];
+            if (fl->kind != LOW_CST_FORM) continue;
+            for (proven_size_t z = 1; z < fl->nkids; z++) {
+                if (ck_is_w128(fl->kids[z])) return true;
+                if (ck_atom(fl->kids[z]) && fl->kids[z]->tok.kind == LOW_TOK_IDENT && ck_struct_has_w128(pr, fl->kids[z]->tok.lex, depth + 1)) return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
 static void ck_int128(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
@@ -4937,6 +4959,19 @@ static void ck_int128(low_check_result_t *out, const low_parse_result_t *pr) {
                 if (ck_is_w128(f->kids[j]))
                     emit(out, "E-INT128-PLACE", "a 128-bit integer does not cross the C boundary (`extern`) — its C ABI is not opened; pass two `u64` (RFC-0151 §9.4.1)",
                          f->kids[j]->tok.line);
+        // ★ RFC-0151 §9.4.1 · RFC-0132 P4d — 128 비트 칸을 가진 구조체도 C 경계를 넘지 않는다(그 칸의 C 배치를 열지 않았다). C 를 부르는
+        //   extern 의 머리(입력 · 결과)가 그런 구조체를 이름 대면 거절한다 — 안 그러면 `struct lw_sty_N` 이 그 칸을 64 비트로 적는다.
+        if (f->kind == LOW_CST_FORM && (f->is_extern || ex) && low_ir_target()->int128) {
+            low_op_header_t hx = low_op_header(f);
+            for (proven_size_t j = 0; j < f->nkids; j++) {
+                const low_cst_t *k = f->kids[j];
+                if (k->kind == LOW_CST_BLOCK) break;
+                if (hx.body && k == hx.body) break;
+                if (ck_atom(k) && k->tok.kind == LOW_TOK_IDENT && ck_struct_has_w128(pr, k->tok.lex, 0))
+                    emit(out, "E-INT128-PLACE", "this struct holds a 128-bit integer field, and a 128-bit integer does not cross the C boundary "
+                         "(`extern`) — split the field into two `u64` for the C side (RFC-0151 §9.4.1)", k->tok.line);
+            }
+        }
         // 머리의 낱말(입력 · 결과)은 그 폼의 아이들에 바로 있다 — 몸(블록)은 C 경계가 아니다
         ck_int128_walk(out, f, f->kind == LOW_CST_FORM && f->nkids && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT, ex);
     }

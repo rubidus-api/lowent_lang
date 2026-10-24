@@ -4055,6 +4055,15 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                         { fref = true; break; }
                 // 타입 낱말은 여럿일 수 있다(`option node` · `ref node` · `array node 4` · `option (option node)`).
                 // 그 **어느 자리에든** struct 이름이 있으면 그 struct 를 품는다는 뜻이다.
+                // ★★ RFC-0150 §8-12 (2026-10-24) — **스스로를 품는 마디** `left option (owned node) .`: 이 칸은 값이 아니라 할당기 바이트에
+                //   지은 마디를 가리키는 **주소 한 칸**이다(없으면 0). 그래서 크기가 유한하다 — 순환이 아니다. 낱말이 꼭 이 셋일 때만
+                //   (`option` · `owned` · 자기 이름) 이고, 다른 구조체를 거쳐 돌아오는 소유 순환은 여전히 E-STRUCT-CYCLE 이다.
+                //   괄호 꼴(`option (owned node)`)은 묶음의 머리 낱말이 한 번 더 실린다 — [option][owned][owned][node].
+                proven_u8str_view_t ow_ = proven_u8str_view_from_cstr("owned");
+                bool fbox = cur == si && proven_u8str_view_eq(tw[0], proven_u8str_view_from_cstr("option")) &&
+                            ((ntw == 3 && proven_u8str_view_eq(tw[1], ow_) && proven_u8str_view_eq(tw[2], c.strs[si].name)) ||
+                             (ntw == 4 && proven_u8str_view_eq(tw[1], ow_) && proven_u8str_view_eq(tw[2], ow_) && proven_u8str_view_eq(tw[3], c.strs[si].name)));
+                if (fbox) continue;
                 for (proven_size_t w = 0; w < ntw && !cyc; w++) {
                     for (proven_size_t k = 0; k < c.nstrs; k++) {
                         if (!proven_u8str_view_eq(c.strs[k].name, tw[w])) continue;

@@ -1,0 +1,42 @@
+rem ★★★ **스스로를 품는 나무** (RFC-0150 §8-12 · §6.0.6) — `lib/tree.low` 를 VM 과 네이티브가 같은 답으로 돈다.
+rem   · `many n` — 키 n 개(섞인 차례)를 넣고, 다시 넣어 값을 바꾸고, 찾고, 통째로 돌려준다. 마디가 레코드 풀(4,096)을
+rem     넘어도 선다 — 마디는 얼로케이터 바이트에 산다.
+rem   · `back n` — 낱낱이 돌려주는 범프에 넣고 돌려준 뒤 `used` 를 답한다(돌려주기가 실제로 돈다).
+
+module vm_owntree .
+
+use allocs .
+use tree .
+
+proc many input a cap allocator . input count u64 . output u64 . effects alloc state . do
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  var m use fb. (tree.head allocs.fixed_bytes) tree.tr_open . .
+  var i u64 0 .
+  var x u64 7 .
+  while lt i. count. . do
+    set x. mod add mul x. 1103515245 . 12345 . 2147483648 . .
+    guard tree.tr_put allocs.fixed_bytes. m. x. i. . else return 0 . .
+    set i. add i. 1 . .
+  end .
+  rem 같은 키를 다시 넣으면 값만 바뀐다 — 마디 수는 그대로다
+  guard tree.tr_put allocs.fixed_bytes. m. x. 99 . else return 0 . .
+  let got option u64 tree.tr_get allocs.fixed_bytes. m. x. . .
+  guard is_some got. . else return 1 . .
+  guard eq some_value got. . 99 . else return 2 . .
+  let miss option u64 tree.tr_get allocs.fixed_bytes. m. 3 . .
+  guard is_none miss. . else return 3 . .
+  let n usize tree.tr_count allocs.fixed_bytes. m. . .
+  let gone usize tree.tr_close allocs.fixed_bytes. m. . .
+  guard eq gone. n. . else return 4 . .
+  return cast u64 gone. . .
+end .
+
+proc back input k u64 . output u64 . effects state . do
+  var buf lit array u8 512 _ . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let got usize send bb. init buf. . .
+  var m use bb. (tree.head allocs.bump_bytes) tree.tr_open . .
+  guard tree.tr_put allocs.bump_bytes. m. k. 1 . else return 9 . .
+  let gone usize tree.tr_close allocs.bump_bytes. m. . .
+  return add mul cast u64 gone. . 1000 . cast u64 send bb. used . . . .
+end .

@@ -515,6 +515,7 @@ typedef struct {
 #define IR_SRC_W128   0x1000000  // ★ RFC-0151 — 원천이 128 비트 정수(값의 위 64 비트가 함께 온다)
 // ★ X-0065 — IRW_PANIC 의 a 가 이 값이면 «받는 자리가 찼다»(문자열 번호와 겹치지 않는 큰 수).
 #define IR_PANIC_SINKFULL 0x7fff0001
+#define IR_PANIC_NODEKIDS 0x7fff0003   /* ★ RFC-0150 §6.0.6 — `drop n. use al.` 의 마디에 자식 칸이 아직 들어 있다 */
 #define IR_PANIC_ENUMCAST 0x7fff0002   /* ★ `cast <열거> n` — n 이 어느 갈래의 번호도 아니다(정본 §6.2.16 (5a)) */
 // IRW_CALL 의 a 는 def 인덱스 + 플래그다. RFC-0055 D3: PROVEN 이면 인자 범위 검사를
 // **호출 지점에서 이미 증명**했다는 뜻 — 진입 검사를 건너뛴다(계약이 공짜가 된다).
@@ -567,7 +568,11 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  proven_i64 slmeta;
                  // ★★ RFC-0150 §8-31 — 폭을 적은 열거(`layout uN .`)의 칸: 바이트에는 갈래의 **번호**가, 값에는 단위 전체의 **순번**이 든다.
                  //   이 칸을 바이트와 오갈 때 low_ir_t 의 enum_tab[elo .. ehi) 로 번호 ↔ 순번을 바꾼다. ename 이 비면 이 칸이 아니다.
-                 proven_u8str_view_t ename; proven_u16 elo, ehi; } low_ir_sfield_t;
+                 proven_u8str_view_t ename; proven_u16 elo, ehi;
+                 // ★★ RFC-0150 §8-12 (2026-10-24) — **스스로를 품는 칸** `left option (owned node) .`. 레코드에서는 태그 값 한 칸이고,
+                 //   할당기 바이트에 짓는 그림자에서는 **주소 한 칸**이다(0 = none). `bxs1` 은 그 주소가 가리키는 배치의 번호 + 1
+                 //   (그림자에서만 — 자기 그림자다).
+                 bool bxself; proven_i16 bxs1; } low_ir_sfield_t;
 typedef struct {
     proven_u8str_view_t name;
     bool                packed;

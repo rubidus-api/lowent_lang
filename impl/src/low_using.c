@@ -280,6 +280,19 @@ static bool us_type_fits(us_ctx_t *c, const us_callee_t *u, proven_u8str_view_t 
     return u->trait.size && us_type_satisfies(c, ty, u->trait);
 }
 // 바인딩 폼의 타입 첫 낱말(한정자 건너뜀)
+static bool us_is_type_param(us_ctx_t *c, proven_u8str_view_t ty) {
+    if (!c->op) return false;
+    low_op_header_t h = low_op_header(c->op);
+    for (proven_size_t q = 0; q < h.np; q++) if (h.p[q].is_comptime && proven_u8str_view_eq(h.p[q].name, ty)) return true;
+    return false;
+}
+static bool us_has_word(const low_cst_t *n, const char *w) {
+    if (!n) return false;
+    if (n->kind == LOW_CST_ATOM) return us_eq(n->tok.lex, w);
+    if (n->kind != LOW_CST_GROUP && n->kind != LOW_CST_FORM) return false;
+    for (proven_size_t i = 0; i < n->nkids; i++) if (us_has_word(n->kids[i], w)) return true;
+    return false;
+}
 static proven_u8str_view_t us_type_word(const low_cst_t *f, proven_size_t from) {
     for (proven_size_t q = from; q < f->nkids && us_atom(f->kids[q]); q++) {
         proven_u8str_view_t w = f->kids[q]->tok.lex;
@@ -401,6 +414,46 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
         return;
     }
     if (nd->kind == LOW_CST_FORM) us_fill_root(c, nd);
+    // ★★ RFC-0150 §6.0.6 (2026-10-24) — `drop n. use al. .` 스스로를 품는 마디를 그 얼로케이터에 돌려준다. 낱낱이 돌려주는
+    //   얼로케이터(`freeing_allocator`)면 [send <al> release <n 의 바이트>] 를 다섯째 자식으로 붙인다 — 하강이 `n` 의 바이트를 담은
+    //   숨은 자리로 마지막 원자를 읽는다(RFC-0135 S2 의 돌려주기와 같은 길). 돌려주지 못하는 얼로케이터는 바이트를 든 채 둔다.
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 4 && us_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_DROP &&
+        us_atom(nd->kids[1]) && us_atom(nd->kids[2]) && us_eq(nd->kids[2]->tok.lex, "use") && us_atom(nd->kids[3])) {
+        proven_u8str_view_t aty = us_bind_type(c, nd->kids[3]->tok.lex);
+        // 타입 매개변수(`use al a .`)면 여기서는 모른다 — 붙여 두고, 단형화한 하강이 구체 타입에 `release` 가 있을 때만 쓴다
+        bool generic_ = aty.size && us_is_type_param(c, aty);
+        if (aty.size && (generic_ || us_type_satisfies(c, aty, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"freeing_allocator", .size = 17 }))) {
+            low_cst_t **rk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 4, alignof(low_cst_t *)).value.ptr;
+            low_cst_t **dk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 5, alignof(low_cst_t *)).value.ptr;
+            low_cst_t *rf = low_node(&c->p, LOW_CST_FORM, nd->kids[3]->tok);
+            low_cst_t *s0 = us_atom_like(c, nd->kids[3], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"send", .size = 4 });
+            low_cst_t *s1 = us_atom_like(c, nd->kids[3], nd->kids[3]->tok.lex);
+            low_cst_t *s2 = us_atom_like(c, nd->kids[3], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"release", .size = 7 });
+            low_cst_t *s3 = us_atom_like(c, nd->kids[1], nd->kids[1]->tok.lex);
+            // 넷째 자식은 값이어야 한다(`mut` 입력에 맨 이름을 주면 자리로 넘어간다) — (subslice <n> 0 (len <n>)) 로 싸고, 하강이 두 <n>
+            //   (같은 원자)을 마디의 바이트를 담은 숨은 자리로 읽는다.
+            low_cst_t **gk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 4, alignof(low_cst_t *)).value.ptr;
+            low_cst_t **lk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 2, alignof(low_cst_t *)).value.ptr;
+            low_cst_t **g1 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
+            low_cst_t **g2 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
+            low_cst_t *sf = low_node(&c->p, LOW_CST_FORM, nd->kids[1]->tok), *sg = low_node(&c->p, LOW_CST_GROUP, nd->kids[1]->tok);
+            low_cst_t *lf = low_node(&c->p, LOW_CST_FORM, nd->kids[1]->tok), *lg = low_node(&c->p, LOW_CST_GROUP, nd->kids[1]->tok);
+            low_cst_t *a0 = us_atom_like(c, nd->kids[1], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"subslice", .size = 8 });
+            low_cst_t *a2 = us_atom_like(c, nd->kids[1], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"0", .size = 1 });
+            low_cst_t *l0 = us_atom_like(c, nd->kids[1], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"len", .size = 3 });
+            if (rk && dk && rf && s0 && s1 && s2 && s3 && gk && lk && g1 && g2 && sf && sg && lf && lg && a0 && a2 && l0) {
+                s0->tok.kw = LOW_KW_SEND; s3->synth = true; a2->tok.kind = LOW_TOK_NUMBER;
+                lk[0] = l0; lk[1] = s3; (void)low_refit(&c->p, lf, lk, 2); lf->synth = true;
+                g1[0] = lf; (void)low_refit(&c->p, lg, g1, 1); lg->synth = true;
+                gk[0] = a0; gk[1] = s3; gk[2] = a2; gk[3] = lg; (void)low_refit(&c->p, sf, gk, 4); sf->synth = true;
+                g2[0] = sf; (void)low_refit(&c->p, sg, g2, 1); sg->synth = true;
+                rk[0] = s0; rk[1] = s1; rk[2] = s2; rk[3] = sg; (void)low_refit(&c->p, rf, rk, 4); rf->synth = true;
+                for (proven_size_t q = 0; q < 4; q++) dk[q] = nd->kids[q];
+                dk[4] = rf; (void)low_refit(&c->p, nd, dk, 5);
+            }
+        }
+        return;
+    }
     // 바인딩: `let|var <이름> <타입…> [using <출처>] be <식>`
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && us_atom(nd->kids[0]) &&
         (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && us_atom(nd->kids[1])) {
@@ -412,6 +465,9 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
         const low_cst_t *explicit_src = NULL;
         bool explicit_src_told = false;                   // 이미 E-LIT-USING 으로 말했다
         bool keep = us < be && nd->kids[us]->is_keep;     // RFC-0135 D12 — 블록 끝에 돌려주지 않는다
+        // ★★ RFC-0150 §6.0.6 — `owned` 로 묶은 값(스스로를 품는 마디)은 돌려줄 책임을 **값이 지고 다닌다**: 블록 끝에 돌려주지
+        //   않고, 옮겨 간 곳에서 `drop … use <얼로케이터>` 로 돌려준다.
+        for (proven_size_t q = 2; q < be && us < be && !keep; q++) if (us_has_word(nd->kids[q], "owned")) keep = true;
         if (us < be) {
             if (us + 2 != be || !us_atom(nd->kids[us + 1])) {
                 low_pdiag(&c->p, "E-USING-FORM",

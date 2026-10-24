@@ -3,6 +3,7 @@
 #include "low_cbe.h"
 #include "low_cbe_prelude.h"
 #define LW_EXPECT_MSG "E-TEST-FAIL: an `expect` is FALSE -- the test failed (this is not a contract violation)"   // ★ 2026-09-27 — 네이티브는 이것을 «requires violated at entry» 로 찍었다
+#define LW_NODEKIDS_MSG "drop ... use: this node still holds a child — move its option (owned ...) fields out first"   /* VM 의 E-VM-NODE-KIDS */
 #define LW_ENUMCAST_MSG "cast to an enum: the number is not the number of any variant of that enum"   /* VM 의 E-VM-CAST 와 같은 말 */
 #define LW_SINKFULL_MSG "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N"   // ★ X-0065 — VM 의 E-VM-BOUNDS 와 같은 말
 #include "low_sha256.h"
@@ -4304,6 +4305,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_PANIC:
                 if (in->a == IR_PANIC_SINKFULL) { fputs("    lw_panic(\"" LW_SINKFULL_MSG "\");\n", out); break; }   // ★ X-0065
                 if (in->a == IR_PANIC_ENUMCAST) { fputs("    lw_panic(\"" LW_ENUMCAST_MSG "\");\n", out); break; }
+                if (in->a == IR_PANIC_NODEKIDS) { fputs("    lw_panic(\"" LW_NODEKIDS_MSG "\");\n", out); break; }
                 fputs("    lw_upanic(\"the program called `panic`\");\n", out); break;
             // ★★★ **asm 문장 — 빠른 경로** (RFC-0042 D11). 피연산자 없는 형태만 여기 온다
             //   (있으면 cbe_mark_scalar 가 이 def 을 태그 경로로 보내며 **이유를 말한다**).
@@ -5405,8 +5407,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 10; t++) {
-        const char *nm = t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
+    for (int t = 0; t < 11; t++) {
+        const char *nm = t == 10 ? "lw_st_fbx"                              /* ★ RFC-0150 §8-12 스스로를 품는 칸(그림자): 가리키는 배치 + 1(0=아님) */
+                       : t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
                        : t == 3 ? "lw_st_fflt" : t == 4 ? "lw_st_fsidx"   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
                        : t == 5 ? "lw_st_farrn" : t == 6 ? "lw_st_farrm"  // ★ T2b-3d ⓓ 배열 칸: 원소 수 · 원소 메타(0=배열 칸 아님)
                        : t == 7 ? "lw_st_fslm"                             // ★ RFC-0135 D13 슬라이스 칸(그림자): 원소 메타(0=아님)
@@ -5424,7 +5427,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 5 ? (int)ir->structs[s].f[i].arrn :
                         t == 6 ? (int)ir->structs[s].f[i].arrmeta :
                         t == 7 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].slmeta : 0) :
-                        t == 8 ? (int)ir->structs[s].f[i].elo : (int)ir->structs[s].f[i].ehi);
+                        t == 8 ? (int)ir->structs[s].f[i].elo : t == 9 ? (int)ir->structs[s].f[i].ehi :
+                        (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].bxs1 : 0));
             fputs(" }", out);
         }
         fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
@@ -5516,6 +5520,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    if (e_ == 1 && !(m_ & 0x30000)) { v.tag = LWV_SLICE; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
           "                    else { v.tag = LWV_VARRAY; v.i = m_ & 0x30000; v.box = e_; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
           "                    return v; }\n"
+          "                /* RFC-0150 §8-12: a self-owning node field — one address (0 = none) */\n"
+          "                if (lw_st_fbx[r.box][i]) { const unsigned char *pp_; memcpy(&pp_, r.p + lw_st_foff[r.box][i], sizeof pp_);\n"
+          "                    if (!pp_) { lowv n_ = {0}; n_.tag = LWV_NONE; return n_; }\n"
+          "                    if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+          "                    lowv w_ = {0}; w_.tag = LWV_VIEW; w_.p = pp_; w_.box = lw_st_fbx[r.box][i] - 1; w_.n = (size_t)lw_st_total[w_.box];\n"
+          "                    lw_boxes[lw_nbox] = w_; lowv o_ = {0}; o_.tag = LWV_SOME; o_.box = lw_nbox++; return o_; }\n"
           "                /* RFC-0135 D13: a SLICE field of a struct built in allocator bytes — (address, length) */\n"
           "                if (lw_st_fslm[r.box][i]) { lowv v = {0}; int m_ = lw_st_fslm[r.box][i], e_ = m_ & 0xff;\n"
           "                    const unsigned char *pp_; unsigned long long pn_; memcpy(&pp_, r.p + lw_st_foff[r.box][i], sizeof pp_); memcpy(&pn_, r.p + lw_st_foff[r.box][i] + LW_PTRSLOT, 8);\n"
@@ -5553,6 +5563,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    if (v.tag == LWV_SLICE) have_ = v.n; else if (v.tag == LWV_VARRAY) have_ = v.n * (size_t)v.box; else lw_panic(\"an array field takes an array value\");\n"
           "                    if (have_ != need_) lw_panic(\"an array field takes exactly its length of elements\");\n"
           "                    memmove((void *)p, v.p, need_); return; }\n"
+          "                if (lw_st_fbx[r.box][i]) { /* RFC-0150 §8-12: a node field holds one address (0 = none) */\n"
+          "                    const unsigned char *pp_ = 0;\n"
+          "                    if (v.tag == LWV_SOME) { lowv in_ = lw_boxes[v.box]; if (in_.tag != LWV_VIEW) lw_panic(\"a node field takes a node built in allocator bytes\"); pp_ = in_.p; }\n"
+          "                    else if (v.tag != LWV_NONE) lw_panic(\"a node field takes an option\");\n"
+          "                    memcpy((void *)p, &pp_, sizeof pp_); return; }\n"
           "                if (lw_st_fslm[r.box][i]) { /* RFC-0135 D13: a slice field holds (address, length) */\n"
           "                    if (v.tag != LWV_SLICE && v.tag != LWV_VARRAY) lw_panic(\"a slice field takes a slice\");\n"
           "                    const unsigned char *pp_ = v.p; unsigned long long pn_ = (unsigned long long)v.n;\n"
@@ -7084,6 +7099,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★ `panic` — 즉시 트랩. 네이티브도 **같은 자리에서** 멈춘다.
                 case IRW_PANIC:    fputs(in->a == IR_PANIC_SINKFULL ? "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"   // ★ X-0065
                                              : in->a == IR_PANIC_ENUMCAST ? "    lw_panic(\"" LW_ENUMCAST_MSG "\");\n"
+                                             : in->a == IR_PANIC_NODEKIDS ? "    lw_panic(\"" LW_NODEKIDS_MSG "\");\n"
                                              : "    lw_upanic(\"the program called `panic`\");\n", out); break;
                 // ★ SPEC-007 §28 — 채널 전환(값은 그대로, 채널만 바뀐다).
                 case IRW_ELSE_NONE: fputs("    st[sp-1] = lw_else_none(st[sp-1]);\n", out); break;

@@ -1,0 +1,227 @@
+rem ★★★ **스스로를 품는 나무 — 마디는 나무 머리의 얼로케이터 바이트에 산다** (RFC-0150 §8-12 · §6.0.6, 2026-10-24).
+rem
+rem   소유자 결정 셋이 이 파일의 모양이다:
+rem     ① 얼로케이터는 **나무 머리에 하나**(`head` 의 `al` 칸). 마디(`node`)에는 얼로케이터 칸이 없다 — `vecgen.vec` 의
+rem        머리와 원소 관계와 같다. 마디마다 얼로케이터를 들면 낭비가 심하다(소유자).
+rem     ② 마디 타입은 **이 모듈 밖에 내보내지 않는다**(길 1). 짓고 옮기고 없애는 것은 이 모듈의 op 뿐이고, 쓰는 쪽은
+rem        키와 값만 다룬다. 모듈 **안**에서 두 나무의 마디를 섞는 것은 언어가 막지 못하며 시험으로 지킨다.
+rem     ③ 마디는 **적어서 없앤다** — `drop n. use al. .` 하나뿐이다. 버리거나 덮어쓰면 처리기가 거절한다
+rem        (E-OWN-INCOMPLETE). 자식이 든 마디를 돌려주면 E-OWN-NODE-KIDS 다.
+rem
+rem ★★ 마디를 짓는 철자는 이미 있던 바인딩 `use` 다(소유자 2026-10-24 — 새 낱말 0):
+rem       let nw use al. option (owned node) lit node do … end . .
+rem   자리가 모자라면 `none` 이다(OOM 은 값 — RFC-0043 D5). 칸 `left option (owned node) .` 은 바이트 안의
+rem   **주소 한 칸**이고(0 = none), 그래서 마디가 레코드 풀(4,096 칸)에 갇히지 않는다.
+rem
+rem ★★ 균형은 AA 나무로 잡는다(Andersson 1993) — 높이가 2·log₂(n+1) 아래라 넣기 · 찾기의 되부름이 깊어지지 않는다.
+rem   없애기는 **되부름 없이** 돈다: 왼쪽 자식이 있으면 오른쪽으로 돌리고(회전), 없으면 뿌리를 돌려주고 오른쪽으로 간다.
+rem
+rem ★ 힙이 없는 기계에서도 돈다(소유자 2026-10-23 «힙이 없어도 나무를 쓸 수 있게»): 나무에는 따로 거절이 없고, 힙
+rem   얼로케이터는 있는 검사(`E-HEAP-NOHOST`)가 막는다. `allocs.fixed_bytes` 로도, 낱낱이 돌려주는 얼로케이터로도 된다.
+rem   돌려주지 못하는 얼로케이터(`fixed_bytes` · `heap_bytes`)는 `drop … use` 뒤에도 바이트를 든 채 둔다.
+rem
+rem ☞ 안 지은 것(정직히): **빌려 읽기** — `ref node` 에서는 자식을 꺼낼 수 없어서(E-OWN-NODE-REF) 읽기도 머리를
+rem   `mut` 로 받아 자식을 꺼냈다 되돌려 놓는다(`tr_get`). 지우기(한 키) · 순회는 아직 없다.
+
+module tree .
+
+use allocs .
+
+rem 마디 — 내보내지 않는다(길 1). `level` 은 AA 나무의 층(잎 = 1).
+struct node do
+  key u64 .
+  val u64 .
+  level u64 .
+  left option (owned node) .
+  right option (owned node) .
+end .
+
+rem 나무 머리 — 얼로케이터 하나 · 뿌리 · 마디 수.
+export struct head do input comptime a type .
+  al a .
+  root option (owned node) .
+  n usize .
+end .
+
+rem 빈 나무를 연다. 아직 아무것도 받지 않는다 — 마디는 `tr_put` 이 하나씩 받는다.
+export proc tr_open input comptime a type . use al a . output (head a) . effects none . requires allocs.byte_allocator a. . . do
+  return lit (head a) do al al. . root none . n 0 . end . .
+end .
+
+export fn tr_count input comptime a type . input m head a . output usize . requires allocs.byte_allocator a. . . do
+  return field m. n . .
+end .
+
+rem ── AA 나무의 두 회전 ──────────────────────────────────────────────
+rem skew — 왼쪽 자식이 같은 층이면 오른쪽으로 돌린다.
+fn skew input r owned node . output owned node . do
+  var x owned node r. .
+  var l option (owned node) field x. left . .
+  if is_some l. . do
+    var lc owned node l. else return x. . .
+    if eq field lc. level . field x. level . . do
+      set field x. left . field lc. right . .
+      set field lc. right . some x. . .
+      return lc. .
+    end .
+    set field x. left . some lc. . .
+    return x. .
+  end .
+  set field x. left . l. .
+  return x. .
+end .
+
+rem split — 오른쪽 손자가 같은 층이면 왼쪽으로 돌리고 가운데를 한 층 올린다.
+fn split input r owned node . output owned node . do
+  var x owned node r. .
+  var g option (owned node) field x. right . .
+  if is_some g. . do
+    var gc owned node g. else return x. . .
+    var gg option (owned node) field gc. right . .
+    if is_some gg. . do
+      var ggc owned node gg. else return x. . .
+      if eq field ggc. level . field x. level . . do
+        set field gc. right . some ggc. . .
+        set field x. right . field gc. left . .
+        set field gc. left . some x. . .
+        set field gc. level . add field gc. level . 1 . .
+        return gc. .
+      end .
+      set field gc. right . some ggc. . .
+    end else do
+      set field gc. right . gg. .
+    end .
+    set field x. right . some gc. . .
+    return x. .
+  end .
+  set field x. right . g. .
+  return x. .
+end .
+
+rem 마디 nw 를 나무 t 에 단다 — 키는 아직 나무에 없다(`tr_put` 이 먼저 `upd` 로 확인한다). 새 뿌리를 돌려준다.
+fn ins input t option (owned node) . input nw owned node . output owned node . do
+  var r owned node t. else return nw. . .
+  if lt field nw. key . field r. key . . do
+    let l option (owned node) field r. left . .
+    set field r. left . some ins l. nw. . . .
+  end else do
+    let g option (owned node) field r. right . .
+    set field r. right . some ins g. nw. . . .
+  end .
+  return split skew r. . . .
+end .
+
+rem 키가 있으면 값을 바꾸고 true. 자식은 꺼냈다가 그대로 되돌려 놓는다(빌린 마디 — E-OWN-NODE-REF 가 지킨다).
+proc upd input t mut_ref node . input k u64 . input v u64 . output bool . effects none . do
+  if eq field t. key . k. . do
+    set field t. val . v. .
+    return true .
+  end .
+  if lt k. field t. key . . do
+    var c option (owned node) field t. left . .
+    if is_some c. . do
+      var cn owned node c. else return false . .
+      let hit bool upd mut_ref cn . k. v. . .
+      set field t. left . some cn. . .
+      return hit. .
+    end .
+    set field t. left . c. .
+    return false .
+  end .
+  var c2 option (owned node) field t. right . .
+  if is_some c2. . do
+    var cn2 owned node c2. else return false . .
+    let hit2 bool upd mut_ref cn2 . k. v. . .
+    set field t. right . some cn2. . .
+    return hit2. .
+  end .
+  set field t. right . c2. .
+  return false .
+end .
+
+rem 키의 값. 없으면 none.
+proc find input t mut_ref node . input k u64 . output option u64 . effects none . do
+  if eq field t. key . k. . do
+    return some field t. val . . .
+  end .
+  if lt k. field t. key . . do
+    var c option (owned node) field t. left . .
+    if is_some c. . do
+      var cn owned node c. else return none . .
+      let got option u64 find mut_ref cn . k. . .
+      set field t. left . some cn. . .
+      return got. .
+    end .
+    set field t. left . c. .
+    return none .
+  end .
+  var c2 option (owned node) field t. right . .
+  if is_some c2. . do
+    var cn2 owned node c2. else return none . .
+    let got2 option u64 find mut_ref cn2 . k. . .
+    set field t. right . some cn2. . .
+    return got2. .
+  end .
+  set field t. right . c2. .
+  return none .
+end .
+
+rem 키 k 에 값 v 를 둔다 — 있으면 바꾸고, 없으면 마디 하나를 머리의 얼로케이터에서 받아 단다.
+rem   자리가 모자라면 false 이고 나무는 그대로다.
+export proc tr_put input comptime a type . input m mut head a . input k u64 . input v u64 . output bool . effects state via a . requires allocs.byte_allocator a. . . do
+  var r option (owned node) field m. root . .
+  if is_some r. . do
+    var rn owned node r. else return false . .
+    let hit bool upd mut_ref rn . k. v. . .
+    set field m. root . some rn. . .
+    if hit. do
+      return true .
+    end .
+  end else do
+    set field m. root . r. .
+  end .
+  var al a field m. al . .
+  let nw use al. option (owned node) lit node do key k. . val v. . level 1 . left none . right none . end . .
+  var nn owned node nw. else return false . .
+  var r2 option (owned node) field m. root . .
+  set field m. root . some ins r2. nn. . . .
+  set field m. n . add field m. n . 1 . .
+  return true .
+end .
+
+export proc tr_get input comptime a type . input m mut head a . input k u64 . output option u64 . effects none . requires allocs.byte_allocator a. . . do
+  var r option (owned node) field m. root . .
+  if is_some r. . do
+    var rn owned node r. else return none . .
+    let got option u64 find mut_ref rn . k. . .
+    set field m. root . some rn. . .
+    return got. .
+  end .
+  set field m. root . r. .
+  return none .
+end .
+
+rem 나무를 통째로 돌려준다 — 되부름 없이(깊은 나무도 스택을 쓰지 않는다). 돌려준 마디 수를 답한다.
+export proc tr_close input comptime a type . input m mut head a . output usize . effects state via a . requires allocs.byte_allocator a. . . do
+  var al a field m. al . .
+  var cur option (owned node) field m. root . .
+  set field m. root . none .
+  var gone usize 0 .
+  while true do
+    var r owned node cur. else break . .
+    let l option (owned node) field r. left . .
+    if is_some l. . do
+      var lc owned node l. else break . .
+      set field r. left . field lc. right . .
+      set field lc. right . some r. . .
+      set cur. some lc. . .
+    end else do
+      drop l. use al. .
+      set cur. field r. right . .
+      drop r. use al. .
+      set gone. add gone. 1 . .
+    end .
+  end .
+  set field m. n . 0 .
+  return gone. .
+end .

@@ -499,6 +499,10 @@ static proven_size_t cl_stmt(cl_t *c, proven_size_t i) {
     if (kw && cl_eq(t, "expect")) return cl_need_dot(c, cl_term(c, i + 1, false, false), "a stop `.` must close `expect`") + 1;
     if (kw && cl_eq(t, "drop")) {
         c->del[cl_need_dot(c, i + 2, "the dropped name is a variable — write `drop x. .`")] = 1;
+        if (cl_kw(c, i + 3, "use")) {   // ★ RFC-0150 §6.0.6 — `drop n. use al. .` 마디를 그 얼로케이터에 돌려준다
+            c->del[cl_need_dot(c, i + 5, "the allocator is a variable — write `drop n. use al. .`")] = 1;
+            return cl_need_dot(c, i + 6, "a stop `.` must close `drop`") + 1;
+        }
         return cl_need_dot(c, i + 3, "a stop `.` must close `drop`") + 1;
     }
     if (kw && cl_eq(t, "if")) {
@@ -1126,7 +1130,10 @@ static proven_size_t up_stmt(up_t *u, proven_size_t i) {
         return j + 1;
     }
     if (kw && cl_eq(t, "expect")) { proven_size_t j = up_top(u, i + 1); if (!up_dot(u, j)) up_fail(u); return j + 1; }
-    if (kw && cl_eq(t, "drop")) { u->dot[i + 1] = 1; if (!up_dot(u, i + 2)) up_fail(u); return i + 3; }
+    if (kw && cl_eq(t, "drop")) {
+        if (up_kw(u, i + 2, "use")) { u->dot[i + 1] = 1; u->dot[i + 3] = 1; if (!up_dot(u, i + 4)) up_fail(u); return i + 5; }   // RFC-0150 §6.0.6
+        u->dot[i + 1] = 1; if (!up_dot(u, i + 2)) up_fail(u); return i + 3;
+    }
     if (kw && cl_eq(t, "if")) {
         proven_size_t j = i;
         for (;;) {

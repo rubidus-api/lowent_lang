@@ -59,7 +59,8 @@ leave        ::= \"return\" [ term ] | \"break\" [ number ] | \"continue\" [ num
       #strong[할당기 절];은 이름 바로 뒤, 타입 앞에 선다 — `use <할당기>.` 는 블록이 끝날 때 돌려주고, `keep <할당기>.` 는
       블록을 나가도 돌려주지 아니한다(#cref("6.2.6") (7e)(7f) · #cref("8.14")). 할당기는 변수이므로 점으로 닫는다:
       `var v use al. option (vec u32 allocs.bump_bytes) vecgen.new al. 8 . .`.
-      옛 꼴 `using <할당기> be` · `using <할당기> keep be` 는 거부된다(`E-USING-OLD`).
+      옛 꼴 `using <할당기> be` · `using <할당기> keep be` 는 거부된다(`E-USING-OLD`). 타입에 `owned` 가 든 바인딩
+      (`let n use al. option (owned node) lit node … .`)은 `use` 로 적어도 블록 끝에 돌려주지 아니한다 — #cref("8.5") (10)(11).
     ]
     #para("4")[
       타입 뒤에는 #strong[값이 있어야 한다.]; 값 없이 닫으면 번역이 거부된다(`E-LET-NOVALUE`).

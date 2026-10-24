@@ -1674,6 +1674,7 @@ LOW_CHAPOLY_C_SOURCE
 "    return v; }\n"
 /* ★ 타입 있는 배열(LWV_VARRAY)도 자른다 — VM 과 같은 규칙: .n 은 원소 수, .box 는 원소 크기 */
 "static lowv lw_subslice(lowv s, lowv lo, lowv hi) { s = lw_thru(s);\n"
+"    if (s.tag == LWV_VIEW) { s.tag = LWV_SLICE; s.box = 0; s.i = 0; }   /* RFC-0150 §6.0.6 — a node's bytes, to give back */\n"
 "    if (s.tag != LWV_SLICE && s.tag != LWV_VARRAY) lw_panic(\"subslice needs a slice\");\n"
 "    long long a = lw_want_int(lo, \"lo\"), b = lw_want_int(hi, \"hi\");\n"
 "    if (a < 0 || b < a || (unsigned long long)b > s.n) lw_panic(\"subslice out of bounds\");\n"

@@ -863,6 +863,24 @@ static void ir_stmt(ir_ctx_t *c, const low_cst_t *f) {
     c->cur_form = prev_form;
 }
 
+// ★ RFC-0150 §6.0.6 — 이 이름의 actor 가 이 이름의 proc 을 갖는가(`drop n. use al.` 이 돌려줄 수 있는 얼로케이터인가). 모듈 접두는 벗긴다.
+static bool ir_actor_has_proc(ir_ctx_t *c, proven_u8str_view_t ty, const char *op) {
+    if (!c->pr || !ty.size) return false;
+    for (proven_size_t z = ty.size; z-- > 0; ) if (ty.ptr[z] == '.') { ty.ptr += z + 1; ty.size -= z + 1; break; }
+    for (proven_size_t i = 0; i < c->pr->nforms; i++) {
+        const low_cst_t *f = c->pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !is_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_ACTOR) continue;
+        if (!is_atom(f->kids[1]) || !proven_u8str_view_eq(ir_strip_mod(c, f->kids[1]->tok.lex), ty)) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *d = blk->kids[j];
+            if (d->kind == LOW_CST_FORM && d->nkids >= 2 && is_atom(d->kids[0]) && d->kids[0]->tok.kw == LOW_KW_PROC &&
+                is_atom(d->kids[1]) && veq(d->kids[1]->tok.lex, op)) return true;
+        }
+    }
+    return false;
+}
 static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
     if (c->failed || f->kind != LOW_CST_FORM || f->nkids == 0 || !is_atom(f->kids[0])) {
         if (!c->failed && f->kind == LOW_CST_FORM) { ir_run(c, f->kids, 0, f->nkids); ir_emit(c, IRW_DROP, 0); }
@@ -1063,6 +1081,69 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
         //   소멸자가 생기면 여기가 그 자리다. 그 전까지 이 코드는 자기가 확인한 것만 주장한다.
         case LOW_KW_DROP: {
             if (f->nkids < 2) { ir_fail(c, "E-IR-UNSUP", "drop needs a value", f->line); return; }
+            // ★★ RFC-0150 §6.0.6 — `drop n. use al. .` 스스로를 품는 마디를 돌려준다. `n` 이 option 이면 비었을 때 아무것도 하지 않는다.
+            //   자식 칸이 아직 든 마디는 멈춘다(검사층은 보이는 자리에서 먼저 거절한다 — option 은 실행해야 안다).
+            //   using 패스가 붙인 다섯째 자식 [send al release <n>] 이 있으면 마디의 바이트를 그 얼로케이터에 돌려준다.
+            if ((f->nkids == 4 || f->nkids == 5) && is_atom(f->kids[1]) && is_atom(f->kids[2]) && veq(f->kids[2]->tok.lex, "use")) {
+                bool lf; proven_size_t ls = ir_local_find(c, f->kids[1]->tok.lex, &lf);
+                if (!lf) { ir_fail(c, "E-IR-UNDEF", "`drop … use` names a value that is not in scope", f->line); return; }
+                const ir_local_t *lo = &c->locals[ls];
+                bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, lo->cname), &sf);
+                proven_i32 gi = sf ? ir_alloc_shadow(c->out, si) : -1;
+                bool kids_ = false;
+                if (gi >= 0) for (proven_size_t q = 0; q < c->out->structs[gi].nf; q++) if (c->out->structs[gi].f[q].bxs1) kids_ = true;
+                if (!kids_) {
+                    ir_fail(c, "E-DROP-USE", "`drop … use <allocator>` gives a SELF-OWNING NODE back to its allocator — a struct with a field "
+                            "`option (owned <itself>)`. This value is not one; write `drop x. .` (RFC-0150 §6.0.6)", f->line);
+                    return;
+                }
+                const low_ir_struct_t *g = &c->out->structs[gi];
+                bool opt_ = veq(lo->tyname, "option");
+                proven_size_t vt = ir_hidden_local(c, f->line);
+                if (vt == (proven_size_t)-1) return;
+                proven_size_t to_end = (proven_size_t)-1;
+                ir_emit(c, IRW_LOAD, (proven_i64)ls);
+                if (opt_) {
+                    ir_emit(c, IRW_STORE, (proven_i64)vt);
+                    ir_emit(c, IRW_LOAD, (proven_i64)vt); ir_emit(c, IRW_HASVAL, 0);
+                    to_end = ir_emit(c, IRW_BRZ, 0);
+                    ir_emit(c, IRW_LOAD, (proven_i64)vt); ir_emit(c, IRW_SOMEVAL, 0);
+                }
+                ir_emit(c, IRW_STORE, (proven_i64)vt);
+                // 실행 중 검사는 option 일 때만 — 맨 `owned` 마디는 칸을 옮겨 내도 바이트에 주소가 남으므로 검사층이 번역 때 막는다
+                for (proven_size_t q = 0; q < g->nf && opt_; q++) {
+                    if (!g->f[q].bxs1) continue;
+                    ir_emit(c, IRW_LOAD, (proven_i64)vt);
+                    ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, g->f[q].name));
+                    ir_emit(c, IRW_HASVAL, 0);
+                    proven_size_t ok_ = ir_emit(c, IRW_BRZ, 0);
+                    ir_emit(c, IRW_PANIC, IR_PANIC_NODEKIDS);
+                    ir_at(c, ok_)->a = (proven_i64)c->code.len;
+                }
+                bool rel_ = f->nkids == 5;
+                if (rel_ && is_atom(f->kids[3])) {   // 얼로케이터의 (단형화한) 타입에 `release` 가 있어야 돌려준다
+                    bool af; proven_size_t as = ir_local_find(c, f->kids[3]->tok.lex, &af);
+                    if (af) rel_ = ir_actor_has_proc(c, c->locals[as].tyname, "release");
+                }
+                if (rel_) {
+                    ir_emit(c, IRW_LOAD, (proven_i64)vt);
+                    ir_emit(c, IRW_CONST, 0);
+                    ir_emit(c, IRW_CONST, (proven_i64)g->total);
+                    ir_emit(c, IRW_SUBSLICE, 0);
+                    ir_emit(c, IRW_STORE, (proven_i64)vt);
+                    const low_cst_t *rf = f->kids[4];
+                    const low_cst_t *sv0 = g_relsub_atom; proven_size_t sl0 = g_relsub_slot;
+                    const low_cst_t *ra_ = (rf->kind == LOW_CST_FORM && rf->nkids == 4) ? rf->kids[3] : nullptr;   // (subslice <n> 0 (len <n>))
+                    while (ra_ && ra_->kind == LOW_CST_GROUP && ra_->nkids == 1) ra_ = ra_->kids[0];
+                    g_relsub_atom = (ra_ && ra_->kind == LOW_CST_FORM && ra_->nkids == 4) ? ra_->kids[1] : nullptr;
+                    g_relsub_slot = vt;
+                    ir_node(c, rf);
+                    g_relsub_atom = sv0; g_relsub_slot = sl0;
+                    ir_emit(c, IRW_DROP, 0);
+                }
+                if (to_end != (proven_size_t)-1) ir_at(c, to_end)->a = (proven_i64)c->code.len;
+                return;
+            }
             // ★ RFC-0135 S2 — 블록 끝에 돌려줄 할당기 바이트면 지금 돌려주고, 받은 자리를 비워 블록 끝에서는 건너뛰게 한다
             if (f->nkids == 2 && is_atom(f->kids[1])) {
                 proven_u8str_view_t dn = f->kids[1]->tok.lex;
@@ -1132,6 +1213,8 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                         const low_ir_struct_t *sd = &c->out->structs[si2];
                         bool plain = sd->nf > 0 && !sd->is_actor_state && !sd->is_mmio &&
                                      !(sd->f[0].name.size == 2 && sd->f[0].name.ptr[0] == (proven_u8)'$');
+                        // ★ RFC-0150 §6.0.6 — 스스로를 품는 마디는 소유가 있는 값이다: 옮긴다(얼로케이터 바이트를 그대로 넘긴다)
+                        for (proven_size_t q = 0; q < sd->nf; q++) if (sd->f[q].bxself) plain = false;
                         bool has_actor_def = false;      // actor 인스턴스 타입이면 베끼지 않는다
                         for (proven_size_t q = 0; q < c->out->ndefs; q++)
                             if (c->out->defs[q].is_actor && c->out->defs[q].param_sidx[0] == (proven_u8)si2)
@@ -3237,6 +3320,9 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 s->f[s->nf].perm = FP_RW;
                 // ★ 아핀 필드 표식 — 타입 낱말 중 `owned` 가 있으면 이 필드는 소유다(RFC-0044 §9.1).
                 s->f[s->nf].owned = false;
+                s->f[s->nf].bxself = ir_field_boxself(fld, s->name);   // ★ RFC-0150 §8-12 — `option (owned <나>)`
+                s->f[s->nf].bxs1 = 0;
+                if (s->f[s->nf].bxself) { s->f[s->nf].owned = true; s->f[s->nf].boxed = true; s->f[s->nf].size = 8; }
                 for (proven_size_t y = 1; y < 1 + (tw_ ? tw_ : 1) && y < fld->nkids; y++)
                     if (is_atom(fld->kids[y]) && veq(fld->kids[y]->tok.lex, "owned"))
                         s->f[s->nf].owned = true;

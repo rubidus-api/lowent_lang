@@ -1472,6 +1472,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-BOUNDS", "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N");
                     return false;
                 }
+                if (in->a == IR_PANIC_NODEKIDS) {
+                    vm_diag(vm->diags, "E-VM-NODE-KIDS", "drop … use: this node still holds a child (panic). A self-owning node is given back after its "
+                            "`option (owned …)` fields are moved out — take the children first (RFC-0150 §6.0.6)");
+                    return false;
+                }
                 if (in->a == IR_PANIC_ENUMCAST) {
                     vm_diag(vm->diags, "E-VM-CAST", "cast to an enum: the number is not the number of any variant of that enum (canon 6.2.16 (5a))");
                     return false;
@@ -2545,6 +2550,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vmv_t hi = stack[--sp], lo = stack[--sp];
                 bool thr_; vmv_t sv = vm_through(vm, stack[--sp], false, &thr_);   // ★ 참조를 따라간다
                 if (!thr_) return false;
+                if (sv.tag == VMV_VIEW) sv = (vmv_t){ .tag = VMV_SLICE, .p = sv.p, .n = sv.n };   // ★ RFC-0150 §6.0.6 — 마디의 바이트(돌려주기)
                 if ((sv.tag != VMV_SLICE && sv.tag != VMV_VARRAY) || lo.tag != VMV_INT || hi.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "subslice needs slice + ints"); return false; }
                 if (lo.i < 0 || hi.i < lo.i || (proven_size_t)hi.i > sv.n) { vm_diag(vm->diags, "E-VM-BOUNDS", "subslice out of bounds (panic)"); return false; }
                 // ★★★ **타입 있는 배열도 자를 수 있어야 한다** (2026-07-20, SoA 시범이 잡았다).
@@ -3820,6 +3826,16 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             if (!vm_arr_copy(vm, &s2->f[q], vv, (proven_u8 *)(void *)(rv.p + s2->f[q].off))) return false;
                             f2 = true; break;
                         }
+                        if (s2->is_shadow && s2->f[q].bxs1) {    // ★ RFC-0150 §8-12 — 스스로를 품는 칸: 마디의 주소 한 칸(none = 0)
+                            const proven_u8 *pp = NULL;
+                            if (vv.tag == VMV_SOME) {
+                                vmv_t in2 = vm->boxes[vv.box];
+                                if (in2.tag != VMV_VIEW) { vm_diag(vm->diags, "E-VM-TYPE", "a node field takes a node built in allocator bytes"); return false; }
+                                pp = in2.p;
+                            } else if (vv.tag != VMV_NONE) { vm_diag(vm->diags, "E-VM-TYPE", "a node field takes an option"); return false; }
+                            memcpy((void *)(rv.p + s2->f[q].off), &pp, sizeof pp);
+                            f2 = true; break;
+                        }
                         if (s2->is_shadow && s2->f[q].slmeta) {  // ★ RFC-0135 D13 — 슬라이스 칸: (주소, 길이) 두 낱말을 적는다
                             if (vv.tag != VMV_SLICE && vv.tag != VMV_VARRAY) { vm_diag(vm->diags, "E-VM-TYPE", "a slice field takes a slice"); return false; }
                             // ★ RFC-0137 P3 — 포인터는 포인터로 베낀다(정수를 거치면 능력 기계에서 출처를 잃는다). 길이는 포인터 칸 뒤.
@@ -3879,6 +3895,17 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             //   그래야 `field (field v i) a` 가 이어진다.
                             if (s->f[i].arrn) {                  // ★ T2b-3d ⓓ — 배열 칸: 그 바이트를 보는 슬라이스(무복사)
                                 stack[sp++] = vm_arr_view(&s->f[i], (proven_u8 *)(void *)(v.p + s->f[i].off));
+                                found = true;
+                                break;
+                            }
+                            if (s->is_shadow && s->f[i].bxs1) {     // ★ RFC-0150 §8-12 — 스스로를 품는 칸: 주소가 0 이면 none, 아니면 그 마디의 뷰
+                                const proven_u8 *pp = NULL;
+                                memcpy(&pp, v.p + s->f[i].off, sizeof pp);
+                                if (!pp) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; found = true; break; }
+                                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted while reading a node field"); return false; }
+                                proven_i32 bx = s->f[i].bxs1 - 1;
+                                vm->boxes[vm->nbox] = (vmv_t){ .tag = VMV_VIEW, .p = pp, .n = vm->ir->structs[bx].total, .box = bx };
+                                stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                                 found = true;
                                 break;
                             }

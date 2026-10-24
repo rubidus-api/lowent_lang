@@ -411,6 +411,7 @@ bool ir_requires_at(const low_cst_t *f, proven_size_t i, proven_size_t *k, bool 
 bool ir_is_float_ty(proven_u8str_view_t w);
 ityp_t ity_of_decl_c(const void *cv, const low_cst_t *f, proven_size_t start, proven_size_t end); /* 4회 */
 extern bool g_smt_on;                                                          /* 3회 */
+bool ir_field_boxself(const low_cst_t *fld, proven_u8str_view_t sname);                 /* RFC-0150 §8-12 */
 proven_size_t ir_field_tywords(const low_cst_t *fld);                          /* 3회 */
 proven_size_t ir_local_declare(ir_ctx_t *c, proven_u8str_view_t name, proven_u32 line); /* 3회 */
 bool ir_opt_num(proven_u8str_view_t v, proven_i64 *out);                       /* 3회 */
@@ -441,6 +442,8 @@ proven_u8str_view_t ir_content_word(const low_cst_t *f, proven_size_t s, proven_
 ityp_t ity_of_word_c(ir_ctx_t *c, proven_u8str_view_t w);
 void ir_tset_top(ir_ctx_t *c, proven_u8str_view_t cname);                                    /* RFC-0148 S2 */
 proven_u8str_view_t ir_strip_mod(ir_ctx_t *c, proven_u8str_view_t v);          /* 1회 */
+proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line);                    /* RFC-0150 §6.0.6 */
+proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si);
 proven_u8str_view_t ir_type_mod(ir_ctx_t *c, const low_cst_t *a);                /* RFC-0152 — 타입 낱말의 모듈 */
 proven_size_t ir_def_find_mod(ir_ctx_t *c, proven_u8str_view_t name, proven_u8str_view_t mod, bool *found);
 void ir_struct_layout(const low_ir_t *ir, low_ir_struct_t *s);                 /* 1회 */

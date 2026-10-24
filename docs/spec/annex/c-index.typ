@@ -75,6 +75,7 @@
       [섬], [island], [#cref("3.7")],
       [소유], [ownership], [#cref("3.5")],
       [순수], [pure], [#cref("3.4")],
+      [스스로를 품는 마디], [self-owning node], [#cref("8.5")],
       [스테이지], [stage], [#cref("3.9")],
       [슬라이스], [slice], [#cref("3.2")],
       [시작점], [entry point], [#cref("3.9")],

@@ -251,7 +251,14 @@ static bool ir_cast_is_identity(ir_ctx_t *c, proven_i64 meta) {
 //   `result u8 e` → `u8`. 그림자는 그릇의 칸에 «거기서 꺼내면 나오는 것» 을 싣는다(슬라이스 지역이 원소 타입을 싣는 것과 같은 규칙이다).
 proven_u8str_view_t ir_content_word(const low_cst_t *f, proven_size_t s, proven_size_t e) {
     for (proven_size_t z = s; z < e && z < f->nkids; z++) {
-        if (!is_atom(f->kids[z])) break;
+        if (!is_atom(f->kids[z])) {
+            // ★ RFC-0150 §6.0.6 — `option (owned node)`: 괄호 안이 `owned <이름>` 일 때만 그 이름이다(다른 괄호 꼴은 종전대로 모른다)
+            const low_cst_t *g = f->kids[z];
+            while (g && g->kind == LOW_CST_GROUP && g->nkids == 1) g = g->kids[0];
+            if (g && g->kind == LOW_CST_FORM && g->nkids == 2 && is_atom(g->kids[0]) && is_atom(g->kids[1]) && veq(g->kids[0]->tok.lex, "owned"))
+                return g->kids[1]->tok.lex;
+            break;
+        }
         proven_u8str_view_t w = f->kids[z]->tok.lex;
         if (veq(w, "mut") || veq(w, "owned") || veq(w, "ref") || veq(w, "mut_ref") || veq(w, "slice") || veq(w, "vec") ||
             veq(w, "option") || veq(w, "result") || veq(w, "array")) continue;
@@ -1640,6 +1647,22 @@ static bool ir_field_tyhead(proven_u8str_view_t w) {
 }
 
 // 타입이 차지하는 낱말 수를 센다(첫 낱말은 kids[1]). 표지 앞에서 멈춘다.
+// ★★ RFC-0150 §8-12 — 칸의 타입이 꼭 `option (owned <sname>)` 인가(괄호 없이 적어도 같다). 검사층의 순환 검사가 받는 꼴과 같다.
+static void ir_bx_atoms(const low_cst_t *n, proven_u8str_view_t *w, proven_size_t *nw) {
+    if (!n || *nw > 3) return;
+    if (n->kind == LOW_CST_ATOM) { if (*nw < 4) w[*nw] = n->tok.lex; (*nw)++; return; }
+    for (proven_size_t i = 0; i < n->nkids; i++) ir_bx_atoms(n->kids[i], w, nw);
+}
+bool ir_field_boxself(const low_cst_t *fld, proven_u8str_view_t sname) {
+    if (!fld || fld->nkids < 3) return false;
+    proven_u8str_view_t w[4]; proven_size_t nw = 0;
+    for (proven_size_t i = 1; i < fld->nkids; i++) {
+        const low_cst_t *k = fld->kids[i];
+        if (i > 1 && k->kind == LOW_CST_ATOM && ir_field_marker(k->tok.lex)) break;   // 뒤의 표지(`big` …)는 타입이 아니다
+        ir_bx_atoms(k, w, &nw);
+    }
+    return nw == 3 && veq(w[0], "option") && veq(w[1], "owned") && proven_u8str_view_eq(w[2], sname);
+}
  proven_size_t ir_field_tywords(const low_cst_t *fld) {
     if (fld->nkids < 2 || !is_atom(fld->kids[1])) return 0;
     if (!ir_field_tyhead(fld->kids[1]->tok.lex)) return 1;      // 평범한 한 낱말 타입
@@ -1757,7 +1780,7 @@ bool low_ir_struct_has_enumlayout(const low_ir_t *ir, proven_size_t si) {
         // ★ 중첩 구조체 필드의 **정렬은 안쪽 구조체의 정렬**이다 — 그 **크기**가 아니다.
         //   (3바이트 구조체를 3으로 정렬하려 들면 아무것도 맞지 않는다.)
         proven_u16 al = sz;
-        if (s->is_shadow && s->f[i].slmeta) al = (proven_u16)low_ptr_slot_align();   // ★ RFC-0135 D13 — (포인터, 길이): 포인터 정렬(RFC-0137 P3)
+        if (s->is_shadow && (s->f[i].slmeta || s->f[i].bxself)) al = (proven_u16)low_ptr_slot_align();   // ★ RFC-0135 D13 — (포인터, 길이): 포인터 정렬(RFC-0137 P3)
         if (s->f[i].sidx >= 0 && ir && (proven_size_t)s->f[i].sidx < ir->nstructs)
             al = ir->structs[s->f[i].sidx].align ? ir->structs[s->f[i].sidx].align : 1;
         if (!s->packed) {
@@ -2264,7 +2287,6 @@ static void ir_make(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
 // ★★ RFC-0135 S2a (D9) — **할당기 바이트에 짓는 구조체** `var q using al be pt lit pt do … end . else …`. 받은 바이트가
 //   스택에 있다: 0 으로 채우고(IRW_BFILL) 배치를 얹은 뒤(IRW_VIEW — `view pt b` 와 같은 표현) 칸을 적은 차례로 쓴다.
 //   바이트 배치가 없는 구조체(슬라이스 · owned · 배열 칸)는 담을 표현이 아직 없다 — 정직하게 거절한다.
-static proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line);
 // ★★ RFC-0135 D13 (소유자 «슬라이스 칸만 연다») — 슬라이스 칸을 가진 구조체의 **할당기 배치**. 칸마다 원래 배치 규칙을 따르고,
 //   슬라이스 칸만 (주소, 길이) 16 바이트(정렬 8)다 — C 의 `struct { const T *p; size_t n; }`. `owned`·actor·cap 칸, 원소를
 //   모르는 슬라이스(구조체의 슬라이스), 배치 없는 안쪽 구조체가 있으면 짓지 못한다(-1). 한 구조체에 그림자 하나.
@@ -2275,6 +2297,7 @@ proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si) {
     if (s->packed || s->is_mmio || s->is_reserve || s->is_actor_state || !s->nf) return -1;
     for (proven_size_t q = 0; q < s->nf; q++) {
         const low_ir_sfield_t *f = &s->f[q];
+        if (f->bxself) continue;                  // ★ RFC-0150 §8-12 — 스스로를 품는 칸은 주소 한 칸이다
         if (f->owned || f->capkind) return -1;
         if (f->arrn || f->slmeta || f->sidx >= 0) continue;
         if (f->boxed || !f->size) return -1;
@@ -2286,6 +2309,7 @@ proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si) {
     g->is_shadow = true; g->ashadow1 = 0; g->align = 0;
     for (proven_size_t q = 0; q < g->nf; q++)
         if (g->f[q].slmeta) { g->f[q].boxed = false; g->f[q].size = (proven_u8)(low_ptr_slot() + 8); }   // ★ (포인터 칸, 길이 8) — RFC-0137 P3
+        else if (g->f[q].bxself) { g->f[q].boxed = false; g->f[q].size = (proven_u8)low_ptr_slot(); g->f[q].bxs1 = (proven_i16)(ni + 1); }
     ir_struct_layout(ir, g);
     if (!g->viewable) { ir->nstructs--; return -1; }
     ir->structs[si].ashadow1 = (proven_u16)(ni + 1);
@@ -2360,7 +2384,7 @@ static bool ir_intern_bytes(ir_ctx_t *c, const proven_u8 *src, proven_size_t len
     *si_out = ir->nstrs++;
     return true;
 }
-static proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line) {
+proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line) {
     if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "list literal: too many locals", line); return (proven_size_t)-1; }
     proven_size_t tl = c->nlocals++;
     c->locals[tl].name = (proven_u8str_view_t){ 0 };
@@ -3044,7 +3068,11 @@ static ityp_t ir_note_ity(const low_tcnote_t *t) {
 static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {
     if (*pos >= end || c->failed) { ir_emit(c, IRW_CONST, 0); return; }
     const low_cst_t *nd = k[(*pos)++];
-    if (g_relsub_atom && nd == g_relsub_atom) { ir_emit(c, IRW_LOAD, (proven_i64)g_relsub_slot); return; }   // ★ RFC-0135 S2
+    if (g_relsub_atom && (nd == g_relsub_atom ||   // ★ RFC-0135 S2
+                          // ★ RFC-0150 §6.0.6 — 단형화가 폼을 베끼면 한 원자가 둘이 된다: 도구가 지은(synth) 같은 이름이면 같은 것이다
+                          (nd->synth && g_relsub_atom->synth && is_atom(nd) && proven_u8str_view_eq(nd->tok.lex, g_relsub_atom->tok.lex)))) {
+        ir_emit(c, IRW_LOAD, (proven_i64)g_relsub_slot); return;
+    }
     // ★ METHOD 원자(`..name`)도 **이름 원자**다 — 이 블록이 IDENT 만 열려 있어서 통째로
     //   건너뛰고 fallthrough 에서 "unsupported atom" 이 났다. (그 진단은 **오진**이었다.)
     // ★★ RFC-0132 §13.7 — using 패스가 만든 [using, (send <출처> reserve <바이트>), <나열>]: 받으면 채워 `some`, 못 받으면 `none`.

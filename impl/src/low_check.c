@@ -75,6 +75,7 @@ typedef struct {
 //     표현 불가능했다 — A6 에서 라이터가 겪은 것과 **같은 벽**이다.
 //   ⇒ 피호출자의 그 파라미터가 `owned`(또는 `mut`/`mut_ref` — 배타 접근)일 때만 이동이다.
 static proven_u8str_view_t g_ck_own_mod;   // 소유 검사가 지금 보는 op 의 모듈(그 고리 안에서만 선다)
+static bool ck_has_word(const low_cst_t *n, const char *w);
 static bool ck_param_moves(const low_opinfo_t *tab, proven_size_t nt,
                            const low_cst_t *at, proven_size_t argi) {
     proven_u8str_view_t opname = at->tok.lex;
@@ -90,7 +91,14 @@ static bool ck_param_moves(const low_opinfo_t *tab, proven_size_t nt,
         if (!tab[i].form) return true;              // 모르면 **보수적으로** 이동이라 본다
         low_op_header_t h = low_op_header(tab[i].form);
         if (argi >= h.np) return true;              // 자리를 못 세면 보수적으로
-        return h.p[argi].is_owned || h.p[argi].is_mut;
+        if (h.p[argi].is_owned || h.p[argi].is_mut) return true;
+        // ★ RFC-0150 §6.0.6 — `input t option (owned node) .`: 괄호 안의 `owned` 도 소유를 받는다(머리 읽개는 괄호에서 멈춘다)
+        for (proven_size_t z = h.p[argi].ts; z < tab[i].form->nkids; z++) {
+            const low_cst_t *k = tab[i].form->kids[z];
+            if (k->kind == LOW_CST_ATOM) { if (z > h.p[argi].ts && low_is_clause_word(k->tok.lex)) break; continue; }
+            if (ck_has_word(k, "owned")) return true;
+        }
+        return false;
     }
     return true;                                    // 표에 없으면 보수적으로
 }
@@ -5586,10 +5594,20 @@ static void ck_own_mentions(const low_cst_t *nd, proven_u8str_view_t name, prove
     }
 }
 
+// ★★ RFC-0150 §6.0.6 — **마디 모드**: 스스로를 품는 마디(`option (owned <나>)` 칸을 가진 구조체)를 볼 때만 켠다. 그때는
+//   `some x` · `some_value x` 가 옮김이고, `field x k` · 스칼라를 내는 머리(`is_some x`) 아래의 언급은 읽기다.
+static bool g_own_node;
+static bool ck_scalar_head(proven_u8str_view_t w);
 static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, proven_u8str_view_t fld,
                             const low_opinfo_t *tab, proven_size_t nt, bool in_return) {
     if (!nd || nd->kind == LOW_CST_ATOM) return false;
     bool ret = in_return;
+    // 마디 모드: 구조체 값 `lit node do … left a. … end` 의 칸에 쓰인 것은 그 값으로 옮겨 간다
+    if (g_own_node && !fld.size && nd->kind == LOW_CST_FORM && nd->nkids && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "lit")) {
+        proven_size_t m = 0; proven_u32 l = 0;
+        ck_own_mentions(nd, name, fld, &m, &l);
+        if (m) return true;
+    }
     if (nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) {
         low_kw_t kw = nd->kids[0]->tok.kw;
         // (4) ★ **다른 이름에 묶는 것도 이동이다** — `var x be T h .` / `set x h .`
@@ -5644,6 +5662,11 @@ static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, prove
         if (!isplace) {
             if (veq(k->tok.lex, "ref") || veq(k->tok.lex, "mut_ref")) { i++; continue; }
             if (fld.size || !proven_u8str_view_eq(k->tok.lex, name)) continue;
+        }
+        if (g_own_node && i > 0 && ck_atom(nd->kids[i - 1])) {
+            proven_u8str_view_t pw = nd->kids[i - 1]->tok.lex;
+            if (veq(pw, "some") || veq(pw, "some_value")) return true;            // 감싸기 · 꺼내기 = 옮김
+            if ((!isplace && veq(pw, "field")) || ck_scalar_head(pw)) continue;    // 칸 읽기 · 스칼라 답(`is_some field t. left .`) = 읽기
         }
         if (ret) return true;                            // (3) return 에 실렸다
         // (2) 선언된 op 의 **인자 자리**인가? 호출은 괄호로 싸지 않는다 —
@@ -6266,6 +6289,113 @@ static void ck_own_note_leave(const low_cst_t *nd, ck_own_state_t st) {
         } else if (!ck_atom(a)) ck_own_note_leave(a, st);
     }
 }
+// ★★ RFC-0150 §6.0.6 — 마디 모드에서 문장 하나가 하는 일. 처리를 끝냈으면 true(흐름이 이 문장을 더 보지 않는다).
+//   g_node_kind: 1 `owned S` · 2 `option (owned S)` · 3 `ref S` · 4 `mut_ref S`.
+static int g_node_kind;
+static bool ck_own_diverging_kw(low_kw_t kw) {
+    return kw == LOW_KW_RETURN || kw == LOW_KW_GIVE || kw == LOW_KW_BREAK || kw == LOW_KW_CONTINUE || kw == LOW_KW_FAIL;
+}
+static bool g_node_ref_told;
+static bool ck_own_node_stmt(low_check_result_t *out, const low_cst_t *s, proven_u8str_view_t name, proven_u8str_view_t fld,
+                             const low_opinfo_t *tab, proven_size_t nt, ck_own_state_t *st, bool *reinit, proven_u32 decl_line) {
+    (void)decl_line;
+    if (s->kind != LOW_CST_FORM || !s->nkids || !ck_atom(s->kids[0])) return false;
+    low_kw_t kw = s->kids[0]->tok.kw;
+    proven_u32 ln = s->kids[0]->tok.line;
+    if (kw == LOW_KW_GUARD) return false;   // `guard … else …` 의 else 는 갈라져 나가는 길이다 — 이어지는 흐름은 흐름이 본다
+    proven_u8str_view_t nofld = { .ptr = NULL, .size = 0 };
+    bool drop_me = kw == LOW_KW_DROP && s->nkids >= 2 && ck_atom(s->kids[1]) && proven_u8str_view_eq(s->kids[1]->tok.lex, name);
+    bool drop_use = drop_me && s->nkids >= 4 && ck_atom(s->kids[2]) && veq(s->kids[2]->tok.lex, "use");
+    if (fld.size) {
+        // 칸 자리 `field <name> <fld>` — 다시 채우기 · 덮어쓰기
+        if (kw == LOW_KW_SET && s->nkids >= 3 && ck_is_fieldplace(s->kids[1], name, fld)) {
+            proven_size_t rm = 0; proven_u32 rl = 0;
+            for (proven_size_t q = 2; q < s->nkids; q++) ck_own_mentions(s->kids[q], name, fld, &rm, &rl);
+            if (!rm) {
+                if (*st == OWN_LIVE && g_node_kind != 3)
+                    emit(out, "E-OWN-INCOMPLETE",
+                         "this OVERWRITES a child that is still in the node — the old subtree would be lost without being given "
+                         "back to its allocator. Move the child out first (`let old option (owned node) field n. left . .`), "
+                         "then put the new one in, and give the old one back with `drop old. use al. .` (RFC-0150 §6.0.6)", ln);
+                *st = OWN_LIVE; *reinit = true;
+                return true;
+            }
+        }
+        if (drop_me) {
+            if (drop_use && *st == OWN_LIVE)
+                emit(out, "E-OWN-NODE-KIDS",
+                     "this node is given back while its child is STILL IN IT — the subtree would be lost. Move each "
+                     "`option (owned …)` field out first and give the children back (or keep them) — a deep tree is "
+                     "torn down by a loop, not by one `drop` (RFC-0150 §6.0.6)", ln);
+            *st = OWN_CONSUMED;   // 칸은 마디와 함께 떠났다
+            return true;
+        }
+        bool compound = kw == LOW_KW_IF || kw == LOW_KW_MATCH || kw == LOW_KW_WHILE || kw == LOW_KW_LOOP || kw == LOW_KW_FOR;
+        if (compound) return false;   // 갈래 · 되풀이는 흐름이 안으로 들어가 본다
+        if (g_node_kind == 4 && kw == LOW_KW_RETURN && *st == OWN_CONSUMED)
+            emit(out, "E-OWN-NODE-REF",
+                 "this `return` leaves while a child taken out of a BORROWED node (`mut_ref`) is not back in it — the owner "
+                 "would find a hole. Put it back with `set field n. left . …` before returning (RFC-0150 §6.0.6)", ln);
+        // 마디 전체가 떠나면 칸도 함께 떠난다 — 이미 옮겨 낸 칸이 있었으면 받는 쪽이 구멍 난 마디를 받는다
+        if (g_node_kind == 1 && ck_own_consumes(s, name, nofld, tab, nt, false)) {
+            if (*st == OWN_CONSUMED)
+                emit(out, "E-OWN-PARTIAL",
+                     "this node is moved as a WHOLE after one of its children was moved out — the receiver would take a "
+                     "node with a hole in it. Put the child back (`set field n. left . …`) before moving the node, or give "
+                     "the node back with `drop n. use al. .` (RFC-0150 §6.0.6 · RFC-0044 §9.1 OS1)", ln);
+            *st = OWN_CONSUMED;
+            return !ck_own_diverging_kw(kw);   // `return x .` 은 흐름이 갈라져 나가는 것을 알아야 한다
+        }
+        if ((g_node_kind == 3 || g_node_kind == 4) && *st == OWN_LIVE && ck_own_consumes(s, name, fld, tab, nt, false)) {
+            if (g_node_kind == 3 && !g_node_ref_told) {
+                g_node_ref_told = true;
+                emit(out, "E-OWN-NODE-REF",
+                     "this takes a child out of a node that is only BORROWED (`ref`) — the child belongs to the owner, "
+                     "who would find a hole. Test it with `is_some field n. left . .`, or take the node `mut_ref` and put "
+                     "the child back before the op ends (RFC-0150 §6.0.6)", ln);
+            }
+            *st = OWN_CONSUMED;
+            return !ck_own_diverging_kw(kw);
+        }
+        return false;
+    }
+    if (drop_me && !drop_use) {
+        emit(out, "E-DROP-USE",
+             "a self-owning node is given back to the allocator its bytes came from: write `drop n. use al. .`. "
+             "A bare `drop` would lose those bytes (RFC-0150 §6.0.6)", ln);
+        *st = OWN_CONSUMED;
+        return true;
+    }
+    if (kw == LOW_KW_SET && s->nkids >= 3 && ck_atom(s->kids[1]) && proven_u8str_view_eq(s->kids[1]->tok.lex, name)) {
+        proven_size_t rm = 0; proven_u32 rl = 0;
+        for (proven_size_t q = 2; q < s->nkids; q++) ck_own_mentions(s->kids[q], name, nofld, &rm, &rl);
+        if (!rm && *st == OWN_LIVE)
+            emit(out, "E-OWN-INCOMPLETE",
+                 "this OVERWRITES a node (or an option holding one) that is still owned here — the old one would be lost "
+                 "without being given back to its allocator. Move it on or give it back with `drop n. use al. .` first "
+                 "(RFC-0150 §6.0.6)", ln);
+        if (!rm) { *st = OWN_LIVE; *reinit = true; return true; }
+        // `set root. some place root. m. . .` — 오른쪽이 옛 값을 옮겨 가고 새 값이 자리에 든다(넘겨주고 다시 받기)
+        if (ck_own_consumes(s, name, nofld, tab, nt, false)) {
+            if (*st == OWN_CONSUMED)
+                emit(out, "E-OWN-MOVED",
+                     "this reads a node that was already moved — the right side hands on a value that is no longer here "
+                     "(RFC-0150 §6.0.6)", ln);
+            *st = OWN_LIVE; *reinit = true;
+            return true;
+        }
+    }
+    // 이른 `return` — 아직 쥔 마디를 내려놓고 떠난다
+    if (kw == LOW_KW_RETURN && *st == OWN_LIVE && !ck_own_consumes(s, name, nofld, tab, nt, false)) {
+        emit(out, "E-OWN-INCOMPLETE",
+             "this `return` leaves while a self-owning node is still owned here — its bytes would never go back to "
+             "the allocator. Return it, move it into a field, or give it back with `drop n. use al. .` first "
+             "(RFC-0150 §6.0.6)", ln);
+        *reinit = true;   // 한 번만 말한다 — 흐름은 이 return 에서 갈라져 나간다
+        return false;
+    }
+    return false;
+}
 static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_result_t *pr,
                                   const low_cst_t **kids, proven_size_t nkids,
                                   proven_u8str_view_t name, proven_u8str_view_t fld,
@@ -6295,7 +6425,12 @@ static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_resul
             for (proven_size_t q = 2; q < s->nkids; q++) ck_own_mentions(s->kids[q], name, fld, &rm, &rl);
             if (!rm) reinit = true;
         }
-        if (st == OWN_CONSUMED && m && !reinit)
+        if (g_own_node && ck_own_node_stmt(out, s, name, fld, tab, nt, &st, &reinit, decl_line)) continue;
+        // 마디 모드: 갈래 · 되풀이 안의 언급은 흐름이 안으로 들어가 본다(안에서 다시 채우는 것을 통째 언급으로 오판하지 않는다)
+        bool node_compound_ = g_own_node && s->kind == LOW_CST_FORM && s->nkids && ck_atom(s->kids[0]) &&
+                              (s->kids[0]->tok.kw == LOW_KW_IF || s->kids[0]->tok.kw == LOW_KW_MATCH || s->kids[0]->tok.kw == LOW_KW_WHILE ||
+                               s->kids[0]->tok.kw == LOW_KW_LOOP || s->kids[0]->tok.kw == LOW_KW_FOR);
+        if (st == OWN_CONSUMED && m && !reinit && !node_compound_)
             emit(out, "E-OWN-MOVED",
                  "this `owned` value was already MOVED (consumed) — using it again is "
                  "use-after-move, which SPEC-004 §4.8 has always called a compile error and "
@@ -6580,6 +6715,143 @@ static ck_own_state_t ck_own_linear(low_check_result_t *out, const low_parse_res
     return ck_own_linear_r(out, pr, body, name, fld, ty, decl_line, from, tab, nt, true);
 }
 
+// ★★★ RFC-0150 §6.0.6 (2026-10-24) — **스스로를 품는 마디의 소유** (소유자: 나무 머리 + 마디 + 길 1 · «적어서 없앤다»).
+//   마디 `struct node do … left option (owned node) . end .` 는 얼로케이터 바이트에 산다. 그 바이트를 돌려주는 것은
+//   `drop n. use al. .` 하나뿐이므로, 마디는 **완결이 필요한 값**처럼 다룬다(정본 §8.5 (4)(5)):
+//     · `owned node` · `option (owned node)` 를 버리거나(블록 끝 · 이른 return) 덮어쓰면 E-OWN-INCOMPLETE
+//     · 자식 칸이 든 마디를 돌려주면 E-OWN-NODE-KIDS · 칸을 옮겨 낸 마디를 통째로 옮기면 E-OWN-PARTIAL
+//     · `ref node` 에서 자식을 가져가면 E-OWN-NODE-REF · `mut_ref node` 는 끝나기 전에 돌려놓아야 한다
+//     · 얼로케이터 없는 `drop` 은 E-DROP-USE
+//   흐름은 ck_own_flow 그대로이고, 마디 모드(g_own_node)가 위의 문장들을 더 본다. 다른 소유 값은 그대로다.
+static bool ck_has_word(const low_cst_t *n, const char *w) {
+    if (!n) return false;
+    if (n->kind == LOW_CST_ATOM) return veq(n->tok.lex, w);
+    if (n->kind != LOW_CST_GROUP && n->kind != LOW_CST_FORM) return false;
+    for (proven_size_t i = 0; i < n->nkids; i++) if (ck_has_word(n->kids[i], w)) return true;
+    return false;
+}
+static void ck_flat_words(const low_cst_t *n, proven_u8str_view_t *w, proven_size_t *nw, proven_size_t cap) {
+    if (!n) return;
+    if (n->kind == LOW_CST_ATOM) { if (*nw < cap) w[*nw] = n->tok.lex; (*nw)++; return; }
+    if (n->kind != LOW_CST_GROUP && n->kind != LOW_CST_FORM) return;
+    for (proven_size_t i = 0; i < n->nkids; i++) ck_flat_words(n->kids[i], w, nw, cap);
+}
+// 구조체 S 의 스스로를 품는 칸 이름들(없으면 0 — S 는 마디가 아니다)
+static proven_size_t ck_node_fields(const low_parse_result_t *pr, proven_u8str_view_t S, proven_u8str_view_t *outn, proven_size_t cap) {
+    proven_size_t n = 0;
+    if (!S.size) return 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
+        if (!ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, S)) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t q = 0; q < blk->nkids && n < cap; q++) {
+            const low_cst_t *fl = blk->kids[q];
+            if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0])) continue;
+            proven_u8str_view_t w[6]; proven_size_t nw = 0;
+            for (proven_size_t z = 1; z < fl->nkids; z++) ck_flat_words(fl->kids[z], w, &nw, 6);
+            if (nw == 3 && veq(w[0], "option") && veq(w[1], "owned") && proven_u8str_view_eq(w[2], S)) outn[n++] = fl->kids[0]->tok.lex;
+        }
+        break;
+    }
+    return n;
+}
+// 타입 낱말들 → 마디의 종류(0 = 마디가 아니다). S 에 마디 구조체 이름을 적는다.
+static int ck_node_kind_of(const low_parse_result_t *pr, const proven_u8str_view_t *w, proven_size_t nw, proven_u8str_view_t *S) {
+    proven_size_t z = 0;
+    while (z < nw && veq(w[z], "mut")) z++;
+    int k = 0;
+    if (z + 2 == nw && veq(w[z], "owned")) k = 1;
+    else if (z + 3 == nw && veq(w[z], "option") && veq(w[z + 1], "owned")) k = 2;
+    else if (z + 2 == nw && veq(w[z], "ref")) k = 3;
+    else if (z + 2 == nw && veq(w[z], "mut_ref")) k = 4;
+    if (!k) return 0;
+    proven_u8str_view_t nm = w[nw - 1], fn[1];
+    if (!ck_node_fields(pr, nm, fn, 1)) return 0;
+    *S = nm;
+    return k;
+}
+static void ck_node_place(low_check_result_t *out, const low_parse_result_t *pr, const low_cst_t **kids, proven_size_t nk,
+                          proven_u8str_view_t name, proven_u8str_view_t S, int kind, proven_u32 line,
+                          const low_opinfo_t *tab, proven_size_t nt) {
+    bool dv;
+    proven_u8str_view_t nofld = { .ptr = NULL, .size = 0 };
+    g_own_node = true; g_node_kind = kind; g_node_ref_told = false;
+    if (kind == 1 || kind == 2) {
+        g_own_ld = 0;
+        ck_own_state_t st = ck_own_flow(out, pr, kids, nk, name, nofld, tab, nt, OWN_LIVE, line, &dv);
+        if (st == OWN_LIVE && !dv)
+            emit(out, "E-OWN-INCOMPLETE",
+                 "this self-owning node (or an option holding one) is still owned when its scope ends — its bytes would "
+                 "never go back to the allocator. Move it on (return it, put it in a field, pass it `owned`) or give it "
+                 "back with `drop n. use al. .` (RFC-0150 §6.0.6 · canon §8.5 (5))", line);
+    }
+    if (kind != 2) {
+        proven_u8str_view_t fn[8];
+        proven_size_t nf = ck_node_fields(pr, S, fn, 8);
+        for (proven_size_t q = 0; q < nf; q++) {
+            g_own_ld = 0; g_node_ref_told = false;
+            ck_own_state_t st = ck_own_flow(out, pr, kids, nk, name, fn[q], tab, nt, OWN_LIVE, line, &dv);
+            if (kind == 4 && st == OWN_CONSUMED && !dv)
+                emit(out, "E-OWN-NODE-REF",
+                     "a child was taken out of a node that is only BORROWED (`mut_ref`) and not put back before the op "
+                     "ends — the owner would find a hole. Put it back with `set field n. left . …` (RFC-0150 §6.0.6)", line);
+        }
+    }
+    g_own_node = false; g_node_kind = 0;
+}
+static void ck_node_block(low_check_result_t *out, const low_parse_result_t *pr, const low_cst_t *blk,
+                          const low_opinfo_t *tab, proven_size_t nt);
+static void ck_node_nested(low_check_result_t *out, const low_parse_result_t *pr, const low_cst_t *n,
+                           const low_opinfo_t *tab, proven_size_t nt) {
+    if (!n || n->kind == LOW_CST_ATOM) return;
+    if (n->kind == LOW_CST_BLOCK) { ck_node_block(out, pr, n, tab, nt); return; }
+    for (proven_size_t i = 0; i < n->nkids; i++) ck_node_nested(out, pr, n->kids[i], tab, nt);
+}
+static void ck_node_block(low_check_result_t *out, const low_parse_result_t *pr, const low_cst_t *blk,
+                          const low_opinfo_t *tab, proven_size_t nt) {
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        const low_cst_t *d = blk->kids[i];
+        if (d->kind == LOW_CST_FORM && d->nkids >= 3 && ck_atom(d->kids[0]) &&
+            (d->kids[0]->tok.kw == LOW_KW_VAR || d->kids[0]->tok.kw == LOW_KW_LET) && ck_atom(d->kids[1])) {
+            proven_u8str_view_t w[8]; proven_size_t nw = 0;
+            for (proven_size_t z = 2; z < d->nkids; z++) {
+                if (ck_atom(d->kids[z]) && (d->kids[z]->tok.kw == LOW_KW_BE || veq(d->kids[z]->tok.lex, "using"))) break;
+                ck_flat_words(d->kids[z], w, &nw, 8);
+            }
+            proven_u8str_view_t S = { 0 };
+            int k = nw <= 8 ? ck_node_kind_of(pr, w, nw, &S) : 0;
+            if (k) ck_node_place(out, pr, (const low_cst_t **)(blk->kids + i + 1), blk->nkids - i - 1, d->kids[1]->tok.lex, S, k,
+                                 d->kids[0]->tok.line, tab, nt);
+        }
+        ck_node_nested(out, pr, d, tab, nt);
+    }
+}
+static void ck_nodes(low_check_result_t *out, const low_parse_result_t *pr, const low_cst_t *f,
+                     const low_opinfo_t *tab, proven_size_t nt) {
+    const low_cst_t *body = (f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) ? f->kids[f->nkids - 1] : NULL;
+    if (!body) return;
+    low_op_header_t h = low_op_header(f);
+    for (proven_size_t i = 0; i < h.np; i++) {
+        proven_u8str_view_t w[8]; proven_size_t nw = 0;
+        for (proven_size_t z = h.p[i].ts; z < f->nkids; z++) {
+            const low_cst_t *k = f->kids[z];
+            if (k->kind == LOW_CST_BLOCK) break;
+            if (ck_atom(k) && low_is_clause_word(k->tok.lex)) break;
+            ck_flat_words(k, w, &nw, 8);
+        }
+        proven_u8str_view_t S = { 0 };
+        int k = nw <= 8 ? ck_node_kind_of(pr, w, nw, &S) : 0;
+        if (k) ck_node_place(out, pr, (const low_cst_t **)body->kids, body->nkids, h.p[i].name, S, k, f->kids[0]->tok.line, tab, nt);
+    }
+    ck_node_block(out, pr, body, tab, nt);
+}
+static bool ck_is_node_type(const low_parse_result_t *pr, proven_u8str_view_t ty) {
+    proven_u8str_view_t fn[1];
+    return ty.size && ck_node_fields(pr, ty, fn, 1) > 0;
+}
+
 static void ck_ownership(low_check_result_t *out, const low_parse_result_t *pr, const low_cst_t *f,
                          const low_opinfo_t *tab, proven_size_t nt) {
     const low_cst_t *body = (f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK)
@@ -6600,11 +6872,13 @@ static void ck_ownership(low_check_result_t *out, const low_parse_result_t *pr, 
              "this op declares more parameters than the tool can carry a header for — refusing is "
              "the honest answer (a silently dropped parameter is a silently wrong program)",
              f->kids[0]->tok.line);
+    ck_nodes(out, pr, f, tab, nt);   // ★ RFC-0150 §6.0.6 — 스스로를 품는 마디는 저쪽이 맡는다
     for (proven_size_t i = 0; i < h.np; i++) {
         if (!h.p[i].is_owned) continue;
         proven_u8str_view_t ty = (h.p[i].core < h.p[i].te && f->kids[h.p[i].core]->kind == LOW_CST_ATOM)
                                    ? f->kids[h.p[i].core]->tok.lex   // ★ 타입의 **알맹이**
                                    : (proven_u8str_view_t){ .ptr = NULL, .size = 0 };
+        if (ck_is_node_type(pr, ty)) continue;
         proven_u8str_view_t nofld = { .ptr = NULL, .size = 0 };
         // ★ 필드를 **먼저** 센다(2026-08-15): 전부 옮겼는지 알아야 집합에 대해 말할지 정할 수 있다.
         proven_u8str_view_t fns0[8];
@@ -6680,6 +6954,7 @@ static void ck_ownership(low_check_result_t *out, const low_parse_result_t *pr, 
                 j + 1 < d->nkids && d->kids[j + 1]->kind == LOW_CST_ATOM)
                 { ty = d->kids[j + 1]->tok.lex; break; }
         proven_u8str_view_t nofld2 = { .ptr = NULL, .size = 0 };
+        if (ck_is_node_type(pr, ty)) continue;
         (void)ck_own_linear(out, pr, body, d->kids[1]->tok.lex, nofld2, ty,
                             d->kids[0]->tok.line, i + 1, tab, nt);
     }

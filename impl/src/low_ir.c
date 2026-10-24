@@ -585,6 +585,16 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             case IRW_ROTL: case IRW_ROTR:
                 res = ops[0];
                 if (!c->tstk_bad) a = ity_meta(res);
+                // ★★ RFC-0153 §8-8 (2026-10-24 소유자 «둘 다 지금 고침») — **128 비트 양은 검사 전에 잘리지 않는다.** 두 뒤끝 모두 양을
+                //   64 비트 칸에서 읽어서 `shl 1 2^64` 가 `shl 1 0` 이 됐다(트랩이어야 한다). 막는 시프트 앞에 **포화 변환**(→ i64)을
+                //   하나 둔다: 2^63 을 넘는 양은 i64 최댓값, 음수는 i64 최솟값이 되어 어느 폭에서든 «양이 범위 밖» 으로 멈춘다.
+                //   감는 시프트 · 회전은 그대로다 — 폭(2 의 거듭제곱 ≤ 128)으로 나눈 나머지는 아래 64 비트가 이미 정한다.
+                if ((w == IRW_SHL || w == IRW_SHR) && ops[1].known && !ops[1].flt && ops[1].bits == 128) {
+                    low_ir_ins_t cv = { .w = IRW_CAST, .a = (proven_i64)(8 | IR_SGN_BIT | IR_POL_SAT | IR_SRC_W128 |
+                                                                         (ops[1].sign ? IR_SRC_SGN : IR_SRC_UNS)),
+                                        .line = c->cur_form ? c->cur_form->line : 0 };
+                    (void)proven_array_push(&c->code, &cv);
+                }
                 break;
             case IRW_BNOT: case IRW_BSWAP:
                 res = ops[0];

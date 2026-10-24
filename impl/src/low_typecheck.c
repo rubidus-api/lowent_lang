@@ -76,6 +76,7 @@ typedef struct {
                                 //   이거나, 이 식이 이미 다른 진단으로 거절됐다(같은 자리를 두 번 말하지 않는다)
     proven_u8str_view_t nname;  // TK_NAMED: 머리 타입 이름
     proven_u32  targ;           // TK_NAMED: 틀 인자 낱말들의 해시(0 = 인자 없음/미상)
+    bool        slit;           // ★ 직접 적은 문자열 · 텍스트 리터럴(TK_NAMED 로 나온다) — 수 · bool 자리에는 들지 않는다(2026-10-24)
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -580,6 +581,11 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
             (actual.k == TK_INT || actual.k == TK_FLOAT || actual.k == TK_BOOL || actual.k == TK_SLICE) &&
             !(actual.k == TK_INT && actual.lit && !actual.neg && actual.val == 0)) return TC_KIND;
     }
+    // ★★ 2026-10-24 (docs/known-defects/string-literal-passes-typed-place) — 문자열 리터럴은 `TK_NAMED` 로 나와서 바로 아래 줄이
+    //   **어느 자리든** 받아 주었다: `output u64` 인 op 이 `return "wrong" .` 해도 서고 바이트 목록을 돌려줬다(정본 §6.2.17 — 문자열은
+    //   `slice u8`). 이름 붙은 자리(`cstr` · 텍스트 타입 · 별칭)와 슬라이스 자리는 그대로 두고, 수 · bool · 벡터 · 감싸개 자리만 막는다.
+    if (actual.slit && actual.rk == 0 && (decl.k == TK_INT || decl.k == TK_FLOAT || decl.k == TK_BOOL || decl.k == TK_VEC ||
+                                         decl.k == TK_MASK || decl.k == TK_UNIT || decl.k == TK_WRAPPED)) return TC_KIND;
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
     if (decl.k == TK_SLICE && decl.ebits && actual.ebits && !decl.eflt && !actual.eflt && !decl.erow && !actual.erow &&
@@ -653,6 +659,7 @@ static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
             if (t.enom && !t.eflt) { snprintf(buf, n, "%sslice %s", ref, t.esign ? "idiff" : "usize"); return buf; }
             snprintf(buf, n, "%sslice %c%u", ref, t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits); return buf;
         case TK_NAMED:
+            if (t.slit) { snprintf(buf, n, "a string literal"); return buf; }
             if (!t.nname.size) return NULL;
             snprintf(buf, n, "%s%.*s", ref, (int)t.nname.size, (const char *)t.nname.ptr); return buf;
         case TK_UNIT:    snprintf(buf, n, "void"); return buf;
@@ -2148,7 +2155,11 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
         // call: head + args
         const tc_sig_t *s = sig_find_at(c, k[start]);
         if (s) {
-            for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
+            // ★ 인자가 파라미터보다 **모자라면** 짝이 어긋나 있다 — 짝지어 대 보면 엉뚱한 자리를 탓한다(권한을 빠뜨린 부름의 `"x"` 가
+            //   `u64` 자리에 대어졌다). 그 부름은 인자 수를 보는 검사(`E-CAP-MISSING` · 수 검사)가 거절한다(2026-10-24).
+            //   남는 쪽은 C 의 가변 인자(`printf`)라 앞의 고정 파라미터는 그대로 대 본다.
+            const bool aligned = n - 1 >= s->nparams;
+            for (proven_size_t i = 0; aligned && i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
                 tc_reason_t ar = compat(s->params[i], at);
                 tc_push_ctx(k, start + 1 + i, 1, s->params[i], at);   // RFC-0148 §8-11
@@ -2183,7 +2194,7 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
     if (nd->kind == LOW_CST_ATOM) {
         switch (nd->tok.kind) {
             case LOW_TOK_NUMBER: return ty_of_number(nd->tok.lex);
-            case LOW_TOK_STRING: case LOW_TOK_TEXTLIT: return tk(TK_NAMED);
+            case LOW_TOK_STRING: case LOW_TOK_TEXTLIT: { ty_t st = tk(TK_NAMED); st.slit = true; return st; }
             default: break;
         }
         if (nd->tok.kw == LOW_KW_TRUE || nd->tok.kw == LOW_KW_FALSE) return tk(TK_BOOL);

@@ -1072,6 +1072,10 @@ typedef struct {
     proven_i64    v;        // 스칼라(정수값 또는 f64 비트)
     proven_u8    *bytes;    // 슬라이스 저장소(호출자 소유 · 가변)
     proven_size_t n;
+    // ★ RFC-0151 §9.4.1 — 십진 정수를 128 비트까지 읽은 것(2 의 보수 아래 · 위 64 비트). `wide` bit0 = 읽었다 · bit1 = 음수 ·
+    //   bit2 = 128 비트를 넘는다. 128 비트 매개변수만 읽는다 — 좁은 매개변수는 `v` 를 그대로 쓴다.
+    proven_u64    vlo, vhi;
+    proven_u8     wide;
 } low_ir_arg_t;
 [[nodiscard]] low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
                                                   const low_ir_arg_t *args, proven_size_t nargs,

@@ -33,6 +33,7 @@ none
 | **op** | **what it does** |
 |---|---|
 | `ecdsa_ok` | does the signature `(r, s)` match hash `e` and public key `pub` — `ok 1 .` yes · `ok 0 .` no · `error short_workspace .` the workspace is too small |
+| `ecdsa_ok_by` | The same op **at a chosen limb width** — a width type and its value first (`bigint32.limb. w.` · [`bigwidth`](sec88.md#mod-bigwidth)); limb arrays passed in are built at that width (`bigint32.from_bytes`). Generated from the ops above (`scripts/gen-curve-by.py`) |
 
 *Table 50.2 — ops of `p384`*
 

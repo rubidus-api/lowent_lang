@@ -32,6 +32,7 @@ L0 — 순수 계산(호출자의 뒷받침)
 | `smul` | 스칼라 곱 `[k]P` — 공개 스칼라용 |
 | `smul_ct` | 스칼라 곱 — 비밀 스칼라용, 분기 없이 마스크로 고른다 |
 | `ecdsa_verify` | 서명 `(r, s)` 가 해시 `e` 와 공개키에 맞는가 |
+| `<op>_by` | 위의 op 마다 같은 것을 **고른 조각 폭으로** — 맨 앞에 폭 타입과 그 값(`bigint32.limb. w.` · [`bigwidth`](sec87.md#mod-bigwidth)). 넘기는 조각 배열은 그 폭으로 만든다(`bigint32.from_bytes`). 위의 op 에서 낸다(`scripts/gen-curve-by.py`) |
 
 *표 50.1 — `p256` 의 op*
 

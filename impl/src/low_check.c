@@ -4895,6 +4895,10 @@ static bool ck_is_w128(const low_cst_t *a) { return ck_atom(a) && (veq(a->tok.le
 static void ck_int128_walk(low_check_result_t *out, const low_cst_t *nd, int in_struct, int in_extern) {
     if (!nd) return;
     if (nd->kind == LOW_CST_ATOM) return;
+    // ★ RFC-0151 §9.4.1 (2026-10-24) — 이 폼 자신이 `extern` 을 지니면 그 머리의 낱말도 C 경계다. 전엔 자식을 다 본 **뒤에** 셈해서,
+    //   `export extern fn f input a u128 .` 처럼 한 겹 안쪽 폼이 되는 선언의 128 비트 입력이 거절되지 않았다(RFC 와 진단은 «거절» 이라 말했다).
+    if (nd->kind == LOW_CST_FORM)
+        for (proven_size_t j = 0; j < nd->nkids; j++) if (ck_atom(nd->kids[j]) && veq(nd->kids[j]->tok.lex, "extern")) in_extern = 1;
     for (proven_size_t j = 0; j < nd->nkids; j++) {
         const low_cst_t *a = nd->kids[j];
         if (!ck_is_w128(a)) continue;
@@ -4904,12 +4908,13 @@ static void ck_int128_walk(low_check_result_t *out, const low_cst_t *nd, int in_
             continue;
         }
         const low_cst_t *prev = j ? nd->kids[j - 1] : NULL;
-        const bool elem = prev && ck_atom(prev) && (veq(prev->tok.lex, "slice") || veq(prev->tok.lex, "array") || veq(prev->tok.lex, "view_array") ||
-                                                    veq(prev->tok.lex, "vec") || veq(prev->tok.lex, "matrix") || veq(prev->tok.lex, "stack"));
-        if (elem || in_struct || in_extern)
-            emit(out, "E-INT128-PLACE", in_extern ? "a 128-bit integer does not cross the C boundary yet (`extern`) — its C ABI is not settled; pass two `u64` (RFC-0151 §9.4)"
-                 : in_struct ? "a 128-bit integer cannot be a struct field yet — fields have a byte layout, and a 16-byte field's layout and alignment are not settled (RFC-0151 §9.4)"
-                 : "a 128-bit integer cannot be the element of a slice, array, view, vector or stack yet — elements have a byte layout that is not settled for 16 bytes (RFC-0151 §9.4)", a->tok.line);
+        // ★ RFC-0151 §9.4.1 (소유자 2026-10-24) — 구조체 칸 · 슬라이스 · 배열 · 뷰 · 스택의 원소는 연다(배치는 C 컴파일러를 따른다 —
+        //   크기 16 · 정렬 16 · 작은 끝이 먼저). SIMD 레인(`vec` · `matrix`)과 C 경계는 그대로 닫혀 있다.
+        const bool lane = prev && ck_atom(prev) && (veq(prev->tok.lex, "vec") || veq(prev->tok.lex, "matrix"));
+        (void)in_struct;
+        if (lane || in_extern)
+            emit(out, "E-INT128-PLACE", in_extern ? "a 128-bit integer does not cross the C boundary (`extern`) — its C ABI is not opened; pass two `u64` (RFC-0151 §9.4.1)"
+                 : "a 128-bit integer cannot be a SIMD lane (`vec` · `matrix`) — no target's vector unit has 128-bit integer lanes (RFC-0151 §9.4.1)", a->tok.line);
     }
     int s2 = in_struct, e2 = in_extern;
     if (nd->kind == LOW_CST_FORM && nd->nkids && ck_atom(nd->kids[0])) {
@@ -4924,6 +4929,14 @@ static void ck_int128(low_check_result_t *out, const low_parse_result_t *pr) {
         int ex = 0;
         if (f->kind == LOW_CST_FORM)
             for (proven_size_t j = 0; j < f->nkids; j++) if (ck_atom(f->kids[j]) && veq(f->kids[j]->tok.lex, "extern")) ex = 1;
+        // ★ RFC-0151 §9.4.1 (2026-10-24) — `export extern fn …` 은 낱말 `extern` 이 폼에서 빠지고 `is_extern` 표시로만 남는다. 전엔 낱말만
+        //   찾아서 C 경계의 128 비트 입력 · 결과가 **거절되지 않았다**(RFC-0151 §9.4 와 진단은 «거절» 이라 말했다). 머리의 낱말만 본다 —
+        //   몸(블록) 안은 C 경계가 아니다.
+        if (f->kind == LOW_CST_FORM && f->is_extern && !ex && low_ir_target()->int128)
+            for (proven_size_t j = 0; j < f->nkids; j++)
+                if (ck_is_w128(f->kids[j]))
+                    emit(out, "E-INT128-PLACE", "a 128-bit integer does not cross the C boundary (`extern`) — its C ABI is not opened; pass two `u64` (RFC-0151 §9.4.1)",
+                         f->kids[j]->tok.line);
         // 머리의 낱말(입력 · 결과)은 그 폼의 아이들에 바로 있다 — 몸(블록)은 C 경계가 아니다
         ck_int128_walk(out, f, f->kind == LOW_CST_FORM && f->nkids && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT, ex);
     }
@@ -7638,12 +7651,13 @@ static void ck_mref_slice(low_check_result_t *out, const low_cst_t *f) {
 //   **길이를 지킬 곳이 없다**. 전엔 둘 다 `slice` 로 조용히 읽혔다 — 길이를 버린 채로.
 static bool ck_elem_sized(proven_u8str_view_t t) {
     return veq(t, "u8") || veq(t, "i8") || veq(t, "u16") || veq(t, "i16") || veq(t, "u32") || veq(t, "i32") || veq(t, "u64") ||
-           veq(t, "i64") || veq(t, "usize") || veq(t, "idiff") || veq(t, "f32") || veq(t, "f64") || veq(t, "bool");
+           veq(t, "i64") || veq(t, "usize") || veq(t, "idiff") || veq(t, "f32") || veq(t, "f64") || veq(t, "bool") ||
+           veq(t, "u128") || veq(t, "i128");   // ★ RFC-0151 §9.4.1 — 16 바이트(대상이 갖는지는 ck_int128 이 본다)
 }
 static unsigned ck_elem_bytes(proven_u8str_view_t t) {
     return veq(t, "u16") || veq(t, "i16") ? 2 : veq(t, "u32") || veq(t, "i32") || veq(t, "f32") ? 4 :
            veq(t, "usize") || veq(t, "idiff") ? (unsigned)(low_ir_target()->addr_bits / 8) :   // RFC-0149 L5
-           veq(t, "u64") || veq(t, "i64") || veq(t, "f64") ? 8 : 1;
+           veq(t, "u64") || veq(t, "i64") || veq(t, "f64") ? 8 : veq(t, "u128") || veq(t, "i128") ? 16 : 1;
 }
 // ★★ RFC-0132 T2b-3b (C5 · N1 · N2) — **구조체의 배열 칸** `body array u8 16 .` 은 받는다: 길이가 타입에 있으니 칸이 제
 //   바이트를 가진다(구조체를 값으로 베끼면 그 바이트도 베껴진다). 원소는 크기 있는 수·`bool`. 원소가 구조체이거나 배열인 칸은
@@ -7822,7 +7836,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         proven_u8str_view_t ty = nd->kids[2]->tok.lex;
         bool flt = veq(ty, "f32") || veq(ty, "f64"), isbool = veq(ty, "bool");
         bool sized = flt || isbool || veq(ty, "u8") || veq(ty, "i8") || veq(ty, "u16") || veq(ty, "i16") || veq(ty, "u32") ||
-                     veq(ty, "i32") || veq(ty, "u64") || veq(ty, "i64") || veq(ty, "usize") || veq(ty, "idiff");
+                     veq(ty, "i32") || veq(ty, "u64") || veq(ty, "i64") || veq(ty, "usize") || veq(ty, "idiff") ||
+                     veq(ty, "u128") || veq(ty, "i128");
         unsigned sbytes = 0, salign = 0;
         bool is_struct = !sized && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_layout(ty, &sbytes, &salign, 0);
         if (!sized && !is_struct) {
@@ -8047,7 +8062,8 @@ static proven_size_t lc_bytes(const low_cst_t *l) {
     proven_size_t esz = ck_atom(l->kids[2]) ? (veq(l->kids[2]->tok.lex, "u16") || veq(l->kids[2]->tok.lex, "i16") ? 2 :
                         veq(l->kids[2]->tok.lex, "u32") || veq(l->kids[2]->tok.lex, "i32") || veq(l->kids[2]->tok.lex, "f32") ? 4 :
                         veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "idiff") ? (proven_size_t)(low_ir_target()->addr_bits / 8) :
-                        veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ? 8 : 1) : 1;
+                        veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ? 8 :
+                        veq(l->kids[2]->tok.lex, "u128") || veq(l->kids[2]->tok.lex, "i128") ? 16 : 1) : 1;
     { unsigned sb, sa; if (ck_atom(l->kids[2]) && !ck_elem_sized(l->kids[2]->tok.lex) && ck_struct_layout(l->kids[2]->tok.lex, &sb, &sa, 0)) esz = sb; }
     if (!ck_atom(l->kids[2])) {                                  // §13.10 — 줄: 원소 크기 = m × |T|
         const low_cst_t *rt = l->kids[2];

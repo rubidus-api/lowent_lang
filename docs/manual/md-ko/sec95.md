@@ -30,6 +30,7 @@ s = k⁻¹ (h + r·d)   ⇒   d = (s·k − h) / r
 |---|---|---|
 | `nonce6979` | RFC 6979 §3.2 — (d, h) → k | `w ≥ 480` 바이트 · `wu ≥ 16` 조각 |
 | `sign` | (d, h) → `r ‖ s` 64 바이트 | `wb ≥ 512` 바이트 · `wu ≥ 908` 조각 |
+| `nonce6979_by` · `sign_by` | 같은 것을 **고른 조각 폭으로** — 맨 앞에 폭 타입과 그 값(`bigint32.limb. w.` · [`bigwidth`](sec87.md#mod-bigwidth)). 곡선 상수는 그 폭으로 만든다. 생성된다(`scripts/gen-curve-by.py`) | 위와 같다 |
 
 *표 50.1 — `ecdsa` 의 op*
 

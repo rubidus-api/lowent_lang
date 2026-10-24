@@ -339,6 +339,17 @@ typedef unsigned __int128 vm_u128; typedef __int128 vm_i128;
 static_assert(sizeof(proven_size_t) >= 8, "the upper half of a 128-bit integer lives in the 64-bit size slot");
 static vmv_t vmv_w(vm_u128 v) { return (vmv_t){ .tag = VMV_INT, .i = (proven_i64)(proven_u64)v, .n = (proven_size_t)(proven_u64)(v >> 64) }; }
 static vm_u128 vmv_wv(vmv_t v) { return ((vm_u128)(proven_u64)v.n << 64) | (proven_u64)v.i; }
+// ★ RFC-0151 §9.4.1 (소유자 2026-10-24) — 16 바이트 칸 · 원소는 C 컴파일러의 `__int128` 과 같은 배치다: 작은 끝이 먼저(`big` 이면 뒤집는다).
+//   64 비트 누산기로 16 바이트를 오가면 64 이상을 미는 시프트가 된다(정의되지 않은 동작 — 위 절반이 사라졌다). 그래서 여기 한 쌍으로 모은다.
+static void vm_put16(proven_u8 *p, vmv_t v, bool be) { vm_u128 x = vmv_wv(v); for (int k = 0; k < 16; k++) p[be ? 15 - k : k] = (proven_u8)(x >> (8 * k)); }
+static vmv_t vm_get16(const proven_u8 *p, bool be) { vm_u128 x = 0; for (int k = 16; k-- > 0; ) x = (x << 8) | p[be ? 15 - k : k]; return vmv_w(x); }
+// 128 비트 십진 — 부호를 알면 `sgnd`. 네이티브 lw_fmt_w128 과 같은 글자.
+static int vm_fmt128(char *out, proven_size_t cap, vm_u128 u, bool sgnd) {
+    bool ng = sgnd && (vm_i128)u < 0; if (ng) u = (vm_u128)0 - u;
+    char t[48]; int q = 47; t[q] = 0; do { t[--q] = (char)('0' + (int)(u % 10)); u /= 10; } while (u);
+    if (ng) t[--q] = '-';
+    return snprintf(out, cap, "%s", t + q);
+}
 #endif
 static double vmv_f(vmv_t v) { double d; memcpy(&d, &v.i, 8); return d; }
 static vmv_t vmv_flt(double d) { vmv_t v = { .tag = VMV_FLT }; memcpy(&v.i, &d, 8); return v; }
@@ -2308,6 +2319,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                 if (!vm_arr_copy(vm, &st->f[fi], r->fields[q], base + st->f[fi].off)) return false;
                                 break;
                             }
+#if defined(__SIZEOF_INT128__)
+                            if (st->f[fi].size == 16) { vm_put16(base + st->f[fi].off, r->fields[q], st->f[fi].be); break; }   // ★ RFC-0151 §9.4.1
+#endif
                             proven_u64 x = (r->fields[q].tag == VMV_FLT)
                                              ? ir_f_to_bits(ir_bits_to_f((proven_u64)r->fields[q].i, 8), st->f[fi].size)
                                              : (proven_u64)r->fields[q].i;
@@ -2336,6 +2350,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                         : (proven_u64)vv.i;
                     proven_u8 *p = (proven_u8 *)(void *)(uintptr_t)sv.p +
                                    (proven_size_t)iv.i * (proven_size_t)sv.box;
+#if defined(__SIZEOF_INT128__)
+                    if (sv.box == 16) { vm_put16(p, vv, false); break; }   // ★ RFC-0151 §9.4.1
+#endif
                     for (proven_i32 k = 0; k < sv.box; k++) p[k] = (proven_u8)((x >> (8 * k)) & 0xff);
                 }
                 break;
@@ -2380,6 +2397,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 proven_u64 x = 0;   // typed array: decode one element (native = le)
                 const proven_u8 *p = sv.p + (proven_size_t)iv.i * (proven_size_t)sv.box;
+#if defined(__SIZEOF_INT128__)
+                if (sv.box == 16) { stack[sp++] = vm_get16(p, false); break; }   // ★ RFC-0151 §9.4.1
+#endif
                 for (proven_i32 k = sv.box; k-- > 0; ) x = (x << 8) | p[k];
                 // ★ 원소가 **부호형**이면 부호 확장한다 — 타입이 이미 그렇게 말했다.
                 //   (안 하면 slice i8 의 0xFF 가 255 로, slice i32 의 -1 이 4294967295 로 샌다.)
@@ -2404,6 +2424,15 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     if (sv.tag == VMV_SLICE) e = (proven_i64)sv.p[i];
                     else {
                         proven_u64 x = 0; const proven_u8 *p = sv.p + i * (proven_size_t)esz;
+#if defined(__SIZEOF_INT128__)
+                        if (esz == 16) {   // ★ RFC-0151 §9.4.1 — 128 비트 원소를 64 비트 N 과 값으로 견준다
+                            vm_u128 u = vmv_wv(vm_get16(p, false));
+                            bool sg = (sv.i & IR_SGN_BIT) != 0;
+                            int c3 = sg ? ((vm_i128)u < (vm_i128)N ? -1 : (vm_i128)u > (vm_i128)N) : (N < 0 ? 1 : (u < (vm_u128)(proven_u64)N ? -1 : u > (vm_u128)(proven_u64)N));
+                            ok = cmp == 0 ? (c3 < 0) : cmp == 1 ? (c3 <= 0) : cmp == 2 ? (c3 > 0) : (c3 >= 0);
+                            continue;
+                        }
+#endif
                         for (proven_i32 k = esz; k-- > 0; ) { x = (x << 8) | p[k]; }
                         e = (proven_i64)x;
                     }
@@ -3843,6 +3872,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             memcpy((void *)(rv.p + s2->f[q].off), &pp, sizeof pp); memcpy((void *)(rv.p + s2->f[q].off + low_ptr_slot()), &pn, 8);
                             f2 = true; break;
                         }
+#if defined(__SIZEOF_INT128__)
+                        if (s2->f[q].size == 16) { vm_put16((proven_u8 *)(void *)(rv.p + s2->f[q].off), vv, s2->f[q].be); f2 = true; break; }   // ★ RFC-0151 §9.4.1
+#endif
                         proven_u64 x = (proven_u64)vv.i;
                         if (!vm_en_tonum(vm->ir, &s2->f[q], &x)) { vm_diag(vm->diags, "E-VM-TYPE", "an enum field holds no variant"); return false; }
                         proven_u8 *p2 = (proven_u8 *)(void *)(rv.p + s2->f[q].off);
@@ -3927,6 +3959,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             }
                             proven_u64 x = 0;
                             const proven_u8 *p = v.p + s->f[i].off;
+#if defined(__SIZEOF_INT128__)
+                            if (s->f[i].size == 16) { stack[sp++] = vm_get16(p, s->f[i].be); found = true; break; }   // ★ RFC-0151 §9.4.1
+#endif
                             if (s->f[i].be) for (proven_u8 k = 0; k < s->f[i].size; k++) x = (x << 8) | p[k];
                             else            for (proven_u8 k = s->f[i].size; k-- > 0; ) x = (x << 8) | p[k];
                             if (!vm_en_tovi(vm->ir, &s->f[i], &x)) {   // ★ RFC-0150 §8-31 — 바이트의 번호를 갈래로
@@ -4005,6 +4040,24 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         memmove(outb + s->f[i].off, src, need);
                         continue;
                     }
+#if defined(__SIZEOF_INT128__)
+                    if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 16 바이트 칸: 값(레코드) 또는 바이트(뷰)에서 그대로
+                        vmv_t w = vmv_int(0); bool got16 = false;
+                        if (v.tag == VMV_REC) {
+                            const vmrec_t *r = &vm->recs[v.box];
+                            const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+                            for (proven_size_t j = 0; j < r->nfields && !got16; j++)
+                                if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) { w = r->fields[j]; got16 = true; }
+                        } else if (v.tag == VMV_VIEW) {
+                            const low_ir_struct_t *vs = &vm->ir->structs[v.box];
+                            for (proven_size_t j = 0; j < vs->nf && !got16; j++)
+                                if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && vs->f[j].size == 16) { w = vm_get16(v.p + vs->f[j].off, vs->f[j].be); got16 = true; }
+                        }
+                        if (!got16) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks a 16-byte layout field"); return false; }
+                        vm_put16(outb + s->f[i].off, w, s->f[i].be);
+                        continue;
+                    }
+#endif
                     if (v.tag == VMV_REC) {
                         const vmrec_t *r = &vm->recs[v.box];
                         const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
@@ -4717,7 +4770,13 @@ static void fmt_f(char *out, proven_size_t cap, double d) {
 }
 static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap) {
     switch (v.tag) {
-        case VMV_INT: snprintf(out, cap, "%lld", (long long)v.i); return;
+        case VMV_INT:
+#if defined(__SIZEOF_INT128__)
+            // ★ RFC-0151 §9.4.1 — 위 절반이 부호 늘림이 아니면 128 비트 값이다(칸 · 원소에 든 것). 위 절반의 맨 비트로 부호를 가린다.
+            //   위 절반이 0 이면 64 비트 값이다(64 비트 음수도 위 절반은 0 이다 — 128 비트 값만 그것을 채운다).
+            if (v.n && (proven_u64)v.n != (v.i < 0 ? ~0ull : 0ull)) { (void)vm_fmt128(out, cap, vmv_wv(v), (proven_i64)v.n < 0); return; }
+#endif
+            snprintf(out, cap, "%lld", (long long)v.i); return;
         case VMV_FLT: fmt_f(out, cap, vmv_f(v)); return;
         case VMV_SLICE: {
             proven_size_t o = (proven_size_t)snprintf(out, cap, "[");
@@ -4764,6 +4823,13 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
             for (proven_size_t i = 0; i < s->nf && o + 24 < cap; i++) {
                 proven_u64 x = 0;
                 const proven_u8 *p = v.p + s->f[i].off;
+#if defined(__SIZEOF_INT128__)
+                if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 128 비트 칸은 십진(부호는 칸 타입이 말한다)
+                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%.*s ", i ? ", " : "", (int)s->f[i].name.size, (const char *)s->f[i].name.ptr);
+                    if (o < cap) o += (proven_size_t)vm_fmt128(out + o, cap - o, vmv_wv(vm_get16(p, s->f[i].be)), s->f[i].cname.size && s->f[i].cname.ptr[0] == (proven_u8)'i');
+                    continue;
+                }
+#endif
                 if (s->f[i].be) for (proven_u8 k = 0; k < s->f[i].size; k++) x = (x << 8) | p[k];
                 else            for (proven_u8 k = s->f[i].size; k-- > 0; ) x = (x << 8) | p[k];
                 o += s->f[i].flt
@@ -4807,9 +4873,16 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
         }
         case VMV_VARRAY: {
             proven_size_t o = (proven_size_t)snprintf(out, cap, "[");
-            for (proven_size_t i = 0; i < v.n && o + 24 < cap; i++) {
+            for (proven_size_t i = 0; i < v.n && o + 48 < cap; i++) {
                 proven_u64 x = 0;
                 const proven_u8 *p = v.p + i * (proven_size_t)v.box;
+#if defined(__SIZEOF_INT128__)
+                if (v.box == 16) {   // ★ RFC-0151 §9.4.1
+                    if (i) o += (proven_size_t)snprintf(out + o, cap - o, " ");
+                    o += (proven_size_t)vm_fmt128(out + o, cap - o, vmv_wv(vm_get16(p, false)), (v.i & IR_SGN_BIT) != 0);
+                    continue;
+                }
+#endif
                 for (proven_i32 k = v.box; k-- > 0; ) x = (x << 8) | p[k];
                 o += v.i ? (proven_size_t)snprintf(out + o, cap - o, "%s%g", i ? " " : "",
                                                    ir_bits_to_f(x, (proven_u8)v.box))
@@ -5153,6 +5226,15 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
 #if defined(__SIZEOF_INT128__)
             // ★ RFC-0151 — 128 비트 입력: 명령줄은 64 비트 수까지 나른다. 부호 있는 입력은 부호를 늘리고, 없는 입력은 0 을 채운다.
             if ((d->param_w128 >> i) & 1u)
+                if (args[i].wide & 1) {   // ★ RFC-0151 §9.4.1 — 적은 수 그대로 128 비트. 범위 밖은 자르지 않고 거절한다
+                    bool sg_ = ((d->param_w128s >> i) & 1u) != 0, ng_ = (args[i].wide & 2) != 0;
+                    if ((args[i].wide & 4) || (!sg_ && ng_) || (sg_ && !ng_ && (args[i].vhi >> 63))) {
+                        vm_diag(diags, "E-VM-CONTRACT", "a parameter's TYPE range was violated at the program boundary — the value does not fit "
+                                "the declared 128-bit type (it is refused, never clipped)");
+                        return out;
+                    }
+                    vargs[i] = vmv_w(((vm_u128)args[i].vhi << 64) | args[i].vlo);
+                } else
                 vargs[i] = vmv_w(((d->param_w128s >> i) & 1u) ? (vm_u128)(vm_i128)args[i].v : (vm_u128)(proven_u64)args[i].v);
 #endif
         }

@@ -32,6 +32,7 @@ Point arithmetic on the elliptic curve `y² = x³ − 3x + b`, and **ECDSA signa
 | `smul` | Scalar multiplication `[k]P` — for public scalars |
 | `smul_ct` | Scalar multiplication — for secret scalars, choosing by mask without branches |
 | `ecdsa_verify` | Does signature `(r, s)` match hash `e` and the public key |
+| `<op>_by` | Each op above, the same **at a chosen limb width** — a width type and its value first (`bigint32.limb. w.` · [`bigwidth`](sec88.md#mod-bigwidth)); limb arrays passed in are built at that width (`bigint32.from_bytes`). Generated from the ops above (`scripts/gen-curve-by.py`) |
 
 *Table 50.1 — Ops of `p256`*
 

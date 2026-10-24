@@ -123,9 +123,13 @@ end .
       산술 · 비교 · 비트 연산의 두 피연산자는 둘 다 128 비트이거나 둘 다 아니다. 수 리터럴은 자리의 타입을 따른다 — 64 비트를 넘는
       리터럴은 128 비트 자리에만 들어가고, 다른 자리에 오면 번역이 거부된다(`E-LIT-RANGE`, ⟦§6.1⟧).
 
-(3b-2) 128 비트 정수는 **스칼라 자리**(지역 · 입력 · 결과 · `option` · `result` 의 알맹이)에 선다. 구조체의 칸, 슬라이스 · 배열 · 뷰 ·
-      벡터 · 스택의 원소, `extern` 의 경계에 두면 번역이 거부된다(`E-INT128-PLACE`) — 그 자리의 바이트 배치와 C ABI 는 아직 정하지
-      아니하였다.
+(3b-2) 128 비트 정수는 스칼라 자리(지역 · 입력 · 결과 · `option` · `result` 의 알맹이)에 더해 구조체의 칸과 슬라이스 · 배열 · 뷰 ·
+      스택의 원소에 선다. 그 바이트 배치는 대상의 C 컴파일러가 128 비트 정수에 주는 것과 같다 — 크기 16 바이트, 정렬 16 바이트,
+      작은 끝이 먼저(`big` 을 적은 칸은 뒤집는다). 벡터(`vec` · `matrix`)의 원소와 `extern` 의 경계에 두면 번역이 거부된다
+      (`E-INT128-PLACE`) — 128 비트 정수 레인을 가진 벡터 장치가 없고, C 경계의 ABI 는 아직 열지 아니하였다.
+
+(3b-3) 명령줄로 받는 128 비트 입력은 적은 십진수 그대로다. 그 타입의 범위를 벗어나는 수(`u128` 의 음수 · 2#super[128] 이상, `i128` 의
+      ±2#super[127] 밖)는 잘라 넣지 않고 거부된다 — 진입 경계의 타입 범위 검사와 같다.
 
 ```lowent 예제: 64 비트 두 수의 곱 전체를 128 비트로
 module ex_u128 .
@@ -141,11 +145,24 @@ fn top_half input a u64 . input b u64 . output u64 . do
 end .
 ```
 
-```lowent-거부: 구조체의 칸에 128 비트 정수를 두었다 · E-INT128-PLACE
+```lowent 예제: 구조체의 칸에 128 비트 정수 — 배치는 C 와 같다
 module ex_u128_field .
 
-struct pair do
-  lo u128 .
+struct acc do
+  lo u64 .
+  big u128 .
+end .
+
+fn acc_bytes output usize . do
+  return size_of acc . .
+end .
+```
+
+```lowent-거부: C 경계에 128 비트 정수를 두었다 · E-INT128-PLACE
+module ex_u128_extern .
+
+export extern fn take input a u128 . output u64 . do
+  return 0 .
 end .
 ```
 

@@ -1686,6 +1686,7 @@ bool ir_field_boxself(const low_cst_t *fld, proven_u8str_view_t sname) {
     if (veq(w, "u32") || veq(w, "i32") || veq(w, "f32")) return 4;
     if (veq(w, "usize") || veq(w, "idiff")) return (proven_u8)(low_ir_target()->addr_bits / 8);   // RFC-0149 L5
     if (veq(w, "u64") || veq(w, "i64") || veq(w, "f64")) return 8;
+    if (veq(w, "u128") || veq(w, "i128")) return 16;   // ★ RFC-0151 §9.4.1 — C 컴파일러의 `__int128` 과 같다(크기 16 · 정렬 16)
     return 0;
 }
  bool ir_is_float_ty(proven_u8str_view_t w) { return veq(w, "f32") || veq(w, "f64"); }

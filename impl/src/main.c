@@ -1128,6 +1128,31 @@ static void print_usage(const char *argv0) {
 // ★ `--run` 의 인자 하나를 받는다 — 명령줄의 낱말이든(`--run`) 묶음 줄의 낱말이든(`--run-batch`) 같은 규칙이다.
 //   0 = 받았다 · 1 = 인자가 아니다(부른 쪽이 정한다) · 2 = 말하고 멈춘다.
 #define LOW_ARGFILE_MAX (16u * 1024u * 1024u)   // `@file` 인자 한 개의 상한 — 정적 칸이 아니라 **읽어서 잡는다**(X-0034 ⓑ)
+// ★ RFC-0151 §9.4.1 — 십진 정수를 128 비트까지 읽는다(32 비트 네 칸). 0 읽었다 · 1 128 비트를 넘는다 · 2 글자가 아니다.
+//   음수는 2 의 보수로 싣는다(크기가 2^127 을 넘으면 1). 네이티브 lw_parse128 과 같은 셈이다.
+static int low_parse128(const char *t, proven_u64 *lo, proven_u64 *hi, bool *neg) {
+    bool ng = t[0] == '-'; const char *p = t + ng; unsigned int w[4] = { 0, 0, 0, 0 }; *neg = ng;
+    if (!*p) return 2;
+    for (; *p; p++) {
+        if (*p < '0' || *p > '9') return 2;
+        unsigned long long c = (unsigned long long)(*p - '0');
+        for (int k = 0; k < 4; k++) { c += (unsigned long long)w[k] * 10u; w[k] = (unsigned int)c; c >>= 32; }
+        if (c) return 1;
+    }
+    proven_u64 l = ((proven_u64)w[1] << 32) | w[0], h = ((proven_u64)w[3] << 32) | w[2];
+    if (ng) { if (h > 0x8000000000000000ull || (h == 0x8000000000000000ull && l)) return 1; l = ~l + 1; h = ~h + (l == 0); }
+    *lo = l; *hi = h; return 0;
+}
+// 128 비트 십진(네이티브 lw_fmt16 과 같은 글자)
+static void low_print128(proven_u64 lo, proven_u64 hi, bool sgnd) {
+    bool ng = sgnd && (proven_i64)hi < 0; if (ng) { lo = ~lo + 1; hi = ~hi + (lo == 0); }
+    unsigned int w[4] = { (unsigned int)(hi >> 32), (unsigned int)hi, (unsigned int)(lo >> 32), (unsigned int)lo };
+    char t[48]; int q = 47; t[q] = 0;
+    do { unsigned long long r = 0; for (int k = 0; k < 4; k++) { unsigned long long c = (r << 32) | w[k]; w[k] = (unsigned int)(c / 10); r = c % 10; }
+         t[--q] = (char)('0' + (int)r); } while (w[0] | w[1] | w[2] | w[3]);
+    if (ng) t[--q] = '-';
+    printf("%s", t + q);
+}
 static int run_arg_take(const char *tok, const char *run_op,
                         proven_i64 *run_args, proven_size_t *nrun_args,
                         low_ir_arg_t *shaped, proven_size_t *nshaped, bool *any_bracket,
@@ -1227,8 +1252,11 @@ static int run_arg_take(const char *tok, const char *run_op,
         if (tok[0] != '-') av = (proven_i64)strtoull(tok, NULL, 10);
         else                   av = (proven_i64)strtoll(tok, NULL, 10);
         run_args[(*nrun_args)++] = av;
+        proven_u64 lo_ = 0, hi_ = 0; bool ng_ = false;
+        int pr_ = low_parse128(tok, &lo_, &hi_, &ng_);   // ★ RFC-0151 §9.4.1 — 128 비트 매개변수가 읽는다
         if ((*nshaped) < LOW_HDR_MAXP)
-            shaped[(*nshaped)++] = (low_ir_arg_t){ .is_slice = false, .v = av };
+            shaped[(*nshaped)++] = (low_ir_arg_t){ .is_slice = false, .v = av, .vlo = lo_, .vhi = hi_,
+                                                   .wide = (proven_u8)(pr_ == 2 ? 0 : 1 | (ng_ ? 2 : 0) | (pr_ == 1 ? 4 : 0)) };
         return 0;
     }
     return 1;
@@ -2565,6 +2593,8 @@ int main(int argc, char **argv) {
             //   이미 있는 부름 695 자리와 차등 훑기가 **다른 뜻**이 된다 — 실제로 한 번
             //   그렇게 갈라졌다(2026-09-19: VM 은 남는 인자를 조용히 버리고 네이티브는 거절했다).
             //   ⇒ 인자를 **덜 준 경우에만** 권한 자리를 채운다. 그러면 옛 부름은 한 글자도 안 바뀐다.
+            // ★ RFC-0151 §9.4.1 — 128 비트 매개변수를 가진 op 은 모양 있는 길로 간다(그 길의 인자가 128 비트 읽기를 싣는다)
+            if (!is_main && run_d && run_d->param_w128 && !any_bracket) any_bracket = true;
             proven_size_t given_n = any_bracket ? nshaped : nrun_args;
             bool op_caps = !is_main && run_d && run_d->param_cap && given_n < run_d->nparams;
             proven_u8str_view_t pargs[64];
@@ -2619,6 +2649,10 @@ int main(int argc, char **argv) {
                         }
                         // ★ 부호 없는 매개변수의 인자는 **부호 없이** 되비춘다(결함 노트 #19) —
                         //   값은 옳은데 메아리가 `-1` 이면 읽는 사람이 값을 의심한다.
+                        if (!shaped[i].is_slice && run_d && i < LOW_MAX_PARAMS && ((run_d->param_w128 >> i) & 1u) && (shaped[i].wide & 1)) {
+                            low_print128(shaped[i].vlo, shaped[i].vhi, ((run_d->param_w128s >> i) & 1u) != 0);   // ★ RFC-0151 §9.4.1
+                            continue;
+                        }
                         if (!shaped[i].is_slice) {
                             bool u_ = false;
                             for (proven_size_t q = 0; q < ir.ndefs && i < LOW_MAX_PARAMS; q++)

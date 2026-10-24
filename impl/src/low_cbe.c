@@ -5407,8 +5407,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 11; t++) {
-        const char *nm = t == 10 ? "lw_st_fbx"                              /* ★ RFC-0150 §8-12 스스로를 품는 칸(그림자): 가리키는 배치 + 1(0=아님) */
+    for (int t = 0; t < 12; t++) {
+        const char *nm = t == 11 ? "lw_st_fsg16"                            /* ★ RFC-0151 §9.4.1 16 바이트 칸이 부호 있는가(i128) */
+                       : t == 10 ? "lw_st_fbx"                              /* ★ RFC-0150 §8-12 스스로를 품는 칸(그림자): 가리키는 배치 + 1(0=아님) */
                        : t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
                        : t == 3 ? "lw_st_fflt" : t == 4 ? "lw_st_fsidx"   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
                        : t == 5 ? "lw_st_farrn" : t == 6 ? "lw_st_farrm"  // ★ T2b-3d ⓓ 배열 칸: 원소 수 · 원소 메타(0=배열 칸 아님)
@@ -5428,7 +5429,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 6 ? (int)ir->structs[s].f[i].arrmeta :
                         t == 7 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].slmeta : 0) :
                         t == 8 ? (int)ir->structs[s].f[i].elo : t == 9 ? (int)ir->structs[s].f[i].ehi :
-                        (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].bxs1 : 0));
+                        t == 10 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].bxs1 : 0) :
+                        (int)(ir->structs[s].f[i].size == 16 && ir->structs[s].f[i].cname.size && ir->structs[s].f[i].cname.ptr[0] == (proven_u8)'i'));
             fputs(" }", out);
         }
         fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
@@ -5491,6 +5493,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    size_t have = fv.tag == LWV_SLICE ? fv.n : fv.tag == LWV_VARRAY ? fv.n * (size_t)fv.box : 0;\n"
           "                    if (have != need) lw_panic(\"an array field takes exactly its length of elements\");\n"
           "                    memmove(base + lw_st_foff[sidx][fi], fv.p, need); break; }\n"
+          "                if (lw_st_fsize[sidx][fi] == 16) { lw_put16(base + lw_st_foff[sidx][fi], rr->f[q], lw_st_fbe[sidx][fi]); break; }   /* RFC-0151 §9.4.1 */\n"
           "                unsigned long long x = (rr->f[q].tag == LWV_FLT)\n"
           "                    ? lw_f2b(lw_b2f((unsigned long long)rr->f[q].i, 8), lw_st_fsize[sidx][fi])\n"
           "                    : (unsigned long long)rr->f[q].i;\n"
@@ -5536,6 +5539,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                if (lw_st_fsidx[r.box][i] >= 0) { lowv v = {0}; v.tag = LWV_VIEW;\n"
           "                    v.p = r.p + lw_st_foff[r.box][i]; v.n = (size_t)lw_st_fsize[r.box][i];\n"
           "                    v.box = lw_st_fsidx[r.box][i]; return v; }\n"
+          "                if (lw_st_fsize[r.box][i] == 16) return lw_get16(r.p + lw_st_foff[r.box][i], lw_st_fbe[r.box][i]);   /* RFC-0151 §9.4.1 */\n"
           "                return lw_st_fflt[r.box][i] ? lw_flt(lw_b2f(lw_vread(r, i), lw_st_fsize[r.box][i]))\n"
           "                                            : lw_int((long long)lw_vread(r, i));\n"
           "            }\n"
@@ -5572,6 +5576,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    if (v.tag != LWV_SLICE && v.tag != LWV_VARRAY) lw_panic(\"a slice field takes a slice\");\n"
           "                    const unsigned char *pp_ = v.p; unsigned long long pn_ = (unsigned long long)v.n;\n"
           "                    memcpy((void *)p, &pp_, sizeof pp_); memcpy((void *)(p + LW_PTRSLOT), &pn_, 8); return; }\n"
+          "                if (lw_st_fsize[r.box][i] == 16) { lw_put16(p, v, lw_st_fbe[r.box][i]); return; }   /* RFC-0151 §9.4.1 */\n"
           "                unsigned long long x = lw_en_tonum_r(lw_st_felo[r.box][i], lw_st_fehi[r.box][i], (unsigned long long)v.i);\n"
           "                int sz = lw_st_fsize[r.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 저장 — 바이트 네 번은 한 번과 다른 일이다. */
@@ -5652,6 +5657,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    src = v.p + lw_st_foff[v.box][j]; }\n"
           "            if (!src) lw_panic(\"encode: value lacks an array field of that length\");\n"
           "            memmove(ob + lw_st_foff[s][i], src, need); continue; }\n"
+          "        if (lw_st_fsize[s][i] == 16) { lowv w_ = {0}; int g_ = 0;   /* RFC-0151 §9.4.1 — 16 바이트 칸 */\n"
+          "            if (v.tag == LWV_REC) { lowrec *rr = &lw_recs[v.box];\n"
+          "                for (int j = 0; j < rr->nf && !g_; j++) if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) { w_ = rr->f[j]; g_ = 1; } }\n"
+          "            else if (v.tag == LWV_VIEW) { for (int j = 0; j < lw_st_nf[v.box] && !g_; j++)\n"
+          "                if (strcmp(lw_st_fname[v.box][j], lw_st_fname[s][i]) == 0 && lw_st_fsize[v.box][j] == 16) { w_ = lw_get16(v.p + lw_st_foff[v.box][j], lw_st_fbe[v.box][j]); g_ = 1; } }\n"
+          "            if (!g_) lw_panic(\"encode: value lacks a 16-byte layout field\");\n"
+          "            lw_put16(ob + lw_st_foff[s][i], w_, lw_st_fbe[s][i]); continue; }\n"
           "        if (v.tag == LWV_REC) {\n"
           "            lowrec *rr = &lw_recs[v.box];\n"
           "            for (int j = 0; j < rr->nf && !found; j++)\n"

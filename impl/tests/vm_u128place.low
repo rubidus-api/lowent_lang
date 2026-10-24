@@ -1,0 +1,99 @@
+rem RFC-0151 §8-6 · §9.4.1 (소유자 2026-10-24) — 128 비트 정수가 칸 · 원소 자리에도 선다. 배치는 C 컴파일러를 따른다
+rem (크기 16 · 정렬 16 · 작은 끝이 먼저). 입력은 64 비트로 받아 안에서 넓힌다 — 차등 스윕이 VM 과 네이티브를 맞댄다.
+module vm_u128place .
+
+type frame u64 .
+
+struct acc do
+  lo u64 .
+  big u128 .
+  tag u8 .
+end .
+
+rem 레코드의 칸 — 짓고 · 읽고 · 고쳐 쓴다
+fn rec_field input a u64 . input b u64 . output u128 . do
+  var r lit acc do lo a. . big mul widen u128 a. . widen u128 b. . . . tag 1 . end . .
+  set field r. big . add field r. big . widen u128 b. . . .
+  return field r. big . .
+end .
+
+rem 배치는 C 와 같다: lo 0 · big 16 · tag 32 · 크기 48
+fn acc_size output u64 . do
+  return cast u64 size_of acc . . .
+end .
+
+rem 배열의 원소
+fn arr_sum input a u64 . output u128 . do
+  var xs lit array u128 4 _ . .
+  var i usize 0 .
+  while lt i. 4 . do
+    set idx xs. i. . mul widen u128 a. . widen u128 add cast u64 i. . 1 . . . .
+    set i. add i. 1 . .
+  end .
+  var s u128 0 .
+  for x xs. do
+    set s. add s. x. . .
+  end .
+  return s. .
+end .
+
+rem 바이트 위의 뷰 — 작은 끝이 먼저
+proc view_rt input a u64 . output u64 . effects none . do
+  var buf lit array u8 32 _ . .
+  var w mut slice u128 view_array u128 buf. . .
+  set idx w. 1 . shl widen u128 a. . 64 . .
+  return add mul cast u64 idx buf. 24 . . 1000 . cast u64 idx buf. 16 . . . .
+end .
+
+rem 바이트 위의 구조체 뷰 — 16 바이트 칸을 읽고 쓴다. 칸의 자리는 C 와 같다(big 은 16 째 바이트부터)
+fn view_acc input a u64 . output u64 . do
+  var buf lit array u8 48 _ . .
+  let v mut view acc view acc buf. . .
+  set field v. big . add shl widen u128 a. . 64 . widen u128 7 . . .
+  let back u128 field v. big . .
+  return add mul cast u64 idx buf. 24 . . 1000 . add cast u64 idx buf. 16 . . cast u64 shr back. 64 . . . . .
+end .
+
+rem 칸에 128 비트 값을 가진 구조체의 배열 — 원소는 뷰다
+fn rows input a u64 . output u128 . do
+  var rs lit array acc 3 _ . .
+  var i usize 0 .
+  while lt i. 3 . do
+    set idx rs. i. . lit acc do lo cast u64 i. . . big mul widen u128 a. . widen u128 add cast u64 i. . 1 . . . . tag 2 . end . .
+    set i. add i. 1 . .
+  end .
+  var s u128 0 .
+  for r rs. do
+    set s. add s. field r. big . . .
+  end .
+  return s. .
+end .
+
+rem encode — 레코드를 배치대로 바이트로
+fn enc input a u64 . output u64 . do
+  let r lit acc do lo 1 . big shl widen u128 a. . 70 . . tag 9 . end . .
+  let b slice u8 encode acc r. . .
+  return add mul cast u64 idx b. 24 . . 1000 . cast u64 idx b. 32 . . . .
+end .
+
+rem 스택의 원소
+proc stk input temp region frame . input a u64 . output u128 . effects alloc . do
+  let s stack u128 stack_new temp capacity 4 . .
+  push s. widen u128 a. . .
+  push s. shl widen u128 a. . 64 . .
+  var v u128 0 .
+  var t u128 0 .
+  while pop s. into v. . do
+    set t. add t. v. . .
+  end .
+  return t. .
+end .
+
+rem 슬라이스 입력 — 명령줄의 [a,b,c] 를 원소로 받는다
+fn total input xs slice u128 . output u128 . do
+  var s u128 0 .
+  for x xs. do
+    set s. add s. x. . .
+  end .
+  return s. .
+end .

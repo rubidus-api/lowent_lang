@@ -22,18 +22,18 @@ The op names, inputs and meanings are the same as [`bigint32`](sec90.md#mod-bigi
 | `win64` | 64 | 64 | measured (2026-10-23, a Windows 11 virtual machine · x86-64: 64-bit 5.7 ms · 32-bit 12.7 ms · 16-bit 22.5 ms) |
 | `arm64` · `riscv64` | 64 | 64 | multiplier width (not measured) |
 | `cortex_m` · `mips_be` · `cheriot` | 32 | 32 | multiplier width (not measured) |
-| `cortex_m0` | 16 | 16 | multiplier width — Cortex-M0 · M0+ are known to give only the lower 32 bits of a 32×32 product (not checked) |
+| `cortex_m0` | 16 | 16 | multiplier width — Cortex-M0 · M0+ are known to give only the lower 32 bits of a 32×32 product; `bigint16` multiplies limbs in 32 bits, so its Montgomery product uses that hardware multiply (checked in the code `arm-none-eabi-gcc -mcpu=cortex-m0` emits, not timed) |
 | `word16` | 16 | 16 | multiplier width (a translate-only target) |
 
 *Table 50.1 — The limb width of each target — the value of `machine.limb_bits` and where it comes from*
 
-**To change the width for the whole program**, `lowentc --limb-bits 16 …` (or `32` · `64`) — the value of `machine.limb_bits` changes, and every library that uses `bigint` runs at that width (the multiplier width is a fact of the machine and does not change). **To use another width in one place only**, pass a width type to an op that takes one (`rsa.verify_pss_by` …; see [`bigwidth`](sec88.md#mod-bigwidth)).
+**To change the width for the whole program**, write `build limb_bits 32 .` (or `16` · `64`) in the project’s `pkg.low`, or pass `lowentc --limb-bits 32 …` — the value of `machine.limb_bits` changes, and every library that uses `bigint` runs at that width (the multiplier width is a fact of the machine and does not change). The command line wins over the manifest, and only the top-level package’s manifest is read: a dependency does not change the width of the program that uses it. **To use another width in one place only**, pass a width type to an op that takes one (`rsa.verify_pss_by` …; see [`bigwidth`](sec88.md#mod-bigwidth)).
 
 > **The limb width is a speed default**
 >
 > > Every width gives **the same answer** on every machine — values sit in `u64` slots anyway. So if a width causes trouble on some target, falling back to another width (the shared arithmetic) is enough. A measurement can also disagree with the multiplier width: an x86 32-bit build (`-m32`) has a 32-bit multiplier, yet `bigint64` was 1.35 times faster than `bigint32` there (RSA-2048 exponentiation, 2026-10-22). There is no target row for 32-bit x86, so that number is not in the table.
 
-The width is fixed **at translation**, so choosing costs nothing — the value goes into the emitted C as a literal and `cc` folds the comparison. The slots a number needs do not depend on the width: ⌈`nb` / 2⌉ + 2 slots are enough (`bigint16` uses the most).
+The width is fixed **at translation**, so choosing costs nothing — the compiler folds the comparison and a call to `bigint.mont_mul` goes straight to the chosen module’s op (an op whose body only passes its inputs on to another op of the same signature is called through). The slots a number needs do not depend on the width: ⌈`nb` / 2⌉ + 2 slots are enough (`bigint16` uses the most).
 
 | **op** | **What it does** | **Requires · notes** |
 |---|---|---|

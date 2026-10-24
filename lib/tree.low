@@ -20,7 +20,8 @@ rem ★ 힙이 없는 기계에서도 돈다(소유자 2026-10-23 «힙이 없�
 rem   얼로케이터는 있는 검사(`E-HEAP-NOHOST`)가 막는다. `allocs.fixed_bytes` 로도, 낱낱이 돌려주는 얼로케이터로도 된다.
 rem   돌려주지 못하는 얼로케이터(`fixed_bytes` · `heap_bytes`)는 `drop … use` 뒤에도 바이트를 든 채 둔다.
 rem
-rem ☞ 안 지은 것(정직히): **빌려 읽기** — `ref node` 에서는 자식을 꺼낼 수 없어서(E-OWN-NODE-REF) 읽기도 머리를
+rem ☞ 안 지은 것(정직히): **머리를 버리는 것** — `tr_close` 없이 머리(`head`)를 버리면 마디가 모두 새고, 처리기는 아직 그것을
+rem   말하지 않는다(거절은 마디에만 선다). 머리를 쓴 op 은 끝에 `tr_close` 를 부른다. **빌려 읽기** — `ref node` 에서는 자식을 꺼낼 수 없어서(E-OWN-NODE-REF) 읽기도 머리를
 rem   `mut` 로 받아 자식을 꺼냈다 되돌려 놓는다(`tr_get`). 지우기(한 키) · 순회는 아직 없다.
 
 module tree .

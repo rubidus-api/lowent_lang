@@ -162,6 +162,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-VEC-QUAL",            "R-DROP-QUALIFIER" },
     { "E-BOUND-UNSAT",         "R-SATISFY-BOUND" },
     { "E-ATOMIC-ORDER",        "R-USE-KNOWN-ORDER" },
+    // ★ RFC-0150 재검토 §8-41 (2026-10-25) — 고침은 하나뿐이다: 이름 없는 구조체 값을 먼저 이름에 묶고 그 칸을 본다.
+    { "E-VIEW-TEMP",           "R-NAME-THE-VALUE" },
     { "E-ACCESS-MODE",         "R-DECLARE-WRITE-ACCESS" },
 
     // 소유 · 차용
@@ -439,6 +441,7 @@ static const low_repair_row_t REPAIR[] = {
 // ── **수리가 없다** — 그리고 왜 없는지 (게이트가 이 목록도 읽는다) ──────────────
 // ☞ 이 목록에 있는 것은 *"아직 안 적었다"* 가 아니라 *"코드만으로는 정할 수 없다"* 이다.
 static const low_repair_row_t NOREPAIR[] = {
+    { "E-ATOMIC-TARGET",    "더 좁은 원소로 바꿀지 · 잠금을 쓸지 · 대상을 바꿀지는 프로그램의 뜻이라 기계로 고칠 수 없다(RFC-0054 §8-8)" },
     { "E-INT128-TARGET",    "대상을 바꿀지 · 수를 `u64` 둘로 나를지는 프로그램의 뜻이라 기계로 고칠 수 없다(RFC-0151)" },
     { "E-INT128-PLACE",     "그 칸 · 원소를 두 `u64` 로 나눌지 · 구조를 바꿀지는 프로그램의 뜻이라 기계로 고칠 수 없다(RFC-0151 §9.4)" },
     { "W-POOL-LOOP",        "고칠 자리는 반복을 참조가 없는 op 으로 옮기는 것인데, 어디서 자를지는 저자의 뜻이라 기계로 한 가지가 정해지지 않는다(RFC-0150 §8-11)" },

@@ -3826,7 +3826,7 @@ int main(void) {
         }
         const low_target_t *a = low_ir_target_named("atmega328p");
         check(a && a->addr_bits == 16 && a->ptr_bytes == 2 && a->ptr_align == 1 && a->mul_bits == 8 && a->no_heap && a->no_float &&
-              !a->posix && !a->int128 && a->check_only && a->max_slice_len == (proven_i64)1 << 15, "target tree: atmega328p = avr (16-bit · align 1 · mul 8) + check only");
+              !a->posix && !a->int128 && !a->check_only && a->max_slice_len == (proven_i64)1 << 15, "target tree: atmega328p = avr (16-bit · align 1 · mul 8), emitted and run");
         check(!low_ir_target_named("avr") && !low_ir_target_named("riscv32") && !low_ir_target_named("lowent") &&
               low_ir_target_is_group("avr") && !low_ir_target_is_group("x86_64"), "target tree: group nodes are not targets");
         check(low_ir_set_target("atmega328p") && low_ir_limb_bits() == 16, "target tree: an 8-bit multiplier still gives 16-bit limbs");

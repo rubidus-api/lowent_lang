@@ -330,8 +330,9 @@ static const ir_tnode_t IR_TREE[] = {
     //   정렬 1 · 곱셈 명령은 8×8→16(`mul`). 잰 값: clang `-mmcu=atmega328p` 의 `__SIZEOF_POINTER__` 2 · `__BIGGEST_ALIGNMENT__` 1 ·
     //   `__AVR_HAVE_MUL__` 1 (2026-10-25). 조각 폭은 곱셈기보다 좁을 수 없다 — 16 이다(`low_ir_limb_bits`).
     { "avr",       "lowent",   false, "word=16 env=bare align=1 cache=1 mul=8" },
-    //   ATmega328P(Arduino Uno · Nano). avr-gcc 로 짓고 QEMU 로 돌려 VM 과 맞대기 전까지는 **번역까지만** 선다(word16 과 같은 까닭).
-    { "atmega328p","avr",      true,  "check=1" },
+    //   ATmega328P(Arduino Uno · Nano). 내고 돌린다 — 2026-10-25 avr-gcc 16.2 로 짓고 qemu-system-avr `uno` 에서 돌린 답이 VM 과 같았다
+    //   (`scripts/avr-build.py` · `archdev.sh avr`, RFC-0054 §8-7 A2 · A3). 그 전에는 word16 처럼 번역까지만이었다.
+    { "atmega328p","avr",      true,  "" },
     // ★★ RFC-0149 §6.14 — **16 비트 주소: 번역까지만** (2026-10-13, 소유자 결정 «가»). 실제 기계의 이름이 아니다 — `usize` · `idiff` 가
     //   16 비트일 때 같은 글이 서는지를 재는 자리다(`scripts/check-size-width.py`). 힙 · 부동 · POSIX 가 없는 프리스탠딩 칸이고,
     //   슬라이스 길이의 상한은 2^15 다. `check` 가 참이라 방출 · 실행은 거절된다.

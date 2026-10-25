@@ -1100,7 +1100,7 @@ static void print_usage(const char *argv0) {
         "    --lock FILE          의존을 **내용 해시**로 고정한다. 바이트가 바뀌면 거절 (RFC-0032)\n"
         "    --lock-write         지금 무엇을 상대로 빌드하는지 락파일로 찍는다 (매니페스트 옆 pkg.lock 에도)\n"
         "    --pkg FILE           pkg.low 매니페스트 위치를 명시한다 (기본: 첫 파일 dir 에서 위로 찾는다)\n"
-        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | atmega328p · word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
+        "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | atmega328p | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
         "    --targets            대상 나무와 마디마다 펼친 값을 낸다(RFC-0054 §8-6)\n"
         "    --limb-bits N        큰 수 조각 폭 16 | 32 | 64 — 대상의 값과 pkg.low 의 `build limb_bits` 를 덮는다(machine.limb_bits · 큰 수 모듈 bigint, RFC-0152)\n"
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"

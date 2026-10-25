@@ -4552,6 +4552,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
             d->code = (low_ir_ins_t *)(void *)c.code.data;
             d->ncode = c.code.len;
             d->nlocals = c.nlocals;
+            for (proven_size_t q = 0; q < c.nlocals && q < sizeof d->loc_meta / sizeof d->loc_meta[0]; q++) {   // ★ RFC-0054 §8-9 — C 원형의 인자 폭
+                const ityp_t t = c.locals[q].ty;
+                d->loc_meta[q] = (t.known && !t.flt && (t.bits == 8 || t.bits == 16 || t.bits == 32))
+                               ? (proven_u16)(IR_TY_KNOWN | (t.sign ? IR_TY_SIGNED : 0) | t.bits) : 0;
+            }
             d->lowered = true;
             continue;
         }

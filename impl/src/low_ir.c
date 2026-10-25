@@ -304,7 +304,7 @@ typedef struct {
     const char *axes;     // 이 마디가 바꾸는 축 값만
 } ir_tnode_t;
 static const ir_tnode_t IR_TREE[] = {
-    { "lowent",    NULL,       false, "word=64 env=hosted be=0 caps=0 simd=0 cache=64 check=0 limb=0" },
+    { "lowent",    NULL,       false, "word=64 env=hosted be=0 caps=0 simd=0 cache=64 check=0 limb=0 atomld=8 atom=8" },
     { "x86_64",    "lowent",   true,  "simd=16 limb=64" },   // SSE2 baseline = 128-bit · 조각 64 = 잰 값(RFC-0152 §9.5)
     { "arm64",     "lowent",   true,  "simd=16" },           // NEON mandatory (ARMv8) = 128-bit
     { "riscv64",   "lowent",   true,  "" },                  // baseline: 벡터(RVV) 는 opt-in ext → 없음
@@ -317,10 +317,10 @@ static const ir_tnode_t IR_TREE[] = {
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
     { "win64",     "lowent",   true,  "simd=16 posix=0 limb=64" },   // 조각 64 = 잰 값(2026-10-23 · Windows 11 VM · RFC-0152 §9.8)
     { "mips_be",   "lowent",   true,  "word=32 be=1 cache=32" },     // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
-    { "cortex_m",  "lowent",   true,  "word=32 env=bare cache=4" },  // freestanding: no_heap · no_float · SIMD 없음
+    { "cortex_m",  "lowent",   true,  "word=32 env=bare cache=4 atomld=4 atom=4" },   // ★ RFC-0054 §8-8 — LDREX/STREX 는 4 바이트까지(8 은 libatomic 이 없어 링크가 멈췄다)  // freestanding: no_heap · no_float · SIMD 없음
     // RFC-0152 (2026-10-23, 소유자 «Cortex M0을 위한 줄을 따로 둡시다») — `cortex_m` 과 같고 곱셈기만 다르다: M0 · M0+ 는 32×32 곱의
     //   아래 32 비트만 낸다고 알려져 있어(확인하지 않았다) 위 절반까지 한 번에 나오는 곱은 16×16 이다. 재지 않은 대상이라 조각 폭도 곱셈기 폭(16).
-    { "cortex_m0", "cortex_m", true,  "mul=16" },
+    { "cortex_m0", "cortex_m", true,  "mul=16 atom=0" },   // ★ ARMv6-M 은 읽고-쓰기 원자 명령이 없다(잰 값: 1 · 2 · 4 · 8 바이트 모두 __atomic_* 부름)
     { "riscv32",   "lowent",   false, "word=32" },   // 묶음 — 일반 줄 · ESP32 줄은 아직 없다(RFC-0054 §8-6, 쓸 칩 작업이 생길 때)
     // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
@@ -377,6 +377,8 @@ static bool ir_axis(low_target_t *t, const char *k, size_t kn, const char *v) {
     if (K("ptr"))    { if (n < 1 || n > 16) return false; t->ptr_bytes = (proven_u8)n; return true; }
     if (K("align"))  { if (n < 1 || n > 16) return false; t->ptr_align = (proven_u8)n; return true; }
     if (K("mul"))    { if (n != 8 && n != 16 && n != 32 && n != 64) return false; t->mul_bits = (proven_u8)n; return true; }   // 정본 §5.3 (4c)
+    if (K("atomld")) { if (n != 0 && n != 1 && n != 2 && n != 4 && n != 8) return false; t->atom_ldst = (proven_u8)n; return true; }
+    if (K("atom"))   { if (n != 0 && n != 1 && n != 2 && n != 4 && n != 8) return false; t->atom_rmw = (proven_u8)n; return true; }
     if (K("limb"))   { if (n != 0 && n != 16 && n != 32 && n != 64) return false; t->limb_bits = (proven_u8)n; return true; }
     if (K("simd"))   { if (n < 0 || n > 64) return false; t->simd_bytes = (proven_u8)n; return true; }
     if (K("slice"))  { if (n < 1) return false; t->max_slice_len = n; return true; }
@@ -462,17 +464,17 @@ static bool ir_tgt_under(const char *node) {
 void low_ir_print_targets(FILE *f) {
     ir_tres_fill();
     fputs("tree\tname\tparent\tpick\taddr_bits\tptr_bytes\tptr_align\tptr_caps\tbig_endian\thas_fpu\tno_heap\tno_float\tsimd_bytes\t"
-          "posix\tmax_slice_len\tcache_line\tpage_size\tcheck_only\tint128\tmul_bits\tlimb_bits\taxes\n", f);
+          "posix\tmax_slice_len\tcache_line\tpage_size\tcheck_only\tint128\tmul_bits\tlimb_bits\taxes\tatom_ldst\tatom_rmw\n", f);
     for (proven_size_t i = 0; i < IR_NTREE; i++) {
         int depth = 0;
         for (proven_size_t j = i; IR_TREE[j].parent; j = ir_tnode_find(IR_TREE[j].parent)) depth++;
         const low_target_t *t = &ir_tres[i];
         const unsigned limb = t->limb_bits ? t->limb_bits : t->mul_bits < 16 ? 16u : t->mul_bits;
-        fprintf(f, "%*s%s\t%s\t%s\t%d\t%u\t%u\t%u\t%d\t%d\t%d\t%d\t%d\t%u\t%d\t%lld\t%u\t%u\t%d\t%d\t%u\t%u\t%s\n",
+        fprintf(f, "%*s%s\t%s\t%s\t%d\t%u\t%u\t%u\t%d\t%d\t%d\t%d\t%d\t%u\t%d\t%lld\t%u\t%u\t%d\t%d\t%u\t%u\t%s\t%u\t%u\n",
                 depth * 2, "", IR_TREE[i].pick ? IR_TREE[i].name : "·", IR_TREE[i].name, IR_TREE[i].parent ? IR_TREE[i].parent : "-",
                 IR_TREE[i].pick, t->addr_bits, t->ptr_bytes, t->ptr_align, t->ptr_caps, t->big_endian, t->has_fpu, t->no_heap,
                 t->no_float, t->simd_bytes, t->posix, (long long)t->max_slice_len, t->cache_line, t->page_size, t->check_only,
-                t->int128, t->mul_bits, limb, IR_TREE[i].axes);
+                t->int128, t->mul_bits, limb, IR_TREE[i].axes, t->atom_ldst, t->atom_rmw);
     }
 }
  bool g_smt_on = true;

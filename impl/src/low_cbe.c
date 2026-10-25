@@ -4703,8 +4703,18 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
 //
 //   ★ 타입 사상은 **좁고 정직하다**: 정수 · f64 · `slice u8` → **포인터 + 길이**(인자 둘).
 //     C 에는 슬라이스가 없다. **없는 것을 있는 척하지 않는다.**
+// ★★ RFC-0054 §8-9 (2026-10-25 소유자 «다 추천대로») — **정수 인자도 선언 폭으로**(돌려주는 값과 같은 규율). 전엔 늘 `long long` 이라
+//   `uint8_t` · `int` 를 받는 C 함수와 원형이 어긋났다 — x86-64 에서는 레지스터의 아래 절반이 우연히 맞고, AVR 에서는 자리가 틀린다.
+//   8 · 16 · 32 비트 정수만 좁힌다(지역의 선언 폭 loc_meta — 매개변수는 첫 지역들이다). 64 비트 · bool · 열거는 그대로다.
 static const char *cbe_ctype(const low_ir_def_t *d, proven_size_t q) {
     if ((d->param_flt >> q) & 1u) return "double";
+    const proven_u16 m = q < sizeof d->loc_meta / sizeof d->loc_meta[0] ? d->loc_meta[q] : 0;
+    if (m & IR_TY_KNOWN) {
+        const bool sg = (m & IR_TY_SIGNED) != 0; const unsigned b = m & 0xff;
+        if (b == 8)  return sg ? "int8_t" : "uint8_t";
+        if (b == 16) return sg ? "int16_t" : "uint16_t";
+        if (b == 32) return sg ? "int32_t" : "uint32_t";
+    }
     return "long long";
 }
 
@@ -4811,8 +4821,8 @@ static void cbe_put_export_sig(FILE *out, const low_ir_def_t *d, const low_ir_pl
         } else if ((d->param_struct >> q) & 1u) {
             if (named) fprintf(out, "%sstruct lw_sty_%u s%zu", sep, (unsigned)d->param_sidx[q], (size_t)q);
             else fprintf(out, "%sstruct lw_sty_%u", sep, (unsigned)d->param_sidx[q]);
-        } else {
-            if (named) fprintf(out, "%slong long x%zu", sep, (size_t)q); else fprintf(out, "%slong long", sep);
+        } else {   // ★ RFC-0054 §8-9 — 선언 폭(cbe_ctype)
+            if (named) fprintf(out, "%s%s x%zu", sep, cbe_ctype(d, q), (size_t)q); else fprintf(out, "%s%s", sep, cbe_ctype(d, q));
         }
     }
     if (!n) fputs("void", out);

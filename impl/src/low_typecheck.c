@@ -623,6 +623,8 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
     }
     return TC_OK;
 }
+#include <stdarg.h>
+#include <stdio.h>
 static void tc_emit(tc_ctx_t *c, const char *code, const char *msg, proven_u32 line) {
     if (c->quiet) return;   // ★ 묻기만 하는 추론 중 — 위 tc_ctx_t.quiet 주석 참조
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
@@ -631,8 +633,6 @@ static void tc_emit(tc_ctx_t *c, const char *code, const char *msg, proven_u32 l
     *c->ok = false;
 }
 // ★★★ 2026-09-14 — **이름·타입을 대는 오류.** 문장은 그 진단의 `detail` 에 짓고 `msg` 는 NULL(렌더러는 low_diag_text).
-#include <stdarg.h>
-#include <stdio.h>
 static void tc_emitf(tc_ctx_t *c, const char *code, proven_u32 line, const char *fmt, ...) {
     if (c->quiet) return;
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = NULL, .line = line, .col = 0,
@@ -1549,6 +1549,21 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
                 return tk_int(0, false);
+            }
+            // ★ RFC-0054 §8-8 (2026-10-25 소유자 «다 추천대로») — 그 기계가 잠금 없이 못 하는 폭의 원자 연산은 번역 때 거절한다.
+            //   전엔 Cortex-M 에서 링크가 이름 없는 `__atomic_*` 기호로 멈췄다(베어메탈에는 원자 라이브러리가 없다). 같은 사실을 까닭과 함께 먼저 말한다.
+            if (!sig_find(c, h2) && n >= 3 && (veq(h2, "atomic_load") || veq(h2, "atomic_store") || veq(h2, "atomic_cas") || veq(h2, "atomic_swap") ||
+                                               veq(h2, "atomic_add") || veq(h2, "atomic_sub") || veq(h2, "atomic_and") || veq(h2, "atomic_or") || veq(h2, "atomic_xor"))) {
+                ty_t sq0 = tc_infer(c, k[start + 1], env, nenv);
+                const bool rmw = !(veq(h2, "atomic_load") || veq(h2, "atomic_store"));
+                const unsigned lim = rmw ? low_ir_target()->atom_rmw : low_ir_target()->atom_ldst;
+                if (sq0.k == TK_SLICE && sq0.ebits && sq0.ebits / 8u > lim) {
+                    tc_emitf(c, "E-ATOMIC-TARGET", k[start]->tok.line,   // ★ detail 에 베낀다(msg 가 지역 칸을 가리키면 뒤에 깨진다)
+                             "this machine (`%s`) does a %s atomic only up to %u bytes without a lock, and this element is %u bytes — "
+                             "there is no atomic library to call on it, so the build would stop at the link. Use a narrower element, or a lock",
+                             low_ir_target()->name, rmw ? "read-modify-write" : "load or store", lim, (unsigned)(sq0.ebits / 8u));
+                }
+                if (veq(h2, "atomic_store")) { for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv); return tk(TK_UNKNOWN); }
             }
             // ★ `atomic_load s i …` — 읽은 값의 타입은 그 슬라이스의 원소다(전에는 «모름»).
             // ★ RFC-0148 S4 (2026-10-14 소유자 «둘 다 피연산자 타입») — 값을 내는 원자 연산(`atomic_cas` · `atomic_swap` · `atomic_add` …)의 결과도

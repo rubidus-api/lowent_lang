@@ -985,8 +985,8 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
     if (!act_lbuf(top, d) || !act_win(top, d)) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals"); act_free(top); { VM_CHAIN_LEAVE(); return false; } }
     // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산(네이티브와 같은 수 · 같은 문구)
     long sb_entry = vm->sbytes;
-    #define VM_SB_FAIL() do { vm_diag(vm->diags, "E-VM-STACK-BUDGET", "the list literals living on this call chain need more than the stack budget " \
-                                      "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator"); } while (0)
+    #define VM_SB_FAIL() do { vm_diag(vm->diags, "E-VM-STACK-BUDGET", "the list literals and struct values living on this call chain need more than the stack budget " \
+                                      "(RFC-0135 · RFC-0132 P4e) — keep a recursion with local lists or structs shallow, or take them from an allocator"); } while (0)
     top->sb_saved = vm->sbytes;
     if ((d->lbuf_size || d->wbytes) && (vm->sbytes += (long)(d->lbuf_size + d->wbytes)) > vm->sbudget) {   // ★ P4e — 틀 창의 몫도(네이티브와 같은 수)
         VM_SB_FAIL(); vm->sbytes = sb_entry; slot_free(s0); act_free(top); { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; } }

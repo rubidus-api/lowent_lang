@@ -1,0 +1,63 @@
+rem ★★★ **구조체 값은 그 op 의 틀에 산다** (RFC-0132 P4e · RFC-0135 S4, 2026-10-25).
+rem   `deep3` — 재귀 120 단 × 틀마다 산 구조체 40 = 4,800 값. 풀(4,096)에 살던 때는 VM · 네이티브 태그 경로 모두 멈췄다. 답 93600.
+rem   `deep2` — 재귀 × 구조체 하나. 운영체제 없는 기계의 풀(64)로 지은 태그 경로가 100 단을 끝낸다. 답 101.
+rem   `deep3` 은 지역이 32 를 넘어 빠른 길로 못 내려간다 — 태그 경로를 재는 것이 이 글의 일이다.
+module vm_framerec .
+struct pt do
+  x u64 .
+  y u64 .
+end .
+fn deep2 input n u64 . output u64 .
+  requires le n. 120 . .
+do
+  let p pt lit pt do x n. . y 1 . end . .
+  guard gt n. 0 . else return field p. y . . .
+  return add field p. y . deep2 sub n. 1 . . . .
+end .
+fn deep3 input n u64 . output u64 .
+  requires le n. 120 . .
+do
+  let p0 pt lit pt do x n. . y 0 . end . .
+  let p1 pt lit pt do x n. . y 1 . end . .
+  let p2 pt lit pt do x n. . y 2 . end . .
+  let p3 pt lit pt do x n. . y 3 . end . .
+  let p4 pt lit pt do x n. . y 4 . end . .
+  let p5 pt lit pt do x n. . y 5 . end . .
+  let p6 pt lit pt do x n. . y 6 . end . .
+  let p7 pt lit pt do x n. . y 7 . end . .
+  let p8 pt lit pt do x n. . y 8 . end . .
+  let p9 pt lit pt do x n. . y 9 . end . .
+  let p10 pt lit pt do x n. . y 10 . end . .
+  let p11 pt lit pt do x n. . y 11 . end . .
+  let p12 pt lit pt do x n. . y 12 . end . .
+  let p13 pt lit pt do x n. . y 13 . end . .
+  let p14 pt lit pt do x n. . y 14 . end . .
+  let p15 pt lit pt do x n. . y 15 . end . .
+  let p16 pt lit pt do x n. . y 16 . end . .
+  let p17 pt lit pt do x n. . y 17 . end . .
+  let p18 pt lit pt do x n. . y 18 . end . .
+  let p19 pt lit pt do x n. . y 19 . end . .
+  let p20 pt lit pt do x n. . y 20 . end . .
+  let p21 pt lit pt do x n. . y 21 . end . .
+  let p22 pt lit pt do x n. . y 22 . end . .
+  let p23 pt lit pt do x n. . y 23 . end . .
+  let p24 pt lit pt do x n. . y 24 . end . .
+  let p25 pt lit pt do x n. . y 25 . end . .
+  let p26 pt lit pt do x n. . y 26 . end . .
+  let p27 pt lit pt do x n. . y 27 . end . .
+  let p28 pt lit pt do x n. . y 28 . end . .
+  let p29 pt lit pt do x n. . y 29 . end . .
+  let p30 pt lit pt do x n. . y 30 . end . .
+  let p31 pt lit pt do x n. . y 31 . end . .
+  let p32 pt lit pt do x n. . y 32 . end . .
+  let p33 pt lit pt do x n. . y 33 . end . .
+  let p34 pt lit pt do x n. . y 34 . end . .
+  let p35 pt lit pt do x n. . y 35 . end . .
+  let p36 pt lit pt do x n. . y 36 . end . .
+  let p37 pt lit pt do x n. . y 37 . end . .
+  let p38 pt lit pt do x n. . y 38 . end . .
+  let p39 pt lit pt do x n. . y 39 . end . .
+  guard gt n. 0 . else return 0 . .
+  let r u64 deep3 sub n. 1 . . .
+  return add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add r. field p0. y . . field p1. y . . field p2. y . . field p3. y . . field p4. y . . field p5. y . . field p6. y . . field p7. y . . field p8. y . . field p9. y . . field p10. y . . field p11. y . . field p12. y . . field p13. y . . field p14. y . . field p15. y . . field p16. y . . field p17. y . . field p18. y . . field p19. y . . field p20. y . . field p21. y . . field p22. y . . field p23. y . . field p24. y . . field p25. y . . field p26. y . . field p27. y . . field p28. y . . field p29. y . . field p30. y . . field p31. y . . field p32. y . . field p33. y . . field p34. y . . field p35. y . . field p36. y . . field p37. y . . field p38. y . . field p39. y . . .
+end .

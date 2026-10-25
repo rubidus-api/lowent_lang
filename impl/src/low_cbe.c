@@ -6347,8 +6347,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             if (d->lbuf_size) fprintf(out, "    unsigned char lw_lb[%zu] __attribute__((aligned(16)));\n", (size_t)d->lbuf_size);
             // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산. 반환하면 cleanup 이 되돌린다(VM 은 같은 수로 센다).
             fprintf(out, "    long lw_sbg_ __attribute__((cleanup(lw_sb_restore))) = lw_sbytes;\n"
-                         "    if (LW_UNLIKELY((lw_sbytes += %zuL) > LW_SBUDGET)) lw_panic(\"the list literals living on this call chain need more than the stack budget "
-                         "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator\");\n", (size_t)d->lbuf_size + (size_t)d->wbytes);
+                         "    if (LW_UNLIKELY((lw_sbytes += %zuL) > LW_SBUDGET)) lw_panic(\"the list literals and struct values living on this call chain need more than the stack budget "
+                         "(RFC-0135 · RFC-0132 P4e) — keep a recursion with local lists or structs shallow, or take them from an allocator\");\n", (size_t)d->lbuf_size + (size_t)d->wbytes);
         }
         fprintf(out, "    for (int i = 0; i < %zu; i++) loc[i] = a[i];\n", (size_t)d->nparams);
         // ★★★★★ **태그 스택도 쓰는 만큼만** (2026-08-17, MEM-0003 — 프레임 래칫이 찾았다).

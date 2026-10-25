@@ -8055,6 +8055,7 @@ static void ck_link_names(low_check_result_t *out, const low_parse_result_t *pr)
 //   ⇒ 한 op 의 틀 안 나열 바이트가 한도를 넘으면 거부한다(`E-FRAME-SIZE`, LOW_LBUF_MAX).
 static bool ck_param_mutq(const low_cst_t *f, const low_op_header_t *h, proven_size_t q);   // 아래에 정의
 #define LC_INF 1000000
+#define LC_TEMPF (LC_INF + 1)   // ★ RFC-0150 재검토 §8-41 — 이름 없는 임시 구조체의 배열 칸(그 문장에서 죽는다)
 #define LC_MAX 1024
 typedef struct {
     struct { proven_u8str_view_t name; int depth; } t[LC_MAX]; proven_size_t nt;        // 이름 → 그것이 보는 틀 자리의 블록 깊이
@@ -8275,8 +8276,30 @@ static bool lc_is_vel(const lc_t *x, proven_u8str_view_t n) {
     for (proven_size_t i = x->nvel; i-- > 0; ) if (proven_u8str_view_eq(x->vel[i], n)) return true;
     return false;
 }
+// ★ RFC-0150 재검토 §8-41 (2026-10-25 소유자 «추천대로») — 이름 없는 값의 구조체 타입: `lit T …` 또는 구조체를 돌려주는 op 의 부름.
+static proven_u8str_view_t lc_expr_sty(const low_cst_t *e) {
+    proven_u8str_view_t none = { 0 };
+    while (e && e->kind == LOW_CST_GROUP && e->nkids == 1) e = e->kids[0];
+    if (!e || e->kind != LOW_CST_FORM || e->nkids < 1 || !ck_atom(e->kids[0])) return none;
+    if (veq(e->kids[0]->tok.lex, "lit")) return (e->nkids >= 2 && ck_atom(e->kids[1])) ? e->kids[1]->tok.lex : none;
+    const low_opinfo_t *op = ck_r1_tab ? ck_find_callee_at(ck_r1_tab, ck_r1_nt, e->kids[0]) : NULL;
+    if (!op || !op->form) return none;
+    low_op_header_t h = low_op_header(op->form);
+    for (proven_size_t z = h.out_s; z < h.out_e && z < op->form->nkids; z++) {
+        const low_cst_t *w = op->form->kids[z];
+        if (!ck_atom(w) || w->tok.kind != LOW_TOK_IDENT || veq(w->tok.lex, "output") || veq(w->tok.lex, "mut") || veq(w->tok.lex, "owned")) continue;
+        return w->tok.lex;
+    }
+    return none;
+}
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n) {
     {
+        // ★★ RFC-0150 재검토 §8-41 — **이름 없는 임시 구조체의 배열 칸**은 그 문장의 것이다(`field mkbag 1 2 . buf`). 전엔 이것을 세지 않아
+        //   그 칸을 보는 뷰를 이름에 묶으면 `check: ok` 였고, 뒤의 루프가 만든 레코드가 그 바이트를 다시 써 세 길이 같은 틀린 답을 냈다.
+        if (veq(k[0]->tok.lex, "field") && n >= 3 && !ck_atom(k[1]) && ck_atom(k[2])) {
+            proven_u8str_view_t ty = lc_expr_sty(k[1]);
+            if (ty.size && ck_is_array_field(ty, k[2]->tok.lex)) return LC_TEMPF;
+        }
         // ★★★★ 2026-10-15 (RFC-0150 D5) — **지역 구조체의 배열 칸은 그 op 의 자리다.** 구조체는 op 의 레코드 풀에 살고(정본 §8.1 (3a):
         //   «이 풀은 그 op 의 암묵 frame 이다»), 배열 칸은 그 바이트 안에 있다. 그런데 이 검사는 따로 선언한 지역 배열의 보기만 세고
         //   구조체의 배열 칸은 세지 않았다 — `return subslice field p. buf . 0 2 .` 가 `check: ok` 였다. 오늘 맞는 답이 나온 것은
@@ -8328,9 +8351,15 @@ static int lc_tail(const lc_t *x, const low_cst_t *nd, proven_size_t from) {
     for (proven_size_t q = from; q < nd->nkids; q++) { int d = lc_carry(x, nd->kids[q]); if (d > r) r = d; }
     return r;
 }
-static void lc_escape(low_check_result_t *out, lc_t *x, proven_u32 line, bool temp) {
+static void lc_escape(low_check_result_t *out, lc_t *x, proven_u32 line, int temp) {
     if (x->told) return;
     x->told = true;
+    if (temp == 2) {   // ★ RFC-0150 재검토 §8-41
+        emit(out, "E-VIEW-TEMP", "this keeps a view of an array field of a struct value that has no name — a call's result or a `lit` — "
+             "and that value lives only until the end of its statement: after it, the bytes belong to the next value made there. "
+             "Name the struct first (`let b T … .`) and view `field b. <name> .`", line);
+        return;
+    }
     emit(out, "E-LIT-ESCAPE", temp
          ? "a list literal with no receiving place lives only until the end of its statement (RFC-0132 §13.2 ⓒ) — here "
            "its bytes are being kept in a name. Bind the list itself (`var buf lit array … .`) and use that name"
@@ -8369,7 +8398,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                 bool rows = !ck_atom(l->kids[2]);                  // §13.10 — 줄의 나열: 줄 값(나열)은 칸마다 **베껴진다**
                 for (proven_size_t q = 3; q < l->nkids; q++) {   // 원소 속의 흐름(원소는 칸에 복사된다 — 원소 자체가 나열이면 안 된다)
                     if (rows && lc_list(l->kids[q])) continue;
-                    if (lc_carry(x, l->kids[q]) >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
+                    { int cq = lc_carry(x, l->kids[q]); if (cq >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, cq >= LC_TEMPF ? 2 : 1); }
                 }
             } else if (!scalar) {
                 // ★ RFC-0135 S2 (D11) — 블록 끝에서 돌려줄 할당기 바이트는 이 블록의 것이다(밖으로 나가면 돌려준 뒤를 본다)
@@ -8377,7 +8406,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                 while (uv && uv->kind == LOW_CST_GROUP && uv->nkids == 1) uv = uv->kids[0];
                 if (lc_is_into(uv) && uv->nkids == 4) lc_set_taint(x, nd->kids[1]->tok.lex, depth);
                 int dv = lc_tail(x, nd, be + 1);
-                if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
+                if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, dv >= LC_TEMPF ? 2 : 1);
                 else if (dv > 0) lc_set_taint(x, nd->kids[1]->tok.lex, dv);
             }
             if (x->nd < LC_MAX) {
@@ -8405,8 +8434,8 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                 bool bscalar = false; int bd = lc_decl(x, base, &bscalar);
                 if (!(bare && bscalar)) {
                     int dv = lc_tail(x, nd, 2);
-                    if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
-                    else if (dv > bd) lc_escape(out, x, nd->kids[0]->tok.line, false);
+                    if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, dv >= LC_TEMPF ? 2 : 1);
+                    else if (dv > bd) lc_escape(out, x, nd->kids[0]->tok.line, 0);
                     else if (dv > 0 && bare) lc_set_taint(x, base, dv);
                     else if (dv > 0 && bd > 0) {
                         // ★★★ RFC-0150 D5 — 지역 구조체의 칸(슬라이스 칸 등)에 틀 자리를 보는 값을 넣으면 그 구조체도 그 자리를 본다.
@@ -8424,7 +8453,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
             }
         } else if (kw == LOW_KW_RETURN && !x->scalar_out) {   // 스칼라를 돌려주면 바이트 자리는 따라 나가지 못한다(X-0086)
             int dv = lc_tail(x, nd, 1);
-            if (dv > 0) lc_escape(out, x, nd->kids[0]->tok.line, dv >= LC_INF);
+            if (dv > 0) lc_escape(out, x, nd->kids[0]->tok.line, dv >= LC_TEMPF ? 2 : dv >= LC_INF ? 1 : 0);
         }
         for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {   // actor 에게 건넨다 — actor 가 그 자리보다 오래 살 수 있다
             if (!ck_atom(nd->kids[j]) || !veq(nd->kids[j]->tok.lex, "send")) continue;
@@ -8434,7 +8463,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
             int ad = ck_atom(tg) && tg->tok.kind == LOW_TOK_IDENT ? lc_decl(x, tg->tok.lex, NULL) : 0;
             for (proven_size_t q = j + 2; q < nd->nkids; q++) {
                 int dq = lc_carry(x, nd->kids[q]);
-                if (dq > 0 && (dq >= LC_INF || ad < dq)) { lc_escape(out, x, nd->kids[j]->tok.line, false); break; }
+                if (dq > 0 && (dq >= LC_INF || ad < dq)) { lc_escape(out, x, nd->kids[j]->tok.line, dq >= LC_TEMPF ? 2 : 0); break; }
                 if (dq > 0 && ck_atom(tg)) lc_set_taint(x, tg->tok.lex, dq);   // 이제 그 actor 가 주는 것도 이 틀을 본다
             }
         }

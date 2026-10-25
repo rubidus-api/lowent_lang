@@ -1,0 +1,27 @@
+rem ★★ 증인 — 이름 없는 임시 구조체의 배열 칸을 보려면 구조체를 먼저 이름에 묶는다(정본 §6.2.6 (7a-1) · RFC-0150 재검토 §8-41, 2026-10-25).
+rem   이름 없이 `view s1 view s1 field mkbag 1 2 . buf .` 로 묶으면 `E-VIEW-TEMP` 다(골든 ⑫). 답 33686021.
+module vm_viewtemp .
+struct s1 do
+  x u32 .
+  y u32 .
+end .
+struct bag do
+  k u64 .
+  buf array u8 8 .
+end .
+fn mkbag input k u64 . input b u8 . output bag . do
+  return lit bag do k k. . buf lit array u8 8 b. b. b. b. b. b. b. b. . . end . .
+end .
+fn witness2 output u64 . do
+  let b bag mkbag 1 2 . .
+  let v view s1 view s1 field b. buf . . .
+  var acc u64 0 .
+  var i u64 0 .
+  while true do
+    guard lt i. 3 . else break . .
+    let other bag mkbag i. 9 . .
+    set acc. add acc. field other. k . . .
+    set i. add i. 1 . .
+  end .
+  return add acc. cast u64 field v. y . . . .
+end .

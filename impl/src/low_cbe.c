@@ -6712,7 +6712,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_WRAP_OK:  fputs("    st[sp-1] = lw_wrap_ok(st[sp-1]);\n", out); break;
                 // ★ option 생성자 (RFC-0043 D5 — OOM 은 값이다)
                 case IRW_WRAP_SOME:
-                    fputs("    { lowv v = lw_promote(st[--sp]); lw_boxes[lw_nbox] = v;\n"
+                    // ★ 박스 풀의 끝을 본다 — lw_wrap_ok 와 같은 검사(전엔 이 자리만 없어 되감지 못하는 루프에서 풀 너머에 썼다 ·
+                    //   docs/known-defects/inline-some-past-box-pool.md, 2026-10-25).
+                    fputs("    { lowv v = lw_promote(st[--sp]); if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\"); lw_boxes[lw_nbox] = v;\n"
                           "      st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; }\n", out);
                     break;
                 case IRW_WRAP_NONE:

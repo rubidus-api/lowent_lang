@@ -709,6 +709,7 @@ typedef struct {
     //   `ir_frame_windows` 가 마지막 IR 에서 한 번 센다 — VM 과 네이티브 태그 경로가 같은 수를 쓴다.
     proven_u16          nwin;
     proven_u32          wbytes;
+    proven_u32          wsites_end;   //   이 앞의 값 구조체 `make` 는 틀 창에 든다(이 자리부터는 칸이 모자라 풀이다)
     // ★★★ **`unsafe_ptr T`** (RFC-0066 가족) — C 로 넘길 **생 포인터**. 구조체의 바이트에 대한
     //   단일 포인터를 C 에 `void *` 로 넘긴다(길이 없음). unsafe: 레이아웃 일치는 사용자 책임이고
     //   이름이 그렇게 말한다. viewable 구조체만(바이트 레이아웃이 C 와 맞을 수 있는 것). sidx 는

@@ -2560,6 +2560,32 @@ static void ir_call_through_forwarders(low_ir_t *ir) {
     free(to);
 }
 
+static void ir_frame_windows(low_ir_t *ir);
+static bool ir_win_make_sidx(const low_ir_t *ir, proven_size_t mk, proven_size_t *sidx);
+// ★ RFC-0132 P4e — 이 자리가 **풀**에 값을 남기는가: 틀 창에 드는 값 구조체 `make` 는 아니다.
+static bool ir_pool_site(const low_ir_t *ir, const low_ir_def_t *d, proven_size_t j) {
+    const low_ir_ins_t *in = &d->code[j];
+    if (!ir_pool_allocs_ins(in)) return false;
+    if (in->w == IRW_MAKE && d->nwin && j < d->wsites_end) {
+        proven_size_t si; if (ir_win_make_sidx(ir, (proven_size_t)in->a, &si) && low_ir_struct_is_value(ir, si)) return false;
+    }
+    return true;
+}
+// ★ RFC-0132 P4e — 가장 깊은 부름 길의 틀 바이트(틀 안 나열 + 틀 창). 순환(재귀)을 만나면 *rec 를 세운다.
+static unsigned long long ir_frame_path(const low_ir_t *ir, proven_size_t i, unsigned long long *memo, unsigned char *st, bool lists_only, bool *rec, int depth) {
+    if (st[i] == 2) return memo[i];
+    if (st[i] == 1 || depth > 256) { *rec = true; return 0; }
+    st[i] = 1;
+    const low_ir_def_t *d = &ir->defs[i];
+    unsigned long long best = 0;
+    for (proven_size_t j = 0; j < d->ncode; j++) {
+        if (d->code[j].w != IRW_CALL || IR_CALL_IDX(d->code[j].a) >= ir->ndefs) continue;
+        unsigned long long p = ir_frame_path(ir, IR_CALL_IDX(d->code[j].a), memo, st, lists_only, rec, depth + 1);
+        if (p > best) best = p;
+    }
+    memo[i] = (unsigned long long)d->lbuf_size + (lists_only ? 0ull : (unsigned long long)d->wbytes) + best; st[i] = 2;
+    return memo[i];
+}
 static void ir_pool_scan(low_ir_t *ir) {
     if (!low_ir_author_warnings() || !ir->ndefs) return;
     bool *al = calloc(ir->ndefs, sizeof *al);
@@ -2613,7 +2639,7 @@ static void ir_pool_scan(low_ir_t *ir) {
             const low_ir_def_t *d = &ir->defs[i];
             bool push = false;
             for (proven_size_t j = 0; j < d->ncode; j++) {
-                if (ir_pool_allocs_ins(&d->code[j])) own[i]++;
+                if (ir_pool_site(ir, d, j)) own[i]++;
                 if (d->code[j].w == IRW_SPUSH) push = true;
                 if (d->code[j].w == IRW_CALL && IR_CALL_IDX(d->code[j].a) < ir->ndefs && IR_CALL_IDX(d->code[j].a) != i)
                     called[IR_CALL_IDX(d->code[j].a)] = 1;
@@ -2635,17 +2661,19 @@ static void ir_pool_scan(low_ir_t *ir) {
             bool moved = false;
             for (proven_size_t i = 0; i < ir->ndefs; i++) {
                 const low_ir_def_t *d = &ir->defs[i];
-                unsigned long long best = 0; unsigned char w = why[i];
+                unsigned long long best = 0; unsigned char w = why[i]; bool selfrec = false;
                 for (proven_size_t j = 0; j < d->ncode; j++) {
                     if (d->code[j].w != IRW_CALL || IR_CALL_IDX(d->code[j].a) >= ir->ndefs) continue;
                     proven_size_t k = IR_CALL_IDX(d->code[j].a);
-                    if (k == i) { w |= 2; continue; }
+                    // ★ RFC-0132 P4e — 재귀는 그 길이 풀에 값을 남길 때만 셀 수 없다(구조체 값이 틀에 살면 길은 0 이다)
+                    if (k == i) { selfrec = true; continue; }
                     // 부를 때마다 더한다 — 부름 받은 op 이 남긴 값은 부른 쪽의 다음 되감기까지 산다(스칼라를 돌려주면 VM 은 곧바로
                     //   되감지만 네이티브의 같은 자리는 재지 않았다 — 많게 세는 쪽을 고른다).
                     best += memo[k];
                     w |= why[k];
                 }
                 unsigned long long v = own[i] + best;
+                if (selfrec && v) w |= 2;
                 if (v > cap * 4) { v = cap * 4; w |= 2; }   // 길이 끝없이 자라면 순환이다
                 if (v != memo[i] || w != why[i]) { memo[i] = v; why[i] = w; moved = true; }
             }
@@ -2669,6 +2697,38 @@ static void ir_pool_scan(low_ir_t *ir) {
                 ir->ok = false;
             }
         }
+    }
+    // ── RFC-0132 P4e — 틀 바이트(틀 안 나열 + 구조체 값의 틀 창)의 가장 깊은 길. 구조체 값이 그 길을 예산 너머로 밀면 번역 때 거절한다
+    //    (틀 안 나열만으로 넘는 길은 검사층이 이미 E-STACK-BUDGET 으로 거절한다 — 두 번 말하지 않는다). 재귀는 셀 수 없다 — 실행 중 예산이 멈춘다.
+    if (own && called) {
+        unsigned long long *fm = calloc(ir->ndefs, sizeof *fm), *lm = calloc(ir->ndefs, sizeof *lm);
+        unsigned char *fs = calloc(ir->ndefs, 1), *ls = calloc(ir->ndefs, 1);
+        const long budget = low_ir_target()->no_heap ? LOW_SBUDGET_FREE : LOW_SBUDGET_HOST;
+        bool any = false;
+        for (proven_size_t i = 0; i < ir->ndefs; i++) if (ir->defs[i].wbytes) any = true;
+        if (fm && lm && fs && ls && (any || g_pool_report)) {
+            if (g_pool_report) printf("frame-report: op · deepest path's frame bytes (list literals + struct values) / budget (RFC-0132 P4e)\n");
+            for (proven_size_t i = 0; i < ir->ndefs; i++) {
+                const low_ir_def_t *d = &ir->defs[i];
+                if (!d->lowered || called[i] || d->is_test) continue;
+                bool rec = false, rec2 = false;
+                unsigned long long p = ir_frame_path(ir, i, fm, fs, false, &rec, 0), q = ir_frame_path(ir, i, lm, ls, true, &rec2, 0);
+                if (g_pool_report)
+                    printf("  %-32.*s %8llu / %ld  %s\n", (int)d->name.size, (const char *)d->name.ptr, p, budget,
+                           rec ? "uncountable: recursion" : (p > (unsigned long long)budget ? "★ over" : "entry"));
+                if (!rec && p > (unsigned long long)budget && q <= (unsigned long long)budget) {
+                    low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = "E-STACK-BUDGET", .line = d->ncode ? d->code[0].line : 0, .col = 0,
+                                      .file = (d->ncode && d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
+                    snprintf(dg.detail, sizeof dg.detail,
+                             "the deepest call path from this op keeps %llu bytes of list literals and struct values in its frames at once "
+                             "— more than the stack budget on this machine (%ld); the struct values push it over. The program would stop "
+                             "there at run time; take the values from an allocator (`use`), or split the path (RFC-0132 P4e)", p, budget);
+                    (void)proven_array_push(&ir->diags, &dg);
+                    ir->ok = false;
+                }
+            }
+        }
+        free(fm); free(lm); free(fs); free(ls);
     }
     free(own); free(memo); free(why); free(st); free(called);
     free(al);
@@ -2709,7 +2769,7 @@ static bool ir_win_make_sidx(const low_ir_t *ir, proven_size_t mk, proven_size_t
 static void ir_frame_windows(low_ir_t *ir) {
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         low_ir_def_t *d = &ir->defs[i];
-        d->nwin = 0; d->wbytes = 0;
+        d->nwin = 0; d->wbytes = 0; d->wsites_end = 0;
         if (!d->lowered || d->is_extern || d->takes_ref_arg || !d->ncode) continue;
         bool refs = false;
         for (proven_size_t j = 0; j < d->ncode && !refs; j++) refs = d->code[j].w == IRW_REF || d->code[j].w == IRW_MREF;
@@ -2734,8 +2794,9 @@ static void ir_frame_windows(low_ir_t *ir) {
             unsigned r = 0; unsigned long by = 0;
             ir_win_tree(ir, si, 0, &r, &by);
             unsigned f = inl[j] ? 2u : 1u;
-            if (n + r * f > IR_WIN_MAX) break;      // 칸이 더 들 자리는 풀이다(실행 중에 칸이 모자라면 그 레코드만 풀로 간다)
+            if (n + r * f > IR_WIN_MAX) { d->wsites_end = (proven_u32)j; break; }   // 칸이 더 들 자리는 풀이다(실행 중에 칸이 모자라면 그 레코드만 풀로 간다)
             n += r * f; b += by * f;
+            d->wsites_end = (proven_u32)d->ncode;
         }
         free(inl);
         d->nwin = (proven_u16)n; d->wbytes = (proven_u32)b;
@@ -4529,6 +4590,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
 
     // pass 3: SCC fixed-point Merkle def-hashes
     ir_def_hashes(work, &ir);
+    ir_frame_windows(&ir);   // ★ RFC-0132 P4e — 풀 셈이 틀 창에 드는 값을 빼려면 먼저 센다(아래 패스는 부르는 곳만 고쳐 쓴다 — 칸 수는 그대로다)
     ir_pool_scan(&ir);   // ★ RFC-0150 §8-11 — 풀을 되감지 못하는 반복을 찾는다(저자 경고 · 아래)
     // ★★★ **인스턴스 dedup** (RFC-0012) — iface·def 해시가 **둘 다** 같은 def 은 같은 정의다.
     //   내용주소화가 이미 그렇게 판정하는데(같은 해시) 뒤끝은 이름으로 심볼을 지어 본문을 두 번
@@ -4547,7 +4609,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         }
     }
     ir_call_through_forwarders(&ir);
-    ir_frame_windows(&ir);   // ★ RFC-0132 P4e — 마지막 IR 에서 센다(위 패스들이 부름을 고쳐 쓴 뒤)
+    ir_frame_windows(&ir);   // ★ RFC-0132 P4e — 마지막 IR 에서 다시 센다(위 패스가 부름을 고쳐 썼다 — 같은 수가 나와야 한다)
     return ir;
 }
 

@@ -333,6 +333,13 @@ static const ir_tnode_t IR_TREE[] = {
     //   ATmega328P(Arduino Uno · Nano). 내고 돌린다 — 2026-10-25 avr-gcc 16.2 로 짓고 qemu-system-avr `uno` 에서 돌린 답이 VM 과 같았다
     //   (`scripts/avr-build.py` · `archdev.sh avr`, RFC-0054 §8-7 A2 · A3). 그 전에는 word16 처럼 번역까지만이었다.
     { "atmega328p","avr",      true,  "" },
+    //   같은 칸 값의 칩 셋(RFC-0054 §8-7 A4, 2026-10-25 W-20261025-1351). 잰 값: avr-gcc 16.2 `-mmcu=…` 의 `__SIZEOF_POINTER__` 2 ·
+    //   `__SIZEOF_INT__` 2 · `__SIZEOF_SIZE_T__` 2 · `__BIGGEST_ALIGNMENT__` 1 · `__AVR_HAVE_MUL__` 1. 다른 것은 칸 밖이다 — RAM(8 KB · 2.5 KB · 6 KB) ·
+    //   2560 의 3 바이트 PC(함수 포인터는 2 바이트 그대로, 링커의 발판을 지난다) · 4809 의 플래시가 데이터 주소에 비친다는 것.
+    //   2560 은 QEMU `mega2560` 에서 돌려 맞댄다. 32U4 · 4809 는 QEMU 에 보드가 없어 **짓는 데까지** 잰다(`scripts/avr-build.py`).
+    { "atmega2560","avr",      true,  "" },
+    { "atmega32u4","avr",      true,  "" },
+    { "atmega4809","avr",      true,  "" },
     // ★★ RFC-0149 §6.14 — **16 비트 주소: 번역까지만** (2026-10-13, 소유자 결정 «가»). 실제 기계의 이름이 아니다 — `usize` · `idiff` 가
     //   16 비트일 때 같은 글이 서는지를 재는 자리다(`scripts/check-size-width.py`). 힙 · 부동 · POSIX 가 없는 프리스탠딩 칸이고,
     //   슬라이스 길이의 상한은 2^15 다. `check` 가 참이라 방출 · 실행은 거절된다.

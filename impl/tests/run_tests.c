@@ -3827,6 +3827,16 @@ int main(void) {
         const low_target_t *a = low_ir_target_named("atmega328p");
         check(a && a->addr_bits == 16 && a->ptr_bytes == 2 && a->ptr_align == 1 && a->mul_bits == 8 && a->no_heap && a->no_float &&
               !a->posix && !a->int128 && !a->check_only && a->max_slice_len == (proven_i64)1 << 15, "target tree: atmega328p = avr (16-bit · align 1 · mul 8), emitted and run");
+        // ★ A4 (2026-10-25) — 같은 칸 값의 칩 셋은 `avr` 를 그대로 물려받는다. 칸마다 atmega328p 와 같다.
+        static const char *const avr_kin[] = { "atmega2560", "atmega32u4", "atmega4809" };
+        for (size_t k = 0; k < sizeof avr_kin / sizeof avr_kin[0]; k++) {
+            const low_target_t *g = low_ir_target_named(avr_kin[k]);
+            char msg[96]; snprintf(msg, sizeof msg, "target tree: `%s` = atmega328p field for field", avr_kin[k]);
+            check(a && g && g->addr_bits == a->addr_bits && g->ptr_bytes == a->ptr_bytes && g->ptr_align == a->ptr_align &&
+                  g->mul_bits == a->mul_bits && g->no_heap == a->no_heap && g->no_float == a->no_float && g->posix == a->posix &&
+                  g->max_slice_len == a->max_slice_len && g->cache_line == a->cache_line && g->check_only == a->check_only &&
+                  g->int128 == a->int128 && g->big_endian == a->big_endian && g->simd_bytes == a->simd_bytes, msg);
+        }
         check(!low_ir_target_named("avr") && !low_ir_target_named("riscv32") && !low_ir_target_named("lowent") &&
               low_ir_target_is_group("avr") && !low_ir_target_is_group("x86_64"), "target tree: group nodes are not targets");
         check(low_ir_set_target("atmega328p") && low_ir_limb_bits() == 16, "target tree: an 8-bit multiplier still gives 16-bit limbs");

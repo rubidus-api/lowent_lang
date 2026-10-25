@@ -1,0 +1,31 @@
+rem ★★ **AVR 원자 연산의 증인** (RFC-0054 §8-7, 2026-10-25 W-20261025-1351).
+rem
+rem   AVR 에는 원자 명령이 없다. 방출 C 의 `atomic_*_explicit` 를 avr-gcc 가 무엇으로 내는지(인터럽트를 막는 코드인지,
+rem   avr-libc 에 없는 `__atomic_*` 부름인지)를 `scripts/avr-build.py` 가 짓고 링크하고 QEMU 에서 돌려 VM 의 답과 맞댄다.
+rem   폭 넷(1 · 2 · 4 · 8 바이트)을 다 지난다 — 방출 런타임이 폭마다 다른 갈래를 탄다.
+
+module avr_atomic .
+
+export proc a_u8 input k cap atomic . input s mut slice u8 . output u64 . effects atomic . do
+  atomic_add s. 0 200 .
+  atomic_add s. 0 100 .
+  return cast u64 atomic_load s. 0 . . .
+end .
+
+export proc a_u16 input k cap atomic . input s mut slice u16 . output u64 . effects atomic . do
+  atomic_store s. 0 65535 order release .
+  atomic_add s. 0 2 .
+  return cast u64 atomic_load s. 0 order acquire . . .
+end .
+
+export proc a_u32 input k cap atomic . input s mut slice u32 . output u64 . effects atomic . do
+  atomic_add s. 0 4294967295 .
+  atomic_sub s. 0 3 .
+  return cast u64 atomic_swap s. 0 7 . . .
+end .
+
+export proc a_u64 input k cap atomic . input s mut slice u64 . output u64 . effects atomic . do
+  atomic_add s. 0 4294967296 .
+  let old u64 atomic_cas s. 0 4294967296 42 . .
+  return add old. atomic_load s. 0 . . .
+end .

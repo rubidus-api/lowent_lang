@@ -1,0 +1,34 @@
+rem ★★ **AVR 에서 C 를 부르는 증인** (RFC-0054 §8-7, 2026-10-25 W-20261025-1351).
+rem
+rem   `extern` 의 몸은 C 에 있다 — `scripts/avr-build.py` 의 받침이 `avr_c_mix` · `avr_c_sum16` 을 정의하고, 이 export 들을
+rem   QEMU 에서 불러 **알려진 답**과 맞댄다(VM 은 extern 을 돌리지 않는다). 폭이 다른 인자(u8 · u16 · u32 · u64)와
+rem   `slice u16`(C 에서는 `const uint16_t *` + 원소 수)이 16 비트 `int` 의 기계에서 제자리에 닿는지를 본다.
+
+module avr_ffi .
+
+unsafe extern proc c_mix do
+  input k cap c .
+  input a u8 .
+  input b u16 .
+  input x u32 .
+  input y u64 .
+  output u64 .
+  effects unsafe .
+  link avr_c_mix .
+end .
+
+unsafe extern proc c_sum16 do
+  input k cap c .
+  input s slice u16 .
+  output u32 .
+  effects unsafe .
+  link avr_c_sum16 .
+end .
+
+export unsafe proc f_mix input k cap c . input a u8 . input b u16 . input x u32 . input y u64 . output u64 . effects unsafe . do
+  return c_mix k. a. b. x. y. . .
+end .
+
+export unsafe proc f_sum16 input k cap c . input s slice u16 . output u32 . effects unsafe . do
+  return c_sum16 k. s. . .
+end .

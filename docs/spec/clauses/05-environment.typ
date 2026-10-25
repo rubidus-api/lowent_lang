@@ -236,12 +236,15 @@ end .", "E-ENTRY-OUTPUT")
       [`win64`], [64], [리틀 엔디언], [건너가기만 한다(⟦§5.6⟧ (4))],
       [`cheriot`], [32], [리틀 엔디언], [#strong[포인터가 능력이다];(8 바이트, ⟦§5.3⟧ (4a)) · 힙 없음 · 부동소수점 수 없음 · 건너가기만 한다(⟦§5.6⟧ (6))],
       [`atmega328p`], [16], [리틀 엔디언], [AVR(Arduino Uno · Nano) · 정렬 1 바이트 · 곱셈기의 폭 8 비트(⟦§5.3⟧ (4c)) · 힙 없음 · 부동소수점 수 없음 · 내고 돌린다(⟦§5.6⟧ (8))],
+      [`atmega2560`], [16], [리틀 엔디언], [AVR(Arduino Mega 2560) · `atmega328p` 와 같은 값 · 내고 돌린다(⟦§5.6⟧ (8))],
+      [`atmega32u4`], [16], [리틀 엔디언], [AVR(Arduino Leonardo · Micro) · `atmega328p` 와 같은 값 · 짓는 데까지(⟦§5.6⟧ (8))],
+      [`atmega4809`], [16], [리틀 엔디언], [AVR(Arduino Nano Every) · `atmega328p` 와 같은 값 · 짓는 데까지(⟦§5.6⟧ (8))],
       [`word16`], [16], [리틀 엔디언], [힙 없음 · 부동소수점 수 없음 · #strong[번역까지만 선다];(⟦§5.6⟧ (7))],
       )
     ]
     #para("2a")[
       기계의 이름들은 #strong[나무];를 이룬다. 마디는 부모의 값을 물려받고 자기가 바꾸는 값만 적는다 — `cortex_m0` 은 `cortex_m` 에서
-      곱셈기의 폭만 바꾸고, `atmega328p` 는 묶음 `avr` 의 값을 물려받는다. 나무의 가지에만 서는 #strong[묶음];(`lowent` · `riscv32` · `avr`)은
+      곱셈기의 폭만 바꾸고, `atmega328p` · `atmega2560` · `atmega32u4` · `atmega4809` 는 묶음 `avr` 의 값을 그대로 물려받는다. 나무의 가지에만 서는 #strong[묶음];(`lowent` · `riscv32` · `avr`)은
       기계의 이름이 아니므로 (3) 에 따라 거부된다. 처리기는 마디마다 펼친 값을 보여 준다.
     ]
     #para("3")[
@@ -255,8 +258,8 @@ end .", "E-ENTRY-OUTPUT")
     #tbl("기계가 갖지 못한 것 — 그 자리에서 거절된다")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*무엇이 없나*], [*어느 기계*], [*쓰면*],
-      [자라는 뿌리(힙)], [`cortex_m` · `cheriot` · `atmega328p` · `word16`], [`heap` 효과 · `cap heap` · `region <이름> heap` 이 거절된다(`E-HEAP-NOHOST`). 고정 창에서 깎는 `alloc` 은 쓸 수 있다(⟦§8.1⟧)],
-      [부동소수점 수(floating-point number)], [`cortex_m` · `cheriot` · `atmega328p` · `word16`], [`f32`·`f64` 가 거절된다(`E-FLOAT-NOFLOAT`)],
+      [자라는 뿌리(힙)], [`cortex_m` · `cheriot` · `atmega328p` · `atmega2560` · `atmega32u4` · `atmega4809` · `word16`], [`heap` 효과 · `cap heap` · `region <이름> heap` 이 거절된다(`E-HEAP-NOHOST`). 고정 창에서 깎는 `alloc` 은 쓸 수 있다(⟦§8.1⟧)],
+      [부동소수점 수(floating-point number)], [`cortex_m` · `cheriot` · `atmega328p` · `atmega2560` · `atmega32u4` · `atmega4809` · `word16`], [`f32`·`f64` 가 거절된다(`E-FLOAT-NOFLOAT`)],
       )
     ]
     #para("5")[
@@ -312,9 +315,11 @@ end .", "E-ENTRY-OUTPUT")
       그 폭에서 낸 것이 옳은지 잰 적이 없기 때문이다. 슬라이스 길이의 상한은 2¹⁵ 이다.
     ]
     #para("8")[
-      `atmega328p` 는 씨 소스를 내고 돌리는 데까지 뜻이 있다. 그 기계를 위해 낸 씨 소스가 그 칩의 씨 컴파일러로 지어지고, 그것을
-      그 칩을 흉내 내는 기계에서 돌린 답이 같은 글의 다른 실행과 같음을 잰 데까지다. 씨 `int` 는 16 비트이므로 처리기는 32 비트
-      낱말을 폭이 정해진 씨 타입으로 낸다. 슬라이스 길이의 상한은 2¹⁵ 이다.
+      `atmega328p` 와 `atmega2560` 은 씨 소스를 내고 돌리는 데까지 뜻이 있다. 그 기계를 위해 낸 씨 소스가 그 칩의 씨 컴파일러로
+      지어지고, 그것을 그 칩을 흉내 내는 기계에서 돌린 답이 같은 글의 다른 실행과 같음을 잰 데까지다. `atmega32u4` 와 `atmega4809` 는
+      #strong[짓는 데까지]; 뜻이 있다 — 흉내 내는 기계가 없어 돌린 답을 재지 못했다. 씨 `int` 는 16 비트이므로 처리기는 32 비트 낱말을
+      폭이 정해진 씨 타입으로 낸다. 원자 연산은 인터럽트를 막은 동안의 읽고-쓰기로 낸다 — 이 칩들은 코어가 하나다.
+      슬라이스 길이의 상한은 2¹⁵ 이다.
     ]
   ]
   #sub("5.7", "이 단위가 무엇인지 밝히는 자리 — `package`")[

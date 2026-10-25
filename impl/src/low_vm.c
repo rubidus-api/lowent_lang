@@ -1525,7 +1525,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (iv.i < 0 || (proven_size_t)iv.i >= sv.n) {
                     vm_diag(vm->diags, "E-VM-BOUNDS", "atomic index out of bounds"); return false;
                 }
-                int esz = sv.box ? sv.box : 8;
+                // ★★ 바이트 슬라이스(`VMV_SLICE` — `.n` 이 바이트 수)의 원소는 **1 바이트**다. 전에는 `box` 가 0 이라 8 로 읽어,
+                //   `slice u8` 의 칸 i 가 바이트 8i 였고 경계는 바이트 수로 보아 **버퍼 밖에 썼다**(2026-10-25 · AVR 원자 증인이 찾았다 ·
+                //   docs/known-defects/vm-atomic-byte-slice-width.md). 네이티브는 원소 폭(1)을 알아 맞았다.
+                int esz = sv.tag == VMV_SLICE ? 1 : (sv.box ? sv.box : 8);
                 proven_u8 *p = (proven_u8 *)(void *)(sv.p + (proven_size_t)iv.i * (proven_size_t)esz);
                 proven_u64 old = 0;
                 for (proven_i32 k = esz; k-- > 0; ) old = (old << 8) | p[k];

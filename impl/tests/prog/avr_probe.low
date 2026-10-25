@@ -1,0 +1,117 @@
+rem ★★★ **AVR 실행 대조의 증인** (RFC-0054 §8-7 A3, 2026-10-25).
+rem
+rem   `--target atmega328p --emit-c --no-main` 이 낸 C 를 avr-gcc 로 짓고 qemu-system-avr 의 `uno` 에서 돌려,
+rem   이 op 들의 답을 VM 의 답과 맞댄다(`scripts/avr-run.sh`). 8 비트 칩에서 처음 갈리는 자리를 고른다:
+rem     · C `int` 가 16 비트다 — 32 비트 낱말을 `unsigned int` 로 적은 런타임이 여기서 틀린다(A2 가 찾은 것).
+rem     · 곱셈 명령이 8×8 뿐이다 — 64 비트 곱 · 나눗셈 · 시프트는 libgcc 부름이 된다.
+rem     · 슬라이스 길이가 `size_t` 16 비트다.
+rem   폭이 고정된 타입만 쓴다 — 답이 대상과 무관하므로 호스트 VM 의 답이 곧 기준이다.
+
+module avr_probe .
+
+export proc p_add32 input a u32 . input b u32 . output u32 . effects none . do
+  return wrap_add a. b. . .
+end .
+
+export proc p_mul32 input a u32 . input b u32 . output u32 . effects none . do
+  return wrap_mul a. b. . .
+end .
+
+export proc p_mul64 input a u64 . input b u64 . output u64 . effects none . do
+  return wrap_mul a. b. . .
+end .
+
+export proc p_mulhi input a u64 . input b u64 . output u64 . effects none . do
+  return call_builtin mul_hi a. b. . .
+end .
+
+export proc p_div64 input a u64 . input b u64 . output u64 . effects none .
+  requires ne b. 0 . .
+do
+  return div a. b. . .
+end .
+
+export proc p_mod64 input a u64 . input b u64 . output u64 . effects none .
+  requires ne b. 0 . .
+do
+  return mod a. b. . .
+end .
+
+export proc p_sdiv input a i64 . input b i64 . output i64 . effects none .
+  requires ne b. 0 . .
+do
+  return div a. b. . .
+end .
+
+export proc p_shl32 input a u32 . input k u32 . output u32 . effects none .
+  requires lt k. 32 . .
+do
+  return wrap_shl a. k. . .
+end .
+
+export proc p_shr64 input a u64 . input k u64 . output u64 . effects none .
+  requires lt k. 64 . .
+do
+  return shr a. k. . .
+end .
+
+export proc p_rotl32 input a u32 . input k u32 . output u32 . effects none .
+  requires lt k. 32 . .
+do
+  return rotl a. k. . .
+end .
+
+export proc p_add8 input a u8 . input b u8 . output u8 . effects none . do
+  return wrap_add a. b. . .
+end .
+
+export proc p_sat16 input a u16 . input b u16 . output u16 . effects none . do
+  return sat_add a. b. . .
+end .
+
+export proc p_lt32 input a u32 . input b u32 . output u64 . effects none . do
+  guard lt a. b. . else return 0 . .
+  return 1 .
+end .
+
+rem 누산 고리 — 32 비트 칸이 고리를 돌며 넘친다(감는다).
+export proc p_loop input n u32 . output u32 . effects none .
+  requires le n. 1000 . .
+do
+  var acc u32 2166136261 .
+  var i u32 0 .
+  while true do
+    guard lt i. n. . else break . .
+    set acc. wrap_mul bit_xor acc. i. . 16777619 . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
+
+rem 런타임의 해시 둘 — A2 가 고친 32 비트 낱말을 지난다. 라이브러리를 거치지 않고 잎을 바로 부른다(대조할 것이 잎이다).
+export proc p_crc input d slice u8 . output u64 . effects none . do
+  return call_builtin crc32 d. . .
+end .
+
+export proc p_sha input d slice u8 . input out mut slice u8 . output u64 . effects none .
+  requires ge len out. . 32 . .
+do
+  let n u64 cast u64 call_builtin sha256 d. out. . . .
+  let b0 u64 cast u64 idx out. 0 . . .
+  let b1 u64 cast u64 idx out. 1 . . .
+  let b2 u64 cast u64 idx out. 2 . . .
+  let b3 u64 cast u64 idx out. 3 . . .
+  let hi u64 bit_or shl b0. 24 . bit_or shl b1. 16 . bit_or shl b2. 8 . b3. . . . .
+  return add mul n. 4294967296 . hi. . .
+end .
+
+export proc p_sum input d slice u32 . output u32 . effects none . do
+  var acc u32 0 .
+  var i usize 0 .
+  while true do
+    guard lt i. len d. . . else break . .
+    set acc. wrap_add acc. idx d. i. . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .

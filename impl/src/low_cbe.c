@@ -2471,8 +2471,9 @@ static const char *cbe_ret_ctype(const low_ir_def_t *d) {
     if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u8")))    return "unsigned char ";
     if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("i16")))   return "short ";
     if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u16")))   return "unsigned short ";
-    if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("i32")))   return "int ";
-    if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u32")))   return "unsigned int ";
+    // ★ 32 비트는 `int32_t` — 호스트에서는 `int` 와 같은 타입이라 libc 원형과 부딪치지 않고, `int` 가 16 비트인 AVR 에서도 폭이 맞다(RFC-0054 §8-7 A2).
+    if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("i32")))   return "int32_t ";
+    if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u32")))   return "uint32_t ";
     if (proven_u8str_view_eq(t, proven_u8str_view_from_cstr("u64"))
      || proven_u8str_view_eq(t, proven_u8str_view_from_cstr("usize"))) return "unsigned long long ";
     return "long long ";                            // i64 · idiff · 기본
@@ -5304,7 +5305,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     }
     // ★ `lw_v` 는 **유닛마다 크기가 다르다**(위 `cbe_mark_vbytes`). 프렐류드보다 먼저 낸다 —
     //   뒤의 모든 것이 이 타입을 쓴다.
-    fprintf(out, "typedef union { unsigned long long u64[%d]; unsigned int u32[%d];\n"
+    fprintf(out, "typedef union { unsigned long long u64[%d]; uint32_t u32[%d];\n"
                  "                unsigned short u16[%d]; unsigned char u8[%d]; } lw_v;\n",
             g_vbytes / 8 ? g_vbytes / 8 : 1, g_vbytes / 4 ? g_vbytes / 4 : 1,
             g_vbytes / 2 ? g_vbytes / 2 : 1, g_vbytes);
@@ -5516,7 +5517,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    return lw_en_tovi_r(lw_st_felo[v.box][i], lw_st_fehi[v.box][i], x);\n"
           "}\n"
           "static double lw_b2f(unsigned long long b, int sz) {\n"
-          "    if (sz == 4) { float f; unsigned int u = (unsigned int)b; memcpy(&f, &u, 4); return (double)f; }\n"
+          "    if (sz == 4) { float f; uint32_t u = (uint32_t)b; memcpy(&f, &u, 4); return (double)f; }\n"
           "    double d; memcpy(&d, &b, 8); return d; }\n"
           /* ★★★ **aggregate 슬라이스 저장** (RFC-0080 — AST 아레나): 레코드의 필드를 원소의
              구조체 레이아웃 오프셋에 인코딩한다(VM lw_istore ISTORE 와 대칭·이름으로 매칭). */
@@ -5554,7 +5555,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "            }\n"
           "}\n"
           "static unsigned long long lw_f2b(double d, int sz) {\n"
-          "    if (sz == 4) { float f = (float)d; unsigned int u; memcpy(&u, &f, 4); return u; }\n"
+          "    if (sz == 4) { float f = (float)d; uint32_t u; memcpy(&u, &f, 4); return u; }\n"
           "    unsigned long long b; memcpy(&b, &d, 8); return b; }\n"
           /* ★★★ 참조를 따라간다 — 참조가 op 경계를 넘을 수 있게 된 조각(2026-07-19). */
           /*   ☞ **정직하게**: 네이티브에는 프레임 세대도 빌림 스택도 없다(`lw_deref` 도 이미 그렇다). */

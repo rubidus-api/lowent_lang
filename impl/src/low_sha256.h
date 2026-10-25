@@ -18,13 +18,16 @@
 #define LOW_SHA256_H
 
 #include <stddef.h>
+#include <stdint.h>
+// ★ 32 비트 낱말은 `uint32_t` 로 적는다 — `unsigned int` 는 AVR 에서 16 비트다(RFC-0054 §8-7 A2, 2026-10-25:
+//   avr-gcc 가 라운드 상수를 잘랐다). 호스트에서는 같은 타입이라 VM · 네이티브의 답이 그대로다.
 
 #define LOW_SHA256_BODY                                                                            \
-typedef struct { unsigned int h[8]; unsigned long long n; unsigned char b[64]; unsigned int c; }   \
+typedef struct { uint32_t h[8]; unsigned long long n; unsigned char b[64]; uint32_t c; }   \
     lw_sha_t;                                                                                      \
-static unsigned int lw_sha_rr(unsigned int x, int k) { return (x >> k) | (x << (32 - k)); }        \
+static uint32_t lw_sha_rr(uint32_t x, int k) { return (x >> k) | (x << (32 - k)); }        \
 static void lw_sha_block(lw_sha_t *s, const unsigned char *p) {                                    \
-    static const unsigned int K[64] = {                                                            \
+    static const uint32_t K[64] = {                                                            \
         0x428a2f98u,0x71374491u,0xb5c0fbcfu,0xe9b5dba5u,0x3956c25bu,0x59f111f1u,0x923f82a4u,       \
         0xab1c5ed5u,0xd807aa98u,0x12835b01u,0x243185beu,0x550c7dc3u,0x72be5d74u,0x80deb1feu,       \
         0x9bdc06a7u,0xc19bf174u,0xe49b69c1u,0xefbe4786u,0x0fc19dc6u,0x240ca1ccu,0x2de92c6fu,       \
@@ -35,21 +38,21 @@ static void lw_sha_block(lw_sha_t *s, const unsigned char *p) {                 
         0x1e376c08u,0x2748774cu,0x34b0bcb5u,0x391c0cb3u,0x4ed8aa4au,0x5b9cca4fu,0x682e6ff3u,       \
         0x748f82eeu,0x78a5636fu,0x84c87814u,0x8cc70208u,0x90befffau,0xa4506cebu,0xbef9a3f7u,       \
         0xc67178f2u };                                                                             \
-    unsigned int w[64], a, b_, c, d, e, f, g, h2, t1, t2; int i;                                   \
+    uint32_t w[64], a, b_, c, d, e, f, g, h2, t1, t2; int i;                                   \
     for (i = 0; i < 16; i++)                                                                       \
-        w[i] = ((unsigned int)p[i*4] << 24) | ((unsigned int)p[i*4+1] << 16) |                      \
-               ((unsigned int)p[i*4+2] << 8) | (unsigned int)p[i*4+3];                             \
+        w[i] = ((uint32_t)p[i*4] << 24) | ((uint32_t)p[i*4+1] << 16) |                      \
+               ((uint32_t)p[i*4+2] << 8) | (uint32_t)p[i*4+3];                             \
     for (i = 16; i < 64; i++) {                                                                    \
-        unsigned int s0 = lw_sha_rr(w[i-15],7) ^ lw_sha_rr(w[i-15],18) ^ (w[i-15] >> 3);           \
-        unsigned int s1 = lw_sha_rr(w[i-2],17) ^ lw_sha_rr(w[i-2],19) ^ (w[i-2] >> 10);            \
+        uint32_t s0 = lw_sha_rr(w[i-15],7) ^ lw_sha_rr(w[i-15],18) ^ (w[i-15] >> 3);           \
+        uint32_t s1 = lw_sha_rr(w[i-2],17) ^ lw_sha_rr(w[i-2],19) ^ (w[i-2] >> 10);            \
         w[i] = w[i-16] + s0 + w[i-7] + s1;                                                         \
     }                                                                                              \
     a=s->h[0]; b_=s->h[1]; c=s->h[2]; d=s->h[3];                                                   \
     e=s->h[4]; f=s->h[5]; g=s->h[6]; h2=s->h[7];                                                   \
     for (i = 0; i < 64; i++) {                                                                     \
-        unsigned int S1 = lw_sha_rr(e,6) ^ lw_sha_rr(e,11) ^ lw_sha_rr(e,25);                      \
-        unsigned int ch = (e & f) ^ ((~e) & g);                                                    \
-        unsigned int S0, mj;                                                                       \
+        uint32_t S1 = lw_sha_rr(e,6) ^ lw_sha_rr(e,11) ^ lw_sha_rr(e,25);                      \
+        uint32_t ch = (e & f) ^ ((~e) & g);                                                    \
+        uint32_t S0, mj;                                                                       \
         t1 = h2 + S1 + ch + K[i] + w[i];                                                           \
         S0 = lw_sha_rr(a,2) ^ lw_sha_rr(a,13) ^ lw_sha_rr(a,22);                                   \
         mj = (a & b_) ^ (a & c) ^ (b_ & c);                                                        \

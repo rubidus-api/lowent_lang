@@ -24,6 +24,10 @@
 #ifndef LOW_AES_H
 #define LOW_AES_H
 
+#include <stdint.h>
+// ★ 32 비트 낱말은 `uint32_t` 로 적는다 — `unsigned int` 는 AVR 에서 16 비트다(RFC-0054 §8-7 A2, 2026-10-25:
+//   avr-gcc 가 라운드 상수를 잘랐다). 호스트에서는 같은 타입이라 VM · 네이티브의 답이 그대로다.
+
 #define LOW_AES_BODY                                                                           \
 static const unsigned char lw_aes_sbox[256] = {                                                \
 0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,               \
@@ -100,14 +104,14 @@ static long long lw_aes_ctr(const void *keyp, unsigned long long klen,          
     if (klen != 16 || clen != 16 || dlen < slen) return 0;                                                  \
     lw_aes_expand(key, rk);                                                                                  \
     for (off = 0; off < slen; off += 16) {                                                                    \
-        unsigned long long n = slen - off, i; unsigned int c;                                                  \
+        unsigned long long n = slen - off, i; uint32_t c;                                                  \
         if (n > 16) n = 16;                                                                                     \
         for (i = 0; i < 16; i++) ks[i] = ctr[i];                                                                 \
         lw_aes_block(rk, ks);                                                                                     \
         for (i = 0; i < n; i++) dst[off + i] = (unsigned char)(src[off + i] ^ ks[i]);                              \
-        c = (unsigned int)ctr[15] + 1u; ctr[15] = (unsigned char)c;                                                 \
-        if (c >> 8) { c = (unsigned int)ctr[14] + 1u; ctr[14] = (unsigned char)c;                                    \
-        if (c >> 8) { c = (unsigned int)ctr[13] + 1u; ctr[13] = (unsigned char)c;                                     \
+        c = (uint32_t)ctr[15] + 1u; ctr[15] = (unsigned char)c;                                                 \
+        if (c >> 8) { c = (uint32_t)ctr[14] + 1u; ctr[14] = (unsigned char)c;                                    \
+        if (c >> 8) { c = (uint32_t)ctr[13] + 1u; ctr[13] = (unsigned char)c;                                     \
         if (c >> 8) { ctr[12] = (unsigned char)(ctr[12] + 1); } } }                                                    \
     }                                                                                                                   \
     return (long long)slen;                                                                                              \

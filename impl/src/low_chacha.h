@@ -25,19 +25,23 @@
 #ifndef LOW_CHACHA_H
 #define LOW_CHACHA_H
 
+#include <stdint.h>
+// ★ 32 비트 낱말은 `uint32_t` 로 적는다 — `unsigned int` 는 AVR 에서 16 비트다(RFC-0054 §8-7 A2, 2026-10-25:
+//   avr-gcc 가 라운드 상수를 잘랐다). 호스트에서는 같은 타입이라 VM · 네이티브의 답이 그대로다.
+
 #define LOW_CHACHA_BODY                                                                        \
-static unsigned int lw_cc_le32(const unsigned char *p) {                                       \
-    return (unsigned int)p[0] | ((unsigned int)p[1] << 8)                                      \
-         | ((unsigned int)p[2] << 16) | ((unsigned int)p[3] << 24);                            \
+static uint32_t lw_cc_le32(const unsigned char *p) {                                       \
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8)                                      \
+         | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);                            \
 }                                                                                              \
-static void lw_cc_put32(unsigned char *p, unsigned int x) {                                    \
+static void lw_cc_put32(unsigned char *p, uint32_t x) {                                    \
     p[0] = (unsigned char)x;         p[1] = (unsigned char)(x >> 8);                           \
     p[2] = (unsigned char)(x >> 16); p[3] = (unsigned char)(x >> 24);                          \
 }                                                                                              \
-static unsigned int lw_cc_rotl(unsigned int x, int n) {                                        \
-    return (unsigned int)((x << n) | (x >> (32 - n)));                                         \
+static uint32_t lw_cc_rotl(uint32_t x, int n) {                                        \
+    return (uint32_t)((x << n) | (x >> (32 - n)));                                         \
 }                                                                                              \
-static void lw_chacha_block(const unsigned int *st, unsigned int *o) {                         \
+static void lw_chacha_block(const uint32_t *st, uint32_t *o) {                         \
     int i, r;                                                                                  \
     for (i = 0; i < 16; i++) o[i] = st[i];                                                     \
     for (r = 0; r < 10; r++) {                                                                 \
@@ -54,7 +58,7 @@ static void lw_chacha_block(const unsigned int *st, unsigned int *o) {          
     for (i = 0; i < 16; i++) o[i] += st[i];                                                    \
 }                                                                                              \
 static int lw_chacha_state(const unsigned char *key, const unsigned char *ctr,                 \
-                           unsigned int *st) {                                                 \
+                           uint32_t *st) {                                                 \
     int i;                                                                                     \
     st[0] = 0x61707865u; st[1] = 0x3320646eu; st[2] = 0x79622d32u; st[3] = 0x6b206574u;         \
     for (i = 0; i < 8; i++) st[4 + i] = lw_cc_le32(key + 4 * i);                               \
@@ -68,7 +72,7 @@ static long long lw_chacha20(const void *keyp, unsigned long long klen,         
     const unsigned char *key = (const unsigned char *)keyp;                                    \
     const unsigned char *src = (const unsigned char *)srcp;                                    \
     unsigned char *ctr = (unsigned char *)ctrp, *dst = (unsigned char *)dstp;                  \
-    unsigned int st[16], o[16];                                                                \
+    uint32_t st[16], o[16];                                                                \
     unsigned long long off;                                                                    \
     int i;                                                                                     \
     if (klen != 32 || clen != 16 || dlen < slen) return 0;                                     \
@@ -79,7 +83,7 @@ static long long lw_chacha20(const void *keyp, unsigned long long klen,         
         lw_chacha_block(st, o);                                                                \
         for (i = 0; i < 16; i++) lw_cc_put32(ks + 4 * i, o[i]);                                \
         for (i = 0; i < (int)n; i++) dst[off + i] = (unsigned char)(src[off + i] ^ ks[i]);     \
-        st[12] = (unsigned int)(st[12] + 1u);                                                  \
+        st[12] = (uint32_t)(st[12] + 1u);                                                  \
     }                                                                                          \
     lw_cc_put32(ctr, st[12]);                                                                  \
     return (long long)slen;                                                                    \

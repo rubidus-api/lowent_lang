@@ -1751,6 +1751,8 @@ LOW_CHAPOLY_C_SOURCE
 // ★ 태그 경로의 레코드 풀. **VM 과 같은 크기·같은 규율**이어야 한다 — 아니면 둘이 갈리고,
 //   차등 스윕이 그것을 (정당하게) 컴파일러 버그로 고발한다.
 "static lowrec lw_recs[LW_RECPOOL];\n"
+// ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
+"#define LW_RECP(b) (&lw_recs[(b)])\n"
 "static _Thread_local int lw_nrec; static _Thread_local int lw_reclim = LW_RECPOOL;\n"
 // ★★★ **bounded mailbox** — 레코드(=actor 인스턴스)별 in-flight 메시지 수. VM 의 mbox_depth 와
 //   **같은 규율**: 핸들러 진입 +1, 반환 −1, `mailbox bounded N` 초과 시 트랩. 순차(재진입) 배달.
@@ -2959,7 +2961,7 @@ const char LW_RENDER[] =
 "            for (size_t i = 0; i < v.n && o + 8 < cap; i++)\n"
 "                o += (size_t)snprintf(out + o, cap - o, \"%s%u\", i ? \" \" : \"\", (unsigned)v.p[i]);\n"
 "            snprintf(out + o, cap - o, \"]\"); return; }\n"
-"        case LWV_REC: { lowrec *r = &lw_recs[v.box];\n"
+"        case LWV_REC: { lowrec *r = LW_RECP(v.box);\n"
 "            size_t o = (size_t)snprintf(out, cap, \"{\");\n"
 "            for (int i = 0; i < r->nf && o + 24 < cap; i++) { char fv[48];\n"
 "                lw_render(r->f[i], fv, sizeof fv);\n"

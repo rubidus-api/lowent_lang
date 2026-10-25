@@ -5432,7 +5432,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   안 그러면 `*(struct*).p` 가 **널을 역참조**한다(조합 테스트가 그 segfault 를 잡았다).
         //   바이트 뷰(CLI·view)면 .p 가 이미 연속이라 그대로 읽는다.
         fprintf(out, "static struct lw_sty_%zu lw_sty_%zu_of(lowv v) {\n", s, s);
-        fprintf(out, "    if (v.tag == LWV_REC) { lowrec *r_ = &lw_recs[v.box]; struct lw_sty_%zu s_ = {0};\n", s);
+        fprintf(out, "    if (v.tag == LWV_REC) { lowrec *r_ = LW_RECP(v.box); struct lw_sty_%zu s_ = {0};\n", s);
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
             if (ir->structs[s].f[i].arrn)                    // ★ T2b-3d ⓓ — 레코드의 배열 칸 바이트를 그대로
                 fprintf(out, "        memcpy(s_.f%zu, r_->f[%zu].p, sizeof s_.f%zu);\n", i, i, i);
@@ -5534,7 +5534,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    int sidx = (int)((s.i >> 20) & 0xff);\n"
           "    unsigned char *base = (unsigned char *)s.p + (size_t)k * (size_t)s.box;\n"
           "    for (int b = 0; b < s.box; b++) base[b] = 0;\n"
-          "    lowrec *rr = &lw_recs[v.box];\n"
+          "    lowrec *rr = LW_RECP(v.box);\n"
           "    for (int fi = 0; fi < lw_st_nf[sidx]; fi++)\n"
           "        for (int q = 0; q < rr->nf; q++)\n"
           "            if (strcmp(lw_mk_fields[rr->mk][q], lw_st_fname[sidx][fi]) == 0) {\n"
@@ -5596,7 +5596,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        lw_panic(\"no such field on this record\");\n"
           "    }\n"
           "    if (r.tag != LWV_REC) lw_panic(\"field access needs a record/view\");\n"
-          "    lowrec *rr = &lw_recs[r.box];\n"
+          "    lowrec *rr = LW_RECP(r.box);\n"
           "    for (int i = 0; i < rr->nf; i++)\n"
           "        if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) return rr->f[i];\n"
           "    lw_panic(\"no such field on this record\");\n"
@@ -5638,7 +5638,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        lw_panic(\"no such register in this block\");\n"
           "    }\n"
           "    if (r.tag != LWV_REC) lw_panic(\"set field needs a record\");\n"
-          "    lowrec *rr = &lw_recs[r.box];\n"
+          "    lowrec *rr = LW_RECP(r.box);\n"
           "    for (int i = 0; i < rr->nf; i++)\n"
           "        if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) { if (!lw_fstore_arr(rr, i, v)) rr->f[i] = v; return; }\n"
           "    lw_panic(\"no such field on this record\");\n"
@@ -5698,7 +5698,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        unsigned long long x = 0; int found = 0;\n"
           "        if (lw_st_farrn[s][i]) { /* T2b-3d: an array field — copy its bytes into place */\n"
           "            size_t need = (size_t)lw_st_farrn[s][i] * (size_t)(lw_st_farrm[s][i] & 0xff); const unsigned char *src = 0;\n"
-          "            if (v.tag == LWV_REC) { lowrec *rr = &lw_recs[v.box];\n"
+          "            if (v.tag == LWV_REC) { lowrec *rr = LW_RECP(v.box);\n"
           "                for (int j = 0; j < rr->nf && !src; j++) if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) {\n"
           "                    lowv fv = rr->f[j]; size_t have = fv.tag == LWV_SLICE ? fv.n : fv.tag == LWV_VARRAY ? fv.n * (size_t)fv.box : 0;\n"
           "                    if (have != need) lw_panic(\"encode: an array field holds the wrong length\"); src = fv.p; } }\n"
@@ -5708,14 +5708,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "            if (!src) lw_panic(\"encode: value lacks an array field of that length\");\n"
           "            memmove(ob + lw_st_foff[s][i], src, need); continue; }\n"
           "        if (lw_st_fsize[s][i] == 16) { lowv w_ = {0}; int g_ = 0;   /* RFC-0151 §9.4.1 — 16 바이트 칸 */\n"
-          "            if (v.tag == LWV_REC) { lowrec *rr = &lw_recs[v.box];\n"
+          "            if (v.tag == LWV_REC) { lowrec *rr = LW_RECP(v.box);\n"
           "                for (int j = 0; j < rr->nf && !g_; j++) if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) { w_ = rr->f[j]; g_ = 1; } }\n"
           "            else if (v.tag == LWV_VIEW) { for (int j = 0; j < lw_st_nf[v.box] && !g_; j++)\n"
           "                if (strcmp(lw_st_fname[v.box][j], lw_st_fname[s][i]) == 0 && lw_st_fsize[v.box][j] == 16) { w_ = lw_get16(v.p + lw_st_foff[v.box][j], lw_st_fbe[v.box][j]); g_ = 1; } }\n"
           "            if (!g_) lw_panic(\"encode: value lacks a 16-byte layout field\");\n"
           "            lw_put16(ob + lw_st_foff[s][i], w_, lw_st_fbe[s][i]); continue; }\n"
           "        if (v.tag == LWV_REC) {\n"
-          "            lowrec *rr = &lw_recs[v.box];\n"
+          "            lowrec *rr = LW_RECP(v.box);\n"
           "            for (int j = 0; j < rr->nf && !found; j++)\n"
           "                if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) {\n"
           "                    if (lw_st_fflt[s][i]) {\n"
@@ -5814,10 +5814,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     if (!rbmax) {   // 배열 칸이 없다 — 힙에 닿는 코드를 아예 내지 않는다(프리스탠딩 프로필이 호스트 기호를 세어 거절한다)
         fputs("static void lw_rec_arrs(lowrec *r, int mk) { (void)r; (void)mk; }\n"
               "static lowv lw_rec_clone(lowv v, int depth) {\n"
-              "    if (v.tag != LWV_REC || !lw_mkval[lw_recs[v.box].mk]) return v;\n"
+              "    if (v.tag != LWV_REC || !lw_mkval[LW_RECP(v.box)->mk]) return v;\n"
               "    if (depth > 16) lw_panic(\"records nested too deep to copy\");\n"
               "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted while copying a nested struct — raise it with -DLW_RECPOOL=N\");\n"
-              "    int me_ = lw_nrec++; lowrec *s = &lw_recs[v.box], *d = &lw_recs[me_];\n"
+              "    int me_ = lw_nrec++; lowrec *s = LW_RECP(v.box), *d = &lw_recs[me_];\n"
               "    d->mk = s->mk; d->nf = s->nf; memcpy(d->f, s->f, sizeof(lowv) * (size_t)s->nf);\n"
               "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone(d->f[f], depth + 1);\n"
               "    v.box = me_; return v; }\n"
@@ -5836,10 +5836,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    memmove(dst, (const void *)s.p, need); }\n"
           "static void lw_rec_arrs(lowrec *r, int mk);\n"
           "static lowv lw_rec_clone(lowv v, int depth) {\n"
-          "    if (v.tag != LWV_REC || !lw_mkval[lw_recs[v.box].mk]) return v;\n"
+          "    if (v.tag != LWV_REC || !lw_mkval[LW_RECP(v.box)->mk]) return v;\n"
           "    if (depth > 16) lw_panic(\"records nested too deep to copy\");\n"
           "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted while copying a nested struct — raise it with -DLW_RECPOOL=N\");\n"
-          "    int me_ = lw_nrec++; lowrec *s = &lw_recs[v.box], *d = &lw_recs[me_];\n"
+          "    int me_ = lw_nrec++; lowrec *s = LW_RECP(v.box), *d = &lw_recs[me_];\n"
           "    d->mk = s->mk; d->nf = s->nf; memcpy(d->f, s->f, sizeof(lowv) * (size_t)s->nf);\n"
           "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone(d->f[f], depth + 1);\n"
           "    lw_rec_arrs(d, d->mk); v.box = me_; return v; }\n"

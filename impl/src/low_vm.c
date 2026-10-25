@@ -286,6 +286,8 @@ typedef struct {
     proven_size_t   njobs;
     proven_array_t *diags;
 } vm_ctx_t;
+// ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
+#define VM_RECP(vm, b) (&(vm)->recs[(b)])
 
 // ── borrow-stack helpers (dynamic EXCL) ───────────────────────────────────────
 static vmbstk_t *bstk_find(vmframe_t *fr, proven_u8 slot, bool create) {
@@ -732,10 +734,10 @@ static bool vm_rec_arrays(vm_ctx_t *vm, vmrec_t *r);
 // 안에 든 값 레코드를 새 자리로 베낀다(그 안의 레코드·배열 칸 바이트까지). 부른 쪽의 칸 값을 새 손잡이로 바꾼다.
 static bool vm_rec_clone(vm_ctx_t *vm, vmv_t *v, int depth) {
     if (v->tag != VMV_REC || v->box < 0 || (proven_size_t)v->box >= vm->nrecs) return true;
-    if (!vm_mk_is_value(vm, vm->recs[v->box].make_idx)) return true;
+    if (!vm_mk_is_value(vm, VM_RECP(vm, v->box)->make_idx)) return true;
     if (depth > 16) { vm_diag(vm->diags, "E-VM-TYPE", "records nested too deep to copy"); return false; }
     if (vm->nrecs >= VM_MAXREC) { vm_diag(vm->diags, "E-VM-RECPOOL", "the VM's record pool is exhausted while copying a nested struct"); return false; }
-    vmrec_t *src = &vm->recs[v->box], *dst = &vm->recs[vm->nrecs];
+    vmrec_t *src = VM_RECP(vm, v->box), *dst = &vm->recs[vm->nrecs];
     dst->make_idx = src->make_idx; dst->nfields = src->nfields;
     for (proven_size_t f = 0; f < src->nfields; f++) dst->fields[f] = src->fields[f];
     v->box = (proven_i32)vm->nrecs++;
@@ -2313,7 +2315,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         break;
                     }
                     for (proven_size_t z = 0; z < (proven_size_t)sv.box; z++) base[z] = 0;
-                    vmrec_t *r = &vm->recs[vv.box];
+                    vmrec_t *r = VM_RECP(vm, vv.box);
                     const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                     for (proven_size_t fi = 0; fi < st->nf; fi++) {   // 레이아웃 필드마다 레코드에서 찾아 인코딩
                         for (proven_size_t q = 0; q < r->nfields; q++) {
@@ -3896,7 +3898,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-TYPE", "set field needs a record"); return false;
                 }
                 proven_u8str_view_t want = vm->ir->fields[in->a];
-                vmrec_t *r = &vm->recs[rv.box];
+                vmrec_t *r = VM_RECP(vm, rv.box);
                 const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                 bool found = false;
                 const low_ir_sfield_t *asf = vm_arr_field(vm, vm_mk_arr(vm, r->make_idx), want);
@@ -3917,7 +3919,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_u8str_view_t want = vm->ir->fields[in->a];
                 bool found = false;
                 if (v.tag == VMV_REC) {
-                    const vmrec_t *r = &vm->recs[v.box];
+                    const vmrec_t *r = VM_RECP(vm, v.box);
                     const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                     for (proven_size_t i = 0; i < r->nfields && !found; i++)
                         if (proven_u8str_view_eq(mk->fields[i], want)) { stack[sp++] = r->fields[i]; found = true; }
@@ -4024,7 +4026,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         proven_size_t need = (proven_size_t)s->f[i].arrn * s->f[i].arresz;
                         const proven_u8 *src = NULL;
                         if (v.tag == VMV_REC) {
-                            const vmrec_t *r = &vm->recs[v.box];
+                            const vmrec_t *r = VM_RECP(vm, v.box);
                             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                             for (proven_size_t j = 0; j < r->nfields && !src; j++)
                                 if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
@@ -4047,7 +4049,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 16 바이트 칸: 값(레코드) 또는 바이트(뷰)에서 그대로
                         vmv_t w = vmv_int(0); bool got16 = false;
                         if (v.tag == VMV_REC) {
-                            const vmrec_t *r = &vm->recs[v.box];
+                            const vmrec_t *r = VM_RECP(vm, v.box);
                             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                             for (proven_size_t j = 0; j < r->nfields && !got16; j++)
                                 if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) { w = r->fields[j]; got16 = true; }
@@ -4062,7 +4064,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     }
 #endif
                     if (v.tag == VMV_REC) {
-                        const vmrec_t *r = &vm->recs[v.box];
+                        const vmrec_t *r = VM_RECP(vm, v.box);
                         const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                         bool found = false;
                         for (proven_size_t j = 0; j < r->nfields && !found; j++)
@@ -4789,7 +4791,7 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
             return;
         }
         case VMV_REC: {
-            const vmrec_t *r = &vm->recs[v.box];
+            const vmrec_t *r = VM_RECP(vm, v.box);
             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
             proven_size_t o = (proven_size_t)snprintf(out, cap, "{");
             for (proven_size_t i = 0; i < r->nfields && o + 24 < cap; i++) {

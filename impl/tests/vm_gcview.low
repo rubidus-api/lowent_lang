@@ -1,0 +1,30 @@
+rem ★★ 증인 — 거두기(풀 압축)가 구조체 뷰의 번호를 레코드 손잡이로 보고 고쳐 썼다(docs/known-defects/gc-view-struct-index.md, 2026-10-25).
+rem   레코드 0 이 죽고 레코드 1 이 0 으로 옮겨지면, 구조체 1(`s1`)을 보는 뷰가 구조체 0 의 뷰가 되어 «no such field» 로 멈췄다. 답은 11.
+module vw .
+struct s0 do
+  a u8 .
+  b u8 .
+end .
+struct s1 do
+  x u32 .
+  y u32 .
+end .
+struct holder do
+  k u64 .
+  m u64 .
+end .
+fn witness input s slice u8 . output u64 .
+  requires ge len s. . 8 . .
+do
+  let z u64 field lit holder do k 1 . m 2 . end . k . .
+  let live holder lit holder do k 3 . m 4 . end . .
+  let v view s1 view s1 s. . .
+  var acc u64 0 .
+  var i u64 0 .
+  while true do
+    guard lt i. 3 . else break . .
+    set acc. add acc. cast u64 field v. y . . . .
+    set i. add i. 1 . .
+  end .
+  return add add acc. field live. m . . z. . .
+end .

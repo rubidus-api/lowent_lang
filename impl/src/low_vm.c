@@ -665,7 +665,9 @@ static void vm_gc_mark(vm_ctx_t *vm, vmv_t v, vm_pmap_t *bx, vm_pmap_t *rc,
                        vm_pmap_t *sk, vm_pmap_t *bs, vm_pmap_t *vc) {
     switch (v.tag) {
         case VMV_SOME: case VMV_OK:  vm_gc_mark_slot(vm, bx, v.box, v, bx, rc, sk, bs, vc); break;
-        case VMV_REC:  case VMV_VIEW: vm_gc_mark_slot(vm, rc, v.box, v, bx, rc, sk, bs, vc); break;
+        // ★ 뷰(`VMV_VIEW`)의 `.box` 는 **구조체 번호**다, 레코드 손잡이가 아니다 — 전엔 여기서 레코드로 보아 압축이 그 번호를 고쳐 썼다
+        //   (docs/known-defects/gc-view-struct-index.md, 2026-10-25). 뷰는 풀을 안 쓴다.
+        case VMV_REC:  vm_gc_mark_slot(vm, rc, v.box, v, bx, rc, sk, bs, vc); break;
         case VMV_STACK: vm_gc_mark_slot(vm, sk, v.box, v, bx, rc, sk, bs, vc); break;
         case VMV_BITSET: vm_gc_mark_slot(vm, bs, v.box, v, bx, rc, sk, bs, vc); break;
         case VMV_VEC:   vm_gc_mark_slot(vm, vc, v.box, v, bx, rc, sk, bs, vc); break;
@@ -679,7 +681,7 @@ static void vm_gc_fix(vmv_t *v, const vm_pmap_t *bx, const vm_pmap_t *rc,
     const vm_pmap_t *m = NULL;
     switch (v->tag) {
         case VMV_SOME: case VMV_OK: m = bx; break;
-        case VMV_REC: case VMV_VIEW: m = rc; break;
+        case VMV_REC: m = rc; break;   // ★ 뷰는 아니다 — 위 vm_gc_mark 의 주석
         case VMV_STACK: m = sk; break;
         case VMV_BITSET: m = bs; break;
         case VMV_VEC: m = vc; break;

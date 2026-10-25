@@ -2452,7 +2452,8 @@ const char LW_PRELUDE2[] =
 "static void lw_gc_mark(lowv v) {\n"
 "    switch (v.tag) {\n"
 "        case LWV_SOME: case LWV_OK:  lw_gc_slot(lw_pm_bx, lw_gcb_bx, lw_nbox,  v.box, 0); break;\n"
-"        case LWV_REC:  case LWV_VIEW: lw_gc_slot(lw_pm_rc, lw_gcb_rc, lw_nrec,  v.box, 1); break;\n"
+/* ★ 뷰(LWV_VIEW)의 .box 는 구조체 번호다 — 레코드로 보면 압축이 그 번호를 고쳐 쓴다(docs/known-defects/gc-view-struct-index.md) */
+"        case LWV_REC:  lw_gc_slot(lw_pm_rc, lw_gcb_rc, lw_nrec,  v.box, 1); break;\n"
 "        case LWV_STACK: lw_gc_slot(lw_pm_sk, lw_gcb_sk, lw_nstk,  v.box, 2); break;\n"
 "        case LWV_BITSET: lw_gc_slot(lw_pm_bs, lw_gcb_bs, lw_nbset, v.box, 3); break;\n"
 "        case LWV_VEC:   lw_gc_slot(lw_pm_vc, lw_gcb_vc, lw_nvecpool, v.box, 4); break;\n"
@@ -2463,7 +2464,7 @@ const char LW_PRELUDE2[] =
 "    int *m = 0, lo = 0, hi = 0;\n"
 "    switch (v->tag) {\n"
 "        case LWV_SOME: case LWV_OK:  m = lw_pm_bx; lo = lw_gcb_bx; hi = lw_nbox;  break;\n"
-"        case LWV_REC:  case LWV_VIEW: m = lw_pm_rc; lo = lw_gcb_rc; hi = lw_nrec;  break;\n"
+"        case LWV_REC:  m = lw_pm_rc; lo = lw_gcb_rc; hi = lw_nrec;  break;\n"
 "        case LWV_STACK: m = lw_pm_sk; lo = lw_gcb_sk; hi = lw_nstk;  break;\n"
 "        case LWV_BITSET: m = lw_pm_bs; lo = lw_gcb_bs; hi = lw_nbset; break;\n"
 "        case LWV_VEC:   m = lw_pm_vc; lo = lw_gcb_vc; hi = lw_nvecpool; break;\n"

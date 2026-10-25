@@ -2674,6 +2674,74 @@ static void ir_pool_scan(low_ir_t *ir) {
     free(al);
 }
 // RFC-0148 S4-2 — 단위 하나를 낮춘 뒤 검사층의 답을 닫는다(다음 단위가 옛 마디의 답을 읽지 않게).
+// ★★★ RFC-0132 P4e (§14.8, 2026-10-25 소유자 «계획대로 전부») — **구조체 값의 기본 자리는 틀이다.**
+//   op 마다 틀 레코드 칸 수(nwin)와 그 칸들의 예산 몫(wbytes)을 **마지막 IR 에서** 한 번 센다. VM 과 네이티브 태그 경로가 이 수를
+//   함께 쓰므로 두 뒤끝이 같은 자리에서 칸이 모자라고(모자라면 풀로 간다) 같은 자리에서 예산이 넘친다.
+//   ☞ 틀을 쓰는 op 은 풀 거두기를 받는 op 과 같다(참조를 받거나 만드는 op 은 남의 자리에 쓸 수 있어 틀을 안 쓴다 — 거두기도 안 낸다).
+//   ☞ 세는 법: 값 구조체를 짓는 `make` 와 값 구조체를 돌려받는 `call` 자리마다 그 타입이 품는 레코드 수(안에 든 값 구조체를 베끼므로).
+//     루프 안의 자리는 두 몫(앞 바퀴의 것이 아직 살아 있을 수 있다 — 뒷걸음의 압축이 죽은 것을 걷는다). 모자라면 풀이다 — 정직한 보수.
+#define IR_WIN_MAX 64
+bool low_ir_struct_is_value(const low_ir_t *ir, proven_size_t sidx) {
+    if (sidx >= ir->nstructs) return false;
+    const low_ir_struct_t *st = &ir->structs[sidx];
+    if (st->is_actor_state || st->is_mmio || st->is_reserve) return false;
+    for (proven_size_t q = 0; q < st->nf; q++) if (st->f[q].owned) return false;
+    return true;
+}
+// 레코드 수 · 예산 바이트(칸마다 8 · 배열 칸은 제 바이트를 8 로 맞춘 것 · 안에 든 값 구조체는 제 레코드로 따로 센다)
+static void ir_win_tree(const low_ir_t *ir, proven_size_t sidx, unsigned depth, unsigned *recs, unsigned long *bytes) {
+    if (depth > 16 || !low_ir_struct_is_value(ir, sidx)) return;
+    const low_ir_struct_t *st = &ir->structs[sidx];
+    (*recs)++;
+    for (proven_size_t q = 0; q < st->nf; q++) {
+        if (st->f[q].sidx >= 0 && low_ir_struct_is_value(ir, (proven_size_t)st->f[q].sidx))
+            ir_win_tree(ir, (proven_size_t)st->f[q].sidx, depth + 1, recs, bytes);
+        else if (st->f[q].arrn) *bytes += (((unsigned long)st->f[q].arrn * st->f[q].arresz) + 7u) & ~7ul;
+        else *bytes += 8;
+    }
+}
+static bool ir_win_make_sidx(const low_ir_t *ir, proven_size_t mk, proven_size_t *sidx) {
+    if (mk >= ir->nmakes) return false;
+    bool f; proven_size_t si = ir_struct_find(ir, ir->makes[mk].type_name, &f);
+    if (!f) return false;
+    *sidx = si; return true;
+}
+static void ir_frame_windows(low_ir_t *ir) {
+    for (proven_size_t i = 0; i < ir->ndefs; i++) {
+        low_ir_def_t *d = &ir->defs[i];
+        d->nwin = 0; d->wbytes = 0;
+        if (!d->lowered || d->is_extern || d->takes_ref_arg || !d->ncode) continue;
+        bool refs = false;
+        for (proven_size_t j = 0; j < d->ncode && !refs; j++) refs = d->code[j].w == IRW_REF || d->code[j].w == IRW_MREF;
+        if (refs) continue;
+        unsigned char *inl = (unsigned char *)calloc(d->ncode, 1);
+        if (!inl) continue;
+        for (proven_size_t k = 0; k < d->ncode; k++) {
+            const low_ir_ins_t *in = &d->code[k];
+            if ((in->w == IRW_BR || in->w == IRW_BRZ) && in->a >= 0 && (proven_size_t)in->a <= k)
+                for (proven_size_t j = (proven_size_t)in->a; j <= k; j++) inl[j] = 1;
+        }
+        unsigned n = 0; unsigned long b = 0;
+        for (proven_size_t j = 0; j < d->ncode; j++) {
+            const low_ir_ins_t *in = &d->code[j];
+            proven_size_t si = 0; bool hit = false;
+            if (in->w == IRW_MAKE) hit = ir_win_make_sidx(ir, (proven_size_t)in->a, &si);
+            else if (in->w == IRW_CALL) {
+                const low_ir_def_t *cal = &ir->defs[IR_CALL_IDX(in->a)];
+                if (cal->out_tyname.size && !cal->is_extern) { bool f; si = ir_struct_find(ir, cal->out_tyname, &f); hit = f; }
+            }
+            if (!hit || !low_ir_struct_is_value(ir, si)) continue;
+            unsigned r = 0; unsigned long by = 0;
+            ir_win_tree(ir, si, 0, &r, &by);
+            unsigned f = inl[j] ? 2u : 1u;
+            if (n + r * f > IR_WIN_MAX) break;      // 칸이 더 들 자리는 풀이다(실행 중에 칸이 모자라면 그 레코드만 풀로 간다)
+            n += r * f; b += by * f;
+        }
+        free(inl);
+        d->nwin = (proven_u16)n; d->wbytes = (proven_u32)b;
+    }
+}
+
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     low_ir_t ir = low_ir_build_impl(work, pr);
     low_tc_notes_close();
@@ -4479,6 +4547,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         }
     }
     ir_call_through_forwarders(&ir);
+    ir_frame_windows(&ir);   // ★ RFC-0132 P4e — 마지막 IR 에서 센다(위 패스들이 부름을 고쳐 쓴 뒤)
     return ir;
 }
 

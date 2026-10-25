@@ -1752,7 +1752,16 @@ LOW_CHAPOLY_C_SOURCE
 //   차등 스윕이 그것을 (정당하게) 컴파일러 버그로 고발한다.
 "static lowrec lw_recs[LW_RECPOOL];\n"
 // ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
-"#define LW_RECP(b) (&lw_recs[(b)])\n"
+"#define LW_RECV(v) ((v).box >= 0 ? &lw_recs[(v).box] : (lowrec *)(void *)(v).p)\n"
+/* ★★ RFC-0132 P4e (§14.8) — **틀 창**: 값 구조체는 그 op 의 C 틀에 산다(손잡이 box = -1 · p = 레코드). 칸이 모자라면 풀이다.
+   되튐 창(lw_bnw)은 돌려주는 레코드 나무를 부른 쪽이 제 창으로 옮길 때까지 든다. lw_nwin_live = 살아 있는 창의 수. */
+"typedef struct { lowrec *r; int n, cap; } lw_fwin;\n"
+"static _Thread_local int lw_nwin_live, lw_vec_pinned;\n"
+"static inline void lw_wl_restore(int *p) { (void)p; lw_nwin_live--; }\n"
+"static inline int lw_in_win(const lw_fwin *w, lowv v) { if (!w || v.tag != LWV_REC || v.box >= 0) return 0;\n"
+"    const lowrec *r = (const lowrec *)(const void *)v.p; return r >= w->r && r < w->r + w->n; }\n"
+"static lowv lw_promote(lowv v);\n"
+"static _Thread_local lowrec lw_bnr[17]; static _Thread_local lw_fwin lw_bnw;\n"
 "static _Thread_local int lw_nrec; static _Thread_local int lw_reclim = LW_RECPOOL;\n"
 // ★★★ **bounded mailbox** — 레코드(=actor 인스턴스)별 in-flight 메시지 수. VM 의 mbox_depth 와
 //   **같은 규율**: 핸들러 진입 +1, 반환 −1, `mailbox bounded N` 초과 시 트랩. 순차(재진입) 배달.
@@ -1763,12 +1772,12 @@ LOW_CHAPOLY_C_SOURCE
 //   box < 0(진짜 인스턴스가 아님)이면 초기화 대상이 없어 즉시 escalate — VM 과 같은 규율.
 "static lowv lw_restart_call(lowv (*fn)(const lowv *restrict), const lowv *args, int box, int maxr) {\n"
 "    int fb = lw_nfault; if (fb >= 64) return fn(args);   /* 경계 소진 — 그냥 부른다 */\n"
-"    long sb0_ = lw_sbytes;   /* longjmp 는 cleanup 을 건너뛴다 — 스택 예산을 손으로 되돌린다 */\n"
+"    long sb0_ = lw_sbytes; int wl0_ = lw_nwin_live;   /* longjmp 는 cleanup 을 건너뛴다 — 스택 예산 · 틀 창 수를 손으로 되돌린다 */\n"
 "    int att = 0;\n"
 "    for (;;) {\n"
 "        lw_nfault = fb + 1;\n"
 "        if (setjmp(lw_fault[fb]) != 0) {                  /* 핸들러가 panic 해서 되돌아왔다 */\n"
-"            lw_nfault = fb; lw_sbytes = sb0_;\n"
+"            lw_nfault = fb; lw_sbytes = sb0_; lw_nwin_live = wl0_;\n"
 "            if (box >= 0 && att < maxr) { att++;\n"
 "                lowrec *r = &lw_recs[box]; for (int i = 0; i < r->nf; i++) { lowv z = {0}; r->f[i] = z; }\n"
 "                continue; }\n"
@@ -1827,7 +1836,7 @@ const char LW_CONC_T0[] =
 "    for (int m = i; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"
 "    lw_nambox--;\n"
 "    lowv r = fn(cargs);\n"
-"    if (job >= 0 && job < lw_njobs) { lw_jobs[job].result = r; lw_jobs[job].done = 1; }\n"
+"    if (job >= 0 && job < lw_njobs) { lw_jobs[job].result = lw_promote(r); lw_jobs[job].done = 1; }\n"
 "    return 1;\n"
 "}\n"
 // ★ `drain <instance>` — 그 인스턴스 앞으로 온 메시지만 FIFO 로 비운다(호스트판과 같은 규율).
@@ -1854,7 +1863,7 @@ const char LW_CONC_T0[] =
 "    int ci = (int)cl_;\n"
 "    while (lw_chans[ci].count >= LW_T0_CHCAP)\n"
 "        if (!lw_t0_step()) lw_panic(\"`chsend` on a full channel and nothing left to run (T0 floor: tasks run to completion, so a sender cannot be suspended to let a receiver drain the channel)\");\n"
-"    lw_chans[ci].buf[lw_chans[ci].tail] = v; lw_chans[ci].tail = (lw_chans[ci].tail + 1) % LW_T0_CHCAP; lw_chans[ci].count++;\n"
+"    lw_chans[ci].buf[lw_chans[ci].tail] = lw_promote(v); lw_chans[ci].tail = (lw_chans[ci].tail + 1) % LW_T0_CHCAP; lw_chans[ci].count++;\n"
 "    lowv u = {0}; u.tag = LWV_INT; return u; }\n"
 "static lowv lw_chrecv(long long h_) {\n"
 "    if (h_ == 0) lw_panic(\"`chrecv` on handle 0 \xe2\x80\x94 this `chan` was never given a channel (0 is the handle that points at nothing)\");\n"
@@ -1948,7 +1957,7 @@ const char LW_CONC[] =
 "    for (int g = 0; g < lw_gthr[gi].nargs; g++) cargs[base + g] = lw_gthr[gi].args[g];\n"
 "    lowv rv = lw_gthr[gi].fn(cargs);\n"
 "    lw_gthr[gi].state = 4;\n"
-"    if (lw_gthr[gi].job >= 0) { int jid = lw_gthr[gi].job; lw_jobs[jid].result = rv; atomic_store_explicit(&lw_jobs[jid].done, 1, memory_order_release); lw_gprog++;\n"
+"    if (lw_gthr[gi].job >= 0) { int jid = lw_gthr[gi].job; lw_jobs[jid].result = lw_promote(rv); atomic_store_explicit(&lw_jobs[jid].done, 1, memory_order_release); lw_gprog++;\n"
 "        for (int q = 0; q < lw_ngthr; q++) if (lw_gthr[q].state == 6 && lw_gthr[q].blk_job == jid) lw_gthr[q].state = 2; }\n"
 "    if (lw_cancel_scope && rv.tag == LWV_ERR) {\n"   /* cancel_on_error — 오류 자식이 형제를 취소한다 */
 // ★★★ **A4 — 취소가 io 대기에도 닿아야 한다** (RFC-0071 A4, 2026-07-20).
@@ -1963,7 +1972,7 @@ const char LW_CONC[] =
 "            if (lw_gthr[q].state == 1 || lw_gthr[q].state == 5 || lw_gthr[q].state == 6 || lw_gthr[q].state == 7) {\n"
 "                if (lw_gthr[q].state == 7) { lw_io_forget(lw_gthr[q].blk_fd); lw_aio_drop(lw_gthr[q].blk_aio); }\n"
 "                lw_gthr[q].state = 4;\n"
-"                if (lw_gthr[q].job >= 0) { int cj = lw_gthr[q].job; lw_jobs[cj].result = rv; atomic_store_explicit(&lw_jobs[cj].done, 1, memory_order_release);\n"
+"                if (lw_gthr[q].job >= 0) { int cj = lw_gthr[q].job; lw_jobs[cj].result = lw_promote(rv); atomic_store_explicit(&lw_jobs[cj].done, 1, memory_order_release);\n"
 "                    for (int w = 0; w < lw_ngthr; w++) if (lw_gthr[w].state == 6 && lw_gthr[w].blk_job == cj) lw_gthr[w].state = 2; } } } }\n"
 "}\n"
 // ★★★ **진짜 OS 스레드 — 동료가 필요 없는 태스크만** (RFC-0071 A7).
@@ -2316,7 +2325,7 @@ const char LW_CONC[] =
 "    long long cl_ = h_ - 1; if (cl_ < 0 || cl_ >= lw_nchan) lw_panic(\"`chsend` needs a channel handle (from `channel`)\");\n"
 "    int ci = (int)cl_;\n"   /* VM 의 E-VM-CHAN 과 같은 게이트 — 조작된 핸들 거절 */
 "    while (lw_chans[ci].count >= 64) { if (!lw_in_gsched) lw_panic(\"`chsend` on a full channel with no receiver\"); lw_gblock(ci, 0); }\n"
-"    lw_chans[ci].buf[lw_chans[ci].tail] = v; lw_chans[ci].tail = (lw_chans[ci].tail + 1) % 64; lw_chans[ci].count++; lw_gprog++;\n"
+"    lw_chans[ci].buf[lw_chans[ci].tail] = lw_promote(v); lw_chans[ci].tail = (lw_chans[ci].tail + 1) % 64; lw_chans[ci].count++; lw_gprog++;\n"
 "    for (int q = 0; q < lw_ngthr; q++) if (lw_gthr[q].state == 5 && lw_gthr[q].blk_chan == ci && lw_gthr[q].blk_recv) lw_gthr[q].state = 2;\n"   /* recver 를 깨운다 */
 "    lowv u = {0}; u.tag = LWV_INT; return u; }\n"
 "static lowv lw_chrecv(long long h_) {\n"
@@ -2343,7 +2352,7 @@ const char LW_CONC[] =
 const char LW_PRELUDE2[] =
 "static struct { lowv items[128]; size_t n, cap; } lw_stks[LW_STKPOOL]; static int lw_nstk;\n"
 "static unsigned long long lw_bsets[LW_BSETPOOL]; static unsigned char lw_bwid[LW_BSETPOOL]; static int lw_nbset;\n"
-"static lowv lw_wrap_ok(lowv v) { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\"); lw_boxes[lw_nbox] = v;\n"
+"static lowv lw_wrap_ok(lowv v) { v = lw_promote(v); if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\"); lw_boxes[lw_nbox] = v;\n"
 "    lowv r = {0}; r.tag = LWV_OK; r.box = lw_nbox++; return r; }\n"
 "static lowv lw_err(int e) { lowv r = {0}; r.tag = LWV_ERR; r.i = e; return r; }\n"
 "static lowv lw_make(int mk, int nf, const lowv *vals) { if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted — raise it with -DLW_RECPOOL=N (docs/runtime-pools.md)\");\n"
@@ -2354,7 +2363,7 @@ const char LW_PRELUDE2[] =
 "    lw_stks[lw_nstk].n = 0; lw_stks[lw_nstk].cap = (size_t)c; lowv v = {0}; v.tag = LWV_STACK; v.box = lw_nstk++; return v; }\n"
 "static lowv lw_spush(lowv s, lowv x) { if (s.tag != LWV_STACK) lw_panic(\"push needs a stack\");\n"
 "    if (lw_stks[s.box].n >= lw_stks[s.box].cap) lw_panic(\"stack capacity exceeded\");\n"
-"    lw_stks[s.box].items[lw_stks[s.box].n++] = x; return lw_int(0); }\n"
+"    lw_stks[s.box].items[lw_stks[s.box].n++] = lw_promote(x); return lw_int(0); }\n"
 /* ★ RFC-0016 총체형 소비자 — VM 핸들러와 **같은 규칙**(diff-sweep 로 VM≡native). */
 // ★ `value_or` 의 지연 분기가 쓰는 술어 — some/ok 면 1, none/err 면 0.
 //   `is_some` 은 result 를, `is_ok` 는 option 을 거절하므로 **둘 다 받는 것**이 필요했다.
@@ -2410,6 +2419,8 @@ const char LW_PRELUDE2[] =
 //   뿌리는 이 프레임의 `loc[]`·`st[]` 뿐이다 — 벡터 핸들이 박스·레코드·스택으로 샜으면
 //   되감지 않는다(그때는 옛 규율 그대로 단조 증가한다: **정직한 보수**).
 "static int lw_vec_outside(int base) {\n"
+"    if (lw_vec_pinned) return 1;   /* RFC-0132 P4e — 참조로 남의 틀 레코드에 벡터를 썼다: 그 뒤로는 되감지 않는다(정직한 보수) */\n"
+"    for (int i = 0; i < lw_bnw.n; i++) for (int f = 0; f < lw_bnr[i].nf; f++) if (lw_bnr[i].f[f].tag == LWV_VEC && lw_bnr[i].f[f].box >= base) return 1;\n"
 "    for (int i = 0; i < lw_nbox; i++) if (lw_boxes[i].tag == LWV_VEC && lw_boxes[i].box >= base) return 1;\n"
 "    for (int i = 0; i < lw_nrec; i++) { lowrec *r_ = &lw_recs[i];\n"
 "        for (int f = 0; f < r_->nf; f++) if (r_->f[f].tag == LWV_VEC && r_->f[f].box >= base) return 1; }\n"
@@ -2472,7 +2483,7 @@ const char LW_PRELUDE2[] =
 "    }\n"
 "    if (v->box >= lo && v->box < hi && m[v->box] >= 0) v->box = m[v->box];\n"
 "}\n"
-"static void lw_pool_gc(int bxb, int rcb, int skb, int bsb, int vcb, lowv *loc, int nloc, lowv *st, int sp) {\n"
+"static void lw_pool_gc(int bxb, int rcb, int skb, int bsb, int vcb, lowv *loc, int nloc, lowv *st, int sp, lw_fwin *w_) {\n"
 "    if (lw_vec_shared) return;   /* 풀을 나눠 쓰는 흐름 — 남의 뿌리가 안 보인다 */\n"
 "    if (lw_nbox <= bxb && lw_nrec <= rcb && lw_nstk <= skb && lw_nbset <= bsb && lw_nvecpool <= vcb) return;\n"
 "    lw_gcb_bx = bxb; lw_gcb_rc = rcb; lw_gcb_sk = skb; lw_gcb_bs = bsb; lw_gcb_vc = vcb;\n"
@@ -2483,6 +2494,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = vcb; i < lw_nvecpool; i++) lw_pm_vc[i] = -1;\n"
 "    for (int i = 0; i < nloc; i++) lw_gc_mark(loc[i]);\n"
 "    for (int i = 0; i < sp; i++)   lw_gc_mark(st[i]);\n"
+"    if (w_) for (int i = 0; i < w_->n; i++) for (int f = 0; f < w_->r[i].nf; f++) lw_gc_mark(w_->r[i].f[f]);\n"
 "    for (int i = 0; i < bxb; i++) lw_gc_mark(lw_boxes[i]);\n"
 "    for (int i = 0; i < rcb; i++) for (int f = 0; f < lw_recs[i].nf; f++) lw_gc_mark(lw_recs[i].f[f]);\n"
 "    for (int i = 0; i < skb; i++) for (size_t k = 0; k < lw_stks[i].n; k++) lw_gc_mark(lw_stks[i].items[k]);\n"
@@ -2502,6 +2514,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = vcb; i < lw_nvecpool; i++) if (lw_pm_vc[i] >= 0 && lw_pm_vc[i] != i) lw_vecs[lw_pm_vc[i]] = lw_vecs[i];\n"
 "    for (int i = 0; i < nloc; i++) lw_gc_fix(&loc[i]);\n"
 "    for (int i = 0; i < sp; i++)   lw_gc_fix(&st[i]);\n"
+"    if (w_) for (int i = 0; i < w_->n; i++) for (int f = 0; f < w_->r[i].nf; f++) lw_gc_fix(&w_->r[i].f[f]);\n"
 "    for (int i = 0; i < tb; i++) lw_gc_fix(&lw_boxes[i]);\n"
 "    for (int i = 0; i < tr; i++) for (int f = 0; f < lw_recs[i].nf; f++) lw_gc_fix(&lw_recs[i].f[f]);\n"
 "    for (int i = 0; i < ts; i++) for (size_t k = 0; k < lw_stks[i].n; k++) lw_gc_fix(&lw_stks[i].items[k]);\n"
@@ -2962,7 +2975,7 @@ const char LW_RENDER[] =
 "            for (size_t i = 0; i < v.n && o + 8 < cap; i++)\n"
 "                o += (size_t)snprintf(out + o, cap - o, \"%s%u\", i ? \" \" : \"\", (unsigned)v.p[i]);\n"
 "            snprintf(out + o, cap - o, \"]\"); return; }\n"
-"        case LWV_REC: { lowrec *r = LW_RECP(v.box);\n"
+"        case LWV_REC: { lowrec *r = LW_RECV(v);\n"
 "            size_t o = (size_t)snprintf(out, cap, \"{\");\n"
 "            for (int i = 0; i < r->nf && o + 24 < cap; i++) { char fv[48];\n"
 "                lw_render(r->f[i], fv, sizeof fv);\n"

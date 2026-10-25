@@ -192,6 +192,9 @@ typedef struct {
 // ★ RFC-0132 T2b-3b — `bytes` 는 이 **자리**(슬롯)의 배열 칸 바이트다. 자리마다 하나이고 자리와 함께 산다 — 풀이 되감기면
 //   다음 레코드가 같은 버퍼를 다시 쓰고, 압축이 레코드를 옮기면 버퍼를 **맞바꾼다**(한 버퍼는 늘 한 자리의 것).
 typedef struct { proven_size_t make_idx; vmv_t fields[IR_MAKE_MAXF]; proven_size_t nfields; proven_u8 *bytes; proven_size_t bcap; } vmrec_t;
+// ★★ RFC-0132 P4e (§14.8) — **틀 창**: 값 구조체 레코드가 사는 활성 기록의 칸들(손잡이 box = -1 · p = 레코드). 네이티브의 lw_fwin 과 같은 규율 —
+//   칸 수는 IR 의 nwin, 모자라면 풀. 되튐 창(vm->bnw)은 돌려주는 레코드 나무를 부른 쪽이 옮길 때까지 든다.
+typedef struct { vmrec_t *r; proven_size_t n, cap; } vm_win;
 // ★ 스택 풀 — 레코드·비트셋과 **같은 규율**. 8칸이었다: **루프에서 아홉 번째를 만들면 죽었다.**
 #define VM_MAXSTK   256
 #define VM_STKCAP   128
@@ -273,6 +276,8 @@ typedef struct {
     proven_size_t   cur_gthr;     // 지금 도는 gthread
     bool            in_gsched;    // 코루틴 스케줄러 안인가(yield 가 의미 있는지)
     long            sbytes, sbudget;   // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산(네이티브 lw_sbytes 와 같은 수)
+    vm_win          bnw; vmrec_t bnr[17];   // ★ RFC-0132 P4e — 되튐 창(네이티브 lw_bnw 와 같은 17 칸)
+    bool            vec_pinned;        // ★ RFC-0132 P4e — 참조로 남의 틀 레코드에 벡터를 썼다: 그 뒤로 벡터를 되감지 않는다(네이티브와 같다)
     unsigned        cur_ceiling;  // ★ 지금 도는 호출 사슬의 깊이 트랩(메인=VM_MAXCALL · 그린스레드=base+GT_DEPTH)
     unsigned        sched_base;   // ★ 그린스레드 창이 시작하는 절대깊이(메인깊이+1) — E-Alloc P1
     // ★★★ **channel** (RFC-0009 3/3) — bounded FIFO 통신 채널. chrecv 는 empty 에서, chsend 는 full 에서
@@ -287,7 +292,7 @@ typedef struct {
     proven_array_t *diags;
 } vm_ctx_t;
 // ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
-#define VM_RECP(vm, b) (&(vm)->recs[(b)])
+#define VM_RECV(vm, v) ((v).box >= 0 ? &(vm)->recs[(v).box] : (vmrec_t *)(void *)(v).p)
 
 // ── borrow-stack helpers (dynamic EXCL) ───────────────────────────────────────
 static vmbstk_t *bstk_find(vmframe_t *fr, proven_u8 slot, bool create) {
@@ -433,6 +438,9 @@ static void vm_roots_free(vm_ctx_t *vm) {
 
 static bool vm_vec_outside(const vm_ctx_t *vm, proven_size_t base) {
     #define VM_VEC_HIT(v) ((v).tag == VMV_VEC && (proven_size_t)(v).box >= base)
+    if (vm->vec_pinned) return true;   // ★ RFC-0132 P4e — 네이티브의 lw_vec_pinned 와 같다
+    for (proven_size_t i = 0; i < vm->bnw.n; i++)
+        for (proven_size_t f = 0; f < vm->bnr[i].nfields; f++) if (VM_VEC_HIT(vm->bnr[i].fields[f])) return true;
     for (proven_size_t i = 0; i < vm->nbox; i++) if (VM_VEC_HIT(vm->boxes[i])) return true;
     for (proven_size_t i = 0; i < vm->nrecs; i++)
         for (proven_size_t f = 0; f < vm->recs[i].nfields; f++) if (VM_VEC_HIT(vm->recs[i].fields[f])) return true;
@@ -579,6 +587,8 @@ typedef struct vm_act {
     proven_u8          *lbuf;
     proven_size_t       lbuf_cap;
     long                sb_saved;   // ★ RFC-0135 S0 — 이 프레임에 들어오기 전의 스택 예산 사용량
+    vm_win              win;        // ★ RFC-0132 P4e — 이 프레임의 틀 창(cap = 이 op 의 nwin)
+    proven_size_t       wcap_alloc; //   창 칸을 위해 잡아 둔 수(자유 리스트로 되쓰이므로 줄이지 않는다)
     vmv_t               locals[VM_LOCALS];   // 지역 — 프레임에 인라인(힙 프레임이 호출을 넘어 산다)
     vmv_t               stack[VM_STACK];      // 피연산자 스택
 } vm_act;
@@ -600,7 +610,7 @@ static vm_act *g_act_free;   // 자유 리스트(parent 로 잇는다) — 단�
 static vm_act *act_alloc(void) {
     vm_act *a = g_act_free;
     if (a) g_act_free = a->parent;
-    else { a = malloc(sizeof *a); if (a) { a->lbuf = NULL; a->lbuf_cap = 0; } }
+    else { a = malloc(sizeof *a); if (a) { a->lbuf = NULL; a->lbuf_cap = 0; a->win.r = NULL; a->win.n = 0; a->win.cap = 0; a->wcap_alloc = 0; } }
     return a;
 }
 // ★ T2b-2 — 이 op 의 틀 안 나열 자리를 담을 만큼 버퍼를 늘린다(줄이지 않는다 — 다음 호출이 되쓴다).
@@ -612,6 +622,16 @@ static bool act_lbuf(vm_act *a, const low_ir_def_t *d) {
     return true;
 }
 static void act_free(vm_act *a) { a->parent = g_act_free; g_act_free = a; }
+// ★ RFC-0132 P4e — 이 op 의 틀 창을 연다(칸은 비어 있다 · 칸의 배열 바이트 버퍼는 자리와 함께 되쓰인다).
+static bool act_win(vm_act *a, const low_ir_def_t *d) {
+    if (d->nwin > a->wcap_alloc) {
+        vmrec_t *nr = realloc(a->win.r, sizeof *nr * d->nwin);
+        if (!nr) return false;
+        for (proven_size_t i = a->wcap_alloc; i < d->nwin; i++) { nr[i].bytes = NULL; nr[i].bcap = 0; nr[i].nfields = 0; }
+        a->win.r = nr; a->wcap_alloc = d->nwin;
+    }
+    a->win.n = 0; a->win.cap = d->nwin; return true;
+}
 // ★★★ **살아 있는 사슬은 하나가 아니다** (RFC-0089 후속 F1, 2026-08-04).
 //
 //   단계 B 의 벡터 되감기는 뿌리를 **현재 프레임의 지역과 피연산자 스택**으로 잡았다. 그런데
@@ -698,6 +718,8 @@ static void vm_gc_fix(vmv_t *v, const vm_pmap_t *bx, const vm_pmap_t *rc,
         for (vm_act *a_ = *g_chain[ci_]; a_; a_ = a_->parent) { \
             for (proven_size_t li_ = 0; li_ < VM_LOCALS; li_++) FN(&a_->locals[li_]); \
             for (proven_size_t si_ = 0; si_ < a_->sp; si_++)     FN(&a_->stack[si_]); \
+            for (proven_size_t wi_ = 0; wi_ < a_->win.n; wi_++) \
+                for (proven_size_t wf_ = 0; wf_ < a_->win.r[wi_].nfields; wf_++) FN(&a_->win.r[wi_].fields[wf_]); \
         } \
     } } while (0)
 
@@ -734,17 +756,42 @@ static bool vm_mk_is_value(const vm_ctx_t *vm, proven_size_t mk) {
 }
 static bool vm_rec_arrays(vm_ctx_t *vm, vmrec_t *r);
 // 안에 든 값 레코드를 새 자리로 베낀다(그 안의 레코드·배열 칸 바이트까지). 부른 쪽의 칸 값을 새 손잡이로 바꾼다.
-static bool vm_rec_clone(vm_ctx_t *vm, vmv_t *v, int depth) {
-    if (v->tag != VMV_REC || v->box < 0 || (proven_size_t)v->box >= vm->nrecs) return true;
-    if (!vm_mk_is_value(vm, VM_RECP(vm, v->box)->make_idx)) return true;
+// ★ RFC-0132 P4e — 창(w)에 자리가 있으면 거기, 없으면 풀. 손잡이를 *hv 에 적는다(풀이 찼으면 false — 진단은 부른 쪽).
+static bool vm_rec_new(vm_ctx_t *vm, vm_win *w, vmrec_t **out, vmv_t *hv) {
+    *hv = (vmv_t){ .tag = VMV_REC };
+    if (w && w->n < w->cap) { vmrec_t *r = &w->r[w->n++]; *out = r; hv->box = -1; hv->p = (const proven_u8 *)(void *)r; return true; }
+    if (vm->nrecs >= VM_MAXREC) return false;
+    hv->box = (proven_i32)vm->nrecs; *out = &vm->recs[vm->nrecs++]; return true;
+}
+static inline bool vm_in_win(const vm_win *w, vmv_t v) {
+    if (!w || !w->r || v.tag != VMV_REC || v.box >= 0) return false;
+    const vmrec_t *r = (const vmrec_t *)(const void *)v.p; return r >= w->r && r < w->r + w->n;
+}
+static bool vm_rec_clone_w(vm_ctx_t *vm, vmv_t *v, int depth, vm_win *w) {
+    if (v->tag != VMV_REC || (v->box >= 0 && (proven_size_t)v->box >= vm->nrecs)) return true;
+    if (!vm_mk_is_value(vm, VM_RECV(vm, *v)->make_idx)) return true;
     if (depth > 16) { vm_diag(vm->diags, "E-VM-TYPE", "records nested too deep to copy"); return false; }
-    if (vm->nrecs >= VM_MAXREC) { vm_diag(vm->diags, "E-VM-RECPOOL", "the VM's record pool is exhausted while copying a nested struct"); return false; }
-    vmrec_t *src = VM_RECP(vm, v->box), *dst = &vm->recs[vm->nrecs];
+    vmrec_t *src = VM_RECV(vm, *v), *dst; vmv_t nv;
+    if (!vm_rec_new(vm, w, &dst, &nv)) { vm_diag(vm->diags, "E-VM-RECPOOL", "the VM's record pool is exhausted while copying a nested struct"); return false; }
     dst->make_idx = src->make_idx; dst->nfields = src->nfields;
     for (proven_size_t f = 0; f < src->nfields; f++) dst->fields[f] = src->fields[f];
-    v->box = (proven_i32)vm->nrecs++;
-    for (proven_size_t f = 0; f < dst->nfields; f++) if (!vm_rec_clone(vm, &dst->fields[f], depth + 1)) return false;
+    *v = nv;
+    for (proven_size_t f = 0; f < dst->nfields; f++) if (!vm_rec_clone_w(vm, &dst->fields[f], depth + 1, w)) return false;
     return vm_rec_arrays(vm, dst);
+}
+static bool vm_rec_clone(vm_ctx_t *vm, vmv_t *v, int depth) { return vm_rec_clone_w(vm, v, depth, NULL); }
+// ★ RFC-0132 P4e — 나가는 길에서 풀로 올린다 · 돌려줄 때 되튐 창으로 · 받는 쪽이 제 창(없으면 풀)으로 · 남의 레코드 칸에 쓸 때.
+static bool vm_promote(vm_ctx_t *vm, vmv_t *v) { return (v->tag == VMV_REC && v->box < 0) ? vm_rec_clone_w(vm, v, 1, NULL) : true; }
+static bool vm_fw_ret(vm_ctx_t *vm, vm_win *w, vmv_t *v) {
+    if (!vm_in_win(w, *v)) return true;
+    if (!vm->bnw.r) { vm->bnw.r = vm->bnr; vm->bnw.cap = 17; }
+    vm->bnw.n = 0; return vm_rec_clone_w(vm, v, 1, &vm->bnw);
+}
+static bool vm_fw_take(vm_ctx_t *vm, vm_win *w, vmv_t *v) { return vm_in_win(&vm->bnw, *v) ? vm_rec_clone_w(vm, v, 1, w) : true; }
+static bool vm_fw_keep(vm_ctx_t *vm, vm_win *w, vmv_t target, vmv_t *v) {
+    if (target.tag == VMV_REC && target.box < 0 && vm_in_win(w, target)) return true;
+    if (v->tag == VMV_VEC && target.tag == VMV_REC && target.box < 0) vm->vec_pinned = true;
+    return vm_promote(vm, v);
 }
 static const low_ir_sfield_t *vm_arr_field(const vm_ctx_t *vm, proven_i32 sx, proven_u8str_view_t name) {
     if (sx < 0) return NULL;
@@ -877,6 +924,35 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
     vm->nbox = ntop[0]; vm->nrecs = ntop[1]; vm->nstk = ntop[2]; vm->nbset = ntop[3]; vm->nvec = ntop[4];
 }
 
+// ★ RFC-0132 P4e — 루프의 뒷걸음에서 틀 창을 압축한다(네이티브 lw_fw_gc 와 같은 규율 — 뿌리는 이 프레임의 지역과 피연산자 스택).
+static void vm_fw_mark(vm_win *w, vmv_t v, signed char *mk) {
+    if (!vm_in_win(w, v)) return;
+    proven_size_t i = (proven_size_t)((const vmrec_t *)(const void *)v.p - w->r);
+    if (mk[i]) return; mk[i] = 1;
+    for (proven_size_t f = 0; f < w->r[i].nfields; f++) vm_fw_mark(w, w->r[i].fields[f], mk);
+}
+static void vm_fw_fix(vm_win *w, proven_size_t n0, vmv_t *v, const int *map) {
+    if (v->tag != VMV_REC || v->box >= 0) return;
+    const vmrec_t *r = (const vmrec_t *)(const void *)v->p; if (r < w->r || r >= w->r + n0) return;
+    v->p = (const proven_u8 *)(void *)&w->r[map[r - w->r]];
+}
+static void vm_fw_gc(vm_act *a) {
+    vm_win *w = &a->win; if (!w->n) return;
+    signed char mk[64] = {0}; int map[64]; proven_size_t n0 = w->n;
+    proven_size_t nloc = a->d->nlocals ? a->d->nlocals : 1;
+    for (proven_size_t i = 0; i < nloc && i < VM_LOCALS; i++) vm_fw_mark(w, a->locals[i], mk);
+    for (proven_size_t i = 0; i < a->sp; i++) vm_fw_mark(w, a->stack[i], mk);
+    int top = 0; for (proven_size_t i = 0; i < n0; i++) map[i] = mk[i] ? top++ : -1;
+    for (proven_size_t i = 0; i < n0; i++) if (map[i] >= 0 && (proven_size_t)map[i] != i) {
+        vmrec_t *d = &w->r[map[i]]; proven_u8 *ob = d->bytes; proven_size_t oc = d->bcap;
+        *d = w->r[i]; w->r[i].bytes = ob; w->r[i].bcap = oc;
+    }
+    for (proven_size_t i = 0; i < nloc && i < VM_LOCALS; i++) vm_fw_fix(w, n0, &a->locals[i], map);
+    for (proven_size_t i = 0; i < a->sp; i++) vm_fw_fix(w, n0, &a->stack[i], map);
+    for (proven_size_t i = 0; i < (proven_size_t)top; i++) for (proven_size_t f = 0; f < w->r[i].nfields; f++) vm_fw_fix(w, n0, &w->r[i].fields[f], map);
+    w->n = (proven_size_t)top;
+}
+
 // 진입 프레임(및 그 위 단순 호출들)을 완주시키는 **드라이버**. 중첩 vm_exec(actor·메시지)는
 // 자기 체인을 따로 잡아 돈다 — 프레임이 안 움직이니 서로 안 밟는다.
 static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
@@ -906,13 +982,13 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
                                   else if (chain_slot != (proven_size_t)-1) g_chain[chain_slot] = NULL; } while (0)
     proven_size_t s0 = slot_alloc(vm);
     if (s0 == (proven_size_t)-1) { act_free(top); { VM_CHAIN_LEAVE(); return false; } }
-    if (!act_lbuf(top, d)) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals"); act_free(top); { VM_CHAIN_LEAVE(); return false; } }
+    if (!act_lbuf(top, d) || !act_win(top, d)) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals"); act_free(top); { VM_CHAIN_LEAVE(); return false; } }
     // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산(네이티브와 같은 수 · 같은 문구)
     long sb_entry = vm->sbytes;
     #define VM_SB_FAIL() do { vm_diag(vm->diags, "E-VM-STACK-BUDGET", "the list literals living on this call chain need more than the stack budget " \
                                       "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator"); } while (0)
     top->sb_saved = vm->sbytes;
-    if (d->lbuf_size && (vm->sbytes += (long)d->lbuf_size) > vm->sbudget) {
+    if ((d->lbuf_size || d->wbytes) && (vm->sbytes += (long)(d->lbuf_size + d->wbytes)) > vm->sbudget) {   // ★ P4e — 틀 창의 몫도(네이티브와 같은 수)
         VM_SB_FAIL(); vm->sbytes = sb_entry; slot_free(s0); act_free(top); { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; } }
     top->parent = NULL; top->d = d; top->pc = 0; top->depth = depth; top->sp = 0; top->slot = s0;
     top->vec_base = vm->nvec; top->bx_base = vm->nbox; top->rec_base = vm->nrecs;
@@ -941,7 +1017,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
                               vm_act *p = top->parent; act_free(top); top = p; }
                 { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
             }
-            if (!act_lbuf(fc, callee)) {
+            if (!act_lbuf(fc, callee) || !act_win(fc, callee)) {
                 vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals");
                 act_free(fc); slot_free(sc);
                 while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
@@ -955,7 +1031,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             for (proven_size_t i = 0; i < callee->nparams; i++) fc->locals[i] = cargs[i];
             vm->frames[sc].locs = fc->locals; vm->frames[sc].gen = ++vm->gcount; vm->frames[sc].nbstk = 0;
             fc->sb_saved = vm->sbytes;
-            if (callee->lbuf_size && (vm->sbytes += (long)callee->lbuf_size) > vm->sbudget) {
+            if ((callee->lbuf_size || callee->wbytes) && (vm->sbytes += (long)(callee->lbuf_size + callee->wbytes)) > vm->sbudget) {
                 VM_SB_FAIL(); vm->frames[sc].locs = NULL; vm->frames[sc].gen = 0; slot_free(sc); act_free(fc);
                 while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
                               vm_act *p = top->parent; act_free(top); top = p; }
@@ -966,6 +1042,12 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
             vm_act *done = top; top = top->parent;
             if (top) vm->sbytes = done->sb_saved;   // ★ RFC-0135 S0 — 이 프레임의 틀 안 나열을 예산에서 뺀다
+            // ★ RFC-0132 P4e — 틀 창의 레코드를 돌려주면 되튐 창으로 베끼고, 부른 쪽이 제 창(없으면 풀)으로 옮긴다(네이티브와 같은 두 걸음).
+            if (!vm_fw_ret(vm, &done->win, &rv) || (top && !vm_fw_take(vm, top->d->nwin ? &top->win : NULL, &rv))) {
+                act_free(done);
+                while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
+                              vm_act *p = top->parent; act_free(top); top = p; }
+                { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; } }
             vm_vec_ret(vm, done->vec_base, &rv);   // ★ 벡터 풀 되감기(RFC-0089 B) — 콜리의 벡터는 콜리와 함께 죽는다
             if (!top) { *ret = rv; vm->sbytes = done->sb_saved; act_free(done); { VM_CHAIN_LEAVE(); return true; } }   // 진입 프레임이 끝났다
             // 스칼라 반환이면 콜리가 만든 레코드/박스 풀을 회수(호출 때 저장한 워터마크로).
@@ -1069,6 +1151,7 @@ static void gthr_trampoline(void) {
     // ★ job 결과를 담고 await 하던 태스크를 깨운다(완료가 awaiter 를 runnable 로).
     if (vm->gthr[gi].job >= 0) {
         proven_size_t jid = (proven_size_t)vm->gthr[gi].job;
+        if (!vm_promote(vm, &rv)) g_gt_err = true;   // ★ RFC-0132 P4e — 되튐 창은 다음 부름이 덮는다
         vm->jobs[jid].result = rv; vm->jobs[jid].done = 1; vm->gprogress++;
         for (proven_size_t q = 0; q < vm->ngthr; q++)
             if (vm->gthr[q].state == 6 && vm->gthr[q].blk_job == (proven_i32)jid) vm->gthr[q].state = 2;
@@ -1607,7 +1690,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t qi = vm->nmbox++;
                 vm->mbox[qi].box = inst.box; vm->mbox[qi].handler = (proven_u16)in->a;
                 vm->mbox[qi].nargs = (proven_u8)(want - 1); vm->mbox[qi].job = -1;
-                for (proven_size_t g = 0; g < want - 1; g++) vm->mbox[qi].args[g] = stack[sp - want + 1 + g];
+                for (proven_size_t g = 0; g < want - 1; g++) { vm->mbox[qi].args[g] = stack[sp - want + 1 + g]; if (!vm_promote(vm, &vm->mbox[qi].args[g])) return false; }
                 sp -= want;
                 stack[sp++] = vmv_int(0);   // 유닛(문장이 버린다)
                 break;
@@ -1646,7 +1729,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t qi = vm->nmbox++;
                 vm->mbox[qi].box = inst.box; vm->mbox[qi].handler = (proven_u16)hidx;
                 vm->mbox[qi].nargs = (proven_u8)(want - 1); vm->mbox[qi].job = -1;
-                for (proven_size_t g = 0; g < want - 1; g++) vm->mbox[qi].args[g] = stack[sp - want + 1 + g];
+                for (proven_size_t g = 0; g < want - 1; g++) { vm->mbox[qi].args[g] = stack[sp - want + 1 + g]; if (!vm_promote(vm, &vm->mbox[qi].args[g])) return false; }
                 sp -= want;
                 vm->boxes[vm->nbox] = vmv_int(0);   // ok 페이로드 = 유닛
                 stack[sp++] = (vmv_t){ .tag = VMV_OK, .box = (proven_i32)vm->nbox++ };
@@ -1692,7 +1775,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vm->mbox[qi].handler = (proven_u16)in->a;
                 vm->mbox[qi].nargs = (proven_u8)np;
                 vm->mbox[qi].job = (proven_i32)jid;
-                for (proven_size_t g = 0; g < np; g++) vm->mbox[qi].args[g] = stack[sp - np + g];
+                for (proven_size_t g = 0; g < np; g++) { vm->mbox[qi].args[g] = stack[sp - np + g]; if (!vm_promote(vm, &vm->mbox[qi].args[g])) return false; }
                 sp -= np;
                 stack[sp++] = vmv_int((proven_i64)jid + 1);   // job 핸들 — 1 부터(0 은 널)
                 break;
@@ -1772,6 +1855,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm->gthr[gi].state = 5; vm->gthr[gi].blk_chan = (proven_i32)ci; vm->gthr[gi].blk_recv = 0;   // send 블록
                     swapcontext(&vm->gthr[gi].ctx, &vm->sched_ctx);   // 재개되면 재검사
                 }
+                if (!vm_promote(vm, &v)) return false;
                 vm->chans[ci].buf[vm->chans[ci].tail] = v;
                 vm->chans[ci].tail = (vm->chans[ci].tail + 1) % VM_CHAN_CAP;
                 vm->chans[ci].count++;
@@ -2234,7 +2318,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 break;
             // ★ **뒤로 가는 분기가 곧 루프다** — 반복 하나가 만든 벡터는 거기서 죽는다(RFC-0089 B).
-            case IRW_BR:    if ((proven_size_t)in->a <= pc) { a->sp = sp; vm_pool_gc(vm, a); }
+            case IRW_BR:    if ((proven_size_t)in->a <= pc) { a->sp = sp; if (a->d->nwin) vm_fw_gc(a); vm_pool_gc(vm, a); }
                             pc = (proven_size_t)in->a - 1; break;
             case IRW_SWITCH: {   // ★ RFC-0081 MM9-B2 — 계산 점프 테이블. v 를 pop → 뒤 BR 런의 v번째로.
                 if (sp == 0) return false;
@@ -2250,7 +2334,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vmv_t v = stack[--sp];
                 if (v.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "branch condition is not a bool/int"); return false; }
                 if (v.i == 0) {
-                    if ((proven_size_t)in->a <= pc) { a->sp = sp; vm_pool_gc(vm, a); }
+                    if ((proven_size_t)in->a <= pc) { a->sp = sp; if (a->d->nwin) vm_fw_gc(a); vm_pool_gc(vm, a); }
                     pc = (proven_size_t)in->a - 1;
                 }
                 break;
@@ -2317,7 +2401,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         break;
                     }
                     for (proven_size_t z = 0; z < (proven_size_t)sv.box; z++) base[z] = 0;
-                    vmrec_t *r = VM_RECP(vm, vv.box);
+                    vmrec_t *r = VM_RECV(vm, vv);
                     const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                     for (proven_size_t fi = 0; fi < st->nf; fi++) {   // 레이아웃 필드마다 레코드에서 찾아 인코딩
                         for (proven_size_t q = 0; q < r->nfields; q++) {
@@ -2608,6 +2692,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (sp == 0) return false;
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
                 vm->boxes[vm->nbox] = stack[--sp];
+                if (!vm_promote(vm, &vm->boxes[vm->nbox])) return false;   // ★ RFC-0132 P4e — 짐은 풀에 산다
                 stack[sp++] = (vmv_t){ .tag = VMV_OK, .box = (proven_i32)vm->nbox++ };
                 break;
             }
@@ -2617,6 +2702,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (sp == 0) return false;
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
                 vm->boxes[vm->nbox] = stack[--sp];
+                if (!vm_promote(vm, &vm->boxes[vm->nbox])) return false;   // ★ RFC-0132 P4e — 짐은 풀에 산다
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
             }
@@ -3714,6 +3800,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (s.tag != VMV_STACK) { vm_diag(vm->diags, "E-VM-TYPE", "push needs a stack"); return false; }
                 vmstk_t *st = &vm->stks[s.box];
                 if (st->n >= st->cap) { vm_diag(vm->diags, "E-VM-BOUNDS", "stack capacity exceeded"); return false; }
+                if (!vm_promote(vm, &v)) return false;
                 st->items[st->n++] = v;
                 stack[sp++] = vmv_int(0);   // unit
                 break;
@@ -3899,8 +3986,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (rv.tag != VMV_REC) {
                     vm_diag(vm->diags, "E-VM-TYPE", "set field needs a record"); return false;
                 }
+                if (!vm_fw_keep(vm, a->d->nwin ? &a->win : NULL, rv, &vv)) return false;   // ★ RFC-0132 P4e — 남의 레코드 칸이면 풀로
                 proven_u8str_view_t want = vm->ir->fields[in->a];
-                vmrec_t *r = VM_RECP(vm, rv.box);
+                vmrec_t *r = VM_RECV(vm, rv);
                 const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                 bool found = false;
                 const low_ir_sfield_t *asf = vm_arr_field(vm, vm_mk_arr(vm, r->make_idx), want);
@@ -3921,7 +4009,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_u8str_view_t want = vm->ir->fields[in->a];
                 bool found = false;
                 if (v.tag == VMV_REC) {
-                    const vmrec_t *r = VM_RECP(vm, v.box);
+                    const vmrec_t *r = VM_RECV(vm, v);
                     const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                     for (proven_size_t i = 0; i < r->nfields && !found; i++)
                         if (proven_u8str_view_eq(mk->fields[i], want)) { stack[sp++] = r->fields[i]; found = true; }
@@ -4028,7 +4116,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         proven_size_t need = (proven_size_t)s->f[i].arrn * s->f[i].arresz;
                         const proven_u8 *src = NULL;
                         if (v.tag == VMV_REC) {
-                            const vmrec_t *r = VM_RECP(vm, v.box);
+                            const vmrec_t *r = VM_RECV(vm, v);
                             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                             for (proven_size_t j = 0; j < r->nfields && !src; j++)
                                 if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
@@ -4051,7 +4139,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 16 바이트 칸: 값(레코드) 또는 바이트(뷰)에서 그대로
                         vmv_t w = vmv_int(0); bool got16 = false;
                         if (v.tag == VMV_REC) {
-                            const vmrec_t *r = VM_RECP(vm, v.box);
+                            const vmrec_t *r = VM_RECV(vm, v);
                             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                             for (proven_size_t j = 0; j < r->nfields && !got16; j++)
                                 if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) { w = r->fields[j]; got16 = true; }
@@ -4066,7 +4154,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     }
 #endif
                     if (v.tag == VMV_REC) {
-                        const vmrec_t *r = VM_RECP(vm, v.box);
+                        const vmrec_t *r = VM_RECV(vm, v);
                         const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                         bool found = false;
                         for (proven_size_t j = 0; j < r->nfields && !found; j++)
@@ -4401,7 +4489,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             case IRW_MAKE: {
                 const low_ir_make_t *mk = &vm->ir->makes[in->a];
                 if (sp < mk->nfields) return false;
-                if (vm->nrecs >= VM_MAXREC) {
+                vm_win *w_ = (a->d->nwin && vm_mk_is_value(vm, (proven_size_t)in->a)) ? &a->win : NULL;   // ★ RFC-0132 P4e — 틀 창 먼저
+                if (!(w_ && w_->n < w_->cap) && vm->nrecs >= VM_MAXREC) {
                     // ★★★ **VM 은 구조체를 박스에 넣는다. 그리고 풀은 유한하다.**
                     //   이것은 **VM 의 한계**이지 프로그램의 결함이 아니다 — 그리고 그렇게 말한다.
                     //   ★ 타입 하강된 네이티브 경로는 **박스를 아예 안 쓴다**: 구조체가 값이다.
@@ -4415,16 +4504,16 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             "box them at all (DECISION-0018)");
                     return false;
                 }
-                vmrec_t *r = &vm->recs[vm->nrecs];
+                vmrec_t *r; vmv_t hv_;
+                (void)vm_rec_new(vm, w_, &r, &hv_);   // 위에서 자리를 확인했다
                 r->make_idx = (proven_size_t)in->a;
                 r->nfields = mk->nfields;
                 for (proven_size_t i = 0; i < mk->nfields; i++) r->fields[mk->nfields - 1 - i] = stack[--sp];
-                proven_size_t me = vm->nrecs++;
                 // ★ X-0083 — 안에 든 **값 구조체**는 베낀다(구조체는 값이다 — 전엔 같은 안쪽 레코드를 두 바깥이 나눠 가졌다)
-                for (proven_size_t q = 0; q < mk->nfields; q++) if (!vm_rec_clone(vm, &vm->recs[me].fields[q], 1)) return false;
+                for (proven_size_t q = 0; q < mk->nfields; q++) if (!vm_rec_clone_w(vm, &r->fields[q], 1, w_)) return false;
                 // ★ T2b-3b — 배열 칸은 받은 값의 **바이트를 이 레코드의 것으로 베낀다**(값 복사). 칸은 그 바이트를 보는 슬라이스다.
-                if (!vm_rec_arrays(vm, &vm->recs[me])) return false;
-                stack[sp++] = (vmv_t){ .tag = VMV_REC, .box = (proven_i32)me };
+                if (!vm_rec_arrays(vm, r)) return false;
+                stack[sp++] = hv_;
                 break;
             }
             case IRW_CALL: {
@@ -4522,6 +4611,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     }
                 }
                 if (!ok_call) return false;
+                if (!vm_fw_take(vm, a->d->nwin ? &a->win : NULL, &rv)) return false;   // ★ RFC-0132 P4e
                 if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {
                     vm->nrecs = rec_wm; vm->nbset = bs_wm; vm->nstk = sk_wm; vm->nbox = bx_wm;
                 }
@@ -4793,7 +4883,7 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
             return;
         }
         case VMV_REC: {
-            const vmrec_t *r = VM_RECP(vm, v.box);
+            const vmrec_t *r = VM_RECV(vm, v);
             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
             proven_size_t o = (proven_size_t)snprintf(out, cap, "{");
             for (proven_size_t i = 0; i < r->nfields && o + 24 < cap; i++) {

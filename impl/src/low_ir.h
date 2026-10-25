@@ -705,6 +705,10 @@ typedef struct {
     proven_u32          param_mutw;
     // ★ RFC-0132 T2b-2 — 이 op 의 틀 안 나열 자리(ⓐ·ⓒ)가 쓰는 바이트 수. 자리마다 한 칸(8 바이트로 맞춤).
     proven_size_t       lbuf_size;
+    // ★ RFC-0132 P4e (§14.8) — 이 op 의 **틀 레코드 칸** 수(0 = 풀을 쓴다)와 그 칸들이 스택 예산에서 차지하는 바이트.
+    //   `ir_frame_windows` 가 마지막 IR 에서 한 번 센다 — VM 과 네이티브 태그 경로가 같은 수를 쓴다.
+    proven_u16          nwin;
+    proven_u32          wbytes;
     // ★★★ **`unsafe_ptr T`** (RFC-0066 가족) — C 로 넘길 **생 포인터**. 구조체의 바이트에 대한
     //   단일 포인터를 C 에 `void *` 로 넘긴다(길이 없음). unsafe: 레이아웃 일치는 사용자 책임이고
     //   이름이 그렇게 말한다. viewable 구조체만(바이트 레이아웃이 C 와 맞을 수 있는 것). sidx 는
@@ -995,6 +999,8 @@ proven_size_t low_ir_target_count(void);
 const low_target_t *low_ir_target_named(const char *name);   // 기계 이름이면 펼친 값, 아니면 NULL
 bool low_ir_target_is_group(const char *name);
 bool low_ir_target_tree_ok(char *err, size_t errn);          // 모든 마디가 펼쳐지는가(단위 시험)
+// ★ RFC-0132 P4e — 값 구조체인가(액터 상태 · 장치 레지스터 · 예약 · `owned` 칸이 없다): 베끼고 틀에 둘 수 있는 것.
+bool low_ir_struct_is_value(const low_ir_t *ir, proven_size_t sidx);
 void low_ir_print_targets(FILE *f);                          // `--targets`
 const char *low_ir_target_name(proven_size_t i);
 // ★★★ **SMT 백엔드를 끈다** (`--no-smt`) — 기능 스위치가 아니라 **측정 도구**다 (후속 M).

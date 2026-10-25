@@ -5432,7 +5432,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   안 그러면 `*(struct*).p` 가 **널을 역참조**한다(조합 테스트가 그 segfault 를 잡았다).
         //   바이트 뷰(CLI·view)면 .p 가 이미 연속이라 그대로 읽는다.
         fprintf(out, "static struct lw_sty_%zu lw_sty_%zu_of(lowv v) {\n", s, s);
-        fprintf(out, "    if (v.tag == LWV_REC) { lowrec *r_ = LW_RECP(v.box); struct lw_sty_%zu s_ = {0};\n", s);
+        fprintf(out, "    if (v.tag == LWV_REC) { lowrec *r_ = LW_RECV(v); struct lw_sty_%zu s_ = {0};\n", s);
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
             if (ir->structs[s].f[i].arrn)                    // ★ T2b-3d ⓓ — 레코드의 배열 칸 바이트를 그대로
                 fprintf(out, "        memcpy(s_.f%zu, r_->f[%zu].p, sizeof s_.f%zu);\n", i, i, i);
@@ -5534,7 +5534,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    int sidx = (int)((s.i >> 20) & 0xff);\n"
           "    unsigned char *base = (unsigned char *)s.p + (size_t)k * (size_t)s.box;\n"
           "    for (int b = 0; b < s.box; b++) base[b] = 0;\n"
-          "    lowrec *rr = LW_RECP(v.box);\n"
+          "    lowrec *rr = LW_RECV(v);\n"
           "    for (int fi = 0; fi < lw_st_nf[sidx]; fi++)\n"
           "        for (int q = 0; q < rr->nf; q++)\n"
           "            if (strcmp(lw_mk_fields[rr->mk][q], lw_st_fname[sidx][fi]) == 0) {\n"
@@ -5596,7 +5596,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        lw_panic(\"no such field on this record\");\n"
           "    }\n"
           "    if (r.tag != LWV_REC) lw_panic(\"field access needs a record/view\");\n"
-          "    lowrec *rr = LW_RECP(r.box);\n"
+          "    lowrec *rr = LW_RECV(r);\n"
           "    for (int i = 0; i < rr->nf; i++)\n"
           "        if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) return rr->f[i];\n"
           "    lw_panic(\"no such field on this record\");\n"
@@ -5638,7 +5638,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        lw_panic(\"no such register in this block\");\n"
           "    }\n"
           "    if (r.tag != LWV_REC) lw_panic(\"set field needs a record\");\n"
-          "    lowrec *rr = LW_RECP(r.box);\n"
+          "    lowrec *rr = LW_RECV(r);\n"
           "    for (int i = 0; i < rr->nf; i++)\n"
           "        if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) { if (!lw_fstore_arr(rr, i, v)) rr->f[i] = v; return; }\n"
           "    lw_panic(\"no such field on this record\");\n"
@@ -5698,7 +5698,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        unsigned long long x = 0; int found = 0;\n"
           "        if (lw_st_farrn[s][i]) { /* T2b-3d: an array field — copy its bytes into place */\n"
           "            size_t need = (size_t)lw_st_farrn[s][i] * (size_t)(lw_st_farrm[s][i] & 0xff); const unsigned char *src = 0;\n"
-          "            if (v.tag == LWV_REC) { lowrec *rr = LW_RECP(v.box);\n"
+          "            if (v.tag == LWV_REC) { lowrec *rr = LW_RECV(v);\n"
           "                for (int j = 0; j < rr->nf && !src; j++) if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) {\n"
           "                    lowv fv = rr->f[j]; size_t have = fv.tag == LWV_SLICE ? fv.n : fv.tag == LWV_VARRAY ? fv.n * (size_t)fv.box : 0;\n"
           "                    if (have != need) lw_panic(\"encode: an array field holds the wrong length\"); src = fv.p; } }\n"
@@ -5708,14 +5708,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "            if (!src) lw_panic(\"encode: value lacks an array field of that length\");\n"
           "            memmove(ob + lw_st_foff[s][i], src, need); continue; }\n"
           "        if (lw_st_fsize[s][i] == 16) { lowv w_ = {0}; int g_ = 0;   /* RFC-0151 §9.4.1 — 16 바이트 칸 */\n"
-          "            if (v.tag == LWV_REC) { lowrec *rr = LW_RECP(v.box);\n"
+          "            if (v.tag == LWV_REC) { lowrec *rr = LW_RECV(v);\n"
           "                for (int j = 0; j < rr->nf && !g_; j++) if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) { w_ = rr->f[j]; g_ = 1; } }\n"
           "            else if (v.tag == LWV_VIEW) { for (int j = 0; j < lw_st_nf[v.box] && !g_; j++)\n"
           "                if (strcmp(lw_st_fname[v.box][j], lw_st_fname[s][i]) == 0 && lw_st_fsize[v.box][j] == 16) { w_ = lw_get16(v.p + lw_st_foff[v.box][j], lw_st_fbe[v.box][j]); g_ = 1; } }\n"
           "            if (!g_) lw_panic(\"encode: value lacks a 16-byte layout field\");\n"
           "            lw_put16(ob + lw_st_foff[s][i], w_, lw_st_fbe[s][i]); continue; }\n"
           "        if (v.tag == LWV_REC) {\n"
-          "            lowrec *rr = LW_RECP(v.box);\n"
+          "            lowrec *rr = LW_RECV(v);\n"
           "            for (int j = 0; j < rr->nf && !found; j++)\n"
           "                if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) {\n"
           "                    if (lw_st_fflt[s][i]) {\n"
@@ -5813,17 +5813,22 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     if (rbmax) fprintf(out, "#ifdef LW_FREESTANDING\nstatic unsigned char lw_rbuf[LW_RECPOOL][%zu] __attribute__((aligned(8)));\n#endif\n", rbmax);
     if (!rbmax) {   // 배열 칸이 없다 — 힙에 닿는 코드를 아예 내지 않는다(프리스탠딩 프로필이 호스트 기호를 세어 거절한다)
         fputs("static void lw_rec_arrs(lowrec *r, int mk) { (void)r; (void)mk; }\n"
-              "static lowv lw_rec_clone(lowv v, int depth) {\n"
-              "    if (v.tag != LWV_REC || !lw_mkval[LW_RECP(v.box)->mk]) return v;\n"
+              "static lowv lw_rec_new(lw_fwin *w, lowrec **out) { lowv v = {0}; v.tag = LWV_REC;\n"
+              "    if (w && w->n < w->cap) { lowrec *r = &w->r[w->n++]; *out = r; v.box = -1; v.p = (const unsigned char *)(void *)r; return v; }\n"
+              "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted — raise it with -DLW_RECPOOL=N (docs/runtime-pools.md)\");\n"
+              "    v.box = lw_nrec++; *out = &lw_recs[v.box]; return v; }\n"
+              "static lowv lw_rec_clone_w(lowv v, int depth, lw_fwin *w) {\n"
+              "    if (v.tag != LWV_REC || !lw_mkval[LW_RECV(v)->mk]) return v;\n"
               "    if (depth > 16) lw_panic(\"records nested too deep to copy\");\n"
-              "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted while copying a nested struct — raise it with -DLW_RECPOOL=N\");\n"
-              "    int me_ = lw_nrec++; lowrec *s = LW_RECP(v.box), *d = &lw_recs[me_];\n"
+              "    lowrec *s = LW_RECV(v), *d; lowv nv = lw_rec_new(w, &d);\n"
               "    d->mk = s->mk; d->nf = s->nf; memcpy(d->f, s->f, sizeof(lowv) * (size_t)s->nf);\n"
-              "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone(d->f[f], depth + 1);\n"
-              "    v.box = me_; return v; }\n"
-              "static void lw_rec_arrays(lowrec *r, int mk) {\n"
-              "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone(r->f[f], 1);\n"
+              "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone_w(d->f[f], depth + 1, w);\n"
+              "    return nv; }\n"
+              "static lowv lw_rec_clone(lowv v, int depth) { return lw_rec_clone_w(v, depth, 0); }\n"
+              "static void lw_rec_arrays_w(lowrec *r, int mk, lw_fwin *w) {\n"
+              "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone_w(r->f[f], 1, w);\n"
               "    (void)mk; }\n"
+              "static void lw_rec_arrays(lowrec *r, int mk) { lw_rec_arrays_w(r, mk, 0); }\n"
               "static int lw_fstore_arr(lowrec *r, int slot, lowv v) { (void)r; (void)slot; (void)v; return 0; }\n", out);
     } else fputs(
           "static lowv lw_arr_view(int k, unsigned char *p) { lowv v = {0}; v.p = p;\n"
@@ -5835,17 +5840,22 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    if (have != need) lw_panic(\"an array field takes exactly its length of elements\");\n"
           "    memmove(dst, (const void *)s.p, need); }\n"
           "static void lw_rec_arrs(lowrec *r, int mk);\n"
-          "static lowv lw_rec_clone(lowv v, int depth) {\n"
-          "    if (v.tag != LWV_REC || !lw_mkval[LW_RECP(v.box)->mk]) return v;\n"
+          "static lowv lw_rec_new(lw_fwin *w, lowrec **out) { lowv v = {0}; v.tag = LWV_REC;\n"
+          "    if (w && w->n < w->cap) { lowrec *r = &w->r[w->n++]; *out = r; v.box = -1; v.p = (const unsigned char *)(void *)r; return v; }\n"
+          "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted — raise it with -DLW_RECPOOL=N (docs/runtime-pools.md)\");\n"
+          "    v.box = lw_nrec++; *out = &lw_recs[v.box]; return v; }\n"
+          "static lowv lw_rec_clone_w(lowv v, int depth, lw_fwin *w) {\n"
+          "    if (v.tag != LWV_REC || !lw_mkval[LW_RECV(v)->mk]) return v;\n"
           "    if (depth > 16) lw_panic(\"records nested too deep to copy\");\n"
-          "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted while copying a nested struct — raise it with -DLW_RECPOOL=N\");\n"
-          "    int me_ = lw_nrec++; lowrec *s = LW_RECP(v.box), *d = &lw_recs[me_];\n"
+          "    lowrec *s = LW_RECV(v), *d; lowv nv = lw_rec_new(w, &d);\n"
           "    d->mk = s->mk; d->nf = s->nf; memcpy(d->f, s->f, sizeof(lowv) * (size_t)s->nf);\n"
-          "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone(d->f[f], depth + 1);\n"
-          "    lw_rec_arrs(d, d->mk); v.box = me_; return v; }\n"
-          "static void lw_rec_arrays(lowrec *r, int mk) {\n"
-          "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone(r->f[f], 1);\n"
+          "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone_w(d->f[f], depth + 1, w);\n"
+          "    lw_rec_arrs(d, d->mk); return nv; }\n"
+          "static lowv lw_rec_clone(lowv v, int depth) { return lw_rec_clone_w(v, depth, 0); }\n"
+          "static void lw_rec_arrays_w(lowrec *r, int mk, lw_fwin *w) {\n"
+          "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone_w(r->f[f], 1, w);\n"
           "    lw_rec_arrs(r, mk); }\n"
+          "static void lw_rec_arrays(lowrec *r, int mk) { lw_rec_arrays_w(r, mk, 0); }\n"
           "static void lw_rec_arrs(lowrec *r, int mk) { size_t tot = 0; int any = 0;\n"
           "    for (int k = 0; lw_arrf[k].mk >= 0; k++) if (lw_arrf[k].mk == mk) { tot += (((size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz) + 7u) & ~(size_t)7u; any = 1; }\n"
           "    if (!any) return;\n"
@@ -5865,6 +5875,50 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    for (int k = 0; lw_arrf[k].mk >= 0; k++) if (lw_arrf[k].mk == r->mk && lw_arrf[k].slot == slot) {\n"
           "        lw_arr_copy(k, v, (unsigned char *)(void *)r->f[slot].p); return 1; }\n"
           "    return 0; }\n", out);
+    // ★★★ RFC-0132 P4e (§14.8) — **틀 창 · 올리기 · 되튐**. 창의 레코드는 그 op 의 C 틀에 산다. 밖으로 나가는 길(박스 · 그릇 · 통로 ·
+    //   편지 · 태스크 · 남의 레코드 칸)에서는 풀로 올리고(lw_promote), 돌려줄 때는 되튐 창으로 베껴 부른 쪽이 제 창(없으면 풀)으로 옮긴다.
+    //   ☞ 창 레코드의 바이트 버퍼는 틀이 준다(rbc = 이 단위의 가장 큰 배열 칸 몫) — lw_rec_arrs 의 늘리기 갈래에 닿지 않는다.
+    fprintf(out, "#define LW_RBMAX %zu\n", rbmax ? rbmax : (size_t)1);
+    fputs("static _Thread_local unsigned char lw_bnb[17][LW_RBMAX] __attribute__((aligned(8)));\n"
+          "static void lw_win_init(lw_fwin *w, lowrec *r, unsigned char *rb, int cap) { w->r = r; w->n = 0; w->cap = cap;\n"
+          "    for (int i = 0; i < cap; i++) { r[i].rb = rb + (size_t)i * LW_RBMAX; r[i].rbc = LW_RBMAX; } }\n"
+          "static lowv lw_make_w(lw_fwin *w, int mk, int nf, const lowv *vals) {\n"
+          "    if (!lw_mkval[mk]) w = 0;\n"
+          "    lowrec *r; lowv v = lw_rec_new(w, &r);\n"
+          "    r->mk = mk; r->nf = nf; memcpy(r->f, vals, sizeof(lowv) * (size_t)nf); lw_rec_arrays_w(r, mk, w);\n"
+          "    return v; }\n"
+          "static lowv lw_promote(lowv v) { return (v.tag == LWV_REC && v.box < 0) ? lw_rec_clone_w(v, 1, 0) : v; }\n"
+          "static lowv lw_fw_ret(lw_fwin *w, lowv v) {\n"
+          "    if (!lw_in_win(w, v)) return v;\n"
+          "    if (!lw_bnw.r) lw_win_init(&lw_bnw, lw_bnr, &lw_bnb[0][0], 17);\n"
+          "    lw_bnw.n = 0; return lw_rec_clone_w(v, 1, &lw_bnw); }\n"
+          "static lowv lw_fw_take(lw_fwin *w, lowv v) { return lw_in_win(&lw_bnw, v) ? lw_rec_clone_w(v, 1, w) : v; }\n"
+          "static lowv lw_fw_keep(lw_fwin *w, lowv r, lowv v) {\n"
+          "    if (r.tag == LWV_REF) r = *r.q;\n"
+          "    if (r.tag == LWV_REC && r.box < 0 && lw_in_win(w, r)) return v;\n"
+          "    if (v.tag == LWV_VEC && r.tag == LWV_REC && r.box < 0) lw_vec_pinned = 1;\n"
+          "    return lw_promote(v); }\n"
+          "static signed char lw_fwmk_[64]; static int lw_fwmap_[64];\n"
+          "static void lw_fw_mark(lw_fwin *w, lowv v) { if (!lw_in_win(w, v)) return;\n"
+          "    int i = (int)((const lowrec *)(const void *)v.p - w->r); if (lw_fwmk_[i]) return; lw_fwmk_[i] = 1;\n"
+          "    for (int f = 0; f < w->r[i].nf; f++) lw_fw_mark(w, w->r[i].f[f]); }\n"
+          "static void lw_fw_fix(lw_fwin *w, int n0, lowv *v) {\n"
+          "    if (v->tag != LWV_REC || v->box >= 0) return;\n"
+          "    const lowrec *r = (const lowrec *)(const void *)v->p; if (r < w->r || r >= w->r + n0) return;\n"
+          "    v->p = (const unsigned char *)(void *)&w->r[lw_fwmap_[r - w->r]]; }\n"
+          "static void lw_fw_gc(lw_fwin *w, lowv *loc, int nloc, lowv *st, int sp) {\n"
+          "    if (!w->n) return;\n"
+          "    int n0 = w->n; for (int i = 0; i < n0; i++) lw_fwmk_[i] = 0;\n"
+          "    for (int i = 0; i < nloc; i++) lw_fw_mark(w, loc[i]);\n"
+          "    for (int i = 0; i < sp; i++) lw_fw_mark(w, st[i]);\n"
+          "    int top = 0; for (int i = 0; i < n0; i++) lw_fwmap_[i] = lw_fwmk_[i] ? top++ : -1;\n"
+          "    for (int i = 0; i < n0; i++) if (lw_fwmap_[i] >= 0 && lw_fwmap_[i] != i) {\n"
+          "        lowrec *d = &w->r[lw_fwmap_[i]]; unsigned char *ob = d->rb; size_t oc = d->rbc;\n"
+          "        *d = w->r[i]; w->r[i].rb = ob; w->r[i].rbc = oc; }\n"
+          "    for (int i = 0; i < nloc; i++) lw_fw_fix(w, n0, &loc[i]);\n"
+          "    for (int i = 0; i < sp; i++) lw_fw_fix(w, n0, &st[i]);\n"
+          "    for (int i = 0; i < top; i++) for (int f = 0; f < w->r[i].nf; f++) lw_fw_fix(w, n0, &w->r[i].f[f]);\n"
+          "    w->n = top; }\n", out);
     // ★★★ RFC-0042 §8-2 — **레지스터 블록을 자기 기저 주소에서** (태그 경로). 주소는 컴파일 상수다.
     //   ★ RFC-0137 P4 — 기저는 **포인터**로 받는다(장치 주소는 LW_MMIO_PTR 이 만들고, 예약 블록은 배열 그대로). 정수를 거치지 않는다.
     fputs("static lowv lw_mmioblk(void *base, unsigned n) {\n"
@@ -6283,12 +6337,18 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fprintf(out, "    lowv loc[%zu]; memset(loc, 0, sizeof loc);\n",
                 (size_t)(d->nlocals ? d->nlocals : 1));
         // ★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ): 이 op 의 C 틀에 바이트 줄 하나(부를 때마다 새것 — 재귀도 안전).
-        if (d->lbuf_size) {
-            fprintf(out, "    unsigned char lw_lb[%zu] __attribute__((aligned(16)));\n", (size_t)d->lbuf_size);
+        // ★ RFC-0132 P4e (§14.8) — 틀 창: 값 구조체 레코드 칸(nwin). 예산은 틀 안 나열과 함께 센다(VM 과 같은 수).
+        if (d->nwin)
+            fprintf(out, "    lowrec lw_fwr_[%u]; unsigned char lw_fwb_[%u][LW_RBMAX] __attribute__((aligned(8))); lw_fwin fw_;"
+                         " lw_win_init(&fw_, lw_fwr_, &lw_fwb_[0][0], %u);\n"
+                         "    int lw_wl_ __attribute__((cleanup(lw_wl_restore))) = (lw_nwin_live++, 0); (void)lw_wl_;\n",
+                    (unsigned)d->nwin, (unsigned)d->nwin, (unsigned)d->nwin);
+        if (d->lbuf_size || d->wbytes) {
+            if (d->lbuf_size) fprintf(out, "    unsigned char lw_lb[%zu] __attribute__((aligned(16)));\n", (size_t)d->lbuf_size);
             // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산. 반환하면 cleanup 이 되돌린다(VM 은 같은 수로 센다).
             fprintf(out, "    long lw_sbg_ __attribute__((cleanup(lw_sb_restore))) = lw_sbytes;\n"
                          "    if (LW_UNLIKELY((lw_sbytes += %zuL) > LW_SBUDGET)) lw_panic(\"the list literals living on this call chain need more than the stack budget "
-                         "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator\");\n", (size_t)d->lbuf_size);
+                         "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator\");\n", (size_t)d->lbuf_size + (size_t)d->wbytes);
         }
         fprintf(out, "    for (int i = 0; i < %zu; i++) loc[i] = a[i];\n", (size_t)d->nparams);
         // ★★★★★ **태그 스택도 쓰는 만큼만** (2026-08-17, MEM-0003 — 프레임 래칫이 찾았다).
@@ -6381,14 +6441,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 //   앞으로 가는 분기에는 안 넣는다: 되감기는 어디서든 안전하지만 **공짜는 아니다**.
                 case IRW_BR:
                     if ((proven_size_t)in->a <= j) {
-                        if (poolgc) fprintf(out, "    lw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp);\n", (size_t)(d->nlocals ? d->nlocals : 1));
+                        if (poolgc) fprintf(out, "    %slw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp, %s);\n",
+                                            d->nwin ? "lw_fw_gc(&fw_, loc, (int)(sizeof loc / sizeof *loc), st, sp); " : "",
+                                            (size_t)(d->nlocals ? d->nlocals : 1), d->nwin ? "&fw_" : "0");
                         else if (vecfn) fprintf(out, "    lw_vecgc(vb_, loc, %zu, st, sp);\n", (size_t)(d->nlocals ? d->nlocals : 1));
                     }
                     fprintf(out, "    goto L%lld;\n", (long long)in->a); break;
                 case IRW_BRZ:
                     if (poolgc && (proven_size_t)in->a <= j)
-                        fprintf(out, "    if (lw_want_int(st[--sp], \"branch\") == 0) { lw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp); goto L%lld; }\n",
-                                (size_t)(d->nlocals ? d->nlocals : 1), (long long)in->a);
+                        fprintf(out, "    if (lw_want_int(st[--sp], \"branch\") == 0) { %slw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp, %s); goto L%lld; }\n",
+                                d->nwin ? "lw_fw_gc(&fw_, loc, (int)(sizeof loc / sizeof *loc), st, sp); " : "",
+                                (size_t)(d->nlocals ? d->nlocals : 1), d->nwin ? "&fw_" : "0", (long long)in->a);
                     else if (vecfn && (proven_size_t)in->a <= j)
                         fprintf(out, "    if (lw_want_int(st[--sp], \"branch\") == 0) { lw_vecgc(vb_, loc, %zu, st, sp); goto L%lld; }\n",
                                 (size_t)(d->nlocals ? d->nlocals : 1), (long long)in->a);
@@ -6408,8 +6471,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 }
                 // ★ 콜리의 벡터는 콜리와 함께 죽고, **돌려주는 하나**만 콜리의 바닥으로 내려온다(RFC-0089 B).
-                case IRW_RET:   fputs(vecfn ? "    lw_depth--; return lw_vecret(vb_, sp ? st[sp-1] : lw_int(0));\n"
-                                            : "    lw_depth--; return sp ? st[sp-1] : lw_int(0);\n", out); break;
+                case IRW_RET:   // ★ P4e — 틀 창의 레코드를 돌려주면 되튐 창으로 베낀다(부른 쪽이 옮긴다)
+                    if (d->nwin)
+                        fputs(vecfn ? "    lw_depth--; return lw_vecret(vb_, lw_fw_ret(&fw_, sp ? st[sp-1] : lw_int(0)));\n"
+                                    : "    lw_depth--; return lw_fw_ret(&fw_, sp ? st[sp-1] : lw_int(0));\n", out);
+                    else
+                        fputs(vecfn ? "    lw_depth--; return lw_vecret(vb_, sp ? st[sp-1] : lw_int(0));\n"
+                                    : "    lw_depth--; return sp ? st[sp-1] : lw_int(0);\n", out);
+                    break;
                 // ★★★ **인라인 asm — 여기서만 진짜가 된다** (RFC-0041).
                 //   VM 은 이걸 못 돌리고 **못 돌린다고 말한다.** 네이티브는 **돈다.**
                 //   두 뒤끝이 **다른 답을 주는 유일한 자리**이고, 그것이 정확히 **정직한 자리**다:
@@ -6643,7 +6712,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_WRAP_OK:  fputs("    st[sp-1] = lw_wrap_ok(st[sp-1]);\n", out); break;
                 // ★ option 생성자 (RFC-0043 D5 — OOM 은 값이다)
                 case IRW_WRAP_SOME:
-                    fputs("    { lowv v = st[--sp]; lw_boxes[lw_nbox] = v;\n"
+                    fputs("    { lowv v = lw_promote(st[--sp]); lw_boxes[lw_nbox] = v;\n"
                           "      st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; }\n", out);
                     break;
                 case IRW_WRAP_NONE:
@@ -7117,7 +7186,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 case IRW_MAKE: {
                     proven_size_t nf = ir->makes[in->a].nfields;
-                    if (nf == 0)
+                    if (d->nwin && nf == 0)   // ★ RFC-0132 P4e — 틀 창이 있으면 거기에(모자라면 풀)
+                        fprintf(out, "    st[sp++] = lw_make_w(&fw_, %lld, 0, st);\n", (long long)in->a);
+                    else if (d->nwin)
+                        fprintf(out, "    st[sp-%zu] = lw_make_w(&fw_, %lld, %zu, &st[sp-%zu]); sp -= %zu;\n",
+                                nf, (long long)in->a, nf, nf, nf - 1);
+                    else if (nf == 0)
                         fprintf(out, "    st[sp++] = lw_make(%lld, 0, st);\n", (long long)in->a);
                     else
                         fprintf(out, "    st[sp-%zu] = lw_make(%lld, %zu, &st[sp-%zu]); sp -= %zu;\n",
@@ -7131,8 +7205,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_CONTAINS:  fputs("    st[sp-2] = lw_contains(st[sp-2], st[sp-1]); sp--;\n", out); break;
                 case IRW_COUNT:     fputs("    st[sp-1] = lw_count(st[sp-1]);\n", out); break;
                 case IRW_FIELD: fprintf(out, "    st[sp-1] = lw_field(st[sp-1], %lld);\n", (long long)in->a); break;
-                case IRW_FSTORE: fprintf(out, "    lw_fstore(st[sp-2], %lld, st[sp-1]); sp -= 2;\n",
-                                         (long long)in->a); break;
+                case IRW_FSTORE: fprintf(out, "    lw_fstore(st[sp-2], %lld, lw_fw_keep(%s, st[sp-2], st[sp-1])); sp -= 2;\n",
+                                         (long long)in->a, d->nwin ? "&fw_" : "0"); break;   // ★ P4e — 남의 레코드 칸이면 풀로 올린다
                 case IRW_VIEW:     fprintf(out, "    st[sp-1] = lw_view(st[sp-1], %lld);\n", (long long)in->a); break;
                 case IRW_TRYVIEW:  fprintf(out, "    st[sp-1] = lw_tryview(st[sp-1], %lld);\n", (long long)in->a); break;
                 case IRW_ISOK:     fputs("    st[sp-1] = lw_isok(st[sp-1]);\n", out); break;
@@ -7263,7 +7337,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         fprintf(out, "(&st[sp-%zu])", (size_t)(callee->nparams ? callee->nparams : 0));
                     }
                     fprintf(out, "; if (r.tag == LWV_INT || r.tag == LWV_FLT) { lw_nrec = wm_; lw_nbset = wb_; lw_nstk = wk_; }"
-                                 " sp -= %zu; st[sp++] = r; }\n", (size_t)callee->nparams);
+                                 " else r = lw_fw_take(%s, r);"   /* ★ P4e — 되튐 창의 레코드를 내 창(없으면 풀)으로 */
+                                 " sp -= %zu; st[sp++] = r; }\n", d->nwin ? "&fw_" : "0", (size_t)callee->nparams);
                     if (has_mbox) fprintf(out, "    if (mbi_ >= 0) lw_mbox[mbi_]--; }\n");   // 반환 — in-flight 하나 빠짐 (바깥 블록 닫음)
                     break;
                 }
@@ -7307,7 +7382,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     put_sym(out, h);
                     fprintf(out, "; lw_ambox[qi_].nargs = %zu;\n", np - 1);
                     for (size_t g = 0; g + 1 < np; g++)
-                        fprintf(out, "        lw_ambox[qi_].args[%zu] = st[sp-%zu];\n", g, np - 1 - g);
+                        fprintf(out, "        lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - 1 - g);
                     fprintf(out, "      }\n      sp -= %zu; st[sp++] = lw_int(0); }\n", np);
                     break;
                 }
@@ -7343,7 +7418,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     put_sym(out, h);
                     fprintf(out, "; lw_ambox[qi_].nargs = %zu;\n", np - 1);
                     for (size_t g = 0; g + 1 < np; g++)
-                        fprintf(out, "        lw_ambox[qi_].args[%zu] = st[sp-%zu];\n", g, np - 1 - g);
+                        fprintf(out, "        lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - 1 - g);
                     fprintf(out, "      } res_ = lw_wrap_ok(lw_int(0)); }\n"
                                  "      sp -= %zu; st[sp++] = res_; }\n", np);
                     break;
@@ -7389,7 +7464,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].peer = %d;\n",
                                  np, cbe_needs_peer(ir, (proven_size_t)in->a, 0) ? 1 : 0);
                     for (size_t g = 0; g < np; g++)
-                        fprintf(out, "      lw_ambox[qi_].args[%zu] = st[sp-%zu];\n", g, np - g);
+                        fprintf(out, "      lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - g);
                     fprintf(out, "      sp -= %zu; st[sp++] = lw_int(jid_ + 1); }\n", np);
                     break;
                 }
@@ -7430,7 +7505,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         if (!cbe_emittable(d) || !d->is_par) continue;
         if (d->par_param >= d->nparams || !((d->param_slice >> d->par_param) & 1u)) continue;
         fputs("typedef struct { lowv (*fn)(const lowv *); lowv a[LW_MAXP]; int np; lowv r; } lw_ptask;\n"
-              "static void *lw_pthunk(void *p) { lw_ptask *t = p; t->r = t->fn(t->a); return 0; }\n"
+              "static void *lw_pthunk(void *p) { lw_ptask *t = p; t->r = lw_promote(t->fn(t->a)); return 0; }\n"   /* ★ P4e — 되튐 창은 일꾼 스레드의 것이다: 끝나기 전에 풀로 */
               // ★★ 조각 수 K 는 **하드웨어에서 읽는다.** 전에는 **4 로 못 박혀 있었다** — 그리고
               //   그 숫자는 **한 번도 측정된 적이 없었다.** 정확성만 검증하고 속도는 주장만 했다.
               //   재 봤더니(16-스레드 기계, 원소당 400k 반복):

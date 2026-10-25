@@ -115,3 +115,12 @@ export proc p_sum input d slice u32 . output u32 . effects none . do
   end .
   return acc. .
 end .
+
+rem 글자 그대로의 문자열 — 고전 AVR(328P · 2560 · 32U4)에서는 RAM 에, 4809 에서는 플래시(데이터 주소에 비친 자리)에 산다(RFC-0054 §8-7 A5 ⑦ (다)).
+rem `scripts/avr-build.py` 가 그 자리를 재고, QEMU 에서 읽은 바이트를 VM 과 맞댄다.
+export fn p_str input i usize . output u64 .
+  requires lt i. 16 . .
+do
+  let t slice u8 "hello, avr world" .
+  return cast u64 idx t. i. . . .
+end .

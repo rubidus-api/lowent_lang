@@ -10,7 +10,7 @@
     }
   ],
   "metadata": {
-    "version": "1.17.0",
+    "version": "1.18.0",
     "license": "MIT",
     "description": "Tree-sitter grammar for the Lowent language (language revision 1.8)",
     "links": { "repository": "https://github.com/rubidus-api/lowent_lang" }

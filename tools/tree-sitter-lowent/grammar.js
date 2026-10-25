@@ -178,7 +178,8 @@ module.exports = grammar({
     return_statement: $ => seq('return', optional($._term), $.stop),
     jump_statement: $ => seq(choice('break', 'continue'), optional($.number), $.stop),   // `break 2 .` leaves two loops
     expect_statement: $ => seq('expect', $._term, $.stop),
-    drop_statement: $ => seq('drop', $.name, $.stop, $.stop),
+    // 정본 부록 A `drop-stmt` — 얼로케이터를 적는 꼴(`drop n. use al. .`, RFC-0150 §8-12)도 받는다.
+    drop_statement: $ => seq('drop', $.name, $.stop, optional(seq('use', $.name, $.stop)), $.stop),
 
     if_statement: $ => seq('if', $._term, $.block,
       repeat(seq('else', 'if', $._term, $.block)), optional(seq('else', $.block)), $.stop),

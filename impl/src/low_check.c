@@ -12974,7 +12974,10 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     }
 
     // ★★★ RFC-0054(`machine.*` 타깃 조건부 컴파일)는 **보류**다(DECISION-0008).
-    //   사유: §8 미해결 5건 중 **`comptime` 자체가 미구현**(RFC-0015)이고, 본 RFC 는 그 위에 선다.
+    //   사유(2026-07-13): §8 미해결 5건 중 **`comptime` 자체가 미구현**(RFC-0015)이고, 본 RFC 는 그 위에 선다.
+    //   ☞ 2026-10-26 — 그 사유는 2026-08-01 에 풀렸다(접기가 선다 · RFC-0054 §8-4). 지금 보류인 까닭은 D1~D7 이 채택되지 않았고
+    //     D3~D6(망라 · 폴백 · ISA 게이트 · 고른 가지의 보고)과 `--all-configs` 가 지어지지 않은 것이다. 정본이 이미 말하는 속성은
+    //     `ck_machine_sanctioned` 가 빼 준다.
     //
     //   ★ 그런데 **구현은 이미 있다.** 그러면 도구가 **명세에 없는 것을 주는 셈**이다 —
     //     그리고 이 프로젝트가 금지하는 것이 바로 그것이다(PRINCIPLES.md §0: 도구는 검사한 것만
@@ -12991,9 +12994,11 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         if (hit)
             warn(&out, "W-RFC-PENDING",
                  "`machine.*` comes from RFC-0054 (target-conditional compilation), which is "
-                 "ON HOLD (보류, DECISION-0008): its §8 rests on `comptime`, and comptime "
-                 "itself is not implemented (RFC-0015). It WORKS — the branches are checked, not "
-                 "#ifdef'd away — but **the spec does not sanction it yet**. The tool says so "
+                 "ON HOLD (보류, DECISION-0008): its decisions are not adopted, and its checks of "
+                 "exhaustive and fallback branches, ISA gates and the chosen-branch report are not "
+                 "built. It WORKS — the branches are checked, not #ifdef'd away — but **the spec "
+                 "does not sanction this property yet** (it does sanction machine.addr_bits, "
+                 "ptr_bytes, ptr_align, ptr_caps, mul_bits and limb_bits). The tool says so "
                  "rather than hand you a feature the spec has never seen",
                  f->kids[0]->tok.line);
     }

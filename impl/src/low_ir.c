@@ -2303,15 +2303,51 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
 //   슬라이스/alloc/op-call/데이터 임베딩(text→table, arena→static region)은 §8 후속이다.
 //   접지 못하면 false 를 돌려주고 **호출자**가 E-COMPTIME-NONCONST/FUEL 을 낸다.
 /* IR_CTFE_FUEL — low_ir_priv.h */
+ // ★★★ RFC-0151 §8-10 (2026-10-26 · 소유자 «comptime 결함을 지금 고쳐주세요» · W-20261026-2325) — **부호 없는 값은 부호 없이 접는다.**
+//   이 접기는 타입을 모른 채 부호 있는 64 비트 칸에서 셈했다. 그래서 2^63 이상의 리터럴이 음수로 셈됐다:
+//   `comptime max 18446744073709551615 10` = 10 · `comptime div 18446744073709551615 2` = 0 · `comptime gt 18446744073709551615 10` = 거짓.
+//   ⇒ 값마다 «부호 없는 값이어야 한다»(`uns`)를 함께 나른다. 빼기표 없이 적은 2^63 이상의 리터럴은 `u64` 일 수밖에 없으므로 켠다.
+//     한쪽이라도 켜진 셈은 부호 없이 한다(비교 · `min` · `max` · `div` · `mod` · `shr` 와 넘침). 정직하게 접을 수 없는 것 —
+//     넘침 · 0 밑으로 빼기 · 음수와 섞기 · 부호 없는 값의 `neg` — 은 접지 않는다(호출자가 E-COMPTIME-NONCONST 로 까닭을 댄다).
+//     켜진 쪽이 없으면 전과 똑같다.
+static bool ctfe_lit(proven_u8str_view_t v, proven_i64 *out, bool *uns) {
+    if (!ir_int_lit(v, out)) return false;
+    *uns = v.size > 0 && v.ptr[0] != '-' && *out < 0;    // 빼기표 없이 INT64_MAX 를 넘는 수 — u64 의 위쪽 절반
+    return true;
+}
+static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel);
+static bool ctfe_pair(const low_cst_t *x, const low_cst_t *y, proven_i64 *a, proven_i64 *b, bool *u, int fuel) {
+    bool ua = false, ub = false;
+    if (!ctfe_u(x, a, &ua, fuel - 1) || !ctfe_u(y, b, &ub, fuel - 1)) return false;
+    *u = ua || ub;
+    if (*u && ((!ua && *a < 0) || (!ub && *b < 0))) return false;   // 음수와 부호 없는 값을 섞었다 — 접지 않는다
+    return true;
+}
+// 부호 없는 두 값의 셈 — 넘치면 false.
+static bool ctfe_ubin(char op, proven_u64 x, proven_u64 y, proven_u64 *r) {
+    switch (op) {
+        case '+': return !__builtin_add_overflow(x, y, r);
+        case '-': return !__builtin_sub_overflow(x, y, r);
+        case '*': return !__builtin_mul_overflow(x, y, r);
+        case '/': if (y == 0) return false; *r = x / y; return true;
+        case '%': if (y == 0) return false; *r = x % y; return true;
+        default:  return false;
+    }
+}
  bool ir_ctfe_fold(const low_cst_t *nd, proven_i64 *out, int fuel) {
+    bool uns = false;
+    return ctfe_u(nd, out, &uns, fuel);
+}
+static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
+    *uns = false;
     if (!nd || fuel <= 0) return false;
     while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];   // 괄호 겹 벗기기
-    if (nd->kind == LOW_CST_ATOM) return ir_int_lit(nd->tok.lex, out);
+    if (nd->kind == LOW_CST_ATOM) return ctfe_lit(nd->tok.lex, out, uns);
     if (nd->kind != LOW_CST_FORM || nd->nkids < 1 || !is_atom(nd->kids[0])) return false;
     proven_u8str_view_t head = nd->kids[0]->tok.lex;
     proven_size_t nargs = nd->nkids - 1;
     // 중첩 `comptime <expr>` — 이미 컴파일타임이므로 사실상 항등(RFC-0015 §6.1).
-    if (veq(head, "comptime") && nargs == 1) return ir_ctfe_fold(nd->kids[1], out, fuel - 1);
+    if (veq(head, "comptime") && nargs == 1) return ctfe_u(nd->kids[1], out, uns, fuel - 1);
     // ★ `config <opt>` — 구성 값은 comptime 상수다(RFC-0036 D5). CTFE·match scrutinee 접기가 읽는다.
     if (veq(head, "config") && nargs == 1 && is_atom(nd->kids[1])) {
         ir_opt_t *o = ir_opt_find(nd->kids[1]->tok.lex);
@@ -2320,9 +2356,15 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
     }
     // 연산자 원자(`+ - * /`) 는 2-항.
     if (nd->kids[0]->tok.kind == LOW_TOK_OP && nargs == 2) {
-        proven_i64 a, b;
-        if (!ir_ctfe_fold(nd->kids[1], &a, fuel - 1) || !ir_ctfe_fold(nd->kids[2], &b, fuel - 1)) return false;
-        switch ((char)head.ptr[0]) {
+        proven_i64 a, b; bool u;
+        if (!ctfe_pair(nd->kids[1], nd->kids[2], &a, &b, &u, fuel)) return false;
+        char op = (char)head.ptr[0];
+        if (u) {
+            proven_u64 r;
+            if ((op != '+' && op != '-' && op != '*' && op != '/') || !ctfe_ubin(op, (proven_u64)a, (proven_u64)b, &r)) return false;
+            *out = (proven_i64)r; *uns = true; return true;
+        }
+        switch (op) {
             case '+': *out = a + b; return true;
             case '-': *out = a - b; return true;
             case '*': *out = a * b; return true;
@@ -2332,24 +2374,51 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
     }
     // 이름 있는 순수 스칼라 빌트인. min/max 는 IR_BUILTINS 밖(수치 표)이라 따로 본다.
     if ((veq(head, "min") || veq(head, "max")) && nargs == 2) {
-        proven_i64 a, b;
-        if (!ir_ctfe_fold(nd->kids[1], &a, fuel - 1) || !ir_ctfe_fold(nd->kids[2], &b, fuel - 1)) return false;
-        *out = veq(head, "min") ? (a < b ? a : b) : (a > b ? a : b); return true;
+        proven_i64 a, b; bool u;
+        if (!ctfe_pair(nd->kids[1], nd->kids[2], &a, &b, &u, fuel)) return false;
+        const bool lt_ = u ? (proven_u64)a < (proven_u64)b : a < b;
+        *out = veq(head, "min") ? (lt_ ? a : b) : (lt_ ? b : a); *uns = u; return true;
     }
     const ir_builtin_t *bt = ir_builtin(head);
     if (!bt || bt->arity != nargs) return false;
     if (nargs == 1) {
-        proven_i64 a;
-        if (!ir_ctfe_fold(nd->kids[1], &a, fuel - 1)) return false;
+        proven_i64 a; bool u = false;
+        if (!ctfe_u(nd->kids[1], &a, &u, fuel - 1)) return false;
         switch (bt->w) {
-            case IRW_NEG:  *out = -a; return true;
+            case IRW_NEG:  if (u) return false; *out = -a; return true;   // 부호 없는 값의 neg 는 접지 않는다(정본 §6.3.3 (8a) — 거부)
             case IRW_NOT:  *out = a ? 0 : 1; return true;   // 논리 not
             default: return false;                          // 폭 의존(bit_not/clz/…)·비스칼라는 미지원
         }
     }
     if (nargs == 2) {
-        proven_i64 a, b;
-        if (!ir_ctfe_fold(nd->kids[1], &a, fuel - 1) || !ir_ctfe_fold(nd->kids[2], &b, fuel - 1)) return false;
+        proven_i64 a, b; bool u;
+        if (!ctfe_pair(nd->kids[1], nd->kids[2], &a, &b, &u, fuel)) return false;
+        const proven_u64 x = (proven_u64)a, y = (proven_u64)b;
+        if (u) {   // 부호 없는 셈 — 위 주석
+            proven_u64 r;
+            switch (bt->w) {
+                case IRW_ADD: if (!ctfe_ubin('+', x, y, &r)) return false; *out = (proven_i64)r; *uns = true; return true;
+                case IRW_SUB: if (!ctfe_ubin('-', x, y, &r)) return false; *out = (proven_i64)r; *uns = true; return true;
+                case IRW_MUL: if (!ctfe_ubin('*', x, y, &r)) return false; *out = (proven_i64)r; *uns = true; return true;
+                case IRW_DIV: if (!ctfe_ubin('/', x, y, &r)) return false; *out = (proven_i64)r; *uns = true; return true;
+                case IRW_MOD: if (!ctfe_ubin('%', x, y, &r)) return false; *out = (proven_i64)r; *uns = true; return true;
+                case IRW_BAND: *out = (proven_i64)(x & y); *uns = true; return true;
+                case IRW_BOR:  *out = (proven_i64)(x | y); *uns = true; return true;
+                case IRW_BXOR: *out = (proven_i64)(x ^ y); *uns = true; return true;
+                case IRW_SHR: if (b < 0 || y >= 64) return false; *out = (proven_i64)(x >> y); *uns = true; return true;
+                case IRW_SHL: if (b < 0 || y >= 64) return false; *out = (proven_i64)(x << y); *uns = true; return true;
+                case IRW_EQ:  *out = x == y; return true;
+                case IRW_NE:  *out = x != y; return true;
+                case IRW_LT:  *out = x <  y; return true;
+                case IRW_LE:  *out = x <= y; return true;
+                case IRW_GT:  *out = x >  y; return true;
+                case IRW_GE:  *out = x >= y; return true;
+                case IRW_AND: *out = (a && b) ? 1 : 0; return true;
+                case IRW_OR:  *out = (a || b) ? 1 : 0; return true;
+                case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI: break;   // 비트로 셈한다 — 아래 같은 식
+                default: return false;
+            }
+        }
         switch (bt->w) {
             case IRW_ADD: *out = a + b; return true;
             case IRW_SUB: *out = a - b; return true;
@@ -2366,10 +2435,10 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
             case IRW_BOR:  *out = a | b; return true;
             case IRW_BXOR: *out = a ^ b; return true;
             case IRW_CLMULLO: case IRW_CLMULHI: {   // 캐리 없는 곱셈 — 상수도 접는다
-                unsigned long long x = (unsigned long long)a, y = (unsigned long long)b, lo = 0, hi = 0;
-                for (int i = 0; i < 64; i++) if ((y >> i) & 1ull) { lo ^= x << i; if (i) hi ^= x >> (64 - i); }
-                *out = (proven_i64)(bt->w == IRW_CLMULLO ? lo : hi); return true; }
-            case IRW_MULHI: *out = (proven_i64)low_mulhi64((proven_u64)a, (proven_u64)b); return true;   // ★ RFC-0151 — 상수도 접는다(VM 과 같은 식)
+                unsigned long long xx = (unsigned long long)a, yy = (unsigned long long)b, lo = 0, hi = 0;
+                for (int i = 0; i < 64; i++) if ((yy >> i) & 1ull) { lo ^= xx << i; if (i) hi ^= xx >> (64 - i); }
+                *out = (proven_i64)(bt->w == IRW_CLMULLO ? lo : hi); *uns = u; return true; }
+            case IRW_MULHI: *out = (proven_i64)low_mulhi64((proven_u64)a, (proven_u64)b); *uns = u; return true;   // ★ RFC-0151 — 상수도 접는다(VM 과 같은 식)
             case IRW_SHL: if (b < 0 || b >= 64) return false; *out = a << b; return true;
             case IRW_SHR: if (b < 0 || b >= 64) return false; *out = a >> b; return true;
             case IRW_EQ:  *out = (a == b) ? 1 : 0; return true;
@@ -3310,7 +3379,9 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     "folds a PURE INTEGER expression only — integer literals and pure scalar ops "
                     "(add/sub/mul/div/mod/neg, and/or/not, bit_and/bit_or/bit_xor, shl/shr, the "
                     "comparisons, min/max). Runtime names, slices, allocation, op calls, and data "
-                    "embedding (text→table, arena→static region) are not folded yet (RFC-0015 §8)",
+                    "embedding (text→table, arena→static region) are not folded yet (RFC-0015 §8). "
+                    "A u64 value of 2^63 or more folds without a sign, and what has no honest value is "
+                    "not folded: an overflow, a subtraction below 0, or a negative number mixed with it",
                     nd->line);
             return;
         }

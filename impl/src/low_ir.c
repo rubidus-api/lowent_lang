@@ -788,6 +788,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 break;
             case IRW_BINM:
                 res = ity_join(ops[0], ops[1]);   // RFC-0148 S3 — `min` · `max` · `@fmod` · `@pow` 는 피연산자의 타입이다
+                if ((a == 1 || a == 2) && !c->tstk_bad && res.known && !res.flt && !res.sign) a |= IR_BINM_UNS;   // RFC-0151 §8-9
                 break;
             case IRW_RNGNEXT:
                 res = (ityp_t){ true, 64, false, false, false, 0, 0 };   // RFC-0148 S3 — `rng_next` 는 u64 다

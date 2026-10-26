@@ -2247,20 +2247,21 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             case IRW_BINM: {   // fmod / min / max
                 if (sp < 2) return false;
                 vmv_t bv = stack[--sp], av = stack[--sp];
-                if (av.tag == VMV_INT && bv.tag == VMV_INT && in->a != 0) {
-                    stack[sp++] = vmv_int(in->a == 1 ? (av.i < bv.i ? av.i : bv.i)
-                                                     : (av.i > bv.i ? av.i : bv.i));
+                const proven_i64 bsel = in->a & 0xff;   // 갈래 — 위 비트는 IR_BINM_UNS (RFC-0151 §8-9)
+                if (av.tag == VMV_INT && bv.tag == VMV_INT && bsel != 0) {
+                    const bool lt_ = (in->a & IR_BINM_UNS) ? (proven_u64)av.i < (proven_u64)bv.i : av.i < bv.i;
+                    stack[sp++] = vmv_int(bsel == 1 ? (lt_ ? av.i : bv.i) : (lt_ ? bv.i : av.i));
                     break;
                 }
                 if (av.tag != VMV_FLT || bv.tag != VMV_FLT) {   // D14: fmod 는 부동 전용(정수는 rem/mod)
                     vm_diag(vm->diags, "E-VM-TYPE",
-                            in->a == 0 ? "fmod is float-only (use rem/mod for integers)"
+                            bsel == 0 ? "fmod is float-only (use rem/mod for integers)"
                                        : "min/max need two numbers of one kind");
                     return false;
                 }
                 double x = vmv_f(av), y = vmv_f(bv);
-                stack[sp++] = vmv_flt(in->a == 0 ? fmod(x, y) : in->a == 1 ? (x < y ? x : y)
-                                    : in->a == 2 ? (x > y ? x : y) : pow(x, y));
+                stack[sp++] = vmv_flt(bsel == 0 ? fmod(x, y) : bsel == 1 ? (x < y ? x : y)
+                                    : bsel == 2 ? (x > y ? x : y) : pow(x, y));
                 break;
             }
             case IRW_CAST: {   // a = 0 → f64 | width → integer truncate/mask

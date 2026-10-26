@@ -513,6 +513,10 @@ typedef struct {
 #define IR_SRC_UNS    0x200000   // 원천이 부호 없는 정수
 #define IR_SRC_SGN    0x400000   // 원천이 부호 있는 정수
 #define IR_SRC_W128   0x1000000  // ★ RFC-0151 — 원천이 128 비트 정수(값의 위 64 비트가 함께 온다)
+// ★ RFC-0151 §8-9 (2026-10-26 · 소유자 «지금 고쳐주세요») — IRW_BINM 의 `min` · `max` 가 **부호 없는 정수**에서 돈다. `a` 의 아래 8 비트는
+//   갈래(0 fmod · 1 min · 2 max · 3 pow)이고 이 비트가 부호를 싣는다. 없으면 두 뒤끝이 `u64` 의 위쪽 절반을 음수로 견주었다
+//   (`max (2^64−1) 10` = 10). 읽는 쪽은 갈래를 `& 0xff` 로 꺼낸다.
+#define IR_BINM_UNS   0x100
 // ★ X-0065 — IRW_PANIC 의 a 가 이 값이면 «받는 자리가 찼다»(문자열 번호와 겹치지 않는 큰 수).
 #define IR_PANIC_SINKFULL 0x7fff0001
 #define IR_PANIC_NODEKIDS 0x7fff0003   /* ★ RFC-0150 §6.0.6 — `drop n. use al.` 의 마디에 자식 칸이 아직 들어 있다 */

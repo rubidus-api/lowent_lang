@@ -1685,7 +1685,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 st.o[st.n-1] = -1; break;
             case IRW_BINM:
                 if (st.n < 2 || st.k[st.n-1] != st.k[st.n-2]) return false;
-                if (in->a == 0) { if (st.k[st.n-1] != K_FLT) return false; }   // fmod — f64 전용
+                if ((in->a & 0xff) == 0) { if (st.k[st.n-1] != K_FLT) return false; }   // fmod — f64 전용
                 else if (st.k[st.n-1] != K_INT && st.k[st.n-1] != K_FLT) return false;
                 st.n--; st.o[st.n-1] = -1; break;
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
@@ -3742,13 +3742,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   **나머지 전부**를 삼키는 자리는 새 갈래가 늘 때마다 거짓말이 된다.
                 //   ⇒ 갈래를 이름으로 적는다.
                 if (ks.k[ks.n-1] == K_FLT) {
-                    if (in->a == 0) fputs("    fs[fsp-2] = fmod(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
-                    else if (in->a == 3) fputs("    fs[fsp-2] = pow(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
+                    if ((in->a & 0xff) == 0) fputs("    fs[fsp-2] = fmod(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
+                    else if ((in->a & 0xff) == 3) fputs("    fs[fsp-2] = pow(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
                     else fprintf(out, "    fs[fsp-2] = (fs[fsp-2] %s fs[fsp-1]) ? fs[fsp-2] : fs[fsp-1];"
-                                      " fsp--;\n", in->a == 1 ? "<" : ">");
-                } else
+                                      " fsp--;\n", (in->a & 0xff) == 1 ? "<" : ">");
+                } else if (in->a & IR_BINM_UNS)   // ★ RFC-0151 §8-9 — 부호 없는 정수는 부호 없이 견준다(u64 의 위쪽 절반)
+                    fprintf(out, "    st[sp-2] = ((unsigned long long)st[sp-2] %s (unsigned long long)st[sp-1]) ? st[sp-2] : st[sp-1]; sp--;\n",
+                            (in->a & 0xff) == 1 ? "<" : ">");
+                else
                     fprintf(out, "    st[sp-2] = (st[sp-2] %s st[sp-1]) ? st[sp-2] : st[sp-1]; sp--;\n",
-                            in->a == 1 ? "<" : ">");
+                            (in->a & 0xff) == 1 ? "<" : ">");
                 ks.n--; ks.o[ks.n-1] = -1; break;
             case IRW_BNEW:
                 // ★ 비트셋 = **빈 마스크**. 박스도 풀도 없다.

@@ -1094,6 +1094,13 @@ typedef struct {
     proven_u64    vlo, vhi;
     proven_u8     wide;
 } low_ir_arg_t;
+
+// ★ 2026-10-26 (RFC-0151 §8-8) — 위의 평평한 매핑에 명령줄이 읽은 **적힌 수**를 곁들인다(`written[i]` 는 `args[i]` 의 낱말).
+//   64 비트 부호 없는 입력의 경계가 빼기표와 2^64 넘음을 그것으로 판정한다. NULL 이면 `low_ir_run` 과 같다.
+[[nodiscard]] low_ir_run_result_t low_ir_run_written(const low_ir_t *ir, proven_u8str_view_t op,
+                                                     const proven_i64 *args, proven_size_t nargs,
+                                                     const low_ir_arg_t *written, proven_size_t nwritten,
+                                                     proven_allocator_t work, proven_array_t *diags);
 [[nodiscard]] low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
                                                   const low_ir_arg_t *args, proven_size_t nargs,
                                                   proven_allocator_t work, proven_array_t *diags,

@@ -5303,6 +5303,24 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
             //   고발한다(실측: `shard_of -1` → E-VM-ANALYSIS). 그래서 **조용히 자르지 않고
             //   거절한다** — 자르는 것은 다른 수를 준 것이고, 그것이 결함 노트 #19 였다.
             //   위쪽 절반을 받으려면 도메인이 부호 없는 64 비트를 표현해야 한다(#69 의 남은 몫).
+            // ★★★ **u64 의 위쪽 절반이 들어온다** (2026-10-26 · RFC-0151 §8-8 · 소유자 «지금 당장 처리» · W-20261026-2005).
+            //   위의 두 주석은 그날의 사실이다. 그 뒤 구간 분석은 `u64` 의 잘린 상계를 믿지 않게 됐고(`iv_ty` 의 `wide`),
+            //   2026-10-26 에 다시 쟀다 — 경계만 풀어 2^63 · 2^64−1 을 넣으면 비교 · 셈 · 넘침 · `cast` · 첨자 · `shard_of` 가
+            //   모두 맞는 답이나 맞는 멈춤을 낸다(E-VM-ANALYSIS 0). 남은 것은 이 검사뿐이었다: 값을 부호 있는 64 비트로 견주어
+            //   2^63 이상(비트로는 «음수»)을 범위 밖으로 셌다.
+            //   ⇒ 64 비트 부호 없는 타입(`param_u64` 이고 타입 구간이 `[0, INT64_MAX]` — 32 비트 대상의 `usize` 는 그 구간이 아니다)은
+            //     **적힌 수**로 판정한다: 빼기표 없이 0 ~ 2^64−1 이면 받는다. 비트로 판정하면 `-1` 이 2^64−1 로 조용히 들어온다 —
+            //     그래서 적힌 수의 부호를 본다. 적힌 수를 모르는 길(`.wide` 가 0)은 전처럼 견준다.
+            bool u64p_ = i < LOW_MAX_PARAMS && ((d->param_u64 >> i) & 1u) && !((d->param_w128 >> i) & 1u) &&
+                         d->ptype[i].has_rng && d->ptype[i].rlo == 0 && d->ptype[i].rhi == INT64_MAX;
+            if (u64p_ && (args[i].wide & 1)) {
+                if ((args[i].wide & 4) || args[i].vhi != 0 || ((args[i].wide & 2) && args[i].vlo != 0)) {
+                    vm_diag(diags, "E-VM-CONTRACT",
+                            "a parameter's TYPE range was violated at the program boundary — the value does not fit "
+                            "the declared type (a 64-bit unsigned input takes 0 to 18446744073709551615, written without a minus sign)");
+                    return out;
+                }
+            } else
             if (i < LOW_MAX_PARAMS && d->ptype[i].has_rng &&
                 (args[i].v < d->ptype[i].rlo || args[i].v > d->ptype[i].rhi)) {
                 vm_diag(diags, "E-VM-CONTRACT",
@@ -5384,6 +5402,16 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
 low_ir_run_result_t low_ir_run(const low_ir_t *ir, proven_u8str_view_t op,
                                const proven_i64 *args, proven_size_t nargs,
                                proven_allocator_t work, proven_array_t *diags) {
+    return low_ir_run_written(ir, op, args, nargs, NULL, 0, work, diags);
+}
+
+// ★ 2026-10-26 (RFC-0151 §8-8) — 평평한 인자에 **적힌 수**(빼기표 · 128 비트 값)를 곁들인다. 경계가 64 비트 부호 없는
+//   입력을 비트가 아니라 적힌 수로 판정하려면 그것이 있어야 한다 — 없으면 `-1` 이 2^64−1 로 조용히 들어온다.
+//   `written[i]` 는 `args[i]` 와 같은 차례의 숫자 낱말이다(명령줄이 둘을 함께 짓는다). NULL 이면 전과 같다.
+low_ir_run_result_t low_ir_run_written(const low_ir_t *ir, proven_u8str_view_t op,
+                                       const proven_i64 *args, proven_size_t nargs,
+                                       const low_ir_arg_t *written, proven_size_t nwritten,
+                                       proven_allocator_t work, proven_array_t *diags) {
     low_ir_run_result_t out = { .value = 0, .ok = false, .text = "" };
     bool found; proven_size_t di = ir_def_find(ir, op, &found);
     if (!found) { vm_diag(diags, "E-VM-UNDEF", "no such op"); return out; }
@@ -5398,8 +5426,12 @@ low_ir_run_result_t low_ir_run(const low_ir_t *ir, proven_u8str_view_t op,
         if (nargs + 1 < d->nparams || d->nparams > VM_LOCALS) {
             vm_diag(diags, "E-VM-ARITY", "too few arguments"); return out;
         }
-        for (proven_size_t i = 0; i + 1 < d->nparams; i++)
+        for (proven_size_t i = 0; i + 1 < d->nparams; i++) {
             a[i] = (low_ir_arg_t){ .is_slice = false, .v = args[i] };
+            if (written && i < nwritten && !written[i].is_slice && written[i].v == args[i]) {
+                a[i].vlo = written[i].vlo; a[i].vhi = written[i].vhi; a[i].wide = written[i].wide;
+            }
+        }
         proven_size_t n = nargs - (d->nparams - 1);
         if (n > sizeof sbuf) n = sizeof sbuf;
         for (proven_size_t i = 0; i < n; i++) sbuf[i] = (proven_u8)args[d->nparams - 1 + i];
@@ -5407,7 +5439,11 @@ low_ir_run_result_t low_ir_run(const low_ir_t *ir, proven_u8str_view_t op,
         return low_ir_run_argv(ir, op, a, d->nparams, work, diags, NULL, 0);
     }
     if (nargs > VM_LOCALS) { vm_diag(diags, "E-VM-ARITY", "too many arguments"); return out; }
-    for (proven_size_t i = 0; i < nargs; i++)
+    for (proven_size_t i = 0; i < nargs; i++) {
         a[i] = (low_ir_arg_t){ .is_slice = false, .v = args[i] };
+        if (written && i < nwritten && !written[i].is_slice && written[i].v == args[i]) {
+            a[i].vlo = written[i].vlo; a[i].vhi = written[i].vhi; a[i].wide = written[i].wide;
+        }
+    }
     return low_ir_run_argv(ir, op, a, nargs, work, diags, NULL, 0);
 }

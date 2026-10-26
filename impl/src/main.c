@@ -2638,8 +2638,8 @@ int main(int argc, char **argv) {
                   : any_bracket
                   ? low_ir_run_argv(&ir, proven_u8str_view_from_cstr(run_op),
                                     shaped, nshaped, heap, &ir.diags, NULL, 0)
-                  : low_ir_run(&ir, proven_u8str_view_from_cstr(run_op),
-                               run_args, nrun_args, heap, &ir.diags);
+                  : low_ir_run_written(&ir, proven_u8str_view_from_cstr(run_op),
+                                       run_args, nrun_args, shaped, nshaped, heap, &ir.diags);   // 적힌 수를 곁들인다(RFC-0151 §8-8)
             if (rr.ok) {
                 printf("%s(", run_op);
                 if (entry_caps) {

@@ -1,6 +1,6 @@
 {
   "name": "tree-sitter-lowent",
-  "version": "1.19.0",
+  "version": "1.20.0",
   "description": "Tree-sitter grammar for the Lowent language (language revision 1.8 — a name opens, a stop closes)",
   "license": "MIT",
   "private": true,

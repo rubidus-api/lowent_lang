@@ -95745,7 +95745,7 @@ TS_PUBLIC const TSLanguage *tree_sitter_lowent(void) {
     .max_reserved_word_set_size = 0,
     .metadata = {
       .major_version = 1,
-      .minor_version = 19,
+      .minor_version = 20,
       .patch_version = 0,
     },
   };

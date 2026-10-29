@@ -8,8 +8,8 @@ proc keep_big input b slice u8 . input out mut slice u8 . output u64 . effects n
   requires ge len out. . 16 . .
 do
   let xs slice u32 view_array u32 b. . .
-  var v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 5 . .
+  var v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 5 . .
   var m mask 4 gt v. lim. . .
   store_masked out. 0 v. m. .
   return 0 .
@@ -20,10 +20,10 @@ fn read_big input b slice u8 . output u32 .
   requires ge len b. . 16 . .
 do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 5 . .
+  let v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 5 . .
   let m mask 4 gt v. lim. . .
-  let fallback vec u32 4 splat 100 . .
-  let r vec u32 4 load_masked xs. 0 m. fallback. . .
+  let fallback vec 4 u32 splat 100 . .
+  let r vec 4 u32 load_masked xs. 0 m. fallback. . .
   return reduce_add r. . .
 end .

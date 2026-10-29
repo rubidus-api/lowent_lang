@@ -35,7 +35,7 @@ end .", "E-TYPE-UNKNOWN")
       [부동소수점], [`f32` `f64`],
       [참거짓], [`bool`],
       [묶음], [`struct`(이름 붙은 칸의 모음) · `enum`(여럿 중 하나)],
-      [줄], [`array t n`(길이가 고정된 줄) · `slice t`(길이를 함께 갖는 구간) · `matrix t k d…`(크기가 고정된 여러 차원의 줄)],
+      [줄], [`array n t`(길이가 고정된 줄) · `slice t`(길이를 함께 갖는 구간) · `matrix k d… t`(크기가 고정된 여러 차원의 줄)],
       [답], [`result t e`(성공 값 또는 오류) · `option t`(값이 있거나 없음)],
       [가리킴], [`ref t`(읽기 참조) · `mut_ref t`(쓰기 참조) · `owned t`(소유)],
       [권한], [`cap k`(효과를 낼 자격, #cref("7.2"))],
@@ -271,21 +271,22 @@ let back u8 narrow u8 wide. . .")
   ]
   #sub("6.2.6", "줄 — 배열과 슬라이스")[
     #para("1")[
-      `array t n` 은 타입 `t` 의 값이 정확히 `n` 개 놓인 줄이다. 길이는 타입의 일부이며
+      `array n t` 은 타입 `t` 의 값이 정확히 `n` 개 놓인 줄이다. 길이는 타입의 일부이며
       번역 시점에 정해진다.
     ]
     #para("1a")[
-      #strong[원소 타입을 먼저, 길이 `n` 을 뒤에 정수 리터럴로]; 적는다 — `vec t n` 과 같은 차례다. 반대로 적거나
-      (`array n t`) 길이가 리터럴이 아니면 거부된다(`E-TYPE-ARRAY`).
+      #strong[길이 `n` 을 먼저 정수 리터럴로, 원소 타입을 뒤에]; 적는다 — `vec n t` · `matrix k d… t` 와 같은 차례다. 원소 타입이
+      맨 뒤에 오므로 타입이 제 끝을 스스로 안다. 반대로 적으면(`array t n` — 길이 자리에 타입) 거부된다(`E-TYPE-ORDER`.
+      `lowentc --fmt` 가 새 차례로 옮긴다). 길이가 리터럴이 아니면 거부된다(`E-TYPE-ARRAY`).
     ]
     #para("1b")[
-      op 의 입력 `input x array t n .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
+      op 의 입력 `input x array n t .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
       `requires eq len x. . n. . .` 과 같이 #strong[진입에서 검사된다];.
     ]
     #para("1c")[
-      op 은 배열을 #strong[돌려줄 수 있다]; — `output array t n .` 또는 이름을 붙여 `output r array t n .`(#cref("6.4.1") (3e)). 배열에는
+      op 은 배열을 #strong[돌려줄 수 있다]; — `output array n t .` 또는 이름을 붙여 `output r array n t .`(#cref("6.4.1") (3e)). 배열에는
       값으로 돌려주는 길이 없으므로 #strong[부르는 쪽이 자리를 준다];:
-      - 부르는 쪽은 결과를 이름에 묶는다 — `var x array t n f a … .`(`let` 도 같다). 그 이름의 틀 안 바이트가 결과의 자리이고,
+      - 부르는 쪽은 결과를 이름에 묶는다 — `var x array n t f a … .`(`let` 도 같다). 그 이름의 틀 안 바이트가 결과의 자리이고,
       부름 받는 쪽은 거기에 바로 짓는다(베끼지 않는다).
       - 같은 배열을 돌려주는 op 안에서 `return g … .` 은 자기 자리를 그대로 넘긴다. 다만 `g` 에 건네는 인자가 그 자리와 같은 바이트를
       볼 수 있으면(이름 붙은 결과 자신이거나, 그것에서 나온 이름 — 초기식이나 `set` 의 오른쪽이 그것을 언급한 지역) 처리기는 #strong[임시
@@ -300,7 +301,7 @@ let back u8 narrow u8 wide. . .")
     ]
     #ex("배열을 돌려주는 op — 부르는 쪽이 자리를 준다", "module ex_array_result .
 
-fn squares input n u64 . output r array u64 3 .
+fn squares input n u64 . output r array 3 u64 .
   requires le n. 1000 . .
 do
   repeat i usize 3 do
@@ -313,12 +314,12 @@ end .
 export fn total input n u64 . output u64 .
   requires le n. 1000 . .
 do
-  let s array u64 3 squares n. . .
+  let s array 3 u64 squares n. . .
   return add add idx s. 0 . idx s. 1 . . idx s. 2 . . .
 end .")
     #rejected("배열을 돌려주는 op 을 식 한가운데서 부른다 — 결과의 자리가 없다", "module ex_array_result_expr .
 
-fn squares input n u64 . output r array u64 3 .
+fn squares input n u64 . output r array 3 u64 .
   requires le n. 1000 . .
 do
   return r. .
@@ -374,16 +375,16 @@ export fn head input data slice u8 . output u8 .
 do
   return idx data. 0 . .
 end .")
-    #rejected("길이를 타입 앞에 적었다", "module ex_array_order .
+    #rejected("원소 타입을 길이 앞에 적었다", "module ex_array_order .
 
-export fn last input xs array 4 u64 . output u64 .
+export fn last input xs array u64 4 . output u64 .
 do
   return idx xs. 3 . .
-end .", "E-TYPE-ARRAY")
+end .", "E-TYPE-ORDER")
     #para("6")[
-      #strong[원소 나열 리터럴]; — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
+      #strong[원소 나열 리터럴]; — `lit array n t v₁ … vₖ .` 은 `array n t` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
       `slice t` 값이다. 나열은 #strong[제 마침표로 닫히는 폼];이다: 문장의 끝에 오면 나열의 점과 문장의 점이 잇달아
-      오고(`let t lit array u8 4 1 2 3 4 . .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
+      오고(`let t lit array 4 u8 1 2 3 4 . .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
       `lit` 가 값의 타입을 보이므로 묶는 문장은 타입을 따로 적지 않는다.
     ]
     #para("6a")[
@@ -396,15 +397,15 @@ end .", "E-TYPE-ARRAY")
       `true`·`false` 만이다.
     ]
     #para("6c")[
-      #strong[칸 골라 채우기]; — `lit array t n do <번호> <값> . … [_ <값> .] end .` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
+      #strong[칸 골라 채우기]; — `lit array n t do <번호> <값> . … [_ <값> .] end .` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
       0 부터 `n − 1` 까지의 정수 리터럴이고 한 번씩만 적는다. `_ <값> .` 은 끝에만 오며 «이름을 적지 않은 칸 모두»
       를 뜻한다. 모든 칸이 정해져야 한다 — 남는 칸이 있는데 `_ <값> .` 이 없거나, `_` 가 채울 칸이 없으면 거부된다
       (`E-LIT-COUNT`). 번호가 상수가 아니거나 길이 밖이거나 두 번 나오거나 `_` 가 끝이 아닌 자리에 있으면 거부된다
       (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 #strong[한 번]; 계산된다. 블록으로 적은 나열도 폼이라 제 점으로 닫힌다 —
-      `let t lit array u8 8 do 2 5 . _ 0 . end . .` 에서 첫 점은 나열을, 둘째 점은 `let` 을 닫는다. 원소를 늘어놓는 모양과 섞지 않는다
+      `let t lit array 8 u8 do 2 5 . _ 0 . end . .` 에서 첫 점은 나열을, 둘째 점은 `let` 을 닫는다. 원소를 늘어놓는 모양과 섞지 않는다
     ]
     #para("6d")[
-      #strong[SIMD 값]; — `lit vec t n v₁ … [_] .` 은 `vec t n` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
+      #strong[SIMD 값]; — `lit vec n t v₁ … [_] .` 은 `vec n t` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
       수(`bool` 이 아니다), `n` 은 1 부터 16 까지의 2 의 거듭제곱이다(`E-LIT-COUNT`). 값의 타입은 묶는 자리의 `vec`
       타입과 레인 수·원소 종류·폭이 모두 같아야 한다(`E-TYPE-LANES` · `E-TYPE-WIDTH`). 레인에 값을 싣는 것으로
       끝나므로 (7) 의 자리 규칙과 상관없다.
@@ -480,7 +481,7 @@ end .", "E-TYPE-ARRAY")
       (`E-STACK-BUDGET`). 참조를 받거나 만드는 op 은 남의 자리에 쓸 수 있으므로 틀 칸을 쓰지 않는다(그 값은 풀에 산다).
     ]
     #para("7d")[
-      #strong[할당기에서 받는 나열]; — `var <이름> use <할당기> mut slice t lit array t n … else <문장>`(`lit slice` 도 같다)은
+      #strong[할당기에서 받는 나열]; — `var <이름> use <할당기> mut slice t lit array n t … else <문장>`(`lit slice` 도 같다)은
       그 할당기에 나열의 바이트 수를 청하고(`send <할당기> reserve <바이트>`), 받으면 그 바이트를 (6)~(6c) 대로 채워 이름에
       묶고, 못 받으면 `else` 로 간다(#cref("6.5.1") (5)). 실패를 `option` 째 들고 가려면 타입을 통째로 적는다 —
       `let <이름> use <할당기> option mut slice t lit … .`. `else` 도 `option` 도 없거나, `lit vec` 이면 거부된다
@@ -524,11 +525,11 @@ end .", "E-TYPE-ARRAY")
       거부된다(`E-LIT-UNBUILT`). 구조체 안의 배열 칸은 #cref("6.2.7") (1a) 가 정한다.
     ]
     #para("9a")[
-      #strong[줄의 나열]; — 원소가 고정 길이 배열 `(array t m)` 인 나열 `lit slice (array t m) <줄>… .` 의 타입은
-      `slice (array t m)` 이다. 다른 슬라이스 나열처럼((6)) 줄의 수를 적지 않고 `_` 가 없다((6a)) — 0 인 줄은 `lit array t m _ .` 로
-      적는다. 옛 철자 `lit array (array t m) n <줄>… [_] .` 은 슬라이스 값을 `array` 로 적었으므로 거부된다(`E-LIT-ROWS-OLD` —
-      `lowentc --fmt` 가 새 철자로 옮긴다). 이미 있는 바이트 위에는 `view_array (array t m) b.` 로 같은 타입의 줄 보기를 얹는다(#cref("8.7") (7a)). `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
-      바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array t m` 과 다르면
+      #strong[줄의 나열]; — 원소가 고정 길이 배열 `(array m t)` 인 나열 `lit slice array m t <줄>… .` 의 타입은
+      `slice array m t` 이다. 다른 슬라이스 나열처럼((6)) 줄의 수를 적지 않고 `_` 가 없다((6a)) — 0 인 줄은 `lit array m t _ .` 로
+      적는다. 옛 철자 `lit array n array m t <줄>… [_] .` 은 슬라이스 값을 `array` 로 적었으므로 거부된다(`E-LIT-ROWS-OLD` —
+      `lowentc --fmt` 가 새 철자로 옮긴다). 이미 있는 바이트 위에는 `view_array array m t b.` 로 같은 타입의 줄 보기를 얹는다(#cref("8.7") (7a)). `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
+      바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array m t` 과 다르면
       거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set idx g. r. . <줄> .` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
       베낀다. 틀 안 나열의 줄(과 구조체 원소)은 그 틀의 바이트를 보므로 블록 밖으로 나르면 `E-LIT-ESCAPE` 다.
     ]
@@ -544,13 +545,13 @@ end .
 
 rem 배열 나열은 제 점으로 닫힌다 — 문장의 끝이면 점이 둘이다.
 export fn f output u64 . do
-  let t lit array u32 4 10 20 30 _ . .
+  let t lit array 4 u32 10 20 30 _ . .
   return add total t. . total lit slice u32 1 2 . . . .
 end .")
     #ex("var 배열을 반복으로 채운다", "module ex_frame_list .
 
 export fn squares input n usize . output u64 . do
-  var buf lit array u64 8 _ . .
+  var buf lit array 8 u64 _ . .
   var i usize 0 .
   while lt i. 8 . do
     set idx buf. i. . cast u64 mul i. i. . . .
@@ -562,26 +563,26 @@ end .")
     #ex("칸을 골라 채운다", "module ex_cell_fill .
 
 export fn pick input a u64 . input i usize . output u64 . do
-  let t lit array u64 6 do 0 100 . 5 mul a. 2 . . _ 1 . end . .
+  let t lit array 6 u64 do 0 100 . 5 mul a. 2 . . _ 1 . end . .
   guard lt i. 6 . else return 0 . .
   return idx t. i. . .
 end .")
     #rejected("칸 번호를 두 번 적었다", "module ex_cell_twice .
 
 export fn f output u64 . do
-  let t lit array u8 4 do 1 1 . 1 2 . _ 0 . end . .
+  let t lit array 4 u8 do 1 1 . 1 2 . _ 0 . end . .
   return len t. . .
 end .", "E-LIT-INDEX")
     #rejected("블록 안의 var 배열을 돌려준다", "module ex_frame_escape .
 
 export fn f output slice u8 . do
-  var b lit array u8 2 1 2 . .
+  var b lit array 2 u8 1 2 . .
   return b. .
 end .", "E-LIT-ESCAPE")
     #rejected("원소가 길이보다 적은데 끝에 _ 가 없다", "module ex_list_short .
 
 export fn f output u64 . do
-  let t lit array u8 4 1 2 3 . .
+  let t lit array 4 u8 1 2 3 . .
   return len t. . .
 end .", "E-LIT-COUNT")
     #plain[
@@ -592,22 +593,23 @@ end .", "E-LIT-COUNT")
   ]
   #sub("6.2.6.1", "여러 차원의 줄 — `matrix`")[
     #para("1")[
-      `matrix t k d1 … dk` 는 타입 `t` 의 값이 `d1 × … × dk` 개 놓인, 차원이 `k` 개인 줄이다. 차원 수와 크기는 타입의
-      일부이며 번역 시점에 정해진다. 차원 수나 크기가 하나라도 다르면 다른 타입이다 — `matrix u32 2 3 4` 는
-      `matrix u32 2 4 3` 과도, `array u32 12` 와도 다르다.
+      `matrix k d1 … dk t` 는 타입 `t` 의 값이 `d1 × … × dk` 개 놓인, 차원이 `k` 개인 줄이다. 차원 수와 크기는 타입의
+      일부이며 번역 시점에 정해진다. 차원 수나 크기가 하나라도 다르면 다른 타입이다 — `matrix 2 3 4 u32` 는
+      `matrix 2 4 3 u32` 과도, `array 12 u32` 와도 다르다.
     ]
     #para("1a")[
-      원소 타입을 먼저, 차원 수를 그다음에, 크기를 차원 수만큼 적는다. 차원 수는 2 이상 8 이하이고 크기는 1 이상이며,
-      모두 꾸밈 없는 십진 리터럴이다. 원소 수(크기들의 곱)는 2^32 를 넘지 못한다. 원소 타입에 `matrix` 나 `array` 를
+      차원 수를 먼저, 크기를 차원 수만큼 그다음에, 원소 타입을 맨 뒤에 적는다(#cref("6.2.6") (1a) 와 같은 차례). 차원 수는
+      2 이상 8 이하이고 크기는 1 이상이며, 모두 꾸밈 없는 십진 리터럴이다(op 의 입력에서는 크기가 번역 시점 값 입력의 이름일 수 있다 — (3a)).
+      옛 차례(`matrix t k d…` — 원소 타입이 먼저)는 거부된다(`E-TYPE-ORDER`). 원소 수(크기들의 곱)는 2^32 를 넘지 못한다. 원소 타입에 `matrix` 나 `array` 를
       적지 못한다. 어기면 거부된다(`E-MATRIX-TYPE`).
     ]
     #note[
-      차원 수를 먼저 적으므로 타입은 제 끝을 스스로 안다. 뒤에 원소가 나열되어도(`lit matrix u32 2 2 3 1 2 3 4 5 6 .`)
+      차원 수를 먼저 적으므로 크기가 어디서 끝나는지 글자만으로 안다(크기는 입력의 이름일 수도 있다). 뒤에 원소가 나열되어도(`lit matrix 2 2 3 u32 1 2 3 4 5 6 .`)
       어디까지가 크기이고 어디부터가 원소인지 글자만으로 갈린다.
     ]
     #para("2")[
       #strong[배치.]; 원소는 한 덩어리로 이어 놓으며 줄 우선이다 — 마지막 색인이 가장 빨리 돈다. 크기와 정렬은
-      `array t n`(`n` 은 크기들의 곱)과 같고, 덧붙는 머리는 없다.
+      `array n t`(`n` 은 크기들의 곱)과 같고, 덧붙는 머리는 없다.
     ]
     #note[
       이 배치는 C 의 `t a[d1]…[dk]` 와 같다. `flat m. .` 을 `slice t` 입력을 가진 `extern` op 에 넘기면 C 는 포인터와 원소 수를
@@ -619,7 +621,7 @@ end .", "E-LIT-COUNT")
     ]
     #para("3a")[
       op 의 `input` 에 한하여, 크기 자리에 그 op 의 번역 시점 값 입력의 이름을 적을 수 있다 —
-      `input comptime r u64 . input comptime c u64 . input m matrix u32 2 r c .`. 부르는 쪽은 그 입력에 수를 적고
+      `input comptime r u64 . input comptime c u64 . input m matrix 2 r c u32 .`. 부르는 쪽은 그 입력에 수를 적고
       (`sum 3 4 a. .`), 인자의 모양은 그 수로 읽은 모양과 같아야 한다(`E-MATRIX-SHAPE`). `let` · `var` · `output` · 구조체의
       칸과 `lit matrix` 의 크기는 수여야 한다(`E-MATRIX-TYPE`).
     ]
@@ -628,7 +630,7 @@ end .", "E-LIT-COUNT")
       `matrix` 뿐이고, 원소를 읽고 쓰는 것은 (5) 의 검사를 그대로 받는다.
     ]
     #para("4")[
-      #strong[값.]; `lit matrix t k d1 … dk <원소>… .` 는 원소를 줄 우선 차례로 나열한다. 원소 수는 크기들의 곱과 같아야 하며,
+      #strong[값.]; `lit matrix k d1 … dk t <원소>… .` 는 원소를 줄 우선 차례로 나열한다. 원소 수는 크기들의 곱과 같아야 하며,
       모자라면 끝에 `_` 를 적어 나머지를 0 으로 채운다. 바인딩에 타입과 리터럴을 함께 적으면 둘의 모양이 같아야
       한다. 어기면 거부된다(`E-MATRIX-SHAPE`). 구조체 리터럴에서 `matrix` 칸의 값은 그 칸과 같은 모양의
       `lit matrix` 다.
@@ -677,7 +679,7 @@ end .", "E-LIT-COUNT")
     ]
     #ex("3 줄 4 칸의 표를 채우고 한 줄을 더한다", "module ex_matrix .
 
-fn table output t matrix u32 2 3 4 .
+fn table output t matrix 2 3 4 u32 .
 do
   repeat r usize dim t. 0 . do
     repeat c usize dim t. 1 . do
@@ -690,7 +692,7 @@ end .
 export fn row_sum input r usize . output u64 .
   requires lt r. 3 . .
 do
-  let t matrix u32 2 3 4 table . .
+  let t matrix 2 3 4 u32 table . .
   var s u64 0 .
   repeat c usize dim t. 1 . do
     set s. add s. widen u64 idx t. r. c. . . . .
@@ -701,10 +703,10 @@ end .")
 
 struct board do
   id u64 .
-  g matrix u32 2 3 4 .
+  g matrix 2 3 4 u32 .
 end .
 
-fn sum input comptime r usize . input comptime c usize . input m matrix u32 2 r c . output u64 .
+fn sum input comptime r usize . input comptime c usize . input m matrix 2 r c u32 . output u64 .
 do
   var t u64 0 .
   repeat i usize dim m. 0 . do
@@ -715,25 +717,25 @@ end .
 
 export fn total output u64 .
 do
-  var b lit board do id 1 . g lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
+  var b lit board do id 1 . g lit matrix 2 3 4 u32 1 2 3 4 5 6 7 8 9 10 11 12 . . end . .
   set idx field b. g . 0 0 . 100 .
-  let small lit matrix u32 2 2 2 1 2 3 4 . .
+  let small lit matrix 2 2 2 u32 1 2 3 4 . .
   return add widen u64 idx field b. g . 0 0 . . sum 2 2 small. . . .
 end .")
     #rejected("차원은 둘인데 색인을 하나만 주었다", "module ex_matrix_row .
 
 export fn f output u64 . do
-  let m lit matrix u32 2 2 3 1 2 3 4 5 6 . .
+  let m lit matrix 2 2 3 u32 1 2 3 4 5 6 . .
   return widen u64 idx m. 1 . . .
 end .", "E-MATRIX-INDEX")
     #rejected("3 줄 4 칸을 받는 op 에 4 줄 3 칸을 넘긴다", "module ex_matrix_shape .
 
-fn first input m matrix u32 2 3 4 . output u32 . do
+fn first input m matrix 2 3 4 u32 . output u32 . do
   return idx m. 0 0 . .
 end .
 
 export fn f output u32 . do
-  let m lit matrix u32 2 4 3 _ . .
+  let m lit matrix 2 4 3 u32 _ . .
   return first m. . .
 end .", "E-MATRIX-SHAPE")
   ]
@@ -742,13 +744,13 @@ end .", "E-MATRIX-SHAPE")
       `struct` 는 이름 붙은 칸의 모음이다. 각 칸은 자기 타입을 갖는다.
     ]
     #para("1a")[
-      #strong[배열 칸]; — 칸의 타입이 `array t n` 이면 그 칸은 원소 `n` 개의 바이트를 #strong[레코드 안에]; 가진다(길이가 타입에
+      #strong[배열 칸]; — 칸의 타입이 `array n t` 이면 그 칸은 원소 `n` 개의 바이트를 #strong[레코드 안에]; 가진다(길이가 타입에
       있으므로 자리가 정해진다). `t` 는 크기 있는 수나 `bool` 이다 — 구조체나 배열을 원소로 가진 칸은 이 처리기가 아직
       짓지 않았다(`E-LIT-UNBUILT`). 한 구조체의 배열 칸 바이트 합에는 틀과 같은 한도가 있다(`E-FRAME-SIZE`, #cref("6.2.6") (7c)).
       `field r. body .` 는 그 바이트를 보는 슬라이스이고, `set idx field r. body . i. . v. .` 가 레코드의 원소를 쓴다. 칸에 주는
       나열 리터럴은 칸과 원소 타입·길이가 같아야 한다(`E-TYPE-FIELD`). 바이트 배치(`view` · `encode` · `size_of` · C 쪽
       레이아웃)에서 배열 칸은 C 와 같이 #strong[구조체 바이트 안에 그대로]; 놓인다 — 크기는 `n × |t|`, 정렬은 `t` 의 것이다
-      (`len u8 . body array u8 4 . tail u16 .` 은 8 바이트 — `len` 은 0 번째 · `body` 는 1 번째 · `tail` 은 6 번째 바이트부터). 뷰의 배열 칸은 그 바이트를 보는
+      (`len u8 . body array 4 u8 . tail u16 .` 은 8 바이트 — `len` 은 0 번째 · `body` 는 1 번째 · `tail` 은 6 번째 바이트부터). 뷰의 배열 칸은 그 바이트를 보는
       슬라이스이고, 칸에 쓰면 그 자리에 베낀다.
     ]
     #para("2")[
@@ -900,11 +902,11 @@ end .")
 
 struct pkt do
   len u8 .
-  body array u8 4 .
+  body array 4 u8 .
 end .
 
 export fn copy_keeps input a u8 . output u64 . do
-  var p lit pkt do len 2 . body lit array u8 4 1 a. _ . . end . .
+  var p lit pkt do len 2 . body lit array 4 u8 1 a. _ . . end . .
   var q pkt p. .
   set idx field q. body . 0 . 100 .
   return add widen u64 idx field p. body . 0 . . widen u64 idx field q. body . 0 . . . .
@@ -912,11 +914,11 @@ end .")
     #rejected("let 으로 묶은 레코드의 배열 칸에 쓴다", "module ex_struct_array_let .
 
 struct pkt do
-  body array u8 4 .
+  body array 4 u8 .
 end .
 
 export fn f output u64 . do
-  let p lit pkt do body lit array u8 4 _ . . end . .
+  let p lit pkt do body lit array 4 u8 _ . . end . .
   set idx field p. body . 0 . 1 .
   return 0 .
 end .", "E-IMMUTABLE")
@@ -1193,7 +1195,8 @@ end .")
   ]
   #sub("6.2.11", "레인을 가진 값 — `vec`")[
     #para("1")[
-      `vec <원소 타입> <레인 수>` 는 같은 타입의 값 여럿을 #strong[한 값으로]; 든다.
+      `vec <레인 수> <원소 타입>` 은 같은 타입의 값 여럿을 #strong[한 값으로]; 든다(#cref("6.2.6") (1a) 와 같은 차례 — 레인 수가 먼저다.
+      옛 차례 `vec <원소 타입> <레인 수>` 는 `E-TYPE-ORDER`). 레인 수 자리에는 `scalable` 도 선다(`vec scalable u8`).
       레인 수는 번역 시점에 정해진 값이어야 한다(#cref("6.8")).
     ]
     #para("2")[
@@ -1206,6 +1209,14 @@ end .")
       기계가 여러 레인을 한 번에 셈할 수 있으면 그렇게 하고, 못 하면 하나씩 셈한다.
       #strong[어느 쪽이든 답은 같다]; — 레인 수는 성능의 힌트가 아니라 타입의 일부다.
     ]
+    #rejected("레인 수를 원소 타입 뒤에 적었다", "module ex_vec_order .
+
+export fn sum4 input xs slice u32 . output u32 .
+  requires ge len xs. . 4 . .
+do
+  let v vec u32 4 load xs. 0 . .
+  return reduce_add v. . .
+end .", "E-TYPE-ORDER")
   ]
   #sub("6.2.12", "비트로 이루어진 집합 — `bitset`")[
     #para("1")[

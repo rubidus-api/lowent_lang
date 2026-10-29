@@ -17,13 +17,13 @@ end .
 
 rem 칸은 ⌈nb / 2⌉ + 2 — 세 폭 어디에나 맞는 규칙대로 잡는다(nb ≤ 256).
 proc exp16 input nb slice u8 . input bb slice u8 . input out mut slice u8 . output u64 . effects none . do
-  var n lit array u64 130 _ . .
-  var b lit array u64 130 _ . .
-  var o lit array u64 130 _ . .
-  var r2 lit array u64 130 _ . .
-  var acc lit array u64 130 _ . .
-  var tmp lit array u64 130 _ . .
-  var t lit array u64 130 _ . .
+  var n lit array 130 u64 _ . .
+  var b lit array 130 u64 _ . .
+  var o lit array 130 u64 _ . .
+  var r2 lit array 130 u64 _ . .
+  var acc lit array 130 u64 _ . .
+  var tmp lit array 130 u64 _ . .
+  var t lit array 130 u64 _ . .
   let m usize len nb. . .
   guard eq bigint16.from_bytes nb. n. m. . m. . else return 0 . .
   guard eq bigint16.from_bytes bb. b. m. . m. . else return 0 . .
@@ -32,13 +32,13 @@ proc exp16 input nb slice u8 . input bb slice u8 . input out mut slice u8 . outp
   return print_of out. . .
 end .
 proc exp32 input nb slice u8 . input bb slice u8 . input out mut slice u8 . output u64 . effects none . do
-  var n lit array u64 130 _ . .
-  var b lit array u64 130 _ . .
-  var o lit array u64 130 _ . .
-  var r2 lit array u64 130 _ . .
-  var acc lit array u64 130 _ . .
-  var tmp lit array u64 130 _ . .
-  var t lit array u64 130 _ . .
+  var n lit array 130 u64 _ . .
+  var b lit array 130 u64 _ . .
+  var o lit array 130 u64 _ . .
+  var r2 lit array 130 u64 _ . .
+  var acc lit array 130 u64 _ . .
+  var tmp lit array 130 u64 _ . .
+  var t lit array 130 u64 _ . .
   let m usize len nb. . .
   guard eq bigint32.from_bytes nb. n. m. . m. . else return 0 . .
   guard eq bigint32.from_bytes bb. b. m. . m. . else return 0 . .
@@ -47,13 +47,13 @@ proc exp32 input nb slice u8 . input bb slice u8 . input out mut slice u8 . outp
   return print_of out. . .
 end .
 proc exp64 input nb slice u8 . input bb slice u8 . input out mut slice u8 . output u64 . effects none . do
-  var n lit array u64 130 _ . .
-  var b lit array u64 130 _ . .
-  var o lit array u64 130 _ . .
-  var r2 lit array u64 130 _ . .
-  var acc lit array u64 130 _ . .
-  var tmp lit array u64 130 _ . .
-  var t lit array u64 130 _ . .
+  var n lit array 130 u64 _ . .
+  var b lit array 130 u64 _ . .
+  var o lit array 130 u64 _ . .
+  var r2 lit array 130 u64 _ . .
+  var acc lit array 130 u64 _ . .
+  var tmp lit array 130 u64 _ . .
+  var t lit array 130 u64 _ . .
   let m usize len nb. . .
   guard eq bigint64.from_bytes nb. n. m. . m. . else return 0 . .
   guard eq bigint64.from_bytes bb. b. m. . m. . else return 0 . .

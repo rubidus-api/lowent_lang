@@ -10,7 +10,7 @@ rem ko: 원소가 구조체인 나열 --- 원소는 값의 사본이고, 칸은 
 export fn total input a u64 . output u64 .
 do
   let p pt lit pt do x 1 . y a. . end . .
-  var ps lit array pt 3 p. lit pt do x 2 . y 20 . end . _ . .
+  var ps lit array 3 pt p. lit pt do x 2 . y 20 . end . _ . .
   set field ps. 2 y . 100 .
   var s u64 0 .
   for q ps. do

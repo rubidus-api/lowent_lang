@@ -1,10 +1,10 @@
 module vm_structarr .
-rem ★★ RFC-0132 T2b-3b — 구조체의 배열 칸 `body array u8 8 .`: 칸의 바이트는 레코드의 것이다 — 만들 때·베낄 때·칸에 쓸 때
+rem ★★ RFC-0132 T2b-3b — 구조체의 배열 칸 `body array 8 u8 .`: 칸의 바이트는 레코드의 것이다 — 만들 때·베낄 때·칸에 쓸 때
 rem   바이트를 베낀다(값 복사). `mut` 매개변수로 넘긴 레코드의 배열 칸에 쓰면 부른 쪽이 바뀐다. VM 과 네이티브가 같은가를 잰다.
 
 struct pkt do
   len u8 .
-  body array u8 8 .
+  body array 8 u8 .
 end .
 
 fn total input p pkt . output u64 . do
@@ -16,7 +16,7 @@ fn total input p pkt . output u64 . do
 end .
 
 export fn copy_is_value input a u64 . output u64 . do
-  let p lit pkt do len 3 . body lit array u8 8 1 2 narrow_wrap u8 a. . _ . . end . .
+  let p lit pkt do len 3 . body lit array 8 u8 1 2 narrow_wrap u8 a. . _ . . end . .
   var q pkt p. .
   set idx field q. body . 0 . 100 .
   return add mul total p. . 1000 . total q. . . .
@@ -24,13 +24,13 @@ end .
 
 struct rec do
   tag u8 .
-  w array i16 3 .
-  f array f64 2 .
-  b array bool 2 .
+  w array 3 i16 .
+  f array 2 f64 .
+  b array 2 bool .
 end .
 
 fn mk input a u64 . output rec . do
-  return lit rec do tag 7 . w lit array i16 3 -1 cast i16 a. . _ . . f lit array f64 2 1.5 _ . . b lit array bool 2 true false . . end . .
+  return lit rec do tag 7 . w lit array 3 i16 -1 cast i16 a. . _ . . f lit array 2 f64 1.5 _ . . b lit array 2 bool true false . . end . .
 end .
 
 proc bump input r mut rec . output u64 . effects none . do
@@ -42,7 +42,7 @@ export proc run input a u64 . output i64 . effects none . do
   var r rec mk a. . .
   let z u64 bump r. . .
   var s rec r. .
-  set field s. w . lit array i16 3 5 5 5 . .
+  set field s. w . lit array 3 i16 5 5 5 . .
   set idx field s. f . 1 . 2.25 .
   var t i64 0 .
   for x field r. w . do
@@ -67,11 +67,11 @@ end .
 rem 레코드 풀이 되감기고 압축될 때 배열 칸 버퍼가 자리와 함께 옮는가(맞바꿈) — 같은 틀에서 레코드를 계속 만든다.
 struct cell do
   k u64 .
-  v array u64 4 .
+  v array 4 u64 .
 end .
 
 fn mkcell input i u64 . output cell . do
-  return lit cell do k i. . v lit array u64 4 i. add i. 1 . add i. 2 . add i. 3 . . . end . .
+  return lit cell do k i. . v lit array 4 u64 i. add i. 1 . add i. 2 . add i. 3 . . . end . .
 end .
 
 fn churn input i u64 . output u64 . do

@@ -4,8 +4,8 @@ rem run: shift 9
 rem ko: `copy` 는 한 조각의 내용을 다른 조각에 베낀다 --- 겹쳐도 옳다 /// en: `copy` copies one slice's contents into another --- overlap is fine
 export fn shift input a u8 . output u64 .
 do
-  var buf lit array u8 6 1 2 3 4 5 6 . .
-  var dst lit array u8 3 _ . .
+  var buf lit array 6 u8 1 2 3 4 5 6 . .
+  var dst lit array 3 u8 _ . .
   copy dst. subslice buf. 0 3 . .
   copy subslice buf. 1 6 . subslice buf. 0 5 . .
   set idx dst. 0 . a. .

@@ -1079,30 +1079,29 @@ mistake_narrowloop.low:9:0 E-TYPE-WIDTH: value does not fit the declared type (a
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatint.low
 mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER literal are mixed in one operation. Floating point and integers do not convert implicitly (§6.2.5), so write the literal as a float (`2.0`) — or convert the other side. It used to pass `--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)
-</code></pre></div></div><p>Integers and floats never convert into each other automatically. To divide an <code>f64</code>, write the literal as a float too: <code>2.0</code>. Mixing them is rejected at translation time with <code>E-TYPE-MIX</code>; it used to stop <strong>while running</strong> with <code>E-VM-TYPE</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Testing with the largest <code>u64</code> passed as a <code>--run</code> argument</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
-<em><span class="tok-c">rem trap: echo 18446744073709551615</span></em>
+</code></pre></div></div><p>Integers and floats never convert into each other automatically. To divide an <code>f64</code>, write the literal as a float too: <code>2.0</code>. Mixing them is rejected at translation time with <code>E-TYPE-MIX</code>; it used to stop <strong>while running</strong> with <code>E-VM-TYPE</code>.</p></div></div><p>The largest <code>u64</code> goes in as it is when passed as a <code>--run</code> argument.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> runmax .
+<em><span class="tok-c">rem run: echo 18446744073709551615</span></em>
 <em><span class="tok-c">rem test</span></em>
 
-<em><span class="tok-c">rem ✘ giving the upper half of u64 as a `--run` argument is refused at the boundary: the interval analysis believes u64 tops out at the i64 maximum</span></em>
+<em><span class="tok-c">rem the upper half of u64 goes in as a `--run` argument as it is (since 1.20.0)</span></em>
 <strong><span class="tok-k">fn</span></strong> echo <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> n. .
 <strong><span class="tok-k">end</span></strong> .
 
-<em><span class="tok-c">rem write boundary values as literals inside a test</span></em>
+<em><span class="tok-c">rem boundary values can also be written as literals inside a test</span></em>
 <strong><span class="tok-k">test</span></strong> largest_u64
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <span class="tok-n">18446744073709551615</span> .
   <strong><span class="tok-k">expect</span></strong> gt m. <span class="tok-n">9223372036854775807</span> . .
   <strong><span class="tok-k">expect</span></strong> eq div m. <span class="tok-n">2</span> . <span class="tok-n">9223372036854775807</span> . .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run echo mistake_runmax.low 18446744073709551615
-== ir diagnostics (1) ==
-0:0 E-VM-CONTRACT: a parameter's TYPE range was violated at the program boundary — the value does not fit the declared type (the interval analysis TRUSTS the type and deletes checks on that basis; the boundary is what makes that trust true)
-$ lowentc --test mistake_runmax.low
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run echo runmax.low 18446744073709551615
+echo(18446744073709551615) = 18446744073709551615
+$ lowentc --test runmax.low
   [PASS] largest_u64
 == tests: 1 run, 1 passed, 0 FAILED ==
-</code></pre></div></div><p><code>echo 18446744073709551615</code> is refused at the boundary (<code>E-VM-CONTRACT</code>). Until 2026-09-16 it was quietly cut down to 9223372036854775807 — a different number, and both back ends did it, so comparing them did not reveal it. It is now refused instead of cut. The reason is that the interval analysis records the upper bound of <code>u64</code> as the largest <code>i64</code>; a value above that makes the analysis unsound. Literals inside the program are whole, so write boundary-value tests there, as <code>largest_u64</code> does, and results now print unsigned.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>f32</code> and <code>f64</code> hold the same number</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
+</code></pre></div></div><p>Until 2026-09-16 this number was quietly cut down to 9223372036854775807 — a different number, and both back ends did it, so comparing them did not reveal it — and after that, up to 1.19.0, it was refused at the boundary (<code>E-VM-CONTRACT</code>). Since 1.20.0 the boundary takes 0 to 2^64 − 1 without a sign; <code>-1</code> and 2^64 are still refused. Boundary values can also be written as literals inside the program, as <code>largest_u64</code> does.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>f32</code> and <code>f64</code> hold the same number</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
 <em><span class="tok-c">rem run: stored</span></em>
 <em><span class="tok-c">rem run: computed</span></em>
 

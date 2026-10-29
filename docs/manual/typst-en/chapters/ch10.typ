@@ -63,7 +63,7 @@ and writing use the same spelling. The rules for borrowing a value to change it 
 
 === Array fields --- a field that holds bytes
 
-When a field's type is an array with a length, like `array u8 4`, its bytes live *inside the record*. `field p. body .` is a slice that
+When a field's type is an array with a length, like `array 4 u8`, its bytes live *inside the record*. `field p. body .` is a slice that
 sees those bytes, and `set idx field p. body . i. . v. .` writes an element.
 
 #demo("examples/ch10/arrayfield.low")
@@ -73,7 +73,7 @@ sees those bytes, and `set idx field p. body . i. . v. .` writes an element.
 - Writing a field of a record received `mut` changes the caller's record. Writing a record received by value changes only the op's own copy.
 - The elements are sized numbers or `bool`. A list given to the field must match its element type and length (`E-TYPE-FIELD`).
 - Seen as bytes (`view`, `encode`, `size_of`) it is laid out as in C: the array field sits inside the struct's bytes, aligned
-  to its element. `len u8 . body array u8 4 . tail u16 .` is 8 bytes (`body` starts at byte 1, `tail` at byte 6).
+  to its element. `len u8 . body array 4 u8 . tail u16 .` is 8 bytes (`body` starts at byte 1, `tail` at byte 6).
 
 A record bound with `let` has fields that cannot change either --- and that includes the elements of an array field.
 
@@ -225,7 +225,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   [`lit point do x 1 . y 2 . end .`], [build a value --- fill every field], [no field silently becomes 0],
   [`field p. x .` · `field s. stop x .`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
   [`set field p. x . 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
-  [`body array u8 4 .` · `set idx field p. body . 0 . 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
+  [`body array 4 u8 .` · `set idx field p. body . 0 . 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
   [`enum shape do dot . circle r u32 . end .`], [one of several --- variants may carry values], [each variant is closed with a stop],
   [`shape.circle 2 .` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
   [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],

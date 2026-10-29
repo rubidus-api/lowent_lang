@@ -14,8 +14,8 @@ module vm_vmask .
 rem masked store — v>5 인 lane 만 out 에 쓴다. 나머지 out 자리는 **그대로**(호출자가 준 값 보존).
 proc mstore input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xs slice u32 view_array u32 b. . .
-  var v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 5 . .
+  var v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 5 . .
   var m mask 4 gt v. lim. . .
   store_masked out. 0 v. m. .
   return 0 .
@@ -24,11 +24,11 @@ end .
 rem masked load (merge) — v>5 인 lane 은 메모리를 읽고, 나머지는 passthrough(=100). 결과를 out 에 되쓴다.
 proc mload input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 5 . .
+  let v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 5 . .
   let m mask 4 gt v. lim. . .
-  let pass vec u32 4 splat 100 . .
-  var r vec u32 4 load_masked xs. 0 m. pass. . .
+  let pass vec 4 u32 splat 100 . .
+  var r vec 4 u32 load_masked xs. 0 m. pass. . .
   store out. 0 r. .
   return 0 .
 end .
@@ -40,11 +40,11 @@ rem   mask 는 full(u32 4개, 경계 안)에서 만든다: full=[10,10,10,0], gt
 proc tail input full slice u8 . input short slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xf slice u32 view_array u32 full. . .
   let xs slice u32 view_array u32 short. . .
-  let vf vec u32 4 load xf. 0 . .
-  let lim vec u32 4 splat 5 . .
+  let vf vec 4 u32 load xf. 0 . .
+  let lim vec 4 u32 splat 5 . .
   let m mask 4 gt vf. lim. . .
-  let pass vec u32 4 splat 9 . .
-  var r vec u32 4 load_masked xs. 0 m. pass. . .
+  let pass vec 4 u32 splat 9 . .
+  var r vec 4 u32 load_masked xs. 0 m. pass. . .
   store out. 0 r. .
   return 0 .
 end .

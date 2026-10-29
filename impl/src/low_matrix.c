@@ -435,7 +435,7 @@ static void mx_check_call(mx_t *c, const low_cst_t *head, low_cst_t *const *args
         mx_fail(c, head, "E-MATRIX-SHAPE", "a `matrix` is passed whole to `%.*s`, which declares no `matrix` input — read one element (`idx m. i. j. .`), one row (`row m. i. .`) or all elements as one row (`flat m. .`)",
                 (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr);
     else
-        mx_fail(c, head, "E-MATRIX-SHAPE", "the call of `%.*s` and its inputs disagree about a `matrix` — the number of dimensions and every size must be the same (`matrix u32 2 3 4` is not `matrix u32 2 4 3`, nor `array u32 12`)",
+        mx_fail(c, head, "E-MATRIX-SHAPE", "the call of `%.*s` and its inputs disagree about a `matrix` — the number of dimensions and every size must be the same (`matrix 2 3 4 u32` is not `matrix 2 4 3 u32`, nor `array u32 12`)",
                 (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr);
 }
 
@@ -447,7 +447,7 @@ static void mx_run(mx_t *c, low_cst_t *parent, proven_size_t s, proven_size_t *e
 static bool mx_lit(mx_t *c, low_cst_t *f, mx_shape_t *sh) {
     if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !mx_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_LIT || !mx_is(f->kids[1], "matrix")) return false;
     proven_size_t e = mx_shape_read(f->kids, 1, f->nkids, sh);
-    if (!e) { mx_fail(c, f->kids[1], "E-MATRIX-TYPE", "`lit matrix <element type> <number of dimensions> <one size per dimension> <elements>… .`"); return false; }
+    if (!e) { mx_fail(c, f->kids[1], "E-MATRIX-TYPE", "`lit matrix <number of dimensions> <one size per dimension> <element type> <elements>… .`"); return false; }
     if (!mx_literal(sh)) {
         mx_fail(c, f->kids[1], "E-MATRIX-TYPE", "a `lit matrix` writes every size as a number — a size that is a translation-time input stands only in an op's `input`");
         return false;
@@ -883,8 +883,8 @@ static void rw_walk(mx_t *c, low_cst_t *n, bool migrate) {
     if (mx_is(n->kids[1], "array") && !n->kids[1]->synth) {
         if (!migrate) {
             mx_fail(c, n->kids[0], "E-LIT-ROWS-OLD",
-                    "a list of rows is a SLICE of rows, so it is written `lit slice (array <type> <m>) <row>… .` — no count, no `_` "
-                    "(write a zero row as `lit array <type> <m> _ .`). The old `lit array (array <type> <m>) <n> …` said `array` for "
+                    "a list of rows is a SLICE of rows, so it is written `lit slice array <m> <type> <row>… .` — no count, no `_` "
+                    "(write a zero row as `lit array <m> <type> _ .`). The old `lit array <n> array <m> <type> …` said `array` for "
                     "a value that is not one; `lowentc --fmt` rewrites it");
             return;
         }
@@ -910,7 +910,7 @@ static void rw_walk(mx_t *c, low_cst_t *n, bool migrate) {
     for (proven_size_t q = 3; q < n->nkids; q++)
         if (mx_is(n->kids[q], "_")) {
             mx_fail(c, n->kids[q], "E-LIT-COUNT",
-                    "a list of rows is a slice list, and a slice list has no `_` — write each zero row as `lit array <type> <m> _ .`");
+                    "a list of rows is a slice list, and a slice list has no `_` — write each zero row as `lit array <m> <type> _ .`");
             return;
         }
     low_cst_t *nk[3] = { mx_word(c, n->kids[1], "array"), n->kids[2], mx_number(c, n->kids[1], (unsigned long long)(n->nkids - 3)) };
@@ -936,3 +936,183 @@ bool low_rows_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, prove
     return !c->failed;
 }
 
+
+// ══ 개수가 먼저다 (RFC-0155 §8-2 · 소유자 2026-10-29 «배열 타입과 벡터, 혹은 갯수를 받는 비슷한 타입이나 문법도 그렇게 바꾼다») ══
+//   사람이 적는 차례는 `array <개수> <원소>` · `vec <레인> <원소>` · `matrix <k> <크기 k 개> <원소>` 다. 원소가 맨 뒤라 괄호 없이 겹친다
+//   (`array 3 array 4 u8`). 뒤의 걸음(표면 내림 · matrix · 줄의 나열 · 검사 · 하강)은 **안쪽 차례**(원소가 먼저)를 읽는다 — 이 패스가
+//   파스 바로 뒤에 옮겨 적는다. 원소가 낱말 하나가 아니면(겹친 배열) 괄호 한 겹으로 싸고, 앞이 타입 생성자(`slice` · `option` …)나
+//   낱말 자리를 받는 머리(`view_array` · `size_of` …)면 배열 타입 전체도 싼다 — 뒤의 걸음이 그 자리에 마디 하나를 기대한다.
+//     array 4 u8                →  array u8 4
+//     array 3 array 4 u8        →  array (array u8 4) 3
+//     lit slice array 4 u8 …    →  lit slice (array u8 4) …
+//     view_array array 4 u8 b   →  view_array (array u8 4) b
+//     matrix 2 3 4 u32          →  matrix u32 2 3 4
+//   서식기는 같은 패스를 거꾸로(안쪽 → 사람의 차례) 돌린 나무를 찍는다(raise). 그래서 옛 차례로 적은 글도 `--fmt` 를 거치면 새 차례가 된다.
+//   글자만으로 갈리지 않는 꼴이 하나 있다: 개수 자리도 원소 자리도 이름인 `array T N`. 새 차례로 읽는다(옛 글이면 타입 검사가 운다).
+//   `lib/vecgen.low` 처럼 `vec` 라는 구조체를 스스로 짓는 파일에서는 `vec` 를 그 구조체로 둔다.
+static const char *const OR_TYW[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","f32","f64",
+                                      "void","self","str","string","char","byte","bytes_view",
+                                      "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero","task","chan",
+                                      "atomic","lock","rwlock","shared_read","view",
+                                      "result","array","vec","matrix","bitset","mask","bits","cap","region","fn","unsafe_fn", NULL };
+static const char *const OR_WRAP[] = { "slice","option","segments","stack","set","unsafe_ptr","nonzero","task","chan","atomic","lock","rwlock",
+                                       "shared_read","view","result","array","vec",
+                                       "view_array","size_of","bit_cast","cast","try_view","encode","widen","narrow", NULL };
+static bool or_in(const low_cst_t *n, const char *const *set) {
+    if (!mx_atom(n) || n->tok.kind != LOW_TOK_IDENT) return false;
+    for (proven_size_t i = 0; set[i]; i++) if (low_view_eq_cstr(n->tok.lex, set[i])) return true;
+    return false;
+}
+typedef struct { mx_t *c; int mode; const char **skipvec; proven_size_t nskip; } or_t;   // mode 0 번역 · 1 서식(옛 차례를 받는다) · 2 올림
+static bool or_skip(const or_t *o, const low_cst_t *n) {
+    if (!mx_is(n, "vec")) return false;
+    for (proven_size_t i = 0; i < o->nskip; i++) if (n->file == o->skipvec[i]) return true;
+    return false;
+}
+static bool or_head(const or_t *o, const low_cst_t *n) {   // 개수를 받는 타입의 머리
+    return (mx_is(n, "array") || mx_is(n, "vec") || mx_is(n, "matrix")) && !or_skip(o, n);
+}
+static bool or_old(const low_cst_t *n) {                    // 개수 자리에 타입이 왔다 — 옛 차례
+    return n && (n->kind == LOW_CST_GROUP || n->kind == LOW_CST_FORM || or_in(n, OR_TYW));
+}
+static proven_size_t or_nt_end(const or_t *o, low_cst_t *const *k, proven_size_t i, proven_size_t n);
+static proven_size_t or_nt_end(const or_t *o, low_cst_t *const *k, proven_size_t i, proven_size_t n) {   // 사람의 차례로 적힌 타입 하나의 끝
+    const proven_size_t NO = (proven_size_t)-1;
+    if (i >= n) return NO;
+    const low_cst_t *t = k[i];
+    if (!mx_atom(t)) return t->kind == LOW_CST_GROUP ? i + 1 : NO;
+    if (t->tok.kind != LOW_TOK_IDENT) return NO;
+    if (or_head(o, t) && !mx_is(t, "matrix")) return (i + 1 < n && mx_atom(k[i + 1])) ? or_nt_end(o, k, i + 2, n) : NO;
+    if (mx_is(t, "matrix")) {
+        unsigned long long d = 0;
+        if (!mx_num(k[i + 1 < n ? i + 1 : i], &d) || i + 1 >= n || d > MX_MAXRANK) return NO;
+        return or_nt_end(o, k, i + 2 + (proven_size_t)d, n);
+    }
+    if (mx_is(t, "result")) { proven_size_t j = or_nt_end(o, k, i + 1, n); return j == NO ? NO : or_nt_end(o, k, j, n); }
+    if (or_in(t, OR_TYW) && !mx_is(t, "bitset") && !mx_is(t, "mask") && !mx_is(t, "bits") && !mx_is(t, "cap") && !mx_is(t, "region") &&
+        !mx_is(t, "fn") && !mx_is(t, "unsafe_fn")) {
+        static const char *const ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","f32","f64",
+                                            "void","self","str","string","char","byte","bytes_view", NULL };
+        return or_in(t, ZERO) ? i + 1 : or_nt_end(o, k, i + 1, n);
+    }
+    if (mx_is(t, "bitset") || mx_is(t, "mask") || mx_is(t, "bits")) return (i + 1 < n && mx_atom(k[i + 1]) && k[i + 1]->tok.kind == LOW_TOK_NUMBER) ? i + 2 : i + 1;
+    if (mx_is(t, "cap") || mx_is(t, "region")) return i + 2 <= n ? i + 2 : NO;
+    return i + 1;
+}
+static low_cst_t *or_group(or_t *o, const low_cst_t *model, low_cst_t **kk, proven_size_t n) {   // (kk…) — 괄호 한 겹
+    low_cst_t *f = low_node(&o->c->p, LOW_CST_FORM, kk[0]->tok);
+    low_cst_t *g = low_node(&o->c->p, LOW_CST_GROUP, model->tok);
+    low_cst_t **cp = (low_cst_t **)mx_alloc(o->c, sizeof(low_cst_t *) * n);
+    if (!f || !g || !cp) return NULL;
+    memcpy(cp, kk, sizeof(low_cst_t *) * n);
+    f->closer = LOW_TOK_EOF; f->file = model->file; g->file = model->file;
+    (void)low_refit(&o->c->p, f, cp, n);
+    (void)low_refit(&o->c->p, g, &f, 1);
+    return g;
+}
+static proven_size_t or_size(const low_cst_t *n) {        // 나무 안의 마디 수(괄호를 다 벗겨도 이보다 길어지지 않는다)
+    proven_size_t s = 1;
+    for (proven_size_t i = 0; n && i < n->nkids; i++) s += or_size(n->kids[i]);
+    return s;
+}
+static void or_node(or_t *o, low_cst_t *n);
+// 자식 열 [0, n) 을 옮겨 적는다. 결과는 새 배열(*out, *nout).
+static bool or_seq(or_t *o, low_cst_t *const *k, proven_size_t n, low_cst_t ***out, proven_size_t *nout) {
+    proven_size_t cap = n + 16;                           // 올림은 괄호를 벗겨 열이 길어질 수 있다
+    for (proven_size_t q = 0; q < n; q++) if (k[q]->kind == LOW_CST_GROUP) cap += or_size(k[q]);
+    low_cst_t **w = (low_cst_t **)mx_alloc(o->c, sizeof(low_cst_t *) * cap);
+    if (!w) return false;
+    proven_size_t m = 0, i = 0;
+    while (i < n && !o->c->failed) {
+        low_cst_t *t = k[i];
+        if (!mx_atom(t)) {
+            or_node(o, t);
+            // 올림: 괄호로 싼 «개수를 받는 타입» 은 괄호를 벗긴다(새 차례는 괄호 없이 겹친다)
+            const low_cst_t *in = mx_inner(t);
+            if (o->mode == 2 && t->kind == LOW_CST_GROUP && in && in->kind == LOW_CST_FORM && in->nkids >= 2 && or_head(o, in->kids[0]) &&
+                !(in->nkids >= 2 && mx_is(in->kids[0], "vec") && in->kids[in->nkids - 1]->kind == LOW_CST_BLOCK)) {
+                for (proven_size_t q = 0; q < in->nkids; q++) w[m++] = in->kids[q];
+            } else w[m++] = t;
+            i++; continue;
+        }
+        if (!or_head(o, t) || i + 1 >= n) { w[m++] = t; i++; continue; }
+        bool mat = mx_is(t, "matrix");
+        if (o->mode == 2) {                                // 안쪽 → 사람: [머리 원소 개수…] → [머리 개수… 원소…]
+            low_cst_t *el = k[i + 1];
+            proven_size_t nc = 1;
+            if (mat) { unsigned long long d = 0; if (i + 2 >= n || !mx_num(k[i + 2], &d) || i + 3 + d > n) { w[m++] = t; i++; continue; } nc = 1 + (proven_size_t)d; }
+            if (i + 1 + nc >= n) { w[m++] = t; i++; continue; }
+            low_cst_t **sub = NULL; proven_size_t ns = 0;
+            if (!or_seq(o, &el, 1, &sub, &ns)) return false;    // 원소(괄호로 싼 배열이면 벗겨진다)
+            w[m++] = t;
+            for (proven_size_t q = 0; q < nc; q++) w[m++] = k[i + 2 + q];
+            for (proven_size_t q = 0; q < ns; q++) w[m++] = sub[q];
+            i += 2 + nc; continue;
+        }
+        if (or_old(k[i + 1])) {                            // 옛 차례
+            if (o->mode == 0) {
+                mx_fail(o->c, k[i + 1], "E-TYPE-ORDER",
+                        mat ? "the count comes first: `matrix <number of dimensions> <one size per dimension> <element type>` — `matrix 2 3 4 u32`. "
+                              "The old order `matrix u32 2 3 4` is no longer read; `lowentc --fmt` rewrites it"
+                            : "the count comes first: `%.*s <count> <element type>` — `%.*s 4 u8`, and an array of arrays is `array 3 array 4 u8`. "
+                              "The old order `%.*s u8 4` is no longer read; `lowentc --fmt` rewrites it",
+                        (int)t->tok.lex.size, (const char *)t->tok.lex.ptr, (int)t->tok.lex.size, (const char *)t->tok.lex.ptr,
+                        (int)t->tok.lex.size, (const char *)t->tok.lex.ptr);
+                return false;
+            }
+            w[m++] = t; i++; continue;                      // 서식기 — 안쪽 차례 그대로 둔다(찍을 때 새 차례로 올린다)
+        }
+        proven_size_t nc = 1;
+        if (mat) { unsigned long long d = 0; if (!mx_num(k[i + 1], &d) || d > MX_MAXRANK) { w[m++] = t; i++; continue; } nc = 1 + (proven_size_t)d; }
+        proven_size_t te = or_nt_end(o, k, i + 1 + nc, n);
+        if (te == (proven_size_t)-1 || te > n) { w[m++] = t; i++; continue; }   // 꼴이 틀렸다 — 검사가 말하게 둔다
+        low_cst_t **sub = NULL; proven_size_t ns = 0;
+        if (!or_seq(o, k + i + 1 + nc, te - (i + 1 + nc), &sub, &ns)) return false;
+        low_cst_t *el = ns == 1 ? sub[0] : or_group(o, t, sub, ns);
+        if (!el) return false;
+        low_cst_t *tri[2 + MX_MAXRANK + 1];
+        proven_size_t nt = 0;
+        tri[nt++] = t; tri[nt++] = el;
+        for (proven_size_t q = 0; q < nc; q++) tri[nt++] = k[i + 1 + q];
+        if (m > 0 && or_in(w[m - 1], OR_WRAP)) { low_cst_t *g = or_group(o, t, tri, nt); if (!g) return false; w[m++] = g; }
+        else for (proven_size_t q = 0; q < nt; q++) w[m++] = tri[q];
+        i = te;
+    }
+    *out = w; *nout = m;
+    return !o->c->failed;
+}
+static void or_node(or_t *o, low_cst_t *n) {
+    if (!n || n->kind == LOW_CST_ATOM || o->c->failed) return;
+    if (n->kind == LOW_CST_ACCESS) { for (proven_size_t i = 0; i < n->nkids; i++) or_node(o, n->kids[i]); return; }
+    if (n->kind == LOW_CST_GROUP) {                        // 괄호 안은 그 자체로 한 열이다
+        for (proven_size_t i = 0; i < n->nkids; i++) or_node(o, n->kids[i]);
+        return;
+    }
+    low_cst_t **nk = NULL; proven_size_t nn = 0;
+    if (n->kind == LOW_CST_FORM) {
+        // FORM 의 머리가 곧 타입의 머리일 수 있다(괄호로 싼 `(array 4 u8)` 는 FORM 하나다)
+        if (!or_seq(o, n->kids, n->nkids, &nk, &nn)) return;
+    } else {
+        if (!or_seq(o, n->kids, n->nkids, &nk, &nn)) return;
+    }
+    if (nn != n->nkids || memcmp(nk, n->kids, sizeof(low_cst_t *) * nn) != 0) (void)low_refit(&o->c->p, n, nk, nn);
+}
+bool low_order_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, int mode) {
+    mx_t *c = (mx_t *)work.alloc_fn(work.ctx, sizeof(mx_t), alignof(mx_t)).value.ptr;
+    if (!c) return true;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    or_t o = { .c = c, .mode = mode };
+    const char *skip[16]; proven_size_t ns = 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {      // `vec` 라는 구조체를 스스로 짓는 파일(lib/vecgen.low)
+        const low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && mx_is(f->kids[0], "struct") && mx_is(f->kids[1], "vec") && ns < 16) {
+            bool seen = false;
+            for (proven_size_t q = 0; q < ns; q++) seen |= skip[q] == f->file;
+            if (!seen) skip[ns++] = f->file;
+        }
+    }
+    o.skipvec = skip; o.nskip = ns;
+    for (proven_size_t i = 0; i < pr->nforms && !c->failed; i++) or_node(&o, pr->forms[i]);
+    return !c->failed;
+}

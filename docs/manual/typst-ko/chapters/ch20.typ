@@ -197,7 +197,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 
 #demo("examples/ch20/litalloc.low")
 
-- `var xs use bb mut slice u64 lit array u64 4 … . else return 0 .` 는 `bb` 에게 32 바이트를 청하고, 받으면 그 바이트를
+- `var xs use bb mut slice u64 lit array 4 u64 … . else return 0 .` 는 `bb` 에게 32 바이트를 청하고, 받으면 그 바이트를
   나열처럼 채워 `xs` 에 묶는다. 할당기가 바이트를 못 주면 `else` 로 간다 --- `else` 는 반드시 벗어나야 한다(바인딩 `else` 는
   #chref("option-result") 에서 다룬다).
 - 실패를 `option` 째 들고 가려면 타입을 통째로 적는다: `let big use bb option mut slice u64 lit … .` --- 그러면 나중에
@@ -386,7 +386,7 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],
   [출처 없음 · 쓰이지 않는 `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
   [`alloc_bytes a. capacity 8` · 영역 블록 안의 `alloc_bytes capacity 8`], [뿌리에서 바이트를 얻는다 · 가장 안쪽 영역에서], [뿌리는 이름으로 적는다 --- `E-ALLOC-NOROOT`],
-  [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [나열을 고른 할당기에서 받는다], [못 받으면 `else` --- 반드시 벗어난다],
+  [`var xs use bb mut slice u64 lit array 4 u64 … . else …`], [나열을 고른 할당기에서 받는다], [못 받으면 `else` --- 반드시 벗어난다],
   [`bit_cast u32 x. .`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
 )
 

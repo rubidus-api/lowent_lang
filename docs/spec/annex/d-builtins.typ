@@ -548,10 +548,10 @@ wrap_sub              write_out             write_volatile        zip")
   #tbl("SIMD")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
-        [`splat a` #cref("6.3.11")], [*받는 것:* `a` — 정수 또는 부동 \ *내는 것:* `vec T N` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec T N`)가 정한다 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
-        [`reduce_add v` #cref("6.3.11")], [*받는 것:* `v` — `vec T N` \ *내는 것:* `T` — 레인의 합(부호 있는 레인은 부호로 더한다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`],
-        [`reduce_max v` #cref("6.3.11")], [*받는 것:* `v` — `vec T N` \ *내는 것:* `T` — 가장 큰 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
-        [`reduce_min v` #cref("6.3.11")], [*받는 것:* `v` — `vec T N` \ *내는 것:* `T` — 가장 작은 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`splat a` #cref("6.3.11")], [*받는 것:* `a` — 정수 또는 부동 \ *내는 것:* `vec N T` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec N T`)가 정한다 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`reduce_add v` #cref("6.3.11")], [*받는 것:* `v` — `vec N T` \ *내는 것:* `T` — 레인의 합(부호 있는 레인은 부호로 더한다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`],
+        [`reduce_max v` #cref("6.3.11")], [*받는 것:* `v` — `vec N T` \ *내는 것:* `T` — 가장 큰 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`reduce_min v` #cref("6.3.11")], [*받는 것:* `v` — `vec N T` \ *내는 것:* `T` — 가장 작은 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 

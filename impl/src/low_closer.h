@@ -11,6 +11,9 @@
 //   성공하면 `tokens` 를 새 열로 바꾸고 true. 실패하면 진단 하나를 `diags` 에 넣고 false(토큰 열은 그대로다).
 [[nodiscard]] bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_array_t *diags);
 
+// RFC-0155 §8-2 — 서식기(`--fmt`)는 옛 차례(`array u8 4`)를 읽어 새 차례로 옮겨 찍는다. 그 밖에서는 옛 차례가 `E-TYPE-ORDER` 다.
+void low_closer_lenient(bool on);
+
 // 서식기가 찍은 글(호출마다 괄호로 싼 1.7 의 꼴)을 새 표면으로 올려 `out` 에 쓴다. 선언을 읽지 않는다.
 //   올리지 못하면 false — 그때는 아무것도 쓰지 않는다.
 [[nodiscard]] bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_size_t n, FILE *out);

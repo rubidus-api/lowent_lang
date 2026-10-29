@@ -1,4 +1,4 @@
-rem RFC-0040 portable SIMD fixture — lanes are comptime (from `vec t n` binding
+rem RFC-0040 portable SIMD fixture — lanes are comptime (from `vec n t` binding
 rem types); arith/compare lift lanewise (compare → mask); dot product & clamp.
 
 fn dot4
@@ -6,8 +6,8 @@ fn dot4
   output u64 .
 do
   let xs slice u32 view_array u32 b. . .
-  let va vec u32 4 load xs. 0 . .
-  let vb vec u32 4 load xs. 4 . .
+  let va vec 4 u32 load xs. 0 . .
+  let vb vec 4 u32 load xs. 4 . .
   return reduce_add mul va. vb. . . .
 end .
 
@@ -16,10 +16,10 @@ fn clamp_sum
   output u64 .
 do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 10 . .
+  let v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 10 . .
   let m mask 4 gt v. lim. . .        rem ★ 마스크는 정수가 아니다(레인마다 하나씩)
-  let cc vec u32 4 lane_select m. lim. v. . .
+  let cc vec 4 u32 lane_select m. lim. v. . .
   return reduce_add cc. . .
 end .
 
@@ -28,8 +28,8 @@ fn over
   output bool .
 do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 10 . .
+  let v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 10 . .
   return lane_any gt v. lim. . . .
 end .
 
@@ -38,6 +38,6 @@ fn vmax
   output u64 .
 do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
+  let v vec 4 u32 load xs. 0 . .
   return reduce_max v. . .
 end .

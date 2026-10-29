@@ -409,15 +409,14 @@ Lowent stops --- and the place it stops is the place to fix.
   them is rejected at translation time with `E-TYPE-MIX`; it used to stop *while running* with `E-VM-TYPE`.
 ]
 
-#antipattern[Testing with the largest `u64` passed as a `--run` argument][
-  #demo("examples/ch04/mistake_runmax.low")
+The largest `u64` goes in as it is when passed as a `--run` argument.
 
-  `echo 18446744073709551615` is refused at the boundary (`E-VM-CONTRACT`). Until 2026-09-16 it was quietly cut down to
-  9223372036854775807 --- a different number, and both back ends did it, so comparing them did not reveal it. It is now refused instead of
-  cut. The reason is that the interval analysis records the upper bound of `u64` as the largest `i64`; a value above that makes the
-  analysis unsound. Literals inside the program are whole, so write boundary-value tests there, as `largest_u64` does, and results now
-  print unsigned.
-]
+#demo("examples/ch04/runmax.low")
+
+Until 2026-09-16 this number was quietly cut down to 9223372036854775807 --- a different number, and both back ends did it, so comparing
+them did not reveal it --- and after that, up to 1.19.0, it was refused at the boundary (`E-VM-CONTRACT`). Since 1.20.0 the boundary takes
+0 to 2^64 − 1 without a sign; `-1` and 2^64 are still refused. Boundary values can also be written as literals inside the program, as
+`largest_u64` does.
 
 #misconception[`f32` and `f64` hold the same number][
   #demo("examples/ch04/mistake_f32literal.low")

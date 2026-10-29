@@ -45,7 +45,7 @@ explanations are in the chapters named in the tables.
   [Missing cases in `match`], [`E-MATCH-INEXHAUSTIVE`], [The missing `case` or `case _`],
   [Writing enum variants one per line without periods], [`E-ENUM-DOT`], [`red .` for each variant],
   [Extracting with `some_value` without checking], [`E-VM-NONE` (at run time)], [`guard is_some` · `value_or` · `match`],
-  [`array 4 u8`], [`E-TYPE-ARRAY`], [`array u8 4`],
+  [`array u8 4`], [`E-TYPE-ORDER`], [`array 4 u8`],
 )
 
 == Effects, capabilities and memory

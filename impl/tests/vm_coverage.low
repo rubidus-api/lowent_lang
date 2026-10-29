@@ -45,7 +45,7 @@ rem   `E-VM-TYPE: reduce needs a vector` 로 배웠다. 짝의 안 쓰이는 쪽
 rem   항등원이 갈리는 자리다: 같은 레인에 대해 add 는 합, mul 은 곱 — 0 과 1 이 갈린다.
 export fn cov_reduce_mul input b slice u8 . output f64 . do
   let xs slice f32 view_array f32 b. . .
-  let v vec f32 4 load xs. 0 . .
+  let v vec 4 f32 load xs. 0 . .
   return reduce_mul v. . .
 end .
 

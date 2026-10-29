@@ -830,21 +830,21 @@
    "meaning": "레인을 모두 더한다",
    "group": "SIMD",
    "form": "reduce_add v",
-   "takes": "`v` — `vec T N`",
+   "takes": "`v` — `vec N T`",
    "gives": "`T` — 레인의 합(부호 있는 레인은 부호로 더한다)"
   },
   "reduce_max": {
    "meaning": "레인 중 가장 큰 것",
    "group": "SIMD",
    "form": "reduce_max v",
-   "takes": "`v` — `vec T N`",
+   "takes": "`v` — `vec N T`",
    "gives": "`T` — 가장 큰 레인"
   },
   "reduce_min": {
    "meaning": "레인 중 가장 작은 것",
    "group": "SIMD",
    "form": "reduce_min v",
-   "takes": "`v` — `vec T N`",
+   "takes": "`v` — `vec N T`",
    "gives": "`T` — 가장 작은 레인"
   },
   "reduce_mul": {
@@ -994,7 +994,7 @@
    "group": "SIMD",
    "form": "splat a",
    "takes": "`a` — 정수 또는 부동",
-   "gives": "`vec T N` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec T N`)가 정한다"
+   "gives": "`vec N T` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec N T`)가 정한다"
   },
   "sqrt": {
    "meaning": "제곱근",

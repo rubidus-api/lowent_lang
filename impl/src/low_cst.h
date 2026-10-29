@@ -231,6 +231,8 @@ proven_u8 low_enum_layout_width(proven_u8str_view_t name);   // 그 가운데 �
 bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 /* 줄의 나열: `lit slice (array t m) <줄>… .` → 안쪽 꼴 · 옛 `lit array (array t m) n …` 은 E-LIT-ROWS-OLD. migrate(--fmt)면 옛 → 새 */
 bool low_rows_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool migrate);
+// RFC-0155 §8-2 — 사람의 차례(개수가 먼저)를 안쪽 차례(원소가 먼저)로. mode 0 번역 · 1 서식(옛 차례를 받는다) · 2 거꾸로(서식기가 찍기 전)
+bool low_order_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, int mode);
 void *low_tyctx_open(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 void low_tyctx_form(void *ctx, const low_cst_t *topform);
 proven_size_t low_tyctx_enter(void *ctx, const low_cst_t *opform);

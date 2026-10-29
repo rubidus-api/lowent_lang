@@ -76,7 +76,7 @@ build/lowentc                               # 전체 옵션 도움말
 | `low_token.*` · `low_lex.*` | 토큰과 키워드 표, 어휘 분석 |
 | `low_cst.*` · `low_cst_priv.h` | 점-닫힘 CST 파서, 인자 수 정규화(`low_nest`), 모듈 연결 |
 | `low_arity.h` | 빌트인 op 의 인자 수 표 (유일한 출처) |
-| `low_using.c` | `use` 절(객체마다 얼로케이터 고르기), 입력 `array N T` 의 길이 계약 |
+| `low_using.c` | `use` 절(객체마다 얼로케이터 고르기), 입력 `array T N` 의 길이 계약 |
 | `low_mono.c` | 제네릭 틀에서 구체 인스턴스를 찍는 단형화 |
 | `low_check.*` | 효과·능력·가시성·계층·FFI·동시성 규칙 (가장 큰 검사기) |
 | `low_typecheck.*` | 타입 검사: 종류, 정수 폭·부호, struct 칸, enum |

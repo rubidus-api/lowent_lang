@@ -68,7 +68,7 @@ export fn loops input n u64 . output u64 . do
   range i u64 1 n. do set t. add t. i. . . end .
   range i u64 0 n. step 2 if gt i. 2 . do set t. add t. i. . . end .
   cycle i u64 1 while lt i. n. . next mul i. 2 . do set t. add t. i. . . end .
-  for x lit array u64 3 10 20 30 . if gt x. 10 . do set t. add t. x. . . end .
+  for x lit array 3 u64 10 20 30 . if gt x. 10 . do set t. add t. x. . . end .
   cycle i u64 0 while lt i. 6 . next add i. 1 . do
     if eq i. 2 . do continue . end .
     set t. add t. 1 . .

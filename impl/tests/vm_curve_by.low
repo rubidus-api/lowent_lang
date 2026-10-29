@@ -39,9 +39,9 @@ end .
 
 rem ① P-256: 서명하고(r · s 의 첫 4 바이트를 `rs` 에) 검증한다. `flip` 이 1 이면 검증 전에 s 의 끝 비트를 바꾼다. 답 = 검증의 답.
 proc p256_by input comptime wt type . input lw wt . input rs mut slice u8 . input flip u64 . output u64 . effects none . requires bigwidth.width wt. . . do
-  var wb lit array u8 640 _ . .
-  var wu lit array u64 1016 _ . .
-  var vw lit array u64 924 _ . .
+  var wb lit array 640 u8 _ . .
+  var wu lit array 1016 u64 _ . .
+  var vw lit array 924 u64 _ . .
   guard eq num_by wt. lw. "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" 32 subslice wu. 0 16 . wb. . 32 . else return 0 . .
   guard eq num_by wt. lw. "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" 32 subslice wu. 16 32 . wb. . 32 . else return 0 . .
   guard eq num_by wt. lw. "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" 32 subslice wu. 32 48 . wb. . 32 . else return 0 . .
@@ -66,8 +66,8 @@ end .
 
 rem ② P-384: 파이썬이 낸 서명을 검증한다.
 proc p384_by input comptime wt type . input lw wt . input flip u64 . output u64 . effects none . requires bigwidth.width wt. . . do
-  var wb lit array u8 64 _ . .
-  var wu lit array u64 1600 _ . .
+  var wb lit array 64 u8 _ . .
+  var wu lit array 1600 u64 _ . .
   guard eq num_by wt. lw. "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" 48 subslice wu. 0 24 . wb. . 48 . else return 0 . .
   guard eq num_by wt. lw. "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" 48 subslice wu. 24 48 . wb. . 48 . else return 0 . .
   guard eq num_by wt. lw. "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" 48 subslice wu. 48 72 . wb. . 48 . else return 0 . .
@@ -85,10 +85,10 @@ end .
 
 rem ③ Ed25519: 파이썬이 낸 서명을 검증한다.
 proc ed_by input comptime wt type . input lw wt . input flip u64 . output u64 . effects none . requires bigwidth.width wt. . . do
-  var kb lit array u8 160 _ . .
-  var sc lit array u8 160 _ . .
-  var bb lit array u8 320 _ . .
-  var w lit array u64 1004 _ . .
+  var kb lit array 160 u8 _ . .
+  var sc lit array 160 u8 _ . .
+  var bb lit array 320 u8 _ . .
+  var w lit array 1004 u64 _ . .
   let a option usize codec.hex_dec "47ad8c53f0b212cf5fb1ceb7dfc4c0a506b030de1b3fef79c6ff99262e96e2ef9ff99990730435d74decb2fe745c3ed6a39eec7b5fdc5d5bed947dcfa93f8108" subslice kb. 0 64 . . .
   guard is_some a. . else return 0 . .
   let b option usize codec.hex_dec "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a" subslice kb. 64 96 . . .
@@ -103,7 +103,7 @@ end .
 
 rem 한 줄 요약: 세 곡선 × (받음 · 거절) 을 비트로 — 받음은 1, 거절은 0 이어야 하므로 기대값은 0b010101 = 21. P-256 r · s 의 머리는 따로.
 proc all_by input comptime wt type . input lw wt . output u64 . effects none . requires bigwidth.width wt. . . do
-  var rs lit array u8 64 _ . .
+  var rs lit array 64 u8 _ . .
   let a u64 p256_by wt. lw. rs. 0 . .
   guard eq head4 rs. 0 . 4023683882 . else return 100 . .
   guard eq head4 rs. 32 . 4157283476 . else return 101 . .
@@ -185,11 +185,11 @@ end .
 export proc twins input go u64 . output u64 . effects none . do
   guard eq go. 20261024 . else return 0 . .
   let x lit bigint.limb do tag 0 . end . .
-  var wb lit array u8 640 _ . .
-  var c lit array u64 80 _ . .
-  var a lit array u64 192 _ . .
-  var b lit array u64 192 _ . .
-  var w lit array u64 400 _ . .
+  var wb lit array 640 u8 _ . .
+  var c lit array 80 u64 _ . .
+  var a lit array 192 u64 _ . .
+  var b lit array 192 u64 _ . .
+  var w lit array 400 u64 _ . .
   guard eq num_by bigint.limb. x. "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" 32 subslice c. 0 16 . wb. . 32 . else return 90 . .
   guard eq num_by bigint.limb. x. "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" 32 subslice c. 16 32 . wb. . 32 . else return 90 . .
   guard eq num_by bigint.limb. x. "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" 32 subslice c. 32 48 . wb. . 32 . else return 90 . .
@@ -219,9 +219,9 @@ export proc twins input go u64 . output u64 . effects none . do
   let dh option usize codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" subslice wb. 0 32 . . .
   let hh option usize codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" subslice wb. 32 64 . . .
   guard and is_some dh. . is_some hh. . . else return 91 . .
-  var o1 lit array u8 64 _ . .
-  var o2 lit array u8 64 _ . .
-  var wa lit array u8 480 _ . .
+  var o1 lit array 64 u8 _ . .
+  var o2 lit array 64 u8 _ . .
+  var wa lit array 480 u8 _ . .
   let k1 result u64 ecdsa.ecdsa_error ecdsa.nonce6979 subslice wb. 0 32 . subslice wb. 32 64 . subslice c. 16 32 . subslice o1. 0 32 . wa. subslice w. 0 16 . . .
   let k2 result u64 ecdsa.ecdsa_error ecdsa.nonce6979_by bigint.limb. x. subslice wb. 0 32 . subslice wb. 32 64 . subslice c. 16 32 . subslice o2. 0 32 . wa. subslice w. 0 16 . . .
   guard and is_ok k1. . is_ok k2. . . else return 8 . .

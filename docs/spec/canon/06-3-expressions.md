@@ -497,7 +497,7 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 > 다른 값을 내면, 그것은 이 언어가 지키기로 한 것을 놓는 일이다.
 
 (1a) `splat` 은 레인 수를 **선언된 타입에서** 받는다. 그래서 쓸 수 있는 자리는 벡터 타입을
-      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 splat 5 . .`. 식 안에 바로 적는 것은
+      적은 바인딩의 값 자리뿐이다: `var lim vec 4 u32 splat 5 . .`. 식 안에 바로 적는 것은
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
 
 (2) 레인을 가로지르는 op 은 레인 수만큼을 **하나로** 모은다. 결과의 타입은 레인의 타입이다. 부호 있는 레인은 부호로
@@ -618,7 +618,7 @@ end .
 ```lowent-거부: 레인 수가 다른 둘은 다른 타입이다 · E-TYPE-LANES
 module ex_lanes .
 
-fn f input a vec u8 4 . input b vec u8 8 . output vec u8 4 .
+fn f input a vec 4 u8 . input b vec 8 u8 . output vec 4 u8 .
 do
   return add a. b. . .
 end .

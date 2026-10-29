@@ -93,7 +93,7 @@ case <name> when <cond>
 ( <expr> )                              parentheses are decoration --- the expression inside closes with its own stop
 expr <a> + <b> * <c> .                  infix island --- * / above + -, comparisons below, and above or
 lit <type> do <field> <expr> . … end .  <enum>.<variant> <values>… .
-lit array <type> <len> <value>… [_] .   lit slice <type> <value>… .
+lit array <len> <type> <value>… [_] .   lit slice <type> <value>… .
 field <value> <steps>… .   idx <slice> <n> .   method <value> <steps>… <name>. <args>… .
 some <value> .   ok <value> .   error <variant> .   none
 try <expr> [else_none | else_error <variant>] .

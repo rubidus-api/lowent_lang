@@ -271,7 +271,7 @@ two ways takes two wrapper types --- write such jobs with the `pipe` above.
 
   From `[1,3,4]` two elements remain (3, 4), and they fit in two slots. `[3,4,5,6]` leaves four, so the run *stops* as the third is stored.
   It used to end quietly after two, and nobody learned that the other two were gone. When both lengths are known at translation (an
-  `array u8 5` input, say), there is nothing to stop: it is refused with `E-COLLECT-FULL`. A `pipe` does not allocate, so it does not grow the
+  `array 5 u8` input, say), there is nothing to stop: it is refused with `E-COLLECT-FULL`. A `pipe` does not allocate, so it does not grow the
   buffer either. To keep only what fits, *write* `take 2`.
 ]
 

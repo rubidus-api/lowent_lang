@@ -24,7 +24,7 @@ end .
 
 rem 배열의 원소
 fn arr_sum input a u64 . output u128 . do
-  var xs lit array u128 4 _ . .
+  var xs lit array 4 u128 _ . .
   var i usize 0 .
   while lt i. 4 . do
     set idx xs. i. . mul widen u128 a. . widen u128 add cast u64 i. . 1 . . . .
@@ -39,7 +39,7 @@ end .
 
 rem 바이트 위의 뷰 — 작은 끝이 먼저
 proc view_rt input a u64 . output u64 . effects none . do
-  var buf lit array u8 32 _ . .
+  var buf lit array 32 u8 _ . .
   var w mut slice u128 view_array u128 buf. . .
   set idx w. 1 . shl widen u128 a. . 64 . .
   return add mul cast u64 idx buf. 24 . . 1000 . cast u64 idx buf. 16 . . . .
@@ -47,7 +47,7 @@ end .
 
 rem 바이트 위의 구조체 뷰 — 16 바이트 칸을 읽고 쓴다. 칸의 자리는 C 와 같다(big 은 16 째 바이트부터)
 fn view_acc input a u64 . output u64 . do
-  var buf lit array u8 48 _ . .
+  var buf lit array 48 u8 _ . .
   let v mut view acc view acc buf. . .
   set field v. big . add shl widen u128 a. . 64 . widen u128 7 . . .
   let back u128 field v. big . .
@@ -56,7 +56,7 @@ end .
 
 rem 칸에 128 비트 값을 가진 구조체의 배열 — 원소는 뷰다
 fn rows input a u64 . output u128 . do
-  var rs lit array acc 3 _ . .
+  var rs lit array 3 acc _ . .
   var i usize 0 .
   while lt i. 3 . do
     set idx rs. i. . lit acc do lo cast u64 i. . . big mul widen u128 a. . widen u128 add cast u64 i. . 1 . . . . tag 2 . end . .

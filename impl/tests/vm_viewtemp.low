@@ -7,10 +7,10 @@ struct s1 do
 end .
 struct bag do
   k u64 .
-  buf array u8 8 .
+  buf array 8 u8 .
 end .
 fn mkbag input k u64 . input b u8 . output bag . do
-  return lit bag do k k. . buf lit array u8 8 b. b. b. b. b. b. b. b. . . end . .
+  return lit bag do k k. . buf lit array 8 u8 b. b. b. b. b. b. b. b. . . end . .
 end .
 fn witness2 output u64 . do
   let b bag mkbag 1 2 . .

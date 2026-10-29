@@ -240,7 +240,7 @@ static low_cst_t *low_parse_primary(low_parser_t *p, bool headed_ok) {
             const low_token_t *last = &p->toks[p->pos - 1];
             low_pdiag(p, "E-DOT-MISSING",
                       "a list literal closes with its own `.` — `for x lit slice u16 10 20 30 . do … end`, "
-                      "`let t keep al mut slice u64 lit array u64 2 7 8 . else return 0 .`. The word after it does not close it",
+                      "`let t keep al mut slice u64 lit array 2 u64 7 8 . else return 0 .`. The word after it does not close it",
                       last->line, last->col + (proven_u32)last->lex.size);
         }
         low_take_kids(p, f, &kids);

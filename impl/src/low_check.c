@@ -3947,7 +3947,7 @@ static void ck_splat_walk(low_check_result_t *out, const low_cst_t *nd,
                  "`splat` fills every lane of a vector, and how many lanes there are comes from the "
                  "declared type — inside an expression there is nothing to say it, so the value is "
                  "read as a plain scalar and the surrounding comparison stops matching its `mask` "
-                 "type. Bind it first, with the lane count written down: `var lim vec u32 4 splat "
+                 "type. Bind it first, with the lane count written down: `var lim vec 4 u32 splat "
                  "5 .`, then use `lim`",
                  nd->line);
     }
@@ -7709,7 +7709,7 @@ static bool ck_struct_array_field(low_check_result_t *out, const low_cst_t *fld,
     if (!(t && n && ck_atom(t) && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER)) return false;   // 모양이 틀리면 아래의 거절이 말한다
     unsigned long long cnt = strtoull((const char *)n->tok.lex.ptr, NULL, 0);
     if (cnt == 0) {
-        emit(out, "E-TYPE-ARRAY", "an array field holds at least one element — `array <type> 0` has nothing to keep", fld->kids[1]->tok.line);
+        emit(out, "E-TYPE-ARRAY", "an array field holds at least one element — `array 0 <type>` has nothing to keep", fld->kids[1]->tok.line);
         return true;
     }
     *bytes += cnt * ck_elem_bytes(t->tok.lex);
@@ -7738,13 +7738,12 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
             bool lit_next = nx && nx->kind == LOW_CST_ATOM && nx->tok.kind == LOW_TOK_NUMBER;
             emit(out, "E-TYPE-ARRAY",
                  !lit_next
-                   ? "a fixed-length `array <type> <count>` is accepted as an op INPUT (its length is checked at entry) and "
+                   ? "a fixed-length `array <count> <type>` is accepted as an op INPUT (its length is checked at entry) and "
                      "as a STRUCT FIELD (the record keeps the bytes). In an output, a local type or an alias the length "
                      "would have nowhere to be kept (it used to be dropped silently). Take `slice <type>` and "
                      "state the length in a contract (`requires eq (len x) N .`), or build a local with `var buf lit array …`"
-                   : "`array` is written `array <type> <count>` — the element type first, then the length as a literal "
-                     "(`array u64 4`, the same order as `vec u32 4`). The order was flipped on 2026-09-27 (RFC-0132); "
-                     "`array 4 u64` is the old order",
+                   : "`array` is written `array <count> <type>` — the length as a literal first, then the element type "
+                     "(`array 4 u64`, the same order as `vec 4 u32`; RFC-0155 §8-2, 2026-10-29). `array u64 4` is the old order",
                  k->tok.line ? k->tok.line : nd->line);
             return true;
         }
@@ -7821,8 +7820,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                         veq(vt->tok.lex, "u64") || veq(vt->tok.lex, "i64"));
             long long lanes = vn && ck_atom(vn) && vn->tok.kind == LOW_TOK_NUMBER ? strtoll((const char *)vn->tok.lex.ptr, NULL, 0) : 0;
             if (!num || lanes < 1 || lanes > 16 || (lanes & (lanes - 1))) {
-                emit(out, "E-LIT-COUNT", "`lit vec <type> <lanes> …` — the element type is a sized number and the lane count a "
-                     "power of two from 1 to 16, the same rules as the type `vec <type> <lanes>`", ln);
+                emit(out, "E-LIT-COUNT", "`lit vec <lanes> <type> …` — the element type is a sized number and the lane count a "
+                     "power of two from 1 to 16, the same rules as the type `vec <lanes> <type>`", ln);
                 return;
             }
             is_array = true;                                     // 개수 · `_` · 폭은 배열과 같다
@@ -7840,7 +7839,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                 if (ra) {
                     const low_cst_t *nn = nd->nkids > 3 ? nd->kids[3] : NULL;
                     if (!nn || !ck_atom(nn) || nn->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), nn->tok.lex)) {
-                        emit(out, "E-LIT-COUNT", "a list of rows `lit slice (array <type> <m>) <row>… .` counts its rows itself — this inner form needs the row count as a plain integer literal", ln); return;
+                        emit(out, "E-LIT-COUNT", "a list of rows `lit slice array <m> <type> <row>… .` counts its rows itself — this inner form needs the row count as a plain integer literal", ln); return;
                     }
                     rn = strtoll((const char *)nn->tok.lex.ptr, NULL, 0); e0 = 4;
                 }
@@ -7852,7 +7851,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                         tail = true; continue;
                     }
                     if (ck_atom(e) && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE)) {
-                        emit(out, "E-TYPE-WIDTH", "a list of rows holds rows — write `lit array <type> <m> … .` or a name, not a number", ln); return;
+                        emit(out, "E-TYPE-WIDTH", "a list of rows holds rows — write `lit array <m> <type> … .` or a name, not a number", ln); return;
                     }
                     {   // 줄 리터럴이면 길이와 원소 타입이 줄과 같아야 한다
                         const low_cst_t *rl = e;
@@ -7861,7 +7860,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                             ck_atom(rl->kids[1]) && veq(rl->kids[1]->tok.lex, "array") && ck_atom(rl->kids[2]) && ck_atom(rl->kids[3]) &&
                             (!proven_u8str_view_eq(rl->kids[2]->tok.lex, rt->kids[1]->tok.lex) ||
                              !proven_u8str_view_eq(rl->kids[3]->tok.lex, rt->kids[2]->tok.lex))) {
-                            emit(out, "E-LIT-COUNT", "this row is not the rows' shape — each row is `array <type> <m>` exactly as the list's element type says", ln);
+                            emit(out, "E-LIT-COUNT", "this row is not the rows' shape — each row is `array <m> <type>` exactly as the list's element type says", ln);
                             return;
                         }
                     }
@@ -7873,7 +7872,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                 return;
             }
         }
-        if (nd->nkids < 3 || nd->kids[2]->kind != LOW_CST_ATOM) { emit(out, "E-LIT-UNBUILT", "a list literal needs its element type: `lit array u8 4 1 2 3 4 .`", ln); return; }
+        if (nd->nkids < 3 || nd->kids[2]->kind != LOW_CST_ATOM) { emit(out, "E-LIT-UNBUILT", "a list literal needs its element type: `lit array 4 u8 1 2 3 4 .`", ln); return; }
         proven_u8str_view_t ty = nd->kids[2]->tok.lex;
         bool flt = veq(ty, "f32") || veq(ty, "f64"), isbool = veq(ty, "bool");
         bool sized = flt || isbool || veq(ty, "u8") || veq(ty, "i8") || veq(ty, "u16") || veq(ty, "i16") || veq(ty, "u32") ||
@@ -7893,8 +7892,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         if (is_array) {
             const low_cst_t *nn = nd->nkids > 3 ? nd->kids[3] : NULL;
             if (!nn || nn->kind != LOW_CST_ATOM || nn->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), nn->tok.lex)) {
-                emit(out, "E-LIT-COUNT", "`lit array <type> <length> …` — the length is a plain integer literal, the same one the "
-                     "type `array <type> <length>` would carry", ln);
+                emit(out, "E-LIT-COUNT", "`lit array <length> <type> …` — the length is a plain integer literal, the same one the "
+                     "type `array <length> <type>` would carry", ln);
                 return;
             }
             n = strtoll((const char *)nn->tok.lex.ptr, NULL, 0);
@@ -7906,7 +7905,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         //   남는 칸이 있는데 `_` 가 없으면 거절한다(말없이 0 으로 채우지 않는다). 원소 나열과 섞지 않는다.
         if (nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK) {
             const low_cst_t *blk = nd->kids[nd->nkids - 1];
-            if (!is_array) { emit(out, "E-LIT-COUNT", "filling chosen cells needs a length — a slice literal has none. Write `lit array <type> <length> do … end`", ln); return; }
+            if (!is_array) { emit(out, "E-LIT-COUNT", "filling chosen cells needs a length — a slice literal has none. Write `lit array <length> <type> do … end`", ln); return; }
             if (i != nd->nkids - 1) { emit(out, "E-LIT-COUNT", "a list literal either lists its elements or fills chosen cells (`do … end`) — not both", ln); return; }
             if (n > (1LL << 24)) { emit(out, "E-LIT-COUNT", "this array is too long to fill cell by cell", ln); return; }
             proven_size_t nb = ((proven_size_t)n + 7u) / 8u;
@@ -9448,7 +9447,7 @@ static void rw_field_lits(low_check_result_t *out, const low_cst_t *sf) {
         else if (veq(l->kids[1]->tok.lex, "slice"))
             for (proven_size_t q = 3; q < l->nkids; q++) got++;
         if (!same_t || got != want)
-            emit(out, "E-TYPE-FIELD", "this list does not fit the array field — the field is `array <type> <length>` and the list "
+            emit(out, "E-TYPE-FIELD", "this list does not fit the array field — the field is `array <length> <type>` and the list "
                  "must carry the same element type and exactly that length", fl->kids[0]->tok.line);
     }
 }
@@ -11967,7 +11966,7 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
                 emit(out, "E-TYPE-ARGMUT",
                      "a list LITERAL was bound with `let` to a type marked `mut`. A `let` list is a VIEW (read-only — "
                      "constant lists are bytes baked into the program, RFC-0132 §13.2 ⓑ). To write the cells, declare it "
-                     "with `var`: `var buf lit array u8 16 _ . .`", nd->kids[0]->tok.line);
+                     "with `var`: `var buf lit array 16 u8 _ . .`", nd->kids[0]->tok.line);
             if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_TEXTLIT))
                 emit(out, "E-TYPE-ARGMUT",
                      "a string LITERAL was bound to a name declared `mut`. A literal is bytes baked "

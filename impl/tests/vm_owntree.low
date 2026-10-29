@@ -32,7 +32,7 @@ proc many input a cap allocator . input count u64 . output u64 . effects alloc s
 end .
 
 proc back input k u64 . output u64 . effects state . do
-  var buf lit array u8 512 _ . .
+  var buf lit array 512 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init buf. . .
   var m use bb. (tree.head allocs.bump_bytes) tree.tr_open . .

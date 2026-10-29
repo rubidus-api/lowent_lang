@@ -145,7 +145,7 @@ proc mark_s input rec mut slice u8 . input tag u8 . input s slice u8 . output sl
 end .
 
 export proc order input xs slice u8 . input ys slice u8 . input rec mut slice u8 . output u64 . effects state . do
-  var buf lit array u8 8 _ . .
+  var buf lit array 8 u8 _ . .
   let got u64 pipe mark_s rec. 1 xs. . do
     zip mark_s rec. 2 ys. . pairsum with mark rec. 3 1 . .
     filter above with mark rec. 4 0 . .

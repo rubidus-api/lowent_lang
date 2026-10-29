@@ -48,7 +48,7 @@ leave        ::= "return" [ term ] | "break" [ number ] | "continue" [ number ] 
 (3a) 이름과 타입 사이에 낱말을 끼우지 아니한다. 옛 꼴 `let <이름> be <타입> <값> .` 의 `be` 는 이 언어의 낱말이
       아니다 — 적으면 번역이 거부된다(`E-LET-BE`).
 
-(3b) 타입은 글자만으로 끝난다: 닫힌 어휘의 생성자(`u64` · `slice u8` · `result u64 perr` · `array u8 4`)이거나,
+(3b) 타입은 글자만으로 끝난다: 닫힌 어휘의 생성자(`u64` · `slice u8` · `result u64 perr` · `array 4 u8`)이거나,
       이름 하나이거나, 괄호다. 인자를 받는 사용자 타입과 인자 수가 정해지지 않은 형태(오류 타입을 적지 않은
       `result u64` 따위)는 괄호로 싼다 — `let b (box u64) mk. .` · `let r (result u64) ok k. . .`.
 
@@ -154,7 +154,7 @@ end .
 proc f output u64 . effects state .
 do
   var e exact spawn actor exact . .
-  let b using e. mut slice u8 lit array u8 4 _ . else return 0 . .
+  let b using e. mut slice u8 lit array 4 u8 _ . else return 0 . .
   return len b. . .
 end .
 ```
@@ -323,7 +323,7 @@ module ex_break_count .
 
 export fn first_zero input want u32 . output usize .
 do
-  let g lit slice (array u32 3) lit array u32 3 4 7 1 . lit array u32 3 9 0 5 . . .
+  let g lit slice array 3 u32 lit array 3 u32 4 7 1 . lit array 3 u32 9 0 5 . . .
   var hit usize 99 .
   repeat r usize len g. . do
     repeat c usize 3 do

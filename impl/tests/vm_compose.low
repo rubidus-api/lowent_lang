@@ -41,9 +41,9 @@ fn pass_option input a u8 . output bool . do
   return take_option nonzero_of a. . . .   rem **option** 을 넘긴다
 end .
 
-fn take_vec input v vec u32 4 . output u32 . do return reduce_add v. . . end .
+fn take_vec input v vec 4 u32 . output u32 . do return reduce_add v. . . end .
 fn pass_vec input xs slice u32 . output u32 . do
-  let v vec u32 4 load xs. 0 . .
+  let v vec 4 u32 load xs. 0 . .
   return take_vec v. . .                   rem **vec** 를 넘긴다
 end .
 

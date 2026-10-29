@@ -132,21 +132,49 @@ static bool cl_decimal(const low_token_t *t, unsigned long long *out) {   // 꾸
     for (proven_size_t q = 0; q < t->lex.size; q++) { if (t->lex.ptr[q] < '0' || t->lex.ptr[q] > '9') return false; v = v * 10 + (unsigned long long)(t->lex.ptr[q] - '0'); }
     *out = v; return true;
 }
-// `matrix <원소 타입> <차원 수 k> <크기 k 개>` — 차원 수가 먼저 와서 타입이 제 끝을 안다(뒤에 원소가 나열돼도 갈린다).
+// ★★ 개수가 먼저다 (RFC-0155 §8-2 · 소유자 2026-10-29 «배열 타입과 벡터, 혹은 갯수를 받는 비슷한 타입이나 문법도 그렇게 바꾼다»).
+//   `array <개수> <원소 타입>` · `vec <레인> <원소 타입>` · `matrix <차원 수 k> <크기 k 개> <원소 타입>`. 원소 타입이 맨 뒤라
+//   괄호 없이 겹친다(`array 3 array 4 u8`). 뒤의 걸음은 안쪽 차례(타입이 먼저)를 읽는다 — 나무 위의 `low_order_lower` 가 옮겨 적는다.
+//   옛 차례(개수 자리에 타입)는 `E-TYPE-ORDER` 로 거절한다. 서식기(`--fmt`)만은 옛 차례를 읽어 새 차례로 옮겨 찍는다.
+static bool g_cl_lenient;
+void low_closer_lenient(bool on) { g_cl_lenient = on; }
+static bool cl_tystart(cl_t *c, proven_size_t i) {    // 이 자리가 타입으로 시작하는가(개수 자리에 오면 옛 차례다)
+    if (i >= c->n) return false;
+    const low_token_t *t = &c->T[i];
+    if (t->kind == LOW_TOK_LPAREN) return true;
+    return t->kind == LOW_TOK_IDENT && (cl_in(t, CL_T_ZERO) || cl_in(t, CL_T_PRE1) || cl_in(t, CL_T_CTOR));
+}
+static const char *cl_order_why(const low_token_t *t) {
+    if (cl_eq(t, "matrix")) return "the count comes first: `matrix <number of dimensions> <one size per dimension> <element type>` — `matrix 2 3 4 u32` is 3 rows of 4. "
+                                   "The old order `matrix u32 2 3 4` is no longer read; `lowentc --fmt` rewrites it";
+    if (cl_eq(t, "vec")) return "the count comes first: `vec <lanes> <element type>` — `vec 4 u32`, `vec scalable u8`. The old order `vec u32 4` is no longer read; `lowentc --fmt` rewrites it";
+    return "the count comes first: `array <count> <element type>` — `array 4 u8`, and an array of arrays is `array 3 array 4 u8`. "
+           "The old order `array u8 4` is no longer read; `lowentc --fmt` rewrites it";
+}
+// `matrix <차원 수 k> <크기 k 개> <원소 타입>` — 차원 수가 먼저 와서 크기가 어디서 끝나는지 안다(크기는 입력의 이름일 수도 있다).
 static proven_size_t cl_matrix_ty(cl_t *c, proven_size_t i) {
-    static const char *const SHAPE = "`matrix <element type> <number of dimensions> <one size per dimension>` — `matrix u32 2 3 4` is 3 rows of 4; "
+    static const char *const SHAPE = "`matrix <number of dimensions> <one size per dimension> <element type>` — `matrix 2 3 4 u32` is 3 rows of 4; "
                                      "the number of dimensions is 2 to 8 and every size is a plain decimal literal, 1 or more";
-    if (cl_word(c, i + 1, "matrix") || cl_word(c, i + 1, "array")) cl_fail(c, i + 1, "E-MATRIX-TYPE", "the element of a `matrix` is a single value type — add a dimension instead of nesting");
-    proven_size_t j = cl_tyend(c, i + 1, false);
+    if (cl_tystart(c, i + 1)) {
+        if (!g_cl_lenient) cl_fail(c, i + 1, "E-TYPE-ORDER", cl_order_why(&c->T[i]));
+        proven_size_t j = cl_tyend(c, i + 1, false);     // 서식기 — 옛 차례를 읽는다
+        unsigned long long k = 0;
+        if (j >= c->n || !cl_decimal(&c->T[j], &k) || k < 2 || k > MX_MAXRANK) cl_fail(c, j < c->n ? j : c->n - 1, "E-MATRIX-TYPE", SHAPE);
+        return j + 1 + (proven_size_t)k;
+    }
+    proven_size_t j = i + 1;
     unsigned long long k = 0, total = 1, d = 0;
     if (j >= c->n || !cl_decimal(&c->T[j], &k) || k < 2 || k > MX_MAXRANK) cl_fail(c, j < c->n ? j : c->n - 1, "E-MATRIX-TYPE", SHAPE);
     for (unsigned q = 0; q < (unsigned)k; q++) {
         proven_size_t at = j + 1 + q;
+        if (at < c->n && c->T[at].kind == LOW_TOK_IDENT && !cl_tystart(c, at)) continue;   // 크기가 번역 시점 입력의 이름이다(op 의 `input` 에서만 — 뒤의 걸음이 본다)
         if (at >= c->n || !cl_decimal(&c->T[at], &d) || d == 0) cl_fail(c, at < c->n ? at : c->n - 1, "E-MATRIX-TYPE", SHAPE);
         if (d > (1ull << 32) || total > (1ull << 32) / d) cl_fail(c, at, "E-MATRIX-TYPE", "this `matrix` holds more than 2^32 elements — more than this compiler lays out in one place");
         total *= d;
     }
-    return j + 1 + (proven_size_t)k;
+    proven_size_t e = j + 1 + (proven_size_t)k;
+    if (cl_word(c, e, "matrix") || cl_word(c, e, "array")) cl_fail(c, e, "E-MATRIX-TYPE", "the element of a `matrix` is a single value type — add a dimension instead of nesting");
+    return cl_tyend(c, e, false);
 }
 // 타입 하나의 끝. top: 맨 위의 `(사용자타입 인자…)` 는 괄호를 벗긴다 — 뒤의 파서가 그 자리(절 · 칸 · `lit` · 별칭)에서는 괄호를 받지 않는다.
 static proven_size_t cl_tyend(cl_t *c, proven_size_t i, bool top) {
@@ -164,9 +192,15 @@ static proven_size_t cl_tyend(cl_t *c, proven_size_t i, bool top) {
     if (cl_in(t, CL_T_PRE1)) return cl_tyend(c, i + 1, false);
     if (cl_eq(t, "result")) return cl_tyend(c, cl_tyend(c, i + 1, false), false);
     if (cl_eq(t, "array") || cl_eq(t, "vec")) {
-        proven_size_t j = cl_tyend(c, i + 1, false);
-        cl_tk(c, j);
-        return c->T[j].kind == LOW_TOK_LPAREN ? cl_mate(c, j) + 1 : j + 1;
+        if (cl_tystart(c, i + 1)) {                      // 옛 차례 `array u8 4`
+            if (!g_cl_lenient) cl_fail(c, i + 1, "E-TYPE-ORDER", cl_order_why(t));
+            proven_size_t j = cl_tyend(c, i + 1, false);
+            cl_tk(c, j);
+            return c->T[j].kind == LOW_TOK_LPAREN ? cl_mate(c, j) + 1 : j + 1;
+        }
+        const low_token_t *n = cl_tk(c, i + 1);          // 개수 · 레인: 수 하나 또는 이름 하나(`scalable` · 번역 시점 입력)
+        if (n->kind != LOW_TOK_NUMBER && n->kind != LOW_TOK_IDENT) cl_fail(c, i + 1, "E-TYPE-ORDER", cl_order_why(t));
+        return cl_tyend(c, i + 2, false);
     }
     if (cl_eq(t, "matrix")) return cl_matrix_ty(c, i);
     if (cl_eq(t, "bitset") || cl_eq(t, "mask") || cl_eq(t, "bits")) return (i + 1 < c->n && c->T[i + 1].kind == LOW_TOK_NUMBER) ? i + 2 : i + 1;
@@ -384,7 +418,11 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
         proven_size_t j = i + 1;
         for (; *sh; sh++) {
             if (*sh == 'V') j = cl_term(c, j, true, false);
-            else if (*sh == 'W') { if (c->T[j].kind == LOW_TOK_LPAREN) j = cl_mate(c, j) + 1; else { cl_tk(c, j); j++; } }   // ★ 2026-10-29 — 낱말 자리에 괄호 친 타입(`view_array (array t m) b.`)
+            else if (*sh == 'W') {   // ★ 2026-10-29 — 낱말 자리에 괄호 친 타입 · 개수를 받는 타입(`view_array array 4 u8 b.`)
+                if (c->T[j].kind == LOW_TOK_LPAREN) j = cl_mate(c, j) + 1;
+                else if (cl_word(c, j, "array") || cl_word(c, j, "vec") || cl_word(c, j, "matrix")) j = cl_tyend(c, j, false);
+                else { cl_tk(c, j); j++; }
+            }
             else if (*sh == 'R') j = cl_args(c, j);
         }
         if (t->lex.size > 7 && memcmp(t->lex.ptr, "atomic_", 7) == 0 && cl_word(c, j, "order")) j += 2;
@@ -750,6 +788,16 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
             else if (cl_kw(&c, i, "end")) { if (nd) { proven_size_t j = st[c.n - nd--]; c.mate[j] = i; } }
         }
         if (setjmp(c.jb) == 0) {
+            // ★ RFC-0155 §8-2 — 옛 차례는 어느 자리에 적혔든(절 · 칸 · 괄호 안) 이 단계에서 거절한다. `vec` 라는 구조체를 짓는 파일
+            //   (lib/vecgen.low)의 `vec` 는 그 구조체다.
+            if (!g_cl_lenient) {
+                bool own_vec = false;
+                for (proven_size_t i = 0; i + 1 < c.n; i++) if (cl_word(&c, i, "struct") && cl_word(&c, i + 1, "vec")) own_vec = true;
+                for (proven_size_t i = 0; i + 1 < c.n; i++)
+                    if ((cl_word(&c, i, "array") || cl_word(&c, i, "matrix") || (!own_vec && cl_word(&c, i, "vec"))) && cl_tystart(&c, i + 1) &&
+                        !(i > 0 && cl_word(&c, i - 1, "struct")))
+                        cl_fail(&c, i + 1, "E-TYPE-ORDER", cl_order_why(&c.T[i]));
+            }
             proven_size_t i = 0;
             while (i < c.n && c.T[i].kind != LOW_TOK_EOF) i = cl_top(&c, i);
             ok = true;
@@ -847,12 +895,12 @@ static proven_size_t up_tyend(up_t *u, proven_size_t i) {     // 글자만으로
     if (cl_in(t, CL_T_ZERO)) return i + 1;
     if (cl_in(t, CL_T_PRE1)) return up_tyend(u, i + 1);
     if (cl_eq(t, "result")) return up_tyend(u, up_tyend(u, i + 1));
-    if (cl_eq(t, "array") || cl_eq(t, "vec")) { proven_size_t j = up_tyend(u, i + 1); up_tk(u, j); return u->T[j].kind == LOW_TOK_LPAREN ? up_mate(u, j) + 1 : j + 1; }
-    if (cl_eq(t, "matrix")) {                            // RFC-0144 — 원소 타입 · 차원 수 k · 크기 k 개
-        proven_size_t j = up_tyend(u, i + 1); unsigned long long k = 0;
-        if (j >= u->n || !cl_decimal(&u->T[j], &k) || k > MX_MAXRANK) up_fail(u);
-        for (unsigned long long q = 0; q < k; q++) up_tk(u, j + 1 + (proven_size_t)q);
-        return j + 1 + (proven_size_t)k;
+    if (cl_eq(t, "array") || cl_eq(t, "vec")) { up_tk(u, i + 1); return up_tyend(u, i + 2); }   // RFC-0155 §8-2 — 개수 · 원소 타입(서식기는 새 차례로 찍는다)
+    if (cl_eq(t, "matrix")) {                            // RFC-0144 · RFC-0155 §8-2 — 차원 수 k · 크기 k 개 · 원소 타입
+        unsigned long long k = 0;
+        if (i + 1 >= u->n || !cl_decimal(&u->T[i + 1], &k) || k > MX_MAXRANK) up_fail(u);
+        for (unsigned long long q = 0; q < k; q++) up_tk(u, i + 2 + (proven_size_t)q);
+        return up_tyend(u, i + 2 + (proven_size_t)k);
     }
     if (cl_eq(t, "bitset") || cl_eq(t, "mask") || cl_eq(t, "bits")) return (i + 1 < u->n && u->T[i + 1].kind == LOW_TOK_NUMBER) ? i + 2 : i + 1;
     if (cl_eq(t, "cap") || cl_eq(t, "region")) return i + 2;
@@ -1052,7 +1100,8 @@ static void up_call(up_t *u, proven_size_t h, proven_size_t e) {
         proven_size_t j = h + 1;
         for (; *sh && j < e; sh++) {
             if (*sh == 'V') j = up_item(u, j);
-            else if (*sh == 'W') j = (u->T[j].kind == LOW_TOK_LPAREN) ? up_mate(u, j) + 1 : j + 1;
+            else if (*sh == 'W') j = (u->T[j].kind == LOW_TOK_LPAREN) ? up_mate(u, j) + 1
+                                   : (up_word(u, j, "array") || up_word(u, j, "vec") || up_word(u, j, "matrix")) ? up_tyend(u, j) : j + 1;
             else if (*sh == 'R') { up_items(u, j, e); j = e; }
         }
         u->close[last]++; return;

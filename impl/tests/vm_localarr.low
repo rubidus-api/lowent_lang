@@ -10,7 +10,7 @@ end .
 
 rem `var` 배열에 반복으로 쓰고 다시 읽는다.
 export fn la_fill input n u64 . output u64 . do
-  var buf lit array u8 8 _ . .
+  var buf lit array 8 u8 _ . .
   var i usize 0 .
   while lt i. 8 . do
     set idx buf. i. . narrow_wrap u8 mul cast u64 i. . n. . . .
@@ -25,13 +25,13 @@ end .
 
 rem 실행 중 원소가 든 `let` 나열(읽기 전용 보기).
 export fn la_runtime input a u64 . input b u64 . output u64 . do
-  let t lit array u64 3 a. b. add a. b. . . .
+  let t lit array 3 u64 a. b. add a. b. . . .
   return add idx t. 2 . cast u64 len t. . . . .
 end .
 
 rem 부호 있는 원소를 고쳐 쓴다.
 export fn la_signed input i usize . output i64 . do
-  var w lit array i16 4 -1 2 -3 4 . .
+  var w lit array 4 i16 -1 2 -3 4 . .
   set idx w. 0 . narrow i16 mul idx w. 0 . 100 . . .
   guard lt i. 4 . else return 0 . .
   return widen i64 idx w. i. . . .
@@ -42,7 +42,7 @@ export fn la_loop input n u64 . output u64 . do
   var total u64 0 .
   var k u64 0 .
   while lt k. n. . do
-    var cell lit array u64 2 _ . .
+    var cell lit array 2 u64 _ . .
     set idx cell. 0 . add idx cell. 0 . k. . .
     set total. add total. idx cell. 0 . . .
     set k. add k. 1 . .
@@ -52,18 +52,18 @@ end .
 
 rem `mut` 매개변수로 넘긴 나열은 그 문장의 임시(ⓒ) — 받는 쪽이 써도 된다.
 export proc la_mutarg input a u64 . output u64 . effects none . do
-  return bump lit array u8 2 narrow_wrap u8 a. . 1 . . .
+  return bump lit array 2 u8 narrow_wrap u8 a. . 1 . . .
 end .
 
 rem 부르는 op 마다 제 칸을 갖는다 — 부른 쪽의 칸을 덮지 않는다(재귀하는 op 은 틀 안 나열을 가질 수 없다, RFC-0135 D7).
 fn la_inner input n u64 . output u64 . do
-  var buf lit array u64 2 _ . .
+  var buf lit array 2 u64 _ . .
   set idx buf. 0 . mul n. 3 . .
   return idx buf. 0 . .
 end .
 
 export fn la_rec input n u64 . output u64 . do
-  var buf lit array u64 2 _ . .
+  var buf lit array 2 u64 _ . .
   set idx buf. 0 . n. .
   let inner u64 la_inner add n. 1 . . .
   return add idx buf. 0 . inner. . .
@@ -71,7 +71,7 @@ end .
 
 rem 부동 원소.
 export fn la_float input x f64 . output f64 . do
-  var v lit array f64 3 1.5 _ . .
+  var v lit array 3 f64 1.5 _ . .
   set idx v. 1 . mul x. 2.0 . .
   return add idx v. 0 . idx v. 1 . . .
 end .

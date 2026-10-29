@@ -173,7 +173,7 @@ catch that drift. What they stop are not users' defects but the compiler's.
 - *The lexical (token) layer is separate.* Whether the glued stop `a.` and the spaced stop `a .` become the same token sequence is the lexer tests' job.
 - *The model holds only the skeleton of the grammar.* Names in defining positions (`let x`, `input n`), types and patterns are leaves in the model, and the
   clauses of an op header, `else` chains and the infix operators of an `expr` island are not in it. Annex A.10 of the specification defines those shapes.
-- *What edition 1.9 added does not change the model.* The count in `break 2 .` is a literal and `matrix u32 2 3 4` is a type, so both are leaves. One theorem
+- *What edition 1.9 added does not change the model.* The count in `break 2 .` is a literal and `matrix 2 3 4 u32` is a type, so both are leaves. One theorem
   records that a form whose arguments are all leaves reads back as written (`leaf_arguments_read_back`). Which loop is reached, and whether two shapes agree,
   are not questions of grammar, and this proof does not speak of them.
 

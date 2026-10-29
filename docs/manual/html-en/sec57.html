@@ -719,7 +719,7 @@ case &lt;name> when &lt;cond></code></pre><h3 id="sx5">Expressions<a class="plin
 ( &lt;expr> )                              parentheses are decoration --- the expression inside closes with its own stop
 expr &lt;a> + &lt;b> * &lt;c> .                  infix island --- * / above + -, comparisons below, and above or
 lit &lt;type> do &lt;field> &lt;expr> . … end .  &lt;enum>.&lt;variant> &lt;values>… .
-lit array &lt;type> &lt;len> &lt;value>… [_] .   lit slice &lt;type> &lt;value>… .
+lit array &lt;len> &lt;type> &lt;value>… [_] .   lit slice &lt;type> &lt;value>… .
 field &lt;value> &lt;steps>… .   idx &lt;slice> &lt;n> .   method &lt;value> &lt;steps>… &lt;name>. &lt;args>… .
 some &lt;value> .   ok &lt;value> .   error &lt;variant> .   none
 try &lt;expr> [else_none | else_error &lt;variant>] .

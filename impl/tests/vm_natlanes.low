@@ -4,7 +4,7 @@ rem   `native_lanes <t>` → comptime int = (target simd_bytes) / sizeof(t). SIM
 rem   mips_be)은 **1**(scalar fallback). 성능-이식 코드가 target 최적 폭을 물어 그에 맞춰 stride/꼬리를 잡는다.
 rem   ★ comptime 이라 IRW_CONST 정수로 확장 — 백엔드 무변경, VM·C 가 같은 값을 굽는다 ⇒ diff-sweep VM≡native.
 rem   ★ 기본 target x86_64 (simd_bytes=16): f32→4, u8→16, u16→8, u64→2.
-rem   ★ vec 타입 폭 자리(`vec t n` 의 n)는 아직 **리터럴만** — native_lanes 를 거기 직접 쓰려면 comptime-식-in-타입
+rem   ★ vec 타입 폭 자리(`vec n t` 의 n)는 아직 **리터럴만** — native_lanes 를 거기 직접 쓰려면 comptime-식-in-타입
 rem     (RFC-0021)이 필요하다(후속). 지금은 **값 자리**의 comptime int(스트라이드·비교·산술 등)로 쓴다.
 
 module vm_natlanes .

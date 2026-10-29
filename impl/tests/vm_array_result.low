@@ -1,8 +1,8 @@
-rem array results (RFC-0132 P4b) — an op returns `array T N` into a place the CALLER gives. `var x be array T N f … .` passes x's
+rem array results (RFC-0132 P4b) — an op returns `array N T` into a place the CALLER gives. `var x be array N T f … .` passes x's
 rem frame bytes; `return g … .` inside an op returning the same array passes its own place on; a named result starts at zero.
 module vm_array_result .
 
-fn ramp input a u8 . output r array u8 4 .
+fn ramp input a u8 . output r array 4 u8 .
   requires le a. 200 . .
 do
   set idx r. 0 . a. .
@@ -10,19 +10,19 @@ do
   return r. .
 end .
 
-fn twice input a u8 . output array u8 4 .
+fn twice input a u8 . output array 4 u8 .
   requires le a. 199 . .
 do
   return ramp add a. 1 . . .
 end .
 
-fn lit4 output array u8 4 .
+fn lit4 output array 4 u8 .
 do
-  var b lit array u8 4 1 2 3 4 . .
+  var b lit array 4 u8 1 2 3 4 . .
   return b. .
 end .
 
-fn squares input n u64 . output r array u64 3 .
+fn squares input n u64 . output r array 3 u64 .
 do
   repeat i usize 3 do
     set idx r. i. . mul add n. cast u64 i. . . add n. cast u64 i. . . . .
@@ -30,14 +30,14 @@ do
   return r. .
 end .
 
-fn halves input x f64 . output r array f64 2 .
+fn halves input x f64 . output r array 2 f64 .
 do
   set idx r. 0 . div x. 2.0 . .
   set idx r. 1 . div x. 4.0 . .
   return r. .
 end .
 
-fn zeros output r array u64 2 .
+fn zeros output r array 2 u64 .
 do
   return r. .
 end .
@@ -45,25 +45,25 @@ end .
 export fn sum4 input a u8 . output u64 .
   requires le a. 199 . .
 do
-  var x array u8 4 ramp a. . .
-  let y array u8 4 twice a. . .
-  let z array u8 4 lit4. .
+  var x array 4 u8 ramp a. . .
+  let y array 4 u8 twice a. . .
+  let z array 4 u8 lit4. .
   return add add cast u64 idx x. 3 . . cast u64 idx y. 0 . . . add cast u64 idx z. 3 . . cast u64 idx x. 1 . . . . .
 end .
 
 export fn sq_sum input n u64 . output u64 .
   requires le n. 1000 . .
 do
-  let s array u64 3 squares n. . .
+  let s array 3 u64 squares n. . .
   return add add idx s. 0 . idx s. 1 . . idx s. 2 . . .
 end .
 
 export fn half_sum input x f64 . output f64 . do
-  let h array f64 2 halves x. . .
+  let h array 2 f64 halves x. . .
   return add idx h. 0 . idx h. 1 . . .
 end .
 
 export fn zero_sum output u64 . do
-  let z array u64 2 zeros. .
+  let z array 2 u64 zeros. .
   return add idx z. 0 . idx z. 1 . . .
 end .

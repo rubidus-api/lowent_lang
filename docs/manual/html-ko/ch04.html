@@ -1079,30 +1079,29 @@ mistake_narrowloop.low:9:0 E-TYPE-WIDTH: value does not fit the declared type (a
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatint.low
 mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER literal are mixed in one operation. Floating point and integers do not convert implicitly (§6.2.5), so write the literal as a float (`2.0`) — or convert the other side. It used to pass `--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)
-</code></pre></div></div><p>정수와 부동소수점 수는 서로 자동으로 바뀌지 않는다. <code>f64</code> 를 나누려면 리터럴도 부동소수점 수로 <code>2.0</code> 이라고 적는다. 섞어 적으면 <code>E-TYPE-MIX</code> 로 번역 때 거절한다 — 전에는 <strong>실행 중에</strong> <code>E-VM-TYPE</code> 으로 멈췄다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>--run</code> 인자로 <code>u64</code> 의 가장 큰 값을 넘겨 시험한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
-<em><span class="tok-c">rem trap: echo 18446744073709551615</span></em>
+</code></pre></div></div><p>정수와 부동소수점 수는 서로 자동으로 바뀌지 않는다. <code>f64</code> 를 나누려면 리터럴도 부동소수점 수로 <code>2.0</code> 이라고 적는다. 섞어 적으면 <code>E-TYPE-MIX</code> 로 번역 때 거절한다 — 전에는 <strong>실행 중에</strong> <code>E-VM-TYPE</code> 으로 멈췄다.</p></div></div><p><code>--run</code> 인자로 <code>u64</code> 의 가장 큰 값을 넘겨도 그대로 들어간다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> runmax .
+<em><span class="tok-c">rem run: echo 18446744073709551615</span></em>
 <em><span class="tok-c">rem test</span></em>
 
-<em><span class="tok-c">rem ✘ u64 의 위쪽 절반을 `--run` 인자로 주면 경계에서 거절된다 — 구간 분석이 u64 의 상한을 i64 최댓값으로 믿기 때문이다</span></em>
+<em><span class="tok-c">rem u64 의 위쪽 절반도 `--run` 인자로 그대로 들어간다(1.20.0 부터)</span></em>
 <strong><span class="tok-k">fn</span></strong> echo <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> n. .
 <strong><span class="tok-k">end</span></strong> .
 
-<em><span class="tok-c">rem 경계값은 시험 안에서 리터럴로 적는다</span></em>
+<em><span class="tok-c">rem 경계값은 시험 안에서 리터럴로도 적을 수 있다</span></em>
 <strong><span class="tok-k">test</span></strong> largest_u64
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <span class="tok-n">18446744073709551615</span> .
   <strong><span class="tok-k">expect</span></strong> gt m. <span class="tok-n">9223372036854775807</span> . .
   <strong><span class="tok-k">expect</span></strong> eq div m. <span class="tok-n">2</span> . <span class="tok-n">9223372036854775807</span> . .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run echo mistake_runmax.low 18446744073709551615
-== ir diagnostics (1) ==
-0:0 E-VM-CONTRACT: a parameter's TYPE range was violated at the program boundary — the value does not fit the declared type (the interval analysis TRUSTS the type and deletes checks on that basis; the boundary is what makes that trust true)
-$ lowentc --test mistake_runmax.low
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run echo runmax.low 18446744073709551615
+echo(18446744073709551615) = 18446744073709551615
+$ lowentc --test runmax.low
   [PASS] largest_u64
 == tests: 1 run, 1 passed, 0 FAILED ==
-</code></pre></div></div><p><code>echo 18446744073709551615</code> 는 경계에서 거절된다(<code>E-VM-CONTRACT</code>). 2026-09-16 까지는 조용히 9223372036854775807 로 잘려 들어갔다 — 다른 수를 준 것이고, 두 뒤끝이 똑같이 그랬으므로 대조로도 드러나지 않았다. 지금은 자르지 않고 거절한다. 까닭은 구간 분석이 <code>u64</code> 의 상한을 <code>i64</code> 의 최댓값으로 적어 두기 때문이다 — 그 위의 값이 들어오면 분석이 스스로 무너진다. 프로그램 안의 리터럴은 온전하므로 경계값 시험은 <code>largest_u64</code> 처럼 거기서 적고, 결과 표시는 이제 부호 없이 찍힌다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>f32</code> 와 <code>f64</code> 는 같은 수를 담는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
+</code></pre></div></div><p>2026-09-16 까지는 이 수가 조용히 9223372036854775807 로 잘려 들어갔고 — 다른 수를 준 것이고, 두 뒤끝이 똑같이 그랬으므로 대조로도 드러나지 않았다 — 그 뒤 1.19.0 까지는 경계에서 거절됐다(<code>E-VM-CONTRACT</code>). 1.20.0 부터는 0 부터 2^64 − 1 까지를 부호 없이 받는다. <code>-1</code> 과 2^64 는 여전히 거절된다. 경계값 시험은 <code>largest_u64</code> 처럼 프로그램 안의 리터럴로도 적을 수 있다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>f32</code> 와 <code>f64</code> 는 같은 수를 담는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
 <em><span class="tok-c">rem run: stored</span></em>
 <em><span class="tok-c">rem run: computed</span></em>
 

@@ -1,9 +1,9 @@
-rem ★★★ **scalable 벡터 — `vec t scalable`** (RFC-0040 D7). 폭을 **소스에 안 박는다**.
+rem ★★★ **scalable 벡터 — `vec scalable t`** (RFC-0040 D7). 폭을 **소스에 안 박는다**.
 rem
 rem   같은 소스가 target 의 네이티브 폭으로 선다:
-rem     · x86_64 / arm64 (simd_bytes=16) → `vec u8 scalable` = **16 레인**, `vec u32 scalable` = **4 레인**
+rem     · x86_64 / arm64 (simd_bytes=16) → `vec scalable u8` = **16 레인**, `vec scalable u32` = **4 레인**
 rem     · cortex_m / riscv64 / mips_be (SIMD 없음)   → **1 레인** = 정직한 scalar fallback
-rem   write-once, target-adaptive — 고정폭(`vec u8 4`)을 박으면 얻을 수 없는 이식성이다.
+rem   write-once, target-adaptive — 고정폭(`vec 4 u8`)을 박으면 얻을 수 없는 이식성이다.
 rem
 rem   ★ 폭은 **컴파일 시 target 프로파일이 정한다** ⇒ VM 과 C 가 같은 값을 굽는다 ⇒ **오라클 안전**
 rem     (diff-sweep 로 VM≡native 검증). 이것이 이 슬라이스를 실을 수 있었던 이유다.
@@ -12,7 +12,7 @@ rem      여기 없다 — 그건 VM 이 못 따라가 오라클 밖이다(할�
 rem      **소스가 길이를 모르는** 프로그래밍 모델이고, 폭 결정은 target 이 컴파일 시 한다.
 rem      진짜 런타임 가변 폭은 코드젠 몫으로 남는다.
 rem
-rem   ★ 곁들여: 레인 배열 상한을 8→16 으로 올렸다. 전엔 `native_lanes u8` 이 **16 을 답하면서 `vec u8 16`
+rem   ★ 곁들여: 레인 배열 상한을 8→16 으로 올렸다. 전엔 `native_lanes u8` 이 **16 을 답하면서 `vec 16 u8`
 rem     은 못 만들었다** — 도구가 만들 수 없는 폭을 알려주는 것은 PRINCIPLES.md §0 이 금지하는 거짓말이다.
 
 module vm_scalable .
@@ -20,9 +20,9 @@ module vm_scalable .
 rem u8 레인을 2배 — 폭은 target 이 정한다(x86_64=16, cortex_m=1).
 proc dbl input a slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xa slice u8 view_array u8 a. . .
-  let v vec u8 scalable load xa. 0 . .
-  let two vec u8 scalable splat 2 . .
-  var r vec u8 scalable mul v. two. . .
+  let v vec scalable u8 load xa. 0 . .
+  let two vec scalable u8 splat 2 . .
+  var r vec scalable u8 mul v. two. . .
   store out. 0 r. .
   return 0 .
 end .
@@ -30,9 +30,9 @@ end .
 rem 같은 방식, u32 원소 — 같은 simd_bytes 에서 폭이 4 로 선다(16/4).
 proc tri input a slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xa slice u32 view_array u32 a. . .
-  let v vec u32 scalable load xa. 0 . .
-  let three vec u32 scalable splat 3 . .
-  var r vec u32 scalable mul v. three. . .
+  let v vec scalable u32 load xa. 0 . .
+  let three vec scalable u32 splat 3 . .
+  var r vec scalable u32 mul v. three. . .
   store out. 0 r. .
   return 0 .
 end .

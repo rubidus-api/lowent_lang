@@ -170,13 +170,13 @@ If the first word after `output` names a type, the whole output is a type (`outp
 name of the result. A type with no defined zero (a slice, a `result`, an enum, …) cannot be named (`E-RESULT-NOZERO`) ---
 write such an output without a name and return a value. `ensures` still refers to the result as `ret`.
 
-An op can return an array too --- `output r array u64 3 .`. An array has no way to be returned by value, so *the caller gives
-the place*: the caller binds the result to a name (`let s array u64 3 squares n. . .`) and the callee builds straight into that
+An op can return an array too --- `output r array 3 u64 .`. An array has no way to be returned by value, so *the caller gives
+the place*: the caller binds the result to a name (`let s array 3 u64 squares n. . .`) and the callee builds straight into that
 name's bytes. That is why it cannot be called in the middle of an expression (`idx squares n. . 0 .` is `E-RESULT-PLACE`) ---
 bind it to a name first.
 
 ```lowent
-fn squares input n usize . output r array u64 3 .
+fn squares input n usize . output r array 3 u64 .
   requires le n. 1000 . .
 do
   repeat i usize 3 do

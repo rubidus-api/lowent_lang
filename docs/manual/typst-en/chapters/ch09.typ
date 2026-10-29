@@ -24,7 +24,7 @@
 ]
 
 #organizer[
-  You will learn the difference between `array t n` and `slice t`, how to read with `len`, `idx` and `for`, and that out-of-range access
+  You will learn the difference between `array n t` and `slice t`, how to read with `len`, `idx` and `for`, and that out-of-range access
   stops. You will pick up the rule that writing elements requires a `mut slice`, and how to narrow a window with `subslice`. You will also
   see the principle by which contracts remove bounds checks in the body, and that a string literal is a table that can be indexed directly.
 ]
@@ -41,17 +41,18 @@ remember separately "how many are here".
 
 - `len data. .` is the number of elements, and `idx data. 0 .` is the first element. Numbering starts at 0.
 #idx("array")
-- `array u8 4` in `last4` is a sequence of exactly 4. An `array` in an input position means it receives a slice of length 4, and that length
+- `array 4 u8` in `last4` is a sequence of exactly 4. An `array` in an input position means it receives a slice of length 4, and that length
   is checked on entry, like `requires eq len xs. . 4 . .`.
 - `for x xs. do … end .` walks the elements in order.
 - Passing a slice of length 3 and 5 to `at` stops with `E-VM-BOUNDS`. It does not read someone else's memory.
 
-An `array` writes the element type *first* and the length *after* it --- the same order as `vec u32 4`. The reverse order is rejected.
+An `array` writes the length *first* and the element type *after* it --- the same order as `vec 4 u32` and `matrix 2 3 4 u32`. Because the element
+type comes last, an array of arrays needs no parentheses: `array 3 array 4 u8`. The reverse order is rejected, and `lowentc --fmt` rewrites it.
 
 #demo("examples/ch09/array_order.low")
 
-The earlier tool read a wrongly ordered `array` as a plain slice and silently dropped the length --- a place where a written
-promise vanished. Today `array` is used only in op input positions; in outputs, locals and struct fields, write `slice` with a contract.
+For one month from 2026-09-27 the element type came first (`array u8 4`). On 2026-10-29 the length moved back to the front, and
+`vec` and `matrix` moved with it, so all three share one order. Today `array` is used only in op input positions; in outputs, locals and struct fields, write `slice` with a contract.
 
 #qa[
   Is there no separate string type?
@@ -102,8 +103,8 @@ comparisons and `goto`s. In this edition, though, the index check in `prefix_cha
 
 == Writing a sequence directly --- list literals
 
-When you need a sequence written out as values, list it with `lit`. `lit array u32 5 2 3 5 7 11 .` is an
-`array u32 5` value written as element type, length, then the elements; `lit slice u32 4 5 6 .` is a slice value
+When you need a sequence written out as values, list it with `lit`. `lit array 5 u32 2 3 5 7 11 .` is an
+`array 5 u32` value written as length, element type, then the elements; `lit slice u32 4 5 6 .` is a slice value
 with no length written (the element count is the length). A list *closes with its own period*. At the end of a
 statement the list's period and the statement's period come together (`. .`); in the middle of a call one period
 closes the list and the next argument follows.
@@ -163,7 +164,7 @@ To copy one slice's contents into another, write `copy <to> <from> .`.
 - Two overlapping parts of one array are copied correctly --- `1 2 3 4 5 6` becomes `1 1 2 3 4 5`.
 - The receiver must be writable (`E-TYPE-MUT`). Use this instead of `set buf …`, which would re-point a `var` array's name.
 
-When the elements are fixed-length arrays, the list is a *list of rows*. Its type is `slice (array u8 4)`.
+When the elements are fixed-length arrays, the list is a *list of rows*. Its type is `slice array 4 u8`.
 
 #demo("examples/ch09/rows.low")
 
@@ -171,14 +172,18 @@ When the elements are fixed-length arrays, the list is a *list of rows*. Its typ
   `row` changes `g`.
 - A cell is written through its row: `set idx idx g. 2 . 3 . 9 .`. Replacing a whole row with `set idx g. 1 . …` is
   `E-TYPE-SET`.
-- A row value must have the same shape (`lit array u8 4 …`). A row of a frame list views the frame's bytes, so returning
+- A row value must have the same shape (`lit array 4 u8 …`). A row of a frame list views the frame's bytes, so returning
   it is `E-LIT-ESCAPE`.
+
+A row table can also sit on bytes you already have. `view_array array 4 u8 b.` is a `slice array 4 u8` that reads `b` four
+bytes at a time --- nothing is copied, and the cells can be written when `b` can. If the length of `b` is not a multiple of 4,
+the program stops. So one op takes a table written in the source and bytes read from elsewhere alike.
 
 == Several dimensions --- `matrix`
 
-When there are two or more dimensions and the sizes are known in advance, write a `matrix`. `matrix u32 2 3 4` is a table of
-`u32` in 3 rows of 4: the element type, the number of dimensions (2), and one size per dimension. Because the number of
-dimensions comes first, the sizes can be told apart from elements listed after them.
+When there are two or more dimensions and the sizes are known in advance, write a `matrix`. `matrix 2 3 4 u32` is a table of
+`u32` in 3 rows of 4: the number of dimensions (2), one size per dimension, then the element type (the same order as `array`).
+Because the number of dimensions comes first, it is clear where the sizes end.
 
 #demo("examples/ch09/matrix.low")
 
@@ -189,14 +194,14 @@ dimensions comes first, the sizes can be told apart from elements listed after t
   `len t.` is rejected, because readers would disagree on whether it means the first size or the element count.
 - The elements lie in one run, row-major (the last index moves fastest). `flat t. .` sees that run as a `slice u32` --- it is
   not a copy. To walk every element, write `for x flat t. . do`.
-- Another size is another type. Passing `matrix u32 2 4 3` or `array u32 12` to an op that takes `matrix u32 2 3 4` is
+- Another size is another type. Passing `matrix 2 4 3 u32` or `array 12 u32` to an op that takes `matrix 2 3 4 u32` is
   `E-MATRIX-SHAPE`. When a matrix is passed or returned whole, the shapes are compared at translation time.
 - The result of an op that returns a matrix goes to one of two places: a name declared with the same shape
-  (`let t matrix u32 2 3 4 table . .`), or the `return` of an op whose output is that shape. Binding it to an `array` name is
+  (`let t matrix 2 3 4 u32 table . .`), or the `return` of an op whose output is that shape. Binding it to an `array` name is
   `E-MATRIX-SHAPE` too.
 - C sees the same layout as `uint32_t a[3][4]`. Pass `flat t. .` to an `extern` op that takes a `slice u32`; C receives a
   pointer and the element count.
-- To write the values directly, list them row by row: `lit matrix u32 2 2 3 1 2 3 4 5 6 .`. If there are fewer, end with `_`
+- To write the values directly, list them row by row: `lit matrix 2 2 3 u32 1 2 3 4 5 6 .`. If there are fewer, end with `_`
   to fill the rest with zero.
 - A `matrix` is written at `let`, `var`, an op's `input` and `output`, and a struct field. The type fixes only where the elements
   lie --- arithmetic such as a matrix product is yours to write.
@@ -214,7 +219,7 @@ When you want one row, say `row`. The same example holds a table as a struct fie
   binding is `E-TYPE-MUT`.
 - A struct whose field is a `matrix` is read and written with `idx field b. g . r. c. .`. In a literal, the value of that field
   is a `lit matrix` of the same shape.
-- To leave the sizes open, take them as translation-time inputs: write `input comptime r u64 .` and use `matrix u32 2 r c` as the
+- To leave the sizes open, take them as translation-time inputs: write `input comptime r u64 .` and use `matrix 2 r c u32` as the
   type. The caller writes the sizes (`sum 2 2 small. .`), and passing a table of another shape is `E-MATRIX-SHAPE`. A size given by
   name stands only in an input --- locals, outputs and fields write their sizes as numbers.
 
@@ -316,25 +321,25 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [*Shape*], [*Meaning*], [*Why*],
   [`slice u8`], [a run of `u8` values (start + length)], [no separate count to carry around],
   [`mut slice u8`], [a run whose elements may be written], [writability is visible in the type],
-  [`input xs array u8 4 .`], [take a run of exactly 4 (input position only)], [element type, then length --- checked at entry],
+  [`input xs array 4 u8 .`], [take a run of exactly 4 (input position only)], [length, then element type --- checked at entry],
   [`len xs. .`], [number of elements], [just reads the length field; no cost],
   [`idx xs. i. .`], [element `i` (from 0)], [stops when out of range --- never reads someone else's memory],
   [`set idx xs. i. . v. .`], [write element `i`], [needs a `mut slice` and a `proc`],
   [`for x xs. do … end .`], [each element in turn], [no room for index mistakes],
   [`subslice xs. from. to. .`], [a window from `from` up to, not including, `to` (no copy)], [half-open --- the length is `to − from`],
   [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
-  [`lit array u32 3 1 2 3 .`], [an array written as values --- closes with its own period], [the length is a promise --- end with `_` if short],
+  [`lit array 3 u32 1 2 3 .`], [an array written as values --- closes with its own period], [the length is a promise --- end with `_` if short],
   [`lit slice u32 4 5 .`], [a slice written as values], [the element count is the length],
-  [`var buf lit array u8 8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
-  [`lit array u8 8 do 2 5 . _ 0 . end .`], [an array with chosen cells filled], [every cell must be decided --- the rest by `_`],
-  [`matrix u32 2 3 4`], [`u32` in 3 rows of 4 --- the number of dimensions, then the sizes], [the shape is in the type --- another size is another type],
+  [`var buf lit array 8 u8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
+  [`lit array 8 u8 do 2 5 . _ 0 . end .`], [an array with chosen cells filled], [every cell must be decided --- the rest by `_`],
+  [`matrix 2 3 4 u32`], [`u32` in 3 rows of 4 --- the number of dimensions, the sizes, then the element type], [the shape is in the type --- another size is another type],
   [`idx m. r. c. .` · `dim m. 0 .` · `flat m. .`], [one cell · the size of one dimension · the elements as one row], [each index is checked against its own size],
   [`requires le n. len xs. . . .`], [a length condition as a contract], [bounds checks in the body are removed],
 )
 
 #recap[
   A slice carries its start and length together. `len` takes the length field, `idx` stops when out of range, and `for` walks the
-  elements. `array t n` writes the element type and then the length and is used in input positions; a sequence written out as values is listed with `lit array` or `lit slice`. A list bound with `var` is a local array in the frame that you may write inside its block; writing someone else's elements needs a `mut slice` and a `proc`.
+  elements. `array n t` writes the length and then the element type and is used in input positions; a sequence written out as values is listed with `lit array` or `lit slice`. A list bound with `var` is a local array in the frame that you may write inside its block; writing someone else's elements needs a `mut slice` and a `proc`.
   `subslice` narrows the window without copying. Writing the length condition as a contract removes bounds checks in the body, and a string
   literal is a table that can be indexed directly.
 ]

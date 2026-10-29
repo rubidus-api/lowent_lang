@@ -10,21 +10,21 @@ module vm_vshuffle .
 
 proc rev input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xs slice u32 view_array u32 b. . .
-  var v vec u32 4 load xs. 0 . .
+  var v vec 4 u32 load xs. 0 . .
   store out. 0 lane_reverse v. . .
   return 0 .
 end .
 
 proc rot input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xs slice u32 view_array u32 b. . .
-  var v vec u32 4 load xs. 0 . .
+  var v vec 4 u32 load xs. 0 . .
   store out. 0 lane_rotate v. 1 . .
   return 0 .
 end .
 
 proc shuf input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xs slice u32 view_array u32 b. . .
-  var v vec u32 4 load xs. 0 . .
+  var v vec 4 u32 load xs. 0 . .
   store out. 0 shuffle v. 3 2 1 0 . .
   return 0 .
 end .

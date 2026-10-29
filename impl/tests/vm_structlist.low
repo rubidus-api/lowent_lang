@@ -1,5 +1,5 @@
 module vm_structlist .
-rem ★★ RFC-0132 T2b-3d (N1) — 구조체 원소 나열: `lit array pt N …` · 칸 골라 채우기 · `lit slice pt …` · 모두 `_` 인 읽기 전용 0 ·
+rem ★★ RFC-0132 T2b-3d (N1) — 구조체 원소 나열: `lit array N pt …` · 칸 골라 채우기 · `lit slice pt …` · 모두 `_` 인 읽기 전용 0 ·
 rem   칸 쓰기 `set (field ps 1 y) v` · 할당기 바이트(`using`). 원소는 바이트 배치가 있는 구조체 — 값의 사본이다.
 use allocs .
 struct pt do
@@ -15,15 +15,15 @@ fn sum input ps slice pt . output u64 . do
 end .
 export fn pos input a u64 . output u64 . do
   let p pt lit pt do x 1 . y a. . end . .
-  let ps lit array pt 3 p. lit pt do x 2 . y 20 . end . _ . .
+  let ps lit array 3 pt p. lit pt do x 2 . y 20 . end . _ . .
   return add sum ps. . mul cast u64 len ps. . . 1000 . . .
 end .
 export fn cells input a u64 . output u64 . do
-  let ps lit array pt 4 do 1 lit pt do x 5 . y a. . end . . _ lit pt do x 1 . y 1 . end . . end . .
+  let ps lit array 4 pt do 1 lit pt do x 5 . y a. . end . . _ lit pt do x 1 . y 1 . end . . end . .
   return sum ps. . .
 end .
 export fn zero output u64 . do
-  let ps lit array pt 2 _ . .
+  let ps lit array 2 pt _ . .
   return add sum ps. . cast u64 len ps. . . . .
 end .
 export fn sli input a u64 . output u64 . do
@@ -31,22 +31,22 @@ export fn sli input a u64 . output u64 . do
   return add sum ps. . mul cast u64 len ps. . . 100 . . .
 end .
 export fn wr input a u64 . output u64 . do
-  var ps lit array pt 2 _ . .
+  var ps lit array 2 pt _ . .
   set field ps. 1 y . a. .
   return sum ps. . .
 end .
 export proc onheap input a u64 . output u64 . effects state . do
-  var back lit array u8 64 _ . .
+  var back lit array 64 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
-  let ps use bb. mut slice pt lit array pt 2 do 0 lit pt do x 1 . y a. . end . . _ lit pt do x 0 . y 0 . end . . end . else return 999 . .
+  let ps use bb. mut slice pt lit array 2 pt do 0 lit pt do x 1 . y a. . end . . _ lit pt do x 0 . y 0 . end . . end . else return 999 . .
   return add sum ps. . mul cast u64 send bb. used . . 100 . . .
 end .
 
 rem 원소는 값의 **사본**이다 — 나열의 칸을 바꿔도 넣은 이름은 그대로다(정본 §6.2.6 (9) · 매뉴얼 9장이 말하는 것).
 export fn copied input a u64 . output u64 . do
   let p pt lit pt do x 1 . y a. . end . .
-  var ps lit array pt 2 p. _ . .
+  var ps lit array 2 pt p. _ . .
   set field ps. 0 y . 500 .
   return add field p. y . mul field ps. 0 y . 1000 . . .
 end .
@@ -54,14 +54,14 @@ end .
 rem ★ T2b-3d ⓒ — 배열 칸을 가진 구조체가 다른 구조체의 칸이어도 값으로 베껴진다(안쪽 바이트까지 — X-0083 의 길).
 struct pkt do
   len u8 .
-  body array u8 4 .
+  body array 4 u8 .
 end .
 struct outer do
   tag u64 .
   inner pkt .
 end .
 export fn nested input a u8 . output u64 . do
-  var o outer lit outer do tag 9 . inner lit pkt do len 2 . body lit array u8 4 1 a. _ . . end . . end . .
+  var o outer lit outer do tag 9 . inner lit pkt do len 2 . body lit array 4 u8 1 a. _ . . end . . end . .
   let c outer o. .
   set idx field o. inner body . 0 . 50 .
   return add widen u64 idx field c. inner body . 1 . . add widen u64 idx field o. inner body . 0 . . mul widen u64 idx field c. inner body . 0 . . 1000 . . . .

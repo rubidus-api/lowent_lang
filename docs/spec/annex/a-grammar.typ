@@ -274,10 +274,10 @@ return              return [<폼>] .
 break               break [<수>] .            (수 = 벗어날 되풀이의 겹 · 라벨은 없다)
 continue            continue [<수>] .
 lit                 lit <타입> do <칸초기>* end .  (칸초기 = <이름> <폼> .)
-lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .
-lit (matrix)        lit matrix <타입> <차원 수> <크기>… <값>… [_] .
-lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end .
-lit (SIMD)          lit vec <타입> <레인> <값>… [_] .
+lit (나열)          lit array <길이> <타입> <값>… [_] .  ·  lit slice <타입> <값>… .
+lit (matrix)        lit matrix <차원 수> <크기>… <타입> <값>… [_] .
+lit (칸 채우기)     lit array <길이> <타입> do <번호> <값> . … [_ <값> .] end .
+lit (SIMD)          lit vec <레인> <타입> <값>… [_] .
 extern              extern fn/proc <이름> do <절>* end .  (몸이 씨)
 match               match <폼> do <가지>* end [else do <폼>* end] .   (가지 = case <패턴> do <폼>* end .)")
     #para("2a")[
@@ -663,10 +663,10 @@ call           ::= ( name | path ) { term } \".\"
 paren-term     ::= \"(\" term \")\"
 struct-literal ::= \"lit\" type \"do\" { field-init } \"end\" \".\"
 field-init     ::= name term \".\"
-fill-literal   ::= \"lit\" \"array\" type word \"do\" { fill-item } \"end\" \".\"
+fill-literal   ::= \"lit\" \"array\" word type \"do\" { fill-item } \"end\" \".\"
 fill-item      ::= ( word | \"_\" ) term \".\"
 list-literal   ::= \"lit\" list-kind { term | \"_\" } \".\"
-list-kind      ::= \"array\" type word | \"slice\" type | \"vec\" type word | \"matrix\" type number number { number }
+list-kind      ::= \"array\" word type | \"slice\" type | \"vec\" word type | \"matrix\" number number { number } type
 island         ::= \"expr\" island-item { operator island-item } \".\"
 island-item    ::= term | \"(\" island-item { operator island-item } \")\"
 pipe-form      ::= \"pipe\" term \"do\" { stage } \"end\" \".\"
@@ -713,11 +713,11 @@ type-qualifier ::= \"mut\" | \"owned\" | \"ref\" | \"mut_ref\" | \"unsafe_ptr\"
 type-core      ::= name | path
                  | \"(\" applied-type \")\"
                  | \"slice\" type
-                 | \"array\" type word
-                 | \"matrix\" type number matrix-size { matrix-size }
+                 | \"array\" word type
+                 | \"matrix\" number matrix-size { matrix-size } type
                  | \"option\" type
                  | \"result\" type type
-                 | \"vec\" type word
+                 | \"vec\" word type
                  | \"segments\" type
                  | \"task\" type
                  | \"chan\" type
@@ -742,7 +742,7 @@ matrix-size    ::= number | name")
       (`(box u64)` — #cref("6.5.1") (3b)).
     ]
     #para("3")[
-      타입 안의 이름과 수는 폼을 열지 아니한다 — 점이 없다(`array u8 n`).
+      타입 안의 이름과 수는 폼을 열지 아니한다 — 점이 없다(`array n u8`).
     ]
   ]
 ]

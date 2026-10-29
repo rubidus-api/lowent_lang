@@ -10,9 +10,9 @@ do
   var hb allocs.heap_bytes spawn actor allocs.heap_bytes . .
   var n u64 0 .
   repeat r u64 8 do
-    let row use hb. mut slice u64 lit array u64 8 do 0 r. . _ 1 . end . else return 900 . .
+    let row use hb. mut slice u64 lit array 8 u64 do 0 r. . _ 1 . end . else return 900 . .
     repeat c u64 8 do
-      let cell use hb. mut slice u64 lit array u64 4 do 0 c. . _ 2 . end . else return 901 . .
+      let cell use hb. mut slice u64 lit array 4 u64 do 0 c. . _ 2 . end . else return 901 . .
       set n. add n. add idx row. 0 . idx cell. 1 . . . .
       if eq add mul r. 8 . c. . stop. . do break 2 . end .
     end .
@@ -28,7 +28,7 @@ do
   var n u64 0 .
   repeat r u64 6 do
     repeat c u64 6 do
-      let cell use hb. mut slice u64 lit array u64 4 do 0 c. . _ 1 . end . else return 902 . .
+      let cell use hb. mut slice u64 lit array 4 u64 do 0 c. . _ 1 . end . else return 902 . .
       if eq c. skip. . do continue 2 . end .
       set n. add n. idx cell. 0 . . .
     end .
@@ -41,17 +41,17 @@ rem the same with a bump allocator whose backing is an array in the frame: what 
 export proc bump_leave input stop u64 . output u64 . effects state .
   requires le stop. 16 . .
 do
-  var back lit array u8 512 _ . .
+  var back lit array 512 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
   var n u64 0 .
   repeat r u64 4 do
     repeat c u64 4 do
-      let cell use bb. mut slice u64 lit array u64 2 do 0 r. . 1 c. . end . else return 903 . .
+      let cell use bb. mut slice u64 lit array 2 u64 do 0 r. . 1 c. . end . else return 903 . .
       set n. add n. add idx cell. 0 . idx cell. 1 . . . .
       if eq add mul r. 4 . c. . stop. . do break 2 . end .
     end .
   end .
-  let after use bb. mut slice u64 lit array u64 2 7 9 . else return 904 . .
+  let after use bb. mut slice u64 lit array 2 u64 7 9 . else return 904 . .
   return add n. idx after. 1 . . .
 end .

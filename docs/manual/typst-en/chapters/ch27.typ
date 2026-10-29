@@ -168,14 +168,14 @@ What would a read release? C leaves such combinations undefined. A write cannot 
 
 #idx("lanes")
 Where `parallel` splits a loop across *flows*, `vec` holds *several values* as one value within a single flow and computes them at once
-(SIMD). `vec u32 4` is a value with four lanes holding four `u32`s, and the lane count is part of the type. Whether the machine computes the
+(SIMD). `vec 4 u32` is a value with four lanes holding four `u32`s, and the lane count is part of the type. Whether the machine computes the
 lanes at once or one by one, the answer is the same (canon 6.2.11).
 
 #demo("examples/ch27/lanes.low")
 
 - `load xs. 0 .` reads four lanes starting at position 0 of the slice. `store ys. 0 t. .` writes the other way.
-- `splat 5 .` fills every lane with 5. The lane count comes from the type of the name it is stored in (`vec u32 4`).
-- A different value per lane is written directly: `lit vec u32 4 1 10 100 1000 .`. The literal carries its own type, so it can sit in
+- `splat 5 .` fills every lane with 5. The lane count comes from the type of the name it is stored in (`vec 4 u32`).
+- A different value per lane is written directly: `lit vec 4 u32 1 10 100 1000 .`. The literal carries its own type, so it can sit in
   the middle of an expression, and it must match the type of the name it is stored in exactly, lanes and element kind (`E-TYPE-LANES`).
 - Comparing `vec`s, as in `gt v. lim. .`, gives a *mask* `mask 4` holding true or false per lane. `lane_select over. lim. v. .` picks `lim` in lanes where
   the mask is on and `v` where it is off. Choosing per lane without a branch (`if`) lets the machine do it in one instruction.
@@ -220,7 +220,7 @@ things, so the names were split (canon 6.3.7.1).
 
   `splat` fills every lane with one value, and only the declared type says *how many lanes there are*. Inside an expression there is nothing
   to say it, so the value is read as a scalar and the surrounding comparison stops matching its `mask` type. It is rejected with
-  `E-VEC-SPLAT`; store it first under a name that writes the lane count down --- `var lim vec u32 4 splat 5 . .`, then `gt v. lim. .`.
+  `E-VEC-SPLAT`; store it first under a name that writes the lane count down --- `var lim vec 4 u32 splat 5 . .`, then `gt v. lim. .`.
 ]
 
 == Saying how a place is used --- `access`
@@ -303,7 +303,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [memory ordering --- `seq_cst` if unwritten], [the easiest to reason about is the default],
   [`order release` on a read, and so on], [rejected (`E-ATOMIC-ORDER`)], [meaningless combinations are not left undefined],
   [`view_array u64 bytes. .`], [see bytes as a `u64` slice without copying], [atomic cells live on an allocated window],
-  [`var v vec u32 4 load xs. 0 . .` · `reduce_add v. .`], [read four lanes as one value · gather lanes], [SIMD within one flow --- the lane count is part of the type],
+  [`var v vec 4 u32 load xs. 0 . .` · `reduce_add v. .`], [read four lanes as one value · gather lanes], [SIMD within one flow --- the lane count is part of the type],
   [`access data shared_read .` · `access out write_only .`], [a promise to only read · only write --- checked against the body], [read-only lets several tasks hold it · breaking it is `E-ACCESS-MODE`],
 )
 

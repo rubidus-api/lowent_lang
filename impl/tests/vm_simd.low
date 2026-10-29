@@ -20,13 +20,13 @@ export proc dot_c
   requires ge len a. . n. . .
   requires ge len b. . n. . .
 do
-  var acc vec u32 4 splat 0 . .
+  var acc vec 4 u32 splat 0 . .
   var i usize 0 .
   while le add i. 4 . n. . do
-    let va vec u32 4 load a. i. . .
-    let vb vec u32 4 load b. i. . .
-    let vp vec u32 4 mul va. vb. . .
-    let vs vec u32 4 add acc. vp. . .
+    let va vec 4 u32 load a. i. . .
+    let vb vec 4 u32 load b. i. . .
+    let vp vec 4 u32 mul va. vb. . .
+    let vs vec 4 u32 add acc. vp. . .
     set acc. vs. .
     set i. add i. 4 . .
   end .
@@ -42,13 +42,13 @@ export proc dot_u
   output u64 .
   effects none .
 do
-  var acc vec u32 4 splat 0 . .
+  var acc vec 4 u32 splat 0 . .
   var i usize 0 .
   while le add i. 4 . n. . do
-    let va vec u32 4 load a. i. . .
-    let vb vec u32 4 load b. i. . .
-    let vp vec u32 4 mul va. vb. . .
-    let vs vec u32 4 add acc. vp. . .
+    let va vec 4 u32 load a. i. . .
+    let vb vec 4 u32 load b. i. . .
+    let vp vec 4 u32 mul va. vb. . .
+    let vs vec 4 u32 add acc. vp. . .
     set acc. vs. .
     set i. add i. 4 . .
   end .
@@ -83,8 +83,8 @@ export proc dbl_c
 do
   var i usize 0 .
   while le add i. 4 . n. . do
-    let v vec u32 4 load a. i. . .
-    var t vec u32 4 add v. v. . .
+    let v vec 4 u32 load a. i. . .
+    var t vec 4 u32 add v. v. . .
     store a. i. t. .
     set i. add i. 4 . .
   end .
@@ -99,8 +99,8 @@ export proc dbl_u
 do
   var i u64 0 .
   while le add i. 4 . n. . do
-    let v vec u32 4 load a. i. . .
-    var t vec u32 4 add v. v. . .
+    let v vec 4 u32 load a. i. . .
+    var t vec 4 u32 add v. v. . .
     store a. i. t. .
     set i. add i. 4 . .
   end .

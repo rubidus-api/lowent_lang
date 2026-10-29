@@ -484,13 +484,13 @@ subslice	xs slice u8	usize	return len subslice xs. 1 5 . . .	[4,5,6]	TRAP E-VM-B
 subslice	xs slice u8, a u64	usize	return len subslice xs. a. 2 . . .	[4,5,6] 0	CHECK E-TYPE-NOMINAL
 view_array	xs slice u8	usize	return len view_array u32 xs. . . .	[1,2,3,4,5,6,7,8]	= 2
 view_array	xs slice u8	usize	return len view_array u32 xs. . . .	[1,2,3]	TRAP E-VM-VIEW
-splat	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_add v. . . .	3	= 12
-reduce_add	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_add v. . . .	5	= 20
-reduce_add	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_add v. . . .	2000000000	TRAP E-VM-OVERFLOW
-reduce_max	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_max v. . . .	3	= 3
-reduce_min	a u32	u64	var v vec u32 4 splat a. . . ␤ return widen u64 reduce_min v. . . .	3	= 3
-reduce_add	a i32	i64	var v vec i32 4 splat a. . . ␤ return widen i64 reduce_add v. . . .	-3	= -12
-reduce_add	a i8	i64	var v vec i8 4 splat a. . . ␤ return widen i64 reduce_add v. . . .	-40	TRAP E-VM-OVERFLOW
-reduce_max	a i32	i64	var v vec i32 4 splat a. . . ␤ return widen i64 reduce_max v. . . .	-7	= -7
+splat	a u32	u64	var v vec 4 u32 splat a. . . ␤ return widen u64 reduce_add v. . . .	3	= 12
+reduce_add	a u32	u64	var v vec 4 u32 splat a. . . ␤ return widen u64 reduce_add v. . . .	5	= 20
+reduce_add	a u32	u64	var v vec 4 u32 splat a. . . ␤ return widen u64 reduce_add v. . . .	2000000000	TRAP E-VM-OVERFLOW
+reduce_max	a u32	u64	var v vec 4 u32 splat a. . . ␤ return widen u64 reduce_max v. . . .	3	= 3
+reduce_min	a u32	u64	var v vec 4 u32 splat a. . . ␤ return widen u64 reduce_min v. . . .	3	= 3
+reduce_add	a i32	i64	var v vec 4 i32 splat a. . . ␤ return widen i64 reduce_add v. . . .	-3	= -12
+reduce_add	a i8	i64	var v vec 4 i8 splat a. . . ␤ return widen i64 reduce_add v. . . .	-40	TRAP E-VM-OVERFLOW
+reduce_max	a i32	i64	var v vec 4 i32 splat a. . . ␤ return widen i64 reduce_max v. . . .	-7	= -7
 min	a u8, b i16	i16	return min a. b. . .	3 5	CHECK E-TYPE-SIGN
 max	a u8, b i8	i16	return widen i16 max a. b. . . .	3 5	CHECK E-TYPE-SIGN

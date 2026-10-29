@@ -13,9 +13,9 @@ module vm_intrin .
 proc av input a slice u8 . input b slice u8 . input out mut slice u8 . output u64 . effects none . do
   let xa slice u8 view_array u8 a. . .
   let xb slice u8 view_array u8 b. . .
-  let va vec u8 4 load xa. 0 . .
-  let vb vec u8 4 load xb. 0 . .
-  var r vec u8 4 lane_avg va. vb. . .
+  let va vec 4 u8 load xa. 0 . .
+  let vb vec 4 u8 load xb. 0 . .
+  var r vec 4 u8 lane_avg va. vb. . .
   store out. 0 r. .
   return 0 .
 end .

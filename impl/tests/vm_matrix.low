@@ -3,7 +3,7 @@ rem Elements lie in one run, row-major (the last index moves fastest). `idx m. i
 rem and checks each against its own size; `dim m. k .` is a size; `flat m. .` is the same elements as one row.
 module vm_matrix .
 
-fn sum_row input m matrix u32 2 3 4 . input r usize . output u64 .
+fn sum_row input m matrix 2 3 4 u32 . input r usize . output u64 .
   requires lt r. 3 . .
 do
   var s u64 0 .
@@ -13,7 +13,7 @@ do
   return s. .
 end .
 
-fn table output t matrix u32 2 3 4 .
+fn table output t matrix 2 3 4 u32 .
 do
   repeat r usize 3 do
     repeat c usize 4 do
@@ -33,14 +33,14 @@ end .
 rem read one cell of a literal
 export fn cell input r usize . input c usize . output u64 .
 do
-  let m lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
+  let m lit matrix 2 3 4 u32 1 2 3 4 5 6 7 8 9 10 11 12 . .
   return widen u64 idx m. r. c. . . .
 end .
 
 rem write one cell, read it back, and add the two sizes
 export fn poke input r usize . input c usize . output u64 .
 do
-  var z lit matrix u8 2 4 5 _ . .
+  var z lit matrix 2 4 5 u8 _ . .
   set idx z. r. c. . 200 .
   return add widen u64 idx z. r. c. . . add mul dim z. 0 . 10 . dim z. 1 . . . .
 end .
@@ -48,7 +48,7 @@ end .
 rem three dimensions: every cell holds its own three indexes
 export fn cube input a usize . input b usize . input c usize . output u64 .
 do
-  var t matrix u64 3 2 3 4 lit matrix u64 3 2 3 4 _ . .
+  var t matrix 3 2 3 4 u64 lit matrix 3 2 3 4 u64 _ . .
   repeat i usize dim t. 0 . do
     repeat j usize dim t. 1 . do
       repeat k usize dim t. 2 . do
@@ -63,7 +63,7 @@ rem a matrix goes into an op whole, and comes out of one whole
 export fn rows input r usize . output u64 .
   requires lt r. 3 . .
 do
-  let t matrix u32 2 3 4 table . .
+  let t matrix 2 3 4 u32 table . .
   return add mul sum_row t. r. . 1000 . total flat t. . . . .
 end .
 
@@ -71,6 +71,6 @@ rem an index may be any expression, and it is evaluated once
 export fn expr_index input r usize . output u64 .
   requires lt r. 2 . .
 do
-  let m lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
+  let m lit matrix 2 3 4 u32 1 2 3 4 5 6 7 8 9 10 11 12 . .
   return widen u64 idx m. add r. 1 . sub 3 r. . . . .
 end .

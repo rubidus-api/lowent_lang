@@ -1955,7 +1955,7 @@ int main(int argc, char **argv) {
                         lx.tokens.len = 1;
                     }
                 } else
-                if (!low_closer_lower(heap, &lx.tokens, &lx.diags)) {
+                if ((low_closer_lenient(want_fmt), !low_closer_lower(heap, &lx.tokens, &lx.diags))) {   // ★ RFC-0155 §8-2 — 서식기만 옛 차례를 받는다
                     for (proven_size_t q = d0; q < lx.diags.len; q++) {
                         low_diag_t *dq = &((low_diag_t *)lx.diags.data)[q];
                         if (!dq->file && fi != 0) dq->file = paths[fi];
@@ -2037,6 +2037,8 @@ int main(int argc, char **argv) {
         proven_size_t nd0 = pr.diags.len;
         // ★ `--fmt` 는 옛 모양을 새 모양으로 **옮겨** 찍는다(2026-09-28, 코드 검토 — 전엔 그대로 찍고 rc=0 이라
         //   공개 저장소의 사용자가 옮길 길이 없었다). 타입 없는 묶기는 알리고 실패로 끝난다.
+        // ★ RFC-0155 §8-2 — 개수가 먼저인 사람의 차례(`array 4 u8`)를 뒤의 걸음이 읽는 안쪽 차례로. 옛 차례는 거절(서식기는 받는다).
+        if (!low_order_lower(&pr, nodes0, heap, want_fmt ? 1 : 0)) pr.nforms = 0;
         if (want_fmt) { low_surface_lower(&pr, nodes0, heap);   // ★ RFC-0141 — 서식기도 안쪽 나무에서 값을 묶는다(찍는 것은 새 표면)
                         (void)low_rows_lower(&pr, nodes0, heap, true);   // ★ 2026-10-29 — 옛 줄의 나열을 새 철자로 옮겨 찍는다
                         low_decl_migrate(&pr, nodes0, heap); }
@@ -2116,6 +2118,7 @@ int main(int argc, char **argv) {
 
     int rc = 0;
     if (want_doc) {
+        (void)low_order_lower(&pr, nodes0, heap, 2);   // ★ RFC-0155 §8-2 — 문서에 찍는 타입은 사람의 차례(개수가 먼저)
         if (doc_out) {
             int n = low_doc_write(&pr, src, heap, doc_out);
             if (n < 0) fprintf(stderr, "lowdoc: write failed under '%s'\n", doc_out);
@@ -2137,6 +2140,7 @@ int main(int argc, char **argv) {
             FILE *tf = tmpfile();
             int saved = tf ? dup(1) : -1;
             if (!tf || saved < 0 || dup2(fileno(tf), 1) < 0) { fprintf(stderr, "lowentc: cannot open a scratch file for --fmt\n"); return 1; }
+            (void)low_order_lower(&p0, nodes0, heap, 2);   // ★ RFC-0155 §8-2 — 찍는 것은 사람의 차례(개수가 먼저)
             low_cst_fmt(&p0);
             fflush(stdout);
             dup2(saved, 1); close(saved);

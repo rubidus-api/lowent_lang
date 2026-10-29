@@ -35,7 +35,7 @@ module.exports = grammar({
 
   externals: $ => [$.block_comment, $.text_literal, $._error_sentinel],
 
-  conflicts: $ => [[$.clause, $.asm_statement]],
+  conflicts: $ => [[$.clause, $.asm_statement], [$.type_name], [$.applied_type, $.list_literal]],
 
 
   rules: {
@@ -142,8 +142,8 @@ module.exports = grammar({
     applied_type: $ => prec.right(choice(
       seq(choice(...T_PRE1), $._type),
       seq('result', optional(seq($._type, optional($._type)))),
-      seq(choice('array', 'vec'), choice($._type, $.number), choice($.name, $.path, $.number, $.paren_type)),
-      prec(-1, seq('matrix', $._type, $.number, repeat($.number))),   // element type, number of dimensions, one size each — a size that is the name of a translation-time input (inputs only) reads as a clause word after the type
+      seq(choice('array', 'vec'), choice($.number, $.name, $.path), $._type),   // RFC-0155 §8-2 — the count first, the element type last: `array 3 array 4 u8`
+      prec.dynamic(1, seq('matrix', $.number, repeat1(choice($.number, $.name)), $._type)),     // number of dimensions, one size each (a name only in inputs), the element type
       seq(choice('bitset', 'mask', 'bits'), optional($.number)),
       seq(choice('cap', 'region'), $.name),
       seq('range', optional($.type_name), $.number, $.number),
@@ -224,12 +224,12 @@ module.exports = grammar({
 
     struct_literal: $ => seq('lit', $._type, 'do', repeat($.field_init), 'end', $.stop),
     field_init: $ => seq(field('name', choice($.name, '_')), $._term, $.stop),
-    fill_literal: $ => seq('lit', 'array', $._type, choice($.name, $.path, $.number),
+    fill_literal: $ => seq('lit', 'array', choice($.name, $.path, $.number), $._type,
       'do', repeat($.fill_item), 'end', $.stop),
     fill_item: $ => seq(choice($.number, $.name, '_'), $._term, $.stop),
     list_literal: $ => seq('lit', choice(
-      seq(choice('array', 'vec'), $._type, choice($.name, $.path, $.number)),
-      seq('matrix', $._type),                 // the dimensions and sizes read as the first numbers of the list
+      seq(choice('array', 'vec'), choice($.name, $.path, $.number), $._type),
+      seq('matrix', $.number, repeat1($.number), $._type),
       seq('slice', $._type),
     ), repeat(choice($._term, '_')), $.stop),
 

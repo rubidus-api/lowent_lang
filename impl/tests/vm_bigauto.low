@@ -23,10 +23,10 @@ rem (a + b) mod m, (a − b) mod m, (b − a) mod m 의 바이트 지문 셋을 
 proc run input comptime wt type . input lw wt . input ab slice u8 . input bb slice u8 . input mb slice u8 . input out mut slice u8 .
      output u64 . effects none . requires bigwidth.width wt. . . do
   let nb usize len mb. . .
-  var a lit array u64 40 _ . .
-  var b lit array u64 40 _ . .
-  var m lit array u64 40 _ . .
-  var o lit array u64 40 _ . .
+  var a lit array 40 u64 _ . .
+  var b lit array 40 u64 _ . .
+  var m lit array 40 u64 _ . .
+  var o lit array 40 u64 _ . .
   let z1 usize method lw. from_bytes. ab. a. nb. . .
   let z2 usize method lw. from_bytes. bb. b. nb. . .
   let z3 usize method lw. from_bytes. mb. m. nb. . .
@@ -76,14 +76,14 @@ end .
 rem ② RSA-2048 PKCS#1 v1.5 — 칸은 ⌈256 / 2⌉ + 2 = 130 이 세 폭 어디에나 맞는다.
 proc rsa_by input comptime wt type . input lw wt . input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 .
      output u64 . effects none . requires bigwidth.width wt. . . do
-  var em lit array u8 256 _ . .
-  var sw lit array u64 130 _ . .
-  var nw lit array u64 130 _ . .
-  var ow lit array u64 130 _ . .
-  var r2 lit array u64 130 _ . .
-  var acc lit array u64 130 _ . .
-  var tw lit array u64 130 _ . .
-  var mw lit array u64 130 _ . .
+  var em lit array 256 u8 _ . .
+  var sw lit array 130 u64 _ . .
+  var nw lit array 130 u64 _ . .
+  var ow lit array 130 u64 _ . .
+  var r2 lit array 130 u64 _ . .
+  var acc lit array 130 u64 _ . .
+  var tw lit array 130 u64 _ . .
+  var mw lit array 130 u64 _ . .
   return rsa.verify_pkcs1_by wt. lw. sig. nb. 65537 mh. di. em. sw. nw. ow. r2. acc. tw. mw. . .
 end .
 proc r16 input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 . output u64 . effects none . do
@@ -100,29 +100,29 @@ proc r64 input sig slice u8 . input nb slice u8 . input mh slice u8 . input di s
 end .
 rem 이름을 바꾸지 않은 `verify_pkcs1` — 기계가 고른 폭
 proc rauto input sig slice u8 . input nb slice u8 . input mh slice u8 . input di slice u8 . output u64 . effects none . do
-  var em lit array u8 256 _ . .
-  var sw lit array u64 130 _ . .
-  var nw lit array u64 130 _ . .
-  var ow lit array u64 130 _ . .
-  var r2 lit array u64 130 _ . .
-  var acc lit array u64 130 _ . .
-  var tw lit array u64 130 _ . .
-  var mw lit array u64 130 _ . .
+  var em lit array 256 u8 _ . .
+  var sw lit array 130 u64 _ . .
+  var nw lit array 130 u64 _ . .
+  var ow lit array 130 u64 _ . .
+  var r2 lit array 130 u64 _ . .
+  var acc lit array 130 u64 _ . .
+  var tw lit array 130 u64 _ . .
+  var mw lit array 130 u64 _ . .
   return rsa.verify_pkcs1 sig. nb. 65537 mh. di. em. sw. nw. ow. r2. acc. tw. mw. . .
 end .
 
 rem ③ RSA-2048 PSS(SHA-256 · 솔트 32) — `rsa.verify_pss_by` 에 폭 타입을 넘긴다. 서명은 파이썬이 RFC 8017 §9.1.1 대로 지었다.
 proc pss_by input comptime wt type . input lw wt . input sig slice u8 . input nb slice u8 . input mh slice u8 .
      output u64 . effects none . requires bigwidth.width wt. . . do
-  var em lit array u8 256 _ . .
-  var w lit array u8 1024 _ . .
-  var sw lit array u64 130 _ . .
-  var nw lit array u64 130 _ . .
-  var ow lit array u64 130 _ . .
-  var r2 lit array u64 130 _ . .
-  var acc lit array u64 130 _ . .
-  var tw lit array u64 130 _ . .
-  var mw lit array u64 130 _ . .
+  var em lit array 256 u8 _ . .
+  var w lit array 1024 u8 _ . .
+  var sw lit array 130 u64 _ . .
+  var nw lit array 130 u64 _ . .
+  var ow lit array 130 u64 _ . .
+  var r2 lit array 130 u64 _ . .
+  var acc lit array 130 u64 _ . .
+  var tw lit array 130 u64 _ . .
+  var mw lit array 130 u64 _ . .
   let r result u64 rsa.rsa_error rsa.verify_pss_by wt. lw. sig. nb. 65537 mh. 32 em. w. sw. nw. ow. r2. acc. tw. mw. . .
   guard is_ok r. . else return 9 . .
   return ok_value r. . .

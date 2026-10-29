@@ -2755,7 +2755,7 @@ static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pr
     proven_i64 lanes = 0;
     proven_u8 esz = ir_field_size(ty);
     if (!esz || !ir_int_lit(k[*pos + 2]->tok.lex, &lanes) || lanes < 1 || lanes > 16 || (lanes & (lanes - 1))) {
-        ir_fail(c, "E-LIT-COUNT", "`lit vec T N` needs a sized element type and 1..16 lanes (a power of two)", line); return;
+        ir_fail(c, "E-LIT-COUNT", "`lit vec N T` needs a sized element type and 1..16 lanes (a power of two)", line); return;
     }
     proven_i64 meta = (lanes << 8) | esz | (ir_is_float_ty(ty) ? IR_FLT_BIT : 0) | (ity_of_word(ty).sign ? IR_SGN_BIT : 0);
     c->lit_frame = false;                                          // 값은 레인으로 베껴진다 — 쓸 자리가 필요 없다
@@ -2782,7 +2782,7 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
     proven_i64 vmeta = (proven_i64)esz | IR_STRUCT_BIT | ((proven_i64)si << 20);
     proven_i64 n = -1;
     if (is_array) {
-        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array T N …` needs its length N as a literal", line); return; }
+        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array N T …` needs its length N as a literal", line); return; }
         (*pos)++;
     }
     const low_cst_t *blk = (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) ? k[end - 1] : NULL;
@@ -2871,7 +2871,7 @@ static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos
     if (rb > 0xffffffu) { ir_fail(c, "E-LIT-UNBUILT", "a row this long cannot be laid out in a list", line); return; }
     proven_i64 n = -1;
     if (is_array) {
-        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array (array T M) N …` needs its length N as a literal", line); return; }
+        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array N array M T …` needs its length N as a literal", line); return; }
         (*pos)++;
     }
     if (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) { ir_fail(c, "E-LIT-UNBUILT", "filling chosen rows (`do … end`) is not built yet — list the rows (RFC-0132 §13.10)", line); return; }
@@ -2954,7 +2954,7 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
     *pos += 2;
     proven_i64 n = -1;
     if (is_array) {
-        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array T N …` needs its length N as a literal", line); return; }
+        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array N T …` needs its length N as a literal", line); return; }
         (*pos)++;
         if (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) {   // 칸 골라 채우기(T2b-3)
             const low_cst_t *blk = k[end - 1];
@@ -3941,7 +3941,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             }
             if (veq(nd->tok.lex, "splat") || veq(nd->tok.lex, "load")) {
                 // lanes/elem width come from the binding's `vec t n` type (comptime)
-                if (!c->vec_lanes) { ir_fail(c, "E-IR-UNSUP", "splat/load needs a `vec t n`-typed binding context", nd->line); return; }
+                if (!c->vec_lanes) { ir_fail(c, "E-IR-UNSUP", "splat/load needs a `vec n t`-typed binding context", nd->line); return; }
                 proven_i64 meta = ((proven_i64)c->vec_lanes << 8) | c->vec_esz | (c->vec_flt ? IR_FLT_BIT : 0)
                                  | (c->vec_sign ? IR_SGN_BIT : 0);   // ★ 부호형 레인
                 if (veq(nd->tok.lex, "splat")) {
@@ -3959,7 +3959,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   passthrough vec 의 그 lane 값을 가진다**(merge — 꺼진 lane 값을 프로그래머가 고른다; 0 을 원하면 zero vec).
             //   레인/esz 는 load 처럼 `vec t n` 바인딩 컨텍스트에서 온다. mask·passthrough 레인수는 그와 같아야 한다(런타임 검사).
             if (veq(nd->tok.lex, "load_masked")) {
-                if (!c->vec_lanes) { ir_fail(c, "E-IR-UNSUP", "load_masked needs a `vec t n`-typed binding context", nd->line); return; }
+                if (!c->vec_lanes) { ir_fail(c, "E-IR-UNSUP", "load_masked needs a `vec n t`-typed binding context", nd->line); return; }
                 proven_i64 meta = ((proven_i64)c->vec_lanes << 8) | c->vec_esz | (c->vec_flt ? IR_FLT_BIT : 0)
                                  | (c->vec_sign ? IR_SGN_BIT : 0);   // ★ 부호형 레인
                 ir_value(c, k, pos, end);   // the source (varray/slice)
@@ -4155,11 +4155,11 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     proven_i64 rm = 0;
                     if (!(rt && rt->kind == LOW_CST_FORM && rt->nkids == 3 && is_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
                           is_atom(rt->kids[1]) && is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0)) {
-                        ir_fail(c, "E-IR-UNSUP", "`view_array` takes a type word or a row `(array <type> <m>)` with m a literal of 1 or more", nd->line); return;
+                        ir_fail(c, "E-IR-UNSUP", "`view_array` takes a type word or a row `array <m> <type>` with m a literal of 1 or more", nd->line); return;
                     }
                     proven_u8str_view_t ity = rt->kids[1]->tok.lex;
                     if (veq(ity, "bool")) {
-                        ir_fail(c, "E-TYPE-BITCAST", "`view_array (array bool <m>)` reads bytes as they are — a byte other than 0 or 1 would be a bool that is "
+                        ir_fail(c, "E-TYPE-BITCAST", "`view_array array <m> bool` reads bytes as they are — a byte other than 0 or 1 would be a bool that is "
                                 "neither true nor false. View the rows as `u8` (canon 8.7.1)", nd->line);
                         return;
                     }

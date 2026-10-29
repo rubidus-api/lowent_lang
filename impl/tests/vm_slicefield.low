@@ -9,11 +9,11 @@ struct packet do
 end .
 
 export proc build input a u8 . output u64 . effects state . do
-  var back lit array u8 128 _ . .
+  var back lit array 128 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
-  let body_bytes lit array u8 4 1 2 3 a. . .
-  let ws lit array u64 3 10 20 30 . .
+  let body_bytes lit array 4 u8 1 2 3 a. . .
+  let ws lit array 3 u64 10 20 30 . .
   let m use bb. packet lit packet do tag 7 . body body_bytes. . nums ws. . end . else return 999 . .
   let b slice u8 field m. body . .
   let n slice u64 field m. nums . .
@@ -30,11 +30,11 @@ struct sv do
 end .
 
 export proc rewrite input a u8 . output u64 . effects state . do
-  var back lit array u8 64 _ . .
+  var back lit array 64 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
-  let one lit array u8 2 1 2 . .
-  let two lit array u8 3 7 8 a. . .
+  let one lit array 2 u8 1 2 . .
+  let two lit array 3 u8 7 8 a. . .
   var m use bb. msg lit msg do tag 1 . body one. . end . else return 999 . .
   set field m. body . two. .
   let b slice u8 field m. body . .
@@ -42,20 +42,20 @@ export proc rewrite input a u8 . output u64 . effects state . do
 end .
 
 export proc signed output i64 . effects state . do
-  var back lit array u8 64 _ . .
+  var back lit array 64 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
-  let xs lit array i16 3 -5 7 -300 . .
+  let xs lit array 3 i16 -5 7 -300 . .
   let q use bb. sv lit sv do v xs. . end . else return 0 . .
   let s slice i16 field q. v . .
   return add widen i64 idx s. 0 . . widen i64 idx s. 2 . . . .
 end .
 
 export proc rounds input n u64 . output u64 . effects state . do
-  var back lit array u8 40 _ . .
+  var back lit array 40 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
-  let data lit array u8 3 4 5 6 . .
+  let data lit array 3 u8 4 5 6 . .
   var s u64 0 .
   var i u64 0 .
   while lt i. n. . do

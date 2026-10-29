@@ -1,7 +1,7 @@
 rem ★★★ **이식 가능한 SIMD 커널이 자기 폭을 한 번만 적는다** (2026-08-18, RFC-0040 D5 · §9-3/4).
 rem
 rem D5 는 *"타깃에게 최적 폭을 물어 **한 번만** 쓰라"* 고 했다. 그런데 폭 자리는
-rem `vec u32 4`(리터럴) · `vec u32 scalable` · `vec u32 (native_lanes u32)` 만 받았고,
+rem `vec 4 u32`(리터럴) · `vec scalable u32` · `vec u32 (native_lanes u32)` 만 받았고,
 rem **이름을 안 받았다** — 그래서 같은 식을 `vec` 마다 되풀이해야 했다. 정확히 반대였다.
 rem
 rem ★ 이제 **comptime 으로 접힌 `let` 이름**을 폭으로 받는다. 그리고 그 자격은 좁다:
@@ -15,12 +15,12 @@ module vm_veclanes .
 rem ① 성립 — 폭을 **한 번만** 적는다. 두 뒤끝이 같은 답을 낸다.
 export fn dot input a slice u32 . input b slice u32 . output u32 . do
   let L usize native_lanes u32 . .
-  var acc vec u32 L splat 0 . .
+  var acc vec L u32 splat 0 . .
   var i usize 0 .
   let n usize len a. . .
   while le add i. L. . n. . do
-    let x vec u32 L load a. i. . .
-    let y vec u32 L load b. i. . .
+    let x vec L u32 load a. i. . .
+    let y vec L u32 load b. i. . .
     set acc. add acc. mul x. y. . . .
     set i. add i. L. . .
   end .
@@ -29,12 +29,12 @@ end .
 
 rem ② 성립 — 같은 커널을 **리터럴 폭**으로 적으면 같은 답이다(이름이 뜻을 안 바꾼다).
 export fn dot4 input a slice u32 . input b slice u32 . output u32 . do
-  var acc vec u32 4 splat 0 . .
+  var acc vec 4 u32 splat 0 . .
   var i usize 0 .
   let n usize len a. . .
   while le add i. 4 . n. . do
-    let x vec u32 4 load a. i. . .
-    let y vec u32 4 load b. i. . .
+    let x vec 4 u32 load a. i. . .
+    let y vec 4 u32 load b. i. . .
     set acc. add acc. mul x. y. . . .
     set i. add i. 4 . .
   end .
@@ -50,11 +50,11 @@ rem   **켜진 레인마다** 한다. 꺼진 레인이 경계 밖이어도 트�
 export proc masked input b slice u8 . input o mut slice u8 . output u32 . effects none . do
   let xs slice u32 view_array u32 b. . .
   var ys mut slice u32 view_array u32 o. . .
-  let v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 2 . .
+  let v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 2 . .
   var m mask 4 gt v. lim. . .
-  let pass vec u32 4 splat 100 . .
-  var r vec u32 4 load_masked xs. 0 m. pass. . .
+  let pass vec 4 u32 splat 100 . .
+  var r vec 4 u32 load_masked xs. 0 m. pass. . .
   store_masked ys. 0 r. m. .
   return reduce_add r. . .
 end .

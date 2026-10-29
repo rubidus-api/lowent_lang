@@ -9,10 +9,10 @@ fn capped_sum input b slice u8 . output u32 .
   requires ge len b. . 16 . .
 do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
-  let lim vec u32 4 splat 5 . .
+  let v vec 4 u32 load xs. 0 . .
+  let lim vec 4 u32 splat 5 . .
   let over mask 4 gt v. lim. . .
-  let capped vec u32 4 lane_select over. lim. v. . .
+  let capped vec 4 u32 lane_select over. lim. v. . .
   return reduce_add capped. . .
 end .
 
@@ -21,7 +21,7 @@ fn extremes input b slice u8 . output u32 .
   requires ge len b. . 16 . .
 do
   let xs slice u32 view_array u32 b. . .
-  let v vec u32 4 load xs. 0 . .
+  let v vec 4 u32 load xs. 0 . .
   return add mul reduce_max v. . 1000 . add mul reduce_min v. . 100 . reduce_mul v. . . . .
 end .
 
@@ -32,9 +32,9 @@ proc turned input b slice u8 . input out mut slice u8 . output u32 . effects non
 do
   let xs slice u32 view_array u32 b. . .
   var ys mut slice u32 view_array u32 out. . .
-  let v vec u32 4 load xs. 0 . .
-  let r vec u32 4 lane_reverse v. . .
-  var t vec u32 4 lane_rotate r. 1 . .
+  let v vec 4 u32 load xs. 0 . .
+  let r vec 4 u32 lane_reverse v. . .
+  var t vec 4 u32 lane_rotate r. 1 . .
   store ys. 0 t. .
   return reduce_add t. . .
 end .

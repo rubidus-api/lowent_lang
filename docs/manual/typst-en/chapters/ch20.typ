@@ -193,7 +193,7 @@ take its bytes from an allocator you choose: write `use <allocator>` right after
 
 #demo("examples/ch20/litalloc.low")
 
-- `var xs use bb mut slice u64 lit array u64 4 … . else return 0 .` asks `bb` for 32 bytes and, if it gets them, fills them like
+- `var xs use bb mut slice u64 lit array 4 u64 … . else return 0 .` asks `bb` for 32 bytes and, if it gets them, fills them like
   any list and binds them to `xs`. If the allocator cannot give the bytes, control goes to `else`, which must leave (binding `else` is
   covered in #chref("option-result")).
 - To carry the failure along as an `option`, write the whole type: `let big use bb option mut slice u64 lit … .` --- then check it
@@ -391,7 +391,7 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
   [no source · an unused `use`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
   [`alloc_bytes a. capacity 8` · `alloc_bytes capacity 8` inside a region block], [take bytes from a root · from the innermost region], [a root is written by name --- `E-ALLOC-NOROOT`],
-  [`var xs use bb mut slice u64 lit array u64 4 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
+  [`var xs use bb mut slice u64 lit array 4 u64 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
   [`bit_cast u32 x. .`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 

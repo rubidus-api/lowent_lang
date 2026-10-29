@@ -29,14 +29,14 @@ end .
 rem Lowent builds the table, C indexes it as a[r][c]
 unsafe proc read_in_c input k cap c . input r i64 . input c i64 . output i64 . effects unsafe .
 do
-  let m lit matrix u32 2 3 4 1 2 3 4 5 6 7 8 9 10 11 12 . .
+  let m lit matrix 2 3 4 u32 1 2 3 4 5 6 7 8 9 10 11 12 . .
   return c_cell34 k. flat m. . r. c. . .
 end .
 
 rem C fills the table as a[r][c], Lowent indexes it with `idx m. r. c. .`
 unsafe proc write_in_c input k cap c . input r usize . input c usize . output u64 . effects unsafe .
 do
-  var m lit matrix u32 2 3 4 _ . .
+  var m lit matrix 2 3 4 u32 _ . .
   let n i64 c_fill34 k. flat m. . . .
   return widen u64 idx m. r. c. . . .
 end .

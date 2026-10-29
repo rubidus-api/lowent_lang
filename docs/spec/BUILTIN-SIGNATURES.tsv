@@ -116,7 +116,7 @@ value_or	감싸개	`value_or o d`	`o` — `option T` · `d` — `T`	`T` — 있�
 idx	읽기	`idx s i`	`s` — 슬라이스 · 배열 · `i` — `usize`	원소의 타입 — `i` 번째 원소	`i` 가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	`i` 가 길이 밖이면 `E-VM-BOUNDS`	6.2.6
 subslice	읽기	`subslice s a b`	`s` — 슬라이스 · `a` `b` — `usize`	`slice T`(`T` 는 `s` 의 원소) — `[a, b)` 를 복사 없이 보는 슬라이스	경계가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY`	`a` 가 `b` 보다 크거나 `b` 가 길이 밖이면 `E-VM-BOUNDS`	6.2.6
 view_array	읽기	`view_array T s`	`T` — 정수 또는 부동 타입 · `s` — 바이트 슬라이스	`slice T` — 같은 바이트를 `T` 의 나열로 본다(복사 없음)	`E-IR-ARITY`	`s` 의 길이가 `T` 의 크기의 배수가 아니면 `E-VM-VIEW`	6.2.13
-splat	SIMD	`splat a`	`a` — 정수 또는 부동	`vec T N` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec T N`)가 정한다	`E-IR-ARITY`	—	6.3.11
-reduce_add	SIMD	`reduce_add v`	`v` — `vec T N`	`T` — 레인의 합(부호 있는 레인은 부호로 더한다)	`E-IR-ARITY`	합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`	6.3.11
-reduce_max	SIMD	`reduce_max v`	`v` — `vec T N`	`T` — 가장 큰 레인	`E-IR-ARITY`	—	6.3.11
-reduce_min	SIMD	`reduce_min v`	`v` — `vec T N`	`T` — 가장 작은 레인	`E-IR-ARITY`	—	6.3.11
+splat	SIMD	`splat a`	`a` — 정수 또는 부동	`vec N T` — 모든 레인이 `a`. `T` 와 `N` 은 받는 자리(`vec N T`)가 정한다	`E-IR-ARITY`	—	6.3.11
+reduce_add	SIMD	`reduce_add v`	`v` — `vec N T`	`T` — 레인의 합(부호 있는 레인은 부호로 더한다)	`E-IR-ARITY`	합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`	6.3.11
+reduce_max	SIMD	`reduce_max v`	`v` — `vec N T`	`T` — 가장 큰 레인	`E-IR-ARITY`	—	6.3.11
+reduce_min	SIMD	`reduce_min v`	`v` — `vec N T`	`T` — 가장 작은 레인	`E-IR-ARITY`	—	6.3.11

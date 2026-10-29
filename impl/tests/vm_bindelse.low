@@ -44,12 +44,12 @@ export fn f_name input a u64 . output u64 . do
 end .
 
 export proc f_alloc input a u64 . output u64 . effects state . do
-  var back lit array u8 64 _ . .
+  var back lit array 64 u8 _ . .
   var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
   let got usize send bb. init back. . .
-  var buf use bb. mut slice u64 lit array u64 4 do 0 a. . _ 1 . end . else return 0 . .
+  var buf use bb. mut slice u64 lit array 4 u64 do 0 a. . _ 1 . end . else return 0 . .
   set idx buf. 3 . 10 .
   let r mut slice u8 send bb. reserve 8 . else return 1 . .
-  let big use bb. mut slice u64 lit array u64 64 _ . else return add idx buf. 0 . idx buf. 3 . . . .
+  let big use bb. mut slice u64 lit array 64 u64 _ . else return add idx buf. 0 . idx buf. 3 . . . .
   return 1000 .
 end .

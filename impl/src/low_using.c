@@ -535,8 +535,8 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                                 "`var q use al pt lit pt do … end else return … .`, or keep the option: "
                                 "`let qo use al option pt lit pt do … end .` (RFC-0135 §4.2)"
                               : "a list built from an allocator can fail to get its bytes — say what happens then: "
-                                "`var buf use al mut slice u8 lit array u8 16 _ . else return … .`, or keep the option: "
-                                "`let bo use al option mut slice u8 lit array u8 16 _ . .` (RFC-0135 §4.2)",
+                                "`var buf use al mut slice u8 lit array 16 u8 _ . else return … .`, or keep the option: "
+                                "`let bo use al option mut slice u8 lit array 16 u8 _ . .` (RFC-0135 §4.2)",
                               explicit_src->tok.line, explicit_src->tok.col);
                 } else {
                     bool row = is_list && !us_atom(lg->kids[2]);      // §13.10 — 줄의 나열: 원소 크기 = m × |T|
@@ -1028,8 +1028,8 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
             (us_eq(lf->kids[1]->tok.lex, "array") || us_eq(lf->kids[1]->tok.lex, "slice"))) {
             // ★ RFC-0135 D6 — 이 철자(`be option lit …`)는 §4.1·§4.2 의 모양과 같은 일을 하는 둘째 철자라 없앴다.
             dt_diag(c, f->kids[1], "E-LIT-USING", "`be option lit …` is gone (RFC-0135 D6) — take the list from the allocator with "
-                    "`var buf use al mut slice T lit array T N … . else return … .`, or keep the option with its whole type: "
-                    "`let bo use al option mut slice T lit array T N … .`");
+                    "`var buf use al mut slice T lit array N T … . else return … .`, or keep the option with its whole type: "
+                    "`let bo use al option mut slice T lit array N T … .`");
             return;
         }
     }
@@ -1441,7 +1441,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
                     if (st->kids[q]->kind != LOW_CST_BLOCK && dt_ar_has_call(c, st->kids[q])) own = true;
                 if (own)
                     dt_diag(c, st->kids[0], "E-RESULT-PLACE", "an op that returns an array is called where there is no place for the result — "
-                            "bind it to a name first: `var x array <type> <length> f … .` (or `return f … .` inside an op that returns the "
+                            "bind it to a name first: `var x array <length> <type> f … .` (or `return f … .` inside an op that returns the "
                             "same array). The caller gives the place; an expression has none (RFC-0132 P4b)");
             }
             nk[m++] = st;
@@ -1474,7 +1474,7 @@ static void dt_ar_check_returns(dt_ctx_t *c, const low_cst_t *n, const low_cst_t
             if (!ok)
                 dt_diag(c, n->kids[r], "E-RESULT-PLACE", "in an op that returns an array, a `return` here must give the result's place back "
                         "(`return <name> .`) — this one is not inside a block, so the value cannot be copied into the place. Name the "
-                        "result (`output r array <type> <length> .`), write into it and `return r .` (RFC-0132 P4b)");
+                        "result (`output r array <length> <type> .`), write into it and `return r .` (RFC-0132 P4b)");
         }
     }
     for (proven_size_t i = 0; i < n->nkids; i++) dt_ar_check_returns(c, n->kids[i], place);
@@ -1585,7 +1585,7 @@ static void dt_named_result(dt_ctx_t *c, low_cst_t *f) {
         return;
     }
     if (us_atom(f->kids[h.out_s + 1]) && us_eq(f->kids[h.out_s + 1]->tok.lex, "array")) {
-        dt_diag(c, nm, "E-TYPE-ARRAY", "an array result (`output <name> array <type> <length> .`) takes numbers as elements and a "
+        dt_diag(c, nm, "E-TYPE-ARRAY", "an array result (`output <name> array <length> <type> .`) takes numbers as elements and a "
                 "literal length (RFC-0132 P4b) — for other elements take a `mut slice` input and fill it (with a length contract)");
         dt_drop_out_name(c, f, h.out_s);
         return;

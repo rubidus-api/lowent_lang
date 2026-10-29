@@ -93,7 +93,7 @@ case <이름> when <조건>
 ( <식> )                                괄호는 꾸밈 --- 안의 식은 제 점으로 닫는다
 expr <a> + <b> * <c> .                  중위 섬 --- * / 가 + - 보다, 비교가 그 아래, and 가 or 보다 강함
 lit <타입> do <칸> <식> . … end .       <열거>.<갈래> <값>… .
-lit array <타입> <길이> <값>… [_] .     lit slice <타입> <값>… .
+lit array <길이> <타입> <값>… [_] .     lit slice <타입> <값>… .
 field <값> <마디>… .   idx <슬라이스> <번호> .   method <값> <마디>… <이름>. <인자>… .
 some <값> .   ok <값> .   error <갈래> .   none
 try <식> [else_none | else_error <갈래>] .

@@ -121,7 +121,6 @@
 | `E-TRY-NORESULT` | `try` 를 썼는데 이 op 은 그 오류를 돌려줄 수 없다 | 11장 |
 | `E-TYPE-ARG` | 인자의 타입이 매개변수와 맞지 않는다 | 12장 |
 | `E-TYPE-ARGMUT` | 읽기만 되는 값을 고치는 자리에 넘긴다(`let` 을 `mut_ref` 로) | 9장, 12장 |
-| `E-TYPE-ARRAY` | `array` 의 길이를 타입 뒤에 적었다 | 9장 |
 | `E-TYPE-BITCAST` | `bit_cast` 의 목표가 모든 비트열이 값인 타입이 아니다 | 20장 |
 | `E-TYPE-COLLECT` | `collect into` 가 넓은 값을 좁은 그릇에 담는다 | 24장 |
 | `E-TYPE-COND` | 조건 자리에 참거짓이 아닌 값이 왔다 | 4장 |
@@ -132,6 +131,7 @@
 | `E-TYPE-MIX` | 부동소수점 수와 정수 리터럴을 섞어 셈한다 | 4장 |
 | `E-TYPE-MUT` | `mut` 이 아닌 슬라이스의 원소에 쓴다 | 9장 |
 | `E-TYPE-NOMINAL` | 표현이 같아도 이름이 다른 타입을 섞었다 | 13장 |
+| `E-TYPE-ORDER` | 개수를 받는 타입의 원소 타입을 개수 앞에 적었다(옛 차례) | 9장 |
 | `E-TYPE-REF` | 읽기 참조로 쓴다 | 12장 |
 | `E-TYPE-REFVAL` | 참조를 값처럼 썼다 | 12장 |
 | `E-TYPE-RETURN` | 돌려주는 값이 op 의 출력 타입과 다르다 | 11장, 31장 |

@@ -121,7 +121,6 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-TRY-NORESULT` | `try` used in an op that cannot return that error | chapter 11 |
 | `E-TYPE-ARG` | an argument’s type does not match the parameter | chapter 12 |
 | `E-TYPE-ARGMUT` | a read-only value is passed where it would be written (`mut_ref` of a `let`) | chapter 9, chapter 12 |
-| `E-TYPE-ARRAY` | `array` length written after the type | chapter 9 |
 | `E-TYPE-BITCAST` | `bit_cast` target is not a plain scalar | chapter 20 |
 | `E-TYPE-COLLECT` | `collect into` would put a wider value into a narrower buffer | chapter 24 |
 | `E-TYPE-COND` | a non-boolean in a condition | chapter 4 |
@@ -132,6 +131,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-TYPE-MIX` | float and integer literals mixed in one calculation | chapter 4 |
 | `E-TYPE-MUT` | writes an element of a non-`mut` slice | chapter 9 |
 | `E-TYPE-NOMINAL` | mixes nominally distinct types | chapter 13 |
+| `E-TYPE-ORDER` | the element type of a counted type written before the count (the old order) | chapter 9 |
 | `E-TYPE-REF` | writes through a shared `ref` | chapter 12 |
 | `E-TYPE-REFVAL` | a reference is used as if it were a value | chapter 12 |
 | `E-TYPE-RETURN` | the returned value does not match the op’s output type | chapter 11, chapter 31 |

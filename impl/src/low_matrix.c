@@ -853,3 +853,86 @@ bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, pro
     for (proven_size_t i = 0; i < pr->nforms && !c->failed; i++) mx_sweep(c, pr->forms[i]);
     return !c->failed;
 }
+
+// ── 줄의 나열의 철자 (2026-10-29 · W-20261029-1531 · 소유자 «(가)로 권고대로 해 주세요. 관련 부분 다 고쳐주세요») ──
+//   줄의 나열(RFC-0132 §13.10 · 정본 §6.2 (9a))의 값은 `slice (array t m)` 다. 그런데 철자는 `lit array (array t m) n <줄>… [_] .` 이라
+//   머리가 `array` 를 말했다 — 정본 §6.2 (6) 의 «`lit array` 는 배열 값 · `lit slice` 는 슬라이스 값» 과 어긋났다. 이제 철자는
+//   `lit slice (array t m) <줄>… .` 이다: 다른 슬라이스 나열처럼 개수를 적지 않고 `_` 가 없다(§6.2 (6a) — 0 인 줄은 `lit array t m _ .`).
+//   이 패스는 새 철자를 뒤의 걸음이 아는 안쪽 꼴(`lit array (array t m) <줄 수> <줄>…` — 머리 낱말에 synth 표시)로 옮겨 적고,
+//   사람이 적은 옛 철자는 `E-LIT-ROWS-OLD` 로 거절한다. `--fmt`(migrate)는 거꾸로 옛 철자를 새 철자로 옮겨 찍게 한다 — `_` 는
+//   남은 줄 수만큼 `lit array t m _ .` 로 펼친다.
+static bool rw_rowtype(const low_cst_t *n) {
+    n = mx_inner(n);
+    return n && n->kind == LOW_CST_FORM && n->nkids == 3 && mx_is(n->kids[0], "array");
+}
+static low_cst_t *rw_zero_row(mx_t *c, const low_cst_t *lit, const low_cst_t *rowty) {
+    const low_cst_t *rt = mx_inner(rowty);
+    low_cst_t *kk[5] = { mx_copy(c, lit->kids[0]), mx_word(c, lit->kids[1], "array"), mx_copy(c, rt->kids[1]), mx_copy(c, rt->kids[2]), mx_word(c, lit->kids[1], "_") };
+    for (int i = 0; i < 5; i++) if (!kk[i]) return NULL;
+    low_cst_t *f = low_node(&c->p, LOW_CST_FORM, lit->kids[0]->tok);
+    if (!f) return NULL;
+    f->file = lit->file; f->closer = lit->closer;
+    (void)low_refit(&c->p, f, kk, 5);
+    return f;
+}
+static void rw_walk(mx_t *c, low_cst_t *n, bool migrate) {
+    if (!n || c->failed) return;
+    for (proven_size_t i = 0; i < n->nkids; i++) if (n->kids[i]->kind != LOW_CST_ATOM) rw_walk(c, n->kids[i], migrate);
+    if (n->kind != LOW_CST_FORM || n->nkids < 3 || !mx_atom(n->kids[0]) || n->kids[0]->tok.kw != LOW_KW_LIT ||
+        mx_atom(n->kids[2]) || !rw_rowtype(n->kids[2])) return;
+    if (mx_is(n->kids[1], "array") && !n->kids[1]->synth) {
+        if (!migrate) {
+            mx_fail(c, n->kids[0], "E-LIT-ROWS-OLD",
+                    "a list of rows is a SLICE of rows, so it is written `lit slice (array <type> <m>) <row>… .` — no count, no `_` "
+                    "(write a zero row as `lit array <type> <m> _ .`). The old `lit array (array <type> <m>) <n> …` said `array` for "
+                    "a value that is not one; `lowentc --fmt` rewrites it");
+            return;
+        }
+        unsigned long long cnt;
+        if (n->nkids < 4 || !mx_num(n->kids[3], &cnt)) return;           // 꼴이 틀렸다 — 그대로 두고 검사가 말하게 한다
+        proven_size_t e = n->nkids; bool tail = mx_is(n->kids[e - 1], "_");
+        unsigned long long given = (unsigned long long)(e - 4 - (tail ? 1 : 0));
+        if (given > cnt || (!tail && given != cnt)) return;
+        unsigned long long zeros = tail ? cnt - given : 0;
+        if (zeros > 4096) return;
+        proven_size_t total = 3 + (proven_size_t)given + (proven_size_t)zeros;
+        low_cst_t **kk = (low_cst_t **)mx_alloc(c, sizeof(low_cst_t *) * total);
+        if (!kk) return;
+        proven_size_t w = 0;
+        kk[w++] = n->kids[0]; kk[w++] = mx_word(c, n->kids[1], "slice"); kk[w++] = n->kids[2];
+        for (proven_size_t q = 4; q < 4 + (proven_size_t)given; q++) kk[w++] = n->kids[q];
+        for (unsigned long long z = 0; z < zeros; z++) { kk[w] = rw_zero_row(c, n, n->kids[2]); if (!kk[w]) return; w++; }
+        if (!kk[1]) return;
+        (void)low_refit(&c->p, n, kk, w);
+        return;
+    }
+    if (migrate || !mx_is(n->kids[1], "slice")) return;
+    for (proven_size_t q = 3; q < n->nkids; q++)
+        if (mx_is(n->kids[q], "_")) {
+            mx_fail(c, n->kids[q], "E-LIT-COUNT",
+                    "a list of rows is a slice list, and a slice list has no `_` — write each zero row as `lit array <type> <m> _ .`");
+            return;
+        }
+    low_cst_t *nk[3] = { mx_word(c, n->kids[1], "array"), n->kids[2], mx_number(c, n->kids[1], (unsigned long long)(n->nkids - 3)) };
+    if (!nk[0] || !nk[2]) return;
+    mx_splice(c, n, 1, 3, nk, 3);
+}
+static bool rw_mentions(const low_cst_t *n) {
+    if (!n) return false;
+    if (n->kind == LOW_CST_FORM && n->nkids >= 3 && mx_atom(n->kids[0]) && n->kids[0]->tok.kw == LOW_KW_LIT &&
+        !mx_atom(n->kids[2]) && rw_rowtype(n->kids[2])) return true;
+    for (proven_size_t i = 0; i < n->nkids; i++) if (rw_mentions(n->kids[i])) return true;
+    return false;
+}
+bool low_rows_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool migrate) {
+    bool any = false;
+    for (proven_size_t i = 0; i < pr->nforms && !any; i++) any = rw_mentions(pr->forms[i]);
+    if (!any) return true;
+    mx_t *c = (mx_t *)work.alloc_fn(work.ctx, sizeof(mx_t), alignof(mx_t)).value.ptr;
+    if (!c) return true;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms && !c->failed; i++) rw_walk(c, pr->forms[i], migrate);
+    return !c->failed;
+}
+

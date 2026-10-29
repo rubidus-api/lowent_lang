@@ -313,7 +313,7 @@ end .", "E-CLOSER-EXTRA")
 
 export fn first_zero input want u32 . output usize .
 do
-  let g lit array (array u32 3) 2 lit array u32 3 4 7 1 . lit array u32 3 9 0 5 . . .
+  let g lit slice (array u32 3) lit array u32 3 4 7 1 . lit array u32 3 9 0 5 . . .
   var hit usize 99 .
   repeat r usize len g. . do
     repeat c usize 3 do

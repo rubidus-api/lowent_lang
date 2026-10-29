@@ -5,7 +5,7 @@ module vm_breakcount .
 rem the first cell that holds `want`, as row * 3 + column; 99 when there is none
 export fn find input want u32 . output usize .
 do
-  let g lit array (array u32 3) 3 lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
+  let g lit slice (array u32 3) lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
   var hit usize 99 .
   repeat r usize len g. . do
     repeat c usize 3 do
@@ -21,7 +21,7 @@ end .
 rem rows that hold no `bad` — `continue 2` goes on to the next row from inside the scan of one
 export fn clean_rows input bad u32 . output u64 .
 do
-  let g lit array (array u32 3) 3 lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
+  let g lit slice (array u32 3) lit array u32 3 1 2 3 . lit array u32 3 4 0 6 . lit array u32 3 7 8 9 . . .
   var n u64 0 .
   for row g. do
     for x row. do

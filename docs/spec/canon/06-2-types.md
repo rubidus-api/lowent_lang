@@ -513,8 +513,10 @@ end .
       나열 — 바이트 배치가 없는 구조체 · 칸이 구조체인 구조체 · 줄을 골라 채우기(`do … end`) — 은 무엇이 아직인지 말하며
       거부된다(`E-LIT-UNBUILT`). 구조체 안의 배열 칸은 ⟦§6.2.7⟧ (1a) 가 정한다.
 
-(9a) **줄의 나열** — 원소가 고정 길이 배열 `(array t m)` 인 나열 `lit array (array t m) n <줄>… [_] .` 의 타입은
-      `slice (array t m)` 이다. `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 **보는** `slice t`(길이 m, 복사 없음)다 —
+(9a) **줄의 나열** — 원소가 고정 길이 배열 `(array t m)` 인 나열 `lit slice (array t m) <줄>… .` 의 타입은
+      `slice (array t m)` 이다. 다른 슬라이스 나열처럼((6)) 줄의 수를 적지 않고 `_` 가 없다((6a)) — 0 인 줄은 `lit array t m _ .` 로
+      적는다. 옛 철자 `lit array (array t m) n <줄>… [_] .` 은 슬라이스 값을 `array` 로 적었으므로 거부된다(`E-LIT-ROWS-OLD` —
+      `lowentc --fmt` 가 새 철자로 옮긴다). `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 **보는** `slice t`(길이 m, 복사 없음)다 —
       바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array t m` 과 다르면
       거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set idx g. r. . <줄> .` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
       베낀다. 틀 안 나열의 줄(과 구조체 원소)은 그 틀의 바이트를 보므로 블록 밖으로 나르면 `E-LIT-ESCAPE` 다.

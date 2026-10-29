@@ -229,6 +229,8 @@ proven_u8 low_enum_layout_width(proven_u8str_view_t name);   // 그 가운데 �
 // ★ RFC-0144 §6-2 — `matrix` 를 나무 위에서 `array` · `subslice` 로 옮겨 적는다(low_matrix.c). 선언 차례 패스 앞에서 한 번 돈다.
 //   거절했으면 false — 진단은 `pr->diags` 에 있다.
 bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+/* 줄의 나열: `lit slice (array t m) <줄>… .` → 안쪽 꼴 · 옛 `lit array (array t m) n …` 은 E-LIT-ROWS-OLD. migrate(--fmt)면 옛 → 새 */
+bool low_rows_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool migrate);
 void *low_tyctx_open(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 void low_tyctx_form(void *ctx, const low_cst_t *topform);
 proven_size_t low_tyctx_enter(void *ctx, const low_cst_t *opform);

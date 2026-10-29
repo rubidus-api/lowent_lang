@@ -2038,11 +2038,14 @@ int main(int argc, char **argv) {
         // ★ `--fmt` 는 옛 모양을 새 모양으로 **옮겨** 찍는다(2026-09-28, 코드 검토 — 전엔 그대로 찍고 rc=0 이라
         //   공개 저장소의 사용자가 옮길 길이 없었다). 타입 없는 묶기는 알리고 실패로 끝난다.
         if (want_fmt) { low_surface_lower(&pr, nodes0, heap);   // ★ RFC-0141 — 서식기도 안쪽 나무에서 값을 묶는다(찍는 것은 새 표면)
+                        (void)low_rows_lower(&pr, nodes0, heap, true);   // ★ 2026-10-29 — 옛 줄의 나열을 새 철자로 옮겨 찍는다
                         low_decl_migrate(&pr, nodes0, heap); }
         else { low_surface_lower(&pr, nodes0, heap);
                // ★ RFC-0144 §6-2 — `matrix` 를 `array` · `subslice` 로. 뒤의 걸음(이름 붙은 결과 · 배열 결과 · 입력 배열의 계약)이
                //   옮겨 적힌 것을 본다. 거절했으면 뒤따르는 진단은 전부 헛것이라 폼을 비운다(표면 패스가 토큰을 비우는 것과 같다).
                if (!low_matrix_lower(&pr, nodes0, heap)) pr.nforms = 0;
+               // ★ 2026-10-29 — 줄의 나열은 `lit slice (array t m) <줄>… .` 이다. 안쪽 꼴로 옮겨 적고 옛 철자는 거절한다.
+               if (!low_rows_lower(&pr, nodes0, heap, false)) pr.nforms = 0;
        // ★ RFC-0141 — 새 표면(`be` 없음 · `use`/`keep` · 네 되풀이)을 안쪽 나무로
                low_def_require(&pr, nodes0, heap);         // ★ RFC-0132 §5.2 — 타입 선언은 `def` 로 시작한다
                low_enum_layout(&pr, nodes0, heap);         // ★ RFC-0150 §8-31 — 열거의 `layout uN .` 은 갈래가 아니라 폭이다

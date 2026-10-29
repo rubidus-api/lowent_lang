@@ -7834,7 +7834,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                 if (ra) {
                     const low_cst_t *nn = nd->nkids > 3 ? nd->kids[3] : NULL;
                     if (!nn || !ck_atom(nn) || nn->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), nn->tok.lex)) {
-                        emit(out, "E-LIT-COUNT", "`lit array (array <type> <m>) <rows> …` — the number of rows is a plain integer literal", ln); return;
+                        emit(out, "E-LIT-COUNT", "a list of rows `lit slice (array <type> <m>) <row>… .` counts its rows itself — this inner form needs the row count as a plain integer literal", ln); return;
                     }
                     rn = strtoll((const char *)nn->tok.lex.ptr, NULL, 0); e0 = 4;
                 }

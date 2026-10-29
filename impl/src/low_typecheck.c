@@ -2338,7 +2338,7 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
         ty_t t = ty_of_word(nd->kids[1]->tok.lex);
         if (t.k == TK_NAMED) { t.nname = nd->kids[1]->tok.lex; return t; }
     }
-    // `lit array (array T M) N …` — 줄의 배열(§13.10): 원소가 줄인 슬라이스
+    // `lit array (array T M) N …` — 줄의 배열(§13.10): 원소가 줄인 슬라이스. 사람이 적는 철자는 `lit slice (array T M) <줄>… .` 이고 `low_rows_lower` 가 이 꼴로 옮긴다
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT &&
         nd->kids[1]->kind == LOW_CST_ATOM && veq(nd->kids[1]->tok.lex, "array") && nd->kids[2]->kind != LOW_CST_ATOM) {
         const low_cst_t *rt = nd->kids[2];

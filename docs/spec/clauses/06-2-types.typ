@@ -299,6 +299,42 @@ let back u8 narrow u8 wide. . .")
       `return` 이어야 한다 — `guard … else return v. . .` 처럼 블록 밖이면 거부된다(`E-RESULT-PLACE`). 그런 op 은 결과에 이름을 붙인다.
       - 원소는 수 타입이고 길이는 정수 리터럴이다(그 밖은 `E-TYPE-ARRAY`).
     ]
+    #para("1d")[
+      #strong[배열 안의 배열]; — 원소 타입이 다시 배열이어도 된다. `array n array m t` 는 길이 `m` 인 줄 `n` 개가 줄 우선으로 빈틈 없이
+      놓인 줄이다(C 의 `t a[n][m]` 과 같은 배치). 원소 타입이 맨 뒤에 오므로 괄호가 들지 않는다((1a)).
+      - `idx a. i. .` 는 줄 `i` 의 바이트를 #strong[보는]; `slice t`(길이 `m`, 복사 없음)다 — (9a) 의 줄의 나열과 같은 규칙을 따른다. 바깥이
+      `mut` 이면 그 줄의 칸도 쓸 수 있고, 한 줄을 통째로 바꾸는 `set idx a. i. . <줄> .` 은 없다(`E-TYPE-SET`).
+      - op 의 입력 `input x array n array m t .` 은 줄의 슬라이스 `slice array m t` 를 받으며 줄 수가 `n` 인지 #strong[진입에서 검사된다];((1b)).
+      줄의 나열도, 바이트 위의 줄 보기(#cref("8.7") (7a))도 그대로 넘길 수 있다.
+      - 구조체의 칸이면 원소 `n × m` 개의 바이트를 #strong[레코드 안에]; 가진다(#cref("6.2.7") (1a) 의 배열 칸과 같다 — 구조체를 베끼면 함께 베껴진다).
+      - 값은 `lit array n array m t <줄>… [_] .` 로 짓는다. 줄마다 `lit array m t …` 이고, 끝의 `_` 는 남은 줄을 0 으로 채운다((6a)).
+      - 원소는 크기 있는 수와 `bool` 이다. 두 겹까지 짓는다 — 원소가 다시 배열을 품으면(세 겹), 그리고 줄의 슬라이스 · 줄 보기의 줄이
+      배열 안의 배열이면 거부된다(`E-TYPE-ARRAY`). 더 많은 차원은 `matrix` 로 적는다(#cref("6.2.6.1")).
+      - 배열 안의 배열을 #strong[돌려주는]; op 은 아직 없다(`E-TYPE-ARRAY`) — 자리를 `mut` 입력으로 받아 채우거나 `matrix` 를 돌려준다.
+    ]
+    #ex("배열 안의 배열", "module ex_nested_array .
+
+fn rowsum input g array 2 array 3 u8 . input r usize . output u64 .
+  requires lt r. 2 . .
+do
+  var s u64 0 .
+  for x idx g. r. . do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
+
+export fn table output u64 . do
+  var g lit array 2 array 3 u8 lit array 3 u8 1 2 3 . _ . .
+  set idx idx g. 1 . 2 . 7 .
+  return add mul rowsum g. 0 . 100 . rowsum g. 1 . . .
+end .")
+    #rejected("배열 안의 배열 안의 배열", "module ex_nested_three .
+
+export fn f output usize . do
+  var g lit array 2 array 2 array 2 u8 _ . .
+  return len g. . .
+end .", "E-TYPE-ARRAY")
     #ex("배열을 돌려주는 op — 부르는 쪽이 자리를 준다", "module ex_array_result .
 
 fn squares input n u64 . output r array 3 u64 .
@@ -527,8 +563,7 @@ end .", "E-TYPE-ORDER")
     #para("9a")[
       #strong[줄의 나열]; — 원소가 고정 길이 배열 `(array m t)` 인 나열 `lit slice array m t <줄>… .` 의 타입은
       `slice array m t` 이다. 다른 슬라이스 나열처럼((6)) 줄의 수를 적지 않고 `_` 가 없다((6a)) — 0 인 줄은 `lit array m t _ .` 로
-      적는다. 옛 철자 `lit array n array m t <줄>… [_] .` 은 슬라이스 값을 `array` 로 적었으므로 거부된다(`E-LIT-ROWS-OLD` —
-      `lowentc --fmt` 가 새 철자로 옮긴다). 이미 있는 바이트 위에는 `view_array array m t b.` 로 같은 타입의 줄 보기를 얹는다(#cref("8.7") (7a)). `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
+      적는다. 줄 수를 적은 `lit array n array m t <줄>… [_] .` 는 배열 안의 배열의 값이다((1d)). 이미 있는 바이트 위에는 `view_array array m t b.` 로 같은 타입의 줄 보기를 얹는다(#cref("8.7") (7a)). `len` 은 줄 수이고, `idx g. r. .` 는 줄 r 의 바이트를 #strong[보는]; `slice t`(길이 m, 복사 없음)다 —
       바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array m t` 과 다르면
       거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set idx g. r. . <줄> .` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
       베낀다. 틀 안 나열의 줄(과 구조체 원소)은 그 틀의 바이트를 보므로 블록 밖으로 나르면 `E-LIT-ESCAPE` 다.

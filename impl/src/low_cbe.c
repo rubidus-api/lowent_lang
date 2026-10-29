@@ -5470,8 +5470,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 12; t++) {
-        const char *nm = t == 11 ? "lw_st_fsg16"                            /* ★ RFC-0151 §9.4.1 16 바이트 칸이 부호 있는가(i128) */
+    for (int t = 0; t < 13; t++) {
+        const char *nm = t == 12 ? "lw_st_farrb"                            /* ★ RFC-0155 §8-3 배열 안의 배열 칸: 줄 바이트(0=줄이 아님) */
+                       : t == 11 ? "lw_st_fsg16"                            /* ★ RFC-0151 §9.4.1 16 바이트 칸이 부호 있는가(i128) */
                        : t == 10 ? "lw_st_fbx"                              /* ★ RFC-0150 §8-12 스스로를 품는 칸(그림자): 가리키는 배치 + 1(0=아님) */
                        : t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
                        : t == 3 ? "lw_st_fflt" : t == 4 ? "lw_st_fsidx"   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
@@ -5493,6 +5494,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 7 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].slmeta : 0) :
                         t == 8 ? (int)ir->structs[s].f[i].elo : t == 9 ? (int)ir->structs[s].f[i].ehi :
                         t == 10 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].bxs1 : 0) :
+                        t == 12 ? (int)(((proven_u64)ir->structs[s].f[i].arrmeta >> 32) & 0xffffffu) :
                         (int)(ir->structs[s].f[i].size == 16 && ir->structs[s].f[i].cname.size && ir->structs[s].f[i].cname.ptr[0] == (proven_u8)'i'));
             fputs(" }", out);
         }
@@ -5583,7 +5585,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                /* T2b-3d: an ARRAY field lies inline — hand back a view of its bytes (zero-copy) */\n"
           "                if (lw_st_farrn[r.box][i]) { lowv v = {0}; int m_ = lw_st_farrm[r.box][i], e_ = m_ & 0xff;\n"
           "                    v.p = r.p + lw_st_foff[r.box][i];\n"
-          "                    if (e_ == 1 && !(m_ & 0x30000)) { v.tag = LWV_SLICE; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
+          "                    if (m_ & 0x80000) { int rb_ = lw_st_farrb[r.box][i]; /* RFC-0155 §8-3: an array of arrays — a view of its rows */\n"
+          "                        v.tag = LWV_VARRAY; v.i = m_ & (0x80000 | 0x30000 | 0xff); v.box = rb_; v.n = rb_ ? (size_t)lw_st_farrn[r.box][i] * (size_t)e_ / (size_t)rb_ : 0; }\n"
+          "                    else if (e_ == 1 && !(m_ & 0x30000)) { v.tag = LWV_SLICE; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
           "                    else { v.tag = LWV_VARRAY; v.i = m_ & 0x30000; v.box = e_; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
           "                    return v; }\n"
           "                /* RFC-0150 §8-12: a self-owning node field — one address (0 = none) */\n"
@@ -5798,7 +5802,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 for (proven_size_t z = 0; z < ir->structs[s].nf; z++)
                     if (ir->structs[s].f[z].arrn && proven_u8str_view_eq(ir->structs[s].f[z].name, ir->makes[mk].fields[q]))
                         fprintf(out, " {%zu, %zu, %u, %u, %lldLL},", (size_t)mk, (size_t)q, (unsigned)ir->structs[s].f[z].arrn,
-                                (unsigned)ir->structs[s].f[z].arresz, (long long)(ir->structs[s].f[z].arrmeta & 0x30000));
+                                (unsigned)ir->structs[s].f[z].arresz,
+                                (long long)((ir->structs[s].f[z].arrmeta & IR_ROW_BIT)   // ★ RFC-0155 §8-3 — 배열 안의 배열 칸은 줄 표시 · 원소 폭 · 줄 바이트도 싣는다
+                                            ? (ir->structs[s].f[z].arrmeta & (IR_ROW_BIT | 0x30000 | 0xff | ((proven_i64)0xffffff << 32)))
+                                            : (ir->structs[s].f[z].arrmeta & 0x30000)));
             break;
         }
     // ★ 배열 칸 바이트의 최대(한 레코드) — 프리스탠딩은 힙이 없으므로 자리마다 이만큼의 정적 버퍼를 둔다.
@@ -5845,7 +5852,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
               "static int lw_fstore_arr(lowrec *r, int slot, lowv v) { (void)r; (void)slot; (void)v; return 0; }\n", out);
     } else fputs(
           "static lowv lw_arr_view(int k, unsigned char *p) { lowv v = {0}; v.p = p;\n"
-          "    if (lw_arrf[k].esz == 1 && !lw_arrf[k].meta) { v.tag = LWV_SLICE; v.n = (size_t)lw_arrf[k].n; }\n"
+          "    if (lw_arrf[k].meta & 0x80000) { size_t rb_ = (size_t)((lw_arrf[k].meta >> 32) & 0xffffff); /* RFC-0155 §8-3: rows */\n"
+          "        v.tag = LWV_VARRAY; v.i = lw_arrf[k].meta & (0x80000 | 0x30000 | 0xff); v.box = (int)rb_; v.n = rb_ ? (size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz / rb_ : 0; }\n"
+          "    else if (lw_arrf[k].esz == 1 && !lw_arrf[k].meta) { v.tag = LWV_SLICE; v.n = (size_t)lw_arrf[k].n; }\n"
           "    else { v.tag = LWV_VARRAY; v.n = (size_t)lw_arrf[k].n; v.box = lw_arrf[k].esz; v.i = lw_arrf[k].meta; }\n"
           "    return v; }\n"
           "static void lw_arr_copy(int k, lowv s, unsigned char *dst) { size_t need = (size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz, have = 0;\n"

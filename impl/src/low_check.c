@@ -7701,9 +7701,23 @@ static bool ck_struct_array_field(low_check_result_t *out, const low_cst_t *fld,
     if (!(fld->kind == LOW_CST_FORM && fld->nkids >= 2 && ck_atom(fld->kids[0]) && ck_atom(fld->kids[1]) && veq(fld->kids[1]->tok.lex, "array")))
         return false;
     const low_cst_t *t = fld->nkids > 2 ? fld->kids[2] : NULL, *n = fld->nkids > 3 ? fld->kids[3] : NULL;
+    // ★ RFC-0155 §8-3 — 배열 안의 배열 칸 `g array 2 array 3 u8 .`(안쪽 꼴 `array (array u8 3) 2`): 원소가 크기 있는 수 · bool 인 줄이다
+    if (t && n && t->kind == LOW_CST_GROUP && t->nkids == 1 && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER) {
+        const low_cst_t *rf = t->kids[0];
+        if (!(rf->kind == LOW_CST_FORM && rf->nkids == 3 && ck_atom(rf->kids[0]) && veq(rf->kids[0]->tok.lex, "array") && ck_atom(rf->kids[1]) &&
+              ck_atom(rf->kids[2]) && rf->kids[2]->tok.kind == LOW_TOK_NUMBER && ck_elem_sized(rf->kids[1]->tok.lex))) {
+            emit(out, "E-LIT-UNBUILT", "an array field holds sized numbers, `bool` or rows of them (`array 2 array 3 u8`) — an array of arrays of "
+                 "arrays, or of structs, is not built yet", fld->kids[1]->tok.line);
+            return true;
+        }
+        unsigned long long cn = strtoull((const char *)n->tok.lex.ptr, NULL, 0), cm = strtoull((const char *)rf->kids[2]->tok.lex.ptr, NULL, 0);
+        if (!cn || !cm) { emit(out, "E-TYPE-ARRAY", "an array field holds at least one element — `array 0 <type>` has nothing to keep", fld->kids[1]->tok.line); return true; }
+        *bytes += cn * cm * ck_elem_bytes(rf->kids[1]->tok.lex);
+        return true;
+    }
     if (t && n && ck_atom(t) && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER && t->tok.kind == LOW_TOK_IDENT && !ck_elem_sized(t->tok.lex)) {
-        emit(out, "E-LIT-UNBUILT", "an array field whose elements are structs or arrays is not built yet (RFC-0132 T2b-3) — "
-             "today the elements are sized numbers or `bool`", fld->kids[1]->tok.line);
+        emit(out, "E-LIT-UNBUILT", "an array field whose elements are structs is not built yet (RFC-0132 T2b-3) — "
+             "today the elements are sized numbers, `bool` or rows of them (`array 2 array 3 u8`)", fld->kids[1]->tok.line);
         return true;
     }
     if (!(t && n && ck_atom(t) && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER)) return false;   // 모양이 틀리면 아래의 거절이 말한다

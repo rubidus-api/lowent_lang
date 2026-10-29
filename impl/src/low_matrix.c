@@ -858,9 +858,9 @@ bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, pro
 //   줄의 나열(RFC-0132 §13.10 · 정본 §6.2 (9a))의 값은 `slice (array t m)` 다. 그런데 철자는 `lit array (array t m) n <줄>… [_] .` 이라
 //   머리가 `array` 를 말했다 — 정본 §6.2 (6) 의 «`lit array` 는 배열 값 · `lit slice` 는 슬라이스 값» 과 어긋났다. 이제 철자는
 //   `lit slice (array t m) <줄>… .` 이다: 다른 슬라이스 나열처럼 개수를 적지 않고 `_` 가 없다(§6.2 (6a) — 0 인 줄은 `lit array t m _ .`).
-//   이 패스는 새 철자를 뒤의 걸음이 아는 안쪽 꼴(`lit array (array t m) <줄 수> <줄>…` — 머리 낱말에 synth 표시)로 옮겨 적고,
-//   사람이 적은 옛 철자는 `E-LIT-ROWS-OLD` 로 거절한다. `--fmt`(migrate)는 거꾸로 옛 철자를 새 철자로 옮겨 찍게 한다 — `_` 는
-//   남은 줄 수만큼 `lit array t m _ .` 로 펼친다.
+//   이 패스는 새 철자를 뒤의 걸음이 아는 안쪽 꼴(`lit array (array t m) <줄 수> <줄>…` — 머리 낱말에 synth 표시)로 옮겨 적는다.
+//   ★ 같은 날 RFC-0155 §8-3(배열 안의 배열) — 사람이 줄 수를 적은 `lit array n array m t <줄>… [_] .` 은 배열 안의 배열의 값이다(첫 판은
+//   이 꼴을 옛 철자라 `E-LIT-ROWS-OLD` 로 거절했다). 안쪽 꼴이 같으므로 남은 줄 `_` 만 0 인 줄로 펼친다. 서식기는 그대로 둔다.
 static bool rw_rowtype(const low_cst_t *n) {
     n = mx_inner(n);
     return n && n->kind == LOW_CST_FORM && n->nkids == 3 && mx_is(n->kids[0], "array");
@@ -881,13 +881,9 @@ static void rw_walk(mx_t *c, low_cst_t *n, bool migrate) {
     if (n->kind != LOW_CST_FORM || n->nkids < 3 || !mx_atom(n->kids[0]) || n->kids[0]->tok.kw != LOW_KW_LIT ||
         mx_atom(n->kids[2]) || !rw_rowtype(n->kids[2])) return;
     if (mx_is(n->kids[1], "array") && !n->kids[1]->synth) {
-        if (!migrate) {
-            mx_fail(c, n->kids[0], "E-LIT-ROWS-OLD",
-                    "a list of rows is a SLICE of rows, so it is written `lit slice array <m> <type> <row>… .` — no count, no `_` "
-                    "(write a zero row as `lit array <m> <type> _ .`). The old `lit array <n> array <m> <type> …` said `array` for "
-                    "a value that is not one; `lowentc --fmt` rewrites it");
-            return;
-        }
+        // ★ RFC-0155 §8-3 (2026-10-29 · 소유자 «배열 안의 배열도 넣는다») — `lit array 3 array 4 u8 <줄>… [_] .` 은 배열 안의 배열의 값이다
+        //   (1.20 의 첫 판은 이 꼴을 «옛 줄의 나열» 이라 `E-LIT-ROWS-OLD` 로 거절했다). 안쪽 꼴은 줄의 나열과 같다 — 남은 줄 `_` 는 0 인 줄로 펼친다.
+        if (migrate) return;
         unsigned long long cnt;
         if (n->nkids < 4 || !mx_num(n->kids[3], &cnt)) return;           // 꼴이 틀렸다 — 그대로 두고 검사가 말하게 한다
         proven_size_t e = n->nkids; bool tail = mx_is(n->kids[e - 1], "_");
@@ -895,15 +891,15 @@ static void rw_walk(mx_t *c, low_cst_t *n, bool migrate) {
         if (given > cnt || (!tail && given != cnt)) return;
         unsigned long long zeros = tail ? cnt - given : 0;
         if (zeros > 4096) return;
-        proven_size_t total = 3 + (proven_size_t)given + (proven_size_t)zeros;
+        proven_size_t total = 4 + (proven_size_t)given + (proven_size_t)zeros;
         low_cst_t **kk = (low_cst_t **)mx_alloc(c, sizeof(low_cst_t *) * total);
         if (!kk) return;
         proven_size_t w = 0;
-        kk[w++] = n->kids[0]; kk[w++] = mx_word(c, n->kids[1], "slice"); kk[w++] = n->kids[2];
+        kk[w++] = n->kids[0]; kk[w++] = mx_word(c, n->kids[1], "array"); kk[w++] = n->kids[2]; kk[w++] = n->kids[3];
         for (proven_size_t q = 4; q < 4 + (proven_size_t)given; q++) kk[w++] = n->kids[q];
         for (unsigned long long z = 0; z < zeros; z++) { kk[w] = rw_zero_row(c, n, n->kids[2]); if (!kk[w]) return; w++; }
         if (!kk[1]) return;
-        (void)low_refit(&c->p, n, kk, w);
+        (void)low_refit(&c->p, n, kk, w);              // 머리 낱말은 synth — 뒤의 걸음이 줄의 나열과 같은 안쪽 꼴로 읽는다
         return;
     }
     if (migrate || !mx_is(n->kids[1], "slice")) return;
@@ -1070,6 +1066,18 @@ static bool or_seq(or_t *o, low_cst_t *const *k, proven_size_t n, low_cst_t ***o
         if (!or_seq(o, k + i + 1 + nc, te - (i + 1 + nc), &sub, &ns)) return false;
         low_cst_t *el = ns == 1 ? sub[0] : or_group(o, t, sub, ns);
         if (!el) return false;
+        // ★ RFC-0155 §8-3 — 배열 안의 배열은 두 겹까지 지었다(안쪽 꼴이 줄의 나열과 같다). 세 겹 · 줄의 슬라이스의 원소가 다시 배열인 꼴은 정직하게 거절한다.
+        if (!mat && mx_is(t, "array") && el->kind == LOW_CST_GROUP) {
+            const low_cst_t *in = mx_inner(el);
+            bool deep = in && in->kind == LOW_CST_FORM && in->nkids >= 2 && mx_is(in->kids[0], "array") && in->kids[1]->kind == LOW_CST_GROUP;
+            bool rows_of_rows = m > 0 && in && in->kind == LOW_CST_FORM && (mx_is(w[m - 1], "slice") || mx_is(w[m - 1], "view_array"));
+            if (deep || rows_of_rows) {
+                mx_fail(o->c, t, "E-TYPE-ARRAY", "an array inside an array is built two levels deep (`array 3 array 4 u8`, and a slice of rows "
+                        "`slice array 4 u8`) — a third level is not built yet (RFC-0155 §8-3). For more dimensions write a `matrix` "
+                        "(`matrix 3 2 3 4 u8`)");
+                return false;
+            }
+        }
         low_cst_t *tri[2 + MX_MAXRANK + 1];
         proven_size_t nt = 0;
         tri[nt++] = t; tri[nt++] = el;

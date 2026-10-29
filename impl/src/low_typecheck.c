@@ -2531,7 +2531,8 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         // ★ `slice <T>` — **원소 타입이 타입의 일부다.**
         //   이것을 안 실어서 `index s i` 가 언제나 u8 이었다. slice u32 의 원소는 u32 다.
         // ★ 머리의 절 범위(`low_op_header`)는 첫 괄호 앞에서 끝난다 — 줄 타입 `(array T M)` 은 범위 바로 뒤에 있을 수 있다
-        if (veq(w, "slice") && i + 1 <= end && i + 1 < f->nkids && f->kids[i + 1]->kind != LOW_CST_ATOM) {   // §13.10 줄의 슬라이스
+        // ★ RFC-0155 §8-3 — 배열 안의 배열(안쪽 꼴 `array (array T M) N`)의 칸도 줄의 슬라이스로 읽힌다(줄 수는 칸이 쥔다)
+        if ((veq(w, "slice") || veq(w, "array")) && i + 1 <= end && i + 1 < f->nkids && f->kids[i + 1]->kind != LOW_CST_ATOM) {   // §13.10 줄의 슬라이스
             const low_cst_t *rt = f->kids[i + 1];
             while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
             if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[0]->kind == LOW_CST_ATOM && veq(rt->kids[0]->tok.lex, "array") &&

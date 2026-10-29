@@ -179,6 +179,20 @@ A row table can also sit on bytes you already have. `view_array array 4 u8 b.` i
 bytes at a time --- nothing is copied, and the cells can be written when `b` can. If the length of `b` is not a multiple of 4,
 the program stops. So one op takes a table written in the source and bytes read from elsewhere alike.
 
+== Arrays of arrays
+
+When the elements are arrays again, it is an *array of arrays*. `array 2 array 3 u8` is a table of 2 rows of 3 cells laid one after
+the other --- the same layout as C's `u8 a[2][3]` --- and, because the element type comes last, it needs no parentheses.
+
+#demo("examples/ch09/nested.low")
+
+- A value is `lit array 2 array 3 u8 <row>… .`; a trailing `_` fills the remaining rows with zeros.
+- `idx g. r. .` is a slice that *views* row r (no copy). The rules are those of a list of rows, so a list of rows and a row view over
+  bytes can be passed to the same input; the row count is checked at entry.
+- As a struct field the bytes lie *inside the record*, and copying the struct copies them.
+- Two levels deep. A third level is refused with `E-TYPE-ARRAY`; for more dimensions write a `matrix` (next section). An op cannot
+  return an array of arrays yet --- take the place as a `mut` input and fill it.
+
 == Several dimensions --- `matrix`
 
 When there are two or more dimensions and the sizes are known in advance, write a `matrix`. `matrix 2 3 4 u32` is a table of

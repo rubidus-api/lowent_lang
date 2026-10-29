@@ -1,0 +1,83 @@
+module nestarr .
+rem ★★ RFC-0155 §8-3 (2026-10-29 · 소유자 «배열 안의 배열도 넣는다») — 배열 안의 배열 `array 2 array 3 u8`.
+rem   값은 `lit array n array m t <줄>… [_] .`(남은 줄 `_` 은 0) · `idx a. i. .` 은 줄 i 를 보는 슬라이스(베끼지 않는다) ·
+rem   op 입력은 줄의 슬라이스와 줄 수의 진입 계약 · 구조체 칸은 줄 바이트를 레코드 안에 품는다. VM 과 네이티브가 같은 답인가.
+
+struct grid do
+  id u8 .
+  cells array 2 array 3 u8 .
+  tail u16 .
+end .
+
+struct wide do
+  g array 2 array 2 u16 .
+end .
+
+fn pick input g array 2 array 3 u8 . input r usize . input c usize . output u64 .
+  requires lt r. 2 . .
+  requires lt c. 3 . .
+do
+  return widen u64 idx idx g. r. . c. . . .
+end .
+
+proc poke input g mut array 2 array 3 u8 . output u64 . effects none . do
+  set idx idx g. 1 . 2 . 40 .
+  return 0 .
+end .
+
+fn total input w wide . output u64 . do
+  var s u64 0 .
+  for r field w. g . do
+    for c r. do
+      set s. add s. widen u64 c. . . .
+    end .
+  end .
+  return s. .
+end .
+
+rem 줄 둘 · 칸 쓰기 · 줄 수
+export fn rows output u64 . do
+  var g lit array 2 array 3 u8 lit array 3 u8 1 2 3 . lit array 3 u8 4 5 6 . . .
+  set idx idx g. 0 . 1 . 9 .
+  return add mul widen u64 idx idx g. 1 . 2 . . 100 . add widen u64 idx idx g. 0 . 1 . . cast u64 len g. . . . . .
+end .
+
+rem 남은 줄 `_` 는 0 인 줄이다
+export fn zfill output u64 . do
+  var g lit array 3 array 3 u8 lit array 3 u8 1 2 3 . _ . .
+  return add mul widen u64 idx idx g. 0 . 2 . . 100 . add widen u64 idx idx g. 2 . 2 . . cast u64 len g. . . . . .
+end .
+
+rem 입력 — 줄의 나열 · 바이트 위의 줄 보기를 그대로 받는다
+export fn taken output u64 . do
+  let g slice array 3 u8 lit slice array 3 u8 lit array 3 u8 1 2 3 . lit array 3 u8 4 5 6 . . .
+  var b lit array 6 u8 10 20 30 40 50 60 . .
+  return add pick g. 1 2 . pick view_array array 3 u8 b. . 0 1 . . .
+end .
+
+rem 줄 수가 다르면 진입에서 멈춘다
+export fn short output u64 . do
+  let g slice array 3 u8 lit slice array 3 u8 lit array 3 u8 1 2 3 . . .
+  return pick g. 0 0 . .
+end .
+
+rem `mut` 입력 — 부른 쪽의 칸이 바뀐다
+export proc mutin output u64 . effects none . do
+  var g lit array 2 array 3 u8 lit array 3 u8 1 2 3 . _ . .
+  let z u64 poke g. . .
+  return widen u64 idx idx g. 1 . 2 . . .
+end .
+
+rem 구조체 칸 — 읽기 · 쓰기 · 줄 수 · 이웃 칸
+export fn infield output u64 . do
+  var x lit grid do id 7 . cells lit array 2 array 3 u8 lit array 3 u8 1 2 3 . lit array 3 u8 4 5 6 . . . tail 500 . end . .
+  set idx idx field x. cells . 0 . 1 . 90 .
+  return add add mul widen u64 idx idx field x. cells . 1 . 2 . . 1000 . widen u64 idx idx field x. cells . 0 . 1 . . . add cast u64 len field x. cells . . . widen u64 field x. tail . . . . .
+end .
+
+rem 구조체를 베껴 넘기고 줄 · 칸을 훑는다(u16 칸)
+export fn copied output u64 . do
+  let x lit wide do g lit array 2 array 2 u16 lit array 2 u16 1000 2000 . lit array 2 u16 3 4 . . . end . .
+  let y wide x. .
+  return total y. . .
+end .

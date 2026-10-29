@@ -272,7 +272,7 @@ module.exports = grammar({
       .map(([head, shape]) => seq(
         field('head', alias(head, $.core_op)),
         choice($.stop, seq(
-          ...[...shape].map(c => c === 'V' ? $._term : field('word', choice($.name, $.path, $.number))),
+          ...[...shape].map(c => c === 'V' ? $._term : field('word', choice($.name, $.path, $.number, $.applied_type, $.paren_type))),   // RFC-0155 — `view_array array 4 u8 b.`
           $.stop))))),
   },
 });

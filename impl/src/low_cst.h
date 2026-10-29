@@ -229,7 +229,7 @@ proven_u8 low_enum_layout_width(proven_u8str_view_t name);   // 그 가운데 �
 // ★ RFC-0144 §6-2 — `matrix` 를 나무 위에서 `array` · `subslice` 로 옮겨 적는다(low_matrix.c). 선언 차례 패스 앞에서 한 번 돈다.
 //   거절했으면 false — 진단은 `pr->diags` 에 있다.
 bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
-/* 줄의 나열: `lit slice (array t m) <줄>… .` → 안쪽 꼴 · 옛 `lit array (array t m) n …` 은 E-LIT-ROWS-OLD. migrate(--fmt)면 옛 → 새 */
+/* 줄의 나열: `lit slice (array t m) <줄>… .` → 안쪽 꼴. 줄 수를 적은 `lit array (array t m) n <줄>… [_]` 은 배열 안의 배열(RFC-0155 §8-3) — `_` 를 펼친다. migrate(--fmt) 면 그대로 둔다 */
 bool low_rows_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool migrate);
 // RFC-0155 §8-2 — 사람의 차례(개수가 먼저)를 안쪽 차례(원소가 먼저)로. mode 0 번역 · 1 서식(옛 차례를 받는다) · 2 거꾸로(서식기가 찍기 전)
 bool low_order_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, int mode);

@@ -3424,6 +3424,25 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                         s->f[s->nf].elem = ae;
                     }
                 }
+                // ★ RFC-0155 §8-3 — 배열 안의 배열 칸(`array (array T M) N`): 바이트는 원소 N×M 개의 납작한 배열 칸과 같고(베끼기 · encode ·
+                //   C 의 `T f[N*M]` 이 그대로 선다), 읽으면 줄의 나열과 같은 줄 보기다(IR_ROW_BIT · 줄 바이트는 메타의 위 32 비트).
+                if (param_ty_ && is_atom(fld->kids[1]) && veq(fld->kids[1]->tok.lex, "array") && fld->nkids >= 4 &&
+                    fld->kids[2]->kind == LOW_CST_GROUP && fld->kids[2]->nkids == 1 && is_atom(fld->kids[3])) {
+                    const low_cst_t *rf_ = fld->kids[2]->kids[0];
+                    proven_i64 an = 0, am = 0;
+                    if (rf_->kind == LOW_CST_FORM && rf_->nkids == 3 && is_atom(rf_->kids[0]) && veq(rf_->kids[0]->tok.lex, "array") &&
+                        is_atom(rf_->kids[1]) && is_atom(rf_->kids[2]) && ir_int_lit(rf_->kids[2]->tok.lex, &am) && am > 0 &&
+                        ir_int_lit(fld->kids[3]->tok.lex, &an) && an > 0) {
+                        proven_u8 ae = ir_field_size(rf_->kids[1]->tok.lex);
+                        bool aflt = ir_is_float_ty(rf_->kids[1]->tok.lex), asgn = rf_->kids[1]->tok.lex.size && rf_->kids[1]->tok.lex.ptr[0] == (proven_u8)'i';
+                        if (ae && (proven_u64)an * (proven_u64)am <= 0xffffffu) {
+                            proven_u64 rb_ = (proven_u64)am * ae;
+                            s->f[s->nf].arrn = (proven_u32)(an * am); s->f[s->nf].arresz = ae;
+                            s->f[s->nf].arrmeta = (proven_i64)ae | (aflt ? IR_FLT_BIT : 0) | (asgn ? IR_SGN_BIT : 0) | IR_ROW_BIT | (proven_i64)(rb_ << 32);
+                            s->f[s->nf].elem = ae;
+                        }
+                    }
+                }
                 s->f[s->nf].tyname = is_atom(fld->kids[1]) ? fld->kids[1]->tok.lex : (proven_u8str_view_t){0};
                 s->f[s->nf].cname = ir_content_word(fld, 1, fld->nkids);   // RFC-0148 S2
                 // ★ **중첩 구조체** — 필드의 타입이 이미 선언된 구조체면 그 레이아웃을 쓴다.

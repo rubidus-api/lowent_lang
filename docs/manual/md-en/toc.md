@@ -112,10 +112,11 @@ Searches headings and index terms --- not the full text
 - [9.2 Writing needs mut slice](ch09.md#s9-2)
 - [9.3 Narrowing the window](ch09.md#s9-3)
 - [9.4 Writing a sequence directly — list literals](ch09.md#s9-4)
-- [9.5 Several dimensions — matrix](ch09.md#s9-5)
-- [9.6 Contracts remove bounds checks](ch09.md#s9-6)
-- [9.7 Common mistakes](ch09.md#s9-7)
-- [9.8 This chapter’s syntax at a glance](ch09.md#s9-8)
+- [9.5 Arrays of arrays](ch09.md#s9-5)
+- [9.6 Several dimensions — matrix](ch09.md#s9-6)
+- [9.7 Contracts remove bounds checks](ch09.md#s9-7)
+- [9.8 Common mistakes](ch09.md#s9-8)
+- [9.9 This chapter’s syntax at a glance](ch09.md#s9-9)
 
 [10 Aggregates — struct and enum](ch10.md)
 

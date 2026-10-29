@@ -360,7 +360,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-VOCAB-REMOVED",       "R-USE-REPLACEMENT" },
     { "E-DEF-OLD",             "R-USE-REPLACEMENT" },   // 타입 선언은 제 낱말로 시작한다 — `def` 를 지운다
     { "E-TYPE-ORDER",          "R-USE-REPLACEMENT" },   // RFC-0155 §8-2 — 옛 차례 `array u8 4` → `array 4 u8`(`--fmt` 가 옮긴다)
-    { "E-LIT-ROWS-OLD",        "R-USE-REPLACEMENT" },   // 줄의 나열 `lit array (array t m) n …` → `lit slice (array t m) <줄>… .`(`--fmt` 가 옮긴다)
     { "W-USE-EXTERNAL",        "R-INLINE-MODULE" },
     { "W-TEST-NOT-RUN",        "R-RUN-TESTS" },
 

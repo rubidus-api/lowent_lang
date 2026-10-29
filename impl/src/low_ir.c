@@ -1847,6 +1847,8 @@ bool ir_field_boxself(const low_cst_t *fld, proven_u8str_view_t sname) {
  proven_size_t ir_field_tywords(const low_cst_t *fld) {
     if (fld->nkids < 2 || !is_atom(fld->kids[1])) return 0;
     if (!ir_field_tyhead(fld->kids[1]->tok.lex)) return 1;      // 평범한 한 낱말 타입
+    // ★ RFC-0155 §8-3 — 배열 안의 배열 칸 `g array 2 array 3 u8 .`(안쪽 꼴 `array (array u8 3) 2`): 괄호 마디까지 타입이다
+    if (veq(fld->kids[1]->tok.lex, "array") && fld->nkids >= 4 && fld->kids[2]->kind == LOW_CST_GROUP && is_atom(fld->kids[3])) return 3;
     proven_size_t n = 1;
     while (1 + n < fld->nkids && is_atom(fld->kids[1 + n]) &&
            !ir_field_marker(fld->kids[1 + n]->tok.lex)) n++;
@@ -2859,7 +2861,7 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
     ir_emit(c, IRW_LOAD, (proven_i64)tl);
 }
 // ★★ RFC-0132 §13.10 (소유자 «줄 보기») — **줄의 나열**. 사람은 `lit slice (array T M) <줄>… .` 로 적고(2026-10-29 · 정본 §6.2 (9a)),
-//   표면 패스 `low_rows_lower` 가 이 안쪽 꼴 `lit array (array T M) N <줄>…` 로 옮겨 적는다(옛 철자를 사람이 적으면 E-LIT-ROWS-OLD). 바이트는 N×M×|T| 한 덩어리이고
+//   표면 패스 `low_rows_lower` 가 이 안쪽 꼴 `lit array (array T M) N <줄>…` 로 옮겨 적는다(사람이 줄 수를 적은 같은 꼴은 배열 안의 배열 — RFC-0155 §8-3). 바이트는 N×M×|T| 한 덩어리이고
 //   위에 줄의 배열 보기(IRW_VARRAY + IR_ROW_BIT)를 얹는다 — `index g r` 가 그 줄을 보는 슬라이스다. 줄 값(`lit array T M …` ·
 //   이름)은 칸마다 베낀다(줄은 값의 사본). `_` 줄은 0. 칸 베끼기는 펼쳐 적으므로 한 나열에 1024 칸까지만 받는다.
 static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line,

@@ -4494,6 +4494,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4555,6 +4563,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4616,6 +4632,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4673,6 +4697,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4734,6 +4766,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4795,6 +4835,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4856,6 +4904,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4913,6 +4969,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -4970,6 +5034,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5031,6 +5103,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5092,6 +5172,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5153,6 +5241,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5214,6 +5310,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5275,6 +5379,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5332,6 +5444,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5389,6 +5509,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5446,6 +5574,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5507,6 +5643,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5564,6 +5708,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5625,6 +5777,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }
@@ -5690,6 +5850,14 @@
                           {
                             "type": "SYMBOL",
                             "name": "number"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "applied_type"
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "paren_type"
                           }
                         ]
                       }

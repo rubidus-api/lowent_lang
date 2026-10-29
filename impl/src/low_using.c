@@ -86,19 +86,31 @@ static bool us_is_int_lit(const low_cst_t *n) {
         if (n->tok.lex.ptr[i] < '0' || n->tok.lex.ptr[i] > '9') return false;
     return true;
 }
+// ★ RFC-0155 §8-3 — 원소가 배열인 배열 `array 3 array 4 u8`(안쪽 꼴 `array (array u8 4) 3`)의 원소: 괄호 한 겹 안의 `array <타입> <수>`.
+//   그런 입력은 줄의 나열과 같은 `slice (array u8 4)` 에 줄 수의 진입 계약이 붙는다.
+static bool us_row_group(const low_cst_t *g) {
+    if (!g || g->kind != LOW_CST_GROUP || g->nkids != 1) return false;
+    const low_cst_t *f = g->kids[0];
+    return f && f->kind == LOW_CST_FORM && f->nkids == 3 && us_atom(f->kids[0]) && us_eq(f->kids[0]->tok.lex, "array") &&
+           us_atom(f->kids[1]) && us_is_int_lit(f->kids[2]);
+}
 static void us_arrays_one(us_ctx_t *c, low_cst_t *f) {
     if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) ||
         (f->kids[0]->tok.kw != LOW_KW_FN && f->kids[0]->tok.kw != LOW_KW_PROC)) return;
     low_op_header_t h = low_op_header(f);
     enum { UA_MAX = 16 };
     proven_size_t at[UA_MAX]; proven_u8str_view_t nm[UA_MAX]; proven_size_t na = 0;
-    for (proven_size_t q = 0; q < h.np && na < UA_MAX; q++)
-        for (proven_size_t z = h.p[q].ts; z + 2 < h.p[q].te && z + 2 < f->nkids; z++)
+    for (proven_size_t q = 0; q < h.np && na < UA_MAX; q++) {
+        // 머리 읽기(`low_op_header`)는 괄호 마디에서 절을 끊는다 — 원소가 괄호로 싼 배열이면 그 마디와 개수는 범위 밖에 있다.
+        proven_size_t te = h.p[q].te;
+        if (te >= 1 && te + 1 < f->nkids && us_atom(f->kids[te - 1]) && us_eq(f->kids[te - 1]->tok.lex, "array") && us_row_group(f->kids[te])) te += 2;
+        for (proven_size_t z = h.p[q].ts; z + 2 < te && z + 2 < f->nkids; z++)
             if (us_atom(f->kids[z]) && us_eq(f->kids[z]->tok.lex, "array") &&
-                us_atom(f->kids[z + 1]) && !us_is_int_lit(f->kids[z + 1]) && us_is_int_lit(f->kids[z + 2])) {
+                ((us_atom(f->kids[z + 1]) && !us_is_int_lit(f->kids[z + 1])) || us_row_group(f->kids[z + 1])) && us_is_int_lit(f->kids[z + 2])) {
                 at[na] = z; nm[na] = h.p[q].name; na++;
                 break;
             }
+    }
     if (!na) return;
     // 넣을 자리 — 계약의 차례(정본 §6.4.1): `ensures`·`errors`·`tests`·`schedule` 앞, 없으면 몸 앞
     proven_size_t end = (f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) ? f->nkids - 1 : f->nkids;
@@ -1271,6 +1283,18 @@ static void dt_ar_collect(dt_ctx_t *c, const low_cst_t *f) {
     if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) ||
         (f->kids[0]->tok.kw != LOW_KW_FN && f->kids[0]->tok.kw != LOW_KW_PROC) || !us_atom(f->kids[1]) || c->nar >= 256) return;
     proven_size_t s, e; bool named;
+    {   // ★ RFC-0155 §8-3 — 배열 안의 배열을 돌려주는 op 은 아직 짓지 않았다(머리 읽기가 괄호 마디에서 절을 끊는다). 정직하게 거절한다.
+        low_op_header_t h = low_op_header(f);
+        low_cst_t *const *k = f->kids;
+        proven_size_t a = h.out_s;
+        if (h.form && a < f->nkids && us_atom(k[a]) && k[a]->tok.kw == LOW_KW_NONE && !us_eq(k[a]->tok.lex, "array") &&
+            a + 1 < f->nkids && us_atom(k[a + 1]) && us_eq(k[a + 1]->tok.lex, "array")) a++;   // 이름 붙은 결과
+        if (h.form && a + 1 < f->nkids && us_atom(k[a]) && us_eq(k[a]->tok.lex, "array") && k[a + 1]->kind == LOW_CST_GROUP) {
+            dt_diag(c, k[a], "E-TYPE-ARRAY", "an op does not return an array of arrays yet (RFC-0155 §8-5) — take the place as an input "
+                    "(`input r mut array 2 array 3 u8 .`) and fill it, or return a `matrix`");
+            return;
+        }
+    }
     if (!dt_ar_header(c, f, &s, &e, &named)) return;
     c->ar[c->nar].name = us_bare(f->kids[1]->tok.lex); c->ar[c->nar].mod = c->curmod;
     c->ar[c->nar].t = f->kids[e - 2]->tok.lex; c->ar[c->nar].n = f->kids[e - 1]->tok.lex; c->nar++;

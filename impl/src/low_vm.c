@@ -822,6 +822,11 @@ static bool vm_arr_copy(vm_ctx_t *vm, const low_ir_sfield_t *sf, vmv_t v, proven
     return true;
 }
 static vmv_t vm_arr_view(const low_ir_sfield_t *sf, proven_u8 *p) {
+    if (sf->arrmeta & IR_ROW_BIT) {                      // ★ RFC-0155 §8-3 — 배열 안의 배열 칸: 줄의 나열과 같은 줄 보기(.box = 줄 바이트)
+        proven_size_t rb = (proven_size_t)(((proven_u64)sf->arrmeta >> 32) & 0xffffffu);
+        return (vmv_t){ .tag = VMV_VARRAY, .i = sf->arrmeta & (IR_ROW_BIT | 0xff | IR_FLT_BIT | IR_SGN_BIT), .p = p,
+                        .n = rb ? (proven_size_t)sf->arrn * sf->arresz / rb : 0, .box = (proven_i32)rb };
+    }
     if (sf->arresz == 1 && !(sf->arrmeta & (IR_FLT_BIT | IR_SGN_BIT))) return (vmv_t){ .tag = VMV_SLICE, .p = p, .n = sf->arrn };
     return (vmv_t){ .tag = VMV_VARRAY, .i = sf->arrmeta & (IR_FLT_BIT | IR_SGN_BIT), .p = p, .n = sf->arrn, .box = (proven_i32)sf->arresz };
 }

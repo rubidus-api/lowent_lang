@@ -5047,11 +5047,19 @@
         "required": false,
         "types": [
           {
+            "type": "applied_type",
+            "named": true
+          },
+          {
             "type": "name",
             "named": true
           },
           {
             "type": "number",
+            "named": true
+          },
+          {
+            "type": "paren_type",
             "named": true
           },
           {

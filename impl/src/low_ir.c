@@ -4145,6 +4145,35 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             }
             // ☞ 옛 `segs` · `seg` 는 라이브러리 `segview` 의 `piece_count` · `piece` 다(RFC-0150 Q3) — 칸 읽기와 잘라내기로 쓰인다.
             if (veq(nd->tok.lex, "view_array")) {
+                // ★ RFC-0155 §5.3 (2026-10-29 · 소유자 «줄 보기부터 권고대로») — `view_array (array T M) b` 는 바이트 위의 **줄 보기**다.
+                //   원소 하나가 줄 하나(M × |T| 바이트)이고 결과는 줄의 나열과 같은 `slice (array T M)`(IRW_VARRAY + IR_ROW_BIT).
+                //   조건은 `view_array T` 와 같다: 길이가 줄 바이트의 배수(아니면 두 뒤끝이 E-VM-VIEW) · T 는 `plain`(`bool` 은 E-TYPE-BITCAST).
+                //   출처는 `b` 다 — 검사층의 뷰 규칙(정본 §8 (8a))이 `view_array` 그대로 본다. 새 출처 규칙이 없다.
+                if (*pos < end && !is_atom(k[*pos])) {
+                    const low_cst_t *rt = k[*pos];
+                    while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+                    proven_i64 rm = 0;
+                    if (!(rt && rt->kind == LOW_CST_FORM && rt->nkids == 3 && is_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
+                          is_atom(rt->kids[1]) && is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0)) {
+                        ir_fail(c, "E-IR-UNSUP", "`view_array` takes a type word or a row `(array <type> <m>)` with m a literal of 1 or more", nd->line); return;
+                    }
+                    proven_u8str_view_t ity = rt->kids[1]->tok.lex;
+                    if (veq(ity, "bool")) {
+                        ir_fail(c, "E-TYPE-BITCAST", "`view_array (array bool <m>)` reads bytes as they are — a byte other than 0 or 1 would be a bool that is "
+                                "neither true nor false. View the rows as `u8` (canon 8.7.1)", nd->line);
+                        return;
+                    }
+                    proven_u8 ie = ir_field_size(ity);
+                    if (!ie || ity_of_word(ity).bits == 0) { ir_fail(c, "E-IR-UNDEF", "a row view's cell type is a sized number (`u8` … `u64`, `i8` … `i64`, `f32`, `f64`)", nd->line); return; }
+                    proven_u64 rb = (proven_u64)rm * ie;
+                    if (rb > 0xffffffu) { ir_fail(c, "E-IR-UNSUP", "a row this long cannot be viewed (at most 16 MiB a row)", nd->line); return; }
+                    proven_i64 vmeta = IR_ROW_BIT | (proven_i64)ie | (ir_is_float_ty(ity) ? IR_FLT_BIT : 0) | (ity_of_word(ity).sign ? IR_SGN_BIT : 0) |
+                                       (proven_i64)(rb << 32);
+                    (*pos)++;
+                    ir_value(c, k, pos, end);
+                    ir_emit(c, IRW_VARRAY, vmeta);
+                    return;
+                }
                 // `view_array T b` — T = sized scalar **또는 viewable 구조체**; bytes → typed array
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "view_array needs a type word", nd->line); return; }
                 proven_u8 esz = ir_field_size(k[*pos]->tok.lex);

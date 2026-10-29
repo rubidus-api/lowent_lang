@@ -1516,6 +1516,16 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if (p.rk) { p.rk = 0; return p; }
                 return tk(TK_UNKNOWN);
             }
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "view_array") && k[start + 1]->kind != LOW_CST_ATOM) {   // ★ RFC-0155 §5.3 — 줄 보기
+                ty_t sx = tc_infer(c, k[start + 2], env, nenv);
+                const low_cst_t *rt = k[start + 1];
+                while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+                if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[1]->kind == LOW_CST_ATOM) {
+                    ty_t e = ty_of_word(rt->kids[1]->tok.lex);
+                    if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = true; sl.is_mut = sx.is_mut; return sl; }
+                }
+                return tk(TK_UNKNOWN);
+            }
             if (!sig_find(c, h2) && n == 3 && veq(h2, "view_array") && k[start + 1]->kind == LOW_CST_ATOM) {
                 (void)tc_infer(c, k[start + 2], env, nenv);
                 ty_t e = ty_of_word(k[start + 1]->tok.lex);
@@ -1619,6 +1629,15 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             //   원소 타입을 슬라이스 ty_t 에 실어(ebits/eflt/esign) index·subslice·for-in·map 등
             //   **모든 소비 자리**가 float/부호를 되살린다. 구조체·미상 원소는 종전대로 무타입으로
             //   흘려보낸다 — SIMD 의 `var xs be slice <T> view_array …` load 핸들은 이 타입을 받는다.
+            if (veq(h2, "view_array") && n >= 3 && k[start + 1]->kind != LOW_CST_ATOM) {   // ★ RFC-0155 §5.3 — 줄 보기: 원소가 줄이다
+                ty_t sx = tc_infer(c, k[start + 2], env, nenv);
+                const low_cst_t *rt = k[start + 1];
+                while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+                if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[1]->kind == LOW_CST_ATOM) {
+                    ty_t e = ty_of_word(rt->kids[1]->tok.lex);
+                    if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = true; sl.is_mut = sx.is_mut; return sl; }
+                }
+            }
             if (veq(h2, "view_array") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM) {
                 ty_t e = ty_of_word(k[start + 1]->tok.lex);
                 for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);

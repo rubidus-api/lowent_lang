@@ -7750,6 +7750,12 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
         }
         // ★ 원소 나열 리터럴(`lit array T N …`)의 `array` 는 **값의 타입**이다 — 길이를 리터럴이 쥔다(RFC-0132 T2b-1).
         if (k->kind == LOW_CST_FORM && k->nkids && k->kids[0]->kind == LOW_CST_ATOM && k->kids[0]->tok.kw == LOW_KW_LIT) continue;
+        // ★ RFC-0155 §5.3 — `view_array (array T M) b` 의 `(array T M)` 은 **줄의 타입**이다(결과는 `slice (array T M)`) — 값 자리만 본다.
+        if (k->kind == LOW_CST_FORM && k->nkids == 3 && ck_atom(k->kids[0]) && veq(k->kids[0]->tok.lex, "view_array") && k->kids[1]->kind != LOW_CST_ATOM) {
+            if (k->kids[2]->kind != LOW_CST_ATOM && ck_array_walk(out, k->kids[2])) return true;
+            continue;
+        }
+        if (k->kind == LOW_CST_ATOM && veq(k->tok.lex, "view_array") && j + 1 < nd->nkids && nd->kids[j + 1]->kind != LOW_CST_ATOM) { j++; continue; }   // 평평한 꼴
         // ★ RFC-0132 §13.10 — `slice (array T M)` 는 줄의 슬라이스다(줄 길이를 타입이 쥔다 — 소유자 결정 «줄 보기»).
         if (k->kind == LOW_CST_ATOM && veq(k->tok.lex, "slice") && j + 1 < nd->nkids && nd->kids[j + 1]->kind != LOW_CST_ATOM) {
             const low_cst_t *rt = nd->kids[j + 1];

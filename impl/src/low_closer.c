@@ -384,7 +384,7 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
         proven_size_t j = i + 1;
         for (; *sh; sh++) {
             if (*sh == 'V') j = cl_term(c, j, true, false);
-            else if (*sh == 'W') { cl_tk(c, j); j++; }
+            else if (*sh == 'W') { if (c->T[j].kind == LOW_TOK_LPAREN) j = cl_mate(c, j) + 1; else { cl_tk(c, j); j++; } }   // ★ 2026-10-29 — 낱말 자리에 괄호 친 타입(`view_array (array t m) b.`)
             else if (*sh == 'R') j = cl_args(c, j);
         }
         if (t->lex.size > 7 && memcmp(t->lex.ptr, "atomic_", 7) == 0 && cl_word(c, j, "order")) j += 2;
@@ -1052,7 +1052,7 @@ static void up_call(up_t *u, proven_size_t h, proven_size_t e) {
         proven_size_t j = h + 1;
         for (; *sh && j < e; sh++) {
             if (*sh == 'V') j = up_item(u, j);
-            else if (*sh == 'W') j++;
+            else if (*sh == 'W') j = (u->T[j].kind == LOW_TOK_LPAREN) ? up_mate(u, j) + 1 : j + 1;
             else if (*sh == 'R') { up_items(u, j, e); j = e; }
         }
         u->close[last]++; return;

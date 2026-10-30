@@ -190,8 +190,8 @@ the other --- the same layout as C's `u8 a[2][3]` --- and, because the element t
 - `idx g. r. .` is a slice that *views* row r (no copy). The rules are those of a list of rows, so a list of rows and a row view over
   bytes can be passed to the same input; the row count is checked at entry.
 - As a struct field the bytes lie *inside the record*, and copying the struct copies them.
-- Two levels deep. A third level is refused with `E-TYPE-ARRAY`; for more dimensions write a `matrix` (next section). An op cannot
-  return an array of arrays yet --- take the place as a `mut` input and fill it.
+- An op can return one --- `output r array 2 array 3 u8 .`. As with any array result, the caller gives the place (`var g array 2 array 3 u8 f … .`, chapter 5).
+- Two levels deep. A third level is refused with `E-TYPE-ARRAY`; for more dimensions write a `matrix` (next section).
 
 == Several dimensions --- `matrix`
 

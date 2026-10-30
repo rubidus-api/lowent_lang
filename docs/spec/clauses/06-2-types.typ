@@ -310,7 +310,8 @@ let back u8 narrow u8 wide. . .")
       - 값은 `lit array n array m t <줄>… [_] .` 로 짓는다. 줄마다 `lit array m t …` 이고, 끝의 `_` 는 남은 줄을 0 으로 채운다((6a)).
       - 원소는 크기 있는 수와 `bool` 이다. 두 겹까지 짓는다 — 원소가 다시 배열을 품으면(세 겹), 그리고 줄의 슬라이스 · 줄 보기의 줄이
       배열 안의 배열이면 거부된다(`E-TYPE-ARRAY`). 더 많은 차원은 `matrix` 로 적는다(#cref("6.2.6.1")).
-      - 배열 안의 배열을 #strong[돌려주는]; op 은 아직 없다(`E-TYPE-ARRAY`) — 자리를 `mut` 입력으로 받아 채우거나 `matrix` 를 돌려준다.
+      - op 은 배열 안의 배열도 #strong[돌려줄 수 있다]; — `output r array n array m t .`. (1c) 와 같이 부르는 쪽이 자리를 주고(`var x array n array m t f … .`),
+      이름 붙은 결과는 0 인 줄들로 시작한다.
     ]
     #ex("배열 안의 배열", "module ex_nested_array .
 

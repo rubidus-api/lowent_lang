@@ -821,7 +821,7 @@ typedef struct {
     proven_u8str_view_t curmod;                         // 지금 걷는 폼의 모듈
     struct { proven_u8str_view_t mod, alias, target; } al[512]; proven_size_t nal;   // `use <t> … as <a>`
     // ★ RFC-0132 P4b — 배열을 돌려주는 op(이름 · 모듈 · 원소 타입 · 길이). 부르는 자리를 몸을 걷기 전에 알아야 해서 먼저 모은다.
-    struct { proven_u8str_view_t name, mod, t, n; } ar[256]; proven_size_t nar;
+    struct { proven_u8str_view_t name, mod, n; const low_cst_t *t; } ar[256]; proven_size_t nar;   // t = 원소 마디(원자 · 또는 줄의 괄호 마디 — RFC-0155 §8-5)
     proven_size_t nplace;                               // 부르는 쪽의 숨은 묶기 이름 번호
     // ★ RFC-0132 P4c — 내 결과 자리와 같은 바이트를 볼 수 있는 이름(자리 자신 + 그것에서 나온 지역). `return g … .` 의 인자가 이 가운데
     //   하나라도 언급하면 겹칠 수 있다 — 임시 자리에 받고 한 번 베낀다.
@@ -1260,10 +1260,23 @@ static void dt_drop_out_name(dt_ctx_t *c, low_cst_t *f, proven_size_t at) {
  *                 그 밖의 자리에서 배열을 내는 op 을 부르면 E-RESULT-PLACE(이름에 묶으라고 말한다).
  * 자리 매개변수의 `mut` 은 끼운 낱말(synth)이라 fn 의 순수성 검사(E-EFFECT-PURITY)가 보지 않는다 — 그 자리는 부른 쪽이 결과로
  * 받는 것이고, 돌아오기 전에는 아무도 볼 수 없다. 원소는 수만(그 밖은 E-TYPE-ARRAY — bool 은 지역 배열의 `idx` 가 수를 내는 기존 제약 때문에 뒤로). */
-static bool dt_ar_elem_ok(proven_u8str_view_t t) {
+static bool dt_ar_elem_ok(const low_cst_t *t) {
     // ★ bool 은 아직 뺀다 — `lit array bool` 의 `idx` 가 수를 낸다(지역 배열의 기존 제약, P4b 와 무관). 고쳐지면 더한다.
     static const char *const OK[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64", NULL };
-    return dt_in(t, OK);
+    if (us_atom(t)) return dt_in(t->tok.lex, OK);
+    // ★ RFC-0155 §8-5 (2026-10-30 · W-20261030-1054) — 원소가 배열이면(`output r array 2 array 3 u8 .` 의 안쪽 꼴 `array (array u8 3) 2`)
+    //   그 원소는 괄호 한 겹 안의 `array <원소> <수>` 다. 자리는 줄의 슬라이스 `mut slice (array u8 3)` 이 되고 0 채우기는 줄의 나열 펼치기가 한다.
+    if (!t || t->kind != LOW_CST_GROUP || t->nkids != 1) return false;
+    const low_cst_t *f = t->kids[0];
+    return f && f->kind == LOW_CST_FORM && f->nkids == 3 && us_atom(f->kids[0]) && us_eq(f->kids[0]->tok.lex, "array") &&
+           dt_ar_elem_ok(f->kids[1]) && us_is_int_lit(f->kids[2]);
+}
+// 두 원소 마디가 같은 타입을 적는가(원자는 낱말 · 괄호 마디는 겹마다).
+static bool dt_ar_same(const low_cst_t *a, const low_cst_t *b) {
+    if (!a || !b || a->kind != b->kind || a->nkids != b->nkids) return false;
+    if (a->kind == LOW_CST_ATOM) return proven_u8str_view_eq(a->tok.lex, b->tok.lex);
+    for (proven_size_t i = 0; i < a->nkids; i++) if (!dt_ar_same(a->kids[i], b->kids[i])) return false;
+    return true;
 }
 // 이 op 머리가 배열 결과면 (이름 자리 · 원소 · 길이) 를 낸다. 이름이 없으면 *named=false.
 static bool dt_ar_header(dt_ctx_t *c, const low_cst_t *f, proven_size_t *s, proven_size_t *e, bool *named) {
@@ -1277,27 +1290,15 @@ static bool dt_ar_header(dt_ctx_t *c, const low_cst_t *f, proven_size_t *s, prov
              us_atom(k[h.out_s + 1]) && us_eq(k[h.out_s + 1]->tok.lex, "array")) { *named = true; }
     else return false;
     proven_size_t t = *e - 2;
-    return us_atom(k[t]) && dt_ar_elem_ok(k[t]->tok.lex) && us_is_int_lit(k[t + 1]);
+    return dt_ar_elem_ok(k[t]) && us_is_int_lit(k[t + 1]);
 }
 static void dt_ar_collect(dt_ctx_t *c, const low_cst_t *f) {
     if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) ||
         (f->kids[0]->tok.kw != LOW_KW_FN && f->kids[0]->tok.kw != LOW_KW_PROC) || !us_atom(f->kids[1]) || c->nar >= 256) return;
     proven_size_t s, e; bool named;
-    {   // ★ RFC-0155 §8-3 — 배열 안의 배열을 돌려주는 op 은 아직 짓지 않았다(머리 읽기가 괄호 마디에서 절을 끊는다). 정직하게 거절한다.
-        low_op_header_t h = low_op_header(f);
-        low_cst_t *const *k = f->kids;
-        proven_size_t a = h.out_s;
-        if (h.form && a < f->nkids && us_atom(k[a]) && k[a]->tok.kw == LOW_KW_NONE && !us_eq(k[a]->tok.lex, "array") &&
-            a + 1 < f->nkids && us_atom(k[a + 1]) && us_eq(k[a + 1]->tok.lex, "array")) a++;   // 이름 붙은 결과
-        if (h.form && a + 1 < f->nkids && us_atom(k[a]) && us_eq(k[a]->tok.lex, "array") && k[a + 1]->kind == LOW_CST_GROUP) {
-            dt_diag(c, k[a], "E-TYPE-ARRAY", "an op does not return an array of arrays yet (RFC-0155 §8-5) — take the place as an input "
-                    "(`input r mut array 2 array 3 u8 .`) and fill it, or return a `matrix`");
-            return;
-        }
-    }
     if (!dt_ar_header(c, f, &s, &e, &named)) return;
     c->ar[c->nar].name = us_bare(f->kids[1]->tok.lex); c->ar[c->nar].mod = c->curmod;
-    c->ar[c->nar].t = f->kids[e - 2]->tok.lex; c->ar[c->nar].n = f->kids[e - 1]->tok.lex; c->nar++;
+    c->ar[c->nar].t = f->kids[e - 2]; c->ar[c->nar].n = f->kids[e - 1]->tok.lex; c->nar++;
 }
 // 원자 `a` 가 배열을 내는 op 의 이름이면 그 칸(없으면 -1). 같은 모듈 것 먼저, 아니면 하나뿐일 때.
 static long dt_ar_find(dt_ctx_t *c, const low_cst_t *a) {
@@ -1317,10 +1318,10 @@ static bool dt_ar_has_call(dt_ctx_t *c, const low_cst_t *n) {
     for (proven_size_t i = 0; i < n->nkids; i++) if (dt_ar_has_call(c, n->kids[i])) return true;
     return false;
 }
-static low_cst_t *dt_ar_lit(dt_ctx_t *c, const low_cst_t *model, proven_u8str_view_t t, proven_u8str_view_t n) {
-    low_cst_t *tk = dt_word(c, model, "x"); low_cst_t *nk = dt_word(c, model, "0");
+static low_cst_t *dt_ar_lit(dt_ctx_t *c, const low_cst_t *model, const low_cst_t *t, proven_u8str_view_t n) {
+    low_cst_t *tk = dt_deep(c, t, model->tok.line); low_cst_t *nk = dt_word(c, model, "0");
     if (!tk || !nk) return NULL;
-    tk->tok.lex = t; nk->tok.lex = n;
+    nk->tok.lex = n;
     low_cst_t *k[5] = { dt_word(c, model, "lit"), dt_word(c, model, "array"), tk, nk, dt_word(c, model, "_") };
     for (int i = 0; i < 5; i++) if (!k[i]) return NULL;
     low_cst_t *f = dt_mk(c, LOW_CST_FORM, model, k, 5);
@@ -1355,7 +1356,7 @@ static void dt_ovl_scan(dt_ctx_t *c, const low_cst_t *n, bool *grew) {
     for (proven_size_t i = 0; i < n->nkids; i++) dt_ovl_scan(c, n->kids[i], grew);
 }
 // 몸의 블록들에서 부르는 자리를 고친다. place(배열 결과 op 안이면 내 자리의 이름 원자 · 아니면 NULL)와 그 모양.
-static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, proven_u8str_view_t pt, proven_u8str_view_t pn, bool named) {
+static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, const low_cst_t *pt, proven_u8str_view_t pn, bool named) {
     if (!blk || blk->kind != LOW_CST_BLOCK) return;
     low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (blk->nkids * 2 + 1), alignof(low_cst_t *)).value.ptr;
     if (!nk) return;
@@ -1367,15 +1368,15 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
         if (st->kind == LOW_CST_FORM && st->nkids >= 7 && us_atom(st->kids[0]) &&
             (st->kids[0]->tok.kw == LOW_KW_LET || st->kids[0]->tok.kw == LOW_KW_VAR) && us_atom(st->kids[1]) &&
             us_atom(st->kids[2]) && st->kids[2]->tok.kw == LOW_KW_BE && us_atom(st->kids[3]) && us_eq(st->kids[3]->tok.lex, "array") &&
-            us_atom(st->kids[4]) && us_atom(st->kids[5])) {
+            (us_atom(st->kids[4]) || st->kids[4]->kind == LOW_CST_GROUP) && us_atom(st->kids[5])) {
             low_cst_t *const *vk = st->kids + 6; proven_size_t vn = st->nkids - 6;
             if (vn == 1 && st->kids[6]->kind == LOW_CST_GROUP && st->kids[6]->nkids == 1 && st->kids[6]->kids[0]->kind == LOW_CST_FORM) {
                 vk = st->kids[6]->kids[0]->kids; vn = st->kids[6]->kids[0]->nkids;
             }
             long ai = vn ? dt_ar_find(c, vk[0]) : -1;
-            if (ai >= 0 && proven_u8str_view_eq(c->ar[ai].t, st->kids[4]->tok.lex) && proven_u8str_view_eq(c->ar[ai].n, st->kids[5]->tok.lex)) {
+            if (ai >= 0 && dt_ar_same(c->ar[ai].t, st->kids[4]) && proven_u8str_view_eq(c->ar[ai].n, st->kids[5]->tok.lex)) {
                 const low_cst_t *x = st->kids[1];
-                low_cst_t *lit1 = dt_ar_lit(c, x, st->kids[4]->tok.lex, st->kids[5]->tok.lex);
+                low_cst_t *lit1 = dt_ar_lit(c, x, st->kids[4], st->kids[5]->tok.lex);
                 low_cst_t *g1k[1] = { lit1 };
                 low_cst_t *g1 = lit1 ? dt_mk(c, LOW_CST_GROUP, x, g1k, 1) : NULL;
                 low_cst_t *k1[4] = { dt_word(c, x, "var"), dt_deep(c, x, x->tok.line), dt_word(c, x, "be"), g1 };
@@ -1403,7 +1404,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
             long ai = dt_ar_find(c, st->kids[1]);
             if (st->nkids == 2 && us_atom(st->kids[1]) && proven_u8str_view_eq(st->kids[1]->tok.lex, place->tok.lex)) {
                 // return <자리> . — 그대로
-            } else if (ai >= 0 && proven_u8str_view_eq(c->ar[ai].t, pt) && proven_u8str_view_eq(c->ar[ai].n, pn) && named &&
+            } else if (ai >= 0 && dt_ar_same(c->ar[ai].t, pt) && proven_u8str_view_eq(c->ar[ai].n, pn) && named &&
                        ({ bool m_ = false; for (proven_size_t q = 1; q < st->nkids && !m_; q++) if (dt_ovl_mentions(c, st->kids[q])) m_ = true; m_; })) {
                 // ★ RFC-0132 P4c — 인자가 내 자리와 같은 바이트를 볼 수 있다: g 가 쓰는 동안 읽는 쪽이 새 값을 본다. 임시 자리에 받고 한 번 베낀다.
                 //   var $tK be (lit array T N _) .  ·  let $pK be slice T g … $tK .  ·  copy <자리> $tK .  ·  return <자리> .
@@ -1420,8 +1421,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
                 low_cst_t *k1[4] = { dt_word(c, r0, "var"), tnh ? dt_word(c, r0, tnh) : NULL, dt_word(c, r0, "be"), g1 };
                 low_cst_t *k2[300]; proven_size_t n2 = 0;
                 k2[n2++] = dt_word(c, r0, "let"); k2[n2++] = pnh ? dt_word(c, r0, pnh) : NULL; k2[n2++] = dt_word(c, r0, "be");
-                k2[n2++] = dt_word(c, r0, "slice"); k2[n2++] = dt_word(c, r0, "x");
-                if (k2[4]) k2[4]->tok.lex = pt;
+                k2[n2++] = dt_word(c, r0, "slice"); k2[n2++] = dt_deep(c, pt, r0->tok.line);
                 for (proven_size_t q = 1; q < st->nkids && n2 < 298; q++) k2[n2++] = st->kids[q];
                 k2[n2++] = tnh ? dt_word(c, r0, tnh) : NULL;
                 low_cst_t *k3[3] = { dt_word(c, r0, "copy"), dt_deep(c, place, r0->tok.line), tnh ? dt_word(c, r0, tnh) : NULL };
@@ -1438,7 +1438,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, pro
                     if (s1 && s2 && s3 && s4) { nk[m++] = s1; nk[m++] = s2; nk[m++] = s3; nk[m++] = s4; done = changed = true; }
                 }
                 if (!done) { nk[m++] = st; done = true; }   // 짓지 못했으면 그대로 둔다 — 배타 검사(E-EXCL-INPLACE)가 막는다
-            } else if (ai >= 0 && proven_u8str_view_eq(c->ar[ai].t, pt) && proven_u8str_view_eq(c->ar[ai].n, pn)) {
+            } else if (ai >= 0 && dt_ar_same(c->ar[ai].t, pt) && proven_u8str_view_eq(c->ar[ai].n, pn)) {
                 low_cst_t **rk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (st->nkids + 1), alignof(low_cst_t *)).value.ptr;
                 if (rk) {
                     for (proven_size_t q = 0; q < st->nkids; q++) rk[q] = st->kids[q];
@@ -1533,7 +1533,7 @@ static void dt_array_result(dt_ctx_t *c, low_cst_t *f) {
     low_op_header_t h0 = low_op_header(f);
     if (!h0.form || !h0.body) return;
     proven_size_t s, e; bool named;
-    if (!dt_ar_header(c, f, &s, &e, &named)) { if (c->nar) dt_ar_block(c, (low_cst_t *)h0.body, NULL, (proven_u8str_view_t){0}, (proven_u8str_view_t){0}, false); return; }
+    if (!dt_ar_header(c, f, &s, &e, &named)) { if (c->nar) dt_ar_block(c, (low_cst_t *)h0.body, NULL, NULL, (proven_u8str_view_t){0}, false); return; }
     low_cst_t *const *k = f->kids;
     const low_cst_t *outw = k[s - 1];
     low_cst_t *tt = k[e - 2], *nn = k[e - 1];
@@ -1564,7 +1564,7 @@ static void dt_array_result(dt_ctx_t *c, low_cst_t *f) {
     for (proven_size_t q = req_at; q < f->nkids; q++) hk[m++] = k[q];
     for (proven_size_t q = 0; q < m; q++) if (!hk[q]) return;
     low_cst_t *body = (low_cst_t *)h0.body;
-    proven_u8str_view_t tl = tt->tok.lex, nl = nn->tok.lex;
+    const low_cst_t *tl = tt; proven_u8str_view_t nl = nn->tok.lex;
     (void)low_refit(&c->p, f, hk, m);
     // 몸: 이름 붙은 결과는 0 에서 시작한다 — copy <자리> (lit array T N _ .) .
     if (named) {
@@ -1659,7 +1659,7 @@ static void dt_walk(dt_ctx_t *c, low_cst_t *nd) {
     // ★ 시험 블록 안에서도 배열을 내는 op 을 이름에 묶어 부른다(P4b)
     if (!c->migrate && c->nar && nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_TEST &&
         nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK)
-        dt_ar_block(c, nd->kids[nd->nkids - 1], NULL, (proven_u8str_view_t){0}, (proven_u8str_view_t){0}, false);
+        dt_ar_block(c, nd->kids[nd->nkids - 1], NULL, NULL, (proven_u8str_view_t){0}, false);
     for (proven_size_t i = 0; i < nd->nkids; i++) dt_walk(c, nd->kids[i]);
     c->ntp = save;
 }

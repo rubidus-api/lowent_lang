@@ -1,0 +1,65 @@
+module nestret .
+rem ★★ RFC-0155 §8-5 (2026-10-30 · 소유자 «지금 혹은 매우 가까운 시일 안에 진행되도록») — 배열 안의 배열을 돌려주는 op.
+rem   부른 쪽이 자리를 준다(RFC-0132 P4b): `output r array 2 array 3 u8 .` 은 줄의 슬라이스 `mut slice array 3 u8` 자리와 줄 수의 진입 계약이 된다.
+rem   리터럴을 돌려주기 · 이름 붙은 결과(0 에서 시작) · 같은 모양의 op 에 자리 넘기기 · 내 자리를 인자로 읽으며 넘기기(임시 자리) · `u16` 줄.
+
+fn lit2 output array 2 array 3 u8 . do
+  return lit array 2 array 3 u8 lit array 3 u8 1 2 3 . lit array 3 u8 4 5 6 . . .
+end .
+
+fn named input k u8 . output r array 2 array 3 u8 . do
+  set idx idx r. 1 . 2 . k. .
+  return r. .
+end .
+
+fn fwd input k u8 . output array 2 array 3 u8 . do
+  return named add k. 1 . . .
+end .
+
+fn reread input k u8 . output r array 2 array 3 u8 . do
+  set idx idx r. 0 . 1 . k. .
+  return named idx idx r. 0 . 1 . . .
+end .
+
+fn halves output r array 2 array 2 u16 . do
+  set idx idx r. 1 . 1 . 60000 .
+  set idx idx r. 0 . 0 . 7 .
+  return r. .
+end .
+
+fn weigh input g array 2 array 3 u8 . output u64 . do
+  var s u64 0 .
+  var w u64 1 .
+  for r g. do
+    for v r. do
+      set s. add s. mul w. widen u64 v. . . . .
+      set w. mul w. 10 . .
+    end .
+  end .
+  return s. .
+end .
+
+fn literal output u64 . do
+  var a array 2 array 3 u8 lit2 . .
+  return weigh a. . .
+end .
+
+fn zeroed output u64 . do
+  var a array 2 array 3 u8 named 9 . .
+  return weigh a. . .
+end .
+
+fn passed output u64 . do
+  var a array 2 array 3 u8 fwd 4 . .
+  return weigh a. . .
+end .
+
+fn overlap output u64 . do
+  var a array 2 array 3 u8 reread 5 . .
+  return weigh a. . .
+end .
+
+fn wide16 output u64 . do
+  var a array 2 array 2 u16 halves . .
+  return add mul widen u64 idx idx a. 1 . 1 . . 10 . widen u64 idx idx a. 0 . 0 . . . .
+end .

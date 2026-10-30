@@ -2007,6 +2007,9 @@ low_op_header_t low_op_header(const low_cst_t *f) {
             p->core = k2;
             h.np++;
         } else if (low_view_eq_cstr(w, "output")) {
+            // ★ RFC-0155 §8-5 (2026-10-30) — 결과 타입 안의 괄호 마디(`array (array u8 3) 2` — 배열 안의 배열의 안쪽 꼴)는 절을 끊지 않는다.
+            while (e < f->nkids && (f->kids[e]->kind == LOW_CST_GROUP ||
+                   (f->kids[e]->kind == LOW_CST_ATOM && !low_is_clause_word(f->kids[e]->tok.lex)))) e++;
             h.out_s = i + 1; h.out_e = e;
         } else if (low_view_eq_cstr(w, "effects")) {
             h.eff_s = i + 1; h.eff_e = e;

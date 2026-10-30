@@ -1052,8 +1052,23 @@ unsigned low_ptr_slot_align(void);
 //   모르는 이름을 통과시키면 그 asm 은 **어느 빌드에서도 안 맞고**, 조용히 빠지거나
 //   엉뚱한 빌드에 실린다(둘 다 이 RFC 가 막으려던 것).
 bool low_ir_target_known(proven_u8str_view_t name);
+// ★ RFC-0154 §8-19 (가) (2026-10-30 · W-20261030-1440) — 접기가 **이름**을 읽는 길. 리터럴 · `machine.*` · `native_lanes t` · `config` 는
+//   접기가 스스로 알고, 그 밖의 이름(모듈 상수 · 접힌 지역 `let`)은 부르는 층이 제 표에서 찾아 준다 — 번역층과 검사층은 표가 다르고
+//   접는 규칙은 하나다. `find` 가 false 면 그 이름은 번역 시점 값이 아니다. `*uns` = 부호 없는 타입의 이름이다.
+typedef struct low_ctfe_names low_ctfe_names_t;
+struct low_ctfe_names {
+    bool (*find)(const low_ctfe_names_t *nm, proven_u8str_view_t name, proven_i64 *out, bool *uns);
+    const void *ud;
+};
 // ★ RFC-0154 §8-20 — `comptime <식>` 을 접은 값(검사층이 받는 자리의 폭을 잰다). 접지 못하면 false. `*uns` = 부호 없는 값이어야 한다.
-bool low_ctfe_value(const low_cst_t *nd, proven_i64 *out, bool *uns);
+//   `nm` 은 이름을 찾는 길(NULL 이면 이름을 접지 않는다).
+bool low_ctfe_value(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns);
+// ★ RFC-0154 §8-19 (가) — 지역 `let` 의 값 낱말 `k[0..n)` 이 번역 시점 값이면 그 값(**접힌 `let`**): 마디 하나(리터럴 · 접히는 이름 · `machine.*` ·
+//   괄호 식) · `native_lanes t` · `comptime <식>`. 번역층(c->cint)과 검사층이 같은 규칙을 쓴다.
+bool low_ctfe_let_value(low_cst_t *const *k, proven_size_t n, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns);
+// ★ RFC-0154 §8-21 — 구성 손잡이(`build option` + `lowent.config`)를 진단 없이 미리 읽는다(검사층이 하강층보다 먼저 돈다) · 그 값.
+void low_ir_options_preload(const low_parse_result_t *pr);
+bool low_ir_option_int(proven_u8str_view_t name, proven_i64 *out);
 
 [[nodiscard]] low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr);
 // ★ 이름이 빌트인과 겹치면 그 선언은 **영원히 호출되지 않는다**(해석기가 빌트인을 고른다).

@@ -32,6 +32,7 @@
 /* ── 나눠 갖는 상한 (WO-0164) — 맥락 구조체의 칸 수를 정한다 ────────────────
  * ★ 이 수들은 `ir_ctx_t` 의 배열 크기라 **타입과 함께 살아야** 한다. */
 #define IR_MAXALIAS  32
+#define IR_MAXCINT   64   /* 한 op 안의 접힌 지역 `let` — 넘으면 그 뒤의 것은 접히지 않는다(`comptime` 이 읽으면 E-COMPTIME-NONCONST) */
 #define IR_MAXENUMPF 4     // max payload fields per enum variant (RFC-0080; AST `add` needs 2)
 #define IR_MAXENUMV  64
 #define IR_MAXERRS   64
@@ -227,7 +228,7 @@ typedef struct {
     //   (D5 가 약속한 것이 정확히 그 반대다).
     //   ★ **`let` 만** 담는다 — `var` 는 나중에 `set` 으로 바뀔 수 있고, 그러면 타입 자리에
     //     실린 상수가 낡는다. 불변인 것만 타입이 될 수 있다.
-    struct { proven_u8str_view_t name; proven_i64 val; } cint[16];
+    struct { proven_u8str_view_t name; proven_i64 val; } cint[IR_MAXCINT];   /* 접힌 지역 let — 16 이었다; RFC-0154 §8-19 (가) 가 리터럴 let 도 담으므로 늘렸다 */
     proven_size_t        ncint;
 
     // ★ 이전 기간 동안만 켠다(`LOWENT_ALLOW_GLUED_FIELD=1`). 코퍼스를 다 옮기면 없앤다.
@@ -476,7 +477,8 @@ void ir_run(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t
 bool ir_comptime_cond(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, proven_size_t end, proven_i64 *val);
 proven_size_t ir_cond_brz(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_size_t *sites);
 bool ir_contract_operand(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line);
-bool ir_ctfe_fold(const low_cst_t *nd, proven_i64 *out, int fuel);
+bool ir_ctfe_fold(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, int fuel);
+low_ctfe_names_t ir_ctfe_names(ir_ctx_t *c);   /* RFC-0154 §8-19 (가) — 번역층의 이름 표(접힌 지역 let · 모듈 상수) */
 bool ir_row_shape(low_ir_t *o, const low_cst_t *rt, proven_u8str_view_t *leaf, proven_u64 *rb, proven_u8 *sub);   /* RFC-0155 §8-6 줄 꼴 */
 proven_i64 ir_row_meta(proven_u8str_view_t leaf, proven_u64 rb, proven_u8 sub);
 proven_size_t ir_def_find_in(ir_ctx_t *c, proven_u8str_view_t name, bool *found);

@@ -39,7 +39,7 @@
   [`E-CHAR`], [이 언어에 없는 글자(기호)다], [#chref("locals"), #chref("control"), #chref("expr"), #chref("slices")],
   [`E-CHAR-WIDTH`], [글자 리터럴이 글자 하나가 아니다], [#chref("surface")],
   [`E-CLAUSE-ORDER`], [op 머리의 절이 정해진 차례를 어겼다], [#chref("first-program"), #chref("surface"), #chref("generics")],
-  [`E-COMPTIME-ARG`], [`comptime` 자리에 실행 값을 주었다], [#chref("generics")],
+  [`E-COMPTIME-ARG`], [`comptime` 입력 자리에 실행 값을 주었다], [#chref("generics")],
   [`E-CONC-ALONE`], [묶음이 흐름 하나만 만들고 그 흐름이 짝을 기다린다], [#chref("tasks-channels")],
   [`E-CONC-DEADLOCK`], [묶인 흐름이 모두 받기만 하고 아무도 보내지 않는다], [#chref("tasks-channels")],
   [`E-CONFIG-TYPE`], [구성이 손잡이의 선택지에 없는 값을 준다], [#chref("build-test")],

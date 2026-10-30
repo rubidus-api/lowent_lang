@@ -792,7 +792,43 @@ ratio_ok(10, 5) = 1
 table_size() = 64
 $ lowentc --run pick compt.low
 pick() = 500
-</code></pre></div></div><p><code>size_of u32 .</code> gives the number of bytes of one value of that type at translation time. It lets code that takes a type as a parameter compute its costs honestly instead of assuming the widest type (chapter 22).</p><p><code>comptime add 2 3 .</code> marks an expression to be computed at translation time. When the value a <code>match</code> splits on is a translation-time constant, the <code>match</code> folds to the one matching arm and the run-time comparisons disappear. The folded-away arms are still type-checked, unlike code removed with C’s <code>#ifdef</code>, which is not even checked. <code>config &lt;option></code>, which reads the build configuration, is also used as a translation-time constant (chapter 31).</p><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
+</code></pre></div></div><p><code>size_of u32 .</code> gives the number of bytes of one value of that type at translation time. It lets code that takes a type as a parameter compute its costs honestly instead of assuming the widest type (chapter 22).</p><p><code>comptime add 2 3 .</code> marks an expression to be computed at translation time. When the value a <code>match</code> splits on is a translation-time constant, the <code>match</code> folds to the one matching arm and the run-time comparisons disappear. The folded-away arms are still type-checked, unlike code removed with C’s <code>#ifdef</code>, which is not even checked. <code>config &lt;option></code>, which reads the build configuration, is also used as a translation-time constant (chapter 31).</p><p>A <code>comptime</code> expression can also read names: module constants, a local <code>let</code> whose value is known at translation time, <code>machine.*</code>, <code>native_lanes &lt;type></code> and <code>config &lt;option></code>. A local <code>let</code>’s value is known at translation time when it is written as a literal, one such name, <code>native_lanes &lt;type></code> or <code>comptime &lt;expr></code>. A <code>var</code> and an input are not read. A module constant’s value can itself be written as <code>comptime &lt;expr></code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_names.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_names .
+<em><span class="tok-c">rem run: page_bytes</span></em>
+<em><span class="tok-c">rem run: lanes_twice</span></em>
+
+<em><span class="tok-c">rem a module constant can be written as a `comptime` expression</span></em>
+<strong><span class="tok-k">let</span></strong> KIB <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1024</span> .
+<strong><span class="tok-k">let</span></strong> PAGE <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">comptime</span></strong> mul <span class="tok-n">4</span> KIB. . . .
+
+<strong><span class="tok-k">fn</span></strong> page_bytes <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> extra <strong><span class="tok-t">u64</span></strong> <span class="tok-n">4</span> .
+  <em><span class="tok-c">rem reads a constant and a `let` whose value is known at compile time</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> add PAGE. extra. . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> lanes_twice <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem a value asked of the target takes part too</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> mul native_lanes <strong><span class="tok-t">u32</span></strong> . <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run page_bytes compt_names.low
+page_bytes() = 4100
+$ lowentc --run lanes_twice compt_names.low
+lanes_twice() = 8
+</code></pre></div></div><p>The answer is a constant. The place that receives it measures it like a literal, so an answer that does not fit is refused just as <code>return 600 .</code> is.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_width.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_width .
+<em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
+
+<strong><span class="tok-k">let</span></strong> K <strong><span class="tok-t">u64</span></strong> <span class="tok-n">6</span> .
+
+<strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ the answer 600 does not fit `u8` — the same as `return 600 .`</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> mul K. <span class="tok-n">100</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check compt_width.low
+compt_width.low:9:0 E-TYPE-WIDTH: value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)
+</code></pre></div></div><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>
 

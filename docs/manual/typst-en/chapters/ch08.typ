@@ -128,6 +128,18 @@ constant, the `match` folds to the one matching arm and the run-time comparisons
 unlike code removed with C's `#ifdef`, which is not even checked. `config <option>`, which reads the build configuration, is also used as a
 translation-time constant (#chref("build-test")).
 
+A `comptime` expression can also read names: module constants, a local `let` whose value is known at translation time, `machine.*`,
+`native_lanes <type>` and `config <option>`. A local `let`'s value is known at translation time when it is written as a literal, one such
+name, `native_lanes <type>` or `comptime <expr>`. A `var` and an input are not read. A module constant's value can itself be written as
+`comptime <expr>`.
+
+#demo("examples/ch08/compt_names.low")
+
+The answer is a constant. The place that receives it measures it like a literal, so an answer that does not fit is refused just as
+`return 600 .` is.
+
+#demo("examples/ch08/compt_width.low")
+
 == Common mistakes
 
 Comparison (level 2) binds tighter than `and` (level 1b), so mixing them without parentheses has exactly one meaning.

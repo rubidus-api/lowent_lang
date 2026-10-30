@@ -70,7 +70,7 @@
 | 트레이트 서명에 `fn`·`proc` 을 적는다 | `E-TRAIT-SIG` | `area input s self . output u64 .` |
 | `proc` 에 효과 줄을 안 적는다 | `E-EFFECT-MISSING` | `effects <원자> .` 를 적는다 — 없으면 `effects none .`(`--doc` 의 `inferred:` 가 답이다) |
 | 타입 인자가 트레이트를 갖추지 않았다 | `E-BOUND-UNSAT` | `satisfies` 와 op 을 더한다 |
-| `comptime` 자리에 실행 값을 준다 | `E-COMPTIME-ARG` | 리터럴이나 모듈 상수 |
+| `comptime` 입력 자리에 실행 값을 준다 | `E-COMPTIME-ARG` | 리터럴이나 모듈 상수 |
 | `task_group` 밖에서 `spawn <op>` | `E-SPAWN-SCOPE` | `task_group do … end .` 로 감싼다 |
 | 나누는 되풀이에서 누적 변수에 쓴다 | `E-PAR-CARRY` | `reduce <자리> <연산> .` |
 | `pipe` 에 정렬 같은 스테이지를 쓴다 | `E-PIPE-STAGE` | 스테이지 일곱과 종결자 다섯만 쓴다 |

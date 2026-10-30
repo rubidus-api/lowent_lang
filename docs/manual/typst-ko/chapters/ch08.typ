@@ -129,6 +129,16 @@
 받는다. C 의 `#ifdef` 로 지운 코드가 검사도 받지 않는 것과 다르다. 빌드 설정을 읽는 `config <옵션>`
 도 번역 시점 상수로 쓰인다(#chref("build-test")).
 
+`comptime` 식은 이름도 읽는다. 모듈 상수, 값이 번역 시점에 나온 지역 `let`, `machine.*`, `native_lanes <타입>`,
+`config <옵션>` 이다. 지역 `let` 의 값이 번역 시점에 나온다는 것은 그 값을 리터럴, 이런 이름 하나, `native_lanes <타입>`,
+`comptime <식>` 가운데 하나로 적었다는 뜻이다. `var` 와 입력은 읽지 않는다. 모듈 상수의 값도 `comptime <식>` 으로 적을 수 있다.
+
+#demo("examples/ch08/compt_names.low")
+
+셈한 답은 상수다. 받는 자리는 그 답을 리터럴처럼 재므로, 자리에 들지 않으면 `return 600 .` 과 같이 거절된다.
+
+#demo("examples/ch08/compt_width.low")
+
 == 흔한 실수
 
 비교(단계 2)가 `and`(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.

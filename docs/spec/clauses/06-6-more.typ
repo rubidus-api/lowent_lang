@@ -228,9 +228,22 @@ end .", "E-COMPTIME-ARG")
       `comptime` 자리의 식은 #strong[번역할 때 값이 나와야]; 한다. 지금의 처리기가 그것을
       셈하지 못하면 거부된다(`E-COMPTIME-NONCONST`).
     ]
+    #para("1a")[
+      지금의 처리기가 셈하는 것은 정수 리터럴, 모듈 상수, 값이 번역 시점에 나온 지역 `let`,
+      `machine.*`, `native_lanes <타입>`, `config <이름>`, 그리고 순수한 정수 빌트인
+      (`add` · `sub` · `mul` · `div` · `mod` · `neg` · 비교 · `min` · `max` · 비트 연산 · `shl` · `shr` · 논리)이다.
+      지역 `let` 의 값이 번역 시점에 나온다는 것은, 그 값이 리터럴 · 이런 이름 하나 · `native_lanes <타입>` ·
+      `comptime <식>` 이라는 뜻이다. `var`, 입력(`comptime` 입력도 — #cref("6.8") 의 실물은 하나이고 값은 실행할 때
+      건네진다), op 부르기는 셈하지 아니한다.
+    ]
+    #para("1b")[
+      셈한 답은 #strong[상수];다. 받는 자리는 그 답을 리터럴처럼 잰다 — 자리의 타입에 들지 않으면
+      리터럴과 같이 거부된다(`E-TYPE-WIDTH`). 답에 쓰인 이름의 타입은 답의 타입이 되지 아니한다.
+    ]
     #para("2")[
       모듈 자리의 `let` 은 #strong[이름 붙인 상수];다. 그 값도 번역 시점에 나와야 한다
-      (`E-CONST-NOTCOMPTIME`).
+      (`E-CONST-NOTCOMPTIME`). 값은 정수 리터럴이거나 `comptime <식>` 이다. 그 식은 다른 모듈 상수를
+      읽을 수 있고, 읽는 상수가 앞에 있든 뒤에 있든 같다. 서로를 읽어 값이 나오지 않으면 거부된다.
     ]
     #caution("")[
       (1) 이 말하는 것은 「이 식이 상수가 아니다」가 아니라 「#strong[오늘의 처리기가]; 이것을
@@ -244,6 +257,25 @@ do
   let b u8 comptime a. . .    rem `a` 는 실행할 때에야 정해진다
   return b. .
 end .", "E-COMPTIME-NONCONST")
+    #ex("상수를 상수로 셈한다", "module ex_comptime_names .
+
+let KIB u64 1024 .
+let PAGE u64 comptime mul 4 KIB. . . .    rem 다른 모듈 상수를 읽는다
+
+fn f output u64 .
+do
+  let extra u64 4 .
+  return comptime add PAGE. extra. . . .
+end .",
+      out: "f() = 4100")
+    #rejected("셈한 답이 받는 자리에 들지 않는다", "module ex_comptime_width .
+
+let K u64 6 .
+
+fn f output u8 .
+do
+  return comptime mul K. 100 . . .    rem 600 은 `u8` 에 들지 않는다
+end .", "E-TYPE-WIDTH")
   ]
   #sub("6.9", "검사할 수 없는 자리 — `unsafe` 와 `extern`")[
     #para("1")[

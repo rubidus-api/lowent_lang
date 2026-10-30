@@ -78,6 +78,10 @@ typedef struct {
     proven_u8str_view_t nname;  // TK_NAMED: 머리 타입 이름
     proven_u32  targ;           // TK_NAMED: 틀 인자 낱말들의 해시(0 = 인자 없음/미상)
     bool        slit;           // ★ 직접 적은 문자열 · 텍스트 리터럴(TK_NAMED 로 나온다) — 수 · bool 자리에는 들지 않는다(2026-10-24)
+    // ★ RFC-0154 §8-19 (가) — 환경의 **접힌 지역 `let`** 이 지닌 번역 시점 값(cfold 일 때만). 환경 칸에만 산다: env_find 가 지워서 돌려주므로
+    //   식의 타입으로 번지지 않는다(번지면 `let m u64 add n. 1 .` 의 m 이 n 의 값을 지닌 것처럼 보인다).
+    bool        cfold, cfu;
+    proven_i64  cfv;
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -793,9 +797,27 @@ static bool tc_enum_has_payload(proven_u8str_view_t en) {
     return false;
 }
 static proven_size_t g_nvarf;
-typedef struct { proven_u8str_view_t name, mod; ty_t ty; } tc_mconst_t;   // 모듈 맨 위의 `let` · `var` — 몸에서 이름으로 읽힌다
+typedef struct { proven_u8str_view_t name, mod; ty_t ty;   // 모듈 맨 위의 `let` · `var` — 몸에서 이름으로 읽힌다
+                 bool known, uns; proven_i64 v; low_cst_t *const *vk; proven_size_t vn; } tc_mconst_t;   // known: 번역 시점 값(RFC-0154 §8-19 (나))
 static tc_mconst_t g_mc[512];
 static proven_size_t g_nmc;
+// ★★★ RFC-0154 §8-19 (가) · §8-21 (2026-10-30 · W-20261030-1440) — **검사층의 이름 표.** 번역층과 같은 접기(low_ctfe_value)를 부르되 이름은
+//   이 층의 표에서 찾는다: 환경의 접힌 지역 `let` 을 먼저(가린 이름이 접히지 않은 것이면 접지 않는다), 그다음 모듈 상수(제 모듈 것을 먼저).
+//   그래야 `comptime mul K. 100 .` 의 답을 받는 자리의 폭으로 잴 수 있다 — 하강층만 접으면 `u8` 자리에 600 이 들어간다(§8-20 의 결함이 이름으로 되살아난다).
+typedef struct { const tc_var_t *env; proven_size_t nenv; proven_u8str_view_t curmod; } tc_ctfe_ud_t;
+static bool tc_ctfe_find(const low_ctfe_names_t *nm, proven_u8str_view_t name, proven_i64 *out, bool *uns) {
+    const tc_ctfe_ud_t *u = (const tc_ctfe_ud_t *)nm->ud;
+    for (proven_size_t i = u->nenv; i-- > 0; )
+        if (proven_u8str_view_eq(u->env[i].name, name)) {
+            if (!u->env[i].ty.cfold) return false;
+            *out = u->env[i].ty.cfv; *uns = u->env[i].ty.cfu; return true;
+        }
+    const tc_mconst_t *hit = NULL;
+    for (proven_size_t q = 0; q < g_nmc; q++)
+        if (proven_u8str_view_eq(g_mc[q].name, name)) { if (!hit || proven_u8str_view_eq(g_mc[q].mod, u->curmod)) hit = &g_mc[q]; }
+    if (!hit || !hit->known) return false;
+    *out = hit->v; *uns = hit->uns; return true;
+}
 typedef struct { proven_u8str_view_t name; bool isbool; } tc_opt_t;
 static tc_opt_t g_opt[128];
 static proven_size_t g_nopt;
@@ -836,7 +858,7 @@ static const tc_sig_t *sig_find_at(tc_ctx_t *c, const low_cst_t *at) {
     return at ? sig_find(c, at->tok.lex) : NULL;
 }
 static ty_t env_find(const tc_var_t *env, proven_size_t n, proven_u8str_view_t name, bool *found) {
-    for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; return env[i].ty; }
+    for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; ty_t t = env[i].ty; t.cfold = false; return t; }
     *found = false; return tk(TK_UNKNOWN);
 }
 
@@ -1392,7 +1414,12 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 for (proven_size_t q = 0; q < g_nopt; q++)
                     if (proven_u8str_view_eq(g_opt[q].name, on)) {
                         if (g_opt[q].isbool) return tk(TK_BOOL);
-                        ty_t t = tk_int(0, false); t.lit = true; t.val = 0; return t;
+                        ty_t t = tk_int(0, false); t.lit = true; t.val = 0;
+                        // ★ RFC-0154 §8-21 (2026-10-30) — 고른 **값**을 싣는다: 받는 자리가 리터럴처럼 잰다. 전에는 0 을 실어 `hz` 가 1000 이어도
+                        //   `u8` 자리를 지나갔다.
+                        proven_i64 ov;
+                        if (low_ir_option_int(on, &ov)) { if (ov < 0) { t.neg = true; t.val = (proven_u64)0 - (proven_u64)ov; } else t.val = (proven_u64)ov; }
+                        return t;
                     }
                 return tk(TK_UNKNOWN);
             }
@@ -1518,8 +1545,13 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t t = tc_infer_run(c, k, start + 1, n - 1, env, nenv);
                 // ★★★ RFC-0154 §8-20 (2026-10-30) — 접은 **값**을 리터럴처럼 들고 간다: 받는 자리가 `return 300 .` 과 같이 폭을 잰다(E-TYPE-WIDTH).
                 //   전에는 첫 리터럴의 값만 들고 가서 `u8` 자리에 `comptime add 200 100 .` 의 300 이 들었다.
+                // ★★★ RFC-0154 §8-21 (2026-10-30 · W-20261030-1440) — 이름을 접게 되자(§8-19 (가)) 답의 타입이 이름의 선언 타입(`u64` …)이 됐다.
+                //   그대로 두면 `t.lit` 이 아니라 폭을 재지 않는다. 접은 답은 **상수**다 — 무타입 리터럴로 바꿔 받는 자리가 잰다(§8-20 과 같은 규칙).
                 proven_i64 cv; bool cu;
-                if (t.k == TK_INT && t.lit && n == 2 && low_ctfe_value(k[start + 1], &cv, &cu)) {
+                tc_ctfe_ud_t ud = { env, nenv, c->curmod };
+                const low_ctfe_names_t nm = { tc_ctfe_find, &ud };
+                if (t.k == TK_INT && n == 2 && low_ctfe_value(k[start + 1], &nm, &cv, &cu)) {
+                    t = tk_int(0, false); t.lit = true;
                     t.valhi = 0;
                     if (cu || cv >= 0) { t.val = (proven_u64)cv; t.neg = false; }
                     else { t.val = (proven_u64)0 - (proven_u64)cv; t.neg = true; }
@@ -3119,6 +3151,16 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                                 "would write what the old one may only read. Declare the source `var` / `mut`, or bind a plain `slice`", f->line);
                 }
             }
+            // ★ RFC-0154 §8-19 (가) — 접힌 지역 `let` 은 값을 지닌다(하강층과 같은 규칙 low_ctfe_let_value). `var` 는 지니지 않는다.
+            declared.cfold = false;
+            if (kw == LOW_KW_LET && be + 1 < f->nkids && declared.k == TK_INT) {
+                tc_ctfe_ud_t ud = { env, *nenv, c->curmod };
+                const low_ctfe_names_t nm = { tc_ctfe_find, &ud };
+                proven_i64 v; bool u;
+                if (low_ctfe_let_value(f->kids + be + 1, f->nkids - be - 1, &nm, &v, &u)) {
+                    declared.cfold = true; declared.cfv = v; declared.cfu = !declared.sign;
+                }
+            }
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {
             tc_check_return(c, f->kids, 1, f->nkids - 1, env, *nenv, ret, f->line);
@@ -3690,6 +3732,7 @@ static void tc_brand_walk(tc_ctx_t *c, const low_cst_t *nd,
 
 low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr) {
     tc_notes_reset();
+    low_ir_options_preload(pr);   // ★ RFC-0154 §8-21 — `config <이름>` 의 값을 잰다(아래 · `comptime` 접기)
     g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_nename_t = 0; g_naname_t = 0; g_tc_full = false;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
@@ -3712,7 +3755,25 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             if (d.k == TK_UNKNOWN) continue;
             d.is_mut = false;
             if (g_nmc >= 512) { g_tc_full = true; break; }
-            g_mc[g_nmc++] = (tc_mconst_t){ f->kids[1]->tok.lex, cm, d };
+            const bool is_let = f->kids[0]->tok.kw == LOW_KW_LET && be + 1 < f->nkids;
+            g_mc[g_nmc++] = (tc_mconst_t){ f->kids[1]->tok.lex, cm, d, .uns = d.k == TK_INT && !d.sign,
+                                           .vk = is_let ? f->kids + be + 1 : NULL, .vn = is_let ? f->nkids - be - 1 : 0 };
+        }
+        // ★ RFC-0154 §8-19 (나) — 모듈 상수의 값: 리터럴이거나 `comptime <식>`(다른 모듈 상수를 읽어도 된다 · 순서는 묻지 않는다 — 하강층과 같다).
+        //   한 바퀴에 하나도 못 접으면 남은 것은 값을 모르는 채 둔다(하강층이 E-CONST-NOTCOMPTIME 으로 거절한다).
+        for (bool prog = true; prog; ) {
+            prog = false;
+            for (proven_size_t q = 0; q < g_nmc; q++) {
+                tc_mconst_t *m = &g_mc[q];
+                if (m->known || !m->vk) continue;
+                const bool lit1 = m->vn == 1 && m->vk[0]->kind == LOW_CST_ATOM && m->vk[0]->tok.kind == LOW_TOK_NUMBER;
+                const bool ct2 = m->vn == 2 && m->vk[0]->kind == LOW_CST_ATOM && veq(m->vk[0]->tok.lex, "comptime");
+                if (!lit1 && !ct2) { m->vk = NULL; continue; }
+                tc_ctfe_ud_t ud = { NULL, 0, m->mod };
+                const low_ctfe_names_t nm = { tc_ctfe_find, &ud };
+                proven_i64 v; bool u;
+                if (low_ctfe_let_value(m->vk, m->vn, &nm, &v, &u)) { m->known = true; m->v = v; prog = true; }
+            }
         }
     }
     for (proven_size_t i = 0; i < pr->nforms; i++) {   // `build option <이름> <bool|int|choice> …`

@@ -792,7 +792,43 @@ ratio_ok(10, 5) = 1
 table_size() = 64
 $ lowentc --run pick compt.low
 pick() = 500
-</code></pre></div></div><p><code>size_of u32 .</code> 는 그 타입 값 하나의 바이트 수를 번역할 때 준다. 타입을 매개변수로 받는 코드가 가장 넓은 폭을 가정하지 않고 비용을 정직하게 계산할 수 있게 한다(22장).</p><p><code>comptime add 2 3 .</code> 은 식을 번역할 때 계산하라는 표시다. <code>match</code> 의 가를 값이 번역 시점 상수이면 <code>match</code> 는 맞는 갈래 하나로 접히고 실행 중 비교는 사라진다. 그래도 접힌 다른 갈래들은 타입 검사를 받는다. C 의 <code>#ifdef</code> 로 지운 코드가 검사도 받지 않는 것과 다르다. 빌드 설정을 읽는 <code>config &lt;옵션></code> 도 번역 시점 상수로 쓰인다(31장).</p><h3 id="s8-6">8.6 흔한 실수<a class="plink" href="#s8-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>비교(단계 2)가 <code>and</code>(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
+</code></pre></div></div><p><code>size_of u32 .</code> 는 그 타입 값 하나의 바이트 수를 번역할 때 준다. 타입을 매개변수로 받는 코드가 가장 넓은 폭을 가정하지 않고 비용을 정직하게 계산할 수 있게 한다(22장).</p><p><code>comptime add 2 3 .</code> 은 식을 번역할 때 계산하라는 표시다. <code>match</code> 의 가를 값이 번역 시점 상수이면 <code>match</code> 는 맞는 갈래 하나로 접히고 실행 중 비교는 사라진다. 그래도 접힌 다른 갈래들은 타입 검사를 받는다. C 의 <code>#ifdef</code> 로 지운 코드가 검사도 받지 않는 것과 다르다. 빌드 설정을 읽는 <code>config &lt;옵션></code> 도 번역 시점 상수로 쓰인다(31장).</p><p><code>comptime</code> 식은 이름도 읽는다. 모듈 상수, 값이 번역 시점에 나온 지역 <code>let</code>, <code>machine.*</code>, <code>native_lanes &lt;타입></code>, <code>config &lt;옵션></code> 이다. 지역 <code>let</code> 의 값이 번역 시점에 나온다는 것은 그 값을 리터럴, 이런 이름 하나, <code>native_lanes &lt;타입></code>, <code>comptime &lt;식></code> 가운데 하나로 적었다는 뜻이다. <code>var</code> 와 입력은 읽지 않는다. 모듈 상수의 값도 <code>comptime &lt;식></code> 으로 적을 수 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_names.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_names .
+<em><span class="tok-c">rem run: page_bytes</span></em>
+<em><span class="tok-c">rem run: lanes_twice</span></em>
+
+<em><span class="tok-c">rem 모듈 상수는 `comptime` 식으로 적을 수 있다</span></em>
+<strong><span class="tok-k">let</span></strong> KIB <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1024</span> .
+<strong><span class="tok-k">let</span></strong> PAGE <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">comptime</span></strong> mul <span class="tok-n">4</span> KIB. . . .
+
+<strong><span class="tok-k">fn</span></strong> page_bytes <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> extra <strong><span class="tok-t">u64</span></strong> <span class="tok-n">4</span> .
+  <em><span class="tok-c">rem 상수 · 값이 번역 시점에 나온 `let` 을 읽는다</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> add PAGE. extra. . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> lanes_twice <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 대상에게 묻는 값도 셈에 쓴다</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> mul native_lanes <strong><span class="tok-t">u32</span></strong> . <span class="tok-n">2</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run page_bytes compt_names.low
+page_bytes() = 4100
+$ lowentc --run lanes_twice compt_names.low
+lanes_twice() = 8
+</code></pre></div></div><p>셈한 답은 상수다. 받는 자리는 그 답을 리터럴처럼 재므로, 자리에 들지 않으면 <code>return 600 .</code> 과 같이 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_width.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_width .
+<em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
+
+<strong><span class="tok-k">let</span></strong> K <strong><span class="tok-t">u64</span></strong> <span class="tok-n">6</span> .
+
+<strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 셈한 답 600 은 `u8` 에 들지 않는다 — `return 600 .` 과 같다</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> mul K. <span class="tok-n">100</span> . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check compt_width.low
+compt_width.low:9:0 E-TYPE-WIDTH: value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)
+</code></pre></div></div><h3 id="s8-6">8.6 흔한 실수<a class="plink" href="#s8-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>비교(단계 2)가 <code>and</code>(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>
 

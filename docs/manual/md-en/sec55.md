@@ -33,7 +33,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
 | `E-CHAR-WIDTH` | a character literal is not a single character | chapter 3 |
 | `E-CLAUSE-ORDER` | the clauses of an op header are out of the fixed order | chapter 2, chapter 3, chapter 22 |
-| `E-COMPTIME-ARG` | a run-time value in a `comptime` position | chapter 22 |
+| `E-COMPTIME-ARG` | a run-time value in a `comptime` input position | chapter 22 |
 | `E-CONC-ALONE` | a task group spawns one task that waits for a peer | chapter 26 |
 | `E-CONC-DEADLOCK` | every task in the group receives and none sends | chapter 26 |
 | `E-CONFIG-TYPE` | the configuration gives a value the option does not offer | chapter 31 |

@@ -1057,6 +1057,14 @@ static proven_u8 ir_region_root(proven_u8str_view_t n) {
 }
 
  proven_size_t ir_local_declare(ir_ctx_t *c, proven_u8str_view_t name, proven_u32 line) {
+    // ★ RFC-0154 §8-19 (가) (2026-10-30) — 같은 이름을 다시 묶으면 그 이름의 **접힌 값을 지운다**. 지역 칸은 op 안에서 이름마다 하나라,
+    //   끝난 블록의 `let n u64 4 .` 뒤에 `let n u64 x. .` 를 적으면 `comptime mul n. 2 .` 가 죽은 값 4 로 8 을 냈다(검사층은 실행 이름으로 봤다).
+    //   접히는 `let` 은 묶은 **뒤에** 제 값을 다시 싣는다(low_ir_stmt.c).
+    for (proven_size_t q = c->ncint; q > 0; q--)
+        if (proven_u8str_view_eq(c->cint[q - 1].name, name)) {
+            for (proven_size_t r = q; r < c->ncint; r++) c->cint[r - 1] = c->cint[r];
+            c->ncint--;
+        }
     bool f; proven_size_t i = ir_local_find(c, name, &f);
     if (f) return i;
     if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "too many locals", line); return 0; }
@@ -2299,7 +2307,8 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
     return false;
 }
 // ★★★ **comptime 스칼라 CTFE 접기** (RFC-0015 §6.1). `comptime <expr>` 의 <expr> 이
-//   **순수 정수식**(리터럴 + 순수 스칼라 빌트인 + machine.* + 중첩 comptime)이면 컴파일
+//   **순수 정수식**(리터럴 + 순수 스칼라 빌트인 + machine.* + native_lanes + config + 모듈 상수 ·
+//   접힌 지역 let + 중첩 comptime — 이름은 2026-10-30 부터, RFC-0154 §8-19 (가))이면 컴파일
 //   시점에 접어 하나의 상수로 만든다 — 뒷단은 IRW_CONST 하나만 본다(VM·C 가 같은 값 ⇒
 //   오라클 안전). 재귀 fuel 로 종료를 보장한다(§6.2). 순수 정수 부분집합만 지원:
 //   슬라이스/alloc/op-call/데이터 임베딩(text→table, arena→static region)은 §8 후속이다.
@@ -2317,10 +2326,10 @@ static bool ctfe_lit(proven_u8str_view_t v, proven_i64 *out, bool *uns) {
     *uns = v.size > 0 && v.ptr[0] != '-' && *out < 0;    // 빼기표 없이 INT64_MAX 를 넘는 수 — u64 의 위쪽 절반
     return true;
 }
-static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel);
-static bool ctfe_pair(const low_cst_t *x, const low_cst_t *y, proven_i64 *a, proven_i64 *b, bool *u, int fuel) {
+static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns, int fuel);
+static bool ctfe_pair(const low_cst_t *x, const low_cst_t *y, const low_ctfe_names_t *nm, proven_i64 *a, proven_i64 *b, bool *u, int fuel) {
     bool ua = false, ub = false;
-    if (!ctfe_u(x, a, &ua, fuel - 1) || !ctfe_u(y, b, &ub, fuel - 1)) return false;
+    if (!ctfe_u(x, nm, a, &ua, fuel - 1) || !ctfe_u(y, nm, b, &ub, fuel - 1)) return false;
     *u = ua || ub;
     if (*u && ((!ua && *a < 0) || (!ub && *b < 0))) return false;   // 음수와 부호 없는 값을 섞었다 — 접지 않는다
     return true;
@@ -2336,27 +2345,56 @@ static bool ctfe_ubin(char op, proven_u64 x, proven_u64 y, proven_u64 *r) {
         default:  return false;
     }
 }
- bool ir_ctfe_fold(const low_cst_t *nd, proven_i64 *out, int fuel) {
+ bool ir_ctfe_fold(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, int fuel) {
     bool uns = false;
-    return ctfe_u(nd, out, &uns, fuel);
+    return ctfe_u(nd, nm, out, &uns, fuel);
 }
 // ★★★ RFC-0154 §8-20 (2026-10-30 · W-20261030-1054) — 타입 검사층이 **접은 값**으로 폭을 잰다. 접은 상수는 IRW_CONST 하나로 내려가
 //   리터럴의 폭 검사도 셈의 넘침 검사도 거치지 않았다: `u8` 을 내는 op 에서 `return comptime add 200 100 . . .` 이 300 을 냈다.
 //   검사층은 `comptime <식>` 의 타입을 무타입 리터럴로 읽으므로, 여기서 값을 알려 주면 `return 300 .` 과 같은 길(E-TYPE-WIDTH)로 간다.
-bool low_ctfe_value(const low_cst_t *nd, proven_i64 *out, bool *uns) {
+bool low_ctfe_value(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns) {
     *uns = false;
-    return ctfe_u(nd, out, uns, IR_CTFE_FUEL);
+    return ctfe_u(nd, nm, out, uns, IR_CTFE_FUEL);
 }
-static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
+bool low_ctfe_let_value(low_cst_t *const *k, proven_size_t n, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns) {
+    *uns = false;
+    if (n == 1) return ctfe_u(k[0], nm, out, uns, IR_CTFE_FUEL);
+    if (n == 2 && is_atom(k[0]) && is_atom(k[1]) && veq(k[0]->tok.lex, "native_lanes")) {
+        proven_u8 esz = ir_field_size(k[1]->tok.lex);
+        if (!esz) return false;
+        *out = ir_native_lanes_of(esz); return true;
+    }
+    if (n == 2 && is_atom(k[0]) && veq(k[0]->tok.lex, "comptime")) return ctfe_u(k[1], nm, out, uns, IR_CTFE_FUEL);
+    return false;
+}
+static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns, int fuel) {
     *uns = false;
     if (!nd || fuel <= 0) return false;
     while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];   // 괄호 겹 벗기기
-    if (nd->kind == LOW_CST_ATOM) return ctfe_lit(nd->tok.lex, out, uns);
+    if (nd->kind == LOW_CST_ATOM) {
+        if (ctfe_lit(nd->tok.lex, out, uns)) return true;
+        // ★★★ RFC-0154 §8-19 (가) (2026-10-30 · W-20261030-1440) — **이름을 접는다.** 머리 주석은 `machine.*` 를 접는다고 적었는데 그 길이 없었다
+        //   (견준 표 §5): `comptime add 1 machine.addr_bits.` 도 `comptime mul K. 2` 도 E-COMPTIME-NONCONST 였다. 대상 질의는 여기서 바로 읽고,
+        //   모듈 상수 · 접힌 지역 `let` 은 부르는 층이 찾아 준다(`nm`). 모르는 이름은 전처럼 접지 않는다 — 실행 값을 상수로 꾸미지 않는다.
+        if (nd->tok.lex.size > 8 && memcmp(nd->tok.lex.ptr, "machine.", 8) == 0) {
+            bool found; proven_i64 mv = ir_machine(nd->tok.lex, &found);
+            if (!found) return false;
+            *out = mv; return true;
+        }
+        if (nm && nm->find && nd->tok.kind == LOW_TOK_IDENT) return nm->find(nm, nd->tok.lex, out, uns);
+        return false;
+    }
     if (nd->kind != LOW_CST_FORM || nd->nkids < 1 || !is_atom(nd->kids[0])) return false;
     proven_u8str_view_t head = nd->kids[0]->tok.lex;
     proven_size_t nargs = nd->nkids - 1;
     // 중첩 `comptime <expr>` — 이미 컴파일타임이므로 사실상 항등(RFC-0015 §6.1).
-    if (veq(head, "comptime") && nargs == 1) return ctfe_u(nd->kids[1], out, uns, fuel - 1);
+    if (veq(head, "comptime") && nargs == 1) return ctfe_u(nd->kids[1], nm, out, uns, fuel - 1);
+    // ★ RFC-0154 §8-19 (가) — `native_lanes <t>` 은 대상에게 묻는 번역 시점 상수다(타입의 레인 자리와 같은 답 — ir_native_lanes_of).
+    if (veq(head, "native_lanes") && nargs == 1 && is_atom(nd->kids[1])) {
+        proven_u8 esz = ir_field_size(nd->kids[1]->tok.lex);
+        if (!esz) return false;
+        *out = ir_native_lanes_of(esz); return true;
+    }
     // ★ `config <opt>` — 구성 값은 comptime 상수다(RFC-0036 D5). CTFE·match scrutinee 접기가 읽는다.
     if (veq(head, "config") && nargs == 1 && is_atom(nd->kids[1])) {
         ir_opt_t *o = ir_opt_find(nd->kids[1]->tok.lex);
@@ -2366,7 +2404,7 @@ static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
     // 연산자 원자(`+ - * /`) 는 2-항.
     if (nd->kids[0]->tok.kind == LOW_TOK_OP && nargs == 2) {
         proven_i64 a, b; bool u;
-        if (!ctfe_pair(nd->kids[1], nd->kids[2], &a, &b, &u, fuel)) return false;
+        if (!ctfe_pair(nd->kids[1], nd->kids[2], nm, &a, &b, &u, fuel)) return false;
         char op = (char)head.ptr[0];
         if (u) {
             proven_u64 r;
@@ -2384,7 +2422,7 @@ static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
     // 이름 있는 순수 스칼라 빌트인. min/max 는 IR_BUILTINS 밖(수치 표)이라 따로 본다.
     if ((veq(head, "min") || veq(head, "max")) && nargs == 2) {
         proven_i64 a, b; bool u;
-        if (!ctfe_pair(nd->kids[1], nd->kids[2], &a, &b, &u, fuel)) return false;
+        if (!ctfe_pair(nd->kids[1], nd->kids[2], nm, &a, &b, &u, fuel)) return false;
         const bool lt_ = u ? (proven_u64)a < (proven_u64)b : a < b;
         *out = veq(head, "min") ? (lt_ ? a : b) : (lt_ ? b : a); *uns = u; return true;
     }
@@ -2392,7 +2430,7 @@ static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
     if (!bt || bt->arity != nargs) return false;
     if (nargs == 1) {
         proven_i64 a; bool u = false;
-        if (!ctfe_u(nd->kids[1], &a, &u, fuel - 1)) return false;
+        if (!ctfe_u(nd->kids[1], nm, &a, &u, fuel - 1)) return false;
         switch (bt->w) {
             case IRW_NEG:  if (u) return false; *out = -a; return true;   // 부호 없는 값의 neg 는 접지 않는다(정본 §6.3.3 (8a) — 거부)
             case IRW_NOT:  *out = a ? 0 : 1; return true;   // 논리 not
@@ -2401,7 +2439,7 @@ static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
     }
     if (nargs == 2) {
         proven_i64 a, b; bool u;
-        if (!ctfe_pair(nd->kids[1], nd->kids[2], &a, &b, &u, fuel)) return false;
+        if (!ctfe_pair(nd->kids[1], nd->kids[2], nm, &a, &b, &u, fuel)) return false;
         const proven_u64 x = (proven_u64)a, y = (proven_u64)b;
         if (u) {   // 부호 없는 셈 — 위 주석
             proven_u64 r;
@@ -2461,6 +2499,27 @@ static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
     }
     return false;
 }
+// ★★★ RFC-0154 §8-19 (가) (2026-10-30 · W-20261030-1440) — **번역층의 이름 표.** 접힌 지역 `let`(c->cint — 지금 보이는 지역일 때만)을
+//   먼저, 그다음 모듈 상수다. `var` · 입력(번역 시점 입력도 — 실물 하나에 값이 런타임 인자로 간다)은 표에 없으므로 접지 않는다.
+static bool ir_ctfe_find(const low_ctfe_names_t *nm, proven_u8str_view_t name, proven_i64 *out, bool *uns) {
+    ir_ctx_t *c = (ir_ctx_t *)nm->ud;
+    bool f; proven_size_t sl = ir_local_find(c, name, &f);
+    if (f) {
+        for (proven_size_t q = c->ncint; q > 0; q--)
+            if (proven_u8str_view_eq(c->cint[q - 1].name, name)) {
+                const ityp_t t = c->locals[sl].ty;
+                *out = c->cint[q - 1].val; *uns = t.known && !t.sign && !t.flt; return true;
+            }
+        return false;                                   // 보이는 지역이 접히지 않은 것 — 모듈 상수가 같은 이름이어도 지역이 이긴다
+    }
+    for (proven_size_t mi = 0; mi < c->nmconst; mi++)
+        if (proven_u8str_view_eq(c->mconst[mi], name)) {
+            const ityp_t t = c->mconstt[mi];
+            *out = c->mconstv[mi]; *uns = t.known && !t.sign && !t.flt; return true;
+        }
+    return false;
+}
+low_ctfe_names_t ir_ctfe_names(ir_ctx_t *c) { return (low_ctfe_names_t){ .find = ir_ctfe_find, .ud = c }; }
 // comptime vector context from a binding's declared type words (`vec t n`)
 // ★ 바인딩 타입에서 **비트셋 폭**을 읽는다 (`bitset n`) — vec 의 레인 수와 같은 결.
 // ★★★ **비트셋 피연산자의 선언 폭** — `contains`/`remove`/집합삽입 `add`/`complement` 이
@@ -3423,13 +3482,15 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             if (*pos >= end) { ir_fail(c, "E-IR-UNSUP", "`comptime` needs an expression to fold", nd->line); return; }
             const low_cst_t *ce = k[(*pos)++];
             proven_i64 cv;
-            if (ir_ctfe_fold(ce, &cv, IR_CTFE_FUEL)) { ir_emit(c, IRW_CONST, cv); return; }
+            const low_ctfe_names_t nm = ir_ctfe_names(c);
+            if (ir_ctfe_fold(ce, &nm, &cv, IR_CTFE_FUEL)) { ir_emit(c, IRW_CONST, cv); return; }
             ir_fail(c, "E-COMPTIME-NONCONST",
                     "this `comptime` expression could not be evaluated at compile time. Today's CTFE "
-                    "folds a PURE INTEGER expression only — integer literals and pure scalar ops "
-                    "(add/sub/mul/div/mod/neg, and/or/not, bit_and/bit_or/bit_xor, shl/shr, the "
-                    "comparisons, min/max). Runtime names, slices, allocation, op calls, and data "
-                    "embedding (text→table, arena→static region) are not folded yet (RFC-0015 §8). "
+                    "folds a PURE INTEGER expression only — integer literals, module constants, a local "
+                    "`let` that was itself folded, `machine.*`, `native_lanes t`, `config <name>` and pure "
+                    "scalar ops (add/sub/mul/div/mod/neg, and/or/not, bit_and/bit_or/bit_xor, shl/shr, the "
+                    "comparisons, min/max). A `var`, an input (also a `comptime` input), slices, allocation, "
+                    "op calls, and data embedding (text→table, arena→static region) are not folded (RFC-0015 §8). "
                     "A u64 value of 2^63 or more folds without a sign, and what has no honest value is "
                     "not folded: an overflow, a subtraction below 0, or a negative number mixed with it",
                     nd->line);

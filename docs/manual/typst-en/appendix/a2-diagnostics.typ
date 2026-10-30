@@ -40,7 +40,7 @@ machine-readable form).
   [`E-CHAR`], [a character (symbol) this language does not have], [#chref("locals"), #chref("control"), #chref("expr"), #chref("slices")],
   [`E-CHAR-WIDTH`], [a character literal is not a single character], [#chref("surface")],
   [`E-CLAUSE-ORDER`], [the clauses of an op header are out of the fixed order], [#chref("first-program"), #chref("surface"), #chref("generics")],
-  [`E-COMPTIME-ARG`], [a run-time value in a `comptime` position], [#chref("generics")],
+  [`E-COMPTIME-ARG`], [a run-time value in a `comptime` input position], [#chref("generics")],
   [`E-CONC-ALONE`], [a task group spawns one task that waits for a peer], [#chref("tasks-channels")],
   [`E-CONC-DEADLOCK`], [every task in the group receives and none sends], [#chref("tasks-channels")],
   [`E-CONFIG-TYPE`], [the configuration gives a value the option does not offer], [#chref("build-test")],

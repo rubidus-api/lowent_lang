@@ -1,0 +1,59 @@
+rem ★★★ RFC-0154 §8-19 (가)(나) · §8-21 (2026-10-30 · 소유자 «추천대로 해 주세요» · W-20261030-1440) — `comptime` 이 이름을 읽는다.
+rem   모듈 상수 · 값이 번역 시점에 나온 지역 `let` · `machine.*` · `native_lanes t` 를 접고(전엔 모두 E-COMPTIME-NONCONST),
+rem   모듈 상수를 `comptime <식>` 으로 적는다(앞뒤 순서 없이 다른 상수를 읽는다). 답은 손으로 센 값이고 VM = 네이티브다.
+rem   `machine.addr_bits` · `native_lanes` 는 x86_64 호스트의 답이다(64 · SIMD 16 바이트).
+
+module vm_ctnames .
+
+let K u64 6 .
+let KIB u64 1024 .
+let PAGE u64 comptime mul 4 KIB. . . .
+let A u64 comptime mul B. 2 . . .        rem 뒤에 선 상수를 읽는다
+let B u64 comptime add 3 4 . . .
+let W u64 comptime mul 2 2 . . .
+
+rem 모듈 상수: 6 × 2 = 12
+export fn modk output u64 . do
+  return comptime mul K. 2 . . .
+end .
+
+rem 대상 질의: 1 + 64 = 65
+export fn mach output u64 . do
+  return comptime add 1 machine.addr_bits. . . .
+end .
+
+rem 접힌 지역 let(native_lanes u32 = 4): 4 × 2 = 8
+export fn lanes output u64 . do
+  let L usize native_lanes u32 . .
+  return comptime mul L. 2 . . .
+end .
+
+rem 접기 안의 native_lanes: u8 = 16
+export fn natl output u64 . do
+  return comptime native_lanes u8 . . .
+end .
+
+rem `comptime` 으로 적은 모듈 상수: 4 × 1024 = 4096 · 뒤의 상수를 읽은 것: (3 + 4) × 2 = 14 → 4110
+export fn modct output u64 . do
+  return add PAGE. A. . .
+end .
+
+rem `comptime` 으로 적은 지역 let 둘: 2 × 16 = 32 · 32 + 1 = 33
+export fn letct output u64 . do
+  let n usize comptime mul 2 native_lanes u8 . . . .
+  let m u64 comptime add n. 1 . . .
+  return m. .
+end .
+
+rem 접힌 지역 let 이 레인 수다: W = 4 · 레인 넷에 3 씩 = 12
+export fn lanevec output u32 . do
+  let L usize comptime add W. 0 . . .
+  var x vec L u32 splat 3 . .
+  return reduce_add x. . .
+end .
+
+rem 이름의 타입은 답의 타입이 아니다 — 200 + 55 = 255 는 `u8` 에 든다
+export fn fit output u8 . do
+  let a u8 200 .
+  return comptime add a. 55 . . .
+end .

@@ -1274,19 +1274,17 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             //     **불변인 것만 타입이 될 수 있다.**
             //   ☞ 접는 범위는 폭 자리와 **같은 접기**(리터럴 · `native_lanes t` · 이미 담긴 이름)로
             //     한정한다. 넓히려면 재고 넓힌다 — 여기서 CTFE 전체를 끌어오지 않는다.
-            if (f->kids[0]->tok.kw == LOW_KW_LET && vstart < f->nkids && c->ncint < 16) {
-                proven_i64 cv = 0; bool got = false;
-                if (vstart + 1 == f->nkids) got = ir_fold_lane_expr(c, f->kids[vstart], &cv);
-                else if (vstart + 2 == f->nkids && is_atom(f->kids[vstart]) &&
-                         is_atom(f->kids[vstart + 1]) &&
-                         veq(f->kids[vstart]->tok.lex, "native_lanes")) {
-                    proven_u8 esz = ir_field_size(f->kids[vstart + 1]->tok.lex);
-                    if (esz) { cv = ir_native_lanes_of(esz); got = true; }
-                }
-                if (got) { c->cint[c->ncint].name = f->kids[1]->tok.lex;
-                           c->cint[c->ncint].val = cv; c->ncint++; }
+            proven_i64 cint_v = 0; bool cint_u = false, cint_got = false;
+            if (f->kids[0]->tok.kw == LOW_KW_LET && vstart < f->nkids && c->ncint < IR_MAXCINT) {
+                // ★ RFC-0154 §8-19 (가) (2026-10-30 · W-20261030-1440) — 접기를 넓혔다(쟀다: 골든 · 스윕): 리터럴 · `native_lanes t` · 접힌 이름에 더해
+                //   모듈 상수 · `machine.*` · `comptime <식>` 도 접힌 `let` 이다 — 그 이름을 다른 `comptime` 이 읽고 레인 자리에도 쓴다.
+                //   규칙은 low_ctfe_let_value 하나다(검사층도 그것을 부른다).
+                //   값은 묶기 **전에** 접는다(`let n … comptime add n. 1 .` 의 `n` 은 앞의 n 이다) · 표에는 묶은 **뒤에** 싣는다(묶기가 같은 이름의 옛 값을 지운다).
+                const low_ctfe_names_t nm = ir_ctfe_names(c);
+                cint_got = low_ctfe_let_value(f->kids + vstart, f->nkids - vstart, &nm, &cint_v, &cint_u);
             }
             proven_size_t slot = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
+            if (cint_got && c->ncint < IR_MAXCINT) { c->cint[c->ncint].name = f->kids[1]->tok.lex; c->cint[c->ncint].val = cint_v; c->ncint++; }
             c->locals[slot].ty = ity_of_decl_c(c, f, 2, (be < f->nkids) ? be : f->nkids);   // S2
             // ★★★ **지역의 원소 타입도 싣는다** (2026-09-09, REQ-0013). 파라미터만 실었더니
             //   `var v be mut slice u64 view_array u64 buf .` 위의 `lt (index v 0) (index v 1)` 이
@@ -1761,9 +1759,9 @@ static bool ir_match_jumptable(ir_ctx_t *c, const low_cst_t *arms, proven_size_t
 static bool ir_scrutinee_fold(const low_cst_t *m, proven_i64 *out) {
     if (m->nkids < 3) return false;
     proven_size_t sn = m->nkids - 2;   // scrutinee 노드 수
-    if (sn == 1) return ir_ctfe_fold(m->kids[1], out, IR_CTFE_FUEL);
+    if (sn == 1) return ir_ctfe_fold(m->kids[1], NULL, out, IR_CTFE_FUEL);
     if (sn == 2 && is_atom(m->kids[1])) {
-        if (veq(m->kids[1]->tok.lex, "comptime")) return ir_ctfe_fold(m->kids[2], out, IR_CTFE_FUEL);
+        if (veq(m->kids[1]->tok.lex, "comptime")) return ir_ctfe_fold(m->kids[2], NULL, out, IR_CTFE_FUEL);
         if (veq(m->kids[1]->tok.lex, "config") && is_atom(m->kids[2])) {
             ir_opt_t *o = ir_opt_find(m->kids[2]->tok.lex);
             if (o) { *out = o->val; return true; }
@@ -2803,6 +2801,99 @@ static void ir_frame_windows(low_ir_t *ir) {
     }
 }
 
+// ★★★ **구성 손잡이를 읽는다** (RFC-0036 D5) — `build option <n> …` 와 해결본(`lowent.config`)을 g_opt 에 싣는다.
+//   ★ RFC-0154 §8-21 (2026-10-30 · W-20261030-1440) — 함수로 뗐다: 검사층이 하강층보다 **먼저** 돌므로, `comptime add config hz . 10 .` 의 값을
+//   잴 때 g_opt 가 비어 있었다(`u8` 자리에 260 이 들었다). 검사층은 진단 없이 부르고(`dc` = NULL), 하강층이 다시 읽으며 진단을 낸다.
+#define OPT_FAIL(...) do { if (dc) ir_fail(dc, __VA_ARGS__); } while (0)
+static void ir_options_load(ir_ctx_t *dc, const low_parse_result_t *pr) {
+    g_nopt = 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *bf = pr->forms[i];
+        if (bf->kind != LOW_CST_FORM || bf->nkids < 4 || !is_atom(bf->kids[0])) continue;
+        if (!veq(bf->kids[0]->tok.lex, "build") || !is_atom(bf->kids[1])) continue;
+        if (!veq(bf->kids[1]->tok.lex, "option") || !is_atom(bf->kids[2])) continue;
+        if (g_nopt >= IR_MAXOPT) break;
+        ir_opt_t *o = &g_opt[g_nopt];
+        memset(o, 0, sizeof(*o));
+        proven_u8str_view_t nm = bf->kids[2]->tok.lex;
+        proven_size_t cn = nm.size < sizeof o->name - 1 ? nm.size : sizeof o->name - 1;
+        memcpy(o->name, nm.ptr, cn); o->name[cn] = 0;
+        o->line = bf->line;
+        proven_u8str_view_t ty = is_atom(bf->kids[3]) ? bf->kids[3]->tok.lex
+                                                      : proven_u8str_view_from_cstr("");
+        o->kind = veq(ty, "bool") ? 0 : veq(ty, "int") ? 1 : veq(ty, "choice") ? 2 : -1;
+        if (o->kind < 0) {
+            OPT_FAIL("E-OPT-TYPE", "a build option is `bool`, `int` or `choice` — an option "
+                    "with no type is a knob whose positions nobody can name", bf->line);
+            continue;
+        }
+        for (proven_size_t j = 4; j < bf->nkids; j++) {
+            if (!is_atom(bf->kids[j])) continue;
+            proven_u8str_view_t w = bf->kids[j]->tok.lex;
+            if (veq(w, "default") && j + 1 < bf->nkids && is_atom(bf->kids[j + 1])) {
+                if (!ir_opt_num(bf->kids[j + 1]->tok.lex, &o->val))
+                    OPT_FAIL("E-OPT-TYPE", "this option's default is not a value it can take",
+                            bf->line);
+                j++;
+            } else if (veq(w, "depends") && j + 1 < bf->nkids && is_atom(bf->kids[j + 1])) {
+                proven_u8str_view_t d = bf->kids[j + 1]->tok.lex;
+                proven_size_t dn = d.size < sizeof o->dep - 1 ? d.size : sizeof o->dep - 1;
+                memcpy(o->dep, d.ptr, dn); o->dep[dn] = 0;
+                o->has_dep = true;
+                j++;
+            } else if (o->kind == 2 && o->nch < 8) {
+                proven_i64 cv;
+                if (ir_opt_num(w, &cv)) o->ch[o->nch++] = cv;
+            }
+        }
+        // ★ choice 의 기본값은 **고를 수 있는 값 중 하나**여야 한다. 아니면 그 손잡이는
+        //   **아무도 못 돌리는 위치**에서 시작한다.
+        if (o->kind == 2) {
+            bool ok2 = false;
+            for (proven_size_t k = 0; k < o->nch; k++) if (o->ch[k] == o->val) ok2 = true;
+            if (!ok2)
+                OPT_FAIL("E-OPT-TYPE", "this `choice` option's default is not one of its "
+                        "choices — the knob starts at a position it does not have", bf->line);
+        }
+        g_nopt++;
+    }
+    // ★★ 해결본(`lowent.config`)을 얹는다. **손잡이에 없는 이름**을 고르는 것은 오류다 —
+    //   조용히 무시하면 그 설정 파일은 **아무 일도 안 하면서 무언가 하는 척한다.**
+    for (proven_size_t i = 0; i < g_ncfg; i++) {
+        ir_opt_t *o = ir_opt_find(proven_u8str_view_from_cstr(g_cfg[i].name));
+        if (!o) {
+            OPT_FAIL("E-CONFIG-UNDEF", "the config selects an option that is not declared. "
+                    "A setting nobody reads changes nothing — and it LOOKS like it does", 0);
+            continue;
+        }
+        proven_i64 v;
+        if (!ir_opt_num(proven_u8str_view_from_cstr(g_cfg[i].val), &v)) {
+            OPT_FAIL("E-CONFIG-TYPE", "the config gives this option a value it cannot take", o->line);
+            continue;
+        }
+        if (o->kind == 0 && v != 0 && v != 1) {
+            OPT_FAIL("E-CONFIG-TYPE", "a `bool` option is on or off", o->line);
+            continue;
+        }
+        if (o->kind == 2) {
+            bool ok2 = false;
+            for (proven_size_t k = 0; k < o->nch; k++) if (o->ch[k] == v) ok2 = true;
+            if (!ok2) { OPT_FAIL("E-CONFIG-TYPE",
+                                "the config picks a value this `choice` option does not offer", o->line);
+                        continue; }
+        }
+        o->val = v;
+        o->from_cfg = true;
+    }
+}
+#undef OPT_FAIL
+void low_ir_options_preload(const low_parse_result_t *pr) { ir_options_load(NULL, pr); }
+bool low_ir_option_int(proven_u8str_view_t name, proven_i64 *out) {
+    ir_opt_t *o = ir_opt_find(name);
+    if (!o) return false;
+    *out = o->val; return true;
+}
+
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     low_ir_t ir = low_ir_build_impl(work, pr);
     low_tc_notes_close();
@@ -2875,86 +2966,8 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         mod.usebind[mod.nusebind] = bind; mod.usemod[mod.nusebind] = m; mod.nusebind++;
     }
 
-    // ★★★ **구성 손잡이를 읽는다** (RFC-0036 D5) — `build option <n> …`
-    g_nopt = 0;
-    for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *bf = pr->forms[i];
-        if (bf->kind != LOW_CST_FORM || bf->nkids < 4 || !is_atom(bf->kids[0])) continue;
-        if (!veq(bf->kids[0]->tok.lex, "build") || !is_atom(bf->kids[1])) continue;
-        if (!veq(bf->kids[1]->tok.lex, "option") || !is_atom(bf->kids[2])) continue;
-        if (g_nopt >= IR_MAXOPT) break;
-        ir_opt_t *o = &g_opt[g_nopt];
-        memset(o, 0, sizeof(*o));
-        proven_u8str_view_t nm = bf->kids[2]->tok.lex;
-        proven_size_t cn = nm.size < sizeof o->name - 1 ? nm.size : sizeof o->name - 1;
-        memcpy(o->name, nm.ptr, cn); o->name[cn] = 0;
-        o->line = bf->line;
-        proven_u8str_view_t ty = is_atom(bf->kids[3]) ? bf->kids[3]->tok.lex
-                                                      : proven_u8str_view_from_cstr("");
-        o->kind = veq(ty, "bool") ? 0 : veq(ty, "int") ? 1 : veq(ty, "choice") ? 2 : -1;
-        if (o->kind < 0) {
-            ir_fail(&mod, "E-OPT-TYPE", "a build option is `bool`, `int` or `choice` — an option "
-                    "with no type is a knob whose positions nobody can name", bf->line);
-            continue;
-        }
-        for (proven_size_t j = 4; j < bf->nkids; j++) {
-            if (!is_atom(bf->kids[j])) continue;
-            proven_u8str_view_t w = bf->kids[j]->tok.lex;
-            if (veq(w, "default") && j + 1 < bf->nkids && is_atom(bf->kids[j + 1])) {
-                if (!ir_opt_num(bf->kids[j + 1]->tok.lex, &o->val))
-                    ir_fail(&mod, "E-OPT-TYPE", "this option's default is not a value it can take",
-                            bf->line);
-                j++;
-            } else if (veq(w, "depends") && j + 1 < bf->nkids && is_atom(bf->kids[j + 1])) {
-                proven_u8str_view_t d = bf->kids[j + 1]->tok.lex;
-                proven_size_t dn = d.size < sizeof o->dep - 1 ? d.size : sizeof o->dep - 1;
-                memcpy(o->dep, d.ptr, dn); o->dep[dn] = 0;
-                o->has_dep = true;
-                j++;
-            } else if (o->kind == 2 && o->nch < 8) {
-                proven_i64 cv;
-                if (ir_opt_num(w, &cv)) o->ch[o->nch++] = cv;
-            }
-        }
-        // ★ choice 의 기본값은 **고를 수 있는 값 중 하나**여야 한다. 아니면 그 손잡이는
-        //   **아무도 못 돌리는 위치**에서 시작한다.
-        if (o->kind == 2) {
-            bool ok2 = false;
-            for (proven_size_t k = 0; k < o->nch; k++) if (o->ch[k] == o->val) ok2 = true;
-            if (!ok2)
-                ir_fail(&mod, "E-OPT-TYPE", "this `choice` option's default is not one of its "
-                        "choices — the knob starts at a position it does not have", bf->line);
-        }
-        g_nopt++;
-    }
-    // ★★ 해결본(`lowent.config`)을 얹는다. **손잡이에 없는 이름**을 고르는 것은 오류다 —
-    //   조용히 무시하면 그 설정 파일은 **아무 일도 안 하면서 무언가 하는 척한다.**
-    for (proven_size_t i = 0; i < g_ncfg; i++) {
-        ir_opt_t *o = ir_opt_find(proven_u8str_view_from_cstr(g_cfg[i].name));
-        if (!o) {
-            ir_fail(&mod, "E-CONFIG-UNDEF", "the config selects an option that is not declared. "
-                    "A setting nobody reads changes nothing — and it LOOKS like it does", 0);
-            continue;
-        }
-        proven_i64 v;
-        if (!ir_opt_num(proven_u8str_view_from_cstr(g_cfg[i].val), &v)) {
-            ir_fail(&mod, "E-CONFIG-TYPE", "the config gives this option a value it cannot take", o->line);
-            continue;
-        }
-        if (o->kind == 0 && v != 0 && v != 1) {
-            ir_fail(&mod, "E-CONFIG-TYPE", "a `bool` option is on or off", o->line);
-            continue;
-        }
-        if (o->kind == 2) {
-            bool ok2 = false;
-            for (proven_size_t k = 0; k < o->nch; k++) if (o->ch[k] == v) ok2 = true;
-            if (!ok2) { ir_fail(&mod, "E-CONFIG-TYPE",
-                                "the config picks a value this `choice` option does not offer", o->line);
-                        continue; }
-        }
-        o->val = v;
-        o->from_cfg = true;
-    }
+    // ★★★ **구성 손잡이를 읽는다** (RFC-0036 D5) — `build option <n> …` · 해결본(`lowent.config`)을 얹는다. ir_options_load(위).
+    ir_options_load(&mod, pr);
     // ★★★ **의존은 강제된다.** `hz depends smp` 인데 smp 가 꺼진 채 hz 를 켜면, 그 빌드는
     //   **존재하지 않는 구성**이다. Kconfig 가 하는 일이 정확히 이것이고, 하지 않으면
     //   그 의존 선언은 **장식**이다(검사되지 않는 중복은 거짓말로 썩는다).
@@ -3233,6 +3246,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
     //     `state` 효과·escape-safe·concurrency-gated 를 요구한다. 그것을 강제할 준비가 되기
     //     전까지 **거절한다** — 조용히 상수처럼 굴게 두면 그것이 곧 거짓말이다.
     mod.nmconst = 0;
+    const low_cst_t *pend[IR_MAXALIAS], *pendv[IR_MAXALIAS]; proven_size_t pendi[IR_MAXALIAS], npend = 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !is_atom(f->kids[0])) continue;
@@ -3267,23 +3281,61 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
             continue;
         }
         proven_i64 cv;
-        if (!ir_int_lit(f->kids[be + 1]->tok.lex, &cv) || be + 2 != f->nkids) {
+        // ★★★ RFC-0154 §8-19 (나) (2026-10-30 · W-20261030-1440) — 값이 `comptime <식>` 이어도 된다: `let K u64 comptime mul 4 8 . . .`.
+        //   그 식은 값 자리의 `comptime` 과 같은 접기로 접고, 다른 모듈 상수를 읽을 수 있다. 앞뒤 순서는 묻지 않는다 — 아직 못 접은 것은
+        //   아래에서 다른 상수가 다 선 뒤에 다시 본다. 셈으로 적은 값(`let K u64 mul 4 8 . .`)은 전처럼 거절한다: 번역 시점에 셈한다는 것이
+        //   글에 보여야 한다(실행 때 셈할 자리가 모듈 맨 위에는 없다).
+        const bool ctx = is_atom(f->kids[be + 1]) && veq(f->kids[be + 1]->tok.lex, "comptime") && be + 3 == f->nkids;
+        if (!ctx && (!ir_int_lit(f->kids[be + 1]->tok.lex, &cv) || be + 2 != f->nkids)) {
             low_diag_t cd = { .sev = LOW_SEV_ERROR, .code = "E-CONST-NOTCOMPTIME",
                               .msg = "a module-level `let` is a NAMED CONSTANT — its value must be "
-                                     "a compile-time literal (only integer literals for now; the "
-                                     "tool SAYS so rather than pretending)",
+                                     "known at compile time: an integer literal, or `comptime <expr>` "
+                                     "(`let K u64 comptime mul 4 8 . . .`). An expression without "
+                                     "`comptime` is not folded here",
                               .line = f->line, .col = 0 };
             (void)proven_array_push(&ir.diags, &cd);
             ir.ok = false;
             continue;
         }
-        if (mod.nmconst < IR_MAXALIAS) {
+        if (mod.nmconst < IR_MAXALIAS && npend < IR_MAXALIAS) {
             mod.mconst[mod.nmconst] = f->kids[1]->tok.lex;
-            mod.mconstv[mod.nmconst] = cv;
+            mod.mconstv[mod.nmconst] = ctx ? 0 : cv;
             mod.mconstt[mod.nmconst] = ity_of_decl_c(&mod, f, 2, be);
+            if (ctx) { pend[npend] = f; pendv[npend] = f->kids[be + 2]; pendi[npend] = mod.nmconst; npend++; }
             mod.nmconst++;
         } else {
             IR_LIMIT(true, "module constants");
+        }
+    }
+    // `comptime` 로 적은 모듈 상수 — 표에 이름은 섰지만 값은 아직이다. 못 접은 이름이 보이지 않게 표를 잠시 줄여 접고, 한 바퀴에 하나도
+    //   못 접으면 남은 것은 거절한다(다른 상수를 읽다 돌아오는 고리 · 상수가 아닌 이름 · 넘침).
+    if (npend) {
+        bool done[IR_MAXALIAS] = { 0 };
+        proven_size_t left = npend;
+        for (bool prog = true; left && prog; ) {
+            prog = false;
+            for (proven_size_t q = 0; q < npend; q++) {
+                if (done[q]) continue;
+                // 아직 못 접은 상수의 이름을 표에서 가린다(값 0 으로 읽히면 거짓 상수가 된다)
+                proven_u8str_view_t hide[IR_MAXALIAS]; proven_size_t nh = 0;
+                for (proven_size_t r = 0; r < npend; r++) if (!done[r]) { hide[nh++] = mod.mconst[pendi[r]]; mod.mconst[pendi[r]] = (proven_u8str_view_t){ 0 }; }
+                proven_i64 v; const low_ctfe_names_t nm = ir_ctfe_names(&mod);
+                const bool ok = ir_ctfe_fold(pendv[q], &nm, &v, IR_CTFE_FUEL);
+                nh = 0;
+                for (proven_size_t r = 0; r < npend; r++) if (!done[r]) mod.mconst[pendi[r]] = hide[nh++];
+                if (ok) { mod.mconstv[pendi[q]] = v; done[q] = true; left--; prog = true; }
+            }
+        }
+        for (proven_size_t q = 0; q < npend; q++) {
+            if (done[q]) continue;
+            low_diag_t cd = { .sev = LOW_SEV_ERROR, .code = "E-CONST-NOTCOMPTIME",
+                              .msg = "this module constant's `comptime` expression could not be folded — it may "
+                                     "read a name that is not a constant, read a constant that reads it back, or "
+                                     "overflow (what folds: integer literals, other module constants, `machine.*`, "
+                                     "`native_lanes t`, `config <name>` and the pure scalar ops)",
+                              .line = pend[q]->line, .col = 0 };
+            (void)proven_array_push(&ir.diags, &cd);
+            ir.ok = false;
         }
     }
 

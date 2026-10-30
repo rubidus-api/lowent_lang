@@ -70,7 +70,7 @@ These are the places people often trip when writing Lowent with habits from othe
 | Writing `fn` or `proc` in a trait signature | `E-TRAIT-SIG` | `area input s self . output u64 .` |
 | Leaving the effects line off a `proc` | `E-EFFECT-MISSING` | Write `effects <atoms> .` — `effects none .` when there are none (`--doc` prints `inferred:`) |
 | A type argument not satisfying the trait | `E-BOUND-UNSAT` | Add `satisfies` and the op |
-| Giving a run-time value where `comptime` is required | `E-COMPTIME-ARG` | A literal or module constant |
+| Giving a run-time value to a `comptime` input | `E-COMPTIME-ARG` | A literal or module constant |
 | `spawn <op>` outside a `task_group` | `E-SPAWN-SCOPE` | Wrap it in `task_group do … end .` |
 | Writing an accumulator in a split loop | `E-PAR-CARRY` | `reduce <place> <op> .` |
 | Using a stage like sorting in `pipe` | `E-PIPE-STAGE` | Use only the seven stages and five terminals |

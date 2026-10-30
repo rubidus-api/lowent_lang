@@ -108,3 +108,34 @@ export fn rowsum output u64 . do
   for v idx TT. 3 . do set s. add s. cast u64 v. . . . end .
   return s. .
 end .
+
+rem ★ 2026-10-31 (W-20261031-0342 · 소유자 «추천대로») — 구조체의 배열을 돌려준다. 자리는 바깥이 준다(P4b) — 번역 때는 처리기가 준다
+fn ring input k i32 . output r array 4 pt .
+  requires le k. 100 . .
+  requires ge k. -100 . .
+do
+  var i usize 0 .
+  while lt i. 4 . do
+    let v i32 cast i32 i. . .
+    set idx r. i. . lit pt do x mul v. k. . . y neg v. . . w 0.5 . end . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+let RING array 4 pt comptime ring 5 . . .
+
+rem 실행 때 자리를 받아 — 9 + (−2) = 7
+export fn ringrt output i32 . do
+  var t array 4 pt ring 3 . .
+  return add field idx t. 3 . x . field idx t. 2 . y . . .
+end .
+
+rem 번역 때 — 같은 7 · 모듈 상수 3 × 5 = 15
+export fn ringct output i32 . do
+  let t array 4 pt comptime ring 3 . . .
+  return add field idx t. 3 . x . field idx t. 2 . y . . .
+end .
+export fn ringmd output i32 . do
+  return field idx RING. 3 . x . .
+end .

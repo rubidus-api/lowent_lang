@@ -2811,6 +2811,12 @@ static bool ir_ctfe_answer_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 lin
         ir_emit(c, IRW_VARRAY, ir_row_meta(lf, rb, sub));
         return true;
     }
+    if ((ac->arr || ac->sl) && ac->selem) {   // 구조체 원소 — 상수 `lit array N S …` 과 같은 보기(구조체 표시 · 배치 번호)
+        bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, ac->elem), &sf);
+        if (!sf || !c->out->structs[si].viewable) { ir_fail(c, "E-COMPTIME-NONCONST", "the struct elements of this compile-time answer have no byte layout here", line); return true; }
+        ir_ctfe_bytes(c, ac->bytes, ac->nbytes, (proven_i64)c->out->structs[si].total | IR_STRUCT_BIT | ((proven_i64)si << 20), line);
+        return true;
+    }
     if (ac->arr || ac->sl) {
         proven_i64 meta = ir_elem_meta(ac->elem);
         if (veq(ac->elem, "bool")) meta = 1;   // `bool` 원소는 한 바이트 0/1 — 타입 보기 없이 바이트 슬라이스다(상수 `lit array N bool` 과 같다)

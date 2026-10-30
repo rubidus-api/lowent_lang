@@ -1261,10 +1261,22 @@ static void dt_drop_out_name(dt_ctx_t *c, low_cst_t *f, proven_size_t at) {
  *                 그 밖의 자리에서 배열을 내는 op 을 부르면 E-RESULT-PLACE(이름에 묶으라고 말한다).
  * 자리 매개변수의 `mut` 은 끼운 낱말(synth)이라 fn 의 순수성 검사(E-EFFECT-PURITY)가 보지 않는다 — 그 자리는 부른 쪽이 결과로
  * 받는 것이고, 돌아오기 전에는 아무도 볼 수 없다. 원소는 수만(그 밖은 E-TYPE-ARRAY — bool 은 지역 배열의 `idx` 가 수를 내는 기존 제약 때문에 뒤로). */
+static dt_ctx_t *g_dt_ar;   // 지금 걷는 단위(구조체 이름을 묻는다 — dt_run 이 세운다)
+static bool dt_ar_struct_name(proven_u8str_view_t w) {
+    if (!g_dt_ar) return false;
+    for (proven_size_t i = 0; i < g_dt_ar->ntn; i++) {
+        const low_cst_t *f = g_dt_ar->tn[i].form;
+        if (proven_u8str_view_eq(g_dt_ar->tn[i].name, us_bare(w)) && f && f->kind == LOW_CST_FORM && f->nkids >= 1 && us_atom(f->kids[0]) &&
+            f->kids[0]->tok.kw == LOW_KW_STRUCT) return true;
+    }
+    return false;
+}
 static bool dt_ar_elem_ok(const low_cst_t *t) {
     // ★ 2026-10-31 (W-20261031-0048) — `bool` 도 받는다: `slice bool` 의 `idx` 가 이제 `bool` 이다(검사층의 원소 폭 칸 1).
     static const char *const OK[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64","bool", NULL };
-    if (us_atom(t)) return dt_in(t->tok.lex, OK);
+    // ★ 2026-10-31 (W-20261031-0342 · 소유자 «추천대로») — **구조체 원소도 받는다**: `output r array 4 pt .`. 자리는 `mut slice pt` 이고 부르는 쪽은
+    //   `lit array 4 pt _ .` 을 준다(0 으로 채운 칸들). 원소에 바이트 배치가 있어야 한다는 것은 나열 리터럴의 규칙이 그대로 본다(E-LIT-UNBUILT).
+    if (us_atom(t)) return dt_in(t->tok.lex, OK) || dt_ar_struct_name(t->tok.lex);
     // ★ RFC-0155 §8-5 (2026-10-30 · W-20261030-1054) — 원소가 배열이면(`output r array 2 array 3 u8 .` 의 안쪽 꼴 `array (array u8 3) 2`)
     //   그 원소는 괄호 한 겹 안의 `array <원소> <수>` 다. 자리는 줄의 슬라이스 `mut slice (array u8 3)` 이 되고 0 채우기는 줄의 나열 펼치기가 한다.
     if (!t || t->kind != LOW_CST_GROUP || t->nkids != 1) return false;
@@ -1728,6 +1740,7 @@ static void dt_run(low_parse_result_t *pr, proven_allocator_t node_alloc, proven
     memset(c, 0, sizeof *c);
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     c->strict = strict; c->migrate = migrate;
+    g_dt_ar = c;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&

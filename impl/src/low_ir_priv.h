@@ -510,6 +510,7 @@ typedef struct {
     proven_u8str_view_t elem;     /* 원소 낱말 T */
     proven_size_t    nelem;       /* N */
     const low_cst_t *rowty;       /* 원소가 줄이면(`array N array M T`) 그 줄 타입 마디(괄호) — elem 은 비어 있다 */
+    bool             selem;       /* 원소가 구조체다(elem = 그 이름) — 바이트 배치가 있는 구조체만(2026-10-31) */
     proven_u8       *bytes;       /* 돌린 뒤의 바이트(작은 끝, malloc — 표를 다시 채울 때 놓는다) */
     proven_size_t    nbytes;
     /* RFC-0015 §6.3 (2026-10-31 · W-20261031-0048) — 답이 슬라이스(`output slice T`)거나 구조체(`output S`)인 `fn` */

@@ -2931,16 +2931,19 @@ static const low_cst_t *ctfe_op_form(const low_parse_result_t *pr, proven_u8str_
 // ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — 답이 배열인 `fn` 인가. P4b(low_using)가 `output r array N T .` 를
 //   마지막 입력 `input r mut slice T .`(끼운 `mut`) · `output slice T .` · `requires eq (len r) N .` 로 바꿔 적었다 — 그 꼴을 알아본다.
 //   원소는 크기 있는 수와 `bool`(P4b 가 받는 것). 줄은 아래 ctfe_array_rows 가 본다.
-static bool ctfe_array_answer(const low_cst_t *cf, const low_op_header_t *h, proven_u8str_view_t *elem, proven_size_t *nelem, const low_cst_t **rowty) {
+static bool ctfe_struct_named(const low_parse_result_t *pr, proven_u8str_view_t name);
+static bool ctfe_array_answer(const low_parse_result_t *pr, const low_cst_t *cf, const low_op_header_t *h, proven_u8str_view_t *elem, proven_size_t *nelem,
+                              const low_cst_t **rowty, bool *selem) {
     if (!h->np) return false;
     const low_param_t *pp = &h->p[h->np - 1];
     low_cst_t *const *k = cf->kids;
-    *rowty = NULL; *elem = (proven_u8str_view_t){ 0 };
+    *rowty = NULL; *elem = (proven_u8str_view_t){ 0 }; *selem = false;
     // 자리 낱말은 `slice T` 이거나(타입 구간이 두 낱말) 줄의 슬라이스 `slice (array T M)` 이다 — 머리의 절 구간은 괄호 앞에서 끝난다
     if (!pp->is_mut || !k[pp->ts]->synth || !is_atom(k[pp->core]) || !veq(k[pp->core]->tok.lex, "slice") || pp->core + 1 >= cf->nkids) return false;
     const low_cst_t *et = k[pp->core + 1];
     if (is_atom(et)) {
-        if (pp->te != pp->core + 2 || !ir_field_size(et->tok.lex)) return false;
+        *selem = !ir_field_size(et->tok.lex) && ctfe_struct_named(pr, et->tok.lex);   // 구조체 원소 — 크기는 돌릴 때 배치가 안다
+        if (pp->te != pp->core + 2 || (!ir_field_size(et->tok.lex) && !*selem)) return false;
         if (h->out_e != h->out_s + 2 || !is_atom(k[h->out_s + 1]) || !proven_u8str_view_eq(k[h->out_s + 1]->tok.lex, et->tok.lex)) return false;
         *elem = et->tok.lex;
     } else if (et->kind == LOW_CST_GROUP) {
@@ -2989,7 +2992,7 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                 if (!h.is_calc)
                     snprintf(c->why, sizeof c->why, "`%.*s` is a `proc` — it may have effects, and only a pure `fn` runs at compile time (RFC-0015 §4.1)",
                              (int)h.name.size, (const char *)h.name.ptr);
-                c->arr = !c->why[0] && ctfe_array_answer(cf, &h, &c->elem, &c->nelem, &c->rowty);
+                c->arr = !c->why[0] && ctfe_array_answer(pr, cf, &h, &c->elem, &c->nelem, &c->rowty, &c->selem);
                 if (c->arr && c->nelem * ir_field_size(c->elem) > IR_CTFE_MAXBYTES)
                     snprintf(c->why, sizeof c->why, "`%.*s` returns an array of %zu bytes — a compile-time answer holds at most %u bytes",
                              (int)h.name.size, (const char *)h.name.ptr, c->nelem * ir_field_size(c->elem), (unsigned)IR_CTFE_MAXBYTES);
@@ -3147,7 +3150,7 @@ static bool ctfe_cache_get(const low_ir_t *ir, proven_size_t di, ctfe_call_t *c,
     if (fread(tag, 1, 8, fp) == 8 && !memcmp(tag, CTFE_CACHE_TAG, 8) && fread(&v, 8, 1, fp) == 1 && fread(&n, 8, 1, fp) == 1 &&
         n <= IR_CTFE_MAXBYTES && (!(c->arr || c->sl) || 1)) {
         proven_u8 *b = (c->arr || c->sl) ? malloc(n ? n : 1) : NULL;
-        if ((c->arr || c->sl) && b && fread(b, 1, n, fp) == n && fgetc(fp) == EOF && (!c->arr || c->rowty || n == c->nelem * ir_field_size(c->elem))) {
+        if ((c->arr || c->sl) && b && fread(b, 1, n, fp) == n && fgetc(fp) == EOF && (!c->arr || c->rowty || c->selem || n == c->nelem * ir_field_size(c->elem))) {
             free(c->bytes); c->bytes = b; c->nbytes = n; b = NULL; ok = true;
         } else if (!(c->arr || c->sl) && n == 0 && fgetc(fp) == EOF) ok = true;
         free(b);
@@ -3197,6 +3200,16 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
             proven_i64 rowmeta = 0;
             if (c->arr) {   // §6.3 — 결과 자리를 준다(0 으로 채운 N×|T| 바이트). 돈 뒤의 바이트가 답이다
                 c->nbytes = c->nelem * ir_field_size(c->elem);
+                if (c->selem) {   // 구조체 원소 — 바이트 배치(viewable)의 크기 × N
+                    bool sf; proven_size_t si = ir_struct_find(&ir, c->elem, &sf);
+                    if (!sf || !ir.structs[si].viewable || !ir.structs[si].total || c->nelem * ir.structs[si].total > IR_CTFE_MAXBYTES) {
+                        snprintf(c->why, sizeof c->why, "`%.*s` returns an array of `%.*s`, which has no byte layout yet (a slice, `owned` or array field) or is larger than %u bytes",
+                                 (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->elem.size, (const char *)c->elem.ptr,
+                                 (unsigned)IR_CTFE_MAXBYTES);
+                        progress = true; continue;
+                    }
+                    c->nbytes = c->nelem * ir.structs[si].total;
+                }
                 if (c->rowty) {   // 줄의 배열 — 줄 하나의 바이트는 줄 꼴 표가 안다
                     proven_u8str_view_t lf; proven_u64 rb = 0; proven_u8 sub = 0;
                     if (!ir_row_shape(&ir, c->rowty, &lf, &rb, &sub) || c->nelem * rb > IR_CTFE_MAXBYTES) {

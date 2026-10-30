@@ -1,6 +1,6 @@
 {
   "name": "lowent-lsp",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "description": "Language server for Lowent: the compiler's diagnostics, and hover and completion for keywords and builtin ops",
   "license": "MIT",
   "private": true,

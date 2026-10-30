@@ -2745,7 +2745,7 @@ static bool ir_lit_const_bits(const low_cst_t *e, bool flt, proven_u8 esz, prove
 static bool ir_intern_bytes(ir_ctx_t *c, const proven_u8 *src, proven_size_t len, proven_size_t *si_out, proven_u32 line) {
     low_ir_t *ir = c->out;
     for (proven_size_t i2 = 0; i2 < ir->nstrs; i2++)
-        if (ir->strew[i2] == 1 && ir->strs[i2].size == len && (len == 0 || memcmp(ir->strs[i2].ptr, src, len) == 0)) { *si_out = i2; return true; }
+        if (ir->strew[i2] == 1 && !ir->strrel[i2] && ir->strs[i2].size == len && (len == 0 || memcmp(ir->strs[i2].ptr, src, len) == 0)) { *si_out = i2; return true; }
     if (ir->strbuf_len + len > ir->strbuf_cap) { ir_fail(c, "E-IR-UNSUP", "too many bytes of literal data in one unit", line); return false; }
     if (ir->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", line); return false; }
     proven_u8 *dst = ir->strbuf + ir->strbuf_len;
@@ -2809,6 +2809,34 @@ static bool ir_ctfe_answer_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 lin
         if (!ir_intern_bytes(c, ac->bytes, ac->nbytes, &si, line)) return true;
         ir_emit(c, IRW_STR, (proven_i64)si);
         ir_emit(c, IRW_VARRAY, ir_row_meta(lf, rb, sub));
+        return true;
+    }
+    if (ac->arr && ac->selem && ac->shadow) {   // ★ 슬라이스 칸이 있는 구조체의 배열 — 주소를 품은 상수(low_ir_t.srel)
+        bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, ac->elem), &sf);
+        proven_i32 sh = sf ? ir_alloc_shadow(c->out, si) : -1;
+        if (sh < 0) { ir_fail(c, "E-COMPTIME-NONCONST", "the struct elements of this compile-time answer cannot be laid out here", line); return true; }
+        low_ir_t *o = c->out;
+        if (ac->emit_ir != (const void *)o) {
+            if (o->nstrs >= IR_MAXSTRS || o->nsrel + ac->nrel > IR_MAXSREL || o->strbuf_len + ac->nbytes > o->strbuf_cap) {
+                ir_fail(c, "E-IR-UNSUP", "too many bytes or addresses of constant data in one unit", line); return true;
+            }
+            proven_u32 tsi[IR_CTFE_MAXREL];
+            for (proven_size_t q = 0; q < ac->nrel; q++) {   // 가리키던 바이트를 먼저 풀에 넣는다(같은 내용이면 한 자리)
+                proven_size_t t2;
+                if (!ir_intern_bytes(c, ac->rel[q].b, ac->rel[q].n, &t2, line)) return true;
+                tsi[q] = (proven_u32)t2;
+            }
+            proven_u8 *dst = o->strbuf + o->strbuf_len;
+            if (ac->nbytes) memcpy(dst, ac->bytes, ac->nbytes);
+            o->strbuf_len += ac->nbytes;
+            const proven_size_t me = o->nstrs++;
+            o->strs[me] = (proven_u8str_view_t){ .ptr = dst, .size = ac->nbytes };
+            o->strew[me] = 1; o->strrel[me] = 1;
+            for (proven_size_t q = 0; q < ac->nrel; q++) o->srel[o->nsrel++] = (struct low_ir_srel){ (proven_u32)me, ac->rel[q].off, tsi[q] };
+            ac->emit_ir = (const void *)o; ac->emit_si = me;
+        }
+        ir_emit(c, IRW_STR, (proven_i64)ac->emit_si);
+        ir_emit(c, IRW_VARRAY, (proven_i64)o->structs[sh].total | IR_STRUCT_BIT | ((proven_i64)sh << 20));
         return true;
     }
     if ((ac->arr || ac->sl) && ac->selem) {   // 구조체 원소 — 상수 `lit array N S …` 과 같은 보기(구조체 표시 · 배치 번호)
@@ -3036,8 +3064,14 @@ static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pr
 //   계산해 칸을 베껴 쓴다(구조체는 값이다 — 원소는 그 값의 사본이다).
 static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line,
                                proven_size_t si, bool is_array, bool want_frame, bool into) {
+    // ★ 2026-10-31 (W-20261031-0342 · 소유자 «추천대로») — 슬라이스 칸이 있는 구조체도 나열의 원소가 된다: 칸을 (주소, 길이) 두 낱말로 두는 배치
+    //   (RFC-0135 D13 의 그림자 — 할당기 바이트에 짓는 구조체와 같은 배치)를 쓴다. 칸의 값은 실행 때 쓰므로 틀 안 자리(ⓐ)에 짓는다.
+    if (!c->out->structs[si].viewable) {
+        proven_i32 sh = ir_alloc_shadow(c->out, si);
+        if (sh >= 0) { si = (proven_size_t)sh; want_frame = want_frame || !into; }
+    }
     const low_ir_struct_t *st = &c->out->structs[si];
-    if (!st->viewable || !st->total || st->total > 255) {
+    if ((!st->viewable && !st->is_shadow) || !st->total || st->total > 255) {
         ir_fail(c, "E-LIT-UNBUILT", "the elements of a list literal must have a byte layout — a struct with a slice, `owned` or "
                 "array field (or larger than 255 bytes) cannot be laid out in a list yet (RFC-0132 T2b-3d)", line);
         return;
@@ -3352,7 +3386,7 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
     proven_u8str_view_t val = { .ptr = dst, .size = m * esz };
     proven_size_t si = ir->nstrs;
     for (proven_size_t i2 = 0; i2 < ir->nstrs; i2++)
-        if (ir->strew[i2] == 1 && proven_u8str_view_eq(ir->strs[i2], val)) { si = i2; break; }
+        if (ir->strew[i2] == 1 && !ir->strrel[i2] && proven_u8str_view_eq(ir->strs[i2], val)) { si = i2; break; }
     if (si == ir->nstrs) {
         if (ir->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", line); return; }
         ir->strbuf_len += val.size;
@@ -6079,7 +6113,7 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
                 if (ew > 1 && !ir_widen_units(c, val, ew, nd->line, &val)) return;
                 proven_size_t si = c->out->nstrs;
                 for (proven_size_t i = 0; i < c->out->nstrs; i++)
-                    if (c->out->strew[i] == (proven_u8)ew &&
+                    if (c->out->strew[i] == (proven_u8)ew && !c->out->strrel[i] &&
                         proven_u8str_view_eq(c->out->strs[i], val)) { si = i; break; }
                 if (si == c->out->nstrs) {
                     if (c->out->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", nd->line); return; }
@@ -6486,7 +6520,11 @@ static void enc_operand(const low_ir_t *ir, low_irw_t w, proven_i64 a, hbuf_t *h
         }
         case IRW_WRAP_ERR: hput_view(h, ir->errs[a]); break;
         case IRW_FIELD:    hput_view(h, ir->fields[a]); break;   // field names are structural
-        case IRW_STR:      hput_view(h, ir->strs[a]); break;     // literal bytes are structural
+        case IRW_STR:      hput_view(h, ir->strs[a]);           // literal bytes are structural
+                           if (ir->strrel && ir->strrel[a])      // ★ 주소를 품은 상수 — 가리키는 바이트도 뜻의 일부다
+                               for (proven_size_t r_ = 0; r_ < ir->nsrel; r_++)
+                                   if (ir->srel[r_].si == (proven_u32)a) { hput_u32(h, ir->srel[r_].off); hput_view(h, ir->strs[ir->srel[r_].tsi]); }
+                           break;
         case IRW_LBUFC:    hput_u32(h, (proven_u32)((proven_u64)a & 0xffffffffu)); hput_view(h, ir->strs[(proven_u64)a >> 32]); break;
         case IRW_BFILL:    hput_u32(h, (proven_u32)((proven_u64)a >> 32)); if ((proven_u64)a & 0xffffffffu) hput_view(h, ir->strs[((proven_u64)a & 0xffffffffu) - 1]); break;
         case IRW_RESBLK: {

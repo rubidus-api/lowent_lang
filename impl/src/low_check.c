@@ -7840,6 +7840,7 @@ static bool ck_lit_elem_fits(proven_u8str_view_t ty, proven_u8str_view_t num) {
 }
 static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *align, int depth);
 static bool ck_struct_exists(proven_u8str_view_t ty);
+static bool ck_struct_sliceable(proven_u8str_view_t ty);
 static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
@@ -7916,6 +7917,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                      veq(ty, "u128") || veq(ty, "i128");
         unsigned sbytes = 0, salign = 0;
         bool is_struct = !sized && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_layout(ty, &sbytes, &salign, 0);
+        // 슬라이스 칸이 있는 구조체(그림자 배치) — 칸의 값은 실행 때 쓴다. 크기는 하강층이 그 배치로 잰다(검사층은 틀 크기 셈에 넣지 않는다)
+        if (!sized && !is_struct && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_sliceable(ty)) is_struct = true;
         if (!sized && !is_struct) {
             emit(out, "E-LIT-UNBUILT", ck_struct_exists(ty)
                  ? "the elements of a list literal must have a byte layout — this struct has a slice, `owned` or enum field, so it "
@@ -8253,6 +8256,31 @@ static bool ck_struct_has_array(proven_u8str_view_t ty) {
             if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && ck_atom(fl->kids[1]) && veq(fl->kids[1]->tok.lex, "array")) return true;
         }
         return false;
+    }
+    return false;
+}
+// ★ 2026-10-31 (W-20261031-0342 · 소유자 «추천대로») — 칸이 크기 있는 수 · `bool` 이거나 **수의 슬라이스**뿐인 구조체인가. 그런 구조체는
+//   슬라이스 칸을 (주소, 길이) 두 낱말로 두는 배치(RFC-0135 D13 의 그림자)로 나열의 원소가 된다. `owned` · 열거 · 안쪽 구조체 · 배열 칸은 아니다.
+static bool ck_struct_sliceable(proven_u8str_view_t ty) {
+    if (!g_ck_pr) return false;
+    ty = low_view_after_last(ty, '.');
+    for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (!(f->kind == LOW_CST_FORM && f->nkids >= 3 && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
+              ck_atom(f->kids[1]) && proven_u8str_view_eq(f->kids[1]->tok.lex, ty))) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) return false;
+        unsigned nf = 0, nsl = 0;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *fl = blk->kids[j];
+            if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0]) || !ck_atom(fl->kids[1])) return false;
+            proven_u8str_view_t w1 = fl->kids[1]->tok.lex;
+            if (veq(fl->kids[0]->tok.lex, "layout") || veq(fl->kids[0]->tok.lex, "align") || veq(fl->kids[0]->tok.lex, "mmio")) return false;
+            if (veq(w1, "slice") && fl->nkids >= 3 && ck_atom(fl->kids[2]) && ck_elem_sized(fl->kids[2]->tok.lex)) { nf++; nsl++; continue; }
+            if (ck_elem_sized(w1) && fl->nkids == 2) { nf++; continue; }
+            return false;
+        }
+        return nf > 0 && nsl > 0;
     }
     return false;
 }

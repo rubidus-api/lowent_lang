@@ -3049,6 +3049,7 @@ void low_ctfe_set_steps(proven_u64 n) { g_ctfe_steps_cli = n; }
 static proven_u64 ctfe_steps(void) { return g_ctfe_steps_cli ? g_ctfe_steps_cli : IR_CTFE_STEPS; }
 static void ctfe_clear(ctfe_call_t *c) {
     free(c->bytes);
+    for (proven_size_t q = 0; q < c->nrel; q++) free(c->rel[q].b);
     for (proven_size_t q = 0; q < LOW_CAP_NODES; q++) free(c->tn[q].b);
     for (proven_size_t q = 0; q < LOW_HDR_MAXP; q++) free(c->argb[q]);
 }
@@ -3103,6 +3104,45 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
             return;
         }
     }
+}
+// ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0342 · 소유자 «추천대로») — 구조체 배열 답의 슬라이스 칸(그림자 배치: 주소 + 길이)이 가리키는 곳을
+//   찾는다. 순수한 `fn` 은 새 기억을 지을 수 없으므로 그 주소는 입력(글 · 상수 나열)이거나 프로그램의 문자열이다 — 그 밖이면 거절한다.
+//   가리키던 바이트를 베껴 두고(같은 내용의 자리는 자유다 — FC-0003) 답의 주소 자리를 0 으로 둔다. 내는 쪽이 그 바이트를 풀에 넣고 주소를 다시 적는다.
+static void ctfe_take_relocs(const low_ir_t *ir, ctfe_call_t *c, const low_ir_arg_t *a, proven_size_t na) {
+    const proven_u8str_view_t fnm = c->callee->kids[1]->tok.lex;
+    bool sf; proven_size_t si = ir_struct_find(ir, c->elem, &sf);
+    if (!sf) return;
+    proven_i32 sh = ir->structs[si].ashadow1 ? (proven_i32)ir->structs[si].ashadow1 - 1 : (proven_i32)si;
+    const low_ir_struct_t *st = &ir->structs[sh];
+    if (!st->is_shadow || !st->total) { snprintf(c->why, sizeof c->why, "`%.*s` returned an array of structs this tool cannot read back", (int)fnm.size, (const char *)fnm.ptr); return; }
+    const unsigned slot = low_ptr_slot();
+    for (proven_size_t e = 0; e < c->nelem && !c->why[0]; e++)
+        for (proven_size_t q = 0; q < st->nf && !c->why[0]; q++) {
+            if (!st->f[q].slmeta) continue;
+            const proven_size_t off = e * st->total + st->f[q].off;
+            const proven_u8 *pp; proven_u64 pn;
+            memcpy(&pp, c->bytes + off, sizeof pp); memcpy(&pn, c->bytes + off + slot, 8);
+            memset(c->bytes + off, 0, sizeof pp);
+            if (!pp) continue;                                   // 빈 칸(0 으로 남은 원소) — 주소가 없다
+            proven_size_t es = (proven_size_t)(st->f[q].slmeta & 0xff); if (!es) es = 1;
+            const proven_size_t nb = (proven_size_t)pn * es;
+            bool known = false;
+            for (proven_size_t z = 0; z < na && !known; z++)
+                if (a[z].is_slice && a[z].bytes && pp >= a[z].bytes && pp + nb <= a[z].bytes + a[z].n) known = true;
+            for (proven_size_t z = 0; z < ir->nstrs && !known; z++)
+                if (pp >= ir->strs[z].ptr && pp + nb <= ir->strs[z].ptr + ir->strs[z].size) known = true;
+            if (!known) {
+                snprintf(c->why, sizeof c->why, "`%.*s` returned a struct whose slice field `%.*s` points neither into its input nor into the program's constant "
+                         "data — a compile-time answer can keep only those (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr,
+                         (int)st->f[q].name.size, (const char *)st->f[q].name.ptr);
+                return;
+            }
+            if (c->nrel >= IR_CTFE_MAXREL) { snprintf(c->why, sizeof c->why, "`%.*s` returned more than %u slices in one answer", (int)fnm.size, (const char *)fnm.ptr, (unsigned)IR_CTFE_MAXREL); return; }
+            proven_u8 *cp = malloc(nb ? nb : 1);
+            if (!cp) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
+            if (nb) memcpy(cp, pp, nb);
+            c->rel[c->nrel].off = (proven_u32)off; c->rel[c->nrel].b = cp; c->rel[c->nrel].n = nb; c->nrel++;
+        }
 }
 // ★★ RFC-0015 §6.4 (2026-10-31 · W-20261031-0048) — **번역 때 돈 답을 간직한다.** 순수한 `fn` 의 답은 (그 `fn` 의 정의 해시 · 입력 바이트)의
 //   함수이므로 그 둘이 같으면 다시 돌리지 않는다. 열쇠에 처리기 판 · 대상 · 걸음 예산도 넣는다 — 예산이 다르면 «예산을 넘었다» 가 다를 수
@@ -3196,13 +3236,17 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                 a[q] = c->argsl[q] ? (low_ir_arg_t){ .is_slice = true, .bytes = c->argb[q], .n = c->argn[q] }
                                    : (low_ir_arg_t){ .is_slice = false, .v = c->args[q] };
             proven_size_t na = c->nargs;
-            if (ctfe_cache_get(&ir, di, c, a, na)) { progress = true; continue; }   // §6.4 — 같은 `fn` · 같은 입력이면 다시 돌리지 않는다
+            if (!c->shadow && ctfe_cache_get(&ir, di, c, a, na)) { progress = true; continue; }   // 주소를 품은 답은 간직하지 않는다   // §6.4 — 같은 `fn` · 같은 입력이면 다시 돌리지 않는다
             proven_i64 rowmeta = 0;
             if (c->arr) {   // §6.3 — 결과 자리를 준다(0 으로 채운 N×|T| 바이트). 돈 뒤의 바이트가 답이다
                 c->nbytes = c->nelem * ir_field_size(c->elem);
-                if (c->selem) {   // 구조체 원소 — 바이트 배치(viewable)의 크기 × N
+                if (c->selem) {   // 구조체 원소 — 바이트 배치(viewable)나 그림자 배치(슬라이스 칸 = 주소 + 길이)의 크기 × N
                     bool sf; proven_size_t si = ir_struct_find(&ir, c->elem, &sf);
-                    if (!sf || !ir.structs[si].viewable || !ir.structs[si].total || c->nelem * ir.structs[si].total > IR_CTFE_MAXBYTES) {
+                    if (sf && !ir.structs[si].viewable) {
+                        proven_i32 sh = ir_alloc_shadow(&ir, si);
+                        if (sh >= 0) { si = (proven_size_t)sh; c->shadow = true; }
+                    }
+                    if (!sf || (!ir.structs[si].viewable && !ir.structs[si].is_shadow) || !ir.structs[si].total || c->nelem * ir.structs[si].total > IR_CTFE_MAXBYTES) {
                         snprintf(c->why, sizeof c->why, "`%.*s` returns an array of `%.*s`, which has no byte layout yet (a slice, `owned` or array field) or is larger than %u bytes",
                                  (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->elem.size, (const char *)c->elem.ptr,
                                  (unsigned)IR_CTFE_MAXBYTES);
@@ -3232,7 +3276,8 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
             low_ir_set_capture(NULL);
             low_ir_set_run_budget(0);
             if (rr.ok && (c->sl || c->st)) ctfe_take_answer(&ir, c, &cap);
-            if (rr.ok && !c->why[0]) { c->v = rr.value; c->ok = true; progress = true; ctfe_cache_put(&ir, di, c, a, na); }
+            if (rr.ok && c->arr && c->shadow) ctfe_take_relocs(&ir, c, a, na);
+            if (rr.ok && !c->why[0]) { c->v = rr.value; c->ok = true; progress = true; if (!c->shadow) ctfe_cache_put(&ir, di, c, a, na); }
             else if (rr.ok) progress = true;
             else {
                 const low_diag_t *d0 = dg.len ? (const low_diag_t *)proven_array_get(&dg, 0) : NULL;
@@ -3293,6 +3338,12 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
     if (ewm.err != PROVEN_OK) { ir.ok = false; return ir; }
     ir.strew = (proven_u8 *)(void *)ewm.value.ptr;
     for (proven_size_t i = 0; i < IR_MAXSTRS; i++) ir.strew[i] = 1;
+    proven_result_mem_mut_t srm = work.alloc_fn(work.ctx, IR_MAXSREL * sizeof(struct low_ir_srel), alignof(struct low_ir_srel));
+    proven_result_mem_mut_t srf = work.alloc_fn(work.ctx, IR_MAXSTRS, 1);
+    if (srm.err != PROVEN_OK || srf.err != PROVEN_OK) { ir.ok = false; return ir; }
+    ir.srel = (struct low_ir_srel *)(void *)srm.value.ptr; ir.nsrel = 0;
+    ir.strrel = (proven_u8 *)(void *)srf.value.ptr;
+    memset(ir.strrel, 0, IR_MAXSTRS);
     // ★ 리터럴 **값** 저장소(이스케이프 디코드 · 텍스트 리터럴 본문). 한계는 이름이 있고,
     //   넘으면 **거절한다**(조용히 자르지 않는다 — 잘린 문자열은 조용히 틀린 값이다).
     proven_result_mem_mut_t sbm = work.alloc_fn(work.ctx, IR_STRBUF, 1);
@@ -3696,6 +3747,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 proven_u8str_view_t hide[IR_MAXALIAS]; proven_size_t nh = 0;
                 for (proven_size_t r = 0; r < npend; r++) if (!done[r]) { hide[nh++] = mod.mconst[pendi[r]]; mod.mconst[pendi[r]] = (proven_u8str_view_t){ 0 }; }
                 proven_i64 v; const low_ctfe_names_t nm = ir_ctfe_names(&mod);
+                ir_ctfe_record(&mod, pendv[q]);   // ★ 2026-10-31 — 부르는 `fn` 의 슬라이스 인자(배열 · 슬라이스 모듈 상수 · 글)를 미리 짓는 동안 적는다
                 const bool ok = ir_ctfe_fold(pendv[q], &nm, &v, IR_CTFE_FUEL);
                 nh = 0;
                 for (proven_size_t r = 0; r < npend; r++) if (!done[r]) mod.mconst[pendi[r]] = hide[nh++];
@@ -3719,6 +3771,13 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
     //   답은 수가 아니라서 접기는 언제나 false 다 — 부르는 길(ctfe_u)이 자리에 인자를 적는 것만이 여기의 일이다.
     for (proven_size_t q = 0; q < mod.nmdata; q++) {
         ir_ctfe_record(&mod, mod.mdatand[q]);
+        // ★ 2026-10-31 — 읽는 자리가 없어도 거절은 선언에서 말한다(정수 모듈 상수와 같다 — 못 지은 상수를 조용히 두지 않는다)
+        const char *why = g_cc_prepass ? NULL : low_ctfe_call_why(mod.mdatand[q]);
+        if (why) {
+            low_diag_t cd = { .sev = LOW_SEV_ERROR, .code = "E-CONST-NOTCOMPTIME", .msg = why, .line = mod.mdatand[q]->line, .col = 0 };
+            (void)proven_array_push(&ir.diags, &cd);
+            ir.ok = false;
+        }
     }
 
     // pass 0: enums (variant names) + slice-like type aliases + struct layouts
@@ -4617,6 +4676,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                     if (!is_atom(f->kids[w]) || !is_atom(f->kids[w + 1])) continue;
                     if (!ir_type_is_slice(&c, f->kids[w]->tok.lex)) continue;
                     si2 = ir_struct_find(&ir, f->kids[w + 1]->tok.lex, &sf2);
+                    // ★ 2026-10-31 (W-20261031-0342) — 슬라이스 칸이 있는 구조체는 그림자 배치(슬라이스 칸 = 주소 + 길이)로 원소가 된다 — 나열과 같은 배치
+                    if (sf2 && !ir.structs[si2].viewable) {
+                        proven_i32 sh2 = ir_alloc_shadow(&ir, si2);
+                        if (sh2 >= 0 && ir.structs[sh2].total && ir.structs[sh2].total <= 255) { esz = (proven_u8)ir.structs[sh2].total; esidx = sh2; break; }
+                    }
                     if (sf2 && !ir.structs[si2].viewable)
                         ir_fail(&c, "E-IR-UNDEF",
                                 "a `slice <struct>` parameter needs a VIEWABLE element type — a struct "
@@ -5295,6 +5359,7 @@ void low_ir_dump(const low_ir_t *ir) {
 }
 
 void low_ir_free(proven_allocator_t work, low_ir_t *ir) {
+    low_vm_forget_ir(ir);
     for (proven_size_t i = 0; i < ir->ndefs; i++)
         if (ir->defs[i].lowered && ir->defs[i].code) work.free_fn(work.ctx, ir->defs[i].code);
     if (ir->defs) work.free_fn(work.ctx, ir->defs);
@@ -5304,6 +5369,8 @@ void low_ir_free(proven_allocator_t work, low_ir_t *ir) {
     if (ir->structs) work.free_fn(work.ctx, ir->structs);
     if (ir->strs) work.free_fn(work.ctx, ir->strs);
     if (ir->strew) work.free_fn(work.ctx, ir->strew);
+    if (ir->srel) work.free_fn(work.ctx, ir->srel);
+    if (ir->strrel) work.free_fn(work.ctx, ir->strrel);
     proven_array_destroy(&ir->diags);
 }
 

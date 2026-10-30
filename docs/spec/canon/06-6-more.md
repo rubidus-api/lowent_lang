@@ -242,13 +242,18 @@ end .
       명령줄 `--comptime-steps <n>`. 번역 때 돈 답을 간직해 다음 번역에 다시 쓸 수 있으며, 간직한 답은 그 `fn` 의 정의 ·
       입력 바이트 · 처리기 판 · 대상 · 걸음 예산이 모두 같을 때만 쓴다. 간직이 있어도 없어도 답과 거부는 같다.
 
-(1d) 답이 배열인 `fn`(⟦§6.2.6⟧ (1c))도 돌린다. 원소는 크기 있는 수 · `bool` · 그런 원소의 줄(배열 안의 배열)이다. 처리기는 결과의 자리를 주고
+(1d) 답이 배열인 `fn`(⟦§6.2.6⟧ (1c))도 돌린다. 원소는 크기 있는 수 · `bool` · 그런 원소의 줄(배열 안의 배열) · 구조체(⟦§6.2.6⟧ (9) · (9-1))다. 처리기는 결과의 자리를 주고
       그 `fn` 을 돌리며, 돌린 뒤의 바이트는 프로그램에 박힌 **읽기 전용** 바이트가 된다 — 원소가 모두 상수인 나열과 같은 자리다
       (⟦§6.2.6⟧ (7) ⓑ). 그 답에는 `let x array n t comptime f … .` 처럼 `f` 의 결과와 길이 · 원소 타입이 같은 이름을 붙인다.
       몸 안의 `let` 이어도, 모듈 상수여도 된다. 그 이름으로 원소를 쓸 수 없다 — `set` · `copy` · `swap` 은 거부되고(`E-TYPE-MUT` ·
       모듈 상수의 `set` 은 `E-IMMUTABLE`), `mut` 자리에 넘기면 거부된다(`E-TYPE-ARGMUT`). `var` 에 묶거나, 길이나 원소 타입이
       다른 이름에 묶거나, 식의 한가운데에 두면 거부된다(`E-RESULT-PLACE`). 내용이 같은 두 답이 같은 자리인지는 ⓑ 와 같이
       ⟦자유 선택|free choice⟧ 이다(FC-0003).
+
+(1d-1) 번역 때 도는 것은 순수한 `fn` 뿐이므로 그 `fn` 은 새 저장소를 짓지 아니한다 — 답의 자리는 바깥(처리기)이 주고, 답 안의 슬라이스 칸은
+      `fn` 의 입력이나 프로그램의 상수 바이트를 가리킨다. 처리기는 가리키는 바이트를 (1d) 의 읽기 전용 자리에 두고 칸의 주소를 그 자리로 다시
+      적는다. 칸이 다른 곳(그 `fn` 의 틀 안 바이트)을 가리키면 거부된다. 답의 개수를 미리 알 수 없으면 넉넉한 길이를 적고, 채운 수는 따로
+      셈한다(아래 예).
 
 (1e) 답이 수 · `bool` 의 슬라이스(`output slice t .`)인 `fn` 도 돌린다. 답의 바이트를 베껴 (1d) 와 같은 **읽기 전용** 바이트로 둔다 —
       그 `fn` 이 문자열을 가리키는 답을 냈든 입력의 조각을 냈든 같다. 이름은 `let x slice t comptime f … .` 로 붙이며, 몸 안의 `let`
@@ -359,6 +364,43 @@ let NAME slice u8 comptime trim "  hi  " . . .    rem 읽기 전용 바이트 "h
 fn f output usize .
 do
   return len NAME. . .
+end .
+```
+
+```lowent 예제: 메시지 표를 번역할 때 짓는다 — 할당 없이 · 결과: f() = 6
+module ex_comptime_messages .
+
+struct msg do
+  ko slice u8 .
+  en slice u8 .
+end .
+
+fn parse input txt slice u8 . output r array 4 msg .
+do
+  var row usize 0 .
+  var start usize 0 .
+  var comma usize 0 .
+  var i usize 0 .
+  while le i. len txt. . . do
+    if or eq i. len txt. . . eq idx txt. i. . 10 . . do
+      if gt i. start. . do
+        set idx r. row. . lit msg do ko subslice txt. start. comma. . . en subslice txt. add comma. 1 . i. . . end . .
+        set row. add row. 1 . .
+      end .
+      set start. add i. 1 . .
+    end else do
+      if eq idx txt. i. . 44 . do set comma. i. . end .
+    end .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+let MSGS array 4 msg comptime parse "hi,hello\nthx,thanks" . . .    rem 칸은 입력 글의 조각을 가리킨다
+
+fn f output usize .
+do
+  return len field idx MSGS. 1 . en . . .
 end .
 ```
 

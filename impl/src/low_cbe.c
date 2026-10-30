@@ -5573,6 +5573,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    size_t have = fv.tag == LWV_SLICE ? fv.n : fv.tag == LWV_VARRAY ? fv.n * (size_t)fv.box : 0;\n"
           "                    if (have != need) lw_panic(\"an array field takes exactly its length of elements\");\n"
           "                    memmove(base + lw_st_foff[sidx][fi], fv.p, need); break; }\n"
+          "                if (lw_st_fslm[sidx][fi]) { /* 2026-10-31: a slice field of a struct in a list (shadow layout) — (address, length) */\n"
+          "                    lowv fv = rr->f[q]; const unsigned char *pp_ = fv.p; unsigned long long pn_ = (unsigned long long)fv.n;\n"
+          "                    if (fv.tag != LWV_SLICE && fv.tag != LWV_VARRAY) lw_panic(\"a slice field takes a slice\");\n"
+          "                    memcpy(base + lw_st_foff[sidx][fi], &pp_, sizeof pp_); memcpy(base + lw_st_foff[sidx][fi] + LW_PTRSLOT, &pn_, 8); break; }\n"
           "                if (lw_st_fsize[sidx][fi] == 16) { lw_put16(base + lw_st_foff[sidx][fi], rr->f[q], lw_st_fbe[sidx][fi]); break; }   /* RFC-0151 §9.4.1 */\n"
           "                unsigned long long x = (rr->f[q].tag == LWV_FLT)\n"
           "                    ? lw_f2b(lw_b2f((unsigned long long)rr->f[q].i, 8), lw_st_fsize[sidx][fi])\n"
@@ -5789,16 +5793,53 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //     `lw_ld_le` 로 읽으므로(VM 은 같은 뜻의 `(x<<8)|p[k]`), 바이트가 곧 규약이다.
     //     원소 타입으로 내면 빅엔디안 타깃에서 C 가 제 순서로 깔고 lw_ld_le 는 LE 로 읽어 **갈린다**.
     for (proven_size_t s = 0; s < ir->nstrs; s++) {
+        if (ir->strrel && ir->strrel[s]) continue;   // 주소를 품은 상수는 아래(가리키는 항목이 먼저 서야 한다)
         fprintf(out, "static const unsigned char lw_str%zu[] = {", s);
         for (proven_size_t i = 0; i < ir->strs[s].size; i++)
             fprintf(out, "%s%u", i ? "," : " ", (unsigned)ir->strs[s].ptr[i]);
         fputs(ir->strs[s].size ? ", 0 };\n" : " 0 };\n", out);
+    }
+    // ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0342) — **주소를 품은 상수**: 번역 때 돈 `fn` 이 낸 구조체 배열의 슬라이스 칸(주소 + 길이).
+    //   주소 자리는 C 의 주소 상수로 적는다 — 정적 초기값이라 링커가 옮겨 주고, 포인터 폭은 대상의 것이다(32 비트 대상은 주소 4 바이트 뒤에 채움).
+    //   나머지 바이트는 VM 이 지은 그대로다. 바이트로 읽으므로(memcpy) 칸 사이를 C 가 채우지 않게 packed 로 둔다.
+    for (proven_size_t s = 0; s < ir->nstrs; s++) {
+        if (!ir->strrel || !ir->strrel[s]) continue;
+        const unsigned slot = low_ptr_slot(), pb = low_ir_target()->ptr_bytes ? (unsigned)low_ir_target()->ptr_bytes : 8u;
+        proven_size_t cur = 0, m = 0;
+        fprintf(out, "static const struct __attribute__((packed, aligned(8))) {");
+        for (proven_size_t r = 0; r < ir->nsrel; r++) {   // 표는 칸 차례로 적혀 있다(답의 원소 · 칸 차례)
+            if (ir->srel[r].si != (proven_u32)s) continue;
+            if (ir->srel[r].off > cur) fprintf(out, " unsigned char b%zu[%zu];", m, (size_t)(ir->srel[r].off - cur));
+            fprintf(out, " const unsigned char *p%zu;", m);
+            if (slot > pb) fprintf(out, " unsigned char q%zu[%u];", m, slot - pb);
+            cur = ir->srel[r].off + slot; m++;
+        }
+        if (ir->strs[s].size > cur) fprintf(out, " unsigned char b%zu[%zu];", m, (size_t)(ir->strs[s].size - cur));
+        fprintf(out, " } lw_rel%zu = {", s);
+        cur = 0; bool first = true;
+        #define LW_RB(from, to) do { fputs(first ? " {" : ", {", out); first = false; \
+            for (proven_size_t i_ = (from); i_ < (to); i_++) fprintf(out, "%s%u", i_ > (from) ? "," : " ", (unsigned)ir->strs[s].ptr[i_]); fputs(" }", out); } while (0)
+        for (proven_size_t r = 0; r < ir->nsrel; r++) {
+            if (ir->srel[r].si != (proven_u32)s) continue;
+            if (ir->srel[r].off > cur) LW_RB(cur, ir->srel[r].off);
+            fprintf(out, "%s lw_str%u", first ? "" : ",", (unsigned)ir->srel[r].tsi); first = false;
+            if (slot > pb) fputs(", { 0 }", out);
+            cur = ir->srel[r].off + slot;
+        }
+        if (ir->strs[s].size > cur) LW_RB(cur, ir->strs[s].size);
+        #undef LW_RB
+        fputs(" };\n", out);
+        // 배치가 VM 이 지은 바이트와 한 바이트도 다르지 않아야 한다 — 대상의 포인터 폭이 자리(LW_PTRSLOT)를 넘으면 번역이 멈춘다
+        fprintf(out, "_Static_assert(sizeof lw_rel%zu == %zu, \"a constant holding addresses must keep its layout\");\n", s, (size_t)ir->strs[s].size);
     }
     // ★ `n` 은 **원소 수**다(바이트 수가 아니다) — `len u"AB"` 가 2 인 이유가 여기 있다.
     //   `w` 는 원소폭: 슬라이스를 바이트로 되돌릴 때 곱해진다.
     fputs("static const struct { const unsigned char *p; size_t n; unsigned w; } lw_strs[] = {", out);
     for (proven_size_t s = 0; s < ir->nstrs; s++) {
         proven_u8 ew = ir->strew ? ir->strew[s] : 1;
+        if (ir->strrel && ir->strrel[s])
+            fprintf(out, "%s{ (const unsigned char *)(const void *)&lw_rel%zu, %zu, %u }", s ? ", " : " ", s, ir->strs[s].size / (ew ? ew : 1), (unsigned)ew);
+        else
         fprintf(out, "%s{ lw_str%zu, %zu, %u }",
                 s ? ", " : " ", s, ir->strs[s].size / (ew ? ew : 1), (unsigned)ew);
     }

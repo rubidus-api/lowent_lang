@@ -163,6 +163,15 @@ a struct as an input are still refused.
 
 #demo("examples/ch08/compt_values.low")
 
+A `fn` run at translation time is pure, so it allocates no new memory. It can still build a table: the place for the answer comes from
+outside (the place of an array result), and the slice fields in the answer point at pieces of the input text. The tool keeps those pieces
+as read-only bytes and makes the fields point there. A struct with slice fields can be an element of a list and of an array result (each
+slice field is two words, an address and a length). If you do not know the number of lines in advance, give generous room and count the
+filled lines separately. If the room runs out, the write to the next element stops out of bounds, and translation is refused at that
+constant's declaration.
+
+#demo("examples/ch08/compt_messages.low")
+
 One `fn` run at translation time must finish within 1,000,000 steps. For a table that takes longer, write
 `build comptime_steps 50000000 .` in `pkg.low` or give `--comptime-steps 50000000` on the command line (the command line wins). If the
 environment variable `LOWENT_CTFE_CACHE` names a folder, the answers are kept there and used again by the next translation. A kept

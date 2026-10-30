@@ -1,0 +1,85 @@
+rem ★★★ RFC-0015 §6.5 의 메시지 표 (2026-10-31 · 소유자 «추천대로 해 주세요» · W-20261031-0342) — 할당 없이 짓는다.
+rem   번역 때 도는 것은 순수한 `fn` 뿐이고, 답의 자리는 바깥이 준다(RFC-0132 P4b). 답의 슬라이스 칸은 입력 글을 가리킨다 —
+rem   처리기가 그 바이트를 읽기 전용 자리에 두고 주소를 다시 적는다. 개수는 넉넉한 자리(8)와 `fn` 이 센 수로 다룬다.
+
+module vm_ctmsg .
+
+struct msg do
+  ko slice u8 .
+  en slice u8 .
+end .
+
+rem 줄마다 `ko,en` — 줄 수(빈 줄은 세지 않는다)
+fn count_lines input txt slice u8 . output usize . do
+  var n usize 0 .
+  var start usize 0 .
+  var i usize 0 .
+  while le i. len txt. . . do
+    if or eq i. len txt. . . eq idx txt. i. . 10 . . do
+      if gt i. start. . do set n. add n. 1 . . end .
+      set start. add i. 1 . .
+    end .
+    set i. add i. 1 . .
+  end .
+  return n. .
+end .
+
+rem 줄을 쪼개 칸에 담는다 — 슬라이스는 입력의 조각이다(새 기억을 짓지 않는다). 자리(8 줄)가 모자라면 칸 쓰기가 범위 밖에서 멈춘다
+fn parse input txt slice u8 . output r array 8 msg . do
+  var row usize 0 .
+  var start usize 0 .
+  var comma usize 0 .
+  var i usize 0 .
+  while le i. len txt. . . do
+    if or eq i. len txt. . . eq idx txt. i. . 10 . . do
+      if gt i. start. . do
+        set idx r. row. . lit msg do ko subslice txt. start. comma. . . en subslice txt. add comma. 1 . i. . . end . .
+        set row. add row. 1 . .
+      end .
+      set start. add i. 1 . .
+    end else do
+      if eq idx txt. i. . 44 . do set comma. i. . end .
+    end .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+fn same input s slice u8 . output slice u8 . do return s. . end .
+
+let RAW slice u8 comptime same text END
+안녕,hello
+고마워,thanks
+END
+  . . .
+
+let N usize comptime count_lines RAW. . . .
+let MSGS array 8 msg comptime parse RAW. . . .
+
+rem 줄 2 개
+export fn count output usize . do
+  return N. .
+end .
+
+rem "thanks" 의 길이 6 · "안녕" 의 바이트 6(UTF-8 두 글자)
+export fn lens output usize . do
+  return add len field idx MSGS. 1 . en . . len field idx MSGS. 0 . ko . . . .
+end .
+
+rem "hello" 의 첫 바이트 'h' = 104
+export fn first output u8 . do
+  return idx field idx MSGS. 0 . en . 0 . .
+end .
+
+rem 표를 훑는다 — 채운 줄의 영어 길이 합 5 + 6 = 11 (빈 칸은 길이 0)
+export fn total output usize . do
+  var t usize 0 .
+  for m MSGS. do set t. add t. len field m. en . . . . end .
+  return t. .
+end .
+
+rem 실행 때 자리를 받아도 같은 표다 — "b" 의 길이 1
+export fn rt output usize . do
+  var t array 8 msg parse "a,b\nc,dd" . .
+  return len field idx t. 0 . en . . .
+end .

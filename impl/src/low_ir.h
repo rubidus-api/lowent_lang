@@ -929,6 +929,13 @@ typedef struct {
     //      바이트를 구우면 그 타깃에서 **조용히** 틀리고, VM 은 호스트 순서로 읽으므로
     //      VM ≢ native 가 된다 — 이 저장소가 게이트로 막고 있는 바로 그 부류다.
     proven_u8           *strew;
+    // ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0342) — **주소를 품은 상수**: 번역 때 돈 `fn` 이 낸 구조체의 배열에서 슬라이스 칸(주소 + 길이)이
+    //   다른 상수(입력 글 · 문자열)를 가리킨다. 그 칸의 주소 자리는 풀에서 0 이고, 이 표가 «항목 si 의 off 바이트에 항목 tsi 의 주소» 를 적는다 —
+    //   VM 은 돌 때 그 자리를 채운 사본을 쓰고, C 뒤끝은 주소 상수를 품은 정적 초기값으로 낸다(대상의 포인터 폭 그대로). strrel[si] 가 참인 항목은
+    //   같은 바이트의 다른 리터럴과 합치지 않는다.
+    struct low_ir_srel { proven_u32 si, off, tsi; } *srel;
+    proven_size_t        nsrel;
+    proven_u8           *strrel;
 
     // ★ 리터럴의 **값**을 담는 소유 저장소. `tok.lex` 는 **원문 구간**이라야 한다 —
     //   서식기가 그것을 그대로 다시 찍어 왕복을 지킨다(low_cst.c). 그래서 이스케이프
@@ -1113,6 +1120,7 @@ void low_ir_set_pool_report(bool on);   /* RFC-0150 §8-11 — `--stack-report` 
 // Run an op. CLI mapping: ints are positional args; if the op has exactly one
 // param and it is slice-typed, all ints become that byte slice. `text` is the
 // rendered result value (`120`, `ok {version 1, flags 7, length 4}`, `err too_short`).
+#define IR_MAXSREL 1024   /* ★ 주소를 품은 상수의 주소 자리 수(한 단위) — RFC-0015 §6.3 */
 typedef struct { proven_i64 value; bool ok; char text[160]; } low_ir_run_result_t;
 // ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0048) — **돌린 답을 날것으로 받는다**(번역 때 도는 `fn` 의 슬라이스 · 구조체 답).
 //   켜 두면 다음 `low_ir_run_def` 가 끝날 때 답을 여기에 적는다. 포인터는 VM 의 기억을 가리키고 **다음 실행까지만** 산다 — 곧바로 베낀다.
@@ -1122,6 +1130,8 @@ typedef struct { proven_i64 value; bool ok; char text[160]; } low_ir_run_result_
 typedef struct { proven_u8 kind; proven_i64 v; const proven_u8 *p; proven_size_t nbytes; proven_size_t make_idx; proven_u8 first, nk; } low_ir_capval_t;
 typedef struct { low_ir_capval_t n[LOW_CAP_NODES]; proven_size_t nn; bool full; } low_ir_capture_t;
 void low_ir_set_capture(low_ir_capture_t *cap);
+// ★ RFC-0015 §6.3 — VM 이 이 IR 의 «주소를 품은 상수» 로 지은 사본을 버린다(low_ir_free 가 부른다).
+void low_vm_forget_ir(const low_ir_t *ir);
 // ★ **오라클 전용 걸음 예산** (2026-07-30). 0 = 무한(사용자 실행의 기본).
 //   계약 오라클은 op 을 실제로 돌린다. 반복 횟수가 입력인 op 에 경계값(2^64−1)을 먹이면
 //   그 실행이 끝나지 않아 **도구가 멈춘다**(실측). 예산을 넘긴 케이스는 건너뛰고 **센다**.

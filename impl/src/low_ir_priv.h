@@ -35,6 +35,7 @@
 #define IR_CTFE_MAXCALL 128      /* 한 단위의 `comptime` 자리 `fn` 부르기 — 넘으면 그 뒤의 자리는 접지 않는다(E-COMPTIME-NONCONST, 까닭을 적는다) */
 #define IR_CTFE_STEPS   1000000  /* 그 `fn` 하나를 번역 때 돌리는 VM 걸음 예산(RFC-0015 §6.2 연료) — 넘으면 E-COMPTIME-NONCONST */
 #define IR_CTFE_MAXBYTES 65536  /* 번역 때 돈 `fn` 의 배열 답 하나의 바이트 한도(RFC-0015 §6.3 — 읽기 전용 상수 풀에 든다) */
+#define IR_CTFE_MAXREL  256    /* 번역 때 돈 `fn` 의 답 하나가 품는 주소 자리(슬라이스 칸)의 수 — RFC-0015 §6.3 */
 #define IR_CTFE_ROUNDS  8        /* 미리 짓기의 바퀴 — `fn` 안의 `comptime` 이 다른 `fn` 의 답을 기다리면 다음 바퀴에 풀린다 */
 #define IR_MAXCINT   64   /* 한 op 안의 접힌 지역 `let` — 넘으면 그 뒤의 것은 접히지 않는다(`comptime` 이 읽으면 E-COMPTIME-NONCONST) */
 #define IR_MAXENUMPF 4     // max payload fields per enum variant (RFC-0080; AST `add` needs 2)
@@ -510,7 +511,12 @@ typedef struct {
     proven_u8str_view_t elem;     /* 원소 낱말 T */
     proven_size_t    nelem;       /* N */
     const low_cst_t *rowty;       /* 원소가 줄이면(`array N array M T`) 그 줄 타입 마디(괄호) — elem 은 비어 있다 */
-    bool             selem;       /* 원소가 구조체다(elem = 그 이름) — 바이트 배치가 있는 구조체만(2026-10-31) */
+    bool             selem;       /* 원소가 구조체다(elem = 그 이름) — 바이트 배치가 있는 구조체나, 슬라이스 칸을 (주소, 길이) 로 두는 그림자 배치 */
+    bool             shadow;      /* 원소가 그림자 배치다 — 슬라이스 칸의 주소는 rel[] 이 든다(bytes 의 주소 자리는 0) */
+    proven_size_t    nrel;
+    struct { proven_u32 off; proven_u8 *b; proven_size_t n; } rel[IR_CTFE_MAXREL];   /* 주소 자리 off 가 가리키던 바이트(malloc) */
+    const void      *emit_ir;     /* 이 답을 이미 낸 IR(같은 단위 안에서 같은 한 자리를 다시 쓴다) · 그 항목 */
+    proven_size_t    emit_si;
     proven_u8       *bytes;       /* 돌린 뒤의 바이트(작은 끝, malloc — 표를 다시 채울 때 놓는다) */
     proven_size_t    nbytes;
     /* RFC-0015 §6.3 (2026-10-31 · W-20261031-0048) — 답이 슬라이스(`output slice T`)거나 구조체(`output S`)인 `fn` */

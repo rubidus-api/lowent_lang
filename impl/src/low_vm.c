@@ -337,6 +337,7 @@ static bool bstk_use(vmframe_t *fr, proven_u8 slot, proven_u32 tag, bool write) 
     return false;
 }
 
+static const proven_u8 *vm_rel_bytes(const low_ir_t *ir, proven_size_t si);   // ★ RFC-0015 §6.3 — 주소를 품은 상수(아래)
 static vmv_t vmv_int(proven_i64 x) { return (vmv_t){ .tag = VMV_INT, .i = x }; }
 // ★★ RFC-0151 Q2 ㉠ (2026-10-22) — **128 비트 정수는 값 칸의 빈자리에 위 절반을 든다**: 정수 값은 `i` 만 쓰고 `n` 이 비어 있었다(늘 0).
 //   그래서 칸 크기가 그대로이고, 64 비트 이하의 값은 위 절반이 0 인 채로 지나간다. 128 비트 값은 넓히기(`widen u128`) · 128 비트 상수
@@ -2416,6 +2417,13 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                 if (!vm_arr_copy(vm, &st->f[fi], r->fields[q], base + st->f[fi].off)) return false;
                                 break;
                             }
+                            if (st->is_shadow && st->f[fi].slmeta) {   // ★ 2026-10-31 — 슬라이스 칸(그림자 배치): (주소, 길이) 두 낱말
+                                const vmv_t sv2 = r->fields[q];
+                                if (sv2.tag != VMV_SLICE && sv2.tag != VMV_VARRAY) { vm_diag(vm->diags, "E-VM-TYPE", "a slice field takes a slice"); return false; }
+                                const proven_u8 *pp = sv2.p; proven_u64 pn = (proven_u64)sv2.n;
+                                memcpy(base + st->f[fi].off, &pp, sizeof pp); memcpy(base + st->f[fi].off + low_ptr_slot(), &pn, 8);
+                                break;
+                            }
 #if defined(__SIZEOF_INT128__)
                             if (st->f[fi].size == 16) { vm_put16(base + st->f[fi].off, r->fields[q], st->f[fi].be); break; }   // ★ RFC-0151 §9.4.1
 #endif
@@ -2648,6 +2656,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 proven_u8str_view_t s = vm->ir->strs[in->a];
                 proven_u8 ew = vm->ir->strew[in->a];
+                if (vm->ir->strrel && vm->ir->strrel[in->a]) {   // ★ 주소를 품은 상수 — 주소를 채운 사본
+                    const proven_u8 *rb = vm_rel_bytes(vm->ir, (proven_size_t)in->a);
+                    if (!rb) { vm_diag(vm->diags, "E-VM-OOM", "no memory for a constant holding addresses"); return false; }
+                    s.ptr = rb;
+                }
                 // ★ 폭 1 이면 여태처럼 **바이트 슬라이스**다(표면 불변).
                 //   폭 2·4 는 이미 있는 **타입 있는 배열**로 민다 — 새 값 종류 0.
                 //   `n` 은 **원소 수**다(바이트 수가 아니다): `len u"AB"` = 2.
@@ -5231,7 +5244,31 @@ proven_u64 low_oracle_budget(void) {
 }
 
 static proven_u64 g_vm_budget = 0;
-static low_ir_capture_t *g_vm_cap;   // ★ RFC-0015 §6.3 — 번역 때 도는 `fn` 의 답을 날것으로(low_ir_set_capture)
+static low_ir_capture_t *g_vm_cap;
+// ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0342) — 주소를 품은 상수(low_ir_t.srel): 풀의 바이트는 주소 자리가 0 이다. VM 은 그 항목을 처음 읽을 때
+//   주소를 채운 사본을 지어 IR 이 살아 있는 동안 쓴다(IR 이 풀리면 low_vm_forget_ir 가 버린다).
+static const low_ir_t *g_rel_ir;
+static proven_u8 *g_rel_buf[IR_MAXSTRS];
+void low_vm_forget_ir(const low_ir_t *ir) {
+    if (ir != g_rel_ir) return;
+    for (proven_size_t i = 0; i < IR_MAXSTRS; i++) { free(g_rel_buf[i]); g_rel_buf[i] = NULL; }
+    g_rel_ir = NULL;
+}
+static const proven_u8 *vm_rel_bytes(const low_ir_t *ir, proven_size_t si) {
+    if (g_rel_ir != ir) { low_vm_forget_ir(g_rel_ir); g_rel_ir = ir; }
+    if (g_rel_buf[si]) return g_rel_buf[si];
+    const proven_u8str_view_t s = ir->strs[si];
+    proven_u8 *b = malloc(s.size ? s.size : 1);
+    if (!b) return NULL;
+    if (s.size) memcpy(b, s.ptr, s.size);
+    for (proven_size_t r = 0; r < ir->nsrel; r++) {
+        if (ir->srel[r].si != (proven_u32)si || ir->srel[r].off + sizeof(void *) > s.size) continue;
+        const proven_u8 *tp = ir->strs[ir->srel[r].tsi].ptr;
+        memcpy(b + ir->srel[r].off, &tp, sizeof tp);
+    }
+    g_rel_buf[si] = b;
+    return b;
+}   // ★ RFC-0015 §6.3 — 번역 때 도는 `fn` 의 답을 날것으로(low_ir_set_capture)
 void low_ir_set_capture(low_ir_capture_t *cap) { g_vm_cap = cap; }
 static proven_u64 g_vm_budget_hits = 0;
 // ★★★ **여유는 재야 여유다** (2026-08-14). 예산을 낮추면 *"정직한 케이스가 조용히 건너뛰어지는"*

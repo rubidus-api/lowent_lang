@@ -970,6 +970,72 @@ $ lowentc --run origin_y compt_values.low
 origin_y() = -3
 $ lowentc --run vowels compt_values.low
 vowels() = 6
+</code></pre></div></div><p>A <code>fn</code> run at translation time is pure, so it allocates no new memory. It can still build a table: the place for the answer comes from outside (the place of an array result), and the slice fields in the answer point at pieces of the input text. The tool keeps those pieces as read-only bytes and makes the fields point there. A struct with slice fields can be an element of a list and of an array result (each slice field is two words, an address and a length). If you do not know the number of lines in advance, give generous room and count the filled lines separately. If the room runs out, the write to the next element stops out of bounds, and translation is refused at that constant’s declaration.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_messages.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_messages .
+<em><span class="tok-c">rem run: lines</span></em>
+<em><span class="tok-c">rem run: thanks_len</span></em>
+
+<strong><span class="tok-k">struct</span></strong> msg <strong><span class="tok-k">do</span></strong>
+  ko <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+  en <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem split each `ko,en` line — the slice fields are pieces of the input text</span></em>
+<strong><span class="tok-k">fn</span></strong> parse <strong><span class="tok-k">input</span></strong> txt <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <span class="tok-n">8</span> msg .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> row <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> start <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> comma <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> le i. len txt. . . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> or eq i. len txt. . . eq idx txt. i. . <span class="tok-n">10</span> . . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">if</span></strong> gt i. start. . <strong><span class="tok-k">do</span></strong>
+        <strong><span class="tok-k">set</span></strong> idx r. row. . <strong><span class="tok-k">lit</span></strong> msg <strong><span class="tok-k">do</span></strong> ko subslice txt. start. comma. . . en subslice txt. add comma. <span class="tok-n">1</span> . i. . . <strong><span class="tok-k">end</span></strong> . .
+        <strong><span class="tok-k">set</span></strong> row. add row. <span class="tok-n">1</span> . .
+      <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">set</span></strong> start. add i. <span class="tok-n">1</span> . .
+    <strong><span class="tok-k">end</span></strong> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">if</span></strong> eq idx txt. i. . <span class="tok-n">44</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> comma. i. . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> r. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> count_lines <strong><span class="tok-k">input</span></strong> txt <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> c txt. <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">if</span></strong> eq c. <span class="tok-n">10</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> n. add n. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> add n. <span class="tok-n">1</span> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> s. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">let</span></strong> RAW <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">comptime</span></strong> same text END
+안녕,hello
+고마워,thanks
+END
+  . . .
+
+<em><span class="tok-c">rem room for 8 — how many lines were filled is counted separately</span></em>
+<strong><span class="tok-k">let</span></strong> N <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">comptime</span></strong> count_lines RAW. . . .
+<strong><span class="tok-k">let</span></strong> MSGS <strong><span class="tok-k">array</span></strong> <span class="tok-n">8</span> msg <strong><span class="tok-k">comptime</span></strong> parse RAW. . . .
+
+<strong><span class="tok-k">fn</span></strong> lines <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> N. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> thanks_len <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> len field idx MSGS. <span class="tok-n">1</span> . en . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run lines compt_messages.low
+lines() = 2
+$ lowentc --run thanks_len compt_messages.low
+thanks_len() = 6
 </code></pre></div></div><p>One <code>fn</code> run at translation time must finish within 1,000,000 steps. For a table that takes longer, write <code>build comptime_steps 50000000 .</code> in <code>pkg.low</code> or give <code>--comptime-steps 50000000</code> on the command line (the command line wins). If the environment variable <code>LOWENT_CTFE_CACHE</code> names a folder, the answers are kept there and used again by the next translation. A kept answer is not used if the <code>fn</code>’s definition or its inputs changed, or if the tool version, the target or the step budget differ.</p><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>

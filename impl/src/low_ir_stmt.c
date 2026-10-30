@@ -3090,6 +3090,10 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
             d->b = malloc(d->n ? d->n : 1);
             if (!d->b) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
             if (d->n) memcpy(d->b, s0->p, d->n);
+        } else if (s0->kind == 6) {
+            snprintf(c->why, sizeof c->why, "`%.*s` returned a struct holding a 128-bit value — a compile-time struct answer holds integers up to 64 bits for now "
+                     "(the upper half would be lost) (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr);
+            return;
         } else if (s0->kind != 1 && s0->kind != 2) {
             snprintf(c->why, sizeof c->why, "`%.*s` returned a struct holding an option, a result or a reference — a compile-time struct answer "
                      "holds numbers, `bool`s, arrays and slices of numbers and other such structs (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr);

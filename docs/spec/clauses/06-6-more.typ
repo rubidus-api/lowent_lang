@@ -268,7 +268,7 @@ end .", "E-COMPTIME-ARG")
     #para("1f")[
       답이 구조체인 `fn` 도 돌린다. 답은 그 구조체의 #strong[값];이다 — 칸마다 돌린 값을 상수로 적은 `lit s do … end` 와 같다(창 `view s`
       가 아니다). 칸은 수 · `bool` · 수의 배열과 슬라이스(그 바이트는 (1d) 의 읽기 전용 자리에 둔다) · 그런 칸만 가진 구조체이다.
-      `option` · `result` · 참조를 품은 칸이 있으면 돌리지 아니한다(`E-COMPTIME-NONCONST`).
+      `option` · `result` · 참조를 품은 칸, 또는 64 비트에 들지 않는 128 비트 값을 든 칸이 있으면 돌리지 아니한다(`E-COMPTIME-NONCONST`).
     ]
     #para("1b")[
       셈한 답은 #strong[상수];다. 받는 자리는 그 답을 리터럴처럼 잰다 — 자리의 타입에 들지 않으면

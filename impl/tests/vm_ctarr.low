@@ -1,0 +1,112 @@
+rem ★★★ RFC-0015 §6.3 (2026-10-30 · 소유자 «다음 단계 6.3 진행 바랍니다» · W-20261030-2243) — 답이 배열인 `fn` 을 번역할 때 돌린다.
+rem   `fn` 은 결과 자리(P4b)에 쓰고, 그 바이트가 읽기 전용 상수 풀에 들어간다 — `lit array` 의 상수와 같은 자리다.
+rem   부르는 자리에는 그 표를 가리키는 것만 남는다(VM = 네이티브). 답은 손으로 센 값이다.
+
+module vm_ctarr .
+
+rem CRC-32 표(반사 · 0xEDB88320) — RFC-0015 §6.5 의 예
+fn crc_table output r array 256 u32 . do
+  var n u32 0 .
+  while lt n. 256 . do
+    var c u32 n. .
+    var k u32 0 .
+    while lt k. 8 . do
+      if eq bit_and c. 1 . 1 . do set c. bit_xor 3988292384 shr c. 1 . . .
+      end else do set c. shr c. 1 . . end .
+      set k. add k. 1 . .
+    end .
+    set idx r. cast usize n. . . c. .
+    set n. add n. 1 . .
+  end .
+  return r. .
+end .
+
+fn powers input b u32 . output r array 6 u32 .
+  requires le b. 30 . .
+do
+  var x u32 1 .
+  var i usize 0 .
+  while lt i. 6 . do
+    set idx r. i. . x. .
+    set x. mul x. b. . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+fn signs input n i16 . output r array 3 i16 .
+  requires le n. 100 . .
+  requires ge n. -100 . .
+do
+  set idx r. 0 . neg n. . .
+  set idx r. 1 . mul n. n. . .
+  set idx r. 2 . sub 0 mul n. n. . . .
+  return r. .
+end .
+
+rem 입력을 하나 받는다 — 입력 없는 `f64` 배열 결과는 계약 오라클의 길이 축이 원소 폭을 몰라 거짓 실패를 낸다(RFC-0154 §8-22)
+fn halves input k u8 . output r array 3 f64 .
+  requires ge k. 1 . .
+do
+  let d f64 cast f64 k. . .
+  set idx r. 0 . div 1.0 d. . .
+  set idx r. 1 . div 1.0 mul d. d. . . .
+  set idx r. 2 . div 1.0 mul mul d. d. . d. . . .
+  return r. .
+end .
+
+rem 모듈 상수로 — 프로그램 전체가 같은 한 표를 본다
+let CRC array 256 u32 comptime crc_table . . .
+let H array 3 f64 comptime halves 2 . . .
+
+fn sum input s slice u32 . output u64 . do
+  var t u64 0 .
+  for v s. do set t. add t. cast u64 v. . . . end .
+  return t. .
+end .
+
+fn last input t array 256 u32 . output u32 . do return idx t. 255 . . end .
+
+rem "123456789" 의 CRC-32 = 0xCBF43926 = 3421780262
+export fn check output u32 . do
+  let s slice u8 "123456789" .
+  var c u32 4294967295 .
+  for b s. do
+    let i usize cast usize bit_and bit_xor c. cast u32 b. . . 255 . . .
+    set c. bit_xor idx CRC. i. . shr c. 8 . . .
+  end .
+  return bit_xor c. 4294967295 . .
+end .
+
+rem 표[255] = 0x2D02EF8D = 755167117 — 배열 입력에 그대로 건넨다(길이는 들어갈 때 잰다)
+export fn crclast output u32 . do
+  return last CRC. . .
+end .
+
+rem 3^5 = 243 · 1+2+4+8+16+32 = 63
+export fn p3 output u32 . do
+  let t array 6 u32 comptime powers 3 . . .
+  return idx t. 5 . .
+end .
+export fn psum output u64 . do
+  let t array 6 u32 comptime powers 2 . . .
+  return sum t. . .
+end .
+
+rem 부호 있는 원소 −7 + (−49) = −56 · 부동소수 0.5+0.25+0.125 = 0.875
+export fn neg56 output i64 . do
+  let t array 3 i16 comptime signs 7 . . .
+  return add cast i64 idx t. 0 . . cast i64 idx t. 2 . . . .
+end .
+export fn hsum output f64 . do
+  return add add idx H. 0 . idx H. 1 . . idx H. 2 . . .
+end .
+
+rem 한 `fn` 의 몸 안의 배열 답을 다른 `comptime` 이 읽는다 — 미리 짓기의 다음 바퀴에 선다(3² = 9)
+fn inner output i64 . do
+  let t array 3 i16 comptime signs 3 . . .
+  return cast i64 idx t. 1 . . .
+end .
+export fn outer output i64 . do
+  return comptime inner . . .
+end .

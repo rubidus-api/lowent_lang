@@ -34,6 +34,7 @@
 #define IR_MAXALIAS  32
 #define IR_CTFE_MAXCALL 128      /* 한 단위의 `comptime` 자리 `fn` 부르기 — 넘으면 그 뒤의 자리는 접지 않는다(E-COMPTIME-NONCONST, 까닭을 적는다) */
 #define IR_CTFE_STEPS   1000000  /* 그 `fn` 하나를 번역 때 돌리는 VM 걸음 예산(RFC-0015 §6.2 연료) — 넘으면 E-COMPTIME-NONCONST */
+#define IR_CTFE_MAXBYTES 65536  /* 번역 때 돈 `fn` 의 배열 답 하나의 바이트 한도(RFC-0015 §6.3 — 읽기 전용 상수 풀에 든다) */
 #define IR_CTFE_ROUNDS  8        /* 미리 짓기의 바퀴 — `fn` 안의 `comptime` 이 다른 `fn` 의 답을 기다리면 다음 바퀴에 풀린다 */
 #define IR_MAXCINT   64   /* 한 op 안의 접힌 지역 `let` — 넘으면 그 뒤의 것은 접히지 않는다(`comptime` 이 읽으면 E-COMPTIME-NONCONST) */
 #define IR_MAXENUMPF 4     // max payload fields per enum variant (RFC-0080; AST `add` needs 2)
@@ -159,6 +160,10 @@ typedef struct {
     proven_u8str_view_t  mconst[IR_MAXALIAS];
     proven_i64           mconstv[IR_MAXALIAS];
     ityp_t               mconstt[IR_MAXALIAS];
+    // ★ RFC-0015 §6.3 — 배열 모듈 상수 `let X array N T comptime f … .`: 이름과 그 `comptime` 자리(답의 바이트는 call 표에 있다)
+    proven_u8str_view_t  mdata[IR_MAXALIAS];
+    const low_cst_t     *mdatand[IR_MAXALIAS];
+    proven_size_t        nmdata;
     proven_size_t        nmconst;
     proven_u8str_view_t  slice_alias[IR_MAXALIAS]; // `type N slice/array …`
     // ★ 별칭의 **원소 폭**. 없으면 백엔드가 "모른다" 로 떨어져 **별칭을 쓴 op 은 전부**
@@ -490,6 +495,12 @@ typedef struct {
     bool             hasargs, ok, uns;
     proven_i64       v;
     char             why[240];    /* 접지 못한 까닭(비면 아직 모른다) */
+    /* RFC-0015 §6.3 — 답이 배열인 `fn`(P4b 가 마지막 입력을 결과 자리 `mut slice T` 로 바꿔 적은 것): 자리를 주고 돌려 그 바이트를 든다 */
+    bool             arr;         /* 답이 `array N T` 다 */
+    proven_u8str_view_t elem;     /* 원소 낱말 T */
+    proven_size_t    nelem;       /* N */
+    proven_u8       *bytes;       /* 돌린 뒤의 자리(작은 끝 · N×|T| 바이트, malloc — 표를 다시 채울 때 놓는다) */
+    proven_size_t    nbytes;
 } ctfe_call_t;
 extern ctfe_call_t g_cc[IR_CTFE_MAXCALL];
 extern proven_size_t g_ncc;

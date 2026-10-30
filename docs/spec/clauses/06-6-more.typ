@@ -242,6 +242,15 @@ end .", "E-COMPTIME-ARG")
       (1a) 처럼 셈할 수 있어야 한다. 효과를 낼 수 있는 `proc` 은 돌리지 아니한다. 그 `fn` 이 넘치거나 계약을 어기거나
       정해진 걸음 안에 끝나지 않으면 `E-COMPTIME-NONCONST` 로 거부되며, 메시지가 그 까닭을 말한다.
     ]
+    #para("1d")[
+      답이 배열인 `fn`(#cref("6.2.6") (1c))도 돌린다. 원소는 크기 있는 수이고, 입력은 (1c) 와 같다. 처리기는 결과의 자리를 주고
+      그 `fn` 을 돌리며, 돌린 뒤의 바이트는 프로그램에 박힌 #strong[읽기 전용]; 바이트가 된다 — 원소가 모두 상수인 나열과 같은 자리다
+      (#cref("6.2.6") (7) ⓑ). 그 답에는 `let x array n t comptime f … .` 처럼 `f` 의 결과와 길이 · 원소 타입이 같은 이름을 붙인다.
+      몸 안의 `let` 이어도, 모듈 상수여도 된다. 그 이름으로 원소를 쓸 수 없다 — `set` · `copy` · `swap` 은 거부되고(`E-TYPE-MUT` ·
+      모듈 상수의 `set` 은 `E-IMMUTABLE`), `mut` 자리에 넘기면 거부된다(`E-TYPE-ARGMUT`). `var` 에 묶거나, 길이나 원소 타입이
+      다른 이름에 묶거나, 식의 한가운데에 두면 거부된다(`E-RESULT-PLACE`). 내용이 같은 두 답이 같은 자리인지는 ⓑ 와 같이
+      #t("자유 선택", "free choice") 이다(FC-0003).
+    ]
     #para("1b")[
       셈한 답은 #strong[상수];다. 받는 자리는 그 답을 리터럴처럼 잰다 — 자리의 타입에 들지 않으면
       리터럴과 같이 거부된다(`E-TYPE-WIDTH`). 답에 쓰인 이름의 타입은 답의 타입이 되지 아니한다.
@@ -292,6 +301,32 @@ do
   return comptime fact 10 . . .    rem 실행할 때에는 수 하나다
 end .",
       out: "f() = 3628800")
+    #ex("표를 번역할 때 짓는다", "module ex_comptime_table .
+
+fn crc_table output r array 256 u32 .
+do
+  var n u32 0 .
+  while lt n. 256 . do
+    var c u32 n. .
+    var k u32 0 .
+    while lt k. 8 . do
+      if eq bit_and c. 1 . 1 . do set c. bit_xor 3988292384 shr c. 1 . . .
+      end else do set c. shr c. 1 . . end .
+      set k. add k. 1 . .
+    end .
+    set idx r. cast usize n. . . c. .
+    set n. add n. 1 . .
+  end .
+  return r. .
+end .
+
+let CRC array 256 u32 comptime crc_table . . .    rem 실행할 때에는 읽기 전용 표 하나다
+
+fn f output u32 .
+do
+  return idx CRC. 255 . .
+end .",
+      out: "f() = 755167117")
     #rejected("셈한 답이 받는 자리에 들지 않는다", "module ex_comptime_width .
 
 let K u64 6 .

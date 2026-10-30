@@ -9591,8 +9591,19 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
     // 저자·정규화가 만든 괄호(GROUP 하나짜리)를 벗긴다 — `(ref q)` 는 GROUP(FORM(ref, q)) 다.
     while (arg->kind == LOW_CST_GROUP && arg->nkids == 1) arg = arg->kids[0];
     if (arg->kind == LOW_CST_ATOM) {
-        if (arg->tok.kind == LOW_TOK_IDENT && arg->tok.kw == LOW_KW_NONE)
+        if (arg->tok.kind == LOW_TOK_IDENT && arg->tok.kw == LOW_KW_NONE) {
+            // ★ RFC-0015 §6.3 (2026-10-30) — 지역이 아닌 이름이 배열 모듈 상수(`let CRC array … comptime f … .`)면 읽기 전용 상수 풀의 바이트다
+            bool local = false;
+            for (proven_size_t z = 0; z < nb && !local; z++) if (proven_u8str_view_eq(binds[z].name, arg->tok.lex)) local = true;
+            if (!local && pr)
+                for (proven_size_t i = 0; i < pr->nforms; i++) {
+                    const low_cst_t *f = pr->forms[i];
+                    if (f && f->kind == LOW_CST_FORM && f->nkids >= 4 && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_LET &&
+                        ck_atom(f->kids[1]) && proven_u8str_view_eq(f->kids[1]->tok.lex, arg->tok.lex) && ck_atom(f->kids[2]) &&
+                        veq(f->kids[2]->tok.lex, "slice")) return true;
+                }
             return ck_name_is_ro(binds, nb, arg->tok.lex);       // 맨 이름
+        }
         // ★★★★ **리터럴은 고칠 수 있는 자리가 아니다** (정본 §6.1.4(12) · §8.8 · 결함 노트 #84, 2026-09-16).
         //   문자열 리터럴을 `mut slice u8` 자리에 넘기는 것이 통과했다 — VM 은 그 바이트를 고치고
         //   네이티브는 안 고쳐(두 뒤끝이 갈렸다) 표준 라이브러리가 거기 쓰면 네이티브가 죽었다.

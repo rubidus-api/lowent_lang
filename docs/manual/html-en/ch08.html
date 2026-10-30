@@ -861,6 +861,51 @@ compt_width.low:9:0 E-TYPE-WIDTH: value does not fit the declared type (a litera
 table_len() = 720
 $ lowentc --run small compt_fn.low
 small() = 120
+</code></pre></div></div><p>A <code>fn</code> that returns an array (chapter 9) runs at translation time too. Its elements are sized numbers. The answer becomes a read-only table baked into the program, so nothing builds the table at run time. Give the answer a name whose length and element type match the <code>fn</code>’s result: <code>let x array &lt;length> &lt;type> comptime f … .</code>. It may be a <code>let</code> in a body or a module constant. The table is read only — writing an element (<code>set</code> · <code>copy</code> · <code>swap</code>) or passing it to a <code>mut</code> input is refused. If you need a copy to change, <code>copy</code> it into a <code>var</code> made with <code>lit array &lt;length> &lt;type> _ .</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_table.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_table .
+<em><span class="tok-c">rem run: sq7</span></em>
+<em><span class="tok-c">rem run: cube_sum</span></em>
+
+<em><span class="tok-c">rem a `fn` that returns an array runs at compile time too</span></em>
+<strong><span class="tok-k">fn</span></strong> squares <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <span class="tok-n">16</span> <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">16</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u16</span></strong> cast <strong><span class="tok-t">u16</span></strong> i. . .
+    <strong><span class="tok-k">set</span></strong> idx r. i. . mul v. v. . .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> r. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> cubes <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <span class="tok-n">4</span> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">4</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u32</span></strong> add k. cast <strong><span class="tok-t">u32</span></strong> i. . . .
+    <strong><span class="tok-k">set</span></strong> idx r. i. . mul mul v. v. . v. . .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> r. .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem a module constant — one read-only table baked into the program</span></em>
+<strong><span class="tok-k">let</span></strong> SQ <strong><span class="tok-k">array</span></strong> <span class="tok-n">16</span> <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">comptime</span></strong> squares . . .
+
+<strong><span class="tok-k">fn</span></strong> sq7 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> idx SQ. <span class="tok-n">7</span> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> cube_sum <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem a `let` in a body works too — 2³+3³+4³+5³</span></em>
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">array</span></strong> <span class="tok-n">4</span> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">comptime</span></strong> cubes <span class="tok-n">2</span> . . .
+  <strong><span class="tok-k">return</span></strong> add add idx t. <span class="tok-n">0</span> . idx t. <span class="tok-n">1</span> . . add idx t. <span class="tok-n">2</span> . idx t. <span class="tok-n">3</span> . . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run sq7 compt_table.low
+sq7() = 49
+$ lowentc --run cube_sum compt_table.low
+cube_sum() = 224
 </code></pre></div></div><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>

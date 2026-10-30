@@ -147,6 +147,14 @@ effects, is not run. If the run overflows, breaks a contract or does not end wit
 
 #demo("examples/ch08/compt_fn.low")
 
+A `fn` that returns an array (#chref("slices")) runs at translation time too. Its elements are sized numbers. The answer becomes a
+read-only table baked into the program, so nothing builds the table at run time. Give the answer a name whose length and element
+type match the `fn`'s result: `let x array <length> <type> comptime f … .`. It may be a `let` in a body or a module constant. The table
+is read only --- writing an element (`set` · `copy` · `swap`) or passing it to a `mut` input is refused. If you need a copy to change,
+`copy` it into a `var` made with `lit array <length> <type> _ .`.
+
+#demo("examples/ch08/compt_table.low")
+
 == Common mistakes
 
 Comparison (level 2) binds tighter than `and` (level 1b), so mixing them without parentheses has exactly one meaning.

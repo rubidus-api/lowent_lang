@@ -1071,6 +1071,9 @@ bool low_ctfe_let_value(low_cst_t *const *k, proven_size_t n, const low_ctfe_nam
 void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *pr);
 // 그 표에서 `nd` 아래에 있는 실패한 자리의 까닭(없으면 NULL) — E-COMPTIME-NONCONST 의 메시지에 붙인다.
 const char *low_ctfe_call_why(const low_cst_t *nd);
+// ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — `nd` 가 답이 배열인 `fn` 의 자리면 true 와 원소 낱말 · 길이(`*done` = 이미 돌았다).
+//   그 답은 정수가 아니라 읽기 전용 상수 풀의 바이트다 — 검사층은 원소 타입의 (쓸 수 없는) 슬라이스로 읽는다.
+bool low_ctfe_call_array(const low_cst_t *nd, proven_u8str_view_t *elem, proven_size_t *nelem, bool *done);
 // ★ RFC-0154 §8-21 — 구성 손잡이(`build option` + `lowent.config`)를 진단 없이 미리 읽는다(검사층이 하강층보다 먼저 돈다) · 그 값.
 void low_ir_options_preload(const low_parse_result_t *pr);
 bool low_ir_option_int(proven_u8str_view_t name, proven_i64 *out);

@@ -2344,6 +2344,13 @@ static bool ctfe_call_sub(const low_cst_t *nd, const ctfe_call_t *c) {
     for (proven_size_t i = 0; i < nd->nkids; i++) if (ctfe_call_sub(nd->kids[i], c)) return true;
     return false;
 }
+bool low_ctfe_call_array(const low_cst_t *nd, proven_u8str_view_t *elem, proven_size_t *nelem, bool *done) {
+    while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    const ctfe_call_t *cc = ctfe_call_find(nd);
+    if (!cc || !cc->arr) return false;
+    *elem = cc->elem; *nelem = cc->nelem; *done = cc->ok;
+    return true;
+}
 const char *low_ctfe_call_why(const low_cst_t *nd) {
     for (proven_size_t i = 0; i < g_ncc; i++)
         if (!g_cc[i].ok && g_cc[i].why[0] && ctfe_call_sub(nd, &g_cc[i])) return g_cc[i].why;
@@ -2394,6 +2401,15 @@ static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *
     if (!nd || fuel <= 0) return false;
     while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];   // 괄호 겹 벗기기
     if (nd->kind == LOW_CST_ATOM) {
+        // ★ RFC-0015 §4.1 B — 입력이 없는 `fn` 은 부르는 마디가 낱말 하나다(`comptime crc_table .`). 인자를 기다릴 것이 없다.
+        {
+            ctfe_call_t *cc = ctfe_call_find(nd);
+            if (cc) {
+                if (cc->ok && !cc->arr) { *out = cc->v; *uns = cc->uns; return true; }
+                if (g_cc_prepass && !cc->hasargs && !cc->why[0]) { cc->nargs = 0; cc->hasargs = true; }
+                return false;
+            }
+        }
         if (ctfe_lit(nd->tok.lex, out, uns)) return true;
         // ★★★ RFC-0154 §8-19 (가) (2026-10-30 · W-20261030-1440) — **이름을 접는다.** 머리 주석은 `machine.*` 를 접는다고 적었는데 그 길이 없었다
         //   (견준 표 §5): `comptime add 1 machine.addr_bits.` 도 `comptime mul K. 2` 도 E-COMPTIME-NONCONST 였다. 대상 질의는 여기서 바로 읽고,
@@ -2413,7 +2429,7 @@ static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *
     {
         ctfe_call_t *cc = ctfe_call_find(nd);
         if (cc) {
-            if (cc->ok) { *out = cc->v; *uns = cc->uns; return true; }
+            if (cc->ok && !cc->arr) { *out = cc->v; *uns = cc->uns; return true; }   // 배열 답은 수가 아니다 — 하강층이 상수 풀에 넣는다
             if (g_cc_prepass && !cc->hasargs && !cc->why[0] && nargs <= LOW_HDR_MAXP) {
                 bool all = true;
                 for (proven_size_t j = 0; j < nargs && all; j++) { bool u2; all = ctfe_u(nd->kids[j + 1], nm, &cc->args[j], &u2, fuel - 1); }
@@ -2736,6 +2752,21 @@ static bool ir_intern_bytes(ir_ctx_t *c, const proven_u8 *src, proven_size_t len
     ir->strew[ir->nstrs] = 1;
     ir->strs[ir->nstrs] = (proven_u8str_view_t){ .ptr = dst, .size = len };
     *si_out = ir->nstrs++;
+    return true;
+}
+// ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — 답이 배열인 `fn` 의 자리 `ce` 가 번역할 때 돌았으면 그 바이트를 읽기 전용 상수 풀에 넣고
+//   `lit array N T …` 의 상수 꼴(ⓑ)과 같은 명령(IRW_STR + 타입 보기)을 낸다 — 두 뒤끝이 이미 아는 자리다. 같은 바이트면 한 자리다.
+//   그런 자리가 아니거나 아직 돌지 않았으면 false(아무것도 내지 않는다).
+static bool ir_ctfe_array_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 line) {
+    while (ce && ce->kind == LOW_CST_GROUP && ce->nkids == 1) ce = ce->kids[0];
+    ctfe_call_t *ac = ctfe_call_find(ce);
+    if (!ac || !ac->arr || !ac->ok) return false;
+    proven_size_t si;
+    if (!ir_intern_bytes(c, ac->bytes, ac->nbytes, &si, line)) return true;
+    ir_emit(c, IRW_STR, (proven_i64)si);
+    proven_u8 esz = ir_field_size(ac->elem);
+    bool flt = ir_is_float_ty(ac->elem), sgn = ity_of_word(ac->elem).sign;
+    if (esz > 1 || sgn || flt) ir_emit(c, IRW_VARRAY, (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0));
     return true;
 }
 proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line) {
@@ -3518,6 +3549,9 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             const low_cst_t *ce = k[(*pos)++];
             proven_i64 cv;
             const low_ctfe_names_t nm = ir_ctfe_names(c);
+            // ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — 답이 배열인 `fn`: 번역할 때 돈 자리의 바이트를 읽기 전용 상수 풀에 넣는다.
+            //   `lit array N T …` 의 상수 꼴(ⓑ)과 같은 자리 · 같은 명령(IRW_STR + 타입 보기)이라 두 뒤끝이 이미 안다. 같은 바이트면 한 자리다.
+            if (ir_ctfe_array_emit(c, ce, nd->line)) return;
             if (ir_ctfe_fold(ce, &nm, &cv, IR_CTFE_FUEL)) { ir_emit(c, IRW_CONST, cv); return; }
             // ★ RFC-0015 §4.1 B — `fn` 부르기가 접히지 못했으면 그 까닭이 메시지다(proc · 입력 모양 · 넘침 · 계약 · 걸음 예산). 표가 글을 든다.
             {
@@ -5637,6 +5671,14 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             for (proven_size_t mi = 0; mi < c->nmconst; mi++)
                 if (proven_u8str_view_eq(c->mconst[mi], nd->tok.lex)) {
                     ir_emit(c, IRW_CONST, c->mconstv[mi]);
+                    return;
+                }
+            // ★ RFC-0015 §6.3 — 배열 모듈 상수: 읽기 전용 상수 풀의 그 바이트(읽는 자리마다 같은 한 자리 — 풀이 같은 바이트를 합친다)
+            for (proven_size_t mi = 0; mi < c->nmdata; mi++)
+                if (proven_u8str_view_eq(c->mdata[mi], nd->tok.lex)) {
+                    if (ir_ctfe_array_emit(c, c->mdatand[mi], nd->line)) return;
+                    const char *why = low_ctfe_call_why(c->mdatand[mi]);
+                    ir_fail(c, "E-CONST-NOTCOMPTIME", why ? why : "this array module constant's `comptime` call did not run at compile time", nd->line);
                     return;
                 }
             // ★★★ RFC-0112 D5(3) (WO-0212) — **영역 블록의 이름을 인자로 건넨다.** 영역 매개변수는 실행 중

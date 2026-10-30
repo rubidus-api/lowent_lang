@@ -1356,6 +1356,46 @@ static void dt_ovl_scan(dt_ctx_t *c, const low_cst_t *n, bool *grew) {
     }
     for (proven_size_t i = 0; i < n->nkids; i++) dt_ovl_scan(c, n->kids[i], grew);
 }
+// ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — `let x be array T N comptime f … .`(f 가 같은 모양의 배열을 낸다)는 자리를 받지 않는다:
+//   `f` 는 번역할 때 돌고(low_ctfe_calls_prepare) 그 바이트가 읽기 전용 상수 풀에 들어간다(`lit array` 의 상수 꼴 ⓑ 와 같은 자리).
+//   타입 `array T N` 을 `slice T` 로 적은 새 폼을 낸다 — 지역의 배열 타입은 검사기가 거절하고(E-TYPE-ARRAY) 상수 `lit array` 도 그 타입이다.
+//   길이는 그 `fn` 의 자리 계약이 돌 때 잰다. 몸 안의 `let` 과 모듈 상수가 함께 쓴다. 그런 꼴이 아니면 NULL.
+static low_cst_t *dt_ar_comptime_let(dt_ctx_t *c, const low_cst_t *st) {
+    if (!st || st->kind != LOW_CST_FORM || st->nkids != 8 || !us_atom(st->kids[0]) || st->kids[0]->tok.kw != LOW_KW_LET || !us_atom(st->kids[1])) return NULL;
+    // 몸 안에서는 `be` 가 이름 바로 뒤(dt_decl 이 옮겼다) · 모듈 맨 위에서는 타입 뒤다 — 둘 다 받고 그 차례를 지킨다
+    const proven_size_t b = us_atom(st->kids[2]) && st->kids[2]->tok.kw == LOW_KW_BE ? 2 : 5, t0 = b == 2 ? 3 : 2;
+    if (!us_atom(st->kids[b]) || st->kids[b]->tok.kw != LOW_KW_BE || !us_atom(st->kids[t0]) || !us_eq(st->kids[t0]->tok.lex, "array") ||
+        !us_atom(st->kids[t0 + 2]) || !us_atom(st->kids[6]) || !us_eq(st->kids[6]->tok.lex, "comptime")) return NULL;
+    const low_cst_t *cw = st->kids[7];   // 입력이 있으면 부르는 폼 `(f a …)` · 없으면 낱말 `f`
+    while (cw && cw->kind == LOW_CST_GROUP && cw->nkids == 1) cw = cw->kids[0];
+    if (cw && cw->kind == LOW_CST_FORM && cw->nkids) cw = cw->kids[0];
+    long ci = dt_ar_find(c, cw);
+    if (ci < 0 || !dt_ar_same(c->ar[ci].t, st->kids[t0 + 1]) || !proven_u8str_view_eq(c->ar[ci].n, st->kids[t0 + 2]->tok.lex)) return NULL;
+    low_cst_t *sw = dt_word(c, st->kids[t0], "slice"), *ew = dt_deep(c, st->kids[t0 + 1], st->kids[t0]->tok.line);
+    if (!sw || !ew) return NULL;
+    // 입력이 없는 부름(낱말 하나)은 괄호로 닫는다 — 바꿔 적힌 `f` 는 자리 입력을 하나 더 가지므로, 열린 낱말이면 arity 정규화가 인자가
+    //   모자란다고 그 구간을 평평하게 둔다(golden `nest gives up`)
+    low_cst_t *cv = st->kids[7];
+    if (us_atom(cv)) { low_cst_t *gk[1] = { cv }; cv = dt_mk(c, LOW_CST_GROUP, cv, gk, 1); if (!cv) return NULL; }
+    low_cst_t *lk[7] = { st->kids[0], st->kids[1], st->kids[2], sw, ew, st->kids[6], cv };
+    if (b == 5) { lk[2] = sw; lk[3] = ew; lk[4] = st->kids[5]; }
+    return dt_mk(c, LOW_CST_FORM, st->kids[0], lk, 7);
+}
+// ★ RFC-0015 §6.3 — 이 문장(안쪽 블록 말고)이 `comptime <배열을 내는 op> …` 을 품는가(거절 메시지를 그 자리에 맞춘다).
+static bool dt_ar_comptime_call(dt_ctx_t *c, const low_cst_t *n) {
+    if (!n || n->kind == LOW_CST_ATOM || n->kind == LOW_CST_BLOCK) return false;
+    for (proven_size_t i = 0; i < n->nkids; i++) {
+        const low_cst_t *k = n->kids[i];
+        if (us_atom(k) && us_eq(k->tok.lex, "comptime") && i + 1 < n->nkids) {
+            const low_cst_t *w = n->kids[i + 1];
+            while (w && w->kind == LOW_CST_GROUP && w->nkids == 1) w = w->kids[0];
+            if (w && w->kind == LOW_CST_FORM && w->nkids) w = w->kids[0];
+            if (dt_ar_find(c, w) >= 0) return true;
+        }
+        if (dt_ar_comptime_call(c, k)) return true;
+    }
+    return false;
+}
 // 몸의 블록들에서 부르는 자리를 고친다. place(배열 결과 op 안이면 내 자리의 이름 원자 · 아니면 NULL)와 그 모양.
 static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, const low_cst_t *pt, proven_u8str_view_t pn, bool named) {
     if (!blk || blk->kind != LOW_CST_BLOCK) return;
@@ -1375,7 +1415,12 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, con
                 vk = st->kids[6]->kids[0]->kids; vn = st->kids[6]->kids[0]->nkids;
             }
             long ai = vn ? dt_ar_find(c, vk[0]) : -1;
-            if (ai >= 0 && dt_ar_same(c->ar[ai].t, st->kids[4]) && proven_u8str_view_eq(c->ar[ai].n, st->kids[5]->tok.lex)) {
+            // ★ RFC-0015 §6.3 — `let x be array T N comptime f … .` 는 자리를 받지 않는다(dt_ar_comptime_let)
+            if (st->kids[0]->tok.kw == LOW_KW_LET) {
+                low_cst_t *s0 = dt_ar_comptime_let(c, st);
+                if (s0) { nk[m++] = s0; done = changed = true; }
+            }
+            if (!done && ai >= 0 && dt_ar_same(c->ar[ai].t, st->kids[4]) && proven_u8str_view_eq(c->ar[ai].n, st->kids[5]->tok.lex)) {
                 const low_cst_t *x = st->kids[1];
                 low_cst_t *lit1 = dt_ar_lit(c, x, st->kids[4], st->kids[5]->tok.lex);
                 low_cst_t *g1k[1] = { lit1 };
@@ -1464,7 +1509,12 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, con
                 bool own = false;
                 for (proven_size_t q = 0; q < st->nkids && !own; q++)
                     if (st->kids[q]->kind != LOW_CST_BLOCK && dt_ar_has_call(c, st->kids[q])) own = true;
-                if (own)
+                if (own && dt_ar_comptime_call(c, st))
+                    dt_diag(c, st->kids[0], "E-RESULT-PLACE", "the answer of `comptime f …` where `f` returns an array is read-only data placed when "
+                            "translating, and it is bound by `let x array <length> <type> comptime f … .` — the same length and element type as "
+                            "`f`'s result — then read through `x` (RFC-0015 §6.3). A `var` cannot hold it: to change it, copy it into a `var` "
+                            "made with `lit array <length> <type> _ .`");
+                else if (own)
                     dt_diag(c, st->kids[0], "E-RESULT-PLACE", "an op that returns an array is called where there is no place for the result — "
                             "bind it to a name first: `var x array <length> <type> f … .` (or `return f … .` inside an op that returns the "
                             "same array). The caller gives the place; an expression has none (RFC-0132 P4b)");
@@ -1715,6 +1765,8 @@ static void dt_run(low_parse_result_t *pr, proven_allocator_t node_alloc, proven
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
             us_atom(f->kids[1])) c->curmod = f->kids[1]->tok.lex;
         dt_walk(c, pr->forms[i]);
+        // ★ RFC-0015 §6.3 — 배열 모듈 상수 `let CRC array 256 u32 comptime crc_table . . .`(RFC-0015 §6.5 의 예) — 몸 안의 `let` 과 같은 바꿔 적기
+        if (!migrate && c->nar) { low_cst_t *s0 = dt_ar_comptime_let(c, pr->forms[i]); if (s0) pr->forms[i] = s0; }
     }
 }
 

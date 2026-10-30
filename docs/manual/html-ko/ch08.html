@@ -861,6 +861,51 @@ compt_width.low:9:0 E-TYPE-WIDTH: value does not fit the declared type (a litera
 table_len() = 720
 $ lowentc --run small compt_fn.low
 small() = 120
+</code></pre></div></div><p>배열을 내는 <code>fn</code>(9장)도 번역할 때 돌린다. 원소는 크기 있는 수다. 돌린 답은 프로그램에 박힌 읽기 전용 표가 되어, 실행할 때에는 표를 짓는 일이 없다. 답에는 <code>let x array &lt;길이> &lt;타입> comptime f … .</code> 처럼 그 <code>fn</code> 의 결과와 길이와 원소 타입이 같은 이름을 붙인다. 몸 안의 <code>let</code> 이어도 되고 모듈 상수여도 된다. 이 표는 읽기만 한다 — 원소를 쓰거나(<code>set</code> · <code>copy</code> · <code>swap</code>) <code>mut</code> 입력에 넘기면 거절된다. 고쳐 쓸 사본이 필요하면 <code>lit array &lt;길이> &lt;타입> _ .</code> 로 지은 <code>var</code> 에 <code>copy</code> 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_table.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_table .
+<em><span class="tok-c">rem run: sq7</span></em>
+<em><span class="tok-c">rem run: cube_sum</span></em>
+
+<em><span class="tok-c">rem 배열을 내는 `fn` 도 번역할 때 돈다</span></em>
+<strong><span class="tok-k">fn</span></strong> squares <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <span class="tok-n">16</span> <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">16</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u16</span></strong> cast <strong><span class="tok-t">u16</span></strong> i. . .
+    <strong><span class="tok-k">set</span></strong> idx r. i. . mul v. v. . .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> r. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> cubes <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> r <strong><span class="tok-k">array</span></strong> <span class="tok-n">4</span> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i. <span class="tok-n">4</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u32</span></strong> add k. cast <strong><span class="tok-t">u32</span></strong> i. . . .
+    <strong><span class="tok-k">set</span></strong> idx r. i. . mul mul v. v. . v. . .
+    <strong><span class="tok-k">set</span></strong> i. add i. <span class="tok-n">1</span> . .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> r. .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem 모듈 상수 — 프로그램에 박힌 읽기 전용 표 하나</span></em>
+<strong><span class="tok-k">let</span></strong> SQ <strong><span class="tok-k">array</span></strong> <span class="tok-n">16</span> <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">comptime</span></strong> squares . . .
+
+<strong><span class="tok-k">fn</span></strong> sq7 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> idx SQ. <span class="tok-n">7</span> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> cube_sum <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 몸 안의 `let` 도 된다 — 2³+3³+4³+5³</span></em>
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">array</span></strong> <span class="tok-n">4</span> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">comptime</span></strong> cubes <span class="tok-n">2</span> . . .
+  <strong><span class="tok-k">return</span></strong> add add idx t. <span class="tok-n">0</span> . idx t. <span class="tok-n">1</span> . . add idx t. <span class="tok-n">2</span> . idx t. <span class="tok-n">3</span> . . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run sq7 compt_table.low
+sq7() = 49
+$ lowentc --run cube_sum compt_table.low
+cube_sum() = 224
 </code></pre></div></div><h3 id="s8-6">8.6 흔한 실수<a class="plink" href="#s8-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>비교(단계 2)가 <code>and</code>(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>

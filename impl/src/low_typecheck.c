@@ -861,6 +861,17 @@ static ty_t env_find(const tc_var_t *env, proven_size_t n, proven_u8str_view_t n
     for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; ty_t t = env[i].ty; t.cfold = false; return t; }
     *found = false; return tk(TK_UNKNOWN);
 }
+// ★ 받는 자리(`copy` · `swap` 의 슬라이스)가 읽기 전용인가: 뿌리 이름이 `mut` 아닌 슬라이스 지역이거나, 지역이 아닌 배열 모듈 상수
+//   (RFC-0015 §6.3 — 번역 때 돈 `fn` 의 바이트가 읽기 전용 상수 풀에 있다). 모르면 false.
+static bool tc_slice_ro(tc_ctx_t *c, const low_cst_t *place, const tc_var_t *env, proven_size_t nenv) {
+    const low_cst_t *cr = tc_view_root(place);
+    if (!cr || cr->kind != LOW_CST_ATOM) return false;
+    bool fnd; ty_t d0 = env_find(env, nenv, cr->tok.lex, &fnd);
+    if (fnd) return d0.k == TK_SLICE && !d0.is_mut;
+    for (proven_size_t q = 0; q < g_nmc; q++)
+        if (proven_u8str_view_eq(g_mc[q].name, cr->tok.lex) && g_mc[q].ty.k == TK_SLICE) { (void)c; return true; }
+    return false;
+}
 
 // forward
 static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv);
@@ -3269,13 +3280,17 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 tc_emit(c, "E-TYPE-SET", "`copy` needs two slices of the same element type", f->line);
             // ★ RFC-0150 §8-28 — 받는 쪽이 `subslice X …` · `view_array T X` 이면 X 의 자리다. 맨 이름만 보던 탓에
             //   `copy subslice xs. 0 1 . ys. .` 가 읽기 전용 `xs` 에 썼다.
-            const low_cst_t *cr = tc_view_root(f->kids[1]);
-            if (cr && cr->kind == LOW_CST_ATOM) {
-                bool fnd; ty_t d0 = env_find(env, *nenv, cr->tok.lex, &fnd);
-                if (fnd && d0.k == TK_SLICE && !d0.is_mut)
-                    tc_emit(c, "E-TYPE-MUT", "`copy` writes the receiving slice — it must be declared `mut` (a `let` list, a string or a "
-                            "shared parameter is read-only)", f->line);
-            }
+            if (tc_slice_ro(c, f->kids[1], env, *nenv))
+                tc_emit(c, "E-TYPE-MUT", "`copy` writes the receiving slice — it must be declared `mut` (a `let` list, a string, a "
+                        "shared parameter or a `comptime` array is read-only)", f->line);
+        } else if (kw == LOW_KW_NONE && f->nkids == 4 && f->kids[0]->kind == LOW_CST_ATOM && veq(f->kids[0]->tok.lex, "swap") &&
+                   !sig_find_at(c, f->kids[0])) {
+            // ★ 2026-10-30 (RFC-0015 §6.3 을 짓다 찾았다) — `swap s i j .` 도 슬라이스에 쓴다. 검사가 없어서 `let` 상수 나열을 맞바꿨고
+            //   VM(2)과 네이티브(1)가 갈렸다(상수 나열은 읽기 전용 바이트다). `copy` 와 같은 규칙이다.
+            for (proven_size_t j = 1; j < 4; j++) (void)tc_infer(c, f->kids[j], env, *nenv);
+            if (tc_slice_ro(c, f->kids[1], env, *nenv))
+                tc_emit(c, "E-TYPE-MUT", "`swap` writes the slice — it must be declared `mut` (a `let` list, a string, a "
+                        "shared parameter or a `comptime` array is read-only)", f->line);
         } else if (kw == LOW_KW_SET && f->nkids >= 3 && f->kids[1]->kind == LOW_CST_GROUP) {
             // ★ `set (index s i) v .` — s 는 **mut** 로 선언돼 있어야 한다.
             //   가변성은 정적으로 강제된다(런타임 슬라이스 값에는 mut 표시가 없다 — 포인터가 const 다).

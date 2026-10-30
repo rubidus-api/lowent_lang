@@ -2894,7 +2894,111 @@ bool low_ir_option_int(proven_u8str_view_t name, proven_i64 *out) {
     *out = o->val; return true;
 }
 
+// ★★★ RFC-0015 §4.1 B (2026-10-30 · 소유자 «둘다 지금 진행 바라고 위의 추천대로» · W-20261030-1634) — **순수한 `fn` 을 번역할 때 돌린다.**
+//   RFC-0015 가 2026-06-27 에 정했다: 번역 때 도는 것은 순수 함수(그때의 calc op · 지금의 `fn`)뿐이고, 실행기는 있는 VM 이며, 연료로 끝을
+//   보장한다. 지금까지는 정수식 접기만 서 있었다(`comptime sq 5 .` → E-COMPTIME-NONCONST).
+//   ① 단위를 훑어 `comptime` 아래의 사용자 op 부르기 자리를 표에 싣는다. `proc`(효과가 있다) · 정수 아닌 입력 · 출력은 돌리지 않고 까닭을 적는다.
+//   ② 미리 짓는다(하강층 몸만 — 검사층 노트를 닫지 않는다). 그 동안 접기가 자리마다 인자의 값을 적는다.
+//   ③ 인자가 다 적힌 자리를 VM 으로 돌린다(걸음 예산 IR_CTFE_STEPS). 답 · 넘침 · 계약 위반 · 예산 초과가 표에 남는다.
+//   ④ 새로 풀린 자리가 있으면 다시 짓는다 — `fn` 안의 `comptime` 이 다른 `fn` 의 답을 기다렸을 수 있다(IR_CTFE_ROUNDS 바퀴).
+//   검사층(첫머리)과 하강층(low_ir_build)이 이 표를 읽으므로 답은 받는 자리가 리터럴처럼 잰다(정본 §6.8.1 (1b)).
+static bool g_cc_busy;
+static bool ctfe_int_word(proven_u8str_view_t w) {
+    static const char *ok[] = { "u8", "u16", "u32", "u64", "usize", "i8", "i16", "i32", "i64", "idiff", "bool" };
+    for (proven_size_t i = 0; i < sizeof ok / sizeof ok[0]; i++) if (veq(w, ok[i])) return true;
+    return false;
+}
+static const low_cst_t *ctfe_op_form(const low_parse_result_t *pr, proven_u8str_view_t name) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 2 || !is_atom(f->kids[0]) || !is_atom(f->kids[1])) continue;
+        if (f->kids[0]->tok.kw != LOW_KW_FN && f->kids[0]->tok.kw != LOW_KW_PROC) continue;
+        if (proven_u8str_view_eq(f->kids[1]->tok.lex, name)) return f;
+    }
+    return NULL;
+}
+static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && is_atom(nd->kids[0]) && nd->kids[0]->tok.kind == LOW_TOK_IDENT) {
+        const low_cst_t *cf = ctfe_op_form(pr, nd->kids[0]->tok.lex);
+        if (cf) {
+            bool dup = false;
+            for (proven_size_t i = 0; i < g_ncc; i++) if (g_cc[i].nd == nd) dup = true;
+            if (!dup && g_ncc < IR_CTFE_MAXCALL) {
+                ctfe_call_t *c = &g_cc[g_ncc++];
+                memset(c, 0, sizeof *c);
+                c->nd = nd; c->callee = cf;
+                const low_op_header_t h = low_op_header(cf);
+                if (!h.is_calc)
+                    snprintf(c->why, sizeof c->why, "`%.*s` is a `proc` — it may have effects, and only a pure `fn` runs at compile time (RFC-0015 §4.1)",
+                             (int)h.name.size, (const char *)h.name.ptr);
+                for (proven_size_t q = 0; q < h.np && !c->why[0]; q++) {
+                    const low_param_t *pp = &h.p[q];
+                    if (pp->is_comptime || pp->is_mut || pp->te != pp->core + 1 || !is_atom(cf->kids[pp->core]) || !ctfe_int_word(cf->kids[pp->core]->tok.lex))
+                        snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is not one integer or `bool` — only those cross into a compile-time call for now",
+                                 (int)h.name.size, (const char *)h.name.ptr);
+                }
+                if (!c->why[0] && (h.out_e != h.out_s + 1 || !is_atom(cf->kids[h.out_s]) || !ctfe_int_word(cf->kids[h.out_s]->tok.lex)))
+                    snprintf(c->why, sizeof c->why, "`%.*s` does not return one integer or `bool` — a slice or a struct answer (a read-only region, RFC-0015 §6.3) is not built yet",
+                             (int)h.name.size, (const char *)h.name.ptr);
+                if (!c->why[0]) {
+                    proven_u8str_view_t ow = cf->kids[h.out_s]->tok.lex;
+                    c->uns = ow.size && ow.ptr[0] == 'u';
+                }
+            } else if (!dup) return;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ctfe_add_site(pr, nd->kids[i]);
+}
+static void ctfe_scan(const low_parse_result_t *pr, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *k = nd->kids[i];
+        if (is_atom(k) && veq(k->tok.lex, "comptime") && i + 1 < nd->nkids) ctfe_add_site(pr, nd->kids[i + 1]);
+        ctfe_scan(pr, k);
+    }
+}
+static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr);
+void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *pr) {
+    if (g_cc_busy) return;
+    g_ncc = 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) ctfe_scan(pr, pr->forms[i]);
+    if (!g_ncc) return;
+    for (int round = 0; round < IR_CTFE_ROUNDS; round++) {
+        g_cc_busy = true; g_cc_prepass = true;
+        low_ir_t ir = low_ir_build_impl(work, pr);
+        g_cc_prepass = false; g_cc_busy = false;
+        bool progress = false;
+        for (proven_size_t i = 0; i < g_ncc; i++) {
+            ctfe_call_t *c = &g_cc[i];
+            if (c->ok || c->why[0] || !c->hasargs) continue;
+            bool found; proven_size_t di = ir_def_find(&ir, c->callee->kids[1]->tok.lex, &found);
+            if (!found || !ir.defs[di].lowered) continue;          // 그 `fn` 이 아직 서지 않았다(안의 `comptime` 이 다음 바퀴를 기다린다)
+            low_ir_arg_t a[LOW_HDR_MAXP];
+            for (proven_size_t q = 0; q < c->nargs; q++) a[q] = (low_ir_arg_t){ .is_slice = false, .v = c->args[q] };
+            proven_array_t dg = PROVEN_ARRAY_INIT(work, low_diag_t, 4).value;
+            low_ir_set_run_budget(IR_CTFE_STEPS);
+            low_ir_run_result_t rr = low_ir_run_def(&ir, di, a, c->nargs, work, &dg, NULL, 0);
+            low_ir_set_run_budget(0);
+            if (rr.ok) { c->v = rr.value; c->ok = true; progress = true; }
+            else {
+                const low_diag_t *d0 = dg.len ? (const low_diag_t *)proven_array_get(&dg, 0) : NULL;
+                if (d0 && d0->code && !strcmp(d0->code, "E-VM-BUDGET"))
+                    snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not end within %u VM steps (RFC-0015 §6.2 — a compile-time call has a step budget)",
+                             (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (unsigned)IR_CTFE_STEPS);
+                else snprintf(c->why, sizeof c->why, "running `%.*s` at compile time stopped: %s%s%.160s",
+                         (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr,
+                         d0 && d0->code ? d0->code : "it did not return", d0 && d0->msg ? " — " : "", d0 && d0->msg ? d0->msg : "");
+                progress = true;
+            }
+            proven_array_destroy(&dg);
+        }
+        low_ir_free(work, &ir);
+        if (!progress) break;
+    }
+}
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
+    low_ctfe_calls_prepare(work, pr);   // ★ RFC-0015 §4.1 B — `comptime` 자리의 `fn` 을 먼저 돌린다(위)
     low_ir_t ir = low_ir_build_impl(work, pr);
     low_tc_notes_close();
     return ir;

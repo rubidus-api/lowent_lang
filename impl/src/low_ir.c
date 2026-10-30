@@ -2327,6 +2327,28 @@ static bool ctfe_lit(proven_u8str_view_t v, proven_i64 *out, bool *uns) {
     return true;
 }
 static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns, int fuel);
+// ★★★ RFC-0015 §4.1 B (2026-10-30 · 소유자 «둘다 지금 진행 … 추천대로» · W-20261030-1634) — **`comptime` 자리의 `fn` 부르기 표.**
+//   자리마다(부르는 마디 하나) 부르는 `fn` · 인자의 값 · 답을 든다. 미리 짓기(low_ir_stmt.c `low_ctfe_calls_prepare`)가 채우고,
+//   접기(ctfe_u)는 답이 있으면 그 답을, 없으면 미리 짓는 중일 때 인자의 값만 적는다(그 바퀴의 끝에 VM 이 돌린다).
+ctfe_call_t g_cc[IR_CTFE_MAXCALL];
+proven_size_t g_ncc;
+bool g_cc_prepass;
+static ctfe_call_t *ctfe_call_find(const low_cst_t *nd) {
+    for (proven_size_t i = 0; i < g_ncc; i++) if (g_cc[i].nd == nd) return &g_cc[i];
+    return NULL;
+}
+static bool ctfe_call_sub(const low_cst_t *nd, const ctfe_call_t *c) {
+    if (!nd) return false;
+    if (nd == c->nd) return true;
+    if (nd->kind == LOW_CST_ATOM) return false;
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ctfe_call_sub(nd->kids[i], c)) return true;
+    return false;
+}
+const char *low_ctfe_call_why(const low_cst_t *nd) {
+    for (proven_size_t i = 0; i < g_ncc; i++)
+        if (!g_cc[i].ok && g_cc[i].why[0] && ctfe_call_sub(nd, &g_cc[i])) return g_cc[i].why;
+    return NULL;
+}
 static bool ctfe_pair(const low_cst_t *x, const low_cst_t *y, const low_ctfe_names_t *nm, proven_i64 *a, proven_i64 *b, bool *u, int fuel) {
     bool ua = false, ub = false;
     if (!ctfe_u(x, nm, a, &ua, fuel - 1) || !ctfe_u(y, nm, b, &ub, fuel - 1)) return false;
@@ -2387,6 +2409,19 @@ static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *
     if (nd->kind != LOW_CST_FORM || nd->nkids < 1 || !is_atom(nd->kids[0])) return false;
     proven_u8str_view_t head = nd->kids[0]->tok.lex;
     proven_size_t nargs = nd->nkids - 1;
+    // ★ RFC-0015 §4.1 B — 이 마디가 `fn` 부르기 자리면 표의 답이다. 답이 아직 없으면(미리 짓는 중) 인자의 값만 적고 접지 않는다.
+    {
+        ctfe_call_t *cc = ctfe_call_find(nd);
+        if (cc) {
+            if (cc->ok) { *out = cc->v; *uns = cc->uns; return true; }
+            if (g_cc_prepass && !cc->hasargs && !cc->why[0] && nargs <= LOW_HDR_MAXP) {
+                bool all = true;
+                for (proven_size_t j = 0; j < nargs && all; j++) { bool u2; all = ctfe_u(nd->kids[j + 1], nm, &cc->args[j], &u2, fuel - 1); }
+                if (all) { cc->nargs = nargs; cc->hasargs = true; }
+            }
+            return false;
+        }
+    }
     // 중첩 `comptime <expr>` — 이미 컴파일타임이므로 사실상 항등(RFC-0015 §6.1).
     if (veq(head, "comptime") && nargs == 1) return ctfe_u(nd->kids[1], nm, out, uns, fuel - 1);
     // ★ RFC-0154 §8-19 (가) — `native_lanes <t>` 은 대상에게 묻는 번역 시점 상수다(타입의 레인 자리와 같은 답 — ir_native_lanes_of).
@@ -3484,6 +3519,11 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             proven_i64 cv;
             const low_ctfe_names_t nm = ir_ctfe_names(c);
             if (ir_ctfe_fold(ce, &nm, &cv, IR_CTFE_FUEL)) { ir_emit(c, IRW_CONST, cv); return; }
+            // ★ RFC-0015 §4.1 B — `fn` 부르기가 접히지 못했으면 그 까닭이 메시지다(proc · 입력 모양 · 넘침 · 계약 · 걸음 예산). 표가 글을 든다.
+            {
+                const char *why = low_ctfe_call_why(ce);
+                if (why) { ir_fail(c, "E-COMPTIME-NONCONST", why, nd->line); return; }
+            }
             ir_fail(c, "E-COMPTIME-NONCONST",
                     "this `comptime` expression could not be evaluated at compile time. Today's CTFE "
                     "folds a PURE INTEGER expression only — integer literals, module constants, a local "
@@ -3492,8 +3532,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     "comparisons, min/max). A `var`, an input (also a `comptime` input), slices, allocation, "
                     "op calls, and data embedding (text→table, arena→static region) are not folded (RFC-0015 §8). "
                     "A u64 value of 2^63 or more folds without a sign, and what has no honest value is "
-                    "not folded: an overflow, a subtraction below 0, or a negative number mixed with it",
+                    "not folded: an overflow, a subtraction below 0, or a negative number mixed with it. "
+                    "A pure `fn` with integer inputs and an integer answer runs at compile time (RFC-0015 §4.1)",
                     nd->line);
+
             return;
         }
         // ★★★ `config <option>` — **구성 값은 comptime 상수다** (RFC-0036 D5).

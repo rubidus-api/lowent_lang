@@ -1066,6 +1066,11 @@ bool low_ctfe_value(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 
 // ★ RFC-0154 §8-19 (가) — 지역 `let` 의 값 낱말 `k[0..n)` 이 번역 시점 값이면 그 값(**접힌 `let`**): 마디 하나(리터럴 · 접히는 이름 · `machine.*` ·
 //   괄호 식) · `native_lanes t` · `comptime <식>`. 번역층(c->cint)과 검사층이 같은 규칙을 쓴다.
 bool low_ctfe_let_value(low_cst_t *const *k, proven_size_t n, const low_ctfe_names_t *nm, proven_i64 *out, bool *uns);
+// ★★★ RFC-0015 §4.1 B (2026-10-30 · W-20261030-1634) — `comptime <fn> <인자>` : 순수한 `fn` 을 번역할 때 VM 으로 돌린다.
+//   번역 앞에 «미리 짓기» 를 돌려 그 자리의 답을 표에 적는다(접기 · 검사층 · 하강층이 같은 표를 읽는다). 검사층과 하강층의 첫머리가 부른다.
+void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *pr);
+// 그 표에서 `nd` 아래에 있는 실패한 자리의 까닭(없으면 NULL) — E-COMPTIME-NONCONST 의 메시지에 붙인다.
+const char *low_ctfe_call_why(const low_cst_t *nd);
 // ★ RFC-0154 §8-21 — 구성 손잡이(`build option` + `lowent.config`)를 진단 없이 미리 읽는다(검사층이 하강층보다 먼저 돈다) · 그 값.
 void low_ir_options_preload(const low_parse_result_t *pr);
 bool low_ir_option_int(proven_u8str_view_t name, proven_i64 *out);

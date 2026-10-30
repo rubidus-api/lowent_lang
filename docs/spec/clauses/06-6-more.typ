@@ -233,8 +233,14 @@ end .", "E-COMPTIME-ARG")
       `machine.*`, `native_lanes <타입>`, `config <이름>`, 그리고 순수한 정수 빌트인
       (`add` · `sub` · `mul` · `div` · `mod` · `neg` · 비교 · `min` · `max` · 비트 연산 · `shl` · `shr` · 논리)이다.
       지역 `let` 의 값이 번역 시점에 나온다는 것은, 그 값이 리터럴 · 이런 이름 하나 · `native_lanes <타입>` ·
-      `comptime <식>` 이라는 뜻이다. `var`, 입력(`comptime` 입력도 — #cref("6.8") 의 실물은 하나이고 값은 실행할 때
-      건네진다), op 부르기는 셈하지 아니한다.
+      `comptime <식>` 이라는 뜻이다. `var` 와 입력(`comptime` 입력도 — #cref("6.8") 의 실물은 하나이고 값은 실행할 때
+      건네진다)은 셈하지 아니한다.
+    ]
+    #para("1c")[
+      순수한 `fn` 을 부르는 것도 셈한다. 처리기는 번역할 때 그 `fn` 을 실제로 돌리고, 돌린 답을 그 자리에 둔다.
+      지금의 처리기가 돌리는 것은 입력이 모두 정수나 `bool` 하나씩이고 답도 정수나 `bool` 하나인 `fn` 이며, 인자는
+      (1a) 처럼 셈할 수 있어야 한다. 효과를 낼 수 있는 `proc` 은 돌리지 아니한다. 그 `fn` 이 넘치거나 계약을 어기거나
+      정해진 걸음 안에 끝나지 않으면 `E-COMPTIME-NONCONST` 로 거부되며, 메시지가 그 까닭을 말한다.
     ]
     #para("1b")[
       셈한 답은 #strong[상수];다. 받는 자리는 그 답을 리터럴처럼 잰다 — 자리의 타입에 들지 않으면
@@ -268,6 +274,24 @@ do
   return comptime add PAGE. extra. . . .
 end .",
       out: "f() = 4100")
+    #ex("순수한 함수를 번역할 때 돌린다", "module ex_comptime_fn .
+
+fn fact input n u64 . output u64 .
+do
+  var r u64 1 .
+  var i u64 1 .
+  while le i. n. . do
+    set r. mul r. i. . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+fn f output u64 .
+do
+  return comptime fact 10 . . .    rem 실행할 때에는 수 하나다
+end .",
+      out: "f() = 3628800")
     #rejected("셈한 답이 받는 자리에 들지 않는다", "module ex_comptime_width .
 
 let K u64 6 .

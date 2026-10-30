@@ -32,6 +32,9 @@
 /* ── 나눠 갖는 상한 (WO-0164) — 맥락 구조체의 칸 수를 정한다 ────────────────
  * ★ 이 수들은 `ir_ctx_t` 의 배열 크기라 **타입과 함께 살아야** 한다. */
 #define IR_MAXALIAS  32
+#define IR_CTFE_MAXCALL 128      /* 한 단위의 `comptime` 자리 `fn` 부르기 — 넘으면 그 뒤의 자리는 접지 않는다(E-COMPTIME-NONCONST, 까닭을 적는다) */
+#define IR_CTFE_STEPS   1000000  /* 그 `fn` 하나를 번역 때 돌리는 VM 걸음 예산(RFC-0015 §6.2 연료) — 넘으면 E-COMPTIME-NONCONST */
+#define IR_CTFE_ROUNDS  8        /* 미리 짓기의 바퀴 — `fn` 안의 `comptime` 이 다른 `fn` 의 답을 기다리면 다음 바퀴에 풀린다 */
 #define IR_MAXCINT   64   /* 한 op 안의 접힌 지역 `let` — 넘으면 그 뒤의 것은 접히지 않는다(`comptime` 이 읽으면 E-COMPTIME-NONCONST) */
 #define IR_MAXENUMPF 4     // max payload fields per enum variant (RFC-0080; AST `add` needs 2)
 #define IR_MAXENUMV  64
@@ -478,6 +481,19 @@ bool ir_comptime_cond(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, prov
 proven_size_t ir_cond_brz(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_size_t *sites);
 bool ir_contract_operand(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line);
 bool ir_ctfe_fold(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, int fuel);
+/* RFC-0015 §4.1 B — `comptime` 자리의 `fn` 부르기(low_ir.c 가 접고 low_ir_stmt.c 가 미리 짓는다) */
+typedef struct {
+    const low_cst_t *nd;          /* 부르는 마디 `<fn> <인자…>` */
+    const low_cst_t *callee;      /* 그 `fn` 의 폼 */
+    proven_i64       args[LOW_HDR_MAXP];
+    proven_size_t    nargs;
+    bool             hasargs, ok, uns;
+    proven_i64       v;
+    char             why[240];    /* 접지 못한 까닭(비면 아직 모른다) */
+} ctfe_call_t;
+extern ctfe_call_t g_cc[IR_CTFE_MAXCALL];
+extern proven_size_t g_ncc;
+extern bool g_cc_prepass;
 low_ctfe_names_t ir_ctfe_names(ir_ctx_t *c);   /* RFC-0154 §8-19 (가) — 번역층의 이름 표(접힌 지역 let · 모듈 상수) */
 bool ir_row_shape(low_ir_t *o, const low_cst_t *rt, proven_u8str_view_t *leaf, proven_u64 *rb, proven_u8 *sub);   /* RFC-0155 §8-6 줄 꼴 */
 proven_i64 ir_row_meta(proven_u8str_view_t leaf, proven_u64 rb, proven_u8 sub);

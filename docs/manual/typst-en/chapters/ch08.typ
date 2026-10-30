@@ -140,6 +140,13 @@ The answer is a constant. The place that receives it measures it like a literal,
 
 #demo("examples/ch08/compt_width.low")
 
+A call to a pure `fn` is something `comptime` can compute too. The tool really runs that `fn` at translation time, and only the answer, one
+number, is left at run time. For now it runs a `fn` whose inputs and answer are each one integer or `bool`. A `proc`, which may have
+effects, is not run. If the run overflows, breaks a contract or does not end within a set number of steps, it is refused with
+`E-COMPTIME-NONCONST`, and the message says why.
+
+#demo("examples/ch08/compt_fn.low")
+
 == Common mistakes
 
 Comparison (level 2) binds tighter than `and` (level 1b), so mixing them without parentheses has exactly one meaning.

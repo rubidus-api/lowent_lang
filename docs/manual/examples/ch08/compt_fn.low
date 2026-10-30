@@ -1,0 +1,29 @@
+module compt_fn .
+rem run: table_len
+rem run: small
+
+rem ko: 순수한 `fn` 은 번역할 때 돌 수 있다 /// en: a pure `fn` can run at compile time
+fn fact input n u64 . output u64 .
+do
+  var r u64 1 .
+  var i u64 1 .
+  while le i. n. . do
+    set r. mul r. i. . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+rem ko: 모듈 상수를 그 답으로 적는다 /// en: a module constant written as its answer
+let PERMS u64 comptime fact 6 . . .
+
+fn table_len output u64 .
+do
+  return PERMS. .
+end .
+
+fn small output u8 .
+do
+  rem ko: 답 120 은 상수라서 `u8` 자리에 든다 /// en: the answer 120 is a constant, so it fits a `u8` place
+  return comptime fact 5 . . .
+end .

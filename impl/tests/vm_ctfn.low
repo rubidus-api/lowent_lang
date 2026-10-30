@@ -1,0 +1,65 @@
+rem ★★★ RFC-0015 §4.1 B (2026-10-30 · 소유자 «둘다 지금 진행 바라고 위의 추천대로» · W-20261030-1634) — 순수한 `fn` 을 번역할 때 돌린다.
+rem   RFC-0015 가 2026-06-27 에 정했다: 번역 때 도는 것은 순수 함수뿐이고(그때의 calc op · 지금의 `fn`), 실행기는 있는 VM 이며,
+rem   걸음 예산으로 끝을 보장한다. 답은 손으로 센 값이고, 부르는 자리에는 상수 하나만 남는다(VM = 네이티브).
+
+module vm_ctfn .
+
+fn sq input x u64 . output u64 . do
+  return mul x. x. . .
+end .
+
+fn fact input n u64 . output u64 . do
+  var r u64 1 .
+  var i u64 1 .
+  while le i. n. . do
+    set r. mul r. i. . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+fn is_prime input n u64 . output bool . do
+  if lt n. 2 . do return false . end .
+  var d u64 2 .
+  while le mul d. d. . n. . do
+    if eq mod n. d. . 0 . do return false . end .
+    set d. add d. 1 . .
+  end .
+  return true .
+end .
+
+rem `fn` 안의 `comptime` 이 다른 `fn` 의 답을 읽는다 — 미리 짓기가 두 바퀴째에 푼다
+fn sq_of_sq input x u64 . output u64 . do
+  return comptime sq sq 2 . . . .
+end .
+
+let F10 u64 comptime fact 10 . . .        rem 모듈 상수도 `fn` 의 답으로 적는다
+
+rem 5² = 25
+export fn sq5 output u64 . do
+  return comptime sq 5 . . .
+end .
+
+rem 10! + 5! = 3628800 + 120 = 3628920
+export fn facts output u64 . do
+  return add F10. comptime fact 5 . . . .
+end .
+
+rem sq(sq 2) = 16 · 1 + sq 3 = 10 → 26
+export fn nested output u64 . do
+  return add comptime sq_of_sq 0 . . comptime add 1 sq 3 . . . . .
+end .
+
+rem 97 은 소수 · 91 = 7 × 13 은 아니다 → 1 · 0
+export fn primes output u64 . do
+  if comptime is_prime 97 . . do
+    if comptime is_prime 91 . . do return 2 . end .
+    return 1 .
+  end .
+  return 0 .
+end .
+
+rem 답은 상수다 — `u64` 를 내는 `fn` 의 답 15² = 225 도 `u8` 자리에 든다
+export fn fit output u8 . do
+  return comptime sq 15 . . .
+end .

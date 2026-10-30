@@ -3732,7 +3732,8 @@ static void tc_brand_walk(tc_ctx_t *c, const low_cst_t *nd,
 
 low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr) {
     tc_notes_reset();
-    low_ir_options_preload(pr);   // ★ RFC-0154 §8-21 — `config <이름>` 의 값을 잰다(아래 · `comptime` 접기)
+    low_ir_options_preload(pr);   // ★ RFC-0154 §8-21
+    low_ctfe_calls_prepare(work, pr);   // ★ RFC-0015 §4.1 B — `comptime` 자리의 `fn` 을 먼저 돌려 답을 잰다(노트를 비운 뒤라 미리 짓기가 옛 노트를 읽지 않는다) — `config <이름>` 의 값을 잰다(아래 · `comptime` 접기)
     g_nvar = 0; g_nvarf = 0; g_nopt = 0; g_nmc = 0; g_nsname = 0; g_nename_t = 0; g_naname_t = 0; g_tc_full = false;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];

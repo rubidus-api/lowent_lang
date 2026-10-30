@@ -4077,6 +4077,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                 vm_diag(vm->diags, "E-VM-CAST", "the bytes under this enum field hold a number no variant has (they changed "
                                         "after `try_view` checked them)"); return false;
                             }
+                            if (low_sfield_sgn(&s->f[i]) && s->f[i].size < 8) {   // ★ 부호 있는 칸은 부호를 늘린다(위 비트를 0 으로 두면 −5 가 4294967291)
+                                const unsigned sh = 64u - 8u * s->f[i].size;
+                                x = (proven_u64)((proven_i64)(x << sh) >> sh);
+                            }
                             stack[sp++] = s->f[i].flt ? vmv_flt(ir_bits_to_f(x, s->f[i].size))
                                                       : vmv_int((proven_i64)x);
                             found = true;
@@ -4879,6 +4883,27 @@ static void fmt_f(char *out, proven_size_t cap, double d) {
         if (*p == '.' || *p == 'e' || *p == 'E' || *p == 'n' || *p == 'i') return;   // nan/inf 포함
     snprintf(out + n, cap - (proven_size_t)n, ".0");
 }
+// ★ RFC-0015 §6.3 — 값 하나를 날것으로 적는다(low_ir_set_capture). 바이트는 VM 기억을 가리킨다 — 부른 쪽이 곧바로 베낀다.
+static void vm_capval(const vm_ctx_t *vm, vmv_t v, low_ir_capture_t *cap, proven_size_t at) {
+    low_ir_capval_t *o = &cap->n[at];
+    if (v.tag == VMV_REC) {   // 레코드 — 칸들을 한 덩이로 잡고 하나씩 적는다(칸이 다시 레코드면 그 아래로)
+        const vmrec_t *r = VM_RECV(vm, v);
+        o->kind = 4; o->make_idx = r->make_idx;
+        if (cap->nn + r->nfields > LOW_CAP_NODES || r->nfields > 255) { cap->full = true; return; }
+        o->first = (proven_u8)cap->nn; o->nk = (proven_u8)r->nfields;
+        cap->nn += r->nfields;
+        for (proven_size_t i = 0; i < r->nfields; i++) vm_capval(vm, r->fields[i], cap, o->first + i);
+        return;
+    }
+    switch (v.tag) {
+        case VMV_INT:    o->kind = 1; o->v = v.i; return;
+        case VMV_FLT:    o->kind = 2; o->v = v.i; return;
+        case VMV_SLICE:  o->kind = 3; o->p = v.p; o->nbytes = v.n; return;
+        case VMV_VARRAY: o->kind = 3; o->p = v.p; o->nbytes = v.n * (proven_size_t)(v.box > 0 ? v.box : 1); return;
+        case VMV_VIEW:   o->kind = 3; o->p = v.p; o->nbytes = v.n; return;
+        default:         o->kind = 5; return;
+    }
+}
 static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap) {
     switch (v.tag) {
         case VMV_INT:
@@ -5205,6 +5230,8 @@ proven_u64 low_oracle_budget(void) {
 }
 
 static proven_u64 g_vm_budget = 0;
+static low_ir_capture_t *g_vm_cap;   // ★ RFC-0015 §6.3 — 번역 때 도는 `fn` 의 답을 날것으로(low_ir_set_capture)
+void low_ir_set_capture(low_ir_capture_t *cap) { g_vm_cap = cap; }
 static proven_u64 g_vm_budget_hits = 0;
 // ★★★ **여유는 재야 여유다** (2026-08-14). 예산을 낮추면 *"정직한 케이스가 조용히 건너뛰어지는"*
 //   위험이 생긴다 — 그것은 검사가 줄어드는 것이고, 아무 소리도 안 난다. 그래서 **완주한 케이스가
@@ -5274,6 +5301,11 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
             }
             vargs[i] = (vmv_t){ .tag = VMV_VIEW, .p = args[i].bytes, .n = args[i].n,
                                 .box = (proven_i32)d->param_sidx[i] };
+        } else if (args[i].is_slice && (args[i].vmeta & IR_ROW_BIT)) {   // ★ RFC-0015 §6.3 — 줄의 배열로(view_array 의 줄 갈래와 같은 값)
+            proven_size_t rb = (proven_size_t)(((proven_u64)args[i].vmeta >> 32) & 0xffffffu);
+            if (!rb || args[i].n % rb) { vm_diag(diags, "E-VM-VIEW", "an array of rows needs a whole number of rows"); return out; }
+            vargs[i] = (vmv_t){ .tag = VMV_VARRAY, .i = IR_ROW_BIT | (args[i].vmeta & (0xff | IR_FLT_BIT | IR_SGN_BIT | IR_ROWSUB_MASK)),
+                                .p = args[i].bytes, .n = args[i].n / rb, .box = (proven_i32)rb };
         } else if (args[i].is_slice) {
             vargs[i] = (vmv_t){ .tag = VMV_SLICE, .p = args[i].bytes, .n = args[i].n };
         } else if (args[i].is_flt || ((d->param_flt >> i) & 1u)) {
@@ -5386,6 +5418,11 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
     out.ok = vm_exec(&vm, d, vargs, &rv, 0);
     if (vm.budget_hit) g_vm_budget_hits++;
     else if (vm.budget && vm.steps > g_vm_steps_max_ok) g_vm_steps_max_ok = vm.steps;
+    if (out.ok && g_vm_cap) {
+        memset(g_vm_cap, 0, sizeof *g_vm_cap);
+        g_vm_cap->nn = 1;
+        vm_capval(&vm, rv, g_vm_cap, 0);
+    }
     if (out.ok) {
         if (rv.tag == VMV_INT) out.value = rv.i;
         vmv_render(&vm, rv, out.text, sizeof out.text);

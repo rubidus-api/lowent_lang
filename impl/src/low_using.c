@@ -1262,8 +1262,8 @@ static void dt_drop_out_name(dt_ctx_t *c, low_cst_t *f, proven_size_t at) {
  * 자리 매개변수의 `mut` 은 끼운 낱말(synth)이라 fn 의 순수성 검사(E-EFFECT-PURITY)가 보지 않는다 — 그 자리는 부른 쪽이 결과로
  * 받는 것이고, 돌아오기 전에는 아무도 볼 수 없다. 원소는 수만(그 밖은 E-TYPE-ARRAY — bool 은 지역 배열의 `idx` 가 수를 내는 기존 제약 때문에 뒤로). */
 static bool dt_ar_elem_ok(const low_cst_t *t) {
-    // ★ bool 은 아직 뺀다 — `lit array bool` 의 `idx` 가 수를 낸다(지역 배열의 기존 제약, P4b 와 무관). 고쳐지면 더한다.
-    static const char *const OK[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64", NULL };
+    // ★ 2026-10-31 (W-20261031-0048) — `bool` 도 받는다: `slice bool` 의 `idx` 가 이제 `bool` 이다(검사층의 원소 폭 칸 1).
+    static const char *const OK[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","idiff","f32","f64","bool", NULL };
     if (us_atom(t)) return dt_in(t->tok.lex, OK);
     // ★ RFC-0155 §8-5 (2026-10-30 · W-20261030-1054) — 원소가 배열이면(`output r array 2 array 3 u8 .` 의 안쪽 꼴 `array (array u8 3) 2`)
     //   그 원소는 괄호 한 겹 안의 `array <원소> <수>` 다. 자리는 줄의 슬라이스 `mut slice (array u8 3)` 이 되고 0 채우기는 줄의 나열 펼치기가 한다.

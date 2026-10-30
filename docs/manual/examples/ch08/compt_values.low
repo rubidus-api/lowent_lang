@@ -1,0 +1,58 @@
+module compt_values .
+rem run: hello_len
+rem run: origin_y
+rem run: vowels
+
+rem ko: 슬라이스를 내는 `fn` — 입력의 한 조각을 돌려준다 /// en: a `fn` that returns a slice — a piece of its input
+fn trim input s slice u8 . output slice u8 .
+do
+  var a usize 0 .
+  var b usize len s. . .
+  while and lt a. b. . eq idx s. a. . 32 . . do set a. add a. 1 . . end .
+  while and gt b. a. . eq idx s. sub b. 1 . . 32 . . do set b. sub b. 1 . . end .
+  return subslice s. a. b. . .
+end .
+
+struct pt do
+  x i32 .
+  y i32 .
+end .
+
+rem ko: 구조체를 내는 `fn` /// en: a `fn` that returns a struct
+fn corner input k i32 . output pt .
+  requires le k. 1000 . .
+  requires ge k. -1000 . .
+do
+  return lit pt do x k. . y neg k. . . end . .
+end .
+
+rem ko: 바이트를 세는 `fn` — `text` 리터럴을 입력으로 받는다 /// en: a `fn` that counts bytes — it takes a `text` literal
+fn count_vowels input s slice u8 . output u64 .
+do
+  var n u64 0 .
+  for c s. do
+    if or or eq c. 97 . eq c. 101 . . or or eq c. 105 . eq c. 111 . . eq c. 117 . . . do set n. add n. 1 . . end .
+  end .
+  return n. .
+end .
+
+let HELLO slice u8 comptime trim "   hello " . . .
+let ORIGIN pt comptime corner 3 . . .
+
+fn hello_len output usize .
+do
+  return len HELLO. . .
+end .
+
+fn origin_y output i32 .
+do
+  return field ORIGIN. y . .
+end .
+
+fn vowels output u64 .
+do
+  return comptime count_vowels text END
+a quiet morning
+END
+  . . .
+end .

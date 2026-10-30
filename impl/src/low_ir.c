@@ -2347,7 +2347,7 @@ static bool ctfe_call_sub(const low_cst_t *nd, const ctfe_call_t *c) {
 bool low_ctfe_call_array(const low_cst_t *nd, proven_u8str_view_t *elem, proven_size_t *nelem, bool *done) {
     while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
     const ctfe_call_t *cc = ctfe_call_find(nd);
-    if (!cc || !cc->arr) return false;
+    if (!cc || !(cc->arr || cc->sl || cc->st)) return false;   // 수가 아닌 답(배열 · 슬라이스 · 구조체) — 모듈 상수면 이름이 그 자리를 가리킨다
     *elem = cc->elem; *nelem = cc->nelem; *done = cc->ok;
     return true;
 }
@@ -2462,11 +2462,13 @@ static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *
             if ((op != '+' && op != '-' && op != '*' && op != '/') || !ctfe_ubin(op, (proven_u64)a, (proven_u64)b, &r)) return false;
             *out = (proven_i64)r; *uns = true; return true;
         }
+        // ★ 2026-10-31 (W-20261031-0048) — 부호 있는 셈도 넘치면 접지 않는다(부호 없는 쪽과 같다). 전에는 `comptime add 9223372036854775807 1`
+        //   이 −9223372036854775808 을 말없이 냈다 — 실행 때라면 E-VM-OVERFLOW 로 멈출 식이다.
         switch (op) {
-            case '+': *out = a + b; return true;
-            case '-': *out = a - b; return true;
-            case '*': *out = a * b; return true;
-            case '/': if (b == 0) return false; *out = a / b; return true;
+            case '+': return !__builtin_add_overflow(a, b, out);
+            case '-': return !__builtin_sub_overflow(a, b, out);
+            case '*': return !__builtin_mul_overflow(a, b, out);
+            case '/': if (b == 0 || (a == INT64_MIN && b == -1)) return false; *out = a / b; return true;
             default:  return false;
         }
     }
@@ -2483,7 +2485,7 @@ static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *
         proven_i64 a; bool u = false;
         if (!ctfe_u(nd->kids[1], nm, &a, &u, fuel - 1)) return false;
         switch (bt->w) {
-            case IRW_NEG:  if (u) return false; *out = -a; return true;   // 부호 없는 값의 neg 는 접지 않는다(정본 §6.3.3 (8a) — 거부)
+            case IRW_NEG:  if (u || a == INT64_MIN) return false; *out = -a; return true;   // 부호 없는 값의 neg 는 접지 않는다(정본 §6.3.3 (8a) — 거부) · 넘치면 접지 않는다
             case IRW_NOT:  *out = a ? 0 : 1; return true;   // 논리 not
             default: return false;                          // 폭 의존(bit_not/clz/…)·비스칼라는 미지원
         }
@@ -2518,13 +2520,13 @@ static bool ctfe_u(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *
             }
         }
         switch (bt->w) {
-            case IRW_ADD: *out = a + b; return true;
-            case IRW_SUB: *out = a - b; return true;
-            case IRW_MUL: *out = a * b; return true;
-            case IRW_DIV: if (b == 0) return false; *out = a / b; return true;
+            case IRW_ADD: return !__builtin_add_overflow(a, b, out);   // ★ 2026-10-31 — 넘치면 접지 않는다(위 연산자 갈래와 같다)
+            case IRW_SUB: return !__builtin_sub_overflow(a, b, out);
+            case IRW_MUL: return !__builtin_mul_overflow(a, b, out);
+            case IRW_DIV: if (b == 0 || (a == INT64_MIN && b == -1)) return false; *out = a / b; return true;
             // ★ comptime 접기도 **제수 부호**여야 한다 — 여기만 남으면 같은 식이 상수일 때와
             //   아닐 때 다른 답을 낸다(SPEC-004 · RFC-0052 D7, 2026-08-02).
-            case IRW_MOD: if (b == 0) return false;
+            case IRW_MOD: if (b == 0 || (a == INT64_MIN && b == -1)) return false;
                           { proven_i64 r = a % b; if (r && ((r < 0) != (b < 0))) r += b; *out = r; }
                           return true;
             case IRW_AND: *out = (a && b) ? 1 : 0; return true;   // 논리 and/or
@@ -2754,20 +2756,144 @@ static bool ir_intern_bytes(ir_ctx_t *c, const proven_u8 *src, proven_size_t len
     *si_out = ir->nstrs++;
     return true;
 }
-// ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — 답이 배열인 `fn` 의 자리 `ce` 가 번역할 때 돌았으면 그 바이트를 읽기 전용 상수 풀에 넣고
-//   `lit array N T …` 의 상수 꼴(ⓑ)과 같은 명령(IRW_STR + 타입 보기)을 낸다 — 두 뒤끝이 이미 아는 자리다. 같은 바이트면 한 자리다.
+// ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243 · 2026-10-31 W-20261031-0048 에 넓힘) — 번역 때 돈 `fn` 의 답이 수가 아니면 여기서 낸다.
+//   배열 · 슬라이스 답: 그 바이트를 읽기 전용 상수 풀에 넣고 `lit array N T …` 의 상수 꼴(ⓑ)과 같은 명령(IRW_STR + 타입 보기)을 낸다 —
+//   두 뒤끝이 이미 아는 자리다. 같은 바이트면 한 자리다(FC-0003). 구조체 답: 칸마다 상수를 싣고 `make` 한다 — `lit S do … end` 를 상수
+//   칸으로 적은 것과 같다(값은 구조체 `S` 다 — 창 `view S` 가 아니다). 슬라이스 · 배열 칸은 그 바이트를 풀에 넣고 가리킨다.
 //   그런 자리가 아니거나 아직 돌지 않았으면 false(아무것도 내지 않는다).
-static bool ir_ctfe_array_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 line) {
+static void ir_ctfe_bytes(ir_ctx_t *c, const proven_u8 *b, proven_size_t n, proven_i64 meta, proven_u32 line) {
+    proven_size_t si;
+    if (!ir_intern_bytes(c, b, n, &si, line)) return;
+    ir_emit(c, IRW_STR, (proven_i64)si);
+    if ((meta & 0xff) > 1 || (meta & ~(proven_i64)0xff)) ir_emit(c, IRW_VARRAY, meta);
+}
+static proven_i64 ir_elem_meta(proven_u8str_view_t w) {
+    proven_u8 esz = ir_field_size(w);
+    bool flt = ir_is_float_ty(w), sgn = ity_of_word(w).sign;
+    return (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0) | (veq(w, "bool") ? 0 : 0);
+}
+// 구조체 답의 마디 하나를 낸다 — 칸마다 상수(구조체 칸이면 그 아래로) 뒤 `make`.
+static void ir_ctfe_struct_emit(ir_ctx_t *c, const ctfe_call_t *ac, proven_size_t at, proven_u32 line) {
+    const ctfe_node_t *nd = &ac->tn[at];
+    bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, nd->tname), &sf);
+    if (!sf) { ir_fail(c, "E-COMPTIME-NONCONST", "the struct of this compile-time answer is not known here", line); return; }
+    if (c->out->nmakes >= IR_MAXMAKES) { ir_fail(c, "E-IR-UNSUP", "too many make sites", line); return; }
+    const low_ir_struct_t *sd = &c->out->structs[si];
+    proven_size_t my = c->out->nmakes++;   // 먼저 잡는다 — 칸의 구조체가 제 자리를 잡는다
+    low_ir_make_t mk = { .type_name = sd->name, .nfields = 0 };
+    for (proven_size_t q = 0; q < nd->nk && q < IR_MAKE_MAXF; q++) {
+        const ctfe_node_t *ch = &ac->tn[nd->first + q];
+        mk.fields[mk.nfields++] = nd->fname[q];
+        if (ch->kind == 1) ir_emit(c, IRW_CONST, ch->v);
+        else if (ch->kind == 2) ir_emit(c, IRW_FCONST, ch->v);
+        else if (ch->kind == 4) ir_ctfe_struct_emit(c, ac, nd->first + q, line);
+        else {
+            proven_i64 meta = 1;
+            for (proven_size_t z = 0; z < sd->nf; z++)
+                if (proven_u8str_view_eq(sd->f[z].name, nd->fname[q])) meta = sd->f[z].arrn ? sd->f[z].arrmeta : sd->f[z].slmeta ? sd->f[z].slmeta : 1;
+            ir_ctfe_bytes(c, ch->b, ch->n, meta, line);
+        }
+        if (c->failed) return;
+    }
+    c->out->makes[my] = mk;
+    ir_emit(c, IRW_MAKE, (proven_i64)my);
+}
+static bool ir_ctfe_answer_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 line) {
     while (ce && ce->kind == LOW_CST_GROUP && ce->nkids == 1) ce = ce->kids[0];
     ctfe_call_t *ac = ctfe_call_find(ce);
-    if (!ac || !ac->arr || !ac->ok) return false;
-    proven_size_t si;
-    if (!ir_intern_bytes(c, ac->bytes, ac->nbytes, &si, line)) return true;
-    ir_emit(c, IRW_STR, (proven_i64)si);
-    proven_u8 esz = ir_field_size(ac->elem);
-    bool flt = ir_is_float_ty(ac->elem), sgn = ity_of_word(ac->elem).sign;
-    if (esz > 1 || sgn || flt) ir_emit(c, IRW_VARRAY, (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0));
+    if (!ac || !ac->ok || (!ac->arr && !ac->sl && !ac->st)) return false;
+    if (ac->arr && ac->rowty) {   // 줄의 배열 — 상수 `lit slice array M T <줄>…` 과 같은 보기(줄 꼴 표)
+        proven_u8str_view_t lf; proven_u64 rb = 0; proven_u8 sub = 0;
+        if (!ir_row_shape(c->out, ac->rowty, &lf, &rb, &sub)) { ir_fail(c, "E-COMPTIME-NONCONST", "the rows of this compile-time answer are not laid out", line); return true; }
+        proven_size_t si;
+        if (!ir_intern_bytes(c, ac->bytes, ac->nbytes, &si, line)) return true;
+        ir_emit(c, IRW_STR, (proven_i64)si);
+        ir_emit(c, IRW_VARRAY, ir_row_meta(lf, rb, sub));
+        return true;
+    }
+    if (ac->arr || ac->sl) {
+        proven_i64 meta = ir_elem_meta(ac->elem);
+        if (veq(ac->elem, "bool")) meta = 1;   // `bool` 원소는 한 바이트 0/1 — 타입 보기 없이 바이트 슬라이스다(상수 `lit array N bool` 과 같다)
+        ir_ctfe_bytes(c, ac->bytes, ac->nbytes, meta, line);
+        return true;
+    }
+    ir_ctfe_struct_emit(c, ac, 0, line);
     return true;
+}
+// ★★ RFC-0015 §6.4 (2026-10-31) — 슬라이스 입력: 번역 때 바이트가 정해진 인자를 바이트로 읽는다 — 따옴표 문자열 · `text` 리터럴(원문 그대로) ·
+//   원소가 모두 상수인 `lit array` / `lit slice` · 배열 · 슬라이스 모듈 상수 · 이미 돈 다른 자리의 배열 · 슬라이스 답. 못 읽으면 false.
+static bool ir_ctfe_slice_arg(ir_ctx_t *c, const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
+    while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+    if (!a) return false;
+    const proven_u8 *src = NULL; proven_size_t len = 0; proven_u8 *own = NULL;
+    if (is_atom(a) && (a->tok.kind == LOW_TOK_STRING || a->tok.kind == LOW_TOK_TEXTLIT)) {
+        if (ir_str_prefix_width(a->tok.aux) != 1) return false;   // `u"…"` · `U"…"` 는 넓은 원소다 — 바이트 입력이 아니다
+        proven_u8str_view_t val = a->tok.lex;
+        if (a->tok.kind == LOW_TOK_STRING && !veq(a->tok.aux, "r") && !ir_unescape(c, a->tok.lex, a->line, &val)) return false;
+        src = val.ptr; len = val.size;
+    } else if (is_atom(a) && a->tok.kind == LOW_TOK_IDENT) {
+        for (proven_size_t mi = 0; mi < c->nmdata && !src; mi++)
+            if (proven_u8str_view_eq(c->mdata[mi], a->tok.lex)) {
+                const ctfe_call_t *mc = ctfe_call_find(c->mdatand[mi]);
+                if (!mc) { const low_cst_t *g = c->mdatand[mi]; while (g && g->kind == LOW_CST_GROUP && g->nkids == 1) g = g->kids[0]; mc = ctfe_call_find(g); }
+                if (!mc || !mc->ok || !(mc->arr || mc->sl)) return false;
+                src = mc->bytes; len = mc->nbytes;
+            }
+        if (!src) return false;
+    } else if (a->kind == LOW_CST_FORM && a->nkids >= 3 && is_atom(a->kids[0]) && a->kids[0]->tok.kw == LOW_KW_LIT && is_atom(a->kids[1]) &&
+               is_atom(a->kids[2]) && (veq(a->kids[1]->tok.lex, "array") || veq(a->kids[1]->tok.lex, "slice"))) {
+        const bool arr = veq(a->kids[1]->tok.lex, "array");
+        proven_u8str_view_t ty = a->kids[2]->tok.lex;
+        proven_u8 esz = ir_field_size(ty);
+        bool flt = ir_is_float_ty(ty);
+        proven_i64 cnt = -1; proven_size_t e0 = 3;
+        if (!esz) return false;
+        if (arr) { if (a->nkids < 4 || !is_atom(a->kids[3]) || !ir_int_lit(a->kids[3]->tok.lex, &cnt) || cnt < 0) return false; e0 = 4; }
+        proven_size_t cap = arr ? (proven_size_t)cnt : a->nkids - e0;
+        own = calloc(cap ? cap : 1, esz);
+        if (!own) return false;
+        proven_size_t m = 0;
+        for (proven_size_t q = e0; q < a->nkids; q++) {
+            const low_cst_t *e = a->kids[q];
+            if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) { m = cap; break; }
+            proven_u64 bits;
+            if (m >= cap || !ir_lit_const_bits(e, flt, esz, &bits)) { free(own); return false; }
+            for (proven_u8 b = 0; b < esz; b++) own[m * esz + b] = (proven_u8)(bits >> (8 * b));
+            m++;
+        }
+        if (m != cap) { free(own); return false; }
+        *out = own; *n = cap * esz;
+        return true;
+    } else {
+        const ctfe_call_t *oc = ctfe_call_find(a);
+        if (!oc || !oc->ok || !(oc->arr || oc->sl)) return false;
+        src = oc->bytes; len = oc->nbytes;
+    }
+    own = malloc(len ? len : 1);
+    if (!own) return false;
+    if (len) memcpy(own, src, len);
+    *out = own; *n = len;
+    return true;
+}
+// 미리 짓는 동안 이 자리의 인자를 적는다 — 정수는 접기로, 그 밖은 바이트로(위). 하나라도 못 읽으면 적지 않는다(그 자리는 돌지 않는다).
+void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce) {
+    if (!g_cc_prepass) return;
+    while (ce && ce->kind == LOW_CST_GROUP && ce->nkids == 1) ce = ce->kids[0];
+    ctfe_call_t *cc = ctfe_call_find(ce);
+    if (!cc || cc->hasargs || cc->why[0] || cc->ok) return;
+    const low_ctfe_names_t nm = ir_ctfe_names(c);
+    if (ce->kind == LOW_CST_ATOM) { cc->nargs = 0; cc->hasargs = true; return; }
+    proven_size_t na = ce->nkids - 1;
+    if (na > LOW_HDR_MAXP) return;
+    bool all = true;
+    for (proven_size_t j = 0; j < na && all; j++) {
+        bool u2;
+        free(cc->argb[j]); cc->argb[j] = NULL; cc->argsl[j] = false;
+        if (low_ctfe_value(ce->kids[j + 1], &nm, &cc->args[j], &u2)) continue;
+        if (ir_ctfe_slice_arg(c, ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) { cc->argsl[j] = true; continue; }
+        all = false;
+    }
+    if (all) { cc->nargs = na; cc->hasargs = true; }
 }
 proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line) {
     if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "list literal: too many locals", line); return (proven_size_t)-1; }
@@ -3551,7 +3677,8 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             const low_ctfe_names_t nm = ir_ctfe_names(c);
             // ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — 답이 배열인 `fn`: 번역할 때 돈 자리의 바이트를 읽기 전용 상수 풀에 넣는다.
             //   `lit array N T …` 의 상수 꼴(ⓑ)과 같은 자리 · 같은 명령(IRW_STR + 타입 보기)이라 두 뒤끝이 이미 안다. 같은 바이트면 한 자리다.
-            if (ir_ctfe_array_emit(c, ce, nd->line)) return;
+            if (ir_ctfe_answer_emit(c, ce, nd->line)) return;
+            ir_ctfe_record(c, ce);   // §6.4 — 미리 짓는 중이면 인자(정수 · 바이트)를 적는다
             if (ir_ctfe_fold(ce, &nm, &cv, IR_CTFE_FUEL)) { ir_emit(c, IRW_CONST, cv); return; }
             // ★ RFC-0015 §4.1 B — `fn` 부르기가 접히지 못했으면 그 까닭이 메시지다(proc · 입력 모양 · 넘침 · 계약 · 걸음 예산). 표가 글을 든다.
             {
@@ -5676,7 +5803,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             // ★ RFC-0015 §6.3 — 배열 모듈 상수: 읽기 전용 상수 풀의 그 바이트(읽는 자리마다 같은 한 자리 — 풀이 같은 바이트를 합친다)
             for (proven_size_t mi = 0; mi < c->nmdata; mi++)
                 if (proven_u8str_view_eq(c->mdata[mi], nd->tok.lex)) {
-                    if (ir_ctfe_array_emit(c, c->mdatand[mi], nd->line)) return;
+                    if (ir_ctfe_answer_emit(c, c->mdatand[mi], nd->line)) return;
                     const char *why = low_ctfe_call_why(c->mdatand[mi]);
                     ir_fail(c, "E-CONST-NOTCOMPTIME", why ? why : "this array module constant's `comptime` call did not run at compile time", nd->line);
                     return;
@@ -7654,7 +7781,9 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
         //     한다(둘 중 하나만이면 이 갈래를 안 탄다). 그래서 오늘까지 안 보였다.
         //   ⇒ 원소 폭을 알면 그 **배수**로 흔든다. 모르면(255) 예전대로 둔다.
         proven_i64 esz = 1;
-        if (d->nparams >= 1 && d->param_ebits[0] != 255 && d->param_ebits[0] >= 8)
+        // ★ RFC-0154 §8-22 (2026-10-31) — 폭은 원소의 바이트 수다. `param_ebits / 8` 은 부호 있는 원소(100+비트)와 부동소수(255)에서 틀렸다.
+        if (d->nparams >= 1 && d->param_esz[0]) esz = (proven_i64)d->param_esz[0];
+        else if (d->nparams >= 1 && d->param_ebits[0] != 255 && d->param_ebits[0] >= 8)
             esz = (proven_i64)(d->param_ebits[0] / 8);
         if (esz < 1) esz = 1;
         // ★★ **자르면 세어 말한다** (RFC-0077 P1-5 감사, 2026-08-14). 넘친 길이 케이스는 그냥

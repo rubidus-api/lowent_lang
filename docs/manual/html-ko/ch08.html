@@ -906,7 +906,71 @@ small() = 120
 sq7() = 49
 $ lowentc --run cube_sum compt_table.low
 cube_sum() = 224
-</code></pre></div></div><h3 id="s8-6">8.6 흔한 실수<a class="plink" href="#s8-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>비교(단계 2)가 <code>and</code>(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
+</code></pre></div></div><p>배열의 원소로는 <code>bool</code> 과 줄(배열 안의 배열)도 된다. 슬라이스를 내는 <code>fn</code> 과 구조체를 내는 <code>fn</code> 도 번역할 때 돈다. 슬라이스 답은 배열 답과 같이 읽기 전용 바이트가 되고, 구조체 답은 그 구조체의 값이 된다 — 칸마다 돌린 값을 적은 <code>lit</code> 과 같다. 입력으로는 정수와 <code>bool</code> 말고도 바이트가 번역 시점에 정해진 슬라이스를 건넬 수 있다: 따옴표 문자열, <code>text</code> 리터럴, 원소가 모두 상수인 목록, 배열이나 슬라이스 모듈 상수다. 원소가 구조체인 슬라이스 답과 구조체 입력은 아직 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_values.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_values .
+<em><span class="tok-c">rem run: hello_len</span></em>
+<em><span class="tok-c">rem run: origin_y</span></em>
+<em><span class="tok-c">rem run: vowels</span></em>
+
+<em><span class="tok-c">rem 슬라이스를 내는 `fn` — 입력의 한 조각을 돌려준다</span></em>
+<strong><span class="tok-k">fn</span></strong> trim <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-t">usize</span></strong> len s. . .
+  <strong><span class="tok-k">while</span></strong> and lt a. b. . eq idx s. a. . <span class="tok-n">32</span> . . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> a. add a. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">while</span></strong> and gt b. a. . eq idx s. sub b. <span class="tok-n">1</span> . . <span class="tok-n">32</span> . . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> b. sub b. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> subslice s. a. b. . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">i32</span></strong> .
+  y <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem 구조체를 내는 `fn`</span></em>
+<strong><span class="tok-k">fn</span></strong> corner <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> pt .
+  <strong><span class="tok-k">requires</span></strong> le k. <span class="tok-n">1000</span> . .
+  <strong><span class="tok-k">requires</span></strong> ge k. -<span class="tok-n">1000</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x k. . y neg k. . . <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem 바이트를 세는 `fn` — `text` 리터럴을 입력으로 받는다</span></em>
+<strong><span class="tok-k">fn</span></strong> count_vowels <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> c s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> or or eq c. <span class="tok-n">97</span> . eq c. <span class="tok-n">101</span> . . or or eq c. <span class="tok-n">105</span> . eq c. <span class="tok-n">111</span> . . eq c. <span class="tok-n">117</span> . . . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> n. add n. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">let</span></strong> HELLO <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">comptime</span></strong> trim <span class="tok-s">"</span><span class="tok-s">   hello </span><span class="tok-s">"</span> . . .
+<strong><span class="tok-k">let</span></strong> ORIGIN pt <strong><span class="tok-k">comptime</span></strong> corner <span class="tok-n">3</span> . . .
+
+<strong><span class="tok-k">fn</span></strong> hello_len <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> len HELLO. . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> origin_y <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> field ORIGIN. y . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> vowels <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> count_vowels text END
+a quiet morning
+END
+  . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run hello_len compt_values.low
+hello_len() = 5
+$ lowentc --run origin_y compt_values.low
+origin_y() = -3
+$ lowentc --run vowels compt_values.low
+vowels() = 6
+</code></pre></div></div><p>번역 때 도는 <code>fn</code> 하나는 걸음 100만 안에 끝나야 한다. 더 오래 걸리는 표라면 <code>pkg.low</code> 에 <code>build comptime_steps 50000000 .</code> 처럼 적거나 명령줄에 <code>--comptime-steps 50000000</code> 을 준다(명령줄이 이긴다). 환경 변수 <code>LOWENT_CTFE_CACHE</code> 에 폴더를 주면 돌린 답을 그 폴더에 간직해 다음 번역에서 다시 쓴다. <code>fn</code> 의 정의나 입력이 바뀌었거나 처리기 판 · 대상 · 걸음 예산이 다르면 간직한 답을 쓰지 않는다.</p><h3 id="s8-6">8.6 흔한 실수<a class="plink" href="#s8-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>비교(단계 2)가 <code>and</code>(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>
 

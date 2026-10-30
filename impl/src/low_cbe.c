@@ -841,6 +841,9 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
         else if (S->f[sl].flt)
             fprintf(out, "        rr_%d->f[%zu] = lw_flt(lw_b2f(lw_ld_f(r_.r + %u, %d, %d), %d));\n",
                     me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0, (int)S->f[sl].size);
+        else if (low_sfield_sgn(&S->f[sl]) && S->f[sl].size < 8)   // ★ 2026-10-31 — 부호 있는 칸은 부호를 늘린다
+            fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)(lw_ld_f(r_.r + %u, %d, %d) << %d) >> %d);\n",
+                    me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0, 64 - 8 * (int)S->f[sl].size, 64 - 8 * (int)S->f[sl].size);
         else
             fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)lw_ld_f(r_.r + %u, %d, %d));\n",
                     me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0);
@@ -3972,6 +3975,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                 (int)S->f[sl].size);
                     if (S->f[sl].flt)   // ★ 부동 필드 — 비트를 f64 로 본다.
                         fprintf(out, "      fs[fsp++] = lw_b2f(x_, %d); }\n", (int)S->f[sl].size);
+                    else if (low_sfield_sgn(&S->f[sl]) && S->f[sl].size < 8)   // ★ 부호 있는 칸은 부호를 늘린다(2026-10-31)
+                        fprintf(out, "      st[sp++] = (long long)(x_ << %d) >> %d; }\n", 64 - 8 * (int)S->f[sl].size, 64 - 8 * (int)S->f[sl].size);
                     else
                         fputs("      st[sp++] = (long long)x_; }\n", out);
                     ks.n--; ks.o[ks.n] = -1; ks.k[ks.n++] = S->f[sl].flt ? K_FLT : K_INT;
@@ -3994,6 +3999,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     if (F->flt)   // ★ 부동 필드 — 비트를 f64 로 본다.
                         fprintf(out, "    fs[fsp++] = lw_b2f(lw_ld_f(rs[--rsp] + %u, %d, %d), %d);\n",
                                 (unsigned)F->off, (int)F->size, F->be ? 1 : 0, (int)F->size);
+                    else if (low_sfield_sgn(F) && F->size < 8)   // ★ 부호 있는 칸은 부호를 늘린다(2026-10-31 — `i32` 칸의 −5 가 4294967291 이었다)
+                        fprintf(out, "    st[sp++] = (long long)(lw_ld_f(rs[--rsp] + %u, %d, %d) << %d) >> %d;\n",
+                                (unsigned)F->off, (int)F->size, F->be ? 1 : 0, 64 - 8 * (int)F->size, 64 - 8 * (int)F->size);
                     else
                         fprintf(out, "    st[sp++] = (long long)lw_ld_f(rs[--rsp] + %u, %d, %d);\n",
                                 (unsigned)F->off, (int)F->size, F->be ? 1 : 0);
@@ -5475,8 +5483,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 13; t++) {
-        const char *nm = t == 12 ? "lw_st_farrb"                            /* ★ RFC-0155 §8-3 배열 안의 배열 칸: 줄 바이트(0=줄이 아님) */
+    for (int t = 0; t < 14; t++) {
+        const char *nm = t == 13 ? "lw_st_fsgn"                             /* ★ 2026-10-31 부호 있는 정수 칸(8 바이트 아래) — 바이트에서 읽을 때 부호를 늘린다 */
+                       : t == 12 ? "lw_st_farrb"                            /* ★ RFC-0155 §8-3 배열 안의 배열 칸: 줄 바이트(0=줄이 아님) */
                        : t == 11 ? "lw_st_fsg16"                            /* ★ RFC-0151 §9.4.1 16 바이트 칸이 부호 있는가(i128) */
                        : t == 10 ? "lw_st_fbx"                              /* ★ RFC-0150 §8-12 스스로를 품는 칸(그림자): 가리키는 배치 + 1(0=아님) */
                        : t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
@@ -5500,6 +5509,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 8 ? (int)ir->structs[s].f[i].elo : t == 9 ? (int)ir->structs[s].f[i].ehi :
                         t == 10 ? (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].bxs1 : 0) :
                         t == 12 ? (int)(((proven_u64)ir->structs[s].f[i].arrmeta >> 32) & 0xffffffu) :
+                        t == 13 ? (int)(low_sfield_sgn(&ir->structs[s].f[i]) && ir->structs[s].f[i].size < 8) :
                         (int)(ir->structs[s].f[i].size == 16 && ir->structs[s].f[i].cname.size && ir->structs[s].f[i].cname.ptr[0] == (proven_u8)'i'));
             fputs(" }", out);
         }
@@ -5613,7 +5623,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    v.box = lw_st_fsidx[r.box][i]; return v; }\n"
           "                if (lw_st_fsize[r.box][i] == 16) return lw_get16(r.p + lw_st_foff[r.box][i], lw_st_fbe[r.box][i]);   /* RFC-0151 §9.4.1 */\n"
           "                return lw_st_fflt[r.box][i] ? lw_flt(lw_b2f(lw_vread(r, i), lw_st_fsize[r.box][i]))\n"
-          "                                            : lw_int((long long)lw_vread(r, i));\n"
+          "                                            : lw_int(lw_st_fsgn[r.box][i] ? (long long)(lw_vread(r, i) << (64 - 8 * lw_st_fsize[r.box][i])) >> (64 - 8 * lw_st_fsize[r.box][i]) : (long long)lw_vread(r, i));\n"
           "            }\n"
           "        lw_panic(\"no such field on this record\");\n"
           "    }\n"
@@ -6284,6 +6294,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                 (size_t)q, fi);
                             continue;
                         }
+                        if (low_sfield_sgn(&S->f[z]) && S->f[z].size < 8)   // ★ 2026-10-31 — 부호 있는 칸은 부호를 늘린다
+                            fprintf(out, "    lw_fstore(a[%zu], %d, lw_int((long long)(lw_ld_f(ar[%zu] + %u, %d, %d) << %d) >> %d));\n",
+                                    (size_t)q, fi, (size_t)bw, (unsigned)S->f[z].off,
+                                    (int)S->f[z].size, S->f[z].be ? 1 : 0, 64 - 8 * (int)S->f[z].size, 64 - 8 * (int)S->f[z].size);
+                        else
                         fprintf(out, "    lw_fstore(a[%zu], %d, lw_int((long long)lw_ld_f(ar[%zu] + %u, %d, %d)));\n",
                                 (size_t)q, fi, (size_t)bw, (unsigned)S->f[z].off,
                                 (int)S->f[z].size, S->f[z].be ? 1 : 0);

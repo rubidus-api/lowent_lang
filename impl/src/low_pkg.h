@@ -31,6 +31,7 @@ typedef struct {
     char           profile[64];   // build profile <word>
     char           target[64];    // build target <word>
     char           limb_bits[8];  // build limb_bits 16|32|64 — RFC-0152 §8-12: 최상위 패키지의 것만 읽는다 · 명령줄 `--limb-bits` 가 이긴다
+    char           comptime_steps[24]; // build comptime_steps N — RFC-0015 §6.2: 번역 때 도는 `fn` 하나의 걸음 예산 · 최상위 패키지의 것만 · `--comptime-steps` 가 이긴다
     low_pkg_dep_t  deps[32];
     int            ndeps;
     // ★★★★★ RFC-0120 §5.2-10 — **흡수를 허락한 모듈**(`build absorb <모듈> .`).

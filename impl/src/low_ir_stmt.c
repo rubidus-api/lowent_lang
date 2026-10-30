@@ -19,6 +19,8 @@
 #include "low_ir_priv.h"
 #include "low_arity.h"
 #include <limits.h>
+#include <unistd.h>   // ★ getpid — 번역 때 답 간직의 임시 이름(RFC-0015 §6.4)
+#include "low_version.h"
 #include <stdarg.h>   // ★ 증명 운반 검사(cert_put)의 가변 인자
 #include <math.h>
 #include <stdint.h>
@@ -2928,14 +2930,22 @@ static const low_cst_t *ctfe_op_form(const low_parse_result_t *pr, proven_u8str_
 }
 // ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — 답이 배열인 `fn` 인가. P4b(low_using)가 `output r array N T .` 를
 //   마지막 입력 `input r mut slice T .`(끼운 `mut`) · `output slice T .` · `requires eq (len r) N .` 로 바꿔 적었다 — 그 꼴을 알아본다.
-//   원소는 크기 있는 수(P4b 가 받는 것 — `bool` 과 줄은 아직 아니다).
-static bool ctfe_array_answer(const low_cst_t *cf, const low_op_header_t *h, proven_u8str_view_t *elem, proven_size_t *nelem) {
+//   원소는 크기 있는 수와 `bool`(P4b 가 받는 것). 줄은 아래 ctfe_array_rows 가 본다.
+static bool ctfe_array_answer(const low_cst_t *cf, const low_op_header_t *h, proven_u8str_view_t *elem, proven_size_t *nelem, const low_cst_t **rowty) {
     if (!h->np) return false;
     const low_param_t *pp = &h->p[h->np - 1];
     low_cst_t *const *k = cf->kids;
-    if (!pp->is_mut || !k[pp->ts]->synth || pp->te != pp->core + 2 || !is_atom(k[pp->core]) || !veq(k[pp->core]->tok.lex, "slice") ||
-        !is_atom(k[pp->core + 1]) || !ir_field_size(k[pp->core + 1]->tok.lex) || veq(k[pp->core + 1]->tok.lex, "bool")) return false;
-    if (h->out_e != h->out_s + 2 || !is_atom(k[h->out_s + 1]) || !proven_u8str_view_eq(k[h->out_s + 1]->tok.lex, k[pp->core + 1]->tok.lex)) return false;
+    *rowty = NULL; *elem = (proven_u8str_view_t){ 0 };
+    // 자리 낱말은 `slice T` 이거나(타입 구간이 두 낱말) 줄의 슬라이스 `slice (array T M)` 이다 — 머리의 절 구간은 괄호 앞에서 끝난다
+    if (!pp->is_mut || !k[pp->ts]->synth || !is_atom(k[pp->core]) || !veq(k[pp->core]->tok.lex, "slice") || pp->core + 1 >= cf->nkids) return false;
+    const low_cst_t *et = k[pp->core + 1];
+    if (is_atom(et)) {
+        if (pp->te != pp->core + 2 || !ir_field_size(et->tok.lex)) return false;
+        if (h->out_e != h->out_s + 2 || !is_atom(k[h->out_s + 1]) || !proven_u8str_view_eq(k[h->out_s + 1]->tok.lex, et->tok.lex)) return false;
+        *elem = et->tok.lex;
+    } else if (et->kind == LOW_CST_GROUP) {
+        *rowty = et;   // ★ 줄의 배열(RFC-0155 §8-5 · §8-6) — 크기와 보기는 돌릴 때 · 낼 때 줄 꼴 표(ir_row_shape)가 정한다
+    } else return false;
     for (proven_size_t q = 0; q + 3 < cf->nkids; q++) {
         if (!is_atom(k[q]) || !veq(k[q]->tok.lex, "requires") || !is_atom(k[q + 1]) || !veq(k[q + 1]->tok.lex, "eq")) continue;
         const low_cst_t *g = k[q + 2];
@@ -2949,6 +2959,16 @@ static bool ctfe_array_answer(const low_cst_t *cf, const low_op_header_t *h, pro
     }
     return false;
 }
+static bool ctfe_struct_named(const low_parse_result_t *pr, proven_u8str_view_t name) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && is_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT && is_atom(f->kids[1]) &&
+            proven_u8str_view_eq(f->kids[1]->tok.lex, name)) return true;
+    }
+    return false;
+}
+// 원소 낱말이 크기 있는 수인가(`bool` 도 — 한 바이트 0/1)
+static bool ctfe_num_elem(proven_u8str_view_t w) { return ir_field_size(w) != 0; }
 static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_ATOM || (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && is_atom(nd->kids[0]) && nd->kids[0]->tok.kind == LOW_TOK_IDENT)) {
@@ -2965,25 +2985,39 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                 memset(c, 0, sizeof *c);
                 c->nd = nd; c->callee = cf;
                 const low_op_header_t h = low_op_header(cf);
+                low_cst_t *const *k = cf->kids;
                 if (!h.is_calc)
                     snprintf(c->why, sizeof c->why, "`%.*s` is a `proc` — it may have effects, and only a pure `fn` runs at compile time (RFC-0015 §4.1)",
                              (int)h.name.size, (const char *)h.name.ptr);
-                c->arr = !c->why[0] && ctfe_array_answer(cf, &h, &c->elem, &c->nelem);
+                c->arr = !c->why[0] && ctfe_array_answer(cf, &h, &c->elem, &c->nelem, &c->rowty);
                 if (c->arr && c->nelem * ir_field_size(c->elem) > IR_CTFE_MAXBYTES)
-                    snprintf(c->why, sizeof c->why, "`%.*s` returns an array of %zu bytes — a compile-time answer holds at most %u bytes for now",
+                    snprintf(c->why, sizeof c->why, "`%.*s` returns an array of %zu bytes — a compile-time answer holds at most %u bytes",
                              (int)h.name.size, (const char *)h.name.ptr, c->nelem * ir_field_size(c->elem), (unsigned)IR_CTFE_MAXBYTES);
+                // 입력: 정수나 `bool` 하나, 또는 수의 슬라이스(`slice T` — 문자열 · `text` · 상수 나열 · 배열 상수가 건너간다, RFC-0015 §6.4)
                 for (proven_size_t q = 0; q < h.np - (c->arr ? 1 : 0) && !c->why[0]; q++) {
                     const low_param_t *pp = &h.p[q];
-                    if (pp->is_comptime || pp->is_mut || pp->te != pp->core + 1 || !is_atom(cf->kids[pp->core]) || !ctfe_int_word(cf->kids[pp->core]->tok.lex))
-                        snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is not one integer or `bool` — only those cross into a compile-time call for now",
+                    bool ok = !pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) &&
+                              ((pp->te == pp->core + 1 && ctfe_int_word(k[pp->core]->tok.lex)) ||
+                               (pp->te == pp->core + 2 && veq(k[pp->core]->tok.lex, "slice") && is_atom(k[pp->core + 1]) && ctfe_num_elem(k[pp->core + 1]->tok.lex)));
+                    if (!ok)
+                        snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is neither one integer or `bool` nor a slice of numbers — only those cross into a compile-time call (a `mut` input would be written, a struct input is not built)",
                                  (int)h.name.size, (const char *)h.name.ptr);
                 }
-                if (!c->why[0] && !c->arr && (h.out_e != h.out_s + 1 || !is_atom(cf->kids[h.out_s]) || !ctfe_int_word(cf->kids[h.out_s]->tok.lex)))
-                    snprintf(c->why, sizeof c->why, "`%.*s` does not return one integer, a `bool` or an array of numbers — a slice, a struct or an array of `bool` or of rows is not built yet (RFC-0015 §6.3)",
-                             (int)h.name.size, (const char *)h.name.ptr);
                 if (!c->why[0] && !c->arr) {
-                    proven_u8str_view_t ow = cf->kids[h.out_s]->tok.lex;
-                    c->uns = ow.size && ow.ptr[0] == 'u';
+                    if (h.out_e == h.out_s + 1 && is_atom(k[h.out_s]) && ctfe_int_word(k[h.out_s]->tok.lex)) {
+                        proven_u8str_view_t ow = k[h.out_s]->tok.lex;
+                        c->uns = ow.size && ow.ptr[0] == 'u';
+                    } else if (h.out_e == h.out_s + 2 && is_atom(k[h.out_s]) && veq(k[h.out_s]->tok.lex, "slice") && is_atom(k[h.out_s + 1]) &&
+                               ctfe_num_elem(k[h.out_s + 1]->tok.lex)) {
+                        c->sl = true; c->elem = k[h.out_s + 1]->tok.lex;
+                    } else if (h.out_e == h.out_s + 1 && is_atom(k[h.out_s]) && ctfe_struct_named(pr, k[h.out_s]->tok.lex)) {
+                        c->st = true; c->sname = k[h.out_s]->tok.lex;
+                    } else if (h.out_e >= h.out_s + 2 && is_atom(k[h.out_s]) && veq(k[h.out_s]->tok.lex, "slice"))
+                        snprintf(c->why, sizeof c->why, "`%.*s` returns a slice whose elements are not numbers (structs or rows) — its bytes may hold addresses that would have to be moved into read-only data, which is not built (RFC-0015 §8-1)",
+                                 (int)h.name.size, (const char *)h.name.ptr);
+                    else
+                        snprintf(c->why, sizeof c->why, "`%.*s` returns a type a compile-time call cannot hand back — one integer or `bool`, an array or a slice of numbers, and a struct are built (RFC-0015 §6.3)",
+                                 (int)h.name.size, (const char *)h.name.ptr);
                 }
             } else if (!dup) return;
         }
@@ -2995,19 +3029,151 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
 }
 static void ctfe_scan(const low_parse_result_t *pr, const low_cst_t *nd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
+    // ★ op 머리의 `input comptime n …` 은 매개변수 한정어다 — 값 자리의 `comptime` 이 아니다(머리는 건너뛰고 몸만 본다)
+    const bool head = nd->kind == LOW_CST_FORM && nd->nkids >= 2 && is_atom(nd->kids[0]) &&
+                      (nd->kids[0]->tok.kw == LOW_KW_FN || nd->kids[0]->tok.kw == LOW_KW_PROC);
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         const low_cst_t *k = nd->kids[i];
+        if (head && k->kind != LOW_CST_BLOCK) continue;
         if (is_atom(k) && veq(k->tok.lex, "comptime") && i + 1 < nd->nkids) ctfe_add_site(pr, nd->kids[i + 1]);
         ctfe_scan(pr, k);
     }
 }
+// ★★ RFC-0015 §6.2 (2026-10-31 · W-20261031-0048) — 걸음 예산은 빌드 설정이 바꾼다: pkg.low 의 `build comptime_steps <N> .` 과
+//   명령줄 `--comptime-steps N`(명령줄이 이긴다 — main.c 가 매니페스트 값을 명령줄로 넘긴다). 없으면 IR_CTFE_STEPS.
+static proven_u64 g_ctfe_steps_cli;
+void low_ctfe_set_steps(proven_u64 n) { g_ctfe_steps_cli = n; }
+static proven_u64 ctfe_steps(void) { return g_ctfe_steps_cli ? g_ctfe_steps_cli : IR_CTFE_STEPS; }
+static void ctfe_clear(ctfe_call_t *c) {
+    free(c->bytes);
+    for (proven_size_t q = 0; q < LOW_CAP_NODES; q++) free(c->tn[q].b);
+    for (proven_size_t q = 0; q < LOW_HDR_MAXP; q++) free(c->argb[q]);
+}
+// ★ RFC-0015 §6.3 — 슬라이스 · 구조체 답을 날것에서 베낀다(포인터는 다음 실행까지만 산다). 답이 담지 못하는 꼴이면 까닭을 적는다.
+static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_capture_t *cap) {
+    const proven_u8str_view_t fnm = c->callee->kids[1]->tok.lex;
+    const low_ir_capval_t *top = &cap->n[0];
+    if (c->sl) {
+        if (top->kind != 3) { snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not hand back a slice", (int)fnm.size, (const char *)fnm.ptr); return; }
+        if (top->nbytes > IR_CTFE_MAXBYTES) {
+            snprintf(c->why, sizeof c->why, "`%.*s` returned %zu bytes at compile time — a compile-time answer holds at most %u bytes",
+                     (int)fnm.size, (const char *)fnm.ptr, top->nbytes, (unsigned)IR_CTFE_MAXBYTES);
+            return;
+        }
+        c->nbytes = top->nbytes;
+        c->bytes = malloc(c->nbytes ? c->nbytes : 1);
+        if (!c->bytes) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
+        if (c->nbytes) memcpy(c->bytes, top->p, c->nbytes);
+        return;
+    }
+    if (top->kind != 4) { snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not hand back a struct value", (int)fnm.size, (const char *)fnm.ptr); return; }
+    if (cap->full) {
+        snprintf(c->why, sizeof c->why, "`%.*s` returned a struct with more than %u values in all (its fields and the fields of the structs inside) — "
+                 "a compile-time struct answer holds at most that", (int)fnm.size, (const char *)fnm.ptr, (unsigned)LOW_CAP_NODES);
+        return;
+    }
+    proven_size_t total = 0;
+    c->ntn = cap->nn;
+    for (proven_size_t q = 0; q < cap->nn; q++) {
+        const low_ir_capval_t *s0 = &cap->n[q];
+        ctfe_node_t *d = &c->tn[q];
+        d->kind = s0->kind; d->v = s0->v; d->first = s0->first; d->nk = s0->nk;
+        if (s0->kind == 4) {
+            if (s0->make_idx >= ir->nmakes || s0->nk > IR_MAKE_MAXF) { snprintf(c->why, sizeof c->why, "`%.*s` returned a struct this tool cannot read back", (int)fnm.size, (const char *)fnm.ptr); return; }
+            const low_ir_make_t *mk = &ir->makes[s0->make_idx];
+            d->tname = mk->type_name;
+            for (proven_size_t z = 0; z < s0->nk && z < mk->nfields; z++) d->fname[z] = mk->fields[z];
+        } else if (s0->kind == 3) {
+            total += s0->nbytes;
+            if (total > IR_CTFE_MAXBYTES) { snprintf(c->why, sizeof c->why, "`%.*s` returned a struct whose slices hold more than %u bytes", (int)fnm.size, (const char *)fnm.ptr, (unsigned)IR_CTFE_MAXBYTES); return; }
+            d->n = s0->nbytes;
+            d->b = malloc(d->n ? d->n : 1);
+            if (!d->b) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
+            if (d->n) memcpy(d->b, s0->p, d->n);
+        } else if (s0->kind != 1 && s0->kind != 2) {
+            snprintf(c->why, sizeof c->why, "`%.*s` returned a struct holding an option, a result or a reference — a compile-time struct answer "
+                     "holds numbers, `bool`s, arrays and slices of numbers and other such structs (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr);
+            return;
+        }
+    }
+}
+// ★★ RFC-0015 §6.4 (2026-10-31 · W-20261031-0048) — **번역 때 돈 답을 간직한다.** 순수한 `fn` 의 답은 (그 `fn` 의 정의 해시 · 입력 바이트)의
+//   함수이므로 그 둘이 같으면 다시 돌리지 않는다. 열쇠에 처리기 판 · 대상 · 걸음 예산도 넣는다 — 예산이 다르면 «예산을 넘었다» 가 다를 수
+//   있다(따뜻한 간직이 차가운 기계에서 거절될 프로그램을 통과시키면 재현이 깨진다). 정의 해시는 부르는 `fn` 의 해시를 품으므로(IRW_CALL)
+//   안쪽 `fn` 이 바뀌어도 열쇠가 바뀐다. 간직하는 곳은 `LOWENT_CTFE_CACHE` 가 가리키는 폴더 — 없으면 간직하지 않는다(기본은 끔).
+//   성공한 답만 간직한다. 읽을 때 길이와 꼬리표가 맞지 않으면 버리고 다시 돈다.
+static proven_u64 ctfe_fnv(proven_u64 h, const void *p, proven_size_t n) {
+    const proven_u8 *b = (const proven_u8 *)p;
+    for (proven_size_t i = 0; i < n; i++) { h ^= b[i]; h *= 1099511628211ull; }
+    return h;
+}
+static bool ctfe_cache_path(const low_ir_t *ir, proven_size_t di, const ctfe_call_t *c, const low_ir_arg_t *a, proven_size_t na, char *out, proven_size_t cap) {
+    const char *dir = getenv("LOWENT_CTFE_CACHE");
+    if (!dir || !*dir) return false;
+    proven_u64 h = 1469598103934665603ull, h2 = 0x9e3779b97f4a7c15ull;
+    const char *ver = LOW_VERSION;
+    h = ctfe_fnv(h, ver, strlen(ver));
+    const low_target_t *t = low_ir_target();
+    h = ctfe_fnv(h, &t->addr_bits, sizeof t->addr_bits);
+    h = ctfe_fnv(h, t->name ? t->name : "", t->name ? strlen(t->name) : 0);
+    h = ctfe_fnv(h, &t->limb_bits, sizeof t->limb_bits);
+    proven_u64 st = ctfe_steps();
+    h = ctfe_fnv(h, &st, sizeof st);
+    h = ctfe_fnv(h, &ir->defs[di].def_hash, sizeof ir->defs[di].def_hash);
+    proven_u8 kind = c->arr ? 1 : c->sl ? 2 : c->st ? 3 : 0;
+    h = ctfe_fnv(h, &kind, 1);
+    for (proven_size_t q = 0; q < na; q++) {
+        proven_u8 sl = a[q].is_slice;
+        h = ctfe_fnv(h, &sl, 1);
+        if (sl) { proven_u64 n = a[q].n; h = ctfe_fnv(h, &n, 8); h = ctfe_fnv(h, a[q].bytes, a[q].n); }
+        else h = ctfe_fnv(h, &a[q].v, sizeof a[q].v);
+        h2 = ctfe_fnv(h2 ^ h, &q, sizeof q);
+    }
+    snprintf(out, cap, "%s/%016llx%016llx.ctfe", dir, (unsigned long long)h, (unsigned long long)h2);
+    return true;
+}
+#define CTFE_CACHE_TAG "LOWCTFE1"
+static bool ctfe_cache_get(const low_ir_t *ir, proven_size_t di, ctfe_call_t *c, const low_ir_arg_t *a, proven_size_t na) {
+    if (c->st) return false;   // 구조체 답의 칸 이름은 이 짓기의 나무를 가리킨다 — 간직하지 않는다
+    char path[1024];
+    if (!ctfe_cache_path(ir, di, c, a, na, path, sizeof path)) return false;
+    FILE *fp = fopen(path, "rb");
+    if (!fp) return false;
+    char tag[8]; proven_u64 v, n; bool ok = false;
+    if (fread(tag, 1, 8, fp) == 8 && !memcmp(tag, CTFE_CACHE_TAG, 8) && fread(&v, 8, 1, fp) == 1 && fread(&n, 8, 1, fp) == 1 &&
+        n <= IR_CTFE_MAXBYTES && (!(c->arr || c->sl) || 1)) {
+        proven_u8 *b = (c->arr || c->sl) ? malloc(n ? n : 1) : NULL;
+        if ((c->arr || c->sl) && b && fread(b, 1, n, fp) == n && fgetc(fp) == EOF && (!c->arr || c->rowty || n == c->nelem * ir_field_size(c->elem))) {
+            free(c->bytes); c->bytes = b; c->nbytes = n; b = NULL; ok = true;
+        } else if (!(c->arr || c->sl) && n == 0 && fgetc(fp) == EOF) ok = true;
+        free(b);
+    }
+    fclose(fp);
+    if (!ok) return false;
+    c->v = (proven_i64)v; c->ok = true;
+    return true;
+}
+static void ctfe_cache_put(const low_ir_t *ir, proven_size_t di, const ctfe_call_t *c, const low_ir_arg_t *a, proven_size_t na) {
+    if (c->st) return;
+    char path[1024], tmp[1100];
+    if (!ctfe_cache_path(ir, di, c, a, na, path, sizeof path)) return;
+    snprintf(tmp, sizeof tmp, "%s.%ld.tmp", path, (long)getpid());
+    FILE *fp = fopen(tmp, "wb");
+    if (!fp) return;
+    proven_u64 v = (proven_u64)c->v, n = (c->arr || c->sl) ? c->nbytes : 0;
+    bool ok = fwrite(CTFE_CACHE_TAG, 1, 8, fp) == 8 && fwrite(&v, 8, 1, fp) == 1 && fwrite(&n, 8, 1, fp) == 1 &&
+              (!n || fwrite(c->bytes, 1, n, fp) == n);
+    if (fclose(fp) != 0) ok = false;
+    if (ok) (void)rename(tmp, path); else (void)remove(tmp);
+}
 static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr);
 void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *pr) {
     if (g_cc_busy) return;
-    for (proven_size_t i = 0; i < g_ncc; i++) free(g_cc[i].bytes);   // 앞 짓기의 배열 답(이 짓기가 다시 돌린다)
+    for (proven_size_t i = 0; i < g_ncc; i++) ctfe_clear(&g_cc[i]);   // 앞 짓기의 답 · 입력 바이트(이 짓기가 다시 돌린다)
     g_ncc = 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) ctfe_scan(pr, pr->forms[i]);
     if (!g_ncc) return;
+    const proven_u64 steps = ctfe_steps();
     for (int round = 0; round < IR_CTFE_ROUNDS; round++) {
         g_cc_busy = true; g_cc_prepass = true;
         low_ir_t ir = low_ir_build_impl(work, pr);
@@ -3019,24 +3185,44 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
             bool found; proven_size_t di = ir_def_find(&ir, c->callee->kids[1]->tok.lex, &found);
             if (!found || !ir.defs[di].lowered) continue;          // 그 `fn` 이 아직 서지 않았다(안의 `comptime` 이 다음 바퀴를 기다린다)
             low_ir_arg_t a[LOW_HDR_MAXP];
-            for (proven_size_t q = 0; q < c->nargs; q++) a[q] = (low_ir_arg_t){ .is_slice = false, .v = c->args[q] };
+            for (proven_size_t q = 0; q < c->nargs; q++)
+                a[q] = c->argsl[q] ? (low_ir_arg_t){ .is_slice = true, .bytes = c->argb[q], .n = c->argn[q] }
+                                   : (low_ir_arg_t){ .is_slice = false, .v = c->args[q] };
             proven_size_t na = c->nargs;
+            if (ctfe_cache_get(&ir, di, c, a, na)) { progress = true; continue; }   // §6.4 — 같은 `fn` · 같은 입력이면 다시 돌리지 않는다
+            proven_i64 rowmeta = 0;
             if (c->arr) {   // §6.3 — 결과 자리를 준다(0 으로 채운 N×|T| 바이트). 돈 뒤의 바이트가 답이다
                 c->nbytes = c->nelem * ir_field_size(c->elem);
+                if (c->rowty) {   // 줄의 배열 — 줄 하나의 바이트는 줄 꼴 표가 안다
+                    proven_u8str_view_t lf; proven_u64 rb = 0; proven_u8 sub = 0;
+                    if (!ir_row_shape(&ir, c->rowty, &lf, &rb, &sub) || c->nelem * rb > IR_CTFE_MAXBYTES) {
+                        snprintf(c->why, sizeof c->why, "`%.*s` returns an array of rows that is not laid out, or is larger than %u bytes — a compile-time answer holds at most that",
+                                 (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (unsigned)IR_CTFE_MAXBYTES);
+                        progress = true; continue;
+                    }
+                    c->nbytes = c->nelem * (proven_size_t)rb;
+                    rowmeta = ir_row_meta(lf, rb, sub);
+                }
                 c->bytes = calloc(c->nbytes ? c->nbytes : 1, 1);
                 if (!c->bytes || na >= LOW_HDR_MAXP) { snprintf(c->why, sizeof c->why, "no memory for a compile-time array answer"); progress = true; continue; }
-                a[na++] = (low_ir_arg_t){ .is_slice = true, .bytes = c->bytes, .n = c->nbytes };
+                a[na++] = (low_ir_arg_t){ .is_slice = true, .bytes = c->bytes, .n = c->nbytes, .vmeta = rowmeta };
             }
             proven_array_t dg = PROVEN_ARRAY_INIT(work, low_diag_t, 4).value;
-            low_ir_set_run_budget(IR_CTFE_STEPS);
+            low_ir_capture_t cap;
+            low_ir_set_run_budget(steps);
+            low_ir_set_capture((c->sl || c->st) ? &cap : NULL);
             low_ir_run_result_t rr = low_ir_run_def(&ir, di, a, na, work, &dg, NULL, 0);
+            low_ir_set_capture(NULL);
             low_ir_set_run_budget(0);
-            if (rr.ok) { c->v = rr.value; c->ok = true; progress = true; }
+            if (rr.ok && (c->sl || c->st)) ctfe_take_answer(&ir, c, &cap);
+            if (rr.ok && !c->why[0]) { c->v = rr.value; c->ok = true; progress = true; ctfe_cache_put(&ir, di, c, a, na); }
+            else if (rr.ok) progress = true;
             else {
                 const low_diag_t *d0 = dg.len ? (const low_diag_t *)proven_array_get(&dg, 0) : NULL;
                 if (d0 && d0->code && !strcmp(d0->code, "E-VM-BUDGET"))
-                    snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not end within %u VM steps (RFC-0015 §6.2 — a compile-time call has a step budget)",
-                             (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (unsigned)IR_CTFE_STEPS);
+                    snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not end within %llu VM steps (RFC-0015 §6.2 — a compile-time call has a step budget; "
+                             "raise it with `build comptime_steps <N> .` or `--comptime-steps N`)",
+                             (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (unsigned long long)steps);
                 else snprintf(c->why, sizeof c->why, "running `%.*s` at compile time stopped: %s%s%.160s",
                          (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr,
                          d0 && d0->code ? d0->code : "it did not return", d0 && d0->msg ? " — " : "", d0 && d0->msg ? d0->msg : "");
@@ -3046,6 +3232,14 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
         }
         low_ir_free(work, &ir);
         if (!progress) break;
+    }
+    // 인자를 끝내 못 읽은 자리 — 까닭을 적어 둔다(전에는 까닭 없는 E-COMPTIME-NONCONST 였다)
+    for (proven_size_t i = 0; i < g_ncc; i++) {
+        ctfe_call_t *c = &g_cc[i];
+        if (c->ok || c->why[0] || c->hasargs) continue;
+        snprintf(c->why, sizeof c->why, "the arguments of `%.*s` are not all known when translating — an integer must fold like any `comptime` "
+                 "expression, and a slice must be a string, a `text` literal, a list of constants or an array constant (RFC-0015 §6.4)",
+                 (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr);
     }
 }
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
@@ -3507,8 +3701,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
     // ★ RFC-0015 §6.3 — 배열 모듈 상수의 `comptime` 자리: 미리 짓는 동안 인자의 값을 적는다(다른 모듈 상수가 다 선 뒤 — 인자가 그것을 읽어도 된다).
     //   답은 수가 아니라서 접기는 언제나 false 다 — 부르는 길(ctfe_u)이 자리에 인자를 적는 것만이 여기의 일이다.
     for (proven_size_t q = 0; q < mod.nmdata; q++) {
-        proven_i64 dv; const low_ctfe_names_t nm = ir_ctfe_names(&mod);
-        (void)ir_ctfe_fold(mod.mdatand[q], &nm, &dv, IR_CTFE_FUEL);
+        ir_ctfe_record(&mod, mod.mdatand[q]);
     }
 
     // pass 0: enums (variant names) + slice-like type aliases + struct layouts
@@ -4153,6 +4346,8 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                                    : veq(e, "idiff") ? (proven_u8)(100 + low_ir_target()->addr_bits) : 255;
                             }
                             d->param_ebits[d->nparams] = eb;
+                            if (tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) d->param_esz[d->nparams] = ir_field_size(f->kids[tw + 1]->tok.lex);
+                            if (!d->param_esz[d->nparams] && eb != 255) d->param_esz[d->nparams] = (proven_u8)((eb >= 100 ? eb - 100 : eb) / 8);
                             // ★ 원소가 **구조체**면 그 인덱스를 든다(폭 대신).
                             if (eb == 255 && tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) {
                                 bool esf; proven_size_t esi =

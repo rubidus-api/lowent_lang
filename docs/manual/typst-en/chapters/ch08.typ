@@ -155,6 +155,19 @@ is read only --- writing an element (`set` · `copy` · `swap`) or passing it to
 
 #demo("examples/ch08/compt_table.low")
 
+An array's elements may also be `bool` or rows (an array of arrays). A `fn` that returns a slice or a struct runs at translation time
+too. A slice answer becomes read-only bytes like an array answer, and a struct answer becomes a value of that struct --- the same as a
+`lit` with the computed value in each field. Besides integers and `bool`, an input may be a slice whose bytes are fixed at translation
+time: a quoted string, a `text` literal, a list of constants, or an array or slice module constant. A slice of structs as the answer and
+a struct as an input are still refused.
+
+#demo("examples/ch08/compt_values.low")
+
+One `fn` run at translation time must finish within 1,000,000 steps. For a table that takes longer, write
+`build comptime_steps 50000000 .` in `pkg.low` or give `--comptime-steps 50000000` on the command line (the command line wins). If the
+environment variable `LOWENT_CTFE_CACHE` names a folder, the answers are kept there and used again by the next translation. A kept
+answer is not used if the `fn`'s definition or its inputs changed, or if the tool version, the target or the step budget differ.
+
 == Common mistakes
 
 Comparison (level 2) binds tighter than `and` (level 1b), so mixing them without parentheses has exactly one meaning.

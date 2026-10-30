@@ -486,6 +486,16 @@ bool ir_comptime_cond(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, prov
 proven_size_t ir_cond_brz(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_size_t *sites);
 bool ir_contract_operand(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line);
 bool ir_ctfe_fold(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, int fuel);
+/* RFC-0015 §6.3 — 구조체 답의 마디: 1 정수 · 2 부동(v 에 비트) · 3 바이트(b, malloc) · 4 구조체(tname · 칸은 tn[first .. first+nk), 칸 이름은 fname) */
+typedef struct {
+    proven_u8        kind;
+    proven_i64       v;
+    proven_u8       *b;
+    proven_size_t    n;
+    proven_u8str_view_t tname;
+    proven_u8str_view_t fname[IR_MAKE_MAXF];
+    proven_u8        first, nk;
+} ctfe_node_t;
 /* RFC-0015 §4.1 B — `comptime` 자리의 `fn` 부르기(low_ir.c 가 접고 low_ir_stmt.c 가 미리 짓는다) */
 typedef struct {
     const low_cst_t *nd;          /* 부르는 마디 `<fn> <인자…>` */
@@ -499,10 +509,22 @@ typedef struct {
     bool             arr;         /* 답이 `array N T` 다 */
     proven_u8str_view_t elem;     /* 원소 낱말 T */
     proven_size_t    nelem;       /* N */
-    proven_u8       *bytes;       /* 돌린 뒤의 자리(작은 끝 · N×|T| 바이트, malloc — 표를 다시 채울 때 놓는다) */
+    const low_cst_t *rowty;       /* 원소가 줄이면(`array N array M T`) 그 줄 타입 마디(괄호) — elem 은 비어 있다 */
+    proven_u8       *bytes;       /* 돌린 뒤의 바이트(작은 끝, malloc — 표를 다시 채울 때 놓는다) */
     proven_size_t    nbytes;
+    /* RFC-0015 §6.3 (2026-10-31 · W-20261031-0048) — 답이 슬라이스(`output slice T`)거나 구조체(`output S`)인 `fn` */
+    bool             sl;          /* 답이 `slice T` 다 — 돌린 뒤 답의 바이트를 베껴 든다(elem = T) */
+    bool             st;          /* 답이 구조체다 — 마디 나무로 든다(tn[0] 이 답 · 칸이 구조체면 그 아래로) */
+    proven_u8str_view_t sname;    /* 그 구조체 이름 */
+    ctfe_node_t      tn[LOW_CAP_NODES];
+    proven_size_t    ntn;
+    /* 슬라이스 입력(문자열 · `text` · 상수 나열 · 배열 모듈 상수) — 인자 자리마다 */
+    bool             argsl[LOW_HDR_MAXP];
+    proven_u8       *argb[LOW_HDR_MAXP];    /* malloc */
+    proven_size_t    argn[LOW_HDR_MAXP];
 } ctfe_call_t;
 extern ctfe_call_t g_cc[IR_CTFE_MAXCALL];
+void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce);   /* 미리 짓는 동안 자리의 인자(정수 · 바이트)를 적는다 */
 extern proven_size_t g_ncc;
 extern bool g_cc_prepass;
 low_ctfe_names_t ir_ctfe_names(ir_ctx_t *c);   /* RFC-0154 §8-19 (가) — 번역층의 이름 표(접힌 지역 let · 모듈 상수) */

@@ -44,20 +44,17 @@ do
   return r. .
 end .
 
-rem 입력을 하나 받는다 — 입력 없는 `f64` 배열 결과는 계약 오라클의 길이 축이 원소 폭을 몰라 거짓 실패를 낸다(RFC-0154 §8-22)
-fn halves input k u8 . output r array 3 f64 .
-  requires ge k. 1 . .
-do
-  let d f64 cast f64 k. . .
-  set idx r. 0 . div 1.0 d. . .
-  set idx r. 1 . div 1.0 mul d. d. . . .
-  set idx r. 2 . div 1.0 mul mul d. d. . d. . . .
+rem 입력이 없는 `f64` 배열 결과 — 계약 오라클의 길이 축이 이 원소 폭(8 바이트)을 센다(RFC-0154 §8-22, 2026-10-31 고침)
+fn halves output r array 3 f64 . do
+  set idx r. 0 . 0.5 .
+  set idx r. 1 . 0.25 .
+  set idx r. 2 . 0.125 .
   return r. .
 end .
 
 rem 모듈 상수로 — 프로그램 전체가 같은 한 표를 본다
 let CRC array 256 u32 comptime crc_table . . .
-let H array 3 f64 comptime halves 2 . . .
+let H array 3 f64 comptime halves . . .
 
 fn sum input s slice u32 . output u64 . do
   var t u64 0 .

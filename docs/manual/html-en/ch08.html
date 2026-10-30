@@ -906,7 +906,71 @@ small() = 120
 sq7() = 49
 $ lowentc --run cube_sum compt_table.low
 cube_sum() = 224
-</code></pre></div></div><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
+</code></pre></div></div><p>An array’s elements may also be <code>bool</code> or rows (an array of arrays). A <code>fn</code> that returns a slice or a struct runs at translation time too. A slice answer becomes read-only bytes like an array answer, and a struct answer becomes a value of that struct — the same as a <code>lit</code> with the computed value in each field. Besides integers and <code>bool</code>, an input may be a slice whose bytes are fixed at translation time: a quoted string, a <code>text</code> literal, a list of constants, or an array or slice module constant. A slice of structs as the answer and a struct as an input are still refused.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_values.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_values .
+<em><span class="tok-c">rem run: hello_len</span></em>
+<em><span class="tok-c">rem run: origin_y</span></em>
+<em><span class="tok-c">rem run: vowels</span></em>
+
+<em><span class="tok-c">rem a `fn` that returns a slice — a piece of its input</span></em>
+<strong><span class="tok-k">fn</span></strong> trim <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-t">usize</span></strong> len s. . .
+  <strong><span class="tok-k">while</span></strong> and lt a. b. . eq idx s. a. . <span class="tok-n">32</span> . . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> a. add a. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">while</span></strong> and gt b. a. . eq idx s. sub b. <span class="tok-n">1</span> . . <span class="tok-n">32</span> . . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> b. sub b. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> subslice s. a. b. . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">i32</span></strong> .
+  y <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem a `fn` that returns a struct</span></em>
+<strong><span class="tok-k">fn</span></strong> corner <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> pt .
+  <strong><span class="tok-k">requires</span></strong> le k. <span class="tok-n">1000</span> . .
+  <strong><span class="tok-k">requires</span></strong> ge k. -<span class="tok-n">1000</span> . .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x k. . y neg k. . . <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem a `fn` that counts bytes — it takes a `text` literal</span></em>
+<strong><span class="tok-k">fn</span></strong> count_vowels <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> c s. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> or or eq c. <span class="tok-n">97</span> . eq c. <span class="tok-n">101</span> . . or or eq c. <span class="tok-n">105</span> . eq c. <span class="tok-n">111</span> . . eq c. <span class="tok-n">117</span> . . . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> n. add n. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">let</span></strong> HELLO <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">comptime</span></strong> trim <span class="tok-s">"</span><span class="tok-s">   hello </span><span class="tok-s">"</span> . . .
+<strong><span class="tok-k">let</span></strong> ORIGIN pt <strong><span class="tok-k">comptime</span></strong> corner <span class="tok-n">3</span> . . .
+
+<strong><span class="tok-k">fn</span></strong> hello_len <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> len HELLO. . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> origin_y <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> field ORIGIN. y . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> vowels <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">comptime</span></strong> count_vowels text END
+a quiet morning
+END
+  . . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run hello_len compt_values.low
+hello_len() = 5
+$ lowentc --run origin_y compt_values.low
+origin_y() = -3
+$ lowentc --run vowels compt_values.low
+vowels() = 6
+</code></pre></div></div><p>One <code>fn</code> run at translation time must finish within 1,000,000 steps. For a table that takes longer, write <code>build comptime_steps 50000000 .</code> in <code>pkg.low</code> or give <code>--comptime-steps 50000000</code> on the command line (the command line wins). If the environment variable <code>LOWENT_CTFE_CACHE</code> names a folder, the answers are kept there and used again by the next translation. A kept answer is not used if the <code>fn</code>’s definition or its inputs changed, or if the tool version, the target or the step budget differ.</p><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>
 

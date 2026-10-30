@@ -584,6 +584,14 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  //   할당기 바이트에 짓는 그림자에서는 **주소 한 칸**이다(0 = none). `bxs1` 은 그 주소가 가리키는 배치의 번호 + 1
                  //   (그림자에서만 — 자기 그림자다).
                  bool bxself; proven_i16 bxs1; } low_ir_sfield_t;
+// ★★ 2026-10-31 (RFC-0015 §6.3 을 짓다 찾았다 · W-20261031-0048) — 이 칸이 **부호 있는 정수**인가(`i8` · `i16` · `i32` · `i64` · `idiff`).
+//   바이트에서 칸을 읽는 자리(뷰 · 네이티브 레코드)가 위 비트를 0 으로 채워서 `i32` 칸의 −5 가 4294967291 로 읽혔다(VM 의 레코드만 옳았다).
+static inline bool low_sfield_sgn(const low_ir_sfield_t *f) {
+    if (f->flt || f->size >= 16 || !f->cname.size || f->cname.ptr[0] != (proven_u8)'i') return false;
+    const proven_u8str_view_t w = f->cname;
+    return (w.size == 2 && w.ptr[1] == '8') || (w.size == 3 && ((w.ptr[1] == '1' && w.ptr[2] == '6') || (w.ptr[1] == '3' && w.ptr[2] == '2') ||
+           (w.ptr[1] == '6' && w.ptr[2] == '4'))) || (w.size == 5 && w.ptr[1] == 'd' && w.ptr[2] == 'i' && w.ptr[3] == 'f' && w.ptr[4] == 'f');
+}
 typedef struct {
     proven_u8str_view_t name;
     bool                packed;
@@ -764,6 +772,9 @@ typedef struct {
     //   백엔드의 빠른 경로가 이것을 묻는다: 바이트 슬라이스는 `(const unsigned char*, size_t)`
     //   로 내릴 수 있지만, `slice u32` 는 런타임 표현이 **다르다**(VARRAY). 모르면 **안 내린다.**
     proven_u8           param_ebits[LOW_MAX_PARAMS];
+    // ★ RFC-0154 §8-22 (2026-10-31) — 슬라이스 파라미터 원소의 **바이트 수**(모르면 0). `param_ebits` 는 부호 있는 원소를 100+비트로,
+    //   부동소수 원소를 255(모름)로 적어서 계약 오라클의 길이 축이 `i16` 을 14 바이트, `f64` 를 1 바이트로 셌다.
+    proven_u8           param_esz[LOW_MAX_PARAMS];
     // ★★★ **원소 술어의 구간** — `requires elem_lt s N` 이 심은 슬라이스 s 의 원소 [lo,hi].
     //   계약 오라클의 **길이 축**이 슬라이스를 채울 때 이 구간 안의 바이트를 써야 한다:
     //   안 그러면 도구가 계약을 어기는 내용을 먹여 놓고 트랩을 **프로그램의 죄로 고발한다**
@@ -1069,6 +1080,8 @@ bool low_ctfe_let_value(low_cst_t *const *k, proven_size_t n, const low_ctfe_nam
 // ★★★ RFC-0015 §4.1 B (2026-10-30 · W-20261030-1634) — `comptime <fn> <인자>` : 순수한 `fn` 을 번역할 때 VM 으로 돌린다.
 //   번역 앞에 «미리 짓기» 를 돌려 그 자리의 답을 표에 적는다(접기 · 검사층 · 하강층이 같은 표를 읽는다). 검사층과 하강층의 첫머리가 부른다.
 void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *pr);
+// ★ RFC-0015 §6.2 — 그 걸음 예산(0 = 기본 IR_CTFE_STEPS). 명령줄 `--comptime-steps` · pkg.low `build comptime_steps` 가 부른다.
+void low_ctfe_set_steps(proven_u64 n);
 // 그 표에서 `nd` 아래에 있는 실패한 자리의 까닭(없으면 NULL) — E-COMPTIME-NONCONST 의 메시지에 붙인다.
 const char *low_ctfe_call_why(const low_cst_t *nd);
 // ★★ RFC-0015 §6.3 (2026-10-30 · W-20261030-2243) — `nd` 가 답이 배열인 `fn` 의 자리면 true 와 원소 낱말 · 길이(`*done` = 이미 돌았다).
@@ -1101,6 +1114,14 @@ void low_ir_set_pool_report(bool on);   /* RFC-0150 §8-11 — `--stack-report` 
 // param and it is slice-typed, all ints become that byte slice. `text` is the
 // rendered result value (`120`, `ok {version 1, flags 7, length 4}`, `err too_short`).
 typedef struct { proven_i64 value; bool ok; char text[160]; } low_ir_run_result_t;
+// ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0048) — **돌린 답을 날것으로 받는다**(번역 때 도는 `fn` 의 슬라이스 · 구조체 답).
+//   켜 두면 다음 `low_ir_run_def` 가 끝날 때 답을 여기에 적는다. 포인터는 VM 의 기억을 가리키고 **다음 실행까지만** 산다 — 곧바로 베낀다.
+//   kind: 0 없음 · 1 정수 · 2 부동소수(v 에 비트) · 3 바이트(슬라이스 · 타입 보기 · 창) · 4 레코드 · 5 그 밖(옵션 · 참조 …).
+//   값은 마디 나무다: n[0] 이 답이고, 레코드 마디의 칸은 n[first .. first+nk) 다(칸이 다시 레코드면 그 아래로). 마디가 모자라면 full.
+#define LOW_CAP_NODES 32
+typedef struct { proven_u8 kind; proven_i64 v; const proven_u8 *p; proven_size_t nbytes; proven_size_t make_idx; proven_u8 first, nk; } low_ir_capval_t;
+typedef struct { low_ir_capval_t n[LOW_CAP_NODES]; proven_size_t nn; bool full; } low_ir_capture_t;
+void low_ir_set_capture(low_ir_capture_t *cap);
 // ★ **오라클 전용 걸음 예산** (2026-07-30). 0 = 무한(사용자 실행의 기본).
 //   계약 오라클은 op 을 실제로 돌린다. 반복 횟수가 입력인 op 에 경계값(2^64−1)을 먹이면
 //   그 실행이 끝나지 않아 **도구가 멈춘다**(실측). 예산을 넘긴 케이스는 건너뛰고 **센다**.
@@ -1132,6 +1153,9 @@ typedef struct {
     //   bit2 = 128 비트를 넘는다. 128 비트 매개변수만 읽는다 — 좁은 매개변수는 `v` 를 그대로 쓴다.
     proven_u64    vlo, vhi;
     proven_u8     wide;
+    // ★ RFC-0015 §6.3 (2026-10-31) — 슬라이스를 **줄의 배열**로 건넨다(IRW_VARRAY 의 줄 메타 · 0 = 바이트 그대로). 줄 입력은 진입에서 감싸지
+    //   않으므로(부르는 쪽이 줄 보기를 건넨다) 번역 때 도는 `fn` 의 결과 자리가 이것을 쓴다.
+    proven_i64    vmeta;
 } low_ir_arg_t;
 
 // ★ 2026-10-26 (RFC-0151 §8-8) — 위의 평평한 매핑에 명령줄이 읽은 **적힌 수**를 곁들인다(`written[i]` 는 `args[i]` 의 낱말).

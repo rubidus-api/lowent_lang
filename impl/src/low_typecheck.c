@@ -249,6 +249,9 @@ static ty_t ty_of_word(proven_u8str_view_t v) {
         if (proven_u8str_view_eq(g_nts[i].name, v)) { ty_t t = tk(TK_NAMED); t.nominal = g_nts[i].nominal; return t; }
     return tk(TK_NAMED);
 }
+// ★ 2026-10-31 (W-20261031-0048) — `slice bool` 의 원소는 `bool` 이다. 원소 폭 칸(ebits)에 1 을 적어 둔다(1 비트 정수는 없다 — 수 원소와 섞이지 않는다).
+//   전에는 0(모름)이라 `idx b. i.` 의 타입이 «모름» 이어서 `let x bool idx b. 1 . .` 이 E-TYPE-UNKNOWN 이었고, 배열 결과도 `bool` 을 받지 못했다(P4b).
+static ty_t tc_elem_int(proven_u8 bits, bool sign) { return bits == 1 ? tk(TK_BOOL) : tk_int(bits, sign); }
 
 // ── RFC-0055 D7: `range [τ] lo hi` — 범위는 **기계 타입의 정련**이다 ───────────
 // τ 를 적으면 표현이 못 박히고 [lo,hi] ⊆ τ 가 **컴파일타임에 강제**된다(E-TYPE-RANGE).
@@ -978,7 +981,7 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
 // 원소 타입 → **타입 있는 슬라이스** ty_t (ebits/eflt/esign 를 실어). view_array·subslice 결과용.
 static ty_t tc_slice_of_elem(ty_t e) {
     ty_t sl = tk(TK_SLICE);
-    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0;
+    sl.ebits = e.k == TK_BOOL ? 1 : e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0;
     return sl;
 }
 
@@ -1310,7 +1313,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     if (k[start + q]->kind != LOW_CST_ATOM) return tk(TK_UNKNOWN);
                     if (rt.k == TK_SLICE && k[start + q]->tok.kind == LOW_TOK_NUMBER) {   // 숫자 칸 = 첨자
                         if (rt.erow) { rt.erow--; continue; }
-                        if (rt.ebits) { ty_t ev = rt.eflt ? (ty_t){ .k = TK_FLOAT, .bits = rt.ebits } : tk_int(rt.ebits, rt.esign); ev.nominal = rt.enom; rt = ev; continue; }
+                        if (rt.ebits) { ty_t ev = rt.eflt ? (ty_t){ .k = TK_FLOAT, .bits = rt.ebits } : tc_elem_int(rt.ebits, rt.esign); ev.nominal = rt.enom; rt = ev; continue; }
                         if (rt.nname.size) { ty_t ev = tk(TK_NAMED); ev.nname = rt.nname; rt = ev; continue; }
                         return tk(TK_UNKNOWN);
                     }
@@ -1329,7 +1332,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 // 숫자 칸은 슬라이스의 첨자다(`field s. 0 .` ≡ `idx s. 0 .`)
                 if (rt.k == TK_SLICE && k[start + 2]->tok.kind == LOW_TOK_NUMBER) {
                     if (rt.erow) { rt.erow--; return rt; }
-                    if (rt.ebits) { if (rt.eflt) return (ty_t){ .k = TK_FLOAT, .bits = rt.ebits }; ty_t ev = tk_int(rt.ebits, rt.esign); ev.nominal = rt.enom; return ev; }
+                    if (rt.ebits) { if (rt.eflt) return (ty_t){ .k = TK_FLOAT, .bits = rt.ebits }; ty_t ev = tc_elem_int(rt.ebits, rt.esign); ev.nominal = rt.enom; return ev; }
                     if (rt.nname.size) { ty_t ev = tk(TK_NAMED); ev.nname = rt.nname; return ev; }
                     return tk(TK_UNKNOWN);
                 }
@@ -1469,7 +1472,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             if (!sig_find(c, h2) && n == 2 && veq(h2, "pop")) {
                 ty_t sv = tc_infer(c, k[start + 1], env, nenv);
                 ty_t w = tk(TK_WRAPPED); w.wrap = 1;
-                if (sv.k == TK_NAMED && sv.ebits) { ty_t ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tk_int(sv.ebits, sv.esign); ev.nominal = sv.enom; tc_wrap_payload(&w, ev); }
+                if (sv.k == TK_NAMED && sv.ebits) { ty_t ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tc_elem_int(sv.ebits, sv.esign); ev.nominal = sv.enom; tc_wrap_payload(&w, ev); }
                 return w;
             }
             if (!sig_find(c, h2) && n >= 2 && veq(h2, "str_from_cstr")) {
@@ -1656,7 +1659,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 for (proven_size_t q = 3; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                 if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1)
                     tc_emit(c, "E-TYPE-NOMINAL", "the index of an atomic operation is a `usize` — declare it `usize`, or write `cast usize <value> .`", k[start]->tok.line);
-                if (sq.k == TK_SLICE && sq.ebits && !sq.eflt && !sq.erow) { ty_t ev = tk_int(sq.ebits, sq.esign); ev.nominal = sq.enom; return ev; }
+                if (sq.k == TK_SLICE && sq.ebits && !sq.eflt && !sq.erow) { ty_t ev = tc_elem_int(sq.ebits, sq.esign); ev.nominal = sq.enom; return ev; }
                 return tk(TK_UNKNOWN);
             }
             if (!sig_find(c, h2) && veq(h2, "atomic_load") && n >= 3) {
@@ -1665,7 +1668,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if (it.k == TK_INT && !it.lit && it.bits && it.nominal != 1) {
                     tc_emit(c, "E-TYPE-NOMINAL", "the index of an atomic operation is a `usize` — declare it `usize`, or write `cast usize <value> .`", k[start]->tok.line);
                 }
-                if (sq.k == TK_SLICE && sq.ebits && !sq.eflt && !sq.erow) { ty_t ev = tk_int(sq.ebits, sq.esign); ev.nominal = sq.enom; return ev; }
+                if (sq.k == TK_SLICE && sq.ebits && !sq.eflt && !sq.erow) { ty_t ev = tc_elem_int(sq.ebits, sq.esign); ev.nominal = sq.enom; return ev; }
                 return tk(TK_UNKNOWN);
             }
             if (veq(h2, "idx") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
@@ -1686,7 +1689,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 }
                 if (sq.k == TK_SLICE && sq.ebits) {
                     if (sq.eflt) return (ty_t){ .k = TK_FLOAT, .bits = sq.ebits };
-                    ty_t ev = tk_int(sq.ebits, sq.esign); ev.nominal = sq.enom;
+                    ty_t ev = tc_elem_int(sq.ebits, sq.esign); ev.nominal = sq.enom;
                     return ev;
                 }
                 // ★ RFC-0148 S4 (2026-10-14) — 원소를 모르는 슬라이스(`slice bool` · `slice <묶음>` · 틀의 `slice t`)의 원소를 `u8` 이라
@@ -2407,7 +2410,7 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
         }
         // ★ RFC-0148 S5 — `lit array T N …` · `lit slice T …` 의 타입은 원소가 `T` 인 슬라이스다(구조체 원소면 종류만 안다)
         if (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice")) {
-            if (et.k == TK_INT || et.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(et); sl.is_mut = true; return sl; }
+            if (et.k == TK_INT || et.k == TK_FLOAT || et.k == TK_BOOL) { ty_t sl = tc_slice_of_elem(et); sl.is_mut = true; return sl; }
             ty_t sl = tk(TK_SLICE); sl.is_mut = true; if (et.k == TK_NAMED) sl.nname = et.nname; return sl;
         }
         return tk(TK_UNKNOWN);
@@ -2621,9 +2624,8 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
                 if (ce.k == TK_INT || ce.k == TK_FLOAT) e = ce;
                 else { ty_t sl = tk(TK_SLICE); sl.nname = f->kids[i + 1]->tok.lex; sl.rk = t.rk; sl.is_mut = mut_seen; return sl; }
             }
-            if (e.k == TK_INT || e.k == TK_FLOAT) {
-                ty_t sl = tk(TK_SLICE);
-                sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0;
+            if (e.k == TK_INT || e.k == TK_FLOAT || e.k == TK_BOOL) {   // `slice bool` — 원소 폭 칸 1(tc_elem_int)
+                ty_t sl = tc_slice_of_elem(e);
                 sl.rk = t.rk; sl.is_mut = mut_seen;
                 return sl;
             }
@@ -3260,7 +3262,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 if (seq.k == TK_SLICE && seq.erow) { ev = seq; ev.erow--; }   // §13.10 — 줄마다 도는 변수는 줄 슬라이스
                 else if (seq.k == TK_SLICE && seq.ebits)
                     ev = seq.eflt ? (ty_t){ .k = TK_FLOAT, .bits = seq.ebits }
-                                  : tk_int(seq.ebits, seq.esign);
+                                  : tc_elem_int(seq.ebits, seq.esign);
                 if (seq.k == TK_SLICE && seq.ebits && !seq.eflt) ev.nominal = seq.enom;
                 env[*nenv].name = f->kids[1]->tok.lex;
                 env[(*nenv)++].ty = ev;
@@ -3538,7 +3540,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     veq(f->kids[3]->tok.lex, "into") && f->kids[4]->kind == LOW_CST_ATOM && *nenv < TC_MAXENV) {
                     ty_t sv = tc_infer(c, f->kids[2], env, *nenv);
                     ty_t ev = tk(TK_UNKNOWN);
-                    if (sv.k == TK_NAMED && sv.ebits) { ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tk_int(sv.ebits, sv.esign); ev.nominal = sv.enom; }
+                    if (sv.k == TK_NAMED && sv.ebits) { ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tc_elem_int(sv.ebits, sv.esign); ev.nominal = sv.enom; }
                     env[*nenv].name = f->kids[4]->tok.lex; env[(*nenv)++].ty = ev;
                 }
                 for (proven_size_t j = 1; j + 1 < f->nkids; j++) {
@@ -3549,7 +3551,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                         if (pf->kids[q]->kind == LOW_CST_ATOM && veq(pf->kids[q]->tok.lex, "into") && pf->kids[q + 1]->kind == LOW_CST_ATOM && *nenv < TC_MAXENV) {
                             ty_t sv = tc_infer(c, pf->kids[1], env, *nenv);
                             ty_t ev = tk(TK_UNKNOWN);
-                            if (sv.k == TK_NAMED && sv.ebits) { ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tk_int(sv.ebits, sv.esign); ev.nominal = sv.enom; }
+                            if (sv.k == TK_NAMED && sv.ebits) { ev = sv.eflt ? (ty_t){ .k = TK_FLOAT, .bits = sv.ebits } : tc_elem_int(sv.ebits, sv.esign); ev.nominal = sv.enom; }
                             env[*nenv].name = pf->kids[q + 1]->tok.lex; env[(*nenv)++].ty = ev;
                         }
                 }

@@ -552,6 +552,11 @@ static int cmd_build(int nargs, char **args) {
         size_t n = strlen(pass);
         snprintf(pass + n, sizeof pass - n, " --limb-bits %s", pkg.limb_bits);
     }
+    // ★ RFC-0015 §6.2 — 번역 때 도는 `fn` 의 걸음 예산도 같은 차례다.
+    if (pkg.found && !strstr(pass, "--comptime-steps") && pkg.comptime_steps[0]) {
+        size_t n = strlen(pass);
+        snprintf(pass + n, sizeof pass - n, " --comptime-steps %s", pkg.comptime_steps);
+    }
     char self[512] = { 0 };
     ssize_t r = readlink("/proc/self/exe", self, sizeof self - 1);
     if (r <= 0) snprintf(self, sizeof self, "lowentc");
@@ -1103,6 +1108,7 @@ static void print_usage(const char *argv0) {
         "    --target T           x86_64 | arm64 | riscv64 | mips_be | cortex_m | cortex_m0 | win64 | cheriot | atmega328p | atmega2560 | atmega32u4 | atmega4809 | word16(--check 까지만)  (machine.* 를 결정, RFC-0054)\n"
         "    --targets            대상 나무와 마디마다 펼친 값을 낸다(RFC-0054 §8-6)\n"
         "    --limb-bits N        큰 수 조각 폭 16 | 32 | 64 — 대상의 값과 pkg.low 의 `build limb_bits` 를 덮는다(machine.limb_bits · 큰 수 모듈 bigint, RFC-0152)\n"
+        "    --comptime-steps N   번역 때 도는 `fn` 하나의 걸음 예산(기본 1000000) — pkg.low 의 `build comptime_steps` 를 덮는다(RFC-0015 §6.2)\n"
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
@@ -1294,6 +1300,7 @@ int main(int argc, char **argv) {
             xargv[xargc++] = argv[0];
             // ★ RFC-0152 §8-12 — 최상위 매니페스트의 조각 폭(명령줄의 `--limb-bits` 가 뒤에 오면 그것이 덮는다)
             if (pk.found && pk.limb_bits[0]) { xargv[xargc++] = (char *)"--limb-bits"; xargv[xargc++] = pk.limb_bits; }
+            if (pk.found && pk.comptime_steps[0]) { xargv[xargc++] = (char *)"--comptime-steps"; xargv[xargc++] = pk.comptime_steps; }
             xargv[xargc++] = (char *)"--run"; xargv[xargc++] = (char *)"main";
             xargv[xargc++] = entry;
             for (int q = earg ? 3 : 2; q < argc && xargc < 79; q++) xargv[xargc++] = argv[q];
@@ -1518,6 +1525,15 @@ int main(int argc, char **argv) {
                 return 2;
             }
             low_ir_set_limb_bits((unsigned)atoi(mv));
+        }
+        // ★ RFC-0015 §6.2 (2026-10-31 · W-20261031-0048) — 번역 때 도는 `fn` 하나의 **걸음 예산**(기본 IR_CTFE_STEPS). pkg.low 의 `build comptime_steps` 를 덮는다.
+        else if (strcmp(argv[i], "--comptime-steps") == 0 && i + 1 < argc) {
+            char *e = NULL; const char *mv = argv[++i]; unsigned long long v = strtoull(mv, &e, 10);
+            if (!*mv || *e || v == 0 || v > 1000000000000ull) {
+                fprintf(stderr, "E-CLI-COMPTIMESTEPS: --comptime-steps takes a whole number of VM steps from 1 to 10^12, got `%s`\n", mv);
+                return 2;
+            }
+            low_ctfe_set_steps((proven_u64)v);
         }
         // ★★★★ **고정 창의 크기** (RFC-0112 D3(5) · WO-0211) — VM 이 다른 보드를 흉내 낸다.
         //   안 주면 타깃이 정한다(호스티드 64 KiB · 프리스탠딩은 `--emit-ldscript` 가 적는 기본 크기).

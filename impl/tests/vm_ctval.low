@@ -1,0 +1,110 @@
+rem ★★★ RFC-0015 §6.3 · §6.4 (2026-10-31 · 소유자 «안한 것들 다 처리 바랍니다» · W-20261031-0048) — 번역 때 도는 `fn` 의 답과 입력을 넓힌다.
+rem   슬라이스 답 · 구조체 답 · `bool` 배열 · 줄의 배열 · 문자열과 `text` 입력. 답은 손으로 센 값이고 VM = 네이티브다.
+
+module vm_ctval .
+
+struct pt do
+  x i32 .
+  y i32 .
+  w f64 .
+end .
+
+rem 구조체 답 — `lit pt do … end` 를 상수 칸으로 적은 것과 같다(값이 `pt` 다). 음수 칸이 그대로 읽힌다
+fn mkpt input k i32 . output pt .
+  requires le k. 1000 . .
+  requires ge k. -1000 . .
+do
+  return lit pt do x mul k. 2 . . y neg k. . . w 1.5 . end . .
+end .
+
+rem 슬라이스 답 — 프로그램의 문자열을 가리키거나(입력 없는 말) 입력의 한 조각이다
+fn word input k u8 . output slice u8 . do
+  if eq k. 0 . do return "zero" . end .
+  return "many" .
+end .
+
+fn trim input s slice u8 . output slice u8 . do
+  var a usize 0 .
+  var b usize len s. . .
+  while and lt a. b. . eq idx s. a. . 32 . . do set a. add a. 1 . . end .
+  while and gt b. a. . eq idx s. sub b. 1 . . 32 . . do set b. sub b. 1 . . end .
+  return subslice s. a. b. . .
+end .
+
+fn total input s slice u8 . output u64 . do
+  var t u64 0 .
+  for v s. do set t. add t. cast u64 v. . . . end .
+  return t. .
+end .
+
+rem `bool` 배열 — 짝수 자리만 참
+fn evens output r array 8 bool . do
+  var i usize 0 .
+  while lt i. 8 . do
+    set idx r. i. . eq mod i. 2 . 0 . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+rem 줄의 배열 — 곱셈표 4 × 4
+fn mult output g array 4 array 4 u16 . do
+  var i usize 0 .
+  while lt i. 4 . do
+    var j usize 0 .
+    while lt j. 4 . do
+      set idx idx g. i. . j. . cast u16 mul add i. 1 . add j. 1 . . . .
+      set j. add j. 1 . .
+    end .
+    set i. add i. 1 . .
+  end .
+  return g. .
+end .
+
+let P pt comptime mkpt 5 . . .
+let W slice u8 comptime trim "  hi  " . . .
+let EV array 8 bool comptime evens . . .
+let TT array 4 array 4 u16 comptime mult . . .
+
+rem 14 + (−5) = 9
+export fn px output i32 . do
+  let p pt comptime mkpt 7 . . .
+  return add field p. x . field P. y . . .
+end .
+
+rem "zero" 4 + "hi" 2 = 6
+export fn wl output usize . do
+  let w slice u8 comptime word 0 . . .
+  return add len w. . len W. . . .
+end .
+
+rem `text` 입력 — "abc" = 97 + 98 + 99 = 294
+export fn tsum output u64 . do
+  return comptime total text END
+abc
+END
+  . . .
+end .
+
+rem 상수 나열과 배열 상수도 입력이 된다 — 1 + 2 + 3 = 6 · "hi" = 104 + 105 = 209
+export fn lsum output u64 . do
+  return add comptime total lit array 3 u8 1 2 3 . . . comptime total W. . . . .
+end .
+
+rem 짝수 자리 넷 · 자리 3 은 거짓
+export fn nev output u8 . do
+  var c u8 0 .
+  for b EV. do if b. do set c. add c. 1 . . end . end .
+  if idx EV. 3 . do return 99 . end .
+  return c. .
+end .
+
+rem 3 × 4 = 12 · 마지막 줄 4 × (1+2+3+4) = 40
+export fn t34 output u16 . do
+  return idx idx TT. 2 . 3 . .
+end .
+export fn rowsum output u64 . do
+  var s u64 0 .
+  for v idx TT. 3 . do set s. add s. cast u64 v. . . . end .
+  return s. .
+end .

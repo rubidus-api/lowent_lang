@@ -2118,6 +2118,7 @@ int main(int argc, char **argv) {
 
     int rc = 0;
     if (want_doc) {
+        low_doc_prepare(&pr, heap);                    // 검사는 번역하는 꼴에서(올리기 전)
         (void)low_order_lower(&pr, nodes0, heap, 2);   // ★ RFC-0155 §8-2 — 문서에 찍는 타입은 사람의 차례(개수가 먼저)
         if (doc_out) {
             int n = low_doc_write(&pr, src, heap, doc_out);
@@ -2126,6 +2127,7 @@ int main(int argc, char **argv) {
         } else {
             (void)low_doc(&pr, src, heap);
         }
+        low_doc_release();
     } else if (want_fmt) {
         // ★★★ **서식은 파일을 찍는다 — 컴파일 단위가 아니다.**
         //   의존을 진짜로 링크하기 시작하자(RFC-0032) 서식기가 **의존 모듈까지 같이 찍었다.**

@@ -1066,18 +1066,8 @@ static bool or_seq(or_t *o, low_cst_t *const *k, proven_size_t n, low_cst_t ***o
         if (!or_seq(o, k + i + 1 + nc, te - (i + 1 + nc), &sub, &ns)) return false;
         low_cst_t *el = ns == 1 ? sub[0] : or_group(o, t, sub, ns);
         if (!el) return false;
-        // ★ RFC-0155 §8-3 — 배열 안의 배열은 두 겹까지 지었다(안쪽 꼴이 줄의 나열과 같다). 세 겹 · 줄의 슬라이스의 원소가 다시 배열인 꼴은 정직하게 거절한다.
-        if (!mat && mx_is(t, "array") && el->kind == LOW_CST_GROUP) {
-            const low_cst_t *in = mx_inner(el);
-            bool deep = in && in->kind == LOW_CST_FORM && in->nkids >= 2 && mx_is(in->kids[0], "array") && in->kids[1]->kind == LOW_CST_GROUP;
-            bool rows_of_rows = m > 0 && in && in->kind == LOW_CST_FORM && (mx_is(w[m - 1], "slice") || mx_is(w[m - 1], "view_array"));
-            if (deep || rows_of_rows) {
-                mx_fail(o->c, t, "E-TYPE-ARRAY", "an array inside an array is built two levels deep (`array 3 array 4 u8`, and a slice of rows "
-                        "`slice array 4 u8`) — a third level is not built yet (RFC-0155 §8-3). For more dimensions write a `matrix` "
-                        "(`matrix 3 2 3 4 u8`)");
-                return false;
-            }
-        }
+        // ★ RFC-0155 §8-3 · §8-6 (2026-10-30 · W-20261030-1054) — 배열 안의 배열은 몇 겹이든 같은 안쪽 꼴이다(`array (array (array u8 4) 3) 2`).
+        //   두 겹까지만 짓고 세 겹 · 줄의 슬라이스의 원소가 다시 배열인 꼴을 거절하던 자리다 — 이제 줄 꼴 표(IR 의 rowsh)가 겹마다 줄 바이트를 나른다.
         low_cst_t *tri[2 + MX_MAXRANK + 1];
         proven_size_t nt = 0;
         tri[nt++] = t; tri[nt++] = el;

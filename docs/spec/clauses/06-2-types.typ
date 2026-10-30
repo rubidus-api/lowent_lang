@@ -308,8 +308,11 @@ let back u8 narrow u8 wide. . .")
       줄의 나열도, 바이트 위의 줄 보기(#cref("8.7") (7a))도 그대로 넘길 수 있다.
       - 구조체의 칸이면 원소 `n × m` 개의 바이트를 #strong[레코드 안에]; 가진다(#cref("6.2.7") (1a) 의 배열 칸과 같다 — 구조체를 베끼면 함께 베껴진다).
       - 값은 `lit array n array m t <줄>… [_] .` 로 짓는다. 줄마다 `lit array m t …` 이고, 끝의 `_` 는 남은 줄을 0 으로 채운다((6a)).
-      - 원소는 크기 있는 수와 `bool` 이다. 두 겹까지 짓는다 — 원소가 다시 배열을 품으면(세 겹), 그리고 줄의 슬라이스 · 줄 보기의 줄이
-      배열 안의 배열이면 거부된다(`E-TYPE-ARRAY`). 더 많은 차원은 `matrix` 로 적는다(#cref("6.2.6.1")).
+      - 원소는 크기 있는 수와 `bool` 이다. 겹의 수에는 한도가 없다 — `array 2 array 3 array 4 u8` 은 길이 4 인 줄 3 개짜리 판 2 개(C 의
+      `u8 a[2][3][4]`)이고, `idx a. i. .` 는 판 `i` 를 #strong[보는]; 줄의 슬라이스 `slice array 4 u8` 이다. 겹마다 `idx` 가 한 겹씩 벗긴다.
+      줄의 나열 · 줄 보기의 줄도 배열 안의 배열일 수 있다(`slice array 3 array 4 u8` · `view_array array 3 array 4 u8 b.`).
+      - 겹의 깊이는 타입의 일부다 — 깊이가 다른 줄의 슬라이스를 넘기거나 묶으면 거부된다(`E-TYPE-ARG` · `E-TYPE-LET`). 줄의 슬라이스는
+      원소의 슬라이스 자리에도 들지 않는다(`idx` 가 수 대신 줄을 낸다).
       - op 은 배열 안의 배열도 #strong[돌려줄 수 있다]; — `output r array n array m t .`. (1c) 와 같이 부르는 쪽이 자리를 주고(`var x array n array m t f … .`),
       이름 붙은 결과는 0 인 줄들로 시작한다.
     ]
@@ -330,12 +333,24 @@ export fn table output u64 . do
   set idx idx g. 1 . 2 . 7 .
   return add mul rowsum g. 0 . 100 . rowsum g. 1 . . .
 end .")
-    #rejected("배열 안의 배열 안의 배열", "module ex_nested_three .
+    #ex("세 겹 — 겹마다 idx 가 아래 겹을 본다", "module ex_nested_three .
 
 export fn f output usize . do
-  var g lit array 2 array 2 array 2 u8 _ . .
+  var g lit array 2 array 3 array 4 u8 _ . .
+  set idx idx idx g. 1 . 2 . 3 . 9 .
+  let plane slice array 4 u8 idx g. 1 . .
+  return add len plane. . cast usize idx idx plane. 2 . 3 . . . .
+end .")
+    #rejected("깊이가 다른 줄의 슬라이스", "module ex_nested_depth .
+
+fn rows input g array 3 array 4 u8 . output usize . do
   return len g. . .
-end .", "E-TYPE-ARRAY")
+end .
+
+export fn f output usize . do
+  let c lit array 2 array 3 array 4 u8 _ . .
+  return rows c. . .
+end .", "E-TYPE-ARG")
     #ex("배열을 돌려주는 op — 부르는 쪽이 자리를 준다", "module ex_array_result .
 
 fn squares input n u64 . output r array 3 u64 .

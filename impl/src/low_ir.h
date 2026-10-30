@@ -485,6 +485,13 @@ typedef struct {
 //   **줄 안 원소**의 것이고, 줄의 바이트 수는 (meta >> 32) 에 싣는다. 값의 .box = 줄 바이트 · .n = 줄 수.
 //   `index` 는 그 줄을 보는 슬라이스(복사 없음)를 낸다 — u8 이면 바이트 슬라이스, 아니면 타입 있는 배열.
 #define IR_ROW_BIT 0x80000
+// ★★ RFC-0155 §8-6 (2026-10-30 · W-20261030-1054) — **세 겹 이상**: 줄이 다시 줄의 배열이면 메타의 20..27 비트(줄에서는 비어 있다 — 구조체
+//   인덱스는 IR_STRUCT_BIT 와만 쓴다)가 줄 꼴 표 `rowsh_rb` · `rowsh_sub` 의 칸 k(1 부터)를 가리킨다. 0 이면 줄 안이 원소다(두 겹 · 줄의 나열).
+//   칸 k 는 «이 줄을 다시 나눈 아래 줄» 의 바이트 수와 그 아래 줄의 칸이다 — `index` 는 그것으로 아래 줄의 배열 보기를 낸다(.box = rowsh_rb[k] ·
+//   .n = 줄 바이트 / rowsh_rb[k]). 겹마다 표 칸 하나다.
+#define IR_ROWSUB_SHIFT 20
+#define IR_ROWSUB_MASK  0x0ff00000ll
+#define IR_ROWSH_MAX    256
 // RFC-0052 S2 — the operand type carried by arithmetic/compare words:
 //   bits 0..7 = declared width · IR_TY_SIGNED = declared signedness · IR_TY_KNOWN = tracked
 // A word with IR_TY_KNOWN unset falls back to the old (signed, 64-bit) behavior.
@@ -894,6 +901,9 @@ typedef struct {
     proven_u8str_view_t *fields;   // field names referenced by access/`field`
     proven_size_t       nfields;
     low_ir_struct_t     *structs;  // declared struct layouts (for view/try_view)
+    proven_u32          rowsh_rb[IR_ROWSH_MAX];    // ★ RFC-0155 §8-6 — 줄 꼴 표(IR_ROWSUB_*): 칸 k 의 아래 줄 바이트 수
+    proven_u8           rowsh_sub[IR_ROWSH_MAX];   //   그 아래 줄이 다시 나뉘면 그 칸(0 = 원소)
+    proven_size_t       nrowsh;                    //   쓴 칸 수 + 1(0 번은 비운다)
     // ★ RFC-0150 §8-31 — 폭을 적은 열거의 (번호, 순번) 짝. 구조체 칸의 elo .. ehi 가 이 표의 구간을 가리킨다.
     proven_i64          enum_tab_num[512];
     proven_i64          enum_tab_vi[512];

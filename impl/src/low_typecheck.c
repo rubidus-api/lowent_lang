@@ -47,7 +47,8 @@ typedef struct {
     proven_u8   enom;   // TK_SLICE: 원소의 명목(1 = `usize` · `idiff`) — `slice usize` 와 `slice u64` 는 다른 타입이다(32 비트 대상에서는 원소의 크기도 다르다). RFC-0149 L4
     bool        esign;  // TK_SLICE: 원소 부호
     bool        eflt;   // TK_SLICE: 원소가 부동인가
-    bool        erow;   // TK_SLICE: 원소가 **줄**(`slice (array T M)`, RFC-0132 §13.10) — ebits 등은 줄 안 원소의 것
+    proven_u8   erow;   // TK_SLICE: 원소가 **줄**(`slice (array T M)`, RFC-0132 §13.10) — ebits 등은 줄 안 원소의 것. ★ RFC-0155 §8-6 — 수는 겹의 깊이:
+                        //   1 = 줄 안이 원소 · 2 = 줄이 다시 줄의 배열 … `idx` · `for` 는 하나씩 줄인다(0 이 되면 원소의 슬라이스)
     // ★★★ **틀 인자는 타입의 일부다** (X-0009 · 2026-08-15). `gv u32 …` 와 `gv u8 …` 은
     //   지금까지 **둘 다 그냥 TK_NAMED** 였다 — 머리 이름도, 인자도 안 실려서 바인딩에서
     //   서로 통과했고, 같은 저장소를 다른 원소폭으로 읽으며 **조용히 틀린 값**을 냈다.
@@ -360,6 +361,14 @@ static bool num_value_w(proven_u8str_view_t v, proven_u64 *out, bool *neg, prove
     *out = val;   // ★ 위 칸이 있으면 아래 칸은 정확한 아래 64 비트다 — 「`u64` 에 안 맞음」 은 `*hi` 가 말한다(lit_fits)
     return true;
 }
+// ★ RFC-0155 §8-6 (2026-10-30) — 줄 타입 마디(`array <원소> <m>` — 괄호는 벗긴다)의 겹 깊이와 맨 안의 원소 낱말. 줄이 아니면 0.
+static proven_u8 tc_row_depth(const low_cst_t *rt, proven_u8str_view_t *leaf) {
+    while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+    if (!rt || rt->kind != LOW_CST_FORM || rt->nkids != 3 || rt->kids[0]->kind != LOW_CST_ATOM || !veq(rt->kids[0]->tok.lex, "array")) return 0;
+    if (rt->kids[1]->kind == LOW_CST_ATOM) { *leaf = rt->kids[1]->tok.lex; return 1; }
+    proven_u8 d = tc_row_depth(rt->kids[1], leaf);
+    return d && d < 200 ? (proven_u8)(d + 1) : 0;
+}
 static ty_t ty_of_number(proven_u8str_view_t v) {
     if (low_num_is_float(v)) {   // D3: 부동 리터럴도 comptime 무타입 — 값은 적합 검사용으로 들고 간다
         return (ty_t){ .k = TK_FLOAT, .lit = true, .fval = low_num_to_double(v) };
@@ -588,6 +597,9 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
                                          decl.k == TK_MASK || decl.k == TK_UNIT || decl.k == TK_WRAPPED)) return TC_KIND;
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
+    // ★ RFC-0155 §8-6 (2026-10-30) — 겹 깊이가 다른 줄의 슬라이스는 다른 타입이다(`array 2 array 3 array 4 u8` 을 `array 3 array 4 u8` 자리에).
+    //   줄의 슬라이스를 원소의 슬라이스 자리에 둘 수도 없다 — `idx` 가 수 대신 줄을 낸다(반대도 같다). 원소를 모르는 슬라이스(`slice` · 틀)는 그대로 둔다.
+    if (decl.k == TK_SLICE && actual.k == TK_SLICE && decl.ebits && actual.ebits && decl.erow != actual.erow) return TC_KIND;
     if (decl.k == TK_SLICE && decl.ebits && actual.ebits && !decl.eflt && !actual.eflt && !decl.erow && !actual.erow &&
         decl.ebits == actual.ebits && decl.enom != actual.enom) return TC_NOMINAL;   // RFC-0149 L4 — `slice usize` ≠ `slice u64`
     if (decl.k == TK_INT) {
@@ -656,6 +668,12 @@ static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
             snprintf(buf, n, "%sf%u", ref, (unsigned)t.bits); return buf;
         case TK_SLICE:
             if (!t.ebits) { snprintf(buf, n, "%sslice", ref); return buf; }
+            if (t.erow) {   // ★ RFC-0155 §8-6 — 줄의 슬라이스는 겹을 말한다(줄 길이는 타입이 쥐지 않아 `…` 로 적는다)
+                size_t o = (size_t)snprintf(buf, n, "%sslice", ref);
+                for (unsigned d = 0; d < t.erow && o + 12 < n; d++) o += (size_t)snprintf(buf + o, n - o, " array …");
+                if (o + 8 < n) snprintf(buf + o, n - o, " %c%u", t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits);
+                return buf;
+            }
             if (t.enom && !t.eflt) { snprintf(buf, n, "%sslice %s", ref, t.esign ? "idiff" : "usize"); return buf; }
             snprintf(buf, n, "%sslice %c%u", ref, t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits); return buf;
         case TK_NAMED:
@@ -1258,7 +1276,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 for (proven_size_t q = q0; q < n; q++) {
                     if (k[start + q]->kind != LOW_CST_ATOM) return tk(TK_UNKNOWN);
                     if (rt.k == TK_SLICE && k[start + q]->tok.kind == LOW_TOK_NUMBER) {   // 숫자 칸 = 첨자
-                        if (rt.erow) { rt.erow = false; continue; }
+                        if (rt.erow) { rt.erow--; continue; }
                         if (rt.ebits) { ty_t ev = rt.eflt ? (ty_t){ .k = TK_FLOAT, .bits = rt.ebits } : tk_int(rt.ebits, rt.esign); ev.nominal = rt.enom; rt = ev; continue; }
                         if (rt.nname.size) { ty_t ev = tk(TK_NAMED); ev.nname = rt.nname; rt = ev; continue; }
                         return tk(TK_UNKNOWN);
@@ -1277,7 +1295,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t rt = tc_infer(c, k[start + 1], env, nenv);
                 // 숫자 칸은 슬라이스의 첨자다(`field s. 0 .` ≡ `idx s. 0 .`)
                 if (rt.k == TK_SLICE && k[start + 2]->tok.kind == LOW_TOK_NUMBER) {
-                    if (rt.erow) { rt.erow = false; return rt; }
+                    if (rt.erow) { rt.erow--; return rt; }
                     if (rt.ebits) { if (rt.eflt) return (ty_t){ .k = TK_FLOAT, .bits = rt.ebits }; ty_t ev = tk_int(rt.ebits, rt.esign); ev.nominal = rt.enom; return ev; }
                     if (rt.nname.size) { ty_t ev = tk(TK_NAMED); ev.nname = rt.nname; return ev; }
                     return tk(TK_UNKNOWN);
@@ -1529,11 +1547,10 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             if (!sig_find(c, h2) && n == 3 && veq(h2, "view_array") && k[start + 1]->kind != LOW_CST_ATOM) {   // ★ RFC-0155 §5.3 — 줄 보기
                 ty_t sx = tc_infer(c, k[start + 2], env, nenv);
-                const low_cst_t *rt = k[start + 1];
-                while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
-                if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[1]->kind == LOW_CST_ATOM) {
-                    ty_t e = ty_of_word(rt->kids[1]->tok.lex);
-                    if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = true; sl.is_mut = sx.is_mut; return sl; }
+                proven_u8str_view_t lf = { 0 }; proven_u8 dp = tc_row_depth(k[start + 1], &lf);
+                if (dp) {
+                    ty_t e = ty_of_word(lf);
+                    if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = dp; sl.is_mut = sx.is_mut; return sl; }
                 }
                 return tk(TK_UNKNOWN);
             }
@@ -1621,7 +1638,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     }
                 }
                 if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
-                    ty_t rv = sq; rv.erow = false;
+                    ty_t rv = sq; rv.erow--;
                     return rv;
                 }
                 if (sq.k == TK_SLICE && sq.ebits) {
@@ -1642,11 +1659,10 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             //   흘려보낸다 — SIMD 의 `var xs be slice <T> view_array …` load 핸들은 이 타입을 받는다.
             if (veq(h2, "view_array") && n >= 3 && k[start + 1]->kind != LOW_CST_ATOM) {   // ★ RFC-0155 §5.3 — 줄 보기: 원소가 줄이다
                 ty_t sx = tc_infer(c, k[start + 2], env, nenv);
-                const low_cst_t *rt = k[start + 1];
-                while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
-                if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[1]->kind == LOW_CST_ATOM) {
-                    ty_t e = ty_of_word(rt->kids[1]->tok.lex);
-                    if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = true; sl.is_mut = sx.is_mut; return sl; }
+                proven_u8str_view_t lf = { 0 }; proven_u8 dp = tc_row_depth(k[start + 1], &lf);
+                if (dp) {
+                    ty_t e = ty_of_word(lf);
+                    if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = dp; sl.is_mut = sx.is_mut; return sl; }
                 }
             }
             if (veq(h2, "view_array") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM) {
@@ -2371,12 +2387,11 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
     // `lit array (array T M) N …` — 줄의 배열(§13.10): 원소가 줄인 슬라이스. 사람이 적는 철자는 `lit slice (array T M) <줄>… .` 이고 `low_rows_lower` 가 이 꼴로 옮긴다
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT &&
         nd->kids[1]->kind == LOW_CST_ATOM && veq(nd->kids[1]->tok.lex, "array") && nd->kids[2]->kind != LOW_CST_ATOM) {
-        const low_cst_t *rt = nd->kids[2];
-        while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
         for (proven_size_t q = 3; q < nd->nkids; q++) if (nd->kids[q]->kind != LOW_CST_ATOM) (void)tc_infer(c, nd->kids[q], env, nenv);
-        if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[1]->kind == LOW_CST_ATOM) {
-            ty_t e = ty_of_word(rt->kids[1]->tok.lex);
-            if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = true; sl.is_mut = true; return sl; }
+        proven_u8str_view_t lf = { 0 }; proven_u8 dp = tc_row_depth(nd->kids[2], &lf);
+        if (dp) {
+            ty_t e = ty_of_word(lf);
+            if (e.k == TK_INT || e.k == TK_FLOAT) { ty_t sl = tc_slice_of_elem(e); sl.erow = dp; sl.is_mut = true; return sl; }
         }
         ty_t sl = tk(TK_SLICE); sl.is_mut = true; return sl;
     }
@@ -2544,14 +2559,12 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         // ★ 머리의 절 범위(`low_op_header`)는 첫 괄호 앞에서 끝난다 — 줄 타입 `(array T M)` 은 범위 바로 뒤에 있을 수 있다
         // ★ RFC-0155 §8-3 — 배열 안의 배열(안쪽 꼴 `array (array T M) N`)의 칸도 줄의 슬라이스로 읽힌다(줄 수는 칸이 쥔다)
         if ((veq(w, "slice") || veq(w, "array")) && i + 1 <= end && i + 1 < f->nkids && f->kids[i + 1]->kind != LOW_CST_ATOM) {   // §13.10 줄의 슬라이스
-            const low_cst_t *rt = f->kids[i + 1];
-            while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
-            if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[0]->kind == LOW_CST_ATOM && veq(rt->kids[0]->tok.lex, "array") &&
-                rt->kids[1]->kind == LOW_CST_ATOM) {
-                ty_t e = ty_of_word(rt->kids[1]->tok.lex);
+            proven_u8str_view_t lf = { 0 }; proven_u8 dp = tc_row_depth(f->kids[i + 1], &lf);
+            if (dp) {
+                ty_t e = ty_of_word(lf);
                 if (e.k == TK_INT || e.k == TK_FLOAT) {
                     ty_t sl = tk(TK_SLICE);
-                    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0; sl.erow = true;
+                    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.enom = e.nominal == 1 ? 1 : 0; sl.erow = dp;
                     sl.rk = t.rk; sl.is_mut = mut_seen;
                     return sl;
                 }
@@ -3191,7 +3204,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     if (seq.nname.size) { ev = tk(TK_NAMED); ev.nname = seq.nname; } else ev = tk(TK_UNKNOWN);
                 }
                 if (seq.k == TK_UNKNOWN || seq.k == TK_WRAPPED) ev = tk(TK_UNKNOWN);
-                if (seq.k == TK_SLICE && seq.erow) { ev = seq; ev.erow = false; }   // §13.10 — 줄마다 도는 변수는 줄 슬라이스
+                if (seq.k == TK_SLICE && seq.erow) { ev = seq; ev.erow--; }   // §13.10 — 줄마다 도는 변수는 줄 슬라이스
                 else if (seq.k == TK_SLICE && seq.ebits)
                     ev = seq.eflt ? (ty_t){ .k = TK_FLOAT, .bits = seq.ebits }
                                   : tk_int(seq.ebits, seq.esign);

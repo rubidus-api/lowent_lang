@@ -1,0 +1,101 @@
+module nestdeep .
+rem ★★ RFC-0155 §8-6 (2026-10-30 · 소유자 «지금 혹은 매우 가까운 시일 안에 진행되도록») — 세 겹 이상의 배열 안의 배열.
+rem   `array 2 array 3 array 4 u8` 은 길이 4 인 줄 3 개짜리 판 2 개(C 의 `u8 a[2][3][4]` 과 같은 배치)다. `idx a. i.` 는 판 i 를 보는 줄의 슬라이스,
+rem   다시 `idx` 하면 줄을 보는 슬라이스다(베끼지 않는다). 값 · 0 채우기 · 쓰기 · 겹친 `for` · 구조체 칸 · op 입력(진입 계약) · `mut` 입력 ·
+rem   돌려주기 · 바이트 위의 판 보기 · 판의 나열 · 네 겹 — VM 과 네이티브가 같은 답인가.
+
+struct box3 do
+  id u8 .
+  cube array 2 array 2 array 2 u16 .
+  tail u8 .
+end .
+
+fn cell input c array 2 array 3 array 4 u8 . input i usize . input j usize . input k usize . output u64 .
+  requires lt i. 2 . .
+  requires lt j. 3 . .
+  requires lt k. 4 . .
+do
+  return widen u64 idx idx idx c. i. . j. . k. . . .
+end .
+
+proc stamp input c mut array 2 array 3 array 4 u8 . output u64 . effects none . do
+  set idx idx idx c. 1 . 2 . 3 . 99 .
+  return 0 .
+end .
+
+fn weigh input c array 2 array 3 array 4 u8 . output u64 . do
+  var s u64 0 .
+  var w u64 1 .
+  for p c. do
+    for r p. do
+      for v r. do
+        set s. add s. mul w. widen u64 v. . . . .
+        set w. mul w. 2 . .
+      end .
+    end .
+  end .
+  return s. .
+end .
+
+fn mk input k u8 . output r array 2 array 3 array 4 u8 . do
+  set idx idx idx r. 0 . 1 . 2 . k. .
+  return r. .
+end .
+
+fn lit3 output u64 . do
+  let c lit array 2 array 3 array 4 u8
+    lit array 3 array 4 u8 lit array 4 u8 1 2 3 4 . lit array 4 u8 5 6 7 8 . lit array 4 u8 9 10 11 12 . .
+    lit array 3 array 4 u8 lit array 4 u8 13 14 15 16 . _ . . .
+  return add mul cell c. 0 2 3 . 100 . cell c. 1 0 1 . . .
+end .
+
+fn sizes output u64 . do
+  let c lit array 2 array 3 array 4 u8 _ . .
+  let p slice array 4 u8 idx c. 1 . .
+  let r slice u8 idx p. 2 . .
+  return cast u64 add mul len c. . 100 . add mul len p. . 10 . len r. . . . . .
+end .
+
+fn written output u64 . do
+  var c lit array 2 array 3 array 4 u8 _ . .
+  set idx idx idx c. 0 . 1 . 2 . 7 .
+  let x u64 stamp c. . .
+  return add weigh c. . x. . .
+end .
+
+fn returned output u64 . do
+  var c array 2 array 3 array 4 u8 mk 5 . .
+  return weigh c. . .
+end .
+
+fn infield output u64 . do
+  var b lit box3 do
+    id 1 .
+    cube lit array 2 array 2 array 2 u16 lit array 2 array 2 u16 lit array 2 u16 1 2 . lit array 2 u16 3 4 . . lit array 2 array 2 u16 _ . . .
+    tail 9 .
+  end . .
+  set idx idx idx field b. cube . 1 . 1 . 1 . 60000 .
+  let d box3 b. .
+  set idx idx idx field b. cube . 0 . 0 . 0 . 8 .
+  return add add widen u64 idx idx idx field d. cube . 1 . 1 . 1 . . mul widen u64 idx idx idx field d. cube . 0 . 0 . 0 . . 1000000 . . widen u64 field b. tail . . . .
+end .
+
+fn viewed input b mut slice u8 . output u64 .
+  requires eq len b. . 16 . .
+do
+  let v mut slice array 2 array 4 u8 view_array array 2 array 4 u8 b. . .
+  set idx idx idx v. 1 . 1 . 3 . 77 .
+  return add mul cast u64 len v. . . 1000 . widen u64 idx idx idx v. 0 . 1 . 2 . . . .
+end .
+
+fn planes output u64 . do
+  let ps slice array 2 array 2 u8 lit slice array 2 array 2 u8 lit array 2 array 2 u8 lit array 2 u8 1 2 . lit array 2 u8 3 4 . . lit array 2 array 2 u8 _ . . .
+  return add mul cast u64 len ps. . . 100 . widen u64 idx idx idx ps. 0 . 1 . 0 . . . .
+end .
+
+fn four output u64 . do
+  var q lit array 2 array 2 array 2 array 2 u8 _ . .
+  set idx idx idx idx q. 1 . 0 . 1 . 1 . 42 .
+  let h slice array 2 array 2 u8 idx q. 1 . .
+  return add widen u64 idx idx idx h. 0 . 1 . 1 . . cast u64 len h. . . . .
+end .

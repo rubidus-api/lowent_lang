@@ -7702,17 +7702,28 @@ static bool ck_struct_array_field(low_check_result_t *out, const low_cst_t *fld,
         return false;
     const low_cst_t *t = fld->nkids > 2 ? fld->kids[2] : NULL, *n = fld->nkids > 3 ? fld->kids[3] : NULL;
     // ★ RFC-0155 §8-3 — 배열 안의 배열 칸 `g array 2 array 3 u8 .`(안쪽 꼴 `array (array u8 3) 2`): 원소가 크기 있는 수 · bool 인 줄이다
+    //   ★ RFC-0155 §8-6 (2026-10-30) — 줄이 다시 줄이어도 된다(`g array 2 array 3 array 4 u8 .`): 겹마다 크기를 곱한다.
     if (t && n && t->kind == LOW_CST_GROUP && t->nkids == 1 && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER) {
-        const low_cst_t *rf = t->kids[0];
-        if (!(rf->kind == LOW_CST_FORM && rf->nkids == 3 && ck_atom(rf->kids[0]) && veq(rf->kids[0]->tok.lex, "array") && ck_atom(rf->kids[1]) &&
-              ck_atom(rf->kids[2]) && rf->kids[2]->tok.kind == LOW_TOK_NUMBER && ck_elem_sized(rf->kids[1]->tok.lex))) {
-            emit(out, "E-LIT-UNBUILT", "an array field holds sized numbers, `bool` or rows of them (`array 2 array 3 u8`) — an array of arrays of "
-                 "arrays, or of structs, is not built yet", fld->kids[1]->tok.line);
+        unsigned long long cn = strtoull((const char *)n->tok.lex.ptr, NULL, 0), per = 1;
+        bool zero = false;
+        const low_cst_t *rf = t;
+        for (;;) {
+            while (rf->kind == LOW_CST_GROUP && rf->nkids == 1) rf = rf->kids[0];
+            if (!(rf->kind == LOW_CST_FORM && rf->nkids == 3 && ck_atom(rf->kids[0]) && veq(rf->kids[0]->tok.lex, "array") &&
+                  ck_atom(rf->kids[2]) && rf->kids[2]->tok.kind == LOW_TOK_NUMBER)) { rf = NULL; break; }
+            unsigned long long cm = strtoull((const char *)rf->kids[2]->tok.lex.ptr, NULL, 0);
+            if (!cm) zero = true;
+            per *= cm ? cm : 1;
+            if (ck_atom(rf->kids[1])) { if (!ck_elem_sized(rf->kids[1]->tok.lex)) rf = NULL; break; }
+            rf = rf->kids[1];
+        }
+        if (!rf) {
+            emit(out, "E-LIT-UNBUILT", "an array field holds sized numbers, `bool` or rows of them (`array 2 array 3 u8` · `array 2 array 3 array 4 u8`) — "
+                 "an array of structs is not built yet", fld->kids[1]->tok.line);
             return true;
         }
-        unsigned long long cn = strtoull((const char *)n->tok.lex.ptr, NULL, 0), cm = strtoull((const char *)rf->kids[2]->tok.lex.ptr, NULL, 0);
-        if (!cn || !cm) { emit(out, "E-TYPE-ARRAY", "an array field holds at least one element — `array 0 <type>` has nothing to keep", fld->kids[1]->tok.line); return true; }
-        *bytes += cn * cm * ck_elem_bytes(rf->kids[1]->tok.lex);
+        if (!cn || zero) { emit(out, "E-TYPE-ARRAY", "an array field holds at least one element — `array 0 <type>` has nothing to keep", fld->kids[1]->tok.line); return true; }
+        *bytes += cn * per * ck_elem_bytes(rf->kids[1]->tok.lex);
         return true;
     }
     if (t && n && ck_atom(t) && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER && t->tok.kind == LOW_TOK_IDENT && !ck_elem_sized(t->tok.lex)) {
@@ -7728,6 +7739,22 @@ static bool ck_struct_array_field(low_check_result_t *out, const low_cst_t *fld,
     }
     *bytes += cnt * ck_elem_bytes(t->tok.lex);
     return true;
+}
+// 두 타입 마디가 같은 타입을 적는가(괄호 한 겹은 벗긴다 · 낱말은 글자로).
+static bool ck_same_ty(const low_cst_t *a, const low_cst_t *b) {
+    while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+    while (b && b->kind == LOW_CST_GROUP && b->nkids == 1) b = b->kids[0];
+    if (!a || !b || a->kind != b->kind || a->nkids != b->nkids) return false;
+    if (a->kind == LOW_CST_ATOM) return proven_u8str_view_eq(a->tok.lex, b->tok.lex);
+    for (proven_size_t i = 0; i < a->nkids; i++) if (!ck_same_ty(a->kids[i], b->kids[i])) return false;
+    return true;
+}
+// 줄 타입 `array <원소> <m>`(괄호는 벗겨도 안 벗겨도) — 원소는 크기 있는 수 · bool, 또는 다시 줄(RFC-0155 §8-6 · 세 겹 이상).
+static bool ck_row_type(const low_cst_t *rt) {
+    while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+    if (!(rt && rt->kind == LOW_CST_FORM && rt->nkids == 3 && ck_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
+          ck_atom(rt->kids[2]) && rt->kids[2]->tok.kind == LOW_TOK_NUMBER)) return false;
+    return ck_atom(rt->kids[1]) ? ck_elem_sized(rt->kids[1]->tok.lex) : ck_row_type(rt->kids[1]);
 }
 static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return false;
@@ -7773,10 +7800,7 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
         if (k->kind == LOW_CST_ATOM && veq(k->tok.lex, "slice") && j + 1 < nd->nkids && nd->kids[j + 1]->kind != LOW_CST_ATOM) {
             const low_cst_t *rt = nd->kids[j + 1];
             while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
-            if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && ck_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
-                ck_atom(rt->kids[1]) && ck_elem_sized(rt->kids[1]->tok.lex) && ck_atom(rt->kids[2]) && rt->kids[2]->tok.kind == LOW_TOK_NUMBER) {
-                j++; continue;
-            }
+            if (ck_row_type(rt)) { j++; continue; }
         }
         if (k->kind != LOW_CST_ATOM && ck_array_walk(out, k)) return true;
     }
@@ -7843,8 +7867,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         if (nd->nkids >= 3 && nd->kids[2]->kind != LOW_CST_ATOM) {   // ★ §13.10 — 원소가 줄 `(array T M)`
             const low_cst_t *rt = nd->kids[2];
             while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
-            if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && ck_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
-                ck_atom(rt->kids[1]) && ck_elem_sized(rt->kids[1]->tok.lex) && ck_atom(rt->kids[2]) && rt->kids[2]->tok.kind == LOW_TOK_NUMBER &&
+            if (ck_row_type(rt) &&   // ★ RFC-0155 §8-6 — 줄이 다시 줄이어도 된다
                 ck_lit_elem_fits(PROVEN_LIT("u32"), rt->kids[2]->tok.lex) && strtoll((const char *)rt->kids[2]->tok.lex.ptr, NULL, 0) > 0) {
                 bool ra = veq(nd->kids[1]->tok.lex, "array");
                 if (veq(nd->kids[1]->tok.lex, "vec")) { emit(out, "E-LIT-UNBUILT", "a SIMD value holds numbers, not rows", ln); return; }
@@ -7871,9 +7894,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                         const low_cst_t *rl = e;
                         while (rl->kind == LOW_CST_GROUP && rl->nkids == 1) rl = rl->kids[0];
                         if (rl->kind == LOW_CST_FORM && rl->nkids >= 4 && ck_atom(rl->kids[0]) && rl->kids[0]->tok.kw == LOW_KW_LIT &&
-                            ck_atom(rl->kids[1]) && veq(rl->kids[1]->tok.lex, "array") && ck_atom(rl->kids[2]) && ck_atom(rl->kids[3]) &&
-                            (!proven_u8str_view_eq(rl->kids[2]->tok.lex, rt->kids[1]->tok.lex) ||
-                             !proven_u8str_view_eq(rl->kids[3]->tok.lex, rt->kids[2]->tok.lex))) {
+                            ck_atom(rl->kids[1]) && veq(rl->kids[1]->tok.lex, "array") && ck_atom(rl->kids[3]) &&
+                            (!ck_same_ty(rl->kids[2], rt->kids[1]) || !proven_u8str_view_eq(rl->kids[3]->tok.lex, rt->kids[2]->tok.lex))) {
                             emit(out, "E-LIT-COUNT", "this row is not the rows' shape — each row is `array <m> <type>` exactly as the list's element type says", ln);
                             return;
                         }

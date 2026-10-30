@@ -2867,17 +2867,49 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
     #undef LSL_PUT
     ir_emit(c, IRW_LOAD, (proven_i64)tl);
 }
+// ★★ RFC-0155 §8-6 (2026-10-30 · W-20261030-1054) — **줄 꼴**. 줄 타입 마디(`array <원소> <m>` — 괄호는 벗겨도 안 벗겨도)에서 원소(맨 안의 낱말) ·
+//   줄 바이트 · 아래 줄 칸(IR_ROWSUB_*)을 낸다. 원소가 다시 줄이면 그 줄의 꼴을 표 `rowsh_*` 에 넣고(같은 꼴은 한 칸) 그 칸을 낸다 — 겹마다 표 칸 하나.
+//   못 읽으면 false(부르는 쪽이 진단을 낸다).
+bool ir_row_shape(low_ir_t *o, const low_cst_t *rt, proven_u8str_view_t *leaf, proven_u64 *rb, proven_u8 *sub) {
+    while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+    proven_i64 m = 0;
+    if (!rt || rt->kind != LOW_CST_FORM || rt->nkids != 3 || !is_atom(rt->kids[0]) || !veq(rt->kids[0]->tok.lex, "array") ||
+        !is_atom(rt->kids[2]) || !ir_int_lit(rt->kids[2]->tok.lex, &m) || m <= 0) return false;
+    if (is_atom(rt->kids[1])) {
+        proven_u8 ie = ir_field_size(rt->kids[1]->tok.lex);
+        if (!ie) return false;
+        *leaf = rt->kids[1]->tok.lex; *rb = (proven_u64)m * ie; *sub = 0;
+        return *rb <= 0xffffffu;
+    }
+    proven_u64 crb = 0; proven_u8 csub = 0;
+    if (!ir_row_shape(o, rt->kids[1], leaf, &crb, &csub)) return false;
+    *rb = (proven_u64)m * crb;
+    if (*rb > 0xffffffu) return false;
+    if (o->nrowsh == 0) o->nrowsh = 1;
+    for (proven_size_t q = 1; q < o->nrowsh; q++)
+        if (o->rowsh_rb[q] == (proven_u32)crb && o->rowsh_sub[q] == csub) { *sub = (proven_u8)q; return true; }
+    if (o->nrowsh >= IR_ROWSH_MAX) return false;
+    o->rowsh_rb[o->nrowsh] = (proven_u32)crb; o->rowsh_sub[o->nrowsh] = csub;
+    *sub = (proven_u8)o->nrowsh++;
+    return true;
+}
+// 줄 꼴의 메타 — 줄 표시 · 원소 폭 · FLT · SGN · 아래 줄 칸 · 줄 바이트(위 32 비트).
+proven_i64 ir_row_meta(proven_u8str_view_t leaf, proven_u64 rb, proven_u8 sub) {
+    return IR_ROW_BIT | (proven_i64)ir_field_size(leaf) | (ir_is_float_ty(leaf) ? IR_FLT_BIT : 0) | (ity_of_word(leaf).sign ? IR_SGN_BIT : 0) |
+           ((proven_i64)sub << IR_ROWSUB_SHIFT) | (proven_i64)(rb << 32);
+}
 // ★★ RFC-0132 §13.10 (소유자 «줄 보기») — **줄의 나열**. 사람은 `lit slice (array T M) <줄>… .` 로 적고(2026-10-29 · 정본 §6.2 (9a)),
 //   표면 패스 `low_rows_lower` 가 이 안쪽 꼴 `lit array (array T M) N <줄>…` 로 옮겨 적는다(사람이 줄 수를 적은 같은 꼴은 배열 안의 배열 — RFC-0155 §8-3). 바이트는 N×M×|T| 한 덩어리이고
 //   위에 줄의 배열 보기(IRW_VARRAY + IR_ROW_BIT)를 얹는다 — `index g r` 가 그 줄을 보는 슬라이스다. 줄 값(`lit array T M …` ·
 //   이름)은 칸마다 베낀다(줄은 값의 사본). `_` 줄은 0. 칸 베끼기는 펼쳐 적으므로 한 나열에 1024 칸까지만 받는다.
 static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line,
-                            proven_u8str_view_t ity, proven_size_t m, bool is_array, bool want_frame, bool into) {
+                            const low_cst_t *rowty, bool is_array, bool want_frame, bool into) {
+    proven_u8str_view_t ity = { 0 }; proven_u64 rb64 = 0; proven_u8 sub = 0;
+    if (!ir_row_shape(c->out, rowty, &ity, &rb64, &sub)) {
+        ir_fail(c, "E-LIT-UNBUILT", "a row's element type must be a sized number or `bool`, or a row of them, and a row at most 16 MiB (RFC-0132 §13.10)", line); return;
+    }
     proven_u8 ie = ir_field_size(ity);
-    if (!ie) { ir_fail(c, "E-LIT-UNBUILT", "a row's element type must be a sized number or `bool` here (RFC-0132 §13.10)", line); return; }
-    bool flt = ir_is_float_ty(ity), sgn = ity_of_word(ity).sign;
-    proven_size_t rb = m * ie;
-    if (rb > 0xffffffu) { ir_fail(c, "E-LIT-UNBUILT", "a row this long cannot be laid out in a list", line); return; }
+    proven_size_t rb = (proven_size_t)rb64, m = rb / ie;   // m = 줄 안의 원소 수(칸 베끼기의 수)
     proven_i64 n = -1;
     if (is_array) {
         if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array N array M T …` needs its length N as a literal", line); return; }
@@ -2888,10 +2920,10 @@ static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos
     for (proven_size_t q = e0; q < end; q++) if (!(is_atom(k[q]) && veq(k[q]->tok.lex, "_"))) cnt++;
     proven_size_t rows = is_array ? (proven_size_t)n : cnt;
     if (cnt > rows) { ir_fail(c, "E-LIT-COUNT", "more rows than the length", line); return; }
-    stores = cnt * m;
+    stores = sub ? cnt : cnt * m;
     if (stores > 1024) { ir_fail(c, "E-LIT-UNBUILT", "a list of rows copies at most 1024 cells from its row values — build the big rows with `_` and fill the cells (RFC-0132 §13.10)", line); return; }
     proven_size_t bytes = rows * rb;
-    proven_i64 vmeta = IR_ROW_BIT | (proven_i64)ie | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0) | (proven_i64)((proven_u64)rb << 32);
+    proven_i64 vmeta = ir_row_meta(ity, rb64, sub);
     *pos = end;
     if (!cnt && !want_frame && !into) {                            // ⓑ 모두 `_` — 읽기 전용 0
         proven_u8 *z = bytes ? calloc(bytes, 1) : NULL;
@@ -2918,6 +2950,14 @@ static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos
         const low_cst_t *e = k[q];
         if (is_atom(e) && veq(e->tok.lex, "_")) continue;
         ir_node(c, e);
+        if (sub) {   // ★ RFC-0155 §8-6 — 줄이 다시 줄의 배열이면 바이트째 베낀다(copy (index tl r) <값>) — 길이가 다르면 두 뒤끝이 멈춘다
+            ir_emit(c, IRW_STORE, (proven_i64)tv);
+            ir_emit(c, IRW_LOAD, (proven_i64)tl); ir_emit(c, IRW_CONST, (proven_i64)r); ir_emit(c, IRW_INDEX, 0);
+            ir_emit(c, IRW_LOAD, (proven_i64)tv);
+            ir_emit(c, IRW_SCOPY, 0); ir_emit(c, IRW_DROP, 0);
+            r++;
+            continue;
+        }
         ir_emit(c, IRW_STORE, (proven_i64)tv);
         for (proven_size_t j = 0; j < m && !c->failed; j++) {       // 줄 r 의 칸 j ← 값의 칸 j
             ir_emit(c, IRW_LOAD, (proven_i64)tl); ir_emit(c, IRW_CONST, (proven_i64)r); ir_emit(c, IRW_INDEX, 0);
@@ -2939,10 +2979,10 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
         while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
         proven_i64 rm;
         if (rt && rt->kind == LOW_CST_FORM && rt->nkids == 3 && is_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
-            is_atom(rt->kids[1]) && is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0) {
+            is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0) {   // 원소가 낱말이거나 다시 줄(§8-6)
             bool ra = as_array || veq(k[*pos]->tok.lex, "array");
             *pos += 2;
-            ir_lit_row_list(c, k, pos, end, line, rt->kids[1]->tok.lex, (proven_size_t)rm, ra, want_frame, into);
+            ir_lit_row_list(c, k, pos, end, line, rt, ra, want_frame, into);
             return;
         }
     }
@@ -4163,10 +4203,15 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
                     proven_i64 rm = 0;
                     if (!(rt && rt->kind == LOW_CST_FORM && rt->nkids == 3 && is_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
-                          is_atom(rt->kids[1]) && is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0)) {
+                          is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0)) {
                         ir_fail(c, "E-IR-UNSUP", "`view_array` takes a type word or a row `array <m> <type>` with m a literal of 1 or more", nd->line); return;
                     }
-                    proven_u8str_view_t ity = rt->kids[1]->tok.lex;
+                    proven_u8str_view_t ity = { 0 }; proven_u64 rb_s = 0; proven_u8 sub_s = 0;   // ★ RFC-0155 §8-6 — 줄이 다시 줄이어도 된다
+                    {
+                        const low_cst_t *lf = rt->kids[1];
+                        while (!is_atom(lf)) { while (lf->kind == LOW_CST_GROUP && lf->nkids == 1) lf = lf->kids[0]; if (lf->kind != LOW_CST_FORM || lf->nkids != 3) break; lf = lf->kids[1]; }
+                        if (is_atom(lf)) ity = lf->tok.lex;
+                    }
                     if (veq(ity, "bool")) {
                         ir_fail(c, "E-TYPE-BITCAST", "`view_array array <m> bool` reads bytes as they are — a byte other than 0 or 1 would be a bool that is "
                                 "neither true nor false. View the rows as `u8` (canon 8.7.1)", nd->line);
@@ -4174,10 +4219,8 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     }
                     proven_u8 ie = ir_field_size(ity);
                     if (!ie || ity_of_word(ity).bits == 0) { ir_fail(c, "E-IR-UNDEF", "a row view's cell type is a sized number (`u8` … `u64`, `i8` … `i64`, `f32`, `f64`)", nd->line); return; }
-                    proven_u64 rb = (proven_u64)rm * ie;
-                    if (rb > 0xffffffu) { ir_fail(c, "E-IR-UNSUP", "a row this long cannot be viewed (at most 16 MiB a row)", nd->line); return; }
-                    proven_i64 vmeta = IR_ROW_BIT | (proven_i64)ie | (ir_is_float_ty(ity) ? IR_FLT_BIT : 0) | (ity_of_word(ity).sign ? IR_SGN_BIT : 0) |
-                                       (proven_i64)(rb << 32);
+                    if (!ir_row_shape(c->out, rt, &ity, &rb_s, &sub_s)) { ir_fail(c, "E-IR-UNSUP", "a row this long cannot be viewed (at most 16 MiB a row)", nd->line); return; }
+                    proven_i64 vmeta = ir_row_meta(ity, rb_s, sub_s);
                     (*pos)++;
                     ir_value(c, k, pos, end);
                     ir_emit(c, IRW_VARRAY, vmeta);

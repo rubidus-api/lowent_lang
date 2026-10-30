@@ -339,16 +339,36 @@ static bool is_op(const low_cst_t *f) {
     return f->kind == LOW_CST_FORM && f->nkids >= 2 && f->kids[0]->kind == LOW_CST_ATOM &&
            (f->kids[0]->tok.kw == LOW_KW_FN || f->kids[0]->tok.kw == LOW_KW_PROC);
 }
-static int render_module(FILE *o, const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work) {
-    build_opeff(pr);  // op → declared effects, for inference
-    // run the S4 passes once; attribute each diagnostic to its op by line range
+// ★ 2026-10-30 — 검사는 **번역하는 꼴**에서 돈다. 문서에 찍는 타입은 사람의 차례(개수가 먼저 — `low_order_lower` 2)로 올린 뒤인데, 그 나무에서
+//   검사를 돌리면 `slice array 4 u8` 을 옛 차례로 읽어 없는 `E-TYPE-ARRAY` 를 찍었다(배열 안의 배열 입력마다). 부르는 쪽이 올리기 전에
+//   `low_doc_prepare` 로 진단을 모아 두면 그것을 쓴다.
+typedef struct { proven_array_t a[4]; } doc_diag_hold_t;   // 메시지 글은 이 배열들이 쥔다 — 다 찍은 뒤에 놓는다
+static sd_t g_pre_ds[256]; static proven_size_t g_pre_nds; static bool g_pre_ok;
+static void doc_diags(const low_parse_result_t *pr, proven_allocator_t work, sd_t *ds, proven_size_t *nds, doc_diag_hold_t *h) {
     low_check_result_t     cr = low_check(work, pr);
     low_typecheck_result_t tr = low_typecheck(work, pr);
     low_contract_result_t  kr = low_contract(work, pr);
     low_region_result_t    rr = low_region(work, pr);
+    sd_collect(&cr.diags, ds, nds, 256); sd_collect(&tr.diags, ds, nds, 256);
+    sd_collect(&kr.diags, ds, nds, 256); sd_collect(&rr.diags, ds, nds, 256);
+    h->a[0] = cr.diags; h->a[1] = tr.diags; h->a[2] = kr.diags; h->a[3] = rr.diags;
+}
+static doc_diag_hold_t g_pre_hold;
+void low_doc_prepare(const low_parse_result_t *pr, proven_allocator_t work) {
+    g_pre_nds = 0; doc_diags(pr, work, g_pre_ds, &g_pre_nds, &g_pre_hold); g_pre_ok = true;
+}
+void low_doc_release(void) {
+    if (!g_pre_ok) return;
+    for (int q = 0; q < 4; q++) proven_array_destroy(&g_pre_hold.a[q]);
+    g_pre_ok = false; g_pre_nds = 0;
+}
+static int render_module(FILE *o, const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work) {
+    build_opeff(pr);  // op → declared effects, for inference
+    // run the S4 passes once; attribute each diagnostic to its op by line range
     sd_t ds[256]; proven_size_t nds = 0;
-    sd_collect(&cr.diags, ds, &nds, 256); sd_collect(&tr.diags, ds, &nds, 256);
-    sd_collect(&kr.diags, ds, &nds, 256); sd_collect(&rr.diags, ds, &nds, 256);
+    doc_diag_hold_t hold; bool own = !g_pre_ok;
+    if (g_pre_ok) { memcpy(ds, g_pre_ds, sizeof ds); nds = g_pre_nds; }
+    else doc_diags(pr, work, ds, &nds, &hold);
 
     fputs("# ", o); ev(o, module_name(pr)); fputs("\n\n", o);
     int n = 0;
@@ -359,8 +379,7 @@ static int render_module(FILE *o, const low_parse_result_t *pr, proven_u8str_vie
         render_op(o, pr->forms[i], src, ds, nds, lo, hi);
         n++;
     }
-    proven_array_destroy(&cr.diags); proven_array_destroy(&tr.diags);
-    proven_array_destroy(&kr.diags); proven_array_destroy(&rr.diags);
+    if (own) for (int q = 0; q < 4; q++) proven_array_destroy(&hold.a[q]);
     return n;
 }
 // llms.txt — curated root index (RFC-0014 §6.6): links + one-line summaries

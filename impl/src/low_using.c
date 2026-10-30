@@ -88,11 +88,12 @@ static bool us_is_int_lit(const low_cst_t *n) {
 }
 // ★ RFC-0155 §8-3 — 원소가 배열인 배열 `array 3 array 4 u8`(안쪽 꼴 `array (array u8 4) 3`)의 원소: 괄호 한 겹 안의 `array <타입> <수>`.
 //   그런 입력은 줄의 나열과 같은 `slice (array u8 4)` 에 줄 수의 진입 계약이 붙는다.
+//   ★ RFC-0155 §8-6 (2026-10-30) — 원소가 다시 줄이어도 된다(세 겹 이상 — `array (array (array u8 4) 3) 2` 의 원소).
 static bool us_row_group(const low_cst_t *g) {
     if (!g || g->kind != LOW_CST_GROUP || g->nkids != 1) return false;
     const low_cst_t *f = g->kids[0];
     return f && f->kind == LOW_CST_FORM && f->nkids == 3 && us_atom(f->kids[0]) && us_eq(f->kids[0]->tok.lex, "array") &&
-           us_atom(f->kids[1]) && us_is_int_lit(f->kids[2]);
+           (us_atom(f->kids[1]) || us_row_group(f->kids[1])) && us_is_int_lit(f->kids[2]);
 }
 static void us_arrays_one(us_ctx_t *c, low_cst_t *f) {
     if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) ||

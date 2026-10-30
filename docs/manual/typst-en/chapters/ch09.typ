@@ -191,7 +191,9 @@ the other --- the same layout as C's `u8 a[2][3]` --- and, because the element t
   bytes can be passed to the same input; the row count is checked at entry.
 - As a struct field the bytes lie *inside the record*, and copying the struct copies them.
 - An op can return one --- `output r array 2 array 3 u8 .`. As with any array result, the caller gives the place (`var g array 2 array 3 u8 f … .`, chapter 5).
-- Two levels deep. A third level is refused with `E-TYPE-ARRAY`; for more dimensions write a `matrix` (next section).
+- Any number of levels. `array 2 array 3 array 4 u8` is 2 planes of 3 rows of 4; `idx g. i. .` is a `slice array 4 u8` that views plane i,
+  and one more `idx` is a `slice u8` that views a row. A value of another depth cannot be passed (`E-TYPE-ARG`).
+- For computing with tables of numbers whose sizes are known, there is also `matrix` (next section).
 
 == Several dimensions --- `matrix`
 

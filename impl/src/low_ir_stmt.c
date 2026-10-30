@@ -3428,19 +3428,25 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 //   C 의 `T f[N*M]` 이 그대로 선다), 읽으면 줄의 나열과 같은 줄 보기다(IR_ROW_BIT · 줄 바이트는 메타의 위 32 비트).
                 if (param_ty_ && is_atom(fld->kids[1]) && veq(fld->kids[1]->tok.lex, "array") && fld->nkids >= 4 &&
                     fld->kids[2]->kind == LOW_CST_GROUP && fld->kids[2]->nkids == 1 && is_atom(fld->kids[3])) {
-                    const low_cst_t *rf_ = fld->kids[2]->kids[0];
-                    proven_i64 an = 0, am = 0;
-                    if (rf_->kind == LOW_CST_FORM && rf_->nkids == 3 && is_atom(rf_->kids[0]) && veq(rf_->kids[0]->tok.lex, "array") &&
-                        is_atom(rf_->kids[1]) && is_atom(rf_->kids[2]) && ir_int_lit(rf_->kids[2]->tok.lex, &am) && am > 0 &&
-                        ir_int_lit(fld->kids[3]->tok.lex, &an) && an > 0) {
-                        proven_u8 ae = ir_field_size(rf_->kids[1]->tok.lex);
-                        bool aflt = ir_is_float_ty(rf_->kids[1]->tok.lex), asgn = rf_->kids[1]->tok.lex.size && rf_->kids[1]->tok.lex.ptr[0] == (proven_u8)'i';
-                        if (ae && (proven_u64)an * (proven_u64)am <= 0xffffffu) {
-                            proven_u64 rb_ = (proven_u64)am * ae;
-                            s->f[s->nf].arrn = (proven_u32)(an * am); s->f[s->nf].arresz = ae;
-                            s->f[s->nf].arrmeta = (proven_i64)ae | (aflt ? IR_FLT_BIT : 0) | (asgn ? IR_SGN_BIT : 0) | IR_ROW_BIT | (proven_i64)(rb_ << 32);
+                    // ★ RFC-0155 §8-6 — 줄이 다시 줄이어도 된다(세 겹 이상): 줄 꼴(`ir_row_shape`)이 원소 · 줄 바이트 · 아래 줄 칸을 낸다.
+                    proven_i64 an = 0; proven_u8str_view_t lf_ = { 0 }; proven_u64 rb_ = 0; proven_u8 sub_ = 0;
+                    bool laid_ = false;
+                    if (ir_int_lit(fld->kids[3]->tok.lex, &an) && an > 0 && ir_row_shape(&ir, fld->kids[2], &lf_, &rb_, &sub_)) {
+                        proven_u8 ae = ir_field_size(lf_);
+                        if (ae && (proven_u64)an * (rb_ / ae) <= 0xffffffu) {
+                            s->f[s->nf].arrn = (proven_u32)((proven_u64)an * (rb_ / ae)); s->f[s->nf].arresz = ae;
+                            s->f[s->nf].arrmeta = ir_row_meta(lf_, rb_, sub_);
                             s->f[s->nf].elem = ae;
+                            laid_ = true;
                         }
+                    }
+                    if (!laid_) {   // ★ 줄 꼴 표가 찼거나(IR_ROWSH_MAX) 줄이 16 MiB 를 넘으면 — 칸을 배열이 아닌 채로 두면 배치가 조용히 틀린다
+                        low_diag_t d = { .sev = LOW_SEV_ERROR, .code = "E-IR-LIMIT",
+                                         .msg = "this array-of-arrays field cannot be laid out — a row is at most 16 MiB, the field at most "
+                                                "16 Mi elements, and one program has at most 255 shapes of rows of rows (RFC-0155 §8-6)",
+                                         .line = fld->line, .col = 0 };
+                        (void)proven_array_push(&ir.diags, &d);
+                        ir.ok = false;
                     }
                 }
                 s->f[s->nf].tyname = is_atom(fld->kids[1]) ? fld->kids[1]->tok.lex : (proven_u8str_view_t){0};

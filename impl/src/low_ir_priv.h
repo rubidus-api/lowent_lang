@@ -477,6 +477,8 @@ bool ir_comptime_cond(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, prov
 proven_size_t ir_cond_brz(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_size_t *sites);
 bool ir_contract_operand(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line);
 bool ir_ctfe_fold(const low_cst_t *nd, proven_i64 *out, int fuel);
+bool ir_row_shape(low_ir_t *o, const low_cst_t *rt, proven_u8str_view_t *leaf, proven_u64 *rb, proven_u8 *sub);   /* RFC-0155 §8-6 줄 꼴 */
+proven_i64 ir_row_meta(proven_u8str_view_t leaf, proven_u64 rb, proven_u8 sub);
 proven_size_t ir_def_find_in(ir_ctx_t *c, proven_u8str_view_t name, bool *found);
 bool ir_enum_is_payload(const ir_ctx_t *c, proven_i64 vi);
 proven_u8str_view_t ir_enum_other2(const ir_ctx_t *c, proven_u8str_view_t ename, proven_u8str_view_t v);

@@ -14,6 +14,10 @@
 // (verified / violations) are injected as a per-op **Checks** section. Returns op count.
 int low_doc(const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work);
 
+// Collect the per-op diagnostics now (on the tree as it is translated), before the types are raised to the human order for printing.
+void low_doc_prepare(const low_parse_result_t *pr, proven_allocator_t work);
+void low_doc_release(void);
+
 // Write <dir>/<module>.md (per module) + <dir>/llms.txt (curated index) to disk.
 // Returns the op count, or -1 on an IO error.
 int low_doc_write(const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work, const char *dir);

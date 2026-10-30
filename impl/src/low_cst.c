@@ -2346,7 +2346,10 @@ static low_cst_t *nest_value(nest_ctx_t *c, low_cst_t *const *k, proven_size_t *
             } else
             arg = nest_value(c, k, pos, end, bad);
         } else if (shbuf[i] == 'W') {   // ★ **낱말 슬롯** — 맨 원자 하나를 그대로. 적용이 아니다.
-            if (*pos >= end || k[*pos]->kind != LOW_CST_ATOM) {
+            // ★ 2026-10-30 — 괄호 친 타입(줄 보기 `view_array (array u8 4) b` 의 줄 타입 — RFC-0155 §8-1)도 낱말 하나다. 첫 판부터 이 정규화가
+            //   그 자리를 포기했다(골든의 픽스처에 줄 보기가 없어 보이지 않았다).
+            if (*pos < end && k[*pos]->kind == LOW_CST_GROUP) arg = k[(*pos)++];
+            else if (*pos >= end || k[*pos]->kind != LOW_CST_ATOM) {
                 *bad = true;
                 nest_blame(c, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"<낱말슬롯>", .size = 14 });
             }

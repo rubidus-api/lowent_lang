@@ -2,7 +2,7 @@
   "name": "lowent",
   "displayName": "Lowent",
   "description": "Lowent language support: syntax colours, the compiler's diagnostics, and hover and completion for keywords and builtin ops",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "license": "MIT",
   "private": true,
   "publisher": "lowent",

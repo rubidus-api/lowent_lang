@@ -1,4 +1,4 @@
-**한국어** | [English](README.md) — **Lowent v1.21.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.21.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+**한국어** | [English](README.md) — **Lowent v1.22.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.22.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent (로우엔트)
 
@@ -162,13 +162,13 @@ end .
 
 ## 지금 어디까지 왔나
 
-Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.21.0, 언어 개정 1.20).
+Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.22.0, 언어 개정 1.21).
 
 - **컴파일러 `lowentc`** 는 C23 으로 쓰였고, 외부 의존은 들여온 라이브러리 하나(`proven_c_lib`, MIT)뿐입니다. 네이티브 코드는 C 로 내보내 시스템의 C 컴파일러로 짓습니다. 대상은 `x86_64`·`arm64`·`riscv64`·`mips_be`·`cortex_m`·`cortex_m0`, AVR 칩 `atmega328p`·`atmega2560`(avr-gcc 로 짓고 QEMU 에서 돌린다)·`atmega32u4`·`atmega4809`(짓는 데까지), 그리고 짓기만 하는 `win64`·`cheriot` 입니다. `lowentc --targets` 가 나무로 보여 줍니다.
 - **컴파일할 때 막는 것**: 효과와 권한 위반, 차용·수명 위반, 옮긴 값 재사용, 완결되지 않은 자원, 값을 잃을 수 있는 정수 변환, 모순되거나 죽은 계약.
 - **실행할 때 막는 것**: 증명되지 않은 자리의 경계 검사, 넘침, 계약 위반. VM 과 네이티브가 같은 자리에서 같은 진단으로 멈춥니다.
 - **증명된 것**: 순차 단편의 메모리 안전(해제 뒤 사용·매달린 참조 없음)과 데이터 경합 없음이 Coq 로 기계 증명되어 있습니다(공리·`admit` 없음). 다만 이 증명은 언어의 **모델**에 대한 것이고, 구현이 모델을 따르는지는 회귀 시험과 유계 모델 검사로 확인합니다. 무엇을 증명하지 **않았는지**도 매뉴얼의 한 장으로 따로 정리해 두었습니다.
-- **검증 규모**: 회귀 시험 2,262 개, 표준 라이브러리 76 개 모듈. 매뉴얼의 모든 예제는 두 백엔드로 돌려 출력이 같은지 확인한 것입니다.
+- **검증 규모**: 회귀 시험 2,268 개, 표준 라이브러리 76 개 모듈. 매뉴얼의 모든 예제는 두 백엔드로 돌려 출력이 같은지 확인한 것입니다.
 
 ## 감수하셔야 할 것
 

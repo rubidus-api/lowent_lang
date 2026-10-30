@@ -2340,6 +2340,13 @@ static bool ctfe_ubin(char op, proven_u64 x, proven_u64 y, proven_u64 *r) {
     bool uns = false;
     return ctfe_u(nd, out, &uns, fuel);
 }
+// ★★★ RFC-0154 §8-20 (2026-10-30 · W-20261030-1054) — 타입 검사층이 **접은 값**으로 폭을 잰다. 접은 상수는 IRW_CONST 하나로 내려가
+//   리터럴의 폭 검사도 셈의 넘침 검사도 거치지 않았다: `u8` 을 내는 op 에서 `return comptime add 200 100 . . .` 이 300 을 냈다.
+//   검사층은 `comptime <식>` 의 타입을 무타입 리터럴로 읽으므로, 여기서 값을 알려 주면 `return 300 .` 과 같은 길(E-TYPE-WIDTH)로 간다.
+bool low_ctfe_value(const low_cst_t *nd, proven_i64 *out, bool *uns) {
+    *uns = false;
+    return ctfe_u(nd, out, uns, IR_CTFE_FUEL);
+}
 static bool ctfe_u(const low_cst_t *nd, proven_i64 *out, bool *uns, int fuel) {
     *uns = false;
     if (!nd || fuel <= 0) return false;

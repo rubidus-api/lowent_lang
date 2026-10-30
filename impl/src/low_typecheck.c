@@ -1496,7 +1496,18 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 ty_t t = ty_of_word(cw); if (t.k == TK_NAMED) t.nname = cw; return t;   // 선언과 같은 길로(명목 정체성까지)
             }
             // `comptime <식>` — 그 식의 타입이다(번역 시점에 값이 나오는지는 하강층이 본다 — E-COMPTIME-NONCONST)
-            if (!sig_find(c, h2) && n >= 2 && veq(h2, "comptime")) return tc_infer_run(c, k, start + 1, n - 1, env, nenv);
+            if (!sig_find(c, h2) && n >= 2 && veq(h2, "comptime")) {
+                ty_t t = tc_infer_run(c, k, start + 1, n - 1, env, nenv);
+                // ★★★ RFC-0154 §8-20 (2026-10-30) — 접은 **값**을 리터럴처럼 들고 간다: 받는 자리가 `return 300 .` 과 같이 폭을 잰다(E-TYPE-WIDTH).
+                //   전에는 첫 리터럴의 값만 들고 가서 `u8` 자리에 `comptime add 200 100 .` 의 300 이 들었다.
+                proven_i64 cv; bool cu;
+                if (t.k == TK_INT && t.lit && n == 2 && low_ctfe_value(k[start + 1], &cv, &cu)) {
+                    t.valhi = 0;
+                    if (cu || cv >= 0) { t.val = (proven_u64)cv; t.neg = false; }
+                    else { t.val = (proven_u64)0 - (proven_u64)cv; t.neg = true; }
+                }
+                return t;
+            }
             if (!sig_find(c, h2) && n == 3 && veq(h2, "value_or")) {
                 ty_t w = tc_infer(c, k[start + 1], env, nenv), d = tc_infer(c, k[start + 2], env, nenv);
                 if (w.k == TK_WRAPPED && w.pbits && (w.pk == TK_INT || w.pk == TK_FLOAT)) {

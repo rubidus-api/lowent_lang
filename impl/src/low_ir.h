@@ -1042,6 +1042,8 @@ unsigned low_ptr_slot_align(void);
 //   모르는 이름을 통과시키면 그 asm 은 **어느 빌드에서도 안 맞고**, 조용히 빠지거나
 //   엉뚱한 빌드에 실린다(둘 다 이 RFC 가 막으려던 것).
 bool low_ir_target_known(proven_u8str_view_t name);
+// ★ RFC-0154 §8-20 — `comptime <식>` 을 접은 값(검사층이 받는 자리의 폭을 잰다). 접지 못하면 false. `*uns` = 부호 없는 값이어야 한다.
+bool low_ctfe_value(const low_cst_t *nd, proven_i64 *out, bool *uns);
 
 [[nodiscard]] low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr);
 // ★ 이름이 빌트인과 겹치면 그 선언은 **영원히 호출되지 않는다**(해석기가 빌트인을 고른다).

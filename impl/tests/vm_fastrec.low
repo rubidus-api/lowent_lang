@@ -53,3 +53,11 @@ do
   end .
   return s. .
 end .
+
+rem ★ 틀 안 나열(2026-10-31 · W-20261031-1836) — op 의 C 틀에 바이트 줄로 선다(빠른 경로). 1 + 2 + a
+export fn sum3 input a u8 . output u32 . do
+  var t lit array 3 u8 1 2 a. . .
+  var s u32 0 .
+  for v t. do set s. add s. cast u32 v. . . . end .
+  return s. .
+end .

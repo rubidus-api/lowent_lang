@@ -3000,10 +3000,15 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                 for (proven_size_t q = 0; q < h.np - (c->arr ? 1 : 0) && !c->why[0]; q++) {
                     const low_param_t *pp = &h.p[q];
                     bool sti = !pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) && pp->te == pp->core + 1 && ctfe_struct_named(pr, k[pp->core]->tok.lex);
+                    // `slice S` — 구조체의 슬라이스(2026-10-31 · W-20261031-1118): 상수 나열 · 구조체 배열이나 슬라이스 답이 건너간다
+                    const bool stsl = !sti && !pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) && pp->te == pp->core + 2 && veq(k[pp->core]->tok.lex, "slice") &&
+                                      is_atom(k[pp->core + 1]) && !ir_field_size(k[pp->core + 1]->tok.lex) && ctfe_struct_named(pr, k[pp->core + 1]->tok.lex);
+                    if (stsl && q < LOW_HDR_MAXP) { c->sty[q] = k[pp->core + 1]->tok.lex; c->stsl[q] = true; if (c->nsty < q + 1) c->nsty = q + 1; }
+                    sti = sti || stsl;
                     bool ok = sti || (!pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) &&
                               ((pp->te == pp->core + 1 && ctfe_int_word(k[pp->core]->tok.lex)) ||
                                (pp->te == pp->core + 2 && veq(k[pp->core]->tok.lex, "slice") && is_atom(k[pp->core + 1]) && ctfe_num_elem(k[pp->core + 1]->tok.lex))));
-                    if (sti && q < LOW_HDR_MAXP) { c->sty[q] = k[pp->core]->tok.lex; if (c->nsty < q + 1) c->nsty = q + 1; }   // §6.4 — 구조체 입력(바이트 배치로 건넨다)
+                    if (sti && !stsl && q < LOW_HDR_MAXP) { c->sty[q] = k[pp->core]->tok.lex; if (c->nsty < q + 1) c->nsty = q + 1; }   // §6.4 — 구조체 입력(바이트 배치로 건넨다)
                     if (!ok)
                         snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is not one integer or `bool`, a slice of numbers or a struct — only those cross into a compile-time call (a `mut` input would be written)",
                                  (int)h.name.size, (const char *)h.name.ptr);
@@ -3017,8 +3022,13 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                         c->sl = true; c->elem = k[h.out_s + 1]->tok.lex;
                     } else if (h.out_e == h.out_s + 1 && is_atom(k[h.out_s]) && ctfe_struct_named(pr, k[h.out_s]->tok.lex)) {
                         c->st = true; c->sname = k[h.out_s]->tok.lex;
+                    } else if (h.out_e == h.out_s + 2 && is_atom(k[h.out_s]) && veq(k[h.out_s]->tok.lex, "slice") && is_atom(k[h.out_s + 1]) &&
+                               ctfe_struct_named(pr, k[h.out_s + 1]->tok.lex)) {
+                        // ★ 구조체의 슬라이스 답(2026-10-31 · W-20261031-1118) — 순수한 `fn` 은 새 기억을 짓지 않으므로 그 바이트는 입력의 조각이거나
+                        //   상수다. 배열 답처럼 읽기 전용 자리에 두고, 슬라이스 칸의 주소는 다시 적는다(돌린 뒤 배치가 정해진다)
+                        c->sl = true; c->selem = true; c->elem = k[h.out_s + 1]->tok.lex;
                     } else if (h.out_e >= h.out_s + 2 && is_atom(k[h.out_s]) && veq(k[h.out_s]->tok.lex, "slice"))
-                        snprintf(c->why, sizeof c->why, "`%.*s` returns a slice whose elements are not numbers (structs or rows) — its bytes may hold addresses that would have to be moved into read-only data, which is not built (RFC-0015 §8-1)",
+                        snprintf(c->why, sizeof c->why, "`%.*s` returns a slice of rows — a compile-time call hands back a slice of numbers or of structs, and an array of rows (RFC-0015 §6.3)",
                                  (int)h.name.size, (const char *)h.name.ptr);
                     else
                         snprintf(c->why, sizeof c->why, "`%.*s` returns a type a compile-time call cannot hand back — one integer or `bool`, an array or a slice of numbers, and a struct are built (RFC-0015 §6.3)",
@@ -3129,6 +3139,9 @@ static void ctfe_take_relocs(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ar
                 if (a[z].is_slice && a[z].bytes && pp >= a[z].bytes && pp + nb <= a[z].bytes + a[z].n) known = true;
             for (proven_size_t z = 0; z < ir->nstrs && !known; z++)
                 if (pp >= ir->strs[z].ptr && pp + nb <= ir->strs[z].ptr + ir->strs[z].size) known = true;
+            for (proven_size_t z = 0; z < g_ncc && !known; z++)   // 다른 답이 간직한 바이트(주소를 다시 적은 상수를 입력으로 건넨 것)
+                for (proven_size_t r = 0; r < g_cc[z].nrel && !known; r++)
+                    if (g_cc[z].rel[r].b && pp >= g_cc[z].rel[r].b && pp + nb <= g_cc[z].rel[r].b + g_cc[z].rel[r].n) known = true;
             if (!known) {
                 snprintf(c->why, sizeof c->why, "`%.*s` returned a struct whose slice field `%.*s` points neither into its input nor into the program's constant "
                          "data — a compile-time answer can keep only those (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr,
@@ -3274,7 +3287,16 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
             low_ir_set_capture(NULL);
             low_ir_set_run_budget(0);
             if (rr.ok && (c->sl || c->st)) ctfe_take_answer(&ir, c, &cap);
-            if (rr.ok && c->arr && c->shadow) ctfe_take_relocs(&ir, c, a, na);
+            if (rr.ok && c->sl && c->selem && !c->why[0]) {   // 구조체의 슬라이스 답 — 원소 수는 바이트 / 배치의 크기, 슬라이스 칸이 있으면 그림자 배치다
+                bool sf; proven_size_t si = ir_struct_find(&ir, c->elem, &sf);
+                if (sf && !ir.structs[si].viewable) { proven_i32 sh = ir_alloc_shadow(&ir, si); if (sh >= 0) { si = (proven_size_t)sh; c->shadow = true; } }
+                const proven_size_t tot = sf ? ir.structs[si].total : 0;
+                if (!tot || c->nbytes % tot)
+                    snprintf(c->why, sizeof c->why, "`%.*s` returned a slice of `%.*s` this tool cannot read back (no byte layout)",
+                             (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->elem.size, (const char *)c->elem.ptr);
+                else c->nelem = c->nbytes / tot;
+            }
+            if (rr.ok && (c->arr || c->sl) && c->shadow && !c->why[0]) ctfe_take_relocs(&ir, c, a, na);
             if (rr.ok && !c->why[0]) { c->v = rr.value; c->ok = true; progress = true; if (!c->shadow) ctfe_cache_put(&ir, di, c, a, na); }
             else if (rr.ok) progress = true;
             else {
@@ -4555,6 +4577,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         }
         ir_iface_hash(work, f, d);
     }
+
+    // ★ 2026-10-31 (W-20261031-1118) — 모듈 상수의 `comptime` 자리를 구조체 배치가 선 뒤 한 번 더 적는다: 위에서 적을 때는 구조체가 아직
+    //   없어서 구조체 · 구조체 슬라이스 인자를 읽지 못했다(이미 적은 자리는 ir_ctfe_record 가 건너뛴다)
+    for (proven_size_t q = 0; q < npend; q++) ir_ctfe_record(&mod, pendv[q]);
+    for (proven_size_t q = 0; q < mod.nmdata; q++) ir_ctfe_record(&mod, mod.mdatand[q]);
 
     // pass 2: lower bodies
     proven_size_t di = 0;

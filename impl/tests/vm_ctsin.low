@@ -61,3 +61,29 @@ rem −2^65 의 위 절반 = −2
 export fn wide_in output i64 . do
   return comptime top lit wide do w -36893488147419103232 . end . . . .
 end .
+
+rem ★ 구조체의 슬라이스(2026-10-31 · W-20261031-1118) — 상수 나열이 입력으로 건너가고, 그 조각이 답으로 돌아온다(바이트 배치가 있는 구조체)
+struct pt do
+  x u16 .
+  y i16 .
+end .
+
+fn tail input ps slice pt . input k usize . output slice pt . do
+  return subslice ps. k. len ps. . . .
+end .
+
+let T slice pt comptime tail lit slice pt lit pt do x 1 . y -2 . end . lit pt do x 3 . y -4 . end . lit pt do x 5 . y -6 . end . . 1 . . .
+
+export fn tn output usize . do
+  return len T. . .
+end .
+
+export fn ty output i16 . do
+  return field idx T. 0 . y . .
+end .
+
+rem 답을 다시 입력으로 — 남은 하나의 x = 5
+export fn tx output u16 . do
+  let u slice pt comptime tail T. 1 . . .
+  return field idx u. 0 . x . .
+end .

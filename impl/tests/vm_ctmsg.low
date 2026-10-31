@@ -83,3 +83,35 @@ export fn rt output usize . do
   var t array 8 msg parse "a,b\nc,dd" . .
   return len field idx t. 0 . en . . .
 end .
+
+rem ★ 구조체 슬라이스 답 (2026-10-31 · W-20261031-1118) — 채운 줄만(앞의 N 줄). 순수한 `fn` 이 돌려주는 슬라이스는 입력의 조각이다 —
+rem   표를 입력으로 받으면 처리기가 주소를 다시 적은 표를 건네고, 답의 슬라이스 칸도 같은 글을 가리킨다
+fn filled input t slice msg . input n usize . output slice msg . do
+  return subslice t. 0 n. . .
+end .
+
+fn longest input t slice msg . output slice msg . do
+  var best usize 0 .
+  var i usize 0 .
+  while lt i. len t. . . do
+    if gt len field idx t. i. . en . . len field idx t. best. . en . . . do set best. i. . end .
+    set i. add i. 1 . .
+  end .
+  return subslice t. best. add best. 1 . . .
+end .
+
+let FILLED slice msg comptime filled MSGS. N. . . .
+
+export fn fcount output usize . do
+  return len FILLED. . .
+end .
+
+rem "thanks" — 6 · 마지막 바이트 's' = 115
+export fn flast output u8 . do
+  let w slice msg comptime longest FILLED. . . .
+  return idx field idx w. 0 . en . 5 . .
+end .
+
+export fn fko output usize . do
+  return len field idx FILLED. 1 . ko . . .
+end .

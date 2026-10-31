@@ -528,6 +528,7 @@ typedef struct {
     proven_size_t    ntn;
     /* 슬라이스 입력(문자열 · `text` · 상수 나열 · 배열 모듈 상수) — 인자 자리마다 */
     proven_u8str_view_t sty[LOW_HDR_MAXP];   /* 입력 j 가 구조체면 그 이름(argb 가 그 바이트 배치) — RFC-0015 §6.4 */
+    bool             stsl[LOW_HDR_MAXP];      /* 입력 j 가 그 구조체의 슬라이스다(`slice S` — 원소마다 그 배치, 슬라이스 칸은 주소 + 길이) */
     proven_size_t    nsty;
     bool             argsl[LOW_HDR_MAXP];
     proven_u8       *argb[LOW_HDR_MAXP];    /* malloc */

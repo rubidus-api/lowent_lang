@@ -11,6 +11,21 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 MEANING = {
+ "E-DOT-MISSING": ("묶음을 닫는 마침표 `.` 가 빠졌다", "a stop `.` that closes a binding is missing"),
+ "E-CTRL-NODO": ("블록 `do … end` 가 와야 할 자리에 다른 것이 왔다", "something other than a block `do … end` stands where one belongs"),
+ "E-VALUE-DISCARDED": ("문이 값을 셈하고 버린다 --- 아무것도 바뀌지 않는다", "a statement computes a value and drops it, so nothing changes"),
+ "E-LOCAL-CAPTURE": ("지역 op 이 감싼 op 의 이름을 읽는다(숨은 잡기는 없다)", "a local op reads a name of the op around it (there is no hidden capture)"),
+ "E-LOOP-COUNT": ("`break` · `continue` 뒤의 수가 둘러싼 고리 수를 넘거나 리터럴이 아니다", "the count after `break` / `continue` is not a literal from 1 up to the loops around it"),
+ "E-CLOSER-EXTRA": ("아무것도 닫지 않는 마침표", "a stop that closes nothing"),
+ "E-LIT-ESCAPE": ("나열 리터럴의 틀 안 자리를 블록 밖으로 내보낸다", "a view of a list literal's frame storage leaves the block that declared it"),
+ "E-MATRIX-INDEX": ("행렬의 차원 수만큼 번호를 주지 않았다", "a matrix is indexed with a number of indexes other than its dimensions"),
+ "E-TYPE-ROWNAME": ("줄 타입(`slice` · `array` · `matrix`)에 다른 이름을 붙였다", "a row type (`slice`, `array`, `matrix`) is given another name"),
+ "E-CAP-OUTPUT": ("op 의 출력이 권한이다", "the output of an op is a capability"),
+ "E-ALLOC-NOROOT": ("할당이 깎아 낼 뿌리를 첫 피연산자로 이름 대지 않았다", "an allocation does not name the root it carves from as its first operand"),
+ "E-USING-OLD": ("할당기 절을 옛 낱말 `using` 으로 적었다(`use` 로)", "the allocator clause is written with the old word `using` (write `use`)"),
+ "E-EFFECT-MISSING": ("`proc` 머리에 `effects` 가 없다", "a `proc` head has no `effects` clause"),
+ "E-PIPE-CONTEXT-TYPE": ("`with` 문맥이 참조(주소)를 품은 값이다", "a `with` context is a value that holds a reference (an address)"),
+ "E-ACTOR-FAILURE": ("액터가 `failure` 를 두 번 적었다", "an actor declares `failure` twice"),
  "E-ALLOC-NESTED": ("같은 뿌리의 안쪽 영역이 열린 채 바깥 출처로 깎았다", "allocated from an outer source while an inner region of the same root is open"),
  "E-ALLOC-NOCAP": ("`alloc` 을 적었는데 할당 권한을 받지 않았다", "declares `alloc` but receives no allocation capability"),
  "E-ASM-UNBOUND": ("어셈블리 템플릿이 선언하지 않은 피연산자를 부른다", "the assembly template names an undeclared operand"),
@@ -26,15 +41,15 @@ MEANING = {
  "E-MONO-NOTYPE": ("제네릭 부름에 앞자리 타입 인자가 없다", "a generic call gives no leading type argument"),
  "E-VEC-SPLAT": ("splat 을 식 안에 바로 적었다", "`splat` was written inline in an expression"),
  "E-CONTRACT-UNSAT": ("함께 참일 수 없는 전제 둘", "two preconditions that cannot both hold"),
- "E-TYPE-MIX": ("부동소수와 정수 리터럴을 섞어 셈한다", "float and integer literals mixed in one calculation"),
+ "E-TYPE-MIX": ("부동소수점 수와 정수 리터럴을 섞어 셈한다", "float and integer literals mixed in one calculation"),
  "E-NAME-SCOPE": ("블록 안에서 지은 이름을 블록 밖에서 읽는다", "a name declared inside a block is read outside it"),
  "E-STMT-ELSE": ("`else` 가 블록 안에 있다", "`else` sits inside the block"),
  "E-TYPE-REFVAL": ("참조를 값처럼 썼다", "a reference is used as if it were a value"),
  "E-TYPE-ARG": ("인자의 타입이 매개변수와 맞지 않는다", "an argument's type does not match the parameter"),
  "E-METHOD-RECV": ("붙은 op 의 수신자가 첫 입력이 아니다", "an attached op's receiver is not its first input"),
- "E-CAP-MISSING": ("권한이 필요한 내장 연산에 권한을 첫 피연산자로 적지 않았다", "a capability-requiring builtin was not given its capability as the first operand"),
+ "E-CAP-MISSING": ("권한이 필요한 기본 연산에 권한을 첫 피연산자로 적지 않았다", "a capability-requiring core op was not given its capability as the first operand"),
  "E-CLAUSE-ORDER": ("op 머리의 절이 정해진 차례를 어겼다", "the clauses of an op header are out of the fixed order"),
- "E-COMPTIME-ARG": ("`comptime` 자리에 실행 값을 주었다", "a run-time value in a `comptime` position"),
+ "E-COMPTIME-ARG": ("`comptime` 입력 자리에 실행 값을 주었다", "a run-time value in a `comptime` input position"),
  "E-CONC-ALONE": ("묶음이 흐름 하나만 만들고 그 흐름이 짝을 기다린다", "a task group spawns one task that waits for a peer"),
  "E-CONC-DEADLOCK": ("묶인 흐름이 모두 받기만 하고 아무도 보내지 않는다", "every task in the group receives and none sends"),
  "E-CONTRACT-DEAD": ("`requires` 가 이미 배제한 오류를 선언했다", "declares an error that `requires` already excludes"),
@@ -122,7 +137,7 @@ MEANING = {
  "E-ACTOR-UNINIT": ("갓 띄운 액터의 슬라이스 칸을 세우기 전에 읽는다", "a just-spawned actor's slice state field is read before it is set"),
  "E-MMIO-PLAIN": ("장치 레지스터를 보통의 칸처럼 읽거나 쓴다", "a device register is read or written like an ordinary field"),
  "E-USE-ALIASED": ("`as` 로 바꿔 부른 모듈을 원래 이름으로 부른다", "a module renamed with `as` is called by its original name"),
- "W-RESULT-DISCARD": ("`result` 를 문장으로 버렸다 — 실패가 자취 없이 사라진다", "a `result` is dropped as a statement — the failure leaves no trace"),
+ "W-RESULT-DISCARD": ("`result` 를 문장으로 버렸다 --- 실패가 자취 없이 사라진다", "a `result` is dropped as a statement --- the failure leaves no trace"),
  "W-ERRORS-UNRAISED": ("`errors` 로 적은 오류를 몸통이 한 번도 내지 않는다", "an `errors` clause names a failure the body never returns"),
  "W-CONFIG-DEPENDS": ("기댐이 안 맞는 손잡이에 구성이 값을 골랐다", "the config picks a value for a knob whose dependency is off"),
  "E-PAR-IDENTITY": ("`reduce` 의 시작값이 그 연산의 항등원이 아니다", "a `reduce` starts from a value that is not the operator's identity"),
@@ -151,17 +166,24 @@ MEANING = {
  "E-IR-UNDEF": ("그 자리에서 알 수 없는 이름이다", "a name unknown at that place"),
  "E-ISR-EFFECT": ("인터럽트 처리기가 `effects device` 를 적지 않았다", "an interrupt handler does not declare `effects device`"),
  "E-ISR-PARAMS": ("인터럽트 처리기가 매개변수를 받는다", "an interrupt handler takes parameters"),
- "E-NAME-BUILTIN": ("내장 op 의 이름을 선언이나 지역 이름으로 썼다", "a builtin op's name is used for a declaration or local"),
- "E-PAR-FLOAT": ("부동소수 누적을 나누어 모으려 했다", "a floating-point accumulation declared splittable"),
+ "E-NAME-BUILTIN": ("기본 연산 의 이름을 선언이나 지역 이름으로 썼다", "a core op's name is used for a declaration or local"),
+ "E-PAR-FLOAT": ("부동소수점 누적을 나누어 모으려 했다", "a floating-point accumulation declared splittable"),
  "E-PAR-NOLOOP": ("`parallel` 절이 나눌 되풀이를 찾지 못했다", "the `parallel` clause finds no loop to split"),
  "E-TOPLEVEL": ("최상위에 올 수 없는 것이 최상위에 있다", "something that cannot appear at top level is at top level"),
  "E-TYPE-FIELD": ("구조체를 만들 때 칸이 빠졌거나 없는 칸을 적었다", "a field is missing or unknown when building a struct"),
- "E-TYPE-KIND": ("그 연산에 쓸 수 없는 갈래의 타입이다(예: `bool` 을 `cast`)", "a type of the wrong kind for that operation (e.g. `cast` of `bool`)"),
+ "E-TYPE-KIND": ("그 연산에 쓸 수 없는 갈래의 타입이다(예: 수를 `cast` 로 `bool` 로)", "a type of the wrong kind for that operation (e.g. `cast` to `bool`)"),
  "E-TYPE-LOGICAL": ("논리 연산에 참거짓이 아닌 값을 주었다", "a non-boolean value given to a logical operation"),
  "E-TYPE-RETURN": ("돌려주는 값이 op 의 출력 타입과 다르다", "the returned value does not match the op's output type"),
  "E-UNSAFE-UNDECLARED": ("`unsafe` 효과를 적었는데 op 에 `unsafe` 표시가 없다", "declares the `unsafe` effect but the op is not marked `unsafe`"),
  "E-WIDEN-SIGN": ("부호 있는 수를 부호 없는 타입으로 `widen` 했다", "`widen` from a signed to an unsigned type"),
 }
+
+# ★ 2026-10-31 (W-20261031-1118) — 머리말과 «그 밖의 진단» 은 손으로 쓴 글이다. 전에는 부록에만 있어서, 이 스크립트를 돌리면
+#   그 절과 손으로 고친 뜻이 사라졌다(스크립트가 «고장» 으로 남은 까닭). 이제 글은 여기에 있고 스크립트가 그대로 싣는다.
+LEAD = {"ko": '앞의 두 표는 이 책의 예제가 실제로 일으킨 진단이다. 예제에는 안 나오지만 만날 수 있는 진단은 맨 끝 «그 밖의 진단» 에 모았다. 코드는 판이 바뀌어도\n같은 뜻을 지킨다. 진단의 긴 영문 설명과 고치는 법은 컴파일러가 그 자리에서 말한다(`--diag-json` 은 기계가 읽는 꼴로).',
+        "en": 'The first two tables list the diagnostics this book\'s examples actually trigger. Diagnostics you can meet but the examples do not show are gathered\nat the end under "Other diagnostics". A code keeps its meaning across releases; the compiler explains the details and the repair at the site (`--diag-json` in a\nmachine-readable form).'}
+OTHER = {"ko": '== 그 밖의 진단\n\n예제에는 나오지 않지만 쓰다 보면 만날 수 있는 진단이다. 대부분은 `--run` 으로 돌릴 때 *VM(실행기)* 이 멈추며 낸다. VM 은 시험과 대조를 위한\n실행기라 자원을 고정된 크기로 잡아 두고, 그 한도를 넘으면 *조용히 틀린 값을 내는 대신 멈춘다*. 한도는 프로그램의 결함이 아니라 VM 의 크기이므로,\n같은 프로그램을 네이티브로 지으면 대개 문제없이 돈다.\n\n#dtable(\n  columns: 2,\n  id: "a2-other-static",\n  caption: [번역할 때 --- 예제에 없는 것],\n  [*코드*], [*뜻과 고치는 법*],\n  [`E-IR-EXTRA`], [`expr` 섬 뒤에 남는 피연산자가 있다 --- 섬은 식 하나로 끝난다. 괄호로 묶거나 줄을 나눈다],\n  [`E-IR-LIMIT`], [한 번역 단위의 op 이 도구가 나를 수 있는 수보다 많다 --- 모듈을 나눈다],\n  [`E-IR-LOCALS`], [한 op 의 지역 이름이 너무 많다 --- op 을 쪼갠다],\n  [`E-MONO-FIXPOINT`], [제네릭 단형화가 끝나지 않는다(타입이 계속 자란다) --- 스스로를 더 큰 타입으로 부르는 제네릭을 끊는다],\n  [`W-COL0`], [맨 위 선언이 0 열에서 시작하지 않는다 --- 들여쓰기가 틀려 앞 선언의 몸에 들어간 줄일 수 있다],\n  [`W-UNBOUND`], [이름 붙인 `contract` 를 선언했는데 어느 op 도 `satisfies` 로 쓰지 않는다],\n  [`W-RFC-PENDING`], [설계가 아직 RFC 단계인 기능을 썼다 --- 프로그램에 고칠 것은 없다],\n  [`W-CBE-SLOW`], [이 op 이 네이티브에서 느린 길(태그 값)로 낮춰진다 --- 까닭은 `--why-slow` 가 op 마다 말한다],\n  [`E-GROUP-UNCLOSED`], [여는 괄호 `(` 를 닫지 않았다 --- 짝이 되는 `)` 를 적는다],\n  [`E-TOPLEVEL`], [최상위에 올 수 없는 것이 최상위에 있다 --- 문장은 op 의 몸 안에 둔다],\n  [`E-TYPE-DECL`], [타입 선언의 꼴이 틀렸다 --- 구조체는 `struct N … end`, 별칭은 `type N T .`(`be` 없이)],\n)\n\n#dtable(\n  columns: 2,\n  id: "a2-other-runtime",\n  caption: [실행 중에 --- 프로그램의 잘못],\n  [*코드*], [*뜻과 고치는 법*],\n  [`E-VM-ERR`], [오류인 `result` 에서 `ok_value` 로 값을 꺼냈다 --- 먼저 `is_ok` 로 묻거나 `try` 로 넘긴다],\n  [`E-VM-DANGLING`], [빌린 참조가 그 자리의 수명보다 오래 쓰였다(돌려준 뒤에 씀)],\n  [`E-VM-EXCL`], [한 자리를 쓰는 빌림과 다른 빌림이 겹쳐 쓰였다 --- 먼저 빌린 것을 끝내고 다음을 빌린다],\n  [`E-VM-READONLY`], [읽기 전용 참조(`ref`)로 썼다 --- 쓰려면 `mut_ref` 로 빌린다],\n  [`E-VM-FIELD`], [레코드 · 레지스터 블록에 없는 칸을 읽었다],\n  [`E-VM-AWAIT`], [`await` 에 작업 핸들이 아닌 값을 주었다 --- 핸들은 `spawn <op>` 이 준다],\n  [`E-VM-HANDLE-ZERO`], [비워 둔 핸들(0)을 기다리거나, 0 인 채널에 넣고 뺐거나, 띄우지 않은 액터(0)에 말을 보냈다 --- 먼저 `spawn <op>` · `channel <T>` · `spawn actor <이름>` 으로 받은 것을 준다],\n  [`E-VM-CHAN-EMPTY` · `E-VM-CHAN-FULL`], [빈 채널에서 받거나 찬 채널에 보냈는데, 기다려 줄 스케줄러가 없다 --- 영영 풀리지 않는 대기다],\n  [`E-VM-SCHED-LOOP`], [핸들러가 서로 메시지를 끝없이 주고받아 스케줄러가 멈추지 못한다],\n  [`E-VM-FD` · `E-VM-FMODE` · `E-VM-FWHENCE`], [쓸 수 없는 파일 번호(1 · 2 만 쓴다) · 없는 열기 방식(0 · 1 · 2) · 없는 `seek` 기준(0 · 1 · 2)],\n  [`E-VM-FHANDLE` · `E-VM-SHANDLE` · `E-VM-REACTOR`], [열린 파일 · 소켓 · 리액터 핸들이 아닌 값을 넘겼다],\n  [`E-VM-EXTERN`], [몸이 C 에 있는 `extern` op 을 VM 에서 불렀다 --- 네이티브로 지어서 돌린다],\n  [`E-VM-MMIO` · `E-VM-RESERVE`], [절대 주소의 레지스터 블록 · 링커가 주는 저장소를 VM 에서 열었다 --- 실제 기계에서만 뜻이 있다],\n)\n\n#dtable(\n  columns: 2,\n  id: "a2-other-limits",\n  caption: [실행 중에 --- VM 의 한도(프로그램의 결함이 아니다)],\n  [*코드*], [*무엇이 다 찼나*],\n  [`E-VM-STACK` · `E-VM-DEPTH` · `E-VM-OOM`], [피연산자 스택 · 호출 깊이 · 호출 스택을 키울 메모리 --- 재귀가 너무 깊다],\n  [`E-VM-BOXPOOL` · `E-VM-RECPOOL` · `E-VM-STKPOOL` · `E-VM-BSETPOOL`], [`some`·`ok` 로 감싼 값 · 구조체 값 · 스택 컨테이너 · 비트셋을 담는 풀 --- 한꺼번에 살아 있는 값을 줄인다],\n  [`E-VM-CHAN` · `E-VM-MBOX`], [채널 64 개 · 비동기 우편함 4096 칸 --- 다시 쓰지 않으므로 한 실행에서 그만큼만 만든다],\n  [`E-VM-FILEPOOL` · `E-VM-SOCKPOOL`], [동시에 열 수 있는 파일 · 소켓 수 --- 다 쓴 것을 닫는다],\n  [`E-VM-CHAIN-LIMIT`], [VM 안에서 VM 을 부르는 겹침이 너무 깊다],\n  [`E-VM-BUDGET`], [대조(오라클) 실행의 걸음 예산을 다 썼다 --- 평소 `--run` 에서는 나지 않는다],\n)\n',
+         "en": '== Other diagnostics\n\nThese do not appear in the examples but can come up. Most are stops by the *VM* (the executor) when running with `--run`. The VM exists for tests\nand cross-checking, so it holds its resources at fixed sizes, and past a limit it *stops rather than quietly giving a wrong value*. A limit is the\nVM\'s size, not a defect of the program --- the same program built natively usually runs fine.\n\n#dtable(\n  columns: 2,\n  id: "a2-other-static",\n  caption: [At translation time --- not in the examples],\n  [*code*], [*meaning and repair*],\n  [`E-IR-EXTRA`], [operands are left over after an `expr` island --- an island ends with one expression. Group with parentheses or split the line],\n  [`E-IR-LIMIT`], [a compilation unit has more ops than the tool can carry --- split the module],\n  [`E-IR-LOCALS`], [one op has too many local names --- split the op],\n  [`E-MONO-FIXPOINT`], [generic monomorphisation does not finish (the type keeps growing) --- break a generic that calls itself at a bigger type],\n  [`W-COL0`], [a top-level declaration does not start at column 0 --- the line may have ended up in the previous declaration\'s body],\n  [`W-UNBOUND`], [a named `contract` is declared but no op names it with `satisfies`],\n  [`W-RFC-PENDING`], [a feature whose design is still at the RFC stage was used --- nothing in the program to fix],\n  [`W-CBE-SLOW`], [this op is lowered to the slow path (tagged values) in native code --- `--why-slow` says why, op by op],\n  [`E-GROUP-UNCLOSED`], [an opening `(` is never closed --- write the matching `)`],\n  [`E-TOPLEVEL`], [something that cannot appear at top level is at top level --- statements go inside an op\'s body],\n  [`E-TYPE-DECL`], [a type declaration in the wrong form --- a struct is `struct N … end`, an alias `type N T .` (no `be`)],\n)\n\n#dtable(\n  columns: 2,\n  id: "a2-other-runtime",\n  caption: [At run time --- a mistake in the program],\n  [*code*], [*meaning and repair*],\n  [`E-VM-ERR`], [`ok_value` was taken from a `result` that is an error --- ask `is_ok` first or pass it on with `try`],\n  [`E-VM-DANGLING`], [a borrowed reference was used after the place it borrowed from ended (use after return)],\n  [`E-VM-EXCL`], [a writing borrow of a place overlapped another borrow --- end the first borrow before taking the next],\n  [`E-VM-READONLY`], [wrote through a read-only reference (`ref`) --- borrow with `mut_ref` to write],\n  [`E-VM-FIELD`], [read a field that the record or register block does not have],\n  [`E-VM-AWAIT`], [`await` was given something that is not a job handle --- handles come from `spawn <op>`],\n  [`E-VM-HANDLE-ZERO`], [waited on an empty handle (0), put into / took from a channel that is 0, or sent to an actor never spawned (0) --- give it what `spawn <op>` / `channel <T>` / `spawn actor <name>` gives first],\n  [`E-VM-CHAN-EMPTY` · `E-VM-CHAN-FULL`], [received from an empty channel or sent to a full one with no scheduler to wait --- a wait that can never end],\n  [`E-VM-SCHED-LOOP`], [handlers keep sending each other messages, so the scheduler cannot settle],\n  [`E-VM-FD` · `E-VM-FMODE` · `E-VM-FWHENCE`], [a file number that cannot be written (only 1 · 2) · an unknown open mode (0 · 1 · 2) · an unknown `seek` origin (0 · 1 · 2)],\n  [`E-VM-FHANDLE` · `E-VM-SHANDLE` · `E-VM-REACTOR`], [the value passed is not an open file / socket / reactor handle],\n  [`E-VM-EXTERN`], [an `extern` op whose body is in C was called in the VM --- build natively to run it],\n  [`E-VM-MMIO` · `E-VM-RESERVE`], [a register block at an absolute address / storage handed over by the linker was opened in the VM --- they mean something only on the real machine],\n)\n\n#dtable(\n  columns: 2,\n  id: "a2-other-limits",\n  caption: [At run time --- a VM limit (not a defect of the program)],\n  [*code*], [*what filled up*],\n  [`E-VM-STACK` · `E-VM-DEPTH` · `E-VM-OOM`], [the operand stack · the call depth · memory to grow the call stack --- recursion is too deep],\n  [`E-VM-BOXPOOL` · `E-VM-RECPOOL` · `E-VM-STKPOOL` · `E-VM-BSETPOOL`], [the pools for values wrapped by `some`·`ok` · struct values · stack containers · bitsets --- keep fewer values alive at once],\n  [`E-VM-CHAN` · `E-VM-MBOX`], [64 channels · 4096 async mailbox slots --- they are not reused, so one run makes at most that many],\n  [`E-VM-FILEPOOL` · `E-VM-SOCKPOOL`], [how many files · sockets can be open at once --- close the ones you are done with],\n  [`E-VM-CHAIN-LIMIT`], [VM activations nested inside VM activations went too deep],\n  [`E-VM-BUDGET`], [the step budget of a cross-checking (oracle) run ran out --- it does not happen in a normal `--run`],\n)\n'}
 
 RUNTIME = [
  ("E-VM-OVERFLOW", "numbers", "정수가 선언된 폭에서 넘쳤다", "integer overflow at the declared width"),
@@ -197,10 +219,10 @@ def main():
         return 1
     for lang, dirn, title, lead, head, rt in (
         ("ko", "typst-ko", "부록 B --- 진단 찾아보기",
-         "이 책의 예제가 실제로 일으킨 진단만 모았다. 코드는 판이 바뀌어도 같은 뜻을 지킨다. 진단의 긴 영문 설명과 고치는 법은 컴파일러가 그 자리에서 말한다.",
+         LEAD["ko"],
          ("*코드*", "*뜻*", "*보이는 곳*"), "== 실행 중에 멈출 때"),
         ("en", "typst-en", "Appendix B --- Diagnostics index",
-         "Only the diagnostics that this book's examples actually trigger are listed. A code keeps its meaning across releases; the compiler explains the details and the repair at the site.",
+         LEAD["en"],
          ("*Code*", "*Meaning*", "*Shown in*"), "== When execution stops")):
         imp = '#import "../lib.typ": *' if lang == "ko" else '#import "../../typst-ko/lib.typ": *'
         out = [imp, "", f"= {title}", "", lead, "",
@@ -217,7 +239,7 @@ def main():
                 f"  [{head[0]}], [{head[1]}], [{head[2]}],"]
         for code, cid, ko, en in RUNTIME:
             out.append(f'  [`{code}`], [{ko if lang == "ko" else en}], [#chref("{cid}")],')
-        out += [")", ""]
+        out += [")", "", OTHER[lang]]
         (ROOT / dirn / "appendix" / "a2-diagnostics.typ").write_text("\n".join(out), encoding="utf-8")
     print(f"gen-diag-appendix: 진단 {len(by_code)} · 실행 중 {len(RUNTIME)}")
     return 0

@@ -1,0 +1,41 @@
+module compt_table .
+rem run: sq7
+rem run: cube_sum
+
+rem ko: 배열을 내는 `fn` 도 번역할 때 돈다 /// en: a `fn` that returns an array runs at compile time too
+fn squares output r array 16 u16 .
+do
+  var i usize 0 .
+  while lt i. 16 . do
+    let v u16 cast u16 i. . .
+    set idx r. i. . mul v. v. . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+fn cubes input k u32 . output r array 4 u32 .
+do
+  var i usize 0 .
+  while lt i. 4 . do
+    let v u32 add k. cast u32 i. . . .
+    set idx r. i. . mul mul v. v. . v. . .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+rem ko: 모듈 상수 — 프로그램에 박힌 읽기 전용 표 하나 /// en: a module constant — one read-only table baked into the program
+let SQ array 16 u16 comptime squares . . .
+
+fn sq7 output u16 .
+do
+  return idx SQ. 7 . .
+end .
+
+fn cube_sum output u32 .
+do
+  rem ko: 몸 안의 `let` 도 된다 — 2³+3³+4³+5³ /// en: a `let` in a body works too — 2³+3³+4³+5³
+  let t array 4 u32 comptime cubes 2 . . .
+  return add add idx t. 0 . idx t. 1 . . add idx t. 2 . idx t. 3 . . . .
+end .

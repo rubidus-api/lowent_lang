@@ -1,0 +1,15 @@
+module rowname_fixed .
+
+rem ko: 이름이 필요하면 구조체의 칸으로 둔다 --- 이름이 다르면 다른 타입이다 /// en: when a name is needed, make it a struct field --- a different name is a different type
+struct packet do body slice u8 . end .
+
+fn first input b slice u8 . output u8 .
+  requires gt len b. . 0 . .
+do
+  return idx b. 0 . .
+end .
+
+fn size input p packet . output usize .
+do
+  return len field p. body . . .
+end .

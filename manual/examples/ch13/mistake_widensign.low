@@ -1,0 +1,8 @@
+module mistake_widensign .
+rem expect: E-WIDEN-SIGN
+
+fn to_count input x i32 . output u64 .
+do
+  rem ko: ✘ 음수는 `u64` 에 자리가 없다 --- 폭이 넓어도 `widen` 은 안 된다 /// en: ✘ a negative number has no place in `u64` --- `widen` fails even though the width is larger
+  return widen u64 x. . .
+end .

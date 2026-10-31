@@ -1,0 +1,44 @@
+module cast_kinds .
+rem run: sign 200
+rem run: to_float 7
+rem run: to_int 7.9
+rem run: bool_num 9
+rem run: level_num 2
+rem trap: sign 40000
+
+rem ko: 부호를 바꾼다 --- u32 의 값을 i16 으로 읽는다. 들어가지 않으면 멈춘다 /// en: change the sign --- read a u32 value as i16. It stops when the value does not fit
+fn sign input n u32 . output i16 . do
+  return cast i16 n. . .
+end .
+
+rem ko: 갈래를 넘는다 --- 정수를 부동소수점 수로 /// en: cross kinds --- an integer to a floating-point number
+fn to_float input n u32 . output f64 . do
+  return cast f64 n. . .
+end .
+
+rem ko: 부동소수점 수를 정수로 --- 소수부는 0 쪽으로 버린다 /// en: a floating-point number to an integer --- the fraction is dropped toward 0
+fn to_int input x f64 . output i64 . do
+  return cast i64 x. . .
+end .
+
+rem ko: 참거짓을 수로 --- 참은 1, 거짓은 0 /// en: a bool to a number --- true is 1, false is 0
+fn bool_num input n u64 . output u8 . do
+  return cast u8 gt n. 5 . . .
+end .
+
+enum level do
+  low .
+  mid .
+  high .
+end .
+
+fn pick input k u8 . output level . do
+  if eq k. 0 . do return low. . end .
+  if eq k. 1 . do return mid. . end .
+  return high. .
+end .
+
+rem ko: 열거를 수로 --- 갈래의 번호(첫 갈래 1) /// en: an enum to a number --- the variant's number (the first is 1)
+fn level_num input k u8 . output u8 . do
+  return cast u8 pick k. . . .
+end .

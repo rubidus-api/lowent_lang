@@ -1,0 +1,16 @@
+module nofall .
+rem run: label 1
+rem run: label 2
+rem run: label 9
+
+fn label input c u64 . output u64 .
+do
+  var score u64 0 .
+  match c. do
+    rem ko: 맞은 갈래 하나만 실행된다 --- 다음 갈래로 흘러가지 않으므로 `break` 가 필요 없다 /// en: only the matching arm runs --- it never falls into the next arm, so no `break` is needed
+    case 1 do set score. add score. 10 . . end .
+    case 2 do set score. add score. 20 . . end .
+    case _ do set score. add score. 1 . . end .
+  end .
+  return score. .
+end .

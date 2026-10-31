@@ -1,0 +1,36 @@
+module payload_struct .
+rem run: demo 0
+rem run: demo 1
+rem run: demo 2
+
+struct bytes do
+  b slice u8 .
+end .
+
+struct pt do
+  x u64 .
+  y u64 .
+  z u64 .
+end .
+
+enum msg do
+  data d bytes .
+  dot p pt .
+  blank .
+end .
+
+fn weigh input m msg . output u64 .
+do
+  match m. do
+    case data d do return cast u64 len field d. b . . . . end .
+    case dot p do return add add field p. x . field p. y . . field p. z . . . end .
+    case blank do return 0 . end .
+  end .
+end .
+
+fn demo input k u8 . output u64 .
+do
+  if eq k. 0 . do return weigh msg.data lit bytes do b "abc" . end . . . . end .
+  if eq k. 1 . do return weigh msg.dot lit pt do x 1 . y 2 . z 7 . end . . . . end .
+  return weigh msg.blank. . .
+end .

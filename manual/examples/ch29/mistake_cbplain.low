@@ -1,0 +1,18 @@
+module mistake_cbplain .
+rem expect: E-FN-NOTEXPORT
+
+fn by_value input a i64 . input b i64 . output i64 .
+  requires ge a. -1000000 . .
+  requires le a. 1000000 . .
+  requires ge b. -1000000 . .
+  requires le b. 1000000 . .
+do
+  return sub a. b. . .
+end .
+
+unsafe proc callback_addr input k cap c . output u64 . effects unsafe .
+do
+  rem ko: ✘ 보통 op 의 주소를 C 에게 넘기려 한다 --- C 가 부를 수 있는 문이 없다 /// en: ✘ tries to hand C the address of an ordinary op --- it has no door C can call
+  let f u64 unsafe_fn by_value . .
+  return f. .
+end .

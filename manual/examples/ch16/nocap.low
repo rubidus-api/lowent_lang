@@ -1,0 +1,10 @@
+module nocap .
+rem expect: E-EFFECT-NO-CAP
+
+use stdio .
+
+proc main output u8 . effects io .
+do
+  let n usize stdio.write 1 "hello\n" . .
+  return cast u8 n. . .
+end .

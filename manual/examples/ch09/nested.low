@@ -1,0 +1,25 @@
+module nested .
+rem run: table 7
+
+rem ko: 배열 안의 배열 --- 2 줄 3 칸. `idx g. r.` 은 그 줄을 보는 슬라이스다(복사 없음) /// en: an array of arrays --- 2 rows of 3. `idx g. r.` is a view of that row (no copy)
+struct board do
+  id u8 .
+  cells array 2 array 3 u8 .
+end .
+
+fn rowsum input g array 2 array 3 u8 . input r usize . output u64 .
+  requires lt r. 2 . .
+do
+  var s u64 0 .
+  for x idx g. r. . do
+    set s. add s. widen u64 x. . . .
+  end .
+  return s. .
+end .
+
+export fn table input a u8 . output u64 .
+do
+  var b lit board do id 1 . cells lit array 2 array 3 u8 lit array 3 u8 1 2 3 . _ . . end . .
+  set idx idx field b. cells . 1 . 2 . a. .
+  return add mul rowsum field b. cells . 0 . 100 . rowsum field b. cells . 1 . . .
+end .

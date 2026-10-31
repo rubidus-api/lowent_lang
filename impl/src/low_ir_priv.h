@@ -516,7 +516,8 @@ typedef struct {
     bool             shadow;      /* 원소가 그림자 배치다 — 슬라이스 칸의 주소는 rel[] 이 든다(bytes 의 주소 자리는 0) */
     proven_size_t    nrel;
     struct { proven_u32 off; proven_u8 *b; proven_size_t n; } rel[IR_CTFE_MAXREL];   /* 주소 자리 off 가 가리키던 바이트(malloc) */
-    const void      *emit_ir;     /* 이 답을 이미 낸 IR(같은 단위 안에서 같은 한 자리를 다시 쓴다) · 그 항목 */
+    proven_u64       emit_gen;    /* 이 답을 이미 낸 짓기의 번호(g_ir_build_gen — 같은 짓기 안에서 같은 한 자리를 다시 쓴다) · 그 항목.
+                                     ★ 전에는 IR 의 주소로 가렸다 — 미리 짓기 바퀴마다 IR 이 같은 스택 주소에 서서 다른 IR 의 번호를 다시 썼다(2026-10-31) */
     proven_size_t    emit_si;
     proven_u8       *bytes;       /* 돌린 뒤의 바이트(작은 끝, malloc — 표를 다시 채울 때 놓는다) */
     proven_size_t    nbytes;
@@ -528,13 +529,15 @@ typedef struct {
     proven_size_t    ntn;
     /* 슬라이스 입력(문자열 · `text` · 상수 나열 · 배열 모듈 상수) — 인자 자리마다 */
     proven_u8str_view_t sty[LOW_HDR_MAXP];   /* 입력 j 가 구조체면 그 이름(argb 가 그 바이트 배치) — RFC-0015 §6.4 */
-    bool             stsl[LOW_HDR_MAXP];      /* 입력 j 가 그 구조체의 슬라이스다(`slice S` — 원소마다 그 배치, 슬라이스 칸은 주소 + 길이) */
+    bool             stsl[LOW_HDR_MAXP];
+    bool             argaddr;     /* 입력 바이트에 처리기의 주소가 들었다(주소를 다시 적은 답을 건넸다) — 그 바이트는 답 간직의 열쇠가 못 된다 */      /* 입력 j 가 그 구조체의 슬라이스다(`slice S` — 원소마다 그 배치, 슬라이스 칸은 주소 + 길이) */
     proven_size_t    nsty;
     bool             argsl[LOW_HDR_MAXP];
     proven_u8       *argb[LOW_HDR_MAXP];    /* malloc */
     proven_size_t    argn[LOW_HDR_MAXP];
 } ctfe_call_t;
 extern ctfe_call_t g_cc[IR_CTFE_MAXCALL];
+extern proven_u64 g_ir_build_gen;   /* low_ir_build_impl 이 짓기마다 하나씩 올린다(0 은 «아직 안 냈다») */
 void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce);   /* 미리 짓는 동안 자리의 인자(정수 · 바이트)를 적는다 */
 extern proven_size_t g_ncc;
 extern bool g_cc_prepass;

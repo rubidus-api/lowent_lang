@@ -65,3 +65,16 @@ export fn total output usize . do
   for m MSGS. do set t. add t. len field m. en . . . . end .
   return t. .
 end .
+
+rem 구조체 슬라이스 입력(주소를 다시 적은 표) — 영어 길이 합 14. 이 입력의 바이트에는 처리기의 주소가 들어 답을 간직하지 않는다
+fn en_sum input t slice msg . output usize . do
+  var s usize 0 .
+  for m t. do set s. add s. len field m. en . . . . end .
+  return s. .
+end .
+
+let ENSUM usize comptime en_sum MSGS. . . .
+
+export fn ensum output usize . do
+  return ENSUM. .
+end .

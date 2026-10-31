@@ -2817,7 +2817,7 @@ static bool ir_ctfe_answer_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 lin
         proven_i32 sh = sf ? ir_alloc_shadow(c->out, si) : -1;
         if (sh < 0) { ir_fail(c, "E-COMPTIME-NONCONST", "the struct elements of this compile-time answer cannot be laid out here", line); return true; }
         low_ir_t *o = c->out;
-        if (ac->emit_ir != (const void *)o) {
+        if (ac->emit_gen != g_ir_build_gen) {
             if (o->nstrs >= IR_MAXSTRS || o->nsrel + ac->nrel > IR_MAXSREL || o->strbuf_len + ac->nbytes > o->strbuf_cap) {
                 ir_fail(c, "E-IR-UNSUP", "too many bytes or addresses of constant data in one unit", line); return true;
             }
@@ -2834,7 +2834,7 @@ static bool ir_ctfe_answer_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 lin
             o->strs[me] = (proven_u8str_view_t){ .ptr = dst, .size = ac->nbytes };
             o->strew[me] = 1; o->strrel[me] = 1;
             for (proven_size_t q = 0; q < ac->nrel; q++) o->srel[o->nsrel++] = (struct low_ir_srel){ (proven_u32)me, ac->rel[q].off, tsi[q] };
-            ac->emit_ir = (const void *)o; ac->emit_si = me;
+            ac->emit_gen = g_ir_build_gen; ac->emit_si = me;
         }
         ir_emit(c, IRW_STR, (proven_i64)ac->emit_si);
         ir_emit(c, IRW_VARRAY, (proven_i64)o->structs[sh].total | IR_STRUCT_BIT | ((proven_i64)sh << 20));
@@ -2948,6 +2948,7 @@ static bool ir_ctfe_tn_bytes(ir_ctx_t *c, const ctfe_call_t *ac, proven_size_t a
 //   (바이트 배치가 있는 구조체), 또는 번역 때 돈 `fn` 의 구조체 배열 · 슬라이스 답(모듈 상수 · 그 자리의 부름). 그 답이 슬라이스 칸을 품었으면
 //   (그림자 배치) 주소 자리에 그 답이 간직한 바이트의 주소를 다시 적는다 — `fn` 이 그 칸을 읽을 수 있어야 하고, 답이 그 안을 가리키면
 //   ctfe_take_relocs 가 그 바이트를 알아본다.
+static bool g_ctfe_arg_addr;
 static bool ir_ctfe_sslice_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
     while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
     if (!a) return false;
@@ -2968,6 +2969,7 @@ static bool ir_ctfe_sslice_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
         proven_u8 *b = malloc(oc->nbytes ? oc->nbytes : 1);
         if (!b) return false;
         if (oc->nbytes) memcpy(b, oc->bytes, oc->nbytes);
+        if (oc->nrel) g_ctfe_arg_addr = true;   // 이 입력의 바이트에는 주소가 든다 — 같은 주소가 다른 내용을 가리킬 수 있으니 간직하지 않는다
         for (proven_size_t q = 0; q < oc->nrel; q++) {   // 주소 자리(0 으로 둔 것)에 간직한 바이트의 주소를
             const proven_u8 *pp = oc->rel[q].b;
             if (oc->rel[q].off + sizeof pp <= oc->nbytes) memcpy(b + oc->rel[q].off, &pp, sizeof pp);
@@ -3123,8 +3125,11 @@ void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce) {
         bool u2;
         free(cc->argb[j]); cc->argb[j] = NULL; cc->argsl[j] = false;
         if (j < cc->nsty && cc->sty[j].size) {   // 구조체 입력 — 그 구조체의 바이트로(슬라이스면 원소마다)
+            g_ctfe_arg_addr = false;
             if (cc->stsl[j] ? ir_ctfe_sslice_arg(c, cc->sty[j], ce->kids[j + 1], &cc->argb[j], &cc->argn[j])
-                            : ir_ctfe_struct_arg(c, cc->sty[j], ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) { cc->argsl[j] = true; continue; }
+                            : ir_ctfe_struct_arg(c, cc->sty[j], ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) {
+                cc->argsl[j] = true; if (g_ctfe_arg_addr) cc->argaddr = true; continue;
+            }
             all = false; continue;
         }
         if (low_ctfe_value(ce->kids[j + 1], &nm, &cc->args[j], &u2)) continue;

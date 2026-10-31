@@ -3247,7 +3247,7 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                 a[q] = c->argsl[q] ? (low_ir_arg_t){ .is_slice = true, .bytes = c->argb[q], .n = c->argn[q] }
                                    : (low_ir_arg_t){ .is_slice = false, .v = c->args[q] };
             proven_size_t na = c->nargs;
-            if (!c->shadow && ctfe_cache_get(&ir, di, c, a, na)) { progress = true; continue; }   // 주소를 품은 답은 간직하지 않는다   // §6.4 — 같은 `fn` · 같은 입력이면 다시 돌리지 않는다
+            if (!c->shadow && !c->argaddr && ctfe_cache_get(&ir, di, c, a, na)) { progress = true; continue; }   // 주소를 품은 답은 간직하지 않는다   // §6.4 — 같은 `fn` · 같은 입력이면 다시 돌리지 않는다
             proven_i64 rowmeta = 0;
             if (c->arr) {   // §6.3 — 결과 자리를 준다(0 으로 채운 N×|T| 바이트). 돈 뒤의 바이트가 답이다
                 c->nbytes = c->nelem * ir_field_size(c->elem);
@@ -3297,7 +3297,7 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                 else c->nelem = c->nbytes / tot;
             }
             if (rr.ok && (c->arr || c->sl) && c->shadow && !c->why[0]) ctfe_take_relocs(&ir, c, a, na);
-            if (rr.ok && !c->why[0]) { c->v = rr.value; c->ok = true; progress = true; if (!c->shadow) ctfe_cache_put(&ir, di, c, a, na); }
+            if (rr.ok && !c->why[0]) { c->v = rr.value; c->ok = true; progress = true; if (!c->shadow && !c->argaddr) ctfe_cache_put(&ir, di, c, a, na); }
             else if (rr.ok) progress = true;
             else {
                 const low_diag_t *d0 = dg.len ? (const low_diag_t *)proven_array_get(&dg, 0) : NULL;
@@ -3331,7 +3331,9 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     low_tc_notes_close();
     return ir;
 }
+proven_u64 g_ir_build_gen;
 static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr) {
+    g_ir_build_gen++;
     // ★★★ `build <mode> .` — **처리표를 켠다** (RFC-0008 §6.5).
     g_bmode = IR_BM_DEBUG; g_bdropped = 0;
     cert_reset();      // ★ 증명서는 **이 빌드의 것**이다 — 앞선 빌드의 것을 물려받지 않는다

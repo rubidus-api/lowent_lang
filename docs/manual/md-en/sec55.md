@@ -7,12 +7,14 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | **Code** | **Meaning** | **Shown in** |
 |---|---|---|
 | `E-ACCESS-MODE` | the body breaks the read or write promise made with `access` | chapter 27 |
+| `E-ACTOR-FAILURE` | an actor declares `failure` twice | chapter 25 |
 | `E-ACTOR-FIELD` | an actor’s state field is read from outside | chapter 25 |
 | `E-ACTOR-STATE-REF` | a borrow is kept in an actor state field | chapter 25 |
 | `E-ACTOR-UNINIT` | a just-spawned actor’s slice state field is read before it is set | chapter 20 |
 | `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `use` | chapter 20 |
 | `E-ALLOC-NESTED` | allocated from an outer source while an inner region of the same root is open | chapter 18 |
 | `E-ALLOC-NOCAP` | declares `alloc` but receives no allocation capability | chapter 16 |
+| `E-ALLOC-NOROOT` | an allocation does not name the root it carves from as its first operand | chapter 20 |
 | `E-ALLOC-NOSOURCE` | a call draws from an allocator but no fitting one is visible in this op | chapter 20 |
 | `E-ALLOC-OUTLIVES` | region bytes handed to an actor born outside the region | chapter 18 |
 | `E-ALLOC-SHARED` | an allocator whose cursor is not atomic is handed to a task | chapter 26 |
@@ -28,11 +30,12 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 16, chapter 20, chapter 25 |
 | `E-CAP-KIND` | a capability of the wrong kind was handed over | chapter 16 |
 | `E-CAP-LOCAL` | a received capability was copied into a local name | chapter 16 |
-| `E-CAP-OUTPUT` | the output of an op is a capability | chapter 16 |
 | `E-CAP-MISSING` | a capability-requiring core op was not given its capability as the first operand | chapter 16 |
+| `E-CAP-OUTPUT` | the output of an op is a capability | chapter 16 |
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
 | `E-CHAR-WIDTH` | a character literal is not a single character | chapter 3 |
 | `E-CLAUSE-ORDER` | the clauses of an op header are out of the fixed order | chapter 2, chapter 3, chapter 22 |
+| `E-CLOSER-EXTRA` | a stop that closes nothing | chapter 7 |
 | `E-COMPTIME-ARG` | a run-time value in a `comptime` input position | chapter 22 |
 | `E-CONC-ALONE` | a task group spawns one task that waits for a peer | chapter 26 |
 | `E-CONC-DEADLOCK` | every task in the group receives and none sends | chapter 26 |
@@ -41,10 +44,13 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-CONTRACT-DEAD` | declares an error that `requires` already excludes | chapter 14 |
 | `E-CONTRACT-IMPOSSIBLE` | a call with constant arguments breaks the callee’s `requires` | chapter 14, chapter 35 |
 | `E-CONTRACT-UNSAT` | two preconditions that cannot both hold | chapter 14 |
+| `E-CTRL-NODO` | something other than a block `do … end` stands where one belongs | chapter 3 |
 | `E-DEP-MISSING` | the file at a `use … from` place cannot be read | chapter 21 |
+| `E-DOT-MISSING` | a stop `.` that closes a binding is missing | chapter 3, chapter 7, chapter 48 |
 | `E-EFFECT` | performs an effect its `effects` clause does not declare | chapter 15, chapter 20, chapter 26 |
 | `E-EFFECT-CALC` | a pure `fn` performs an effect | chapter 1, chapter 5, chapter 15, chapter 16, chapter 18, chapter 24 |
 | `E-EFFECT-DUP` | the same atom twice in an `effects` clause | chapter 15, chapter 44 |
+| `E-EFFECT-MISSING` | a `proc` head has no `effects` clause | chapter 23 |
 | `E-EFFECT-NO-CAP` | declares `io` (or similar) without a capability that authorises it | chapter 2, chapter 16 |
 | `E-EFFECT-NONE-MIX` | `none` written together with a real effect | chapter 15 |
 | `E-EFFECT-PURITY` | a `fn` writes state visible to its caller or actor | chapter 5, chapter 15, chapter 25 |
@@ -55,10 +61,9 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-ENUM-DOT` | an enum variant not closed with `.` | chapter 10 |
 | `E-ENUM-INFINITE` | a variant embeds its own type by value | chapter 10 |
 | `E-ERR-UNDECLARED` | returns an error not in its `errors` clause | chapter 11 |
-| `E-ERRORS-STATE` | an `errors` condition reads an actor state field | chapter 25 |
+| `E-ERRORS-STATE` | an `errors` condition reads a name the body can change | chapter 25 |
 | `E-ESCAPE` | a reference to a local escapes the op | chapter 12 |
 | `E-EXCL` | overlapping borrows or owner access to the same value | chapter 12, chapter 20, chapter 26, chapter 43 |
-| `E-EXPR-APP` | a call inside an `expr` island is not parenthesised | chapter 8 |
 | `E-EXPR-CHAIN` | comparisons chained in an `expr` island | chapter 3 |
 | `E-EXPR-UNARY` | a unary operator in an `expr` island | chapter 8 |
 | `E-FFI-LINK` | an `extern` op does not name the C symbol it calls | chapter 29 |
@@ -71,24 +76,30 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-FN-NOTEXPORT` | `unsafe_fn` names an op that is not `export extern` | chapter 29 |
 | `E-FOLD-OP` | a `pipe` stage names an op that does not exist | chapter 24 |
 | `E-FOLD-ORDER` | a fold stage op declares its accumulator with a type other than its result | chapter 24 |
-| `E-GROUP-UNCLOSED` | an unclosed parenthesis | chapter 3 |
+| `E-FOR-OLD` | an old `for` form (`count`, `range`, recurrence) | chapter 7 |
 | `E-GUARD-FALLTHROUGH` | the `else` of a `guard` does not leave | chapter 7 |
 | `E-HEAP-NOHOST` | asks for the growing root on a freestanding target | chapter 18 |
 | `E-IF-VALUE` | `if` used as a value | chapter 6 |
-| `E-IMMUTABLE` | `set` on a name bound with `let` | chapter 6 |
-| `E-IR-ARITY` | an op is called with the wrong number of arguments | chapter 5, chapter 48 |
-| `E-IR-UNDEF` | a name unknown at that place | chapter 6, chapter 7, chapter 21, chapter 22, chapter 25 |
+| `E-IMMUTABLE` | `set` on a name bound with `let` | chapter 6, chapter 10 |
+| `E-IR-ARITY` | an op is called with the wrong number of arguments | chapter 5 |
+| `E-IR-UNDEF` | a name unknown at that place | chapter 6, chapter 21, chapter 22, chapter 25 |
 | `E-ISR-CALLED` | an interrupt handler called from code | chapter 30 |
 | `E-ISR-EFFECT` | an interrupt handler does not declare `effects device` | chapter 30 |
 | `E-ISR-PARAMS` | an interrupt handler takes parameters | chapter 30 |
-| `E-LET-NOVALUE` | nothing after `be` | chapter 6 |
+| `E-LET-BE` | the old form `let x be …` — `be` is not a word of the language | chapter 6 |
+| `E-LET-NOVALUE` | no value after the type | chapter 6 |
+| `E-LIT-ESCAPE` | a view of a list literal’s frame storage leaves the block that declared it | chapter 9 |
+| `E-LOCAL-CAPTURE` | a local op reads a name of the op around it (there is no hidden capture) | chapter 5 |
 | `E-LOCK-NOTYET` | shared lock types are not built yet | chapter 26 |
+| `E-LOOP-COUNT` | the count after `break` / `continue` is not a literal from 1 up to the loops around it | chapter 7 |
 | `E-MATCH-INEXHAUSTIVE` | a `match` does not cover every case | chapter 7, chapter 10 |
 | `E-MATCH-REDUNDANT` | a `match` arm can never run (an arm after `_`, overlapping ranges) | chapter 11 |
+| `E-MATRIX-INDEX` | a matrix is indexed with a number of indexes other than its dimensions | chapter 9 |
 | `E-METHOD-RECV` | an attached op’s receiver is not its first input | chapter 23 |
 | `E-METHOD-UNDEF` | no op of that name is attached to the receiver’s type | chapter 22, chapter 23 |
 | `E-MMIO-BYVALUE` | an mmio register block taken by value | chapter 30 |
 | `E-MMIO-PERM` | writes a read-only register | chapter 30 |
+| `E-MMIO-PLAIN` | a device register is read or written like an ordinary field | chapter 30 |
 | `E-MONO-NOTYPE` | a generic call gives no leading type argument | chapter 22 |
 | `E-MREF-SLICE` | `mut ref slice` used | chapter 12 |
 | `E-NAME-BUILTIN` | a core op’s name is used for a declaration or local | chapter 5, chapter 6 |
@@ -106,38 +117,41 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-PAR-NOLOOP` | the `parallel` clause finds no loop to split | chapter 27 |
 | `E-PAR-READ` | a split loop reads another iteration’s element | chapter 27 |
 | `E-PAR-WRITE` | a split loop writes another iteration’s element | chapter 27, chapter 45 |
+| `E-PIPE-CONTEXT-TYPE` | a `with` context is a value that holds a reference (an address) | chapter 24 |
 | `E-PIPE-NO-TERMINAL` | a stage after the terminal | chapter 24 |
 | `E-PIPE-STAGE` | a word that is not a `pipe` stage | chapter 24 |
 | `E-PROFILE-LEVEL` | uses concurrency the build profile does not provide | chapter 25 |
 | `E-REGION-ESCAPE` | carries region bytes out of the region | chapter 18 |
-| `E-RETURN-PARTIAL` | some path does not return a value | chapter 3, chapter 5, chapter 7 |
+| `E-RETURN-PARTIAL` | some path does not return a value | chapter 5, chapter 7 |
 | `E-SPAWN-SCOPE` | spawns a task outside a `task_group` | chapter 26 |
 | `E-STMT-ELSE` | `else` sits inside the block | chapter 7 |
 | `E-TIER-EFFECT` | an effect the declared machine tier cannot carry | chapter 30 |
-| `E-TOPLEVEL` | something that cannot appear at top level is at top level | chapter 3 |
 | `E-TRAIT-EFFECT` | the implementing op has more effects than the signature | chapter 23 |
 | `E-TRAIT-MISSING` | an op required by the trait is missing | chapter 23 |
 | `E-TRAIT-SIG` | `fn`/`proc` in a signature, or a parameter-count mismatch | chapter 23 |
 | `E-TRY-NORESULT` | `try` used in an op that cannot return that error | chapter 11 |
-| `E-TYPE-ARG` | an argument’s type does not match the parameter | chapter 12 |
+| `E-TYPE-ARG` | an argument’s type does not match the parameter | chapter 8, chapter 12 |
 | `E-TYPE-ARGMUT` | a read-only value is passed where it would be written (`mut_ref` of a `let`) | chapter 9, chapter 12 |
-| `E-TYPE-BITCAST` | `bit_cast` target is not a plain scalar | chapter 20 |
+| `E-TYPE-BITCAST` | `bit_cast` target is not a plain scalar | chapter 13, chapter 20 |
 | `E-TYPE-COLLECT` | `collect into` would put a wider value into a narrower buffer | chapter 24 |
 | `E-TYPE-COND` | a non-boolean in a condition | chapter 4 |
-| `E-TYPE-DECL` | `be` in a type declaration | chapter 13 |
 | `E-TYPE-FIELD` | a field is missing or unknown when building a struct | chapter 10 |
 | `E-TYPE-INSTANCE` | mixes different instances of the same generic | chapter 35 |
-| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` to `bool`) | chapter 8, chapter 10, chapter 13 |
+| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` to `bool`) | chapter 10, chapter 13 |
 | `E-TYPE-MIX` | float and integer literals mixed in one calculation | chapter 4 |
-| `E-TYPE-MUT` | writes an element of a non-`mut` slice | chapter 9 |
-| `E-TYPE-NOMINAL` | mixes nominally distinct types | chapter 13 |
+| `E-TYPE-MUT` | writes an element of a non-`mut` slice | chapter 9, chapter 13 |
+| `E-TYPE-NOMINAL` | mixes nominally distinct types | chapter 4, chapter 13 |
 | `E-TYPE-ORDER` | the element type of a counted type written before the count (the old order) | chapter 9 |
 | `E-TYPE-REF` | writes through a shared `ref` | chapter 12 |
 | `E-TYPE-REFVAL` | a reference is used as if it were a value | chapter 12 |
-| `E-TYPE-RETURN` | the returned value does not match the op’s output type | chapter 11, chapter 31 |
+| `E-TYPE-RETURN` | the returned value does not match the op’s output type | chapter 10, chapter 11, chapter 31 |
+| `E-TYPE-ROWNAME` | a row type (`slice`, `array`, `matrix`) is given another name | chapter 13 |
 | `E-TYPE-SIGN` | mixes signs with no value-preserving widening | chapter 4, chapter 39, chapter 40 |
-| `E-TYPE-WIDTH` | the value does not fit the declared type | chapter 3, chapter 4, chapter 13 |
+| `E-TYPE-WIDTH` | the value does not fit the declared type | chapter 3, chapter 4, chapter 8, chapter 13 |
 | `E-UNSAFE-UNDECLARED` | declares the `unsafe` effect but the op is not marked `unsafe` | chapter 29 |
+| `E-USE-ALIASED` | a module renamed with `as` is called by its original name | chapter 21 |
+| `E-USING-OLD` | the allocator clause is written with the old word `using` (write `use`) | chapter 20 |
+| `E-VALUE-DISCARDED` | a statement computes a value and drops it, so nothing changes | chapter 5 |
 | `E-VEC-SPLAT` | `splat` was written inline in an expression | chapter 27 |
 | `E-VISIBILITY` | reaches a non-exported name of another module | chapter 21 |
 | `E-VOCAB-REMOVED` | a removed word or spelling | chapter 3, chapter 5, chapter 7, chapter 15, chapter 48 |
@@ -145,6 +159,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `W-EFFECT-OVER` | an effect declared but never performed (warning) | chapter 15, chapter 16 |
 | `W-EXPORT-HIDDEN` | an exported signature names a type the module keeps to itself | chapter 21 |
 | `W-NOT-YET` | a word accepted by name that has no meaning yet | chapter 13 |
+| `W-RESULT-DISCARD` | a `result` is dropped as a statement — the failure leaves no trace | chapter 17 |
 | `W-USE-EXTERNAL` | imports a module not in the compilation unit (warning) | chapter 32 |
 
 *Table 50.1 — Diagnostics shown by the examples*
@@ -180,6 +195,9 @@ These do not appear in the examples but can come up. Most are stops by the **VM*
 | `W-UNBOUND` | a named `contract` is declared but no op names it with `satisfies` |
 | `W-RFC-PENDING` | a feature whose design is still at the RFC stage was used — nothing in the program to fix |
 | `W-CBE-SLOW` | this op is lowered to the slow path (tagged values) in native code — `--why-slow` says why, op by op |
+| `E-GROUP-UNCLOSED` | an opening `(` is never closed — write the matching `)` |
+| `E-TOPLEVEL` | something that cannot appear at top level is at top level — statements go inside an op’s body |
+| `E-TYPE-DECL` | a type declaration in the wrong form — a struct is `struct N … end`, an alias `type N T .` (no `be`) |
 
 *Table 50.3 — At translation time — not in the examples*
 

@@ -906,7 +906,7 @@ small() = 120
 sq7() = 49
 $ lowentc --run cube_sum compt_table.low
 cube_sum() = 224
-</code></pre></div></div><p>An array’s elements may also be <code>bool</code> or rows (an array of arrays). A <code>fn</code> that returns a slice or a struct runs at translation time too. A slice answer becomes read-only bytes like an array answer, and a struct answer becomes a value of that struct — the same as a <code>lit</code> with the computed value in each field. Besides integers and <code>bool</code>, an input may be a slice whose bytes are fixed at translation time: a quoted string, a <code>text</code> literal, a list of constants, or an array or slice module constant. A slice of structs as the answer and a struct as an input are still refused.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_values.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_values .
+</code></pre></div></div><p>An array’s elements may also be <code>bool</code> or rows (an array of arrays). A <code>fn</code> that returns a slice or a struct runs at translation time too. A slice answer becomes read-only bytes like an array answer, and a struct answer becomes a value of that struct — the same as a <code>lit</code> with the computed value in each field. Besides integers and <code>bool</code>, an input may be a slice whose bytes are fixed at translation time: a quoted string, a <code>text</code> literal, a list of constants, or an array or slice module constant.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_values.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_values .
 <em><span class="tok-c">rem run: hello_len</span></em>
 <em><span class="tok-c">rem run: origin_y</span></em>
 <em><span class="tok-c">rem run: vowels</span></em>
@@ -970,6 +970,45 @@ $ lowentc --run origin_y compt_values.low
 origin_y() = -3
 $ lowentc --run vowels compt_values.low
 vowels() = 6
+</code></pre></div></div><p>A struct can go in too: a <code>lit</code> with a constant in each field, or the struct answer of a <code>fn</code> run at translation time (the struct needs a byte layout — no slice or array fields). A slice of structs can be an input and an answer. A <code>fn</code> run at translation time builds no new memory, so a slice answer is a piece of its input or a constant. A struct answer with a 128-bit field keeps the upper half too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_structs.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_structs .
+<em><span class="tok-c">rem run: scaled</span></em>
+<em><span class="tok-c">rem run: rest_x</span></em>
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u16</span></strong> .
+  y <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem a `fn` that takes a struct — a struct goes into a compile-time call</span></em>
+<strong><span class="tok-k">fn</span></strong> scale <strong><span class="tok-k">input</span></strong> p pt . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> pt .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x mul field p. x . k. . . y mul field p. y . k. . . <strong><span class="tok-k">end</span></strong> . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem takes a slice of structs and returns a piece of it — no new storage</span></em>
+<strong><span class="tok-k">fn</span></strong> from <strong><span class="tok-k">input</span></strong> ps <strong><span class="tok-k">slice</span></strong> pt . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">slice</span></strong> pt .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> subslice ps. k. len ps. . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">let</span></strong> P pt <strong><span class="tok-k">comptime</span></strong> scale <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">3</span> . y <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> . <span class="tok-n">10</span> . . .
+<strong><span class="tok-k">let</span></strong> REST <strong><span class="tok-k">slice</span></strong> pt <strong><span class="tok-k">comptime</span></strong> from <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">slice</span></strong> pt <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">5</span> . y <span class="tok-n">6</span> . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">8</span> . <strong><span class="tok-k">end</span></strong> . . <span class="tok-n">1</span> . . .
+
+<em><span class="tok-c">rem 30 + 40</span></em>
+<strong><span class="tok-k">fn</span></strong> scaled <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add field P. x . field P. y . . .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem the first element of the piece — 5</span></em>
+<strong><span class="tok-k">fn</span></strong> rest_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> field idx REST. <span class="tok-n">0</span> . x . .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run scaled compt_structs.low
+scaled() = 70
+$ lowentc --run rest_x compt_structs.low
+rest_x() = 5
 </code></pre></div></div><p>A <code>fn</code> run at translation time is pure, so it allocates no new memory. It can still build a table: the place for the answer comes from outside (the place of an array result), and the slice fields in the answer point at pieces of the input text. The tool keeps those pieces as read-only bytes and makes the fields point there. A struct with slice fields can be an element of a list and of an array result (each slice field is two words, an address and a length). If you do not know the number of lines in advance, give generous room and count the filled lines separately. If the room runs out, the write to the next element stops out of bounds, and translation is refused at that constant’s declaration.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_messages.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_messages .
 <em><span class="tok-c">rem run: lines</span></em>
 <em><span class="tok-c">rem run: thanks_len</span></em>
@@ -1036,6 +1075,49 @@ END
 lines() = 2
 $ lowentc --run thanks_len compt_messages.low
 thanks_len() = 6
+</code></pre></div></div><p>To keep the source text of a table in a file instead of in the program, use <code>include_text "&lt;path>"</code>. When translating, the tool reads that file and hands its bytes (<code>slice u8</code>) to a <code>fn</code> run at translation time. The path is read from the folder of this source file, so the same file is read wherever you build. A path outside that folder (absolute, or with <code>..</code>) is refused. <code>include_text</code> goes only in the input place of a <code>fn</code> run at translation time — anywhere else it would look like reading a file while the program runs, so it is refused with <code>E-INCLUDE-PLACE</code>. When the file changes, the <code>fn</code> runs again instead of using a kept answer.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt_include.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt_include .
+<em><span class="tok-c">rem run: words</span></em>
+<em><span class="tok-c">rem run: longest</span></em>
+
+<em><span class="tok-c">rem counts the lines</span></em>
+<strong><span class="tok-k">fn</span></strong> count_lines <strong><span class="tok-k">input</span></strong> txt <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> c txt. <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">if</span></strong> eq c. <span class="tok-n">10</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> n. add n. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n. .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem the length of the longest line</span></em>
+<strong><span class="tok-k">fn</span></strong> longest_line <strong><span class="tok-k">input</span></strong> txt <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> best <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> cur <strong><span class="tok-t">usize</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> c txt. <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq c. <span class="tok-n">10</span> . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">if</span></strong> gt cur. best. . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> best. cur. . <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">set</span></strong> cur. <span class="tok-n">0</span> .
+    <strong><span class="tok-k">end</span></strong> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> cur. add cur. <span class="tok-n">1</span> . . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> best. .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem reads `compt_words.txt` next to this file when translating</span></em>
+<strong><span class="tok-k">let</span></strong> WORDS <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">comptime</span></strong> count_lines include_text <span class="tok-s">"</span><span class="tok-s">compt_words.txt</span><span class="tok-s">"</span> . . . .
+<strong><span class="tok-k">let</span></strong> LONGEST <strong><span class="tok-t">usize</span></strong> <strong><span class="tok-k">comptime</span></strong> longest_line include_text <span class="tok-s">"</span><span class="tok-s">compt_words.txt</span><span class="tok-s">"</span> . . . .
+
+<strong><span class="tok-k">fn</span></strong> words <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> WORDS. .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> longest <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">usize</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> LONGEST. .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run words compt_include.low
+words() = 3
+$ lowentc --run longest compt_include.low
+longest() = 6
 </code></pre></div></div><p>One <code>fn</code> run at translation time must finish within 1,000,000 steps. For a table that takes longer, write <code>build comptime_steps 50000000 .</code> in <code>pkg.low</code> or give <code>--comptime-steps 50000000</code> on the command line (the command line wins). If the environment variable <code>LOWENT_CTFE_CACHE</code> names a folder, the answers are kept there and used again by the next translation. A kept answer is not used if the <code>fn</code>’s definition or its inputs changed, or if the tool version, the target or the step budget differ.</p><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
 <em><span class="tok-c">rem run: in_range 3 1 5</span></em>
 <em><span class="tok-c">rem run: in_range 9 1 5</span></em>

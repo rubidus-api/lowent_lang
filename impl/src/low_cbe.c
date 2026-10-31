@@ -700,6 +700,10 @@ static void cbe_mark_depth(const low_ir_t *ir) {
 static bool cbe_ret_scalar(proven_size_t di) { return di < 512 && g_retk[di] == K_INT; }
 static unsigned char g_retopt[512];   // ★ K_OPT 반환이 **레코드**를 감쌌으면 그 sidx+1 (0=스칼라)
 static unsigned char g_ret_optrec;    // cbe_kind_run 이 RET 에서 채운다 → cbe_kind_ok 가 g_retopt 로
+// ★★ 2026-10-31 (W-20261031-1610) — **돌려주는 슬라이스의 원소 폭 · 표식**(부동 · 부호). 전에는 폭 1 의 바이트 슬라이스만 돌려줄 수 있었다 — 받는 쪽이
+//   폭을 몰라 `index` 가 바이트로 읽었기 때문이다(VM ≠ native). 이제 op 마다 적어 두고 부르는 쪽 · 경계 어댑터가 그것을 읽는다.
+static unsigned char g_retve[512], g_retfl[512];
+static unsigned char g_ret_ve, g_ret_fl; static bool g_ret_veset;
 // ★★★ **도구는 자기가 못 하는 일을 말해야 한다.** 어떤 op 이 왜 느린 경로에 남았는지
 //   물어볼 수 없으면, 그 목록은 **아무도 줄이지 못한다**(그리고 아무도 재지 않는다).
 static char g_why[512][96];
@@ -2229,8 +2233,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (rk == K_OPT && st.n && st.ve[st.n-1]) g_ret_optrec = st.ve[st.n-1];
                 // ★ 슬라이스를 **돌려줄 수 있다** — 다만 그 뜻(원소 수 vs 바이트)이 흔들리면 안 되므로
                 //   바이트 슬라이스 def 에서만. 구조체·뷰 반환은 아직 안 내린다.
-                if (rk == K_SL && cbe_def_esz(d) > 1) {
-                    snprintf(g_sub, sizeof g_sub, "returns a typed slice (element width > 1)"); return false; }
+                if (rk == K_SL && st.n) {   // 폭 · 표식을 적는다 — 반환이 여럿이면 같아야 한다
+                    const unsigned char ve_ = st.ve[st.n-1] ? st.ve[st.n-1] : 1, fl_ = st.fl[st.n-1];
+                    if (!g_ret_veset) { g_ret_ve = ve_; g_ret_fl = fl_; g_ret_veset = true; }
+                    else if (g_ret_ve != ve_ || g_ret_fl != fl_) {
+                        snprintf(g_sub, sizeof g_sub, "two `return`s give slices of different element widths"); return false; }
+                }
                 // ★★★ **반환하는 슬라이스가 타입 슬라이스(원소폭>1)면 빠른 경로 밖으로.** cbe_def_esz 는
                 //   **파라미터** 폭만 본다 — `mk4 input b (slice u8) . output slice u32 . do return
                 //   view_array u32 b .` 은 param 이 바이트라 esz=1 로 통과했지만, **반환은 u32 슬라이스**
@@ -2238,11 +2246,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   `index (mk4 c) i` 가 stride 1 로 읽어 VM(원소 i)≠native(바이트 i) 발산했다.
                 //   실제 반환 슬라이스의 추적된 원소폭으로 판정한다 → 태그 경로로(부호형 i32 가 이미
                 //   그렇게 옳게 도는 것과 같은 자리). 바이트 슬라이스 반환(ve=1)은 그대로 빠른 경로.
-                if (rk == K_SL && st.n && st.ve[st.n-1] > 1) {
-                    snprintf(g_sub, sizeof g_sub, "returns a slice whose element width is > 1"); return false; }
+
                 // ★ `slice i8` 을 돌려주면 받는 쪽 슬롯이 부호 표식(fl=2)을 모른다 — 태그 경로로(2026-10-04).
-                if (rk == K_SL && st.n && st.fl[st.n-1]) {
-                    snprintf(g_sub, sizeof g_sub, "returns a slice of signed or float elements"); return false; }
+
                 // ★★★ **구조체 뷰를 돌려줄 수 있다** — 뷰는 (포인터,길이)라 lw_r.s 에 담기고,
                 //   받는 쪽은 **오프셋으로 읽는다**(원소 수 vs 바이트 갈림이 없다). K_SVIEW(구조체
                 //   슬라이스)는 아직 — 그건 byte-carry 가 걸린다.
@@ -2377,6 +2383,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   //   (반환이 정말 다르면 retk 가 어긋나 최종적으로 거절된다 — 낙관은 안전하다).
                   proven_size_t self = (proven_size_t)(d - ir->defs);
                   if (rk == 0xff && c == self) rk = (*retk == 0xff) ? K_INT : *retk;
+                  if (c == self && rk == K_SL && !g_ret_veset) { snprintf(g_sub, sizeof g_sub, "a recursive call returns a slice of a width not yet known"); return false; }
                   if (rk == 0xff) { snprintf(g_sub, sizeof g_sub, "callee's return kind unknown"); return false; }
                   st.o[st.n] = -1;
                   // ★★★ **호출 결과는 스택 잔재를 물려받으면 안 된다.**
@@ -2388,7 +2395,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   //   ⇒ 부가정보는 **피호출자의 기록에서** 온다. 스택 메모리에서 줍지 않는다.
                   st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0;
                   if (rk == K_OPT && c < 512) st.ve[st.n] = g_retopt[c];   // option 이 레코드를 감쌌으면 sidx+1
-                  if (rk == K_SL) st.ve[st.n] = 1;                          // 반환 슬라이스는 바이트만(RET 이 강제)
+                  if (rk == K_SL) {                                         // 반환 슬라이스의 폭 · 표식은 피호출자의 기록에서(2026-10-31)
+                      const bool me_ = c == self;
+                      st.ve[st.n] = me_ ? g_ret_ve : (c < 512 && g_retve[c] ? g_retve[c] : 1);
+                      st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
+                  }
                   st.k[st.n++] = rk; }
                 break;
             }
@@ -2499,10 +2510,10 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
         }
     }
-    g_ret_optrec = 0;
+    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0;
     if (!cbe_kind_run(ir, d, sc, at, lk, slot, &retk, rmap, lez, lln, lfl)) return false;
     proven_size_t di = (proven_size_t)(d - ir->defs);
-    if (di < 512) { g_retk[di] = (retk == 0xff) ? K_INT : retk; g_retopt[di] = g_ret_optrec; }
+    if (di < 512) { g_retk[di] = (retk == 0xff) ? K_INT : retk; g_retopt[di] = g_ret_optrec; g_retve[di] = g_ret_ve; g_retfl[di] = g_ret_fl; }
     return true;
 }
 
@@ -4823,7 +4834,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   스칼라 추출로 새어 뒤 field 가 rs[-1] 을 읽었다(ASan OOB · VM≠native).
                     ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
                     if (cwrapped && cidx < 512) ks.ve[ks.n] = g_retopt[cidx];
-                    else if (csl) ks.ve[ks.n] = 1;
+                    else if (csl) { ks.ve[ks.n] = g_retve[cidx] ? g_retve[cidx] : 1; ks.fl[ks.n] = g_retfl[cidx]; }
                     ks.k[ks.n++] = cwrapped ? g_retk[cidx] : cflt ? K_FLT : csl ? K_SL
                              : crec ? g_retk[cidx] : K_INT;
                 }
@@ -4934,7 +4945,7 @@ static bool cbe_c_name_ok(proven_u8str_view_t n) {
 //   ⇒ 여기서 **한 번** 계산해 `low_ir_plan_t` 에 적고, 세 자리는 그것을 **읽는다**.
 static bool pure_tab[512], sc_tab[512];
 static low_ir_plan_t g_plan[512];
-static char          g_plan_why[512][160];
+static char          g_plan_why[512][400];   // ★ 2026-10-31 — 160 바이트가 한글 까닭을 글자 가운데에서 잘라 --diag-json 이 UTF-8 이 아닌 줄을 냈다
 static const low_ir_t *g_planned_for;   // 같은 IR 이면 다시 안 센다(계산은 부작용이 크다)
 // ★ C 이름이 겹쳤는가 — 계획이 판정하고, 방출 시작점이 그것을 읽어 **멈춘다**(단계 W).
 static bool g_abi_dup;
@@ -5029,6 +5040,14 @@ void low_cbe_plan(const low_ir_t *ir) {
         pl->exported_symbol = (d->is_export && !d->is_extern && why == NULL);
         if (why && d->is_export && !d->is_extern) {
             snprintf(g_plan_why[i], sizeof g_plan_why[0], "%s", why);
+            {   // 넘쳐 잘렸으면 글자 경계까지 물린다(이어지는 바이트 10xxxxxx 를 남기지 않는다)
+                size_t L_ = strlen(g_plan_why[i]);
+                if (L_ + 1 >= sizeof g_plan_why[0]) {
+                    while (L_ && ((unsigned char)g_plan_why[i][L_ - 1] & 0xC0) == 0x80) L_--;
+                    if (L_ && (unsigned char)g_plan_why[i][L_ - 1] >= 0xC0) L_--;
+                    g_plan_why[i][L_] = 0;
+                }
+            }
             pl->why = g_plan_why[i];
         }
     }
@@ -6528,6 +6547,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       "        lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = r_.s.p, .n = r_.s.n };\n"
                       "        { lowv w_ = {0}; w_.tag = LWV_SOME; w_.box = lw_nbox++; return w_; } }\n", out);
             }
+            if (i < 512 && g_retk[i] == K_SL && (g_retve[i] > 1 || g_retfl[i]))   // ★ 타입 있는 슬라이스 반환 — 태그 경로의 VARRAY(원소 수 · 폭 · 표식)로
+                fprintf(out, "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = %d; sv_.i = %d; return sv_; }\n",
+                        (int)g_retve[i], g_retfl[i] == CBE_FL_FLT ? 0x10000 : g_retfl[i] == CBE_FL_SGN ? 0x20000 : 0);
             fputs("    if (r_.tag == 5) return lw_flt(r_.f);\n"
                   "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_SLICE; sv_.p = r_.s.p;"
                   " sv_.n = r_.s.n; return sv_; }\n"

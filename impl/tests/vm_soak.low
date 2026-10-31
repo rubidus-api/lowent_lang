@@ -15,7 +15,12 @@ module vm_soak .
 
 rem 타입 슬라이스를 **반환**하는 op — 이것을 부르면 부르는 쪽이 **태그 경로**로 내려간다.
 rem (빠른 경로는 반환 슬라이스의 원소폭을 못 물려받으므로 — vm_callslice.low 의 그 자리다.)
-fn mk4 input b slice u8 . output slice u32 . do return view_array u32 b. . . end .
+rem   ☞ 2026-10-31 — 타입 슬라이스 반환은 이제 빠른 경로에 선다. 하강을 막는 것은 128 비트 값이다(RFC-0151 — 설계상 태그 경로에 남는다).
+fn mk4 input b slice u8 . output slice u32 . do
+  let w u128 cast u128 len b. . . .
+  if eq w. 0 . do return view_array u32 b. . . end .
+  return view_array u32 b. . .
+end .
 
 rem ── ① 벡터 풀 · **빠른 경로** — 풀이 아예 없다(값이 프레임에 산다). 300만 번도 돈다.
 fn vec_fast input a slice u8 . input n u64 . output u64 . do

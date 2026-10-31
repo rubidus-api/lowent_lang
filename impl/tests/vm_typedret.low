@@ -1,0 +1,37 @@
+rem ★ 2026-10-31 (W-20261031-1610) — 빠른 경로가 타입 있는 슬라이스를 돌려준다(원소 폭 · 부호 · 부동). 전에는 폭 1 의 바이트 슬라이스만 —
+rem   받는 쪽이 폭을 몰라 바이트로 읽었다(VM ≠ native). 이제 op 마다 반환 폭을 적고 부르는 쪽 · 경계가 그것을 읽는다.
+
+module vm_typedret .
+fn mk4 input b slice u8 . output slice u32 . do
+  return view_array u32 b. . .
+end .
+fn mks input b slice u8 . output slice i8 . do
+  return view_array i8 b. . .
+end .
+fn mkf input b slice u8 . output slice f32 . do
+  return view_array f32 b. . .
+end .
+export fn g input b slice u8 . input i usize . output u64 .
+  requires eq len b. . 8 . .
+  requires lt i. 2 . .
+do
+  let s slice u32 mk4 b. . .
+  return add cast u64 idx s. i. . . cast u64 len s. . . . .
+end .
+export fn h input b slice u8 . output i64 .
+  requires eq len b. . 8 . .
+do
+  let s slice i8 mks b. . .
+  return cast i64 idx s. 7 . . .
+end .
+export fn k input b slice u8 . output f64 .
+  requires eq len b. . 8 . .
+do
+  let s slice f32 mkf b. . .
+  return cast f64 idx s. 1 . . .
+end .
+export fn raw input b slice u8 . output slice u32 .
+  requires eq len b. . 8 . .
+do
+  return mk4 b. . .
+end .

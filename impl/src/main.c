@@ -260,15 +260,21 @@ static void lock_load(const char *path) {
     fclose(f);
 }
 
+// ★ --lock-write 의 항목은 먼저 모은다. pkg.lock **파일**은 끝에서 쓴다 — 매니페스트가 의존을 선언했거나 단위가 `include_text` 로 파일을
+//   읽을 때만(락은 선언된 입력의 그림자다 · 2026-10-31 — 의존 없는 루트 매니페스트 옆에 락이 생겨 모든 하위 컴파일이 그것을 읽었다).
+static char g_lock_ents[256][4300]; static int g_nlock_ents;
 static void lock_emit(const char *name, const char *hex) {
     printf("%s %s\n", name, hex);
-    if (!g_lock_out && g_lock_path[0]) {
-        g_lock_out = fopen(g_lock_path, "w");
-        if (g_lock_out)
-            fprintf(g_lock_out, "# pkg.lock — content hashes (BLAKE3) of every dependency and every file read by include_text.\n"
-                                "# Regenerate with: lowentc --lock-write <entry.low>\n");
-    }
-    if (g_lock_out) fprintf(g_lock_out, "%s %s\n", name, hex);
+    if (g_nlock_ents < 256) snprintf(g_lock_ents[g_nlock_ents++], sizeof g_lock_ents[0], "%s %s", name, hex);
+}
+static void lock_file_write(bool allowed) {
+    if (!allowed || !g_lock_path[0]) return;
+    g_lock_out = fopen(g_lock_path, "w");
+    if (!g_lock_out) return;
+    fprintf(g_lock_out, "# pkg.lock — content hashes (BLAKE3) of every dependency and every file read by include_text.\n"
+                        "# Regenerate with: lowentc --lock-write <entry.low>\n");
+    for (int i = 0; i < g_nlock_ents; i++) fprintf(g_lock_out, "%s\n", g_lock_ents[i]);
+    fclose(g_lock_out); g_lock_out = NULL;
 }
 static void hash_hex(const proven_byte_t *b, proven_size_t n, char out[65]);
 // ★★ RFC-0015 §6.4 · §8-3 (2026-10-31 · 소유자 «다른 것들 다 진행» · W-20261031-1421) — `include_text` 의 파일.
@@ -1986,7 +1992,7 @@ int main(int argc, char **argv) {
                 }
                 proven_array_destroy(&ix.diags); proven_array_destroy(&ix.tokens);
             }
-            if (g_lock_out) fclose(g_lock_out);
+            if (iok) lock_file_write(pkg.ndeps > 0 || nseen > 0);
             return iok ? 0 : 1;
         }
     }

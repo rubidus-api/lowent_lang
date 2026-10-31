@@ -1172,6 +1172,8 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_UNM:
             // sum/sum_fast(5,6) 은 **부동 배열**을 훑는다 — 종류 시뮬레이터가 부동 슬라이스인지 본다.
             return true;
+        case IRW_BFILL:                                     // ★ 할당기가 준 바이트를 나열의 본으로 채운다(2026-10-31)
+        case IRW_LBUF: case IRW_LBUFC:                      // ★ 틀 안 나열 자리 — 이 op 의 C 틀에 바이트 줄(2026-10-31 · W-20261031-1836)
         case IRW_STR:                                       // ★ 문자열 리터럴 = 바이트 슬라이스
         case IRW_RESBLK:                                    // ★ 링커가 준 칸(RFC-0039 §9-2)
         case IRW_MMIOBLK:                                   // ★ 기저 주소 위의 레지스터 블록(RFC-0042 §8-2)
@@ -1864,6 +1866,14 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 else if (st.k[st.n-1] != K_BSET) return false;
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_STR:   st.o[st.n] = -1; st.ve[st.n] = 1; st.k[st.n++] = K_SL; break;
+            // ★★ 2026-10-31 (W-20261031-1836) — **틀 안 나열 자리**: 이 op 의 C 틀의 바이트 줄 한 구간(0 으로 채우거나 상수 본을 베낀다) — 쓸 수 있는 바이트 슬라이스.
+            //   값 구조체 틀 창(wbytes)과 예산을 함께 세는 op 은 태그 경로에 둔다(빠른 경로는 틀 창을 짓지 않는다 — 예산 수가 갈린다).
+            case IRW_BFILL:   // 받은 바이트 슬라이스 → 같은 자리의 앞 len 바이트(길이가 모자라면 멈춘다)
+                if (st.n < 1 || st.k[st.n-1] != K_SL || st.ve[st.n-1] != 1) return false;
+                st.o[st.n-1] = -1; st.fl[st.n-1] = 0; break;
+            case IRW_LBUF: case IRW_LBUFC:
+                if (d->wbytes || !d->lbuf_size) return false;
+                st.o[st.n] = -1; st.ve[st.n] = 1; st.vn[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_SL; break;
             // ★ 기저 주소 위의 블록도 **바이트 슬라이스**다 — 뒤이은 IRW_VIEW 가 그것을 먹는다.
             case IRW_RESBLK:
             case IRW_MMIOBLK: st.o[st.n] = -1; st.ve[st.n] = 1; st.k[st.n++] = K_SL; break;
@@ -2790,6 +2800,12 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
         fprintf(out, "%sint%u_t nloc%zu_ = 0; ", (narrowed[k] & IR_TY_SIGNED) ? "" : "u", narrowed[k] & 0xffu, k);
     if (cbe_uses(body, "loc["))  fprintf(out, "long long loc[%zu] = {0}; ", n);
     if (cbe_uses(body, "sloc[")) fprintf(out, "lw_sl sloc[%zu] = {{0,0}}; ", n);
+    // ★ 2026-10-31 — 틀 안 나열의 바이트 줄과 스택 예산(태그 경로 · VM 과 같은 수 — 부를 때마다 새것, 재귀도 안전)
+    if (d->lbuf_size && cbe_uses(body, "lw_lb"))
+        fprintf(out, "unsigned char lw_lb[%zu] __attribute__((aligned(16))); long lw_sbg_ __attribute__((cleanup(lw_sb_restore))) = lw_sbytes;\n"
+                     "    if (LW_UNLIKELY((lw_sbytes += %zuL) > LW_SBUDGET)) lw_panic(\"the list literals and struct values living on this call chain need more than the stack budget "
+                     "(RFC-0135 · RFC-0132 P4e) — keep a recursion with local lists or structs shallow, or take them from an allocator\");\n    ",
+                (size_t)d->lbuf_size, (size_t)d->lbuf_size);
     // ★★★★ **레코드 지역은 이제 "어디를 가리키나" 다** (RFC-0039 §9-4 단계 2, 2026-08-03).
     //   구조체 파라미터는 **호출자의 바이트를 그대로 가리킨다** — 복사가 없고, 피호출자가
     //   쓰면 호출자에게 **즉시** 보이므로 되쓰기도 없다. 스스로 만든 레코드만 `rbuf` 에 산다.
@@ -4276,6 +4292,25 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                  ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; }
                 else           { fputs("); st[sp++] = cr_; }\n", out); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; }
                 break;
+            }
+            case IRW_BFILL: {   // ★ 할당기 바이트를 나열의 본으로(태그 경로와 같은 뜻 · 같은 멈춤)
+                unsigned long long len = (unsigned long long)in->a >> 32, si1 = (unsigned long long)in->a & 0xffffffffull;
+                fprintf(out, "    { if (LW_UNLIKELY(ss[ssp-1].n < %lluULL)) lw_upanic(\"the allocator gave fewer bytes than the list needs\"); ", len);
+                if (si1) fprintf(out, "memcpy((void *)ss[ssp-1].p, lw_strs[%llu].p, %llu); ", si1 - 1, len);
+                else fprintf(out, "memset((void *)ss[ssp-1].p, 0, %llu); ", len);
+                fprintf(out, "ss[ssp-1].n = %llu; }\n", len);
+                ks.o[ks.n-1] = -1; ks.fl[ks.n-1] = 0; break;
+            }
+            case IRW_LBUF: {   // ★ 틀 안 나열 자리(종류 실행과 짝) — 0 으로 채운 바이트
+                unsigned long long off = (unsigned long long)in->a & 0xffffffffull, len = (unsigned long long)in->a >> 32;
+                fprintf(out, "    memset(lw_lb + %llu, 0, %llu); ss[ssp].p = lw_lb + %llu; ss[ssp].n = %llu; ssp++;\n", off, len, off, len);
+                ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; break;
+            }
+            case IRW_LBUFC: {  // ★ 틀 안 자리를 상수 본으로 채운다
+                unsigned long long off = (unsigned long long)in->a & 0xffffffffull, si = (unsigned long long)in->a >> 32;
+                unsigned long long len = (unsigned long long)ir->strs[si].size;
+                fprintf(out, "    memcpy(lw_lb + %llu, lw_strs[%llu].p, %llu); ss[ssp].p = lw_lb + %llu; ss[ssp].n = %llu; ssp++;\n", off, si, len, off, len);
+                ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; break;
             }
             case IRW_STR: {
                 // ★ 문자열 리터럴은 슬라이스다 — 태그도 박스도 없다.

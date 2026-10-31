@@ -52,7 +52,9 @@ Giving a value unknown at translation time is rejected.
 #demo("examples/ch22/rt_arg.low")
 
 `k` is only known at run time. Once the position says `comptime`, receiving a run-time value would make that word a lie. What may stand in a comptime input position
-is an integer literal or a module-level `let` constant.
+is a value fixed at translation time: an integer literal, a module-level `let` constant, `comptime <expr>`, or a local `let` whose value is
+computed when translating, such as `let k u8 comptime add 2 3 . . .`. A `var` can change, so it is not taken. An input used as a lane count
+(`vec t n`) takes only an integer literal or a module constant.
 
 #qa[
   Why not infer type arguments? Couldn't `max_of a b` be worked out from the type of `a`?

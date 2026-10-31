@@ -3053,11 +3053,38 @@ static bool ck_is_module_const(const low_parse_result_t *pr, proven_u8str_view_t
     }
     return false;
 }
-typedef struct { proven_u8str_view_t name; proven_u32 mask; } ck_cts_t;   // comptime **값** 파라미터 비트
+typedef struct { proven_u8str_view_t name; proven_u32 mask; proven_u32 lane; } ck_cts_t;   // comptime **값** 파라미터 비트 · 그 가운데 레인 수로 쓰이는 것
 
+// ★★ RFC-0154 §8-19 (라) (2026-10-31 · 소유자 «다음 진행» · W-20261031-1610) — `comptime` 입력 자리가 받는 것을 넓힌다: 리터럴 · 모듈 상수에 더해
+//   **같은 op 안의 지역 `let` 으로 값이 번역 시점에 접히는 것**(`let k u8 comptime add 2 3 . . .` · `let k u8 5 .`)과 `comptime <식>` 자체. 값은 상수이고
+//   전처럼 실행 때 건네진다(실물 하나 — RFC-0021). 단 그 매개변수가 **레인 수**(`vec t n`)로 쓰이면 단형화가 값을 글에서 읽으므로 리터럴 ·
+//   모듈 상수만 받는다(그대로). 접기는 이름 표 없이 한다 — 다른 모듈 상수를 읽는 지역 `let` 은 아직 받지 않는다.
+static const low_cst_t *ck_find_let(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) &&
+        ck_atom(nd->kids[1]) && proven_u8str_view_eq(nd->kids[1]->tok.lex, nm)) return nd;
+    for (proven_size_t i = 0; i < nd->nkids; i++) { const low_cst_t *r = ck_find_let(nd->kids[i], nm); if (r) return r; }
+    return NULL;
+}
+static bool ck_folds(const low_cst_t *a, const low_cst_t *opf) {
+    proven_i64 v; bool u;
+    while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+    if (!a) return false;
+    if (a->kind == LOW_CST_FORM && a->nkids == 2 && ck_atom(a->kids[0]) && veq(a->kids[0]->tok.lex, "comptime"))
+        return low_ctfe_value(a->kids[1], NULL, &v, &u);
+    if (!ck_atom(a) || a->tok.kind != LOW_TOK_IDENT || !opf) return false;
+    const low_cst_t *lf = ck_find_let(opf, a->tok.lex);
+    if (!lf || lf->kids[0]->tok.kw != LOW_KW_LET) return false;          // `var` 는 바뀔 수 있다
+    low_cst_t *const *k = lf->kids;
+    return low_ctfe_let_value(k + lf->nkids - 1, 1, NULL, &v, &u) || (lf->nkids >= 4 && low_ctfe_let_value(k + lf->nkids - 2, 2, NULL, &v, &u));
+}
+static const low_cst_t *ck_ct_opf;
 static void ck_comptime_walk(low_check_result_t *out, const low_parse_result_t *pr,
                              const low_cst_t *nd, const ck_cts_t *tab, proven_size_t nt) {
     if (!nd) return;
+    const low_cst_t *save_opf = ck_ct_opf;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && (nd->kids[0]->tok.kw == LOW_KW_FN || nd->kids[0]->tok.kw == LOW_KW_PROC))
+        ck_ct_opf = nd;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]))
         for (proven_size_t i = 0; i < nt; i++) {
             if (!tab[i].mask) continue;
@@ -3067,17 +3094,22 @@ static void ck_comptime_walk(low_check_result_t *out, const low_parse_result_t *
                 const low_cst_t *a = nd->kids[1 + p];
                 bool ok = ck_atom(a) && (ck_is_int_lit(a->tok.lex) ||
                                           ck_is_module_const(pr, a->tok.lex));
+                const bool lane = (tab[i].lane >> p) & 1u;
+                if (!ok && !lane && ck_folds(a, ck_ct_opf)) ok = true;   // §8-19 (라) — 번역 시점에 접히는 지역 `let` · `comptime <식>`
                 if (!ok)
                     emit(out, "E-COMPTIME-ARG",
-                         "this argument sits in a `comptime` parameter, so it must be a "
-                         "COMPILE-TIME CONSTANT (an integer literal, or a module `let`). A runtime "
-                         "value there makes the word `comptime` a lie — and the analysis, the "
-                         "folding and the monomorphisation all believe it",
+                         lane ? "this argument sits in a `comptime` parameter that is a LANE COUNT (`vec <t> <n>`), so it must be "
+                                "an integer literal or a module `let` — the instance is named after the value written here"
+                              : "this argument sits in a `comptime` parameter, so it must be a "
+                                "COMPILE-TIME CONSTANT (an integer literal, a module `let`, a local `let` whose value folds when translating, "
+                                "or `comptime <expr>`). A runtime value there makes the word `comptime` a lie — and the analysis, the "
+                                "folding and the monomorphisation all believe it",
                          a->line ? a->line : nd->line);
             }
         }
     for (proven_size_t i = 0; i < nd->nkids; i++)
         ck_comptime_walk(out, pr, nd->kids[i], tab, nt);
+    ck_ct_opf = save_opf;
 }
 
 static void ck_comptime(low_check_result_t *out, const low_parse_result_t *pr) {
@@ -3094,7 +3126,9 @@ static void ck_comptime(low_check_result_t *out, const low_parse_result_t *pr) {
                 !veq(f->kids[h.p[q].core]->tok.lex, "type"))     // 타입 파라미터는 단형화가 본다
                 m |= 1u << q;
         if (!m) continue;
-        tab[nt].name = h.name; tab[nt].mask = m; nt++;
+        proven_u32 lm = 0;
+        for (proven_size_t q = 0; q < h.np && q < 16; q++) if (((m >> q) & 1u) && low_param_used_as_lane(f, h.p[q].name)) lm |= 1u << q;
+        tab[nt].name = h.name; tab[nt].mask = m; tab[nt].lane = lm; nt++;
     }
     if (!nt) return;
     for (proven_size_t i = 0; i < pr->nforms; i++) ck_comptime_walk(out, pr, pr->forms[i], tab, nt);

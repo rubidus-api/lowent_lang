@@ -1,0 +1,13 @@
+rem ★ RFC-0154 §8-19 (라) (2026-10-31 · 소유자 «다음 진행» · W-20261031-1610) — `comptime` 입력 자리에 번역 시점에 접히는 지역 `let` 과
+rem   `comptime <식>` 을 건넨다(전에는 리터럴 · 모듈 상수만 — E-COMPTIME-ARG). 5 + 6 + 8 = 19 (x = 1)
+
+module vm_ctarg .
+let K u8 7 .
+fn lanes input comptime n u8 . input x u32 . output u32 . do
+  return mul x. n. . .
+end .
+export fn f input x u32 . output u32 . do
+  let k u8 comptime add 2 3 . . .
+  let j u8 6 .
+  return add add lanes k. x. . lanes j. x. . . lanes comptime mul 2 4 . . x. . . .
+end .

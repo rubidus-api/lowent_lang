@@ -257,6 +257,7 @@ static proven_size_t mono_tparams(const low_cst_t *f, low_op_header_t *h,
     }
     return n;
 }
+bool low_param_used_as_lane(const low_cst_t *f, proven_u8str_view_t name) { return mono_used_as_lane(f, name); }
 // ★ 이 이름이 **타입의 레인 자리**(`vec <t> <name>`)에 쓰였는가 — 그렇다면 컴파일 시 값이 필요하다.
 bool low_is_generic_template(const low_cst_t *f) {
     if (!f || f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) return false;

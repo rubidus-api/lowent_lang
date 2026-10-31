@@ -245,6 +245,8 @@ static int        g_nlock = 0;
 static bool       g_have_lock = false;
 static const char *g_pkg_path = NULL;   // --pkg <file> — 매니페스트 위치를 명시(발견 걷기 생략)
 static FILE       *g_lock_out = NULL;   // --lock-write 가 pkg.lock **파일**에도 쓴다 (매니페스트가 있을 때)
+static char        g_lock_path[600];    // ★ 2026-10-31 — 쓸 pkg.lock 의 자리(첫 항목을 적을 때 연다 — 적을 것이 없으면 파일을 만들지 않는다)
+static char        g_pkg_real[4096];    // 매니페스트 폴더의 실경로(포함 파일의 잠금 이름이 그것에 상대적이다)
 
 static void lock_load(const char *path) {
     FILE *f = fopen(path, "r");
@@ -256,6 +258,81 @@ static void lock_load(const char *path) {
         if (sscanf(ln, "%63s %64s", g_lock[g_nlock].name, g_lock[g_nlock].hex) == 2) g_nlock++;
     }
     fclose(f);
+}
+
+static void lock_emit(const char *name, const char *hex) {
+    printf("%s %s\n", name, hex);
+    if (!g_lock_out && g_lock_path[0]) {
+        g_lock_out = fopen(g_lock_path, "w");
+        if (g_lock_out)
+            fprintf(g_lock_out, "# pkg.lock — content hashes (BLAKE3) of every dependency and every file read by include_text.\n"
+                                "# Regenerate with: lowentc --lock-write <entry.low>\n");
+    }
+    if (g_lock_out) fprintf(g_lock_out, "%s %s\n", name, hex);
+}
+static void hash_hex(const proven_byte_t *b, proven_size_t n, char out[65]);
+// ★★ RFC-0015 §6.4 · §8-3 (2026-10-31 · 소유자 «다른 것들 다 진행» · W-20261031-1421) — `include_text` 의 파일.
+//   ① 그 소스 파일의 폴더 안에 머문다 — 실경로로 맞대므로 심볼릭 링크로 폴더 밖을 가리켜도 거절한다.
+//   ② 잠금 파일이 있으면 의존과 같이 **내용**을 고정한다: 이름은 `include:<매니페스트 폴더에서 본 경로>`(매니페스트가 없으면 실경로),
+//      값은 BLAKE3. 다른 해시 = E-DEP-HASH · 없는 항목 = E-DEP-UNLOCKED. `--lock-write` 가 그 항목을 적는다.
+#define INC_MAX (1024u * 1024u)
+static bool inc_resolve(const char *srcfile, const char *rel, char real[4096], char *why, size_t whycap) {
+    char dir[4096], full[8300], dreal[4096];
+    const char *sl = srcfile ? strrchr(srcfile, '/') : NULL;
+    if (sl) snprintf(dir, sizeof dir, "%.*s", (int)(sl - srcfile), srcfile); else snprintf(dir, sizeof dir, ".");
+    if (!dir[0]) snprintf(dir, sizeof dir, "/");
+    snprintf(full, sizeof full, "%s/%s", dir, rel);
+    if (!realpath(dir, dreal) || !realpath(full, real)) {
+        snprintf(why, whycap, "`include_text`: cannot read `%.200s` (read from the folder of this source file)", full);
+        return false;
+    }
+    size_t dl = strlen(dreal);
+    if (!(dl == 1 && dreal[0] == '/') && (strncmp(real, dreal, dl) != 0 || real[dl] != '/')) {
+        snprintf(why, whycap, "`include_text \"%.120s\"`: the path is read from the folder of this source file and stays inside it — "
+                 "it leads outside through a link (RFC-0015 §6.4)", rel);
+        return false;
+    }
+    return true;
+}
+static void inc_lock_name(const char *real, char *out, size_t cap) {
+    size_t pl = strlen(g_pkg_real);
+    if (pl && strncmp(real, g_pkg_real, pl) == 0 && real[pl] == '/') snprintf(out, cap, "include:%s", real + pl + 1);
+    else snprintf(out, cap, "include:%s", real);
+}
+static bool inc_read(const char *real, proven_u8 **out, proven_size_t *n, char *why, size_t whycap) {
+    FILE *fp = fopen(real, "rb");
+    if (!fp) { snprintf(why, whycap, "`include_text`: cannot read `%.200s`", real); return false; }
+    proven_u8 *b = malloc(INC_MAX + 1);
+    size_t got = b ? fread(b, 1, INC_MAX + 1, fp) : 0;
+    const bool err = !b || ferror(fp);
+    fclose(fp);
+    if (err || got > INC_MAX) {
+        free(b);
+        snprintf(why, whycap, err ? "`include_text`: reading `%.200s` failed" : "`include_text`: `%.200s` is larger than 1 MiB — a file read when translating holds at most that", real);
+        return false;
+    }
+    *out = b; *n = got;
+    return true;
+}
+static bool inc_reader(const char *srcfile, const char *rel, proven_u8 **out, proven_size_t *n, char *why, proven_size_t whycap) {
+    char real[4096];
+    if (!inc_resolve(srcfile, rel, real, why, whycap) || !inc_read(real, out, n, why, whycap)) return false;
+    if (!g_have_lock) return true;
+    char name[4200], hex[65];
+    inc_lock_name(real, name, sizeof name);
+    hash_hex(*out, *n, hex);
+    for (int i = 0; i < g_nlock; i++) {
+        if (strcmp(g_lock[i].name, name) != 0) continue;
+        if (strcmp(g_lock[i].hex, hex) == 0) return true;
+        snprintf(why, whycap, "E-DEP-HASH: `include_text \"%.100s\"` does NOT match the lockfile (`%.100s` locked %.16s…, actual %.16s…) — "
+                 "the file changed since `--lock-write`; a pinned build does not read different bytes under the same name", rel, name, g_lock[i].hex, hex);
+        free(*out); *out = NULL;
+        return false;
+    }
+    snprintf(why, whycap, "E-DEP-UNLOCKED: `include_text \"%.100s\"` has no entry in the lockfile (`%.100s`) — run with --lock-write to record "
+             "what you are building against", rel, name);
+    free(*out); *out = NULL;
+    return false;
 }
 
 static void hash_hex(const proven_byte_t *b, proven_size_t n, char out[65]) {
@@ -270,11 +347,7 @@ static bool dep_verify(const char *name, const char *path,
                        const proven_byte_t *buf, proven_size_t len, bool write_lock) {
     char hex[65];
     hash_hex(buf, len, hex);
-    if (write_lock) {
-        printf("%s %s\n", name, hex);
-        if (g_lock_out) fprintf(g_lock_out, "%s %s\n", name, hex);
-        return true;
-    }
+    if (write_lock) { lock_emit(name, hex); return true; }
     if (!g_have_lock) return true;   // 락파일을 안 줬으면 고정할 것이 없다(그리고 그렇게 말하지 않는다)
     for (int i = 0; i < g_nlock; i++) {
         if (strcmp(g_lock[i].name, name) != 0) continue;
@@ -1280,6 +1353,7 @@ int main(int argc, char **argv) {
     }
 
     atexit(low_hwm_dump);   // ★ 고정 표의 최고수위 — `LOW_HWM=1` 일 때만 찍는다
+    low_ir_set_include_reader(inc_reader);   // ★ RFC-0015 §6.4 · §8-3 — `include_text` 는 앞단이 읽는다(폴더 · 잠금 파일)
     // ── 서브커맨드 번역 (RFC-0033 D6) — 플래그 언어는 그대로 살아 있다(스크립트·골든 호환) ──
     static char *xargv[80]; int xargc = 0;
     if (argc >= 2 && argv[1][0] != '-') {
@@ -1670,13 +1744,9 @@ int main(int argc, char **argv) {
             // ★ --lock-write: 매니페스트가 **의존을 선언할 때만** pkg.lock 파일을 쓴다 —
             //   락은 의존 선언의 그림자다. 정체만 적은 매니페스트(이 저장소의 루트 pkg.low 같은)
             //   옆에 락을 만들면, 발견 걷기가 그것을 **모든 하위 컴파일에** 자동 적용해 버린다.
-            if (want_lock_write && pkg.ndeps > 0) {
-                char lp[600]; snprintf(lp, sizeof lp, "%s/pkg.lock", pkg.dir);
-                g_lock_out = fopen(lp, "w");
-                if (g_lock_out)
-                    fprintf(g_lock_out, "# pkg.lock — content hashes (BLAKE3) of every dependency.\n"
-                                        "# Regenerate with: lowentc --lock-write <entry.low>\n");
-            }
+            // ★ 2026-10-31 — `include_text` 의 파일도 적는다. 파일은 첫 항목을 적을 때 연다(lock_emit) — 적을 것이 없으면 만들지 않는다.
+            if (want_lock_write) snprintf(g_lock_path, sizeof g_lock_path, "%s/pkg.lock", pkg.dir);
+            if (!realpath(pkg.dir, g_pkg_real)) g_pkg_real[0] = 0;
         }
     }
 
@@ -1894,7 +1964,31 @@ int main(int argc, char **argv) {
                 npaths++;
             }
         }
-        if (want_lock_write) { if (g_lock_out) fclose(g_lock_out); return 0; }   // 락을 찍는 것이 이번 실행의 전부다
+        if (want_lock_write) {   // 락을 찍는 것이 이번 실행의 전부다
+            // ★ 2026-10-31 — 단위의 파일마다 `include_text "<경로>"` 를 낱말에서 찾아 그 파일의 내용 해시를 적는다(같은 파일은 한 번)
+            static char seen[64][4200]; int nseen = 0; bool iok = true;
+            for (int fi = 0; fi < npaths && iok; fi++) {
+                low_lex_result_t ix = low_lex(heap, (proven_u8str_view_t){ .ptr = bufs[fi], .size = lens[fi] });
+                const low_token_t *t = (const low_token_t *)ix.tokens.data;
+                for (proven_size_t q = 0; q + 1 < ix.tokens.len && iok; q++) {
+                    if (t[q].kind != LOW_TOK_IDENT || !proven_u8str_view_eq(t[q].lex, PROVEN_LIT("include_text")) || t[q + 1].kind != LOW_TOK_STRING) continue;
+                    char rel[402], real[4096], why[400], name[4200], hex[65];
+                    snprintf(rel, sizeof rel, "%.*s", (int)t[q + 1].lex.size, (const char *)t[q + 1].lex.ptr);
+                    proven_u8 *b = NULL; proven_size_t bn = 0;
+                    if (!inc_resolve(paths[fi], rel, real, why, sizeof why) || !inc_read(real, &b, &bn, why, sizeof why)) {
+                        fprintf(stderr, "%s:%u: %s\n", paths[fi], t[q].line, why); iok = false; break;
+                    }
+                    inc_lock_name(real, name, sizeof name);
+                    bool dup = false;
+                    for (int z = 0; z < nseen; z++) if (!strcmp(seen[z], name)) dup = true;
+                    if (!dup && nseen < 64) { snprintf(seen[nseen++], sizeof seen[0], "%s", name); hash_hex(b, bn, hex); lock_emit(name, hex); }
+                    free(b);
+                }
+                proven_array_destroy(&ix.diags); proven_array_destroy(&ix.tokens);
+            }
+            if (g_lock_out) fclose(g_lock_out);
+            return iok ? 0 : 1;
+        }
     }
     // ★★ RFC-0140 §8-1 ⓑ — 어느 파일이 표준 라이브러리 폴더에서 왔는가(실경로로 맞댄다 — `use x from "../lib/x.low"`
     //   로 부른 라이브러리 파일도 라이브러리다). 검사기가 그 밖의 `call_builtin` 에 경고한다.

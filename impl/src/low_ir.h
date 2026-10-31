@@ -1130,6 +1130,11 @@ typedef struct { proven_i64 value; bool ok; char text[160]; } low_ir_run_result_
 typedef struct { proven_u8 kind; proven_i64 v, vhi; const proven_u8 *p; proven_size_t nbytes; proven_size_t make_idx; proven_u8 first, nk; } low_ir_capval_t;
 typedef struct { low_ir_capval_t n[LOW_CAP_NODES]; proven_size_t nn; bool full; } low_ir_capture_t;
 void low_ir_set_capture(low_ir_capture_t *cap);
+// ★★ RFC-0015 §6.4 · §8-3 (2026-10-31 · W-20261031-1421) — `include_text` 의 파일을 읽는 자리를 처리기의 앞단(main)이 준다:
+//   폴더 밖(링크를 따라가도)을 거절하고, 잠금 파일이 있으면 그 내용 해시를 대조한다. `srcfile` 은 그 글이 든 소스 파일(없으면 NULL),
+//   `rel` 은 적힌 경로(이미 절대 경로 · `..` 가 아님을 본 것). 못 읽으면 false 와 까닭(why). 주지 않으면 번역층이 그냥 읽는다.
+typedef bool (*low_include_reader_t)(const char *srcfile, const char *rel, proven_u8 **out, proven_size_t *n, char *why, proven_size_t whycap);
+void low_ir_set_include_reader(low_include_reader_t f);
 // ★ RFC-0015 §6.3 — VM 이 이 IR 의 «주소를 품은 상수» 로 지은 사본을 버린다(low_ir_free 가 부른다).
 void low_vm_forget_ir(const low_ir_t *ir);
 // ★ **오라클 전용 걸음 예산** (2026-07-30). 0 = 무한(사용자 실행의 기본).

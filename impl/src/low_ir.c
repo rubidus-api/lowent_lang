@@ -3005,8 +3005,13 @@ static bool ir_ctfe_sslice_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
 static bool ir_ctfe_struct_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
     bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, sname), &sf);
     if (!sf || !c->out->structs[si].viewable || !c->out->structs[si].total) return false;
-    proven_u8 *b = calloc(c->out->structs[si].total, 1);
+    // ★ 2026-10-31 (W-20261031-1421) — 정렬 계약(`align n`)을 지킨다: VM 은 경계에서처럼 바이트의 정렬을 본다(E-VM-ALIGN). malloc 의 16 을 넘는
+    //   정렬은 그만큼 맞춰 잡는다(전에는 `align 64` 구조체를 넘기면 번역 때 알 수 없는 E-VM-ALIGN 으로 멈췄다).
+    const proven_size_t al = c->out->structs[si].align > 16 ? c->out->structs[si].align : 16;
+    const proven_size_t sz = ((proven_size_t)c->out->structs[si].total + al - 1) / al * al;
+    proven_u8 *b = aligned_alloc(al, sz);
     if (!b) return false;
+    memset(b, 0, sz);
     if (!ir_ctfe_lit_bytes(c, a, si, b)) { free(b); return false; }
     *out = b; *n = c->out->structs[si].total;
     return true;
@@ -3017,6 +3022,8 @@ static bool ir_ctfe_struct_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
 //   못 읽으면 g_ctfe_inc_why 에 까닭을 적는다(ir_ctfe_record 가 그 자리의 까닭으로 옮긴다).
 #define IR_INCLUDE_MAX (1024u * 1024u)
 static char g_ctfe_inc_why[300];
+static low_include_reader_t g_include_reader;
+void low_ir_set_include_reader(low_include_reader_t f) { g_include_reader = f; }
 static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
     const low_cst_t *pa = a->kids[1];
     while (pa && pa->kind == LOW_CST_GROUP && pa->nkids == 1) pa = pa->kids[0];
@@ -3036,8 +3043,13 @@ static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *
                  "no absolute path, no `..`, `/` between folders (RFC-0015 §6.4)", (int)(pv.size > 120 ? 120 : pv.size), (const char *)pv.ptr);
         return false;
     }
-    char path[1024];
     const char *sf = a->file ? a->file : (pa->file ? pa->file : NULL);
+    if (g_include_reader) {
+        char rel[402];
+        snprintf(rel, sizeof rel, "%.*s", (int)pv.size, (const char *)pv.ptr);
+        return g_include_reader(sf, rel, out, n, g_ctfe_inc_why, sizeof g_ctfe_inc_why);
+    }
+    char path[1024];
     const char *sl = sf ? strrchr(sf, '/') : NULL;
     if (sl) snprintf(path, sizeof path, "%.*s/%.*s", (int)(sl - sf), sf, (int)pv.size, (const char *)pv.ptr);
     else snprintf(path, sizeof path, "%.*s", (int)pv.size, (const char *)pv.ptr);

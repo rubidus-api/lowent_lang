@@ -1,0 +1,55 @@
+rem ★★ 빠른 경로 (2026-10-31 · 소유자 «다른 것들 다 진행» · W-20261031-1421) — 안에 구조체 · 부동 칸을 가진 구조체 매개변수,
+rem   줄의 배열(바이트 위의 줄 보기 · 색인 · 길이 · 지역에 담기). 답은 VM 과 같아야 한다(빠른 · 태그 경로).
+
+module vm_fastrec .
+
+struct inner do
+  k i16 .
+  f f32 .
+end .
+
+struct cfg do
+  hz u32 .
+  neg i8 .
+  sub inner .
+  g f64 .
+end .
+
+fn score input c cfg . input m u32 . output i64 . do
+  let i inner field c. sub . .
+  var t i64 cast i64 mul field c. hz . m. . . .
+  set t. add t. cast i64 field c. neg . . . .
+  set t. add t. cast i64 field i. k . . . .
+  set t. add t. cast i64 mul field i. f . 10.0 . . . .
+  set t. add t. cast i64 mul field c. g . 100.0 . . . .
+  return t. .
+end .
+
+rem 250·4 − 5 − 300 + 25 + 125 = 845
+export fn run input hz u32 . input k i16 . output i64 . do
+  let c cfg lit cfg do hz hz. . neg -5 . sub lit inner do k k. . f 2.5 . end . . g 1.25 . end . .
+  return score c. 4 . .
+end .
+
+rem 바이트를 줄 셋(줄마다 u16 둘)으로 본다 — 줄 r 의 칸 c
+export fn cell input b slice u8 . input r usize . input c usize . output u16 .
+  requires eq len b. . 12 . .
+do
+  let rows slice (array 2 u16) view_array (array 2 u16) b. . .
+  let row slice u16 idx rows. r. . .
+  return idx row. c. . .
+end .
+
+rem 줄 수와 모든 칸의 합
+export fn total input b slice u8 . output u64 .
+  requires eq len b. . 12 . .
+do
+  let rows slice (array 2 u16) view_array (array 2 u16) b. . .
+  var s u64 cast u64 len rows. . . .
+  var r usize 0 .
+  while lt r. len rows. . . do
+    for v idx rows. r. . do set s. add s. cast u64 v. . . . end .
+    set r. add r. 1 . .
+  end .
+  return s. .
+end .

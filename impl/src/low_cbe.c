@@ -433,6 +433,9 @@ static bool cbe_ret_flt(const low_ir_def_t *d);   // ★ extern 의 출력이 f6
 //   보통 슬라이스(K_SL)를 낸다. 두 겹만(줄 안이 수) — 더 깊은 줄(IR_ROWSUB)은 태그 경로다. **종류를 따로 둔 까닭**: 슬라이스(K_SL)에 표식만
 //   달면 그 표식을 모르는 자리(색인 · 쓰기 · 해시 · 부름 인자)가 줄을 바이트로 읽는다. 따로 두면 모르는 자리는 스스로 거절한다.
 #define K_ROWS 11
+/* ★ 2026-10-31 (W-20261031-2053) — **option · result 안의 option · result**(`result (option usize) e` — 파일 읽기의 모양).
+   (바깥 태그, 안 태그 `t2`, 수) 셋이다. 안이 수를 싼 것일 때만(ve 0 · fl 0). 둘이 같은 칸 `lw_r` 에 산다. */
+#define K_OPT2 12
 // ★★★ **비트셋은 64비트 마스크다 — 박스가 아니다.**
 //   태그 경로는 그것을 **8칸짜리 풀**에 넣는다 ⇒ **루프에서 아홉 번째를 만들면 죽는다**
 //   (레코드가 64칸에서 죽던 것과 **같은 병**). 마스크는 그냥 `long long` 이다.
@@ -1127,7 +1130,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_RDIN:                                      // ★ cap io — stdin (A5)
         case IRW_FOPEN: case IRW_FREAD: case IRW_FWRITE: case IRW_FCLOSE: case IRW_FSEEK:   // ★ 스트림 리프 (§6)
         case IRW_DOPEN: case IRW_DREAD: case IRW_DCLOSE:   // ★ 디렉터리 순회 (§6)
-        case IRW_FTYPE:                                    // ★ 파일 타입 질의 (§6)
+        case IRW_FTYPE: case IRW_LTYPE:                    // ★ 파일 타입 질의 (§6) — 따라가지 않는 짝(lstat)도
         case IRW_DMAKE: case IRW_PREMOVE: case IRW_PRENAME:   // ★ 파일시스템 변경 (§6)
         case IRW_NPAIR: case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE:   // ★ 소켓 리프 (cap net)
         case IRW_NLISTEN: case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT:   // ★ 네트워크 면
@@ -1417,10 +1420,15 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
 //   전에는 그냥 `false` 였고, `--why-slow` 는 «`store.local` at 238» 이라고만 했다. 그 수는
 //   IR 안의 자리이지 까닭이 아니어서, 읽는 사람이 «지역이 너무 많다» 를 스스로 알아내야 했다
 //   (실측: `x25519.scalarmult` 이 그래서 태그 경로에 있는 줄 아무도 몰랐다).
+// ★ 2026-10-31 (W-20261031-2053) — 32 → 64. 프레임의 칸 배열은 op 마다 필요한 만큼 잡는다(위 cbe_lbuf_ensure · 방출의 loc[n]);
+//   남은 한도는 «이미 읽었나» 를 적는 64 비트 표 하나(`loaded_`)와 폭 좁히기 표(`g_fitn[64]`)다 — 둘 다 64 칸이다.
+#define CBE_LOCMAX 64
 static bool cbe_locals_over(unsigned idx) {
-    snprintf(g_sub, sizeof g_sub, "local %u is past the fast frame's 32 locals", idx);
+    snprintf(g_sub, sizeof g_sub, "local %u is past the fast frame's %d locals", idx, CBE_LOCMAX);
     return false;
 }
+// 바이트 슬라이스인가 — 원소 폭 1(또는 아직 안 적힌 0) · 부동 아님. 호스트 잎은 바이트만 읽고 쓴다.
+#define CBE_BYTES(st_, i_) ((st_).k[(i_)] == K_SL && (st_).ve[(i_)] <= 1 && !(st_).fl[(i_)])
 static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *sc,
                          kstack_t *at, unsigned char *lk, unsigned char *slot,
                          unsigned char *retk, unsigned char *rmap,
@@ -1432,7 +1440,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
     //   읽기 전에만 한다: 방출기는 지역의 **마지막** 종류로 읽으므로, 앞선 읽기가 옛 종류로 판정됐으면 둘이 갈린다.
     //   파라미터는 경계에서 이미 채워졌으므로 읽힌 것으로 친다.
     unsigned long long loaded_ = 0;
-    for (proven_size_t q = 0; q < d->nparams && q < 32; q++) loaded_ |= 1ull << q;
+    for (proven_size_t q = 0; q < d->nparams && q < CBE_LOCMAX; q++) loaded_ |= 1ull << q;
     for (proven_size_t j = 0; j < d->ncode; j++) {
         const low_ir_ins_t *in = &d->code[j];
         g_kj = (int)j; g_kw = (int)in->w;
@@ -1449,7 +1457,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
         unsigned char a1, a2, a3;
         switch (in->w) {
             case IRW_CONST: st.o[st.n] = -1; st.k[st.n++] = K_INT; break;
-            case IRW_LOAD:  if (in->a >= 32) return cbe_locals_over(in->a);
+            case IRW_LOAD:  if (in->a >= CBE_LOCMAX) return cbe_locals_over(in->a);
                             loaded_ |= 1ull << in->a;
                             st.ve[st.n] = lez[in->a]; st.vn[st.n] = lln[in->a]; st.fl[st.n] = lfl[in->a];
                             if (lk[in->a] == K_REF) {
@@ -1461,7 +1469,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             /* (뷰는 지역에 담기면 lk 가 K_VIEW 를 기억한다 — 저장소는 슬라이스와 같다) */
             case IRW_STORE:
                 if (st.n < 1) return false;
-                if (in->a >= 32) return cbe_locals_over(in->a);
+                if (in->a >= CBE_LOCMAX) return cbe_locals_over(in->a);
                 if (st.k[st.n-1] == K_SL || st.k[st.n-1] == K_ROWS || st.k[st.n-1] == K_VEC || st.k[st.n-1] == K_MASK ||
                     st.k[st.n-1] >= K_VIEW) {
                     lez[in->a] = st.ve[st.n-1]; lln[in->a] = st.vn[st.n-1]; lfl[in->a] = st.fl[st.n-1];
@@ -1489,6 +1497,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             if (slot[in->a] == 0xff) { slot[in->a] = a1; lk[in->a] = a1; }
                             // ★ WO-0222 — option(슬라이스) 지역에 none(안쪽 표식 없는 K_OPT)을 담는 것은 같은 종류다.
                             else if (slot[in->a] == K_OPTSL && a1 == K_OPT && st.ve[st.n] == 0 && st.fl[st.n] == 0) { }
+                            // ★ 겹 option 지역에 안이 빈 바깥 값(none · error — 표식 없는 K_OPT)을 담는 것도 같은 종류다.
+                            else if (slot[in->a] == K_OPT2 && a1 == K_OPT && st.ve[st.n] == 0 && st.fl[st.n] == 0) { }
+                            else if (slot[in->a] == K_OPT && a1 == K_OPT2 && lez[in->a] == 0 && lfl[in->a] == 0 &&
+                                     !(loaded_ & (1ull << in->a))) { slot[in->a] = K_OPT2; lk[in->a] = K_OPT2; }
                             else if (slot[in->a] == K_OPT && a1 == K_OPTSL && lez[in->a] == 0 && lfl[in->a] == 0 &&
                                      !(loaded_ & (1ull << in->a))) { slot[in->a] = K_OPTSL; lk[in->a] = K_OPTSL; }
                             else if (slot[in->a] != a1) {
@@ -1631,7 +1643,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_FCONST: st.o[st.n] = -1; st.k[st.n++] = K_FLT; break;
             case IRW_REF: case IRW_MREF: {
                 proven_size_t tgt = (proven_size_t)(in->a & 0xffff);
-                if (tgt >= 32) return cbe_locals_over((unsigned)tgt);
+                if (tgt >= CBE_LOCMAX) return cbe_locals_over((unsigned)tgt);
                 if (slot[tgt] != 0xff && slot[tgt] != K_INT) return false;   // 정수 지역만
                 st.o[st.n] = (signed char)tgt;
                 st.k[st.n++] = K_REF;
@@ -1835,7 +1847,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_SPOP_INTO:
                 if (st.n < 1 || st.k[st.n-1] != K_STK) return false;
                 if (st.o[st.n-1] < 0) return false;
-                if (in->a >= 32) return cbe_locals_over(in->a);
+                if (in->a >= CBE_LOCMAX) return cbe_locals_over(in->a);
                 if (slot[in->a] == 0xff) { slot[in->a] = K_INT; lk[in->a] = K_INT; }
                 else if (slot[in->a] != K_INT) return false;   // 스택의 원소는 **정수**다
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
@@ -1867,12 +1879,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_STR:   st.o[st.n] = -1; st.ve[st.n] = 1; st.k[st.n++] = K_SL; break;
             // ★★ 2026-10-31 (W-20261031-1836) — **틀 안 나열 자리**: 이 op 의 C 틀의 바이트 줄 한 구간(0 으로 채우거나 상수 본을 베낀다) — 쓸 수 있는 바이트 슬라이스.
-            //   값 구조체 틀 창(wbytes)과 예산을 함께 세는 op 은 태그 경로에 둔다(빠른 경로는 틀 창을 짓지 않는다 — 예산 수가 갈린다).
+            //   예산은 틀 창 몫(wbytes)과 함께 센다(아래 cbe_scalar_body — VM 과 같은 수).
             case IRW_BFILL:   // 받은 바이트 슬라이스 → 같은 자리의 앞 len 바이트(길이가 모자라면 멈춘다)
                 if (st.n < 1 || st.k[st.n-1] != K_SL || st.ve[st.n-1] != 1) return false;
                 st.o[st.n-1] = -1; st.fl[st.n-1] = 0; break;
             case IRW_LBUF: case IRW_LBUFC:
-                if (d->wbytes || !d->lbuf_size) return false;
+                if (!d->lbuf_size) return false;
                 st.o[st.n] = -1; st.ve[st.n] = 1; st.vn[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_SL; break;
             // ★ 기저 주소 위의 블록도 **바이트 슬라이스**다 — 뒤이은 IRW_VIEW 가 그것을 먹는다.
             case IRW_RESBLK:
@@ -1952,6 +1964,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (st.ve[st.n-1] != 1 || st.fl[st.n-1]) { snprintf(g_sub, sizeof g_sub, "`some` of a slice whose element width is not 1"); return false; }
                     st.k[st.n-1] = K_OPTSL; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
                 }
+                // ★ 수를 싼 option · result 를 다시 싼다 → 겹(K_OPT2). 안 태그는 `t2` 로 옮긴다.
+                if (st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0) {
+                    st.k[st.n-1] = K_OPT2; st.o[st.n-1] = -1; break; }
                 if (st.k[st.n-1] != K_INT) return false;
                 st.k[st.n-1] = K_OPT; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
             case IRW_WRAP_NONE: case IRW_WRAP_ERR:
@@ -1968,11 +1983,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_ISSOME: case IRW_ISOK: case IRW_ISERR:
                 if (st.n >= 1 && st.k[st.n-1] == K_OPTSL && in->w == IRW_ISSOME) {
                     st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break; }
-                if (st.n < 1 || st.k[st.n-1] != K_OPT) return false;
-                st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+                if (st.n < 1 || (st.k[st.n-1] != K_OPT && st.k[st.n-1] != K_OPT2)) return false;
+                st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             case IRW_SOMEVAL: case IRW_OKVAL:
                 if (st.n >= 1 && st.k[st.n-1] == K_OPTSL && in->w == IRW_SOMEVAL) {   // ★ WO-0222 — 바이트 슬라이스
                     st.k[st.n-1] = K_SL; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break; }
+                if (st.n >= 1 && st.k[st.n-1] == K_OPT2) {   // 겹을 한 겹 벗긴다 → 수를 싼 option · result
+                    st.k[st.n-1] = K_OPT; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break; }
                 if (st.n < 1 || st.k[st.n-1] != K_OPT) return false;
                 // ★ 감싼 값을 꺼낸다(ve 표식): fl=1 이면 **뷰**, 아니면 **레코드**, ve=0 이면 정수.
                 if (st.ve[st.n-1]) {
@@ -1983,8 +2000,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 }
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_ERRVAL:
-                if (st.n < 1 || st.k[st.n-1] != K_OPT) return false;
-                st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+                if (st.n < 1 || (st.k[st.n-1] != K_OPT && st.k[st.n-1] != K_OPT2)) return false;
+                st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             case IRW_ELSE_NONE: case IRW_ELSE_ERR:
                 if (st.n < 1 || st.k[st.n-1] != K_OPT) return false;
                 break;
@@ -2012,7 +2029,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                          ? (unsigned char)(K_REC + ir->structs[sx].f[sl].sidx)
                                        : (ir->structs[sx].f[sl].boxed && ir->structs[sx].f[sl].elem) ? K_SL
                                        : ir->structs[sx].f[sl].flt ? K_FLT : K_INT;
-                    if (st.k[st.n - nf + q] != want) return false;
+                    if (st.k[st.n - nf + q] != want) {
+                        snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` wants kind %u, the value is kind %u",
+                                 (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
+                                 (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, want, st.k[st.n - nf + q]);
+                        return false; }
                 }
                 st.n -= (int)nf;
                 st.o[st.n] = -1;
@@ -2060,7 +2081,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (ir->structs[sx].f[rsl].boxed) {
                     if (!ir->structs[sx].f[rsl].elem) return false;
                     // ★ 출신이 지역이면 `rlocsl`, 방금 만든 것(-1)이면 `rssl` 에서 읽는다(단계 3).
-                    if (st.o[st.n-1] >= 32) return false;
+                    if (st.o[st.n-1] >= CBE_LOCMAX) return false;
                     st.k[st.n-1] = K_SL;
                     st.ve[st.n-1] = ir->structs[sx].f[rsl].elem;
                     st.vn[st.n-1] = 0; st.fl[st.n-1] = cbe_sf_fl(&ir->structs[sx].f[rsl]); st.o[st.n-1] = -1;
@@ -2275,7 +2296,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ WO-0222 — option(슬라이스)를 돌려주는 op 은 `return none .` 도 적는다: none(안쪽 표식 없는 K_OPT)은 같은 종류다.
                 if (rk == K_OPT && st.n && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0 && *retk == K_OPTSL) rk = K_OPTSL;
                 if (rk == K_OPTSL && *retk == K_OPT && g_ret_optrec == 0) *retk = K_OPTSL;
-                if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_FLT && rk != K_SL && rk < K_REC) {
+                // ★ 겹 option 을 돌려주는 op 은 `return error e .` · `return none .` 도 적는다(안이 빈 바깥 값 — 표식 없는 K_OPT).
+                if (rk == K_OPT && st.n && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0 && *retk == K_OPT2) rk = K_OPT2;
+                if (rk == K_OPT2 && *retk == K_OPT && g_ret_optrec == 0) *retk = K_OPT2;
+                if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_OPT2 && rk != K_FLT && rk != K_SL && rk < K_REC) {
                     snprintf(g_sub, sizeof g_sub, "returns a kind the fast path has no shape for (%u)", rk); return false; }
                 if (rk >= K_VIEW) return false;
                 // ★ RFC-0106 단계 4 — 슬라이스 필드를 든 레코드도 **돌려줄 수 있다**
@@ -2413,6 +2437,67 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   st.k[st.n++] = rk; }
                 break;
             }
+            // ★★★ **호스트 잎** (2026-10-31 · W-20261031-2053) — 파일 · 디렉터리 · 경로 · 소켓 · 인자 · 환경 · 표준 입출력.
+            //   빠른 경로가 받아 주는 낱말 목록(cbe_fast_word)에는 처음부터 있었는데 여기 case 가 없어 `default` 로 거절됐다
+            //   (그 낱말을 쓰는 op 은 다 태그 경로였다). 두 경로가 같은 함수(`lw_h_*`, 프렐류드)를 부른다.
+            //   바이트를 다루는 자리는 바이트 슬라이스만 받는다(원소 폭 1 · 부동 아님).
+            case IRW_ARGC:
+                            if (st.n >= 56) return false;
+                            st.o[st.n] = -1; st.ve[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_INT; break;
+            case IRW_ARGV:   // 정수 → option(바이트 슬라이스)
+                            if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
+                            st.k[st.n-1] = K_OPTSL; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
+            case IRW_ENVGET:   // 바이트 → option(바이트 슬라이스)
+                            if (st.n < 1 || !CBE_BYTES(st, st.n-1)) return false;
+                            st.k[st.n-1] = K_OPTSL; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
+            case IRW_WRITE:    // (정수, 바이트) → 정수
+                            if (st.n < 2 || !CBE_BYTES(st, st.n-1) || st.k[st.n-2] != K_INT) return false;
+                            st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_RDIN: case IRW_FREAD: case IRW_FWRITE: case IRW_DREAD: case IRW_NSEND: case IRW_NRECV:   // (정수, 바이트) → option 정수
+                            if (st.n < 2 || !CBE_BYTES(st, st.n-1) || st.k[st.n-2] != K_INT) return false;
+                            st.n--; st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_FOPEN:    // (바이트, 정수) → option 정수
+                            if (st.n < 2 || st.k[st.n-1] != K_INT || !CBE_BYTES(st, st.n-2)) return false;
+                            st.n--; st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_DOPEN: case IRW_FTYPE: case IRW_LTYPE: case IRW_NRESOLVE:   // 바이트 → option 정수
+                            if (st.n < 1 || !CBE_BYTES(st, st.n-1)) return false;
+                            st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_DMAKE: case IRW_PREMOVE:   // 바이트 → 정수(1 / 0)
+                            if (st.n < 1 || !CBE_BYTES(st, st.n-1)) return false;
+                            st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_PRENAME:   // (바이트, 바이트) → 정수
+                            if (st.n < 2 || !CBE_BYTES(st, st.n-1) || !CBE_BYTES(st, st.n-2)) return false;
+                            st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_FCLOSE: case IRW_DCLOSE: case IRW_NCLOSE:   // 정수 → 정수
+                            if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
+                            st.o[st.n-1] = -1; break;
+            case IRW_NLISTEN: case IRW_NPORT: case IRW_NACCEPT:   // 정수 → option 정수
+                            if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
+                            st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_NCONNECT:   // (정수, 정수) → option 정수
+                            if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT) return false;
+                            st.n--; st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_FSEEK:   // (정수, 정수, 정수) → option 정수
+                            if (st.n < 3 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT || st.k[st.n-3] != K_INT) return false;
+                            st.n -= 2; st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_NPAIR:   // → option 정수
+                            if (st.n >= 56) return false;
+                            st.o[st.n] = -1; st.ve[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_OPT; break;
+            // ★ `value_or` 의 지연 분기 — option · result 둘 다 «값이 들어 있나». 수를 싼 것 · 바이트 슬라이스를 싼 것만.
+            case IRW_HASVAL:
+                            if (st.n < 1) return false;
+                            if (!((st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0) || st.k[st.n-1] == K_OPTSL)) return false;
+                            st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            // ★ `value_or` 는 지연 분기로 낮아진다(low_ir.c): 값이 있을 때만 VALOR 에 오고, 그때 기본값 자리에는 **같은 option** 이 다시 온다.
+            //   그래서 (option, 정수) 와 (option, 같은 option) 둘 다 받는다. 수를 싼 것 → 수 · 바이트 슬라이스를 싼 것 → 바이트 슬라이스.
+            case IRW_VALOR:
+                            if (st.n >= 2 && st.k[st.n-2] == K_OPT && st.ve[st.n-2] == 0 && st.fl[st.n-2] == 0 &&
+                                (st.k[st.n-1] == K_INT || (st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0))) {
+                                st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break; }
+                            if (st.n >= 2 && st.k[st.n-2] == K_OPTSL && (st.k[st.n-1] == K_OPTSL || CBE_BYTES(st, st.n-1))) {
+                                st.n--; st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break; }
+                            if (st.n >= 2) snprintf(g_sub, sizeof g_sub, "`value_or` of kinds %u (ve %u) and %u", st.k[st.n-2], st.ve[st.n-2], st.k[st.n-1]);
+                            return false;
             default: return false;
         }
     }
@@ -2801,11 +2886,16 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     if (cbe_uses(body, "loc["))  fprintf(out, "long long loc[%zu] = {0}; ", n);
     if (cbe_uses(body, "sloc[")) fprintf(out, "lw_sl sloc[%zu] = {{0,0}}; ", n);
     // ★ 2026-10-31 — 틀 안 나열의 바이트 줄과 스택 예산(태그 경로 · VM 과 같은 수 — 부를 때마다 새것, 재귀도 안전)
+    // ★★ 2026-10-31 (W-20261031-2053) — 예산은 **틀 안 나열 + 값 구조체 틀 창**(lbuf_size + wbytes)이다. VM(low_vm.c)과 태그 경로가 그렇게 센다.
+    //   빠른 경로는 틀 창을 짓지 않지만(레코드는 C 틀의 rbuf 에 산다) 같은 수를 센다 — 그래야 깊은 되부름이 같은 자리에서 멈춘다.
+    //   전에는 나열 몫만 셌고(값 구조체만 짓는 op 은 아무것도 안 셌다), 그래서 둘을 다 가진 op 을 태그 경로로 보냈다.
     if (d->lbuf_size && cbe_uses(body, "lw_lb"))
-        fprintf(out, "unsigned char lw_lb[%zu] __attribute__((aligned(16))); long lw_sbg_ __attribute__((cleanup(lw_sb_restore))) = lw_sbytes;\n"
+        fprintf(out, "unsigned char lw_lb[%zu] __attribute__((aligned(16))); ", (size_t)d->lbuf_size);
+    if (d->lbuf_size || d->wbytes)
+        fprintf(out, "long lw_sbg_ __attribute__((cleanup(lw_sb_restore))) = lw_sbytes;\n"
                      "    if (LW_UNLIKELY((lw_sbytes += %zuL) > LW_SBUDGET)) lw_panic(\"the list literals and struct values living on this call chain need more than the stack budget "
                      "(RFC-0135 · RFC-0132 P4e) — keep a recursion with local lists or structs shallow, or take them from an allocator\");\n    ",
-                (size_t)d->lbuf_size, (size_t)d->lbuf_size);
+                (size_t)d->lbuf_size + (size_t)d->wbytes);
     // ★★★★ **레코드 지역은 이제 "어디를 가리키나" 다** (RFC-0039 §9-4 단계 2, 2026-08-03).
     //   구조체 파라미터는 **호출자의 바이트를 그대로 가리킨다** — 복사가 없고, 피호출자가
     //   쓰면 호출자에게 **즉시** 보이므로 되쓰기도 없다. 스스로 만든 레코드만 `rbuf` 에 산다.
@@ -2987,7 +3077,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
         }
     }
-    (void)cbe_kind_run(ir, d, NULL, at, lk, slot, &rk_, rmap, lez, lln, lfl);   // lk/slot/rmap/lez 를 채운다
+    // ★★ 2026-10-31 (W-20261031-2053) — 반환 표식을 **비우고** 돌린다(cbe_kind_ok 와 같게). 전에는 앞서 잰 다른 op 의 값(`g_ret_optrec`)이
+    //   남아 있어서, 그 값을 보는 규칙(슬라이스 option · 겹 option 의 `return error …` 맞추기)이 여기서만 다르게 갈렸고, 그러면 추적이
+    //   중간에 멈춘 채(답을 버렸다) 지역 종류표가 반만 찬 C 가 나갔다 — `lib/pem.low` 의 `unwrap` 이 겹 option 지역을 수로 읽었다
+    //   (네이티브 «is_ok needs a result», VM 은 멀쩡했다). 판정 때 통과한 op 이 여기서 멈추면 처리기의 결함이다 — 그렇게 말한다.
+    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0;
+    if (!cbe_kind_run(ir, d, NULL, at, lk, slot, &rk_, rmap, lez, lln, lfl))   // lk/slot/rmap/lez 를 채운다
+        fprintf(stderr, "lowentc: internal: the fast path's kind trace stopped while emitting `%.*s` (it passed when the op was judged)%s%s\n",
+                (int)d->name.size, (const char *)d->name.ptr, g_sub[0] ? " — " : "", g_sub);
     cbe_carry_t cy[CBE_NCARRY];
     const int ncy = cbe_carry_scan(d, lk, cy);   // ★ §8-22 ⓑ — 앞 바퀴 값을 들고 갈 루프
 
@@ -3137,7 +3234,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.vn[ks.n] = lln[in->a]; ks.ve[ks.n] = lez[in->a]; ks.fl[ks.n] = lfl[in->a];
                     ks.n++;
                 }
-                else if (lk[in->a] == K_OPT || lk[in->a] == K_OPTSL) {
+                else if (lk[in->a] == K_OPT || lk[in->a] == K_OPTSL || lk[in->a] == K_OPT2) {
                     // ★ option·result 도 **지역에 담긴다** — `var r be result u8 e g n .`
                     //   이 자리가 없어서 감싼 값이 **정수 스택**에서 꺼내졌다(스택 붕괴).
                     fprintf(out, "    ws[wsp++] = wloc[%lld];\n", (long long)in->a);
@@ -3177,7 +3274,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (kk == K_SL || kk == K_ROWS || kk >= K_VIEW) fprintf(out, "    sloc[%lld] = ss[--ssp];\n", (long long)in->a);
                 else if (kk == K_FLT) fprintf(out, "    floc[%lld] = fs[--fsp];\n", (long long)in->a);
                 else if (kk == K_VEC) fprintf(out, "    vloc[%lld] = vs[--vsp];\n", (long long)in->a);
-                else if (kk == K_OPT || kk == K_OPTSL) fprintf(out, "    wloc[%lld] = ws[--wsp];\n", (long long)in->a);
+                else if (kk == K_OPT || kk == K_OPTSL || kk == K_OPT2) fprintf(out, "    wloc[%lld] = ws[--wsp];\n", (long long)in->a);
                 else if (kk == K_REF) fputs("    /* ref stored: the name is static */\n", out);
                 else if (kk >= K_REC) fprintf(out, "    rloc[%lld] = rbuf[%lld]; memcpy(rloc[%lld], rs[--rsp], %u);"
                                               " memcpy(rlocsl[%lld], rssl[rsp], sizeof rssl[0]);\n",
@@ -3444,6 +3541,94 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_TIMELOCAL:
                 fputs("    st[sp++] = lw_time_local();\n", out);
                 ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.n++; break;
+            // ★★★ **호스트 잎** (2026-10-31 · W-20261031-2053) — 태그 경로와 같은 함수(`lw_h_*`)를 부른다.
+            //   option 은 (태그, 값) 쌍이다: 1 = some · 2 = none. 바이트 슬라이스 option 은 `ws[].s`.
+#define CBE_KSET(i_, k_) do { ks.k[(i_)] = (k_); ks.o[(i_)] = -1; ks.ve[(i_)] = 0; ks.vn[(i_)] = 0; ks.fl[(i_)] = 0; } while (0)
+#define CBE_WSOPT(call_) "      if (" call_ ") { ws[wsp].v = r_; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n"
+            case IRW_ARGC:
+                fputs("    st[sp++] = (long long)lw_g_nargs;\n", out);
+                CBE_KSET(ks.n, K_INT); ks.n++; break;
+            case IRW_ARGV:
+                fputs("    { long long i_ = st[--sp]; lw_sl s_ = { 0, 0 };\n"
+                      "      if (lw_h_argv(i_, &s_)) { ws[wsp].s = s_; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n", out);
+                CBE_KSET(ks.n-1, K_OPTSL); break;
+            case IRW_ENVGET:
+                fputs("    { lw_sl n_ = ss[--ssp]; lw_sl s_ = { 0, 0 };\n"
+                      "      if (lw_h_envget(n_.p, n_.n, &s_)) { ws[wsp].s = s_; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n", out);
+                CBE_KSET(ks.n-1, K_OPTSL); break;
+            case IRW_WRITE:
+                fputs("    { lw_sl b_ = ss[--ssp]; long long f_ = st[--sp]; st[sp++] = lw_h_write(f_, b_.p, b_.n); }\n", out);
+                ks.n--; CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_RDIN: case IRW_FREAD: case IRW_DREAD: case IRW_NRECV:
+                fprintf(out, "    { lw_sl b_ = ss[--ssp]; long long h_ = st[--sp]; long long r_ = 0;\n"
+                             CBE_WSOPT("%s(h_, (unsigned char *)b_.p, b_.n, &r_)"),
+                        in->w == IRW_RDIN ? "lw_h_rdin" : in->w == IRW_FREAD ? "lw_h_fread" : in->w == IRW_DREAD ? "lw_h_dread" : "lw_h_nrecv");
+                ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_FWRITE: case IRW_NSEND:
+                fprintf(out, "    { lw_sl b_ = ss[--ssp]; long long h_ = st[--sp]; long long r_ = 0;\n"
+                             CBE_WSOPT("%s(h_, b_.p, b_.n, &r_)"),
+                        in->w == IRW_FWRITE ? "lw_h_fwrite" : "lw_h_nsend");
+                ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_FOPEN:
+                fputs("    { long long m_ = st[--sp]; lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_fopen(p_.p, p_.n, m_, &r_)"), out);
+                ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_DOPEN: case IRW_NRESOLVE:
+                fprintf(out, "    { lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
+                             CBE_WSOPT("%s(p_.p, p_.n, &r_)"),
+                        in->w == IRW_DOPEN ? "lw_h_dopen" : "lw_h_nresolve");
+                CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_FTYPE: case IRW_LTYPE:
+                fprintf(out, "    { lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
+                             CBE_WSOPT("lw_h_ftype(p_.p, p_.n, %d, &r_)"),
+                        in->w == IRW_LTYPE ? 1 : 0);
+                CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_DMAKE: case IRW_PREMOVE:
+                fprintf(out, "    { lw_sl p_ = ss[--ssp]; st[sp++] = %s(p_.p, p_.n); }\n",
+                        in->w == IRW_DMAKE ? "lw_h_dmake" : "lw_h_premove");
+                CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_PRENAME:
+                fputs("    { lw_sl n_ = ss[--ssp]; lw_sl o_ = ss[--ssp]; st[sp++] = lw_h_prename(o_.p, o_.n, n_.p, n_.n); }\n", out);
+                ks.n--; CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_FCLOSE: case IRW_DCLOSE: case IRW_NCLOSE:
+                fprintf(out, "    st[sp-1] = %s(st[sp-1]);\n",
+                        in->w == IRW_FCLOSE ? "lw_h_fclose" : in->w == IRW_DCLOSE ? "lw_h_dclose" : "lw_h_nclose");
+                CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_NLISTEN: case IRW_NPORT: case IRW_NACCEPT:
+                fprintf(out, "    { long long h_ = st[--sp]; long long r_ = 0;\n"
+                             CBE_WSOPT("%s(h_, &r_)"),
+                        in->w == IRW_NLISTEN ? "lw_h_nlisten" : in->w == IRW_NPORT ? "lw_h_nport" : "lw_h_naccept");
+                CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_NCONNECT:
+                fputs("    { long long p_ = st[--sp]; long long a_ = st[--sp]; long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_nconnect(a_, p_, &r_)"), out);
+                ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_FSEEK:
+                fputs("    { long long w_ = st[--sp]; long long o_ = st[--sp]; long long h_ = st[--sp]; long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_fseek(h_, o_, w_, &r_)"), out);
+                ks.n -= 2; CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_NPAIR:
+                fputs("    { long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_npair(&r_)"), out);
+                CBE_KSET(ks.n, K_OPT); ks.n++; break;
+            case IRW_HASVAL:
+                fputs("    { int t_ = ws[--wsp].tag; st[sp++] = (t_ == 1 || t_ == 3) ? 1 : 0; }\n", out);
+                CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_VALOR:
+                if (ks.k[ks.n-2] == K_OPTSL) {   // 바이트 슬라이스 — 기본값은 슬라이스이거나 같은 option
+                    if (ks.k[ks.n-1] == K_OPTSL)
+                        fputs("    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_.s; }\n", out);
+                    else
+                        fputs("    { lw_sl d_ = ss[--ssp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_; }\n", out);
+                    ks.n--; CBE_KSET(ks.n-1, K_SL); ks.ve[ks.n-1] = 1; break;
+                }
+                if (ks.k[ks.n-1] == K_OPT)
+                    fputs("    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_.v; }\n", out);
+                else
+                    fputs("    { long long d_ = st[--sp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_; }\n", out);
+                ks.n--; CBE_KSET(ks.n-1, K_INT); break;
+#undef CBE_WSOPT
+#undef CBE_KSET
             case IRW_ISTORE: {
                 int esz = (int)ks.ve[ks.n-3]; if (esz <= 0) esz = 1;
                 fputs("    { long long v_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
@@ -4348,7 +4533,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else if (dk == K_FLT) fputs("    fsp--;\n", out);
                 else if (dk == K_VEC) fputs("    vsp--;\n", out);
                 else if (dk == K_REF) fputs("    /* ref dropped: nothing on a stack */\n", out);
-                else if (dk == K_OPT || dk == K_OPTSL) fputs("    wsp--;\n", out);
+                else if (dk == K_OPT || dk == K_OPTSL || dk == K_OPT2) fputs("    wsp--;\n", out);
                 else if (dk >= K_REC) fputs("    rsp--;\n", out);
                 else fputs("    sp--;\n", out);
                 break;
@@ -4366,6 +4551,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (ks.k[ks.n-1] == K_SL) {   // ★ WO-0222 — 바이트 슬라이스를 감싼다(시뮬레이터가 폭 1 을 확인했다)
                     fputs("    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n", out);
                     ks.k[ks.n-1] = K_OPTSL; ks.ve[ks.n-1] = 0; ks.vn[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
+                }
+                if (ks.k[ks.n-1] == K_OPT && ks.ve[ks.n-1] == 0 && ks.fl[ks.n-1] == 0) {   // ★ 겹 — 안 태그를 t2 로
+                    fputs("    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 1;\n", out);
+                    ks.k[ks.n-1] = K_OPT2; ks.o[ks.n-1] = -1; break;
                 }
                 fputs("    ws[wsp].v = st[--sp]; ws[wsp].tag = 1; wsp++;\n", out);
                 ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; break;
@@ -4391,6 +4580,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(wsx + 1); ks.fl[ks.n-1] = 0;
                     break;
                 }
+                if (ks.k[ks.n-1] == K_OPT && ks.ve[ks.n-1] == 0 && ks.fl[ks.n-1] == 0) {   // ★ 겹 — 안 태그를 t2 로
+                    fputs("    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 3;\n", out);
+                    ks.k[ks.n-1] = K_OPT2; ks.o[ks.n-1] = -1; break;
+                }
                 fputs("    ws[wsp].v = st[--sp]; ws[wsp].tag = 3; wsp++;\n", out);
                 ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; break;
             case IRW_WRAP_NONE:
@@ -4411,6 +4604,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         in->w == IRW_ISOK ? "is_ok" : "is_error", in->w == IRW_ISOK ? 3 : 4);
                 ks.k[ks.n-1] = K_INT; break;
             case IRW_SOMEVAL:
+                if (ks.k[ks.n-1] == K_OPT2) {   // ★ 겹을 벗긴다 — 안 태그가 바깥이 된다
+                    fputs("    { lw_r *w_ = &ws[wsp-1];"
+                          " if (LW_UNLIKELY(w_->tag == 2)) lw_panic(\"some_value of none\");"
+                          " if (LW_UNLIKELY(w_->tag != 1)) lw_panic(\"some_value needs an option\");"
+                          " w_->tag = w_->t2; w_->t2 = 0; }\n", out);
+                    ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
+                }
                 if (ks.k[ks.n-1] == K_OPTSL) {   // ★ WO-0222 — 바이트 슬라이스를 꺼낸다
                     fputs("    { lw_r w_ = ws[--wsp];"
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
@@ -4440,6 +4640,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       " st[sp++] = w_.v; }\n", out);
                 ks.k[ks.n-1] = K_INT; break;
             case IRW_OKVAL:
+                if (ks.k[ks.n-1] == K_OPT2) {   // ★ 겹을 벗긴다 — 안 태그가 바깥이 된다
+                    fputs("    { lw_r *w_ = &ws[wsp-1];"
+                          " if (LW_UNLIKELY(w_->tag == 4)) lw_panic(\"ok_value of an error\");"
+                          " if (LW_UNLIKELY(w_->tag != 3)) lw_panic(\"ok_value needs a result\");"
+                          " w_->tag = w_->t2; w_->t2 = 0; }\n", out);
+                    ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
+                }
                 if (ks.ve[ks.n-1] && ks.fl[ks.n-1]) {   // ★ 뷰를 감쌌으면 ss[] 로 꺼낸다
                     unsigned char vx = (unsigned char)(K_VIEW + ks.ve[ks.n-1] - 1);
                     fputs("    { lw_r w_ = ws[--wsp];"
@@ -4639,7 +4846,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_RET:
                 live2 = false;
                 cbe_wb(ir, d, out);
-                if (ks.n && (ks.k[ks.n-1] == K_OPT || ks.k[ks.n-1] == K_OPTSL))
+                if (ks.n && (ks.k[ks.n-1] == K_OPT || ks.k[ks.n-1] == K_OPTSL || ks.k[ks.n-1] == K_OPT2))
                     fputs("    lw_depth--; return ws[wsp-1];\n", out);
                 else if (ks.n && ks.k[ks.n-1] == K_FLT)
                     fputs("    { lw_r r_; r_.v = 0; r_.f = fs[fsp-1]; r_.tag = 5; lw_depth--; return r_; }\n", out);
@@ -4826,7 +5033,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       else                             fprintf(out, "      ci[%zu] = st[--sp];\n",  (size_t)(--bi));
                   } }
                 proven_size_t cidx = IR_CALL_IDX(in->a);
-                bool cwrapped = (cidx < 512 && (g_retk[cidx] == K_OPT || g_retk[cidx] == K_OPTSL));
+                bool cwrapped = (cidx < 512 && (g_retk[cidx] == K_OPT || g_retk[cidx] == K_OPTSL || g_retk[cidx] == K_OPT2));
                 bool cflt = (cidx < 512 && g_retk[cidx] == K_FLT);
                 bool csl  = (cidx < 512 && g_retk[cidx] == K_SL);
                 bool cview = (cidx < 512 && g_retk[cidx] >= K_VIEW && g_retk[cidx] < K_SVIEW);
@@ -6575,6 +6782,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                              "          lowv w_ = {0}; w_.tag = (r_.tag == 1) ? LWV_SOME : LWV_OK; w_.box = lw_nbox++; return w_; } }\n",
                         root);
             }
+            if (i < 512 && g_retk[i] == K_OPT2) {
+                // ★ 겹 option · result 반환 — 바깥이 some / ok 이면 안의 값(수를 싼 some · ok · none · error)을 먼저 짓고 그것을 싼다.
+                fputs("    if (r_.tag == 1 || r_.tag == 3) { lowv in_ = {0};\n"
+                      "        if (r_.t2 == 2) in_.tag = LWV_NONE;\n"
+                      "        else if (r_.t2 == 4) in_ = lw_err((int)r_.v);\n"
+                      "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                      "               lw_boxes[lw_nbox] = lw_int(r_.v); in_.tag = (r_.t2 == 1) ? LWV_SOME : LWV_OK; in_.box = lw_nbox++; }\n"
+                      "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                      "        lw_boxes[lw_nbox] = in_;\n"
+                      "        { lowv w_ = {0}; w_.tag = (r_.tag == 1) ? LWV_SOME : LWV_OK; w_.box = lw_nbox++; return w_; } }\n", out);
+            }
             if (i < 512 && g_retk[i] == K_OPTSL) {
                 // ★★★★ WO-0222 — **바이트 슬라이스를 감싼 option 반환**: some 이면 태그 경로가 기대하는 박스(LWV_SLICE)를 짓는다.
                 fputs("    if (r_.tag == 1) {\n"
@@ -7006,13 +7224,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     fputs("    st[sp++] = (lowv){ .tag = LWV_INT, .i = lw_g_nargs };\n", out); break;
                 // ★ 환경 조회 — VM 과 **같은 environ** 을 훑는다(같은 환경이면 같은 답).
                 case IRW_WRITE:
-                    fputs("    { lowv bv = st[--sp]; lowv fv = st[--sp];\n"
-                          "      if (fv.i != 1 && fv.i != 2) lw_panic(\"only 1 (stdout) and 2 (stderr) are writable\");\n"
-                          "      FILE *fp_ = (fv.i == 1) ? stdout : stderr;\n"
-                          "      unsigned long hfk_ = 1; int hf_ = lw_hf_probe(\"out\", &hfk_);\n"
-                          "      if (hf_ == 1) { fflush(fp_); st[sp++] = lw_int(0); } else {\n"
-                          "      size_t w_ = fwrite(bv.p, 1, (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n, fp_); fflush(fp_);\n"
-                          "      st[sp++] = lw_int((long long)w_); } }\n", out);
+                    fputs("    { lowv bv = st[--sp]; lowv fv = st[--sp]; st[sp++] = lw_int(lw_h_write(fv.i, bv.p, bv.n)); }\n", out);
                     break;
                 // ★★★★ RFC-0112 D3 — 피연산자가 뿌리다(0 고정 창 · 1 힙). VM 과 **같은 규칙**(`lw_root_take`).
                 //   ★ 박스 풀 가드도 VM 과 같은 자리에서 먼저 본다(전엔 가드 없이 `lw_boxes[lw_nbox]` 에 썼다).
@@ -7035,15 +7247,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 // ★ RFC-0069 A5 — 표준입력. VM 과 같은 의미: fd 0 만 · 안 들어가면 none.
                 case IRW_RDIN:
-                    fputs("    { lowv dv = st[--sp]; lowv fv = st[--sp];\n"
-                          "      if (fv.i != 0) lw_panic(\"only 0 (stdin) is readable\");\n"
-                          "      { size_t g_ = fread((unsigned char *)(void *)(uintptr_t)dv.p, 1, dv.n, stdin);\n"
-                          "        int more_ = 0;\n"
-                          "        if (g_ == dv.n) { int pk_ = fgetc(stdin); if (pk_ != EOF) { ungetc(pk_, stdin); more_ = 1; } }\n"
-                          "        if (more_) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "               lw_boxes[lw_nbox] = lw_int((long long)g_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv dv = st[--sp]; lowv fv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_rdin(fv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 // ★★★ **reactor** (RFC-0071 A1) — 네이티브도 **블로킹 폴백만**.
                 //   ☞ A1 의 산물은 *"reactor 라는 자리"* 이지 성능이 아니다. 그 자리가 생겨도
@@ -7147,163 +7354,74 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 // ★ RFC-0069 §6 스트림 리프 — VM 과 **같은 의미**(같은 libc 를 부른다).
                 case IRW_FOPEN:
-                    fputs("    { lowv mv = st[--sp]; lowv pv = st[--sp]; char pb_[4096];\n"
-                          "      const char *m_ = (mv.i==0)?\"rb\":(mv.i==1)?\"wb\":(mv.i==2)?\"ab\":0;\n"
-                          "      if (!m_) lw_panic(\"open mode must be 0 (read), 1 (write) or 2 (append)\");\n"
-                          "      if (pv.n == 0 || pv.n >= sizeof pb_) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "      else if (lw_hf_probe(\"open\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "      else { memcpy(pb_, pv.p, pv.n); pb_[pv.n] = 0;\n"
-                          "        FILE *fh_ = fopen(pb_, m_);\n"
-                          "        if (!fh_) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "        else { int sl_ = 0; while (sl_ < 32 && lw_files[sl_]) sl_++;\n"
-                          "               if (sl_ >= 32) { fclose(fh_); lw_panic(\"too many open files\"); }\n"
-                          "               lw_files[sl_] = fh_;\n"
-                          "               if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "               lw_boxes[lw_nbox] = lw_int(sl_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv mv = st[--sp]; lowv pv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_fopen(pv.p, pv.n, mv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_FREAD:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_files[hv.i]) lw_panic(\"not an open file handle\");\n"
-                          "      { unsigned long hfk_ = 1; int hf_ = lw_hf_probe(\"read\", &hfk_);\n"
-                          "        if (hf_ == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "        size_t g_ = fread((unsigned char *)(void *)(uintptr_t)dv.p, 1,\n"
-                          "                          (hf_ == 2) ? lw_hf_cap(dv.n, hfk_) : dv.n, lw_files[hv.i]);\n"
-                          "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "        lw_boxes[lw_nbox] = lw_int((long long)g_);\n"
-                          "        st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_fread(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_FWRITE:
-                    fputs("    { lowv bv = st[--sp]; lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_files[hv.i]) lw_panic(\"not an open file handle\");\n"
-                          "      { unsigned long hfk_ = 1; int hf_ = lw_hf_probe(\"write\", &hfk_);\n"
-                          "        if (hf_ == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "        size_t want_ = (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n;\n"
-                          "        size_t w_ = fwrite(bv.p, 1, want_, lw_files[hv.i]);\n"
-                          /* ★ 모자란 쓰기 + ferror = 실패(none). VM 과 같은 규율(결함 노트 #65). */
-                          "        if (w_ < want_ && ferror(lw_files[hv.i])) { clearerr(lw_files[hv.i]);\n"
-                          "          st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "        lw_boxes[lw_nbox] = lw_int((long long)w_);\n"
-                          "        st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv bv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_fwrite(hv.i, bv.p, bv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_FCLOSE:
-                    fputs("    { lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_files[hv.i]) lw_panic(\"not an open file handle\");\n"
-                          "      { int hfc_ = lw_hf_probe(\"close\", 0);\n"
-                          "        int rc_ = fclose(lw_files[hv.i]); lw_files[hv.i] = 0;\n"
-                          "        if (hfc_ == 1) rc_ = -1;\n"
-                          "        st[sp++] = lw_int(rc_ == 0 ? 1 : 0); } }\n", out);
+                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_fclose(hv.i)); }\n", out);
                     break;
                 // ★★★ 소켓 리프 (cap net) — VM 과 같은 의미(AF_UNIX socketpair · socks[i]=fd+1, 0=빈).
                 case IRW_NPAIR:
-                    fputs("    { int sv_[2];\n"
-                          "      if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv_) != 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "      else { int s0_ = 0; while (s0_ < 32 && lw_socks[s0_]) s0_++;\n"
-                          "             int s1_ = s0_ + 1; while (s1_ < 32 && lw_socks[s1_]) s1_++;\n"
-                          "             if (s0_ >= 32 || s1_ >= 32) { close(sv_[0]); close(sv_[1]); lw_panic(\"too many open sockets\"); }\n"
-                          "             lw_socks[s0_] = sv_[0] + 1; lw_socks[s1_] = sv_[1] + 1;\n"
-                          "             if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "             lw_boxes[lw_nbox] = lw_int((long long)((unsigned long long)s0_ | ((unsigned long long)s1_ << 32)));\n"
-                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                    fputs("    {  long long r_ = 0;\n"
+                          "      if (!lw_h_npair(&r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_NSEND:
-                    fputs("    { lowv bv = st[--sp]; lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_socks[hv.i]) lw_panic(\"not an open socket handle\");\n"
-                          "      { unsigned long hfk_ = 1; int hf_ = lw_hf_probe(\"send\", &hfk_);\n"
-                          "        if (hf_ == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "        ssize_t w_ = send(lw_socks[hv.i] - 1, bv.p,\n"
-                          "                          (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n, 0);\n"
-                          "        if (w_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "               lw_boxes[lw_nbox] = lw_int((long long)w_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv bv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_nsend(hv.i, bv.p, bv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_NRECV:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_socks[hv.i]) lw_panic(\"not an open socket handle\");\n"
-                          "      { unsigned long hfk_ = 1; int hf_ = lw_hf_probe(\"recv\", &hfk_);\n"
-                          "        if (hf_ == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "        ssize_t g_ = recv(lw_socks[hv.i] - 1, (unsigned char *)(void *)(uintptr_t)dv.p,\n"
-                          "                          (hf_ == 2) ? lw_hf_cap(dv.n, hfk_) : dv.n, 0);\n"
-                          "        if (g_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "               lw_boxes[lw_nbox] = lw_int((long long)g_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_nrecv(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_NCLOSE:
-                    fputs("    { lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_socks[hv.i]) lw_panic(\"not an open socket handle\");\n"
-                          "      { int rc_ = close(lw_socks[hv.i] - 1); lw_socks[hv.i] = 0;\n"
-                          "        st[sp++] = lw_int(rc_ == 0 ? 1 : 0); } }\n", out);
+                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_nclose(hv.i)); }\n", out);
                     break;
                 // ★★★ 네트워크 면 — VM 과 같은 의미(127.0.0.1 TCP · 포트 0 = 임시포트).
                 case IRW_NLISTEN:
-                    fputs("    { lowv pv = st[--sp];\n"
-                          "      if (pv.i < 0 || pv.i > 65535) lw_panic(\"port out of range\");\n"
-                          "      { int fd_ = socket(AF_INET, SOCK_STREAM, 0);\n"
-                          "        if (fd_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { int one_ = 1; (void)setsockopt(fd_, SOL_SOCKET, SO_REUSEADDR, &one_, sizeof one_);\n"
-                          "          struct sockaddr_in sa_; memset(&sa_, 0, sizeof sa_);\n"
-                          "          sa_.sin_family = AF_INET; sa_.sin_addr.s_addr = htonl(INADDR_LOOPBACK);\n"
-                          "          sa_.sin_port = htons((unsigned short)pv.i);\n"
-                          "          if (bind(fd_, (struct sockaddr *)&sa_, sizeof sa_) != 0 || listen(fd_, 16) != 0) {\n"
-                          "            close(fd_); st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "          else { int sl_ = 0; while (sl_ < 32 && lw_socks[sl_]) sl_++;\n"
-                          "            if (sl_ >= 32) { close(fd_); lw_panic(\"too many open sockets\"); }\n"
-                          "            lw_socks[sl_] = fd_ + 1;\n"
-                          "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "            lw_boxes[lw_nbox] = lw_int(sl_);\n"
-                          "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv pv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_nlisten(pv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_NPORT:
-                    fputs("    { lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_socks[hv.i]) lw_panic(\"not an open socket handle\");\n"
-                          "      { struct sockaddr_in sa_; socklen_t sl2_ = sizeof sa_; memset(&sa_, 0, sizeof sa_);\n"
-                          "        if (getsockname(lw_socks[hv.i] - 1, (struct sockaddr *)&sa_, &sl2_) != 0)\n"
-                          "          { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "          lw_boxes[lw_nbox] = lw_int((long long)ntohs(sa_.sin_port));\n"
-                          "          st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_nport(hv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 // ★★★ 주소를 받는다 (X-0032, 2026-09-18) — VM 과 **같은 의미**여야 한다.
                 case IRW_NCONNECT:
-                    fputs("    { lowv pv = st[--sp]; lowv av = st[--sp];\n"
-                          "      if (pv.i < 0 || pv.i > 65535) lw_panic(\"port out of range\");\n"
-                          "      if (av.i < 0 || av.i > 4294967295LL) lw_panic(\"IPv4 address out of range\");\n"
-                          "      if (lw_hf_probe(\"connect\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else\n"
-                          "      { int fd_ = socket(AF_INET, SOCK_STREAM, 0);\n"
-                          "        if (fd_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { struct sockaddr_in sa_; memset(&sa_, 0, sizeof sa_);\n"
-                          "          sa_.sin_family = AF_INET; sa_.sin_addr.s_addr = htonl((unsigned int)av.i);\n"
-                          "          sa_.sin_port = htons((unsigned short)pv.i);\n"
-                          "          if (connect(fd_, (struct sockaddr *)&sa_, sizeof sa_) != 0) {\n"
-                          "            close(fd_); st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "          else { int sl_ = 0; while (sl_ < 32 && lw_socks[sl_]) sl_++;\n"
-                          "            if (sl_ >= 32) { close(fd_); lw_panic(\"too many open sockets\"); }\n"
-                          "            lw_socks[sl_] = fd_ + 1;\n"
-                          "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "            lw_boxes[lw_nbox] = lw_int(sl_);\n"
-                          "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv pv = st[--sp]; lowv av = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_nconnect(av.i, pv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 // ★★★ 이름을 주소로 (X-0032) — VM 과 같은 의미: 첫 A 레코드 하나.
                 case IRW_NRESOLVE:
-                    fputs("    { lowv nv = st[--sp];\n"
-                          "      if (lw_hf_probe(\"resolve\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else\n"
-                          "      { char host_[256];\n"
-                          "        if (nv.n == 0 || (size_t)nv.n >= sizeof host_) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { memcpy(host_, nv.p, nv.n); host_[nv.n] = 0;\n"
-                          "          struct addrinfo hints_; memset(&hints_, 0, sizeof hints_);\n"
-                          "          hints_.ai_family = AF_INET; hints_.ai_socktype = SOCK_STREAM;\n"
-                          "          struct addrinfo *res_ = 0;\n"
-                          "          if (getaddrinfo(host_, 0, &hints_, &res_) != 0 || !res_) {\n"
-                          "            if (res_) freeaddrinfo(res_);\n"
-                          "            st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "          else { unsigned int a_ = ntohl(((struct sockaddr_in *)res_->ai_addr)->sin_addr.s_addr);\n"
-                          "            freeaddrinfo(res_);\n"
-                          "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "            lw_boxes[lw_nbox] = lw_int((long long)a_);\n"
-                          "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv nv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_nresolve(nv.p, nv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 // ★★★ RFC-0136 — 프로세스 잎. 런타임은 LW_PROC_RT(쓰는 단위에만 나온다).
                 case IRW_PSPAWN:
@@ -7333,113 +7451,58 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_proc_kill(hv.i) ? 1 : 0); }\n", out);
                     break;
                 case IRW_NACCEPT:
-                    fputs("    { lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_socks[hv.i]) lw_panic(\"not an open socket handle\");\n"
-                          "      if (lw_hf_probe(\"accept\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else\n"
-                          "      { int cfd_ = accept(lw_socks[hv.i] - 1, 0, 0);\n"
-                          "        if (cfd_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { int sl_ = 0; while (sl_ < 32 && lw_socks[sl_]) sl_++;\n"
-                          "          if (sl_ >= 32) { close(cfd_); lw_panic(\"too many open sockets\"); }\n"
-                          "          lw_socks[sl_] = cfd_ + 1;\n"
-                          "          if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "          lw_boxes[lw_nbox] = lw_int(sl_);\n"
-                          "          st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_naccept(hv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_FSEEK:
-                    fputs("    { lowv wv = st[--sp], ov = st[--sp], hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_files[hv.i]) lw_panic(\"not an open file handle\");\n"
-                          "      { int w_ = (wv.i==0)?SEEK_SET:(wv.i==1)?SEEK_CUR:(wv.i==2)?SEEK_END:-1;\n"
-                          "        if (w_ < 0) lw_panic(\"seek whence must be 0 (set), 1 (cur) or 2 (end)\");\n"
-                          "        if (fseek(lw_files[hv.i], (long)ov.i, w_) != 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "        else { long pos_ = ftell(lw_files[hv.i]);\n"
-                          "          if (pos_ < 0) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "          else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "                 lw_boxes[lw_nbox] = lw_int((long long)pos_);\n"
-                          "                 st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv wv = st[--sp], ov = st[--sp], hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_fseek(hv.i, ov.i, wv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_DOPEN:
-                    fputs("    { lowv pv = st[--sp]; char pb_[4096];\n"
-                          "      if (pv.n == 0 || pv.n >= sizeof pb_) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "      else { memcpy(pb_, pv.p, pv.n); pb_[pv.n] = 0;\n"
-                          "        DIR *dh_ = opendir(pb_);\n"
-                          "        if (!dh_) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "        else { int sl_ = 0; while (sl_ < 32 && lw_dirs[sl_]) sl_++;\n"
-                          "               if (sl_ >= 32) { closedir(dh_); lw_panic(\"too many open directories\"); }\n"
-                          "               lw_dirs[sl_] = dh_;\n"
-                          "               if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "               lw_boxes[lw_nbox] = lw_int(sl_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv pv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_dopen(pv.p, pv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_DREAD:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_dirs[hv.i]) lw_panic(\"not an open directory handle\");\n"
-                          "      errno = 0;\n"
-                          "      { struct dirent *de_ = readdir(lw_dirs[hv.i]);\n"
-                          "        if (!de_) { if (errno) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "          else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "                 lw_boxes[lw_nbox] = lw_int(0);\n"          /* ★ 0 = 끝 */
-                          "                 st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n"
-                          "        else { size_t nl_ = strlen(de_->d_name);\n"
-                          "          if (nl_ > dv.n) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "          else { memcpy((void *)(uintptr_t)dv.p, de_->d_name, nl_);\n"
-                          "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "            lw_boxes[lw_nbox] = lw_int((long long)nl_);\n"
-                          "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_dread(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_DCLOSE:
-                    fputs("    { lowv hv = st[--sp];\n"
-                          "      if (hv.i < 0 || hv.i >= 32 || !lw_dirs[hv.i]) lw_panic(\"not an open directory handle\");\n"
-                          "      { int rc_ = closedir(lw_dirs[hv.i]); lw_dirs[hv.i] = 0;\n"
-                          "        st[sp++] = lw_int(rc_ == 0 ? 1 : 0); } }\n", out);
+                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_dclose(hv.i)); }\n", out);
                     break;
                 case IRW_FTYPE: case IRW_LTYPE:
-                    // ★ 한 조각에서 둘을 낸다 — 다른 것은 **따라가는가** 하나뿐이다(stat / lstat).
-                    //   VM 과 **같은 규율**이어야 한다(차등 스윕이 그것을 지킨다).
-                    fprintf(out, "    { lowv pv = st[--sp]; char pb_[4096];\n"
-                          "      if (pv.n == 0 || pv.n >= sizeof pb_) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
-                          "      else { memcpy(pb_, pv.p, pv.n); pb_[pv.n] = 0;\n"
-                          "        struct stat st_;\n"
-                          "        if (%s(pb_, &st_) != 0) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "        else { long long t_ = %sS_ISDIR(st_.st_mode) ? 1 : S_ISREG(st_.st_mode) ? 0 : 2;\n"
-                          "          if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "          lw_boxes[lw_nbox] = lw_int(t_);\n"
-                          "          st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n",
-                          in->w == IRW_LTYPE ? "lstat" : "stat",
-                          in->w == IRW_LTYPE ? "S_ISLNK(st_.st_mode) ? 3 : " : "");
+                    // ★ 한 함수가 둘을 낸다 — 다른 것은 **따라가는가** 하나뿐이다(stat / lstat · `lw_h_ftype`).
+                    fprintf(out, "    { lowv pv = st[--sp]; long long r_ = 0;\n"
+                          "      if (!lw_h_ftype(pv.p, pv.n, %d, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
+                          "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", in->w == IRW_LTYPE ? 1 : 0);
                     break;
                 case IRW_DMAKE:
-                    fputs("    { lowv pv = st[--sp]; char pb_[4096];\n"
-                          "      if (pv.n == 0 || pv.n >= sizeof pb_) { st[sp++] = lw_int(0); }\n"
-                          "      else { memcpy(pb_, pv.p, pv.n); pb_[pv.n] = 0;\n"
-                          "        st[sp++] = lw_int(mkdir(pb_, 0777) == 0 ? 1 : 0); } }\n", out);
+                    fputs("    { lowv pv = st[--sp]; st[sp++] = lw_int(lw_h_dmake(pv.p, pv.n)); }\n", out);
                     break;
                 case IRW_PREMOVE:
-                    fputs("    { lowv pv = st[--sp]; char pb_[4096];\n"
-                          "      if (pv.n == 0 || pv.n >= sizeof pb_) { st[sp++] = lw_int(0); }\n"
-                          "      else { memcpy(pb_, pv.p, pv.n); pb_[pv.n] = 0;\n"
-                          "        st[sp++] = lw_int(remove(pb_) == 0 ? 1 : 0); } }\n", out);
+                    fputs("    { lowv pv = st[--sp]; st[sp++] = lw_int(lw_h_premove(pv.p, pv.n)); }\n", out);
                     break;
                 case IRW_PRENAME:
-                    fputs("    { lowv nv = st[--sp], ov = st[--sp]; char ob_[4096], nb_[4096];\n"
-                          "      if (ov.n == 0 || ov.n >= sizeof ob_ || nv.n == 0 || nv.n >= sizeof nb_) { st[sp++] = lw_int(0); }\n"
-                          "      else { memcpy(ob_, ov.p, ov.n); ob_[ov.n] = 0; memcpy(nb_, nv.p, nv.n); nb_[nv.n] = 0;\n"
-                          "        st[sp++] = lw_int(rename(ob_, nb_) == 0 ? 1 : 0); } }\n", out);
+                    fputs("    { lowv nv = st[--sp], ov = st[--sp]; st[sp++] = lw_int(lw_h_prename(ov.p, ov.n, nv.p, nv.n)); }\n", out);
                     break;
                 case IRW_ENVGET:
-                    fputs("    { lowv nv = st[--sp]; const char *hit = 0; size_t hitn = 0;\n"
-                          "      if (lw_hf_probe(\"env\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "      for (char **e = environ; e && *e; e++) { const char *q = strchr(*e, '=');\n"
-                          "        if (!q) continue; if ((size_t)(q - *e) != nv.n) continue;\n"
-                          "        if (memcmp(*e, nv.p, nv.n) != 0) continue;\n"
-                          "        hit = q + 1; hitn = strlen(q + 1); break; }\n"
-                          "      if (!hit) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)hit, .n = hitn };\n"
-                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                    fputs("    { lowv nv = st[--sp]; lw_sl s_;\n"
+                          "      if (!lw_h_envget(nv.p, nv.n, &s_)) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
+                          "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = s_.p, .n = s_.n };\n"
+                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_ARGV:
-                    fputs("    { lowv iv = st[--sp];\n"
-                          "      if (iv.i < 0 || iv.i >= lw_g_nargs) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
-                          "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)lw_g_args[iv.i], .n = strlen(lw_g_args[iv.i]) };\n"
+                    fputs("    { lowv iv = st[--sp]; lw_sl s_;\n"
+                          "      if (!lw_h_argv(iv.i, &s_)) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
+                          "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = s_.p, .n = s_.n };\n"
                           "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
                     break;
                 case IRW_CSTR2STR:

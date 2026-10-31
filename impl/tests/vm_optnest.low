@@ -1,0 +1,71 @@
+rem ★★ **option · result 안의 option · result** (2026-10-31 · W-20261031-2053) — 빠른 경로가 겹을 나른다.
+rem   `result (option usize) e` 는 파일 읽기의 모양이다(끝 = `ok none` · 실패 = `error`). 빠른 경로는 이것을
+rem   (바깥 태그, 안 태그, 수) 셋으로 나른다. 차등 스윕이 아래 op 들을 VM 과 네이티브에 같은 인자로 돌려 견준다.
+
+module vm_optnest .
+
+enum rerr do bad . far . end .
+
+rem 세 갈래: 0 이면 끝(ok none) · 100 넘으면 실패 · 그 밖은 ok some (x 의 두 배)
+fn pick input x u64 . output result (option u64) rerr .
+  errors far gt x. 1000 . .
+  errors bad gt x. 100 . .
+do
+  if eq x. 0 . do return ok none . . end .
+  if gt x. 1000 . do return error far . . end .
+  if gt x. 100 . do return error bad . . end .
+  return ok some mul x. 2 . . . .
+end .
+
+rem 겹을 지역에 담았다가 벗긴다 — 끝 1 · 실패 2 · 값이면 값 + 10
+fn peel input x u64 . output u64 . do
+  let r result (option u64) rerr pick x. . .
+  if is_error r. . do return 2 . end .
+  let o option u64 ok_value r. . .
+  if eq is_some o. . false . do return 1 . end .
+  return add some_value o. . 10 . .
+end .
+
+rem 겹을 그대로 넘긴다(부르는 쪽 · 돌려주는 쪽 둘 다 빠른 경로)
+fn pass input x u64 . output result (option u64) rerr .
+do
+  let r result (option u64) rerr pick x. . .
+  return r. .
+end .
+
+rem 실패의 값을 읽는다 — bad 1 · far 2(열거의 번호) · 실패가 아니면 9
+fn which input x u64 . output u64 . do
+  let r result (option u64) rerr pass x. . .
+  if is_ok r. . do return 9 . end .
+  return cast u64 error_value r. . . .
+end .
+
+rem option 안의 option — 홀수면 some none · 짝수면 some some x · 0 이면 none
+fn twice input x u64 . output option (option u64) . do
+  if eq x. 0 . do return none . end .
+  if eq mod x. 2 . 1 . do return some none . . end .
+  return some some x. . . .
+end .
+
+fn twice_peel input x u64 . output u64 . do
+  let t option (option u64) twice x. . .
+  if eq is_some t. . false . do return 0 . end .
+  let i option u64 some_value t. . .
+  if eq is_some i. . false . do return 1 . end .
+  return some_value i. . .
+end .
+
+rem 되풀이 안에서 겹을 만들고 버린다 — 값이 든 것만 더한다
+fn sum_picks input n u64 . output u64 . do
+  var acc u64 0 .
+  var k u64 0 .
+  while lt k. n. . do
+    let r result (option u64) rerr pick k. . .
+    if is_ok r. . do
+      let o option u64 ok_value r. . .
+      if is_some o. . do set acc. add acc. some_value o. . . . end .
+    end .
+    set k. add k. 1 . .
+  end .
+  return acc. .
+end .

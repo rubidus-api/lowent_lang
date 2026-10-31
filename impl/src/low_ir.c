@@ -7177,7 +7177,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_ENVGET: return "env.get"; case IRW_WRITE: return "io.write";
         case IRW_ALLOCB: return "alloc.bytes"; case IRW_FOPEN: return "file.open"; case IRW_FREAD: return "file.read"; case IRW_FSEEK: return "file.seek";
         case IRW_DOPEN: return "dir.open"; case IRW_DREAD: return "dir.read"; case IRW_DCLOSE: return "dir.close";
-        case IRW_FTYPE: return "file.type";
+        case IRW_FTYPE: return "file.type"; case IRW_LTYPE: return "file.link_type";
         case IRW_DMAKE: return "dir.make"; case IRW_PREMOVE: return "path.remove"; case IRW_PRENAME: return "path.rename";
         case IRW_FWRITE: return "file.write"; case IRW_FCLOSE: return "file.close";
         case IRW_NPAIR: return "net.pair"; case IRW_NSEND: return "net.send"; case IRW_NRECV: return "net.recv"; case IRW_NCLOSE: return "net.close";

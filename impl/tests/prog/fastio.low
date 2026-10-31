@@ -1,0 +1,121 @@
+rem ★★★ **호스트 잎이 빠른 경로에서 돈다** (2026-10-31 · W-20261031-2053).
+rem
+rem   파일 · 디렉터리 · 경로 · 인자 · 환경 · 표준 출력의 잎은 빠른 경로가 받는 낱말 목록에 있었는데, 종류 추적과
+rem   방출이 없어서 그것을 쓰는 op 은 전부 태그 경로로 갔다. 이제 두 경로가 같은 함수(`lw_h_*`)를 부른다.
+rem   이 프로그램은 잎을 한 번씩 다 지나고, 한 걸음이라도 틀리면 그 자리의 번호를 낸다. 다 맞으면 42.
+rem   골든이 VM · 네이티브(빠른 경로) · 네이티브 `--no-fast`(태그 경로) 셋을 같은 인자로 돌려 답을 견준다.
+rem
+rem ☞ 인자: 0 = 새로 만들 폴더 · 1 = 그 안의 파일 · 2 = 바꿀 이름. 환경 `LOWENT_FIO` = "xy".
+
+module fastio .
+
+use files from "../../../lib/file.low" .
+use env from "../../../lib/env.low" .
+use stdio from "../../../lib/stdio.low" .
+
+rem 잎을 바로 부르는 읽기 — option 하나를 그대로 돌려준다(빠른 경로의 (태그, 값) 쌍).
+proc rd input fs cap file_system . input h files.handle . input buf mut slice u8 . output option usize . effects io . do
+  return call_builtin file_read fs. field h. fd . buf. . .
+end .
+
+proc main
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  input e  cap env .
+  input io cap io .
+  output u8 .
+  effects alloc io .
+do
+  let dv option slice u8 call_builtin arg a. 0 . .
+  let fv option slice u8 call_builtin arg a. 1 . .
+  let rv option slice u8 call_builtin arg a. 2 . .
+  guard is_some dv. . else return 60 . .
+  guard is_some fv. . else return 61 . .
+  guard is_some rv. . else return 62 . .
+  let dir slice u8 some_value dv. . .
+  let fil slice u8 some_value fv. . .
+  let ren slice u8 some_value rv. . .
+  guard eq is_some call_builtin arg a. 3 . . false . else return 63 . .
+
+  let g option mut slice u8 alloc_bytes al. capacity 64 . .
+  guard is_some g. . else return 64 . .
+  let buf mut slice u8 some_value g. . .
+
+  guard files.make_dir fs. dir. . else return 65 . .
+  guard eq files.make_dir fs. dir. . false . else return 66 . .   rem 이미 있다
+
+  rem 쓰기 — 여섯 바이트
+  let wo result files.handle files.file_error files.open fs. fil. 1 . .
+  guard is_ok wo. . else return 67 . .
+  var wh owned files.handle ok_value wo. . .
+  let wn result usize files.file_error files.write fs. wh. "hello\n" . .
+  guard is_ok wn. . else return 68 . .
+  guard eq ok_value wn. . 6 . else return 69 . .
+  let wc result void files.file_error files.close fs. wh. . .
+  guard is_ok wc. . else return 70 . .
+
+  rem 무엇인가 — 파일 0 · 폴더 1 · 링크 아님 · 없는 이름은 none
+  guard files.is_file fs. fil. . else return 71 . .
+  guard files.is_dir fs. dir. . else return 72 . .
+  guard eq files.is_symlink fs. fil. . false . else return 73 . .
+  guard eq is_some files.type_of fs. ren. . . false . else return 74 . .
+
+  rem 읽기 — 끝으로 가서 크기 6, 1 로 돌아와 넷 "ello"
+  let ro result files.handle files.file_error files.open fs. fil. 0 . .
+  guard is_ok ro. . else return 75 . .
+  var rh owned files.handle ok_value ro. . .
+  let sz result u64 files.file_error files.seek_to fs. rh. 0 2 . .
+  guard is_ok sz. . else return 76 . .
+  guard eq ok_value sz. . 6 . else return 77 . .
+  let s1 result u64 files.file_error files.seek_to fs. rh. 1 0 . .
+  guard is_ok s1. . else return 78 . .
+  let n option usize rd fs. rh. subslice buf. 0 4 . . .
+  guard is_some n. . else return 79 . .
+  guard eq some_value n. . 4 . else return 80 . .
+  guard eq idx buf. 0 . 101 . else return 81 . .   rem 'e'
+  guard eq idx buf. 3 . 111 . else return 82 . .   rem 'o'
+  let rc result void files.file_error files.close fs. rh. . .
+  guard is_ok rc. . else return 83 . .
+
+  rem 폴더를 훑는다 — `.` · `..` 를 빼면 이름 하나
+  let di result files.dir_handle files.file_error files.open_dir fs. dir. . .
+  guard is_ok di. . else return 84 . .
+  var dh owned files.dir_handle ok_value di. . .
+  var names u64 0 .
+  var going bool true .
+  while going. do
+    let r result (option usize) files.file_error files.read_dir fs. dh. buf. . .
+    if eq is_ok r. . false . do set going. false . end .
+    if is_ok r. . do
+      let o option usize ok_value r. . .
+      if eq is_some o. . false . do set going. false . end .
+      if is_some o. . do
+        let k usize some_value o. . .
+        var dot bool false .
+        if eq k. 1 . do if eq idx buf. 0 . 46 . do set dot. true . end . end .
+        if eq k. 2 . do if eq idx buf. 0 . 46 . do if eq idx buf. 1 . 46 . do set dot. true . end . end . end .
+        if eq dot. false . do set names. add names. 1 . . end .
+      end .
+    end .
+  end .
+  let dc result void files.file_error files.close_dir fs. dh. . .
+  guard is_ok dc. . else return 85 . .
+  guard eq names. 1 . else return 86 . .
+
+  rem 이름을 바꾸고 지운다
+  guard files.rename fs. fil. ren. . else return 87 . .
+  guard eq files.is_file fs. fil. . false . else return 88 . .
+  guard files.is_file fs. ren. . else return 89 . .
+  guard files.remove fs. ren. . else return 90 . .
+  guard files.remove fs. dir. . else return 91 . .
+  guard eq files.remove fs. dir. . false . else return 92 . .
+
+  rem 환경과 표준 출력
+  let ev option slice u8 env.get e. "LOWENT_FIO" . .
+  guard is_some ev. . else return 93 . .
+  guard eq len some_value ev. . . 2 . else return 94 . .
+  guard eq is_some env.get e. "LOWENT_FIO_NONE" . . false . else return 95 . .
+  guard eq stdio.write io. 1 "fastio ok\n" . 10 . else return 96 . .
+  return 42 .
+end .

@@ -179,9 +179,11 @@ constant's declaration.
 
 To keep the source text of a table in a file instead of in the program, use `include_text "<path>"`. When translating, the tool reads
 that file and hands its bytes (`slice u8`) to a `fn` run at translation time. The path is read from the folder of this source file, so
-the same file is read wherever you build. A path outside that folder (absolute, or with `..`) is refused. `include_text` goes only in the
+the same file is read wherever you build. A path outside that folder (absolute, with `..`, or reached through a link) is refused. `include_text` goes only in the
 input place of a `fn` run at translation time --- anywhere else it would look like reading a file while the program runs, so it is
-refused with `E-INCLUDE-PLACE`. When the file changes, the `fn` runs again instead of using a kept answer.
+refused with `E-INCLUDE-PLACE`. When the file changes, the `fn` runs again instead of using a kept answer. In a build with a lockfile
+(`pkg.lock`) the file is pinned by its content like a dependency --- `lowentc --lock-write` records an `include:<path>` entry, and a later
+change stops the build with `E-DEP-HASH` (#chref("build-test")).
 
 #demo("examples/ch08/compt_include.low")
 

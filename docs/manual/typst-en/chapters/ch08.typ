@@ -158,10 +158,15 @@ is read only --- writing an element (`set` · `copy` · `swap`) or passing it to
 An array's elements may also be `bool` or rows (an array of arrays). A `fn` that returns a slice or a struct runs at translation time
 too. A slice answer becomes read-only bytes like an array answer, and a struct answer becomes a value of that struct --- the same as a
 `lit` with the computed value in each field. Besides integers and `bool`, an input may be a slice whose bytes are fixed at translation
-time: a quoted string, a `text` literal, a list of constants, or an array or slice module constant. A slice of structs as the answer and
-a struct as an input are still refused.
+time: a quoted string, a `text` literal, a list of constants, or an array or slice module constant.
 
 #demo("examples/ch08/compt_values.low")
+
+A struct can go in too: a `lit` with a constant in each field, or the struct answer of a `fn` run at translation time (the struct needs a
+byte layout --- no slice or array fields). A slice of structs can be an input and an answer. A `fn` run at translation time builds no
+new memory, so a slice answer is a piece of its input or a constant. A struct answer with a 128-bit field keeps the upper half too.
+
+#demo("examples/ch08/compt_structs.low")
 
 A `fn` run at translation time is pure, so it allocates no new memory. It can still build a table: the place for the answer comes from
 outside (the place of an array result), and the slice fields in the answer point at pieces of the input text. The tool keeps those pieces
@@ -171,6 +176,14 @@ filled lines separately. If the room runs out, the write to the next element sto
 constant's declaration.
 
 #demo("examples/ch08/compt_messages.low")
+
+To keep the source text of a table in a file instead of in the program, use `include_text "<path>"`. When translating, the tool reads
+that file and hands its bytes (`slice u8`) to a `fn` run at translation time. The path is read from the folder of this source file, so
+the same file is read wherever you build. A path outside that folder (absolute, or with `..`) is refused. `include_text` goes only in the
+input place of a `fn` run at translation time --- anywhere else it would look like reading a file while the program runs, so it is
+refused with `E-INCLUDE-PLACE`. When the file changes, the `fn` runs again instead of using a kept answer.
+
+#demo("examples/ch08/compt_include.low")
 
 One `fn` run at translation time must finish within 1,000,000 steps. For a table that takes longer, write
 `build comptime_steps 50000000 .` in `pkg.low` or give `--comptime-steps 50000000` on the command line (the command line wins). If the

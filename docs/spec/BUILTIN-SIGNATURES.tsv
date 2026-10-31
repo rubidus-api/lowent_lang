@@ -83,6 +83,7 @@ narrow_try	변환	`narrow_try T a`	`T` — 정수 타입 · `a` — 정수	`opti
 cast	변환	`cast T a`	`T` — 정수 또는 부동 타입 · `a` — 수, 또는 참거짓(`T` 가 정수 타입일 때)	`T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값. 참거짓에서 오면 참은 1, 거짓은 0	`T` 가 `bool` 이면 `E-TYPE-KIND`(수를 참거짓으로 바꾸는 `cast` 는 없다 — `ne a. 0 .`) · 참거짓을 부동 타입으로 바꾸면 `E-TYPE-KIND`	정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`	6.2.16
 bit_cast	변환	`bit_cast T a`	`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수	`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408)		—	6.2.5
 size_of	변환	`size_of T`	`T` — 타입	`usize` — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)		—	6.3.8
+include_text	변환	`include_text "<경로>"`	`"<경로>"` — 따옴표 문자열. 이 소스 파일의 폴더에서 본다(절대 경로 · `..` 은 안 된다)	`slice u8` — 번역 때 읽은 그 파일의 바이트(읽기 전용). 번역 때 도는 `fn` 의 입력 자리에서만 선다	다른 자리면 `E-INCLUDE-PLACE` · 읽을 수 없거나 폴더 밖이거나 1 MiB 를 넘으면 그 `comptime` 자리가 그 까닭을 말하며 거절된다(§6.8.1 (1g))	—	6.8.1
 hash_bytes	해시	`call_builtin hash_bytes s`	`s` — `slice u8`	`u64` — 바이트열의 해시 값(FNV-1a 64). 길이가 아니다	`E-IR-ARITY`	—	6.3.3
 crc32	해시	`call_builtin crc32 s`	`s` — `slice u8`	`u32` — 반사 CRC-32(다항식 0xEDB88320) 검사값	`E-IR-ARITY`	—	6.3.3
 sha256	해시	`call_builtin sha256 s o`	`s` — `slice u8` · `o` — `mut slice u8`(32 바이트 이상)	`usize` — `o` 에 써 넣은 바이트 수(32). `o` 가 짧으면 아무것도 쓰지 않고 0	`E-IR-ARITY`	—	6.3.3

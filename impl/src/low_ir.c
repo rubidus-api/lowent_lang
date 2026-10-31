@@ -3009,6 +3009,50 @@ static bool ir_ctfe_struct_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
     *out = b; *n = c->out->structs[si].total;
     return true;
 }
+// ★★ RFC-0015 §6.4 (2026-10-31 · W-20261031-1118 · 소유자 «넷 다 자연스런 구현순서로») — `include_text "<경로>"`: 번역 때 파일을 읽어
+//   그 바이트를 입력으로 건넨다. 경로는 이 글이 든 소스 파일의 폴더에서 본다(작업 폴더가 아니다 — 어디서 지어도 같은 파일). 절대 경로와 `..` 는
+//   거절한다(그 폴더 밖을 읽는 빌드는 옮기면 달라진다). 바이트는 답 간직의 열쇠(입력 바이트)에 들므로 파일이 바뀌면 다시 돈다.
+//   못 읽으면 g_ctfe_inc_why 에 까닭을 적는다(ir_ctfe_record 가 그 자리의 까닭으로 옮긴다).
+#define IR_INCLUDE_MAX (1024u * 1024u)
+static char g_ctfe_inc_why[300];
+static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
+    const low_cst_t *pa = a->kids[1];
+    while (pa && pa->kind == LOW_CST_GROUP && pa->nkids == 1) pa = pa->kids[0];
+    if (!is_atom(pa) || pa->tok.kind != LOW_TOK_STRING || pa->tok.aux.size) {
+        snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text` takes a path written as a plain string: `include_text \"data.txt\" .`");
+        return false;
+    }
+    const proven_u8str_view_t pv = pa->tok.lex;
+    bool bad = pv.size == 0 || pv.size > 400 || pv.ptr[0] == '/' || pv.ptr[0] == '\\' || (pv.size > 1 && pv.ptr[1] == ':');
+    for (proven_size_t i = 0; i < pv.size && !bad; i++) {
+        if (pv.ptr[i] == '\\' || pv.ptr[i] == 0) bad = true;
+        const bool seg0 = i == 0 || pv.ptr[i - 1] == '/';
+        if (seg0 && i + 1 < pv.size && pv.ptr[i] == '.' && pv.ptr[i + 1] == '.' && (i + 2 == pv.size || pv.ptr[i + 2] == '/')) bad = true;
+    }
+    if (bad) {
+        snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text \"%.*s\"`: the path is read from the folder of this source file and stays inside it — "
+                 "no absolute path, no `..`, `/` between folders (RFC-0015 §6.4)", (int)(pv.size > 120 ? 120 : pv.size), (const char *)pv.ptr);
+        return false;
+    }
+    char path[1024];
+    const char *sf = a->file ? a->file : (pa->file ? pa->file : NULL);
+    const char *sl = sf ? strrchr(sf, '/') : NULL;
+    if (sl) snprintf(path, sizeof path, "%.*s/%.*s", (int)(sl - sf), sf, (int)pv.size, (const char *)pv.ptr);
+    else snprintf(path, sizeof path, "%.*s", (int)pv.size, (const char *)pv.ptr);
+    FILE *fp = fopen(path, "rb");
+    if (!fp) { snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text`: cannot read `%.200s` (read from the folder of this source file)", path); return false; }
+    proven_u8 *b = malloc(IR_INCLUDE_MAX + 1);
+    proven_size_t got = b ? fread(b, 1, IR_INCLUDE_MAX + 1, fp) : 0;
+    const bool err = !b || ferror(fp);
+    fclose(fp);
+    if (err || got > IR_INCLUDE_MAX) {
+        free(b);
+        snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, err ? "`include_text`: reading `%.200s` failed" : "`include_text`: `%.200s` is larger than 1 MiB — a file read when translating holds at most that", path);
+        return false;
+    }
+    *out = b; *n = got;
+    return true;
+}
 static bool ir_ctfe_slice_arg(ir_ctx_t *c, const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
     while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
     if (!a) return false;
@@ -3018,6 +3062,8 @@ static bool ir_ctfe_slice_arg(ir_ctx_t *c, const low_cst_t *a, proven_u8 **out, 
         proven_u8str_view_t val = a->tok.lex;
         if (a->tok.kind == LOW_TOK_STRING && !veq(a->tok.aux, "r") && !ir_unescape(c, a->tok.lex, a->line, &val)) return false;
         src = val.ptr; len = val.size;
+    } else if (a->kind == LOW_CST_FORM && a->nkids == 2 && is_atom(a->kids[0]) && veq(a->kids[0]->tok.lex, "include_text")) {
+        return ir_ctfe_include(a, out, n);
     } else if (is_atom(a) && a->tok.kind == LOW_TOK_IDENT) {
         for (proven_size_t mi = 0; mi < c->nmdata && !src; mi++)
             if (proven_u8str_view_eq(c->mdata[mi], a->tok.lex)) {
@@ -3082,7 +3128,9 @@ void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce) {
             all = false; continue;
         }
         if (low_ctfe_value(ce->kids[j + 1], &nm, &cc->args[j], &u2)) continue;
+        g_ctfe_inc_why[0] = 0;
         if (ir_ctfe_slice_arg(c, ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) { cc->argsl[j] = true; continue; }
+        if (g_ctfe_inc_why[0]) { snprintf(cc->why, sizeof cc->why, "%s", g_ctfe_inc_why); return; }   // 파일을 못 읽었다 — 그 까닭이 이 자리의 까닭이다
         all = false;
     }
     if (all) { cc->nargs = na; cc->hasargs = true; }
@@ -3902,6 +3950,15 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
         //   ★ 그런데 `#ifdef` 와 달리 **꺼진 가지도 파싱되고 타입 검사를 받는다.**
         //     C 의 조건부 컴파일은 안 켜진 코드를 **썩게 두고**, 그것이 커널 급 프로젝트에서
         //     "그 옵션 조합은 빌드조차 안 된다" 로 나타난다. 여기서는 **불가능하다.**
+        // ★★ RFC-0015 §6.4 (2026-10-31 · W-20261031-1118) — `include_text "<경로>"` 은 번역 때 도는 `fn` 의 입력으로만 읽는다(ir_ctfe_slice_arg).
+        //   실행 중의 값 자리에 서면 거절한다 — 프로그램이 돌 때 파일을 읽는 것처럼 보이지만 실은 번역 때의 바이트다(그 둘을 섞지 않는다).
+        if (veq(nd->tok.lex, "include_text")) {
+            ir_fail(c, "E-INCLUDE-PLACE", "`include_text \"<path>\"` reads a file when translating, and only as an input of a compile-time call: "
+                    "`comptime <fn> include_text \"data.txt\" . .` — its bytes are what the fn sees. Elsewhere it would look like reading a file "
+                    "while the program runs. To keep the file's bytes as data, return them from a fn: `let RAW slice u8 comptime same include_text \"data.txt\" . . .` (RFC-0015 §6.4)",
+                    nd->line);
+            return;
+        }
         if (veq(nd->tok.lex, "config")) {
             if (*pos >= end || !is_atom(k[*pos])) {
                 ir_fail(c, "E-CONFIG-UNDEF", "`config` needs the name of a build option", nd->line);

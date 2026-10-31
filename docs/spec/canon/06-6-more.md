@@ -232,10 +232,14 @@ end .
       음수를 섞음) 그 식은 셈하지 아니한다 — 실행할 때 멈출 식을 번역 때 다른 수로 바꾸지 않는다.
 
 (1c) 순수한 `fn` 을 부르는 것도 셈한다. 처리기는 번역할 때 그 `fn` 을 실제로 돌리고, 돌린 답을 그 자리에 둔다.
-      효과를 낼 수 있는 `proc` 은 돌리지 아니한다. 입력은 정수나 `bool` 하나이거나 수 · `bool` 의 슬라이스다. 정수 인자는
-      (1a) 처럼 셈할 수 있어야 하고, 슬라이스 인자는 번역 시점에 바이트가 정해진 것이어야 한다 — 따옴표 문자열 · `text`
-      리터럴(원문 그대로) · 원소가 모두 상수인 `lit array` · `lit slice` · 배열이나 슬라이스 모듈 상수(1d)(1e).
-      구조체 입력과 `mut` 입력은 받지 아니한다. 그 `fn` 이 넘치거나 계약을 어기거나 정해진 걸음 안에 끝나지 않으면, 또는
+      효과를 낼 수 있는 `proc` 은 돌리지 아니한다. 입력은 정수나 `bool` 하나, 수 · `bool` 의 슬라이스, 구조체, 구조체의 슬라이스다.
+      정수 인자는 (1a) 처럼 셈할 수 있어야 하고, 슬라이스 인자는 번역 시점에 바이트가 정해진 것이어야 한다 — 따옴표 문자열 · `text`
+      리터럴(원문 그대로) · 번역 때 읽은 파일(1g) · 원소가 모두 상수인 `lit array` · `lit slice` · 배열이나 슬라이스 모듈 상수(1d)(1e).
+      구조체 인자는 바이트 배치가 있는 구조체(⟦§6.2.6⟧ (9))여야 하고, 칸마다 (1a) 처럼 셈할 수 있는 값을 적은 `lit s do … end`
+      (안의 구조체도 그렇게 적는다)이거나 구조체 답(1f) — 모듈 상수나 그 자리의 부름 — 이다. `fn` 은 그 구조체를 프로그램의 경계에서
+      받는 것과 같이 받는다. 128 비트 칸에는 수 리터럴 하나를 적는다. 구조체의 슬라이스 인자는 그런 리터럴의 `lit slice s …` 이거나
+      구조체의 배열 · 슬라이스 답(1d)(1e)이다 — 슬라이스 칸이 있는 구조체의 답이면 처리기가 그 칸이 가리키는 바이트를 함께 건넨다.
+      `mut` 입력은 받지 아니한다. 그 `fn` 이 넘치거나 계약을 어기거나 정해진 걸음 안에 끝나지 않으면, 또는
       인자를 번역 시점에 알 수 없으면 `E-COMPTIME-NONCONST` 로 거부되며, 메시지가 그 까닭을 말한다.
 
 (1c-1) 정해진 걸음은 처리기가 밝히는 수이며, 빌드 설정이 바꾼다 — 매니페스트의 `build comptime_steps <n> .`, 그 위에
@@ -255,14 +259,20 @@ end .
       적는다. 칸이 다른 곳(그 `fn` 의 틀 안 바이트)을 가리키면 거부된다. 답의 개수를 미리 알 수 없으면 넉넉한 길이를 적고, 채운 수는 따로
       셈한다(아래 예).
 
-(1e) 답이 수 · `bool` 의 슬라이스(`output slice t .`)인 `fn` 도 돌린다. 답의 바이트를 베껴 (1d) 와 같은 **읽기 전용** 바이트로 둔다 —
-      그 `fn` 이 문자열을 가리키는 답을 냈든 입력의 조각을 냈든 같다. 이름은 `let x slice t comptime f … .` 로 붙이며, 몸 안의 `let`
-      이어도 모듈 상수여도 되고, 쓰기는 (1d) 와 같이 거부된다. 원소가 수가 아닌 슬라이스(구조체 · 줄)는 바이트 안에 다른 자리의 주소가
-      들 수 있으므로 돌리지 아니한다(`E-COMPTIME-NONCONST`).
+(1e) 답이 수 · `bool` · 구조체의 슬라이스(`output slice t .`)인 `fn` 도 돌린다. 답의 바이트를 베껴 (1d) 와 같은 **읽기 전용** 바이트로
+      둔다 — 그 `fn` 이 문자열을 가리키는 답을 냈든 입력의 조각을 냈든 같다. 원소가 슬라이스 칸이 있는 구조체이면 (1d-1) 과 같이 칸의 주소를
+      다시 적는다. 이름은 `let x slice t comptime f … .` 로 붙이며, 몸 안의 `let` 이어도 모듈 상수여도 되고, 쓰기는 (1d) 와 같이
+      거부된다. 줄의 슬라이스(`output slice (array m t) .`)는 돌리지 아니한다(`E-COMPTIME-NONCONST`) — 줄의 답은 배열(1d)로 낸다.
 
 (1f) 답이 구조체인 `fn` 도 돌린다. 답은 그 구조체의 **값**이다 — 칸마다 돌린 값을 상수로 적은 `lit s do … end` 와 같다(창 `view s`
       가 아니다). 칸은 수 · `bool` · 수의 배열과 슬라이스(그 바이트는 (1d) 의 읽기 전용 자리에 둔다) · 그런 칸만 가진 구조체이다.
-      `option` · `result` · 참조를 품은 칸, 또는 64 비트에 들지 않는 128 비트 값을 든 칸이 있으면 돌리지 아니한다(`E-COMPTIME-NONCONST`).
+      128 비트 칸은 위 절반까지 그대로 든다. `option` · `result` · 참조를 품은 칸이 있으면 돌리지 아니한다(`E-COMPTIME-NONCONST`).
+
+(1g) `include_text "<경로>"` 는 번역할 때 그 경로의 파일을 읽은 바이트(`slice u8`, 읽기 전용)이다. 경로는 이 글이 든 소스 파일의
+      폴더에서 보며, 그 폴더 안에 머문다 — 절대 경로와 `..` 은 거부된다. 이 꼴은 번역 때 도는 `fn` 의 입력 자리(1c)에서만 선다. 다른 자리에
+      두면 거부된다(`E-INCLUDE-PLACE`) — 실행할 때 파일을 읽는 것처럼 읽히기 때문이다. 파일을 읽지 못하거나 폴더 밖을 가리키거나 처리기가
+      밝힌 크기를 넘으면 그 `comptime` 자리가 그 까닭을 말하며 거부된다. 그 바이트는 (1c-1) 의 입력 바이트이다 — 파일이 바뀌면 간직한 답을
+      쓰지 아니한다.
 
 (1b) 셈한 답은 **상수**다. 받는 자리는 그 답을 리터럴처럼 잰다 — 자리의 타입에 들지 않으면
       리터럴과 같이 거부된다(`E-TYPE-WIDTH`). 답에 쓰인 이름의 타입은 답의 타입이 되지 아니한다.
@@ -401,6 +411,42 @@ let MSGS array 4 msg comptime parse "hi,hello\nthx,thanks" . . .    rem 칸은 �
 fn f output usize .
 do
   return len field idx MSGS. 1 . en . . .
+end .
+```
+
+```lowent 예제: 구조체를 건네고 구조체의 조각을 받는다 · 결과: f() = 75
+module ex_comptime_structs .
+
+struct pt do
+  x u16 .
+  y u16 .
+end .
+
+fn scale input p pt . input k u16 . output pt .
+do
+  return lit pt do x mul field p. x . k. . . y mul field p. y . k. . . end . .
+end .
+
+fn from input ps slice pt . input k usize . output slice pt .
+do
+  return subslice ps. k. len ps. . . .    rem 입력의 조각 — 새 저장소를 짓지 않는다
+end .
+
+let P pt comptime scale lit pt do x 3 . y 4 . end . 10 . . .
+let REST slice pt comptime from lit slice pt lit pt do x 1 . y 2 . end . lit pt do x 5 . y 6 . end . . 1 . . .
+
+fn f output u16 .
+do
+  return add add field P. x . field P. y . . field idx REST. 0 . x . . .
+end .
+```
+
+```lowent-거부: 번역 때 읽는 파일은 번역 때 도는 함수의 입력이다 · E-INCLUDE-PLACE
+module ex_include_place .
+
+fn f output usize .
+do
+  return len include_text "words.txt" . . .    rem 실행할 때 읽는 것처럼 읽힌다
 end .
 ```
 

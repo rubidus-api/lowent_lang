@@ -1422,6 +1422,8 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if (tf && tf->kind == LOW_CST_ATOM && veq(tf->tok.lex, "count")) return tk_int(64, false);
                 return tk(TK_UNKNOWN);
             }
+            // `include_text "<경로>"` — 번역 때 읽는 파일의 바이트: 문자열 리터럴과 같은 읽기 전용 `slice u8`(RFC-0015 §6.4 · 2026-10-31)
+            if (!sig_find(c, h2) && n == 2 && veq(h2, "include_text")) { ty_t st = tk(TK_NAMED); st.slit = true; return st; }
             // `config <이름>` — 번역 시점의 상수(빌드 선택지): `bool` 선택지는 bool, `int` · `choice` 는 무타입 정수 상수다(D3)
             if (!sig_find(c, h2) && n == 2 && veq(h2, "config") && k[start + 1]->kind == LOW_CST_ATOM) {
                 proven_u8str_view_t on = k[start + 1]->tok.lex;

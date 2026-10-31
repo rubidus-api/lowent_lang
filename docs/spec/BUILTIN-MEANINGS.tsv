@@ -67,6 +67,7 @@ chk_sub	빼기 — 넘쳤는지 답과 함께 돌려준다
 collect	파이프라인의 결과를 자리에 담는다
 bitset_complement	여집합
 config	번역 시점의 설정 값
+include_text	번역 때 그 경로(이 소스 파일의 폴더에서 본다)의 파일을 읽은 바이트 — 번역 때 도는 `fn` 의 입력 자리에서만 선다
 bitset_contains	그 원소가 들어 있나
 cos	코사인
 count	파이프라인의 원소 수를 센다(종결자)

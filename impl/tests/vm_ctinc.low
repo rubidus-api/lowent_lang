@@ -1,0 +1,67 @@
+rem ★★ RFC-0015 §6.4 — 번역 때 파일을 읽는다 (2026-10-31 · 소유자 «넷 다 자연스런 구현순서로 진행» · W-20261031-1118).
+rem   `include_text "<경로>"` 은 번역 때 도는 `fn` 의 입력이다. 경로는 이 파일의 폴더에서 본다(어디서 지어도 같은 파일).
+rem   바이트는 답 간직의 열쇠에 들어서, 파일이 바뀌면 `fn` 이 다시 돈다.
+
+module vm_ctinc .
+
+struct msg do
+  ko slice u8 .
+  en slice u8 .
+end .
+
+fn same input s slice u8 . output slice u8 . do return s. . end .
+
+fn count_lines input txt slice u8 . output usize . do
+  var n usize 0 .
+  var start usize 0 .
+  var i usize 0 .
+  while le i. len txt. . . do
+    if or eq i. len txt. . . eq idx txt. i. . 10 . . do
+      if gt i. start. . do set n. add n. 1 . . end .
+      set start. add i. 1 . .
+    end .
+    set i. add i. 1 . .
+  end .
+  return n. .
+end .
+
+fn parse input txt slice u8 . output r array 8 msg . do
+  var row usize 0 .
+  var start usize 0 .
+  var comma usize 0 .
+  var i usize 0 .
+  while le i. len txt. . . do
+    if or eq i. len txt. . . eq idx txt. i. . 10 . . do
+      if gt i. start. . do
+        set idx r. row. . lit msg do ko subslice txt. start. comma. . . en subslice txt. add comma. 1 . i. . . end . .
+        set row. add row. 1 . .
+      end .
+      set start. add i. 1 . .
+    end else do
+      if eq idx txt. i. . 44 . do set comma. i. . end .
+    end .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+let RAW slice u8 comptime same include_text "vm_ctinc.csv" . . . .
+let N usize comptime count_lines include_text "vm_ctinc.csv" . . . .
+let MSGS array 8 msg comptime parse include_text "vm_ctinc.csv" . . . .
+
+rem 줄 3 개
+export fn count output usize . do
+  return N. .
+end .
+
+rem 파일의 바이트 수 = "안녕,hello\n고마워,thanks\n잘가,bye\n" = 13 + 17 + 11 = 41
+export fn size output usize . do
+  return len RAW. . .
+end .
+
+rem 영어 길이 합 5 + 6 + 3 = 14
+export fn total output usize . do
+  var t usize 0 .
+  for m MSGS. do set t. add t. len field m. en . . . . end .
+  return t. .
+end .

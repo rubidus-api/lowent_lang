@@ -204,7 +204,10 @@
     /* ★ MMIO — 디바이스 레지스터 (RFC-0042 D1). W 슬롯은 **레지스터 이름**이다. */\
     X(read_volatile, "VW")   X(write_volatile, "VWV")                          \
     /* ★ 구성 (RFC-0036 D5). W 슬롯은 **옵션 이름**이다 — 값이 아니라 손잡이의 이름. */\
-    X(config, "W")
+    X(config, "W")                                                             \
+    /* ★ 번역 때 읽는 파일 (RFC-0015 §6.4 · 2026-10-31). V 슬롯은 **경로 문자열**이다 — 값은 그 파일의 바이트(`slice u8`).   */\
+    /*   번역 때 도는 `fn` 의 입력 자리에서만 선다(그 밖은 E-INCLUDE-PLACE).                                                    */\
+    X(include_text, "V")
     /* ☞ 옛 고차 프렐류드 `fold` · `map` · `filter`(RFC-0016)는 라이브러리 `collection` 으로 갔다(RFC-0150 Q3). pipe 안의 같은
        이름은 스테이지(문맥 낱말)로 남는다. */
 

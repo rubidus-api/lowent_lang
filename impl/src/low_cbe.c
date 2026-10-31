@@ -1737,6 +1737,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 st.n -= 3; st.k[st.n] = K_INT; st.o[st.n] = -1; st.n++; break;   // ★ 0 을 남긴다
             }
             case IRW_SUBSLICE: {
+                // ★ 2026-10-31 (W-20261031-1118) — **구조체 원소 슬라이스의 조각**: 보폭은 그 배치의 크기다. 종류(어느 배치인가)는 그대로다.
+                if (st.n >= 3 && st.k[st.n-3] >= K_SVIEW && st.k[st.n-2] == K_INT && st.k[st.n-1] == K_INT) {
+                    if (!ir->structs[st.k[st.n-3] - K_SVIEW].total) return false;
+                    st.n -= 2; st.o[st.n-1] = -1; break;
+                }
                 if (st.n < 3 || st.k[st.n-3] != K_SL ||
                     st.k[st.n-2] != K_INT || st.k[st.n-1] != K_INT) return false;
                 // ★★★★★ **원소 폭이 1 이 아니어도 된다** (2026-08-19). 여기서 거절하면
@@ -1947,6 +1952,22 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (ir->structs[sx].f[sl].sidx >= 0) {
                         int isx = (int)ir->structs[sx].f[sl].sidx;
                         st.k[st.n-1] = (unsigned char)(K_VIEW + isx); st.o[st.n-1] = -1; break;
+                    }
+                    // ★★ 2026-10-31 (W-20261031-1118) — **그림자 배치의 슬라이스 칸**(주소 + 길이)을 읽는다 → 바이트 위의 슬라이스(K_SL).
+                    //   번역 때 지은 메시지 표(`field idx MSGS. i . en .`)가 이 꼴이다. 전에는 이 칸도 정수로 보고 다음 `len` 에서 거절했다
+                    //   (태그 경로로 갔다 — 틀린 값은 아니었다). 원소가 수인 칸만 연다(구조체 · 줄의 슬라이스 칸은 그대로 태그 경로).
+                    {
+                        const low_ir_sfield_t *F_ = &ir->structs[sx].f[sl];
+                        if (F_->bxself) return false;
+                        if (F_->slmeta) {
+                            const unsigned ez_ = (unsigned)(F_->slmeta & 0xff);
+                            if (!ir->structs[sx].is_shadow || (F_->slmeta & (IR_STRUCT_BIT | IR_ROW_BIT)) || !ez_ || ez_ > 8) return false;
+                            if ((F_->slmeta & IR_FLT_BIT) && ez_ != 4 && ez_ != 8) return false;
+                            st.k[st.n-1] = K_SL; st.ve[st.n-1] = (unsigned char)ez_; st.vn[st.n-1] = 0; st.o[st.n-1] = -1;
+                            st.fl[st.n-1] = (F_->slmeta & IR_FLT_BIT) ? CBE_FL_FLT : ((F_->slmeta & IR_SGN_BIT) && ez_ < 8) ? CBE_FL_SGN : 0;
+                            break;
+                        }
+                        if (F_->boxed) return false;
                     }
                     st.k[st.n-1] = ir->structs[sx].f[sl].flt ? K_FLT : K_INT;   // ★ 부동 필드 → f64
                     st.o[st.n-1] = -1; break;
@@ -3400,7 +3421,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_SUBSLICE: {
                 // ★ 부분 슬라이스는 **포인터 산술**이다 — 복사가 아니다.
                 //   ★★ 원소 폭을 곱한다(`.n` 은 원소 수, 포인터는 바이트) — 색인과 같은 규약.
-                int sez = (int)ks.ve[ks.n-3]; if (sez <= 0) sez = 1;
+                const bool svw_ = ks.k[ks.n-3] >= K_SVIEW;   // 구조체 원소 — 보폭은 배치의 크기(종류 실행과 짝)
+                int sez = svw_ ? (int)ir->structs[ks.k[ks.n-3] - K_SVIEW].total : (int)ks.ve[ks.n-3]; if (sez <= 0) sez = 1;
                 fputs("    { long long hi_ = st[--sp], lo_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n"
                       "      if (LW_UNLIKELY(lo_ < 0 || hi_ < lo_ || (unsigned long long)hi_ > s_.n))"
                       " lw_panic(\"subslice out of bounds\");\n", out);
@@ -3409,7 +3431,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else
                     fprintf(out, "      ss[ssp-1].p = s_.p + (size_t)lo_ * %d;"
                                  " ss[ssp-1].n = (size_t)(hi_ - lo_); }\n", sez);
-                ks.n -= 2; ks.k[ks.n-1] = K_SL; ks.o[ks.n-1] = -1; break;
+                ks.n -= 2; if (!svw_) ks.k[ks.n-1] = K_SL; ks.o[ks.n-1] = -1; break;
             }
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
@@ -3952,6 +3974,17 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         fprintf(out, "    ss[ssp-1].p += %u; ss[ssp-1].n = %d;\n",
                                 (unsigned)S->f[sl].off, (int)ir->structs[isx].total);
                         ks.k[ks.n-1] = (unsigned char)(K_VIEW + isx); ks.o[ks.n-1] = -1;
+                        break;
+                    }
+                    if (S->is_shadow && S->f[sl].slmeta) {
+                        // ★★ 그림자 배치의 슬라이스 칸 — (주소, 길이)를 그 자리에서 읽어 슬라이스 칸으로 바꾼다(종류 실행과 짝 · 2026-10-31).
+                        //   주소 자리의 너비는 처리기의 것(low_ptr_slot)이고 주소는 그 앞머리에 든다 — VM · 재배치 상수와 같은 배치다.
+                        const unsigned ez_ = (unsigned)(S->f[sl].slmeta & 0xff);
+                        fprintf(out, "    { const unsigned char *q_ = ss[ssp-1].p + %u; const unsigned char *p_; unsigned long long n_;\n"
+                                     "      memcpy(&p_, q_, sizeof p_); memcpy(&n_, q_ + %u, 8); ss[ssp-1].p = p_; ss[ssp-1].n = (size_t)n_; }\n",
+                                (unsigned)S->f[sl].off, low_ptr_slot());
+                        ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = (unsigned char)ez_; ks.vn[ks.n-1] = 0; ks.o[ks.n-1] = -1;
+                        ks.fl[ks.n-1] = (S->f[sl].slmeta & IR_FLT_BIT) ? CBE_FL_FLT : ((S->f[sl].slmeta & IR_SGN_BIT) && ez_ < 8) ? CBE_FL_SGN : 0;
                         break;
                     }
                     if (S->is_mmio) {

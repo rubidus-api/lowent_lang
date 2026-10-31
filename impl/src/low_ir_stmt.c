@@ -4451,6 +4451,9 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             if (eb == 255 && tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) {
                                 bool esf; proven_size_t esi =
                                     ir_struct_find(&ir, f->kids[tw + 1]->tok.lex, &esf);
+                                // ★ 2026-10-31 (W-20261031-1118) — 슬라이스 칸이 있는 구조체는 **그림자 배치**의 번호를 든다: 진입이 그 배치로
+                                //   감싸므로(아래 view.array) 빠른 경로의 원소 뷰도 같은 배치여야 한다. 원래 번호는 바이트 배치가 없어 거절됐다.
+                                if (esf && !ir.structs[esi].viewable) { proven_i32 sh_ = ir_alloc_shadow(&ir, esi); if (sh_ >= 0) esi = (proven_size_t)sh_; }
                                 if (esf && d->nparams < LOW_MAX_PARAMS)
                                     d->param_selem[d->nparams] = (proven_u8)(esi + 1);
                             }

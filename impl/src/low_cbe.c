@@ -1133,6 +1133,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_SNEW: case IRW_SPUSH: case IRW_SPOP_INTO:  // ★ 스택 = 배열 + 길이
         case IRW_SUBSLICE:                                  // ★ 부분 슬라이스 = 포인터 + 길이
         case IRW_SWAP:                                      // ★ 원소 맞바꾸기 (원소 타입 무관)
+        case IRW_SCOPY:                                     // ★ 내용 복사 — 두 슬라이스의 바이트(2026-10-31 · 결과 자리로 베끼는 `return r.`)
         case IRW_FCONST:                                    // ★ f64
         case IRW_BINM:                                      // ★ 수치 프렐류드 (fmod·min·max)
         case IRW_BAND: case IRW_BOR: case IRW_BXOR:         // ★ 비트 연산 (RFC-0064)
@@ -1790,6 +1791,14 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n < 3 || st.k[st.n-3] != K_SL ||
                     st.k[st.n-2] != K_INT || st.k[st.n-1] != K_INT) return false;
                 st.n -= 3; st.k[st.n] = K_INT; st.o[st.n] = -1; st.n++; break;   // ★ 0 을 남긴다
+            }
+            case IRW_SCOPY: {   // ★ 2026-10-31 — (받는 쪽, 주는 쪽) 두 슬라이스(바이트 · 타입 · 구조체 배열 · 줄) → 0. 참조(K_REF)는 태그 경로가 따라간다
+                if (st.n < 2) return false;
+                for (int z = 1; z <= 2; z++) {
+                    unsigned char kk_ = st.k[st.n - z];
+                    if (kk_ != K_SL && kk_ != K_ROWS && kk_ < K_SVIEW) return false;
+                }
+                st.n -= 2; st.k[st.n] = K_INT; st.o[st.n] = -1; st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0; st.n++; break;
             }
             case IRW_SUBSLICE: {
                 // ★ 2026-10-31 (W-20261031-1118) — **구조체 원소 슬라이스의 조각**: 보폭은 그 배치의 크기다. 종류(어느 배치인가)는 그대로다.
@@ -3476,6 +3485,21 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.ve[ks.n-1] = (unsigned char)ez;
                 if (in->a & 0x10000) ks.fl[ks.n-1] = CBE_FL_FLT;   // ★ 부동 원소 표식
                 else if ((in->a & 0x20000) && ez < 8) ks.fl[ks.n-1] = CBE_FL_SGN;   // ★ 부호 있는 원소 표식
+                break;
+            }
+            case IRW_SCOPY: {
+                // ★★ 2026-10-31 (W-20261031-1610) — 내용 복사(겹쳐도 옳게): 두 쪽의 **바이트 수**가 같아야 한다(태그 경로 lw_scopy · VM 과 같은 뜻).
+                //   바이트 수 = 원소 수 × 폭 — 폭은 슬롯이 안다(슬라이스 ve · 구조체 배열 배치 크기 · 줄 바이트).
+                unsigned w_[2];
+                for (int z = 0; z < 2; z++) {
+                    unsigned char kk_ = ks.k[ks.n - 1 - z];
+                    w_[z] = kk_ >= K_SVIEW ? (unsigned)ir->structs[kk_ - K_SVIEW].total : kk_ == K_ROWS ? (unsigned)ks.vn[ks.n - 1 - z]
+                          : (ks.ve[ks.n - 1 - z] ? (unsigned)ks.ve[ks.n - 1 - z] : 1u);
+                }
+                fprintf(out, "    { lw_sl s_ = ss[--ssp], d_ = ss[--ssp]; size_t sb_ = s_.n * %uu, db_ = d_.n * %uu;\n"
+                             "      if (LW_UNLIKELY(sb_ != db_)) lw_panic(\"copy: the two slices are not the same length\");\n"
+                             "      memmove((void *)d_.p, s_.p, db_); st[sp++] = 0; }\n", w_[0], w_[1]);
+                ks.n -= 2; ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_SWAP: {

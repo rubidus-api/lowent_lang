@@ -4434,7 +4434,8 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                                     eb = mod.alias_ebits[ai2];
                             if (eb == 255 && tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) {
                                 proven_u8str_view_t e = f->kids[tw + 1]->tok.lex;
-                                eb = veq(e, "u8") ? 8 : veq(e, "i8") ? 108
+                                // ★ 2026-10-31 (W-20261031-1610) — `slice bool` 은 한 바이트 0/1 의 나열이다(바이트 슬라이스와 같은 표현) — 빠른 경로가 폭 8 로 나른다
+                                eb = (veq(e, "u8") || veq(e, "bool")) ? 8 : veq(e, "i8") ? 108
                                    : veq(e, "u16") ? 16 : veq(e, "u32") ? 32
                                    : veq(e, "u64") ? 64
                                    : veq(e, "i16") ? 116 : veq(e, "i32") ? 132   // 부호형=100+비트(i8=108)

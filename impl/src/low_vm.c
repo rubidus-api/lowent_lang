@@ -5034,10 +5034,17 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
                 }
 #endif
                 for (proven_i32 k = v.box; k-- > 0; ) x = (x << 8) | p[k];
-                o += v.i ? (proven_size_t)snprintf(out + o, cap - o, "%s%g", i ? " " : "",
-                                                   ir_bits_to_f(x, (proven_u8)v.box))
-                         : (proven_size_t)snprintf(out + o, cap - o, "%s%llu", i ? " " : "",
-                                                   (unsigned long long)x);
+                // ★ 2026-11-01 — 표식은 둘이다: 부동(IR_FLT_BIT)과 부호(IR_SGN_BIT). 전에는 0 이 아니면 다 부동으로 찍어 `slice i16` 의 -1 이
+                //   3.23786e-319 로 나왔다(VM · 두 네이티브 경로가 같게 틀려 대조가 못 봤다). 부호 있는 칸은 부호를 늘려 찍는다.
+                if (v.i & IR_FLT_BIT)
+                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%g", i ? " " : "", ir_bits_to_f(x, (proven_u8)v.box));
+                else if ((v.i & IR_SGN_BIT) && v.box > 0 && v.box < 8)
+                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%lld", i ? " " : "",
+                                                 (long long)(x << (64 - 8 * v.box)) >> (64 - 8 * v.box));
+                else if (v.i & IR_SGN_BIT)
+                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%lld", i ? " " : "", (long long)x);
+                else
+                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%llu", i ? " " : "", (unsigned long long)x);
             }
             snprintf(out + o, cap - o, "]");
             return;

@@ -1,0 +1,31 @@
+rem ★★★ **슬라이스 칸을 가진 레코드를 빠른 함수끼리 돌려준다** (2026-10-31 · W-20261031-2053 — 결함 기록 `fast-record-return-slices`).
+rem   돌려주는 쪽은 슬라이스 칸을 제 프레임(`rssl`)을 가리키는 포인터로 넘겼고, 받는 빠른 함수는 그 칸을 읽지도 않았다 —
+rem   레코드의 슬라이스 칸이 빈 채로 이어져 `use1` 이 VM 8 · 네이티브 5, `use2` 가 VM 5 · 네이티브 0 이었다(v1.24.0 에도 있었다).
+rem   이제 칸은 스레드마다 하나인 반환 칸에 베껴 두고 받는 쪽이 곧바로 옮긴다. 차등 스윕이 견준다.
+
+module vm_recret .
+
+struct box do
+  b slice u8 .
+  n u64 .
+end .
+
+fn mk input s slice u8 . input k u64 . output box . do
+  return lit box do b s. . n k. . end . .
+end .
+
+fn deep input s slice u8 . input k u64 . output box . do
+  let x box mk s. k. . .
+  return x. .
+end .
+
+export fn use1 input s slice u8 . input k u64 . output u64 . do
+  let x box deep s. k. . .
+  return add cast u64 len field x. b . . . field x. n . . .
+end .
+
+export fn use2 input s slice u8 . output u64 . do
+  let x box mk s. 1 . .
+  let y box mk subslice s. 0 1 . 2 . .
+  return add cast u64 len field x. b . . . cast u64 len field y. b . . . . .
+end .

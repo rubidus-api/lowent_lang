@@ -204,7 +204,9 @@ const char LW_PRELUDE[] =
    경계 복원은 **반환 직후** 그 값을 읽어 태그 값으로 되돌린다 —
    그 사이에 프레임이 죽지 않는다(호출이 이미 돌아왔고 아직 안 나갔다). */
 "typedef struct { long long v; double f; lw_sl s; _Alignas(8) unsigned char r[LW_RECB];"
-"                 const lw_sl *rs; int tag; int t2; } lw_r;   /* t2 = 겹 option · result 의 안 태그 (K_OPT2) */\n"
+"                 const lw_sl *rs; int tag; int t2; } lw_r;   /* t2 = 겹 option · result 의 안 태그 (K_OPT2) */\n"/* ★ 2026-10-31 — 돌려주는 레코드의 슬라이스 칸이 잠깐 머무는 자리(스레드마다 하나). 위 «부르는 쪽의 프레임» 은 틀렸다 — 가리키던 `rssl` 은
+   **피호출자**의 프레임이었고 돌아오면 죽는다. 부른 쪽 · 경계 복원은 돌아온 바로 다음에 여기서 읽는다. */
+"static _Thread_local lw_sl lw_ret_rsl[LW_RECF];\n"
 "_Noreturn static void lw_panic(const char *m) { LW_DIE(m); }\n"
 // ★★★ **restart 슈퍼비전** (RFC-0009 D4) — actor 핸들러의 **fault 경계**. `panic` 키워드(lw_upanic)만
 //   여기로 잡힌다(계약 위반·트랩은 lw_panic 그대로 — restart 대상이 아니다, RFC-0019 §6.5).
@@ -3245,8 +3247,10 @@ const char LW_RENDER[] =
 "                if (v.box == 16) { lowv w_ = lw_get16(p, 0); if (i) o += (size_t)snprintf(out + o, cap - o, \" \");   /* RFC-0151 §9.4.1 */\n"
 "                    o += (size_t)lw_fmt16(out + o, cap - o, (unsigned long long)w_.i, (unsigned long long)w_.n, (v.i & 0x20000) != 0); continue; }\n"
 "                for (int b = v.box; b-- > 0; ) x = (x << 8) | p[b];\n"
-"                o += v.i ? (size_t)snprintf(out + o, cap - o, \"%s%g\", i ? \" \" : \"\", lw_b2f(x, v.box))\n"
-"                         : (size_t)snprintf(out + o, cap - o, \"%s%llu\", i ? \" \" : \"\", x); }\n"
+"                if (v.i & 0x10000) o += (size_t)snprintf(out + o, cap - o, \"%s%g\", i ? \" \" : \"\", lw_b2f(x, v.box));\n"   /* ★ 2026-11-01 — 부동 표식만 부동으로(VM 과 같게) */
+"                else if ((v.i & 0x20000) && v.box > 0 && v.box < 8) o += (size_t)snprintf(out + o, cap - o, \"%s%lld\", i ? \" \" : \"\", (long long)(x << (64 - 8 * v.box)) >> (64 - 8 * v.box));\n"
+"                else if (v.i & 0x20000) o += (size_t)snprintf(out + o, cap - o, \"%s%lld\", i ? \" \" : \"\", (long long)x);\n"
+"                else o += (size_t)snprintf(out + o, cap - o, \"%s%llu\", i ? \" \" : \"\", x); }\n"
 "            snprintf(out + o, cap - o, \"]\"); return; }\n"
 "        case LWV_STACK: snprintf(out, cap, \"stack(%zu)\", lw_stks[v.box].n); return;\n"
 "        case LWV_BITSET: { unsigned long long bits = lw_bsets[v.box]; long long k = 0;\n"

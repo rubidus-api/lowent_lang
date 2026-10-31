@@ -1,0 +1,41 @@
+rem ★★ **원소 폭이 1 이 아닌 슬라이스의 option** (2026-11-01 · W-20261031-2053) — 빠른 경로가 폭(u32 · i16 · f64)과 부호 · 부동 표식을 나른다.
+rem   전에는 바이트 슬라이스의 option 만 받아 `some <slice u32>` 를 쓰는 op 이 태그 경로로 갔다. 차등 스윕이 VM 과 네이티브를 견준다.
+
+module vm_optslice .
+
+rem 길이가 4 의 배수면 u32 로 본 것 · 아니면 none
+fn as_words input b slice u8 . output option slice u32 . do
+  if ne mod len b. . 4 . 0 . do return none . end .
+  return some view_array u32 b. . . .
+end .
+
+rem 겹쳐 쓰지 않고 지역에 담았다가 꺼낸다 — 첫 낱말 · 없으면 7
+fn first_word input b slice u8 . output u32 . do
+  let o option slice u32 as_words b. . .
+  if eq is_some o. . false . do return 7 . end .
+  let w slice u32 some_value o. . .
+  if eq len w. . 0 . do return 8 . end .
+  return idx w. 0 . .
+end .
+
+rem value_or — 없으면 기본 슬라이스(빈 것)
+fn count_words input b slice u8 . output usize . do
+  let e slice u32 view_array u32 subslice b. 0 0 . . .
+  let w slice u32 value_or as_words b. . e. . .
+  return len w. . .
+end .
+
+rem 부호 있는 칸 — i16 으로 본 것의 합(음수가 음수로 읽혀야 한다)
+fn as_halves input b slice u8 . output option slice i16 . do
+  if ne mod len b. . 2 . 0 . do return none . end .
+  return some view_array i16 b. . . .
+end .
+
+fn sum_halves input b slice u8 . output i64 . do
+  let o option slice i16 as_halves b. . .
+  if eq is_some o. . false . do return -1 . end .
+  let h slice i16 some_value o. . .
+  var acc i64 0 .
+  for x h. do set acc. add acc. widen i64 x. . . . end .
+  return acc. .
+end .

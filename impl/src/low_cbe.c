@@ -1447,6 +1447,14 @@ static bool cbe_make_zero(const low_ir_t *ir, const low_ir_def_t *d, proven_size
     }
     return true;
 }
+// ★ 2026-11-01 (W-20261031-2053) — 이 option · result 가 **슬라이스 칸을 가진 레코드**를 쌌는가(ve = sidx+1 · fl 0).
+//   그런 값의 슬라이스 칸은 `lw_r` 안에 없다 — 스택 자리마다 하나인 평행 칸 `wssl`, 지역마다 하나인 `wlocsl` 을 따라간다.
+static bool cbe_optrec_sl(const low_ir_t *ir, unsigned char k, unsigned char ve, unsigned char fl) {
+    if (k != K_OPT || !ve || fl || (proven_size_t)(ve - 1) >= ir->nstructs) return false;
+    const low_ir_struct_t *S = &ir->structs[ve - 1];
+    for (proven_size_t z = 0; z < S->nf; z++) if (S->f[z].boxed && S->f[z].elem) return true;
+    return false;
+}
 // 바이트 슬라이스인가 — 원소 폭 1(또는 아직 안 적힌 0) · 부동 아님. 호스트 잎은 바이트만 읽고 쓴다.
 #define CBE_BYTES(st_, i_) ((st_).k[(i_)] == K_SL && (st_).ve[(i_)] <= 1 && !(st_).fl[(i_)])
 static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *sc,
@@ -1491,7 +1499,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n < 1) return false;
                 if (in->a >= CBE_LOCMAX) return cbe_locals_over(in->a);
                 if (st.k[st.n-1] == K_SL || st.k[st.n-1] == K_ROWS || st.k[st.n-1] == K_VEC || st.k[st.n-1] == K_MASK ||
-                    st.k[st.n-1] >= K_VIEW) {
+                    st.k[st.n-1] == K_OPTSL || st.k[st.n-1] >= K_VIEW) {   // ★ K_OPTSL — 원소 폭(vn) · 표식(fl)을 지역이 기억한다(2026-11-01)
                     lez[in->a] = st.ve[st.n-1]; lln[in->a] = st.vn[st.n-1]; lfl[in->a] = st.fl[st.n-1];
                 }
                 // ★ option 지역은 내부 종류 표식(ve=sidx+1, fl=뷰?)을 lez/lfl 에 실어 왕복을 견딘다.
@@ -1973,16 +1981,21 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     //     다음 단계가 그 위에서 시작한다.
                     //   ☞ *값으로 오가는 것에 칸을 더하면, 그 값이 지나는 모든 자리를
                     //     함께 세어야 한다 — 프레임 안에서만 맞으면 아직 맞은 것이 아니다.*
-                    if (!cbe_rec_ok(ir, st.k[st.n-1] - K_REC)) return false;
+                    // ★★ 2026-11-01 (W-20261031-2053) — 연다. 칸이 지나는 자리를 다 셌다: 싸기 · 지역에 담기/꺼내기(`wssl` ↔ `wlocsl`) ·
+                    //   벗기기(→ `rssl`) · 돌려주기(→ 스레드마다 하나인 `lw_ret_rsl`) · 돌려받기(→ `wssl`). `lw_r` 에 칸을 붙이지 않는다.
+                    if (!cbe_rec_ok(ir, st.k[st.n-1] - K_REC) && !cbe_rec_slice_ok(ir, st.k[st.n-1] - K_REC)) return false;
                     unsigned char rmk = (unsigned char)(st.k[st.n-1] - K_REC + 1);
                     // ★ 레코드-감싼 option/result 는 뷰가 아니다 → fl=0(이미터 WRAP_SOME/OK 와 일치시켜야
                     //   자격 판정과 코드생성이 같은 상태를 본다 — some_value 뷰-오라우팅 SEGV 수정).
                     st.k[st.n-1] = K_OPT; st.ve[st.n-1] = rmk; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
                 }
-                // ★★★★ WO-0222 — **바이트 슬라이스를 감싼다**(`some v`). 원소폭 1 · 부동 아님 · option 만(result 는 아직).
+                // ★★★★ WO-0222 — **슬라이스를 감싼다**(`some v`). option 만(result 는 아직).
+                // ★★ 2026-11-01 (W-20261031-2053) — 원소 폭이 1 이 아닌 슬라이스도(`option slice u32`). 폭은 `vn`(0 = 1), 부호 · 부동 표식은 `fl` 에 싣는다
+                //   — `ve` 는 0 으로 둔다(표식 없는 K_OPT 의 none 과 맞추는 규칙들이 `ve` 를 본다).
                 if (st.k[st.n-1] == K_SL && in->w == IRW_WRAP_SOME) {
-                    if (st.ve[st.n-1] != 1 || st.fl[st.n-1]) { snprintf(g_sub, sizeof g_sub, "`some` of a slice whose element width is not 1"); return false; }
-                    st.k[st.n-1] = K_OPTSL; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
+                    const unsigned char w_ = st.ve[st.n-1] ? st.ve[st.n-1] : 1;
+                    if (w_ != 1 && w_ != 2 && w_ != 4 && w_ != 8) { snprintf(g_sub, sizeof g_sub, "`some` of a slice whose element width is %u", w_); return false; }
+                    st.k[st.n-1] = K_OPTSL; st.ve[st.n-1] = 0; st.vn[st.n-1] = (unsigned char)(w_ > 1 ? w_ : 0); st.o[st.n-1] = -1; break;
                 }
                 // ★ 수를 싼 option · result 를 다시 싼다 → 겹(K_OPT2). 안 태그는 `t2` 로 옮긴다.
                 if (st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0) {
@@ -2006,8 +2019,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n < 1 || (st.k[st.n-1] != K_OPT && st.k[st.n-1] != K_OPT2)) return false;
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             case IRW_SOMEVAL: case IRW_OKVAL:
-                if (st.n >= 1 && st.k[st.n-1] == K_OPTSL && in->w == IRW_SOMEVAL) {   // ★ WO-0222 — 바이트 슬라이스
-                    st.k[st.n-1] = K_SL; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break; }
+                if (st.n >= 1 && st.k[st.n-1] == K_OPTSL && in->w == IRW_SOMEVAL) {   // ★ WO-0222 — 슬라이스(폭은 vn · 표식은 fl)
+                    st.k[st.n-1] = K_SL; st.ve[st.n-1] = st.vn[st.n-1] ? st.vn[st.n-1] : 1; st.vn[st.n-1] = 0; st.o[st.n-1] = -1; break; }
                 if (st.n >= 1 && st.k[st.n-1] == K_OPT2) {   // 겹을 한 겹 벗긴다 → 수를 싼 option · result
                     st.k[st.n-1] = K_OPT; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break; }
                 if (st.n < 1 || st.k[st.n-1] != K_OPT) return false;
@@ -2285,8 +2298,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (rk == K_OPT && st.n && st.ve[st.n-1]) g_ret_optrec = st.ve[st.n-1];
                 // ★ 슬라이스를 **돌려줄 수 있다** — 다만 그 뜻(원소 수 vs 바이트)이 흔들리면 안 되므로
                 //   바이트 슬라이스 def 에서만. 구조체·뷰 반환은 아직 안 내린다.
-                if (rk == K_SL && st.n) {   // 폭 · 표식을 적는다 — 반환이 여럿이면 같아야 한다
-                    const unsigned char ve_ = st.ve[st.n-1] ? st.ve[st.n-1] : 1, fl_ = st.fl[st.n-1];
+                if ((rk == K_SL || rk == K_OPTSL) && st.n) {   // 폭 · 표식을 적는다 — 반환이 여럿이면 같아야 한다(K_OPTSL 의 폭은 vn)
+                    const unsigned char ve_ = rk == K_OPTSL ? (st.vn[st.n-1] ? st.vn[st.n-1] : 1) : (st.ve[st.n-1] ? st.ve[st.n-1] : 1), fl_ = st.fl[st.n-1];
                     if (!g_ret_veset) { g_ret_ve = ve_; g_ret_fl = fl_; g_ret_veset = true; }
                     else if (g_ret_ve != ve_ || g_ret_fl != fl_) {
                         snprintf(g_sub, sizeof g_sub, "two `return`s give slices of different element widths"); return false; }
@@ -2457,6 +2470,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                       st.ve[st.n] = me_ ? g_ret_ve : (c < 512 && g_retve[c] ? g_retve[c] : 1);
                       st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
                   }
+                  if (rk == K_OPTSL) {                                      // ★ 2026-11-01 — 슬라이스 option 의 폭(vn) · 표식도 같은 기록에서
+                      const bool me_ = c == self;
+                      if (me_ && !g_ret_veset) { snprintf(g_sub, sizeof g_sub, "a recursive call returns a slice option of a width not yet known"); return false; }
+                      const unsigned char w_ = me_ ? g_ret_ve : (c < 512 && g_retve[c] ? g_retve[c] : 1);
+                      st.vn[st.n] = (unsigned char)(w_ > 1 ? w_ : 0);
+                      st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
+                  }
                   st.k[st.n++] = rk; }
                 break;
             }
@@ -2517,8 +2537,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             if (st.n >= 2 && st.k[st.n-2] == K_OPT && st.ve[st.n-2] == 0 && st.fl[st.n-2] == 0 &&
                                 (st.k[st.n-1] == K_INT || (st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0))) {
                                 st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break; }
-                            if (st.n >= 2 && st.k[st.n-2] == K_OPTSL && (st.k[st.n-1] == K_OPTSL || CBE_BYTES(st, st.n-1))) {
-                                st.n--; st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break; }
+                            if (st.n >= 2 && st.k[st.n-2] == K_OPTSL) {
+                                const unsigned char w_ = st.vn[st.n-2] ? st.vn[st.n-2] : 1, f_ = st.fl[st.n-2];
+                                const bool same_ = (st.k[st.n-1] == K_OPTSL && st.vn[st.n-1] == st.vn[st.n-2] && st.fl[st.n-1] == f_) ||
+                                                   (st.k[st.n-1] == K_SL && (st.ve[st.n-1] ? st.ve[st.n-1] : 1) == w_ && st.fl[st.n-1] == f_);
+                                if (same_) { st.n--; st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = w_; st.vn[st.n-1] = 0; st.fl[st.n-1] = f_; break; }
+                            }
                             if (st.n >= 2) snprintf(g_sub, sizeof g_sub, "`value_or` of kinds %u (ve %u) and %u", st.k[st.n-2], st.ve[st.n-2], st.k[st.n-1]);
                             return false;
             default: return false;
@@ -2927,6 +2951,8 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     if (cbe_uses(body, "rloc[")) fprintf(out, "lw_sl rlocsl[%zu][LW_RECF]; (void)rlocsl; unsigned char *rloc[%zu] = {0}; _Alignas(8) unsigned char rbuf[%zu][LW_RECB] = {{0}}; ", n, n, n);
     if (cbe_uses(body, "floc[")) fprintf(out, "double floc[%zu] = {0}; ", n);
     if (cbe_uses(body, "wloc[")) fprintf(out, "lw_r wloc[%zu] = {{0,0,{0,0},{0},0}}; ", n);
+    if (cbe_uses(body, "wlocsl[")) fprintf(out, "lw_sl wlocsl[%zu][LW_RECF]; (void)wlocsl; ", n);
+    if (cbe_uses(body, "wssl[")) fputs("lw_sl wssl[16][LW_RECF]; (void)wssl; ", out);
     // ★ 벡터 지역도 **본문이 실제로 쓰는 자리까지만**. 다른 지역 배열과 달리 여기는 칸 하나가
     //   **64 바이트**(`lw_v` = 최대 폭 u32×16 공용체)라, 안 쓰는 슬롯 하나가 곧 64 B 다.
     //   ☞ 슬롯 번호는 그대로 둔다(빽빽하게 다시 매기면 방출 자리 전부를 고쳐야 한다) —
@@ -3260,8 +3286,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else if (lk[in->a] == K_OPT || lk[in->a] == K_OPTSL || lk[in->a] == K_OPT2) {
                     // ★ option·result 도 **지역에 담긴다** — `var r be result u8 e g n .`
                     //   이 자리가 없어서 감싼 값이 **정수 스택**에서 꺼내졌다(스택 붕괴).
+                    if (cbe_optrec_sl(ir, lk[in->a], lez[in->a], lfl[in->a]))
+                        fprintf(out, "    memcpy(wssl[wsp], wlocsl[%lld], sizeof wssl[0]); ws[wsp++] = wloc[%lld];\n", (long long)in->a, (long long)in->a);
+                    else
                     fprintf(out, "    ws[wsp++] = wloc[%lld];\n", (long long)in->a);
                     ks.o[ks.n] = (signed char)in->a; ks.ve[ks.n] = lez[in->a]; ks.fl[ks.n] = lfl[in->a];
+                    ks.vn[ks.n] = lk[in->a] == K_OPTSL ? lln[in->a] : 0;   // ★ 슬라이스 option 의 원소 폭(2026-11-01)
                     ks.k[ks.n++] = lk[in->a];   // ★ 내부 종류 표식(레코드·뷰) 복원 · WO-0222 슬라이스 option
                 }
                 else if (lk[in->a] >= K_REC) {
@@ -3291,12 +3321,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   (실측: VM 42 · 네이티브 94 — 같은 결함 부류가 이 저장소에 이미 있었다.)
                 //   ☞ 시뮬레이터(`cbe_kind_run`)는 이 규약을 이미 지키고 있었다. **두 반쪽이
                 //     같은 것을 다르게 알고 있었고**, 방출기 쪽이 덜 알았다.
-                if (kk == K_SL || kk == K_ROWS || kk == K_VEC || kk == K_MASK || kk >= K_VIEW || kk == K_OPT) {
+                if (kk == K_SL || kk == K_ROWS || kk == K_VEC || kk == K_MASK || kk >= K_VIEW || kk == K_OPT || kk == K_OPTSL) {
                     lez[in->a] = ks.ve[ks.n]; lln[in->a] = ks.vn[ks.n]; lfl[in->a] = ks.fl[ks.n];
                 }
                 if (kk == K_SL || kk == K_ROWS || kk >= K_VIEW) fprintf(out, "    sloc[%lld] = ss[--ssp];\n", (long long)in->a);
                 else if (kk == K_FLT) fprintf(out, "    floc[%lld] = fs[--fsp];\n", (long long)in->a);
                 else if (kk == K_VEC) fprintf(out, "    vloc[%lld] = vs[--vsp];\n", (long long)in->a);
+                else if (cbe_optrec_sl(ir, kk, ks.ve[ks.n], ks.fl[ks.n]))
+                    fprintf(out, "    wloc[%lld] = ws[--wsp]; memcpy(wlocsl[%lld], wssl[wsp], sizeof wlocsl[0]);\n", (long long)in->a, (long long)in->a);
                 else if (kk == K_OPT || kk == K_OPTSL || kk == K_OPT2) fprintf(out, "    wloc[%lld] = ws[--wsp];\n", (long long)in->a);
                 else if (kk == K_REF) fputs("    /* ref stored: the name is static */\n", out);
                 else if (kk >= K_REC) fprintf(out, "    rloc[%lld] = rbuf[%lld]; memcpy(rloc[%lld], rs[--rsp], %u);"
@@ -3643,7 +3675,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         fputs("    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_.s; }\n", out);
                     else
                         fputs("    { lw_sl d_ = ss[--ssp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_; }\n", out);
-                    ks.n--; CBE_KSET(ks.n-1, K_SL); ks.ve[ks.n-1] = 1; break;
+                    { const unsigned char w_ = ks.vn[ks.n-2] ? ks.vn[ks.n-2] : 1, f_ = ks.fl[ks.n-2];
+                      ks.n--; CBE_KSET(ks.n-1, K_SL); ks.ve[ks.n-1] = w_; ks.fl[ks.n-1] = f_; }
+                    break;
                 }
                 if (ks.k[ks.n-1] == K_OPT)
                     fputs("    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_.v; }\n", out);
@@ -4574,6 +4608,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_WRAP_SOME:
                 if (ks.k[ks.n-1] >= K_REC && ks.k[ks.n-1] < K_VIEW) {   // ★ 레코드를 감싼다 → ws[].r
                     int wsx = ks.k[ks.n-1] - K_REC;
+                    if (cbe_optrec_sl(ir, K_OPT, (unsigned char)(wsx + 1), 0))   // ★ 슬라이스 칸도 함께 싼다(평행 칸 wssl)
+                        fprintf(out, "    memcpy(ws[wsp].r, rs[--rsp], sizeof ws[0].r); memcpy(wssl[wsp], rssl[rsp], sizeof wssl[0]); ws[wsp].tag = 1; wsp++;\n");
+                    else
                     fprintf(out, "    memcpy(ws[wsp].r, rs[--rsp], sizeof ws[0].r); ws[wsp].tag = 1; wsp++;\n");
                     // ★ 레코드를 감싼 option 은 **뷰가 아니다** → fl=0. 안 지우면 슬롯에 남은 낡은 fl(예:
                     //   `len view_array f32` 가 남긴 fl=1)을 물려받아 some_value 가 뷰 분기(ss[])로 새어
@@ -4581,9 +4618,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(wsx + 1); ks.fl[ks.n-1] = 0;
                     break;
                 }
-                if (ks.k[ks.n-1] == K_SL) {   // ★ WO-0222 — 바이트 슬라이스를 감싼다(시뮬레이터가 폭 1 을 확인했다)
+                if (ks.k[ks.n-1] == K_SL) {   // ★ WO-0222 — 슬라이스를 감싼다(폭 · 표식은 vn · fl 로 — 시뮬레이터와 같다)
                     fputs("    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n", out);
-                    ks.k[ks.n-1] = K_OPTSL; ks.ve[ks.n-1] = 0; ks.vn[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
+                    { const unsigned char w_ = ks.ve[ks.n-1] ? ks.ve[ks.n-1] : 1;
+                      ks.k[ks.n-1] = K_OPTSL; ks.ve[ks.n-1] = 0; ks.vn[ks.n-1] = (unsigned char)(w_ > 1 ? w_ : 0); ks.o[ks.n-1] = -1; }
+                    break;
                 }
                 if (ks.k[ks.n-1] == K_OPT && ks.ve[ks.n-1] == 0 && ks.fl[ks.n-1] == 0) {   // ★ 겹 — 안 태그를 t2 로
                     fputs("    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 1;\n", out);
@@ -4608,6 +4647,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_WRAP_OK:
                 if (ks.k[ks.n-1] >= K_REC && ks.k[ks.n-1] < K_VIEW) {   // ★ 레코드를 감싼다 → ws[].r
                     int wsx = ks.k[ks.n-1] - K_REC;
+                    if (cbe_optrec_sl(ir, K_OPT, (unsigned char)(wsx + 1), 0))   // ★ 슬라이스 칸도 함께 싼다(평행 칸 wssl)
+                        fprintf(out, "    memcpy(ws[wsp].r, rs[--rsp], sizeof ws[0].r); memcpy(wssl[wsp], rssl[rsp], sizeof wssl[0]); ws[wsp].tag = 3; wsp++;\n");
+                    else
                     fprintf(out, "    memcpy(ws[wsp].r, rs[--rsp], sizeof ws[0].r); ws[wsp].tag = 3; wsp++;\n");
                     // ★ 레코드를 감싼 result 도 뷰가 아니다 → fl=0(WRAP_SOME 과 같은 이유·같은 SEGV).
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(wsx + 1); ks.fl[ks.n-1] = 0;
@@ -4649,7 +4691,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
                           " ss[ssp++] = w_.s; }\n", out);
-                    ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = 1; ks.vn[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
+                    ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = ks.vn[ks.n-1] ? ks.vn[ks.n-1] : 1; ks.vn[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1] && ks.fl[ks.n-1]) {   // ★ 뷰를 감쌌으면 ss[] 로 꺼낸다
                     unsigned char vx = (unsigned char)(K_VIEW + ks.ve[ks.n-1] - 1);
@@ -4665,6 +4707,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
                           " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n", out);
+                    if (cbe_optrec_sl(ir, K_OPT, ks.ve[ks.n-1], 0))   // ★ 싼 레코드의 슬라이스 칸을 벗긴 자리로(방금 꺼낸 ws 자리 = wsp)
+                        fputs("    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n", out);
                     ks.k[ks.n-1] = rx; break;
                 }
                 fputs("    { lw_r w_ = ws[--wsp];"
@@ -4694,6 +4738,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " if (LW_UNLIKELY(w_.tag == 4)) lw_panic(\"ok_value of an error\");"
                           " if (LW_UNLIKELY(w_.tag != 3)) lw_panic(\"ok_value needs a result\");"
                           " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n", out);
+                    if (cbe_optrec_sl(ir, K_OPT, ks.ve[ks.n-1], 0))
+                        fputs("    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n", out);
                     ks.k[ks.n-1] = rx; break;
                 }
                 fputs("    { lw_r w_ = ws[--wsp];"
@@ -4879,7 +4925,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_RET:
                 live2 = false;
                 cbe_wb(ir, d, out);
-                if (ks.n && (ks.k[ks.n-1] == K_OPT || ks.k[ks.n-1] == K_OPTSL || ks.k[ks.n-1] == K_OPT2))
+                if (ks.n && cbe_optrec_sl(ir, ks.k[ks.n-1], ks.ve[ks.n-1], ks.fl[ks.n-1]))   // ★ 싼 레코드의 슬라이스 칸 → 반환 칸
+                    fputs("    memcpy(lw_ret_rsl, wssl[wsp-1], sizeof lw_ret_rsl); ws[wsp-1].rs = lw_ret_rsl; lw_depth--; return ws[wsp-1];\n", out);
+                else if (ks.n && (ks.k[ks.n-1] == K_OPT || ks.k[ks.n-1] == K_OPTSL || ks.k[ks.n-1] == K_OPT2))
                     fputs("    lw_depth--; return ws[wsp-1];\n", out);
                 else if (ks.n && ks.k[ks.n-1] == K_FLT)
                     fputs("    { lw_r r_; r_.v = 0; r_.f = fs[fsp-1]; r_.tag = 5; lw_depth--; return r_; }\n", out);
@@ -4903,9 +4951,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     { const low_ir_struct_t *RS = &ir->structs[ks.k[ks.n-1] - K_REC];
                       for (proven_size_t z = 0; z < RS->nf; z++)
                           if (RS->f[z].boxed && RS->f[z].elem) has_sl = true; }
+                    // ★★ 2026-10-31 (W-20261031-2053) — 칸을 **스레드마다 하나인 반환 칸**(`lw_ret_rsl`)에 베껴 두고 그것을 가리킨다.
+                    //   전에는 이 함수의 `rssl` 을 가리켰다 — 돌아오면 사라지는 자리다. 빠른 경로의 부른 쪽은 그 칸을 아예 안 읽어
+                    //   레코드의 슬라이스 칸이 빈 채로 이어졌다(VM 8 · 네이티브 5 — 빠른 함수끼리 이런 레코드를 돌려줄 때, v1.24.0 에도 있었다).
+                    //   부른 쪽은 돌아온 **바로 다음에** 제 칸으로 옮기므로(다른 부름보다 먼저) 하나로 넉넉하다.
                     if (has_sl)
-                        fputs("    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); r_.rs = rssl[rsp-1]; r_.tag = 7;"
-                              " lw_depth--; return r_; }\n", out);
+                        fputs("    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); memcpy(lw_ret_rsl, rssl[rsp-1], sizeof lw_ret_rsl);"
+                              " r_.rs = lw_ret_rsl; r_.tag = 7; lw_depth--; return r_; }\n", out);
                     else
                         fputs("    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); r_.tag = 7;"
                               " lw_depth--; return r_; }\n", out);
@@ -5108,12 +5160,22 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         if ((proven_size_t)home2 < d->nparams && ((d->param_struct >> home2) & 1u))
                             fprintf(out, "      memcpy(&rsl[%d * LW_RECF], rlocsl[%d], sizeof rlocsl[0]);\n", home2, home2);
                     }
-                if (cwrapped)   fputs("      ws[wsp++] = cr_; }\n", out);
+                if (cwrapped && cidx < 512 && cbe_optrec_sl(ir, K_OPT, g_retopt[cidx], 0))   // ★ 돌려받은 싼 레코드의 슬라이스 칸
+                    fputs("      if ((cr_.tag == 1 || cr_.tag == 3) && cr_.rs) memcpy(wssl[wsp], cr_.rs, sizeof wssl[0]); else memset(wssl[wsp], 0, sizeof wssl[0]); ws[wsp++] = cr_; }\n", out);
+                else if (cwrapped)   fputs("      ws[wsp++] = cr_; }\n", out);
                 else if (cflt)  fputs("      fs[fsp++] = cr_.f; }\n", out);
                 else if (csl)   fputs("      ss[ssp++] = cr_.s; }\n", out);
                 else if (cview) fputs("      ss[ssp++] = cr_.s; }\n", out);   // ★ 구조체 뷰 반환 = 슬라이스로 받는다
                 else if (cstsl) fputs("      ss[ssp++] = cr_.s; }\n", out);   // ★ 구조체 슬라이스 반환
-                else if (crec)  fputs("      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB); rsp++; }\n", out);
+                else if (crec) {
+                    // ★ 2026-10-31 — 돌려받은 레코드의 슬라이스 칸을 제 칸으로 옮긴다(피호출자가 `lw_ret_rsl` 에 둔 것 — 위 RET).
+                    bool rsl_ = false;
+                    { const low_ir_struct_t *RS_ = &ir->structs[g_retk[cidx] - K_REC];
+                      for (proven_size_t z = 0; z < RS_->nf; z++) if (RS_->f[z].boxed && RS_->f[z].elem) rsl_ = true; }
+                    if (rsl_) fputs("      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB);"
+                                    " if (cr_.rs) memcpy(rssl[rsp], cr_.rs, sizeof rssl[0]); else memset(rssl[rsp], 0, sizeof rssl[0]); rsp++; }\n", out);
+                    else fputs("      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB); rsp++; }\n", out);
+                }
                 else if (cscal) fputs("      st[sp++] = crv_; }\n", out);
                 else            fputs("      st[sp++] = cr_.v; }\n", out);
                 ks.n -= (int)ce->nparams;
@@ -5128,6 +5190,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   스칼라 추출로 새어 뒤 field 가 rs[-1] 을 읽었다(ASan OOB · VM≠native).
                     ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
                     if (cwrapped && cidx < 512) ks.ve[ks.n] = g_retopt[cidx];
+                    if (cidx < 512 && g_retk[cidx] == K_OPTSL) {   // ★ 슬라이스 option 의 폭 · 표식(2026-11-01)
+                        ks.ve[ks.n] = 0; ks.vn[ks.n] = (unsigned char)(g_retve[cidx] > 1 ? g_retve[cidx] : 0); ks.fl[ks.n] = g_retfl[cidx]; }
                     else if (csl) { ks.ve[ks.n] = g_retve[cidx] ? g_retve[cidx] : 1; ks.fl[ks.n] = g_retfl[cidx]; }
                     ks.k[ks.n++] = cwrapped ? g_retk[cidx] : cflt ? K_FLT : csl ? K_SL
                              : crec ? g_retk[cidx] : K_INT;
@@ -6845,6 +6909,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       "        lw_boxes[lw_nbox] = in_;\n"
                       "        { lowv w_ = {0}; w_.tag = (r_.tag == 1) ? LWV_SOME : LWV_OK; w_.box = lw_nbox++; return w_; } }\n", out);
             }
+            if (i < 512 && g_retk[i] == K_OPTSL && (g_retve[i] > 1 || g_retfl[i])) {
+                // ★ 2026-11-01 — 원소 폭이 1 이 아닌 슬라이스 option: 태그 경로의 VARRAY(원소 수 · 폭 · 표식)를 싼다.
+                fprintf(out, "    if (r_.tag == 1) {\n"
+                      "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\");\n"
+                      "        { lowv sv_ = {0}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = %d; sv_.i = %d; lw_boxes[lw_nbox] = sv_; }\n"
+                      "        { lowv w_ = {0}; w_.tag = LWV_SOME; w_.box = lw_nbox++; return w_; } }\n",
+                        (int)g_retve[i], g_retfl[i] == CBE_FL_FLT ? 0x10000 : g_retfl[i] == CBE_FL_SGN ? 0x20000 : 0);
+            } else
             if (i < 512 && g_retk[i] == K_OPTSL) {
                 // ★★★★ WO-0222 — **바이트 슬라이스를 감싼 option 반환**: some 이면 태그 경로가 기대하는 박스(LWV_SLICE)를 짓는다.
                 fputs("    if (r_.tag == 1) {\n"

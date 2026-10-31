@@ -487,10 +487,11 @@ bool ir_comptime_cond(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, prov
 proven_size_t ir_cond_brz(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_size_t *sites);
 bool ir_contract_operand(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line);
 bool ir_ctfe_fold(const low_cst_t *nd, const low_ctfe_names_t *nm, proven_i64 *out, int fuel);
-/* RFC-0015 §6.3 — 구조체 답의 마디: 1 정수 · 2 부동(v 에 비트) · 3 바이트(b, malloc) · 4 구조체(tname · 칸은 tn[first .. first+nk), 칸 이름은 fname) */
+/* RFC-0015 §6.3 — 구조체 답의 마디: 1 정수 · 2 부동(v 에 비트) · 3 바이트(b, malloc) · 4 구조체(tname · 칸은 tn[first .. first+nk), 칸 이름은 fname)
+   · 6 128 비트 정수(v 아래 · vhi 위 64 비트) */
 typedef struct {
     proven_u8        kind;
-    proven_i64       v;
+    proven_i64       v, vhi;
     proven_u8       *b;
     proven_size_t    n;
     proven_u8str_view_t tname;
@@ -505,7 +506,7 @@ typedef struct {
     proven_size_t    nargs;
     bool             hasargs, ok, uns;
     proven_i64       v;
-    char             why[240];    /* 접지 못한 까닭(비면 아직 모른다) */
+    char             why[400];    /* 접지 못한 까닭(비면 아직 모른다) */
     /* RFC-0015 §6.3 — 답이 배열인 `fn`(P4b 가 마지막 입력을 결과 자리 `mut slice T` 로 바꿔 적은 것): 자리를 주고 돌려 그 바이트를 든다 */
     bool             arr;         /* 답이 `array N T` 다 */
     proven_u8str_view_t elem;     /* 원소 낱말 T */
@@ -526,6 +527,8 @@ typedef struct {
     ctfe_node_t      tn[LOW_CAP_NODES];
     proven_size_t    ntn;
     /* 슬라이스 입력(문자열 · `text` · 상수 나열 · 배열 모듈 상수) — 인자 자리마다 */
+    proven_u8str_view_t sty[LOW_HDR_MAXP];   /* 입력 j 가 구조체면 그 이름(argb 가 그 바이트 배치) — RFC-0015 §6.4 */
+    proven_size_t    nsty;
     bool             argsl[LOW_HDR_MAXP];
     proven_u8       *argb[LOW_HDR_MAXP];    /* malloc */
     proven_size_t    argn[LOW_HDR_MAXP];

@@ -1124,10 +1124,10 @@ void low_ir_set_pool_report(bool on);   /* RFC-0150 §8-11 — `--stack-report` 
 typedef struct { proven_i64 value; bool ok; char text[160]; } low_ir_run_result_t;
 // ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0048) — **돌린 답을 날것으로 받는다**(번역 때 도는 `fn` 의 슬라이스 · 구조체 답).
 //   켜 두면 다음 `low_ir_run_def` 가 끝날 때 답을 여기에 적는다. 포인터는 VM 의 기억을 가리키고 **다음 실행까지만** 산다 — 곧바로 베낀다.
-//   kind: 0 없음 · 1 정수 · 2 부동소수(v 에 비트) · 3 바이트(슬라이스 · 타입 보기 · 창) · 4 레코드 · 5 그 밖(옵션 · 참조 …) · 6 128 비트 정수.
+//   kind: 0 없음 · 1 정수 · 2 부동소수(v 에 비트) · 3 바이트(슬라이스 · 타입 보기 · 창) · 4 레코드 · 5 그 밖(옵션 · 참조 …) · 6 128 비트 정수(v 가 아래 · vhi 가 위 64 비트).
 //   값은 마디 나무다: n[0] 이 답이고, 레코드 마디의 칸은 n[first .. first+nk) 다(칸이 다시 레코드면 그 아래로). 마디가 모자라면 full.
 #define LOW_CAP_NODES 32
-typedef struct { proven_u8 kind; proven_i64 v; const proven_u8 *p; proven_size_t nbytes; proven_size_t make_idx; proven_u8 first, nk; } low_ir_capval_t;
+typedef struct { proven_u8 kind; proven_i64 v, vhi; const proven_u8 *p; proven_size_t nbytes; proven_size_t make_idx; proven_u8 first, nk; } low_ir_capval_t;
 typedef struct { low_ir_capval_t n[LOW_CAP_NODES]; proven_size_t nn; bool full; } low_ir_capture_t;
 void low_ir_set_capture(low_ir_capture_t *cap);
 // ★ RFC-0015 §6.3 — VM 이 이 IR 의 «주소를 품은 상수» 로 지은 사본을 버린다(low_ir_free 가 부른다).

@@ -1,0 +1,63 @@
+rem ★★ RFC-0015 §6.4 — 구조체 입력 (2026-10-31 · 소유자 «넷 다 자연스런 구현순서로 진행» · W-20261031-1118).
+rem   번역 때 도는 `fn` 이 구조체를 받는다: 칸마다 상수로 적은 리터럴(안의 구조체 · `bool` · `f32` · 128 비트 칸도)이나
+rem   번역 때 돈 `fn` 의 구조체 답(모듈 상수 · 그 자리의 부름). `fn` 은 경계에서처럼 그 바이트 배치를 받는다.
+
+module vm_ctsin .
+
+struct inner do
+  k i16 .
+  f f32 .
+end .
+
+struct cfg do
+  hz u32 .
+  neg i8 .
+  flag bool .
+  sub inner .
+  big u128 .
+end .
+
+struct wide do
+  w i128 .
+end .
+
+fn score input c cfg . input m u32 . output i64 . do
+  let i inner field c. sub . .
+  var t i64 cast i64 mul field c. hz . m. . . .
+  set t. add t. cast i64 field c. neg . . . .
+  set t. add t. cast i64 field i. k . . . .
+  if field c. flag . do set t. add t. 1000000 . . end .
+  set t. add t. cast i64 mul field i. f . 10.0 . . . .
+  set t. add t. cast i64 shr field c. big . 64 . . . .
+  return t. .
+end .
+
+fn mk output cfg . do
+  return lit cfg do hz 7 . neg -3 . flag false . sub lit inner do k -2 . f 0.5 . end . . big mul cast u128 18446744073709551615 . 4 . . end . .
+end .
+
+fn top input x wide . output i64 . do
+  return cast i64 shr field x. w . 64 . . .
+end .
+
+let MK cfg comptime mk . . .
+
+rem 250·4 − 5 − 300 + 1000000 + 25 + 0 = 1000720
+export fn lit_in output i64 . do
+  return comptime score lit cfg do hz 250 . neg -5 . flag true . sub lit inner do k -300 . f 2.5 . end . . big 18446744073709551615 . end . 4 . . .
+end .
+
+rem 7·3 − 3 − 2 + 5 + 3 = 24 (모듈 상수인 구조체 답)
+export fn const_in output i64 . do
+  return comptime score MK. 3 . . .
+end .
+
+rem 7 − 3 − 2 + 5 + 3 = 10 (그 자리에서 돈 구조체 답)
+export fn call_in output i64 . do
+  return comptime score mk . 1 . . .
+end .
+
+rem −2^65 의 위 절반 = −2
+export fn wide_in output i64 . do
+  return comptime top lit wide do w -36893488147419103232 . end . . . .
+end .

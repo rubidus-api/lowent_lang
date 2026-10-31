@@ -4909,8 +4909,8 @@ static void vm_capval(const vm_ctx_t *vm, vmv_t v, low_ir_capture_t *cap, proven
         return;
     }
     switch (v.tag) {
-        case VMV_INT:    // ★ 128 비트 값(위 절반이 부호 늘림이 아니다)은 64 비트 칸에 담기지 않는다 — 6 으로 적어 거절하게 한다(잘라 내지 않는다)
-            o->kind = (v.n && (proven_u64)v.n != (v.i < 0 ? ~0ull : 0ull)) ? 6 : 1; o->v = v.i; return;
+        case VMV_INT:    // ★ 128 비트 값(위 절반이 부호 늘림이 아니다)은 6 으로 — 위 절반을 vhi 에 함께 든다(2026-10-31 · 전에는 거절했다)
+            o->kind = (v.n && (proven_u64)v.n != (v.i < 0 ? ~0ull : 0ull)) ? 6 : 1; o->v = v.i; o->vhi = (proven_i64)v.n; return;
         case VMV_FLT:    o->kind = 2; o->v = v.i; return;
         case VMV_SLICE:  o->kind = 3; o->p = v.p; o->nbytes = v.n; return;
         case VMV_VARRAY: o->kind = 3; o->p = v.p; o->nbytes = v.n * (proven_size_t)(v.box > 0 ? v.box : 1); return;

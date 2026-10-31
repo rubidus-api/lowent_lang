@@ -2999,11 +2999,13 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                 // 입력: 정수나 `bool` 하나, 또는 수의 슬라이스(`slice T` — 문자열 · `text` · 상수 나열 · 배열 상수가 건너간다, RFC-0015 §6.4)
                 for (proven_size_t q = 0; q < h.np - (c->arr ? 1 : 0) && !c->why[0]; q++) {
                     const low_param_t *pp = &h.p[q];
-                    bool ok = !pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) &&
+                    bool sti = !pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) && pp->te == pp->core + 1 && ctfe_struct_named(pr, k[pp->core]->tok.lex);
+                    bool ok = sti || (!pp->is_comptime && !pp->is_mut && is_atom(k[pp->core]) &&
                               ((pp->te == pp->core + 1 && ctfe_int_word(k[pp->core]->tok.lex)) ||
-                               (pp->te == pp->core + 2 && veq(k[pp->core]->tok.lex, "slice") && is_atom(k[pp->core + 1]) && ctfe_num_elem(k[pp->core + 1]->tok.lex)));
+                               (pp->te == pp->core + 2 && veq(k[pp->core]->tok.lex, "slice") && is_atom(k[pp->core + 1]) && ctfe_num_elem(k[pp->core + 1]->tok.lex))));
+                    if (sti && q < LOW_HDR_MAXP) { c->sty[q] = k[pp->core]->tok.lex; if (c->nsty < q + 1) c->nsty = q + 1; }   // §6.4 — 구조체 입력(바이트 배치로 건넨다)
                     if (!ok)
-                        snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is neither one integer or `bool` nor a slice of numbers — only those cross into a compile-time call (a `mut` input would be written, a struct input is not built)",
+                        snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is not one integer or `bool`, a slice of numbers or a struct — only those cross into a compile-time call (a `mut` input would be written)",
                                  (int)h.name.size, (const char *)h.name.ptr);
                 }
                 if (!c->why[0] && !c->arr) {
@@ -3081,7 +3083,7 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
     for (proven_size_t q = 0; q < cap->nn; q++) {
         const low_ir_capval_t *s0 = &cap->n[q];
         ctfe_node_t *d = &c->tn[q];
-        d->kind = s0->kind; d->v = s0->v; d->first = s0->first; d->nk = s0->nk;
+        d->kind = s0->kind; d->v = s0->v; d->vhi = s0->vhi; d->first = s0->first; d->nk = s0->nk;
         if (s0->kind == 4) {
             if (s0->make_idx >= ir->nmakes || s0->nk > IR_MAKE_MAXF) { snprintf(c->why, sizeof c->why, "`%.*s` returned a struct this tool cannot read back", (int)fnm.size, (const char *)fnm.ptr); return; }
             const low_ir_make_t *mk = &ir->makes[s0->make_idx];
@@ -3094,11 +3096,7 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
             d->b = malloc(d->n ? d->n : 1);
             if (!d->b) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
             if (d->n) memcpy(d->b, s0->p, d->n);
-        } else if (s0->kind == 6) {
-            snprintf(c->why, sizeof c->why, "`%.*s` returned a struct holding a 128-bit value — a compile-time struct answer holds integers up to 64 bits for now "
-                     "(the upper half would be lost) (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr);
-            return;
-        } else if (s0->kind != 1 && s0->kind != 2) {
+        } else if (s0->kind != 1 && s0->kind != 2 && s0->kind != 6) {   // 6 = 128 비트 값 — 두 절반을 함께 든다(2026-10-31 · W-20261031-1118)
             snprintf(c->why, sizeof c->why, "`%.*s` returned a struct holding an option, a result or a reference — a compile-time struct answer "
                      "holds numbers, `bool`s, arrays and slices of numbers and other such structs (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr);
             return;
@@ -3300,7 +3298,8 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
         ctfe_call_t *c = &g_cc[i];
         if (c->ok || c->why[0] || c->hasargs) continue;
         snprintf(c->why, sizeof c->why, "the arguments of `%.*s` are not all known when translating — an integer must fold like any `comptime` "
-                 "expression, and a slice must be a string, a `text` literal, a list of constants or an array constant (RFC-0015 §6.4)",
+                 "expression, a slice must be a string, a `text` literal, a list of constants or an array constant, and a struct needs a "
+                 "byte layout (no slice, array or enum fields) and must be `lit S do … end` with constant fields or a compile-time struct answer (RFC-0015 §6.4)",
                  (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr);
     }
 }

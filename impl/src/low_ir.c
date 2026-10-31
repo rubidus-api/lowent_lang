@@ -2785,6 +2785,7 @@ static void ir_ctfe_struct_emit(ir_ctx_t *c, const ctfe_call_t *ac, proven_size_
         const ctfe_node_t *ch = &ac->tn[nd->first + q];
         mk.fields[mk.nfields++] = nd->fname[q];
         if (ch->kind == 1) ir_emit(c, IRW_CONST, ch->v);
+        else if (ch->kind == 6) { ir_emit(c, IRW_CONST, ch->v); ir_emit(c, IRW_MK128, ch->vhi); }   // 128 비트 칸 — 아래 절반 위에 위 절반을 얹는다(128 비트 상수와 같은 명령)
         else if (ch->kind == 2) ir_emit(c, IRW_FCONST, ch->v);
         else if (ch->kind == 4) ir_ctfe_struct_emit(c, ac, nd->first + q, line);
         else {
@@ -2856,6 +2857,103 @@ static bool ir_ctfe_answer_emit(ir_ctx_t *c, const low_cst_t *ce, proven_u32 lin
 }
 // ★★ RFC-0015 §6.4 (2026-10-31) — 슬라이스 입력: 번역 때 바이트가 정해진 인자를 바이트로 읽는다 — 따옴표 문자열 · `text` 리터럴(원문 그대로) ·
 //   원소가 모두 상수인 `lit array` / `lit slice` · 배열 · 슬라이스 모듈 상수 · 이미 돈 다른 자리의 배열 · 슬라이스 답. 못 읽으면 false.
+// ★★ RFC-0015 §6.4 (2026-10-31 · W-20261031-1118 · 소유자 «넷 다 자연스런 구현순서로») — **구조체 입력**. 번역 때 도는 `fn` 은 구조체 입력을
+//   경계에서처럼 바이트 위의 창으로 받는다(VM 의 `param_struct` — 바이트 배치가 있는 구조체만). 그래서 여기서는 그 바이트를 짓는다:
+//   칸마다 상수로 적은 `lit S do <칸> <값> . … end`(안의 구조체도 그렇게), 또는 번역 때 돈 `fn` 이 낸 구조체 답(모듈 상수 · 그 자리의 부름).
+//   칸 하나라도 상수가 아니거나, 바이트 배치가 없거나(슬라이스 · 배열 · 열거 칸), 칸이 빠지면 false — 그 자리는 까닭과 함께 거절된다.
+static void ir_ctfe_put(proven_u8 *b, const low_ir_sfield_t *f, proven_u64 lo, proven_u64 hi) {
+    for (proven_u8 k = 0; k < f->size; k++) {
+        proven_u8 v = (proven_u8)(k < 8 ? lo >> (8 * k) : hi >> (8 * (k - 8)));
+        b[f->off + (f->be ? f->size - 1 - k : k)] = v;
+    }
+}
+static bool ir_ctfe_tn_bytes(ir_ctx_t *c, const ctfe_call_t *ac, proven_size_t at, proven_size_t si, proven_u8 *b);
+static bool ir_ctfe_make_bytes(ir_ctx_t *c, const low_cst_t *form, proven_size_t si, proven_u8 *b);
+static bool ir_ctfe_lit_bytes(ir_ctx_t *c, const low_cst_t *a, proven_size_t si, proven_u8 *b) {
+    while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+    if (!a) return false;
+    const low_ir_struct_t *st = &c->out->structs[si];
+    if (!st->viewable || st->is_shadow) return false;
+    const ctfe_call_t *oc = ctfe_call_find(a);
+    if (!oc && is_atom(a) && a->tok.kind == LOW_TOK_IDENT)   // 구조체 답인 모듈 상수
+        for (proven_size_t mi = 0; mi < c->nmdata && !oc; mi++)
+            if (proven_u8str_view_eq(c->mdata[mi], a->tok.lex)) {
+                const low_cst_t *g = c->mdatand[mi];
+                while (g && g->kind == LOW_CST_GROUP && g->nkids == 1) g = g->kids[0];
+                oc = ctfe_call_find(g);
+            }
+    if (oc) return oc->ok && oc->st && oc->ntn && ir_ctfe_tn_bytes(c, oc, 0, si, b);
+    // `lit S do … end` 는 FORM(lit, FORM(S, BLOCK)) 이다(ir_make 와 같은 모양)
+    if (a->kind != LOW_CST_FORM || a->nkids != 2 || !is_atom(a->kids[0]) || a->kids[0]->tok.kw != LOW_KW_LIT) return false;
+    return ir_ctfe_make_bytes(c, a->kids[1], si, b);
+}
+static bool ir_ctfe_make_bytes(ir_ctx_t *c, const low_cst_t *form, proven_size_t si, proven_u8 *b) {
+    while (form && form->kind == LOW_CST_GROUP && form->nkids == 1) form = form->kids[0];
+    if (!form || form->kind != LOW_CST_FORM || form->nkids != 2 || !is_atom(form->kids[0]) || form->kids[1]->kind != LOW_CST_BLOCK) return false;
+    const low_ir_struct_t *st = &c->out->structs[si];
+    bool sf; proven_size_t li = ir_struct_find(c->out, ir_strip_mod(c, form->kids[0]->tok.lex), &sf);
+    if (!sf || li != si) return false;
+    const low_cst_t *blk = form->kids[1];
+    if (blk->nkids != st->nf) return false;                   // 칸마다 하나씩(빠진 칸 · 같은 칸 두 번은 검사층이 따로 말한다)
+    const low_ctfe_names_t nm = ir_ctfe_names(c);
+    for (proven_size_t q = 0; q < blk->nkids; q++) {
+        const low_cst_t *cf = blk->kids[q];
+        if (cf->kind != LOW_CST_FORM || cf->nkids < 2 || !is_atom(cf->kids[0])) return false;
+        const low_ir_sfield_t *f = NULL;
+        for (proven_size_t z = 0; z < st->nf && !f; z++) if (proven_u8str_view_eq(st->f[z].name, cf->kids[0]->tok.lex)) f = &st->f[z];
+        if (!f || f->ename.size) return false;
+        if (f->sidx >= 0) {   // 안의 구조체 — `<칸> lit T do … end` (칸 폼의 나머지가 그 리터럴이다)
+            if (cf->nkids == 3 && is_atom(cf->kids[1]) && cf->kids[1]->tok.kw == LOW_KW_LIT) {
+                if (!ir_ctfe_make_bytes(c, cf->kids[2], (proven_size_t)f->sidx, b + f->off)) return false;
+            } else if (cf->nkids != 2 || !ir_ctfe_lit_bytes(c, cf->kids[1], (proven_size_t)f->sidx, b + f->off)) return false;
+            continue;
+        }
+        if (cf->nkids != 2) return false;
+        proven_u64 bits;
+        if (f->flt) { if (!ir_lit_const_bits(cf->kids[1], true, f->size, &bits)) return false; ir_ctfe_put(b, f, bits, 0); continue; }
+        proven_i64 v; bool u2;
+        if (f->size >= 16) {   // 128 비트 칸 — 접기는 64 비트까지라 수 낱말 하나만 받는다(셈한 값은 위 절반을 잃을 수 있다) · 128 비트까지 읽는다
+            proven_u64 lo = 0, hi = 0;
+            if (!is_atom(cf->kids[1]) || cf->kids[1]->tok.kind != LOW_TOK_NUMBER || ir_int_lit128(cf->kids[1]->tok.lex, &lo, &hi) < 0) return false;
+            ir_ctfe_put(b, f, lo, hi);
+            continue;
+        }
+        if (is_atom(cf->kids[1]) && (cf->kids[1]->tok.kw == LOW_KW_TRUE || cf->kids[1]->tok.kw == LOW_KW_FALSE)) v = cf->kids[1]->tok.kw == LOW_KW_TRUE;
+        else if (!low_ctfe_value(cf->kids[1], &nm, &v, &u2)) return false;
+        ir_ctfe_put(b, f, (proven_u64)v, 0);
+    }
+    return true;
+}
+static bool ir_ctfe_tn_bytes(ir_ctx_t *c, const ctfe_call_t *ac, proven_size_t at, proven_size_t si, proven_u8 *b) {
+    const ctfe_node_t *nd = &ac->tn[at];
+    const low_ir_struct_t *st = &c->out->structs[si];
+    if (nd->kind != 4 || !st->viewable || st->is_shadow || nd->nk != st->nf) return false;
+    for (proven_size_t q = 0; q < nd->nk; q++) {
+        const ctfe_node_t *ch = &ac->tn[nd->first + q];
+        const low_ir_sfield_t *f = NULL;
+        for (proven_size_t z = 0; z < st->nf && !f; z++) if (proven_u8str_view_eq(st->f[z].name, nd->fname[q])) f = &st->f[z];
+        if (!f || f->ename.size) return false;
+        if (f->sidx >= 0) { if (!ir_ctfe_tn_bytes(c, ac, nd->first + q, (proven_size_t)f->sidx, b + f->off)) return false; continue; }
+        if (ch->kind == 2) {   // 부동소수 — 값은 f64 의 비트다(f32 칸이면 좁힌다)
+            proven_u64 bits = (proven_u64)ch->v;
+            if (f->size == 4) { double dv; memcpy(&dv, &bits, 8); float fv = (float)dv; proven_u32 b32; memcpy(&b32, &fv, 4); bits = b32; }
+            ir_ctfe_put(b, f, bits, 0);
+        } else if (ch->kind == 1) ir_ctfe_put(b, f, (proven_u64)ch->v, ch->v < 0 ? ~0ull : 0);
+        else if (ch->kind == 6) ir_ctfe_put(b, f, (proven_u64)ch->v, (proven_u64)ch->vhi);
+        else return false;
+    }
+    return true;
+}
+// 이 인자가 구조체 `sname` 의 입력이면 그 바이트를 짓는다(malloc · 부른 쪽이 놓는다)
+static bool ir_ctfe_struct_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
+    bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, sname), &sf);
+    if (!sf || !c->out->structs[si].viewable || !c->out->structs[si].total) return false;
+    proven_u8 *b = calloc(c->out->structs[si].total, 1);
+    if (!b) return false;
+    if (!ir_ctfe_lit_bytes(c, a, si, b)) { free(b); return false; }
+    *out = b; *n = c->out->structs[si].total;
+    return true;
+}
 static bool ir_ctfe_slice_arg(ir_ctx_t *c, const low_cst_t *a, proven_u8 **out, proven_size_t *n) {
     while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
     if (!a) return false;
@@ -2923,6 +3021,10 @@ void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce) {
     for (proven_size_t j = 0; j < na && all; j++) {
         bool u2;
         free(cc->argb[j]); cc->argb[j] = NULL; cc->argsl[j] = false;
+        if (j < cc->nsty && cc->sty[j].size) {   // 구조체 입력 — 그 구조체의 바이트로
+            if (ir_ctfe_struct_arg(c, cc->sty[j], ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) { cc->argsl[j] = true; continue; }
+            all = false; continue;
+        }
         if (low_ctfe_value(ce->kids[j + 1], &nm, &cc->args[j], &u2)) continue;
         if (ir_ctfe_slice_arg(c, ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) { cc->argsl[j] = true; continue; }
         all = false;

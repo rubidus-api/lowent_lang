@@ -1447,6 +1447,13 @@ static bool cbe_make_zero(const low_ir_t *ir, const low_ir_def_t *d, proven_size
     }
     return true;
 }
+// ★ 2026-11-01 — 이 구조체에 슬라이스 칸이 있는가. 없으면 레코드의 평행 칸(`rlocsl` · `rssl`)을 옮길 까닭이 없다 —
+//   늘 옮기면 레코드 지역마다 256 B 칸이 잡혀 파일 핸들 하나 쓰는 op 의 틀이 3,840 B 가 됐다(check-frames).
+static bool cbe_struct_has_sl(const low_ir_t *ir, int sx) {
+    if (sx < 0 || (proven_size_t)sx >= ir->nstructs) return false;
+    for (proven_size_t z = 0; z < ir->structs[sx].nf; z++) if (ir->structs[sx].f[z].boxed && ir->structs[sx].f[z].elem) return true;
+    return false;
+}
 // ★ 2026-11-01 (W-20261031-2053) — 이 option · result 가 **슬라이스 칸을 가진 레코드**를 쌌는가(ve = sidx+1 · fl 0).
 //   그런 값의 슬라이스 칸은 `lw_r` 안에 없다 — 스택 자리마다 하나인 평행 칸 `wssl`, 지역마다 하나인 `wlocsl` 을 따라간다.
 static bool cbe_optrec_sl(const low_ir_t *ir, unsigned char k, unsigned char ve, unsigned char fl) {
@@ -2948,7 +2955,8 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     //   쓰면 호출자에게 **즉시** 보이므로 되쓰기도 없다. 스스로 만든 레코드만 `rbuf` 에 산다.
     //   ☞ `rloc[q]` 라는 **글자는 그대로**다(포인터 + 오프셋도 `rloc[q] + off`) — 그래서
     //     이 큰 전환이 사용처를 거의 안 건드린다. 바이트로 합쳐 둔 값이 여기서 나온다.
-    if (cbe_uses(body, "rloc[")) fprintf(out, "lw_sl rlocsl[%zu][LW_RECF]; (void)rlocsl; unsigned char *rloc[%zu] = {0}; _Alignas(8) unsigned char rbuf[%zu][LW_RECB] = {{0}}; ", n, n, n);
+    if (cbe_uses(body, "rloc[")) fprintf(out, "unsigned char *rloc[%zu] = {0}; _Alignas(8) unsigned char rbuf[%zu][LW_RECB] = {{0}}; ", n, n);
+    if (cbe_uses(body, "rlocsl[")) fprintf(out, "lw_sl rlocsl[%zu][LW_RECF]; (void)rlocsl; ", n);
     if (cbe_uses(body, "floc[")) fprintf(out, "double floc[%zu] = {0}; ", n);
     if (cbe_uses(body, "wloc[")) fprintf(out, "lw_r wloc[%zu] = {{0,0,{0,0},{0},0}}; ", n);
     if (cbe_uses(body, "wlocsl[")) fprintf(out, "lw_sl wlocsl[%zu][LW_RECF]; (void)wlocsl; ", n);
@@ -3178,8 +3186,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
               //   올리면 그 쓰기가 **호출자에게 보여야** 하기 때문이다.
               // ★ 파라미터의 슬라이스 칸을 **지역 칸으로 옮긴다**(RFC-0106 단계 3).
               //   그러면 `field` 읽기는 파라미터든 지역이든 **한 자리**만 본다.
-              fprintf(out, "    rloc[%zu] = ar[%zu]; memcpy(rlocsl[%zu], &rsl[%zu * LW_RECF], sizeof rlocsl[0]);\n",
-                      (size_t)q, (size_t)nr++, (size_t)q, (size_t)q);
+              if (cbe_struct_has_sl(ir, (int)d->param_sidx[q]))
+                  fprintf(out, "    rloc[%zu] = ar[%zu]; memcpy(rlocsl[%zu], &rsl[%zu * LW_RECF], sizeof rlocsl[0]);\n",
+                          (size_t)q, (size_t)nr++, (size_t)q, (size_t)q);
+              else fprintf(out, "    rloc[%zu] = ar[%zu];\n", (size_t)q, (size_t)nr++);
           }
           else if ((d->param_opt >> q) & 1u) fprintf(out, "    wloc[%zu] = ao[%zu];\n", (size_t)q, (size_t)nao2++);  // ★ option·result 파라미터
           else if ((d->param_vec >> q) & 1u) fprintf(out, "    vloc[%zu] = av[%zu];\n", (size_t)q, (size_t)nav2++);  // ★ 벡터 파라미터
@@ -3296,8 +3306,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 }
                 else if (lk[in->a] >= K_REC) {
                     // ★ 그 타입의 **실제 크기**만 옮긴다 — 칸이 64 라고 64 를 나를 이유가 없다.
-                    fprintf(out, "    memcpy(rssl[rsp], rlocsl[%lld], sizeof rssl[0]); rs[rsp++] = rloc[%lld];\n",
-                            (long long)in->a, (long long)in->a);
+                    if (cbe_struct_has_sl(ir, lk[in->a] - K_REC))
+                        fprintf(out, "    memcpy(rssl[rsp], rlocsl[%lld], sizeof rssl[0]); rs[rsp++] = rloc[%lld];\n",
+                                (long long)in->a, (long long)in->a);
+                    else fprintf(out, "    rs[rsp++] = rloc[%lld];\n", (long long)in->a);
                     ks.o[ks.n] = (signed char)in->a; ks.k[ks.n++] = lk[in->a];
                 }
                 else if (lk[in->a] == K_STK) {
@@ -3331,10 +3343,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     fprintf(out, "    wloc[%lld] = ws[--wsp]; memcpy(wlocsl[%lld], wssl[wsp], sizeof wlocsl[0]);\n", (long long)in->a, (long long)in->a);
                 else if (kk == K_OPT || kk == K_OPTSL || kk == K_OPT2) fprintf(out, "    wloc[%lld] = ws[--wsp];\n", (long long)in->a);
                 else if (kk == K_REF) fputs("    /* ref stored: the name is static */\n", out);
-                else if (kk >= K_REC) fprintf(out, "    rloc[%lld] = rbuf[%lld]; memcpy(rloc[%lld], rs[--rsp], %u);"
+                else if (kk >= K_REC && cbe_struct_has_sl(ir, kk - K_REC)) fprintf(out, "    rloc[%lld] = rbuf[%lld]; memcpy(rloc[%lld], rs[--rsp], %u);"
                                               " memcpy(rlocsl[%lld], rssl[rsp], sizeof rssl[0]);\n",
                                               (long long)in->a, (long long)in->a, (long long)in->a,
                                               (unsigned)ir->structs[kk - K_REC].total, (long long)in->a);
+                else if (kk >= K_REC) fprintf(out, "    rloc[%lld] = rbuf[%lld]; memcpy(rloc[%lld], rs[--rsp], %u);\n",
+                                              (long long)in->a, (long long)in->a, (long long)in->a,
+                                              (unsigned)ir->structs[kk - K_REC].total);
                 else if (kk == K_STK) fprintf(out, "    scap[%d] = st[sp-1]; sp--; sn[%d] = 0;\n", smap[in->a], smap[in->a]);
                 else {
                     fprintf(out, "    loc[%lld] = st[--sp];\n", (long long)in->a);
@@ -5818,6 +5833,22 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs("static const struct { unsigned rb; unsigned sub; } lw_rowsh[] = { {0u,0u}", out);
         for (proven_size_t q = 1; q < ir->nrowsh; q++) fprintf(out, ", {%uu,%uu}", (unsigned)ir->rowsh_rb[q], (unsigned)ir->rowsh_sub[q]);
         fprintf(out, " };\n#define LW_NROWSH %zuu\n", ir->nrowsh ? ir->nrowsh : (proven_size_t)1);
+    }
+    {   // ★ 2026-11-01 (W-20261031-2053) — 호스트 잎의 공용 함수(`lw_h_*`)는 그 잎을 쓰는 단위에만 낸다. 경로 버퍼(4 KB)를 가진 것은 op 안으로
+        //   펼치지 않으므로(`noinline`) `static inline` 일 수 없다 — 그러면 `-O0` 에서 안 쓰는 단위에도 나와 libc 의존을 끌고 온다.
+        bool hl = false;
+        for (proven_size_t q = 0; q < ir->ndefs && !hl; q++)
+            for (proven_size_t j = 0; j < ir->defs[q].ncode && !hl; j++)
+                switch (ir->defs[q].code[j].w) {
+                    case IRW_WRITE: case IRW_RDIN: case IRW_ARGV: case IRW_ENVGET:
+                    case IRW_FOPEN: case IRW_FREAD: case IRW_FWRITE: case IRW_FCLOSE: case IRW_FSEEK:
+                    case IRW_DOPEN: case IRW_DREAD: case IRW_DCLOSE: case IRW_FTYPE: case IRW_LTYPE:
+                    case IRW_DMAKE: case IRW_PREMOVE: case IRW_PRENAME:
+                    case IRW_NPAIR: case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE: case IRW_NLISTEN:
+                    case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT: case IRW_NRESOLVE: hl = true; break;
+                    default: break;
+                }
+        if (hl) fputs("#define LW_HLEAF 1\n", out);
     }
     fputs(LW_PRELUDE, out);
     if (cbe_uses_proc(ir)) fputs(LW_PROC_RT, out);   // ★ RFC-0136 — 쓰는 단위에만

@@ -170,6 +170,10 @@ const char LW_PRELUDE[] =
 //   계약 위반 가지가 **돌아오지 않는다**는 것을 알고, 그 가지를 **차갑게** 배치한다.
 // ★ 바이트 슬라이스의 **자연스러운 표현** — 포인터와 길이. 태그도 박스도 없다.
 "typedef struct { const unsigned char *p; size_t n; } lw_sl;\n"
+// ★ 2026-10-31 (W-20261031-2053) — **아직 안 세운 슬라이스 칸**의 표지. 갓 띄운 액터의 상태 칸은 0 이고(정본 §10.3 (1c)) 0 은 슬라이스가 아니다.
+//   빠른 경로는 그 칸을 이 주소로 두고, 칸을 읽는 자리에서 보면 VM 과 같은 말로 멈춘다(빈 슬라이스로 두면 VM 은 멈추고 네이티브는 0 을 낸다).
+"static const unsigned char lw_uninit_sl_[1] = { 0 };\n"
+"#define LW_UNINIT (lw_uninit_sl_)\n"
 /* RFC-0149: a 64-bit program value is compared at 64 bits BEFORE it is cut to the machine size (on a 32-bit target `(size_t)k >= n` let 2^32+1 through). */
 "#define LW_NOFIT(x) ((unsigned long long)(x) > (unsigned long long)(size_t)-1)\n"
 /* ★ 레코드 하나가 가질 수 있는 필드 수 — 슬라이스 필드의 평행 칸이 이 폭으로 산다

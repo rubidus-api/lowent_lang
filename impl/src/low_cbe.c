@@ -847,6 +847,7 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
             fprintf(out, "        { lowv sv_ = {0}; lw_sl q_ = r_.rs ? r_.rs[%d] : (lw_sl){0,0}; sv_.p = q_.p;"
                          " if (%u > 1) { sv_.tag = LWV_VARRAY; sv_.n = q_.n / %u; sv_.box = %u; }"
                          " else { sv_.tag = LWV_SLICE; sv_.n = q_.n; }"
+                         " if (q_.p == LW_UNINIT) sv_ = lw_int(0);"   /* ★ 안 세운 칸은 0 으로 돌아간다(태그 경로 · VM 의 모양) */
                          " rr_%d->f[%zu] = sv_; }\n",
                     sl, (unsigned)S->f[sl].elem, (unsigned)S->f[sl].elem, (unsigned)S->f[sl].elem,
                     me, (size_t)z);
@@ -1426,6 +1427,25 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
 static bool cbe_locals_over(unsigned idx) {
     snprintf(g_sub, sizeof g_sub, "local %u is past the fast frame's %d locals", idx, CBE_LOCMAX);
     return false;
+}
+// ★ 2026-10-31 (W-20261031-2053) — `spawn actor T` 가 낮아진 꼴인가: 액터 상태를 칸마다 상수 0 으로 짓는다(low_ir.c — «선언적 초기화는 후속»).
+//   수 칸의 0 은 맞는 값이다. 슬라이스 칸의 0 은 값이 아니다(정본 §10.3 (1c): 세우기 전에 읽는 것은 적합하지 않다) — VM 은 그것을 읽어 쓰면
+//   «len needs a slice» 로 멈춘다. 처리기의 `E-ACTOR-UNINIT` 는 첫 말의 곧은 차례만 보므로 도우미 op 을 거쳐 읽는 프로그램은 검사를 지난다.
+//   그래서 빈 슬라이스로 짓지 않고 **«아직 안 세움» 표지**(LW_UNINIT)를 둔다: 칸을 읽는 자리가 그 표지를 보면 같은 말로 멈추고, 태그 쪽으로
+//   돌아갈 때는 0 으로 돌아간다(처음 빈 슬라이스로 지었더니 VM 은 멈추고 네이티브는 0 을 냈다 — 재 봤다). 안의 구조체 · 부동 칸은 받지 않는다.
+//   앞의 nf 명령이 모두 `const 0` 이어야 한다(자리가 칸 하나씩 맞는다).
+static bool cbe_make_zero(const low_ir_t *ir, const low_ir_def_t *d, proven_size_t j, int sx, proven_size_t nf) {
+    if (sx < 0 || (proven_size_t)sx >= ir->nstructs || !ir->structs[sx].is_actor_state || j < nf) return false;
+    for (proven_size_t q = 0; q < ir->structs[sx].nf; q++) {
+        const low_ir_sfield_t *f = &ir->structs[sx].f[q];
+        if (f->boxed && f->elem) continue;   // 슬라이스 칸 — «아직 안 세움» 표지(LW_UNINIT)를 둔다: 읽으면 VM 처럼 멈춘다
+        if (f->sidx >= 0 || f->boxed || f->flt || f->arrn || !f->size || f->size > 8) return false;
+    }
+    for (proven_size_t q = 0; q < nf; q++) {
+        const low_ir_ins_t *c = &d->code[j - nf + q];
+        if (c->w != IRW_CONST || c->a != 0) return false;
+    }
+    return true;
 }
 // 바이트 슬라이스인가 — 원소 폭 1(또는 아직 안 적힌 0) · 부동 아님. 호스트 잎은 바이트만 읽고 쓴다.
 #define CBE_BYTES(st_, i_) ((st_).k[(i_)] == K_SL && (st_).ve[(i_)] <= 1 && !(st_).fl[(i_)])
@@ -2023,7 +2043,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (cbe_slot_by_name(ir, sx, ir->makes[mk].fields[z]) < 0) return false;
                 if ((proven_size_t)st.n < nf) return false;
                 // ★ 필드의 종류는 **슬롯의 것**과 맞아야 한다: 중첩은 K_REC+sidx, 부동은 K_FLT, 나머지는 K_INT.
-                for (proven_size_t q = 0; q < nf; q++) {
+                const bool zero_ = cbe_make_zero(ir, d, j, sx, nf);   // `spawn actor` — 칸마다 const 0
+                for (proven_size_t q = 0; q < nf && !zero_; q++) {
                     int sl = cbe_slot_by_name(ir, sx, ir->makes[mk].fields[q]);
                     unsigned char want = ir->structs[sx].f[sl].sidx >= 0
                                          ? (unsigned char)(K_REC + ir->structs[sx].f[sl].sidx)
@@ -2355,7 +2376,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     }
                 for (proven_size_t q = 0; q < ce->nparams && q < LOW_MAX_PARAMS; q++)
                     if ((ce->param_struct >> q) & 1u) {
-                        if (!cbe_rec_ok(ir, (int)ce->param_sidx[q])) return false;
+                        // ★★ 2026-10-31 (W-20261031-2053) — 슬라이스 칸을 가진 레코드도 넘긴다(RFC-0106 의 남은 길: 호출 인자).
+                        //   칸은 `crsl[매개변수 번호]` 로 가고, 바꾸는 피호출자가 쓴 칸은 부른 뒤 호출자의 지역 칸으로 되받는다(방출).
+                        if (!cbe_rec_ok(ir, (int)ce->param_sidx[q]) && !cbe_rec_slice_ok(ir, (int)ce->param_sidx[q])) return false;
                         unsigned char hk = st.k[st.n - ce->nparams + q];
                         // ★ 레코드는 그대로, **뷰**는 경계에서 슬롯으로 구체화해 넘긴다(비변형 한정 —
                         //   피호출자가 필드에 쓰면 그 쓰기가 뷰 바이트에 안 보이니까).
@@ -4233,6 +4256,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   역순 pop — 두 스택의 내부 순서가 유지되므로.
                 // ★ `LW_RECB` 다 — 아래가 `sizeof tmp_` 만큼 `rsb`(역시 LW_RECB) 로 복사한다. 64 로 두면 넘친다(WO-0177).
                 fputs("    { _Alignas(8) unsigned char tmp_[LW_RECB] = {0};\n", out);
+                if (cbe_make_zero(ir, d, j, sx, nf)) {   // ★ `spawn actor` — 상수 0 을 버리고 수 칸은 0 바이트 · 슬라이스 칸은 «아직 안 세움» 표지
+                    fprintf(out, "      sp -= %zu;\n", (size_t)nf);
+                    for (proven_size_t q = 0; q < nf; q++) {
+                        int sl = cbe_slot_by_name(ir, sx, ir->makes[in->a].fields[q]);
+                        if (sl >= 0 && ir->structs[sx].f[sl].boxed && ir->structs[sx].f[sl].elem)
+                            fprintf(out, "      rssl[rsp][%d].p = LW_UNINIT; rssl[rsp][%d].n = 0;\n", sl, sl);
+                    }
+                } else
                 for (proven_size_t q = nf; q-- > 0; ) {
                     int sl = cbe_slot_by_name(ir, sx, ir->makes[in->a].fields[q]);
                     // ★★★★ **바이트 오프셋이다** (2026-08-03 — 표현 통합). 그전에는 `flat`,
@@ -4273,6 +4304,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                     (int)ks.o[ks.n-1], sl0);
                         else   // 방금 만든 레코드 — 슬라이스는 **스택 칸**에 있다
                             fprintf(out, "    rsp--; ss[ssp++] = rssl[rsp][%d];\n", sl0);
+                        // ★ 2026-10-31 — 아직 안 세운 칸(갓 띄운 액터의 0)을 읽으면 VM 처럼 멈춘다(정본 §10.3 (1c) — 세우기 전에 읽는 것은 적합하지 않다).
+                        fputs("    if (LW_UNLIKELY(ss[ssp-1].p == LW_UNINIT)) lw_panic(\"len needs a slice — a slice field of an actor was read before it was set (canon 10.3 (1c))\");\n", out);
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_SL;
                         ks.ve[ks.n] = ir->structs[sx0].f[sl0].elem; ks.vn[ks.n] = 0; ks.fl[ks.n] = cbe_sf_fl(&ir->structs[sx0].f[sl0]);
                         ks.n++;
@@ -4924,8 +4957,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 레코드의 슬라이스 칸(RFC-0106) — 호출자도 지어 넘긴다. 레코드 인자를
                 //   넘기는 자리는 아래에서 이 칸을 채운다(안 채우면 0 이고, 그 자리는
                 //   슬라이스 필드를 안 읽는 op 이다).
+                // ★ 2026-10-31 — 칸의 자리는 **매개변수 번호**다(피호출자는 `rsl[q * LW_RECF]` 를 읽고 쓴다 · 경계 어댑터도 q 로 채운다).
+                //   전에는 레코드 인자의 차례(br)로 채웠다 — 레코드가 첫 매개변수가 아니면 엇갈렸을 자리다(슬라이스 칸 레코드는 이 길이 막혀 있었다).
                 if (cam & LWA_RSL) fprintf(out, " lw_sl crsl[%zu * LW_RECF] = {{0,0}}; (void)crsl;",
-                                           (size_t)(nrs ? nrs : 1));
+                                           (size_t)(ce->nparams ? ce->nparams : 1));
                 fputs("\n", out);
                 { proven_size_t bi = ni, bs = ns, bf = nfl, bb = nbs, bao = nao, bav = nav;
                   for (proven_size_t q = ce->nparams; q-- > 0; ) {
@@ -5017,16 +5052,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                     fprintf(out, "      rsp--; car[%zu] = rloc[%d];\n", (size_t)br, rhome);
                                     if (asl_)
                                         fprintf(out, "      memcpy(&crsl[%zu * LW_RECF], rlocsl[%d], sizeof rlocsl[0]);\n",
-                                                (size_t)br, rhome);
+                                                (size_t)q, rhome);
                                 } else {
                                     fprintf(out, "      rsp--; car[%zu] = rs[rsp];\n", (size_t)br);
                                     if (asl_) {
                                         if (rhome >= 0)
                                             fprintf(out, "      memcpy(&crsl[%zu * LW_RECF], rlocsl[%d], sizeof rlocsl[0]);\n",
-                                                    (size_t)br, rhome);
+                                                    (size_t)q, rhome);
                                         else
                                             fprintf(out, "      memcpy(&crsl[%zu * LW_RECF], rssl[rsp], sizeof rssl[0]);\n",
-                                                    (size_t)br);
+                                                    (size_t)q);
                                     }
                                 } }
                       }
@@ -5056,6 +5091,23 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           int home = (int)ks.o[ks.n - ce->nparams + q];
                           fprintf(out, "      loc[%d] = cab[%zu];\n", home, (size_t)bw++);
                       } }
+                // ★★ 2026-10-31 (W-20261031-2053) — **레코드의 슬라이스 칸도 되받는다.** 바이트는 주소로 넘어가 피호출자의 쓰기가 곧 보이지만,
+                //   슬라이스 칸은 `crsl` 에 베껴 넘긴 값이다. 바꾸는 피호출자(액터 핸들러 · mut 매개변수)가 그 칸에 쓴 것을 호출자의 집으로 옮기고,
+                //   그 집이 이 op 의 매개변수면 이 op 의 `rsl` 에도 남긴다(그래야 한 겹 위의 호출자도 본다).
+                if (cbe_pmut(ce) && (cam & LWA_RSL))
+                    for (proven_size_t q = 0; q < ce->nparams && q < LOW_MAX_PARAMS; q++) {
+                        if (!((ce->param_struct >> q) & 1u)) continue;
+                        const unsigned char ak2 = ks.k[ks.n - ce->nparams + q];
+                        const int home2 = (int)ks.o[ks.n - ce->nparams + q];
+                        if (ak2 < K_REC || ak2 >= K_VIEW || home2 < 0) continue;
+                        bool asl2 = false;
+                        for (proven_size_t z2 = 0; z2 < ir->structs[ak2 - K_REC].nf; z2++)
+                            if (ir->structs[ak2 - K_REC].f[z2].boxed && ir->structs[ak2 - K_REC].f[z2].elem) asl2 = true;
+                        if (!asl2) continue;
+                        fprintf(out, "      memcpy(rlocsl[%d], &crsl[%zu * LW_RECF], sizeof rlocsl[0]);\n", home2, (size_t)q);
+                        if ((proven_size_t)home2 < d->nparams && ((d->param_struct >> home2) & 1u))
+                            fprintf(out, "      memcpy(&rsl[%d * LW_RECF], rlocsl[%d], sizeof rlocsl[0]);\n", home2, home2);
+                    }
                 if (cwrapped)   fputs("      ws[wsp++] = cr_; }\n", out);
                 else if (cflt)  fputs("      fs[fsp++] = cr_.f; }\n", out);
                 else if (csl)   fputs("      ss[ssp++] = cr_.s; }\n", out);
@@ -6584,7 +6636,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                       "    { lowv fv_ = lw_field(a[%zu], %d);\n"
                                       "      if (fv_.tag == LWV_VARRAY) { rsl[%zu * LW_RECF + %zu].p = fv_.p; rsl[%zu * LW_RECF + %zu].n = fv_.n * %u; }\n"
                                       "      else if (fv_.tag == LWV_SLICE) { rsl[%zu * LW_RECF + %zu].p = fv_.p; rsl[%zu * LW_RECF + %zu].n = fv_.n; }\n"
-                                      "      else { rsl[%zu * LW_RECF + %zu].p = 0; rsl[%zu * LW_RECF + %zu].n = 0; } }\n",
+                                      "      else { rsl[%zu * LW_RECF + %zu].p = LW_UNINIT; rsl[%zu * LW_RECF + %zu].n = 0; } }\n",   /* ★ 아직 안 세운 칸(갓 띄운 액터의 0) — 읽으면 멈춘다 */
                                       (size_t)q, fi,
                                       (size_t)q, (size_t)z, (size_t)q, (size_t)z, (unsigned)S->f[z].elem,
                                       (size_t)q, (size_t)z, (size_t)q, (size_t)z,
@@ -6719,7 +6771,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                 //     보존할 원래가 없다 — 그 둘을 한 줄로 쓰면 초기화가 깨진다.*
                                 "    { lowv sv_ = lw_field(a[%zu], %d);\n"
                                 "      if (sv_.tag != LWV_SLICE && sv_.tag != LWV_VARRAY) {\n"
-                                "        if (rsl[%zu * LW_RECF + %zu].p)\n"
+                                "        if (rsl[%zu * LW_RECF + %zu].p && rsl[%zu * LW_RECF + %zu].p != LW_UNINIT)\n"
                                 "          sv_ = (lowv){ .tag = LWV_SLICE, .p = rsl[%zu * LW_RECF + %zu].p,\n"
                                 "                        .n = rsl[%zu * LW_RECF + %zu].n };\n"
                                 "      } else {\n"
@@ -6729,7 +6781,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                 "      }\n"
                                 "      lw_fstore(a[%zu], %d, sv_); }\n",
                                 (size_t)q, fi,
-                                (size_t)q, (size_t)z,
+                                (size_t)q, (size_t)z, (size_t)q, (size_t)z,
                                 (size_t)q, (size_t)z,
                                 (size_t)q, (size_t)z,
                                 (size_t)q, (size_t)z,

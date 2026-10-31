@@ -171,13 +171,12 @@ export proc sort_by input comptime t type . input s mut slice t .
   보여 준다.
 ]
 
-#misconception[값이 늘 같은 지역 `let` 은 번역 시점 상수다][
+#misconception[값이 늘 같은 `var` 는 번역 시점 상수다][
   #demo("examples/ch22/mistake_localconst.low")
 
-  `k` 는 언제나 7 이지만, op 안의 `let` 은 op 이 불릴 때 생기는 이름이다. `comptime` 입력 자리가 받는 것은 정수 리터럴과 *모듈 수준의* `let`
-  뿐이다. (op 안에 적는 값 자리의 `comptime <식>` 은 값을 리터럴처럼 적은 지역 `let` 을 읽는다(#chref("expr")). 그런 `let` 을 입력 자리에
-  건네는 길은 아직 없다.) 식을 따라가 "결국 상수" 인지 판정하기 시작하면, 어느 식이 번역 시점에 풀리는지가 도구의 영리함에 달린다. 상수로 쓸 값은 모듈
-  수준에 이름을 붙인다.
+  `k` 는 언제나 7 이지만 `var` 는 바뀔 수 있는 이름이다. `comptime` 입력 자리가 받는 지역 이름은 `let` 이고, 그 값이 `comptime` 이 셈하는 규칙
+  (#chref("expr"))대로 번역할 때 나오는 것뿐이다 --- 도구가 식을 따라가 "결국 상수" 인지 짐작하지 않는다. `let k u8 7 .` 로 적거나, 여러 op 이
+  함께 쓸 값이면 모듈 수준에 이름을 붙인다.
 
   #demo("examples/ch22/module_const.low")
 ]

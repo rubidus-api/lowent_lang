@@ -171,14 +171,12 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
   the whole head order on one line.
 ]
 
-#misconception[A local `let` whose value never changes is a compile-time constant][
+#misconception[A `var` whose value never changes is a compile-time constant][
   #demo("examples/ch22/mistake_localconst.low")
 
-  `k` is always 7, but a `let` inside an op is a name that comes into being when the op is called. A `comptime` input position accepts only
-  integer literals and *module-level* `let`s. (A `comptime <expr>` written in a value position inside an op does read a local `let` whose
-  value is written like a literal (#chref("expr")). There is no way yet to pass such a `let` to an input position.) If the tool started following expressions to decide whether something is "a constant after
-  all", which expressions resolve at translation time would depend on how clever the tool is. Give a value you want as a constant a name at
-  module level.
+  `k` is always 7, but a `var` is a name that can change. The local names a `comptime` input position takes are `let`s whose value comes out
+  at translation time under the rule `comptime` computes by (#chref("expr")) --- the tool does not follow expressions to guess that
+  something is "a constant after all". Write `let k u8 7 .`, or, for a value several ops share, give it a name at module level.
 
   #demo("examples/ch22/module_const.low")
 ]

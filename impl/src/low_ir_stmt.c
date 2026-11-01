@@ -3658,6 +3658,9 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         sg->f[0].size = 0; sg->f[0].boxed = true; sg->f[0].sidx = -1;
         sg->f[1].name = proven_u8str_view_from_cstr("descs");
         sg->f[1].size = 0; sg->f[1].boxed = true; sg->f[1].sidx = -1;
+        // ★ 2026-11-01 (W-20261101-1150) — 두 칸의 **원소 폭**(백업은 바이트 · 서술자는 u64 의 (at, n) 쌍 — `segview` 가 그렇게 읽는다).
+        //   이 칸은 빠른 경로만 읽는다(원소 폭을 모르면 그 구조체를 받는 op 이 태그 경로였다 — `segview` 다섯). VM 의 뜻은 그대로다.
+        sg->f[0].elem = 1; sg->f[1].elem = 8;
         sg->nf = 2;
         sg->viewable = false;     // 슬라이스를 드는 그릇은 바이트 배치가 없다
         sg->total = 0;
@@ -4447,6 +4450,21 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             }
                             d->param_ebits[d->nparams] = eb;
                             if (tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) d->param_esz[d->nparams] = ir_field_size(f->kids[tw + 1]->tok.lex);
+                            // ★ 2026-11-01 (W-20261101-1150) — 줄의 나열 `slice (array T M)`: 줄 바이트 · 원소 폭 · 표식을 적는다(빠른 경로의 K_ROWS).
+                            if (eb == 255 && tw + 1 < f->nkids && f->kids[tw + 1]->kind == LOW_CST_GROUP && f->kids[tw + 1]->nkids == 1) {
+                                const low_cst_t *rf_ = f->kids[tw + 1]->kids[0];
+                                proven_i64 rm_ = 0;
+                                if (rf_->kind == LOW_CST_FORM && rf_->nkids == 3 && is_atom(rf_->kids[0]) && veq(rf_->kids[0]->tok.lex, "array") &&
+                                    is_atom(rf_->kids[1]) && is_atom(rf_->kids[2]) && ir_int_lit(rf_->kids[2]->tok.lex, &rm_) && rm_ > 0) {
+                                    const proven_u8str_view_t re_ = rf_->kids[1]->tok.lex;
+                                    const proven_u8 rz_ = veq(re_, "bool") ? 1 : ir_field_size(re_);
+                                    if ((rz_ == 1 || rz_ == 2 || rz_ == 4 || rz_ == 8) && rm_ * rz_ <= 255) {
+                                        d->param_rowb[d->nparams] = (proven_u8)(rm_ * rz_);
+                                        d->param_rowe[d->nparams] = rz_;
+                                        d->param_rowfl[d->nparams] = ir_is_float_ty(re_) ? 1 : (re_.size && re_.ptr[0] == (proven_u8)'i' && rz_ < 8) ? 2 : 0;
+                                    }
+                                }
+                            }
                             // ★ 2026-11-01 (W-20261101-1150) — 부동소수 원소(`slice f32` · `slice f64`)를 적어 둔다. 폭 표(ebits)는 정수 원소만
                             //   말하므로(부동은 255) 빠른 경로가 그 op 을 통째로 태그 경로로 보냈다. 폭은 param_esz 가 안다.
                             if (eb == 255 && tw + 1 < f->nkids && is_atom(f->kids[tw + 1]) &&

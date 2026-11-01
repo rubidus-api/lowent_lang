@@ -716,6 +716,7 @@ static unsigned char g_ret_optrec;    // cbe_kind_run 이 RET 에서 채운다 �
 //   폭을 몰라 `index` 가 바이트로 읽었기 때문이다(VM ≠ native). 이제 op 마다 적어 두고 부르는 쪽 · 경계 어댑터가 그것을 읽는다.
 static unsigned char g_retve[512], g_retfl[512];
 static unsigned char g_ret_ve, g_ret_fl; static bool g_ret_veset;
+static unsigned char g_retrb[512], g_ret_rb;   // ★ 2026-11-01 — 줄의 나열을 돌려주면 그 줄 바이트(K_ROWS · 원소 폭은 g_retve)
 // ★★★ **도구는 자기가 못 하는 일을 말해야 한다.** 어떤 op 이 왜 느린 경로에 남았는지
 //   물어볼 수 없으면, 그 목록은 **아무도 줄이지 못한다**(그리고 아무도 재지 않는다).
 static char g_why[512][96];
@@ -1485,6 +1486,7 @@ static bool cbe_slices_known(const low_ir_def_t *d) {
         if (!((d->param_slice >> q) & 1u)) continue;
         if (d->param_selem[q]) continue;   // 구조체 슬라이스는 바이트로 실린다
         if (((d->param_sflt >> q) & 1u) && cbe_pslice_w(d, q)) continue;   // ★ 2026-11-01 — f32 · f64 원소
+        if (d->param_rowb[q] && !g_no_elemsl) continue;                      // ★ 2026-11-01 — 줄의 나열(K_ROWS)
         switch (d->param_ebits[q]) {
             case 8: case 16: case 32: case 64: case 108: case 116: case 132: case 164: break;
             default: return false;   // f32/f64/모르는 원소는 거절
@@ -1658,7 +1660,8 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
     for (proven_size_t i = 0; i < n; i++) lk[i] = K_INT;
     for (proven_size_t q = 0; q < d->nparams && q < n; q++) {
         if ((d->param_slice >> q) & 1u)
-            lk[q] = (!g_no_elemsl && d->param_selem[q]) ? (unsigned char)(K_SVIEW + d->param_selem[q] - 1) : K_SL;   // ★ RFC-0109 단계 1
+            lk[q] = (!g_no_elemsl && d->param_selem[q]) ? (unsigned char)(K_SVIEW + d->param_selem[q] - 1)
+                  : (!g_no_elemsl && d->param_rowb[q]) ? K_ROWS : K_SL;   // ★ RFC-0109 단계 1 · 줄의 나열(2026-11-01)
         else if ((d->param_struct >> q) & 1u) lk[q] = (unsigned char)(K_REC + d->param_sidx[q]);
         else if ((d->param_flt >> q) & 1u) lk[q] = K_FLT;
         else if ((d->param_bset >> q) & 1u) lk[q] = K_BSET;
@@ -2630,6 +2633,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (rk == K_OPT && st.n && st.ve[st.n-1]) g_ret_optrec = st.ve[st.n-1];
                 // ★ 슬라이스를 **돌려줄 수 있다** — 다만 그 뜻(원소 수 vs 바이트)이 흔들리면 안 되므로
                 //   바이트 슬라이스 def 에서만. 구조체·뷰 반환은 아직 안 내린다.
+                if (rk == K_ROWS && st.n) {   // ★ 2026-11-01 — 줄의 나열을 돌려준다(배열 답의 결과 자리): 원소 폭 · 줄 바이트 · 표식
+                    if (!g_ret_veset) { g_ret_ve = st.ve[st.n-1]; g_ret_fl = st.fl[st.n-1]; g_ret_rb = st.vn[st.n-1]; g_ret_veset = true; }
+                    else if (g_ret_ve != st.ve[st.n-1] || g_ret_fl != st.fl[st.n-1] || g_ret_rb != st.vn[st.n-1]) {
+                        snprintf(g_sub, sizeof g_sub, "two `return`s give rows of different shapes"); return false; }
+                }
                 if ((rk == K_SL || rk == K_OPTSL) && st.n) {   // 폭 · 표식을 적는다 — 반환이 여럿이면 같아야 한다(K_OPTSL 의 폭은 vn)
                     const unsigned char ve_ = rk == K_OPTSL ? (st.vn[st.n-1] ? st.vn[st.n-1] : 1) : (st.ve[st.n-1] ? st.ve[st.n-1] : 1), fl_ = st.fl[st.n-1];
                     if (!g_ret_veset) { g_ret_ve = ve_; g_ret_fl = fl_; g_ret_veset = true; }
@@ -2665,7 +2673,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ 겹 option 을 돌려주는 op 은 `return error e .` · `return none .` 도 적는다(안이 빈 바깥 값 — 표식 없는 K_OPT).
                 if (rk == K_OPT && st.n && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0 && *retk == K_OPT2) rk = K_OPT2;
                 if (rk == K_OPT2 && *retk == K_OPT && g_ret_optrec == 0) *retk = K_OPT2;
-                if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_OPT2 && rk != K_FLT && rk != K_SL && rk < K_REC) {
+                if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_OPT2 && rk != K_FLT && rk != K_SL && rk != K_ROWS && rk < K_REC) {
                     snprintf(g_sub, sizeof g_sub, "returns a kind the fast path has no shape for (%u)", rk); return false; }
                 if (rk >= K_VIEW) return false;
                 // ★ RFC-0106 단계 4 — 슬라이스 필드를 든 레코드도 **돌려줄 수 있다**
@@ -2693,6 +2701,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                 snprintf(g_sub, sizeof g_sub, "struct-slice argument %d has the wrong element type", (int)q);
                                 return false;
                             }
+                            continue;
+                        }
+                        if (ce->param_rowb[q] && !g_no_elemsl) {   // ★ 2026-11-01 — 줄의 나열: 같은 줄 모양이어야 한다
+                            const int ai_ = st.n - (int)ce->nparams + (int)q;
+                            if (have_k != K_ROWS || st.ve[ai_] != ce->param_rowe[q] || st.vn[ai_] != ce->param_rowb[q] || st.fl[ai_] != ce->param_rowfl[q]) {
+                                snprintf(g_sub, sizeof g_sub, "row-slice argument %d has a different row shape", (int)q); return false; }
                             continue;
                         }
                         unsigned char want_e = (unsigned char)cbe_pslice_w(ce, q);   // ★ i64(164) 도 8 · f32/f64 는 param_esz — 폭 규칙은 한 자리
@@ -2755,6 +2769,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     unsigned char have = st.k[st.n - ce->nparams + q];
                     unsigned char want = (((ce->param_slice >> q) & 1u) && ce->param_selem[q])
                                          ? (unsigned char)(K_SVIEW + ce->param_selem[q] - 1)  // ★ 구조체 슬라이스
+                                       : (((ce->param_slice >> q) & 1u) && ce->param_rowb[q] && !g_no_elemsl) ? K_ROWS   // ★ 줄의 나열
                                        : ((ce->param_slice >> q) & 1u) ? K_SL
                                        : ((ce->param_struct >> q) & 1u)
                                          ? (unsigned char)(K_REC + ce->param_sidx[q])
@@ -2813,6 +2828,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   if (rk == K_SL) {                                         // 반환 슬라이스의 폭 · 표식은 피호출자의 기록에서(2026-10-31)
                       const bool me_ = c == self;
                       st.ve[st.n] = me_ ? g_ret_ve : (c < 512 && g_retve[c] ? g_retve[c] : 1);
+                      st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
+                  }
+                  if (rk == K_ROWS) {                                       // ★ 2026-11-01 — 줄의 나열: 원소 폭 · 줄 바이트 · 표식도 피호출자의 기록에서
+                      const bool me_ = c == self;
+                      if (me_ && !g_ret_veset) { snprintf(g_sub, sizeof g_sub, "a recursive call returns rows of a shape not yet known"); return false; }
+                      st.ve[st.n] = me_ ? g_ret_ve : (c < 512 ? g_retve[c] : 1);
+                      st.vn[st.n] = me_ ? g_ret_rb : (c < 512 ? g_retrb[c] : 0);
                       st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
                   }
                   if (rk == K_OPTSL) {                                      // ★ 2026-11-01 — 슬라이스 option 의 폭(vn) · 표식도 같은 기록에서
@@ -2947,6 +2969,8 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             if (d->param_selem[q]) {   // ★ 구조체 슬라이스: (단계 1) 처음부터 원소 뷰 / (옛 규약) 바이트로 받아 view.array 가 나눈다
                 if (!cbe_rec_ok(ir, d->param_selem[q] - 1)) return false;
                 lez[q] = g_no_elemsl ? 1 : 0;
+            } else if (d->param_rowb[q] && !g_no_elemsl) {   // ★ 2026-11-01 — 줄의 나열: 원소 폭 · 줄 바이트 · 표식
+                lez[q] = d->param_rowe[q]; lln[q] = d->param_rowb[q]; lfl[q] = d->param_rowfl[q];
             } else {
                 // ★★★ **슬라이스 파라미터는 바이트로 시작한다**(lez=1) — 폭이 무엇이든.
                 //   본문의 `view.array` 가 원소폭을 설정한다(그래야 VARRAY 가 항등이 아니라
@@ -3014,10 +3038,10 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
         }
     }
-    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0;
+    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
     if (!cbe_kind_run(ir, d, sc, at, lk, slot, &retk, rmap, lez, lln, lfl)) return false;
     proven_size_t di = (proven_size_t)(d - ir->defs);
-    if (di < 512) { g_retk[di] = (retk == 0xff) ? K_INT : retk; g_retopt[di] = g_ret_optrec; g_retve[di] = g_ret_ve; g_retfl[di] = g_ret_fl; }
+    if (di < 512) { g_retk[di] = (retk == 0xff) ? K_INT : retk; g_retopt[di] = g_ret_optrec; g_retve[di] = g_ret_ve; g_retfl[di] = g_ret_fl; g_retrb[di] = g_ret_rb; }
     return true;
 }
 
@@ -3485,6 +3509,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             lez[q] = g_no_elemsl ? 1 : d->param_selem[q] ? 0 : (unsigned char)cbe_pslice_w(d, q);   // ★ 단계 1 — kind_ok 와 같은 규약
             if (!d->param_selem[q] && d->param_ebits[q] > 100 && d->param_ebits[q] < 164) lfl[q] = 2;   // ★ kind_ok 와 같은 부호 표식
             if (!d->param_selem[q] && ((d->param_sflt >> q) & 1u)) lfl[q] = CBE_FL_FLT;   // ★ kind_ok 와 같은 부동 표식(2026-11-01)
+            if (!d->param_selem[q] && d->param_rowb[q] && !g_no_elemsl) { lez[q] = d->param_rowe[q]; lln[q] = d->param_rowb[q]; lfl[q] = d->param_rowfl[q]; }   // ★ 줄의 나열
         }
         else if ((d->param_vec >> q) & 1u) {   // ★ 벡터 파라미터 — 원소 폭·레인 수
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
@@ -3494,7 +3519,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     //   남아 있어서, 그 값을 보는 규칙(슬라이스 option · 겹 option 의 `return error …` 맞추기)이 여기서만 다르게 갈렸고, 그러면 추적이
     //   중간에 멈춘 채(답을 버렸다) 지역 종류표가 반만 찬 C 가 나갔다 — `lib/pem.low` 의 `unwrap` 이 겹 option 지역을 수로 읽었다
     //   (네이티브 «is_ok needs a result», VM 은 멀쩡했다). 판정 때 통과한 op 이 여기서 멈추면 처리기의 결함이다 — 그렇게 말한다.
-    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0;
+    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
     if (!cbe_kind_run(ir, d, NULL, at, lk, slot, &rk_, rmap, lez, lln, lfl))   // lk/slot/rmap/lez 를 채운다
         fprintf(stderr, "lowentc: internal: the fast path's kind trace stopped while emitting `%.*s` (it passed when the op was judged)%s%s\n",
                 (int)d->name.size, (const char *)d->name.ptr, g_sub[0] ? " — " : "", g_sub);
@@ -5419,7 +5444,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     fputs("    lw_depth--; return ws[wsp-1];\n", out);
                 else if (ks.n && ks.k[ks.n-1] == K_FLT)
                     fputs("    { lw_r r_; r_.v = 0; r_.f = fs[fsp-1]; r_.tag = 5; lw_depth--; return r_; }\n", out);
-                else if (ks.n && ks.k[ks.n-1] == K_SL)
+                else if (ks.n && (ks.k[ks.n-1] == K_SL || ks.k[ks.n-1] == K_ROWS))   // ★ 줄의 나열도 (포인터, 줄 수) — 경계가 줄 모양으로 되짓는다(2026-11-01)
                     fputs("    { lw_r r_; r_.v = 0; r_.f = 0; r_.s = ss[ssp-1]; r_.tag = 6;"
                           " lw_depth--; return r_; }\n", out);
                 else if (ks.n && ks.k[ks.n-1] >= K_VIEW && ks.k[ks.n-1] < K_SVIEW)
@@ -5616,7 +5641,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 proven_size_t cidx = IR_CALL_IDX(in->a);
                 bool cwrapped = (cidx < 512 && (g_retk[cidx] == K_OPT || g_retk[cidx] == K_OPTSL || g_retk[cidx] == K_OPT2));
                 bool cflt = (cidx < 512 && g_retk[cidx] == K_FLT);
-                bool csl  = (cidx < 512 && g_retk[cidx] == K_SL);
+                bool csl  = (cidx < 512 && (g_retk[cidx] == K_SL || g_retk[cidx] == K_ROWS));   // ★ 줄의 나열도 (포인터, 줄 수)(2026-11-01)
                 bool cview = (cidx < 512 && g_retk[cidx] >= K_VIEW && g_retk[cidx] < K_SVIEW);
                 bool cstsl = (cidx < 512 && g_retk[cidx] >= K_SVIEW);   // 구조체 슬라이스 반환
                 bool crec = (cidx < 512 && g_retk[cidx] >= K_REC && g_retk[cidx] < K_VIEW);
@@ -5693,8 +5718,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     if (cwrapped && cidx < 512) ks.ve[ks.n] = g_retopt[cidx];
                     if (cidx < 512 && g_retk[cidx] == K_OPTSL) {   // ★ 슬라이스 option 의 폭 · 표식(2026-11-01)
                         ks.ve[ks.n] = 0; ks.vn[ks.n] = (unsigned char)(g_retve[cidx] > 1 ? g_retve[cidx] : 0); ks.fl[ks.n] = g_retfl[cidx]; }
+                    else if (csl && g_retk[cidx] == K_ROWS) { ks.ve[ks.n] = g_retve[cidx]; ks.vn[ks.n] = g_retrb[cidx]; ks.fl[ks.n] = g_retfl[cidx]; }
                     else if (csl) { ks.ve[ks.n] = g_retve[cidx] ? g_retve[cidx] : 1; ks.fl[ks.n] = g_retfl[cidx]; }
-                    ks.k[ks.n++] = cwrapped ? g_retk[cidx] : cflt ? K_FLT : csl ? K_SL
+                    ks.k[ks.n++] = cwrapped ? g_retk[cidx] : cflt ? K_FLT : csl ? g_retk[cidx]
                              : crec ? g_retk[cidx] : K_INT;
                 }
                 break;
@@ -7239,6 +7265,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       bs++;
                       continue;
                   }
+                  if (((d->param_slice >> q) & 1u) && d->param_rowb[q] && !g_no_elemsl) {
+                      // ★ 2026-11-01 (W-20261101-1150) — 줄의 나열: 줄 VARRAY 는 그대로(원소 수 = 줄 수), 바이트 슬라이스는 줄 바이트로 나눈다(lw_varray 와 같은 검사).
+                      fprintf(out, "    if (a[%zu].tag == LWV_VARRAY && (a[%zu].i & 0x80000) && a[%zu].box == %d) { as[%zu].p = a[%zu].p; as[%zu].n = a[%zu].n; }\n"
+                                   "    else if (a[%zu].tag == LWV_SLICE) { if (LW_UNLIKELY(a[%zu].n %% %du)) lw_panic(\"an array of rows needs a whole number of rows\");"
+                                   " as[%zu].p = a[%zu].p; as[%zu].n = a[%zu].n / %du; }\n"
+                                   "    else lw_panic(\"index needs a slice\");\n",
+                              (size_t)q, (size_t)q, (size_t)q, (int)d->param_rowb[q], (size_t)bs, (size_t)q, (size_t)bs, (size_t)q,
+                              (size_t)q, (size_t)q, (unsigned)d->param_rowb[q], (size_t)bs, (size_t)q, (size_t)bs, (size_t)q, (unsigned)d->param_rowb[q]);
+                      bs++;
+                      continue;
+                  }
                   if ((d->param_slice >> q) & 1u) {
                       // ★★★ **경계에서 한 번만 정규화한다**: 바이트 슬라이스면 길이를 원소 수로
                       //   나누고(나눠떨어지지 않으면 트랩 — 런타임과 **같은 말**), 이미 타입
@@ -7352,6 +7389,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       "        lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = r_.s.p, .n = r_.s.n };\n"
                       "        { lowv w_ = {0}; w_.tag = LWV_SOME; w_.box = lw_nbox++; return w_; } }\n", out);
             }
+            if (i < 512 && g_retk[i] == K_ROWS)   // ★ 2026-11-01 — 줄의 나열 반환: 태그 경로의 VARRAY(줄 수 · 줄 바이트 · 줄 표식 · 원소 폭 · 표식) — lw_varray 와 같은 모양
+                fprintf(out, "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = %d; sv_.i = 0x80000 | %d | %d; return sv_; }\n",
+                        (int)g_retrb[i], (int)g_retve[i], g_retfl[i] == CBE_FL_FLT ? 0x10000 : g_retfl[i] == CBE_FL_SGN ? 0x20000 : 0);
             if (i < 512 && g_retk[i] == K_SL && (g_retve[i] > 1 || g_retfl[i]))   // ★ 타입 있는 슬라이스 반환 — 태그 경로의 VARRAY(원소 수 · 폭 · 표식)로
                 fprintf(out, "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = %d; sv_.i = %d; return sv_; }\n",
                         (int)g_retve[i], g_retfl[i] == CBE_FL_FLT ? 0x10000 : g_retfl[i] == CBE_FL_SGN ? 0x20000 : 0);

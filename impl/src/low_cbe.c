@@ -1375,6 +1375,9 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_NPAIR: case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE:   // ★ 소켓 리프 (cap net)
         case IRW_NLISTEN: case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT:   // ★ 네트워크 면
         case IRW_NRESOLVE:                                                       // ★ 이름 해석 (X-0032)
+        case IRW_TTYRAW: case IRW_TTYREAD: case IRW_TTYSIZE:                     // ★ 터미널 (cap tty · 2026-11-01)
+        case IRW_PSPAWN: case IRW_PREAD: case IRW_PPOLL: case IRW_PWAIT: case IRW_PKILL:   // ★ 자식 프로세스 (cap process · RFC-0136)
+        case IRW_PREFETCH:                                                       // ★ 힌트 — 답을 안 바꾼다
         case IRW_BREMOVE: case IRW_BUNION: case IRW_BINTER: case IRW_BDIFF:
         case IRW_BEMPTY: case IRW_BSUBSET: case IRW_BCOMPL:  // ★ 집합 연산 — 전부 워드 bitwise
         case IRW_SNEW: case IRW_SPUSH: case IRW_SPOP_INTO:  // ★ 스택 = 배열 + 길이
@@ -1974,11 +1977,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_SL) return false;
                 unsigned ln = (unsigned)((in->a >> 8) & 0xff), ez = (unsigned)(in->a & 0xff);
                 if (!lw_v_ok(ln, ez)) return false;
-                if (st.ve[st.n-2] != (unsigned char)ez) return false;   // 슬롯의 원소 폭과 같아야
                 bool fv = (in->a & 0x10000) != 0;
-                if (fv != (st.fl[st.n-2] != 0)) return false;           // 부동성도 같아야
+                // ★ 2026-11-01 — 바이트 슬라이스에서도 읽는다: VM 은 그때 색인을 원소(폭 ez) 단위로 세고 한도를 n / ez 로 둔다(low_vm.c VLOAD).
+                const bool vbyte_ = st.ve[st.n-2] <= 1 && st.fl[st.n-2] == 0 && ez > 1;
+                if (st.ve[st.n-2] != (unsigned char)ez && !vbyte_) return false;   // 슬롯의 원소 폭과 같아야
+                if (!vbyte_ && fv != (st.fl[st.n-2] != 0)) return false;           // 부동성도 같아야
                 if (fv && ez != 4 && ez != 8) return false;
-                unsigned char fl = st.fl[st.n-2];
+                unsigned char fl = vbyte_ ? (unsigned char)(fv ? 1 : 0) : st.fl[st.n-2];
                 st.n--;
                 st.k[st.n-1] = K_VEC; st.vn[st.n-1] = (unsigned char)ln;
                 st.ve[st.n-1] = (unsigned char)ez; st.fl[st.n-1] = fl; st.o[st.n-1] = -1;
@@ -1990,8 +1995,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     st.k[st.n-2] != K_INT || st.k[st.n-3] != K_SL) return false;
                 unsigned ln = (unsigned)st.vn[st.n-1], ez = (unsigned)st.ve[st.n-1];
                 if (!lw_v_ok(ln, ez)) return false;
-                if (st.ve[st.n-3] != (unsigned char)ez) return false;   // 슬롯의 원소 폭과 같아야
-                if ((st.fl[st.n-1] != 0) != (st.fl[st.n-3] != 0)) return false;  // 부동성도 같아야
+                const bool vbyte_ = st.ve[st.n-3] <= 1 && st.fl[st.n-3] == 0 && ez > 1;   // ★ 2026-11-01 — 바이트 슬라이스(VM VSTORE 와 같은 단위)
+                if (st.ve[st.n-3] != (unsigned char)ez && !vbyte_) return false;   // 슬롯의 원소 폭과 같아야
+                if (!vbyte_ && (st.fl[st.n-1] != 0) != (st.fl[st.n-3] != 0)) return false;  // 부동성도 같아야
                 // ★ **0 을 남긴다** — IR 은 `vector.store` 뒤에 `drop` 을 낸다(태그 경로의
                 //   `lw_vstore` 가 `lw_int(0)` 을 돌려주기 때문이다). 시뮬레이터가 이걸
                 //   모르면 스택 모형이 어긋나 그 op 이 **조용히 태그 경로로 떨어진다** —
@@ -2097,7 +2103,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
                 st.k[st.n-1] = K_BSET; st.o[st.n-1] = -1; break;
             case IRW_SWAP: {
-                if (st.n < 3 || st.k[st.n-3] != K_SL ||
+                if (st.n < 3 || (st.k[st.n-3] != K_SL && st.k[st.n-3] < K_SVIEW) ||   // ★ 2026-11-01 — 구조체 배열도(원소 = 구조체 바이트)
                     st.k[st.n-2] != K_INT || st.k[st.n-1] != K_INT) return false;
                 st.n -= 3; st.k[st.n] = K_INT; st.o[st.n] = -1; st.n++; break;   // ★ 0 을 남긴다
             }
@@ -2522,7 +2528,18 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   이미터가 fs 로 내니 시뮬레이터도 K_FLT 로 봐야 자격/kind 가 일치(안 그러면 VM≠native).
                 if (st.fl[st.n-2] == CBE_FL_FLT) { st.n--; st.k[st.n-1] = K_FLT; st.fl[st.n-1] = 0; st.ve[st.n-1] = 0; break; }
                 st.n--; st.k[st.n-1] = K_INT; st.fl[st.n-1] = 0; st.ve[st.n-1] = 0; break;
-            case IRW_ISTORE: if (st.n < 3 || st.k[st.n-3] != K_SL ||
+            case IRW_ISTORE:
+                             // ★ 2026-11-01 (W-20261101-1150) — 부동 원소 슬라이스에 부동 값을 쓴다(지역 나열 · `map` 의 결과 칸).
+                             if (st.n >= 3 && st.k[st.n-3] == K_SL && st.k[st.n-2] == K_INT && st.k[st.n-1] == K_FLT &&
+                                 st.fl[st.n-3] == CBE_FL_FLT && (st.ve[st.n-3] == 4 || st.ve[st.n-3] == 8)) { st.n -= 3; break; }
+                             // ★ 2026-11-01 — 구조체 배열의 한 칸에 같은 구조체 값(레코드 · 뷰)을 쓴다: 그 바이트를 베낀다(배치가 같다).
+                             if (st.n >= 3 && st.k[st.n-3] >= K_SVIEW && st.k[st.n-2] == K_INT) {
+                                 const int ex_ = st.k[st.n-3] - K_SVIEW;
+                                 const unsigned char vk_ = st.k[st.n-1];
+                                 if (!ir->structs[ex_].is_shadow && cbe_rec_ok(ir, ex_) &&
+                                     (vk_ == (unsigned char)(K_REC + ex_) || vk_ == (unsigned char)(K_VIEW + ex_))) { st.n -= 3; break; }
+                             }
+                             if (st.n < 3 || st.k[st.n-3] != K_SL ||
                                  st.k[st.n-2] != K_INT || st.k[st.n-1] != K_INT) return false;
                              st.n -= 3; break;
             case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV:
@@ -2851,9 +2868,25 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_FSEEK:   // (정수, 정수, 정수) → option 정수
                             if (st.n < 3 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT || st.k[st.n-3] != K_INT) return false;
                             st.n -= 2; st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
-            case IRW_NPAIR:   // → option 정수
+            case IRW_NPAIR: case IRW_TTYSIZE:   // → option 정수
                             if (st.n >= 56) return false;
                             st.o[st.n] = -1; st.ve[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_OPT; break;
+            // ★★ 2026-11-01 (W-20261101-1150) — 터미널 · 자식 프로세스 잎과 `prefetch`(태그 경로와 같은 런타임 · 같은 뜻)
+            case IRW_TTYRAW: case IRW_PKILL:   // 정수 → 정수
+                            if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
+                            st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_TTYREAD: case IRW_PSPAWN:   // 바이트 → option 정수
+                            if (st.n < 1 || !CBE_BYTES(st, st.n-1)) return false;
+                            st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_PREAD:   // (정수, 바이트) → option 정수
+                            if (st.n < 2 || !CBE_BYTES(st, st.n-1) || st.k[st.n-2] != K_INT) return false;
+                            st.n--; st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_PPOLL: case IRW_PWAIT:   // 정수 → option 정수
+                            if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
+                            st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+            case IRW_PREFETCH:   // (슬라이스, 정수) → 0
+                            if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_SL) return false;
+                            st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             // ★ `value_or` 의 지연 분기 — option · result 둘 다 «값이 들어 있나». 수를 싼 것 · 바이트 슬라이스를 싼 것만.
             case IRW_HASVAL:
                             if (st.n < 1) return false;
@@ -3971,6 +4004,42 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                              CBE_WSOPT("%s(p_.p, p_.n, &r_)"),
                         in->w == IRW_DOPEN ? "lw_h_dopen" : "lw_h_nresolve");
                 CBE_KSET(ks.n-1, K_OPT); break;
+            // ★★ 2026-11-01 (W-20261101-1150) — 터미널 · 자식 프로세스 · prefetch. 런타임은 태그 경로의 것 그대로(`lw_tty_*` · `lw_proc_*`),
+            //   다만 option 을 박스로 싸지 않고 (태그, 값) 쌍으로 낸다 — 되풀이 안에서 불러도 박스 풀을 안 쓴다.
+            case IRW_TTYRAW:
+                fputs("    st[sp-1] = lw_tty_raw(st[sp-1]);\n", out);
+                CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_TTYREAD:
+                fputs("    { lw_sl b_ = ss[--ssp]; ssize_t g_ = read(0, (void *)(uintptr_t)b_.p, b_.n);\n"
+                      "      if (g_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = (long long)g_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_TTYSIZE:
+                fputs("    { struct winsize w_;\n"
+                      "      if (!isatty(1) || ioctl(1, TIOCGWINSZ, &w_) != 0 || w_.ws_col == 0) { ws[wsp].v = 0; ws[wsp].tag = 2; }\n"
+                      "      else { ws[wsp].v = ((long long)w_.ws_row << 32) | (long long)w_.ws_col; ws[wsp].tag = 1; } wsp++; }\n", out);
+                CBE_KSET(ks.n, K_OPT); ks.n++; break;
+            case IRW_PSPAWN:
+                fputs("    { lw_sl a_ = ss[--ssp]; long long h_ = lw_proc_spawn(a_.p, a_.n);\n"
+                      "      if (h_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = h_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_PREAD:
+                fputs("    { lw_sl d_ = ss[--ssp]; long long h_ = st[--sp]; long long r_ = lw_proc_read(h_, (unsigned char *)(uintptr_t)d_.p, d_.n);\n"
+                      "      if (r_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = r_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_PPOLL: case IRW_PWAIT:
+                fprintf(out, "    { long long h_ = st[--sp]; unsigned long long s_ = 0; int r_ = %s(h_, &s_);\n"
+                             "      if (r_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { if (r_ == 0) s_ = 0xFFFFFFFFFFFFFFFFull;"
+                             " ws[wsp].v = (long long)s_; ws[wsp].tag = 1; } wsp++; }\n",
+                        in->w == IRW_PPOLL ? "lw_proc_poll" : "lw_proc_wait");
+                CBE_KSET(ks.n-1, K_OPT); break;
+            case IRW_PKILL:
+                fputs("    st[sp-1] = lw_proc_kill(st[sp-1]) ? 1 : 0;\n", out);
+                CBE_KSET(ks.n-1, K_INT); break;
+            case IRW_PREFETCH:
+                fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
+                      "      if (s_.p && (unsigned long long)i_ < s_.n) __builtin_prefetch(s_.p + i_, 0, 1);\n"
+                      "      st[sp++] = 0; }\n", out);
+                ks.n--; CBE_KSET(ks.n-1, K_INT); break;
             case IRW_FTYPE: case IRW_LTYPE:
                 fprintf(out, "    { lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
                              CBE_WSOPT("lw_h_ftype(p_.p, p_.n, %d, &r_)"),
@@ -4026,6 +4095,25 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
 #undef CBE_KSET
             case IRW_ISTORE: {
                 int esz = (int)ks.ve[ks.n-3]; if (esz <= 0) esz = 1;
+                if (ks.k[ks.n-3] >= K_SVIEW) {   // ★ 2026-11-01 — 구조체 배열의 한 칸 ← 구조체 값(레코드 바이트 · 뷰 바이트)
+                    const int ex_ = ks.k[ks.n-3] - K_SVIEW, stride_ = (int)ir->structs[ex_].total;
+                    if (ks.k[ks.n-1] >= K_VIEW) fputs("    { const unsigned char *v_ = ss[--ssp].p;", out);
+                    else fputs("    { const unsigned char *v_ = rs[--rsp];", out);
+                    fputs(" long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                    if (!(in->a & IR_POL_PROVEN))
+                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                              " lw_panic(\"slice index out of bounds\");\n", out);
+                    fprintf(out, "      memmove((unsigned char *)s_.p + (size_t)i_ * %d, v_, %d); }\n", stride_, stride_);
+                    ks.n -= 3; break;
+                }
+                if (ks.k[ks.n-1] == K_FLT) {   // ★ 2026-11-01 — 부동 값을 그 폭의 비트로(VM 과 같게 f32 는 f32 로 반올림 — lw_f2b)
+                    fputs("    { double v_ = fs[--fsp]; long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                    if (!(in->a & IR_POL_PROVEN))
+                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                              " lw_panic(\"slice index out of bounds\");\n", out);
+                    fprintf(out, "      lw_st_le((unsigned char *)s_.p + (size_t)i_ * %d, %d, lw_f2b(v_, %d)); }\n", esz, esz, esz);
+                    ks.n -= 3; break;
+                }
                 fputs("    { long long v_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
                 if (!(in->a & IR_POL_PROVEN))
                     fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
@@ -4111,7 +4199,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_SWAP: {
                 // ★ 맞바꾸기 — 원소 크기(ve)만큼 바이트를 바꾼다. 임시 복사 없이 제자리다.
-                unsigned char ez = (ks.n >= 3 && ks.ve[ks.n-3]) ? ks.ve[ks.n-3] : 1;
+                unsigned ez = (ks.n >= 3 && ks.ve[ks.n-3]) ? ks.ve[ks.n-3] : 1;
+                if (ks.n >= 3 && ks.k[ks.n-3] >= K_SVIEW) ez = (unsigned)ir->structs[ks.k[ks.n-3] - K_SVIEW].total;   // ★ 구조체 배열 — 보폭은 구조체 크기
                 // ★ 구간 분석이 두 색인을 `i < len(s)` 로 증명했으면(IR_POL_PROVEN) 검사를 내지 않는다 — `index` 와 같다.
                 fputs("    { long long j_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
                 if (!(in->a & IR_POL_PROVEN))
@@ -4299,6 +4388,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                               "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + %d > limit_))"
                               " lw_panic(\"vector load out of bounds\");\n", ln);
                 g_vspush++; fputs("@@VSG@@", out);
+                const bool vbyte_ = ks.ve[ks.n-2] <= 1 && ks.fl[ks.n-2] == 0 && ez > 1;   // ★ 2026-11-01 — 종류 실행과 같다
+                char vlim[48]; if (vbyte_) snprintf(vlim, sizeof vlim, " limit_ /= %d;", ez); else vlim[0] = 0;
                 fprintf(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
                              "      size_t limit_ = s_.n; (void)limit_;%s\n"
                              "%s"
@@ -4334,7 +4425,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                              "        vs[vsp].%s[k_] = lw_ld_le(s_.p + ((size_t)i_ + (size_t)k_) * %d, %d);\n"
                              "#endif\n"
                              "      vsp++; }\n",
-                        "",
+                        vlim,
                         vchk,
                         ez, ln * ez, ln, lw_vmem((unsigned)ez), ez, ez);
                 (void)dz;
@@ -4357,9 +4448,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else snprintf(schk, sizeof schk,
                               "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + %d > limit_))"
                               " lw_panic(\"vector store out of bounds\");\n", ln);
+                const bool vsbyte_ = ks.ve[ks.n-3] <= 1 && ks.fl[ks.n-3] == 0 && ez > 1;   // ★ 2026-11-01 — 바이트 슬라이스(종류 실행과 같다)
                 fprintf(out, "    { lw_v v_ = vs[--vsp]; long long i_ = st[--sp];"
                              " lw_sl s_ = ss[--ssp];\n"
-                             "      size_t limit_ = s_.n; (void)limit_;\n"
+                             "      size_t limit_ = s_.n%s; (void)limit_;\n"
                              "%s"
                              // 리틀엔디안이면 레인 배치가 메모리 배치와 같다 ⇒ 바이트가 동일하다.
                              "#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__\n"
@@ -4372,7 +4464,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                              "    }\n"
                              // ★ 그리고 **0 을 남긴다** — 뒤에 `drop` 이 온다(위 시뮬레이터 주석).
                              "    st[sp++] = 0;\n",
-                        schk, ez, ln * ez, ln, ez, ez, lw_vmem((unsigned)ez));
+                        vsbyte_ ? (ez == 2 ? " / 2" : ez == 4 ? " / 4" : " / 8") : "", schk, ez, ln * ez, ln, ez, ez, lw_vmem((unsigned)ez));
                 ks.n -= 2; ks.k[ks.n-1] = K_INT; ks.ve[ks.n-1] = 0;
                 ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1;
                 break;

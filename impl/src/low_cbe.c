@@ -985,6 +985,10 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
         unsigned foff = (unsigned)(base + (int)S->f[sl].off);
         if (cbe_f_place(ir, &S->f[sl]))   // ★★ 2026-11-01 — 액터 칸 · 소유 칸: 같은 태그 쪽 레코드로 돌아간다
             fprintf(out, "        rr_%d->f[%zu] = lw_aref_out(r_.rs ? r_.rs[%d] : (lw_sl){0,0});\n", me, (size_t)z, sl);
+        else if (S->f[sl].arrn)   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 빠른 바이트를 보는 값을 두고, 아래 `lw_rec_arrs` 가 레코드의 제 바이트로 베낀다
+            fprintf(out, "        { lowv av_ = {0}; av_.p = r_.r + %u; av_.n = %u; if (%u == 1) av_.tag = LWV_SLICE; else { av_.tag = LWV_VARRAY; av_.box = %u; }"
+                         " rr_%d->f[%zu] = av_; }\n",
+                    foff, (unsigned)S->f[sl].arrn, (unsigned)S->f[sl].arresz, (unsigned)S->f[sl].arresz, me, (size_t)z);
         else if (S->f[sl].sidx >= 0)
             fprintf(out, "        { lowv cv_ = {0}; cv_.tag = LWV_REC; cv_.box = box_%d; rr_%d->f[%zu] = cv_; }\n",
                     childnid[sl], me, (size_t)z);
@@ -1010,6 +1014,10 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
         else
             fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)lw_ld_f(r_.r + %u, %d, %d));\n",
                     me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0);
+    }
+    {   bool arr_ = false;
+        for (proven_size_t z = 0; z < S->nf; z++) if (S->f[z].arrn) arr_ = true;
+        if (arr_) fprintf(out, "        lw_rec_arrs(rr_%d, %d);\n", me, mk);   // ★ 배열 칸의 바이트를 레코드의 것으로(태그 경로의 `lw_make` 와 같다)
     }
     (void)child;
     return me;
@@ -1048,6 +1056,35 @@ static bool cbe_rec_ok_f(const low_ir_t *ir, int sidx, bool allow_flt) {
     return true;
 }
 static bool cbe_rec_ok(const low_ir_t *ir, int sidx) { return cbe_rec_ok_f(ir, sidx, false); }
+
+// ★★ 2026-11-01 (W-20261101-1828 · 소유자 «다음 진행할 것들 마저») — **배열 칸을 가진 구조체를 한 op 안의 값으로** 나른다.
+//   VM 의 레코드는 배열 칸의 바이트를 제 버퍼에 가지고(`vm_rec_arrays`), `make` 가 그 바이트를 베끼고, `field` 는 그 바이트를 보는
+//   슬라이스를 주고, `set field` 는 제자리에 베낀다. 빠른 레코드의 배치(`ir_struct_layout`)는 이미 C 와 같은 인라인 배치라 그 바이트가
+//   레코드 버퍼 안에 있다 — 2026-10-11 의 결함은 `make` 가 칸에 **나열 상수를 가리키는 슬라이스**를 담은 것이었다(지금은 베낀다).
+//   여는 것: 원소가 수인 배열 칸(줄 · 구조체 원소는 아님)과 크기 있는 스칼라 칸. 경계(매개변수 · 반환 · 인자)는 아직 닫혀 있다 —
+//   바깥 관문들(`cbe_rec_ok_f` …)은 그대로 배열 칸을 거절한다.
+static bool cbe_f_arr(const low_ir_sfield_t *f) {
+    return f->arrn && f->arresz >= 1 && f->arresz <= 8 && !(f->arrmeta & (IR_ROW_BIT | IR_STRUCT_BIT));
+}
+static unsigned char cbe_arr_fl(const low_ir_sfield_t *f) {
+    if (f->arrmeta & IR_FLT_BIT) return CBE_FL_FLT;
+    if ((f->arrmeta & IR_SGN_BIT) && f->arresz < 8) return CBE_FL_SGN;
+    return 0;
+}
+static bool cbe_rec_arr_ok(const low_ir_t *ir, int sidx) {
+    if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
+    if (low_ir_struct_has_enumlayout(ir, (proven_size_t)sidx)) return false;
+    const low_ir_struct_t *S = &ir->structs[sidx];
+    if (S->nf == 0 || S->nf > K_REC_MAX || S->total > K_REC_BYTES || S->is_shadow || S->is_mmio || S->is_actor_state) return false;
+    bool any = false;
+    for (proven_size_t q = 0; q < S->nf; q++) {
+        const low_ir_sfield_t *f = &S->f[q];
+        if (f->arrn) { if (!cbe_f_arr(f)) return false; any = true; continue; }
+        if (f->sidx >= 0 || f->boxed || !f->size || f->size > 8) return false;
+        if (f->flt && f->size != 4 && f->size != 8) return false;
+    }
+    return any;
+}
 
 // ★★★★★ **RFC-0106 단계 1 — 슬라이스 필드를 든 struct 도 파라미터로 나른다.**
 //   스칼라 필드는 지금처럼 64 바이트 버퍼에, **슬라이스 필드는 그 옆의 평행 칸**
@@ -1134,6 +1171,14 @@ static void cbe_emit_rec_unpack(FILE *out, const low_ir_t *ir, int sidx, const c
             if (fi >= 0 && slots) fprintf(out, "    %s[%zu * LW_RECF + %zu] = lw_aref_in(lw_field(%s, %d));\n", rx, q, (size_t)z, val, fi);
             continue;
         }
+        if (S->f[z].arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 태그 쪽 레코드의 바이트를 빠른 레코드 안에 베낀다
+            const unsigned need_ = (unsigned)S->f[z].arrn * (unsigned)S->f[z].arresz;
+            if (fi >= 0)
+                fprintf(out, "    { lowv fv_ = lw_field(%s, %d); size_t h_ = fv_.tag == LWV_SLICE ? fv_.n : fv_.tag == LWV_VARRAY ? fv_.n * (size_t)fv_.box : (size_t)-1;\n"
+                             "      if (LW_UNLIKELY(h_ != %uu)) lw_panic(\"an array field takes exactly its length of elements\"); memmove(%s + %u, fv_.p, %u); }\n",
+                        val, fi, need_, buf, (unsigned)S->f[z].off, need_);
+            continue;
+        }
         // ★★★ **슬라이스 필드는 바이트 칸이 아니라 평행 칸으로** (RFC-0106 단계 1).
         //   `lw_st_f` 로 정수처럼 넣으면 2026-07-19 의 `panic: ints` 가 돌아온다 —
         //   크기가 8 이라 스칼라와 구별되지 않기 때문이다. 여기서 갈라 넣는다.
@@ -1177,6 +1222,11 @@ static void cbe_emit_rec_writeback(FILE *out, const low_ir_t *ir, int sidx, cons
         //   ★ 원소 폭이 1 이 아니면 태그 쪽은 **원소 수**를 기대하므로 되돌린다.
         // ★★★★★ **원래 모양대로 되돌린다** (2026-08-30, WO-0155) — 원본을 복사한 뒤 **포인터와 길이만** 갈아 끼운다(WO-0156).
         // ★★★★★ **원래가 슬라이스가 아니었으면 태그를 새로 세운다** (2026-08-31, WO-0162) — 「썼는가」의 증인은 포인터다.
+        if (S->f[z].arrn) {   // ★ 2026-11-01 — 배열 칸: 빠른 레코드의 바이트를 태그 쪽 레코드의 제 바이트에 되쓴다(제자리 — `lw_fstore_arr` 와 같다)
+            fprintf(out, "    { lowv fv_ = lw_field(%s, %d); memmove((unsigned char *)(void *)fv_.p, %s + %u, %u); }\n",
+                    val, fi, buf, (unsigned)S->f[z].off, (unsigned)S->f[z].arrn * (unsigned)S->f[z].arresz);
+            continue;
+        }
         if (S->f[z].boxed && S->f[z].elem) {
             if (!slots) continue;
             fprintf(out,
@@ -1495,6 +1545,58 @@ static bool cbe_slices_known(const low_ir_def_t *d) {
     return true;
 }
 
+// ★★ 2026-11-01 (W-20261101-1828) — **배열 칸 레코드를 매개변수로 받는 op** 은 그 칸의 슬라이스를 op 밖으로 못 내보내야 한다.
+//   빠른 경로의 매개변수 레코드는 부른 쪽의 바이트를 가리킨다 — 부른 쪽이 넘긴 것이 스택 임시(`first mk a.`)면 그 바이트는 다음 푸시가
+//   덮는다. VM 은 레코드가 풀에 살아서 괜찮다. 검사층은 이 길을 거절하지 않으므로(`return field p. body .` 는 적합하다) 빠른 경로가
+//   스스로 막는다: 몸의 낱말이 아래 목록 안에 있어야 하고(슬라이스를 담을 자리 · 감쌀 자리 · 보낼 자리가 없다), 부르는 op 은 수 · 수
+//   구조체 · 같은 규칙의 배열 칸 레코드만 받아야 한다. 반환이 슬라이스면 종류 실행의 RET 이 거절한다.
+static bool cbe_def_arrpar(const low_ir_t *ir, const low_ir_def_t *d) {
+    for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS; q++)
+        if (((d->param_struct >> q) & 1u) && cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) return true;
+    return false;
+}
+static bool cbe_arrpar_body_ok(const low_ir_t *ir, const low_ir_def_t *d, char *why, size_t wn) {
+    for (proven_size_t k = 0; k < d->ncode; k++) {
+        const low_ir_ins_t *in = &d->code[k];
+        switch (in->w) {
+            case IRW_CONST: case IRW_FCONST: case IRW_STR: case IRW_LOAD: case IRW_STORE: case IRW_DROP:
+            case IRW_FIELD: case IRW_FSTORE: case IRW_INDEX: case IRW_ISTORE: case IRW_LEN: case IRW_SUBSLICE: case IRW_SCOPY:
+            case IRW_LBUF: case IRW_VARRAY: case IRW_ELEMCK:
+            case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD: case IRW_NEG:
+            case IRW_BAND: case IRW_BOR: case IRW_BXOR: case IRW_BNOT: case IRW_SHL: case IRW_SHR: case IRW_ROTL: case IRW_ROTR:
+            case IRW_CLZ: case IRW_CTZ: case IRW_POPCNT: case IRW_BSWAP:
+            case IRW_EQ: case IRW_NE: case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE:
+            case IRW_AND: case IRW_OR: case IRW_NOT: case IRW_SELECT: case IRW_CAST: case IRW_BITCAST:
+            case IRW_BR: case IRW_BRZ: case IRW_SWITCH: case IRW_RET: case IRW_ASSERT: case IRW_PANIC:
+                break;
+            case IRW_MAKE: {   // 슬라이스 칸 · 자리 칸이 없는 구조체만 — 칸 슬라이스를 담을 데가 없다
+                const int sx = cbe_make_sidx(ir, in->a);
+                if (sx < 0) return false;
+                for (proven_size_t z = 0; z < ir->structs[sx].nf; z++) {
+                    const low_ir_sfield_t *f = &ir->structs[sx].f[z];
+                    if ((f->boxed && !f->arrn) || cbe_f_place(ir, f)) { snprintf(why, wn, "`make` of a struct with a slice field"); return false; }
+                }
+                break;
+            }
+            case IRW_CALL: {
+                const proven_size_t c = IR_CALL_IDX(in->a);
+                if (c >= ir->ndefs) return false;
+                const low_ir_def_t *ce = &ir->defs[c];
+                for (proven_size_t q = 0; q < ce->nparams && q < LOW_MAX_PARAMS; q++) {
+                    if ((ce->param_slice >> q) & 1u) { snprintf(why, wn, "a call that takes a slice"); return false; }
+                    if (((ce->param_struct >> q) & 1u) && !cbe_rec_ok(ir, (int)ce->param_sidx[q]) && !cbe_rec_arr_ok(ir, (int)ce->param_sidx[q])) {
+                        snprintf(why, wn, "a call that takes a struct which could hold a slice"); return false; }
+                }
+                break;
+            }
+            default:
+                snprintf(why, wn, "the word `%s`", low_irw_name((low_irw_t)in->w));
+                return false;
+        }
+    }
+    return true;
+}
+
 static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
     // ★ 이유표는 **여기서** 비운다. 아래(종류 고정점)에서 비우면 **낱말 실패 이유가 지워진다**
     //   — 그리고 진단이 "느린 op 0개" 라고 **거짓말**을 한다. (그렇게 거짓말했다.)
@@ -1529,7 +1631,17 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
         for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS; q++)
             if ((d->param_struct >> q) & 1u)
                 if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q]) &&
-                    !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, (int)d->param_sidx[q], 0))) { sc[i] = false; badq = (int)q; break; }
+                    !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, (int)d->param_sidx[q], 0)) &&
+                    !cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) { sc[i] = false; badq = (int)q; break; }
+        if (sc[i] && cbe_def_arrpar(ir, d)) {   // ★ 2026-11-01 — 배열 칸 레코드 매개변수: 칸 슬라이스가 op 밖으로 못 나가는 몸만
+            char w_[160] = {0};
+            if (!cbe_arrpar_body_ok(ir, d, w_, sizeof w_)) {
+                sc[i] = false;
+                if (i < 512 && !g_why[i][0])
+                    snprintf(g_why[i], sizeof g_why[0], "a parameter is a struct with array fields and the body has %s (a field slice could outlive the caller's record)", w_[0] ? w_ : "a word outside the list");
+                continue;
+            }
+        }
         if (!sc[i]) {
             if (i < 512 && !g_why[i][0]) {
                 if (badq >= 0)
@@ -1765,6 +1877,17 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_STORE:
                 if (st.n < 1) return false;
                 if (in->a >= CBE_LOCMAX) return cbe_locals_over(in->a);
+                // ★★ 2026-11-01 (W-20261101-1828) — 배열 칸 레코드를 담는 지역은 **한 번만** 담긴다. VM 의 `set b. <새 레코드>` 는 새 버퍼를
+                //   주고 앞서 낸 칸 슬라이스는 옛 바이트를 계속 본다 — 빠른 경로는 같은 `rbuf` 에 덮어쓰므로 두 번째 담기가 그 슬라이스를 바꾼다.
+                //   (되풀이 안의 `let` 은 담는 자리가 하나다 — 앞 바퀴의 슬라이스는 검사층이 블록 밖으로 못 나가게 한다, E-LIT-ESCAPE.)
+                if (st.k[st.n-1] >= K_REC && st.k[st.n-1] < K_VIEW && cbe_rec_arr_ok(ir, st.k[st.n-1] - K_REC)) {
+                    int ns_ = 0;
+                    for (proven_size_t k_ = 0; k_ < d->ncode; k_++) if (d->code[k_].w == IRW_STORE && d->code[k_].a == in->a) ns_++;
+                    if (ns_ > 1 || (proven_size_t)in->a < d->nparams) {
+                        snprintf(g_sub, sizeof g_sub, "local %lld holds a record with array fields and is stored %d times (a field slice would see the new bytes)",
+                                 (long long)in->a, ns_);
+                        return false; }
+                }
                 if (st.k[st.n-1] >= K_REC && st.k[st.n-1] < K_VIEW)   // ★ 갓 띄운 액터의 표식은 지역에 남는다(한 번 붙으면 안 떨어진다 — 보수적)
                     lfl[in->a] = (unsigned char)((lfl[in->a] & CBE_FL_NOID) | (st.fl[st.n-1] & CBE_FL_NOID));
                 if (st.k[st.n-1] == K_SL || st.k[st.n-1] == K_ROWS || st.k[st.n-1] == K_VEC || st.k[st.n-1] == K_MASK ||
@@ -2322,7 +2445,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (mk >= ir->nmakes || mk > 200) return false;
                 int sx = cbe_make_sidx(ir, in->a);
                 // ★ RFC-0106 단계 3 — 슬라이스 필드를 든 레코드도 **만들 수 있다**.
-                if (!cbe_rec_ok_f(ir, sx, true) && !cbe_rec_nest_ok(ir, sx) && !cbe_rec_slice_ok(ir, sx)) return false;
+                if (!cbe_rec_ok_f(ir, sx, true) && !cbe_rec_nest_ok(ir, sx) && !cbe_rec_slice_ok(ir, sx) && !cbe_rec_arr_ok(ir, sx)) return false;
                 proven_size_t nf = ir->makes[mk].nfields;
                 if (nf != ir->structs[sx].nf) return false;   // 부분 초기화는 안 내린다
                 for (proven_size_t z = 0; z < nf; z++)
@@ -2330,6 +2453,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if ((proven_size_t)st.n < nf) return false;
                 // ★ 필드의 종류는 **슬롯의 것**과 맞아야 한다: 중첩은 K_REC+sidx, 부동은 K_FLT, 나머지는 K_INT.
                 const bool zero_ = cbe_make_zero(ir, d, j, sx, nf);   // `spawn actor` — 칸마다 const 0
+                if (zero_ && cbe_rec_arr_ok(ir, sx)) return false;   // ★ 배열 칸을 가진 액터 상태는 태그 경로에 둔다
                 if (cbe_abox(ir, d, j, sx, nf)) {   // ★ 태그 쪽 레코드로 짓는다 — 그 자리만 든다(2026-11-01)
                     st.n -= (int)nf; st.o[st.n] = -1; st.ve[st.n] = (unsigned char)(sx + 1); st.vn[st.n] = 0; st.fl[st.n] = 0;
                     st.k[st.n++] = K_AREF;
@@ -2365,6 +2489,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                    (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, hk_);
                           return false;
                       } }
+                    if (ir->structs[sx].f[sl].arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 그 바이트를 베낀다(길이는 방출이 잰다 — VM 과 같다)
+                        if (st.k[st.n - nf + q] == K_SL) continue;
+                        snprintf(g_sub, sizeof g_sub, "array field `%.*s` of `%.*s` wants a slice, the value is kind %u",
+                                 (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
+                                 (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, st.k[st.n - nf + q]);
+                        return false;
+                    }
                     unsigned char want = ir->structs[sx].f[sl].sidx >= 0
                                          ? (unsigned char)(K_REC + ir->structs[sx].f[sl].sidx)
                                        : (ir->structs[sx].f[sl].boxed && ir->structs[sx].f[sl].elem) ? K_SL
@@ -2431,6 +2562,14 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★★★ **슬라이스 필드를 읽는다** (RFC-0106 단계 1). 그 값은 바이트 버퍼가
                 //   아니라 **평행 칸**에 산다 ⇒ 어느 **파라미터**의 레코드인지 알아야 한다.
                 //   모르면(지역에서 만든 레코드 등) 내리지 않는다 — 단계 3 의 몫이다.
+                if (ir->structs[sx].f[rsl].arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 그 지역 레코드의 바이트를 보는 슬라이스
+                    // 지역에 든 레코드만 — 스택 임시(`rsb`)의 바이트는 다음 푸시가 덮는다. 구획은 검사층이 블록 밖으로 못 나가게 한다(E-LIT-ESCAPE).
+                    if (!cbe_f_arr(&ir->structs[sx].f[rsl]) || st.o[st.n-1] < 0 || st.o[st.n-1] >= CBE_LOCMAX) {
+                        snprintf(g_sub, sizeof g_sub, "an array field read from a record that no local holds"); return false; }
+                    st.k[st.n-1] = K_SL; st.ve[st.n-1] = ir->structs[sx].f[rsl].arresz; st.vn[st.n-1] = 0;
+                    st.fl[st.n-1] = cbe_arr_fl(&ir->structs[sx].f[rsl]); st.o[st.n-1] = -1;
+                    break;
+                }
                 if (ir->structs[sx].f[rsl].boxed) {
                     if (!ir->structs[sx].f[rsl].elem) return false;
                     // ★ 출신이 지역이면 `rlocsl`, 방금 만든 것(-1)이면 `rssl` 에서 읽는다(단계 3).
@@ -2477,6 +2616,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     int sxw_ = st.k[st.n-2] - K_REC;
                     int slw_ = cbe_rec_slot(ir, sxw_, in->a);
                     if (slw_ < 0) return false;
+                    if (ir->structs[sxw_].f[slw_].arrn) {   // ★ 2026-11-01 — 배열 칸에 쓰기: 제자리에 베낀다(지역에 든 레코드만)
+                        if (!cbe_f_arr(&ir->structs[sxw_].f[slw_]) || st.o[st.n-2] < 0) return false;
+                        st.n -= 2; break;
+                    }
                     // ★ 슬라이스 필드여야 하고, **원소 폭을 알아야** 한다(모르면 되돌릴 수 없다).
                     if (!ir->structs[sxw_].f[slw_].boxed || !ir->structs[sxw_].f[slw_].elem) return false;
                     // ★ 어느 **지역**인지 알아야 `rlocsl` 에 쓴다 — 이미터가 그 번호를 쓴다.
@@ -2496,6 +2639,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 }
                 if (fk < K_REC) return false;
                 if (cbe_rec_slot(ir, fk - K_REC, in->a) < 0) return false;
+                if (ir->structs[fk - K_REC].f[cbe_rec_slot(ir, fk - K_REC, in->a)].arrn) return false;   // 배열 칸에 수는 안 쓴다
                 // ★ 어느 **지역**의 레코드인지 알아야 한다 — 거기에 직접 쓴다.
                 if (st.o[st.n-2] < 0) return false;
                 st.n -= 2; break;
@@ -2678,6 +2822,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (rk >= K_VIEW) return false;
                 // ★ RFC-0106 단계 4 — 슬라이스 필드를 든 레코드도 **돌려줄 수 있다**
                 //   (경계 복원이 `cbe_emit_rec_recon` 에 실렸다).
+                // ★ 2026-11-01 (W-20261101-1828) — 배열 칸 레코드를 매개변수로 받는 op 은 수 · 수 레코드만 돌려준다(칸 슬라이스가 부른 쪽의 임시를 넘어 살 수 있다)
+                if (cbe_def_arrpar(ir, d) && rk != K_INT && rk != K_FLT && !(rk >= K_REC && rk < K_VIEW && !cbe_struct_has_sl(ir, rk - K_REC)) &&
+                    !(rk >= K_REC && rk < K_VIEW && cbe_rec_arr_ok(ir, rk - K_REC))) {
+                    snprintf(g_sub, sizeof g_sub, "takes a struct with array fields and returns kind %u (a field slice could outlive the caller's record)", rk); return false; }
                 if (rk >= K_REC && cbe_make_for_struct(ir, rk - K_REC) < 0) {
                     snprintf(g_sub, sizeof g_sub, "returns a RECORD with no `lit` site to rebuild it at the boundary"); return false; }
                 if (*retk != 0xff && *retk != rk) {
@@ -2737,8 +2885,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if ((ce->param_struct >> q) & 1u) {
                         // ★★ 2026-10-31 (W-20261031-2053) — 슬라이스 칸을 가진 레코드도 넘긴다(RFC-0106 의 남은 길: 호출 인자).
                         //   칸은 `crsl[매개변수 번호]` 로 가고, 바꾸는 피호출자가 쓴 칸은 부른 뒤 호출자의 지역 칸으로 되받는다(방출).
-                        if (!cbe_rec_ok(ir, (int)ce->param_sidx[q]) && !cbe_rec_slice_ok(ir, (int)ce->param_sidx[q])) return false;
+                        if (!cbe_rec_ok(ir, (int)ce->param_sidx[q]) && !cbe_rec_slice_ok(ir, (int)ce->param_sidx[q]) &&
+                            !cbe_rec_arr_ok(ir, (int)ce->param_sidx[q])) return false;
                         unsigned char hk = st.k[st.n - ce->nparams + q];
+                        if (cbe_rec_arr_ok(ir, (int)ce->param_sidx[q]) && hk != (unsigned char)(K_REC + ce->param_sidx[q])) return false;   // ★ 배열 칸 레코드는 레코드로만(2026-11-01)
                         // ★ 레코드는 그대로, **뷰**는 경계에서 슬롯으로 구체화해 넘긴다(비변형 한정 —
                         //   피호출자가 필드에 쓰면 그 쓰기가 뷰 바이트에 안 보이니까).
                         if (hk == (unsigned char)(K_VIEW + ce->param_sidx[q])) {
@@ -3029,7 +3179,8 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             //   ☞ *경계는 값을 옮기는 곳이 아니라 **모양을 번역**하는 곳이고,
             //     번역은 **왕복**이어야 한다 — 한쪽만 번역하면 뜻이 샌다.*
             if (!cbe_rec_slice_ok(ir, d->param_sidx[q]) &&
-                !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, d->param_sidx[q], 0))) {   /* 관문 — RFC-0106 단계 2 · 안의 구조체 · 부동 칸은 2026-10-31(바꾸지 않는 op) */
+                !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, d->param_sidx[q], 0)) &&
+                !cbe_rec_arr_ok(ir, d->param_sidx[q])) {   /* 관문 — RFC-0106 단계 2 · 안의 구조체 · 부동 칸은 2026-10-31(바꾸지 않는 op) · 배열 칸 레코드는 2026-11-01(몸이 칸 슬라이스를 못 내보내는 op — cbe_arrpar_body_ok) */
                 snprintf(g_sub, sizeof g_sub, "parameter %zu is a struct the fast frame cannot hold", q);
                 g_kj = -1;
                 return false;
@@ -4796,7 +4947,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         else fprintf(out, "      rsp--; tsl_[%d] = rssl[rsp][%d];\n", sl, CBE_AID);
                         continue;
                     }
-                    if (F->sidx >= 0) {   // ★ 중첩 레코드 필드 — 그 구간을 통째로 놓는다
+                    if (F->arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 그 바이트를 레코드 안에 베낀다(VM 의 `vm_arr_copy` — 길이가 꼭 같아야 한다)
+                        const unsigned need_ = (unsigned)F->arrn * (unsigned)F->arresz;
+                        const unsigned ve_ = ks.ve[ks.n - nf + q] ? ks.ve[ks.n - nf + q] : 1u;   // 슬라이스의 `n` 은 원소 수다
+                        fprintf(out, "      { lw_sl a_ = ss[--ssp]; if (LW_UNLIKELY(a_.n * %uu != %uu)) lw_panic(\"an array field takes exactly its length of elements\");"
+                                     " memmove(tmp_ + %u, a_.p, %u); }\n", ve_, need_, (unsigned)F->off, need_);
+                    } else if (F->sidx >= 0) {   // ★ 중첩 레코드 필드 — 그 구간을 통째로 놓는다
                         fprintf(out, "      rsp--; memcpy(tmp_ + %u, rs[rsp], %u);\n",
                                 (unsigned)F->off, (unsigned)ir->structs[F->sidx].total);
                     } else if (F->boxed && F->elem) {
@@ -4842,6 +4998,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         if (ks.o[ks.n-1] >= 0) fprintf(out, "    rsp--; ss[ssp++] = rlocsl[%d][%d];\n", (int)ks.o[ks.n-1], sl0);
                         else fprintf(out, "    rsp--; ss[ssp++] = rssl[rsp][%d];\n", sl0);
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_AREF; ks.ve[ks.n] = (unsigned char)(as0 + 1); ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
+                        ks.n++;
+                        break;
+                    }
+                    if (sl0 >= 0 && ir->structs[sx0].f[sl0].arrn) {   // ★ 2026-11-01 — 배열 칸: 지역 레코드의 바이트를 보는 슬라이스(무복사 — VM 의 `vm_arr_view`)
+                        const low_ir_sfield_t *FA = &ir->structs[sx0].f[sl0];
+                        fprintf(out, "    rsp--; ss[ssp].p = rs[rsp] + %u; ss[ssp].n = %u; ssp++;\n",
+                                (unsigned)FA->off, (unsigned)FA->arrn);   // `n` 은 원소 수 · 폭은 ve
+                        ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_SL; ks.ve[ks.n] = FA->arresz; ks.vn[ks.n] = 0; ks.fl[ks.n] = cbe_arr_fl(FA);
                         ks.n++;
                         break;
                     }
@@ -4941,6 +5105,15 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 슬라이스 필드에 쓰기 — 평행 칸에 담는다(RFC-0106 단계 4).
                 int sxw = ks.k[ks.n-2] - K_REC;
                 int slw = cbe_rec_slot(ir, sxw, in->a);
+                if (ir->structs[sxw].f[slw].arrn) {   // ★ 2026-11-01 — 배열 칸에 쓰기: 지역 레코드의 그 자리에 바이트를 베낀다(VM 처럼 제자리)
+                    const low_ir_sfield_t *FA = &ir->structs[sxw].f[slw];
+                    const unsigned need_ = (unsigned)FA->arrn * (unsigned)FA->arresz;
+                    const unsigned ve_ = ks.ve[ks.n-1] ? ks.ve[ks.n-1] : 1u;   // 슬라이스의 `n` 은 원소 수다
+                    fprintf(out, "    { lw_sl a_ = ss[--ssp]; rsp--; if (LW_UNLIKELY(a_.n * %uu != %uu)) lw_panic(\"an array field takes exactly its length of elements\");"
+                                 " memmove(rloc[%d] + %u, a_.p, %u); }\n", ve_, need_, (int)ks.o[ks.n-2], (unsigned)FA->off, need_);
+                    ks.n -= 2;
+                    break;
+                }
                 fprintf(out, "    rlocsl[%d][%d] = ss[--ssp]; rsp--;\n", (int)ks.o[ks.n-2], slw);
                 // ★★★★★ **지역 q 는 파라미터 q 다** (진입에서 `rloc[q] = ar[q]` 로 맺어진다).
                 //   그러니 파라미터 레코드의 슬라이스 필드에 쓴 것은 **파라미터 칸에도** 남겨야
@@ -7226,7 +7399,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       // ★★★ **경계에서 한 번** 푼다 — 태그 경로의 `lw_field` 를 여기서만 쓴다.
                       //   그것이 REC(박스)든 VIEW(바이트)든 상관없다. **안쪽 루프에는 없다.**
                       const low_ir_struct_t *S = &ir->structs[d->param_sidx[q]];
-                      if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q])) {   // ★ 2026-10-31 — 안의 구조체 · 부동 칸(cbe_rec_nested_ok 가 연 것)
+                      if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q]) && !cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) {   // ★ 2026-10-31 — 안의 구조체 · 부동 칸(cbe_rec_nested_ok 가 연 것) · 배열 칸은 아래 풀기(2026-11-01)
                           char v0[32]; snprintf(v0, sizeof v0, "a[%zu]", (size_t)q);
                           cbe_emit_rec_in(out, ir, (int)d->param_sidx[q], br, 0, v0, 0);
                           br++;

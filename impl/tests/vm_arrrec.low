@@ -1,0 +1,132 @@
+rem ★★ **배열 칸을 가진 구조체를 한 op 안의 값으로** (2026-11-01 · W-20261101-1828) — 빠른 경로가 그 바이트를 레코드 안에 가진다.
+rem   VM 의 레코드는 배열 칸의 바이트를 제 버퍼에 가지고, `make` 가 베끼고, `field` 는 그 바이트를 보는 슬라이스를 주고, `set field` 는
+rem   제자리에 베낀다. 아래 op 들이 그 네 가지를 한 번씩 밟는다 — 베낀 뒤 원본에 쓰기 · 칸 슬라이스를 받아 쓰는 도우미 · 되풀이 안의 레코드 ·
+rem   부동 · 부호 · bool 원소 · 칸 통째 쓰기 · 다른 레코드의 칸에서 베끼기 · 다시 묶기(`set b.` — 앞서 낸 칸 슬라이스는 옛 바이트를 본다).
+rem   차등 스윕이 VM 과 네이티브에 같은 인자로 돌려 견준다.
+
+module vm_arrrec .
+
+struct bd do
+  id u64 .
+  body array 4 u32 .
+end .
+
+struct mix do
+  tag u8 .
+  w array 3 i16 .
+  f array 2 f64 .
+  b array 2 bool .
+end .
+
+rem 베낀 레코드는 제 바이트를 가진다 — 원본에 쓴 것이 사본에 안 보인다
+export fn copywrite input a u32 . output u64 . do
+  var b lit bd do id 1 . body lit array 4 u32 a. 2 3 4 . . end . .
+  let c bd lit bd do id field b. id . . body field b. body . . end . .
+  set idx field b. body . 0 . 99 .
+  return add mul widen u64 idx field c. body . 0 . . 1000 . widen u64 idx field b. body . 0 . . . .
+end .
+
+rem 칸 슬라이스를 받아 쓰는 도우미 — 쓴 것이 레코드에 남는다
+proc poke input s mut slice u32 . input v u32 . output u64 . effects none . do
+  set idx s. 1 . v. .
+  return cast u64 len s. . . .
+end .
+
+export proc helper input a u32 . output u64 . effects none . do
+  var b lit bd do id 5 . body lit array 4 u32 1 2 3 4 . . end . .
+  let n u64 poke field b. body . a. . .
+  return add mul n. 1000 . widen u64 idx field b. body . 1 . . . .
+end .
+
+rem 되풀이 안의 레코드 — 바퀴마다 새로 짓고 칸에 쓰고 더한다
+export fn looped input n u64 . output u64 . do
+  var acc u64 0 .
+  var k u64 0 .
+  while lt k. n. . do
+    var r lit bd do id k. . body lit array 4 u32 1 1 1 1 . . end . .
+    set idx field r. body . 2 . narrow_wrap u32 k. . .
+    set acc. add acc. add field r. id . widen u64 idx field r. body . 2 . . . . .
+    set k. add k. 1 . .
+  end .
+  return acc. .
+end .
+
+rem 부동 · 부호 · bool 원소
+export fn mixed input a u64 . output i64 . do
+  var m lit mix do tag 7 . w lit array 3 i16 -5 10 -20 . . f lit array 2 f64 1.5 2.25 . . b lit array 2 bool true false . . end . .
+  set idx field m. w . 1 . narrow_wrap i16 a. . .
+  let s i64 add add widen i64 idx field m. w . 0 . . widen i64 idx field m. w . 1 . . . widen i64 idx field m. w . 2 . . . .
+  let g f64 add idx field m. f . 0 . idx field m. f . 1 . . .
+  var t i64 0 .
+  if idx field m. b . 0 . do set t. 100 . end .
+  if idx field m. b . 1 . do set t. add t. 1000 . . end .
+  return add add mul s. 10 . cast i64 mul g. 4.0 . . . t. . .
+end .
+
+rem 칸을 통째로 쓴다 — 나열에서, 그리고 다른 레코드의 칸에서
+export fn whole input a u32 . output u64 . do
+  var b lit bd do id 1 . body lit array 4 u32 1 2 3 4 . . end . .
+  var c lit bd do id 2 . body lit array 4 u32 a. 6 7 8 . . end . .
+  let nine lit array 4 u32 9 9 9 a. . .
+  set field b. body . nine. .
+  let x u64 widen u64 idx field b. body . 3 . . .
+  set field b. body . field c. body . .
+  set idx field c. body . 0 . 0 .
+  return add mul x. 1000 . widen u64 idx field b. body . 0 . . . .
+end .
+
+rem 다시 묶기 — 앞서 낸 칸 슬라이스는 옛 레코드의 바이트를 본다(이 op 은 태그 경로에 남는다 — 같은 지역에 두 번 담긴다)
+export fn rebound input a u32 . output u64 . do
+  var b lit bd do id 1 . body lit array 4 u32 1 2 3 a. . . end . .
+  let s slice u32 field b. body . .
+  set b. lit bd do id 2 . body lit array 4 u32 9 9 9 9 . . end . .
+  return add mul widen u64 idx s. 3 . . 1000 . widen u64 idx field b. body . 3 . . . .
+end .
+
+rem 경계를 건넌다 — 태그 경로에 남는 op(같은 지역에 두 번 담는다)이 빠른 op 을 부른다: 레코드를 받아 바꾸는 것(되쓰기) · 읽는 것 ·
+rem 레코드를 돌려주는 것(태그 쪽 레코드로 되짓기). 빠른 op 끼리도 같은 셋을 부른다.
+proc addone input r mut bd . output u64 . effects none . do
+  set idx field r. body . 0 . add idx field r. body . 0 . 1 . .
+  set field r. id . add field r. id . 10 . .
+  return 0 .
+end .
+
+fn sumb input r bd . output u64 . do
+  var t u64 field r. id . .
+  for x field r. body . do
+    set t. add t. widen u64 x. . . .
+  end .
+  return t. .
+end .
+
+fn mkb input a u32 . output bd . do
+  return lit bd do id 3 . body lit array 4 u32 a. 20 30 40 . . end . .
+end .
+
+export proc crossing input a u32 . output u64 . effects none . do
+  var b bd mkb a. . .
+  let z u64 addone b. . .
+  let t u64 sumb b. . .
+  let kept u64 widen u64 idx field b. body . 0 . . .
+  set b. mkb 1 . .
+  return add add mul t. 1000 . kept. . add z. widen u64 idx field b. body . 0 . . . . .
+end .
+
+export proc fastcall input a u32 . output u64 . effects none . do
+  var b bd mkb a. . .
+  let z u64 addone b. . .
+  let t u64 sumb b. . .
+  return add add mul t. 1000 . widen u64 idx field b. body . 0 . . . z. . .
+end .
+
+rem 매개변수 레코드의 칸 슬라이스를 돌려주는 op — 부른 쪽이 넘긴 것이 스택 임시면 그 바이트는 다음 레코드가 덮는다. 검사층은 이것을
+rem 거절하지 않으므로(적합하다) 빠른 경로가 `first` 를 태그 경로에 둔다. VM 은 16(7 + 9)이다.
+fn first input p bd . output slice u32 . do
+  return field p. body . .
+end .
+
+export fn tempslice input a u32 . output u64 . do
+  let s slice u32 first mkb a. . . .
+  let t bd mkb 9 . .
+  return add widen u64 idx s. 0 . . widen u64 idx field t. body . 0 . . . .
+end .

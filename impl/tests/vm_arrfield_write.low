@@ -1,6 +1,7 @@
 rem A write into an array field of a local struct, then a read of the same field — directly and through `subslice`.
 rem Native code built with -O2 used to answer 1 where the VM answers 100: the fast path carried the field as a slice of the
-rem literal's read-only constant (docs/known-defects, 2026-10-11). Structs with array fields stay on the tagged path now.
+rem literal's read-only constant (docs/known-defects, 2026-10-11). Since 2026-11-01 the fast path carries these structs again —
+rem `make` copies the array bytes into the record and `field` views them there (tests/vm_arrrec.low has the harder cases).
 module vm_arrfield_write .
 struct bd do
   id u64 .

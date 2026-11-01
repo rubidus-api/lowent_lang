@@ -1,0 +1,35 @@
+rem ★★★ **`some_value` 로 벗긴 레코드는 스택 임시다** (2026-11-02 · W-20261102-0024).
+rem   빠른 경로의 방출이 벗긴 레코드에 감싼 값이 든 지역 번호를 그대로 달아 두었다(종류 실행은 −1 — 임시). 그 값을 `mut` 구조체와 함께
+rem   넘기는 부름은 인자마다 «집» 을 쓰므로 그 번호의 레코드 칸(`rloc[o]` — 레코드를 담은 적 없는 NULL)을 넘겼고, 피호출자가 칸을 읽다
+rem   세그폴트로 죽었다(v1.25.1 · `tests/prog/kvstore.low` 의 `bench` 가 `pool.release kv_bench_rec. p. some_value h. .` 에서).
+rem   차등 스윕이 VM 과 네이티브를 견준다.
+
+module vm_unwraprec .
+struct hd do
+  blk u64 .
+  gen u64 .
+end .
+struct pl do
+  n u64 .
+end .
+fn take input k u64 . output option hd . do
+  if eq k. 0 . do return none . end .
+  return some lit hd do blk k. . gen 7 . end . . .
+end .
+proc rel input p mut pl . input h hd . output u64 . effects none . do
+  set field p. n . add field p. n . field h. blk . . .
+  return field h. gen . .
+end .
+export proc unwrapped input k u64 . output u64 . effects none . do
+  var p lit pl do n 1 . end . .
+  var acc u64 0 .
+  var r u64 0 .
+  while lt r. 3 . do
+    let h option hd take add k. r. . . .
+    if is_some h. . do
+      set acc. add acc. rel p. some_value h. . . . .
+    end .
+    set r. add r. 1 . .
+  end .
+  return add mul field p. n . 100 . acc. . .
+end .

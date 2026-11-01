@@ -752,7 +752,8 @@ static bool cbe_pmut_direct(const low_ir_def_t *d) {
     // ★★★ 2026-11-02 (W-20261102-0024) — `mut` 구조체 매개변수는 칸 쓰기(`set field`) 없이도 바뀐다: 배열 칸의 원소 쓰기
     //   (`set idx field r. body . 0 . v`)는 INDEX · ISTORE 라 아래 FSTORE 만 보던 판정이 «안 바뀜» 이라 했고, 경계 어댑터가 되쓰기를
     //   건너뛰었다 — 태그 경로 op 이 넘긴 레코드에 쓴 것이 사라졌다(VM 77 · 네이티브 5 · v1.25.1). `mut` 이면 바뀐 것으로 본다.
-    if (d->param_struct & d->param_mutw) return true;
+    //   `owned` 는 세지 않는다 — 소유를 넘긴 쪽은 그 값을 다시 못 본다(되쓸 곳이 없다 · `net.shut` 이 그 꼴).
+    if (d->param_struct & d->param_mutx) return true;
     for (proven_size_t k = 0; k < d->ncode; k++)
         if (d->code[k].w == IRW_FSTORE) return true;
     return false;
@@ -5610,6 +5611,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         in->w == IRW_ISOK ? "is_ok" : "is_error", in->w == IRW_ISOK ? 3 : 4);
                 ks.k[ks.n-1] = K_INT; break;
             case IRW_SOMEVAL:
+                // ★★★ 2026-11-02 (W-20261102-0024) — 벗긴 값은 **스택 임시**다(종류 실행과 같다 — st.o = -1). 전에는 감싼 값이 든 지역 번호를
+                //   물려받아, 그 값을 넘기는 부름이 그 번호의 레코드 칸(`rloc[o]` — 채운 적 없는 NULL)을 넘겼다: kvstore 의 `bench` 가
+                //   `pool.release kv_bench_rec. p. some_value h. .` 에서 세그폴트로 죽었다(v1.25.1 · 그 전부터).
                 if (ks.k[ks.n-1] == K_OPT2) {   // ★ 겹을 벗긴다 — 안 태그가 바깥이 된다
                     fputs("    { lw_r *w_ = &ws[wsp-1];"
                           " if (LW_UNLIKELY(w_->tag == 2)) lw_panic(\"some_value of none\");"
@@ -5630,7 +5634,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
                           " ss[ssp++] = w_.s; }\n", out);
-                    ks.k[ks.n-1] = vx; ks.fl[ks.n-1] = 0; break;
+                    ks.k[ks.n-1] = vx; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1]) {   // ★ 레코드를 감쌌으면 rs[] 로 꺼낸다
                     unsigned char rx = (unsigned char)(K_REC + ks.ve[ks.n-1] - 1);
@@ -5640,13 +5644,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n", out);
                     if (cbe_optrec_sl(ir, K_OPT, ks.ve[ks.n-1], 0))   // ★ 싼 레코드의 슬라이스 칸을 벗긴 자리로(방금 꺼낸 ws 자리 = wsp)
                         fputs("    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n", out);
-                    ks.k[ks.n-1] = rx; break;
+                    ks.k[ks.n-1] = rx; ks.o[ks.n-1] = -1; break;
                 }
                 fputs("    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                       " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
                       " st[sp++] = w_.v; }\n", out);
-                ks.k[ks.n-1] = K_INT; break;
+                ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_OKVAL:
                 if (ks.k[ks.n-1] == K_OPT2) {   // ★ 겹을 벗긴다 — 안 태그가 바깥이 된다
                     fputs("    { lw_r *w_ = &ws[wsp-1];"
@@ -5661,7 +5665,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " if (LW_UNLIKELY(w_.tag == 4)) lw_panic(\"ok_value of an error\");"
                           " if (LW_UNLIKELY(w_.tag != 3)) lw_panic(\"ok_value needs a result\");"
                           " ss[ssp++] = w_.s; }\n", out);
-                    ks.k[ks.n-1] = vx; ks.fl[ks.n-1] = 0; break;
+                    ks.k[ks.n-1] = vx; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1]) {   // ★ 레코드를 감쌌으면 rs[] 로 꺼낸다
                     unsigned char rx = (unsigned char)(K_REC + ks.ve[ks.n-1] - 1);
@@ -5671,13 +5675,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n", out);
                     if (cbe_optrec_sl(ir, K_OPT, ks.ve[ks.n-1], 0))
                         fputs("    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n", out);
-                    ks.k[ks.n-1] = rx; break;
+                    ks.k[ks.n-1] = rx; ks.o[ks.n-1] = -1; break;
                 }
                 fputs("    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag == 4)) lw_panic(\"ok_value of an error\");"
                       " if (LW_UNLIKELY(w_.tag != 3)) lw_panic(\"ok_value needs a result\");"
                       " st[sp++] = w_.v; }\n", out);
-                ks.k[ks.n-1] = K_INT; break;
+                ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_ERRVAL:
                 fputs("    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag == 3)) lw_panic(\"error_value of an ok\");"

@@ -4419,6 +4419,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 for (proven_size_t z = h.p[q].ts; z < h.p[q].te && !mw; z++)
                     if (is_atom(f->kids[z]) && veq(f->kids[z]->tok.lex, "mut_ref")) mw = true;
                 if (mw) d->param_mutw |= 1u << (d->nparams + q);
+                if (mw && !(h.p[q].is_owned && !h.p[q].is_mut)) d->param_mutx |= 1u << (d->nparams + q);
             }
             for (proven_size_t q = 0; q < h.np; q++) {
                 proven_size_t tw = h.p[q].core;   // ★ 타입의 **알맹이** — `mut`/`owned` 도 벗긴 자리

@@ -2,6 +2,7 @@ rem ★★ **슬라이스 칸을 가진 레코드를 빠른 함수끼리 넘긴�
 rem   범프 할당기(`allocs.bump_bytes`)의 상태는 바이트 슬라이스 칸 `mem` 을 가진다. 그 상태를 **두 번째 매개변수**로 받는 op 이
 rem   핸들러(`init`)를 불러 칸을 바꾸고, 한 겹 위의 호출자가 그 칸을 다시 읽는다 — 슬라이스 칸은 부른 뒤 호출자의 집으로 되받는다.
 rem   차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다.
+rem ☞ 걸지 않은 할당기를 도우미에 넘겨 읽는 op 은 이제 검사가 거절한다(E-ACTOR-UNINIT 가 도우미 안으로 따라간다 · 2026-11-01) — 골든이 그 예를 든다.
 
 module vm_recslice .
 
@@ -37,10 +38,4 @@ export proc run input k usize . output u64 . effects state . do
   let x usize grab2 k. bb. . .
   let u usize send bb. used . .
   return add add mul cast u64 x. . 1000 . cast u64 u. . . widen u64 idx back. 0 . . . .
-end .
-
-rem 걸지 않은 할당기 — 칸이 빈 슬라이스(0)로 시작한다: 받을 자리가 없다
-export proc unset input k usize . output usize . effects state . do
-  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  return grab2 k. bb. . .
 end .

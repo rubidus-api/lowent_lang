@@ -4457,6 +4457,99 @@ static bool ck_body_writes_field(const low_cst_t *nd, proven_u8str_view_t fld) {
         if (ck_body_writes_field(nd->kids[i], fld)) return true;
     return false;
 }
+// 이 액터(`act`)에 갓 띄운 뒤 처음 보내는 말이 핸들러 `hname` 이면 — 그 핸들러가 슬라이스 칸을 **쓰지 않으면서 읽는가**.
+static bool ck_handler_reads_unset(const low_cst_t *act, proven_u8str_view_t hname) {
+    if (!act) return false;
+    const low_cst_t *h = ck_actor_proc(act, hname);
+    if (!h) return false;
+    const low_cst_t *hb = h->kids[h->nkids - 1];
+    if (!hb || hb->kind != LOW_CST_BLOCK) return false;
+    const low_cst_t *ab = act->kids[act->nkids - 1];
+    if (!ab || ab->kind != LOW_CST_BLOCK) return false;
+    for (proven_size_t i = 0; i < ab->nkids; i++) {
+        const low_cst_t *sf = ab->kids[i];
+        if (sf->kind != LOW_CST_FORM || !sf->nkids || !ck_atom(sf->kids[0]) ||
+            sf->kids[0]->tok.kw != LOW_KW_STATE) continue;
+        const low_cst_t *sb = sf->kids[sf->nkids - 1];
+        if (!sb || sb->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t q = 0; q < sb->nkids; q++) {
+            const low_cst_t *fl = sb->kids[q];
+            if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0])) continue;
+            bool is_slice = false;
+            for (proven_size_t w = 1; w < fl->nkids; w++)
+                if (ck_atom(fl->kids[w]) && (veq(fl->kids[w]->tok.lex, "slice") ||
+                                             veq(fl->kids[w]->tok.lex, "ref"))) is_slice = true;
+            if (!is_slice) continue;
+            proven_u8str_view_t fname = fl->kids[0]->tok.lex;
+            if (ck_body_writes_field(hb, fname)) continue;          // 이 말이 그 칸을 세운다
+            if (!ck_name_uses(hb, fname)) continue;                 // 읽지도 않는다
+            return true;
+        }
+    }
+    return false;
+}
+// 문장 하나에서 `send <이름> <op>` 꼴을 찾는다 — 문장의 끝 갈래를 따라 네 겹까지(곧은 차례).
+static const low_cst_t *ck_stmt_send(const low_cst_t *st) {
+    const low_cst_t *sd = st;
+    for (proven_size_t d = 0; d < 4 && sd; d++) {
+        if (sd->kind == LOW_CST_FORM && sd->nkids >= 3 && ck_atom(sd->kids[0]) &&
+            sd->kids[0]->tok.kw == LOW_KW_SEND) break;
+        sd = (sd->nkids) ? sd->kids[sd->nkids - 1] : NULL;
+    }
+    if (!sd || sd->kind != LOW_CST_FORM || sd->nkids < 3 || !ck_atom(sd->kids[0]) ||
+        sd->kids[0]->tok.kw != LOW_KW_SEND || !ck_atom(sd->kids[1]) || !ck_atom(sd->kids[2])) return NULL;
+    return sd;
+}
+// 이름 그대로(단형화한 `open#u8#allocs.bump_bytes` 따위)를 먼저, 없으면 한정을 벗긴 이름으로 찾는다.
+static const low_cst_t *ck_op_exact_or_bare(const low_parse_result_t *pr, proven_u8str_view_t name) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
+            (f->kids[0]->tok.kw == LOW_KW_PROC || f->kids[0]->tok.kw == LOW_KW_FN) && ck_atom(f->kids[1]) &&
+            proven_u8str_view_eq(f->kids[1]->tok.lex, name)) return f;
+    }
+    for (proven_size_t k = 0; k < name.size; k++) if (name.ptr[k] == '#') return NULL;   // 단형화 이름은 그대로만
+    return ck_top_op_named(pr, name);
+}
+// 문장 안에서 이름 `nm` 을 **인자로 받는 사용자 op 호출**을 찾는다 — (그 op, 인자 자리).
+static const low_cst_t *ck_stmt_call_arg(const low_cst_t *nd, proven_u8str_view_t nm, proven_size_t *argi) {
+    if (!nd || ck_atom(nd)) return NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kind == LOW_TOK_IDENT) {
+        const low_cst_t *cal = g_ck_pr ? ck_op_exact_or_bare(g_ck_pr, nd->kids[0]->tok.lex) : NULL;
+        if (cal)
+            for (proven_size_t i = 1; i < nd->nkids; i++)
+                if (ck_atom(nd->kids[i]) && nd->kids[i]->tok.kind == LOW_TOK_IDENT &&
+                    proven_u8str_view_eq(nd->kids[i]->tok.lex, nm)) { *argi = i - 1; return cal; }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *c = ck_stmt_call_arg(nd->kids[i], nm, argi);
+        if (c) return c;
+    }
+    return NULL;
+}
+// ★ 2026-11-01 (W-20261101-1150 · 소유자 «모두 진행») — **도우미 op 안으로 따라간다.** 갓 띄운 액터를 op 에 넘기면, 그 op 의
+//   매개변수 `pn` 에 처음 닿는 문장을 본다: `send pn <h>` 면 그 핸들러를, 또 다른 op 에 넘기면 그 op 을(네 겹까지).
+//   답: 1 = 처음 보내는 말이 안 세운 슬라이스 칸을 읽는다 · 0 = 세우거나 알 수 없다(멈춘다) · 2 = 그 op 이 이 매개변수를 안 쓴다.
+static int ck_uninit_follow(const low_cst_t *op, proven_u8str_view_t pn, const low_cst_t *act, int depth) {
+    if (!op || depth > 4) return 0;
+    const low_cst_t *body = op->kids[op->nkids - 1];
+    if (!body || body->kind != LOW_CST_BLOCK) return 0;
+    for (proven_size_t j = 0; j < body->nkids; j++) {
+        const low_cst_t *st = body->kids[j];
+        if (!st || !ck_name_uses(st, pn)) continue;
+        const low_cst_t *sd = ck_stmt_send(st);
+        if (sd && proven_u8str_view_eq(sd->kids[1]->tok.lex, pn))
+            return ck_handler_reads_unset(act, sd->kids[2]->tok.lex) ? 1 : 0;
+        proven_size_t ai = 0;
+        const low_cst_t *cal = ck_stmt_call_arg(st, pn, &ai);
+        if (!cal || cal == op) return 0;                   // 다른 쓰임(담기 · 되부름) — 여기서 멈춘다
+        low_op_header_t h = low_op_header(cal);
+        if (ai >= h.np) return 0;
+        int r = ck_uninit_follow(cal, h.p[ai].name, act, depth + 1);
+        if (r != 2) return r;
+    }
+    return 2;
+}
 static void ck_actor_uninit_blk(low_check_result_t *out, const low_cst_t *blk) {
     if (!blk || ck_atom(blk)) return;
     proven_u8str_view_t lname[8], lact[8]; proven_size_t nl = 0; bool spoke[8] = { 0 };
@@ -4477,54 +4570,43 @@ static void ck_actor_uninit_blk(low_check_result_t *out, const low_cst_t *blk) {
             }
         }
         // ② 이 문장 안의 첫 `send <이름> <op>` — 그 이름이 위에서 띄운 것이면 본다.
-        const low_cst_t *sd = st;
-        for (proven_size_t d = 0; d < 4 && sd; d++) {
-            if (sd->kind == LOW_CST_FORM && sd->nkids >= 3 && ck_atom(sd->kids[0]) &&
-                sd->kids[0]->tok.kw == LOW_KW_SEND) break;
-            sd = (sd->nkids) ? sd->kids[sd->nkids - 1] : NULL;
-        }
-        if (!sd || sd->kind != LOW_CST_FORM || sd->nkids < 3 || !ck_atom(sd->kids[0]) ||
-            sd->kids[0]->tok.kw != LOW_KW_SEND || !ck_atom(sd->kids[1]) || !ck_atom(sd->kids[2])) continue;
+        const low_cst_t *sd = ck_stmt_send(st);
         proven_size_t s = 0;
-        while (s < nl && !proven_u8str_view_eq(lname[s], sd->kids[1]->tok.lex)) s++;
-        if (s == nl || spoke[s]) continue;
-        spoke[s] = true;                                   // 이 이름에 **처음** 보내는 말이다
-        const low_cst_t *act = ck_actor_named(lact[s]);
-        if (!act) continue;
-        const low_cst_t *h = ck_actor_proc(act, sd->kids[2]->tok.lex);
-        if (!h) continue;
-        const low_cst_t *hb = h->kids[h->nkids - 1];
-        if (!hb || hb->kind != LOW_CST_BLOCK) continue;
-        // 슬라이스 칸을 찾아, 이 핸들러가 그것을 **쓰지 않으면서 읽으면** 문다.
-        const low_cst_t *ab = act->kids[act->nkids - 1];
-        if (!ab || ab->kind != LOW_CST_BLOCK) continue;
-        for (proven_size_t i = 0; i < ab->nkids; i++) {
-            const low_cst_t *sf = ab->kids[i];
-            if (sf->kind != LOW_CST_FORM || !sf->nkids || !ck_atom(sf->kids[0]) ||
-                sf->kids[0]->tok.kw != LOW_KW_STATE) continue;
-            const low_cst_t *sb = sf->kids[sf->nkids - 1];
-            if (!sb || sb->kind != LOW_CST_BLOCK) continue;
-            for (proven_size_t q = 0; q < sb->nkids; q++) {
-                const low_cst_t *fl = sb->kids[q];
-                if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0])) continue;
-                bool is_slice = false;
-                for (proven_size_t w = 1; w < fl->nkids; w++)
-                    if (ck_atom(fl->kids[w]) && (veq(fl->kids[w]->tok.lex, "slice") ||
-                                                 veq(fl->kids[w]->tok.lex, "ref"))) is_slice = true;
-                if (!is_slice) continue;
-                proven_u8str_view_t fname = fl->kids[0]->tok.lex;
-                if (ck_body_writes_field(hb, fname)) continue;          // 이 말이 그 칸을 세운다
-                if (!ck_name_uses(hb, fname)) continue;                 // 읽지도 않는다
-                emit(out, "E-ACTOR-UNINIT",
-                     "this is the FIRST message sent to an actor that was just spawned, and the handler "
-                     "READS a state field that holds a slice without setting it. A fresh actor's state "
-                     "is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while "
-                     "native quietly answers `none` — the two back ends disagree, which means one of "
-                     "them is lying. Send the message that sets it up first (the one whose handler "
-                     "`set`s that field, typically `init`)",
-                     sd->kids[0]->tok.line);
-                break;
+        if (sd) {
+            while (s < nl && !proven_u8str_view_eq(lname[s], sd->kids[1]->tok.lex)) s++;
+            if (s < nl && !spoke[s]) {
+                spoke[s] = true;                               // 이 이름에 **처음** 보내는 말이다
+                if (ck_handler_reads_unset(ck_actor_named(lact[s]), sd->kids[2]->tok.lex))
+                    emit(out, "E-ACTOR-UNINIT",
+                         "this is the FIRST message sent to an actor that was just spawned, and the handler "
+                         "READS a state field that holds a slice without setting it. A fresh actor's state "
+                         "is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while "
+                         "native quietly answers `none` — the two back ends disagree, which means one of "
+                         "them is lying. Send the message that sets it up first (the one whose handler "
+                         "`set`s that field, typically `init`)",
+                         sd->kids[0]->tok.line);
+                continue;
             }
+        }
+        // ③ 띄운 이름을 **도우미 op 에 넘기는** 문장 — 그 안으로 따라간다(canon §10.3 (1c) · 2026-11-01).
+        for (s = 0; s < nl; s++) {
+            if (spoke[s] || !ck_name_uses(st, lname[s])) continue;
+            proven_size_t ai = 0;
+            const low_cst_t *cal = ck_stmt_call_arg(st, lname[s], &ai);
+            if (!cal) continue;
+            low_op_header_t h = low_op_header(cal);
+            if (ai >= h.np) { spoke[s] = true; continue; }
+            int r = ck_uninit_follow(cal, h.p[ai].name, ck_actor_named(lact[s]), 1);
+            if (r == 2) continue;                              // 그 op 은 이 액터를 안 쓴다 — 계속 본다
+            spoke[s] = true;
+            if (r == 1)
+                emit(out, "E-ACTOR-UNINIT",
+                     "an actor that was just spawned is handed to an op here, and the FIRST message that op "
+                     "(or an op it hands the actor on to) sends it READS a state field that holds a slice "
+                     "without setting it. A fresh actor's state is all zeroes, and zero is not a slice — "
+                     "reading it before it is set is not conforming (canon 10.3 (1c)). Send the message "
+                     "that sets it up first (the one whose handler `set`s that field, typically `init`)",
+                     st->kind == LOW_CST_FORM && st->nkids && ck_atom(st->kids[0]) ? st->kids[0]->tok.line : 0);
         }
     }
     for (proven_size_t i = 0; i < blk->nkids; i++) ck_actor_uninit_blk(out, blk->kids[i]);

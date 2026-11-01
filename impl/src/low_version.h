@@ -10,7 +10,7 @@
 #ifndef LOW_VERSION_H
 #define LOW_VERSION_H
 
-#define LOW_VERSION "1.24.0"   /* 2026-10-31 (언어 1.23) */
+#define LOW_VERSION "1.25.0"   /* 2026-11-01 (언어 1.23 — 그대로: 키워드 · 빌트인이 안 바뀌었다) */
 
 // ★★★ **"버전" 은 한 낱말이 아니라 네 축이다** (RFC-0089 R4 · 단계 E, 2026-08-03).
 //

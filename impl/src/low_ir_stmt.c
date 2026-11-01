@@ -4464,6 +4464,20 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                                         d->param_rowfl[d->nparams] = ir_is_float_ty(re_) ? 1 : (re_.size && re_.ptr[0] == (proven_u8)'i' && rz_ < 8) ? 2 : 0;
                                     }
                                 }
+                                // ★ 2026-11-02 (W-20261102-0024 O4) — 줄이 다시 줄이다(`slice (array 3 (array 4 u8))` — 세 겹 이상): 줄 꼴 표의 칸을 적는다.
+                                else if (rf_->kind == LOW_CST_FORM && rf_->nkids == 3 && is_atom(rf_->kids[0]) && veq(rf_->kids[0]->tok.lex, "array") &&
+                                         !is_atom(rf_->kids[1])) {
+                                    proven_u8str_view_t lf_ = {0}; proven_u64 rb3_ = 0; proven_u8 sub3_ = 0;
+                                    if (ir_row_shape(&ir, rf_, &lf_, &rb3_, &sub3_) && sub3_ && sub3_ <= 63 && rb3_ <= 255) {
+                                        const proven_u8 rz_ = veq(lf_, "bool") ? 1 : ir_field_size(lf_);
+                                        if (rz_ == 1 || rz_ == 2 || rz_ == 4 || rz_ == 8) {
+                                            d->param_rowb[d->nparams] = (proven_u8)rb3_;
+                                            d->param_rowe[d->nparams] = rz_;
+                                            d->param_rowfl[d->nparams] = ir_is_float_ty(lf_) ? 1 : (lf_.size && lf_.ptr[0] == (proven_u8)'i' && rz_ < 8) ? 2 : 0;
+                                            d->param_rowsub[d->nparams] = sub3_;
+                                        }
+                                    }
+                                }
                             }
                             // ★ 2026-11-01 (W-20261101-1150) — 부동소수 원소(`slice f32` · `slice f64`)를 적어 둔다. 폭 표(ebits)는 정수 원소만
                             //   말하므로(부동은 255) 빠른 경로가 그 op 을 통째로 태그 경로로 보냈다. 폭은 param_esz 가 안다.

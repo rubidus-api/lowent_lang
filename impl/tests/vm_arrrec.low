@@ -130,3 +130,18 @@ export fn tempslice input a u32 . output u64 . do
   let t bd mkb 9 . .
   return add widen u64 idx s. 0 . . widen u64 idx field t. body . 0 . . . .
 end .
+
+rem ★★★ 2026-11-02 (W-20261102-0024) — `mut` 로 받은 레코드의 배열 칸 **원소만** 쓰는 빠른 op 을 태그 경로의 op 이 부른다.
+rem   빠른 경로는 «구조체 매개변수를 바꿨나» 를 칸 쓰기(`set field`)로만 판정해서, 원소 쓰기(`set idx field …`)만 하는 op 의 되쓰기를
+rem   경계에서 건너뛰었다 — 부른 쪽에 쓴 것이 사라졌다(VM 77 · 네이티브 5 · v1.25.1). `mut` 매개변수면 바뀐 것으로 본다.
+proc poke0 input r mut bd . input v u32 . output u64 . effects none . do
+  set idx field r. body . 0 . v. .
+  return 0 .
+end .
+
+export proc mutvia input a u32 . output u64 . effects none . do
+  let big u128 widen u128 0 . .
+  var b lit bd do id 1 . body lit array 4 u32 a. 2 3 4 . . end . .
+  let z u64 poke0 b. 77 . .
+  return add add widen u64 idx field b. body . 0 . . mul widen u64 idx field b. body . 1 . . 100 . . cast u64 big. . . .
+end .

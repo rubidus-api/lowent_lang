@@ -779,6 +779,7 @@ typedef struct {
     // ★ 2026-11-01 (W-20261101-1150) — `slice (array T M)`(줄의 나열 — 배열 안의 배열 입력과 배열 답의 결과 자리가 이 꼴로 다시 적힌다):
     //   줄 바이트(M × |T|, 0 = 줄 매개변수가 아니다) · 원소 폭 |T| · 표식(1 부동 · 2 부호). C 뒤끝의 빠른 경로만 읽는다(오라클의 param_esz 는 그대로).
     proven_u8           param_rowb[LOW_MAX_PARAMS], param_rowe[LOW_MAX_PARAMS], param_rowfl[LOW_MAX_PARAMS];
+    proven_u8           param_rowsub[LOW_MAX_PARAMS];   // ★ 2026-11-02 (W-20261102-0024) — 줄이 다시 줄이면 그 줄 꼴의 칸(ir->rowsh_* · 0 = 두 겹)
     // ★★★ **원소 술어의 구간** — `requires elem_lt s N` 이 심은 슬라이스 s 의 원소 [lo,hi].
     //   계약 오라클의 **길이 축**이 슬라이스를 채울 때 이 구간 안의 바이트를 써야 한다:
     //   안 그러면 도구가 계약을 어기는 내용을 먹여 놓고 트랩을 **프로그램의 죄로 고발한다**

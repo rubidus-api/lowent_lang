@@ -1,0 +1,69 @@
+rem ★★ **배열 안의 배열 칸을 빠른 경로가 나른다** (2026-11-02 · W-20261102-0024 O4 · RFC-0155 §8-3 · §8-6).
+rem   `cells array 2 array 3 u8 .` 같은 칸을 읽으면 줄의 나열이다(세 겹이면 줄의 나열의 나열). 바이트는 레코드 안에 있고 납작한 배열 칸과 같다.
+rem   아래 op 들이 그 길을 하나씩 밟는다 — 칸 통째 쓰기(줄의 나열 · 다른 레코드의 칸에서) · 바이트 위의 구조체 뷰의 줄 칸(읽기 · 쓰기) ·
+rem   세 겹 칸 · 경계(태그 경로에 남는 op 이 빠른 op 에 레코드를 넘기고 · `mut` 로 되받고 · 돌려받는다). 차등 스윕이 VM 과 네이티브를 견준다.
+
+module vm_rowfield .
+
+struct grid do
+  id u8 .
+  cells array 2 array 3 u8 .
+  tail u16 .
+end .
+
+struct cube do
+  k u8 .
+  c array 2 array 2 array 2 u16 .
+end .
+
+export fn whole input a u8 . output u64 . do
+  var x lit grid do id 1 . cells lit array 2 array 3 u8 _ . . tail 5 . end . .
+  let y lit grid do id 2 . cells lit array 2 array 3 u8 lit array 3 u8 a. 2 3 . lit array 3 u8 4 5 6 . . . tail 6 . end . .
+  let g lit array 2 array 3 u8 lit array 3 u8 7 8 9 . lit array 3 u8 10 11 a. . . .
+  set field x. cells . g. .
+  let s1 u64 add widen u64 idx idx field x. cells . 1 . 2 . . widen u64 idx idx field x. cells . 0 . 0 . . . .
+  set field x. cells . field y. cells . .
+  return add mul s1. 1000 . add widen u64 idx idx field x. cells . 0 . 0 . . widen u64 field x. tail . . . . .
+end .
+
+export fn viewrows input b mut slice u8 . output u64 .
+  requires eq len b. . 10 . .
+do
+  let v mut slice grid view_array grid b. . .
+  set idx idx field idx v. 0 . cells . 1 . 2 . 99 .
+  return add mul cast u64 len field idx v. 0 . cells . . . 1000 . widen u64 idx idx field idx v. 0 . cells . 0 . 1 . . . .
+end .
+
+export fn deep input a u16 . output u64 . do
+  var q lit cube do k 1 . c lit array 2 array 2 array 2 u16 lit array 2 array 2 u16 lit array 2 u16 1 2 . lit array 2 u16 3 a. . . _ . . end . .
+  set idx idx idx field q. c . 1 . 1 . 1 . 60000 .
+  let h slice (array 2 u16) idx field q. c . 0 . .
+  return add add widen u64 idx idx h. 1 . 1 . . widen u64 idx idx idx field q. c . 1 . 1 . 1 . . . cast u64 len field q. c . . . . .
+end .
+
+fn sumcells input x grid . output u64 . do
+  var s u64 widen u64 field x. tail . . .
+  for r field x. cells . do
+    for v r. do
+      set s. add s. widen u64 v. . . .
+    end .
+  end .
+  return s. .
+end .
+
+proc bump input x mut grid . output u64 . effects none . do
+  set idx idx field x. cells . 1 . 0 . add idx idx field x. cells . 1 . 0 . 1 . .
+  return 0 .
+end .
+
+fn mkgrid input a u8 . output grid . do
+  return lit grid do id 3 . cells lit array 2 array 3 u8 lit array 3 u8 a. 0 0 . lit array 3 u8 0 0 a. . . . tail 1 . end . .
+end .
+
+rem 태그 경로에 남는 op(128 비트 지역)이 빠른 op 셋을 부른다 — 넘기기 · `mut` 로 되받기 · 돌려받기
+export proc crossing input a u8 . output u64 . effects none . do
+  let big u128 widen u128 2 . .
+  var x grid mkgrid a. . .
+  let z u64 bump x. . .
+  return add add sumcells x. . mul widen u64 idx idx field x. cells . 1 . 0 . . 100 . . add z. cast u64 big. . . . .
+end .

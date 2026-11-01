@@ -99,3 +99,30 @@ fn four output u64 . do
   let h slice array 2 array 2 u8 idx q. 1 . .
   return add widen u64 idx idx idx h. 0 . 1 . 1 . . cast u64 len h. . . . .
 end .
+
+rem ★ 2026-11-02 (W-20261102-0024) — 경계를 건넌다: 태그 경로에 남는 op(128 비트 지역)이 세 겹 배열을 빠른 op 에 넘기고(`weigh` · `cell`),
+rem   빠른 op 이 돌려준 세 겹 배열(`mk`)을 받아 읽는다. 빠른 경로는 줄 꼴의 칸을 표식에 실어 나르고, 경계는 그 칸을 태그 쪽 보기에 되적는다.
+fn viatag input k u8 . output u64 . do
+  let big u128 widen u128 3 . .
+  var c array 2 array 3 array 4 u8 mk k. . .
+  set idx idx idx c. 1 . 2 . 3 . 4 .
+  return add add weigh c. . cell c. 0 1 2 . . cast u64 big. . . .
+end .
+
+fn rowsat input c slice (array 3 (array 4 u8)) . input i usize . output u64 . do
+  var s u64 cast u64 len c. . . .
+  for r idx c. i. . do
+    for v r. do
+      set s. add s. widen u64 v. . . .
+    end .
+  end .
+  return s. .
+end .
+
+fn viatag2 input b slice u8 . output u64 .
+  requires eq len b. . 24 . .
+do
+  let big u128 widen u128 1 . .
+  let v slice (array 3 (array 4 u8)) view_array (array 3 (array 4 u8)) b. . .
+  return add rowsat v. 1 . cast u64 big. . . .
+end .

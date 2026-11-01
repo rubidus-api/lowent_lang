@@ -1335,11 +1335,26 @@ static bool cbe_view_ok(const low_ir_t *ir, int sidx) {
     if (low_ir_struct_has_enumlayout(ir, (proven_size_t)sidx)) return false;   // ★ RFC-0150 §8-31 — 번호 ↔ 순번은 태그 경로가 한다
     if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
     const low_ir_struct_t *S = &ir->structs[sidx];
-    if (S->nf == 0 || !S->viewable || S->is_shadow) return false;   // ★ RFC-0135 D13 — 그림자(슬라이스 칸)는 태그 경로만
+    if (S->nf == 0 || !S->viewable) return false;
+    // ★ RFC-0135 D13 — 그림자(할당기 바이트에 지은 구조체 — 슬라이스 칸은 (주소, 길이) 두 낱말)는 태그 경로만이었다.
+    //   ★★ 2026-11-01 (W-20261101-1828) — 원소가 수인 슬라이스 칸만 가진 그림자는 연다: 읽기는 이미 있었고(FIELD 의 slmeta 갈래 — 번역 때 지은
+    //   표), 쓰기(FSTORE)는 VM 처럼 그 두 낱말을 적는다. 스스로를 품는 칸(마디의 주소)은 그대로 태그 경로다.
+    if (S->is_shadow)
+        for (proven_size_t q = 0; q < S->nf; q++) {
+            const low_ir_sfield_t *f = &S->f[q];
+            if (f->bxself || f->bxs1) return false;
+            if (f->slmeta) {
+                const unsigned ez_ = (unsigned)(f->slmeta & 0xff);
+                if ((f->slmeta & (IR_STRUCT_BIT | IR_ROW_BIT)) || !ez_ || ez_ > 8) return false;
+                if ((f->slmeta & IR_FLT_BIT) && ez_ != 4 && ez_ != 8) return false;
+            } else if (f->boxed || f->arrn) return false;
+        }
     for (proven_size_t q = 0; q < S->nf; q++) {
         if (S->f[q].sidx >= 0) {                              // 중첩 구조체 필드 → 재귀로 뷰 가능해야
             if (!cbe_view_ok(ir, (int)S->f[q].sidx)) return false;
-        } else if (S->f[q].size > 8) return false;            // 스칼라 잎은 long long 에 담겨야
+        } else if (S->is_shadow && S->f[q].slmeta) continue;  // ★ 그림자의 슬라이스 칸 — (주소, 길이) 16 바이트(위에서 검증)
+        else if (S->f[q].arrn) { if (!cbe_f_arr(&S->f[q])) return false; continue; }   // ★ 2026-11-01 — 배열 칸: 그 바이트를 보는 슬라이스
+        else if (S->f[q].size > 8) return false;            // 스칼라 잎은 long long 에 담겨야
         // 부동 잎은 오프셋으로 읽어 lw_b2f 로 f64 로 본다(아래 FIELD 방출).
     }
     return true;
@@ -1598,31 +1613,29 @@ static bool cbe_arrpar_body_ok(const low_ir_t *ir, const low_ir_def_t *d, char *
 }
 
 // ★ 2026-11-01 — 이 op 이 `panic` 문장(lw_upanic — 슈퍼바이저가 잡는 그것)에 닿을 수 있나: 몸에 있거나 부르는 op 에 있거나(고정점).
-static bool cbe_may_upanic(const low_ir_t *ir, proven_size_t di) {
-    static bool mp[512]; static const low_ir_t *for_ir; static proven_size_t for_n;
-    if (for_ir != ir || for_n != ir->ndefs) {
-        for_ir = ir; for_n = ir->ndefs;
-        for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
-            mp[i] = false;
-            for (proven_size_t k = 0; k < ir->defs[i].ncode; k++) {
-                const low_ir_ins_t *in = &ir->defs[i].code[k];
-                if (in->w == IRW_PANIC && in->a != IR_PANIC_SINKFULL && in->a != IR_PANIC_ENUMCAST && in->a != IR_PANIC_NODEKIDS) { mp[i] = true; break; }
-            }
-        }
-        for (bool ch = true; ch; ) {
-            ch = false;
-            for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
-                if (mp[i]) continue;
-                for (proven_size_t k = 0; k < ir->defs[i].ncode; k++)
-                    if (ir->defs[i].code[k].w == IRW_CALL) {
-                        const proven_size_t c = IR_CALL_IDX(ir->defs[i].code[k].a);
-                        if (c < ir->ndefs && c < 512 && mp[c]) { mp[i] = true; ch = true; break; }
-                    }
-            }
+//   유닛마다 `cbe_mark_upanic` 이 다시 센다(`cbe_mark_pmut` 과 같은 자리 — 한 처리 안에서 다음 유닛이 앞 유닛의 표를 읽지 않게).
+static bool g_upanic[512];
+static void cbe_mark_upanic(const low_ir_t *ir) {
+    for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
+        g_upanic[i] = false;
+        for (proven_size_t k = 0; k < ir->defs[i].ncode; k++) {
+            const low_ir_ins_t *in = &ir->defs[i].code[k];
+            if (in->w == IRW_PANIC && in->a != IR_PANIC_SINKFULL && in->a != IR_PANIC_ENUMCAST && in->a != IR_PANIC_NODEKIDS) { g_upanic[i] = true; break; }
         }
     }
-    return di >= 512 || mp[di];
+    for (bool ch = true; ch; ) {
+        ch = false;
+        for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
+            if (g_upanic[i]) continue;
+            for (proven_size_t k = 0; k < ir->defs[i].ncode; k++)
+                if (ir->defs[i].code[k].w == IRW_CALL) {
+                    const proven_size_t c = IR_CALL_IDX(ir->defs[i].code[k].a);
+                    if (c < ir->ndefs && c < 512 && g_upanic[c]) { g_upanic[i] = true; ch = true; break; }
+                }
+        }
+    }
 }
+static bool cbe_may_upanic(const low_ir_t *ir, proven_size_t di) { (void)ir; return di >= 512 || g_upanic[di]; }
 
 static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
     // ★ 이유표는 **여기서** 비운다. 아래(종류 고정점)에서 비우면 **낱말 실패 이유가 지워진다**
@@ -2115,10 +2128,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   — 태그 경로는 그것을 **8칸짜리 버퍼 풀**에서 꺼냈다(다섯 번째 유한 풀).
                 if (st.n < 1) return false;
                 int sx = (int)(in->a & 0xffff);
-                if (!cbe_rec_ok_f(ir, sx, true) || !ir->structs[sx].viewable) return false;
+                if ((!cbe_rec_ok_f(ir, sx, true) && !cbe_rec_arr_ok(ir, sx)) || !ir->structs[sx].viewable) return false;   // ★ 배열 칸은 레코드 바이트 안에 있다(2026-11-01)
                 if (ir->structs[sx].total > 64) return false;
                 if (st.k[st.n-1] != (unsigned char)(K_REC + sx)) return false;
-                st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = 1; break;
+                st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             }
             case IRW_SPLAT: {
                 // splat: 스칼라 → 벡터(레인 수·폭은 meta 가 안다). 부동이면 입력도 f64.
@@ -2192,7 +2205,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     st.k[st.n-3] != K_INT || st.k[st.n-4] != K_SL) return false;
                 unsigned ln = (unsigned)st.vn[st.n-2], ez = (unsigned)st.ve[st.n-2];
                 if (!lw_v_ok(ln, ez)) return false;
-                if (st.ve[st.n-4] != (unsigned char)ez) return false;
+                const bool mbyte_ = st.ve[st.n-4] <= 1 && st.fl[st.n-4] == 0 && ez > 1;   // ★ 2026-11-01 — 바이트 슬라이스(VM: 한도 = 바이트 / 레인 폭)
+                if (st.ve[st.n-4] != (unsigned char)ez && !mbyte_) return false;
                 if (st.vn[st.n-1] != (unsigned char)ln) return false;
                 if (st.fl[st.n-2] || st.fl[st.n-4]) return false;
                 st.n -= 3; st.k[st.n-1] = K_INT; st.ve[st.n-1] = 0;
@@ -2354,10 +2368,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_MMIOBLK: st.o[st.n] = -1; st.ve[st.n] = 1; st.k[st.n++] = K_SL; break;
             case IRW_VIEW: {
                 // ★ 뷰는 **바이트 슬라이스 위**에 선다 ⇒ 이 def 의 슬라이스는 바이트여야 한다.
-                if (st.n < 1 || st.k[st.n-1] != K_SL || st.ve[st.n-1] != 1) return false;
+                if (st.n < 1 || st.k[st.n-1] != K_SL || st.ve[st.n-1] != 1) {
+                    snprintf(g_sub, sizeof g_sub, "a view over kind %u (element width %u) — views stand on bytes", st.n ? st.k[st.n-1] : 0, st.n ? st.ve[st.n-1] : 0); return false; }
                 int sx = (int)(in->a & 0xffff);
-                if (!cbe_view_ok(ir, sx)) return false;        // ★ 뷰는 8필드·중첩 제약이 없다
-                if (!ir->structs[sx].viewable) return false;
+                if (!cbe_view_ok(ir, sx) || !ir->structs[sx].viewable) {   // ★ 뷰는 8필드·중첩 제약이 없다
+                    snprintf(g_sub, sizeof g_sub, "a view of `%.*s`, which the fast path does not read as bytes%s", (int)ir->structs[sx].name.size,
+                             (const char *)ir->structs[sx].name.ptr, ir->structs[sx].is_shadow ? " (an allocator layout)" : ""); return false; }
                 st.k[st.n-1] = (unsigned char)(K_VIEW + sx); st.o[st.n-1] = -1; break;
             }
             case IRW_TRYVIEW: {
@@ -2577,6 +2593,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     {
                         const low_ir_sfield_t *F_ = &ir->structs[sx].f[sl];
                         if (F_->bxself) return false;
+                        if (F_->arrn) {   // ★ 2026-11-01 — 뷰의 배열 칸: 그 바이트를 보는 슬라이스(VM 의 vm_arr_view — 무복사)
+                            if (!cbe_f_arr(F_)) return false;
+                            st.k[st.n-1] = K_SL; st.ve[st.n-1] = F_->arresz; st.vn[st.n-1] = 0; st.fl[st.n-1] = cbe_arr_fl(F_); st.o[st.n-1] = -1;
+                            break;
+                        }
                         if (F_->slmeta) {
                             const unsigned ez_ = (unsigned)(F_->slmeta & 0xff);
                             if (!ir->structs[sx].is_shadow || (F_->slmeta & (IR_STRUCT_BIT | IR_ROW_BIT)) || !ez_ || ez_ > 8) return false;
@@ -2671,6 +2692,16 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (!ir->structs[sxw_].f[slw_].boxed || !ir->structs[sxw_].f[slw_].elem) return false;
                     // ★ 어느 **지역**인지 알아야 `rlocsl` 에 쓴다 — 이미터가 그 번호를 쓴다.
                     if (st.o[st.n-2] < 0) return false;
+                    st.n -= 2; break;
+                }
+                // ★ 2026-11-01 — 그림자 뷰의 슬라이스 칸에 슬라이스를 쓴다: (주소, 길이) 두 낱말(VM 과 같다 — 길이는 원소 수)
+                if (st.k[st.n-1] == K_SL && st.k[st.n-2] >= K_VIEW && st.k[st.n-2] < K_SVIEW) {
+                    const int vsx_ = st.k[st.n-2] - K_VIEW;
+                    const int vsl_ = cbe_view_slot(ir, vsx_, in->a);
+                    if (vsl_ >= 0 && cbe_f_arr(&ir->structs[vsx_].f[vsl_])) { st.n -= 2; break; }   // ★ 뷰의 배열 칸에 쓰기 — 제자리에 베낀다
+                    if (vsl_ < 0 || !ir->structs[vsx_].is_shadow || !ir->structs[vsx_].f[vsl_].slmeta) return false;
+                    const unsigned ez_ = (unsigned)(ir->structs[vsx_].f[vsl_].slmeta & 0xff);
+                    if ((st.ve[st.n-1] ? st.ve[st.n-1] : 1) != ez_) { snprintf(g_sub, sizeof g_sub, "a slice of element width %u into a slice field of width %u", st.ve[st.n-1], ez_); return false; }
                     st.n -= 2; break;
                 }
                 if (st.k[st.n-1] != K_INT) return false;
@@ -4178,15 +4209,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 int ln = (int)ks.vn[ks.n-2], ez = (int)ks.ve[ks.n-2];
                 if (ez <= 0) ez = 1;
                 const char *m = lw_vmem((unsigned)ez);
+                const bool mbyte_ = ks.ve[ks.n-4] <= 1 && ks.fl[ks.n-4] == 0 && ez > 1;   // ★ 2026-11-01 — 바이트 슬라이스(종류 실행과 같다)
                 fprintf(out, "    { long long m_ = st[--sp]; lw_v v_ = vs[--vsp];"
-                             " long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
+                             " long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];%s\n"
                              "      for (int k_ = 0; k_ < %d; k_++) {\n"
                              "        if (!((m_ >> k_) & 1)) continue;\n"
                              "        if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + (unsigned long long)k_ >= s_.n))"
                              " lw_panic(\"store_masked active lane out of bounds\");\n"
                              "        lw_st_le((unsigned char *)s_.p + ((size_t)i_ + (size_t)k_) * %d, %d,"
                              " (unsigned long long)v_.%s[k_]); }\n"
-                             "      st[sp++] = 0; }\n", ln, ez, ez, m);
+                             "      st[sp++] = 0; }\n", mbyte_ ? (ez == 2 ? " s_.n /= 2;" : ez == 4 ? " s_.n /= 4;" : " s_.n /= 8;") : "", ln, ez, ez, m);
                 ks.n -= 3; ks.k[ks.n-1] = K_INT; ks.ve[ks.n-1] = 0;
                 ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1;
                 break;
@@ -5101,6 +5133,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         ks.k[ks.n-1] = (unsigned char)(K_VIEW + isx); ks.o[ks.n-1] = -1;
                         break;
                     }
+                    if (S->f[sl].arrn) {   // ★ 2026-11-01 — 뷰의 배열 칸: 오프셋만 옮기고 길이를 원소 수로(종류 실행과 짝)
+                        fprintf(out, "    ss[ssp-1].p += %u; ss[ssp-1].n = %u;\n", (unsigned)S->f[sl].off, (unsigned)S->f[sl].arrn);
+                        ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = S->f[sl].arresz; ks.vn[ks.n-1] = 0; ks.fl[ks.n-1] = cbe_arr_fl(&S->f[sl]); ks.o[ks.n-1] = -1;
+                        break;
+                    }
                     if (S->is_shadow && S->f[sl].slmeta) {
                         // ★★ 그림자 배치의 슬라이스 칸 — (주소, 길이)를 그 자리에서 읽어 슬라이스 칸으로 바꾼다(종류 실행과 짝 · 2026-10-31).
                         //   주소 자리의 너비는 처리기의 것(low_ptr_slot)이고 주소는 그 앞머리에 든다 — VM · 재배치 상수와 같은 배치다.
@@ -5190,6 +5227,24 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         fprintf(out, "    rsl[%d * LW_RECF + %d] = rlocsl[%d][%d];\n",
                                 lq_, slw, lq_, slw);
                 }
+                ks.n -= 2;
+                break;
+            } else if (ks.k[ks.n-1] == K_SL && ks.k[ks.n-2] >= K_VIEW && ks.k[ks.n-2] < K_SVIEW) {
+                // ★ 2026-11-01 — 그림자 뷰의 슬라이스 칸: (주소, 길이)를 그 자리에 적는다(주소 자리는 low_ptr_slot · 길이는 그 뒤 8 바이트 — VM 의 배치)
+                const int vsx_ = ks.k[ks.n-2] - K_VIEW;
+                const int vsl_ = cbe_view_slot(ir, vsx_, in->a);
+                if (ir->structs[vsx_].f[vsl_].arrn) {   // ★ 뷰의 배열 칸에 쓰기 — 길이가 같아야 하고 제자리에 베낀다(VM 의 vm_arr_copy)
+                    const low_ir_sfield_t *FA = &ir->structs[vsx_].f[vsl_];
+                    const unsigned need_ = (unsigned)FA->arrn * (unsigned)FA->arresz, ve_ = ks.ve[ks.n-1] ? ks.ve[ks.n-1] : 1u;
+                    fprintf(out, "    { lw_sl v_ = ss[--ssp]; unsigned char *q_ = (unsigned char *)ss[--ssp].p + %u;\n"
+                                 "      if (LW_UNLIKELY(v_.n * %uu != %uu)) lw_panic(\"an array field takes exactly its length of elements\"); memmove(q_, v_.p, %u); }\n",
+                            (unsigned)FA->off, ve_, need_, need_);
+                    ks.n -= 2;
+                    break;
+                }
+                fprintf(out, "    { lw_sl v_ = ss[--ssp]; unsigned char *q_ = (unsigned char *)ss[--ssp].p + %u; unsigned long long n_ = (unsigned long long)v_.n;\n"
+                             "      memcpy(q_, &v_.p, sizeof v_.p); memcpy(q_ + %u, &n_, 8); }\n",
+                        (unsigned)ir->structs[vsx_].f[vsl_].off, low_ptr_slot());
                 ks.n -= 2;
                 break;
             } else if (ks.k[ks.n-2] >= K_VIEW) {
@@ -6125,7 +6180,7 @@ void low_cbe_plan(const low_ir_t *ir) {
     }
     cbe_mark_pure(ir, pure_tab);
     // ★★★ **변형(pmut) 전이 폐포를 먼저** — 종류 시뮬레이터의 자격 판정이 cbe_pmut 을 읽는다.
-    cbe_mark_pmut(ir);
+    cbe_mark_pmut(ir); cbe_mark_upanic(ir);
     cbe_mark_aref(ir);             // ★ 2026-11-01 — 액터를 가리키는 칸(담기 · 칸을 거친 말 · 풀어 든 사본) — 자격 판정이 읽는다
     cbe_mark_scalar(ir, sc_tab);   // ★ g_retk(반환 종류)도 여기서 채워진다
     cbe_mark_vbytes(ir);           // ★ 이 유닛이 실제로 쓰는 최대 벡터 폭 — 칸 크기를 정한다

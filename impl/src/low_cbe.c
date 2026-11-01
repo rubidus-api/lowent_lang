@@ -830,7 +830,25 @@ static int cbe_aref_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) {
 //   쪽 레코드를 새로 짓는다(VM 의 베끼기와 같다). 안의 구조체는 수 칸만 가진 것만(그 모양을 지을 `make` 가 이 유닛에 있어야 한다).
 static int cbe_make_for_struct(const low_ir_t *ir, int sidx);
 static bool cbe_rec_ok(const low_ir_t *ir, int sidx);
-static int cbe_obox_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) {
+static int cbe_obox_sidx1(const low_ir_t *ir, const low_ir_sfield_t *f, bool deep);
+// ★★ 2026-11-02 (W-20261102-0024 O4) — **소유 칸 안의 소유 칸**(`pagecache.pin2` 의 `under owned (pin b)` — pin 이 다시 `held owned (cache b)` 를
+//   가진다). 안쪽 구조체가 수 칸과 «수 칸만 가진 구조체의 소유 칸» 으로만 되어 있으면 연다(한 겹 더 — 되부름은 없다). 안쪽 레코드의 소유 칸은
+//   평행 칸(태그 쪽 레코드의 자리)으로 함께 나른다: 읽으면 그 자리를 풀어 두고(`cbe_emit_rec_unpack` · 평행 칸 있음), `make` 는 그 자리를 넘긴다.
+static bool cbe_obox_inner2_ok(const low_ir_t *ir, int sidx) {
+    if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
+    const low_ir_struct_t *S = &ir->structs[sidx];
+    if (S->nf == 0 || S->nf > K_REC_MAX || S->total > K_REC_BYTES || S->is_shadow || S->is_mmio || S->is_actor_state) return false;
+    if (low_ir_struct_has_enumlayout(ir, (proven_size_t)sidx)) return false;
+    bool any = false;
+    for (proven_size_t q = 0; q < S->nf; q++) {
+        const low_ir_sfield_t *f = &S->f[q];
+        if (cbe_obox_sidx1(ir, f, false) >= 0) { any = true; continue; }
+        if (f->boxed || f->arrn || f->slmeta || f->sidx >= 0 || f->flt || f->bxself || !f->size || f->size > 8) return false;
+    }
+    return any;
+}
+static int cbe_obox_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) { return cbe_obox_sidx1(ir, f, true); }
+static int cbe_obox_sidx1(const low_ir_t *ir, const low_ir_sfield_t *f, bool deep) {
     if (!f->boxed || !f->owned || f->elem || f->arrn || f->slmeta || f->bxself || f->flt) return -1;
     const proven_u8str_view_t t = f->cname.size ? f->cname : f->tyname;
     if (!t.size) return -1;
@@ -839,7 +857,7 @@ static int cbe_obox_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) {
         const low_ir_struct_t *T = &ir->structs[i];
         if (T->is_actor_state || T->is_mmio || T->is_shadow) continue;
         if (!proven_u8str_view_eq(T->name, t) && !proven_u8str_view_eq(low_view_after_last(T->name, '.'), tb)) continue;
-        if (!cbe_rec_ok(ir, (int)i)) return -1;
+        if (!cbe_rec_ok(ir, (int)i) && !(deep && cbe_obox_inner2_ok(ir, (int)i))) return -1;
         return (int)i;   // ★ 그 구조체를 **짓는** 자리(`make`)는 태그 쪽 레코드의 칸 이름표가 있어야 한다 — 그 검사는 make 가 한다
     }
     return -1;
@@ -5126,7 +5144,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         for (proven_size_t z2 = 0; z2 < ir->makes[omk_].nfields && z2 < IR_MAKE_MAXF; z2++) {
                             const int s2 = cbe_slot_by_name(ir, ob_, ir->makes[omk_].fields[z2]);
                             const low_ir_sfield_t *G = &T_->f[s2];
-                            if (low_sfield_sgn(G) && G->size < 8)
+                            if (cbe_obox_sidx1(ir, G, false) >= 0)   // ★ 2026-11-02 — 안쪽의 소유 칸: 그 레코드의 평행 칸에 든 자리를 넘긴다
+                                fprintf(out, "        ov_[%zu] = lw_aref_out(rssl[rsp][%d]);\n", (size_t)z2, s2);
+                            else if (low_sfield_sgn(G) && G->size < 8)
                                 fprintf(out, "        ov_[%zu] = lw_int((long long)(lw_ld_f(rs[rsp] + %u, %d, %d) << %d) >> %d);\n",
                                         (size_t)z2, (unsigned)G->off, (int)G->size, G->be ? 1 : 0, 64 - 8 * (int)G->size, 64 - 8 * (int)G->size);
                             else
@@ -5182,7 +5202,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         else fprintf(out, "    rsp--; { lowv ob_ = lw_aref_out(rssl[rsp][%d]);\n", sl0);
                         fputs("      if (LW_UNLIKELY(ob_.tag != LWV_REC)) lw_panic(\"field needs a record\");\n"
                               "      rs[rsp] = rsb[rsp]; memset(rs[rsp], 0, LW_RECB);\n", out);
-                        cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl", 0, false);
+                        if (cbe_obox_inner2_ok(ir, ob0)) cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl[rsp]", 0, true);   // ★ 안쪽의 소유 칸 자리도(2026-11-02)
+                        else cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl", 0, false);
                         fputs("      rsp++; }\n", out);
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = (unsigned char)(K_REC + ob0); ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
                         ks.n++;

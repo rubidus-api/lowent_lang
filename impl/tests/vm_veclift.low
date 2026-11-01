@@ -1,0 +1,80 @@
+rem ★★★ **벡터의 `neg` · `abs` · `min` · `max` 는 레인마다다** (2026-11-02 · W-20261102-0024 · RFC-0040 D2 «산술 lift» · D8 «넘침은 감는다»).
+rem   v1.25.0 까지 검사는 이 글을 받았는데, VM 의 `neg` 는 **벡터를 그대로 돌려줬고**(조용히 틀린 답) 네이티브는 «ints» 로 멈췄다.
+rem   `abs` · `min` · `max` 는 세 처리기가 모두 엉뚱한 말(«sqrt is float-only» · «min/max need two numbers»)로 멈췄다.
+rem   이제 레인마다 셈한다: 부호 있는 레인은 부호로 견주고, `neg` · `abs` 의 MIN 은 MIN 으로 감고, 부호 없는 레인의 `neg` 는 0 - x 다.
+rem   아래 `maskkept` 는 빠른 경로의 결함 증인이다 — 가림막을 지역에 담고 벡터를 `store` 한 뒤 `lane_all` 을 물으면, 빠른 경로가
+rem   가림막의 레인 수를 그 칸의 옛 값(0)으로 읽어 모두 꺼진 가림막을 «모두 켜짐» 으로 답했다(VM 0 · 네이티브 2 · v1.25.0 까지).
+rem   차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다 — 결과를 인자에 되쓰므로 레인 하나하나가 보인다.
+
+module vm_veclift .
+
+export proc sneg input b mut slice u8 . output i64 . effects none . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs mut slice i16 view_array i16 subslice b. 0 16 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let w vec 4 i16 load xs. 4 . .
+  store xs. 0 neg v. . .
+  return widen i64 reduce_min w. . . .
+end .
+
+export proc sabs input b mut slice u8 . output i64 . effects none . do
+  guard ge len b. . 8 . else return 99 . .
+  let xs mut slice i16 view_array i16 subslice b. 0 8 . . .
+  let v vec 4 i16 load xs. 0 . .
+  store xs. 0 abs v. . .
+  return widen i64 reduce_min v. . . .
+end .
+
+export proc uneg input b mut slice u8 . output u64 . effects none . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs mut slice u32 view_array u32 subslice b. 0 16 . . .
+  let v vec 4 u32 load xs. 0 . .
+  store xs. 0 neg v. . .
+  return widen u64 reduce_max v. . . .
+end .
+
+export proc fneg input b mut slice u8 . output f64 . effects none . do
+  guard ge len b. . 16 . else return 99.0 . .
+  let xs mut slice f32 view_array f32 subslice b. 0 16 . . .
+  let v vec 4 f32 load xs. 0 . .
+  let a vec 4 f32 abs v. . .
+  store xs. 0 neg v. . .
+  return reduce_max a. . .
+end .
+
+export proc minmax input b mut slice u8 . output u64 . effects none . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs mut slice i8 view_array i8 subslice b. 0 8 . . .
+  let ys mut slice u8 subslice b. 8 16 . .
+  let v vec 8 i8 load xs. 0 . .
+  let w vec 8 i8 lane_reverse v. . .
+  let p vec 8 u8 load ys. 0 . .
+  let q vec 8 u8 lane_reverse p. . .
+  store xs. 0 min v. w. . .
+  store ys. 0 max p. q. . .
+  return widen u64 reduce_max p. . . .
+end .
+
+export proc fminmax input b mut slice u8 . output f64 . effects none . do
+  guard ge len b. . 32 . else return 99.0 . .
+  let xs mut slice f64 view_array f64 subslice b. 0 32 . . .
+  let v vec 2 f64 load xs. 0 . .
+  let w vec 2 f64 load xs. 2 . .
+  store xs. 0 min v. w. . .
+  store xs. 2 max v. w. . .
+  return reduce_add v. . .
+end .
+
+export proc maskkept input b mut slice u8 . output u64 . effects none . do
+  guard ge len b. . 32 . else return 99 . .
+  let xs mut slice u32 view_array u32 subslice b. 0 16 . . .
+  let ys slice u32 view_array u32 subslice b. 16 32 . . .
+  let v vec 4 u32 load xs. 0 . .
+  let u vec 4 u32 load ys. 0 . .
+  let m mask 4 lt v. u. . .
+  store xs. 0 u. .
+  var c u64 0 .
+  if lane_any m. . do set c. 1 . end .
+  if lane_all m. . do set c. add c. 2 . . end .
+  return c. .
+end .

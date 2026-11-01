@@ -497,6 +497,12 @@ static void vm_vec_ret(vm_ctx_t *vm, proven_size_t base, vmv_t *rv) {
 }
 
 // RFC-0052 S3 — 선언 폭의 표현 범위. NumericLattice.v 의 lo/hi 와 같은 정의.
+// ★★ 2026-11-02 (W-20261102-0024) — 벡터의 한 자리 낱말을 레인마다(RFC-0040 D2 «산술 lift» · D8 «벡터의 넘침은 감는다»).
+//   op: 'n' neg · 's' sqrt · 'a' abs · 'f' floor · 'c' ceil. 정수 레인의 abs(MIN) 은 MIN 으로 감고, floor · ceil 은 그대로,
+//   sqrt 는 스칼라처럼 부동 전용이다. 부호 없는 레인의 neg 는 0 - x 로 감는다(벡터 `sub` 와 같다).
+static bool vm_vec_un(vm_ctx_t *vm, vmv_t *v, char op);
+static bool vm_vec_binm(vm_ctx_t *vm, vmv_t av, vmv_t bv, int sel, vmv_t *out);
+
 proven_i64 ity_lo(proven_u8 bits, bool sign) {
     if (!sign) return 0;
     return bits >= 64 ? INT64_MIN : -((proven_i64)1 << (bits - 1));
@@ -1537,6 +1543,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             }
                             else if (sp && stack[sp - 1].tag == VMV_FLT)
                                 stack[sp - 1] = vmv_flt(-vmv_f(stack[sp - 1]));
+                            else if (sp && stack[sp - 1].tag == VMV_VEC) {
+                                // ★★★ 2026-11-02 (W-20261102-0024) — 벡터의 `neg` 는 레인마다다(RFC-0040 D2 · 넘침은 감는다 D8).
+                                //   전에는 이 갈래가 없어 **벡터를 그대로 돌려줬다**(조용히 틀린 답 — 네이티브는 «ints» 로 멈췄다).
+                                if (!vm_vec_un(vm, &stack[sp - 1], 'n')) return false;
+                            }
+                            else if (sp) { vm_diag(vm->diags, "E-VM-TYPE", "neg needs a number"); return false; }
                             break;
             case IRW_FCONST:
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
@@ -2178,6 +2190,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vmv_t v = stack[--sp];
                 // ★ 선택자는 **하위 4비트**다 — abs 는 상위 비트에 선언 폭을 싣는다(위 meta 주석 참조).
                 const int sel = (int)(in->a & 0xf);
+                if (v.tag == VMV_VEC && sel <= 3) {   // ★ 2026-11-02 — 레인마다(RFC-0040 D2): sqrt · abs · floor · ceil
+                    stack[sp++] = v;
+                    if (!vm_vec_un(vm, &stack[sp - 1], "safc"[sel])) return false;
+                    break;
+                }
                 if (sel == 5 || sel == 6) {   // RFC-0053 E5: sum(보정) / sum_fast(축차)
                     if (v.tag != VMV_VARRAY) {
                         vm_diag(vm->diags, "E-VM-TYPE", "sum needs a typed array (view_array)");
@@ -2254,6 +2271,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (sp < 2) return false;
                 vmv_t bv = stack[--sp], av = stack[--sp];
                 const proven_i64 bsel = in->a & 0xff;   // 갈래 — 위 비트는 IR_BINM_UNS (RFC-0151 §8-9)
+                if (av.tag == VMV_VEC && bv.tag == VMV_VEC) {   // ★ 2026-11-02 — 레인마다(RFC-0040 D2): fmod · min · max · pow
+                    if (!vm_vec_binm(vm, av, bv, (int)bsel, &stack[sp])) return false;
+                    sp++;
+                    break;
+                }
                 if (av.tag == VMV_INT && bv.tag == VMV_INT && bsel != 0) {
                     const bool lt_ = (in->a & IR_BINM_UNS) ? (proven_u64)av.i < (proven_u64)bv.i : av.i < bv.i;
                     stack[sp++] = vmv_int(bsel == 1 ? (lt_ ? av.i : bv.i) : (lt_ ? bv.i : av.i));
@@ -4727,6 +4749,34 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         stack[sp++] = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
                         break;
                     }
+                    if (in->w == IRW_DIV || in->w == IRW_MOD) {
+                        // ★★ **정수 레인의 `div` · `mod` 는 레인마다 그 낱말이다**(소유자 결정 2026-11-02 · W-20261102-0024 ⓐ ·
+                        //   RFC-0040 D2 «산술 lift» · D8 «벡터의 넘침은 감는다»): 0 인 레인은 스칼라처럼 멈추고(`E-VM-DIV0`),
+                        //   넘침은 감는다 — 부호 있는 레인의 MIN / -1 은 MIN, MIN mod -1 은 0. `div` 의 몫은 0 쪽으로 자르고,
+                        //   `mod` 는 나누는 수의 부호를 따른다(스칼라 `mod` 와 같다 · RFC-0052 D7).
+                        //   전에는 이 갈래가 없어 «unsupported vector operation» 으로 멈췄고, 태그 경로의 네이티브는 셈했다.
+                        if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool (docs/runtime-pools.md)"); return false; }
+                        const bool dsg = vm->vecs[av.box].sign;
+                        for (proven_u8 k = 0; k < n; k++) {
+                            proven_u64 x = vm->vecs[av.box].l[k] & emask, y = vm->vecs[bv.box].l[k] & emask;
+                            if (!y) { vm_diag(vm->diags, "E-VM-DIV0", in->w == IRW_DIV ? "divide by zero" : "modulo by zero"); return false; }
+                            proven_u64 r2;
+                            if (dsg) {
+                                proven_i64 sx = ity_wrap((proven_i64)x, (proven_u8)(esz * 8), true);
+                                proven_i64 sy = ity_wrap((proven_i64)y, (proven_u8)(esz * 8), true);
+                                if (sy == -1) r2 = in->w == IRW_DIV ? (proven_u64)0 - (proven_u64)sx : 0;   // 감는다(MIN / -1 = MIN)
+                                else if (in->w == IRW_DIV) r2 = (proven_u64)(sx / sy);
+                                else { proven_i64 m = sx % sy; if (m && ((m < 0) != (sy < 0))) m += sy; r2 = (proven_u64)m; }
+                            } else r2 = in->w == IRW_DIV ? x / y : x % y;
+                            vm->vecs[vm->nvec].l[k] = r2 & emask;
+                        }
+                        vm->vecs[vm->nvec].n = n;
+                        vm->vecs[vm->nvec].esz = esz;
+                        vm->vecs[vm->nvec].flt = false;
+                        vm->vecs[vm->nvec].sign = dsg;
+                        stack[sp++] = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
+                        break;
+                    }
                     if (in->w == IRW_EQ || in->w == IRW_NE || in->w == IRW_LT ||
                         in->w == IRW_LE || in->w == IRW_GT || in->w == IRW_GE) {
                         proven_u64 bits = 0;
@@ -5542,4 +5592,54 @@ low_ir_run_result_t low_ir_run_written(const low_ir_t *ir, proven_u8str_view_t o
         }
     }
     return low_ir_run_argv(ir, op, a, nargs, work, diags, NULL, 0);
+}
+
+// ★★ 2026-11-02 (W-20261102-0024) — 위 선언의 몸. 새 벡터는 풀의 다음 칸에 짓는다(벡터 `add` 와 같다).
+static bool vm_vec_un(vm_ctx_t *vm, vmv_t *v, char op) {
+    if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool (docs/runtime-pools.md)"); return false; }
+    const proven_u8 n = vm->vecs[v->box].n, esz = vm->vecs[v->box].esz;
+    const bool flt = vm->vecs[v->box].flt, sg = vm->vecs[v->box].sign;
+    const proven_u64 emask = esz >= 8 ? ~0ull : ((1ull << (8 * esz)) - 1);
+    if (!flt && op == 's') { vm_diag(vm->diags, "E-VM-TYPE", "sqrt is float-only: convert explicitly (float_of / round_to)"); return false; }
+    for (proven_u8 k = 0; k < n; k++) {
+        proven_u64 x = vm->vecs[v->box].l[k], r;
+        if (flt) {
+            double d = ir_bits_to_f(x, esz);
+            d = op == 'n' ? -d : op == 's' ? sqrt(d) : op == 'a' ? fabs(d) : op == 'f' ? floor(d) : ceil(d);
+            r = ir_f_to_bits(d, esz);
+        } else if (op == 'n') r = (0 - x) & emask;
+        else if (op == 'a') r = (sg && ity_wrap((proven_i64)(x & emask), (proven_u8)(esz * 8), true) < 0) ? (0 - x) & emask : x & emask;
+        else r = x & emask;
+        vm->vecs[vm->nvec].l[k] = r;
+    }
+    vm->vecs[vm->nvec].n = n; vm->vecs[vm->nvec].esz = esz;
+    vm->vecs[vm->nvec].flt = flt; vm->vecs[vm->nvec].sign = sg;
+    *v = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
+    return true;
+}
+
+static bool vm_vec_binm(vm_ctx_t *vm, vmv_t av, vmv_t bv, int sel, vmv_t *out) {
+    const proven_u8 n = vm->vecs[av.box].n, esz = vm->vecs[av.box].esz;
+    const bool flt = vm->vecs[av.box].flt, sg = vm->vecs[av.box].sign;
+    if (vm->vecs[bv.box].n != n) { vm_diag(vm->diags, "E-VM-TYPE", "vector lane counts differ"); return false; }
+    if (vm->vecs[bv.box].flt != flt) { vm_diag(vm->diags, "E-VM-TYPE", "vector lane kinds differ"); return false; }
+    if (!flt && (sel == 0 || sel == 3)) { vm_diag(vm->diags, "E-VM-TYPE", "fmod is float-only (use rem/mod for integers)"); return false; }
+    if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool (docs/runtime-pools.md)"); return false; }
+    const proven_u64 emask = esz >= 8 ? ~0ull : ((1ull << (8 * esz)) - 1);
+    for (proven_u8 k = 0; k < n; k++) {
+        proven_u64 x = vm->vecs[av.box].l[k] & emask, y = vm->vecs[bv.box].l[k] & emask, r;
+        if (flt) {
+            double a = ir_bits_to_f(x, esz), b = ir_bits_to_f(y, esz);
+            double d = sel == 0 ? fmod(a, b) : sel == 1 ? (a < b ? a : b) : sel == 2 ? (a > b ? a : b) : pow(a, b);
+            r = ir_f_to_bits(d, esz);
+        } else {
+            bool lt_ = sg ? ity_wrap((proven_i64)x, (proven_u8)(esz * 8), true) < ity_wrap((proven_i64)y, (proven_u8)(esz * 8), true) : x < y;
+            r = sel == 1 ? (lt_ ? x : y) : (lt_ ? y : x);
+        }
+        vm->vecs[vm->nvec].l[k] = r;
+    }
+    vm->vecs[vm->nvec].n = n; vm->vecs[vm->nvec].esz = esz;
+    vm->vecs[vm->nvec].flt = flt; vm->vecs[vm->nvec].sign = sg;
+    *out = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
+    return true;
 }

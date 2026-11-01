@@ -1,0 +1,95 @@
+rem ★★ **정수 레인 벡터의 `div` · `mod` 는 레인마다 그 낱말이다** (2026-11-02 · W-20261102-0024 · 소유자 결정 ⓐ ·
+rem   RFC-0040 D2 «산술 lift» · D8 «벡터의 넘침은 감는다»). 0 인 레인은 스칼라처럼 멈추고(`divide by zero` · `modulo by zero`),
+rem   넘침은 감는다 — 부호 있는 레인의 MIN / -1 은 MIN, MIN mod -1 은 0. `div` 는 0 쪽으로 자르고 `mod` 는 나누는 수의 부호를 따른다.
+rem   v1.25.0 까지는 검사가 받은 이 글을 VM 이 «unsupported vector operation» 으로 멈췄고, 태그 경로의 네이티브는 부호 있는 레인도
+rem   무부호로 나눴다. 차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다 — 0 인 레인 · MIN / -1 은 그 인자에서 나온다.
+
+module vm_vecdiv .
+
+export fn ud input b slice u8 . output u64 . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs slice u32 view_array u32 subslice b. 0 16 . . .
+  let v vec 4 u32 load xs. 0 . .
+  let w vec 4 u32 splat 2 . .
+  return widen u64 reduce_add div v. w. . . . .
+end .
+
+export fn uz input b slice u8 . output u64 . do
+  guard ge len b. . 8 . else return 99 . .
+  let xs slice u8 subslice b. 0 8 . .
+  let v vec 8 u8 load xs. 0 . .
+  let w vec 8 u8 splat 3 . .
+  return widen u64 reduce_add div w. v. . . . .
+end .
+
+export fn sd input b slice u8 . output i64 . do
+  guard ge len b. . 8 . else return 99 . .
+  let xs slice i16 view_array i16 subslice b. 0 8 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let w vec 4 i16 splat -3 . .
+  return widen i64 reduce_add div v. w. . . . .
+end .
+
+export fn sm input b slice u8 . output i64 . do
+  guard ge len b. . 8 . else return 99 . .
+  let xs slice i16 view_array i16 subslice b. 0 8 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let w vec 4 i16 splat -1 . .
+  return widen i64 reduce_add div v. w. . . . .
+end .
+
+export fn s64 input b slice u8 . output i64 . do
+  guard ge len b. . 32 . else return 99 . .
+  let xs slice i64 view_array i64 subslice b. 0 32 . . .
+  let v vec 4 i64 load xs. 0 . .
+  let w vec 4 i64 splat 7 . .
+  return reduce_add div v. w. . . .
+end .
+
+fn q4 input v vec 4 i16 . input w vec 4 i16 . output i64 . do
+  return widen i64 reduce_add div v. w. . . . .
+end .
+
+export fn viatag input b slice u8 . output i64 . do
+  guard ge len b. . 16 . else return 99 . .
+  let big u128 widen u128 7 . .
+  let xs slice i16 view_array i16 subslice b. 0 16 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let w vec 4 i16 load xs. 4 . .
+  return add div_vec_tag v. w. . cast i64 big. . . .
+end .
+
+fn div_vec_tag input v vec 4 i16 . input w vec 4 i16 . output i64 . do
+  let big u128 widen u128 0 . .
+  return add widen i64 reduce_add div v. w. . . . cast i64 big. . . .
+end .
+
+export fn fastcall input b slice u8 . output i64 . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs slice i16 view_array i16 subslice b. 0 16 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let w vec 4 i16 load xs. 4 . .
+  return q4 v. w. . .
+end .
+
+export fn umod input b slice u8 . output u64 . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs slice u8 subslice b. 0 8 . .
+  let ys slice u8 subslice b. 8 16 . .
+  let v vec 8 u8 load xs. 0 . .
+  let w vec 8 u8 load ys. 0 . .
+  return widen u64 reduce_add mod v. w. . . . .
+end .
+
+rem 결과를 인자에 되쓴다 — 스윕이 쓴 바이트도 견주므로 레인 하나하나가 보인다
+export proc smod input b mut slice u8 . output i64 . effects none . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs mut slice i16 view_array i16 subslice b. 0 16 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let w vec 4 i16 load xs. 4 . .
+  let r vec 4 i16 mod v. w. . .
+  let q vec 4 i16 div v. w. . .
+  store xs. 0 r. .
+  store xs. 4 q. .
+  return widen i64 reduce_min r. . . .
+end .

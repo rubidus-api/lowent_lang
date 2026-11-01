@@ -5,8 +5,8 @@ rem   · 부동 벡터의 `lt` … 가 비트를 무부호로 견줬다(−1.0 <
 rem   · 부동 벡터의 `div` 가 정수 나눗셈으로 떨어졌다(«divide by zero»)
 rem   · `vec 4 i16` 매개변수를 태그 경로에서 부르면 무부호로 접어 −3 + 1 + 2 + 3 이 «넘침»으로 멈췄다(VM 3)
 rem   · 벡터 `select` 의 결과가 마스크 자리의 표식(0)을 물려받았다
-rem   부호 있는 레인의 `splat` · `load` 도 이제 빠른 경로다(축약 · 비교가 부호를 늘려 셈한다). 정수 레인의 `div` 는 VM 이 정의하지
-rem   않으므로(«unsupported vector operation») 태그 경로에 둔다. 차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다.
+rem   부호 있는 레인의 `splat` · `load` 도 이제 빠른 경로다(축약 · 비교가 부호를 늘려 셈한다). 정수 레인의 `div` 는 `vm_vecdiv.low`
+rem   (2026-11-02). 차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다.
 
 module vm_vecsign .
 

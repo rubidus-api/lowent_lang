@@ -2771,8 +2771,6 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n >= 2 && st.k[st.n-1] == K_VEC && st.k[st.n-2] == K_VEC) {
                     if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2]) return false;
                     if (st.fl[st.n-1] != st.fl[st.n-2]) return false;   // 부동성도 같아야
-                    // ★ 2026-11-01 — 정수 레인의 `div` 는 VM 이 안 한다(«unsupported vector operation») — 태그 경로에 둔다. 부동 레인의 `div` 는 방출이 한다.
-                    if (in->w == IRW_DIV && st.fl[st.n-1] != CBE_FL_FLT) { snprintf(g_sub, sizeof g_sub, "`div` of integer vectors (the VM does not define it)"); return false; }
                     st.n--; st.o[st.n-1] = -1; break;   // 레인별 연산 — 벡터가 남는다(부동성 유지)
                 }
                 // ★ `add <bitset> <k>` 는 **비트를 세운다** — 그 비트셋의 **출신 지역**에 쓴다.
@@ -3902,6 +3900,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
         switch (in->w) {
             case IRW_CONST: fprintf(out, "    st[sp++] = %lldll;\n", (long long)in->a); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; break;
             case IRW_LOAD:
+                // ★★ 2026-11-02 (W-20261102-0024) — 종류 실행처럼 **모든** 갈래가 지역의 표식을 먼저 읽는다(갈래가 고쳐 쓸 수는 있다).
+                //   정수 · 가림막 갈래가 이것을 안 해서 가림막의 레인 수가 그 칸의 옛 값이었다(`store` 뒤 `lane_all` 이 늘 참).
+                ks.ve[ks.n] = lez[in->a]; ks.vn[ks.n] = lln[in->a]; ks.fl[ks.n] = lfl[in->a];
                 if (lk[in->a] == K_SL || lk[in->a] == K_ROWS || lk[in->a] == K_AREF || lk[in->a] >= K_VIEW) {
                     fprintf(out, "    ss[ssp++] = sloc[%lld];\n", (long long)in->a);
                     ks.o[ks.n] = (signed char)in->a; ks.k[ks.n] = lk[in->a];
@@ -4952,6 +4953,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                      "        double r_ = lw_b2f(vs[vsp-1].%s[k_], %d) %s lw_b2f(vs[vsp].%s[k_], %d);\n"
                                      "        vs[vsp-1].%s[k_] = lw_f2b(r_, %d); } }\n",
                                 ln, fm, ez, o2, fm, ez, fm, ez);
+                        ks.n--; ks.o[ks.n-1] = -1;
+                        break;
+                    }
+                    if (in->w == IRW_DIV) {   // ★ 2026-11-02 (W-20261102-0024 ⓐ) — 정수 레인의 `div` 는 레인마다 스칼라 `div`(0 · MIN / -1 은 멈춘다 · VM 과 같다)
+                        fprintf(out, "    { vsp--; for (int k_ = 0; k_ < %d; k_++)\n"
+                                     "        vs[vsp-1].%s[k_] = lw_vdiv1(vs[vsp-1].%s[k_], vs[vsp].%s[k_], %d, %d); }\n",
+                                ln, lw_vmem((unsigned)ez), lw_vmem((unsigned)ez), lw_vmem((unsigned)ez), ez, ks.fl[ks.n-1] == CBE_FL_SGN);
                         ks.n--; ks.o[ks.n-1] = -1;
                         break;
                     }

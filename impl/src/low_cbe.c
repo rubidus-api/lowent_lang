@@ -397,6 +397,12 @@ void low_cbe_set_no_elemsl(bool v) { g_no_elemsl = v; }
 static int cbe_ebits_w(proven_u8 eb) {
     return (eb == 8 || eb == 108) ? 1 : (eb == 16 || eb == 116) ? 2 : (eb == 32 || eb == 132) ? 4 : (eb == 64 || eb == 164) ? 8 : 0;
 }
+// ★ 2026-11-01 (W-20261101-1150) — 슬라이스 **매개변수**의 원소 폭(정수 · 부동 둘 다). 부동 원소는 ebits 가 255 라 폭을 param_esz 에서 읽는다.
+//   종류 실행 · 방출 · 경계 어댑터 · 부르는 자리가 모두 이 하나를 본다(두 반쪽이 다른 폭을 보면 곧 갈린다).
+static int cbe_pslice_w(const low_ir_def_t *d, proven_size_t q) {
+    if ((d->param_sflt >> q) & 1u) return (d->param_esz[q] == 4 || d->param_esz[q] == 8) ? (int)d->param_esz[q] : 0;
+    return cbe_ebits_w(d->param_ebits[q]);
+}
 // ★ 슬롯의 `fl` 값 — 0 = 무부호 정수 원소 · 1 = 부동 원소 · 2 = 부호 있는 정수 원소(8 바이트 미만, 읽을 때 부호를 늘린다).
 #define CBE_FL_FLT 1
 #define CBE_FL_SGN 2
@@ -808,6 +814,26 @@ static int cbe_aref_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) {
     }
     return -1;
 }
+// ★★ 2026-11-01 (W-20261101-1150) — **소유한 값 구조체 칸**(`a owned h .` — `net.pair` 의 두 끝). VM 은 이 칸에 그 구조체의 박스를 두고
+//   `make` 때 베낀다(값이다) — 그 뒤로는 옮길 뿐이다(소유 검사가 옮긴 칸을 다시 못 읽게 한다). 빠른 레코드도 액터 칸처럼 평행 칸에 태그 쪽
+//   레코드의 자리를 담는다: 읽으면 그 레코드를 빠른 레코드로 **베껴** 내고(옮겨 내는 것이라 되쓸 것이 없다), `make` 는 빠른 레코드로 태그
+//   쪽 레코드를 새로 짓는다(VM 의 베끼기와 같다). 안의 구조체는 수 칸만 가진 것만(그 모양을 지을 `make` 가 이 유닛에 있어야 한다).
+static int cbe_make_for_struct(const low_ir_t *ir, int sidx);
+static bool cbe_rec_ok(const low_ir_t *ir, int sidx);
+static int cbe_obox_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) {
+    if (!f->boxed || !f->owned || f->elem || f->arrn || f->slmeta || f->bxself || f->flt) return -1;
+    const proven_u8str_view_t t = f->cname.size ? f->cname : f->tyname;
+    if (!t.size) return -1;
+    const proven_u8str_view_t tb = low_view_after_last(t, '.');
+    for (proven_size_t i = 0; i < ir->nstructs; i++) {
+        const low_ir_struct_t *T = &ir->structs[i];
+        if (T->is_actor_state || T->is_mmio || T->is_shadow) continue;
+        if (!proven_u8str_view_eq(T->name, t) && !proven_u8str_view_eq(low_view_after_last(T->name, '.'), tb)) continue;
+        if (!cbe_rec_ok(ir, (int)i)) return -1;
+        return (int)i;   // ★ 그 구조체를 **짓는** 자리(`make`)는 태그 쪽 레코드의 칸 이름표가 있어야 한다 — 그 검사는 make 가 한다
+    }
+    return -1;
+}
 // ★ 2026-11-01 — 두 구조체가 **같은 모양**인가(완전적용 별칭 `gvec` = `vecgen.vec u8 allocs.bump_bytes` 는 칸까지 같은 다른 구조체다).
 //   칸의 이름 · 순서 · 크기 · 자리 · 종류가 다 같으면 빠른 레코드(바이트 · 평행 칸)가 같으므로 넘겨도 된다.
 static bool cbe_struct_same(const low_ir_t *ir, int a, int b) {
@@ -820,13 +846,17 @@ static bool cbe_struct_same(const low_ir_t *ir, int a, int b) {
         if (!proven_u8str_view_eq(f->name, g->name) || f->size != g->size || f->off != g->off || f->boxed != g->boxed ||
             f->elem != g->elem || f->flt != g->flt || f->sidx != g->sidx || f->arrn != g->arrn || f->be != g->be) return false;
         if (low_sfield_sgn(f) != low_sfield_sgn(g)) return false;
-        if (cbe_aref_sidx(ir, f) != cbe_aref_sidx(ir, g)) return false;
+        if (cbe_aref_sidx(ir, f) != cbe_aref_sidx(ir, g) || cbe_obox_sidx(ir, f) != cbe_obox_sidx(ir, g)) return false;
     }
     return true;
 }
 // 이 칸이 평행 칸에 사는가 — 슬라이스 칸이거나 액터를 가리키는 칸.
 static bool cbe_f_slot(const low_ir_t *ir, const low_ir_sfield_t *f) {
-    return (f->boxed && f->elem) || cbe_aref_sidx(ir, f) >= 0;
+    return (f->boxed && f->elem) || cbe_aref_sidx(ir, f) >= 0 || cbe_obox_sidx(ir, f) >= 0;
+}
+// 평행 칸에 **태그 쪽 레코드의 자리**를 두는 칸인가(액터 칸 · 소유한 값 구조체 칸) — 경계에서 그 자리를 옮긴다.
+static bool cbe_f_place(const low_ir_t *ir, const low_ir_sfield_t *f) {
+    return cbe_aref_sidx(ir, f) >= 0 || cbe_obox_sidx(ir, f) >= 0;
 }
 // ★ 액터 상태 레코드의 **제 자리**(태그 쪽 레코드)는 평행 칸의 마지막 칸에 산다 — 경계가 들어올 때 채운다. 이 자리가 있어야
 //   `make` 가 그 액터를 컨테이너의 칸에 담을 수 있다(`open` 이 받은 할당기를 `vec` 에 넣는다). 갓 띄운 액터(빠른 경로의 `spawn`)는
@@ -894,6 +924,7 @@ static void cbe_mark_aref(const low_ir_t *ir) {
                 for (proven_size_t z = 0; z < ir->structs[sx].nf; z++) {
                     const int as_ = cbe_aref_sidx(ir, &ir->structs[sx].f[z]);
                     if (as_ >= 0 && as_ < 64) g_acap[i] |= 1ull << as_;
+                    if (cbe_obox_sidx(ir, &ir->structs[sx].f[z]) >= 0) g_abox[i] = true;   // ★ 소유 칸의 레코드를 짓는다
                 }
             } else if (in->w == IRW_FIELD && in->a >= 0 && (proven_size_t)in->a < ir->nfields) {
                 // 어느 구조체의 칸인지는 종류가 안다 — 여기서는 그 이름의 칸이 액터를 가리키는 구조체를 모두 센다(보수적).
@@ -934,7 +965,7 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
     int child[IR_MAKE_MAXF]; int childnid[IR_MAKE_MAXF];
     for (proven_size_t z = 0; z < S->nf && z < IR_MAKE_MAXF; z++) {
         child[z] = -1;
-        if (S->f[z].sidx >= 0 && cbe_aref_sidx(ir, &S->f[z]) < 0)   // ★ 액터를 가리키는 칸은 새 박스를 짓지 않는다(2026-11-01)
+        if (S->f[z].sidx >= 0 && !cbe_f_place(ir, &S->f[z]))   // ★ 액터 칸 · 소유 칸은 새 박스를 짓지 않는다(2026-11-01)
             childnid[z] = cbe_emit_rec_recon(out, ir, (int)S->f[z].sidx,
                                              base + (int)S->f[z].off, nid), child[z] = 1;
     }
@@ -951,7 +982,7 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
         //     즉 **바이트 하나씩 연속으로** 읽은 것이다(슬롯 번호를 오프셋으로 썼으니까).
         //     저장소를 바꾸면 그 저장소를 **읽는 모든 자리**를 함께 바꿔야 한다.
         unsigned foff = (unsigned)(base + (int)S->f[sl].off);
-        if (cbe_aref_sidx(ir, &S->f[sl]) >= 0)   // ★★ 2026-11-01 — 액터를 가리키는 칸: 같은 액터(태그 쪽 레코드)로 돌아간다
+        if (cbe_f_place(ir, &S->f[sl]))   // ★★ 2026-11-01 — 액터 칸 · 소유 칸: 같은 태그 쪽 레코드로 돌아간다
             fprintf(out, "        rr_%d->f[%zu] = lw_aref_out(r_.rs ? r_.rs[%d] : (lw_sl){0,0});\n", me, (size_t)z, sl);
         else if (S->f[sl].sidx >= 0)
             fprintf(out, "        { lowv cv_ = {0}; cv_.tag = LWV_REC; cv_.box = box_%d; rr_%d->f[%zu] = cv_; }\n",
@@ -1031,7 +1062,7 @@ static bool cbe_rec_slice_ok(const low_ir_t *ir, int sidx) {
     if (S->nf == 0 || S->nf > K_REC_MAX || S->total > K_REC_BYTES) return false;
     bool any_slice = false;
     for (proven_size_t q = 0; q < S->nf; q++) {
-        if (cbe_aref_sidx(ir, &S->f[q]) >= 0) { any_slice = true; continue; }   // ★ 액터를 가리키는 칸 — 평행 칸에 산다(2026-11-01)
+        if (cbe_f_place(ir, &S->f[q])) { any_slice = true; continue; }   // ★ 액터 칸 · 소유한 값 구조체 칸 — 평행 칸에 산다(2026-11-01)
         if (S->f[q].sidx >= 0) return false;          // 중첩 구조체 필드
         if (S->f[q].flt) return false;                // 부동은 값에서만
         if (S->f[q].boxed) {
@@ -1098,7 +1129,7 @@ static void cbe_emit_rec_unpack(FILE *out, const low_ir_t *ir, int sidx, const c
     const low_ir_struct_t *S = &ir->structs[sidx];
     for (proven_size_t z = 0; z < S->nf; z++) {
         int fi = cbe_field_idx(ir, S->f[z].name);
-        if (cbe_aref_sidx(ir, &S->f[z]) >= 0) {   // ★ 액터를 가리키는 칸 — 태그 쪽 레코드의 자리
+        if (cbe_f_place(ir, &S->f[z])) {   // ★ 액터 칸 · 소유한 값 구조체 칸 — 태그 쪽 레코드의 자리
             if (fi >= 0 && slots) fprintf(out, "    %s[%zu * LW_RECF + %zu] = lw_aref_in(lw_field(%s, %d));\n", rx, q, (size_t)z, val, fi);
             continue;
         }
@@ -1135,7 +1166,7 @@ static void cbe_emit_rec_writeback(FILE *out, const low_ir_t *ir, int sidx, cons
     for (proven_size_t z = 0; z < S->nf; z++) {
         int fi = cbe_field_idx(ir, S->f[z].name);
         if (fi < 0) continue;
-        if (cbe_aref_sidx(ir, &S->f[z]) >= 0) {   // ★ 액터를 가리키는 칸 — 가리키는 자리를 되쓴다
+        if (cbe_f_place(ir, &S->f[z])) {   // ★ 액터 칸 · 소유한 값 구조체 칸 — 가리키는 자리를 되쓴다
             if (slots) fprintf(out, "    lw_fstore(%s, %d, lw_aref_out(%s[%zu * LW_RECF + %zu]));\n", val, fi, rx, q, (size_t)z);
             continue;
         }
@@ -1450,6 +1481,7 @@ static bool cbe_slices_known(const low_ir_def_t *d) {
     for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS; q++) {
         if (!((d->param_slice >> q) & 1u)) continue;
         if (d->param_selem[q]) continue;   // 구조체 슬라이스는 바이트로 실린다
+        if (((d->param_sflt >> q) & 1u) && cbe_pslice_w(d, q)) continue;   // ★ 2026-11-01 — f32 · f64 원소
         switch (d->param_ebits[q]) {
             case 8: case 16: case 32: case 64: case 108: case 116: case 132: case 164: break;
             default: return false;   // f32/f64/모르는 원소는 거절
@@ -2296,6 +2328,15 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 }
                 for (proven_size_t q = 0; q < nf && !zero_; q++) {
                     int sl = cbe_slot_by_name(ir, sx, ir->makes[mk].fields[q]);
+                    { const int ob_ = cbe_obox_sidx(ir, &ir->structs[sx].f[sl]);   // ★ 2026-11-01 — 소유 칸: 값 구조체 레코드를 받는다(태그 쪽으로 새로 짓는다)
+                      if (ob_ >= 0) {
+                          const unsigned char hk_ = st.k[st.n - nf + q];
+                          if (hk_ >= K_REC && hk_ < K_VIEW && cbe_struct_same(ir, hk_ - K_REC, ob_) && cbe_make_for_struct(ir, ob_) >= 0) continue;
+                          snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` owns a struct; the value is kind %u",
+                                   (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
+                                   (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, hk_);
+                          return false;
+                      } }
                     // ★★ 2026-11-01 — 액터를 가리키는 칸: 칸에서 읽은 것(K_AREF)이나, 제 자리를 가진 액터 상태 레코드를 받는다.
                     { const int as_ = cbe_aref_sidx(ir, &ir->structs[sx].f[sl]);
                       if (as_ >= 0) {
@@ -2366,6 +2407,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (sx < 0) return false;
                 int rsl = cbe_rec_slot(ir, sx, in->a);
                 if (rsl < 0) return false;
+                { const int ob_ = cbe_obox_sidx(ir, &ir->structs[sx].f[rsl]);   // ★ 2026-11-01 — 소유한 값 구조체 칸: 베낀 레코드
+                  if (ob_ >= 0) {
+                      if (st.o[st.n-1] >= CBE_LOCMAX) return false;
+                      st.k[st.n-1] = (unsigned char)(K_REC + ob_); st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1;
+                      break;
+                  } }
                 { const int as_ = cbe_aref_sidx(ir, &ir->structs[sx].f[rsl]);   // ★ 2026-11-01 — 액터를 가리키는 칸
                   if (as_ >= 0) {
                       if (st.o[st.n-1] >= CBE_LOCMAX) return false;
@@ -2631,8 +2678,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             }
                             continue;
                         }
-                        proven_u8 eb2 = ce->param_ebits[q];
-                        unsigned char want_e = (unsigned char)cbe_ebits_w(eb2);   // ★ i64(164) 도 8 — 폭 규칙은 한 자리
+                        unsigned char want_e = (unsigned char)cbe_pslice_w(ce, q);   // ★ i64(164) 도 8 · f32/f64 는 param_esz — 폭 규칙은 한 자리
                         if (!want_e || st.ve[st.n - ce->nparams + q] != want_e) {
                             snprintf(g_sub, sizeof g_sub, "slice element widths differ");
                             return false;
@@ -2875,10 +2921,11 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
                 //   같은 규칙을 봐야 한다(구조체 슬라이스와 같은 방식). 폭 자체는 알아야
                 //   하강 가능 여부를 판단하므로 검사만 한다.
                 proven_u8 eb = d->param_ebits[q];
-                int w = cbe_ebits_w(eb);
+                int w = cbe_pslice_w(d, q);
                 if (!w) return false;
                 lez[q] = g_no_elemsl ? 1 : (unsigned char)w;   // ★ RFC-0109 단계 1: 원소 폭으로 시작한다
                 if (eb > 100 && eb < 164) lfl[q] = 2;   // ★ 부호 있는 원소(i8·i16·i32) — 본문의 view.array 도 같은 표식을 단다
+                if ((d->param_sflt >> q) & 1u) lfl[q] = CBE_FL_FLT;   // ★ 2026-11-01 — 부동 원소
             }
         } else if ((d->param_struct >> q) & 1u) {
             // ★★★ **구조체 파라미터도 정수 슬롯에 담을 수 있어야 한다** (2026-07-19, lib/alloc.low 이 찾았다).
@@ -3402,8 +3449,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
         //   그러면 그 뒤 지역(벡터·타입 슬라이스)의 종류가 안 채워져 **정수로 로드**된다
         //   (pass_vec 이 벡터를 정수로 넘겨 쓰레기를 읽었다 — 차분 스윕이 놓친 자리).
         if ((d->param_slice >> q) & 1u) {
-            lez[q] = g_no_elemsl ? 1 : d->param_selem[q] ? 0 : (unsigned char)cbe_ebits_w(d->param_ebits[q]);   // ★ 단계 1 — kind_ok 와 같은 규약
+            lez[q] = g_no_elemsl ? 1 : d->param_selem[q] ? 0 : (unsigned char)cbe_pslice_w(d, q);   // ★ 단계 1 — kind_ok 와 같은 규약
             if (!d->param_selem[q] && d->param_ebits[q] > 100 && d->param_ebits[q] < 164) lfl[q] = 2;   // ★ kind_ok 와 같은 부호 표식
+            if (!d->param_selem[q] && ((d->param_sflt >> q) & 1u)) lfl[q] = CBE_FL_FLT;   // ★ kind_ok 와 같은 부동 표식(2026-11-01)
         }
         else if ((d->param_vec >> q) & 1u) {   // ★ 벡터 파라미터 — 원소 폭·레인 수
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
@@ -4608,6 +4656,24 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   즉 잎을 편 **슬롯 번호**였다. 바이트가 되면 중첩은 그냥 **구간**이라
                     //   잎을 세는 일(`cbe_leaves`)도, 슬롯을 펴는 일(`cbe_flat_off`)도 없다.
                     const low_ir_sfield_t *F = &ir->structs[sx].f[sl];
+                    if (cbe_obox_sidx(ir, F) >= 0) {   // ★ 2026-11-01 — 소유 칸: 빠른 레코드로 태그 쪽 레코드를 새로 짓는다(VM 이 `make` 에서 베끼는 것과 같다)
+                        const int ob_ = cbe_obox_sidx(ir, F);
+                        const int omk_ = cbe_make_for_struct(ir, ob_);
+                        const low_ir_struct_t *T_ = &ir->structs[ob_];
+                        fprintf(out, "      rsp--; { lowv ov_[%zu];\n", (size_t)(T_->nf ? T_->nf : 1));
+                        for (proven_size_t z2 = 0; z2 < ir->makes[omk_].nfields && z2 < IR_MAKE_MAXF; z2++) {
+                            const int s2 = cbe_slot_by_name(ir, ob_, ir->makes[omk_].fields[z2]);
+                            const low_ir_sfield_t *G = &T_->f[s2];
+                            if (low_sfield_sgn(G) && G->size < 8)
+                                fprintf(out, "        ov_[%zu] = lw_int((long long)(lw_ld_f(rs[rsp] + %u, %d, %d) << %d) >> %d);\n",
+                                        (size_t)z2, (unsigned)G->off, (int)G->size, G->be ? 1 : 0, 64 - 8 * (int)G->size, 64 - 8 * (int)G->size);
+                            else
+                                fprintf(out, "        ov_[%zu] = lw_int((long long)lw_ld_f(rs[rsp] + %u, %d, %d));\n",
+                                        (size_t)z2, (unsigned)G->off, (int)G->size, G->be ? 1 : 0);
+                        }
+                        fprintf(out, "        tsl_[%d] = lw_aref_in(lw_make(%d, %zu, ov_)); }\n", sl, omk_, (size_t)ir->makes[omk_].nfields);
+                        continue;
+                    }
                     if (cbe_aref_sidx(ir, F) >= 0) {   // ★ 2026-11-01 — 액터를 가리키는 칸: 칸에서 읽은 자리 그대로, 또는 액터 레코드의 제 자리
                         if (ks.k[ks.n - nf + q] == K_AREF) fprintf(out, "      tsl_[%d] = ss[--ssp];\n", sl);
                         else fprintf(out, "      rsp--; tsl_[%d] = rssl[rsp][%d];\n", sl, CBE_AID);
@@ -4642,6 +4708,18 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (fk >= K_REC && fk < K_VIEW) {
                     int sx0 = fk - K_REC;
                     int sl0 = cbe_rec_slot(ir, sx0, in->a);
+                    const int ob0 = sl0 >= 0 ? cbe_obox_sidx(ir, &ir->structs[sx0].f[sl0]) : -1;
+                    if (ob0 >= 0) {   // ★ 2026-11-01 — 소유 칸: 태그 쪽 레코드를 빠른 레코드로 베껴 낸다(옮겨 내는 것 — 되쓸 것이 없다)
+                        if (ks.o[ks.n-1] >= 0) fprintf(out, "    rsp--; { lowv ob_ = lw_aref_out(rlocsl[%d][%d]);\n", (int)ks.o[ks.n-1], sl0);
+                        else fprintf(out, "    rsp--; { lowv ob_ = lw_aref_out(rssl[rsp][%d]);\n", sl0);
+                        fputs("      if (LW_UNLIKELY(ob_.tag != LWV_REC)) lw_panic(\"field needs a record\");\n"
+                              "      rs[rsp] = rsb[rsp]; memset(rs[rsp], 0, LW_RECB);\n", out);
+                        cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl", 0, false);
+                        fputs("      rsp++; }\n", out);
+                        ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = (unsigned char)(K_REC + ob0); ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
+                        ks.n++;
+                        break;
+                    }
                     const int as0 = sl0 >= 0 ? cbe_aref_sidx(ir, &ir->structs[sx0].f[sl0]) : -1;
                     if (as0 >= 0) {   // ★ 2026-11-01 — 액터를 가리키는 칸: 평행 칸의 자리를 그대로 꺼낸다
                         if (ks.o[ks.n-1] >= 0) fprintf(out, "    rsp--; ss[ssp++] = rlocsl[%d][%d];\n", (int)ks.o[ks.n-1], sl0);
@@ -5366,7 +5444,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                                    " lw_panic(\"view_array: slice length is not a multiple of the element size\"); cs[%zu].n /= %du;\n",
                                               b_, b_, stride_, b_, stride_);
                               } else {
-                                  int w_ = cbe_ebits_w(ce->param_ebits[q]); if (w_ <= 0) w_ = 1;
+                                  int w_ = cbe_pslice_w(ce, q); if (w_ <= 0) w_ = 1;
                                   proven_size_t b_ = --bs;
                                   if (w_ <= 1 || sve == (unsigned char)w_)
                                       fprintf(out, "      cs[%zu] = ss[--ssp];\n", b_);
@@ -7077,8 +7155,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       //   VARRAY 로 오면 이미 원소 수이므로 **원소폭을 곱해 바이트로 되돌린다**
                       //   (안 그러면 view.array 가 또 나눠 길이가 반씩 준다 — 구조체 슬라이스에서
                       //   차등 스윕이 잡은 그 결함이다).
-                      proven_u8 eb_ = d->param_ebits[q];
-                      int ez = cbe_ebits_w(eb_); if (ez <= 0) ez = 1;   // ★ i64(164) 도 8 — 폭 규칙은 cbe_ebits_w 한 자리(2026-10-03)
+                      int ez = cbe_pslice_w(d, q); if (ez <= 0) ez = 1;   // ★ i64(164) 도 8 · f32/f64 는 param_esz — 폭 규칙은 cbe_pslice_w 한 자리
                       if (!g_no_elemsl) {
                           // ★ RFC-0109 단계 1 — VARRAY(원소 수)는 그대로, 바이트 SLICE 는 **여기가 경계**: 검사하고 나눈다.
                           fprintf(out, "    if (a[%zu].tag == LWV_VARRAY) { as[%zu].p = a[%zu].p; as[%zu].n = a[%zu].n; }\n",

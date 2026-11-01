@@ -1,0 +1,42 @@
+rem ★★ **소유한 값 구조체 칸을 빠른 경로가 나른다** (2026-11-01 · W-20261101-1150).
+rem   `a owned h .` 칸은 VM 에서 그 구조체의 박스 하나다 — `make` 가 베끼고 그 뒤로는 옮길 뿐이다. 빠른 레코드는 그 칸에 태그 쪽 레코드의
+rem   자리를 담는다: 읽으면 그 레코드를 빠른 레코드로 베껴 내고, 짓는 `make` 는 태그 쪽 레코드를 새로 짓는다. 두 끝을 맞바꾸는 op 을
+rem   거치게 해서 칸이 뒤섞이면 답이 달라진다. 차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다.
+
+module vm_obox .
+
+struct h do
+  fd u64 .
+  tag u32 .
+end .
+
+struct pair do
+  a owned h .
+  b owned h .
+end .
+
+fn mk input x u64 . input y u64 . output pair . do
+  return lit pair do a lit h do fd x. . tag 1 . end . . b lit h do fd y. . tag 2 . end . . end . .
+end .
+
+rem 두 끝을 맞바꾼다 — 둘 다 옮겨 낸다
+fn flip input p owned pair . output pair . do
+  let x h field p. a . .
+  let y h field p. b . .
+  return lit pair do a y. . b x. . end . .
+end .
+
+rem 앞 끝 × 1000 + 뒤 끝 + 꼬리표 × 100
+fn weigh input p owned pair . output u64 . do
+  let x h field p. a . .
+  let y h field p. b . .
+  return add add mul field x. fd . 1000 . field y. fd . . mul widen u64 field x. tag . . 100 . . .
+end .
+
+export fn run input x u64 . input y u64 . output u64 . do
+  guard lt x. 1000 . else return 0 . .
+  guard lt y. 1000 . else return 0 . .
+  var p owned pair mk x. y. . .
+  var q owned pair flip p. . .
+  return weigh q. . .
+end .

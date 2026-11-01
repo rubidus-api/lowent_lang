@@ -1991,7 +1991,7 @@ LOW_CHAPOLY_C_SOURCE
 /* ★★ 2026-11-01 (W-20261101-1150) — **액터를 가리키는 칸**(컨테이너가 든 할당기 `al a .`). 빠른 레코드의 평행 칸 하나에 태그 쪽 레코드의
    자리를 담는다 — 값이 아니라 그 액터 하나다(VM 과 태그 경로에서 이 칸은 같은 박스를 가리킨다). p = 레코드(없으면 0 — 비워 둔 손잡이),
    n = 풀의 박스 번호 + 1(틀 창의 레코드면 0). 빠른 쪽은 이 칸을 읽고 옮기기만 하고, 말을 보낼 때 그 레코드를 풀어 부르고 되쓴다. */
-"static inline lw_sl lw_aref_in(lowv v) { lw_sl s = { 0, 0 }; if (v.tag == LWV_REC) {"
+"static inline lw_sl lw_aref_in(lowv v) { lw_sl s = { 0, 0 }; if (v.tag == LWV_REF && v.q) v = *v.q; if (v.tag == LWV_REC) {"
 " s.p = (const unsigned char *)(const void *)LW_RECV(v); s.n = v.box >= 0 ? (size_t)v.box + 1 : 0; } return s; }\n"
 "static inline lowv lw_aref_out(lw_sl s) { if (!s.p) return lw_int(0); lowv v = {0}; v.tag = LWV_REC;"
 " if (s.n) v.box = (int)(s.n - 1); else { v.box = -1; v.p = s.p; } return v; }\n"

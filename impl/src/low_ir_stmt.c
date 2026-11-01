@@ -4447,6 +4447,11 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             }
                             d->param_ebits[d->nparams] = eb;
                             if (tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) d->param_esz[d->nparams] = ir_field_size(f->kids[tw + 1]->tok.lex);
+                            // ★ 2026-11-01 (W-20261101-1150) — 부동소수 원소(`slice f32` · `slice f64`)를 적어 둔다. 폭 표(ebits)는 정수 원소만
+                            //   말하므로(부동은 255) 빠른 경로가 그 op 을 통째로 태그 경로로 보냈다. 폭은 param_esz 가 안다.
+                            if (eb == 255 && tw + 1 < f->nkids && is_atom(f->kids[tw + 1]) &&
+                                (veq(f->kids[tw + 1]->tok.lex, "f32") || veq(f->kids[tw + 1]->tok.lex, "f64")))
+                                d->param_sflt |= 1u << d->nparams;
                             if (!d->param_esz[d->nparams] && eb != 255) d->param_esz[d->nparams] = (proven_u8)((eb >= 100 ? eb - 100 : eb) / 8);
                             // ★ 원소가 **구조체**면 그 인덱스를 든다(폭 대신).
                             if (eb == 255 && tw + 1 < f->nkids && is_atom(f->kids[tw + 1])) {

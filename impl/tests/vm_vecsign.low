@@ -1,0 +1,76 @@
+rem ★★★ **벡터 레인의 부호 · 부동을 빠른 경로가 지킨다** (2026-11-01 · W-20261101-1828).
+rem   빠른 경로의 벡터는 레인을 무부호 비트로 든다. 표식이 없던 자리에서 셋이 VM 과 다른 답을 냈다(v1.25.0 까지):
+rem   · 벡터의 `eq` · `ne` 가 정수 비교로 떨어져 엉뚱한 칸을 견줬다(VM 0 · 네이티브 1)
+rem   · 부동 벡터의 `lt` … 가 비트를 무부호로 견줬다(−1.0 < 0 이 거짓)
+rem   · 부동 벡터의 `div` 가 정수 나눗셈으로 떨어졌다(«divide by zero»)
+rem   · `vec 4 i16` 매개변수를 태그 경로에서 부르면 무부호로 접어 −3 + 1 + 2 + 3 이 «넘침»으로 멈췄다(VM 3)
+rem   · 벡터 `select` 의 결과가 마스크 자리의 표식(0)을 물려받았다
+rem   부호 있는 레인의 `splat` · `load` 도 이제 빠른 경로다(축약 · 비교가 부호를 늘려 셈한다). 정수 레인의 `div` 는 VM 이 정의하지
+rem   않으므로(«unsupported vector operation») 태그 경로에 둔다. 차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다.
+
+module vm_vecsign .
+
+export fn eqmask input b slice u8 . output u64 . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs slice u32 view_array u32 subslice b. 0 16 . . .
+  let v vec 4 u32 load xs. 0 . .
+  let w vec 4 u32 splat 5 . .
+  let m mask 4 eq v. w. . .
+  let n mask 4 ne v. w. . .
+  var r u64 0 .
+  if lane_any m. . do set r. add r. 1 . . end .
+  if lane_all n. . do set r. add r. 10 . . end .
+  return r. .
+end .
+
+export fn fneg input b slice u8 . output u64 . do
+  guard ge len b. . 16 . else return 99 . .
+  let xs slice f32 view_array f32 subslice b. 0 16 . . .
+  let v vec 4 f32 load xs. 0 . .
+  let z vec 4 f32 splat 0.0 . .
+  var r u64 0 .
+  if lane_any lt v. z. . . do set r. add r. 1 . . end .
+  if lane_all ge v. z. . . do set r. add r. 10 . . end .
+  return r. .
+end .
+
+export fn fdiv input b slice u8 . output f64 . do
+  guard ge len b. . 16 . else return 99.0 . .
+  let xs slice f32 view_array f32 subslice b. 0 16 . . .
+  let v vec 4 f32 load xs. 0 . .
+  let w vec 4 f32 splat 2.0 . .
+  return reduce_add div v. w. . . .
+end .
+
+export fn fsel input b slice u8 . output f64 . do
+  guard ge len b. . 16 . else return 99.0 . .
+  let xs slice f32 view_array f32 subslice b. 0 16 . . .
+  let v vec 4 f32 load xs. 0 . .
+  let z vec 4 f32 splat 0.0 . .
+  let m mask 4 lt v. z. . .
+  let w vec 4 f32 lane_select m. z. v. . .
+  return reduce_add w. . .
+end .
+
+fn sum4 input v vec 4 i16 . output i64 . do
+  return widen i64 reduce_add v. . . .
+end .
+
+rem 태그 경로에 남는 op(128 비트 지역) 이 빠른 `sum4` 를 부른다 — 경계가 레인의 부호를 지켜야 한다
+export fn viatag input b slice u8 . output i64 . do
+  guard ge len b. . 8 . else return 99 . .
+  let big u128 widen u128 7 . .
+  let xs slice i16 view_array i16 subslice b. 0 8 . . .
+  let v vec 4 i16 load xs. 0 . .
+  return add sum4 v. . cast i64 big. . . .
+end .
+
+export fn smin input b slice u8 . output i64 . do
+  guard ge len b. . 8 . else return 99 . .
+  let xs slice i16 view_array i16 subslice b. 0 8 . . .
+  let v vec 4 i16 load xs. 0 . .
+  let z vec 4 i16 splat -1 . .
+  var r i64 widen i64 reduce_min v. . . .
+  if lane_any lt v. z. . . do set r. add r. 100000 . . end .
+  return r. .
+end .

@@ -4535,6 +4535,10 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             d->param_vec |= 1u << d->nparams;
                             d->param_ebits[d->nparams] = vez;
                             d->param_vlanes[d->nparams] = (proven_u8)vln;
+                            // ★ 2026-11-01 (W-20261101-1828) — 레인의 부호 · 부동을 적는다. 빠른 경로는 이것 없이 `vec 4 i16` 매개변수를 무부호로
+                            //   접었다(태그 경로에서 부르면 −3 + 1 + 2 + 3 이 «넘침»으로 멈췄다 — VM 3).
+                            if (veq(et, "i8") || veq(et, "i16") || veq(et, "i32") || veq(et, "i64")) d->param_vsgn |= 1u << d->nparams;
+                            if (veq(et, "f32") || veq(et, "f64")) d->param_vflt |= 1u << d->nparams;
                         }
                     }
                     if (d->nparams < LOW_MAX_PARAMS) {

@@ -2137,7 +2137,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // splat: 스칼라 → 벡터(레인 수·폭은 meta 가 안다). 부동이면 입력도 f64.
                 // ★ 2026-10-14 (RFC-0148 S5 의 탐침이 찾았다) — 빠른 길의 벡터에는 **레인의 부호**가 없다. 부호 있는 레인의 `reduce_*` 가
                 //   부호 없이 접혀 VM 과 다른 값을 냈다(`vec i32 4` 의 -3 넷의 합: VM -12 · 네이티브 17179869172). 부호를 아는 태그 길로 보낸다.
-                if (in->a & IR_SGN_BIT) return false;
+                // ★★ 2026-11-01 (W-20261101-1828) — 부호 있는 레인은 표식(fl = CBE_FL_SGN)을 단다: 축약 · 비교가 부호를 늘려 셈한다(VM 의 `sign`).
                 unsigned ln = (unsigned)((in->a >> 8) & 0xff), ez = (unsigned)(in->a & 0xff);
                 if (!lw_v_ok(ln, ez)) return false;
                 bool fv = (in->a & 0x10000) != 0;
@@ -2145,12 +2145,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (fv) { if (st.k[st.n-1] != K_FLT || (ez != 4 && ez != 8)) return false; }
                 else if (st.k[st.n-1] != K_INT) return false;
                 st.k[st.n-1] = K_VEC; st.vn[st.n-1] = (unsigned char)ln;
-                st.ve[st.n-1] = (unsigned char)ez; st.fl[st.n-1] = fv ? 1 : 0; st.o[st.n-1] = -1;
+                st.ve[st.n-1] = (unsigned char)ez; st.fl[st.n-1] = fv ? CBE_FL_FLT : (in->a & IR_SGN_BIT) ? CBE_FL_SGN : 0; st.o[st.n-1] = -1;
                 break;
             }
             case IRW_VLOAD: {
                 // load <slice> <i> → 벡터. 부동 슬라이스면 부동 벡터.
-                if (in->a & IR_SGN_BIT) return false;   // 부호 있는 레인은 태그 길로(위 splat 과 같은 까닭)
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_SL) return false;
                 unsigned ln = (unsigned)((in->a >> 8) & 0xff), ez = (unsigned)(in->a & 0xff);
                 if (!lw_v_ok(ln, ez)) return false;
@@ -2158,9 +2157,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ 2026-11-01 — 바이트 슬라이스에서도 읽는다: VM 은 그때 색인을 원소(폭 ez) 단위로 세고 한도를 n / ez 로 둔다(low_vm.c VLOAD).
                 const bool vbyte_ = st.ve[st.n-2] <= 1 && st.fl[st.n-2] == 0 && ez > 1;
                 if (st.ve[st.n-2] != (unsigned char)ez && !vbyte_) return false;   // 슬롯의 원소 폭과 같아야
-                if (!vbyte_ && fv != (st.fl[st.n-2] != 0)) return false;           // 부동성도 같아야
+                const unsigned char wfl_ = fv ? CBE_FL_FLT : (in->a & IR_SGN_BIT) ? CBE_FL_SGN : 0;   // ★ 2026-11-01 — 레인의 부동 · 부호
+                if (!vbyte_ && st.fl[st.n-2] != wfl_) return false;               // 슬라이스의 표식과 같아야
                 if (fv && ez != 4 && ez != 8) return false;
-                unsigned char fl = vbyte_ ? (unsigned char)(fv ? 1 : 0) : st.fl[st.n-2];
+                unsigned char fl = wfl_;
                 st.n--;
                 st.k[st.n-1] = K_VEC; st.vn[st.n-1] = (unsigned char)ln;
                 st.ve[st.n-1] = (unsigned char)ez; st.fl[st.n-1] = fl; st.o[st.n-1] = -1;
@@ -2771,6 +2771,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n >= 2 && st.k[st.n-1] == K_VEC && st.k[st.n-2] == K_VEC) {
                     if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2]) return false;
                     if (st.fl[st.n-1] != st.fl[st.n-2]) return false;   // 부동성도 같아야
+                    // ★ 2026-11-01 — 정수 레인의 `div` 는 VM 이 안 한다(«unsupported vector operation») — 태그 경로에 둔다. 부동 레인의 `div` 는 방출이 한다.
+                    if (in->w == IRW_DIV && st.fl[st.n-1] != CBE_FL_FLT) { snprintf(g_sub, sizeof g_sub, "`div` of integer vectors (the VM does not define it)"); return false; }
                     st.n--; st.o[st.n-1] = -1; break;   // 레인별 연산 — 벡터가 남는다(부동성 유지)
                 }
                 // ★ `add <bitset> <k>` 는 **비트를 세운다** — 그 비트셋의 **출신 지역**에 쓴다.
@@ -2794,6 +2796,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.k[st.n-1] == K_VEC) {
                     // ★ 벡터의 비교는 **마스크**를 낸다.
                     if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2]) return false;
+                    if (st.fl[st.n-1] != st.fl[st.n-2]) return false;   // ★ 2026-11-01 — 부동 · 부호가 같아야(방출이 그 표식으로 레인을 읽는다)
                     unsigned char ln = st.vn[st.n-1];
                     st.n--; st.k[st.n-1] = K_MASK; st.vn[st.n-1] = ln; st.o[st.n-1] = -1;
                     break;
@@ -2815,8 +2818,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 a1 = st.k[st.n-1]; a2 = st.k[st.n-2]; a3 = st.k[st.n-3];
                 if (a3 == K_MASK && a1 == K_VEC && a2 == K_VEC) {
                     if (st.vn[st.n-1] != st.vn[st.n-2] || st.vn[st.n-3] != st.vn[st.n-1]) return false;
-                    unsigned char ln = st.vn[st.n-1], ez = st.ve[st.n-1];
+                    if (st.fl[st.n-1] != st.fl[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2]) return false;
+                    unsigned char ln = st.vn[st.n-1], ez = st.ve[st.n-1], vfl_ = st.fl[st.n-1];
                     st.n -= 2; st.k[st.n-1] = K_VEC; st.vn[st.n-1] = ln; st.ve[st.n-1] = ez;
+                    st.fl[st.n-1] = vfl_;   // ★ 2026-11-01 — 벡터의 표식(부동 · 부호)을 낸다 — 전에는 마스크 자리의 것(0)이 남았다
                     st.o[st.n-1] = -1;
                     break;
                 }
@@ -3022,8 +3027,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     // ★ 벡터는 레인 수·원소 폭도 맞아야 한다.
                     if (want == K_VEC) {
                         if (have != K_VEC) { snprintf(g_sub, sizeof g_sub, "argument %d is not a vector", (int)q); return false; }
+                        const unsigned char vfl_ = ((ce->param_vflt >> q) & 1u) ? CBE_FL_FLT : ((ce->param_vsgn >> q) & 1u) ? CBE_FL_SGN : 0;
                         if (st.vn[st.n - ce->nparams + q] != ce->param_vlanes[q] ||
-                            st.ve[st.n - ce->nparams + q] != ce->param_ebits[q]) {
+                            st.ve[st.n - ce->nparams + q] != ce->param_ebits[q] || st.fl[st.n - ce->nparams + q] != vfl_) {
                             snprintf(g_sub, sizeof g_sub, "vector argument %d has a different shape", (int)q);
                             return false;
                         }
@@ -3282,6 +3288,7 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             }
         } else if ((d->param_vec >> q) & 1u) {   // ★ 벡터 파라미터 — 원소 폭·레인 수를 지역에 새긴다
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
+            lfl[q] = ((d->param_vflt >> q) & 1u) ? CBE_FL_FLT : ((d->param_vsgn >> q) & 1u) ? CBE_FL_SGN : 0;   // ★ 2026-11-01 — 레인의 부동 · 부호
         }
     }
     g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
@@ -3761,6 +3768,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
         }
         else if ((d->param_vec >> q) & 1u) {   // ★ 벡터 파라미터 — 원소 폭·레인 수
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
+            lfl[q] = ((d->param_vflt >> q) & 1u) ? CBE_FL_FLT : ((d->param_vsgn >> q) & 1u) ? CBE_FL_SGN : 0;   // ★ 2026-11-01 — 레인의 부동 · 부호
         }
     }
     // ★★ 2026-10-31 (W-20261031-2053) — 반환 표식을 **비우고** 돌린다(cbe_kind_ok 와 같게). 전에는 앞서 잰 다른 op 의 값(`g_ret_optrec`)이
@@ -4639,7 +4647,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     fprintf(out, "    { unsigned long long x_ = (unsigned long long)st[--sp];"
                                  " for (int k_ = 0; k_ < %d; k_++) vs[vsp].%s[k_] = x_; vsp++; }\n",
                             ln, lw_vmem((unsigned)(in->a & 0xff)));
-                    ks.fl[ks.n-1] = 0;
+                    ks.fl[ks.n-1] = (in->a & IR_SGN_BIT) ? CBE_FL_SGN : 0;   // ★ 부호 있는 레인의 표식(종류 실행과 같다 · 2026-11-01)
                 }
                 ks.k[ks.n-1] = K_VEC; ks.vn[ks.n-1] = (unsigned char)ln;
                 ks.ve[ks.n-1] = (unsigned char)(in->a & 0xff); ks.o[ks.n-1] = -1;
@@ -4704,7 +4712,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         ez, ln * ez, ln, lw_vmem((unsigned)ez), ez, ez);
                 (void)dz;
                 ks.n--; ks.k[ks.n-1] = K_VEC; ks.vn[ks.n-1] = (unsigned char)ln;
-                ks.ve[ks.n-1] = (unsigned char)ez; ks.fl[ks.n-1] = (in->a & 0x10000) ? 1 : 0;
+                ks.ve[ks.n-1] = (unsigned char)ez; ks.fl[ks.n-1] = (in->a & 0x10000) ? CBE_FL_FLT : (in->a & IR_SGN_BIT) ? CBE_FL_SGN : 0;   // ★ 종류 실행과 같다(2026-11-01)
                 ks.o[ks.n-1] = -1;
                 break;
             }
@@ -4759,6 +4767,25 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     else fputs("        if (k_ == 0 || x_ > a_) a_ = x_;", out);
                     fputs(" }\n      fs[fsp++] = a_; }\n", out);
                     ks.k[ks.n-1] = K_FLT; ks.o[ks.n-1] = -1; ks.fl[ks.n-1] = 0;
+                    break;
+                }
+                if (ks.fl[ks.n-1] == CBE_FL_SGN) {
+                    // ★★ 2026-11-01 (W-20261101-1828) — 부호 있는 레인: 부호를 늘려 접는다 · 합 · 곱이 레인 타입에 안 들어가면 멈춘다(VM 과 같다).
+                    const int ez_ = (int)ks.ve[ks.n-1];
+                    const char *rm_ = lw_vmem((unsigned)ez_), *sc_ = ez_ == 1 ? "int8_t" : ez_ == 2 ? "int16_t" : ez_ == 4 ? "int32_t" : "int64_t";
+                    fprintf(out, "    { long long a_ = %s; vsp--;\n      for (int k_ = 0; k_ < %d; k_++) { long long x_ = (long long)(%s)vs[vsp].%s[k_];\n",
+                            in->w == IRW_RMUL ? "1" : "0", ln, sc_, rm_);
+                    if (in->w == IRW_RMIN) fputs("        if (k_ == 0 || x_ < a_) a_ = x_; }\n", out);
+                    else if (in->w == IRW_RMAX) fputs("        if (k_ == 0 || x_ > a_) a_ = x_; }\n", out);
+                    else {
+                        const unsigned bw_ = (unsigned)ez_ * 8u;
+                        char rng_[96] = "";
+                        if (bw_ < 64) snprintf(rng_, sizeof rng_, " || a_ < -(1ll << %u) || a_ > (1ll << %u) - 1", bw_ - 1, bw_ - 1);
+                        fprintf(out, "        if (__builtin_%s_overflow(a_, x_, &a_)%s) lw_panic(\"integer overflow at the declared width\"); }\n",
+                                in->w == IRW_RADD ? "add" : "mul", rng_);
+                    }
+                    fputs("      st[sp++] = a_; }\n", out);
+                    ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; ks.fl[ks.n-1] = 0;
                     break;
                 }
                 const char *init = in->w == IRW_RMUL ? "1ull"
@@ -4914,11 +4941,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                              " memcpy(&d_, &b_, 8); fs[fsp++] = d_; }\n",
                         (unsigned long long)in->a);
                 ks.o[ks.n] = -1; ks.k[ks.n++] = K_FLT; break;
-            case IRW_ADD: case IRW_SUB: case IRW_MUL:
+            case IRW_ADD: case IRW_SUB: case IRW_MUL: vecdiv_:
                 if (ks.n >= 2 && ks.k[ks.n-1] == K_VEC && ks.k[ks.n-2] == K_VEC) {
                     int ln = (int)ks.vn[ks.n-1], ez = (int)ks.ve[ks.n-1];
-                    const char *o2 = in->w == IRW_ADD ? "+" : in->w == IRW_SUB ? "-" : "*";
-                    if (ks.fl[ks.n-1]) {
+                    const char *o2 = in->w == IRW_ADD ? "+" : in->w == IRW_SUB ? "-" : in->w == IRW_DIV ? "/" : "*";
+                    if (ks.fl[ks.n-1] == CBE_FL_FLT) {   // ★ 2026-11-01 — 부동 표식만(부호 표식 2 를 부동으로 읽지 않는다)
                         // ★★★ **부동 레인 산술** — 비트를 double 로 보고 연산해 다시 비트로.
                         const char *fm = lw_vmem((unsigned)ez);
                         fprintf(out, "    { vsp--; for (int k_ = 0; k_ < %d; k_++) {\n"
@@ -5651,6 +5678,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else fprintf(out, "    st[sp-1] = lw_negs_i(%lld, st[sp-1]);\n", (long long)in->a);   // 넘치면 멈춘다 (RFC-0052 D4)
                 break;
             case IRW_DIV:
+                if (ks.n >= 2 && ks.k[ks.n-1] == K_VEC && ks.k[ks.n-2] == K_VEC) goto vecdiv_;   // ★ 2026-11-01 — 부동 레인의 나눗셈(전에는 정수 나눗셈으로 떨어졌다)
                 if (ks.k[ks.n-1] == K_FLT)
                     fprintf(out, "    fs[fsp-2] = lw_fround(%lld, fs[fsp-2] / fs[fsp-1]); fsp--;\n",
                             (long long)in->a);
@@ -5659,6 +5687,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.n--; break;
             case IRW_MOD:   fprintf(out, "    st[sp-2] = lw_mods_i(%lld, st[sp-2], st[sp-1]); sp--;\n", (long long)in->a); ks.n--; break;
             case IRW_EQ: case IRW_NE:
+                if (ks.k[ks.n-1] == K_VEC) goto veccmp_;   // ★ 2026-11-01 — 벡터의 `eq` · `ne` 도 마스크다(전에는 정수 비교로 떨어져 엉뚱한 칸을 견줬다)
                 if (ks.k[ks.n-1] == K_FLT)
                     fprintf(out, "    st[sp++] = (fs[fsp-2] %s fs[fsp-1]); fsp -= 2;\n",
                             in->w == IRW_EQ ? "==" : "!=");
@@ -5668,14 +5697,26 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.n--; ks.k[ks.n-1] = K_INT; break;
             case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE:
                 if (ks.k[ks.n-1] == K_VEC) {
-                    int ln = (int)ks.vn[ks.n-1];
+                  veccmp_:;
+                    int ln = (int)ks.vn[ks.n-1], ez_ = (int)ks.ve[ks.n-1];
                     const char *c2 = in->w == IRW_LT ? "<" : in->w == IRW_LE ? "<="
-                                   : in->w == IRW_GT ? ">" : ">=";
-                    const char *cm = lw_vmem((unsigned)ks.ve[ks.n-1]);
+                                   : in->w == IRW_GT ? ">" : in->w == IRW_GE ? ">=" : in->w == IRW_EQ ? "==" : "!=";
+                    const char *cm = lw_vmem((unsigned)ez_);
+                    // ★★ 2026-11-01 (W-20261101-1828) — 레인을 그 표식대로 읽는다(VM 과 같다): 부동이면 비트를 double 로(전에는 비트를 무부호로 견줘
+                    //   −1.0 < 0 이 거짓이었다), 부호 있는 레인이면 부호를 늘려서.
+                    char la_[96], lb_[96];
+                    if (ks.fl[ks.n-1] == CBE_FL_FLT) {
+                        snprintf(la_, sizeof la_, "lw_b2f(vs[vsp].%s[k_], %d)", cm, ez_); snprintf(lb_, sizeof lb_, "lw_b2f(vs[vsp+1].%s[k_], %d)", cm, ez_);
+                    } else if (ks.fl[ks.n-1] == CBE_FL_SGN) {
+                        const char *sc_ = ez_ == 1 ? "int8_t" : ez_ == 2 ? "int16_t" : ez_ == 4 ? "int32_t" : "int64_t";
+                        snprintf(la_, sizeof la_, "(long long)(%s)vs[vsp].%s[k_]", sc_, cm); snprintf(lb_, sizeof lb_, "(long long)(%s)vs[vsp+1].%s[k_]", sc_, cm);
+                    } else {
+                        snprintf(la_, sizeof la_, "vs[vsp].%s[k_]", cm); snprintf(lb_, sizeof lb_, "vs[vsp+1].%s[k_]", cm);
+                    }
                     fprintf(out, "    { long long m_ = 0; vsp -= 2;\n"
                                  "      for (int k_ = 0; k_ < %d; k_++)"
-                                 " if (vs[vsp].%s[k_] %s vs[vsp+1].%s[k_]) m_ |= 1ll << k_;\n"
-                                 "      st[sp++] = m_; }\n", ln, cm, c2, cm);
+                                 " if (%s %s %s) m_ |= 1ll << k_;\n"
+                                 "      st[sp++] = m_; }\n", ln, la_, c2, lb_);
                     { unsigned char lnn = ks.vn[ks.n-1];
                       ks.n--; ks.k[ks.n-1] = K_MASK; ks.vn[ks.n-1] = lnn; ks.o[ks.n-1] = -1; }
                     break;
@@ -5699,9 +5740,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                  "      for (int k_ = 0; k_ < %d; k_++)\n"
                                  "        vs[vsp].%s[k_] = (m_ >> k_) & 1 ? vs[vsp].%s[k_] : vs[vsp+1].%s[k_];\n"
                                  "      vsp++; }\n", ln, sm, sm, sm);
-                    { unsigned char lnn = ks.vn[ks.n-1], ezz = ks.ve[ks.n-1];
+                    { unsigned char lnn = ks.vn[ks.n-1], ezz = ks.ve[ks.n-1], vfl_ = ks.fl[ks.n-1];
                       ks.n -= 2; ks.k[ks.n-1] = K_VEC; ks.vn[ks.n-1] = lnn; ks.ve[ks.n-1] = ezz;
-                      ks.o[ks.n-1] = -1; }
+                      ks.fl[ks.n-1] = vfl_; ks.o[ks.n-1] = -1; }   // ★ 2026-11-01 — 벡터의 표식(종류 실행과 같다)
                     break;
                 }
                 fputs("    st[sp-3] = st[sp-3] ? st[sp-2] : st[sp-1]; sp -= 2;\n", out); ks.n -= 2; break;

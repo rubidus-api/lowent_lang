@@ -1597,6 +1597,33 @@ static bool cbe_arrpar_body_ok(const low_ir_t *ir, const low_ir_def_t *d, char *
     return true;
 }
 
+// ★ 2026-11-01 — 이 op 이 `panic` 문장(lw_upanic — 슈퍼바이저가 잡는 그것)에 닿을 수 있나: 몸에 있거나 부르는 op 에 있거나(고정점).
+static bool cbe_may_upanic(const low_ir_t *ir, proven_size_t di) {
+    static bool mp[512]; static const low_ir_t *for_ir; static proven_size_t for_n;
+    if (for_ir != ir || for_n != ir->ndefs) {
+        for_ir = ir; for_n = ir->ndefs;
+        for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
+            mp[i] = false;
+            for (proven_size_t k = 0; k < ir->defs[i].ncode; k++) {
+                const low_ir_ins_t *in = &ir->defs[i].code[k];
+                if (in->w == IRW_PANIC && in->a != IR_PANIC_SINKFULL && in->a != IR_PANIC_ENUMCAST && in->a != IR_PANIC_NODEKIDS) { mp[i] = true; break; }
+            }
+        }
+        for (bool ch = true; ch; ) {
+            ch = false;
+            for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
+                if (mp[i]) continue;
+                for (proven_size_t k = 0; k < ir->defs[i].ncode; k++)
+                    if (ir->defs[i].code[k].w == IRW_CALL) {
+                        const proven_size_t c = IR_CALL_IDX(ir->defs[i].code[k].a);
+                        if (c < ir->ndefs && c < 512 && mp[c]) { mp[i] = true; ch = true; break; }
+                    }
+            }
+        }
+    }
+    return di >= 512 || mp[di];
+}
+
 static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
     // ★ 이유표는 **여기서** 비운다. 아래(종류 고정점)에서 비우면 **낱말 실패 이유가 지워진다**
     //   — 그리고 진단이 "느린 op 0개" 라고 **거짓말**을 한다. (그렇게 거짓말했다.)
@@ -1624,6 +1651,17 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                 else snprintf(g_why[i], sizeof g_why[0],
                     "too many params/locals/instructions for the fast frame");
             }
+            continue;
+        }
+        // ★★ 2026-11-01 (W-20261101-1828) — `failure restart` 액터의 핸들러가 `panic` 에 닿을 수 있으면 태그 경로에 둔다. 슈퍼바이저의 경계
+        //   (`lw_restart_call` 의 setjmp)는 태그 경로의 `send` 만 세운다 — 빠른 `send` 는 핸들러를 바로 불러 `panic` 이 프로세스를 끝냈다
+        //   (vm_restart 의 `recover` — VM 42). 전에는 `panic` 뒤의 `drop` 이 그런 op 을 모두 태그 경로에 두었다(우연히 맞았다).
+        if (d->is_actor && d->nparams >= 1 && ((d->param_struct) & 1u) && (proven_size_t)d->param_sidx[0] < ir->nstructs &&
+            (ir->structs[d->param_sidx[0]].failure_policy == 1 || ir->structs[d->param_sidx[0]].failure_policy == 3) &&
+            cbe_may_upanic(ir, i)) {
+            sc[i] = false;
+            if (i < 512 && !g_why[i][0])
+                snprintf(g_why[i], sizeof g_why[0], "a handler of a `failure restart` actor that can reach `panic` (the supervisor's restart lives on the tagged path)");
             continue;
         }
         // ★ 구조체 파라미터는 **필드가 전부 스칼라 정수**일 때만 내린다.
@@ -1777,7 +1815,7 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
         else if ((d->param_struct >> q) & 1u) lk[q] = (unsigned char)(K_REC + d->param_sidx[q]);
         else if ((d->param_flt >> q) & 1u) lk[q] = K_FLT;
         else if ((d->param_bset >> q) & 1u) lk[q] = K_BSET;
-        else if ((d->param_opt >> q) & 1u) lk[q] = K_OPT;   // ★ option·result 파라미터
+        else if ((d->param_opt >> q) & 1u) lk[q] = d->param_optsl[q] ? K_OPTSL : K_OPT;   // ★ option·result 파라미터 · option(슬라이스)는 2026-11-01
         else if ((d->param_vec >> q) & 1u) lk[q] = K_VEC;   // ★ 벡터 파라미터
     }
 }
@@ -2300,7 +2338,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.k[st.n-1] == K_STK) { if (st.o[st.n-1] < 0) return false; }
                 else if (st.k[st.n-1] != K_BSET) return false;
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
-            case IRW_STR:   st.o[st.n] = -1; st.ve[st.n] = 1; st.k[st.n++] = K_SL; break;
+            case IRW_STR: {   // ★ 2026-11-01 — 원소 폭은 방출과 같은 자리에서(접두 리터럴 `u"…"` 은 2) · 자리에 남은 옛 표식을 지운다
+                const proven_u8 ew_ = ir->strew ? ir->strew[in->a] : 1;
+                st.o[st.n] = -1; st.ve[st.n] = ew_ ? ew_ : 1; st.vn[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_SL; break; }
             // ★★ 2026-10-31 (W-20261031-1836) — **틀 안 나열 자리**: 이 op 의 C 틀의 바이트 줄 한 구간(0 으로 채우거나 상수 본을 베낀다) — 쓸 수 있는 바이트 슬라이스.
             //   예산은 틀 창 몫(wbytes)과 함께 센다(아래 cbe_scalar_body — VM 과 같은 수).
             case IRW_BFILL:   // 받은 바이트 슬라이스 → 같은 자리의 앞 len 바이트(길이가 모자라면 멈춘다)
@@ -2385,6 +2425,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     //   자격 판정과 코드생성이 같은 상태를 본다 — some_value 뷰-오라우팅 SEGV 수정).
                     st.k[st.n-1] = K_OPT; st.ve[st.n-1] = rmk; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
                 }
+                // ★★ 2026-11-01 (W-20261101-1828) — **구조체 뷰를 감싼다**(`some v` — 할당기 바이트 위에 지은 마디 · 트리 칸). `try.view` 가 이미 내는
+                //   모양이다(ve = sidx+1 · fl = 1 · 값은 `ws[].s` 의 (포인터, 길이)). option 만.
+                if (st.k[st.n-1] >= K_VIEW && st.k[st.n-1] < K_SVIEW && in->w == IRW_WRAP_SOME) {
+                    const int vsx_ = st.k[st.n-1] - K_VIEW;
+                    if (vsx_ >= 255) return false;
+                    st.k[st.n-1] = K_OPT; st.ve[st.n-1] = (unsigned char)(vsx_ + 1); st.fl[st.n-1] = 1; st.vn[st.n-1] = 0; st.o[st.n-1] = -1; break;
+                }
                 // ★★★★ WO-0222 — **슬라이스를 감싼다**(`some v`). option 만(result 는 아직).
                 // ★★ 2026-11-01 (W-20261031-2053) — 원소 폭이 1 이 아닌 슬라이스도(`option slice u32`). 폭은 `vn`(0 = 1), 부호 · 부동 표식은 `fl` 에 싣는다
                 //   — `ve` 는 0 으로 둔다(표식 없는 K_OPT 의 none 과 맞추는 규칙들이 `ve` 를 본다).
@@ -2396,7 +2443,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ 수를 싼 option · result 를 다시 싼다 → 겹(K_OPT2). 안 태그는 `t2` 로 옮긴다.
                 if (st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0) {
                     st.k[st.n-1] = K_OPT2; st.o[st.n-1] = -1; break; }
-                if (st.k[st.n-1] != K_INT) return false;
+                if (st.k[st.n-1] != K_INT) { snprintf(g_sub, sizeof g_sub, "`%s` of kind %u", in->w == IRW_WRAP_OK ? "ok" : "some", st.k[st.n-1]); return false; }
                 st.k[st.n-1] = K_OPT; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
             case IRW_WRAP_NONE: case IRW_WRAP_ERR:
                 st.o[st.n] = -1; st.ve[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_OPT; break;
@@ -2644,7 +2691,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.o[st.n-2] < 0) return false;
                 st.n -= 2; break;
             }
-            case IRW_PANIC:  break;
+            case IRW_PANIC:  st.n = 0; live = false; break;   // ★ 2026-11-01 — `panic` 은 돌아오지 않는다: 뒤의 `drop` 은 도달 불가(방출도 같다)
             case IRW_CAST:
                 if (st.n < 1) return false;
                 if (in->a == 0) {   // → f64
@@ -2774,6 +2821,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.n && rk >= K_REC && rk < K_VIEW && (st.fl[st.n-1] & CBE_FL_NOID) && rk - K_REC < 64 && g_aid_need[rk - K_REC]) {
                     snprintf(g_sub, sizeof g_sub, "returns an actor spawned in this op (the caller could not keep it in a container)"); return false; }
                 // ★ option 이 레코드를 감쌌으면 그 표식을 반환에 기록한다(어댑터가 LWV_OK 로 되돌린다).
+                // ★ 2026-11-01 (W-20261101-1828) — 구조체 뷰를 싼 option(fl=1 — `some <뷰>` · `try.view`)은 돌려주지 않는다: 반환 표식(g_retopt)은
+                //   레코드만 말한다 — 받는 쪽이 그것을 레코드로 벗겨 `cr_.r` 을 읽었다(vm_vecgen 의 `at` — VM 42 · 네이티브 8).
+                if (rk == K_OPT && st.n && st.ve[st.n-1] && st.fl[st.n-1]) {
+                    snprintf(g_sub, sizeof g_sub, "returns an option of a struct view (the caller would unwrap it as a record)"); return false; }
                 if (rk == K_OPT && st.n && st.ve[st.n-1]) g_ret_optrec = st.ve[st.n-1];
                 // ★ 슬라이스를 **돌려줄 수 있다** — 다만 그 뜻(원소 수 vs 바이트)이 흔들리면 안 되므로
                 //   바이트 슬라이스 def 에서만. 구조체·뷰 반환은 아직 안 내린다.
@@ -2859,7 +2910,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         }
                         unsigned char want_e = (unsigned char)cbe_pslice_w(ce, q);   // ★ i64(164) 도 8 · f32/f64 는 param_esz — 폭 규칙은 한 자리
                         if (!want_e || st.ve[st.n - ce->nparams + q] != want_e) {
-                            snprintf(g_sub, sizeof g_sub, "slice element widths differ");
+                            snprintf(g_sub, sizeof g_sub, "slice widths differ (arg %d: %u, wants %u)", (int)q,
+                                     st.ve[st.n - ce->nparams + q], want_e);
                             return false;
                         }
                     }
@@ -2876,6 +2928,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         if (st.k[st.n - ce->nparams + q] >= K_VIEW
                             && st.k[st.n - ce->nparams + q] < K_SVIEW) continue;
                         if (st.k[st.n - ce->nparams + q] == K_AREF) continue;   // ★ 칸이 가리키는 액터 — 집은 태그 쪽 레코드다(부르고 되쓴다)
+                        // ★ 2026-11-01 (W-20261101-1828) — `mut` 이 아닌 매개변수는 피호출자가 못 쓴다(검사층) — 집이 없어도 된다(`append v. make pt …`).
+                        //   액터 핸들러는 상태를 `mut` 없이 바꾸므로 그대로 묻는다.
+                        if (!ce->is_actor && !((ce->param_mutw >> q) & 1u)) continue;
                         if (st.o[st.n - ce->nparams + q] < 0) {
                             snprintf(g_sub, sizeof g_sub, "callee mutates a struct with no home");
                             return false;
@@ -2924,7 +2979,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                        : ((ce->param_struct >> q) & 1u)
                                          ? (unsigned char)(K_REC + ce->param_sidx[q])
                                        : ((ce->param_bset >> q) & 1u) ? K_BSET
-                                       : ((ce->param_opt >> q) & 1u) ? K_OPT
+                                       : ((ce->param_opt >> q) & 1u) ? (ce->param_optsl[q] ? K_OPTSL : K_OPT)
                                        : ((ce->param_vec >> q) & 1u) ? K_VEC
                                        : ((ce->param_flt >> q) & 1u) ? K_FLT : K_INT;
                     // ★ 구조체 파라미터는 레코드 또는 (같은 구조체의) 뷰를 받는다 — 위에서 검증됨.
@@ -2941,6 +2996,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             snprintf(g_sub, sizeof g_sub, "vector argument %d has a different shape", (int)q);
                             return false;
                         }
+                        continue;
+                    }
+                    if (want == K_OPTSL) {   // ★ 2026-11-01 — option(슬라이스): 폭이 같아야 한다 · `none`(표식 없는 K_OPT)도 받는다
+                        const int ai_ = st.n - (int)ce->nparams + (int)q;
+                        if (have == K_OPT && st.ve[ai_] == 0 && st.fl[ai_] == 0) continue;
+                        if (have != K_OPTSL || st.fl[ai_] || (st.vn[ai_] ? st.vn[ai_] : 1) != ce->param_optsl[q]) {
+                            snprintf(g_sub, sizeof g_sub, "option-slice argument %d has another shape", (int)q); return false; }
                         continue;
                     }
                     if (have != want) {
@@ -3113,6 +3175,8 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
     for (proven_size_t i = 0; i < d->ncode; i++) at[i].set = false;
     for (proven_size_t i = 0; i < g_lb.cap; i++) { slot[i] = 0xff; rmap[i] = 0xff; lez[i] = 0; lln[i] = 0; lfl[i] = 0; }
     cbe_local_kinds(d, lk, g_lb.cap);
+    for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++)   // ★ 2026-11-01 — option(슬라이스) 파라미터의 원소 폭(방출과 같은 규약)
+        if (((d->param_opt >> q) & 1u) && d->param_optsl[q] > 1) lln[q] = d->param_optsl[q];
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) {
         slot[q] = lk[q];
         if ((d->param_slice >> q) & 1u) {
@@ -3651,6 +3715,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) slot[q] = lk[q];
     unsigned char rk_ = 0xff, *rmap = g_lb.rmap, *lez = g_lb.lez, *lln = g_lb.lln, *lfl = g_lb.lfl;
     for (proven_size_t q = 0; q < g_lb.cap; q++) { rmap[q] = 0xff; lez[q] = 0; lln[q] = 0; lfl[q] = 0; }
+    for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++)   // ★ 2026-11-01 — option(슬라이스) 파라미터의 원소 폭(vn — 1 이면 0)
+        if (((d->param_opt >> q) & 1u) && d->param_optsl[q] > 1) lln[q] = d->param_optsl[q];
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) {
         // ★★★ 슬라이스 파라미터는 **바이트로 반입**된다(lez=1) — kind_ok 와 **같은 규약**이어야
         //   한다. 원소 폭으로 두면 본문의 view_array 가 이 pre-pass 에서 **실패**하고(ve≠1),
@@ -5260,7 +5326,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   ★ 접두 리터럴(`u"…"`·`U"…"`)이 오면서 이 값이 **1 고정이 아니게 됐다** —
                 //     그 결함이 다시 살아날 수 있는 정확한 자리다.
                 proven_u8 ew = ir->strew ? ir->strew[in->a] : 1;
-                ks.o[ks.n] = -1; ks.ve[ks.n] = ew ? ew : 1; ks.k[ks.n++] = K_SL; break;
+                ks.o[ks.n] = -1; ks.ve[ks.n] = ew ? ew : 1; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; break;
             }
             case IRW_RESBLK:
                 // ★★★★ RFC-0039 §9-2 갈래① — 블록은 **링커가 잡아 준 칸**에서 선다.
@@ -5302,6 +5368,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   `len view_array f32` 가 남긴 fl=1)을 물려받아 some_value 가 뷰 분기(ss[])로 새어
                     //   레코드 첫 필드를 포인터로 역참조한다(native SEGV · VM≠native). 시뮬레이터도 동일.
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(wsx + 1); ks.fl[ks.n-1] = 0;
+                    break;
+                }
+                if (ks.k[ks.n-1] >= K_VIEW && ks.k[ks.n-1] < K_SVIEW) {   // ★ 2026-11-01 — 구조체 뷰를 감싼다(`try.view` 와 같은 모양)
+                    const int vsx_ = ks.k[ks.n-1] - K_VIEW;
+                    fputs("    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n", out);
+                    ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(vsx_ + 1); ks.fl[ks.n-1] = 1; ks.vn[ks.n-1] = 0; ks.o[ks.n-1] = -1;
                     break;
                 }
                 if (ks.k[ks.n-1] == K_SL) {   // ★ WO-0222 — 슬라이스를 감싼다(폭 · 표식은 vn · fl 로 — 시뮬레이터와 같다)
@@ -5469,10 +5541,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                            : (in->a & 1) ? "ensures violated at exit" : "requires violated at entry");
                 ks.n--; break;
             case IRW_PANIC:
-                if (in->a == IR_PANIC_SINKFULL) { fputs("    lw_panic(\"" LW_SINKFULL_MSG "\");\n", out); break; }   // ★ X-0065
-                if (in->a == IR_PANIC_ENUMCAST) { fputs("    lw_panic(\"" LW_ENUMCAST_MSG "\");\n", out); break; }
-                if (in->a == IR_PANIC_NODEKIDS) { fputs("    lw_panic(\"" LW_NODEKIDS_MSG "\");\n", out); break; }
-                fputs("    lw_upanic(\"the program called `panic`\");\n", out); break;
+                if (in->a == IR_PANIC_SINKFULL) { fputs("    lw_panic(\"" LW_SINKFULL_MSG "\");\n", out); ks.n = 0; live2 = false; break; }   // ★ X-0065
+                if (in->a == IR_PANIC_ENUMCAST) { fputs("    lw_panic(\"" LW_ENUMCAST_MSG "\");\n", out); ks.n = 0; live2 = false; break; }
+                if (in->a == IR_PANIC_NODEKIDS) { fputs("    lw_panic(\"" LW_NODEKIDS_MSG "\");\n", out); ks.n = 0; live2 = false; break; }
+                fputs("    lw_upanic(\"the program called `panic`\");\n", out); ks.n = 0; live2 = false; break;
             // ★★★ **asm 문장 — 빠른 경로** (RFC-0042 D11). 피연산자 없는 형태만 여기 온다
             //   (있으면 cbe_mark_scalar 가 이 def 을 태그 경로로 보내며 **이유를 말한다**).
             //   ☞ 타깃 대조는 이미 검사 단계가 했다(RFC-0041 D9) — 여기는 백스톱이다.

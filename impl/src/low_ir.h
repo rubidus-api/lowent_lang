@@ -807,6 +807,7 @@ typedef struct {
     // ★★★ **option·result 파라미터** — (태그,값) 쌍이다. 빠른 경로의 ws[] 스택이 그 모양을
     //   이미 담지만, 파라미터로 받으려면 그 사실을 표시해야 한다(안 그러면 정수로 오인).
     proven_u32          param_opt;
+    proven_u8           param_optsl[LOW_MAX_PARAMS];   // ★ 2026-11-01 — `option slice <정수>` 파라미터의 원소 폭(0 = 아님) — 빠른 경로가 (태그, 슬라이스)로 받는다
     // ★★★ **벡터 파라미터**(vec t n) — 레인 배열이다. 원소 폭은 param_ebits, 레인 수는 여기.
     proven_u32          param_vec;
     proven_u8           param_vlanes[LOW_MAX_PARAMS];

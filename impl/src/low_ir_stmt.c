@@ -4512,6 +4512,18 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             }
                     if ((veq(t0, "option") || veq(t0, "result")) && d->nparams < LOW_MAX_PARAMS)
                         d->param_opt |= 1u << d->nparams;   // ★ option·result = (태그,값) 쌍
+                    // ★ 2026-11-01 (W-20261101-1828) — `option slice <부호 없는 정수>`(앞에 `mut` 가 와도) — 원소 폭을 적는다(빠른 경로의 K_OPTSL)
+                    if (veq(t0, "option") && d->nparams < LOW_MAX_PARAMS) {
+                        proven_size_t k_ = tw + 1;
+                        if (k_ < f->nkids && is_atom(f->kids[k_]) && veq(f->kids[k_]->tok.lex, "mut")) k_++;
+                        if (k_ + 1 < f->nkids && is_atom(f->kids[k_]) && is_atom(f->kids[k_ + 1]) && veq(f->kids[k_]->tok.lex, "slice")) {
+                            proven_u8str_view_t et_ = f->kids[k_ + 1]->tok.lex;
+                            if (veq(et_, "u8")) d->param_optsl[d->nparams] = 1;
+                            else if (veq(et_, "u16")) d->param_optsl[d->nparams] = 2;
+                            else if (veq(et_, "u32")) d->param_optsl[d->nparams] = 4;
+                            else if (veq(et_, "u64")) d->param_optsl[d->nparams] = 8;
+                        }
+                    }
                     if (veq(t0, "vec") && d->nparams < LOW_MAX_PARAMS && tw + 2 < f->nkids
                         && is_atom(f->kids[tw + 1]) && is_atom(f->kids[tw + 2])) {
                         // ★ 벡터 파라미터 `vec <t> <n>` — 원소 폭(param_ebits)과 레인 수를 기록한다.

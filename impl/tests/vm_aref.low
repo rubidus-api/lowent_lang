@@ -1,0 +1,83 @@
+rem ★★★ **컨테이너가 든 할당기는 하나다** (2026-11-01 · W-20261101-1150).
+rem   `vecgen.vec` 의 `al` 칸은 할당기 액터를 **가리킨다** — 값이 아니다. 같은 할당기로 연 두 벡터는 한 커서를 나눠 쓰고,
+rem   한쪽이 자리를 받으면 다른 쪽의 제자리 성장(`try_grow`)이 막힌다. 빠른 경로는 그 칸에 태그 쪽 레코드의 자리를 담고,
+rem   칸을 거쳐 말할 때마다 그 레코드를 풀어 부르고 되쓴다. 두 칸이 정말 한 물건을 가리키면 쓴 양(`used`)과 각 벡터의
+rem   꼬리(`tail`)가 VM 과 같다 — 사본 둘로 갈라졌다면 다르다. 차등 스윕이 아래 op 을 VM 과 네이티브에 같은 인자로 돌려 견준다.
+
+module vm_aref .
+
+use allocs from "../../lib/alloc.low" .
+use vecgen from "../../lib/vecgen.low" .
+
+rem 두 벡터에 번갈아 민다 — 같은 할당기 하나를 두 칸이 가리킨다. 쓴 양 × 1000 + 두 개수
+proc weave input a mut (vecgen.vec u8 allocs.bump_bytes) . input b mut (vecgen.vec u8 allocs.bump_bytes) . input k usize . output u64 . effects state . do
+  var i usize 0 .
+  while lt i. k. . do
+    guard vecgen.append u8. allocs.bump_bytes. a. cast u8 i. . . else return 7 . .
+    guard vecgen.append u8. allocs.bump_bytes. b. cast u8 add i. 100 . . . else return 8 . .
+    set i. add i. 1 . .
+  end .
+  let u usize send field a. al . used . .
+  let v usize send field b. al . used . .
+  guard eq u. v. . else return 9 . .
+  return add mul cast u64 u. . 1000 . cast u64 add vecgen.count_of u8. allocs.bump_bytes. a. . vecgen.count_of u8. allocs.bump_bytes. b. . . . . .
+end .
+
+rem 한쪽에만 민다 — 다른 쪽의 꼬리는 그대로다
+proc one_side input a mut (vecgen.vec u8 allocs.bump_bytes) . input k usize . output u64 . effects state . do
+  var i usize 0 .
+  while lt i. k. . do
+    guard vecgen.append u8. allocs.bump_bytes. a. cast u8 i. . . else return 7 . .
+    set i. add i. 1 . .
+  end .
+  return cast u64 send field a. al . used . . .
+end .
+
+rem 받은 벡터의 i 번째(없으면 255)
+proc peek input a (vecgen.vec u8 allocs.bump_bytes) . input i usize . output u64 . effects none . do
+  let x option u8 vecgen.at u8. allocs.bump_bytes. a. i. . .
+  guard is_some x. . else return 255 . .
+  return widen u64 some_value x. . . .
+end .
+
+rem 걸고 · 두 벡터를 같은 할당기로 열고 · 번갈아 민 뒤 · 한쪽만 더 밀고 · 쓴 양과 꼬리를 묻는다
+export proc run input k usize . output u64 . effects state . do
+  guard le k. 40 . else return 0 . .
+  var back lit array 1024 u8 _ . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c usize send bb. init back. . .
+  let ga use bb. option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8. 2 . .
+  guard is_some ga. . else return 1 . .
+  let gb use bb. option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8. 2 . .
+  guard is_some gb. . else return 2 . .
+  var a (vecgen.vec u8 allocs.bump_bytes) some_value ga. . .
+  var b (vecgen.vec u8 allocs.bump_bytes) some_value gb. . .
+  let w u64 weave a. b. k. . .
+  let o u64 one_side b. 3 . .
+  let used u64 cast u64 send bb. used . . .
+  guard eq used. o. . else return 3 . .
+  return add add mul w. 10 . mul used. 7 . . add peek a. 0 . peek b. add k. 2 . . . . .
+end .
+
+rem ★ 띄우고 · 열고 · 하나 밀고 · 개수를 돌려준다. 수를 돌려주므로 그 레코드는 아무도 못 본다 — VM 은 부른 뒤 풀을 되감는다(rec_wm).
+rem   빠른 경로도 같이 되감아야 백 번 부르는 아래 `many` 가 끝난다(유닛 전체가 빠르면 레코드 풀은 64 칸이다).
+proc fresh input k usize . output usize . effects state . do
+  var back lit array 64 u8 _ . .
+  var bb allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c usize send bb. init back. . .
+  let ga use bb. option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8. 2 . .
+  guard is_some ga. . else return 0 . .
+  var a (vecgen.vec u8 allocs.bump_bytes) some_value ga. . .
+  guard vecgen.append u8. allocs.bump_bytes. a. cast u8 mod k. 200 . . . else return 0 . .
+  return add vecgen.count_of u8. allocs.bump_bytes. a. . send bb. used . . .
+end .
+
+export proc many input n usize . output u64 . effects state . do
+  var s u64 0 .
+  var i usize 0 .
+  while lt i. 100 . do
+    set s. add s. cast u64 fresh add i. n. . . . . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .

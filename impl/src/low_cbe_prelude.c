@@ -1988,6 +1988,13 @@ LOW_CHAPOLY_C_SOURCE
 "static lowrec lw_recs[LW_RECPOOL];\n"
 // ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
 "#define LW_RECV(v) ((v).box >= 0 ? &lw_recs[(v).box] : (lowrec *)(void *)(v).p)\n"
+/* ★★ 2026-11-01 (W-20261101-1150) — **액터를 가리키는 칸**(컨테이너가 든 할당기 `al a .`). 빠른 레코드의 평행 칸 하나에 태그 쪽 레코드의
+   자리를 담는다 — 값이 아니라 그 액터 하나다(VM 과 태그 경로에서 이 칸은 같은 박스를 가리킨다). p = 레코드(없으면 0 — 비워 둔 손잡이),
+   n = 풀의 박스 번호 + 1(틀 창의 레코드면 0). 빠른 쪽은 이 칸을 읽고 옮기기만 하고, 말을 보낼 때 그 레코드를 풀어 부르고 되쓴다. */
+"static inline lw_sl lw_aref_in(lowv v) { lw_sl s = { 0, 0 }; if (v.tag == LWV_REC) {"
+" s.p = (const unsigned char *)(const void *)LW_RECV(v); s.n = v.box >= 0 ? (size_t)v.box + 1 : 0; } return s; }\n"
+"static inline lowv lw_aref_out(lw_sl s) { if (!s.p) return lw_int(0); lowv v = {0}; v.tag = LWV_REC;"
+" if (s.n) v.box = (int)(s.n - 1); else { v.box = -1; v.p = s.p; } return v; }\n"
 /* ★★ RFC-0132 P4e (§14.8) — **틀 창**: 값 구조체는 그 op 의 C 틀에 산다(손잡이 box = -1 · p = 레코드). 칸이 모자라면 풀이다.
    되튐 창(lw_bnw)은 돌려주는 레코드 나무를 부른 쪽이 제 창으로 옮길 때까지 든다. lw_nwin_live = 살아 있는 창의 수. */
 "typedef struct { lowrec *r; int n, cap; } lw_fwin;\n"

@@ -1956,7 +1956,10 @@ bool low_ir_struct_has_enumlayout(const low_ir_t *ir, proven_size_t si) {
             continue;
         }
         proven_u8 sz = s->f[i].size;
-        if (!sz) { s->viewable = false; return; }
+        // ★ 2026-11-01 (W-20261101-1150) — 크기 0 칸(컨테이너가 든 액터 `al a .` — 바이트가 아니라 그 액터 하나를 가리킨다)에서
+        //   멈추면 뒤 칸의 오프셋이 전부 0 이다(`vec` 의 `n` · `tail` 이 한 자리). 아래 `boxed` 와 같은 병이다: `viewable` 만 끄고
+        //   자리는 끝까지 센다 — 그 칸은 바이트를 안 차지한다. 뷰 · encode · `size_of` 는 `viewable` 로 막혀 이 수를 안 읽는다.
+        if (!sz) { s->viewable = false; if (s->is_shadow) return; s->f[i].off = off; continue; }
         // ★★★ 태그 값 필드는 **바이트 레이아웃이 없다** — 크기가 8 이라 스칼라처럼 보이지만
         //   아니다. 표식을 안 봤다면 `view` 가 슬라이스 필드를 가진 구조체를 **받아 버린다**
         //   (2026-07-20 실측: 실제로 받았다 — 크기로만 판단하고 있었다).

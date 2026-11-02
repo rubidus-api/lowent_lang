@@ -810,6 +810,7 @@ typedef struct {
     //   이미 담지만, 파라미터로 받으려면 그 사실을 표시해야 한다(안 그러면 정수로 오인).
     proven_u32          param_opt;
     proven_u8           param_optsl[LOW_MAX_PARAMS];   // ★ 2026-11-01 — `option slice <정수>` 파라미터의 원소 폭(0 = 아님) — 빠른 경로가 (태그, 슬라이스)로 받는다
+    proven_u8           param_optsx1[LOW_MAX_PARAMS];  // ★ 2026-11-02 (W-20261102-0024 O4) — `option (owned <구조체>)` 파라미터의 구조체 번호 + 1(0 = 아님) — 빠른 경로가 마디의 뷰를 싼 option 으로 받는다
     // ★★★ **벡터 파라미터**(vec t n) — 레인 배열이다. 원소 폭은 param_ebits, 레인 수는 여기.
     proven_u32          param_vec;
     proven_u32          param_vsgn;    // ★ 2026-11-01 — 벡터 파라미터의 레인이 부호 있는 정수다(`vec n i16` …)

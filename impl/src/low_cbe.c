@@ -1391,7 +1391,8 @@ static bool cbe_view_ok(const low_ir_t *ir, int sidx) {
     if (S->is_shadow)
         for (proven_size_t q = 0; q < S->nf; q++) {
             const low_ir_sfield_t *f = &S->f[q];
-            if (f->bxself || f->bxs1) return false;
+            if (f->bxs1) continue;   // ★ 2026-11-02 (W-20261102-0024 O4) — 마디의 주소 칸(none = 0): FIELD · FSTORE 가 option(뷰)로 읽고 쓴다
+            if (f->bxself) return false;
             if (f->slmeta) {
                 const unsigned ez_ = (unsigned)(f->slmeta & 0xff);
                 if ((f->slmeta & (IR_STRUCT_BIT | IR_ROW_BIT)) || !ez_ || ez_ > 8) return false;
@@ -1402,11 +1403,53 @@ static bool cbe_view_ok(const low_ir_t *ir, int sidx) {
         if (S->f[q].sidx >= 0) {                              // 중첩 구조체 필드 → 재귀로 뷰 가능해야
             if (!cbe_view_ok(ir, (int)S->f[q].sidx)) return false;
         } else if (S->is_shadow && S->f[q].slmeta) continue;  // ★ 그림자의 슬라이스 칸 — (주소, 길이) 16 바이트(위에서 검증)
+        else if (S->is_shadow && S->f[q].bxs1) continue;    // ★ 그림자의 주소 칸(2026-11-02)
         else if (S->f[q].arrn) { if (!cbe_f_arr(&S->f[q])) return false; continue; }   // ★ 2026-11-01 — 배열 칸: 그 바이트를 보는 슬라이스
         else if (S->f[q].size > 8) return false;            // 스칼라 잎은 long long 에 담겨야
         // 부동 잎은 오프셋으로 읽어 lw_b2f 로 f64 로 본다(아래 FIELD 방출).
     }
     return true;
+}
+
+// ★★★ 2026-11-02 (W-20261102-0024 O4) — **마디는 늘 바이트 위에 산다.** 스스로를 품는 칸(`left option (owned node) .`)이 있는
+//   구조체를 이 단위의 어느 op 도 레코드로 짓지 않으면(`make` 가 없다 — `use al. option (owned node) lit node …` 는 할당기 바이트 위의
+//   그림자 뷰를 낸다), 그 구조체의 값은 실행 중 언제나 그 그림자의 뷰다(VM 의 VMV_VIEW). 그러면 매개변수 · `option (owned …)` 매개변수 ·
+//   반환을 뷰(K_VIEW + 그림자)로 나른다 — 바이트를 가리키는 주소 하나다. 레코드로 짓는 자리가 하나라도 있으면 값이 레코드일 수도
+//   있으므로 −1(태그 경로) — 매개변수의 종류는 하나여야 한다. 그림자 번호를 돌려준다.
+static int cbe_view_slot(const low_ir_t *ir, int sidx, proven_i64 fi);
+static int cbe_nodeview(const low_ir_t *ir, int sidx) {
+    if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return -1;
+    const low_ir_struct_t *S = &ir->structs[sidx];
+    if (S->is_shadow || !S->ashadow1) return -1;
+    bool self_ = false;
+    for (proven_size_t q = 0; q < S->nf; q++) if (S->f[q].bxself) self_ = true;
+    if (!self_) return -1;
+    for (proven_size_t i = 0; i < ir->ndefs; i++)
+        for (proven_size_t j = 0; j < ir->defs[i].ncode; j++)
+            if (ir->defs[i].code[j].w == IRW_MAKE && cbe_make_sidx(ir, ir->defs[i].code[j].a) == sidx) return -1;
+    const int sh = (int)S->ashadow1 - 1;
+    if (sh < 0 || K_VIEW + sh >= K_SVIEW || !cbe_view_ok(ir, sh)) return -1;
+    return sh;
+}
+// 매개변수의 뷰 종류를 심는다 — 종류 실행과 방출이 같은 규칙을 본다(cbe_local_kinds 뒤에 부른다).
+static void cbe_nodeview_seed(const low_ir_t *ir, const low_ir_def_t *d, unsigned char *lk, unsigned char *lez, unsigned char *lfl, proven_size_t n) {
+    for (proven_size_t q = 0; q < d->nparams && q < n && q < LOW_MAX_PARAMS; q++) {
+        if ((d->param_struct >> q) & 1u) {
+            const int sh = cbe_nodeview(ir, (int)d->param_sidx[q]);
+            if (sh >= 0) lk[q] = (unsigned char)(K_VIEW + sh);
+        } else if (((d->param_opt >> q) & 1u) && d->param_optsx1[q]) {
+            const int sh = cbe_nodeview(ir, (int)d->param_optsx1[q] - 1);
+            if (sh >= 0 && sh < 254) { lk[q] = K_OPT; lez[q] = (unsigned char)(sh + 1); lfl[q] = 1; }
+        }
+    }
+}
+static int cbe_pnode(const low_ir_t *ir, const low_ir_def_t *d, proven_size_t q) {   // 이 매개변수가 마디의 뷰인가(그림자 번호 · 아니면 −1)
+    if (q >= LOW_MAX_PARAMS || !((d->param_struct >> q) & 1u)) return -1;
+    return cbe_nodeview(ir, (int)d->param_sidx[q]);
+}
+static int cbe_pnodeopt(const low_ir_t *ir, const low_ir_def_t *d, proven_size_t q) {   // `option (owned 마디)` 매개변수인가
+    if (q >= LOW_MAX_PARAMS || !((d->param_opt >> q) & 1u) || !d->param_optsx1[q]) return -1;
+    return cbe_nodeview(ir, (int)d->param_optsx1[q] - 1);
 }
 
 // 뷰 필드 조회 — cbe_rec_slot 과 같되 **8필드 상한이 없다**(뷰는 오프셋으로 읽으니까).
@@ -1729,7 +1772,7 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
         // ★ 구조체 파라미터는 **필드가 전부 스칼라 정수**일 때만 내린다.
         int badq = -1;
         for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS; q++)
-            if ((d->param_struct >> q) & 1u)
+            if ((d->param_struct >> q) & 1u && cbe_pnode(ir, d, q) < 0)
                 if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q]) &&
                     !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, (int)d->param_sidx[q], 0)) &&
                     !cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) { sc[i] = false; badq = (int)q; break; }
@@ -2645,6 +2688,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     //   (태그 경로로 갔다 — 틀린 값은 아니었다). 원소가 수인 칸만 연다(구조체 · 줄의 슬라이스 칸은 그대로 태그 경로).
                     {
                         const low_ir_sfield_t *F_ = &ir->structs[sx].f[sl];
+                        if (ir->structs[sx].is_shadow && F_->bxs1) {   // ★ 2026-11-02 (W-20261102-0024 O4) — 마디의 주소 칸 → option(그 마디의 뷰)(VM 과 같다 · 0 = none)
+                            if (F_->bxs1 - 1 >= 254 || K_VIEW + F_->bxs1 - 1 >= K_SVIEW) return false;
+                            st.k[st.n-1] = K_OPT; st.ve[st.n-1] = (unsigned char)F_->bxs1; st.fl[st.n-1] = 1; st.vn[st.n-1] = 0; st.o[st.n-1] = -1;
+                            break;
+                        }
                         if (F_->bxself) return false;
                         if (F_->arrn) {   // ★ 2026-11-01 — 뷰의 배열 칸: 그 바이트를 보는 슬라이스(VM 의 vm_arr_view — 무복사)
                             if (!cbe_f_arr(F_)) return false;
@@ -2766,6 +2814,14 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (vsl_ < 0 || !ir->structs[vsx_].is_shadow || !ir->structs[vsx_].f[vsl_].slmeta) return false;
                     const unsigned ez_ = (unsigned)(ir->structs[vsx_].f[vsl_].slmeta & 0xff);
                     if ((st.ve[st.n-1] ? st.ve[st.n-1] : 1) != ez_) { snprintf(g_sub, sizeof g_sub, "a slice of element width %u into a slice field of width %u", st.ve[st.n-1], ez_); return false; }
+                    st.n -= 2; break;
+                }
+                // ★ 2026-11-02 (W-20261102-0024 O4) — 마디의 주소 칸에 option(마디의 뷰) · none 을 쓴다(주소 한 칸 · none = 0 — VM 과 같다)
+                if (st.k[st.n-1] == K_OPT && st.k[st.n-2] >= K_VIEW && st.k[st.n-2] < K_SVIEW) {
+                    const int vsx_ = st.k[st.n-2] - K_VIEW, vsl_ = cbe_view_slot(ir, vsx_, in->a);
+                    if (vsl_ < 0 || !ir->structs[vsx_].is_shadow || !ir->structs[vsx_].f[vsl_].bxs1) return false;
+                    const bool none_ = st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0, node_ = st.fl[st.n-1] == 1 && st.ve[st.n-1] == ir->structs[vsx_].f[vsl_].bxs1;
+                    if (!none_ && !node_) { snprintf(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
                     st.n -= 2; break;
                 }
                 if (st.k[st.n-1] != K_INT) return false;
@@ -3042,7 +3098,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         }
                     }
                 for (proven_size_t q = 0; q < ce->nparams && q < LOW_MAX_PARAMS; q++)
-                    if ((ce->param_struct >> q) & 1u) {
+                    if ((ce->param_struct >> q) & 1u && cbe_pnode(ir, ce, q) < 0) {
                         // ★★ 2026-10-31 (W-20261031-2053) — 슬라이스 칸을 가진 레코드도 넘긴다(RFC-0106 의 남은 길: 호출 인자).
                         //   칸은 `crsl[매개변수 번호]` 로 가고, 바꾸는 피호출자가 쓴 칸은 부른 뒤 호출자의 지역 칸으로 되받는다(방출).
                         if (!cbe_rec_ok(ir, (int)ce->param_sidx[q]) && !cbe_rec_slice_ok(ir, (int)ce->param_sidx[q]) &&
@@ -3087,6 +3143,16 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                        : ((ce->param_opt >> q) & 1u) ? (ce->param_optsl[q] ? K_OPTSL : K_OPT)
                                        : ((ce->param_vec >> q) & 1u) ? K_VEC
                                        : ((ce->param_flt >> q) & 1u) ? K_FLT : K_INT;
+                    // ★★ 2026-11-02 (W-20261102-0024 O4) — 마디의 뷰 매개변수는 그 그림자의 뷰만 받는다 · `option (owned 마디)` 는 그 뷰를 싼 option 이나 none
+                    if (cbe_pnode(ir, ce, q) >= 0) {
+                        if (have != (unsigned char)(K_VIEW + cbe_pnode(ir, ce, q))) { snprintf(g_sub, sizeof g_sub, "argument %d is not a node in allocator bytes", (int)q); return false; }
+                        continue;
+                    }
+                    if (cbe_pnodeopt(ir, ce, q) >= 0) {
+                        const int ai_ = st.n - (int)ce->nparams + (int)q;
+                        if (have == K_OPT && ((st.ve[ai_] == 0 && st.fl[ai_] == 0) || (st.fl[ai_] == 1 && st.ve[ai_] == (unsigned char)(cbe_pnodeopt(ir, ce, q) + 1)))) continue;
+                        snprintf(g_sub, sizeof g_sub, "argument %d is not an option of a node in allocator bytes", (int)q); return false;
+                    }
                     // ★ 구조체 파라미터는 레코드 또는 (같은 구조체의) 뷰를 받는다 — 위에서 검증됨.
                     if (((ce->param_struct >> q) & 1u) && have == (unsigned char)(K_VIEW + ce->param_sidx[q]))
                         continue;
@@ -3281,6 +3347,7 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
     for (proven_size_t i = 0; i < d->ncode; i++) at[i].set = false;
     for (proven_size_t i = 0; i < g_lb.cap; i++) { slot[i] = 0xff; rmap[i] = 0xff; lez[i] = 0; lln[i] = 0; lfl[i] = 0; }
     cbe_local_kinds(d, lk, g_lb.cap);
+    cbe_nodeview_seed(ir, d, lk, lez, lfl, g_lb.cap);   // ★ 2026-11-02 (W-20261102-0024 O4) — 마디의 뷰 매개변수
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++)   // ★ 2026-11-01 — option(슬라이스) 파라미터의 원소 폭(방출과 같은 규약)
         if (((d->param_opt >> q) & 1u) && d->param_optsl[q] > 1) lln[q] = d->param_optsl[q];
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) {
@@ -3348,7 +3415,7 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             //   ⇒ §4 규율대로 닫아 둔다. 이 한 줄만 바꾸면 다시 열린다.
             //   ☞ *경계는 값을 옮기는 곳이 아니라 **모양을 번역**하는 곳이고,
             //     번역은 **왕복**이어야 한다 — 한쪽만 번역하면 뜻이 샌다.*
-            if (!cbe_rec_slice_ok(ir, d->param_sidx[q]) &&
+            if (cbe_pnode(ir, d, q) < 0 && !cbe_rec_slice_ok(ir, d->param_sidx[q]) &&
                 !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, d->param_sidx[q], 0)) &&
                 !cbe_rec_arr_ok(ir, d->param_sidx[q])) {   /* 관문 — RFC-0106 단계 2 · 안의 구조체 · 부동 칸은 2026-10-31(바꾸지 않는 op) · 배열 칸 레코드는 2026-11-01(몸이 칸 슬라이스를 못 내보내는 op — cbe_arrpar_body_ok) */
                 snprintf(g_sub, sizeof g_sub, "parameter %zu is a struct the fast frame cannot hold", q);
@@ -3822,6 +3889,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) slot[q] = lk[q];
     unsigned char rk_ = 0xff, *rmap = g_lb.rmap, *lez = g_lb.lez, *lln = g_lb.lln, *lfl = g_lb.lfl;
     for (proven_size_t q = 0; q < g_lb.cap; q++) { rmap[q] = 0xff; lez[q] = 0; lln[q] = 0; lfl[q] = 0; }
+    cbe_nodeview_seed(ir, d, lk, lez, lfl, g_lb.cap);   // ★ 2026-11-02 — 마디의 뷰 매개변수(kind_ok 와 같다)
+    for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) slot[q] = lk[q];
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++)   // ★ 2026-11-01 — option(슬라이스) 파라미터의 원소 폭(vn — 1 이면 0)
         if (((d->param_opt >> q) & 1u) && d->param_optsl[q] > 1) lln[q] = d->param_optsl[q];
     for (proven_size_t q = 0; q < d->nparams && q < g_lb.cap; q++) {
@@ -3892,7 +3961,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
               //   올리면 그 쓰기가 **호출자에게 보여야** 하기 때문이다.
               // ★ 파라미터의 슬라이스 칸을 **지역 칸으로 옮긴다**(RFC-0106 단계 3).
               //   그러면 `field` 읽기는 파라미터든 지역이든 **한 자리**만 본다.
-              if (cbe_struct_has_sl(ir, (int)d->param_sidx[q]))
+              if (cbe_pnode(ir, d, q) >= 0)   // ★ 2026-11-02 — 마디의 뷰: 바이트를 가리키는 주소 하나(지역은 슬라이스 칸에 산다)
+                  fprintf(out, "    sloc[%zu].p = ar[%zu]; sloc[%zu].n = %u;\n", (size_t)q, (size_t)nr++, (size_t)q,
+                          (unsigned)ir->structs[cbe_pnode(ir, d, q)].total);
+              else if (cbe_struct_has_sl(ir, (int)d->param_sidx[q]))
                   fprintf(out, "    rloc[%zu] = ar[%zu]; memcpy(rlocsl[%zu], &rsl[%zu * LW_RECF], sizeof rlocsl[0]);\n",
                           (size_t)q, (size_t)nr++, (size_t)q, (size_t)q);
               else fprintf(out, "    rloc[%zu] = ar[%zu];\n", (size_t)q, (size_t)nr++);
@@ -5257,6 +5329,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         ks.k[ks.n-1] = cbe_arr_k(&S->f[sl]); ks.ve[ks.n-1] = S->f[sl].arresz; ks.vn[ks.n-1] = (unsigned char)cbe_arr_rb(&S->f[sl]); ks.fl[ks.n-1] = cbe_arr_fl(&S->f[sl]); ks.o[ks.n-1] = -1;
                         break;
                     }
+                    if (S->is_shadow && S->f[sl].bxs1) {
+                        // ★★ 2026-11-02 (W-20261102-0024 O4) — 마디의 주소 칸: 0 이면 none, 아니면 그 마디의 뷰를 싼 option(종류 실행과 짝 · VM 의 FIELD 와 같다)
+                        fprintf(out, "    { const unsigned char *p_; memcpy(&p_, ss[--ssp].p + %u, sizeof p_);"
+                                     " if (p_) { ws[wsp].s.p = p_; ws[wsp].s.n = %u; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n",
+                                (unsigned)S->f[sl].off, (unsigned)ir->structs[S->f[sl].bxs1 - 1].total);
+                        ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)S->f[sl].bxs1; ks.fl[ks.n-1] = 1; ks.vn[ks.n-1] = 0; ks.o[ks.n-1] = -1;
+                        break;
+                    }
                     if (S->is_shadow && S->f[sl].slmeta) {
                         // ★★ 그림자 배치의 슬라이스 칸 — (주소, 길이)를 그 자리에서 읽어 슬라이스 칸으로 바꾼다(종류 실행과 짝 · 2026-10-31).
                         //   주소 자리의 너비는 처리기의 것(low_ptr_slot)이고 주소는 그 앞머리에 든다 — VM · 재배치 상수와 같은 배치다.
@@ -5364,6 +5444,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 fprintf(out, "    { lw_sl v_ = ss[--ssp]; unsigned char *q_ = (unsigned char *)ss[--ssp].p + %u; unsigned long long n_ = (unsigned long long)v_.n;\n"
                              "      memcpy(q_, &v_.p, sizeof v_.p); memcpy(q_ + %u, &n_, 8); }\n",
                         (unsigned)ir->structs[vsx_].f[vsl_].off, low_ptr_slot());
+                ks.n -= 2;
+                break;
+            } else if (ks.k[ks.n-1] == K_OPT && ks.k[ks.n-2] >= K_VIEW && ks.k[ks.n-2] < K_SVIEW) {
+                // ★★ 2026-11-02 (W-20261102-0024 O4) — 마디의 주소 칸에 쓴다: some 이면 그 마디의 주소, none 이면 0(VM 의 FSTORE 와 같다)
+                const int vsx_ = ks.k[ks.n-2] - K_VIEW, vsl_ = cbe_view_slot(ir, vsx_, in->a);
+                fprintf(out, "    { lw_r w_ = ws[--wsp]; const unsigned char *p_ = w_.tag == 1 ? w_.s.p : 0; memcpy((unsigned char *)ss[--ssp].p + %u, &p_, sizeof p_); }\n",
+                        (unsigned)ir->structs[vsx_].f[vsl_].off);
                 ks.n -= 2;
                 break;
             } else if (ks.k[ks.n-2] >= K_VIEW) {
@@ -7662,6 +7749,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       // ★★★ **경계에서 한 번** 푼다 — 태그 경로의 `lw_field` 를 여기서만 쓴다.
                       //   그것이 REC(박스)든 VIEW(바이트)든 상관없다. **안쪽 루프에는 없다.**
                       const low_ir_struct_t *S = &ir->structs[d->param_sidx[q]];
+                      if (cbe_pnode(ir, d, q) >= 0) {   // ★ 2026-11-02 (W-20261102-0024 O4) — 마디는 바이트 위의 뷰로만 온다(cbe_nodeview) — 아니면 크게 멈춘다
+                          fprintf(out, "    if (LW_UNLIKELY(a[%zu].tag != LWV_VIEW)) lw_panic(\"a node built in allocator bytes\"); ar[%zu] = (unsigned char *)a[%zu].p;\n",
+                                  (size_t)q, (size_t)br, (size_t)q);
+                          br++;
+                          continue;
+                      }
                       if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q]) && !cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) {   // ★ 2026-10-31 — 안의 구조체 · 부동 칸(cbe_rec_nested_ok 가 연 것) · 배열 칸은 아래 풀기(2026-11-01)
                           char v0[32]; snprintf(v0, sizeof v0, "a[%zu]", (size_t)q);
                           cbe_emit_rec_in(out, ir, (int)d->param_sidx[q], br, 0, v0, 0);
@@ -7761,6 +7854,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 proven_size_t bw = 0;
                 for (proven_size_t q = 0; q < d->nparams; q++) {
                     if (!((d->param_struct >> q) & 1u)) continue;
+                    if (cbe_pnode(ir, d, q) >= 0) { bw++; continue; }   // ★ 2026-11-02 — 마디의 뷰: 피호출자가 그 바이트에 바로 썼다(되쓸 것이 없다)
                     { char v0[32], b0[32];
                       snprintf(v0, sizeof v0, "a[%zu]", (size_t)q); snprintf(b0, sizeof b0, "ar[%zu]", (size_t)bw);
                       cbe_emit_rec_writeback(out, ir, (int)d->param_sidx[q], v0, b0, "rsl", (size_t)q, true); }

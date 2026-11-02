@@ -4538,6 +4538,20 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             else if (veq(et_, "u32")) d->param_optsl[d->nparams] = 4;
                             else if (veq(et_, "u64")) d->param_optsl[d->nparams] = 8;
                         }
+                        // ★ 2026-11-02 (W-20261102-0024 O4) — `option (owned <구조체>)` · `option owned <구조체>`: 그 구조체의 번호를 적는다
+                        {
+                            const low_cst_t *g_ = k_ < f->nkids ? f->kids[k_] : NULL;
+                            while (g_ && !is_atom(g_) && g_->nkids == 1) g_ = g_->kids[0];   // `(owned node)` 은 묶음 하나 안의 마디다
+                            proven_u8str_view_t nm_ = { 0 };
+                            if (g_ && !is_atom(g_) && g_->nkids == 2 && is_atom(g_->kids[0]) && is_atom(g_->kids[1]) && veq(g_->kids[0]->tok.lex, "owned"))
+                                nm_ = g_->kids[1]->tok.lex;
+                            else if (g_ && is_atom(g_) && veq(g_->tok.lex, "owned") && k_ + 1 < f->nkids && is_atom(f->kids[k_ + 1]))
+                                nm_ = f->kids[k_ + 1]->tok.lex;
+                            if (nm_.size) {
+                                bool sf_; proven_size_t si_ = ir_struct_find(&ir, nm_, &sf_);
+                                if (sf_ && si_ < 255) d->param_optsx1[d->nparams] = (proven_u8)(si_ + 1);
+                            }
+                        }
                     }
                     if (veq(t0, "vec") && d->nparams < LOW_MAX_PARAMS && tw + 2 < f->nkids
                         && is_atom(f->kids[tw + 1]) && is_atom(f->kids[tw + 2])) {

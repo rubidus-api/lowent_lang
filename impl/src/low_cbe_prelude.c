@@ -638,7 +638,7 @@ const char LW_PRELUDE[] =
 "static lw_r lw_opt2r(lowv v) {\n"
 "    lw_r r; r.v = 0; r.f = 0; r.s.p = 0; r.s.n = 0; for (int i=0;i<LW_RECB;i++) r.r[i]=0; r.tag = 0; r.t2 = 0;\n"
 "    if (v.tag == LWV_SOME) { r.tag = 1; r.v = lw_boxes[v.box].i;\n"
-"        if (lw_boxes[v.box].tag == LWV_SLICE || lw_boxes[v.box].tag == LWV_VARRAY) { r.v = 0; r.s.p = lw_boxes[v.box].p; r.s.n = lw_boxes[v.box].n; } }\n"   /* ★ 2026-11-01 — option(슬라이스) 파라미터 */
+"        if (lw_boxes[v.box].tag == LWV_SLICE || lw_boxes[v.box].tag == LWV_VARRAY || lw_boxes[v.box].tag == LWV_VIEW) { r.v = 0; r.s.p = lw_boxes[v.box].p; r.s.n = lw_boxes[v.box].n; } }\n"   /* ★ 2026-11-01 — option(슬라이스) 파라미터 · 2026-11-02 — option(마디의 뷰) */
 "    else if (v.tag == LWV_NONE) { r.tag = 2; }\n"
 "    else if (v.tag == LWV_OK)  { r.tag = 3; r.v = lw_boxes[v.box].i; }\n"
 "    else if (v.tag == LWV_ERR) { r.tag = 4; r.v = v.i; }\n"

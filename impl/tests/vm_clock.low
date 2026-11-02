@@ -18,6 +18,15 @@ proc t_mono input k cap clock . output u64 . effects none . do
   return 1 .
 end .
 
+rem ★★ 2026-11-02 — **단조 시계는 벽시계가 아니다.** 단조 시계의 원점은 정해지지 않았지만(리눅스·윈도는 부팅 무렵),
+rem   1970 부터 세는 벽시계는 지금 1.7×10^18 ns 를 넘는다. 10^18 ns(31.7 년) 아래면 벽시계가 아니다.
+rem   proven v0.6.0 의 머리글이 벽시계를 «monotonic» 이라 적어서 VM 이 그것을 불렀다(네이티브는 CLOCK_MONOTONIC) — 그 VM 은 90.
+proc t_origin input k cap clock . output u64 . effects none . do
+  let a u64 call_builtin time_now k. . .
+  guard lt a. 1000000000000000000 . else return 90 . .
+  return 1 .
+end .
+
 rem 잠들면 실제로 나아간다. 요청보다 덜 자지는 않는다(더 잘 수는 있다).
 proc t_sleep input k cap clock . output u64 . effects wait . do
   let a u64 call_builtin time_now k. . .

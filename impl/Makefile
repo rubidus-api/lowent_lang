@@ -29,16 +29,11 @@ BUILD   := build
 # Minimal proven core we link against (arena/strings/containers + mem PAL).
 PROVEN_SRC := \
   $(PROVEN)/src/proven/arena.c \
-  $(PROVEN)/src/proven/memory.c \
   $(PROVEN)/src/proven/buffer.c \
   $(PROVEN)/src/proven/u8str.c \
   $(PROVEN)/src/proven/array.c \
   $(PROVEN)/src/proven/panic.c \
   $(PROVEN)/src/proven/heap.c \
-  $(PROVEN)/src/proven/pool.c \
-  $(PROVEN)/src/proven/scan.c \
-  $(PROVEN)/src/proven/float_parse.c \
-  $(PROVEN)/src/proven/float_decimal.c \
   $(PROVEN)/src/proven/utf.c \
   $(PROVEN)/src/proven/u16str.c \
   $(PROVEN)/src/proven/alloc_check.c \
@@ -54,8 +49,10 @@ PROVEN_SRC := \
 # ★ v0.6.0 재벤더 뒤(2026-10-02): utf.c — 소스 검증·`u"…"` 리터럴의 UTF-8 해독을 proven 의 `proven_utf8_decode_next` 가 한다
 #   (손으로 짠 해독기 둘을 걷어냈다). u16str.c 는 utf.c 가 부르는 덧붙이기 하나 때문에 따라온다. alloc_check.c —
 #   `make alloccheck` 가 힙을 블록을 아는 할당기로 감싸 남의 블록 해제·두 번 해제를 그 자리에서 잡는다(보통 빌드는 감싸지 않는다).
-# scan.c (+ float_parse.c/float_decimal.c) added: the `scan` builtin uses proven's
-# cursor tokenizer to auto-type input fields (int/float/string).
+# ★ v0.107.2 재벤더(2026-11-02 · W-20261102-1140): 짓기만 하고 아무도 부르지 않던 다섯을 뺐다 — `memory.c` · `pool.c` ·
+#   `scan.c` · `float_parse.c` · `float_decimal.c`(`nm` 로 쟀다: 처리기 오브젝트도 다른 proven 오브젝트도 그 심볼을 안 찾는다).
+#   여기 적혀 있던 «`scan` 빌트인이 proven 의 커서 토크나이저를 쓴다» 는 이미 사실이 아니었다 — 부동소수는 `strtod` 가 읽는다.
+#   `panic.c` 는 `alloc_check.c` 가 부른다. 되살릴 때는 이 목록에 다시 적으면 된다(소스는 vendor/ 에 통째로 있다).
 
 LOW_SRC := $(filter-out src/main.c,$(wildcard src/*.c))
 LOW_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(LOW_SRC))

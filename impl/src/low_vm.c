@@ -3359,9 +3359,13 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             // ★★★★★ **시계** (RFC-0090 N1) — proven_c_lib 의 것을 그대로 부른다.
             //   ☞ 오라클은 **단조성**이다: `now` 두 번은 뒤가 크거나 같다. 절대값은 오라클이
             //     없다(무엇과 대볼 것인가?) — 그래서 그것을 **주장하지 않는다**.
+            //   ★★ 2026-11-02 (W-20261102-1140) — 전에는 `proven_sys_time_now_ns` 를 불렀다. proven v0.6.0 의 머리글이 그것을
+            //     «high-resolution monotonic time» 이라 적었지만 실제로는 **벽시계**(CLOCK_REALTIME)였다 — VM 은 1970 부터의 ns,
+            //     네이티브(CLOCK_MONOTONIC)는 부팅 뒤의 ns 를 돌려줬고, 시계가 맞춰지면 VM 의 `since_ns` 가 뒤로 갈 수 있었다.
+            //     상류 v0.107.2 가 머리글을 바로잡고 진짜 단조 시계를 더했다. 증인 tests/vm_clock.low `t_origin`
             case IRW_TIMENOW: {   // () → u64  단조 ns
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
-                stack[sp++] = vmv_int((proven_i64)proven_sys_time_now_ns());
+                stack[sp++] = vmv_int((proven_i64)proven_sys_time_monotonic_ns());
                 break;
             }
             case IRW_TIMESLEEP: {   // (ms) → u64  실제로 잔 ms
@@ -3376,10 +3380,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   ⇒ **예산이 켜져 있으면**(도구가 부른 실행) 자지 않고 **예산 히트로 센다**.
                 //     조용히 0 을 돌려주면 오라클이 "잤다" 고 믿는다 — 그래서 세어서 보고한다.
                 //     사용자 실행은 예산 0(무한)이라 이 갈래를 타지 않는다.
-                proven_u64 t0 = proven_sys_time_now_ns();
+                proven_u64 t0 = proven_sys_time_monotonic_ns();   // 잔 시간도 단조 시계로 잰다(네이티브 lw_time_sleep 과 같다)
                 if (vm->budget) { vm->budget_hit = true; mv.i = 0; }
                 if (mv.i > 0) proven_sys_time_sleep_ms((unsigned)(mv.i > 60000 ? 60000 : mv.i));
-                proven_u64 t1 = proven_sys_time_now_ns();
+                proven_u64 t1 = proven_sys_time_monotonic_ns();
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int((proven_i64)((t1 - t0) / 1000000ull));
                 break;

@@ -1,8 +1,27 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.6.0` (git `e62cee2` — 태그 `v0.6.0`)
-- Vendored: 2026-10-02 전체 재벤더 (was v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+- Version: `proven_c_lib-v0.107.2` (git `def42831` — 태그 `v0.107.2`)
+- Vendored: 2026-11-02 전체 재벤더 (was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+
+> **2026-11-02 재벤더 (v0.6.0 → v0.107.2, 상류 431 커밋 · W-20261102-1140).** 태그를 `git archive v0.107.2` 로 꺼내
+> `include/`·`src/`·`platform/`·`LICENSE`·`THIRD_PARTY_NOTICES.md` 를 통째로 바꿨다. 바뀐 파일 25, 새 파일 101, 지워진 파일 없음.
+> 새 파일은 거의 다 상류의 네트워크·압축·암호 모듈이다(TLS 1.3 · QUIC · HTTP/1·2·3 · WebSocket · deflate · brotli · zstd · 해시 ·
+> 인증서). 처리기는 그중 하나도 짓지 않는다 — 들여온 C 가 약 27 천 줄에서 94 천 줄로 늘었고(`find -name '*.[ch]' | xargs cat | wc -l`),
+> 그 늘어난 것은 헤더 완결성으로만 있다. `LICENSE`·`THIRD_PARTY_NOTICES.md` 는 바뀌지 않았다.
+> 처리기가 부르는 proven 함수(링크되는 것 17 개 — `nm -u build/src/*.o`)는 하나도 바뀌지 않았다. 상류는 더하기만 했다.
+> ★★ **고친 것 하나 — VM 의 `time_now` 가 벽시계였다.** v0.6.0 의 `platform/proven_sys_time.h` 는
+>   `proven_sys_time_now_ns` 를 «high-resolution monotonic time» 이라 적었지만 실제로는 CLOCK_REALTIME(윈도는 FILETIME)이었다.
+>   VM 은 그 설명을 믿고 `time_now`·`time_sleep` 에 그것을 썼고, 네이티브는 CLOCK_MONOTONIC 을 썼다 — 정본(부록 D «단조 시계»)·
+>   안내서(«never goes backwards») 와 맞는 쪽은 네이티브였다. 상류 v0.107.2 가 그 머리글을 «Not monotonic» 으로 바로잡고 진짜
+>   단조 시계 `proven_sys_time_monotonic_ns` 를 더했다. VM 이 그것을 쓴다. 증인 `tests/vm_clock.low` `t_origin`(옛 VM 90 · 새 VM 1 ·
+>   네이티브 1).
+> ★ **짓는 목록에서 다섯을 뺐다**: `memory` · `pool` · `scan` · `float_parse` · `float_decimal`. 짓고 링크했지만 처리기 오브젝트도
+>   다른 proven 오브젝트도 그 심볼을 찾지 않았다(`nm`). 아래 2026-10-02 블록의 «부동소수 해석은 빨라졌고 답은 같다고 … 코퍼스로
+>   확인했다» 는 **아무것도 확인하지 않은 확인**이었다 — 처리기는 부동소수를 `strtod` 로 읽고 `%g` 로 찍는다. 그래서 상류의
+>   부동소수 고침(낮은 림이 0 인 128 비트 값 · u256 이동의 UB)도 처리기에 닿지 않는다.
+> ★ 확인: 옛 처리기(v0.6.0)와 새 처리기의 방출 C·`--check` 출력이 515 파일(`tests` · `lib` · `docs/example` 의 `.low`)에서
+>   바이트까지 같다. `make test` · `make alloccheck` 초록 · gcc 벤더 경고 0. `--version` 출력이 `proven_c_lib-v0.107.2` 로 바뀐다.
 
 > **2026-10-02 재벤더 (v0.1.1 → v0.6.0, 상류 83 커밋).** 태그를 `git archive v0.6.0` 으로 꺼내 `include/`·`src/`·`platform/`·
 > `LICENSE`·`THIRD_PARTY_NOTICES.md` 를 통째로 바꿨다. 바뀐 파일 83, 새 파일 다섯(`include/proven/{alloc_check,utf}.h` ·
@@ -68,9 +87,11 @@ is exactly proven's region allocator. We reuse proven for: arena/allocator (memo
 *"짓는 것은 한 줄도 안 바뀌었다"* 는 잘못된 안심이 세 곳에 퍼졌다(실제로는 `proven_sys_random.c` 가 바뀌었다).
 ☞ *같은 목록을 두 곳에 두면 한 곳만 낡고, 낡은 쪽이 인용된다*(교훈 7).
 
-오늘(2026-10-02) `PROVEN_SRC` 가 짓는 것: `arena · memory · buffer · u8str · array · panic · heap ·
-pool · scan · float_parse · float_decimal · utf · u16str · alloc_check`(14) + `platform/proven_sys_{mem,time,random}.c`(3).
-(`utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `alloc_check` 은 `make alloccheck` 용 — 2026-10-02 에 더했다.)
+오늘(2026-11-02) `PROVEN_SRC` 가 짓는 것: `arena · buffer · u8str · array · panic · heap ·
+utf · u16str · alloc_check`(9) + `platform/proven_sys_{mem,time,random}.c`(3).
+(`utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `buffer` 는 `u8str`·`u16str` 이 부른다 ·
+`alloc_check` 은 `make alloccheck` 용이고 `panic` 은 그것이 부른다. 2026-11-02 에 아무도 부르지 않던 `memory · pool · scan ·
+float_parse · float_decimal` 다섯을 뺐다.)
 Warning-clean under `-std=c23 -Wall -Wextra`(벤더 경고 0 — 남아 있던 둘은 우리 쪽 `PROVEN_ARRAY_GET`
 오용이었고 `GET_MUT` 으로 고쳤다).
 
@@ -83,8 +104,9 @@ keys, use `proven_map_create_trusted` (unkeyed FNV-1a: fast AND deterministic), 
 SipHash default.
 
 The full `include/`, `src/`, and `platform/` trees are vendored for header
-completeness, but only the core `.c` above are built. OS-heavy modules (fs, sysio,
-mmap, time, coro, job, u16str, float_*) are present but not compiled unless needed.
+completeness, but only the core `.c` above are built. Everything else (fs, sysio,
+mmap, time, coro, job, float_*, scan, and since v0.107.2 net · tls · http · compression) is
+present but not compiled.
 
 ## Updating
 

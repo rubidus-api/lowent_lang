@@ -28,7 +28,7 @@ add	a f64, b f64	f64	return add a. b. . .	1e+308 1e+308	= inf
 sub	a f64, b f64	f64	return sub a. b. . .	1.5 2.0	= -0.5
 mul	a f64, b f64	f64	return mul a. b. . .	1.5 2.0	= 3.0
 div	a f64, b f64	f64	return div a. b. . .	1.0 0.0	= inf
-mod	a f64, b f64	f64	return mod a. b. . .	7.5 2.0	TRAP E-VM-TYPE
+mod	a f64, b f64	f64	return mod a. b. . .	7.5 2.0	CHECK E-TYPE-KIND
 add	a u8, b u16	u16	return add a. b. . .	255 1	= 256
 add	a u8, b i16	i16	return add a. b. . .	200 -1	= 199
 add	a u8, b i8	u8	return add a. b. . .	1 2	CHECK E-TYPE-SIGN

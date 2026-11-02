@@ -1128,6 +1128,15 @@ static ty_t tc_prefix2(tc_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pro
     const low_cst_t *h = k[(*pos)++];
     if (h->kind == LOW_CST_ATOM && tc_bin2(h->tok.lex)) {
         ty_t a = tc_prefix2(c, k, pos, end, env, nenv), b = tc_prefix2(c, k, pos, end, env, nenv);
+        if (veq(h->tok.lex, "mod") && a.k != TK_INT && b.k != TK_INT &&
+            (a.k == TK_FLOAT || b.k == TK_FLOAT || (a.k == TK_VEC && a.vflt) || (b.k == TK_VEC && b.vflt))) {
+            // 아래 전위 셈의 `mod` 규칙과 같다(2026-11-02 · W-20261102-1931) — 납작한 줄로 들어와도 같은 답을 낸다
+            tc_emit(c, "E-TYPE-KIND",
+                    "`mod` is an INTEGER operation and it was given a FLOATING-POINT value — the floating-point remainder is "
+                    "`math.fmod` (`use math .`); floating-point lanes have no remainder (canon §6.2.11 (3a)). This used to "
+                    "pass `--check` and stop at run time on every back end", h->line);
+            ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+        }
         bool cmp = veq(h->tok.lex, "eq") || veq(h->tok.lex, "ne") || veq(h->tok.lex, "lt") || veq(h->tok.lex, "le") ||
                    veq(h->tok.lex, "gt") || veq(h->tok.lex, "ge");
         g_cmp_eq = veq(h->tok.lex, "eq") || veq(h->tok.lex, "ne");
@@ -1623,6 +1632,16 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             if (!sig_find(c, h2) && n == 3 && (veq(h2, "lane_avg") || veq(h2, "lane_rotate"))) {
                 ty_t v = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                // ★★★ 2026-11-02 (W-20261102-1931) — `lane_avg` 의 값은 (a+b+1)>>1 이다(정본 §6.3.7 · RFC-0040 D5): 정수 레인의 것이다.
+                //   부동 레인은 `--check` 를 지나 실행 중에 멈췄다(VM «avg is an INTEGER intrinsic»).
+                if (veq(h2, "lane_avg") && v.k == TK_VEC && v.vflt) {
+                    tc_emit(c, "E-TYPE-KIND",
+                            "`lane_avg` is defined as (a+b+1)>>1 on INTEGER lanes (canon §6.3.7) and these are floating-point "
+                            "lanes. For floats write the average you mean: bind the halves once (`let two vec 4 f32 splat 2.0 . .`) and "
+                            "write `div add a. b. . two. .`. "
+                            "This used to pass `--check` and stop at run time on every back end", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
                 if (v.k == TK_VEC) return v;
                 return tk(TK_UNKNOWN);
             }
@@ -2210,6 +2229,21 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             if ((arith || cmp) && n == 3 && !sig_find(c, h)) {   // 사용자 op 가 가리지 않을 때만
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);
+                // ★★★ 2026-11-02 (W-20261102-1931) — **`mod` 는 정수의 것이다**(RFC-0052 D7 은 `mod` 를 `div_floor` 와 짝지어 정수에서 정했고,
+                //   D14 는 부동의 나머지를 `fmod` 로 갈랐다). 부동 피연산자의 `mod` 는 — 스칼라든 부동 레인이든 — `--check` 를 지나
+                //   세 처리기 모두에서 실행 중에 멈췄다(VM «unsupported float operation» · «unsupported float vector operation»).
+                if (veq(h, "mod") && a.k != TK_INT && b.k != TK_INT &&   // 정수와 섞이면 `E-TYPE-MIX` 가 먼저 말한다(아래 tc_binop)
+                    (a.k == TK_FLOAT || b.k == TK_FLOAT || (a.k == TK_VEC && a.vflt) || (b.k == TK_VEC && b.vflt))) {
+                    tc_emit(c, "E-TYPE-KIND",
+                            (a.k == TK_VEC || b.k == TK_VEC)
+                                ? "`mod` is an INTEGER operation and these are floating-point LANES — there is no lane-wise "
+                                  "floating-point remainder (canon §6.2.11 (3a)). Take the lanes out and use `math.fmod` on each. "
+                                  "This used to pass `--check` and stop at run time on every back end"
+                                : "`mod` is an INTEGER operation (canon §6.3.3 (2a)) and it was given a FLOATING-POINT value — the "
+                                  "floating-point remainder is `math.fmod` (`use math .`). This used to pass `--check` and stop "
+                                  "at run time on every back end", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
                 // RFC-0149 L2 — 굳은 `usize` 와 고정 폭 정수가 셈 · 견줌에서 만났다: 고정 폭 쪽의 식을 댄다(도구가 `cast usize` 로 감싼다)
                 g_cmp_eq = veq(h, "eq") || veq(h, "ne");
                 // RFC-0148 §8-11 — 한쪽이 무타입이면 다른 쪽의 타입을 그 식까지 내려 보낸다(`bit_and h. sub shl 1 n. . 1 . .`)

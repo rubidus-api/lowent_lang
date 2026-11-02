@@ -1,8 +1,17 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.107.2` (git `def42831` — 태그 `v0.107.2`)
-- Vendored: 2026-11-02 전체 재벤더 (was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+- Version: `proven_c_lib-v0.107.3` (git `9d26e22f` — 태그 `v0.107.3`)
+- Vendored: 2026-11-02 v0.107.3 (was v0.107.2 / `def42831` / 같은 날 · 그전 전체 재벤더 was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+
+> **2026-11-02 재벤더 (v0.107.2 → v0.107.3 · W-20261102-2224, 소유자 «brotli 사전고지 바랍니다»).** `git archive v0.107.3` 으로 같은 다섯을 바꿨다.
+> 내용이 바뀐 파일은 넷이다: `THIRD_PARTY_NOTICES.md`(+44 줄) · `include/proven/version.h` · `src/proven/qpack.c` · `src/proven/zstd_encode.c`.
+> ★ **Brotli 사전의 고지가 이제 함께 실린다.** `src/proven/brotli_dict.h` 는 RFC 7932 의 본문에서 만든 표(부록 A 사전 · 부록 B 변환 ·
+>   7.1 절 문맥 표)이고, 상류가 v0.107.3 에서 `THIRD_PARTY_NOTICES.md` 에 «Brotli static dictionary and transforms (RFC 7932)» 절을 더했다 —
+>   그 표를 밝히고, 그것이 Code Component 에 든다면 따라야 할 IETF Trust 의 라이선스 글(TLP 4.e)을 옮겼다. 처리기는 그 파일을 짓지 않지만
+>   공개 저장소에 그대로 실리므로 고지도 함께 가야 한다. lowent 의 `LICENSE`(MIT)는 그대로다.
+> ★ 나머지 둘(`qpack` · `zstd_encode`)은 처리기가 짓지 않는다. 짓는 열넷(아래 «What is compiled»)은 바이트까지 같다 — `version.h` 의 판 문자열만
+>   달라져 `lowentc --version` 이 `proven_c_lib-v0.107.3` 을 찍는다. 상류의 16진 부동 읽기(`a4144971`)는 아직 태그가 없어 들여오지 않았다.
 
 > **2026-11-02 재벤더 (v0.6.0 → v0.107.2, 상류 431 커밋 · W-20261102-1140).** 태그를 `git archive v0.107.2` 로 꺼내
 > `include/`·`src/`·`platform/`·`LICENSE`·`THIRD_PARTY_NOTICES.md` 를 통째로 바꿨다. 바뀐 파일 25, 새 파일 101, 지워진 파일 없음.

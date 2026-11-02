@@ -34,6 +34,8 @@ PROVEN_SRC := \
   $(PROVEN)/src/proven/array.c \
   $(PROVEN)/src/proven/panic.c \
   $(PROVEN)/src/proven/heap.c \
+  $(PROVEN)/src/proven/float_parse.c \
+  $(PROVEN)/src/proven/float_decimal.c \
   $(PROVEN)/src/proven/utf.c \
   $(PROVEN)/src/proven/u16str.c \
   $(PROVEN)/src/proven/alloc_check.c \
@@ -53,6 +55,8 @@ PROVEN_SRC := \
 #   `scan.c` · `float_parse.c` · `float_decimal.c`(`nm` 로 쟀다: 처리기 오브젝트도 다른 proven 오브젝트도 그 심볼을 안 찾는다).
 #   여기 적혀 있던 «`scan` 빌트인이 proven 의 커서 토크나이저를 쓴다» 는 이미 사실이 아니었다 — 부동소수는 `strtod` 가 읽는다.
 #   `panic.c` 는 `alloc_check.c` 가 부른다. 되살릴 때는 이 목록에 다시 적으면 된다(소스는 vendor/ 에 통째로 있다).
+#   ★ 같은 날(W-20261102-1435, 소유자 «부동소수 읽기를 proven_c_lib 의 것으로») `float_parse.c`·`float_decimal.c` 가 돌아왔다 —
+#     부동 리터럴과 `--run` 의 부동 인자를 `proven_strtod` 가 읽는다(src/low_token.h `low_num_parse_double` · main.c `run_arg_float`).
 
 LOW_SRC := $(filter-out src/main.c,$(wildcard src/*.c))
 LOW_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(LOW_SRC))

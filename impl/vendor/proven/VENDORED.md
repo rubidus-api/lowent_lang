@@ -20,6 +20,8 @@
 >   다른 proven 오브젝트도 그 심볼을 찾지 않았다(`nm`). 아래 2026-10-02 블록의 «부동소수 해석은 빨라졌고 답은 같다고 … 코퍼스로
 >   확인했다» 는 **아무것도 확인하지 않은 확인**이었다 — 처리기는 부동소수를 `strtod` 로 읽고 `%g` 로 찍는다. 그래서 상류의
 >   부동소수 고침(낮은 림이 0 인 128 비트 값 · u256 이동의 UB)도 처리기에 닿지 않는다.
+>   ☞ 같은 날 뒤이어(W-20261102-1435) 소유자 요청으로 부동 읽기를 `proven_strtod` 로 바꿨다 — `float_parse`·`float_decimal` 이 짓는
+>   목록에 돌아왔고, 이제 그 고침이 처리기에 닿는다(아래 «What is compiled»).
 > ★ 확인: 옛 처리기(v0.6.0)와 새 처리기의 방출 C·`--check` 출력이 515 파일(`tests` · `lib` · `docs/example` 의 `.low`)에서
 >   바이트까지 같다. `make test` · `make alloccheck` 초록 · gcc 벤더 경고 0. `--version` 출력이 `proven_c_lib-v0.107.2` 로 바뀐다.
 
@@ -88,10 +90,11 @@ is exactly proven's region allocator. We reuse proven for: arena/allocator (memo
 ☞ *같은 목록을 두 곳에 두면 한 곳만 낡고, 낡은 쪽이 인용된다*(교훈 7).
 
 오늘(2026-11-02) `PROVEN_SRC` 가 짓는 것: `arena · buffer · u8str · array · panic · heap ·
-utf · u16str · alloc_check`(9) + `platform/proven_sys_{mem,time,random}.c`(3).
-(`utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `buffer` 는 `u8str`·`u16str` 이 부른다 ·
+float_parse · float_decimal · utf · u16str · alloc_check`(11) + `platform/proven_sys_{mem,time,random}.c`(3).
+(`float_parse`·`float_decimal` 은 부동 리터럴과 부동 인자 읽기 · `utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `buffer` 는 `u8str`·`u16str` 이 부른다 ·
 `alloc_check` 은 `make alloccheck` 용이고 `panic` 은 그것이 부른다. 2026-11-02 에 아무도 부르지 않던 `memory · pool · scan ·
-float_parse · float_decimal` 다섯을 뺐다.)
+float_parse · float_decimal` 다섯을 뺐다 — 그리고 같은 날 소유자 요청으로 `float_parse · float_decimal` 둘이 돌아왔다: 부동 리터럴과
+`--run` 의 부동 인자를 `proven_strtod` 가 읽는다. 이제 상류의 부동소수 고침(낮은 림이 0 인 128 비트 값 · u256 이동의 UB)이 처리기에 닿는다.)
 Warning-clean under `-std=c23 -Wall -Wextra`(벤더 경고 0 — 남아 있던 둘은 우리 쪽 `PROVEN_ARRAY_GET`
 오용이었고 `GET_MUT` 으로 고쳤다).
 

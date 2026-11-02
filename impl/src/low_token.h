@@ -4,7 +4,9 @@
 #define LOW_TOKEN_H
 
 #include "proven/types.h"
-#include <stdlib.h>   // strtod — low_num_to_double
+#include <stdlib.h>   // strtod — 십육진 부동만(아래 low_num_parse_double)
+#include <errno.h>
+#include "proven/float_parse.h"   // ★ 2026-11-02 — 십진 부동은 proven 이 읽는다
 #include "proven/u8str.h"
 
 // Token kinds. The point-closure surface is deliberately tiny at L0/L1:
@@ -96,13 +98,38 @@ typedef struct {
 //     넘침을 다르게 다뤘다 … 같은 소스, 두 해석"*. 정수는 한 벌로 묶였는데 **부동은 안 묶였고**,
 //     그래서 `low_ir.c` 와 `low_typecheck.c` 가 **각자 strtod 를 불렀다.**
 //   ⇒ 여기 한 벌을 둔다. 둘이 이걸 부르면 갈릴 수가 없다.
-static inline double low_num_to_double(proven_u8str_view_t v) {
-    char buf[64];
+//
+// ★★★ 2026-11-02 (W-20261102-1435, 소유자 «부동소수 읽기를 proven_c_lib 의 것으로») — 십진은 `proven_strtod` 가 읽는다
+//   (로캘 없음 · 정확한 반올림 · 길이 제한 없음 · 넘침을 ±inf 와 ERANGE 로 알린다). 고친 것 둘:
+//   ① **63 바이트에서 잘렸다** — `_` 를 거르는 버퍼가 `char buf[64]` 였고 넘치는 꼬리를 조용히 버렸다.
+//     `1.` 뒤 0 이 70 개인 `…e10` 이 지수를 잃고 1.0 이 됐다(VM · 네이티브 둘 다 — 값은 번역 때 접힌다).
+//     이제 길면 힙에 담는다. 결함 기록 float-literal-truncated.
+//   ② **넘침을 알린다** — 반환이 false 면 그 리터럴은 f64 의 범위 밖이다(렉서가 E-TYPE-WIDTH 로 거절한다 — 정본 §6.1.4 (8) · (21)
+//     «`inf` 를 적는 리터럴은 없다»). 전에는 strtod 가 조용히 inf 를 냈고 검사가 통과시켰다. 결함 기록 float-literal-overflow.
+//   ☞ `proven_parse_double_ascii` 를 쓰지 않는 까닭: 넘침과 «수가 아님» 을 같은 INVALID_ARG 로 돌려준다(v0.107.2).
+//   ☞ **십육진 부동**(`0x1.8p3` — 정본 (20))은 proven 이 아직 읽지 못한다(v0.107.2 — 상류에 요청했다). 그래서 그것만 C 의 strtod 다.
+//     십육진은 2 의 거듭제곱이라 반올림 문제가 거의 없다. 넘침은 같은 규칙(±inf 와 ERANGE)으로 잡는다.
+static inline bool low_num_parse_double(proven_u8str_view_t v, double *out) {
+    char sbuf[128];
+    char *buf = v.size < sizeof sbuf ? sbuf : (char *)malloc(v.size + 1);
+    if (!buf) { *out = 0.0; return true; }   // 메모리가 없으면 0 — 처리기가 곧 다른 곳에서 멈춘다
     proven_size_t n = 0;
-    for (proven_size_t i = 0; i < v.size && n < 63; i++)
+    for (proven_size_t i = 0; i < v.size; i++)
         if (v.ptr[i] != (proven_byte_t)'_') buf[n++] = (char)v.ptr[i];
     buf[n] = 0;
-    return strtod(buf, NULL);
+    proven_size_t z = (n && (buf[0] == '-' || buf[0] == '+')) ? 1 : 0;
+    bool hex = n > z + 1 && buf[z] == '0' && (buf[z + 1] == 'x' || buf[z + 1] == 'X');
+    errno = 0;
+    double d = hex ? strtod(buf, NULL) : proven_strtod(buf, NULL);
+    bool over = errno == ERANGE && (d > 1.7976931348623157e308 || d < -1.7976931348623157e308);
+    if (buf != sbuf) free(buf);
+    *out = d;
+    return !over;
+}
+static inline double low_num_to_double(proven_u8str_view_t v) {
+    double d;
+    (void)low_num_parse_double(v, &d);
+    return d;
 }
 
 #endif // LOW_TOKEN_H

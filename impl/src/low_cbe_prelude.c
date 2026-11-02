@@ -3325,6 +3325,16 @@ const char LW_RENDER[] =
 //   있으면 `lw_dispatch`(그러면 `main` 은 프로그램이 되고, 인자가 오면 이리로 넘긴다).
 //   본문을 두 벌 만들면 그것이 곧 여덟 번째 갈림이다(교훈 7).
 const char LW_DISPATCH[] =
+// ★ 2026-11-02 (W-20261102-1435) — 부동 인자를 받는 집합은 VM 쪽(main.c `run_arg_float`)과 같다: 토큰 전체가 수 · 앞에 공백이 없다 ·
+//   f64 범위 안(넘침은 받지 않는다 — 전에는 조용히 inf). VM 은 proven 의 `proven_strtod` 로 읽는다. 방출된 C 는 proven 을 엮지 않으므로
+//   여기서는 C 의 strtod 다 — glibc 의 strtod 는 정확히 반올림해서 값이 같다(다른 libc 의 strtod 는 그 약속이 없다 — 남은 틈).
+"static int lw_arg_float(const char *t, double *out) {\n"
+"    if (!t[0] || t[0] == ' ' || (t[0] >= '\\t' && t[0] <= '\\r')) return 0;\n"
+"    char *e = 0; errno = 0; double d = strtod(t, &e);\n"
+"    if (!e || *e != 0) return 0;\n"
+"    if (errno == ERANGE && (d > 1.7976931348623157e308 || d < -1.7976931348623157e308)) return 0;\n"
+"    *out = d; return 1;\n"
+"}\n"
 "static int lw_dispatch(int argc, char **argv) {\n"
 "    if (argc < 2) { fprintf(stderr, \"usage: %s <op> [args...]   (a slice arg is written [a,b,c])\\n\", argv[0]); return 2; }\n"
 "    const struct lw_entry *e = 0;\n"
@@ -3339,6 +3349,7 @@ const char LW_DISPATCH[] =
 "    long long ints[64]; int nints = 0;\n"
 "    alignas(64) static unsigned char sbufs[16][8192]; int nsb = 0;\n"
 "    for (int i = 2; i < argc && nargs < 64; i++) {\n"
+"        double fa_ = 0;\n"
 "        /* `@file` — a slice argument read from a FILE (X-0034). The bracket form lives in a\n"
 "           static 8 KiB cell, and that ceiling was deciding how libraries lay out their\n"
 "           workspaces. The bytes of the file ARE the slice; nothing is parsed.\n"
@@ -3382,9 +3393,9 @@ const char LW_DISPATCH[] =
 "            lowv s = {0}; s.tag = LWV_SLICE; s.p = sbufs[nsb]; s.n = n;\n"
 "            args[nargs++] = s; nsb++;\n"
 "        } else if ((strchr(argv[i], '.') || strchr(argv[i], 'e') || strchr(argv[i], 'E')) &&\n"
-"                   ({ char *e_ = 0; strtod(argv[i], &e_); e_ && *e_ == 0; })) {\n"
+"                   lw_arg_float(argv[i], &fa_)) {\n"
 "            any_bracket = 1;   /* a f64 arg — `1e10` used to be read as the int 1, SILENTLY */\n"
-"            args[nargs++] = lw_flt(strtod(argv[i], 0));\n"
+"            args[nargs++] = lw_flt(fa_);\n"
 "        } else {\n"
 "            /* the upper half of u64 is an argument too (defect #19): strtoll CLIPPED it */\n"
 "            char *e_ = 0; long long v = (argv[i][0] == '-') ? strtoll(argv[i], &e_, 10)\n"

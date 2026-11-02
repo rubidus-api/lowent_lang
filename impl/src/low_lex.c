@@ -288,7 +288,10 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     //
     //   ⇒ 자리를 **하나로** 만든다: 렉서가 크기를 재고 넘치면 여기서 거절한다. 그러면
     //     아래 두 파서는 넘치는 입력을 **볼 일이 없다**(그래도 각자 방어한다 — 심층 방어).
-    //   ☞ 부동 리터럴·16진 부동은 이 규칙 밖이다(IEEE-754 가 자기 범위를 정의한다).
+    //   ☞ 부동 리터럴·16진 부동도 같은 자리에서 잰다(2026-11-02 · W-20261102-1435). 전에는 «IEEE-754 가 자기 범위를 정의한다» 며
+    //     이 규칙 밖에 두었고, 그래서 `1e400` 이 조용히 inf 가 됐다 — 정본 §6.1.4 (8) 은 부동 리터럴도 범위 안이어야 한다 하고
+    //     (21) 은 inf 를 적는 리터럴이 없다 한다. 넘침은 f64 에서 거절한다(E-TYPE-WIDTH). f32 자리의 범위는 검사층(flit_fits)이 잰다.
+    //     언더플로(→ 0 · 비정규)는 범위 안이다.
     {
         proven_u8str_view_t lx = low_span(l, start);
         bool isf = false;
@@ -333,6 +336,14 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                          "precision is EXACTLY 128 bits [i128 min, u128 max] (RFC-0052 D3 · RFC-0151) — a literal "
                          "beyond it has no value this language can carry, so it is refused here "
                          "rather than silently wrapped or saturated into a different number",
+                         line, col);
+        } else {
+            double dv;
+            if (!low_num_parse_double(lx, &dv))
+                low_diag(l, "E-TYPE-WIDTH",
+                         "floating-point literal is beyond the range of f64 (its magnitude is above "
+                         "1.7976931348623157e308) — there is no literal for inf (canon §6.1.4 (8) · (21)); "
+                         "it used to become inf SILENTLY. Get inf by computing it if you mean it",
                          line, col);
         }
     }

@@ -1,0 +1,34 @@
+rem ★★ **부동 리터럴을 proven 이 읽는다** (2026-11-02 · W-20261102-1435 — 소유자 «부동소수 읽기를 proven_c_lib 의 것으로»).
+rem   십진은 proven_strtod, 십육진(0x…p…)은 아직 C 의 strtod. 값은 번역 때 접히므로 VM 과 네이티브가 같은 수를 받는다 — 차등 스윕이 견준다.
+rem   op 마다 1 이면 맞다. 비교는 == 라서 마지막 비트까지 본다(찍은 글자로 보면 여섯 자리에서 가려진다).
+
+module vm_fltread .
+
+rem 63 바이트를 넘는 리터럴 — 예전 버퍼(char buf[64])가 꼬리 `e10` 을 버려 1.0 이 됐다.
+fn longexp input a u64 . output u64 . do
+  guard eq 1.0000000000000000000000000000000000000000000000000000000000000000000000e10 10000000000.0 . else return 90 . .
+  return 1 .
+end .
+
+rem 자릿수 구분자는 부동에서도 걸러진다.
+fn sep input a u64 . output u64 . do
+  guard eq 1_0.2_5 10.25 . else return 90 . .
+  guard eq 1e1_0 10000000000.0 . else return 91 . .
+  return 1 .
+end .
+
+rem 십육진 지수 표기(정본 §6.1.4 (20)).
+fn hexp input a u64 . output u64 . do
+  guard eq 0x1.8p3 12.0 . else return 90 . .
+  guard eq 0x1p-2 0.25 . else return 91 . .
+  return 1 .
+end .
+
+rem 반올림의 경계 — 가장 작은 비정규 수의 절반 바로 위는 그 수로, 0.1 의 정확한 십진 전개는 0.1 로.
+fn edge input a u64 . output u64 . do
+  guard eq 2.4703282292062328e-324 4.9406564584124654e-324 . else return 90 . .
+  guard eq 0.1000000000000000055511151231257827021181583404541015625 0.1 . else return 91 . .
+  guard eq 1.7976931348623157e308 1.7976931348623157e308 . else return 92 . .
+  guard eq 1e-400 0.0 . else return 93 . .
+  return 1 .
+end .

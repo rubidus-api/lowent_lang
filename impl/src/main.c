@@ -1241,18 +1241,25 @@ static void low_print128(proven_u64 lo, proven_u64 hi, bool sgnd) {
     if (ng) t[--q] = '-';
     printf("%s", t + q);
 }
-// ★ 2026-11-02 (W-20261102-1435) — `--run` · `--run-batch` 의 부동 인자 하나를 읽는다. 십진은 proven 의 `proven_strtod`, 십육진
-//   (`0x1.8p1`)은 proven 이 아직 못 읽어 C 의 strtod. 받는 것: 토큰 전체가 수이고 · 앞에 공백이 없고 · f64 범위 안. 네이티브 머리말의
+// ★ 2026-11-02 (W-20261102-1435 · 2026-11-02 W-20261102-2330) — `--run` · `--run-batch` 의 부동 인자 하나를 읽는다. 십진도 십육진
+//   (`0x1.8p1`)도 proven 의 `proven_parse_double_ascii`(v0.108.0) — 넘침은 PROVEN_ERR_OVERFLOW 로 따로 온다. 받는 것: 토큰 전체가 수이고 ·
+//   앞에 공백이 없고 · f64 범위 안. 네이티브 머리말의
 //   `lw_arg_float` 와 같은 집합이어야 한다 — 두 뒤끝이 같은 인자를 다르게 읽으면 그것은 «같은 인자, 두 해석» 이다.
+// ★ 2026-11-02 (W-20261102-2330) — **부동 인자로 볼 토큰인가.** 십진은 `.` · `e` · `E` 가 있으면, 십육진(`0x…`)은 `.` · `p` · `P` 가 있으면.
+//   전에는 십육진도 `e` 를 보았다 — `0x1e` 의 `e` 는 숫자다(14). 그래서 `u64` 매개변수에 준 `0x1e` 가 부동 30.0 이 되어 VM 에서는 정수 op 이 30.0 을
+//   돌려주었고 네이티브는 «ints» 로 멈췄다. 점이 없는 십육진 부동(`0x1p-3`)은 부동으로 보지 않아 «읽을 수 없다» 였다. 네이티브 머리말의
+//   `lw_arg_isflt` 와 같은 규칙이다.
+static bool run_arg_looks_float(const char *tok) {
+    const char *b = tok + (tok[0] == '-' || tok[0] == '+');
+    if (b[0] == '0' && (b[1] == 'x' || b[1] == 'X')) return strchr(b, '.') || strchr(b, 'p') || strchr(b, 'P');
+    return strchr(tok, '.') || strchr(tok, 'e') || strchr(tok, 'E');
+}
 static bool run_arg_float(const char *tok, double *out) {
     if (!tok[0] || tok[0] == ' ' || (tok[0] >= '\t' && tok[0] <= '\r')) return false;
-    const char *b = tok + (tok[0] == '-' || tok[0] == '+');
-    bool hex = b[0] == '0' && (b[1] == 'x' || b[1] == 'X');
-    char *e = NULL; errno = 0;
-    double d = hex ? strtod(tok, &e) : proven_strtod(tok, &e);
-    if (!e || *e != '\0') return false;
-    if (errno == ERANGE && (d > 1.7976931348623157e308 || d < -1.7976931348623157e308)) return false;
-    *out = d;
+    const proven_size_t n = (proven_size_t)strlen(tok);
+    const proven_parse_double_result_t r = proven_parse_double_ascii((proven_u8str_view_t){ (const proven_byte_t *)tok, n });
+    if (r.err != PROVEN_OK || r.consumed != n) return false;
+    *out = r.val;
     return true;
 }
 static int run_arg_take(const char *tok, const char *run_op,
@@ -1339,7 +1346,7 @@ static int run_arg_take(const char *tok, const char *run_op,
     //     — 둘 다 전에는 strtod 가 받았다(넘침은 조용히 inf). 네이티브 머리말이 같은 규칙을 쓴다(low_cbe_prelude.c `lw_arg_float`).
     double dv;
     if ((*nshaped) < LOW_HDR_MAXP && tok[0] &&
-             (strchr(tok, '.') || strchr(tok, 'e') || strchr(tok, 'E')) && run_arg_float(tok, &dv)) {
+             run_arg_looks_float(tok) && run_arg_float(tok, &dv)) {
         proven_i64 bits; memcpy(&bits, &dv, 8);
         shaped[(*nshaped)++] = (low_ir_arg_t){ .is_flt = true, .v = bits };
         (*any_bracket) = true;   // 모양 있는 매핑으로 간다(평평한 매핑은 정수만 안다)

@@ -1,8 +1,15 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.107.3` (git `9d26e22f` — 태그 `v0.107.3`)
-- Vendored: 2026-11-02 v0.107.3 (was v0.107.2 / `def42831` / 같은 날 · 그전 전체 재벤더 was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+- Version: `proven_c_lib-v0.108.0` (git `1d9989c4` — 태그 `v0.108.0`)
+- Vendored: 2026-11-02 v0.108.0 (was v0.107.3 / `9d26e22f` / 같은 날 · 그전 v0.107.2 / `def42831` / 같은 날 · 그전 전체 재벤더 was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+
+> **2026-11-02 재벤더 (v0.107.3 → v0.108.0 · W-20261102-2330, 소유자 «16진 부동소수 읽기 가능하지 않을까요»).** `git archive v0.108.0` 으로 같은 다섯을 바꿨다.
+> 내용이 바뀐 파일은 셋이다: `include/proven/float_parse.h` · `src/proven/float_parse.c` · `include/proven/version.h`.
+> ★ `proven_parse_double_ascii` · `proven_strtod` 가 C 의 십육진 부동 꼴을 읽고(가장 가까운 값 · 동률은 짝수), `proven_parse_double_ascii` 가 f64 를
+>   넘는 수를 `PROVEN_ERR_OVERFLOW`(± 무한과 그 길이)로 따로 알린다 — 둘 다 이 저장소가 상류에 낸 요청이다. 처리기는 이제 부동 리터럴과
+>   `--run` 의 부동 인자를 모두 `proven_parse_double_ascii` 로 읽는다(`low_token.h` · `main.c`) — C 의 strtod 는 처리기의 읽기에 없다
+>   (네이티브 프로그램의 인자 읽기는 proven 을 엮지 않으므로 그대로 C 의 strtod). 짓는 목록은 그대로다(아래 «What is compiled»).
 
 > **2026-11-02 재벤더 (v0.107.2 → v0.107.3 · W-20261102-2224, 소유자 «brotli 사전고지 바랍니다»).** `git archive v0.107.3` 으로 같은 다섯을 바꿨다.
 > 내용이 바뀐 파일은 넷이다: `THIRD_PARTY_NOTICES.md`(+44 줄) · `include/proven/version.h` · `src/proven/qpack.c` · `src/proven/zstd_encode.c`.

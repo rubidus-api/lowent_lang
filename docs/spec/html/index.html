@@ -3471,24 +3471,25 @@ type-core      ::= name | path
                  | other-type
 applied-type   ::= type | ( name | path ) type { type }
 other-type     ::= ? ⟦§6.2⟧ 가 정하는 그 밖의 타입 꼴(`mask` · `set` · `stack` · `fn` · `unsafe_fn` · `mmio`) ?
-matrix-size    ::= number | name</code></pre></div><div class="dev note"><p class="dev-label">참고 (informative)</p><div class="dev-body"><code>matrix-size</code> 의 <code>name</code> 은 op 의 <code>input</code> 에서만 쓴다 — 그 op 의 번역 시점 값 입력의 이름이다(<a href="#c6.2.6.1" class="cref">§6.2.6.1</a> (3a)).</div></div><p class="para" id="cA.10.5-p1"><a class="pno" href="#cA.10.5-p1">1</a> <code>u8</code> · <code>bool</code> · <code>void</code> 같은 타입 낱말(A.9)과 저자가 지은 타입의 이름은 <code>name</code> 이다.</p><p class="para" id="cA.10.5-p2"><a class="pno" href="#cA.10.5-p2">2</a> 타입은 <strong>글자만으로 끝난다</strong> — 닫는 표시가 없다. 생성자는 닫힌 어휘이고(<code>slice u8</code> 은 낱말 둘, <code>result u64 perr</code> 는 셋), 그 밖의 타입은 이름 하나다. 인자를 받는 사용자 타입과 인자 수가 정해지지 않은 꼴은 괄호로 싼다 (<code>(box u64)</code> — <a href="#c6.5.1" class="cref">§6.5.1</a> (3b)).</p><p class="para" id="cA.10.5-p3"><a class="pno" href="#cA.10.5-p3">3</a> 타입 안의 이름과 수는 폼을 열지 아니한다 — 점이 없다(<code>array n u8</code>).</p><p class="para" id="cA.10.5-p4"><a class="pno" href="#cA.10.5-p4">4</a> 개수를 받는 생성자(<code>array</code> · <code>vec</code> · <code>matrix</code>)는 개수를 먼저, 원소 타입을 맨 뒤에 적는다. 그래서 원소가 다시 생성자여도 괄호가 들지 않는다 — <code>array 3 array 4 u8</code>(<a href="#c6.2.6" class="cref">§6.2.6</a> (1a) · (1d)).</p></section></section><section class="clause" id="cB"><h2>B 부록 B — 진단 목록 (Annex B: Diagnostics)<a class="anchor" href="#cB" aria-label="이 조항의 주소">§</a></h2><p class="para" id="cB-p1"><a class="pno" href="#cB-p1">1</a> 이 부록은 처리기가 낼 수 있는 진단 식별자를 모은다. 식별자는 안정하며, 한 번 정해진 뜻은 바뀌지 아니한다(<a href="#c5.4" class="cref">§5.4</a>).</p><div class="dev note"><p class="dev-label">참고 (informative)</p><div class="dev-body">이 목록은 <strong>생성된 것</strong>이다. 사람이 손으로 고치지 아니한다 — 손으로 적은 목록은 언어가 자라면 곧 낡기 때문이다. 목록이 실제 처리기와 어긋나면 검사기가 실패한다.</div></div><section class="subclause" id="cB.1"><h3>B.1 실행 중 트랩 (E-VM-…)<a class="anchor" href="#cB.1" aria-label="이 조항의 주소">§</a></h3><p class="para" id="cB.1-p1"><a class="pno" href="#cB.1-p1">1</a>프로그램이 도는 중에 조건이 깨져 즉시 멈춘 것. 모두 54 가지다.</p><div class="dev shape"><p class="dev-label">문법 틀 (grammar shape) — 실행 중 트랩 식별자</p><div class="dev-body"><pre><code>E-VM-ALIGN  E-VM-ANALYSIS  E-VM-ARITY
-E-VM-ASM  E-VM-AWAIT  E-VM-BOUNDS
-E-VM-BOXPOOL  E-VM-BSETPOOL  E-VM-BUDGET
-E-VM-CAST  E-VM-CHAIN-LIMIT  E-VM-CHAN
-E-VM-CHAN-EMPTY  E-VM-CHAN-FULL  E-VM-CONTRACT
-E-VM-COPY  E-VM-CSTR  E-VM-DANGLING
-E-VM-DEADLOCK  E-VM-DEPTH  E-VM-DIV0
-E-VM-ERR  E-VM-EXCL  E-VM-EXTERN
-E-VM-FD  E-VM-FHANDLE  E-VM-FIELD
-E-VM-FILEPOOL  E-VM-FMODE  E-VM-FWHENCE
-E-VM-HANDLE-ZERO  E-VM-MAILBOX-FULL  E-VM-MBOX
-E-VM-MMIO  E-VM-NODE-KIDS  E-VM-NONE
-E-VM-OOM  E-VM-OVERFLOW  E-VM-PANIC
-E-VM-REACTOR  E-VM-READONLY  E-VM-RECPOOL
-E-VM-RESERVE  E-VM-SCHED-LOOP  E-VM-SHANDLE
-E-VM-SHIFT  E-VM-SOCKPOOL  E-VM-STACK
-E-VM-STACK-BUDGET  E-VM-STKPOOL  E-VM-TYPE
-E-VM-UNDEF  E-VM-UNSUP  E-VM-VIEW</code></pre></div></div></section><section class="subclause" id="cB.2"><h3>B.2 경고 (W-…)<a class="anchor" href="#cB.2" aria-label="이 조항의 주소">§</a></h3><p class="para" id="cB.2-p1"><a class="pno" href="#cB.2-p1">1</a>번역은 되지만 저자가 봐야 하는 것. 모두 19 가지다.</p><div class="dev shape"><p class="dev-label">문법 틀 (grammar shape) — 경고 식별자</p><div class="dev-body"><pre><code>W-BUILTIN-APP  W-CBE-SLOW  W-COL0
+matrix-size    ::= number | name</code></pre></div><div class="dev note"><p class="dev-label">참고 (informative)</p><div class="dev-body"><code>matrix-size</code> 의 <code>name</code> 은 op 의 <code>input</code> 에서만 쓴다 — 그 op 의 번역 시점 값 입력의 이름이다(<a href="#c6.2.6.1" class="cref">§6.2.6.1</a> (3a)).</div></div><p class="para" id="cA.10.5-p1"><a class="pno" href="#cA.10.5-p1">1</a> <code>u8</code> · <code>bool</code> · <code>void</code> 같은 타입 낱말(A.9)과 저자가 지은 타입의 이름은 <code>name</code> 이다.</p><p class="para" id="cA.10.5-p2"><a class="pno" href="#cA.10.5-p2">2</a> 타입은 <strong>글자만으로 끝난다</strong> — 닫는 표시가 없다. 생성자는 닫힌 어휘이고(<code>slice u8</code> 은 낱말 둘, <code>result u64 perr</code> 는 셋), 그 밖의 타입은 이름 하나다. 인자를 받는 사용자 타입과 인자 수가 정해지지 않은 꼴은 괄호로 싼다 (<code>(box u64)</code> — <a href="#c6.5.1" class="cref">§6.5.1</a> (3b)).</p><p class="para" id="cA.10.5-p3"><a class="pno" href="#cA.10.5-p3">3</a> 타입 안의 이름과 수는 폼을 열지 아니한다 — 점이 없다(<code>array n u8</code>).</p><p class="para" id="cA.10.5-p4"><a class="pno" href="#cA.10.5-p4">4</a> 개수를 받는 생성자(<code>array</code> · <code>vec</code> · <code>matrix</code>)는 개수를 먼저, 원소 타입을 맨 뒤에 적는다. 그래서 원소가 다시 생성자여도 괄호가 들지 않는다 — <code>array 3 array 4 u8</code>(<a href="#c6.2.6" class="cref">§6.2.6</a> (1a) · (1d)).</p></section></section><section class="clause" id="cB"><h2>B 부록 B — 진단 목록 (Annex B: Diagnostics)<a class="anchor" href="#cB" aria-label="이 조항의 주소">§</a></h2><p class="para" id="cB-p1"><a class="pno" href="#cB-p1">1</a> 이 부록은 처리기가 낼 수 있는 진단 식별자를 모은다. 식별자는 안정하며, 한 번 정해진 뜻은 바뀌지 아니한다(<a href="#c5.4" class="cref">§5.4</a>).</p><div class="dev note"><p class="dev-label">참고 (informative)</p><div class="dev-body">이 목록은 <strong>생성된 것</strong>이다. 사람이 손으로 고치지 아니한다 — 손으로 적은 목록은 언어가 자라면 곧 낡기 때문이다. 목록이 실제 처리기와 어긋나면 검사기가 실패한다.</div></div><section class="subclause" id="cB.1"><h3>B.1 실행 중 트랩 (E-VM-…)<a class="anchor" href="#cB.1" aria-label="이 조항의 주소">§</a></h3><p class="para" id="cB.1-p1"><a class="pno" href="#cB.1-p1">1</a>프로그램이 도는 중에 조건이 깨져 즉시 멈춘 것. 모두 55 가지다.</p><div class="dev shape"><p class="dev-label">문법 틀 (grammar shape) — 실행 중 트랩 식별자</p><div class="dev-body"><pre><code>E-VM-ALIGN  E-VM-ANALYSIS  E-VM-ARG
+E-VM-ARITY  E-VM-ASM  E-VM-AWAIT
+E-VM-BOUNDS  E-VM-BOXPOOL  E-VM-BSETPOOL
+E-VM-BUDGET  E-VM-CAST  E-VM-CHAIN-LIMIT
+E-VM-CHAN  E-VM-CHAN-EMPTY  E-VM-CHAN-FULL
+E-VM-CONTRACT  E-VM-COPY  E-VM-CSTR
+E-VM-DANGLING  E-VM-DEADLOCK  E-VM-DEPTH
+E-VM-DIV0  E-VM-ERR  E-VM-EXCL
+E-VM-EXTERN  E-VM-FD  E-VM-FHANDLE
+E-VM-FIELD  E-VM-FILEPOOL  E-VM-FMODE
+E-VM-FWHENCE  E-VM-HANDLE-ZERO  E-VM-MAILBOX-FULL
+E-VM-MBOX  E-VM-MMIO  E-VM-NODE-KIDS
+E-VM-NONE  E-VM-OOM  E-VM-OVERFLOW
+E-VM-PANIC  E-VM-REACTOR  E-VM-READONLY
+E-VM-RECPOOL  E-VM-RESERVE  E-VM-SCHED-LOOP
+E-VM-SHANDLE  E-VM-SHIFT  E-VM-SOCKPOOL
+E-VM-STACK  E-VM-STACK-BUDGET  E-VM-STKPOOL
+E-VM-TYPE  E-VM-UNDEF  E-VM-UNSUP
+E-VM-VIEW</code></pre></div></div></section><section class="subclause" id="cB.2"><h3>B.2 경고 (W-…)<a class="anchor" href="#cB.2" aria-label="이 조항의 주소">§</a></h3><p class="para" id="cB.2-p1"><a class="pno" href="#cB.2-p1">1</a>번역은 되지만 저자가 봐야 하는 것. 모두 19 가지다.</p><div class="dev shape"><p class="dev-label">문법 틀 (grammar shape) — 경고 식별자</p><div class="dev-body"><pre><code>W-BUILTIN-APP  W-CBE-SLOW  W-COL0
 W-CONFIG-DEPENDS  W-CONTRACT-IGNORED  W-EFFECT-OVER
 W-ERRORS-UNRAISED  W-EXPORT-HIDDEN  W-EXPORT-NOSYM
 W-NOT-YET  W-PAR-OK  W-POOL-LOOP

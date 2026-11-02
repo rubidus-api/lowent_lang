@@ -3328,6 +3328,10 @@ const char LW_DISPATCH[] =
 // ★ 2026-11-02 (W-20261102-1435) — 부동 인자를 받는 집합은 VM 쪽(main.c `run_arg_float`)과 같다: 토큰 전체가 수 · 앞에 공백이 없다 ·
 //   f64 범위 안(넘침은 받지 않는다 — 전에는 조용히 inf). VM 은 proven 의 `proven_strtod` 로 읽는다. 방출된 C 는 proven 을 엮지 않으므로
 //   여기서는 C 의 strtod 다 — glibc 의 strtod 는 정확히 반올림해서 값이 같다(다른 libc 의 strtod 는 그 약속이 없다 — 남은 틈).
+"static int lw_arg_isflt(const char *t) {   /* hex: `.` or `p` — the `e` of 0x1e is a digit (same rule as the VM's run_arg_looks_float) */\n"
+"    const char *b = t + (t[0] == '-' || t[0] == '+');\n"
+"    if (b[0] == '0' && (b[1] == 'x' || b[1] == 'X')) return strchr(b, '.') || strchr(b, 'p') || strchr(b, 'P');\n"
+"    return strchr(t, '.') || strchr(t, 'e') || strchr(t, 'E'); }\n"
 "static int lw_arg_float(const char *t, double *out) {\n"
 "    if (!t[0] || t[0] == ' ' || (t[0] >= '\\t' && t[0] <= '\\r')) return 0;\n"
 "    char *e = 0; errno = 0; double d = strtod(t, &e);\n"
@@ -3392,7 +3396,7 @@ const char LW_DISPATCH[] =
 "            if (over) { fprintf(stderr, \"argument %d has more than 8192 elements — refusing rather than truncating (use @file)\\n\", i - 1); return 2; }\n"
 "            lowv s = {0}; s.tag = LWV_SLICE; s.p = sbufs[nsb]; s.n = n;\n"
 "            args[nargs++] = s; nsb++;\n"
-"        } else if ((strchr(argv[i], '.') || strchr(argv[i], 'e') || strchr(argv[i], 'E')) &&\n"
+"        } else if (lw_arg_isflt(argv[i]) &&\n"
 "                   lw_arg_float(argv[i], &fa_)) {\n"
 "            any_bracket = 1;   /* a f64 arg — `1e10` used to be read as the int 1, SILENTLY */\n"
 "            args[nargs++] = lw_flt(fa_);\n"

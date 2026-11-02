@@ -5407,6 +5407,12 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
                                 .p = args[i].bytes, .n = args[i].n / rb, .box = (proven_i32)rb };
         } else if (args[i].is_slice) {
             vargs[i] = (vmv_t){ .tag = VMV_SLICE, .p = args[i].bytes, .n = args[i].n };
+        } else if (args[i].is_flt && !((d->param_flt >> i) & 1u)) {
+            // ★ 2026-11-02 (W-20261102-2330) — 정수 매개변수에 부동 인자: 정수와 부동은 저절로 바뀌지 않는다(정본 §6.2.4 (3)). 전에는 VM 이
+            //   그 부동을 그대로 넣어 `u64` op 이 `1.5` 를 돌려주었고, 네이티브는 «ints» 로 멈췄다 — 같은 인자, 두 답. 이제 VM 도 거절한다.
+            vm_diag(diags, "E-VM-ARG", "a floating-point argument for an integer parameter — integers and floats do not convert "
+                                       "(canon §6.2.4 (3)); give an integer");
+            return out;
         } else if (args[i].is_flt || ((d->param_flt >> i) & 1u)) {
             // ★ f64 파라미터. 정수 리터럴(`2`)로 줘도 f64 로 받는다 — 사람이 쓰는 대로.
             //   (범위 검사는 하지 않는다: `range` 는 정수 축의 계약이다.)

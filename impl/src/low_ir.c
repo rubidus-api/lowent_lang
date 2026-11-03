@@ -1056,17 +1056,31 @@ static proven_u8 ir_region_root(proven_u8str_view_t n) {
     return 0;
 }
 
- proven_size_t ir_local_declare(ir_ctx_t *c, proven_u8str_view_t name, proven_u32 line) {
-    // ★ RFC-0154 §8-19 (가) (2026-10-30) — 같은 이름을 다시 묶으면 그 이름의 **접힌 값을 지운다**. 지역 칸은 op 안에서 이름마다 하나라,
-    //   끝난 블록의 `let n u64 4 .` 뒤에 `let n u64 x. .` 를 적으면 `comptime mul n. 2 .` 가 죽은 값 4 로 8 을 냈다(검사층은 실행 이름으로 봤다).
-    //   접히는 `let` 은 묶은 **뒤에** 제 값을 다시 싣는다(low_ir_stmt.c).
+static void ir_cint_forget(ir_ctx_t *c, proven_u8str_view_t name) {
     for (proven_size_t q = c->ncint; q > 0; q--)
         if (proven_u8str_view_eq(c->cint[q - 1].name, name)) {
             for (proven_size_t r = q; r < c->ncint; r++) c->cint[r - 1] = c->cint[r];
             c->ncint--;
         }
+}
+ proven_size_t ir_local_declare(ir_ctx_t *c, proven_u8str_view_t name, proven_u32 line) {
+    // ★ RFC-0154 §8-19 (가) (2026-10-30) — 같은 이름을 다시 묶으면 그 이름의 **접힌 값을 지운다**. 지역 칸은 op 안에서 이름마다 하나라,
+    //   끝난 블록의 `let n u64 4 .` 뒤에 `let n u64 x. .` 를 적으면 `comptime mul n. 2 .` 가 죽은 값 4 로 8 을 냈다(검사층은 실행 이름으로 봤다).
+    //   접히는 `let` 은 묶은 **뒤에** 제 값을 다시 싣는다(low_ir_stmt.c).
     bool f; proven_size_t i = ir_local_find(c, name, &f);
-    if (f) return i;
+    if (f) { ir_cint_forget(c, name); return i; }
+    return ir_local_declare_ty(c, name, (proven_u8str_view_t){ 0 }, line);
+}
+// ★ 2026-11-03 (W-20261103-2113) — 같은 이름을 **다른 타입 낱말**로 다시 묶으면(끝난 블록의 `let po option usize …` 뒤 다른 블록의 `let po u64 …`)
+//   새 칸을 준다. 한 칸에 두 종류가 들면 VM 은 상관없지만 네이티브 빠른 경로는 지역마다 종류가 하나여야 해서 op 이 통째로 태그 경로에 남았다
+//   (apps/lowindex 의 `do_search`). 이름은 흩어진 블록에서만 다시 묶일 수 있으니(이름은 가리지 않는다) 옛 칸은 이미 죽었다 — 찾기는 새 칸부터 본다.
+//   타입 낱말이 같거나 모르면 종전대로 한 칸이다(프레임 크기가 그대로).
+proven_size_t ir_local_declare_ty(ir_ctx_t *c, proven_u8str_view_t name, proven_u8str_view_t tyword, proven_u32 line) {
+    ir_cint_forget(c, name);
+    if (tyword.size) {
+        bool f; proven_size_t i = ir_local_find(c, name, &f);
+        if (f && (!c->locals[i].tyname.size || proven_u8str_view_eq(c->locals[i].tyname, tyword))) return i;
+    }
     if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "too many locals", line); return 0; }
     c->locals[c->nlocals].name = name;
     c->locals[c->nlocals].bset_w = 0;   // ★ 기본은 '비트셋 아님' — 바인딩이 폭을 실어 준다

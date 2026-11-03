@@ -2363,6 +2363,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_UNM:
                 if (st.n < 1) return false;
+                if (st.k[st.n-1] == K_VEC) {   // ★ 2026-11-03 (W-20261103-2113) — 레인마다 sqrt · abs · floor · ceil(lw_vun 과 같다)
+                    const int sel_ = (int)(in->a & 0xf);
+                    if (sel_ > 3) return false;
+                    if (sel_ == 0 && st.fl[st.n-1] != CBE_FL_FLT) return false;   // 정수 레인의 sqrt 는 실행 중에 멈춘다 — 그 멈춤은 태그 경로에 둔다
+                    st.o[st.n-1] = -1; break;
+                }
                 if ((in->a & 0xf) == 4) {   // nonzero_of — **정수 → option**
                     if (st.k[st.n-1] != K_INT) return false;
                     st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; break;
@@ -2379,6 +2385,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 st.o[st.n-1] = -1; break;
             case IRW_BINM:
                 if (st.n < 2 || st.k[st.n-1] != st.k[st.n-2]) return false;
+                if (st.k[st.n-1] == K_VEC) {   // ★ 2026-11-03 — 레인마다 min · max(정수 · 부동), fmod · pow(부동 레인만 — 정수 레인은 실행 중에 멈춘다)
+                    if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2] || st.fl[st.n-1] != st.fl[st.n-2]) return false;
+                    const int sel_ = (int)(in->a & 0xff);
+                    if (sel_ > 3 || ((sel_ == 0 || sel_ == 3) && st.fl[st.n-1] != CBE_FL_FLT)) return false;
+                    st.n--; st.o[st.n-1] = -1; break;
+                }
                 if ((in->a & 0xff) == 0) { if (st.k[st.n-1] != K_FLT) return false; }   // fmod — f64 전용
                 else if (st.k[st.n-1] != K_INT && st.k[st.n-1] != K_FLT) return false;
                 st.n--; st.o[st.n-1] = -1; break;
@@ -3003,10 +3015,18 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.k[st.n-1] != K_INT && st.k[st.n-1] != K_FLT) return false;
                 st.n--; st.k[st.n-1] = K_INT; break;   // 비교의 결과는 **정수**다
             case IRW_MOD:
+                // ★ 2026-11-03 (W-20261103-2113) — 정수 레인의 `mod` 는 레인마다 스칼라 `mod`(나누는 수의 부호 · 0 레인은 멈춘다 — lw_vmod1, VM 과 같다)
+                if (st.n >= 2 && st.k[st.n-1] == K_VEC && st.k[st.n-2] == K_VEC) {
+                    if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2] || st.fl[st.n-1] != st.fl[st.n-2]) return false;
+                    if (st.fl[st.n-1] == CBE_FL_FLT) return false;   // 부동 레인의 `mod` 는 검사가 거절한다(E-TYPE-KIND)
+                    st.n--; st.o[st.n-1] = -1; break;
+                }
+                /* fall through */
             case IRW_AND: case IRW_OR:
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT) return false;
                 st.n--; break;
             case IRW_NEG:
+                if (st.n >= 1 && st.k[st.n-1] == K_VEC) { st.o[st.n-1] = -1; break; }   // ★ 2026-11-03 — 레인마다(정수는 감는다 · RFC-0040 D8)
                 if (st.n < 1 || (st.k[st.n-1] != K_INT && st.k[st.n-1] != K_FLT)) return false;
                 break;
             case IRW_NOT:
@@ -5055,6 +5075,18 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_UNM:
                 // ★ 수치 프렐류드 — 정수와 f64 가 **정적으로 갈린다**(태그 디스패치가 없다).
+                if (ks.k[ks.n-1] == K_VEC) {   // ★ 2026-11-03 (W-20261103-2113) — 레인마다(lw_vun 과 같다): 부동은 libm · 정수 abs 는 감는다(D8) · 정수 floor/ceil 은 항등
+                    const int ln_ = (int)ks.vn[ks.n-1], ez_ = (int)ks.ve[ks.n-1], sel_ = (int)(in->a & 0xf); const char *m_ = lw_vmem((unsigned)ez_);
+                    if (ks.fl[ks.n-1] == CBE_FL_FLT) {
+                        const char *fn_ = sel_ == 0 ? "sqrt" : sel_ == 1 ? "fabs" : sel_ == 2 ? "floor" : "ceil";
+                        fprintf(out, "    for (int k_ = 0; k_ < %d; k_++) vs[vsp-1].%s[k_] = lw_f2b(%s(lw_b2f(vs[vsp-1].%s[k_], %d)), %d);\n", ln_, m_, fn_, m_, ez_, ez_);
+                    } else if (sel_ == 1 && ks.fl[ks.n-1] == CBE_FL_SGN) {
+                        const char *sc_ = ez_ == 1 ? "int8_t" : ez_ == 2 ? "int16_t" : ez_ == 4 ? "int32_t" : "int64_t";
+                        fprintf(out, "    for (int k_ = 0; k_ < %d; k_++) if ((%s)vs[vsp-1].%s[k_] < 0) vs[vsp-1].%s[k_] = 0ull - (unsigned long long)vs[vsp-1].%s[k_];\n", ln_, sc_, m_, m_, m_);
+                    }   // 부호 없는 abs · 정수 floor · ceil 은 그대로다
+                    ks.o[ks.n-1] = -1;
+                    break;
+                }
                 if ((in->a & 0xf) == 5 || (in->a & 0xf) == 6) {
                     // ★★★ **부동 슬라이스 축약** — sum(Neumaier 보정) / sum_fast(축차).
                     //   슬라이스는 이미 view_array 로 **원소 수**가 됐다(ss.n). 원소를 리틀엔디언
@@ -5106,6 +5138,20 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   네이티브는 10 — 두 뒤끝이 갈렸다(실측으로 잡았다). 삼항의 `else` 가
                 //   **나머지 전부**를 삼키는 자리는 새 갈래가 늘 때마다 거짓말이 된다.
                 //   ⇒ 갈래를 이름으로 적는다.
+                if (ks.k[ks.n-1] == K_VEC) {   // ★ 2026-11-03 (W-20261103-2113) — 레인마다(lw_vbinm 과 같다): 정수는 부호 표식대로 견준다
+                    const int ln_ = (int)ks.vn[ks.n-1], ez_ = (int)ks.ve[ks.n-1], sel_ = (int)(in->a & 0xff); const char *m_ = lw_vmem((unsigned)ez_);
+                    if (ks.fl[ks.n-1] == CBE_FL_FLT) {
+                        const char *ex_ = sel_ == 0 ? "fmod(p_, q_)" : sel_ == 3 ? "pow(p_, q_)" : sel_ == 1 ? "(p_ < q_ ? p_ : q_)" : "(p_ > q_ ? p_ : q_)";
+                        fprintf(out, "    { vsp--; for (int k_ = 0; k_ < %d; k_++) { double p_ = lw_b2f(vs[vsp-1].%s[k_], %d), q_ = lw_b2f(vs[vsp].%s[k_], %d);\n"
+                                     "        vs[vsp-1].%s[k_] = lw_f2b(%s, %d); } }\n", ln_, m_, ez_, m_, ez_, m_, ex_, ez_);
+                    } else {
+                        const char *sc_ = ks.fl[ks.n-1] == CBE_FL_SGN ? (ez_ == 1 ? "int8_t" : ez_ == 2 ? "int16_t" : ez_ == 4 ? "int32_t" : "int64_t") : "unsigned long long";
+                        fprintf(out, "    { vsp--; for (int k_ = 0; k_ < %d; k_++) { const int lt_ = (%s)vs[vsp-1].%s[k_] < (%s)vs[vsp].%s[k_];\n"
+                                     "        if (%slt_) vs[vsp-1].%s[k_] = vs[vsp].%s[k_]; } }\n", ln_, sc_, m_, sc_, m_, sel_ == 1 ? "!" : "", m_, m_);
+                    }
+                    ks.n--; ks.o[ks.n-1] = -1;
+                    break;
+                }
                 if (ks.k[ks.n-1] == K_FLT) {
                     if ((in->a & 0xff) == 0) fputs("    fs[fsp-2] = fmod(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
                     else if ((in->a & 0xff) == 3) fputs("    fs[fsp-2] = pow(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
@@ -5960,6 +6006,15 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     fprintf(out, "    st[sp-1] = lw_cast_i(%lld, st[sp-1]);\n", (long long)in->a);
                 break;
             case IRW_NEG:
+                if (ks.k[ks.n-1] == K_VEC) {   // ★ 2026-11-03 (W-20261103-2113) — 레인마다: 정수는 감는다(제 폭의 칸에 담으면 C 가 자른다) · 부동은 부호를 뒤집는다
+                    const int ln_ = (int)ks.vn[ks.n-1], ez_ = (int)ks.ve[ks.n-1]; const char *m_ = lw_vmem((unsigned)ez_);
+                    if (ks.fl[ks.n-1] == CBE_FL_FLT)
+                        fprintf(out, "    for (int k_ = 0; k_ < %d; k_++) vs[vsp-1].%s[k_] = lw_f2b(-lw_b2f(vs[vsp-1].%s[k_], %d), %d);\n", ln_, m_, m_, ez_, ez_);
+                    else
+                        fprintf(out, "    for (int k_ = 0; k_ < %d; k_++) vs[vsp-1].%s[k_] = 0ull - (unsigned long long)vs[vsp-1].%s[k_];\n", ln_, m_, m_);
+                    ks.o[ks.n-1] = -1;
+                    break;
+                }
                 if (ks.k[ks.n-1] == K_FLT) fputs("    fs[fsp-1] = -fs[fsp-1];\n", out);
                 else fprintf(out, "    st[sp-1] = lw_negs_i(%lld, st[sp-1]);\n", (long long)in->a);   // 넘치면 멈춘다 (RFC-0052 D4)
                 break;
@@ -5971,7 +6026,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else
                     fprintf(out, "    st[sp-2] = lw_divs_i(%lld, st[sp-2], st[sp-1]); sp--;\n", (long long)in->a);
                 ks.n--; break;
-            case IRW_MOD:   fprintf(out, "    st[sp-2] = lw_mods_i(%lld, st[sp-2], st[sp-1]); sp--;\n", (long long)in->a); ks.n--; break;
+            case IRW_MOD:
+                if (ks.n >= 2 && ks.k[ks.n-1] == K_VEC && ks.k[ks.n-2] == K_VEC) {   // ★ 2026-11-03 — 레인마다 스칼라 `mod`(종류 실행과 짝 · lw_vmod1 은 태그 경로와 같은 함수)
+                    const int ln_ = (int)ks.vn[ks.n-1], ez_ = (int)ks.ve[ks.n-1]; const char *m_ = lw_vmem((unsigned)ez_);
+                    fprintf(out, "    { vsp--; for (int k_ = 0; k_ < %d; k_++)\n"
+                                 "        vs[vsp-1].%s[k_] = lw_vmod1(vs[vsp-1].%s[k_], vs[vsp].%s[k_], %d, %d); }\n",
+                            ln_, m_, m_, m_, ez_, ks.fl[ks.n-1] == CBE_FL_SGN);
+                    ks.n--; ks.o[ks.n-1] = -1;
+                    break;
+                }
+                fprintf(out, "    st[sp-2] = lw_mods_i(%lld, st[sp-2], st[sp-1]); sp--;\n", (long long)in->a); ks.n--; break;
             case IRW_EQ: case IRW_NE:
                 if (ks.k[ks.n-1] == K_VEC) goto veccmp_;   // ★ 2026-11-01 — 벡터의 `eq` · `ne` 도 마스크다(전에는 정수 비교로 떨어져 엉뚱한 칸을 견줬다)
                 if (ks.k[ks.n-1] == K_FLT)

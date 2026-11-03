@@ -424,6 +424,7 @@ extern bool g_smt_on;                                                          /
 bool ir_field_boxself(const low_cst_t *fld, proven_u8str_view_t sname);                 /* RFC-0150 §8-12 */
 proven_size_t ir_field_tywords(const low_cst_t *fld);                          /* 3회 */
 proven_size_t ir_local_declare(ir_ctx_t *c, proven_u8str_view_t name, proven_u32 line); /* 3회 */
+proven_size_t ir_local_declare_ty(ir_ctx_t *c, proven_u8str_view_t name, proven_u8str_view_t tyword, proven_u32 line);
 bool ir_opt_num(proven_u8str_view_t v, proven_i64 *out);                       /* 3회 */
 bool ir_type_is_slice(const ir_ctx_t *c, proven_u8str_view_t w);               /* 3회 */
 void smt_emit_query(const low_ir_def_t *d, proven_size_t pc, const low_smt_sys_t *s); /* 3회 */

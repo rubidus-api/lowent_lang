@@ -1291,7 +1291,15 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 const low_ctfe_names_t nm = ir_ctfe_names(c);
                 cint_got = low_ctfe_let_value(f->kids + vstart, f->nkids - vstart, &nm, &cint_v, &cint_u);
             }
-            proven_size_t slot = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
+            proven_size_t slot;
+            {   // 타입 낱말(꾸밈 `mut` · `owned` · `view` · `ref` · `mut_ref` 를 건너뛴 첫 낱말) — 다른 타입으로 다시 묶으면 새 칸(ir_local_declare_ty)
+                proven_size_t tw0 = 2;
+                while (tw0 < be && tw0 < f->nkids && is_atom(f->kids[tw0]) &&
+                       (veq(f->kids[tw0]->tok.lex, "mut") || veq(f->kids[tw0]->tok.lex, "owned") || veq(f->kids[tw0]->tok.lex, "view") ||
+                        veq(f->kids[tw0]->tok.lex, "ref") || veq(f->kids[tw0]->tok.lex, "mut_ref"))) tw0++;
+                const proven_u8str_view_t tyw0 = (tw0 < be && tw0 < f->nkids && is_atom(f->kids[tw0])) ? ir_strip_mod(c, f->kids[tw0]->tok.lex) : (proven_u8str_view_t){ 0 };
+                slot = tyw0.size ? ir_local_declare_ty(c, f->kids[1]->tok.lex, tyw0, f->line) : ir_local_declare(c, f->kids[1]->tok.lex, f->line);
+            }
             if (cint_got && c->ncint < IR_MAXCINT) { c->cint[c->ncint].name = f->kids[1]->tok.lex; c->cint[c->ncint].val = cint_v; c->ncint++; }
             c->locals[slot].ty = ity_of_decl_c(c, f, 2, (be < f->nkids) ? be : f->nkids);   // S2
             // ★★★ **지역의 원소 타입도 싣는다** (2026-09-09, REQ-0013). 파라미터만 실었더니

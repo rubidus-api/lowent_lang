@@ -717,6 +717,9 @@ static void cbe_mark_depth(const low_ir_t *ir) {
 static bool cbe_ret_scalar(proven_size_t di) { return di < 512 && g_retk[di] == K_INT; }
 static unsigned char g_retopt[512];   // ★ K_OPT 반환이 **레코드**를 감쌌으면 그 sidx+1 (0=스칼라)
 static unsigned char g_ret_optrec;    // cbe_kind_run 이 RET 에서 채운다 → cbe_kind_ok 가 g_retopt 로
+// ★ 2026-11-03 (W-20261103-1518) — K_OPT 반환이 **마디의 뷰**(할당기 바이트 위 그림자 — cbe_nodeview)를 쌌으면 그 그림자 번호+1(0 = 아니다).
+//   g_retopt(레코드)와 따로 둔다: 받는 쪽이 그 값을 레코드로 벗기면 안 된다(2026-11-01 의 vm_vecgen `at`). 값은 lw_r 의 .s(주소, 바이트 수)다.
+static unsigned char g_retnode[512], g_ret_optnode;
 // ★★ 2026-10-31 (W-20261031-1610) — **돌려주는 슬라이스의 원소 폭 · 표식**(부동 · 부호). 전에는 폭 1 의 바이트 슬라이스만 돌려줄 수 있었다 — 받는 쪽이
 //   폭을 몰라 `index` 가 바이트로 읽었기 때문이다(VM ≠ native). 이제 op 마다 적어 두고 부르는 쪽 · 경계 어댑터가 그것을 읽는다.
 static unsigned char g_retve[512], g_retfl[512];
@@ -3056,8 +3059,15 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ 2026-11-01 (W-20261101-1828) — 구조체 뷰를 싼 option(fl=1 — `some <뷰>` · `try.view`)은 돌려주지 않는다: 반환 표식(g_retopt)은
                 //   레코드만 말한다 — 받는 쪽이 그것을 레코드로 벗겨 `cr_.r` 을 읽었다(vm_vecgen 의 `at` — VM 42 · 네이티브 8).
                 if (rk == K_OPT && st.n && st.ve[st.n-1] && st.fl[st.n-1]) {
-                    snprintf(g_sub, sizeof g_sub, "returns an option of a struct view (the caller would unwrap it as a record)"); return false; }
-                if (rk == K_OPT && st.n && st.ve[st.n-1]) g_ret_optrec = st.ve[st.n-1];
+                    const int vs_ = (int)st.ve[st.n-1] - 1;
+                    if (st.fl[st.n-1] == 1 && vs_ >= 0 && (proven_size_t)vs_ < ir->nstructs && ir->structs[vs_].is_shadow && K_VIEW + vs_ < K_SVIEW &&
+                        (!g_ret_optnode || g_ret_optnode == st.ve[st.n-1]) && !g_ret_optrec) {
+                        g_ret_optnode = st.ve[st.n-1];   // ★ 2026-11-03 — 마디의 뷰를 싼 option: 받는 쪽은 그 표식(g_retnode)으로 안다
+                        st.ve[st.n-1] = 0;               //   아래 g_ret_optrec 에 레코드로 적히지 않게
+                    } else {
+                        snprintf(g_sub, sizeof g_sub, "returns an option of a struct view (the caller would unwrap it as a record)"); return false; }
+                }
+                if (rk == K_OPT && st.n && st.ve[st.n-1]) { if (g_ret_optnode) { snprintf(g_sub, sizeof g_sub, "two `return`s wrap different kinds in an option"); return false; } g_ret_optrec = st.ve[st.n-1]; }
                 // ★ 슬라이스를 **돌려줄 수 있다** — 다만 그 뜻(원소 수 vs 바이트)이 흔들리면 안 되므로
                 //   바이트 슬라이스 def 에서만. 구조체·뷰 반환은 아직 안 내린다.
                 if (rk == K_ROWS && st.n) {   // ★ 2026-11-01 — 줄의 나열을 돌려준다(배열 답의 결과 자리): 원소 폭 · 줄 바이트 · 표식
@@ -3280,6 +3290,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   //   ⇒ 부가정보는 **피호출자의 기록에서** 온다. 스택 메모리에서 줍지 않는다.
                   st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0;
                   if (rk == K_OPT && c < 512) st.ve[st.n] = g_retopt[c];   // option 이 레코드를 감쌌으면 sidx+1
+                  if (rk == K_OPT && c < 512 && c != self && g_retnode[c]) { st.ve[st.n] = g_retnode[c]; st.fl[st.n] = 1; }   // ★ 2026-11-03 — 마디의 뷰를 싼 option
                   if (rk == K_SL) {                                         // 반환 슬라이스의 폭 · 표식은 피호출자의 기록에서(2026-10-31)
                       const bool me_ = c == self;
                       st.ve[st.n] = me_ ? g_ret_ve : (c < 512 && g_retve[c] ? g_retve[c] : 1);
@@ -3499,10 +3510,10 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             lfl[q] = ((d->param_vflt >> q) & 1u) ? CBE_FL_FLT : ((d->param_vsgn >> q) & 1u) ? CBE_FL_SGN : 0;   // ★ 2026-11-01 — 레인의 부동 · 부호
         }
     }
-    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
+    g_ret_optrec = 0; g_ret_optnode = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
     if (!cbe_kind_run(ir, d, sc, at, lk, slot, &retk, rmap, lez, lln, lfl)) return false;
     proven_size_t di = (proven_size_t)(d - ir->defs);
-    if (di < 512) { g_retk[di] = (retk == 0xff) ? K_INT : retk; g_retopt[di] = g_ret_optrec; g_retve[di] = g_ret_ve; g_retfl[di] = g_ret_fl; g_retrb[di] = g_ret_rb; }
+    if (di < 512) { g_retk[di] = (retk == 0xff) ? K_INT : retk; g_retopt[di] = g_ret_optrec; g_retnode[di] = retk == K_OPT ? g_ret_optnode : 0; g_retve[di] = g_ret_ve; g_retfl[di] = g_ret_fl; g_retrb[di] = g_ret_rb; }
     return true;
 }
 
@@ -3985,7 +3996,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     //   남아 있어서, 그 값을 보는 규칙(슬라이스 option · 겹 option 의 `return error …` 맞추기)이 여기서만 다르게 갈렸고, 그러면 추적이
     //   중간에 멈춘 채(답을 버렸다) 지역 종류표가 반만 찬 C 가 나갔다 — `lib/pem.low` 의 `unwrap` 이 겹 option 지역을 수로 읽었다
     //   (네이티브 «is_ok needs a result», VM 은 멀쩡했다). 판정 때 통과한 op 이 여기서 멈추면 처리기의 결함이다 — 그렇게 말한다.
-    g_ret_optrec = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
+    g_ret_optrec = 0; g_ret_optnode = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
     if (!cbe_kind_run(ir, d, NULL, at, lk, slot, &rk_, rmap, lez, lln, lfl))   // lk/slot/rmap/lez 를 채운다
         fprintf(stderr, "lowentc: internal: the fast path's kind trace stopped while emitting `%.*s` (it passed when the op was judged)%s%s\n",
                 (int)d->name.size, (const char *)d->name.ptr, g_sub[0] ? " — " : "", g_sub);
@@ -6332,6 +6343,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   스칼라 추출로 새어 뒤 field 가 rs[-1] 을 읽었다(ASan OOB · VM≠native).
                     ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
                     if (cwrapped && cidx < 512) ks.ve[ks.n] = g_retopt[cidx];
+                    if (cwrapped && cidx < 512 && g_retk[cidx] == K_OPT && g_retnode[cidx] && cidx != (proven_size_t)(d - ir->defs)) { ks.ve[ks.n] = g_retnode[cidx]; ks.fl[ks.n] = 1; }   // ★ 2026-11-03 — 종류 실행과 짝
                     if (cidx < 512 && g_retk[cidx] == K_OPTSL) {   // ★ 슬라이스 option 의 폭 · 표식(2026-11-01)
                         ks.ve[ks.n] = 0; ks.vn[ks.n] = (unsigned char)(g_retve[cidx] > 1 ? g_retve[cidx] : 0); ks.fl[ks.n] = g_retfl[cidx]; }
                     else if (csl && g_retk[cidx] == K_ROWS) { ks.ve[ks.n] = g_retve[cidx]; ks.vn[ks.n] = g_retrb[cidx]; ks.fl[ks.n] = g_retfl[cidx]; }
@@ -7979,6 +7991,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                              " sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = %d; sv_.i = 0x40000 | (%d << 20);"
                              " return sv_; }\n", stride_, sx_);
             }
+            if (i < 512 && g_retk[i] == K_OPT && g_retnode[i])   // ★ 2026-11-03 (W-20261103-1518) — 마디의 뷰를 싼 option: some 이면 그 바이트의 뷰를 싼다(태그 경로의 마디 값)
+                fprintf(out, "    if (r_.tag == 1) { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                             "        lowv vv_ = {0}; vv_.tag = LWV_VIEW; vv_.p = r_.s.p; vv_.n = r_.s.n; vv_.box = %d; lw_boxes[lw_nbox] = vv_;\n"
+                             "        lowv w_ = {0}; w_.tag = LWV_SOME; w_.box = lw_nbox++; return w_; }\n", (int)g_retnode[i] - 1);
             if (i < 512 && g_retk[i] == K_OPT && g_retopt[i]) {
                 // ★★★ **레코드를 감싼 option/result 반환** — some/ok(태그 1·3)면 r_.r[] 에서
                 //   (중첩) 레코드 박스를 짓고 그것을 감싼다. none/err 은 아래 일반 경로가 처리한다.

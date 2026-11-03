@@ -68,3 +68,25 @@ proc crossing input a cap allocator . input k u64 . output u64 . effects alloc s
   drop b. use fb. .
   return add add got. mul n1. 10 . . cast u64 big. . . .
 end .
+
+rem 빠른 op 끼리 — 마디를 싼 option 을 돌려받는다(2026-11-03 · W-20261103-1518): 마디가 든 머리 · 빈 머리
+proc both input a cap allocator . input k u64 . output u64 . effects alloc state . do
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  let nw use fb. option (owned nd) lit nd do key k. . left none . end . .
+  var x owned nd nw. else return 9 . .
+  let h hd hang x. . .
+  var r option (owned nd) take h. . .
+  var b owned nd r. else return 8 . .
+  let got u64 field b. key . .
+  let l option (owned nd) field b. left . .
+  drop l. use fb. .
+  drop b. use fb. .
+  let h2 hd lit hd do root none . n 0 . end . .
+  var r2 option (owned nd) take h2. . .
+  let some_ bool is_some r2. . .
+  drop r2. use fb. .
+  if some_. do
+    return 7 .
+  end .
+  return add got. 100 . .
+end .

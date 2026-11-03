@@ -825,6 +825,34 @@ static int cbe_aref_sidx(const low_ir_t *ir, const low_ir_sfield_t *f) {
     }
     return -1;
 }
+// ★★ 2026-11-03 (W-20261103-1143) — **마디를 가리키는 레코드 칸** `root option (owned node) .`(`tree.head`). 그 마디가 이 유닛에서
+//   늘 할당기 바이트 위의 뷰라면(cbe_nodeview) 칸의 값은 주소 하나다 — 빠른 레코드는 그 칸의 바이트 자리(태그 값 칸이라 8 바이트)에
+//   주소를 둔다(0 = none, 마디 칸과 같은 모양). 읽으면 option(마디의 뷰), 쓰면 그 주소 · 경계에서 태그 값 option ↔ 주소. 답: 그림자 번호, 아니면 -1.
+static int cbe_nodeview(const low_ir_t *ir, int sidx);
+static int cbe_f_nopt(const low_ir_t *ir, const low_ir_sfield_t *f) {
+    if (!f->boxed || f->bxself || f->bxs1 || f->elem || f->arrn || f->slmeta || f->flt || f->size != 8) return -1;
+    if (!f->tyname.size || !proven_u8str_view_eq(f->tyname, (proven_u8str_view_t){ (const proven_u8 *)"option", 6 })) return -1;
+    const proven_u8str_view_t t = f->cname;
+    if (!t.size) return -1;
+    const proven_u8str_view_t tb = low_view_after_last(t, '.');
+    int hit = -1, nshort = 0;   // 온 이름이 먼저 · 짧은 이름은 하나뿐일 때만(같은 짧은 이름이 모듈마다 설 수 있다)
+    for (proven_size_t i = 0; i < ir->nstructs && hit < 0; i++) {
+        const low_ir_struct_t *T = &ir->structs[i];
+        if (!T->is_actor_state && !T->is_mmio && !T->is_shadow && proven_u8str_view_eq(T->name, t)) hit = (int)i;
+    }
+    for (proven_size_t i = 0; i < ir->nstructs && hit < 0; i++) {
+        const low_ir_struct_t *T = &ir->structs[i];
+        if (!T->is_actor_state && !T->is_mmio && !T->is_shadow && proven_u8str_view_eq(low_view_after_last(T->name, '.'), tb)) nshort++;
+    }
+    if (hit < 0 && nshort == 1)
+        for (proven_size_t i = 0; i < ir->nstructs && hit < 0; i++) {
+            const low_ir_struct_t *T = &ir->structs[i];
+            if (!T->is_actor_state && !T->is_mmio && !T->is_shadow && proven_u8str_view_eq(low_view_after_last(T->name, '.'), tb)) hit = (int)i;
+        }
+    if (hit < 0) return -1;
+    const int sh = cbe_nodeview(ir, hit);
+    return (sh >= 0 && sh < 254) ? sh : -1;
+}
 // ★★ 2026-11-01 (W-20261101-1150) — **소유한 값 구조체 칸**(`a owned h .` — `net.pair` 의 두 끝). VM 은 이 칸에 그 구조체의 박스를 두고
 //   `make` 때 베낀다(값이다) — 그 뒤로는 옮길 뿐이다(소유 검사가 옮긴 칸을 다시 못 읽게 한다). 빠른 레코드도 액터 칸처럼 평행 칸에 태그 쪽
 //   레코드의 자리를 담는다: 읽으면 그 레코드를 빠른 레코드로 **베껴** 내고(옮겨 내는 것이라 되쓸 것이 없다), `make` 는 빠른 레코드로 태그
@@ -876,6 +904,7 @@ static bool cbe_struct_same(const low_ir_t *ir, int a, int b) {
             f->elem != g->elem || f->flt != g->flt || f->sidx != g->sidx || f->arrn != g->arrn || f->be != g->be) return false;
         if (low_sfield_sgn(f) != low_sfield_sgn(g)) return false;
         if (cbe_aref_sidx(ir, f) != cbe_aref_sidx(ir, g) || cbe_obox_sidx(ir, f) != cbe_obox_sidx(ir, g)) return false;
+        if (cbe_f_nopt(ir, f) != cbe_f_nopt(ir, g)) return false;
     }
     return true;
 }
@@ -1011,7 +1040,9 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
         //     즉 **바이트 하나씩 연속으로** 읽은 것이다(슬롯 번호를 오프셋으로 썼으니까).
         //     저장소를 바꾸면 그 저장소를 **읽는 모든 자리**를 함께 바꿔야 한다.
         unsigned foff = (unsigned)(base + (int)S->f[sl].off);
-        if (cbe_f_place(ir, &S->f[sl]))   // ★★ 2026-11-01 — 액터 칸 · 소유 칸: 같은 태그 쪽 레코드로 돌아간다
+        if (cbe_f_nopt(ir, &S->f[sl]) >= 0)   // ★ 2026-11-03 — 마디를 가리키는 칸: 주소 → 태그 값 option
+            fprintf(out, "        rr_%d->f[%zu] = lw_nopt_out(r_.r + %u, %d);\n", me, (size_t)z, foff, cbe_f_nopt(ir, &S->f[sl]));
+        else if (cbe_f_place(ir, &S->f[sl]))   // ★★ 2026-11-01 — 액터 칸 · 소유 칸: 같은 태그 쪽 레코드로 돌아간다
             fprintf(out, "        rr_%d->f[%zu] = lw_aref_out(r_.rs ? r_.rs[%d] : (lw_sl){0,0});\n", me, (size_t)z, sl);
         else if (S->f[sl].arrn)   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 빠른 바이트를 보는 값을 두고, 아래 `lw_rec_arrs` 가 레코드의 제 바이트로 베낀다
             fprintf(out, "        { lowv av_ = {0}; av_.p = r_.r + %u; av_.n = %u; if (%u == 1) av_.tag = LWV_SLICE; else { av_.tag = LWV_VARRAY; av_.box = %u; }"
@@ -1150,6 +1181,7 @@ static bool cbe_rec_slice_ok(const low_ir_t *ir, int sidx) {
     bool any_slice = false;
     for (proven_size_t q = 0; q < S->nf; q++) {
         if (cbe_f_place(ir, &S->f[q])) { any_slice = true; continue; }   // ★ 액터 칸 · 소유한 값 구조체 칸 — 평행 칸에 산다(2026-11-01)
+        if (cbe_f_nopt(ir, &S->f[q]) >= 0) { any_slice = true; continue; }   // ★ 2026-11-03 — 마디를 가리키는 칸: 바이트 자리에 주소 하나
         if (S->f[q].sidx >= 0) return false;          // 중첩 구조체 필드
         if (S->f[q].flt) return false;                // 부동은 값에서만
         if (S->f[q].boxed) {
@@ -1220,6 +1252,13 @@ static void cbe_emit_rec_unpack(FILE *out, const low_ir_t *ir, int sidx, const c
             if (fi >= 0 && slots) fprintf(out, "    %s[%zu * LW_RECF + %zu] = lw_aref_in(lw_field(%s, %d));\n", rx, q, (size_t)z, val, fi);
             continue;
         }
+        if (cbe_f_nopt(ir, &S->f[z]) >= 0) {   // ★ 2026-11-03 (W-20261103-1143) — 마디를 가리키는 칸: 태그 값 option → 주소(none = 0)
+            if (fi >= 0)
+                fprintf(out, "    { lw_r o_ = lw_opt2r(lw_field(%s, %d)); const unsigned char *p_ = o_.tag == 1 ? o_.s.p : 0;"
+                             " if (LW_UNLIKELY(o_.tag != 1 && o_.tag != 2)) lw_panic(\"a node field takes an option\"); memset(%s + %u, 0, 8); memcpy(%s + %u, &p_, sizeof p_); }\n",
+                        val, fi, buf, (unsigned)S->f[z].off, buf, (unsigned)S->f[z].off);
+            continue;
+        }
         if (S->f[z].arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 태그 쪽 레코드의 바이트를 빠른 레코드 안에 베낀다
             const unsigned need_ = (unsigned)S->f[z].arrn * (unsigned)S->f[z].arresz;
             if (fi >= 0)
@@ -1271,6 +1310,10 @@ static void cbe_emit_rec_writeback(FILE *out, const low_ir_t *ir, int sidx, cons
         //   ★ 원소 폭이 1 이 아니면 태그 쪽은 **원소 수**를 기대하므로 되돌린다.
         // ★★★★★ **원래 모양대로 되돌린다** (2026-08-30, WO-0155) — 원본을 복사한 뒤 **포인터와 길이만** 갈아 끼운다(WO-0156).
         // ★★★★★ **원래가 슬라이스가 아니었으면 태그를 새로 세운다** (2026-08-31, WO-0162) — 「썼는가」의 증인은 포인터다.
+        if (cbe_f_nopt(ir, &S->f[z]) >= 0) {   // ★ 2026-11-03 — 마디를 가리키는 칸: 주소 → 태그 값 option(마디의 뷰 · 0 = none)
+            fprintf(out, "    lw_fstore(%s, %d, lw_nopt_out(%s + %u, %d));\n", val, fi, buf, (unsigned)S->f[z].off, cbe_f_nopt(ir, &S->f[z]));
+            continue;
+        }
         if (S->f[z].arrn) {   // ★ 2026-11-01 — 배열 칸: 빠른 레코드의 바이트를 태그 쪽 레코드의 제 바이트에 되쓴다(제자리 — `lw_fstore_arr` 와 같다)
             fprintf(out, "    { lowv fv_ = lw_field(%s, %d); memmove((unsigned char *)(void *)fv_.p, %s + %u, %u); }\n",
                     val, fi, buf, (unsigned)S->f[z].off, (unsigned)S->f[z].arrn * (unsigned)S->f[z].arresz);
@@ -2395,6 +2438,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (!ir->structs[st.k[st.n-3] - K_SVIEW].total) return false;
                     st.n -= 2; st.o[st.n-1] = -1; break;
                 }
+                // ★ 2026-11-03 (W-20261103-1143) — 할당기 바이트 위 그림자의 뷰를 바이트로 자른다(`drop n. use al.` 이 돌려줄 바이트 — VM 과 같은 바이트 슬라이스)
+                if (st.n >= 3 && st.k[st.n-3] >= K_VIEW && st.k[st.n-3] < K_SVIEW && ir->structs[st.k[st.n-3] - K_VIEW].is_shadow &&
+                    st.k[st.n-2] == K_INT && st.k[st.n-1] == K_INT) {
+                    st.n -= 2; st.k[st.n-1] = K_SL; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
+                }
                 if (st.n < 3 || st.k[st.n-3] != K_SL ||
                     st.k[st.n-2] != K_INT || st.k[st.n-1] != K_INT) return false;
                 // ★★★★★ **원소 폭이 1 이 아니어도 된다** (2026-08-19). 여기서 거절하면
@@ -2655,6 +2703,15 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                  (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, st.k[st.n - nf + q]);
                         return false;
                     }
+                    { const int no_ = cbe_f_nopt(ir, &ir->structs[sx].f[sl]);   // ★ 2026-11-03 (W-20261103-1143) — 마디를 가리키는 칸: option(그 마디의 뷰) · none
+                      if (no_ >= 0) {
+                          const int ai_ = st.n - (int)nf + (int)q;
+                          if (st.k[ai_] == K_OPT && ((st.ve[ai_] == 0 && st.fl[ai_] == 0) || (st.fl[ai_] == 1 && st.ve[ai_] == (unsigned char)(no_ + 1)))) continue;
+                          snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` takes an option of a node built in allocator bytes",
+                                   (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
+                                   (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr);
+                          return false;
+                      } }
                     unsigned char want = ir->structs[sx].f[sl].sidx >= 0
                                          ? (unsigned char)(K_REC + ir->structs[sx].f[sl].sidx)
                                        : (ir->structs[sx].f[sl].boxed && ir->structs[sx].f[sl].elem) ? K_SL
@@ -2720,6 +2777,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   if (ob_ >= 0) {
                       if (st.o[st.n-1] >= CBE_LOCMAX) return false;
                       st.k[st.n-1] = (unsigned char)(K_REC + ob_); st.ve[st.n-1] = 0; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1;
+                      break;
+                  } }
+                { const int no_ = cbe_f_nopt(ir, &ir->structs[sx].f[rsl]);   // ★ 2026-11-03 — 마디를 가리키는 칸: 주소 → option(마디의 뷰)
+                  if (no_ >= 0) {
+                      st.k[st.n-1] = K_OPT; st.ve[st.n-1] = (unsigned char)(no_ + 1); st.fl[st.n-1] = 1; st.vn[st.n-1] = 0; st.o[st.n-1] = -1;
                       break;
                   } }
                 { const int as_ = cbe_aref_sidx(ir, &ir->structs[sx].f[rsl]);   // ★ 2026-11-01 — 액터를 가리키는 칸
@@ -2821,6 +2883,15 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     const int vsx_ = st.k[st.n-2] - K_VIEW, vsl_ = cbe_view_slot(ir, vsx_, in->a);
                     if (vsl_ < 0 || !ir->structs[vsx_].is_shadow || !ir->structs[vsx_].f[vsl_].bxs1) return false;
                     const bool none_ = st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0, node_ = st.fl[st.n-1] == 1 && st.ve[st.n-1] == ir->structs[vsx_].f[vsl_].bxs1;
+                    if (!none_ && !node_) { snprintf(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
+                    st.n -= 2; break;
+                }
+                // ★ 2026-11-03 (W-20261103-1143) — 레코드의 «마디를 가리키는 칸»에 option(마디의 뷰) · none 을 쓴다(지역에 든 레코드 — 바이트 자리에 주소)
+                if (st.k[st.n-1] == K_OPT && st.k[st.n-2] >= K_REC && st.k[st.n-2] < K_VIEW) {
+                    const int sxn_ = st.k[st.n-2] - K_REC, sln_ = cbe_rec_slot(ir, sxn_, in->a);
+                    const int no_ = sln_ >= 0 ? cbe_f_nopt(ir, &ir->structs[sxn_].f[sln_]) : -1;
+                    if (no_ < 0 || st.o[st.n-2] < 0) return false;
+                    const bool none_ = st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0, node_ = st.fl[st.n-1] == 1 && st.ve[st.n-1] == (unsigned char)(no_ + 1);
                     if (!none_ && !node_) { snprintf(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
                     st.n -= 2; break;
                 }
@@ -3296,7 +3367,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             // ★ `value_or` 의 지연 분기 — option · result 둘 다 «값이 들어 있나». 수를 싼 것 · 바이트 슬라이스를 싼 것만.
             case IRW_HASVAL:
                             if (st.n < 1) return false;
-                            if (!((st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0) || st.k[st.n-1] == K_OPTSL)) return false;
+                            if (!((st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0) || st.k[st.n-1] == K_OPTSL ||
+                                  (st.k[st.n-1] == K_OPT && st.fl[st.n-1] == 1 && st.ve[st.n-1] && K_VIEW + st.ve[st.n-1] - 1 < K_SVIEW))) return false;   // ★ 2026-11-03 — 마디의 뷰를 싼 option(`drop` 이 묻는다 · 방출은 태그만 본다)
                             st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             // ★ `value_or` 는 지연 분기로 낮아진다(low_ir.c): 값이 있을 때만 VALOR 에 오고, 그때 기본값 자리에는 **같은 option** 이 다시 온다.
             //   그래서 (option, 정수) 와 (option, 같은 option) 둘 다 받는다. 수를 싼 것 → 수 · 바이트 슬라이스를 싼 것 → 바이트 슬라이스.
@@ -4656,7 +4728,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 부분 슬라이스는 **포인터 산술**이다 — 복사가 아니다.
                 //   ★★ 원소 폭을 곱한다(`.n` 은 원소 수, 포인터는 바이트) — 색인과 같은 규약.
                 const bool svw_ = ks.k[ks.n-3] >= K_SVIEW;   // 구조체 원소 — 보폭은 배치의 크기(종류 실행과 짝)
-                int sez = svw_ ? (int)ir->structs[ks.k[ks.n-3] - K_SVIEW].total : (int)ks.ve[ks.n-3]; if (sez <= 0) sez = 1;
+                const bool vw_ = ks.k[ks.n-3] >= K_VIEW && !svw_;   // ★ 2026-11-03 — 그림자의 뷰 → 바이트 슬라이스(종류 실행과 짝)
+                int sez = svw_ ? (int)ir->structs[ks.k[ks.n-3] - K_SVIEW].total : vw_ ? 1 : (int)ks.ve[ks.n-3]; if (sez <= 0) sez = 1;
                 fputs("    { long long hi_ = st[--sp], lo_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n"
                       "      if (LW_UNLIKELY(lo_ < 0 || hi_ < lo_ || (unsigned long long)hi_ > s_.n))"
                       " lw_panic(\"subslice out of bounds\");\n", out);
@@ -4665,7 +4738,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else
                     fprintf(out, "      ss[ssp-1].p = s_.p + (size_t)lo_ * %d;"
                                  " ss[ssp-1].n = (size_t)(hi_ - lo_); }\n", sez);
-                ks.n -= 2; if (!svw_) ks.k[ks.n-1] = K_SL; ks.o[ks.n-1] = -1; break;
+                ks.n -= 2; if (!svw_) ks.k[ks.n-1] = K_SL; if (vw_) { ks.ve[ks.n-1] = 1; ks.vn[ks.n-1] = 0; ks.fl[ks.n-1] = 0; } ks.o[ks.n-1] = -1; break;
             }
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
@@ -5229,6 +5302,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         fprintf(out, "        tsl_[%d] = lw_aref_in(lw_make(%d, %zu, ov_)); }\n", sl, omk_, (size_t)ir->makes[omk_].nfields);
                         continue;
                     }
+                    if (cbe_f_nopt(ir, F) >= 0) {   // ★ 2026-11-03 (W-20261103-1143) — 마디를 가리키는 칸: option(마디의 뷰)이면 그 주소, none 이면 0
+                        fprintf(out, "      { lw_r w_ = ws[--wsp]; const unsigned char *p_ = w_.tag == 1 ? w_.s.p : 0; memcpy(tmp_ + %u, &p_, sizeof p_); }\n", (unsigned)F->off);
+                        continue;
+                    }
                     if (cbe_aref_sidx(ir, F) >= 0) {   // ★ 2026-11-01 — 액터를 가리키는 칸: 칸에서 읽은 자리 그대로, 또는 액터 레코드의 제 자리
                         if (ks.k[ks.n - nf + q] == K_AREF) fprintf(out, "      tsl_[%d] = ss[--ssp];\n", sl);
                         else fprintf(out, "      rsp--; tsl_[%d] = rssl[rsp][%d];\n", sl, CBE_AID);
@@ -5279,6 +5356,15 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         else cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl", 0, false);
                         fputs("      rsp++; }\n", out);
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = (unsigned char)(K_REC + ob0); ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
+                        ks.n++;
+                        break;
+                    }
+                    const int no0 = sl0 >= 0 ? cbe_f_nopt(ir, &ir->structs[sx0].f[sl0]) : -1;
+                    if (no0 >= 0) {   // ★ 2026-11-03 (W-20261103-1143) — 마디를 가리키는 칸: 0 이면 none, 아니면 그 마디의 뷰를 싼 option(종류 실행과 짝)
+                        fprintf(out, "    rsp--; { const unsigned char *p_; memcpy(&p_, rs[rsp] + %u, sizeof p_);"
+                                     " if (p_) { ws[wsp].s.p = p_; ws[wsp].s.n = %u; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n",
+                                (unsigned)ir->structs[sx0].f[sl0].off, (unsigned)ir->structs[no0].total);
+                        ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_OPT; ks.ve[ks.n] = (unsigned char)(no0 + 1); ks.vn[ks.n] = 0; ks.fl[ks.n] = 1;
                         ks.n++;
                         break;
                     }
@@ -5451,6 +5537,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 const int vsx_ = ks.k[ks.n-2] - K_VIEW, vsl_ = cbe_view_slot(ir, vsx_, in->a);
                 fprintf(out, "    { lw_r w_ = ws[--wsp]; const unsigned char *p_ = w_.tag == 1 ? w_.s.p : 0; memcpy((unsigned char *)ss[--ssp].p + %u, &p_, sizeof p_); }\n",
                         (unsigned)ir->structs[vsx_].f[vsl_].off);
+                ks.n -= 2;
+                break;
+            } else if (ks.k[ks.n-1] == K_OPT && ks.k[ks.n-2] >= K_REC && ks.k[ks.n-2] < K_VIEW) {
+                // ★★ 2026-11-03 (W-20261103-1143) — 레코드의 «마디를 가리키는 칸»에 쓴다: 지역 레코드의 바이트 자리에 주소(none = 0 — 종류 실행과 짝)
+                const int sxn_ = ks.k[ks.n-2] - K_REC, sln_ = cbe_rec_slot(ir, sxn_, in->a);
+                fprintf(out, "    { lw_r w_ = ws[--wsp]; const unsigned char *p_ = w_.tag == 1 ? w_.s.p : 0; memcpy(rloc[%d] + %u, &p_, sizeof p_); rsp--; }\n",
+                        (int)ks.o[ks.n-2], (unsigned)ir->structs[sxn_].f[sln_].off);
                 ks.n -= 2;
                 break;
             } else if (ks.k[ks.n-2] >= K_VIEW) {
@@ -6950,6 +7043,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     fprintf(out, "static const int lw_st_total[] = {");
     for (proven_size_t s = 0; s < ir->nstructs; s++) fprintf(out, "%s%u", s ? ", " : " ", (unsigned)ir->structs[s].total);
     fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    // ★ 2026-11-03 (W-20261103-1143) — 빠른 레코드의 «마디를 가리키는 칸»(주소 · 0 = none)을 태그 값 option(마디의 뷰)으로 — lw_field 의 마디 칸과 같은 모양
+    fputs("static inline lowv lw_nopt_out(const unsigned char *at, int sh) { const unsigned char *pp_; memcpy(&pp_, at, sizeof pp_);\n"
+          "    if (!pp_) { lowv n_ = {0}; n_.tag = LWV_NONE; return n_; }\n"
+          "    if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+          "    lowv w_ = {0}; w_.tag = LWV_VIEW; w_.p = pp_; w_.box = sh; w_.n = (size_t)lw_st_total[sh];\n"
+          "    lw_boxes[lw_nbox] = w_; lowv o_ = {0}; o_.tag = LWV_SOME; o_.box = lw_nbox++; return o_; }\n", out);
     // ★ RFC-0150 §8-31 — 제약 있는 칸(태그 경로의 lw_tryview 가 잰다): 구조체 s 의 칸은 lw_cf_*[lw_st_cfb[s] .. lw_st_cfb[s+1]).
     //   bool 칸은 lo == hi == -1, 폭을 적은 열거 칸은 lw_en_num / lw_en_vi 의 [lo, hi) 가 갈래들이다.
     {

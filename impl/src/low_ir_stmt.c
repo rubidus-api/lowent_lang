@@ -1103,13 +1103,17 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 bool opt_ = veq(lo->tyname, "option");
                 proven_size_t vt = ir_hidden_local(c, f->line);
                 if (vt == (proven_size_t)-1) return;
+                // ★ 2026-11-03 (W-20261103-1143) — option · 마디 · 돌려줄 바이트는 저마다 숨은 지역에 둔다. 한 지역에 셋을 차례로 담았더니
+                //   VM 은 상관없었지만 빠른 경로는 지역마다 종류가 하나여야 해서 `drop` 이 든 op(`tree.tr_close`)이 태그 경로에 남았다.
+                proven_size_t vo = vt;
+                if (opt_) { vo = ir_hidden_local(c, f->line); if (vo == (proven_size_t)-1) return; }
                 proven_size_t to_end = (proven_size_t)-1;
                 ir_emit(c, IRW_LOAD, (proven_i64)ls);
                 if (opt_) {
-                    ir_emit(c, IRW_STORE, (proven_i64)vt);
-                    ir_emit(c, IRW_LOAD, (proven_i64)vt); ir_emit(c, IRW_HASVAL, 0);
+                    ir_emit(c, IRW_STORE, (proven_i64)vo);
+                    ir_emit(c, IRW_LOAD, (proven_i64)vo); ir_emit(c, IRW_HASVAL, 0);
                     to_end = ir_emit(c, IRW_BRZ, 0);
-                    ir_emit(c, IRW_LOAD, (proven_i64)vt); ir_emit(c, IRW_SOMEVAL, 0);
+                    ir_emit(c, IRW_LOAD, (proven_i64)vo); ir_emit(c, IRW_SOMEVAL, 0);
                 }
                 ir_emit(c, IRW_STORE, (proven_i64)vt);
                 // 실행 중 검사는 option 일 때만 — 맨 `owned` 마디는 칸을 옮겨 내도 바이트에 주소가 남으므로 검사층이 번역 때 막는다
@@ -1128,17 +1132,19 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                     if (af) rel_ = ir_actor_has_proc(c, c->locals[as].tyname, "release");
                 }
                 if (rel_) {
+                    const proven_size_t vs = ir_hidden_local(c, f->line);
+                    if (vs == (proven_size_t)-1) return;
                     ir_emit(c, IRW_LOAD, (proven_i64)vt);
                     ir_emit(c, IRW_CONST, 0);
                     ir_emit(c, IRW_CONST, (proven_i64)g->total);
                     ir_emit(c, IRW_SUBSLICE, 0);
-                    ir_emit(c, IRW_STORE, (proven_i64)vt);
+                    ir_emit(c, IRW_STORE, (proven_i64)vs);
                     const low_cst_t *rf = f->kids[4];
                     const low_cst_t *sv0 = g_relsub_atom; proven_size_t sl0 = g_relsub_slot;
                     const low_cst_t *ra_ = (rf->kind == LOW_CST_FORM && rf->nkids == 4) ? rf->kids[3] : nullptr;   // (subslice <n> 0 (len <n>))
                     while (ra_ && ra_->kind == LOW_CST_GROUP && ra_->nkids == 1) ra_ = ra_->kids[0];
                     g_relsub_atom = (ra_ && ra_->kind == LOW_CST_FORM && ra_->nkids == 4) ? ra_->kids[1] : nullptr;
-                    g_relsub_slot = vt;
+                    g_relsub_slot = vs;
                     ir_node(c, rf);
                     g_relsub_atom = sv0; g_relsub_slot = sl0;
                     ir_emit(c, IRW_DROP, 0);
@@ -3910,6 +3916,12 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 //   거절한다. **없는 레이아웃을 있는 척하지 않는다.**
                 if (param_ty_) { s->f[s->nf].size = 8; s->f[s->nf].boxed = true; s->viewable = false; }
                 else s->f[s->nf].boxed = false;
+                // ★ 2026-11-03 (W-20261103-1143) — `root option (owned node) .` 처럼 괄호 마디가 따르는 option 칸도 태그 값 한 칸이다.
+                //   타입 낱말을 원자만 세어(ir_field_tywords) 한 낱말로 보았고, 그래서 크기 0 · boxed 아님으로 남아 뒤 칸 `n` 과 같은 자리를
+                //   가졌다(바이트를 안 차지했다). `option u8` 과 같은 8 바이트 칸으로 둔다 — 스스로를 품는 칸(bxself, 아래)도 이미 그렇다.
+                if (!param_ty_ && tw_ == 1 && fld->nkids > 2 && fld->kids[2]->kind == LOW_CST_GROUP && is_atom(fld->kids[1]) &&
+                    (veq(fld->kids[1]->tok.lex, "option") || veq(fld->kids[1]->tok.lex, "result")))
+                    { s->f[s->nf].size = 8; s->f[s->nf].boxed = true; s->viewable = false; }
                 // ★ 슬라이스 필드면 **원소 폭**을 적어 둔다(RFC-0106 단계 0). 타입 낱말이
                 //   `… slice <T> …` 꼴이면 그 `<T>` 의 크기다. 0 = 슬라이스가 아니거나 모른다.
                 //   ☞ 아무 동작도 안 바꾼다 — **나르기만** 한다. `boxed` 는 *"바이트 표현이

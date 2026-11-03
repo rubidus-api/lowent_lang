@@ -1,0 +1,70 @@
+rem ★★ **마디를 가리키는 레코드 칸** (2026-11-03 · W-20261103-1143) — `tree.head` 의 `root option (owned node) .` 모양.
+rem   마디는 할당기 바이트에만 사니(레코드로 짓는 자리가 없다) 빠른 레코드는 그 칸에 마디의 주소 하나를 둔다(0 = none).
+rem   아래 op 들이 한 op 안에서 칸에 달고 · 읽고 · 떼고, 마디를 단 머리를 태그 경로에 남는 op 과 주고받는다.
+rem   차등 스윕이 VM 과 네이티브를 견준다.
+
+module vm_ownhead .
+
+use allocs .
+
+struct nd do
+  key u64 .
+  left option (owned nd) .
+end .
+
+struct hd do
+  root option (owned nd) .
+  n u64 .
+end .
+
+rem 한 op 안에서 — 머리를 짓고 · 마디를 달고 · 읽고 · 떼어 돌려준다
+proc one input a cap allocator . input k u64 . output u64 . effects alloc state . do
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  var h hd lit hd do root none . n 0 . end . .
+  let nw use fb. option (owned nd) lit nd do key k. . left none . end . .
+  var x owned nd nw. else return 9 . .
+  set field h. root . some x. . .
+  set field h. n . 1 .
+  var r option (owned nd) field h. root . .
+  set field h. root . none .
+  var b owned nd r. else return 8 . .
+  let got u64 field b. key . .
+  let l option (owned nd) field b. left . .
+  drop l. use fb. .
+  drop b. use fb. .
+  var e option (owned nd) field h. root . .
+  let left_ bool is_some e. . .
+  drop e. use fb. .
+  if left_. do
+    return 7 .
+  end .
+  return add got. field h. n . . .
+end .
+
+rem 마디를 단 머리를 돌려준다(빠른 op)
+fn hang input x owned nd . output hd . do
+  return lit hd do root some x. . . n 1 . end . .
+end .
+
+rem 머리를 받아 뿌리를 꺼내 돌려준다(빠른 op)
+fn take input h hd . output option (owned nd) . do
+  var r option (owned nd) field h. root . .
+  return r. .
+end .
+
+rem 태그 경로에 남는 op(128 비트 지역)이 빠른 op 둘과 머리를 주고받는다 — 마디의 주소가 경계를 두 번 건넌다
+proc crossing input a cap allocator . input k u64 . output u64 . effects alloc state . do
+  let big u128 widen u128 1 . .
+  var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  let nw use fb. option (owned nd) lit nd do key k. . left none . end . .
+  var x owned nd nw. else return 9 . .
+  let h hd hang x. . .
+  let n1 u64 field h. n . .
+  var r option (owned nd) take h. . .
+  var b owned nd r. else return 8 . .
+  let got u64 field b. key . .
+  let l option (owned nd) field b. left . .
+  drop l. use fb. .
+  drop b. use fb. .
+  return add add got. mul n1. 10 . . cast u64 big. . . .
+end .

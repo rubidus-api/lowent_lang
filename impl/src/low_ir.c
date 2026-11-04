@@ -935,6 +935,69 @@ void ir_emit_sinkfull_guard(ir_ctx_t *c, proven_size_t out_local, proven_size_t 
         if (proven_u8str_view_eq(c->locals[i].name, name)) { *found = true; return i; }
     *found = false; return 0;
 }
+// ★★ W-20261104-1345 (소유자 «건너뛰기 설계 들어가고») — **부름 자리의 슬라이스 인자가 무엇인지 적는다.** 겹침 검사 건너뛰기
+//   (low_ir_stmt.c ir_excl_skip)가 읽는다. 아는 꼴은 둘뿐이다: 이 op 의 칸 하나(`x`) · 그 칸의 `subslice x a b`(a · b 가 10 진 수
+//   리터럴이면 구간을 안다, 아니면 «칸 안 어딘가»). 나머지(부름의 답 · 칸 경로 · `view_array` …)는 «모른다» — 모르는 인자가 든
+//   짝은 보증하지 않는다. 같은 칸을 두 번 읽는 사이에 칸이 바뀌면 안 되므로, 인자에 참조(`ref` · `mut_ref` · `addr`)가 섞이면
+//   그 자리 전체를 보증하지 않는다(taint).
+static bool ir_xnum(const low_cst_t *nd, proven_u64 *out) {
+    while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    if (!nd || nd->kind != LOW_CST_ATOM || nd->tok.kind != LOW_TOK_NUMBER || !nd->tok.lex.size || nd->tok.lex.size > 18) return false;
+    proven_u64 v = 0;
+    for (proven_size_t i = 0; i < nd->tok.lex.size; i++) {
+        unsigned ch = nd->tok.lex.ptr[i];
+        if (ch < '0' || ch > '9') return false;            // 10 진 리터럴만 — 나머지는 «모른다»
+        v = v * 10 + (ch - '0');
+    }
+    *out = v; return true;
+}
+static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size_t from, proven_size_t to, int depth) {
+    low_ir_xarg_t z = { 0 };
+    if (depth > 6 || from >= to) return z;
+    if (to - from == 1) {
+        const low_cst_t *nd = k[from];
+        while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+        if (!nd) return z;
+        if (nd->kind == LOW_CST_ATOM) {
+            if (nd->tok.kind != LOW_TOK_IDENT) return z;
+            bool f; proven_size_t sl = ir_local_find(c, nd->tok.lex, &f);
+            if (!f || sl > 0xffff) return z;
+            z.kind = 1; z.slot = (proven_u16)sl; return z;
+        }
+        if ((nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) && nd->nkids)
+            return ir_xarg(c, (const low_cst_t *const *)nd->kids, 0, nd->nkids, depth + 1);
+        return z;
+    }
+    if (to - from == 4 && is_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
+        low_ir_xarg_t b = ir_xarg(c, k, from + 1, from + 2, depth + 1);
+        if (!b.kind) return z;
+        proven_u64 lo, hi;
+        if (!(ir_xnum(k[from + 2], &lo) && ir_xnum(k[from + 3], &hi)) || hi < lo) { b.kind = 3; return b; }
+        if (b.kind == 1) { b.kind = 2; b.lo = lo; b.hi = hi; return b; }
+        if (b.kind == 2) { b.hi = b.lo + hi; b.lo += lo; return b; }    // 잘린 것을 또 자른다 — 밖이면 그 `subslice` 가 먼저 멈춘다
+        return b;                                                      // 밑이 이미 모르는 구간
+    }
+    return z;
+}
+static bool ir_xtaint(const low_cst_t *nd, int depth) {
+    if (!nd || depth > 32) return nd != NULL;
+    if (nd->kind == LOW_CST_ATOM)
+        return veq(nd->tok.lex, "ref") || veq(nd->tok.lex, "mut_ref") || veq(nd->tok.lex, "addr");
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ir_xtaint(nd->kids[i], depth + 1)) return true;
+    return false;
+}
+// 방금 낸 CALL(코드의 마지막 낱말)의 자리를 적는다. 인자 q 는 k[from[q] .. to[q]) — q < first 인 인자는 «모른다»(메서드의 받는 쪽).
+void ir_xsite_note(ir_ctx_t *c, const low_cst_t *const *k, const proven_size_t *from, const proven_size_t *to, proven_size_t nargs, proven_size_t first) {
+    if (c->failed || !c->code.len || nargs > LOW_MAX_PARAMS) return;
+    low_ir_xsite_t st;
+    memset(&st, 0, sizeof st);
+    st.at = (proven_u32)(c->code.len - 1); st.nargs = (proven_u8)nargs;
+    for (proven_size_t q = first; q < nargs; q++) {
+        st.a[q] = ir_xarg(c, k, from[q], to[q], 0);
+        for (proven_size_t z = from[q]; z < to[q] && !st.taint; z++) st.taint = ir_xtaint(k[z], 0);
+    }
+    (void)proven_array_push(&c->xsites, &st);
+}
 // 스칼라 타입 낱말 → (폭, 부호). 그 외(참조·슬라이스·구조체·부동)는 미상.
 static ityp_t ity_of_word(proven_u8str_view_t v) {
     if (veq(v, "u8"))    return (ityp_t){ true, 8, false, false, false, 0, 0 };
@@ -5146,8 +5209,14 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     }
                     proven_size_t ap = lastw + 1;
                     const low_ir_def_t *dd = &c->out->defs[di6];
-                    for (proven_size_t z = 1; z < dd->nparams; z++) ir_value(c, k, &ap, end);
+                    proven_size_t xf6[LOW_MAX_PARAMS] = { 0 }, xt6[LOW_MAX_PARAMS] = { 0 };
+                    for (proven_size_t z = 1; z < dd->nparams; z++) {
+                        if (z < LOW_MAX_PARAMS) xf6[z] = ap;
+                        ir_value(c, k, &ap, end);
+                        if (z < LOW_MAX_PARAMS) xt6[z] = ap;
+                    }
                     ir_emit(c, IRW_CALL, (proven_i64)di6);
+                    ir_xsite_note(c, (const low_cst_t *const *)k, xf6, xt6, dd->nparams, 1);   // ★ W-20261104-1345 — 받는 쪽(첫 인자)은 «모른다»
                 }
                 *pos = end;
                 return;
@@ -5293,8 +5362,14 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     ir_fail(c, "E-IR-ARITY", "this method was called with TOO FEW arguments", nd->line);
                     return;
                 }
-                for (proven_size_t q = 0; q < np; q++) ir_value(c, k, pos, end);   // 수신자 = 첫 인자
+                proven_size_t xfq[LOW_MAX_PARAMS] = { 0 }, xtq[LOW_MAX_PARAMS] = { 0 };
+                for (proven_size_t q = 0; q < np; q++) {   // 수신자 = 첫 인자
+                    if (q < LOW_MAX_PARAMS) xfq[q] = *pos;
+                    ir_value(c, k, pos, end);
+                    if (q < LOW_MAX_PARAMS) xtq[q] = *pos;
+                }
                 ir_emit(c, IRW_CALL, (proven_i64)qi);
+                ir_xsite_note(c, (const low_cst_t *const *)k, xfq, xtq, np, 0);   // ★ W-20261104-1345
                 return;
             }
             // ★ RFC-0030 D2′ — cap args 질의. `len <cap>` 는 전용 낱말로(타입 유도 — 옛 철자 `count <cap>`, RFC-0150 Q3 에서 이름을 풀었다 ·
@@ -6013,6 +6088,8 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     ir_emit(c, IRW_EXTERN, (proven_i64)(di | (argc << 16)));
                     return;
                 }
+                proven_size_t xf_[LOW_MAX_PARAMS] = { 0 }, xt_[LOW_MAX_PARAMS] = { 0 };
+                if (np > LOW_MAX_PARAMS) { ir_fail(c, "E-IR-ARITY", "an op takes more inputs than the tool can carry", nd->line); return; }
                 for (proven_size_t i = 0; i < np; i++) {
                     // ★★★ **참조를 인자로 넘기는 것은 아직 코어 밖이다 — 그리고 그것을 *말한다*.**
                     //   (2026-07-19, lib/out.low 을 지으며 드러났다.)
@@ -6049,10 +6126,13 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             a2->kids[0]->tok.kw == LOW_KW_LIT && i < 32 && ((c->out->defs[di].param_mutw >> i) & 1u))
                             c->lit_frame = true;
                     }
+                    xf_[i] = *pos;
                     ir_value(c, k, pos, end);
+                    xt_[i] = *pos;
                     c->lit_frame = false;
                 }
                 ir_emit(c, IRW_CALL, (proven_i64)di);
+                ir_xsite_note(c, (const low_cst_t *const *)k, xf_, xt_, np, 0);   // ★ W-20261104-1345 — 겹침 검사 건너뛰기가 읽는다
                 return;
             }
             // ★ enum 값 — 변형의 **인덱스**로 낮아진다(런타임 태그 없음, 비용 가시).

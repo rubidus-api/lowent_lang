@@ -905,7 +905,22 @@ typedef struct {
     //   ⇒ def 은 자기 몫을 들고 다닌다. 세는 쪽은 **def 해시로 중복을 없앤다.**
     proven_size_t checks_proven, checks_total;
 
+    // ★★ W-20261104-1345 (소유자 «건너뛰기 설계 들어가고») — **부르는 쪽이 이미 아는 겹침 검사를 건너뛴다.**
+    //   xpairs = 이 op 입구의 겹침 검사(ir_excl_entry 가 낸 짝 · 그 XCHK 의 자리). xsites = 이 op 몸의 부름 자리마다 슬라이스 인자가
+    //   무엇인지(이 op 의 어느 칸 · 어느 상수 구간). ir_excl_skip 이 단위 전체의 부름 자리를 보고, 모든 자리가 서로소를 보증하는
+    //   짝의 검사를 지운다(skipped). C 가 부르는 입구(`lw_<모듈>_<이름>`)는 그 짝을 거기서 견준다 — 밖의 부름은 보증이 없다.
+    struct low_ir_xpair *xpairs;
+    proven_u16          nxpairs;
+    struct low_ir_xsite *xsites;
+    proven_u32          nxsites;
 } low_ir_def_t;
+
+// 입구 검사 짝 하나: 매개변수 i · j(칸 번호 = 인자 자리), 갈래(IR_XCHK_*), 그 XCHK 의 자리. skipped = 지워졌다(C 입구가 견준다).
+typedef struct low_ir_xpair { proven_u8 i, j, mode; bool skipped; proven_u32 at; } low_ir_xpair_t;
+// 부름 자리의 인자 하나: kind 0 모름 · 1 칸 그대로 · 2 칸의 상수 구간 [lo, hi) · 3 칸 안 어딘가(구간을 모른다)
+typedef struct { proven_u8 kind; proven_u16 slot; proven_u64 lo, hi; } low_ir_xarg_t;
+// 부름 자리 하나: at = 그 CALL 의 자리, taint = 인자에 참조(`ref` · `mut_ref` · `addr`)가 섞였다(칸이 그사이 바뀔 수 있다 — 보증 없음)
+typedef struct low_ir_xsite { proven_u32 at; proven_u8 nargs; bool taint; low_ir_xarg_t a[LOW_MAX_PARAMS]; } low_ir_xsite_t;
 
 // ★★★ **방출 자격은 한 번 계산되고 여러 번 읽힌다** (RFC-0089 R1 · 단계 C, 2026-08-03).
 //

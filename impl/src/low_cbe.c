@@ -3799,7 +3799,12 @@ static bool cbe_depparam(proven_size_t i) { return i >= 512 || g_needdepth[i]; }
 static bool cbe_inline_hint(proven_size_t i) {
     if (i >= 512 || !g_ir_for_inline) return false;
     const low_ir_def_t *d = &g_ir_for_inline->defs[i];
-    return d->lowered && d->ncode <= CBE_INLINE_MAX_CODE;
+    // ★★ W-20261104-1345 — 입구의 겹침 검사(짝마다 네 낱말 · REQ-0036)는 **몸의 크기가 아니다.** 그것을 세었더니 `mont_mul` · `pmul` ·
+    //   `q_pmul` 이 이 문턱을 넘어 `inline` 을 잃었다. 곡선 셈(vm_curve_by 네 폭, 각 3 회)에서 **어느 하나만으로는 안 돌아왔다**: 검사를
+    //   지우기만 하면 425–444 ms(지운 자리가 낱말 수로 남아 문턱을 그대로 넘었다), 문턱만 고치면 428–433 ms(풀어 넣은 몸에 검사가 그대로다),
+    //   둘 다 하면 368–375 ms(검사 전 364–377 · 검사 427–428). 지운 짝(`CONST 0 · DROP` 두 벌 — C 에는 아무것도 안 남는다)도 남은 짝도 빼고 센다.
+    const proven_size_t xq = (proven_size_t)d->nxpairs * 4u;
+    return d->lowered && (d->ncode > xq ? d->ncode - xq : 0) <= CBE_INLINE_MAX_CODE;
 }
 static void cbe_put_params(FILE *out, unsigned m, bool dep) {
     int n = 0;
@@ -9418,6 +9423,21 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                        "    lw_sl rsl[LW_RECF] = {{0,0}};\n    (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl;\n",
                   (size_t)(ni ? ni : 1), (size_t)(ns ? ns : 1), (size_t)(nfl ? nfl : 1), (size_t)(nst ? nst : 1), (size_t)(nst ? nst : 1));
           fwrite(fill, 1, fl, out); }
+        // ★★ W-20261104-1345 — 몸에서 지운 겹침 검사(단위 안의 모든 부름 자리가 보증했다)를 **C 입구에서** 견준다.
+        //   C 가 부르는 자리는 그 보증 밖이다. 몸에 남은 짝은 몸이 견주므로 여기서 다시 하지 않는다(같은 뜻 · 같은 문장).
+        for (proven_size_t q = 0; q < d->nxpairs; q++) {
+            const low_ir_xpair_t *x = &d->xpairs[q];
+            if (!x->skipped) continue;
+            proven_size_t ia = 0, ib = 0, k_ = 0;
+            for (proven_size_t r = 0; r < d->nparams; r++) {
+                const bool sl_ = !((d->param_struct >> r) & 1u) && !((d->param_cap >> r) & 1u) && ((d->param_slice >> r) & 1u);
+                if (r == x->i) ia = k_;
+                if (r == x->j) ib = k_;
+                if (sl_) k_++;
+            }
+            fprintf(out, "    lw_xchk_b((uintptr_t)as[%zu].p, as[%zu].n * %uu, (uintptr_t)as[%zu].p, as[%zu].n * %uu, %d);   /* W-20261104-1345 */\n",
+                    (size_t)ia, (size_t)ia, (unsigned)d->param_esz[x->i], (size_t)ib, (size_t)ib, (unsigned)d->param_esz[x->j], (int)x->mode);
+        }
         {
             unsigned am_ = i < 512 ? g_argmask[i] : LWA_ALL;
             fputs(cbe_ret_scalar(i) ? "    return lw_s_" : "    lw_r r_ = lw_s_", out);

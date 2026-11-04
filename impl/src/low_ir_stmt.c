@@ -2530,7 +2530,13 @@ static void ir_excl_entry(ir_ctx_t *c, const low_cst_t *f) {
                 }
             }
             ir_emit(c, IRW_LOAD, (proven_i64)slot[i]); ir_emit(c, IRW_LOAD, (proven_i64)slot[j]);
-            ir_emit(c, IRW_XCHK, mode); ir_emit(c, IRW_DROP, 0);
+            ir_emit(c, IRW_XCHK, mode);
+            if (slot[i] == i && slot[j] == j) {   // ★ W-20261104-1345 — 건너뛰기가 읽는다(칸 번호 = 인자 자리일 때만)
+                low_ir_xpair_t xp = { .i = (proven_u8)i, .j = (proven_u8)j, .mode = (proven_u8)mode, .skipped = false,
+                                      .at = (proven_u32)(c->code.len - 1) };
+                (void)proven_array_push(&c->xpairs, &xp);
+            }
+            ir_emit(c, IRW_DROP, 0);
         }
     }
 }
@@ -2631,6 +2637,123 @@ static void ir_call_through_forwarders(low_ir_t *ir) {
         }
     }
     free(to);
+}
+
+/* ★★ W-20261104-1345 (소유자 «건너뛰기 설계 들어가고») — **부르는 쪽이 이미 아는 겹침 검사를 건너뛴다.**
+ *   REQ-0036 은 op 입구에서 슬라이스 짝을 견준다(ir_excl_entry · 곡선 셈의 약 14 %). 그런데 많은 부름에서 부르는 쪽은 답을 이미 안다:
+ *     ⓐ 같은 칸의 두 상수 구간(`subslice w. 54 72` 와 `subslice w. 72 90`) — 안 겹치거나(어느 짝이든), 같은 구간이다(`inplace` 짝만),
+ *     ⓑ 부르는 op 의 두 입력(또는 그 안의 조각) — 부르는 op 의 입구가 그 둘을 이미 견주었다(그 짝이 쓰기를 낀 짝이면 늘 있다).
+ *        `inplace` 짝으로 견준 둘은 «같거나 안 겹친다» 뿐이라, 둘 다 그대로 넘기고 받는 짝도 `inplace` 일 때만 보증이 된다.
+ *   한 op 의 어떤 짝에 대해 **단위 안의 모든 부름 자리**가 이렇게 보증하면 그 짝의 검사를 지운다. 하나라도 모르면 그대로 둔다 — 뜻은 같다
+ *   (§8.12(7b) 가 멈추라는 부름은 그 검사가 남은 op 에서만 일어날 수 있다). 부름 자리가 아닌 입구는 따로 본다:
+ *     · C 가 부르는 입구(`lw_<모듈>_<이름>`)는 지운 짝을 거기서 견준다(low_cbe.c) — 밖의 부름은 보증이 없다,
+ *     · 함수 값(`unsafe_fn`) · 액터 · 태스크 · `parallel` · 인터럽트 · `test` · extern 은 지우지 않는다,
+ *     · 명령줄(`--run`)과 차등 스윕은 인자마다 새 저장소를 짓는다 — 겹칠 수가 없다.
+ *   보증 ⓑ 는 부르는 op 의 입구에서 선 것이므로, 그 입력 칸에 몸이 다시 쓰면(`set` · 참조) 믿지 않는다. 지운 검사는 지우지 않고
+ *   `CONST 0 · DROP` 두 벌로 바꾼다(자리 수가 그대로라 뛰는 곳을 고칠 일이 없다 · 빠른 C 에서는 아무것도 안 남는다).
+ *   `LOW_NO_XSKIP=1` 이면 옛 길(견줘 보기용). */
+static bool ir_xparam_plain(const low_ir_def_t *d, proven_size_t q) {   // C 입구가 바이트로 견줄 수 있는 칸인가(정수 · 부동 원소의 슬라이스)
+    if (q >= d->nparams || q >= LOW_MAX_PARAMS || !((d->param_slice >> q) & 1u)) return false;
+    if (((d->param_cstr | d->param_uptr) >> q) & 1u) return false;
+    if (d->param_rowb[q] || d->param_selem[q]) return false;
+    const unsigned e = d->param_esz[q];
+    return e == 1 || e == 2 || e == 4 || e == 8;
+}
+static int ir_xguard(const low_ir_def_t *d, proven_u16 s, proven_u16 t) {   // 입구가 칸 s · t 를 견주는 갈래(-1 = 안 견준다)
+    for (proven_size_t q = 0; q < d->nxpairs; q++) {
+        const low_ir_xpair_t *x = &d->xpairs[q];
+        if ((x->i == s && x->j == t) || (x->i == t && x->j == s)) return x->mode;
+    }
+    return -1;
+}
+static bool ir_xproves(const low_ir_def_t *caller, proven_u64 kept, const low_ir_xsite_t *st, const low_ir_xpair_t *p) {
+    if (st->taint || p->i >= st->nargs || p->j >= st->nargs) return false;
+    const low_ir_xarg_t x = st->a[p->i], y = st->a[p->j];
+    if (!x.kind || !y.kind) return false;
+    if (x.slot == y.slot) {                                        // ⓐ 한 칸 — 같은 부름 안에서는 같은 값이다(taint 가 아니면)
+        if (x.kind == 2 && y.kind == 2) {
+            if (x.lo == x.hi || y.lo == y.hi || x.hi <= y.lo || y.hi <= x.lo) return true;   // 빈 조각 · 안 겹친다
+            return p->mode == IR_XCHK_IN && x.lo == y.lo && x.hi == y.hi;                   // 같은 구간 — `inplace` 짝만
+        }
+        return x.kind == 1 && y.kind == 1 && p->mode == IR_XCHK_IN;                       // 칸 그대로 둘 — 같은 구간
+    }
+    if (x.slot >= caller->nparams || y.slot >= caller->nparams || x.slot >= 64 || y.slot >= 64) return false;
+    if (!((kept >> x.slot) & 1u) || !((kept >> y.slot) & 1u)) return false;   // ⓑ 의 칸에 몸이 다시 썼다
+    const int g = ir_xguard(caller, x.slot, y.slot);
+    if (g == IR_XCHK_WW || g == IR_XCHK_WR) return true;           // 안 겹친다고 견주었다 — 그 안의 조각끼리도 안 겹친다
+    if (g == IR_XCHK_IN) return x.kind == 1 && y.kind == 1 && p->mode == IR_XCHK_IN;
+    return false;
+}
+static void ir_excl_skip(low_ir_t *ir) {
+    if (getenv("LOW_NO_XSKIP") || !ir->ndefs) return;
+    const proven_size_t n = ir->ndefs;
+    // 같은 몸을 접은 def(canon_of)은 한 무리로 본다 — 부름은 무리의 어느 것으로 가도 같은 C 함수에 닿는다
+    proven_size_t *cls = calloc(n, sizeof *cls);
+    bool *outside = calloc(n, sizeof *outside), *seen = calloc(n, sizeof *seen);
+    proven_u64 *bad = calloc(n, sizeof *bad);   // 무리마다: 보증이 안 된 짝(xpairs 의 번호 비트 · 64 넘으면 다 bad)
+    if (!cls || !outside || !seen || !bad) { free(cls); free(outside); free(seen); free(bad); return; }
+    for (proven_size_t i = 0; i < n; i++) {
+        cls[i] = i;
+        const low_ir_def_t *d = &ir->defs[i];
+        if (d->canon_of) for (proven_size_t j = 0; j < n; j++) if ((const void *)&ir->defs[j] == d->canon_of) { cls[i] = j; break; }
+    }
+    for (proven_size_t i = 0; i < n; i++) {
+        const low_ir_def_t *d = &ir->defs[i];
+        if (!d->lowered || !d->code || d->is_extern || d->is_test || d->is_actor || d->is_par || d->isr_vector >= 0 || d->nxpairs > 64)
+            outside[cls[i]] = true;
+        for (proven_size_t q = 0; q < d->nxpairs; q++)
+            if (!ir_xparam_plain(d, d->xpairs[q].i) || !ir_xparam_plain(d, d->xpairs[q].j)) bad[cls[i]] |= 1ull << q;
+        for (proven_size_t k = 0; k < d->ncode; k++) {           // 부름이 아닌 길로 닿는 op — 보증이 없다
+            const low_ir_ins_t *in = &d->code[k];
+            if (in->w == IRW_FNREF || in->w == IRW_ASEND || in->w == IRW_TSPAWN || in->w == IRW_TASEND || in->w == IRW_EXTERN) {
+                proven_size_t t = IR_CALL_IDX(in->a);
+                if (t < n) outside[cls[t]] = true;
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < n; i++) {
+        const low_ir_def_t *d = &ir->defs[i];
+        if (!d->lowered || !d->code) continue;
+        // 입구가 선 뒤 몸이 다시 쓰지 않는 입력 칸(진입의 멱등 정규화 `LOAD s · VARRAY · STORE s` 는 쓰기가 아니다)
+        proven_u64 kept = d->nparams >= 64 ? ~0ull : ((1ull << d->nparams) - 1);
+        for (proven_size_t k = 0; k < d->ncode; k++) {
+            const low_ir_ins_t *in = &d->code[k];
+            if (in->w != IRW_STORE && in->w != IRW_SPOP_INTO && in->w != IRW_REF && in->w != IRW_MREF) continue;
+            if (in->w == IRW_STORE && k >= 2 && d->code[k - 1].w == IRW_VARRAY && d->code[k - 2].w == IRW_LOAD && d->code[k - 2].a == in->a) continue;
+            if (in->a >= 0 && in->a < 64) kept &= ~(1ull << in->a);
+        }
+        proven_size_t si = 0;
+        for (proven_size_t k = 0; k < d->ncode; k++) {
+            const low_ir_ins_t *in = &d->code[k];
+            if (in->w != IRW_CALL) continue;
+            proven_size_t t = IR_CALL_IDX(in->a);
+            if (t >= n) continue;
+            const proven_size_t ct = cls[t];
+            const low_ir_def_t *e = &ir->defs[t];
+            seen[ct] = true;
+            while (si < d->nxsites && d->xsites[si].at < k) si++;
+            const low_ir_xsite_t *st = (si < d->nxsites && d->xsites[si].at == k && d->xsites[si].nargs == e->nparams) ? &d->xsites[si] : NULL;
+            for (proven_size_t q = 0; q < e->nxpairs && q < 64; q++)
+                if (!st || !ir_xproves(d, kept, st, &e->xpairs[q])) bad[ct] |= 1ull << q;
+        }
+    }
+    for (proven_size_t i = 0; i < n; i++) {
+        low_ir_def_t *d = &ir->defs[i];
+        const proven_size_t ct = cls[i];
+        if (outside[ct] || !seen[ct] || !d->nxpairs) continue;   // 부름 자리가 하나도 없는 op 은 그대로 둔다(입구 op · 스윕)
+        for (proven_size_t q = 0; q < d->nxpairs; q++) {
+            low_ir_xpair_t *x = &d->xpairs[q];
+            if ((bad[ct] >> q) & 1u) continue;
+            const proven_size_t at = x->at;
+            if (at < 2 || at + 1 >= d->ncode || d->code[at].w != IRW_XCHK || d->code[at - 2].w != IRW_LOAD || d->code[at - 1].w != IRW_LOAD ||
+                d->code[at + 1].w != IRW_DROP || d->code[at - 2].a != x->i || d->code[at - 1].a != x->j) continue;   // 모양이 다르면 손대지 않는다
+            d->code[at - 2].w = IRW_CONST; d->code[at - 2].a = 0;
+            d->code[at - 1].w = IRW_DROP;  d->code[at - 1].a = 0;
+            d->code[at].w = IRW_CONST;     d->code[at].a = 0;
+            x->skipped = true;
+        }
+    }
+    free(cls); free(outside); free(seen); free(bad);
 }
 
 static void ir_frame_windows(low_ir_t *ir);
@@ -4763,6 +4886,8 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         }
         c.tsp = 0; c.tstk_bad = false;   // ★ per-def: 타입 그림자 스택은 def 마다 새로 시작한다
         c.code = PROVEN_ARRAY_INIT(work, low_ir_ins_t, 32).value;
+        c.xpairs = PROVEN_ARRAY_INIT(work, low_ir_xpair_t, 4).value;   // ★ W-20261104-1345
+        c.xsites = PROVEN_ARRAY_INIT(work, low_ir_xsite_t, 4).value;
         // ★★★ **op 의 머리는 한 번만 읽는다** (DECISION-0015).
         //   전엔 이 자리가 이름을 `kids[j+1]` 로 잡고(→ `comptime` 이 이름이 된다), 절의 끝을
         //   **`input`/`output`/`effects` 세 낱말로만** 찾았다(→ `requires` 가 사이에 오면
@@ -5289,6 +5414,8 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
             }
             d->lbuf_size = c.lbuf_off;   // ★ T2b-2 — 이 op 의 틀 안 나열 바이트
             d->lowered = true;
+            d->xpairs = (low_ir_xpair_t *)(void *)c.xpairs.data; d->nxpairs = (proven_u16)c.xpairs.len;   // ★ W-20261104-1345
+            d->xsites = (low_ir_xsite_t *)(void *)c.xsites.data; d->nxsites = (proven_u32)c.xsites.len;
             {   // RFC-0053 — 파일 합계와 **def 몫**을 같이 센다(§8-9: 계수의 가중 교정)
                 proven_size_t p0 = ir.checks_proven, t0 = ir.checks_total;
                 ir_interval(&c, f, d, &ir.checks_proven, &ir.checks_total);
@@ -5323,6 +5450,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         }
     }
     ir_call_through_forwarders(&ir);
+    ir_excl_skip(&ir);       // ★ W-20261104-1345 — 모든 부름 자리가 보증하는 겹침 검사를 지운다(부름을 고쳐 쓴 뒤 — 받는 쪽이 마지막 것이다)
     ir_frame_windows(&ir);   // ★ RFC-0132 P4e — 마지막 IR 에서 다시 센다(위 패스가 부름을 고쳐 썼다 — 같은 수가 나와야 한다)
     return ir;
 }

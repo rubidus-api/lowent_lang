@@ -906,7 +906,9 @@ do
     for z mut tb. do
       set z. 0 .
     end .
-    let rc u64 do_build fs. out. some_value a2. . mem. tb. . .
+    rem ★ do_build 은 mem 의 앞 110895424 바이트만 쓰고, tb 는 그 뒤를 본다 — 둘 다 쓰는 자리라 mem 전체를 넘기면
+    rem   실행 중 겹침 검사가 멈춘다(정본 §8.12(6) · REQ-0036, 2026-11-04).
+    let rc u64 do_build fs. out. some_value a2. . subslice mem. 0 110895424 . tb. . .
     guard eq rc. 0 . else do
       return narrow u8 min rc. 255 . . .
     end .

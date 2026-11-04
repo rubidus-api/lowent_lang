@@ -483,7 +483,7 @@ export proc limb.dbl_mod input w limb . input a mut slice u64 . input n slice u6
   return dbl_mod a. n. nb. . .
 end .
 
-export proc limb.mont_mul input w limb . input out mut slice u64 . input a slice u64 . input b slice u64 . input n slice u64 . input nb usize . input ninv u64 . input t mut slice u64 . output u64 . effects none . do
+export proc limb.mont_mul input w limb . input out mut slice u64 . input a slice u64 . input b slice u64 . input n slice u64 . input nb usize . input ninv u64 . input t mut slice u64 . output u64 . effects none . inplace out a . inplace out b . do
   return mont_mul out. a. b. n. nb. ninv. t. . .
 end .
 
@@ -495,11 +495,11 @@ export proc limb.mod_exp input w limb . input out mut slice u64 . input bse slic
   return mod_exp out. bse. e. n. nb. r2. acc. tmp. t. . .
 end .
 
-export proc limb.add_mod input w limb . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . do
+export proc limb.add_mod input w limb . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . inplace o a . inplace o b . do
   return add_mod o. a. b. m. nb. . .
 end .
 
-export proc limb.sub_mod input w limb . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . do
+export proc limb.sub_mod input w limb . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . input nb usize . output u64 . effects none . inplace o a . inplace o b . do
   return sub_mod o. a. b. m. nb. . .
 end .
 

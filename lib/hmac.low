@@ -113,5 +113,7 @@ errors short_workspace . do
   end .
   set idx scratch. add 128 len info. . . . 1 .
   let msg slice u8 subslice scratch. 128 add 129 len info. . . . .
-  return hmac.mac prk. msg. scratch. out. . .
+  rem ★ mac 에는 앞 128 만 넘긴다 — msg 가 사는 뒤쪽을 쓰는 자리에 함께 넘기면 실행 중 겹침 검사(§8.12(7b) · REQ-0036)가 멈춘다.
+  rem   mac 이 쓰는 것은 max(96, 64 + len msg) ≤ 125 바이트다.
+  return hmac.mac prk. msg. subslice scratch. 0 128 . out. . .
 end .

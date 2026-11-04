@@ -1,0 +1,91 @@
+rem ★★★ **실행 중 겹침 검사** (REQ-0036 · 2026-11-04 · W-20261104-0013 · 소유자 결정 «실행 중에 겹침 검사»).
+rem   잘라 낸 끝이 상수가 아니면 처리기는 번역 때 두 조각이 겹치는지 가를 수 없다(정본 §8.12(7b)). 그래서 op 은 들어설 때
+rem   슬라이스 · 뷰 매개변수의 짝마다(적어도 한쪽이 `mut`) 두 조각의 바이트 자리를 견주고, 겹치면 멈춘다(`E-VM-EXCL`).
+rem   `inplace` 로 허락한 쓰기 · 읽기 짝은 같은 구간이면 지난다. 빈 조각은 아무것과도 겹치지 않는다.
+rem   아래 op 들이 REQ-0036 의 여섯 경우를 잰다(상수 대조군은 골든 «xchk» 안의 임시 파일 — 번역 때 `E-EXCL`). VM 과 네이티브가 같다.
+
+module vm_xchk .
+
+rem 두 조각에 쓴다(빈 조각에는 쓰지 않는다) — 뒤 쓰기가 앞 쓰기를 덮으면 2 가 나온다
+proc wr2 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 1 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  if gt len a. . 0 . do  return cast u64 idx a. 0 . . .  end .
+  return 0 .
+end .
+
+rem 쓰기 · 읽기 — 허락 없음
+proc bump input o mut slice u8 . input r slice u8 . output u64 . effects none . do
+  if gt len o. . 0 . do  set idx o. 0 . add idx r. 0 . 1 . .  end .
+  return 1 .
+end .
+
+rem 쓰기 · 읽기 — 같은 구간을 허락한다(원소마다 제자리)
+proc bump_in input o mut slice u8 . input r slice u8 . output u64 . effects none . inplace o r . do
+  var i usize 0 .
+  while lt i. len o. . . do
+    set idx o. i. . add idx r. i. . 1 . .
+    set i. add i. 1 . .
+  end .
+  return 1 .
+end .
+
+rem ① 같은 동적 구간 — 멈춘다
+export proc same input s mut slice u8 . input k usize . output u64 . effects none . do
+  return wr2 subslice s. 0 k. . subslice s. 0 k. . . .
+end .
+
+rem ② 서로소인 동적 구간 — 지난다
+export proc disjoint input s mut slice u8 . input k usize . output u64 . effects none . do
+  return wr2 subslice s. 0 k. . subslice s. k. len s. . . . .
+end .
+
+rem ③ 빈 구간(k = 0 이면 두 조각이 비었다) — 지난다
+export proc empty input s mut slice u8 . input k usize . output u64 . effects none . do
+  return wr2 subslice s. k. k. . subslice s. 0 k. . . .
+end .
+
+rem ④ 부분 겹침 — 멈춘다(k ≥ 2 · len s ≥ k + 1)
+export proc partial input s mut slice u8 . input k usize . output u64 . effects none . do
+  return wr2 subslice s. 0 k. . subslice s. 1 add k. 1 . . . .
+end .
+
+rem ⑤ 다른 저장소 — 지난다
+export proc separate input s mut slice u8 . input t mut slice u8 . input k usize . output u64 . effects none . do
+  return wr2 subslice s. 0 k. . subslice t. 0 k. . . .
+end .
+
+rem ⑥ 별칭으로 넘긴 같은 구간 — 멈춘다(정적 검사는 이름이 달라 못 본다)
+export proc alias input s mut slice u8 . input k usize . output u64 . effects none . do
+  let p mut slice u8 subslice s. 0 k. . .
+  return wr2 p. subslice s. 0 k. . . .
+end .
+
+rem ⑦ 쓰기 · 읽기 겹침, 허락 없음 — 멈춘다
+export proc rw input s mut slice u8 . input k usize . output u64 . effects none . do
+  return bump subslice s. 0 k. . subslice s. 0 k. . . .
+end .
+
+rem ⑧ 쓰기 · 읽기 같은 구간, 허락 있음 — 지난다
+export proc rw_in input s mut slice u8 . input k usize . output u64 . effects none . do
+  return bump_in subslice s. 0 k. . subslice s. 0 k. . . .
+end .
+
+rem ⑨ 쓰기 · 읽기 부분 겹침, 허락 있음 — 멈춘다(허락은 같은 구간만)
+export proc rw_shift input s mut slice u8 . input k usize . output u64 . effects none . do
+  return bump_in subslice s. 0 k. . subslice s. 1 add k. 1 . . . .
+end .
+
+rem 바이트 조각과 u64 조각에 쓴다
+proc wrmix input a mut slice u8 . input b mut slice u64 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 1 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  if gt len a. . 0 . do  return cast u64 idx a. 0 . . .  end .
+  return 0 .
+end .
+
+rem ⑩ 원소 폭이 다른 두 창(바이트와 u64)이 같은 바이트를 본다 — 멈춘다(k = 0 이면 바이트 쪽이 비어 지난다)
+export proc widths input s mut slice u8 . input k usize . output u64 . effects none . do
+  let w mut slice u64 view_array u64 subslice s. 0 8 . . .
+  return wrmix subslice s. 0 k. . w. . .
+end .

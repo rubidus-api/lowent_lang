@@ -2655,6 +2655,23 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = vmv_int(0);
                 break;
             }
+            case IRW_XCHK: {   // ★★★ REQ-0036 — 쓰는 조각이 다른 조각과 겹치면 멈춘다(바이트 자리로 · 빈 조각은 안 겹친다 · lw_xchk 와 같은 뜻)
+                if (sp < 2) return false;
+                vmv_t y = stack[--sp], x = stack[--sp];
+                bool xs = x.tag == VMV_SLICE || x.tag == VMV_VARRAY || x.tag == VMV_VIEW, ys = y.tag == VMV_SLICE || y.tag == VMV_VARRAY || y.tag == VMV_VIEW;
+                if (xs && ys) {
+                    uintptr_t a0 = (uintptr_t)x.p, b0 = (uintptr_t)y.p;
+                    proven_size_t an = x.tag == VMV_VARRAY ? x.n * (proven_size_t)x.box : x.n, bn = y.tag == VMV_VARRAY ? y.n * (proven_size_t)y.box : y.n;
+                    if (an && bn && a0 < b0 + bn && b0 < a0 + an && !(in->a == IR_XCHK_IN && a0 == b0 && an == bn)) {
+                        vm_diag(vm->diags, "E-VM-EXCL", in->a == IR_XCHK_WW ? "two slices this op writes overlap (§8.12(6)) (panic)"
+                                : in->a == IR_XCHK_WR ? "a slice this op writes overlaps a slice it reads, and the op does not declare `inplace` for the pair (§8.12(7)) (panic)"
+                                : "a slice this op writes overlaps a slice it reads without being the same range (§8.12(7)) (panic)");
+                        return false;
+                    }
+                }
+                stack[sp++] = vmv_int(0);
+                break;
+            }
             case IRW_BFILL: {   // ★ §13.7 — 받은 바이트를 나열의 본으로 채운다
                 if (sp < 1) return false;
                 proven_size_t len = (proven_size_t)((proven_u64)in->a >> 32), si1 = (proven_size_t)((proven_u64)in->a & 0xffffffffu);

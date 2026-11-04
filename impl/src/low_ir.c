@@ -6941,6 +6941,7 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_LBUFC: return 0;                              // ★ T2b-3 — 피연산자 0, 슬라이스 push
         case IRW_BFILL: return 1;                              // ★ §13.7 — 슬라이스 → 채운 슬라이스
         case IRW_SCOPY: return 2;                              // ★ RFC-0132 P3 — (받는 쪽, 주는 쪽) → 0
+        case IRW_XCHK: return 2;                               // ★ REQ-0036 — 두 조각 → 0(겹치면 멈춘다)
         default:
             return -1;   // statements (STORE/DROP/RET/BR/BRZ) handled separately
     }
@@ -7233,6 +7234,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_WSHL: return "wrap.shl"; case IRW_WSHR: return "wrap.shr";
         case IRW_ROTL: return "rotl"; case IRW_ROTR: return "rotr";
         case IRW_CLMULLO: return "clmul.lo"; case IRW_CLMULHI: return "clmul.hi"; case IRW_MULHI: return "mul.hi"; case IRW_MK128: return "w128.make";
+        case IRW_XCHK: return "excl.check";
         case IRW_POPCNT: return "count.ones"; case IRW_CLZ: return "leading.zeros";
         case IRW_CTZ: return "trailing.zeros"; case IRW_BSWAP: return "byte.swap";
         case IRW_ALOAD: return "atomic.load"; case IRW_ASTORE: return "atomic.store";

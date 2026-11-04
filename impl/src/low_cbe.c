@@ -1588,6 +1588,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_SUBSLICE:                                  // ★ 부분 슬라이스 = 포인터 + 길이
         case IRW_SWAP:                                      // ★ 원소 맞바꾸기 (원소 타입 무관)
         case IRW_SCOPY:                                     // ★ 내용 복사 — 두 슬라이스의 바이트(2026-10-31 · 결과 자리로 베끼는 `return r.`)
+        case IRW_XCHK:                                      // ★ REQ-0036 — 두 조각의 바이트 자리 견주기
         case IRW_FCONST:                                    // ★ f64
         case IRW_BINM:                                      // ★ 수치 프렐류드 (fmod·min·max)
         case IRW_BAND: case IRW_BOR: case IRW_BXOR:         // ★ 비트 연산 (RFC-0064)
@@ -1713,7 +1714,7 @@ static bool cbe_arrpar_body_ok(const low_ir_t *ir, const low_ir_def_t *d, char *
         const low_ir_ins_t *in = &d->code[k];
         switch (in->w) {
             case IRW_CONST: case IRW_FCONST: case IRW_STR: case IRW_LOAD: case IRW_STORE: case IRW_DROP:
-            case IRW_FIELD: case IRW_FSTORE: case IRW_INDEX: case IRW_ISTORE: case IRW_LEN: case IRW_SUBSLICE: case IRW_SCOPY:
+            case IRW_FIELD: case IRW_FSTORE: case IRW_INDEX: case IRW_ISTORE: case IRW_LEN: case IRW_SUBSLICE: case IRW_SCOPY: case IRW_XCHK:
             case IRW_LBUF: case IRW_VARRAY: case IRW_ELEMCK:
             case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD: case IRW_NEG:
             case IRW_BAND: case IRW_BOR: case IRW_BXOR: case IRW_BNOT: case IRW_SHL: case IRW_SHR: case IRW_ROTL: case IRW_ROTR:
@@ -2444,6 +2445,14 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 for (int z = 1; z <= 2; z++) {
                     unsigned char kk_ = st.k[st.n - z];
                     if (kk_ != K_SL && kk_ != K_ROWS && kk_ < K_SVIEW) return false;
+                }
+                st.n -= 2; st.k[st.n] = K_INT; st.o[st.n] = -1; st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0; st.n++; break;
+            }
+            case IRW_XCHK: {    // ★ REQ-0036 — 두 조각(바이트 · 타입 · 구조체 배열 · 줄 · 뷰) → 0. 겹치면 멈춘다(이미터와 짝)
+                if (st.n < 2) return false;
+                for (int z = 1; z <= 2; z++) {
+                    unsigned char kk_ = st.k[st.n - z];
+                    if (kk_ != K_SL && kk_ != K_ROWS && kk_ < K_VIEW) return false;
                 }
                 st.n -= 2; st.k[st.n] = K_INT; st.o[st.n] = -1; st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0; st.n++; break;
             }
@@ -4732,6 +4741,21 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 fprintf(out, "    { lw_sl s_ = ss[--ssp], d_ = ss[--ssp]; size_t sb_ = s_.n * %uu, db_ = d_.n * %uu;\n"
                              "      if (LW_UNLIKELY(sb_ != db_)) lw_panic(\"copy: the two slices are not the same length\");\n"
                              "      memmove((void *)d_.p, s_.p, db_); st[sp++] = 0; }\n", w_[0], w_[1]);
+                ks.n -= 2; ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_XCHK: {
+                // ★★★ REQ-0036 — 두 조각의 **바이트 자리**를 견준다(태그 경로 lw_xchk · VM 과 같은 뜻). 바이트 수 = 원소 수 × 폭 —
+                //   폭은 슬롯이 안다(슬라이스 ve · 구조체 배열 배치 크기 · 줄 바이트 · 뷰는 바이트).
+                unsigned w_[2];
+                for (int z = 0; z < 2; z++) {
+                    unsigned char kk_ = ks.k[ks.n - 1 - z];
+                    w_[z] = kk_ >= K_SVIEW ? (unsigned)ir->structs[kk_ - K_SVIEW].total : kk_ >= K_VIEW ? 1u
+                          : kk_ == K_ROWS ? (unsigned)ks.vn[ks.n - 1 - z] : (ks.ve[ks.n - 1 - z] ? (unsigned)ks.ve[ks.n - 1 - z] : 1u);
+                }
+                fprintf(out, "    { lw_sl y_ = ss[--ssp], x_ = ss[--ssp];"
+                             " lw_xchk_b((uintptr_t)x_.p, x_.n * %uu, (uintptr_t)y_.p, y_.n * %uu, %d); st[sp++] = 0; }\n",
+                        w_[1], w_[0], (int)in->a);
                 ks.n -= 2; ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
@@ -8887,6 +8911,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 }
                 case IRW_SCOPY:    fprintf(out, "    lw_scopy(st[sp-2], st[sp-1]); sp -= 2; st[sp++] = lw_int(0);\n"); break;
+                case IRW_XCHK:     fprintf(out, "    lw_xchk(st[sp-2], st[sp-1], %d); sp -= 2; st[sp++] = lw_int(0);\n", (int)in->a); break;   // ★ REQ-0036
                 case IRW_BFILL: {  // ★ §13.7 — 받은 바이트를 나열의 본으로 채운다
                     unsigned long long len = (unsigned long long)in->a >> 32, si1 = (unsigned long long)in->a & 0xffffffffull;
                     fprintf(out, "    { lowv s_ = st[sp-1]; if (s_.n < %lluULL) lw_upanic(\"the allocator gave fewer bytes than the list needs\"); ", len);

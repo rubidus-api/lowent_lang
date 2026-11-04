@@ -205,7 +205,7 @@ These do not appear in the examples but can come up. Most are stops by the **VM*
 |---|---|
 | `E-VM-ERR` | `ok_value` was taken from a `result` that is an error — ask `is_ok` first or pass it on with `try` |
 | `E-VM-DANGLING` | a borrowed reference was used after the place it borrowed from ended (use after return) |
-| `E-VM-EXCL` | a writing borrow of a place overlapped another borrow — end the first borrow before taking the next |
+| `E-VM-EXCL` | a writing borrow of a place overlapped another borrow — end the first borrow before taking the next. Or two pieces handed to one call overlap and one of them is written — cut them so they do not overlap |
 | `E-VM-READONLY` | wrote through a read-only reference (`ref`) — borrow with `mut_ref` to write |
 | `E-VM-FIELD` | read a field that the record or register block does not have |
 | `E-VM-AWAIT` | `await` was given something that is not a job handle — handles come from `spawn <op>` |

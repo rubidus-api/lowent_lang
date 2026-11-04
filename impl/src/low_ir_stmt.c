@@ -2484,6 +2484,46 @@ static ityp_t ir_scan_scalar_alias(const low_parse_result_t *pr, proven_u8str_vi
 }
 
 static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr);
+// ★★★ **쓰는 조각이 다른 조각과 겹치면 멈춘다** (REQ-0036 · W-20261104-0013, 소유자 결정 «실행 중에 겹침 검사» 2026-11-04).
+//   정본 §8.12(6) 은 같은 저장소를 쓰는 자리 둘에 넘기는 것을, (7) 은 쓰는 자리와 읽는 자리에 함께 넘기는 것을(`inplace` 로
+//   허락한 짝의 같은 구간만 빼고) 막는다. 검사층은 구간의 끝이 상수일 때만 가른다((7b)) — `two (subslice s 0 k) (subslice s 0 k)`
+//   는 검사를 지났고, 뒤 쓰기가 앞 쓰기를 덮었다(VM · native 모두).
+//   ⇒ op 입구에서 슬라이스·뷰 매개변수의 짝마다(적어도 한쪽이 `mut`) 두 조각의 바이트 자리를 견준다. 부르는 쪽이 아니라 불린
+//     op 이 견주므로, 별칭 · 이름 · 식 어느 모양으로 잘라 넘겼든 같다. 읽기 둘은 견주지 않는다(읽는 이 여럿은 된다).
+//   ☞ 겹치지 않으면 지나기만 한다 — 답은 그대로다. 비용은 짝마다 비교 몇 번이다.
+static void ir_excl_entry(ir_ctx_t *c, const low_cst_t *f) {
+    low_op_header_t h = low_op_header(f);
+    if (h.too_many) return;
+    proven_size_t slot[LOW_HDR_MAXP]; bool sl[LOW_HDR_MAXP];
+    for (proven_size_t i = 0; i < h.np; i++) {
+        const low_param_t *pp = &h.p[i];
+        sl[i] = false;
+        if (pp->is_comptime || pp->is_uptr || pp->core >= f->nkids) continue;
+        const low_cst_t *cw = f->kids[pp->core];
+        if (!(pp->is_view || (is_atom(cw) && veq(cw->tok.lex, "slice")))) continue;
+        bool found; proven_size_t li = ir_local_find(c, pp->name, &found);
+        if (!found) continue;
+        slot[i] = li; sl[i] = true;
+    }
+    for (proven_size_t i = 0; i < h.np; i++) {
+        if (!sl[i]) continue;
+        for (proven_size_t j = i + 1; j < h.np; j++) {
+            if (!sl[j] || (!h.p[i].is_mut && !h.p[j].is_mut)) continue;
+            int mode = IR_XCHK_WW;
+            if (!(h.p[i].is_mut && h.p[j].is_mut)) {
+                proven_u8str_view_t w = h.p[i].is_mut ? h.p[i].name : h.p[j].name, r = h.p[i].is_mut ? h.p[j].name : h.p[i].name;
+                mode = IR_XCHK_WR;
+                for (proven_size_t q = 0; q + 2 < f->nkids; q++) {
+                    if (f->kids[q]->kind == LOW_CST_BLOCK) break;
+                    if (is_atom(f->kids[q]) && veq(f->kids[q]->tok.lex, "inplace") && is_atom(f->kids[q + 1]) && is_atom(f->kids[q + 2]) &&
+                        proven_u8str_view_eq(f->kids[q + 1]->tok.lex, w) && proven_u8str_view_eq(f->kids[q + 2]->tok.lex, r)) { mode = IR_XCHK_IN; break; }
+                }
+            }
+            ir_emit(c, IRW_LOAD, (proven_i64)slot[i]); ir_emit(c, IRW_LOAD, (proven_i64)slot[j]);
+            ir_emit(c, IRW_XCHK, mode); ir_emit(c, IRW_DROP, 0);
+        }
+    }
+}
 // ★★ RFC-0150 §8-11 (2026-10-22) — **풀에 남는 값의 상한**. 재 보니(§4.2 보탬) 풀은 «되감지 않는» 것이 아니었다: VM 은 뒤 간선마다
 //   모든 틀을 뿌리로 훑어 네 풀을 압축하고, 네이티브 태그 경로도 뒤 간선에서 압축한다(`lw_pool_gc`). 골든 전량과 차등 스윕
 //   33,852 벌에서 상자 풀의 최고치는 28 칸(한도 4,096 · 프리스탠딩 64)이었다. **한 곳만 그렇지 않다**: 네이티브는 부른 쪽의
@@ -5048,6 +5088,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
         c.dropped_out = &d->ndropped;
         ir_contract_entry(&c, f);   // ★ 계약을 사실로 쓰려면 강제해야 한다 (RFC-0053 §8-7)
         ir_named_contracts(&c, pr, f);   // ★ `satisfies N` — **명명 계약도 계약이다**
+        ir_excl_entry(&c, f);            // ★ REQ-0036 — 쓰는 조각이 다른 조각과 겹치면 멈춘다(§8.12(6)·(7))
         // ★ RFC-0008 §6.4/Q6 — 계약이 **허용하는** 파라미터 구간을 뽑아 둔다(경계값 테스트의 원천).
         //   구간 분석이 쓰는 것과 **같은 원천**이다: 타입 ∩ range ∩ requires.
         //   같은 원천을 쓴다는 것이 요점이다 — 테스트가 분석의 주장을 정확히 그 경계에서 친다.

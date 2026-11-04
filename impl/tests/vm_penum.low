@@ -1,0 +1,72 @@
+rem ★★ **짐을 싣는 열거의 값을 빠른 경로로** (2026-11-04 · W-20261104-0013 O4, 소유자 «제 판단으로 지어 두기»).
+rem   갈래 값은 `$t` 와 그 갈래의 칸만 가진 레코드다(VM · 태그 경로). 빠른 레코드는 열거의 배치 전체(`$t` + 갈래들의 칸)를 들고
+rem   다른 갈래의 칸은 0 이다. 태그 경로와 만나는 자리(돌려준 값 · 받는 매개변수)에서는 `$t` 로 갈래를 골라 그 갈래의 레코드로 되짓는다.
+rem   `match` 가 값을 옮겨 담는 숨은 지역도 빠른 경로에 남는다 — 그 지역은 갈래의 몸이 돌기 전에만 읽힌다.
+rem   아래 op 은 모두 빠른 경로이고(골든이 `--why-slow` 로 본다) VM 과 네이티브가 같은 답을 낸다.
+
+module vm_penum .
+
+enum shape do
+  circle r u32 .
+  rect w u32 h u32 .
+  dot .
+end .
+
+rem 갈래끼리 같은 이름의 칸(`x`) · 부호 있는 칸 · 부동 칸 · 이 단위가 짓지 않는 갈래(`never`)
+enum val do
+  small x i16 .
+  big x i16 y i64 .
+  real f f64 .
+  never z u8 .
+end .
+
+fn area input s shape . output u32 . do
+  match s. do
+    case circle r do return mul 3 mul r. r. . . . end .
+    case rect w h do return mul w. h. . . end .
+    case dot do return 0 . end .
+  end .
+end .
+
+rem 갈래 값을 돌려준다 — 경계에서 그 갈래의 레코드로 되짓는다
+fn mk input k u32 . output shape . do
+  if eq k. 0 . do return shape.dot . . end .
+  if eq k. 1 . do return shape.circle add k. 1 . . . end .
+  return shape.rect k. add k. 2 . . .
+end .
+
+export fn areas input k u32 . output u32 . do
+  return add area mk k. . . area mk add k. 1 . . . . .
+end .
+
+fn mkv input k i64 . output val . do
+  if lt k. 0 . do return val.small narrow i16 k. . . . end .
+  if eq k. 0 . do return val.real 2.5 . . end .
+  return val.big narrow i16 sub 0 k. . . mul k. 1000000000 . . .
+end .
+
+rem 같은 이름의 칸을 두 갈래에서 읽는다 · 부동 칸 · 부호
+export fn weigh input k i64 . output i64 . do
+  let v val mkv k. . .
+  match v. do
+    case small x do return cast i64 x. . . end .
+    case big x y do return add cast i64 x. . y. . . end .
+    case real f do return cast i64 mul f. 4.0 . . . end .
+    case never z do return 99 . end .
+  end .
+end .
+
+rem `isa` 로 좁혀 `payload` 로 읽는다
+export fn radius input k u32 . output u32 . do
+  let s shape mk k. . .
+  guard isa s. circle . else return 7 . .
+  return payload s. circle r . .
+end .
+
+rem 갈래 값을 고친다 — 고친 뒤 `match` 가 옮겨 담아도 답이 같다
+export fn bump input k u32 . output u32 . do
+  var s shape mk k. . .
+  guard isa s. rect . else return 0 . .
+  set field s. w . 100 .
+  return area s. . .
+end .

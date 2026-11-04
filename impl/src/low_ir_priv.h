@@ -126,6 +126,7 @@ typedef struct {
 
 typedef struct {
     proven_u8           *dropped_out;   // ★ 이 def 에서 모드가 지운 검사 수를 적는 자리
+    proven_u64          *mtmp_out;      // ★ 2026-11-04 — 이 def 의 `match` 숨은 지역 비트(low_ir_def_t.mtmp)
     proven_allocator_t   work;
     low_ir_t            *out;
     // module-level knowledge

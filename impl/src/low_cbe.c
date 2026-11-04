@@ -939,7 +939,14 @@ static int cbe_make_sidx(const low_ir_t *ir, proven_i64 mk) {
     if (mk < 0 || (proven_size_t)mk >= ir->nmakes) return -1;
     for (proven_size_t i = 0; i < ir->nstructs; i++)
         if (proven_u8str_view_eq(ir->structs[i].name, ir->makes[mk].type_name)) return (int)i;
-    return -1;
+    // ★★ 2026-11-04 (W-20261104-0013 O4) — 다른 모듈의 구조체를 별칭으로 지은 자리(`lit g.point`)는 make 의 이름이 `g.point` 이고 배치는
+    //   `point` 다. 끝 이름이 단위 안에서 **하나뿐**이면 그 배치다(둘이면 모른다 — 고르지 않는다). 전엔 짝을 못 찾아 op 이 태그 경로에 남았다.
+    const proven_u8str_view_t tl_ = low_view_after_last(ir->makes[mk].type_name, '.');
+    if (tl_.size == ir->makes[mk].type_name.size) return -1;
+    int hit_ = -1;
+    for (proven_size_t i = 0; i < ir->nstructs; i++)
+        if (proven_u8str_view_eq(ir->structs[i].name, tl_)) { if (hit_ >= 0) return -1; hit_ = (int)i; }
+    return hit_;
 }
 
 static int cbe_make_for_struct(const low_ir_t *ir, int sidx) {
@@ -948,6 +955,34 @@ static int cbe_make_for_struct(const low_ir_t *ir, int sidx) {
         if (proven_u8str_view_eq(ir->makes[m].type_name, ir->structs[sidx].name) &&
             ir->makes[m].nfields == ir->structs[sidx].nf) return (int)m;
     return -1;
+}
+// ★★★ 2026-11-04 (W-20261104-0013 O4) — **짐을 싣는 열거의 갈래 값**(`shape.circle 2`)을 빠른 레코드로 나른다. 배치는 `$t` + 갈래들의 칸을
+//   이어 붙인 것이고(ir 의 fat-struct), 갈래 값은 그 갈래의 칸만 채운 레코드다(태그 경로 · VM). 빠른 레코드는 배치 전체를 들고 다른 갈래의
+//   칸은 0 이다 — 읽는 쪽(`match`)은 `$t` 를 먼저 보고 제 갈래의 칸만 읽는다. 경계에서 태그 값으로 되지을 때는 `$t` 로 갈래를 골라 그 갈래의
+//   `make` 자리로 짓는다. 단위 안에서 한 번도 짓지 않는 갈래는 make 자리가 없다 — 그 갈래의 값은 이 단위에 생길 수 없으므로 되짓기는
+//   그 자리에서 멈춘다(조용히 다른 갈래로 짓지 않는다). 적어도 한 갈래는 make 자리가 있어야 연다.
+static int cbe_penum_mk(const low_ir_t *ir, int sidx, unsigned v) {
+    const low_ir_struct_t *S = &ir->structs[sidx];
+    proven_size_t want = 0;
+    for (proven_size_t q = 0; q < S->nf; q++) if ((S->f[q].vmask >> v) & 1u) want++;
+    for (proven_size_t m = 0; m < ir->nmakes; m++) {
+        if (!proven_u8str_view_eq(ir->makes[m].type_name, S->name) || ir->makes[m].nfields != want) continue;
+        bool ok_ = true;
+        for (proven_size_t z = 0; z < ir->makes[m].nfields && ok_; z++) {
+            int sl = -1;
+            for (proven_size_t q = 0; q < S->nf; q++) if (proven_u8str_view_eq(S->f[q].name, ir->makes[m].fields[z])) { sl = (int)q; break; }
+            ok_ = sl >= 0 && ((S->f[sl].vmask >> v) & 1u);
+        }
+        if (ok_) return (int)m;
+    }
+    return -1;
+}
+static bool cbe_penum_ok(const low_ir_t *ir, int sidx) {
+    if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
+    const low_ir_struct_t *S = &ir->structs[sidx];
+    if (!S->is_penum || !S->nvar || S->nvar > 32 || !S->nf || S->f[0].size != 4) return false;
+    for (unsigned v = 0; v < S->nvar; v++) if (cbe_penum_mk(ir, sidx, v) >= 0) return true;
+    return false;
 }
 // ★★ 2026-11-01 (W-20261101-1150) — 액터를 가리키는 칸의 **유닛 전체 판정**. 비트는 액터 상태 구조체의 sidx(64 미만)다.
 //   g_aid_need — 어떤 `make` 가 그 액터를 칸에 담는다(그러면 그 액터 레코드는 제 자리를 평행 칸 CBE_AID 에 나른다).
@@ -1020,8 +1055,38 @@ static int cbe_slot_by_name(const low_ir_t *ir, int sidx, proven_u8str_view_t nm
 // ★★★ **평탄 슬롯(r_.r[base..]) → 태그 경로의 (중첩) 레코드 박스**를 재귀로 짓는다.
 //   자식 박스를 **먼저** 할당하고(내부부터), 부모가 그 박스를 참조한다. `*nid` 로 고유 이름을 준다.
 //   반환: 이 노드의 박스를 담은 C 변수 이름 접미(nid).
+static void cbe_emit_recon_scalar(FILE *out, const low_ir_sfield_t *F, int me, size_t z, unsigned foff) {
+    if (F->flt)
+        fprintf(out, "        rr_%d->f[%zu] = lw_flt(lw_b2f(lw_ld_f(r_.r + %u, %d, %d), %d));\n",
+                me, z, foff, (int)F->size, F->be ? 1 : 0, (int)F->size);
+    else if (low_sfield_sgn(F) && F->size < 8)
+        fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)(lw_ld_f(r_.r + %u, %d, %d) << %d) >> %d);\n",
+                me, z, foff, (int)F->size, F->be ? 1 : 0, 64 - 8 * (int)F->size, 64 - 8 * (int)F->size);
+    else
+        fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)lw_ld_f(r_.r + %u, %d, %d));\n",
+                me, z, foff, (int)F->size, F->be ? 1 : 0);
+}
 static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, int *nid) {
     const low_ir_struct_t *S = &ir->structs[sx];
+    if (S->is_penum) {   // ★ 2026-11-04 — 짐을 싣는 열거: `$t` 로 갈래를 골라 그 갈래의 make 자리로 짓는다(cbe_penum_ok 가 모든 갈래의 자리를 보장했다)
+        int me = (*nid)++;
+        fprintf(out, "        if (lw_nrec >= lw_reclim) lw_panic(\"record pool\");\n");
+        fprintf(out, "        int box_%d = lw_nrec++; lowrec *rr_%d = &lw_recs[box_%d];\n", me, me, me);
+        fprintf(out, "        switch ((int)lw_ld_f(r_.r + %u, 4, 0)) {\n", (unsigned)(base + (int)S->f[0].off));
+        for (unsigned v = 0; v < S->nvar; v++) {
+            const int mv = cbe_penum_mk(ir, sx, v);
+            const unsigned tv_ = (unsigned)S->vbase + v;   // `$t` 의 값 = 단위 전체의 갈래 번호
+            if (mv < 0) { fprintf(out, "        case %u: lw_panic(\"an enum variant this unit never builds\");\n", tv_); continue; }
+            fprintf(out, "        case %u: rr_%d->mk = %d; rr_%d->nf = %d;\n", tv_, me, mv, me, (int)ir->makes[mv].nfields);
+            for (proven_size_t z = 0; z < ir->makes[mv].nfields && z < IR_MAKE_MAXF; z++) {
+                int sl = cbe_slot_by_name(ir, sx, ir->makes[mv].fields[z]);
+                cbe_emit_recon_scalar(out, &S->f[sl], me, z, (unsigned)(base + (int)S->f[sl].off));
+            }
+            fputs("        break;\n", out);
+        }
+        fputs("        default: lw_panic(\"an enum value whose tag names no variant\"); }\n", out);
+        return me;
+    }
     int mk = cbe_make_for_struct(ir, sx);
     int child[IR_MAKE_MAXF]; int childnid[IR_MAKE_MAXF];
     for (proven_size_t z = 0; z < S->nf && z < IR_MAKE_MAXF; z++) {
@@ -1068,15 +1133,7 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
                          " rr_%d->f[%zu] = sv_; }\n",
                     sl, (unsigned)S->f[sl].elem, (unsigned)S->f[sl].elem, (unsigned)S->f[sl].elem,
                     me, (size_t)z);
-        else if (S->f[sl].flt)
-            fprintf(out, "        rr_%d->f[%zu] = lw_flt(lw_b2f(lw_ld_f(r_.r + %u, %d, %d), %d));\n",
-                    me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0, (int)S->f[sl].size);
-        else if (low_sfield_sgn(&S->f[sl]) && S->f[sl].size < 8)   // ★ 2026-10-31 — 부호 있는 칸은 부호를 늘린다
-            fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)(lw_ld_f(r_.r + %u, %d, %d) << %d) >> %d);\n",
-                    me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0, 64 - 8 * (int)S->f[sl].size, 64 - 8 * (int)S->f[sl].size);
-        else
-            fprintf(out, "        rr_%d->f[%zu] = lw_int((long long)lw_ld_f(r_.r + %u, %d, %d));\n",
-                    me, (size_t)z, foff, (int)S->f[sl].size, S->f[sl].be ? 1 : 0);
+        else cbe_emit_recon_scalar(out, &S->f[sl], me, (size_t)z, foff);   // ★ 2026-10-31 — 부호 있는 칸은 부호를 늘린다(그 안에서)
     }
     {   bool arr_ = false;
         for (proven_size_t z = 0; z < S->nf; z++) if (S->f[z].arrn) arr_ = true;
@@ -1288,8 +1345,10 @@ static void cbe_emit_rec_unpack(FILE *out, const low_ir_t *ir, int sidx, const c
             continue;
         }
         // ★ 안 읽히는 필드는 전역 필드표에 없다 — 그러면 경계에서도 안 읽는다(칸이 이미 0 이다).
+        //   ★ 2026-11-04 — 짐을 싣는 열거의 칸은 그 갈래에만 있다: 없는 칸은 0 으로 둔다(`lw_field0`).
         if (fi >= 0)
-            fprintf(out, "    lw_st_f(%s + %u, %d, %d, (unsigned long long)lw_want_int(lw_field(%s, %d), \"ints (field %.*s)\"));\n",
+            fprintf(out, S->is_penum ? "    lw_st_f(%s + %u, %d, %d, (unsigned long long)lw_want_int(lw_field0(%s, %d), \"ints (field %.*s)\"));\n"
+                                     : "    lw_st_f(%s + %u, %d, %d, (unsigned long long)lw_want_int(lw_field(%s, %d), \"ints (field %.*s)\"));\n",
                     buf, (unsigned)S->f[z].off, (int)S->f[z].size,
                     S->f[z].be ? 1 : 0, val, fi,
                     (int)S->f[z].name.size, (const char *)S->f[z].name.ptr);
@@ -1823,6 +1882,9 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                 if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q]) &&
                     !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, (int)d->param_sidx[q], 0)) &&
                     !cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) { sc[i] = false; badq = (int)q; break; }
+        for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS && sc[i]; q++)   // ★ 2026-11-04 — 짐을 싣는 열거 매개변수: 되쓰기(액터)는 태그 경로가
+            if ((d->param_struct >> q) & 1u && d->param_sidx[q] < ir->nstructs && ir->structs[d->param_sidx[q]].is_penum &&
+                cbe_pmut(d)) { sc[i] = false; badq = (int)q; }
         if (sc[i] && cbe_def_arrpar(ir, d)) {   // ★ 2026-11-01 — 배열 칸 레코드 매개변수: 칸 슬라이스가 op 밖으로 못 나가는 몸만
             char w_[160] = {0};
             if (!cbe_arrpar_body_ok(ir, d, w_, sizeof w_)) {
@@ -2099,8 +2161,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             //   **별칭**이 된다(같은 박스). 값 복사는 그것과 다르다 ⇒ **안 내린다.**
                             // ★ K_VIEW·K_SVIEW 는 **참조가 아니다**(바이트 위의 무복사 뷰) —
                             //   지역에 담아도 별칭이 안 생긴다(포인터가 곧 그 자리다). 별칭 체크에서 뺀다.
+                            // ★ 2026-11-04 — `match` 의 숨은 지역(d->mtmp)은 갈래 몸 앞에서만 읽힌다: 별칭이든 값 복사든 답이 같다.
                             if (st.k[st.n-1] >= K_REC && st.k[st.n-1] < K_VIEW &&
-                                st.o[st.n-1] >= 0 && st.o[st.n-1] != (signed char)in->a) return false;
+                                st.o[st.n-1] >= 0 && st.o[st.n-1] != (signed char)in->a &&
+                                !(in->a < 64 && ((d->mtmp >> in->a) & 1u))) return false;
                             if ((st.k[st.n-1] == K_STK || st.k[st.n-1] == K_BSET) &&
                                 st.o[st.n-1] >= 0 && st.o[st.n-1] != (signed char)in->a) return false;
                             a1 = st.k[--st.n];
@@ -2678,7 +2742,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ RFC-0106 단계 3 — 슬라이스 필드를 든 레코드도 **만들 수 있다**.
                 if (!cbe_rec_ok_f(ir, sx, true) && !cbe_rec_nest_ok(ir, sx) && !cbe_rec_slice_ok(ir, sx) && !cbe_rec_arr_ok(ir, sx)) return false;
                 proven_size_t nf = ir->makes[mk].nfields;
-                if (nf != ir->structs[sx].nf) return false;   // 부분 초기화는 안 내린다
+                if (nf != ir->structs[sx].nf && !(ir->structs[sx].is_penum && cbe_penum_ok(ir, sx))) return false;   // 부분 초기화는 안 내린다(짐을 싣는 열거의 갈래 값만 — 다른 갈래 칸은 0)
                 for (proven_size_t z = 0; z < nf; z++)
                     if (cbe_slot_by_name(ir, sx, ir->makes[mk].fields[z]) < 0) return false;
                 if ((proven_size_t)st.n < nf) return false;
@@ -3148,7 +3212,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (cbe_def_arrpar(ir, d) && rk != K_INT && rk != K_FLT && !(rk >= K_REC && rk < K_VIEW && !cbe_struct_has_sl(ir, rk - K_REC)) &&
                     !(rk >= K_REC && rk < K_VIEW && cbe_rec_arr_ok(ir, rk - K_REC))) {
                     snprintf(g_sub, sizeof g_sub, "takes a struct with array fields and returns kind %u (a field slice could outlive the caller's record)", rk); return false; }
-                if (rk >= K_REC && cbe_make_for_struct(ir, rk - K_REC) < 0) {
+                if (rk >= K_REC && cbe_make_for_struct(ir, rk - K_REC) < 0 && !cbe_penum_ok(ir, rk - K_REC)) {
                     snprintf(g_sub, sizeof g_sub, "returns a RECORD with no `lit` site to rebuild it at the boundary"); return false; }
                 if (*retk != 0xff && *retk != rk) {
                     snprintf(g_sub, sizeof g_sub, "two `return`s give different kinds (%u and %u)", *retk, rk); return false; } // 두 종류를 섞어 돌려주면 **안 내린다**
@@ -7417,6 +7481,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    lw_panic(\"no such field on this record\");\n"
           "    return lw_int(0);\n"
           "}\n"
+          "static inline lowv lw_field0(lowv r, int fi) { /* 2026-11-04: an enum variant's record has only that variant's fields — the rest read as 0 */\n"
+          "    if (r.tag == LWV_REF) r = *r.q;\n"
+          "    if (r.tag == LWV_REC) { lowrec *rr = LW_RECV(r);\n"
+          "        for (int i = 0; i < rr->nf; i++) if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) return rr->f[i];\n"
+          "        return lw_int(0); }\n"
+          "    return lw_field(r, fi); }\n"
           "static void lw_fstore(lowv r, int fi, lowv v) {\n"
           "    if (r.tag == LWV_REF) r = *r.q;\n"
           /* ★★★ **뷰의 필드에 쓴다** — 그것이 곧 **디바이스 레지스터 쓰기**다(RFC-0042 D1).

@@ -591,7 +591,9 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  // ★★ RFC-0150 §8-12 (2026-10-24) — **스스로를 품는 칸** `left option (owned node) .`. 레코드에서는 태그 값 한 칸이고,
                  //   할당기 바이트에 짓는 그림자에서는 **주소 한 칸**이다(0 = none). `bxs1` 은 그 주소가 가리키는 배치의 번호 + 1
                  //   (그림자에서만 — 자기 그림자다).
-                 bool bxself; proven_i16 bxs1; } low_ir_sfield_t;
+                 bool bxself; proven_i16 bxs1;
+                 // ★★ 2026-11-04 (W-20261104-0013 O4) — 짐을 싣는 열거(`is_penum`)의 칸이 **어느 갈래의 칸인가**(비트 v = 갈래 v · `$t` 는 모두).
+                 proven_u32 vmask; } low_ir_sfield_t;
 // ★★ 2026-10-31 (RFC-0015 §6.3 을 짓다 찾았다 · W-20261031-0048) — 이 칸이 **부호 있는 정수**인가(`i8` · `i16` · `i32` · `i64` · `idiff`).
 //   바이트에서 칸을 읽는 자리(뷰 · 네이티브 레코드)가 위 비트를 0 으로 채워서 `i32` 칸의 −5 가 4294967291 로 읽혔다(VM 의 레코드만 옳았다).
 static inline bool low_sfield_sgn(const low_ir_sfield_t *f) {
@@ -613,6 +615,11 @@ typedef struct {
     //   얹을 수 없다(바이트가 주소가 되면 안 된다). 헤더·ABI 는 그림자를 내보내지 않는다.
     proven_u16          ashadow1;
     bool                is_shadow;
+    // ★★ 2026-11-04 (W-20261104-0013 O4) — **짐을 싣는 열거의 배치**(`$t` + 갈래들의 칸을 이어 붙인 것). 갈래 값은 그 갈래의 칸만 채운
+    //   레코드라(`make shape/2`) 칸 수가 배치보다 적다. `nvar` = 갈래 수(32 이하일 때만 켠다), 칸의 `vmask` 가 갈래를 가른다.
+    bool                is_penum;
+    proven_u8           nvar;
+    proven_u16          vbase;      // `$t` 의 값은 단위 전체의 갈래 순번이다 — 이 열거의 첫 갈래 번호(갈래 v 의 `$t` = vbase + v)
     low_ir_sfield_t     f[IR_MAKE_MAXF];
     proven_size_t       nf;
     proven_u16          total;      // layout size in bytes
@@ -777,6 +784,9 @@ typedef struct {
     bool                out_ptr;
     proven_u8           ndropped;      // ★ 빌드 모드가 지운 이 op 의 계약 검사 수
     proven_u32          param_struct;  // bitmask: param i is a struct
+    // ★★ 2026-11-04 (W-20261104-0013 O4) — `match` 가 맞춰 볼 값을 담는 숨은 지역(`$m`)의 비트(가드 `when` 이 없는 것만). 그 지역은 갈래의 몸이
+    //   돌기 전에만 읽힌다(태그 견주기 · 짐 묶기) — 그래서 레코드를 거기 옮겨 담아도 별칭(태그 경로)과 값 복사(빠른 경로)의 답이 같다.
+    proven_u64          mtmp;
     proven_u8           param_sidx[LOW_MAX_PARAMS];   // …그 구조체의 인덱스
     // ★ 슬라이스 파라미터의 **원소 폭**(비트). `slice u8` = 8 = **바이트 슬라이스**.
     //   백엔드의 빠른 경로가 이것을 묻는다: 바이트 슬라이스는 `(const unsigned char*, size_t)`

@@ -1874,6 +1874,16 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
     proven_size_t tmp = ir_local_declare(c, proven_u8str_view_from_cstr("$m"), m->line);
     ir_run(c, m->kids, 1, m->nkids - 2);
     ir_emit(c, IRW_STORE, (proven_i64)tmp);
+    {   // ★ 2026-11-04 — 가드(`when`)가 없으면 이 지역은 갈래 몸 앞에서만 읽힌다(low_ir_def_t.mtmp)
+        bool guard_ = false;
+        for (proven_size_t q = 0; q < arms->nkids && !guard_; q++) {
+            const low_cst_t *af = arms->kids[q];
+            if (af->kind != LOW_CST_FORM) { guard_ = true; break; }
+            for (proven_size_t j = 0; j < af->nkids; j++)
+                if (is_atom(af->kids[j]) && veq(af->kids[j]->tok.lex, "when")) { guard_ = true; break; }
+        }
+        if (!guard_ && tmp < 64 && c->mtmp_out) *c->mtmp_out |= 1ull << tmp;
+    }
 
     // ★ MM9-B2 — 크고 조밀한 단순 match 면 점프 테이블로. 아니면(false) 아래 선형 사슬.
     if (ir_match_jumptable(c, arms, tmp, m->line)) return;
@@ -4230,15 +4240,26 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                     s->name = ename; s->viewable = true; s->align = 1;
                     static const proven_byte_t ENUM_TAGF[2] = { '$', 't' };
                     s->f[s->nf].name = (proven_u8str_view_t){ ENUM_TAGF, 2 };
-                    s->f[s->nf].size = 4; s->f[s->nf].sidx = -1; s->f[s->nf].off = s->total;
+                    s->f[s->nf].size = 4; s->f[s->nf].sidx = -1; s->f[s->nf].off = s->total; s->f[s->nf].vmask = 0xffffffffu;
                     s->total = (proven_u16)(s->total + 4); s->nf++;
+                    // ★ 2026-11-04 (W-20261104-0013 O4) — 갈래 순번(vmask 의 비트)과 `$t` 의 값(단위 전체의 갈래 번호 = vbase + 순번).
+                    //   한 열거의 갈래 번호는 이어져 있어야 하고(선언 차례로 붙는다), 같은 이름의 칸은 갈래마다 같은 타입이어야 빠른 경로가 연다.
+                    unsigned lv_ = 0; bool pen_ok_ = true; proven_size_t vb_ = 0;
                     for (proven_size_t vi = 0; vi < mod.nenumv; vi++) {
                         if (!proven_u8str_view_eq(mod.enum_owner[vi], ename)) continue;
+                        if (lv_ == 0) vb_ = vi; else if (vi != vb_ + lv_) pen_ok_ = false;
+                        const unsigned bit_ = lv_ < 32 ? 1u << lv_ : 0u; lv_++;
                         for (proven_u8 fp = 0; fp < mod.enum_np[vi] && s->nf < IR_MAKE_MAXF; fp++) {
                             bool seen = false;   // 같은 이름 = 같은 슬롯(변형 간 공유). 슬롯을 겹치지 않고 이어 붙이는 fat-struct.
                             for (proven_size_t z = 0; z < s->nf; z++)
-                                if (proven_u8str_view_eq(s->f[z].name, mod.enum_pname[vi][fp])) { seen = true; break; }
+                                if (proven_u8str_view_eq(s->f[z].name, mod.enum_pname[vi][fp])) {
+                                    seen = true; s->f[z].vmask |= bit_;
+                                    if (!proven_u8str_view_eq(s->f[z].cname, mod.enum_pty[vi][fp])) pen_ok_ = false;   // 갈래마다 다른 타입의 같은 이름
+                                    break;
+                                }
                             if (seen) continue;
+                            s->f[s->nf].vmask = bit_;
+                            s->f[s->nf].cname = mod.enum_pty[vi][fp];   // ★ 칸의 타입 낱말 — 부호 있는 칸(`i16`)을 바이트에서 읽을 때 부호를 늘린다(low_sfield_sgn)
                             proven_u8 sz = ir_field_size(mod.enum_pty[vi][fp]);
                             if (!sz) { s->viewable = false; sz = 8; }
                             s->f[s->nf].name = mod.enum_pname[vi][fp];
@@ -4248,6 +4269,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             s->total = (proven_u16)(s->total + sz); s->nf++;
                         }
                     }
+                    if (lv_ <= 32 && pen_ok_ && vb_ < 0xffff) { s->is_penum = true; s->nvar = (proven_u8)lv_; s->vbase = (proven_u16)vb_; }
                     ir.nstructs++;
                 }
             }
@@ -5086,6 +5108,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
             if (any && elo <= ehi) d->eret = (low_ir_prng_t){ true, elo, ehi };
         }
         c.dropped_out = &d->ndropped;
+        d->mtmp = 0; c.mtmp_out = &d->mtmp;
         ir_contract_entry(&c, f);   // ★ 계약을 사실로 쓰려면 강제해야 한다 (RFC-0053 §8-7)
         ir_named_contracts(&c, pr, f);   // ★ `satisfies N` — **명명 계약도 계약이다**
         ir_excl_entry(&c, f);            // ★ REQ-0036 — 쓰는 조각이 다른 조각과 겹치면 멈춘다(§8.12(6)·(7))

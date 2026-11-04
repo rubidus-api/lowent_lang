@@ -2666,23 +2666,36 @@ static int ir_xguard(const low_ir_def_t *d, proven_u16 s, proven_u16 t) {   // �
     }
     return -1;
 }
-static bool ir_xproves(const low_ir_def_t *caller, proven_u64 kept, const low_ir_xsite_t *st, const low_ir_xpair_t *p) {
-    if (st->taint || p->i >= st->nargs || p->j >= st->nargs) return false;
+// 보증 못 하는 까닭(`LOW_XSKIP_WHY` 보고가 센다 · 0 = 보증한다). XW_UNK + why 는 모르는 인자의 꼴(low_ir_xarg_t.why)이다.
+enum { XW_OK = 0, XW_DEF, XW_REF, XW_NOCALL, XW_PLAIN, XW_SHAPE, XW_NOSITE, XW_TAINT, XW_SAME_DYN, XW_SAME_OVL, XW_SAME_WHOLE,
+       XW_LOCAL, XW_RESTORED, XW_NOGUARD, XW_INGUARD, XW_LOCAL_LET, XW_UNK, XW_N = XW_UNK + 8 };
+static const char *const ir_xw_name[XW_N] = { "ok", "def", "ref", "nocall", "plain", "shape", "nosite", "taint", "same_dyn", "same_ovl",
+    "same_whole", "local", "restored", "noguard", "inguard", "local_let", "unk_recv", "unk_call", "unk_field", "unk_idx", "unk_view", "unk_name",
+    "unk_lit", "unk_other" };
+// letp(보고용 · NULL 이면 안 가른다) = 한 번만 `… subslice` 나 입력 칸 그대로를 받은 지역 칸(`let X slice u64 subslice pt. 0 16 .`)
+static int ir_xwhy(const low_ir_def_t *caller, proven_u64 kept, const low_ir_xsite_t *st, const low_ir_xpair_t *p, proven_u64 letp) {
+    if (st->taint) return XW_TAINT;
+    if (p->i >= st->nargs || p->j >= st->nargs) return XW_NOSITE;
     const low_ir_xarg_t x = st->a[p->i], y = st->a[p->j];
-    if (!x.kind || !y.kind) return false;
+    if (!x.kind) return XW_UNK + (x.why < 8 ? x.why : 7);
+    if (!y.kind) return XW_UNK + (y.why < 8 ? y.why : 7);
     if (x.slot == y.slot) {                                        // ⓐ 한 칸 — 같은 부름 안에서는 같은 값이다(taint 가 아니면)
         if (x.kind == 2 && y.kind == 2) {
-            if (x.lo == x.hi || y.lo == y.hi || x.hi <= y.lo || y.hi <= x.lo) return true;   // 빈 조각 · 안 겹친다
-            return p->mode == IR_XCHK_IN && x.lo == y.lo && x.hi == y.hi;                   // 같은 구간 — `inplace` 짝만
+            if (x.lo == x.hi || y.lo == y.hi || x.hi <= y.lo || y.hi <= x.lo) return XW_OK;   // 빈 조각 · 안 겹친다
+            return p->mode == IR_XCHK_IN && x.lo == y.lo && x.hi == y.hi ? XW_OK : XW_SAME_OVL;   // 같은 구간 — `inplace` 짝만
         }
-        return x.kind == 1 && y.kind == 1 && p->mode == IR_XCHK_IN;                       // 칸 그대로 둘 — 같은 구간
+        if (x.kind == 1 && y.kind == 1) return p->mode == IR_XCHK_IN ? XW_OK : XW_SAME_WHOLE;   // 칸 그대로 둘 — 같은 구간
+        return x.kind == 3 || y.kind == 3 ? XW_SAME_DYN : XW_SAME_WHOLE;
     }
-    if (x.slot >= caller->nparams || y.slot >= caller->nparams || x.slot >= 64 || y.slot >= 64) return false;
-    if (!((kept >> x.slot) & 1u) || !((kept >> y.slot) & 1u)) return false;   // ⓑ 의 칸에 몸이 다시 썼다
+    if (x.slot >= caller->nparams || y.slot >= caller->nparams || x.slot >= 64 || y.slot >= 64) {
+        const bool lx = x.slot < caller->nparams || (x.slot < 64 && ((letp >> x.slot) & 1u)), ly = y.slot < caller->nparams || (y.slot < 64 && ((letp >> y.slot) & 1u));
+        return lx && ly ? XW_LOCAL_LET : XW_LOCAL;
+    }
+    if (!((kept >> x.slot) & 1u) || !((kept >> y.slot) & 1u)) return XW_RESTORED;   // ⓑ 의 칸에 몸이 다시 썼다
     const int g = ir_xguard(caller, x.slot, y.slot);
-    if (g == IR_XCHK_WW || g == IR_XCHK_WR) return true;           // 안 겹친다고 견주었다 — 그 안의 조각끼리도 안 겹친다
-    if (g == IR_XCHK_IN) return x.kind == 1 && y.kind == 1 && p->mode == IR_XCHK_IN;
-    return false;
+    if (g == IR_XCHK_WW || g == IR_XCHK_WR) return XW_OK;          // 안 겹친다고 견주었다 — 그 안의 조각끼리도 안 겹친다
+    if (g == IR_XCHK_IN) return x.kind == 1 && y.kind == 1 && p->mode == IR_XCHK_IN ? XW_OK : XW_INGUARD;
+    return XW_NOGUARD;
 }
 static void ir_excl_skip(low_ir_t *ir) {
     if (getenv("LOW_NO_XSKIP") || !ir->ndefs) return;
@@ -2691,7 +2704,11 @@ static void ir_excl_skip(low_ir_t *ir) {
     proven_size_t *cls = calloc(n, sizeof *cls);
     bool *outside = calloc(n, sizeof *outside), *seen = calloc(n, sizeof *seen);
     proven_u64 *bad = calloc(n, sizeof *bad);   // 무리마다: 보증이 안 된 짝(xpairs 의 번호 비트 · 64 넘으면 다 bad)
-    if (!cls || !outside || !seen || !bad) { free(cls); free(outside); free(seen); free(bad); return; }
+    // `LOW_XSKIP_WHY=1` — 남긴 짝마다 까닭을 stderr 에 적는다(W-20261104-1857 · 남은 검사 세기). 무리 · 짝마다 까닭 비트(XW_*)
+    const bool why = getenv("LOW_XSKIP_WHY") != NULL;
+    proven_u32 *wm = why ? calloc(n * 64, sizeof *wm) : NULL;
+    #define XW_SET(ct_, q_, r_) do { if (wm && (q_) < 64) wm[(ct_) * 64 + (q_)] |= 1u << (r_); } while (0)
+    if (!cls || !outside || !seen || !bad || (why && !wm)) { free(cls); free(outside); free(seen); free(bad); free(wm); return; }
     for (proven_size_t i = 0; i < n; i++) {
         cls[i] = i;
         const low_ir_def_t *d = &ir->defs[i];
@@ -2699,15 +2716,17 @@ static void ir_excl_skip(low_ir_t *ir) {
     }
     for (proven_size_t i = 0; i < n; i++) {
         const low_ir_def_t *d = &ir->defs[i];
-        if (!d->lowered || !d->code || d->is_extern || d->is_test || d->is_actor || d->is_par || d->isr_vector >= 0 || d->nxpairs > 64)
+        if (!d->lowered || !d->code || d->is_extern || d->is_test || d->is_actor || d->is_par || d->isr_vector >= 0 || d->nxpairs > 64) {
             outside[cls[i]] = true;
+            for (proven_size_t q = 0; q < d->nxpairs; q++) XW_SET(cls[i], q, XW_DEF);
+        }
         for (proven_size_t q = 0; q < d->nxpairs; q++)
-            if (!ir_xparam_plain(d, d->xpairs[q].i) || !ir_xparam_plain(d, d->xpairs[q].j)) bad[cls[i]] |= 1ull << q;
+            if (!ir_xparam_plain(d, d->xpairs[q].i) || !ir_xparam_plain(d, d->xpairs[q].j)) { bad[cls[i]] |= 1ull << q; XW_SET(cls[i], q, XW_PLAIN); }
         for (proven_size_t k = 0; k < d->ncode; k++) {           // 부름이 아닌 길로 닿는 op — 보증이 없다
             const low_ir_ins_t *in = &d->code[k];
             if (in->w == IRW_FNREF || in->w == IRW_ASEND || in->w == IRW_TSPAWN || in->w == IRW_TASEND || in->w == IRW_EXTERN) {
                 proven_size_t t = IR_CALL_IDX(in->a);
-                if (t < n) outside[cls[t]] = true;
+                if (t < n) { outside[cls[t]] = true; for (proven_size_t q = 0; q < 64; q++) XW_SET(cls[t], q, XW_REF); }
             }
         }
     }
@@ -2722,6 +2741,19 @@ static void ir_excl_skip(low_ir_t *ir) {
             if (in->w == IRW_STORE && k >= 2 && d->code[k - 1].w == IRW_VARRAY && d->code[k - 2].w == IRW_LOAD && d->code[k - 2].a == in->a) continue;
             if (in->a >= 0 && in->a < 64) kept &= ~(1ull << in->a);
         }
+        proven_u64 letp = 0;
+        if (why) {
+            proven_u64 once = 0, many = 0;
+            for (proven_size_t k = 1; k < d->ncode; k++) {
+                const low_ir_ins_t *in = &d->code[k];
+                if ((in->w != IRW_STORE && in->w != IRW_SPOP_INTO) || in->a < (proven_i64)d->nparams || in->a >= 64) continue;
+                const proven_u64 b = 1ull << in->a;
+                many |= once & b; once |= b;
+                const low_ir_ins_t *pv = &d->code[k - 1];
+                if (in->w == IRW_STORE && (pv->w == IRW_SUBSLICE || (pv->w == IRW_LOAD && pv->a >= 0 && pv->a < (proven_i64)d->nparams))) letp |= b;
+            }
+            letp &= ~many;
+        }
         proven_size_t si = 0;
         for (proven_size_t k = 0; k < d->ncode; k++) {
             const low_ir_ins_t *in = &d->code[k];
@@ -2733,8 +2765,10 @@ static void ir_excl_skip(low_ir_t *ir) {
             seen[ct] = true;
             while (si < d->nxsites && d->xsites[si].at < k) si++;
             const low_ir_xsite_t *st = (si < d->nxsites && d->xsites[si].at == k && d->xsites[si].nargs == e->nparams) ? &d->xsites[si] : NULL;
-            for (proven_size_t q = 0; q < e->nxpairs && q < 64; q++)
-                if (!st || !ir_xproves(d, kept, st, &e->xpairs[q])) bad[ct] |= 1ull << q;
+            for (proven_size_t q = 0; q < e->nxpairs && q < 64; q++) {
+                const int r = st ? ir_xwhy(d, kept, st, &e->xpairs[q], letp) : XW_NOSITE;
+                if (r != XW_OK) { bad[ct] |= 1ull << q; XW_SET(ct, q, r); }
+            }
         }
     }
     for (proven_size_t i = 0; i < n; i++) {
@@ -2746,14 +2780,31 @@ static void ir_excl_skip(low_ir_t *ir) {
             if ((bad[ct] >> q) & 1u) continue;
             const proven_size_t at = x->at;
             if (at < 2 || at + 1 >= d->ncode || d->code[at].w != IRW_XCHK || d->code[at - 2].w != IRW_LOAD || d->code[at - 1].w != IRW_LOAD ||
-                d->code[at + 1].w != IRW_DROP || d->code[at - 2].a != x->i || d->code[at - 1].a != x->j) continue;   // 모양이 다르면 손대지 않는다
+                d->code[at + 1].w != IRW_DROP || d->code[at - 2].a != x->i || d->code[at - 1].a != x->j) { XW_SET(ct, q, XW_SHAPE); continue; }   // 모양이 다르면 손대지 않는다
             d->code[at - 2].w = IRW_CONST; d->code[at - 2].a = 0;
             d->code[at - 1].w = IRW_DROP;  d->code[at - 1].a = 0;
             d->code[at].w = IRW_CONST;     d->code[at].a = 0;
             x->skipped = true;
         }
     }
-    free(cls); free(outside); free(seen); free(bad);
+    if (why) for (proven_size_t i = 0; i < n; i++) {             // 무리의 대표(접히지 않은 def)만 — C 함수 하나에 하나
+        const low_ir_def_t *d = &ir->defs[i];
+        if (cls[i] != i || !d->nxpairs) continue;
+        for (proven_size_t q = 0; q < d->nxpairs; q++) {
+            const low_ir_xpair_t *x = &d->xpairs[q];
+            proven_u32 m = q < 64 ? wm[i * 64 + q] : (1u << XW_DEF);
+            if (!x->skipped && !seen[i]) m |= 1u << XW_NOCALL;
+            fprintf(stderr, "XPAIR\t%s\t%.*s%s%.*s\t%u,%u\t%u", x->skipped ? "skip" : "keep", (int)d->owner_mod.size, (const char *)d->owner_mod.ptr,
+                    d->owner_mod.size ? "." : "", (int)d->name.size, (const char *)d->name.ptr, (unsigned)x->i, (unsigned)x->j, (unsigned)x->mode);
+            for (int r = 1; r < XW_N; r++) if ((m >> r) & 1u) fprintf(stderr, "\t%s", ir_xw_name[r]);
+            if ((m >> XW_DEF) & 1u)
+                fprintf(stderr, "\t(%s%s%s%s%s%s%s pairs %u)", d->lowered && d->code ? "" : "unlowered ", d->is_extern ? "extern " : "", d->is_test ? "test " : "",
+                        d->is_actor ? "actor " : "", d->is_par ? "par " : "", d->isr_vector >= 0 ? "isr " : "", d->nxpairs > 64 ? ">64 " : "", (unsigned)d->nxpairs);
+            fputc('\n', stderr);
+        }
+    }
+    #undef XW_SET
+    free(cls); free(outside); free(seen); free(bad); free(wm);
 }
 
 static void ir_frame_windows(low_ir_t *ir);

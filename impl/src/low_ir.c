@@ -959,23 +959,28 @@ static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size
         while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
         if (!nd) return z;
         if (nd->kind == LOW_CST_ATOM) {
-            if (nd->tok.kind != LOW_TOK_IDENT) return z;
+            if (nd->tok.kind != LOW_TOK_IDENT) { z.why = 6; return z; }
             bool f; proven_size_t sl = ir_local_find(c, nd->tok.lex, &f);
-            if (!f || sl > 0xffff) return z;
+            if (!f || sl > 0xffff) { z.why = 5; return z; }
             z.kind = 1; z.slot = (proven_u16)sl; return z;
         }
         if ((nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) && nd->nkids)
             return ir_xarg(c, (const low_cst_t *const *)nd->kids, 0, nd->nkids, depth + 1);
-        return z;
+        z.why = 7; return z;
     }
     if (to - from == 4 && is_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
         low_ir_xarg_t b = ir_xarg(c, k, from + 1, from + 2, depth + 1);
-        if (!b.kind) return z;
+        if (!b.kind) return b;
         proven_u64 lo, hi;
         if (!(ir_xnum(k[from + 2], &lo) && ir_xnum(k[from + 3], &hi)) || hi < lo) { b.kind = 3; return b; }
         if (b.kind == 1) { b.kind = 2; b.lo = lo; b.hi = hi; return b; }
         if (b.kind == 2) { b.hi = b.lo + hi; b.lo += lo; return b; }    // 잘린 것을 또 자른다 — 밖이면 그 `subslice` 가 먼저 멈춘다
         return b;                                                      // 밑이 이미 모르는 구간
+    }
+    z.why = 7;
+    if (is_atom(k[from])) {
+        const proven_u8str_view_t w = k[from]->tok.lex;
+        z.why = veq(w, "field") ? 2 : veq(w, "idx") ? 3 : (veq(w, "view_array") || veq(w, "view")) ? 4 : k[from]->tok.kind == LOW_TOK_IDENT ? 1 : 7;
     }
     return z;
 }

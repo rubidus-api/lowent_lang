@@ -6298,6 +6298,17 @@ static void ck_region_walk(low_check_result_t *out, const low_cst_t *nd, ck_rgct
         }
         // ② 나가는 자리: return · 바깥 이름(또는 바깥 이름의 칸)에 대입
         bool leaves = (kw == LOW_KW_RETURN || kw == LOW_KW_GIVE);
+        // ★ W-20261107-0151 — op 의 결과가 스칼라(정수 · bool · 부동)이면 `return` 은 영역의 바이트를 들고 나갈 수 없다(정본 §8.2 (4a) —
+        //   스칼라 타입으로 묶인 것은 들고 나가지 아니한다). 전엔 식 안의 이름만 보아 `return put m. .`(put 은 u64 를 낸다)을 거절했고,
+        //   `return add r1. put7 … .` 은 나무에서는 지나고 `--flat` 에서만 거절됐다(두 길이 갈렸다).
+        if (kw == LOW_KW_RETURN && rc->opform)
+            for (proven_size_t j = 1; j + 1 < rc->opform->nkids; j++)
+                if (ck_atom(rc->opform->kids[j]) && veq(rc->opform->kids[j]->tok.lex, "output")) {
+                    const low_cst_t *t = rc->opform->kids[j + 1];
+                    while (t && t->kind != LOW_CST_ATOM && t->nkids) t = t->kids[0];
+                    if (t && ck_atom(t) && ck_type_word_scalar(t->tok.lex)) leaves = false;
+                    break;
+                }
         if (kw == LOW_KW_SET) {
             const low_cst_t *tg = nd->kids[1];
             // `set (field h store) v` · `set (index s i) v` — 대상의 **밑동** 이름을 본다

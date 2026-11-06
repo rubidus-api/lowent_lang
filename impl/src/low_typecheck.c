@@ -3456,6 +3456,41 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 if (to + 1 < f->nkids) tc_push_ctx(f->kids, to + 1, f->nkids - to - 1, core, actual);   // RFC-0148 §8-11
                 else tc_push_ctx(f->kids, 2, f->nkids - 2, core, actual);
             }
+            // ★★★ W-20261107-0001 — **다시 대입해도 같다.** 위 `let` 의 «읽기 전용 줄을 쓸 수 있는 이름으로 다시 묶지 못한다» 와
+            //   리터럴 묶기 거절(low_check.c ck_mut_literal_bind_walk)은 `let` · `var` 의 초기식만 보았다. 그래서
+            //   `var d mut slice u8 subslice wb. 0 2 . .` 뒤 `set d. "cd" .` 이나 `set d. g. .`(g 는 읽기 입력)이 통과했고, `d` 를
+            //   `mut` 입력에 넘겨 쓰면 네이티브는 박힌 바이트에 써서 죽고(SIGSEGV) VM 은 고쳐 주었다(두 답). 겹침 검사 건너뛰기도
+            //   «쓰는 조각은 리터럴을 가리키지 못한다» 에 기댄다(low_ir_stmt.c ir_xwhy).
+            if (found && vt.k == TK_SLICE && vt.is_mut && vt.rk == 0 && to >= f->nkids && f->nkids == 3 &&
+                f->kids[1]->kind == LOW_CST_ATOM && f->kids[1]->tok.kind == LOW_TOK_IDENT) {
+                const low_cst_t *r = f->kids[2];
+                bool empty = false;
+                for (int hops = 0; r && hops < 64; hops++) {
+                    while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+                    if (!r || r->kind != LOW_CST_FORM || r->nkids < 3 || r->kids[0]->kind != LOW_CST_ATOM) break;
+                    if (veq(r->kids[0]->tok.lex, "subslice")) {
+                        // 길이 0 의 자리표(`subslice "ab" 0 0` — 같은 수 리터럴 둘)는 쓸 수 없다 — 묶기 검사와 같이 둔다
+                        if (r->nkids == 4 && r->kids[2]->kind == LOW_CST_ATOM && r->kids[3]->kind == LOW_CST_ATOM &&
+                            r->kids[2]->tok.kind == LOW_TOK_NUMBER && r->kids[3]->tok.kind == LOW_TOK_NUMBER &&
+                            proven_u8str_view_eq(r->kids[2]->tok.lex, r->kids[3]->tok.lex)) empty = true;
+                        r = r->kids[1];
+                    } else if (veq(r->kids[0]->tok.lex, "view_array")) r = r->kids[2];
+                    else break;
+                }
+                while (r && r->kind == LOW_CST_GROUP && r->nkids == 1) r = r->kids[0];
+                if (!empty && r && r->kind == LOW_CST_ATOM && (r->tok.kind == LOW_TOK_STRING || r->tok.kind == LOW_TOK_TEXTLIT))
+                    tc_emit(c, "E-TYPE-ARGMUT",
+                            "a string LITERAL was assigned to a name declared `mut`. A literal is bytes baked into the program, not a "
+                            "place that can be written (canon 6.2.6(7) ⓑ) — writing through this name killed the native build while the "
+                            "VM changed the bytes. Copy the literal into bytes you own, or declare the name a plain `slice`", f->line);
+                else if (!empty && r && r->kind == LOW_CST_ATOM && r->tok.kind == LOW_TOK_IDENT) {
+                    bool fnd; ty_t st2 = env_find(env, *nenv, r->tok.lex, &fnd);
+                    if (fnd && st2.k == TK_SLICE && !st2.is_mut)
+                        tc_emit(c, "E-TYPE-MUT",
+                                "assigning to a `mut` slice a slice that is not declared `mut` — it is the same storage, and this name "
+                                "would write what the other may only read. Declare the source `var` / `mut`, or declare this name a plain `slice`", f->line);
+                }
+            }
         } else {
             // ★ `store <dst> <idx> <vec>`·`store_masked <dst> <idx> <vec> <mask>` (RFC-0040) — dst 는 **mut** 로
             //   선언돼 있어야 한다(읽기 전용 슬라이스에 벡터를 쓸 수 없다). set (index) 의 mut 강제와 같은 규율.

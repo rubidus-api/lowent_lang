@@ -1030,7 +1030,12 @@ static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size
     if (to - from == 4 && is_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
         low_ir_xarg_t b = ir_xarg(c, k, from + 1, from + 2, depth + 1);
         if (!b.kind || b.kind == 3 || b.kind == 4) return b;           // 모른다 · 밑이 이미 모르는 구간 · 리터럴의 조각도 리터럴이다
-        if (b.why == 1) { b.kind = 3; return b; }                       // 본 것을 또 자른다 — 끝이 원소 단위다
+        // ★ W-20261107-0001 — 밑이 상수 끝의 조각이면 새 조각은 그 안에 있다(밖이면 이 `subslice` 가 멈춘다) — 감싸는 구간으로 적는다
+        if (b.kind == 2 && !b.lom && !b.him) {
+            if (!b.enc) { b.enc = 1; b.elo = b.lo; b.ehi = b.hi; }
+            else { if (b.lo > b.elo) b.elo = b.lo; if (b.hi < b.ehi) b.ehi = b.hi; }
+        }
+        if (b.why == 1) { b.kind = 3; return b; }                       // 본 것을 또 자른다 — 끝이 원소 단위다(감싸는 구간은 본 바이트 그대로다)
         // 끝 하나를 못 읽으면 그 끝만 모른다(IR_XEND_UNK) — `[k, len s.)` 의 시작은 여전히 견줄 수 있다
         ir_xlin_t lo, hi;
         const bool lok = ir_xlin(c, k[from + 2], &lo, 0), hok = ir_xlin(c, k[from + 3], &hi, 0);

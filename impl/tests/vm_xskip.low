@@ -215,9 +215,62 @@ export proc viewed input mem mut slice u8 . input k usize . output u64 . effects
   let r1 u64 put9 x. y. . .
   return add r1. put9b subslice x. 0 1 . subslice y. k. 2 . . . .
 end .
-rem ⑰ 본 것을 또 자르면 끝이 원소 단위다 — 바이트 구간과 견주지 않는다(검사가 남는다)
+rem ⑰ 본 것을 또 자르면 끝이 원소 단위다 — 바이트 구간과 견주지 않지만, 본 바이트 안에 있다(W-20261107-0001 — 감싸는 구간이 갈리므로 검사가 지워진다)
 proc put9b input a mut slice u64 . input b mut slice u64 . output u64 . effects none . do
   if gt len a. . 0 . do  set idx a. 0 . 111 .  end .
   if gt len b. . 0 . do  set idx b. 0 . 112 .  end .
   return add idx a. 0 . idx b. 0 . . .
+end .
+rem ⑱ 서로 다른 `alloc_bytes` 의 답은 겹칠 수 없다(뿌리는 준 바이트를 다시 주지 않는다 · 되감기는 영역이 끝날 때뿐) — put10 은 검사가 지워진다.
+rem   같은 답을 두 이름에 꺼내 담으면 같은 바이트다 — put7 의 검사가 남고, 겹치는 부름은 멈춘다.
+proc put10 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 91 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 92 .  end .
+  return add cast u64 idx a. 0 . . cast u64 idx b. 0 . . . .
+end .
+export proc twoalloc input k usize . output u64 . effects heap . do
+  var out u64 99 .
+  region r heap do
+    let g1 option mut slice u8 alloc_bytes r. capacity 8 . .
+    let g2 option mut slice u8 alloc_bytes r. capacity 8 . .
+    if and is_some g1. . is_some g2. . . do
+      let m1 mut slice u8 some_value g1. . .
+      let m2 mut slice u8 some_value g2. . .
+      let m3 mut slice u8 some_value g2. . .
+      let r1 u64 put10 m1. m2. . .
+      let r2 u64 put7 subslice m2. 0 4 . subslice m3. k. 8 . . .
+      set out. add r1. r2. . .
+    end .
+  end .
+  return out. .
+end .
+rem ⑲ 담는 값이 언제나 문자열 리터럴인 `var`(해시마다 머리가 다른 DigestInfo 꼴)는 리터럴과 같다 — 읽기 전용 바이트라 쓰는 조각과 안 겹친다.
+proc put12 input a slice u8 . input b mut slice u8 . output u64 . effects none . do
+  set idx b. 0 . idx a. 0 . .
+  return cast u64 idx b. 0 . . .
+end .
+export proc litvar input k u64 . output u64 . effects none . do
+  var wb lit array 8 u8 _ . .
+  var di slice u8 "ab" .
+  if eq k. 1 . do  set di. "cd" .  end .
+  return put12 di. wb. . .
+end .
+rem ⑳ 상수 끝의 조각을 실행 중 길이로 다시 자른 조각은 그 안에 있다(`subslice` 는 밖이면 멈춘다) — 감싸는 구간이 갈리면 안 겹친다(put13 · 검사가 지워진다).
+rem   감싸는 구간이 겹치면 검사가 남고(put14), 실제로 겹치는 부름은 멈춘다.
+proc put13 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 61 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 62 .  end .
+  return add cast u64 idx b. 0 . . cast u64 len a. . . . .
+end .
+proc put14 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 71 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 72 .  end .
+  return add cast u64 idx b. 0 . . cast u64 len a. . . . .
+end .
+export proc encl input s mut slice u8 . input k usize . output u64 . effects none . do
+  guard ge len s. . 16 . else return 99 . .
+  let head mut slice u8 subslice s. 0 8 . .
+  let r2 u64 put14 subslice subslice s. 0 12 . 0 k. . subslice s. 8 16 . . .
+  let r1 u64 put13 subslice head. 0 k. . subslice s. 8 16 . . .
+  return add r1. r2. . .
 end .

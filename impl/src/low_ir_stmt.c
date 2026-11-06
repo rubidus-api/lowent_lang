@@ -2689,9 +2689,10 @@ static bool ir_xeq(proven_i64 ak, proven_u32 am, proven_u8 av, proven_i64 bk, pr
     return ak == bk && am == bm && (!am || av == bv);
 }
 // letp(보고용 · 0 이면 안 가른다) = 한 번만 `… subslice` 나 입력 칸 그대로를 받은 지역 칸 · stable = 그 `let` 뒤로 안 바뀌는 칸
-// orig[s] = 지역 칸 s 가 이 op 의 틀 안 나열(`var wb lit array 640 u8 _ . .` — IRW_LBUF · IRW_LBUFC)을 받았으면 그 명령의 자리 + 1(0 = 아니다).
+// orig[s] = 지역 칸 s 가 이 op 의 틀 안 나열(`var wb lit array 640 u8 _ . .` — IRW_LBUF · IRW_LBUFC)이나 `alloc_bytes`(IRW_ALLOCB)의 답을 받았으면 그 명령의 자리 + 1(0 = 아니다).
+// lito = 묶기가 모두 문자열 리터럴(IRW_STR)인 지역 칸(`var di slice u8 "…" .` 뒤 `set di. "…" .` — 해시마다 머리가 다른 DigestInfo)
 static int ir_xwhy(const low_ir_def_t *caller, proven_u64 kept, proven_u64 stable, const low_ir_xsite_t *st, const low_ir_xpair_t *p, proven_u64 letp,
-                   const proven_u32 *orig) {
+                   const proven_u32 *orig, proven_u64 lito) {
     if (st->taint) return XW_TAINT;
     if (p->i >= st->nargs || p->j >= st->nargs) return XW_NOSITE;
     const low_ir_xarg_t x = st->a[p->i], y = st->a[p->j];
@@ -2700,8 +2701,21 @@ static int ir_xwhy(const low_ir_def_t *caller, proven_u64 kept, proven_u64 stabl
     if ((x.kind == 4 && !(x.via & ~stable)) || (y.kind == 4 && !(y.via & ~stable))) return XW_OK;   // `let` 으로 묶은 리터럴은 그 칸이 한 번만 묶일 때
     if (!x.kind) return XW_UNK + (x.why < 8 ? x.why : 7);
     if (!y.kind) return XW_UNK + (y.why < 8 ? y.why : 7);
+    // ★ W-20261107-0001 — 담는 값이 언제나 리터럴인 칸도 리터럴과 같다(그 칸을 쓸 수 있는 이름으로 다시 묶지 못한다 — low_typecheck.c `set`)
+    if ((x.slot < 64 && ((lito >> x.slot) & 1u) && !(x.via & ~stable)) || (y.slot < 64 && ((lito >> y.slot) & 1u) && !(y.via & ~stable))) return XW_OK;
     if ((x.via | y.via) & ~stable) return XW_UNSTABLE;
     if (x.slot == y.slot) {                                        // ⓐ 한 칸 — 같은 부름 안에서는 같은 값이다(taint 가 아니면)
+        // ★ W-20261107-0001 — 감싸는 상수 구간(상수 끝이면 그 구간 · 아니면 enc)이 앞뒤로 갈리면 안 겹친다
+        {
+            const bool cx = x.kind == 2 && !x.lom && !x.him, cy = y.kind == 2 && !y.lom && !y.him;
+            const bool hx = cx || ((x.kind == 2 || x.kind == 3) && x.enc), hy = cy || ((y.kind == 2 || y.kind == 3) && y.enc);
+            if (hx && hy) {
+                proven_i64 xl = x.elo, xh = x.ehi, yl = y.elo, yh = y.ehi;
+                if (cx) { if (!x.enc || x.lo > xl) xl = x.lo; if (!x.enc || x.hi < xh) xh = x.hi; }
+                if (cy) { if (!y.enc || y.lo > yl) yl = y.lo; if (!y.enc || y.hi < yh) yh = y.hi; }
+                if (xh <= yl || yh <= xl) return XW_OK;
+            }
+        }
         if (x.kind == 2 && y.kind == 2) {
             // 빈 조각 · 끝이 앞서는 쪽의 끝 ≤ 다른 쪽의 시작(`[0, k)` 와 `[k, n)` · `[0, n)` 과 `[n, mul n. 2 .)`)
             if (ir_xeq(x.lo, x.lom, x.lov, x.hi, x.him, x.hiv) || ir_xeq(y.lo, y.lom, y.lov, y.hi, y.him, y.hiv) ||
@@ -2776,7 +2790,7 @@ static void ir_excl_skip(low_ir_t *ir) {
         // 입구가 선 뒤 몸이 다시 쓰지 않는 입력 칸(진입의 멱등 정규화 `LOAD s · VARRAY · STORE s` 는 쓰기가 아니다)
         proven_u64 kept = d->nparams >= 64 ? ~0ull : ((1ull << d->nparams) - 1);
         // ★ W-20261105-2304 — 한 번만 묶이고 참조를 주지 않는 지역 칸(`let` 별칭과 그 끝의 v 가 기댄다)
-        proven_u64 once = 0, many = 0, refd = 0, letp = 0;
+        proven_u64 once = 0, many = 0, refd = 0, letp = 0, litw = 0, nonlit = 0;
         for (proven_size_t k = 0; k < d->ncode; k++) {
             const low_ir_ins_t *in = &d->code[k];
             if (in->w != IRW_STORE && in->w != IRW_SPOP_INTO && in->w != IRW_REF && in->w != IRW_MREF) continue;
@@ -2786,6 +2800,7 @@ static void ir_excl_skip(low_ir_t *ir) {
             kept &= ~b;
             if (in->w == IRW_REF || in->w == IRW_MREF) { refd |= b; continue; }
             many |= once & b; once |= b;
+            if (in->w == IRW_STORE && k >= 1 && d->code[k - 1].w == IRW_STR) litw |= b; else nonlit |= b;
             if (why && in->w == IRW_STORE && k >= 1 && in->a >= (proven_i64)d->nparams) {
                 const low_ir_ins_t *pv = &d->code[k - 1];
                 if (pv->w == IRW_SUBSLICE || (pv->w == IRW_LOAD && pv->a >= 0 && pv->a < (proven_i64)d->nparams)) letp |= b;
@@ -2793,6 +2808,7 @@ static void ir_excl_skip(low_ir_t *ir) {
         }
         const proven_u64 pmask = d->nparams >= 64 ? ~0ull : ((1ull << d->nparams) - 1);
         const proven_u64 stable = (kept & pmask) | (once & ~many & ~refd & ~pmask);
+        const proven_u64 lito = litw & ~nonlit & ~refd & ~pmask;
         // ★ W-20261106-2120 — 틀 안 나열을 받은 지역(그것을 그대로 옮겨 담은 지역은 같은 나열이다 — 같은 자리 표를 물려받는다)
         proven_u32 orig[64] = { 0 };
         for (proven_size_t k = 1; k < d->ncode; k++) {
@@ -2800,7 +2816,11 @@ static void ir_excl_skip(low_ir_t *ir) {
             if (in->w != IRW_STORE || in->a < (proven_i64)d->nparams || in->a >= 64 || !((stable >> in->a) & 1u)) continue;
             proven_size_t q = k - 1;
             if (d->code[q].w == IRW_VARRAY && q > 0) q--;
-            if (d->code[q].w == IRW_LBUF || d->code[q].w == IRW_LBUFC) orig[in->a] = (proven_u32)q + 1;
+            // ★ W-20261107-0001 — `alloc_bytes` 의 답도 제 바이트다: 뿌리는 준 바이트를 옮기거나 다시 주지 않고, 되감기는 영역이
+            //   끝날 때뿐이다(정본 §8.1(2a) · §8.2(4a)(4c)). 그 `some_value` 를 받은 지역은 같은 자리 표를 물려받는다.
+            if (d->code[q].w == IRW_LBUF || d->code[q].w == IRW_LBUFC || d->code[q].w == IRW_ALLOCB) orig[in->a] = (proven_u32)q + 1;
+            else if (d->code[q].w == IRW_SOMEVAL && q > 0 && d->code[q - 1].w == IRW_LOAD && d->code[q - 1].a >= (proven_i64)d->nparams &&
+                     d->code[q - 1].a < 64) orig[in->a] = orig[d->code[q - 1].a];
             else if (d->code[q].w == IRW_LOAD && d->code[q].a >= (proven_i64)d->nparams && d->code[q].a < 64) orig[in->a] = orig[d->code[q].a];
         }
         letp &= ~many;
@@ -2816,7 +2836,7 @@ static void ir_excl_skip(low_ir_t *ir) {
             while (si < d->nxsites && d->xsites[si].at < k) si++;
             const low_ir_xsite_t *st = (si < d->nxsites && d->xsites[si].at == k && d->xsites[si].nargs == e->nparams) ? &d->xsites[si] : NULL;
             for (proven_size_t q = 0; q < e->nxpairs; q++) {
-                const int r = st ? ir_xwhy(d, kept, stable, st, &e->xpairs[q], letp, orig) : XW_NOSITE;
+                const int r = st ? ir_xwhy(d, kept, stable, st, &e->xpairs[q], letp, orig, lito) : XW_NOSITE;
                 if (r != XW_OK) { XP_BAD(ct, q); XW_SET(ct, q, r); }
             }
         }

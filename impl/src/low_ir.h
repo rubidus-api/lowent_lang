@@ -923,7 +923,9 @@ typedef struct low_ir_xpair { proven_u8 i, j, mode; bool skipped; proven_u32 at;
 //   5 이 op 의 칸이 아닌 이름 · 6 리터럴 · 7 그 밖
 //   ★ W-20261105-2304 — 구간의 끝은 `lo + lom·v` 꼴이다(v = 칸 lov-1 의 실행 중 값 · lov 0 이면 상수). `[0, k)` 와 `[k, n)` 처럼
 //   실행 중 한 점에서 맞닿는 조각을 견준다. via = 이 인자가 `let` 별칭을 거쳐 기댄 칸들(그 `let` 뒤로 바뀌지 않아야 보증이 선다).
-typedef struct { proven_u8 kind, why; proven_u16 slot; proven_u8 lov, hiv; proven_u32 lom, him; proven_i64 lo, hi; proven_u64 via; } low_ir_xarg_t;
+//   ★ W-20261107-0001 — enc = 1 이면 조각이 칸의 상수 구간 [elo, ehi) 안에 있다(상수 끝으로 자른 조각을 다시 자른 것 · 그것을 `view_array` 로
+//   본 뒤 자른 것 — `subslice` 는 밖이면 멈추므로 안쪽은 바깥 안에 있다). 끝은 그 칸의 원소 단위다.
+typedef struct { proven_u8 kind, why; proven_u16 slot; proven_u8 lov, hiv, enc; proven_u32 lom, him; proven_i64 lo, hi, elo, ehi; proven_u64 via; } low_ir_xarg_t;
 #define IR_XEND_UNK 0xffffffffu   /* lom · him 이 이 값이면 그 끝은 모른다(실행 중 값 · 읽지 못한 식) */
 // 부름 자리 하나: at = 그 CALL 의 자리, taint = 인자에 참조(`ref` · `mut_ref` · `addr`)가 섞였다(칸이 그사이 바뀔 수 있다 — 보증 없음)
 typedef struct low_ir_xsite { proven_u32 at; proven_u8 nargs; bool taint; low_ir_xarg_t a[LOW_MAX_PARAMS]; } low_ir_xsite_t;

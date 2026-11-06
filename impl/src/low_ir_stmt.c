@@ -2689,7 +2689,9 @@ static bool ir_xeq(proven_i64 ak, proven_u32 am, proven_u8 av, proven_i64 bk, pr
     return ak == bk && am == bm && (!am || av == bv);
 }
 // letp(보고용 · 0 이면 안 가른다) = 한 번만 `… subslice` 나 입력 칸 그대로를 받은 지역 칸 · stable = 그 `let` 뒤로 안 바뀌는 칸
-static int ir_xwhy(const low_ir_def_t *caller, proven_u64 kept, proven_u64 stable, const low_ir_xsite_t *st, const low_ir_xpair_t *p, proven_u64 letp) {
+// orig[s] = 지역 칸 s 가 이 op 의 틀 안 나열(`var wb lit array 640 u8 _ . .` — IRW_LBUF · IRW_LBUFC)을 받았으면 그 명령의 자리 + 1(0 = 아니다).
+static int ir_xwhy(const low_ir_def_t *caller, proven_u64 kept, proven_u64 stable, const low_ir_xsite_t *st, const low_ir_xpair_t *p, proven_u64 letp,
+                   const proven_u32 *orig) {
     if (st->taint) return XW_TAINT;
     if (p->i >= st->nargs || p->j >= st->nargs) return XW_NOSITE;
     const low_ir_xarg_t x = st->a[p->i], y = st->a[p->j];
@@ -2709,6 +2711,14 @@ static int ir_xwhy(const low_ir_def_t *caller, proven_u64 kept, proven_u64 stabl
         }
         if (x.kind == 1 && y.kind == 1) return p->mode == IR_XCHK_IN ? XW_OK : XW_SAME_WHOLE;   // 칸 그대로 둘 — 같은 구간
         return x.kind == 3 || y.kind == 3 ? XW_SAME_DYN : XW_SAME_WHOLE;
+    }
+    // ★★ W-20261106-2120 (소유자 «추천대로 해 주세요») — **op 이 스스로 지은 배열**. 틀 안 나열은 선언 자리마다 제 바이트를 갖는다
+    //   (정본 §6.2.6(7) ⓐ · 자리는 op 안에서 늘기만 한다 — low_ir.c ir_lit_fill). 그러니 다른 자리의 나열과도, 부름 전부터 있던 입력과도
+    //   겹칠 수 없다. 칸이 한 번만 묶이고 참조를 주지 않아야 한다(stable) · 입력은 몸이 다시 쓰지 않아야 한다(kept — 다시 쓰면 그 나열을 가리킬 수 있다).
+    if (orig && x.slot < 64 && y.slot < 64) {
+        const proven_u32 ox = orig[x.slot], oy = orig[y.slot];
+        const bool px = x.slot < caller->nparams && ((kept >> x.slot) & 1u), py = y.slot < caller->nparams && ((kept >> y.slot) & 1u);
+        if ((ox && oy && ox != oy) || (ox && py) || (oy && px)) return XW_OK;
     }
     if (x.slot >= caller->nparams || y.slot >= caller->nparams || x.slot >= 64 || y.slot >= 64) {
         const bool lx = x.slot < caller->nparams || (x.slot < 64 && ((letp >> x.slot) & 1u)), ly = y.slot < caller->nparams || (y.slot < 64 && ((letp >> y.slot) & 1u));
@@ -2783,6 +2793,16 @@ static void ir_excl_skip(low_ir_t *ir) {
         }
         const proven_u64 pmask = d->nparams >= 64 ? ~0ull : ((1ull << d->nparams) - 1);
         const proven_u64 stable = (kept & pmask) | (once & ~many & ~refd & ~pmask);
+        // ★ W-20261106-2120 — 틀 안 나열을 받은 지역(그것을 그대로 옮겨 담은 지역은 같은 나열이다 — 같은 자리 표를 물려받는다)
+        proven_u32 orig[64] = { 0 };
+        for (proven_size_t k = 1; k < d->ncode; k++) {
+            const low_ir_ins_t *in = &d->code[k];
+            if (in->w != IRW_STORE || in->a < (proven_i64)d->nparams || in->a >= 64 || !((stable >> in->a) & 1u)) continue;
+            proven_size_t q = k - 1;
+            if (d->code[q].w == IRW_VARRAY && q > 0) q--;
+            if (d->code[q].w == IRW_LBUF || d->code[q].w == IRW_LBUFC) orig[in->a] = (proven_u32)q + 1;
+            else if (d->code[q].w == IRW_LOAD && d->code[q].a >= (proven_i64)d->nparams && d->code[q].a < 64) orig[in->a] = orig[d->code[q].a];
+        }
         letp &= ~many;
         proven_size_t si = 0;
         for (proven_size_t k = 0; k < d->ncode; k++) {
@@ -2796,7 +2816,7 @@ static void ir_excl_skip(low_ir_t *ir) {
             while (si < d->nxsites && d->xsites[si].at < k) si++;
             const low_ir_xsite_t *st = (si < d->nxsites && d->xsites[si].at == k && d->xsites[si].nargs == e->nparams) ? &d->xsites[si] : NULL;
             for (proven_size_t q = 0; q < e->nxpairs; q++) {
-                const int r = st ? ir_xwhy(d, kept, stable, st, &e->xpairs[q], letp) : XW_NOSITE;
+                const int r = st ? ir_xwhy(d, kept, stable, st, &e->xpairs[q], letp, orig) : XW_NOSITE;
                 if (r != XW_OK) { XP_BAD(ct, q); XW_SET(ct, q, r); }
             }
         }

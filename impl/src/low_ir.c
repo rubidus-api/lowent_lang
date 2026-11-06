@@ -1020,9 +1020,17 @@ static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size
             return ir_xarg(c, (const low_cst_t *const *)nd->kids, 0, nd->nkids, depth + 1);
         z.why = 7; return z;
     }
+    // ★ W-20261106-2120 — `view_array T X` 는 X 의 **같은 바이트**를 다른 원소로 본다(베끼지 않는다). 구간은 X 의 바이트 그대로다.
+    //   표식 why = 1(«본 것») — 그 위의 `subslice` 는 끝이 원소 단위라 바이트 구간과 견줄 수 없다(아래에서 «칸 안 어딘가» 로).
+    if (to - from == 3 && is_atom(k[from]) && veq(k[from]->tok.lex, "view_array")) {
+        low_ir_xarg_t b = ir_xarg(c, k, from + 2, from + 3, depth + 1);
+        if (b.kind == 1 || b.kind == 2) b.why = 1;
+        return b;
+    }
     if (to - from == 4 && is_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
         low_ir_xarg_t b = ir_xarg(c, k, from + 1, from + 2, depth + 1);
         if (!b.kind || b.kind == 3 || b.kind == 4) return b;           // 모른다 · 밑이 이미 모르는 구간 · 리터럴의 조각도 리터럴이다
+        if (b.why == 1) { b.kind = 3; return b; }                       // 본 것을 또 자른다 — 끝이 원소 단위다
         // 끝 하나를 못 읽으면 그 끝만 모른다(IR_XEND_UNK) — `[k, len s.)` 의 시작은 여전히 견줄 수 있다
         ir_xlin_t lo, hi;
         const bool lok = ir_xlin(c, k[from + 2], &lo, 0), hok = ir_xlin(c, k[from + 3], &hi, 0);

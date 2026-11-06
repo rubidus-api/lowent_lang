@@ -174,3 +174,50 @@ rem ⑩ 문자열 리터럴을 읽는 자리에
 export proc litr input s mut slice u8 . output u64 . effects none . do
   return lit_rd s. "abc" . .
 end .
+
+rem ★★ 2026-11-06 (W-20261106-2120 · 소유자 «추천대로 해 주세요») — ⑬ op 이 스스로 지은 배열(`var … lit array …`)은 제 틀 바이트를 갖는다 —
+rem   다른 자리의 나열과도, 부름 전부터 있던 입력과도 겹칠 수 없다. 그 배열을 옮겨 담은 이름(⑭)은 같은 바이트다 — 검사가 남고 겹치면 멈춘다.
+rem   입력 칸을 그 배열로 다시 묶는 글(`set s. x.`)은 검사층이 거절한다(E-LIT-ESCAPE) — 그래도 건너뛰기는 몸이 다시 쓴 입력을 믿지 않는다.
+proc put6 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 71 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 72 .  end .
+  return add cast u64 idx a. 0 . . cast u64 idx b. 0 . . . .
+end .
+export proc own2 input s mut slice u8 . output u64 . effects none . do
+  guard ge len s. . 4 . else return 99 . .
+  var x lit array 8 u8 _ . .
+  var y lit array 8 u8 _ . .
+  let r1 u64 put6 x. y. . .
+  let r2 u64 put6 subslice x. 0 4 . s. . .
+  return add add r1. r2. . cast u64 idx s. 0 . . . .
+end .
+proc put7 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 81 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 82 .  end .
+  return add cast u64 idx a. 0 . . cast u64 idx b. 0 . . . .
+end .
+export proc ownsame input k usize . output u64 . effects none . do
+  var x lit array 8 u8 _ . .
+  var z mut slice u8 x. .
+  return put7 subslice x. 0 4 . subslice z. k. 8 . . .
+end .
+
+rem ⑯ 할당기 바이트(여기서는 입력)를 상수 끝으로 잘라 다른 원소로 본 조각 — `view_array` 는 같은 바이트다 · 안 겹치는 구간이다
+proc put9 input a mut slice u64 . input b mut slice u64 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 101 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 102 .  end .
+  return add idx a. 0 . idx b. 0 . . .
+end .
+export proc viewed input mem mut slice u8 . input k usize . output u64 . effects none . do
+  guard ge len mem. . 32 . else return 99 . .
+  let x mut slice u64 view_array u64 subslice mem. 0 16 . . .
+  let y mut slice u64 view_array u64 subslice mem. 16 32 . . .
+  let r1 u64 put9 x. y. . .
+  return add r1. put9b subslice x. 0 1 . subslice y. k. 2 . . . .
+end .
+rem ⑰ 본 것을 또 자르면 끝이 원소 단위다 — 바이트 구간과 견주지 않는다(검사가 남는다)
+proc put9b input a mut slice u64 . input b mut slice u64 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 111 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 112 .  end .
+  return add idx a. 0 . idx b. 0 . . .
+end .

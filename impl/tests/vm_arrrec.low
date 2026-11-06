@@ -6,6 +6,12 @@ rem   차등 스윕이 VM 과 네이티브에 같은 인자로 돌려 견준다.
 
 module vm_arrrec .
 
+rem ★ 2026-11-05 (W-20261105-2304) — 태그 경로에 남는 도우미. 전엔 128 비트 지역(`let big u128 …`)이 op 을 태그 경로에 붙잡았다 — 128 비트가
+rem   빠른 경로에 서자 그 붙잡기가 사라졌다. 참조를 받는 op 은 **설계상** 태그 경로다(그 경로가 참조를 따라간다) — 그것을 부르는 op 도 거기 남는다.
+fn tag_pin input r ref u8 . output u64 . do
+  return cast u64 deref r. . . .
+end .
+
 struct bd do
   id u64 .
   body array 4 u32 .
@@ -140,7 +146,8 @@ proc poke0 input r mut bd . input v u32 . output u64 . effects none . do
 end .
 
 export proc mutvia input a u32 . output u64 . effects none . do
-  let big u128 widen u128 0 . .
+  let pv u8 0 .
+  let big u64 tag_pin ref pv. . .
   var b lit bd do id 1 . body lit array 4 u32 a. 2 3 4 . . end . .
   let z u64 poke0 b. 77 . .
   return add add widen u64 idx field b. body . 0 . . mul widen u64 idx field b. body . 1 . . 100 . . cast u64 big. . . .

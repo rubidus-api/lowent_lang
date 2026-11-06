@@ -450,6 +450,10 @@ static unsigned cbe_arr_len(const low_ir_sfield_t *f);
 /* ★★ 2026-11-01 (W-20261101-1150) — **액터를 가리키는 값**(컨테이너가 든 할당기 칸을 읽은 것). 슬라이스 스택 `ss[]` · 지역 `sloc[]` 에
    lw_sl 하나로 산다(lw_aref_in — 태그 쪽 레코드의 자리). ve = 그 액터 상태 구조체의 sidx + 1. */
 #define K_AREF 13
+// ★★ W-20261105-2304 (소유자 «128비트도 하기») — **128 비트 정수도 빠른 경로의 값이다.** 칸은 `lw_u128` 하나(`lw_hs` 스택 · `lw_hloc` 지역).
+//   부름을 건널 때는 정수 칸 둘(아래 64 · 위 64 비트 — `ai` / `ci`)로, 돌려줄 때는 `lw_r` 의 바이트 칸(`r_.r`, tag 11)으로 간다.
+//   셈의 규칙은 프렐류드의 한 몸(`lw_wc_*`)이다 — 태그 경로의 `lw_w_*` 도 그것을 부른다.
+#define K_W128 14
 // ★★★ **비트셋은 64비트 마스크다 — 박스가 아니다.**
 //   태그 경로는 그것을 **8칸짜리 풀**에 넣는다 ⇒ **루프에서 아홉 번째를 만들면 죽는다**
 //   (레코드가 64칸에서 죽던 것과 **같은 병**). 마스크는 그냥 `long long` 이다.
@@ -542,6 +546,7 @@ static kstack_t *cbe_at_ensure(int which, proven_size_t n) {
 }
 
 static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *sc);
+static bool cbe_w128_place(const low_ir_t *ir, const low_ir_def_t *d);   // ★ W-20261105-2304 (아래)
 // ★ RFC-0151 — 128 비트 정수의 낱말인가(low_vm.c vm_is_w128 의 거울 — 그 판정이 바뀌면 여기도).
 static bool cbe_is_w128(const low_ir_ins_t *in) {
     if (in->w == IRW_MK128) return true;
@@ -1588,6 +1593,7 @@ static int cbe_field_idx(const low_ir_t *ir, proven_u8str_view_t nm) {
 // 빠른 경로가 아는 낱말인가 (종류는 아래 시뮬레이터가 본다)
 static bool cbe_fast_word(const low_ir_ins_t *in) {
     switch (in->w) {
+        case IRW_MK128:                                     // ★ W-20261105-2304 — 128 비트 정수(cbe_w128_step)
         case IRW_CONST: case IRW_LOAD: case IRW_STORE:
         case IRW_RET:   case IRW_BR:   case IRW_BRZ:   case IRW_SWITCH:   // ★ MM9-B2 점프 테이블
         case IRW_EQ: case IRW_NE: case IRW_LT: case IRW_LE: case IRW_GT: case IRW_GE:
@@ -1930,10 +1936,13 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                                       "the word `%s` is not lowered yet", low_irw_name(d->code[k].w));
                 break;
             }
-            // ★ RFC-0151 — 128 비트 정수는 태그 경로에만 산다(빠른 길의 칸은 `long long` 하나다). 입력 · 결과 · 낱말 어느 하나라도.
-            if (cbe_is_w128(&d->code[k]) || d->param_w128 || cbe_out_w128(d)) {
+            // ★ RFC-0151 — 128 비트 정수는 태그 경로에만 살았다(빠른 길의 칸은 `long long` 하나였다).
+            //   ★★ W-20261105-2304 (소유자 «128비트도 하기») — 이제 지역 · 셈 · 입력 · 결과 · 빠른 op 사이의 부름은 빠른 경로다(K_W128).
+            //   남는 것은 칸에 든 128 비트 값(구조체 칸 · 배열 · 슬라이스 원소 · 스택 원소)과 값으로 «넘침» 을 알리는 `chk_*` · `narrow_try`
+            //   — 종류 실행(cbe_w128_step)이 까닭을 말한다.
+            if (cbe_w128_place(ir, d)) {
                 sc[i] = false;
-                if (i < 512) snprintf(g_why[i], sizeof g_why[0], "128-bit integers stay on the tagged path (RFC-0151 — a fast slot is one `long long`)");
+                if (i < 512) snprintf(g_why[i], sizeof g_why[0], "a 128-bit value in a struct field, array, slice or stack element stays on the tagged path");
                 break;
             }
             // ★ 피연산자가 있는 asm 은 값을 **태그 프레임의 지역**에서 읽는다 — 빠른 프레임엔
@@ -2028,6 +2037,7 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
                   : (!g_no_elemsl && d->param_rowb[q]) ? K_ROWS : K_SL;   // ★ RFC-0109 단계 1 · 줄의 나열(2026-11-01)
         else if ((d->param_struct >> q) & 1u) lk[q] = (unsigned char)(K_REC + d->param_sidx[q]);
         else if ((d->param_flt >> q) & 1u) lk[q] = K_FLT;
+        else if ((d->param_w128 >> q) & 1u) lk[q] = K_W128;   // ★ W-20261105-2304
         else if ((d->param_bset >> q) & 1u) lk[q] = K_BSET;
         else if ((d->param_opt >> q) & 1u) lk[q] = d->param_optsl[q] ? K_OPTSL : K_OPT;   // ★ option·result 파라미터 · option(슬라이스)는 2026-11-01
         else if ((d->param_vec >> q) & 1u) lk[q] = K_VEC;   // ★ 벡터 파라미터
@@ -2086,6 +2096,119 @@ static bool cbe_optrec_sl(const low_ir_t *ir, unsigned char k, unsigned char ve,
     if (k != K_OPT || !ve || fl || (proven_size_t)(ve - 1) >= ir->nstructs) return false;
     return cbe_struct_has_sl(ir, ve - 1);
 }
+// ★★ W-20261105-2304 — 128 비트 값이 **칸 안에** 사는 op 인가(구조체 칸 · 배열 · 슬라이스 원소 · 뷰 · 스택 원소).
+//   빠른 경로의 칸 읽기는 그런 칸을 8 바이트 수로 읽는다 — 128 비트 셈에 닿는 op 이 그런 칸을 만지면 태그 경로에 둔다(그 경로가 16 바이트를 안다).
+//   128 비트에 닿지 않는 op 은 묻지 않는다(전과 같다).
+static bool cbe_w128_touch(const low_ir_def_t *d) {
+    if (d->param_w128 || cbe_out_w128(d)) return true;
+    for (proven_size_t k = 0; k < d->ncode; k++) if (cbe_is_w128(&d->code[k])) return true;
+    return false;
+}
+static bool cbe_struct_w16(const low_ir_t *ir, int sx, int depth) {
+    if (sx < 0 || (proven_size_t)sx >= ir->nstructs || depth > 8) return false;
+    for (proven_size_t q = 0; q < ir->structs[sx].nf; q++) {
+        const low_ir_sfield_t *f = &ir->structs[sx].f[q];
+        if (f->size == 16 || (f->sidx >= 0 && cbe_struct_w16(ir, f->sidx, depth + 1))) return true;
+    }
+    return false;
+}
+static bool cbe_w128_place(const low_ir_t *ir, const low_ir_def_t *d) {
+    if (!cbe_w128_touch(d)) return false;
+    bool w16s = false;
+    for (proven_size_t sx = 0; sx < ir->nstructs && !w16s; sx++) w16s = cbe_struct_w16(ir, (int)sx, 0);
+    for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS; q++) {
+        if (((d->param_slice >> q) & 1u) && (d->param_esz[q] == 16 || d->param_rowe[q] == 16)) return true;
+        if (((d->param_struct >> q) & 1u) && w16s) return true;
+    }
+    for (proven_size_t k = 0; k < d->ncode; k++) {
+        const low_ir_ins_t *in = &d->code[k];
+        switch (in->w) {
+            case IRW_VARRAY: if (!(in->a & IR_STRUCT_BIT) && (in->a & 0xff) == 16) return true; break;
+            case IRW_SNEW: case IRW_SPUSH: case IRW_SPOP: return true;
+            case IRW_MAKE: case IRW_FIELD: case IRW_FSTORE: case IRW_VIEW: case IRW_TRYVIEW: case IRW_ENCODE:
+                if (w16s) return true; break;
+            default: break;
+        }
+    }
+    return false;
+}
+// ★★ W-20261105-2304 — 128 비트 낱말 하나(종류 실행과 방출이 **함께** 부른다 — 두 벌로 짓지 않는다). out 이 NULL 이면 종류만 본다.
+//   답: -1 이 낱말이 아니다(다음 규칙으로) · 0 빠른 경로에 못 내린다(g_sub 가 까닭) · 1 다 했다.
+//   피연산자가 정수 칸(K_INT)이면 위 절반을 0 으로 본다 — VM 의 값 칸이 그렇다(정수 값의 `n` 은 0). 옮기는 양(shl …)이 그 자리다.
+static const char *cbe_w128_pop(unsigned char k) { return k == K_W128 ? "lw_hs[--lw_hsp]" : "(lw_u128)(unsigned long long)st[--sp]"; }
+static int cbe_w128_step(kstack_t *st, const low_ir_ins_t *in, FILE *out) {
+    const bool eqw = (in->w == IRW_EQ || in->w == IRW_NE) && st->n >= 2 && (st->k[st->n-1] == K_W128 || st->k[st->n-2] == K_W128);
+    if (!eqw && !cbe_is_w128(in)) return -1;
+    const long long m = (long long)in->a;
+    #define WK_OK(k_) ((k_) == K_W128 || (k_) == K_INT)
+    #define W_PUSH(k_) do { st->o[st->n] = -1; st->ve[st->n] = 0; st->vn[st->n] = 0; st->fl[st->n] = 0; st->k[st->n++] = (k_); } while (0)
+    static const struct { low_irw_t w; int op; } WB[] = {
+        { IRW_ADD, 0 }, { IRW_SUB, 1 }, { IRW_MUL, 2 }, { IRW_DIV, 3 }, { IRW_MOD, 4 }, { IRW_LT, 5 }, { IRW_LE, 6 }, { IRW_GT, 7 },
+        { IRW_GE, 8 }, { IRW_BAND, 9 }, { IRW_BOR, 10 }, { IRW_BXOR, 11 }, { IRW_SHL, 12 }, { IRW_SHR, 13 }, { IRW_WSHL, 14 },
+        { IRW_WSHR, 15 }, { IRW_ROTL, 16 }, { IRW_ROTR, 17 } };
+    static const struct { low_irw_t w; int op; } WU[] = {
+        { IRW_NEG, 0 }, { IRW_BNOT, 1 }, { IRW_POPCNT, 2 }, { IRW_CLZ, 3 }, { IRW_CTZ, 4 }, { IRW_BSWAP, 5 } };
+    if (st->n > 56) return 0;
+    if (in->w == IRW_MK128) {
+        if (st->n < 1 || st->k[st->n-1] != K_INT) return 0;
+        st->n--;
+        if (out) fprintf(out, "    { long long lo_ = st[--sp]; lw_hs[lw_hsp++] = LW_WOF(lo_, %lluull); }\n", (unsigned long long)in->a);
+        W_PUSH(K_W128); return 1;
+    }
+    if (eqw) {
+        if (!WK_OK(st->k[st->n-1]) || !WK_OK(st->k[st->n-2])) return 0;
+        const unsigned char kb = st->k[st->n-1], ka = st->k[st->n-2];
+        st->n -= 2;
+        if (out) fprintf(out, "    { lw_u128 b_ = %s; lw_u128 a_ = %s; st[sp++] = a_ %s b_; }\n", cbe_w128_pop(kb), cbe_w128_pop(ka), in->w == IRW_EQ ? "==" : "!=");
+        W_PUSH(K_INT); return 1;
+    }
+    if (in->w == IRW_CAST) {
+        if (m & 0x40000) { snprintf(g_sub, sizeof g_sub, "`narrow_try` of a 128-bit value (its option holds one 64-bit slot)"); return 0; }
+        if (st->n < 1) return 0;
+        const unsigned char k0 = st->k[st->n-1];
+        if (m & IR_SRC_W128) {
+            if (k0 != K_W128) return 0;
+            st->n--;
+            if ((m & 0xff) == 0) { if (out) fprintf(out, "    fs[fsp++] = lw_wc_flt(%lldll, lw_hs[--lw_hsp]);\n", m); W_PUSH(K_FLT); }
+            else if ((m & 0xff) == 16) { if (out) fprintf(out, "    lw_hs[lw_hsp-1] = lw_wf_of_w(%lldll, lw_hs[lw_hsp-1]);\n", m); W_PUSH(K_W128); }
+            else { if (out) fprintf(out, "    st[sp++] = lw_wf_to_int(%lldll, lw_hs[--lw_hsp]);\n", m); W_PUSH(K_INT); }
+            return 1;
+        }
+        if ((m & 0xff) != 16) return 0;
+        st->n--;
+        if (k0 == K_INT) { if (out) fprintf(out, "    lw_hs[lw_hsp++] = lw_wf_of_int(%lldll, st[--sp]);\n", m); }
+        else if (k0 == K_FLT) { if (out) fprintf(out, "    lw_hs[lw_hsp++] = lw_wf_of_flt(%lldll, fs[--fsp]);\n", m); }
+        else if (k0 == K_W128) { if (out) fprintf(out, "    lw_hs[lw_hsp-1] = lw_wf_of_int(%lldll, LW_WLO(lw_hs[lw_hsp-1]));\n", m); }   // 태그 경로와 같다(원천 표식이 없으면 아래 64 비트)
+        else return 0;
+        W_PUSH(K_W128); return 1;
+    }
+    for (size_t q = 0; q < sizeof WU / sizeof WU[0]; q++) {
+        if (WU[q].w != in->w) continue;
+        if (st->n < 1 || !WK_OK(st->k[st->n-1])) return 0;
+        const unsigned char ka = st->k[--st->n];
+        if (out) fprintf(out, "    { lw_u128 a_ = %s; lw_hs[lw_hsp++] = lw_wc_un(%lldll, %d, a_); }\n", cbe_w128_pop(ka), m, WU[q].op);
+        W_PUSH(K_W128); return 1;
+    }
+    for (size_t q = 0; q < sizeof WB / sizeof WB[0]; q++) {
+        if (WB[q].w != in->w) continue;
+        const int op = WB[q].op;
+        if (op <= 2 && (m & 0x40000)) { snprintf(g_sub, sizeof g_sub, "`chk_*` on a 128-bit value (its option holds one 64-bit slot)"); return 0; }
+        if (st->n < 2 || !WK_OK(st->k[st->n-1]) || !WK_OK(st->k[st->n-2])) return 0;
+        const unsigned char kb = st->k[st->n-1], ka = st->k[st->n-2];
+        st->n -= 2;
+        if (op >= 5 && op <= 8) {
+            if (out) fprintf(out, "    { lw_u128 b_ = %s; lw_u128 a_ = %s; st[sp++] = lw_wc_cmp(%lldll, %d, a_, b_); }\n", cbe_w128_pop(kb), cbe_w128_pop(ka), m, op);
+            W_PUSH(K_INT);
+        } else {
+            if (out) fprintf(out, "    { lw_u128 b_ = %s; lw_u128 a_ = %s; lw_hs[lw_hsp++] = lw_wf_bin(%lldll, %d, a_, b_); }\n", cbe_w128_pop(kb), cbe_w128_pop(ka), m, op);
+            W_PUSH(K_W128);
+        }
+        return 1;
+    }
+    #undef WK_OK
+    #undef W_PUSH
+    return 0;
+}
 // 바이트 슬라이스인가 — 원소 폭 1(또는 아직 안 적힌 0) · 부동 아님. 호스트 잎은 바이트만 읽고 쓴다.
 #define CBE_BYTES(st_, i_) ((st_).k[(i_)] == K_SL && (st_).ve[(i_)] <= 1 && !(st_).fl[(i_)])
 static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *sc,
@@ -2113,6 +2236,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
         // ★ **깊이에 벽이 있어야 한다.** 없으면 종류 스택이 자기 이웃 배열을 밟는다
         //   — 그리고 컴파일러가 **조용히 죽는다**(그렇게 죽었다: json.low).
         if (st.n < 0 || st.n > 56) return false;
+        { const int w128_ = cbe_w128_step(&st, in, NULL);   // ★ W-20261105-2304 — 128 비트 낱말(방출과 같은 함수)
+          if (w128_ == 0) return false;
+          if (w128_ == 1) continue; }
         unsigned char a1, a2, a3;
         switch (in->w) {
             case IRW_CONST: st.o[st.n] = -1; st.k[st.n++] = K_INT; break;
@@ -2129,6 +2255,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_STORE:
                 if (st.n < 1) return false;
                 if (in->a >= CBE_LOCMAX) return cbe_locals_over(in->a);
+                // ★ W-20261105-2304 — 128 비트로 선언한 지역에 담는 수(`var s u128 0 .` 의 0)는 128 비트 값이다(위 절반 0 — VM 과 같다)
+                if (st.k[st.n-1] == K_INT && ((d->loc_w128 >> in->a) & 1u)) { st.k[st.n-1] = K_W128; st.o[st.n-1] = -1; }
                 // ★★ 2026-11-01 (W-20261101-1828) — 배열 칸 레코드를 담는 지역은 **한 번만** 담긴다. VM 의 `set b. <새 레코드>` 는 새 버퍼를
                 //   주고 앞서 낸 칸 슬라이스는 옛 바이트를 계속 본다 — 빠른 경로는 같은 `rbuf` 에 덮어쓰므로 두 번째 담기가 그 슬라이스를 바꾼다.
                 //   (되풀이 안의 `let` 은 담는 자리가 하나다 — 앞 바퀴의 슬라이스는 검사층이 블록 밖으로 못 나가게 한다, E-LIT-ESCAPE.)
@@ -3117,7 +3245,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     st.o[st.n-1] = -1;
                     break;
                 }
-                if (a3 != K_INT || a1 != a2) return false;
+                if (a3 != K_INT || a1 != a2 || a1 == K_W128) return false;   // ★ W-20261105-2304 — 128 비트 고르기는 방출이 모른다
                 st.n -= 2; st.k[st.n-1] = a1; break;
             case IRW_SWITCH: {   // ★ MM9-B2 빠른 경로 — 값(K_INT) 을 pop 하고, 뒤따르는 N+1 개 테이블 BR
                 //   각각에 팝된 상태를 전파한다(SWITCH 는 그 BR 로 계산 점프한다). 그러면 각 BR·본문이
@@ -3145,6 +3273,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             }
             case IRW_RET: {
                 unsigned char rk = st.n ? st.k[st.n-1] : K_INT;
+                if (rk == K_INT && cbe_out_w128(d)) rk = K_W128;   // ★ W-20261105-2304 — 128 비트를 돌려주는 op 의 수 상수(위 절반 0 — VM 과 같다)
                 // ★ 2026-11-01 — 갓 띄운 액터(제 자리 없음)를 돌려주면 부른 쪽이 그것을 칸에 담을 수 없다 — 담는 유닛이면 거절한다.
                 if (st.n && rk >= K_REC && rk < K_VIEW && (st.fl[st.n-1] & CBE_FL_NOID) && rk - K_REC < 64 && g_aid_need[rk - K_REC]) {
                     snprintf(g_sub, sizeof g_sub, "returns an actor spawned in this op (the caller could not keep it in a container)"); return false; }
@@ -3203,13 +3332,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ 겹 option 을 돌려주는 op 은 `return error e .` · `return none .` 도 적는다(안이 빈 바깥 값 — 표식 없는 K_OPT).
                 if (rk == K_OPT && st.n && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0 && *retk == K_OPT2) rk = K_OPT2;
                 if (rk == K_OPT2 && *retk == K_OPT && g_ret_optrec == 0) *retk = K_OPT2;
-                if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_OPT2 && rk != K_FLT && rk != K_SL && rk != K_ROWS && rk < K_REC) {
+                if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_OPT2 && rk != K_FLT && rk != K_W128 && rk != K_SL && rk != K_ROWS && rk < K_REC) {
                     snprintf(g_sub, sizeof g_sub, "returns a kind the fast path has no shape for (%u)", rk); return false; }
                 if (rk >= K_VIEW) return false;
                 // ★ RFC-0106 단계 4 — 슬라이스 필드를 든 레코드도 **돌려줄 수 있다**
                 //   (경계 복원이 `cbe_emit_rec_recon` 에 실렸다).
                 // ★ 2026-11-01 (W-20261101-1828) — 배열 칸 레코드를 매개변수로 받는 op 은 수 · 수 레코드만 돌려준다(칸 슬라이스가 부른 쪽의 임시를 넘어 살 수 있다)
-                if (cbe_def_arrpar(ir, d) && rk != K_INT && rk != K_FLT && !(rk >= K_REC && rk < K_VIEW && !cbe_struct_has_sl(ir, rk - K_REC)) &&
+                if (cbe_def_arrpar(ir, d) && rk != K_INT && rk != K_FLT && rk != K_W128 && !(rk >= K_REC && rk < K_VIEW && !cbe_struct_has_sl(ir, rk - K_REC)) &&
                     !(rk >= K_REC && rk < K_VIEW && cbe_rec_arr_ok(ir, rk - K_REC))) {
                     snprintf(g_sub, sizeof g_sub, "takes a struct with array fields and returns kind %u (a field slice could outlive the caller's record)", rk); return false; }
                 if (rk >= K_REC && cbe_make_for_struct(ir, rk - K_REC) < 0 && !cbe_penum_ok(ir, rk - K_REC)) {
@@ -3316,7 +3445,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                        : ((ce->param_bset >> q) & 1u) ? K_BSET
                                        : ((ce->param_opt >> q) & 1u) ? (ce->param_optsl[q] ? K_OPTSL : K_OPT)
                                        : ((ce->param_vec >> q) & 1u) ? K_VEC
+                                       : ((ce->param_w128 >> q) & 1u) ? K_W128   // ★ W-20261105-2304
                                        : ((ce->param_flt >> q) & 1u) ? K_FLT : K_INT;
+                    if (want == K_W128 && q < LOW_MAX_PARAMS && ce->prng[q].has_rng) {
+                        snprintf(g_sub, sizeof g_sub, "a 128-bit argument with a declared range (the range check reads one 64-bit slot)"); return false; }
                     // ★★ 2026-11-02 (W-20261102-0024 O4) — 마디의 뷰 매개변수는 그 그림자의 뷰만 받는다 · `option (owned 마디)` 는 그 뷰를 싼 option 이나 none
                     if (cbe_pnode(ir, ce, q) >= 0) {
                         if (have != (unsigned char)(K_VIEW + cbe_pnode(ir, ce, q))) { snprintf(g_sub, sizeof g_sub, "argument %d is not a node in allocator bytes", (int)q); return false; }
@@ -3351,6 +3483,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             snprintf(g_sub, sizeof g_sub, "option-slice argument %d has another shape", (int)q); return false; }
                         continue;
                     }
+                    if (want == K_W128 && have == K_INT) continue;   // ★ W-20261105-2304 — 수 인자는 위 절반 0 으로(VM 과 같다)
                     if (have != want) {
                         snprintf(g_sub, sizeof g_sub, "argument %d has the wrong kind (%d vs %d)",
                                  (int)q, (int)have, (int)want);
@@ -3907,6 +4040,8 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     if (cbe_uses(body, "rloc[")) fprintf(out, "unsigned char *rloc[%zu] = {0}; _Alignas(8) unsigned char rbuf[%zu][LW_RECB] = {{0}}; ", n, n);
     if (cbe_uses(body, "rlocsl[")) fprintf(out, "lw_sl rlocsl[%zu][LW_RECF]; (void)rlocsl; ", n);
     if (cbe_uses(body, "floc[")) fprintf(out, "double floc[%zu] = {0}; ", n);
+    if (cbe_uses(body, "lw_hloc[")) fprintf(out, "lw_u128 lw_hloc[%zu] = {0}; ", n);   // ★ W-20261105-2304 — 128 비트 지역
+    if (cbe_uses(body, "lw_hs[")) fputs("lw_u128 lw_hs[16]; int lw_hsp = 0; (void)lw_hsp; ", out);
     if (cbe_uses(body, "wloc[")) fprintf(out, "lw_r wloc[%zu] = {{0,0,{0,0},{0},0}}; ", n);
     if (cbe_uses(body, "wlocsl[")) fprintf(out, "lw_sl wlocsl[%zu][LW_RECF]; (void)wlocsl; ", n);
     if (cbe_uses(body, "wssl[")) fputs("lw_sl wssl[16][LW_RECF]; (void)wssl; ", out);
@@ -4158,6 +4293,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
               //   피호출자가 세운 비트가 **호출자에게 보여야** 하기 때문이다.
               fprintf(out, "    loc[%zu] = ab[%zu];\n", (size_t)q, (size_t)nb2++);
           }
+          else if ((d->param_w128 >> q) & 1u) {   // ★ W-20261105-2304 — 128 비트 입력은 정수 칸 둘(아래 · 위)로 온다
+              fprintf(out, "    lw_hloc[%zu] = LW_WOF(ai[%zu], ai[%zu]);\n", (size_t)q, (size_t)ni, (size_t)ni + 1); ni += 2; }
           else                            fprintf(out, "    loc[%zu] = ai[%zu];\n",  (size_t)q, (size_t)ni++);
       } }
     if (g_cur_di >= 512 || g_needdepth[g_cur_di])
@@ -4221,6 +4358,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                          q, q, ez, ez);
         }
         if (target[j]) fprintf(out, "L%zu:\n", (size_t)j);
+        { const int w128_ = cbe_w128_step(&ks, in, out);   // ★ W-20261105-2304 — 128 비트 낱말(종류 실행과 같은 함수)
+          if (w128_ == 1) continue;
+          if (w128_ == 0) { fputs("    lw_panic(\"fast path: a 128-bit word the kind run did not accept\");\n", out); continue; } }
         switch (in->w) {
             case IRW_CONST: fprintf(out, "    st[sp++] = %lldll;\n", (long long)in->a); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; break;
             case IRW_LOAD:
@@ -4235,6 +4375,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else if (lk[in->a] == K_FLT) {
                     fprintf(out, "    fs[fsp++] = floc[%lld];\n", (long long)in->a);
                     ks.o[ks.n] = (signed char)in->a; ks.k[ks.n++] = K_FLT;
+                }
+                else if (lk[in->a] == K_W128) {   // ★ W-20261105-2304
+                    fprintf(out, "    lw_hs[lw_hsp++] = lw_hloc[%lld];\n", (long long)in->a);
+                    ks.o[ks.n] = (signed char)in->a; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_W128;
                 }
                 else if (lk[in->a] == K_REF) {
                     fputs("    /* ref local: a name — nothing to load */\n", out);
@@ -4289,6 +4433,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             case IRW_STORE: {
                 unsigned char kk = ks.k[--ks.n];
+                if (kk == K_INT && in->a >= 0 && in->a < 64 && ((d->loc_w128 >> in->a) & 1u)) {   // ★ W-20261105-2304 — 종류 실행과 짝
+                    fputs("    lw_hs[lw_hsp++] = (lw_u128)(unsigned long long)st[--sp];\n", out); kk = K_W128; }
                 // ★★★ **지역이 원소폭을 기억해야 한다.** 이 방출기는 여태 `lez` 를 파라미터에만
                 //   채웠다 — 그래서 `let b be slice u16 u"AB" .` 처럼 **타입 있는 슬라이스를
                 //   지역에 담았다가 다시 꺼내면** 폭이 1 로 되돌아가고 `index` 가 바이트를 읽었다.
@@ -4300,6 +4446,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 }
                 if (kk == K_SL || kk == K_ROWS || kk == K_AREF || kk >= K_VIEW) fprintf(out, "    sloc[%lld] = ss[--ssp];\n", (long long)in->a);
                 else if (kk == K_FLT) fprintf(out, "    floc[%lld] = fs[--fsp];\n", (long long)in->a);
+                else if (kk == K_W128) fprintf(out, "    lw_hloc[%lld] = lw_hs[--lw_hsp];\n", (long long)in->a);   // ★ W-20261105-2304
                 else if (kk == K_VEC) fprintf(out, "    vloc[%lld] = vs[--vsp];\n", (long long)in->a);
                 else if (cbe_optrec_sl(ir, kk, ks.ve[ks.n], ks.fl[ks.n]))
                     fprintf(out, "    wloc[%lld] = ws[--wsp]; memcpy(wlocsl[%lld], wssl[wsp], sizeof wlocsl[0]);\n", (long long)in->a, (long long)in->a);
@@ -5854,6 +6001,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 unsigned char dk = ks.k[--ks.n];
                 if (dk == K_SL || dk == K_ROWS || dk == K_AREF || dk >= K_VIEW) fputs("    ssp--;\n", out);
                 else if (dk == K_FLT) fputs("    fsp--;\n", out);
+                else if (dk == K_W128) fputs("    lw_hsp--;\n", out);   // ★ W-20261105-2304
                 else if (dk == K_VEC) fputs("    vsp--;\n", out);
                 else if (dk == K_REF) fputs("    /* ref dropped: nothing on a stack */\n", out);
                 else if (dk == K_OPT || dk == K_OPTSL || dk == K_OPT2) fputs("    wsp--;\n", out);
@@ -6228,6 +6376,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     fputs("    lw_depth--; return ws[wsp-1];\n", out);
                 else if (ks.n && ks.k[ks.n-1] == K_FLT)
                     fputs("    { lw_r r_; r_.v = 0; r_.f = fs[fsp-1]; r_.tag = 5; lw_depth--; return r_; }\n", out);
+                else if (ks.n && ks.k[ks.n-1] == K_W128)   // ★ W-20261105-2304 — 128 비트는 바이트 칸으로(tag 11 · 받는 쪽이 memcpy 로 되읽는다)
+                    fputs("    { lw_r r_ = {0}; lw_u128 w_ = lw_hs[lw_hsp-1]; memcpy(r_.r, &w_, sizeof w_); r_.tag = 11; lw_depth--; return r_; }\n", out);
+                else if (ks.n && ks.k[ks.n-1] == K_INT && cbe_out_w128(d))   // 수 상수를 돌려준다 — 위 절반 0(종류 실행과 짝)
+                    fputs("    { lw_r r_ = {0}; lw_u128 w_ = (lw_u128)(unsigned long long)st[sp-1]; memcpy(r_.r, &w_, sizeof w_); r_.tag = 11; lw_depth--; return r_; }\n", out);
                 else if (ks.n && (ks.k[ks.n-1] == K_SL || ks.k[ks.n-1] == K_ROWS))   // ★ 줄의 나열도 (포인터, 줄 수) — 경계가 줄 모양으로 되짓는다(2026-11-01)
                     fputs("    { lw_r r_; r_.v = 0; r_.f = 0; r_.s = ss[ssp-1]; r_.tag = 6;"
                           " lw_depth--; return r_; }\n", out);
@@ -6272,6 +6424,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     else if ((ce->param_flt >> q) & 1u) nfl++;
                     else if ((ce->param_opt >> q) & 1u) nao++;    // ★ option·result 는 `cao` 로
                     else if ((ce->param_vec >> q) & 1u) nav++;    // ★ 벡터는 `cav` 로
+                    else if ((ce->param_w128 >> q) & 1u) ni += 2;  // ★ W-20261105-2304 — 128 비트는 정수 칸 둘
                     else ni++;
                 }
                 // ★★★ **계약은 빠른 경로에서도 계약이다** (RFC-0055 D3).
@@ -6280,7 +6433,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         if (!ce->prng[pi].has_rng || ((ce->param_slice >> pi) & 1u)) continue;
                         proven_size_t back = 0;
                         for (proven_size_t q = pi + 1; q < ce->nparams; q++)
-                            if (!((ce->param_slice >> q) & 1u)) back++;
+                            if (!((ce->param_slice >> q) & 1u) && !((ce->param_w128 >> q) & 1u)) back++;   // ★ 128 비트는 `st` 에 없다
                         fprintf(out,
                             "    if (LW_UNLIKELY(st[sp-%zu] < %lldll || st[sp-%zu] > %lldll))"
                             " lw_panic(\"argument is outside the parameter's declared range\");\n",
@@ -6420,6 +6573,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                     }
                                 } }
                       }
+                      else if ((ce->param_w128 >> q) & 1u) {   // ★ W-20261105-2304 — 아래 64 · 위 64 비트(받는 쪽 LW_WOF)
+                          bi -= 2;
+                          if (ks.k[ks.n - ce->nparams + q] == K_INT)   // 수 인자 — 위 절반 0(종류 실행과 짝)
+                              fprintf(out, "      ci[%zu] = st[--sp]; ci[%zu] = 0;\n", (size_t)bi, (size_t)bi + 1);
+                          else
+                          fprintf(out, "      { lw_u128 w_ = lw_hs[--lw_hsp]; ci[%zu] = LW_WLO(w_); ci[%zu] = LW_WHI(w_); }\n", (size_t)bi, (size_t)bi + 1);
+                      }
                       else                             fprintf(out, "      ci[%zu] = st[--sp];\n",  (size_t)(--bi));
                   } }
                 proven_size_t cidx = IR_CALL_IDX(in->a);
@@ -6429,6 +6589,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 bool cview = (cidx < 512 && g_retk[cidx] >= K_VIEW && g_retk[cidx] < K_SVIEW);
                 bool cstsl = (cidx < 512 && g_retk[cidx] >= K_SVIEW);   // 구조체 슬라이스 반환
                 bool crec = (cidx < 512 && g_retk[cidx] >= K_REC && g_retk[cidx] < K_VIEW);
+                bool cw128 = (cidx < 512 && g_retk[cidx] == K_W128);   // ★ W-20261105-2304
                 bool cscal = cbe_ret_scalar((proven_size_t)cidx);
                 // ★ 2026-11-01 — 피호출자가 태그 쪽 액터 레코드를 짓고(g_abox) 수를 돌려주면, 그 레코드는 아무도 못 본다 — VM 처럼(rec_wm)
                 //   부른 뒤 풀을 되감는다. 안 그러면 되풀이 안에서 부른 op 이 풀을 다 쓴다(VM 은 되감아 계속 돈다).
@@ -6476,6 +6637,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     fputs("      if ((cr_.tag == 1 || cr_.tag == 3) && cr_.rs) memcpy(wssl[wsp], cr_.rs, sizeof wssl[0]); else memset(wssl[wsp], 0, sizeof wssl[0]); ws[wsp++] = cr_; }\n", out);
                 else if (cwrapped)   fputs("      ws[wsp++] = cr_; }\n", out);
                 else if (cflt)  fputs("      fs[fsp++] = cr_.f; }\n", out);
+                else if (cw128) fputs("      { lw_u128 w_; memcpy(&w_, cr_.r, sizeof w_); lw_hs[lw_hsp++] = w_; } }\n", out);
                 else if (csl)   fputs("      ss[ssp++] = cr_.s; }\n", out);
                 else if (cview) fputs("      ss[ssp++] = cr_.s; }\n", out);   // ★ 구조체 뷰 반환 = 슬라이스로 받는다
                 else if (cstsl) fputs("      ss[ssp++] = cr_.s; }\n", out);   // ★ 구조체 슬라이스 반환
@@ -6505,7 +6667,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         ks.ve[ks.n] = 0; ks.vn[ks.n] = (unsigned char)(g_retve[cidx] > 1 ? g_retve[cidx] : 0); ks.fl[ks.n] = g_retfl[cidx]; }
                     else if (csl && g_retk[cidx] == K_ROWS) { ks.ve[ks.n] = g_retve[cidx]; ks.vn[ks.n] = g_retrb[cidx]; ks.fl[ks.n] = g_retfl[cidx]; }
                     else if (csl) { ks.ve[ks.n] = g_retve[cidx] ? g_retve[cidx] : 1; ks.fl[ks.n] = g_retfl[cidx]; }
-                    ks.k[ks.n++] = cwrapped ? g_retk[cidx] : cflt ? K_FLT : csl ? g_retk[cidx]
+                    ks.k[ks.n++] = cwrapped ? g_retk[cidx] : cflt ? K_FLT : cw128 ? K_W128 : csl ? g_retk[cidx]
                              : crec ? g_retk[cidx] : K_INT;
                 }
                 break;
@@ -6694,6 +6856,8 @@ void low_cbe_plan(const low_ir_t *ir) {
         else if (d->name.size == 4 && memcmp(d->name.ptr, "main", 4) == 0)
                                              why = "이름이 C 의 `main` 과 겹친다 — 진입 op 은 런처가 부른다";
         else if (!sc_tab[i])                 why = "타입 하강이 안 됐다 — 태그 경로 op 은 C 심볼을 내지 않는다(`--why-slow` 가 그 이유를 말한다)";
+        else if (d->param_w128 || cbe_out_w128(d))   // ★ W-20261105-2304 — 128 비트가 빠른 경로에 선 뒤에도 C 경계는 넘지 않는다
+                                             why = "입력이나 결과가 128 비트 정수다 — C 경계를 넘지 않는다(RFC-0151 §9.4.1)";
         else if (g_retk[i] != K_INT && g_retk[i] != K_FLT && !(g_retk[i] >= K_REC && g_retk[i] < K_VIEW && cbe_sty_ok(ir, (proven_size_t)(g_retk[i] - K_REC))))
                                              why = "반환이 정수 · 부동 · C 구조체가 아니다 — C 경계로 낼 모양이 아직 없다(슬라이스 · option 반환, 바이트 배치가 없는 구조체)";
         // ★★★ RFC-0132 P4d (2026-10-24) — 매개변수도 C 로 낼 모양이 있어야 한다. 전엔 구조체 · 벡터 · option · 비트셋 매개변수가
@@ -7972,6 +8136,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                   else if ((d->param_flt >> q) & 1u) nfl++;
                   else if ((d->param_opt >> q) & 1u) nao++;   // ★ option·result 파라미터
                   else if ((d->param_vec >> q) & 1u) nav++;   // ★ 벡터 파라미터
+                  else if ((d->param_w128 >> q) & 1u) ni += 2;   // ★ W-20261105-2304 — 128 비트는 정수 칸 둘
                   else ni++;
               }
               proven_size_t nrs = 0, nbs = 0;
@@ -8108,6 +8273,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       }
                       fprintf(out, "    else lw_panic(\"index needs a slice\");\n");
                       bs++;
+                  } else if ((d->param_w128 >> q) & 1u) {   // ★ W-20261105-2304 — 태그 값의 아래(i) · 위(n) 절반
+                      fprintf(out, "    ai[%zu] = lw_want_int(a[%zu], \"ints\"); ai[%zu] = (long long)a[%zu].n;\n", (size_t)bi, (size_t)q, (size_t)bi + 1, (size_t)q); bi += 2;
                   } else {
                       fprintf(out, "    ai[%zu] = lw_want_int(a[%zu], \"ints\");\n", (size_t)bi, (size_t)q); bi++;
                   }
@@ -8204,6 +8371,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             if (i < 512 && g_retk[i] == K_SL && (g_retve[i] > 1 || g_retfl[i]))   // ★ 타입 있는 슬라이스 반환 — 태그 경로의 VARRAY(원소 수 · 폭 · 표식)로
                 fprintf(out, "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = %d; sv_.i = %d; return sv_; }\n",
                         (int)g_retve[i], g_retfl[i] == CBE_FL_FLT ? 0x10000 : g_retfl[i] == CBE_FL_SGN ? 0x20000 : 0);
+            if (i < 512 && g_retk[i] == K_W128)   // ★ W-20261105-2304 — 128 비트 결과(바이트 칸 · tag 11)
+                fputs("    if (r_.tag == 11) { lw_u128 w_; memcpy(&w_, r_.r, sizeof w_); return lw_wmk(w_); }\n", out);
             fputs("    if (r_.tag == 5) return lw_flt(r_.f);\n"
                   "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_SLICE; sv_.p = r_.s.p;"
                   " sv_.n = r_.s.n; return sv_; }\n"

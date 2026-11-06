@@ -1,0 +1,101 @@
+rem ★★ 2026-11-05 (W-20261105-2304 · 소유자 «128비트도 하기») — **128 비트 정수가 빠른 경로에 선다.** 지역 · 셈 · 입력 · 결과 · 빠른 op 사이의 부름.
+rem   칸 하나는 C 의 `unsigned __int128` 이고, 부름을 건널 때는 정수 칸 둘(아래 · 위 64 비트), 돌려줄 때는 결과의 바이트 칸이다.
+rem   셈의 규칙은 태그 경로와 한 몸(프렐류드 `lw_wc_*`)이다 — 이 파일의 답은 VM · 빠른 경로 · 태그 경로(`--no-fast`)가 같아야 한다(골든 «u128 fast»).
+rem   칸에 든 128 비트(구조체 칸 · 배열 · 슬라이스 · 스택 원소)와 값으로 넘침을 알리는 `chk_*` · `narrow_try` 는 태그 경로에 남는다 — 그 셋은 vm_u128place · vm_u128.
+
+module vm_u128fast .
+
+rem 입력과 결과가 128 비트 — 다른 빠른 op 이 부른다(정수 칸 둘로 건넌다)
+fn mul3 input a u128 . input k u64 . input b u128 . output u128 . do
+  return add mul a. widen u128 k. . . b. . .
+end .
+
+rem 되부름 — 128 비트 계승(34! 은 u128 에 든다 · 35! 은 넘쳐 멈춘다)
+fn fact input n u64 . output u128 . do
+  if le n. 1 . do return 1 . end .
+  return mul widen u128 n. . fact sub n. 1 . . . .
+end .
+
+rem 128 비트 지역에 쌓는다 — `var s u128 0 .` 의 0 은 수 상수다(위 절반 0)
+export fn sumsq input n u64 . output u128 . do
+  var s u128 0 .
+  var i u64 0 .
+  while lt i. n. . do
+    let w u128 widen u128 i. . .
+    set s. add s. mul w. shl w. 64 . . . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .
+
+rem 부호 있는 128 비트 — 음수 상수 · 비교 · 나눗셈(아래로 내림 아님 · 0 쪽) · 나머지(나누는 수의 부호)
+export fn signed input a i64 . input b i64 . output i128 . do
+  let x i128 mul widen i128 a. . 100000000000000000000 . .
+  let y i128 widen i128 b. . .
+  if lt x. -5 . do return sub div x. y. . mod x. y. . . . end .
+  return add div x. y. . mod x. y. . . .
+end .
+
+rem 같음 — 위 절반까지 본다
+export fn same input a u64 . output u64 . do
+  let w u128 shl widen u128 a. . 64 . .
+  if eq w. 0 . do return 0 . end .
+  if ne w. widen u128 a. . . do return 1 . end .
+  return 2 .
+end .
+
+rem 비트 셈 — popcount · clz · ctz · bswap · 돌리기 · 감는 시프트
+export fn bitsy input a u64 . output u128 . do
+  let w u128 bit_or shl widen u128 a. . 70 . widen u128 a. . . .
+  let p u128 count_ones w. . .
+  let z u128 add leading_zeros w. . trailing_zeros w. . . .
+  let r u128 rotl w. 100 . .
+  let s u128 wrap_shl w. 200 . .
+  return bit_xor bit_xor add p. z. . r. . bit_xor s. byte_swap w. . . . .
+end .
+
+rem 부동과 오간다
+export fn tof input a u64 . output f64 . do
+  let w u128 mul widen u128 a. . widen u128 a. . . .
+  return cast f64 w. . .
+end .
+export fn fromf input x f64 . output u64 . do
+  let w u128 cast u128 x. . .
+  return narrow_sat u64 shr w. 1 . . .
+end .
+
+rem 감기 · 포화 · 좁히기
+export fn policy input a u64 . output u64 . do
+  let m u128 bit_not widen u128 0 . . .
+  let w u128 wrap_add m. widen u128 a. . . .
+  let s u128 sat_add m. widen u128 a. . . .
+  return add narrow_wrap u64 w. . narrow_sat u64 shr s. 70 . . . .
+end .
+
+rem 부름을 섞는다 — 정수 · 슬라이스 · 부동 · 128 비트 입력이 한 부름에(자리가 엇갈리지 않아야 한다)
+fn mix input k u64 . input s slice u8 . input w u128 . input f f64 . input v i128 . output u128 . do
+  let t u128 add w. widen u128 add k. cast u64 len s. . . . . . .
+  if lt v. 0 . do return add t. widen u128 cast u64 f. . . . . end .
+  return sub t. cast u128 v. . . .
+end .
+export fn mixer input k u64 . input s slice u8 . output u128 . do
+  let w u128 shl widen u128 k. . 90 . .
+  return add mix k. s. w. 2.5 widen i128 -3 . . mix k. s. w. 1.0 widen i128 7 . . . .
+end .
+
+rem 계승과 곱 — 빠른 op 끼리 128 비트를 주고받는다
+export fn chain input n u64 . output u128 . do
+  return mul3 fact n. . 3 fact sub n. 1 . . . .
+end .
+
+rem 멈춤 — 넘침 · 0 으로 나누기 · MIN / -1 · 음수의 neg 가 u128 에서
+export fn over input n u64 . output u128 . do
+  return fact n. . .
+end .
+export fn divz input a u64 . output u128 . do
+  return div widen u128 7 . widen u128 a. . . .
+end .
+export fn minneg input a i64 . output i128 . do
+  let m i128 shl widen i128 1 . 127 . .
+  return div m. widen i128 a. . . .
+end .

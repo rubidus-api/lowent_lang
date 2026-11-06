@@ -5,6 +5,12 @@ rem   세 겹 칸 · 경계(태그 경로에 남는 op 이 빠른 op 에 레코�
 
 module vm_rowfield .
 
+rem ★ 2026-11-05 (W-20261105-2304) — 태그 경로에 남는 도우미. 전엔 128 비트 지역(`let big u128 …`)이 op 을 태그 경로에 붙잡았다 — 128 비트가
+rem   빠른 경로에 서자 그 붙잡기가 사라졌다. 참조를 받는 op 은 **설계상** 태그 경로다(그 경로가 참조를 따라간다) — 그것을 부르는 op 도 거기 남는다.
+fn tag_pin input r ref u8 . output u64 . do
+  return cast u64 deref r. . . .
+end .
+
 struct grid do
   id u8 .
   cells array 2 array 3 u8 .
@@ -60,9 +66,10 @@ fn mkgrid input a u8 . output grid . do
   return lit grid do id 3 . cells lit array 2 array 3 u8 lit array 3 u8 a. 0 0 . lit array 3 u8 0 0 a. . . . tail 1 . end . .
 end .
 
-rem 태그 경로에 남는 op(128 비트 지역)이 빠른 op 셋을 부른다 — 넘기기 · `mut` 로 되받기 · 돌려받기
+rem 태그 경로에 남는 op(참조를 받는 도우미 `tag_pin` 을 부른다)이 빠른 op 셋을 부른다 — 넘기기 · `mut` 로 되받기 · 돌려받기
 export proc crossing input a u8 . output u64 . effects none . do
-  let big u128 widen u128 2 . .
+  let pv u8 2 .
+  let big u64 tag_pin ref pv. . .
   var x grid mkgrid a. . .
   let z u64 bump x. . .
   return add add sumcells x. . mul widen u64 idx idx field x. cells . 1 . 0 . . 100 . . add z. cast u64 big. . . . .

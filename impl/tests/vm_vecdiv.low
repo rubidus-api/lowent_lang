@@ -6,6 +6,12 @@ rem   무부호로 나눴다. 차등 스윕이 아래 op 을 VM 과 네이티브
 
 module vm_vecdiv .
 
+rem ★ 2026-11-05 (W-20261105-2304) — 태그 경로에 남는 도우미. 전엔 128 비트 지역(`let big u128 …`)이 op 을 태그 경로에 붙잡았다 — 128 비트가
+rem   빠른 경로에 서자 그 붙잡기가 사라졌다. 참조를 받는 op 은 **설계상** 태그 경로다(그 경로가 참조를 따라간다) — 그것을 부르는 op 도 거기 남는다.
+fn tag_pin input r ref u8 . output u64 . do
+  return cast u64 deref r. . . .
+end .
+
 export fn ud input b slice u8 . output u64 . do
   guard ge len b. . 16 . else return 99 . .
   let xs slice u32 view_array u32 subslice b. 0 16 . . .
@@ -52,7 +58,8 @@ end .
 
 export fn viatag input b slice u8 . output i64 . do
   guard ge len b. . 16 . else return 99 . .
-  let big u128 widen u128 7 . .
+  let pv u8 7 .
+  let big u64 tag_pin ref pv. . .
   let xs slice i16 view_array i16 subslice b. 0 16 . . .
   let v vec 4 i16 load xs. 0 . .
   let w vec 4 i16 load xs. 4 . .
@@ -60,7 +67,8 @@ export fn viatag input b slice u8 . output i64 . do
 end .
 
 fn div_vec_tag input v vec 4 i16 . input w vec 4 i16 . output i64 . do
-  let big u128 widen u128 0 . .
+  let pv u8 0 .
+  let big u64 tag_pin ref pv. . .
   return add widen i64 reduce_add div v. w. . . . cast i64 big. . . .
 end .
 

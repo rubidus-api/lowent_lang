@@ -74,8 +74,9 @@ end .
   element or across the C boundary they are `E-INT128-PLACE`.
 - A 128-bit number on the command line is read as written; one that does not fit the type (a negative `u128` · 2#super[128] or more) is
   refused.
-- If you only need the upper half of a 64-bit product, `bigint64.mul_hi` is cheaper (it stays on the fast path) --- an op that uses
-  128-bit integers goes down the tagged path.
+- If you only need the upper half of a 64-bit product, `bigint64.mul_hi` also does it (it builds no 128-bit value). 128-bit integers
+  run on the fast path as locals, arithmetic, inputs and results. An op that touches a 128-bit value inside a struct field or an array,
+  slice, view or stack element, or uses `chk_*` or `narrow_try` on a 128-bit value, goes down the tagged path (`--why-slow` says why).
 
 == Widening is automatic, narrowing is written
 

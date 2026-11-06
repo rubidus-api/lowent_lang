@@ -1,4 +1,10 @@
 module nestdeep .
+
+rem ★ 2026-11-05 (W-20261105-2304) — 태그 경로에 남는 도우미. 전엔 128 비트 지역(`let big u128 …`)이 op 을 태그 경로에 붙잡았다 — 128 비트가
+rem   빠른 경로에 서자 그 붙잡기가 사라졌다. 참조를 받는 op 은 **설계상** 태그 경로다(그 경로가 참조를 따라간다) — 그것을 부르는 op 도 거기 남는다.
+fn tag_pin input r ref u8 . output u64 . do
+  return cast u64 deref r. . . .
+end .
 rem ★★ RFC-0155 §8-6 (2026-10-30 · 소유자 «지금 혹은 매우 가까운 시일 안에 진행되도록») — 세 겹 이상의 배열 안의 배열.
 rem   `array 2 array 3 array 4 u8` 은 길이 4 인 줄 3 개짜리 판 2 개(C 의 `u8 a[2][3][4]` 과 같은 배치)다. `idx a. i.` 는 판 i 를 보는 줄의 슬라이스,
 rem   다시 `idx` 하면 줄을 보는 슬라이스다(베끼지 않는다). 값 · 0 채우기 · 쓰기 · 겹친 `for` · 구조체 칸 · op 입력(진입 계약) · `mut` 입력 ·
@@ -100,10 +106,11 @@ fn four output u64 . do
   return add widen u64 idx idx idx h. 0 . 1 . 1 . . cast u64 len h. . . . .
 end .
 
-rem ★ 2026-11-02 (W-20261102-0024) — 경계를 건넌다: 태그 경로에 남는 op(128 비트 지역)이 세 겹 배열을 빠른 op 에 넘기고(`weigh` · `cell`),
+rem ★ 2026-11-02 (W-20261102-0024) — 경계를 건넌다: 태그 경로에 남는 op(참조를 받는 도우미 `tag_pin` 을 부른다)이 세 겹 배열을 빠른 op 에 넘기고(`weigh` · `cell`),
 rem   빠른 op 이 돌려준 세 겹 배열(`mk`)을 받아 읽는다. 빠른 경로는 줄 꼴의 칸을 표식에 실어 나르고, 경계는 그 칸을 태그 쪽 보기에 되적는다.
 fn viatag input k u8 . output u64 . do
-  let big u128 widen u128 3 . .
+  let pv u8 3 .
+  let big u64 tag_pin ref pv. . .
   var c array 2 array 3 array 4 u8 mk k. . .
   set idx idx idx c. 1 . 2 . 3 . 4 .
   return add add weigh c. . cell c. 0 1 2 . . cast u64 big. . . .
@@ -122,7 +129,8 @@ end .
 fn viatag2 input b slice u8 . output u64 .
   requires eq len b. . 24 . .
 do
-  let big u128 widen u128 1 . .
+  let pv u8 1 .
+  let big u64 tag_pin ref pv. . .
   let v slice (array 3 (array 4 u8)) view_array (array 3 (array 4 u8)) b. . .
   return add rowsat v. 1 . cast u64 big. . . .
 end .

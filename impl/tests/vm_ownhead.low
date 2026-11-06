@@ -5,6 +5,12 @@ rem   차등 스윕이 VM 과 네이티브를 견준다.
 
 module vm_ownhead .
 
+rem ★ 2026-11-05 (W-20261105-2304) — 태그 경로에 남는 도우미. 전엔 128 비트 지역(`let big u128 …`)이 op 을 태그 경로에 붙잡았다 — 128 비트가
+rem   빠른 경로에 서자 그 붙잡기가 사라졌다. 참조를 받는 op 은 **설계상** 태그 경로다(그 경로가 참조를 따라간다) — 그것을 부르는 op 도 거기 남는다.
+fn tag_pin input r ref u8 . output u64 . do
+  return cast u64 deref r. . . .
+end .
+
 use allocs .
 
 struct nd do
@@ -52,9 +58,10 @@ fn take input h hd . output option (owned nd) . do
   return r. .
 end .
 
-rem 태그 경로에 남는 op(128 비트 지역)이 빠른 op 둘과 머리를 주고받는다 — 마디의 주소가 경계를 두 번 건넌다
+rem 태그 경로에 남는 op(참조를 받는 도우미 `tag_pin` 을 부른다)이 빠른 op 둘과 머리를 주고받는다 — 마디의 주소가 경계를 두 번 건넌다
 proc crossing input a cap allocator . input k u64 . output u64 . effects alloc state . do
-  let big u128 widen u128 1 . .
+  let pv u8 1 .
+  let big u64 tag_pin ref pv. . .
   var fb allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
   let nw use fb. option (owned nd) lit nd do key k. . left none . end . .
   var x owned nd nw. else return 9 . .

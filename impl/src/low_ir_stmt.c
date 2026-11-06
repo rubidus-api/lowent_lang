@@ -5475,6 +5475,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 const ityp_t t = c.locals[q].ty;
                 d->loc_meta[q] = (t.known && !t.flt && (t.bits == 8 || t.bits == 16 || t.bits == 32))
                                ? (proven_u16)(IR_TY_KNOWN | (t.sign ? IR_TY_SIGNED : 0) | t.bits) : 0;
+                if (t.known && !t.flt && t.bits == 128 && q < 64) d->loc_w128 |= 1ull << q;   // ★ W-20261105-2304
             }
             d->lowered = true;
             continue;
@@ -5496,6 +5497,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                 const ityp_t t = c.locals[q].ty;
                 d->loc_meta[q] = (t.known && !t.flt && (t.bits == 8 || t.bits == 16 || t.bits == 32))
                                ? (proven_u16)(IR_TY_KNOWN | (t.sign ? IR_TY_SIGNED : 0) | t.bits) : 0;
+                if (t.known && !t.flt && t.bits == 128 && q < 64) d->loc_w128 |= 1ull << q;   // ★ W-20261105-2304
             }
             d->lbuf_size = c.lbuf_off;   // ★ T2b-2 — 이 op 의 틀 안 나열 바이트
             d->lowered = true;

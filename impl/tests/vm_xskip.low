@@ -64,3 +64,113 @@ rem ⑥ 동적 같은 구간 — 남은 검사가 멈춘다
 export proc same2b input s mut slice u8 . input k usize . output u64 . effects none . do
   return put2b subslice s. 0 k. . subslice s. 0 k. . . .
 end .
+
+rem ★★ 2026-11-05 (W-20261105-2304 · 소유자 «위에 하지 않은 것들 다 처리해 주세요») — 보증을 넓혔다. 아래 다섯 꼴도 검사가 지워진다:
+rem   ⑦ `let` 별칭(`let X slice u8 subslice s. 0 4 .`)을 넘긴다 — 그 `let` 이 가리키는 조각으로 견준다(별칭 칸이 한 번만 묶일 때),
+rem   ⑧ 실행 중 한 점에서 맞닿는 조각(`[0, k)` 와 `[k, len s.)` · `[0, n)` · `[n, 2n)` · `[2n, 3n)`) — 끝을 `k + m·v` 로 읽는다,
+rem   ⑨ 짝이 64 를 넘는 op(입력 12 개 · 66 짝),
+rem   ⑩ 문자열 리터럴을 읽는 자리에 — 쓸 수 있는 자리는 리터럴을 가리키지 못한다(E-TYPE-ARGMUT).
+rem   그리고 남는 꼴: 두 번 묶인 별칭(⑪ — 그 사이에 가리키는 것이 바뀔 수 있다), 한 바이트 겹치는 맞닿기(⑫ — 멈춘다).
+
+proc put3 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 31 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  return 0 .
+end .
+
+rem ⑦ `let` 별칭 둘 — 한 칸의 안 겹치는 상수 구간이다
+export proc alias2 input s mut slice u8 . output u64 . effects none . do
+  guard ge len s. . 8 . else return 9 . .
+  let x mut slice u8 subslice s. 0 4 . .
+  let y mut slice u8 subslice s. 4 8 . .
+  let r u64 put3 x. y. . .
+  return add cast u64 idx s. 0 . . cast u64 idx s. 4 . . . .
+end .
+
+proc put4 input a mut slice u8 . input b mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 41 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  return 0 .
+end .
+
+rem ⑪ 같은 이름을 두 블록에서 묶은 별칭 — 칸 하나를 두 번 묶으므로 보증하지 않는다(검사가 남는다 · 답은 같다)
+export proc rebound input s mut slice u8 . input c u64 . output u64 . effects none . do
+  guard ge len s. . 8 . else return 9 . .
+  if eq c. 0 . do
+    let x mut slice u8 subslice s. 0 4 . .
+    return put4 x. subslice s. 4 8 . . .
+  end .
+  let x mut slice u8 subslice s. 0 4 . .
+  return put4 x. subslice s. 4 8 . . .
+end .
+
+proc put5 input a mut slice u8 . input b mut slice u8 . output usize . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 51 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  return add len a. . len b. . . .
+end .
+
+rem ⑧ 실행 중 한 점 k 에서 맞닿는다 — 앞 조각의 끝이 뒤 조각의 시작이다
+export proc ends input s mut slice u8 . input k usize . output usize . effects none . do
+  return put5 subslice s. 0 k. . subslice s. k. len s. . . . .
+end .
+
+proc put3w input a mut slice u8 . input b mut slice u8 . input c mut slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 61 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  if gt len c. . 0 . do  set idx c. 0 . 3 .  end .
+  return 0 .
+end .
+
+rem ⑧ 배로 늘어나는 끝 — `[0, n)` · `[n, 2n)` · `[2n, 3n)` (맞닿지 않은 짝도 n 의 배수로 견준다)
+export proc thirds input s mut slice u8 . output u64 . effects none . do
+  let n usize div len s. . 3 . .
+  let r u64 put3w subslice s. 0 n. . subslice s. n. mul n. 2 . . subslice s. mul n. 2 . mul 3 n. . . . .
+  return add add cast u64 idx s. 0 . . cast u64 idx s. n. . . . cast u64 idx s. mul n. 2 . . . . .
+end .
+
+proc put5b input a mut slice u8 . input b mut slice u8 . output usize . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . 53 .  end .
+  if gt len b. . 0 . do  set idx b. 0 . 2 .  end .
+  return add len a. . len b. . . .
+end .
+
+rem ⑫ 맞닿는 자리 하나와 한 바이트 겹치는 자리 하나 — 검사가 남고, 겹치는 부름은 멈춘다
+export proc ends_ok input s mut slice u8 . input k usize . output usize . effects none . do
+  return put5b subslice s. 0 k. . subslice s. k. len s. . . . .
+end .
+export proc ends_bad input s mut slice u8 . input k usize . output usize . effects none . do
+  return put5b subslice s. 0 add k. 1 . . subslice s. k. len s. . . . .
+end .
+
+rem ⑨ 짝이 66 — 상수 구간 열둘
+proc wide12 input a0 mut slice u8 . input a1 mut slice u8 . input a2 mut slice u8 . input a3 mut slice u8 . input a4 mut slice u8 . input a5 mut slice u8 . input a6 mut slice u8 . input a7 mut slice u8 . input a8 mut slice u8 . input a9 mut slice u8 . input a10 mut slice u8 . input a11 mut slice u8 . output u64 . effects none . do
+  if gt len a0. . 0 . do  set idx a0. 0 . 1 .  end .
+  if gt len a1. . 0 . do  set idx a1. 0 . 2 .  end .
+  if gt len a2. . 0 . do  set idx a2. 0 . 3 .  end .
+  if gt len a3. . 0 . do  set idx a3. 0 . 4 .  end .
+  if gt len a4. . 0 . do  set idx a4. 0 . 5 .  end .
+  if gt len a5. . 0 . do  set idx a5. 0 . 6 .  end .
+  if gt len a6. . 0 . do  set idx a6. 0 . 7 .  end .
+  if gt len a7. . 0 . do  set idx a7. 0 . 8 .  end .
+  if gt len a8. . 0 . do  set idx a8. 0 . 9 .  end .
+  if gt len a9. . 0 . do  set idx a9. 0 . 10 .  end .
+  if gt len a10. . 0 . do  set idx a10. 0 . 11 .  end .
+  if gt len a11. . 0 . do  set idx a11. 0 . 12 .  end .
+  return 0 .
+end .
+export proc twelve input s mut slice u8 . output u64 . effects none . do
+  guard ge len s. . 12 . else return 99 . .
+  let r u64 wide12 subslice s. 0 1 . subslice s. 1 2 . subslice s. 2 3 . subslice s. 3 4 . subslice s. 4 5 . subslice s. 5 6 . subslice s. 6 7 . subslice s. 7 8 . subslice s. 8 9 . subslice s. 9 10 . subslice s. 10 11 . subslice s. 11 12 . . .
+  return cast u64 idx s. 11 . . .
+end .
+
+proc lit_rd input a mut slice u8 . input b slice u8 . output u64 . effects none . do
+  if gt len a. . 0 . do  set idx a. 0 . idx b. 0 . .  end .
+  return cast u64 idx b. 0 . . .
+end .
+
+rem ⑩ 문자열 리터럴을 읽는 자리에
+export proc litr input s mut slice u8 . output u64 . effects none . do
+  return lit_rd s. "abc" . .
+end .

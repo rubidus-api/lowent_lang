@@ -951,6 +951,50 @@ static bool ir_xnum(const low_cst_t *nd, proven_u64 *out) {
     }
     *out = v; return true;
 }
+// ★ W-20261105-2304 — 구간의 끝 하나를 `k + m·v` 로 읽는다(v = 이 op 의 지역 칸 하나의 실행 중 값 · 없으면 상수).
+//   아는 낱말은 10 진 수 · 지역 이름(접힌 `let` 이면 그 값) · `add` · `sub`(빼는 쪽이 상수) · `mul`(한쪽이 상수) 뿐이다. 이 셋은 넘치면
+//   멈추는 셈이라(`wrap_*` 는 다른 낱말이다) 읽은 꼴이 곧 실행 중 값이다. v 가 둘이거나 모르는 낱말이면 읽지 못한다.
+typedef struct { proven_i64 k; proven_u32 m; proven_u8 v; } ir_xlin_t;
+#define IR_XLIN_MAX ((proven_i64)1 << 40)
+static bool ir_xlin_add(ir_xlin_t *a, ir_xlin_t b) {
+    if (a->v && b.v && a->v != b.v) return false;
+    if (!a->v) a->v = b.v;
+    a->k += b.k; a->m += b.m;
+    return a->k < IR_XLIN_MAX && a->k > -IR_XLIN_MAX && a->m < (1u << 20);
+}
+static bool ir_xlin(ir_ctx_t *c, const low_cst_t *nd, ir_xlin_t *o, int depth) {
+    while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    if (!nd || depth > 8) return false;
+    o->k = 0; o->m = 0; o->v = 0;
+    if (nd->kind == LOW_CST_ATOM) {
+        proven_u64 u;
+        if (ir_xnum(nd, &u)) { if (u >= (proven_u64)IR_XLIN_MAX) return false; o->k = (proven_i64)u; return true; }
+        if (nd->tok.kind != LOW_TOK_IDENT) return false;
+        bool f; proven_size_t sl = ir_local_find(c, nd->tok.lex, &f);
+        if (!f) return false;
+        for (proven_size_t q = c->ncint; q-- > 0; )                 // 접힌 `let` — 그 값이다
+            if (proven_u8str_view_eq(c->cint[q].name, nd->tok.lex)) {
+                if (c->cint[q].val < 0 || c->cint[q].val >= IR_XLIN_MAX) return false;
+                o->k = c->cint[q].val; return true;
+            }
+        if (sl >= 64) return false;
+        o->m = 1; o->v = (proven_u8)(sl + 1); return true;
+    }
+    if ((nd->kind != LOW_CST_FORM && nd->kind != LOW_CST_GROUP) || nd->nkids != 3 || !is_atom(nd->kids[0])) return false;
+    const proven_u8str_view_t w = nd->kids[0]->tok.lex;
+    ir_xlin_t a, b;
+    if (!ir_xlin(c, nd->kids[1], &a, depth + 1) || !ir_xlin(c, nd->kids[2], &b, depth + 1)) return false;
+    if (veq(w, "add")) { if (!ir_xlin_add(&a, b)) return false; *o = a; return true; }
+    if (veq(w, "sub")) { if (b.v) return false; a.k -= b.k; if (a.k <= -IR_XLIN_MAX) return false; *o = a; return true; }
+    if (veq(w, "mul")) {
+        if (a.v && b.v) return false;
+        if (a.v) { ir_xlin_t t = a; a = b; b = t; }                // a = 상수
+        if (a.k < 0 || a.k >= (1 << 20) || b.m * (proven_u64)a.k >= (1u << 20)) return false;
+        o->k = b.k * a.k; o->m = (proven_u32)(b.m * (proven_u64)a.k); o->v = o->m ? b.v : 0;
+        return o->k < IR_XLIN_MAX && o->k > -IR_XLIN_MAX;
+    }
+    return false;
+}
 static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size_t from, proven_size_t to, int depth) {
     low_ir_xarg_t z = { 0 };
     if (depth > 6 || from >= to) return z;
@@ -959,9 +1003,17 @@ static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size
         while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
         if (!nd) return z;
         if (nd->kind == LOW_CST_ATOM) {
+            // ★ W-20261105-2304 — 문자열 리터럴은 프로그램에 박힌 읽기 전용 바이트다. 쓸 수 있는 자리는 그것을 가리키지 못한다
+            //   (E-TYPE-ARGMUT — `mut` 없는 슬라이스의 `var` 도, low_check.c ck_name_bytes_ro) — 쓰는 조각과 겹칠 수 없다.
+            if (nd->tok.kind == LOW_TOK_STRING || nd->tok.kind == LOW_TOK_TEXTLIT) { z.kind = 4; return z; }
             if (nd->tok.kind != LOW_TOK_IDENT) { z.why = 6; return z; }
             bool f; proven_size_t sl = ir_local_find(c, nd->tok.lex, &f);
             if (!f || sl > 0xffff) { z.why = 5; return z; }
+            if (sl < 64 && ((c->xal_ok >> sl) & 1u)) {              // ★ `let` 별칭 — 그것이 가리키는 것(그 `let` 뒤로 이 칸이 안 바뀌어야 한다)
+                low_ir_xarg_t a = c->xal[sl];
+                a.via |= 1ull << sl;
+                return a;
+            }
             z.kind = 1; z.slot = (proven_u16)sl; return z;
         }
         if ((nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) && nd->nkids)
@@ -970,12 +1022,22 @@ static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size
     }
     if (to - from == 4 && is_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
         low_ir_xarg_t b = ir_xarg(c, k, from + 1, from + 2, depth + 1);
-        if (!b.kind) return b;
-        proven_u64 lo, hi;
-        if (!(ir_xnum(k[from + 2], &lo) && ir_xnum(k[from + 3], &hi)) || hi < lo) { b.kind = 3; return b; }
-        if (b.kind == 1) { b.kind = 2; b.lo = lo; b.hi = hi; return b; }
-        if (b.kind == 2) { b.hi = b.lo + hi; b.lo += lo; return b; }    // 잘린 것을 또 자른다 — 밖이면 그 `subslice` 가 먼저 멈춘다
-        return b;                                                      // 밑이 이미 모르는 구간
+        if (!b.kind || b.kind == 3 || b.kind == 4) return b;           // 모른다 · 밑이 이미 모르는 구간 · 리터럴의 조각도 리터럴이다
+        // 끝 하나를 못 읽으면 그 끝만 모른다(IR_XEND_UNK) — `[k, len s.)` 의 시작은 여전히 견줄 수 있다
+        ir_xlin_t lo, hi;
+        const bool lok = ir_xlin(c, k[from + 2], &lo, 0), hok = ir_xlin(c, k[from + 3], &hi, 0);
+        if (!lok && !hok) { b.kind = 3; return b; }
+        if (!lok) { lo.k = 0; lo.m = IR_XEND_UNK; lo.v = 0; }
+        if (!hok) { hi.k = 0; hi.m = IR_XEND_UNK; hi.v = 0; }
+        if (b.kind == 2) {                                             // 잘린 것을 또 자른다 — 밖이면 그 `subslice` 가 먼저 멈춘다
+            if (b.lom == IR_XEND_UNK || !lok || !hok) { b.kind = 3; return b; }
+            const ir_xlin_t base = { b.lo, b.lom, b.lov };
+            ir_xlin_t l2 = base, h2 = base;
+            if (!ir_xlin_add(&l2, lo) || !ir_xlin_add(&h2, hi)) { b.kind = 3; return b; }
+            lo = l2; hi = h2;
+        }
+        b.kind = 2; b.lo = lo.k; b.lom = lo.m; b.lov = lo.v; b.hi = hi.k; b.him = hi.m; b.hiv = hi.v;
+        return b;
     }
     z.why = 7;
     if (is_atom(k[from])) {
@@ -983,6 +1045,18 @@ static low_ir_xarg_t ir_xarg(ir_ctx_t *c, const low_cst_t *const *k, proven_size
         z.why = veq(w, "field") ? 2 : veq(w, "idx") ? 3 : (veq(w, "view_array") || veq(w, "view")) ? 4 : k[from]->tok.kind == LOW_TOK_IDENT ? 1 : 7;
     }
     return z;
+}
+// ★ W-20261105-2304 — `let X slice … <값> .` 의 값이 무엇을 가리키는지(묶기 **전에** 읽는다 — 값 안의 이름은 앞의 이름이다).
+//   보증은 그 `let` 뒤로 밑의 칸과 끝의 v 칸이 바뀌지 않을 때만 선다 — 그 칸들을 via 에 적는다(ir_excl_skip 이 본다).
+low_ir_xarg_t ir_xarg_alias(ir_ctx_t *c, const low_cst_t *const *k, proven_size_t from, proven_size_t to) {
+    low_ir_xarg_t a = ir_xarg(c, k, from, to, 0);
+    if (a.kind == 0 || a.kind == 4) return a;                         // 리터럴 — 밑의 칸이 없다(부름 자리가 별칭 칸을 via 에 더한다)
+    if (a.slot < 64) a.via |= 1ull << a.slot; else a.kind = 0;
+    if (a.kind == 2) {
+        if (a.lov) a.via |= 1ull << (a.lov - 1);
+        if (a.hiv) a.via |= 1ull << (a.hiv - 1);
+    }
+    return a;
 }
 static bool ir_xtaint(const low_cst_t *nd, int depth) {
     if (!nd || depth > 32) return nd != NULL;
@@ -1136,7 +1210,7 @@ static void ir_cint_forget(ir_ctx_t *c, proven_u8str_view_t name) {
     //   끝난 블록의 `let n u64 4 .` 뒤에 `let n u64 x. .` 를 적으면 `comptime mul n. 2 .` 가 죽은 값 4 로 8 을 냈다(검사층은 실행 이름으로 봤다).
     //   접히는 `let` 은 묶은 **뒤에** 제 값을 다시 싣는다(low_ir_stmt.c).
     bool f; proven_size_t i = ir_local_find(c, name, &f);
-    if (f) { ir_cint_forget(c, name); return i; }
+    if (f) { ir_cint_forget(c, name); if (i < 64) c->xal_ok &= ~(1ull << i); return i; }   // ★ W-20261105-2304 — 다시 묶으면 별칭은 지운다
     return ir_local_declare_ty(c, name, (proven_u8str_view_t){ 0 }, line);
 }
 // ★ 2026-11-03 (W-20261103-2113) — 같은 이름을 **다른 타입 낱말**로 다시 묶으면(끝난 블록의 `let po option usize …` 뒤 다른 블록의 `let po u64 …`)
@@ -1147,7 +1221,7 @@ proven_size_t ir_local_declare_ty(ir_ctx_t *c, proven_u8str_view_t name, proven_
     ir_cint_forget(c, name);
     if (tyword.size) {
         bool f; proven_size_t i = ir_local_find(c, name, &f);
-        if (f && (!c->locals[i].tyname.size || proven_u8str_view_eq(c->locals[i].tyname, tyword))) return i;
+        if (f && (!c->locals[i].tyname.size || proven_u8str_view_eq(c->locals[i].tyname, tyword))) { if (i < 64) c->xal_ok &= ~(1ull << i); return i; }
     }
     if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "too many locals", line); return 0; }
     c->locals[c->nlocals].name = name;
@@ -1156,6 +1230,7 @@ proven_size_t ir_local_declare_ty(ir_ctx_t *c, proven_u8str_view_t name, proven_
     c->locals[c->nlocals].cname = (proven_u8str_view_t){0};
     c->locals[c->nlocals].isview = false;
     c->locals[c->nlocals].tymod = (proven_u8str_view_t){0};   // ★ RFC-0152 — 타입의 모듈은 바인딩이 실어 준다
+    if (c->nlocals < 64) c->xal_ok &= ~(1ull << c->nlocals);
     return c->nlocals++;
 }
 

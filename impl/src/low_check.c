@@ -9500,7 +9500,7 @@ static bool ck_param_mutq(const low_cst_t *f, const low_op_header_t *h, proven_s
     return false;
 }
 
-typedef struct { proven_u8str_view_t name; bool is_mut_place; } ck_bind_t;
+typedef struct { proven_u8str_view_t name; bool is_mut_place, ro_bytes; } ck_bind_t;   // ro_bytes = 다시 묶을 수는 있지만 칸은 못 쓴다(아래)
 
 // 본체의 지역 `var`/`let` 바인딩을 모은다. **판정(위 좁힘 ②):** `var` 는 타입과 무관하게 항상
 //   가변 장소다. `let` 은 **선언 타입 낱말**(이름과 `be` 사이)에 `mut`/`mut_ref` 가 있을 때만
@@ -9510,9 +9510,26 @@ static void ck_collect_binds(const low_cst_t *nd, ck_bind_t *b, proven_size_t *n
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
         (nd->kids[0]->tok.kw == LOW_KW_VAR || nd->kids[0]->tok.kw == LOW_KW_LET) &&
         nd->kids[1]->kind == LOW_CST_ATOM && *nb < cap) {
-        bool mut_place;
+        bool mut_place, ro_bytes = false;
         if (nd->kids[0]->tok.kw == LOW_KW_VAR) {
-            mut_place = true;                                     // `var` — 언제나 가변 장소
+            mut_place = true;                                     // `var` — 가변 장소(다시 묶을 수 있다)
+            // ★★★ W-20261105-2304 (소유자 «거부하기로 바꿈») — **`mut` 없는 슬라이스를 담은 `var` 는 칸을 쓸 자리가 아니다.**
+            //   `var s slice u8 p. .` 의 `set idx s. 0 . 1 .` 은 E-TYPE-MUT 로 거절했는데, 같은 s 를 `mut slice` 입력에 넘기는 것은
+            //   받았다 — 불린 op 이 부른 쪽의 읽기 전용 바이트(읽기 입력 · 문자열 리터럴)에 썼다. 리터럴이면 VM 은 다른 자리의 같은
+            //   리터럴까지 바뀌었고(120) 네이티브는 아니었다(97). 정본 §6.2.6(7b): 쓸 수 없는 슬라이스를 다시 묶은 새 이름은 같은
+            //   저장소다. ⇒ 타입 낱말이 `slice` · `view` 이고 `mut` 이 없으면 그 바이트는 쓸 자리가 아니다(ro_bytes — `lit array` 나열은 틀 안
+            //   칸이라 그대로). 이름은 여전히 가변 장소다 — `set s. …` 로 다시 묶고 `mut_ref s` 로 빌려줄 수 있다.
+            //   겹침 검사 건너뛰기의 «리터럴은 쓰는 조각과 겹칠 수 없다» 가 이것에 기댄다(low_ir_stmt.c ir_xwhy).
+            bool sl = false, mu = false;
+            for (proven_size_t z = 2; z < nd->nkids; z++) {
+                const low_cst_t *k = nd->kids[z];
+                if (k->kind != LOW_CST_ATOM) break;
+                if (k->tok.kw == LOW_KW_BE) break;
+                if (veq(k->tok.lex, "mut") || veq(k->tok.lex, "mut_ref")) mu = true;
+                if (veq(k->tok.lex, "slice") || veq(k->tok.lex, "view")) { sl = true; break; }
+                if (veq(k->tok.lex, "lit") || veq(k->tok.lex, "array")) break;
+            }
+            ro_bytes = sl && !mu;
         } else {
             mut_place = false;                                    // `let` — 타입에 mut/mut_ref 가 있어야
             for (proven_size_t z = 2; z < nd->nkids; z++) {
@@ -9522,7 +9539,7 @@ static void ck_collect_binds(const low_cst_t *nd, ck_bind_t *b, proven_size_t *n
                 if (veq(k->tok.lex, "mut") || veq(k->tok.lex, "mut_ref")) { mut_place = true; break; }
             }
         }
-        b[*nb].name = nd->kids[1]->tok.lex; b[(*nb)++].is_mut_place = mut_place;
+        b[*nb].name = nd->kids[1]->tok.lex; b[*nb].ro_bytes = ro_bytes; b[(*nb)++].is_mut_place = mut_place;
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_collect_binds(nd->kids[i], b, nb, cap);
 }
@@ -9534,6 +9551,13 @@ static bool ck_name_is_ro(const ck_bind_t *b, proven_size_t nb, proven_u8str_vie
     for (proven_size_t z = 0; z < nb; z++)
         if (proven_u8str_view_eq(b[z].name, nm)) { found = true; if (b[z].is_mut_place) any_mut = true; }
     return found && !any_mut;
+}
+// 그 이름으로 받은 슬라이스의 **바이트**가 확정적으로 읽기 전용인가 — 읽기 전용 이름이거나, 모든 묶기가 `mut` 없는 슬라이스의 `var` 다
+static bool ck_name_bytes_ro(const ck_bind_t *b, proven_size_t nb, proven_u8str_view_t nm) {
+    bool found = false, any_w = false;
+    for (proven_size_t z = 0; z < nb; z++)
+        if (proven_u8str_view_eq(b[z].name, nm)) { found = true; if (b[z].is_mut_place && !b[z].ro_bytes) any_w = true; }
+    return found && !any_w;
 }
 
 // ★★★ X-0082 (2026-09-30, RFC-0132 T2b-3b 를 짓다 드러남) — **레코드의 칸에 쓰려면 그 레코드가 쓸 수 있는 자리여야 한다.**
@@ -9746,7 +9770,7 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
                         ck_atom(f->kids[1]) && proven_u8str_view_eq(f->kids[1]->tok.lex, arg->tok.lex) && ck_atom(f->kids[2]) &&
                         veq(f->kids[2]->tok.lex, "slice")) return true;
                 }
-            return ck_name_is_ro(binds, nb, arg->tok.lex);       // 맨 이름
+            return ck_name_bytes_ro(binds, nb, arg->tok.lex);    // 맨 이름(W-20261105-2304 — `mut` 없는 슬라이스의 `var` 도)
         }
         // ★★★★ **리터럴은 고칠 수 있는 자리가 아니다** (정본 §6.1.4(12) · §8.8 · 결함 노트 #84, 2026-09-16).
         //   문자열 리터럴을 `mut slice u8` 자리에 넘기는 것이 통과했다 — VM 은 그 바이트를 고치고
@@ -13451,6 +13475,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             for (proven_size_t q = 0; q < h.np && nb < 256; q++) {
                 binds[nb].name = h.p[q].name;
                 binds[nb].is_mut_place = ck_param_mutq(f, &h, q);
+                binds[nb].ro_bytes = false;
                 nb++;
             }
             ck_collect_binds(h.body, binds, &nb, 256);

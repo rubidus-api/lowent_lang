@@ -195,6 +195,9 @@ typedef struct {
     proven_array_t       code;              // of low_ir_ins_t
     proven_array_t       xpairs;            // of low_ir_xpair_t — ★ W-20261104-1345 입구 겹침 검사 짝(ir_excl_entry)
     proven_array_t       xsites;            // of low_ir_xsite_t — ★ 그 부름 자리의 슬라이스 인자(ir_xsite_note)
+    // ★ W-20261105-2304 — 칸마다 `let` 별칭(`let X slice u64 subslice pt. 0 16 .`)이 무엇을 가리키는지(xal_ok 의 비트가 선 칸만)
+    low_ir_xarg_t        xal[IR_MAXLOCALS];
+    proven_u64           xal_ok;
     ir_local_t           locals[IR_MAXLOCALS];
     proven_size_t        nlocals;
     ir_loop_t            loops[IR_MAXLOOP];
@@ -412,6 +415,7 @@ void ir_warn_at(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line,
 bool ir_int_lit(proven_u8str_view_t v, proven_i64 *out);                       /* 20회 */
 proven_size_t ir_local_find(ir_ctx_t *c, proven_u8str_view_t name, bool *found); /* 16회 */
 void ir_xsite_note(ir_ctx_t *c, const low_cst_t *const *k, const proven_size_t *from, const proven_size_t *to, proven_size_t nargs, proven_size_t first);
+low_ir_xarg_t ir_xarg_alias(ir_ctx_t *c, const low_cst_t *const *k, proven_size_t from, proven_size_t to);   /* ★ W-20261105-2304 */
 proven_size_t ir_emit(ir_ctx_t *c, low_irw_t w, proven_i64 a);                 /* 11회 */
 
 /* ── 진짜 결합 — 구간분석이 **하강·계약·op 표**에 기대는 자리 ───────────────

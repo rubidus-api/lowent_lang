@@ -917,10 +917,13 @@ typedef struct {
 
 // 입구 검사 짝 하나: 매개변수 i · j(칸 번호 = 인자 자리), 갈래(IR_XCHK_*), 그 XCHK 의 자리. skipped = 지워졌다(C 입구가 견준다).
 typedef struct low_ir_xpair { proven_u8 i, j, mode; bool skipped; proven_u32 at; } low_ir_xpair_t;
-// 부름 자리의 인자 하나: kind 0 모름 · 1 칸 그대로 · 2 칸의 상수 구간 [lo, hi) · 3 칸 안 어딘가(구간을 모른다)
+// 부름 자리의 인자 하나: kind 0 모름 · 1 칸 그대로 · 2 칸의 구간 [lo, hi) · 3 칸 안 어딘가(구간을 모른다) · 4 읽기 전용 리터럴 바이트
 //   why = 모르는 까닭(kind 0 일 때 · `LOW_XSKIP_WHY` 보고용): 0 메서드의 받는 쪽 · 1 부름의 답 · 2 `field` · 3 `idx` · 4 `view_array` ·
 //   5 이 op 의 칸이 아닌 이름 · 6 리터럴 · 7 그 밖
-typedef struct { proven_u8 kind, why; proven_u16 slot; proven_u64 lo, hi; } low_ir_xarg_t;
+//   ★ W-20261105-2304 — 구간의 끝은 `lo + lom·v` 꼴이다(v = 칸 lov-1 의 실행 중 값 · lov 0 이면 상수). `[0, k)` 와 `[k, n)` 처럼
+//   실행 중 한 점에서 맞닿는 조각을 견준다. via = 이 인자가 `let` 별칭을 거쳐 기댄 칸들(그 `let` 뒤로 바뀌지 않아야 보증이 선다).
+typedef struct { proven_u8 kind, why; proven_u16 slot; proven_u8 lov, hiv; proven_u32 lom, him; proven_i64 lo, hi; proven_u64 via; } low_ir_xarg_t;
+#define IR_XEND_UNK 0xffffffffu   /* lom · him 이 이 값이면 그 끝은 모른다(실행 중 값 · 읽지 못한 식) */
 // 부름 자리 하나: at = 그 CALL 의 자리, taint = 인자에 참조(`ref` · `mut_ref` · `addr`)가 섞였다(칸이 그사이 바뀔 수 있다 — 보증 없음)
 typedef struct low_ir_xsite { proven_u32 at; proven_u8 nargs; bool taint; low_ir_xarg_t a[LOW_MAX_PARAMS]; } low_ir_xsite_t;
 

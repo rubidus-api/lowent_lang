@@ -108,8 +108,10 @@ do
 end .
 
 rem 부르는 자리 — 바이트를 두 배로 만들고 합을 낸다(VM≡native 가 이 변경의 오라클이다).
-fn run_w input b slice u8 . output u64 . do
-  var xs slice u32 view_array u32 b. . .
+rem ☞ 2026-11-05 (W-20261105-2304) — 입력이 `slice u8`(읽기 전용)이었는데 `var xs slice u32 view_array u32 b.` 를 거쳐 `mut` 입력에
+rem   넘겨 썼다. 이제 그것은 E-TYPE-ARGMUT 다(`mut` 없는 슬라이스의 `var` 는 바이트를 쓸 자리가 아니다) — 쓰는 입력은 `mut` 로 받는다.
+proc run_w input b mut slice u8 . output u64 . effects none . do
+  var xs mut slice u32 view_array u32 b. . .
   let z u64 dbl_c xs. len xs. . . .
   var s u64 0 .
   var k usize 0 .

@@ -70,7 +70,9 @@ Writing through a read borrow is rejected.
 The other direction is blocked too. Passing a value received only for reading to a position that takes `mut`, `mut_ref` or `owned` is
 rejected with `E-TYPE-ARGMUT`. Something writable can be passed on for reading, but something read-only cannot be passed to a writable
 position. Whoever received a value for reading must be able to trust that *it does not change while they look at it*, and that trust holds
-only when nobody gains write permission behind their back.
+only when nobody gains write permission behind their back. A `var` holding a slice without `mut` (`var s slice u8 p. .`) is the same: the
+name can be bound again to another slice, but its cells cannot be written (`set idx s. 0 . 1 .` is `E-TYPE-MUT`) --- so passing it to a `mut`
+input is `E-TYPE-ARGMUT`.
 
 == Many readers or one writer
 
@@ -197,7 +199,7 @@ loop has its length change even though its own code contains no assignment. Retu
   [two `mut_ref` of one value · `ref` plus a write], [overlapping borrows --- rejected (`E-EXCL`)], [many readers or one writer],
   [one storage in a written and a read position], [only when the callee allows it with `inplace <written> <read> .` and the ranges are *the same* --- else `E-EXCL-INPLACE`], [a body that reads and writes element by element is right only on the same range],
   [pieces whose ends are known only at run time, in a written and another position], [when the processor cannot decide the overlap while translating, the op compares the pieces as it starts and stops if they overlap (`E-VM-EXCL`); an empty piece overlaps nothing], [an overlap the translation could not decide stops instead of giving a wrong answer],
-  [a call whose caller already knows the pieces cannot overlap], [when *every* call of the op shows it (two pieces of one storage cut at constant ends · two inputs the calling op already compared at its entry), the op does not compare that pair as it starts; the entry that C calls compares it there], [same answers and same stops --- only the time of comparing goes away],
+  [a call whose caller already knows the pieces cannot overlap], [when *every* call of the op shows it (two pieces of one storage whose ends fall one after the other --- constants, or one run-time value as in `[0, k)` and `[k, n)` · two inputs the calling op already compared at its entry · a name bound to one of them with `let` · a string literal), the op does not compare that pair as it starts; the entry that C calls compares it there], [same answers and same stops --- only the time of comparing goes away],
   [the body of an op that declares `inplace o a`], [write `o` only after every read of `a`, or read and write element by element with one index --- else `E-INPLACE-UNPROVEN`], [the processor checks the declaration against the body],
   [using an old view after calling an op that declares `invalidates <input>` on its storage], [rejected (`E-VIEW-INVALIDATED`) --- take the view again], [after a release, a growth or a rewind the view points at someone else's place],
   [`return ref here . .`], [return a reference to a local --- rejected], [never point at a value that is gone],

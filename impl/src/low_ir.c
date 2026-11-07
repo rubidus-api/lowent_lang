@@ -329,7 +329,7 @@ static const ir_tnode_t IR_TREE[] = {
     // ★★ RFC-0054 §8-7 — **AVR, 첫 8 비트 기계** (2026-10-25, 소유자 «곱셈기 폭 8비트 지원도 넣어 주세요»). 주소 16 비트 · 포인터 2 바이트 ·
     //   정렬 1 · 곱셈 명령은 8×8→16(`mul`). 잰 값: clang `-mmcu=atmega328p` 의 `__SIZEOF_POINTER__` 2 · `__BIGGEST_ALIGNMENT__` 1 ·
     //   `__AVR_HAVE_MUL__` 1 (2026-10-25). 조각 폭은 곱셈기보다 좁을 수 없다 — 16 이다(`low_ir_limb_bits`).
-    { "avr",       "lowent",   false, "word=16 env=bare align=1 cache=1 mul=8" },
+    { "avr",       "lowent",   false, "word=16 env=bare align=1 cache=1 mul=8 sf32=1" },   // ★ sf32 — avr-gcc 의 소프트웨어 `float`(QEMU 에서 잼 · 2026-11-08)
     //   ATmega328P(Arduino Uno · Nano). 내고 돌린다 — 2026-10-25 avr-gcc 16.2 로 짓고 qemu-system-avr `uno` 에서 돌린 답이 VM 과 같았다
     //   (`scripts/avr-build.py` · `archdev.sh avr`, RFC-0054 §8-7 A2 · A3). 그 전에는 word16 처럼 번역까지만이었다.
     { "atmega328p","avr",      true,  "" },
@@ -390,6 +390,7 @@ static bool ir_axis(low_target_t *t, const char *k, size_t kn, const char *v) {
     if (K("fpu"))    { t->has_fpu = n; return true; }
     if (K("heap"))   { t->no_heap = !n; return true; }
     if (K("float"))  { t->no_float = !n; return true; }
+    if (K("sf32"))   { t->soft_f32 = n; return true; }
     if (K("posix"))  { t->posix = n; return true; }
     if (K("check"))  { t->check_only = n; return true; }
     if (K("int128")) { t->int128 = n; return true; }

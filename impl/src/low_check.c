@@ -4970,37 +4970,47 @@ static void ck_cap_carry_walk(low_check_result_t *out, const low_cst_t *nd) {
 static void ck_cap_carry(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) { ck_cur_form = pr->forms[i]; ck_cap_carry_walk(out, pr->forms[i]); }
 }
-// ★★★ **no_float 타깃에서 float 은 없다** (RFC-0038 D5 — 임베디드 floor; E-HEAP-NOHOST 의 형제).
-//   no-float 프로파일(cortex_m 등)엔 FPU 도 소프트플로트 런타임도 없다 — f32/f64 는 계산할 수 있는
-//   값이 아니라 **존재하지 않는다**. 선언 어디에든 f32/f64 타입 낱말이 있으면 거절한다(선언당 한 번).
-static bool ck_has_float_tok(const low_cst_t *nd) {
-    if (!nd) return false;
+// ★★★ **no_float 타깃의 부동** (RFC-0038 D5 — 임베디드 floor; E-HEAP-NOHOST 의 형제). 처음 판(2026-08)은 `f32` · `f64` 를
+//   둘 다 «존재하지 않는다» 로 거절했다. 아래가 2026-11-08 판이다.
+// ★★★ 2026-11-08 (RFC-0156 §8-10 · 정본 §5.6 (4-1) · (4-2) · BTS R1.3) — `f32` 는 **어느 대상에나 있는** 타입이다. 부동소수점 장치가 없는
+//   대상은 C 컴파일러의 소프트웨어 부동으로 낸다 — 잰 대상(`soft_f32`: AVR, QEMU 에서 VM 과 같은 비트)에서는 받는다.
+//   아직 재지 못한 대상(`cortex_m` · `cheriot` · `word16`)에서는 **정책이 아니라 도구의 한계**로 거절한다(E-FLOAT-NOTYET).
+//   `f64` 는 선택이다 — 장치 없는 대상에서는 그대로 E-FLOAT-NOFLOAT(avr-gcc 의 `double` 은 기본 32 비트라 정직하게 낼 수 없다).
+//   타입 낱말 없는 부동 리터럴은 `f64` 로 읽히므로 `f64` 와 같이 다룬다.
+static void ck_float_words(const low_cst_t *nd, bool *w32, bool *w64, bool *lit) {
+    if (!nd) return;
     if (nd->kind == LOW_CST_ATOM) {
         proven_u8str_view_t w = nd->tok.lex;
-        if (veq(w, "f32") || veq(w, "f64")) return true;
-        // ★ float **리터럴**(1.5 등)도 float 이다 — no_float 타깃에선 이것도 거절(그렇지 않으면 실제 double 로
-        //   컴파일돼 FPU 없는 기계에서 돈다). 숫자로 시작하고 소수점을 가진 원자는 float 리터럴이다.
-        if (w.size >= 2 && w.ptr[0] >= '0' && w.ptr[0] <= '9')
-            for (proven_size_t z = 1; z < w.size; z++) if (w.ptr[z] == '.') return true;
+        if (veq(w, "f32")) *w32 = true;
+        else if (veq(w, "f64")) *w64 = true;
+        else if (w.size >= 2 && w.ptr[0] >= '0' && w.ptr[0] <= '9')
+            for (proven_size_t z = 1; z < w.size; z++) if (w.ptr[z] == '.') { *lit = true; break; }
     }
-    for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_has_float_tok(nd->kids[i])) return true;
-    return false;
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_float_words(nd->kids[i], w32, w64, lit);
 }
 static void ck_float_target(low_check_result_t *out, const low_parse_result_t *pr) {
-    if (!low_ir_target()->no_float) return;
+    const low_target_t *t = low_ir_target();
+    if (!t->no_float) return;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC && kw != LOW_KW_STRUCT &&
             kw != LOW_KW_TYPE && kw != LOW_KW_NEWTYPE) continue;
-        if (ck_has_float_tok(f))
+        bool w32 = false, w64 = false, lit = false;
+        ck_float_words(f, &w32, &w64, &lit);
+        const proven_u32 ln = (f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM) ? f->kids[1]->tok.line : f->line;
+        if (w64 || (lit && !w32))
             emit(out, "E-FLOAT-NOFLOAT",
-                 "this declaration uses a FLOAT type (`f32`/`f64`), but the build target has NO FLOAT "
-                 "(`machine.no_float` — a freestanding/embedded profile like cortex_m). Float is opt-in "
-                 "(RFC-0038 D5): a no_float target has no FPU and no soft-float runtime, so a float is "
-                 "not a value it can compute. Use fixed-point integers, or build for a target with float",
-                 (f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM) ? f->kids[1]->tok.line : f->line);
+                 "this declaration uses `f64` (or a float literal with no `f32` in sight, which reads as `f64`), but the build "
+                 "target has no floating-point unit (`machine.no_float`). `f64` is optional and this target does not have it — "
+                 "the C compiler's software `double` is not a 64-bit IEEE value everywhere (avr-gcc's is 32 bits). Use `f32`, "
+                 "fixed-point integers, or a target with float", ln);
+        else if (w32 && !t->soft_f32)
+            emit(out, "E-FLOAT-NOTYET",
+                 "this declaration uses `f32`. `f32` is on every target (canon 5.6 (4-1)), computed in software where there is no "
+                 "floating-point unit — but this tool has not yet built and measured software `f32` for this target (RFC-0157). "
+                 "It is a limit of the tool, not of the language: the AVR targets have it today", ln);
     }
 }
 // ★★ RFC-0151 Q1 ⓑ (2026-10-22) — **128 비트 정수는 될 수 있는 대상에서, 될 수 있는 자리에만** 선다.

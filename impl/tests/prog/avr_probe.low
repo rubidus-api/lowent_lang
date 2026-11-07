@@ -124,3 +124,21 @@ do
   let t slice u8 "hello, avr world" .
   return cast u64 idx t. i. . . .
 end .
+
+rem ★★ 2026-11-08 (RFC-0156 §8-10 · 정본 §5 (4)) — FPU 없는 칩의 `f32` 는 avr-gcc 의 소프트웨어 `float` 다. 비트를 받아 `f32` 로 셈하고
+rem   비트로 돌려준다 — 그래서 답을 정수로 대조할 수 있다. 정규수 · 비정규수 · 최댓값 · ±0 을 지난다(NaN 을 내는 짝은 뺀다 — FC-0004).
+export proc p_fadd32 input a u32 . input b u32 . output u32 . effects none . do
+  return bit_cast u32 add bit_cast f32 a. . bit_cast f32 b. . . . .
+end .
+
+export proc p_fsub32 input a u32 . input b u32 . output u32 . effects none . do
+  return bit_cast u32 sub bit_cast f32 a. . bit_cast f32 b. . . . .
+end .
+
+export proc p_fmul32 input a u32 . input b u32 . output u32 . effects none . do
+  return bit_cast u32 mul bit_cast f32 a. . bit_cast f32 b. . . . .
+end .
+
+export proc p_fdiv32 input a u32 . input b u32 . output u32 . effects none . do
+  return bit_cast u32 div bit_cast f32 a. . bit_cast f32 b. . . . .
+end .

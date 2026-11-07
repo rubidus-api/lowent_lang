@@ -5,8 +5,8 @@
 #modhead(file: "lib/math.low", layer: [L0 --- pure computation (host only)], caps: [none])
 
 Offers the floating-point functions (`math.sqrt`, `math.sin`, `math.exp`, …) and commonly used things on top of them --- comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a
-base, and linear interpolation. It has no capabilities but links to the C maths library, so it is *host only* --- targets without an operating system may have no floating
-point at all (`cortex_m` is `no_float`).
+base, and linear interpolation. It has no capabilities but links to the C maths library, so it is *host only* --- a target without a floating-point unit has no `f64`, and
+computes `f32` in software (canon 5.6 (4-1) --- accepted on AVR since 2026-11-08). This module's functions are not available there.
 
 #aside[Do not compare with `==` --- use `close`][
   ```lowent

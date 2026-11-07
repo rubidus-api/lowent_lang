@@ -1,0 +1,24 @@
+module args .
+rem run: tally 5 7
+
+actor account do
+  state do
+    balance u64 .
+  end .
+
+  proc deposit input amount u64 . output u64 . effects state .
+    requires le amount. 1000000 . .
+  do
+    set balance. wrap_add balance. amount. . .
+    return balance. .
+  end .
+end .
+
+proc tally input a u64 . input b u64 . output u64 . effects state .
+  requires le a. 1000000 . .
+  requires le b. 1000000 . .
+do
+  var acct account spawn actor account . .
+  let x u64 send acct. deposit a. . .
+  return send acct. deposit b. . .
+end .

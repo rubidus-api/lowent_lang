@@ -1,0 +1,8 @@
+module mistake_boolcast .
+rem expect: E-TYPE-KIND
+
+fn nonzero input n u64 . output bool .
+do
+  rem ko: ✘ 수의 어느 값이 참인지는 물음이 정한다 --- `ne n. 0 .` 으로 적는다 /// en: ✘ which values count as true is decided by the question --- write `ne n. 0 .`
+  return cast bool n. . .
+end .

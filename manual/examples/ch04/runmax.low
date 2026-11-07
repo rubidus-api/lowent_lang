@@ -1,0 +1,17 @@
+module runmax .
+rem run: echo 18446744073709551615
+rem test
+
+rem ko: u64 의 위쪽 절반도 `--run` 인자로 그대로 들어간다(1.20.0 부터) /// en: the upper half of u64 goes in as a `--run` argument as it is (since 1.20.0)
+fn echo input n u64 . output u64 .
+do
+  return n. .
+end .
+
+rem ko: 경계값은 시험 안에서 리터럴로도 적을 수 있다 /// en: boundary values can also be written as literals inside a test
+test largest_u64
+do
+  let m u64 18446744073709551615 .
+  expect gt m. 9223372036854775807 . .
+  expect eq div m. 2 . 9223372036854775807 . .
+end .

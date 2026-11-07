@@ -1,0 +1,95 @@
+# 부록 A — 낱말과 기본 연산
+
+낱말을 **설명**하는 곳은 본문이다. 이 부록은 코드를 읽다 막혔을 때 훑어볼 표만 모은다. 낱말 목록은 명세의 부록 A 와 같고, 그 목록에 없는 것은 낱말이 아니다.
+
+## <a id="sx1"></a>낱말 마흔여덟
+
+| **갈래** | **낱말** | **다루는 장** |
+|---|---|---|
+| 선언 | `module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | 21·13장 |
+| op | `fn` `proc` `export` `unsafe` `extern` `satisfies` | 5장 |
+| 지역 | `let` `var` `set` `keep` | 6장 |
+| 흐름 | `if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `return` `break` `continue` `try` | 7장 |
+| 식과 값 | `expr` `lit` `true` `false` `none` | 8장 |
+| 동시성 | `spawn` `send` | 25장 |
+| 소유 | `drop` | 19장 |
+| 시험 | `test` `expect` | 31장 |
+| 블록 | `do` `end` | 3장 |
+
+*표 50.1 — 낱말의 전부*
+
+`rem` 과 `note` 는 주석을 여는 표시이고, `input`·`output`·`effects`·`requires` 같은 절 머리와 `add`·`len` 같은 기본 연산은 낱말이 아니지만 이름으로 쓸 수 없다.
+
+## <a id="sx2"></a>없앤 낱말
+
+| **없앤 것** | **대신** |
+|---|---|
+| `loop` | `while true` |
+| `give` | `return` |
+| `unit` | `void` |
+| `calcop` · `procop` | `fn` · `proc` |
+| `is` · `as`(선언 속) · `local` | 적지 않는다 |
+| `to` · `in`(칸 접근) | `field a. b .` · `idx a. i. .` |
+| `on` | 액터 안의 `proc` |
+| `fail` | `return error <갈래>` |
+| `;` · `,` | `.` |
+| `make` | `lit` |
+| `index` | `idx` |
+| `def struct`·`def enum`·`def type`·`def newtype` (`E-DEF-OLD`) | `def` 를 지운다 — `struct` · `enum` · `type` · `newtype` |
+
+*표 50.2 — 없앤 낱말과 대신 쓰는 것(`E-VOCAB-REMOVED`)*
+
+`as` 와 `to` 는 `use … as <별칭>` 과 `case <아래> to <위>` 의 자리 표식으로만 남아 있다.
+
+## <a id="sx3"></a>자주 쓰는 기본 연산
+
+| **갈래** | **연산** |
+|---|---|
+| 산술(멈춤) | `add` `sub` `mul` `div` `mod` `neg` `abs` `min` `max` |
+| 산술(처분을 고름) | `wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` |
+| 폭 바꾸기 | `widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast` |
+| 비교와 논리 | `eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not` |
+| 비트 | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` |
+| 줄 | `len` `idx` `subslice` `view` `view_array` `same_slice` `copy` |
+| 묶음 | `field` `method` `isa` `payload` |
+| 답을 담는 타입 | `some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or` |
+| 번역 시점 | `size_of` `comptime` `config` |
+| 할당 | `alloc_bytes` |
+| 원자 | `atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence` |
+| 장치 | `read_volatile` `write_volatile` |
+| 동시성 | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
+| 원자(비트) | `atomic_and` `atomic_or` `atomic_xor` |
+| 파이프 단계 — 24장 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into` |
+| 레인(SIMD) — 27장 | `splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch` |
+| 작은 수의 집합 — 13장 | `bitset_new` `bitset_count` `bitset_insert` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |
+| 배치와 뷰 — 13장 | `encode` `try_view` `view_segments` `capacity` |
+| 빌림과 영역 — 12장 · 18장 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `stack_count` `push` `pop` `swap` |
+| 계약과 오류 — 14장 | `range` `ret` `expect` `panic` `elem_lt` `elem_le` `elem_gt` `elem_ge` |
+| 빌트인 연산(계산) — `call_builtin` 뒤에서만 선다 | `clmul_lo` `clmul_hi` `mul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
+| C 문자열 · 되부름 — 29장 | `cstr_of` `str_from_cstr` `unsafe_fn` |
+| 빌트인 연산(파일 · 그물 · 프로세스) — `call_builtin` 뒤에서만 선다 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `proc_spawn` `proc_read` `proc_poll` `proc_wait` `proc_kill` |
+| 빌트인 연산(표준 입출력 · 인자 · 환경 · 시계 · 터미널 · 난수 · reactor) — `call_builtin` 뒤에서만 선다 | `write_out` `read_in` `arg` `env_get` `time_now` `time_local` `time_sleep` `tty_raw` `tty_read` `tty_size` `random_bytes` `reactor_new` `r_read` `r_write` |
+| 빌트인 연산(부동소수점 함수) — `call_builtin` 뒤에서만 선다 · 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
+
+*표 50.3 — 기본 연산의 갈래*
+
+★ **빌트인 연산은 제 이름공간을 갖는다.** `call_builtin sha256 msg. out. .` 처럼 그 자리에서만 서고, 저자는 같은 철자를 제 이름으로 지을 수 있다. 저자의 이름 가운데 없는 것을 맨 이름으로 부르면 `E-BUILTIN-BARE`, `call_builtin` 뒤에 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 빌트인 연산은 시스템 라이브러리를 짓는 재료이고, 프로그램은 그것을 감싼 모듈을 부른다(32장).
+
+이 표는 정본의 기본 연산과 빌트인 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
+
+## <a id="sx4"></a>효과와 권한
+
+| **효과** | **허락하는 권한** | **다루는 장** |
+|---|---|---|
+| `io` | `cap io` · `file_system` · `net` · `tty` · `clock` · `random` | 16장 |
+| `alloc` · `heap` | `cap allocator` · `cap heap` | 18·20장 |
+| `atomic` | `cap atomic` | 27장 |
+| `device` | `cap mmio` | 30장 |
+| `unsafe` | `cap c` · `cap machine`(쓰는 자리에 따라) | 29·30장 |
+| `state` · `panic` · `wait` · `concurrent` | 권한 없이 적는다 | 15·26장 |
+
+*표 50.4 — 효과 원자와 짝이 되는 권한*
+
+---
+
+[← 이전](ch50.md) · [목차로](README.md) · [다음 →](sec54.md)

@@ -1,0 +1,18 @@
+module copy .
+rem run: main
+
+use files .
+use stdio .
+
+proc main input out cap io . input fs cap file_system . output u8 . effects io .
+do
+  let o result files.handle files.file_error files.open fs. "../../build/ch28-copy.txt" 1 . .
+  guard is_ok o. . else return 1 . .
+  var h owned files.handle ok_value o. . .
+  let w result usize files.file_error files.write fs. h. "hello, file\n" . .
+  let c result void files.file_error files.close fs. h. . .
+  guard is_ok w. . else return 2 . .
+  guard is_ok c. . else return 3 . .
+  let m usize stdio.write out. 1 "wrote and closed\n" . .
+  return 0 .
+end .

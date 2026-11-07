@@ -1,0 +1,10 @@
+module mistake_noext .
+rem expect: E-DEP-MISSING
+
+rem ko: ✘ 자리는 파일 이름 그대로 --- `.low` 까지 적는다 /// en: ✘ the place is the exact file name --- include `.low`
+use geom from "geom" .
+
+fn same input v i64 . output i64 .
+do
+  return v. .
+end .

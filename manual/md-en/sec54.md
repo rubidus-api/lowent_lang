@@ -1,0 +1,95 @@
+# Appendix A — Words, core ops and builtin ops
+
+The text is where words are **explained**. This appendix gathers only tables to skim when you get stuck reading code. The word list is the same as the specification’s Appendix A, and anything not in that list is not a word.
+
+## <a id="sx1"></a>The forty-eight words
+
+| **Kind** | **Words** | **Chapter** |
+|---|---|---|
+| Declarations | `module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | chapters 21 and 13 |
+| ops | `fn` `proc` `export` `unsafe` `extern` `satisfies` | chapter 5 |
+| Locals | `let` `var` `set` `keep` | chapter 6 |
+| Flow | `if` `else` `while` `for` `repeat` `range` `cycle` `next` `step` `guard` `match` `case` `return` `break` `continue` `try` | chapter 7 |
+| Expressions and values | `expr` `lit` `true` `false` `none` | chapter 8 |
+| Concurrency | `spawn` `send` | chapter 25 |
+| Ownership | `drop` | chapter 19 |
+| Tests | `test` `expect` | chapter 31 |
+| Blocks | `do` `end` | chapter 3 |
+
+*Table 50.1 — All the words*
+
+`rem` and `note` are markers opening comments, and clause heads such as `input`, `output`, `effects` and `requires` and core ops such as `add` and `len` are not words but cannot be used as names.
+
+## <a id="sx2"></a>Removed words
+
+| **Removed** | **Instead** |
+|---|---|
+| `loop` | `while true` |
+| `give` | `return` |
+| `unit` | `void` |
+| `calcop` · `procop` | `fn` · `proc` |
+| `is` · `as` (in declarations) · `local` | Not written |
+| `to` · `in` (field access) | `field a. b .` · `idx a. i. .` |
+| `on` | `proc` inside an actor |
+| `fail` | `return error <variant>` |
+| `;` · `,` | `.` |
+| `make` | `lit` |
+| `index` | `idx` |
+| `def struct`·`def enum`·`def type`·`def newtype` (`E-DEF-OLD`) | delete `def` — `struct` · `enum` · `type` · `newtype` |
+
+*Table 50.2 — Removed words and what to use instead (`E-VOCAB-REMOVED`)*
+
+`as` and `to` remain only as position markers in `use … as <alias>` and `case <low> to <high>`.
+
+## <a id="sx3"></a>Frequently used core ops
+
+| **Kind** | **Operations** |
+|---|---|
+| Arithmetic (stopping) | `add` `sub` `mul` `div` `mod` `neg` `abs` `min` `max` |
+| Arithmetic (choosing the outcome) | `wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` |
+| Changing width | `widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast` |
+| Comparison and logic | `eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not` |
+| Bits | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` |
+| Sequences | `len` `idx` `subslice` `view` `view_array` `same_slice` `copy` |
+| Groupings | `field` `method` `isa` `payload` |
+| Answer-carrying types | `some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or` |
+| Translation time | `size_of` `comptime` `config` |
+| Allocation | `alloc_bytes` |
+| Atomic | `atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence` |
+| Devices | `read_volatile` `write_volatile` |
+| Concurrency | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
+| Atomic (bits) | `atomic_and` `atomic_or` `atomic_xor` |
+| Pipe stages — chapter 24 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into` |
+| Lanes (SIMD) — chapter 27 | `splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `shuffle` `prefetch` |
+| Small-number sets — chapter 13 | `bitset_new` `bitset_count` `bitset_insert` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |
+| Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `capacity` |
+| Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `stack_count` `push` `pop` `swap` |
+| Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` `elem_lt` `elem_le` `elem_gt` `elem_ge` |
+| Builtin ops (computation) — stand only after `call_builtin` | `clmul_lo` `clmul_hi` `mul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
+| C strings and callbacks — chapter 29 | `cstr_of` `str_from_cstr` `unsafe_fn` |
+| Builtin ops (files, network, processes) — only after `call_builtin` | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `proc_spawn` `proc_read` `proc_poll` `proc_wait` `proc_kill` |
+| Builtin ops (standard I/O · arguments · environment · clock · terminal · random · reactor) — stand only after `call_builtin` | `write_out` `read_in` `arg` `env_get` `time_now` `time_local` `time_sleep` `tty_raw` `tty_read` `tty_size` `random_bytes` `reactor_new` `r_read` `r_write` |
+| Builtin ops (floating-point functions) — stand only after `call_builtin` · chapter 4 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
+
+*Table 50.3 — Kinds of core ops and builtin ops*
+
+★ **Builtin ops have a name space of their own.** They stand only in that position — `call_builtin sha256 msg. out. .` — and you may use the same spelling for a name of yours. Calling one bare when no name of yours is spelt that way is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. Builtin ops are the material the system library is built from; a program calls the module that wraps them (chapter 32).
+
+This table sorts every core op and builtin op of the canon into a group. The chapter next to each group name explains that group with examples. The one-line meanings are authoritative in the repository’s `docs/spec/BUILTIN-MEANINGS.tsv`.
+
+## <a id="sx4"></a>Effects and capabilities
+
+| **Effect** | **Permitting capability** | **Chapter** |
+|---|---|---|
+| `io` | `cap io` · `file_system` · `net` · `tty` · `clock` · `random` | chapter 16 |
+| `alloc` · `heap` | `cap allocator` · `cap heap` | chapters 18 and 20 |
+| `atomic` | `cap atomic` | chapter 27 |
+| `device` | `cap mmio` | chapter 30 |
+| `unsafe` | `cap c` · `cap machine` (depending on use) | chapters 29 and 30 |
+| `state` · `panic` · `wait` · `concurrent` | Written without capabilities | chapters 15 and 26 |
+
+*Table 50.4 — Effect atoms and their paired capabilities*
+
+---
+
+[← Prev](ch50.md) · [Contents](README.md) · [Next →](sec55.md)

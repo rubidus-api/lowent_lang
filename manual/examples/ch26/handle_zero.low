@@ -1,0 +1,32 @@
+module handle_zero .
+rem run: both
+rem trap: forgot
+
+fn square input n u64 . output u64 .
+  requires le n. 1000 . .
+do
+  return mul n. n. . .
+end .
+
+rem ko: 핸들은 0 으로 비워 두고 시작할 수 있다 --- 흐름을 받은 뒤에 기다린다 /// en: a handle may start empty, at 0 --- wait on it after it is given a flow
+proc both output u64 . effects state .
+do
+  var a task u64 0 .
+  var b task u64 0 .
+  task_group do
+    set a. spawn square 5 . .
+    set b. spawn square 6 . .
+  end .
+  return add await a. . await b. . . .
+end .
+
+rem ko: ✘ 비워 둔 핸들을 기다린다 --- 다른 흐름을 집지 않고 멈춘다 /// en: ✘ waits on a handle left empty --- it stops instead of picking another flow
+proc forgot output u64 . effects state .
+do
+  var a task u64 0 .
+  var b task u64 0 .
+  task_group do
+    set b. spawn square 6 . .
+  end .
+  return await a. . .
+end .

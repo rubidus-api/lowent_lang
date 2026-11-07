@@ -1,0 +1,17 @@
+module shared_window .
+rem run: main
+
+use allocs .
+
+proc main input al cap allocator . output u8 . effects alloc state .
+do
+  rem ko: 할당기 둘이지만 고정 창은 하나다 /// en: two allocators, but only one fixed window
+  var f1 allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  var f2 allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  let a option mut slice u8 send f1. reserve 40000 . .
+  guard is_some a. . else return 1 . .
+  rem ko: `f2` 는 아직 아무것도 쓰지 않았지만 창에 남은 자리가 모자라다 /// en: `f2` has used nothing yet, but the window has too little room left
+  let b option mut slice u8 send f2. reserve 40000 . .
+  guard is_some b. . else return 2 . .
+  return 0 .
+end .

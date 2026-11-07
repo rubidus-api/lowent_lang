@@ -1,0 +1,12 @@
+module mistake_less .
+rem expect: E-CHAR
+
+fn upto input n u64 . output u64 .
+do
+  var i u64 0 .
+  rem ko: ✘ `<` 는 이 언어의 기호가 아니다 --- 비교는 `lt i n` 이다 /// en: ✘ `<` is not a symbol of this language --- the comparison is `lt i n`
+  while i. < n. do
+    set i. add i. 1 . .
+  end .
+  return i. .
+end .

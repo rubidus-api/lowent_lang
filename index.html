@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lowent Manual</title>
+<style>
+:root { color-scheme: light dark; --fg:#1a1a1a; --bg:#fdfdfc; --muted:#666;
+        --rule:#ddd; --accent:#3b6ea5; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg:#e6e6e6; --bg:#16181a; --muted:#9aa0a6; --rule:#333; --accent:#7aa9d6; }
+}
+body { margin:0; background:var(--bg); color:var(--fg);
+       font-family:"Noto Sans CJK KR",system-ui,sans-serif; line-height:1.7; }
+main { max-width:38rem; margin:0 auto; padding:4rem 1.2rem; }
+h1 { font-size:2rem; margin:0 0 .3rem; }
+.sub { color:var(--muted); margin:0 0 .4rem; }
+.badge { display:inline-block; border:1px solid #b0483c; color:#b0483c;
+         border-radius:3px; padding:.1rem .45rem; font-size:.8rem; font-weight:700; }
+ul { list-style:none; padding:0; }
+li { border-top:1px solid var(--rule); padding:.9rem 0; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.small { color:var(--muted); font-size:.88rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lowent Manual</h1>
+  <p class="sub">엔트로피가 낮은 시스템 프로그래밍 언어 Lowent 의 안내서 · The guide to Lowent, a low-entropy systems programming language</p>
+  <p><a class="badge" href="https://github.com/rubidus-api/lowent_lang/releases/latest">최신 판 / latest release</a> · 개발 중 / in development</p>
+  <ul>
+    <li><a href="manual/html-ko/"><strong>한국어판 읽기 (HTML)</strong></a>
+        <div class="small">10부 50장 + 부록 A~E + 표준 라이브러리 모듈 64쪽. 예제는 모두 VM 과 네이티브로 돌려 확인했습니다.</div></li>
+    <li><a href="manual/html-en/"><strong>English edition (HTML)</strong></a>
+        <div class="small">10 parts, 50 chapters, appendices A–E and 64 standard library module pages. Every example is run on both the VM and native code.</div></li>
+    <li><a href="manual/pdf-ko/lowent-manual-ko.pdf"><strong>PDF 내려받기 / Download PDF</strong></a>
+        <div class="small">한국어판 PDF · <a href="manual/pdf-en/lowent-manual-en.pdf">English PDF</a></div></li>
+    <li><a href="spec/html/"><strong>표준 명세 / Specification</strong></a>
+        <div class="small">규범 명세(한국어). 매뉴얼과 명세가 어긋나면 명세가 우선합니다 / The normative specification (Korean); it wins when the manual disagrees.</div></li>
+    <li><a href="https://github.com/rubidus-api/lowent_lang/discussions/categories/q-a"><strong>질문 게시판 / Q&amp;A board</strong></a>
+        <div class="small">언어나 매뉴얼이 궁금하면 여기에 남겨 주세요. 시간이 되는 대로 아는 범위 안에서 답하겠습니다 — 한국어·영어 어느 쪽이든 괜찮습니다.<br>
+        Ask about the language or the manual here. I answer as time allows and as far as I know; Korean or English, either is fine.</div></li>
+    <li><a href="https://github.com/rubidus-api/lowent_lang"><strong>GitHub 저장소</strong></a>
+        <div class="small">컴파일러 lowentc (C23)와 표준 라이브러리. 오탈자와 틀린 내용은 이슈로 받습니다 / The lowentc compiler and standard library. Typos and mistakes are welcome as issues.</div></li>
+  </ul>
+  <p class="small">Lowent 는 아직 개발 중이며 언어 설계도 바뀌고 있습니다. / Lowent is under active development, and the language design is still changing.</p>
+</main>
+</body>
+</html>

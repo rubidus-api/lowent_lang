@@ -23,6 +23,7 @@
 !/docs/.nojekyll
 
 # never public, even inside whitelisted folders
+/MAP.md
 /impl/tests/golden.sh
 /impl/tests/run-golden.sh
 /impl/tests/.lw_*.low

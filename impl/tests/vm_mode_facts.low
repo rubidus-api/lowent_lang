@@ -1,0 +1,17 @@
+module vm_mode_facts .
+rem RFC-0156 §10 (2026-11-08) — 모드가 지운 계약은 사실이 아니다. 골든이 `build release_fast .` · `build release_safe .` 를 넣어 돌린다.
+rem 계약이 지워져도 그 계약으로 지웠던 넘침 · 첨자 검사는 돌아와야 한다. 전에는 네이티브 bump(255) = 256 이었다(u8).
+contract small do
+  requires le a. 254 . .
+end .
+fn bump input a u8 . output u8 .
+  requires le a. 254 . .
+do return add a. 1 . . end .
+fn bump_dbg input a u8 . output u8 .
+  requires debug le a. 254 . .
+do return add a. 1 . . end .
+fn bump_named satisfies small . input a u8 . output u8 .
+do return add a. 1 . . end .
+fn at input s slice u8 . input i usize . output u8 .
+  requires lt i. len s. . . .
+do return idx s. i. . . end .

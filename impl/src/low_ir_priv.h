@@ -426,6 +426,8 @@ extern ir_opt_t g_opt[IR_MAXOPT];                                              /
 proven_u8 ir_field_size(proven_u8str_view_t w);                                /* 6회 */
 extern proven_size_t g_nopt;                                                   /* 5회 */
 bool ir_requires_at(const low_cst_t *f, proven_size_t i, proven_size_t *k, bool *is_assume, bool *is_debug); /* 5회 */
+bool ir_requires_fact_ok(const low_cst_t *f, proven_size_t i);
+bool ir_named_fact_ok(void);   /* 분석이 사실로 써도 되는가 — 모드가 지운 계약은 아니다 */
 bool ir_is_float_ty(proven_u8str_view_t w);
 ityp_t ity_of_decl_c(const void *cv, const low_cst_t *f, proven_size_t start, proven_size_t end); /* 4회 */
 extern bool g_smt_on;                                                          /* 3회 */

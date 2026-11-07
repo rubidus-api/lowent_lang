@@ -7556,6 +7556,17 @@ static bool ir_grade_kept(bool is_debug_grade) {
     *k = j;
     return true;
 }
+// ★★★ **모드가 지운 계약은 사실이 아니다** (2026-11-08 · RFC-0156 §10 · BTS 08 §1.2).
+//   `release_fast` 는 `requires` 검사를 지우고, `release_safe` 는 `requires debug` 검사를 지운다.
+//   그런데 분석은 그 계약을 **여전히 사실로 읽어** 다른 검사(넘침 · 첨자)를 지웠다 — 계약도 검사도
+//   없이 `u8` op 이 256 을 냈다(네이티브). VM 은 지운 검사를 지켜보다 E-VM-ANALYSIS 로 멈췄다.
+//   ⇒ 사실로 쓰는 쪽은 **이 판정 하나**를 묻는다: 검사가 남는 계약만 사실이다(`assume` 과 같은 까닭).
+bool ir_named_fact_ok(void) { return ir_grade_kept(false); }   // 명명 계약(등급 없음 = static)
+bool ir_requires_fact_ok(const low_cst_t *f, proven_size_t i) {
+    proven_size_t k; bool is_assume = false, is_debug = false;
+    if (!ir_requires_at(f, i, &k, &is_assume, &is_debug)) return false;
+    return !is_assume && ir_grade_kept(is_debug);
+}
 // `ensures [static|debug] <cmp> ret <N>` — requires 와 같은 모양, 좌변이 `ret` 이다.
  bool ir_ensures_at(const low_cst_t *f, proven_size_t i, proven_size_t *k) {
     if (!is_atom(f->kids[i]) || !veq(f->kids[i]->tok.lex, "ensures")) return false;
@@ -7691,6 +7702,10 @@ static void ir_req_emit(ir_ctx_t *c, const low_cst_t *const *k, proven_size_t kk
                     // ★ 피연산자는 낱말일 수도 **폼**(`(field s w)`)일 수도 있다 —
                     //   원자만 통과시키면 `field` 계약이 **조용히 사라진다**.
                     if (!is_atom(rq->kids[1])) continue;
+                    // ★ 명명 계약도 계약이다 — 모드가 지우면 같이 지운다(2026-11-08 · 정본 §6.4.7 (4)).
+                    //   전에는 `release_fast` 에서도 이 검사만 남았다: op 에 적은 `requires` 는 지우고
+                    //   `satisfies` 로 들인 같은 모양은 안 지웠다. 등급 낱말이 없으니 `static` 이다.
+                    if (!ir_grade_kept(false)) { g_bdropped++; if (c->dropped_out) (*c->dropped_out)++; continue; }
                     ir_req_emit(c, (const low_cst_t *const *)rq->kids, 1);
                 }
             }

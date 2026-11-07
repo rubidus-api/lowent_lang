@@ -137,6 +137,7 @@ static void iv_sig_narrow(ir_ctx_t *c, iv_t *sig, proven_u8str_view_t op,
 //   ⇒ 오라클이 자기가 못 보는 계약을 시험하고 있었다. 계약을 **한 곳에서** 본다.
  void iv_apply_named(ir_ctx_t *c, const low_parse_result_t *pr, const low_cst_t *f, iv_t *sig) {
     if (!pr) return;
+    if (!ir_named_fact_ok()) return;   // 모드가 지운 명명 계약은 사실이 아니다(RFC-0156 §10)
     for (proven_size_t i = 0; i + 1 < f->nkids; i++) {
         if (!is_atom(f->kids[i]) || f->kids[i]->tok.kw != LOW_KW_SATISFIES) continue;
         for (proven_size_t r = i + 1; r < f->nkids && is_atom(f->kids[r]) &&
@@ -165,6 +166,7 @@ static void iv_sig_narrow(ir_ctx_t *c, iv_t *sig, proven_u8str_view_t op,
     for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
         proven_size_t k; bool is_assume;
         if (!ir_requires_at(f, i, &k, &is_assume, NULL)) continue;
+        if (!ir_requires_fact_ok(f, i)) continue;   // 모드가 지운 계약은 사실이 아니다(RFC-0156 §10)
         // ★ assume 은 **검사되지 않는다** ⇒ 사실로 쓰지 않는다(검사 제거의 근거가 될 수 없다).
         if (is_assume) continue;
         proven_u8str_view_t op = f->kids[k]->tok.lex;
@@ -197,6 +199,7 @@ static void iv_apply_len_requires(ir_ctx_t *c, const low_cst_t *f, iv_t *lenv) {
     for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
         proven_size_t k; bool is_assume;
         if (!ir_requires_at(f, i, &k, &is_assume, NULL)) continue;
+        if (!ir_requires_fact_ok(f, i)) continue;   // 모드가 지운 계약은 사실이 아니다(RFC-0156 §10)
         if (is_assume) continue;              // 검사되지 않는 것은 사실이 아니다
         proven_u8str_view_t op = f->kids[k]->tok.lex;
         const low_cst_t *L = f->kids[k + 1], *R = f->kids[k + 2];
@@ -222,6 +225,7 @@ static void iv_apply_elem_requires(ir_ctx_t *c, const low_cst_t *f, iv_t *elem) 
     for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
         proven_size_t k; bool is_assume;
         if (!ir_requires_at(f, i, &k, &is_assume, NULL)) continue;
+        if (!ir_requires_fact_ok(f, i)) continue;   // 모드가 지운 계약은 사실이 아니다(RFC-0156 §10)
         if (is_assume) continue;
         proven_u8str_view_t op = f->kids[k]->tok.lex;
         int cmp = veq(op, "elem_lt") ? 0 : veq(op, "elem_le") ? 1 : veq(op, "elem_gt") ? 2 : veq(op, "elem_ge") ? 3 : -1;
@@ -714,6 +718,7 @@ static void iv_narrow_len(ivstate_t *st, proven_u8 op, proven_i32 lslot, iv_t rh
     for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
         proven_size_t k; bool is_assume;
         if (!ir_requires_at(f, i, &k, &is_assume, NULL)) continue;
+        if (!ir_requires_fact_ok(f, i)) continue;   // 모드가 지운 계약은 사실이 아니다(RFC-0156 §10)
         if (is_assume) continue;                       // assume 은 검사되지 않는다 ⇒ 사실이 아니다
         proven_u8str_view_t op = f->kids[k]->tok.lex;
         // ★★★ **`requires ge (len s) (mul p q) .` 를 읽는다** (2026-07-30 · 행우선 규칙의 전제).

@@ -53,10 +53,10 @@ bit_and	비트	`bit_and a b`	`a` `b` — 맞는 두 정수	두 피연산자가 �
 bit_or	비트	`bit_or a b`	`a` `b` — 맞는 두 정수	두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입 · 폭이나 부호만 다르면 산술과 같다 — 넓히기로 비교할 수 있으면 넓은 쪽 타입	`E-IR-ARITY` · `usize` · `idiff` 와 고정 폭을 섞으면 `E-TYPE-NOMINAL` · 넓히기로 비교할 수 없으면 `E-TYPE-SIGN`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 bit_xor	비트	`bit_xor a b`	`a` `b` — 맞는 두 정수	두 피연산자가 같은 타입이면 그 타입 · 한쪽이 리터럴이면 다른 쪽의 타입 · 폭이나 부호만 다르면 산술과 같다 — 넓히기로 비교할 수 있으면 넓은 쪽 타입	`E-IR-ARITY` · `usize` · `idiff` 와 고정 폭을 섞으면 `E-TYPE-NOMINAL` · 넓히기로 비교할 수 없으면 `E-TYPE-SIGN`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 bit_not	비트	`bit_not a`	`a` — 정수	`a` 의 타입 — 그 폭 안에서 뒤집는다(`bit_not` 을 `u8` 0 에 대면 255)	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
-shl	비트	`shl a n`	`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다	`a` 의 타입 — 왼쪽으로 옮긴다. 폭 밖으로 밀려난 비트는 버린다(넘침으로 치지 않는다)	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
-shr	비트	`shr a n`	`a` — 정수 · `n` — 정수, 0 이상이고 `a` 의 폭보다 작다	`a` 의 타입 — 오른쪽으로 옮긴다. 부호 없는 타입은 0 이, 부호 있는 타입은 부호 비트가 들어온다	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
-wrap_shl	비트	`wrap_shl a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 왼쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
-wrap_shr	비트	`wrap_shr a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 오른쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
+shl	비트	`shl a n`	`a` — 정수 · `n` — 부호 없는 정수(부호 있는 타입은 `E-SHIFT-SIGNED`), `a` 의 폭보다 작다	`a` 의 타입 — 왼쪽으로 옮긴다. 폭 밖으로 밀려난 비트는 버린다(넘침으로 치지 않는다)	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
+shr	비트	`shr a n`	`a` — 정수 · `n` — 부호 없는 정수(부호 있는 타입은 `E-SHIFT-SIGNED`), `a` 의 폭보다 작다	`a` 의 타입 — 오른쪽으로 옮긴다. 부호 없는 타입은 0 이, 부호 있는 타입은 부호 비트가 들어온다	`n` 이 폭 이상임이 번역 때 보이면 `E-SHIFT-RANGE` · `E-IR-ARITY`	`n` 이 음수이거나 폭 이상이면 `E-VM-SHIFT` · 부동을 주면 `E-BITOP-TYPE`	6.3.5
+wrap_shl	비트	`wrap_shl a n`	`a` — 정수 · `n` — 부호 없는 정수(부호 있는 타입은 `E-SHIFT-SIGNED`)	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 왼쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
+wrap_shr	비트	`wrap_shr a n`	`a` — 정수 · `n` — 부호 없는 정수(부호 있는 타입은 `E-SHIFT-SIGNED`)	`a` 의 타입 — `n` 을 폭으로 나눈 나머지만큼 오른쪽으로 옮긴다(폭 8 에서 9 칸은 1 칸)	`E-IR-ARITY`	—	6.3.5
 rotl	비트	`rotl a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — 왼쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 rotr	비트	`rotr a n`	`a` — 정수 · `n` — 정수	`a` 의 타입 — 오른쪽으로 돌린다. 밀려난 비트가 반대쪽으로 들어온다. `n` 은 폭으로 나눈 나머지로 읽는다	`E-IR-ARITY`	부동을 주면 `E-BITOP-TYPE`	6.3.5
 len	읽기	`len s`	`s` — 슬라이스 · 배열 · 문자열 리터럴 · 권한 `cap args`(받은 인자의 수 — 진입 `proc` 만 그 권한을 받으므로 `fn` 탐침은 없다)	`usize` — 원소의 수(바이트 수가 아니다)	`E-IR-ARITY`	—	6.2.6

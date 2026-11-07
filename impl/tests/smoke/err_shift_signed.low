@@ -1,0 +1,3 @@
+module err_shift_signed .
+rem expect: E-SHIFT-SIGNED
+fn f input a u8 . input n i8 . output u8 . do return shl a. n. . . end .

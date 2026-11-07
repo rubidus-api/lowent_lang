@@ -1384,6 +1384,18 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                                                veq(h2, "rotl") || veq(h2, "rotr"))) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv), sb = tc_infer(c, k[start + 2], env, nenv);
                 if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line) | tc_enum_as_num(c, sb, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
+                // ★★ 미는 칸 수는 **부호 없는 정수 타입**이다 (2026-11-08 · 정본 §6.3.5 (4) · BTS 02 §2.5 · RFC-0153 §8-9).
+                //   부호 있는 칸 수는 음수일 수 있고, 그 뜻(반대로 밀기? 감기? 멈춤?)을 언어마다 달리 골랐다. 실행 때 멈추던 것을
+                //   검사에서 거른다 — 부호 있는 값을 칸 수로 쓰려면 명시적으로 바꾼다. 리터럴은 자리의 타입을 받으므로 그대로 선다
+                //   (음수 리터럴은 따로 E-SHIFT-RANGE). 돌리기(`rotl` · `rotr`)는 칸 수를 폭으로 나눈 나머지로 쓰므로 이 규칙에 들지 않는다.
+                if (!veq(h2, "rotl") && !veq(h2, "rotr") && sb.k == TK_INT && !sb.lit && sb.bits && sb.sign) {
+                    tc_emitf(c, "E-SHIFT-SIGNED", k[start]->line,
+                             "the shift amount of `%.*s` is a signed integer — a shift count is an UNSIGNED integer type "
+                             "(canon 6.3.5 (4)); a negative count has no single meaning. Narrow it on purpose "
+                             "(`narrow_try` / `cast` to an unsigned type) or declare it unsigned",
+                             (int)h2.size, (const char *)h2.ptr);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
                 return tk_int(0, false);
             }

@@ -169,16 +169,16 @@ shl	a u8, b u8	u8	return shl a. b. . .	129 1	= 2
 shl	a u8, b u8	u8	return shl a. b. . .	129 7	= 128
 shl	a u8, b u8	u8	return shl a. b. . .	129 8	TRAP E-VM-SHIFT
 shl	a u8	u8	return shl a. 8 . .	1	CHECK E-SHIFT-RANGE
-shl	a u8, b i8	u8	return shl a. b. . .	1 -1	TRAP E-VM-SHIFT
+shl	a u8, b i8	u8	return shl a. b. . .	1 -1	CHECK E-SHIFT-SIGNED
 shl	a f64, b f64	u64	return shl a. b. . .	1.5 1.0	TRAP E-BITOP-TYPE
 shr	a u8, b u8	u8	return shr a. b. . .	129 1	= 64
 shr	a u8, b u8	u8	return shr a. b. . .	129 7	= 1
 shr	a u8, b u8	u8	return shr a. b. . .	129 8	TRAP E-VM-SHIFT
 shr	a u8	u8	return shr a. 8 . .	1	CHECK E-SHIFT-RANGE
-shr	a u8, b i8	u8	return shr a. b. . .	1 -1	TRAP E-VM-SHIFT
+shr	a u8, b i8	u8	return shr a. b. . .	1 -1	CHECK E-SHIFT-SIGNED
 shr	a f64, b f64	u64	return shr a. b. . .	1.5 1.0	TRAP E-BITOP-TYPE
-shr	a i8, b i8	i8	return shr a. b. . .	-128 1	= -64
-shl	a i8, b i8	i8	return shl a. b. . .	64 1	= -128
+shr	a i8, b u8	i8	return shr a. b. . .	-128 1	= -64
+shl	a i8, b u8	i8	return shl a. b. . .	64 1	= -128
 wrap_shl	a u8, b u8	u8	return wrap_shl a. b. . .	129 1	= 2
 wrap_shl	a u8, b u8	u8	return wrap_shl a. b. . .	129 8	= 129
 wrap_shl	a u8, b u8	u8	return wrap_shl a. b. . .	129 9	= 2

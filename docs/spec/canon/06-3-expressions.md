@@ -337,10 +337,23 @@ end .
 (3) 옮기기는 `shl`(왼쪽) 과 `shr`(오른쪽) 이다. 돌리기는 `rotl` 과 `rotr` 이며, 밀려난
       비트가 반대쪽으로 돌아 들어온다.
 
+(3a) 돌리기의 칸 수는 어느 정수 타입이어도 되며, **폭으로 나눈 나머지**만큼 돌린다 — 폭이 8 인 타입을 9 칸 돌리면 1 칸 돌린 것과
+      같다. 돌리기는 멈추지 아니한다.
+
 (4) 옮기는 칸 수는 타입의 폭보다 **작아야** 한다. 그렇지 않으면 트랩한다.
+
+(4a) `shl` · `shr` · `wrap_shl` · `wrap_shr` 의 칸 수는 **부호 없는 정수 타입**이다(폭은 무엇이든 좋다). 부호 있는 정수 타입의 값을
+      칸 수로 대면 번역이 거부된다(`E-SHIFT-SIGNED`) — 음수 칸 수에는 하나로 정해진 뜻이 없다. 부호 있는 값을 칸 수로 쓰려면
+      부호 없는 타입으로 명시적으로 바꾼다. 리터럴은 자리의 타입을 받으므로 그대로 쓴다(음수 리터럴은 (9)).
 
 (5) `wrap_shl` 과 `wrap_shr` 은 옮기는 칸 수를 폭 안으로 **감싸서** 쓴다. 폭이 8 인
       타입에서 9 칸을 말하면 1 칸으로 읽는다.
+
+```lowent-거부: 미는 칸 수는 부호 없는 정수 타입이다 · E-SHIFT-SIGNED
+module ex_shift_signed .
+
+fn up input a u8 . input n i8 . output u8 . do return shl a. n. . . end .
+```
 
 (6) 세는 연산은 `count_ones`(1 인 비트의 수) `leading_zeros`(맨 앞부터 0 이 이어지는 수)
       `trailing_zeros`(맨 뒤부터 0 이 이어지는 수) 이다.
@@ -386,8 +399,8 @@ fn back input a u8 . input n u8 . output u8 . do return rotr a. n. . . end .
 ```lowent 예제: 부호가 옮기기의 뜻을 바꾼다 · 결과: s_shr(-8, 1) = -4 · u_shr(4294967288, 1) = 2147483644 · s_and(-8, 12) = 8 · s_not(0) = -1
 module ex_signed_shift .
 
-rem 부호 있는 정수 — 빈자리에 부호 비트가 들어온다(산술 이동).
-fn s_shr input a i32 . input n i32 . output i32 . do return shr a. n. . . end .
+rem 부호 있는 정수 — 빈자리에 부호 비트가 들어온다(산술 이동). 칸 수는 부호 없는 타입이다((4a)).
+fn s_shr input a i32 . input n u32 . output i32 . do return shr a. n. . . end .
 
 rem 부호 없는 정수 — 빈자리에 0 이 들어온다(논리 이동).
 fn u_shr input a u32 . input n u32 . output u32 . do return shr a. n. . . end .

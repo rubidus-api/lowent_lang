@@ -189,6 +189,10 @@ Bitwise operations treat a value as a sequence of bits. They use words instead o
 Shifting by at least the width of the type stops. In C that is undefined behaviour. If you want the shift amount wrapped into the width,
 use `wrap_shl` and `wrap_shr`.
 
+A shift count has an *unsigned* integer type. That is why `n` in `s_shr` is a `u32` — written as `i32` the program is refused
+(`E-SHIFT-SIGNED`), because a negative count has no single meaning. A rotation turns by the count modulo the width, so it
+takes any integer.
+
 #qa[
   Why can't bitwise operations be written infix inside an `expr` island?
 ][

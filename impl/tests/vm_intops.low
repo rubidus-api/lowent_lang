@@ -1,0 +1,20 @@
+module vm_intops .
+rem RFC-0156 §8-3 · §8-6 (2026-11-08) — 표준 라이브러리 `intops` 의 경계값. 답은 손으로 셈한 것이고 골든이 대조한다. 차등 스윕이 두 뒤끝을 견준다.
+use intops .
+fn ac8s input a u8 . input b u8 . input c u8 . output u8 . requires le c. 1 . . do return field intops.add_carry_u8 a. b. c. . sum . . end .
+fn ac8c input a u8 . input b u8 . input c u8 . output u8 . requires le c. 1 . . do return field intops.add_carry_u8 a. b. c. . carry . . end .
+fn ac64c input a u64 . input b u64 . input c u64 . output u64 . requires le c. 1 . . do return field intops.add_carry_u64 a. b. c. . carry . . end .
+fn sb8d input a u8 . input b u8 . input c u8 . output u8 . requires le c. 1 . . do return field intops.sub_borrow_u8 a. b. c. . diff . . end .
+fn sb8b input a u8 . input b u8 . input c u8 . output u8 . requires le c. 1 . . do return field intops.sub_borrow_u8 a. b. c. . borrow . . end .
+fn mw8l input a u8 . input b u8 . output u8 . do return field intops.mul_wide_u8 a. b. . lo . . end .
+fn mw8h input a u8 . input b u8 . output u8 . do return field intops.mul_wide_u8 a. b. . hi . . end .
+fn mw32h input a u32 . input b u32 . output u32 . do return field intops.mul_wide_u32 a. b. . hi . . end .
+fn mw64h input a u64 . input b u64 . output u64 . do return field intops.mul_wide_u64 a. b. . hi . . end .
+fn mwzh input a usize . input b usize . output usize . do return field intops.mul_wide_usize a. b. . hi . . end .
+fn ms8l input a i8 . input b i8 . output u8 . do return field intops.mul_wide_s_i8 a. b. . lo . . end .
+fn ms8h input a i8 . input b i8 . output i8 . do return field intops.mul_wide_s_i8 a. b. . hi . . end .
+fn ms64h input a i64 . input b i64 . output i64 . do return field intops.mul_wide_s_i64 a. b. . hi . . end .
+fn ms64l input a i64 . input b i64 . output u64 . do return field intops.mul_wide_s_i64 a. b. . lo . . end .
+fn lt_iu input a i64 . input b u64 . output bool . do return intops.cmp_lt i64. u64. a. b. . . end .
+fn eq_iu input a i64 . input b u64 . output bool . do return intops.cmp_eq i64. u64. a. b. . . end .
+fn le_ui input a u64 . input b i64 . output bool . do return intops.cmp_le u64. i64. a. b. . . end .

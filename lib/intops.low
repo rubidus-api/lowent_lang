@@ -1,0 +1,288 @@
+rem ★★ **정수 연산 — 정확한 비교 · 자리올림 · 빌림 · 넓은 곱** (`intops`) — RFC-0156 §8-3 · §8-6 (2026-11-08 · 소유자 «RFC-156의 방향대로»).
+rem
+rem   기본 타입 시스템(basic_type_system 02 §2.6 · §2.7)이 모든 처리기에 두라고 하는 연산이다. 빌트인이 아니라 라이브러리인 까닭:
+rem   모두 Lowent 로 적힌다(리프 규칙 — «Lowent 로 쓸 수 있으면 라이브러리»). 가장 안쪽의 `u64` 윗말만 빌트인 `mul_hi` 를 부른다.
+rem
+rem   · `cmp_eq` · `cmp_lt` · `cmp_le` — 두 정수의 **수학적 값**을 견준다. 타입이 달라도 된다(부호 · 폭 · `usize` · `idiff` · 128 비트).
+rem     중위 `lt` 는 부호가 섞이면 거절된다(`E-TYPE-SIGN`) — 값으로 견주려면 이름으로 말한다. 타입 인자는 적는다: `intops.cmp_lt i64. u64. a. b. .`
+rem     방법: 부호를 먼저 본다. 둘 다 음수면 `i128` 로, 둘 다 0 이상이면 `u128` 로 견준다 — 어느 정수든 그 둘 가운데 하나에 들어간다.
+rem   · `add_carry_*` → `{sum, carry}` · `sub_borrow_*` → `{diff, borrow}` · `mul_wide_*` → `{lo, hi}` · `mul_wide_s_*` → `{lo, hi}`(lo 는 부호 없음, hi 는 부호 있음).
+rem     폭마다 하나씩 둔다(구조체에 타입 매개변수가 없다). 들어오는 자리올림 · 빌림은 0 또는 1 이다(계약).
+
+module intops .
+
+export fn cmp_lt input comptime ta type . input comptime tb type . input a ta . input b tb . output bool .
+do
+  if lt a. 0 . do
+    if lt b. 0 . do return lt cast i128 a. . cast i128 b. . . . end .
+    return true .
+  end .
+  if lt b. 0 . do return false . end .
+  return lt cast u128 a. . cast u128 b. . . .
+end .
+
+export fn cmp_eq input comptime ta type . input comptime tb type . input a ta . input b tb . output bool .
+do
+  if lt a. 0 . do
+    if lt b. 0 . do return eq cast i128 a. . cast i128 b. . . . end .
+    return false .
+  end .
+  if lt b. 0 . do return false . end .
+  return eq cast u128 a. . cast u128 b. . . .
+end .
+
+export fn cmp_le input comptime ta type . input comptime tb type . input a ta . input b tb . output bool .
+do
+  if cmp_lt tb. ta. b. a. . do return false . end .
+  return true .
+end .
+
+export struct carry_u8 do
+  sum u8 .
+  carry u8 .
+end .
+
+export struct borrow_u8 do
+  diff u8 .
+  borrow u8 .
+end .
+
+export struct wide_u8 do
+  lo u8 .
+  hi u8 .
+end .
+
+export fn add_carry_u8 input a u8 . input b u8 . input c u8 . output carry_u8 .
+  requires le c. 1 . .
+do
+  let s1 u8 wrap_add a. b. . .
+  let s u8 wrap_add s1. c. . .
+  if or lt s1. a. . lt s. s1. . . do return lit carry_u8 do sum s. . carry 1 . end . . end .
+  return lit carry_u8 do sum s. . carry 0 . end . .
+end .
+
+export fn sub_borrow_u8 input a u8 . input b u8 . input c u8 . output borrow_u8 .
+  requires le c. 1 . .
+do
+  let d1 u8 wrap_sub a. b. . .
+  let d u8 wrap_sub d1. c. . .
+  if or lt a. b. . lt d1. c. . . do return lit borrow_u8 do diff d. . borrow 1 . end . . end .
+  return lit borrow_u8 do diff d. . borrow 0 . end . .
+end .
+
+export fn mul_wide_u8 input a u8 . input b u8 . output wide_u8 .
+do
+  let p u16 mul widen u16 a. . widen u16 b. . . .
+  return lit wide_u8 do lo narrow_wrap u8 p. . . hi narrow_wrap u8 shr p. 8 . . . end . .
+end .
+
+export struct carry_u16 do
+  sum u16 .
+  carry u16 .
+end .
+
+export struct borrow_u16 do
+  diff u16 .
+  borrow u16 .
+end .
+
+export struct wide_u16 do
+  lo u16 .
+  hi u16 .
+end .
+
+export fn add_carry_u16 input a u16 . input b u16 . input c u16 . output carry_u16 .
+  requires le c. 1 . .
+do
+  let s1 u16 wrap_add a. b. . .
+  let s u16 wrap_add s1. c. . .
+  if or lt s1. a. . lt s. s1. . . do return lit carry_u16 do sum s. . carry 1 . end . . end .
+  return lit carry_u16 do sum s. . carry 0 . end . .
+end .
+
+export fn sub_borrow_u16 input a u16 . input b u16 . input c u16 . output borrow_u16 .
+  requires le c. 1 . .
+do
+  let d1 u16 wrap_sub a. b. . .
+  let d u16 wrap_sub d1. c. . .
+  if or lt a. b. . lt d1. c. . . do return lit borrow_u16 do diff d. . borrow 1 . end . . end .
+  return lit borrow_u16 do diff d. . borrow 0 . end . .
+end .
+
+export fn mul_wide_u16 input a u16 . input b u16 . output wide_u16 .
+do
+  let p u32 mul widen u32 a. . widen u32 b. . . .
+  return lit wide_u16 do lo narrow_wrap u16 p. . . hi narrow_wrap u16 shr p. 16 . . . end . .
+end .
+
+export struct carry_u32 do
+  sum u32 .
+  carry u32 .
+end .
+
+export struct borrow_u32 do
+  diff u32 .
+  borrow u32 .
+end .
+
+export struct wide_u32 do
+  lo u32 .
+  hi u32 .
+end .
+
+export fn add_carry_u32 input a u32 . input b u32 . input c u32 . output carry_u32 .
+  requires le c. 1 . .
+do
+  let s1 u32 wrap_add a. b. . .
+  let s u32 wrap_add s1. c. . .
+  if or lt s1. a. . lt s. s1. . . do return lit carry_u32 do sum s. . carry 1 . end . . end .
+  return lit carry_u32 do sum s. . carry 0 . end . .
+end .
+
+export fn sub_borrow_u32 input a u32 . input b u32 . input c u32 . output borrow_u32 .
+  requires le c. 1 . .
+do
+  let d1 u32 wrap_sub a. b. . .
+  let d u32 wrap_sub d1. c. . .
+  if or lt a. b. . lt d1. c. . . do return lit borrow_u32 do diff d. . borrow 1 . end . . end .
+  return lit borrow_u32 do diff d. . borrow 0 . end . .
+end .
+
+export fn mul_wide_u32 input a u32 . input b u32 . output wide_u32 .
+do
+  let p u64 mul widen u64 a. . widen u64 b. . . .
+  return lit wide_u32 do lo narrow_wrap u32 p. . . hi narrow_wrap u32 shr p. 32 . . . end . .
+end .
+
+export struct carry_u64 do
+  sum u64 .
+  carry u64 .
+end .
+
+export struct borrow_u64 do
+  diff u64 .
+  borrow u64 .
+end .
+
+export struct wide_u64 do
+  lo u64 .
+  hi u64 .
+end .
+
+export fn add_carry_u64 input a u64 . input b u64 . input c u64 . output carry_u64 .
+  requires le c. 1 . .
+do
+  let s1 u64 wrap_add a. b. . .
+  let s u64 wrap_add s1. c. . .
+  if or lt s1. a. . lt s. s1. . . do return lit carry_u64 do sum s. . carry 1 . end . . end .
+  return lit carry_u64 do sum s. . carry 0 . end . .
+end .
+
+export fn sub_borrow_u64 input a u64 . input b u64 . input c u64 . output borrow_u64 .
+  requires le c. 1 . .
+do
+  let d1 u64 wrap_sub a. b. . .
+  let d u64 wrap_sub d1. c. . .
+  if or lt a. b. . lt d1. c. . . do return lit borrow_u64 do diff d. . borrow 1 . end . . end .
+  return lit borrow_u64 do diff d. . borrow 0 . end . .
+end .
+
+export fn mul_wide_u64 input a u64 . input b u64 . output wide_u64 .
+do
+  return lit wide_u64 do lo wrap_mul a. b. . . hi call_builtin mul_hi a. b. . . end . .
+end .
+
+export struct carry_usize do
+  sum usize .
+  carry usize .
+end .
+
+export struct borrow_usize do
+  diff usize .
+  borrow usize .
+end .
+
+export struct wide_usize do
+  lo usize .
+  hi usize .
+end .
+
+export fn add_carry_usize input a usize . input b usize . input c usize . output carry_usize .
+  requires le c. 1 . .
+do
+  let s1 usize wrap_add a. b. . .
+  let s usize wrap_add s1. c. . .
+  if or lt s1. a. . lt s. s1. . . do return lit carry_usize do sum s. . carry 1 . end . . end .
+  return lit carry_usize do sum s. . carry 0 . end . .
+end .
+
+export fn sub_borrow_usize input a usize . input b usize . input c usize . output borrow_usize .
+  requires le c. 1 . .
+do
+  let d1 usize wrap_sub a. b. . .
+  let d usize wrap_sub d1. c. . .
+  if or lt a. b. . lt d1. c. . . do return lit borrow_usize do diff d. . borrow 1 . end . . end .
+  return lit borrow_usize do diff d. . borrow 0 . end . .
+end .
+
+rem `usize` 의 폭은 대상의 주소 폭(`machine.addr_bits`)이다. 곱은 `u128` 에서 하고 그 폭으로 나눈다.
+export fn mul_wide_usize input a usize . input b usize . output wide_usize .
+do
+  let p u128 mul cast u128 a. . cast u128 b. . . .
+  return lit wide_usize do lo narrow_wrap usize p. . . hi narrow_wrap usize shr p. machine.addr_bits. . . . end . .
+end .
+
+export struct swide_i8 do
+  lo u8 .
+  hi i8 .
+end .
+
+export fn mul_wide_s_i8 input a i8 . input b i8 . output swide_i8 .
+do
+  let p i16 mul widen i16 a. . widen i16 b. . . .
+  return lit swide_i8 do lo narrow_wrap u8 p. . . hi narrow_wrap i8 shr p. 8 . . . end . .
+end .
+
+export struct swide_i16 do
+  lo u16 .
+  hi i16 .
+end .
+
+export fn mul_wide_s_i16 input a i16 . input b i16 . output swide_i16 .
+do
+  let p i32 mul widen i32 a. . widen i32 b. . . .
+  return lit swide_i16 do lo narrow_wrap u16 p. . . hi narrow_wrap i16 shr p. 16 . . . end . .
+end .
+
+export struct swide_i32 do
+  lo u32 .
+  hi i32 .
+end .
+
+export fn mul_wide_s_i32 input a i32 . input b i32 . output swide_i32 .
+do
+  let p i64 mul widen i64 a. . widen i64 b. . . .
+  return lit swide_i32 do lo narrow_wrap u32 p. . . hi narrow_wrap i32 shr p. 32 . . . end . .
+end .
+
+export struct swide_i64 do
+  lo u64 .
+  hi i64 .
+end .
+
+export fn mul_wide_s_i64 input a i64 . input b i64 . output swide_i64 .
+do
+  let p i128 mul widen i128 a. . widen i128 b. . . .
+  return lit swide_i64 do lo narrow_wrap u64 p. . . hi narrow_wrap i64 shr p. 64 . . . end . .
+end .
+
+export struct swide_idiff do
+  lo usize .
+  hi idiff .
+end .
+
+export fn mul_wide_s_idiff input a idiff . input b idiff . output swide_idiff .
+do
+  let p i128 mul cast i128 a. . cast i128 b. . . .
+  return lit swide_idiff do lo narrow_wrap usize p. . . hi narrow_wrap idiff shr p. machine.addr_bits. . . . end . .
+end .

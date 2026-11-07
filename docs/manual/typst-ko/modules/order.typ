@@ -3,7 +3,7 @@
   (ko: "L0 --- 순수 계산", en: "L0 --- pure computation", modules: (
     "strings", "strbuf", "fmt", "utf8", "utf16", "unicode", "codec", "regex", "term",
     "sortlib", "sortgen", "collection", "searchlib", "hashmap", "strmap", "vecs", "spsc",
-    "hash", "hash_legacy", "math", "random",
+    "hash", "hash_legacy", "math", "intops", "random",
     "hmac", "chacha", "poly", "aead", "x25519", "aes", "gcm", "crypto_hw", "bigwidth", "bigint16", "bigint32", "bigint64", "bigint", "rsa", "p256", "p384", "ecdsa", "ed25519",
     "der", "pem", "x509", "verify", "tls13", "tlssrv", "tlscli", "http", "soa",
   )),

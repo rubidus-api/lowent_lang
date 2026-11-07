@@ -724,7 +724,7 @@ static int cmd_build(int nargs, char **args) {
             }
         }
     }
-    snprintf(cmd, sizeof cmd, "cc -O2 -w \"%s\" -o \"%s\" %s -lm", cfile, bin, ld);
+    snprintf(cmd, sizeof cmd, "cc -O2 -w -ffp-contract=off \"%s\" -o \"%s\" %s -lm", cfile, bin, ld);   // 정본 §6.2.4 (2a) — 생성 C 머리의 지시와 같은 뜻
     if (system(cmd) != 0) { fprintf(stderr, "lowentc build: cc failed (%s)\n", cfile); return 1; }
     remove(cfile);
     if (cache[0]) {

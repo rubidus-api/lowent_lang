@@ -1,0 +1,4 @@
+module vm_fp_contract .
+rem 정본 §6.2.4 (2a) (2026-11-08 · RFC-0156 §10) — 곱하고 더하기는 반올림 두 번이다. 하나로 합치면(FMA) 0.1 × 10 − 1 이 0.0 이 아니라 5.55e-17 이 된다.
+fn muladd input a f64 . input b f64 . input c f64 . output f64 . do return add mul a. b. . c. . . end .
+fn muladd32 input a f32 . input b f32 . input c f32 . output f32 . do return add mul a. b. . c. . . end .

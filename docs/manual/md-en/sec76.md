@@ -16,7 +16,7 @@ Produces numbers from byte strings. Three things of different character live in 
 
 > **`of` and `crc` are not cryptographic**
 >
-> > `of` (FNV-1a 64) is for **hash map slots** — fast and well spread, but not cryptographic. `crc` (reflected CRC-32) detects **accidental corruption** — matching a desired CRC is easy, so it does not stop forgery. `sha256` and `sha256_ok` (SHA-256), `sha384` and `sha512` are the cryptographic hashes; proof of integrity lives there. Keyed authentication is not `sha256` either but [`hmac`](sec80.md#mod-hmac) — a hash alone cannot answer **who sent it**.
+> > `of` (FNV-1a 64) is for **hash map slots** — fast and well spread, but not cryptographic. `crc` (reflected CRC-32) detects **accidental corruption** — matching a desired CRC is easy, so it does not stop forgery. `sha256` and `sha256_ok` (SHA-256), `sha384` and `sha512` are the cryptographic hashes; proof of integrity lives there. Keyed authentication is not `sha256` either but [`hmac`](sec81.md#mod-hmac) — a hash alone cannot answer **who sent it**.
 
 ```lowent
 use hash .

@@ -28,64 +28,64 @@
 | [`hash`](sec75.md#mod-hash) | 해시맵 자리(FNV-1a) · 손상 검출(CRC-32) · SHA-256 · SHA-384 · SHA-512 |
 | [`hash_legacy`](sec76.md#mod-hash_legacy) | MD5 · SHA-1 — 체크섬 · 옛 파일 읽기. 보안에는 쓰지 않는다 |
 | [`math`](sec77.md#mod-math) | 부동소수점 수학 — `==` 대신 `close` |
-| [`random`](sec78.md#mod-random) | 재현되는 열과 운영체제 엔트로피를 이름으로 가른다 |
-| [`hmac`](sec79.md#mod-hmac) | HMAC-SHA256 · HKDF — 누가 보냈는가 |
-| [`chacha`](sec80.md#mod-chacha) | ChaCha20 스트림 — 혼자서는 안전하지 않다 |
-| [`poly`](sec81.md#mod-poly) | Poly1305 — 키는 메시지마다 새것 |
-| [`aead`](sec82.md#mod-aead) | ChaCha20-Poly1305 봉인과 개봉 — 암호는 여기서 시작한다 |
-| [`x25519`](sec83.md#mod-x25519) | 키 합의 |
-| [`aes`](sec84.md#mod-aes) | AES-128 블록 암호 — 혼자 쓰면 대개 틀린다 |
-| [`gcm`](sec85.md#mod-gcm) | AES-128-GCM — 논스를 되풀이하지 않는다 |
-| [`bigwidth`](sec87.md#mod-bigwidth) | 큰 수 폭의 트레이트 — 부를 때마다 폭을 고른다 |
-| [`bigint16`](sec88.md#mod-bigint16) | 큰수 모듈러 산술 — 16 비트 조각(곱셈기가 좁은 기계) |
-| [`bigint32`](sec89.md#mod-bigint32) | 큰수 모듈러 산술 — 32 비트 조각(32 비트 곱셈기) |
-| [`bigint64`](sec90.md#mod-bigint64) | 큰수 모듈러 산술 — 64 비트 조각(64 비트 기계) |
-| [`bigint`](sec91.md#mod-bigint) | 큰수 모듈러 산술 — 기계가 고르는 폭(잰 폭 또는 곱셈기 폭 · `--limb-bits`) |
-| [`rsa`](sec92.md#mod-rsa) | RSASSA-PSS 검증 |
-| [`p256`](sec93.md#mod-p256) | NIST P-256 곡선과 ECDSA 검증 |
-| [`p384`](sec94.md#mod-p384) | NIST P-384 곡선과 ECDSA 검증 — 공개 웹의 중간 인증기관 |
-| [`ecdsa`](sec95.md#mod-ecdsa) | ECDSA P-256 서명 — 난수 없이 논스를 유도한다 |
-| [`ed25519`](sec96.md#mod-ed25519) | Ed25519 서명 검증 |
-| [`der`](sec97.md#mod-der) | DER 최소 파서 — 공개키만 꺼낸다 |
-| [`pem`](sec98.md#mod-pem) | PEM 봉투 벗기기 |
-| [`x509`](sec99.md#mod-x509) | X.509 인증서 읽기 — 자리와 길이만 낸다 |
-| [`verify`](sec100.md#mod-verify) | 인증서 서명과 체인의 한 마디 확인 |
-| [`tls13`](sec101.md#mod-tls13) | TLS 1.3 의 부품 — 키 스케줄 · 레코드 · 전사 · Finished |
-| [`tlssrv`](sec102.md#mod-tlssrv) | 서버 TLS 핸드셰이크와 응용 데이터 레코드 |
-| [`tlscli`](sec103.md#mod-tlscli) | 클라이언트 TLS 1.3 핸드셰이크 — 인증서 확인은 부르는 쪽이 한다 |
-| [`http`](sec104.md#mod-http) | HTTP/1.1 요청 파서 — 알맹이는 거절이다 |
-| [`soa`](sec105.md#mod-soa) | 구조체 배열을 칸별 배열로 두는 배치의 시범 |
+| [`random`](sec79.md#mod-random) | 재현되는 열과 운영체제 엔트로피를 이름으로 가른다 |
+| [`hmac`](sec80.md#mod-hmac) | HMAC-SHA256 · HKDF — 누가 보냈는가 |
+| [`chacha`](sec81.md#mod-chacha) | ChaCha20 스트림 — 혼자서는 안전하지 않다 |
+| [`poly`](sec82.md#mod-poly) | Poly1305 — 키는 메시지마다 새것 |
+| [`aead`](sec83.md#mod-aead) | ChaCha20-Poly1305 봉인과 개봉 — 암호는 여기서 시작한다 |
+| [`x25519`](sec84.md#mod-x25519) | 키 합의 |
+| [`aes`](sec85.md#mod-aes) | AES-128 블록 암호 — 혼자 쓰면 대개 틀린다 |
+| [`gcm`](sec86.md#mod-gcm) | AES-128-GCM — 논스를 되풀이하지 않는다 |
+| [`bigwidth`](sec88.md#mod-bigwidth) | 큰 수 폭의 트레이트 — 부를 때마다 폭을 고른다 |
+| [`bigint16`](sec89.md#mod-bigint16) | 큰수 모듈러 산술 — 16 비트 조각(곱셈기가 좁은 기계) |
+| [`bigint32`](sec90.md#mod-bigint32) | 큰수 모듈러 산술 — 32 비트 조각(32 비트 곱셈기) |
+| [`bigint64`](sec91.md#mod-bigint64) | 큰수 모듈러 산술 — 64 비트 조각(64 비트 기계) |
+| [`bigint`](sec92.md#mod-bigint) | 큰수 모듈러 산술 — 기계가 고르는 폭(잰 폭 또는 곱셈기 폭 · `--limb-bits`) |
+| [`rsa`](sec93.md#mod-rsa) | RSASSA-PSS 검증 |
+| [`p256`](sec94.md#mod-p256) | NIST P-256 곡선과 ECDSA 검증 |
+| [`p384`](sec95.md#mod-p384) | NIST P-384 곡선과 ECDSA 검증 — 공개 웹의 중간 인증기관 |
+| [`ecdsa`](sec96.md#mod-ecdsa) | ECDSA P-256 서명 — 난수 없이 논스를 유도한다 |
+| [`ed25519`](sec97.md#mod-ed25519) | Ed25519 서명 검증 |
+| [`der`](sec98.md#mod-der) | DER 최소 파서 — 공개키만 꺼낸다 |
+| [`pem`](sec99.md#mod-pem) | PEM 봉투 벗기기 |
+| [`x509`](sec100.md#mod-x509) | X.509 인증서 읽기 — 자리와 길이만 낸다 |
+| [`verify`](sec101.md#mod-verify) | 인증서 서명과 체인의 한 마디 확인 |
+| [`tls13`](sec102.md#mod-tls13) | TLS 1.3 의 부품 — 키 스케줄 · 레코드 · 전사 · Finished |
+| [`tlssrv`](sec103.md#mod-tlssrv) | 서버 TLS 핸드셰이크와 응용 데이터 레코드 |
+| [`tlscli`](sec104.md#mod-tlscli) | 클라이언트 TLS 1.3 핸드셰이크 — 인증서 확인은 부르는 쪽이 한다 |
+| [`http`](sec105.md#mod-http) | HTTP/1.1 요청 파서 — 알맹이는 거절이다 |
+| [`soa`](sec106.md#mod-soa) | 구조체 배열을 칸별 배열로 두는 배치의 시범 |
 
 *표 50.1 — L0 — 순수 계산(`effects none` · 호출자의 버퍼)*
 
 | **모듈** | **한 줄** |
 |---|---|
-| [`allocs`](sec106.md#mod-allocs) | 할당기 트레이트 · 범프 할당기 · 기본 할당기 둘 |
-| [`pool`](sec107.md#mod-pool) | 세대 핸들 블록 풀 |
-| [`shard`](sec108.md#mod-shard) | 저장소를 겹치지 않는 조각으로 나누는 토큰 |
-| [`budget`](sec109.md#mod-budget) | 핸들의 비트 예산과 세대 수의 은퇴 |
-| [`wire`](sec110.md#mod-wire) | 한 워드를 칸으로 나눠 쓰기 — 마스크가 자리와 폭을 든다 |
-| [`flags`](sec111.md#mod-flags) | 이름 붙은 켬/끔 설정을 한 워드에 |
-| [`segarena`](sec112.md#mod-segarena) | 고정 크기 세그먼트 아레나 |
-| [`pagecache`](sec113.md#mod-pagecache) | 페이지 번호와 고정 토큰 |
-| [`growvec`](sec114.md#mod-growvec) | 자라는 바이트 벡터 — `vecgen.vec u8` 의 짧은 이름 |
-| [`vecgen`](sec115.md#mod-vecgen) | 제네릭 자라는 벡터 `vec t` |
-| [`mapgen`](sec116.md#mod-mapgen) | 제네릭 해시맵 `table k v` |
-| [`nodelist`](sec117.md#mod-nodelist) | 고정 크기 침입형 목록 |
-| [`segview`](sec118.md#mod-segview) | 흩어진 조각 뷰의 커서 · 총길이 · 펴기 |
-| [`lifemode`](sec119.md#mod-lifemode) | `lifemode` · `lifeatom` — 값이 언제 끝나는가 |
+| [`allocs`](sec107.md#mod-allocs) | 할당기 트레이트 · 범프 할당기 · 기본 할당기 둘 |
+| [`pool`](sec108.md#mod-pool) | 세대 핸들 블록 풀 |
+| [`shard`](sec109.md#mod-shard) | 저장소를 겹치지 않는 조각으로 나누는 토큰 |
+| [`budget`](sec110.md#mod-budget) | 핸들의 비트 예산과 세대 수의 은퇴 |
+| [`wire`](sec111.md#mod-wire) | 한 워드를 칸으로 나눠 쓰기 — 마스크가 자리와 폭을 든다 |
+| [`flags`](sec112.md#mod-flags) | 이름 붙은 켬/끔 설정을 한 워드에 |
+| [`segarena`](sec113.md#mod-segarena) | 고정 크기 세그먼트 아레나 |
+| [`pagecache`](sec114.md#mod-pagecache) | 페이지 번호와 고정 토큰 |
+| [`growvec`](sec115.md#mod-growvec) | 자라는 바이트 벡터 — `vecgen.vec u8` 의 짧은 이름 |
+| [`vecgen`](sec116.md#mod-vecgen) | 제네릭 자라는 벡터 `vec t` |
+| [`mapgen`](sec117.md#mod-mapgen) | 제네릭 해시맵 `table k v` |
+| [`nodelist`](sec118.md#mod-nodelist) | 고정 크기 침입형 목록 |
+| [`segview`](sec119.md#mod-segview) | 흩어진 조각 뷰의 커서 · 총길이 · 펴기 |
+| [`lifemode`](sec120.md#mod-lifemode) | `lifemode` · `lifeatom` — 값이 언제 끝나는가 |
 
 *표 50.2 — L1 — 저장(할당 권한이나 빌린 바이트가 필요하다)*
 
 | **모듈** | **한 줄** |
 |---|---|
-| [`io`](sec123.md#mod-io) | 슬라이스 위의 스트림 읽기 |
-| [`outbuf`](sec124.md#mod-outbuf) | 버퍼링 출력 — 비우기를 잊으면 번역이 거절한다 |
-| [`files`](sec125.md#mod-files) | 파일과 디렉터리 — 닫기를 잊으면 번역이 거절한다 |
-| [`tty`](sec126.md#mod-tty) | 터미널 입력 — raw 모드 · 키 읽기 · 순수 키 파싱 |
-| [`net`](sec128.md#mod-net) | 소켓 — TCP 루프백 · 프로세스 안 연결 쌍 |
-| [`clock`](sec129.md#mod-clock) | 시각과 마감 — 단조 시계와 벽시계 |
-| [`trust`](sec130.md#mod-trust) | 신뢰 저장소에서 믿는 뿌리 찾기 — 묶음을 흘려 읽는다 |
+| [`io`](sec124.md#mod-io) | 슬라이스 위의 스트림 읽기 |
+| [`outbuf`](sec125.md#mod-outbuf) | 버퍼링 출력 — 비우기를 잊으면 번역이 거절한다 |
+| [`files`](sec126.md#mod-files) | 파일과 디렉터리 — 닫기를 잊으면 번역이 거절한다 |
+| [`tty`](sec127.md#mod-tty) | 터미널 입력 — raw 모드 · 키 읽기 · 순수 키 파싱 |
+| [`net`](sec129.md#mod-net) | 소켓 — TCP 루프백 · 프로세스 안 연결 쌍 |
+| [`clock`](sec130.md#mod-clock) | 시각과 마감 — 단조 시계와 벽시계 |
+| [`trust`](sec131.md#mod-trust) | 신뢰 저장소에서 믿는 뿌리 찾기 — 묶음을 흘려 읽는다 |
 
 *표 50.3 — L2 — 호스트(권한이 필요하다)*
 

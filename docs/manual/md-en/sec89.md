@@ -1,22 +1,32 @@
-# <a id="mod-bigint16"></a>`bigint16` — big-number modular arithmetic (16-bit limbs)
+# <a id="mod-bigwidth"></a>`bigwidth` — the trait of big-number widths
 
 Source
 
-`lib/bigint16.low`
+`lib/bigwidth.low`
 
 Layer
 
-L0 — pure computation (the caller’s backing)
+L0 — pure computation
 
 Capabilities
 
 none
 
-The op names, inputs and meanings are the same as [`bigint32`](sec90.md#mod-bigint32)′s; numbers are held in **16-bit limbs**. How to use it and the op table are on that page — change `use bigint32 .` to `use bigint16 .`.
+It holds one trait, `width`. [`bigint16`](sec90.md#mod-bigint16) · [`bigint32`](sec91.md#mod-bigint32) · [`bigint64`](sec92.md#mod-bigint64) · [`bigint`](sec93.md#mod-bigint) each give a type `limb` that satisfies it — `bigint16.limb` is a value meaning «compute in 16-bit limbs». When a library op that uses big numbers takes this trait, the caller picks the width **on each call**. The ops that take it are [`rsa`](sec94.md#mod-rsa)’s `verify_pss_by` · `verify_pkcs1_by` and, since 2026-10-24, the `_by` twin of every curve op that computes with big numbers ([`p256`](sec95.md#mod-p256) · [`p384`](sec96.md#mod-p384) · [`ed25519`](sec98.md#mod-ed25519) · [`ecdsa`](sec97.md#mod-ecdsa) — generated from the hand-written ops by `scripts/gen-curve-by.py`).
 
-A limb product is 16×16 = 32 bits, so this module is for **machines with a narrow multiplier** (8- and 16-bit CPUs). One slot’s sum is (2^16−1) + (2^16−1)^2 + (2^16−1) = 2^32 − 1. On the machines measured (x86-64 · x86 `-m32`) it was the slowest of the three — RSA-2048 exponentiation took 3 to 4 times as long as with `bigint32`. It has not yet been measured on a narrow machine.
+```text
+proc verify_pss_by input comptime wt type . input lw wt . … requires bigwidth.width wt. . .
+  … method lw. mod_exp. ow. sw. e. nw. mb. r2. acc. mw. tw. . …
 
-A number takes `limbs nb.` = ⌈`nb` / 2⌉ slots — the most of the three widths. That is where the rule «⌈`nb` / 2⌉ + 2 slots fit every width» comes from.
+let w lit bigint16.limb do tag 0 . end . .
+rsa.verify_pss_by bigint16.limb. w. sig. n. …     ← only this call uses 16-bit limbs
+```
+
+The methods have the names and inputs of the big-number ops — `limbs` · `zero` · `from_bytes` · `to_bytes` · `from_bytes_le` · `to_bytes_le` · `ge_mod` · `dbl_mod` · `mont_mul` · `n0inv` · `mod_exp` · `add_mod` · `sub_mod` · `is_zero` · `equal` · `bit`. The width is fixed at translation, so choosing costs nothing (300 RSA-2048 exponentiations · native `-O2` · x86-64: direct call 0.101 s, through the trait 0.102 s — measured 2026-10-23).
+
+**Why a module of its own** — the four width modules use it, and `bigint` uses three width modules. With the trait inside one of them, they would call each other in a cycle.
+
+There is a separate way to change the width **for the whole program** — `build limb_bits` in `pkg.low` or `lowentc --limb-bits` ([`bigint`](sec93.md#mod-bigint)).
 
 ---
 

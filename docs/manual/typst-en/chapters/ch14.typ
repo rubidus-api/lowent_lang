@@ -207,7 +207,7 @@ in the source as `build <mode> .`.
   [`debug`], [Kept; stop and say what broke],
   [`test`], [Kept like `debug`; tests are also built and run],
   [`release_safe`], [Kept; stop without a message],
-  [`release_fast`], [*Removed*. Execution may continue with a broken contract],
+  [`release_fast`], [*Removed*. Execution may continue with a broken contract --- the checks on each operation stay],
 )
 
 #demo("examples/ch14/fast.low")
@@ -216,6 +216,11 @@ Under `build release_fast .`, `bump 250` does not stop and gives 251. The same s
 boundary, where *a person promises* the contracts are true. It is one reason the claim that this language has no undefined behaviour is limited to
 "the safe subset". Removing checks for speed is a choice you may make, but the fact of choosing must stay in the source. That is why the mode is a
 `build` statement and not a command-line flag.
+
+A mode removes *contract* checks only. The checks the processor puts on each operation --- overflow, division by zero, index, shift count ---
+stay in every mode. And a contract the mode removed is no grounds for removing another check: call `bump`, which says `requires le a. 254 .`,
+with 255 and it stops on the overflow of `add` even under `release_fast` --- a wrong promise makes the program run as if the contract were never
+written, nothing more. (Before 2026-11-08 that contract also removed the overflow check, and a `u8` op returned 256 natively.)
 
 #realcase[Entry checks the processor cannot build][
   Not every expression in a contract can become an entry check. The processor in this edition builds entry checks from `requires` of shapes like

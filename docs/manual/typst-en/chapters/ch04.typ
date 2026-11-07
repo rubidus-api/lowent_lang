@@ -204,7 +204,8 @@ takes any integer.
 == Floating point
 
 `f32` and `f64` are the IEEE 754 binary 32- and 64-bit formats. Operations happen at the width of their operands, and integers and
-floating-point values do not convert to each other automatically.
+floating-point values do not convert to each other automatically. One operation is one rounding --- the processor does not fuse a multiply
+and an add into one instruction (FMA). Fused, one rounding goes missing and `0.1 × 10 − 1` is no longer 0.
 
 #demo("examples/ch04/floats.low")
 

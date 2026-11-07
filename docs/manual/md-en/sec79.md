@@ -1,52 +1,40 @@
-# <a id="mod-random"></a>`random` — random numbers (reproducible sequences · OS entropy)
+# `intops` — exact comparison and wide arithmetic
 
 Source
 
-`lib/random.low`
+`lib/intops.low`
 
 Layer
 
-L0 — pure computation · OS entropy via capability
+L0 — pure computation
 
 Capabilities
 
-`cap random` for `bytes` · `seed_from_os`
+none
 
-> **Do not mix the two — this warning is the whole module**
->
-> > `advance_seed`, `below_biased` and `coin` are a reproducible sequence made with **splitmix64**. They need no capability and serve tests, simulations and shuffles. `bytes` and `seed_from_os` are **OS entropy**. They need `cap random` and serve keys, nonces and tokens. Tests must be reproducible and keys must not be predictable — one word cannot do both, so the names are split. Use a value made by `advance_seed` as a key and anyone who knows the seed knows that key, and seeds usually remain in code or logs.
+Three things an integer computation may want **as values** instead of losing them — an exact comparison of two integers of different sign or width, the carry and borrow of an addition and a subtraction, and the upper half of a product. The basic type system (basic_type_system 02 §2.6 · §2.7) asks every implementation for these operations, and all of them are written in Lowent — only the innermost upper half of a `u64` product calls the builtin `mul_hi`.
 
-**The reproducible side.** Takes a state (= seed) and returns the next state. The caller carries the state, so the same seed always gives the same sequence.
+**Exact comparison** — `cmp_eq` · `cmp_lt` · `cmp_le` compare the **mathematical values** of two integers. An infix `lt` is refused when the signs are mixed (`E-TYPE-SIGN`), so a program that wants the values compared says so by name. The type arguments come first.
 
-```lowent
-var s u64 12345 .
-set s. random.advance_seed s. . .
-let c bool random.coin s. . .
+```text
+intops.cmp_lt i64. u64. a. b. .      ← true for a = −1, b = 0
+intops.cmp_eq i64. u64. a. b. .      ← false for a = −1, b = 2^64 − 1 (same bits, different values)
 ```
 
-**The unpredictable side.** Callable only with `cap random`. It answers the number of bytes filled, and **0 if it could not fill** — taking 0 and using the buffer anyway means using an uninitialised buffer as a key.
+Any pair of integer types is accepted — `usize` · `idiff` and 128 bits included. The method looks at the signs first: two negative values are compared as `i128`, two non-negative ones as `u128`. Every integer fits one of the two.
 
-```lowent
-proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
-  return eq random.bytes k. key. . cast u64 len key. . . . .
-end .
-```
+**Carry · borrow · wide product** — one op per width (a struct has no type parameter).
 
-| **op** | **Shape** | **Notes** |
+| **op** | **result** | **meaning** |
 |---|---|---|
-| `advance_seed` | `(seed u64) → u64` | splitmix64 — algorithm fixed (so check values can be the reference) |
-| `below_biased` | `(seed u64, bound u64) → u64` | The name **confesses the bias** — not this if you need uniformity |
-| `coin` | `(seed u64) → bool` | Heads · tails |
-| `bytes` | `(cap random, dst mut slice u8) → u64` | Bytes filled. **0 = failure** |
-| `seed_from_os` | `(cap random, scratch mut slice u8) → u64` | One seed from the OS — makes the starting point of a reproducible sequence unpredictable. `scratch ≥ 8` |
+| `add_carry_<w>` | `{sum, carry}` | (𝑎+𝑏+𝑐)mod2𝑁 and the carry. The incoming `c` is 0 or 1 (a contract) |
+| `sub_borrow_<w>` | `{diff, borrow}` | (𝑎−𝑏−𝑐)mod2𝑁 and the borrow |
+| `mul_wide_<w>` | `{lo, hi}` | the low 𝑁 bits and the high 𝑁 bits of the product |
+| `mul_wide_s_<w>` | `{lo, hi}` | a signed product — `lo` is the unsigned low half, `hi` the signed high half |
 
-*Table 50.1 — Ops of `random`*
+The widths are the unsigned `u8` · `u16` · `u32` · `u64` · `usize` and the signed `i8` · `i16` · `i32` · `i64` · `idiff`. The product of a `usize` or an `idiff` is formed in `u128` · `i128` and split at the target’s address width (`machine.addr_bits`) — two 16-bit halves on a 16-bit target.
 
-Why `below_biased` says `biased` — narrowing a range with the remainder makes small values come up slightly more often. Rather than hide it, the name says it.
-
-**Tested by summoning failure.** The environment variable `LOW_HOST_FAULT="random:err"` makes entropy unavailable (→ 0), and `LOW_HOST_FAULT="random:short=3"` fills only 3 bytes. **Partial filling is the quietly frightening case** — a key made with half the buffer still holding old values. So checking the count filled is the contract (chapter 28).
-
-**Not built** — uniform range sampling (rejection sampling), shuffles, distributions (normal and so on), serialising reproducible sequences, a cryptographic CSPRNG (`bytes` asks the OS; this module does not make it).
+**How it is known to be right** — the golden’s `intops` section checks 26 hand-computed answers (e.g. `hi` of (−263)2 is 262) on the VM and natively, and the differential sweep compares both back ends for every op of `impl/tests/vm_intops.low`.
 
 ---
 

@@ -1,52 +1,40 @@
-# <a id="mod-random"></a>`random` — 난수(재현되는 열 · OS 엔트로피)
+# `intops` — 정확한 비교와 넓은 셈
 
 소스
 
-`lib/random.low`
+`lib/intops.low`
 
 층
 
-L0 — 순수 계산 · OS 엔트로피는 권한으로
+L0 — 순수 계산
 
 권한
 
-`bytes` · `seed_from_os` 에 `cap random`
+없음
 
-> **둘을 섞지 않는다 — 이 모듈의 전부가 이 경고다**
->
-> > `advance_seed` · `below_biased` · `coin` 은 **splitmix64** 로 만든 재현 가능한 열이다. 권한이 없고 시험 · 시뮬레이션 · 셔플에 쓴다. `bytes` · `seed_from_os` 는 **OS 엔트로피**다. `cap random` 이 필요하고 열쇠 · 논스 · 토큰에 쓴다. 시험은 재현되어야 하고 열쇠는 예측되면 안 된다 — 한 낱말로는 둘 다 못 하므로 이름을 갈라 두었다. `advance_seed` 으로 만든 값을 열쇠로 쓰면 시드를 아는 사람이 그 열쇠를 알고, 시드는 보통 코드나 로그에 남는다.
+정수 셈에서 **버리지 않고 값으로** 받고 싶은 것 셋을 둔다 — 부호나 폭이 다른 두 정수의 정확한 비교, 덧셈 · 뺄셈의 자리올림 · 빌림, 곱의 위 절반. 기본 타입 시스템(basic_type_system 02 §2.6 · §2.7)이 모든 처리기에 두라고 하는 연산이고, 전부 로우엔트로 적혀 있다 — 가장 안쪽의 `u64` 곱의 위 절반만 빌트인 `mul_hi` 를 부른다.
 
-**재현되는 쪽.** 상태(= 시드)를 받아 다음 상태를 돌려준다. 호출자가 상태를 들고 다니므로 같은 시드는 언제나 같은 열을 낸다.
+**정확한 비교** — `cmp_eq` · `cmp_lt` · `cmp_le` 는 두 정수의 **수학적 값**을 견준다. 중위 `lt` 는 부호가 섞이면 번역이 거부되므로 (`E-TYPE-SIGN`), 값으로 견주려는 사람은 이름으로 말한다. 타입 인자를 앞에 적는다.
 
-```lowent
-var s u64 12345 .
-set s. random.advance_seed s. . .
-let c bool random.coin s. . .
+```text
+intops.cmp_lt i64. u64. a. b. .      ← a = −1, b = 0 이면 참
+intops.cmp_eq i64. u64. a. b. .      ← a = −1, b = 2^64 − 1 이면 거짓(비트는 같지만 값은 다르다)
 ```
 
-**예측할 수 없는 쪽.** `cap random` 을 받아야 부를 수 있다. 채운 바이트 수를 답하고 **못 채우면 0** 이다 — 0 을 받고 그대로 쓰면 초기화되지 않은 버퍼를 열쇠로 쓰는 것이다.
+어느 정수 타입의 짝이든 받는다 — `usize` · `idiff` · 128 비트까지. 방법은 부호를 먼저 보는 것이다: 둘 다 음수면 `i128` 로, 둘 다 0 이상이면 `u128` 로 견준다. 어느 정수든 그 둘 가운데 하나에 들어간다.
 
-```lowent
-proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
-  return eq random.bytes k. key. . cast u64 len key. . . . .
-end .
-```
+**자리올림 · 빌림 · 넓은 곱** — 폭마다 하나씩 둔다(구조체에 타입 매개변수가 없어서다).
 
-| **op** | **모양** | **비고** |
+| **op** | **결과** | **뜻** |
 |---|---|---|
-| `advance_seed` | `(seed u64) → u64` | splitmix64 — 알고리즘 고정(고정해야 검사값이 기준이 된다) |
-| `below_biased` | `(seed u64, bound u64) → u64` | 이름이 **편향을 자백한다** — 균등이 필요하면 이것이 아니다 |
-| `coin` | `(seed u64) → bool` | 앞 · 뒤 |
-| `bytes` | `(cap random, dst mut slice u8) → u64` | 채운 바이트 수. **0 = 실패** |
-| `seed_from_os` | `(cap random, scratch mut slice u8) → u64` | OS 에서 받은 시드 하나 — 재현되는 열의 출발점을 예측할 수 없게. `scratch ≥ 8` |
+| `add_carry_<폭>` | `{sum, carry}` | (𝑎+𝑏+𝑐)mod2𝑁 과 자리올림. 들어오는 `c` 는 0 또는 1(계약) |
+| `sub_borrow_<폭>` | `{diff, borrow}` | (𝑎−𝑏−𝑐)mod2𝑁 과 빌림 |
+| `mul_wide_<폭>` | `{lo, hi}` | 곱의 아래 𝑁 비트와 위 𝑁 비트 |
+| `mul_wide_s_<폭>` | `{lo, hi}` | 부호 있는 곱 — `lo` 는 부호 없는 아래 절반, `hi` 는 부호 있는 위 절반 |
 
-*표 50.1 — `random` 의 op*
+폭은 부호 없는 `u8` · `u16` · `u32` · `u64` · `usize`, 부호 있는 `i8` · `i16` · `i32` · `i64` · `idiff` 다. `usize` 와 `idiff` 의 곱은 `u128` · `i128` 에서 하고 대상의 주소 폭(`machine.addr_bits`)으로 나눈다 — 16 비트 대상에서는 16 비트 절반 둘이다.
 
-`below_biased` 의 이름에 `biased` 가 있는 이유 — 나머지 연산으로 범위를 줄이면 작은 값이 조금 더 자주 나온다. 그것을 감추지 않고 이름에 적었다.
-
-**실패를 불러와 시험한다.** 환경 변수 `LOW_HOST_FAULT="random:err"` 는 엔트로피를 받지 못하게(→ 0), `LOW_HOST_FAULT="random:short=3"` 은 3 바이트만 채우게 한다. **부분 채움이 조용히 무서운 쪽이다** — 버퍼 절반이 예전 값인 채로 열쇠가 된다. 그래서 채운 수를 확인하는 것이 계약이다(28장).
-
-**짓지 않은 것** — 균등 범위 난수(거절 표본추출), 셔플, 분포(정규 등), 재현되는 열의 직렬화, 암호용 CSPRNG(`bytes` 는 OS 에 묻는 것이지 이 모듈이 만드는 것이 아니다).
+**무엇으로 맞는지 아는가** — 골든의 `intops` 구획이 손으로 셈한 26 개의 답(예: (−263)2 의 `hi` = 262)을 VM 과 네이티브 둘 다에서 대조하고, 차등 스윕이 `impl/tests/vm_intops.low` 의 op 마다 두 뒤끝을 견준다.
 
 ---
 

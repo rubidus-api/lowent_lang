@@ -10,6 +10,10 @@
 #let spec-version = sys.inputs.at("specver", default: "v0.0.0")
 #let lang-version = sys.inputs.at("langver", default: "?")
 #let built-on = sys.inputs.at("date", default: "?")
+// ★ 영어판(2026-11-09 · W-20261109-1103 · 소유자 «정본은 한국어고 영어가 보조»). `--input lang=en` 이면 장치의 표지가 영어다.
+//   한국어판은 이 값이 없으므로 바이트가 그대로다. 본문은 `canon-en/` 에서 `clauses-en/` 으로 옮긴 것을 `main-en.typ` 이 엮는다.
+#let _en = sys.inputs.at("lang", default: "ko") == "en"
+#let _L(ko, en) = if _en { en } else { ko }
 
 // ── 조항 번호 ────────────────────────────────────────────────────────────────
 // C 표준처럼 **번호가 주소**다. 한 번 발급한 번호의 뜻은 바꾸지 않는다(RFC-0097 D6).
@@ -120,7 +124,9 @@
 
 // ── 용어 병기 (D5) ───────────────────────────────────────────────────────────
 // **모든 용어는 처음 나올 때 괄호로 영어를 병기하고 뜻을 적는다.**
-#let term(ko, en, body) = if _html {
+#let term(ko, en, body) = if _en {
+  if _html { _hdev("term", [#en (#ko)], body) } else { _dev([#en #text(weight: "regular", fill: rgb("#555"))[(#ko)]], body) }
+} else if _html {
   _hdev("term", [#ko (#en)], body)
 } else {
   _dev([#ko #text(weight: "regular", fill: rgb("#555"))[(#en)]], body)
@@ -128,39 +134,43 @@
 
 // 본문에서 용어를 처음 쓸 때: #t("계약", "contract")
 // ★ «자유 선택 (free choice)» 은 일반 낱말이 아니라 §4.3 이 정의한 용어다 — 본문에서 쓰일 때마다 눈에 띄게 낸다(2026-10-08 소유자).
-#let t(ko, en) = if en == "free choice" {
+#let t(ko, en) = if _en {
+  if en == "free choice" {
+    if _html { html.elem("span", attrs: (class: "t fc"), [#en]) } else { text(weight: "bold", fill: rgb("#17574a"))[#en] }
+  } else if _html { html.elem("span", attrs: (class: "t"), [#en]) } else { emph(en) }
+} else if en == "free choice" {
   if _html { html.elem("span", attrs: (class: "t fc"), [#ko (#en)]) } else { text(weight: "bold", fill: rgb("#17574a"))[#ko (#text(size: 0.92em)[#en])] }
 } else if _html {
   html.elem("span", attrs: (class: "t"), [#ko (#en)])
 } else { [#ko (#text(fill: rgb("#555"), size: 0.92em)[#en])] }
 
 // ── 규범과 참고를 가른다 (D7) ────────────────────────────────────────────────
-#let note(body) = if _html { _hdev("note", [참고 (informative)], body) } else { _dev([참고 (informative)], text(size: 0.95em)[#body]) }
+#let note(body) = if _html { _hdev("note", _L([참고 (informative)], [Note (informative)]), body) } else { _dev(_L([참고 (informative)], [Note (informative)]), text(size: 0.95em)[#body]) }
 
-#let plain(body) = if _html { _hdev("plain", [쉬운 말로], body) } else { _dev([쉬운 말로], text(size: 0.95em)[#body]) }
+#let plain(body) = if _html { _hdev("plain", _L([쉬운 말로], [In plain words]), body) } else { _dev(_L([쉬운 말로], [In plain words]), text(size: 0.95em)[#body]) }
 
 // 자유 선택 — 처리기가 범위 안에서 골라도 되고, 무엇을 골랐는지 적지 않아도 되는 자리 (정본 §4.3). 부록 F 가 모은다.
-#let freechoice(title, body) = if _html { _hdev("freechoice", [자유 선택 (free choice) — #_inl(title)], body) } else { _dev([자유 선택 (free choice) — #_inl(title)], text(size: 0.95em)[#body],
+#let freechoice(title, body) = if _html { _hdev("freechoice", _L([자유 선택 (free choice) — #_inl(title)], [Free choice — #_inl(title)]), body) } else { _dev(_L([자유 선택 (free choice) — #_inl(title)], [Free choice — #_inl(title)]), text(size: 0.95em)[#body],
               paint: rgb("#1f6f5c"), ink: rgb("#17574a")) }
 
 // 모호 — 이 문서만으로는 뜻이 둘 이상으로 읽히는 자리 (RFC-0139 §6). 고르지 않고 풀이를 나란히 적는다. 부록 E 가 모은다.
-#let ambig(title, body) = if _html { _hdev("ambig", [모호 (open issue) — #_inl(title)], body) } else { _dev([모호 (open issue) — #_inl(title)], text(size: 0.95em)[#body],
+#let ambig(title, body) = if _html { _hdev("ambig", _L([모호 (open issue) — #_inl(title)], [Open issue — #_inl(title)]), body) } else { _dev(_L([모호 (open issue) — #_inl(title)], [Open issue — #_inl(title)]), text(size: 0.95em)[#body],
               paint: rgb("#a05a00"), ink: rgb("#7a4300")) }
 
-#let caution(title, body) = if _html { _hdev("caution", [주의 — #_inl(title)], body) } else { _dev([주의 — #_inl(title)], text(size: 0.95em)[#body]) }
+#let caution(title, body) = if _html { _hdev("caution", _L([주의 — #_inl(title)], [Caution — #_inl(title)]), body) } else { _dev(_L([주의 — #_inl(title)], [Caution — #_inl(title)]), text(size: 0.95em)[#body]) }
 
 // ── 예제 ────────────────────────────────────────────────────────────────────
 // ★ 명세의 예제는 **실제로 컴파일된다**(`check-spec.py --code`).
 #let ex(caption, code, out: none) = {
   if _html {
-    _hdev("ex", [예제 (example) — #_inl(caption)], {
-      _hcell("demo-src", [소스 코드 (source)], code)
-      if out != none { _hcell("demo-out", [실행 결과 (output)], out) }
+    _hdev("ex", _L([예제 (example) — #_inl(caption)], [Example — #_inl(caption)]), {
+      _hcell("demo-src", _L([소스 코드 (source)], [Source]), code)
+      if out != none { _hcell("demo-out", _L([실행 결과 (output)], [Output]), out) }
     })
   } else {
-    _dev([예제 (example) — #_inl(caption)], {
-      _cell([소스 코드 (source)], raw(code))
-      if out != none { _cell([실행 결과 (output)], raw(out)) }
+    _dev(_L([예제 (example) — #_inl(caption)], [Example — #_inl(caption)]), {
+      _cell(_L([소스 코드 (source)], [Source]), raw(code))
+      if out != none { _cell(_L([실행 결과 (output)], [Output]), raw(out)) }
     })
   }
 }
@@ -171,12 +181,12 @@
   _tbl-no.step()
   if _html {
     html.elem("div", attrs: (class: "tbl"), {
-      html.elem("b", context [표 #_tbl-no.display() — #_inl(caption)])
+      html.elem("b", context [#_L([표], [Table]) #_tbl-no.display() — #_inl(caption)])
       body
     })
   } else {
     block(above: 1em, below: 1em, width: 100%)[
-      #context text(size: 0.88em, weight: "bold")[표 #_tbl-no.display() — #_inl(caption)]
+      #context text(size: 0.88em, weight: "bold")[#_L([표], [Table]) #_tbl-no.display() — #_inl(caption)]
 
       #body
     ]
@@ -212,9 +222,9 @@
 // ★ 문법 틀과 도해는 돌리는 프로그램이 아니어서 표제 줄(«소스 코드»)이 없다 — 테두리 상자만 가진다.
 #let shape(caption, code) = {
   if _html {
-    _hdev("shape", [문법 틀 (grammar shape) — #_inl(caption)], html.elem("pre", html.elem("code", code)))
+    _hdev("shape", _L([문법 틀 (grammar shape) — #_inl(caption)], [Grammar shape — #_inl(caption)]), html.elem("pre", html.elem("code", code)))
   } else {
-    _dev([문법 틀 (grammar shape) — #_inl(caption)], _box(raw(code)))
+    _dev(_L([문법 틀 (grammar shape) — #_inl(caption)], [Grammar shape — #_inl(caption)]), _box(raw(code)))
   }
 }
 
@@ -223,9 +233,9 @@
 //   프로그램)와도 다르다: 이것은 규범이 아니라 규범을 읽기 쉽게 하는 그림이고, 검사기는 코드로 보지 않는다.
 #let diagram(caption, code) = {
   if _html {
-    _hdev("diagram", [도해 (diagram) — #_inl(caption)], html.elem("pre", html.elem("code", code)))
+    _hdev("diagram", _L([도해 (diagram) — #_inl(caption)], [Diagram — #_inl(caption)]), html.elem("pre", html.elem("code", code)))
   } else {
-    _dev([도해 (diagram) — #_inl(caption)], _box(raw(code)), breakable: false)
+    _dev(_L([도해 (diagram) — #_inl(caption)], [Diagram — #_inl(caption)]), _box(raw(code)), breakable: false)
   }
 }
 
@@ -235,14 +245,14 @@
 //   (컴파일 검사기는 이 블록을 **컴파일하지 않는다** — 거부되는 것이 정상이기 때문이다.)
 #let rejected(caption, code, diag) = {
   if _html {
-    _hdev("rejected", [거부되는 예제 (rejected) — #_inl(caption)], {
-      _hcell("demo-src", [소스 코드 (source)], code)
-      html.elem("p", attrs: (class: "diag"), [진단: #raw(diag)])
+    _hdev("rejected", _L([거부되는 예제 (rejected) — #_inl(caption)], [Rejected example — #_inl(caption)]), {
+      _hcell("demo-src", _L([소스 코드 (source)], [Source]), code)
+      html.elem("p", attrs: (class: "diag"), [#_L([진단], [Diagnostic]): #raw(diag)])
     })
   } else {
-    _dev([거부되는 예제 (rejected) — #_inl(caption)], {
-      _cell([소스 코드 (source)], raw(code))
-      text(size: 0.85em)[진단: #raw(diag)]
+    _dev(_L([거부되는 예제 (rejected) — #_inl(caption)], [Rejected example — #_inl(caption)]), {
+      _cell(_L([소스 코드 (source)], [Source]), raw(code))
+      text(size: 0.85em)[#_L([진단], [Diagnostic]): #raw(diag)]
     })
   }
 }

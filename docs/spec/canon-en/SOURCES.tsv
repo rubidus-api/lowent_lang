@@ -1,0 +1,9 @@
+# 영어판 장마다, 옮길 때의 한국어 정본 지문(blake2b-80). `check-spec-en.py --stamp` 만 고친다 — 손으로 적지 않는다.
+# file	ko-digest
+01-scope.md	eb1e5cd7a4442c3ca4b6
+02-normative-refs.md	ff134ad6513f44804675
+03-terms.md	17ffae1138cb66c071ff
+04-conformance.md	1756fa9d7d5a9f96d00c
+05-environment.md	efbe6c715038e16e1d8f
+06-1-lexical.md	648dc32beba149c88fc2
+06-2-types.md	a03659262caacf30813d

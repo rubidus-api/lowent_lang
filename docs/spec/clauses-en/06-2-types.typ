@@ -1097,7 +1097,7 @@ fn raw input k u8 . output u8 .
 do
   return some_value mk k. . . .
 end .",
-      out: "raw(2) = 20 · raw(7) → E-VM-NONE (트랩)")
+      out: "raw(2) = 20 · raw(7) → E-VM-NONE (trap)")
     #plain[
       `raw(2)` gives 20. `raw(7)` takes out a value that is not there, so it #strong[stops]; — it does not silently give 0.
       Translation does not prevent this in advance because on which path a value is present is #strong[what the author

@@ -1,13 +1,310 @@
 #import "../lib.typ": *
 
-#sub("6.12", "한 줄기로 흘리기 — `pipe`")[
+#sub("6.12", "Flowing in one stream — `pipe`")[
+  #para("1")[
+    `pipe` is a statement that takes the elements of a source one at a time, passes them through #t("스테이지", "stage")s in turn,
+      and ends with one #t("종결자", "terminal"). Its shape is as follows.
+  ]
+  #shape("the pipe statement", "pipe <source> do
+  <stage> .        rem may be absent. There may be several.
+  <terminal> .     rem exactly one.
+end")
+  #plain[
+    A loop that goes through a slice almost always has the same skeleton — #emph[keep an index, check whether it is the end, take the element out and test a condition,
+    accumulate something, increase the index.]; Writing that skeleton by hand buries #strong[what is meant to be done]; («keep only the digits and count them») between the index and the counter,
+    and that is where off-by-one mistakes happen. `pipe` has the language take care of the skeleton and lets people write #strong[only what is meant to be done];,
+    one word per line. At the same time it goes through only once and makes no intermediate array, exactly like a loop written by hand (#cref("6.12.1")).
+    The two ops below give the same answer.
+  ]
+  #ex("the same work as a hand-written loop and as a pipe — both go through once", "module ex_pipe_why .
+
+fn is_digit input c u8 . output bool . do return and ge c. 48 . le c. 57 . . . end .
+
+rem A hand-written loop — a person matches up the counter · index · condition · increment one by one.
+fn digits_loop input s slice u8 . output u64 .
+do
+  var n u64 0 .
+  var i usize 0 .
+  while lt i. len s. . . do
+    if is_digit idx s. i. . . do set n. add n. 1 . . end .
+    set i. add i. 1 . .
+  end .
+  return n. .
+end .
+
+rem The same work with pipe — «keep only digits, and count». What is done shows as one word per line.
+fn digits_pipe input s slice u8 . output u64 .
+do
+  return pipe s. do
+    filter is_digit .
+    count .
+  end . .
+end .")
+  #para("2")[
+    There are seven stages: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.
+      There are five terminals: `collect into` · `fold` · `count` · `any` · `all`.
+      Using a word outside this list in a stage position does not conform (`E-PIPE-STAGE`).
+  ]
+  #para("2a")[
+    The place of `collect into <place>` shall be able to hold the flowing values #strong[without losing]; them.
+      Putting wider values into a narrower container does not conform (`E-TYPE-COLLECT`) — a conversion that loses values
+      does not happen implicitly (#cref("6.2.5") (1)). To narrow, do it #strong[in writing]; with `map`.
+  ]
+  #para("2b")[
+    The meaning of each word is as follows. «The flow» is the order in which the source's elements reach this place after passing the earlier stages,
+      and «op» is a named op (4). The element type is written `t`, and the accumulator type `a`.
+      - `filter <op>` (stage, op is `t → bool`) — sends on only the elements for which op is true. Elements for which it is false are discarded.
+      - `map <op>` (stage, op is `t → u`) — calls op on each element and sends its answer on. The element type may change to `u`.
+      - `take <n>` (stage) — sends only the first `n` and #strong[stops the traversal]; (#cref("6.12.2")). If there are fewer than `n` elements, as many as there are.
+      - `skip <n>` (stage) — discards the first `n` and sends the rest.
+      - `enumerate <op>` (stage, op is `(u64, t) → u`) — gives the ordinal `i` (from 0) and the element to op and sends its answer.
+      - `zip <source2> <op>` (stage, op is `(t, t2) → u`) — gives the element and the element at the same position of `source2` to op and sends its answer. #strong[When the shorter one ends, the flow ends.];
+      - `scan <initial> <op>` (stage, op is `(a, t) → a`) — sets the accumulator to `initial`, updates it for each element as `accumulator = op(accumulator, element)`, and sends the accumulator #strong[after]; the update. The initial value itself is not sent.
+      - `collect into <place>` (terminal) — puts the elements of the flow into `<place>` (`mut slice`) from the front and gives #strong[the number put in]; (`u64`). The place shall be long enough to hold the whole flow (2c).
+      - `fold <initial> <op>` (terminal, op is `(a, t) → a`) — accumulates like `scan` but gives one final accumulator (`a`). If the flow is empty, it is the initial value.
+      - `count` (terminal) — gives the number of elements of the flow (`u64`).
+      - `any <op>` (terminal, op is `t → bool`) — true if there is an element for which op is true. False if the flow is empty. It stops at the first true.
+      - `all <op>` (terminal, op is `t → bool`) — true if op is true for every element. True if the flow is empty. It stops at the first false.
+  ]
+  #para("2c")[
+    When the receiving place is full, #strong[it does not stop silently.]; If it is known at translation time that the flow is longer than the receiving place — the two lengths
+      are written in the head's contract (`requires eq len x. . N .`, which `array T N` inputs become) and no stage in between has an unknown count
+      (`filter` · `zip`) — translation refuses it (`E-COLLECT-FULL`). If it cannot be known, during execution, the moment an element arrives that cannot be held,
+      it stops saying the receiving place is full (`E-VM-BOUNDS`; natively a panic with the same sentence). To put in only as many as fit,
+      #strong[write]; `take`.
+  ]
+  #para("2d")[
+    The op of `filter` · `any` · `all` is #strong[a predicate]; — its output shall be `bool`. Giving an op that gives a number does not
+      conform (`E-PIPE-PRED`). This language has no rule that reads non-zero numbers as true (#cref("6.2.16") (4)).
+  ]
+  #rejected("putting five into three slots — both lengths are known at translation time", "module ex_collect_full .
+
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
+
+proc over input xs array 5 u8 . input out mut array 3 u8 . output u64 . effects none . do
+  return pipe xs. do
+    map dbl .
+    collect into out. .
+  end . .
+end .", "E-COLLECT-FULL")
+  #rejected("an op that gives a number given in a predicate position", "module ex_pipe_pred .
+
+fn as_flag input a u8 . output u8 . do return a. . end .
+
+fn nonzero input xs slice u8 . output u64 . do
+  return pipe xs. do
+    filter as_flag .
+    count .
+  end . .
+end .", "E-PIPE-PRED")
+  #para("3")[
+    A `pipe` statement has #strong[exactly one]; terminal. Ending without a terminal, or having two, does not
+      conform.
+  ]
+  #para("4")[
+    The argument of a stage is #strong[a name that points at a named op];. This language has no nameless functions (lambdas),
+      so a function made on the spot cannot be given as a stage argument.
+  ]
+  #para("5")[
+    A stage op takes only one element — it has exactly one parameter and takes no capability.
+      Using any other op as a stage does not conform (`E-FOLD-OP`). If a context (7) is written,
+      there is one more parameter.
+  ]
+  #para("5a")[
+    The op of `fold` and `scan` has two parameters, #strong[the first being the accumulator and the second the element];.
+      One step is `accumulator = op(accumulator, element)`, so the type of the first parameter and the output type shall be the same.
+      Writing them as different types does not conform (`E-FOLD-ORDER`).
+  ]
+  #para("6")[
+    The count of `take` and `skip` shall be a non-negative value fixed at translation time (#cref("6.8")).
+      Giving a value known only at execution time does not conform.
+  ]
+  #para("7")[
+    Stages and terminals that call an op — `filter` · `map` · `any` · `all` · `scan` · `fold` · `zip` · `enumerate` — can have
+      a #t("문맥", "context") `with <expr>` after the op name. The context is passed as the op's #strong[last argument];:
+      `filter` · `map` · `any` · `all` take (element, context), `fold` · `scan` (accumulator, element, context), `zip` (element,
+      partner element, context), and `enumerate` (ordinal, element, context). If the number of parameters or the type of the context does not match, or
+      the context parameter is `mut` · `owned`, it does not conform (`E-PIPE-CONTEXT-ARG`). Writing a context on `take` · `skip` · `count` · `collect`,
+      which call no op, or a word other than `with` coming after the op name, or what follows `with` not being one expression,
+      does not conform (`E-PIPE-WITH`). `with` is only a marker of this place, not a keyword (annex A.1).
+  ]
+  #para("7a")[
+    A context is #strong[a copied value without references];. The type of the context parameter — including struct fields, the contents of every variant of an enum
+      (unused variants too), the underlying type of aliases · newtypes, the elements of arrays, and the contents of option · result — shall not hold slices,
+      references (`ref` · `mut_ref`), pointers, capabilities (`cap`), regions, `owned` values or actors
+      (`E-PIPE-CONTEXT-TYPE`). An expression that uses a capability may #strong[make]; a context, but a capability cannot be put #strong[inside]; the context and handed
+      over. If the context parameter is of an array type (`array n t`), its value crosses pointing at storage, so it cannot be a context
+      (`E-PIPE-CONTEXT-TYPE`). An array that is a struct field is copied with the struct (§6.2.7 (4a)), so that struct can be
+      a context.
+  ]
+  #para("7b")[
+    The context expression is evaluated #strong[once, before]; the traversal, and its value is passed as the same value to every call. Even if the op changes its own copy,
+      the next call receives the stored value. It is evaluated even if the source is empty. A `pipe` with a context evaluates the source and then
+      the operands of each clause (the partner of `zip`, the initial value of `scan` · `fold`, the expression of `with`, the receiving place of `collect into`)
+      in clause order, from the left. If preparation fails, the later preparations and the traversal do not happen. The effects of the context expression are
+      the effects of the outer op (#cref("7")). The order of a `pipe` without a context is as before — the source, the terminal's operands, then the stages
+      in order.
+  ]
+  #ex("a threshold fixed at run time, as a context", "module ex_with .
+
+fn above input x u8 . input limit u8 . output bool .
+do
+  return gt x. limit. . .
+end .
+
+export fn count_above input xs slice u8 . input base u8 . output u64 .
+do
+  return pipe xs. do
+    filter above with wrap_add base. 1 . .
+    count .
+  end . .
+end .")
+  #rejected("a context is a value without references", "module ex_with_slice .
+
+fn over input x u8 . input s slice u8 . output bool .
+do
+  return gt x. idx s. 0 . . .
+end .
+
+export fn f input xs slice u8 . output u64 .
+do
+  return pipe xs. do
+    filter over with xs. .
+    count .
+  end . .
+end .", "E-PIPE-CONTEXT-TYPE")
+  #rejected("a terminal that calls no op takes no context", "module ex_with_count .
+
+fn above input x u8 . input limit u8 . output bool .
+do
+  return gt x. limit. . .
+end .
+
+export fn f input xs slice u8 . output u64 .
+do
+  return pipe xs. do
+    filter above with 3 .
+    count with 1 .
+  end . .
+end .", "E-PIPE-WITH")
   #note[
-    This chapter has not been translated yet. The Korean edition is normative — read this chapter there.
+    A context is not a lambda. A stage op is still a named op, and it does not secretly read outer names —
+    it sees only the value passed as the context. References are blocked to close the way of copying only an address and watching outer storage
+    throughout the traversal. If a large table has to be handed over, write an ordinary loop or an op call.
   ]
-  #sub("6.12.1", "융합은 최적화가 아니라 의미다")[
+  #sub("6.12.1", "Fusion is meaning, not optimisation")[
+    #para("1")[
+      A `pipe` statement is executed in #strong[one pass];. No intermediate collection is made between stages.
+      This is not an #t("최적화", "optimisation") the processor may try but the #strong[definition]; of this statement.
+    ]
+    #para("2")[
+      So the processor shall not make intermediate collections. A processor that makes them does not
+      conform.
+    ]
+    #note[
+      Why make it a definition? If fusion were an optimisation, #emph["how far is it fused"]; would differ between processors,
+      and people writing code would meet a #strong[cliff]; — the place where changing one line suddenly creates an intermediate array and makes it slow.
+      That cliff cannot be seen from the source. Here, operations that cannot be fused #strong[are not in the stage
+      vocabulary at all];, so there is no way to fall off the cliff by accident.
+    ]
   ]
-  #sub("6.12.2", "필요한 만큼만 읽는다")[
+  #sub("6.12.2", "Reading only as much as needed")[
+    #para("1")[
+      `any` stops the traversal at the first element that gives true, and `all` at the first element that gives false.
+      Elements after the stop are not read, and the stages for those elements are not executed.
+    ]
+    #para("2")[
+      `take n` stops the traversal after letting n elements through.
+    ]
+    #note[
+      This property is what lets `pipe` handle sources without an end. If stopping were not written in the meaning,
+      a source without an end would keep the program from ever stopping.
+    ]
+    #ex("two stages and one terminal — one pass", "module ex_pipe .
+
+fn over2 input a u8 . output bool . do return gt a. 2 . . end .
+
+fn dbl input a u8 . output u8 . do return wrap_add a. a. . . end .
+
+rem [1,2,3,4,5] → only those greater than 2 → doubled → put into out. No intermediate array is made.
+proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
+  pipe xs. do
+    filter over2 .
+    map dbl .
+    collect into out. .
+  end .
+  return 0 .
+end .
+")
+    #plain[
+      `pipe` is a statement in order to make fusion #strong[a promise];. Were it an expression, stages could be detached as values
+      and passed around, and then where one stream begins and ends would not be visible in the source. `do … end` nails that
+      boundary down visibly.
+    ]
   ]
-  #sub("6.12.3", "`pipe` 밖의 `map`·`filter`·`fold` — 라이브러리의 op")[
+  #sub("6.12.3", "`map` · `filter` · `fold` outside `pipe` — ops of a library")[
+    #para("1")[
+      Outside `pipe`, `map` · `filter` · `fold` #strong[are not core ops.]; The author can use the three names as the names of ops · parameters · locals.
+      The same words inside `pipe` are stages and terminals (#cref("6.12") (2)).
+    ]
+    #para("2")[
+      Moving a slice into another slice, filtering it or folding it into one is done by the ops
+      `map` · `filter` · `fold` of the standard module `collection` (#cref("9.3")). #strong[The element type brings the work along]; — the element type provides the traits
+      `collection.mappable` (`apply`) · `collection.keepable` (`keep`) · `collection.foldable` (`combine`) (#cref("6.11.2")), and the op
+      takes that type as a translation-time argument. Giving a type that does not provide them is refused at translation.
+    ]
+    #para("2a")[
+      `collection.map` and `collection.filter` write into the receiving place (`mut slice`) and give #strong[the number of elements written]; (`u64`) —
+      the same as `collect into`. When the receiving place is full, execution stops the moment it tries to write.
+    ]
+    #para("2b")[
+      The names that were core ops up to language revision 1.12 are six — `map` · `filter` · `fold` · `count` · `seg` · `segs`. From revision 1.13
+      all six are the author's names. Calling such a name without a definition is refused like any other name (`E-IR-UNDEF`), and the processor says where to move
+      as well — for `count`, `bitset_count` · `stack_count` · `len` (#cref("6.2.12") (4a)); for `seg` · `segs`, `segview.piece_at` ·
+      `segview.piece_count`; for prefix `map` · `filter` · `fold`, the `collection` of (2) above.
+    ]
+    #ex("the element type brings the work along", "module ex_collection .
+
+use collection .
+
+struct twice do
+  satisfies collection.mappable .
+  v u8 .
+end .
+
+fn twice.apply input x twice . output twice . do
+  return lit twice do v wrap_add field x. v . field x. v . . . end . .
+end .
+
+proc twice_all input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
+  return collection.map twice. view_array twice xs. . view_array twice out. . . .
+end .",
+      out: "twice_all([1,2,3], [0,0,0]) = 3")
+    #plain[
+      These three were once core ops (in the shape `map <receiving place> <op> <source>`). The names of core ops cannot be the author's names,
+      so three common words were blocked. This language has no way of passing an op as a value, so library generics look for the work
+      in the element's type — the same way sorting finds comparison. Each call makes an op specific to that type, and the work
+      is fixed as a direct call.
+    ]
+    #plain[
+      Moving, filtering or folding a slice is usually written with `pipe`, without `collection` (#cref("6.12") (2)). `pipe` does three things the way of (2) above
+      cannot — it chooses ops by name, so one element type can have any number of transformations · predicates; it hands over values fixed at run time with `with`
+      (#cref("6.12") (7)); and if the op of `map` gives another type, the element type of the flow changes. Nor is there any need to wrap elements in a one-field struct.
+      An op used in only one place is put inside that body as a local op (#cref("6.10.5")). `collection` is for general
+      code in which the element's type has to carry the work. Calling the old prefix `map` · `filter` · `fold`, the processor too mentions `pipe` first.
+    ]
+    #ex("moving is done with pipe — run-time values go in with", "module ex_pipe_move .
+
+fn add_k input x u8 . input k u8 . output u8 . do
+  return wrap_add x. k. . .
+end .
+
+proc shifted input xs slice u8 . input k u8 . input out mut slice u8 . output u64 . effects none . do
+  return pipe xs. do
+    map add_k with k. .
+    collect into out. .
+  end . .
+end .",
+      out: "shifted([1,2,3], 10, [0,0,0]) = 3")
   ]
 ]

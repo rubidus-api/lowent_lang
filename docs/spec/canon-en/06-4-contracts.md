@@ -490,7 +490,7 @@ end .
 > knows. Written down, the reader knows it, and when the processor grows later that place can be raised to
 > `static`. Not written down, that knowledge stays only in a person's head.
 
-```lowent 예제: the same program ends differently by mode — `debug` · 결과: bump(10) = 11 · bump(250) → E-VM-CONTRACT (트랩)
+```lowent 예제: the same program ends differently by mode — `debug` · 결과: bump(10) = 11 · bump(250) → E-VM-CONTRACT (trap)
 module ex_mode_debug .
 
 build debug .
@@ -502,7 +502,7 @@ do
 end .
 ```
 
-```lowent 예제: the same program — `release_fast` · 결과: bump(10) = 11 · bump(250) = 251 (멈추지 않는다)
+```lowent 예제: the same program — `release_fast` · 결과: bump(10) = 11 · bump(250) = 251 (does not stop)
 module ex_mode_fast .
 
 build release_fast .
@@ -514,7 +514,7 @@ do
 end .
 ```
 
-```lowent 예제: the same mode — where the contract kept the overflow away · 결과: bump(10) = 11 · bump(255) → E-VM-OVERFLOW (트랩)
+```lowent 예제: the same mode — where the contract kept the overflow away · 결과: bump(10) = 11 · bump(255) → E-VM-OVERFLOW (trap)
 module ex_mode_fact .
 
 build release_fast .

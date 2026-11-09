@@ -7,7 +7,7 @@
 > Syntax, the standard library, diagnostic codes and command-line flags can change without notice. There is no compatibility promise yet, and it is not ready for production use.
 
 **Manual:** [read on the web](https://rubidus-api.github.io/lowent_lang/manual/html-en/index.html) · [PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [한국어판 웹](https://rubidus-api.github.io/lowent_lang/manual/html-ko/index.html) · [한국어판 PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf)  
-**Specification** (Korean): [web](https://rubidus-api.github.io/lowent_lang/spec/html/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+**Specification** (Korean, normative): [web](https://rubidus-api.github.io/lowent_lang/spec/html/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf) — **English edition** (a translation; the Korean text prevails): [web](https://rubidus-api.github.io/lowent_lang/spec/html-en/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec-en.pdf)
 
 Lowent is a **low-entropy** systems programming language. The idea is simple: you should be able to read a function's signature and know what it takes, what it returns, and what it is allowed to do to the outside world. Code that leaves little to guess is code that people and AI can both read and change without breaking it.
 
@@ -299,6 +299,7 @@ For a project, put a `pkg.low` manifest at the root and use `lowentc run` and `l
 |---|---|
 | [`docs/manual/`](docs/manual/README.md) | **The Lowent manual**, a book in English and Korean: the language, the standard library (one page per module) and what has been proven, with its limits. Read it on the [web](https://rubidus-api.github.io/lowent_lang/manual/html-en/index.html) or as a [PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) (Korean: [web](https://rubidus-api.github.io/lowent_lang/manual/html-ko/index.html) · [PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf)), or as Markdown on GitHub; every example is run on both back ends |
 | [`docs/spec/canon/`](docs/spec/canon/) | The normative specification (in Korean), also as [web](https://rubidus-api.github.io/lowent_lang/spec/html/) and [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf). When the manual and the specification disagree, the specification wins |
+| [`docs/spec/canon-en/`](docs/spec/canon-en/) | The English edition of the specification, clause for clause — [web](https://rubidus-api.github.io/lowent_lang/spec/html-en/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec-en.pdf). It is a translation: where it and the Korean text differ, the Korean text is right |
 | [`docs/example/`](docs/example/) | Complete examples |
 | [`impl/`](impl/README.md) | The compiler, `lowentc` (C23) |
 | [`lib/`](lib/) | The standard library, written in Lowent |

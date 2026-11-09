@@ -1098,7 +1098,7 @@ end .
 > «write that you ignore», and once it is written, a reader reads it as **the author's judgment**.
 > What is not written, nobody knows whether it is judgment or a mistake.
 
-```lowent 예제: taking out without checking stops during execution · 결과: raw(2) = 20 · raw(7) → E-VM-NONE (트랩)
+```lowent 예제: taking out without checking stops during execution · 결과: raw(2) = 20 · raw(7) → E-VM-NONE (trap)
 module ex_partial .
 
 fn mk input k u8 . output option u8 .

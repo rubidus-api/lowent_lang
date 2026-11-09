@@ -206,7 +206,7 @@ in the source as `build <mode> .`.
   [*Mode*], [*Remaining contract checks*],
   [`debug`], [Kept; stop and say what broke],
   [`test`], [Kept like `debug`; tests are also built and run],
-  [`release_safe`], [Kept; stop without a message],
+  [`release_safe`], [Kept; stop with a short fixed message (the contract's text is not in the program). `debug`-grade contracts are removed],
   [`release_fast`], [*Removed*. Execution may continue with a broken contract --- the checks on each operation stay],
 )
 

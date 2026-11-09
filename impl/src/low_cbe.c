@@ -3132,7 +3132,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_PANIC:  st.n = 0; live = false; break;   // ★ 2026-11-01 — `panic` 은 돌아오지 않는다: 뒤의 `drop` 은 도달 불가(방출도 같다)
             case IRW_CAST:
                 if (st.n < 1) return false;
-                if (in->a == 0) {   // → f64
+                if ((in->a & 0xff) == 0) {   // → f64 · f32(IR_CAST_F32)
                     if (st.k[st.n-1] != K_INT && st.k[st.n-1] != K_FLT) return false;
                     st.k[st.n-1] = K_FLT;
                 } else if (in->a & 0x40000) {   // narrow_try → option
@@ -6228,11 +6228,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             }
             case IRW_CAST:
-                if (in->a == 0) {                          // → f64
+                if ((in->a & 0xff) == 0) {                 // → f64 · f32(IR_CAST_F32)
+                    // ★ RFC-0157 §8-13 — f32 가 대상이면 한 번에 f32 로 반올림한다(VM 의 IRW_CAST 와 같은 식)
+                    const bool to32 = (in->a & IR_CAST_F32) != 0;
                     if (ks.k[ks.n-1] == K_INT) {
-                        fputs("    fs[fsp++] = (double)st[--sp];\n", out);
+                        fputs(to32 ? "    fs[fsp++] = (double)(float)st[--sp];\n" : "    fs[fsp++] = (double)st[--sp];\n", out);
                         ks.k[ks.n-1] = K_FLT;
-                    }   // 이미 f64 면 항등
+                    } else if (to32) fputs("    fs[fsp-1] = (double)(float)fs[fsp-1];\n", out);   // 이미 f64 면 항등
                 } else if (in->a & 0x40000) {              // narrow_try → some|none (ws[])
                     if (ks.k[ks.n-1] == K_FLT)
                         fputs("    st[sp++] = (long long)fs[--fsp];\n", out);

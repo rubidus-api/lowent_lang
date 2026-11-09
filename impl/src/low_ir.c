@@ -4551,7 +4551,8 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         }
                         proven_u8str_view_t tw = k[*pos]->tok.lex;
                         proven_i64 meta;
-                        if (veq(tw, "f32") || veq(tw, "f64")) meta = 0;
+                        if (veq(tw, "f32")) meta = IR_CAST_F32;   // ★ RFC-0157 §8-13 — f32 로 반올림한다
+                        else if (veq(tw, "f64")) meta = 0;
                         else if (veq(tw, "u128") || veq(tw, "i128")) meta = 16 | NW[bi].pol | (veq(tw, "i128") ? IR_SGN_BIT : 0);   // ★ RFC-0151 — 16 바이트
                         else {
                             proven_u8 sz = ir_field_size(tw);
@@ -4677,7 +4678,8 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     }
                 }
                 proven_i64 meta;
-                if (veq(tw, "f32") || veq(tw, "f64")) meta = 0;
+                if (veq(tw, "f32")) meta = IR_CAST_F32;   // ★ RFC-0157 §8-13 — f32 로 반올림한다
+                else if (veq(tw, "f64")) meta = 0;
                 else if (veq(tw, "u128") || veq(tw, "i128")) meta = 16 | (veq(tw, "i128") ? IR_SGN_BIT : 0);   // ★ RFC-0151
                 else {
                     proven_u8 sz = ir_field_size(tw);
@@ -4695,7 +4697,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 (*pos)++;
                 ir_value(c, k, pos, end);
                 if (!ir_cast_is_identity(c, meta)) ir_emit(c, IRW_CAST, meta);
-                if (!meta) ir_tset_top(c, tw);   // RFC-0148 S3 — 부동으로 가는 변환의 결과는 그 부동 타입이다
+                if (!(meta & 0xff)) ir_tset_top(c, tw);   // RFC-0148 S3 — 부동으로 가는 변환의 결과는 그 부동 타입이다
                 return;
             }
             if (veq(nd->tok.lex, "splat") || veq(nd->tok.lex, "load")) {

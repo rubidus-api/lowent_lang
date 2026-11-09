@@ -484,6 +484,10 @@ typedef struct {
 
 #define IR_FLT_BIT   0x10000   // marks f32/f64 element/lane types in word operands
 #define IR_SGN_BIT   0x20000   // marks a SIGNED integer target (bit_cast)
+// ★★ RFC-0157 §8-13 (2026-11-09 · W-20261109-0320) — IRW_CAST 의 아래 8 비트가 0 이면 부동으로 가는 변환이다. 이 비트가 서면 대상은 `f32` 다:
+//   값을 f32 로 반올림한다(가장 가까운 값 · 비기면 짝수 · 넘치면 ±∞ — BTS 02 §1.5). 전엔 `cast f32` · `narrow f32` 가 `f64` 와 같은 0 을 받아
+//   값을 줄이지 않았다(`cast f32 <f64 1e300>` = 1e300 · `cast f32 <u64 16777217>` = 16777217). 읽는 쪽은 `(a & 0xff) == 0` 으로 부동을 가른다.
+#define IR_CAST_F32  IR_FLT_BIT
 // ★ `slice <struct>` — 원소가 **구조체**인 슬라이스. 구조체 배열은 시스템 프로그래밍의
 //   기본 모양인데, 원소 크기를 못 구해서 **바이트 슬라이스로 남았다**: `len` 이 **바이트를 셌다**
 //   (2바이트 구조체 2개짜리 슬라이스의 len 이 4). `slice u32` 에서 고쳤던 그 병인데

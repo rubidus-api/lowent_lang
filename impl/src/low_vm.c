@@ -1331,10 +1331,11 @@ static int vm_w128_step(vm_ctx_t *vm, const low_ir_ins_t *in, vmv_t *stack, prov
         if (sp < 1) return 0;
         vmv_t v = stack[--sp];
         const bool src_w = (in->a & IR_SRC_W128) != 0, src_sg = (in->a & IR_SRC_SGN) != 0;
-        if ((in->a & 0xff) == 0) {   // → f64
+        if ((in->a & 0xff) == 0) {   // → f64 (IR_CAST_F32 면 f32 — 한 번에 반올림한다)
             if (v.tag != VMV_INT) return 0;
             vm_u128 u = vmv_wv(v);
-            stack[sp++] = vmv_flt(src_sg ? (double)(vm_i128)u : (double)u);
+            if (in->a & IR_CAST_F32) stack[sp++] = vmv_flt(src_sg ? (double)(float)(vm_i128)u : (double)(float)u);
+            else stack[sp++] = vmv_flt(src_sg ? (double)(vm_i128)u : (double)u);
             *spp = sp; return 1;
         }
         // 원천의 참값을 부호 있는 129 비트로 본다: (음수인가, 크기)
@@ -2292,12 +2293,14 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                     : bsel == 2 ? (x > y ? x : y) : pow(x, y));
                 break;
             }
-            case IRW_CAST: {   // a = 0 → f64 | width → integer truncate/mask
+            case IRW_CAST: {   // 아래 8 비트 0 → 부동(IR_CAST_F32 면 f32) | width → integer truncate/mask
                 if (sp == 0) return false;
                 vmv_t v = stack[--sp];
-                if (in->a == 0) {
-                    if (v.tag == VMV_INT) stack[sp++] = vmv_flt((double)v.i);
-                    else if (v.tag == VMV_FLT) stack[sp++] = v;
+                if ((in->a & 0xff) == 0) {
+                    // ★ RFC-0157 §8-13 — f32 가 대상이면 **한 번에** f32 로 반올림한다(정수에서도 double 을 거치지 않는다 — 두 번 반올림하지 않으려고)
+                    const bool to32 = (in->a & IR_CAST_F32) != 0;
+                    if (v.tag == VMV_INT) stack[sp++] = vmv_flt(to32 ? (double)(float)v.i : (double)v.i);
+                    else if (v.tag == VMV_FLT) stack[sp++] = to32 ? vmv_flt((double)(float)vmv_f(v)) : v;
                     else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return false; }
                 } else {
                     // S3/D9: 폭 절단은 **트랩**이 기본. narrow_wrap / narrow_sat 이 정책을 고른다.

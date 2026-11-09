@@ -276,6 +276,7 @@ narrow	a u64	usize	return narrow usize a. . .	1	CHECK E-TYPE-NOMINAL
 narrow	a usize	u32	return narrow u32 a. . .	1	CHECK E-TYPE-NOMINAL
 narrow	a u16	i8	return narrow i8 a. . .	200	TRAP E-VM-CAST
 narrow	a f64	f32	return narrow f32 a. . .	1.5	= 1.5
+narrow	a f64	f32	return narrow f32 a. . .	1e300	= inf
 narrow_wrap	a u16	u8	return narrow_wrap u8 a. . .	255	= 255
 narrow_wrap	a u16	u8	return narrow_wrap u8 a. . .	256	= 0
 narrow_wrap	a u16	u8	return narrow_wrap u8 a. . .	511	= 255
@@ -302,6 +303,8 @@ cast	a f64	i8	return cast i8 a. . .	-1.9	= -1
 cast	a f64	u8	return cast u8 a. . .	1.9	= 1
 cast	a u64	f64	return cast f64 a. . .	5	= 5.0
 cast	a i8	f64	return cast f64 a. . .	-3	= -3.0
+cast	a f64	f32	return cast f32 a. . .	1e300	= inf
+cast	a f64	f32	return cast f32 a. . .	-1e300	= -inf
 cast	a u8	bool	return cast bool a. . .	1	CHECK E-TYPE-KIND
 cast	a u8	u8	return cast u8 gt a. 2 . . .	5	= 1
 cast	a u8	u8	return cast u8 gt a. 2 . . .	1	= 0

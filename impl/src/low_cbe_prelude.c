@@ -2073,14 +2073,14 @@ const char LW_CONC_T0[] =
 "#ifndef LW_T0_JOBS\n#define LW_T0_JOBS 32\n#endif\n"          /* await 핸들 */
 "#ifndef LW_T0_CHAN\n#define LW_T0_CHAN 8\n#endif\n"           /* 채널 수 */
 "#ifndef LW_T0_CHCAP\n#define LW_T0_CHCAP 16\n#endif\n"        /* 채널 한 개의 칸 수 */
-"static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer;"
+"static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer; int rmax;"
 " lowv args[LW_T0_ARGS]; } lw_ambox[LW_T0_MBOX];\n"
 "static int lw_nambox;\n"
 // ★ 넣기 · 세기는 호스트판과 같은 이름(방출 코드가 하나다). T0 는 칸이 작아(기본 32) 당기기를 그대로 둔다 —
 //   차례는 호스트판과 같고 값만 다르다. 연결 칸을 더하면 작은 칩의 RAM 이 는다(W-20261109-1749).
 "static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
 "static int lw_amb_push(int box) { int i = lw_nambox++; lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0;"
-" lw_ambox[i].job = -1; lw_ambox[i].peer = 0; return i; }\n"
+" lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1; return i; }\n"
 "static int lw_amb_pend(int box) { int n = 0; for (int q = 0; q < lw_nambox; q++) if (lw_ambox[q].box == box) n++; return n; }\n"
 "static struct { int done; lowv result; } lw_jobs[LW_T0_JOBS]; static int lw_njobs;\n"
 "static struct { lowv buf[LW_T0_CHCAP]; int head, tail, count; } lw_chans[LW_T0_CHAN]; static int lw_nchan;\n"
@@ -2090,7 +2090,7 @@ const char LW_CONC_T0[] =
 "static int lw_t0_step(void) {\n"
 "    if (lw_nambox <= 0) return 0;\n"
 "    int i = 0;\n"
-"    int box = lw_ambox[i].box, job = lw_ambox[i].job, na = lw_ambox[i].nargs;\n"
+"    int box = lw_ambox[i].box, job = lw_ambox[i].job, na = lw_ambox[i].nargs, rmax = lw_ambox[i].rmax;\n"
 "    lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn;\n"
 "    lowv cargs[LW_T0_ARGS + 1];\n"
 "    int off = 0;\n"
@@ -2098,7 +2098,7 @@ const char LW_CONC_T0[] =
 "    for (int g = 0; g < na && g + off <= LW_T0_ARGS; g++) cargs[g + off] = lw_ambox[i].args[g];\n"
 "    for (int m = i; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"
 "    lw_nambox--;\n"
-"    lowv r = fn(cargs);\n"
+"    lowv r = (rmax >= 0 && box >= 0) ? lw_restart_call(fn, cargs, box, rmax) : fn(cargs);\n"
 "    if (job >= 0 && job < lw_njobs) { lw_jobs[job].result = lw_promote(r); lw_jobs[job].done = 1; }\n"
 "    return 1;\n"
 "}\n"
@@ -2109,10 +2109,10 @@ const char LW_CONC_T0[] =
 "        int na = lw_ambox[i].nargs;\n"
 "        lowv cargs[LW_T0_ARGS + 1]; cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = box;\n"
 "        for (int g = 0; g < na && g + 1 <= LW_T0_ARGS; g++) cargs[g + 1] = lw_ambox[i].args[g];\n"
-"        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn;\n"
+"        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn; int rmax = lw_ambox[i].rmax;\n"
 "        for (int m = i; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"
 "        lw_nambox--;\n"
-"        (void)fn(cargs);\n"
+"        if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
 "    }\n}\n"
 // ★ `schedule .` — 큐가 빌 때까지 돌린다(quiescence). 선점이 없으므로 이것이 전부다.
 "static void lw_schedule(void) { while (lw_t0_step()) ; }\n"
@@ -2155,7 +2155,7 @@ const char LW_CONC[] =
 //     전에는 하나 꺼낼 때마다 뒤 칸(칸 하나에 인자 32 개)을 전부 당겨, 쌓인 수만큼 한 개 값이 늘었다
 //     (실측: 1 개 209 ns · 4,000 개 103,135 ns). 칸은 제자리, 순서는 연결: 도착 순서 전체(ng/pg)와
 //     인스턴스별 도착 순서(nb/pb). 연결 값 = 칸 번호 + 1 (0 = 없음). `lw_nambox` 는 살아 있는 수.
-"static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer;"
+"static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer; int rmax;"
 " int ng, pg, nb, pb; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
 "static int lw_nambox;\n"
 "static int lw_amb_hg, lw_amb_tg, lw_amb_free, lw_amb_hw;\n"
@@ -2163,7 +2163,7 @@ const char LW_CONC[] =
 "static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
 "static int lw_amb_push(int box) {\n"
 "    int i; if (lw_amb_free) { i = lw_amb_free - 1; lw_amb_free = lw_ambox[i].ng; } else i = lw_amb_hw++;\n"
-"    lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0; lw_ambox[i].job = -1; lw_ambox[i].peer = 0;\n"
+"    lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0; lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1;\n"
 "    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg;\n"
 "    if (lw_amb_tg) lw_ambox[lw_amb_tg - 1].ng = i + 1; else lw_amb_hg = i + 1;\n"
 "    lw_amb_tg = i + 1; lw_ambox[i].nb = 0; lw_ambox[i].pb = 0;\n"
@@ -2197,8 +2197,9 @@ const char LW_CONC[] =
 "        lowv cargs[LW_MAXP + 1]; cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = box;\n"
 "        for (int g = 0; g < lw_ambox[i].nargs; g++) cargs[g + 1] = lw_ambox[i].args[g];\n"
 "        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn;\n"
+"        int rmax = lw_ambox[i].rmax;\n"
 "        lw_amb_take(i);\n"   /* 큐에서 뺀 뒤 실행(재진입 drain 대비) */
-"        (void)fn(cargs);\n"
+"        if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
 "    }\n}\n"
 // ★★★ **green thread + channel — 코루틴 스케줄러** (RFC-0009 2/3·3/3). `schedule .`/task_group end 가
 //   부른다. 각 태스크·메시지가 자기 ucontext 스택에서 돌아 `yield`·블로킹 채널 op 로 **중단**할 수
@@ -2218,7 +2219,23 @@ const char LW_CONC[] =
 //   ☞ 스택은 코루틴의 실행 스택(C 스택과 같은 범주) — pthread 가 이미 워커 OS 스택을 잡는 것과
 //     같은 종류의 할당이지, 언어가 세는 데이터 힙이 아니다(RFC-0043 위반 아님).
 "static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); unsigned char nargs;\n"
-"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
+"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
+// ★★ 2026-11-09 (W-20261109-1922) — **다시 세우기의 경계는 그린스레드마다 따로다.** 경계(`lw_fault`)는 setjmp 의
+//   스택이라, 메시지가 경계 안에서 양보하고 다른 메시지가 같은 칸에 경계를 세우면 패닉이 **남의 스택으로** 뛴다.
+//   그래서 협조 스케줄러가 그린스레드로 들어갈 때 그 것의 경계를 위에 다시 얹고, 나올 때 떼어 그 것의 자리에 둔다.
+//   (jmp_buf 는 그 그린스레드의 스택을 가리키고, 그 스택은 그동안 그대로 있다.) 워커 스레드는 태스크만 돌려 쓰지 않는다.
+"static int lw_gt_fault_in(int gi) {\n"
+"    int nf0 = lw_nfault, n = lw_gthr[gi].nfs;\n"
+"    if (nf0 + n > 64) lw_panic(\"restart boundaries nested too deep\");\n"
+"    for (int k = 0; k < n; k++) memcpy(&lw_fault[nf0 + k], &lw_gthr[gi].fs[k], sizeof(jmp_buf));\n"
+"    lw_nfault = nf0 + n; return nf0;\n"
+"}\n"
+"static void lw_gt_fault_out(int gi, int nf0) {\n"
+"    int n = lw_nfault - nf0; if (n < 0) n = 0;\n"
+"    if (n > 8) lw_panic(\"a message yielded inside more than 8 restart boundaries\");\n"
+"    for (int k = 0; k < n; k++) memcpy(&lw_gthr[gi].fs[k], &lw_fault[nf0 + k], sizeof(jmp_buf));\n"
+"    lw_gthr[gi].nfs = n; lw_nfault = nf0;\n"
+"}\n"
 "static _Thread_local char **lw_gt_stk; static _Thread_local int *lw_ready;\n"
 "static int lw_gthr_ensure(int need) {\n"
 "    if (need <= lw_gthr_cap) return 1;\n"
@@ -2254,7 +2271,8 @@ const char LW_CONC[] =
 "    int gi = lw_cur_gthr; lowv cargs[LW_MAXP + 1]; int base = 0;\n"
 "    if (lw_gthr[gi].box >= 0) { cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = lw_gthr[gi].box; base = 1; }\n"
 "    for (int g = 0; g < lw_gthr[gi].nargs; g++) cargs[base + g] = lw_gthr[gi].args[g];\n"
-"    lowv rv = lw_gthr[gi].fn(cargs);\n"
+"    lowv rv = (lw_gthr[gi].rmax >= 0 && lw_gthr[gi].box >= 0)\n"
+"        ? lw_restart_call(lw_gthr[gi].fn, cargs, lw_gthr[gi].box, lw_gthr[gi].rmax) : lw_gthr[gi].fn(cargs);\n"
 "    lw_gthr[gi].state = 4;\n"
 "    if (lw_gthr[gi].job >= 0) { int jid = lw_gthr[gi].job; lw_jobs[jid].result = lw_promote(rv); atomic_store_explicit(&lw_jobs[jid].done, 1, memory_order_release); lw_gprog++;\n"
 "        for (int q = 0; q < lw_ngthr; q++) if (lw_gthr[q].state == 6 && lw_gthr[q].blk_job == jid) lw_gthr[q].state = 2; }\n"
@@ -2333,7 +2351,7 @@ const char LW_CONC[] =
 "            int i = atomic_fetch_add_explicit(&W->q->next, 1, memory_order_relaxed);\n"
 "            if (i >= W->q->n) { if (gi == lw_ngthr - 1 && lw_gthr[gi].state != 4) lw_ngthr--; break; }\n"
 "            const struct lw_job_desc *d = &W->q->jobs[i];\n"
-"            lw_gthr[gi].box = -1; lw_gthr[gi].fn = d->fn; lw_gthr[gi].nargs = d->np; lw_gthr[gi].job = d->job;\n"
+"            lw_gthr[gi].box = -1; lw_gthr[gi].fn = d->fn; lw_gthr[gi].nargs = d->np; lw_gthr[gi].job = d->job; lw_gthr[gi].rmax = -1; lw_gthr[gi].nfs = 0;\n"
 "            for (int x = 0; x < d->np; x++) lw_gthr[gi].args[x] = d->a[x];\n"
 "            lw_gthr[gi].state = 1;\n"
 "        }\n"
@@ -2417,7 +2435,7 @@ const char LW_CONC[] =
 "                   if (gi < 0) { lw_gthr_ensure(lw_ngthr + 1); gi = lw_ngthr++; } }\n"  /* 가득+다 바쁨 → 성장(상한 없음, E-Alloc P4) */
 "            int q0_ = lw_amb_hg - 1;\n"                                                 /* 도착 순서의 맨 앞 */
 "            lw_gthr[gi].box = lw_ambox[q0_].box; lw_gthr[gi].fn = lw_ambox[q0_].fn; lw_gthr[gi].nargs = lw_ambox[q0_].nargs;\n"
-"            lw_gthr[gi].job = lw_ambox[q0_].job;\n"
+"            lw_gthr[gi].job = lw_ambox[q0_].job; lw_gthr[gi].rmax = lw_ambox[q0_].rmax; lw_gthr[gi].nfs = 0;\n"
 "            for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
 "            lw_gthr[gi].state = 1;\n"
 "            lw_amb_take(q0_);\n"
@@ -2444,8 +2462,8 @@ const char LW_CONC[] =
 "            lw_gthr[gi].state = 3;\n"
 "            makecontext(&lw_gthr[gi].ctx, lw_gt_tramp, 0);\n"
 "            lw_gthr[gi].sb = LW_SBUDGET - LW_GT_SBUDGET;   /* 그린스레드의 스택은 작다 — 예산을 미리 깎아 둔다 */\n"
-"            { long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
-"        } else { lw_gthr[gi].state = 3; long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
+"            { long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; int nf0_ = lw_gt_fault_in(gi); swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gt_fault_out(gi, nf0_); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
+"        } else { lw_gthr[gi].state = 3; long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; int nf0_ = lw_gt_fault_in(gi); swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gt_fault_out(gi, nf0_); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
 "    }\n"
 "    lw_ngthr = base; lw_sched_ctx = lw_saved_ctx; lw_cur_gthr = lw_saved_cur; lw_in_gsched = prev; lw_vec_shared = vprev_;\n"
 "}\n"

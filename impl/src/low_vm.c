@@ -1200,6 +1200,35 @@ static proven_size_t slot_alloc(vm_ctx_t *vm) {
 }
 static void slot_free(proven_size_t s) { g_slot_free[g_slot_free_n++] = s; }
 
+// ★★★ **restart 슈퍼비전** (RFC-0009 D4 · 정본 §10.2 (4)~(7)). 액터 핸들러를 부르고, **패닉**하면(계약 위반 ·
+//   경계 검사는 아니다 — RFC-0019 §6.5) 그 인스턴스의 **상태를 처음으로** 돌리고 같은 메시지를 **다시 처리**한다.
+//   `max N` 번까지 · `always` 는 상한 4096 · `never` 는 0. 다 쓰면 실패를 그대로 돌려준다(위로 넘긴다).
+//   ★★ 2026-11-09 (W-20261109-1922 · 소유자 «추천 A»): 기다리는 `send` 만이 아니라 **`drain` · `schedule` 로 배달된
+//     메시지도** 여기를 지난다 — 전에는 그 갈래가 `vm_exec` 를 바로 불러 패닉이 프로그램을 끝냈다. 그 액터 앞으로
+//     **밀린 메시지는 건드리지 않는다**(RFC-0009 §8-6 = A): 다시 세운 액터가 차례대로 처리한다.
+static bool vm_actor_exec(vm_ctx_t *vm, const low_ir_def_t *h, const vmv_t *cargs, vmv_t *rv, unsigned depth) {
+    proven_size_t diag_base = vm->diags->len;
+    bool ok = vm_exec(vm, h, cargs, rv, depth);
+    if (ok || !h->is_actor || h->nparams == 0 || cargs[0].tag != VMV_REC
+        || (proven_size_t)cargs[0].box >= VM_MAXREC) return ok;
+    proven_size_t sidx = h->param_sidx[0];
+    if (sidx >= vm->ir->nstructs || !vm->ir->structs[sidx].failure_policy) return ok;
+    const low_ir_struct_t *ast = &vm->ir->structs[sidx];
+    bool was_panic = false;
+    for (proven_size_t di = diag_base; di < vm->diags->len; di++)
+        if (strcmp(PROVEN_ARRAY_GET(vm->diags, low_diag_t, di)->code, "E-VM-PANIC") == 0) { was_panic = true; break; }
+    if (!was_panic) return ok;
+    proven_i64 maxr = ast->failure_policy == 1 ? ast->failure_max        // restart max N
+                    : ast->failure_policy == 3 ? 4096 : 0;               // always(상한)·never
+    for (proven_i64 att = 0; att < maxr && !ok; att++) {
+        vmrec_t *r = &vm->recs[cargs[0].box];
+        for (proven_size_t f = 0; f < r->nfields; f++) r->fields[f] = vmv_int(0);  // 자기 상태만 초기화
+        vm->diags->len = diag_base;   // 패닉 진단을 걷는다(재시작했으므로)
+        ok = vm_exec(vm, h, cargs, rv, depth);
+    }
+    return ok;
+}
+
 static void gthr_trampoline(void) {
     vm_ctx_t *vm = g_gt_vm;
     proven_size_t gi = g_gt_idx;
@@ -1208,7 +1237,7 @@ static void gthr_trampoline(void) {
     if (g->box >= 0) cargs[base++] = (vmv_t){ .tag = VMV_REC, .box = g->box };
     for (proven_u8 x = 0; x < g->nargs; x++) cargs[base + x] = g->args[x];
     vmv_t rv;
-    if (!vm_exec(vm, &vm->ir->defs[g->handler], cargs, &rv, g->base)) g_gt_err = true;   // ★ 창 시작 = g->base (메인 위)
+    if (!vm_actor_exec(vm, &vm->ir->defs[g->handler], cargs, &rv, g->base)) g_gt_err = true;   // ★ 창 시작 = g->base (메인 위)
     vm->gthr[gi].state = 4;   // 완료 — uc_link(sched_ctx) 로 자동 복귀
     // ★ job 결과를 담고 await 하던 태스크를 깨운다(완료가 awaiter 를 runnable 로).
     if (vm->gthr[gi].job >= 0) {
@@ -1821,7 +1850,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_mbox_take(vm, i);
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
-                    if (!vm_exec(vm, h, cargs, &rv2, depth + 1)) return false;
+                    if (!vm_actor_exec(vm, h, cargs, &rv2, depth + 1)) return false;
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛
@@ -2004,7 +2033,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_mbox_take(vm, pick);
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
-                    if (!vm_exec(vm, h, cargs, &rv2, depth + 1)) return false;
+                    if (!vm_actor_exec(vm, h, cargs, &rv2, depth + 1)) return false;
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛
@@ -4686,7 +4715,6 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //     돌려주면 **안 건드린다**(보수적: 과대근사는 안전하다).
                 proven_size_t rec_wm = vm->nrecs, bs_wm = vm->nbset, sk_wm = vm->nstk,
                               bx_wm = vm->nbox;
-                proven_size_t diag_base = vm->diags->len;   // ★ restart: 이번 호출의 진단 시작점
                 // ★★★ **bounded mailbox** (RFC-0009 AC3) — actor 핸들러 호출은 이 인스턴스로 온
                 //   메시지 하나다. `mailbox bounded N` 이면 이 인스턴스에 **동시에 몰린**(재진입)
                 //   메시지가 N 을 넘을 수 없다 — 순차 모델에서 메일박스가 차는 유일한 길이 재진입이다.
@@ -4707,32 +4735,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         }
                     }
                 }
-                bool ok_call = vm_exec(vm, callee, cargs, &rv, depth + 1);
+                bool ok_call = vm_actor_exec(vm, callee, cargs, &rv, depth + 1);   // 패닉하면 정책대로 다시 세운다
                 if (mbox_ridx >= 0) vm->mbox_depth[mbox_ridx]--;   // 반환 — in-flight 하나 빠짐
-                // ★★★ **restart 슈퍼비전** (RFC-0009 D4, 사용자: B3 재시도→escalate · 자기 상태만 초기화).
-                //   핸들러가 **패닉**하면(계약 위반·경계 검사는 아니다 — RFC-0019 §6.5) 슈퍼바이저가
-                //   그 인스턴스의 **상태를 초기화**하고 핸들러를 **다시 실행**한다. `max N` 번까지;
-                //   계속 터지면 **escalate**(패닉 전파). `never`=재시도 0. `always`=상한까지.
-                if (!ok_call && callee->is_actor && cargs[0].tag == VMV_REC
-                    && (proven_size_t)cargs[0].box < VM_MAXREC) {
-                    proven_size_t sidx = callee->param_sidx[0];
-                    if (sidx < vm->ir->nstructs && vm->ir->structs[sidx].failure_policy) {
-                        const low_ir_struct_t *ast = &vm->ir->structs[sidx];
-                        bool was_panic = false;
-                        for (proven_size_t di = diag_base; di < vm->diags->len; di++)
-                            if (strcmp(PROVEN_ARRAY_GET(vm->diags, low_diag_t, di)->code, "E-VM-PANIC") == 0) { was_panic = true; break; }
-                        if (was_panic) {
-                            proven_i64 maxr = ast->failure_policy == 1 ? ast->failure_max        // restart max N
-                                            : ast->failure_policy == 3 ? 4096 : 0;               // always(상한)·never
-                            vmrec_t *r = &vm->recs[cargs[0].box];
-                            for (proven_i64 att = 0; att < maxr && !ok_call; att++) {
-                                for (proven_size_t f = 0; f < r->nfields; f++) r->fields[f] = vmv_int(0);  // 자기 상태만 초기화
-                                vm->diags->len = diag_base;   // 패닉 진단을 걷는다(재시작했으므로)
-                                ok_call = vm_exec(vm, callee, cargs, &rv, depth + 1);
-                            }
-                        }
-                    }
-                }
                 if (!ok_call) return false;
                 if (!vm_fw_take(vm, a->d->nwin ? &a->win : NULL, &rv)) return false;   // ★ RFC-0132 P4e
                 if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {

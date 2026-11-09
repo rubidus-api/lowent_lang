@@ -124,6 +124,8 @@ When an actor's op `panic`s, the actor can be restarted. Its state returns to th
 There are three policies, all written after `failure restart` --- `max <count>` (that many times), `never` (pass upwards on the first crash) and `always` (restart without counting).
 Restarting applies only to `panic`. A contract violation is the program breaking a promise it wrote itself, and doing it again gives the same result, so it is
 not restarted. Only *the actor's own state* is revived; other actors are not touched.
+The same holds for a message sent with `spawn send` and delivered by `drain` or `schedule`. The messages still waiting in that actor's mailbox are
+*not thrown away* --- the restarted actor handles them in the order they were put in (`spawn send` has already returned saying it took them).
 
 A period can be attached, as in `restart max 3 within 1 minute`. The units are `second`, `minute` and `hour`, written `seconds` and so on for more than
 one. This edition's processor only *records* the period, though. It keeps the count (`max`) but does not yet count "within one minute", and says so with

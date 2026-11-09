@@ -80,6 +80,17 @@ end .
       actor's state returns to the start and that message is processed again. What comes back to life is
       **only its own state**; other actors are not touched.
 
+(4a) Setting an actor up again **does not depend on how the message came** — sent with `send`, waiting, or put in the
+      mailbox with `spawn send` and delivered by `drain` · `schedule` (⟦§10.5⟧), it is the same. The messages **still in the
+      mailbox** for that actor **are not touched** — the actor set up again processes them in the order they were put in.
+
+> [!산문]
+> The remaining messages are not thrown away because `spawn send` has already returned saying it **took** them. Throwing them
+> away silently afterwards would hide a failure. It also agrees with processing even the message that blew up again (4) — there
+> is no reason to redo the message that went wrong and throw away the innocent ones behind it. A message that keeps blowing up is
+> ended by the policy of (5). If a message sent against the old state has no meaning in the state returned to the start, that
+> actor writes `failure restart never`.
+
 (5) Until when it is set up again is decided by the clause `failure restart <policy> .`. The policies are the following three and no more.
 
 > [!표] Actor failure policies — a closed set of three

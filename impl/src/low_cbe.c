@@ -7075,6 +7075,19 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
 // ★★★ **이 def 가 동료를 필요로 하는가** — 채널 op 을 (호출을 따라) 쓰는가.
 //   A5 의 `concurrent` 효과와 **같은 판정**이고, 그것이 곧 **진짜 스레드 자격**이다:
 //   동료가 필요 없으면 *"어떤 executor 로도 만족된다"*(RFC-0022 D-A) — 자기 OS 스레드 포함.
+// ★★ 액터 핸들러의 다시 세우기 상한 — `failure restart max N` 이면 N · `always` 면 4096(안전 상한) ·
+//   정책이 없거나 `never` 면 −1(경계를 세우지 않는다 — 패닉이 그대로 위로 간다). VM 의 vm_actor_exec 와 같은 수.
+//   기다리는 `send` 와 우편함(`spawn send` · `try spawn send`)이 같은 값을 쓴다(W-20261109-1922).
+static long long cbe_restart_max(const low_ir_t *ir, const low_ir_def_t *h) {
+    if (!h->is_actor || h->nparams == 0) return -1;
+    proven_size_t sidx = h->param_sidx[0];
+    if (sidx >= ir->nstructs) return -1;
+    proven_u8 fp = ir->structs[sidx].failure_policy;
+    if (fp == 1) return (long long)ir->structs[sidx].failure_max;
+    if (fp == 3) return 4096;
+    return -1;
+}
+
 static bool cbe_needs_peer(const low_ir_t *ir, proven_size_t d, int depth) {
     if (depth > 8 || d >= ir->ndefs) return true;          // 모르면 **안전한 쪽**(협조적)으로
     for (proven_size_t i = 0; i < ir->defs[d].ncode; i++) {
@@ -9245,15 +9258,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                 (size_t)callee->nparams, (size_t)callee->nparams, (long long)mcap);
                     // ★★★ **restart 슈퍼비전** — actor 에 `failure restart` 정책이 있으면 fault 경계로
                     //   감싸 부른다(핸들러 panic → 상태 초기화 후 재시도, VM 과 같은 규율).
-                    bool has_restart = false; proven_i64 maxr = 0;
-                    if (callee->is_actor && callee->nparams > 0) {
-                        proven_size_t sidx = callee->param_sidx[0];
-                        if (sidx < ir->nstructs) {
-                            proven_u8 fp = ir->structs[sidx].failure_policy;
-                            if (fp == 1) { has_restart = true; maxr = ir->structs[sidx].failure_max; }
-                            else if (fp == 3) { has_restart = true; maxr = 4096; }   // always (안전 상한)
-                        }
-                    }
+                    proven_i64 maxr = cbe_restart_max(ir, callee);
+                    bool has_restart = maxr >= 0;
                     // ★★★ **레코드 풀을 회수한다** — VM 과 **같은 규율**(low_ir.c 의 IRW_CALL).
                     //   스칼라를 돌려주는 호출이 만든 레코드는 **아무도 못 본다** ⇒ 반납한다.
                     fprintf(out, "    { int wm_ = lw_nrec, wb_ = lw_nbset, wk_ = lw_nstk; lowv r = ");
@@ -9308,7 +9314,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     fprintf(out, "      { int qi_ = lw_amb_push(box_);"
                                  " lw_ambox[qi_].fn = lw_op_");
                     put_sym(out, h);
-                    fprintf(out, "; lw_ambox[qi_].nargs = %zu;\n", np - 1);
+                    fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].rmax = %lld;\n", np - 1, (long long)cbe_restart_max(ir, h));
                     for (size_t g = 0; g + 1 < np; g++)
                         fprintf(out, "        lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - 1 - g);
                     fprintf(out, "      }\n      sp -= %zu; st[sp++] = lw_int(0); }\n", np);
@@ -9343,7 +9349,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                  "        { int qi_ = lw_amb_push(box_);"
                                  " lw_ambox[qi_].fn = lw_op_", (long long)eidx);
                     put_sym(out, h);
-                    fprintf(out, "; lw_ambox[qi_].nargs = %zu;\n", np - 1);
+                    fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].rmax = %lld;\n", np - 1, (long long)cbe_restart_max(ir, h));
                     for (size_t g = 0; g + 1 < np; g++)
                         fprintf(out, "        lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - 1 - g);
                     fprintf(out, "      } res_ = lw_wrap_ok(lw_int(0)); }\n"

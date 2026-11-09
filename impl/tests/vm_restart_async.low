@@ -1,0 +1,105 @@
+rem ★★ 우편함으로 온 메시지도 다시 세운다 — 밀린 메시지는 그대로 (2026-11-09 · W-20261109-1922 · 소유자 «추천 A»).
+rem
+rem 정본 §10.2 (4a): 다시 세우는 것은 메시지가 어떻게 왔는지와 상관없고, 그 액터 앞으로 남은 메시지는 건드리지 않는다.
+rem 전에는 `spawn send` 로 보내 `drain` · `schedule` 이 배달한 메시지가 터지면 다시 세우지 않고 프로그램이 멈췄다
+rem (기다리는 `send` 만 다시 세웠다). 각 op 은 맞으면 아래에 적은 수를 낸다. VM 과 네이티브 둘 다 돈다.
+
+module vm_restart_async .
+
+rem 0 · 1 · 2 · 3 · 4 를 받는다. 2 를 처음 받을 때 이미 받은 것이 있으면 터진다 — 다시 세우면 n 이 0 이라 통과한다.
+actor seq do
+  state do h u64 . n u64 . end .
+  failure restart max 3 .
+  proc put input x u64 . output u64 . effects state . do
+    if and eq x. 2 . gt n. 0 . . do panic "2 after others" . end .
+    set h. expr h. * 31 + x. . .
+    set n. expr n. + 1 . .
+    return n. .
+  end .
+  fn hash output u64 . do return h. . end .
+  fn count output u64 . do return n. . end .
+end .
+
+rem drain 으로: 2 에서 터져 처음으로 돌아간 뒤 2 를 다시 처리하고, 밀린 3 · 4 를 차례대로 처리한다.
+rem   h = (2 × 31 + 3) × 31 + 4 = 2019 · n = 3 → 20193. 밀린 것을 버렸다면 21, 멈췄다면 답이 없다.
+proc via_drain output u64 . effects state . do
+  var c seq spawn actor seq . .
+  var i u64 0 .
+  while lt i. 5 . do
+    spawn send c. put i. . .
+    set i. expr i. + 1 . .
+  end .
+  drain c. .
+  return expr send c. hash . * 10 + send c. count . . .
+end .
+
+rem `try spawn send` 로 넣은 것도 같다.
+proc via_try output u64 . effects state . do
+  var c seq spawn actor seq . .
+  var i u64 0 .
+  while lt i. 5 . do
+    let r result u64 mailbox_full try spawn send c. put i. . . . .
+    set i. expr i. + 1 . .
+  end .
+  drain c. .
+  return expr send c. hash . * 10 + send c. count . . .
+end .
+
+actor armed do
+  state do bad u64 . seen u64 . end .
+  failure restart max 2 .
+  proc arm output u64 . effects state . do set bad. 1 . return 0 . end .
+  proc tick output u64 . effects state . do
+    if ne bad. 0 . do panic "armed" . end .
+    set seen. expr seen. + 1 . .
+    return seen. .
+  end .
+  fn count output u64 . do return seen. . end .
+end .
+
+rem schedule 로: 첫 tick 이 터져 처음으로 돌아가고(bad = 0), 그 tick 과 남은 tick 이 처리된다 → 2.
+proc via_schedule output u64 . effects state . do
+  var c armed spawn actor armed . .
+  let z u64 send c. arm . .
+  spawn send c. tick . .
+  spawn send c. tick . .
+  schedule .
+  return send c. count . .
+end .
+
+actor doomed do
+  state do v u64 . end .
+  failure restart max 2 .
+  proc boom output u64 . effects state . do panic "always fails" . return 0 . end .
+end .
+
+rem 한도를 다 쓰면 위로 넘어가 프로그램이 멈춘다 — 우편함으로 왔어도.
+proc exhausted output u64 . effects state . do
+  var c doomed spawn actor doomed . .
+  spawn send c. boom . .
+  drain c. .
+  return 0 .
+end .
+
+actor never_again do
+  state do v u64 . end .
+  failure restart never .
+  proc boom output u64 . effects state . do panic "never" . return 0 . end .
+end .
+
+proc never_policy output u64 . effects state . do
+  var c never_again spawn actor never_again . .
+  spawn send c. boom . .
+  drain c. .
+  return 0 .
+end .
+
+rem 오라클이 schedule 의 모든 차례를 열어 본다 — 어느 차례로 배달해도 다시 세운 뒤 답은 2 다.
+test restart_any_order schedule explore_interleavings . do
+  var c armed spawn actor armed . .
+  let z u64 send c. arm . .
+  spawn send c. tick . .
+  spawn send c. tick . .
+  schedule .
+  expect eq send c. count . 2 . .
+end .

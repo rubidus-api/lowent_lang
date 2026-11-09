@@ -9294,8 +9294,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                  "actor instance (a fabricated struct is not a real instance)\");\n"
                                  "      int box_ = st[sp-%zu].box;\n", np, np, np, np);
                     if (amb)
-                        fprintf(out, "      { int pend_ = 0; for (int qq_ = 0; qq_ < lw_nambox; qq_++)"
-                                     " if (lw_ambox[qq_].box == box_) pend_++;\n"
+                        fprintf(out, "      { int pend_ = lw_amb_pend(box_);\n"
                                      "        if (pend_ >= %lldll) lw_panic(\"the actor's bounded mailbox is full — "
                                      "`spawn send` would exceed `mailbox bounded N` pending messages (drain it first, or raise N)\"); }\n",
                                 (long long)acap);
@@ -9303,10 +9302,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     //   `E-VM-MBOX` 로 거절하는데 네이티브는 **배열 밖에 썼다**. 호스트(4096)에서는
                     //   잠복이었고 프리스탠딩 floor(32 칸)에서는 현실이다. 크기는 `sizeof` 에서 온다 —
                     //   두 런타임(호스트·T0)이 같은 코드를 쓰고 새 상수도 안 생긴다.
-                    fprintf(out, "      if (lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox))"
-                                 " lw_panic(\"the task/message queue is exhausted — it is never rewound"
+                    fprintf(out, "      if (lw_amb_full())"
+                                 " lw_panic(\"the task/message queue is exhausted — too many messages and tasks wait at once"
                                  " (docs/runtime-pools.md; on the freestanding floor raise it with -DLW_T0_MBOX=N)\");\n");
-                    fprintf(out, "      { int qi_ = lw_nambox++; lw_ambox[qi_].box = box_; lw_ambox[qi_].job = -1;"
+                    fprintf(out, "      { int qi_ = lw_amb_push(box_);"
                                  " lw_ambox[qi_].fn = lw_op_");
                     put_sym(out, h);
                     fprintf(out, "; lw_ambox[qi_].nargs = %zu;\n", np - 1);
@@ -9334,15 +9333,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                  "spawned actor instance (a fabricated struct is not a real instance)\");\n"
                                  "      int box_ = st[sp-%zu].box; int full_ = 0;\n", np, np, np, np);
                     if (amb)
-                        fprintf(out, "      { int pend_ = 0; for (int qq_ = 0; qq_ < lw_nambox; qq_++)"
-                                     " if (lw_ambox[qq_].box == box_) pend_++; if (pend_ >= %lldll) full_ = 1; }\n",
+                        fprintf(out, "      { int pend_ = lw_amb_pend(box_); if (pend_ >= %lldll) full_ = 1; }\n",
                                 (long long)acap);
                     fprintf(out, "      lowv res_;\n"
                                  "      if (full_) res_ = lw_err(%lld);\n"
-                                 "      else { if (lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox))"
-                                 " lw_panic(\"the task/message queue is exhausted — it is never rewound"
+                                 "      else { if (lw_amb_full())"
+                                 " lw_panic(\"the task/message queue is exhausted — too many messages and tasks wait at once"
                                  " (docs/runtime-pools.md; on the freestanding floor raise it with -DLW_T0_MBOX=N)\");\n"
-                                 "        { int qi_ = lw_nambox++; lw_ambox[qi_].box = box_; lw_ambox[qi_].job = -1;"
+                                 "        { int qi_ = lw_amb_push(box_);"
                                  " lw_ambox[qi_].fn = lw_op_", (long long)eidx);
                     put_sym(out, h);
                     fprintf(out, "; lw_ambox[qi_].nargs = %zu;\n", np - 1);
@@ -9384,11 +9382,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     const low_ir_def_t *h = &ir->defs[in->a];
                     size_t np = h->nparams;
                     fprintf(out, "    { if (lw_njobs >= (int)(sizeof lw_jobs / sizeof *lw_jobs)"
-                                 " || lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox))"
+                                 " || lw_amb_full())"
                                  " lw_panic(\"the task/job pool is exhausted — it is never rewound"
                                  " (docs/runtime-pools.md; on the freestanding floor raise it with -DLW_T0_JOBS=N)\");\n");
                     fprintf(out, "      int jid_ = lw_njobs++; lw_jobs[jid_].done = 0; lw_jobs[jid_].result = lw_int(0);"
-                                 " int qi_ = lw_nambox++; lw_ambox[qi_].box = -1; lw_ambox[qi_].job = jid_; lw_ambox[qi_].fn = lw_op_");
+                                 " int qi_ = lw_amb_push(-1); lw_ambox[qi_].job = jid_; lw_ambox[qi_].fn = lw_op_");
                     put_sym(out, h);
                     fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].peer = %d;\n",
                                  np, cbe_needs_peer(ir, (proven_size_t)in->a, 0) ? 1 : 0);

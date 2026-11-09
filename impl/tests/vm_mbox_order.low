@@ -1,0 +1,161 @@
+rem ★★ 우편함의 차례를 크게 잰다 (2026-11-09 · W-20261109-1749).
+rem
+rem 우편함은 전에 칸 하나를 꺼낼 때마다 뒤 칸을 모두 당겼다 — 쌓인 수만큼 한 개 값이 늘었다.
+rem 이제 칸은 제자리에 있고 차례는 연결로 든다. 바꾼 것은 값이고 **차례는 그대로여야 한다**:
+rem   · 한 인스턴스로 온 메시지는 도착 순서대로 처리된다(`drain`).
+rem   · 한 인스턴스를 비워도 다른 인스턴스의 줄은 그대로 남는다.
+rem   · `schedule` 은 모두를 비운다(차례는 정본이 정하지 않았다 — 아래).
+rem   · `mailbox bounded N` 은 그 인스턴스로 대기 중인 수만 센다 — 다른 인스턴스의 수천 개는 안 센다.
+rem `drain` 의 차례가 하나라도 바뀌면 해시가 달라진다(h = h × 31 + x, 1,000,003 으로 나눈 나머지).
+rem 각 op 은 다 맞으면 1, 아니면 어느 검사가 틀렸는지 2 이상을 돌려준다. VM 과 네이티브 둘 다 돈다.
+rem 크기는 op 안에 적는다 — 인자로 받으면 차등 훑기가 아주 큰 수를 넣어 끝나지 않는다.
+
+module vm_mbox_order .
+
+actor acc do
+  state do h u64 . n u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    set h. mod expr h. * 31 + x. . 1000003 . .
+    set n. expr n. + 1 . .
+    return n. .
+  end .
+  fn hash output u64 . do return h. . end .
+  fn count output u64 . do return n. . end .
+end .
+
+actor bnd do
+  state do n u64 . end .
+  mailbox bounded 4 .
+  proc put input x u64 . output u64 . effects state . do set n. expr n. + x. . . return n. . end .
+  fn count output u64 . do return n. . end .
+end .
+
+fn expect_hash input n u64 . input off u64 . output u64 . do
+  if gt n. 10000 . do return 0 . end .   rem 차등 훑기가 아주 큰 n 을 넣어도 끝나게
+  var h u64 0 .
+  var i u64 0 .
+  while lt i. n. . do
+    set h. mod expr h. * 31 + i. + off. . 1000003 . .
+    set i. expr i. + 1 . .
+  end .
+  return h. .
+end .
+
+rem 두 인스턴스에 번갈아 n 개씩(둘 합쳐 4,096 이하) — a 를 비우는 동안 b 의 줄은 손대지 않는다.
+proc interleave_drain output u64 . effects state . do
+  let n u64 2000 .
+  var a acc spawn actor acc . .
+  var b acc spawn actor acc . .
+  var i u64 0 .
+  while lt i. n. . do
+    spawn send a. put i. . .
+    spawn send b. put expr i. + 1000 . . .
+    set i. expr i. + 1 . .
+  end .
+  drain a. .
+  if ne send a. hash . expect_hash n. 0 . . do return 2 . end .
+  if ne send b. count . 0 . do return 3 . end .
+  drain b. .
+  if ne send b. hash . expect_hash n. 1000 . . do return 4 . end .
+  if ne send b. count . n. . do return 5 . end .
+  return 1 .
+end .
+
+rem 같은 줄을 `schedule` 로 — 전부 배달된다. ★ 차례는 재지 않는다: 정본 §10.5 (4) 는 `schedule` 의
+rem   차례를 정하지 않았고, 지금 처리기는 한 액터의 메시지도 돌아가며 집는다(3 개면 7 · 9 · 8 순서 —
+rem   2026-11-09 실측, 바꾸기 전 컴파일러도 같다). 그래서 여기서는 수만 센다.
+proc interleave_schedule output u64 . effects state . do
+  let n u64 2000 .
+  var a acc spawn actor acc . .
+  var b acc spawn actor acc . .
+  var i u64 0 .
+  while lt i. n. . do
+    spawn send a. put i. . .
+    spawn send b. put expr i. + 7 . . .
+    set i. expr i. + 1 . .
+  end .
+  schedule .
+  if ne send a. count . n. . do return 2 . end .
+  if ne send b. count . n. . do return 3 . end .
+  return 1 .
+end .
+
+rem 반만 비우고 더 보낸다 — 빈 칸을 다시 쓸 때도 차례가 이어진다.
+proc refill output u64 . effects state . do
+  let n u64 1500 .
+  var a acc spawn actor acc . .
+  var b acc spawn actor acc . .
+  var i u64 0 .
+  while lt i. n. . do
+    spawn send b. put i. . .
+    spawn send a. put i. . .
+    set i. expr i. + 1 . .
+  end .
+  drain a. .
+  while lt i. expr n. + n. . . do
+    spawn send b. put i. . .
+    set i. expr i. + 1 . .
+  end .
+  drain b. .
+  if ne send b. hash . expect_hash expr n. + n. . 0 . . do return 2 . end .
+  if ne send a. hash . expect_hash n. 0 . . do return 3 . end .
+  return 1 .
+end .
+
+rem `mailbox bounded 4` 는 그 인스턴스의 대기 수만 센다.
+proc bounded_counts output u64 . effects state . do
+  let n u64 3000 .
+  var a acc spawn actor acc . .
+  var c bnd spawn actor bnd . .
+  var i u64 0 .
+  while lt i. n. . do
+    spawn send a. put i. . .
+    set i. expr i. + 1 . .
+  end .
+  var got u64 0 .
+  var j u64 0 .
+  while lt j. 5 . do
+    let r result u64 mailbox_full try spawn send c. put 1 . . . .
+    if is_ok r. . do set got. expr got. + 1 . . end .
+    set j. expr j. + 1 . .
+  end .
+  if ne got. 4 . do return 2 . end .
+  drain c. .
+  if ne send c. count . 4 . do return 3 . end .
+  let r2 result u64 mailbox_full try spawn send c. put 10 . . . .
+  if is_error r2. . do return 4 . end .
+  drain c. .
+  if ne send c. count . 14 . do return 5 . end .
+  drain a. .
+  if ne send a. hash . expect_hash n. 0 . . do return 6 . end .
+  return 1 .
+end .
+
+rem 한꺼번에 4,096 개를 넘게 쌓으면 거절한다(대기 수의 한도). 비우고 나면 다시 쌓을 수 있다.
+proc many_rounds output u64 . effects state . do
+  let rounds u64 3 .
+  var a acc spawn actor acc . .
+  var r u64 0 .
+  while lt r. rounds. . do
+    var i u64 0 .
+    while lt i. 4000 . do
+      spawn send a. put i. . .
+      set i. expr i. + 1 . .
+    end .
+    drain a. .
+    set r. expr r. + 1 . .
+  end .
+  if ne send a. count . expr rounds. * 4000 . . do return 2 . end .
+  return 1 .
+end .
+
+proc overflow output u64 . effects state . do
+  var a acc spawn actor acc . .
+  var i u64 0 .
+  while lt i. 4097 . do
+    spawn send a. put i. . .
+    set i. expr i. + 1 . .
+  end .
+  drain a. .
+  return 1 .
+end .

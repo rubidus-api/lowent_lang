@@ -259,8 +259,17 @@ typedef struct {
     // ★★★ **async 메일박스** (RFC-0009 — call/cast 분리). `spawn send` 가 여기에 넣고, `drain` 이
     //   FIFO 로 비운다. 전역 대기열(도착 순서 = 삽입 순서). 각 항목은 (대상 레코드, 핸들러, 인자).
     //   `mailbox bounded N` 이면 한 인스턴스로 대기 중인 메시지가 N 을 못 넘는다.
-    struct { proven_i32 box; proven_u16 handler; proven_u8 nargs; proven_i32 job; vmv_t args[LOW_MAX_PARAMS]; } mbox[VM_MBOX];
+    //   ★★ 2026-11-09 (W-20261109-1749) — **꺼낼 때 칸을 당기지 않는다.** 전에는 하나 꺼낼 때마다 뒤 칸을
+    //     전부 한 칸씩 당겨, 쌓인 수만큼 한 개 값이 늘었다(실측 네이티브: 1 개 209 ns · 4,000 개 103,135 ns).
+    //     이제 칸은 제자리에 있고 **순서는 연결로 든다**: 도착 순서 전체(`ng`/`pg`)와 인스턴스별 도착 순서
+    //     (`nb`/`pb`). 둘 다 도착 순서라 옛 배열 순서와 **같은 차례**다(오라클의 «k 번째» 도 같다).
+    //     연결 값은 칸 번호 + 1 (0 = 없음) — 0 으로 지운 상태가 곧 빈 상태다. `nmbox` 는 **살아 있는 수**.
+    struct { proven_i32 box; proven_u16 handler; proven_u8 nargs; proven_i32 job;
+             proven_u32 ng, pg, nb, pb; vmv_t args[LOW_MAX_PARAMS]; } mbox[VM_MBOX];
     proven_size_t   nmbox;
+    proven_u32      mb_hg, mb_tg, mb_free, mb_hw;          /* 도착 순서의 머리·꼬리 · 빈 칸 목록 · 한 번도 안 쓴 첫 칸 */
+    proven_u32      mb_hb[VM_MAXREC], mb_tb[VM_MAXREC];   /* 인스턴스별 머리·꼬리 */
+    proven_u32      mb_nq[VM_MAXREC];                     /* 인스턴스별 대기 수 — `mailbox bounded N` 이 센다 */
     // ★★★ **green thread** (RFC-0009 2/3) — 태스크가 `yield` 로 중단하고 스케줄러에 양보한다.
     //   각 실행 단위(태스크·메시지)가 자기 ucontext(코루틴)에서 돈다 — yield 는 스케줄러로 swap 하고,
     //   재개는 다시 swap. 협조적(한 번에 하나, OS 스레드 하나)이라 경합 없음. 오라클이 yield 순서를 탐색.
@@ -291,6 +300,47 @@ typedef struct {
     proven_size_t   njobs;
     proven_array_t *diags;
 } vm_ctx_t;
+
+// ★★ 우편함 칸 다루기 (W-20261109-1749). 넣기 · 빼기 모두 쌓인 수와 상관없이 일정하다.
+//   빼기는 어느 칸이든 된다(오라클은 앞이 아닌 것을 고른다). 넣기 전에 `vm_mbox_full` 로 센다.
+static inline bool vm_mbox_full(const vm_ctx_t *vm) { return vm->nmbox >= VM_MBOX; }
+static proven_size_t vm_mbox_push(vm_ctx_t *vm, proven_i32 box) {
+    proven_u32 i;
+    if (vm->mb_free) { i = vm->mb_free - 1; vm->mb_free = vm->mbox[i].ng; } else i = vm->mb_hw++;
+    vm->mbox[i].box = box; vm->mbox[i].handler = 0; vm->mbox[i].nargs = 0; vm->mbox[i].job = -1;
+    vm->mbox[i].ng = 0; vm->mbox[i].pg = vm->mb_tg;
+    if (vm->mb_tg) vm->mbox[vm->mb_tg - 1].ng = i + 1; else vm->mb_hg = i + 1;
+    vm->mb_tg = i + 1;
+    vm->mbox[i].nb = 0; vm->mbox[i].pb = 0;
+    if (box >= 0 && (proven_size_t)box < VM_MAXREC) {
+        vm->mbox[i].pb = vm->mb_tb[box];
+        if (vm->mb_tb[box]) vm->mbox[vm->mb_tb[box] - 1].nb = i + 1; else vm->mb_hb[box] = i + 1;
+        vm->mb_tb[box] = i + 1; vm->mb_nq[box]++;
+    }
+    vm->nmbox++;
+    return i;
+}
+static void vm_mbox_take(vm_ctx_t *vm, proven_size_t i) {
+    proven_u32 ng = vm->mbox[i].ng, pg = vm->mbox[i].pg;
+    if (pg) vm->mbox[pg - 1].ng = ng; else vm->mb_hg = ng;
+    if (ng) vm->mbox[ng - 1].pg = pg; else vm->mb_tg = pg;
+    proven_i32 box = vm->mbox[i].box;
+    if (box >= 0 && (proven_size_t)box < VM_MAXREC) {
+        proven_u32 nb = vm->mbox[i].nb, pb = vm->mbox[i].pb;
+        if (pb) vm->mbox[pb - 1].nb = nb; else vm->mb_hb[box] = nb;
+        if (nb) vm->mbox[nb - 1].pb = pb; else vm->mb_tb[box] = pb;
+        vm->mb_nq[box]--;
+    }
+    vm->mbox[i].nargs = 0;                         /* 지운 칸 — GC 가 옛 인자를 보지 않는다 */
+    vm->mbox[i].ng = vm->mb_free; vm->mb_free = (proven_u32)i + 1;
+    if (--vm->nmbox == 0) { vm->mb_free = 0; vm->mb_hw = 0; }   /* 비면 처음부터 — 칸 번호가 작게 남는다 */
+}
+/* 도착 순서로 k 번째(0 부터) 칸. 오라클이 앞이 아닌 것을 고를 때만 걷는다. */
+static proven_size_t vm_mbox_nth(const vm_ctx_t *vm, proven_size_t k) {
+    proven_u32 m = vm->mb_hg;
+    while (k-- > 0 && m) m = vm->mbox[m - 1].ng;
+    return (proven_size_t)(m ? m - 1 : vm->mb_hg - 1);
+}
 // ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
 #define VM_RECV(vm, v) ((v).box >= 0 ? &(vm)->recs[(v).box] : (vmrec_t *)(void *)(v).p)
 
@@ -450,8 +500,8 @@ static bool vm_vec_outside(const vm_ctx_t *vm, proven_size_t base) {
     for (proven_size_t i = 0; i < vm->nchan; i++)
         for (proven_size_t k = 0; k < vm->chans[i].count; k++)
             if (VM_VEC_HIT(vm->chans[i].buf[(vm->chans[i].head + k) % VM_CHAN_CAP])) return true;
-    for (proven_size_t i = 0; i < vm->nmbox; i++)
-        for (proven_u8 k = 0; k < vm->mbox[i].nargs; k++) if (VM_VEC_HIT(vm->mbox[i].args[k])) return true;
+    for (proven_u32 m = vm->mb_hg; m; m = vm->mbox[m - 1].ng)
+        for (proven_u8 k = 0; k < vm->mbox[m - 1].nargs; k++) if (VM_VEC_HIT(vm->mbox[m - 1].args[k])) return true;
     for (proven_size_t i = 0; i < vm->njobs; i++) if (VM_VEC_HIT(vm->jobs[i].result)) return true;
     #undef VM_VEC_HIT
     return false;
@@ -893,9 +943,9 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
     for (proven_size_t i = 0; i < vm->nchan; i++)
         for (proven_size_t k = 0; k < vm->chans[i].count; k++)
             vm_gc_mark(vm, vm->chans[i].buf[(vm->chans[i].head + k) % VM_CHAN_CAP], &bx, &rc, &sk, &bs, &vc);
-    for (proven_size_t i = 0; i < vm->nmbox; i++)
-        for (proven_u8 k = 0; k < vm->mbox[i].nargs; k++)
-            vm_gc_mark(vm, vm->mbox[i].args[k], &bx, &rc, &sk, &bs, &vc);
+    for (proven_u32 m = vm->mb_hg; m; m = vm->mbox[m - 1].ng)
+        for (proven_u8 k = 0; k < vm->mbox[m - 1].nargs; k++)
+            vm_gc_mark(vm, vm->mbox[m - 1].args[k], &bx, &rc, &sk, &bs, &vc);
     for (proven_size_t i = 0; i < vm->njobs; i++)
         vm_gc_mark(vm, vm->jobs[i].result, &bx, &rc, &sk, &bs, &vc);
 
@@ -928,8 +978,8 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
         for (proven_size_t k = 0; k < vm->stks[i].n; k++) FIX_ONE(&vm->stks[i].items[k]);
     for (proven_size_t i = 0; i < vm->nchan; i++)
         for (proven_size_t k = 0; k < vm->chans[i].count; k++) FIX_ONE(&vm->chans[i].buf[(vm->chans[i].head + k) % VM_CHAN_CAP]);
-    for (proven_size_t i = 0; i < vm->nmbox; i++)
-        for (proven_u8 k = 0; k < vm->mbox[i].nargs; k++) FIX_ONE(&vm->mbox[i].args[k]);
+    for (proven_u32 m = vm->mb_hg; m; m = vm->mbox[m - 1].ng)
+        for (proven_u8 k = 0; k < vm->mbox[m - 1].nargs; k++) FIX_ONE(&vm->mbox[m - 1].args[k]);
     for (proven_size_t i = 0; i < vm->njobs; i++) FIX_ONE(&vm->jobs[i].result);
     #undef FIX_ONE
 
@@ -1223,18 +1273,18 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
                 }
             }
             struct gthr_s *g = &vm->gthr[gi];
-            g->box = vm->mbox[0].box; g->handler = vm->mbox[0].handler; g->nargs = vm->mbox[0].nargs;
-            g->job = vm->mbox[0].job;
+            proven_size_t q0 = vm->mb_hg - 1;   // 도착 순서의 맨 앞
+            g->box = vm->mbox[q0].box; g->handler = vm->mbox[q0].handler; g->nargs = vm->mbox[q0].nargs;
+            g->job = vm->mbox[q0].job;
             // ★ 창 시작 = sched_base + slot*GT_DEPTH. **슬롯 인덱스**로 정한다(재활용해도 창이 서로소).
             // ★★★ **그린스레드는 메인 사슬 깊이(sched_base)부터 센다** (RFC-0073, 2026-07-21).
             //   D3(슬롯 참조)로 프레임 창은 사라졌지만, **깊이 카운터**는 메인이 멈춘 자리부터
             //   이어야 네이티브와 정확히 맞는다: 네이티브의 협조적(peer=1) 태스크는 메인 스레드에서
             //   lw_depth 를 메인 체인 위로 이어 센다. gi*GT_DEPTH 창 오프셋은 없앤다(슬롯이 대신한다).
             g->base = vm->sched_base;
-            for (proven_u8 x = 0; x < g->nargs; x++) g->args[x] = vm->mbox[0].args[x];
+            for (proven_u8 x = 0; x < g->nargs; x++) g->args[x] = vm->mbox[q0].args[x];
             g->state = 1;   // 새로 시작
-            for (proven_size_t m = 0; m + 1 < vm->nmbox; m++) vm->mbox[m] = vm->mbox[m + 1];
-            vm->nmbox--;
+            vm_mbox_take(vm, q0);
         }
         // 2) **runnable**(새·자발중단) gthread 를 모아 오라클 계획대로 하나 고른다. 채널 블록(5)은 제외 —
         //   그 태스크는 채널 op 성공이 깨워야만 runnable 이 된다(스케줄러가 막힌 태스크를 헛돌리지 않는다).
@@ -1696,8 +1746,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 // ★ bounded 강제 — 이 인스턴스로 대기 중인 메시지가 mailbox_cap 을 넘을 수 없다.
                 proven_size_t sidx = h->param_sidx[0];
                 if (sidx < vm->ir->nstructs && vm->ir->structs[sidx].mailbox_kind == 1) {
-                    proven_i64 pend = 0;
-                    for (proven_size_t q = 0; q < vm->nmbox; q++) if (vm->mbox[q].box == inst.box) pend++;
+                    proven_i64 pend = vm->mb_nq[inst.box];
                     if (pend >= vm->ir->structs[sidx].mailbox_cap) {
                         vm_diag(vm->diags, "E-VM-MAILBOX-FULL",
                                 "the actor's bounded mailbox is full — `spawn send` would exceed "
@@ -1705,9 +1754,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         return false;
                     }
                 }
-                if (vm->nmbox >= VM_MBOX) { vm_diag(vm->diags, "E-VM-MBOX", "async mailbox pool exhausted — 4096 slots, never rewound (docs/runtime-pools.md)"); return false; }
-                proven_size_t qi = vm->nmbox++;
-                vm->mbox[qi].box = inst.box; vm->mbox[qi].handler = (proven_u16)in->a;
+                if (vm_mbox_full(vm)) { vm_diag(vm->diags, "E-VM-MBOX", "async mailbox pool exhausted — 4096 messages are waiting at once (docs/runtime-pools.md)"); return false; }
+                proven_size_t qi = vm_mbox_push(vm, inst.box);
+                vm->mbox[qi].handler = (proven_u16)in->a;
                 vm->mbox[qi].nargs = (proven_u8)(want - 1); vm->mbox[qi].job = -1;
                 for (proven_size_t g = 0; g < want - 1; g++) { vm->mbox[qi].args[g] = stack[sp - want + 1 + g]; if (!vm_promote(vm, &vm->mbox[qi].args[g])) return false; }
                 sp -= want;
@@ -1732,8 +1781,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_size_t sidx = h->param_sidx[0];
                 bool full = false;
                 if (sidx < vm->ir->nstructs && vm->ir->structs[sidx].mailbox_kind == 1) {
-                    proven_i64 pend = 0;
-                    for (proven_size_t q = 0; q < vm->nmbox; q++) if (vm->mbox[q].box == inst.box) pend++;
+                    proven_i64 pend = vm->mb_nq[inst.box];
                     if (pend >= vm->ir->structs[sidx].mailbox_cap) full = true;
                 }
                 if (full) {
@@ -1743,10 +1791,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     stack[sp++] = (vmv_t){ .tag = VMV_ERR, .i = eidx };
                     break;
                 }
-                if (vm->nmbox >= VM_MBOX) { vm_diag(vm->diags, "E-VM-MBOX", "async mailbox pool exhausted — 4096 slots, never rewound (docs/runtime-pools.md)"); return false; }
+                if (vm_mbox_full(vm)) { vm_diag(vm->diags, "E-VM-MBOX", "async mailbox pool exhausted — 4096 messages are waiting at once (docs/runtime-pools.md)"); return false; }
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). \u2605 The emitted C does NOT share this fate for a plain `option u64`: its fast path carries option/result as a (tag, value) PAIR with no pool at all, so the same loop keeps running natively — this is a DIVERGENCE between the backends, not your program being too big"); return false; }
-                proven_size_t qi = vm->nmbox++;
-                vm->mbox[qi].box = inst.box; vm->mbox[qi].handler = (proven_u16)hidx;
+                proven_size_t qi = vm_mbox_push(vm, inst.box);
+                vm->mbox[qi].handler = (proven_u16)hidx;
                 vm->mbox[qi].nargs = (proven_u8)(want - 1); vm->mbox[qi].job = -1;
                 for (proven_size_t g = 0; g < want - 1; g++) { vm->mbox[qi].args[g] = stack[sp - want + 1 + g]; if (!vm_promote(vm, &vm->mbox[qi].args[g])) return false; }
                 sp -= want;
@@ -1762,19 +1810,18 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (inst.tag == VMV_INT && inst.i == 0) { vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`drain` on actor handle 0 — this actor was never spawned (0 is the handle that points at nothing)"); return false; }
                 if (inst.tag != VMV_REC) { vm_diag(vm->diags, "E-VM-TYPE", "`drain` needs a spawned actor instance"); return false; }
                 proven_i32 box = inst.box;
-                proven_size_t i = 0;
-                while (i < vm->nmbox) {
-                    if (vm->mbox[i].box != box) { i++; continue; }
+                // 그 인스턴스의 도착 순서를 머리부터. 핸들러가 다시 보내거나 안에서 drain 하면 머리가
+                //   바뀌므로 **매번 머리를 다시 읽는다**(옛 배열 훑기와 같은 차례).
+                while (box >= 0 && (proven_size_t)box < VM_MAXREC && vm->mb_hb[box]) {
+                    proven_size_t i = vm->mb_hb[box] - 1;
                     proven_u16 hh = vm->mbox[i].handler; proven_u8 na = vm->mbox[i].nargs;
                     vmv_t cargs[VM_LOCALS]; cargs[0] = inst;
                     for (proven_u8 g = 0; g < na; g++) cargs[g + 1] = vm->mbox[i].args[g];
-                    // 큐에서 뺀다(앞으로 당긴다) — 그 다음에 실행(재진입 drain 대비).
-                    for (proven_size_t m = i; m + 1 < vm->nmbox; m++) vm->mbox[m] = vm->mbox[m + 1];
-                    vm->nmbox--;
+                    // 큐에서 뺀다 — 그 다음에 실행(재진입 drain 대비).
+                    vm_mbox_take(vm, i);
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
                     if (!vm_exec(vm, h, cargs, &rv2, depth + 1)) return false;
-                    // i 는 그대로 — 당겨진 다음 항목을 이어서 본다(FIFO 유지)
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛
@@ -1786,11 +1833,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 const low_ir_def_t *h = &vm->ir->defs[in->a];
                 proven_size_t np = h->nparams;
                 if (sp < np) return false;
-                if (vm->nmbox >= VM_MBOX || vm->njobs >= VM_MBOX) { vm_diag(vm->diags, "E-VM-MBOX", "task/job pool exhausted — 4096 slots, never rewound (docs/runtime-pools.md)"); return false; }
+                if (vm_mbox_full(vm) || vm->njobs >= VM_MBOX) { vm_diag(vm->diags, "E-VM-MBOX", "task/job pool exhausted — 4096 tasks waiting at once, or 4096 job handles (job handles are never rewound; docs/runtime-pools.md)"); return false; }
                 proven_size_t jid = vm->njobs++;
                 vm->jobs[jid].done = 0; vm->jobs[jid].result = vmv_int(0);
-                proven_size_t qi = vm->nmbox++;
-                vm->mbox[qi].box = -1;   // ★ 태스크 마커 — 인스턴스 없음
+                proven_size_t qi = vm_mbox_push(vm, -1);   // ★ 태스크 마커 — 인스턴스 없음
                 vm->mbox[qi].handler = (proven_u16)in->a;
                 vm->mbox[qi].nargs = (proven_u8)np;
                 vm->mbox[qi].job = (proven_i32)jid;
@@ -1946,6 +1992,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     } else {
                         pick = 0;   // 통제 깊이를 넘으면 front(FIFO) — 그 너머는 열거 못 한다(정직히 보고)
                     }
+                    pick = pick ? vm_mbox_nth(vm, pick) : (proven_size_t)(vm->mb_hg - 1);   // 도착 순서의 pick 번째 칸
                     proven_i32 box = vm->mbox[pick].box;
                     proven_u16 hh = vm->mbox[pick].handler; proven_u8 na = vm->mbox[pick].nargs;
                     vmv_t cargs[VM_LOCALS];
@@ -1954,8 +2001,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     // box<0 = **task_group 태스크** — 인스턴스 없음, 인자가 op 파라미터 그대로.
                     for (proven_u8 g = 0; g < na; g++) cargs[base + g] = vm->mbox[pick].args[g];
                     // 큐에서 뺀 뒤 실행(재진입 대비) — drain 과 같은 규율.
-                    for (proven_size_t m = pick; m + 1 < vm->nmbox; m++) vm->mbox[m] = vm->mbox[m + 1];
-                    vm->nmbox--;
+                    vm_mbox_take(vm, pick);
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
                     if (!vm_exec(vm, h, cargs, &rv2, depth + 1)) return false;

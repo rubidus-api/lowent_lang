@@ -2076,6 +2076,12 @@ const char LW_CONC_T0[] =
 "static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer;"
 " lowv args[LW_T0_ARGS]; } lw_ambox[LW_T0_MBOX];\n"
 "static int lw_nambox;\n"
+// ★ 넣기 · 세기는 호스트판과 같은 이름(방출 코드가 하나다). T0 는 칸이 작아(기본 32) 당기기를 그대로 둔다 —
+//   차례는 호스트판과 같고 값만 다르다. 연결 칸을 더하면 작은 칩의 RAM 이 는다(W-20261109-1749).
+"static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
+"static int lw_amb_push(int box) { int i = lw_nambox++; lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0;"
+" lw_ambox[i].job = -1; lw_ambox[i].peer = 0; return i; }\n"
+"static int lw_amb_pend(int box) { int n = 0; for (int q = 0; q < lw_nambox; q++) if (lw_ambox[q].box == box) n++; return n; }\n"
 "static struct { int done; lowv result; } lw_jobs[LW_T0_JOBS]; static int lw_njobs;\n"
 "static struct { lowv buf[LW_T0_CHCAP]; int head, tail, count; } lw_chans[LW_T0_CHAN]; static int lw_nchan;\n"
 "static int lw_cancel_scope;\n"
@@ -2145,17 +2151,53 @@ const char LW_CONC[] =
 "#include <sys/epoll.h>\n#include <poll.h>\n#include <fcntl.h>\n#include <errno.h>\n#include <unistd.h>\n#include <aio.h>\n"   /* green thread + channel — 코루틴 스케줄러(블로킹 recv 를 진짜로 중단) */
 // ★★★ **async 메일박스** (RFC-0009 — call/cast 분리). `spawn send` 가 여기 넣고 `drain` 이 FIFO 로
 //   비운다. 전역 대기열(도착 순서 = 삽입 순서). VM 과 **같은 규율**(차등 스윕이 그것을 지킨다).
-"static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
+//   ★★ 2026-11-09 (W-20261109-1749) — **꺼낼 때 칸을 당기지 않는다** (VM 의 vm_mbox_* 와 같은 모양).
+//     전에는 하나 꺼낼 때마다 뒤 칸(칸 하나에 인자 32 개)을 전부 당겨, 쌓인 수만큼 한 개 값이 늘었다
+//     (실측: 1 개 209 ns · 4,000 개 103,135 ns). 칸은 제자리, 순서는 연결: 도착 순서 전체(ng/pg)와
+//     인스턴스별 도착 순서(nb/pb). 연결 값 = 칸 번호 + 1 (0 = 없음). `lw_nambox` 는 살아 있는 수.
+"static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer;"
+" int ng, pg, nb, pb; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
 "static int lw_nambox;\n"
+"static int lw_amb_hg, lw_amb_tg, lw_amb_free, lw_amb_hw;\n"
+"static int lw_amb_hb[LW_RECPOOL], lw_amb_tb[LW_RECPOOL], lw_amb_nq[LW_RECPOOL];\n"
+"static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
+"static int lw_amb_push(int box) {\n"
+"    int i; if (lw_amb_free) { i = lw_amb_free - 1; lw_amb_free = lw_ambox[i].ng; } else i = lw_amb_hw++;\n"
+"    lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0; lw_ambox[i].job = -1; lw_ambox[i].peer = 0;\n"
+"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg;\n"
+"    if (lw_amb_tg) lw_ambox[lw_amb_tg - 1].ng = i + 1; else lw_amb_hg = i + 1;\n"
+"    lw_amb_tg = i + 1; lw_ambox[i].nb = 0; lw_ambox[i].pb = 0;\n"
+"    if (box >= 0) {\n"
+"        if (box >= LW_RECPOOL) lw_panic(\"`spawn send`: the actor instance is outside the record pool\");\n"
+"        lw_ambox[i].pb = lw_amb_tb[box];\n"
+"        if (lw_amb_tb[box]) lw_ambox[lw_amb_tb[box] - 1].nb = i + 1; else lw_amb_hb[box] = i + 1;\n"
+"        lw_amb_tb[box] = i + 1; lw_amb_nq[box]++;\n"
+"    }\n"
+"    lw_nambox++; return i;\n"
+"}\n"
+"static void lw_amb_take(int i) {\n"
+"    int ng = lw_ambox[i].ng, pg = lw_ambox[i].pg, box = lw_ambox[i].box;\n"
+"    if (pg) lw_ambox[pg - 1].ng = ng; else lw_amb_hg = ng;\n"
+"    if (ng) lw_ambox[ng - 1].pg = pg; else lw_amb_tg = pg;\n"
+"    if (box >= 0 && box < LW_RECPOOL) {\n"
+"        int nb = lw_ambox[i].nb, pb = lw_ambox[i].pb;\n"
+"        if (pb) lw_ambox[pb - 1].nb = nb; else lw_amb_hb[box] = nb;\n"
+"        if (nb) lw_ambox[nb - 1].pb = pb; else lw_amb_tb[box] = pb;\n"
+"        lw_amb_nq[box]--;\n"
+"    }\n"
+"    lw_ambox[i].ng = lw_amb_free; lw_amb_free = i + 1;\n"
+"    if (--lw_nambox == 0) { lw_amb_free = 0; lw_amb_hw = 0; }\n"
+"}\n"
+"static int lw_amb_pend(int box) { return (box >= 0 && box < LW_RECPOOL) ? lw_amb_nq[box] : 0; }\n"
 "static struct { _Atomic int done; lowv result; } lw_jobs[4096]; static int lw_njobs;\n"   /* await — job 결과 */
 "static void lw_drain(int box) {\n"
-"    for (int i = 0; i < lw_nambox; ) {\n"
-"        if (lw_ambox[i].box != box) { i++; continue; }\n"
+"    if (box < 0 || box >= LW_RECPOOL) return;\n"
+"    while (lw_amb_hb[box]) {\n"                                         /* 머리를 매번 다시 읽는다 — 핸들러가 보내거나 안에서 drain 한다 */
+"        int i = lw_amb_hb[box] - 1;\n"
 "        lowv cargs[LW_MAXP + 1]; cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = box;\n"
 "        for (int g = 0; g < lw_ambox[i].nargs; g++) cargs[g + 1] = lw_ambox[i].args[g];\n"
 "        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn;\n"
-"        for (int m = i; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"   /* 큐에서 뺀 뒤 실행(재진입 drain 대비) */
-"        lw_nambox--;\n"
+"        lw_amb_take(i);\n"   /* 큐에서 뺀 뒤 실행(재진입 drain 대비) */
 "        (void)fn(cargs);\n"
 "    }\n}\n"
 // ★★★ **green thread + channel — 코루틴 스케줄러** (RFC-0009 2/3·3/3). `schedule .`/task_group end 가
@@ -2337,12 +2379,12 @@ const char LW_CONC[] =
 "      if (lw_cancel_scope) { lw_in_gsched = 1; goto coop_; }\n"
 // ★★★ **자격 태스크를 공유 큐로 모은다** — peer 필요 없고 인스턴스 메시지도 아닌 것.
 "      static struct lw_job_desc jd_[4096]; int nj_ = 0;\n"
-"      for (int m = 0; m < lw_nambox && nj_ < 4096; ) {\n"
-"        if (lw_ambox[m].peer || lw_ambox[m].box >= 0) { m++; continue; }\n"
+"      for (int l_ = lw_amb_hg; l_ && nj_ < 4096; ) {\n"
+"        int m = l_ - 1; l_ = lw_ambox[m].ng;\n"                                /* 다음을 먼저 쥔다 — 빼면 ng 가 빈 칸 목록이 된다 */
+"        if (lw_ambox[m].peer || lw_ambox[m].box >= 0) continue;\n"
 "        jd_[nj_].fn = lw_ambox[m].fn; jd_[nj_].np = lw_ambox[m].nargs; jd_[nj_].job = lw_ambox[m].job;\n"
 "        for (int x = 0; x < lw_ambox[m].nargs; x++) jd_[nj_].a[x] = lw_ambox[m].args[x];\n"
-"        for (int q = m; q + 1 < lw_nambox; q++) lw_ambox[q] = lw_ambox[q + 1];\n"
-"        lw_nambox--; nj_++;\n"
+"        lw_amb_take(m); nj_++;\n"
 "      }\n"
 "      if (nj_ > 0) {\n"
 // ★ 워커 수 = min(코어, LOWENT_WORKERS, 태스크 수). 큐보다 많은 워커는 낭비다.
@@ -2373,12 +2415,12 @@ const char LW_CONC[] =
 "            if (lw_ngthr < lw_gthr_cap) gi = lw_ngthr++;\n"                       /* 게으른 재활용: 상한 전엔 새 자리(슬롯 배정 불변 → 오라클 카운트 불변) */
 "            else { for (int q = base; q < lw_ngthr; q++) if (lw_gthr[q].state == 4) { gi = q; break; }\n"
 "                   if (gi < 0) { lw_gthr_ensure(lw_ngthr + 1); gi = lw_ngthr++; } }\n"  /* 가득+다 바쁨 → 성장(상한 없음, E-Alloc P4) */
-"            lw_gthr[gi].box = lw_ambox[0].box; lw_gthr[gi].fn = lw_ambox[0].fn; lw_gthr[gi].nargs = lw_ambox[0].nargs;\n"
-"            lw_gthr[gi].job = lw_ambox[0].job;\n"
-"            for (int x = 0; x < lw_ambox[0].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[0].args[x];\n"
+"            int q0_ = lw_amb_hg - 1;\n"                                                 /* 도착 순서의 맨 앞 */
+"            lw_gthr[gi].box = lw_ambox[q0_].box; lw_gthr[gi].fn = lw_ambox[q0_].fn; lw_gthr[gi].nargs = lw_ambox[q0_].nargs;\n"
+"            lw_gthr[gi].job = lw_ambox[q0_].job;\n"
+"            for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
 "            lw_gthr[gi].state = 1;\n"
-"            for (int m = 0; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"
-"            lw_nambox--;\n"
+"            lw_amb_take(q0_);\n"
 "        }\n"
 "        int *ready = lw_ready, nready = 0;\n"
 "        for (int i = base; i < lw_ngthr; i++) if (lw_gthr[i].state == 1 || lw_gthr[i].state == 2) ready[nready++] = i;\n"

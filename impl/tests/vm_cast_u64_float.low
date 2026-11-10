@@ -1,0 +1,13 @@
+rem ★★ `u64` 의 위쪽 절반을 부동으로 바꾸면 가장 가까운 부동 값이다 (2026-11-10 · W-20261110-2349 · RFC-0157 §8-14 · 정본 §6.2.16 (3-1)).
+rem
+rem 값은 64 비트 부호 있는 칸에 실린다. 정수로 가는 변환은 원천의 부호를 받아 위쪽 절반을 바르게 읽었는데, 부동으로 가는 변환은 칸을 부호 있는
+rem 수로 읽어 `cast f64 <u64 2^64−1>` 이 −1.0 이었다(VM · 네이티브 같이 — 대조로는 안 보였다). 무타입 리터럴 18446744073709551615 도 같았다.
+rem 답을 정수로 되돌려 잰다: quarter 2^64−1 = 2^62 (전에는 0) · quarter32 도 f32 를 거쳐 2^62. 음수(부호 있는 원천 · `-` 리터럴)는 그대로 음수다.
+module vm_cast_u64_float .
+
+fn quarter input n u64 . output u64 . do let d f64 cast f64 n. . . return cast u64 expr d. / 4.0 . . . end .
+fn quarter32 input n u64 . output u64 . do let d f32 cast f32 n. . . return cast u64 expr cast f64 d. . / 4.0 . . . end .
+fn big_lit output u64 . do let d f64 cast f64 18446744073709551615 . . return cast u64 expr d. / 4.0 . . . end .
+fn hex_lit output u64 . do let d f64 cast f64 0xffffffffffffffff . . return cast u64 expr d. / 4.0 . . . end .
+fn neg_src input n i64 . output i64 . do let d f64 cast f64 n. . . return cast i64 expr d. / 4.0 . . . end .
+fn neg_lit output i64 . do let d f64 cast f64 -8 . . return cast i64 expr d. / 4.0 . . . end .

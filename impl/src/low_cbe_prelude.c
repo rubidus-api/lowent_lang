@@ -705,6 +705,10 @@ const char LW_PRELUDE[] =
 "}\n"
 "#endif\n"
 "static _Thread_local int lw_depth;\n"
+// ★ 2026-11-10 (W-20261110-2349) — 빠른 경로의 op 은 깊이를 자기 지역(`lw_depth` 파라미터)에 들고 다녀 이 전역을 가린다.
+//   `drain` · `schedule` 이 돌리는 처리 코드는 이 전역에서 깊이를 받으므로, 부르기 전에 지역 값을 여기 적고 뒤에 되돌린다.
+"static inline int lw_depth_tls(void) { return lw_depth; }\n"
+"static inline void lw_depth_tls_set(int d_) { lw_depth = d_; }\n"
 // ★★★★★ **터미널 리프 셋 — C 뒤끝에 없던 것** (2026-08-07 · 소유자 지시 ③).
 //   `tty_raw`·`tty_read`·`tty_size` 는 VM 에만 있었고 이 파일에는 **case 조차 없었다**
 //   (gcc 가 -Wswitch 로 매번 말했다). 태그 경로 switch 에 default 가 없어 그 명령들이
@@ -2027,14 +2031,21 @@ LOW_CHAPOLY_C_SOURCE
 //   fault 경계로 감싸 부른다: 핸들러가 `panic` 하면 그 인스턴스의 **상태(레코드 필드)를 0 으로**
 //   초기화하고 **다시 실행**한다(maxr 번까지). 소진하면 escalate(바깥 경계로 전파·프로세스 중단).
 //   box < 0(진짜 인스턴스가 아님)이면 초기화 대상이 없어 즉시 escalate — VM 과 같은 규율.
+// ★★ 2026-11-10 (W-20261110-2349) — longjmp 는 건너뛴 틀의 일을 하나도 안 한다. 그래서 둘을 더 손으로 되돌린다:
+//   ① 깊이(`lw_depth`) — 안 되돌리면 다시 세울 때마다 건너뛴 틀 수만큼 깊이가 남아, 다시 세우기 128 번쯤에서 `call depth limit` 으로
+//     멈췄다(VM 은 끝까지 돈다 · v1.32.0 도 그랬다). ② 빠른 경로가 띄운 액터의 자리 — 건너뛴 틀의 `cleanup` 이 안 돌아 자리가 영영
+//     돌아오지 않았다(2a). 빠른 틀은 멈춰 서지 않으므로(양보하는 op 은 태그 경로다) 경계를 세운 뒤 쌓인 주인은 모두 건너뛴 틀의 것이다.
+"static int lw_fa_nown; static void (*lw_fa_unwind_fp)(int);\n"
 "static lowv lw_restart_call(lowv (*fn)(const lowv *restrict), const lowv *args, int box, int maxr) {\n"
 "    int fb = lw_nfault; if (fb >= 64) return fn(args);   /* 경계 소진 — 그냥 부른다 */\n"
 "    long sb0_ = lw_sbytes; int wl0_ = lw_nwin_live;   /* longjmp 는 cleanup 을 건너뛴다 — 스택 예산 · 틀 창 수를 손으로 되돌린다 */\n"
+"    int dp0_ = lw_depth, fo0_ = lw_fa_nown;\n"
 "    int att = 0;\n"
 "    for (;;) {\n"
 "        lw_nfault = fb + 1;\n"
 "        if (setjmp(lw_fault[fb]) != 0) {                  /* 핸들러가 panic 해서 되돌아왔다 */\n"
-"            lw_nfault = fb; lw_sbytes = sb0_; lw_nwin_live = wl0_;\n"
+"            lw_nfault = fb; lw_sbytes = sb0_; lw_nwin_live = wl0_; lw_depth = dp0_;\n"
+"            if (lw_fa_unwind_fp) lw_fa_unwind_fp(fo0_);\n"
 "            if (box >= 0 && att < maxr) { att++;\n"
 "                lowrec *r = &lw_recs[box]; for (int i = 0; i < r->nf; i++) { lowv z = {0}; r->f[i] = z; }\n"
 "                continue; }\n"
@@ -2255,13 +2266,27 @@ const char LW_CONC[] =
 "    if (b_ >= lw_gcb_rc && b_ < lw_nrec && lw_pm_rc[b_] >= 0) lw_ambox[l_ - 1].box = lw_pm_rc[b_];\\\n"
 "    for (int k_ = 0; k_ < lw_ambox[l_ - 1].nargs; k_++) lw_gc_fix(&lw_ambox[l_ - 1].args[k_]); } } while (0)\n"
 "static void lw_fa_drop(int b) { if (b >= LW_RECPOOL && b < LW_AIDS) { lw_fa_dead[b - LW_RECPOOL] = 1; lw_fa_done(b); } }\n"
-"static void lw_fa_cleanup(int *b) { lw_fa_drop(*b); }\n"
+// ★ 주인 더미(2026-11-10 · W-20261110-2349): 자리를 든 지역 하나에 한 줄(지역의 주소 · 든 번호). 틀은 들어온 차례의 거꾸로 나가므로
+//   줄은 거의 늘 꼭대기에서 찾는다. 다시 세우기의 경계는 세울 때의 높이를 적어 두었다가, 패닉으로 돌아오면 그 위를 모두 놓는다
+//   (건너뛴 틀의 주소는 읽지 않는다 — 그 자리는 이미 다른 틀이 쓴다. 그래서 번호를 줄에 같이 둔다).
+"static struct { int *p; int b; } lw_fa_own[LW_FAPOOL];\n"
+"static int lw_fa_ownat(int *p) { for (int k = lw_fa_nown - 1; k >= 0; k--) if (lw_fa_own[k].p == p) return k; return -1; }\n"
+"static void lw_fa_unwind(int k0) { while (lw_fa_nown > k0) { lw_fa_nown--; lw_fa_drop(lw_fa_own[lw_fa_nown].b); } }\n"
+"static void lw_fa_cleanup(int *b) {\n"
+"    int k = lw_fa_ownat(b); if (k < 0) return;\n"   /* 든 적 없다(-1) */
+"    lw_fa_drop(lw_fa_own[k].b);\n"
+"    for (int j = k + 1; j < lw_fa_nown; j++) lw_fa_own[j - 1] = lw_fa_own[j];\n"
+"    lw_fa_nown--;\n"
+"}\n"
 "static void lw_fa_home(int *fa, unsigned char **rl) {\n"
-"    if (*fa >= 0) lw_fa_drop(*fa);\n"
+"    int k = lw_fa_ownat(fa);\n"
+"    if (k >= 0) lw_fa_drop(lw_fa_own[k].b);\n"
 "    int s; if (lw_fa_free) { s = lw_fa_free - 1; lw_fa_free = lw_fa_nx[s]; } else if (lw_fa_hw < LW_FAPOOL) s = lw_fa_hw++;\n"
 "    else lw_panic(\"too many actors spawned on the fast path are alive or still have messages waiting \"\n"
 "                  \"(raise it with -DLW_FAPOOL=N)\");\n"
 "    lw_fa_dead[s] = 0; *fa = LW_RECPOOL + s; *rl = lw_fa_mem[s];\n"
+"    if (k < 0) { k = lw_fa_nown++; lw_fa_own[k].p = fa; lw_fa_unwind_fp = lw_fa_unwind; }\n"
+"    lw_fa_own[k].b = *fa;\n"
 "}\n"
 "static struct { _Atomic int done; lowv result; } lw_jobs[4096]; static int lw_njobs;\n"   /* await — job 결과 */
 // ★★★ 2026-11-10 (W-20261110-1247 · 소유자 «추천대로») — 정본 §10.5 (2a): 그 액터가 우편함의 메시지를 처리하는 중이면 멈춘다(VM E-VM-DRAIN-BUSY).
@@ -3242,6 +3267,7 @@ const char LW_PRELUDE2[] =
 "    return lw_satv(x, nb, sgn); }\n"
 "static lowv lw_cast(long long meta, lowv v) {\n"
 "    if ((meta & 0xff) == 0) { int to32 = (meta & 0x10000) != 0;   /* RFC-0157 §8-13 — f32 이면 한 번에 반올림 */\n"
+"        if (v.tag == LWV_INT && (meta & 0x200000)) return lw_flt(to32 ? (double)(float)(unsigned long long)v.i : (double)(unsigned long long)v.i);\n"   /* RFC-0157 §8-14 */
 "        if (v.tag == LWV_INT) return lw_flt(to32 ? (double)(float)v.i : (double)v.i);\n"
 "        if (v.tag == LWV_FLT) return to32 ? lw_flt((double)(float)lw_fval(v)) : v;\n"
 "        lw_panic(\"cast needs a scalar\"); }\n"

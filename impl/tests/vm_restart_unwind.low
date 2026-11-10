@@ -1,0 +1,39 @@
+rem ★★ 다시 세우기는 건너뛴 틀의 일을 되돌린다 (2026-11-10 · W-20261110-2349 · 소유자 «결함 수정 지금 다»).
+rem
+rem `failure restart` 액터의 처리 코드가 패닉하면 네이티브는 경계(setjmp)로 뛰어 돌아온다. 그 뛰기는 사이의 틀이 하던 마무리를 하나도 안 한다.
+rem   · 깊이 — 건너뛴 틀 수만큼 깊이가 남았다. 다시 세우기가 거듭되면 `call depth limit` 으로 멈췄다(many 100 · v1.32.0 도). VM 은 끝까지 돈다.
+rem   · 빠른 경로가 띄운 액터의 자리 — 건너뛴 틀이 자리를 돌려주지 않아, 다시 세우기 4,096 번쯤에서 자리가 다 찼다(2a · 게시 전).
+rem put 은 매 메시지(첫째 빼고) 처음엔 n 이 0 이 아니라 inner 가 패닉하고, 다시 세운 뒤(n = 0) 지난다. inner 가 띄운 액터에는 메시지가 남는다 —
+rem 그 액터는 그 메시지가 끝날 때까지 산다(정본 §10.5 (2) · (4)). 끝의 `schedule` 이 배달한다.
+module vm_restart_unwind .
+actor acc do
+  state do v u64 . end .
+  proc add input x u64 . output u64 . effects state . do set v. expr v. + x. . . return v. . end .
+end .
+proc inner input n u64 . output u64 . effects state panic . do
+  var a acc spawn actor acc . .
+  spawn send a. add 1 . .
+  if gt n. 0 . do panic "again" . end .
+  drain a. .
+  return 1 .
+end .
+actor sup do
+  state do n u64 . end .
+  failure restart max 3 .
+  proc put input x u64 . output u64 . effects state panic . do
+    let k u64 inner n. . .
+    set n. expr n. + k. . .
+    return n. .
+  end .
+end .
+proc many input m u64 . output u64 . effects state panic . do
+  var c sup spawn actor sup . .
+  var i u64 0 .
+  while lt i. m. . do
+    spawn send c. put i. . .
+    drain c. .
+    schedule .
+    set i. expr i. + 1 . .
+  end .
+  return i. .
+end .

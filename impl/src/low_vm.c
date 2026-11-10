@@ -2478,7 +2478,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if ((in->a & 0xff) == 0) {
                     // ★ RFC-0157 §8-13 — f32 가 대상이면 **한 번에** f32 로 반올림한다(정수에서도 double 을 거치지 않는다 — 두 번 반올림하지 않으려고)
                     const bool to32 = (in->a & IR_CAST_F32) != 0;
-                    if (v.tag == VMV_INT) stack[sp++] = vmv_flt(to32 ? (double)(float)v.i : (double)v.i);
+                    // ★ 부호 없는 원천(IR_SRC_UNS)은 칸을 부호 없이 읽는다 — 2^63 이상이 음수가 되지 않게(RFC-0157 §8-14)
+                    const bool uns_ = (in->a & IR_SRC_UNS) != 0;
+                    if (v.tag == VMV_INT) stack[sp++] = vmv_flt(uns_ ? (to32 ? (double)(float)(proven_u64)v.i : (double)(proven_u64)v.i)
+                                                                     : (to32 ? (double)(float)v.i : (double)v.i));
                     else if (v.tag == VMV_FLT) stack[sp++] = to32 ? vmv_flt((double)(float)vmv_f(v)) : v;
                     else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return false; }
                 } else {

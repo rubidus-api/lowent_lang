@@ -8,8 +8,8 @@ rem     ★ 이 둘이 오래된 결함을 문다: VM · 태그 네이티브 · 
 rem       다음 `spawn` 이 그 번호를 받았다(정본 §10.5 (2) · (4) · §10.2). 기록 docs/known-defects/pending-messages-reach-new-actor.md.
 rem   · loop_boom — 되풀이에서 지역이 놓은 액터(메시지가 남았다)도 살아 있다: 끝의 `schedule` 이 그 메시지를 배달해 0 으로 나눠 멈춘다
 rem     (압축이 그것을 뿌리로 보지 않으면 메시지가 조용히 사라져 9 를 낸다).
-rem   · rec 의 깊이는 20 까지로 묶었다 — 깊이 한도 바로 앞(127)에서 VM 과 네이티브가 한 칸 다르게 센다(이 일과 따로인 결함 ·
-rem     docs/known-defects/depth-leaf-call-off-by-one.md).
+rem   · rec 의 깊이는 한때 20 까지로 묶었다 — 깊이 한도 바로 앞(127)에서 VM 과 네이티브가 한 칸 다르게 셌다. 2026-11-10 고쳤다
+rem     (docs/known-defects/depth-leaf-call-off-by-one.md · 증인 vm_depth_leaf.low) — 이제 묶지 않는다.
 rem   · many — 6000 바퀴에 절반은 비우지 않는다(자리가 돌아와야 한다 · 1200 은 200 바퀴의 답). rec — 되부름, 틀마다 제 액터 (15).
 module vm_fast_actor .
 
@@ -107,9 +107,7 @@ proc many input n u64 . output u64 . effects state . do
   return s. .
 end .
 
-proc rec input n u64 . output u64 . effects state .
-  requires le n. 20 . .
-do
+proc rec input n u64 . output u64 . effects state . do
   var a acc spawn actor acc . .
   spawn send a. add n. . .
   var r u64 0 .

@@ -726,6 +726,9 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                     res = (ityp_t){ true, (proven_u8)((a & 0xff) * 8), (a & IR_SGN_BIT) != 0, false, false, 0, 0 };
                 // RFC-0149 §6.12 — 원천이 정수이고 부호를 알면 싣는다(정수로 가는 변환에만 뜻이 있다).
                 if ((a & 0xff) && ops[0].known && !ops[0].flt && ops[0].bits) a |= ops[0].sign ? IR_SRC_SGN : IR_SRC_UNS;
+                // ★ 2026-11-10 (W-20261110-2349 · RFC-0157 §8-14) — 부동으로 가는 변환도 «부호 없는 원천» 을 싣는다: 칸은 부호 있는 64 비트라
+                //   `cast f64 <u64 2^64−1>` 이 −1.0 이었다(VM · 네이티브 같이). 정본 §6.2.16 (3-1) 은 «가장 가까운 값» 이다.
+                if (!(a & 0xff) && ops[0].known && !ops[0].flt && ops[0].bits && ops[0].bits < 128 && !ops[0].sign) a |= IR_SRC_UNS;
                 if (ops[0].known && !ops[0].flt && ops[0].bits == 128) a |= IR_SRC_W128 | (ops[0].sign ? IR_SRC_SGN : IR_SRC_UNS);   // ★ RFC-0151 — f64 로 가는 변환도
                 break;
             case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD:
@@ -4695,6 +4698,12 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     if (tsign) meta |= IR_SGN_BIT;
                 }
                 (*pos)++;
+                // ★ 2026-11-10 (W-20261110-2349 · RFC-0157 §8-14) — 무타입 정수 리터럴이 2^63 이상이면(칸에서는 음수로 보인다) 부동으로
+                //   갈 때 부호 없이 읽는다. `cast f64 18446744073709551615` 가 −1.0 이었다. 음수 리터럴은 `-` 로 시작하므로 갈린다.
+                if (!(meta & 0xff) && *pos < end && is_atom(k[*pos])) {
+                    proven_u8str_view_t lx_ = k[*pos]->tok.lex; proven_i64 lv_;
+                    if (lx_.size && lx_.ptr[0] >= '0' && lx_.ptr[0] <= '9' && ir_int_lit(lx_, &lv_) && lv_ < 0) meta |= IR_SRC_UNS;
+                }
                 ir_value(c, k, pos, end);
                 if (!ir_cast_is_identity(c, meta)) ir_emit(c, IRW_CAST, meta);
                 if (!(meta & 0xff)) ir_tset_top(c, tw);   // RFC-0148 S3 — 부동으로 가는 변환의 결과는 그 부동 타입이다
@@ -6330,7 +6339,8 @@ static void ir_island_binop(ir_ctx_t *c, const low_cst_t *opk) {
 static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
     if (!is_atom(nd) || nd->tok.kind != LOW_TOK_IDENT) return false;
     if (ir_prec(nd) >= 0) return false;                      // 중위 연산자 자리는 여기 아님
-    bool known = ir_builtin(nd->tok.lex) != NULL;
+    const ir_builtin_t *bi_ = ir_builtin(nd->tok.lex);
+    bool known = bi_ != NULL, zero = bi_ && bi_->arity == 0;
     // 사용자 op 도 마찬가지다 — `fn`/`proc` 선언에서 그 이름을 찾는다.
     if (!known && c->pr)
         for (proven_size_t q = 0; q < c->pr->nforms && !known; q++) {
@@ -6343,9 +6353,16 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                 h = ct->kids[1]->tok.lex; ni = 2;
             }
             if (!veq(h, "fn") && !veq(h, "proc")) continue;
-            if (proven_u8str_view_eq(ct->kids[ni]->tok.lex, nd->tok.lex)) known = true;
+            if (proven_u8str_view_eq(ct->kids[ni]->tok.lex, nd->tok.lex)) {
+                known = zero = true;
+                for (proven_size_t q = ni + 1; q < ct->nkids; q++)
+                    if (is_atom(ct->kids[q]) && veq(ct->kids[q]->tok.lex, "input")) { zero = false; break; }
+            }
         }
     if (!known) return false;
+    // ★ 2026-11-10 (W-20261110-2349) — 인자 없는 op 의 부름(`z .`)은 이름 하나와 점이라 표면 패스가 괄호로 싸지 않는다(싸면 다른 자리가
+    //   달라진다). 다른 값 자리처럼 그 이름을 부름으로 읽는다(ir_node). 전에는 이 자리에서 «컴파일러 버그» 라고 말하고 거절했다.
+    if (zero) return false;
     // ★ RFC-0142 (1.8) — 섬 안의 호출도 제 점으로 닫히고, 표면 패스가 그것을 괄호로 싸서 내려 준다. 맨 호출이 여기 닿으면
     //   표면 패스의 잘못이다(1.7 까지는 저자의 실수 E-EXPR-APP 였다).
     ir_fail(c, "E-IR-SURFACE", "internal: an op call reached an `expr` island unparenthesised — the surface pass wraps every call; "

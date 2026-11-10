@@ -1,0 +1,11 @@
+rem ★ 인자 없는 op 을 `expr` 안에서 부른다 (2026-11-10 · W-20261110-2349 — 깊이 결함의 증인을 쓰다 찾았다).
+rem
+rem `z .` 은 이름 하나와 점이라 표면 패스가 괄호로 싸지 않는다. 다른 값 자리에서는 그 이름을 부름으로 읽는데, `expr` 섬은 아는 op 의 이름이
+rem 맨몸으로 닿으면 «컴파일러 버그(E-IR-SURFACE)» 라고 말하고 이 프로그램을 거절했다(v1.32.0 도). 이제 다른 자리처럼 부름으로 읽는다.
+rem 인자를 받는 op 을 인자 없이 쓰면 전과 같이 거절한다.
+module expr_zero_arg_call .
+fn z output u64 . do return 3 . end .
+fn w output u64 . do return 10 . end .
+fn a input n u64 . output u64 . do return expr n. + z . * w . . . end .
+fn b input n u64 . output u64 . do return expr ( n. + z . ) * 2 . . end .
+fn c input n u64 . output bool . do return expr z . lt n. . . end .

@@ -687,7 +687,11 @@ static void cbe_mark_depth(const low_ir_t *ir) {
     for (proven_size_t i = 0; i < n; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         for (proven_size_t k = 0; k < d->ncode; k++) {
-            if (d->code[k].w != IRW_CALL) continue;
+            const low_irw_t w_ = d->code[k].w;
+            // ★ 2026-11-10 (W-20261110-2349) — `drain` · `schedule` 은 처리 코드를 이 op 의 깊이 + 1 에서 돌린다(VM 과 같이).
+            //   그 깊이를 전역에 적으려면 이 op 이 깊이를 알아야 한다 ⇒ 센다. `spawn send` 는 그 처리 코드로 가는 간선이다.
+            if (w_ == IRW_DRAIN || w_ == IRW_SCHED) { g_needdepth[i] = true; continue; }
+            if (w_ != IRW_CALL && w_ != IRW_ASEND && w_ != IRW_TASEND) continue;
             proven_size_t c = IR_CALL_IDX(d->code[k].a);
             if (c >= n) { g_needdepth[i] = true; continue; }   // 모르는 대상 = 있다고 친다
             adj[i][c] = true;
@@ -702,15 +706,46 @@ static void cbe_mark_depth(const low_ir_t *ir) {
     for (proven_size_t i = 0; i < n; i++) if (adj[i][i]) g_needdepth[i] = true;   // 자기에게 돌아온다 = 재귀
     // ★ 재귀 op 을 (간접적으로라도) 부르는 쪽도 원장을 세야 사슬 길이가 맞는다 —
     //   VM 은 **사슬 전체**를 세기 때문이다. 여기서 아끼면 패닉 자리가 달라진다(오라클 위반).
+    // ★★★ 2026-11-10 (W-20261110-2349 · 소유자 «가»): **세는 op 이 부르는 op 도 센다** — VM 은 모든 부름을 센다.
+    //   전에는 재귀의 바닥에서 부르는 잎 op(재귀에 닿지 않는 op)을 안 세서, 한도 바로 앞에서 VM 은 멈추고 네이티브는
+    //   답했다(`r 127` → VM E-VM-DEPTH · 네이티브 8128). 잎이 잎을 부르면 두 칸이 모자랐다 — 부르는 자리에서 «+1» 을
+    //   보는 것으로는 못 맞춘다(docs/known-defects/depth-leaf-call-off-by-one.md). 그래서 아래로도 닫는다: 세는 op 이
+    //   (간접으로라도) 부르는 op 은 센다. 그러면 그 op 을 부르는 쪽도 세야 하므로(인자를 넘길 것이 있어야 한다) 위아래를
+    //   고정점까지 돌린다. 재귀가 없는 덩어리는 여전히 안 센다 — 아래에서 사슬 길이로 따로 본다.
     bool ch = true;
     while (ch) {
         ch = false;
+        for (proven_size_t i = 0; i < n; i++)
+            for (proven_size_t j = 0; j < n; j++) {
+                if (!adj[i][j] || g_needdepth[i] == g_needdepth[j]) continue;
+                g_needdepth[i] = g_needdepth[j] = true; ch = true;
+            }
+        // ★ 내용이 같아 한 심볼이 되는 def 들(canon_of)은 시그니처가 하나다 — 한쪽이 세면 다 센다(로컬 op 의 같은 몸 두 벌이
+        //   «conflicting types» 로 C 컴파일을 깼다 · 골든 localop).
+        for (proven_size_t i = 0; i < n; i++) {
+            const low_ir_def_t *cd = (const low_ir_def_t *)ir->defs[i].canon_of;
+            if (!cd) continue;
+            proven_size_t ci = (proven_size_t)(cd - ir->defs);
+            if (ci >= n || g_needdepth[i] == g_needdepth[ci]) continue;
+            g_needdepth[i] = g_needdepth[ci] = true; ch = true;
+        }
+    }
+    // ★★ 재귀가 없는 덩어리: 사슬은 op 수로 묶이지만 그 길이가 한도(128)를 넘을 수 있으면 VM 은 멈춘다 — 그런 덩어리도 센다.
+    //   높이 h(i) = 1 + max h(부르는 op) (재귀가 없으니 잘 정의된다). 세지 않는 op 만 본다.
+    static int ht[512];
+    for (proven_size_t i = 0; i < n; i++) ht[i] = g_needdepth[i] ? -1 : 1;
+    for (proven_size_t it = 0; it < n; it++) {
+        bool hc = false;
         for (proven_size_t i = 0; i < n; i++) {
             if (g_needdepth[i]) continue;
             for (proven_size_t j = 0; j < n; j++)
-                if (adj[i][j] && g_needdepth[j]) { g_needdepth[i] = true; ch = true; break; }
+                if (adj[i][j] && ht[j] + 1 > ht[i]) { ht[i] = ht[j] + 1; hc = true; }
         }
+        if (!hc) break;
     }
+    bool deep = false;
+    for (proven_size_t i = 0; i < n; i++) if (!g_needdepth[i] && ht[i] > 128) deep = true;
+    if (deep) for (proven_size_t i = 0; i < n; i++) g_needdepth[i] = true;   // 드문 꼴 — 통째로 센다(두는 쪽)
 }
 // ★★★ **정수만 돌려주는 op 은 정수로 돌려준다** (2026-07-27 벤치).
 //
@@ -6132,12 +6167,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_DRAIN: {
                 const int home_ = ks.o[ks.n - 1];
-                fprintf(out, "    rsp--; lw_drain(fa%d_); st[sp++] = 0;\n", home_);
+                // ★ 처리 코드는 이 op 의 깊이 + 1 에서 돈다(VM 의 depth + 1) — 전역에 지역 깊이를 적어 둔다(W-20261110-2349)
+                fprintf(out, "    rsp--; { int dsv_ = lw_depth_tls(); lw_depth_tls_set(lw_depth); lw_drain(fa%d_); lw_depth_tls_set(dsv_); } st[sp++] = 0;\n", home_);
                 ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_SCHED:
-                fputs("    lw_schedule(); st[sp++] = 0;\n", out);
+                fputs("    { int dsv_ = lw_depth_tls(); lw_depth_tls_set(lw_depth); lw_schedule(); lw_depth_tls_set(dsv_); } st[sp++] = 0;\n", out);
                 ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             case IRW_WRAP_SOME:
@@ -6363,7 +6399,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     // ★ RFC-0157 §8-13 — f32 가 대상이면 한 번에 f32 로 반올림한다(VM 의 IRW_CAST 와 같은 식)
                     const bool to32 = (in->a & IR_CAST_F32) != 0;
                     if (ks.k[ks.n-1] == K_INT) {
-                        fputs(to32 ? "    fs[fsp++] = (double)(float)st[--sp];\n" : "    fs[fsp++] = (double)st[--sp];\n", out);
+                        const bool uns_ = (in->a & IR_SRC_UNS) != 0;   // ★ RFC-0157 §8-14 — 부호 없는 원천은 부호 없이 읽는다(VM 과 같다)
+                        fputs(uns_ ? (to32 ? "    fs[fsp++] = (double)(float)(unsigned long long)st[--sp];\n" : "    fs[fsp++] = (double)(unsigned long long)st[--sp];\n")
+                                   : (to32 ? "    fs[fsp++] = (double)(float)st[--sp];\n" : "    fs[fsp++] = (double)st[--sp];\n"), out);
                         ks.k[ks.n-1] = K_FLT;
                     } else if (to32) fputs("    fs[fsp-1] = (double)(float)fs[fsp-1];\n", out);   // 이미 f64 면 항등
                 } else if (in->a & 0x40000) {              // narrow_try → some|none (ws[])

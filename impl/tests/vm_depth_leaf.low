@@ -1,0 +1,46 @@
+rem ★★ 깊이 한도는 **모든 부름**을 센다 (2026-11-10 · W-20261110-2349 · 소유자 «가»).
+rem
+rem VM 은 모든 부름을 깊이로 센다(128 칸을 넘으면 E-VM-DEPTH). 네이티브 빠른 경로는 재귀에 닿는 op 만 셌다 — 그래서 재귀의 바닥에서
+rem 부르는 잎 op 이 VM 에서는 한 칸을 더 쓰고 네이티브에서는 안 썼다: `r 127` 이 VM 에서 멈추고 네이티브에서 8128 을 냈다(v1.32.0 도).
+rem 잎이 잎을 부르면 두 칸이 모자랐다(`r2 126`). 2a 의 빠른 `drain` · `schedule` 은 처리 코드를 깊이 0 에서 돌렸다(`rd 127` · `rh 127` 이 128).
+rem 이제 세는 op 이 부르는 op 도 세고, `drain` · `schedule` 은 처리 코드를 부른 op 의 깊이 + 1 에서 돌린다. 네 길(VM · 빠른 경로 ·
+rem `--no-fast` · T0)이 같은 자리에서 멈춘다. 기록 docs/known-defects/depth-leaf-call-off-by-one.md.
+module vm_depth_leaf .
+
+fn leaf input n u64 . output u64 . do return n. . end .
+fn leaf2 input n u64 . output u64 . do var t u64 leaf n. . . return expr t. - n. . . end .
+
+fn r input n u64 . output u64 . do
+  var s u64 0 .
+  if gt n. 0 . do set s. r expr n. - 1 . . . end .
+  return expr s. + leaf n. . . .
+end .
+
+fn r2 input n u64 . output u64 . do
+  var s u64 0 .
+  if gt n. 0 . do set s. r2 expr n. - 1 . . . end .
+  return expr s. + leaf2 n. . . .
+end .
+
+actor acc do
+  state do v u64 . end .
+  proc add input x u64 . output u64 . effects state . do set v. expr v. + x. . . return v. . end .
+end .
+
+proc rd input n u64 . output u64 . effects state . do
+  var a acc spawn actor acc . .
+  var k u64 0 .
+  if gt n. 0 . do set k. rd expr n. - 1 . . . end .
+  spawn send a. add n. . .
+  drain a. .
+  return expr k. + 1 . .
+end .
+
+proc rh input n u64 . output u64 . effects state . do
+  var a acc spawn actor acc . .
+  var k u64 0 .
+  if gt n. 0 . do set k. rh expr n. - 1 . . . end .
+  spawn send a. add n. . .
+  schedule .
+  return expr k. + 1 . .
+end .

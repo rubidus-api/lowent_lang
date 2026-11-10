@@ -2156,15 +2156,21 @@ const char LW_CONC[] =
 //     (실측: 1 개 209 ns · 4,000 개 103,135 ns). 칸은 제자리, 순서는 연결: 도착 순서 전체(ng/pg)와
 //     인스턴스별 도착 순서(nb/pb). 연결 값 = 칸 번호 + 1 (0 = 없음). `lw_nambox` 는 살아 있는 수.
 "static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer; int rmax;"
-" int ng, pg, nb, pb; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
+" int ng, pg, nb, pb; unsigned long long seq; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
 "static int lw_nambox;\n"
 "static int lw_amb_hg, lw_amb_tg, lw_amb_free, lw_amb_hw;\n"
 "static int lw_amb_hb[LW_RECPOOL], lw_amb_tb[LW_RECPOOL], lw_amb_nq[LW_RECPOOL];\n"
+// ★★★ 2026-11-10 (W-20261110-1025 · 소유자 «A» · 정본 §10.5 (4a)) — `schedule` 은 한 액터의 메시지를 **한 번에 하나, 넣은 차례대로**.
+//   VM 의 mb_busy · mb_wake · mb_scan · seq 와 같은 모양이다: busy = 그 액터의 메시지를 쥔 그린스레드가 살아 있다 ·
+//   wake = 쥔 것이 끝나 다음 메시지를 넣어야 할 액터 · scan = 아직 훑지 않은 첫 칸 · seq = 도착 번호.
+"static unsigned long long lw_amb_seq; static int lw_amb_scan, lw_amb_nwake;\n"
+"static unsigned char lw_amb_busy[LW_RECPOOL]; static int lw_amb_wake[LW_RECPOOL];\n"
 "static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
 "static int lw_amb_push(int box) {\n"
 "    int i; if (lw_amb_free) { i = lw_amb_free - 1; lw_amb_free = lw_ambox[i].ng; } else i = lw_amb_hw++;\n"
 "    lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0; lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1;\n"
-"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg;\n"
+"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg; lw_ambox[i].seq = ++lw_amb_seq;\n"
+"    if (!lw_amb_scan) lw_amb_scan = i + 1;\n"
 "    if (lw_amb_tg) lw_ambox[lw_amb_tg - 1].ng = i + 1; else lw_amb_hg = i + 1;\n"
 "    lw_amb_tg = i + 1; lw_ambox[i].nb = 0; lw_ambox[i].pb = 0;\n"
 "    if (box >= 0) {\n"
@@ -2177,6 +2183,7 @@ const char LW_CONC[] =
 "}\n"
 "static void lw_amb_take(int i) {\n"
 "    int ng = lw_ambox[i].ng, pg = lw_ambox[i].pg, box = lw_ambox[i].box;\n"
+"    if (lw_amb_scan == i + 1) lw_amb_scan = ng;\n"
 "    if (pg) lw_ambox[pg - 1].ng = ng; else lw_amb_hg = ng;\n"
 "    if (ng) lw_ambox[ng - 1].pg = pg; else lw_amb_tg = pg;\n"
 "    if (box >= 0 && box < LW_RECPOOL) {\n"
@@ -2186,7 +2193,12 @@ const char LW_CONC[] =
 "        lw_amb_nq[box]--;\n"
 "    }\n"
 "    lw_ambox[i].ng = lw_amb_free; lw_amb_free = i + 1;\n"
-"    if (--lw_nambox == 0) { lw_amb_free = 0; lw_amb_hw = 0; }\n"
+"    if (--lw_nambox == 0) { lw_amb_free = 0; lw_amb_hw = 0; lw_amb_scan = 0; }\n"
+"}\n"
+"static int lw_amb_ready(int i) {\n"   /* 태스크이거나, 쥔 것 없는 액터의 맨 앞 */
+"    int box = lw_ambox[i].box;\n"
+"    if (box < 0 || box >= LW_RECPOOL) return 1;\n"
+"    return !lw_amb_busy[box] && lw_amb_hb[box] == i + 1;\n"
 "}\n"
 "static int lw_amb_pend(int box) { return (box >= 0 && box < LW_RECPOOL) ? lw_amb_nq[box] : 0; }\n"
 "static struct { _Atomic int done; lowv result; } lw_jobs[4096]; static int lw_njobs;\n"   /* await — job 결과 */
@@ -2219,7 +2231,7 @@ const char LW_CONC[] =
 //   ☞ 스택은 코루틴의 실행 스택(C 스택과 같은 범주) — pthread 가 이미 워커 OS 스택을 잡는 것과
 //     같은 종류의 할당이지, 언어가 세는 데이터 힙이 아니다(RFC-0043 위반 아님).
 "static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); unsigned char nargs;\n"
-"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
+"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; int hold; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
 // ★★ 2026-11-09 (W-20261109-1922) — **다시 세우기의 경계는 그린스레드마다 따로다.** 경계(`lw_fault`)는 setjmp 의
 //   스택이라, 메시지가 경계 안에서 양보하고 다른 메시지가 같은 칸에 경계를 세우면 패닉이 **남의 스택으로** 뛴다.
 //   그래서 협조 스케줄러가 그린스레드로 들어갈 때 그 것의 경계를 위에 다시 얹고, 나올 때 떼어 그 것의 자리에 둔다.
@@ -2379,6 +2391,52 @@ const char LW_CONC[] =
 "    lw_ngthr = 0;\n"
 "    return (void *)0;\n"
 "}\n"
+// ★★★ §10.5 (4a) — 칸 q0_ 을 그린스레드 하나로 옮긴다(VM vm_gabsorb). 끝난 자리(state 4) 재활용 → 없으면 새 자리 → 가득이면 성장.
+//   ☞ 전엔 `lw_ngthr < 16` 만 봐 끝난 자리를 안 썼고, 동시에 살아있는 태스크가 16 을 넘으면
+//     조용히 안 들어가 **whoever waited 가 데드락**했다. VM(low_ir.c)과 같은 규율로 맞춘다.
+"static void lw_gabsorb(int base, int q0_) {\n"
+"    int gi = -1;\n"
+"    if (lw_ngthr < lw_gthr_cap) gi = lw_ngthr++;\n"                       /* 게으른 재활용: 상한 전엔 새 자리(슬롯 배정 불변 → 오라클 카운트 불변) */
+"    else { for (int q = base; q < lw_ngthr; q++) if (lw_gthr[q].state == 4) { gi = q; break; }\n"
+"           if (gi < 0) { lw_gthr_ensure(lw_ngthr + 1); gi = lw_ngthr++; } }\n"  /* 가득+다 바쁨 → 성장(상한 없음, E-Alloc P4) */
+"    lw_gthr[gi].box = lw_ambox[q0_].box; lw_gthr[gi].fn = lw_ambox[q0_].fn; lw_gthr[gi].nargs = lw_ambox[q0_].nargs;\n"
+"    lw_gthr[gi].job = lw_ambox[q0_].job; lw_gthr[gi].rmax = lw_ambox[q0_].rmax; lw_gthr[gi].nfs = 0;\n"
+"    for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
+"    lw_gthr[gi].state = 1; lw_gthr[gi].hold = 0;\n"
+"    if (lw_gthr[gi].box >= 0 && lw_gthr[gi].box < LW_RECPOOL) { lw_gthr[gi].hold = 1; lw_amb_busy[lw_gthr[gi].box] = 1; }\n"
+"    lw_amb_take(q0_);\n"
+"}\n"
+// ★ 끝난 그린스레드(base 위)가 쥐었던 액터를 푼다 — 남은 메시지가 있으면 다음 채우기가 그 맨 앞을 넣는다.
+"static void lw_grelease(int base) {\n"
+"    for (int q = base; q < lw_ngthr; q++) {\n"
+"        if (!lw_gthr[q].hold || (lw_gthr[q].state != 4 && lw_gthr[q].state != 0)) continue;\n"
+"        int b = lw_gthr[q].box; lw_gthr[q].hold = 0; lw_amb_busy[b] = 0;\n"
+"        if (lw_amb_nq[b] && lw_amb_nwake < LW_RECPOOL) lw_amb_wake[lw_amb_nwake++] = b;\n"
+"    }\n"
+"}\n"
+// ★ 채우기(VM vm_grefill 과 같은 차례): ① 풀린 액터의 맨 앞 ② 지난 채우기 뒤에 새로 온 칸 — 도착 번호로 합쳐 배달해도 되는 것만 옮긴다.
+"static void lw_grefill(int base) {\n"
+"    lw_grelease(base);\n"
+"    int nw = lw_amb_nwake; lw_amb_nwake = 0;\n"
+"    int wst[64], *wv = wst; int *heap = 0;\n"
+"    if (nw > 64) { heap = malloc((size_t)nw * sizeof *heap); if (!heap) lw_panic(\"out of memory scheduling actor messages\"); wv = heap; }\n"
+"    int n = 0;\n"
+"    for (int k = 0; k < nw; k++) {\n"
+"        int b = lw_amb_wake[k];\n"
+"        if (lw_amb_busy[b] || !lw_amb_hb[b]) continue;\n"
+"        int h = lw_amb_hb[b], j = n++;\n"
+"        while (j > 0 && lw_ambox[wv[j - 1] - 1].seq > lw_ambox[h - 1].seq) { wv[j] = wv[j - 1]; j--; }\n"
+"        wv[j] = h;\n"
+"    }\n"
+"    int cur = lw_amb_scan, wi = 0;\n"
+"    while (cur || wi < n) {\n"
+"        int q;\n"
+"        if (wi < n && (!cur || lw_ambox[wv[wi] - 1].seq < lw_ambox[cur - 1].seq)) q = wv[wi++] - 1;\n"   /* 같으면 새 쪽(같은 칸) */
+"        else { q = cur - 1; cur = lw_ambox[q].ng; }\n"
+"        if (lw_amb_ready(q)) lw_gabsorb(base, q);\n"
+"    }\n"
+"    lw_amb_scan = cur; free(heap);\n"
+"}\n"
 "static void lw_schedule(void) {\n"
 "    int prev = lw_in_gsched; lw_in_gsched = 1; int vprev_ = lw_vec_shared; lw_vec_shared = 1; unsigned long long rr = 0;\n"
 "    /* \xe2\x98\x85\xe2\x98\x85\xe2\x98\x85 \xec\x9e\xac\xec\xa7\x84\xec\x9e\x85: \xec\xa4\x91\xec\xb2\xa9 task_group \xec\x9d\x84 \xea\xb7\xb8\xeb\xa6\xb0\xec\x8a\xa4\xeb\xa0\x88\xeb\x93\x9c \xec\x95\x88\xec\x97\x90\xec\x84\x9c \xec\x97\xb4\xeb\xa9\xb4 lw_schedule \xec\x9d\xb4 \xec\x9e\x90\xea\xb8\xb0\xeb\xa5\xbc\n"
@@ -2428,18 +2486,7 @@ const char LW_CONC[] =
 // ★★★ **끝난 자리(state 4) 재활용 → 없으면 새 자리 → 상한 넘으면 거절** (2026-07-21).
 //   ☞ 전엔 `lw_ngthr < 16` 만 봐 끝난 자리를 안 썼고, 동시에 살아있는 태스크가 16 을 넘으면
 //     조용히 안 들어가 **whoever waited 가 데드락**했다. VM(low_ir.c)과 같은 규율로 맞춘다.
-"        while (lw_nambox > 0) {\n"
-"            int gi = -1;\n"
-"            if (lw_ngthr < lw_gthr_cap) gi = lw_ngthr++;\n"                       /* 게으른 재활용: 상한 전엔 새 자리(슬롯 배정 불변 → 오라클 카운트 불변) */
-"            else { for (int q = base; q < lw_ngthr; q++) if (lw_gthr[q].state == 4) { gi = q; break; }\n"
-"                   if (gi < 0) { lw_gthr_ensure(lw_ngthr + 1); gi = lw_ngthr++; } }\n"  /* 가득+다 바쁨 → 성장(상한 없음, E-Alloc P4) */
-"            int q0_ = lw_amb_hg - 1;\n"                                                 /* 도착 순서의 맨 앞 */
-"            lw_gthr[gi].box = lw_ambox[q0_].box; lw_gthr[gi].fn = lw_ambox[q0_].fn; lw_gthr[gi].nargs = lw_ambox[q0_].nargs;\n"
-"            lw_gthr[gi].job = lw_ambox[q0_].job; lw_gthr[gi].rmax = lw_ambox[q0_].rmax; lw_gthr[gi].nfs = 0;\n"
-"            for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
-"            lw_gthr[gi].state = 1;\n"
-"            lw_amb_take(q0_);\n"
-"        }\n"
+"        lw_grefill(base);\n"
 "        int *ready = lw_ready, nready = 0;\n"
 "        for (int i = base; i < lw_ngthr; i++) if (lw_gthr[i].state == 1 || lw_gthr[i].state == 2) ready[nready++] = i;\n"
 "        if (nready == 0) {\n"
@@ -2465,6 +2512,7 @@ const char LW_CONC[] =
 "            { long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; int nf0_ = lw_gt_fault_in(gi); swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gt_fault_out(gi, nf0_); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
 "        } else { lw_gthr[gi].state = 3; long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; int nf0_ = lw_gt_fault_in(gi); swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gt_fault_out(gi, nf0_); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
 "    }\n"
+"    lw_grelease(base);\n"
 "    lw_ngthr = base; lw_sched_ctx = lw_saved_ctx; lw_cur_gthr = lw_saved_cur; lw_in_gsched = prev; lw_vec_shared = vprev_;\n"
 "}\n"
 "static void lw_gyield(void) {\n"

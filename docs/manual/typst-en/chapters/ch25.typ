@@ -102,7 +102,9 @@ Messages in a mailbox *are not handled by themselves*.
 
 The processor does not decide delivery times on its own for the sake of *determinism*. The same program must give the same answer, and the delivery time is
 the answer. Because a person picks where to empty, the VM and native code deliver in the same order, and the cross-check of two back ends keeps it so.
-`schedule .` empties the mailboxes of every actor at once. Fixing the mailbox size with `mailbox bounded 2 .` makes overflowing puts stop, and
+`schedule .` empties the mailboxes of every actor at once. There too the messages to one actor are handled one at a time in the order put in,
+and even if a handler `yield`s, the next message goes only after the earlier one has finished. The order between different actors is not fixed, so a
+program that leans on it is caught by a `schedule explore_interleavings` test. Fixing the mailbox size with `mailbox bounded 2 .` makes overflowing puts stop, and
 `try spawn send` gives the error as a value instead of stopping.
 
 #misconception[Every actor is its own thread][

@@ -679,7 +679,8 @@ end .
       If even one test failed, that request ends in failure.
 
 (4) A test with the clause `schedule explore_interleavings [limit <number>] .` is run repeatedly while changing **the order** in which messages are
-      delivered. Without `limit` it runs up to a bound the processor decides. If it runs through every order before the bound, the result is reported
+      delivered. What changes is only the order ⟦§10.5⟧ (4b) leaves open — the order inside one actor is one (⟦§10.5⟧ (4a)).
+      Without `limit` it runs up to a bound the processor decides. If it runs through every order before the bound, the result is reported
       as «exhaustive»; if it stops at the bound, as «up to the bound». Stopping at the bound is not reported as exhaustive.
 
 (4a) If it passes in every order, the test passes. If it passes in some orders and fails in others, the

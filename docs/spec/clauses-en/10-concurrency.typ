@@ -337,6 +337,45 @@ h2          │       spawn ├── work ──────────┤ end
       `schedule .` delivers the pending messages of #strong[all actors]; until none remain.
       If `drain` empties one, this empties all.
     ]
+    #para("4a")[
+      `schedule` too handles #strong[the messages sent to one actor in the order put in, one at a time]; — the same as `drain`.
+      Even if the handler gives up its place with `yield` (#cref("10.6") (4)) or stops on a channel, that actor's next message
+      starts #strong[after]; the earlier one has finished.
+    ]
+    #para("4b")[
+      The order between messages of different actors, and between messages and tasks, is not specified by this document. Whether
+      an answer leans on that order is checked by `schedule explore_interleavings` (#cref("6.4.13") (4)), which runs every open order.
+    ]
+    #plain[
+      The order inside one actor is fixed because an actor #strong[holds its own state alone]; (#cref("10.2") (1)). If two messages to the same
+      actor went on together, the two would take turns changing the same state, and a race would arise inside the actor — the reason
+      for using an actor would be gone. The order between actors is left open because fixing it gains nothing and loses something:
+      once fixed, a program that leans on that order does not show up in tests, and when the work is divided over several cores every
+      actor would have to wait for the others.
+    ]
+    #ex("inside one actor, in the order put in", "module ex_schedule_order .
+
+actor log do
+  state do h u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    set h. expr h. * 10 + x. . .
+    return h. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+
+export proc run output u64 . effects state .
+do
+  var c log spawn actor log . .
+  spawn send c. put 1 . .
+  spawn send c. put 2 . .
+  spawn send c. put 3 . .
+  spawn send c. put 4 . .
+  spawn send c. put 5 . .
+  schedule .
+  return send c. get . .
+end .",
+      out: "run() = 12345")
   ]
   #sub("10.6", "Exchanging between flows — channels")[
     #term("채널", "channel")[

@@ -265,17 +265,28 @@ typedef struct {
     //     (`nb`/`pb`). 둘 다 도착 순서라 옛 배열 순서와 **같은 차례**다(오라클의 «k 번째» 도 같다).
     //     연결 값은 칸 번호 + 1 (0 = 없음) — 0 으로 지운 상태가 곧 빈 상태다. `nmbox` 는 **살아 있는 수**.
     struct { proven_i32 box; proven_u16 handler; proven_u8 nargs; proven_i32 job;
-             proven_u32 ng, pg, nb, pb; vmv_t args[LOW_MAX_PARAMS]; } mbox[VM_MBOX];
+             proven_u32 ng, pg, nb, pb; proven_u64 seq; vmv_t args[LOW_MAX_PARAMS]; } mbox[VM_MBOX];
     proven_size_t   nmbox;
     proven_u32      mb_hg, mb_tg, mb_free, mb_hw;          /* 도착 순서의 머리·꼬리 · 빈 칸 목록 · 한 번도 안 쓴 첫 칸 */
     proven_u32      mb_hb[VM_MAXREC], mb_tb[VM_MAXREC];   /* 인스턴스별 머리·꼬리 */
     proven_u32      mb_nq[VM_MAXREC];                     /* 인스턴스별 대기 수 — `mailbox bounded N` 이 센다 */
+    // ★★★ 2026-11-10 (W-20261110-1025 · 소유자 «A») — `schedule` 은 **한 액터의 메시지를 한 번에 하나, 넣은 차례대로**
+    //   처리한다(정본 §10.5 (4a)). 전에는 우편함 전체를 한꺼번에 그린스레드로 옮겨, 한 액터의 메시지가 1·3·5·4·2 로 돌았고
+    //   `yield` 하는 처리 코드라면 같은 액터의 메시지 셋이 함께 진행되어 고친 값이 사라졌다(123 이어야 할 것이 3).
+    //   `mb_busy` = 그 액터의 메시지를 쥔 그린스레드가 살아 있다 · `mb_wake` = 쥔 것이 끝나 다음 메시지를 넣어야 할 액터들 ·
+    //   `mb_scan` = 아직 훑지 않은 첫 칸(그 뒤가 새로 온 것) · `seq` = 도착 번호(둘을 도착 순서로 합친다).
+    //   그래서 한 번 채우는 값은 **새로 온 수 + 풀린 액터 수** 이고, 쌓인 수와 상관없다.
+    proven_u64      mb_seq;
+    proven_u32      mb_scan, nwake;
+    proven_u8       mb_busy[VM_MAXREC];
+    proven_u32      mb_wake[VM_MAXREC];
     // ★★★ **green thread** (RFC-0009 2/3) — 태스크가 `yield` 로 중단하고 스케줄러에 양보한다.
     //   각 실행 단위(태스크·메시지)가 자기 ucontext(코루틴)에서 돈다 — yield 는 스케줄러로 swap 하고,
     //   재개는 다시 swap. 협조적(한 번에 하나, OS 스레드 하나)이라 경합 없음. 오라클이 yield 순서를 탐색.
     //   frame 충돌을 피하려고 각 gthread 는 base depth = gi*GT_DEPTH 에서 vm_exec 한다(얕은 태스크 전제).
     struct gthr_s { ucontext_t ctx; proven_i32 box; proven_u16 handler; proven_u8 nargs;
                     proven_u8 state;   // 0=빈 · 1=새로 · 2=중단(runnable) · 3=실행 · 4=완료 · 5=채널블록 · 6=await블록
+                    proven_u8 hold;    // ★ 이 그린스레드가 액터 `box` 의 메시지를 쥐고 있다(그 액터의 다음 메시지는 기다린다)
                     proven_i32 blk_chan; proven_u8 blk_recv; proven_i32 job, blk_job;   // 채널·job 블록 정보
                     unsigned base;     // ★ 이 그린스레드의 프레임 창 시작(sched_base + slot*GT_DEPTH) — 메인과 안 겹침
                     long sb;           // ★ RFC-0135 S0 — 이 그린스레드의 스택 예산 사용량(네이티브 lw_gthr[].sb 와 같다)
@@ -308,9 +319,10 @@ static proven_size_t vm_mbox_push(vm_ctx_t *vm, proven_i32 box) {
     proven_u32 i;
     if (vm->mb_free) { i = vm->mb_free - 1; vm->mb_free = vm->mbox[i].ng; } else i = vm->mb_hw++;
     vm->mbox[i].box = box; vm->mbox[i].handler = 0; vm->mbox[i].nargs = 0; vm->mbox[i].job = -1;
-    vm->mbox[i].ng = 0; vm->mbox[i].pg = vm->mb_tg;
+    vm->mbox[i].ng = 0; vm->mbox[i].pg = vm->mb_tg; vm->mbox[i].seq = ++vm->mb_seq;
     if (vm->mb_tg) vm->mbox[vm->mb_tg - 1].ng = i + 1; else vm->mb_hg = i + 1;
     vm->mb_tg = i + 1;
+    if (!vm->mb_scan) vm->mb_scan = i + 1;
     vm->mbox[i].nb = 0; vm->mbox[i].pb = 0;
     if (box >= 0 && (proven_size_t)box < VM_MAXREC) {
         vm->mbox[i].pb = vm->mb_tb[box];
@@ -322,6 +334,7 @@ static proven_size_t vm_mbox_push(vm_ctx_t *vm, proven_i32 box) {
 }
 static void vm_mbox_take(vm_ctx_t *vm, proven_size_t i) {
     proven_u32 ng = vm->mbox[i].ng, pg = vm->mbox[i].pg;
+    if (vm->mb_scan == i + 1) vm->mb_scan = ng;   /* 훑을 자리가 빠지면 다음 칸부터 */
     if (pg) vm->mbox[pg - 1].ng = ng; else vm->mb_hg = ng;
     if (ng) vm->mbox[ng - 1].pg = pg; else vm->mb_tg = pg;
     proven_i32 box = vm->mbox[i].box;
@@ -333,13 +346,13 @@ static void vm_mbox_take(vm_ctx_t *vm, proven_size_t i) {
     }
     vm->mbox[i].nargs = 0;                         /* 지운 칸 — GC 가 옛 인자를 보지 않는다 */
     vm->mbox[i].ng = vm->mb_free; vm->mb_free = (proven_u32)i + 1;
-    if (--vm->nmbox == 0) { vm->mb_free = 0; vm->mb_hw = 0; }   /* 비면 처음부터 — 칸 번호가 작게 남는다 */
+    if (--vm->nmbox == 0) { vm->mb_free = 0; vm->mb_hw = 0; vm->mb_scan = 0; }   /* 비면 처음부터 — 칸 번호가 작게 남는다 */
 }
-/* 도착 순서로 k 번째(0 부터) 칸. 오라클이 앞이 아닌 것을 고를 때만 걷는다. */
-static proven_size_t vm_mbox_nth(const vm_ctx_t *vm, proven_size_t k) {
-    proven_u32 m = vm->mb_hg;
-    while (k-- > 0 && m) m = vm->mbox[m - 1].ng;
-    return (proven_size_t)(m ? m - 1 : vm->mb_hg - 1);
+/* ★ §10.5 (4a) — 이 칸을 지금 배달해도 되는가: 태스크이거나, 쥔 것이 없는 액터의 **맨 앞** 메시지. */
+static inline bool vm_mbox_ready(const vm_ctx_t *vm, proven_size_t i) {
+    proven_i32 box = vm->mbox[i].box;
+    if (box < 0 || (proven_size_t)box >= VM_MAXREC) return true;
+    return !vm->mb_busy[box] && vm->mb_hb[box] == i + 1;
 }
 // ★ RFC-0132 P4e ① — 값의 손잡이에서 레코드로 가는 길은 이것 하나다(풀 안쪽 — 만들기 · 거두기 · 액터 — 은 풀을 바로 본다).
 #define VM_RECV(vm, v) ((v).box >= 0 ? &(vm)->recs[(v).box] : (vmrec_t *)(void *)(v).p)
@@ -1266,6 +1279,77 @@ static void gthr_trampoline(void) {
 }
 
 // 전역 메일박스를 **코루틴 스케줄러**로 비운다(quiescence 까지). yield 가 있으면 진짜 인터리빙.
+// ★ 우편함의 칸 q0 을 그린스레드 하나로 옮긴다(액터 메시지면 그 액터를 «쥔» 것으로 적는다). 메모리를 못 늘리면 false.
+static bool vm_gabsorb(vm_ctx_t *vm, proven_size_t q0) {
+    proven_size_t gi = (proven_size_t)-1;
+    if (vm->ngthr < g_gthr_cap) { gi = vm->ngthr++; }
+    else {
+        // 가득: 먼저 끝난 자리(state 4)를 재활용한다(메모리를 안 늘리고 흔한 경우를 흡수).
+        for (proven_size_t q = 0; q < vm->ngthr; q++) if (vm->gthr[q].state == 4) { gi = q; break; }
+        // ★★★ **가득 + 다 바쁨 → 성장한다**(E-Alloc P3). 상한이 없다 — 동시에 막힌 태스크가
+        //   수천이어도 백킹을 키워 담는다. 오직 **메모리**만 못 늘리면(OOM) 멈춘다(정직한 실패).
+        //   ☞ realloc 이 frames 를 옮겨도 안전: 참조는 절대깊이 인덱스라 이동 무관, 여기(refill)는
+        //     모든 그린스레드가 블록 지점에 있어 vmframe_t* 를 안 쥔 때다.
+        if (gi == (proven_size_t)-1) {
+            if (!vm_conc_ensure(vm, g_gthr_cap + 1)) return false;
+            gi = vm->ngthr++;
+        }
+    }
+    struct gthr_s *g = &vm->gthr[gi];
+    g->box = vm->mbox[q0].box; g->handler = vm->mbox[q0].handler; g->nargs = vm->mbox[q0].nargs;
+    g->job = vm->mbox[q0].job;
+    // ★ 창 시작 = sched_base + slot*GT_DEPTH. **슬롯 인덱스**로 정한다(재활용해도 창이 서로소).
+    // ★★★ **그린스레드는 메인 사슬 깊이(sched_base)부터 센다** (RFC-0073, 2026-07-21).
+    //   D3(슬롯 참조)로 프레임 창은 사라졌지만, **깊이 카운터**는 메인이 멈춘 자리부터
+    //   이어야 네이티브와 정확히 맞는다: 네이티브의 협조적(peer=1) 태스크는 메인 스레드에서
+    //   lw_depth 를 메인 체인 위로 이어 센다. gi*GT_DEPTH 창 오프셋은 없앤다(슬롯이 대신한다).
+    g->base = vm->sched_base;
+    for (proven_u8 x = 0; x < g->nargs; x++) g->args[x] = vm->mbox[q0].args[x];
+    g->state = 1;   // 새로 시작
+    g->hold = 0;
+    if (g->box >= 0 && (proven_size_t)g->box < VM_MAXREC) { g->hold = 1; vm->mb_busy[g->box] = 1; }
+    vm_mbox_take(vm, q0);
+    return true;
+}
+// ★★★ §10.5 (4a) — 끝난 그린스레드가 쥐었던 액터를 푼다. 그 액터에 남은 메시지가 있으면 다음 채우기가 맨 앞을 넣는다.
+static void vm_grelease(vm_ctx_t *vm) {
+    for (proven_size_t q = 0; q < vm->ngthr; q++) {
+        struct gthr_s *g = &vm->gthr[q];
+        if (!g->hold || (g->state != 4 && g->state != 0)) continue;
+        g->hold = 0; vm->mb_busy[g->box] = 0;
+        if (vm->mb_nq[g->box] && vm->nwake < VM_MAXREC) vm->mb_wake[vm->nwake++] = (proven_u32)g->box;
+    }
+}
+// ★★★ §10.5 (4a) — 채우기. 배달해도 되는 칸(태스크 · 쥔 것 없는 액터의 맨 앞)을 **도착 순서대로** 그린스레드로 옮긴다.
+//   보는 것은 ① 풀린 액터의 맨 앞 ② 지난 채우기 뒤에 새로 온 칸 — 둘을 도착 번호로 합친다. 앞에 남은 칸은
+//   전부 쥔 액터의 것이라(그 액터가 풀리면 ① 이 된다) 다시 훑지 않는다.
+static bool vm_grefill(vm_ctx_t *vm) {
+    vm_grelease(vm);
+    proven_u32 nw = vm->nwake; vm->nwake = 0;
+    proven_u32 w[VM_MAXREC > 64 ? 64 : VM_MAXREC], *wv = w;   /* 풀린 액터의 맨 앞 칸 + 1 — 보통 하나 */
+    proven_u32 *heap = (nw > (sizeof w / sizeof w[0])) ? malloc(nw * sizeof *heap) : NULL;
+    if (heap) wv = heap; else if (nw > (sizeof w / sizeof w[0])) return false;
+    proven_u32 n = 0;
+    for (proven_u32 k = 0; k < nw; k++) {
+        proven_i32 b = (proven_i32)vm->mb_wake[k];
+        if (vm->mb_busy[b] || !vm->mb_hb[b]) continue;
+        proven_u32 h = vm->mb_hb[b], j = n++;
+        while (j > 0 && vm->mbox[wv[j - 1] - 1].seq > vm->mbox[h - 1].seq) { wv[j] = wv[j - 1]; j--; }   /* 도착 순서로 */
+        wv[j] = h;
+    }
+    proven_u32 cur = vm->mb_scan, wi = 0;
+    bool ok = true;
+    while (ok && (cur || wi < n)) {
+        proven_size_t q;
+        if (wi < n && (!cur || vm->mbox[wv[wi] - 1].seq < vm->mbox[cur - 1].seq)) q = wv[wi++] - 1;   /* 같으면 새 쪽(같은 칸) */
+        else { q = cur - 1; cur = vm->mbox[q].ng; }
+        if (!vm_mbox_ready(vm, q)) continue;
+        ok = vm_gabsorb(vm, q);
+    }
+    vm->mb_scan = cur;   /* 다 훑었으면 0 — 남은 것은 모두 쥔 액터의 것 */
+    free(heap);
+    return ok;
+}
 static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
     bool prev = vm->in_gsched; vm->in_gsched = true;
     // ★★★ **그린스레드 창은 메인의 살아있는 프레임 위에서 시작한다** (E-Alloc P1, 2026-07-21).
@@ -1285,36 +1369,7 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
         //   ☞ **게으르게** 하는 이유: 상한 전엔 새 자리를 써 슬롯 배정을 안 흔든다 ⇒ 상한 미만
         //     프로그램의 인터리빙 열거가 **불변**이다(재활용이 슬롯 인덱스를 바꾸면 오라클이 세는
         //     수가 달라진다). 재활용은 **정말 가득 찼을 때만** 개입한다.
-        while (vm->nmbox > 0) {
-            proven_size_t gi = (proven_size_t)-1;
-            if (vm->ngthr < g_gthr_cap) { gi = vm->ngthr++; }
-            else {
-                // 가득: 먼저 끝난 자리(state 4)를 재활용한다(메모리를 안 늘리고 흔한 경우를 흡수).
-                for (proven_size_t q = 0; q < vm->ngthr; q++) if (vm->gthr[q].state == 4) { gi = q; break; }
-                // ★★★ **가득 + 다 바쁨 → 성장한다**(E-Alloc P3). 상한이 없다 — 동시에 막힌 태스크가
-                //   수천이어도 백킹을 키워 담는다. 오직 **메모리**만 못 늘리면(OOM) 멈춘다(정직한 실패).
-                //   ☞ realloc 이 frames 를 옮겨도 안전: 참조는 절대깊이 인덱스라 이동 무관, 여기(refill)는
-                //     모든 그린스레드가 블록 지점에 있어 vmframe_t* 를 안 쥔 때다.
-                if (gi == (proven_size_t)-1) {
-                    if (!vm_conc_ensure(vm, g_gthr_cap + 1)) {
-                        vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling; return false; }
-                    gi = vm->ngthr++;
-                }
-            }
-            struct gthr_s *g = &vm->gthr[gi];
-            proven_size_t q0 = vm->mb_hg - 1;   // 도착 순서의 맨 앞
-            g->box = vm->mbox[q0].box; g->handler = vm->mbox[q0].handler; g->nargs = vm->mbox[q0].nargs;
-            g->job = vm->mbox[q0].job;
-            // ★ 창 시작 = sched_base + slot*GT_DEPTH. **슬롯 인덱스**로 정한다(재활용해도 창이 서로소).
-            // ★★★ **그린스레드는 메인 사슬 깊이(sched_base)부터 센다** (RFC-0073, 2026-07-21).
-            //   D3(슬롯 참조)로 프레임 창은 사라졌지만, **깊이 카운터**는 메인이 멈춘 자리부터
-            //   이어야 네이티브와 정확히 맞는다: 네이티브의 협조적(peer=1) 태스크는 메인 스레드에서
-            //   lw_depth 를 메인 체인 위로 이어 센다. gi*GT_DEPTH 창 오프셋은 없앤다(슬롯이 대신한다).
-            g->base = vm->sched_base;
-            for (proven_u8 x = 0; x < g->nargs; x++) g->args[x] = vm->mbox[q0].args[x];
-            g->state = 1;   // 새로 시작
-            vm_mbox_take(vm, q0);
-        }
+        if (!vm_grefill(vm)) { vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling; return false; }
         // 2) **runnable**(새·자발중단) gthread 를 모아 오라클 계획대로 하나 고른다. 채널 블록(5)은 제외 —
         //   그 태스크는 채널 op 성공이 깨워야만 runnable 이 된다(스케줄러가 막힌 태스크를 헛돌리지 않는다).
         proven_size_t *ready = g_ready, nready = 0;   // ★ 동적(g_gthr_cap 만큼) — E-Alloc P3
@@ -1375,6 +1430,7 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
         vm->sbytes = sch_sb_;
         if (g_gt_err) { vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling; return false; }
     }
+    vm_grelease(vm);
     vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling;
     return true;
 }
@@ -2001,7 +2057,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     break;
                 }
                 proven_size_t guard = 0;
-                while (vm->nmbox > 0) {
+                // ★★★ §10.5 (4a) — 여기서도 배달해도 되는 칸만 센다: 태스크와, 쥔 것 없는 액터의 맨 앞(지금 이 처리 코드를
+                //   돌리는 액터는 쥐어 있으므로 그 액터의 다음 메시지는 이 메시지가 끝난 뒤에 간다).
+                for (;;) {
+                    proven_size_t nel = 0;
+                    for (proven_u32 m = vm->mb_hg; m; m = vm->mbox[m - 1].ng) if (vm_mbox_ready(vm, m - 1)) nel++;
+                    if (nel == 0) break;
                     if (++guard > 1000000) {   // 재진입 send 무한 루프 방어 — 정직한 상한
                         vm_diag(vm->diags, "E-VM-SCHED-LOOP",
                                 "the scheduler did not reach quiescence — a handler keeps sending "
@@ -2013,15 +2074,19 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     //   크기를 기록해 오라클이 backtrack 에 쓴다. 계획이 비면(평소·네이티브) 전부 front.
                     proven_size_t pick;
                     if (g_sched_step < SCHED_MAXSTEP) {
-                        g_sched_sizes[g_sched_step] = (proven_u16)vm->nmbox;   // ready 크기 기록
+                        g_sched_sizes[g_sched_step] = (proven_u16)nel;   // ready 크기 기록
                         proven_size_t choice = (g_sched_step < g_sched_plan_len)
                                                  ? (proven_size_t)g_sched_plan[g_sched_step] : 0;
-                        pick = (choice < vm->nmbox) ? choice : 0;               // 방어적 clamp
+                        pick = (choice < nel) ? choice : 0;               // 방어적 clamp
                         g_sched_step++;
                     } else {
                         pick = 0;   // 통제 깊이를 넘으면 front(FIFO) — 그 너머는 열거 못 한다(정직히 보고)
                     }
-                    pick = pick ? vm_mbox_nth(vm, pick) : (proven_size_t)(vm->mb_hg - 1);   // 도착 순서의 pick 번째 칸
+                    {   // 배달해도 되는 칸 가운데 도착 순서로 pick 번째
+                        proven_u32 m = vm->mb_hg;
+                        for (;; m = vm->mbox[m - 1].ng) if (vm_mbox_ready(vm, m - 1) && pick-- == 0) break;
+                        pick = m - 1;
+                    }
                     proven_i32 box = vm->mbox[pick].box;
                     proven_u16 hh = vm->mbox[pick].handler; proven_u8 na = vm->mbox[pick].nargs;
                     vmv_t cargs[VM_LOCALS];
@@ -2033,7 +2098,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_mbox_take(vm, pick);
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
+                    const bool held = box >= 0 && (proven_size_t)box < VM_MAXREC;
+                    if (held) vm->mb_busy[box] = 1;   // 이 메시지가 끝날 때까지 이 액터는 쥐어 있다
                     if (!vm_actor_exec(vm, h, cargs, &rv2, depth + 1)) return false;
+                    if (held) vm->mb_busy[box] = 0;
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛

@@ -702,7 +702,8 @@ end .", "E-CONTRACT-IMPOSSIBLE")
     ]
     #para("4")[
       A test with the clause `schedule explore_interleavings [limit <number>] .` is run repeatedly while changing #strong[the order]; in which messages are
-      delivered. Without `limit` it runs up to a bound the processor decides. If it runs through every order before the bound, the result is reported
+      delivered. What changes is only the order #cref("10.5") (4b) leaves open — the order inside one actor is one (#cref("10.5") (4a)).
+      Without `limit` it runs up to a bound the processor decides. If it runs through every order before the bound, the result is reported
       as «exhaustive»; if it stops at the bound, as «up to the bound». Stopping at the bound is not reported as exhaustive.
     ]
     #para("4a")[

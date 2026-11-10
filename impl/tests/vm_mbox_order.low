@@ -4,7 +4,8 @@ rem 우편함은 전에 칸 하나를 꺼낼 때마다 뒤 칸을 모두 당겼�
 rem 이제 칸은 제자리에 있고 차례는 연결로 든다. 바꾼 것은 값이고 **차례는 그대로여야 한다**:
 rem   · 한 인스턴스로 온 메시지는 도착 순서대로 처리된다(`drain`).
 rem   · 한 인스턴스를 비워도 다른 인스턴스의 줄은 그대로 남는다.
-rem   · `schedule` 은 모두를 비운다(차례는 정본이 정하지 않았다 — 아래).
+rem   · `schedule` 은 모두를 비운다 — 한 액터 안에서는 `drain` 과 같은 차례로, 한 번에 하나씩(정본 §10.5 (4a) ·
+rem     2026-11-10 소유자 «A»). 처리 코드가 `yield` 해도 그 액터의 다음 메시지는 앞의 것이 끝난 뒤에 간다.
 rem   · `mailbox bounded N` 은 그 인스턴스로 대기 중인 수만 센다 — 다른 인스턴스의 수천 개는 안 센다.
 rem `drain` 의 차례가 하나라도 바뀌면 해시가 달라진다(h = h × 31 + x, 1,000,003 으로 나눈 나머지).
 rem 각 op 은 다 맞으면 1, 아니면 어느 검사가 틀렸는지 2 이상을 돌려준다. VM 과 네이티브 둘 다 돈다.
@@ -61,9 +62,8 @@ proc interleave_drain output u64 . effects state . do
   return 1 .
 end .
 
-rem 같은 줄을 `schedule` 로 — 전부 배달된다. ★ 차례는 재지 않는다: 정본 §10.5 (4) 는 `schedule` 의
-rem   차례를 정하지 않았고, 지금 처리기는 한 액터의 메시지도 돌아가며 집는다(3 개면 7 · 9 · 8 순서 —
-rem   2026-11-09 실측, 바꾸기 전 컴파일러도 같다). 그래서 여기서는 수만 센다.
+rem 같은 줄을 `schedule` 로 — 전부 배달되고, 한 액터 안의 차례가 `drain` 과 같다(정본 §10.5 (4a)).
+rem   ★ 2026-11-09 에는 수만 셌다: 그때 `schedule` 은 한 액터의 메시지도 돌아가며 집었다(3 개면 7 · 9 · 8).
 proc interleave_schedule output u64 . effects state . do
   let n u64 2000 .
   var a acc spawn actor acc . .
@@ -77,6 +77,8 @@ proc interleave_schedule output u64 . effects state . do
   schedule .
   if ne send a. count . n. . do return 2 . end .
   if ne send b. count . n. . do return 3 . end .
+  if ne send a. hash . expect_hash n. 0 . . do return 4 . end .
+  if ne send b. hash . expect_hash n. 7 . . do return 5 . end .
   return 1 .
 end .
 
@@ -158,4 +160,44 @@ proc overflow output u64 . effects state . do
   end .
   drain a. .
   return 1 .
+end .
+
+rem ★★★ 처리 코드가 `yield` 로 차례를 넘겨도 **같은 액터의 다음 메시지는 앞의 것이 끝난 뒤에** 간다(정본 §10.5 (4a)).
+rem   2026-11-10 전에는 세 메시지가 함께 진행되어 셋이 모두 h = 0 을 읽고 고쳤다 — 123 이어야 할 것이 3 이었다
+rem   (VM · 네이티브 같음). 다른 액터 `b` 는 그 사이에 돌 수 있다 — 한 액터 안의 차례만 정해져 있다.
+actor slow do
+  state do h u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    let a u64 h. .
+    yield .
+    set h. expr a. * 10 + x. . .
+    return h. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+
+proc schedule_yield output u64 . effects state . do
+  var a slow spawn actor slow . .
+  var b slow spawn actor slow . .
+  spawn send a. put 1 . .
+  spawn send b. put 4 . .
+  spawn send a. put 2 . .
+  spawn send b. put 5 . .
+  spawn send a. put 3 . .
+  schedule .
+  if ne send a. get . 123 . do return 2 . end .
+  if ne send b. get . 45 . do return 3 . end .
+  return 1 .
+end .
+
+rem 같은 것을 오라클이 모든 차례로 — 두 액터 사이의 차례는 열리고(yield 자리까지), 한 액터 안은 하나뿐이다.
+test schedule_yield_orders schedule explore_interleavings . do
+  var a slow spawn actor slow . .
+  var b slow spawn actor slow . .
+  spawn send a. put 1 . .
+  spawn send b. put 4 . .
+  spawn send a. put 2 . .
+  schedule .
+  expect eq send a. get . 12 . .
+  expect eq send b. get . 4 . .
 end .

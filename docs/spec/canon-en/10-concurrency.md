@@ -317,6 +317,45 @@ h2          │       spawn ├── work ──────────┤ end
 (4) `schedule .` delivers the pending messages of **all actors** until none remain.
       If `drain` empties one, this empties all.
 
+(4a) `schedule` too handles **the messages sent to one actor in the order put in, one at a time** — the same as `drain`.
+      Even if the handler gives up its place with `yield` (⟦§10.6⟧ (4)) or stops on a channel, that actor's next message
+      starts **after** the earlier one has finished.
+
+(4b) The order between messages of different actors, and between messages and tasks, is not specified by this document. Whether
+      an answer leans on that order is checked by `schedule explore_interleavings` (⟦§6.4.13⟧ (4)), which runs every open order.
+
+> [!산문]
+> The order inside one actor is fixed because an actor **holds its own state alone** (⟦§10.2⟧ (1)). If two messages to the same
+> actor went on together, the two would take turns changing the same state, and a race would arise inside the actor — the reason
+> for using an actor would be gone. The order between actors is left open because fixing it gains nothing and loses something:
+> once fixed, a program that leans on that order does not show up in tests, and when the work is divided over several cores every
+> actor would have to wait for the others.
+
+```lowent 예제: inside one actor, in the order put in · 결과: run() = 12345
+module ex_schedule_order .
+
+actor log do
+  state do h u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    set h. expr h. * 10 + x. . .
+    return h. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+
+export proc run output u64 . effects state .
+do
+  var c log spawn actor log . .
+  spawn send c. put 1 . .
+  spawn send c. put 2 . .
+  spawn send c. put 3 . .
+  spawn send c. put 4 . .
+  spawn send c. put 5 . .
+  schedule .
+  return send c. get . .
+end .
+```
+
 ## 10.6 Exchanging between flows — channels
 
 > [!용어] 채널 (channel)

@@ -337,6 +337,44 @@ h2          │       spawn ├── 일 ──────────┤ 끝
       `schedule .` 은 #strong[모든 액터의]; 대기 메시지를 더 남은 것이 없을 때까지 배달한다.
       `drain` 이 하나를 비운다면 이것은 전부를 비운다.
     ]
+    #para("4a")[
+      `schedule` 도 #strong[한 액터 앞으로 온 메시지는 넣은 차례대로, 한 번에 하나씩]; 처리한다 — `drain` 과 같다.
+      처리 코드가 `yield`(#cref("10.6") (4))로 자리를 넘기거나 채널에서 멈추어도, 그 액터의 다음 메시지는 앞의 것이
+      #strong[끝난 뒤에]; 시작한다.
+    ]
+    #para("4b")[
+      서로 다른 액터의 메시지 사이, 메시지와 태스크 사이의 차례는 이 문서가 정하지 아니한다. 답이 그 차례에
+      기대는지는 `schedule explore_interleavings`(#cref("6.4.13") (4))가 열린 차례를 모두 돌려 본다.
+    ]
+    #plain[
+      한 액터 안의 차례를 정하는 까닭은 액터가 #strong[자기 상태를 혼자 가진다];(#cref("10.2") (1))는 데 있다. 같은 액터의 두 메시지가
+      함께 진행되면 둘이 같은 상태를 번갈아 고치게 되고, 그러면 액터 안에 경합이 생긴다 — 액터를 쓰는 까닭이 사라진다.
+      액터 사이의 차례를 열어 두는 까닭은 그것을 정해도 얻는 것이 없고 잃는 것이 있기 때문이다: 정해 두면 그 차례에 기대는
+      프로그램이 시험에서 드러나지 않고, 여러 코어로 나눌 때 모든 액터가 서로를 기다려야 한다.
+    ]
+    #ex("한 액터 안은 넣은 차례대로", "module ex_schedule_order .
+
+actor log do
+  state do h u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    set h. expr h. * 10 + x. . .
+    return h. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+
+export proc run output u64 . effects state .
+do
+  var c log spawn actor log . .
+  spawn send c. put 1 . .
+  spawn send c. put 2 . .
+  spawn send c. put 3 . .
+  spawn send c. put 4 . .
+  spawn send c. put 5 . .
+  schedule .
+  return send c. get . .
+end .",
+      out: "run() = 12345")
   ]
   #sub("10.6", "흐름끼리 주고받기 — 채널")[
     #term("채널", "channel")[

@@ -2079,6 +2079,7 @@ const char LW_CONC_T0[] =
 // ★ 넣기 · 세기는 호스트판과 같은 이름(방출 코드가 하나다). T0 는 칸이 작아(기본 32) 당기기를 그대로 둔다 —
 //   차례는 호스트판과 같고 값만 다르다. 연결 칸을 더하면 작은 칩의 RAM 이 는다(W-20261109-1749).
 "static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
+"#define LW_SET_NOY(i, v) ((void)(i))\n"   /* T0 는 그린스레드가 없다 — 칸을 늘리지 않는다 */
 "static int lw_amb_push(int box) { int i = lw_nambox++; lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0;"
 " lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1; return i; }\n"
 "static int lw_amb_pend(int box) { int n = 0; for (int q = 0; q < lw_nambox; q++) if (lw_ambox[q].box == box) n++; return n; }\n"
@@ -2156,7 +2157,8 @@ const char LW_CONC[] =
 //     (실측: 1 개 209 ns · 4,000 개 103,135 ns). 칸은 제자리, 순서는 연결: 도착 순서 전체(ng/pg)와
 //     인스턴스별 도착 순서(nb/pb). 연결 값 = 칸 번호 + 1 (0 = 없음). `lw_nambox` 는 살아 있는 수.
 "static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer; int rmax;"
-" int ng, pg, nb, pb; unsigned long long seq; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
+" int ng, pg, nb, pb; int noy; unsigned long long seq; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
+"#define LW_SET_NOY(i, v) (lw_ambox[i].noy = (v))\n"
 "static int lw_nambox;\n"
 "static int lw_amb_hg, lw_amb_tg, lw_amb_free, lw_amb_hw;\n"
 "static int lw_amb_hb[LW_RECPOOL], lw_amb_tb[LW_RECPOOL], lw_amb_nq[LW_RECPOOL];\n"
@@ -2169,7 +2171,7 @@ const char LW_CONC[] =
 "static int lw_amb_push(int box) {\n"
 "    int i; if (lw_amb_free) { i = lw_amb_free - 1; lw_amb_free = lw_ambox[i].ng; } else i = lw_amb_hw++;\n"
 "    lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0; lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1;\n"
-"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg; lw_ambox[i].seq = ++lw_amb_seq;\n"
+"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg; lw_ambox[i].seq = ++lw_amb_seq; lw_ambox[i].noy = 0;\n"
 "    if (!lw_amb_scan) lw_amb_scan = i + 1;\n"
 "    if (lw_amb_tg) lw_ambox[lw_amb_tg - 1].ng = i + 1; else lw_amb_hg = i + 1;\n"
 "    lw_amb_tg = i + 1; lw_ambox[i].nb = 0; lw_ambox[i].pb = 0;\n"
@@ -2231,7 +2233,7 @@ const char LW_CONC[] =
 //   ☞ 스택은 코루틴의 실행 스택(C 스택과 같은 범주) — pthread 가 이미 워커 OS 스택을 잡는 것과
 //     같은 종류의 할당이지, 언어가 세는 데이터 힙이 아니다(RFC-0043 위반 아님).
 "static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); unsigned char nargs;\n"
-"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; int hold; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
+"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; int hold; int noy; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
 // ★★ 2026-11-09 (W-20261109-1922) — **다시 세우기의 경계는 그린스레드마다 따로다.** 경계(`lw_fault`)는 setjmp 의
 //   스택이라, 메시지가 경계 안에서 양보하고 다른 메시지가 같은 칸에 경계를 세우면 패닉이 **남의 스택으로** 뛴다.
 //   그래서 협조 스케줄러가 그린스레드로 들어갈 때 그 것의 경계를 위에 다시 얹고, 나올 때 떼어 그 것의 자리에 둔다.
@@ -2402,7 +2404,7 @@ const char LW_CONC[] =
 "    lw_gthr[gi].box = lw_ambox[q0_].box; lw_gthr[gi].fn = lw_ambox[q0_].fn; lw_gthr[gi].nargs = lw_ambox[q0_].nargs;\n"
 "    lw_gthr[gi].job = lw_ambox[q0_].job; lw_gthr[gi].rmax = lw_ambox[q0_].rmax; lw_gthr[gi].nfs = 0;\n"
 "    for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
-"    lw_gthr[gi].state = 1; lw_gthr[gi].hold = 0;\n"
+"    lw_gthr[gi].state = 1; lw_gthr[gi].hold = 0; lw_gthr[gi].noy = lw_ambox[q0_].noy;\n"
 "    if (lw_gthr[gi].box >= 0 && lw_gthr[gi].box < LW_RECPOOL) { lw_gthr[gi].hold = 1; lw_amb_busy[lw_gthr[gi].box] = 1; }\n"
 "    lw_amb_take(q0_);\n"
 "}\n"
@@ -2501,6 +2503,14 @@ const char LW_CONC[] =
 "            break;\n"
 "        }\n"
 "        int gi = ready[rr % (unsigned)nready]; rr++; lw_cur_gthr = gi;\n"
+// ★★★ 2b — 멈춰 설 수 없는 액터 메시지(방출기가 cbe_may_suspend 로 판정)는 문맥을 세우지 않고 **이 자리에서** 끝까지 돌린다.
+//   고르는 차례(rr)는 그대로이고 스택 예산도 그린스레드와 같게 깎는다 — VM(늘 그린스레드)과 답 · 멈추는 자리가 같다.
+"        if (lw_gthr[gi].state == 1 && lw_gthr[gi].noy && lw_gthr[gi].box >= 0) {\n"
+"            lw_gthr[gi].state = 3;\n"
+"            long sch_sb_ = lw_sbytes; lw_sbytes = LW_SBUDGET - LW_GT_SBUDGET;\n"
+"            lw_gt_tramp();\n"
+"            lw_sbytes = sch_sb_; continue;\n"
+"        }\n"
 "        if (lw_gthr[gi].state == 1) {\n"
 "            getcontext(&lw_gthr[gi].ctx);\n"
 "            lw_gthr[gi].ctx.uc_stack.ss_sp = lw_gt_stk[gi];\n"

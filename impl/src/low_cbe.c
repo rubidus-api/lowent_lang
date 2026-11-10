@@ -7088,6 +7088,21 @@ static long long cbe_restart_max(const low_ir_t *ir, const low_ir_def_t *h) {
     return -1;
 }
 
+// ★★★ 2단계 2b (2026-11-10 · W-20261110-1025) — 이 처리 코드가 **멈춰 설 수 있는가**(부르는 op 까지 따라간다).
+//   멈춰 서는 낱말은 여섯: yield · 채널 넣기/빼기 · await · reactor 읽기/쓰기(EAGAIN 이면 lw_io_wait 로 넘긴다).
+//   하나도 없으면 `schedule` 이 그 메시지를 그린스레드 없이 **같은 차례에서** 바로 돌린다 — 한 액터는 한 번에 하나라
+//   (정본 §10.5 (4a)) 끝까지 돌아도 답이 같고, 문맥을 세우고 바꾸는 값(메시지 하나 약 1 µs)이 빠진다.
+//   모르면(깊이 8 을 넘는 부름 · 되부름) **멈춰 설 수 있다**고 본다.
+static bool cbe_may_suspend(const low_ir_t *ir, proven_size_t d, int depth) {
+    if (depth > 8 || d >= ir->ndefs) return true;
+    for (proven_size_t i = 0; i < ir->defs[d].ncode; i++) {
+        low_irw_t w = ir->defs[d].code[i].w;
+        if (w == IRW_YIELD || w == IRW_CHRECV || w == IRW_CHSEND || w == IRW_AWAIT || w == IRW_RREAD || w == IRW_RWRITE) return true;
+        if (w == IRW_CALL && cbe_may_suspend(ir, IR_CALL_IDX(ir->defs[d].code[i].a), depth + 1)) return true;
+    }
+    return false;
+}
+
 static bool cbe_needs_peer(const low_ir_t *ir, proven_size_t d, int depth) {
     if (depth > 8 || d >= ir->ndefs) return true;          // 모르면 **안전한 쪽**(협조적)으로
     for (proven_size_t i = 0; i < ir->defs[d].ncode; i++) {
@@ -9314,7 +9329,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     fprintf(out, "      { int qi_ = lw_amb_push(box_);"
                                  " lw_ambox[qi_].fn = lw_op_");
                     put_sym(out, h);
-                    fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].rmax = %lld;\n", np - 1, (long long)cbe_restart_max(ir, h));
+                    fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].rmax = %lld; LW_SET_NOY(qi_, %d);\n", np - 1, (long long)cbe_restart_max(ir, h),
+                            cbe_may_suspend(ir, IR_CALL_IDX(in->a), 0) ? 0 : 1);
                     for (size_t g = 0; g + 1 < np; g++)
                         fprintf(out, "        lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - 1 - g);
                     fprintf(out, "      }\n      sp -= %zu; st[sp++] = lw_int(0); }\n", np);
@@ -9349,7 +9365,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                  "        { int qi_ = lw_amb_push(box_);"
                                  " lw_ambox[qi_].fn = lw_op_", (long long)eidx);
                     put_sym(out, h);
-                    fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].rmax = %lld;\n", np - 1, (long long)cbe_restart_max(ir, h));
+                    fprintf(out, "; lw_ambox[qi_].nargs = %zu; lw_ambox[qi_].rmax = %lld; LW_SET_NOY(qi_, %d);\n", np - 1, (long long)cbe_restart_max(ir, h),
+                            cbe_may_suspend(ir, IR_CALL_IDX(in->a), 0) ? 0 : 1);
                     for (size_t g = 0; g + 1 < np; g++)
                         fprintf(out, "        lw_ambox[qi_].args[%zu] = lw_promote(st[sp-%zu]);\n", g, np - 1 - g);
                     fprintf(out, "      } res_ = lw_wrap_ok(lw_int(0)); }\n"

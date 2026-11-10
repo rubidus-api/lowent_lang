@@ -332,6 +332,16 @@ static proven_size_t vm_mbox_push(vm_ctx_t *vm, proven_i32 box) {
     vm->nmbox++;
     return i;
 }
+// ★★ 2026-11-10 (W-20261110-1548) — 수를 돌려준 부름 뒤에 그 부름이 지은 레코드를 돌려받을 때(rec_wm), **우편함에 메시지가 남았거나
+//   메시지를 처리하는 중인 액터의 레코드는 돌려받지 않는다.** 정본 §10.5 (2) · (4): 그 메시지는 그 액터의 것이고 `schedule` 이 그
+//   액터에게 배달한다 — 다음에 띄운 액터(§10.2: 새 인스턴스)가 같은 번호를 받아 그 메시지를 받으면 안 된다. 전엔 받았다:
+//   `leave` 가 남긴 `add 1` 을 그다음 부름의 갓 띄운 액터가 `drain` 으로 받아 0 이 아니라 1 을 냈다(태그 네이티브도 같았다 —
+//   빠른 경로의 `spawn send`(2a)를 짓다가 드러났다). 기록 docs/known-defects/pending-messages-reach-new-actor.md.
+static void vm_rec_rewind(vm_ctx_t *vm, proven_size_t wm) {
+    proven_size_t n = vm->nrecs;
+    while (n > wm && n <= VM_MAXREC && !vm->mb_nq[n - 1] && !vm->mb_busy[n - 1]) n--;
+    vm->nrecs = n;
+}
 static void vm_mbox_take(vm_ctx_t *vm, proven_size_t i) {
     proven_u32 ng = vm->mbox[i].ng, pg = vm->mbox[i].pg;
     if (vm->mb_scan == i + 1) vm->mb_scan = ng;   /* 훑을 자리가 빠지면 다음 칸부터 */
@@ -961,6 +971,11 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
             vm_gc_mark(vm, vm->mbox[m - 1].args[k], &bx, &rc, &sk, &bs, &vc);
     for (proven_size_t i = 0; i < vm->njobs; i++)
         vm_gc_mark(vm, vm->jobs[i].result, &bx, &rc, &sk, &bs, &vc);
+    // ★★ 2026-11-10 (W-20261110-1548) — 우편함에 메시지가 남았거나 메시지를 처리하는 중인 액터는 **살아 있다**(정본 §10.5 (2) · (4): `schedule`
+    //   이 그 액터에게 배달한다). 아무 지역도 그 액터를 안 쥐어도 그렇다. 전엔 뿌리가 아니라서 압축이 그 자리를 다음 `spawn` 에 주었고, 새 액터가
+    //   옛 액터의 메시지를 받았다(되풀이 안에서 비우지 않은 액터 — VM 과 태그 네이티브가 같이 틀렸다).
+    for (proven_size_t i = rc.base; i < rc.n && i < VM_MAXREC; i++)
+        if (vm->mb_nq[i] || vm->mb_busy[i]) vm_gc_mark_slot(vm, &rc, (proven_i32)i, (vmv_t){ .tag = VMV_REC, .box = (proven_i32)i }, &bx, &rc, &sk, &bs, &vc);
 
     // ② 자리 정하기 — 살아 있는 것에 **오름차순**으로 새 자리를 준다(옮기는 자리는 늘 원래 자리 이하).
     proven_size_t ntop[5];
@@ -976,6 +991,15 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
         proven_u8 *ob = vm->recs[mrc[i]].bytes; proven_size_t oc = vm->recs[mrc[i]].bcap;   // ★ 배열 칸 버퍼는 맞바꾼다
         vm->recs[mrc[i]] = vm->recs[i];
         vm->recs[i].bytes = ob; vm->recs[i].bcap = oc;
+        // ★ 우편함의 인스턴스별 기록도 함께 옮긴다(자리는 늘 아래로 — 오름차순이면 덮을 것이 이미 옮겨졌거나 죽었다).
+        const proven_size_t j_ = (proven_size_t)mrc[i];
+        vm->mb_hb[j_] = vm->mb_hb[i]; vm->mb_tb[j_] = vm->mb_tb[i]; vm->mb_nq[j_] = vm->mb_nq[i]; vm->mb_busy[j_] = vm->mb_busy[i];
+        vm->mbox_depth[j_] = vm->mbox_depth[i];
+        vm->mb_hb[i] = 0; vm->mb_tb[i] = 0; vm->mb_nq[i] = 0; vm->mb_busy[i] = 0; vm->mbox_depth[i] = 0;
+    }
+    for (proven_u32 m = vm->mb_hg; m; m = vm->mbox[m - 1].ng) {   // ★ 칸이 가리키는 인스턴스 번호
+        const proven_i32 b_ = vm->mbox[m - 1].box;
+        if (b_ >= 0 && (proven_size_t)b_ >= rc.base && (proven_size_t)b_ < rc.n && mrc[b_] >= 0) vm->mbox[m - 1].box = mrc[b_];
     }
     for (proven_size_t i = sk.base; i < sk.n; i++) if (msk[i] >= 0 && (proven_size_t)msk[i] != i) vm->stks[msk[i]]  = vm->stks[i];
     for (proven_size_t i = bs.base; i < bs.n; i++) if (mbs[i] >= 0 && (proven_size_t)mbs[i] != i) { vm->bsets[mbs[i]] = vm->bsets[i]; vm->bwid[mbs[i]] = vm->bwid[i]; }
@@ -1127,7 +1151,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             if (!top) { *ret = rv; vm->sbytes = done->sb_saved; act_free(done); { VM_CHAIN_LEAVE(); return true; } }   // 진입 프레임이 끝났다
             // 스칼라 반환이면 콜리가 만든 레코드/박스 풀을 회수(호출 때 저장한 워터마크로).
             if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {
-                vm->nrecs = top->rec_wm; vm->nbset = top->bs_wm; vm->nstk = top->sk_wm; vm->nbox = top->bx_wm;
+                vm_rec_rewind(vm, top->rec_wm); vm->nbset = top->bs_wm; vm->nstk = top->sk_wm; vm->nbox = top->bx_wm;
             }
             if (top->sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow");
                 act_free(done);
@@ -4820,7 +4844,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (!ok_call) return false;
                 if (!vm_fw_take(vm, a->d->nwin ? &a->win : NULL, &rv)) return false;   // ★ RFC-0132 P4e
                 if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {
-                    vm->nrecs = rec_wm; vm->nbset = bs_wm; vm->nstk = sk_wm; vm->nbox = bx_wm;
+                    vm_rec_rewind(vm, rec_wm); vm->nbset = bs_wm; vm->nstk = sk_wm; vm->nbox = bx_wm;
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = rv;

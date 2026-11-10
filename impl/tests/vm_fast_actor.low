@@ -1,0 +1,130 @@
+rem ★★ 빠른 경로의 `spawn send` (2026-11-10 · W-20261110-1548 · 2 단계 2a, 소유자 «(b)») — 그리고 그것이 드러낸 오래된 결함 하나.
+rem
+rem 이 op 들은 모두 빠른 경로로 내려간다(`--why-slow` 0). 이 op 이 띄운 액터는 자기 자리에 살고, 우편함 칸은 그 바이트와 처리 코드의 빠른 판을 든다.
+rem   · order — 넣고 비우고 다시 넣고 `schedule` (123). two — 두 액터 · `schedule` 은 부른 op 안에서 (1207).
+rem   · left_ok · left_boom — op 을 떠난 뒤에도 메시지는 남고 나중의 `schedule` 이 그 액터에게 배달한다(7 · 0 으로 나누면 멈춘다).
+rem   · after_call — 부른 op 이 남긴 메시지를 그다음 부름이 띄운 액터가 받으면 안 된다(0). loop_left — 되풀이에서도(1).
+rem     ★ 이 둘이 오래된 결함을 문다: VM · 태그 네이티브 · T0 가 같이 5 · 11 을 냈다 — 메시지가 남은 액터의 레코드를 되감기와 압축이 돌려주어
+rem       다음 `spawn` 이 그 번호를 받았다(정본 §10.5 (2) · (4) · §10.2). 기록 docs/known-defects/pending-messages-reach-new-actor.md.
+rem   · loop_boom — 되풀이에서 지역이 놓은 액터(메시지가 남았다)도 살아 있다: 끝의 `schedule` 이 그 메시지를 배달해 0 으로 나눠 멈춘다
+rem     (압축이 그것을 뿌리로 보지 않으면 메시지가 조용히 사라져 9 를 낸다).
+rem   · rec 의 깊이는 20 까지로 묶었다 — 깊이 한도 바로 앞(127)에서 VM 과 네이티브가 한 칸 다르게 센다(이 일과 따로인 결함 ·
+rem     docs/known-defects/depth-leaf-call-off-by-one.md).
+rem   · many — 6000 바퀴에 절반은 비우지 않는다(자리가 돌아와야 한다 · 1200 은 200 바퀴의 답). rec — 되부름, 틀마다 제 액터 (15).
+module vm_fast_actor .
+
+actor acc do
+  state do v u64 . end .
+  proc add input x u64 . output u64 . effects state . do set v. expr v. * 10 + x. . . return v. . end .
+  proc cut input x u64 . output u64 . effects state . do set v. expr v. / x. . . return v. . end .
+  fn get output u64 . do return v. . end .
+end .
+
+proc order output u64 . effects state . do
+  var a acc spawn actor acc . .
+  spawn send a. add 1 . .
+  spawn send a. add 2 . .
+  drain a. .
+  spawn send a. add 3 . .
+  schedule .
+  return send a. get . .
+end .
+
+proc pump output u64 . effects state . do
+  schedule .
+  return 0 .
+end .
+
+proc two output u64 . effects state . do
+  var a acc spawn actor acc . .
+  var b acc spawn actor acc . .
+  spawn send a. add 1 . .
+  spawn send b. add 7 . .
+  spawn send a. add 2 . .
+  let z u64 pump . .
+  return expr send a. get . * 100 + send b. get . . .
+end .
+
+proc leave input x u64 . output u64 . effects state . do
+  var a acc spawn actor acc . .
+  spawn send a. add 5 . .
+  spawn send a. cut x. . .
+  return 7 .
+end .
+
+proc left_ok output u64 . effects state . do
+  let r u64 leave 1 . .
+  schedule .
+  return r. .
+end .
+
+proc left_boom output u64 . effects state . do
+  let r u64 leave 0 . .
+  schedule .
+  return r. .
+end .
+
+proc fresh output u64 . effects state . do
+  var a acc spawn actor acc . .
+  drain a. .
+  return send a. get . .
+end .
+
+proc after_call output u64 . effects state . do
+  let z u64 leave 1 . .
+  return fresh . .
+end .
+
+proc loop_left output u64 . effects state . do
+  var i u64 0 .
+  var s u64 0 .
+  while lt i. 3 . do
+    var a acc spawn actor acc . .
+    spawn send a. add 1 . .
+    if eq i. 1 . do set i. expr i. + 1 . . continue . end .
+    drain a. .
+    set s. send a. get . .
+    set i. expr i. + 1 . .
+  end .
+  return s. .
+end .
+
+proc many input n u64 . output u64 . effects state . do
+  var i u64 0 .
+  var s u64 0 .
+  while lt i. n. . do
+    var a acc spawn actor acc . .
+    spawn send a. add 1 . .
+    spawn send a. add 2 . .
+    if eq mod i. 2 . 0 . do
+      drain a. .
+      set s. expr s. + send a. get . . .
+    end .
+    if eq mod i. 100 . 99 . do schedule . end .
+    set i. expr i. + 1 . .
+  end .
+  schedule .
+  return s. .
+end .
+
+proc rec input n u64 . output u64 . effects state .
+  requires le n. 20 . .
+do
+  var a acc spawn actor acc . .
+  spawn send a. add n. . .
+  var r u64 0 .
+  if gt n. 0 . do set r. rec expr n. - 1 . . . end .
+  drain a. .
+  return expr r. + send a. get . . .
+end .
+
+proc loop_boom output u64 . effects state . do
+  var i u64 0 .
+  while lt i. 3 . do
+    var a acc spawn actor acc . .
+    if eq i. 0 . do spawn send a. cut 0 . . end .
+    set i. expr i. + 1 . .
+  end .
+  schedule .
+  return 9 .
+end .

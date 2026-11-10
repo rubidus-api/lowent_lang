@@ -933,6 +933,18 @@ static bool g_aid_need[64];      // 이 유닛의 어떤 `make` 가 이 액터 �
 static unsigned long long g_acap[512], g_aderef[512], g_aunp[512];   // 액터 상태 sidx 의 비트 — 담을 수 있다 · 칸을 거쳐 말한다 · 풀어 든다
 static bool g_abox[512];         // 이 op(이나 그것이 부르는 op)이 태그 쪽 액터 레코드를 짓는다(빠른 경로의 `spawn` — 아래 cbe_abox)
 static bool cbe_make_zero(const low_ir_t *ir, const low_ir_def_t *d, proven_size_t j, int sx, proven_size_t nf);
+// ★★★ 2026-11-10 (W-20261110-1548 · 2 단계 2a, 소유자 «(b)») — **빠른 경로의 `spawn send`**. 이 op 이 띄운 액터(갓 띄운 지역 · CBE_FL_NOID)
+//   앞으로 메시지를 넣으면 그 액터는 레코드 풀 밖의 자기 자리(프렐류드 lw_fa_mem)에 살고, 우편함 칸은 **그 바이트와 처리 코드의 빠른 판**을
+//   든다(어댑터 lw_q_*). 태그 값 · 레코드 · 되쓰기가 없다. 고르는 차례는 그대로다(번호는 LW_RECPOOL 뒤 — 같은 줄 · 같은 busy).
+//   g_faloc — 이 op 에서 그렇게 사는 지역(비트) · g_qthunk — 어댑터를 내야 하는 처리 코드 · g_mdel — 메시지를 배달할 수 있다(`schedule` ·
+//   `drain` 이 몸에 있거나 부르는 op 에 있다 — 고정점).
+static unsigned long long g_faloc[512];
+static bool g_qthunk[512];
+static bool g_mdel[512];
+static bool g_conc_t0;   /* --conc-t0 (아래 low_cbe_set_conc_t0 — 여기서 먼저 읽는다) */
+static bool cbe_may_suspend(const low_ir_t *ir, proven_size_t d, int depth);
+static long long cbe_restart_max(const low_ir_t *ir, const low_ir_def_t *h);
+static bool cbe_struct_has_sl(const low_ir_t *ir, int sx);
 
 // ★ 이 구조체를 만드는 **make 자리**. 태그 런타임의 레코드는 **make 인덱스로 필드 이름을
 //   찾는다**(lw_mk_fields[mk]) — 그러니 경계에서 레코드를 만들려면 그 자리를 알아야 한다.
@@ -1701,6 +1713,9 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_DROP:
         case IRW_CALL:
             return true;
+        // ★ 2a — 협력 floor(T0)는 칸이 작고 뜻이 따로 짜여 있어 태그 칸만 쓴다(빠른 판은 호스트 런타임에서만).
+        case IRW_ASEND: case IRW_DRAIN: case IRW_SCHED:
+            return !(low_ir_target()->no_heap || g_conc_t0);
         case IRW_CAST:
             // narrow_try(0x40000) 는 **option** 을 낸다 — 이제 (태그,값) 쌍으로 내린다.
             return true;
@@ -1840,6 +1855,42 @@ static void cbe_mark_upanic(const low_ir_t *ir) {
     }
 }
 static bool cbe_may_upanic(const low_ir_t *ir, proven_size_t di) { (void)ir; return di >= 512 || g_upanic[di]; }
+static void cbe_mark_mdel(const low_ir_t *ir) {
+    for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
+        g_mdel[i] = false; g_qthunk[i] = false;
+        for (proven_size_t k = 0; k < ir->defs[i].ncode; k++)
+            if (ir->defs[i].code[k].w == IRW_SCHED || ir->defs[i].code[k].w == IRW_DRAIN) { g_mdel[i] = true; break; }
+    }
+    for (bool ch = true; ch; ) {
+        ch = false;
+        for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
+            if (g_mdel[i]) continue;
+            for (proven_size_t k = 0; k < ir->defs[i].ncode; k++)
+                if (ir->defs[i].code[k].w == IRW_CALL) {
+                    const proven_size_t c = IR_CALL_IDX(ir->defs[i].code[k].a);
+                    if (c >= 512 || (c < ir->ndefs && g_mdel[c])) { g_mdel[i] = true; ch = true; break; }
+                }
+        }
+    }
+}
+// ★ 2a — 빠른 `spawn send` 의 처리 코드가 될 수 있는가. 안 되면 까닭을 why 에 적는다.
+static bool cbe_fa_hok(const low_ir_t *ir, proven_size_t c, const bool *sc, char *why, size_t wn) {
+    if (c >= ir->ndefs || c >= 512) { snprintf(why, wn, "a `spawn send` handler outside the first 512 ops"); return false; }
+    const low_ir_def_t *h = &ir->defs[c];
+    if (!h->is_actor || h->nparams < 1 || !(h->param_struct & 1u) || (proven_size_t)h->param_sidx[0] >= ir->nstructs) {
+        snprintf(why, wn, "`spawn send` to something that is not an actor handler"); return false; }
+    if (sc && !sc[c]) { snprintf(why, wn, "`spawn send` to a handler that is on the tagged path itself"); return false; }
+    if (cbe_struct_has_sl(ir, (int)h->param_sidx[0])) { snprintf(why, wn, "`spawn send` to an actor whose state has a slice field"); return false; }
+    if (cbe_restart_max(ir, h) >= 0) { snprintf(why, wn, "`spawn send` to a `failure restart` actor (restart lives on the tagged path)"); return false; }
+    if (cbe_may_suspend(ir, c, 0)) { snprintf(why, wn, "`spawn send` to a handler that may stop (yield · channel · await · I/O · drain)"); return false; }
+    for (proven_size_t q = 1; q < h->nparams && q < LOW_MAX_PARAMS; q++) {
+        const unsigned long long b = 1ull << q;
+        if ((h->param_slice | h->param_struct | h->param_bset | h->param_flt | h->param_opt | h->param_vec | h->param_w128) & b) {
+            snprintf(why, wn, "`spawn send` with an argument that is not an integer (argument %d)", (int)q); return false; }
+        if (h->prng[q].has_rng) { snprintf(why, wn, "`spawn send` to a handler with a declared argument range"); return false; }
+    }
+    return true;
+}
 
 static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
     // ★ 이유표는 **여기서** 비운다. 아래(종류 고정점)에서 비우면 **낱말 실패 이유가 지워진다**
@@ -1880,6 +1931,19 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             if (i < 512 && !g_why[i][0])
                 snprintf(g_why[i], sizeof g_why[0], "a handler of a `failure restart` actor that can reach `panic` (the supervisor's restart lives on the tagged path)");
             continue;
+        }
+        // ★★ 2a — 메시지를 배달할 수 있는 op(`schedule` · `drain` · 그것을 부르는 op)이 액터를 **사본으로** 들면(처리 코드 · 액터 매개변수:
+        //   태그 쪽에서 들어올 때 바이트로 풀린다) 배달된 메시지가 레코드를 바꾸고 사본이 돌아갈 때 그것을 덮는다. 그런 op 은 태그 경로에 둔다.
+        if (i < 512 && g_mdel[i]) {
+            bool acopy = d->is_actor;
+            for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS && !acopy; q++)
+                if (((d->param_struct >> q) & 1u) && (proven_size_t)d->param_sidx[q] < ir->nstructs && ir->structs[d->param_sidx[q]].is_actor_state) acopy = true;
+            if (acopy) {
+                sc[i] = false;
+                if (!g_why[i][0])
+                    snprintf(g_why[i], sizeof g_why[0], "it holds an actor as a copy (a handler or an actor parameter) and may deliver messages (`schedule` · `drain`) — the copy would overwrite what they did");
+                continue;
+            }
         }
         // ★ 구조체 파라미터는 **필드가 전부 스칼라 정수**일 때만 내린다.
         int badq = -1;
@@ -2218,6 +2282,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
     kstack_t st = { {0},{0},{0},{0},{0}, 0, true };
     bool live = true;
     g_sub[0] = 0;
+    const proven_size_t fa_di_ = (proven_size_t)(d - ir->defs);
+    if (fa_di_ < 512) g_faloc[fa_di_] = 0;
+    unsigned long long faloc_ = 0;   // ★ 2a — 이 op 에서 빠른 `spawn send` · `drain` 을 받는 지역(끝까지 가면 g_faloc 에 둔다)
     // ★ WO-0222 — 어느 지역을 **이미 읽었는가**. none 으로 시작한 option 지역을 슬라이스 option 으로 승격하는 것은
     //   읽기 전에만 한다: 방출기는 지역의 **마지막** 종류로 읽으므로, 앞선 읽기가 옛 종류로 판정됐으면 둘이 갈린다.
     //   파라미터는 경계에서 이미 채워졌으므로 읽힌 것으로 친다.
@@ -2776,6 +2843,28 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if ((proven_size_t)in->a < ir->nasms && ir->asms[in->a].nops > 0) return false;
                 st.o[st.n] = -1; st.k[st.n++] = K_INT; break;
             case IRW_DROP:  if (st.n < 1) return false; st.n--; break;
+            // ★★★ 2a — 이 op 이 띄운 액터 앞으로 넣는다 · 그 액터를 비운다 · 우편함 전체를 비운다. 받는 값은 단위(정수 0)다.
+            case IRW_ASEND: case IRW_DRAIN: {
+                const bool snd_ = in->w == IRW_ASEND;
+                const proven_size_t c_ = snd_ ? IR_CALL_IDX(in->a) : 0;
+                if (snd_ && !cbe_fa_hok(ir, c_, sc, g_sub, sizeof g_sub)) return false;
+                const int np_ = snd_ ? (int)ir->defs[c_].nparams : 1;
+                if (st.n < np_) return false;
+                const int b_ = st.n - np_;
+                const unsigned char ak_ = st.k[b_];
+                if (!(ak_ >= K_REC && ak_ < K_VIEW) || !ir->structs[ak_ - K_REC].is_actor_state ||
+                    (snd_ && ak_ != (unsigned char)(K_REC + ir->defs[c_].param_sidx[0]))) {
+                    snprintf(g_sub, sizeof g_sub, "`%s` on an actor the fast path does not hold as a record", snd_ ? "spawn send" : "drain"); return false; }
+                if (!(st.fl[b_] & CBE_FL_NOID) || st.o[b_] < 0 || st.o[b_] >= 64 || (proven_size_t)st.o[b_] < d->nparams) {
+                    snprintf(g_sub, sizeof g_sub, "`%s` on an actor this op did not spawn into a local of its own", snd_ ? "spawn send" : "drain"); return false; }
+                if (!snd_ && cbe_struct_has_sl(ir, ak_ - K_REC)) { snprintf(g_sub, sizeof g_sub, "`drain` on an actor whose state has a slice field"); return false; }
+                for (int q = 1; q < np_; q++) if (st.k[b_ + q] != K_INT) { snprintf(g_sub, sizeof g_sub, "`spawn send` argument %d is not an integer", q); return false; }
+                faloc_ |= 1ull << st.o[b_];
+                if (snd_ && c_ < 512) g_qthunk[c_] = true;
+                st.n = b_;
+                st.o[st.n] = -1; st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_INT; break;
+            }
+            case IRW_SCHED: st.o[st.n] = -1; st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_INT; break;
             case IRW_WRAP_SOME: case IRW_WRAP_OK:
                 if (st.n < 1) return false;
                 // ★★★ option·result 는 **레코드**도 감쌀 수 있다 — lw_r 에 .r[8] 슬롯이 있다.
@@ -3624,6 +3713,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             default: return false;
         }
     }
+    if (fa_di_ < 512) g_faloc[fa_di_] = faloc_;
     return true;
 }
 
@@ -4038,6 +4128,10 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     //   ☞ `rloc[q]` 라는 **글자는 그대로**다(포인터 + 오프셋도 `rloc[q] + off`) — 그래서
     //     이 큰 전환이 사용처를 거의 안 건드린다. 바이트로 합쳐 둔 값이 여기서 나온다.
     if (cbe_uses(body, "rloc[")) fprintf(out, "unsigned char *rloc[%zu] = {0}; _Alignas(8) unsigned char rbuf[%zu][LW_RECB] = {{0}}; ", n, n);
+    // ★ 2a — 빠른 경로가 띄워 메시지를 받는 액터의 번호. op 을 떠날 때(어느 return 이든) «죽었다» 고 적는다 — 남은 메시지가 끝나면 자리가 돌아간다.
+    { const proven_size_t di_ = (proven_size_t)(d - ir->defs);
+      if (di_ < 512) for (int k = 0; k < 64; k++) if ((g_faloc[di_] >> k) & 1u)
+          fprintf(out, "int fa%d_ __attribute__((cleanup(lw_fa_cleanup))) = -1; ", k); }
     if (cbe_uses(body, "rlocsl[")) fprintf(out, "lw_sl rlocsl[%zu][LW_RECF]; (void)rlocsl; ", n);
     if (cbe_uses(body, "floc[")) fprintf(out, "double floc[%zu] = {0}; ", n);
     if (cbe_uses(body, "lw_hloc[")) fprintf(out, "lw_u128 lw_hloc[%zu] = {0}; ", n);   // ★ W-20261105-2304 — 128 비트 지역
@@ -4125,7 +4219,7 @@ static int g_hw_asm;
 void low_cbe_set_hw_asm(int v) { g_hw_asm = v; }
 static int g_hw_vaes;
 void low_cbe_set_hw_vaes(int v) { g_hw_vaes = v; }   /* ★ X-0055 — `--hw vaes` 로만 켠다(auto 에 안 든다) */
-static bool g_conc_t0;   /* --conc-t0: 호스트에서도 T0 런타임 (WO-0206) */
+/* g_conc_t0 — --conc-t0: 호스트에서도 T0 런타임 (WO-0206) · 선언은 위(2a 가 먼저 읽는다) */
 void low_cbe_set_no_carry(bool v) { g_no_carry = v; }
 void low_cbe_set_conc_t0(bool v) { g_conc_t0 = v; }
 static bool cbe_ld_is(const low_ir_ins_t *c, int slot) { return c->w == IRW_LOAD && c->a == slot; }
@@ -4456,6 +4550,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                               " memcpy(rlocsl[%lld], rssl[rsp], sizeof rssl[0]);\n",
                                               (long long)in->a, (long long)in->a, (long long)in->a,
                                               (unsigned)ir->structs[kk - K_REC].total, (long long)in->a);
+                else if (kk >= K_REC && g_cur_di < 512 && in->a < 64 && ((g_faloc[g_cur_di] >> in->a) & 1u))   // ★ 2a — 그 액터는 자기 자리에 산다
+                    fprintf(out, "    lw_fa_home(&fa%lld_, &rloc[%lld]); memcpy(rloc[%lld], rs[--rsp], %u);\n",
+                            (long long)in->a, (long long)in->a, (long long)in->a, (unsigned)ir->structs[kk - K_REC].total);
                 else if (kk >= K_REC) fprintf(out, "    rloc[%lld] = rbuf[%lld]; memcpy(rloc[%lld], rs[--rsp], %u);\n",
                                               (long long)in->a, (long long)in->a, (long long)in->a,
                                               (unsigned)ir->structs[kk - K_REC].total);
@@ -6009,6 +6106,40 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else fputs("    sp--;\n", out);
                 break;
             }
+            // ★★★ 2a — 빠른 `spawn send`: 칸에 처리 코드의 빠른 판(어댑터) · 그 액터의 바이트 · 정수 인자를 넣는다(cbe_kind_run 이 모양을 보였다).
+            //   검사의 차례와 말은 태그 경로(아래 IRW_ASEND)와 같다 — 묶인 우편함이 찼나, 칸이 다 찼나.
+            case IRW_ASEND: {
+                const proven_size_t c_ = IR_CALL_IDX(in->a);
+                const low_ir_def_t *h_ = &ir->defs[c_];
+                const int np_ = (int)h_->nparams, b_ = ks.n - np_, home_ = ks.o[b_];
+                const low_ir_struct_t *S_ = &ir->structs[h_->param_sidx[0]];
+                fprintf(out, "    { int box_ = fa%d_;\n"
+                             "      if (LW_UNLIKELY(box_ < 0)) lw_panic(\"internal: an actor spawned on the fast path has no home (2a)\");\n", home_);
+                if (S_->mailbox_kind == 1)
+                    fprintf(out, "      if (lw_amb_pend(box_) >= %lldll) lw_panic(\"the actor's bounded mailbox is full — "
+                                 "`spawn send` would exceed `mailbox bounded N` pending messages (drain it first, or raise N)\");\n",
+                            (long long)S_->mailbox_cap);
+                fputs("      if (lw_amb_full())"
+                      " lw_panic(\"the task/message queue is exhausted — too many messages and tasks wait at once"
+                      " (docs/runtime-pools.md; on the freestanding floor raise it with -DLW_T0_MBOX=N)\");\n", out);
+                fputs("      int qi_ = lw_amb_push(box_); lw_ambox[qi_].qf = lw_q_", out); put_sym(out, h_);
+                fprintf(out, "; lw_ambox[qi_].nargs = %d; LW_SET_NOY(qi_, 1);\n", np_ - 1);
+                for (int g = 0; g + 1 < np_; g++)
+                    fprintf(out, "      lw_ambox[qi_].args[%d] = lw_int(st[sp-%d]);\n", g, np_ - 1 - g);
+                fprintf(out, "      sp -= %d; lw_ambox[qi_].self = rs[--rsp]; }\n    st[sp++] = 0;\n", np_ - 1);
+                ks.n = b_; ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_DRAIN: {
+                const int home_ = ks.o[ks.n - 1];
+                fprintf(out, "    rsp--; lw_drain(fa%d_); st[sp++] = 0;\n", home_);
+                ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_SCHED:
+                fputs("    lw_schedule(); st[sp++] = 0;\n", out);
+                ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
             case IRW_WRAP_SOME:
                 if (ks.k[ks.n-1] >= K_REC && ks.k[ks.n-1] < K_VIEW) {   // ★ 레코드를 감싼다 → ws[].r
                     int wsx = ks.k[ks.n-1] - K_REC;
@@ -6601,7 +6732,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 put_sym(out, ce); fputs("(", out);
                 cbe_put_args(out, cam, true, cbe_depparam((proven_size_t)cidx) ? "lw_depth" : NULL);
                 fputs(");\n", out);
-                if (crwm_) fputs("      lw_nrec = rwm_;\n", out);
+                if (crwm_) fputs("      LW_REC_REWIND(rwm_);\n", out);
                 if (cbe_pmut(ce))   // ★ 2026-11-01 — 칸이 가리키는 액터에 쓴 것을 그 태그 쪽 레코드로 되쓴다
                     for (proven_size_t q = 0; q < ce->nparams; q++)
                         if (((ce->param_struct >> q) & 1u) && ks.k[ks.n - ce->nparams + q] == K_AREF) {
@@ -6829,7 +6960,7 @@ void low_cbe_plan(const low_ir_t *ir) {
     }
     cbe_mark_pure(ir, pure_tab);
     // ★★★ **변형(pmut) 전이 폐포를 먼저** — 종류 시뮬레이터의 자격 판정이 cbe_pmut 을 읽는다.
-    cbe_mark_pmut(ir); cbe_mark_upanic(ir);
+    cbe_mark_pmut(ir); cbe_mark_upanic(ir); cbe_mark_mdel(ir);
     cbe_mark_aref(ir);             // ★ 2026-11-01 — 액터를 가리키는 칸(담기 · 칸을 거친 말 · 풀어 든 사본) — 자격 판정이 읽는다
     cbe_mark_scalar(ir, sc_tab);   // ★ g_retk(반환 종류)도 여기서 채워진다
     cbe_mark_vbytes(ir);           // ★ 이 유닛이 실제로 쓰는 최대 벡터 폭 — 칸 크기를 정한다
@@ -7378,6 +7509,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             fputs(LW_CONC_T0, out);
         } else fputs(LW_CONC, out);
     }
+    // ★ 2026-11-10 (W-20261110-1548) — 수를 돌려준 부름 뒤에 레코드를 돌려받는다. 우편함이 있는 런타임은 메시지가 남은 액터의 레코드를
+    //   돌려받지 않는다(그 런타임이 LW_REC_REWIND 를 정한다 · VM vm_rec_rewind) — 없으면 그대로 되감는다.
+    fputs("#ifndef LW_REC_REWIND\n#define LW_REC_REWIND(w) (lw_nrec = (w))\n#endif\n"
+          "#ifndef LW_GC_MBOX_MARK\n#define LW_GC_MBOX_MARK() ((void)0)\n#define LW_GC_MBOX_MOVE(i, j) ((void)0)\n#define LW_GC_MBOX_FIX() ((void)0)\n#endif\n", out);
     // ★ `lw_v` 는 **유닛마다 크기가 다르다**(위 `cbe_mark_vbytes`). 프렐류드보다 먼저 낸다 —
     //   뒤의 모든 것이 이 타입을 쓴다.
     fprintf(out, "typedef union { unsigned long long u64[%d]; uint32_t u32[%d];\n"
@@ -8116,6 +8251,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             fputs(cbe_inline_hint(i) ? "static inline " : "static ", out);
             fputs(cbe_ret_scalar(i) ? "long long lw_s_" : "lw_r lw_s_", out); put_sym(out, &ir->defs[i]);
             fputs("(", out); cbe_put_params(out, i < 512 ? g_argmask[i] : LWA_ALL, cbe_depparam(i)); fputs(");\n", out);
+            if (g_qthunk[i]) { fputs("static void lw_q_", out); put_sym(out, &ir->defs[i]); fputs("(unsigned char *self_, const lowv *a_) LW_HNOINL;\n", out); }
         }
     }
 
@@ -8168,6 +8304,20 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             g_cur_di = i;                    // ★ 반환 모양은 이 def 의 것이다
             cbe_scalar_body(ir, d, out);
             fputs("}\n", out);
+            // ★★★ 2a — 빠른 `spawn send` 칸의 어댑터: 액터의 바이트를 그대로 가리키고 정수 인자를 펴서 빠른 판을 부른다(되쓰기가 없다).
+            if (i < 512 && g_qthunk[i]) {
+                const unsigned am_ = g_argmask[i];
+                const proven_size_t ni_ = d->nparams > 1 ? d->nparams - 1 : 1;
+                fputs("static void lw_q_", out); put_sym(out, d); fputs("(unsigned char *self_, const lowv *a_) {\n", out);
+                fprintf(out, "    long long ai[%zu]; lw_sl as[1]; double af[1]; unsigned char *ar[1]; long long ab[1] = {0}; lw_r ao[1]; lw_v av[1];"
+                             " lw_sl rsl[%zu * LW_RECF] = {{0,0}};"
+                             " (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl; (void)a_;\n",
+                        ni_, (size_t)(d->nparams ? d->nparams : 1));
+                for (proven_size_t q = 1; q < d->nparams; q++) fprintf(out, "    ai[%zu] = a_[%zu].i;\n", (size_t)(q - 1), (size_t)(q - 1));
+                fputs("    ar[0] = self_;\n    (void)lw_s_", out); put_sym(out, d); fputs("(", out);
+                cbe_put_args(out, am_, false, cbe_depparam(i) ? "lw_depth" : NULL);
+                fputs(");\n}\n", out);
+            }
             // ★ 얇은 어댑터 — 디스패치 표와 느린 경로의 호출자가 그대로 산다.
             //   태그 검사는 **여기 경계에서 한 번**만 한다(안쪽 루프에는 없다).
             fputs("static lowv lw_op_", out); put_sym(out, d);
@@ -9290,7 +9440,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         fputs("lw_op_", out); put_sym(out, callee);
                         fprintf(out, "(&st[sp-%zu])", (size_t)(callee->nparams ? callee->nparams : 0));
                     }
-                    fprintf(out, "; if (r.tag == LWV_INT || r.tag == LWV_FLT) { lw_nrec = wm_; lw_nbset = wb_; lw_nstk = wk_; }"
+                    fprintf(out, "; if (r.tag == LWV_INT || r.tag == LWV_FLT) { LW_REC_REWIND(wm_); lw_nbset = wb_; lw_nstk = wk_; }"
                                  " else r = lw_fw_take(%s, r);"   /* ★ P4e — 되튐 창의 레코드를 내 창(없으면 풀)으로 */
                                  " sp -= %zu; st[sp++] = r; }\n", d->nwin ? "&fw_" : "0", (size_t)callee->nparams);
                     if (has_mbox) fprintf(out, "    if (mbi_ >= 0) lw_mbox[mbi_]--; }\n");   // 반환 — in-flight 하나 빠짐 (바깥 블록 닫음)

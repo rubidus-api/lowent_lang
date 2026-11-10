@@ -2087,6 +2087,21 @@ const char LW_CONC_T0[] =
 "static unsigned char lw_t0_busy[(LW_RECPOOL + 7) / 8];\n"
 "#define LW_T0_BUSY(b) ((b) >= 0 && (b) < LW_RECPOOL && (lw_t0_busy[(b) >> 3] >> ((b) & 7) & 1))\n"
 "#define LW_T0_MARK(b, on) do { if ((b) >= 0 && (b) < LW_RECPOOL) { if (on) lw_t0_busy[(b) >> 3] |= (unsigned char)(1u << ((b) & 7)); else lw_t0_busy[(b) >> 3] &= (unsigned char)~(1u << ((b) & 7)); } } while (0)\n"
+// ★ 메시지가 남았거나 처리 중인 액터의 레코드는 돌려받지 않는다(호스트판 · VM 과 같다). T0 는 줄을 훑는다(칸이 작다).
+"static void lw_rec_rewind(int wm) {\n"
+"    int keep = wm;\n"
+"    for (int q = 0; q < lw_nambox; q++) { int b = lw_ambox[q].box; if (b >= keep && b < lw_nrec) keep = b + 1; }\n"
+"    for (int b = lw_nrec; b-- > keep; ) if (LW_T0_BUSY(b)) { keep = b + 1; break; }\n"
+"    lw_nrec = keep;\n"
+"}\n"
+"#define LW_REC_REWIND(w) lw_rec_rewind(w)\n"
+"#define LW_GC_MBOX_MARK() do { for (int q_ = 0; q_ < lw_nambox; q_++) { if (lw_ambox[q_].box >= 0) { lowv v_ = {0}; v_.tag = LWV_REC; v_.box = lw_ambox[q_].box; lw_gc_mark(v_); }\\\n"
+"    for (int k_ = 0; k_ < lw_ambox[q_].nargs; k_++) lw_gc_mark(lw_ambox[q_].args[k_]); }\\\n"
+"    for (int i_ = lw_gcb_rc; i_ < lw_nrec; i_++) if (LW_T0_BUSY(i_)) { lowv v_ = {0}; v_.tag = LWV_REC; v_.box = i_; lw_gc_mark(v_); } } while (0)\n"
+"#define LW_GC_MBOX_MOVE(i, j) do { int on_ = LW_T0_BUSY(i); LW_T0_MARK(i, 0); LW_T0_MARK(j, on_); lw_mbox[j] = lw_mbox[i]; lw_mbox[i] = 0; } while (0)\n"
+"#define LW_GC_MBOX_FIX() do { for (int q_ = 0; q_ < lw_nambox; q_++) { int b_ = lw_ambox[q_].box;\\\n"
+"    if (b_ >= lw_gcb_rc && b_ < lw_nrec && lw_pm_rc[b_] >= 0) lw_ambox[q_].box = lw_pm_rc[b_];\\\n"
+"    for (int k_ = 0; k_ < lw_ambox[q_].nargs; k_++) lw_gc_fix(&lw_ambox[q_].args[k_]); } } while (0)\n"
 "static struct { int done; lowv result; } lw_jobs[LW_T0_JOBS]; static int lw_njobs;\n"
 "static struct { lowv buf[LW_T0_CHCAP]; int head, tail, count; } lw_chans[LW_T0_CHAN]; static int lw_nchan;\n"
 "static int lw_cancel_scope;\n"
@@ -2165,27 +2180,32 @@ const char LW_CONC[] =
 //     전에는 하나 꺼낼 때마다 뒤 칸(칸 하나에 인자 32 개)을 전부 당겨, 쌓인 수만큼 한 개 값이 늘었다
 //     (실측: 1 개 209 ns · 4,000 개 103,135 ns). 칸은 제자리, 순서는 연결: 도착 순서 전체(ng/pg)와
 //     인스턴스별 도착 순서(nb/pb). 연결 값 = 칸 번호 + 1 (0 = 없음). `lw_nambox` 는 살아 있는 수.
+// ★★★ 2026-11-10 (W-20261110-1548 · 2a (b)) — **빠른 경로가 띄운 액터**는 레코드 풀 밖의 자기 자리(lw_fa_mem)에 산다. 번호는
+//   LW_RECPOOL 뒤(LW_RECPOOL .. LW_AIDS-1)라서 인스턴스별 줄(hb/tb/nq) · 처리 중 표식(busy)이 그대로 덮는다. 그 앞으로 온 메시지는
+//   **값을 나르는 칸**이다: qf(그 처리 코드의 빠른 판을 부르는 어댑터) · self(그 액터의 바이트) · 정수 인자. qf 가 0 이면 예전 칸이다.
+"#ifndef LW_FAPOOL\n#define LW_FAPOOL LW_RECPOOL\n#endif\n"   /* VM 의 레코드 풀과 같은 수 — 같은 자리에서 모자란다 */
+"#define LW_AIDS (LW_RECPOOL + LW_FAPOOL)\n"
 "static struct { int box; lowv (*fn)(const lowv *restrict); unsigned char nargs; int job; int peer; int rmax;"
-" int ng, pg, nb, pb; int noy; unsigned long long seq; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
+" int ng, pg, nb, pb; int noy; unsigned long long seq; void (*qf)(unsigned char *, const lowv *); unsigned char *self; lowv args[LW_MAXP]; } lw_ambox[4096];\n"
 "#define LW_SET_NOY(i, v) (lw_ambox[i].noy = (v))\n"
 "static int lw_nambox;\n"
 "static int lw_amb_hg, lw_amb_tg, lw_amb_free, lw_amb_hw;\n"
-"static int lw_amb_hb[LW_RECPOOL], lw_amb_tb[LW_RECPOOL], lw_amb_nq[LW_RECPOOL];\n"
+"static int lw_amb_hb[LW_AIDS], lw_amb_tb[LW_AIDS], lw_amb_nq[LW_AIDS];\n"
 // ★★★ 2026-11-10 (W-20261110-1025 · 소유자 «A» · 정본 §10.5 (4a)) — `schedule` 은 한 액터의 메시지를 **한 번에 하나, 넣은 차례대로**.
 //   VM 의 mb_busy · mb_wake · mb_scan · seq 와 같은 모양이다: busy = 그 액터의 메시지를 쥔 그린스레드가 살아 있다 ·
 //   wake = 쥔 것이 끝나 다음 메시지를 넣어야 할 액터 · scan = 아직 훑지 않은 첫 칸 · seq = 도착 번호.
 "static unsigned long long lw_amb_seq; static int lw_amb_scan, lw_amb_nwake;\n"
-"static unsigned char lw_amb_busy[LW_RECPOOL]; static int lw_amb_wake[LW_RECPOOL];\n"
+"static unsigned char lw_amb_busy[LW_AIDS]; static int lw_amb_wake[LW_AIDS];\n"
 "static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
 "static int lw_amb_push(int box) {\n"
 "    int i; if (lw_amb_free) { i = lw_amb_free - 1; lw_amb_free = lw_ambox[i].ng; } else i = lw_amb_hw++;\n"
 "    lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0; lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1;\n"
-"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg; lw_ambox[i].seq = ++lw_amb_seq; lw_ambox[i].noy = 0;\n"
+"    lw_ambox[i].ng = 0; lw_ambox[i].pg = lw_amb_tg; lw_ambox[i].seq = ++lw_amb_seq; lw_ambox[i].noy = 0; lw_ambox[i].qf = 0; lw_ambox[i].self = 0;\n"
 "    if (!lw_amb_scan) lw_amb_scan = i + 1;\n"
 "    if (lw_amb_tg) lw_ambox[lw_amb_tg - 1].ng = i + 1; else lw_amb_hg = i + 1;\n"
 "    lw_amb_tg = i + 1; lw_ambox[i].nb = 0; lw_ambox[i].pb = 0;\n"
 "    if (box >= 0) {\n"
-"        if (box >= LW_RECPOOL) lw_panic(\"`spawn send`: the actor instance is outside the record pool\");\n"
+"        if (box >= LW_AIDS) lw_panic(\"`spawn send`: the actor instance is outside the record pool\");\n"
 "        lw_ambox[i].pb = lw_amb_tb[box];\n"
 "        if (lw_amb_tb[box]) lw_ambox[lw_amb_tb[box] - 1].nb = i + 1; else lw_amb_hb[box] = i + 1;\n"
 "        lw_amb_tb[box] = i + 1; lw_amb_nq[box]++;\n"
@@ -2197,7 +2217,7 @@ const char LW_CONC[] =
 "    if (lw_amb_scan == i + 1) lw_amb_scan = ng;\n"
 "    if (pg) lw_ambox[pg - 1].ng = ng; else lw_amb_hg = ng;\n"
 "    if (ng) lw_ambox[ng - 1].pg = pg; else lw_amb_tg = pg;\n"
-"    if (box >= 0 && box < LW_RECPOOL) {\n"
+"    if (box >= 0 && box < LW_AIDS) {\n"
 "        int nb = lw_ambox[i].nb, pb = lw_ambox[i].pb;\n"
 "        if (pb) lw_ambox[pb - 1].nb = nb; else lw_amb_hb[box] = nb;\n"
 "        if (nb) lw_ambox[nb - 1].pb = pb; else lw_amb_tb[box] = pb;\n"
@@ -2208,26 +2228,60 @@ const char LW_CONC[] =
 "}\n"
 "static int lw_amb_ready(int i) {\n"   /* 태스크이거나, 쥔 것 없는 액터의 맨 앞 */
 "    int box = lw_ambox[i].box;\n"
-"    if (box < 0 || box >= LW_RECPOOL) return 1;\n"
+"    if (box < 0 || box >= LW_AIDS) return 1;\n"
 "    return !lw_amb_busy[box] && lw_amb_hb[box] == i + 1;\n"
 "}\n"
-"static int lw_amb_pend(int box) { return (box >= 0 && box < LW_RECPOOL) ? lw_amb_nq[box] : 0; }\n"
+"static int lw_amb_pend(int box) { return (box >= 0 && box < LW_AIDS) ? lw_amb_nq[box] : 0; }\n"
+// ★ 빠른 경로 액터의 자리 — 띄울 때(지역에 담을 때) 하나 받고, op 을 떠날 때 «죽었다» 고 적는다. 줄에 남은 메시지가 없고
+//   처리 중도 아니면 그때 돌려준다 — 남았으면 마지막 메시지가 끝난 뒤(lw_drain · lw_grelease)에 돌려준다. VM 의 레코드가
+//   그 메시지들이 끝날 때까지 사는 것과 같다.
+"static _Alignas(8) unsigned char lw_fa_mem[LW_FAPOOL][LW_RECB]; static int lw_fa_nx[LW_FAPOOL], lw_fa_free, lw_fa_hw; static unsigned char lw_fa_dead[LW_FAPOOL];\n"
+"static void lw_fa_done(int b) {\n"
+"    if (b < LW_RECPOOL || b >= LW_AIDS) return;\n"
+"    int s = b - LW_RECPOOL;\n"
+"    if (!lw_fa_dead[s] || lw_amb_nq[b] || lw_amb_busy[b]) return;\n"
+"    lw_fa_dead[s] = 0; lw_fa_nx[s] = lw_fa_free; lw_fa_free = s + 1;\n"
+"}\n"
+// ★ 메시지가 남았거나 처리 중인 액터의 레코드는 돌려받지 않는다(VM vm_rec_rewind · 정본 §10.5 (2) · (4)).
+"static void lw_rec_rewind(int wm) { int n = lw_nrec; while (n > wm && n <= LW_RECPOOL && !lw_amb_nq[n - 1] && !lw_amb_busy[n - 1]) n--; lw_nrec = n; }\n"
+"#define LW_REC_REWIND(w) lw_rec_rewind(w)\n"
+// ★ 레코드 압축(LW_PRELUDE2 lw_pool_gc)에 우편함을 보인다: 메시지가 남은 · 처리 중인 액터는 살아 있고, 메시지의 인자도 뿌리이며,
+//   옮기면 인스턴스별 기록과 칸이 가리키는 번호를 함께 옮긴다(VM vm_pool_gc 와 같다).
+"#define LW_GC_MBOX_MARK() do { for (int i_ = lw_gcb_rc; i_ < lw_nrec && i_ < LW_RECPOOL; i_++) if (lw_amb_nq[i_] || lw_amb_busy[i_]) { lowv v_ = {0}; v_.tag = LWV_REC; v_.box = i_; lw_gc_mark(v_); }\\\n"
+"    for (int l_ = lw_amb_hg; l_; l_ = lw_ambox[l_ - 1].ng) for (int k_ = 0; k_ < lw_ambox[l_ - 1].nargs; k_++) lw_gc_mark(lw_ambox[l_ - 1].args[k_]); } while (0)\n"
+"#define LW_GC_MBOX_MOVE(i, j) do { lw_amb_hb[j] = lw_amb_hb[i]; lw_amb_tb[j] = lw_amb_tb[i]; lw_amb_nq[j] = lw_amb_nq[i]; lw_amb_busy[j] = lw_amb_busy[i]; lw_mbox[j] = lw_mbox[i];\\\n"
+"    lw_amb_hb[i] = 0; lw_amb_tb[i] = 0; lw_amb_nq[i] = 0; lw_amb_busy[i] = 0; lw_mbox[i] = 0; } while (0)\n"
+"#define LW_GC_MBOX_FIX() do { for (int l_ = lw_amb_hg; l_; l_ = lw_ambox[l_ - 1].ng) { int b_ = lw_ambox[l_ - 1].box;\\\n"
+"    if (b_ >= lw_gcb_rc && b_ < lw_nrec && lw_pm_rc[b_] >= 0) lw_ambox[l_ - 1].box = lw_pm_rc[b_];\\\n"
+"    for (int k_ = 0; k_ < lw_ambox[l_ - 1].nargs; k_++) lw_gc_fix(&lw_ambox[l_ - 1].args[k_]); } } while (0)\n"
+"static void lw_fa_drop(int b) { if (b >= LW_RECPOOL && b < LW_AIDS) { lw_fa_dead[b - LW_RECPOOL] = 1; lw_fa_done(b); } }\n"
+"static void lw_fa_cleanup(int *b) { lw_fa_drop(*b); }\n"
+"static void lw_fa_home(int *fa, unsigned char **rl) {\n"
+"    if (*fa >= 0) lw_fa_drop(*fa);\n"
+"    int s; if (lw_fa_free) { s = lw_fa_free - 1; lw_fa_free = lw_fa_nx[s]; } else if (lw_fa_hw < LW_FAPOOL) s = lw_fa_hw++;\n"
+"    else lw_panic(\"too many actors spawned on the fast path are alive or still have messages waiting \"\n"
+"                  \"(raise it with -DLW_FAPOOL=N)\");\n"
+"    lw_fa_dead[s] = 0; *fa = LW_RECPOOL + s; *rl = lw_fa_mem[s];\n"
+"}\n"
 "static struct { _Atomic int done; lowv result; } lw_jobs[4096]; static int lw_njobs;\n"   /* await — job 결과 */
 // ★★★ 2026-11-10 (W-20261110-1247 · 소유자 «추천대로») — 정본 §10.5 (2a): 그 액터가 우편함의 메시지를 처리하는 중이면 멈춘다(VM E-VM-DRAIN-BUSY).
 "static void lw_drain(int box) {\n"
-"    if (box < 0 || box >= LW_RECPOOL) return;\n"
+"    if (box < 0 || box >= LW_AIDS) return;\n"
 "    if (lw_amb_busy[box]) lw_panic(\"`drain` on an actor that is still handling a message from its mailbox (canon 10.5 (2a))\");\n"
 "    while (lw_amb_hb[box]) {\n"                                         /* 머리를 매번 다시 읽는다 — 핸들러가 보내거나 안에서 drain 한다 */
 "        int i = lw_amb_hb[box] - 1;\n"
 "        lowv cargs[LW_MAXP + 1]; cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = box;\n"
 "        for (int g = 0; g < lw_ambox[i].nargs; g++) cargs[g + 1] = lw_ambox[i].args[g];\n"
 "        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn;\n"
+"        void (*qf)(unsigned char *, const lowv *) = lw_ambox[i].qf; unsigned char *self = lw_ambox[i].self;\n"
 "        int rmax = lw_ambox[i].rmax;\n"
 "        lw_amb_take(i);\n"   /* 큐에서 뺀 뒤 실행(재진입 drain 대비) */
 "        lw_amb_busy[box] = 1;\n"   /* 이 메시지가 끝날 때까지 처리 중 */
-"        if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
+"        if (qf) qf(self, cargs + 1); else if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
 "        lw_amb_busy[box] = 0;\n"
-"    }\n}\n"
+"    }\n"
+"    lw_fa_done(box);\n"
+"}\n"
 // ★★★ **green thread + channel — 코루틴 스케줄러** (RFC-0009 2/3·3/3). `schedule .`/task_group end 가
 //   부른다. 각 태스크·메시지가 자기 ucontext 스택에서 돌아 `yield`·블로킹 채널 op 로 **중단**할 수
 //   있고, 스케줄러가 round-robin 으로 재개한다(진행 없으면 deadlock). VM(vm_gsched)과 **같은 규율**:
@@ -2245,7 +2299,7 @@ const char LW_CONC[] =
 //   realloc/malloc 으로 키운다**. 전부 _Thread_local 이라 워커끼리 안 섞이고 워커별 풀이 자연스럽다.
 //   ☞ 스택은 코루틴의 실행 스택(C 스택과 같은 범주) — pthread 가 이미 워커 OS 스택을 잡는 것과
 //     같은 종류의 할당이지, 언어가 세는 데이터 힙이 아니다(RFC-0043 위반 아님).
-"static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); unsigned char nargs;\n"
+"static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); void (*qf)(unsigned char *, const lowv *); unsigned char *self; unsigned char nargs;\n"
 "                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; int hold; int noy; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
 // ★★ 2026-11-09 (W-20261109-1922) — **다시 세우기의 경계는 그린스레드마다 따로다.** 경계(`lw_fault`)는 setjmp 의
 //   스택이라, 메시지가 경계 안에서 양보하고 다른 메시지가 같은 칸에 경계를 세우면 패닉이 **남의 스택으로** 뛴다.
@@ -2298,7 +2352,7 @@ const char LW_CONC[] =
 "    int gi = lw_cur_gthr; lowv cargs[LW_MAXP + 1]; int base = 0;\n"
 "    if (lw_gthr[gi].box >= 0) { cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = lw_gthr[gi].box; base = 1; }\n"
 "    for (int g = 0; g < lw_gthr[gi].nargs; g++) cargs[base + g] = lw_gthr[gi].args[g];\n"
-"    lowv rv = (lw_gthr[gi].rmax >= 0 && lw_gthr[gi].box >= 0)\n"
+"    lowv rv = lw_gthr[gi].qf ? (lw_gthr[gi].qf(lw_gthr[gi].self, lw_gthr[gi].args), lw_int(0)) : (lw_gthr[gi].rmax >= 0 && lw_gthr[gi].box >= 0)\n"
 "        ? lw_restart_call(lw_gthr[gi].fn, cargs, lw_gthr[gi].box, lw_gthr[gi].rmax) : lw_gthr[gi].fn(cargs);\n"
 "    lw_gthr[gi].state = 4;\n"
 "    if (lw_gthr[gi].job >= 0) { int jid = lw_gthr[gi].job; lw_jobs[jid].result = lw_promote(rv); atomic_store_explicit(&lw_jobs[jid].done, 1, memory_order_release); lw_gprog++;\n"
@@ -2378,7 +2432,7 @@ const char LW_CONC[] =
 "            int i = atomic_fetch_add_explicit(&W->q->next, 1, memory_order_relaxed);\n"
 "            if (i >= W->q->n) { if (gi == lw_ngthr - 1 && lw_gthr[gi].state != 4) lw_ngthr--; break; }\n"
 "            const struct lw_job_desc *d = &W->q->jobs[i];\n"
-"            lw_gthr[gi].box = -1; lw_gthr[gi].fn = d->fn; lw_gthr[gi].nargs = d->np; lw_gthr[gi].job = d->job; lw_gthr[gi].rmax = -1; lw_gthr[gi].nfs = 0;\n"
+"            lw_gthr[gi].box = -1; lw_gthr[gi].qf = 0; lw_gthr[gi].fn = d->fn; lw_gthr[gi].nargs = d->np; lw_gthr[gi].job = d->job; lw_gthr[gi].rmax = -1; lw_gthr[gi].nfs = 0;\n"
 "            for (int x = 0; x < d->np; x++) lw_gthr[gi].args[x] = d->a[x];\n"
 "            lw_gthr[gi].state = 1;\n"
 "        }\n"
@@ -2415,10 +2469,11 @@ const char LW_CONC[] =
 "    else { for (int q = base; q < lw_ngthr; q++) if (lw_gthr[q].state == 4) { gi = q; break; }\n"
 "           if (gi < 0) { lw_gthr_ensure(lw_ngthr + 1); gi = lw_ngthr++; } }\n"  /* 가득+다 바쁨 → 성장(상한 없음, E-Alloc P4) */
 "    lw_gthr[gi].box = lw_ambox[q0_].box; lw_gthr[gi].fn = lw_ambox[q0_].fn; lw_gthr[gi].nargs = lw_ambox[q0_].nargs;\n"
+"    lw_gthr[gi].qf = lw_ambox[q0_].qf; lw_gthr[gi].self = lw_ambox[q0_].self;\n"
 "    lw_gthr[gi].job = lw_ambox[q0_].job; lw_gthr[gi].rmax = lw_ambox[q0_].rmax; lw_gthr[gi].nfs = 0;\n"
 "    for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
 "    lw_gthr[gi].state = 1; lw_gthr[gi].hold = 0; lw_gthr[gi].noy = lw_ambox[q0_].noy;\n"
-"    if (lw_gthr[gi].box >= 0 && lw_gthr[gi].box < LW_RECPOOL) { lw_gthr[gi].hold = 1; lw_amb_busy[lw_gthr[gi].box] = 1; }\n"
+"    if (lw_gthr[gi].box >= 0 && lw_gthr[gi].box < LW_AIDS) { lw_gthr[gi].hold = 1; lw_amb_busy[lw_gthr[gi].box] = 1; }\n"
 "    lw_amb_take(q0_);\n"
 "}\n"
 // ★ 끝난 그린스레드(base 위)가 쥐었던 액터를 푼다 — 남은 메시지가 있으면 다음 채우기가 그 맨 앞을 넣는다.
@@ -2426,7 +2481,8 @@ const char LW_CONC[] =
 "    for (int q = base; q < lw_ngthr; q++) {\n"
 "        if (!lw_gthr[q].hold || (lw_gthr[q].state != 4 && lw_gthr[q].state != 0)) continue;\n"
 "        int b = lw_gthr[q].box; lw_gthr[q].hold = 0; lw_amb_busy[b] = 0;\n"
-"        if (lw_amb_nq[b] && lw_amb_nwake < LW_RECPOOL) lw_amb_wake[lw_amb_nwake++] = b;\n"
+"        if (lw_amb_nq[b] && lw_amb_nwake < LW_AIDS) lw_amb_wake[lw_amb_nwake++] = b;\n"
+"        lw_fa_done(b);\n"
 "    }\n"
 "}\n"
 // ★ 채우기(VM vm_grefill 과 같은 차례): ① 풀린 액터의 맨 앞 ② 지난 채우기 뒤에 새로 온 칸 — 도착 번호로 합쳐 배달해도 되는 것만 옮긴다.
@@ -2886,6 +2942,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = 0; i < bxb; i++) lw_gc_mark(lw_boxes[i]);\n"
 "    for (int i = 0; i < rcb; i++) for (int f = 0; f < lw_recs[i].nf; f++) lw_gc_mark(lw_recs[i].f[f]);\n"
 "    for (int i = 0; i < skb; i++) for (size_t k = 0; k < lw_stks[i].n; k++) lw_gc_mark(lw_stks[i].items[k]);\n"
+"    LW_GC_MBOX_MARK();\n"
 "    int tb = bxb, tr = rcb, ts = skb, tt = bsb, tv = vcb;\n"
 "    for (int i = bxb; i < lw_nbox; i++)    if (lw_pm_bx[i] == -2) lw_pm_bx[i] = tb++;\n"
 "    for (int i = rcb; i < lw_nrec; i++)    if (lw_pm_rc[i] == -2) lw_pm_rc[i] = tr++;\n"
@@ -2896,7 +2953,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = rcb; i < lw_nrec; i++)  if (lw_pm_rc[i] >= 0 && lw_pm_rc[i] != i) {\n"
 /* ★ RFC-0132 T2b-3b — 배열 칸 버퍼는 자리의 것이다: 레코드를 옮기면 버퍼를 **맞바꾼다**(VM 의 vm_pool_gc 와 같은 규칙) */
 "        unsigned char *ob_ = lw_recs[lw_pm_rc[i]].rb; size_t oc_ = lw_recs[lw_pm_rc[i]].rbc;\n"
-"        lw_recs[lw_pm_rc[i]] = lw_recs[i]; lw_recs[i].rb = ob_; lw_recs[i].rbc = oc_; }\n"
+"        lw_recs[lw_pm_rc[i]] = lw_recs[i]; lw_recs[i].rb = ob_; lw_recs[i].rbc = oc_; LW_GC_MBOX_MOVE(i, lw_pm_rc[i]); }\n"
 "    for (int i = skb; i < lw_nstk; i++)  if (lw_pm_sk[i] >= 0 && lw_pm_sk[i] != i) lw_stks[lw_pm_sk[i]] = lw_stks[i];\n"
 "    for (int i = bsb; i < lw_nbset; i++) if (lw_pm_bs[i] >= 0 && lw_pm_bs[i] != i) { lw_bsets[lw_pm_bs[i]] = lw_bsets[i]; lw_bwid[lw_pm_bs[i]] = lw_bwid[i]; }\n"
 "    for (int i = vcb; i < lw_nvecpool; i++) if (lw_pm_vc[i] >= 0 && lw_pm_vc[i] != i) lw_vecs[lw_pm_vc[i]] = lw_vecs[i];\n"
@@ -2906,6 +2963,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = 0; i < tb; i++) lw_gc_fix(&lw_boxes[i]);\n"
 "    for (int i = 0; i < tr; i++) for (int f = 0; f < lw_recs[i].nf; f++) lw_gc_fix(&lw_recs[i].f[f]);\n"
 "    for (int i = 0; i < ts; i++) for (size_t k = 0; k < lw_stks[i].n; k++) lw_gc_fix(&lw_stks[i].items[k]);\n"
+"    LW_GC_MBOX_FIX();\n"
 "    lw_nbox = tb; lw_nrec = tr; lw_nstk = ts; lw_nbset = tt; lw_nvecpool = tv;\n"
 "}\n"
 "static lowv lw_vecret(int base, lowv rv) {\n"

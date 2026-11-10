@@ -2083,6 +2083,10 @@ const char LW_CONC_T0[] =
 "static int lw_amb_push(int box) { int i = lw_nambox++; lw_ambox[i].box = box; lw_ambox[i].fn = 0; lw_ambox[i].nargs = 0;"
 " lw_ambox[i].job = -1; lw_ambox[i].peer = 0; lw_ambox[i].rmax = -1; return i; }\n"
 "static int lw_amb_pend(int box) { int n = 0; for (int q = 0; q < lw_nambox; q++) if (lw_ambox[q].box == box) n++; return n; }\n"
+// ★ 정본 §10.5 (2a) — 처리 중인 액터(한 비트씩: RAM 은 레코드 8 개에 1 바이트). T0 는 그린스레드가 없어 그 경우는 처리 코드 안에서 부를 때뿐이다.
+"static unsigned char lw_t0_busy[(LW_RECPOOL + 7) / 8];\n"
+"#define LW_T0_BUSY(b) ((b) >= 0 && (b) < LW_RECPOOL && (lw_t0_busy[(b) >> 3] >> ((b) & 7) & 1))\n"
+"#define LW_T0_MARK(b, on) do { if ((b) >= 0 && (b) < LW_RECPOOL) { if (on) lw_t0_busy[(b) >> 3] |= (unsigned char)(1u << ((b) & 7)); else lw_t0_busy[(b) >> 3] &= (unsigned char)~(1u << ((b) & 7)); } } while (0)\n"
 "static struct { int done; lowv result; } lw_jobs[LW_T0_JOBS]; static int lw_njobs;\n"
 "static struct { lowv buf[LW_T0_CHCAP]; int head, tail, count; } lw_chans[LW_T0_CHAN]; static int lw_nchan;\n"
 "static int lw_cancel_scope;\n"
@@ -2099,12 +2103,15 @@ const char LW_CONC_T0[] =
 "    for (int g = 0; g < na && g + off <= LW_T0_ARGS; g++) cargs[g + off] = lw_ambox[i].args[g];\n"
 "    for (int m = i; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"
 "    lw_nambox--;\n"
+"    LW_T0_MARK(box, 1);\n"
 "    lowv r = (rmax >= 0 && box >= 0) ? lw_restart_call(fn, cargs, box, rmax) : fn(cargs);\n"
+"    LW_T0_MARK(box, 0);\n"
 "    if (job >= 0 && job < lw_njobs) { lw_jobs[job].result = lw_promote(r); lw_jobs[job].done = 1; }\n"
 "    return 1;\n"
 "}\n"
 // ★ `drain <instance>` — 그 인스턴스 앞으로 온 메시지만 FIFO 로 비운다(호스트판과 같은 규율).
 "static void lw_drain(int box) {\n"
+"    if (LW_T0_BUSY(box)) lw_panic(\"`drain` on an actor that is still handling a message from its mailbox (canon 10.5 (2a))\");\n"
 "    for (int i = 0; i < lw_nambox; ) {\n"
 "        if (lw_ambox[i].box != box) { i++; continue; }\n"
 "        int na = lw_ambox[i].nargs;\n"
@@ -2113,7 +2120,9 @@ const char LW_CONC_T0[] =
 "        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn; int rmax = lw_ambox[i].rmax;\n"
 "        for (int m = i; m + 1 < lw_nambox; m++) lw_ambox[m] = lw_ambox[m + 1];\n"
 "        lw_nambox--;\n"
+"        LW_T0_MARK(box, 1);\n"
 "        if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
+"        LW_T0_MARK(box, 0);\n"
 "    }\n}\n"
 // ★ `schedule .` — 큐가 빌 때까지 돌린다(quiescence). 선점이 없으므로 이것이 전부다.
 "static void lw_schedule(void) { while (lw_t0_step()) ; }\n"
@@ -2204,8 +2213,10 @@ const char LW_CONC[] =
 "}\n"
 "static int lw_amb_pend(int box) { return (box >= 0 && box < LW_RECPOOL) ? lw_amb_nq[box] : 0; }\n"
 "static struct { _Atomic int done; lowv result; } lw_jobs[4096]; static int lw_njobs;\n"   /* await — job 결과 */
+// ★★★ 2026-11-10 (W-20261110-1247 · 소유자 «추천대로») — 정본 §10.5 (2a): 그 액터가 우편함의 메시지를 처리하는 중이면 멈춘다(VM E-VM-DRAIN-BUSY).
 "static void lw_drain(int box) {\n"
 "    if (box < 0 || box >= LW_RECPOOL) return;\n"
+"    if (lw_amb_busy[box]) lw_panic(\"`drain` on an actor that is still handling a message from its mailbox (canon 10.5 (2a))\");\n"
 "    while (lw_amb_hb[box]) {\n"                                         /* 머리를 매번 다시 읽는다 — 핸들러가 보내거나 안에서 drain 한다 */
 "        int i = lw_amb_hb[box] - 1;\n"
 "        lowv cargs[LW_MAXP + 1]; cargs[0] = (lowv){0}; cargs[0].tag = LWV_REC; cargs[0].box = box;\n"
@@ -2213,7 +2224,9 @@ const char LW_CONC[] =
 "        lowv (*fn)(const lowv *restrict) = lw_ambox[i].fn;\n"
 "        int rmax = lw_ambox[i].rmax;\n"
 "        lw_amb_take(i);\n"   /* 큐에서 뺀 뒤 실행(재진입 drain 대비) */
+"        lw_amb_busy[box] = 1;\n"   /* 이 메시지가 끝날 때까지 처리 중 */
 "        if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
+"        lw_amb_busy[box] = 0;\n"
 "    }\n}\n"
 // ★★★ **green thread + channel — 코루틴 스케줄러** (RFC-0009 2/3·3/3). `schedule .`/task_group end 가
 //   부른다. 각 태스크·메시지가 자기 ucontext 스택에서 돌아 `yield`·블로킹 채널 op 로 **중단**할 수

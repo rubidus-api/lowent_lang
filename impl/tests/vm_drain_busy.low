@@ -1,0 +1,59 @@
+rem ★★ `drain` 을 부를 때 그 액터가 우편함의 메시지를 처리하는 중이면 멈춘다 (2026-11-10 · W-20261110-1247 · 정본 §10.5 (2a)).
+rem
+rem 소유자가 «추천대로» 맡겼고 고른 것은 «멈춘다» 다. 그대로 배달하면 한 액터가 두 메시지를 함께 처리하게 되고(§10.5 (4a) 가 막은 것),
+rem 기다리게 하면 그 메시지의 처리 코드 안에서 부른 경우 영영 풀리지 않으며 `drain` 이 `concurrent` 가 된다.
+rem   · busy_drain — `schedule` 이 a 의 메시지를 꺼내 쥔 동안 다른 액터의 처리 코드가 `drain a` → 멈춘다(VM E-VM-DRAIN-BUSY · 네이티브 panic).
+rem   · inside_ok — 처리 중이 아닌 액터는 처리 코드 안에서도 `drain` 된다: 넣고 바로 비운다(5). ★ 이것이 v1.31.0 의 결함을 문다 —
+rem     그 판의 네이티브는 `drain` 으로 돌린 처리 코드가 `yield` 하면 죽었다(그린스레드 없이 돌린 메시지 안이었다). VM 은 5.
+rem   · after_ok — `schedule` 이 끝난 뒤에는 같은 액터를 비울 수 있다.
+module vm_drain_busy .
+
+actor slow do
+  state do h u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    let a u64 h. .
+    yield .
+    set h. expr a. * 10 + x. . .
+    return h. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+
+actor poker do
+  state do n u64 . end .
+  fn poke input t slow . output u64 . do
+    drain t. .
+    return 0 .
+  end .
+  proc feed input t slow . output u64 . effects state . do
+    spawn send t. put 5 . .
+    drain t. .
+    return 0 .
+  end .
+end .
+
+proc busy_drain output u64 . effects state . do
+  var a slow spawn actor slow . .
+  var p poker spawn actor poker . .
+  spawn send a. put 1 . .
+  spawn send p. poke a. . .
+  schedule .
+  return 1 .
+end .
+
+proc inside_ok output u64 . effects state . do
+  var a slow spawn actor slow . .
+  var p poker spawn actor poker . .
+  spawn send p. feed a. . .
+  schedule .
+  return send a. get . .
+end .
+
+proc after_ok output u64 . effects state . do
+  var a slow spawn actor slow . .
+  spawn send a. put 1 . .
+  schedule .
+  spawn send a. put 2 . .
+  drain a. .
+  return send a. get . .
+end .

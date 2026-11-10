@@ -307,6 +307,15 @@ h2          │       spawn ├── work ──────────┤ end
 (2) What is in a mailbox **is not processed by itself.** `drain <actor>` empties that actor's mailbox
       **in the order put in**.
 
+(2a) If, when `drain` is called, that actor is **still handling** a message taken from its mailbox — `schedule` has taken it and it has not
+      finished, or another `drain` is running it — the program stops (`E-VM-DRAIN-BUSY`). It neither delivers anyway nor waits.
+
+> [!산문]
+> Delivering anyway would have one actor handle two messages together — exactly what (4a) prevents. Waiting would never end when it is
+> called from inside that message's handler, and `drain` would become something that waits for a peer (`concurrent`). Stopping shows the
+> place and keeps the meaning of `drain` as it is. Move the draining to after that message has finished — for example to the code that
+> called `schedule`.
+
 (3) The processor does not decide by itself when to deliver because of **determinism** — the same
       program shall give the same answer, and the moment of delivery is the answer.
 

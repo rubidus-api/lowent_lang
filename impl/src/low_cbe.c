@@ -7098,6 +7098,10 @@ static bool cbe_may_suspend(const low_ir_t *ir, proven_size_t d, int depth) {
     for (proven_size_t i = 0; i < ir->defs[d].ncode; i++) {
         low_irw_t w = ir->defs[d].code[i].w;
         if (w == IRW_YIELD || w == IRW_CHRECV || w == IRW_CHSEND || w == IRW_AWAIT || w == IRW_RREAD || w == IRW_RWRITE) return true;
+        // ★★ `drain` 은 그 액터의 처리 코드를 **이 자리에서** 돌린다 — 그것이 yield 하면 여기서 멈춰 선다. 어느 처리 코드인지는
+        //   실행할 때 정해지므로 «멈춰 설 수 있다» 로 본다. (2026-11-10 v1.31.0 에서 빠져 있었다: `schedule` 로 온 메시지가 yield 하는
+        //   액터를 drain 하면 네이티브가 죽었다 — VM 은 5. 기록 docs/known-defects/drain-in-place-handler-yields.md)
+        if (w == IRW_DRAIN) return true;
         if (w == IRW_CALL && cbe_may_suspend(ir, IR_CALL_IDX(ir->defs[d].code[i].a), depth + 1)) return true;
     }
     return false;
@@ -9376,7 +9380,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★★★ **drain** — 이 인스턴스의 메일박스를 FIFO 로 비운다(도착 순서). [instance] 팝 → 단위 push.
                 case IRW_DRAIN:
                     fprintf(out, "    { if (st[sp-1].tag == LWV_INT && st[sp-1].i == 0) lw_panic(\"`drain` on actor handle 0 \xe2\x80\x94 this actor was never spawned\");"
-                                 " if (st[sp-1].tag == LWV_REC) lw_drain(st[sp-1].box);"
+                                 " if (st[sp-1].tag != LWV_REC) lw_panic(\"`drain` needs a spawned actor instance (a fabricated struct is not a real instance)\");"
+                                 " lw_drain(st[sp-1].box);"
                                  " sp -= 1; st[sp++] = lw_int(0); }\n");
                     break;
                 // ★★★ **schedule** — 전역 메일박스를 quiescence 까지 FIFO 로 비운다(인자 없음). 단위 push.

@@ -212,6 +212,7 @@ These do not appear in the examples but can come up. Most are stops by the **VM*
 | `E-VM-HANDLE-ZERO` | waited on an empty handle (0), put into / took from a channel that is 0, or sent to an actor never spawned (0) — give it what `spawn <op>` / `channel <T>` / `spawn actor <name>` gives first |
 | `E-VM-CHAN-EMPTY` · `E-VM-CHAN-FULL` | received from an empty channel or sent to a full one with no scheduler to wait — a wait that can never end |
 | `E-VM-SCHED-LOOP` | handlers keep sending each other messages, so the scheduler cannot settle |
+| `E-VM-DRAIN-BUSY` | an actor was drained while it was still handling a message from its mailbox — drain it after that message has finished (for example where `schedule` was called) |
 | `E-VM-FD` · `E-VM-FMODE` · `E-VM-FWHENCE` | a file number that cannot be written (only 1 · 2) · an unknown open mode (0 · 1 · 2) · an unknown `seek` origin (0 · 1 · 2) |
 | `E-VM-FHANDLE` · `E-VM-SHANDLE` · `E-VM-REACTOR` | the value passed is not an open file / socket / reactor handle |
 | `E-VM-EXTERN` | an `extern` op whose body is in C was called in the VM — build natively to run it |

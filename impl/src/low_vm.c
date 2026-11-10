@@ -1895,6 +1895,16 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (inst.tag == VMV_INT && inst.i == 0) { vm_diag(vm->diags, "E-VM-HANDLE-ZERO", "`drain` on actor handle 0 — this actor was never spawned (0 is the handle that points at nothing)"); return false; }
                 if (inst.tag != VMV_REC) { vm_diag(vm->diags, "E-VM-TYPE", "`drain` needs a spawned actor instance"); return false; }
                 proven_i32 box = inst.box;
+                // ★★★ 2026-11-10 (W-20261110-1247 · 소유자 «추천대로») — 정본 §10.5 (2a): 그 액터가 우편함에서 받은 메시지를 **처리하는 중**이면
+                //   (`schedule` 의 그린스레드가 쥐고 있거나 · 이 `drain` 이 지금 그 액터의 메시지를 돌리는 중이면) 멈춘다. 그대로 배달하면
+                //   한 액터가 두 메시지를 함께 처리하게 되고(§10.5 (4a) 가 막은 것), 기다리면 그 처리 코드 안에서 부른 경우 영영 안 풀린다.
+                if (box >= 0 && (proven_size_t)box < VM_MAXREC && vm->mb_busy[box]) {
+                    vm_diag(vm->diags, "E-VM-DRAIN-BUSY",
+                            "`drain` on an actor that is still handling a message from its mailbox (canon 10.5 (2a)) — delivering now "
+                            "would run two of its messages at once, and waiting could never end if this is called from inside that "
+                            "message. Drain it after that message has finished (for example from the code that started `schedule`)");
+                    return false;
+                }
                 // 그 인스턴스의 도착 순서를 머리부터. 핸들러가 다시 보내거나 안에서 drain 하면 머리가
                 //   바뀌므로 **매번 머리를 다시 읽는다**(옛 배열 훑기와 같은 차례).
                 while (box >= 0 && (proven_size_t)box < VM_MAXREC && vm->mb_hb[box]) {
@@ -1906,7 +1916,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_mbox_take(vm, i);
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
+                    vm->mb_busy[box] = 1;   // 이 메시지가 끝날 때까지 이 액터는 처리 중이다(§10.5 (2a) · (4a))
                     if (!vm_actor_exec(vm, h, cargs, &rv2, depth + 1)) return false;
+                    vm->mb_busy[box] = 0;
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛

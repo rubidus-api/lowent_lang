@@ -212,6 +212,7 @@
 | `E-VM-HANDLE-ZERO` | 비워 둔 핸들(0)을 기다리거나, 0 인 채널에 넣고 뺐거나, 띄우지 않은 액터(0)에 말을 보냈다 — 먼저 `spawn <op>` · `channel <T>` · `spawn actor <이름>` 으로 받은 것을 준다 |
 | `E-VM-CHAN-EMPTY` · `E-VM-CHAN-FULL` | 빈 채널에서 받거나 찬 채널에 보냈는데, 기다려 줄 스케줄러가 없다 — 영영 풀리지 않는 대기다 |
 | `E-VM-SCHED-LOOP` | 핸들러가 서로 메시지를 끝없이 주고받아 스케줄러가 멈추지 못한다 |
+| `E-VM-DRAIN-BUSY` | 액터가 우편함의 메시지를 아직 처리하는 중인데 그 액터를 `drain` 했다 — 그 메시지가 끝난 뒤(예: `schedule` 을 부른 자리)에서 비운다 |
 | `E-VM-FD` · `E-VM-FMODE` · `E-VM-FWHENCE` | 쓸 수 없는 파일 번호(1 · 2 만 쓴다) · 없는 열기 방식(0 · 1 · 2) · 없는 `seek` 기준(0 · 1 · 2) |
 | `E-VM-FHANDLE` · `E-VM-SHANDLE` · `E-VM-REACTOR` | 열린 파일 · 소켓 · 리액터 핸들이 아닌 값을 넘겼다 |
 | `E-VM-EXTERN` | 몸이 C 에 있는 `extern` op 을 VM 에서 불렀다 — 네이티브로 지어서 돌린다 |

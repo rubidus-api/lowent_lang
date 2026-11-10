@@ -30,7 +30,7 @@ proc order output u64 . effects state . do
   return send a. get . .
 end .
 
-proc pump output u64 . effects state . do
+proc pump output u64 . effects none . do
   schedule .
   return 0 .
 end .

@@ -169,7 +169,7 @@
     X(wrap_add, "VV")   X(wrap_sub, "VV")   X(wrap_mul, "VV")                  \
     X(sat_add, "VV")    X(sat_sub, "VV")    X(sat_mul, "VV")                   \
     X(chk_add, "VV")    X(chk_sub, "VV")    X(chk_mul, "VV")                   \
-    X(div_nz, "VV")                                                            \
+    X(div_nz, "VV")     X(nonzero_or, "VV")  /* ★ 2026-11-11 W-20261111-2031 D1 */  \
     /* 폭 변환 — 첫 슬롯은 **타입 낱말** */                                    \
     X(widen, "WV")      X(narrow, "WV")     X(narrow_wrap, "WV")               \
     X(narrow_sat, "WV") X(narrow_try, "WV") X(cast, "WV")                      \

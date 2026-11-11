@@ -1,11 +1,17 @@
-rem ★★ 받은 참조로 부른 쪽 칸에 바퀴마다 풀 값을 쓰는 반복 (2026-11-11 · W-20261111-0940 O1) — 네이티브가 아직 되감지 못하는 꼴.
-rem fill 의 핸들은 이 틀의 바닥 위에 있어 되감으면 부른 쪽이 지워진 값을 읽는다. 그래서 그 틀은 그 쓰기 뒤로 되감지 않고, 큰 n 에서 풀 한도에 멈춘다
-rem (VM 은 끝까지). `--check` 가 W-POOL-LOOP 로 말한다. 기록 docs/known-defects/native-pool-reclaim-with-refs.md.
+rem ★★ 받은 참조로 부른 쪽에 바퀴마다 풀 값을 쓰는 반복 (2026-11-11 · W-20261111-0940 O1 · W-20261111-2031 D4).
+rem fill 은 부른 쪽 **칸**에, fill_rec 는 부른 쪽 **레코드의 칸**에 쓴다. 그 핸들은 이 틀의 바닥 위에 있어 그냥 되감으면 부른 쪽이 지워진 값을 읽는다.
+rem D4 부터 네이티브는 그렇게 쓴 부른 쪽 칸(레코드면 레코드를 든 칸)을 그 틀의 뿌리 목록에 올리고 되감는다(lw_rfar) — 풀 64 칸으로 100,000 바퀴.
+rem 전엔 큰 n 에서 풀 한도에 멈췄다(VM 은 끝까지). 레코드가 부른 쪽 스택(틀 창)에 살면 아직 못 되감는다 — `--check` 가 W-POOL-LOOP 로 그 꼴(fill_rec)을 말한다.
+rem 기록 docs/known-defects/native-pool-reclaim-with-refs.md.
 rem far_opt 은 같이 찾은 VM 결함의 증인이기도 하다: 수를 돌려준 부름 뒤의 풀 돌려받기가 fill 이 써 넣은 option 을 지웠다(v1.33.0 VM far_opt 10 = 2 · 이제 27).
-rem ★ 이름이 `vm_` 로 시작하지 않는다 — 차등 훑기가 큰 인자로 흔들면 알려진 한도를 매번 다시 찾는다. ★ 평평한 모드(`--flat`) 대조에서 뺀다 — 평평한
+rem ★ 이름이 `vm_` 로 시작하지 않는다 — 차등 훑기가 큰 인자로 흔들면 풀 한도를 매번 다시 찾는다. ★ 평평한 모드(`--flat`) 대조에서 뺀다 — 평평한
 rem   검사기는 인자 자리에 바로 쓴 `mut_ref o .` 의 빌림이 op 끝까지 간다고 보아 뒤의 `o` 읽기를 E-EXCL 로 막는다(나무는 옳게 본다). 참조를 지역에 담으면
 rem   포매터 결함(fmt-ref-type-grouping.md)에 걸린다.
 module poolfar .
+
+struct cell do
+  v option u64 .
+end .
 
 fn pick input i u64 . output option u64 . do
   if eq bit_and i. 1 . 0 . do  return some i. . .  end .
@@ -29,4 +35,57 @@ proc far_opt input n u64 . output u64 . effects state . do
   let z u64 fill (mut_ref o .) n. . .
   let w option u64 pick 2 . .
   return value_or o. 0 . .
+end .
+
+proc fill_rec input p mut_ref cell . input n u64 . output u64 . effects state . do
+  var i u64 0 .
+  var k u64 0 .
+  while lt i. n. . do
+    let t option u64 pick i. . .
+    set k. expr k. + value_or t. 0 . . .
+    set field p. v . some expr i. * 3 . . .
+    set i. add i. 1 . .
+  end .
+  return k. .
+end .
+
+proc far_rec input n u64 . output u64 . effects state . do
+  var c cell lit cell do v none . end . .
+  let z u64 fill_rec (mut_ref c .) n. . .
+  return value_or field c. v . 0 . .
+end .
+
+rem 한 번만 써 넣고 계속 도는 꼴 — 그 뒤의 되감기들이 부른 쪽 칸을 뿌리로 보지 않으면 그 핸들이 가리키던 자리를 다른 값이 차지한다.
+rem (fill · fill_rec 는 바퀴마다 다시 쓰므로 마지막 쓰기 뒤에 되감기가 없어 그 차이를 못 본다 — 주입으로 확인했다. 써 넣은 뒤의
+rem  바퀴가 그 바퀴보다 많이 만들어야 지워진 자리를 뒤의 값이 다시 차지한다 — 같은 수만 만들면 지워진 777 이 그 자리에 그대로 남아 주입도 777 을 냈다.)
+proc fill_once input p mut_ref option u64 . input n u64 . output u64 . effects state . do
+  var i u64 0 .
+  var k u64 0 .
+  while lt i. n. . do
+    let t option u64 some i. . .
+    set k. expr k. + value_or t. 0 . . .
+    if eq i. 4 . do set p. some 777 . . end .
+    if gt i. 4 . do
+      let u option u64 some add i. 1 . . .
+      let w option u64 some add i. 2 . . .
+      set k. expr k. + value_or u. 0 . + value_or w. 0 . . .
+    end .
+    set i. add i. 1 . .
+  end .
+  return k. .
+end .
+
+proc far_once input n u64 . output u64 . effects state . do
+  var o option u64 none .
+  let z u64 fill_once (mut_ref o .) n. . .
+  return value_or o. 0 . .
+end .
+
+rem 되감을 수 없는 꼴 — 틀마다 `some` 하나를 쥔 채 더 깊이 부른다: 산 값이 깊이만큼 쌓여 풀 64 칸이면 100 겹에서 끝에 닿는다(VM 도 E-VM-BOXPOOL).
+rem 골든 «inline some» 이 이것으로 태그 경로의 `some` 이 풀 끝에서 멈추는지 잰다(전엔 far_opt 를 썼다 — 이제 되감는다, W-20261111-2031 D4).
+fn deep input n u64 . output u64 . do
+  let h option u64 some n. . .
+  if eq n. 0 . do return value_or h. 0 . . end .
+  let r u64 deep sub n. 1 . . .
+  return add r. value_or h. 0 . . .
 end .

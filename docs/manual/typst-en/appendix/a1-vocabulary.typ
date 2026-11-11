@@ -57,7 +57,7 @@ are not words but cannot be used as names.
   caption: [Kinds of core ops and builtin ops],
   [*Kind*], [*Operations*],
   [Arithmetic (stopping)], [`add` `sub` `mul` `div` `mod` `neg` `abs` `min` `max`],
-  [Arithmetic (choosing the outcome)], [`wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of`],
+  [Arithmetic (choosing the outcome)], [`wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` `nonzero_or`],
   [Changing width], [`widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast`],
   [Comparison and logic], [`eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not`],
   [Bits], [`bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap`],

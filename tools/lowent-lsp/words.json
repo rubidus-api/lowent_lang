@@ -739,6 +739,13 @@
    "takes": "`a` — 정수",
    "gives": "`option nonzero T`(`T` 는 `a` 의 타입) — 0 이면 없음"
   },
+  "nonzero_or": {
+   "meaning": "0 이면 0 아닌 대신을 낸다 — 결과는 0 이 아님이 보장된다",
+   "group": "넘침 처분",
+   "form": "nonzero_or a d",
+   "takes": "`a` — 정수 · `d` — `a` 와 같은 타입이고 0 아님이 보장된 값(0 아닌 리터럴 · `nonzero_of` 로 얻은 값 · 그것으로 묶은 `let`)",
+   "gives": "`a` 의 타입 — `a` 가 0 이 아니면 `a`, 0 이면 `d`. 0 아님이 보장되므로 `div_nz` 의 제수가 된다"
+  },
   "not": {
    "meaning": "논리 부정",
    "group": "논리",

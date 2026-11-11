@@ -11855,7 +11855,7 @@ static bool ck_pure_value_word(proven_u8str_view_t w) {
     static const char *P[] = {
         "add","sub","mul","div","mod","neg","eq","ne","lt","le","gt","ge","and","or","not",
         "bit_and","bit_or","bit_xor","bit_not","shl","shr","rotl","rotr",
-        "wrap_add","wrap_sub","wrap_mul","sat_add","sat_sub","sat_mul","chk_add","chk_sub","chk_mul","div_nz",
+        "wrap_add","wrap_sub","wrap_mul","sat_add","sat_sub","sat_mul","chk_add","chk_sub","chk_mul","div_nz","nonzero_or",
         "widen","narrow","narrow_wrap","narrow_sat","narrow_try","cast","len","idx","field","subslice",
         "min","max","abs","@sqrt","@floor","@ceil","@sin","@cos","@exp","@log","@round","@pow","@fmod",
         "count_ones","leading_zeros","trailing_zeros","byte_swap",

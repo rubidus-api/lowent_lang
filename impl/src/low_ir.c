@@ -285,6 +285,21 @@ static ityp_t ir_tpop(ir_ctx_t *c) {
     if (c->tsp == 0) { c->tstk_bad = true; return ITY_UNK; }
     return c->tstk[--c->tsp];
 }
+// ★★ 2026-11-11 (W-20261111-2031) — **갈림길을 지나도 그림자는 남는다.** 값 안에서 갈리는 낮추기(`value_or` · `nonzero_or` · `and` · `or`)는
+//   `BR` 에서 그림자를 비웠다(문장 경계로 보았다) — 그 아래 칸들(먼저 계산한 피연산자)의 타입이 지워져, 뒤따르는 셈이 미상으로 물러났다:
+//   `div a. value_or o. 3 . .`(`u64`)가 부호 있게 나눠 9 / (2^64−1) = 2^64−9 를 냈다(VM · 네이티브 같이). 갈리기 전에 그림자를 받아 두고,
+//   합쳐진 뒤 되살려 결과 한 칸을 얹는다.
+typedef struct { ityp_t t[64]; proven_u8str_view_t n[64]; low_irw_t src[64]; proven_size_t sp; bool bad; } ir_tsave_t;
+static void ir_tsave(const ir_ctx_t *c, ir_tsave_t *sv) {
+    sv->sp = c->tsp; sv->bad = c->tstk_bad;
+    for (proven_size_t z = 0; z < c->tsp && z < 64; z++) { sv->t[z] = c->tstk[z]; sv->n[z] = c->tnam[z]; sv->src[z] = ir_tsrc[z]; }
+}
+static void ir_trestore(ir_ctx_t *c, const ir_tsave_t *sv, ityp_t top, proven_u8str_view_t topn) {
+    c->tsp = sv->sp; c->tstk_bad = sv->bad;
+    for (proven_size_t z = 0; z < sv->sp && z < 64; z++) { c->tstk[z] = sv->t[z]; c->tnam[z] = sv->n[z]; ir_tsrc[z] = sv->src[z]; }
+    if (c->tsp < 64) { ir_tsrc[c->tsp] = IRW_CALL; c->tnam[c->tsp] = topn; }
+    ir_tpush(c, top);
+}
 
 // ── RFC-0054: 타깃 표 — **나무 + 축 값** (§8-6, 2026-10-24 소유자 «2와 3을 섞는 것으로» · 2026-10-25 «대상 목록은 나무구조로 지금 변경해 주세요») ──
 //   전에는 아홉 줄이 평평했고, 줄마다 열일곱 칸을 다 적었다. 칩이 늘면 같은 값이 여러 줄에 되풀이되어 하나를 고칠 때 다른 줄을
@@ -5880,6 +5895,33 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_NOT, 0);
                 return;
             }
+            // ★★ 2026-11-11 (W-20261111-2031 D1 · RFC-0052 D6 · 정본 §6.3.6 (2c)) — `nonzero_or <값> <대신>` = `value_or (nonzero_of 값) 대신`.
+            //   아래 `value_or` 와 같은 꼴로 낮춘다(대신은 값이 0 일 때만 돈다). 0 이 아님의 보장은 검사기가 진다(low_typecheck.c tc_nz_given).
+            if (veq(nd->tok.lex, "nonzero_or")) {
+                if (*pos + 2 > end) { ir_fail_r(c, "E-IR-ARITY", "`nonzero_or` takes two operands: the value and its nonzero fallback", "R-FEWER-PARAMS", nd->line); return; }
+                if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "nonzero_or: too many locals", nd->line); return; }
+                proven_size_t t = c->nlocals++;
+                c->locals[t].name = (proven_u8str_view_t){ 0 };
+                ir_tsave_t sv_; ir_tsave_t *sv = &sv_;   // 스택에 둔다(약 2.5 KiB — 값 안의 갈림길이 겹친 깊이만큼)
+                ir_tsave(c, sv);
+                ir_value(c, k, pos, end);
+                ir_emit(c, IRW_UNM, 4);                        // nonzero_of
+                ityp_t rt = (!c->tstk_bad && c->tsp) ? c->tstk[c->tsp - 1] : ITY_UNK;
+                proven_u8str_view_t rn = (!c->tstk_bad && c->tsp && c->tsp <= 64) ? c->tnam[c->tsp - 1] : (proven_u8str_view_t){ 0 };
+                ir_emit(c, IRW_STORE, (proven_i64)t);
+                ir_emit(c, IRW_LOAD, (proven_i64)t);
+                ir_emit(c, IRW_HASVAL, 0);
+                proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
+                ir_emit(c, IRW_LOAD, (proven_i64)t);
+                ir_emit(c, IRW_LOAD, (proven_i64)t);
+                ir_emit(c, IRW_VALOR, 0);
+                proven_size_t brend = ir_emit(c, IRW_BR, 0);
+                ir_at(c, brz)->a = (proven_i64)c->code.len;
+                ir_value(c, k, pos, end);
+                ir_at(c, brend)->a = (proven_i64)c->code.len;
+                ir_trestore(c, sv, rt, rn);
+                return;
+            }
             const ir_builtin_t *b = ir_builtin(nd->tok.lex);
             if (!b && veq(nd->tok.lex, "bitset_insert")) b = ir_builtin((proven_u8str_view_t){ .ptr = (const proven_byte_t *)"add", .size = 3 });   // RFC-0113 R5
             // ★★★★★ **`call_builtin <이름> …`** (RFC-0125) — 계산 잎의 이름을 **자리에** 가둔다.
@@ -5946,7 +5988,11 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "value_or: too many locals", nd->line); return; }
                     proven_size_t t = c->nlocals++;
                     c->locals[t].name = (proven_u8str_view_t){ 0 };
+                    ir_tsave_t sv_; ir_tsave_t *sv = &sv_;   // 스택에 둔다(약 2.5 KiB — 값 안의 갈림길이 겹친 깊이만큼)
+                    ir_tsave(c, sv);
                     ir_value(c, k, pos, end);                      // 대상(option|result)
+                    ityp_t rt = (!c->tstk_bad && c->tsp) ? c->tstk[c->tsp - 1] : ITY_UNK;   // 그릇의 칸은 알맹이의 타입을 싣는다(RFC-0148 S2)
+                    proven_u8str_view_t rn = (!c->tstk_bad && c->tsp && c->tsp <= 64) ? c->tnam[c->tsp - 1] : (proven_u8str_view_t){ 0 };
                     ir_emit(c, IRW_STORE, (proven_i64)t);
                     ir_emit(c, IRW_LOAD, (proven_i64)t);
                     ir_emit(c, IRW_HASVAL, 0);
@@ -5960,10 +6006,13 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     ir_at(c, brz)->a = (proven_i64)c->code.len;
                     ir_value(c, k, pos, end);                      // ★ 기본값은 **여기서만** 계산된다
                     ir_at(c, brend)->a = (proven_i64)c->code.len;
+                    ir_trestore(c, sv, rt, rn);
                     return;
                 }
                 if (b->w == IRW_AND || b->w == IRW_OR) {
                     // ★ 기존 낱말만으로 짓는다(BRZ·BR·CONST·NOT) — **새 IR 낱말 0개**.
+                    ir_tsave_t sv_; ir_tsave_t *sv = &sv_;   // 스택에 둔다(약 2.5 KiB — 값 안의 갈림길이 겹친 깊이만큼)
+                    ir_tsave(c, sv);
                     ir_value(c, k, pos, end);                 // 왼쪽을 계산한다
                     if (b->w == IRW_OR) ir_emit(c, IRW_NOT, 0);   // or: 왼쪽이 참이면 건너뛴다
                     proven_size_t brz = ir_emit(c, IRW_BRZ, 0);   // (조건을 소비한다)
@@ -5973,6 +6022,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     ir_at(c, brz)->a = (proven_i64)c->code.len;
                     ir_emit(c, IRW_CONST, b->w == IRW_AND ? 0 : 1);   // 단락된 답
                     ir_at(c, brend)->a = (proven_i64)c->code.len;
+                    ir_trestore(c, sv, ITY_UNK, (proven_u8str_view_t){ 0 });   // 결과는 bool(미상으로 둔다 — 전과 같다)
                     return;
                 }
                 // ★ 집합 op(contains/remove/집합삽입 add)의 **첫 피연산자 = 비트셋**. 인자를

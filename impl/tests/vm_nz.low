@@ -11,3 +11,18 @@ fn dz input a u32 . input b u32 . output u32 . do
   guard is_some nb. . else return 0 . .
   return div_nz a. some_value nb. . . .        rem 제수가 0 이 아님이 여기서 보장된다
 end .
+
+rem 2026-11-11 (W-20261111-2031 D1 · RFC-0052 D6 · 정본 §6.3.6 (2c)) — `nonzero_or <값> <대신>`: 값이 0 이면 대신을 낸다. 대신이 0 이 아님이
+rem 보장돼 있으므로 결과도 그렇다 — `div_nz` 의 제수가 된다(`let` 으로 묶어도). `u64` 의 위쪽 절반에서도 부호 없이 나눈다.
+fn dzo input a u64 . input b u64 . output u64 . do
+  return div_nz a. nonzero_or b. 3 . . .
+end .
+fn dzl input a u32 . input b u32 . output u32 . do
+  let n u32 nonzero_or b. 7 . .
+  return div_nz a. n. . .
+end .
+rem 같은 날 고친 결함의 증인 — `value_or` 를 지난 뒤에도 앞 피연산자 `a` 의 타입(`u64`)이 남는다. 전엔 9 / (2^64−1) 이 2^64−9 였다.
+fn vod input a u64 . input b u64 . output u64 . do
+  let o option u64 narrow_try u64 b. . .
+  return div a. value_or o. 3 . . .
+end .

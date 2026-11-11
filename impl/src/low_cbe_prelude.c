@@ -2017,6 +2017,8 @@ LOW_CHAPOLY_C_SOURCE
 /* ★★ RFC-0132 P4e (§14.8) — **틀 창**: 값 구조체는 그 op 의 C 틀에 산다(손잡이 box = -1 · p = 레코드). 칸이 모자라면 풀이다.
    되튐 창(lw_bnw)은 돌려주는 레코드 나무를 부른 쪽이 제 창으로 옮길 때까지 든다. lw_nwin_live = 살아 있는 창의 수. */
 "typedef struct { lowrec *r; int n, cap; } lw_fwin;\n"
+"typedef struct { lowv *s[8]; int n; } lw_rfar;   /* 부른 쪽 칸 뿌리 — 아래 lw_refw_ok 의 ★ (W-20261111-2031 D4) */\n"
+"static _Thread_local lw_rfar *lw_gc_far;\n"
 "static _Thread_local int lw_nwin_live, lw_vec_pinned;\n"
 "static inline void lw_wl_restore(int *p) { (void)p; lw_nwin_live--; }\n"
 "static inline int lw_in_win(const lw_fwin *w, lowv v) { if (!w || v.tag != LWV_REC || v.box >= 0) return 0;\n"
@@ -2979,6 +2981,7 @@ const char LW_PRELUDE2[] =
 "    if (v->box >= lo && v->box < hi && m[v->box] >= 0) v->box = m[v->box];\n"
 "}\n"
 "static void lw_pool_gc(int bxb, int rcb, int skb, int bsb, int vcb, lowv *loc, int nloc, lowv *st, int sp, lw_fwin *w_) {\n"
+"    lw_rfar *rf_ = lw_gc_far; lw_gc_far = 0;   /* 부른 쪽 칸 뿌리(lw_refw_ok 가 이 부름 바로 앞에서 단다) */\n"
 "    if (lw_vec_shared) return;   /* 풀을 나눠 쓰는 흐름 — 남의 뿌리가 안 보인다 */\n"
 "    if (lw_nbox <= bxb && lw_nrec <= rcb && lw_nstk <= skb && lw_nbset <= bsb && lw_nvecpool <= vcb) return;\n"
 "    lw_gcb_bx = bxb; lw_gcb_rc = rcb; lw_gcb_sk = skb; lw_gcb_bs = bsb; lw_gcb_vc = vcb;\n"
@@ -2989,6 +2992,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = vcb; i < lw_nvecpool; i++) lw_pm_vc[i] = -1;\n"
 "    for (int i = 0; i < nloc; i++) lw_gc_mark(loc[i]);\n"
 "    for (int i = 0; i < sp; i++)   lw_gc_mark(st[i]);\n"
+"    if (rf_) for (int i = 0; i < rf_->n; i++) lw_gc_mark(*rf_->s[i]);\n"
 "    if (w_) for (int i = 0; i < w_->n; i++) for (int f = 0; f < w_->r[i].nf; f++) lw_gc_mark(w_->r[i].f[f]);\n"
 "    for (int i = 0; i < bxb; i++) lw_gc_mark(lw_boxes[i]);\n"
 "    for (int i = 0; i < rcb; i++) for (int f = 0; f < lw_recs[i].nf; f++) lw_gc_mark(lw_recs[i].f[f]);\n"
@@ -3010,6 +3014,7 @@ const char LW_PRELUDE2[] =
 "    for (int i = vcb; i < lw_nvecpool; i++) if (lw_pm_vc[i] >= 0 && lw_pm_vc[i] != i) lw_vecs[lw_pm_vc[i]] = lw_vecs[i];\n"
 "    for (int i = 0; i < nloc; i++) lw_gc_fix(&loc[i]);\n"
 "    for (int i = 0; i < sp; i++)   lw_gc_fix(&st[i]);\n"
+"    if (rf_) for (int i = 0; i < rf_->n; i++) lw_gc_fix(rf_->s[i]);\n"
 "    if (w_) for (int i = 0; i < w_->n; i++) for (int f = 0; f < w_->r[i].nf; f++) lw_gc_fix(&w_->r[i].f[f]);\n"
 "    for (int i = 0; i < tb; i++) lw_gc_fix(&lw_boxes[i]);\n"
 "    for (int i = 0; i < tr; i++) for (int f = 0; f < lw_recs[i].nf; f++) lw_gc_fix(&lw_recs[i].f[f]);\n"
@@ -3561,13 +3566,19 @@ const char LW_PRELUDE2[] =
 //   쓴 칸의 주소도 고리(16 칸)에 남긴다: 되감는 틀이 «지난번 뒤로 쓴 칸이 모두 **내 칸**» 임을 확인하면 그 핸들은 내 뿌리라 되감아도 안전하다
 //   (부른 op 이 내가 넘긴 참조로 내 지역에 써 넣는 꼴 — vm_pool_ref.low keep_opt). 하나라도 내 칸 밖이면(부른 쪽 · 레코드 칸) 그 틀은
 //   그 뒤로 되감지 않는다 — 그 핸들이 이 틀의 바닥 위에 있어서 되감기가 지운다.
-"static _Thread_local unsigned lw_refw; static _Thread_local const lowv *lw_refw_ring[16];\n"
+// ★★ 2026-11-11 (W-20261111-2031 D4) — **부른 쪽 칸도 뿌리다.** 지난번 뒤로 쓴 칸 가운데 내 칸 밖의 것(받은 참조로 부른 쪽 지역에 쓴 칸)은
+//   틀마다 둔 목록(lw_rfar · 여덟 칸)에 올리고, 되감기(lw_pool_gc)가 그 칸들도 뿌리로 훑어 핸들을 고쳐 쓴다 — 그 칸은 부른 쪽 틀에 있어
+//   이 틀이 사는 동안 살아 있다. 레코드 칸에 쓴 것(주소 0)이나 목록이 차면 전처럼 그 뒤로 되감지 않는다. 부름이 돌아올 때의 돌려받기는
+//   lw_refw 가 움직였으면 하지 않으므로(아래 IRW_CALL) 그 값은 부른 쪽에 남는다. 전엔 이 꼴(tests/poolfar_native.low fill)이 풀 한도에서 멈췄다.
+"static _Thread_local unsigned lw_refw; static _Thread_local lowv *lw_refw_ring[16];\n"
 "#define LW_POOLED(v) ((v).tag != LWV_INT && (v).tag != LWV_FLT && (v).tag != LWV_MASK && (v).tag != LWV_NONE)\n"
 "#define LW_REFW_NOTE(slot) (lw_refw_ring[lw_refw++ & 15u] = (slot))\n"
-"static int lw_refw_ok(unsigned *rwc, const lowv *loc, int n) {\n"
+"static int lw_refw_ok(unsigned *rwc, const lowv *loc, int n, lw_rfar *rf) {\n"
 "    unsigned k = lw_refw - *rwc; if (k > 16) return 0;\n"
-"    for (unsigned j = 0; j < k; j++) { const lowv *q = lw_refw_ring[(lw_refw - 1 - j) & 15u]; if (!q || q < loc || q >= loc + n) return 0; }\n"
-"    *rwc = lw_refw; return 1; }\n"
+"    for (unsigned j = 0; j < k; j++) { lowv *q = lw_refw_ring[(lw_refw - 1 - j) & 15u]; if (!q) return 0; if (q >= loc && q < loc + n) continue;\n"
+"        int seen = 0; for (int z = 0; z < rf->n; z++) if (rf->s[z] == q) { seen = 1; break; }\n"
+"        if (!seen) { if (rf->n >= 8) return 0; rf->s[rf->n++] = q; } }\n"
+"    *rwc = lw_refw; lw_gc_far = rf->n ? rf : 0; return 1; }\n"
 "static void lw_store(lowv *slot, lowv v) {\n"
 "    if (slot->tag == LWV_REF && v.tag != LWV_REF) {   // G7 write-through\n"
 "        if (!(slot->i & LW_REF_MUT)) lw_panic(\"write through a shared ref (needs mut_ref)\");\n"

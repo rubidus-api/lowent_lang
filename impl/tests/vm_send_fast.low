@@ -1,0 +1,29 @@
+rem ★★ 2026-11-11 (W-20261111-2031 D2) — 넘겨받은 액터에게 기다리는 `send` 를 하는 op 이 빠른 경로에 남는 자리.
+rem 동시성을 쓰는 단위(여기서는 `task_group`)에서 그런 op 은 태그 경로로 갔다(W-20261111-0940 O7) — 그 액터를 다른 흐름이 쥔 채 멈춰 있으면
+rem 기다려야 하기 때문이다. 그런데 `ctr` 의 처리 코드는 하나도 멈출 수 없다: 다른 흐름이 `ctr` 을 쥔 채 멈춰 있을 수 없고, 기다릴 일이 없다.
+rem   · go — `work` 는 빠른 경로다(`--why-slow` 에 없다). 300 만 번 보내기 3 ms(태그 경로 106 – 216 ms, 7 번 가운데 가장 짧은 것).
+rem   멈출 수 있는 처리 코드를 가진 액터에게 보내는 op 은 그대로 태그 경로에서 기다린다 — vm_send_busy.low.
+module vm_send_fast .
+actor ctr do
+  state do h u64 . end .
+  proc bump input x u64 . output u64 . effects state . do
+    set h. expr h. + x. . .
+    return h. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+proc work input c ctr . input n u64 . output u64 . effects state . do
+  var s u64 0 .
+  range i u64 0 n. do
+    set s. send c. bump 1 . .
+  end .
+  return s. .
+end .
+fn one output u64 . do return 1 . end .
+proc go input n u64 . output u64 . effects state . do
+  task_group do
+    spawn one .
+  end .
+  var a ctr spawn actor ctr . .
+  return work a. n. . .
+end .

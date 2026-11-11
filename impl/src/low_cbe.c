@@ -978,6 +978,16 @@ static bool g_qthunk[512];
 static bool g_mdel[512];
 static bool g_conc_t0;   /* --conc-t0 (아래 low_cbe_set_conc_t0 — 여기서 먼저 읽는다) */
 static bool cbe_may_suspend(const low_ir_t *ir, proven_size_t d, int depth);
+// ★★ 2026-11-11 (W-20261111-2031 D2) — 처리 코드 `h` 의 액터를 다른 흐름이 **쥔 채 멈춰** 있을 수 있는가: 같은 액터 타입(첫 매개변수의 구조체)의
+//   처리 코드 가운데 하나라도 멈출 수 있으면 그렇다. 모르면 그렇다고 본다.
+static bool cbe_actor_holdable(const low_ir_t *ir, proven_size_t h) {
+    if (h >= ir->ndefs || !ir->defs[h].is_actor || !ir->defs[h].nparams || !(ir->defs[h].param_struct & 1u)) return true;
+    proven_size_t sx = (proven_size_t)ir->defs[h].param_sidx[0];
+    for (proven_size_t e = 0; e < ir->ndefs; e++)
+        if (ir->defs[e].is_actor && ir->defs[e].nparams && (ir->defs[e].param_struct & 1u) && (proven_size_t)ir->defs[e].param_sidx[0] == sx &&
+            cbe_may_suspend(ir, e, 0)) return true;
+    return false;
+}
 static long long cbe_restart_max(const low_ir_t *ir, const low_ir_def_t *h);
 static bool cbe_struct_has_sl(const low_ir_t *ir, int sx);
 
@@ -1988,8 +1998,13 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             bool aparam_ = false, asend_ = false;
             for (proven_size_t q = d->is_actor ? 1 : 0; q < d->nparams && q < LOW_MAX_PARAMS && !aparam_; q++)
                 if (((d->param_struct >> q) & 1u) && (proven_size_t)d->param_sidx[q] < ir->nstructs && ir->structs[d->param_sidx[q]].is_actor_state) aparam_ = true;
+            // ★★ 2026-11-11 (W-20261111-2031 D2) — 기다릴 일이 **생길 수 있는** 액터에게 보낼 때만이다. 액터를 다른 흐름이 쥔 채 멈춰 있으려면
+            //   그 흐름이 그 액터의 처리 코드 안에서 멈춰야 한다(협조적 스케줄 — 멈추지 않는 처리 코드는 끝까지 돈다 · 우편함을 만지는 태스크는
+            //   진짜 스레드로 안 간다, cbe_needs_peer). 그 액터 타입의 처리 코드가 하나도 멈출 수 없으면(cbe_may_suspend) 기다리는 `send` 는
+            //   기다리지 않는다 — 빠른 경로의 사본이 맞다. 전엔 이 op 을 모두 태그 경로에 두어 300 만 번 보내기가 3 → 106 ms 였다.
             for (proven_size_t k = 0; k < d->ncode && aparam_ && !asend_; k++)
-                if (d->code[k].w == IRW_CALL && IR_CALL_IDX(d->code[k].a) < ir->ndefs && ir->defs[IR_CALL_IDX(d->code[k].a)].is_actor) asend_ = true;
+                if (d->code[k].w == IRW_CALL && !(d->code[k].a & IR_CALL_TRY) && IR_CALL_IDX(d->code[k].a) < ir->ndefs &&
+                    ir->defs[IR_CALL_IDX(d->code[k].a)].is_actor && cbe_actor_holdable(ir, IR_CALL_IDX(d->code[k].a))) asend_ = true;
             if (aparam_ && asend_) {
                 sc[i] = false;
                 if (i < 512 && !g_why[i][0])
@@ -7911,7 +7926,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        return lw_int(0); }\n"
           "    return lw_field(r, fi); }\n"
           "static void lw_fstore(lowv r, int fi, lowv v) {\n"
-          "    if (r.tag == LWV_REF) { r = *r.q; if (LW_POOLED(v)) LW_REFW_NOTE(0); }\n"   /* ★ 2026-11-11 — 참조 너머의 레코드에 쓴 풀 값(lw_store 의 ★) */
+          "    if (r.tag == LWV_REF) { lowv *hs_ = r.q; r = *r.q; if (LW_POOLED(v)) LW_REFW_NOTE(r.tag == LWV_REC && r.box >= 0 ? hs_ : 0); }\n"
+          /* ★ 2026-11-11 — 참조 너머의 레코드에 쓴 풀 값(lw_store 의 ★). W-20261111-2031 D4: 풀에 사는 레코드면 그 레코드를 든 칸을 적는다 —
+             되감는 틀이 그 칸을 뿌리로 올리면 레코드와 그 칸들이 함께 산다(lw_gc_mark 가 레코드의 칸을 훑는다). 틀 창의 레코드(번호 < 0)는
+             부른 쪽 틀의 창이라 이 틀이 못 훑는다 — 전처럼 0(그 뒤로 되감지 않는다). */
           /* ★★★ **뷰의 필드에 쓴다** — 그것이 곧 **디바이스 레지스터 쓰기**다(RFC-0042 D1).
              그리고 **volatile** 이다: 각 접근은 **정확히 한 번**, **쓴 순서대로**.
              `volatile` 이 없으면 컴파일러가 그것을 **지우거나 합치거나 재정렬**하고,
@@ -8718,9 +8736,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         const bool poolgc = true;
         fputs("    int pbx_ = lw_nbox, prc_ = lw_nrec, psk_ = lw_nstk, pbs_ = lw_nbset, pvc_ = lw_nvecpool;\n"
               "    (void)pbx_; (void)prc_; (void)psk_; (void)pbs_; (void)pvc_;\n", out);
-        if (poolgc_ref) fputs("    unsigned rwc_ = lw_refw; int esc_ = 0; (void)rwc_; (void)esc_;\n", out);
-        char pgif_[128] = "";
-        if (poolgc_ref) snprintf(pgif_, sizeof pgif_, "if (!esc_ && !(esc_ = !lw_refw_ok(&rwc_, loc, %zu))) ", (size_t)(d->nlocals ? d->nlocals : 1));
+        if (poolgc_ref) fputs("    unsigned rwc_ = lw_refw; int esc_ = 0; lw_rfar rf_ = { {0}, 0 }; (void)rwc_; (void)esc_; (void)rf_;\n", out);
+        char pgif_[160] = "";
+        if (poolgc_ref) snprintf(pgif_, sizeof pgif_, "if (!esc_ && !(esc_ = !lw_refw_ok(&rwc_, loc, %zu, &rf_))) ", (size_t)(d->nlocals ? d->nlocals : 1));
         // 되감지 못하는 바퀴에도 벡터 풀은 전처럼 되감는다(참조를 쥔 op 은 전에 lw_vecgc 만 냈다)
         char pgel_[96] = ""; if (poolgc_ref && vecfn) snprintf(pgel_, sizeof pgel_, " else lw_vecgc(vb_, loc, %zu, st, sp);", (size_t)(d->nlocals ? d->nlocals : 1));
         proven_u32 lastln2_ = 0; proven_u16 lastfid2_ = 0;

@@ -307,6 +307,12 @@ end .")
       `mod` of the smallest value of a signed type by −1 is 0. `div` stops at the same place (the quotient is not in that width),
       but the remainder 0 is within that width.
     ]
+    #para("5e")[
+      The quotient and remainder that pair up are in the standard library `intops` (#cref("9")) — `div_floor` is the #strong[floor quotient]; that pairs with `mod`
+      (`(div_floor a b) × b + (mod a b)` is always `a`), and `mod_trunc` is the #strong[truncated remainder]; that pairs with `div` (its sign follows the dividend —
+      `mod_trunc -7 2` is −1). Both take the type as an argument (`intops.div_floor i64. a. b. .`), stop when dividing by 0, and `div_floor` of the smallest
+      value of a signed type by −1 stops as `div` does. All are written in Lowent (#cref("9.3") (5)).
+    ]
     #plain[
       Why does `mod` follow the sign of the divisor? The place where a remainder is used is almost always #strong[choosing a position]; — the slot of a ring
       buffer, the slot of a hash table, the day of the week. The property needed there is «the result is 0 or more and less than the size», and only the remainder
@@ -491,7 +497,7 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
     #para("2")[
       Division by 0 is the same. At a place where the divisor is #strong[guaranteed by its type not to be 0];, use `div_nz`,
       and no check remains at that place. A guaranteed divisor is one of three — an integer literal that is not 0 · the value of (2a) taken out with
-      `some_value` · a `let` bound to that. Giving `div_nz` any other divisor is refused at translation (`E-TYPE-NONZERO`). The division that stops at 0
+      `some_value` · a `let` bound to that. The value `nonzero_or` of (2c) gives, and a `let` bound to it, are guaranteed divisors too. Giving `div_nz` any other divisor is refused at translation (`E-TYPE-NONZERO`). The division that stops at 0
       is `div`.
     ]
     #para("2a")[
@@ -509,6 +515,11 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
       the sum and the carry (0 or 1), `sub_borrow_<width>` the difference and the borrow, and `mul_wide_<width>` the lower half `lo` and the upper half `hi` of the product,
       as a struct (for signed widths `mul_wide_s_<width>` — `lo` is unsigned and `hi` signed). The widths are unsigned `u8` · `u16` ·
       `u32` · `u64` · `usize` and signed `i8` · `i16` · `i32` · `i64` · `idiff`. All are written in Lowent (#cref("9.3") (5)).
+    ]
+    #para("2c")[
+      `nonzero_or <value> <fallback>` gives the value when it is not 0, and the fallback when it is 0. The fallback has the value's type and must be #strong[guaranteed];
+      not to be 0 (a nonzero integer literal · the value of `nonzero_of` taken out with `some_value` · a `let` bound to that · the result of another `nonzero_or`) — otherwise translation is refused (`E-TYPE-NONZERO`). So the result is guaranteed not to be 0 as well: it can be the divisor
+      of `div_nz`, and so can a `let` bound to it: `div_nz total. nonzero_or count. 1 . .`. It takes integers only (`E-TYPE-KIND`).
     ]
     #para("3")[
       Reducing a width also chooses its disposition by name.

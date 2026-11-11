@@ -155,7 +155,11 @@ The only case where signed division overflows is `MIN / −1`, and that stops to
 
 There is also a way to check once that a divisor is not zero and carry that fact around. `nonzero_of b. .` gives an `option nonzero u32`,
 and the value inside can be passed to `div_nz`. No zero check remains at the `div_nz` site. The check was not removed but *moved to one
-place, with its result carried in the type*.
+place, with its result carried in the type*. When the value to use for zero is known, write `nonzero_or b. 1 .` --- it gives 1 for zero,
+and that result can go straight to `div_nz` as well.
+
+`div` truncates toward zero and `mod` is the floor remainder, so the two do not pair up. When you need a pair, use `div_floor` (the partner
+of `mod`) and `mod_trunc` (the partner of `div`) from the standard library `intops`: `intops.div_floor i64. -7 2 .` is −4.
 
 == Booleans are not numbers
 

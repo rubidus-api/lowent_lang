@@ -2577,7 +2577,8 @@ static bool ir_pool_no_gc(const low_ir_def_t *d) {   // low_cbe.c 의 «참조�
 }
 static bool ir_pool_far_write(const low_ir_def_t *d, proven_size_t q) {   // 바퀴 안의 q 가 참조 매개변수 너머에 쓰는가(위 ★)
     const low_ir_ins_t *in = &d->code[q];
-    if (in->w == IRW_STORE && in->a >= 0 && (proven_size_t)in->a < d->nparams) return true;
+    // ★ 2026-11-11 (W-20261111-2031 D4) — 받은 참조로 부른 쪽 **칸**에 쓰는 것(IRW_STORE)은 이제 되감는다: 그 칸을 틀의 뿌리 목록에 올린다
+    //   (low_cbe_prelude.c lw_rfar). 남은 것은 참조 너머 **레코드의 칸**에 쓰는 꼴뿐이다.
     if (in->w == IRW_FSTORE) {   // 레코드 · 값 순으로 쌓인다 — 레코드 쪽이 매개변수를 읽은 자리면 문다(가까운 몇 칸만 본다)
         for (proven_size_t b = q; b > 0 && q - b < 6; b--) {
             const low_ir_ins_t *p = &d->code[b - 1];
@@ -2952,8 +2953,8 @@ static void ir_pool_scan(low_ir_t *ir) {
             low_diag_t dg = { .sev = LOW_SEV_WARNING, .code = "W-POOL-LOOP", .line = hit, .col = 0,
                               .file = (d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
             snprintf(dg.detail, sizeof dg.detail,
-                     "this loop makes option/result/struct values and writes them through a reference it was given: the native "
-                     "build cannot reclaim its pool after that write and stops at the limit (the VM goes on). Write once after the loop, or return it");
+                     "this loop makes option/result/struct values and writes them into a field of a record behind a given reference: "
+                     "if that record is on the caller's stack, native cannot reclaim its pool and stops at the limit. Write once after the loop, or return it");
             // ★ `msg` 는 NULL 로 둔다(low_diag.h ★ 진단의 문장) — `detail` 을 가리키면 밀어 넣은 사본이 이 지역의 칸을 가리켜,
             //   함수가 끝난 뒤 그 자리가 덮여 문구가 깨진다(2026-10-23 · 깨진 UTF-8 로 check-corpus 가 멈췄다).
             (void)proven_array_push(&ir->diags, &dg);

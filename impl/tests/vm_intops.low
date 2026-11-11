@@ -18,3 +18,11 @@ fn ms64l input a i64 . input b i64 . output u64 . do return field intops.mul_wid
 fn lt_iu input a i64 . input b u64 . output bool . do return intops.cmp_lt i64. u64. a. b. . . end .
 fn eq_iu input a i64 . input b u64 . output bool . do return intops.cmp_eq i64. u64. a. b. . . end .
 fn le_ui input a u64 . input b i64 . output bool . do return intops.cmp_le u64. i64. a. b. . . end .
+rem 2026-11-11 (W-20261111-2031 D1 · RFC-0052 D7) — `div_floor` 는 `mod` 의 짝, `mod_trunc` 는 `div` 의 짝. 네 부호 조합과 끝값.
+fn dfl input a i64 . input b i64 . output i64 . do return intops.div_floor i64. a. b. . . end .
+fn mtr input a i64 . input b i64 . output i64 . do return intops.mod_trunc i64. a. b. . . end .
+fn dfl8 input a i8 . input b i8 . output i8 . do return intops.div_floor i8. a. b. . . end .
+fn dflu input a u64 . input b u64 . output u64 . do return intops.div_floor u64. a. b. . . end .
+fn mtru input a u64 . input b u64 . output u64 . do return intops.mod_trunc u64. a. b. . . end .
+fn pairf input a i64 . input b i64 . output i64 . do return add mul intops.div_floor i64. a. b. . b. . mod a. b. . . . end .
+fn pairt input a i64 . input b i64 . output i64 . do return add mul div a. b. . b. . intops.mod_trunc i64. a. b. . . . end .

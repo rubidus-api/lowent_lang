@@ -8,8 +8,31 @@ rem     중위 `lt` 는 부호가 섞이면 거절된다(`E-TYPE-SIGN`) — 값�
 rem     방법: 부호를 먼저 본다. 둘 다 음수면 `i128` 로, 둘 다 0 이상이면 `u128` 로 견준다 — 어느 정수든 그 둘 가운데 하나에 들어간다.
 rem   · `add_carry_*` → `{sum, carry}` · `sub_borrow_*` → `{diff, borrow}` · `mul_wide_*` → `{lo, hi}` · `mul_wide_s_*` → `{lo, hi}`(lo 는 부호 없음, hi 는 부호 있음).
 rem     폭마다 하나씩 둔다(구조체에 타입 매개변수가 없다). 들어오는 자리올림 · 빌림은 0 또는 1 이다(계약).
+rem   · `div_floor` · `mod_trunc` — 나눗셈의 짝을 맞춘다(RFC-0052 D7 · 2026-11-11 W-20261111-2031 · 정본 §6.3.4 (5e)). 빌트인 `div` 는 0 쪽으로 자르고
+rem     `mod` 는 바닥 나눗셈의 나머지라 둘은 짝이 아니다. `div_floor` 는 `mod` 의 짝인 바닥 몫이고(`div_floor a b × b + mod a b = a`),
+rem     `mod_trunc` 는 `div` 의 짝인 자른 나머지다(`div a b × b + mod_trunc a b = a` · 부호는 피제수를 따른다). 0 으로 나누면 `div` 처럼 멈추고,
+rem     부호 있는 폭의 가장 작은 값을 −1 로 나눈 `div_floor` 도 `div` 처럼 멈춘다(몫이 그 폭에 없다). 타입 인자는 적는다: `intops.div_floor i64. a. b. .`
+rem     방법: 자른 몫 q 와 그 나머지 r = a − q·b 를 낸다(|q·b| ≤ |a| 라 넘치지 않는다). r 이 0 이 아니고 r 과 b 의 부호가 다르면 바닥 몫은 q − 1 이다.
 
 module intops .
+
+export fn mod_trunc input comptime t type . input a t . input b t . output t .
+do
+  return sub a. mul div a. b. . b. . . .
+end .
+
+export fn div_floor input comptime t type . input a t . input b t . output t .
+do
+  let q t div a. b. . .
+  let r t sub a. mul q. b. . . .
+  if eq r. 0 . do return q. . end .
+  if lt r. 0 . do
+    if lt b. 0 . do return q. . end .
+    return sub q. 1 . .
+  end .
+  if lt b. 0 . do return sub q. 1 . . end .
+  return q. .
+end .
 
 export fn cmp_lt input comptime ta type . input comptime tb type . input a ta . input b tb . output bool .
 do

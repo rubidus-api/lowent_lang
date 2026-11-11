@@ -12,7 +12,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 233 개다 — 기본 연산 163 개와 빌트인 연산 70 개.]
+  #para("2")[모두 234 개다 — 기본 연산 164 개와 빌트인 연산 70 개.]
 
   == D.1 이름과 뜻
 
@@ -128,6 +128,7 @@
         [`ne`], [다른가],
         [`neg`], [부호를 뒤집는다],
         [`nonzero_of`], [0 이 아님을 증명해 담는다],
+        [`nonzero_or`], [0 이면 0 아닌 대신을 낸다 — 결과는 0 이 아님이 보장된다],
         [`not`], [논리 부정],
         [`ok`], [성공한 답을 담는다],
         [`ok_value`], [담긴 성공값을 꺼낸다],
@@ -282,7 +283,7 @@
   ]
 
   #note[
-    실측: 기본 연산 163 개 가운데 지역 이름 선언이 막히는 것은 #strong[140 개];,
+    실측: 기본 연산 164 개 가운데 지역 이름 선언이 막히는 것은 #strong[141 개];,
     쓸 수 있는 것은 #strong[23 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `copy` · `count` · `drain` · `enumerate` · `filter` · `fold` · `into` · `is_none` · `map` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 #strong[이름 충돌 규칙을 틀리게 말하기];
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -323,30 +324,30 @@ mul_hi                mut_ref               narrow                narrow_sat
 narrow_try            narrow_wrap           native_lanes          ne
 neg                   net_accept            net_close             net_connect
 net_listen            net_pair              net_port              net_recv
-net_resolve           net_send              nonzero_of            not
-ok                    ok_value              or                    panic
-path_remove           path_rename           payload               pipe
-poly1305              pop                   pow                   prefetch
-proc_kill             proc_poll             proc_read             proc_spawn
-proc_wait             push                  r_read                r_write
-random_bytes          range                 reactor_new           read_in
-read_volatile         reduce_add            reduce_max            reduce_min
-reduce_mul            ref                   region                ret
-rng_next              rotl                  rotr                  round
-same_slice            sat_add               sat_mul               sat_sub
-scan                  send                  sha256                sha384
-sha512                shl                   shr                   shuffle
-sin                   size_of               skip                  some
-some_value            spawn                 splat                 sqrt
-stack_count           stack_new             store                 store_masked
-str_from_cstr         sub                   subslice              sum_neumaier
-sum_seq               swap                  take                  time_local
-time_now              time_sleep            trailing_zeros        try_view
-tty_raw               tty_read              tty_size              unsafe_fn
-value_or              view                  view_array            view_segments
-widen                 wrap_add              wrap_mul              wrap_shl
-wrap_shr              wrap_sub              write_out             write_volatile
-zip")
+net_resolve           net_send              nonzero_of            nonzero_or
+not                   ok                    ok_value              or
+panic                 path_remove           path_rename           payload
+pipe                  poly1305              pop                   pow
+prefetch              proc_kill             proc_poll             proc_read
+proc_spawn            proc_wait             push                  r_read
+r_write               random_bytes          range                 reactor_new
+read_in               read_volatile         reduce_add            reduce_max
+reduce_min            reduce_mul            ref                   region
+ret                   rng_next              rotl                  rotr
+round                 same_slice            sat_add               sat_mul
+sat_sub               scan                  send                  sha256
+sha384                sha512                shl                   shr
+shuffle               sin                   size_of               skip
+some                  some_value            spawn                 splat
+sqrt                  stack_count           stack_new             store
+store_masked          str_from_cstr         sub                   subslice
+sum_neumaier          sum_seq               swap                  take
+time_local            time_now              time_sleep            trailing_zeros
+try_view              tty_raw               tty_read              tty_size
+unsafe_fn             value_or              view                  view_array
+view_segments         widen                 wrap_add              wrap_mul
+wrap_shl              wrap_shr              wrap_sub              write_out
+write_volatile        zip")
 
   == D.2 받는 것과 내는 것
 
@@ -357,7 +358,7 @@ zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 233 개 가운데 *101 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 234 개 가운데 *102 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -396,6 +397,7 @@ zip")
         [`chk_mul a b` #cref("6.3.6")], [*받는 것:* `a` `b` — 맞는 두 정수 \ *내는 것:* `option T`(`T` 는 둘 중 넓은 쪽) — `mul` 의 결과가 폭에 들어가면 그 값, 넘치면 없음 \ *번역 때 거절:* 부동을 주면 `E-TYPE-KIND` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`nonzero_of a` #cref("6.3.6")], [*받는 것:* `a` — 정수 \ *내는 것:* `option nonzero T`(`T` 는 `a` 의 타입) — 0 이면 없음 \ *번역 때 거절:* 부동 · `bool` 을 주면 `E-TYPE-KIND` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`div_nz a b` #cref("6.3.6")], [*받는 것:* `a` — 정수 · `b` — `nonzero_of` 로 얻은 0 아닌 값 \ *내는 것:* `a` 의 타입 — 몫 \ *번역 때 거절:* `b` 가 0 아님이 보장되지 않으면 `E-TYPE-NONZERO` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`nonzero_or a d` #cref("6.3.6")], [*받는 것:* `a` — 정수 · `d` — `a` 와 같은 타입이고 0 아님이 보장된 값(0 아닌 리터럴 · `nonzero_of` 로 얻은 값 · 그것으로 묶은 `let`) \ *내는 것:* `a` 의 타입 — `a` 가 0 이 아니면 `a`, 0 이면 `d`. 0 아님이 보장되므로 `div_nz` 의 제수가 된다 \ *번역 때 거절:* `d` 가 0 아님이 보장되지 않으면 `E-TYPE-NONZERO` · 부동 · `bool` 은 `E-TYPE-KIND` · `E-IR-ARITY` \ *실행 때 멈춤:* —],
     )
   ]
 

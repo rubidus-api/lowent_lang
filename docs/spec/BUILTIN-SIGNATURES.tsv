@@ -40,6 +40,7 @@ chk_sub	넘침 처분	`chk_sub a b`	`a` `b` — 맞는 두 정수	`option T`(`T`
 chk_mul	넘침 처분	`chk_mul a b`	`a` `b` — 맞는 두 정수	`option T`(`T` 는 둘 중 넓은 쪽) — `mul` 의 결과가 폭에 들어가면 그 값, 넘치면 없음	부동을 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.6
 nonzero_of	넘침 처분	`nonzero_of a`	`a` — 정수	`option nonzero T`(`T` 는 `a` 의 타입) — 0 이면 없음	부동 · `bool` 을 주면 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.6
 div_nz	넘침 처분	`div_nz a b`	`a` — 정수 · `b` — `nonzero_of` 로 얻은 0 아닌 값	`a` 의 타입 — 몫	`b` 가 0 아님이 보장되지 않으면 `E-TYPE-NONZERO` · `E-IR-ARITY`	—	6.3.6
+nonzero_or	넘침 처분	`nonzero_or a d`	`a` — 정수 · `d` — `a` 와 같은 타입이고 0 아님이 보장된 값(0 아닌 리터럴 · `nonzero_of` 로 얻은 값 · 그것으로 묶은 `let`)	`a` 의 타입 — `a` 가 0 이 아니면 `a`, 0 이면 `d`. 0 아님이 보장되므로 `div_nz` 의 제수가 된다	`d` 가 0 아님이 보장되지 않으면 `E-TYPE-NONZERO` · 부동 · `bool` 은 `E-TYPE-KIND` · `E-IR-ARITY`	—	6.3.6
 eq	비교	`eq a b`	`a` `b` — 맞는 둘, 또는 두 `bool`	`bool` — 같으면 참. 부동의 NaN 은 자기 자신과도 같지 않다	수와 `bool` 을 섞으면 `E-TYPE-KIND` · `option` · `result` 를 주면 `E-TYPE-KIND` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
 ne	비교	`ne a b`	`a` `b` — 맞는 둘, 또는 두 `bool`	`bool` — 다르면 참. 부동의 NaN 은 자기 자신과도 같지 않다	수와 `bool` 을 섞으면 `E-TYPE-KIND` · `option` · `result` 를 주면 `E-TYPE-KIND` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3
 lt	비교	`lt a b`	`a` `b` — 맞는 둘	`bool` — `a` 가 작으면 참. 부동에서 한쪽이 NaN 이면 거짓	정수와 부동을 섞으면 `E-TYPE-MIX` · 부호가 섞이면 `E-TYPE-SIGN` · `E-IR-ARITY`	—	6.3.3

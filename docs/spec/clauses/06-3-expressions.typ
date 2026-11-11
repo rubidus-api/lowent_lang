@@ -307,6 +307,12 @@ end .")
       부호 있는 타입의 가장 작은 값을 -1 로 나눈 `mod` 는 0 이다. `div` 는 같은 자리에서 멈추지만(몫이 그 폭에 없다)
       나머지 0 은 그 폭 안에 있다.
     ]
+    #para("5e")[
+      짝이 맞는 몫과 나머지는 표준 라이브러리 `intops` 에 있다(#cref("9")) — `div_floor` 는 `mod` 의 짝인 #strong[바닥 몫];이고
+      (`(div_floor a b) × b + (mod a b)` 는 언제나 `a` 다), `mod_trunc` 는 `div` 의 짝인 #strong[자른 나머지];다(부호는 피제수를 따른다 —
+      `mod_trunc -7 2` 는 -1). 둘 다 타입을 인자로 받고(`intops.div_floor i64. a. b. .`), 0 으로 나누면 멈추며, 부호 있는 타입의 가장 작은 값을
+      -1 로 나눈 `div_floor` 도 `div` 처럼 멈춘다. 모두 로우엔트로 적혀 있다(#cref("9.3") (5)).
+    ]
     #plain[
       왜 `mod` 가 제수의 부호를 따르는가. 나머지를 쓰는 자리는 거의 언제나 #strong[자리를 고르는 일];이다 — 원형 버퍼의
       칸, 해시 표의 칸, 요일. 그 자리에서 필요한 성질은 «결과가 0 이상이고 크기보다 작다» 이고, 바닥 나눗셈의
@@ -491,7 +497,7 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
     #para("2")[
       나눗셈의 0 도 같다. 제수가 0 이 #strong[아님이 타입으로 보장된]; 자리에서는 `div_nz` 를
       쓰며, 그 자리에는 검사가 남지 아니한다. 보장된 제수는 셋이다 — 0 이 아닌 정수 리터럴 · (2a) 의 값을 `some_value` 로 꺼낸 것 ·
-      그것으로 묶은 `let`. 그 밖의 제수를 `div_nz` 에 주면 번역이 거부된다(`E-TYPE-NONZERO`). 0 에서 멈추는 나눗셈은 `div` 다.
+      그것으로 묶은 `let`. (2c) 의 `nonzero_or` 가 내는 값과 그것으로 묶은 `let` 도 보장된 제수다. 그 밖의 제수를 `div_nz` 에 주면 번역이 거부된다(`E-TYPE-NONZERO`). 0 에서 멈추는 나눗셈은 `div` 다.
     ]
     #para("2a")[
       그 보장을 얻는 길이 `nonzero_of` 다. `nonzero_of <값>` 은 그 값이 0 이 아님을
@@ -508,6 +514,11 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
       합과 자리올림(0 또는 1)을, `sub_borrow_<폭>` 은 차와 빌림을, `mul_wide_<폭>` 은 곱의 아래 절반 `lo` 와 위 절반 `hi` 를
       구조체로 돌려준다(부호 있는 폭은 `mul_wide_s_<폭>` — `lo` 는 부호 없고 `hi` 는 부호 있다). 폭은 부호 없는 `u8` · `u16` ·
       `u32` · `u64` · `usize` 와 부호 있는 `i8` · `i16` · `i32` · `i64` · `idiff` 다. 모두 로우엔트로 적혀 있다(#cref("9.3") (5)).
+    ]
+    #para("2c")[
+      `nonzero_or <값> <대신>` 은 값이 0 이 아니면 그 값을, 0 이면 대신을 낸다. 대신은 값과 같은 타입이고 0 이 #strong[아님이 보장된]; 값이어야 한다
+      (0 이 아닌 정수 리터럴 · `nonzero_of` 의 값을 `some_value` 로 꺼낸 것 · 그것으로 묶은 `let` · 다른 `nonzero_or` 의 결과) — 아니면 번역이 거부된다(`E-TYPE-NONZERO`). 그러므로 결과도 0 이 아님이 보장되어, `div_nz` 의 제수가 되고
+      그것으로 묶은 `let` 도 그렇다: `div_nz total. nonzero_or count. 1 . .`. 정수만 받는다(`E-TYPE-KIND`).
     ]
     #para("3")[
       폭을 줄이는 일도 처분을 이름으로 고른다.

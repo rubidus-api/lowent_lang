@@ -892,6 +892,16 @@ static bool tc_slice_ro(tc_ctx_t *c, const low_cst_t *place, const tc_var_t *env
 }
 
 // forward
+// ★ 2026-11-11 (W-20261111-2031 D1) — 0 이 아님이 **보장된** 값인가(정본 §6.3.6 (2)): 0 아닌 정수 리터럴 · `some_value` 로 꺼낸 `nonzero_of` 의 값 ·
+//   그것으로 묶은 `let` · `nonzero_or` 의 결과. `t` 는 그 식의 타입(`nz` 는 위 두 갈래가 단다). `div_nz` 의 제수와 `nonzero_or` 의 대신이 쓴다.
+static bool tc_nz_given(const low_cst_t *dv, ty_t t) {
+    while (dv && dv->kind == LOW_CST_GROUP && dv->nkids == 1) dv = dv->kids[0];
+    if (t.k == TK_INT && t.lit && (t.val || t.valhi)) return true;
+    return t.nz && dv && (dv->kind == LOW_CST_ATOM ||
+           (dv->kind == LOW_CST_FORM && dv->nkids >= 1 && dv->kids[0]->kind == LOW_CST_ATOM &&
+            (veq(dv->kids[0]->tok.lex, "some_value") || veq(dv->kids[0]->tok.lex, "nonzero_or"))));
+}
+
 static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv);
 static void tc_push_ctx(low_cst_t *const *k, proven_size_t start, proven_size_t n, ty_t decl, ty_t actual);   // RFC-0148 §8-11
 
@@ -1534,6 +1544,24 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 }
                 return tk(TK_UNKNOWN);
             }
+            // ★★ 2026-11-11 (W-20261111-2031 D1 · RFC-0052 D6 `nonzero_or : τ -> nonzero τ -> nonzero τ` · 정본 §6.3.6 (2c)) —
+            //   `nonzero_or <값> <대신>` 은 값이 0 이 아니면 그 값을, 0 이면 대신을 낸다. 대신이 0 이 아님이 보장돼 있어야 하므로(아래 tc_nz_given)
+            //   결과도 0 이 아님이 보장된다 — `div_nz` 의 제수가 될 수 있다. 낮추기는 `value_or (nonzero_of 값) 대신` 이다(low_ir.c).
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "nonzero_or")) {
+                ty_t a0 = tc_infer(c, k[start + 1], env, nenv); ty_t d0 = tc_infer(c, k[start + 2], env, nenv);
+                if (a0.k == TK_FLOAT || a0.k == TK_BOOL) {
+                    tc_emit(c, "E-TYPE-KIND", "`nonzero_or` takes an INTEGER — it backs `div_nz`, an integer division (canon §6.3.6 (2c))", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
+                if (!tc_nz_given(k[start + 2], d0) && d0.k != TK_UNKNOWN)
+                    tc_emit(c, "E-TYPE-NONZERO", "the fallback of `nonzero_or` must be KNOWN not to be zero (canon §6.3.6 (2c)) — a nonzero literal "
+                            "(`nonzero_or b. 1 .`), a value taken out of `nonzero_of` with `some_value`, or a `let` bound to one", k[start]->line);
+                if (a0.k == TK_INT && (d0.k == TK_INT || d0.k == TK_FLOAT))
+                    tc_flag(c, compat(a0, d0), "E-TYPE-ARG", "the fallback of `nonzero_or` does not have the value's type", k[start]->line);
+                if (a0.k == TK_INT && a0.bits && !a0.lit) { a0.has_rng = false; a0.is_mut = false; a0.nz = true; return a0; }
+                if (a0.k == TK_INT && a0.lit) { a0.nz = true; return a0; }
+                return tk(TK_UNKNOWN);
+            }
             // `div_nz a b` — `a` 의 타입(표) · `pop s` — 쌓개 원소의 option · `str_from_cstr` — 바이트 슬라이스
             if (!sig_find(c, h2) && n == 3 && veq(h2, "div_nz")) {
                 ty_t a0 = tc_infer(c, k[start + 1], env, nenv); ty_t b0 = tc_infer(c, k[start + 2], env, nenv);
@@ -1541,11 +1569,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 //   `some_value` 로 꺼낸 `nonzero_of` 의 값 · 그것으로 묶은 `let` · 0 아닌 리터럴. 전엔 보통 정수도 받아 0 에서 E-VM-DIV0 로
                 //   멈췄다 — «검사가 남지 아니한다» 는 자리에 검사가 남아 있었다.
                 {
-                    const low_cst_t *dv = k[start + 2];
-                    while (dv && dv->kind == LOW_CST_GROUP && dv->nkids == 1) dv = dv->kids[0];
-                    bool ok_ = b0.nz && dv && (dv->kind == LOW_CST_ATOM ||
-                               (dv->kind == LOW_CST_FORM && dv->nkids >= 1 && dv->kids[0]->kind == LOW_CST_ATOM && veq(dv->kids[0]->tok.lex, "some_value")));
-                    if (b0.k == TK_INT && b0.lit && (b0.val || b0.valhi)) ok_ = true;
+                    bool ok_ = tc_nz_given(k[start + 2], b0);
                     if (!ok_ && b0.k != TK_UNKNOWN)
                         tc_emit(c, "E-TYPE-NONZERO", "`div_nz` takes a divisor that is KNOWN not to be zero (canon §6.3.6 (2)) — get one with "
                                 "`nonzero_of` and take it out with `some_value` (`let d u32 some_value nb. .`), or divide with `div`, "
@@ -3335,11 +3359,14 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             }
             // ★ 2026-11-11 — `let d u32 some_value nb. .` 의 d 는 0 이 아님을 지닌다(위 ty_t.nz). `var` 는 다시 쓸 수 있어 지니지 않는다.
             declared.nz = false;
+            // ★ 2026-11-11 (W-20261111-2031) — 평평한 꼴(`--flat` · 인자 수를 모르는 나무)에서는 초기화식이 낱말 줄로 온다: 첫 낱말이 그 둘이면 같다
+            if (kw == LOW_KW_LET && actual.nz && declared.k == TK_INT && be + 2 < f->nkids && f->kids[be + 1]->kind == LOW_CST_ATOM &&
+                (veq(f->kids[be + 1]->tok.lex, "some_value") || veq(f->kids[be + 1]->tok.lex, "nonzero_or"))) declared.nz = true;
             if (kw == LOW_KW_LET && actual.nz && declared.k == TK_INT && be + 2 == f->nkids) {
                 const low_cst_t *iv = f->kids[be + 1];
                 while (iv && iv->kind == LOW_CST_GROUP && iv->nkids == 1) iv = iv->kids[0];
                 if (iv && (iv->kind == LOW_CST_ATOM || (iv->kind == LOW_CST_FORM && iv->nkids >= 1 && iv->kids[0]->kind == LOW_CST_ATOM &&
-                                                         veq(iv->kids[0]->tok.lex, "some_value")))) declared.nz = true;
+                                                         (veq(iv->kids[0]->tok.lex, "some_value") || veq(iv->kids[0]->tok.lex, "nonzero_or"))))) declared.nz = true;
             }
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {

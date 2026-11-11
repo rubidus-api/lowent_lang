@@ -386,7 +386,7 @@ self
 
 ```문법틀: 이름만 받는 타입 낱말
 byte   char   str   string   bytes_view   dyn   atomic
-list   raw   addr
+list
 rng   clock   device   file_system   net   tty   process
 ```
 
@@ -395,9 +395,9 @@ rng   clock   device   file_system   net   tty   process
       못한다 — 그 서명의 op 은 통째로 해석기로 내려간다. 뜻을 지어내는 것보다 **아직
       없다고 말하는 것**이 옳다.
 
-(2b) `addr` 과 `raw` 는 **연산으로는 뜻이 있다**(`addr <이름>` 은 자리를 얻고, 그것은
-      `unsafe` 효과다 --- ⟦§8.11⟧). 여기서 뜻이 없다고 하는 것은 **타입을 적는 자리**의
-      낱말이다. 마찬가지로 `cap rng` 의 `rng` 는 권능의 **종류**이므로 이 조항에 들지
+(2b) `addr` 과 `raw` 는 ⟦§6.9.4⟧ 이 뜻을 정했으나 **아직 짓지 않은** 낱말이다(`addr <이름>` 은 자리를 얻고, 그것은
+      `unsafe` 효과다). 2026-11-12 부터 타입 자리의 그 둘은 경고가 아니라 거부다(`E-UNSAFE-UNBUILT`).
+      그리고 `cap rng` 의 `rng` 는 권능의 **종류**이므로 이 조항에 들지
       아니한다 --- 홀로 타입으로 선 `rng` 만이 이름뿐이다. 그래서 위 (1) 의 권능 종류 줄에서
       `rng` 을 내렸다.
 
@@ -412,7 +412,11 @@ rng   clock   device   file_system   net   tty   process
 
 ```문법틀: 아직 거절되는 타입 낱말
 shared_read   lock   rwlock
+raw   addr
 ```
+
+(3a) 뒤의 둘(`raw` · `addr`)은 ⟦§6.9.4⟧ 이 뜻을 정했으나 아직 짓지 않은 낱말이다(`E-UNSAFE-UNBUILT`) — 공유 상태 타입과 같은 까닭으로
+      어휘에 있다.
 
 (4) `unsafe_ptr` 은 타입이 아니라 **한정자**다. `mut`·`owned` 처럼 타입 앞에 붙으며,
       홀로 오면 거절된다.

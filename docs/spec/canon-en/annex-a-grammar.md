@@ -386,7 +386,7 @@ self
 
 ```문법틀: type words accepted only as names
 byte   char   str   string   bytes_view   dyn   atomic
-list   raw   addr
+list
 rng   clock   device   file_system   net   tty   process
 ```
 
@@ -395,9 +395,9 @@ rng   clock   device   file_system   net   tty   process
       either — ops with such signatures go down to the interpreter wholesale. Rather than make up a meaning, **saying that it does not exist
       yet** is right.
 
-(2b) `addr` and `raw` **have meaning as operations** (`addr <name>` obtains a place, and that is
-      the `unsafe` effect --- ⟦§8.11⟧). What is said here to have no meaning is the word in **the place that writes a type**.
-      Likewise the `rng` of `cap rng` is a **kind** of capability, so it is not covered by this clause
+(2b) `addr` and `raw` are words whose meaning ⟦§6.9.4⟧ decides but which are **not built yet** (`addr <name>` obtains a place, and that is
+      the `unsafe` effect). Since 2026-11-12 the two in a type position are refused, not warned (`E-UNSAFE-UNBUILT`).
+      And the `rng` of `cap rng` is a **kind** of capability, so it is not covered by this clause
       --- only `rng` standing alone as a type is a mere name. That is why `rng` was taken down from the capability-kind row
       of (1) above.
 
@@ -411,7 +411,11 @@ rng   clock   device   file_system   net   tty   process
 
 ```문법틀: type words still refused
 shared_read   lock   rwlock
+raw   addr
 ```
+
+(3a) The last two (`raw` · `addr`) are words whose meaning ⟦§6.9.4⟧ decides but which are not built yet (`E-UNSAFE-UNBUILT`) — they are in the
+      vocabulary for the same reason as the shared-state types.
 
 (4) `unsafe_ptr` is not a type but **a qualifier**. It attaches in front of a type like `mut` · `owned`,
       and coming alone it is refused.

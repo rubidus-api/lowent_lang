@@ -1971,6 +1971,16 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
                  : "Write it as a `pipe`: `pipe <src> do map <op> . collect into <dst> . end .` (also `filter <op> .`, `fold <start> <op> .`; "
                    "`with <value>` passes a setting). The module `collection` (`collection.map` / `filter` / `fold`) is for code where "
                    "the element type carries the work");
+    else if (veq(lex, "adopt") || veq(lex, "clone") || veq(lex, "addr")) {
+        // ★★ 2026-11-12 (W-20261111-2349 E1) — 정본 §6.9.4 가 뜻을 정했으나 아직 짓지 않은 낱말이다. 저자가 같은 이름의 op 을 지으면 그것이 선다
+        //   (예약어가 아니다) — 여기 오는 것은 그런 op 이 없을 때뿐이다.
+        snprintf(buf, sizeof buf, "`%.*s` is decided (canon 6.9.4: %s) but NOT BUILT yet — it stays tracked and is dropped if it proves "
+                 "unnecessary", (int)lex.size, (const char *)lex.ptr,
+                 veq(lex, "adopt") ? "it turns a `raw` location back into a safe slice inside `unsafe`"
+                 : veq(lex, "addr") ? "`addr <local>` takes the location of a local as a number, inside `unsafe`" : "a deep copy of a value into a region");
+        ir_fail_buf(c, "E-UNSAFE-UNBUILT", buf, nd->line);
+        return;
+    }
     else
         snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
                  "variant in scope here", (int)lex.size, (const char *)lex.ptr);

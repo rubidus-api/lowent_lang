@@ -86,6 +86,7 @@ typedef struct {
     //   `nonzero`(`nonzero_of` 가 낸 option · `option nonzero T` 로 적은 것) · `nz` = 그것을 `some_value` 로 꺼낸 값 · 그 값으로 묶은 `let`.
     //   `div_nz` 의 제수만 이것을 읽는다 — 그 자리에서 **낱말의 꼴로** 다시 본다(셈의 결과로 번지는 것은 읽지 않는다).
     bool        nz, pnz;
+    bool        undecl;         // ★ 2026-11-12 (E3) — 선언되지 않은 이름에서 온 모름(하강층이 E-IR-UNDEF 로 짚는다)
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -931,6 +932,10 @@ static bool g_cmp_eq;    // tc_binop 을 부르는 쪽이 세운다 — 견줌�
 static bool g_cmp_ctx;   // 중위 `expr` 의 견줌 — 그 길은 견줌도 셈처럼 이어 재므로(is_cmp=false) 열거 판정에만 따로 알린다
 static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) {
     bool eqop = g_cmp_eq, cctx = g_cmp_ctx; g_cmp_eq = false; g_cmp_ctx = false;
+    // ★ 2026-11-12 (W-20261111-2349 E3 · 보관 RFC 훑기 F3) — 피연산자 하나가 «다른 층이 거절할 모름»(선언되지 않은 이름 · 이미 말한 것)이면 셈의 답도
+    //   그렇다. 전엔 `add x. y.` 의 `y` 가 선언되지 않았을 때 S5 가 «`add` 에서 온 값의 타입을 모른다»(E-TYPE-UNKNOWN)만 말하고 번역이 거기서 멈춰,
+    //   `y` 를 짚는 하강층의 E-IR-UNDEF 가 나오지 않았다.
+    if ((a.k == TK_UNKNOWN && a.undecl) || (b.k == TK_UNKNOWN && b.undecl)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; u.undecl = true; return is_cmp ? tk(TK_BOOL) : u; }
     {
         // ★ 열거 값은 수가 아니다(소유자 2026-10-15; 정본 §6.2.16 (5)). 같은 열거의 두 값은 `eq` · `ne` 로 견줄 수 있고,
         //   그 밖(셈 · 크기 견줌 · 수와 섞기)은 갈래의 번호를 쓰는 일이므로 `cast <정수> <열거>` 로 적는다.
@@ -2534,7 +2539,7 @@ static ty_t tc_infer_impl(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env,
         // ★ RFC-0148 S5 — 지역도 op 도 상수도 아닌 이름은 하강층이 `E-IR-UNDEF` 로 거절한다 — S5 가 «모름» 을 덧붙이지 않는다
         if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && !low_ir_is_builtin_op(nd->tok.lex) &&
             !(nd->tok.lex.size > 8 && memcmp(nd->tok.lex.ptr, "machine.", 8) == 0) && !sig_find_at(c, nd)) {
-            ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+            ty_t u = tk(TK_UNKNOWN); u.bydecl = true; u.undecl = true; return u;
         }
         // `machine.<이름>` 은 번역 시점에 정해지는 상수다(정본 §5 (4a)) — 무타입 정수 상수(D3), `machine.ptr_caps` 만 참거짓
         if (nd->tok.lex.size > 8 && memcmp(nd->tok.lex.ptr, "machine.", 8) == 0) {
@@ -3033,6 +3038,15 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
             //   `cap <kind>` 자리는 뺀다(`cap net` 의 `net` 은 타입이 아니라 종류다).
             bool after_cap = (i > from && f->kids[i-1]->kind == LOW_CST_ATOM &&
                 proven_u8str_view_eq(f->kids[i-1]->tok.lex, proven_u8str_view_from_cstr("cap")));
+            // ★★ 2026-11-12 (W-20261111-2349 E1 · 소유자 «F1 은 정식으로 넣어주시고 … 계속 추적») — `raw` · `addr` 는 이제 정본 §6.9.4 가 뜻을
+            //   정한 낱말이다. 다만 **아직 짓지 않았다** — 타입 자리에 서면 경고가 아니라 거절이다(지어지지 않은 것을 받아 해석기로 떨어뜨리지 않는다).
+            if (!after_cap && !tname_user_declared(c, t->lex) &&
+                (proven_u8str_view_eq(t->lex, proven_u8str_view_from_cstr("raw")) || proven_u8str_view_eq(t->lex, proven_u8str_view_from_cstr("addr")))) {
+                tc_emit(c, "E-UNSAFE-UNBUILT", "`raw` and `addr` are decided (canon 6.9.4: a location without provenance, and a location seen as a number) "
+                        "but NOT BUILT yet — they stay tracked and are dropped if they prove unnecessary. Use a slice, a view or an `extern` op",
+                        t->line ? t->line : f->line);
+                continue;
+            }
             if (!after_cap && ty_is_name_only(t->lex) && !tname_user_declared(c, t->lex))
                 tc_warn(c, "W-NOT-YET",
                         "this type NAME is accepted but carries NO MEANING yet: lowering cannot "

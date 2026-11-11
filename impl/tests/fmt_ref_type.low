@@ -1,0 +1,9 @@
+rem ★ 포매터가 바인딩의 참조 타입을 묶지 않는다 (2026-11-12 · W-20261111-2349 E4 · docs/known-defects/fmt-ref-type-grouping.md) — 전엔 `--fmt` 가
+rem `var r mut_ref option u64 …` 를 `var r (mut_ref option) u64 …` 로 찍어, 다시 읽으면 `u64` 가 값 자리에 서서 E-IR-UNDEF 였다.
+module fmt_ref_type .
+fn g input n u64 . output u64 . do
+  var o option u64 none .
+  var r mut_ref option u64 mut_ref o . .
+  set r. some n. . .
+  return value_or o. 0 . .
+end .

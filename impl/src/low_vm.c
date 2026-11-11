@@ -4218,6 +4218,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 bool bmut = (in->w == IRW_MREF);
                 proven_u32 tag = ++vm->btag & 0x7fffffffu;
+                // ★★ 2026-11-12 (W-20261111-2349 E5 · docs/known-defects/vm-borrow-stack-loop-ref.md) — 주인에게서 새 빌림을 짓는 것은 **주인의 접근**이다:
+                //   새 `mut_ref` 는 그 칸의 앞선 빌림을 모두 끝내고(주인의 쓰기와 같다), 새 `ref` 는 앞선 `mut_ref` 를 끝낸다(주인의 읽기와 같다).
+                //   전엔 끝난 빌림이 더미에 남아, 되풀이 안에서 바퀴마다 `mut_ref o` 를 지어 넘기면 아홉째 바퀴에서 «borrow stack overflow» 로 멈췄다
+                //   (네이티브는 끝까지). 끝낸 빌림을 그 뒤에 쓰면 전처럼 E-VM-EXCL 이다 — 검사층(E-EXCL)이 이미 막는 꼴이다.
+                if (bmut) bstk_owner_write(&vm->frames[slot], (proven_u8)in->a);
+                else bstk_owner_read(&vm->frames[slot], (proven_u8)in->a);
                 vmbstk_t *b = bstk_find(&vm->frames[slot], (proven_u8)in->a, true);
                 if (!b || b->n >= VM_BSTK_DEPTH) { vm_diag(vm->diags, "E-VM-EXCL", "borrow stack overflow"); return false; }
                 b->tags[b->n++] = tag | (bmut ? VM_BTAG_MUT : 0);

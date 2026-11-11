@@ -414,6 +414,19 @@ fn f output u8 . do return 1 . end .", "E-BUILD-MODE")
       On leaving a block, the names declared in that block disappear. So two side-by-side blocks each declaring the same name
       conforms — the two names are not alive at the same time.
     ]
+    #para("5a")[
+      A name written in a value position must refer to something alive at that place — a local · an input · an op · a constant · a variant of an enum.
+      If it refers to nothing, translation is refused (`E-IR-UNDEF`). The implementation names that name when it says so.
+    ]
+    #para("5b")[
+      A local lives only #strong[after it is declared]; — using it before its declaration is refused as in (5a). A name declared in the module (op · constant ·
+      type) lives anywhere in that module regardless of declaration order: an op declared later may be called earlier.
+    ]
+    #rejected("a name that refers to nothing", "module ex_undeclared .
+
+fn f input a u64 . output u64 . do
+  return add a. b. . .
+end .", "E-IR-UNDEF")
     #rejected("a module name cannot be hidden", "module ex_shadow .
 
 let g u32 7 .

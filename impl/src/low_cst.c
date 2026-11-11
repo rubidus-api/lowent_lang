@@ -1584,10 +1584,28 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
         else if (t2->kw == LOW_KW_NONE && low_view_eq_cstr(t2->lex, "range")) loop = "range";
     }
     bool first = true;
+    // ★ 2026-11-12 (W-20261111-2349 E4 · docs/known-defects/fmt-ref-type-grouping.md) — 바인딩의 **타입 자리**(이름 뒤 · 숨은 `be` 앞)에 있는 묶음은
+    //   괄호 없이 찍는다. 아리티 정규화가 `mut_ref option u64` 의 `mut_ref` 를 한 자리 낱말로 보아 `(mut_ref option)` 으로 묶었는데, 괄호로 찍으면
+    //   다시 읽을 때 `u64` 가 값 자리에 서서 뜻이 바뀌었다(E-IR-UNDEF). 타입은 낱말의 나열이고 묶음은 정규화의 사정이다.
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         const low_cst_t *ki = nd->kids[i];
         bool atom = ki->kind == LOW_CST_ATOM && ki->tok.kind == LOW_TOK_IDENT;
         if ((bind || borrow) && i >= 2 && atom && ki->tok.kw == LOW_KW_BE) continue;
+        if (bind && i >= 2) {
+            const low_cst_t *g = ki;
+            while (g && g->kind == LOW_CST_GROUP && g->nkids == 1) g = g->kids[0];
+            const low_cst_t *hd = NULL, *op = NULL;
+            if (g && g->kind == LOW_CST_FORM && g->nkids == 2 && g->kids[0]->kind == LOW_CST_ATOM && g->kids[1]->kind == LOW_CST_ATOM) { hd = g->kids[0]; op = g->kids[1]; }
+            static const char *TW[] = { "option", "result", "slice", "array", "vec", "mut", "owned", "view", "matrix", "stack", "bitset", "segments" };
+            bool tw = false;
+            if (hd && (low_view_eq_cstr(hd->tok.lex, "ref") || low_view_eq_cstr(hd->tok.lex, "mut_ref")))
+                for (size_t z = 0; z < sizeof TW / sizeof TW[0] && !tw; z++) tw = low_view_eq_cstr(op->tok.lex, TW[z]);
+            if (tw) {
+                if (!first) putchar(' ');
+                first = false;
+                low_pv(hd->tok.lex); putchar(' '); low_pv(op->tok.lex); continue;
+            }
+        }
         if (loop && i == 2) continue;
         if (!first) putchar(' ');
         first = false;

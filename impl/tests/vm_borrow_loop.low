@@ -1,0 +1,19 @@
+rem ★★ VM 의 빌림 더미 (2026-11-12 · W-20261111-2349 E5 · docs/known-defects/vm-borrow-stack-loop-ref.md) — 되풀이 안에서 바퀴마다 `mut_ref o` 를 지어
+rem 넘긴다. 전엔 끝난 빌림이 더미(칸마다 여덟)에 남아 VM 이 아홉째 바퀴에서 «borrow stack overflow» 로 멈췄다(네이티브는 끝까지). 이제 주인에게서
+rem 새 빌림을 짓는 것이 주인의 접근이라 앞선 빌림을 끝낸다. turns(3000) = 13504497 — VM · 네이티브 같다.
+module vm_borrow_loop .
+proc put input p mut_ref u64 . input v u64 . output u64 . effects state . do
+  set p. v. .
+  return v. .
+end .
+proc turns input n u64 . output u64 . effects state . do
+  var o u64 0 .
+  var i u64 0 .
+  var s u64 0 .
+  while lt i. n. . do
+    let z u64 put mut_ref o . expr i. * 3 . . .
+    set s. add s. z. . .
+    set i. add i. 1 . .
+  end .
+  return add s. o. . .
+end .

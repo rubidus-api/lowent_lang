@@ -384,7 +384,7 @@ self")
       #cref("4.7")) — 조용히 받아 주지 아니한다.
     ]
     #shape("이름만 받는 타입 낱말", "byte   char   str   string   bytes_view   dyn   atomic
-list   raw   addr
+list
 rng   clock   device   file_system   net   tty   process")
     #para("2a")[
       뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
@@ -393,9 +393,9 @@ rng   clock   device   file_system   net   tty   process")
       없다고 말하는 것];이 옳다.
     ]
     #para("2b")[
-      `addr` 과 `raw` 는 #strong[연산으로는 뜻이 있다];(`addr <이름>` 은 자리를 얻고, 그것은
-      `unsafe` 효과다 --- #cref("8.11")). 여기서 뜻이 없다고 하는 것은 #strong[타입을 적는 자리];의
-      낱말이다. 마찬가지로 `cap rng` 의 `rng` 는 권능의 #strong[종류];이므로 이 조항에 들지
+      `addr` 과 `raw` 는 #cref("6.9.4") 이 뜻을 정했으나 #strong[아직 짓지 않은]; 낱말이다(`addr <이름>` 은 자리를 얻고, 그것은
+      `unsafe` 효과다). 2026-11-12 부터 타입 자리의 그 둘은 경고가 아니라 거부다(`E-UNSAFE-UNBUILT`).
+      그리고 `cap rng` 의 `rng` 는 권능의 #strong[종류];이므로 이 조항에 들지
       아니한다 --- 홀로 타입으로 선 `rng` 만이 이름뿐이다. 그래서 위 (1) 의 권능 종류 줄에서
       `rng` 을 내렸다.
     ]
@@ -410,7 +410,12 @@ rng   clock   device   file_system   net   tty   process")
       #emph["없는 타입"]; 이라 말하는 것이 거짓이기 때문이다 — 명세에 있는 타입을 두고
       #strong[네 프로그램이 틀렸다]; 고 말할 수는 없다.
     ]
-    #shape("아직 거절되는 타입 낱말", "shared_read   lock   rwlock")
+    #shape("아직 거절되는 타입 낱말", "shared_read   lock   rwlock
+raw   addr")
+    #para("3a")[
+      뒤의 둘(`raw` · `addr`)은 #cref("6.9.4") 이 뜻을 정했으나 아직 짓지 않은 낱말이다(`E-UNSAFE-UNBUILT`) — 공유 상태 타입과 같은 까닭으로
+      어휘에 있다.
+    ]
     #para("4")[
       `unsafe_ptr` 은 타입이 아니라 #strong[한정자];다. `mut`·`owned` 처럼 타입 앞에 붙으며,
       홀로 오면 거절된다.

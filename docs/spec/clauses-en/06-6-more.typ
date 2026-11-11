@@ -730,4 +730,46 @@ end .", "E-LINK-NAME")
       pretending it is.
     ]
   ]
+  #sub("6.9.4", "Decided but not built — `raw` · `addr` · `adopt` · `clone`")[
+    #para("1")[
+      The four words of this clause have a #strong[decided meaning, but the implementation has not built them yet];. The implementation recognizes
+      them, and using one is refused at translation (`E-UNSAFE-UNBUILT`) — it is not taken with another meaning or quietly dropped to the
+      interpreter. `adopt` · `clone` · `addr` are not reserved words: if the author builds an op with that name, that op stands.
+    ]
+    #para("2")[
+      `raw <T>` is #strong[a location whose storage is not known];. It is made, read, written and moved (a number added to the location) only inside
+      an op with the `unsafe` effect. It can be copied. It can be obtained from a `ref` · `mut_ref` · slice, and then the exclusivity (#cref("8.12"))
+      and lifetime guarantees that reference kept are given up. Writing `raw` in a type position is refused for now.
+    ]
+    #para("3")[
+      `addr` is #strong[a location seen as a number]; — it can only be added and compared; no value can be read or written through it. Going between it
+      and `raw` happens only inside `unsafe`. `addr <local>` takes the location of that local. Writing `addr` in a type position, or using
+      `addr <local>`, is refused for now.
+    ]
+    #para("4")[
+      `adopt` turns a `raw <T>` back into a safe slice. It requires #strong[all]; three: being inside `unsafe` · taking as a witness the live region the
+      memory lives in (the new slice gets that region's lifetime) · stating alignment and range as a contract (`requires`). To turn it back into
+      a writable slice, the assumption «no other access to that range» is written with `assume` — a mark that a person carries what the
+      implementation cannot see.
+    ]
+    #para("5")[
+      `clone <value> <region>` #strong[copies a value deeply]; into that region. By the principle that there is no hidden copy (#cref("8")), a deep copy happens
+      only through this word. It has the allocation effect (`alloc`).
+    ]
+    #para("6")[
+      #strong[Deferred.]; The four are built when a use appears. If the other paths — windows on bytes (#cref("6.2.13")) · `extern` (#cref("6.9.2")) · allocators
+      (#cref("8.13")) — fill those uses and the four #strong[prove unnecessary, they are dropped.]; The owner decides whether to build or drop them. Until then
+      this clause stays and the implementation keeps recognizing the words.
+    ]
+    #rejected("a location type that is not built yet", "module ex_unbuilt .
+
+fn f input p raw . output u64 . do
+  return 0 .
+end .", "E-UNSAFE-UNBUILT")
+    #note[
+      The source is RFC-0005 §6.1 · §6.8 (the kinds of reference and locations → turning back into a safe reference) and RFC-0049 (`clone`). Both RFCs were
+      adopted and then archived, and these four were not carried into the canon (sweep of 2026-11-11). The owner decided to «put them in formally, state that
+      they are dropped if they later prove unnecessary, and keep tracking them» (2026-11-12).
+    ]
+  ]
 ]

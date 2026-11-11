@@ -2576,15 +2576,13 @@ static bool ir_pool_no_gc(const low_ir_def_t *d) {   // low_cbe.c 의 «참조�
     return d->takes_ref_arg;
 }
 static bool ir_pool_far_write(const low_ir_def_t *d, proven_size_t q) {   // 바퀴 안의 q 가 참조 매개변수 너머에 쓰는가(위 ★)
-    const low_ir_ins_t *in = &d->code[q];
-    // ★ 2026-11-11 (W-20261111-2031 D4) — 받은 참조로 부른 쪽 **칸**에 쓰는 것(IRW_STORE)은 이제 되감는다: 그 칸을 틀의 뿌리 목록에 올린다
-    //   (low_cbe_prelude.c lw_rfar). 남은 것은 참조 너머 **레코드의 칸**에 쓰는 꼴뿐이다.
-    if (in->w == IRW_FSTORE) {   // 레코드 · 값 순으로 쌓인다 — 레코드 쪽이 매개변수를 읽은 자리면 문다(가까운 몇 칸만 본다)
-        for (proven_size_t b = q; b > 0 && q - b < 6; b--) {
-            const low_ir_ins_t *p = &d->code[b - 1];
-            if (p->w == IRW_LOAD && p->a >= 0 && (proven_size_t)p->a < d->nparams) return true;
-        }
-    }
+    // ★ 2026-11-11 (W-20261111-2031 D4) — 받은 참조로 부른 쪽 **칸**에 쓰는 것(IRW_STORE)은 되감는다: 그 칸을 틀의 뿌리 목록에 올린다(lw_rfar).
+    // ★ 2026-11-12 (W-20261111-2349 E6) — 참조 너머 **레코드의 칸**(IRW_FSTORE)도 그렇다: 풀에 사는 레코드면 그 레코드를 든 칸을 올린다.
+    //   못 되감는 것은 그 레코드가 부른 쪽의 틀 창(스택)에 살 때뿐인데, 그 꼴은 지을 수 없다 — 참조를 받거나 만드는 op 은 틀 창을 안 쓰고
+    //   (ir_frame_windows) 값으로 받은 구조체 입력의 `mut_ref` 는 거절된다(E-TYPE-ARGMUT). 그래서 이 꼴을 경고하지 않는다(전엔 W-POOL-LOOP 가
+    //   되감기는 fill_rec 에도 났다 — 거짓 경보). 실행 중의 마지막 울타리는 남는다: 그런 레코드에 쓰면(LW_REFW_NOTE(0)) 그 틀은 그 뒤로
+    //   되감지 않고 풀 한도에서 멈춘다 — 조용히 틀리지 않는다.
+    (void)d; (void)q;
     return false;
 }
 /* ★ RFC-0152 §8-11 (2026-10-23, 소유자 «3-C») — **그대로 넘기기만 하는 op 을 건너뛰어 부른다.**

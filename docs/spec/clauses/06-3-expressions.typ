@@ -484,9 +484,14 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
       [검사 없음], [`div_nz`], [제수가 0 이 #strong[아님이 타입으로 보장된]; 나눗셈. 그 자리에는 검사가 남지 아니한다],
       )
     ]
+    #para("1a")[
+      넘침 처분을 적은 셈(`wrap_*` · `sat_*` · `chk_*`)은 #strong[정수];의 것이다. 부동소수점 수에 쓰면 번역이 거부된다(`E-TYPE-KIND`) —
+      부동소수점 셈에는 넘친 값이 갈 무한대가 있다.
+    ]
     #para("2")[
       나눗셈의 0 도 같다. 제수가 0 이 #strong[아님이 타입으로 보장된]; 자리에서는 `div_nz` 를
-      쓰며, 그 자리에는 검사가 남지 아니한다.
+      쓰며, 그 자리에는 검사가 남지 아니한다. 보장된 제수는 셋이다 — 0 이 아닌 정수 리터럴 · (2a) 의 값을 `some_value` 로 꺼낸 것 ·
+      그것으로 묶은 `let`. 그 밖의 제수를 `div_nz` 에 주면 번역이 거부된다(`E-TYPE-NONZERO`). 0 에서 멈추는 나눗셈은 `div` 다.
     ]
     #para("2a")[
       그 보장을 얻는 길이 `nonzero_of` 다. `nonzero_of <값>` 은 그 값이 0 이 아님을
@@ -560,6 +565,14 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .",
     #para("1b")[
       `lane_avg` 는 #strong[정수 레인의]; 것이다(위의 값이 정수의 셈이다). 부동소수점 레인에 쓰면 번역이 거부된다(`E-TYPE-KIND`, 2026-11-02).
     ]
+    #para("1c")[
+      레인을 다루는 op 은 #strong[벡터];를 받는다. 수 하나를 주면 번역이 거부된다(`E-TYPE-KIND`).
+    ]
+    #para("1d")[
+      `splat <리터럴>` 의 리터럴은 레인 하나를 그 레인 타입의 자리로 보고 #cref("6.1.4") (8)(9) 를 따른다 — 부동소수점 레인에 정수 리터럴을
+      채우면 `E-TYPE-LET`, `f32` 레인에 그 범위를 넘는 부동소수점 리터럴을 채우면 `E-TYPE-WIDTH` 다. 나열 리터럴(`lit vec` · `lit array` ·
+      `lit slice`)의 원소도 같다.
+    ]
     #para("2")[
       레인을 가로지르는 op 은 레인 수만큼을 #strong[하나로]; 모은다. 결과의 타입은 레인의 타입이다. 부호 있는 레인은 부호로
       더하고 곱하며, `reduce_add` · `reduce_mul` 의 값이 그 타입에 들어가지 않으면 멈춘다(#cref("6.3.4") (3)).
@@ -629,8 +642,14 @@ end .", "E-TYPE-RETURN")
     ]
     #para("1a")[
       `abs` 는 부동소수점 수와 #strong[부호 있는 정수];를 받는다. 결과의 타입은 피연산자의 타입이다. 부호 있는 정수의
-      가장 작은 값에서는 멈춘다 — 절댓값이 그 폭에 없다(#cref("6.3.4") (3)).
+      가장 작은 값에서는 멈춘다 — 절댓값이 그 폭에 없다(#cref("6.3.4") (3)). 부호 없는 정수에 쓰면 번역이 거부된다(`E-TYPE-SIGN`) —
+      그 값이 이미 제 절댓값이다.
     ]
+    #rejected("부호 없는 정수의 `abs`", "module ex_abs_unsigned .
+
+fn f input a u32 . output u32 . do
+  return abs a. . .     rem 부호 없는 값은 이미 제 절댓값이다
+end .", "E-TYPE-SIGN")
     #para("2")[
       이들은 권한을 요구하지 아니하며, #strong[운영체제가 있는 기계에서만]; 쓸 수 있다.
     ]
@@ -656,6 +675,11 @@ end .", "E-TYPE-RETURN")
     #para("3")[
       곧 0 이 거짓이고 그 밖이 참이라는 약속은 #strong[없다.]; 무엇을 묻는지는 그 자리에
       적어야 한다 — `gt a. 0 .` 처럼.
+    ]
+    #para("4")[
+      참거짓은 셈(`add` · `sub` · `mul` · `div` · `mod` · `min` · `max` · `abs` 와 넘침 처분을 적은 셈) · 크기 견줌(`lt` · `le` · `gt` · `ge`) ·
+      비트 연산(`bit_and` · `bit_or` · `bit_xor`)의 피연산자가 될 수 없다(`E-TYPE-KIND`). 두 참거짓은 `eq` · `ne` 로 견준다. 참거짓을 수로
+      세려면 `cast u8 b. .` 로 적는다(#cref("6.2.16") (4)).
     ]
     #plain[
       정수를 조건 자리에 그냥 두는 언어에서는 `if x` 가 #emph["x 가 0 이 아니다"]; 인지

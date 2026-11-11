@@ -1,5 +1,5 @@
 module mistake_optarith .
-rem expect: E-TYPE-RETURN
+rem expect: E-TYPE-KIND
 
 fn find input k u64 . output option u64 .
 do

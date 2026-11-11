@@ -2207,6 +2207,9 @@ const char LW_CONC[] =
 //   wake = 쥔 것이 끝나 다음 메시지를 넣어야 할 액터 · scan = 아직 훑지 않은 첫 칸 · seq = 도착 번호.
 "static unsigned long long lw_amb_seq; static int lw_amb_scan, lw_amb_nwake;\n"
 "static unsigned char lw_amb_busy[LW_AIDS]; static int lw_amb_wake[LW_AIDS];\n"
+// ★★★ 2026-11-11 (W-20261111-0940 O7 · VM 의 mb_holdg · mb_sync · mb_syncg 와 같다) — 누가 그 액터를 쥐었나: 우편함 메시지를 쥔 그린스레드 + 1 ·
+//   그 액터에게 들어가 있는 기다리는 `send` 의 겹 수와 그것을 보낸 그린스레드 + 1(0 = 그린스레드가 아닌 흐름).
+"static int lw_amb_holdg[LW_AIDS], lw_amb_sync[LW_AIDS], lw_amb_syncg[LW_AIDS];\n"
 "static int lw_amb_full(void) { return lw_nambox >= (int)(sizeof lw_ambox / sizeof *lw_ambox); }\n"
 "static int lw_amb_push(int box) {\n"
 "    int i; if (lw_amb_free) { i = lw_amb_free - 1; lw_amb_free = lw_ambox[i].ng; } else i = lw_amb_hw++;\n"
@@ -2254,13 +2257,14 @@ const char LW_CONC[] =
 "    lw_fa_dead[s] = 0; lw_fa_nx[s] = lw_fa_free; lw_fa_free = s + 1;\n"
 "}\n"
 // ★ 메시지가 남았거나 처리 중인 액터의 레코드는 돌려받지 않는다(VM vm_rec_rewind · 정본 §10.5 (2) · (4)).
-"static void lw_rec_rewind(int wm) { int n = lw_nrec; while (n > wm && n <= LW_RECPOOL && !lw_amb_nq[n - 1] && !lw_amb_busy[n - 1]) n--; lw_nrec = n; }\n"
+"static void lw_rec_rewind(int wm) { int n = lw_nrec; while (n > wm && n <= LW_RECPOOL && !lw_amb_nq[n - 1] && !lw_amb_busy[n - 1] && !lw_amb_sync[n - 1]) n--; lw_nrec = n; }\n"
 "#define LW_REC_REWIND(w) lw_rec_rewind(w)\n"
 // ★ 레코드 압축(LW_PRELUDE2 lw_pool_gc)에 우편함을 보인다: 메시지가 남은 · 처리 중인 액터는 살아 있고, 메시지의 인자도 뿌리이며,
 //   옮기면 인스턴스별 기록과 칸이 가리키는 번호를 함께 옮긴다(VM vm_pool_gc 와 같다).
-"#define LW_GC_MBOX_MARK() do { for (int i_ = lw_gcb_rc; i_ < lw_nrec && i_ < LW_RECPOOL; i_++) if (lw_amb_nq[i_] || lw_amb_busy[i_]) { lowv v_ = {0}; v_.tag = LWV_REC; v_.box = i_; lw_gc_mark(v_); }\\\n"
+"#define LW_GC_MBOX_MARK() do { for (int i_ = lw_gcb_rc; i_ < lw_nrec && i_ < LW_RECPOOL; i_++) if (lw_amb_nq[i_] || lw_amb_busy[i_] || lw_amb_sync[i_]) { lowv v_ = {0}; v_.tag = LWV_REC; v_.box = i_; lw_gc_mark(v_); }\\\n"
 "    for (int l_ = lw_amb_hg; l_; l_ = lw_ambox[l_ - 1].ng) for (int k_ = 0; k_ < lw_ambox[l_ - 1].nargs; k_++) lw_gc_mark(lw_ambox[l_ - 1].args[k_]); } while (0)\n"
 "#define LW_GC_MBOX_MOVE(i, j) do { lw_amb_hb[j] = lw_amb_hb[i]; lw_amb_tb[j] = lw_amb_tb[i]; lw_amb_nq[j] = lw_amb_nq[i]; lw_amb_busy[j] = lw_amb_busy[i]; lw_mbox[j] = lw_mbox[i];\\\n"
+"    lw_amb_holdg[j] = lw_amb_holdg[i]; lw_amb_sync[j] = lw_amb_sync[i]; lw_amb_syncg[j] = lw_amb_syncg[i]; lw_amb_holdg[i] = 0; lw_amb_sync[i] = 0; lw_amb_syncg[i] = 0;\\\n"
 "    lw_amb_hb[i] = 0; lw_amb_tb[i] = 0; lw_amb_nq[i] = 0; lw_amb_busy[i] = 0; lw_mbox[i] = 0; } while (0)\n"
 "#define LW_GC_MBOX_FIX() do { for (int l_ = lw_amb_hg; l_; l_ = lw_ambox[l_ - 1].ng) { int b_ = lw_ambox[l_ - 1].box;\\\n"
 "    if (b_ >= lw_gcb_rc && b_ < lw_nrec && lw_pm_rc[b_] >= 0) lw_ambox[l_ - 1].box = lw_pm_rc[b_];\\\n"
@@ -2289,6 +2293,7 @@ const char LW_CONC[] =
 "    lw_fa_own[k].b = *fa;\n"
 "}\n"
 "static struct { _Atomic int done; lowv result; } lw_jobs[4096]; static int lw_njobs;\n"   /* await — job 결과 */
+"static void lw_actor_wake(int box); static int lw_flow_id(void);\n"   /* ★ O7 — 아래 그린스레드 표 뒤에 선다 */
 // ★★★ 2026-11-10 (W-20261110-1247 · 소유자 «추천대로») — 정본 §10.5 (2a): 그 액터가 우편함의 메시지를 처리하는 중이면 멈춘다(VM E-VM-DRAIN-BUSY).
 "static void lw_drain(int box) {\n"
 "    if (box < 0 || box >= LW_AIDS) return;\n"
@@ -2302,8 +2307,9 @@ const char LW_CONC[] =
 "        int rmax = lw_ambox[i].rmax;\n"
 "        lw_amb_take(i);\n"   /* 큐에서 뺀 뒤 실행(재진입 drain 대비) */
 "        lw_amb_busy[box] = 1;\n"   /* 이 메시지가 끝날 때까지 처리 중 */
+"        int hg0_ = lw_amb_holdg[box]; lw_amb_holdg[box] = lw_flow_id();\n"   /* ★ O7 — 쥔 흐름 */
 "        if (qf) qf(self, cargs + 1); else if (rmax >= 0) (void)lw_restart_call(fn, cargs, box, rmax); else (void)fn(cargs);\n"
-"        lw_amb_busy[box] = 0;\n"
+"        lw_amb_busy[box] = 0; lw_amb_holdg[box] = hg0_; lw_actor_wake(box);\n"
 "    }\n"
 "    lw_fa_done(box);\n"
 "}\n"
@@ -2325,7 +2331,7 @@ const char LW_CONC[] =
 //   ☞ 스택은 코루틴의 실행 스택(C 스택과 같은 범주) — pthread 가 이미 워커 OS 스택을 잡는 것과
 //     같은 종류의 할당이지, 언어가 세는 데이터 힙이 아니다(RFC-0043 위반 아님).
 "static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); void (*qf)(unsigned char *, const lowv *); unsigned char *self; unsigned char nargs;\n"
-"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; int rmax; int nfs; int hold; int noy; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
+"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int blk_box; int peer; long sb; int rmax; int nfs; int hold; int noy; jmp_buf fs[8]; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
 // ★★ 2026-11-09 (W-20261109-1922) — **다시 세우기의 경계는 그린스레드마다 따로다.** 경계(`lw_fault`)는 setjmp 의
 //   스택이라, 메시지가 경계 안에서 양보하고 다른 메시지가 같은 칸에 경계를 세우면 패닉이 **남의 스택으로** 뛴다.
 //   그래서 협조 스케줄러가 그린스레드로 들어갈 때 그 것의 경계를 위에 다시 얹고, 나올 때 떼어 그 것의 자리에 둔다.
@@ -2392,7 +2398,7 @@ const char LW_CONC[] =
 //   ★ 취소할 때 **fd 등록도 지운다** — 안 지우면 죽은 태스크의 fd 가 reactor 에 남아
 //     다음 `epoll_wait` 가 그것 때문에 깨어난다(유령 깨움).
 "        for (int q = 0; q < lw_ngthr; q++) { if (q == gi) continue;\n"
-"            if (lw_gthr[q].state == 1 || lw_gthr[q].state == 5 || lw_gthr[q].state == 6 || lw_gthr[q].state == 7) {\n"
+"            if (lw_gthr[q].state == 1 || lw_gthr[q].state == 5 || lw_gthr[q].state == 6 || lw_gthr[q].state == 7 || lw_gthr[q].state == 8) {\n"
 "                if (lw_gthr[q].state == 7) { lw_io_forget(lw_gthr[q].blk_fd); lw_aio_drop(lw_gthr[q].blk_aio); }\n"
 "                lw_gthr[q].state = 4;\n"
 "                if (lw_gthr[q].job >= 0) { int cj = lw_gthr[q].job; lw_jobs[cj].result = lw_promote(rv); atomic_store_explicit(&lw_jobs[cj].done, 1, memory_order_release);\n"
@@ -2498,14 +2504,14 @@ const char LW_CONC[] =
 "    lw_gthr[gi].job = lw_ambox[q0_].job; lw_gthr[gi].rmax = lw_ambox[q0_].rmax; lw_gthr[gi].nfs = 0;\n"
 "    for (int x = 0; x < lw_ambox[q0_].nargs; x++) lw_gthr[gi].args[x] = lw_ambox[q0_].args[x];\n"
 "    lw_gthr[gi].state = 1; lw_gthr[gi].hold = 0; lw_gthr[gi].noy = lw_ambox[q0_].noy;\n"
-"    if (lw_gthr[gi].box >= 0 && lw_gthr[gi].box < LW_AIDS) { lw_gthr[gi].hold = 1; lw_amb_busy[lw_gthr[gi].box] = 1; }\n"
+"    if (lw_gthr[gi].box >= 0 && lw_gthr[gi].box < LW_AIDS) { lw_gthr[gi].hold = 1; lw_amb_busy[lw_gthr[gi].box] = 1; lw_amb_holdg[lw_gthr[gi].box] = gi + 1; }\n"
 "    lw_amb_take(q0_);\n"
 "}\n"
 // ★ 끝난 그린스레드(base 위)가 쥐었던 액터를 푼다 — 남은 메시지가 있으면 다음 채우기가 그 맨 앞을 넣는다.
 "static void lw_grelease(int base) {\n"
 "    for (int q = base; q < lw_ngthr; q++) {\n"
 "        if (!lw_gthr[q].hold || (lw_gthr[q].state != 4 && lw_gthr[q].state != 0)) continue;\n"
-"        int b = lw_gthr[q].box; lw_gthr[q].hold = 0; lw_amb_busy[b] = 0;\n"
+"        int b = lw_gthr[q].box; lw_gthr[q].hold = 0; lw_amb_busy[b] = 0; lw_amb_holdg[b] = 0; lw_actor_wake(b);\n"
 "        if (lw_amb_nq[b] && lw_amb_nwake < LW_AIDS) lw_amb_wake[lw_amb_nwake++] = b;\n"
 "        lw_fa_done(b);\n"
 "    }\n"
@@ -2593,6 +2599,7 @@ const char LW_CONC[] =
 // ★ refill 이 ambox 를 **항상** 비운다(자리가 모자라면 성장 — E-Alloc P4). 그래서 여기서
 //   nambox 가 남는 일은 없다: runnable 도 없고 남은 건 블록뿐이면 그건 **진짜 데드락**이다.
 //   (전엔 상한 초과를 데드락과 구분해 lw_panic 을 냈지만, 상한이 사라져 그 경우가 없다.)
+"            for (int i = base; i < lw_ngthr; i++) if (lw_gthr[i].state == 8) lw_panic(\"deadlock — a waiting `send` waits for an actor that another task holds, and that task waits too (use `try send` to learn the actor is busy)\");\n"
 "            for (int i = base; i < lw_ngthr; i++) if (lw_gthr[i].state == 5 || lw_gthr[i].state == 6 || lw_gthr[i].state == 7) lw_panic(\"deadlock — every task is blocked (channel, await or io) and none can wake another\");\n"
 "            break;\n"
 "        }\n"
@@ -2622,6 +2629,25 @@ const char LW_CONC[] =
 "static void lw_gyield(void) {\n"
 "    if (lw_in_gsched) { int gi = lw_cur_gthr; lw_gthr[gi].state = 2; swapcontext(&lw_gthr[gi].ctx, &lw_sched_ctx); }\n"
 "}\n"
+// ★★★ 2026-11-11 (W-20261111-0940 O7 · VM 의 vm_actor_busy 와 같다) — 다른 흐름이 그 액터를 쥐고 **멈춰 있으면** 바쁘다. 쥔 그린스레드가
+//   지금 도는 사슬(state 3)이면 재진입이다 — 지금처럼 바로 부른다. 기다리는 `send` 는 상태 8 로 양보하고, 풀리면 lw_actor_wake 가 깨운다.
+"static int lw_flow_id(void) { return lw_in_gsched ? lw_cur_gthr + 1 : 0; }\n"
+"static void lw_actor_wake(int box) { for (int w = 0; w < lw_ngthr; w++) if (lw_gthr[w].state == 8 && lw_gthr[w].blk_box == box) lw_gthr[w].state = 2; }\n"
+"#define LW_SEND_ENTER(b) lw_send_enter(b)\n#define LW_SEND_LEAVE(b, p) lw_send_leave((b), (p))\n#define LW_ACTOR_BUSY(b) lw_actor_busy(b)\n"
+"static int lw_actor_busy(int box) {\n"
+"    if (box < 0 || box >= LW_AIDS || !lw_in_gsched) return 0;\n"
+"    int h = lw_amb_busy[box] ? lw_amb_holdg[box] : 0;\n"
+"    if (h && h <= lw_ngthr && lw_gthr[h - 1].state != 3) return 1;\n"
+"    h = lw_amb_sync[box] ? lw_amb_syncg[box] : 0;\n"
+"    if (h && h <= lw_ngthr && lw_gthr[h - 1].state != 3) return 1;\n"
+"    return 0; }\n"
+"static int lw_send_enter(int box) {\n"
+"    if (box < 0 || box >= LW_AIDS) return 0;\n"
+"    while (lw_actor_busy(box)) { int gi = lw_cur_gthr; lw_gthr[gi].state = 8; lw_gthr[gi].blk_box = box; swapcontext(&lw_gthr[gi].ctx, &lw_sched_ctx); }\n"
+"    int prev = lw_amb_syncg[box]; lw_amb_sync[box]++; lw_amb_syncg[box] = lw_in_gsched ? lw_cur_gthr + 1 : 0; return prev; }\n"
+"static void lw_send_leave(int box, int prev) {\n"
+"    if (box < 0 || box >= LW_AIDS) return;\n"
+"    if (--lw_amb_sync[box] == 0) { lw_amb_syncg[box] = 0; lw_actor_wake(box); } else lw_amb_syncg[box] = prev; }\n"
 //   ⇒ A2: fd 를 **논블로킹**으로 두고, 읽을 것이 없으면 **상태 7(io 대기)** 로 스케줄러에
 //     양보한다. 형제가 돈다.
 //   ★★★ **바쁜대기가 아니다**: 돌 것이 하나도 없을 때만 스케줄러가 `epoll_wait` 로
@@ -3265,6 +3291,28 @@ const char LW_PRELUDE2[] =
 "    if ((meta & 0x200000) && x < 0) return nb >= 64 ? 0x7fffffffffffffffLL : sgn ? (long long)((1ULL << (nb - 1)) - 1) : (long long)((1ULL << nb) - 1);\n"
 "    if ((meta & 0x400000) && x < 0 && !sgn) return 0;\n"
 "    return lw_satv(x, nb, sgn); }\n"
+// ★★ 2026-11-11 (W-20261111-0940 O2 · 정본 §6.2.16 (2)(3)) — **부동 → 정수**: 소수부를 버린 참값이 대상에 드는지를 부동으로 잰다(VM 의 IRW_CAST 와
+//   같은 식). 전엔 `(long long)d` 로 먼저 바꿨다 — 64 비트 대상에서 범위 검사가 없었고 C 에서 정의되지 않은 변환이었다.
+//   *fit 에 드는가 · 돌려주는 값은 대상 폭으로 볼 정수(2^63 이상은 부호 없는 칸 · NaN 은 0).
+"static long long lw_f2i(double d, int nb, int sgn, int *fit, int *big, int *neg) {\n"
+"    const double t63 = 9223372036854775808.0, t64 = 18446744073709551616.0;\n"   /* ★ math.h 없이(프리스탠딩 대상) — 2^63 이상은 이미 정수다 */
+"    double t = (d != d || d >= t63 || d <= -t63) ? d : (double)(long long)d;\n"
+"    double hi = nb >= 64 ? (sgn ? t63 : t64) : (double)(1ULL << (sgn ? nb - 1 : nb));\n"
+"    double lo = sgn ? -(nb >= 64 ? t63 : (double)(1ULL << (nb - 1))) : 0.0;\n"
+"    *fit = t == t && t >= lo && t < hi; *neg = d <= -1.0;\n"
+"    long long x; if (!(t == t)) x = 0; else if (t >= t63) x = (long long)(t >= t64 ? ~0ULL : (unsigned long long)t);\n"
+"    else if (t < -t63) x = (long long)0x8000000000000000ULL; else x = (long long)t;\n"
+"    *big = x < 0 && d > 0; return x; }\n"
+"static long long lw_cast_fi(long long meta, double d) {\n"
+"    int nb = (int)(meta & 0xff) * 8, sgn = (meta & 0x20000) != 0, fit, big, neg;\n"
+"    long long x = lw_f2i(d, nb, sgn, &fit, &big, &neg);\n"
+"    if (fit) return x;\n"
+"    if (meta & 0x4000) return lw_wrap(x, nb, sgn);\n"
+"    if (meta & 0x8000) { if (big) return nb >= 64 ? 0x7fffffffffffffffLL : sgn ? (long long)((1ULL << (nb - 1)) - 1) : (long long)((1ULL << nb) - 1);\n"
+"                         if (neg && !sgn) return 0; return lw_satv(x, nb, sgn); }\n"
+"    lw_panic(\"value does not fit the target width\"); return 0; }\n"
+"static int lw_narrow_fits_f(long long meta, double d, long long *x) {\n"
+"    int fit, big, neg; *x = lw_f2i(d, (int)(meta & 0xff) * 8, (meta & 0x20000) != 0, &fit, &big, &neg); return fit; }\n"
 "static lowv lw_cast(long long meta, lowv v) {\n"
 "    if ((meta & 0xff) == 0) { int to32 = (meta & 0x10000) != 0;   /* RFC-0157 §8-13 — f32 이면 한 번에 반올림 */\n"
 "        if (v.tag == LWV_INT && (meta & 0x200000)) return lw_flt(to32 ? (double)(float)(unsigned long long)v.i : (double)(unsigned long long)v.i);\n"   /* RFC-0157 §8-14 */
@@ -3273,11 +3321,10 @@ const char LW_PRELUDE2[] =
 "        lw_panic(\"cast needs a scalar\"); }\n"
 "    int nb = (int)(meta & 0xff) * 8;\n"
 "    int sgn = (meta & 0x20000) != 0;\n"   // ★ widen 은 대상 부호를 싣는다 → 부호 범위(전역성). narrow 는 무부호(손실 트랩)
-"    long long x;\n"
-"    if (v.tag == LWV_INT) x = v.i;\n"
-"    else if (v.tag == LWV_FLT) x = (long long)lw_fval(v);\n"
+"    long long x; int fits;\n"
+"    if (v.tag == LWV_INT) { x = v.i; fits = lw_cast_fits(meta, x, nb, sgn); }\n"
+"    else if (v.tag == LWV_FLT) { if (!(meta & 0x40000)) return lw_int(lw_cast_fi(meta, lw_fval(v))); fits = lw_narrow_fits_f(meta, lw_fval(v), &x); }\n"
 "    else { lw_panic(\"cast needs a scalar\"); return lw_int(0); }\n"
-"    int fits = lw_cast_fits(meta, x, nb, sgn);\n"
 "    if (meta & 0x40000) {   // narrow_try → option\n"
 "        if (!fits) { lowv n = {0}; n.tag = LWV_NONE; return n; }\n"
 "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\");\n"
@@ -3507,10 +3554,27 @@ const char LW_PRELUDE2[] =
 "    return lw_int(!lw_want_int(a, \"ints\")); }\n"
 "static lowv lw_ref(lowv *slot, int mut) { lowv r = {0}; r.tag = LWV_REF; r.q = slot; r.i = mut ? LW_REF_MUT : 0; return r; }\n"
 "static lowv lw_deref(lowv r) { if (r.tag != LWV_REF) lw_panic(\"deref needs a reference\"); return *r.q; }\n"
+// ★★ 2026-11-11 (W-20261111-0940 O1 · docs/known-defects/native-pool-reclaim-with-refs.md) — **참조로 남의 칸에 쓴 풀 값을 센다.**
+//   참조를 쥔 op 은 되감기를 아예 안 냈다: 그 op 이 부른 쪽 칸에 써 넣은 핸들을 C 가 못 훑기 때문이다. 그런데 그 일은 **풀에 사는 값**
+//   (option · 레코드 · 묶음 …)을 참조로 쓸 때만 생긴다 — 정수 · 부동을 쓰는 것은 핸들을 옮기지 않는다. 그래서 그런 쓰기를 세고,
+//   참조를 쥔 op 은 «이 틀이 선 뒤로 센 수가 그대로면» 되감는다(lw_refw). 세는 자리는 참조를 따라 쓰는 두 곳(lw_store · lw_fstore)뿐이다.
+//   쓴 칸의 주소도 고리(16 칸)에 남긴다: 되감는 틀이 «지난번 뒤로 쓴 칸이 모두 **내 칸**» 임을 확인하면 그 핸들은 내 뿌리라 되감아도 안전하다
+//   (부른 op 이 내가 넘긴 참조로 내 지역에 써 넣는 꼴 — vm_pool_ref.low keep_opt). 하나라도 내 칸 밖이면(부른 쪽 · 레코드 칸) 그 틀은
+//   그 뒤로 되감지 않는다 — 그 핸들이 이 틀의 바닥 위에 있어서 되감기가 지운다.
+"static _Thread_local unsigned lw_refw; static _Thread_local const lowv *lw_refw_ring[16];\n"
+"#define LW_POOLED(v) ((v).tag != LWV_INT && (v).tag != LWV_FLT && (v).tag != LWV_MASK && (v).tag != LWV_NONE)\n"
+"#define LW_REFW_NOTE(slot) (lw_refw_ring[lw_refw++ & 15u] = (slot))\n"
+"static int lw_refw_ok(unsigned *rwc, const lowv *loc, int n) {\n"
+"    unsigned k = lw_refw - *rwc; if (k > 16) return 0;\n"
+"    for (unsigned j = 0; j < k; j++) { const lowv *q = lw_refw_ring[(lw_refw - 1 - j) & 15u]; if (!q || q < loc || q >= loc + n) return 0; }\n"
+"    *rwc = lw_refw; return 1; }\n"
 "static void lw_store(lowv *slot, lowv v) {\n"
 "    if (slot->tag == LWV_REF && v.tag != LWV_REF) {   // G7 write-through\n"
 "        if (!(slot->i & LW_REF_MUT)) lw_panic(\"write through a shared ref (needs mut_ref)\");\n"
-"        *slot->q = v;\n"
+"        if (LW_POOLED(v)) LW_REFW_NOTE(slot->q);\n"
+// ★★ 2026-11-11 — 틀 창(스택)에 지은 레코드를 참조로 남의 칸에 쓰면 이 틀이 끝난 뒤 사라진 자리를 가리킨다. 반환(lw_fw_ret)처럼 풀로 옮긴다
+//   (VM 은 같은 자리에서 이미 옮긴다 · vm_pool_ref.low keep_opt 1 이 -O2 에서 «no such field» 로 드러냈다).
+"        *slot->q = lw_promote(v);\n"
 "    } else *slot = v;\n"
 "}\n"
 "static lowv lw_contains(lowv s, lowv x) { if (s.tag != LWV_BITSET) lw_panic(\"contains needs a bitset\");\n"

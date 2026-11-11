@@ -1980,6 +1980,24 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                 continue;
             }
         }
+        // ★★★ 2026-11-11 (W-20261111-0940 O7) — **넘겨받은 액터에게 기다리는 `send`** 를 하는 op 은 동시성을 쓰는 단위에서 태그 경로에 둔다.
+        //   빠른 경로는 넘겨받은 액터를 바이트 사본으로 들고 끝에서 되쓴다 — 그 액터를 다른 흐름이 쥐고 멈춰 있으면 기다려야 하는데(정본 §10.5 (1b))
+        //   사본을 든 채로는 기다릴 자리가 없고, 되쓰기가 멈춘 메시지의 일을 덮는다. 태그 경로의 부름이 기다린다(LW_SEND_ENTER).
+        //   자기 인스턴스(처리 코드의 첫 매개변수)와 이 op 이 띄운 액터는 그대로 빠른 경로다 — 그것은 이 사슬이 쥔 것이다.
+        if (cbe_uses_conc(ir)) {
+            bool aparam_ = false, asend_ = false;
+            for (proven_size_t q = d->is_actor ? 1 : 0; q < d->nparams && q < LOW_MAX_PARAMS && !aparam_; q++)
+                if (((d->param_struct >> q) & 1u) && (proven_size_t)d->param_sidx[q] < ir->nstructs && ir->structs[d->param_sidx[q]].is_actor_state) aparam_ = true;
+            for (proven_size_t k = 0; k < d->ncode && aparam_ && !asend_; k++)
+                if (d->code[k].w == IRW_CALL && IR_CALL_IDX(d->code[k].a) < ir->ndefs && ir->defs[IR_CALL_IDX(d->code[k].a)].is_actor) asend_ = true;
+            if (aparam_ && asend_) {
+                sc[i] = false;
+                if (i < 512 && !g_why[i][0])
+                    snprintf(g_why[i], sizeof g_why[0], "a waiting `send` to an actor it was given — in a unit with tasks it may have to wait for "
+                             "another flow that holds that actor, and the fast path holds the actor as a copy");
+                continue;
+            }
+        }
         // ★ 구조체 파라미터는 **필드가 전부 스칼라 정수**일 때만 내린다.
         int badq = -1;
         for (proven_size_t q = 0; q < d->nparams && q < LOW_MAX_PARAMS; q++)
@@ -2029,6 +2047,11 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
         //   구조체·부동 원소는 빠른 경로가 아니다 — 그것들은 값이 정수가 아니다.
         // ★ 폭은 이제 **슬롯마다** 따라간다 — def 하나에 폭 하나를 강요하지 않는다.
         for (proven_size_t k = 0; k < d->ncode; k++) {
+            if (d->code[k].w == IRW_CALL && (d->code[k].a & IR_CALL_TRY)) {   // ★ 2026-11-11 (O7) — `try send` 는 태그 경로에서만
+                sc[i] = false;
+                if (i < 512) snprintf(g_why[i], sizeof g_why[0], "`try send` is not lowered yet");
+                break;
+            }
             if (!cbe_fast_word(&d->code[k])) {
                 sc[i] = false;
                 if (i < 512) snprintf(g_why[i], sizeof g_why[0],
@@ -6405,14 +6428,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         ks.k[ks.n-1] = K_FLT;
                     } else if (to32) fputs("    fs[fsp-1] = (double)(float)fs[fsp-1];\n", out);   // 이미 f64 면 항등
                 } else if (in->a & 0x40000) {              // narrow_try → some|none (ws[])
-                    if (ks.k[ks.n-1] == K_FLT)
-                        fputs("    st[sp++] = (long long)fs[--fsp];\n", out);
+                    if (ks.k[ks.n-1] == K_FLT)   // ★ 2026-11-11 — 부동 원천은 참값으로 잰다(lw_narrow_fits_f · VM 과 같다)
+                        fprintf(out, "    { long long x_; if (lw_narrow_fits_f(%lld, fs[--fsp], &x_)) { ws[wsp].tag = 1; ws[wsp].v = x_; }"
+                                     " else { ws[wsp].tag = 2; ws[wsp].v = 0; } wsp++; }\n", (long long)in->a);
+                    else
                     fprintf(out, "    { long long x_ = st[--sp];"
                                  " if (lw_narrow_fits(%lld, x_)) { ws[wsp].tag = 1; ws[wsp].v = x_; }"
                                  " else { ws[wsp].tag = 2; ws[wsp].v = 0; } wsp++; }\n", (long long)in->a);
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.vn[ks.n-1] = 0; ks.fl[ks.n-1] = 0;
                 } else if (ks.k[ks.n-1] == K_FLT) {        // f64 → 정수 폭
-                    fprintf(out, "    st[sp++] = lw_cast_i(%lld, (long long)fs[--fsp]);\n", (long long)in->a);
+                    fprintf(out, "    st[sp++] = lw_cast_fi(%lld, fs[--fsp]);\n", (long long)in->a);   /* ★ 2026-11-11 — 참값으로 잰다 */
                     ks.k[ks.n-1] = K_INT;
                 } else
                     fprintf(out, "    st[sp-1] = lw_cast_i(%lld, st[sp-1]);\n", (long long)in->a);
@@ -7271,6 +7296,10 @@ static bool cbe_may_suspend(const low_ir_t *ir, proven_size_t d, int depth) {
         //   실행할 때 정해지므로 «멈춰 설 수 있다» 로 본다. (2026-11-10 v1.31.0 에서 빠져 있었다: `schedule` 로 온 메시지가 yield 하는
         //   액터를 drain 하면 네이티브가 죽었다 — VM 은 5. 기록 docs/known-defects/drain-in-place-handler-yields.md)
         if (w == IRW_DRAIN) return true;
+        // ★★ 2026-11-11 (W-20261111-0940 O7) — 액터에게 보내는 기다리는 `send` 는 그 액터를 다른 흐름이 쥐고 있으면 **기다린다**(LW_SEND_ENTER 가
+        //   양보한다) — 그 자리에서(그린스레드 없이) 도는 처리 코드는 양보할 문맥이 없다. `try send` 는 기다리지 않는다.
+        if (w == IRW_CALL && !(ir->defs[d].code[i].a & IR_CALL_TRY) && IR_CALL_IDX(ir->defs[d].code[i].a) < ir->ndefs &&
+            ir->defs[IR_CALL_IDX(ir->defs[d].code[i].a)].is_actor) return true;
         if (w == IRW_CALL && cbe_may_suspend(ir, IR_CALL_IDX(ir->defs[d].code[i].a), depth + 1)) return true;
     }
     return false;
@@ -7281,8 +7310,15 @@ static bool cbe_needs_peer(const low_ir_t *ir, proven_size_t d, int depth) {
     for (proven_size_t i = 0; i < ir->defs[d].ncode; i++) {
         low_irw_t w = ir->defs[d].code[i].w;
         if (w == IRW_CHRECV || w == IRW_CHSEND || w == IRW_AWAIT) return true;
+        // ★★★ 2026-11-11 (W-20261111-0940 O4) — **우편함을 만지는 태스크도 진짜 스레드로 안 보낸다.** 우편함(lw_ambox · lw_amb_*)과
+        //   빠른 액터의 자리(lw_fa_mem · lw_fa_own)는 프로세스에 하나다 — 워커 둘이 같이 넣고 빼면 줄이 깨진다. 실측(64 태스크가
+        //   저마다 띄운 액터에 `spawn send` + `drain`, LOWENT_THREADS=1): 10 번 중 2 번 죽었고, 더 긴 판은 6 번 중 5 번 죽고 1 번은
+        //   틀린 답이었다. 액터에게 기다리는 `send`(처리 코드 부름)도 같다 — 넘겨받은 액터를 두 워커가 같이 고친다. «다르게 굴 수 있는
+        //   것은 안 보낸다»(cancel_on_error 와 같은 규율) — 답은 협조적 실행의 답 그대로다.
+        if (w == IRW_ASEND || w == IRW_TASEND || w == IRW_DRAIN || w == IRW_SCHED || w == IRW_TSPAWN) return true;
         if (w == IRW_CALL) {
             proven_size_t c = IR_CALL_IDX(ir->defs[d].code[i].a);
+            if (c < ir->ndefs && ir->defs[c].is_actor) return true;
             if (cbe_needs_peer(ir, c, depth + 1)) return true;
         }
     }
@@ -7346,7 +7382,7 @@ static void cbe_vecfn_all(const low_ir_t *ir) {
             if (g_vecfn[i]) continue;
             const low_ir_def_t *d = &ir->defs[i];
             for (proven_size_t j = 0; j < d->ncode; j++)
-                if (d->code[j].w == IRW_CALL && d->code[j].a >= 0 && d->code[j].a < 512 && g_vecfn[d->code[j].a]) {
+                if (d->code[j].w == IRW_CALL && IR_CALL_IDX(d->code[j].a) < 512 && g_vecfn[IR_CALL_IDX(d->code[j].a)]) {
                     g_vecfn[i] = true; moved = true; break;
                 }
         }
@@ -7549,6 +7585,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     }
     // ★ 2026-11-10 (W-20261110-1548) — 수를 돌려준 부름 뒤에 레코드를 돌려받는다. 우편함이 있는 런타임은 메시지가 남은 액터의 레코드를
     //   돌려받지 않는다(그 런타임이 LW_REC_REWIND 를 정한다 · VM vm_rec_rewind) — 없으면 그대로 되감는다.
+    // ★ 2026-11-11 (O7) — 기다리는 `send` 의 쥐기 · 기다리기는 그린스레드가 있는 런타임(LW_CONC)에만 있다. 없으면(동시성 없음 · T0) 늘 안 바쁘다.
+    fputs("#ifndef LW_SEND_ENTER\n#define LW_SEND_ENTER(b) ((void)(b), 0)\n#define LW_SEND_LEAVE(b, p) ((void)(b), (void)(p))\n#define LW_ACTOR_BUSY(b) ((void)(b), 0)\n#endif\n", out);
     fputs("#ifndef LW_REC_REWIND\n#define LW_REC_REWIND(w) (lw_nrec = (w))\n#endif\n"
           "#ifndef LW_GC_MBOX_MARK\n#define LW_GC_MBOX_MARK() ((void)0)\n#define LW_GC_MBOX_MOVE(i, j) ((void)0)\n#define LW_GC_MBOX_FIX() ((void)0)\n#endif\n", out);
     // ★ `lw_v` 는 **유닛마다 크기가 다르다**(위 `cbe_mark_vbytes`). 프렐류드보다 먼저 낸다 —
@@ -7873,7 +7911,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        return lw_int(0); }\n"
           "    return lw_field(r, fi); }\n"
           "static void lw_fstore(lowv r, int fi, lowv v) {\n"
-          "    if (r.tag == LWV_REF) r = *r.q;\n"
+          "    if (r.tag == LWV_REF) { r = *r.q; if (LW_POOLED(v)) LW_REFW_NOTE(0); }\n"   /* ★ 2026-11-11 — 참조 너머의 레코드에 쓴 풀 값(lw_store 의 ★) */
           /* ★★★ **뷰의 필드에 쓴다** — 그것이 곧 **디바이스 레지스터 쓰기**다(RFC-0042 D1).
              그리고 **volatile** 이다: 각 접근은 **정확히 한 번**, **쓴 순서대로**.
              `volatile` 이 없으면 컴파일러가 그것을 **지우거나 합치거나 재정렬**하고,
@@ -8674,9 +8712,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         const bool vecfn = cbe_uses_vec(d);
         if (vecfn) fputs("    int vb_ = lw_nvecpool; (void)vb_;\n", out);
         // ★ 네 풀의 바닥(F1) — 루프의 뒤 분기가 여기로 되감는다.
-        const bool poolgc = cbe_pool_gc_ok(d);
-        if (poolgc) fputs("    int pbx_ = lw_nbox, prc_ = lw_nrec, psk_ = lw_nstk, pbs_ = lw_nbset, pvc_ = lw_nvecpool;\n"
-                          "    (void)pbx_; (void)prc_; (void)psk_; (void)pbs_; (void)pvc_;\n", out);
+        // ★★ 2026-11-11 (W-20261111-0940 O1) — 참조를 쥔 op 도 되감는다. 다만 **이 틀이 선 뒤로 참조 너머에 풀 값을 쓴 일이 없을 때만**
+        //   (lw_refw 가 그대로). 정본 §8.1 (3a) «풀은 루프를 한 바퀴 돌 때마다 되감긴다» — VM 은 늘 그랬다. 전엔 `W-POOL-LOOP` 로 알리고 멈췄다.
+        const bool poolgc_ref = !cbe_pool_gc_ok(d);
+        const bool poolgc = true;
+        fputs("    int pbx_ = lw_nbox, prc_ = lw_nrec, psk_ = lw_nstk, pbs_ = lw_nbset, pvc_ = lw_nvecpool;\n"
+              "    (void)pbx_; (void)prc_; (void)psk_; (void)pbs_; (void)pvc_;\n", out);
+        if (poolgc_ref) fputs("    unsigned rwc_ = lw_refw; int esc_ = 0; (void)rwc_; (void)esc_;\n", out);
+        char pgif_[128] = "";
+        if (poolgc_ref) snprintf(pgif_, sizeof pgif_, "if (!esc_ && !(esc_ = !lw_refw_ok(&rwc_, loc, %zu))) ", (size_t)(d->nlocals ? d->nlocals : 1));
+        // 되감지 못하는 바퀴에도 벡터 풀은 전처럼 되감는다(참조를 쥔 op 은 전에 lw_vecgc 만 냈다)
+        char pgel_[96] = ""; if (poolgc_ref && vecfn) snprintf(pgel_, sizeof pgel_, " else lw_vecgc(vb_, loc, %zu, st, sp);", (size_t)(d->nlocals ? d->nlocals : 1));
         proven_u32 lastln2_ = 0; proven_u16 lastfid2_ = 0;
         for (proven_size_t j = 0; j < d->ncode; j++) {
             const low_ir_ins_t *in = &d->code[j];
@@ -8742,17 +8788,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 //   앞으로 가는 분기에는 안 넣는다: 되감기는 어디서든 안전하지만 **공짜는 아니다**.
                 case IRW_BR:
                     if ((proven_size_t)in->a <= j) {
-                        if (poolgc) fprintf(out, "    %slw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp, %s);\n",
+                        if (poolgc) fprintf(out, "    %s{ %slw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp, %s); }%s\n", pgif_,
                                             d->nwin ? "lw_fw_gc(&fw_, loc, (int)(sizeof loc / sizeof *loc), st, sp); " : "",
-                                            (size_t)(d->nlocals ? d->nlocals : 1), d->nwin ? "&fw_" : "0");
+                                            (size_t)(d->nlocals ? d->nlocals : 1), d->nwin ? "&fw_" : "0", pgel_);
                         else if (vecfn) fprintf(out, "    lw_vecgc(vb_, loc, %zu, st, sp);\n", (size_t)(d->nlocals ? d->nlocals : 1));
                     }
                     fprintf(out, "    goto L%lld;\n", (long long)in->a); break;
                 case IRW_BRZ:
                     if (poolgc && (proven_size_t)in->a <= j)
-                        fprintf(out, "    if (lw_want_int(st[--sp], \"branch\") == 0) { %slw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp, %s); goto L%lld; }\n",
-                                d->nwin ? "lw_fw_gc(&fw_, loc, (int)(sizeof loc / sizeof *loc), st, sp); " : "",
-                                (size_t)(d->nlocals ? d->nlocals : 1), d->nwin ? "&fw_" : "0", (long long)in->a);
+                        fprintf(out, "    if (lw_want_int(st[--sp], \"branch\") == 0) { %s{ %slw_pool_gc(pbx_, prc_, psk_, pbs_, pvc_, loc, %zu, st, sp, %s); }%s goto L%lld; }\n",
+                                pgif_, d->nwin ? "lw_fw_gc(&fw_, loc, (int)(sizeof loc / sizeof *loc), st, sp); " : "",
+                                (size_t)(d->nlocals ? d->nlocals : 1), d->nwin ? "&fw_" : "0", pgel_, (long long)in->a);
                     else if (vecfn && (proven_size_t)in->a <= j)
                         fprintf(out, "    if (lw_want_int(st[--sp], \"branch\") == 0) { lw_vecgc(vb_, loc, %zu, st, sp); goto L%lld; }\n",
                                 (size_t)(d->nlocals ? d->nlocals : 1), (long long)in->a);
@@ -9469,7 +9515,19 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     bool has_restart = maxr >= 0;
                     // ★★★ **레코드 풀을 회수한다** — VM 과 **같은 규율**(low_ir.c 의 IRW_CALL).
                     //   스칼라를 돌려주는 호출이 만든 레코드는 **아무도 못 본다** ⇒ 반납한다.
-                    fprintf(out, "    { int wm_ = lw_nrec, wb_ = lw_nbset, wk_ = lw_nstk; lowv r = ");
+                    // ★★★ 2026-11-11 (W-20261111-0940 O7 · VM 의 IRW_CALL 과 같다) — 액터에게 보내는 기다리는 `send` 는 그 액터를 다른 흐름이 쥐고
+                    //   멈춰 있으면 기다리고(LW_SEND_ENTER), 들어간 동안은 이 흐름이 쥔다(LW_SEND_LEAVE 가 놓는다) · `try send`(IR_CALL_TRY)는
+                    //   기다리지 않고 `actor_busy` 를 값으로 낸다. 재진입(쥔 것이 이 사슬)은 기다리지 않는다.
+                    const bool asnd_ = callee->is_actor && callee->nparams > 0;
+                    const bool tsnd_ = asnd_ && (in->a & IR_CALL_TRY);
+                    if (asnd_) {
+                        fprintf(out, "    { int sbx_ = st[sp-%zu].tag == LWV_REC ? st[sp-%zu].box : -1;\n", (size_t)callee->nparams, (size_t)callee->nparams);
+                        if (tsnd_) fprintf(out, "    if (LW_ACTOR_BUSY(sbx_)) { sp -= %zu; st[sp++] = lw_err(%lld); } else\n",
+                                           (size_t)callee->nparams, (long long)IR_CALL_TRY_ERR(in->a));
+                        fputs("    { int syp_ = LW_SEND_ENTER(sbx_);\n", out);
+                    }
+                    // ★ 2026-11-11 (O1) — 부름이 참조로 풀 값을 부른 쪽에 써 넣었으면(lw_refw 가 움직였으면) 돌려받지 않는다(VM 의 refw_wm 과 같다)
+                    fprintf(out, "    { int wm_ = lw_nrec, wb_ = lw_nbset, wk_ = lw_nstk; unsigned rwr_ = lw_refw; lowv r = ");
                     if (has_restart) {
                         fputs("lw_restart_call(lw_op_", out); put_sym(out, callee);
                         fprintf(out, ", &st[sp-%zu], st[sp-%zu].tag == LWV_REC ? st[sp-%zu].box : -1, %lldll)",
@@ -9478,9 +9536,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         fputs("lw_op_", out); put_sym(out, callee);
                         fprintf(out, "(&st[sp-%zu])", (size_t)(callee->nparams ? callee->nparams : 0));
                     }
-                    fprintf(out, "; if (r.tag == LWV_INT || r.tag == LWV_FLT) { LW_REC_REWIND(wm_); lw_nbset = wb_; lw_nstk = wk_; }"
+                    fprintf(out, ";%s if ((r.tag == LWV_INT || r.tag == LWV_FLT) && lw_refw == rwr_) { LW_REC_REWIND(wm_); lw_nbset = wb_; lw_nstk = wk_; }"
                                  " else r = lw_fw_take(%s, r);"   /* ★ P4e — 되튐 창의 레코드를 내 창(없으면 풀)으로 */
-                                 " sp -= %zu; st[sp++] = r; }\n", d->nwin ? "&fw_" : "0", (size_t)callee->nparams);
+                                 " sp -= %zu; st[sp++] = %s; }%s\n", asnd_ ? " LW_SEND_LEAVE(sbx_, syp_);" : "",
+                                 d->nwin ? "&fw_" : "0", (size_t)callee->nparams, tsnd_ ? "lw_wrap_ok(r)" : "r", asnd_ ? " } }" : "");
                     if (has_mbox) fprintf(out, "    if (mbi_ >= 0) lw_mbox[mbi_]--; }\n");   // 반환 — in-flight 하나 빠짐 (바깥 블록 닫음)
                     break;
                 }

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "low_ir.h"
 #include "low_typecheck.h"
+#include <math.h>
 #include "low_check.h"
 
 #include "low_token.h"
@@ -8151,6 +8152,20 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
             }
             if (e->kind == LOW_CST_ATOM && e->tok.kind == LOW_TOK_NUMBER) {
                 if (isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` list holds `true`/`false` — a number is not a truth value", ln); return; }
+                // ★★ 2026-11-11 (W-20261111-0940 O5) — 부동 원소도 잰다(정본 §6.1.4 (8)(9)): 정수 리터럴은 부동 칸에 들지 않고, `f32` 칸의 부동
+                //   리터럴은 `f32` 범위 안이어야 한다. 전엔 `flt` 이면 건너뛰어 `lit vec 2 f32 1e300 1.5` 가 inf 로 지났고(`let x f32 1e300` 은
+                //   E-TYPE-WIDTH) `lit array 2 f64 3 1.5` 가 지났다(`let x f64 3` 은 E-TYPE-LET).
+                if (flt && !low_num_is_float(e->tok.lex)) {
+                    emit(out, "E-TYPE-LET", "an integer literal in a list of floating-point numbers — write `3.0`, not `3` (canon §6.1.4 (9))", ln);
+                    return;
+                }
+                if (flt && veq(ty, "f32")) {
+                    double dv_ = low_num_to_double(e->tok.lex);
+                    if (isfinite(dv_) && !isfinite((double)(float)dv_)) {
+                        emit(out, "E-TYPE-WIDTH", "this element does not fit `f32` — it would become infinity (canon §6.1.4 (8))", ln);
+                        return;
+                    }
+                }
                 if (!flt && !ck_lit_elem_fits(ty, e->tok.lex)) {
                     emit(out, "E-TYPE-WIDTH", "this element does not fit the list's element type — every element is checked "
                          "against the type written after `lit array`/`lit slice` (a negative number never fits an unsigned type)", ln);
@@ -11105,7 +11120,7 @@ static bool ck_declares_name(const low_cst_t *nd, proven_u8str_view_t nm) {
     // ★ `for` 머리의 이름도 새로 짓는 것이다(2026-10-03) — 안 세면 `for k count …` 가 앞 블록의 `let k` 를 «읽는» 것으로 보였다.
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
         (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR ||
-         nd->kids[0]->tok.kw == LOW_KW_FOR) &&
+         nd->kids[0]->tok.kw == LOW_KW_FOR || veq(nd->kids[0]->tok.lex, "repeat") || veq(nd->kids[0]->tok.lex, "range")) &&
         ck_atom(nd->kids[1]) && proven_u8str_view_eq(nd->kids[1]->tok.lex, nm)) return true;
     for (proven_size_t i = 0; i < nd->nkids; i++)
         if (ck_declares_name(nd->kids[i], nm)) return true;
@@ -11118,6 +11133,33 @@ static bool ck_uses_name(const low_cst_t *nd, proven_u8str_view_t nm) {
     for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_uses_name(nd->kids[i], nm)) return true;
     return false;
 }
+// ★ 2026-11-11 — 반복 이름(`for x` · `repeat i`)은 칸 이름과 자주 같다: `lit pt do x 1 . end` 의 `x` · `field p. x .` 의 `x` 는 이름을 읽는
+//   것이 아니다. 그 두 자리를 빼고 본다(vm_failclause.low 가 그 꼴로 거짓 거절을 냈다).
+static bool ck_uses_var2(const low_cst_t *nd, proven_u8str_view_t nm, bool inlit) {
+    if (!nd) return false;
+    if (ck_atom(nd)) return nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && proven_u8str_view_eq(nd->tok.lex, nm);
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "field"))
+        return ck_uses_var2(nd->kids[1], nm, false);
+    // `lit <구조체> do <칸> <값> . … end` — 나무는 [lit, [pt, BLOCK]] 이다: `lit` 바로 뒤 마디의 블록에서 줄의 첫 낱말은 칸 이름이다
+    bool next_lit = false;
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *k = nd->kids[i];
+        if (!k) continue;
+        if (ck_atom(k) && k->tok.kw == LOW_KW_LIT) { next_lit = true; continue; }
+        if ((inlit || next_lit) && k->kind == LOW_CST_BLOCK) {
+            for (proven_size_t r = 0; r < k->nkids; r++) {
+                const low_cst_t *ln = k->kids[r];
+                if (ln && ln->kind == LOW_CST_FORM) { for (proven_size_t q = 1; q < ln->nkids; q++) if (ck_uses_var2(ln->kids[q], nm, false)) return true; }
+                else if (ck_uses_var2(ln, nm, false)) return true;
+            }
+            next_lit = false; continue;
+        }
+        if (ck_uses_var2(k, nm, next_lit)) return true;
+        if (next_lit && k->kind != LOW_CST_ATOM) next_lit = false;
+    }
+    return false;
+}
+static bool ck_uses_var(const low_cst_t *nd, proven_u8str_view_t nm) { return ck_uses_var2(nd, nm, false); }
 static void ck_scope_escape(low_check_result_t *out, const low_cst_t *body) {
     if (!body || body->kind != LOW_CST_BLOCK) return;
     for (proven_size_t i = 0; i < body->nkids; i++) {
@@ -11126,8 +11168,14 @@ static void ck_scope_escape(low_check_result_t *out, const low_cst_t *body) {
         low_kw_t kw = st->kids[0]->tok.kw;
         // ★ RFC-0141 — `guard … else do … end` 와 바인딩의 실패 절(펼치면 `guard` 다)의 블록도 블록이다. 전엔 여기서 지은 이름이
         //   문장 뒤에서 읽혔다(안 들어간 길에서는 0) — `else error e do … end` 의 `e` 가 블록 밖으로 새는 길이었다.
-        if (kw != LOW_KW_IF && kw != LOW_KW_WHILE && kw != LOW_KW_FOR && kw != LOW_KW_GUARD) continue;
+        const bool cnt_ = kw == LOW_KW_NONE && (veq(st->kids[0]->tok.lex, "repeat") || veq(st->kids[0]->tok.lex, "range"));
+        if (kw != LOW_KW_IF && kw != LOW_KW_WHILE && kw != LOW_KW_FOR && kw != LOW_KW_GUARD && !cnt_) continue;
         proven_u8str_view_t inner[64]; proven_size_t ni = 0;
+        // ★★ 2026-11-11 (W-20261111-0940 O2 · 정본 §6.5.3.1 (9)) — **반복의 이름도 블록 안에서만 산다**(`for x xs. do` · `repeat i u64 n. do` ·
+        //   `range i u64 a. b. do` 의 x · i). 전엔 블록 뒤에서 읽혀 마지막 원소가 나왔다 — 한 번도 안 돈 길에서는 0.
+        proven_size_t nloop_ = 0;   // inner 의 앞 nloop_ 칸은 반복 이름이다(ck_uses_var 로 본다)
+        if ((kw == LOW_KW_FOR || cnt_) && st->nkids >= 2 && ck_atom(st->kids[1]) && st->kids[1]->tok.kind == LOW_TOK_IDENT)
+            { inner[ni++] = st->kids[1]->tok.lex; nloop_ = 1; }
         for (proven_size_t b = 0; b < st->nkids; b++) {
             const low_cst_t *kb = st->kids[b];
             if (kb && kb->kind == LOW_CST_BLOCK && kw != LOW_KW_GUARD)
@@ -11143,7 +11191,7 @@ static void ck_scope_escape(low_check_result_t *out, const low_cst_t *body) {
                 // ★ 뒤에서 **다시 선언**하면 그것은 새 이름이다 — 그 자리부터는 볼 것이 없다
                 //   (표준 라이브러리가 같은 이름을 블록 안팎에서 따로 짓는다: lib/sort.low 의 `ti`).
                 if (ck_declares_name(later, inner[q])) break;
-                if (ck_uses_name(later, inner[q])) {
+                if (q < nloop_ ? ck_uses_var(later, inner[q]) : ck_uses_name(later, inner[q])) {
                     emit(out, "E-NAME-SCOPE",
                          "this name was declared INSIDE a block and is read outside it. A block is "
                          "where a name lives (§6.5.1): on the path that did not enter the block the "

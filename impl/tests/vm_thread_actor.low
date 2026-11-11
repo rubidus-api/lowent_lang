@@ -1,0 +1,96 @@
+rem ★★ 일꾼 스레드(`LOWENT_THREADS`)와 액터 (2026-11-11 · W-20261111-0940 O4). 태스크 64 개가 저마다 액터를 띄워 `spawn send` 둘 + `drain` 을
+rem n 바퀴 하고, 답이 틀리면 0 으로 나눠 멈춘다. 우편함과 빠른 액터의 자리는 프로세스에 하나라 워커 둘이 같이 만지면 줄이 깨졌다
+rem (v1.33.0 네이티브 · LOWENT_THREADS=1: 10 번 중 2 번 죽음 · 더 긴 판은 6 번 중 5 번 죽고 1 번 틀린 답). 이제 우편함을 만지는 태스크는
+rem 협조적으로 돈다(`cbe_needs_peer`) — 답은 VM 과 같은 7 이다. VM 은 n 30 으로, 네이티브는 n 20000 으로 잰다(VM 은 태스크 안의 되풀이에서 레코드 풀이 모자란다).
+module vm_thread_actor .
+
+actor acc do
+  state do v u64 . end .
+  proc add input x u64 . output u64 . effects state . do set v. expr v. + x. . . return v. . end .
+  fn get output u64 . do return v. . end .
+end .
+
+proc work input k u64 . input n u64 . output u64 . effects state . do
+  var i u64 0 .
+  var s u64 0 .
+  while lt i. n. . do
+    var a acc spawn actor acc . .
+    spawn send a. add k. . .
+    spawn send a. add 1 . .
+    drain a. .
+    set s. expr s. + send a. get . . .
+    set i. expr i. + 1 . .
+  end .
+  if ne s. expr n. * k. + n. . . do set s. expr s. / 0 . . end .
+  return s. .
+end .
+
+proc drive input n u64 . output u64 . effects state . do
+  task_group do
+    spawn work 1 n. .
+    spawn work 2 n. .
+    spawn work 3 n. .
+    spawn work 4 n. .
+    spawn work 5 n. .
+    spawn work 6 n. .
+    spawn work 7 n. .
+    spawn work 8 n. .
+    spawn work 9 n. .
+    spawn work 10 n. .
+    spawn work 11 n. .
+    spawn work 12 n. .
+    spawn work 13 n. .
+    spawn work 14 n. .
+    spawn work 15 n. .
+    spawn work 16 n. .
+    spawn work 17 n. .
+    spawn work 18 n. .
+    spawn work 19 n. .
+    spawn work 20 n. .
+    spawn work 21 n. .
+    spawn work 22 n. .
+    spawn work 23 n. .
+    spawn work 24 n. .
+    spawn work 25 n. .
+    spawn work 26 n. .
+    spawn work 27 n. .
+    spawn work 28 n. .
+    spawn work 29 n. .
+    spawn work 30 n. .
+    spawn work 31 n. .
+    spawn work 32 n. .
+    spawn work 33 n. .
+    spawn work 34 n. .
+    spawn work 35 n. .
+    spawn work 36 n. .
+    spawn work 37 n. .
+    spawn work 38 n. .
+    spawn work 39 n. .
+    spawn work 40 n. .
+    spawn work 41 n. .
+    spawn work 42 n. .
+    spawn work 43 n. .
+    spawn work 44 n. .
+    spawn work 45 n. .
+    spawn work 46 n. .
+    spawn work 47 n. .
+    spawn work 48 n. .
+    spawn work 49 n. .
+    spawn work 50 n. .
+    spawn work 51 n. .
+    spawn work 52 n. .
+    spawn work 53 n. .
+    spawn work 54 n. .
+    spawn work 55 n. .
+    spawn work 56 n. .
+    spawn work 57 n. .
+    spawn work 58 n. .
+    spawn work 59 n. .
+    spawn work 60 n. .
+    spawn work 61 n. .
+    spawn work 62 n. .
+    spawn work 63 n. .
+    spawn work 64 n. .
+  end .
+  return 7 .
+end .

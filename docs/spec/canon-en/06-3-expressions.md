@@ -460,8 +460,13 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 > [no check], [`div_nz`], [division whose divisor is **guaranteed by its type not to be 0**. No check remains at that place],
 > )
 
+(1a) Arithmetic that names its overflow disposition (`wrap_*` · `sat_*` · `chk_*`) belongs to **integers**. Using it on floating-point numbers is
+      refused at translation (`E-TYPE-KIND`) — floating-point arithmetic has an infinity for the overflowing value to go to.
+
 (2) Division by 0 is the same. At a place where the divisor is **guaranteed by its type not to be 0**, use `div_nz`,
-      and no check remains at that place.
+      and no check remains at that place. A guaranteed divisor is one of three — an integer literal that is not 0 · the value of (2a) taken out with
+      `some_value` · a `let` bound to that. Giving `div_nz` any other divisor is refused at translation (`E-TYPE-NONZERO`). The division that stops at 0
+      is `div`.
 
 (2a) The way to obtain that guarantee is `nonzero_of`. `nonzero_of <value>` reports **as a value** that the value is not 0
       (⟦option⟧) — none if it is 0. Once obtained, it is not asked again at each place
@@ -529,6 +534,12 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 
 (1b) `lane_avg` belongs to **integer lanes** (the value above is an integer computation). Using it on floating-point lanes is refused at translation (`E-TYPE-KIND`, 2026-11-02).
 
+(1c) The ops that handle lanes take **vectors**. Giving one a single number is refused at translation (`E-TYPE-KIND`).
+
+(1d) The literal of `splat <literal>` follows ⟦§6.1.4⟧ (8)(9), taking one lane as a place of that lane type — filling floating-point lanes with an integer
+      literal is `E-TYPE-LET`, and filling `f32` lanes with a floating-point literal beyond its range is `E-TYPE-WIDTH`. The elements of list literals
+      (`lit vec` · `lit array` · `lit slice`) are the same.
+
 (2) An op that crosses lanes gathers as many as the lane count **into one**. The type of the result is the type of the lanes. Signed lanes are added and
       multiplied by sign, and if the value of `reduce_add` · `reduce_mul` does not fit that type, it stops (⟦§6.3.4⟧ (3)).
 
@@ -592,7 +603,16 @@ end .
       The standard library `math` wraps them as ops of the same names (`math.sqrt x.`). Application programs call those ops.
 
 (1a) `abs` takes floating-point numbers and **signed integers**. The type of the result is the type of the operand. At the smallest value of a
-      signed integer it stops — its absolute value is not in that width (⟦§6.3.4⟧ (3)).
+      signed integer it stops — its absolute value is not in that width (⟦§6.3.4⟧ (3)). Using it on an unsigned integer is refused at translation
+      (`E-TYPE-SIGN`) — that value is already its own absolute value.
+
+```lowent-거부: `abs` of an unsigned integer · E-TYPE-SIGN
+module ex_abs_unsigned .
+
+fn f input a u32 . output u32 . do
+  return abs a. . .     rem an unsigned value is already its own absolute value
+end .
+```
 
 (2) These require no capability and can be used **only on machines with an operating system**.
 
@@ -614,6 +634,10 @@ end .
 
 (3) That is, there is **no** promise that 0 is false and everything else true. What is being asked shall be written at that
       place — as in `gt a. 0 .`.
+
+(4) A truth value cannot be an operand of arithmetic (`add` · `sub` · `mul` · `div` · `mod` · `min` · `max` · `abs` and arithmetic naming its overflow
+      disposition) · ordering (`lt` · `le` · `gt` · `ge`) · bit operations (`bit_and` · `bit_or` · `bit_xor`) (`E-TYPE-KIND`). Two truth values are compared
+      with `eq` · `ne`. To count a truth value as a number, write `cast u8 b. .` (⟦§6.2.16⟧ (4)).
 
 > [!산문]
 > In languages that let an integer stand in a condition position, a reader **guesses from context** whether `if x` means

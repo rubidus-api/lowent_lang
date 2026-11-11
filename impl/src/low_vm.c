@@ -279,15 +279,23 @@ typedef struct {
     proven_u64      mb_seq;
     proven_u32      mb_scan, nwake;
     proven_u8       mb_busy[VM_MAXREC];
+    // ★★★ 2026-11-11 (W-20261111-0940 O7 · 소유자 «(다)» · «재진입은 지금처럼» · 정본 §10.5 (1b)) — **누가 그 액터를 쥐었나.**
+    //   mb_holdg = 우편함 메시지를 쥔 그린스레드 번호 + 1(0 = 그린스레드가 아닌 흐름) · mb_sync = 그 액터에게 들어가 있는 기다리는 `send` 의
+    //   겹 수 · mb_syncg = 그것을 보낸 그린스레드 + 1. 다른 흐름의 기다리는 `send` 는 쥔 그린스레드가 **멈춰 있으면** 그것이 끝날 때까지
+    //   기다린다(vm_actor_busy) — 전엔 그 자리에서 처리 코드를 불러, 멈춘 메시지가 깨어나 그 결과를 덮었다(101 대신 1).
+    //   쥔 것이 지금 도는 사슬이면(자기에게 · A→B→A) 지금처럼 바로 부른다 — `mailbox bounded N` 이 그 깊이를 센다.
+    proven_u32      mb_holdg[VM_MAXREC], mb_syncg[VM_MAXREC];
+    proven_u16      mb_sync[VM_MAXREC];
     proven_u32      mb_wake[VM_MAXREC];
     // ★★★ **green thread** (RFC-0009 2/3) — 태스크가 `yield` 로 중단하고 스케줄러에 양보한다.
     //   각 실행 단위(태스크·메시지)가 자기 ucontext(코루틴)에서 돈다 — yield 는 스케줄러로 swap 하고,
     //   재개는 다시 swap. 협조적(한 번에 하나, OS 스레드 하나)이라 경합 없음. 오라클이 yield 순서를 탐색.
     //   frame 충돌을 피하려고 각 gthread 는 base depth = gi*GT_DEPTH 에서 vm_exec 한다(얕은 태스크 전제).
     struct gthr_s { ucontext_t ctx; proven_i32 box; proven_u16 handler; proven_u8 nargs;
-                    proven_u8 state;   // 0=빈 · 1=새로 · 2=중단(runnable) · 3=실행 · 4=완료 · 5=채널블록 · 6=await블록
+                    proven_u8 state;   // 0=빈 · 1=새로 · 2=중단(runnable) · 3=실행 · 4=완료 · 5=채널블록 · 6=await블록 · 7=액터 기다림
                     proven_u8 hold;    // ★ 이 그린스레드가 액터 `box` 의 메시지를 쥐고 있다(그 액터의 다음 메시지는 기다린다)
                     proven_i32 blk_chan; proven_u8 blk_recv; proven_i32 job, blk_job;   // 채널·job 블록 정보
+                    proven_i32 blk_box;   // ★ 2026-11-11 — state 7: 처리 중인 액터 `blk_box` 가 풀리기를 기다리는 `send`
                     unsigned base;     // ★ 이 그린스레드의 프레임 창 시작(sched_base + slot*GT_DEPTH) — 메인과 안 겹침
                     long sb;           // ★ RFC-0135 S0 — 이 그린스레드의 스택 예산 사용량(네이티브 lw_gthr[].sb 와 같다)
                     vmv_t args[LOW_MAX_PARAMS]; } *gthr;   // ★ 동적: 동시 그린스레드 수만큼 성장(E-Alloc P3)
@@ -309,6 +317,10 @@ typedef struct {
     //   여기 담고 done 을 세운다. `await <h>` 는 done 까지 블록했다가 result 를 읽는다.
     struct { proven_u8 done; vmv_t result; } jobs[VM_MBOX];
     proven_size_t   njobs;
+    // ★★ 2026-11-11 (W-20261111-0940 O1) — **참조 너머에 쓴 풀 값의 수.** 수를 돌려준 부름 뒤에 그 부름이 지은 상자 · 레코드를 돌려받는
+    //   자리(rec_wm · bx_wm …)는 «값으로만 나갔으니 아무도 못 본다» 고 보았다 — 그런데 부름이 `mut_ref` 로 **부른 쪽의 칸에** option 이나
+    //   레코드를 써 넣으면 그것이 남는다. 이 수가 부르기 전과 다르면 돌려받지 않는다(vm_pool_ref.low far_opt: VM 22 · 네이티브 47 이었다).
+    proven_u64      refw;
     proven_array_t *diags;
 } vm_ctx_t;
 
@@ -339,7 +351,7 @@ static proven_size_t vm_mbox_push(vm_ctx_t *vm, proven_i32 box) {
 //   빠른 경로의 `spawn send`(2a)를 짓다가 드러났다). 기록 docs/known-defects/pending-messages-reach-new-actor.md.
 static void vm_rec_rewind(vm_ctx_t *vm, proven_size_t wm) {
     proven_size_t n = vm->nrecs;
-    while (n > wm && n <= VM_MAXREC && !vm->mb_nq[n - 1] && !vm->mb_busy[n - 1]) n--;
+    while (n > wm && n <= VM_MAXREC && !vm->mb_nq[n - 1] && !vm->mb_busy[n - 1] && !vm->mb_sync[n - 1]) n--;
     vm->nrecs = n;
 }
 static void vm_mbox_take(vm_ctx_t *vm, proven_size_t i) {
@@ -658,6 +670,7 @@ typedef struct vm_act {
     proven_size_t       sp;       // 피연산자 스택 포인터
     // ★ P1b: 이 프레임이 낸 **단순 호출**의 사후처리 상태(호출자에 저장, 반환 때 쓴다).
     proven_size_t       rec_wm, bs_wm, sk_wm, bx_wm;   // 레코드/비트셋/스택/박스 풀 워터마크(스칼라 반환 시 회수)
+    proven_u64          refw_wm;                       // ★ 2026-11-11 — 그때의 vm->refw(다르면 돌려받지 않는다)
     proven_size_t       vec_base;   // ★ 이 프레임의 **벡터 풀 바닥**(RFC-0089 B) — 루프와 반환이 여기로 되감는다
     // ★ 그리고 나머지 풀의 바닥(F1) — 박스·레코드·스택·비트셋도 같은 규율로 되감긴다.
     proven_size_t       bx_base, rec_base, sk_base, bs_base;
@@ -975,7 +988,7 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
     //   이 그 액터에게 배달한다). 아무 지역도 그 액터를 안 쥐어도 그렇다. 전엔 뿌리가 아니라서 압축이 그 자리를 다음 `spawn` 에 주었고, 새 액터가
     //   옛 액터의 메시지를 받았다(되풀이 안에서 비우지 않은 액터 — VM 과 태그 네이티브가 같이 틀렸다).
     for (proven_size_t i = rc.base; i < rc.n && i < VM_MAXREC; i++)
-        if (vm->mb_nq[i] || vm->mb_busy[i]) vm_gc_mark_slot(vm, &rc, (proven_i32)i, (vmv_t){ .tag = VMV_REC, .box = (proven_i32)i }, &bx, &rc, &sk, &bs, &vc);
+        if (vm->mb_nq[i] || vm->mb_busy[i] || vm->mb_sync[i]) vm_gc_mark_slot(vm, &rc, (proven_i32)i, (vmv_t){ .tag = VMV_REC, .box = (proven_i32)i }, &bx, &rc, &sk, &bs, &vc);
 
     // ② 자리 정하기 — 살아 있는 것에 **오름차순**으로 새 자리를 준다(옮기는 자리는 늘 원래 자리 이하).
     proven_size_t ntop[5];
@@ -994,6 +1007,8 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
         // ★ 우편함의 인스턴스별 기록도 함께 옮긴다(자리는 늘 아래로 — 오름차순이면 덮을 것이 이미 옮겨졌거나 죽었다).
         const proven_size_t j_ = (proven_size_t)mrc[i];
         vm->mb_hb[j_] = vm->mb_hb[i]; vm->mb_tb[j_] = vm->mb_tb[i]; vm->mb_nq[j_] = vm->mb_nq[i]; vm->mb_busy[j_] = vm->mb_busy[i];
+        vm->mb_holdg[j_] = vm->mb_holdg[i]; vm->mb_sync[j_] = vm->mb_sync[i]; vm->mb_syncg[j_] = vm->mb_syncg[i];
+        vm->mb_holdg[i] = 0; vm->mb_sync[i] = 0; vm->mb_syncg[i] = 0;
         vm->mbox_depth[j_] = vm->mbox_depth[i];
         vm->mb_hb[i] = 0; vm->mb_tb[i] = 0; vm->mb_nq[i] = 0; vm->mb_busy[i] = 0; vm->mbox_depth[i] = 0;
     }
@@ -1150,7 +1165,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             vm_vec_ret(vm, done->vec_base, &rv);   // ★ 벡터 풀 되감기(RFC-0089 B) — 콜리의 벡터는 콜리와 함께 죽는다
             if (!top) { *ret = rv; vm->sbytes = done->sb_saved; act_free(done); { VM_CHAIN_LEAVE(); return true; } }   // 진입 프레임이 끝났다
             // 스칼라 반환이면 콜리가 만든 레코드/박스 풀을 회수(호출 때 저장한 워터마크로).
-            if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {
+            if ((rv.tag == VMV_INT || rv.tag == VMV_FLT) && vm->refw == top->refw_wm) {
                 vm_rec_rewind(vm, top->rec_wm); vm->nbset = top->bs_wm; vm->nstk = top->sk_wm; vm->nbox = top->bx_wm;
             }
             if (top->sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow");
@@ -1302,6 +1317,20 @@ static void gthr_trampoline(void) {
     }
 }
 
+// ★★★ 2026-11-11 (O7) — 이 액터를 **다른 흐름이 쥐고 멈춰 있는가**(vm_ctx_t.mb_holdg 의 ★). 쥔 그린스레드가 지금 돌고 있으면(state 3)
+//   그것은 부른 사슬이다 — 재진입은 지금처럼 바로 부른다. 그린스레드 밖(0)이 쥔 것도 부른 사슬이다(스케줄러는 그 안에서만 돈다).
+static bool vm_actor_busy(const vm_ctx_t *vm, proven_i32 box) {
+    if (box < 0 || (proven_size_t)box >= VM_MAXREC || !vm->in_gsched) return false;
+    proven_u32 h = vm->mb_busy[box] ? vm->mb_holdg[box] : 0;
+    if (h && h <= vm->ngthr && vm->gthr[h - 1].state != 3) return true;
+    h = vm->mb_sync[box] ? vm->mb_syncg[box] : 0;
+    if (h && h <= vm->ngthr && vm->gthr[h - 1].state != 3) return true;
+    return false;
+}
+static void vm_actor_wake(vm_ctx_t *vm, proven_i32 box) {
+    for (proven_size_t w = 0; w < vm->ngthr; w++)
+        if (vm->gthr[w].state == 7 && vm->gthr[w].blk_box == box) vm->gthr[w].state = 2;
+}
 // 전역 메일박스를 **코루틴 스케줄러**로 비운다(quiescence 까지). yield 가 있으면 진짜 인터리빙.
 // ★ 우편함의 칸 q0 을 그린스레드 하나로 옮긴다(액터 메시지면 그 액터를 «쥔» 것으로 적는다). 메모리를 못 늘리면 false.
 static bool vm_gabsorb(vm_ctx_t *vm, proven_size_t q0) {
@@ -1331,7 +1360,7 @@ static bool vm_gabsorb(vm_ctx_t *vm, proven_size_t q0) {
     for (proven_u8 x = 0; x < g->nargs; x++) g->args[x] = vm->mbox[q0].args[x];
     g->state = 1;   // 새로 시작
     g->hold = 0;
-    if (g->box >= 0 && (proven_size_t)g->box < VM_MAXREC) { g->hold = 1; vm->mb_busy[g->box] = 1; }
+    if (g->box >= 0 && (proven_size_t)g->box < VM_MAXREC) { g->hold = 1; vm->mb_busy[g->box] = 1; vm->mb_holdg[g->box] = (proven_u32)gi + 1; }
     vm_mbox_take(vm, q0);
     return true;
 }
@@ -1340,7 +1369,8 @@ static void vm_grelease(vm_ctx_t *vm) {
     for (proven_size_t q = 0; q < vm->ngthr; q++) {
         struct gthr_s *g = &vm->gthr[q];
         if (!g->hold || (g->state != 4 && g->state != 0)) continue;
-        g->hold = 0; vm->mb_busy[g->box] = 0;
+        g->hold = 0; vm->mb_busy[g->box] = 0; vm->mb_holdg[g->box] = 0;
+        vm_actor_wake(vm, g->box);
         if (vm->mb_nq[g->box] && vm->nwake < VM_MAXREC) vm->mb_wake[vm->nwake++] = (proven_u32)g->box;
     }
 }
@@ -1403,6 +1433,14 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
             // ★ refill 이 mbox 를 **항상** 비운다(자리가 모자라면 성장 — E-Alloc P3). 그래서 여기서
             //   nmbox 가 남는 일은 없다: runnable 도 없고 남은 건 블록뿐이면 그건 **진짜 데드락**이다.
             //   (전엔 상한 초과를 데드락과 구분해 E-VM-CONC-CAP 을 냈지만, 상한이 사라져 그 경우가 없다.)
+            for (proven_size_t i = 0; i < vm->ngthr; i++)
+                if (vm->gthr[i].state == 7) {
+                    vm_diag(vm->diags, "E-VM-DEADLOCK",
+                            "the scheduler is stuck — a waiting `send` waits for an actor that another task holds, and that task "
+                            "waits too (two flows wait on each other: A's message sends to B while B's sends to A). No interleaving "
+                            "completes. Use `try send` to learn that the actor is busy instead of waiting, or `spawn send`");
+                    vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling; return false;
+                }
             for (proven_size_t i = 0; i < vm->ngthr; i++)
                 if (vm->gthr[i].state == 5 || vm->gthr[i].state == 6) {
                     vm_diag(vm->diags, "E-VM-DEADLOCK",
@@ -1680,6 +1718,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         vm_diag(vm->diags, "E-VM-EXCL", "borrow invalidated by a conflicting access (readers-XOR-writer)");
                         return false;
                     }
+                    if (v.tag != VMV_INT && v.tag != VMV_FLT && v.tag != VMV_NONE) vm->refw++;   // ★ 참조 너머에 쓴 풀 값(vm_ctx_t.refw)
                     fr->locs[cur.i & VM_REF_SLOT] = v;
                 } else {
                     bstk_owner_write(&vm->frames[slot], (proven_u8)in->a);   // rebind kills borrows
@@ -1941,8 +1980,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
                     vm->mb_busy[box] = 1;   // 이 메시지가 끝날 때까지 이 액터는 처리 중이다(§10.5 (2a) · (4a))
+                    const proven_u32 hg0_ = vm->mb_holdg[box];
+                    vm->mb_holdg[box] = vm->in_gsched ? (proven_u32)vm->cur_gthr + 1 : 0;   // ★ O7 — 쥔 흐름
                     if (!vm_actor_exec(vm, h, cargs, &rv2, depth + 1)) return false;
-                    vm->mb_busy[box] = 0;
+                    vm->mb_busy[box] = 0; vm->mb_holdg[box] = hg0_; vm_actor_wake(vm, box);
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛
@@ -2135,9 +2176,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     const low_ir_def_t *h = &vm->ir->defs[hh];
                     vmv_t rv2;
                     const bool held = box >= 0 && (proven_size_t)box < VM_MAXREC;
-                    if (held) vm->mb_busy[box] = 1;   // 이 메시지가 끝날 때까지 이 액터는 쥐어 있다
+                    if (held) { vm->mb_busy[box] = 1; vm->mb_holdg[box] = vm->in_gsched ? (proven_u32)vm->cur_gthr + 1 : 0; }   // 이 메시지가 끝날 때까지 이 액터는 쥐어 있다
                     if (!vm_actor_exec(vm, h, cargs, &rv2, depth + 1)) return false;
-                    if (held) vm->mb_busy[box] = 0;
+                    if (held) { vm->mb_busy[box] = 0; vm->mb_holdg[box] = 0; vm_actor_wake(vm, box); }
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 stack[sp++] = vmv_int(0);   // 유닛
@@ -2488,15 +2529,29 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     // S3/D9: 폭 절단은 **트랩**이 기본. narrow_wrap / narrow_sat 이 정책을 고른다.
                     proven_u8 nb = (proven_u8)((in->a & 0xff) * 8);   // 바이트 → 비트
                     proven_i64 x;
-                    if (v.tag == VMV_INT) x = v.i;
-                    else if (v.tag == VMV_FLT) x = (proven_i64)vmv_f(v);
-                    else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return false; }
                     bool nsign = (in->a & IR_SGN_BIT) != 0;   // ★ widen 은 대상 부호를 싣는다 → 부호 범위로 판정(전역성). narrow 는 무부호(손실 트랩 계약 유지)
+                    // ★★ 2026-11-11 (W-20261111-0940 O2 · 정본 §6.2.16 (2)(3)) — **부동 → 정수는 소수부를 버린 정수부가 대상에 들어가야 한다.**
+                    //   전엔 `(i64)` 로 먼저 바꿨다: 64 비트 대상에서 범위 검사가 없었고(`cast u64 <-1.0>` 이 2^64 − 1 · `cast u64 <1e30>` 이 2^63 ·
+                    //   `cast i64 <1e30>` 이 −2^63) C 에서는 정의되지 않은 변환이었다. 이제 부동의 참값으로 잰다(NaN 은 어디에도 안 든다).
+                    bool ffits = true, fsrc = false;
+                    if (v.tag == VMV_INT) x = v.i;
+                    else if (v.tag == VMV_FLT) {
+                        double t_ = trunc(vmv_f(v)); fsrc = true;
+                        const double two63_ = 9223372036854775808.0, two64_ = 18446744073709551616.0;
+                        const double hi_ = nb >= 64 ? (nsign ? two63_ : two64_) : ldexp(1.0, nsign ? nb - 1 : nb);   // 위 한도(그 값은 안 든다)
+                        const double lo_ = nsign ? -(nb >= 64 ? two63_ : ldexp(1.0, nb - 1)) : 0.0;
+                        ffits = t_ == t_ && t_ >= lo_ && t_ < hi_;
+                        if (!(t_ == t_)) x = 0;
+                        else if (t_ >= two63_) x = (proven_i64)(t_ >= two64_ ? ~(proven_u64)0 : (proven_u64)t_);
+                        else if (t_ < -two63_) x = INT64_MIN;
+                        else x = (proven_i64)t_;
+                    }
+                    else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return false; }
                     // RFC-0149 §6.12 — 원천의 부호를 알면 64 비트 경계를 제대로 가른다: 부호 없는 원천의 «음수» 는 2^63 이상의 값이고,
                     //   부호 있는 원천의 음수는 부호 없는 대상에 들어가지 않는다. 모르면 전과 같다.
-                    bool src_big = (in->a & IR_SRC_UNS) && x < 0;                 // 참값 ≥ 2^63
-                    bool src_neg = (in->a & IR_SRC_SGN) && x < 0;                 // 참값 < 0
-                    bool fits = src_big ? (!nsign && nb >= 64) : (src_neg && !nsign) ? false : (nb >= 64 || ity_fits(x, nb, nsign));
+                    bool src_big = fsrc ? (x < 0 && vmv_f(v) > 0) : ((in->a & IR_SRC_UNS) && x < 0);   // 참값 ≥ 2^63
+                    bool src_neg = fsrc ? vmv_f(v) <= -1.0 : ((in->a & IR_SRC_SGN) && x < 0);          // 참값 < 0
+                    bool fits = fsrc ? ffits : src_big ? (!nsign && nb >= 64) : (src_neg && !nsign) ? false : (nb >= 64 || ity_fits(x, nb, nsign));
                     if (in->a & IR_POL_CHK) {   // narrow_try: option τ
                         if (!fits) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                         if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL",
@@ -4188,6 +4243,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             case IRW_FSTORE: {   // ★ 구조체 필드 쓰기: record, v → ()
                 if (sp < 2) return false;
                 vmv_t vv = stack[--sp];
+                if (stack[sp - 1].tag == VMV_REF && vv.tag != VMV_INT && vv.tag != VMV_FLT && vv.tag != VMV_NONE) vm->refw++;   // ★ vm_ctx_t.refw
                 bool thr_; vmv_t rv = vm_through(vm, stack[--sp], true, &thr_);
                 if (!thr_) return false;          // ★ 쓰기이므로 write=true — 배타성이 여기서 산다
                 // ★★★ **뷰의 필드에도 쓴다** — 그것이 곧 **디바이스 레지스터 쓰기**다(RFC-0042 D1).
@@ -4777,6 +4833,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             }
             case IRW_CALL: {
                 const low_ir_def_t *callee = &vm->ir->defs[IR_CALL_IDX(in->a)];
+                const bool try_ = (in->a & IR_CALL_TRY) != 0;   // ★ O7 — `try send`(low_ir.h IR_CALL_TRY)
                 vmv_t cargs[VM_LOCALS], rv = vmv_int(0);
                 if (sp < callee->nparams) return false;
                 for (proven_size_t i = 0; i < callee->nparams; i++) cargs[callee->nparams - 1 - i] = stack[--sp];
@@ -4803,8 +4860,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   actor 호출만 mbox·재시작 슈퍼비전이 붙으니 아래 재귀 경로에 남긴다. 그 밖은 전부
                 //   여기서 CALL 을 신호하고, 드라이버가 프레임을 push 한다(C 재귀 없음 → 깊이가 자란다).
                 //   ☞ 스칼라 반환 시 풀 회수를 드라이버가 하도록 워터마크를 이 프레임에 저장한다.
-                if (!callee->is_actor) {
-                    a->rec_wm = vm->nrecs; a->bs_wm = vm->nbset; a->sk_wm = vm->nstk; a->bx_wm = vm->nbox;
+                if (!callee->is_actor && !try_) {
+                    a->rec_wm = vm->nrecs; a->bs_wm = vm->nbset; a->sk_wm = vm->nstk; a->bx_wm = vm->nbox; a->refw_wm = vm->refw;
                     a->pc = pc; a->sp = sp;   // 호출 명령에 멈춘다(드라이버가 반환값 얹고 pc+1)
                     *out_callee = callee;
                     for (proven_size_t i = 0; i < callee->nparams; i++) out_cargs[i] = cargs[i];
@@ -4820,8 +4877,27 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   ★ 호출이 **스칼라를 돌려주면** 그 프레임이 만든 레코드는 **아무도 못 본다**
                 //     — 값으로만 나갔으니까. 그러면 반납해도 된다. 레코드/컨테이너를
                 //     돌려주면 **안 건드린다**(보수적: 과대근사는 안전하다).
+                // ★★★ 2026-11-11 (W-20261111-0940 O7 · 정본 §10.5 (1b)) — 그 액터를 **다른 흐름이 쥐고 멈춰 있으면**(vm_actor_busy) 기다리는
+                //   `send` 는 그 메시지가 끝날 때까지 이 그린스레드를 멈춰 둔다(state 7 · 풀리면 vm_actor_wake 가 깨운다) · `try send` 는
+                //   기다리지 않고 `actor_busy` 를 값으로 낸다. 들어간 뒤에는 이 흐름이 그 액터를 쥔다(mb_sync · mb_syncg) — 그동안 다른 흐름의
+                //   `send` 가 기다린다. 쥔 것이 이 사슬이면(재진입) 기다리지 않는다.
+                const proven_i32 sbx_ = (callee->is_actor && callee->nparams > 0 && cargs[0].tag == VMV_REC &&
+                                         (proven_size_t)cargs[0].box < VM_MAXREC) ? cargs[0].box : -1;
+                if (try_ && sbx_ >= 0 && vm_actor_busy(vm, sbx_)) {
+                    if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
+                    stack[sp++] = (vmv_t){ .tag = VMV_ERR, .i = IR_CALL_TRY_ERR(in->a) };
+                    break;
+                }
+                while (sbx_ >= 0 && vm_actor_busy(vm, sbx_)) {
+                    const proven_size_t gi_ = vm->cur_gthr;
+                    vm->gthr[gi_].state = 7; vm->gthr[gi_].blk_box = sbx_;
+                    swapcontext(&vm->gthr[gi_].ctx, &vm->sched_ctx);   // 풀리면 여기서 이어진다(다시 묻는다 — 그사이 다른 흐름이 쥐었을 수 있다)
+                }
+                const proven_u32 sy0_ = sbx_ >= 0 ? vm->mb_syncg[sbx_] : 0;
+                if (sbx_ >= 0) { vm->mb_sync[sbx_]++; vm->mb_syncg[sbx_] = vm->in_gsched ? (proven_u32)vm->cur_gthr + 1 : 0; }
                 proven_size_t rec_wm = vm->nrecs, bs_wm = vm->nbset, sk_wm = vm->nstk,
                               bx_wm = vm->nbox;
+                const proven_u64 refw_wm = vm->refw;
                 // ★★★ **bounded mailbox** (RFC-0009 AC3) — actor 핸들러 호출은 이 인스턴스로 온
                 //   메시지 하나다. `mailbox bounded N` 이면 이 인스턴스에 **동시에 몰린**(재진입)
                 //   메시지가 N 을 넘을 수 없다 — 순차 모델에서 메일박스가 차는 유일한 길이 재진입이다.
@@ -4844,12 +4920,21 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 bool ok_call = vm_actor_exec(vm, callee, cargs, &rv, depth + 1);   // 패닉하면 정책대로 다시 세운다
                 if (mbox_ridx >= 0) vm->mbox_depth[mbox_ridx]--;   // 반환 — in-flight 하나 빠짐
+                if (sbx_ >= 0) {   // ★ O7 — 이 흐름이 그 액터를 놓는다(겹이 다 빠지면 기다리는 흐름을 깨운다)
+                    if (--vm->mb_sync[sbx_] == 0) { vm->mb_syncg[sbx_] = 0; vm_actor_wake(vm, sbx_); } else vm->mb_syncg[sbx_] = sy0_;
+                }
                 if (!ok_call) return false;
                 if (!vm_fw_take(vm, a->d->nwin ? &a->win : NULL, &rv)) return false;   // ★ RFC-0132 P4e
-                if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {
+                if ((rv.tag == VMV_INT || rv.tag == VMV_FLT) && vm->refw == refw_wm) {
                     vm_rec_rewind(vm, rec_wm); vm->nbset = bs_wm; vm->nstk = sk_wm; vm->nbox = bx_wm;
                 }
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
+                if (try_) {   // ★ O7 — `try send` 의 답은 ok 로 싼다
+                    if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted (docs/runtime-pools.md)"); return false; }
+                    if (!vm_promote(vm, &rv)) return false;
+                    vm->boxes[vm->nbox] = rv;
+                    rv = (vmv_t){ .tag = VMV_OK, .box = (proven_i32)vm->nbox++ };
+                }
                 stack[sp++] = rv;
                 break;
             }

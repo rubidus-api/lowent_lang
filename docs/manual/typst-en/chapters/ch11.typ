@@ -209,7 +209,7 @@ appear exactly once when read hides defects.
   #demo("examples/ch11/mistake_optarith.low")
 
   `find k` does not give back a `u64`; it gives back "a box that may or may not hold a `u64`". You cannot add 1 to a box. In
-  other languages a null flows into the calculation and blows up much later; Lowent stops you right here with `E-TYPE-RETURN`.
+  other languages a null flows into the calculation and blows up much later; Lowent stops you right here with `E-TYPE-KIND`.
   There are three fixes: supply a stand-in with `value_or find k. . 0 .`, ask with `is_some` and take it out with `some_value`, or
   split with `match`. Which one to pick depends on "what should happen when it is absent".
 ]

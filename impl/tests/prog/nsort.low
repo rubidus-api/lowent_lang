@@ -44,7 +44,7 @@ fn parse_u64 input s slice u8 . output option u64 . do
     if gt c. 57 . do return none . end .
     rem ★ 넘침은 **트랩이 아니라 거절**이다 — 파일이 준 수가 크다고 죽을 이유가 없다.
     if gt acc. 1844674407370955161 . do return none . end .
-    set acc. add mul acc. 10 . narrow u64 sub c. 48 . . . .
+    set acc. add mul acc. 10 . widen u64 sub c. 48 . . . .
     set i. add i. 1 . .
   end .
   return some acc. . .

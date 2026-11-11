@@ -1,0 +1,32 @@
+rem ★★ 받은 참조로 부른 쪽 칸에 바퀴마다 풀 값을 쓰는 반복 (2026-11-11 · W-20261111-0940 O1) — 네이티브가 아직 되감지 못하는 꼴.
+rem fill 의 핸들은 이 틀의 바닥 위에 있어 되감으면 부른 쪽이 지워진 값을 읽는다. 그래서 그 틀은 그 쓰기 뒤로 되감지 않고, 큰 n 에서 풀 한도에 멈춘다
+rem (VM 은 끝까지). `--check` 가 W-POOL-LOOP 로 말한다. 기록 docs/known-defects/native-pool-reclaim-with-refs.md.
+rem far_opt 은 같이 찾은 VM 결함의 증인이기도 하다: 수를 돌려준 부름 뒤의 풀 돌려받기가 fill 이 써 넣은 option 을 지웠다(v1.33.0 VM far_opt 10 = 2 · 이제 27).
+rem ★ 이름이 `vm_` 로 시작하지 않는다 — 차등 훑기가 큰 인자로 흔들면 알려진 한도를 매번 다시 찾는다. ★ 평평한 모드(`--flat`) 대조에서 뺀다 — 평평한
+rem   검사기는 인자 자리에 바로 쓴 `mut_ref o .` 의 빌림이 op 끝까지 간다고 보아 뒤의 `o` 읽기를 E-EXCL 로 막는다(나무는 옳게 본다). 참조를 지역에 담으면
+rem   포매터 결함(fmt-ref-type-grouping.md)에 걸린다.
+module poolfar .
+
+fn pick input i u64 . output option u64 . do
+  if eq bit_and i. 1 . 0 . do  return some i. . .  end .
+  return none .
+end .
+
+proc fill input p mut_ref option u64 . input n u64 . output u64 . effects state . do
+  var i u64 0 .
+  var k u64 0 .
+  while lt i. n. . do
+    let t option u64 pick i. . .
+    set k. expr k. + value_or t. 0 . . .
+    set p. some expr i. * 3 . . .
+    set i. add i. 1 . .
+  end .
+  return k. .
+end .
+
+proc far_opt input n u64 . output u64 . effects state . do
+  var o option u64 none .
+  let z u64 fill (mut_ref o .) n. . .
+  let w option u64 pick 2 . .
+  return value_or o. 0 . .
+end .

@@ -1,0 +1,58 @@
+rem ★★ 참조를 쥔 op 의 반복도 풀을 되감는다 (2026-11-11 · W-20261111-0940 O1 · 정본 §8.1 (3a)). 기록 docs/known-defects/native-pool-reclaim-with-refs.md.
+rem 네이티브는 참조를 쥔 op 에 되감기를 아예 안 내서 바퀴마다 풀이 자라 한도에서 멈췄다(VM 은 끝까지). 이제 «이 틀이 선 뒤로 참조 너머에 풀 값을
+rem 쓴 일이 없으면» 되감는다. 그런 쓰기가 있으면 그 틀은 전처럼 안 되감는다 — 쓴 핸들을 잃으면 안 되기 때문이다(아래 keep_*).
+rem   · loop_ref — 정수를 참조로 더하며 option 을 바퀴마다 만든다(전엔 네이티브 «box pool» · 풀 4096 이면 100000 바퀴에서)
+rem   · keep_opt — 부른 op 이 참조로 **이 op 의 지역에** 레코드(option 을 품은)를 써 넣는다: 쓴 값이 살아남아야 하고(바퀴마다 새 값),
+rem     그 칸이 이 틀의 것이라 되감아도 된다 — 마지막 값 + 바퀴 수
+rem   ★ 참조 지역의 타입을 `mut_ref option u64` 처럼 두 낱말로 적지 않는다 — 포매터가 그것을 `(mut_ref option) u64` 로 묶어 뜻을 바꾼다
+rem     (따로 찾은 결함 · docs/known-defects/fmt-ref-type-grouping.md). 그래서 레코드 하나(`cell`)를 가리킨다.
+module vm_pool_ref .
+
+fn pick input i u64 . output option u64 . do
+  if eq bit_and i. 1 . 0 . do return some i. . . end .
+  return none .
+end .
+
+proc bump input p mut_ref u64 . input v u64 . output u64 . effects state . do
+  set p. expr (deref p. .) + v. . .
+  return 0 .
+end .
+
+proc loop_ref input n u64 . output u64 . effects state . do
+  var acc u64 0 .
+  var r mut_ref u64 mut_ref acc . .
+  var i u64 0 .
+  while lt i. n. . do
+    let o option u64 pick i. . .
+    let z u64 bump r. value_or o. 0 . . .
+    set i. add i. 1 . .
+  end .
+  return acc. .
+end .
+
+struct cell do
+  v u64 .
+  o option u64 .
+end .
+
+proc put input p mut_ref cell . input v u64 . output u64 . effects state . do
+  set p. lit cell do v v. . o some v. . . end . .
+  return 0 .
+end .
+
+proc keep_opt input n u64 . output u64 . effects state . do
+  var c cell lit cell do v 0 . o none . end . .
+  var r mut_ref cell mut_ref c . .
+  var i u64 0 .
+  var k u64 0 .
+  while lt i. n. . do
+    let t option u64 pick i. . .
+    set k. expr k. + value_or t. 1 . . .
+    let z u64 put r. expr i. * 3 . . .
+    set i. add i. 1 . .
+  end .
+  return expr value_or field c. o . 0 . + k. . .
+end .
+
+rem   · far_opt — 반대쪽(받은 참조로 부른 쪽 칸에 풀 값을 쓰는 반복)은 tests/poolloop_native.low 에 있다 — 네이티브가 아직 못 되감는
+rem     꼴이라 큰 인자에서 풀이 모자란다(차등 훑기가 흔들면 갈림으로 보인다). 골든 «pools» 가 잰다.

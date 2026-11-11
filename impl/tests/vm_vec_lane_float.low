@@ -1,0 +1,23 @@
+rem ★★ 벡터 레인의 부동 (2026-11-11 · W-20261111-0940 O5). 레인을 부동으로 바꾸는 op 은 없다 — `cast` 는 벡터를 받지 않는다(E-IR-UNSUP).
+rem 정수가 부동 레인에 드는 길은 셋이고 셋 다 잰다:
+rem   · 스칼라를 바꿔 채우기 — `splat cast f64 x.` : 2^64 − 1 의 레인마다 2^64(v1.33.0 에서 고친 스칼라 변환을 그대로 탄다) → quarter 2^62
+rem   · `splat <리터럴>` · `lit vec … <리터럴>` — 이제 스칼라와 같은 리터럴 규칙(정본 §6.1.4 (8)(9)): 부동 레인에 정수 리터럴은 E-TYPE-LET,
+rem     `f32` 레인에 1e300 은 E-TYPE-WIDTH. v1.33.0 은 `vec 2 f64 splat 18446744073709551615` 를 받아 레인마다 −1.0 을 냈고
+rem     (VM · 빠른 경로 · 태그 경로 같이) `vec 4 f32 splat 1e300` · `lit vec 2 f32 1e300 1.5` 를 받아 inf 를 냈다. 거절은 golden 이 잰다.
+rem   · `f32` 레인 — `narrow f32` 로 줄인 값을 채우면 레인이 `f32` 의 값이다(0.1 넷의 합).
+module vm_vec_lane_float .
+
+fn quarter input x u64 . output f64 . do
+  let v vec 2 f64 splat cast f64 x. . . .
+  return expr reduce_add v. . / 8.0 . .
+end .
+
+fn lits output f64 . do
+  let v lit vec 2 f64 18446744073709551615.0 0.5 . .
+  return reduce_add v. . .
+end .
+
+fn f32sum input x f64 . output f32 . do
+  let v vec 4 f32 splat narrow f32 x. . . .
+  return reduce_add v. . .
+end .

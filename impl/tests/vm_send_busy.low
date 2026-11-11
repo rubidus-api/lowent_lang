@@ -1,0 +1,77 @@
+rem ★★★ 처리 중인 액터에게 보내는 `send` (2026-11-11 · W-20261111-0940 O7 · 소유자 «(다) (가) + 값으로 알리는 `try send`» · «재진입은 지금처럼»
+rem · 정본 §10.5 (1b)(1c)).
+rem v1.33.0 까지: 다른 흐름의 기다리는 `send` 가 처리 중인 액터의 처리 코드를 그 자리에서 불렀다 — `put` 이 h 를 읽고 `yield` 한 사이에
+rem `bump 100` 이 h 를 100 으로 만들고, `put` 이 깨어나 0 × 10 + 1 을 써서 그 일을 덮었다(VM · 네이티브 · 스레드 모두 1).
+rem   · lost — 이제 `bump` 는 `put` 이 끝나기를 기다렸다가 돈다: 1 + 100 = 101
+rem   · tried — `try send` 는 기다리지 않고 `actor_busy` 를 값으로 받는다: 보낸 쪽이 그것을 적고(n = 7), a 는 `put` 의 1 그대로 → 1 + 7 × 1000
+rem   · free_try — 처리 중이 아니면 `try send` 는 보통 `send` 와 같다: ok 에 처리 코드의 답(5)
+rem   · stuck — a 의 메시지는 b 에게, b 의 메시지는 a 에게 보내며 둘 다 처리 중에 기다리면 끝날 수 없다: 교착으로 멈춘다
+rem   재진입(자기 사슬 안에서 자기에게)은 그대로다 — vm_mailbox.low 가 잰다.
+module vm_send_busy .
+
+actor slow do
+  state do h u64 . end .
+  proc put input x u64 . output u64 . effects state . do
+    let a u64 h. .
+    yield .
+    set h. expr a. * 10 + x. . .
+    return h. .
+  end .
+  proc bump input x u64 . output u64 . effects state . do
+    set h. expr h. + x. . .
+    return h. .
+  end .
+  proc ping input o slow . output u64 . effects state . do
+    yield .
+    let z u64 send o. bump 1 . .
+    return z. .
+  end .
+  fn get output u64 . do return h. . end .
+end .
+
+actor poker do
+  state do n u64 . end .
+  proc poke input t slow . output u64 . effects state . do
+    return send t. bump 100 . .
+  end .
+  proc probe input t slow . output u64 . effects state . do
+    let r result u64 actor_busy try send t. bump 100 . . .
+    if not is_ok r. . . do set n. 7 . end .
+    return n. .
+  end .
+  fn got output u64 . do return n. . end .
+end .
+
+proc lost output u64 . effects state . do
+  var a slow spawn actor slow . .
+  var p poker spawn actor poker . .
+  spawn send a. put 1 . .
+  spawn send p. poke a. . .
+  schedule .
+  return send a. get . .
+end .
+
+proc tried output u64 . effects state . do
+  var a slow spawn actor slow . .
+  var p poker spawn actor poker . .
+  spawn send a. put 1 . .
+  spawn send p. probe a. . .
+  schedule .
+  return expr send a. get . + send p. got . * 1000 . .
+end .
+
+proc free_try output u64 . effects state . do
+  var a slow spawn actor slow . .
+  let r result u64 actor_busy try send a. bump 5 . . .
+  guard is_ok r. . else return 99 . .
+  return ok_value r. . .
+end .
+
+proc stuck output u64 . effects state . do
+  var a slow spawn actor slow . .
+  var b slow spawn actor slow . .
+  spawn send a. ping b. . .
+  spawn send b. ping a. . .
+  schedule .
+  return 0 .
+end .

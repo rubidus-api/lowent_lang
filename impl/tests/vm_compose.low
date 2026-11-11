@@ -68,8 +68,8 @@ end .
 test values_cross_op_boundaries do
   expect eq pass_view "ab" . 97 . .
   expect eq pass_record. 9 . .
-  expect eq pass_result 5 . 1 . .
-  expect eq pass_option 5 . 1 . .
+  expect eq pass_result 5 . true . .
+  expect eq pass_option 5 . true . .
   expect eq pass_typed "abcdefgh" . 2 . .
   expect eq get_view "ab" . 97 . .
   expect eq get_typed "abcd" . 2 . .

@@ -2569,9 +2569,21 @@ static bool ir_pool_allocs_ins(const low_ir_ins_t *in) {
         default: return false;
     }
 }
-static bool ir_pool_no_gc(const low_ir_def_t *d) {   // low_cbe.c cbe_pool_gc_ok 의 거울 — 그 판정이 바뀌면 여기도
-    if (d->takes_ref_arg) return true;
-    for (proven_size_t j = 0; j < d->ncode; j++) if (d->code[j].w == IRW_REF || d->code[j].w == IRW_MREF) return true;
+// ★★ 2026-11-11 (W-20261111-0940 O1) — 네이티브도 이제 참조를 쥔 op 을 되감는다: 그 틀이 선 뒤로 참조 너머에 쓴 풀 값이 **모두 제 칸**이면
+//   (lw_refw_ok). 못 되감는 것은 **바퀴 안에서 받은 참조로 부른 쪽 칸에 풀 값을 쓰는** 꼴뿐이다 — `set p. some …`(p 는 참조 매개변수) ·
+//   참조 매개변수 너머 레코드의 칸에 쓰기. 경고는 그 꼴만 본다(받은 참조를 다시 다른 op 에 넘겨 거기서 쓰는 꼴은 보지 못한다 — 실행이 한도에서 멈추고 그렇게 말한다).
+static bool ir_pool_no_gc(const low_ir_def_t *d) {   // low_cbe.c 의 «참조를 쥔 op» 판정의 거울 — 그 판정이 바뀌면 여기도
+    return d->takes_ref_arg;
+}
+static bool ir_pool_far_write(const low_ir_def_t *d, proven_size_t q) {   // 바퀴 안의 q 가 참조 매개변수 너머에 쓰는가(위 ★)
+    const low_ir_ins_t *in = &d->code[q];
+    if (in->w == IRW_STORE && in->a >= 0 && (proven_size_t)in->a < d->nparams) return true;
+    if (in->w == IRW_FSTORE) {   // 레코드 · 값 순으로 쌓인다 — 레코드 쪽이 매개변수를 읽은 자리면 문다(가까운 몇 칸만 본다)
+        for (proven_size_t b = q; b > 0 && q - b < 6; b--) {
+            const low_ir_ins_t *p = &d->code[b - 1];
+            if (p->w == IRW_LOAD && p->a >= 0 && (proven_size_t)p->a < d->nparams) return true;
+        }
+    }
     return false;
 }
 /* ★ RFC-0152 §8-11 (2026-10-23, 소유자 «3-C») — **그대로 넘기기만 하는 op 을 건너뛰어 부른다.**
@@ -2929,19 +2941,19 @@ static void ir_pool_scan(low_ir_t *ir) {
         for (proven_size_t j = 0; j < d->ncode; j++) {
             const low_ir_ins_t *br = &d->code[j];
             if ((br->w != IRW_BR && br->w != IRW_BRZ) || br->a < 0 || (proven_size_t)br->a > j) continue;   // 뒤 간선만
-            proven_u32 hit = 0;
-            for (proven_size_t q = (proven_size_t)br->a; q <= j && !hit; q++) {
+            proven_u32 hit = 0; bool far_ = false;
+            for (proven_size_t q = (proven_size_t)br->a; q <= j; q++) {
                 const low_ir_ins_t *in = &d->code[q];
-                if (ir_pool_allocs_ins(in) || (in->w == IRW_CALL && IR_CALL_IDX(in->a) < ir->ndefs && al[IR_CALL_IDX(in->a)]))
+                if (!hit && (ir_pool_allocs_ins(in) || (in->w == IRW_CALL && IR_CALL_IDX(in->a) < ir->ndefs && al[IR_CALL_IDX(in->a)])))
                     hit = in->line ? in->line : 1;
+                if (ir_pool_far_write(d, q)) far_ = true;
             }
-            if (!hit) continue;
+            if (!hit || !far_) continue;
             low_diag_t dg = { .sev = LOW_SEV_WARNING, .code = "W-POOL-LOOP", .line = hit, .col = 0,
                               .file = (d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
             snprintf(dg.detail, sizeof dg.detail,
-                     "this loop makes option/result/struct values in an op that holds a `ref`/`mut_ref`: the native build "
-                     "cannot reclaim its value pool here, so it grows each turn and stops at the limit (the VM keeps going). "
-                     "Put the loop in an op without the reference");
+                     "this loop makes option/result/struct values and writes them through a reference it was given: the native "
+                     "build cannot reclaim its pool after that write and stops at the limit (the VM goes on). Write once after the loop, or return it");
             // ★ `msg` 는 NULL 로 둔다(low_diag.h ★ 진단의 문장) — `detail` 을 가리키면 밀어 넣은 사본이 이 지역의 칸을 가리켜,
             //   함수가 끝난 뒤 그 자리가 덮여 문구가 깨진다(2026-10-23 · 깨진 UTF-8 로 check-corpus 가 멈췄다).
             (void)proven_array_push(&ir->diags, &dg);
@@ -2969,9 +2981,13 @@ static void ir_pool_scan(low_ir_t *ir) {
                 for (proven_size_t j = 0; j < d->ncode; j++) {
                     const low_ir_ins_t *br = &d->code[j];
                     if ((br->w != IRW_BR && br->w != IRW_BRZ) || br->a < 0 || (proven_size_t)br->a > j) continue;
-                    for (proven_size_t q = (proven_size_t)br->a; q <= j; q++)
+                    bool mk_ = false, far_ = false;   // ★ 2026-11-11 — W-POOL-LOOP 와 같은 꼴만(ir_pool_far_write)
+                    for (proven_size_t q = (proven_size_t)br->a; q <= j; q++) {
                         if (ir_pool_allocs_ins(&d->code[q]) || (d->code[q].w == IRW_CALL && IR_CALL_IDX(d->code[q].a) < ir->ndefs && al[IR_CALL_IDX(d->code[q].a)]))
-                            why[i] |= 1;
+                            mk_ = true;
+                        if (ir_pool_far_write(d, q)) far_ = true;
+                    }
+                    if (mk_ && far_) why[i] |= 1;
                 }
             }
         }

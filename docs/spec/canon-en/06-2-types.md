@@ -1044,6 +1044,9 @@ end .
       types, and putting one in the place of the other is refused at translation (`E-TYPE-NOMINAL` · `E-TYPE-WIDTH` · `E-TYPE-SIGN`). The type of a value taken out
       (`some_value` · `ok_value`) is the type of the contained value. When `some` · `ok` wrap a literal, it follows the type of the receiving place.
 
+(3c) A value of `result` · `option` is not an operand of arithmetic or comparison (`eq` · `lt` …) (`E-TYPE-KIND`). Write what is being asked —
+      `is_some` · `is_ok` · `value_or`.
+
 ```lowent 예제: returning failure with result
 module ex_result .
 
@@ -1600,6 +1603,9 @@ end .
 > [`narrow`], [reduces the width within the same kind (integer → narrower integer)], [traps],
 > [`cast`], [**every other conversion** — changing the sign · between integers and floating point · between `usize` · `idiff`, whose width depends on the implementation, and other integers · truth value → integer · enum ↔ integer], [traps],
 > )
+
+(1a-1) A `narrow` that crosses kinds (integer ↔ floating point) is refused at translation (`E-TYPE-KIND`), and so is one whose target is wider than the
+      value (`E-TYPE-WIDTH` — the word for that is `widen`).
 
 (1b) **A conversion that could be read either way does not happen by itself; it goes through `cast`.** That is a conversion where the same bits could be read as two numbers,
       or that widens or narrows depending on the target machine, or that changes the kind of the value. This rule also applies to types and conversions

@@ -211,7 +211,7 @@ return ok add v. 1 . . .
   #demo("examples/ch11/mistake_optarith.low")
 
   `find k` 가 돌려주는 것은 `u64` 가 아니라 "`u64` 가 있을 수도 없을 수도 있는 상자" 다. 상자에 1 을 더할 수는 없다. 다른 언어라면
-  없음(null)이 계산 속으로 흘러 들어가 한참 뒤에 터지지만, Lowent 는 여기서 `E-TYPE-RETURN` 으로 멈춰 세운다. 고치는 길은 셋이다.
+  없음(null)이 계산 속으로 흘러 들어가 한참 뒤에 터지지만, Lowent 는 여기서 `E-TYPE-KIND` 로 멈춰 세운다. 고치는 길은 셋이다.
   `value_or find k. . 0 .` 으로 대신할 값을 주거나, `is_some` 으로 묻고 `some_value` 로 꺼내거나, `match` 로 가른다. 어느 것을 고를지는
   "없을 때 무엇을 해야 하는가" 가 정한다.
 ]

@@ -445,8 +445,8 @@ filter      ::= "if" term
       The count name (the name of `repeat` · `range` · `cycle`) and the names the head read cannot be `set` inside the block
       (`E-FOR-HEAD`). Changing the contents of slice slots is allowed.
 
-(9) The name of a loop lives **only inside the block**. When the block ends, that name is gone. A name that already exists in the same block cannot
-      be used again (`E-NAME-SHADOW`).
+(9) The name of a loop lives **only inside the block**. When the block ends, that name is gone — reading it after the block is refused at translation
+      (`E-NAME-SCOPE`). A name that already exists in the same block cannot be used again (`E-NAME-SHADOW`).
 
 (10) `break` and `continue` are used inside the four loops just as in `while` (⟦§6.5.3⟧ (2)). None of the four gives a value.
 

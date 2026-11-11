@@ -77,12 +77,12 @@ chk_sub	a u8, b u8	u64	let r option u8 chk_sub a. b. . . ␤ if is_some r. . do 
 chk_sub	a u8, b u8	u64	let r option u8 chk_sub a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	1 2	= 999
 chk_mul	a u8, b u8	u64	let r option u8 chk_mul a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	3 5	= 15
 chk_mul	a u8, b u8	u64	let r option u8 chk_mul a. b. . . ␤ if is_some r. . do return widen u64 some_value r. . . . end . ␤ return 999 .	16 16	= 999
-chk_add	a f64, b f64	u64	let r option f64 chk_add a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
+chk_add	a f64, b f64	u64	let r option f64 chk_add a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	CHECK E-TYPE-KIND
 nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 0	= 999
 div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 0	= 999
 nonzero_of	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 3	= 3
 div_nz	a u32, b u32	u32	let nz option nonzero u32 nonzero_of b. . . ␤ if is_some nz. . do return div_nz a. some_value nz. . . . end . ␤ return 999 .	10 3	= 3
-nonzero_of	a f64	u64	let nz option nonzero f64 nonzero_of a. . . ␤ return 1 .	1.0	TRAP E-VM-TYPE
+nonzero_of	a f64	u64	let nz option nonzero f64 nonzero_of a. . . ␤ return 1 .	1.0	CHECK E-TYPE-KIND
 eq	a u8, b u8	bool	return eq a. b. . .	1 2	= 0
 eq	a u8, b u8	bool	return eq a. b. . .	2 2	= 1
 eq	a u8, b u8	bool	return eq a. b. . .	3 2	= 0
@@ -139,8 +139,8 @@ ge	a u8, b i8	bool	return ge a. b. . .	1 1	CHECK E-TYPE-SIGN
 ge	a u8, b f64	bool	return ge a. b. . .	1 1.0	CHECK E-TYPE-MIX
 eq	a u8	bool	return eq eq a. 0 . eq a. 1 . . .	1	= 0
 ne	a u8	bool	return ne eq a. 0 . eq a. 1 . . .	1	= 1
-eq	a u8, b bool	bool	return eq a. b. . .	1	CHECK E-TYPE-MIX
-eq	a u8	bool	let x option u8 chk_add a. 1 . . ␤ let y option u8 chk_add a. 1 . . ␤ return eq x. y. . .	1	TRAP E-VM-TYPE
+eq	a u8, b bool	bool	return eq a. b. . .	1	CHECK E-TYPE-KIND
+eq	a u8	bool	let x option u8 chk_add a. 1 . . ␤ let y option u8 chk_add a. 1 . . ␤ return eq x. y. . .	1	CHECK E-TYPE-KIND
 and	a u8	bool	return and gt a. 0 . eq div 10 a. . 5 . . .	0	= 0
 and	a u8	bool	return and gt a. 0 . eq div 10 a. . 5 . . .	2	= 1
 and	a u8	bool	return and a. a. . .	1	CHECK E-TYPE-LOGICAL
@@ -333,10 +333,10 @@ sub	a u8, b f64	f64	return sub a. b. . .	1 2.0	CHECK E-TYPE-MIX
 mul	a u8, b f64	f64	return mul a. b. . .	1 2.0	CHECK E-TYPE-MIX
 div	a u8, b f64	f64	return div a. b. . .	1 2.0	CHECK E-TYPE-MIX
 mod	a u8, b f64	f64	return mod a. b. . .	1 2.0	CHECK E-TYPE-MIX
-chk_sub	a f64, b f64	u64	let r option f64 chk_sub a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-chk_mul	a f64, b f64	u64	let r option f64 chk_mul a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	TRAP E-VM-TYPE
-div_nz	a u32, b u32	u32	return div_nz a. b. . .	10 0	TRAP E-VM-DIV0
-ne	a u8	bool	let x option u8 chk_add a. 1 . . ␤ let y option u8 chk_add a. 1 . . ␤ return ne x. y. . .	1	TRAP E-VM-TYPE
+chk_sub	a f64, b f64	u64	let r option f64 chk_sub a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	CHECK E-TYPE-KIND
+chk_mul	a f64, b f64	u64	let r option f64 chk_mul a. b. . . ␤ if is_some r. . do return 1 . end . ␤ return 0 .	1.0 2.0	CHECK E-TYPE-KIND
+div_nz	a u32, b u32	u32	return div_nz a. b. . .	10 0	CHECK E-TYPE-NONZERO
+ne	a u8	bool	let x option u8 chk_add a. 1 . . ␤ let y option u8 chk_add a. 1 . . ␤ return ne x. y. . .	1	CHECK E-TYPE-KIND
 narrow	a u16	u8	return narrow a. . .	1	CHECK E-FORM-UNEXPECTED
 narrow_wrap	a u16	u8	return narrow_wrap a. . .	1	CHECK E-FORM-UNEXPECTED
 narrow_sat	a u16	u8	return narrow_sat a. . .	1	CHECK E-FORM-UNEXPECTED

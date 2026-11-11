@@ -130,7 +130,7 @@ do
   let live option mut slice u8 pool.bytes p_copy. p. b. . .
   guard is_some live. . else return 98 . .
   let lv mut slice u8 some_value live. . .
-  return narrow u64 idx lv. 8 . . .    rem 55 — 복사가 살아남았다
+  return widen u64 idx lv. 8 . . .    rem 55 — 복사가 살아남았다
 end .
 
 rem ★★★ **자유 목록 — 놓은 것이 돌아온다** (2026-07-20).

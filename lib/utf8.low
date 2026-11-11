@@ -45,7 +45,7 @@ export fn decode input s slice u8 . input at usize . output option u64 . link "u
   let n usize seq_len b0. . .
   guard gt n. 0 . else return none . .                      rem 이어지는 바이트가 선두에 왔다
   guard le add at. n. . len s. . . else return none . .        rem 잘린 시퀀스
-  if eq n. 1 . do return some narrow u64 b0. . . . end .
+  if eq n. 1 . do return some widen u64 b0. . . . end .
 
   rem 이어지는 바이트들이 전부 10xxxxxx 여야 한다.
   var i usize 1 .
@@ -56,12 +56,12 @@ export fn decode input s slice u8 . input at usize . output option u64 . link "u
 
   rem 선두 바이트의 남은 비트 + 이어지는 바이트마다 6 비트.
   var cp u64 0 .
-  if eq n. 2 . do set cp. narrow u64 bit_and b0. 31 . . . end .
-  if eq n. 3 . do set cp. narrow u64 bit_and b0. 15 . . . end .
-  if eq n. 4 . do set cp. narrow u64 bit_and b0. 7 . . . end .
+  if eq n. 2 . do set cp. widen u64 bit_and b0. 31 . . . end .
+  if eq n. 3 . do set cp. widen u64 bit_and b0. 15 . . . end .
+  if eq n. 4 . do set cp. widen u64 bit_and b0. 7 . . . end .
   var j usize 1 .
   while lt j. n. . do
-    set cp. add mul cp. 64 . narrow u64 bit_and idx s. add at. j. . . 63 . . . .
+    set cp. add mul cp. 64 . widen u64 bit_and idx s. add at. j. . . 63 . . . .
     set j. add j. 1 . .
   end .
 

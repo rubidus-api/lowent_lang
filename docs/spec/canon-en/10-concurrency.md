@@ -304,6 +304,19 @@ h2          │       spawn ├── work ──────────┤ end
 (1a) `try spawn send …` does not stop when the mailbox is full but gives that as a value — its type is
       `result u64 mailbox_full`.
 
+(1b) If the actor that receives a waiting `send` is **handling a message held by another flow, and that flow is stopped** (by `yield` · a channel ·
+      `await` · a waiting `send`) — whether a message taken from the mailbox or another flow's waiting `send` — this `send` **waits until that message
+      ends** and is then handled. One actor's messages go one at a time (4a). If what holds the actor is **the very chain that called this `send`** (a
+      handler sending to itself, or coming back through A → B → A), it does not wait and is handled at once — `mailbox bounded N` counts that depth
+      (⟦§10.2⟧). If flows wait on each other so that none can end, the program stops (`E-VM-DEADLOCK`).
+
+(1c) `try send <actor> <message> [arguments…]` **does not wait** at a place where (1b) would wait, but gives that as a value — its type is
+      `result <the handler's output> actor_busy`. When there is nothing to wait for, it is the same as `send`, and the handler's answer is in the `ok`.
+
+> [!산문]
+> Before, the `send` of (1b) called the handler on the spot. Then the stopped message woke up and overwrote that work with the old state it had read —
+> the sender got its answer, and the work vanished. Waiting keeps the work; a place that cannot wait receives the fact as a value with `try send`.
+
 (2) What is in a mailbox **is not processed by itself.** `drain <actor>` empties that actor's mailbox
       **in the order put in**.
 

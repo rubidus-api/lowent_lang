@@ -3867,7 +3867,11 @@ static void ir_send(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven
     }
     ir_node(c, tgt);                       // 슬롯 0 — 받는 actor 인스턴스
     while (*pos < end) ir_node(c, k[(*pos)++]);
-    if (try_send) {
+    if (try_send && !async) {
+        // ★★★ 2026-11-11 (W-20261111-0940 O7) — `try send` · 처리 중이면 `actor_busy` 를 값으로(low_ir.h IR_CALL_TRY)
+        proven_size_t ei = ir_err_intern(c, proven_u8str_view_from_cstr("actor_busy"));
+        ir_emit(c, IRW_CALL, (proven_i64)((proven_u64)hd | (proven_u64)IR_CALL_TRY | ((proven_u64)ei << 32)));
+    } else if (try_send) {
         // ★ 회복 가능한 형태 — 트랩 대신 result 를 돌려준다. 에러명은 고정("mailbox_full") 이라
         //   `error_value` 가 뜻 있는 이름을 준다. a = 핸들러 | (에러명 인덱스 << 24).
         proven_size_t ei = ir_err_intern(c, proven_u8str_view_from_cstr("mailbox_full"));
@@ -4194,6 +4198,14 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_send(c, k, pos, end, nd->line, true, true);   // try_async → IRW_TASEND
                 return;
             }
+            // ★★★ 2026-11-11 (W-20261111-0940 O7 · 소유자 «(다)») — **`try send <액터> <메시지> …`**: 처리 중이면 기다리지 않고 `actor_busy`
+            //   를 값으로 낸다(정본 §10.5 (1c)). `try spawn send` 와 같은 두 모양(평평 · 묶음)을 잡는다. 전엔 `try` 가 send 의 답을 풀었다
+            //   (처리 코드가 result 를 돌려줄 때만 뜻이 있었다 — 코퍼스에 그 꼴은 없었다).
+            if (*pos < end && is_atom(k[*pos]) && k[*pos]->tok.kw == LOW_KW_SEND) {
+                *pos += 1;
+                ir_send(c, k, pos, end, nd->line, false, true);
+                return;
+            }
             {   // 중첩: try (spawn send …) — 그룹의 kids 로 같은 하강을 돌린다.
                 const low_cst_t *g = (*pos < end) ? k[*pos] : NULL;
                 if (g && g->kind == LOW_CST_GROUP && g->nkids == 1) g = g->kids[0];
@@ -4203,6 +4215,12 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     (*pos)++;   // 그룹 소비
                     proven_size_t gpos = 2;
                     ir_send(c, g->kids, &gpos, g->nkids, nd->line, true, true);
+                    return;
+                }
+                if (g && g->kind == LOW_CST_FORM && g->nkids >= 2 && is_atom(g->kids[0]) && g->kids[0]->tok.kw == LOW_KW_SEND) {
+                    (*pos)++;   // ★ O7 — 묶음 `try (send …)`
+                    proven_size_t gpos = 1;
+                    ir_send(c, g->kids, &gpos, g->nkids, nd->line, false, true);
                     return;
                 }
             }

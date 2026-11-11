@@ -82,6 +82,10 @@ typedef struct {
     //   식의 타입으로 번지지 않는다(번지면 `let m u64 add n. 1 .` 의 m 이 n 의 값을 지닌 것처럼 보인다).
     bool        cfold, cfu;
     proven_i64  cfv;
+    // ★★ 2026-11-11 (W-20261111-0940 O2 · RFC-0052 D6 · 정본 §6.3.6 (2)(2a)) — **0 이 아님이 보장된 값.** `pnz` = 감싼 것의 알맹이가
+    //   `nonzero`(`nonzero_of` 가 낸 option · `option nonzero T` 로 적은 것) · `nz` = 그것을 `some_value` 로 꺼낸 값 · 그 값으로 묶은 `let`.
+    //   `div_nz` 의 제수만 이것을 읽는다 — 그 자리에서 **낱말의 꼴로** 다시 본다(셈의 결과로 번지는 것은 읽지 않는다).
+    bool        nz, pnz;
 } ty_t;
 
 // ★★★★ **용량이 조용히 검사를 멈추게 했다** (2026-09-09 · REQ-0010 · REQ-0011).
@@ -635,6 +639,12 @@ static tc_reason_t compat_known(ty_t decl, ty_t actual) {
         // ★ 벡터는 **정확히** 같아야 한다 — 레인 수도, 원소 종류도, 폭도.
         //   암묵 확대는 없다(레인이 다른 두 벡터는 아예 다른 것이다).
         if (actual.lanes && decl.lanes != actual.lanes) return TC_LANES;   // 레인 0 = 받는 자리가 정한다(`load` · `splat`)
+        if (actual.lit && !actual.bits && actual.pk) {                    // `splat <리터럴>` — 레인 하나를 스칼라 자리로 보고 잰다(D8 · D3)
+            if (decl.vflt != (actual.pk == TK_FLOAT)) return TC_KIND;
+            ty_t ls_ = actual; ls_.k = (tk_t)actual.pk; ls_.lanes = 0; ls_.pk = 0;
+            ty_t ld_ = decl; ld_.k = decl.vflt ? TK_FLOAT : TK_INT; ld_.lanes = 0;
+            return lit_fits(ls_, ld_) ? TC_OK : TC_WIDTH;
+        }
         if (!actual.lanes && !actual.bits) return TC_OK;                  // 레인도 원소도 받는 자리가 정한다(`load`)
         if (decl.vflt != actual.vflt) return TC_KIND;
         if (actual.bits && decl.bits != actual.bits) return TC_WIDTH;
@@ -689,7 +699,12 @@ static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
             snprintf(buf, n, "%s%.*s", ref, (int)t.nname.size, (const char *)t.nname.ptr); return buf;
         case TK_UNIT:    snprintf(buf, n, "void"); return buf;
         case TK_WRAPPED: snprintf(buf, n, "%s", t.wrap == 1 ? "option …" : t.wrap == 2 ? "result …" : "option/result"); return buf;
-        case TK_VEC:     snprintf(buf, n, "vec"); return buf;
+        case TK_VEC:     // ★ 2026-11-11 — 전엔 늘 «vec» 이라 «expected `vec`, found `vec`» 이 나왔다. 아는 만큼 적는다.
+            if (t.lit && t.pk) { snprintf(buf, n, "splat of %s", t.pk == TK_FLOAT ? "a float literal" : "an integer literal"); return buf; }
+            {   size_t o = (size_t)snprintf(buf, n, "vec");
+                if (t.lanes && o + 8 < n) o += (size_t)snprintf(buf + o, n - o, " %u", (unsigned)t.lanes);
+                if (t.bits && o + 8 < n) snprintf(buf + o, n - o, " %c%u", t.vflt ? 'f' : t.sign ? 'i' : 'u', (unsigned)t.bits);
+                return buf; }
         case TK_MASK:    snprintf(buf, n, "mask"); return buf;
         default: return NULL;
     }
@@ -929,6 +944,24 @@ static ty_t tc_binop(tc_ctx_t *c, ty_t a, ty_t b, bool is_cmp, proven_u32 line) 
             }
             return is_cmp ? tk(TK_BOOL) : (ae ? a : b);   // 중위 견줌은 결과를 끝에서 bool 로 낸다
         }
+    }
+    // ★★ 2026-11-11 (W-20261111-0940 O2 · RFC-0052 D12 · 정본 §6.3.10) — **참거짓은 수가 아니다.** 셈 · 크기 견줌 · 넘침 처분의 셈 ·
+    //   `min` · `max` 는 참거짓을 받지 않는다(`eq` · `ne` 로 두 참거짓을 견주는 것만 된다). 전엔 `add true true` 가 지나 2 를 냈다 —
+    //   `bool` 에 없는 값. 수가 필요하면 `cast u8 b. .`(§6.2.16 (4)).
+    if ((a.k == TK_BOOL || b.k == TK_BOOL) && !(is_cmp && eqop && a.k == TK_BOOL && b.k == TK_BOOL)) {
+        if (a.k == TK_UNKNOWN || b.k == TK_UNKNOWN) return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);
+        tc_emit(c, "E-TYPE-KIND", is_cmp && eqop
+                ? "a bool is compared with a number — a bool is not a number (canon §6.3.10). Compare two bools, or turn the bool into a number with `cast u8 b. .`"
+                : "a bool is used as a number — arithmetic and ordering take numbers, and a bool is not one (canon §6.3.10). "
+                  "To count a truth value, write `cast u8 b. .` (canon §6.2.16 (4))", line);
+        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u;
+    }
+    // ★ 2026-11-11 (W-20261111-0940 O2) — option · result 는 셈하거나 견주는 값이 아니다. 전엔 `eq x. y.`(둘 다 option)가 지나 실행 중에
+    //   멈췄다(VM «arithmetic/compare needs ints» · 네이티브 «ints»). 무엇을 묻는지 적는다: `is_some` · `value_or`.
+    if (a.k == TK_WRAPPED || b.k == TK_WRAPPED) {
+        tc_emit(c, "E-TYPE-KIND", "an option / result is not compared or computed with directly — ask what you mean: `is_some x. .`, "
+                "`is_ok x. .`, or take the content out first (`value_or x. 0 .`)", line);
+        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return is_cmp ? tk(TK_BOOL) : u;
     }
     if (a.k == TK_UNKNOWN || b.k == TK_UNKNOWN || a.k == TK_NAMED || b.k == TK_NAMED)
         return is_cmp ? tk(TK_BOOL) : tk(TK_UNKNOWN);          // 보수적: 모르면 넘어간다
@@ -1359,6 +1392,11 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             if (!sig_find(c, h2) && n == 3 && (veq(h2, "bit_and") || veq(h2, "bit_or") || veq(h2, "bit_xor"))) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv), b = tc_infer(c, k[start + 2], env, nenv);
                 if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line) | tc_enum_as_num(c, b, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
+                if (a.k == TK_BOOL || b.k == TK_BOOL) {   // ★ 2026-11-11 (W-20261111-0940 O2 · 정본 §6.3.10) — 참거짓의 «그리고» 는 `and` 다
+                    tc_emit(c, "E-TYPE-KIND", "bit operations take integers, and a bool is not a number (canon §6.3.10) — for truth values "
+                            "write `and` / `or` / `ne`", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
                 if (a.k == TK_INT && b.k == TK_INT) {
                     tc_push_ctx(k, start + 1, 1, b, a);   // RFC-0148 §8-11
                     tc_push_ctx(k, start + 2, 1, a, b);
@@ -1410,7 +1448,13 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             if (!sig_find(c, h2) && n == 3 && veq(h2, "bit_cast") && k[start + 1]->kind == LOW_CST_ATOM) {
                 ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
-                (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t bsrc = tc_infer(c, k[start + 2], env, nenv);
+                // ★★ 2026-11-11 (W-20261111-0940 O2 · 정본 §8.7 의 표) — `bit_cast` 는 **폭이 같은** 두 스칼라 사이다. 전엔 폭이 달라도 지나
+                //   `bit_cast f64 <u32 1>` 이 4.94e-324 를 냈다(위 절반이 어디서 왔는지 말할 수 없는 값).
+                if ((tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits && (bsrc.k == TK_INT || bsrc.k == TK_FLOAT) && bsrc.bits &&
+                    !bsrc.lit && bsrc.bits != tgt.bits && !bsrc.nominal && !tgt.nominal)
+                    tc_emit(c, "E-TYPE-BITCAST", "`bit_cast` keeps the bits and changes only how they are read, so both sides must have the "
+                            "SAME width (canon §8.7) — change the width first with `widen` / `narrow`, then `bit_cast`", k[start]->line);
                 if ((tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits) return tgt;
                 if (tgt.k == TK_BOOL) return tgt;   // 덫 표현이 있는 대상은 배치 검사가 따로 거절한다(E-TYPE-BITCAST)
                 return tk(TK_UNKNOWN);
@@ -1472,7 +1516,11 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             // `nonzero_of a` — `option nonzero T`(표): 알맹이는 `a` 의 타입이다
             if (!sig_find(c, h2) && n == 2 && veq(h2, "nonzero_of")) {
                 ty_t a0 = tc_infer(c, k[start + 1], env, nenv);
-                ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, a0); return w;
+                if (a0.k == TK_FLOAT || a0.k == TK_BOOL) {   // ★ 2026-11-11 (O2) — 0 이 아님의 보장은 정수 나눗셈의 것이다(정본 §6.3.6 (2a)) · 전엔 실행 중에 멈췄다
+                    tc_emit(c, "E-TYPE-KIND", "`nonzero_of` takes an INTEGER — it backs `div_nz`, an integer division (canon §6.3.6 (2a))", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
+                ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, a0); w.pnz = true; return w;
             }
             // `payload <값> <갈래> <칸>` — 그 갈래의 그 칸의 타입
             if (!sig_find(c, h2) && n == 4 && veq(h2, "payload") && k[start + 2]->kind == LOW_CST_ATOM && k[start + 3]->kind == LOW_CST_ATOM) {
@@ -1488,7 +1536,21 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             // `div_nz a b` — `a` 의 타입(표) · `pop s` — 쌓개 원소의 option · `str_from_cstr` — 바이트 슬라이스
             if (!sig_find(c, h2) && n == 3 && veq(h2, "div_nz")) {
-                ty_t a0 = tc_infer(c, k[start + 1], env, nenv); (void)tc_infer(c, k[start + 2], env, nenv);
+                ty_t a0 = tc_infer(c, k[start + 1], env, nenv); ty_t b0 = tc_infer(c, k[start + 2], env, nenv);
+                // ★★ 2026-11-11 (W-20261111-0940 O2 · RFC-0052 D6 · 정본 §6.3.6 (2)) — 제수는 0 이 아님이 **타입으로 보장된** 값이어야 한다:
+                //   `some_value` 로 꺼낸 `nonzero_of` 의 값 · 그것으로 묶은 `let` · 0 아닌 리터럴. 전엔 보통 정수도 받아 0 에서 E-VM-DIV0 로
+                //   멈췄다 — «검사가 남지 아니한다» 는 자리에 검사가 남아 있었다.
+                {
+                    const low_cst_t *dv = k[start + 2];
+                    while (dv && dv->kind == LOW_CST_GROUP && dv->nkids == 1) dv = dv->kids[0];
+                    bool ok_ = b0.nz && dv && (dv->kind == LOW_CST_ATOM ||
+                               (dv->kind == LOW_CST_FORM && dv->nkids >= 1 && dv->kids[0]->kind == LOW_CST_ATOM && veq(dv->kids[0]->tok.lex, "some_value")));
+                    if (b0.k == TK_INT && b0.lit && (b0.val || b0.valhi)) ok_ = true;
+                    if (!ok_ && b0.k != TK_UNKNOWN)
+                        tc_emit(c, "E-TYPE-NONZERO", "`div_nz` takes a divisor that is KNOWN not to be zero (canon §6.3.6 (2)) — get one with "
+                                "`nonzero_of` and take it out with `some_value` (`let d u32 some_value nb. .`), or divide with `div`, "
+                                "which stops at zero", k[start]->line);
+                }
                 if ((a0.k == TK_INT) && a0.bits && !a0.lit) { a0.has_rng = false; a0.is_mut = false; return a0; }
                 return a0.lit ? a0 : tk(TK_UNKNOWN);
             }
@@ -1639,7 +1701,10 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             if (!sig_find(c, h2) && n == 2 && veq(h2, "splat")) {
                 ty_t v = tc_infer(c, k[start + 1], env, nenv);
                 if ((v.k == TK_INT || v.k == TK_FLOAT) && v.bits && !v.lit) return (ty_t){ .k = TK_VEC, .bits = v.bits, .sign = v.sign, .lanes = 0, .vflt = v.k == TK_FLOAT };
-                if (v.lit) return (ty_t){ .k = TK_VEC, .lanes = 0, .vflt = v.k == TK_FLOAT };   // 원소 폭은 받는 자리가 정한다
+                // ★★ 2026-11-11 (W-20261111-0940 O5) — 리터럴의 값도 싣는다: 받는 자리가 **스칼라와 같은 리터럴 규칙**으로 잰다(아래 TK_VEC 갈래).
+                //   전엔 원소를 받는 자리에 맡기고 아무것도 안 쟀다 — `vec 2 f64 splat 18446744073709551615` 가 지나 레인마다 −1.0 이었고
+                //   (스칼라 `let x f64 18446744073709551615` 는 E-TYPE-LET) · `vec 4 f32 splat 1e300` 이 지나 inf 였다(스칼라는 E-TYPE-WIDTH · RFC-0052 D3f-3).
+                if (v.lit) { ty_t r_ = v; r_.k = TK_VEC; r_.lanes = 0; r_.bits = 0; r_.vflt = v.k == TK_FLOAT; r_.pk = (proven_u8)v.k; return r_; }   // 원소 폭은 받는 자리가 정한다
                 return tk(TK_UNKNOWN);
             }
             if (!sig_find(c, h2) && n == 3 && (veq(h2, "lane_avg") || veq(h2, "lane_rotate"))) {
@@ -1655,6 +1720,13 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
                 }
                 if (v.k == TK_VEC) return v;
+                // ★ 2026-11-11 (W-20261111-0940 O2) — 레인 낱말은 벡터의 것이다. 수 하나를 주면 전엔 `--check` 를 지나 실행 중에 멈췄다
+                //   (VM «avg needs two vectors»). 번역 때 말한다.
+                if (v.k == TK_INT || v.k == TK_FLOAT || v.k == TK_BOOL) {
+                    tc_emit(c, "E-TYPE-KIND", "a lane operation takes VECTORS (`vec <n> <type>`) — this is a single number. "
+                            "For two numbers write the arithmetic itself", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
                 return tk(TK_UNKNOWN);
             }
             if (!sig_find(c, h2) && n == 2 && (veq(h2, "lane_reverse") || veq(h2, "lane_rotate"))) {
@@ -1960,6 +2032,16 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 for (proven_size_t q = start + 3; q < te; q++) (void)tc_infer(c, k[q], env, nenv);
                 ty_t w = tk(TK_WRAPPED); w.wrap = 2; w.pk = TK_INT; w.pbits = 64; return w;   // 넣지 못하면 `mailbox_full` 을 값으로
             }
+            // ★★★ 2026-11-11 (W-20261111-0940 O7) — `try send <액터> <메시지> …` 는 풀기가 아니라 **기다리지 않는 send** 다(정본 §10.5 (1c)):
+            //   값은 `result <처리 코드의 답> actor_busy`. 평평한 꼴과 묶음 꼴 둘 다(위 `try spawn send` 와 같다).
+            if ((te - start - 1 >= 3 && k[start + 1]->kind == LOW_CST_ATOM && k[start + 1]->tok.kw == LOW_KW_SEND) ||
+                (sf && sf->kind == LOW_CST_FORM && sf->nkids >= 3 && sf->kids[0]->kind == LOW_CST_ATOM && sf->kids[0]->tok.kw == LOW_KW_SEND)) {
+                ty_t sv = (sf && sf->kind == LOW_CST_FORM) ? tc_infer(c, sf, env, nenv) : tc_infer_run(c, k, start + 1, te - start - 1, env, nenv);
+                ty_t w = tk(TK_WRAPPED); w.wrap = 2;
+                if ((sv.k == TK_INT || sv.k == TK_FLOAT) && sv.bits && !sv.lit) tc_wrap_payload(&w, sv);
+                else if (sv.k == TK_BOOL) w.pk = TK_BOOL;
+                return w;
+            }
             ty_t inner = tc_infer_run(c, k, start + 1, te - start - 1, env, nenv);
             for (proven_size_t q = te + 1; q < start + n; q++) (void)tc_infer(c, k[q], env, nenv);   // else_error 의 값
             if (inner.k == TK_INT || inner.k == TK_FLOAT || inner.k == TK_BOOL || inner.k == TK_SLICE)
@@ -2085,6 +2167,17 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                         k[start]->line);
             // ★★★ RFC-0148 S4 — **좁힌 값의 타입은 적힌 대상 타입이다.** 전에는 여기서 답 없이 흘러 «모름» 이 됐다: `narrow u8 x.` 를
             //   어느 선언에나 넣을 수 있었다(하강층은 `u8` 로 알고 있었다 — 두 층을 맞대자 321 자리에서 보였다).
+            // ★★ 2026-11-11 (W-20261111-0940 O2 · 정본 §6.2.16 (1a) 의 표) — `narrow` 는 **같은 갈래 안에서 폭을 줄인다.** 갈래를 넘는
+            //   것(정수 ↔ 부동)은 `cast` 이고, 넓어지는 쪽은 `widen` 이다. 전엔 `narrow u8 <f64 1.5>` 가 지나 소수부를 버렸고
+            //   `narrow u16 <u8>` 이 지났다(값은 그대로였지만 낱말이 말하는 것과 다르다).
+            if ((ntgt.k == TK_INT || ntgt.k == TK_FLOAT) && ntgt.bits && (nsrc.k == TK_INT || nsrc.k == TK_FLOAT) && !nsrc.lit) {
+                if (ntgt.k != nsrc.k)
+                    tc_emit(c, "E-TYPE-KIND", "`narrow` stays within one kind (integer → narrower integer, float → narrower float) — "
+                            "between integers and floats the word is `cast` (canon §6.2.16 (1a))", k[start]->line);
+                else if (nsrc.bits && nsrc.bits < ntgt.bits)
+                    tc_emit(c, "E-TYPE-WIDTH", "`narrow` makes a value NARROWER, and this target is wider than the value — the word "
+                            "for that is `widen` (canon §6.2.16 (1a))", k[start]->line);
+            }
             if ((ntgt.k == TK_INT || ntgt.k == TK_FLOAT) && ntgt.bits) return ntgt;   // `narrow f32` 도 대상 타입이다
         }
         // RFC-0148 S4 — 멈추지 않는 좁히기 셋도 같다: `narrow_sat` · `narrow_wrap` 은 `T`, `narrow_try` 는 `option T` (시그니처 표 · §6.3.6).
@@ -2192,6 +2285,17 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if ((ffn || veq(h, "abs")) && n >= 2 && !sig_find(c, h)) {
                     ty_t a0 = tc_infer(c, k[start + 1], env, nenv);
                     for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                    // ★★ 2026-11-11 (W-20261111-0940 O2 · RFC-0052 D14 · 정본 §6.3.9 (1a)) — `abs` 는 부동과 **부호 있는** 정수의 것이다.
+                    //   전엔 부호 없는 정수도 받아 그대로 냈다(`neg` 는 2026-10-08 부터 같은 자리에서 E-TYPE-SIGN).
+                    if (!ffn && a0.k == TK_INT && !a0.lit && a0.bits && !a0.sign) {
+                        tc_emit(c, "E-TYPE-SIGN", "`abs` takes a float or a SIGNED integer (canon §6.3.9 (1a)) — an unsigned value is "
+                                "already its own absolute value. Drop the `abs`", k[start]->line);
+                        a0.has_rng = false; a0.is_mut = false; return a0;
+                    }
+                    if (!ffn && a0.k == TK_BOOL) {
+                        tc_emit(c, "E-TYPE-KIND", "`abs` takes a number, and a bool is not one (canon §6.3.10)", k[start]->line);
+                        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                    }
                     if ((a0.k == TK_FLOAT || (!ffn && a0.k == TK_INT)) && a0.bits && !a0.lit) { a0.has_rng = false; a0.is_mut = false; return a0; }
                     if (a0.k == TK_FLOAT && a0.lit) return (ty_t){ .k = TK_FLOAT, .lit = true, .fval = 0 };   // 리터럴의 함수는 무타입 부동 상수 — 받는 자리가 폭을 정한다
                     return tk(TK_UNKNOWN);
@@ -2229,6 +2333,13 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if ((wr || ch) && n == 3 && !sig_find(c, h)) {
                     ty_t a = tc_infer(c, k[start + 1], env, nenv);
                     ty_t b = tc_infer(c, k[start + 2], env, nenv);
+                    // ★★ 2026-11-11 (W-20261111-0940 O2) — 넘침 처분은 **정수**의 것이다(정본 §6.3.6 (1) 의 표 — 부동에는 넘친 값이 갈 무한대가
+                    //   있다). 전엔 `chk_add` 에 `f64` 를 대면 지나 `option f64` 자리에 2.0 을 냈다(넘침을 볼 일이 없는 셈).
+                    if (a.k == TK_FLOAT || b.k == TK_FLOAT) {
+                        tc_emit(c, "E-TYPE-KIND", "`wrap_*` · `sat_*` · `chk_*` choose what an INTEGER overflow does (canon §6.3.6 (1)) — "
+                                "floating-point arithmetic does not overflow that way (it goes to infinity). Use `add` / `sub` / `mul`", k[start]->line);
+                        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                    }
                     tc_push_ctx(k, start + 1, 1, b, a);   // RFC-0148 §8-11
                     tc_push_ctx(k, start + 2, 1, a, b);
                     ty_t r = tc_binop(c, a, b, false, k[start]->line);
@@ -2293,7 +2404,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 }
                 if (w.k == TK_WRAPPED && w.pbits && (w.pk == TK_INT || w.pk == TK_FLOAT)) {   // RFC-0149 L4 — 정수 · 부동 알맹이는 제 타입으로 나온다
                     ty_t pv = w.pk == TK_INT ? tk_int(w.pbits, w.psign) : (ty_t){ .k = TK_FLOAT, .bits = w.pbits };
-                    pv.nominal = w.pnom;
+                    pv.nominal = w.pnom; pv.nz = veq(uh, "some_value") && w.pnz;
                     return pv;
                 }
                 if (w.k == TK_WRAPPED && w.pk == TK_BOOL) return tk(TK_BOOL);
@@ -2786,7 +2897,7 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
                     if (eq0 < f->nkids && f->kids[eq0]->kind == LOW_CST_ATOM && f->kids[eq0]->tok.kind == LOW_TOK_IDENT) core.ename = f->kids[eq0]->tok.lex;
                 }
                 if (q + 1 < end && q + 1 < f->nkids && f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "nonzero") &&
-                    f->kids[q + 1]->kind == LOW_CST_ATOM) q++;   // `option nonzero T` — 알맹이는 0 아닌 `T` 다(값의 타입은 `T`)
+                    f->kids[q + 1]->kind == LOW_CST_ATOM) { q++; core.pnz = true; }   // `option nonzero T` — 알맹이는 0 아닌 `T` 다(값의 타입은 `T`)
                 if (q < end && q < f->nkids && f->kids[q]->kind == LOW_CST_ATOM) {
                     ty_t pt = ty_of_word(f->kids[q]->tok.lex);
                     if (pt.k == TK_INT || pt.k == TK_FLOAT || pt.k == TK_BOOL || pt.k == TK_SLICE || pt.k == TK_WRAPPED) core.pk = (proven_u8)pt.k;
@@ -3222,6 +3333,14 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     declared.cfold = true; declared.cfv = v; declared.cfu = !declared.sign;
                 }
             }
+            // ★ 2026-11-11 — `let d u32 some_value nb. .` 의 d 는 0 이 아님을 지닌다(위 ty_t.nz). `var` 는 다시 쓸 수 있어 지니지 않는다.
+            declared.nz = false;
+            if (kw == LOW_KW_LET && actual.nz && declared.k == TK_INT && be + 2 == f->nkids) {
+                const low_cst_t *iv = f->kids[be + 1];
+                while (iv && iv->kind == LOW_CST_GROUP && iv->nkids == 1) iv = iv->kids[0];
+                if (iv && (iv->kind == LOW_CST_ATOM || (iv->kind == LOW_CST_FORM && iv->nkids >= 1 && iv->kids[0]->kind == LOW_CST_ATOM &&
+                                                         veq(iv->kids[0]->tok.lex, "some_value")))) declared.nz = true;
+            }
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {
             tc_check_return(c, f->kids, 1, f->nkids - 1, env, *nenv, ret, f->line);
@@ -3297,7 +3416,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                         "(a `let` list, a string or a shared parameter is read-only)", f->line);
             if (seq.k != TK_UNKNOWN && seq.k != TK_NAMED && seq.k != TK_SLICE)
                 tc_emit(c, "E-TYPE-ITER",
-                        "`for … in` needs a slice — this value cannot be iterated", f->line);
+                        "`for <name> <slice>` walks a slice — this value cannot be iterated (counting is `repeat <name> <type> <n>.`, a range is `range <name> <type> <a>. <b>.`)", f->line);
             if (*nenv < TC_MAXENV) {
                 // ★ 루프 변수는 **슬라이스의 원소 타입**을 갖는다.
                 //   (u8 고정이었다 — `slice T` 가 원소 타입을 나르게 되면서 고칠 수 있게 됐다.)

@@ -103,7 +103,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 가장 자주 거절하는 자리다.
 
 ```text
-  E-VM(56)  E-TYPE(39)  E-NAME(13)  E-ASM(11)  E-ENUM(11)
+  E-VM(56)  E-TYPE(40)  E-NAME(13)  E-ASM(11)  E-ENUM(11)
   E-ALLOC(10)  E-EFFECT(9)  E-MMIO(9)  E-PKG(8)  E-IR(8)
   E-PAR(7)  E-FFI(7)  E-OWN(7)  E-LIT(7)
   … 그 밖 110 계열

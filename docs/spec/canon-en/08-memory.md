@@ -481,6 +481,9 @@ end .
       representation⟧s). So these two are outside this kind and are refused
       (`E-TYPE-BITCAST`).
 
+(3a) Source and target shall have **the same width**. If the widths differ it is refused at translation (`E-TYPE-BITCAST`) — nothing can say where the
+      extra or missing bits come from. Change the width first with `widen` · `narrow`.
+
 > [!주의]
 > «Is it `plain`» shall be asked **directly**. A way that asks indirectly, treating what is not in the width table as not `plain`,
 > silently flips the day the width table is filled. A verdict that held by coincidence disappears without a word

@@ -27,6 +27,7 @@
  *   가장 안쪽 영역. 권한은 이름으로 적는다 — 뿌리 피연산자는 얼로케이터가 아니라 **권한**이다.
  */
 #include "low_cst_priv.h"
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_cst.h"
 #include "low_ir.h"
 #include "low_arity.h"
@@ -580,7 +581,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                     low_cst_t *sf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok), *sg = low_node(&c->p, LOW_CST_GROUP, explicit_src->tok);
                     low_cst_t *uf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok);
                     if (num && sk && uk && gk && sf && sg && uf) {
-                        snprintf(num, 24, "%llu", cnt * esz);
+                        low_bfmt(num, 24, "{}", PROVEN_ARG((unsigned long long)(cnt * esz)));
                         sk[0] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"send", .size = 4 });
                         sk[1] = (low_cst_t *)explicit_src;
                         sk[2] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"reserve", .size = 7 });
@@ -601,7 +602,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                             low_cst_t *z0 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"size_of", .size = 7 });
                             low_cst_t *z1 = us_atom_like(c, lg->kids[2], ty);
                             if (cn && mk && zk && g1 && g2 && mf && mg && zf && zg && m0 && z0 && z1) {
-                                snprintf(cn, 24, "%llu", cnt);
+                                low_bfmt(cn, 24, "{}", PROVEN_ARG((unsigned long long)(cnt)));
                                 low_cst_t *m1 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)cn, .size = strlen(cn) });
                                 if (m1) {
                                     m1->tok.kind = LOW_TOK_NUMBER;
@@ -1439,7 +1440,7 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, con
                 low_cst_t *g1 = lit1 ? dt_mk(c, LOW_CST_GROUP, x, g1k, 1) : NULL;
                 low_cst_t *k1[4] = { dt_word(c, x, "var"), dt_deep(c, x, x->tok.line), dt_word(c, x, "be"), g1 };
                 low_cst_t *s1 = dt_mk(c, LOW_CST_FORM, x, k1, 4);
-                char nmb[24]; snprintf(nmb, sizeof nmb, "$p%zu", ++c->nplace);
+                char nmb[24]; low_bfmt(nmb, sizeof nmb, "$p{}", PROVEN_ARG((size_t)(++c->nplace)));
                 char *nmh = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(nmb) + 1, 1).value.ptr;
                 low_cst_t *k2[300]; proven_size_t n2 = 0;
                 if (nmh) memcpy(nmh, nmb, strlen(nmb) + 1);
@@ -1467,8 +1468,8 @@ static void dt_ar_block(dt_ctx_t *c, low_cst_t *blk, const low_cst_t *place, con
                 // ★ RFC-0132 P4c — 인자가 내 자리와 같은 바이트를 볼 수 있다: g 가 쓰는 동안 읽는 쪽이 새 값을 본다. 임시 자리에 받고 한 번 베낀다.
                 //   var $tK be (lit array T N _) .  ·  let $pK be slice T g … $tK .  ·  copy <자리> $tK .  ·  return <자리> .
                 const low_cst_t *r0 = st->kids[0];
-                char tnb[24]; snprintf(tnb, sizeof tnb, "$t%zu", ++c->nplace);
-                char pnb[24]; snprintf(pnb, sizeof pnb, "$p%zu", ++c->nplace);
+                char tnb[24]; low_bfmt(tnb, sizeof tnb, "$t{}", PROVEN_ARG((size_t)(++c->nplace)));
+                char pnb[24]; low_bfmt(pnb, sizeof pnb, "$p{}", PROVEN_ARG((size_t)(++c->nplace)));
                 char *tnh = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(tnb) + 1, 1).value.ptr;
                 char *pnh = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(pnb) + 1, 1).value.ptr;
                 if (tnh) memcpy(tnh, tnb, strlen(tnb) + 1);
@@ -2299,8 +2300,8 @@ static void lr_fill(us_ctx_t *c, low_cst_t *sf) {                 // sf = FORM[T
         if (listed) continue;
         if (vnum && !(us_atom(df->kids[1]) && lr_scalar_word(df->kids[1]->tok.lex))) {
             char msg[200];
-            snprintf(msg, sizeof msg, "`_ <value> .` cannot fill the field `%.*s` — the value is a number and that field is not "
-                     "(RFC-0132 §5). Write that field yourself", (int)fn.size, (const char *)fn.ptr);
+            low_bfmt(msg, sizeof msg, "`_ <value> .` cannot fill the field `{}` — the value is a number and that field is not "
+                     "(RFC-0132 §5). Write that field yourself", low_sv((const char *)fn.ptr, (int)fn.size));
             char *keep = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(msg) + 1, 1).value.ptr;
             if (keep) { memcpy(keep, msg, strlen(msg) + 1); low_pdiag(&c->p, "E-TYPE-FIELD", keep, rf->kids[0]->tok.line, rf->kids[0]->tok.col); }
             lr_drop(c, blk, ri);

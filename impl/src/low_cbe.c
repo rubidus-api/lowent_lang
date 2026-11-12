@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L   // open_memstream(3) — 프레임을 본문 보고 정하려고
 // low_cbe.c — S5 C backend (see low_cbe.h).
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기 */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_cbe.h"
 #include "low_cbe_prelude.h"
 #define LW_EXPECT_MSG "E-TEST-FAIL: an `expect` is FALSE -- the test failed (this is not a contract violation)"   // ★ 2026-09-27 — 네이티브는 이것을 «requires violated at entry» 로 찍었다
@@ -66,13 +67,13 @@ static proven_size_t cbe_export_cname(const low_ir_def_t *d, char *buf, proven_s
         memcpy(buf, d->link_name.ptr, n); buf[n] = 0; return n;
     }
     proven_size_t o = 0;
-    #define CN_PUT(...) do { int w_ = snprintf(buf + o, o < cap ? cap - o : 0, __VA_ARGS__); if (w_ > 0) o += (proven_size_t)w_; } while (0)
+    #define CN_PUT(...) do { int w_ = low_bfmt(buf + o, o < cap ? cap - o : 0, __VA_ARGS__); if (w_ > 0) o += (proven_size_t)w_; } while (0)
     CN_PUT("lw");
-    if (d->owner_mod.size) CN_PUT("_%zu%.*s", (size_t)d->owner_mod.size, (int)d->owner_mod.size, (const char *)d->owner_mod.ptr);
+    if (d->owner_mod.size) CN_PUT("_{}{}", PROVEN_ARG((size_t)d->owner_mod.size), low_sv((const char *)d->owner_mod.ptr, (int)d->owner_mod.size));
     proven_size_t s = 0;
     for (proven_size_t i = 0; i <= d->name.size; i++)
         if (i == d->name.size || d->name.ptr[i] == (proven_u8)'.') {   // `rect.area` — 그릇이 한 마디 더
-            CN_PUT("_%zu%.*s", (size_t)(i - s), (int)(i - s), (const char *)d->name.ptr + s);
+            CN_PUT("_{}{}", PROVEN_ARG((size_t)(i - s)), low_sv((const char *)d->name.ptr + s, (int)(i - s)));
             s = i + 1;
         }
     #undef CN_PUT
@@ -1354,7 +1355,7 @@ static void cbe_emit_rec_in(FILE *out, const low_ir_t *ir, int sidx, size_t br, 
         int fi = cbe_field_idx(ir, S->f[z].name);
         if (fi < 0) continue;   // 안 읽히는 칸은 전역 칸 표에 없다 — 칸은 이미 0 이다(평평한 칸과 같다)
         char v2[512];
-        snprintf(v2, sizeof v2, "lw_field(%s, %d)", val, fi);
+        low_bfmt(v2, sizeof v2, "lw_field({}, {})", proven_arg_cstr(val), PROVEN_ARG((int)(fi)));
         if (S->f[z].sidx >= 0) { if (depth < 4) cbe_emit_rec_in(out, ir, S->f[z].sidx, br, off0 + S->f[z].off, v2, depth + 1); continue; }
         if (S->f[z].flt)
             fprintf(out, "    { lowv fv_ = %s; if (fv_.tag != LWV_FLT) lw_panic(\"a float field\");\n"
@@ -1857,7 +1858,7 @@ static bool cbe_arrpar_body_ok(const low_ir_t *ir, const low_ir_def_t *d, char *
                 if (sx < 0) return false;
                 for (proven_size_t z = 0; z < ir->structs[sx].nf; z++) {
                     const low_ir_sfield_t *f = &ir->structs[sx].f[z];
-                    if ((f->boxed && !f->arrn) || cbe_f_place(ir, f)) { snprintf(why, wn, "`make` of a struct with a slice field"); return false; }
+                    if ((f->boxed && !f->arrn) || cbe_f_place(ir, f)) { low_bfmt(why, wn, "`make` of a struct with a slice field"); return false; }
                 }
                 break;
             }
@@ -1866,14 +1867,14 @@ static bool cbe_arrpar_body_ok(const low_ir_t *ir, const low_ir_def_t *d, char *
                 if (c >= ir->ndefs) return false;
                 const low_ir_def_t *ce = &ir->defs[c];
                 for (proven_size_t q = 0; q < ce->nparams && q < LOW_MAX_PARAMS; q++) {
-                    if ((ce->param_slice >> q) & 1u) { snprintf(why, wn, "a call that takes a slice"); return false; }
+                    if ((ce->param_slice >> q) & 1u) { low_bfmt(why, wn, "a call that takes a slice"); return false; }
                     if (((ce->param_struct >> q) & 1u) && !cbe_rec_ok(ir, (int)ce->param_sidx[q]) && !cbe_rec_arr_ok(ir, (int)ce->param_sidx[q])) {
-                        snprintf(why, wn, "a call that takes a struct which could hold a slice"); return false; }
+                        low_bfmt(why, wn, "a call that takes a struct which could hold a slice"); return false; }
                 }
                 break;
             }
             default:
-                snprintf(why, wn, "the word `%s`", low_irw_name((low_irw_t)in->w));
+                low_bfmt(why, wn, "the word `{}`", proven_arg_cstr(low_irw_name((low_irw_t)in->w)));
                 return false;
         }
     }
@@ -1924,19 +1925,19 @@ static void cbe_mark_mdel(const low_ir_t *ir) {
 }
 // ★ 2a — 빠른 `spawn send` 의 처리 코드가 될 수 있는가. 안 되면 까닭을 why 에 적는다.
 static bool cbe_fa_hok(const low_ir_t *ir, proven_size_t c, const bool *sc, char *why, size_t wn) {
-    if (c >= ir->ndefs || c >= 512) { snprintf(why, wn, "a `spawn send` handler outside the first 512 ops"); return false; }
+    if (c >= ir->ndefs || c >= 512) { low_bfmt(why, wn, "a `spawn send` handler outside the first 512 ops"); return false; }
     const low_ir_def_t *h = &ir->defs[c];
     if (!h->is_actor || h->nparams < 1 || !(h->param_struct & 1u) || (proven_size_t)h->param_sidx[0] >= ir->nstructs) {
-        snprintf(why, wn, "`spawn send` to something that is not an actor handler"); return false; }
-    if (sc && !sc[c]) { snprintf(why, wn, "`spawn send` to a handler that is on the tagged path itself"); return false; }
-    if (cbe_struct_has_sl(ir, (int)h->param_sidx[0])) { snprintf(why, wn, "`spawn send` to an actor whose state has a slice field"); return false; }
-    if (cbe_restart_max(ir, h) >= 0) { snprintf(why, wn, "`spawn send` to a `failure restart` actor (restart lives on the tagged path)"); return false; }
-    if (cbe_may_suspend(ir, c, 0)) { snprintf(why, wn, "`spawn send` to a handler that may stop (yield · channel · await · I/O · drain)"); return false; }
+        low_bfmt(why, wn, "`spawn send` to something that is not an actor handler"); return false; }
+    if (sc && !sc[c]) { low_bfmt(why, wn, "`spawn send` to a handler that is on the tagged path itself"); return false; }
+    if (cbe_struct_has_sl(ir, (int)h->param_sidx[0])) { low_bfmt(why, wn, "`spawn send` to an actor whose state has a slice field"); return false; }
+    if (cbe_restart_max(ir, h) >= 0) { low_bfmt(why, wn, "`spawn send` to a `failure restart` actor (restart lives on the tagged path)"); return false; }
+    if (cbe_may_suspend(ir, c, 0)) { low_bfmt(why, wn, "`spawn send` to a handler that may stop (yield · channel · await · I/O · drain)"); return false; }
     for (proven_size_t q = 1; q < h->nparams && q < LOW_MAX_PARAMS; q++) {
         const unsigned long long b = 1ull << q;
         if ((h->param_slice | h->param_struct | h->param_bset | h->param_flt | h->param_opt | h->param_vec | h->param_w128) & b) {
-            snprintf(why, wn, "`spawn send` with an argument that is not an integer (argument %d)", (int)q); return false; }
-        if (h->prng[q].has_rng) { snprintf(why, wn, "`spawn send` to a handler with a declared argument range"); return false; }
+            low_bfmt(why, wn, "`spawn send` with an argument that is not an integer (argument {})", PROVEN_ARG((int)((int)q))); return false; }
+        if (h->prng[q].has_rng) { low_bfmt(why, wn, "`spawn send` to a handler with a declared argument range"); return false; }
     }
     return true;
 }
@@ -1959,13 +1960,13 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
         if (!sc[i]) {
             // ★ **하강 대상이 아닌 것**은 그렇게 말한다 — "못 따라간다" 가 아니라(교훈 5).
             if (i < 512 && !g_why[i][0]) {
-                if (d->is_test) snprintf(g_why[i], sizeof g_why[0],
+                if (d->is_test) low_bfmt(g_why[i], sizeof g_why[0],
                     "it is a `test` block — the runner owns it, not the native lowering");
-                else if (d->is_extern) snprintf(g_why[i], sizeof g_why[0],
+                else if (d->is_extern) low_bfmt(g_why[i], sizeof g_why[0],
                     "its body is in C (`extern`) — there is nothing of ours to lower");
-                else if (!d->lowered) snprintf(g_why[i], sizeof g_why[0],
+                else if (!d->lowered) low_bfmt(g_why[i], sizeof g_why[0],
                     "the IR could not lower this op at all (an unsupported construct upstream)");
-                else snprintf(g_why[i], sizeof g_why[0],
+                else low_bfmt(g_why[i], sizeof g_why[0],
                     "too many params/locals/instructions for the fast frame");
             }
             continue;
@@ -1978,7 +1979,7 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             cbe_may_upanic(ir, i)) {
             sc[i] = false;
             if (i < 512 && !g_why[i][0])
-                snprintf(g_why[i], sizeof g_why[0], "a handler of a `failure restart` actor that can reach `panic` (the supervisor's restart lives on the tagged path)");
+                low_bfmt(g_why[i], sizeof g_why[0], "a handler of a `failure restart` actor that can reach `panic` (the supervisor's restart lives on the tagged path)");
             continue;
         }
         // ★★ 2a — 메시지를 배달할 수 있는 op(`schedule` · `drain` · 그것을 부르는 op)이 액터를 **사본으로** 들면(처리 코드 · 액터 매개변수:
@@ -1990,7 +1991,7 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             if (acopy) {
                 sc[i] = false;
                 if (!g_why[i][0])
-                    snprintf(g_why[i], sizeof g_why[0], "it holds an actor as a copy (a handler or an actor parameter) and may deliver messages (`schedule` · `drain`) — the copy would overwrite what they did");
+                    low_bfmt(g_why[i], sizeof g_why[0], "it holds an actor as a copy (a handler or an actor parameter) and may deliver messages (`schedule` · `drain`) — the copy would overwrite what they did");
                 continue;
             }
         }
@@ -2012,7 +2013,7 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             if (aparam_ && asend_) {
                 sc[i] = false;
                 if (i < 512 && !g_why[i][0])
-                    snprintf(g_why[i], sizeof g_why[0], "a waiting `send` to an actor it was given — in a unit with tasks it may have to wait for "
+                    low_bfmt(g_why[i], sizeof g_why[0], "a waiting `send` to an actor it was given — in a unit with tasks it may have to wait for "
                              "another flow that holds that actor, and the fast path holds the actor as a copy");
                 continue;
             }
@@ -2032,17 +2033,17 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             if (!cbe_arrpar_body_ok(ir, d, w_, sizeof w_)) {
                 sc[i] = false;
                 if (i < 512 && !g_why[i][0])
-                    snprintf(g_why[i], sizeof g_why[0], "a parameter is a struct with array fields and the body has %s (a field slice could outlive the caller's record)", w_[0] ? w_ : "a word outside the list");
+                    low_bfmt(g_why[i], sizeof g_why[0], "a parameter is a struct with array fields and the body has {} (a field slice could outlive the caller's record)", proven_arg_cstr(w_[0] ? w_ : "a word outside the list"));
                 continue;
             }
         }
         if (!sc[i]) {
             if (i < 512 && !g_why[i][0]) {
                 if (badq >= 0)
-                    snprintf(g_why[i], sizeof g_why[0], "parameter %d is a struct the fast path cannot carry: %s",
-                             badq, cbe_rec_why(ir, (int)d->param_sidx[badq]));
+                    low_bfmt(g_why[i], sizeof g_why[0], "parameter {} is a struct the fast path cannot carry: {}",
+                             PROVEN_ARG((int)(badq)), proven_arg_cstr(cbe_rec_why(ir, (int)d->param_sidx[badq])));
                 else
-                    snprintf(g_why[i], sizeof g_why[0], "not lowerable: a test, or too many locals");
+                    low_bfmt(g_why[i], sizeof g_why[0], "not lowerable: a test, or too many locals");
             }
             continue;
         }
@@ -2050,14 +2051,14 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
         //   (cbe_mark_aref — 둘이 갈린다). 그 둘이 한 박스인 곳은 태그 경로뿐이다.
         if (i < 512 && (g_aunp[i] & g_aderef[i])) {
             sc[i] = false;
-            snprintf(g_why[i], sizeof g_why[0], "it holds an actor unpacked (a parameter or a `spawn`) and also reaches an actor of "
+            low_bfmt(g_why[i], sizeof g_why[0], "it holds an actor unpacked (a parameter or a `spawn`) and also reaches an actor of "
                      "the same type through a container's field — the fast path would keep two copies that drift apart");
             continue;
         }
         // ★ 슬라이스의 **원소 폭**을 정적으로 알아야 한다 — 런타임 표현이 폭마다 다르다.
         if (!cbe_slices_known(d)) {
             sc[i] = false;
-            if (i < 512) snprintf(g_why[i], sizeof g_why[0],
+            if (i < 512) low_bfmt(g_why[i], sizeof g_why[0],
                                   "a slice parameter's element width is not one the fast path knows "
                                   "(f32/f64/struct elements)");
             continue;
@@ -2068,13 +2069,13 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
         for (proven_size_t k = 0; k < d->ncode; k++) {
             if (d->code[k].w == IRW_CALL && (d->code[k].a & IR_CALL_TRY)) {   // ★ 2026-11-11 (O7) — `try send` 는 태그 경로에서만
                 sc[i] = false;
-                if (i < 512) snprintf(g_why[i], sizeof g_why[0], "`try send` is not lowered yet");
+                if (i < 512) low_bfmt(g_why[i], sizeof g_why[0], "`try send` is not lowered yet");
                 break;
             }
             if (!cbe_fast_word(&d->code[k])) {
                 sc[i] = false;
-                if (i < 512) snprintf(g_why[i], sizeof g_why[0],
-                                      "the word `%s` is not lowered yet", low_irw_name(d->code[k].w));
+                if (i < 512) low_bfmt(g_why[i], sizeof g_why[0],
+                                      "the word `{}` is not lowered yet", proven_arg_cstr(low_irw_name(d->code[k].w)));
                 break;
             }
             // ★ RFC-0151 — 128 비트 정수는 태그 경로에만 살았다(빠른 길의 칸은 `long long` 하나였다).
@@ -2083,7 +2084,7 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             //   — 종류 실행(cbe_w128_step)이 까닭을 말한다.
             if (cbe_w128_place(ir, d)) {
                 sc[i] = false;
-                if (i < 512) snprintf(g_why[i], sizeof g_why[0], "a 128-bit value in a struct field, array, slice or stack element stays on the tagged path");
+                if (i < 512) low_bfmt(g_why[i], sizeof g_why[0], "a 128-bit value in a struct field, array, slice or stack element stays on the tagged path");
                 break;
             }
             // ★ 피연산자가 있는 asm 은 값을 **태그 프레임의 지역**에서 읽는다 — 빠른 프레임엔
@@ -2091,7 +2092,7 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
             if (d->code[k].w == IRW_ASM && (proven_size_t)d->code[k].a < ir->nasms &&
                 ir->asms[d->code[k].a].nops > 0) {
                 sc[i] = false;
-                if (i < 512) snprintf(g_why[i], sizeof g_why[0],
+                if (i < 512) low_bfmt(g_why[i], sizeof g_why[0],
                                       "an `asm` block with operands stays on the tagged path — its "
                                       "inputs and outputs live in the tagged frame");
                 break;
@@ -2142,8 +2143,8 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                     if (cc >= ir->ndefs || !sc[cc]) {
                         sc[i] = false; ch = true;
                         if (i < 512 && cc < ir->ndefs)
-                            snprintf(g_why[i], sizeof g_why[0], "it calls `%.*s`, which is not lowered",
-                                     (int)ir->defs[cc].name.size, (const char *)ir->defs[cc].name.ptr);
+                            low_bfmt(g_why[i], sizeof g_why[0], "it calls `{}`, which is not lowered",
+                                     low_sv((const char *)ir->defs[cc].name.ptr, (int)ir->defs[cc].name.size));
                         break;
                     }
                 }
@@ -2155,11 +2156,11 @@ static void cbe_mark_scalar(const low_ir_t *ir, bool *sc) {
                 // ★ `g_kj < 0` 이면 **명령 자리에서 멈춘 것이 아니다**(입구에서 거절).
                 //   그때 `\`ret\` at -1` 이라고 적으면 없는 자리를 가리키는 거짓말이 된다.
                 if (i < 512) {
-                    if (g_kj < 0) snprintf(g_why[i], sizeof g_why[0], "%s",
-                                           g_sub[0] ? g_sub : "the fast path refused this op before reading its code");
-                    else snprintf(g_why[i], sizeof g_why[0], "`%s` at %d%s%s",
-                                  low_irw_name((low_irw_t)g_kw), g_kj,
-                                  g_sub[0] ? " — " : "", g_sub[0] ? g_sub : "");
+                    if (g_kj < 0) low_bfmt(g_why[i], sizeof g_why[0], "{}",
+                                           proven_arg_cstr(g_sub[0] ? g_sub : "the fast path refused this op before reading its code"));
+                    else low_bfmt(g_why[i], sizeof g_why[0], "`{}` at {}{}{}",
+                                  proven_arg_cstr(low_irw_name((low_irw_t)g_kw)), PROVEN_ARG((int)(g_kj)),
+                                  proven_arg_cstr(g_sub[0] ? " — " : ""), proven_arg_cstr(g_sub[0] ? g_sub : ""));
                 }
             }
         for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++)
@@ -2194,7 +2195,7 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
 //   남은 한도는 «이미 읽었나» 를 적는 64 비트 표 하나(`loaded_`)와 폭 좁히기 표(`g_fitn[64]`)다 — 둘 다 64 칸이다.
 #define CBE_LOCMAX 64
 static bool cbe_locals_over(unsigned idx) {
-    snprintf(g_sub, sizeof g_sub, "local %u is past the fast frame's %d locals", idx, CBE_LOCMAX);
+    low_bfmt(g_sub, sizeof g_sub, "local {} is past the fast frame's {} locals", PROVEN_ARG((unsigned)(idx)), PROVEN_ARG((int)(CBE_LOCMAX)));
     return false;
 }
 // ★ 2026-10-31 (W-20261031-2053) — `spawn actor T` 가 낮아진 꼴인가: 액터 상태를 칸마다 상수 0 으로 짓는다(low_ir.c — «선언적 초기화는 후속»).
@@ -2304,7 +2305,7 @@ static int cbe_w128_step(kstack_t *st, const low_ir_ins_t *in, FILE *out) {
         W_PUSH(K_INT); return 1;
     }
     if (in->w == IRW_CAST) {
-        if (m & 0x40000) { snprintf(g_sub, sizeof g_sub, "`narrow_try` of a 128-bit value (its option holds one 64-bit slot)"); return 0; }
+        if (m & 0x40000) { low_bfmt(g_sub, sizeof g_sub, "`narrow_try` of a 128-bit value (its option holds one 64-bit slot)"); return 0; }
         if (st->n < 1) return 0;
         const unsigned char k0 = st->k[st->n-1];
         if (m & IR_SRC_W128) {
@@ -2333,7 +2334,7 @@ static int cbe_w128_step(kstack_t *st, const low_ir_ins_t *in, FILE *out) {
     for (size_t q = 0; q < sizeof WB / sizeof WB[0]; q++) {
         if (WB[q].w != in->w) continue;
         const int op = WB[q].op;
-        if (op <= 2 && (m & 0x40000)) { snprintf(g_sub, sizeof g_sub, "`chk_*` on a 128-bit value (its option holds one 64-bit slot)"); return 0; }
+        if (op <= 2 && (m & 0x40000)) { low_bfmt(g_sub, sizeof g_sub, "`chk_*` on a 128-bit value (its option holds one 64-bit slot)"); return 0; }
         if (st->n < 2 || !WK_OK(st->k[st->n-1]) || !WK_OK(st->k[st->n-2])) return 0;
         const unsigned char kb = st->k[st->n-1], ka = st->k[st->n-2];
         st->n -= 2;
@@ -2408,8 +2409,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     int ns_ = 0;
                     for (proven_size_t k_ = 0; k_ < d->ncode; k_++) if (d->code[k_].w == IRW_STORE && d->code[k_].a == in->a) ns_++;
                     if (ns_ > 1 || (proven_size_t)in->a < d->nparams) {
-                        snprintf(g_sub, sizeof g_sub, "local %lld holds a record with array fields and is stored %d times (a field slice would see the new bytes)",
-                                 (long long)in->a, ns_);
+                        low_bfmt(g_sub, sizeof g_sub, "local {} holds a record with array fields and is stored {} times (a field slice would see the new bytes)",
+                                 PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((int)(ns_)));
                         return false; }
                 }
                 if (st.k[st.n-1] >= K_REC && st.k[st.n-1] < K_VIEW)   // ★ 갓 띄운 액터의 표식은 지역에 남는다(한 번 붙으면 안 떨어진다 — 보수적)
@@ -2459,8 +2460,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                 if ((sl_a && sv_1)) { slot[in->a] = a1; lk[in->a] = a1; }
                                 else if ((sv_a && sl_1)) { /* 이미 더 구체적 — 유지 */ }
                                 else {
-                                    snprintf(g_sub, sizeof g_sub, "local %lld holds two kinds (%d, %d)",
-                                             (long long)in->a, (int)slot[in->a], (int)a1);
+                                    low_bfmt(g_sub, sizeof g_sub, "local {} holds two kinds ({}, {})",
+                                             PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((int)((int)slot[in->a])), PROVEN_ARG((int)((int)a1)));
                                     return false;
                                 }
                             }
@@ -2873,11 +2874,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_VIEW: {
                 // ★ 뷰는 **바이트 슬라이스 위**에 선다 ⇒ 이 def 의 슬라이스는 바이트여야 한다.
                 if (st.n < 1 || st.k[st.n-1] != K_SL || st.ve[st.n-1] != 1) {
-                    snprintf(g_sub, sizeof g_sub, "a view over kind %u (element width %u) — views stand on bytes", st.n ? st.k[st.n-1] : 0, st.n ? st.ve[st.n-1] : 0); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "a view over kind {} (element width {}) — views stand on bytes", PROVEN_ARG((unsigned)(st.n ? st.k[st.n-1] : 0)), PROVEN_ARG((unsigned)(st.n ? st.ve[st.n-1] : 0))); return false; }
                 int sx = (int)(in->a & 0xffff);
                 if (!cbe_view_ok(ir, sx) || !ir->structs[sx].viewable) {   // ★ 뷰는 8필드·중첩 제약이 없다
-                    snprintf(g_sub, sizeof g_sub, "a view of `%.*s`, which the fast path does not read as bytes%s", (int)ir->structs[sx].name.size,
-                             (const char *)ir->structs[sx].name.ptr, ir->structs[sx].is_shadow ? " (an allocator layout)" : ""); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "a view of `{}`, which the fast path does not read as bytes{}", low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size), proven_arg_cstr(ir->structs[sx].is_shadow ? " (an allocator layout)" : "")); return false; }
                 st.k[st.n-1] = (unsigned char)(K_VIEW + sx); st.o[st.n-1] = -1; break;
             }
             case IRW_TRYVIEW: {
@@ -2931,11 +2931,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 const unsigned char ak_ = st.k[b_];
                 if (!(ak_ >= K_REC && ak_ < K_VIEW) || !ir->structs[ak_ - K_REC].is_actor_state ||
                     (snd_ && ak_ != (unsigned char)(K_REC + ir->defs[c_].param_sidx[0]))) {
-                    snprintf(g_sub, sizeof g_sub, "`%s` on an actor the fast path does not hold as a record", snd_ ? "spawn send" : "drain"); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "`{}` on an actor the fast path does not hold as a record", proven_arg_cstr(snd_ ? "spawn send" : "drain")); return false; }
                 if (!(st.fl[b_] & CBE_FL_NOID) || st.o[b_] < 0 || st.o[b_] >= 64 || (proven_size_t)st.o[b_] < d->nparams) {
-                    snprintf(g_sub, sizeof g_sub, "`%s` on an actor this op did not spawn into a local of its own", snd_ ? "spawn send" : "drain"); return false; }
-                if (!snd_ && cbe_struct_has_sl(ir, ak_ - K_REC)) { snprintf(g_sub, sizeof g_sub, "`drain` on an actor whose state has a slice field"); return false; }
-                for (int q = 1; q < np_; q++) if (st.k[b_ + q] != K_INT) { snprintf(g_sub, sizeof g_sub, "`spawn send` argument %d is not an integer", q); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "`{}` on an actor this op did not spawn into a local of its own", proven_arg_cstr(snd_ ? "spawn send" : "drain")); return false; }
+                if (!snd_ && cbe_struct_has_sl(ir, ak_ - K_REC)) { low_bfmt(g_sub, sizeof g_sub, "`drain` on an actor whose state has a slice field"); return false; }
+                for (int q = 1; q < np_; q++) if (st.k[b_ + q] != K_INT) { low_bfmt(g_sub, sizeof g_sub, "`spawn send` argument {} is not an integer", PROVEN_ARG((int)(q))); return false; }
                 faloc_ |= 1ull << st.o[b_];
                 if (snd_ && c_ < 512) g_qthunk[c_] = true;
                 st.n = b_;
@@ -2961,7 +2961,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     // ★★ 2026-11-01 (W-20261031-2053) — 연다. 칸이 지나는 자리를 다 셌다: 싸기 · 지역에 담기/꺼내기(`wssl` ↔ `wlocsl`) ·
                     //   벗기기(→ `rssl`) · 돌려주기(→ 스레드마다 하나인 `lw_ret_rsl`) · 돌려받기(→ `wssl`). `lw_r` 에 칸을 붙이지 않는다.
                     if (!cbe_rec_ok(ir, st.k[st.n-1] - K_REC) && !cbe_rec_slice_ok(ir, st.k[st.n-1] - K_REC)) return false;
-                    if (st.fl[st.n-1] & CBE_FL_NOID) { snprintf(g_sub, sizeof g_sub, "`some` of an actor spawned in this op"); return false; }
+                    if (st.fl[st.n-1] & CBE_FL_NOID) { low_bfmt(g_sub, sizeof g_sub, "`some` of an actor spawned in this op"); return false; }
                     unsigned char rmk = (unsigned char)(st.k[st.n-1] - K_REC + 1);
                     // ★ 레코드-감싼 option/result 는 뷰가 아니다 → fl=0(이미터 WRAP_SOME/OK 와 일치시켜야
                     //   자격 판정과 코드생성이 같은 상태를 본다 — some_value 뷰-오라우팅 SEGV 수정).
@@ -2979,13 +2979,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   — `ve` 는 0 으로 둔다(표식 없는 K_OPT 의 none 과 맞추는 규칙들이 `ve` 를 본다).
                 if (st.k[st.n-1] == K_SL && in->w == IRW_WRAP_SOME) {
                     const unsigned char w_ = st.ve[st.n-1] ? st.ve[st.n-1] : 1;
-                    if (w_ != 1 && w_ != 2 && w_ != 4 && w_ != 8) { snprintf(g_sub, sizeof g_sub, "`some` of a slice whose element width is %u", w_); return false; }
+                    if (w_ != 1 && w_ != 2 && w_ != 4 && w_ != 8) { low_bfmt(g_sub, sizeof g_sub, "`some` of a slice whose element width is {}", PROVEN_ARG((unsigned)(w_))); return false; }
                     st.k[st.n-1] = K_OPTSL; st.ve[st.n-1] = 0; st.vn[st.n-1] = (unsigned char)(w_ > 1 ? w_ : 0); st.o[st.n-1] = -1; break;
                 }
                 // ★ 수를 싼 option · result 를 다시 싼다 → 겹(K_OPT2). 안 태그는 `t2` 로 옮긴다.
                 if (st.k[st.n-1] == K_OPT && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0) {
                     st.k[st.n-1] = K_OPT2; st.o[st.n-1] = -1; break; }
-                if (st.k[st.n-1] != K_INT) { snprintf(g_sub, sizeof g_sub, "`%s` of kind %u", in->w == IRW_WRAP_OK ? "ok" : "some", st.k[st.n-1]); return false; }
+                if (st.k[st.n-1] != K_INT) { low_bfmt(g_sub, sizeof g_sub, "`{}` of kind {}", proven_arg_cstr(in->w == IRW_WRAP_OK ? "ok" : "some"), PROVEN_ARG((unsigned)(st.k[st.n-1]))); return false; }
                 st.k[st.n-1] = K_OPT; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
             case IRW_WRAP_NONE: case IRW_WRAP_ERR:
                 st.o[st.n] = -1; st.ve[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = K_OPT; break;
@@ -3054,9 +3054,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                       if (ob_ >= 0) {
                           const unsigned char hk_ = st.k[st.n - nf + q];
                           if (hk_ >= K_REC && hk_ < K_VIEW && cbe_struct_same(ir, hk_ - K_REC, ob_) && cbe_make_for_struct(ir, ob_) >= 0) continue;
-                          snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` owns a struct; the value is kind %u",
-                                   (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
-                                   (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, hk_);
+                          low_bfmt(g_sub, sizeof g_sub, "field `{}` of `{}` owns a struct; the value is kind {}",
+                                   low_sv((const char *)ir->makes[mk].fields[q].ptr, (int)ir->makes[mk].fields[q].size),
+                                   low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size), PROVEN_ARG((unsigned)(hk_)));
                           return false;
                       } }
                     // ★★ 2026-11-01 — 액터를 가리키는 칸: 칸에서 읽은 것(K_AREF)이나, 제 자리를 가진 액터 상태 레코드를 받는다.
@@ -3066,32 +3066,32 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                           if (hk_ == K_AREF && st.ve[st.n - nf + q] == (unsigned char)(as_ + 1)) continue;
                           if (hk_ == (unsigned char)(K_REC + as_)) {
                               if (st.fl[st.n - nf + q] & CBE_FL_NOID) {
-                                  snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` would hold an actor spawned in this op — the fast path has no tagged handle for it",
-                                           (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
-                                           (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr);
+                                  low_bfmt(g_sub, sizeof g_sub, "field `{}` of `{}` would hold an actor spawned in this op — the fast path has no tagged handle for it",
+                                           low_sv((const char *)ir->makes[mk].fields[q].ptr, (int)ir->makes[mk].fields[q].size),
+                                           low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size));
                                   return false; }
                               if (ir->structs[as_].nf > CBE_AID || as_ >= 64 || !g_aid_need[as_]) return false;
                               continue;
                           }
-                          snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` holds an actor; the value is kind %u",
-                                   (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
-                                   (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, hk_);
+                          low_bfmt(g_sub, sizeof g_sub, "field `{}` of `{}` holds an actor; the value is kind {}",
+                                   low_sv((const char *)ir->makes[mk].fields[q].ptr, (int)ir->makes[mk].fields[q].size),
+                                   low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size), PROVEN_ARG((unsigned)(hk_)));
                           return false;
                       } }
                     if (ir->structs[sx].f[sl].arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 그 바이트를 베낀다(길이는 방출이 잰다 — VM 과 같다)
                         if (st.k[st.n - nf + q] == K_SL || st.k[st.n - nf + q] == K_ROWS) continue;   // ★ 줄의 나열도(바이트 수를 방출이 잰다)
-                        snprintf(g_sub, sizeof g_sub, "array field `%.*s` of `%.*s` wants a slice, the value is kind %u",
-                                 (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
-                                 (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, st.k[st.n - nf + q]);
+                        low_bfmt(g_sub, sizeof g_sub, "array field `{}` of `{}` wants a slice, the value is kind {}",
+                                 low_sv((const char *)ir->makes[mk].fields[q].ptr, (int)ir->makes[mk].fields[q].size),
+                                 low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size), PROVEN_ARG((unsigned)(st.k[st.n - nf + q])));
                         return false;
                     }
                     { const int no_ = cbe_f_nopt(ir, &ir->structs[sx].f[sl]);   // ★ 2026-11-03 (W-20261103-1143) — 마디를 가리키는 칸: option(그 마디의 뷰) · none
                       if (no_ >= 0) {
                           const int ai_ = st.n - (int)nf + (int)q;
                           if (st.k[ai_] == K_OPT && ((st.ve[ai_] == 0 && st.fl[ai_] == 0) || (st.fl[ai_] == 1 && st.ve[ai_] == (unsigned char)(no_ + 1)))) continue;
-                          snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` takes an option of a node built in allocator bytes",
-                                   (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
-                                   (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr);
+                          low_bfmt(g_sub, sizeof g_sub, "field `{}` of `{}` takes an option of a node built in allocator bytes",
+                                   low_sv((const char *)ir->makes[mk].fields[q].ptr, (int)ir->makes[mk].fields[q].size),
+                                   low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size));
                           return false;
                       } }
                     unsigned char want = ir->structs[sx].f[sl].sidx >= 0
@@ -3099,9 +3099,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                        : (ir->structs[sx].f[sl].boxed && ir->structs[sx].f[sl].elem) ? K_SL
                                        : ir->structs[sx].f[sl].flt ? K_FLT : K_INT;
                     if (st.k[st.n - nf + q] != want) {
-                        snprintf(g_sub, sizeof g_sub, "field `%.*s` of `%.*s` wants kind %u, the value is kind %u",
-                                 (int)ir->makes[mk].fields[q].size, (const char *)ir->makes[mk].fields[q].ptr,
-                                 (int)ir->structs[sx].name.size, (const char *)ir->structs[sx].name.ptr, want, st.k[st.n - nf + q]);
+                        low_bfmt(g_sub, sizeof g_sub, "field `{}` of `{}` wants kind {}, the value is kind {}",
+                                 low_sv((const char *)ir->makes[mk].fields[q].ptr, (int)ir->makes[mk].fields[q].size),
+                                 low_sv((const char *)ir->structs[sx].name.ptr, (int)ir->structs[sx].name.size), PROVEN_ARG((unsigned)(want)), PROVEN_ARG((unsigned)(st.k[st.n - nf + q])));
                         return false; }
                 }
                 st.n -= (int)nf;
@@ -3178,7 +3178,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (ir->structs[sx].f[rsl].arrn) {   // ★ 2026-11-01 (W-20261101-1828) — 배열 칸: 그 지역 레코드의 바이트를 보는 슬라이스
                     // 지역에 든 레코드만 — 스택 임시(`rsb`)의 바이트는 다음 푸시가 덮는다. 구획은 검사층이 블록 밖으로 못 나가게 한다(E-LIT-ESCAPE).
                     if (!cbe_f_arr(&ir->structs[sx].f[rsl]) || st.o[st.n-1] < 0 || st.o[st.n-1] >= CBE_LOCMAX) {
-                        snprintf(g_sub, sizeof g_sub, "an array field read from a record that no local holds"); return false; }
+                        low_bfmt(g_sub, sizeof g_sub, "an array field read from a record that no local holds"); return false; }
                     st.k[st.n-1] = cbe_arr_k(&ir->structs[sx].f[rsl]); st.ve[st.n-1] = ir->structs[sx].f[rsl].arresz;
                     st.vn[st.n-1] = (unsigned char)cbe_arr_rb(&ir->structs[sx].f[rsl]);
                     st.fl[st.n-1] = cbe_arr_fl(&ir->structs[sx].f[rsl]); st.o[st.n-1] = -1;
@@ -3257,7 +3257,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (vsl_ >= 0 && cbe_f_arr(&ir->structs[vsx_].f[vsl_])) { st.n -= 2; break; }   // ★ 뷰의 배열 칸에 쓰기 — 제자리에 베낀다
                     if (vsl_ < 0 || !ir->structs[vsx_].is_shadow || !ir->structs[vsx_].f[vsl_].slmeta) return false;
                     const unsigned ez_ = (unsigned)(ir->structs[vsx_].f[vsl_].slmeta & 0xff);
-                    if ((st.ve[st.n-1] ? st.ve[st.n-1] : 1) != ez_) { snprintf(g_sub, sizeof g_sub, "a slice of element width %u into a slice field of width %u", st.ve[st.n-1], ez_); return false; }
+                    if ((st.ve[st.n-1] ? st.ve[st.n-1] : 1) != ez_) { low_bfmt(g_sub, sizeof g_sub, "a slice of element width {} into a slice field of width {}", PROVEN_ARG((unsigned)(st.ve[st.n-1])), PROVEN_ARG((unsigned)(ez_))); return false; }
                     st.n -= 2; break;
                 }
                 // ★ 2026-11-02 (W-20261102-0024 O4) — 마디의 주소 칸에 option(마디의 뷰) · none 을 쓴다(주소 한 칸 · none = 0 — VM 과 같다)
@@ -3265,7 +3265,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     const int vsx_ = st.k[st.n-2] - K_VIEW, vsl_ = cbe_view_slot(ir, vsx_, in->a);
                     if (vsl_ < 0 || !ir->structs[vsx_].is_shadow || !ir->structs[vsx_].f[vsl_].bxs1) return false;
                     const bool none_ = st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0, node_ = st.fl[st.n-1] == 1 && st.ve[st.n-1] == ir->structs[vsx_].f[vsl_].bxs1;
-                    if (!none_ && !node_) { snprintf(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
+                    if (!none_ && !node_) { low_bfmt(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
                     st.n -= 2; break;
                 }
                 // ★ 2026-11-03 (W-20261103-1143) — 레코드의 «마디를 가리키는 칸»에 option(마디의 뷰) · none 을 쓴다(지역에 든 레코드 — 바이트 자리에 주소)
@@ -3274,7 +3274,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     const int no_ = sln_ >= 0 ? cbe_f_nopt(ir, &ir->structs[sxn_].f[sln_]) : -1;
                     if (no_ < 0 || st.o[st.n-2] < 0) return false;
                     const bool none_ = st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0, node_ = st.fl[st.n-1] == 1 && st.ve[st.n-1] == (unsigned char)(no_ + 1);
-                    if (!none_ && !node_) { snprintf(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
+                    if (!none_ && !node_) { low_bfmt(g_sub, sizeof g_sub, "a node field takes an option of a node built in allocator bytes"); return false; }
                     st.n -= 2; break;
                 }
                 if (st.k[st.n-1] != K_INT) return false;
@@ -3442,7 +3442,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (rk == K_INT && cbe_out_w128(d)) rk = K_W128;   // ★ W-20261105-2304 — 128 비트를 돌려주는 op 의 수 상수(위 절반 0 — VM 과 같다)
                 // ★ 2026-11-01 — 갓 띄운 액터(제 자리 없음)를 돌려주면 부른 쪽이 그것을 칸에 담을 수 없다 — 담는 유닛이면 거절한다.
                 if (st.n && rk >= K_REC && rk < K_VIEW && (st.fl[st.n-1] & CBE_FL_NOID) && rk - K_REC < 64 && g_aid_need[rk - K_REC]) {
-                    snprintf(g_sub, sizeof g_sub, "returns an actor spawned in this op (the caller could not keep it in a container)"); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "returns an actor spawned in this op (the caller could not keep it in a container)"); return false; }
                 // ★ option 이 레코드를 감쌌으면 그 표식을 반환에 기록한다(어댑터가 LWV_OK 로 되돌린다).
                 // ★ 2026-11-01 (W-20261101-1828) — 구조체 뷰를 싼 option(fl=1 — `some <뷰>` · `try.view`)은 돌려주지 않는다: 반환 표식(g_retopt)은
                 //   레코드만 말한다 — 받는 쪽이 그것을 레코드로 벗겨 `cr_.r` 을 읽었다(vm_vecgen 의 `at` — VM 42 · 네이티브 8).
@@ -3453,21 +3453,21 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         g_ret_optnode = st.ve[st.n-1];   // ★ 2026-11-03 — 마디의 뷰를 싼 option: 받는 쪽은 그 표식(g_retnode)으로 안다
                         st.ve[st.n-1] = 0;               //   아래 g_ret_optrec 에 레코드로 적히지 않게
                     } else {
-                        snprintf(g_sub, sizeof g_sub, "returns an option of a struct view (the caller would unwrap it as a record)"); return false; }
+                        low_bfmt(g_sub, sizeof g_sub, "returns an option of a struct view (the caller would unwrap it as a record)"); return false; }
                 }
-                if (rk == K_OPT && st.n && st.ve[st.n-1]) { if (g_ret_optnode) { snprintf(g_sub, sizeof g_sub, "two `return`s wrap different kinds in an option"); return false; } g_ret_optrec = st.ve[st.n-1]; }
+                if (rk == K_OPT && st.n && st.ve[st.n-1]) { if (g_ret_optnode) { low_bfmt(g_sub, sizeof g_sub, "two `return`s wrap different kinds in an option"); return false; } g_ret_optrec = st.ve[st.n-1]; }
                 // ★ 슬라이스를 **돌려줄 수 있다** — 다만 그 뜻(원소 수 vs 바이트)이 흔들리면 안 되므로
                 //   바이트 슬라이스 def 에서만. 구조체·뷰 반환은 아직 안 내린다.
                 if (rk == K_ROWS && st.n) {   // ★ 2026-11-01 — 줄의 나열을 돌려준다(배열 답의 결과 자리): 원소 폭 · 줄 바이트 · 표식
                     if (!g_ret_veset) { g_ret_ve = st.ve[st.n-1]; g_ret_fl = st.fl[st.n-1]; g_ret_rb = st.vn[st.n-1]; g_ret_veset = true; }
                     else if (g_ret_ve != st.ve[st.n-1] || g_ret_fl != st.fl[st.n-1] || g_ret_rb != st.vn[st.n-1]) {
-                        snprintf(g_sub, sizeof g_sub, "two `return`s give rows of different shapes"); return false; }
+                        low_bfmt(g_sub, sizeof g_sub, "two `return`s give rows of different shapes"); return false; }
                 }
                 if ((rk == K_SL || rk == K_OPTSL) && st.n) {   // 폭 · 표식을 적는다 — 반환이 여럿이면 같아야 한다(K_OPTSL 의 폭은 vn)
                     const unsigned char ve_ = rk == K_OPTSL ? (st.vn[st.n-1] ? st.vn[st.n-1] : 1) : (st.ve[st.n-1] ? st.ve[st.n-1] : 1), fl_ = st.fl[st.n-1];
                     if (!g_ret_veset) { g_ret_ve = ve_; g_ret_fl = fl_; g_ret_veset = true; }
                     else if (g_ret_ve != ve_ || g_ret_fl != fl_) {
-                        snprintf(g_sub, sizeof g_sub, "two `return`s give slices of different element widths"); return false; }
+                        low_bfmt(g_sub, sizeof g_sub, "two `return`s give slices of different element widths"); return false; }
                 }
                 // ★★★ **반환하는 슬라이스가 타입 슬라이스(원소폭>1)면 빠른 경로 밖으로.** cbe_def_esz 는
                 //   **파라미터** 폭만 본다 — `mk4 input b (slice u8) . output slice u32 . do return
@@ -3499,18 +3499,18 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (rk == K_OPT && st.n && st.ve[st.n-1] == 0 && st.fl[st.n-1] == 0 && *retk == K_OPT2) rk = K_OPT2;
                 if (rk == K_OPT2 && *retk == K_OPT && g_ret_optrec == 0) *retk = K_OPT2;
                 if (rk != K_INT && rk != K_OPT && rk != K_OPTSL && rk != K_OPT2 && rk != K_FLT && rk != K_W128 && rk != K_SL && rk != K_ROWS && rk < K_REC) {
-                    snprintf(g_sub, sizeof g_sub, "returns a kind the fast path has no shape for (%u)", rk); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "returns a kind the fast path has no shape for ({})", PROVEN_ARG((unsigned)(rk))); return false; }
                 if (rk >= K_VIEW) return false;
                 // ★ RFC-0106 단계 4 — 슬라이스 필드를 든 레코드도 **돌려줄 수 있다**
                 //   (경계 복원이 `cbe_emit_rec_recon` 에 실렸다).
                 // ★ 2026-11-01 (W-20261101-1828) — 배열 칸 레코드를 매개변수로 받는 op 은 수 · 수 레코드만 돌려준다(칸 슬라이스가 부른 쪽의 임시를 넘어 살 수 있다)
                 if (cbe_def_arrpar(ir, d) && rk != K_INT && rk != K_FLT && rk != K_W128 && !(rk >= K_REC && rk < K_VIEW && !cbe_struct_has_sl(ir, rk - K_REC)) &&
                     !(rk >= K_REC && rk < K_VIEW && cbe_rec_arr_ok(ir, rk - K_REC))) {
-                    snprintf(g_sub, sizeof g_sub, "takes a struct with array fields and returns kind %u (a field slice could outlive the caller's record)", rk); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "takes a struct with array fields and returns kind {} (a field slice could outlive the caller's record)", PROVEN_ARG((unsigned)(rk))); return false; }
                 if (rk >= K_REC && cbe_make_for_struct(ir, rk - K_REC) < 0 && !cbe_penum_ok(ir, rk - K_REC)) {
-                    snprintf(g_sub, sizeof g_sub, "returns a RECORD with no `lit` site to rebuild it at the boundary"); return false; }
+                    low_bfmt(g_sub, sizeof g_sub, "returns a RECORD with no `lit` site to rebuild it at the boundary"); return false; }
                 if (*retk != 0xff && *retk != rk) {
-                    snprintf(g_sub, sizeof g_sub, "two `return`s give different kinds (%u and %u)", *retk, rk); return false; } // 두 종류를 섞어 돌려주면 **안 내린다**
+                    low_bfmt(g_sub, sizeof g_sub, "two `return`s give different kinds ({} and {})", PROVEN_ARG((unsigned)(*retk)), PROVEN_ARG((unsigned)(rk))); return false; } // 두 종류를 섞어 돌려주면 **안 내린다**
                 *retk = rk;
                 st.n = 0; live = false; break;
             }
@@ -3527,7 +3527,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         if (ce->param_selem[q]) {
                             // ★ 구조체 슬라이스 파라미터 — 원소 폭이 아니라 **sidx** 가 맞아야 한다.
                             if (have_k != (unsigned char)(K_SVIEW + ce->param_selem[q] - 1)) {
-                                snprintf(g_sub, sizeof g_sub, "struct-slice argument %d has the wrong element type", (int)q);
+                                low_bfmt(g_sub, sizeof g_sub, "struct-slice argument {} has the wrong element type", PROVEN_ARG((int)((int)q)));
                                 return false;
                             }
                             continue;
@@ -3535,13 +3535,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         if (ce->param_rowb[q] && !g_no_elemsl) {   // ★ 2026-11-01 — 줄의 나열: 같은 줄 모양이어야 한다
                             const int ai_ = st.n - (int)ce->nparams + (int)q;
                             if (have_k != K_ROWS || st.ve[ai_] != ce->param_rowe[q] || st.vn[ai_] != ce->param_rowb[q] || st.fl[ai_] != (unsigned char)(ce->param_rowfl[q] | (ce->param_rowsub[q] << 2))) {
-                                snprintf(g_sub, sizeof g_sub, "row-slice argument %d has a different row shape", (int)q); return false; }
+                                low_bfmt(g_sub, sizeof g_sub, "row-slice argument {} has a different row shape", PROVEN_ARG((int)((int)q))); return false; }
                             continue;
                         }
                         unsigned char want_e = (unsigned char)cbe_pslice_w(ce, q);   // ★ i64(164) 도 8 · f32/f64 는 param_esz — 폭 규칙은 한 자리
                         if (!want_e || st.ve[st.n - ce->nparams + q] != want_e) {
-                            snprintf(g_sub, sizeof g_sub, "slice widths differ (arg %d: %u, wants %u)", (int)q,
-                                     st.ve[st.n - ce->nparams + q], want_e);
+                            low_bfmt(g_sub, sizeof g_sub, "slice widths differ (arg {}: {}, wants {})", PROVEN_ARG((int)((int)q)),
+                                     PROVEN_ARG((unsigned)(st.ve[st.n - ce->nparams + q])), PROVEN_ARG((unsigned)(want_e)));
                             return false;
                         }
                     }
@@ -3562,7 +3562,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         //   액터 핸들러는 상태를 `mut` 없이 바꾸므로 그대로 묻는다.
                         if (!ce->is_actor && !((ce->param_mutw >> q) & 1u)) continue;
                         if (st.o[st.n - ce->nparams + q] < 0) {
-                            snprintf(g_sub, sizeof g_sub, "callee mutates a struct with no home");
+                            low_bfmt(g_sub, sizeof g_sub, "callee mutates a struct with no home");
                             return false;
                         }
                     }
@@ -3595,7 +3595,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             return false;   // 다른 구조체를 넘기면 안 내린다(모양이 같은 별칭은 넘긴다 — 2026-11-01)
                         else if ((st.fl[st.n - ce->nparams + q] & CBE_FL_NOID) && ce->param_sidx[q] < 64 &&
                                  c < 512 && ((g_acap[c] >> ce->param_sidx[q]) & 1u)) {
-                            snprintf(g_sub, sizeof g_sub, "an actor spawned in this op is handed to an op that may keep it in a container's field");
+                            low_bfmt(g_sub, sizeof g_sub, "an actor spawned in this op is handed to an op that may keep it in a container's field");
                             return false;
                         }
                     }
@@ -3614,16 +3614,16 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                        : ((ce->param_w128 >> q) & 1u) ? K_W128   // ★ W-20261105-2304
                                        : ((ce->param_flt >> q) & 1u) ? K_FLT : K_INT;
                     if (want == K_W128 && q < LOW_MAX_PARAMS && ce->prng[q].has_rng) {
-                        snprintf(g_sub, sizeof g_sub, "a 128-bit argument with a declared range (the range check reads one 64-bit slot)"); return false; }
+                        low_bfmt(g_sub, sizeof g_sub, "a 128-bit argument with a declared range (the range check reads one 64-bit slot)"); return false; }
                     // ★★ 2026-11-02 (W-20261102-0024 O4) — 마디의 뷰 매개변수는 그 그림자의 뷰만 받는다 · `option (owned 마디)` 는 그 뷰를 싼 option 이나 none
                     if (cbe_pnode(ir, ce, q) >= 0) {
-                        if (have != (unsigned char)(K_VIEW + cbe_pnode(ir, ce, q))) { snprintf(g_sub, sizeof g_sub, "argument %d is not a node in allocator bytes", (int)q); return false; }
+                        if (have != (unsigned char)(K_VIEW + cbe_pnode(ir, ce, q))) { low_bfmt(g_sub, sizeof g_sub, "argument {} is not a node in allocator bytes", PROVEN_ARG((int)((int)q))); return false; }
                         continue;
                     }
                     if (cbe_pnodeopt(ir, ce, q) >= 0) {
                         const int ai_ = st.n - (int)ce->nparams + (int)q;
                         if (have == K_OPT && ((st.ve[ai_] == 0 && st.fl[ai_] == 0) || (st.fl[ai_] == 1 && st.ve[ai_] == (unsigned char)(cbe_pnodeopt(ir, ce, q) + 1)))) continue;
-                        snprintf(g_sub, sizeof g_sub, "argument %d is not an option of a node in allocator bytes", (int)q); return false;
+                        low_bfmt(g_sub, sizeof g_sub, "argument {} is not an option of a node in allocator bytes", PROVEN_ARG((int)((int)q))); return false;
                     }
                     // ★ 구조체 파라미터는 레코드 또는 (같은 구조체의) 뷰를 받는다 — 위에서 검증됨.
                     if (((ce->param_struct >> q) & 1u) && have == (unsigned char)(K_VIEW + ce->param_sidx[q]))
@@ -3633,11 +3633,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         cbe_struct_same(ir, have - K_REC, (int)ce->param_sidx[q])) continue;   // ★ 모양이 같은 별칭(위에서 검증됨)
                     // ★ 벡터는 레인 수·원소 폭도 맞아야 한다.
                     if (want == K_VEC) {
-                        if (have != K_VEC) { snprintf(g_sub, sizeof g_sub, "argument %d is not a vector", (int)q); return false; }
+                        if (have != K_VEC) { low_bfmt(g_sub, sizeof g_sub, "argument {} is not a vector", PROVEN_ARG((int)((int)q))); return false; }
                         const unsigned char vfl_ = ((ce->param_vflt >> q) & 1u) ? CBE_FL_FLT : ((ce->param_vsgn >> q) & 1u) ? CBE_FL_SGN : 0;
                         if (st.vn[st.n - ce->nparams + q] != ce->param_vlanes[q] ||
                             st.ve[st.n - ce->nparams + q] != ce->param_ebits[q] || st.fl[st.n - ce->nparams + q] != vfl_) {
-                            snprintf(g_sub, sizeof g_sub, "vector argument %d has a different shape", (int)q);
+                            low_bfmt(g_sub, sizeof g_sub, "vector argument {} has a different shape", PROVEN_ARG((int)((int)q)));
                             return false;
                         }
                         continue;
@@ -3646,13 +3646,13 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         const int ai_ = st.n - (int)ce->nparams + (int)q;
                         if (have == K_OPT && st.ve[ai_] == 0 && st.fl[ai_] == 0) continue;
                         if (have != K_OPTSL || st.fl[ai_] || (st.vn[ai_] ? st.vn[ai_] : 1) != ce->param_optsl[q]) {
-                            snprintf(g_sub, sizeof g_sub, "option-slice argument %d has another shape", (int)q); return false; }
+                            low_bfmt(g_sub, sizeof g_sub, "option-slice argument {} has another shape", PROVEN_ARG((int)((int)q))); return false; }
                         continue;
                     }
                     if (want == K_W128 && have == K_INT) continue;   // ★ W-20261105-2304 — 수 인자는 위 절반 0 으로(VM 과 같다)
                     if (have != want) {
-                        snprintf(g_sub, sizeof g_sub, "argument %d has the wrong kind (%d vs %d)",
-                                 (int)q, (int)have, (int)want);
+                        low_bfmt(g_sub, sizeof g_sub, "argument {} has the wrong kind ({} vs {})",
+                                 PROVEN_ARG((int)((int)q)), PROVEN_ARG((int)((int)have)), PROVEN_ARG((int)((int)want)));
                         return false;
                     }
                     // ★ 비트셋은 **참조로** 넘어간다 ⇒ 그 **집**을 알아야 되받을 수 있다.
@@ -3670,8 +3670,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   //   (반환이 정말 다르면 retk 가 어긋나 최종적으로 거절된다 — 낙관은 안전하다).
                   proven_size_t self = (proven_size_t)(d - ir->defs);
                   if (rk == 0xff && c == self) rk = (*retk == 0xff) ? K_INT : *retk;
-                  if (c == self && rk == K_SL && !g_ret_veset) { snprintf(g_sub, sizeof g_sub, "a recursive call returns a slice of a width not yet known"); return false; }
-                  if (rk == 0xff) { snprintf(g_sub, sizeof g_sub, "callee's return kind unknown"); return false; }
+                  if (c == self && rk == K_SL && !g_ret_veset) { low_bfmt(g_sub, sizeof g_sub, "a recursive call returns a slice of a width not yet known"); return false; }
+                  if (rk == 0xff) { low_bfmt(g_sub, sizeof g_sub, "callee's return kind unknown"); return false; }
                   st.o[st.n] = -1;
                   // ★★★ **호출 결과는 스택 잔재를 물려받으면 안 된다.**
                   //   여기서 `o` 만 지우고 `ve`/`vn`/`fl` 은 그대로 뒀다 ⇒ 그 슬롯에 **전에 있던
@@ -3690,14 +3690,14 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                   }
                   if (rk == K_ROWS) {                                       // ★ 2026-11-01 — 줄의 나열: 원소 폭 · 줄 바이트 · 표식도 피호출자의 기록에서
                       const bool me_ = c == self;
-                      if (me_ && !g_ret_veset) { snprintf(g_sub, sizeof g_sub, "a recursive call returns rows of a shape not yet known"); return false; }
+                      if (me_ && !g_ret_veset) { low_bfmt(g_sub, sizeof g_sub, "a recursive call returns rows of a shape not yet known"); return false; }
                       st.ve[st.n] = me_ ? g_ret_ve : (c < 512 ? g_retve[c] : 1);
                       st.vn[st.n] = me_ ? g_ret_rb : (c < 512 ? g_retrb[c] : 0);
                       st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
                   }
                   if (rk == K_OPTSL) {                                      // ★ 2026-11-01 — 슬라이스 option 의 폭(vn) · 표식도 같은 기록에서
                       const bool me_ = c == self;
-                      if (me_ && !g_ret_veset) { snprintf(g_sub, sizeof g_sub, "a recursive call returns a slice option of a width not yet known"); return false; }
+                      if (me_ && !g_ret_veset) { low_bfmt(g_sub, sizeof g_sub, "a recursive call returns a slice option of a width not yet known"); return false; }
                       const unsigned char w_ = me_ ? g_ret_ve : (c < 512 && g_retve[c] ? g_retve[c] : 1);
                       st.vn[st.n] = (unsigned char)(w_ > 1 ? w_ : 0);
                       st.fl[st.n] = me_ ? g_ret_fl : (c < 512 ? g_retfl[c] : 0);
@@ -3785,7 +3785,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                                    (st.k[st.n-1] == K_SL && (st.ve[st.n-1] ? st.ve[st.n-1] : 1) == w_ && st.fl[st.n-1] == f_);
                                 if (same_) { st.n--; st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = w_; st.vn[st.n-1] = 0; st.fl[st.n-1] = f_; break; }
                             }
-                            if (st.n >= 2) snprintf(g_sub, sizeof g_sub, "`value_or` of kinds %u (ve %u) and %u", st.k[st.n-2], st.ve[st.n-2], st.k[st.n-1]);
+                            if (st.n >= 2) low_bfmt(g_sub, sizeof g_sub, "`value_or` of kinds {} (ve {}) and {}", PROVEN_ARG((unsigned)(st.k[st.n-2])), PROVEN_ARG((unsigned)(st.ve[st.n-2])), PROVEN_ARG((unsigned)(st.k[st.n-1])));
                             return false;
             default: return false;
         }
@@ -3809,12 +3809,12 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
     //   ☞ *전역 상태로 진단을 나르면, 말 안 한 자리는 침묵이 아니라 **남의 말**이 된다.*
     g_kw = (int)IRW_RET; g_kj = -1; g_sub[0] = 0;
     if (d->takes_ref_arg) {
-        snprintf(g_sub, sizeof g_sub, "it takes a `ref` argument (the tagged path owns following refs)");
+        low_bfmt(g_sub, sizeof g_sub, "it takes a `ref` argument (the tagged path owns following refs)");
         return false;
     }
     kstack_t *at = cbe_at_ensure(0, d->ncode);
     if (!at || !cbe_lbuf_ensure(d->nlocals)) {
-        snprintf(g_sub, sizeof g_sub, "the compiler ran out of memory sizing its kind tables for this op");
+        low_bfmt(g_sub, sizeof g_sub, "the compiler ran out of memory sizing its kind tables for this op");
         return false;
     }
     unsigned char *lk = g_lb.lk, *slot = g_lb.slot, *rmap = g_lb.rmap,
@@ -3894,7 +3894,7 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
             if (cbe_pnode(ir, d, q) < 0 && !cbe_rec_slice_ok(ir, d->param_sidx[q]) &&
                 !(!cbe_pmut(d) && cbe_rec_nested_ok(ir, d->param_sidx[q], 0)) &&
                 !cbe_rec_arr_ok(ir, d->param_sidx[q])) {   /* 관문 — RFC-0106 단계 2 · 안의 구조체 · 부동 칸은 2026-10-31(바꾸지 않는 op) · 배열 칸 레코드는 2026-11-01(몸이 칸 슬라이스를 못 내보내는 op — cbe_arrpar_body_ok) */
-                snprintf(g_sub, sizeof g_sub, "parameter %zu is a struct the fast frame cannot hold", q);
+                low_bfmt(g_sub, sizeof g_sub, "parameter {} is a struct the fast frame cannot hold", PROVEN_ARG((size_t)(q)));
                 g_kj = -1;
                 return false;
             }
@@ -4015,7 +4015,7 @@ static bool cbe_store_fits(const low_ir_def_t *d, proven_size_t j, unsigned m, u
 }
 // 본문에서 `loc[K]` 에 쓰는 글자를 센다. 모르는 꼴(주소 · 증감)은 큰 수를 내서 바꾸지 못하게 한다.
 static unsigned cbe_loc_writes(const char *body, int k) {
-    char pat[24]; snprintf(pat, sizeof pat, "loc[%d]", k);
+    char pat[24]; low_bfmt(pat, sizeof pat, "loc[{}]", PROVEN_ARG((int)(k)));
     const size_t ln = strlen(pat); unsigned n = 0;
     for (const char *p = body; (p = strstr(p, pat)); p += ln) {
         if (p != body) { char c = p[-1]; if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') continue; }
@@ -4158,7 +4158,7 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
         bool any = false;
         for (proven_size_t k = 0; k < d->nlocals && k < 64; k++) {
             if (!d->loc_meta[k]) continue;
-            char pat[24]; snprintf(pat, sizeof pat, "loc[%d]", (int)k);
+            char pat[24]; low_bfmt(pat, sizeof pat, "loc[{}]", PROVEN_ARG((int)((int)k)));
             bool used = false;
             for (const char *p = body; (p = strstr(p, pat)); p += strlen(pat))
                 if (p == body || !((p[-1] >= 'a' && p[-1] <= 'z') || (p[-1] >= 'A' && p[-1] <= 'Z') || (p[-1] >= '0' && p[-1] <= '9') || p[-1] == '_')) { used = true; break; }
@@ -4235,7 +4235,7 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     {
         int vsn = g_vspush < 2 ? 2 : (g_vspush > 16 ? 16 : g_vspush);
         const bool clamped = g_vspush > 16;      // 잘라 냈으면 상계가 아니다 ⇒ 검사를 낸다
-        char want[32]; snprintf(want, sizeof want, "%d", vsn);
+        char want[32]; low_bfmt(want, sizeof want, "{}", PROVEN_ARG((int)(vsn)));
         const char *guard = clamped
             ? "    if (LW_UNLIKELY(vsp >= (int)(sizeof vs / sizeof vs[0])))"
               " lw_panic(\"vector stack overflow\");\n"
@@ -5337,12 +5337,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 const bool vproven = (in->a & IR_POL_PROVEN) != 0;
                 char vchk[128];
                 if (vproven) vchk[0] = 0;
-                else snprintf(vchk, sizeof vchk,
-                              "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + %d > limit_))"
-                              " lw_panic(\"vector load out of bounds\");\n", ln);
+                else low_bfmt(vchk, sizeof vchk,
+                              "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + {} > limit_))"
+                              " lw_panic(\"vector load out of bounds\");\n", PROVEN_ARG((int)(ln)));
                 g_vspush++; fputs("@@VSG@@", out);
                 const bool vbyte_ = ks.ve[ks.n-2] <= 1 && ks.fl[ks.n-2] == 0 && ez > 1;   // ★ 2026-11-01 — 종류 실행과 같다
-                char vlim[48]; if (vbyte_) snprintf(vlim, sizeof vlim, " limit_ /= %d;", ez); else vlim[0] = 0;
+                char vlim[48]; if (vbyte_) low_bfmt(vlim, sizeof vlim, " limit_ /= {};", PROVEN_ARG((int)(ez))); else vlim[0] = 0;
                 fprintf(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
                              "      size_t limit_ = s_.n; (void)limit_;%s\n"
                              "%s"
@@ -5398,9 +5398,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 const bool sproven = (in->a & IR_POL_PROVEN) != 0;
                 char schk[128];
                 if (sproven) schk[0] = 0;
-                else snprintf(schk, sizeof schk,
-                              "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + %d > limit_))"
-                              " lw_panic(\"vector store out of bounds\");\n", ln);
+                else low_bfmt(schk, sizeof schk,
+                              "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + {} > limit_))"
+                              " lw_panic(\"vector store out of bounds\");\n", PROVEN_ARG((int)(ln)));
                 const bool vsbyte_ = ks.ve[ks.n-3] <= 1 && ks.fl[ks.n-3] == 0 && ez > 1;   // ★ 2026-11-01 — 바이트 슬라이스(종류 실행과 같다)
                 fprintf(out, "    { lw_v v_ = vs[--vsp]; long long i_ = st[--sp];"
                              " lw_sl s_ = ss[--ssp];\n"
@@ -5451,7 +5451,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     else {
                         const unsigned bw_ = (unsigned)ez_ * 8u;
                         char rng_[96] = "";
-                        if (bw_ < 64) snprintf(rng_, sizeof rng_, " || a_ < -(1ll << %u) || a_ > (1ll << %u) - 1", bw_ - 1, bw_ - 1);
+                        if (bw_ < 64) low_bfmt(rng_, sizeof rng_, " || a_ < -(1ll << {}) || a_ > (1ll << {}) - 1", PROVEN_ARG((unsigned)(bw_ - 1)), PROVEN_ARG((unsigned)(bw_ - 1)));
                         fprintf(out, "        if (__builtin_%s_overflow(a_, x_, &a_)%s) lw_panic(\"integer overflow at the declared width\"); }\n",
                                 in->w == IRW_RADD ? "add" : "mul", rng_);
                     }
@@ -6512,12 +6512,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   −1.0 < 0 이 거짓이었다), 부호 있는 레인이면 부호를 늘려서.
                     char la_[96], lb_[96];
                     if (ks.fl[ks.n-1] == CBE_FL_FLT) {
-                        snprintf(la_, sizeof la_, "lw_b2f(vs[vsp].%s[k_], %d)", cm, ez_); snprintf(lb_, sizeof lb_, "lw_b2f(vs[vsp+1].%s[k_], %d)", cm, ez_);
+                        low_bfmt(la_, sizeof la_, "lw_b2f(vs[vsp].{}[k_], {})", proven_arg_cstr(cm), PROVEN_ARG((int)(ez_))); low_bfmt(lb_, sizeof lb_, "lw_b2f(vs[vsp+1].{}[k_], {})", proven_arg_cstr(cm), PROVEN_ARG((int)(ez_)));
                     } else if (ks.fl[ks.n-1] == CBE_FL_SGN) {
                         const char *sc_ = ez_ == 1 ? "int8_t" : ez_ == 2 ? "int16_t" : ez_ == 4 ? "int32_t" : "int64_t";
-                        snprintf(la_, sizeof la_, "(long long)(%s)vs[vsp].%s[k_]", sc_, cm); snprintf(lb_, sizeof lb_, "(long long)(%s)vs[vsp+1].%s[k_]", sc_, cm);
+                        low_bfmt(la_, sizeof la_, "(long long)({})vs[vsp].{}[k_]", proven_arg_cstr(sc_), proven_arg_cstr(cm)); low_bfmt(lb_, sizeof lb_, "(long long)({})vs[vsp+1].{}[k_]", proven_arg_cstr(sc_), proven_arg_cstr(cm));
                     } else {
-                        snprintf(la_, sizeof la_, "vs[vsp].%s[k_]", cm); snprintf(lb_, sizeof lb_, "vs[vsp+1].%s[k_]", cm);
+                        low_bfmt(la_, sizeof la_, "vs[vsp].{}[k_]", proven_arg_cstr(cm)); low_bfmt(lb_, sizeof lb_, "vs[vsp+1].{}[k_]", proven_arg_cstr(cm));
                     }
                     fprintf(out, "    { long long m_ = 0; vsp -= 2;\n"
                                  "      for (int k_ = 0; k_ < %d; k_++)"
@@ -6748,7 +6748,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                           if (ak == K_AREF) {
                               // ★★ 2026-11-01 — 칸이 가리키는 액터: 비워 둔 손잡이(0)면 VM 처럼 멈춘다(정본 §10.2 (1d)).
                               char v0[32], b0[32];
-                              snprintf(v0, sizeof v0, "cbv%zu_", (size_t)q); snprintf(b0, sizeof b0, "cbx%zu_", (size_t)q);
+                              low_bfmt(v0, sizeof v0, "cbv{}_", PROVEN_ARG((size_t)((size_t)q))); low_bfmt(b0, sizeof b0, "cbx{}_", PROVEN_ARG((size_t)((size_t)q)));
                               fprintf(out, "      %s = lw_aref_out(ss[--ssp]);"
                                            " if (LW_UNLIKELY(%s.tag != LWV_REC)) lw_panic(\"`send` on actor handle 0 — this actor was never spawned\");"
                                            " car[%zu] = %s;\n", v0, v0, (size_t)br, b0);
@@ -6819,7 +6819,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     for (proven_size_t q = 0; q < ce->nparams; q++)
                         if (((ce->param_struct >> q) & 1u) && ks.k[ks.n - ce->nparams + q] == K_AREF) {
                             char v0[32], b0[32];
-                            snprintf(v0, sizeof v0, "cbv%zu_", (size_t)q); snprintf(b0, sizeof b0, "cbx%zu_", (size_t)q);
+                            low_bfmt(v0, sizeof v0, "cbv{}_", PROVEN_ARG((size_t)((size_t)q))); low_bfmt(b0, sizeof b0, "cbx{}_", PROVEN_ARG((size_t)((size_t)q)));
                             cbe_emit_rec_writeback(out, ir, (int)ce->param_sidx[q], v0, b0, "crsl", (size_t)q, (cam & LWA_RSL) != 0);
                         }
                 // ★★★★ **되쓸 것이 없다** (RFC-0039 §9-4 단계 2, 2026-08-03).
@@ -7089,7 +7089,7 @@ void low_cbe_plan(const low_ir_t *ir) {
         pl->ret_sty1 = (!why && g_retk[i] >= K_REC && g_retk[i] < K_VIEW) ? (int)(g_retk[i] - K_REC) + 1 : 0;
         pl->exported_symbol = (d->is_export && !d->is_extern && why == NULL);
         if (why && d->is_export && !d->is_extern) {
-            snprintf(g_plan_why[i], sizeof g_plan_why[0], "%s", why);
+            low_bfmt(g_plan_why[i], sizeof g_plan_why[0], "{}", proven_arg_cstr(why));
             {   // 넘쳐 잘렸으면 글자 경계까지 물린다(이어지는 바이트 10xxxxxx 를 남기지 않는다)
                 size_t L_ = strlen(g_plan_why[i]);
                 if (L_ + 1 >= sizeof g_plan_why[0]) {
@@ -7118,14 +7118,14 @@ void low_cbe_plan(const low_ir_t *ir) {
             proven_u8str_view_t nj = { .ptr = (const proven_u8 *)cbj, .size = lj };
             if (!proven_u8str_view_eq(ni, nj)) continue;
             g_abi_dup = true;
-            snprintf(g_abi_dup_msg, sizeof g_abi_dup_msg,
-                     "two exports would be the SAME C symbol `%.*s` (from modules `%.*s` and "
-                     "`%.*s`) — C's namespace is FLAT, and the tool will not invent a name for "
+            low_bfmt(g_abi_dup_msg, sizeof g_abi_dup_msg,
+                     "two exports would be the SAME C symbol `{}` (from modules `{}` and "
+                     "`{}`) — C's namespace is FLAT, and the tool will not invent a name for "
                      "you: a C symbol is a promise to another language. Give one an explicit "
                      "name: `link \"…\" .`",
-                     (int)ni.size, (const char *)ni.ptr,
-                     (int)ir->defs[i].owner_mod.size, (const char *)ir->defs[i].owner_mod.ptr,
-                     (int)ir->defs[j].owner_mod.size, (const char *)ir->defs[j].owner_mod.ptr);
+                     low_sv((const char *)ni.ptr, (int)ni.size),
+                     low_sv((const char *)ir->defs[i].owner_mod.ptr, (int)ir->defs[i].owner_mod.size),
+                     low_sv((const char *)ir->defs[j].owner_mod.ptr, (int)ir->defs[j].owner_mod.size));
             break;
         }
         if (g_abi_dup) break;
@@ -8486,13 +8486,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           continue;
                       }
                       if (!cbe_rec_slice_ok(ir, (int)d->param_sidx[q]) && !cbe_rec_arr_ok(ir, (int)d->param_sidx[q])) {   // ★ 2026-10-31 — 안의 구조체 · 부동 칸(cbe_rec_nested_ok 가 연 것) · 배열 칸은 아래 풀기(2026-11-01)
-                          char v0[32]; snprintf(v0, sizeof v0, "a[%zu]", (size_t)q);
+                          char v0[32]; low_bfmt(v0, sizeof v0, "a[{}]", PROVEN_ARG((size_t)((size_t)q)));
                           cbe_emit_rec_in(out, ir, (int)d->param_sidx[q], br, 0, v0, 0);
                           br++;
                           continue;
                       }
                       { char v0[32], b0[32]; (void)S;
-                        snprintf(v0, sizeof v0, "a[%zu]", (size_t)q); snprintf(b0, sizeof b0, "ar[%zu]", (size_t)br);
+                        low_bfmt(v0, sizeof v0, "a[{}]", PROVEN_ARG((size_t)((size_t)q))); low_bfmt(b0, sizeof b0, "ar[{}]", PROVEN_ARG((size_t)((size_t)br)));
                         cbe_emit_rec_unpack(out, ir, (int)d->param_sidx[q], v0, b0, "rsl", (size_t)q, true); }
                       br++;
                       continue;
@@ -8588,7 +8588,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     if (!((d->param_struct >> q) & 1u)) continue;
                     if (cbe_pnode(ir, d, q) >= 0) { bw++; continue; }   // ★ 2026-11-02 — 마디의 뷰: 피호출자가 그 바이트에 바로 썼다(되쓸 것이 없다)
                     { char v0[32], b0[32];
-                      snprintf(v0, sizeof v0, "a[%zu]", (size_t)q); snprintf(b0, sizeof b0, "ar[%zu]", (size_t)bw);
+                      low_bfmt(v0, sizeof v0, "a[{}]", PROVEN_ARG((size_t)((size_t)q))); low_bfmt(b0, sizeof b0, "ar[{}]", PROVEN_ARG((size_t)((size_t)bw)));
                       cbe_emit_rec_writeback(out, ir, (int)d->param_sidx[q], v0, b0, "rsl", (size_t)q, true); }
                     bw++;
                 }
@@ -8686,12 +8686,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             g_kj = -1; g_kw = -1; g_sub[0] = 0;
             (void)cbe_kind_ok(ir, d, sc_tab);
             if (g_kj >= 0)
-                snprintf(g_why[i], sizeof g_why[0], "the fast path cannot follow the value at `%s` (op %d)%s%s",
-                         g_kw >= 0 ? low_irw_name((low_irw_t)g_kw) : "?", g_kj,
-                         g_sub[0] ? " — " : "", g_sub[0] ? g_sub : "");
+                low_bfmt(g_why[i], sizeof g_why[0], "the fast path cannot follow the value at `{}` (op {}){}{}",
+                         proven_arg_cstr(g_kw >= 0 ? low_irw_name((low_irw_t)g_kw) : "?"), PROVEN_ARG((int)(g_kj)),
+                         proven_arg_cstr(g_sub[0] ? " — " : ""), proven_arg_cstr(g_sub[0] ? g_sub : ""));
         }
         if (i < 512 && !g_why[i][0])
-            snprintf(g_why[i], sizeof g_why[0], "the kind inference gave up (no stopping point found)");
+            low_bfmt(g_why[i], sizeof g_why[0], "the kind inference gave up (no stopping point found)");
         if (i < 512 && pure_tab[i]) fputs("LW_PURE ", out);
         fputs("static lowv lw_op_", out); put_sym(out, d); fputs("(const lowv *restrict a) {\n", out);
         fputs("    if (++lw_depth > 128) lw_panic(\"call depth limit exceeded\");\n", out);
@@ -8742,9 +8742,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
               "    (void)pbx_; (void)prc_; (void)psk_; (void)pbs_; (void)pvc_;\n", out);
         if (poolgc_ref) fputs("    unsigned rwc_ = lw_refw; int esc_ = 0; lw_rfar rf_ = { {0}, 0 }; (void)rwc_; (void)esc_; (void)rf_;\n", out);
         char pgif_[160] = "";
-        if (poolgc_ref) snprintf(pgif_, sizeof pgif_, "if (!esc_ && !(esc_ = !lw_refw_ok(&rwc_, loc, %zu, &rf_))) ", (size_t)(d->nlocals ? d->nlocals : 1));
+        if (poolgc_ref) low_bfmt(pgif_, sizeof pgif_, "if (!esc_ && !(esc_ = !lw_refw_ok(&rwc_, loc, {}, &rf_))) ", PROVEN_ARG((size_t)((size_t)(d->nlocals ? d->nlocals : 1))));
         // 되감지 못하는 바퀴에도 벡터 풀은 전처럼 되감는다(참조를 쥔 op 은 전에 lw_vecgc 만 냈다)
-        char pgel_[96] = ""; if (poolgc_ref && vecfn) snprintf(pgel_, sizeof pgel_, " else lw_vecgc(vb_, loc, %zu, st, sp);", (size_t)(d->nlocals ? d->nlocals : 1));
+        char pgel_[96] = ""; if (poolgc_ref && vecfn) low_bfmt(pgel_, sizeof pgel_, " else lw_vecgc(vb_, loc, {}, st, sp);", PROVEN_ARG((size_t)((size_t)(d->nlocals ? d->nlocals : 1))));
         proven_u32 lastln2_ = 0; proven_u16 lastfid2_ = 0;
         for (proven_size_t j = 0; j < d->ncode; j++) {
             const low_ir_ins_t *in = &d->code[j];
@@ -9874,23 +9874,23 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           for (proven_size_t q = 0; q < d->nparams && fl + 160 < sizeof fill; q++) {
               int w;
               if ((d->param_struct >> q) & 1u)   // ★ RFC-0132 P4d — C 구조체를 그 바이트 그대로 칸에(배치가 같다 — 아래에서 C 컴파일러가 잰다)
-                  w = snprintf(fill + fl, sizeof fill - fl,
-                               "    _Static_assert(sizeof(struct lw_sty_%u) == %u, \"lw_sty layout\"); memcpy(arb[%zu], &s%zu, sizeof s%zu); ar[%zu] = arb[%zu];\n",
-                               (unsigned)d->param_sidx[q], (unsigned)ir->structs[d->param_sidx[q]].total, (size_t)nst, (size_t)q, (size_t)q, (size_t)nst, (size_t)nst), nst++;
+                  w = low_bfmt(fill + fl, sizeof fill - fl,
+                               "    _Static_assert(sizeof(struct lw_sty_{}) == {}, \"lw_sty layout\"); memcpy(arb[{}], &s{}, sizeof s{}); ar[{}] = arb[{}];\n",
+                               PROVEN_ARG((unsigned)((unsigned)d->param_sidx[q])), PROVEN_ARG((unsigned)((unsigned)ir->structs[d->param_sidx[q]].total)), PROVEN_ARG((size_t)((size_t)nst)), PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)nst)), PROVEN_ARG((size_t)((size_t)nst))), nst++;
               else if ((d->param_cap >> q) & 1u)
-                  w = snprintf(fill + fl, sizeof fill - fl,
-                               "    ai[%zu] = 0;   /* cap: C 에 안 나가지만 슬롯은 있다 */\n",
-                               (size_t)ni), ni++;
+                  w = low_bfmt(fill + fl, sizeof fill - fl,
+                               "    ai[{}] = 0;   /* cap: C 에 안 나가지만 슬롯은 있다 */\n",
+                               PROVEN_ARG((size_t)((size_t)ni))), ni++;
               else if ((d->param_slice >> q) & 1u)
-                  w = snprintf(fill + fl, sizeof fill - fl,
-                               "    as[%zu].p = p%zu; as[%zu].n = n%zu;\n",
-                               (size_t)ns, (size_t)q, (size_t)ns, (size_t)q), ns++;
+                  w = low_bfmt(fill + fl, sizeof fill - fl,
+                               "    as[{}].p = p{}; as[{}].n = n{};\n",
+                               PROVEN_ARG((size_t)((size_t)ns)), PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)ns)), PROVEN_ARG((size_t)((size_t)q))), ns++;
               else if ((d->param_flt >> q) & 1u)
-                  w = snprintf(fill + fl, sizeof fill - fl,
-                               "    af[%zu] = x%zu;\n", (size_t)nfl, (size_t)q), nfl++;
+                  w = low_bfmt(fill + fl, sizeof fill - fl,
+                               "    af[{}] = x{};\n", PROVEN_ARG((size_t)((size_t)nfl)), PROVEN_ARG((size_t)((size_t)q))), nfl++;
               else
-                  w = snprintf(fill + fl, sizeof fill - fl,
-                               "    ai[%zu] = x%zu;\n", (size_t)ni, (size_t)q), ni++;
+                  w = low_bfmt(fill + fl, sizeof fill - fl,
+                               "    ai[{}] = x{};\n", PROVEN_ARG((size_t)((size_t)ni)), PROVEN_ARG((size_t)((size_t)q))), ni++;
               if (w > 0) fl += (proven_size_t)w;
           }
           fprintf(out, "    long long ai[%zu]; lw_sl as[%zu]; double af[%zu];"

@@ -16,6 +16,7 @@
 //     · 타입 생성자(`slice` · `option` · `result` …). 인자를 받는 사용자 타입은 괄호로 싼다(`(box u64)`).
 //   사용자 op 의 인자는 **전부 항**이다 — 타입을 넘길 때도(`max_of u64. a. b. .`).
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기 */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_closer.h"
 #include "low_arity.h"
 #include "low_lex.h"
@@ -57,10 +58,10 @@ static bool cl_in(const low_token_t *t, const char *const *set) {
     const low_token_t *t = &c->T[i < c->n ? i : c->n - 1];
     c->err = (low_diag_t){ .sev = LOW_SEV_ERROR, .code = code, .line = t->line, .col = t->col };
     if (t->kind == LOW_TOK_EOF)
-        snprintf(c->err.detail, sizeof c->err.detail, "%s — the file ends here (RFC-0142)", what);
+        low_bfmt(c->err.detail, sizeof c->err.detail, "{} — the file ends here (RFC-0142)", proven_arg_cstr(what));
     else
-        snprintf(c->err.detail, sizeof c->err.detail, "%s — found `%.*s` (RFC-0142: a name opens, a stop closes; a variable is written `a.`)",
-                 what, (int)(t->lex.size > 40 ? 40 : t->lex.size), (const char *)t->lex.ptr);
+        low_bfmt(c->err.detail, sizeof c->err.detail, "{} — found `{}` (RFC-0142: a name opens, a stop closes; a variable is written `a.`)",
+                 proven_arg_cstr(what), low_sv((const char *)t->lex.ptr, (int)(t->lex.size > 40 ? 40 : t->lex.size)));
     longjmp(c->jb, 1);
 }
 static const low_token_t *cl_tk(cl_t *c, proven_size_t i) {

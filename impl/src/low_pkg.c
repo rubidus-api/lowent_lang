@@ -14,6 +14,7 @@
 //   (E-PKG-KEY 의 논증 그대로: 읽히지 않는 키는 검사되지 않는 키다.)
 #define _GNU_SOURCE   // realpath(3) — -std=c23 은 POSIX 선언을 숨긴다
 #include "low_pkg.h"
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,15 +37,15 @@ bool low_pkg_find(const char *start_dir, low_pkg_t *out) {
     //   realpath 위에서는 "성분 하나 지우기 = 한 단 위" 가 늘 참이다.
     char dir[512];
     if (!realpath(start_dir[0] ? start_dir : ".", dir))
-        snprintf(dir, sizeof dir, "%s", start_dir[0] ? start_dir : ".");
+        low_bfmt(dir, sizeof dir, "{}", proven_arg_cstr(start_dir[0] ? start_dir : "."));
     for (int depth = 0; depth < 8; depth++) {
         char cand[600];
-        snprintf(cand, sizeof cand, "%s/pkg.low", dir);
+        low_bfmt(cand, sizeof cand, "{}/pkg.low", proven_arg_cstr(dir));
         FILE *f = fopen(cand, "rb");
         if (f) {
             fclose(f);
-            snprintf(out->dir, sizeof out->dir, "%s", dir);
-            snprintf(out->path, sizeof out->path, "%s", cand);
+            low_bfmt(out->dir, sizeof out->dir, "{}", proven_arg_cstr(dir));
+            low_bfmt(out->path, sizeof out->path, "{}", proven_arg_cstr(cand));
             out->found = true;
             return true;
         }
@@ -68,11 +69,11 @@ const low_pkg_dep_t *low_pkg_dep_find(const low_pkg_t *p, const char *name) {
 bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
     err[0] = 0;
     FILE *f = fopen(out->path, "rb");
-    if (!f) { snprintf(err, 512, "cannot read manifest: %s", out->path); return false; }
+    if (!f) { low_bfmt(err, 512, "cannot read manifest: {}", proven_arg_cstr(out->path)); return false; }
     static char buf[65536];
     size_t len = fread(buf, 1, sizeof buf, f);
     fclose(f);
-    if (len == sizeof buf) { snprintf(err, 512, "manifest too large (>64KiB): %s", out->path); return false; }
+    if (len == sizeof buf) { low_bfmt(err, 512, "manifest too large (>64KiB): {}", proven_arg_cstr(out->path)); return false; }
 
     proven_u8str_view_t sv = { .ptr = (const proven_u8 *)buf, .size = len };
     low_lex_result_t lx = low_lex(heap, sv);
@@ -88,28 +89,28 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
         proven_size_t nf = e - i;   // DOT 을 뺀 폼 토큰 수
         if (nf == 0) { i = e + 1; continue; }
         if (e >= n || t[e].kind == LOW_TOK_EOF) {
-            snprintf(err, 512, "pkg.low:%u E-PKG-FORM: a declaration must end with `.` — the manifest is the same flat form language as the source", t[i].line);
+            low_bfmt(err, 512, "pkg.low:{} E-PKG-FORM: a declaration must end with `.` — the manifest is the same flat form language as the source", PROVEN_ARG((unsigned)(t[i].line)));
             return false;
         }
 
         if (tveq(&t[i], "package")) {
             // package <key> <value…> . — 정체 키는 ck_package 의 닫힌 집합. 여기선 name/version 만 담고
             // 나머지 알려진 키(description/date/authors/license)는 통과시킨다.
-            if (nf < 3) { snprintf(err, 512, "pkg.low:%u E-PKG-FORM: `package <key> <value> .`", t[i].line); return false; }
+            if (nf < 3) { low_bfmt(err, 512, "pkg.low:{} E-PKG-FORM: `package <key> <value> .`", PROVEN_ARG((unsigned)(t[i].line))); return false; }
             static const char *PKEYS[] = { "name", "version", "description", "date", "authors", "license" };
             bool known = false;
             for (int q = 0; q < 6; q++) if (tveq(&t[i + 1], PKEYS[q])) known = true;
-            if (!known) { snprintf(err, 512, "pkg.low:%u E-PKG-KEY: unknown `package` key — the manifest keys are a CLOSED set (name · version · description · date · authors · license)", t[i + 1].line); return false; }
+            if (!known) { low_bfmt(err, 512, "pkg.low:{} E-PKG-KEY: unknown `package` key — the manifest keys are a CLOSED set (name · version · description · date · authors · license)", PROVEN_ARG((unsigned)(t[i + 1].line))); return false; }
             if (tveq(&t[i + 1], "name"))    tcopy(out->name, sizeof out->name, &t[i + 2]);
             if (tveq(&t[i + 1], "version")) tcopy(out->version, sizeof out->version, &t[i + 2]);
         } else if (tveq(&t[i], "use")) {
             // use <name> from "<source>" [hash "<hex64>"] .
             if (nf < 4 || t[i + 1].kind != LOW_TOK_IDENT || !tveq(&t[i + 2], "from") ||
                 t[i + 3].kind != LOW_TOK_STRING) {
-                snprintf(err, 512, "pkg.low:%u E-PKG-DEP: a dependency is `use <name> from \"<source>\" [hash \"<hex>\"] .` — the same `use` form the source itself writes", t[i].line);
+                low_bfmt(err, 512, "pkg.low:{} E-PKG-DEP: a dependency is `use <name> from \"<source>\" [hash \"<hex>\"] .` — the same `use` form the source itself writes", PROVEN_ARG((unsigned)(t[i].line)));
                 return false;
             }
-            if (out->ndeps >= 32) { snprintf(err, 512, "pkg.low:%u E-PKG-DEP: too many dependencies (max 32)", t[i].line); return false; }
+            if (out->ndeps >= 32) { low_bfmt(err, 512, "pkg.low:{} E-PKG-DEP: too many dependencies (max 32)", PROVEN_ARG((unsigned)(t[i].line))); return false; }
             low_pkg_dep_t *d = &out->deps[out->ndeps];
             memset(d, 0, sizeof *d);
             tcopy(d->name, sizeof d->name, &t[i + 1]);
@@ -117,24 +118,24 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
             d->line = t[i].line;
             if (nf >= 6 && tveq(&t[i + 4], "hash")) {
                 if (t[i + 5].kind != LOW_TOK_STRING || t[i + 5].lex.size != 64) {
-                    snprintf(err, 512, "pkg.low:%u E-PKG-HASH: `hash` pins the CONTENT — it must be the 64-hex BLAKE3 of the dependency's bytes", t[i + 4].line);
+                    low_bfmt(err, 512, "pkg.low:{} E-PKG-HASH: `hash` pins the CONTENT — it must be the 64-hex BLAKE3 of the dependency's bytes", PROVEN_ARG((unsigned)(t[i + 4].line)));
                     return false;
                 }
                 tcopy(d->hash, sizeof d->hash, &t[i + 5]);
             } else if (nf != 4) {
-                snprintf(err, 512, "pkg.low:%u E-PKG-DEP: unexpected words after the dependency source (only `hash \"<hex>\"` may follow)", t[i].line);
+                low_bfmt(err, 512, "pkg.low:{} E-PKG-DEP: unexpected words after the dependency source (only `hash \"<hex>\"` may follow)", PROVEN_ARG((unsigned)(t[i].line)));
                 return false;
             }
             // 같은 이름 두 번 = 어느 쪽을 믿어야 하는지 아무도 모른다
             for (int q = 0; q < out->ndeps; q++)
                 if (strcmp(out->deps[q].name, d->name) == 0) {
-                    snprintf(err, 512, "pkg.low:%u E-PKG-DUP: dependency `%s` is declared twice — two declarations for one name means every reader must pick, and they will not all pick the same one", t[i].line, d->name);
+                    low_bfmt(err, 512, "pkg.low:{} E-PKG-DUP: dependency `{}` is declared twice — two declarations for one name means every reader must pick, and they will not all pick the same one", PROVEN_ARG((unsigned)(t[i].line)), proven_arg_cstr(d->name));
                     return false;
                 }
             out->ndeps++;
         } else if (tveq(&t[i], "build")) {
             // build <key> <value> . — 이 매니페스트가 아는 빌드 키는 entry/profile/target/limb_bits/comptime_steps/absorb 뿐.
-            if (nf < 3) { snprintf(err, 512, "pkg.low:%u E-PKG-FORM: `build <key> <value> .`", t[i].line); return false; }
+            if (nf < 3) { low_bfmt(err, 512, "pkg.low:{} E-PKG-FORM: `build <key> <value> .`", PROVEN_ARG((unsigned)(t[i].line))); return false; }
             if      (tveq(&t[i + 1], "entry"))   tcopy(out->entry,   sizeof out->entry,   &t[i + 2]);
             else if (tveq(&t[i + 1], "profile")) tcopy(out->profile, sizeof out->profile, &t[i + 2]);
             else if (tveq(&t[i + 1], "target"))  tcopy(out->target,  sizeof out->target,  &t[i + 2]);
@@ -143,7 +144,7 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
                 //   `build` · `run` 이 최상위 패키지의 것만 쓴다 — 의존 패키지가 쓰는 쪽의 폭을 바꾸지 않는다.
                 tcopy(out->limb_bits, sizeof out->limb_bits, &t[i + 2]);
                 if (strcmp(out->limb_bits, "16") && strcmp(out->limb_bits, "32") && strcmp(out->limb_bits, "64")) {
-                    snprintf(err, 512, "pkg.low:%u E-PKG-FORM: `build limb_bits` takes 16, 32 or 64 (the limb widths the big-number modules have)", t[i + 2].line);
+                    low_bfmt(err, 512, "pkg.low:{} E-PKG-FORM: `build limb_bits` takes 16, 32 or 64 (the limb widths the big-number modules have)", PROVEN_ARG((unsigned)(t[i + 2].line)));
                     return false;
                 }
             }
@@ -152,7 +153,7 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
                 tcopy(out->comptime_steps, sizeof out->comptime_steps, &t[i + 2]);
                 char *ep = NULL; unsigned long long v = strtoull(out->comptime_steps, &ep, 10);
                 if (!out->comptime_steps[0] || *ep || v == 0 || v > 1000000000000ull) {
-                    snprintf(err, 512, "pkg.low:%u E-PKG-FORM: `build comptime_steps` takes a whole number of VM steps from 1 to 10^12 (the budget of one compile-time call)", t[i + 2].line);
+                    low_bfmt(err, 512, "pkg.low:{} E-PKG-FORM: `build comptime_steps` takes a whole number of VM steps from 1 to 10^12 (the budget of one compile-time call)", PROVEN_ARG((unsigned)(t[i + 2].line)));
                     return false;
                 }
             }
@@ -160,9 +161,9 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
                 // ★ RFC-0120 §5.2-10 — `build absorb <모듈> .` : 그 모듈만 `absorbs` 를 쓸 수 있다.
                 if (out->nabsorb < 16) tcopy(out->absorb[out->nabsorb++], 64, &t[i + 2]);
             }
-            else { snprintf(err, 512, "pkg.low:%u E-PKG-KEY: unknown `build` key in the manifest — it knows entry · profile · target · limb_bits · comptime_steps · absorb (a key nobody reads is a key nobody checks)", t[i + 1].line); return false; }
+            else { low_bfmt(err, 512, "pkg.low:{} E-PKG-KEY: unknown `build` key in the manifest — it knows entry · profile · target · limb_bits · comptime_steps · absorb (a key nobody reads is a key nobody checks)", PROVEN_ARG((unsigned)(t[i + 1].line))); return false; }
         } else {
-            snprintf(err, 512, "pkg.low:%u E-PKG-FORM: unknown declaration head `%.*s` — the manifest is a CLOSED set of flat forms: `package <k> <v> .` · `use <n> from \"<s>\" [hash \"<h>\"] .` · `build <k> <v> .`", t[i].line, (int)(t[i].lex.size < 32 ? t[i].lex.size : 32), (const char *)t[i].lex.ptr);
+            low_bfmt(err, 512, "pkg.low:{} E-PKG-FORM: unknown declaration head `{}` — the manifest is a CLOSED set of flat forms: `package <k> <v> .` · `use <n> from \"<s>\" [hash \"<h>\"] .` · `build <k> <v> .`", PROVEN_ARG((unsigned)(t[i].line)), low_sv((const char *)t[i].lex.ptr, (int)(t[i].lex.size < 32 ? t[i].lex.size : 32)));
             return false;
         }
         i = e + 1;

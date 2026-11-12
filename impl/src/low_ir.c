@@ -1,5 +1,6 @@
 // low_ir.c — S5b: MVP core (+slices/records/result) → stack IR + SCC Merkle hashing.
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "proven/utf.h"
 #include "low_hwm.h"
 #include "low_ir.h"
@@ -421,11 +422,11 @@ static proven_size_t ir_tnode_find(const char *name) {
 static bool ir_tnode_resolve(proven_size_t i, low_target_t *out, char *err, size_t errn) {
     proven_size_t chain[16]; int depth = 0;
     for (proven_size_t j = i; ; ) {
-        if (depth == 16) { snprintf(err, errn, "`%s`: the tree is deeper than 16", IR_TREE[i].name); return false; }
+        if (depth == 16) { low_bfmt(err, errn, "`{}`: the tree is deeper than 16", proven_arg_cstr(IR_TREE[i].name)); return false; }
         chain[depth++] = j;
         if (!IR_TREE[j].parent) break;
         proven_size_t p = ir_tnode_find(IR_TREE[j].parent);
-        if (p >= j) { snprintf(err, errn, "`%s`: parent `%s` is not an earlier node", IR_TREE[j].name, IR_TREE[j].parent); return false; }
+        if (p >= j) { low_bfmt(err, errn, "`{}`: parent `{}` is not an earlier node", proven_arg_cstr(IR_TREE[j].name), proven_arg_cstr(IR_TREE[j].parent)); return false; }
         j = p;
     }
     *out = (low_target_t){ 0 };
@@ -435,13 +436,13 @@ static bool ir_tnode_resolve(proven_size_t i, low_target_t *out, char *err, size
             if (!*s) break;
             const char *k = s; while (*s && *s != '=' && *s != ' ') s++;
             if (*s != '=' || !ir_axis(out, k, (size_t)(s - k), s + 1)) {
-                snprintf(err, errn, "`%s`: bad axis value near `%.24s`", IR_TREE[chain[d]].name, k); return false;
+                low_bfmt(err, errn, "`{}`: bad axis value near `{:.24}`", proven_arg_cstr(IR_TREE[chain[d]].name), proven_arg_cstr(k)); return false;
             }
             while (*s && *s != ' ') s++;
         }
     }
     out->name = IR_TREE[i].name;
-    if (out->ptr_bytes * 8 < out->addr_bits) { snprintf(err, errn, "`%s`: a pointer narrower than the address", out->name); return false; }
+    if (out->ptr_bytes * 8 < out->addr_bits) { low_bfmt(err, errn, "`{}`: a pointer narrower than the address", proven_arg_cstr(out->name)); return false; }
     return true;
 }
 // 표는 소스에 박혀 있으므로 틀리면 **처리기의 결함**이다 — 단위 시험이 모든 마디를 펼쳐 본다(`low_ir_target_tree_ok`).
@@ -609,8 +610,8 @@ bool low_ir_target_known(proven_u8str_view_t name) {
 void low_ir_config_reset(void) { g_ncfg = 0; }
 void low_ir_config_add(const char *name, const char *value) {
     if (g_ncfg >= IR_MAXOPT) return;
-    snprintf(g_cfg[g_ncfg].name, sizeof g_cfg[0].name, "%s", name);
-    snprintf(g_cfg[g_ncfg].val, sizeof g_cfg[0].val, "%s", value);
+    low_bfmt(g_cfg[g_ncfg].name, sizeof g_cfg[0].name, "{}", proven_arg_cstr(name));
+    low_bfmt(g_cfg[g_ncfg].val, sizeof g_cfg[0].val, "{}", proven_arg_cstr(value));
     g_ncfg++;
 }
 proven_size_t low_ir_config_count(void) { return g_ncfg; }
@@ -1401,20 +1402,20 @@ static bool ir_cap_cause(ir_ctx_t *c, const char *kind, low_cst_t *const *k,
     char buf[256];
     if (ir_param_cap_kind(c->def_form, nm, &got)) {
         if (veq(got, kind)) return false;                 // 종류가 맞다 — 다른 이유다
-        snprintf(buf, sizeof buf,
-                 "this leaf needs a `cap %s`, and `%.*s` is a `cap %.*s`. One capability never "
+        low_bfmt(buf, sizeof buf,
+                 "this leaf needs a `cap {}`, and `{}` is a `cap {}`. One capability never "
                  "stands in for another: each names a different right, and holding one says "
                  "nothing about the other (RFC-0011)",
-                 kind, (int)nm.size, (const char *)nm.ptr, (int)got.size, (const char *)got.ptr);
+                 proven_arg_cstr(kind), low_sv((const char *)nm.ptr, (int)nm.size), low_sv((const char *)got.ptr, (int)got.size));
         ir_fail_buf(c, "E-CAP-KIND", buf, line);
         return true;
     }
     if (ir_local_cap_kind(c->def_form, nm, &got)) {
-        snprintf(buf, sizeof buf,
-                 "`%.*s` is a LOCAL that a `cap %.*s` was copied into. A capability is not a value "
+        low_bfmt(buf, sizeof buf,
+                 "`{}` is a LOCAL that a `cap {}` was copied into. A capability is not a value "
                  "you carry in a local name: only a parameter of this op names a right it was "
                  "handed, so hand the parameter itself to the leaf (RFC-0030 D2)",
-                 (int)nm.size, (const char *)nm.ptr, (int)got.size, (const char *)got.ptr);
+                 low_sv((const char *)nm.ptr, (int)nm.size), low_sv((const char *)got.ptr, (int)got.size));
         ir_fail_buf(c, "E-CAP-LOCAL", buf, line);
         return true;
     }
@@ -1918,73 +1919,73 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
         for (proven_size_t i = 0; i < c->nenumv; i++)
             if (c->enum_owner[i].size && proven_u8str_view_eq(c->enum_owner[i], head)) {
                 nv++;
-                int w = snprintf(vl + vn, sizeof vl - vn, "%s%.*s", vn ? ", " : "", (int)c->enumv[i].size, (const char *)c->enumv[i].ptr);
+                int w = low_bfmt(vl + vn, sizeof vl - vn, "{}{}", proven_arg_cstr(vn ? ", " : ""), low_sv((const char *)c->enumv[i].ptr, (int)c->enumv[i].size));
                 if (w < 0 || (size_t)w >= sizeof vl - vn) { vn = sizeof vl - 1; break; }
                 vn += (size_t)w;
             }
         if (nv) {
-            snprintf(buf, sizeof buf, "enum `%.*s` has no variant `%.*s` — its variants are: %s",
-                     (int)head.size, (const char *)head.ptr, (int)tail.size, (const char *)tail.ptr, vl);
+            low_bfmt(buf, sizeof buf, "enum `{}` has no variant `{}` — its variants are: {}",
+                     low_sv((const char *)head.ptr, (int)head.size), low_sv((const char *)tail.ptr, (int)tail.size), proven_arg_cstr(vl));
             ir_fail_buf(c, "E-ENUM-NOVARIANT", buf, nd->line);
             return;
         }
         bool is_mod = false;
         for (proven_size_t m = 0; m < c->nmodnames; m++) if (proven_u8str_view_eq(head, c->modnames[m])) is_mod = true;
         if (is_mod)
-            snprintf(buf, sizeof buf, "module `%.*s` has no op or value named `%.*s` — check the spelling, and "
+            low_bfmt(buf, sizeof buf, "module `{}` has no op or value named `{}` — check the spelling, and "
                      "that the module exports it (`export fn`/`export proc`)",
-                     (int)head.size, (const char *)head.ptr, (int)tail.size, (const char *)tail.ptr);
+                     low_sv((const char *)head.ptr, (int)head.size), low_sv((const char *)tail.ptr, (int)tail.size));
         else
-            snprintf(buf, sizeof buf, "undefined name `%.*s` — `%.*s` is not a module used by this unit (`use %.*s .`) "
-                     "nor an enum", (int)lex.size, (const char *)lex.ptr, (int)head.size, (const char *)head.ptr,
-                     (int)head.size, (const char *)head.ptr);
+            low_bfmt(buf, sizeof buf, "undefined name `{}` — `{}` is not a module used by this unit (`use {} .`) "
+                     "nor an enum", low_sv((const char *)lex.ptr, (int)lex.size), low_sv((const char *)head.ptr, (int)head.size),
+                     low_sv((const char *)head.ptr, (int)head.size));
     } else if (low_renamed_word(lex))
-        snprintf(buf, sizeof buf, "undefined name `%.*s` — this builtin is now spelled `%s` (RFC-0127: the bitset and "
-                 "lane ops carry a prefix, so these short words are free for your own ops)%s",
-                 (int)lex.size, (const char *)lex.ptr, low_renamed_word(lex),
-                 (veq(lex, "any") || veq(lex, "all")) ? ". Inside `pipe … do … end` the terminal stays `any`/`all`" : "");
+        low_bfmt(buf, sizeof buf, "undefined name `{}` — this builtin is now spelled `{}` (RFC-0127: the bitset and "
+                 "lane ops carry a prefix, so these short words are free for your own ops){}",
+                 low_sv((const char *)lex.ptr, (int)lex.size), proven_arg_cstr(low_renamed_word(lex)),
+                 proven_arg_cstr((veq(lex, "any") || veq(lex, "all")) ? ". Inside `pipe … do … end` the terminal stays `any`/`all`" : ""));
     else if (low_ir_is_builtin_op(lex)) {
         // ★ 저자의 이름 가운데 이 철자가 없다 — 빌트인 연산을 맨 이름으로 부르려던 것이다.
         // ★ RFC-0147 (2026-10-12) — 감싸개가 있는 것은 그 이름을 댄다. 배우는 사람이 다음에 칠 글자를 진단이 말한다.
         const char *wr = low_builtin_wrapper(lex);
         if (wr) {
             const char *dot = strchr(wr, '.');
-            snprintf(buf, sizeof buf, "no op, local or input named `%.*s` is in scope. It is a builtin op: write `use %.*s .` "
-                     "and call the library op `%s ...`. The builtin itself stands only after `call_builtin`",
-                     (int)lex.size, (const char *)lex.ptr, (int)(dot ? dot - wr : 0), wr, wr);
+            low_bfmt(buf, sizeof buf, "no op, local or input named `{}` is in scope. It is a builtin op: write `use {} .` "
+                     "and call the library op `{} ...`. The builtin itself stands only after `call_builtin`",
+                     low_sv((const char *)lex.ptr, (int)lex.size), low_sv(wr, (int)(dot ? dot - wr : 0)), proven_arg_cstr(wr));
         } else
-        snprintf(buf, sizeof buf, "no op, local or input named `%.*s` is in scope. A builtin op has this name, and a builtin op "
-                 "stands only after `call_builtin` — write `call_builtin %.*s ...`. Builtin ops live in their own "
+        low_bfmt(buf, sizeof buf, "no op, local or input named `{}` is in scope. A builtin op has this name, and a builtin op "
+                 "stands only after `call_builtin` — write `call_builtin {} ...`. Builtin ops live in their own "
                  "namespace: they are for the system library, and a program normally calls the library wrapper",
-                 (int)lex.size, (const char *)lex.ptr, (int)lex.size, (const char *)lex.ptr);
+                 low_sv((const char *)lex.ptr, (int)lex.size), low_sv((const char *)lex.ptr, (int)lex.size));
         ir_fail_buf(c, "E-BUILTIN-BARE", buf, nd->line);
         return;
     }
     else if (veq(lex, "count") || veq(lex, "seg") || veq(lex, "segs") || veq(lex, "map") || veq(lex, "filter") || veq(lex, "fold"))
         // ★ RFC-0150 Q3 (1.13) — 1.12 까지 기본 연산이던 이름이다. 옮길 곳을 말한다. 전위 map · filter · fold 는 `pipe` 를 먼저 말한다
         //   (§8-24, 소유자 2026-10-21 «ㄱ 새 문법 없음, pipe» — 세 제약을 pipe 가 이미 푼다).
-        snprintf(buf, sizeof buf, "undefined name `%.*s` — it was a core op until 1.12 and is an ordinary name since 1.13 (RFC-0150). "
-                 "%s", (int)lex.size, (const char *)lex.ptr,
-                 veq(lex, "count") ? "A bitset's size is `bitset_count <set> .`, a stack's `stack_count <stack> .`, the number of "
+        low_bfmt(buf, sizeof buf, "undefined name `{}` — it was a core op until 1.12 and is an ordinary name since 1.13 (RFC-0150). "
+                 "{}", low_sv((const char *)lex.ptr, (int)lex.size),
+                 proven_arg_cstr(veq(lex, "count") ? "A bitset's size is `bitset_count <set> .`, a stack's `stack_count <stack> .`, the number of "
                                      "arguments `len <cap args> .`; inside `pipe` the terminal `count .` is unchanged"
                  : veq(lex, "seg") ? "One piece of a segments view is `segview.piece_at <view> <i> .` (`use segview .`)"
                  : veq(lex, "segs") ? "The number of pieces is `segview.piece_count <view> .` (`use segview .`)"
                  : "Write it as a `pipe`: `pipe <src> do map <op> . collect into <dst> . end .` (also `filter <op> .`, `fold <start> <op> .`; "
                    "`with <value>` passes a setting). The module `collection` (`collection.map` / `filter` / `fold`) is for code where "
-                   "the element type carries the work");
+                   "the element type carries the work"));
     else if (veq(lex, "adopt") || veq(lex, "clone") || veq(lex, "addr")) {
         // ★★ 2026-11-12 (W-20261111-2349 E1) — 정본 §6.9.4 가 뜻을 정했으나 아직 짓지 않은 낱말이다. 저자가 같은 이름의 op 을 지으면 그것이 선다
         //   (예약어가 아니다) — 여기 오는 것은 그런 op 이 없을 때뿐이다.
-        snprintf(buf, sizeof buf, "`%.*s` is decided (canon 6.9.4: %s) but NOT BUILT yet — it stays tracked and is dropped if it proves "
-                 "unnecessary", (int)lex.size, (const char *)lex.ptr,
-                 veq(lex, "adopt") ? "it turns a `raw` location back into a safe slice inside `unsafe`"
-                 : veq(lex, "addr") ? "`addr <local>` takes the location of a local as a number, inside `unsafe`" : "a deep copy of a value into a region");
+        low_bfmt(buf, sizeof buf, "`{}` is decided (canon 6.9.4: {}) but NOT BUILT yet — it stays tracked and is dropped if it proves "
+                 "unnecessary", low_sv((const char *)lex.ptr, (int)lex.size),
+                 proven_arg_cstr(veq(lex, "adopt") ? "it turns a `raw` location back into a safe slice inside `unsafe`"
+                 : veq(lex, "addr") ? "`addr <local>` takes the location of a local as a number, inside `unsafe`" : "a deep copy of a value into a region"));
         ir_fail_buf(c, "E-UNSAFE-UNBUILT", buf, nd->line);
         return;
     }
     else
-        snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
-                 "variant in scope here", (int)lex.size, (const char *)lex.ptr);
+        low_bfmt(buf, sizeof buf, "undefined name `{}` — not a local, an input, an op, a constant or an enum "
+                 "variant in scope here", low_sv((const char *)lex.ptr, (int)lex.size));
     ir_fail_buf(c, "E-IR-UNDEF", buf, nd->line);
 }
 static bool ir_is_enum_variant(const ir_ctx_t *c, proven_u8str_view_t name) {
@@ -2368,12 +2369,12 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
                 spaced[sn++] = nb[z] == '.' ? ' ' : nb[z];
             spaced[sn] = 0;
             char msg[512];
-            snprintf(msg, sizeof msg,
-                     "glued-dot field access is gone — write `(field %s)` instead of `%s`. "
+            low_bfmt(msg, sizeof msg,
+                     "glued-dot field access is gone — write `(field {})` instead of `{}`. "
                      "One meaning gets one spelling: the dot still means module qualification, "
                      "a variant name and a type-associated declaration, so a fourth meaning made "
                      "the same letters mean four things. `field` chains: `(field o i z)`",
-                     spaced, nb);
+                     proven_arg_cstr(spaced), proven_arg_cstr(nb));
             ir_fail_buf(c, "E-FIELD-GLUED", msg, line);
             return true;
         }
@@ -3231,7 +3232,7 @@ static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *
     const low_cst_t *pa = a->kids[1];
     while (pa && pa->kind == LOW_CST_GROUP && pa->nkids == 1) pa = pa->kids[0];
     if (!is_atom(pa) || pa->tok.kind != LOW_TOK_STRING || pa->tok.aux.size) {
-        snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text` takes a path written as a plain string: `include_text \"data.txt\" .`");
+        low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text` takes a path written as a plain string: `include_text \"data.txt\" .`");
         return false;
     }
     const proven_u8str_view_t pv = pa->tok.lex;
@@ -3242,29 +3243,29 @@ static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *
         if (seg0 && i + 1 < pv.size && pv.ptr[i] == '.' && pv.ptr[i + 1] == '.' && (i + 2 == pv.size || pv.ptr[i + 2] == '/')) bad = true;
     }
     if (bad) {
-        snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text \"%.*s\"`: the path is read from the folder of this source file and stays inside it — "
-                 "no absolute path, no `..`, `/` between folders (RFC-0015 §6.4)", (int)(pv.size > 120 ? 120 : pv.size), (const char *)pv.ptr);
+        low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text \"{}\"`: the path is read from the folder of this source file and stays inside it — "
+                 "no absolute path, no `..`, `/` between folders (RFC-0015 §6.4)", low_sv((const char *)pv.ptr, (int)(pv.size > 120 ? 120 : pv.size)));
         return false;
     }
     const char *sf = a->file ? a->file : (pa->file ? pa->file : NULL);
     if (g_include_reader) {
         char rel[402];
-        snprintf(rel, sizeof rel, "%.*s", (int)pv.size, (const char *)pv.ptr);
+        low_bfmt(rel, sizeof rel, "{}", low_sv((const char *)pv.ptr, (int)pv.size));
         return g_include_reader(sf, rel, out, n, g_ctfe_inc_why, sizeof g_ctfe_inc_why);
     }
     char path[1024];
     const char *sl = sf ? strrchr(sf, '/') : NULL;
-    if (sl) snprintf(path, sizeof path, "%.*s/%.*s", (int)(sl - sf), sf, (int)pv.size, (const char *)pv.ptr);
-    else snprintf(path, sizeof path, "%.*s", (int)pv.size, (const char *)pv.ptr);
+    if (sl) low_bfmt(path, sizeof path, "{}/{}", low_sv(sf, (int)(sl - sf)), low_sv((const char *)pv.ptr, (int)pv.size));
+    else low_bfmt(path, sizeof path, "{}", low_sv((const char *)pv.ptr, (int)pv.size));
     FILE *fp = fopen(path, "rb");
-    if (!fp) { snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text`: cannot read `%.200s` (read from the folder of this source file)", path); return false; }
+    if (!fp) { low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text`: cannot read `{:.200}` (read from the folder of this source file)", proven_arg_cstr(path)); return false; }
     proven_u8 *b = low_alloc(IR_INCLUDE_MAX + 1);
     proven_size_t got = b ? fread(b, 1, IR_INCLUDE_MAX + 1, fp) : 0;
     const bool err = !b || ferror(fp);
     fclose(fp);
     if (err || got > IR_INCLUDE_MAX) {
         low_free(b);
-        snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, err ? "`include_text`: reading `%.200s` failed" : "`include_text`: `%.200s` is larger than 1 MiB — a file read when translating holds at most that", path);
+        low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, err ? "`include_text`: reading `{:.200}` failed" : "`include_text`: `{:.200}` is larger than 1 MiB — a file read when translating holds at most that", proven_arg_cstr(path));
         return false;
     }
     *out = b; *n = got;
@@ -3350,7 +3351,7 @@ void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce) {
         if (low_ctfe_value(ce->kids[j + 1], &nm, &cc->args[j], &u2)) continue;
         g_ctfe_inc_why[0] = 0;
         if (ir_ctfe_slice_arg(c, ce->kids[j + 1], &cc->argb[j], &cc->argn[j])) { cc->argsl[j] = true; continue; }
-        if (g_ctfe_inc_why[0]) { snprintf(cc->why, sizeof cc->why, "%s", g_ctfe_inc_why); return; }   // 파일을 못 읽었다 — 그 까닭이 이 자리의 까닭이다
+        if (g_ctfe_inc_why[0]) { low_bfmt(cc->why, sizeof cc->why, "{}", proven_arg_cstr(g_ctfe_inc_why)); return; }   // 파일을 못 읽었다 — 그 까닭이 이 자리의 까닭이다
         all = false;
     }
     if (all) { cc->nargs = na; cc->hasargs = true; }
@@ -6230,9 +6231,9 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     proven_u8str_view_t cn = k[*pos + ci]->tok.lex, cgot = { 0 };
                     if (ir_param_cap_kind(c->def_form, cn, &cgot) || !ir_local_cap_kind(c->def_form, cn, &cgot)) continue;
                     char abuf[256];
-                    snprintf(abuf, sizeof abuf, "`%.*s` is a LOCAL that a `cap %.*s` was copied into. A capability is not a value "
+                    low_bfmt(abuf, sizeof abuf, "`{}` is a LOCAL that a `cap {}` was copied into. A capability is not a value "
                              "you carry in a local name: only a parameter of this op names a right it was handed, so pass the "
-                             "parameter itself (RFC-0030 D2)", (int)cn.size, (const char *)cn.ptr, (int)cgot.size, (const char *)cgot.ptr);
+                             "parameter itself (RFC-0030 D2)", low_sv((const char *)cn.ptr, (int)cn.size), low_sv((const char *)cgot.ptr, (int)cgot.size));
                     ir_fail_buf(c, "E-CAP-LOCAL", abuf, nd->line);
                     return;
                 }
@@ -6242,10 +6243,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     proven_u8str_view_t ck0 = { 0 };
                     if (!(*pos < end && is_atom(k[*pos]) && ir_param_cap_kind(c->def_form, k[*pos]->tok.lex, &ck0))) {
                         char abuf[256];
-                        snprintf(abuf, sizeof abuf, "`%.*s` takes a capability as its FIRST argument, and none is given here. A "
+                        low_bfmt(abuf, sizeof abuf, "`{}` takes a capability as its FIRST argument, and none is given here. A "
                                  "right is handed down by name from the entry (`input out cap io .`), never ambient — pass the "
                                  "capability this op received (RFC-0030 D2)",
-                                 (int)nd->tok.lex.size, (const char *)nd->tok.lex.ptr);
+                                 low_sv((const char *)nd->tok.lex.ptr, (int)nd->tok.lex.size));
                         ir_fail_buf(c, "E-CAP-MISSING", abuf, nd->line);
                         return;
                     }
@@ -6253,10 +6254,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 if (*pos + np > end) {
                     // ★ 2026-09-14 — 이름과 수를 댄다. 옛 문장의 «줄 끝에 `,`» 권고는 RFC-0103 에서 죽은 규칙이었다.
                     char abuf[256];
-                    snprintf(abuf, sizeof abuf, "`%.*s` takes %zu argument%s but %zu %s given here — an op call "
+                    low_bfmt(abuf, sizeof abuf, "`{}` takes {} argument{} but {} {} given here — an op call "
                              "is `<name> <arg>…` with exactly as many arguments as its `input` clauses",
-                             (int)nd->tok.lex.size, (const char *)nd->tok.lex.ptr, (size_t)np, np == 1 ? "" : "s",
-                             (size_t)(end - *pos), (end - *pos) == 1 ? "is" : "are");
+                             low_sv((const char *)nd->tok.lex.ptr, (int)nd->tok.lex.size), PROVEN_ARG((size_t)((size_t)np)), proven_arg_cstr(np == 1 ? "" : "s"),
+                             PROVEN_ARG((size_t)((size_t)(end - *pos))), proven_arg_cstr((end - *pos) == 1 ? "is" : "are"));
                     ir_fail_buf(c, "E-IR-ARITY", abuf, nd->line);
                     return;
                 }
@@ -6498,19 +6499,21 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
     low_tcnote_t t; bool seen = low_tc_note_of(nd, &t);
     char tb[64], ib[96];
     static const char *K[] = { "?", "int", "float", "bool", "slice", "wrap", "named", "other" };
-    if (!seen) snprintf(tb, sizeof tb, "-");
-    else if (t.k == 1) snprintf(tb, sizeof tb, t.lit ? "lit" : "int%u%c%s", (unsigned)t.bits, t.sign ? 's' : 'u', t.nominal == 1 ? "z" : t.nominal ? "n" : "");
-    else if (t.k == 2) snprintf(tb, sizeof tb, t.lit ? "flit" : "float%u", (unsigned)t.bits);
-    else if (t.k == 4) snprintf(tb, sizeof tb, "slice:%s%u%c%s", t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
-    else if (t.k == 6 && t.ebits) snprintf(tb, sizeof tb, "segs:%s%u%c%s", t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
-    else if (t.k == 5 && t.pk == 4) snprintf(tb, sizeof tb, "wrap%u:slice:%s%u%c%s", (unsigned)t.wrap, t.eflt ? "f" : "i", (unsigned)t.ebits, t.esign ? 's' : 'u', t.enom == 1 ? "z" : "");
-    else if (t.k == 5) snprintf(tb, sizeof tb, "wrap%u:%s%u%c%s", (unsigned)t.wrap, K[t.pk & 7], (unsigned)t.pbits, t.psign ? 's' : 'u', t.pnom == 1 ? "z" : "");
-    else snprintf(tb, sizeof tb, "%s", K[t.k & 7]);
+    if (!seen) low_bfmt(tb, sizeof tb, "-");
+    else if (t.k == 1 && t.lit) low_bfmt(tb, sizeof tb, "lit");
+    else if (t.k == 1) low_bfmt(tb, sizeof tb, "int{}{}{}", PROVEN_ARG((unsigned)t.bits), proven_arg_char(t.sign ? 's' : 'u'), proven_arg_cstr(t.nominal == 1 ? "z" : t.nominal ? "n" : ""));
+    else if (t.k == 2 && t.lit) low_bfmt(tb, sizeof tb, "flit");
+    else if (t.k == 2) low_bfmt(tb, sizeof tb, "float{}", PROVEN_ARG((unsigned)t.bits));
+    else if (t.k == 4) low_bfmt(tb, sizeof tb, "slice:{}{}{}{}", proven_arg_cstr(t.eflt ? "f" : "i"), PROVEN_ARG((unsigned)((unsigned)t.ebits)), proven_arg_char((char)(t.esign ? 's' : 'u')), proven_arg_cstr(t.enom == 1 ? "z" : ""));
+    else if (t.k == 6 && t.ebits) low_bfmt(tb, sizeof tb, "segs:{}{}{}{}", proven_arg_cstr(t.eflt ? "f" : "i"), PROVEN_ARG((unsigned)((unsigned)t.ebits)), proven_arg_char((char)(t.esign ? 's' : 'u')), proven_arg_cstr(t.enom == 1 ? "z" : ""));
+    else if (t.k == 5 && t.pk == 4) low_bfmt(tb, sizeof tb, "wrap{}:slice:{}{}{}{}", PROVEN_ARG((unsigned)((unsigned)t.wrap)), proven_arg_cstr(t.eflt ? "f" : "i"), PROVEN_ARG((unsigned)((unsigned)t.ebits)), proven_arg_char((char)(t.esign ? 's' : 'u')), proven_arg_cstr(t.enom == 1 ? "z" : ""));
+    else if (t.k == 5) low_bfmt(tb, sizeof tb, "wrap{}:{}{}{}{}", PROVEN_ARG((unsigned)((unsigned)t.wrap)), proven_arg_cstr(K[t.pk & 7]), PROVEN_ARG((unsigned)((unsigned)t.pbits)), proven_arg_char((char)(t.psign ? 's' : 'u')), proven_arg_cstr(t.pnom == 1 ? "z" : ""));
+    else low_bfmt(tb, sizeof tb, "{}", proven_arg_cstr(K[t.k & 7]));
     ityp_t it = c->tstk[c->tsp - 1];
     proven_u8str_view_t cn = c->tnam[c->tsp - 1];
-    if (!it.known) snprintf(ib, sizeof ib, "?|%.*s", (int)(cn.size > 60 ? 60 : cn.size), (const char *)cn.ptr);
-    else snprintf(ib, sizeof ib, "%s%u%c|%.*s", it.flt ? "float" : "int", (unsigned)it.bits, it.sign ? 's' : 'u',
-                  (int)(cn.size > 60 ? 60 : cn.size), (const char *)cn.ptr);
+    if (!it.known) low_bfmt(ib, sizeof ib, "?|{}", low_sv((const char *)cn.ptr, (int)(cn.size > 60 ? 60 : cn.size)));
+    else low_bfmt(ib, sizeof ib, "{}{}{}|{}", proven_arg_cstr(it.flt ? "float" : "int"), PROVEN_ARG((unsigned)((unsigned)it.bits)), proven_arg_char((char)(it.sign ? 's' : 'u')),
+                  low_sv((const char *)cn.ptr, (int)(cn.size > 60 ? 60 : cn.size)));
     proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
     while (nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
     const low_cst_t *h = (nd->kind == LOW_CST_FORM && nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) ? nd->kids[0] : nd;

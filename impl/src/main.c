@@ -16,6 +16,7 @@
 #define _POSIX_C_SOURCE 200809L   // readlink(2) — -std=c23 은 POSIX 선언을 숨긴다
 #define _DEFAULT_SOURCE           // realpath(3) — 같은 이유(std 모듈끼리의 자기-가림 판정)
 #include "low_hwm.h"
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -254,7 +255,7 @@ static void lock_load(const char *path) {
 static char g_lock_ents[256][4300]; static int g_nlock_ents;
 static void lock_emit(const char *name, const char *hex) {
     printf("%s %s\n", name, hex);
-    if (g_nlock_ents < 256) snprintf(g_lock_ents[g_nlock_ents++], sizeof g_lock_ents[0], "%s %s", name, hex);
+    if (g_nlock_ents < 256) low_bfmt(g_lock_ents[g_nlock_ents++], sizeof g_lock_ents[0], "{} {}", proven_arg_cstr(name), proven_arg_cstr(hex));
 }
 static void lock_file_write(bool allowed) {
     if (!allowed || !g_lock_path[0]) return;
@@ -274,36 +275,36 @@ static void hash_hex(const proven_byte_t *b, proven_size_t n, char out[65]);
 static bool inc_resolve(const char *srcfile, const char *rel, char real[4096], char *why, size_t whycap) {
     char dir[4096], full[8300], dreal[4096];
     const char *sl = srcfile ? strrchr(srcfile, '/') : NULL;
-    if (sl) snprintf(dir, sizeof dir, "%.*s", (int)(sl - srcfile), srcfile); else snprintf(dir, sizeof dir, ".");
-    if (!dir[0]) snprintf(dir, sizeof dir, "/");
-    snprintf(full, sizeof full, "%s/%s", dir, rel);
+    if (sl) low_bfmt(dir, sizeof dir, "{}", low_sv(srcfile, (int)(sl - srcfile))); else low_bfmt(dir, sizeof dir, ".");
+    if (!dir[0]) low_bfmt(dir, sizeof dir, "/");
+    low_bfmt(full, sizeof full, "{}/{}", proven_arg_cstr(dir), proven_arg_cstr(rel));
     if (!realpath(dir, dreal) || !realpath(full, real)) {
-        snprintf(why, whycap, "`include_text`: cannot read `%.200s` (read from the folder of this source file)", full);
+        low_bfmt(why, whycap, "`include_text`: cannot read `{:.200}` (read from the folder of this source file)", proven_arg_cstr(full));
         return false;
     }
     size_t dl = strlen(dreal);
     if (!(dl == 1 && dreal[0] == '/') && (strncmp(real, dreal, dl) != 0 || real[dl] != '/')) {
-        snprintf(why, whycap, "`include_text \"%.120s\"`: the path is read from the folder of this source file and stays inside it — "
-                 "it leads outside through a link (RFC-0015 §6.4)", rel);
+        low_bfmt(why, whycap, "`include_text \"{:.120}\"`: the path is read from the folder of this source file and stays inside it — "
+                 "it leads outside through a link (RFC-0015 §6.4)", proven_arg_cstr(rel));
         return false;
     }
     return true;
 }
 static void inc_lock_name(const char *real, char *out, size_t cap) {
     size_t pl = strlen(g_pkg_real);
-    if (pl && strncmp(real, g_pkg_real, pl) == 0 && real[pl] == '/') snprintf(out, cap, "include:%s", real + pl + 1);
-    else snprintf(out, cap, "include:%s", real);
+    if (pl && strncmp(real, g_pkg_real, pl) == 0 && real[pl] == '/') low_bfmt(out, cap, "include:{}", proven_arg_cstr(real + pl + 1));
+    else low_bfmt(out, cap, "include:{}", proven_arg_cstr(real));
 }
 static bool inc_read(const char *real, proven_u8 **out, proven_size_t *n, char *why, size_t whycap) {
     FILE *fp = fopen(real, "rb");
-    if (!fp) { snprintf(why, whycap, "`include_text`: cannot read `%.200s`", real); return false; }
+    if (!fp) { low_bfmt(why, whycap, "`include_text`: cannot read `{:.200}`", proven_arg_cstr(real)); return false; }
     proven_u8 *b = low_alloc(INC_MAX + 1);
     size_t got = b ? fread(b, 1, INC_MAX + 1, fp) : 0;
     const bool err = !b || ferror(fp);
     fclose(fp);
     if (err || got > INC_MAX) {
         low_free(b);
-        snprintf(why, whycap, err ? "`include_text`: reading `%.200s` failed" : "`include_text`: `%.200s` is larger than 1 MiB — a file read when translating holds at most that", real);
+        low_bfmt(why, whycap, err ? "`include_text`: reading `{:.200}` failed" : "`include_text`: `{:.200}` is larger than 1 MiB — a file read when translating holds at most that", proven_arg_cstr(real));
         return false;
     }
     *out = b; *n = got;
@@ -319,13 +320,13 @@ static bool inc_reader(const char *srcfile, const char *rel, proven_u8 **out, pr
     for (int i = 0; i < g_nlock; i++) {
         if (strcmp(g_lock[i].name, name) != 0) continue;
         if (strcmp(g_lock[i].hex, hex) == 0) return true;
-        snprintf(why, whycap, "E-DEP-HASH: `include_text \"%.100s\"` does NOT match the lockfile (`%.100s` locked %.16s…, actual %.16s…) — "
-                 "the file changed since `--lock-write`; a pinned build does not read different bytes under the same name", rel, name, g_lock[i].hex, hex);
+        low_bfmt(why, whycap, "E-DEP-HASH: `include_text \"{:.100}\"` does NOT match the lockfile (`{:.100}` locked {:.16}…, actual {:.16}…) — "
+                 "the file changed since `--lock-write`; a pinned build does not read different bytes under the same name", proven_arg_cstr(rel), proven_arg_cstr(name), proven_arg_cstr(g_lock[i].hex), proven_arg_cstr(hex));
         low_free(*out); *out = NULL;
         return false;
     }
-    snprintf(why, whycap, "E-DEP-UNLOCKED: `include_text \"%.100s\"` has no entry in the lockfile (`%.100s`) — run with --lock-write to record "
-             "what you are building against", rel, name);
+    low_bfmt(why, whycap, "E-DEP-UNLOCKED: `include_text \"{:.100}\"` has no entry in the lockfile (`{:.100}`) — run with --lock-write to record "
+             "what you are building against", proven_arg_cstr(rel), proven_arg_cstr(name));
     low_free(*out); *out = NULL;
     return false;
 }
@@ -333,7 +334,7 @@ static bool inc_reader(const char *srcfile, const char *rel, proven_u8 **out, pr
 static void hash_hex(const proven_byte_t *b, proven_size_t n, char out[65]) {
     proven_u8 h[32];
     low_blake3_256(b, n, h);
-    for (int i = 0; i < 32; i++) snprintf(out + i * 2, 3, "%02x", h[i]);
+    for (int i = 0; i < 32; i++) low_bfmt(out + i * 2, 3, "{:02x}", PROVEN_ARG((unsigned)(h[i])));
     out[64] = 0;
 }
 
@@ -454,7 +455,7 @@ static void std_scan_dir(const char *dir) {
         }
         size_t ln = strlen(e->d_name);
         if (ln < 5 || strcmp(e->d_name + ln - 4, ".low") != 0) continue;
-        char fp[600]; snprintf(fp, sizeof fp, "%s/%s", dir, e->d_name);
+        char fp[600]; low_bfmt(fp, sizeof fp, "{}/{}", proven_arg_cstr(dir), proven_arg_cstr(e->d_name));
         FILE *f = fopen(fp, "rb");
         if (!f) continue;
         // 줄 머리의 `module <name> .` 을 찾는다 (rem 줄은 건너뛴다).
@@ -476,8 +477,8 @@ static void std_scan_dir(const char *dir) {
             char *q = p; while (*q && *q != ' ' && *q != '\n' && *q != '\r' && *q != '.') q++;
             size_t mn = (size_t)(q - p);
             if (mn > 0 && mn < 64) {
-                snprintf(g_std[g_nstd].name, 64, "%.*s", (int)mn, p);
-                snprintf(g_std[g_nstd].path, 512, "%s", fp);
+                low_bfmt(g_std[g_nstd].name, 64, "{}", low_sv(p, (int)mn));
+                low_bfmt(g_std[g_nstd].path, 512, "{}", proven_arg_cstr(fp));
                 g_nstd++;
             }
             break;
@@ -493,12 +494,12 @@ static void std_scan(const char *argv0) {
     g_nstd = 0;
     char exe[512] = { 0 };
     ssize_t r = readlink("/proc/self/exe", exe, sizeof exe - 1);
-    if (r <= 0) snprintf(exe, sizeof exe, "%s", argv0);
+    if (r <= 0) low_bfmt(exe, sizeof exe, "{}", proven_arg_cstr(argv0));
     char *sl = strrchr(exe, '/');
-    if (sl) *sl = 0; else snprintf(exe, sizeof exe, ".");
+    if (sl) *sl = 0; else low_bfmt(exe, sizeof exe, ".");
     char d1[600], d2[600];
-    snprintf(d1, sizeof d1, "%s/../std", exe);        // 설치 레이아웃 <install>/{bin,std}
-    snprintf(d2, sizeof d2, "%s/../../lib", exe);     // 개발 트리 impl/build → lowent_lang/lib
+    low_bfmt(d1, sizeof d1, "{}/../std", proven_arg_cstr(exe));        // 설치 레이아웃 <install>/{bin,std}
+    low_bfmt(d2, sizeof d2, "{}/../../lib", proven_arg_cstr(exe));     // 개발 트리 impl/build → lowent_lang/lib
     std_scan_dir(d1);
     std_scan_dir(d2);
     // ★ 사용자 스코프 (RFC-0033 D4) — 관리자 아니어도 설치·해소가 된다. 전역(std)이 먼저
@@ -506,7 +507,7 @@ static void std_scan(const char *argv0) {
     const char *home = getenv("HOME");
     if (home) {
         char du[600];
-        snprintf(du, sizeof du, "%s/.lowent/lib", home);
+        low_bfmt(du, sizeof du, "{}/.lowent/lib", proven_arg_cstr(home));
         std_scan_dir(du);
     }
 }
@@ -540,9 +541,9 @@ static void feed_absorb_allow(const char *src)
 {
     char dir[600] = ".";
     if (src) {
-        snprintf(dir, sizeof dir, "%s", src);
+        low_bfmt(dir, sizeof dir, "{}", proven_arg_cstr(src));
         char *slash = strrchr(dir, '/');
-        if (slash) *slash = 0; else snprintf(dir, sizeof dir, ".");
+        if (slash) *slash = 0; else low_bfmt(dir, sizeof dir, ".");
     }
     low_pkg_t pk = { 0 };
     const char *allow[16]; int n = 0;
@@ -557,27 +558,27 @@ static void feed_absorb_allow(const char *src)
 
 // 엔트리를 정한다: 명시 인자 > 매니페스트 `build entry` > 관례(src/main.low → main.low, RFC-0033 D9).
 static bool resolve_entry(const char *arg, low_pkg_t *pkg, char out[600], char err[256]) {
-    if (arg) { snprintf(out, 600, "%s", arg); return true; }
+    if (arg) { low_bfmt(out, 600, "{}", proven_arg_cstr(arg)); return true; }
     if (low_pkg_find(".", pkg)) {
         proven_allocator_t heap = lw_heap();
         char perr[512];
-        if (!low_pkg_load(heap, pkg, perr)) { snprintf(err, 256, "%s", perr); return false; }
+        if (!low_pkg_load(heap, pkg, perr)) { low_bfmt(err, 256, "{}", proven_arg_cstr(perr)); return false; }
         if (pkg->entry[0]) {
-            snprintf(out, 600, "%s/%s", pkg->dir, pkg->entry);
+            low_bfmt(out, 600, "{}/{}", proven_arg_cstr(pkg->dir), proven_arg_cstr(pkg->entry));
             if (file_exists(out)) return true;
-            snprintf(err, 256, "manifest names entry \"%s\" but %s does not exist", pkg->entry, out);
+            low_bfmt(err, 256, "manifest names entry \"{}\" but {} does not exist", proven_arg_cstr(pkg->entry), proven_arg_cstr(out));
             return false;
         }
-        char c1[600]; snprintf(c1, sizeof c1, "%s/src/main.low", pkg->dir);
-        if (file_exists(c1)) { snprintf(out, 600, "%s", c1); return true; }
-        snprintf(c1, sizeof c1, "%s/main.low", pkg->dir);
-        if (file_exists(c1)) { snprintf(out, 600, "%s", c1); return true; }
-        snprintf(err, 256, "no entry: give a file, or add `build entry \"<file>\" .` to %s, or use the src/main.low convention", pkg->path);
+        char c1[600]; low_bfmt(c1, sizeof c1, "{}/src/main.low", proven_arg_cstr(pkg->dir));
+        if (file_exists(c1)) { low_bfmt(out, 600, "{}", proven_arg_cstr(c1)); return true; }
+        low_bfmt(c1, sizeof c1, "{}/main.low", proven_arg_cstr(pkg->dir));
+        if (file_exists(c1)) { low_bfmt(out, 600, "{}", proven_arg_cstr(c1)); return true; }
+        low_bfmt(err, 256, "no entry: give a file, or add `build entry \"<file>\" .` to {}, or use the src/main.low convention", proven_arg_cstr(pkg->path));
         return false;
     }
-    if (file_exists("src/main.low")) { snprintf(out, 600, "src/main.low"); return true; }
-    if (file_exists("main.low")) { snprintf(out, 600, "main.low"); return true; }
-    snprintf(err, 256, "no entry: give a .low file, or run inside a project (pkg.low / src/main.low)");
+    if (file_exists("src/main.low")) { low_bfmt(out, 600, "src/main.low"); return true; }
+    if (file_exists("main.low")) { low_bfmt(out, 600, "main.low"); return true; }
+    low_bfmt(err, 256, "no entry: give a .low file, or run inside a project (pkg.low / src/main.low)");
     return false;
 }
 
@@ -591,7 +592,7 @@ static int cmd_build(int nargs, char **args) {
     for (int i = 0; i < nargs; i++) {
         if ((strcmp(args[i], "--target") == 0 || strcmp(args[i], "--config") == 0 || strcmp(args[i], "--limb-bits") == 0) && i + 1 < nargs) {
             size_t n = strlen(pass);
-            snprintf(pass + n, sizeof pass - n, " %s %s", args[i], args[i + 1]);
+            low_bfmt(pass + n, sizeof pass - n, " {} {}", proven_arg_cstr(args[i]), proven_arg_cstr(args[i + 1]));
             i++;
         } else if (strcmp(args[i], "--profile") == 0 && i + 1 < nargs) {
             // ★ profile 은 **소스가 선언한다**(`build profile <이름> .`) — CLI 플래그가 아니다.
@@ -603,7 +604,7 @@ static int cmd_build(int nargs, char **args) {
             return 2;
         } else if (strncmp(args[i], "--", 2) == 0) {
             size_t n = strlen(pass);
-            snprintf(pass + n, sizeof pass - n, " %s", args[i]);
+            low_bfmt(pass + n, sizeof pass - n, " {}", proven_arg_cstr(args[i]));
         } else if (!arg) arg = args[i];
     }
     low_pkg_t pkg = { 0 };
@@ -613,40 +614,40 @@ static int cmd_build(int nargs, char **args) {
     // (profile 은 소스 선언이라 여기서 넘기지 않는다 — 위 참조.)
     if (pkg.found && !strstr(pass, "--target") && pkg.target[0]) {
         size_t n = strlen(pass);
-        snprintf(pass + n, sizeof pass - n, " --target %s", pkg.target);
+        low_bfmt(pass + n, sizeof pass - n, " --target {}", proven_arg_cstr(pkg.target));
     }
     // ★ RFC-0152 §8-12 — 조각 폭도 같은 차례다: 명령줄이 있으면 명령줄, 없으면 최상위 매니페스트.
     if (pkg.found && !strstr(pass, "--limb-bits") && pkg.limb_bits[0]) {
         size_t n = strlen(pass);
-        snprintf(pass + n, sizeof pass - n, " --limb-bits %s", pkg.limb_bits);
+        low_bfmt(pass + n, sizeof pass - n, " --limb-bits {}", proven_arg_cstr(pkg.limb_bits));
     }
     // ★ RFC-0015 §6.2 — 번역 때 도는 `fn` 의 걸음 예산도 같은 차례다.
     if (pkg.found && !strstr(pass, "--comptime-steps") && pkg.comptime_steps[0]) {
         size_t n = strlen(pass);
-        snprintf(pass + n, sizeof pass - n, " --comptime-steps %s", pkg.comptime_steps);
+        low_bfmt(pass + n, sizeof pass - n, " --comptime-steps {}", proven_arg_cstr(pkg.comptime_steps));
     }
     char self[512] = { 0 };
     ssize_t r = readlink("/proc/self/exe", self, sizeof self - 1);
-    if (r <= 0) snprintf(self, sizeof self, "lowentc");
+    if (r <= 0) low_bfmt(self, sizeof self, "lowentc");
     const char *name = pkg.found && pkg.name[0] ? pkg.name : NULL;
     char nb[128];
     if (!name) {
         const char *sl = strrchr(entry, '/');
-        snprintf(nb, sizeof nb, "%s", sl ? sl + 1 : entry);
+        low_bfmt(nb, sizeof nb, "{}", proven_arg_cstr(sl ? sl + 1 : entry));
         char *dot = strrchr(nb, '.');
         if (dot) *dot = 0;
         name = nb;
     }
     char outdir[600];
-    if (pkg.found) { snprintf(outdir, sizeof outdir, "%s/out", pkg.dir); mkdir(outdir, 0755); }
-    else snprintf(outdir, sizeof outdir, ".");
+    if (pkg.found) { low_bfmt(outdir, sizeof outdir, "{}/out", proven_arg_cstr(pkg.dir)); mkdir(outdir, 0755); }
+    else low_bfmt(outdir, sizeof outdir, ".");
     char cfile[736], bin[736], cmd[4096], ld[512] = { 0 };
     // ★★★ **거절할 프로그램을 `build` 가 짓고 있었다** (X-0069, 2026-09-26).
     //   `--run`·`--test` 는 결함 노트 #86 에서 `--check` 와 같은 검사를 먼저 돌게 됐는데, `build` 는
     //   `--emit-c` 만 불러서 `return true .`(u8 자리) 같은 프로그램도 실행 파일이 되어 돌았다(실측).
     //   ⇒ 짓기 전에 **같은 손잡이로** `--check` 를 부르고, 거절하면 그 진단을 보이고 짓지 않는다.
     //   ☞ `--emit-c` 자체는 그대로 둔다 — 오라클이 거절 픽스처의 실행을 재는 데 쓴다.
-    snprintf(cmd, sizeof cmd, "\"%s\"%s --check \"%s\" 2>&1", self, pass, entry);
+    low_bfmt(cmd, sizeof cmd, "\"{}\"{} --check \"{}\" 2>&1", proven_arg_cstr(self), proven_arg_cstr(pass), proven_arg_cstr(entry));
     FILE *cp = popen(cmd, "r");
     if (!cp) { fprintf(stderr, "lowentc build: could not run the checks for %s\n", entry); return 1; }
     char *clog = NULL; size_t clen = 0, ccap = 0;
@@ -670,11 +671,11 @@ static int cmd_build(int nargs, char **args) {
         return 2;
     }
     low_free(clog);
-    snprintf(cfile, sizeof cfile, "%s/.%s.c", outdir, name);
-    snprintf(bin, sizeof bin, "%s/%s", outdir, name);
-    snprintf(cmd, sizeof cmd, "\"%s\"%s --emit-c \"%s\" > \"%s\"", self, pass, entry, cfile);
+    low_bfmt(cfile, sizeof cfile, "{}/.{}.c", proven_arg_cstr(outdir), proven_arg_cstr(name));
+    low_bfmt(bin, sizeof bin, "{}/{}", proven_arg_cstr(outdir), proven_arg_cstr(name));
+    low_bfmt(cmd, sizeof cmd, "\"{}\"{} --emit-c \"{}\" > \"{}\"", proven_arg_cstr(self), proven_arg_cstr(pass), proven_arg_cstr(entry), proven_arg_cstr(cfile));
     if (system(cmd) != 0) { fprintf(stderr, "lowentc build: emit failed for %s\n", entry); return 1; }
-    snprintf(cmd, sizeof cmd, "\"%s\"%s --emit-ld \"%s\"", self, pass, entry);
+    low_bfmt(cmd, sizeof cmd, "\"{}\"{} --emit-ld \"{}\"", proven_arg_cstr(self), proven_arg_cstr(pass), proven_arg_cstr(entry));
     FILE *lp = popen(cmd, "r");
     if (lp) { if (!fgets(ld, sizeof ld, lp)) ld[0] = 0; pclose(lp); }
     char *nl = strchr(ld, '\n'); if (nl) *nl = 0;
@@ -698,12 +699,12 @@ static int cmd_build(int nargs, char **args) {
     char cache[736] = { 0 };
     if (key[0] && home) {
         char base[600];
-        snprintf(base, sizeof base, "%s/.lowent", home); mkdir(base, 0755);
-        snprintf(base, sizeof base, "%s/.lowent/cache", home); mkdir(base, 0755);
-        snprintf(base, sizeof base, "%s/.lowent/cache/build", home); mkdir(base, 0755);
-        snprintf(cache, sizeof cache, "%s/.lowent/cache/build/%s", home, key);
+        low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
+        low_bfmt(base, sizeof base, "{}/.lowent/cache", proven_arg_cstr(home)); mkdir(base, 0755);
+        low_bfmt(base, sizeof base, "{}/.lowent/cache/build", proven_arg_cstr(home)); mkdir(base, 0755);
+        low_bfmt(cache, sizeof cache, "{}/.lowent/cache/build/{}", proven_arg_cstr(home), proven_arg_cstr(key));
         if (file_exists(cache)) {
-            snprintf(cmd, sizeof cmd, "cp \"%s\" \"%s\" && chmod +x \"%s\"", cache, bin, bin);
+            low_bfmt(cmd, sizeof cmd, "cp \"{}\" \"{}\" && chmod +x \"{}\"", proven_arg_cstr(cache), proven_arg_cstr(bin), proven_arg_cstr(bin));
             if (system(cmd) == 0) {
                 remove(cfile);
                 printf("built %s (cache hit %.12s…)\n", bin, key);
@@ -711,11 +712,11 @@ static int cmd_build(int nargs, char **args) {
             }
         }
     }
-    snprintf(cmd, sizeof cmd, "cc -O2 -w -ffp-contract=off \"%s\" -o \"%s\" %s -lm", cfile, bin, ld);   // 정본 §6.2.4 (2a) — 생성 C 머리의 지시와 같은 뜻
+    low_bfmt(cmd, sizeof cmd, "cc -O2 -w -ffp-contract=off \"{}\" -o \"{}\" {} -lm", proven_arg_cstr(cfile), proven_arg_cstr(bin), proven_arg_cstr(ld));   // 정본 §6.2.4 (2a) — 생성 C 머리의 지시와 같은 뜻
     if (system(cmd) != 0) { fprintf(stderr, "lowentc build: cc failed (%s)\n", cfile); return 1; }
     remove(cfile);
     if (cache[0]) {
-        snprintf(cmd, sizeof cmd, "cp \"%s\" \"%s\"", bin, cache);
+        low_bfmt(cmd, sizeof cmd, "cp \"{}\" \"{}\"", proven_arg_cstr(bin), proven_arg_cstr(cache));
         (void)system(cmd);
     }
     printf("built %s\n", bin);
@@ -742,8 +743,8 @@ static int cmd_add(const char *name, const char *source) {
         return 1;
     }
     char sp[600];
-    if (source[0] == '/') snprintf(sp, sizeof sp, "%s", source);
-    else snprintf(sp, sizeof sp, "%s/%s", pkg.dir, source);
+    if (source[0] == '/') low_bfmt(sp, sizeof sp, "{}", proven_arg_cstr(source));
+    else low_bfmt(sp, sizeof sp, "{}/{}", proven_arg_cstr(pkg.dir), proven_arg_cstr(source));
     proven_byte_t *db = NULL; proven_size_t dl = 0;
     if (!read_file(sp, &db, &dl)) {
         fprintf(stderr, "lowentc add: cannot read %s — a dependency the tool cannot see is a "
@@ -777,8 +778,8 @@ static void cfg_read(const char *p) {
         char k[32], v[400];
         if (ln[0] == '#' || ln[0] == '\n') continue;
         if (sscanf(ln, "%31s %399s", k, v) != 2) continue;
-        if (strcmp(k, "mirror") == 0 && g_cfg.nmirror < 8) snprintf(g_cfg.mirror[g_cfg.nmirror++], 256, "%s", v);
-        else if (strcmp(k, "policy") == 0) snprintf(g_cfg.policy, sizeof g_cfg.policy, "%s", v);
+        if (strcmp(k, "mirror") == 0 && g_cfg.nmirror < 8) low_bfmt(g_cfg.mirror[g_cfg.nmirror++], 256, "{}", proven_arg_cstr(v));
+        else if (strcmp(k, "policy") == 0) low_bfmt(g_cfg.policy, sizeof g_cfg.policy, "{}", proven_arg_cstr(v));
     }
     fclose(f);
 }
@@ -788,12 +789,12 @@ static void cfg_load(void) {
     ssize_t r = readlink("/proc/self/exe", exe, sizeof exe - 1);
     if (r > 0) {
         char *sl = strrchr(exe, '/');
-        if (sl) { *sl = 0; char p[600]; snprintf(p, sizeof p, "%s/../config", exe); cfg_read(p); }
+        if (sl) { *sl = 0; char p[600]; low_bfmt(p, sizeof p, "{}/../config", proven_arg_cstr(exe)); cfg_read(p); }
     }
     const char *home = getenv("HOME");
-    if (home) { char p[600]; snprintf(p, sizeof p, "%s/.lowent/config", home); cfg_read(p); }
+    if (home) { char p[600]; low_bfmt(p, sizeof p, "{}/.lowent/config", proven_arg_cstr(home)); cfg_read(p); }
     cfg_read("./lowpm.local");
-    if (!g_cfg.policy[0]) snprintf(g_cfg.policy, sizeof g_cfg.policy, "any");
+    if (!g_cfg.policy[0]) low_bfmt(g_cfg.policy, sizeof g_cfg.policy, "any");
 }
 
 // ── **서명 = 진본** (RFC-0032 D7 · 2C ②층) — 해시(③ 무결)와 **다른 질문**이다:
@@ -802,8 +803,8 @@ static void cfg_load(void) {
 static bool have_openssl(void) { return system("openssl version >/dev/null 2>&1") == 0; }
 static bool sig_verify_with(const char *pub, const char *file, const char *sig) {
     char cmd[2048];
-    snprintf(cmd, sizeof cmd, "openssl pkeyutl -verify -pubin -inkey \"%s\" -rawin -in \"%s\" -sigfile \"%s\" >/dev/null 2>&1",
-             pub, file, sig);
+    low_bfmt(cmd, sizeof cmd, "openssl pkeyutl -verify -pubin -inkey \"{}\" -rawin -in \"{}\" -sigfile \"{}\" >/dev/null 2>&1",
+             proven_arg_cstr(pub), proven_arg_cstr(file), proven_arg_cstr(sig));
     return system(cmd) == 0;
 }
 // 신뢰 키(공식 루트) = **폴더의 공개키 파일들** (RFC-0033 D7): ~/.lowent/keys/official/*.pub + <install>/keys/official/*.pub.
@@ -811,10 +812,10 @@ static bool sig_verify_with(const char *pub, const char *file, const char *sig) 
 static bool sig_verify_trusted(const char *file, const char *sig, char keyname[128]) {
     char dirs[2][600]; int nd = 0;
     const char *home = getenv("HOME");
-    if (home) snprintf(dirs[nd++], 600, "%s/.lowent/keys/official", home);
+    if (home) low_bfmt(dirs[nd++], 600, "{}/.lowent/keys/official", proven_arg_cstr(home));
     char exe[512] = { 0 };
     ssize_t r = readlink("/proc/self/exe", exe, sizeof exe - 1);
-    if (r > 0) { char *sl = strrchr(exe, '/'); if (sl) { *sl = 0; snprintf(dirs[nd++], 600, "%s/../keys/official", exe); } }
+    if (r > 0) { char *sl = strrchr(exe, '/'); if (sl) { *sl = 0; low_bfmt(dirs[nd++], 600, "{}/../keys/official", proven_arg_cstr(exe)); } }
     for (int i = 0; i < nd; i++) {
         DIR *d = opendir(dirs[i]);
         if (!d) continue;
@@ -822,9 +823,9 @@ static bool sig_verify_trusted(const char *file, const char *sig, char keyname[1
         while ((e = readdir(d))) {
             size_t ln = strlen(e->d_name);
             if (ln < 5 || strcmp(e->d_name + ln - 4, ".pub") != 0) continue;
-            char pp[736]; snprintf(pp, sizeof pp, "%s/%s", dirs[i], e->d_name);
+            char pp[736]; low_bfmt(pp, sizeof pp, "{}/{}", proven_arg_cstr(dirs[i]), proven_arg_cstr(e->d_name));
             if (sig_verify_with(pp, file, sig)) {
-                snprintf(keyname, 128, "%.*s", (int)(ln - 4), e->d_name);
+                low_bfmt(keyname, 128, "{}", low_sv(e->d_name, (int)(ln - 4)));
                 closedir(d);
                 return true;
             }
@@ -842,17 +843,17 @@ static int cmd_key(int n, char **a) {
     const char *home = getenv("HOME");
     if (!home) { fprintf(stderr, "lowentc key: no HOME\n"); return 2; }
     char kd[600], pd[600], od[600];
-    snprintf(kd, sizeof kd, "%s/.lowent", home); mkdir(kd, 0755);
-    snprintf(kd, sizeof kd, "%s/.lowent/keys", home); mkdir(kd, 0755);
-    snprintf(pd, sizeof pd, "%s/private", kd); mkdir(pd, 0700);
-    snprintf(od, sizeof od, "%s/official", kd); mkdir(od, 0755);
+    low_bfmt(kd, sizeof kd, "{}/.lowent", proven_arg_cstr(home)); mkdir(kd, 0755);
+    low_bfmt(kd, sizeof kd, "{}/.lowent/keys", proven_arg_cstr(home)); mkdir(kd, 0755);
+    low_bfmt(pd, sizeof pd, "{}/private", proven_arg_cstr(kd)); mkdir(pd, 0700);
+    low_bfmt(od, sizeof od, "{}/official", proven_arg_cstr(kd)); mkdir(od, 0755);
     if (n >= 2 && strcmp(a[0], "new") == 0) {
         if (!have_openssl()) { fprintf(stderr, "lowentc key: openssl not found — the signature layer needs it (same fallback pattern as cc/curl)\n"); return 1; }
         char priv[736], pub[736], cmd[2048];
-        snprintf(priv, sizeof priv, "%s/%s.pem", pd, a[1]);
-        snprintf(pub, sizeof pub, "%s/%s.pub", od, a[1]);
+        low_bfmt(priv, sizeof priv, "{}/{}.pem", proven_arg_cstr(pd), proven_arg_cstr(a[1]));
+        low_bfmt(pub, sizeof pub, "{}/{}.pub", proven_arg_cstr(od), proven_arg_cstr(a[1]));
         if (file_exists(priv)) { fprintf(stderr, "lowentc key: %s already exists — a silently replaced key would orphan every signature it made\n", priv); return 1; }
-        snprintf(cmd, sizeof cmd, "openssl genpkey -algorithm ed25519 -out \"%s\" >/dev/null 2>&1 && chmod 600 \"%s\" && openssl pkey -in \"%s\" -pubout -out \"%s\" >/dev/null 2>&1", priv, priv, priv, pub);
+        low_bfmt(cmd, sizeof cmd, "openssl genpkey -algorithm ed25519 -out \"{}\" >/dev/null 2>&1 && chmod 600 \"{}\" && openssl pkey -in \"{}\" -pubout -out \"{}\" >/dev/null 2>&1", proven_arg_cstr(priv), proven_arg_cstr(priv), proven_arg_cstr(priv), proven_arg_cstr(pub));
         if (system(cmd) != 0) { fprintf(stderr, "lowentc key: openssl keygen failed\n"); return 1; }
         printf("key %s:\n  private  %s  (0600 — never leaves this machine)\n  public   %s  (your own trust root; give THIS file to people who should trust your signatures)\n", a[1], priv, pub);
         return 0;
@@ -886,10 +887,10 @@ static int cmd_sign(int n, char **a) {
     if (!home) { fprintf(stderr, "lowentc sign: no HOME\n"); return 2; }
     if (!have_openssl()) { fprintf(stderr, "lowentc sign: openssl not found\n"); return 1; }
     char priv[736], sig[736], cmd[3072];
-    snprintf(priv, sizeof priv, "%s/.lowent/keys/private/%s.pem", home, key);
+    low_bfmt(priv, sizeof priv, "{}/.lowent/keys/private/{}.pem", proven_arg_cstr(home), proven_arg_cstr(key));
     if (!file_exists(priv)) { fprintf(stderr, "lowentc sign: no key %s — make one: lowentc key new %s\n", priv, key); return 1; }
-    snprintf(sig, sizeof sig, "%s.sig", file);
-    snprintf(cmd, sizeof cmd, "openssl pkeyutl -sign -inkey \"%s\" -rawin -in \"%s\" -out \"%s\" 2>/dev/null", priv, file, sig);
+    low_bfmt(sig, sizeof sig, "{}.sig", proven_arg_cstr(file));
+    low_bfmt(cmd, sizeof cmd, "openssl pkeyutl -sign -inkey \"{}\" -rawin -in \"{}\" -out \"{}\" 2>/dev/null", proven_arg_cstr(priv), proven_arg_cstr(file), proven_arg_cstr(sig));
     if (system(cmd) != 0) { fprintf(stderr, "lowentc sign: signing failed (readable file? valid key?)\n"); return 1; }
     printf("signed %s → %s (key %s)\n", file, sig, key);
     return 0;
@@ -919,7 +920,7 @@ static int cmd_verify(int n, char **a) {
                     printf("                    = manifest pin `%s` (%s)\n", pkg.deps[i].name, pkg.path);
                     pinned = true;
                 }
-            char lp[700]; snprintf(lp, sizeof lp, "%s/pkg.lock", pkg.dir);
+            char lp[700]; low_bfmt(lp, sizeof lp, "{}/pkg.lock", proven_arg_cstr(pkg.dir));
             FILE *lf = fopen(lp, "r");
             if (lf) {
                 char l2[256], nm[64], hx[80];
@@ -935,7 +936,7 @@ static int cmd_verify(int n, char **a) {
     if (!pinned) printf("                    (no manifest pin / lock entry matches this content)\n");
     // ② 진본 — 분리 서명
     char sig[736];
-    snprintf(sig, sizeof sig, "%s.sig", file);
+    low_bfmt(sig, sizeof sig, "{}.sig", proven_arg_cstr(file));
     if (file_exists(sig)) {
         if (!have_openssl()) { printf("  [2 authenticity]  %s exists but openssl is missing — CANNOT CHECK (that is an answer, not a pass)\n", sig); rc = 1; }
         else {
@@ -963,9 +964,9 @@ static bool is_url(const char *s) {
 }
 static bool fetch_url(const char *url, const char *to) {
     char cmd[2048];
-    snprintf(cmd, sizeof cmd, "curl -fsSL -o \"%s\" \"%s\" 2>/dev/null", to, url);
+    low_bfmt(cmd, sizeof cmd, "curl -fsSL -o \"{}\" \"{}\" 2>/dev/null", proven_arg_cstr(to), proven_arg_cstr(url));
     if (system(cmd) == 0) return true;
-    snprintf(cmd, sizeof cmd, "wget -qO \"%s\" \"%s\" 2>/dev/null", to, url);
+    low_bfmt(cmd, sizeof cmd, "wget -qO \"{}\" \"{}\" 2>/dev/null", proven_arg_cstr(to), proven_arg_cstr(url));
     return system(cmd) == 0;
 }
 // 핀된 URL 을 캐시에서 얻거나(없으면) 받아 검증해 넣는다. 성공 시 out 에 캐시 경로.
@@ -973,18 +974,18 @@ static bool cache_fetch(const char *name, const char *url, const char *pin, char
     const char *home = getenv("HOME");
     if (!home) { fprintf(stderr, "E-PKG-FETCH: no HOME — nowhere to keep the content cache\n"); return false; }
     char base[600], cdir[600];
-    snprintf(base, sizeof base, "%s/.lowent", home); mkdir(base, 0755);
-    snprintf(cdir, sizeof cdir, "%s/.lowent/cache", home); mkdir(cdir, 0755);
-    snprintf(out, 600, "%s/%s.low", cdir, pin);
+    low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
+    low_bfmt(cdir, sizeof cdir, "{}/.lowent/cache", proven_arg_cstr(home)); mkdir(cdir, 0755);
+    low_bfmt(out, 600, "{}/{}.low", proven_arg_cstr(cdir), proven_arg_cstr(pin));
     if (file_exists(out)) return true;   // 내용 주소 — 이름이 곧 검증된 정체다
     char tmp[700];
-    snprintf(tmp, sizeof tmp, "%s.fetch.%d", out, (int)getpid());
+    low_bfmt(tmp, sizeof tmp, "{}.fetch.{}", proven_arg_cstr(out), PROVEN_ARG((int)((int)getpid())));
     // ★ 미러 먼저 (RFC-0033 D5) — 미러는 **내용 주소 저장소**다: <base>/<hash>.low.
     //   해시는 어차피 아래에서 대조하므로 미러는 **신뢰가 필요 없다**(trustless).
     bool got = false;
     for (int m = 0; m < g_cfg.nmirror && !got; m++) {
         char mu[900];
-        snprintf(mu, sizeof mu, "%s/%s.low", g_cfg.mirror[m], pin);
+        low_bfmt(mu, sizeof mu, "{}/{}.low", proven_arg_cstr(g_cfg.mirror[m]), proven_arg_cstr(pin));
         got = fetch_url(mu, tmp);
     }
     if (!got && !fetch_url(url, tmp)) {
@@ -1033,7 +1034,7 @@ static int cmd_fetch(void) {
         } else {
             char tmp[700];
             const char *home = getenv("HOME");
-            snprintf(tmp, sizeof tmp, "%s/.lowent-fetch.%d", home ? home : "/tmp", (int)getpid());
+            low_bfmt(tmp, sizeof tmp, "{}/.lowent-fetch.{}", proven_arg_cstr(home ? home : "/tmp"), PROVEN_ARG((int)((int)getpid())));
             if (!fetch_url(d->source, tmp)) { remove(tmp); fprintf(stderr, "lowentc fetch: cannot download %s (%s)\n", d->name, d->source); bad++; continue; }
             proven_byte_t *b = NULL; proven_size_t n = 0;
             if (read_file(tmp, &b, &n)) {
@@ -1082,34 +1083,34 @@ static int cmd_install(int nargs, char **args) {
         if (strncmp(p, "module ", 7) == 0) {
             p += 7;
             const char *q = p; while (*q && *q != ' ' && *q != '\n' && *q != '.') q++;
-            if (q - p > 0 && q - p < 64) snprintf(mod, sizeof mod, "%.*s", (int)(q - p), p);
+            if (q - p > 0 && q - p < 64) low_bfmt(mod, sizeof mod, "{}", low_sv(p, (int)(q - p)));
             break;
         }
         p = strchr(p, '\n');
     }
     if (!mod[0]) { low_free(b); fprintf(stderr, "lowentc install: %s declares no `module` — there is nothing to name the installation after\n", src); return 1; }
     char dest[600];
-    if (prefix) snprintf(dest, sizeof dest, "%s", prefix);
+    if (prefix) low_bfmt(dest, sizeof dest, "{}", proven_arg_cstr(prefix));
     else if (sys) {
         char self[512] = { 0 };
         ssize_t r = readlink("/proc/self/exe", self, sizeof self - 1);
-        if (r <= 0) snprintf(self, sizeof self, ".");
+        if (r <= 0) low_bfmt(self, sizeof self, ".");
         char *sl = strrchr(self, '/'); if (sl) *sl = 0;
-        snprintf(dest, sizeof dest, "%s/../std", self);
+        low_bfmt(dest, sizeof dest, "{}/../std", proven_arg_cstr(self));
     } else {
         const char *home = getenv("HOME");
         if (!home) { low_free(b); fprintf(stderr, "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
         char base[600];
-        snprintf(base, sizeof base, "%s/.lowent", home); mkdir(base, 0755);
-        snprintf(dest, sizeof dest, "%s/.lowent/lib", home);
+        low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
+        low_bfmt(dest, sizeof dest, "{}/.lowent/lib", proven_arg_cstr(home));
     }
     mkdir(dest, 0755);
     // 본체 + from-상대 의존을 함께 (기준은 소스 파일의 dir — RFC-0032 "경로는 선언한 파일 기준")
     char sdir[600];
-    snprintf(sdir, sizeof sdir, "%s", src);
-    { char *sl = strrchr(sdir, '/'); if (sl) *sl = 0; else snprintf(sdir, sizeof sdir, "."); }
+    low_bfmt(sdir, sizeof sdir, "{}", proven_arg_cstr(src));
+    { char *sl = strrchr(sdir, '/'); if (sl) *sl = 0; else low_bfmt(sdir, sizeof sdir, "."); }
     char to[736];
-    snprintf(to, sizeof to, "%s/%s.low", dest, mod);
+    low_bfmt(to, sizeof to, "{}/{}.low", proven_arg_cstr(dest), proven_arg_cstr(mod));
     FILE *o = fopen(to, "wb");
     if (!o || fwrite(b, 1, n, o) != n) { if (o) fclose(o); low_free(b); fprintf(stderr, "lowentc install: cannot write %s (need --prefix or permissions?)\n", to); return 1; }
     fclose(o);
@@ -1132,8 +1133,8 @@ static int cmd_install(int nargs, char **args) {
     for (int d = 0; d < nd; d++) {
         if (!dpp[d][0] || dpp[d][0] == '/' || strstr(dpp[d], "://")) continue;
         char from[736], toc[736];
-        snprintf(from, sizeof from, "%s/%s", sdir, dpp[d]);
-        snprintf(toc, sizeof toc, "%s/%s", dest, dpp[d]);
+        low_bfmt(from, sizeof from, "{}/{}", proven_arg_cstr(sdir), proven_arg_cstr(dpp[d]));
+        low_bfmt(toc, sizeof toc, "{}/{}", proven_arg_cstr(dest), proven_arg_cstr(dpp[d]));
         if (strchr(dpp[d], '/')) continue;   // 하위 dir 의존은 아직 — 정직하게 알린다
         if (copy_file(from, toc)) printf("installed dep %s → %s\n", dn[d], toc);
         else fprintf(stderr, "lowentc install: WARNING — could not copy dependency %s (%s); the installed module will not resolve it\n", dn[d], from);
@@ -1739,22 +1740,22 @@ int main(int argc, char **argv) {
     {
         char sdir[512];
         if (g_pkg_path) {
-            snprintf(pkg.path, sizeof pkg.path, "%s", g_pkg_path);
-            snprintf(pkg.dir, sizeof pkg.dir, "%s", g_pkg_path);
+            low_bfmt(pkg.path, sizeof pkg.path, "{}", proven_arg_cstr(g_pkg_path));
+            low_bfmt(pkg.dir, sizeof pkg.dir, "{}", proven_arg_cstr(g_pkg_path));
             char *sl = strrchr(pkg.dir, '/');
-            if (sl) *sl = 0; else snprintf(pkg.dir, sizeof pkg.dir, ".");
+            if (sl) *sl = 0; else low_bfmt(pkg.dir, sizeof pkg.dir, ".");
             pkg.found = true;
         } else {
-            snprintf(sdir, sizeof sdir, "%s", path);
+            low_bfmt(sdir, sizeof sdir, "{}", proven_arg_cstr(path));
             char *sl = strrchr(sdir, '/');
-            if (sl) *sl = 0; else snprintf(sdir, sizeof sdir, ".");
+            if (sl) *sl = 0; else low_bfmt(sdir, sizeof sdir, ".");
             (void)low_pkg_find(sdir, &pkg);
         }
         if (pkg.found) {
             char perr[512];
             if (!low_pkg_load(heap, &pkg, perr)) { fprintf(stderr, "%s\n", perr); return 1; }
             if (!g_have_lock && !want_lock_write) {
-                char lp[600]; snprintf(lp, sizeof lp, "%s/pkg.lock", pkg.dir);
+                char lp[600]; low_bfmt(lp, sizeof lp, "{}/pkg.lock", proven_arg_cstr(pkg.dir));
                 FILE *lf = fopen(lp, "r");
                 if (lf) { fclose(lf); lock_load(lp); }
             }
@@ -1762,7 +1763,7 @@ int main(int argc, char **argv) {
             //   락은 의존 선언의 그림자다. 정체만 적은 매니페스트(이 저장소의 루트 pkg.low 같은)
             //   옆에 락을 만들면, 발견 걷기가 그것을 **모든 하위 컴파일에** 자동 적용해 버린다.
             // ★ 2026-10-31 — `include_text` 의 파일도 적는다. 파일은 첫 항목을 적을 때 연다(lock_emit) — 적을 것이 없으면 만들지 않는다.
-            if (want_lock_write) snprintf(g_lock_path, sizeof g_lock_path, "%s/pkg.lock", pkg.dir);
+            if (want_lock_write) low_bfmt(g_lock_path, sizeof g_lock_path, "{}/pkg.lock", proven_arg_cstr(pkg.dir));
             if (!realpath(pkg.dir, g_pkg_real)) g_pkg_real[0] = 0;
         }
     }
@@ -1810,8 +1811,8 @@ int main(int argc, char **argv) {
                     std_scan(argv[0]);
                     const char *sp = std_find(dnames[d]);
                     char sib[600];
-                    if (slash) snprintf(sib, sizeof sib, "%.*s%s.low", (int)(slash - base + 1), base, dnames[d]);
-                    else        snprintf(sib, sizeof sib, "%s.low", dnames[d]);
+                    if (slash) low_bfmt(sib, sizeof sib, "{}{}.low", low_sv(base, (int)(slash - base + 1)), proven_arg_cstr(dnames[d]));
+                    else        low_bfmt(sib, sizeof sib, "{}.low", proven_arg_cstr(dnames[d]));
                     FILE *sf = fopen(sib, "rb"); bool sib_ok = sf != NULL; if (sf) fclose(sf);
                     mdep = pkg.found ? low_pkg_dep_find(&pkg, dnames[d]) : NULL;
                     if (sp) {
@@ -1834,7 +1835,7 @@ int main(int argc, char **argv) {
                                     dnames[d], mdep ? "the manifest" : "a sibling file", dnames[d]);
                             return 1;
                         }
-                        snprintf(resolved[d], sizeof resolved[d], "%s", sp);
+                        low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(sp));
                         via_std = true;
                     } else if (mdep) {
                         if (is_url(mdep->source)) {
@@ -1861,8 +1862,8 @@ int main(int argc, char **argv) {
                             //   신뢰 키로 검증돼야 한다. 서명은 <url>.sig 의 분리 서명이다.
                             if (strcmp(g_cfg.policy, "official-only") == 0) {
                                 char su[900], st[736], kn[128];
-                                snprintf(su, sizeof su, "%s.sig", mdep->source);
-                                snprintf(st, sizeof st, "%s.sig", cp);
+                                low_bfmt(su, sizeof su, "{}.sig", proven_arg_cstr(mdep->source));
+                                low_bfmt(st, sizeof st, "{}.sig", proven_arg_cstr(cp));
                                 if (!file_exists(st) && !fetch_url(su, st)) remove(st);
                                 if (!file_exists(st) || !sig_verify_trusted(cp, st, kn)) {
                                     fprintf(stderr, "E-POLICY-UNSIGNED: policy is official-only, and `%s` "
@@ -1873,20 +1874,20 @@ int main(int argc, char **argv) {
                                     return 1;
                                 }
                             }
-                            snprintf(resolved[d], sizeof resolved[d], "%s", cp);
+                            low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(cp));
                         }
-                        else if (mdep->source[0] == '/') snprintf(resolved[d], sizeof resolved[d], "%s", mdep->source);
-                        else snprintf(resolved[d], sizeof resolved[d], "%s/%s", pkg.dir, mdep->source);
+                        else if (mdep->source[0] == '/') low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(mdep->source));
+                        else low_bfmt(resolved[d], sizeof resolved[d], "{}/{}", proven_arg_cstr(pkg.dir), proven_arg_cstr(mdep->source));
                     } else if (sib_ok) {
-                        snprintf(resolved[d], sizeof resolved[d], "%s", sib);
+                        low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(sib));
                     } else {
                         continue;   // 미해소 — 단위 안에 있거나(W 불요) 밖이면 W-USE-EXTERNAL 이 말한다
                     }
                 } else if (dpaths[d][0] != '/' && slash) {
                     int bl = (int)(slash - base + 1);
-                    snprintf(resolved[d], sizeof resolved[d], "%.*s%s", bl, base, dpaths[d]);
+                    low_bfmt(resolved[d], sizeof resolved[d], "{}{}", low_sv(base, bl), proven_arg_cstr(dpaths[d]));
                 } else {
-                    snprintf(resolved[d], sizeof resolved[d], "%s", dpaths[d]);
+                    low_bfmt(resolved[d], sizeof resolved[d], "{}", proven_arg_cstr(dpaths[d]));
                 }
                 char *dp = resolved[d];
                 bool dup = false;
@@ -1972,7 +1973,7 @@ int main(int argc, char **argv) {
                 }
                 if (same_bytes_already) continue;   // ★ 이미 단위에 있다 — 두 번 싣지 않는다
                 static char loaded[MAX_FILES][512];
-                snprintf(loaded[npaths], sizeof loaded[npaths], "%s", dp);
+                low_bfmt(loaded[npaths], sizeof loaded[npaths], "{}", proven_arg_cstr(dp));
                 std_origin[npaths] = via_std;
                 paths[npaths] = loaded[npaths];
                 bufs[npaths] = db;
@@ -1990,7 +1991,7 @@ int main(int argc, char **argv) {
                 for (proven_size_t q = 0; q + 1 < ix.tokens.len && iok; q++) {
                     if (t[q].kind != LOW_TOK_IDENT || !proven_u8str_view_eq(t[q].lex, PROVEN_LIT("include_text")) || t[q + 1].kind != LOW_TOK_STRING) continue;
                     char rel[402], real[4096], why[400], name[4200], hex[65];
-                    snprintf(rel, sizeof rel, "%.*s", (int)t[q + 1].lex.size, (const char *)t[q + 1].lex.ptr);
+                    low_bfmt(rel, sizeof rel, "{}", low_sv((const char *)t[q + 1].lex.ptr, (int)t[q + 1].lex.size));
                     proven_u8 *b = NULL; proven_size_t bn = 0;
                     if (!inc_resolve(paths[fi], rel, real, why, sizeof why) || !inc_read(real, &b, &bn, why, sizeof why)) {
                         fprintf(stderr, "%s:%u: %s\n", paths[fi], t[q].line, why); iok = false; break;
@@ -1998,7 +1999,7 @@ int main(int argc, char **argv) {
                     inc_lock_name(real, name, sizeof name);
                     bool dup = false;
                     for (int z = 0; z < nseen; z++) if (!strcmp(seen[z], name)) dup = true;
-                    if (!dup && nseen < 64) { snprintf(seen[nseen++], sizeof seen[0], "%s", name); hash_hex(b, bn, hex); lock_emit(name, hex); }
+                    if (!dup && nseen < 64) { low_bfmt(seen[nseen++], sizeof seen[0], "{}", proven_arg_cstr(name)); hash_hex(b, bn, hex); lock_emit(name, hex); }
                     low_free(b);
                 }
                 proven_array_destroy(&ix.diags); proven_array_destroy(&ix.tokens);
@@ -2607,7 +2608,7 @@ int main(int argc, char **argv) {
                 if (!d->lowered) continue;
                 char dh[17];
                 for (int b = 0; b < 8; b++)
-                    snprintf(dh + b * 2, 3, "%02x", (unsigned)d->def_hash[b]);
+                    low_bfmt(dh + b * 2, 3, "{:02x}", PROVEN_ARG((unsigned)((unsigned)d->def_hash[b])));
                 printf("erasure %s %.*s %zu %zu\n", dh,
                        (int)d->name.size, (const char *)d->name.ptr,
                        (size_t)d->checks_proven, (size_t)d->checks_total);
@@ -2696,9 +2697,9 @@ int main(int argc, char **argv) {
                     waitpid(kid, &st, 0);
                 }
                 char mark[64];
-                if (timed_out)            snprintf(mark, sizeof mark, "timeout");
-                else if (WIFSIGNALED(st)) snprintf(mark, sizeof mark, "sig=%d", WTERMSIG(st));
-                else                      snprintf(mark, sizeof mark, "rc=%d", WEXITSTATUS(st));
+                if (timed_out)            low_bfmt(mark, sizeof mark, "timeout");
+                else if (WIFSIGNALED(st)) low_bfmt(mark, sizeof mark, "sig={}", PROVEN_ARG((int)(WTERMSIG(st))));
+                else                      low_bfmt(mark, sizeof mark, "rc={}", PROVEN_ARG((int)(WEXITSTATUS(st))));
                 printf("\n\x1e%zu %s\n", (size_t)seq, mark); fprintf(stderr, "\n\x1e%zu %s\n", (size_t)seq, mark);
                 seq++;
             }
@@ -2785,7 +2786,7 @@ int main(int argc, char **argv) {
                         if (i) printf(", ");
                         if (shaped[i].is_flt) {   // 비트가 아니라 **값**을 찍는다(`.0` 을 지킨다)
                             double dv; memcpy(&dv, &shaped[i].v, 8);
-                            char fb[40]; int fn = snprintf(fb, sizeof fb, "%g", dv);
+                            char fb[40]; int fn = snprintf(fb, sizeof fb, "%g", dv);   /* ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청) */
                             bool dot = false;
                             for (int q = 0; q < fn; q++)
                                 if (fb[q] == '.' || fb[q] == 'e' || fb[q] == 'n' || fb[q] == 'i') dot = true;

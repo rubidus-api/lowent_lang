@@ -5,6 +5,7 @@
 // awareness because their do…end body belongs to the *statement*, not to the operand
 // immediately before `do` (cf. `if cond do…end` — the block is if's, not cond's).
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기 */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_cst.h"
 #include "low_cst_priv.h"
 #include "low_arity.h"
@@ -2483,7 +2484,7 @@ void low_nest_report(char *buf, proven_size_t cap) {
         if (o) buf[o++] = ' ';
         for (proven_size_t q = 0; q < g_last.why[i].size && o + 16 < cap; q++)
             buf[o++] = (char)g_last.why[i].ptr[q];
-        int k = snprintf(buf + o, cap - o, "(%zu)", (size_t)g_last.whyn[i]);
+        int k = low_bfmt(buf + o, cap - o, "({})", PROVEN_ARG((size_t)((size_t)g_last.whyn[i])));
         if (k > 0) o += (proven_size_t)k;
     }
     buf[o < cap ? o : cap - 1] = 0;

@@ -112,12 +112,17 @@ is exactly proven's region allocator. We reuse proven for: arena/allocator (memo
 *"짓는 것은 한 줄도 안 바뀌었다"* 는 잘못된 안심이 세 곳에 퍼졌다(실제로는 `proven_sys_random.c` 가 바뀌었다).
 ☞ *같은 목록을 두 곳에 두면 한 곳만 낡고, 낡은 쪽이 인용된다*(교훈 7).
 
-오늘(2026-11-02) `PROVEN_SRC` 가 짓는 것: `arena · buffer · u8str · array · panic · heap ·
-float_parse · float_decimal · utf · u16str · alloc_check`(11) + `platform/proven_sys_{mem,time,random}.c`(3).
+오늘(2026-11-12) `PROVEN_SRC` 가 짓는 것: `arena · buffer · u8str · array · panic · heap ·
+float_parse · float_decimal · fmt · float_format · utf · u16str · alloc_check`(13) + `platform/proven_sys_{mem,time,random}.c`(3).
 (`float_parse`·`float_decimal` 은 부동 리터럴과 부동 인자 읽기 · `utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `buffer` 는 `u8str`·`u16str` 이 부른다 ·
 `alloc_check` 은 `make alloccheck` 용이고 `panic` 은 그것이 부른다. 2026-11-02 에 아무도 부르지 않던 `memory · pool · scan ·
 float_parse · float_decimal` 다섯을 뺐다 — 그리고 같은 날 소유자 요청으로 `float_parse · float_decimal` 둘이 돌아왔다: 부동 리터럴과
 `--run` 의 부동 인자를 `proven_strtod` 가 읽는다. 이제 상류의 부동소수 고침(낮은 림이 0 인 128 비트 값 · u256 이동의 UB)이 처리기에 닿는다.)
+2026-11-12(W-20261112-0207 S2): `fmt · float_format` — 처리기가 버퍼에 글을 짓는 자리(전엔 libc `snprintf`)를 proven 의 포매터가 한다
+(`src/low_fmt.h` 의 `low_bfmt`). ★ 다시 들여올 때 볼 것: `low_fmt.h` 는 `fmt.h` 의 `proven_u8str_fmt_internal` 을 부른다 — fmt.h 가
+«안정된 인터페이스가 아니다(MINOR 판에서 서명이 바뀔 수 있다)» 고 적은 함수다. C 와 다르게 받아들인 것: 잘라야 할 때 UTF-8 글자를
+가르지 않는다 · `%s` 의 NULL 은 빈 글(glibc `(null)`). libc 에 남긴 것: 부동소수 `%g`/`%e` 자리 — proven 의 `{:g}` 는 가장 짧은 왕복 꼴이라
+printf `%g` 와 글자가 다르다(상류 요청 `proven_c_lib/docs/requirements/2026-11-12-lowent-printf-g-mode.md`).
 Warning-clean under `-std=c23 -Wall -Wextra`(벤더 경고 0 — 남아 있던 둘은 우리 쪽 `PROVEN_ARRAY_GET`
 오용이었고 `GET_MUT` 으로 고쳤다).
 

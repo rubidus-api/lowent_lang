@@ -8,7 +8,8 @@
  *                         크기가 틀린 realloc 을 그 자리에서 멈춘다. 보통 빌드에서는 비용 0.
  *     · low_scratch_*   — 한 패스(함수 하나) 안에서만 쓰는 작업 배열. 필요한 바이트를 한 덩이로 받아 proven 아레나로 나눠 주고,
  *                         패스 끝에서 한 번에 돌려준다(배열마다 free 하지 않는다 — 짝은 open/close 다).
- *     · proven_pool     — 크기가 같은 블록을 자주 받고 돌려주는 것(그린스레드 스택).
+ *     · proven_pool     — 쓰지 않는다: 크기가 같은 블록을 받았다 돌려주는 자리가 없다(그린스레드 스택은 돌려주지 않고, VM 활성
+ *                         기록은 자기 재사용 목록이 있다). 그런 자리가 생기면 그때 쓴다.
  *   짝: low_alloc · low_zalloc · low_realloc ↔ low_free (모두 low_heap 에서) · low_scratch_open ↔ low_scratch_close.
  */
 #include <stdbool.h>

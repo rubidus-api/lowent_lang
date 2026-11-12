@@ -12,6 +12,7 @@
  *   어휘와 **진짜 결합**을 나누어 적는다 — 짧아야 하는 것은 결합이다.
  */
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_typecheck.h"
 #include "low_ir_priv.h"
 
@@ -2956,7 +2957,7 @@ static void ir_pool_scan(low_ir_t *ir) {
             if (!hit || !far_) continue;
             low_diag_t dg = { .sev = LOW_SEV_WARNING, .code = "W-POOL-LOOP", .line = hit, .col = 0,
                               .file = (d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
-            snprintf(dg.detail, sizeof dg.detail,
+            low_bfmt(dg.detail, sizeof dg.detail,
                      "this loop makes option/result/struct values and writes them into a field of a record behind a given reference: "
                      "if that record is on the caller's stack, native cannot reclaim its pool and stops at the limit. Write once after the loop, or return it");
             // ★ `msg` 는 NULL 로 둔다(low_diag.h ★ 진단의 문장) — `detail` 을 가리키면 밀어 넣은 사본이 이 지역의 칸을 가리켜,
@@ -3033,10 +3034,10 @@ static void ir_pool_scan(low_ir_t *ir) {
             if (!why[i] && memo[i] > cap) {
                 low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = "E-POOL-BOUND", .line = d->ncode ? d->code[0].line : 0, .col = 0,
                                   .file = (d->ncode && d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
-                snprintf(dg.detail, sizeof dg.detail,
-                         "the deepest call path from this op can keep up to %llu option/result/struct values at once (a bound: "
-                         "every one made on the path, counted without reclaim) — more than this machine's value pool (%llu). "
-                         "Split the path, or reuse values (RFC-0150 §8-11)", memo[i], cap);
+                low_bfmt(dg.detail, sizeof dg.detail,
+                         "the deepest call path from this op can keep up to {} option/result/struct values at once (a bound: "
+                         "every one made on the path, counted without reclaim) — more than this machine's value pool ({}). "
+                         "Split the path, or reuse values (RFC-0150 §8-11)", PROVEN_ARG((unsigned long long)(memo[i])), PROVEN_ARG((unsigned long long)(cap)));
                 (void)proven_array_push(&ir->diags, &dg);   // `msg` 는 NULL — 위 W-POOL-LOOP 의 ★
                 ir->ok = false;
             }
@@ -3065,10 +3066,10 @@ static void ir_pool_scan(low_ir_t *ir) {
                 if (!rec && p > (unsigned long long)budget && q <= (unsigned long long)budget) {
                     low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = "E-STACK-BUDGET", .line = d->ncode ? d->code[0].line : 0, .col = 0,
                                       .file = (d->ncode && d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
-                    snprintf(dg.detail, sizeof dg.detail,
-                             "the deepest call path from this op keeps %llu bytes of list literals and struct values in its frames at once "
-                             "— more than the stack budget on this machine (%ld); the struct values push it over. The program would stop "
-                             "there at run time; take the values from an allocator (`use`), or split the path (RFC-0132 P4e)", p, budget);
+                    low_bfmt(dg.detail, sizeof dg.detail,
+                             "the deepest call path from this op keeps {} bytes of list literals and struct values in its frames at once "
+                             "— more than the stack budget on this machine ({}); the struct values push it over. The program would stop "
+                             "there at run time; take the values from an allocator (`use`), or split the path (RFC-0132 P4e)", PROVEN_ARG((unsigned long long)(p)), PROVEN_ARG((long long)(budget)));
                     (void)proven_array_push(&ir->diags, &dg);
                     ir->ok = false;
                 }
@@ -3327,12 +3328,12 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                 const low_op_header_t h = low_op_header(cf);
                 low_cst_t *const *k = cf->kids;
                 if (!h.is_calc)
-                    snprintf(c->why, sizeof c->why, "`%.*s` is a `proc` — it may have effects, and only a pure `fn` runs at compile time (RFC-0015 §4.1)",
-                             (int)h.name.size, (const char *)h.name.ptr);
+                    low_bfmt(c->why, sizeof c->why, "`{}` is a `proc` — it may have effects, and only a pure `fn` runs at compile time (RFC-0015 §4.1)",
+                             low_sv((const char *)h.name.ptr, (int)h.name.size));
                 c->arr = !c->why[0] && ctfe_array_answer(pr, cf, &h, &c->elem, &c->nelem, &c->rowty, &c->selem);
                 if (c->arr && c->nelem * ir_field_size(c->elem) > IR_CTFE_MAXBYTES)
-                    snprintf(c->why, sizeof c->why, "`%.*s` returns an array of %zu bytes — a compile-time answer holds at most %u bytes",
-                             (int)h.name.size, (const char *)h.name.ptr, c->nelem * ir_field_size(c->elem), (unsigned)IR_CTFE_MAXBYTES);
+                    low_bfmt(c->why, sizeof c->why, "`{}` returns an array of {} bytes — a compile-time answer holds at most {} bytes",
+                             low_sv((const char *)h.name.ptr, (int)h.name.size), PROVEN_ARG((size_t)(c->nelem * ir_field_size(c->elem))), PROVEN_ARG((unsigned)((unsigned)IR_CTFE_MAXBYTES)));
                 // 입력: 정수나 `bool` 하나, 또는 수의 슬라이스(`slice T` — 문자열 · `text` · 상수 나열 · 배열 상수가 건너간다, RFC-0015 §6.4)
                 for (proven_size_t q = 0; q < h.np - (c->arr ? 1 : 0) && !c->why[0]; q++) {
                     const low_param_t *pp = &h.p[q];
@@ -3347,8 +3348,8 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                                (pp->te == pp->core + 2 && veq(k[pp->core]->tok.lex, "slice") && is_atom(k[pp->core + 1]) && ctfe_num_elem(k[pp->core + 1]->tok.lex))));
                     if (sti && !stsl && q < LOW_HDR_MAXP) { c->sty[q] = k[pp->core]->tok.lex; if (c->nsty < q + 1) c->nsty = q + 1; }   // §6.4 — 구조체 입력(바이트 배치로 건넨다)
                     if (!ok)
-                        snprintf(c->why, sizeof c->why, "`%.*s` takes an input that is not one integer or `bool`, a slice of numbers or a struct — only those cross into a compile-time call (a `mut` input would be written)",
-                                 (int)h.name.size, (const char *)h.name.ptr);
+                        low_bfmt(c->why, sizeof c->why, "`{}` takes an input that is not one integer or `bool`, a slice of numbers or a struct — only those cross into a compile-time call (a `mut` input would be written)",
+                                 low_sv((const char *)h.name.ptr, (int)h.name.size));
                 }
                 if (!c->why[0] && !c->arr) {
                     if (h.out_e == h.out_s + 1 && is_atom(k[h.out_s]) && ctfe_int_word(k[h.out_s]->tok.lex)) {
@@ -3365,11 +3366,11 @@ static void ctfe_add_site(const low_parse_result_t *pr, const low_cst_t *nd) {
                         //   상수다. 배열 답처럼 읽기 전용 자리에 두고, 슬라이스 칸의 주소는 다시 적는다(돌린 뒤 배치가 정해진다)
                         c->sl = true; c->selem = true; c->elem = k[h.out_s + 1]->tok.lex;
                     } else if (h.out_e >= h.out_s + 2 && is_atom(k[h.out_s]) && veq(k[h.out_s]->tok.lex, "slice"))
-                        snprintf(c->why, sizeof c->why, "`%.*s` returns a slice of rows — a compile-time call hands back a slice of numbers or of structs, and an array of rows (RFC-0015 §6.3)",
-                                 (int)h.name.size, (const char *)h.name.ptr);
+                        low_bfmt(c->why, sizeof c->why, "`{}` returns a slice of rows — a compile-time call hands back a slice of numbers or of structs, and an array of rows (RFC-0015 §6.3)",
+                                 low_sv((const char *)h.name.ptr, (int)h.name.size));
                     else
-                        snprintf(c->why, sizeof c->why, "`%.*s` returns a type a compile-time call cannot hand back — one integer or `bool`, an array or a slice of numbers, and a struct are built (RFC-0015 §6.3)",
-                                 (int)h.name.size, (const char *)h.name.ptr);
+                        low_bfmt(c->why, sizeof c->why, "`{}` returns a type a compile-time call cannot hand back — one integer or `bool`, an array or a slice of numbers, and a struct are built (RFC-0015 §6.3)",
+                                 low_sv((const char *)h.name.ptr, (int)h.name.size));
                 }
             } else if (!dup) return;
         }
@@ -3407,22 +3408,22 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
     const proven_u8str_view_t fnm = c->callee->kids[1]->tok.lex;
     const low_ir_capval_t *top = &cap->n[0];
     if (c->sl) {
-        if (top->kind != 3) { snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not hand back a slice", (int)fnm.size, (const char *)fnm.ptr); return; }
+        if (top->kind != 3) { low_bfmt(c->why, sizeof c->why, "running `{}` at compile time did not hand back a slice", low_sv((const char *)fnm.ptr, (int)fnm.size)); return; }
         if (top->nbytes > IR_CTFE_MAXBYTES) {
-            snprintf(c->why, sizeof c->why, "`%.*s` returned %zu bytes at compile time — a compile-time answer holds at most %u bytes",
-                     (int)fnm.size, (const char *)fnm.ptr, top->nbytes, (unsigned)IR_CTFE_MAXBYTES);
+            low_bfmt(c->why, sizeof c->why, "`{}` returned {} bytes at compile time — a compile-time answer holds at most {} bytes",
+                     low_sv((const char *)fnm.ptr, (int)fnm.size), PROVEN_ARG((size_t)(top->nbytes)), PROVEN_ARG((unsigned)((unsigned)IR_CTFE_MAXBYTES)));
             return;
         }
         c->nbytes = top->nbytes;
         c->bytes = low_alloc(c->nbytes ? c->nbytes : 1);
-        if (!c->bytes) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
+        if (!c->bytes) { low_bfmt(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
         if (c->nbytes) memcpy(c->bytes, top->p, c->nbytes);
         return;
     }
-    if (top->kind != 4) { snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not hand back a struct value", (int)fnm.size, (const char *)fnm.ptr); return; }
+    if (top->kind != 4) { low_bfmt(c->why, sizeof c->why, "running `{}` at compile time did not hand back a struct value", low_sv((const char *)fnm.ptr, (int)fnm.size)); return; }
     if (cap->full) {
-        snprintf(c->why, sizeof c->why, "`%.*s` returned a struct with more than %u values in all (its fields and the fields of the structs inside) — "
-                 "a compile-time struct answer holds at most that", (int)fnm.size, (const char *)fnm.ptr, (unsigned)LOW_CAP_NODES);
+        low_bfmt(c->why, sizeof c->why, "`{}` returned a struct with more than {} values in all (its fields and the fields of the structs inside) — "
+                 "a compile-time struct answer holds at most that", low_sv((const char *)fnm.ptr, (int)fnm.size), PROVEN_ARG((unsigned)((unsigned)LOW_CAP_NODES)));
         return;
     }
     proven_size_t total = 0;
@@ -3432,20 +3433,20 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
         ctfe_node_t *d = &c->tn[q];
         d->kind = s0->kind; d->v = s0->v; d->vhi = s0->vhi; d->first = s0->first; d->nk = s0->nk;
         if (s0->kind == 4) {
-            if (s0->make_idx >= ir->nmakes || s0->nk > IR_MAKE_MAXF) { snprintf(c->why, sizeof c->why, "`%.*s` returned a struct this tool cannot read back", (int)fnm.size, (const char *)fnm.ptr); return; }
+            if (s0->make_idx >= ir->nmakes || s0->nk > IR_MAKE_MAXF) { low_bfmt(c->why, sizeof c->why, "`{}` returned a struct this tool cannot read back", low_sv((const char *)fnm.ptr, (int)fnm.size)); return; }
             const low_ir_make_t *mk = &ir->makes[s0->make_idx];
             d->tname = mk->type_name;
             for (proven_size_t z = 0; z < s0->nk && z < mk->nfields; z++) d->fname[z] = mk->fields[z];
         } else if (s0->kind == 3) {
             total += s0->nbytes;
-            if (total > IR_CTFE_MAXBYTES) { snprintf(c->why, sizeof c->why, "`%.*s` returned a struct whose slices hold more than %u bytes", (int)fnm.size, (const char *)fnm.ptr, (unsigned)IR_CTFE_MAXBYTES); return; }
+            if (total > IR_CTFE_MAXBYTES) { low_bfmt(c->why, sizeof c->why, "`{}` returned a struct whose slices hold more than {} bytes", low_sv((const char *)fnm.ptr, (int)fnm.size), PROVEN_ARG((unsigned)((unsigned)IR_CTFE_MAXBYTES))); return; }
             d->n = s0->nbytes;
             d->b = low_alloc(d->n ? d->n : 1);
-            if (!d->b) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
+            if (!d->b) { low_bfmt(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
             if (d->n) memcpy(d->b, s0->p, d->n);
         } else if (s0->kind != 1 && s0->kind != 2 && s0->kind != 6) {   // 6 = 128 비트 값 — 두 절반을 함께 든다(2026-10-31 · W-20261031-1118)
-            snprintf(c->why, sizeof c->why, "`%.*s` returned a struct holding an option, a result or a reference — a compile-time struct answer "
-                     "holds numbers, `bool`s, arrays and slices of numbers and other such structs (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr);
+            low_bfmt(c->why, sizeof c->why, "`{}` returned a struct holding an option, a result or a reference — a compile-time struct answer "
+                     "holds numbers, `bool`s, arrays and slices of numbers and other such structs (RFC-0015 §6.3)", low_sv((const char *)fnm.ptr, (int)fnm.size));
             return;
         }
     }
@@ -3459,7 +3460,7 @@ static void ctfe_take_relocs(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ar
     if (!sf) return;
     proven_i32 sh = ir->structs[si].ashadow1 ? (proven_i32)ir->structs[si].ashadow1 - 1 : (proven_i32)si;
     const low_ir_struct_t *st = &ir->structs[sh];
-    if (!st->is_shadow || !st->total) { snprintf(c->why, sizeof c->why, "`%.*s` returned an array of structs this tool cannot read back", (int)fnm.size, (const char *)fnm.ptr); return; }
+    if (!st->is_shadow || !st->total) { low_bfmt(c->why, sizeof c->why, "`{}` returned an array of structs this tool cannot read back", low_sv((const char *)fnm.ptr, (int)fnm.size)); return; }
     const unsigned slot = low_ptr_slot();
     for (proven_size_t e = 0; e < c->nelem && !c->why[0]; e++)
         for (proven_size_t q = 0; q < st->nf && !c->why[0]; q++) {
@@ -3480,14 +3481,14 @@ static void ctfe_take_relocs(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ar
                 for (proven_size_t r = 0; r < g_cc[z].nrel && !known; r++)
                     if (g_cc[z].rel[r].b && pp >= g_cc[z].rel[r].b && pp + nb <= g_cc[z].rel[r].b + g_cc[z].rel[r].n) known = true;
             if (!known) {
-                snprintf(c->why, sizeof c->why, "`%.*s` returned a struct whose slice field `%.*s` points neither into its input nor into the program's constant "
-                         "data — a compile-time answer can keep only those (RFC-0015 §6.3)", (int)fnm.size, (const char *)fnm.ptr,
-                         (int)st->f[q].name.size, (const char *)st->f[q].name.ptr);
+                low_bfmt(c->why, sizeof c->why, "`{}` returned a struct whose slice field `{}` points neither into its input nor into the program's constant "
+                         "data — a compile-time answer can keep only those (RFC-0015 §6.3)", low_sv((const char *)fnm.ptr, (int)fnm.size),
+                         low_sv((const char *)st->f[q].name.ptr, (int)st->f[q].name.size));
                 return;
             }
-            if (c->nrel >= IR_CTFE_MAXREL) { snprintf(c->why, sizeof c->why, "`%.*s` returned more than %u slices in one answer", (int)fnm.size, (const char *)fnm.ptr, (unsigned)IR_CTFE_MAXREL); return; }
+            if (c->nrel >= IR_CTFE_MAXREL) { low_bfmt(c->why, sizeof c->why, "`{}` returned more than {} slices in one answer", low_sv((const char *)fnm.ptr, (int)fnm.size), PROVEN_ARG((unsigned)((unsigned)IR_CTFE_MAXREL))); return; }
             proven_u8 *cp = low_alloc(nb ? nb : 1);
-            if (!cp) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
+            if (!cp) { low_bfmt(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
             if (nb) memcpy(cp, pp, nb);
             c->rel[c->nrel].off = (proven_u32)off; c->rel[c->nrel].b = cp; c->rel[c->nrel].n = nb; c->nrel++;
         }
@@ -3524,7 +3525,7 @@ static bool ctfe_cache_path(const low_ir_t *ir, proven_size_t di, const ctfe_cal
         else h = ctfe_fnv(h, &a[q].v, sizeof a[q].v);
         h2 = ctfe_fnv(h2 ^ h, &q, sizeof q);
     }
-    snprintf(out, cap, "%s/%016llx%016llx.ctfe", dir, (unsigned long long)h, (unsigned long long)h2);
+    low_bfmt(out, cap, "{}/{:016x}{:016x}.ctfe", proven_arg_cstr(dir), PROVEN_ARG((unsigned long long)((unsigned long long)h)), PROVEN_ARG((unsigned long long)((unsigned long long)h2)));
     return true;
 }
 #define CTFE_CACHE_TAG "LOWCTFE1"
@@ -3552,7 +3553,7 @@ static void ctfe_cache_put(const low_ir_t *ir, proven_size_t di, const ctfe_call
     if (c->st) return;
     char path[1024], tmp[1100];
     if (!ctfe_cache_path(ir, di, c, a, na, path, sizeof path)) return;
-    snprintf(tmp, sizeof tmp, "%s.%ld.tmp", path, (long)getpid());
+    low_bfmt(tmp, sizeof tmp, "{}.{}.tmp", proven_arg_cstr(path), PROVEN_ARG((long long)((long)getpid())));
     FILE *fp = fopen(tmp, "wb");
     if (!fp) return;
     proven_u64 v = (proven_u64)c->v, n = (c->arr || c->sl) ? c->nbytes : 0;
@@ -3595,9 +3596,9 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                         if (sh >= 0) { si = (proven_size_t)sh; c->shadow = true; }
                     }
                     if (!sf || (!ir.structs[si].viewable && !ir.structs[si].is_shadow) || !ir.structs[si].total || c->nelem * ir.structs[si].total > IR_CTFE_MAXBYTES) {
-                        snprintf(c->why, sizeof c->why, "`%.*s` returns an array of `%.*s`, which has no byte layout yet (a slice, `owned` or array field) or is larger than %u bytes",
-                                 (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->elem.size, (const char *)c->elem.ptr,
-                                 (unsigned)IR_CTFE_MAXBYTES);
+                        low_bfmt(c->why, sizeof c->why, "`{}` returns an array of `{}`, which has no byte layout yet (a slice, `owned` or array field) or is larger than {} bytes",
+                                 low_sv((const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->callee->kids[1]->tok.lex.size), low_sv((const char *)c->elem.ptr, (int)c->elem.size),
+                                 PROVEN_ARG((unsigned)((unsigned)IR_CTFE_MAXBYTES)));
                         progress = true; continue;
                     }
                     c->nbytes = c->nelem * ir.structs[si].total;
@@ -3605,15 +3606,15 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                 if (c->rowty) {   // 줄의 배열 — 줄 하나의 바이트는 줄 꼴 표가 안다
                     proven_u8str_view_t lf; proven_u64 rb = 0; proven_u8 sub = 0;
                     if (!ir_row_shape(&ir, c->rowty, &lf, &rb, &sub) || c->nelem * rb > IR_CTFE_MAXBYTES) {
-                        snprintf(c->why, sizeof c->why, "`%.*s` returns an array of rows that is not laid out, or is larger than %u bytes — a compile-time answer holds at most that",
-                                 (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (unsigned)IR_CTFE_MAXBYTES);
+                        low_bfmt(c->why, sizeof c->why, "`{}` returns an array of rows that is not laid out, or is larger than {} bytes — a compile-time answer holds at most that",
+                                 low_sv((const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->callee->kids[1]->tok.lex.size), PROVEN_ARG((unsigned)((unsigned)IR_CTFE_MAXBYTES)));
                         progress = true; continue;
                     }
                     c->nbytes = c->nelem * (proven_size_t)rb;
                     rowmeta = ir_row_meta(lf, rb, sub);
                 }
                 c->bytes = low_zalloc(c->nbytes ? c->nbytes : 1, 1);
-                if (!c->bytes || na >= LOW_HDR_MAXP) { snprintf(c->why, sizeof c->why, "no memory for a compile-time array answer"); progress = true; continue; }
+                if (!c->bytes || na >= LOW_HDR_MAXP) { low_bfmt(c->why, sizeof c->why, "no memory for a compile-time array answer"); progress = true; continue; }
                 a[na++] = (low_ir_arg_t){ .is_slice = true, .bytes = c->bytes, .n = c->nbytes, .vmeta = rowmeta };
             }
             proven_array_t dg = PROVEN_ARRAY_INIT(work, low_diag_t, 4).value;
@@ -3629,8 +3630,8 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                 if (sf && !ir.structs[si].viewable) { proven_i32 sh = ir_alloc_shadow(&ir, si); if (sh >= 0) { si = (proven_size_t)sh; c->shadow = true; } }
                 const proven_size_t tot = sf ? ir.structs[si].total : 0;
                 if (!tot || c->nbytes % tot)
-                    snprintf(c->why, sizeof c->why, "`%.*s` returned a slice of `%.*s` this tool cannot read back (no byte layout)",
-                             (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->elem.size, (const char *)c->elem.ptr);
+                    low_bfmt(c->why, sizeof c->why, "`{}` returned a slice of `{}` this tool cannot read back (no byte layout)",
+                             low_sv((const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->callee->kids[1]->tok.lex.size), low_sv((const char *)c->elem.ptr, (int)c->elem.size));
                 else c->nelem = c->nbytes / tot;
             }
             if (rr.ok && (c->arr || c->sl) && c->shadow && !c->why[0]) ctfe_take_relocs(&ir, c, a, na);
@@ -3639,12 +3640,12 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
             else {
                 const low_diag_t *d0 = dg.len ? (const low_diag_t *)proven_array_get(&dg, 0) : NULL;
                 if (d0 && d0->code && !strcmp(d0->code, "E-VM-BUDGET"))
-                    snprintf(c->why, sizeof c->why, "running `%.*s` at compile time did not end within %llu VM steps (RFC-0015 §6.2 — a compile-time call has a step budget; "
+                    low_bfmt(c->why, sizeof c->why, "running `{}` at compile time did not end within {} VM steps (RFC-0015 §6.2 — a compile-time call has a step budget; "
                              "raise it with `build comptime_steps <N> .` or `--comptime-steps N`)",
-                             (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr, (unsigned long long)steps);
-                else snprintf(c->why, sizeof c->why, "running `%.*s` at compile time stopped: %s%s%.160s",
-                         (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr,
-                         d0 && d0->code ? d0->code : "it did not return", d0 && d0->msg ? " — " : "", d0 && d0->msg ? d0->msg : "");
+                             low_sv((const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->callee->kids[1]->tok.lex.size), PROVEN_ARG((unsigned long long)((unsigned long long)steps)));
+                else low_bfmt(c->why, sizeof c->why, "running `{}` at compile time stopped: {}{}{:.160}",
+                         low_sv((const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->callee->kids[1]->tok.lex.size),
+                         proven_arg_cstr(d0 && d0->code ? d0->code : "it did not return"), proven_arg_cstr(d0 && d0->msg ? " — " : ""), proven_arg_cstr(d0 && d0->msg ? d0->msg : ""));
                 progress = true;
             }
             proven_array_destroy(&dg);
@@ -3656,10 +3657,10 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
     for (proven_size_t i = 0; i < g_ncc; i++) {
         ctfe_call_t *c = &g_cc[i];
         if (c->ok || c->why[0] || c->hasargs) continue;
-        snprintf(c->why, sizeof c->why, "the arguments of `%.*s` are not all known when translating — an integer must fold like any `comptime` "
+        low_bfmt(c->why, sizeof c->why, "the arguments of `{}` are not all known when translating — an integer must fold like any `comptime` "
                  "expression, a slice must be a string, a `text` literal, a list of constants or an array constant, and a struct needs a "
                  "byte layout (no slice, array or enum fields) and must be `lit S do … end` with constant fields or a compile-time struct answer (RFC-0015 §6.4)",
-                 (int)c->callee->kids[1]->tok.lex.size, (const char *)c->callee->kids[1]->tok.lex.ptr);
+                 low_sv((const char *)c->callee->kids[1]->tok.lex.ptr, (int)c->callee->kids[1]->tok.lex.size));
     }
 }
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {

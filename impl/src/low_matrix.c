@@ -18,6 +18,7 @@
 // 크기가 번역 시점의 값 입력의 이름이면(`input comptime r u64 . … input m matrix u32 2 r c .`) 그 이름으로 식을 짓는다 —
 // `mul r c`. 단형화가 이름을 수로 바꾼다. 그런 모양은 입력에만 선다(나열 리터럴과 결과는 제 길이를 수로 적어야 한다).
 #include "low_cst.h"
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_cst_priv.h"
 #include <stdarg.h>
 #include <stddef.h>
@@ -84,10 +85,11 @@ static bool mx_grow(mx_t *c, void **arr, proven_size_t *cap, proven_size_t need,
     *arr = n; *cap = nc;
     return true;
 }
-static void mx_fail(mx_t *c, const low_cst_t *at, const char *code, const char *fmt, ...) __attribute__((format(printf, 4, 5)));
-static void mx_fail(mx_t *c, const low_cst_t *at, const char *code, const char *fmt, ...) {
+// ★ W-20261112-0207 S2 — 서식은 proven 의 `{}` 이고 인자는 PROVEN_ARG 꼴로 받는다(전엔 printf 서식 + vsnprintf). 매크로가 인자 배열을 짓는다.
+#define mx_fail(c, at, code, fmt, ...) mx_fail_(c, at, code, fmt, LOW_FMT_ARGS(__VA_ARGS__))
+static void mx_fail_(mx_t *c, const low_cst_t *at, const char *code, const char *fmt, const proven_arg_t *args, proven_size_t nargs) {
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .line = at ? at->tok.line : 0, .col = at ? at->tok.col : 0, .file = at ? at->file : NULL };
-    va_list ap; va_start(ap, fmt); vsnprintf(d.detail, sizeof d.detail, fmt, ap); va_end(ap);
+    (void)low_bfmt_args(d.detail, sizeof d.detail, fmt, args, nargs);
     (void)proven_array_push(&c->p.out->diags, &d);
     c->p.out->ok = false; c->failed = true;
 }
@@ -108,7 +110,7 @@ static low_cst_t *mx_word(mx_t *c, const low_cst_t *model, const char *w) {
     return a;
 }
 static low_cst_t *mx_number(mx_t *c, const low_cst_t *model, unsigned long long v) {
-    char b[32]; snprintf(b, sizeof b, "%llu", v);
+    char b[32]; low_bfmt(b, sizeof b, "{}", PROVEN_ARG((unsigned long long)(v)));
     return mx_word(c, model, b);
 }
 static low_cst_t *mx_copy(mx_t *c, const low_cst_t *m) {   // 이름 · 수 하나를 베낀다(같은 마디를 두 자리에 걸지 않는다)
@@ -188,9 +190,9 @@ static bool mx_same(const mx_shape_t *a, const mx_shape_t *b) {
 }
 static void mx_shape_text(const mx_shape_t *sh, char *buf, size_t cap) {
     size_t w = 0;
-    w += (size_t)snprintf(buf + w, cap - w, "%u", sh->k);
+    w += (size_t)low_bfmt(buf + w, cap - w, "{}", PROVEN_ARG((unsigned)(sh->k)));
     for (unsigned q = 0; q < sh->k && w + 24 < cap; q++)
-        w += (size_t)snprintf(buf + w, cap - w, " %.*s", (int)(sh->d[q]->tok.lex.size > 20 ? 20 : sh->d[q]->tok.lex.size), (const char *)sh->d[q]->tok.lex.ptr);
+        w += (size_t)low_bfmt(buf + w, cap - w, " {}", low_sv((const char *)sh->d[q]->tok.lex.ptr, (int)(sh->d[q]->tok.lex.size > 20 ? 20 : sh->d[q]->tok.lex.size)));
 }
 // 차원 from 부터 끝까지의 크기의 곱 — 수 하나이거나 `(mul a (mul b c))`
 static low_cst_t *mx_prod(mx_t *c, const low_cst_t *model, const mx_shape_t *sh, unsigned from) {
@@ -357,7 +359,7 @@ static bool mx_lower_call(mx_t *c, low_cst_t *head, low_cst_t *const *args, prov
     bool is_idx = mx_is(head, "idx"), is_row = mx_is(head, "row");
     if (is_idx || is_row) {
         unsigned want = is_idx ? sh.k : sh.k - 1;
-        if (na - 1 != want) { mx_fail(c, head, "E-MATRIX-INDEX", "%s", is_idx ? MX_RANK_MSG : MX_ROW_MSG); return false; }
+        if (na - 1 != want) { mx_fail(c, head, "E-MATRIX-INDEX", "{}", proven_arg_cstr(is_idx ? MX_RANK_MSG : MX_ROW_MSG)); return false; }
         low_cst_t *cur = mx_peel(c, head, &sh, args[0], args + 1, sh.k - 1);
         if (!cur) return false;
         if (is_idx) { out[0] = head; out[1] = cur; out[2] = args[sh.k]; *nout = 3; }
@@ -432,11 +434,11 @@ static void mx_check_call(mx_t *c, const low_cst_t *head, low_cst_t *const *args
         if (!takes) return;
     }
     if (!known)
-        mx_fail(c, head, "E-MATRIX-SHAPE", "a `matrix` is passed whole to `%.*s`, which declares no `matrix` input — read one element (`idx m. i. j. .`), one row (`row m. i. .`) or all elements as one row (`flat m. .`)",
-                (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr);
+        mx_fail(c, head, "E-MATRIX-SHAPE", "a `matrix` is passed whole to `{}`, which declares no `matrix` input — read one element (`idx m. i. j. .`), one row (`row m. i. .`) or all elements as one row (`flat m. .`)",
+                low_sv((const char *)nm.ptr, (int)(nm.size > 40 ? 40 : nm.size)));
     else
-        mx_fail(c, head, "E-MATRIX-SHAPE", "the call of `%.*s` and its inputs disagree about a `matrix` — the number of dimensions and every size must be the same (`matrix 2 3 4 u32` is not `matrix 2 4 3 u32`, nor `array u32 12`)",
-                (int)(nm.size > 40 ? 40 : nm.size), (const char *)nm.ptr);
+        mx_fail(c, head, "E-MATRIX-SHAPE", "the call of `{}` and its inputs disagree about a `matrix` — the number of dimensions and every size must be the same (`matrix 2 3 4 u32` is not `matrix 2 4 3 u32`, nor `array u32 12`)",
+                low_sv((const char *)nm.ptr, (int)(nm.size > 40 ? 40 : nm.size)));
 }
 
 static void mx_stmt(mx_t *c, low_cst_t *f);
@@ -563,7 +565,7 @@ static bool mx_callee_gives(const mx_t *c, const low_cst_t *head, const mx_shape
 // matrix 타입의 낱말 [at, end) 를 `array t N` 으로
 static bool mx_type_to_array(mx_t *c, low_cst_t *parent, proven_size_t at, proven_size_t end, const mx_shape_t *sh, const char *where) {
     if (!mx_literal(sh)) {
-        mx_fail(c, parent->kids[at], "E-MATRIX-TYPE", "%s writes every size of a `matrix` as a number — a size that is a translation-time input stands only in an op's `input`", where);
+        mx_fail(c, parent->kids[at], "E-MATRIX-TYPE", "{} writes every size of a `matrix` as a number — a size that is a translation-time input stands only in an op's `input`", proven_arg_cstr(where));
         return false;
     }
     low_cst_t *nk[3] = { mx_word(c, parent->kids[at], "array"), parent->kids[at + 1], mx_number(c, parent->kids[at], mx_total(sh, 0)) };
@@ -615,10 +617,10 @@ static void mx_let(mx_t *c, low_cst_t *f) {
                 bool has = mx_callee_out(c, vh, false, &known, &all, &fs);
                 mx_shape_text(&decl.sh, got, sizeof got);
                 if (has) mx_shape_text(&fs, want, sizeof want);
-                mx_fail(c, vh, "E-MATRIX-SHAPE", "this `matrix` name has shape `%s`, but its value `%.*s` %s%s%s — the shapes must be the same", got,
-                        (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size), (const char *)vh->tok.lex.ptr,
-                        !known ? "is neither a `matrix` name here nor an op of this program" : has ? "returns shape `" : "does not return a `matrix`",
-                        has ? want : "", has ? "`" : "");
+                mx_fail(c, vh, "E-MATRIX-SHAPE", "this `matrix` name has shape `{}`, but its value `{}` {}{}{} — the shapes must be the same", proven_arg_cstr(got),
+                        low_sv((const char *)vh->tok.lex.ptr, (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size)),
+                        proven_arg_cstr(!known ? "is neither a `matrix` name here nor an op of this program" : has ? "returns shape `" : "does not return a `matrix`"),
+                        proven_arg_cstr(has ? want : ""), proven_arg_cstr(has ? "`" : ""));
                 return;
             }
             proven_size_t e2 = ve;
@@ -648,8 +650,8 @@ static void mx_let(mx_t *c, low_cst_t *f) {
         bool known = false, all = false; mx_shape_t fs;
         if (vh && !mx_bound(c, vh->tok.lex) && mx_callee_out(c, vh, ve - vs == 1 && mx_atom(f->kids[vs]), &known, &all, &fs) && all) {
             char shs[48]; mx_shape_text(&fs, shs, sizeof shs);
-            mx_fail(c, vh, "E-MATRIX-SHAPE", "`%.*s` returns a `matrix` (shape `%s`), and this place is not a `matrix` of that shape — bind it to a name declared with that shape, or return it from an op whose `output` is that shape",
-                    (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size), (const char *)vh->tok.lex.ptr, shs);
+            mx_fail(c, vh, "E-MATRIX-SHAPE", "`{}` returns a `matrix` (shape `{}`), and this place is not a `matrix` of that shape — bind it to a name declared with that shape, or return it from an op whose `output` is that shape",
+                    low_sv((const char *)vh->tok.lex.ptr, (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size)), proven_arg_cstr(shs));
             return;
         }
         proven_size_t e2 = ve;
@@ -682,10 +684,10 @@ static void mx_return(mx_t *c, low_cst_t *f) {
             bool has = mx_callee_out(c, vh, false, &known, &all, &fs);
             mx_shape_text(&c->cur->out.sh, got, sizeof got);
             if (has) mx_shape_text(&fs, want, sizeof want);
-            mx_fail(c, vh, "E-MATRIX-SHAPE", "this op's `output` is a `matrix` of shape `%s`, but its value `%.*s` %s%s%s — the shapes must be the same", got,
-                    (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size), (const char *)vh->tok.lex.ptr,
-                    !known ? "is neither a `matrix` name here nor an op of this program" : has ? "returns shape `" : "does not return a `matrix`",
-                    has ? want : "", has ? "`" : "");
+            mx_fail(c, vh, "E-MATRIX-SHAPE", "this op's `output` is a `matrix` of shape `{}`, but its value `{}` {}{}{} — the shapes must be the same", proven_arg_cstr(got),
+                    low_sv((const char *)vh->tok.lex.ptr, (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size)),
+                    proven_arg_cstr(!known ? "is neither a `matrix` name here nor an op of this program" : has ? "returns shape `" : "does not return a `matrix`"),
+                    proven_arg_cstr(has ? want : ""), proven_arg_cstr(has ? "`" : ""));
             return;
         }
         mx_run(c, f, s, &e, true);
@@ -695,8 +697,8 @@ static void mx_return(mx_t *c, low_cst_t *f) {
         bool known = false, all = false; mx_shape_t fs;
         if (mx_callee_out(c, vh, single && mx_atom(f->kids[s]), &known, &all, &fs) && all) {
             char shs[48]; mx_shape_text(&fs, shs, sizeof shs);
-            mx_fail(c, vh, "E-MATRIX-SHAPE", "`%.*s` returns a `matrix` (shape `%s`), and this place is not a `matrix` of that shape — bind it to a name declared with that shape, or return it from an op whose `output` is that shape",
-                    (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size), (const char *)vh->tok.lex.ptr, shs);
+            mx_fail(c, vh, "E-MATRIX-SHAPE", "`{}` returns a `matrix` (shape `{}`), and this place is not a `matrix` of that shape — bind it to a name declared with that shape, or return it from an op whose `output` is that shape",
+                    low_sv((const char *)vh->tok.lex.ptr, (int)(vh->tok.lex.size > 40 ? 40 : vh->tok.lex.size)), proven_arg_cstr(shs));
             return;
         }
     }
@@ -1047,13 +1049,13 @@ static bool or_seq(or_t *o, low_cst_t *const *k, proven_size_t n, low_cst_t ***o
         }
         if (or_old(k[i + 1])) {                            // 옛 차례
             if (o->mode == 0) {
-                mx_fail(o->c, k[i + 1], "E-TYPE-ORDER",
-                        mat ? "the count comes first: `matrix <number of dimensions> <one size per dimension> <element type>` — `matrix 2 3 4 u32`. "
-                              "The old order `matrix u32 2 3 4` is no longer read; `lowentc --fmt` rewrites it"
-                            : "the count comes first: `%.*s <count> <element type>` — `%.*s 4 u8`, and an array of arrays is `array 3 array 4 u8`. "
-                              "The old order `%.*s u8 4` is no longer read; `lowentc --fmt` rewrites it",
-                        (int)t->tok.lex.size, (const char *)t->tok.lex.ptr, (int)t->tok.lex.size, (const char *)t->tok.lex.ptr,
-                        (int)t->tok.lex.size, (const char *)t->tok.lex.ptr);
+                if (mat) mx_fail(o->c, k[i + 1], "E-TYPE-ORDER",
+                        "the count comes first: `matrix <number of dimensions> <one size per dimension> <element type>` — `matrix 2 3 4 u32`. "
+                        "The old order `matrix u32 2 3 4` is no longer read; `lowentc --fmt` rewrites it");
+                else mx_fail(o->c, k[i + 1], "E-TYPE-ORDER",
+                        "the count comes first: `{0} <count> <element type>` — `{0} 4 u8`, and an array of arrays is `array 3 array 4 u8`. "
+                        "The old order `{0} u8 4` is no longer read; `lowentc --fmt` rewrites it",
+                        low_sv((const char *)t->tok.lex.ptr, (int)t->tok.lex.size));
                 return false;
             }
             w[m++] = t; i++; continue;                      // 서식기 — 안쪽 차례 그대로 둔다(찍을 때 새 차례로 올린다)

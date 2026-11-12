@@ -12,6 +12,7 @@
  * ★★★ 값: 증분 빌드의 96% 가 `low_ir.c` 였다(2724ms / 2833ms). 이제 둘이 `-j` 로 나란히 선다.
  */
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_ir_priv.h"
 
 extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파일 전용
@@ -442,7 +443,7 @@ static int vm_fmt128(char *out, proven_size_t cap, vm_u128 u, bool sgnd) {
     bool ng = sgnd && (vm_i128)u < 0; if (ng) u = (vm_u128)0 - u;
     char t[48]; int q = 47; t[q] = 0; do { t[--q] = (char)('0' + (int)(u % 10)); u /= 10; } while (u);
     if (ng) t[--q] = '-';
-    return snprintf(out, cap, "%s", t + q);
+    return low_bfmt(out, cap, "{}", proven_arg_cstr(t + q));
 }
 #endif
 static double vmv_f(vmv_t v) { double d; memcpy(&d, &v.i, 8); return d; }
@@ -5224,11 +5225,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
 // ★ f64 를 찍을 때 `3.0` 이 `3` 으로 나오면 **정수와 구분이 안 된다** — 도구가 타입을
 //   흐리는 것이다. 소수점이 없으면 `.0` 을 붙인다. (C 백엔드도 같은 규칙을 쓴다.)
 static void fmt_f(char *out, proven_size_t cap, double d) {
-    int n = snprintf(out, cap, "%g", d);
+    int n = snprintf(out, cap, "%g", d);   /* ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청) */
     if (n < 0 || (proven_size_t)n + 3 >= cap) return;
     for (const char *p = out; *p; p++)
         if (*p == '.' || *p == 'e' || *p == 'E' || *p == 'n' || *p == 'i') return;   // nan/inf 포함
-    snprintf(out + n, cap - (proven_size_t)n, ".0");
+    low_bfmt(out + n, cap - (proven_size_t)n, ".0");
 }
 // ★ RFC-0015 §6.3 — 값 하나를 날것으로 적는다(low_ir_set_capture). 바이트는 VM 기억을 가리킨다 — 부른 쪽이 곧바로 베낀다.
 static void vm_capval(const vm_ctx_t *vm, vmv_t v, low_ir_capture_t *cap, proven_size_t at) {
@@ -5260,109 +5261,111 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
             //   위 절반이 0 이면 64 비트 값이다(64 비트 음수도 위 절반은 0 이다 — 128 비트 값만 그것을 채운다).
             if (v.n && (proven_u64)v.n != (v.i < 0 ? ~0ull : 0ull)) { (void)vm_fmt128(out, cap, vmv_wv(v), (proven_i64)v.n < 0); return; }
 #endif
-            snprintf(out, cap, "%lld", (long long)v.i); return;
+            low_bfmt(out, cap, "{}", PROVEN_ARG((long long)((long long)v.i))); return;
         case VMV_FLT: fmt_f(out, cap, vmv_f(v)); return;
         case VMV_SLICE: {
-            proven_size_t o = (proven_size_t)snprintf(out, cap, "[");
+            proven_size_t o = (proven_size_t)low_bfmt(out, cap, "[");
             for (proven_size_t i = 0; i < v.n && o + 8 < cap; i++)
-                o += (proven_size_t)snprintf(out + o, cap - o, "%s%u", i ? " " : "", (unsigned)v.p[i]);
-            snprintf(out + o, cap - o, "]");
+                o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(i ? " " : ""), PROVEN_ARG((unsigned)((unsigned)v.p[i])));
+            low_bfmt(out + o, cap - o, "]");
             return;
         }
         case VMV_REC: {
             const vmrec_t *r = VM_RECV(vm, v);
             const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
-            proven_size_t o = (proven_size_t)snprintf(out, cap, "{");
+            proven_size_t o = (proven_size_t)low_bfmt(out, cap, "{{");
             for (proven_size_t i = 0; i < r->nfields && o + 24 < cap; i++) {
                 char fv[48];
                 vmv_render(vm, r->fields[i], fv, sizeof fv);
-                o += (proven_size_t)snprintf(out + o, cap - o, "%s%.*s %s", i ? ", " : "",
-                                             (int)mk->fields[i].size, (const char *)mk->fields[i].ptr, fv);
+                o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{} {}", proven_arg_cstr(i ? ", " : ""),
+                                             low_sv((const char *)mk->fields[i].ptr, (int)mk->fields[i].size), proven_arg_cstr(fv));
             }
-            snprintf(out + o, cap - o, "}");
+            low_bfmt(out + o, cap - o, "}}");
             return;
         }
         case VMV_OK: {
             char pv[96];
             vmv_render(vm, vm->boxes[v.box], pv, sizeof pv);
-            snprintf(out, cap, "ok %s", pv);
+            low_bfmt(out, cap, "ok {}", proven_arg_cstr(pv));
             return;
         }
         case VMV_ERR:
-            snprintf(out, cap, "err %.*s", (int)vm->ir->errs[v.i].size, (const char *)vm->ir->errs[v.i].ptr);
+            low_bfmt(out, cap, "err {}", low_sv((const char *)vm->ir->errs[v.i].ptr, (int)vm->ir->errs[v.i].size));
             return;
-        case VMV_STACK:  snprintf(out, cap, "stack(%zu)", (size_t)vm->stks[v.box].n); return;
+        case VMV_STACK:  low_bfmt(out, cap, "stack({})", PROVEN_ARG((size_t)((size_t)vm->stks[v.box].n))); return;
         case VMV_BITSET: {
             proven_u64 bits = vm->bsets[v.box]; proven_i64 k = 0;
             while (bits) { bits &= bits - 1; k++; }
-            snprintf(out, cap, "bitset(%lld)", (long long)k);
+            low_bfmt(out, cap, "bitset({})", PROVEN_ARG((long long)((long long)k)));
             return;
         }
         case VMV_REF:
-            snprintf(out, cap, "%s", (v.i & VM_REF_MUT) ? "<mut_ref>" : "<ref>");
+            low_bfmt(out, cap, "{}", proven_arg_cstr((v.i & VM_REF_MUT) ? "<mut_ref>" : "<ref>"));
             return;
         case VMV_VIEW: {   // render like a record, decoded through the layout
             const low_ir_struct_t *s = &vm->ir->structs[v.box];
-            proven_size_t o = (proven_size_t)snprintf(out, cap, "{");
+            proven_size_t o = (proven_size_t)low_bfmt(out, cap, "{{");
             for (proven_size_t i = 0; i < s->nf && o + 24 < cap; i++) {
                 proven_u64 x = 0;
                 const proven_u8 *p = v.p + s->f[i].off;
 #if defined(__SIZEOF_INT128__)
                 if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 128 비트 칸은 십진(부호는 칸 타입이 말한다)
-                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%.*s ", i ? ", " : "", (int)s->f[i].name.size, (const char *)s->f[i].name.ptr);
+                    o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{} ", proven_arg_cstr(i ? ", " : ""), low_sv((const char *)s->f[i].name.ptr, (int)s->f[i].name.size));
                     if (o < cap) o += (proven_size_t)vm_fmt128(out + o, cap - o, vmv_wv(vm_get16(p, s->f[i].be)), s->f[i].cname.size && s->f[i].cname.ptr[0] == (proven_u8)'i');
                     continue;
                 }
 #endif
                 if (s->f[i].be) for (proven_u8 k = 0; k < s->f[i].size; k++) x = (x << 8) | p[k];
                 else            for (proven_u8 k = s->f[i].size; k-- > 0; ) x = (x << 8) | p[k];
+                // ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청)
                 o += s->f[i].flt
                    ? (proven_size_t)snprintf(out + o, cap - o, "%s%.*s %g", i ? ", " : "",
                                              (int)s->f[i].name.size, (const char *)s->f[i].name.ptr,
                                              ir_bits_to_f(x, s->f[i].size))
-                   : (proven_size_t)snprintf(out + o, cap - o, "%s%.*s %llu", i ? ", " : "",
-                                             (int)s->f[i].name.size, (const char *)s->f[i].name.ptr,
-                                             (unsigned long long)x);
+                   : (proven_size_t)low_bfmt(out + o, cap - o, "{}{} {}", proven_arg_cstr(i ? ", " : ""),
+                                             low_sv((const char *)s->f[i].name.ptr, (int)s->f[i].name.size),
+                                             PROVEN_ARG((unsigned long long)((unsigned long long)x)));
             }
-            snprintf(out + o, cap - o, "}");
+            low_bfmt(out + o, cap - o, "}}");
             return;
         }
         case VMV_SOME: {
             char pv[96];
             vmv_render(vm, vm->boxes[v.box], pv, sizeof pv);
-            snprintf(out, cap, "some %s", pv);
+            low_bfmt(out, cap, "some {}", proven_arg_cstr(pv));
             return;
         }
         case VMV_NONE:
-            snprintf(out, cap, "none");
+            low_bfmt(out, cap, "none");
             return;
         case VMV_VEC: {
-            proven_size_t o = (proven_size_t)snprintf(out, cap, "vec[");
+            proven_size_t o = (proven_size_t)low_bfmt(out, cap, "vec[");
             for (proven_u8 k = 0; k < vm->vecs[v.box].n && o + 24 < cap; k++)
+                // ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청)
                 o += vm->vecs[v.box].flt
                    ? (proven_size_t)snprintf(out + o, cap - o, "%s%g", k ? " " : "",
                                              ir_bits_to_f(vm->vecs[v.box].l[k], vm->vecs[v.box].esz))
-                   : (proven_size_t)snprintf(out + o, cap - o, "%s%llu", k ? " " : "",
-                                             (unsigned long long)vm->vecs[v.box].l[k]);
-            snprintf(out + o, cap - o, "]");
+                   : (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(k ? " " : ""),
+                                             PROVEN_ARG((unsigned long long)((unsigned long long)vm->vecs[v.box].l[k])));
+            low_bfmt(out + o, cap - o, "]");
             return;
         }
         case VMV_MASK: {
-            proven_size_t o = (proven_size_t)snprintf(out, cap, "mask[");
+            proven_size_t o = (proven_size_t)low_bfmt(out, cap, "mask[");
             for (proven_i32 k = 0; k < v.box && o + 4 < cap; k++)
-                o += (proven_size_t)snprintf(out + o, cap - o, "%s%u", k ? " " : "",
-                                             (unsigned)(((proven_u64)v.i >> k) & 1));
-            snprintf(out + o, cap - o, "]");
+                o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(k ? " " : ""),
+                                             PROVEN_ARG((unsigned)((unsigned)(((proven_u64)v.i >> k) & 1))));
+            low_bfmt(out + o, cap - o, "]");
             return;
         }
         case VMV_VARRAY: {
-            proven_size_t o = (proven_size_t)snprintf(out, cap, "[");
+            proven_size_t o = (proven_size_t)low_bfmt(out, cap, "[");
             for (proven_size_t i = 0; i < v.n && o + 48 < cap; i++) {
                 proven_u64 x = 0;
                 const proven_u8 *p = v.p + i * (proven_size_t)v.box;
 #if defined(__SIZEOF_INT128__)
                 if (v.box == 16) {   // ★ RFC-0151 §9.4.1
-                    if (i) o += (proven_size_t)snprintf(out + o, cap - o, " ");
+                    if (i) o += (proven_size_t)low_bfmt(out + o, cap - o, " ");
                     o += (proven_size_t)vm_fmt128(out + o, cap - o, vmv_wv(vm_get16(p, false)), (v.i & IR_SGN_BIT) != 0);
                     continue;
                 }
@@ -5371,20 +5374,20 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
                 // ★ 2026-11-01 — 표식은 둘이다: 부동(IR_FLT_BIT)과 부호(IR_SGN_BIT). 전에는 0 이 아니면 다 부동으로 찍어 `slice i16` 의 -1 이
                 //   3.23786e-319 로 나왔다(VM · 두 네이티브 경로가 같게 틀려 대조가 못 봤다). 부호 있는 칸은 부호를 늘려 찍는다.
                 if (v.i & IR_FLT_BIT)
-                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%g", i ? " " : "", ir_bits_to_f(x, (proven_u8)v.box));
+                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%g", i ? " " : "", ir_bits_to_f(x, (proven_u8)v.box));   /* ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청) */
                 else if ((v.i & IR_SGN_BIT) && v.box > 0 && v.box < 8)
-                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%lld", i ? " " : "",
-                                                 (long long)(x << (64 - 8 * v.box)) >> (64 - 8 * v.box));
+                    o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(i ? " " : ""),
+                                                 PROVEN_ARG((long long)((long long)(x << (64 - 8 * v.box)) >> (64 - 8 * v.box))));
                 else if (v.i & IR_SGN_BIT)
-                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%lld", i ? " " : "", (long long)x);
+                    o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(i ? " " : ""), PROVEN_ARG((long long)((long long)x)));
                 else
-                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%llu", i ? " " : "", (unsigned long long)x);
+                    o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(i ? " " : ""), PROVEN_ARG((unsigned long long)((unsigned long long)x)));
             }
-            snprintf(out + o, cap - o, "]");
+            low_bfmt(out + o, cap - o, "]");
             return;
         }
     }
-    snprintf(out, cap, "?");
+    low_bfmt(out, cap, "?");
 }
 
 // ★★ 테스트 러너. `test` def 를 전부 돌린다 — 인자도, 계약도 없다. `expect` 만 있다.
@@ -5816,7 +5819,7 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
         //   같은 수를 두 가지로 말하면 읽는 사람은 도구를 의심하고, 그 의심은 옳다.
         if (rv.tag == VMV_INT && rv.i < 0 && d->out_tyname.size &&
             d->out_tyname.ptr[0] == (proven_byte_t)'u')
-            snprintf(out.text, sizeof out.text, "%llu", (unsigned long long)rv.i);
+            low_bfmt(out.text, sizeof out.text, "{}", PROVEN_ARG((unsigned long long)((unsigned long long)rv.i)));
 #if defined(__SIZEOF_INT128__)
         // ★ RFC-0151 — 128 비트 결과는 128 비트 십진으로 찍는다(네이티브 lw_fmt_w128 과 같은 글자)
         if (rv.tag == VMV_INT && d->out_tyname.size == 4 &&
@@ -5826,7 +5829,7 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
             char tmp[48]; int q = 47; tmp[q] = 0;
             do { tmp[--q] = (char)('0' + (int)(u % 10)); u /= 10; } while (u);
             if (ng) tmp[--q] = '-';
-            snprintf(out.text, sizeof out.text, "%s", tmp + q);
+            low_bfmt(out.text, sizeof out.text, "{}", proven_arg_cstr(tmp + q));
         }
 #endif
     }

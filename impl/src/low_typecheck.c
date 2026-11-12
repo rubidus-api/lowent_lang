@@ -1,5 +1,6 @@
 // low_typecheck.c — MVP static type checking (S4): kind-level + integer width/sign.
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_hwm.h"
 #include "low_typecheck.h"
 
@@ -664,11 +665,13 @@ static void tc_emit(tc_ctx_t *c, const char *code, const char *msg, proven_u32 l
     *c->ok = false;
 }
 // ★★★ 2026-09-14 — **이름·타입을 대는 오류.** 문장은 그 진단의 `detail` 에 짓고 `msg` 는 NULL(렌더러는 low_diag_text).
-static void tc_emitf(tc_ctx_t *c, const char *code, proven_u32 line, const char *fmt, ...) {
+// ★ W-20261112-0207 S2 — 서식은 proven 의 `{}` 이고 인자는 PROVEN_ARG 꼴로 받는다(전엔 printf 서식 + vsnprintf). 매크로가 인자 배열을 짓는다.
+#define tc_emitf(c, code, line, fmt, ...) tc_emitf_(c, code, line, fmt, LOW_FMT_ARGS(__VA_ARGS__))
+static void tc_emitf_(tc_ctx_t *c, const char *code, proven_u32 line, const char *fmt, const proven_arg_t *args, proven_size_t nargs) {
     if (c->quiet) return;
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = NULL, .line = line, .col = 0,
                      .file = low_cst_file_for_line(c->curform, line) };
-    va_list ap; va_start(ap, fmt); vsnprintf(d.detail, sizeof d.detail, fmt, ap); va_end(ap);
+    (void)low_bfmt_args(d.detail, sizeof d.detail, fmt, args, nargs);
     (void)proven_array_push(c->diags, &d);
     *c->ok = false;
 }
@@ -676,38 +679,38 @@ static void tc_emitf(tc_ctx_t *c, const char *code, proven_u32 line, const char 
 static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
     const char *ref = t.rk == 1 ? "ref " : t.rk == 2 ? "mut_ref " : "";
     switch (t.k) {
-        case TK_BOOL:  snprintf(buf, n, "%sbool", ref); return buf;
+        case TK_BOOL:  low_bfmt(buf, n, "{}bool", proven_arg_cstr(ref)); return buf;
         case TK_INT:
-            if (t.lit) { snprintf(buf, n, "an integer literal"); return buf; }
-            if (t.nominal) snprintf(buf, n, "%s%s", ref, t.sign ? "idiff" : "usize");
-            else snprintf(buf, n, "%s%c%u", ref, t.sign ? 'i' : 'u', (unsigned)t.bits);
+            if (t.lit) { low_bfmt(buf, n, "an integer literal"); return buf; }
+            if (t.nominal) low_bfmt(buf, n, "{}{}", proven_arg_cstr(ref), proven_arg_cstr(t.sign ? "idiff" : "usize"));
+            else low_bfmt(buf, n, "{}{}{}", proven_arg_cstr(ref), proven_arg_char((char)(t.sign ? 'i' : 'u')), PROVEN_ARG((unsigned)((unsigned)t.bits)));
             return buf;
         case TK_FLOAT:
-            if (t.lit || !t.bits) { snprintf(buf, n, "a float literal"); return buf; }
-            snprintf(buf, n, "%sf%u", ref, (unsigned)t.bits); return buf;
+            if (t.lit || !t.bits) { low_bfmt(buf, n, "a float literal"); return buf; }
+            low_bfmt(buf, n, "{}f{}", proven_arg_cstr(ref), PROVEN_ARG((unsigned)((unsigned)t.bits))); return buf;
         case TK_SLICE:
-            if (!t.ebits) { snprintf(buf, n, "%sslice", ref); return buf; }
+            if (!t.ebits) { low_bfmt(buf, n, "{}slice", proven_arg_cstr(ref)); return buf; }
             if (t.erow) {   // ★ RFC-0155 §8-6 — 줄의 슬라이스는 겹을 말한다(줄 길이는 타입이 쥐지 않아 `…` 로 적는다)
-                size_t o = (size_t)snprintf(buf, n, "%sslice", ref);
-                for (unsigned d = 0; d < t.erow && o + 12 < n; d++) o += (size_t)snprintf(buf + o, n - o, " array …");
-                if (o + 8 < n) snprintf(buf + o, n - o, " %c%u", t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits);
+                size_t o = (size_t)low_bfmt(buf, n, "{}slice", proven_arg_cstr(ref));
+                for (unsigned d = 0; d < t.erow && o + 12 < n; d++) o += (size_t)low_bfmt(buf + o, n - o, " array …");
+                if (o + 8 < n) low_bfmt(buf + o, n - o, " {}{}", proven_arg_char((char)(t.eflt ? 'f' : t.esign ? 'i' : 'u')), PROVEN_ARG((unsigned)((unsigned)t.ebits)));
                 return buf;
             }
-            if (t.enom && !t.eflt) { snprintf(buf, n, "%sslice %s", ref, t.esign ? "idiff" : "usize"); return buf; }
-            snprintf(buf, n, "%sslice %c%u", ref, t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits); return buf;
+            if (t.enom && !t.eflt) { low_bfmt(buf, n, "{}slice {}", proven_arg_cstr(ref), proven_arg_cstr(t.esign ? "idiff" : "usize")); return buf; }
+            low_bfmt(buf, n, "{}slice {}{}", proven_arg_cstr(ref), proven_arg_char((char)(t.eflt ? 'f' : t.esign ? 'i' : 'u')), PROVEN_ARG((unsigned)((unsigned)t.ebits))); return buf;
         case TK_NAMED:
-            if (t.slit) { snprintf(buf, n, "a string literal"); return buf; }
+            if (t.slit) { low_bfmt(buf, n, "a string literal"); return buf; }
             if (!t.nname.size) return NULL;
-            snprintf(buf, n, "%s%.*s", ref, (int)t.nname.size, (const char *)t.nname.ptr); return buf;
-        case TK_UNIT:    snprintf(buf, n, "void"); return buf;
-        case TK_WRAPPED: snprintf(buf, n, "%s", t.wrap == 1 ? "option …" : t.wrap == 2 ? "result …" : "option/result"); return buf;
+            low_bfmt(buf, n, "{}{}", proven_arg_cstr(ref), low_sv((const char *)t.nname.ptr, (int)t.nname.size)); return buf;
+        case TK_UNIT:    low_bfmt(buf, n, "void"); return buf;
+        case TK_WRAPPED: low_bfmt(buf, n, "{}", proven_arg_cstr(t.wrap == 1 ? "option …" : t.wrap == 2 ? "result …" : "option/result")); return buf;
         case TK_VEC:     // ★ 2026-11-11 — 전엔 늘 «vec» 이라 «expected `vec`, found `vec`» 이 나왔다. 아는 만큼 적는다.
-            if (t.lit && t.pk) { snprintf(buf, n, "splat of %s", t.pk == TK_FLOAT ? "a float literal" : "an integer literal"); return buf; }
-            {   size_t o = (size_t)snprintf(buf, n, "vec");
-                if (t.lanes && o + 8 < n) o += (size_t)snprintf(buf + o, n - o, " %u", (unsigned)t.lanes);
-                if (t.bits && o + 8 < n) snprintf(buf + o, n - o, " %c%u", t.vflt ? 'f' : t.sign ? 'i' : 'u', (unsigned)t.bits);
+            if (t.lit && t.pk) { low_bfmt(buf, n, "splat of {}", proven_arg_cstr(t.pk == TK_FLOAT ? "a float literal" : "an integer literal")); return buf; }
+            {   size_t o = (size_t)low_bfmt(buf, n, "vec");
+                if (t.lanes && o + 8 < n) o += (size_t)low_bfmt(buf + o, n - o, " {}", PROVEN_ARG((unsigned)((unsigned)t.lanes)));
+                if (t.bits && o + 8 < n) low_bfmt(buf + o, n - o, " {}{}", proven_arg_char((char)(t.vflt ? 'f' : t.sign ? 'i' : 'u')), PROVEN_ARG((unsigned)((unsigned)t.bits)));
                 return buf; }
-        case TK_MASK:    snprintf(buf, n, "mask"); return buf;
+        case TK_MASK:    low_bfmt(buf, n, "mask"); return buf;
         default: return NULL;
     }
 }
@@ -758,12 +761,12 @@ static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *ms
                                       "content out would read one as the other (X-0085). Declare the content type the value really has", line);
     else if (r == TC_STRUCT) tc_emit(c, "E-TYPE-STRUCT", "these are two DIFFERENT named types — the same field layout does not make them the same type. `meters` and `seconds` may both hold one u64 and still mean different things, and a checker that only compares representation lets that confusion through silently. Transparent `type` aliases are expanded before this comparison, so an alias and its target remain interchangeable exactly as the spec says (SPEC-004 §89); what is rejected here is a genuinely different name. Use the declared type, or convert explicitly", line);
     else if (r == TC_LANES)   tc_emit(c, "E-TYPE-LANES", "vector lane counts differ — two vectors of different width are different types (there is no implicit widening between them)", line);
-    else if (r == TC_UNKNOWN && getenv("LOWENT_S5_HEAD")) tc_emitf(c, "E-TYPE-UNKNOWN", line, "HEAD[%.*s]", (int)g_unk_head.size, (const char *)g_unk_head.ptr);
+    else if (r == TC_UNKNOWN && getenv("LOWENT_S5_HEAD")) tc_emitf(c, "E-TYPE-UNKNOWN", line, "HEAD[{}]", low_sv((const char *)g_unk_head.ptr, (int)g_unk_head.size));
     else if (r == TC_UNKNOWN) tc_emitf(c, "E-TYPE-UNKNOWN", line,
-                                       "the checker does not know the type of this value (it comes from `%.*s`), and the place it goes to has a declared "
+                                       "the checker does not know the type of this value (it comes from `{}`), and the place it goes to has a declared "
                                        "type — a value whose type is not known cannot be checked, so it is refused (RFC-0148 S5, canon 6.2 (2a)). "
                                        "Bind it through a name with a written type, convert it (`cast`), or report the word whose result type is missing",
-                                       (int)(g_unk_head.size < 40 ? g_unk_head.size : 40), (const char *)g_unk_head.ptr);
+                                       low_sv((const char *)g_unk_head.ptr, (int)(g_unk_head.size < 40 ? g_unk_head.size : 40)));
     else                      tc_emit(c, code, msg, line);
 }
 static void tc_flag_types(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg,
@@ -771,7 +774,7 @@ static void tc_flag_types(tc_ctx_t *c, tc_reason_t r, const char *code, const ch
     if (r == TC_KIND) {
         char wb[96], gb[96];
         const char *ws = tc_ty_str(want, wb, sizeof wb), *gs = tc_ty_str(got, gb, sizeof gb);
-        if (ws && gs) { tc_emitf(c, code, line, "%s — expected `%s`, found `%s`", msg, ws, gs); return; }
+        if (ws && gs) { tc_emitf(c, code, line, "{} — expected `{}`, found `{}`", proven_arg_cstr(msg), proven_arg_cstr(ws), proven_arg_cstr(gs)); return; }
     }
     tc_flag(c, r, code, msg, line);
 }
@@ -1444,10 +1447,10 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 //   (음수 리터럴은 따로 E-SHIFT-RANGE). 돌리기(`rotl` · `rotr`)는 칸 수를 폭으로 나눈 나머지로 쓰므로 이 규칙에 들지 않는다.
                 if (!veq(h2, "rotl") && !veq(h2, "rotr") && sb.k == TK_INT && !sb.lit && sb.bits && sb.sign) {
                     tc_emitf(c, "E-SHIFT-SIGNED", k[start]->line,
-                             "the shift amount of `%.*s` is a signed integer — a shift count is an UNSIGNED integer type "
+                             "the shift amount of `{}` is a signed integer — a shift count is an UNSIGNED integer type "
                              "(canon 6.3.5 (4)); a negative count has no single meaning. Narrow it on purpose "
                              "(`narrow_try` / `cast` to an unsigned type) or declare it unsigned",
-                             (int)h2.size, (const char *)h2.ptr);
+                             low_sv((const char *)h2.ptr, (int)h2.size));
                     ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
                 }
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
@@ -1778,9 +1781,9 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 const unsigned lim = rmw ? low_ir_target()->atom_rmw : low_ir_target()->atom_ldst;
                 if (sq0.k == TK_SLICE && sq0.ebits && sq0.ebits / 8u > lim) {
                     tc_emitf(c, "E-ATOMIC-TARGET", k[start]->tok.line,   // ★ detail 에 베낀다(msg 가 지역 칸을 가리키면 뒤에 깨진다)
-                             "this machine (`%s`) does a %s atomic only up to %u bytes without a lock, and this element is %u bytes — "
+                             "this machine (`{}`) does a {} atomic only up to {} bytes without a lock, and this element is {} bytes — "
                              "there is no atomic library to call on it, so the build would stop at the link. Use a narrower element, or a lock",
-                             low_ir_target()->name, rmw ? "read-modify-write" : "load or store", lim, (unsigned)(sq0.ebits / 8u));
+                             proven_arg_cstr(low_ir_target()->name), proven_arg_cstr(rmw ? "read-modify-write" : "load or store"), PROVEN_ARG((unsigned)(lim)), PROVEN_ARG((unsigned)((unsigned)(sq0.ebits / 8u))));
                 }
                 if (veq(h2, "atomic_store")) { for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv); return tk(TK_UNKNOWN); }
             }
@@ -3065,11 +3068,11 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
             proven_u8str_view_eq(f->kids[i-1]->tok.lex, proven_u8str_view_from_cstr("cap")))
             continue;
         tc_emitf(c, "E-TYPE-UNDEF", t->line ? t->line : f->line,
-                 "`%.*s` is not a type — no `type` / `struct` / `enum` declares it, and it is not a built-in type%s",
-                 (int)t->lex.size, (const char *)t->lex.ptr,
-                 // RFC-0149 §6.9 (2026-10-13) — 옛 이름을 쓴 글에는 새 이름을 일러 준다.
+                 "`{}` is not a type — no `type` / `struct` / `enum` declares it, and it is not a built-in type{}",
+                 low_sv((const char *)t->lex.ptr, (int)t->lex.size),
+                 proven_arg_cstr(// RFC-0149 §6.9 (2026-10-13) — 옛 이름을 쓴 글에는 새 이름을 일러 준다.
                  proven_u8str_view_eq(t->lex, proven_u8str_view_from_cstr("isize"))
-                     ? " (the signed size type is spelt `idiff` — the difference of two positions)" : "");
+                     ? " (the signed size type is spelt `idiff` — the difference of two positions)" : ""));
     }
 }
 // range 선언의 오류를 진단으로 낸다. **선언 자체가 거짓말이면 프로그램이 서지 않는다.**
@@ -3231,13 +3234,13 @@ static void tc_walk_makes(tc_ctx_t *c, const low_cst_t *nd,
         if (has) continue;
         char fl[160]; size_t fo = 0; fl[0] = 0;
         for (proven_size_t q = 0; q < st->nf && fo + 1 < sizeof fl; q++) {
-            int w = snprintf(fl + fo, sizeof fl - fo, "%s%.*s", q ? ", " : "", (int)st->fname[q].size, (const char *)st->fname[q].ptr);
+            int w = low_bfmt(fl + fo, sizeof fl - fo, "{}{}", proven_arg_cstr(q ? ", " : ""), low_sv((const char *)st->fname[q].ptr, (int)st->fname[q].size));
             if (w < 0) break;
             fo += (size_t)w;
         }
         tc_emitf(c, "E-TYPE-FIELD", fnm->tok.line ? fnm->tok.line : nd->line,
-                 "struct `%.*s` has no field `%.*s` — its fields are: %s",
-                 (int)st->name.size, (const char *)st->name.ptr, (int)fnm->tok.lex.size, (const char *)fnm->tok.lex.ptr, fl);
+                 "struct `{}` has no field `{}` — its fields are: {}",
+                 low_sv((const char *)st->name.ptr, (int)st->name.size), low_sv((const char *)fnm->tok.lex.ptr, (int)fnm->tok.lex.size), proven_arg_cstr(fl));
     }
     for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
         if (nd->kids[j]->kind == LOW_CST_ATOM && veq(nd->kids[j]->tok.lex, "lit")) {

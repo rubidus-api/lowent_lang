@@ -5,6 +5,7 @@
 //   (2) output:    stdout, or <dir>/<module>.md + <dir>/llms.txt (--doc-out).
 //   (3) prose:     a `lowdoc` clause, else adjacent `rem` comments rescanned from source.
 #include "low_doc.h"
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 
 #include <stdio.h>
 #include <string.h>
@@ -431,26 +432,26 @@ int low_doc_write(const low_parse_result_t *pr, proven_u8str_view_t src, proven_
     (void)mkdir(dir, 0755);   // ignore EEXIST
     proven_u8str_view_t mod = module_name(pr);
     char path[1024];
-    snprintf(path, sizeof path, "%s/%.*s.md", dir, (int)mod.size, (const char *)mod.ptr);
+    low_bfmt(path, sizeof path, "{}/{}.md", proven_arg_cstr(dir), low_sv((const char *)mod.ptr, (int)mod.size));
     FILE *md = fopen(path, "w"); if (!md) return -1;
     int n = render_module(md, pr, src, work); fclose(md);
 
     // (1) terse card + externalised details bodies (content-hash keyed)
-    snprintf(path, sizeof path, "%s/%.*s.lowctx", dir, (int)mod.size, (const char *)mod.ptr);
+    low_bfmt(path, sizeof path, "{}/{}.lowctx", proven_arg_cstr(dir), low_sv((const char *)mod.ptr, (int)mod.size));
     FILE *card = fopen(path, "w"); if (card) { render_card(card, pr, src); fclose(card); }
-    snprintf(path, sizeof path, "%s/details", dir); (void)mkdir(path, 0755);
+    low_bfmt(path, sizeof path, "{}/details", proven_arg_cstr(dir)); (void)mkdir(path, 0755);
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; unsigned bh;
         if (!is_op(f) || !body_present(f, src, &bh)) continue;
-        snprintf(path, sizeof path, "%s/details/h-%08x.md", dir, bh);
+        low_bfmt(path, sizeof path, "{}/details/h-{:08x}.md", proven_arg_cstr(dir), PROVEN_ARG((unsigned)(bh)));
         FILE *b = fopen(path, "w"); if (b) { emit_body(b, f, src); fclose(b); }
     }
 
-    snprintf(path, sizeof path, "%s/llms.txt", dir);            // (curated index)
+    low_bfmt(path, sizeof path, "{}/llms.txt", proven_arg_cstr(dir));            // (curated index)
     FILE *idx = fopen(path, "w"); if (!idx) return -1;
     render_llms(idx, pr, src); fclose(idx);
 
-    snprintf(path, sizeof path, "%s/llms-full.txt", dir);       // (3) full-body bundle
+    low_bfmt(path, sizeof path, "{}/llms-full.txt", proven_arg_cstr(dir));       // (3) full-body bundle
     FILE *full = fopen(path, "w"); if (full) { render_module(full, pr, src, work); fclose(full); }
     return n;
 }

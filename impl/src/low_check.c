@@ -1,5 +1,6 @@
 // low_check.c — MVP static effect discipline (S4).
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
+#include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
 #include "low_hwm.h"
 #include <string.h>
 #include <stdio.h>
@@ -421,7 +422,7 @@ static int  ck_absorb_nallow;
 void low_check_set_absorb_allow(const char *const *names, int n) {
     ck_absorb_nallow = 0;
     for (int i = 0; i < n && i < 16; i++) {
-        snprintf(ck_absorb_allow[ck_absorb_nallow], 64, "%s", names[i]);
+        low_bfmt(ck_absorb_allow[ck_absorb_nallow], 64, "{}", proven_arg_cstr(names[i]));
         ck_absorb_nallow++;
     }
 }
@@ -446,15 +447,15 @@ static void ck_builtin_app_hit(low_check_result_t *out, const low_cst_t *at, pro
     const char *wr = name.size ? low_builtin_wrapper(name) : NULL;
     if (wr) {
         const char *dot = strchr(wr, '.');
-        snprintf(last->detail, sizeof last->detail,
-                 "`call_builtin %.*s` outside the standard library — builtin ops are for building the library, and a "
-                 "program calls the library (RFC-0140 §5): `use %.*s .` and call `%s`",
-                 (int)name.size, (const char *)name.ptr, (int)(dot ? dot - wr : 0), wr, wr);
+        low_bfmt(last->detail, sizeof last->detail,
+                 "`call_builtin {}` outside the standard library — builtin ops are for building the library, and a "
+                 "program calls the library (RFC-0140 §5): `use {} .` and call `{}`",
+                 low_sv((const char *)name.ptr, (int)name.size), low_sv(wr, (int)(dot ? dot - wr : 0)), proven_arg_cstr(wr));
     } else
-        snprintf(last->detail, sizeof last->detail,
-                 "`call_builtin %.*s` outside the standard library — builtin ops are for building the library, and a "
+        low_bfmt(last->detail, sizeof last->detail,
+                 "`call_builtin {}` outside the standard library — builtin ops are for building the library, and a "
                  "program calls the library (RFC-0140 §5). No library op wraps this one yet — that is a gap worth reporting",
-                 (int)name.size, (const char *)name.ptr);
+                 low_sv((const char *)name.ptr, (int)name.size));
     last->msg = NULL;
 }
 static void ck_builtin_app_walk(low_check_result_t *out, const low_cst_t *nd) {
@@ -1198,7 +1199,7 @@ static void ck_glued_field(low_check_result_t *out, const low_cst_t *nd,
             "`(field o i z)`", nd);
     {   // ★ 그 이름을 **detail 에 복사**해 둔다 — 진단이 어느 것인지 스스로 말하게.
         low_diag_t *last = (low_diag_t *)out->diags.data + (out->diags.len - 1);
-        snprintf(last->detail, sizeof last->detail, "`%s` → `(field %s)`", nb, sp);
+        low_bfmt(last->detail, sizeof last->detail, "`{}` → `(field {})`", proven_arg_cstr(nb), proven_arg_cstr(sp));
     }
 }
 
@@ -1639,14 +1640,14 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
                         // ★ 진단은 문구를 **가리킨다** — 스택 버퍼를 주면 그 자리가 사라진 뒤 빈 줄이 찍힌다(실측).
                         static char pbuf[8][460]; static int pbn;
                         char *pb = pbuf[pbn++ & 7];
-                        snprintf(pb, 460,
-                                 "this op absorbs `machine`, but the manifest does not allow module `%.*s` to. "
+                        low_bfmt(pb, 460,
+                                 "this op absorbs `machine`, but the manifest does not allow module `{}` to. "
                                  "Absorption says a HUMAN vouches for what the tool cannot see, so WHO may vouch "
                                  "is decided by the project's identity file, not by the source that wants the "
-                                 "right: add `build absorb %.*s .` to pkg.low (and sign the row in the absorb "
+                                 "right: add `build absorb {} .` to pkg.low (and sign the row in the absorb "
                                  "registry). With no manifest at all, nobody may absorb (RFC-0120 §5.2-10)",
-                                 (int)mod.size, mod.size ? (const char *)mod.ptr : "",
-                                 (int)mod.size, mod.size ? (const char *)mod.ptr : "");
+                                 low_sv(mod.size ? (const char *)mod.ptr : "", (int)mod.size),
+                                 low_sv(mod.size ? (const char *)mod.ptr : "", (int)mod.size));
                         emit(out, "E-ABSORB-PLACE", pb, f->line);
                     }
                 }
@@ -2669,13 +2670,13 @@ static void ck_alias_walk(low_check_result_t *out, const low_cst_t *nd,
                     //   ⇒ 별칭마다 한 칸을 두고, 문구에는 **별칭만** 넣는다.
                     static char abuf[64][288];
                     char *buf = abuf[m < 64 ? m : 63];
-                    snprintf(buf, sizeof abuf[0],
-                             "this unit renamed that module with `as`, so its name here is `%.*s` — "
+                    low_bfmt(buf, sizeof abuf[0],
+                             "this unit renamed that module with `as`, so its name here is `{}` — "
                              "the original name no longer stands. One thing, one spelling: if both "
                              "names worked, a reader would have to check that they mean the same "
-                             "module. Write the member under `%.*s.`",
-                             (int)nw[m].size, (const char *)nw[m].ptr,
-                             (int)nw[m].size, (const char *)nw[m].ptr);
+                             "module. Write the member under `{}.`",
+                             low_sv((const char *)nw[m].ptr, (int)nw[m].size),
+                             low_sv((const char *)nw[m].ptr, (int)nw[m].size));
                     emit_at(out, "E-USE-ALIASED", buf, nd);
                     break;
                 }
@@ -4658,12 +4659,12 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
             //   두 머리가 같은 «`output` comes after `requires`» 를 말했다). 짝마다 제 칸을 둔다.
             static char msgs[17][17][520];
             char *buf = msgs[r][maxr];
-            snprintf(buf, sizeof msgs[0][0],
-                     "%s comes after %s. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
+            low_bfmt(buf, sizeof msgs[0][0],
+                     "{} comes after {}. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
                      "capability/region inputs · `use` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · "
                      "`access`/`inplace`/`invalidates`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
                      "clauses for you; inputs are call positions, so reorder those and their call sites yourself)",
-                     ck_rank_name(r), ck_rank_name(maxr));
+                     proven_arg_cstr(ck_rank_name(r)), proven_arg_cstr(ck_rank_name(maxr)));
             emit_at(out, "E-CLAUSE-ORDER", buf, f->kids[i]);
             return;
         }
@@ -4703,10 +4704,10 @@ static void ck_clause_order(low_check_result_t *out, const low_parse_result_t *p
                 if (r < maxr) {
                     static char tmsgs[17][17][520];
                     char *buf = tmsgs[r][maxr];
-                    snprintf(buf, sizeof tmsgs[0][0],
-                             "%s comes after %s in a trait method signature. It has the same ONE order as an op header "
+                    low_bfmt(buf, sizeof tmsgs[0][0],
+                             "{} comes after {} in a trait method signature. It has the same ONE order as an op header "
                              "(`--fmt` moves the non-input clauses for you; inputs pair with the implementation's inputs, so reorder those yourself)",
-                             ck_rank_name(r), ck_rank_name(maxr));
+                             proven_arg_cstr(ck_rank_name(r)), proven_arg_cstr(ck_rank_name(maxr)));
                     emit_at(out, "E-CLAUSE-ORDER", buf, m->kids[at]);
                     told = true;
                     continue;
@@ -8231,9 +8232,9 @@ static void ck_link_names(low_check_result_t *out, const low_parse_result_t *pr)
             if (why) {
                 static char lbuf[8][400]; static int li = 0;
                 char *b = lbuf[li++ & 7];
-                snprintf(b, sizeof lbuf[0], "`link \"%.*s\"` cannot be a C name: %s. Without `link` the export gets the "
+                low_bfmt(b, sizeof lbuf[0], "`link \"{}\"` cannot be a C name: {}. Without `link` the export gets the "
                          "default name `lw_<length><module>_<length><name>` (RFC-0134), which never collides",
-                         (int)n.size, (const char *)n.ptr, why);
+                         low_sv((const char *)n.ptr, (int)n.size), proven_arg_cstr(why));
                 emit(out, "E-LINK-NAME", b, a->tok.line);
             }
             break;
@@ -8984,9 +8985,9 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
              "than checked partly. Split the op", f->line);
     if (x.bytes > low_lbuf_max()) {
         static char fb[320];
-        snprintf(fb, sizeof fb, "this op's list literals need %zu bytes of frame storage — more than one op may hold on this "
-                 "machine (%u). A frame this large is a stack overflow waiting for a deep call; keep big tables constant (`let`, "
-                 "read-only) or take them from an allocator (`use`, RFC-0135)", (size_t)x.bytes, low_lbuf_max());
+        low_bfmt(fb, sizeof fb, "this op's list literals need {} bytes of frame storage — more than one op may hold on this "
+                 "machine ({}). A frame this large is a stack overflow waiting for a deep call; keep big tables constant (`let`, "
+                 "read-only) or take them from an allocator (`use`, RFC-0135)", PROVEN_ARG((size_t)((size_t)x.bytes)), PROVEN_ARG((unsigned)(low_lbuf_max())));
         emit(out, "E-FRAME-SIZE", fb, f->line);
     } else if (x.bytes && ck_r1_tab) {
         // ★★ RFC-0135 S3 (D7) — 재귀는 깊이만큼 틀을 곱하고, 그 깊이는 번역 시점에 모른다. 그러면 스택이 넘치지 않음을
@@ -8996,11 +8997,11 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
         const low_cst_t *body = f->kids[f->nkids - 1];
         if (body && body->kind == LOW_CST_BLOCK && lc_reaches(body, f, seen, 0)) {
             static char wb[360];
-            snprintf(wb, sizeof wb, "this op holds %zu bytes of list-literal frame storage and can call ITSELF (directly or "
+            low_bfmt(wb, sizeof wb, "this op holds {} bytes of list-literal frame storage and can call ITSELF (directly or "
                      "through other ops) — every level of the recursion holds its own copy and the depth is not known when "
                      "the program is translated, so the build cannot show the stack is enough. Take the list from an "
                      "allocator inside the recursion (`var buf use al … . else …`), or make the op not recursive "
-                     "(RFC-0135 D7)", (size_t)x.bytes);
+                     "(RFC-0135 D7)", PROVEN_ARG((size_t)((size_t)x.bytes)));
             emit(out, "E-FRAME-RECURSIVE", wb, f->line);
         }
     }
@@ -9091,9 +9092,9 @@ static void ck_stack_bound(low_check_result_t *out) {
                            p, (long)LOW_SBUDGET_GT, p > (unsigned long long)LOW_SBUDGET_GT ? "  ★ over" : "");
                 if (p > (unsigned long long)LOW_SBUDGET_GT) {
                     static char gbuf[360];
-                    snprintf(gbuf, sizeof gbuf, "this op runs as a task (a green thread, `spawn`), and the deepest call path from it "
-                             "keeps %llu bytes of list literals on the stack at once — more than a green thread's stack budget (%ld). "
-                             "Take the big lists from an allocator (`use`), or split the path (RFC-0135 S3)", p, (long)LOW_SBUDGET_GT);
+                    low_bfmt(gbuf, sizeof gbuf, "this op runs as a task (a green thread, `spawn`), and the deepest call path from it "
+                             "keeps {} bytes of list literals on the stack at once — more than a green thread's stack budget ({}). "
+                             "Take the big lists from an allocator (`use`), or split the path (RFC-0135 S3)", PROVEN_ARG((unsigned long long)(p)), PROVEN_ARG((long long)((long)LOW_SBUDGET_GT)));
                     emit(out, "E-STACK-BUDGET", gbuf, ck_r1_tab[i].form->line);
                 }
             }
@@ -9104,9 +9105,9 @@ static void ck_stack_bound(low_check_result_t *out) {
                        p, budget, p > (unsigned long long)budget ? "  ★ over" : "");
             if (p > (unsigned long long)budget) {
                 static char sbuf[360];
-                snprintf(sbuf, sizeof sbuf, "the deepest call path from this op keeps %llu bytes of list literals on the stack at "
-                         "once — more than the stack budget on this machine (%ld). The program would stop there at run time; "
-                         "take the big lists from an allocator (`use`), or split the path (RFC-0135 S3)", p, budget);
+                low_bfmt(sbuf, sizeof sbuf, "the deepest call path from this op keeps {} bytes of list literals on the stack at "
+                         "once — more than the stack budget on this machine ({}). The program would stop there at run time; "
+                         "take the big lists from an allocator (`use`), or split the path (RFC-0135 S3)", PROVEN_ARG((unsigned long long)(p)), PROVEN_ARG((long long)(budget)));
                 emit(out, "E-STACK-BUDGET", sbuf, ck_r1_tab[i].form->line);
             }
         }
@@ -10142,14 +10143,14 @@ static void ck_excl_args_walk2(low_check_result_t *out, const low_cst_t *nd,
                          "(`inplace <written> <read> .`, RFC-0116 D2), or give the output its own storage";
                     if (ibn < 256) {
                         proven_u8str_view_t cn = nd->kids[0]->tok.lex, wn = h.p[ai].name, rn = h.p[bi].name;
-                        snprintf(ibuf[ibn], sizeof ibuf[0],
-                                 "the same storage goes to `%.*s`'s WRITTEN input `%.*s` and its READ input `%.*s`, and the op "
+                        low_bfmt(ibuf[ibn], sizeof ibuf[0],
+                                 "the same storage goes to `{}`'s WRITTEN input `{}` and its READ input `{}`, and the op "
                                  "does not say it can take that — if its body writes before it has finished reading, the read "
-                                 "sees the new value (a wrong answer, not a diagnostic). Declare `inplace %.*s %.*s .` on the op "
+                                 "sees the new value (a wrong answer, not a diagnostic). Declare `inplace {} {} .` on the op "
                                  "if its body reads first (RFC-0116 D2), or give the output its own storage",
-                                 (int)cn.size, (const char *)cn.ptr, (int)wn.size, (const char *)wn.ptr,
-                                 (int)rn.size, (const char *)rn.ptr, (int)wn.size, (const char *)wn.ptr,
-                                 (int)rn.size, (const char *)rn.ptr);
+                                 low_sv((const char *)cn.ptr, (int)cn.size), low_sv((const char *)wn.ptr, (int)wn.size),
+                                 low_sv((const char *)rn.ptr, (int)rn.size), low_sv((const char *)wn.ptr, (int)wn.size),
+                                 low_sv((const char *)rn.ptr, (int)rn.size));
                         msg = ibuf[ibn++];
                     }
                     emit(out, "E-EXCL-INPLACE", msg, nd->kids[0]->tok.line);
@@ -10362,11 +10363,11 @@ static void ck_vt_uses(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
                               "accessor call — two writers of one storage (§8.12(1)); either can change what the other "
                               "holds. Take one view, or take the second only after you are done with the first";
             if (abn < 64) {
-                snprintf(abuf[abn], sizeof abuf[0],
-                         "`%.*s` is a write view, and line %u took a SECOND write view of the same storage from the same "
+                low_bfmt(abuf[abn], sizeof abuf[0],
+                         "`{}` is a write view, and line {} took a SECOND write view of the same storage from the same "
                          "accessor call — two writers of one storage (§8.12(1)); either can change what the other holds. "
                          "Use one view, or take the second only after you are done with the first",
-                         (int)v->name.size, (const char *)v->name.ptr, (unsigned)v->alias_line);
+                         low_sv((const char *)v->name.ptr, (int)v->name.size), PROVEN_ARG((unsigned)((unsigned)v->alias_line)));
                 msg = abuf[abn++];
             }
             emit(out, "E-EXCL", msg, nd->tok.line);
@@ -10379,12 +10380,12 @@ static void ck_vt_uses(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
                               "does not know: reading it sees stale bytes, writing it lands in memory someone else now owns. "
                               "Take the view again after the call (RFC-0116 D4)";
             if (vbn < 128) {
-                snprintf(vbuf[vbn], sizeof vbuf[0],
-                         "`%.*s` is a view whose storage was made INVALID by the call on line %u (the callee declares "
+                low_bfmt(vbuf[vbn], sizeof vbuf[0],
+                         "`{}` is a view whose storage was made INVALID by the call on line {} (the callee declares "
                          "`invalidates`: it released, moved or rewound that storage). The view does not know — reading it "
                          "sees stale bytes, writing it lands in memory someone else now owns. Take the view again after "
                          "that call (RFC-0116 D4)",
-                         (int)v->name.size, (const char *)v->name.ptr, (unsigned)v->inval_line);
+                         low_sv((const char *)v->name.ptr, (int)v->name.size), PROVEN_ARG((unsigned)((unsigned)v->inval_line)));
                 msg = vbuf[vbn++];
             }
             emit(out, "E-VIEW-INVALIDATED", msg, nd->tok.line);
@@ -10851,13 +10852,13 @@ static void ck_inplace_body_check(low_check_result_t *out, const low_cst_t *form
                           "index and each read comes before the write. Reshape the body, or drop the declaration (RFC-0116 B2)";
         if (pbn < 64) {
             proven_u8str_view_t w = form->kids[i + 1]->tok.lex, r = form->kids[i + 2]->tok.lex;
-            snprintf(pbuf[pbn], sizeof pbuf[0],
-                     "`inplace %.*s %.*s` is declared, but the body is not one of the two shapes the processor can show "
-                     "right on the SAME range: ⓐ every read of `%.*s` before any write to `%.*s`, or ⓑ in the last statement "
-                     "that reads `%.*s`, element-by-element reads and writes with ONE index, each read before the write. "
+            low_bfmt(pbuf[pbn], sizeof pbuf[0],
+                     "`inplace {} {}` is declared, but the body is not one of the two shapes the processor can show "
+                     "right on the SAME range: ⓐ every read of `{}` before any write to `{}`, or ⓑ in the last statement "
+                     "that reads `{}`, element-by-element reads and writes with ONE index, each read before the write. "
                      "Reshape the body, or drop the declaration (RFC-0116 B2)",
-                     (int)w.size, (const char *)w.ptr, (int)r.size, (const char *)r.ptr, (int)r.size, (const char *)r.ptr,
-                     (int)w.size, (const char *)w.ptr, (int)r.size, (const char *)r.ptr);
+                     low_sv((const char *)w.ptr, (int)w.size), low_sv((const char *)r.ptr, (int)r.size), low_sv((const char *)r.ptr, (int)r.size),
+                     low_sv((const char *)w.ptr, (int)w.size), low_sv((const char *)r.ptr, (int)r.size));
             msg = pbuf[pbn++];
         }
         emit(out, "E-INPLACE-UNPROVEN", msg, form->kids[i]->tok.line);
@@ -11585,9 +11586,9 @@ static void ck_ctxcopy_walk(low_check_result_t *out, const low_cst_t *nd, const 
                     if (r) {
                         static char msg[8][420]; static unsigned slot;
                         char *m = msg[slot++ % 8];
-                        snprintf(m, 420, "a `with` context is a value without references (RFC-0121 §6.2) — this op's context "
-                                 "parameter `%.*s` holds %s. Put the settings into a struct of numbers, bools and enums, or call the "
-                                 "op in an explicit loop", (int)pp->name.size, (const char *)pp->name.ptr, r);
+                        low_bfmt(m, 420, "a `with` context is a value without references (RFC-0121 §6.2) — this op's context "
+                                 "parameter `{}` holds {}. Put the settings into a struct of numbers, bools and enums, or call the "
+                                 "op in an explicit loop", low_sv((const char *)pp->name.ptr, (int)pp->name.size), proven_arg_cstr(r));
                         emit(out, "E-PIPE-CONTEXT-TYPE", m, nd->kids[0]->tok.line);
                     }
                 }
@@ -12922,14 +12923,14 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                             // ★ 쓰는 자리라 가변 매크로를 쓴다(`PROVEN_ARRAY_GET` 은 const 를 준다).
                             low_diag_t *last = PROVEN_ARRAY_GET_MUT(&out.diags, low_diag_t,
                                                                     out.diags.len - 1);
-                            snprintf(last->detail, sizeof last->detail,
-                                     "`%.*s` (%s) is declared twice in module `%.*s` — a qualifier "
+                            low_bfmt(last->detail, sizeof last->detail,
+                                     "`{}` ({}) is declared twice in module `{}` — a qualifier "
                                      "cannot tell the two apart (both are `<module>.<name>`), so "
                                      "the second does not hide the first: it silently makes one of "
                                      "them unreachable",
-                                     (int)decls[j].name.size, (const char *)decls[j].name.ptr,
-                                     decls[j].what ? decls[j].what : "declaration",
-                                     (int)decls[j].mod.size, (const char *)decls[j].mod.ptr);
+                                     low_sv((const char *)decls[j].name.ptr, (int)decls[j].name.size),
+                                     proven_arg_cstr(decls[j].what ? decls[j].what : "declaration"),
+                                     low_sv((const char *)decls[j].mod.ptr, (int)decls[j].mod.size));
                             last->msg = NULL;   // ★ 렌더러는 low_diag_text 로 detail 을 읽는다
                         }
                     }
@@ -13698,18 +13699,18 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                                              EFF_UNSAFE, EFF_ATOMIC, EFF_CONCURRENT, EFF_WAIT };
             for (size_t b = 0; b < sizeof bits / sizeof bits[0]; b++) {
                 if (!(leak & bits[b])) continue;
-                int w = snprintf(names + no, sizeof names - no, "%s`%s`", no ? ", " : "", effect_name(bits[b]));
+                int w = low_bfmt(names + no, sizeof names - no, "{}`{}`", proven_arg_cstr(no ? ", " : ""), proven_arg_cstr(effect_name(bits[b])));
                 if (w < 0 || (size_t)w >= sizeof names - no) break;
                 no += (size_t)w;
             }
-            if (!no) snprintf(names, sizeof names, "%s", effect_name(leak));
+            if (!no) low_bfmt(names, sizeof names, "{}", proven_arg_cstr(effect_name(leak)));
             if (tab[i].is_calc)
-                snprintf(last->detail, sizeof last->detail,
-                         "this fn is declared pure but performs %s — make it a `proc` with `effects …`, or remove the effect", names);
+                low_bfmt(last->detail, sizeof last->detail,
+                         "this fn is declared pure but performs {} — make it a `proc` with `effects …`, or remove the effect", proven_arg_cstr(names));
             else
-                snprintf(last->detail, sizeof last->detail,
-                         "this op performs %s, which its `effects` clause does not declare — add it to `effects …`, "
-                         "or stop calling what needs it", names);
+                low_bfmt(last->detail, sizeof last->detail,
+                         "this op performs {}, which its `effects` clause does not declare — add it to `effects …`, "
+                         "or stop calling what needs it", proven_arg_cstr(names));
         }
         // ★★★ **W-EFFECT-OVER** (RFC-0007) — 반대 방향: **선언했는데 안 하는** 효과. 명시적으로
         //   effects 절을 쓴 proc 에서만(기본 unrestricted proc 은 판정 안 함). 안 하는 걸 선언하면
@@ -13759,15 +13760,15 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 char onames[128]; size_t oo = 0; onames[0] = 0;
                 for (unsigned bit = 1; bit && bit <= EFF_DETACH; bit <<= 1) {
                     if (!(over & bit)) continue;
-                    int w = snprintf(onames + oo, sizeof onames - oo, "%s`%s`", oo ? ", " : "", low_effect_bit_name(bit));
+                    int w = low_bfmt(onames + oo, sizeof onames - oo, "{}`{}`", proven_arg_cstr(oo ? ", " : ""), proven_arg_cstr(low_effect_bit_name(bit)));
                     if (w < 0 || (size_t)w >= sizeof onames - oo) break;
                     oo += (size_t)w;
                 }
-                snprintf(last->detail, sizeof last->detail,
-                         "this op DECLARES %s but never PERFORMS it. A declared effect is a cost "
+                low_bfmt(last->detail, sizeof last->detail,
+                         "this op DECLARES {} but never PERFORMS it. A declared effect is a cost "
                          "the caller must budget for (a pure caller cannot call an `io` op). Drop it, "
                          "or — if a future version will perform it — say so (RFC-0007)",
-                         onames);
+                         proven_arg_cstr(onames));
                 last->msg = NULL;
             }
         }
@@ -13780,16 +13781,16 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             static const unsigned np[] = { EFF_LOCK, EFF_PAGEFAULT, EFF_BLOCKING, EFF_CANCEL, EFF_DETACH };
             for (size_t b = 0; b < sizeof np / sizeof np[0]; b++) {
                 if (!(tab[i].declared & np[b])) continue;
-                int w = snprintf(names + no, sizeof names - no, "%s`%s`", no ? ", " : "", low_effect_bit_name(np[b]));
+                int w = low_bfmt(names + no, sizeof names - no, "{}`{}`", proven_arg_cstr(no ? ", " : ""), proven_arg_cstr(low_effect_bit_name(np[b])));
                 if (w < 0 || (size_t)w >= sizeof names - no) break;
                 no += (size_t)w;
             }
             warn_at(&out, "W-NOT-YET", NULL, tab[i].body);
             low_diag_t *last = (low_diag_t *)out.diags.data + (out.diags.len - 1);
-            snprintf(last->detail, sizeof last->detail,
-                     "this op declares %s, which the compiler takes on trust: no built-in op performs it, so "
+            low_bfmt(last->detail, sizeof last->detail,
+                     "this op declares {}, which the compiler takes on trust: no built-in op performs it, so "
                      "nothing checks that the body really does. The word still reaches callers and counts "
-                     "against the tier (canon §7 (2a))", names);
+                     "against the tier (canon §7 (2a))", proven_arg_cstr(names));
             last->msg = NULL;
         }
     }

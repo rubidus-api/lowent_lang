@@ -36,6 +36,8 @@ PROVEN_SRC := \
   $(PROVEN)/src/proven/heap.c \
   $(PROVEN)/src/proven/float_parse.c \
   $(PROVEN)/src/proven/float_decimal.c \
+  $(PROVEN)/src/proven/fmt.c \
+  $(PROVEN)/src/proven/float_format.c \
   $(PROVEN)/src/proven/utf.c \
   $(PROVEN)/src/proven/u16str.c \
   $(PROVEN)/src/proven/alloc_check.c \
@@ -57,6 +59,8 @@ PROVEN_SRC := \
 #   `panic.c` 는 `alloc_check.c` 가 부른다. 되살릴 때는 이 목록에 다시 적으면 된다(소스는 vendor/ 에 통째로 있다).
 #   ★ 같은 날(W-20261102-1435, 소유자 «부동소수 읽기를 proven_c_lib 의 것으로») `float_parse.c`·`float_decimal.c` 가 돌아왔다 —
 #     부동 리터럴과 `--run` 의 부동 인자를 `proven_strtod` 가 읽는다(src/low_token.h `low_num_parse_double` · main.c `run_arg_float`).
+# ★ 2026-11-12 (W-20261112-0207 S2, 소유자 «printf 류 … 프로븐 쪽 입출력 포매팅 함수로»): `fmt.c`·`float_format.c` — 처리기가 버퍼에 글을 짓는
+#   자리(전엔 snprintf)를 proven 의 포매터가 한다(src/low_fmt.h `low_bfmt`). float_format.c 는 fmt.c 가 부른다.
 
 LOW_SRC := $(filter-out src/main.c,$(wildcard src/*.c))
 LOW_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(LOW_SRC))

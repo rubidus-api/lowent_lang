@@ -1,9 +1,14 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.113.0` (태그 `v0.113.0`)
-- Vendored: 2026-11-02 v0.108.0 (was v0.107.3 / `9d26e22f` / 같은 날 · 그전 v0.107.2 / `def42831` / 같은 날 · 그전 전체 재벤더 was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+- Version: `proven_c_lib-v0.114.0` (태그 `v0.114.0`)
+- Vendored: 2026-11-12 v0.114.0 (was v0.113.0 / 같은 날 · 그전 2026-11-02 v0.108.0 · was v0.107.3 / `9d26e22f` / 같은 날 · 그전 v0.107.2 / `def42831` / 같은 날 · 그전 전체 재벤더 was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
 
+> **2026-11-12 재벤더 (v0.113.0 → v0.114.0 · W-20261112-0207, 상류가 printf `%g` 를 포매터에 지었다 — D-0207 요청).**
+> `git archive v0.114.0` 으로 같은 다섯을 바꿨다. 바뀐 파일 8(fmt · float_format · scan 과 그 머리글 · version.h) · 지워진 · 새 파일 0.
+> 뜻이 바뀐 것: `{:g}` 가 가장 짧은 왕복 꼴에서 printf 의 `%g` 로(짧은 꼴은 `{:r}`) — 처리기는 그때까지 `{:g}` 를 쓴 자리가 없었다.
+> ★ 확인: 오라클이 `--version` 한 줄 말고 같다. 그 뒤 libc 에 남겼던 `%g` 다섯 자리를 `{:g}` 로 옮겼다(아래).
+>
 > **2026-11-12 재벤더 (v0.108.0 → v0.113.0 · W-20261112-0207, 소유자 «메모리 할당 · 입출력 포매팅을 proven 으로» · 판은 «v0.113.0 으로 올리고 시작»).**
 > `git archive v0.113.0 include src platform LICENSE THIRD_PARTY_NOTICES.md` 로 셋을 통째로 바꿨다(옛 셋을 지우고 풀었다 — 상류에서 지운 파일도 빠진다).
 > 지워진 파일 99 · 새 파일 1(`src/proven/u16str_view.c`). 지워진 것은 상류가 `src/` 밖(`codec/` · `crypto/` · `net/`)으로 옮긴 압축 · 암호 · 그물 모듈과
@@ -121,8 +126,9 @@ float_parse · float_decimal` 다섯을 뺐다 — 그리고 같은 날 소유�
 2026-11-12(W-20261112-0207 S2): `fmt · float_format` — 처리기가 버퍼에 글을 짓는 자리(전엔 libc `snprintf`)를 proven 의 포매터가 한다
 (`src/low_fmt.h` 의 `low_bfmt`). ★ 다시 들여올 때 볼 것: `low_fmt.h` 는 `fmt.h` 의 `proven_u8str_fmt_internal` 을 부른다 — fmt.h 가
 «안정된 인터페이스가 아니다(MINOR 판에서 서명이 바뀔 수 있다)» 고 적은 함수다. C 와 다르게 받아들인 것: 잘라야 할 때 UTF-8 글자를
-가르지 않는다 · `%s` 의 NULL 은 빈 글(glibc `(null)`). libc 에 남긴 것: 부동소수 `%g`/`%e` 자리 — proven 의 `{:g}` 는 가장 짧은 왕복 꼴이라
-printf `%g` 와 글자가 다르다(상류 요청 `proven_c_lib/docs/requirements/2026-11-12-lowent-printf-g-mode.md`).
+가르지 않는다 · `%s` 의 NULL 은 빈 글(glibc `(null)`). 부동소수 `%g` 다섯 자리는 v0.114.0 이 printf 의 `%g` 를 `{:g}` 로 지은 뒤 옮겼다(그 전엔 `{:g}` 가 가장 짧은 왕복
+꼴이라 libc 에 남겼다 · 상류 요청 `proven_c_lib/docs/requirements/2026-11-12-lowent-printf-g-mode.md`). 이제 처리기 코드에 libc 의 printf 류는
+`low_fmt.c` 의 서식 실패 한 줄뿐이다(제 자신을 부르지 않게).
 Warning-clean under `-std=c23 -Wall -Wextra`(벤더 경고 0 — 남아 있던 둘은 우리 쪽 `PROVEN_ARRAY_GET`
 오용이었고 `GET_MUT` 으로 고쳤다).
 

@@ -4175,7 +4175,7 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
                 if (p[0] == 'l' && p[1] == 'o' && p[2] == 'c' && p[3] == '[' &&
                     (p == body || !((p[-1] >= 'a' && p[-1] <= 'z') || (p[-1] >= 'A' && p[-1] <= 'Z') || (p[-1] >= '0' && p[-1] <= '9') || p[-1] == '_'))) {
                     char *e; unsigned long k = strtoul(p + 4, &e, 10);
-                    if (e != p + 4 && *e == ']' && k < 64 && narrowed[k]) { o += (size_t)sprintf(nbody + o, "nloc%lu_", k); p = e + 1; continue; }
+                    if (e != p + 4 && *e == ']' && k < 64 && narrowed[k]) { o += (size_t)low_bfmt(nbody + o, cap - o, "nloc{}_", PROVEN_ARG((unsigned long long)(k)));   /* 전엔 sprintf — 칸은 위에서 32 바이트 남겨 둔다 */ p = e + 1; continue; }
                 }
                 nbody[o++] = *p++;
             }

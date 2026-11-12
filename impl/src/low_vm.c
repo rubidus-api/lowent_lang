@@ -5225,7 +5225,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
 // ★ f64 를 찍을 때 `3.0` 이 `3` 으로 나오면 **정수와 구분이 안 된다** — 도구가 타입을
 //   흐리는 것이다. 소수점이 없으면 `.0` 을 붙인다. (C 백엔드도 같은 규칙을 쓴다.)
 static void fmt_f(char *out, proven_size_t cap, double d) {
-    int n = snprintf(out, cap, "%g", d);   /* ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청) */
+    int n = low_bfmt(out, cap, "{:g}", PROVEN_ARG((double)(d)));   /* ★ proven {:g} = printf 의 %g (v0.114.0 · W-20261112-0207 · 상류 요청이 지어졌다) */
     if (n < 0 || (proven_size_t)n + 3 >= cap) return;
     for (const char *p = out; *p; p++)
         if (*p == '.' || *p == 'e' || *p == 'E' || *p == 'n' || *p == 'i') return;   // nan/inf 포함
@@ -5317,11 +5317,11 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
 #endif
                 if (s->f[i].be) for (proven_u8 k = 0; k < s->f[i].size; k++) x = (x << 8) | p[k];
                 else            for (proven_u8 k = s->f[i].size; k-- > 0; ) x = (x << 8) | p[k];
-                // ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청)
+                /* ★ proven {:g} = printf 의 %g (v0.114.0 · W-20261112-0207 · 상류 요청이 지어졌다) */
                 o += s->f[i].flt
-                   ? (proven_size_t)snprintf(out + o, cap - o, "%s%.*s %g", i ? ", " : "",
-                                             (int)s->f[i].name.size, (const char *)s->f[i].name.ptr,
-                                             ir_bits_to_f(x, s->f[i].size))
+                   ? (proven_size_t)low_bfmt(out + o, cap - o, "{}{} {:g}", proven_arg_cstr(i ? ", " : ""),
+                                             low_sv((const char *)s->f[i].name.ptr, (int)s->f[i].name.size),
+                                             PROVEN_ARG((double)(ir_bits_to_f(x, s->f[i].size))))
                    : (proven_size_t)low_bfmt(out + o, cap - o, "{}{} {}", proven_arg_cstr(i ? ", " : ""),
                                              low_sv((const char *)s->f[i].name.ptr, (int)s->f[i].name.size),
                                              PROVEN_ARG((unsigned long long)((unsigned long long)x)));
@@ -5341,10 +5341,10 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
         case VMV_VEC: {
             proven_size_t o = (proven_size_t)low_bfmt(out, cap, "vec[");
             for (proven_u8 k = 0; k < vm->vecs[v.box].n && o + 24 < cap; k++)
-                // ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청)
+                /* ★ proven {:g} = printf 의 %g (v0.114.0 · W-20261112-0207 · 상류 요청이 지어졌다) */
                 o += vm->vecs[v.box].flt
-                   ? (proven_size_t)snprintf(out + o, cap - o, "%s%g", k ? " " : "",
-                                             ir_bits_to_f(vm->vecs[v.box].l[k], vm->vecs[v.box].esz))
+                   ? (proven_size_t)low_bfmt(out + o, cap - o, "{}{:g}", proven_arg_cstr(k ? " " : ""),
+                                             PROVEN_ARG((double)(ir_bits_to_f(vm->vecs[v.box].l[k], vm->vecs[v.box].esz))))
                    : (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(k ? " " : ""),
                                              PROVEN_ARG((unsigned long long)((unsigned long long)vm->vecs[v.box].l[k])));
             low_bfmt(out + o, cap - o, "]");
@@ -5374,7 +5374,8 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
                 // ★ 2026-11-01 — 표식은 둘이다: 부동(IR_FLT_BIT)과 부호(IR_SGN_BIT). 전에는 0 이 아니면 다 부동으로 찍어 `slice i16` 의 -1 이
                 //   3.23786e-319 로 나왔다(VM · 두 네이티브 경로가 같게 틀려 대조가 못 봤다). 부호 있는 칸은 부호를 늘려 찍는다.
                 if (v.i & IR_FLT_BIT)
-                    o += (proven_size_t)snprintf(out + o, cap - o, "%s%g", i ? " " : "", ir_bits_to_f(x, (proven_u8)v.box));   /* ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청) */
+                    o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{:g}", proven_arg_cstr(i ? " " : ""),
+                                                 PROVEN_ARG((double)(ir_bits_to_f(x, (proven_u8)v.box))));   /* ★ proven {:g} = printf 의 %g (v0.114.0 · W-20261112-0207 · 상류 요청이 지어졌다) */
                 else if ((v.i & IR_SGN_BIT) && v.box > 0 && v.box < 8)
                     o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(i ? " " : ""),
                                                  PROVEN_ARG((long long)((long long)(x << (64 - 8 * v.box)) >> (64 - 8 * v.box))));

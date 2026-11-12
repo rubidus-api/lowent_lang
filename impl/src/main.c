@@ -2779,7 +2779,7 @@ int main(int argc, char **argv) {
                         if (i) low_pf(", ");
                         if (shaped[i].is_flt) {   // 비트가 아니라 **값**을 찍는다(`.0` 을 지킨다)
                             double dv; memcpy(&dv, &shaped[i].v, 8);
-                            char fb[40]; int fn = snprintf(fb, sizeof fb, "%g", dv);   /* ★ libc %g 그대로 — proven 에 printf %g 꼴이 생길 때까지(W-20261112-0207 · 상류 요청) */
+                            char fb[40]; int fn = low_bfmt(fb, sizeof fb, "{:g}", PROVEN_ARG((double)(dv)));   /* ★ proven {:g} = printf 의 %g (v0.114.0 · W-20261112-0207 · 상류 요청이 지어졌다) */
                             bool dot = false;
                             for (int q = 0; q < fn; q++)
                                 if (fb[q] == '.' || fb[q] == 'e' || fb[q] == 'n' || fb[q] == 'i') dot = true;

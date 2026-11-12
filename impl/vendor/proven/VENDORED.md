@@ -1,8 +1,15 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.108.0` (git `1d9989c4` — 태그 `v0.108.0`)
+- Version: `proven_c_lib-v0.113.0` (태그 `v0.113.0`)
 - Vendored: 2026-11-02 v0.108.0 (was v0.107.3 / `9d26e22f` / 같은 날 · 그전 v0.107.2 / `def42831` / 같은 날 · 그전 전체 재벤더 was v0.6.0 / `e62cee2` / 2026-10-02 · 그전 v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+
+> **2026-11-12 재벤더 (v0.108.0 → v0.113.0 · W-20261112-0207, 소유자 «메모리 할당 · 입출력 포매팅을 proven 으로» · 판은 «v0.113.0 으로 올리고 시작»).**
+> `git archive v0.113.0 include src platform LICENSE THIRD_PARTY_NOTICES.md` 로 셋을 통째로 바꿨다(옛 셋을 지우고 풀었다 — 상류에서 지운 파일도 빠진다).
+> 지워진 파일 99 · 새 파일 1(`src/proven/u16str_view.c`). 지워진 것은 상류가 `src/` 밖(`codec/` · `crypto/` · `net/`)으로 옮긴 압축 · 암호 · 그물 모듈과
+> 그 platform 짝(`proven_sys_aes` · `chacha` · `cpu` · `net` · `trust`)이다 — 처리기는 그중 하나도 짓지 않았다. 짓는 목록은 그대로다.
+> ★ 확인: 처리기의 겉 출력 전부(시험 · 라이브러리 · 매뉴얼 예제 1,076 파일 × 여덟 모드, `scripts/proven-io-oracle.py`)가 `--version` 한 줄 말고는 바이트까지 같다.
+> ★ 처리기의 Makefile 은 vendor 머리글을 의존으로 보지 않는다 — 재벤더 뒤에는 `make clean && make` 를 해야 새 판이 엮인다(`--version` 으로 확인).
 
 > **2026-11-02 재벤더 (v0.107.3 → v0.108.0 · W-20261102-2330, 소유자 «16진 부동소수 읽기 가능하지 않을까요»).** `git archive v0.108.0` 으로 같은 다섯을 바꿨다.
 > 내용이 바뀐 파일은 셋이다: `include/proven/float_parse.h` · `src/proven/float_parse.c` · `include/proven/version.h`.

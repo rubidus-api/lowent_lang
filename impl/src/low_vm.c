@@ -5470,10 +5470,10 @@ low_ir_par_t low_ir_par_check(const low_ir_t *ir, proven_allocator_t work, bool 
             }
         }
         if (verbose)
-            printf("   %.*s: split K=2,3,4,%d (forward+reverse)%s\n",
-                   (int)d->name.size, (const char *)d->name.ptr, (int)PN,
-                   op_fail ? "   ★ NOT DETERMINISTIC — the `parallel` declaration is a LIE"
-                           : "   bit-identical to sequential (DET-1 holds)");
+            low_pf("   {}: split K=2,3,4,{} (forward+reverse){}\n",
+                   low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((int)((int)PN)),
+                   proven_arg_cstr(op_fail ? "   ★ NOT DETERMINISTIC — the `parallel` declaration is a LIE"
+                           : "   bit-identical to sequential (DET-1 holds)"));
     }
     proven_array_destroy(&diags);
     return r;
@@ -5526,28 +5526,28 @@ low_ir_test_result_t low_ir_run_tests(const low_ir_t *ir, proven_allocator_t wor
             bool ok = !any_fail;
             if (ok) r.passed++; else r.failed++;
             if (verbose || !ok) {
-                printf("  %s %.*s", ok ? "[PASS]" : "[FAIL]", (int)d->name.size, (const char *)d->name.ptr);
+                low_pf("  {} {}", proven_arg_cstr(ok ? "[PASS]" : "[FAIL]"), low_sv((const char *)d->name.ptr, (int)d->name.size));
                 if (ok && verbose)
-                    printf("  (schedule: %zu interleavings agree, %s)", nrun,
-                           exhausted ? "exhaustive" : "bounded by limit");
+                    low_pf("  (schedule: {} interleavings agree, {})", PROVEN_ARG((size_t)(nrun)),
+                           proven_arg_cstr(exhausted ? "exhaustive" : "bounded by limit"));
                 if (!ok && npass > 0)
-                    printf("\n         E-SCHED-NONDET: this test PASSES under some message-delivery "
-                           "orders and FAILS under others (diverged at interleaving %zu of %zu explored) — "
+                    low_pf("\n         E-SCHED-NONDET: this test PASSES under some message-delivery "
+                           "orders and FAILS under others (diverged at interleaving {} of {} explored) — "
                            "its result DEPENDS on the order the scheduler delivers messages. A deterministic "
                            "actor program must give the SAME result under EVERY interleaving (RFC-0009 D6 — "
                            "the actor analogue of a data race). Fix the handler so order does not matter, or "
-                           "serialize with `drain`", first_fail_run, nrun);
+                           "serialize with `drain`", PROVEN_ARG((size_t)(first_fail_run)), PROVEN_ARG((size_t)(nrun)));
                 else if (!ok) {   // 모든 순서에서 실패 → 평범한 test 실패. 기준(FIFO) 진단을 뽑아 보인다.
                     g_sched_plan_len = 0;
                     proven_array_t dg = PROVEN_ARRAY_INIT(work, low_diag_t, 4).value;
                     (void)low_ir_run(ir, d->name, NULL, 0, work, &dg);
                     for (proven_size_t k = 0; k < dg.len; k++) {
                         const low_diag_t *g = (const low_diag_t *)proven_array_get(&dg, k);
-                        printf("\n         %s: %s", g->code, low_diag_text(g));
+                        low_pf("\n         {}: {}", proven_arg_cstr(g->code), proven_arg_cstr(low_diag_text(g)));
                     }
                     proven_array_destroy(&dg);
                 }
-                printf("\n");
+                low_pf("\n");
             }
             continue;
         }
@@ -5557,14 +5557,14 @@ low_ir_test_result_t low_ir_run_tests(const low_ir_t *ir, proven_allocator_t wor
         bool ok = rr.ok;
         if (ok) r.passed++; else r.failed++;
         if (verbose || !ok) {
-            printf("  %s %.*s", ok ? "[PASS]" : "[FAIL]", (int)d->name.size, (const char *)d->name.ptr);
+            low_pf("  {} {}", proven_arg_cstr(ok ? "[PASS]" : "[FAIL]"), low_sv((const char *)d->name.ptr, (int)d->name.size));
             if (!ok) {
                 for (proven_size_t k = 0; k < diags.len; k++) {
                     const low_diag_t *dg = (const low_diag_t *)proven_array_get(&diags, k);
-                    printf("\n         %s: %s", dg->code, low_diag_text(dg));
+                    low_pf("\n         {}: {}", proven_arg_cstr(dg->code), proven_arg_cstr(low_diag_text(dg)));
                 }
             }
-            printf("\n");
+            low_pf("\n");
         }
         proven_array_destroy(&diags);
     }

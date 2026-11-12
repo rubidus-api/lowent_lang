@@ -450,7 +450,7 @@ static void ir_tres_fill(void) {
     if (ir_tres_ok) return;
     for (proven_size_t i = 0; i < IR_NTREE; i++) {
         char err[160];
-        if (!ir_tnode_resolve(i, &ir_tres[i], err, sizeof err)) { fprintf(stderr, "lowentc: internal: target table: %s\n", err); abort(); }
+        if (!ir_tnode_resolve(i, &ir_tres[i], err, sizeof err)) { low_fpf(stderr, "lowentc: internal: target table: {}\n", proven_arg_cstr(err)); abort(); }
     }
     ir_tres_ok = true;
     if (!ir_tgt) ir_tgt = &ir_tres[ir_tnode_find("x86_64")];
@@ -488,11 +488,12 @@ void low_ir_print_targets(FILE *f) {
         for (proven_size_t j = i; IR_TREE[j].parent; j = ir_tnode_find(IR_TREE[j].parent)) depth++;
         const low_target_t *t = &ir_tres[i];
         const unsigned limb = t->limb_bits ? t->limb_bits : t->mul_bits < 16 ? 16u : t->mul_bits;
-        fprintf(f, "%*s%s\t%s\t%s\t%d\t%u\t%u\t%u\t%d\t%d\t%d\t%d\t%d\t%u\t%d\t%lld\t%u\t%u\t%d\t%d\t%u\t%u\t%s\t%u\t%u\n",
-                depth * 2, "", IR_TREE[i].pick ? IR_TREE[i].name : "·", IR_TREE[i].name, IR_TREE[i].parent ? IR_TREE[i].parent : "-",
-                IR_TREE[i].pick, t->addr_bits, t->ptr_bytes, t->ptr_align, t->ptr_caps, t->big_endian, t->has_fpu, t->no_heap,
-                t->no_float, t->simd_bytes, t->posix, (long long)t->max_slice_len, t->cache_line, t->page_size, t->check_only,
-                t->int128, t->mul_bits, limb, IR_TREE[i].axes, t->atom_ldst, t->atom_rmw);
+        for (int d_ = 0; d_ < depth * 2; d_++) fputc(' ', f);   // 들여쓰기(전엔 `%*s`)
+        low_fpf(f, "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                proven_arg_cstr(IR_TREE[i].pick ? IR_TREE[i].name : "·"), proven_arg_cstr(IR_TREE[i].name), proven_arg_cstr(IR_TREE[i].parent ? IR_TREE[i].parent : "-"),
+                PROVEN_ARG((int)(IR_TREE[i].pick)), PROVEN_ARG((unsigned)(t->addr_bits)), PROVEN_ARG((unsigned)(t->ptr_bytes)), PROVEN_ARG((unsigned)(t->ptr_align)), PROVEN_ARG((int)(t->ptr_caps)), PROVEN_ARG((int)(t->big_endian)), PROVEN_ARG((int)(t->has_fpu)), PROVEN_ARG((int)(t->no_heap)),
+                PROVEN_ARG((int)(t->no_float)), PROVEN_ARG((unsigned)(t->simd_bytes)), PROVEN_ARG((int)(t->posix)), PROVEN_ARG((long long)((long long)t->max_slice_len)), PROVEN_ARG((unsigned)(t->cache_line)), PROVEN_ARG((unsigned)(t->page_size)), PROVEN_ARG((int)(t->check_only)),
+                PROVEN_ARG((int)(t->int128)), PROVEN_ARG((unsigned)(t->mul_bits)), PROVEN_ARG((unsigned)(limb)), proven_arg_cstr(IR_TREE[i].axes), PROVEN_ARG((unsigned)(t->atom_ldst)), PROVEN_ARG((unsigned)(t->atom_rmw)));
     }
 }
  bool g_smt_on = true;
@@ -512,14 +513,14 @@ void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = stdout; }
     if (!g_smt_emit || !g_smt_out) return;
     fputs("; ── query: ", g_smt_out);
     fwrite(d->name.ptr, 1, d->name.size, g_smt_out);
-    fprintf(g_smt_out, " @%zu — expect unsat ─────────────\n", (size_t)pc);
+    low_fpf(g_smt_out, " @{} — expect unsat ─────────────\n", PROVEN_ARG((size_t)((size_t)pc)));
     for (proven_size_t i = 0; i < s->nv; i++)
-        fprintf(g_smt_out, "(declare-const x%zu Int)\n", (size_t)i);
+        low_fpf(g_smt_out, "(declare-const x{} Int)\n", PROVEN_ARG((size_t)((size_t)i)));
     for (proven_size_t j = 0; j < s->nc; j++) {
         fputs("(assert (<= (+", g_smt_out);
         for (proven_size_t i = 0; i < s->nv; i++)
-            fprintf(g_smt_out, " (* %lld x%zu)", (long long)s->row[j].a[i], (size_t)i);
-        fprintf(g_smt_out, " %lld) 0))\n", (long long)s->row[j].c);
+            low_fpf(g_smt_out, " (* {} x{})", PROVEN_ARG((long long)((long long)s->row[j].a[i])), PROVEN_ARG((size_t)((size_t)i)));
+        low_fpf(g_smt_out, " {}) 0))\n", PROVEN_ARG((long long)((long long)s->row[j].c)));
     }
     fputs("(check-sat)\n", g_smt_out);
 }
@@ -886,7 +887,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
         if (ir_list_untyped && !c->tstk_bad &&
             (w == IRW_ADD || w == IRW_SUB || w == IRW_MUL || w == IRW_DIV || w == IRW_MOD || w == IRW_NEG ||
              w == IRW_SHL || w == IRW_SHR || w == IRW_BAND || w == IRW_BOR || w == IRW_BXOR || w == IRW_BNOT)) {
-            if (res.known) fprintf(stderr, "TYPED\t%s\n", low_irw_name(w));
+            if (res.known) low_fpf(stderr, "TYPED\t{}\n", proven_arg_cstr(low_irw_name(w)));
             else {
                 low_irw_t src = IRW_CONST;
                 for (int i = 0; i < ar && i < 3; i++)
@@ -901,9 +902,9 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 }
                 if (src != IRW_CONST) {
                     proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
-                    fprintf(stderr, "UNTYPED\t%s\t%s\t%.*s\t%u\n", low_irw_name(w), low_irw_name(src),
-                            (int)dn.size, (const char *)dn.ptr,
-                            (c->cur_form && c->cur_form->nkids) ? (unsigned)c->cur_form->kids[0]->tok.line : 0u);
+                    low_fpf(stderr, "UNTYPED\t{}\t{}\t{}\t{}\n", proven_arg_cstr(low_irw_name(w)), proven_arg_cstr(low_irw_name(src)),
+                            low_sv((const char *)dn.ptr, (int)dn.size),
+                            PROVEN_ARG((unsigned)((c->cur_form && c->cur_form->nkids) ? (unsigned)c->cur_form->kids[0]->tok.line : 0u)));
                 }
             }
         }
@@ -2354,7 +2355,7 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
         char nb2[160]; proven_size_t n2 = low_bcopy(nb2, sizeof nb2, v.ptr, v.size);
         char sp2[160]; proven_size_t s2 = low_bcopy(sp2, sizeof sp2, nb2, n2);
         for (proven_size_t z = 0; z < s2; z++) if (sp2[z] == '.') sp2[z] = ' ';
-        fprintf(stderr, "GLUED\t%u\t%s\t(field %s)\n", (unsigned)line, nb2, sp2);
+        low_fpf(stderr, "GLUED\t{}\t{}\t(field {})\n", PROVEN_ARG((unsigned)((unsigned)line)), proven_arg_cstr(nb2), proven_arg_cstr(sp2));
     } else if (!c->allow_glued_field) {
         {   // ★ 진단이 **그 이름을 그대로 보여 준다** — 한 줄에 붙은 점이 여럿일 때
             //   *"어느 것인가"* 를 사람이 다시 찾지 않아도 되도록.
@@ -6505,8 +6506,8 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
     proven_u32 ln = h->tok.line ? h->tok.line : nd->line;
     const char *fl = c->def_form ? low_cst_file_for_line(c->def_form, ln) : NULL;
     if (fl) { const char *b = strrchr(fl, '/'); fl = b ? b + 1 : fl; }
-    fprintf(stderr, "TYPES\t%s:%.*s\t%u\t%.*s\t%s\t%s\n", fl ? fl : "", (int)dn.size, (const char *)dn.ptr, (unsigned)ln,
-            hk ? (int)strlen(hk) : (int)(h->kind == LOW_CST_ATOM ? h->tok.lex.size : 1), hk ? hk : (h->kind == LOW_CST_ATOM ? (const char *)h->tok.lex.ptr : "("), tb, ib);
+    low_fpf(stderr, "TYPES\t{}:{}\t{}\t{}\t{}\t{}\n", proven_arg_cstr(fl ? fl : ""), low_sv((const char *)dn.ptr, (int)dn.size), PROVEN_ARG((unsigned)((unsigned)ln)),
+            low_sv(hk ? hk : (h->kind == LOW_CST_ATOM ? (const char *)h->tok.lex.ptr : "("), hk ? (int)strlen(hk) : (int)(h->kind == LOW_CST_ATOM ? h->tok.lex.size : 1)), proven_arg_cstr(tb), proven_arg_cstr(ib));
 }
  void ir_node(ir_ctx_t *c, const low_cst_t *nd) {
     if (c->failed) return;
@@ -8408,9 +8409,8 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
             }
         }
         if (verbose && op_cases)
-            printf("   %-16.*s %3zu length case(s)%s\n", (int)d->name.size,
-                   (const char *)d->name.ptr, op_cases,
-                   op_fail ? "   ★ ORACLE FAILURE" : "   all oracles hold");
+            low_pf("   {:<16} {:3} length case(s){}\n", low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((size_t)(op_cases)),
+                   proven_arg_cstr(op_fail ? "   ★ ORACLE FAILURE" : "   all oracles hold"));
     }
 
     // ── (B) 정수 파라미터 — 계약이 말하는 **값의 경계**를 흔든다 ────────────────
@@ -8621,10 +8621,10 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
         } while (++i0 < nv[0]);
 
         if (verbose) {
-            printf("   %-16.*s %3zu cases", (int)d->name.size, (const char *)d->name.ptr, op_cases);
-            if (op_fail) printf("   ★ %zu ORACLE FAILURE(S)", op_fail);
-            else         printf("   all oracles hold");
-            printf("\n");
+            low_pf("   {:<16} {:3} cases", low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((size_t)(op_cases)));
+            if (op_fail) low_pf("   ★ {} ORACLE FAILURE(S)", PROVEN_ARG((size_t)(op_fail)));
+            else         low_pf("   all oracles hold");
+            low_pf("\n");
         }
     }
     proven_array_destroy(&diags);
@@ -8681,9 +8681,8 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
                 }
             }
             if (verbose && op_cases)
-                printf("   %.*s: %zu shape case(s)%s\n", (int)d->name.size,
-                       (const char *)d->name.ptr, op_cases,
-                       op_fail ? "   ★ ORACLE FAILURE" : "   all oracles hold");
+                low_pf("   {}: {} shape case(s){}\n", low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((size_t)(op_cases)),
+                       proven_arg_cstr(op_fail ? "   ★ ORACLE FAILURE" : "   all oracles hold"));
         }
     }
 

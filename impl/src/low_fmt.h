@@ -71,4 +71,16 @@ static inline int low_bfmt_args(char *buf, size_t cap, const char *fmt, const pr
     proven_u8str_t s = proven_u8str_borrow((proven_byte_t *)buf, (proven_size_t)cap);
     return low_bfmt_end_(proven_u8str_fmt_internal((proven_allocator_t){0}, &s, true, fmt, (proven_allocator_t){0}, args, n), fmt);
 }
+
+/* ★ P4 단계 A (W-20261112-0207 · 소유자 «printf/sprintf/snprintf/fprintf 류 … 프로븐 쪽 입출력 포매팅 함수로») — 흐름(FILE *)에 쓰는 자리.
+ *   low_fpf(f, "…{}…", PROVEN_ARG(...), …)  — `fprintf(f, "…%d…", x)` 의 자리.   low_pf(…) — `printf(…)` 의 자리(stdout).
+ *     · proven 이 글을 짓는다: 1 KiB 스택 칸에, 넘치면 proven 힙 칸에(잘리지 않는다 — fprintf 처럼 길이 한도가 없다).
+ *     · 지은 바이트는 **같은 FILE * 에 fwrite** 한다. 흐름은 이 단계에서 그대로다 — VM 이 내는 프로그램 출력 · 자식 프로세스 ·
+ *       exit 경로와의 순서가 안 바뀐다(흐름을 proven 쪽으로 바꾸는 것은 단계 B).
+ *     · 돌려주는 값은 fprintf 처럼 쓴 바이트 수, 쓰기가 모자라면 -1. 서식이 틀리면 low_bfmt 처럼 멈춘다.
+ *   서식은 scripts/snprintf-to-proven.py 가 옮겼다(fprintf · printf 도 같은 캐스트 규칙). */
+#include <stdio.h>
+int low_fpf_args(FILE *f, const char *fmt, const proven_arg_t *args, proven_size_t n);
+#define low_fpf(f, fmt, ...) low_fpf_args((f), fmt, LOW_FMT_ARGS(__VA_ARGS__))
+#define low_pf(fmt, ...) low_fpf_args(stdout, fmt, LOW_FMT_ARGS(__VA_ARGS__))
 #endif

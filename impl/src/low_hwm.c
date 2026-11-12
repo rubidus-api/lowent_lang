@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "low_fmt.h"
 
 // 표는 몇 개 안 된다(감사 대상 17). 넘치면 **그것도 말한다** — 계측이 조용히 자르면
 // 계측을 못 믿는다(이 파일이 존재하는 이유가 바로 그 병이다).
@@ -26,6 +27,6 @@ void low_hwm_note(const char *name, size_t v, size_t cap) {
 void low_hwm_dump(void) {
     if (!low_hwm_on()) return;
     for (size_t i = 0; i < g_n; i++)
-        fprintf(stderr, "HWM\t%s\t%zu\t%zu\n", g[i].name, g[i].hi, g[i].cap);
-    if (g_full) fprintf(stderr, "HWM\t(표가 넘쳤다 — 계측 자신이 자르고 있다)\t0\t0\n");
+        low_fpf(stderr, "HWM\t{}\t{}\t{}\n", proven_arg_cstr(g[i].name), PROVEN_ARG((size_t)(g[i].hi)), PROVEN_ARG((size_t)(g[i].cap)));
+    if (g_full) low_fpf(stderr, "HWM\t(표가 넘쳤다 — 계측 자신이 자르고 있다)\t0\t0\n");
 }

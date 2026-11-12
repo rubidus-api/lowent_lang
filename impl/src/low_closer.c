@@ -1411,8 +1411,8 @@ bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_siz
             while (i < u.n && u.T[i].kind != LOW_TOK_EOF) i = up_topform(&u, i);
             ok = true;
         } else if (u.cur < u.n) {
-            fprintf(stderr, "lowentc: --fmt: the printed form could not be raised near its line %u, `%.*s`\n", (unsigned)u.T[u.cur].line,
-                    (int)(u.T[u.cur].lex.size > 30 ? 30 : u.T[u.cur].lex.size), (const char *)u.T[u.cur].lex.ptr);
+            low_fpf(stderr, "lowentc: --fmt: the printed form could not be raised near its line {}, `{}`\n", PROVEN_ARG((unsigned)((unsigned)u.T[u.cur].line)),
+                    low_sv((const char *)u.T[u.cur].lex.ptr, (int)(u.T[u.cur].lex.size > 30 ? 30 : u.T[u.cur].lex.size)));
         }
     }
     if (ok) {

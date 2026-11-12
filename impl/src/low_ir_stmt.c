@@ -2882,12 +2882,12 @@ static void ir_excl_skip(low_ir_t *ir) {
             const low_ir_xpair_t *x = &d->xpairs[q];
             proven_u32 m = wm[XP_AT(i, q)];
             if (!x->skipped && !seen[i]) m |= 1u << XW_NOCALL;
-            fprintf(stderr, "XPAIR\t%s\t%.*s%s%.*s\t%u,%u\t%u", x->skipped ? "skip" : "keep", (int)d->owner_mod.size, (const char *)d->owner_mod.ptr,
-                    d->owner_mod.size ? "." : "", (int)d->name.size, (const char *)d->name.ptr, (unsigned)x->i, (unsigned)x->j, (unsigned)x->mode);
-            for (int r = 1; r < XW_N; r++) if ((m >> r) & 1u) fprintf(stderr, "\t%s", ir_xw_name[r]);
+            low_fpf(stderr, "XPAIR\t{}\t{}{}{}\t{},{}\t{}", proven_arg_cstr(x->skipped ? "skip" : "keep"), low_sv((const char *)d->owner_mod.ptr, (int)d->owner_mod.size),
+                    proven_arg_cstr(d->owner_mod.size ? "." : ""), low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((unsigned)((unsigned)x->i)), PROVEN_ARG((unsigned)((unsigned)x->j)), PROVEN_ARG((unsigned)((unsigned)x->mode)));
+            for (int r = 1; r < XW_N; r++) if ((m >> r) & 1u) low_fpf(stderr, "\t{}", proven_arg_cstr(ir_xw_name[r]));
             if ((m >> XW_DEF) & 1u)
-                fprintf(stderr, "\t(%s%s%s%s%s%s pairs %u)", d->lowered && d->code ? "" : "unlowered ", d->is_extern ? "extern " : "", d->is_test ? "test " : "",
-                        d->is_actor ? "actor " : "", d->is_par ? "par " : "", d->isr_vector >= 0 ? "isr " : "", (unsigned)d->nxpairs);
+                low_fpf(stderr, "\t({}{}{}{}{}{} pairs {})", proven_arg_cstr(d->lowered && d->code ? "" : "unlowered "), proven_arg_cstr(d->is_extern ? "extern " : ""), proven_arg_cstr(d->is_test ? "test " : ""),
+                        proven_arg_cstr(d->is_actor ? "actor " : ""), proven_arg_cstr(d->is_par ? "par " : ""), proven_arg_cstr(d->isr_vector >= 0 ? "isr " : ""), PROVEN_ARG((unsigned)((unsigned)d->nxpairs)));
             fputc('\n', stderr);
         }
     }
@@ -3028,9 +3028,9 @@ static void ir_pool_scan(low_ir_t *ir) {
             const low_ir_def_t *d = &ir->defs[i];
             if (!d->lowered || called[i] || d->is_test) continue;
             if (g_pool_report)
-                printf("  %-32.*s %8llu / %llu  %s%s%s%s\n", (int)d->name.size, (const char *)d->name.ptr, memo[i], cap,
-                       why[i] ? "uncountable:" : (memo[i] > cap ? "★ over" : "entry"),
-                       (why[i] & 1) ? " loop-without-reclaim" : "", (why[i] & 2) ? " recursion" : "", (why[i] & 4) ? " push" : "");
+                low_pf("  {:<32} {:8} / {}  {}{}{}{}\n", low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((unsigned long long)(memo[i])), PROVEN_ARG((unsigned long long)(cap)),
+                       proven_arg_cstr(why[i] ? "uncountable:" : (memo[i] > cap ? "★ over" : "entry")),
+                       proven_arg_cstr((why[i] & 1) ? " loop-without-reclaim" : ""), proven_arg_cstr((why[i] & 2) ? " recursion" : ""), proven_arg_cstr((why[i] & 4) ? " push" : ""));
             if (!why[i] && memo[i] > cap) {
                 low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = "E-POOL-BOUND", .line = d->ncode ? d->code[0].line : 0, .col = 0,
                                   .file = (d->ncode && d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
@@ -3054,15 +3054,15 @@ static void ir_pool_scan(low_ir_t *ir) {
         bool any = false;
         for (proven_size_t i = 0; i < ir->ndefs; i++) if (ir->defs[i].wbytes) any = true;
         if (fm && lm && fs && ls && (any || g_pool_report)) {
-            if (g_pool_report) printf("frame-report: op · deepest path's frame bytes (list literals + struct values) / budget (RFC-0132 P4e)\n");
+            if (g_pool_report) low_pf("frame-report: op · deepest path's frame bytes (list literals + struct values) / budget (RFC-0132 P4e)\n");
             for (proven_size_t i = 0; i < ir->ndefs; i++) {
                 const low_ir_def_t *d = &ir->defs[i];
                 if (!d->lowered || called[i] || d->is_test) continue;
                 bool rec = false, rec2 = false;
                 unsigned long long p = ir_frame_path(ir, i, fm, fs, false, &rec, 0), q = ir_frame_path(ir, i, lm, ls, true, &rec2, 0);
                 if (g_pool_report)
-                    printf("  %-32.*s %8llu / %ld  %s\n", (int)d->name.size, (const char *)d->name.ptr, p, budget,
-                           rec ? "uncountable: recursion" : (p > (unsigned long long)budget ? "★ over" : "entry"));
+                    low_pf("  {:<32} {:8} / {}  {}\n", low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((unsigned long long)(p)), PROVEN_ARG((long long)(budget)),
+                           proven_arg_cstr(rec ? "uncountable: recursion" : (p > (unsigned long long)budget ? "★ over" : "entry")));
                 if (!rec && p > (unsigned long long)budget && q <= (unsigned long long)budget) {
                     low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = "E-STACK-BUDGET", .line = d->ncode ? d->code[0].line : 0, .col = 0,
                                       .file = (d->ncode && d->code[0].fileid < ir->nfiles) ? ir->files[d->code[0].fileid] : NULL };
@@ -5641,22 +5641,22 @@ int low_ir_emit_proof(const low_ir_t *ir, FILE *out) {
     //   다르면, 그 차이만큼은 **근거 없이 지워진 것**이다 — 검증기가 그것을 보고해야 한다.
     //   (증명서를 붙이지 않은 규칙이 남아 있다는 뜻이고, 그 사실을 숨기면 이 파일이
     //    "전부 검증됐다" 로 읽힌다. 15장 오라클과 같은 규칙: **안 한 것을 말한다.**)
-    fprintf(out, "# proven %zu certified %zu\n",
-            (size_t)ir->checks_proven, (size_t)g_ncert);
+    low_fpf(out, "# proven {} certified {}\n",
+            PROVEN_ARG((size_t)((size_t)ir->checks_proven)), PROVEN_ARG((size_t)((size_t)g_ncert)));
     for (proven_size_t i = 0; i < g_ncert; i++) {
         const ir_cert_t *c = &g_cert[i];
         fwrite(c->def.ptr, 1, c->def.size, out);
-        fprintf(out, " %u %s %s", (unsigned)c->pc, low_irw_name(c->w), c->rule);
-        for (int k = 0; k < c->nf; k++) fprintf(out, " %lld", (long long)c->f[k]);
+        low_fpf(out, " {} {} {}", PROVEN_ARG((unsigned)((unsigned)c->pc)), proven_arg_cstr(low_irw_name(c->w)), proven_arg_cstr(c->rule));
+        for (int k = 0; k < c->nf; k++) low_fpf(out, " {}", PROVEN_ARG((long long)((long long)c->f[k])));
         for (proven_size_t k = 0; k < c->ext_n; k++)
-            fprintf(out, " %lld", (long long)g_cert_ext[c->ext_at + k]);
+            low_fpf(out, " {}", PROVEN_ARG((long long)((long long)g_cert_ext[c->ext_at + k])));
         fputc('\n', out);
     }
     // ★ 넘쳐서 못 적은 것은 **말한다.** 조용히 자르면 검증기가 "전부 봤다" 고 착각한다.
     if (g_cert_drop)
-        fprintf(out, "# DROPPED %zu certificate(s) — the buffer (%d) overflowed. "
+        low_fpf(out, "# DROPPED {} certificate(s) — the buffer ({}) overflowed. "
                      "The validator must NOT read this file as complete.\n",
-                (size_t)g_cert_drop, IR_CERT_MAX);
+                PROVEN_ARG((size_t)((size_t)g_cert_drop)), PROVEN_ARG((int)(IR_CERT_MAX)));
     return (int)g_ncert;
 }
 
@@ -5669,8 +5669,8 @@ int low_ir_emit_db(const low_ir_t *ir, FILE *out) {
         hex8(d->iface_hash, ih);
         fputs(d->is_calc ? "fn " : "proc ", out);
         fwrite(d->name.ptr, 1, d->name.size, out);
-        fprintf(out, "/%zu iface:%s", (size_t)d->nparams, ih);
-        if (d->lowered) { hex8(d->def_hash, dh); fprintf(out, " def:%s", dh); }
+        low_fpf(out, "/{} iface:{}", PROVEN_ARG((size_t)((size_t)d->nparams)), proven_arg_cstr(ih));
+        if (d->lowered) { hex8(d->def_hash, dh); low_fpf(out, " def:{}", proven_arg_cstr(dh)); }
         else fputs(" def:-", out);          // 하강 못 한 것은 **없다고 적는다**(있는 척 안 한다)
         fputc('\n', out);
         n++;
@@ -5679,37 +5679,37 @@ int low_ir_emit_db(const low_ir_t *ir, FILE *out) {
 }
 
 void low_ir_dump(const low_ir_t *ir) {
-    printf("== stack IR (%zu def%s) ==\n", (size_t)ir->ndefs, ir->ndefs == 1 ? "" : "s");
+    low_pf("== stack IR ({} def{}) ==\n", PROVEN_ARG((size_t)((size_t)ir->ndefs)), proven_arg_cstr(ir->ndefs == 1 ? "" : "s"));
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         char ih[17], dh[17];
         hex8(d->iface_hash, ih);
         fputs(d->is_calc ? "fn " : "proc ", stdout);
         fwrite(d->name.ptr, 1, d->name.size, stdout);
-        printf("/%zu  iface h:%s", (size_t)d->nparams, ih);
-        if (!d->lowered) { printf("  (not lowered: outside the S5 core)\n"); continue; }
+        low_pf("/{}  iface h:{}", PROVEN_ARG((size_t)((size_t)d->nparams)), proven_arg_cstr(ih));
+        if (!d->lowered) { low_pf("  (not lowered: outside the S5 core)\n"); continue; }
         hex8(d->def_hash, dh);
-        printf("  def h:%s  locals %zu\n", dh, (size_t)d->nlocals);
+        low_pf("  def h:{}  locals {}\n", proven_arg_cstr(dh), PROVEN_ARG((size_t)((size_t)d->nlocals)));
         for (proven_size_t j = 0; j < d->ncode; j++) {
-            printf("  %3zu  %-11s", (size_t)j, low_irw_name(d->code[j].w));
+            low_pf("  {:3}  {:<11}", PROVEN_ARG((size_t)((size_t)j)), proven_arg_cstr(low_irw_name(d->code[j].w)));
             switch (d->code[j].w) {
                 case IRW_CONST: case IRW_LOAD: case IRW_STORE: case IRW_BR: case IRW_BRZ:
                 case IRW_SWITCH:
-                    printf(" %lld", (long long)d->code[j].a); break;
+                    low_pf(" {}", PROVEN_ARG((long long)((long long)d->code[j].a))); break;
                 case IRW_CALL: {
                     proven_size_t cix = IR_CALL_IDX(d->code[j].a);
                     char ch[17]; hex8(ir->defs[cix].def_hash, ch);
                     fputs(" ", stdout);
                     fwrite(ir->defs[cix].name.ptr, 1, ir->defs[cix].name.size, stdout);
-                    printf(" h:%s%s", ch,
-                           (d->code[j].a & IR_POL_PROVEN) ? " [args proven in range]" : "");
+                    low_pf(" h:{}{}", proven_arg_cstr(ch),
+                           proven_arg_cstr((d->code[j].a & IR_POL_PROVEN) ? " [args proven in range]" : ""));
                     break;
                 }
                 case IRW_MAKE: {
                     const low_ir_make_t *mk = &ir->makes[d->code[j].a];
                     fputs(" ", stdout);
                     fwrite(mk->type_name.ptr, 1, mk->type_name.size, stdout);
-                    printf("/%zu", (size_t)mk->nfields); break;
+                    low_pf("/{}", PROVEN_ARG((size_t)((size_t)mk->nfields))); break;
                 }
                 case IRW_WRAP_ERR:
                     fputs(" ", stdout);
@@ -5726,20 +5726,20 @@ void low_ir_dump(const low_ir_t *ir) {
     }
     // RFC-0053 §6.4 — 제거되지 않은 검사는 **보고된다**. 침묵하면 성능 모델이 엔트로피가 된다.
     if (ir->folds) {   // RFC-0054 D6 — 어느 arm 이 선택됐는지 **보고된다**(비용 가시)
-        printf("\n-- comptime target folding (RFC-0054) --\n");
-        printf("   target = %s  (ptr %ub · %s-endian · fpu %s · no_heap %s)\n",
-               low_ir_target()->name, low_ir_target()->addr_bits,
-               low_ir_target()->big_endian ? "big" : "little",
-               low_ir_target()->has_fpu ? "yes" : "no",
-               low_ir_target()->no_heap ? "yes" : "no");
-        printf("   %zu branch(es) folded at comptime — the dead arm is NOT emitted,\n", ir->folds);
-        printf("   but it IS parsed and type-checked (unlike C's #ifdef).\n");
+        low_pf("\n-- comptime target folding (RFC-0054) --\n");
+        low_pf("   target = {}  (ptr {}b · {}-endian · fpu {} · no_heap {})\n",
+               proven_arg_cstr(low_ir_target()->name), PROVEN_ARG((unsigned)(low_ir_target()->addr_bits)),
+               proven_arg_cstr(low_ir_target()->big_endian ? "big" : "little"),
+               proven_arg_cstr(low_ir_target()->has_fpu ? "yes" : "no"),
+               proven_arg_cstr(low_ir_target()->no_heap ? "yes" : "no"));
+        low_pf("   {} branch(es) folded at comptime — the dead arm is NOT emitted,\n", PROVEN_ARG((size_t)(ir->folds)));
+        low_pf("   but it IS parsed and type-checked (unlike C's #ifdef).\n");
     }
-    printf("\n-- runtime checks (interval analysis: overflow · division · narrowing) --\n");
-    printf("   %zu / %zu removed", ir->checks_proven, ir->checks_total);
+    low_pf("\n-- runtime checks (interval analysis: overflow · division · narrowing) --\n");
+    low_pf("   {} / {} removed", PROVEN_ARG((size_t)(ir->checks_proven)), PROVEN_ARG((size_t)(ir->checks_total)));
     if (ir->checks_total)
-        printf("  (%zu%%)", 100 * ir->checks_proven / ir->checks_total);
-    printf("\n");
+        low_pf("  ({}%)", PROVEN_ARG((size_t)(100 * ir->checks_proven / ir->checks_total)));
+    low_pf("\n");
     // ★★★★★ **「지웠다」 가 「안 나간다」 는 뜻은 아니다** (2026-09-09, RFC-0111 §8-16 · WO-0193).
     //   증명된 **산술**은 IR 에 표시만 되고 방출은 여전히 `lw_arith_i(...)` 트랩 호출을 낸다
     //   (`low_cbe.c` 가 그 까닭을 적는다 — 산술 의미를 두 곳에 두지 않으려고. 값은 두 번 쟀고
@@ -5758,12 +5758,12 @@ void low_ir_dump(const low_ir_t *ir) {
                 if (q->w == IRW_ADD || q->w == IRW_SUB || q->w == IRW_MUL) still++;
             }
         if (still)
-            printf("   ★ of those, %zu are ARITHMETIC: the proof is recorded in the IR but the C\n"
+            low_pf("   ★ of those, {} are ARITHMETIC: the proof is recorded in the IR but the C\n"
                    "     back end still emits the trapping call (measured twice — emitting them raw\n"
-                   "     is worth about 1%%, and it would put integer semantics in two places).\n"
+                   "     is worth about 1%, and it would put integer semantics in two places).\n"
                    "     So this number is WHAT WAS PROVEN, not what disappeared from the code:\n"
                    "     do not predict performance from it (index/store proofs DO disappear).\n",
-                   still);
+                   PROVEN_ARG((size_t)(still)));
     }
     for (proven_size_t d = 0; d < ir->ndefs; d++) {
         const low_ir_def_t *df = &ir->defs[d];
@@ -5792,18 +5792,18 @@ void low_ir_dump(const low_ir_t *ir) {
             //   관계형 술어(`le a b`)는 그때 **읽히지도 않았고**(죽은 절이었다), 배열 내용에
             //   관한 사실은 이 도메인에 **표현할 자리가 아예 없다.** 조언을 따르면 아무 일도
             //   일어나지 않는다. **도구가 자기 한계를 프로그램 탓으로 돌린 것이다**(교훈 5).
-            printf("   %.*s: %zu check(s) remain — the interval domain could not prove the range here.\n",
-                   (int)df->name.size, (const char *)df->name.ptr, rem);
-            printf("     · a `range`/`requires` bound on the inputs may close it — INCLUDING a relational\n");
-            printf("       one (`requires le a b .`), which is now both ENFORCED and USED as a fact.\n");
-            printf("     · but a fact about ARRAY CONTENTS (\"every element < 10\") has no place in this\n");
-            printf("       domain at all: NO `requires` will close it. That is the TOOL's limit, not your\n");
-            printf("       program's bug — and the check stays, so the answer is still right (R5, SPEC-016).\n");
+            low_pf("   {}: {} check(s) remain — the interval domain could not prove the range here.\n",
+                   low_sv((const char *)df->name.ptr, (int)df->name.size), PROVEN_ARG((size_t)(rem)));
+            low_pf("     · a `range`/`requires` bound on the inputs may close it — INCLUDING a relational\n");
+            low_pf("       one (`requires le a b .`), which is now both ENFORCED and USED as a fact.\n");
+            low_pf("     · but a fact about ARRAY CONTENTS (\"every element < 10\") has no place in this\n");
+            low_pf("       domain at all: NO `requires` will close it. That is the TOOL's limit, not your\n");
+            low_pf("       program's bug — and the check stays, so the answer is still right (R5, SPEC-016).\n");
             // ★ **자리를 찍는다** — `--ir` 덤프의 그 색인이다.
             //   ☞ 처음엔 색인을 `ridx[24]` 에 모았다가 `check-limits` 에 걸렸다(기준선 0):
             //     **자르는 고정 표는 "이게 전부" 로 읽힌다.** 표를 없애고 **다시 훑는다** —
             //     진단 경로라 두 번 훑는 값이 아깝지 않고, 자를 자리가 아예 없다.
-            printf("     남은 자리(`--ir` 덤프의 색인):");
+            low_pf("     남은 자리(`--ir` 덤프의 색인):");
             for (proven_size_t i2 = 0; i2 < df->ncode; i2++) {
                 const low_ir_ins_t *in2 = &df->code[i2];
                 bool s2 = false;
@@ -5817,9 +5817,9 @@ void low_ir_dump(const low_ir_t *ir) {
                 if (!s2) continue;
                 if (in2->a & (IR_POL_PROVEN | IR_POL_WRAP | IR_POL_SAT |
                               IR_POL_CHK | IR_POL_NZ)) continue;
-                printf(" %zu:%s", (size_t)i2, low_irw_name(in2->w));
+                low_pf(" {}:{}", PROVEN_ARG((size_t)((size_t)i2)), proven_arg_cstr(low_irw_name(in2->w)));
             }
-            printf("\n");
+            low_pf("\n");
         }
     }
 }

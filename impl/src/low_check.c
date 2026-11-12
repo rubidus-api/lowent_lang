@@ -1185,8 +1185,8 @@ static void ck_glued_field(low_check_result_t *out, const low_cst_t *nd,
     char nb[160]; proven_size_t nn = low_bcopy(nb, sizeof nb, v.ptr, v.size);
     char sp[160]; proven_size_t sn = low_bcopy(sp, sizeof sp, nb, nn);
     for (proven_size_t z = 0; z < sn; z++) if (sp[z] == '.') sp[z] = ' ';
-    if (getenv("LOW_LIST_GLUED2")) { fprintf(stderr, "GLUED2\t%u\t%s\t(field %s)\n",
-                                            (unsigned)nd->tok.line, nb, sp); return; }
+    if (getenv("LOW_LIST_GLUED2")) { low_fpf(stderr, "GLUED2\t{}\t{}\t(field {})\n",
+                                            PROVEN_ARG((unsigned)((unsigned)nd->tok.line)), proven_arg_cstr(nb), proven_arg_cstr(sp)); return; }
     if (getenv("LOWENT_ALLOW_GLUED_FIELD")) return;   // ★ 되돌릴 문 (기본은 거절)
     emit_at(out, "E-FIELD-GLUED",
             "glued-dot field access is gone — write `(field <value> <name>…)` instead. One "
@@ -9076,15 +9076,15 @@ static void ck_stack_bound(low_check_result_t *out) {
             for (proven_size_t k = 0; k < nl; k++) if (local[k] != i) called[local[k]] = 1;
         }
         long budget = low_ir_target()->no_heap ? LOW_SBUDGET_FREE : LOW_SBUDGET_HOST;
-        if (g_stack_report) printf("stack-report: op · deepest path's list-literal bytes / budget (RFC-0135 S3)\n");
+        if (g_stack_report) low_pf("stack-report: op · deepest path's list-literal bytes / budget (RFC-0135 S3)\n");
         for (proven_size_t i = 0; i < n; i++) {
             if (!ck_r1_tab[i].form) continue;
             // ★ 그린스레드에서 도는 op(태스크 · 비동기 처리기)은 부르는 쪽이 있어도 제 길을 그린스레드 예산으로 잰다
             if (gt[i] && !low_ir_target()->no_heap) {
                 unsigned long long p = sb_path(i, memo, state, own, 0);
                 if (g_stack_report)
-                    printf("  %-32.*s %8llu / %ld  task%s\n", (int)ck_r1_tab[i].name.size, (const char *)ck_r1_tab[i].name.ptr,
-                           p, (long)LOW_SBUDGET_GT, p > (unsigned long long)LOW_SBUDGET_GT ? "  ★ over" : "");
+                    low_pf("  {:<32} {:8} / {}  task{}\n", low_sv((const char *)ck_r1_tab[i].name.ptr, (int)ck_r1_tab[i].name.size),
+                           PROVEN_ARG((unsigned long long)(p)), PROVEN_ARG((long long)((long)LOW_SBUDGET_GT)), proven_arg_cstr(p > (unsigned long long)LOW_SBUDGET_GT ? "  ★ over" : ""));
                 if (p > (unsigned long long)LOW_SBUDGET_GT) {
                     static char gbuf[360];
                     low_bfmt(gbuf, sizeof gbuf, "this op runs as a task (a green thread, `spawn`), and the deepest call path from it "
@@ -9096,8 +9096,8 @@ static void ck_stack_bound(low_check_result_t *out) {
             if (called[i]) continue;                                // 진입(아무도 부르지 않는 op)만 — 길은 거기서 시작한다
             unsigned long long p = sb_path(i, memo, state, own, 0);
             if (g_stack_report)
-                printf("  %-32.*s %8llu / %ld  entry%s\n", (int)ck_r1_tab[i].name.size, (const char *)ck_r1_tab[i].name.ptr,
-                       p, budget, p > (unsigned long long)budget ? "  ★ over" : "");
+                low_pf("  {:<32} {:8} / {}  entry{}\n", low_sv((const char *)ck_r1_tab[i].name.ptr, (int)ck_r1_tab[i].name.size),
+                       PROVEN_ARG((unsigned long long)(p)), PROVEN_ARG((long long)(budget)), proven_arg_cstr(p > (unsigned long long)budget ? "  ★ over" : ""));
             if (p > (unsigned long long)budget) {
                 static char sbuf[360];
                 low_bfmt(sbuf, sizeof sbuf, "the deepest call path from this op keeps {} bytes of list literals on the stack at "

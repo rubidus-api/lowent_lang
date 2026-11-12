@@ -1486,25 +1486,25 @@ static void low_dump_node(const low_cst_t *nd, int depth) {
     switch (nd->kind) {
         case LOW_CST_ATOM:
             fputs("ATOM ", stdout); low_pv(nd->tok.lex);
-            if (nd->tok.kw) printf(" (kw#%d)", (int)nd->tok.kw);
+            if (nd->tok.kw) low_pf(" (kw#{})", PROVEN_ARG((int)((int)nd->tok.kw)));
             putchar('\n');
             break;
         case LOW_CST_FORM:
-            printf("FORM [%s]\n", low_closer_name(nd->closer));
+            low_pf("FORM [{}]\n", proven_arg_cstr(low_closer_name(nd->closer)));
             for (proven_size_t i = 0; i < nd->nkids; i++) low_dump_node(nd->kids[i], depth + 1);
             break;
         case LOW_CST_BLOCK:
-            printf("BLOCK\n");
+            low_pf("BLOCK\n");
             for (proven_size_t i = 0; i < nd->nkids; i++) low_dump_node(nd->kids[i], depth + 1);
             break;
         case LOW_CST_GROUP:
-            printf("GROUP\n");
+            low_pf("GROUP\n");
             for (proven_size_t i = 0; i < nd->nkids; i++) low_dump_node(nd->kids[i], depth + 1);
             break;
         case LOW_CST_ACCESS:
             fputs("ACCESS", stdout);
             for (proven_size_t i = 0; i + 1 < nd->nkids; i++)
-                printf(" %s", nd->ops && nd->ops[i] == LOW_KW_IN ? "in" : "to");
+                low_pf(" {}", proven_arg_cstr(nd->ops && nd->ops[i] == LOW_KW_IN ? "in" : "to"));
             putchar('\n');
             for (proven_size_t i = 0; i < nd->nkids; i++) low_dump_node(nd->kids[i], depth + 1);
             break;
@@ -1922,13 +1922,13 @@ void low_cst_fmt(const low_parse_result_t *pr) {
 }
 
 void low_cst_dump(const low_parse_result_t *pr) {
-    printf("== CST (%zu top forms) ==\n", (size_t)pr->nforms);
+    low_pf("== CST ({} top forms) ==\n", PROVEN_ARG((size_t)((size_t)pr->nforms)));
     for (proven_size_t i = 0; i < pr->nforms; i++) low_dump_node(pr->forms[i], 0);
     if (pr->diags.len) {
-        printf("== parse diagnostics (%zu) ==\n", (size_t)pr->diags.len);
+        low_pf("== parse diagnostics ({}) ==\n", PROVEN_ARG((size_t)((size_t)pr->diags.len)));
         for (proven_size_t i = 0; i < pr->diags.len; i++) {
             const low_diag_t *d = PROVEN_ARRAY_GET(&pr->diags, low_diag_t, i);
-            printf("  %u:%u %s: %s\n", d->line, d->col, d->code, low_diag_text(d));
+            low_pf("  {}:{} {}: {}\n", PROVEN_ARG((unsigned)(d->line)), PROVEN_ARG((unsigned)(d->col)), proven_arg_cstr(d->code), proven_arg_cstr(low_diag_text(d)));
         }
     }
 }

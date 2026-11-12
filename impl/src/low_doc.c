@@ -192,7 +192,7 @@ static void render_contract_kind(FILE *o, const low_cst_t *f, const char *kw, co
         if (!clause_here(f, j, kw)) continue;
         if (!*hdr) { fputs("\n### Contract\n\n", o); *hdr = true; }
         proven_size_t e = run_end(f, j + 1), vs = j + 1;
-        fprintf(o, "- **%s** ", label);
+        low_fpf(o, "- **{}** ", proven_arg_cstr(label));
         if (vs < e && f->kids[vs]->kind == LOW_CST_ATOM && is_grade(f->kids[vs]->tok.lex)) {  // (1) grade badge
             fputs("[", o); ev(o, f->kids[vs]->tok.lex); fputs("] ", o); vs++;
         }
@@ -218,7 +218,7 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
     bool calc = f->kids[0]->tok.kw == LOW_KW_FN;
 
     fputs("## ", o); ev(o, name); fputc('\n', o);
-    fprintf(o, "\n`%s op`%s\n", calc ? "calc" : "proc", calc ? " · pure" : "");   // (1) calc = pure
+    low_fpf(o, "\n`{} op`{}\n", proven_arg_cstr(calc ? "calc" : "proc"), proven_arg_cstr(calc ? " · pure" : ""));   // (1) calc = pure
 
     render_prose(o, f, src, NULL);
 
@@ -267,7 +267,7 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
         for (proven_size_t e = 0; e < sizeof ERRB / sizeof ERRB[0]; e++)
             if (b0 && (ERRB[e].op[0] == '@' || doc_unit_has_module("math")) && walk_mentions(b0, ERRB[e].op)) {
                 if (!hdr) { fputs("\n### Numeric error\n\n", o); hdr = true; }
-                fprintf(o, "- `%s`: %s\n", ERRB[e].op + (ERRB[e].op[0] == '@'), ERRB[e].bound);
+                low_fpf(o, "- `{}`: {}\n", proven_arg_cstr(ERRB[e].op + (ERRB[e].op[0] == '@')), proven_arg_cstr(ERRB[e].bound));
             }
     }
 
@@ -321,7 +321,7 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
     for (proven_size_t k = 0; k < nds; k++) {
         if (ds[k].line < lo || ds[k].line >= hi) continue;
         if (!bad) { fputs("\n### Checks\n\n", o); bad = true; }
-        fprintf(o, "- ⚠ `%s` — %s (line %u)\n", ds[k].code, ds[k].msg, ds[k].line);
+        low_fpf(o, "- ⚠ `{}` — {} (line {})\n", proven_arg_cstr(ds[k].code), proven_arg_cstr(ds[k].msg), PROVEN_ARG((unsigned)(ds[k].line)));
     }
     if (!bad) fputs("\n### Checks\n\n- ✓ effect · type · contract · region checks pass\n", o);
     fputc('\n', o);
@@ -403,18 +403,18 @@ static void render_llms(FILE *o, const low_parse_result_t *pr, proven_u8str_view
 // ── .lowctx card (terse; RFC-0014 §6.2.2) — details body is externalised by hash ──
 static void card_clause_line(FILE *o, const low_cst_t *f, const char *kw) {
     for (proven_size_t j = 2; j < f->nkids; j++)
-        if (clause_here(f, j, kw)) { fprintf(o, "%s ", kw); emit_run(o, f, j + 1, run_end(f, j + 1)); fputc('\n', o); }
+        if (clause_here(f, j, kw)) { low_fpf(o, "{} ", proven_arg_cstr(kw)); emit_run(o, f, j + 1, run_end(f, j + 1)); fputc('\n', o); }
 }
 static void render_card(FILE *o, const low_parse_result_t *pr, proven_u8str_view_t src) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (!is_op(f)) continue;
         fputs("op ", o); ev(o, f->kids[1]->tok.lex); fputc('\n', o);
-        fprintf(o, "kind %s\n", f->kids[0]->tok.kw == LOW_KW_FN ? "calc" : "proc");
+        low_fpf(o, "kind {}\n", proven_arg_cstr(f->kids[0]->tok.kw == LOW_KW_FN ? "calc" : "proc"));
         proven_u8str_view_t sum = { 0 }; FILE *dev = fopen("/dev/null", "w");
         if (dev) { render_prose(dev, f, src, &sum); fclose(dev); }
         if (sum.size) { fputs("summary ", o); ev(o, sum); fputc('\n', o); }
-        unsigned bh; if (body_present(f, src, &bh)) fprintf(o, "details h:%08x\n", bh);  // externalised
+        unsigned bh; if (body_present(f, src, &bh)) low_fpf(o, "details h:{:08x}\n", PROVEN_ARG((unsigned)(bh)));  // externalised
         card_clause_line(o, f, "input");   card_clause_line(o, f, "output");
         card_clause_line(o, f, "effects"); card_clause_line(o, f, "requires");
         card_clause_line(o, f, "ensures"); card_clause_line(o, f, "errors");

@@ -15,6 +15,7 @@
 
 #include "low_token.h"
 #include "low_diag.h"
+#include "low_fmt.h"
 
 #define RG_MAX 128
 #define RG_MAXOWN 256
@@ -681,19 +682,19 @@ low_region_result_t low_region(proven_allocator_t work, const low_parse_result_t
         //   ★ 판정하지 않는다 — **사실만 낸다.** 판정은 모델(스크립트)이 한다.
         if (low_region_emit_events()) {
             for (proven_size_t bi = 0; bi < c.nbors; bi++)
-                printf("E %.*s C %.*s %d %zu\n",
-                       (int)f->kids[1]->tok.lex.size, f->kids[1]->tok.lex.ptr,
-                       (int)c.bors[bi].target.size, c.bors[bi].target.ptr,
-                       c.bors[bi].mut ? 1 : 0, (size_t)c.bors[bi].c);
+                low_pf("E {} C {} {} {}\n",
+                       low_sv(f->kids[1]->tok.lex.ptr, (int)f->kids[1]->tok.lex.size),
+                       low_sv(c.bors[bi].target.ptr, (int)c.bors[bi].target.size),
+                       PROVEN_ARG((int)(c.bors[bi].mut ? 1 : 0)), PROVEN_ARG((size_t)((size_t)c.bors[bi].c)));
             for (proven_size_t ui = 0; ui < c.nuses; ui++)
-                printf("U %.*s %zu %d %zu\n",
-                       (int)f->kids[1]->tok.lex.size, f->kids[1]->tok.lex.ptr,
-                       (size_t)c.uses[ui].bor, 0, (size_t)c.uses[ui].t);
+                low_pf("U {} {} {} {}\n",
+                       low_sv(f->kids[1]->tok.lex.ptr, (int)f->kids[1]->tok.lex.size),
+                       PROVEN_ARG((size_t)((size_t)c.uses[ui].bor)), PROVEN_ARG((int)(0)), PROVEN_ARG((size_t)((size_t)c.uses[ui].t)));
             for (proven_size_t oi = 0; oi < c.nowns; oi++)
-                printf("O %.*s %.*s %d %zu\n",
-                       (int)f->kids[1]->tok.lex.size, f->kids[1]->tok.lex.ptr,
-                       (int)c.owns[oi].target.size, c.owns[oi].target.ptr,
-                       c.owns[oi].write ? 1 : 0, (size_t)c.owns[oi].t);
+                low_pf("O {} {} {} {}\n",
+                       low_sv(f->kids[1]->tok.lex.ptr, (int)f->kids[1]->tok.lex.size),
+                       low_sv(c.owns[oi].target.ptr, (int)c.owns[oi].target.size),
+                       PROVEN_ARG((int)(c.owns[oi].write ? 1 : 0)), PROVEN_ARG((size_t)((size_t)c.owns[oi].t)));
         }
     }
     return out;

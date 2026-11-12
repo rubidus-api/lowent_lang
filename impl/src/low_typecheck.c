@@ -1340,9 +1340,9 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if (ne != start + 2) {   // 칸 경로를 지났다 — 이름은 ne 의 것
                     if (rt.k == TK_NAMED && rt.nname.size) {
                         proven_u8str_view_t tb = tc_base_name(rt.nname, NULL), mn = k[ne]->tok.lex; char nb[256];
-                        if (tb.size + 1 + mn.size < sizeof nb) {
-                            memcpy(nb, tb.ptr, tb.size); nb[tb.size] = '.'; memcpy(nb + tb.size + 1, mn.ptr, mn.size);
-                            const tc_sig_t *ms = sig_find(c, (proven_u8str_view_t){ (const proven_byte_t *)nb, tb.size + 1 + mn.size });
+                        proven_u8str_view_t qv;
+                        if (low_qname(nb, sizeof nb, tb, mn, &qv)) {
+                            const tc_sig_t *ms = sig_find(c, qv);
                             if (ms) return ms->ret;
                         }
                     }
@@ -1351,9 +1351,9 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 if (rt.k == TK_NAMED && rt.nname.size) {
                     proven_u8str_view_t tb = tc_base_name(rt.nname, NULL), mn = k[start + 2]->tok.lex;
                     char nb[256];
-                    if (tb.size + 1 + mn.size < sizeof nb) {
-                        memcpy(nb, tb.ptr, tb.size); nb[tb.size] = '.'; memcpy(nb + tb.size + 1, mn.ptr, mn.size);
-                        const tc_sig_t *ms = sig_find(c, (proven_u8str_view_t){ (const proven_byte_t *)nb, tb.size + 1 + mn.size });
+                    proven_u8str_view_t qv;
+                    if (low_qname(nb, sizeof nb, tb, mn, &qv)) {
+                        const tc_sig_t *ms = sig_find(c, qv);
                         if (ms) return ms->ret;
                     }
                     ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;   // 그 타입에 그 메서드가 없다 — `E-METHOD-UNDEF` 가 말한다

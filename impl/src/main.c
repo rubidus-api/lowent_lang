@@ -192,9 +192,7 @@ static void dump_diags(const char *what, const proven_array_t *diags) {
     if (!diags->len) return;
     if (g_diag_json) {
         // phase = `what` 의 첫 낱말 ("parse diagnostics" → "parse").
-        char phase[32]; size_t n = 0;
-        for (const char *p = what; *p && *p != ' ' && n + 1 < sizeof phase; p++) phase[n++] = *p;
-        phase[n] = '\0';
+        char phase[32]; (void)low_bcopy(phase, sizeof phase, what, strcspn(what, " "));
         for (proven_size_t i = 0; i < diags->len; i++) {
             const low_diag_t *d = PROVEN_ARRAY_GET(diags, low_diag_t, i);
             // ★ 규칙을 어긴 것이 진단이다 — relation 은 언제나 `violates`.
@@ -1493,7 +1491,7 @@ int main(int argc, char **argv) {
             else {
                 char buf[128]; size_t bn = strlen(v);
                 if (bn >= sizeof buf) { fprintf(stderr, "lowentc: --hw list is too long\n"); return 2; }
-                memcpy(buf, v, bn + 1);
+                (void)low_bcopy(buf, sizeof buf, v, bn);
                 low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0);
                 low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0); low_cbe_set_hw_asm(0);
                 for (char *tok = strtok(buf, ","); tok; tok = strtok(NULL, ",")) {
@@ -2524,9 +2522,7 @@ int main(int argc, char **argv) {
                     for (proven_size_t q = 0; q < ir.ndefs; q++) {
                         const low_ir_plan_t *pl = low_cbe_plan_of(q);
                         if (!ir.defs[q].is_export || ir.defs[q].is_extern || !pl->why) continue;
-                        char nm[128]; proven_size_t z = ir.defs[q].name.size;
-                        if (z >= sizeof nm) z = sizeof nm - 1;
-                        memcpy(nm, ir.defs[q].name.ptr, z); nm[z] = '\0';
+                        char nm[128]; (void)low_bcopy(nm, sizeof nm, ir.defs[q].name.ptr, ir.defs[q].name.size);
                         expl_json("W-EXPORT-NOSYM", "warning", "emit-h", NULL, 0, 0,
                                   "`export` means C can call this op: the object defines that symbol",
                                   pl->why, "absent", nm, NULL);
@@ -2548,9 +2544,7 @@ int main(int argc, char **argv) {
                     // ★★★ **설명은 한 모양으로 나온다**(RFC-0089 R5): 하강 이유도 진단과 같은
                     //   기록이다 — 여기서는 도구가 **약속과 사실을 둘 다** 안다.
                     if (g_diag_json) {
-                        char nm[128]; proven_size_t n = ir.defs[q].name.size;
-                        if (n >= sizeof nm) n = sizeof nm - 1;
-                        memcpy(nm, ir.defs[q].name.ptr, n); nm[n] = '\0';
+                        char nm[128]; (void)low_bcopy(nm, sizeof nm, ir.defs[q].name.ptr, ir.defs[q].name.size);
                         expl_json("W-CBE-SLOW", "note", "lower", NULL, 0, 0,
                                   "this op lowers to the fast path (natural C: no tag, no box, no 12KB frame)",
                                   w, "unmet", nm, NULL);

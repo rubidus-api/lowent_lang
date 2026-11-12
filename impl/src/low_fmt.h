@@ -40,6 +40,30 @@ static inline proven_arg_t low_sv(const void *p, int n) {
     return proven_arg_str_view((proven_u8str_view_t){ (const proven_u8 *)p, (proven_size_t)k });
 }
 
+/* ★ P3 (W-20261112-0207 · 소유자 «스택의 배열 버퍼 쓰는 부분도 잘 검토해서 proven 쪽으로») — 스택 칸에 글을 손으로 베끼던 자리
+ *   (`memcpy(nb, v.ptr, n); nb[n] = 0;` · `a` `.` `b` 를 이어 붙이기)를 빌린 u8str 로 한다. 칸은 그대로 스택에 있고, 쓰기만 proven 이
+ *   경계를 지킨다.
+ *
+ *   low_bcopy(buf, cap, p, n) — n 바이트를 NUL 로 끝나게 베낀다. 넘치면 **바이트에서** 자른다(`proven_u8str_append_partial` — 전의 손
+ *     복사와 같은 자리에서 자른다). 돌려주는 값은 베낀 바이트 수. cap 이 0 이면 아무것도 안 쓴다.
+ *   low_qname(buf, cap, a, b, out) — `a.b` 를 짓는다(자격 이름). cap 에 NUL 몫까지 들어가야 하고, 안 들어가면 false 이고 아무것도
+ *     안 쓴다. 지은 글은 *out 에 보기로 준다. */
+static inline proven_size_t low_bcopy(void *buf, size_t cap, const void *p, size_t n) {
+    if (!buf || !cap) return 0;
+    proven_u8str_t s = proven_u8str_borrow((proven_byte_t *)buf, (proven_size_t)cap);
+    if (!n || !p) return 0;
+    proven_result_size_t r = proven_u8str_append_partial(&s, (proven_u8str_view_t){ (const proven_u8 *)p, (proven_size_t)n });
+    return r.value;
+}
+static inline bool low_qname(void *buf, size_t cap, proven_u8str_view_t a, proven_u8str_view_t b, proven_u8str_view_t *out) {
+    if (!buf || a.size + 1 + b.size >= cap) return false;
+    proven_u8str_t s = proven_u8str_borrow((proven_byte_t *)buf, (proven_size_t)cap);
+    if (!proven_is_ok(proven_u8str_append(&s, a)) || !proven_is_ok(proven_u8str_append(&s, (proven_u8str_view_t){ (const proven_u8 *)".", 1 })) ||
+        !proven_is_ok(proven_u8str_append(&s, b))) return false;
+    *out = proven_u8str_as_view(&s);
+    return true;
+}
+
 /* 진단 한 줄을 고정 칸(`detail[]`)에 짓는 가변 인자 함수(tc_emitf · mx_fail)가 쓴다: 인자 배열을 그대로 넘긴다. */
 #define LOW_FMT_ARGS(...) ((const proven_arg_t[]){ proven_arg_none() __VA_OPT__(,) __VA_ARGS__ }), \
     (sizeof((proven_arg_t[]){ proven_arg_none() __VA_OPT__(,) __VA_ARGS__ }) / sizeof(proven_arg_t))

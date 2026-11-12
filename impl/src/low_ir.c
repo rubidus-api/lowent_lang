@@ -2351,23 +2351,16 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
     //   한 자리씩만 볼 수 있었다. 같은 **판정 지점**을 쓰되 흐름을 안 끊는다 —
     //   그래야 *"글자로 추측하지 않는다"* 를 지키면서 한 바퀴에 다 옮길 수 있다.
     if (getenv("LOWENT_LIST_GLUED")) {
-        char nb2[160]; proven_size_t n2 = v.size < sizeof nb2 - 1 ? v.size : sizeof nb2 - 1;
-        memcpy(nb2, v.ptr, n2); nb2[n2] = 0;
-        char sp2[160]; proven_size_t s2 = 0;
-        for (proven_size_t z = 0; z < n2 && s2 < sizeof sp2 - 1; z++)
-            sp2[s2++] = nb2[z] == '.' ? ' ' : nb2[z];
-        sp2[s2] = 0;
+        char nb2[160]; proven_size_t n2 = low_bcopy(nb2, sizeof nb2, v.ptr, v.size);
+        char sp2[160]; proven_size_t s2 = low_bcopy(sp2, sizeof sp2, nb2, n2);
+        for (proven_size_t z = 0; z < s2; z++) if (sp2[z] == '.') sp2[z] = ' ';
         fprintf(stderr, "GLUED\t%u\t%s\t(field %s)\n", (unsigned)line, nb2, sp2);
     } else if (!c->allow_glued_field) {
         {   // ★ 진단이 **그 이름을 그대로 보여 준다** — 한 줄에 붙은 점이 여럿일 때
             //   *"어느 것인가"* 를 사람이 다시 찾지 않아도 되도록.
-            char nb[160]; proven_size_t nn = v.size < sizeof nb - 1 ? v.size : sizeof nb - 1;
-            memcpy(nb, v.ptr, nn); nb[nn] = 0;
-            char spaced[160];
-            proven_size_t sn = 0;
-            for (proven_size_t z = 0; z < nn && sn < sizeof spaced - 1; z++)
-                spaced[sn++] = nb[z] == '.' ? ' ' : nb[z];
-            spaced[sn] = 0;
+            char nb[160]; proven_size_t nn = low_bcopy(nb, sizeof nb, v.ptr, v.size);
+            char spaced[160]; proven_size_t sn = low_bcopy(spaced, sizeof spaced, nb, nn);
+            for (proven_size_t z = 0; z < sn; z++) if (spaced[z] == '.') spaced[z] = ' ';
             char msg[512];
             low_bfmt(msg, sizeof msg,
                      "glued-dot field access is gone — write `(field {})` instead of `{}`. "
@@ -5296,11 +5289,9 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     for (proven_size_t q = first + 1; q < end && is_atom(k[q]); q++) {
                         proven_u8str_view_t sg = k[q]->tok.lex;
                         if (cur.size) {
-                            proven_u8 tb[160];
-                            if (cur.size + 1 + sg.size <= sizeof tb) {
-                                memcpy(tb, cur.ptr, cur.size); tb[cur.size] = '.';
-                                memcpy(tb + cur.size + 1, sg.ptr, sg.size);
-                                proven_u8str_view_t qn5 = { .ptr = tb, .size = cur.size + 1 + sg.size };
+                            proven_u8 tb[160 + 1];   // ★ +1 = proven 의 NUL 몫(한도 160 그대로)
+                            proven_u8str_view_t qn5;
+                            if (low_qname(tb, sizeof tb, cur, sg, &qn5)) {
                                 bool qf5; (void)ir_def_find_in(c, qn5, &qf5);
                                 if (qf5) { lastw = q; mtype = cur; break; }   // ★ 여기가 이름이다
                             }
@@ -5341,15 +5332,13 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 }
                 // 이름으로 op 을 찾아 **나머지를 인자로** 부른다.
                 {
-                    proven_u8 nb[192];
+                    proven_u8 nb[192 + 1];   // ★ +1 = proven 의 NUL 몫(한도 192 그대로)
                     proven_u8str_view_t mn3 = k[lastw]->tok.lex;
                     proven_u8str_view_t tnm = mtype;
-                    if (tnm.size + 1 + mn3.size > sizeof nb) {
+                    proven_u8str_view_t qn6;
+                    if (!low_qname(nb, sizeof nb, tnm, mn3, &qn6)) {
                         ir_fail(c, "E-METHOD-UNDEF", "qualified op name is too long", nd->line); return;
                     }
-                    memcpy(nb, tnm.ptr, tnm.size); nb[tnm.size] = '.';
-                    memcpy(nb + tnm.size + 1, mn3.ptr, mn3.size);
-                    proven_u8str_view_t qn6 = { .ptr = nb, .size = tnm.size + 1 + mn3.size };
                     // ★ RFC-0152 — 마디 없이 지역 · 입력이 바로 받는 쪽이면 그 타입의 모듈에서 찾는다
                     proven_u8str_view_t tmod6 = { 0 };
                     if (lastw == first + 1) { bool rf6; proven_size_t rs6 = ir_local_find(c, k[first]->tok.lex, &rf6); if (rf6) tmod6 = c->locals[rs6].tymod; }
@@ -5431,12 +5420,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         if (ir2->nkids >= 2 && is_atom(ir2->kids[1])) {
                             bool rf; proven_size_t rsl = ir_local_find(c, ir2->kids[1]->tok.lex, &rf);
                             if (rf && c->locals[rsl].tyname.size) {
-                                proven_u8 qb[128];
+                                proven_u8 qb[128 + 1];   // ★ +1 = proven 의 NUL 몫(한도 128 그대로)
                                 proven_u8str_view_t bt = c->locals[rsl].tyname;
-                                if (bt.size + 1 + cn.size <= sizeof qb) {
-                                    memcpy(qb, bt.ptr, bt.size); qb[bt.size] = '.';
-                                    memcpy(qb + bt.size + 1, cn.ptr, cn.size);
-                                    proven_u8str_view_t qn2 = { .ptr = qb, .size = bt.size + 1 + cn.size };
+                                proven_u8str_view_t qn2;
+                                if (low_qname(qb, sizeof qb, bt, cn, &qn2)) {
                                     bool qf2; proven_size_t qi2 = ir_def_find_in(c, qn2, &qf2);
                                     if (qf2) tn = c->out->defs[qi2].out_tyname;
                                 }
@@ -5457,11 +5444,9 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             for (proven_size_t j = 2; cur.size && j < pv->nkids; j++) {
                                 if (!is_atom(pv->kids[j])) break;
                                 proven_u8str_view_t seg = pv->kids[j]->tok.lex;
-                                proven_u8 qb[128];
-                                if (cur.size + 1 + seg.size > sizeof qb) break;
-                                memcpy(qb, cur.ptr, cur.size); qb[cur.size] = '.';
-                                memcpy(qb + cur.size + 1, seg.ptr, seg.size);
-                                proven_u8str_view_t qn3 = { .ptr = qb, .size = cur.size + 1 + seg.size };
+                                proven_u8 qb[128 + 1];   // ★ +1 = proven 의 NUL 몫(한도 128 그대로)
+                                proven_u8str_view_t qn3;
+                                if (!low_qname(qb, sizeof qb, cur, seg, &qn3)) break;
                                 bool qf3; proven_size_t qi3 = ir_def_find_in(c, qn3, &qf3);
                                 if (qf3) { tn = c->out->defs[qi3].out_tyname; break; }
                                 // 이름이 아니면 마디다 — 필드를 따라 한 칸 내려간다.
@@ -5492,13 +5477,11 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     return;
                 }
                 proven_u8str_view_t mn = nd->tok.lex;
-                proven_u8 buf[128];
-                if (tn.size + 1 + mn.size > sizeof buf) {
+                proven_u8 buf[128 + 1];   // ★ +1 = proven 의 NUL 몫(한도 128 그대로)
+                proven_u8str_view_t qn;
+                if (!low_qname(buf, sizeof buf, tn, mn, &qn)) {
                     ir_fail(c, "E-METHOD-UNDEF", "qualified op name is too long", nd->line); return;
                 }
-                memcpy(buf, tn.ptr, tn.size); buf[tn.size] = '.';
-                memcpy(buf + tn.size + 1, mn.ptr, mn.size);
-                proven_u8str_view_t qn = { .ptr = buf, .size = tn.size + 1 + mn.size };
                 bool qf; proven_size_t qi = ir_def_find_in(c, qn, &qf);
                 if (!qf) {
                     ir_fail(c, "E-METHOD-UNDEF",

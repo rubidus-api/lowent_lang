@@ -3238,7 +3238,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 char pb[4096];
                 if (pv.n == 0 || pv.n >= sizeof pb) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                memcpy(pb, pv.p, pv.n); pb[pv.n] = '\0';
+                (void)low_bcopy(pb, sizeof pb, pv.p, pv.n);
                 // mode: 0 = 읽기 · 1 = 쓰기(자르고 만들기) · 2 = 덧붙이기. 그 밖은 거절한다.
                 const char *m = (mv.i == 0) ? "rb" : (mv.i == 1) ? "wb" : (mv.i == 2) ? "ab" : NULL;
                 if (!m) {
@@ -3471,7 +3471,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (lw_hf_probe("resolve", NULL) == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 char host_[256];
                 if (nv.n == 0 || nv.n >= sizeof host_) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                memcpy(host_, nv.p, nv.n); host_[nv.n] = 0;
+                (void)low_bcopy(host_, sizeof host_, nv.p, nv.n);
                 struct addrinfo hints_; memset(&hints_, 0, sizeof hints_);
                 hints_.ai_family = AF_INET; hints_.ai_socktype = SOCK_STREAM;
                 struct addrinfo *res_ = NULL;
@@ -3579,7 +3579,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 char pb[4096];
                 if (pv.n == 0 || pv.n >= sizeof pb) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                memcpy(pb, pv.p, pv.n); pb[pv.n] = '\0';
+                (void)low_bcopy(pb, sizeof pb, pv.p, pv.n);
                 DIR *dh = opendir(pb);
                 if (!dh) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 proven_size_t sl = 0;
@@ -3972,7 +3972,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 char pb[4096];
                 if (pv.n == 0 || pv.n >= sizeof pb) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                memcpy(pb, pv.p, pv.n); pb[pv.n] = '\0';
+                (void)low_bcopy(pb, sizeof pb, pv.p, pv.n);
                 struct stat stbuf;
                 // ★★★ `link_type` 은 **따라가지 않는다**(lstat) — 링크 자신을 본다. `file_type` 은
                 //   그대로 따라간다(stat). 낱말이 둘인 이유가 이 한 줄이다(X-0030 ⓐ · WO-0210).
@@ -3994,7 +3994,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 char pb[4096];
                 if (pv.n == 0 || pv.n >= sizeof pb) { stack[sp++] = vmv_int(0); break; }   // 못 하면 false
-                memcpy(pb, pv.p, pv.n); pb[pv.n] = '\0';
+                (void)low_bcopy(pb, sizeof pb, pv.p, pv.n);
                 int rc = (in->w == IRW_DMAKE) ? mkdir(pb, 0777) : remove(pb);
                 stack[sp++] = vmv_int(rc == 0 ? 1 : 0);   // ★ 이미 있거나 권한·공간 없으면 false(트랩 아님)
                 break;
@@ -4008,8 +4008,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 char ob[4096], nb[4096];
                 if (ov.n == 0 || ov.n >= sizeof ob || nv.n == 0 || nv.n >= sizeof nb) { stack[sp++] = vmv_int(0); break; }
-                memcpy(ob, ov.p, ov.n); ob[ov.n] = '\0';
-                memcpy(nb, nv.p, nv.n); nb[nv.n] = '\0';
+                (void)low_bcopy(ob, sizeof ob, ov.p, ov.n);
+                (void)low_bcopy(nb, sizeof nb, nv.p, nv.n);
                 stack[sp++] = vmv_int(rename(ob, nb) == 0 ? 1 : 0);
                 break;
             }

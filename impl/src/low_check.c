@@ -1182,12 +1182,9 @@ static void ck_glued_field(low_check_result_t *out, const low_cst_t *nd,
     if (!dot || dot + 1 >= v.size) return;
     proven_u8str_view_t head = { .ptr = v.ptr, .size = dot };
     if (!ck_is_bound(b, n, head, params, nparams)) return;   // 모듈·변형·선언 이름이다
-    char nb[160]; proven_size_t nn = v.size < sizeof nb - 1 ? v.size : sizeof nb - 1;
-    memcpy(nb, v.ptr, nn); nb[nn] = 0;
-    char sp[160]; proven_size_t sn = 0;
-    for (proven_size_t z = 0; z < nn && sn < sizeof sp - 1; z++)
-        sp[sn++] = nb[z] == '.' ? ' ' : nb[z];
-    sp[sn] = 0;
+    char nb[160]; proven_size_t nn = low_bcopy(nb, sizeof nb, v.ptr, v.size);
+    char sp[160]; proven_size_t sn = low_bcopy(sp, sizeof sp, nb, nn);
+    for (proven_size_t z = 0; z < sn; z++) if (sp[z] == '.') sp[z] = ' ';
     if (getenv("LOW_LIST_GLUED2")) { fprintf(stderr, "GLUED2\t%u\t%s\t(field %s)\n",
                                             (unsigned)nd->tok.line, nb, sp); return; }
     if (getenv("LOWENT_ALLOW_GLUED_FIELD")) return;   // ★ 되돌릴 문 (기본은 거절)
@@ -2093,11 +2090,9 @@ static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *
                 ck_treq_t req[1] = { { .name = rf->kids[0]->tok.lex, .head = rf,
                                        .clauses = (const low_cst_t *const *)&tblk->kids[k0 + 1], .nclauses = k1 - (k0 + 1) } };
                 const proven_size_t r = 0;
-                proven_u8 qbuf[128];
-                if (tyname.size + 1 + req[r].name.size > sizeof qbuf) continue;
-                memcpy(qbuf, tyname.ptr, tyname.size); qbuf[tyname.size] = '.';
-                memcpy(qbuf + tyname.size + 1, req[r].name.ptr, req[r].name.size);
-                proven_u8str_view_t qn = { .ptr = qbuf, .size = tyname.size + 1 + req[r].name.size };
+                proven_u8 qbuf[128 + 1];   // ★ +1 = proven 의 NUL 몫(이름의 한도 128 은 그대로)
+                proven_u8str_view_t qn;
+                if (!low_qname(qbuf, sizeof qbuf, tyname, req[r].name, &qn)) continue;
 
                 const low_cst_t *impl = NULL;
                 bool recv_implicit = false;

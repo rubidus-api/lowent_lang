@@ -772,4 +772,46 @@ end .", "E-UNSAFE-UNBUILT")
       they are dropped if they later prove unnecessary, and keep tracking them» (2026-11-12).
     ]
   ]
+  #sub("6.9.5", "Decided but not built: special cases — intrusive lists · graphs · a single-producer single-consumer queue · `layout c`")[
+    #para("1")[
+      This clause writes the #strong[special cases]; of low-level data structures. As in #cref("6.9.4"), their meaning is decided but they are not yet built
+      as words of the language. A special case is not a world of its own but #strong[the low-level form of managed storage];: it follows the same
+      exclusivity rule (#cref("8.12")) and the same region rules, and no borrowing rule exists only for it.
+    ]
+    #para("2")[
+      #strong[Intrusive lists and graphs]; — lists · trees · graphs whose nodes hold in themselves the slots that point to their neighbours. All nodes
+      live in #strong[one region];, and neighbours are pointed to by handles of that region, not by pointers. A type that declares such a structure
+      #strong[must]; provide make · insert · remove · walk · release — that obligation is named `T-LINKED` in the original, and the place where it is
+      written is the original's `manage` clause. The original left the spelling (`linked intrusive` · `graph intrusive` · `manage`) undecided,
+      so it is decided when built. So they are not refused as words.
+    ]
+    #para("3")[
+      #strong[A single-producer single-consumer queue]; (the original's `queue spsc`) — a ring of fixed size touched by one writing flow and one
+      reading flow only. It hands values over with atomic operations alone, without locks (#cref("10")). Its spelling is decided when built, for the
+      same reason as (2).
+    ]
+    #para("4")[
+      #strong[`layout c`]; — lays a structure out by C's rules. The default layout already does that: fields are placed in declaration order, each at
+      its own alignment, and the implementation does not reorder them (#cref("6.2.15") (1)). So `layout c` was not built, and the layout words are the
+      closed two (`packed` · `native`) — `layout c .` is refused today (`E-TYPE-LAYOUT`).
+    ]
+    #para("5")[
+      #strong[Deferral.]; These special cases are built when a use appears. What carries that use today: intrusive lists and node storage — the
+      `nodelist` and `pool` libraries; the single-producer single-consumer queue — the `spsc` library; C's layout — the default layout. If it is
+      measured that what is written as a library cannot be safe or fast without the implementation's help (types · effects · lowering), they are
+      built; if the libraries are seen to fill the use, they are #strong[dropped.]; Whether to build or drop them is the owner's decision.
+    ]
+    #rejected("`layout c` is not built", "module ex_layout_c .
+
+struct header do
+  layout c .
+  magic u32 .
+end .", "E-TYPE-LAYOUT")
+    #note[
+      The sources are RFC-0050 (low-level special cases — D4 «intrusive is not a separate paradigm» · §6.6.2 `layout c`), RFC-0051 (the hardware
+      surface policy) and RFC-0002 §6.4.1 (`T-LINKED` · `manage`). The three were adopted and then archived, and these special cases were not carried
+      into the canon (sweep of 2026-11-11, F6). The owner decided, as for #cref("6.9.4"), to «put them in formally, state that they are dropped if they
+      later prove unnecessary, and keep tracking them» (2026-11-12).
+    ]
+  ]
 ]

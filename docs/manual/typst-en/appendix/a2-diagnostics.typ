@@ -144,7 +144,7 @@ machine-readable form).
   [`E-TYPE-COND`], [a non-boolean in a condition], [#chref("numbers")],
   [`E-TYPE-FIELD`], [a field is missing or unknown when building a struct], [#chref("structs-enums")],
   [`E-TYPE-INSTANCE`], [mixes different instances of the same generic], [#chref("lib-alloc")],
-  [`E-TYPE-KIND`], [a type of the wrong kind for that operation (e.g. `cast` to `bool`)], [#chref("structs-enums"), #chref("named-types")],
+  [`E-TYPE-KIND`], [a type of the wrong kind for that operation (e.g. `cast` to `bool`)], [#chref("structs-enums"), #chref("option-result"), #chref("named-types")],
   [`E-TYPE-MIX`], [float and integer literals mixed in one calculation], [#chref("numbers")],
   [`E-TYPE-MUT`], [writes an element of a non-`mut` slice], [#chref("slices"), #chref("named-types")],
   [`E-TYPE-NOMINAL`], [mixes nominally distinct types], [#chref("numbers"), #chref("named-types")],

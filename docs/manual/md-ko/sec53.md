@@ -46,7 +46,7 @@
 | **갈래** | **연산** |
 |---|---|
 | 산술(멈춤) | `add` `sub` `mul` `div` `mod` `neg` `abs` `min` `max` |
-| 산술(처분을 고름) | `wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` |
+| 산술(처분을 고름) | `wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` `nonzero_or` |
 | 폭 바꾸기 | `widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast` |
 | 비교와 논리 | `eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not` |
 | 비트 | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` |

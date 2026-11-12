@@ -309,14 +309,15 @@ The words that may stand in a type position form a closed list set by the canon.
   caption: [Type words --- usable · known by name · refused],
   [*Kind*], [*Words*], [*What the tool does*],
   [usable], [numbers · `bool` · `void` · `slice` · `array` · `segments` · `set` · `stack` · `range` · `vec` · `bitset` · `mask` · `result` · `option` · `ref` · `mut_ref` · `mut` · `owned` · `region` · `cap` · `self`], [checks and lowers them by meaning],
-  [known by name], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic`], [`W-NOT-YET` --- says there is no meaning],
+  [known by name], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic` · `rng`], [`W-NOT-YET` --- says there is no meaning],
   [refused for now], [`shared_read` · `lock` · `rwlock`], [`E-LOCK-NOTYET` --- state shared between flows (#chref("tasks-channels"))],
   [qualifier], [`unsafe_ptr`], [a C pointer mark placed before a type (#chref("ffi"))],
-  [no meaning in the canon], [`list` · `raw` · `addr` · `rng`], [this edition's tool accepts them without a warning --- do not use them],
+  [decided, not built], [`raw` · `addr` · `c8` … `c64` · `b8` … `b128` · `list`], [`E-UNSAFE-UNBUILT` · `E-TYPE-UNBUILT` --- refuses them],
 )
 
-The last row is a hole in this edition. The four words are in the canon's list, but no clause gives them a meaning, and the tool accepts them
-without a word. It is recorded as a defect in the development repository.
+The words in the last row have a meaning in the canon but are not built yet (the locations `raw` and `addr`, the text code units `c8` … `c64`,
+the opaque byte blocks `b8` … `b128`, and `list`, whose elements may differ in type). They are built when a use appears and dropped if another way
+covers that use. For now write them with integers, `slice u8`, a view or an enum whose variants carry values.
 
 == Common mistakes
 

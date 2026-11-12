@@ -384,13 +384,12 @@ self")
       #cref("4.7")) — it does not accept them silently.
     ]
     #shape("type words accepted only as names", "byte   char   str   string   bytes_view   dyn   atomic
-list
 rng   clock   device   file_system   net   tty   process")
     #para("2a")[
-      The four latter ones (`list` · `raw` · `addr` · `rng`) were moved into this group in this edition. They were listed in (1) above,
+      Four (`list` · `raw` · `addr` · `rng`) were moved into this group in the edition of 2026-09-17. They were listed in (1) above,
       but #strong[no clause anywhere in this canon fixed their meaning];, and lowering cannot read those names
       either — ops with such signatures go down to the interpreter wholesale. Rather than make up a meaning, #strong[saying that it does not exist
-      yet]; is right.
+      yet]; is right. Of those, `list` got its meaning from #cref("6.2.25") on 2026-11-12 and moved to (3) below.
     ]
     #para("2b")[
       `addr` and `raw` are words whose meaning #cref("6.9.4") decides but which are #strong[not built yet]; (`addr <name>` obtains a place, and that is
@@ -410,10 +409,17 @@ rng   clock   device   file_system   net   tty   process")
       saying #emph["no such type"]; would be false — one cannot say #strong[your program is wrong]; about a type that is in the specification.
     ]
     #shape("type words still refused", "shared_read   lock   rwlock
-raw   addr")
+raw   addr
+c8   c16   c32   c64
+b8   b16   b32   b64   b128
+list")
     #para("3a")[
       The last two (`raw` · `addr`) are words whose meaning #cref("6.9.4") decides but which are not built yet (`E-UNSAFE-UNBUILT`) — they are in the
       vocabulary for the same reason as the shared-state types.
+    ]
+    #para("3b")[
+      The ten after them (`c8` … `c64` · `b8` … `b128` · `list`) are words whose meaning #cref("6.2.25") decides but which are not built yet
+      (`E-TYPE-UNBUILT`) — they are in the vocabulary for the same reason. If the author declares a type of that name, the declaration stands.
     ]
     #para("4")[
       `unsafe_ptr` is not a type but #strong[a qualifier];. It attaches in front of a type like `mut` · `owned`,

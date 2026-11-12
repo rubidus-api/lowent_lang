@@ -3000,6 +3000,29 @@ static bool tname_known(tc_ctx_t *c, proven_u8str_view_t v);
 //   ⇒ 뜻이 없으면 **말한다**. 그리고 사용자가 `type str slice u8 .` 로 **직접 선언했다면**
 //     그때는 뜻이 있으므로 말하지 않는다(`lib/str.low` 이 그렇게 쓴다).
 static bool tname_user_declared(tc_ctx_t *c, proven_u8str_view_t v);
+// ★ 정본 §6.2.25 — 정했으되 짓지 않은 타입 낱말(W-20261112-1245). 0 = 아님 · 1 = 부호 단위 · 2 = 바이트 덩이 · 3 = 이질 목록.
+static int ty_unbuilt_kind(proven_u8str_view_t v) {
+    static const char *cw[] = { "c8", "c16", "c32", "c64" }, *bw[] = { "b8", "b16", "b32", "b64", "b128" };
+    for (size_t i = 0; i < sizeof cw / sizeof cw[0]; i++) if (proven_u8str_view_eq(v, proven_u8str_view_from_cstr(cw[i]))) return 1;
+    for (size_t i = 0; i < sizeof bw / sizeof bw[0]; i++) if (proven_u8str_view_eq(v, proven_u8str_view_from_cstr(bw[i]))) return 2;
+    if (proven_u8str_view_eq(v, proven_u8str_view_from_cstr("list"))) return 3;
+    return 0;
+}
+static bool ty_is_unbuilt_word(proven_u8str_view_t v) { return ty_unbuilt_kind(v) != 0; }
+static const char *ty_unbuilt_what(proven_u8str_view_t v) {
+    switch (ty_unbuilt_kind(v)) {
+    case 1: return "a code unit of a text encoding, not a number";
+    case 2: return "an opaque block of bytes, moved and copied only";
+    default: return "a list whose elements may differ in type";
+    }
+}
+static const char *ty_unbuilt_instead(proven_u8str_view_t v) {
+    switch (ty_unbuilt_kind(v)) {
+    case 1: return "Use `u8` / `u16` / `u32` and the `utf8` / `utf16` library";
+    case 2: return "Use `slice u8` or `array N u8`, and a view to read it";
+    default: return "Use an enum whose variants carry values";
+    }
+}
 static bool ty_is_name_only(proven_u8str_view_t v) {
     static const char *k[] = {
         // 뜻이 없다 — 하강이 이 이름들을 슬라이스/스칼라로 못 읽는다.
@@ -3012,7 +3035,8 @@ static bool ty_is_name_only(proven_u8str_view_t v) {
         //   이름들을 슬라이스로도 스칼라로도 못 읽으므로 그 서명의 op 은 해석기로 떨어진다.
         //   ☞ `addr`·`raw` 는 **연산자로는** 뜻이 있다(`addr x` — 주소를 얻는다, unsafe 효과).
         //     여기서 막는 것은 **타입 자리**뿐이고, `cap rng` 는 위의 after_cap 이 빼 준다.
-        "list", "raw", "addr", "rng",
+        //   ☞ 2026-11-12: `list` 는 정본 §6.2.25 로 옮겨 이제 거절한다(ty_is_unbuilt_word) — 이 목록에서 뺐다.
+        "raw", "addr", "rng",
         // ★★★ **권능의 종류 여섯** (RFC-0115 §8-26, 2026-09-17). `cap` 뒤에서만 뜻이 있는 낱말인데
         //   홀로 타입 자리에 서도 아무 말이 없었다. `rng` 만 말하고 다섯은 조용한 것이 가장 나쁘다 —
         //   읽는 사람이 그 차이에 뜻이 있다고 여긴다. 위의 after_cap 이 `cap <종류>` 를 빼 주므로
@@ -3051,6 +3075,15 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
                         t->line ? t->line : f->line);
                 continue;
             }
+            // ★★ 2026-11-12 (W-20261112-1245 · 소유자 «F5~F7 에도 적용») — 정본 §6.2.25 의 부호 단위 `c8`…`c64` · 바이트 덩이 `b8`…`b128` ·
+            //   이질 목록 `list` 도 뜻만 정하고 짓지 않은 낱말이다. 타입 자리에 서면 거절한다(`list` 는 전엔 W-NOT-YET 경고로 받았다).
+            if (!after_cap && !tname_user_declared(c, t->lex) && ty_is_unbuilt_word(t->lex)) {
+                tc_emitf(c, "E-TYPE-UNBUILT", t->line ? t->line : f->line,
+                         "`{}` is decided (canon 6.2.25: {}) but NOT BUILT yet — it stays tracked and is dropped if it proves "
+                         "unnecessary. {}", low_sv((const char *)t->lex.ptr, (int)t->lex.size), proven_arg_cstr(ty_unbuilt_what(t->lex)),
+                         proven_arg_cstr(ty_unbuilt_instead(t->lex)));
+                continue;
+            }
             if (!after_cap && ty_is_name_only(t->lex) && !tname_user_declared(c, t->lex))
                 tc_warn(c, "W-NOT-YET",
                         "this type NAME is accepted but carries NO MEANING yet: lowering cannot "
@@ -3067,6 +3100,13 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
         if (i > from && f->kids[i-1]->kind == LOW_CST_ATOM &&
             proven_u8str_view_eq(f->kids[i-1]->tok.lex, proven_u8str_view_from_cstr("cap")))
             continue;
+        if (ty_is_unbuilt_word(t->lex)) {   // ★ 정본 §6.2.25 — 모르는 이름이 아니라 짓지 않은 낱말이다(`c8` · `b128` …)
+            tc_emitf(c, "E-TYPE-UNBUILT", t->line ? t->line : f->line,
+                     "`{}` is decided (canon 6.2.25: {}) but NOT BUILT yet — it stays tracked and is dropped if it proves "
+                     "unnecessary. {}", low_sv((const char *)t->lex.ptr, (int)t->lex.size), proven_arg_cstr(ty_unbuilt_what(t->lex)),
+                     proven_arg_cstr(ty_unbuilt_instead(t->lex)));
+            continue;
+        }
         tc_emitf(c, "E-TYPE-UNDEF", t->line ? t->line : f->line,
                  "`{}` is not a type — no `type` / `struct` / `enum` declares it, and it is not a built-in type{}",
                  low_sv((const char *)t->lex.ptr, (int)t->lex.size),
@@ -3119,6 +3159,9 @@ static bool ty_is_builtin_word(proven_u8str_view_t v) {
         "unsafe_ptr",   // ★ 생 포인터 한정자(RFC-0066 가족) — mut/owned 처럼 타입 앞에 붙는 낱말
         "unsafe_fn",    // ★ 콜백 타입(RFC-0066) — 씨에 함수 포인터로. 값은 `unsafe_fn <op>`.
         "str","string","char","byte","bytes_view","dyn","fn","self",
+        // ★ 정본 §6.2.25 — 정했으되 짓지 않은 타입 낱말(2026-11-12 · W-20261112-1245). 어휘에 있는 까닭은 «없는 타입» 이 거짓이기 때문이고,
+        //   tc_check_tnames 가 `E-TYPE-UNBUILT` 로 거절한다(`list` 는 위 줄에 이미 있다).
+        "c8","c16","c32","c64","b8","b16","b32","b64","b128",
         // ★ SPEC-008 §74 의 **공유 상태 타입**: "공유 상태는 shared_read t / lock t / rwlock t /
         //   atomic t / actor t 중 **하나로만**". 어휘에 없어서 "E-TYPE-UNDEF: 없는 타입" —
         //   즉 *네 프로그램이 틀렸다* 로 거절됐다. 명세에 있는 타입인데.
@@ -4279,6 +4322,18 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                             "`align` must be a power of two (1, 2, 4, 8, …) — no hardware can honour "
                             "anything else", fd->line);
                 continue;
+            }
+            // ★ 2026-11-12 (W-20261112-1245) — 정본 §6.2.25 의 짓지 않은 낱말은 필드의 타입 자리에서도 거절한다. 타입 이름은 위(4151 근처)에서
+            //   이미 모았으므로 저자가 그 이름을 선언했는지 여기서 안다. (필드 자리의 **선언되지 않은** 이름 일반은 아직 안 본다 —
+            //   docs/known-defects/struct-field-type-undeclared.md.)
+            for (proven_size_t q = 1; q < fd->nkids; q++) {
+                const low_cst_t *ta = fd->kids[q];
+                if (ta->kind != LOW_CST_ATOM || ta->tok.kind != LOW_TOK_IDENT || !ty_is_unbuilt_word(ta->tok.lex) ||
+                    tname_user_declared(&c, ta->tok.lex)) continue;
+                tc_emitf(&c, "E-TYPE-UNBUILT", ta->tok.line ? ta->tok.line : fd->line,
+                         "`{}` is decided (canon 6.2.25: {}) but NOT BUILT yet — it stays tracked and is dropped if it proves "
+                         "unnecessary. {}", low_sv((const char *)ta->tok.lex.ptr, (int)ta->tok.lex.size), proven_arg_cstr(ty_unbuilt_what(ta->tok.lex)),
+                         proven_arg_cstr(ty_unbuilt_instead(ta->tok.lex)));
             }
             st->fname[st->nf] = fd->kids[0]->tok.lex;
             st->fform[st->nf] = fd;

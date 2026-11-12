@@ -386,14 +386,13 @@ self
 
 ```문법틀: type words accepted only as names
 byte   char   str   string   bytes_view   dyn   atomic
-list
 rng   clock   device   file_system   net   tty   process
 ```
 
-(2a) The four latter ones (`list` · `raw` · `addr` · `rng`) were moved into this group in this edition. They were listed in (1) above,
+(2a) Four (`list` · `raw` · `addr` · `rng`) were moved into this group in the edition of 2026-09-17. They were listed in (1) above,
       but **no clause anywhere in this canon fixed their meaning**, and lowering cannot read those names
       either — ops with such signatures go down to the interpreter wholesale. Rather than make up a meaning, **saying that it does not exist
-      yet** is right.
+      yet** is right. Of those, `list` got its meaning from ⟦§6.2.25⟧ on 2026-11-12 and moved to (3) below.
 
 (2b) `addr` and `raw` are words whose meaning ⟦§6.9.4⟧ decides but which are **not built yet** (`addr <name>` obtains a place, and that is
       the `unsafe` effect). Since 2026-11-12 the two in a type position are refused, not warned (`E-UNSAFE-UNBUILT`).
@@ -412,10 +411,16 @@ rng   clock   device   file_system   net   tty   process
 ```문법틀: type words still refused
 shared_read   lock   rwlock
 raw   addr
+c8   c16   c32   c64
+b8   b16   b32   b64   b128
+list
 ```
 
 (3a) The last two (`raw` · `addr`) are words whose meaning ⟦§6.9.4⟧ decides but which are not built yet (`E-UNSAFE-UNBUILT`) — they are in the
       vocabulary for the same reason as the shared-state types.
+
+(3b) The ten after them (`c8` … `c64` · `b8` … `b128` · `list`) are words whose meaning ⟦§6.2.25⟧ decides but which are not built yet
+      (`E-TYPE-UNBUILT`) — they are in the vocabulary for the same reason. If the author declares a type of that name, the declaration stands.
 
 (4) `unsafe_ptr` is not a type but **a qualifier**. It attaches in front of a type like `mut` · `owned`,
       and coming alone it is refused.

@@ -308,14 +308,15 @@
   caption: [타입 낱말 --- 쓸 수 있는 것 · 이름만 아는 것 · 거절되는 것],
   [*갈래*], [*낱말*], [*도구가 하는 일*],
   [쓸 수 있다], [수 · `bool` · `void` · `slice` · `array` · `segments` · `set` · `stack` · `range` · `vec` · `bitset` · `mask` · `result` · `option` · `ref` · `mut_ref` · `mut` · `owned` · `region` · `cap` · `self`], [뜻대로 검사하고 낮춘다],
-  [이름만 안다], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic`], [`W-NOT-YET` --- 뜻이 없다고 말한다],
+  [이름만 안다], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic` · `rng`], [`W-NOT-YET` --- 뜻이 없다고 말한다],
   [아직 거절], [`shared_read` · `lock` · `rwlock`], [`E-LOCK-NOTYET` --- 흐름끼리 나누는 상태(#chref("tasks-channels"))],
   [한정자], [`unsafe_ptr`], [타입 앞에 붙는 C 포인터 표시(#chref("ffi"))],
-  [정본에 뜻이 없다], [`list` · `raw` · `addr` · `rng`], [이 판의 도구는 경고 없이 받는다 --- 쓰지 않는다],
+  [정했으되 짓지 않음], [`raw` · `addr` · `c8` … `c64` · `b8` … `b128` · `list`], [`E-UNSAFE-UNBUILT` · `E-TYPE-UNBUILT` --- 거절한다],
 )
 
-마지막 줄은 이 판의 구멍이다. 네 낱말은 정본의 목록에 있지만 뜻을 정한 조항이 없고, 도구는 아무 말 없이 받아들인다. 개발 저장소에 결함으로
-적어 두었다.
+마지막 줄의 낱말은 정본이 뜻을 정했으나 아직 짓지 않은 것이다(위치 `raw` · `addr`, 글자의 부호 단위 `c8` … `c64`, 속을 모르는 바이트 덩이
+`b8` … `b128`, 원소마다 타입이 다른 목록 `list`). 쓰임이 나오면 짓고, 다른 길이 그 쓰임을 다 채우면 버린다. 지금은 정수 · `slice u8` · 창 ·
+값을 담는 열거로 적는다.
 
 == 흔한 실수
 

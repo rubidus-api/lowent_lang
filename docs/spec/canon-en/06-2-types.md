@@ -2001,3 +2001,48 @@ fn f output u8 . do return 1 . end .
 > a sixteen-bit computation. To avoid making places whose cost is invisible, what is not guaranteed **shall be written down as not
 > guaranteed**.
 
+
+
+## 6.2.25 Decided but not built: type words — `c8`…`c64` · `b8`…`b128` · `list` · an overlapping sum · a child region
+
+(1) The words of this clause are, like the four of ⟦§6.9.4⟧, **decided in meaning but not yet built by the implementation**. The three whose
+      spelling is fixed ((2) to (4) below) are refused at translation when written in a type position (`E-TYPE-UNBUILT`) — they are not taken as
+      a name without meaning or turned into another type. None of them is a reserved word: if the author declares a type of that name
+      (`type c8 u8 .`), that declaration stands, and so do a local or an op of the same name.
+
+(2) `c8` · `c16` · `c32` · `c64` are **code units of text** — one unit of some encoding, made of that many bits. They are not numbers, so
+      they are not computed with. They go to and from integers only through `cast` (⟦§6.2.16⟧).
+
+(3) `b8` · `b16` · `b32` · `b64` · `b128` are **opaque blocks of bytes** — that many bytes, aligned to their size. They have no arithmetic
+      and no comparison; they are only moved and copied. To read one as a number or a structure, go through a view (⟦§6.2.13⟧).
+
+(4) `list` is **a list whose elements may differ in type**. Each element carries a mark of its type and the place of its value, and the
+      list is reached only through a handle (it is not a fixed type laid out as a value). An op that uses its elements chooses the branch by the mark.
+
+(5) **An overlapping sum** — a type that places one of its variants in the same place; its size is that of the largest variant. The spelling
+      is decided when it is built: the original `union` collides with the rule that the language leaves short words to the author
+      (⟦§6.3.3⟧ (1e) — set union too is `bitset_union`). So this one is not refused as a word.
+
+(6) **A child region** — a region carved out of another, which ends when its parent ends (not when a lexical block ends). Carving does not
+      obtain new memory, so it is not the `alloc` effect (⟦§8.13⟧). The original spelling (`child_of`) has no place in the present grammar,
+      so the spelling is decided when it is built.
+
+(7) **Deferral.** These words are built when a use appears. If other ways fill that use and they are **shown unnecessary, they are dropped.**
+      What carries that use today: code units — integers (`u8` · `u16` · `u32`) and the `utf8` · `utf16` library; byte blocks — `slice u8` ·
+      `array N u8` and views; `list` — an enum whose variants carry values (⟦§6.2.7⟧); the overlapping sum — an enum whose variants carry
+      values; the child region — allocators (⟦§8.13⟧). Whether to build or drop them is the owner's decision. Until then this clause stays and
+      the implementation keeps recognizing the words of (2) to (4).
+
+```lowent-거부: a type word not yet built · E-TYPE-UNBUILT
+module ex_unbuilt_type .
+
+fn f input x c8 . output u64 . do
+  return 0 .
+end .
+```
+
+> [!참고]
+> The sources are RFC-0002 §T3 · §S · §LIST (code units · byte blocks · the overlapping sum · the heterogeneous list) and RFC-0004 (the child
+> region). Both RFCs were adopted and then archived, and these words were not carried into the canon (sweep of 2026-11-11, F5). The owner decided,
+> as for ⟦§6.9.4⟧, to «put them in formally, state that they are dropped if they later prove unnecessary, and keep tracking them» (2026-11-12).
+> RFC-0002 itself left as an open question «whether a place that really needs `union` appears (today an enum carrying values covers it)».

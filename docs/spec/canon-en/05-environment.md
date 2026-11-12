@@ -385,3 +385,34 @@ end .
 > In other languages' conditional compilation, code for combinations that are not switched on rots unread by anyone.
 > That cannot happen here — what is folded away is **code emission**, not parsing and type checking.
 > So «it does not build in that combination» does not happen.
+
+
+## 5.9 Decided but not built: tools — verified versions · the package file · private sources · splitting a large build
+
+(1) This clause writes what the **tools** around the implementation are to do whose meaning is decided but which are not built yet. They are
+      not words of the language, so there is no word to refuse. As in ⟦§6.9.4⟧, they are built when a use appears and dropped if shown
+      unnecessary. Whether to build or drop them is the owner's decision.
+
+(2) **Verified version numbers** — the kind of a version (one that breaks compatibility · one that does not) is decided not by the author but by
+      the tool, from the difference of the unit's **visible surface** (signatures · contracts · effects · layout). Marking a version that breaks
+      the surface as non-breaking refuses the release. When a dependency is written as a range (any compatible version), the tool picks the newest
+      compatible one, and asks a person before moving to a breaking version. The spelling of the range is decided when built. What stands today:
+      a version number must be orderable (⟦§5.7⟧ (5)), and the lock file (`lowent.lock`) pins the content hash of each dependency.
+
+(3) **The package file** (`.lowpkg`) — one file that bundles the manifest · sources · metadata · signature for release. It invents no new
+      cryptographic format and stays a thin convention over verified bundles. What stands today: dependencies taken from a path · content
+      hashes · signatures and trusted keys (`lowentc key` · `lowentc verify`) · mirrors.
+
+(4) **Authentication to private sources** — identifying oneself when taking a package from a private server. What stands today: the policy of
+      where packages may come from (anywhere · this machine only · signed with an official key only) and content hashes — wherever it came from,
+      the same hash is the same package.
+
+(5) **Splitting a large build** — dividing build information into pieces by meaning (the role of a piece · size limits · the members of a set),
+      and a screen tool (`lowent config`) that chooses the values of the knobs (⟦§5.8⟧). What stands today: knobs and `config`, and `pkg.low`.
+
+> [!참고]
+> The sources are RFC-0023 (verified versions · dependency ranges) · RFC-0032 · 0033 (sources · authentication) · RFC-0034 (`.lowpkg`) ·
+> RFC-0036 D1 to D4 (splitting a large build). The sweep of 2026-11-11 (F7) also wrote the RC11 memory orders (RFC-0018) · the decision tree of
+> `match` (RFC-0081 MM9) · signatures · mirrors · knobs as «not built», but that was **wrong** — those five are built (the five orders of ⟦§7⟧ ·
+> jump tables · `lowentc verify` · the mirror setting · ⟦§5.8⟧). It was corrected on 2026-11-12. The owner decided, as for ⟦§6.9.4⟧, to «put them
+> in formally, state that they are dropped if they later prove unnecessary, and keep tracking them» (2026-11-12).

@@ -384,13 +384,12 @@ self")
       #cref("4.7")) — 조용히 받아 주지 아니한다.
     ]
     #shape("이름만 받는 타입 낱말", "byte   char   str   string   bytes_view   dyn   atomic
-list
 rng   clock   device   file_system   net   tty   process")
     #para("2a")[
-      뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
+      넷(`list`·`raw`·`addr`·`rng`)은 2026-09-17 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
       실려 있었으나 #strong[뜻을 정한 조항이 이 정본 어디에도 없었고];, 하강도 그 이름을 읽지
       못한다 — 그 서명의 op 은 통째로 해석기로 내려간다. 뜻을 지어내는 것보다 #strong[아직
-      없다고 말하는 것];이 옳다.
+      없다고 말하는 것];이 옳다. 그 가운데 `list` 는 2026-11-12 에 #cref("6.2.25") 이 뜻을 정해 아래 (3) 으로 옮겼다.
     ]
     #para("2b")[
       `addr` 과 `raw` 는 #cref("6.9.4") 이 뜻을 정했으나 #strong[아직 짓지 않은]; 낱말이다(`addr <이름>` 은 자리를 얻고, 그것은
@@ -411,10 +410,17 @@ rng   clock   device   file_system   net   tty   process")
       #strong[네 프로그램이 틀렸다]; 고 말할 수는 없다.
     ]
     #shape("아직 거절되는 타입 낱말", "shared_read   lock   rwlock
-raw   addr")
+raw   addr
+c8   c16   c32   c64
+b8   b16   b32   b64   b128
+list")
     #para("3a")[
       뒤의 둘(`raw` · `addr`)은 #cref("6.9.4") 이 뜻을 정했으나 아직 짓지 않은 낱말이다(`E-UNSAFE-UNBUILT`) — 공유 상태 타입과 같은 까닭으로
       어휘에 있다.
+    ]
+    #para("3b")[
+      그 뒤의 열(`c8` … `c64` · `b8` … `b128` · `list`)은 #cref("6.2.25") 이 뜻을 정했으나 아직 짓지 않은 낱말이다(`E-TYPE-UNBUILT`) —
+      같은 까닭으로 어휘에 있다. 저자가 그 이름의 타입을 선언하면 그 선언이 선다.
     ]
     #para("4")[
       `unsafe_ptr` 은 타입이 아니라 #strong[한정자];다. `mut`·`owned` 처럼 타입 앞에 붙으며,

@@ -3,6 +3,7 @@
 #ifndef LOW_TOKEN_H
 #define LOW_TOKEN_H
 
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "proven/types.h"
 #include <stdlib.h>   // malloc — 긴 리터럴(아래 low_num_parse_double)
 #include <errno.h>
@@ -112,14 +113,14 @@ typedef struct {
 //   이제 C 의 strtod 는 처리기의 리터럴 읽기에 없다.
 static inline bool low_num_parse_double(proven_u8str_view_t v, double *out) {
     char sbuf[128];
-    char *buf = v.size < sizeof sbuf ? sbuf : (char *)malloc(v.size + 1);
+    char *buf = v.size < sizeof sbuf ? sbuf : (char *)low_alloc(v.size + 1);
     if (!buf) { *out = 0.0; return true; }   // 메모리가 없으면 0 — 처리기가 곧 다른 곳에서 멈춘다
     proven_size_t n = 0;
     for (proven_size_t i = 0; i < v.size; i++)
         if (v.ptr[i] != (proven_byte_t)'_') buf[n++] = (char)v.ptr[i];
     buf[n] = 0;
     const proven_parse_double_result_t r = proven_parse_double_ascii((proven_u8str_view_t){ (const proven_byte_t *)buf, n });
-    if (buf != sbuf) free(buf);
+    if (buf != sbuf) low_free(buf);
     *out = (r.err == PROVEN_OK || r.err == PROVEN_ERR_OVERFLOW) ? r.val : 0.0;
     return r.err != PROVEN_ERR_OVERFLOW;
 }

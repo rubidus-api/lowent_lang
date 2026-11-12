@@ -4,6 +4,7 @@
 // or a headed do…end block). Four reserved block-heads (op/if/for/loop) need schema
 // awareness because their do…end body belongs to the *statement*, not to the operand
 // immediately before `do` (cf. `if cond do…end` — the block is if's, not cond's).
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기 */
 #include "low_cst.h"
 #include "low_cst_priv.h"
 #include "low_arity.h"
@@ -99,7 +100,7 @@ const low_fix_t *low_parse_fixes(proven_size_t *n) { *n = g_nfix; return g_fix; 
 static void low_fix(proven_u32 line, proven_u32 col, proven_u32 del, const char *ins) {
     if (g_nfix == g_capfix) {
         proven_size_t nc = g_capfix ? g_capfix * 2 : 64;
-        low_fix_t *nf = (low_fix_t *)realloc(g_fix, nc * sizeof(low_fix_t));
+        low_fix_t *nf = (low_fix_t *)low_realloc(g_fix, g_capfix * sizeof(low_fix_t), nc * sizeof(low_fix_t));   // ★ W-20261112-0207 — proven 힙
         if (!nf) return;
         g_fix = nf; g_capfix = nc;
     }

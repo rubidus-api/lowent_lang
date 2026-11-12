@@ -11,6 +11,7 @@
  * ★★★ 들여오는 28 은 대부분 **공용 어휘**다(`veq`·`is_atom`·`ir_emit`…). `low_ir_priv.h` 가
  *   어휘와 **진짜 결합**을 나누어 적는다 — 짧아야 하는 것은 결합이다.
  */
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "low_typecheck.h"
 #include "low_ir_priv.h"
 
@@ -2634,7 +2635,7 @@ static proven_size_t ir_forward_target(const low_ir_t *ir, proven_size_t di) {
 
 static void ir_call_through_forwarders(low_ir_t *ir) {
     if (getenv("LOW_NO_FORWARD")) return;   // 견줘 보기용 — 옛 길
-    proven_size_t *to = calloc(ir->ndefs ? ir->ndefs : 1, sizeof *to);
+    proven_size_t *to = low_zalloc(ir->ndefs ? ir->ndefs : 1, sizeof *to);
     if (!to) return;
     for (proven_size_t i = 0; i < ir->ndefs; i++) to[i] = ir_forward_target(ir, i);
     for (proven_size_t i = 0; i < ir->ndefs; i++) {            // 사슬(D → D′ → T)은 끝까지 따라간다
@@ -2652,7 +2653,7 @@ static void ir_call_through_forwarders(low_ir_t *ir) {
             d->code[k].a = (d->code[k].a & ~(proven_i64)0xFFFF) | (proven_i64)to[ci];
         }
     }
-    free(to);
+    low_free(to);
 }
 
 /* ★★ W-20261104-1345 (소유자 «건너뛰기 설계 들어가고») — **부르는 쪽이 이미 아는 겹침 검사를 건너뛴다.**
@@ -2759,21 +2760,26 @@ static void ir_excl_skip(low_ir_t *ir) {
     if (getenv("LOW_NO_XSKIP") || !ir->ndefs) return;
     const proven_size_t n = ir->ndefs;
     // 같은 몸을 접은 def(canon_of)은 한 무리로 본다 — 부름은 무리의 어느 것으로 가도 같은 C 함수에 닿는다
-    proven_size_t *cls = calloc(n, sizeof *cls), *off = calloc(n + 1, sizeof *off);
-    bool *outside = calloc(n, sizeof *outside), *seen = calloc(n, sizeof *seen);
+    // ★ W-20261112-0207 — 이 패스의 작업 배열은 두 아레나에서 받는다(앞 넷은 def 수로 · 뒤 둘은 짝 수로 크기가 정해진다) · 끝에서 한 번에 돌려준다
+    low_scratch_t sa_, sb_ = { 0 };
+    (void)low_scratch_open(&sa_, low_scratch_need(n, sizeof(proven_size_t)) + low_scratch_need(n + 1, sizeof(proven_size_t)) +
+                                 2 * low_scratch_need(n, sizeof(bool)));
+    proven_size_t *cls = low_scratch_zalloc(&sa_, n, sizeof *cls), *off = low_scratch_zalloc(&sa_, n + 1, sizeof *off);
+    bool *outside = low_scratch_zalloc(&sa_, n, sizeof *outside), *seen = low_scratch_zalloc(&sa_, n, sizeof *seen);
     // ★ W-20261105-2304 — 짝 표는 def 마다 제 짝 수만큼(off[i] 부터 nxpairs 칸) — 64 짝 한도를 없앴다(x25519.scalarmult 는 90 짝)
     proven_size_t npairs = 0;
     for (proven_size_t i = 0; off && i < n; i++) { off[i] = npairs; npairs += ir->defs[i].nxpairs; }
     if (off) off[n] = npairs;
-    bool *bad = calloc(npairs ? npairs : 1, sizeof *bad);   // 무리마다: 보증이 안 된 짝(대표 def 의 off 부터)
-    // `LOW_XSKIP_WHY=1` — 남긴 짝마다 까닭을 stderr 에 적는다(W-20261104-1857 · 남은 검사 세기). 짝마다 까닭 비트(XW_*)
     const bool why = getenv("LOW_XSKIP_WHY") != NULL;
-    proven_u32 *wm = why ? calloc(npairs ? npairs : 1, sizeof *wm) : NULL;
+    (void)low_scratch_open(&sb_, low_scratch_need(npairs ? npairs : 1, sizeof(bool)) + low_scratch_need(npairs ? npairs : 1, sizeof(proven_u32)));
+    bool *bad = low_scratch_zalloc(&sb_, npairs ? npairs : 1, sizeof *bad);   // 무리마다: 보증이 안 된 짝(대표 def 의 off 부터)
+    // `LOW_XSKIP_WHY=1` — 남긴 짝마다 까닭을 stderr 에 적는다(W-20261104-1857 · 남은 검사 세기). 짝마다 까닭 비트(XW_*)
+    proven_u32 *wm = why ? low_scratch_zalloc(&sb_, npairs ? npairs : 1, sizeof *wm) : NULL;
     #define XP_AT(ct_, q_) (off[(ct_)] + (q_))
     #define XP_IN(ct_, q_) ((q_) < ir->defs[(ct_)].nxpairs)
     #define XW_SET(ct_, q_, r_) do { if (wm && XP_IN(ct_, q_)) wm[XP_AT(ct_, q_)] |= 1u << (r_); } while (0)
     #define XP_BAD(ct_, q_) do { if (XP_IN(ct_, q_)) bad[XP_AT(ct_, q_)] = true; } while (0)
-    if (!cls || !off || !outside || !seen || !bad || (why && !wm)) { free(cls); free(off); free(outside); free(seen); free(bad); free(wm); return; }
+    if (!cls || !off || !outside || !seen || !bad || (why && !wm)) { low_scratch_close(&sb_); low_scratch_close(&sa_); return; }
     for (proven_size_t i = 0; i < n; i++) {
         cls[i] = i;
         const low_ir_def_t *d = &ir->defs[i];
@@ -2888,7 +2894,7 @@ static void ir_excl_skip(low_ir_t *ir) {
     #undef XP_BAD
     #undef XP_IN
     #undef XP_AT
-    free(cls); free(off); free(outside); free(seen); free(bad); free(wm);
+    low_scratch_close(&sb_); low_scratch_close(&sa_);
 }
 
 static void ir_frame_windows(low_ir_t *ir);
@@ -2919,7 +2925,7 @@ static unsigned long long ir_frame_path(const low_ir_t *ir, proven_size_t i, uns
 }
 static void ir_pool_scan(low_ir_t *ir) {
     if (!low_ir_author_warnings() || !ir->ndefs) return;
-    bool *al = calloc(ir->ndefs, sizeof *al);
+    bool *al = low_zalloc(ir->ndefs, sizeof *al);
     if (!al) return;
     // 만드는 op — 스스로 만들거나 만드는 op 을 부른다(고정점)
     for (proven_size_t i = 0; i < ir->ndefs; i++)
@@ -2963,8 +2969,11 @@ static void ir_pool_scan(low_ir_t *ir) {
     //    셀 수 없는 셋은 수 대신 까닭을 적는다 — 되감지 못하는 반복(위 경고) · 재귀(깊이를 모른다) · 칸에 쌓기(`push` — 쌓인 만큼 산다).
     //    수가 한도(호스트 4,096 · 프리스탠딩 64 — C 방출의 LW_BOXPOOL · LW_RECPOOL 과 같은 수)를 넘으면 거절한다(E-POOL-BOUND).
     const unsigned long long cap = low_ir_target()->no_heap ? 64ull : 4096ull;
-    unsigned long long *own = calloc(ir->ndefs, sizeof *own), *memo = calloc(ir->ndefs, sizeof *memo);
-    unsigned char *why = calloc(ir->ndefs, 1), *st = calloc(ir->ndefs, 1), *called = calloc(ir->ndefs, 1);
+    // ★ W-20261112-0207 — 패스의 작업 배열 다섯은 한 아레나에서(끝에서 한 번에 돌려준다)
+    low_scratch_t sp_;
+    (void)low_scratch_open(&sp_, 2 * low_scratch_need(ir->ndefs, sizeof(unsigned long long)) + 3 * low_scratch_need(ir->ndefs, 1));
+    unsigned long long *own = low_scratch_zalloc(&sp_, ir->ndefs, sizeof *own), *memo = low_scratch_zalloc(&sp_, ir->ndefs, sizeof *memo);
+    unsigned char *why = low_scratch_zalloc(&sp_, ir->ndefs, 1), *st = low_scratch_zalloc(&sp_, ir->ndefs, 1), *called = low_scratch_zalloc(&sp_, ir->ndefs, 1);
     if (own && memo && why && st && called) {
         for (proven_size_t i = 0; i < ir->ndefs; i++) {
             const low_ir_def_t *d = &ir->defs[i];
@@ -3036,8 +3045,10 @@ static void ir_pool_scan(low_ir_t *ir) {
     // ── RFC-0132 P4e — 틀 바이트(틀 안 나열 + 구조체 값의 틀 창)의 가장 깊은 길. 구조체 값이 그 길을 예산 너머로 밀면 번역 때 거절한다
     //    (틀 안 나열만으로 넘는 길은 검사층이 이미 E-STACK-BUDGET 으로 거절한다 — 두 번 말하지 않는다). 재귀는 셀 수 없다 — 실행 중 예산이 멈춘다.
     if (own && called) {
-        unsigned long long *fm = calloc(ir->ndefs, sizeof *fm), *lm = calloc(ir->ndefs, sizeof *lm);
-        unsigned char *fs = calloc(ir->ndefs, 1), *ls = calloc(ir->ndefs, 1);
+        low_scratch_t sf_;
+        (void)low_scratch_open(&sf_, 2 * low_scratch_need(ir->ndefs, sizeof(unsigned long long)) + 2 * low_scratch_need(ir->ndefs, 1));
+        unsigned long long *fm = low_scratch_zalloc(&sf_, ir->ndefs, sizeof *fm), *lm = low_scratch_zalloc(&sf_, ir->ndefs, sizeof *lm);
+        unsigned char *fs = low_scratch_zalloc(&sf_, ir->ndefs, 1), *ls = low_scratch_zalloc(&sf_, ir->ndefs, 1);
         const long budget = low_ir_target()->no_heap ? LOW_SBUDGET_FREE : LOW_SBUDGET_HOST;
         bool any = false;
         for (proven_size_t i = 0; i < ir->ndefs; i++) if (ir->defs[i].wbytes) any = true;
@@ -3063,10 +3074,10 @@ static void ir_pool_scan(low_ir_t *ir) {
                 }
             }
         }
-        free(fm); free(lm); free(fs); free(ls);
+        low_scratch_close(&sf_);
     }
-    free(own); free(memo); free(why); free(st); free(called);
-    free(al);
+    low_scratch_close(&sp_);
+    low_free(al);
 }
 // RFC-0148 S4-2 — 단위 하나를 낮춘 뒤 검사층의 답을 닫는다(다음 단위가 옛 마디의 답을 읽지 않게).
 // ★★★ RFC-0132 P4e (§14.8, 2026-10-25 소유자 «계획대로 전부») — **구조체 값의 기본 자리는 틀이다.**
@@ -3109,7 +3120,7 @@ static void ir_frame_windows(low_ir_t *ir) {
         bool refs = false;
         for (proven_size_t j = 0; j < d->ncode && !refs; j++) refs = d->code[j].w == IRW_REF || d->code[j].w == IRW_MREF;
         if (refs) continue;
-        unsigned char *inl = (unsigned char *)calloc(d->ncode, 1);
+        unsigned char *inl = (unsigned char *)low_zalloc(d->ncode, 1);
         if (!inl) continue;
         for (proven_size_t k = 0; k < d->ncode; k++) {
             const low_ir_ins_t *in = &d->code[k];
@@ -3133,7 +3144,7 @@ static void ir_frame_windows(low_ir_t *ir) {
             n += r * f; b += by * f;
             d->wsites_end = (proven_u32)d->ncode;
         }
-        free(inl);
+        low_free(inl);
         d->nwin = (proven_u16)n; d->wbytes = (proven_u32)b;
     }
 }
@@ -3386,10 +3397,10 @@ static proven_u64 g_ctfe_steps_cli;
 void low_ctfe_set_steps(proven_u64 n) { g_ctfe_steps_cli = n; }
 static proven_u64 ctfe_steps(void) { return g_ctfe_steps_cli ? g_ctfe_steps_cli : IR_CTFE_STEPS; }
 static void ctfe_clear(ctfe_call_t *c) {
-    free(c->bytes);
-    for (proven_size_t q = 0; q < c->nrel; q++) free(c->rel[q].b);
-    for (proven_size_t q = 0; q < LOW_CAP_NODES; q++) free(c->tn[q].b);
-    for (proven_size_t q = 0; q < LOW_HDR_MAXP; q++) free(c->argb[q]);
+    low_free(c->bytes);
+    for (proven_size_t q = 0; q < c->nrel; q++) low_free(c->rel[q].b);
+    for (proven_size_t q = 0; q < LOW_CAP_NODES; q++) low_free(c->tn[q].b);
+    for (proven_size_t q = 0; q < LOW_HDR_MAXP; q++) low_free(c->argb[q]);
 }
 // ★ RFC-0015 §6.3 — 슬라이스 · 구조체 답을 날것에서 베낀다(포인터는 다음 실행까지만 산다). 답이 담지 못하는 꼴이면 까닭을 적는다.
 static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_capture_t *cap) {
@@ -3403,7 +3414,7 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
             return;
         }
         c->nbytes = top->nbytes;
-        c->bytes = malloc(c->nbytes ? c->nbytes : 1);
+        c->bytes = low_alloc(c->nbytes ? c->nbytes : 1);
         if (!c->bytes) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
         if (c->nbytes) memcpy(c->bytes, top->p, c->nbytes);
         return;
@@ -3429,7 +3440,7 @@ static void ctfe_take_answer(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ca
             total += s0->nbytes;
             if (total > IR_CTFE_MAXBYTES) { snprintf(c->why, sizeof c->why, "`%.*s` returned a struct whose slices hold more than %u bytes", (int)fnm.size, (const char *)fnm.ptr, (unsigned)IR_CTFE_MAXBYTES); return; }
             d->n = s0->nbytes;
-            d->b = malloc(d->n ? d->n : 1);
+            d->b = low_alloc(d->n ? d->n : 1);
             if (!d->b) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
             if (d->n) memcpy(d->b, s0->p, d->n);
         } else if (s0->kind != 1 && s0->kind != 2 && s0->kind != 6) {   // 6 = 128 비트 값 — 두 절반을 함께 든다(2026-10-31 · W-20261031-1118)
@@ -3475,7 +3486,7 @@ static void ctfe_take_relocs(const low_ir_t *ir, ctfe_call_t *c, const low_ir_ar
                 return;
             }
             if (c->nrel >= IR_CTFE_MAXREL) { snprintf(c->why, sizeof c->why, "`%.*s` returned more than %u slices in one answer", (int)fnm.size, (const char *)fnm.ptr, (unsigned)IR_CTFE_MAXREL); return; }
-            proven_u8 *cp = malloc(nb ? nb : 1);
+            proven_u8 *cp = low_alloc(nb ? nb : 1);
             if (!cp) { snprintf(c->why, sizeof c->why, "no memory for a compile-time answer"); return; }
             if (nb) memcpy(cp, pp, nb);
             c->rel[c->nrel].off = (proven_u32)off; c->rel[c->nrel].b = cp; c->rel[c->nrel].n = nb; c->nrel++;
@@ -3526,11 +3537,11 @@ static bool ctfe_cache_get(const low_ir_t *ir, proven_size_t di, ctfe_call_t *c,
     char tag[8]; proven_u64 v, n; bool ok = false;
     if (fread(tag, 1, 8, fp) == 8 && !memcmp(tag, CTFE_CACHE_TAG, 8) && fread(&v, 8, 1, fp) == 1 && fread(&n, 8, 1, fp) == 1 &&
         n <= IR_CTFE_MAXBYTES && (!(c->arr || c->sl) || 1)) {
-        proven_u8 *b = (c->arr || c->sl) ? malloc(n ? n : 1) : NULL;
+        proven_u8 *b = (c->arr || c->sl) ? low_alloc(n ? n : 1) : NULL;
         if ((c->arr || c->sl) && b && fread(b, 1, n, fp) == n && fgetc(fp) == EOF && (!c->arr || c->rowty || c->selem || n == c->nelem * ir_field_size(c->elem))) {
-            free(c->bytes); c->bytes = b; c->nbytes = n; b = NULL; ok = true;
+            low_free(c->bytes); c->bytes = b; c->nbytes = n; b = NULL; ok = true;
         } else if (!(c->arr || c->sl) && n == 0 && fgetc(fp) == EOF) ok = true;
-        free(b);
+        low_free(b);
     }
     fclose(fp);
     if (!ok) return false;
@@ -3601,7 +3612,7 @@ void low_ctfe_calls_prepare(proven_allocator_t work, const low_parse_result_t *p
                     c->nbytes = c->nelem * (proven_size_t)rb;
                     rowmeta = ir_row_meta(lf, rb, sub);
                 }
-                c->bytes = calloc(c->nbytes ? c->nbytes : 1, 1);
+                c->bytes = low_zalloc(c->nbytes ? c->nbytes : 1, 1);
                 if (!c->bytes || na >= LOW_HDR_MAXP) { snprintf(c->why, sizeof c->why, "no memory for a compile-time array answer"); progress = true; continue; }
                 a[na++] = (low_ir_arg_t){ .is_slice = true, .bytes = c->bytes, .n = c->nbytes, .vmeta = rowmeta };
             }

@@ -2194,7 +2194,12 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                     }
                     if (in->w == IRW_DIV) {
                         res.v.lo = ops[0].v.lo / cdiv;
-                        if (ops[0].v.hi < res.v.hi * cdiv || ops[0].v.hi / cdiv < res.v.hi)
+                        // ★ 2026-11-12 (W-20261112-0207 · docs/known-defects/iv-div-bound-overflow.md) — `res.v.hi * cdiv` 가 64 비트를 넘으면 C 에서
+                        //   정의되지 않은 동작이었다(UBSan: 코퍼스 214 곳). 넘친 곱은 수로는 «무엇보다 크다»(부호가 같을 때) 또는 «무엇보다 작다» 이므로
+                        //   그 뜻대로 견준다.
+                        long long hc_; bool hov_ = __builtin_mul_overflow(res.v.hi, cdiv, &hc_);
+                        bool hlt_ = hov_ ? ((res.v.hi > 0) == (cdiv > 0)) : (ops[0].v.hi < hc_);
+                        if (hlt_ || ops[0].v.hi / cdiv < res.v.hi)
                             res.v.hi = ops[0].v.hi / cdiv;
                         res.v.wide = ops[0].v.wide;
                     } else {                       // MOD

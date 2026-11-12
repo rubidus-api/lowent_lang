@@ -15,6 +15,7 @@
 //     · 기본 연산의 모양(`low_arity.h` 의 LOW_SHAPES · LOW_CLOSER_SHAPES — `cast <타입> <값>` · `field <값> <마디>*`)
 //     · 타입 생성자(`slice` · `option` · `result` …). 인자를 받는 사용자 타입은 괄호로 싼다(`(box u64)`).
 //   사용자 op 의 인자는 **전부 항**이다 — 타입을 넘길 때도(`max_of u64. a. b. .`).
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기 */
 #include "low_closer.h"
 #include "low_arity.h"
 #include "low_lex.h"
@@ -214,7 +215,7 @@ static proven_size_t cl_tyq(cl_t *c, proven_size_t i) {  // 한정사 뒤의 맨
 // 타입으로 읽히면 읽고(괄호를 벗기고), 아니면 아무것도 하지 않는다. want != NOPE 면 그 자리에서 끝나야 한다.
 static bool cl_ty_try(cl_t *c, proven_size_t i, proven_size_t want, bool qual) {
     jmp_buf saved; memcpy(saved, c->jb, sizeof saved);
-    unsigned char *snap = (unsigned char *)malloc(c->n);
+    unsigned char *snap = (unsigned char *)low_alloc(c->n);
     if (!snap) return false;
     memcpy(snap, c->del, c->n);
     bool ok = false;
@@ -223,7 +224,7 @@ static bool cl_ty_try(cl_t *c, proven_size_t i, proven_size_t want, bool qual) {
         ok = want == NOPE || j == want;
     }
     if (!ok) memcpy(c->del, snap, c->n);
-    free(snap);
+    low_free(snap);
     memcpy(c->jb, saved, sizeof saved);
     return ok;
 }
@@ -771,11 +772,14 @@ static proven_size_t cl_top(cl_t *c, proven_size_t i) {
 bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_array_t *diags) {
     cl_t c = { .T = (low_token_t *)tokens->data, .n = tokens->len };
     if (c.n == 0) return true;
-    c.del = (unsigned char *)calloc(c.n, 1);
-    c.lp = (unsigned short *)calloc(c.n, sizeof *c.lp);
-    c.rp = (unsigned short *)calloc(c.n, sizeof *c.rp);
-    c.mate = (proven_size_t *)malloc(c.n * sizeof *c.mate);
-    proven_size_t *st = (proven_size_t *)malloc(c.n * sizeof *st);
+    // ★ W-20261112-0207 — 이 패스의 작업 배열 다섯은 한 아레나에서(끝에서 한 번에 돌려준다)
+    low_scratch_t sc_;
+    (void)low_scratch_open(&sc_, low_scratch_need(c.n, 1) + 2 * low_scratch_need(c.n, sizeof(unsigned short)) + 2 * low_scratch_need(c.n, sizeof(proven_size_t)));
+    c.del = (unsigned char *)low_scratch_zalloc(&sc_, c.n, 1);
+    c.lp = (unsigned short *)low_scratch_zalloc(&sc_, c.n, sizeof *c.lp);
+    c.rp = (unsigned short *)low_scratch_zalloc(&sc_, c.n, sizeof *c.rp);
+    c.mate = (proven_size_t *)low_scratch_zalloc(&sc_, c.n, sizeof *c.mate);
+    proven_size_t *st = (proven_size_t *)low_scratch_zalloc(&sc_, c.n, sizeof *st);
     volatile bool ok = false;                            // setjmp 뒤에 읽는다(-Wclobbered)
     if (c.del && c.lp && c.rp && c.mate && st) {
         proven_size_t np = 0, nd = 0;                    // 괄호 · do/end 의 짝 — 두 벌의 더미를 한 배열의 양끝에 둔다
@@ -824,7 +828,7 @@ bool low_closer_lower(proven_allocator_t heap, proven_array_t *tokens, proven_ar
         proven_array_destroy(tokens);
         *tokens = out;
     }
-    free(c.del); free(c.lp); free(c.rp); free(c.mate); free(st);
+    low_scratch_close(&sc_);
     return ok;
 }
 
@@ -1381,12 +1385,16 @@ bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_siz
     up_t u = { .T = (low_token_t *)lx.tokens.data, .n = lx.tokens.len };
     bool ok = false;
     proven_size_t *ls = NULL, *st = NULL, nl = 0;
-    u.del = (unsigned char *)calloc(u.n + 1, 1); u.dot = (unsigned char *)calloc(u.n + 1, 1);
-    u.close = (unsigned short *)calloc(u.n + 1, sizeof *u.close);
-    u.lp = (unsigned short *)calloc(u.n + 1, sizeof *u.lp); u.rp = (unsigned short *)calloc(u.n + 1, sizeof *u.rp);
-    u.mate = (proven_size_t *)malloc((u.n + 1) * sizeof *u.mate);
-    st = (proven_size_t *)malloc((u.n + 1) * sizeof *st);
-    ls = (proven_size_t *)malloc((n + 2) * sizeof *ls);
+    // ★ W-20261112-0207 — 이 패스의 작업 배열 여덟은 한 아레나에서(끝에서 한 번에 돌려준다)
+    low_scratch_t su_;
+    (void)low_scratch_open(&su_, 2 * low_scratch_need(u.n + 1, 1) + 3 * low_scratch_need(u.n + 1, sizeof(unsigned short)) +
+                                 2 * low_scratch_need(u.n + 1, sizeof(proven_size_t)) + low_scratch_need(n + 2, sizeof(proven_size_t)));
+    u.del = (unsigned char *)low_scratch_zalloc(&su_, u.n + 1, 1); u.dot = (unsigned char *)low_scratch_zalloc(&su_, u.n + 1, 1);
+    u.close = (unsigned short *)low_scratch_zalloc(&su_, u.n + 1, sizeof *u.close);
+    u.lp = (unsigned short *)low_scratch_zalloc(&su_, u.n + 1, sizeof *u.lp); u.rp = (unsigned short *)low_scratch_zalloc(&su_, u.n + 1, sizeof *u.rp);
+    u.mate = (proven_size_t *)low_scratch_zalloc(&su_, u.n + 1, sizeof *u.mate);
+    st = (proven_size_t *)low_scratch_zalloc(&su_, u.n + 1, sizeof *st);
+    ls = (proven_size_t *)low_scratch_zalloc(&su_, n + 2, sizeof *ls);
     if (lx.ok && u.n && u.del && u.dot && u.close && u.lp && u.rp && u.mate && st && ls) {
         proven_size_t np = 0, nd = 0;
         for (proven_size_t i = 0; i < u.n; i++) u.mate[i] = NOPE;
@@ -1433,7 +1441,7 @@ bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_siz
         }
         fwrite(text + at, 1, n - at, out);
     }
-    free(u.del); free(u.dot); free(u.close); free(u.lp); free(u.rp); free(u.mate); free(st); free(ls);
+    low_scratch_close(&su_);
     proven_array_destroy(&lx.diags); proven_array_destroy(&lx.tokens);
     return ok;
 }

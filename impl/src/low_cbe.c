@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L   // open_memstream(3) — 프레임을 본문 보고 정하려고
 // low_cbe.c — S5 C backend (see low_cbe.h).
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기 */
 #include "low_cbe.h"
 #include "low_cbe_prelude.h"
 #define LW_EXPECT_MSG "E-TEST-FAIL: an `expect` is FALSE -- the test failed (this is not a contract violation)"   // ★ 2026-09-27 — 네이티브는 이것을 «requires violated at entry» 로 찍었다
@@ -524,9 +525,12 @@ static bool cbe_lbuf_ensure(proven_size_t n) {
     if (g_lb.cap >= n) return true;
     proven_size_t nc = g_lb.cap ? g_lb.cap * 2 : 64;
     while (nc < n) nc *= 2;
-    unsigned char *p6 = (unsigned char *)realloc(g_lb.lk, nc * 6);
-    int *ps = (int *)realloc(g_lb.smap, nc * sizeof *ps);
-    if (!p6 || !ps) return false;            // ★ 못 잡으면 **거짓말하지 않는다** — 부르는 쪽이 태그 경로로 간다
+    // ★ W-20261112-0207 — proven 힙(옛 크기를 넘긴다 — alloccheck 빌드가 맞는지 본다). 하나가 실패해도 다른 하나는 제 크기 그대로 산다.
+    unsigned char *p6 = (unsigned char *)low_realloc(g_lb.lk, g_lb.cap * 6, nc * 6);
+    if (!p6) return false;
+    g_lb.lk = p6; g_lb.slot = p6 + g_lb.cap; g_lb.rmap = p6 + g_lb.cap * 2; g_lb.lez = p6 + g_lb.cap * 3; g_lb.lln = p6 + g_lb.cap * 4; g_lb.lfl = p6 + g_lb.cap * 5;
+    int *ps = (int *)low_realloc(g_lb.smap, g_lb.cap * sizeof *ps, nc * sizeof *ps);
+    if (!ps) return false;            // ★ 못 잡으면 **거짓말하지 않는다** — 부르는 쪽이 태그 경로로 간다
     g_lb.lk = p6; g_lb.slot = p6 + nc; g_lb.rmap = p6 + nc * 2;
     g_lb.lez = p6 + nc * 3; g_lb.lln = p6 + nc * 4; g_lb.lfl = p6 + nc * 5;
     g_lb.smap = ps; g_lb.cap = nc;
@@ -539,7 +543,7 @@ static kstack_t *cbe_at_ensure(int which, proven_size_t n) {
     if (g_atcap[which] >= n) return g_at[which];
     proven_size_t nc = g_atcap[which] ? g_atcap[which] * 2 : 4096;
     while (nc < n) nc *= 2;
-    kstack_t *p = (kstack_t *)realloc(g_at[which], nc * sizeof *p);
+    kstack_t *p = (kstack_t *)low_realloc(g_at[which], g_atcap[which] * sizeof *p, nc * sizeof *p);   // ★ W-20261112-0207 — proven 힙
     if (!p) return 0;
     g_at[which] = p; g_atcap[which] = nc;
     return p;
@@ -4165,9 +4169,9 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
         if (di < 512) g_wide[di] = (unsigned short)nwide;
         if (any) {
             size_t bl = strlen(body), cap = bl + bl / 4 + 64, o = 0;
-            nbody = (char *)malloc(cap);
+            nbody = (char *)low_alloc(cap);   // ★ W-20261112-0207 — proven 힙
             for (const char *p = body; nbody && *p; ) {
-                if (o + 32 >= cap) { cap *= 2; char *t = (char *)realloc(nbody, cap); if (!t) { free(nbody); nbody = NULL; break; } nbody = t; }
+                if (o + 32 >= cap) { size_t oc_ = cap; cap *= 2; char *t = (char *)low_realloc(nbody, oc_, cap); if (!t) { low_free(nbody); nbody = NULL; break; } nbody = t; }
                 if (p[0] == 'l' && p[1] == 'o' && p[2] == 'c' && p[3] == '[' &&
                     (p == body || !((p[-1] >= 'a' && p[-1] <= 'z') || (p[-1] >= 'A' && p[-1] <= 'Z') || (p[-1] >= '0' && p[-1] <= '9') || p[-1] == '_'))) {
                     char *e; unsigned long k = strtoul(p + 4, &e, 10);
@@ -4257,8 +4261,8 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
             q = hit + 7;
         }
     }
-    free(nbody);
-    free(buf);
+    low_free(nbody);
+    free(buf);   // open_memstream 의 버퍼 — C 의 것이다(출력 단계 S3 에서 proven 버퍼로 바꾼다)
 }
 
 // ★★★★ **앞 바퀴 값 들고 가기** (RFC-0111 §8-22 ⓑ, WO-0200 — 스칼라 치환).
@@ -4404,7 +4408,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     const int ncy = cbe_carry_scan(d, lk, cy);   // ★ §8-22 ⓑ — 앞 바퀴 값을 들고 갈 루프
 
     // ★ 분기 목표 표도 **명령 수만큼** 잡는다(X-0028) — 4096 은 판단이 아니라 배열 크기였다.
-    bool *target = (bool *)calloc(d->ncode + 1, sizeof *target);
+    bool *target = (bool *)low_zalloc(d->ncode + 1, sizeof *target);   // ★ W-20261112-0207 — proven 힙
     if (!target) { fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
     for (proven_size_t j = 0; j < d->ncode; j++)
         if (d->code[j].w == IRW_BR || d->code[j].w == IRW_BRZ)
@@ -4499,7 +4503,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     bool live2 = true;
     int encn = 0;
     kstack_t *at2 = cbe_at_ensure(1, d->ncode);
-    if (!at2) { free(target); fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
+    if (!at2) { low_free(target); fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
     for (proven_size_t i = 0; i < d->ncode; i++) at2[i].set = false;
 
     proven_u32 lastln_ = 0; proven_u16 lastfid_ = 0;
@@ -6890,7 +6894,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     if (cbe_ret_scalar(g_cur_di)) fputs("    { lw_depth--; return 0; }\n", out);
     else fputs("    { lw_r r_; r_.v = 0; r_.f = 0; r_.tag = 0; lw_depth--; return r_; }\n", out);
     cbe_line_end(out);
-    free(target);
+    low_free(target);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -8373,7 +8377,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         // branch targets need labels
         // ★ 태그 경로의 분기 목표 표도 **명령 수만큼** (X-0028 · WO-0205). 4096 은 판단이 아니었다.
-        bool *target = (bool *)calloc(d->ncode + 1, sizeof *target);
+        bool *target = (bool *)low_zalloc(d->ncode + 1, sizeof *target);   // ★ W-20261112-0207 — proven 힙
         if (!target) { fputs("lowentc: out of memory\n", stderr); return -1; }
         for (proven_size_t j = 0; j < d->ncode; j++)
             if ((d->code[j].w == IRW_BR || d->code[j].w == IRW_BRZ) && (proven_size_t)d->code[j].a < d->ncode)
@@ -9700,7 +9704,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         fputs("    return lw_int(0);\n}\n", out);
         cbe_line_end(out);
-        free(target);
+        low_free(target);
         emitted++;
     }
 

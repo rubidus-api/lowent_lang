@@ -1,4 +1,5 @@
 // low_ir.c — S5b: MVP core (+slices/records/result) → stack IR + SCC Merkle hashing.
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "proven/utf.h"
 #include "low_hwm.h"
 #include "low_ir.h"
@@ -3168,7 +3169,7 @@ static bool ir_ctfe_sslice_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
         if (!oc->ok || !(oc->arr || oc->sl) || !oc->selem) return false;
         bool sf2; proven_size_t s2 = ir_struct_find(c->out, ir_strip_mod(c, oc->elem), &sf2);
         if (!sf2 || s2 != si) return false;
-        proven_u8 *b = malloc(oc->nbytes ? oc->nbytes : 1);
+        proven_u8 *b = low_alloc(oc->nbytes ? oc->nbytes : 1);
         if (!b) return false;
         if (oc->nbytes) memcpy(b, oc->bytes, oc->nbytes);
         if (oc->nrel) g_ctfe_arg_addr = true;   // 이 입력의 바이트에는 주소가 든다 — 같은 주소가 다른 내용을 가리킬 수 있으니 간직하지 않는다
@@ -3189,15 +3190,15 @@ static bool ir_ctfe_sslice_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
     proven_size_t cnt = 0;
     for (proven_size_t q = 3; q < a->nkids; q++) if (!(is_atom(a->kids[q]) && a->kids[q]->tok.kw == LOW_KW_LIT)) cnt++;
     if ((proven_size_t)cnt * st->total > IR_CTFE_MAXBYTES) return false;
-    proven_u8 *b = calloc(cnt ? cnt * st->total : 1, 1);
+    proven_u8 *b = low_zalloc(cnt ? cnt * st->total : 1, 1);
     if (!b) return false;
     proven_size_t m = 0;
     for (proven_size_t q = 3; q < a->nkids; q++) {
         const low_cst_t *e = a->kids[q];
         bool ok;
-        if (is_atom(e) && e->tok.kw == LOW_KW_LIT) { if (q + 1 >= a->nkids) { free(b); return false; } ok = ir_ctfe_make_bytes(c, a->kids[++q], si, b + m * st->total); }
+        if (is_atom(e) && e->tok.kw == LOW_KW_LIT) { if (q + 1 >= a->nkids) { low_free(b); return false; } ok = ir_ctfe_make_bytes(c, a->kids[++q], si, b + m * st->total); }
         else ok = ir_ctfe_lit_bytes(c, e, si, b + m * st->total);
-        if (!ok) { free(b); return false; }
+        if (!ok) { low_free(b); return false; }
         m++;
     }
     *out = b; *n = m * st->total;
@@ -3211,10 +3212,10 @@ static bool ir_ctfe_struct_arg(ir_ctx_t *c, proven_u8str_view_t sname, const low
     //   정렬은 그만큼 맞춰 잡는다(전에는 `align 64` 구조체를 넘기면 번역 때 알 수 없는 E-VM-ALIGN 으로 멈췄다).
     const proven_size_t al = c->out->structs[si].align > 16 ? c->out->structs[si].align : 16;
     const proven_size_t sz = ((proven_size_t)c->out->structs[si].total + al - 1) / al * al;
-    proven_u8 *b = aligned_alloc(al, sz);
+    proven_u8 *b = low_alloc_aligned(sz, al);   // ★ W-20261112-0207 — proven 힙(정렬 지정) · 짝은 ctfe_clear 의 low_free
     if (!b) return false;
     memset(b, 0, sz);
-    if (!ir_ctfe_lit_bytes(c, a, si, b)) { free(b); return false; }
+    if (!ir_ctfe_lit_bytes(c, a, si, b)) { low_free(b); return false; }
     *out = b; *n = c->out->structs[si].total;
     return true;
 }
@@ -3257,12 +3258,12 @@ static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *
     else snprintf(path, sizeof path, "%.*s", (int)pv.size, (const char *)pv.ptr);
     FILE *fp = fopen(path, "rb");
     if (!fp) { snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text`: cannot read `%.200s` (read from the folder of this source file)", path); return false; }
-    proven_u8 *b = malloc(IR_INCLUDE_MAX + 1);
+    proven_u8 *b = low_alloc(IR_INCLUDE_MAX + 1);
     proven_size_t got = b ? fread(b, 1, IR_INCLUDE_MAX + 1, fp) : 0;
     const bool err = !b || ferror(fp);
     fclose(fp);
     if (err || got > IR_INCLUDE_MAX) {
-        free(b);
+        low_free(b);
         snprintf(g_ctfe_inc_why, sizeof g_ctfe_inc_why, err ? "`include_text`: reading `%.200s` failed" : "`include_text`: `%.200s` is larger than 1 MiB — a file read when translating holds at most that", path);
         return false;
     }
@@ -3299,18 +3300,18 @@ static bool ir_ctfe_slice_arg(ir_ctx_t *c, const low_cst_t *a, proven_u8 **out, 
         if (!esz) return false;
         if (arr) { if (a->nkids < 4 || !is_atom(a->kids[3]) || !ir_int_lit(a->kids[3]->tok.lex, &cnt) || cnt < 0) return false; e0 = 4; }
         proven_size_t cap = arr ? (proven_size_t)cnt : a->nkids - e0;
-        own = calloc(cap ? cap : 1, esz);
+        own = low_zalloc(cap ? cap : 1, esz);
         if (!own) return false;
         proven_size_t m = 0;
         for (proven_size_t q = e0; q < a->nkids; q++) {
             const low_cst_t *e = a->kids[q];
             if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) { m = cap; break; }
             proven_u64 bits;
-            if (m >= cap || !ir_lit_const_bits(e, flt, esz, &bits)) { free(own); return false; }
+            if (m >= cap || !ir_lit_const_bits(e, flt, esz, &bits)) { low_free(own); return false; }
             for (proven_u8 b = 0; b < esz; b++) own[m * esz + b] = (proven_u8)(bits >> (8 * b));
             m++;
         }
-        if (m != cap) { free(own); return false; }
+        if (m != cap) { low_free(own); return false; }
         *out = own; *n = cap * esz;
         return true;
     } else {
@@ -3318,7 +3319,7 @@ static bool ir_ctfe_slice_arg(ir_ctx_t *c, const low_cst_t *a, proven_u8 **out, 
         if (!oc || !oc->ok || !(oc->arr || oc->sl)) return false;
         src = oc->bytes; len = oc->nbytes;
     }
-    own = malloc(len ? len : 1);
+    own = low_alloc(len ? len : 1);
     if (!own) return false;
     if (len) memcpy(own, src, len);
     *out = own; *n = len;
@@ -3337,7 +3338,7 @@ void ir_ctfe_record(ir_ctx_t *c, const low_cst_t *ce) {
     bool all = true;
     for (proven_size_t j = 0; j < na && all; j++) {
         bool u2;
-        free(cc->argb[j]); cc->argb[j] = NULL; cc->argsl[j] = false;
+        low_free(cc->argb[j]); cc->argb[j] = NULL; cc->argsl[j] = false;
         if (j < cc->nsty && cc->sty[j].size) {   // 구조체 입력 — 그 구조체의 바이트로(슬라이스면 원소마다)
             g_ctfe_arg_addr = false;
             if (cc->stsl[j] ? ir_ctfe_sslice_arg(c, cc->sty[j], ce->kids[j + 1], &cc->argb[j], &cc->argn[j])
@@ -3372,10 +3373,10 @@ static void ir_cell_value(ir_ctx_t *c, const low_cst_t *cf) {
 //   쓴다(이름 붙은 칸은 상수 가림 줄로 건너뛴다).
 static void ir_lit_fill(ir_ctx_t *c, const low_cst_t *blk, proven_size_t n, proven_u8 esz, bool flt, bool typed,
                         proven_i64 vmeta, bool want_frame, bool into, proven_u32 line) {
-    const low_cst_t **cell = n ? calloc(n, sizeof *cell) : NULL;
-    proven_u8 *tbuf = n ? calloc(n, esz) : NULL;
-    proven_u8 *mask = n ? calloc(n, 1) : NULL;
-    if (n && (!cell || !tbuf || !mask)) { free(cell); free(tbuf); free(mask); ir_fail(c, "E-IR-UNSUP", "out of memory for a cell fill", line); return; }
+    const low_cst_t **cell = n ? low_zalloc(n, sizeof *cell) : NULL;
+    proven_u8 *tbuf = n ? low_zalloc(n, esz) : NULL;
+    proven_u8 *mask = n ? low_zalloc(n, 1) : NULL;
+    if (n && (!cell || !tbuf || !mask)) { low_free(cell); low_free(tbuf); low_free(mask); ir_fail(c, "E-IR-UNSUP", "out of memory for a cell fill", line); return; }
     const low_cst_t *rest = NULL;
     bool all_const = true, named = false;
     for (proven_size_t q = 0; q < blk->nkids; q++) {
@@ -3462,7 +3463,7 @@ static void ir_lit_fill(ir_ctx_t *c, const low_cst_t *blk, proven_size_t n, prov
         ir_emit(c, IRW_LOAD, (proven_i64)tl);
     }
 done:
-    free(cell); free(tbuf); free(mask);
+    low_free(cell); low_free(tbuf); low_free(mask);
 }
 static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line, bool as_array);
 // ★ RFC-0132 T2b-3 — `lit vec T N v… .` 은 같은 바이트를 배열로 짓고(ⓑ 상수 풀, 실행 중 원소면 틀 안) 그 줄에서
@@ -3523,11 +3524,11 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
     proven_size_t bytes = cap_elems * esz;
     *pos = end;
     if (!any_value && !want_frame && !into) {                      // ⓑ 모두 `_` — 읽기 전용 0 바이트
-        proven_u8 *z = bytes ? calloc(bytes, 1) : NULL;
+        proven_u8 *z = bytes ? low_zalloc(bytes, 1) : NULL;
         if (bytes && !z) { ir_fail(c, "E-IR-UNSUP", "out of memory for a list literal", line); return; }
         proven_size_t sidx;
         bool ok = ir_intern_bytes(c, z, bytes, &sidx, line);
-        free(z);
+        low_free(z);
         if (!ok) return;
         ir_emit(c, IRW_STR, (proven_i64)sidx);
         ir_emit(c, IRW_VARRAY, vmeta);
@@ -3549,7 +3550,7 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
             ir_emit(c, IRW_LOAD, (proven_i64)tl); ir_emit(c, IRW_CONST, (proven_i64)(cell)); ir_emit(c, IRW_INDEX, 0); \
             ir_emit(c, IRW_LOAD, (proven_i64)tv); ir_emit(c, IRW_FIELD, (proven_i64)fid_); ir_emit(c, IRW_FSTORE, (proven_i64)fid_); } } while (0)
     if (blk) {                                                     // 칸 골라 채우기 — 검사층이 번호 · 모든 칸을 먼저 본다
-        unsigned char *named = cap_elems ? calloc(cap_elems, 1) : NULL;
+        unsigned char *named = cap_elems ? low_zalloc(cap_elems, 1) : NULL;
         if (cap_elems && !named) { ir_fail(c, "E-IR-UNSUP", "out of memory for a cell fill", line); return; }
         const low_cst_t *rest = NULL;
         for (proven_size_t q = 0; q < blk->nkids && !c->failed; q++) {
@@ -3568,7 +3569,7 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
             ir_emit(c, IRW_STORE, (proven_i64)tv);
             for (proven_size_t m = 0; m < cap_elems && !c->failed; m++) if (!named[m]) LSL_PUT(m);
         }
-        free(named);
+        low_free(named);
     } else {
         proven_size_t m = 0;
         for (proven_size_t q = e0; q < end && !c->failed; q++) {
@@ -3642,9 +3643,9 @@ static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos
     proven_i64 vmeta = ir_row_meta(ity, rb64, sub);
     *pos = end;
     if (!cnt && !want_frame && !into) {                            // ⓑ 모두 `_` — 읽기 전용 0
-        proven_u8 *z = bytes ? calloc(bytes, 1) : NULL;
+        proven_u8 *z = bytes ? low_zalloc(bytes, 1) : NULL;
         if (bytes && !z) { ir_fail(c, "E-IR-UNSUP", "out of memory for a list literal", line); return; }
-        proven_size_t sidx; bool ok = ir_intern_bytes(c, z, bytes, &sidx, line); free(z);
+        proven_size_t sidx; bool ok = ir_intern_bytes(c, z, bytes, &sidx, line); low_free(z);
         if (!ok) return;
         ir_emit(c, IRW_STR, (proven_i64)sidx);
         ir_emit(c, IRW_VARRAY, vmeta);

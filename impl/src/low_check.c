@@ -1,4 +1,5 @@
 // low_check.c — MVP static effect discipline (S4).
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "low_hwm.h"
 #include <string.h>
 #include <stdio.h>
@@ -8086,44 +8087,44 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
             if (i != nd->nkids - 1) { emit(out, "E-LIT-COUNT", "a list literal either lists its elements or fills chosen cells (`do … end`) — not both", ln); return; }
             if (n > (1LL << 24)) { emit(out, "E-LIT-COUNT", "this array is too long to fill cell by cell", ln); return; }
             proven_size_t nb = ((proven_size_t)n + 7u) / 8u;
-            unsigned char *seen = nb ? calloc(nb, 1) : NULL;
+            unsigned char *seen = nb ? low_zalloc(nb, 1) : NULL;
             if (nb && !seen) return;
             long long got = 0; bool rest = false;
             for (proven_size_t q = 0; q < blk->nkids; q++) {
                 const low_cst_t *c = blk->kids[q];
                 proven_u32 cl = c->kind == LOW_CST_FORM && c->nkids ? c->kids[0]->tok.line : ln;
                 if (c->kind != LOW_CST_FORM || c->nkids < 2 || c->kids[0]->kind != LOW_CST_ATOM) {
-                    emit(out, "E-LIT-INDEX", "each line of a cell fill is `<index> <value> .` (or `_ <value> .` for the rest)", cl); free(seen); return;
+                    emit(out, "E-LIT-INDEX", "each line of a cell fill is `<index> <value> .` (or `_ <value> .` for the rest)", cl); low_free(seen); return;
                 }
                 const low_cst_t *ix = c->kids[0];
                 if (ix->tok.kind == LOW_TOK_IDENT && veq(ix->tok.lex, "_")) {
-                    if (q + 1 != blk->nkids) { emit(out, "E-LIT-INDEX", "`_ <value> .` («every remaining cell») comes LAST in a cell fill", cl); free(seen); return; }
+                    if (q + 1 != blk->nkids) { emit(out, "E-LIT-INDEX", "`_ <value> .` («every remaining cell») comes LAST in a cell fill", cl); low_free(seen); return; }
                     rest = true;
                 } else {
                     if (ix->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), ix->tok.lex)) {
                         emit(out, "E-LIT-INDEX", "a cell index is a plain non-negative integer literal — which cells a literal fills is "
-                             "known when the program is translated", cl); free(seen); return;
+                             "known when the program is translated", cl); low_free(seen); return;
                     }
                     long long k = strtoll((const char *)ix->tok.lex.ptr, NULL, 0);
-                    if (k >= n) { emit(out, "E-LIT-INDEX", "this cell index is outside the array — indices run from 0 to length − 1", cl); free(seen); return; }
-                    if (seen[k / 8] & (1u << (k % 8))) { emit(out, "E-LIT-INDEX", "this cell is filled twice — each index appears once", cl); free(seen); return; }
+                    if (k >= n) { emit(out, "E-LIT-INDEX", "this cell index is outside the array — indices run from 0 to length − 1", cl); low_free(seen); return; }
+                    if (seen[k / 8] & (1u << (k % 8))) { emit(out, "E-LIT-INDEX", "this cell is filled twice — each index appears once", cl); low_free(seen); return; }
                     seen[k / 8] |= (unsigned char)(1u << (k % 8)); got++;
                 }
                 if (is_struct && c->nkids == 2 && c->kids[1]->kind == LOW_CST_ATOM &&
                     (c->kids[1]->tok.kind == LOW_TOK_NUMBER || c->kids[1]->tok.kw == LOW_KW_TRUE || c->kids[1]->tok.kw == LOW_KW_FALSE)) {
-                    emit(out, "E-TYPE-FIELD", "a list of structs holds struct values — write `lit <struct> do … end` or a name", cl); free(seen); return;
+                    emit(out, "E-TYPE-FIELD", "a list of structs holds struct values — write `lit <struct> do … end` or a name", cl); low_free(seen); return;
                 }
                 if (!is_struct && c->nkids == 2 && c->kids[1]->kind == LOW_CST_ATOM) {
                     const low_cst_t *e = c->kids[1];
                     bool tf = e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE;
-                    if (tf && !isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` value in a list of numbers — write the number", cl); free(seen); return; }
-                    if (e->tok.kind == LOW_TOK_NUMBER && isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` list holds `true`/`false` — a number is not a truth value", cl); free(seen); return; }
+                    if (tf && !isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` value in a list of numbers — write the number", cl); low_free(seen); return; }
+                    if (e->tok.kind == LOW_TOK_NUMBER && isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` list holds `true`/`false` — a number is not a truth value", cl); low_free(seen); return; }
                     if (e->tok.kind == LOW_TOK_NUMBER && !flt && !ck_lit_elem_fits(ty, e->tok.lex)) {
-                        emit(out, "E-TYPE-WIDTH", "this value does not fit the list's element type (a negative number never fits an unsigned type)", cl); free(seen); return;
+                        emit(out, "E-TYPE-WIDTH", "this value does not fit the list's element type (a negative number never fits an unsigned type)", cl); low_free(seen); return;
                     }
                 }
             }
-            free(seen);
+            low_free(seen);
             if (got < n && !rest)
                 emit(out, "E-LIT-COUNT", "some cells are not filled — end the fill with `_ <value> .` to say what every remaining cell "
                      "holds; cells are never filled silently", ln);
@@ -9059,10 +9060,13 @@ static void sb_spawned(const low_cst_t *nd, unsigned char *gt) {
 static void ck_stack_bound(low_check_result_t *out) {
     if (!ck_r1_tab || !ck_r1_nt) return;
     proven_size_t n = ck_r1_nt;
-    unsigned long long *memo = calloc(n, sizeof *memo);
-    unsigned char *state = calloc(n, 1), *called = calloc(n, 1), *gt = calloc(n, 1);
-    proven_size_t *own = calloc(n, sizeof *own);
-    if (!memo || !state || !called || !own || !gt) { free(memo); free(state); free(called); free(own); free(gt); return; }
+    // ★ W-20261112-0207 — 이 패스의 작업 배열 다섯은 한 아레나에서(끝에서 한 번에 돌려준다)
+    low_scratch_t sk_;
+    (void)low_scratch_open(&sk_, low_scratch_need(n, sizeof(unsigned long long)) + 3 * low_scratch_need(n, 1) + low_scratch_need(n, sizeof(proven_size_t)));
+    unsigned long long *memo = low_scratch_zalloc(&sk_, n, sizeof *memo);
+    unsigned char *state = low_scratch_zalloc(&sk_, n, 1), *called = low_scratch_zalloc(&sk_, n, 1), *gt = low_scratch_zalloc(&sk_, n, 1);
+    proven_size_t *own = low_scratch_zalloc(&sk_, n, sizeof *own);
+    if (!memo || !state || !called || !own || !gt) { low_scratch_close(&sk_); return; }
     bool any = false;
     for (proven_size_t i = 0; i < n; i++) {
         own[i] = ck_r1_tab[i].form ? ck_op_lbytes(ck_r1_tab[i].form) : 0;
@@ -9107,7 +9111,7 @@ static void ck_stack_bound(low_check_result_t *out) {
             }
         }
     }
-    free(memo); free(state); free(called); free(own); free(gt);
+    low_scratch_close(&sk_);
 }
 
 static void ck_regions(low_check_result_t *out, const low_cst_t *f, const low_cst_t *nd) {

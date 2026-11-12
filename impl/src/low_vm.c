@@ -11,6 +11,7 @@
  *
  * ★★★ 값: 증분 빌드의 96% 가 `low_ir.c` 였다(2724ms / 2833ms). 이제 둘이 `-j` 로 나란히 선다.
  */
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "low_ir_priv.h"
 
 extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파일 전용
@@ -61,13 +62,13 @@ static long long vm_proc_spawn(const unsigned char *p, size_t n) {
     if (n == 0 || p[0] == 0) return -1;
     int slot = 0; while (slot < VM_MAXPROC && vm_procs[slot].used) slot++;
     if (slot >= VM_MAXPROC) return -1;
-    char *buf = (char *)malloc(n + 1); if (!buf) return -1;
+    char *buf = (char *)low_alloc(n + 1); if (!buf) return -1;
     memcpy(buf, p, n); buf[n] = 0;
     char *argv[257]; int ac = 0; size_t s = 0;
     for (size_t i = 0; i <= n; i++)
-        if (i == n || buf[i] == 0) { if (i == n && s == n) break; if (ac >= 256) { free(buf); return -1; } argv[ac++] = buf + s; s = i + 1; }
+        if (i == n || buf[i] == 0) { if (i == n && s == n) break; if (ac >= 256) { low_free(buf); return -1; } argv[ac++] = buf + s; s = i + 1; }
     argv[ac] = 0;
-    int fds[2]; if (pipe(fds) != 0) { free(buf); return -1; }
+    int fds[2]; if (pipe(fds) != 0) { low_free(buf); return -1; }
     posix_spawn_file_actions_t fa; posix_spawn_file_actions_init(&fa);
     posix_spawn_file_actions_addopen(&fa, 0, "/dev/null", O_RDONLY, 0);
     posix_spawn_file_actions_adddup2(&fa, fds[1], 1);
@@ -76,7 +77,7 @@ static long long vm_proc_spawn(const unsigned char *p, size_t n) {
     posix_spawn_file_actions_addclose(&fa, fds[1]);
     pid_t pid = 0;
     int rc = posix_spawnp(&pid, argv[0], &fa, NULL, argv, environ);
-    posix_spawn_file_actions_destroy(&fa); free(buf); close(fds[1]);
+    posix_spawn_file_actions_destroy(&fa); low_free(buf); close(fds[1]);
     if (rc != 0) { close(fds[0]); return -1; }
     fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
     fcntl(fds[0], F_SETFD, FD_CLOEXEC);
@@ -462,7 +463,7 @@ static proven_u8 *vm_root_take(vm_ctx_t *vm, int root, proven_size_t n) {
     if (root == 0) {
         if (!vm->fixmem) {                      // 첫 호출 — 이 실행의 창 크기로 잡는다
             vm->fixcap = low_ir_fixed_bytes();
-            vm->fixmem = (proven_u8 *)calloc(vm->fixcap ? vm->fixcap : 1, 1);
+            vm->fixmem = (proven_u8 *)low_zalloc(vm->fixcap ? vm->fixcap : 1, 1);
             if (!vm->fixmem) return NULL;
         }
         if (n > vm->fixcap - vm->fixn) return NULL;
@@ -481,23 +482,23 @@ static proven_u8 *vm_root_take(vm_ctx_t *vm, int root, proven_size_t n) {
     }
     if (vm->hpn == vm->hpmax) {
         proven_size_t nm = vm->hpmax ? vm->hpmax * 2 : 16;
-        proven_u8 **c2 = (proven_u8 **)realloc(vm->hpch, nm * sizeof *c2);
+        proven_u8 **c2 = (proven_u8 **)low_realloc(vm->hpch, vm->hpmax * sizeof *c2, nm * sizeof *c2);   // ★ W-20261112-0207 — proven 힙
         if (!c2) return NULL;
         vm->hpch = c2;
-        proven_size_t *k2 = (proven_size_t *)realloc(vm->hpcap, nm * sizeof *k2);
+        proven_size_t *k2 = (proven_size_t *)low_realloc(vm->hpcap, vm->hpmax * sizeof *k2, nm * sizeof *k2);
         if (!k2) return NULL;
         vm->hpcap = k2;
-        proven_size_t *b2 = (proven_size_t *)realloc(vm->hpbase, nm * sizeof *b2);
+        proven_size_t *b2 = (proven_size_t *)low_realloc(vm->hpbase, vm->hpmax * sizeof *b2, nm * sizeof *b2);
         if (!b2) return NULL;
         vm->hpbase = b2;
         vm->hpmax = nm;
     }
     // ★ 되감긴 뒤의 남은 청크는 요청보다 작아서 못 쓴 것이다 — 뒤에 잇는다(순서는 논리 위치가 정한다).
     proven_size_t want = n > (proven_size_t)LOW_HEAP_CHUNK ? n : (proven_size_t)LOW_HEAP_CHUNK;
-    proven_u8 *blk = (proven_u8 *)malloc(want);
+    proven_u8 *blk = (proven_u8 *)low_alloc(want);
     if (!blk) return NULL;
     // 지금 청크 뒤의 (작아서 못 쓴) 청크들은 버린다 — 논리 위치가 단조로워야 되감기가 선다.
-    for (proven_size_t i = vm->hpcur + 1; i < vm->hpn; i++) free(vm->hpch[i]);
+    for (proven_size_t i = vm->hpcur + 1; i < vm->hpn; i++) low_free(vm->hpch[i]);
     proven_size_t i = vm->hpn ? vm->hpcur + 1 : 0;
     vm->hpch[i] = blk; vm->hpcap[i] = want;
     vm->hpbase[i] = i ? vm->hpbase[i - 1] + vm->hpcap[i - 1] : 0;
@@ -517,9 +518,9 @@ static bool vm_root_reset(vm_ctx_t *vm, int root, proven_size_t to) {
     vm->hpcur = 0; vm->hpoff = 0; return true;
 }
 static void vm_roots_free(vm_ctx_t *vm) {
-    free(vm->fixmem);
-    for (proven_size_t i = 0; i < vm->hpn; i++) free(vm->hpch[i]);
-    free(vm->hpch); free(vm->hpcap); free(vm->hpbase);
+    low_free(vm->fixmem);
+    for (proven_size_t i = 0; i < vm->hpn; i++) low_free(vm->hpch[i]);
+    low_free(vm->hpch); low_free(vm->hpcap); low_free(vm->hpbase);
 }
 
 static bool vm_vec_outside(const vm_ctx_t *vm, proven_size_t base) {
@@ -703,13 +704,13 @@ static vm_act *g_act_free;   // 자유 리스트(parent 로 잇는다) — 단�
 static vm_act *act_alloc(void) {
     vm_act *a = g_act_free;
     if (a) g_act_free = a->parent;
-    else { a = malloc(sizeof *a); if (a) { a->lbuf = NULL; a->lbuf_cap = 0; a->win.r = NULL; a->win.n = 0; a->win.cap = 0; a->wcap_alloc = 0; } }
+    else { a = low_alloc(sizeof *a); if (a) { a->lbuf = NULL; a->lbuf_cap = 0; a->win.r = NULL; a->win.n = 0; a->win.cap = 0; a->wcap_alloc = 0; } }
     return a;
 }
 // ★ T2b-2 — 이 op 의 틀 안 나열 자리를 담을 만큼 버퍼를 늘린다(줄이지 않는다 — 다음 호출이 되쓴다).
 static bool act_lbuf(vm_act *a, const low_ir_def_t *d) {
     if (d->lbuf_size <= a->lbuf_cap) return true;
-    proven_u8 *nb = realloc(a->lbuf, d->lbuf_size);
+    proven_u8 *nb = low_realloc(a->lbuf, a->lbuf_cap, d->lbuf_size);   // ★ W-20261112-0207 — proven 힙
     if (!nb) return false;
     a->lbuf = nb; a->lbuf_cap = d->lbuf_size;
     return true;
@@ -718,7 +719,7 @@ static void act_free(vm_act *a) { a->parent = g_act_free; g_act_free = a; }
 // ★ RFC-0132 P4e — 이 op 의 틀 창을 연다(칸은 비어 있다 · 칸의 배열 바이트 버퍼는 자리와 함께 되쓰인다).
 static bool act_win(vm_act *a, const low_ir_def_t *d) {
     if (d->nwin > a->wcap_alloc) {
-        vmrec_t *nr = realloc(a->win.r, sizeof *nr * d->nwin);
+        vmrec_t *nr = low_realloc(a->win.r, sizeof *nr * a->wcap_alloc, sizeof *nr * d->nwin);
         if (!nr) return false;
         for (proven_size_t i = a->wcap_alloc; i < d->nwin; i++) { nr[i].bytes = NULL; nr[i].bcap = 0; nr[i].nfields = 0; }
         a->win.r = nr; a->wcap_alloc = d->nwin;
@@ -819,7 +820,7 @@ static void vm_gc_fix(vmv_t *v, const vm_pmap_t *bx, const vm_pmap_t *rc,
 // ★ RFC-0132 T2b-3b — make 번호 → 배열 칸을 가진 구조체 번호(없으면 -1).
 static proven_i32 vm_mk_arr(vm_ctx_t *vm, proven_size_t mk) {
     if (!vm->mkarr) {
-        vm->mkarr = malloc(sizeof(proven_i16) * (vm->ir->nmakes ? vm->ir->nmakes : 1));
+        vm->mkarr = low_alloc(sizeof(proven_i16) * (vm->ir->nmakes ? vm->ir->nmakes : 1));
         if (!vm->mkarr) return -1;
         for (proven_size_t i = 0; i < vm->ir->nmakes; i++) vm->mkarr[i] = -2;
     }
@@ -934,7 +935,7 @@ static bool vm_rec_arrays(vm_ctx_t *vm, vmrec_t *r) {
         if (sf) tot += (((proven_size_t)sf->arrn * sf->arresz) + 7u) & ~(proven_size_t)7u;
     }
     if (tot > r->bcap) {
-        proven_u8 *nb = realloc(r->bytes, tot);
+        proven_u8 *nb = low_realloc(r->bytes, r->bcap, tot);   // ★ W-20261112-0207 — proven 힙(맞바꾼 버퍼도 제 bcap 을 든다)
         if (!nb) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for a struct's array fields"); return false; }
         r->bytes = nb; r->bcap = tot;
     }
@@ -1210,15 +1211,26 @@ static bool vm_conc_ensure(vm_ctx_t *vm, proven_size_t need_slots) {
         proven_size_t nc = g_gthr_cap ? g_gthr_cap : VM_GTHR;
         while (nc < need_slots) nc *= 2;
         proven_size_t nframes = VM_MAXCALL + nc * GT_DEPTH + 2;
-        vmframe_t    *nf = realloc(g_frames, nframes * sizeof *nf);
-        struct gthr_s *ng = realloc(g_gthr_pool, nc * sizeof *ng);
-        proven_size_t *nr = realloc(g_ready, nc * sizeof *nr);
-        char        **ns = realloc(g_gt_stk, nc * sizeof *ns);
-        if (!nf || !ng || !nr || !ns) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the green-thread pool"); return false; }
+        // ★ W-20261112-0207 — proven 힙. 하나씩 키우고 그 자리에서 적는다 — 전엔 넷을 다 받은 뒤에 적어, 뒤의 하나가 실패하면 앞의 것이
+        //   옮겨진 채(옛 포인터는 이미 풀렸다) 남았다.
+        vmframe_t *nf = low_realloc(g_frames, g_frames_cap * sizeof *nf, nframes * sizeof *nf);
+        if (!nf) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the green-thread pool"); return false; }
         memset((char *)nf + g_frames_cap * sizeof *nf, 0, (nframes - g_frames_cap) * sizeof *nf);
+        g_frames = nf; g_frames_cap = nframes;
+        struct gthr_s *ng = low_realloc(g_gthr_pool, g_gthr_cap * sizeof *ng, nc * sizeof *ng);
+        if (!ng) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the green-thread pool"); return false; }
+        g_gthr_pool = ng;
+        proven_size_t *nr = low_realloc(g_ready, g_gthr_cap * sizeof *nr, nc * sizeof *nr);
+        if (!nr) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the green-thread pool"); return false; }
+        g_ready = nr;
+        char **ns = low_realloc(g_gt_stk, g_gthr_cap * sizeof *ns, nc * sizeof *ns);
+        if (!ns) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the green-thread pool"); return false; }
+        g_gt_stk = ns;
         memset((char *)ng + g_gthr_cap   * sizeof *ng, 0, (nc - g_gthr_cap) * sizeof *ng);
-        for (proven_size_t i = g_gthr_cap; i < nc; i++) { ns[i] = malloc(GT_STK); if (!ns[i]) { vm_diag(vm->diags, "E-VM-OOM", "out of memory allocating a green-thread stack"); return false; } }
-        g_frames = nf; g_frames_cap = nframes; g_gthr_pool = ng; g_gthr_cap = nc; g_ready = nr; g_gt_stk = ns;
+        // 그린스레드 스택(GT_STK 바이트) — 자리마다 한 번 받고 돌려주지 않는다(되쓰인다) · 그래서 풀이 아니라 힙이다(풀은 돌려받는 것을 되돌릴 때 값을 한다)
+        for (proven_size_t i = g_gthr_cap; i < nc; i++) { ns[i] = NULL; }
+        for (proven_size_t i = g_gthr_cap; i < nc; i++) { ns[i] = low_alloc(GT_STK); if (!ns[i]) { vm_diag(vm->diags, "E-VM-OOM", "out of memory allocating a green-thread stack"); return false; } }
+        g_gthr_cap = nc;
     }
     vm->frames = g_frames; vm->gthr = g_gthr_pool;   // memset 후 재연결
     return true;
@@ -1234,7 +1246,7 @@ static proven_size_t slot_alloc(vm_ctx_t *vm) {
     if (s >= g_frames_cap) {   // 참조 프레임 풀을 키운다(frames[])
         proven_size_t nc = g_frames_cap ? g_frames_cap * 2 : 256;
         while (nc <= s) nc *= 2;
-        vmframe_t *nf = realloc(g_frames, nc * sizeof *nf);
+        vmframe_t *nf = low_realloc(g_frames, g_frames_cap * sizeof *nf, nc * sizeof *nf);   // ★ W-20261112-0207 — proven 힙
         if (!nf) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the reference-frame pool"); return (proven_size_t)-1; }
         memset((char *)nf + g_frames_cap * sizeof *nf, 0, (nc - g_frames_cap) * sizeof *nf);
         g_frames = nf; g_frames_cap = nc; vm->frames = g_frames;
@@ -1243,7 +1255,7 @@ static proven_size_t slot_alloc(vm_ctx_t *vm) {
     if (g_slot_hw + 1 > g_slot_free_cap) {
         proven_size_t nc = g_slot_free_cap ? g_slot_free_cap * 2 : 256;
         while (nc < g_slot_hw + 1) nc *= 2;
-        proven_size_t *nsf = realloc(g_slot_free, nc * sizeof *nsf);
+        proven_size_t *nsf = low_realloc(g_slot_free, g_slot_free_cap * sizeof *nsf, nc * sizeof *nsf);
         if (!nsf) { vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the slot free-list"); return (proven_size_t)-1; }
         g_slot_free = nsf; g_slot_free_cap = nc;
     }
@@ -1381,7 +1393,7 @@ static bool vm_grefill(vm_ctx_t *vm) {
     vm_grelease(vm);
     proven_u32 nw = vm->nwake; vm->nwake = 0;
     proven_u32 w[VM_MAXREC > 64 ? 64 : VM_MAXREC], *wv = w;   /* 풀린 액터의 맨 앞 칸 + 1 — 보통 하나 */
-    proven_u32 *heap = (nw > (sizeof w / sizeof w[0])) ? malloc(nw * sizeof *heap) : NULL;
+    proven_u32 *heap = (nw > (sizeof w / sizeof w[0])) ? low_alloc(nw * sizeof *heap) : NULL;
     if (heap) wv = heap; else if (nw > (sizeof w / sizeof w[0])) return false;
     proven_u32 n = 0;
     for (proven_u32 k = 0; k < nw; k++) {
@@ -1401,7 +1413,7 @@ static bool vm_grefill(vm_ctx_t *vm) {
         ok = vm_gabsorb(vm, q);
     }
     vm->mb_scan = cur;   /* 다 훑었으면 0 — 남은 것은 모두 쥔 액터의 것 */
-    free(heap);
+    low_free(heap);
     return ok;
 }
 static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
@@ -5580,14 +5592,14 @@ static const low_ir_t *g_rel_ir;
 static proven_u8 *g_rel_buf[IR_MAXSTRS];
 void low_vm_forget_ir(const low_ir_t *ir) {
     if (ir != g_rel_ir) return;
-    for (proven_size_t i = 0; i < IR_MAXSTRS; i++) { free(g_rel_buf[i]); g_rel_buf[i] = NULL; }
+    for (proven_size_t i = 0; i < IR_MAXSTRS; i++) { low_free(g_rel_buf[i]); g_rel_buf[i] = NULL; }
     g_rel_ir = NULL;
 }
 static const proven_u8 *vm_rel_bytes(const low_ir_t *ir, proven_size_t si) {
     if (g_rel_ir != ir) { low_vm_forget_ir(g_rel_ir); g_rel_ir = ir; }
     if (g_rel_buf[si]) return g_rel_buf[si];
     const proven_u8str_view_t s = ir->strs[si];
-    proven_u8 *b = malloc(s.size ? s.size : 1);
+    proven_u8 *b = low_alloc(s.size ? s.size : 1);
     if (!b) return NULL;
     if (s.size) memcpy(b, s.ptr, s.size);
     for (proven_size_t r = 0; r < ir->nsrel; r++) {
@@ -5776,8 +5788,8 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
 
     static vm_ctx_t vm;   // pools are large; single-threaded CLI/test use
     vm_roots_free(&vm);   // ★ 앞 실행이 잡은 뿌리를 돌려준다(--test 는 같은 구조체로 여러 번 돈다)
-    for (proven_size_t i = 0; i < VM_MAXREC; i++) free(vm.recs[i].bytes);   // ★ T2b-3b 배열 칸 버퍼
-    free(vm.mkarr);
+    for (proven_size_t i = 0; i < VM_MAXREC; i++) low_free(vm.recs[i].bytes);   // ★ T2b-3b 배열 칸 버퍼
+    low_free(vm.mkarr);
     memset(&vm, 0, sizeof vm);
     vm.ir = ir; vm.diags = diags;
     vm.budget = g_vm_budget; vm.steps = 0; vm.budget_hit = false;   // ★ 오라클만 0 이 아니다

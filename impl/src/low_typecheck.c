@@ -1,4 +1,5 @@
 // low_typecheck.c — MVP static type checking (S4): kind-level + integer width/sign.
+#include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "low_hwm.h"
 #include "low_typecheck.h"
 
@@ -2642,7 +2643,7 @@ static bool g_note_live;    // 이 단위의 검사가 답을 적었는가 — �
 // ★★★ RFC-0148 S4-2 (2026-10-14 소유자 «검사기 답이 권위») — 답은 **늘** 적는다. 하강층이 그것을 권위로 읽는다(`low_ir.c` 의 `ir_value`).
 //   `LOWENT_LIST_TYPES=1` 은 이제 두 답을 한 줄로 **내는 것**만 켠다(`low_tc_list_types`).
 bool low_tc_notes_on(void) {
-    if (g_note_on < 0) g_note_on = (g_note = calloc(TC_NOTE_CAP, sizeof *g_note)) ? 1 : 0;
+    if (g_note_on < 0) g_note_on = (g_note = low_zalloc(TC_NOTE_CAP, sizeof *g_note)) ? 1 : 0;
     return g_note_on == 1;
 }
 bool low_tc_notes_live(void) { return g_note_live && low_tc_notes_on(); }

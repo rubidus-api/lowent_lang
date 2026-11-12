@@ -23,23 +23,10 @@
 #include <stdlib.h>
 
 #include "proven/heap.h"
-#include "proven/alloc_check.h"
-// ★ 2026-10-02 (proven v0.6.0 `alloc_check.h`) — 이 처리기의 힙은 모두 여기서 받는다. `make alloccheck` 빌드
-//   (`-DPROVEN_ALLOC_CHECK`)에서는 블록을 아는 할당기로 감싸 **남의 블록 해제 · 두 번 해제 · 크기가 틀린 realloc** 을
-//   그 자리에서 멈춘다(proven_panic). 보통 빌드에서는 `proven_alloc_checked` 가 힙을 그대로 돌려준다 — 비용 0.
-#ifdef PROVEN_ALLOC_CHECK
-#define LW_AC_CAP (1u << 21)
-static proven_alloc_check_entry_t g_ac_rec[LW_AC_CAP];
-#else
-#define LW_AC_CAP 0u
-static proven_alloc_check_entry_t *g_ac_rec;
-#endif
-static proven_alloc_check_t g_ac;
-static proven_allocator_t lw_heap(void) {
-    static bool made; static proven_allocator_t a;
-    if (!made) { a = proven_alloc_checked(&g_ac, proven_heap_allocator(), g_ac_rec, LW_AC_CAP); made = true; }
-    return a;
-}
+#include "low_mem.h"
+// ★ 2026-10-02 (proven v0.6.0 `alloc_check.h`) — 이 처리기의 힙은 모두 한 자리에서 받는다(2026-11-12 부터 low_mem.c 의 `low_heap` —
+//   파일마다 같은 할당기를 쓰게 옮겼다). `make alloccheck` 빌드에서는 블록을 아는 할당기로 감싼다.
+#define lw_heap low_heap
 #include "proven/arena.h"
 #include "proven/version.h"
 #include "proven/float_parse.h"
@@ -73,7 +60,7 @@ static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *
     long n = ftell(f);
     if (n < 0) { fclose(f); return false; }
     rewind(f);
-    proven_byte_t *buf = malloc((size_t)n + 1);
+    proven_byte_t *buf = low_alloc((size_t)n + 1);
     if (!buf) { fclose(f); return false; }
     size_t got = fread(buf, 1, (size_t)n, f);
     fclose(f);
@@ -310,12 +297,12 @@ static void inc_lock_name(const char *real, char *out, size_t cap) {
 static bool inc_read(const char *real, proven_u8 **out, proven_size_t *n, char *why, size_t whycap) {
     FILE *fp = fopen(real, "rb");
     if (!fp) { snprintf(why, whycap, "`include_text`: cannot read `%.200s`", real); return false; }
-    proven_u8 *b = malloc(INC_MAX + 1);
+    proven_u8 *b = low_alloc(INC_MAX + 1);
     size_t got = b ? fread(b, 1, INC_MAX + 1, fp) : 0;
     const bool err = !b || ferror(fp);
     fclose(fp);
     if (err || got > INC_MAX) {
-        free(b);
+        low_free(b);
         snprintf(why, whycap, err ? "`include_text`: reading `%.200s` failed" : "`include_text`: `%.200s` is larger than 1 MiB — a file read when translating holds at most that", real);
         return false;
     }
@@ -334,12 +321,12 @@ static bool inc_reader(const char *srcfile, const char *rel, proven_u8 **out, pr
         if (strcmp(g_lock[i].hex, hex) == 0) return true;
         snprintf(why, whycap, "E-DEP-HASH: `include_text \"%.100s\"` does NOT match the lockfile (`%.100s` locked %.16s…, actual %.16s…) — "
                  "the file changed since `--lock-write`; a pinned build does not read different bytes under the same name", rel, name, g_lock[i].hex, hex);
-        free(*out); *out = NULL;
+        low_free(*out); *out = NULL;
         return false;
     }
     snprintf(why, whycap, "E-DEP-UNLOCKED: `include_text \"%.100s\"` has no entry in the lockfile (`%.100s`) — run with --lock-write to record "
              "what you are building against", rel, name);
-    free(*out); *out = NULL;
+    low_free(*out); *out = NULL;
     return false;
 }
 
@@ -495,7 +482,7 @@ static void std_scan_dir(const char *dir) {
             }
             break;
         }
-        free(line);
+        free(line);   // getline 의 버퍼 — C 가 준 것이라 C 에 돌려준다(파일 읽기를 proven 으로 바꿀 때 함께 간다)
         fclose(f);
     }
     closedir(d);
@@ -667,9 +654,9 @@ static int cmd_build(int nargs, char **args) {
         size_t k = fread(chunk, 1, sizeof chunk, cp);
         if (!k) break;
         if (clen + k + 1 > ccap) {
-            ccap = (clen + k + 1) * 2;
-            char *g = (char *)realloc(clog, ccap);
-            if (!g) { free(clog); pclose(cp); fprintf(stderr, "lowentc build: out of memory\n"); return 1; }
+            size_t occ_ = ccap; ccap = (clen + k + 1) * 2;
+            char *g = (char *)low_realloc(clog, occ_, ccap);   // ★ W-20261112-0207 — proven 힙(옛 크기를 넘긴다)
+            if (!g) { low_free(clog); pclose(cp); fprintf(stderr, "lowentc build: out of memory\n"); return 1; }
             clog = g;
         }
         memcpy(clog + clen, chunk, k); clen += k;
@@ -677,12 +664,12 @@ static int cmd_build(int nargs, char **args) {
     int crc = pclose(cp);
     if (crc != 0) {
         if (clog) { clog[clen] = 0; fputs(clog, stdout); }
-        free(clog);
+        low_free(clog);
         printf("   ^ `build` REFUSED this unit: it does not pass the same checks as `--check`. "
                "A program the language rejects must not be built — that is the whole of the promise.\n");
         return 2;
     }
-    free(clog);
+    low_free(clog);
     snprintf(cfile, sizeof cfile, "%s/.%s.c", outdir, name);
     snprintf(bin, sizeof bin, "%s/%s", outdir, name);
     snprintf(cmd, sizeof cmd, "\"%s\"%s --emit-c \"%s\" > \"%s\"", self, pass, entry, cfile);
@@ -698,14 +685,14 @@ static int cmd_build(int nargs, char **args) {
     char key[65] = { 0 };
     if (read_file(cfile, &cb, &cn)) {
         // 링크 플래그도 정체의 일부다 — 같은 C 를 다른 라이브러리로 링크하면 다른 산물이다.
-        proven_byte_t *mix = (proven_byte_t *)malloc(cn + sizeof ld);
+        proven_byte_t *mix = (proven_byte_t *)low_alloc(cn + sizeof ld);
         if (mix) {
             memcpy(mix, cb, cn);
             memcpy(mix + cn, ld, sizeof ld);
             hash_hex(mix, cn + sizeof ld, key);
-            free(mix);
+            low_free(mix);
         }
-        free(cb);
+        low_free(cb);
     }
     const char *home = getenv("HOME");
     char cache[736] = { 0 };
@@ -765,7 +752,7 @@ static int cmd_add(const char *name, const char *source) {
     }
     char hex[65];
     hash_hex(db, dl, hex);
-    free(db);
+    low_free(db);
     FILE *f = fopen(pkg.path, "a");
     if (!f) { fprintf(stderr, "lowentc add: cannot write %s\n", pkg.path); return 1; }
     fprintf(f, "use %s from \"%s\" hash \"%s\" .\n", name, source, hex);
@@ -916,7 +903,7 @@ static int cmd_verify(int n, char **a) {
     if (!read_file(file, &b, &ln)) { fprintf(stderr, "lowentc verify: cannot read %s\n", file); return 1; }
     char hex[65];
     hash_hex(b, ln, hex);
-    free(b);
+    low_free(b);
     int rc = 0;
     printf("verify %s\n", file);
     printf("  [3 integrity]     BLAKE3 %s\n", hex);
@@ -1011,7 +998,7 @@ static bool cache_fetch(const char *name, const char *url, const char *pin, char
     if (!read_file(tmp, &b, &n)) { remove(tmp); fprintf(stderr, "E-PKG-FETCH: fetched but cannot read %s\n", tmp); return false; }
     char hex[65];
     hash_hex(b, n, hex);
-    free(b);
+    low_free(b);
     if (strcmp(hex, pin) != 0) {
         remove(tmp);
         fprintf(stderr, "E-DEP-HASH: `%s` fetched from %s does NOT match the pin.\n"
@@ -1052,7 +1039,7 @@ static int cmd_fetch(void) {
             if (read_file(tmp, &b, &n)) {
                 char hex[65];
                 hash_hex(b, n, hex);
-                free(b);
+                low_free(b);
                 printf("UNPINNED %s — the server sent bytes hashing to:\n  %s\n"
                        "  pin it in %s:\n  use %s from \"%s\" hash \"%s\" .\n",
                        d->name, hex, pkg.path, d->name, d->source, hex);
@@ -1071,9 +1058,9 @@ static bool copy_file(const char *from, const char *to) {
     proven_byte_t *b = NULL; proven_size_t n = 0;
     if (!read_file(from, &b, &n)) return false;
     FILE *o = fopen(to, "wb");
-    if (!o) { free(b); return false; }
+    if (!o) { low_free(b); return false; }
     size_t w = fwrite(b, 1, n, o);
-    fclose(o); free(b);
+    fclose(o); low_free(b);
     return w == n;
 }
 static int cmd_install(int nargs, char **args) {
@@ -1100,7 +1087,7 @@ static int cmd_install(int nargs, char **args) {
         }
         p = strchr(p, '\n');
     }
-    if (!mod[0]) { free(b); fprintf(stderr, "lowentc install: %s declares no `module` — there is nothing to name the installation after\n", src); return 1; }
+    if (!mod[0]) { low_free(b); fprintf(stderr, "lowentc install: %s declares no `module` — there is nothing to name the installation after\n", src); return 1; }
     char dest[600];
     if (prefix) snprintf(dest, sizeof dest, "%s", prefix);
     else if (sys) {
@@ -1111,7 +1098,7 @@ static int cmd_install(int nargs, char **args) {
         snprintf(dest, sizeof dest, "%s/../std", self);
     } else {
         const char *home = getenv("HOME");
-        if (!home) { free(b); fprintf(stderr, "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
+        if (!home) { low_free(b); fprintf(stderr, "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
         char base[600];
         snprintf(base, sizeof base, "%s/.lowent", home); mkdir(base, 0755);
         snprintf(dest, sizeof dest, "%s/.lowent/lib", home);
@@ -1124,7 +1111,7 @@ static int cmd_install(int nargs, char **args) {
     char to[736];
     snprintf(to, sizeof to, "%s/%s.low", dest, mod);
     FILE *o = fopen(to, "wb");
-    if (!o || fwrite(b, 1, n, o) != n) { if (o) fclose(o); free(b); fprintf(stderr, "lowentc install: cannot write %s (need --prefix or permissions?)\n", to); return 1; }
+    if (!o || fwrite(b, 1, n, o) != n) { if (o) fclose(o); low_free(b); fprintf(stderr, "lowentc install: cannot write %s (need --prefix or permissions?)\n", to); return 1; }
     fclose(o);
     char hex[65]; hash_hex(b, n, hex);
     printf("installed %s → %s (%.12s…)\n", mod, to, hex);
@@ -1138,10 +1125,10 @@ static int cmd_install(int nargs, char **args) {
                 "%d — installing only part of them would put an INCOMPLETE package on disk. "
                 "Refusing is the honest answer (split the module, or raise MAX_DEPS_PER_FILE "
                 "and say why)\n", dtotal, nd);
-        free(b);
+        low_free(b);
         return 1;
     }
-    free(b);
+    low_free(b);
     for (int d = 0; d < nd; d++) {
         if (!dpp[d][0] || dpp[d][0] == '/' || strstr(dpp[d], "://")) continue;
         char from[736], toc[736];
@@ -1298,10 +1285,10 @@ static int run_arg_take(const char *tok, const char *run_op,
                     "own code)\n", fp, alen, (unsigned long long)LOW_ARGFILE_MAX);
             return 2;
         }
-        proven_u8 *ab = (proven_u8 *)calloc((size_t)alen ? (size_t)alen : 1, 1);
+        proven_u8 *ab = (proven_u8 *)low_zalloc((size_t)alen ? (size_t)alen : 1, 1);
         if (!ab) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: out of memory for `%s`\n", fp); return 2; }
         if (alen > 0 && fread(ab, 1, (size_t)alen, af) != (size_t)alen) {
-            fclose(af); free(ab);
+            fclose(af); low_free(ab);
             fprintf(stderr, "E-CLI-ARGFILE: short read on `%s` — a half-read argument is not an argument\n", fp);
             return 2;
         }
@@ -1728,10 +1715,10 @@ int main(int argc, char **argv) {
     for (int fi = 0; fi < npaths; fi++) {
         if (fi == 0 && g_text_stdin) {
             proven_size_t cap = 1 << 16, blen = 0;
-            proven_byte_t *b = malloc(cap);
+            proven_byte_t *b = low_alloc(cap);
             for (size_t got; b && (got = fread(b + blen, 1, cap - blen - 1, stdin)) > 0; ) {
                 blen += got;
-                if (cap - blen < 2) { proven_byte_t *nb = realloc(b, cap * 2); if (!nb) { free(b); b = NULL; break; } b = nb; cap *= 2; }
+                if (cap - blen < 2) { proven_byte_t *nb = low_realloc(b, cap, cap * 2); if (!nb) { low_free(b); b = NULL; break; } b = nb; cap *= 2; }
             }
             if (!b) { fprintf(stderr, "lowentc: out of memory reading the text from standard input\n"); return 1; }
             b[blen] = 0;
@@ -2012,7 +1999,7 @@ int main(int argc, char **argv) {
                     bool dup = false;
                     for (int z = 0; z < nseen; z++) if (!strcmp(seen[z], name)) dup = true;
                     if (!dup && nseen < 64) { snprintf(seen[nseen++], sizeof seen[0], "%s", name); hash_hex(b, bn, hex); lock_emit(name, hex); }
-                    free(b);
+                    low_free(b);
                 }
                 proven_array_destroy(&ix.diags); proven_array_destroy(&ix.tokens);
             }
@@ -2045,7 +2032,7 @@ int main(int argc, char **argv) {
     //   넘어, 381 줄에서 아레나가 찼다. 256 배로 잡는다(큰 malloc 은 쓴 만큼만 실제 메모리가 된다). 그래도 차면
     //   파서가 E-PARSE-LIMIT 로 말한다.
     proven_size_t node_bytes = total * 256 + (proven_size_t)(1u << 20);
-    void *node_mem = malloc(node_bytes);
+    void *node_mem = low_alloc(node_bytes);
     proven_arena_t node_arena = proven_arena_create((proven_mem_mut_t){ .ptr = node_mem, .size = node_bytes });
     proven_allocator_t nodes0 = proven_arena_as_allocator(&node_arena);
 
@@ -2119,7 +2106,7 @@ int main(int argc, char **argv) {
                 // ★ RFC-0141 `--migrate` — 파서가 적어 둔 «고칠 글자» 만 원문에 적용한다. 나머지 글자 · 줄바꿈 · 주석은 그대로다.
                 proven_size_t nfx = 0;
                 const low_fix_t *fx = low_parse_fixes(&nfx);
-                proven_size_t *ls = (proven_size_t *)malloc(sizeof(proven_size_t) * (s2.size + 2));
+                proven_size_t *ls = (proven_size_t *)low_alloc(sizeof(proven_size_t) * (s2.size + 2));
                 proven_size_t nl = 0;
                 if (!ls) { fprintf(stderr, "lowentc: out of memory\n"); return 1; }
                 ls[nl++] = 0;
@@ -2144,7 +2131,7 @@ int main(int argc, char **argv) {
                     ((low_fix_t *)fx)[best].line = 0;           // 썼다
                 }
                 fwrite(s2.ptr + at, 1, s2.size - at, stdout);
-                free(ls);
+                low_free(ls);
                 fprintf(stderr, "migrate: %zu edit(s)\n", (size_t)nfx);
                 return 0;
             }
@@ -2287,18 +2274,18 @@ int main(int argc, char **argv) {
             fflush(stdout);
             dup2(saved, 1); close(saved);
             long sz = ftell(tf) < 0 ? 0 : (fseek(tf, 0, SEEK_END), ftell(tf));
-            char *fbuf = (char *)malloc((size_t)sz + 1);
+            char *fbuf = (char *)low_alloc((size_t)sz + 1);
             if (!fbuf) { fprintf(stderr, "lowentc: out of memory\n"); return 1; }
             rewind(tf);
             size_t got = fread(fbuf, 1, (size_t)sz, tf);
             fclose(tf);
-            if (getenv("LOW_FMT_RAW")) { fwrite(fbuf, 1, got, stdout); free(fbuf); return 0; }   /* 디버그 — 올리기 전의 글 */
+            if (getenv("LOW_FMT_RAW")) { fwrite(fbuf, 1, got, stdout); low_free(fbuf); return 0; }   /* 디버그 — 올리기 전의 글 */
             if (!low_closer_raise_text(heap, fbuf, got, stdout)) {
                 fprintf(stderr, "lowentc: --fmt could not print this file in the one-closer surface (RFC-0142) — nothing was written\n");
-                free(fbuf);
+                low_free(fbuf);
                 return 1;
             }
-            free(fbuf);
+            low_free(fbuf);
         }
     } else if (want_zones) {
         // ★★★ **안전지대 경계** (RFC-0065 §5) — 최상위 선언마다 이름·시작 줄·끝 줄.
@@ -2657,10 +2644,10 @@ int main(int argc, char **argv) {
         //   첫 줄을 돌리기 전에는 `\x1ebegin` 을 적는다 — 그 앞은 번역하며 나온 말이다.
         if (run_batch && !run_op && !run_refused && !lex.diags.len && !pr.diags.len) {
             proven_size_t cap = 1 << 16, blen = 0;
-            char *all = (char *)malloc(cap);
+            char *all = (char *)low_alloc(cap);
             for (size_t got; all && (got = fread(all + blen, 1, cap - blen - 1, stdin)) > 0; ) {
                 blen += got;
-                if (cap - blen < 2) { cap *= 2; all = (char *)realloc(all, cap); }
+                if (cap - blen < 2) { char *na_ = (char *)low_realloc(all, cap, cap * 2); if (!na_) { low_free(all); all = NULL; break; } all = na_; cap *= 2; }
             }
             if (!all) { fprintf(stderr, "E-CLI-BATCH: out of memory reading the batch\n"); return 2; }
             all[blen] = '\0';
@@ -2717,7 +2704,7 @@ int main(int argc, char **argv) {
             }
             if (!child) {
                 fflush(stdout); fflush(stderr);
-                free(all);
+                low_free(all);
                 low_ir_free(heap, &ir);
                 return 0;
             }
@@ -2974,9 +2961,9 @@ int main(int argc, char **argv) {
 
     if (pr.forms) heap.free_fn(heap.ctx, pr.forms);
     proven_array_destroy(&pr.diags);
-    free(node_mem);
+    low_free(node_mem);
     proven_array_destroy(&lex.tokens);
     proven_array_destroy(&lex.diags);
-    free(buf);
+    low_free(buf);
     return rc;
 }

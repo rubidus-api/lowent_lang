@@ -41,6 +41,15 @@ PROVEN_SRC := \
   $(PROVEN)/src/proven/utf.c \
   $(PROVEN)/src/proven/u16str.c \
   $(PROVEN)/src/proven/alloc_check.c \
+  $(PROVEN)/src/proven/stream.c \
+  $(PROVEN)/src/proven/sysio.c \
+  $(PROVEN)/src/proven/fs.c \
+  $(PROVEN)/src/proven/scan.c \
+  $(PROVEN)/src/proven/algorithm.c \
+  $(PROVEN)/src/proven/random.c \
+  $(PROVEN)/platform/proven_sys_env.c \
+  $(PROVEN)/platform/proven_sys_fs.c \
+  $(PROVEN)/platform/proven_sys_io.c \
   $(PROVEN)/platform/proven_sys_mem.c \
   $(PROVEN)/platform/proven_sys_time.c \
   $(PROVEN)/platform/proven_sys_random.c
@@ -61,6 +70,10 @@ PROVEN_SRC := \
 #     부동 리터럴과 `--run` 의 부동 인자를 `proven_strtod` 가 읽는다(src/low_token.h `low_num_parse_double` · main.c `run_arg_float`).
 # ★ 2026-11-12 (W-20261112-0207 S2, 소유자 «printf 류 … 프로븐 쪽 입출력 포매팅 함수로»): `fmt.c`·`float_format.c` — 처리기가 버퍼에 글을 짓는
 #   자리(전엔 snprintf)를 proven 의 포매터가 한다(src/low_fmt.h `low_bfmt`). float_format.c 는 fmt.c 가 부른다.
+
+# ★ 2026-11-13 (W-20261113-0024 단계 B, 소유자 «단계B 이어서»): `stream.c`·`sysio.c`·`fs.c` + platform 의 `fs`·`io` — 처리기가 내보내는
+#   바이트의 통로(src/low_out.h `low_out_t`)가 proven 의 쓰기 도구다: 표준 출력 · 표준 오류 · 쓰려고 연 파일 · 메모리.
+#   `scan.c`·`algorithm.c`·`random.c`·platform `env` 는 sysio.c · fs.c 가 부른다(링크가 찾는 심볼).
 
 LOW_SRC := $(filter-out src/main.c,$(wildcard src/*.c))
 LOW_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(LOW_SRC))

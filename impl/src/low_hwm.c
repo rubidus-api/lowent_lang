@@ -27,6 +27,6 @@ void low_hwm_note(const char *name, size_t v, size_t cap) {
 void low_hwm_dump(void) {
     if (!low_hwm_on()) return;
     for (size_t i = 0; i < g_n; i++)
-        low_fpf(stderr, "HWM\t{}\t{}\t{}\n", proven_arg_cstr(g[i].name), PROVEN_ARG((size_t)(g[i].hi)), PROVEN_ARG((size_t)(g[i].cap)));
-    if (g_full) low_fpf(stderr, "HWM\t(표가 넘쳤다 — 계측 자신이 자르고 있다)\t0\t0\n");
+        low_fpf(low_stderr(), "HWM\t{}\t{}\t{}\n", proven_arg_cstr(g[i].name), PROVEN_ARG((size_t)(g[i].hi)), PROVEN_ARG((size_t)(g[i].cap)));
+    if (g_full) low_fpf(low_stderr(), "HWM\t(표가 넘쳤다 — 계측 자신이 자르고 있다)\t0\t0\n");
 }

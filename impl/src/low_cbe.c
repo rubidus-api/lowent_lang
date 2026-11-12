@@ -31,7 +31,7 @@
 //   프리스탠딩에 남기는 것: 자립 헤더(stdint/stdalign/string/math) + newlib 가 주는 setjmp.
 //   빼는 것: OS 가 있어야 뜻이 있는 전부(스레드·파일계·소켓·stdio/stdlib).
 
-static void put_view(FILE *o, proven_u8str_view_t v) { fwrite(v.ptr, 1, v.size, o); }
+static void put_view(low_out_t *o, proven_u8str_view_t v) { low_write(o, v.ptr, v.size); }
 
 // ★★★ **C 심볼 이름은 이름만으로는 유일하지 않다.**
 //
@@ -81,10 +81,10 @@ static proven_size_t cbe_export_cname(const low_ir_def_t *d, char *buf, proven_s
     buf[o] = 0;
     return o;
 }
-static void put_export_name(FILE *o, const low_ir_def_t *d) {
+static void put_export_name(low_out_t *o, const low_ir_def_t *d) {
     char nb[512];
     proven_size_t n = cbe_export_cname(d, nb, sizeof nb);
-    fwrite(nb, 1, n, o);
+    low_write(o, nb, n);
 }
 
 // ★★★★★ **`#line` 을 낸다** (2026-09-10, REQ-0015 · WO-0196).
@@ -95,7 +95,7 @@ static void put_export_name(FILE *o, const low_ir_def_t *d) {
 //     아무것도 안 말하는 것보다 낫다 — 완벽한 대응은 문장 단위 IR 이 아니라 표현식 단위
 //     IR 을 요구하고, 그것은 이 항목의 일이 아니다.
 //   ☞ *줄을 못 주면 이름이라도 준다. 그러나 줄을 줄 수 있으면 줄을 준다.*
-static void cbe_line(FILE *o, const low_ir_t *ir, const low_ir_ins_t *in,
+static void cbe_line(low_out_t *o, const low_ir_t *ir, const low_ir_ins_t *in,
                      proven_u32 *last_ln, proven_u16 *last_fid) {
     if (!in->line || !in->fileid || (proven_size_t)in->fileid >= ir->nfiles) return;
     // ★★★ **바뀔 때만 찍으면 안 된다** (2026-09-10, 실측으로 배웠다).
@@ -108,23 +108,23 @@ static void cbe_line(FILE *o, const low_ir_t *ir, const low_ir_ins_t *in,
     if (!f || !*f) return;
     low_fpf(o, "#line {} \"", PROVEN_ARG((unsigned)((unsigned)in->line)));
     for (const char *s = f; *s; s++) {
-        if (*s == '"' || *s == '\\') fputc('\\', o);
-        fputc(*s, o);
+        if (*s == '"' || *s == '\\') low_putc(o, '\\');
+        low_putc(o, *s);
     }
-    fputs("\"\n", o);
+    low_puts(o, "\"\n");
 }
 // ★ 몸이 끝나면 자리표를 **되돌린다**. `#line` 은 전처리기 상태라 함수 경계를 안 지킨다 —
 //   되돌리지 않으면 그 뒤의 **글루 코드**(FFI 감싸개·디스패처·`main`)가 앞 함수의 `.low`
 //   파일에 **없는 줄 번호**로 붙는다(실측: 9 줄짜리 파일의 `149` 줄). 생성물은 생성물이라고
 //   말하는 편이 남의 파일을 가리키는 것보다 정직하다.
-static void cbe_line_end(FILE *o) { fputs("#line 1 \"<lowent-generated>\"\n", o); }
-static void put_sym(FILE *o, const low_ir_def_t *d) {
+static void cbe_line_end(low_out_t *o) { low_puts(o, "#line 1 \"<lowent-generated>\"\n"); }
+static void put_sym(low_out_t *o, const low_ir_def_t *d) {
     if (d->canon_of) d = (const low_ir_def_t *)d->canon_of;   // ★ 내용이 같은 def 은 **한 심볼**이다 (RFC-0012 dedup)
     for (proven_size_t i = 0; i < d->name.size; i++)
         // ★ `.`(이름공간) 과 `#`(단형화 인스턴스, RFC-0021) 둘 다 C 식별자에 못 온다.
         //   해시가 뒤에 붙으므로 정제로 잃은 단사성은 **회복된다**.
-        fputc((d->name.ptr[i] == (proven_u8)'.' || d->name.ptr[i] == (proven_u8)'#' || d->name.ptr[i] == (proven_u8)':')
-              ? '_' : (int)d->name.ptr[i], o);   // ★ `:` — 로컬 op 의 `<바깥>::<로컬>`(RFC-0121)
+        low_putc(o, (d->name.ptr[i] == (proven_u8)'.' || d->name.ptr[i] == (proven_u8)'#' || d->name.ptr[i] == (proven_u8)':')
+              ? '_' : (int)d->name.ptr[i]);   // ★ `:` — 로컬 op 의 `<바깥>::<로컬>`(RFC-0121)
     // ★★★ **액터 핸들러의 이름은 이름만으로 유일하지 않다.**
     //   IR 은 이미 그걸 안다 — `send` 는 핸들러를 **수신자의 타입 안에서** 찾는다(그게 아니면
     //   두 액터가 같은 이름의 핸들러를 조용히 공유한다). 그런데 **뒤끝은 그걸 몰랐다**:
@@ -151,7 +151,7 @@ static void put_sym(FILE *o, const low_ir_def_t *d) {
             key[kn++] = (proven_u8)d->owner_mod.ptr[i];
     }
     low_blake3_256(key, kn, h);
-    fputs("__", o);
+    low_puts(o, "__");
     for (int i = 0; i < 8; i++) low_fpf(o, "{:02x}", PROVEN_ARG((unsigned)(h[i])));
 }
 
@@ -160,8 +160,8 @@ static void put_sym(FILE *o, const low_ir_def_t *d) {
 // ★ C 에서 `-9223372036854775808ll` 은 **부호 없는 상수의 부정**이다(경고).
 //   생성된 코드도 **경고 0** 이어야 한다 — 이 프로젝트가 자기 코드에 요구하는 것과 같다.
 //   (세 번째 진짜 프로그램을 컴파일하다 드러났다: `--emit-c` 가 낸 C 가 경고를 여섯 개 냈다.)
-static void put_i64(FILE *out, proven_i64 v) {
-    if (v == INT64_MIN) fputs("(-9223372036854775807ll - 1)", out);
+static void put_i64(low_out_t *out, proven_i64 v) {
+    if (v == INT64_MIN) low_puts(out, "(-9223372036854775807ll - 1)");
     else low_fpf(out, "{}ll", PROVEN_ARG((long long)((long long)v)));
 }
 // ★★★★★ **이 뒤끝이 아직 못 내는 옵코드** (2026-08-07).
@@ -226,12 +226,12 @@ static bool cbe_asm_target_ok(proven_u8str_view_t t) {
 }
 
 // 템플릿의 `{name}` → `%N`. GCC 는 **출력을 먼저** 센다.
-static void cbe_asm_tmpl(FILE *out, const low_ir_asm_t *A) {
-    fputc('"', out);
+static void cbe_asm_tmpl(low_out_t *out, const low_ir_asm_t *A) {
+    low_putc(out, '"');
     for (proven_size_t i = 0; i < A->tmpl.size; i++) {
         proven_byte_t ch = A->tmpl.ptr[i];
         if (ch == (proven_byte_t)'{' && i + 1 < A->tmpl.size &&
-            A->tmpl.ptr[i + 1] == (proven_byte_t)'{') { fputc('{', out); i++; continue; }
+            A->tmpl.ptr[i + 1] == (proven_byte_t)'{') { low_putc(out, '{'); i++; continue; }
         if (ch == (proven_byte_t)'{') {
             proven_size_t j = i + 1;
             while (j < A->tmpl.size && A->tmpl.ptr[j] != (proven_byte_t)'}') j++;
@@ -253,25 +253,25 @@ static void cbe_asm_tmpl(FILE *out, const low_ir_asm_t *A) {
         // ★ Lowent 템플릿의 자리표시자는 **`{name}` 하나뿐**이다. 그러니 `%` 는 **글자 그대로**여야
         //   한다(`%cl` 같은 레지스터 이름). GCC 확장 asm 에서 그것은 `%%` 다 — **표기의 층은
         //   우리 것이고, 뒤끝의 철자는 뒤끝의 것이다.** 저자가 두 방언을 다 알 필요는 없다.
-        if (ch == (proven_byte_t)'%')  { fputs("%%", out); continue; }
-        if (ch == (proven_byte_t)'\n') { fputs("\\n\\t", out); continue; }
-        if (ch == (proven_byte_t)'"')  { fputs("\\\"", out); continue; }
-        if (ch == (proven_byte_t)'\\') { fputs("\\\\", out); continue; }
-        fputc((int)ch, out);
+        if (ch == (proven_byte_t)'%')  { low_puts(out, "%%"); continue; }
+        if (ch == (proven_byte_t)'\n') { low_puts(out, "\\n\\t"); continue; }
+        if (ch == (proven_byte_t)'"')  { low_puts(out, "\\\""); continue; }
+        if (ch == (proven_byte_t)'\\') { low_puts(out, "\\\\"); continue; }
+        low_putc(out, (int)ch);
     }
-    fputc('"', out);
+    low_putc(out, '"');
 }
 
-static void cbe_asm_stmt(FILE *out, const low_ir_asm_t *A) {
-    fputs("    {\n", out);
+static void cbe_asm_stmt(low_out_t *out, const low_ir_asm_t *A) {
+    low_puts(out, "    {\n");
     for (proven_size_t k = 0; k < A->nops; k++) {
         if (A->ops[k].is_out) low_fpf(out, "        unsigned long long a{} = 0;\n", PROVEN_ARG((size_t)((size_t)k)));
         else low_fpf(out, "        unsigned long long a{} = (unsigned long long)loc[{}].i;\n",
                      PROVEN_ARG((size_t)((size_t)k)), PROVEN_ARG((int)((int)A->ops[k].slot)));
     }
-    fputs("        __asm__ __volatile__ (\n            ", out);
+    low_puts(out, "        __asm__ __volatile__ (\n            ");
     cbe_asm_tmpl(out, A);
-    fputs("\n            : ", out);
+    low_puts(out, "\n            : ");
     { proven_size_t n = 0;
       for (proven_size_t k = 0; k < A->nops; k++) if (A->ops[k].is_out) {
           const char *cs = cbe_asm_constraint(A->ops[k].reg);
@@ -282,7 +282,7 @@ static void cbe_asm_stmt(FILE *out, const low_ir_asm_t *A) {
           //   b+b). 출력을 항상 earlyclobber 로 내는 것이 보수적이고 **언제나 옳다**.
           low_fpf(out, "{}\"=&{}\"(a{})", proven_arg_cstr(n++ ? ", " : ""), proven_arg_cstr(cs ? cs : "r"), PROVEN_ARG((size_t)((size_t)k)));
       } }
-    fputs("\n            : ", out);
+    low_puts(out, "\n            : ");
     { proven_size_t n = 0;
       for (proven_size_t k = 0; k < A->nops; k++) if (!A->ops[k].is_out) {
           const char *cs = cbe_asm_constraint(A->ops[k].reg);
@@ -290,7 +290,7 @@ static void cbe_asm_stmt(FILE *out, const low_ir_asm_t *A) {
       } }
     // ★ clobber 는 **프로그래머가 컴파일러에게 주는 약속**이다. 컴파일러는 그것을 **믿는다**
     //   (asm 안을 못 읽으니까). 틀리면 UB — asm 은 **검증 불가한 탈출구**다(RFC-0041 D7, 정직).
-    fputs("\n            : ", out);
+    low_puts(out, "\n            : ");
     { proven_size_t n = 0;
       for (proven_size_t k = 0; k < A->nclob; k++) {
           if (proven_u8str_view_eq(A->clob[k], proven_u8str_view_from_cstr("flags")))
@@ -298,14 +298,14 @@ static void cbe_asm_stmt(FILE *out, const low_ir_asm_t *A) {
           else low_fpf(out, "{}\"{}\"", proven_arg_cstr(n++ ? ", " : ""),
                        low_sv((const char *)A->clob[k].ptr, (int)A->clob[k].size));
       } }
-    fputs(");\n", out);
+    low_puts(out, ");\n");
     { bool has_out = false;
       for (proven_size_t k = 0; k < A->nops; k++) if (A->ops[k].is_out) {
           low_fpf(out, "        st[sp++] = lw_int((long long)a{});\n", PROVEN_ARG((size_t)((size_t)k)));
           has_out = true; break;
       }
-      if (!has_out) fputs("        st[sp++] = lw_int(0);\n", out); }
-    fputs("    }\n", out);
+      if (!has_out) low_puts(out, "        st[sp++] = lw_int(0);\n"); }
+    low_puts(out, "    }\n");
 }
 
 
@@ -1122,7 +1122,7 @@ static int cbe_slot_by_name(const low_ir_t *ir, int sidx, proven_u8str_view_t nm
 // ★★★ **평탄 슬롯(r_.r[base..]) → 태그 경로의 (중첩) 레코드 박스**를 재귀로 짓는다.
 //   자식 박스를 **먼저** 할당하고(내부부터), 부모가 그 박스를 참조한다. `*nid` 로 고유 이름을 준다.
 //   반환: 이 노드의 박스를 담은 C 변수 이름 접미(nid).
-static void cbe_emit_recon_scalar(FILE *out, const low_ir_sfield_t *F, int me, size_t z, unsigned foff) {
+static void cbe_emit_recon_scalar(low_out_t *out, const low_ir_sfield_t *F, int me, size_t z, unsigned foff) {
     if (F->flt)
         low_fpf(out, "        rr_{}->f[{}] = lw_flt(lw_b2f(lw_ld_f(r_.r + {}, {}, {}), {}));\n",
                 PROVEN_ARG((int)(me)), PROVEN_ARG((size_t)(z)), PROVEN_ARG((unsigned)(foff)), PROVEN_ARG((int)((int)F->size)), PROVEN_ARG((int)(F->be ? 1 : 0)), PROVEN_ARG((int)((int)F->size)));
@@ -1133,7 +1133,7 @@ static void cbe_emit_recon_scalar(FILE *out, const low_ir_sfield_t *F, int me, s
         low_fpf(out, "        rr_{}->f[{}] = lw_int((long long)lw_ld_f(r_.r + {}, {}, {}));\n",
                 PROVEN_ARG((int)(me)), PROVEN_ARG((size_t)(z)), PROVEN_ARG((unsigned)(foff)), PROVEN_ARG((int)((int)F->size)), PROVEN_ARG((int)(F->be ? 1 : 0)));
 }
-static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, int *nid) {
+static int cbe_emit_rec_recon(low_out_t *out, const low_ir_t *ir, int sx, int base, int *nid) {
     const low_ir_struct_t *S = &ir->structs[sx];
     if (S->is_penum) {   // ★ 2026-11-04 — 짐을 싣는 열거: `$t` 로 갈래를 골라 그 갈래의 make 자리로 짓는다(cbe_penum_ok 가 모든 갈래의 자리를 보장했다)
         int me = (*nid)++;
@@ -1149,9 +1149,9 @@ static int cbe_emit_rec_recon(FILE *out, const low_ir_t *ir, int sx, int base, i
                 int sl = cbe_slot_by_name(ir, sx, ir->makes[mv].fields[z]);
                 cbe_emit_recon_scalar(out, &S->f[sl], me, z, (unsigned)(base + (int)S->f[sl].off));
             }
-            fputs("        break;\n", out);
+            low_puts(out, "        break;\n");
         }
-        fputs("        default: lw_panic(\"an enum value whose tag names no variant\"); }\n", out);
+        low_puts(out, "        default: lw_panic(\"an enum value whose tag names no variant\"); }\n");
         return me;
     }
     int mk = cbe_make_for_struct(ir, sx);
@@ -1349,7 +1349,7 @@ static bool cbe_rec_nested_ok(const low_ir_t *ir, int sidx, int depth) {
     return true;
 }
 static int cbe_field_idx(const low_ir_t *ir, proven_u8str_view_t nm);
-static void cbe_emit_rec_in(FILE *out, const low_ir_t *ir, int sidx, size_t br, unsigned off0, const char *val, int depth) {
+static void cbe_emit_rec_in(low_out_t *out, const low_ir_t *ir, int sidx, size_t br, unsigned off0, const char *val, int depth) {
     const low_ir_struct_t *S = &ir->structs[sidx];
     for (proven_size_t z = 0; z < S->nf; z++) {
         int fi = cbe_field_idx(ir, S->f[z].name);
@@ -1371,7 +1371,7 @@ static void cbe_emit_rec_in(FILE *out, const low_ir_t *ir, int sidx, size_t br, 
 // ★★ 2026-11-01 (W-20261101-1150) — **태그 값 레코드를 빠른 레코드로 푼다 / 되쓴다.** 경계 어댑터(매개변수 `a[q]`)와, 칸이 가리키는
 //   액터에게 말하는 호출 자리(태그 쪽 레코드 하나)가 같은 코드를 쓴다. `val` 은 lowv 식, `buf` 는 바이트 버퍼 식, `rx` 는 평행 칸
 //   배열의 이름(`rsl` · `crsl`), `q` 는 그 배열 안의 매개변수 자리다. `slots` 가 거짓이면 평행 칸이 없는 쪽이다(피호출자가 안 읽는다).
-static void cbe_emit_rec_unpack(FILE *out, const low_ir_t *ir, int sidx, const char *val, const char *buf, const char *rx, size_t q, bool slots) {
+static void cbe_emit_rec_unpack(low_out_t *out, const low_ir_t *ir, int sidx, const char *val, const char *buf, const char *rx, size_t q, bool slots) {
     const low_ir_struct_t *S = &ir->structs[sidx];
     for (proven_size_t z = 0; z < S->nf; z++) {
         int fi = cbe_field_idx(ir, S->f[z].name);
@@ -1424,7 +1424,7 @@ static void cbe_emit_rec_unpack(FILE *out, const low_ir_t *ir, int sidx, const c
     if (slots && S->is_actor_state && sidx < 64 && g_aid_need[sidx] && S->nf <= CBE_AID)
         low_fpf(out, "    {}[{} * LW_RECF + {}] = lw_aref_in({});\n", proven_arg_cstr(rx), PROVEN_ARG((size_t)(q)), PROVEN_ARG((int)(CBE_AID)), proven_arg_cstr(val));
 }
-static void cbe_emit_rec_writeback(FILE *out, const low_ir_t *ir, int sidx, const char *val, const char *buf, const char *rx, size_t q, bool slots) {
+static void cbe_emit_rec_writeback(low_out_t *out, const low_ir_t *ir, int sidx, const char *val, const char *buf, const char *rx, size_t q, bool slots) {
     const low_ir_struct_t *S = &ir->structs[sidx];
     for (proven_size_t z = 0; z < S->nf; z++) {
         int fi = cbe_field_idx(ir, S->f[z].name);
@@ -2278,7 +2278,7 @@ static bool cbe_w128_place(const low_ir_t *ir, const low_ir_def_t *d) {
 //   답: -1 이 낱말이 아니다(다음 규칙으로) · 0 빠른 경로에 못 내린다(g_sub 가 까닭) · 1 다 했다.
 //   피연산자가 정수 칸(K_INT)이면 위 절반을 0 으로 본다 — VM 의 값 칸이 그렇다(정수 값의 `n` 은 0). 옮기는 양(shl …)이 그 자리다.
 static const char *cbe_w128_pop(unsigned char k) { return k == K_W128 ? "lw_hs[--lw_hsp]" : "(lw_u128)(unsigned long long)st[--sp]"; }
-static int cbe_w128_step(kstack_t *st, const low_ir_ins_t *in, FILE *out) {
+static int cbe_w128_step(kstack_t *st, const low_ir_ins_t *in, low_out_t *out) {
     const bool eqw = (in->w == IRW_EQ || in->w == IRW_NE) && st->n >= 2 && (st->k[st->n-1] == K_W128 || st->k[st->n-2] == K_W128);
     if (!eqw && !cbe_is_w128(in)) return -1;
     const long long m = (long long)in->a;
@@ -3913,7 +3913,7 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
 // ★★★ **빠른 본문** — `lowv` 가 한 번도 안 나온다. 정수는 `long long`, 바이트 슬라이스는
 //   `(포인터, 길이)`. 계약(범위·깊이·오버플로)은 **그대로 다** 있다 — 싸게 있을 뿐이다.
 // ★ 반환 직전에 **구조체 파라미터를 되쓴다** — 참조로 받았으니 참조로 돌려줘야 한다.
-static void cbe_wb(const low_ir_t *ir, const low_ir_def_t *d, FILE *out) {
+static void cbe_wb(const low_ir_t *ir, const low_ir_def_t *d, low_out_t *out) {
     (void)ir;
     if (cbe_pmut(d)) {
         proven_size_t nr = 0;
@@ -3977,7 +3977,7 @@ static const char *cbe_ret_ctype(const low_ir_def_t *d) {
     return "long long ";                            // i64 · idiff · 기본
 }
 
-static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE *out);
+static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_out_t *out);
 // ★★★ RFC-0150 §8-10 (2026-10-22) — **지역을 선언 폭의 C 타입으로** 낸다.
 //   재 보니(§4.11 보탬) 값 스택(`st[sp++]`)은 gcc 가 이미 지운다 — 그것을 지역 변수로 바꿔도 0.608 → 0.608 ms.
 //   느린 것은 누산기가 `long long` 칸에 살아 셈마다 폭을 다시 펴는 것이었다(`movl %eax, %eax` 가 의존 사슬에 든다 ·
@@ -4106,15 +4106,15 @@ static bool cbe_inline_hint(proven_size_t i) {
     const proven_size_t xq = (proven_size_t)d->nxpairs * 4u;
     return d->lowered && (d->ncode > xq ? d->ncode - xq : 0) <= CBE_INLINE_MAX_CODE;
 }
-static void cbe_put_params(FILE *out, unsigned m, bool dep) {
+static void cbe_put_params(low_out_t *out, unsigned m, bool dep) {
     int n = 0;
-    if (m & LWA_AI) { fputs(n++ ? ", const long long *restrict ai" : "const long long *restrict ai", out); }
-    if (m & LWA_AS) { fputs(n++ ? ", const lw_sl *restrict as" : "const lw_sl *restrict as", out); }
-    if (m & LWA_AF) { fputs(n++ ? ", const double *restrict af" : "const double *restrict af", out); }
-    if (m & LWA_AR) { fputs(n++ ? ", unsigned char *const *ar" : "unsigned char *const *ar", out); }
-    if (m & LWA_AB) { fputs(n++ ? ", long long *restrict ab" : "long long *restrict ab", out); }
-    if (m & LWA_AO) { fputs(n++ ? ", const lw_r *restrict ao" : "const lw_r *restrict ao", out); }
-    if (m & LWA_AV) { fputs(n++ ? ", const lw_v *av" : "const lw_v *av", out); }
+    if (m & LWA_AI) { low_puts(out, n++ ? ", const long long *restrict ai" : "const long long *restrict ai"); }
+    if (m & LWA_AS) { low_puts(out, n++ ? ", const lw_sl *restrict as" : "const lw_sl *restrict as"); }
+    if (m & LWA_AF) { low_puts(out, n++ ? ", const double *restrict af" : "const double *restrict af"); }
+    if (m & LWA_AR) { low_puts(out, n++ ? ", unsigned char *const *ar" : "unsigned char *const *ar"); }
+    if (m & LWA_AB) { low_puts(out, n++ ? ", long long *restrict ab" : "long long *restrict ab"); }
+    if (m & LWA_AO) { low_puts(out, n++ ? ", const lw_r *restrict ao" : "const lw_r *restrict ao"); }
+    if (m & LWA_AV) { low_puts(out, n++ ? ", const lw_v *av" : "const lw_v *av"); }
     // ★★★★★ **`rsl` 은 읽기 전용이 아니다** (2026-08-31, WO-0162).
     //   파라미터의 평행 칸은 들어올 때 지역 칸으로 **한 방향 복사**됐고(`memcpy(rlocsl…)`),
     //   되쓰기는 `rsl` 을 읽는다 — 그래서 핸들러가 **자기 상태의 슬라이스 필드에 쓴 것이
@@ -4122,14 +4122,14 @@ static void cbe_put_params(FILE *out, unsigned m, bool dep) {
     //   ⇒ `ar` 이 그러하듯 **쓸 수 있게** 한다. 구조체 파라미터는 참조로 오고, 그 참조에는
     //     바이트 자리뿐 아니라 **평행 칸도 딸려 있다**.
     //   ☞ *한 방향 복사는 「같은 것」이 아니라 「그때의 사본」이다.*
-    if (m & LWA_RSL) { fputs(n++ ? ", lw_sl *restrict rsl" : "lw_sl *restrict rsl", out); }
-    if (dep) fputs(n++ ? ", int lw_depth" : "int lw_depth", out);
-    if (!n) fputs("void", out);
+    if (m & LWA_RSL) { low_puts(out, n++ ? ", lw_sl *restrict rsl" : "lw_sl *restrict rsl"); }
+    if (dep) low_puts(out, n++ ? ", int lw_depth" : "int lw_depth");
+    if (!n) low_puts(out, "void");
 }
 // 호출 자리의 인자 목록 — **이름은 자리마다 다르다**: 호출자 지역은 `ci·cs·cf·car·cab·cao·cav`,
 // 파라미터는 `ai·as·af·ar·ab·ao·av`. 한 접두사로 만들려다 `aab` 같은 없는 이름을 냈다(컴파일 실패).
 // ⇒ 두 표를 **그대로** 적는다. 규칙을 짜맞추는 것보다 적어 두는 편이 안전하다.
-static void cbe_put_args(FILE *out, unsigned m, bool caller, const char *dep) {   // dep = NULL 이면 안 넘긴다
+static void cbe_put_args(low_out_t *out, unsigned m, bool caller, const char *dep) {   // dep = NULL 이면 안 넘긴다
     static const char *cn[8] = { "ci", "cs", "cf", "car", "cab", "cao", "cav", "crsl" };
     static const char *pn[8] = { "ai", "as", "af", "ar",  "ab",  "ao",  "av", "rsl" };
     static const unsigned bit[8] = { LWA_AI, LWA_AS, LWA_AF, LWA_AR, LWA_AB, LWA_AO, LWA_AV, LWA_RSL };
@@ -4140,15 +4140,16 @@ static void cbe_put_args(FILE *out, unsigned m, bool caller, const char *dep) { 
     //   태그 래퍼는 전역 원장을(이미 자기 몫을 세어 두었다), 바깥 C 진입점은 0 에서 시작한다.
     if (dep) low_fpf(out, "{}{}", proven_arg_cstr(n ? ", " : ""), proven_arg_cstr(dep));
 }
-static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out) {
-    char *buf = NULL; size_t bn = 0;
-    FILE *m = open_memstream(&buf, &bn);
+static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, low_out_t *out) {
+    // ★ W-20261113-0024 — 본문을 proven 메모리 통로에 모은다(전엔 open_memstream · 그 버퍼는 C 의 free 로 돌려줬다).
+    low_out_t *m = low_out_mem();
     if (!m) { cbe_scalar_body_raw(ir, d, out); return; }   // 못 잡으면 옛길 — 느릴 뿐 틀리지 않는다
     cbe_scalar_body_raw(ir, d, m);
-    fclose(m);
-    const char *mark = strstr(buf ? buf : "", "@@LWFRAME@@\n");
-    if (!mark) { if (buf) fputs(buf, out); free(buf); return; }
-    fwrite(buf, 1, (size_t)(mark - buf), out);
+    if (low_out_failed(m)) { (void)low_out_close(m); cbe_scalar_body_raw(ir, d, out); return; }   // 메모리가 모자랐다 — 옛길
+    const char *buf = (const char *)low_out_mem_view(m).ptr;   // NUL 로 끝난다(proven u8str)
+    const char *mark = strstr(buf, "@@LWFRAME@@\n");
+    if (!mark) { low_puts(out, buf); (void)low_out_close(m); return; }
+    low_write(out, buf, (size_t)(mark - buf));
     size_t n = d->nlocals ? d->nlocals : 1;
     const char *body = mark + strlen("@@LWFRAME@@\n");
     // ★ RFC-0150 §8-10 — 폭에 맞는 값만 담는다고 보인 지역은 `loc[K]` 를 그 폭의 C 지역 `nlocK_` 로 바꾼다(위 g_fitn).
@@ -4183,7 +4184,7 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
             else memset(narrowed, 0, sizeof narrowed);
         }
     }
-    fputs("    ", out);
+    low_puts(out, "    ");
     for (size_t k = 0; k < 64; k++) if (narrowed[k])
         low_fpf(out, "{}int{}_t nloc{}_ = 0; ", proven_arg_cstr((narrowed[k] & IR_TY_SIGNED) ? "" : "u"), PROVEN_ARG((unsigned)(narrowed[k] & 0xffu)), PROVEN_ARG((size_t)(k)));
     if (cbe_uses(body, "loc["))  low_fpf(out, "long long loc[{}] = {{0}}; ", PROVEN_ARG((size_t)(n)));
@@ -4212,10 +4213,10 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
     if (cbe_uses(body, "rlocsl[")) low_fpf(out, "lw_sl rlocsl[{}][LW_RECF]; (void)rlocsl; ", PROVEN_ARG((size_t)(n)));
     if (cbe_uses(body, "floc[")) low_fpf(out, "double floc[{}] = {{0}}; ", PROVEN_ARG((size_t)(n)));
     if (cbe_uses(body, "lw_hloc[")) low_fpf(out, "lw_u128 lw_hloc[{}] = {{0}}; ", PROVEN_ARG((size_t)(n)));   // ★ W-20261105-2304 — 128 비트 지역
-    if (cbe_uses(body, "lw_hs[")) fputs("lw_u128 lw_hs[16]; int lw_hsp = 0; (void)lw_hsp; ", out);
+    if (cbe_uses(body, "lw_hs[")) low_puts(out, "lw_u128 lw_hs[16]; int lw_hsp = 0; (void)lw_hsp; ");
     if (cbe_uses(body, "wloc[")) low_fpf(out, "lw_r wloc[{}] = {{{{0,0,{{0,0}},{{0}},0}}}}; ", PROVEN_ARG((size_t)(n)));
     if (cbe_uses(body, "wlocsl[")) low_fpf(out, "lw_sl wlocsl[{}][LW_RECF]; (void)wlocsl; ", PROVEN_ARG((size_t)(n)));
-    if (cbe_uses(body, "wssl[")) fputs("lw_sl wssl[16][LW_RECF]; (void)wssl; ", out);
+    if (cbe_uses(body, "wssl[")) low_puts(out, "lw_sl wssl[16][LW_RECF]; (void)wssl; ");
     // ★ 벡터 지역도 **본문이 실제로 쓰는 자리까지만**. 다른 지역 배열과 달리 여기는 칸 하나가
     //   **64 바이트**(`lw_v` = 최대 폭 u32×16 공용체)라, 안 쓰는 슬롯 하나가 곧 64 B 다.
     //   ☞ 슬롯 번호는 그대로 둔다(빽빽하게 다시 매기면 방출 자리 전부를 고쳐야 한다) —
@@ -4229,7 +4230,7 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
         if (!vn || vn > n) vn = n;          // 못 읽었으면 옛 값 — 작게 잡는 실수는 안 한다
         low_fpf(out, "lw_v vloc[{}] = {{{{{{0}}}}}}; ", PROVEN_ARG((size_t)(vn)));
     }
-    fputs("\n", out);
+    low_puts(out, "\n");
     // ★ 벡터 스택의 칸 수를 여기서 박는다 — **증가만 센 값**이라 상계이고, 넘침은 방출된
     //   검사가 잡는다. 바닥은 2(한 칸짜리 연산도 있다), 천장은 옛 값 16(더 커지지 않는다).
     {
@@ -4254,15 +4255,15 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
             for (const char *c2 = hn; c2; c2 = NULL) hit = c2;
             if (hg && (!hit || hg < hit)) hit = hg;
             if (hr && (!hit || hr < hit)) hit = hr;
-            if (!hit) { fputs(q, out); break; }
-            fwrite(q, 1, (size_t)(hit - q), out);
-            if (hit == hr) { fputs(rn, out); q = hit + 9; continue; }
-            fputs(hit == hn ? want : guard, out);
+            if (!hit) { low_puts(out, q); break; }
+            low_write(out, q, (size_t)(hit - q));
+            if (hit == hr) { low_puts(out, rn); q = hit + 9; continue; }
+            low_puts(out, hit == hn ? want : guard);
             q = hit + 7;
         }
     }
     low_free(nbody);
-    free(buf);   // open_memstream 의 버퍼 — C 의 것이다(출력 단계 S3 에서 proven 버퍼로 바꾼다)
+    (void)low_out_close(m);   // 메모리 통로와 그 글을 proven 힙에 돌려준다
 }
 
 // ★★★★ **앞 바퀴 값 들고 가기** (RFC-0111 §8-22 ⓑ, WO-0200 — 스칼라 치환).
@@ -4363,12 +4364,12 @@ static int cbe_carry_scan(const low_ir_def_t *d, const unsigned char *lk, cbe_ca
     return ncy;
 }
 
-static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE *out) {
+static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_out_t *out) {
     g_vspush = 0;                     // ★ 이 함수가 벡터를 몇 번 밀어 넣는지 센다
     memset(g_fitn, 0, sizeof g_fitn);
     proven_size_t idx_at = (proven_size_t)-1; unsigned idx_m = 0;   // ★ §8-10 — 마지막으로 정수 칸을 읽은 자리와 그 칸의 폭
     kstack_t *at = cbe_at_ensure(0, d->ncode);
-    if (!at || !cbe_lbuf_ensure(d->nlocals)) { fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
+    if (!at || !cbe_lbuf_ensure(d->nlocals)) { low_puts(out, "    lw_panic(\"compiler out of memory\");\n"); return; }
     unsigned char *lk = g_lb.lk, *slot = g_lb.slot;
     for (proven_size_t i = 0; i < d->ncode; i++) at[i].set = false;
     for (proven_size_t i = 0; i < g_lb.cap; i++) slot[i] = 0xff;
@@ -4402,21 +4403,21 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
     //   (네이티브 «is_ok needs a result», VM 은 멀쩡했다). 판정 때 통과한 op 이 여기서 멈추면 처리기의 결함이다 — 그렇게 말한다.
     g_ret_optrec = 0; g_ret_optnode = 0; g_ret_veset = false; g_ret_ve = 1; g_ret_fl = 0; g_ret_rb = 0;
     if (!cbe_kind_run(ir, d, NULL, at, lk, slot, &rk_, rmap, lez, lln, lfl))   // lk/slot/rmap/lez 를 채운다
-        low_fpf(stderr, "lowentc: internal: the fast path's kind trace stopped while emitting `{}` (it passed when the op was judged){}{}\n",
+        low_fpf(low_stderr(), "lowentc: internal: the fast path's kind trace stopped while emitting `{}` (it passed when the op was judged){}{}\n",
                 low_sv((const char *)d->name.ptr, (int)d->name.size), proven_arg_cstr(g_sub[0] ? " — " : ""), proven_arg_cstr(g_sub));
     cbe_carry_t cy[CBE_NCARRY];
     const int ncy = cbe_carry_scan(d, lk, cy);   // ★ §8-22 ⓑ — 앞 바퀴 값을 들고 갈 루프
 
     // ★ 분기 목표 표도 **명령 수만큼** 잡는다(X-0028) — 4096 은 판단이 아니라 배열 크기였다.
     bool *target = (bool *)low_zalloc(d->ncode + 1, sizeof *target);   // ★ W-20261112-0207 — proven 힙
-    if (!target) { fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
+    if (!target) { low_puts(out, "    lw_panic(\"compiler out of memory\");\n"); return; }
     for (proven_size_t j = 0; j < d->ncode; j++)
         if (d->code[j].w == IRW_BR || d->code[j].w == IRW_BRZ)
             if (d->code[j].a >= 0 && (proven_size_t)d->code[j].a < d->ncode) target[d->code[j].a] = true;
 
     // ★ 프레임 선언은 **본문을 보고** 정한다 — 아래 감싸개가 이 표식을 바꿔 넣는다.
     //   여기서 종류를 미리 추론하면 그 추론이 **두 벌**이 되고, 두 벌은 갈린다(교훈 7).
-    fputs("@@LWFRAME@@\n", out);
+    low_puts(out, "@@LWFRAME@@\n");
     // ★ encode 자리마다 **프레임 버퍼** 하나. 태그 경로의 **8칸 풀**이 여기서 사라진다.
     {
         int nenc = 0;
@@ -4469,7 +4470,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
           else                            low_fpf(out, "    loc[{}] = ai[{}];\n",  PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)ni++)));
       } }
     if (g_cur_di >= 512 || g_needdepth[g_cur_di])
-        fputs("    if (LW_UNLIKELY(++lw_depth > 128)) lw_panic(\"call depth limit exceeded\");\n", out);
+        low_puts(out, "    if (LW_UNLIKELY(++lw_depth > 128)) lw_panic(\"call depth limit exceeded\");\n");
     else
         // ★ 재귀가 불가능한 op — **세지 않는다**(전에도 그랬다). 이제 원장이 파라미터라
         // ★ **가릴 것은 반드시 가린다.** 반환 자리들은 여전히 `lw_depth--` 를 낸다:
@@ -4477,11 +4478,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
         //   받았으면 **가릴 지역이 없으면 스레드지역 전역에 닿는다**. 실측으로 그 구멍이
         //   json 을 59.4 → 73.0 ms 로 무너뜨렸다 — 세지도 않는 함수가 반환마다 TLS 에 썼다.
         //   표현은 하나, 비용은 0 이려면 **두 경우 다** 지역이 있어야 한다.
-        fputs(cbe_depparam(g_cur_di) ? "    (void)lw_depth;\n"
-                                      : "    int lw_depth = 0; (void)lw_depth;\n", out);
+        low_puts(out, cbe_depparam(g_cur_di) ? "    (void)lw_depth;\n"
+                                      : "    int lw_depth = 0; (void)lw_depth;\n");
     for (int q = 0; q < ncy; q++)
         low_fpf(out, "    long long lw_cv{} = 0, lw_cc{} = 0; (void)lw_cv{}; (void)lw_cc{};\n", PROVEN_ARG((int)(q)), PROVEN_ARG((int)(q)), PROVEN_ARG((int)(q)), PROVEN_ARG((int)(q)));
-    fputs(/* ★★★★ **구조체 스택도 "어디를 가리키나" 다** (RFC-0039 §9-4, 2026-08-03).
+    low_puts(out, /* ★★★★ **구조체 스택도 "어디를 가리키나" 다** (RFC-0039 §9-4, 2026-08-03).
  *   지역을 그렇게 바꾼 뒤에도 스택은 저장이라, 필드 하나 읽으려고 `memcpy(rs[rsp++], rloc[0], 8)`
  *   로 **복사했다가 다시 읽었다** — 그 복사가 세 라이브러리 op 마다 `memcpy` 호출로 남았다
  *   (`post` 78 B · `take` 80 B · `pending` 92 B — 필드 하나 만지는 op 치고 터무니없다).
@@ -4496,14 +4497,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
           "    int sp = 0, ssp = 0, rsp = 0, wsp = 0, fsp = 0, vsp = 0;\n"
           "    (void)vs; (void)vsp;\n"
           "    (void)st; (void)ss; (void)rs; (void)rsb; (void)ws; (void)fs;\n"
-          "    (void)sp; (void)ssp; (void)rsp; (void)wsp; (void)fsp;\n", out);
+          "    (void)sp; (void)ssp; (void)rsp; (void)wsp; (void)fsp;\n");
 
     // 종류를 다시 돌리며 방출한다 — 어느 스택에서 꺼낼지는 시뮬레이터가 안다.
     kstack_t ks = { {0},{0},{0},{0},{0}, 0, true };
     bool live2 = true;
     int encn = 0;
     kstack_t *at2 = cbe_at_ensure(1, d->ncode);
-    if (!at2) { low_free(target); fputs("    lw_panic(\"compiler out of memory\");\n", out); return; }
+    if (!at2) { low_free(target); low_puts(out, "    lw_panic(\"compiler out of memory\");\n"); return; }
     for (proven_size_t i = 0; i < d->ncode; i++) at2[i].set = false;
 
     proven_u32 lastln_ = 0; proven_u16 lastfid_ = 0;
@@ -4531,7 +4532,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
         if (target[j]) low_fpf(out, "L{}:\n", PROVEN_ARG((size_t)((size_t)j)));
         { const int w128_ = cbe_w128_step(&ks, in, out);   // ★ W-20261105-2304 — 128 비트 낱말(종류 실행과 같은 함수)
           if (w128_ == 1) continue;
-          if (w128_ == 0) { fputs("    lw_panic(\"fast path: a 128-bit word the kind run did not accept\");\n", out); continue; } }
+          if (w128_ == 0) { low_puts(out, "    lw_panic(\"fast path: a 128-bit word the kind run did not accept\");\n"); continue; } }
         switch (in->w) {
             case IRW_CONST: low_fpf(out, "    st[sp++] = {}ll;\n", PROVEN_ARG((long long)((long long)in->a))); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; break;
             case IRW_LOAD:
@@ -4552,7 +4553,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.o[ks.n] = (signed char)in->a; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_W128;
                 }
                 else if (lk[in->a] == K_REF) {
-                    fputs("    /* ref local: a name — nothing to load */\n", out);
+                    low_puts(out, "    /* ref local: a name — nothing to load */\n");
                     ks.o[ks.n] = (signed char)rmap[in->a]; ks.k[ks.n++] = K_REF;
                 }
                 else if (lk[in->a] == K_VEC) {
@@ -4564,7 +4565,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   그 크기 때문에 컴파일러가 레지스터에 얹지 못하고 스택으로 돌린다.
                     //   레인 수·폭은 컴파일 시각에 알려져 있으니 그만큼만 옮긴다.
                     g_vspush++;
-                    fputs("@@VSG@@", out);
+                    low_puts(out, "@@VSG@@");
                     low_fpf(out, "    vs[vsp++] = vloc[{}];\n", PROVEN_ARG((long long)((long long)in->a)));
                     ks.o[ks.n] = -1; ks.k[ks.n] = K_VEC;
                     ks.vn[ks.n] = lln[in->a]; ks.ve[ks.n] = lez[in->a]; ks.fl[ks.n] = lfl[in->a];
@@ -4591,7 +4592,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 }
                 else if (lk[in->a] == K_STK) {
                     // ★ 스택은 **집이 곧 그 자신**이다 — 실을 값이 없다. 자리만 민다.
-                    fputs("    st[sp++] = 0;\n", out);
+                    low_puts(out, "    st[sp++] = 0;\n");
                     ks.o[ks.n] = (signed char)in->a; ks.k[ks.n++] = K_STK;
                 }
                 else {
@@ -4605,7 +4606,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_STORE: {
                 unsigned char kk = ks.k[--ks.n];
                 if (kk == K_INT && in->a >= 0 && in->a < 64 && ((d->loc_w128 >> in->a) & 1u)) {   // ★ W-20261105-2304 — 종류 실행과 짝
-                    fputs("    lw_hs[lw_hsp++] = (lw_u128)(unsigned long long)st[--sp];\n", out); kk = K_W128; }
+                    low_puts(out, "    lw_hs[lw_hsp++] = (lw_u128)(unsigned long long)st[--sp];\n"); kk = K_W128; }
                 // ★★★ **지역이 원소폭을 기억해야 한다.** 이 방출기는 여태 `lez` 를 파라미터에만
                 //   채웠다 — 그래서 `let b be slice u16 u"AB" .` 처럼 **타입 있는 슬라이스를
                 //   지역에 담았다가 다시 꺼내면** 폭이 1 로 되돌아가고 `index` 가 바이트를 읽었다.
@@ -4622,7 +4623,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else if (cbe_optrec_sl(ir, kk, ks.ve[ks.n], ks.fl[ks.n]))
                     low_fpf(out, "    wloc[{}] = ws[--wsp]; memcpy(wlocsl[{}], wssl[wsp], sizeof wlocsl[0]);\n", PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((long long)((long long)in->a)));
                 else if (kk == K_OPT || kk == K_OPTSL || kk == K_OPT2) low_fpf(out, "    wloc[{}] = ws[--wsp];\n", PROVEN_ARG((long long)((long long)in->a)));
-                else if (kk == K_REF) fputs("    /* ref stored: the name is static */\n", out);
+                else if (kk == K_REF) low_puts(out, "    /* ref stored: the name is static */\n");
                 else if (kk >= K_REC && cbe_struct_has_sl(ir, kk - K_REC)) low_fpf(out, "    rloc[{}] = rbuf[{}]; memcpy(rloc[{}], rs[--rsp], {});"
                                               " memcpy(rlocsl[{}], rssl[rsp], sizeof rssl[0]);\n",
                                               PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((long long)((long long)in->a)),
@@ -4644,7 +4645,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             }
             case IRW_LEN:
-                fputs("    st[sp++] = (long long)ss[--ssp].n;\n", out);
+                low_puts(out, "    st[sp++] = (long long)ss[--ssp].n;\n");
                 ks.k[ks.n-1] = K_INT; break;
             // ★★★ **내용 계약 검사** (RFC-0111 §8-11) — 진입에서 슬라이스를 한 번 훑는다.
             //   태그 경로의 `lw_elemck` 와 **같은 뜻**이어야 한다: 원소는 리틀엔디언으로 조립하고
@@ -4669,8 +4670,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★★★ **cstr → str** (RFC-0068 S4 · C2) — 포인터 스칼라(정수 스택)를 뷰 슬라이스로.
                 //   길이를 몰라 strlen 으로 스캔한다(O(n) — 이름이 비용을 말한다). **복사 0**(뷰다).
                 //   ★ RFC-0137 P3 — cstr 는 슬라이스 칸에 포인터로 실려 온다(정수를 거치지 않는다). 길이만 다시 센다.
-                fputs("    { const char *p_ = (const char *)ss[ssp-1].p;\n"
-                      "      ss[ssp-1].n = p_ ? strlen(p_) : 0; }\n", out);
+                low_puts(out, "    { const char *p_ = (const char *)ss[ssp-1].p;\n"
+                      "      ss[ssp-1].n = p_ ? strlen(p_) : 0; }\n");
                 ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = 1; ks.o[ks.n-1] = -1; break;
             case IRW_STR2CSTR:
                 // ★★★ **str_buf → cstr** (RFC-0068 S4 · C4) — 바이트 버퍼의 base 포인터를 cstr 로.
@@ -4680,9 +4681,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_INDEX: {
                 if (ks.k[ks.n-2] == K_ROWS) {   // ★ 줄 하나를 보는 슬라이스 — 포인터를 i × 줄 바이트만큼 옮기고 길이는 줄 안 원소 수
                     const unsigned rb_ = ks.vn[ks.n-2], ez_ = ks.ve[ks.n-2] ? ks.ve[ks.n-2] : 1;
-                    fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n", out);
+                    low_puts(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n");
                     if (!(in->a & IR_POL_PROVEN))
-                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"slice index out of bounds\");\n", out);
+                        low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"slice index out of bounds\");\n");
                     const unsigned sub_ = CBE_FL_RSUB(ks.fl[ks.n-2]);
                     if (sub_) {   // ★ 2026-11-02 — 아래 줄의 나열: 길이는 줄 수(줄 바이트 / 아래 줄 바이트) · 종류 실행과 같다
                         const unsigned crb_ = ir->rowsh_rb[sub_];
@@ -4699,10 +4700,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     // ★★★ 구조체 배열의 원소 = **구조체 뷰**(무복사). 오프셋 = i × stride.
                     int sx = ks.k[ks.n-2] - K_SVIEW;
                     int stride = (int)ir->structs[sx].total;
-                    fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n", out);
+                    low_puts(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n");
                     if (!(in->a & IR_POL_PROVEN))
-                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
-                              " lw_panic(\"slice index out of bounds\");\n", out);
+                        low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                              " lw_panic(\"slice index out of bounds\");\n");
                     low_fpf(out, "      ss[ssp-1].p = s_.p + (size_t)i_ * {}; ss[ssp-1].n = {}; }}\n",
                             PROVEN_ARG((int)(stride)), PROVEN_ARG((int)(stride)));
                     ks.n--; ks.k[ks.n-1] = (unsigned char)(K_VIEW + sx); ks.o[ks.n-1] = -1;
@@ -4715,13 +4716,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 for (int q = 0; q < ncy; q++)
                     if ((int)j == cy[q].L && cy[q].on && !eflt && ks.k[ks.n-2] == K_SL &&
                         ks.o[ks.n-2] == cy[q].s && esz == cy[q].esz) cq = q;
-                fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                low_puts(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n");
                 if (cq >= 0) low_fpf(out, "      if (LW_UNLIKELY(!lw_cv{})) {{\n", PROVEN_ARG((int)(cq)));
                 if (!(in->a & IR_POL_PROVEN))
-                    fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
-                          " lw_panic(\"slice index out of bounds\");\n", out);
-                if (esz == 1) fputs(esgn ? "      st[sp++] = (long long)(signed char)s_.p[i_];\n"
-                                         : "      st[sp++] = (long long)s_.p[i_];\n", out);
+                    low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                          " lw_panic(\"slice index out of bounds\");\n");
+                if (esz == 1) low_puts(out, esgn ? "      st[sp++] = (long long)(signed char)s_.p[i_];\n"
+                                         : "      st[sp++] = (long long)s_.p[i_];\n");
                 else {
                     // ★ 런타임(VARRAY)은 원소를 **리틀엔디언으로 조립**한다. 같은 뜻을 같은
                     //   방식으로 낸다 — 그러면 **어느 호스트에서도** 답이 같고, LE 기계에서는
@@ -4732,13 +4733,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   정수 비트를 정수 스택에 밀어 VM≠native(index(view_array f32)=1.5 대신 비트값).
                     if (eflt) low_fpf(out, "      fs[fsp++] = lw_b2f(x_, {});\n", PROVEN_ARG((int)(esz)));
                     else if (esgn) low_fpf(out, "      st[sp++] = (long long)(int{}_t)x_;\n", PROVEN_ARG((int)(esz * 8)));
-                    else      fputs("      st[sp++] = (long long)x_;\n", out);
+                    else      low_puts(out, "      st[sp++] = (long long)x_;\n");
                 }
                 if (!eflt && (esz == 1 || esz == 2 || esz == 4)) {   // 읽은 값은 그 칸의 폭에 든다(부호 있는 칸은 부호를 늘렸다)
                     idx_at = j; idx_m = (unsigned)(IR_TY_KNOWN | (esgn ? IR_TY_SIGNED : 0) | (esz * 8));
                 }
                 if (cq >= 0) low_fpf(out, "      }} else st[sp++] = lw_cc{};\n", PROVEN_ARG((int)(cq)));
-                fputs("    }\n", out);
+                low_puts(out, "    }\n");
                 // ★ index 는 **둘 빼고 하나 민다**(net −1). 여기서 −2 로 적었더니 `wrap.ok` 가
                 //   **아래 슬롯을 덮었고**, `result` 를 돌려주는 op 이 **정수 0** 을 돌려줬다.
                 ks.n--; ks.k[ks.n-1] = eflt ? K_FLT : K_INT; ks.o[ks.n-1] = -1; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0;
@@ -4750,38 +4751,38 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             //   태그는 `lowv`, 여기는 `ss[]`(포인터+길이 그대로).
             //   ★ 쓰기 대상의 const 를 벗긴다 — 빠른 경로가 `index.store` 에서 이미 하는 일이다.
             case IRW_AESCTR: {
-                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
+                low_puts(out, "    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
                       "      st[sp++] = lw_aes_ctr_x(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
-                      " (void *)d_.p, d_.n); }\n", out);
+                      " (void *)d_.p, d_.n); }\n");
                 ks.n -= 4; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_CHACHA20: {
-                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
+                low_puts(out, "    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
                       "      st[sp++] = lw_chacha20_x(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
-                      " (void *)d_.p, d_.n); }\n", out);
+                      " (void *)d_.p, d_.n); }\n");
                 ks.n -= 4; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_POLY1305: {
-                fputs("    { lw_sl d_ = ss[--ssp], t_ = ss[--ssp];\n"
-                      "      st[sp++] = lw_poly1305_x((void *)t_.p, t_.n, d_.p, d_.n); }\n", out);
+                low_puts(out, "    { lw_sl d_ = ss[--ssp], t_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_poly1305_x((void *)t_.p, t_.n, d_.p, d_.n); }\n");
                 ks.n -= 2; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_AESGCM: {
-                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], z_ = ss[--ssp],\n"
+                low_puts(out, "    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], z_ = ss[--ssp],\n"
                       "            h_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
                       "      st[sp++] = lw_aes_gcm_x(k_.p, k_.n, (void *)c_.p, c_.n, h_.p, h_.n,\n"
-                      "                              (void *)z_.p, z_.n, s_.p, s_.n, (void *)d_.p, d_.n); }\n", out);
+                      "                              (void *)z_.p, z_.n, s_.p, s_.n, (void *)d_.p, d_.n); }\n");
                 ks.n -= 6; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_CHAPOLY: {
-                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], t_ = ss[--ssp],\n"
+                low_puts(out, "    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], t_ = ss[--ssp],\n"
                       "            c_ = ss[--ssp], k_ = ss[--ssp];\n"
                       "      st[sp++] = lw_chacha_poly_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
-                      "                                  (void *)t_.p, t_.n, s_.p, s_.n, (void *)d_.p, d_.n); }\n", out);
+                      "                                  (void *)t_.p, t_.n, s_.p, s_.n, (void *)d_.p, d_.n); }\n");
                 ks.n -= 5; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
@@ -4793,8 +4794,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             }
             case IRW_GHASH: {
-                fputs("    { lw_sl d_ = ss[--ssp], z_ = ss[--ssp], h_ = ss[--ssp];\n"
-                      "      st[sp++] = lw_ghash_x(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n); }\n", out);
+                low_puts(out, "    { lw_sl d_ = ss[--ssp], z_ = ss[--ssp], h_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_ghash_x(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n); }\n");
                 ks.n -= 3; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
@@ -4807,7 +4808,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             }
             case IRW_SAMESL:
-                fputs("    { lw_sl b_ = ss[--ssp]; lw_sl a_ = ss[--ssp]; st[sp++] = (a_.p == b_.p && a_.n == b_.n) ? 1 : 0; }\n", out);
+                low_puts(out, "    { lw_sl b_ = ss[--ssp]; lw_sl a_ = ss[--ssp]; st[sp++] = (a_.p == b_.p && a_.n == b_.n) ? 1 : 0; }\n");
                 ks.n -= 2; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++; break;
             case IRW_CRC32: case IRW_HASH64:
                 low_fpf(out, "    {{ lw_sl s_ = ss[--ssp]; st[sp++] = (long long){}(s_.p, s_.n); }}\n",
@@ -4823,8 +4824,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   같은 파일의 다른 자리(vec 채우기)는 옳은 이름을 쓴다 — **한 뜻이 두 곳에서
                 //   갈린 것**이고, 갈린 쪽에 시험이 없었다(교훈 7).
                 //   ⇒ 골든이 이제 `prog/mcpi.low` 를 **실제로 cc 에 건다**.
-                fputs("    { lw_sl d_ = ss[--ssp];\n"
-                      "      st[sp++] = lw_rand_bytes((unsigned char *)d_.p, d_.n); }\n", out);
+                low_puts(out, "    { lw_sl d_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_rand_bytes((unsigned char *)d_.p, d_.n); }\n");
                 ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             // ★ 레인 순열 — `lw_vperm` 의 정의를 그대로 옮긴다(0 reverse · 1 rotate · 2 shuffle).
             //   제자리로 못 한다(원본 레인을 읽으면서 쓰므로) ⇒ 칸 하나를 빌려 옮기고 되돌린다.
@@ -4894,14 +4895,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.n--; ks.o[ks.n-1] = -1; break;
             }
             case IRW_RNGNEXT:
-                fputs("    st[sp-1] = lw_rng_next(st[sp-1]);\n", out); break;
+                low_puts(out, "    st[sp-1] = lw_rng_next(st[sp-1]);\n"); break;
             case IRW_TIMESLEEP:
-                fputs("    st[sp-1] = lw_time_sleep(st[sp-1]);\n", out); break;
+                low_puts(out, "    st[sp-1] = lw_time_sleep(st[sp-1]);\n"); break;
             case IRW_TIMENOW:
-                fputs("    st[sp++] = lw_time_now();\n", out);
+                low_puts(out, "    st[sp++] = lw_time_now();\n");
                 ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.n++; break;
             case IRW_TIMELOCAL:
-                fputs("    st[sp++] = lw_time_local();\n", out);
+                low_puts(out, "    st[sp++] = lw_time_local();\n");
                 ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.n++; break;
             // ★★★ **호스트 잎** (2026-10-31 · W-20261031-2053) — 태그 경로와 같은 함수(`lw_h_*`)를 부른다.
             //   option 은 (태그, 값) 쌍이다: 1 = some · 2 = none. 바이트 슬라이스 option 은 `ws[].s`.
@@ -4910,18 +4911,18 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
 // 같은 글을 proven 서식(low_fpf) 안에서 쓸 때 — 중괄호를 두 겹으로(`{{` `}}` 가 글자 `{` `}` 다).
 #define CBE_WSOPT_F(call_) "      if (" call_ ") {{ ws[wsp].v = r_; ws[wsp].tag = 1; }} else {{ ws[wsp].v = 0; ws[wsp].tag = 2; }} wsp++; }}\n"
             case IRW_ARGC:
-                fputs("    st[sp++] = (long long)lw_g_nargs;\n", out);
+                low_puts(out, "    st[sp++] = (long long)lw_g_nargs;\n");
                 CBE_KSET(ks.n, K_INT); ks.n++; break;
             case IRW_ARGV:
-                fputs("    { long long i_ = st[--sp]; lw_sl s_ = { 0, 0 };\n"
-                      "      if (lw_h_argv(i_, &s_)) { ws[wsp].s = s_; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n", out);
+                low_puts(out, "    { long long i_ = st[--sp]; lw_sl s_ = { 0, 0 };\n"
+                      "      if (lw_h_argv(i_, &s_)) { ws[wsp].s = s_; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n");
                 CBE_KSET(ks.n-1, K_OPTSL); break;
             case IRW_ENVGET:
-                fputs("    { lw_sl n_ = ss[--ssp]; lw_sl s_ = { 0, 0 };\n"
-                      "      if (lw_h_envget(n_.p, n_.n, &s_)) { ws[wsp].s = s_; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n", out);
+                low_puts(out, "    { lw_sl n_ = ss[--ssp]; lw_sl s_ = { 0, 0 };\n"
+                      "      if (lw_h_envget(n_.p, n_.n, &s_)) { ws[wsp].s = s_; ws[wsp].v = 0; ws[wsp].tag = 1; } else { ws[wsp].v = 0; ws[wsp].tag = 2; } wsp++; }\n");
                 CBE_KSET(ks.n-1, K_OPTSL); break;
             case IRW_WRITE:
-                fputs("    { lw_sl b_ = ss[--ssp]; long long f_ = st[--sp]; st[sp++] = lw_h_write(f_, b_.p, b_.n); }\n", out);
+                low_puts(out, "    { lw_sl b_ = ss[--ssp]; long long f_ = st[--sp]; st[sp++] = lw_h_write(f_, b_.p, b_.n); }\n");
                 ks.n--; CBE_KSET(ks.n-1, K_INT); break;
             case IRW_RDIN: case IRW_FREAD: case IRW_DREAD: case IRW_NRECV:
                 low_fpf(out, "    {{ lw_sl b_ = ss[--ssp]; long long h_ = st[--sp]; long long r_ = 0;\n"
@@ -4934,8 +4935,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         proven_arg_cstr(in->w == IRW_FWRITE ? "lw_h_fwrite" : "lw_h_nsend"));
                 ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_FOPEN:
-                fputs("    { long long m_ = st[--sp]; lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
-                      CBE_WSOPT("lw_h_fopen(p_.p, p_.n, m_, &r_)"), out);
+                low_puts(out, "    { long long m_ = st[--sp]; lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_fopen(p_.p, p_.n, m_, &r_)"));
                 ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_DOPEN: case IRW_NRESOLVE:
                 low_fpf(out, "    {{ lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
@@ -4945,24 +4946,24 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             // ★★ 2026-11-01 (W-20261101-1150) — 터미널 · 자식 프로세스 · prefetch. 런타임은 태그 경로의 것 그대로(`lw_tty_*` · `lw_proc_*`),
             //   다만 option 을 박스로 싸지 않고 (태그, 값) 쌍으로 낸다 — 되풀이 안에서 불러도 박스 풀을 안 쓴다.
             case IRW_TTYRAW:
-                fputs("    st[sp-1] = lw_tty_raw(st[sp-1]);\n", out);
+                low_puts(out, "    st[sp-1] = lw_tty_raw(st[sp-1]);\n");
                 CBE_KSET(ks.n-1, K_INT); break;
             case IRW_TTYREAD:
-                fputs("    { lw_sl b_ = ss[--ssp]; ssize_t g_ = read(0, (void *)(uintptr_t)b_.p, b_.n);\n"
-                      "      if (g_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = (long long)g_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                low_puts(out, "    { lw_sl b_ = ss[--ssp]; ssize_t g_ = read(0, (void *)(uintptr_t)b_.p, b_.n);\n"
+                      "      if (g_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = (long long)g_; ws[wsp].tag = 1; } wsp++; }\n");
                 CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_TTYSIZE:
-                fputs("    { struct winsize w_;\n"
+                low_puts(out, "    { struct winsize w_;\n"
                       "      if (!isatty(1) || ioctl(1, TIOCGWINSZ, &w_) != 0 || w_.ws_col == 0) { ws[wsp].v = 0; ws[wsp].tag = 2; }\n"
-                      "      else { ws[wsp].v = ((long long)w_.ws_row << 32) | (long long)w_.ws_col; ws[wsp].tag = 1; } wsp++; }\n", out);
+                      "      else { ws[wsp].v = ((long long)w_.ws_row << 32) | (long long)w_.ws_col; ws[wsp].tag = 1; } wsp++; }\n");
                 CBE_KSET(ks.n, K_OPT); ks.n++; break;
             case IRW_PSPAWN:
-                fputs("    { lw_sl a_ = ss[--ssp]; long long h_ = lw_proc_spawn(a_.p, a_.n);\n"
-                      "      if (h_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = h_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                low_puts(out, "    { lw_sl a_ = ss[--ssp]; long long h_ = lw_proc_spawn(a_.p, a_.n);\n"
+                      "      if (h_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = h_; ws[wsp].tag = 1; } wsp++; }\n");
                 CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_PREAD:
-                fputs("    { lw_sl d_ = ss[--ssp]; long long h_ = st[--sp]; long long r_ = lw_proc_read(h_, (unsigned char *)(uintptr_t)d_.p, d_.n);\n"
-                      "      if (r_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = r_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                low_puts(out, "    { lw_sl d_ = ss[--ssp]; long long h_ = st[--sp]; long long r_ = lw_proc_read(h_, (unsigned char *)(uintptr_t)d_.p, d_.n);\n"
+                      "      if (r_ < 0) { ws[wsp].v = 0; ws[wsp].tag = 2; } else { ws[wsp].v = r_; ws[wsp].tag = 1; } wsp++; }\n");
                 ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_PPOLL: case IRW_PWAIT:
                 low_fpf(out, "    {{ long long h_ = st[--sp]; unsigned long long s_ = 0; int r_ = {}(h_, &s_);\n"
@@ -4971,12 +4972,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         proven_arg_cstr(in->w == IRW_PPOLL ? "lw_proc_poll" : "lw_proc_wait"));
                 CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_PKILL:
-                fputs("    st[sp-1] = lw_proc_kill(st[sp-1]) ? 1 : 0;\n", out);
+                low_puts(out, "    st[sp-1] = lw_proc_kill(st[sp-1]) ? 1 : 0;\n");
                 CBE_KSET(ks.n-1, K_INT); break;
             case IRW_PREFETCH:
-                fputs("    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
+                low_puts(out, "    { long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
                       "      if (s_.p && (unsigned long long)i_ < s_.n) __builtin_prefetch(s_.p + i_, 0, 1);\n"
-                      "      st[sp++] = 0; }\n", out);
+                      "      st[sp++] = 0; }\n");
                 ks.n--; CBE_KSET(ks.n-1, K_INT); break;
             case IRW_FTYPE: case IRW_LTYPE:
                 low_fpf(out, "    {{ lw_sl p_ = ss[--ssp]; long long r_ = 0;\n"
@@ -4988,7 +4989,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         proven_arg_cstr(in->w == IRW_DMAKE ? "lw_h_dmake" : "lw_h_premove"));
                 CBE_KSET(ks.n-1, K_INT); break;
             case IRW_PRENAME:
-                fputs("    { lw_sl n_ = ss[--ssp]; lw_sl o_ = ss[--ssp]; st[sp++] = lw_h_prename(o_.p, o_.n, n_.p, n_.n); }\n", out);
+                low_puts(out, "    { lw_sl n_ = ss[--ssp]; lw_sl o_ = ss[--ssp]; st[sp++] = lw_h_prename(o_.p, o_.n, n_.p, n_.n); }\n");
                 ks.n--; CBE_KSET(ks.n-1, K_INT); break;
             case IRW_FCLOSE: case IRW_DCLOSE: case IRW_NCLOSE:
                 low_fpf(out, "    st[sp-1] = {}(st[sp-1]);\n",
@@ -5000,34 +5001,34 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         proven_arg_cstr(in->w == IRW_NLISTEN ? "lw_h_nlisten" : in->w == IRW_NPORT ? "lw_h_nport" : "lw_h_naccept"));
                 CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_NCONNECT:
-                fputs("    { long long p_ = st[--sp]; long long a_ = st[--sp]; long long r_ = 0;\n"
-                      CBE_WSOPT("lw_h_nconnect(a_, p_, &r_)"), out);
+                low_puts(out, "    { long long p_ = st[--sp]; long long a_ = st[--sp]; long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_nconnect(a_, p_, &r_)"));
                 ks.n--; CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_FSEEK:
-                fputs("    { long long w_ = st[--sp]; long long o_ = st[--sp]; long long h_ = st[--sp]; long long r_ = 0;\n"
-                      CBE_WSOPT("lw_h_fseek(h_, o_, w_, &r_)"), out);
+                low_puts(out, "    { long long w_ = st[--sp]; long long o_ = st[--sp]; long long h_ = st[--sp]; long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_fseek(h_, o_, w_, &r_)"));
                 ks.n -= 2; CBE_KSET(ks.n-1, K_OPT); break;
             case IRW_NPAIR:
-                fputs("    { long long r_ = 0;\n"
-                      CBE_WSOPT("lw_h_npair(&r_)"), out);
+                low_puts(out, "    { long long r_ = 0;\n"
+                      CBE_WSOPT("lw_h_npair(&r_)"));
                 CBE_KSET(ks.n, K_OPT); ks.n++; break;
             case IRW_HASVAL:
-                fputs("    { int t_ = ws[--wsp].tag; st[sp++] = (t_ == 1 || t_ == 3) ? 1 : 0; }\n", out);
+                low_puts(out, "    { int t_ = ws[--wsp].tag; st[sp++] = (t_ == 1 || t_ == 3) ? 1 : 0; }\n");
                 CBE_KSET(ks.n-1, K_INT); break;
             case IRW_VALOR:
                 if (ks.k[ks.n-2] == K_OPTSL) {   // 바이트 슬라이스 — 기본값은 슬라이스이거나 같은 option
                     if (ks.k[ks.n-1] == K_OPTSL)
-                        fputs("    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_.s; }\n", out);
+                        low_puts(out, "    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_.s; }\n");
                     else
-                        fputs("    { lw_sl d_ = ss[--ssp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_; }\n", out);
+                        low_puts(out, "    { lw_sl d_ = ss[--ssp]; lw_r r_ = ws[--wsp]; ss[ssp++] = (r_.tag == 1) ? r_.s : d_; }\n");
                     { const unsigned char w_ = ks.vn[ks.n-2] ? ks.vn[ks.n-2] : 1, f_ = ks.fl[ks.n-2];
                       ks.n--; CBE_KSET(ks.n-1, K_SL); ks.ve[ks.n-1] = w_; ks.fl[ks.n-1] = f_; }
                     break;
                 }
                 if (ks.k[ks.n-1] == K_OPT)
-                    fputs("    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_.v; }\n", out);
+                    low_puts(out, "    { lw_r d_ = ws[--wsp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_.v; }\n");
                 else
-                    fputs("    { long long d_ = st[--sp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_; }\n", out);
+                    low_puts(out, "    { long long d_ = st[--sp]; lw_r r_ = ws[--wsp]; st[sp++] = (r_.tag == 1 || r_.tag == 3) ? r_.v : d_; }\n");
                 ks.n--; CBE_KSET(ks.n-1, K_INT); break;
 #undef CBE_WSOPT
 #undef CBE_KSET
@@ -5035,27 +5036,27 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 int esz = (int)ks.ve[ks.n-3]; if (esz <= 0) esz = 1;
                 if (ks.k[ks.n-3] >= K_SVIEW) {   // ★ 2026-11-01 — 구조체 배열의 한 칸 ← 구조체 값(레코드 바이트 · 뷰 바이트)
                     const int ex_ = ks.k[ks.n-3] - K_SVIEW, stride_ = (int)ir->structs[ex_].total;
-                    if (ks.k[ks.n-1] >= K_VIEW) fputs("    { const unsigned char *v_ = ss[--ssp].p;", out);
-                    else fputs("    { const unsigned char *v_ = rs[--rsp];", out);
-                    fputs(" long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                    if (ks.k[ks.n-1] >= K_VIEW) low_puts(out, "    { const unsigned char *v_ = ss[--ssp].p;");
+                    else low_puts(out, "    { const unsigned char *v_ = rs[--rsp];");
+                    low_puts(out, " long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n");
                     if (!(in->a & IR_POL_PROVEN))
-                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
-                              " lw_panic(\"slice index out of bounds\");\n", out);
+                        low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                              " lw_panic(\"slice index out of bounds\");\n");
                     low_fpf(out, "      memmove((unsigned char *)s_.p + (size_t)i_ * {}, v_, {}); }}\n", PROVEN_ARG((int)(stride_)), PROVEN_ARG((int)(stride_)));
                     ks.n -= 3; break;
                 }
                 if (ks.k[ks.n-1] == K_FLT) {   // ★ 2026-11-01 — 부동 값을 그 폭의 비트로(VM 과 같게 f32 는 f32 로 반올림 — lw_f2b)
-                    fputs("    { double v_ = fs[--fsp]; long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                    low_puts(out, "    { double v_ = fs[--fsp]; long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n");
                     if (!(in->a & IR_POL_PROVEN))
-                        fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
-                              " lw_panic(\"slice index out of bounds\");\n", out);
+                        low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                              " lw_panic(\"slice index out of bounds\");\n");
                     low_fpf(out, "      lw_st_le((unsigned char *)s_.p + (size_t)i_ * {}, {}, lw_f2b(v_, {})); }}\n", PROVEN_ARG((int)(esz)), PROVEN_ARG((int)(esz)), PROVEN_ARG((int)(esz)));
                     ks.n -= 3; break;
                 }
-                fputs("    { long long v_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                low_puts(out, "    { long long v_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n");
                 if (!(in->a & IR_POL_PROVEN))
-                    fputs("      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
-                          " lw_panic(\"slice index out of bounds\");\n", out);
+                    low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n))"
+                          " lw_panic(\"slice index out of bounds\");\n");
                 // ★★★ **쓰기도 읽기와 같은 근거로 증명된다** (2026-07-30).
                 //   IR 은 `index` 와 `index.store` 를 **같은 관계 사실**로 증명한다(RFC-0055 D5 ·
                 //   `idx_no_check` Qed): `i < len(s)` 이고 `i ≥ 0` 이면 안전하다. **태그 경로는
@@ -5067,7 +5068,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //     그 발산의 진짜 원인은 같은 커밋에 있던 `wrap_*` 변경(폭 미상 → 0 마스킹)이었다.
                 //     ⇒ 원인을 하나만 바꿔 확인하지 않고 **두 변경을 함께 보고 결론**을 냈다.
                 //     같은 픽스처로 다시 재 보니 이 변경의 방출 차분은 **0** 이다.
-                if (esz == 1) fputs("      ((unsigned char *)s_.p)[i_] = (unsigned char)v_;\n", out);
+                if (esz == 1) low_puts(out, "      ((unsigned char *)s_.p)[i_] = (unsigned char)v_;\n");
                 else
                     low_fpf(out, "      lw_st_le((unsigned char *)s_.p + (size_t)i_ * {}, {},"
                                  " (unsigned long long)v_);\n", PROVEN_ARG((int)(esz)), PROVEN_ARG((int)(esz)));
@@ -5079,7 +5080,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     else low_fpf(out, "      lw_cc{} = (long long)((unsigned long long)v_ & 0x{:x}ull);\n",
                                  PROVEN_ARG((int)(q)), PROVEN_ARG((unsigned long long)((1ull << (esz * 8)) - 1)));
                 }
-                fputs("    }\n", out);
+                low_puts(out, "    }\n");
                 ks.n -= 3; break;
             }
             case IRW_VARRAY: {
@@ -5156,10 +5157,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 unsigned ez = (ks.n >= 3 && ks.ve[ks.n-3]) ? ks.ve[ks.n-3] : 1;
                 if (ks.n >= 3 && ks.k[ks.n-3] >= K_SVIEW) ez = (unsigned)ir->structs[ks.k[ks.n-3] - K_SVIEW].total;   // ★ 구조체 배열 — 보폭은 구조체 크기
                 // ★ 구간 분석이 두 색인을 `i < len(s)` 로 증명했으면(IR_POL_PROVEN) 검사를 내지 않는다 — `index` 와 같다.
-                fputs("    { long long j_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                low_puts(out, "    { long long j_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n");
                 if (!(in->a & IR_POL_PROVEN))
-                    fputs("      if (LW_UNLIKELY(i_ < 0 || j_ < 0 || (unsigned long long)i_ >= s_.n || (unsigned long long)j_ >= s_.n))"
-                          " lw_panic(\"swap index out of bounds\");\n", out);
+                    low_puts(out, "      if (LW_UNLIKELY(i_ < 0 || j_ < 0 || (unsigned long long)i_ >= s_.n || (unsigned long long)j_ >= s_.n))"
+                          " lw_panic(\"swap index out of bounds\");\n");
                 low_fpf(out, "      unsigned char *a_ = (unsigned char *)s_.p + (size_t)i_ * {}u;\n"
                              "      unsigned char *b_ = (unsigned char *)s_.p + (size_t)j_ * {}u;\n"
                              "      unsigned char t_[{}u]; memcpy(t_, a_, {}u); memmove(a_, b_, {}u); memcpy(b_, t_, {}u); }}\n",
@@ -5168,7 +5169,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   있어서(i = j) gcc 가 그 고리를 낱말 하나로 합치지 못했다 — 8바이트 원소 맞바꾸기가 바이트
                 //   읽기·쓰기 16번이었고, 퀵정렬이 손으로 쓴 맞바꾸기보다 ×2.6 느렸다(같은 세션 실측).
                 //   memmove 가 i = j 를 바르게 다루고, 상수 크기라 gcc 가 낱말 읽기·쓰기로 접는다.
-                fputs("    st[sp++] = 0;\n", out);   // ★ 뒤따르는 drop 과 짝을 맞춘다
+                low_puts(out, "    st[sp++] = 0;\n");   // ★ 뒤따르는 drop 과 짝을 맞춘다
                 ks.n -= 3; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.n++; break;
             }
             case IRW_SUBSLICE: {
@@ -5177,11 +5178,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 const bool svw_ = ks.k[ks.n-3] >= K_SVIEW;   // 구조체 원소 — 보폭은 배치의 크기(종류 실행과 짝)
                 const bool vw_ = ks.k[ks.n-3] >= K_VIEW && !svw_;   // ★ 2026-11-03 — 그림자의 뷰 → 바이트 슬라이스(종류 실행과 짝)
                 int sez = svw_ ? (int)ir->structs[ks.k[ks.n-3] - K_SVIEW].total : vw_ ? 1 : (int)ks.ve[ks.n-3]; if (sez <= 0) sez = 1;
-                fputs("    { long long hi_ = st[--sp], lo_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n"
+                low_puts(out, "    { long long hi_ = st[--sp], lo_ = st[--sp]; lw_sl s_ = ss[ssp-1];\n"
                       "      if (LW_UNLIKELY(lo_ < 0 || hi_ < lo_ || (unsigned long long)hi_ > s_.n))"
-                      " lw_panic(\"subslice out of bounds\");\n", out);
+                      " lw_panic(\"subslice out of bounds\");\n");
                 if (sez == 1)
-                    fputs("      ss[ssp-1].p = s_.p + lo_; ss[ssp-1].n = (size_t)(hi_ - lo_); }\n", out);
+                    low_puts(out, "      ss[ssp-1].p = s_.p + lo_; ss[ssp-1].n = (size_t)(hi_ - lo_); }\n");
                 else
                     low_fpf(out, "      ss[ssp-1].p = s_.p + (size_t)lo_ * {};"
                                  " ss[ssp-1].n = (size_t)(hi_ - lo_); }}\n", PROVEN_ARG((int)(sez)));
@@ -5240,7 +5241,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //     가드가 불균형을 **가리고 있었다.** 두 뒤끝이 같은 IR 을 다르게 견디면,
                 //     견디는 쪽이 결함을 숨긴다.
                 low_fpf(out, "    atomic_thread_fence(lw_mo({}));\n", PROVEN_ARG((int)((int)(in->a & 7))));
-                fputs("    st[sp++] = 0;\n", out);
+                low_puts(out, "    st[sp++] = 0;\n");
                 ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; break;
             case IRW_BITCAST: {
                 bool out_f = (in->a & 0x10000) != 0;
@@ -5296,7 +5297,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_REF: case IRW_MREF:
                 // ★★★ 참조는 **이름**이다 — 실을 값이 없다. 대상은 종류가 기억한다.
-                fputs("    /* ref: a name for a local — nothing to load */\n", out);
+                low_puts(out, "    /* ref: a name for a local — nothing to load */\n");
                 ks.o[ks.n] = (signed char)(in->a & 0xffff);
                 ks.k[ks.n++] = K_REF;
                 break;
@@ -5310,13 +5311,13 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (in->a & 0x10000) {
                     // ★ 부동 splat — f64 스택 값을 원소 폭 비트로 눌러 모든 레인에.
                     int ez = (int)(in->a & 0xff);
-                    g_vspush++; fputs("@@VSG@@", out);
+                    g_vspush++; low_puts(out, "@@VSG@@");
                     low_fpf(out, "    {{ unsigned long long x_ = lw_f2b(fs[--fsp], {});"
                                  " for (int k_ = 0; k_ < {}; k_++) vs[vsp].{}[k_] = x_; vsp++; }}\n",
                             PROVEN_ARG((int)(ez)), PROVEN_ARG((int)(ln)), proven_arg_cstr(lw_vmem((unsigned)ez)));
                     ks.fl[ks.n-1] = 1;
                 } else {
-                    g_vspush++; fputs("@@VSG@@", out);
+                    g_vspush++; low_puts(out, "@@VSG@@");
                     low_fpf(out, "    {{ unsigned long long x_ = (unsigned long long)st[--sp];"
                                  " for (int k_ = 0; k_ < {}; k_++) vs[vsp].{}[k_] = x_; vsp++; }}\n",
                             PROVEN_ARG((int)(ln)), proven_arg_cstr(lw_vmem((unsigned)(in->a & 0xff))));
@@ -5342,7 +5343,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 else low_bfmt(vchk, sizeof vchk,
                               "      if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ + {} > limit_))"
                               " lw_panic(\"vector load out of bounds\");\n", PROVEN_ARG((int)(ln)));
-                g_vspush++; fputs("@@VSG@@", out);
+                g_vspush++; low_puts(out, "@@VSG@@");
                 const bool vbyte_ = ks.ve[ks.n-2] <= 1 && ks.fl[ks.n-2] == 0 && ez > 1;   // ★ 2026-11-01 — 종류 실행과 같다
                 char vlim[48]; if (vbyte_) low_bfmt(vlim, sizeof vlim, " limit_ /= {};", PROVEN_ARG((int)(ez))); else vlim[0] = 0;
                 low_fpf(out, "    {{ long long i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
@@ -5434,11 +5435,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                  "      for (int k_ = 0; k_ < {}; k_++) {{ double x_ = lw_b2f(vs[vsp].{}[k_], {});\n",
                             proven_arg_cstr((in->w == IRW_RMIN || in->w == IRW_RMAX) ? "0.0" : finit), PROVEN_ARG((int)(ln)),
                             proven_arg_cstr(lw_vmem((unsigned)ez)), PROVEN_ARG((int)(ez)));
-                    if (in->w == IRW_RADD) fputs("        a_ += x_;", out);
-                    else if (in->w == IRW_RMUL) fputs("        a_ *= x_;", out);
-                    else if (in->w == IRW_RMIN) fputs("        if (k_ == 0 || x_ < a_) a_ = x_;", out);
-                    else fputs("        if (k_ == 0 || x_ > a_) a_ = x_;", out);
-                    fputs(" }\n      fs[fsp++] = a_; }\n", out);
+                    if (in->w == IRW_RADD) low_puts(out, "        a_ += x_;");
+                    else if (in->w == IRW_RMUL) low_puts(out, "        a_ *= x_;");
+                    else if (in->w == IRW_RMIN) low_puts(out, "        if (k_ == 0 || x_ < a_) a_ = x_;");
+                    else low_puts(out, "        if (k_ == 0 || x_ > a_) a_ = x_;");
+                    low_puts(out, " }\n      fs[fsp++] = a_; }\n");
                     ks.k[ks.n-1] = K_FLT; ks.o[ks.n-1] = -1; ks.fl[ks.n-1] = 0;
                     break;
                 }
@@ -5448,8 +5449,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     const char *rm_ = lw_vmem((unsigned)ez_), *sc_ = ez_ == 1 ? "int8_t" : ez_ == 2 ? "int16_t" : ez_ == 4 ? "int32_t" : "int64_t";
                     low_fpf(out, "    {{ long long a_ = {}; vsp--;\n      for (int k_ = 0; k_ < {}; k_++) {{ long long x_ = (long long)({})vs[vsp].{}[k_];\n",
                             proven_arg_cstr(in->w == IRW_RMUL ? "1" : "0"), PROVEN_ARG((int)(ln)), proven_arg_cstr(sc_), proven_arg_cstr(rm_));
-                    if (in->w == IRW_RMIN) fputs("        if (k_ == 0 || x_ < a_) a_ = x_; }\n", out);
-                    else if (in->w == IRW_RMAX) fputs("        if (k_ == 0 || x_ > a_) a_ = x_; }\n", out);
+                    if (in->w == IRW_RMIN) low_puts(out, "        if (k_ == 0 || x_ < a_) a_ = x_; }\n");
+                    else if (in->w == IRW_RMAX) low_puts(out, "        if (k_ == 0 || x_ > a_) a_ = x_; }\n");
                     else {
                         const unsigned bw_ = (unsigned)ez_ * 8u;
                         char rng_[96] = "";
@@ -5457,7 +5458,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         low_fpf(out, "        if (__builtin_{}_overflow(a_, x_, &a_){}) lw_panic(\"integer overflow at the declared width\"); }}\n",
                                 proven_arg_cstr(in->w == IRW_RADD ? "add" : "mul"), proven_arg_cstr(rng_));
                     }
-                    fputs("      st[sp++] = a_; }\n", out);
+                    low_puts(out, "      st[sp++] = a_; }\n");
                     ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; ks.fl[ks.n-1] = 0;
                     break;
                 }
@@ -5475,14 +5476,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     low_fpf(out, "      for (int k_ = 0; k_ < {}; k_++) if (vs[vsp].{}[k_] < a_) a_ = vs[vsp].{}[k_];\n", PROVEN_ARG((int)(ln)), proven_arg_cstr(rm), proven_arg_cstr(rm));
                 else
                     low_fpf(out, "      for (int k_ = 0; k_ < {}; k_++) if (vs[vsp].{}[k_] > a_) a_ = vs[vsp].{}[k_];\n", PROVEN_ARG((int)(ln)), proven_arg_cstr(rm), proven_arg_cstr(rm));
-                fputs("      st[sp++] = (long long)a_; }\n", out);
+                low_puts(out, "      st[sp++] = (long long)a_; }\n");
                 ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1;
                 break;
             }
             case IRW_MANY: case IRW_MALL: {
                 int ln = (int)ks.vn[ks.n-1];
                 if (in->w == IRW_MANY)
-                    fputs("    st[sp-1] = (st[sp-1] != 0);\n", out);
+                    low_puts(out, "    st[sp-1] = (st[sp-1] != 0);\n");
                 else
                     low_fpf(out, "    st[sp-1] = ((st[sp-1] & ((1ll << {}) - 1))"
                                  " == ((1ll << {}) - 1));\n", PROVEN_ARG((int)(ln)), PROVEN_ARG((int)(ln)));
@@ -5514,17 +5515,17 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                  "        for (int b_ = {}; b_-- > 0; ) raw_ = (raw_ << 8) | pb_[b_];\n"
                                  "        double x_ = lw_b2f(raw_, {});\n", PROVEN_ARG((int)(ez)), PROVEN_ARG((int)(ez)), PROVEN_ARG((int)(ez)));
                     if ((in->a & 0xf) == 6)
-                        fputs("        acc_ += x_; }\n", out);   // 축차 — O(n·ε)
+                        low_puts(out, "        acc_ += x_; }\n");   // 축차 — O(n·ε)
                     else
-                        fputs("        double t_ = acc_ + x_;\n"
+                        low_puts(out, "        double t_ = acc_ + x_;\n"
                               "        comp_ += (fabs(acc_) >= fabs(x_)) ? (acc_ - t_) + x_ : (x_ - t_) + acc_;\n"
-                              "        acc_ = t_; }\n", out);   // Kahan-Babuška-Neumaier
+                              "        acc_ = t_; }\n");   // Kahan-Babuška-Neumaier
                     low_fpf(out, "      fs[fsp++] = {}; }}\n", proven_arg_cstr((in->a & 0xf) == 6 ? "acc_" : "acc_ + comp_"));
                     ks.k[ks.n-1] = K_FLT; ks.o[ks.n-1] = -1; ks.fl[ks.n-1] = 0;
                 } else if ((in->a & 0xf) == 4) {   // nonzero_of: 0 → none · 그 밖 → some(v)
-                    fputs("    { long long v_ = st[--sp];"
+                    low_puts(out, "    { long long v_ = st[--sp];"
                           " if (v_ == 0) { ws[wsp].v = 0; ws[wsp].tag = 2; }"
-                          " else { ws[wsp].v = v_; ws[wsp].tag = 1; } wsp++; }\n", out);
+                          " else { ws[wsp].v = v_; ws[wsp].tag = 1; } wsp++; }\n");
                     ks.k[ks.n-1] = K_OPT; ks.o[ks.n-1] = -1;
                 } else if (ks.k[ks.n-1] == K_FLT) {
                     // ★ 초월 함수 여섯(RFC-0090 N2)이 여기 붙는다 — libm 이 준다.
@@ -5544,8 +5545,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                                              " lw_panic(\"abs overflow: |MIN| does not fit the declared width\");\n",
                                         PROVEN_ARG((long long)((long long)(wb >= 64 ? INT64_MIN : -((long long)1 << (wb - 1))))));
                     }
-                    fputs("    if (st[sp-1] < 0) st[sp-1] = (long long)(0ull -"
-                          " (unsigned long long)st[sp-1]);\n", out);
+                    low_puts(out, "    if (st[sp-1] < 0) st[sp-1] = (long long)(0ull -"
+                          " (unsigned long long)st[sp-1]);\n");
                 }   // floor/ceil 은 정수에서 항등이다(태그 경로와 같다)
                 break;
             case IRW_BINM:
@@ -5569,8 +5570,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     break;
                 }
                 if (ks.k[ks.n-1] == K_FLT) {
-                    if ((in->a & 0xff) == 0) fputs("    fs[fsp-2] = fmod(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
-                    else if ((in->a & 0xff) == 3) fputs("    fs[fsp-2] = pow(fs[fsp-2], fs[fsp-1]); fsp--;\n", out);
+                    if ((in->a & 0xff) == 0) low_puts(out, "    fs[fsp-2] = fmod(fs[fsp-2], fs[fsp-1]); fsp--;\n");
+                    else if ((in->a & 0xff) == 3) low_puts(out, "    fs[fsp-2] = pow(fs[fsp-2], fs[fsp-1]); fsp--;\n");
                     else low_fpf(out, "    fs[fsp-2] = (fs[fsp-2] {} fs[fsp-1]) ? fs[fsp-2] : fs[fsp-1];"
                                       " fsp--;\n", proven_arg_cstr((in->a & 0xff) == 1 ? "<" : ">"));
                 } else if (in->a & IR_BINM_UNS)   // ★ RFC-0151 §8-9 — 부호 없는 정수는 부호 없이 견준다(u64 의 위쪽 절반)
@@ -5582,8 +5583,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.n--; ks.o[ks.n-1] = -1; break;
             case IRW_BNEW:
                 // ★ 비트셋 = **빈 마스크**. 박스도 풀도 없다.
-                fputs("    if (LW_UNLIKELY(st[sp-1] > 64)) lw_panic(\"bitset width > 64\");\n"
-                      "    st[sp-1] = 0;\n", out);
+                low_puts(out, "    if (LW_UNLIKELY(st[sp-1] > 64)) lw_panic(\"bitset width > 64\");\n"
+                      "    st[sp-1] = 0;\n");
                 ks.k[ks.n-1] = K_BSET; ks.o[ks.n-1] = -1; break;
             case IRW_CONTAINS: {
                 int cw = (in->a & 0x800000) ? (int)(in->a & 0x7f) : 64;   // ★ 선언 폭(로워링이 구움)
@@ -5602,28 +5603,28 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 ks.n--; ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             }
             case IRW_BUNION:
-                fputs("    { unsigned long long y_ = (unsigned long long)st[--sp];"
-                      " st[sp-1] = (long long)(((unsigned long long)st[sp-1]) | y_); }\n", out);
+                low_puts(out, "    { unsigned long long y_ = (unsigned long long)st[--sp];"
+                      " st[sp-1] = (long long)(((unsigned long long)st[sp-1]) | y_); }\n");
                 ks.n--; ks.k[ks.n-1] = K_BSET; ks.o[ks.n-1] = -1; break;
             case IRW_BINTER:
-                fputs("    { unsigned long long y_ = (unsigned long long)st[--sp];"
-                      " st[sp-1] = (long long)(((unsigned long long)st[sp-1]) & y_); }\n", out);
+                low_puts(out, "    { unsigned long long y_ = (unsigned long long)st[--sp];"
+                      " st[sp-1] = (long long)(((unsigned long long)st[sp-1]) & y_); }\n");
                 ks.n--; ks.k[ks.n-1] = K_BSET; ks.o[ks.n-1] = -1; break;
             case IRW_BDIFF:
-                fputs("    { unsigned long long y_ = (unsigned long long)st[--sp];"
-                      " st[sp-1] = (long long)(((unsigned long long)st[sp-1]) & ~y_); }\n", out);
+                low_puts(out, "    { unsigned long long y_ = (unsigned long long)st[--sp];"
+                      " st[sp-1] = (long long)(((unsigned long long)st[sp-1]) & ~y_); }\n");
                 ks.n--; ks.k[ks.n-1] = K_BSET; ks.o[ks.n-1] = -1; break;
             case IRW_BSUBSET:
-                fputs("    { unsigned long long y_ = (unsigned long long)st[--sp];"
-                      " st[sp-1] = (long long)((((unsigned long long)st[sp-1]) & ~y_) == 0ull); }\n", out);
+                low_puts(out, "    { unsigned long long y_ = (unsigned long long)st[--sp];"
+                      " st[sp-1] = (long long)((((unsigned long long)st[sp-1]) & ~y_) == 0ull); }\n");
                 ks.n--; ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_BEMPTY:
-                fputs("    st[sp-1] = (long long)(((unsigned long long)st[sp-1]) == 0ull);\n", out);
+                low_puts(out, "    st[sp-1] = (long long)(((unsigned long long)st[sp-1]) == 0ull);\n");
                 ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_BCOMPL:
                 // ★ 폭은 **하강이 박아 준 immediate** 다 — 네이티브는 런타임에 폭을 모른다.
                 if ((long long)in->a >= 64 || (long long)in->a <= 0)
-                    fputs("    st[sp-1] = (long long)(~(unsigned long long)st[sp-1]);\n", out);
+                    low_puts(out, "    st[sp-1] = (long long)(~(unsigned long long)st[sp-1]);\n");
                 else
                     low_fpf(out, "    st[sp-1] = (long long)((~(unsigned long long)st[sp-1]) & ((1ull << {}) - 1ull));\n",
                             PROVEN_ARG((long long)((long long)in->a)));
@@ -5632,7 +5633,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (ks.k[ks.n-1] == K_STK)
                     low_fpf(out, "    st[sp-1] = sn[{}];\n", PROVEN_ARG((int)(smap[ks.o[ks.n-1]])));
                 else
-                    fputs("    st[sp-1] = (long long)__builtin_popcountll((unsigned long long)st[sp-1]);\n", out);
+                    low_puts(out, "    st[sp-1] = (long long)__builtin_popcountll((unsigned long long)st[sp-1]);\n");
                 ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_FCONST:
                 // ★ f64 리터럴 — **비트를 그대로** 심는다(정확히 같은 값).
@@ -5734,11 +5735,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   잎들을 **연속 슬롯**에 복사한다(rs[] 스택에서 pop). 부동은 fs[], 정수는 st[].
                 //   역순 pop — 두 스택의 내부 순서가 유지되므로.
                 // ★ `LW_RECB` 다 — 아래가 `sizeof tmp_` 만큼 `rsb`(역시 LW_RECB) 로 복사한다. 64 로 두면 넘친다(WO-0177).
-                fputs("    { _Alignas(8) unsigned char tmp_[LW_RECB] = {0};\n", out);
+                low_puts(out, "    { _Alignas(8) unsigned char tmp_[LW_RECB] = {0};\n");
                 // ★ 2026-11-01 — 평행 칸도 임시 칸에 모았다가 마지막에 민다: 액터 레코드를 꺼내면(`rsp--`) 스택 자리가 옮겨 가므로
                 //   그 사이에 `rssl[rsp]` 에 바로 쓰면 다른 자리에 쓴다.
                 const bool msl_ = cbe_struct_has_sl(ir, sx) && !cbe_make_zero(ir, d, j, sx, nf);
-                if (msl_) fputs("      lw_sl tsl_[LW_RECF] = {{0,0}};\n", out);
+                if (msl_) low_puts(out, "      lw_sl tsl_[LW_RECF] = {{0,0}};\n");
                 if (cbe_make_zero(ir, d, j, sx, nf)) {   // ★ `spawn actor` — 상수 0 을 버리고 수 칸은 0 바이트 · 슬라이스 칸은 «아직 안 세움» 표지
                     low_fpf(out, "      sp -= {};\n", PROVEN_ARG((size_t)((size_t)nf)));
                     for (proven_size_t q = 0; q < nf; q++) {
@@ -5804,8 +5805,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         low_fpf(out, "      lw_st_f(tmp_ + {}, {}, {}, (unsigned long long)st[--sp]);\n",
                                 PROVEN_ARG((unsigned)((unsigned)F->off)), PROVEN_ARG((int)((int)F->size)), PROVEN_ARG((int)(F->be ? 1 : 0)));
                 }
-                if (msl_) fputs("      memcpy(rssl[rsp], tsl_, sizeof tsl_);\n", out);
-                fputs("      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], tmp_, sizeof tmp_); rsp++; }\n", out);
+                if (msl_) low_puts(out, "      memcpy(rssl[rsp], tsl_, sizeof tsl_);\n");
+                low_puts(out, "      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], tmp_, sizeof tmp_); rsp++; }\n");
                 ks.n -= (int)nf; ks.o[ks.n] = -1; ks.k[ks.n++] = (unsigned char)(K_REC + sx);
                 break;
             }
@@ -5823,11 +5824,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     if (ob0 >= 0) {   // ★ 2026-11-01 — 소유 칸: 태그 쪽 레코드를 빠른 레코드로 베껴 낸다(옮겨 내는 것 — 되쓸 것이 없다)
                         if (ks.o[ks.n-1] >= 0) low_fpf(out, "    rsp--; {{ lowv ob_ = lw_aref_out(rlocsl[{}][{}]);\n", PROVEN_ARG((int)((int)ks.o[ks.n-1])), PROVEN_ARG((int)(sl0)));
                         else low_fpf(out, "    rsp--; {{ lowv ob_ = lw_aref_out(rssl[rsp][{}]);\n", PROVEN_ARG((int)(sl0)));
-                        fputs("      if (LW_UNLIKELY(ob_.tag != LWV_REC)) lw_panic(\"field needs a record\");\n"
-                              "      rs[rsp] = rsb[rsp]; memset(rs[rsp], 0, LW_RECB);\n", out);
+                        low_puts(out, "      if (LW_UNLIKELY(ob_.tag != LWV_REC)) lw_panic(\"field needs a record\");\n"
+                              "      rs[rsp] = rsb[rsp]; memset(rs[rsp], 0, LW_RECB);\n");
                         if (cbe_obox_inner2_ok(ir, ob0)) cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl[rsp]", 0, true);   // ★ 안쪽의 소유 칸 자리도(2026-11-02)
                         else cbe_emit_rec_unpack(out, ir, ob0, "ob_", "rs[rsp]", "rssl", 0, false);
-                        fputs("      rsp++; }\n", out);
+                        low_puts(out, "      rsp++; }\n");
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = (unsigned char)(K_REC + ob0); ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
                         ks.n++;
                         break;
@@ -5864,7 +5865,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         else   // 방금 만든 레코드 — 슬라이스는 **스택 칸**에 있다
                             low_fpf(out, "    rsp--; ss[ssp++] = rssl[rsp][{}];\n", PROVEN_ARG((int)(sl0)));
                         // ★ 2026-10-31 — 아직 안 세운 칸(갓 띄운 액터의 0)을 읽으면 VM 처럼 멈춘다(정본 §10.3 (1c) — 세우기 전에 읽는 것은 적합하지 않다).
-                        fputs("    if (LW_UNLIKELY(ss[ssp-1].p == LW_UNINIT)) lw_panic(\"len needs a slice — a slice field of an actor was read before it was set (canon 10.3 (1c))\");\n", out);
+                        low_puts(out, "    if (LW_UNLIKELY(ss[ssp-1].p == LW_UNINIT)) lw_panic(\"len needs a slice — a slice field of an actor was read before it was set (canon 10.3 (1c))\");\n");
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_SL;
                         ks.ve[ks.n] = ir->structs[sx0].f[sl0].elem; ks.vn[ks.n] = 0; ks.fl[ks.n] = cbe_sf_fl(&ir->structs[sx0].f[sl0]);
                         ks.n++;
@@ -5914,7 +5915,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         if (S->f[sl].flt)
                             low_fpf(out, "      fs[fsp++] = lw_b2f(x_, {}); }}\n", PROVEN_ARG((int)((int)S->f[sl].size)));
                         else
-                            fputs("      st[sp++] = (long long)x_; }\n", out);
+                            low_puts(out, "      st[sp++] = (long long)x_; }\n");
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n++] = S->f[sl].flt ? K_FLT : K_INT;
                         break;
                     }
@@ -5931,7 +5932,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     else if (low_sfield_sgn(&S->f[sl]) && S->f[sl].size < 8)   // ★ 부호 있는 칸은 부호를 늘린다(2026-10-31)
                         low_fpf(out, "      st[sp++] = (long long)(x_ << {}) >> {}; }}\n", PROVEN_ARG((int)(64 - 8 * (int)S->f[sl].size)), PROVEN_ARG((int)(64 - 8 * (int)S->f[sl].size)));
                     else
-                        fputs("      st[sp++] = (long long)x_; }\n", out);
+                        low_puts(out, "      st[sp++] = (long long)x_; }\n");
                     ks.n--; ks.o[ks.n] = -1; ks.k[ks.n++] = S->f[sl].flt ? K_FLT : K_INT;
                     break;
                 } else {
@@ -6042,7 +6043,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     low_fpf(out, "      for (int b_ = 0; b_ < {}; b_++)"
                                  " q_[b_] = (unsigned char)((unsigned long long)v_ >> (8 * b_));\n",
                             PROVEN_ARG((int)((int)S->f[sl].size)));
-                fputs("    }\n", out);
+                low_puts(out, "    }\n");
                 ks.n -= 2;
                 break;
             } else {
@@ -6075,7 +6076,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ try_view — 정렬·길이 계약을 **트랩 대신 값으로** 검사한다: some(view) | none.
                 int sx = (int)(in->a & 0xffff);
                 const low_ir_struct_t *S = &ir->structs[sx];
-                fputs("    { lw_sl b_ = ss[--ssp];\n", out);
+                low_puts(out, "    { lw_sl b_ = ss[--ssp];\n");
                 if (S->align > 1)
                     low_fpf(out, "      if (b_.n < {}u || ((uintptr_t)b_.p % {}u)", PROVEN_ARG((unsigned)((unsigned)S->total)), PROVEN_ARG((unsigned)((unsigned)S->align)));
                 else
@@ -6085,9 +6086,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     low_ir_cfield_t cf[64]; proven_size_t nc = low_ir_struct_cfields(ir, (proven_size_t)sx, cf, 64);
                     for (proven_size_t q = 0; q < nc; q++) if (cf[q].isbool) low_fpf(out, " || ((const unsigned char *)b_.p)[{}] > 1", PROVEN_ARG((unsigned)((unsigned)cf[q].off)));
                 }
-                fputs(")", out);
-                fputs(" { ws[wsp].tag = 2; wsp++; }\n"
-                      "      else { ws[wsp].s = b_; ws[wsp].tag = 1; wsp++; } }\n", out);
+                low_puts(out, ")");
+                low_puts(out, " { ws[wsp].tag = 2; wsp++; }\n"
+                      "      else { ws[wsp].s = b_; ws[wsp].tag = 1; wsp++; } }\n");
                 ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(sx + 1); ks.fl[ks.n-1] = 1;
                 ks.o[ks.n-1] = -1;
                 break;
@@ -6099,8 +6100,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 bool eflt = cbe_ret_flt(E);   // ★ 반환이 f64 면 double 로 받아 부동 스택으로
                 bool eptr = E->out_ptr;       // ★ 반환이 생 포인터(cstr)면 const char* 로 받아 스칼라로
                 low_fpf(out, "    {{ {} cr_ = ", proven_arg_cstr(eptr ? "const char *" : eflt ? "double" : "long long"));
-                fwrite(E->link_name.ptr, 1, E->link_name.size, out);
-                fputc('(', out);
+                low_write(out, E->link_name.ptr, E->link_name.size);
+                low_putc(out, '(');
                 { proven_size_t nn = 0;
                   for (proven_size_t q = 0; q < E->nparams; q++) {
                       if ((E->param_cap >> q) & 1u) continue;   // cap 은 C 로 안 간다
@@ -6118,10 +6119,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                   } }
                 // ★ 부동 반환은 **부동 스택**(fs)으로, 생 포인터·정수 반환은 정수 스택(st)으로 —
                 //   포인터는 기계어 한 칸이라 정수 스칼라로 실린다(K_INT). str_from_cstr 가 그것을 읽는다.
-                if (eflt)      { fputs("); fs[fsp++] = cr_; }\n", out); ks.o[ks.n] = -1; ks.k[ks.n++] = K_FLT; }
-                else if (eptr) { fputs("); ss[ssp].p = (const unsigned char *)cr_; ss[ssp].n = 0; ssp++; }\n", out);   // ★ RFC-0137 P3 — 포인터 칸
+                if (eflt)      { low_puts(out, "); fs[fsp++] = cr_; }\n"); ks.o[ks.n] = -1; ks.k[ks.n++] = K_FLT; }
+                else if (eptr) { low_puts(out, "); ss[ssp].p = (const unsigned char *)cr_; ss[ssp].n = 0; ssp++; }\n");   // ★ RFC-0137 P3 — 포인터 칸
                                  ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; }
-                else           { fputs("); st[sp++] = cr_; }\n", out); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; }
+                else           { low_puts(out, "); st[sp++] = cr_; }\n"); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; }
                 break;
             }
             case IRW_BFILL: {   // ★ 할당기 바이트를 나열의 본으로(태그 경로와 같은 뜻 · 같은 멈춤)
@@ -6175,14 +6176,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_DROP: {
                 // ★ **어느 스택에서 버리는가**는 슬롯의 종류가 안다.
                 unsigned char dk = ks.k[--ks.n];
-                if (dk == K_SL || dk == K_ROWS || dk == K_AREF || dk >= K_VIEW) fputs("    ssp--;\n", out);
-                else if (dk == K_FLT) fputs("    fsp--;\n", out);
-                else if (dk == K_W128) fputs("    lw_hsp--;\n", out);   // ★ W-20261105-2304
-                else if (dk == K_VEC) fputs("    vsp--;\n", out);
-                else if (dk == K_REF) fputs("    /* ref dropped: nothing on a stack */\n", out);
-                else if (dk == K_OPT || dk == K_OPTSL || dk == K_OPT2) fputs("    wsp--;\n", out);
-                else if (dk >= K_REC) fputs("    rsp--;\n", out);
-                else fputs("    sp--;\n", out);
+                if (dk == K_SL || dk == K_ROWS || dk == K_AREF || dk >= K_VIEW) low_puts(out, "    ssp--;\n");
+                else if (dk == K_FLT) low_puts(out, "    fsp--;\n");
+                else if (dk == K_W128) low_puts(out, "    lw_hsp--;\n");   // ★ W-20261105-2304
+                else if (dk == K_VEC) low_puts(out, "    vsp--;\n");
+                else if (dk == K_REF) low_puts(out, "    /* ref dropped: nothing on a stack */\n");
+                else if (dk == K_OPT || dk == K_OPTSL || dk == K_OPT2) low_puts(out, "    wsp--;\n");
+                else if (dk >= K_REC) low_puts(out, "    rsp--;\n");
+                else low_puts(out, "    sp--;\n");
                 break;
             }
             // ★★★ 2a — 빠른 `spawn send`: 칸에 처리 코드의 빠른 판(어댑터) · 그 액터의 바이트 · 정수 인자를 넣는다(cbe_kind_run 이 모양을 보였다).
@@ -6198,10 +6199,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     low_fpf(out, "      if (lw_amb_pend(box_) >= {}ll) lw_panic(\"the actor's bounded mailbox is full — "
                                  "`spawn send` would exceed `mailbox bounded N` pending messages (drain it first, or raise N)\");\n",
                             PROVEN_ARG((long long)((long long)S_->mailbox_cap)));
-                fputs("      if (lw_amb_full())"
+                low_puts(out, "      if (lw_amb_full())"
                       " lw_panic(\"the task/message queue is exhausted — too many messages and tasks wait at once"
-                      " (docs/runtime-pools.md; on the freestanding floor raise it with -DLW_T0_MBOX=N)\");\n", out);
-                fputs("      int qi_ = lw_amb_push(box_); lw_ambox[qi_].qf = lw_q_", out); put_sym(out, h_);
+                      " (docs/runtime-pools.md; on the freestanding floor raise it with -DLW_T0_MBOX=N)\");\n");
+                low_puts(out, "      int qi_ = lw_amb_push(box_); lw_ambox[qi_].qf = lw_q_"); put_sym(out, h_);
                 low_fpf(out, "; lw_ambox[qi_].nargs = {}; LW_SET_NOY(qi_, 1);\n", PROVEN_ARG((int)(np_ - 1)));
                 for (int g = 0; g + 1 < np_; g++)
                     low_fpf(out, "      lw_ambox[qi_].args[{}] = lw_int(st[sp-{}]);\n", PROVEN_ARG((int)(g)), PROVEN_ARG((int)(np_ - 1 - g)));
@@ -6217,7 +6218,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             }
             case IRW_SCHED:
-                fputs("    { int dsv_ = lw_depth_tls(); lw_depth_tls_set(lw_depth); lw_schedule(); lw_depth_tls_set(dsv_); } st[sp++] = 0;\n", out);
+                low_puts(out, "    { int dsv_ = lw_depth_tls(); lw_depth_tls_set(lw_depth); lw_schedule(); lw_depth_tls_set(dsv_); } st[sp++] = 0;\n");
                 ks.o[ks.n] = -1; ks.k[ks.n] = K_INT; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             case IRW_WRAP_SOME:
@@ -6235,21 +6236,21 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 }
                 if (ks.k[ks.n-1] >= K_VIEW && ks.k[ks.n-1] < K_SVIEW) {   // ★ 2026-11-01 — 구조체 뷰를 감싼다(`try.view` 와 같은 모양)
                     const int vsx_ = ks.k[ks.n-1] - K_VIEW;
-                    fputs("    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n", out);
+                    low_puts(out, "    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n");
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = (unsigned char)(vsx_ + 1); ks.fl[ks.n-1] = 1; ks.vn[ks.n-1] = 0; ks.o[ks.n-1] = -1;
                     break;
                 }
                 if (ks.k[ks.n-1] == K_SL) {   // ★ WO-0222 — 슬라이스를 감싼다(폭 · 표식은 vn · fl 로 — 시뮬레이터와 같다)
-                    fputs("    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n", out);
+                    low_puts(out, "    ws[wsp].s = ss[--ssp]; ws[wsp].v = 0; ws[wsp].tag = 1; wsp++;\n");
                     { const unsigned char w_ = ks.ve[ks.n-1] ? ks.ve[ks.n-1] : 1;
                       ks.k[ks.n-1] = K_OPTSL; ks.ve[ks.n-1] = 0; ks.vn[ks.n-1] = (unsigned char)(w_ > 1 ? w_ : 0); ks.o[ks.n-1] = -1; }
                     break;
                 }
                 if (ks.k[ks.n-1] == K_OPT && ks.ve[ks.n-1] == 0 && ks.fl[ks.n-1] == 0) {   // ★ 겹 — 안 태그를 t2 로
-                    fputs("    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 1;\n", out);
+                    low_puts(out, "    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 1;\n");
                     ks.k[ks.n-1] = K_OPT2; ks.o[ks.n-1] = -1; break;
                 }
-                fputs("    ws[wsp].v = st[--sp]; ws[wsp].tag = 1; wsp++;\n", out);
+                low_puts(out, "    ws[wsp].v = st[--sp]; ws[wsp].tag = 1; wsp++;\n");
                 ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; break;
             // ★★★★ WO-0222 — 뿌리에서 깎는다. 태그 경로와 **같은 함수**(`lw_root_take`)·같은 규칙(음수 → none, 못 얻으면 none).
             //   박스 풀을 안 쓰므로 박스 가드도 없다.
@@ -6277,21 +6278,21 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     break;
                 }
                 if (ks.k[ks.n-1] == K_OPT && ks.ve[ks.n-1] == 0 && ks.fl[ks.n-1] == 0) {   // ★ 겹 — 안 태그를 t2 로
-                    fputs("    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 3;\n", out);
+                    low_puts(out, "    ws[wsp-1].t2 = ws[wsp-1].tag; ws[wsp-1].tag = 3;\n");
                     ks.k[ks.n-1] = K_OPT2; ks.o[ks.n-1] = -1; break;
                 }
-                fputs("    ws[wsp].v = st[--sp]; ws[wsp].tag = 3; wsp++;\n", out);
+                low_puts(out, "    ws[wsp].v = st[--sp]; ws[wsp].tag = 3; wsp++;\n");
                 ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; break;
             case IRW_WRAP_NONE:
-                fputs("    ws[wsp].v = 0; ws[wsp].tag = 2; wsp++;\n", out);
+                low_puts(out, "    ws[wsp].v = 0; ws[wsp].tag = 2; wsp++;\n");
                 ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_OPT; break;
             case IRW_WRAP_ERR:
                 low_fpf(out, "    ws[wsp].v = {}ll; ws[wsp].tag = 4; wsp++;\n", PROVEN_ARG((long long)((long long)in->a)));
                 ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.k[ks.n++] = K_OPT; break;
             case IRW_ISSOME:
-                fputs("    { lw_r w_ = ws[--wsp];"
+                low_puts(out, "    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag != 1 && w_.tag != 2)) lw_panic(\"is_some needs an option\");"
-                      " st[sp++] = (w_.tag == 1); }\n", out);
+                      " st[sp++] = (w_.tag == 1); }\n");
                 ks.k[ks.n-1] = K_INT; break;
             case IRW_ISOK: case IRW_ISERR:
                 low_fpf(out, "    {{ lw_r w_ = ws[--wsp];"
@@ -6304,82 +6305,82 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   물려받아, 그 값을 넘기는 부름이 그 번호의 레코드 칸(`rloc[o]` — 채운 적 없는 NULL)을 넘겼다: kvstore 의 `bench` 가
                 //   `pool.release kv_bench_rec. p. some_value h. .` 에서 세그폴트로 죽었다(v1.25.1 · 그 전부터).
                 if (ks.k[ks.n-1] == K_OPT2) {   // ★ 겹을 벗긴다 — 안 태그가 바깥이 된다
-                    fputs("    { lw_r *w_ = &ws[wsp-1];"
+                    low_puts(out, "    { lw_r *w_ = &ws[wsp-1];"
                           " if (LW_UNLIKELY(w_->tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_->tag != 1)) lw_panic(\"some_value needs an option\");"
-                          " w_->tag = w_->t2; w_->t2 = 0; }\n", out);
+                          " w_->tag = w_->t2; w_->t2 = 0; }\n");
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.k[ks.n-1] == K_OPTSL) {   // ★ WO-0222 — 바이트 슬라이스를 꺼낸다
-                    fputs("    { lw_r w_ = ws[--wsp];"
+                    low_puts(out, "    { lw_r w_ = ws[--wsp];"
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
-                          " ss[ssp++] = w_.s; }\n", out);
+                          " ss[ssp++] = w_.s; }\n");
                     ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = ks.vn[ks.n-1] ? ks.vn[ks.n-1] : 1; ks.vn[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1] && ks.fl[ks.n-1]) {   // ★ 뷰를 감쌌으면 ss[] 로 꺼낸다
                     unsigned char vx = (unsigned char)(K_VIEW + ks.ve[ks.n-1] - 1);
-                    fputs("    { lw_r w_ = ws[--wsp];"
+                    low_puts(out, "    { lw_r w_ = ws[--wsp];"
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
-                          " ss[ssp++] = w_.s; }\n", out);
+                          " ss[ssp++] = w_.s; }\n");
                     ks.k[ks.n-1] = vx; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1]) {   // ★ 레코드를 감쌌으면 rs[] 로 꺼낸다
                     unsigned char rx = (unsigned char)(K_REC + ks.ve[ks.n-1] - 1);
-                    fputs("    { lw_r w_ = ws[--wsp];"
+                    low_puts(out, "    { lw_r w_ = ws[--wsp];"
                           " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                           " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
-                          " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n", out);
+                          " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n");
                     if (cbe_optrec_sl(ir, K_OPT, ks.ve[ks.n-1], 0))   // ★ 싼 레코드의 슬라이스 칸을 벗긴 자리로(방금 꺼낸 ws 자리 = wsp)
-                        fputs("    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n", out);
+                        low_puts(out, "    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n");
                     ks.k[ks.n-1] = rx; ks.o[ks.n-1] = -1; break;
                 }
-                fputs("    { lw_r w_ = ws[--wsp];"
+                low_puts(out, "    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag == 2)) lw_panic(\"some_value of none\");"
                       " if (LW_UNLIKELY(w_.tag != 1)) lw_panic(\"some_value needs an option\");"
-                      " st[sp++] = w_.v; }\n", out);
+                      " st[sp++] = w_.v; }\n");
                 ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_OKVAL:
                 if (ks.k[ks.n-1] == K_OPT2) {   // ★ 겹을 벗긴다 — 안 태그가 바깥이 된다
-                    fputs("    { lw_r *w_ = &ws[wsp-1];"
+                    low_puts(out, "    { lw_r *w_ = &ws[wsp-1];"
                           " if (LW_UNLIKELY(w_->tag == 4)) lw_panic(\"ok_value of an error\");"
                           " if (LW_UNLIKELY(w_->tag != 3)) lw_panic(\"ok_value needs a result\");"
-                          " w_->tag = w_->t2; w_->t2 = 0; }\n", out);
+                          " w_->tag = w_->t2; w_->t2 = 0; }\n");
                     ks.k[ks.n-1] = K_OPT; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1] && ks.fl[ks.n-1]) {   // ★ 뷰를 감쌌으면 ss[] 로 꺼낸다
                     unsigned char vx = (unsigned char)(K_VIEW + ks.ve[ks.n-1] - 1);
-                    fputs("    { lw_r w_ = ws[--wsp];"
+                    low_puts(out, "    { lw_r w_ = ws[--wsp];"
                           " if (LW_UNLIKELY(w_.tag == 4)) lw_panic(\"ok_value of an error\");"
                           " if (LW_UNLIKELY(w_.tag != 3)) lw_panic(\"ok_value needs a result\");"
-                          " ss[ssp++] = w_.s; }\n", out);
+                          " ss[ssp++] = w_.s; }\n");
                     ks.k[ks.n-1] = vx; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
                 }
                 if (ks.ve[ks.n-1]) {   // ★ 레코드를 감쌌으면 rs[] 로 꺼낸다
                     unsigned char rx = (unsigned char)(K_REC + ks.ve[ks.n-1] - 1);
-                    fputs("    { lw_r w_ = ws[--wsp];"
+                    low_puts(out, "    { lw_r w_ = ws[--wsp];"
                           " if (LW_UNLIKELY(w_.tag == 4)) lw_panic(\"ok_value of an error\");"
                           " if (LW_UNLIKELY(w_.tag != 3)) lw_panic(\"ok_value needs a result\");"
-                          " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n", out);
+                          " rs[rsp] = rsb[rsp]; memcpy(rs[rsp], w_.r, LW_RECB); rsp++; }\n");
                     if (cbe_optrec_sl(ir, K_OPT, ks.ve[ks.n-1], 0))
-                        fputs("    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n", out);
+                        low_puts(out, "    memcpy(rssl[rsp-1], wssl[wsp], sizeof rssl[0]);\n");
                     ks.k[ks.n-1] = rx; ks.o[ks.n-1] = -1; break;
                 }
-                fputs("    { lw_r w_ = ws[--wsp];"
+                low_puts(out, "    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag == 4)) lw_panic(\"ok_value of an error\");"
                       " if (LW_UNLIKELY(w_.tag != 3)) lw_panic(\"ok_value needs a result\");"
-                      " st[sp++] = w_.v; }\n", out);
+                      " st[sp++] = w_.v; }\n");
                 ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             case IRW_ERRVAL:
-                fputs("    { lw_r w_ = ws[--wsp];"
+                low_puts(out, "    { lw_r w_ = ws[--wsp];"
                       " if (LW_UNLIKELY(w_.tag == 3)) lw_panic(\"error_value of an ok\");"
                       " if (LW_UNLIKELY(w_.tag != 4)) lw_panic(\"error_value needs a result\");"
-                      " st[sp++] = w_.v; }\n", out);
+                      " st[sp++] = w_.v; }\n");
                 ks.k[ks.n-1] = K_INT; break;
             case IRW_ELSE_NONE:
-                fputs("    if (ws[wsp-1].tag == 4) { ws[wsp-1].tag = 2; ws[wsp-1].v = 0; }"
-                      " else ws[wsp-1].tag = 1;\n", out);
+                low_puts(out, "    if (ws[wsp-1].tag == 4) { ws[wsp-1].tag = 2; ws[wsp-1].v = 0; }"
+                      " else ws[wsp-1].tag = 1;\n");
                 break;
             case IRW_ELSE_ERR:
                 low_fpf(out, "    if (ws[wsp-1].tag == 2) {{ ws[wsp-1].tag = 4; ws[wsp-1].v = {}ll; }}"
@@ -6390,16 +6391,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   태그 경로는 그것을 **안 했다**: 오류를 128번 넘게 전파하면 죽었다.
                 //   같은 실수를 여기서 반복하지 않는다(그리고 게이트가 지킨다).
                 if (ks.k[ks.n-1] == K_OPT) {
-                    fputs("    { lw_r w_ = ws[--wsp];"
+                    low_puts(out, "    { lw_r w_ = ws[--wsp];"
                           " if (w_.tag == 4) { lw_depth--; return w_; }"
-                          " st[sp++] = w_.v; }\n", out);
+                          " st[sp++] = w_.v; }\n");
                     ks.k[ks.n-1] = K_INT;
                 }
                 break;
             case IRW_ASSERT:
                 // ★★★ **계약은 빠른 경로에서도 계약이다** — 그리고 여기서도 **차갑다**.
                 //   증명된 출구 검사는 **실제로 지운다**(그것이 계약이 사 주는 성능이다).
-                if ((in->a & 3) && (in->a & IR_POL_PROVEN)) fputs("    sp--;\n", out);
+                if ((in->a & 3) && (in->a & IR_POL_PROVEN)) low_puts(out, "    sp--;\n");
                 else low_fpf(out, "    if (LW_UNLIKELY(!st[sp-1])) lw_panic(\"{}\"); sp--;\n",
                              proven_arg_cstr((in->a & 4) ? LW_EXPECT_MSG   // ★ 2026-09-27 — expect 는 계약이 아니다(VM 의 E-TEST-FAIL)
                            : (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
@@ -6407,10 +6408,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                            : (in->a & 1) ? "ensures violated at exit" : "requires violated at entry"));
                 ks.n--; break;
             case IRW_PANIC:
-                if (in->a == IR_PANIC_SINKFULL) { fputs("    lw_panic(\"" LW_SINKFULL_MSG "\");\n", out); ks.n = 0; live2 = false; break; }   // ★ X-0065
-                if (in->a == IR_PANIC_ENUMCAST) { fputs("    lw_panic(\"" LW_ENUMCAST_MSG "\");\n", out); ks.n = 0; live2 = false; break; }
-                if (in->a == IR_PANIC_NODEKIDS) { fputs("    lw_panic(\"" LW_NODEKIDS_MSG "\");\n", out); ks.n = 0; live2 = false; break; }
-                fputs("    lw_upanic(\"the program called `panic`\");\n", out); ks.n = 0; live2 = false; break;
+                if (in->a == IR_PANIC_SINKFULL) { low_puts(out, "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"); ks.n = 0; live2 = false; break; }   // ★ X-0065
+                if (in->a == IR_PANIC_ENUMCAST) { low_puts(out, "    lw_panic(\"" LW_ENUMCAST_MSG "\");\n"); ks.n = 0; live2 = false; break; }
+                if (in->a == IR_PANIC_NODEKIDS) { low_puts(out, "    lw_panic(\"" LW_NODEKIDS_MSG "\");\n"); ks.n = 0; live2 = false; break; }
+                low_puts(out, "    lw_upanic(\"the program called `panic`\");\n"); ks.n = 0; live2 = false; break;
             // ★★★ **asm 문장 — 빠른 경로** (RFC-0042 D11). 피연산자 없는 형태만 여기 온다
             //   (있으면 cbe_mark_scalar 가 이 def 을 태그 경로로 보내며 **이유를 말한다**).
             //   ☞ 타깃 대조는 이미 검사 단계가 했다(RFC-0041 D9) — 여기는 백스톱이다.
@@ -6419,14 +6420,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 이 자리는 값을 돌려줄 수 없다(void 이미터). 그래서 백스톱은 **C 가 거절하게**
                 //   만든다 — 조용히 다른 ISA 의 명령을 싣느니 `#error` 로 서게 한다.
                 if (!cbe_asm_target_ok(A->target)) {
-                    low_fpf(stderr, "E-ASM-TARGET: this asm is written for `{}` and this build "
+                    low_fpf(low_stderr(), "E-ASM-TARGET: this asm is written for `{}` and this build "
                             "targets `{}`\n",
                             low_sv((const char *)A->target.ptr, (int)A->target.size), proven_arg_cstr(low_ir_target()->name));
-                    fputs("\n#error \"E-ASM-TARGET: assembly for another target reached emission\"\n", out);
+                    low_puts(out, "\n#error \"E-ASM-TARGET: assembly for another target reached emission\"\n");
                 }
-                fputs("    __asm__ __volatile__ (\n        ", out);
+                low_puts(out, "    __asm__ __volatile__ (\n        ");
                 cbe_asm_tmpl(out, A);
-                fputs("\n        : : : ", out);
+                low_puts(out, "\n        : : : ");
                 { proven_size_t n = 0;
                   for (proven_size_t k = 0; k < A->nclob; k++) {
                       if (proven_u8str_view_eq(A->clob[k], proven_u8str_view_from_cstr("flags")))
@@ -6434,7 +6435,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       else low_fpf(out, "{}\"{}\"", proven_arg_cstr(n++ ? ", " : ""),
                                    low_sv((const char *)A->clob[k].ptr, (int)A->clob[k].size));
                   } }
-                fputs(");\n    st[sp++] = 0;\n", out);
+                low_puts(out, ");\n    st[sp++] = 0;\n");
                 ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT;
                 break;
             }
@@ -6444,10 +6445,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     const bool to32 = (in->a & IR_CAST_F32) != 0;
                     if (ks.k[ks.n-1] == K_INT) {
                         const bool uns_ = (in->a & IR_SRC_UNS) != 0;   // ★ RFC-0157 §8-14 — 부호 없는 원천은 부호 없이 읽는다(VM 과 같다)
-                        fputs(uns_ ? (to32 ? "    fs[fsp++] = (double)(float)(unsigned long long)st[--sp];\n" : "    fs[fsp++] = (double)(unsigned long long)st[--sp];\n")
-                                   : (to32 ? "    fs[fsp++] = (double)(float)st[--sp];\n" : "    fs[fsp++] = (double)st[--sp];\n"), out);
+                        low_puts(out, uns_ ? (to32 ? "    fs[fsp++] = (double)(float)(unsigned long long)st[--sp];\n" : "    fs[fsp++] = (double)(unsigned long long)st[--sp];\n")
+                                   : (to32 ? "    fs[fsp++] = (double)(float)st[--sp];\n" : "    fs[fsp++] = (double)st[--sp];\n"));
                         ks.k[ks.n-1] = K_FLT;
-                    } else if (to32) fputs("    fs[fsp-1] = (double)(float)fs[fsp-1];\n", out);   // 이미 f64 면 항등
+                    } else if (to32) low_puts(out, "    fs[fsp-1] = (double)(float)fs[fsp-1];\n");   // 이미 f64 면 항등
                 } else if (in->a & 0x40000) {              // narrow_try → some|none (ws[])
                     if (ks.k[ks.n-1] == K_FLT)   // ★ 2026-11-11 — 부동 원천은 참값으로 잰다(lw_narrow_fits_f · VM 과 같다)
                         low_fpf(out, "    {{ long long x_; if (lw_narrow_fits_f({}, fs[--fsp], &x_)) {{ ws[wsp].tag = 1; ws[wsp].v = x_; }}"
@@ -6473,7 +6474,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.o[ks.n-1] = -1;
                     break;
                 }
-                if (ks.k[ks.n-1] == K_FLT) fputs("    fs[fsp-1] = -fs[fsp-1];\n", out);
+                if (ks.k[ks.n-1] == K_FLT) low_puts(out, "    fs[fsp-1] = -fs[fsp-1];\n");
                 else low_fpf(out, "    st[sp-1] = lw_negs_i({}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a)));   // 넘치면 멈춘다 (RFC-0052 D4)
                 break;
             case IRW_DIV:
@@ -6537,9 +6538,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                             PROVEN_ARG((long long)((long long)in->a)),
                             PROVEN_ARG((int)(in->w == IRW_LT ? 2 : in->w == IRW_LE ? 3 : in->w == IRW_GT ? 4 : 5)));
                 ks.n--; ks.k[ks.n-1] = K_INT; break;
-            case IRW_AND:   fputs("    st[sp-2] = (st[sp-2] && st[sp-1]); sp--;\n", out); ks.n--; break;
-            case IRW_OR:    fputs("    st[sp-2] = (st[sp-2] || st[sp-1]); sp--;\n", out); ks.n--; break;
-            case IRW_NOT:   fputs("    st[sp-1] = !st[sp-1];\n", out); break;
+            case IRW_AND:   low_puts(out, "    st[sp-2] = (st[sp-2] && st[sp-1]); sp--;\n"); ks.n--; break;
+            case IRW_OR:    low_puts(out, "    st[sp-2] = (st[sp-2] || st[sp-1]); sp--;\n"); ks.n--; break;
+            case IRW_NOT:   low_puts(out, "    st[sp-1] = !st[sp-1];\n"); break;
             case IRW_SELECT:
                 if (ks.k[ks.n-1] == K_VEC && ks.k[ks.n-3] == K_MASK) {
                     int ln = (int)ks.vn[ks.n-1];
@@ -6553,7 +6554,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       ks.fl[ks.n-1] = vfl_; ks.o[ks.n-1] = -1; }   // ★ 2026-11-01 — 벡터의 표식(종류 실행과 같다)
                     break;
                 }
-                fputs("    st[sp-3] = st[sp-3] ? st[sp-2] : st[sp-1]; sp -= 2;\n", out); ks.n -= 2; break;
+                low_puts(out, "    st[sp-3] = st[sp-3] ? st[sp-2] : st[sp-1]; sp -= 2;\n"); ks.n -= 2; break;
             case IRW_BR:
                 low_fpf(out, "    goto L{};\n", PROVEN_ARG((long long)((long long)in->a)));
                 if (!at2[in->a].set) at2[in->a] = ks;
@@ -6568,7 +6569,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   소비하고, 각 본문 타깃에 팝된 종류 상태를 전파한다(BR 을 안 찍으므로 직접).
                 long long span = in->a;
                 if (ks.n > 0) ks.n--;   // switch 값 pop
-                fputs("    switch (st[--sp]) {\n", out);
+                low_puts(out, "    switch (st[--sp]) {\n");
                 for (long long c = 0; c < span && (proven_size_t)(j + 1 + c) < d->ncode; c++) {
                     proven_i64 tgt = d->code[j + 1 + c].a;
                     low_fpf(out, "      case {}ll: goto L{};\n", PROVEN_ARG((long long)(c)), PROVEN_ARG((long long)((long long)tgt)));
@@ -6579,7 +6580,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     low_fpf(out, "      default: goto L{};\n", PROVEN_ARG((long long)((long long)dtgt)));
                     if ((proven_size_t)dtgt < d->ncode && !at2[dtgt].set) at2[dtgt] = ks;
                 }
-                fputs("    }\n", out);
+                low_puts(out, "    }\n");
                 live2 = false;
                 j += (proven_size_t)span + 1;   // 테이블 BR 소비
                 break;
@@ -6588,18 +6589,18 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 live2 = false;
                 cbe_wb(ir, d, out);
                 if (ks.n && cbe_optrec_sl(ir, ks.k[ks.n-1], ks.ve[ks.n-1], ks.fl[ks.n-1]))   // ★ 싼 레코드의 슬라이스 칸 → 반환 칸
-                    fputs("    memcpy(lw_ret_rsl, wssl[wsp-1], sizeof lw_ret_rsl); ws[wsp-1].rs = lw_ret_rsl; lw_depth--; return ws[wsp-1];\n", out);
+                    low_puts(out, "    memcpy(lw_ret_rsl, wssl[wsp-1], sizeof lw_ret_rsl); ws[wsp-1].rs = lw_ret_rsl; lw_depth--; return ws[wsp-1];\n");
                 else if (ks.n && (ks.k[ks.n-1] == K_OPT || ks.k[ks.n-1] == K_OPTSL || ks.k[ks.n-1] == K_OPT2))
-                    fputs("    lw_depth--; return ws[wsp-1];\n", out);
+                    low_puts(out, "    lw_depth--; return ws[wsp-1];\n");
                 else if (ks.n && ks.k[ks.n-1] == K_FLT)
-                    fputs("    { lw_r r_; r_.v = 0; r_.f = fs[fsp-1]; r_.tag = 5; lw_depth--; return r_; }\n", out);
+                    low_puts(out, "    { lw_r r_; r_.v = 0; r_.f = fs[fsp-1]; r_.tag = 5; lw_depth--; return r_; }\n");
                 else if (ks.n && ks.k[ks.n-1] == K_W128)   // ★ W-20261105-2304 — 128 비트는 바이트 칸으로(tag 11 · 받는 쪽이 memcpy 로 되읽는다)
-                    fputs("    { lw_r r_ = {0}; lw_u128 w_ = lw_hs[lw_hsp-1]; memcpy(r_.r, &w_, sizeof w_); r_.tag = 11; lw_depth--; return r_; }\n", out);
+                    low_puts(out, "    { lw_r r_ = {0}; lw_u128 w_ = lw_hs[lw_hsp-1]; memcpy(r_.r, &w_, sizeof w_); r_.tag = 11; lw_depth--; return r_; }\n");
                 else if (ks.n && ks.k[ks.n-1] == K_INT && cbe_out_w128(d))   // 수 상수를 돌려준다 — 위 절반 0(종류 실행과 짝)
-                    fputs("    { lw_r r_ = {0}; lw_u128 w_ = (lw_u128)(unsigned long long)st[sp-1]; memcpy(r_.r, &w_, sizeof w_); r_.tag = 11; lw_depth--; return r_; }\n", out);
+                    low_puts(out, "    { lw_r r_ = {0}; lw_u128 w_ = (lw_u128)(unsigned long long)st[sp-1]; memcpy(r_.r, &w_, sizeof w_); r_.tag = 11; lw_depth--; return r_; }\n");
                 else if (ks.n && (ks.k[ks.n-1] == K_SL || ks.k[ks.n-1] == K_ROWS))   // ★ 줄의 나열도 (포인터, 줄 수) — 경계가 줄 모양으로 되짓는다(2026-11-01)
-                    fputs("    { lw_r r_; r_.v = 0; r_.f = 0; r_.s = ss[ssp-1]; r_.tag = 6;"
-                          " lw_depth--; return r_; }\n", out);
+                    low_puts(out, "    { lw_r r_; r_.v = 0; r_.f = 0; r_.s = ss[ssp-1]; r_.tag = 6;"
+                          " lw_depth--; return r_; }\n");
                 else if (ks.n && ks.k[ks.n-1] >= K_VIEW && ks.k[ks.n-1] < K_SVIEW)
                     // ★ 구조체 뷰 반환 — (포인터,길이)는 r_.s 로, sidx 는 r_.v 로(태그 8).
                     low_fpf(out, "    {{ lw_r r_; r_.v = {}; r_.f = 0; r_.s = ss[ssp-1]; r_.tag = 8;"
@@ -6619,17 +6620,17 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     //   레코드의 슬라이스 칸이 빈 채로 이어졌다(VM 8 · 네이티브 5 — 빠른 함수끼리 이런 레코드를 돌려줄 때, v1.24.0 에도 있었다).
                     //   부른 쪽은 돌아온 **바로 다음에** 제 칸으로 옮기므로(다른 부름보다 먼저) 하나로 넉넉하다.
                     if (has_sl)
-                        fputs("    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); memcpy(lw_ret_rsl, rssl[rsp-1], sizeof lw_ret_rsl);"
-                              " r_.rs = lw_ret_rsl; r_.tag = 7; lw_depth--; return r_; }\n", out);
+                        low_puts(out, "    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); memcpy(lw_ret_rsl, rssl[rsp-1], sizeof lw_ret_rsl);"
+                              " r_.rs = lw_ret_rsl; r_.tag = 7; lw_depth--; return r_; }\n");
                     else
-                        fputs("    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); r_.tag = 7;"
-                              " lw_depth--; return r_; }\n", out);
+                        low_puts(out, "    { lw_r r_ = {0}; memcpy(r_.r, rs[rsp-1], sizeof r_.r); r_.tag = 7;"
+                              " lw_depth--; return r_; }\n");
                 }
                 else
                     if (cbe_ret_scalar(g_cur_di))
-                        fputs("    { lw_depth--; return sp ? st[sp-1] : 0; }\n", out);
+                        low_puts(out, "    { lw_depth--; return sp ? st[sp-1] : 0; }\n");
                     else
-                        fputs("    { lw_r r_; r_.v = sp ? st[sp-1] : 0; r_.f = 0; r_.tag = 0; lw_depth--; return r_; }\n", out);
+                        low_puts(out, "    { lw_r r_; r_.v = sp ? st[sp-1] : 0; r_.f = 0; r_.tag = 0; lw_depth--; return r_; }\n");
                 ks.n = 0; break;
             case IRW_CALL: {
                 const low_ir_def_t *ce = &ir->defs[IR_CALL_IDX(in->a)];
@@ -6662,7 +6663,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     if ((ce->param_struct >> q) & 1u) nrs++;
                 proven_size_t cidx0 = IR_CALL_IDX(in->a);
                 unsigned cam = (cidx0 < 512) ? g_argmask[cidx0] : LWA_ALL;
-                fputs("    {", out);
+                low_puts(out, "    {");
                 if (cam & LWA_AI) low_fpf(out, " long long ci[{}]; (void)ci;", PROVEN_ARG((size_t)((size_t)(ni ? ni : 1))));
                 if (cam & LWA_AS) low_fpf(out, " lw_sl cs[{}]; (void)cs;", PROVEN_ARG((size_t)((size_t)(ns ? ns : 1))));
                 if (cam & LWA_AF) low_fpf(out, " double cf[{}]; (void)cf;", PROVEN_ARG((size_t)((size_t)(nfl ? nfl : 1))));
@@ -6681,7 +6682,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 for (proven_size_t q = 0; q < ce->nparams; q++)
                     if (((ce->param_struct >> q) & 1u) && ks.k[ks.n - ce->nparams + q] == K_AREF)
                         low_fpf(out, " _Alignas(8) unsigned char cbx{}_[LW_RECB] = {{0}}; lowv cbv{}_;", PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)q)));
-                fputs("\n", out);
+                low_puts(out, "\n");
                 { proven_size_t bi = ni, bs = ns, bf = nfl, bb = nbs, bao = nao, bav = nav;
                   for (proven_size_t q = ce->nparams; q-- > 0; ) {
                       if ((ce->param_vec >> q) & 1u) {
@@ -6811,12 +6812,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 2026-11-01 — 피호출자가 태그 쪽 액터 레코드를 짓고(g_abox) 수를 돌려주면, 그 레코드는 아무도 못 본다 — VM 처럼(rec_wm)
                 //   부른 뒤 풀을 되감는다. 안 그러면 되풀이 안에서 부른 op 이 풀을 다 쓴다(VM 은 되감아 계속 돈다).
                 const bool crwm_ = cidx < 512 && g_abox[cidx] && (cscal || cflt || g_retk[cidx] == K_INT);
-                if (crwm_) fputs("      int rwm_ = lw_nrec;\n", out);
-                fputs(cscal ? "      long long crv_ = lw_s_" : "      lw_r cr_ = lw_s_", out);
-                put_sym(out, ce); fputs("(", out);
+                if (crwm_) low_puts(out, "      int rwm_ = lw_nrec;\n");
+                low_puts(out, cscal ? "      long long crv_ = lw_s_" : "      lw_r cr_ = lw_s_");
+                put_sym(out, ce); low_puts(out, "(");
                 cbe_put_args(out, cam, true, cbe_depparam((proven_size_t)cidx) ? "lw_depth" : NULL);
-                fputs(");\n", out);
-                if (crwm_) fputs("      LW_REC_REWIND(rwm_);\n", out);
+                low_puts(out, ");\n");
+                if (crwm_) low_puts(out, "      LW_REC_REWIND(rwm_);\n");
                 if (cbe_pmut(ce))   // ★ 2026-11-01 — 칸이 가리키는 액터에 쓴 것을 그 태그 쪽 레코드로 되쓴다
                     for (proven_size_t q = 0; q < ce->nparams; q++)
                         if (((ce->param_struct >> q) & 1u) && ks.k[ks.n - ce->nparams + q] == K_AREF) {
@@ -6851,22 +6852,22 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                             low_fpf(out, "      memcpy(&rsl[{} * LW_RECF], rlocsl[{}], sizeof rlocsl[0]);\n", PROVEN_ARG((int)(home2)), PROVEN_ARG((int)(home2)));
                     }
                 if (cwrapped && cidx < 512 && cbe_optrec_sl(ir, K_OPT, g_retopt[cidx], 0))   // ★ 돌려받은 싼 레코드의 슬라이스 칸
-                    fputs("      if ((cr_.tag == 1 || cr_.tag == 3) && cr_.rs) memcpy(wssl[wsp], cr_.rs, sizeof wssl[0]); else memset(wssl[wsp], 0, sizeof wssl[0]); ws[wsp++] = cr_; }\n", out);
-                else if (cwrapped)   fputs("      ws[wsp++] = cr_; }\n", out);
-                else if (cflt)  fputs("      fs[fsp++] = cr_.f; }\n", out);
-                else if (cw128) fputs("      { lw_u128 w_; memcpy(&w_, cr_.r, sizeof w_); lw_hs[lw_hsp++] = w_; } }\n", out);
-                else if (csl)   fputs("      ss[ssp++] = cr_.s; }\n", out);
-                else if (cview) fputs("      ss[ssp++] = cr_.s; }\n", out);   // ★ 구조체 뷰 반환 = 슬라이스로 받는다
-                else if (cstsl) fputs("      ss[ssp++] = cr_.s; }\n", out);   // ★ 구조체 슬라이스 반환
+                    low_puts(out, "      if ((cr_.tag == 1 || cr_.tag == 3) && cr_.rs) memcpy(wssl[wsp], cr_.rs, sizeof wssl[0]); else memset(wssl[wsp], 0, sizeof wssl[0]); ws[wsp++] = cr_; }\n");
+                else if (cwrapped)   low_puts(out, "      ws[wsp++] = cr_; }\n");
+                else if (cflt)  low_puts(out, "      fs[fsp++] = cr_.f; }\n");
+                else if (cw128) low_puts(out, "      { lw_u128 w_; memcpy(&w_, cr_.r, sizeof w_); lw_hs[lw_hsp++] = w_; } }\n");
+                else if (csl)   low_puts(out, "      ss[ssp++] = cr_.s; }\n");
+                else if (cview) low_puts(out, "      ss[ssp++] = cr_.s; }\n");   // ★ 구조체 뷰 반환 = 슬라이스로 받는다
+                else if (cstsl) low_puts(out, "      ss[ssp++] = cr_.s; }\n");   // ★ 구조체 슬라이스 반환
                 else if (crec) {
                     // ★ 2026-10-31 — 돌려받은 레코드의 슬라이스 칸을 제 칸으로 옮긴다(피호출자가 `lw_ret_rsl` 에 둔 것 — 위 RET).
                     const bool rsl_ = cbe_struct_has_sl(ir, g_retk[cidx] - K_REC);
-                    if (rsl_) fputs("      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB);"
-                                    " if (cr_.rs) memcpy(rssl[rsp], cr_.rs, sizeof rssl[0]); else memset(rssl[rsp], 0, sizeof rssl[0]); rsp++; }\n", out);
-                    else fputs("      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB); rsp++; }\n", out);
+                    if (rsl_) low_puts(out, "      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB);"
+                                    " if (cr_.rs) memcpy(rssl[rsp], cr_.rs, sizeof rssl[0]); else memset(rssl[rsp], 0, sizeof rssl[0]); rsp++; }\n");
+                    else low_puts(out, "      rs[rsp] = rsb[rsp]; memcpy(rs[rsp], cr_.r, LW_RECB); rsp++; }\n");
                 }
-                else if (cscal) fputs("      st[sp++] = crv_; }\n", out);
-                else            fputs("      st[sp++] = cr_.v; }\n", out);
+                else if (cscal) low_puts(out, "      st[sp++] = crv_; }\n");
+                else            low_puts(out, "      st[sp++] = cr_.v; }\n");
                 ks.n -= (int)ce->nparams;
                 ks.o[ks.n] = -1;
                 if (cview || cstsl) { ks.k[ks.n] = g_retk[cidx]; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.n++; }
@@ -6889,12 +6890,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 }
                 break;
             }
-            default: fputs("    lw_panic(\"fast path: unreachable word\");\n", out); break;
+            default: low_puts(out, "    lw_panic(\"fast path: unreachable word\");\n"); break;
         }
     }
     cbe_wb(ir, d, out);
-    if (cbe_ret_scalar(g_cur_di)) fputs("    { lw_depth--; return 0; }\n", out);
-    else fputs("    { lw_r r_; r_.v = 0; r_.f = 0; r_.tag = 0; lw_depth--; return r_; }\n", out);
+    if (cbe_ret_scalar(g_cur_di)) low_puts(out, "    { lw_depth--; return 0; }\n");
+    else low_puts(out, "    { lw_r r_; r_.v = 0; r_.f = 0; r_.tag = 0; lw_depth--; return r_; }\n");
     cbe_line_end(out);
     low_free(target);
 }
@@ -6925,15 +6926,15 @@ static const char *cbe_ctype(const low_ir_def_t *d, proven_size_t q) {
     return "long long";
 }
 
-static void cbe_extern_proto(const low_ir_t *ir, const low_ir_def_t *d, FILE *out) {
+static void cbe_extern_proto(const low_ir_t *ir, const low_ir_def_t *d, low_out_t *out) {
     (void)ir;
-    fputs("extern ", out);
+    low_puts(out, "extern ");
     // ★★★ **반환 타입을 폭으로 정직하게** — f64→double · cstr→`const char *` · 정수는 선언된 폭
     //   그대로(i32→int …). long long 으로 뭉뚱그리면 `int printf` 같은 실제 libc 심볼과 충돌해
     //   **직접 못 부른다**(f64→double fix 와 같은 규율 · cbe_ret_ctype).
-    fputs(cbe_ret_ctype(d), out);
-    fwrite(d->link_name.ptr, 1, d->link_name.size, out);
-    fputc('(', out);
+    low_puts(out, cbe_ret_ctype(d));
+    low_write(out, d->link_name.ptr, d->link_name.size);
+    low_putc(out, '(');
     proven_size_t n = 0;
     for (proven_size_t q = 0; q < d->nparams; q++) {
         // ★★★ **능력은 C 로 안 넘어간다.** 그것은 **권리**이지 값이 아니다 — C 에는 그것을
@@ -6963,9 +6964,9 @@ static void cbe_extern_proto(const low_ir_t *ir, const low_ir_def_t *d, FILE *ou
         }
         low_fpf(out, "{}{}", proven_arg_cstr(n++ ? ", " : ""), proven_arg_cstr(cbe_ctype(d, q)));
     }
-    if (d->is_variadic) fputs(n ? ", ..." : "...", out);   // ★ 가변인자 C 함수 (RFC-0063 §5)
-    else if (!n) fputs("void", out);
-    fputs(");\n", out);
+    if (d->is_variadic) low_puts(out, n ? ", ..." : "...");   // ★ 가변인자 C 함수 (RFC-0063 §5)
+    else if (!n) low_puts(out, "void");
+    low_puts(out, ");\n");
 }
 
 // ★★★ **`lowent.h`** — C 가 우리를 부르려면 **선언이 필요하다**(RFC-0063 D3).
@@ -7000,7 +7001,7 @@ static const low_ir_t *g_planned_for;   // 같은 IR 이면 다시 안 센다(�
 static bool g_abi_dup;
 static char g_abi_dup_msg[320];
 
-static void cbe_hdr_structs(FILE *out, const low_ir_t *ir, int phase);
+static void cbe_hdr_structs(low_out_t *out, const low_ir_t *ir, int phase);
 // ★ RFC-0132 P4d — 이 구조체가 C 구조체(`struct lw_sty_N`)로 나가는가: 방출이 그것을 내는 조건과 같다.
 static bool cbe_sty_ok(const low_ir_t *ir, proven_size_t s) {
     if (!(s < ir->nstructs && ir->structs[s].viewable && !ir->structs[s].is_shadow && ir->structs[s].total <= K_REC_BYTES &&
@@ -7011,11 +7012,11 @@ static bool cbe_sty_ok(const low_ir_t *ir, proven_size_t s) {
 }
 // ★ RFC-0132 P4d — 내보내는 C 심볼의 서명은 **한 곳**에서 적는다. 헤더 · 앞 선언 · 정의가 이것을 부른다(전엔 세 자리가 따로 적었다).
 //   named = 정의(매개변수 이름을 붙인다).
-static void cbe_put_export_sig(FILE *out, const low_ir_def_t *d, const low_ir_plan_t *pl, bool named) {
+static void cbe_put_export_sig(low_out_t *out, const low_ir_def_t *d, const low_ir_plan_t *pl, bool named) {
     if (pl->ret_sty1) low_fpf(out, "struct lw_sty_{} ", PROVEN_ARG((int)(pl->ret_sty1 - 1)));
-    else fputs(pl->ret_flt ? "double " : "long long ", out);
+    else low_puts(out, pl->ret_flt ? "double " : "long long ");
     put_export_name(out, d);
-    fputc('(', out);
+    low_putc(out, '(');
     proven_size_t n = 0;
     for (proven_size_t q = 0; q < d->nparams; q++) {
         if ((d->param_cap >> q) & 1u) continue;   // 능력은 C 에 없다
@@ -7032,8 +7033,8 @@ static void cbe_put_export_sig(FILE *out, const low_ir_def_t *d, const low_ir_pl
             if (named) low_fpf(out, "{}{} x{}", proven_arg_cstr(sep), proven_arg_cstr(cbe_ctype(d, q)), PROVEN_ARG((size_t)((size_t)q))); else low_fpf(out, "{}{}", proven_arg_cstr(sep), proven_arg_cstr(cbe_ctype(d, q)));
         }
     }
-    if (!n) fputs("void", out);
-    fputc(')', out);
+    if (!n) low_puts(out, "void");
+    low_putc(out, ')');
 }
 void low_cbe_plan(const low_ir_t *ir) {
     g_ir_for_inline = ir;
@@ -7155,7 +7156,7 @@ static bool cbe_hdr_struct_used(const low_ir_t *ir, proven_size_t s, bool export
     }
     return false;
 }
-static void cbe_hdr_structs(FILE *out, const low_ir_t *ir, int phase) {
+static void cbe_hdr_structs(low_out_t *out, const low_ir_t *ir, int phase) {
     for (proven_size_t s = 0; s < ir->nstructs; s++) {
         bool ex = cbe_hdr_struct_used(ir, s, true);
         bool used = phase == 0 ? ex : (!ex && cbe_hdr_struct_used(ir, s, false));
@@ -7170,11 +7171,11 @@ static void cbe_hdr_structs(FILE *out, const low_ir_t *ir, int phase) {
             if (fi_->arrn) low_fpf(out, "{} f{}[{}]; ", proven_arg_cstr(ct), PROVEN_ARG((size_t)(i)), PROVEN_ARG((unsigned)((unsigned)fi_->arrn)));
             else low_fpf(out, "{} f{}; ", proven_arg_cstr(ct), PROVEN_ARG((size_t)(i)));
         }
-        fputs("};\n", out);
+        low_puts(out, "};\n");
     }
 }
 
-int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
+int low_cbe_emit_header(const low_ir_t *ir, low_out_t *out) {
     int n = 0, nx = 0, skipped = 0;
     // ★★★ **헤더도 같은 판정을 쓴다** (RFC-0089 R1) — 그러려면 그 판정이 여기서도 **계산돼 있어야**
     //   한다. 전에는 헤더 경로가 하강 분석을 아예 안 돌려서 `sc_tab`·`g_retk` 를 **볼 수가 없었고**,
@@ -7185,15 +7186,14 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
     //   그러니 *"이것이 어느 원점의 표면이고, 그 원점이 무엇을 약속하는가"* 를 여기 적는다.
     //   ☞ 그리고 이 줄은 기준선(`docs/abi-surface.h`)에도 그대로 들어가므로, epoch 를 옮기면
     //     `check-abi` 가 **표면 diff 로** 그것을 본다 — 눈금은 조용히 움직일 수 없다.
-    fputs("/* generated by lowentc --emit-h — do not edit.\n"
+    low_puts(out, "/* generated by lowentc --emit-h — do not edit.\n"
           "   ★ 이 헤더는 **도구가 낸다**: 손으로 적으면 시그니처가 두 곳에 살고, 갈린다.\n"
           "\n"
           "   lowent ABI epoch: " LOW_ABI_EPOCH " (" LOW_ABI_EPOCH_STATUS ")\n"
           "     PROMISED:  this surface is recorded and gated — it cannot change SILENTLY.\n"
           "     NOT YET:   that it will not change. The language is still in development,\n"
           "                so the surface MAY still move; it will be ANNOUNCED when it does.\n"
-          "     ☞ an epoch is the ORIGIN you measure compatibility from — hence a date. */\n"
-          , out);
+          "     ☞ an epoch is the ORIGIN you measure compatibility from — hence a date. */\n");
     // ★ RFC-0134 N2 — 헤더 가드도 모듈마다: `LW_<길이><모듈>_H`. 전엔 모두 `LOWENT_H` 라 두 Lowent 헤더를 함께
     //   넣으면 둘째가 통째로 사라졌다. 모듈은 내보내는 op 의 첫 모듈(없으면 첫 def 의 모듈)이다.
     {
@@ -7202,10 +7202,10 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
             if (low_cbe_plan_of(i)->exported_symbol) gm = ir->defs[i].owner_mod;
         for (proven_size_t i = 0; i < ir->ndefs && !gm.size; i++) gm = ir->defs[i].owner_mod;
         if (gm.size) low_fpf(out, "#ifndef LW_{}{}_H\n#define LW_{}{}_H\n", PROVEN_ARG((size_t)((size_t)gm.size)), low_sv((const char *)gm.ptr, (int)gm.size), PROVEN_ARG((size_t)((size_t)gm.size)), low_sv((const char *)gm.ptr, (int)gm.size));
-        else fputs("#ifndef LW_H\n#define LW_H\n", out);
+        else low_puts(out, "#ifndef LW_H\n#define LW_H\n");
     }
-    fputs("#include <stddef.h>\n#include <stdint.h>\n"
-          "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n", out);
+    low_puts(out, "#include <stddef.h>\n#include <stdint.h>\n"
+          "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n");
     cbe_hdr_structs(out, ir, 0);   // ★ RFC-0132 P4d — 내보내는 심볼의 구조체는 그 선언보다 먼저
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
@@ -7224,12 +7224,12 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
         if (!pl->exported_symbol) {
             // ☞ **조용히 빠지지 않는다**: export 라고 적었는데 심볼이 안 나오면 그 사실과 이유를 말한다.
             if (d->is_export && !d->is_extern && pl->why) {
-                fputs("/* not exported: ", out);
-                fwrite(d->name.ptr, 1, d->name.size, out);
+                low_puts(out, "/* not exported: ");
+                low_write(out, d->name.ptr, d->name.size);
                 low_fpf(out, " \u2014 {} */\n", proven_arg_cstr(pl->why));
-                fputs("lowentc: W-EXPORT-NOSYM: op '", stderr);
-                fwrite(d->name.ptr, 1, d->name.size, stderr);
-                low_fpf(stderr, "' is `export` but NO C symbol is emitted for it \u2014 {}. "
+                low_puts(low_stderr(), "lowentc: W-EXPORT-NOSYM: op '");
+                low_write(low_stderr(), d->name.ptr, d->name.size);
+                low_fpf(low_stderr(), "' is `export` but NO C symbol is emitted for it \u2014 {}. "
                                 "The header therefore does NOT declare it: a header that promises a "
                                 "symbol the object does not define fails at LINK time\n", proven_arg_cstr(pl->why));
                 skipped++;
@@ -7241,7 +7241,7 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
         //   헤더를 믿는 C 소비자(콜백 등록 포함)가 정수 레지스터에서 반환을 읽어 쓰레기를 냈다.
         //   래퍼(g_retk==K_FLT?double)·정의는 정직했는데 헤더만 빠졌다 — 시그니처가 두 곳에 살고 갈렸다.
         cbe_put_export_sig(out, d, pl, false);   // ★ RFC-0132 P4d — 서명은 한 곳에서
-        fputs(";\n", out);
+        low_puts(out, ";\n");
         n++;
     }
 
@@ -7274,13 +7274,12 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
         const low_ir_def_t *d = &ir->defs[i];
         if (!d->is_extern) continue;
         if (!cbe_c_name_ok(d->link_name)) continue;
-        if (!nx) fputs("\n/* ── `extern` op: C 쪽 정의는 이 헤더를 include 하라 ──\n"
-                       "   그러면 시그니처 불일치가 컴파일 에러가 된다. 안 하면 아무도 안 잡는다. */\n",
-                       out);
+        if (!nx) low_puts(out, "\n/* ── `extern` op: C 쪽 정의는 이 헤더를 include 하라 ──\n"
+                       "   그러면 시그니처 불일치가 컴파일 에러가 된다. 안 하면 아무도 안 잡는다. */\n");
         cbe_extern_proto(ir, d, out);
         nx++;
     }
-    fputs("\n#ifdef __cplusplus\n}\n#endif\n#endif\n", out);
+    low_puts(out, "\n#ifdef __cplusplus\n}\n#endif\n#endif\n");
     return n + nx;
 }
 
@@ -7428,26 +7427,26 @@ static bool cbe_uses_conc(const low_ir_t *ir) {
     return false;
 }
 
-int low_cbe_emit(const low_ir_t *ir, FILE *out) {
+int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
     if (!ir || !out) return -1;
     // ★★★ **겹치는 C 이름으로는 내지 않는다** (단계 W). 계획이 이미 판정해 뒀다.
     //   ☞ 내고 나서 `cc` 가 redefinition 으로 죽는 것보다, **여기서 이름을 대며 멈추는** 것이
     //     낫다 — 실패는 원인 가까이에서 나야 한다.
     low_cbe_plan(ir);
     if (g_abi_dup) {
-        low_fpf(stderr, "E-ABI-NAME-DUP: {}\n", proven_arg_cstr(g_abi_dup_msg));
+        low_fpf(low_stderr(), "E-ABI-NAME-DUP: {}\n", proven_arg_cstr(g_abi_dup_msg));
         return -1;
     }
-    fputs("/* generated by lowentc --emit-c (S5 C backend) — do not edit */\n", out);
+    low_puts(out, "/* generated by lowentc --emit-c (S5 C backend) — do not edit */\n");
     // ★★★ **곱하고 더하기를 몰래 하나로 합치지 않는다** (2026-11-08 · 정본 §6.2.4 (2a) · RFC-0156 §10 · BTS LD-11).
     //   gcc 의 기본은 `-ffp-contract=fast` 다 — FMA 명령이 있는 기계(`-march=x86-64-v3` · aarch64 · Cortex-M4F)에서
     //   `a*b+c` 가 반올림 한 번짜리 `vfmadd` 가 되어 VM 과 다른 비트를 낸다(실측: 이 머리 없이 1 개).
     //   gcc 는 표준 지시 `STDC FP_CONTRACT` 를 따르지 않고 `GCC optimize` 를 따른다 · clang 은 기본으로 합치고 표준 지시를 따른다.
     //   생성 C 는 사용자가 교차 컴파일러로 직접 짓는 것이 정상 경로라, 명령줄 깃발이 아니라 **소스 머리**에 둔다.
     //   컴파일러마다 **하나만** 낸다 — gcc 는 `-Wall` 에서 모르는 표준 지시를 경고한다.
-    fputs("#if defined(__clang__)\n#pragma clang fp contract(off)\n"
+    low_puts(out, "#if defined(__clang__)\n#pragma clang fp contract(off)\n"
           "#elif defined(__GNUC__)\n#pragma GCC optimize (\"fp-contract=off\")\n"
-          "#else\n#pragma STDC FP_CONTRACT OFF\n#endif\n", out);
+          "#else\n#pragma STDC FP_CONTRACT OFF\n#endif\n");
     // ★★★ 얼로케이터 아레나(A3). 크기는 **low_ir.h 한 곳**에서 온다 — VM 이 쓰는 그 상수다.
     //   풀 크기를 양쪽에 따로 적었다가 어긋난 전례가 있다(lw_boxes[128] vs VM_MAXBOX 4096) ⇒
     //   여기서는 숫자를 **베끼지 않고 흘려보낸다**(§0).
@@ -7495,7 +7494,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   스레드도 파일계도 소켓도 stdio 도 **거기 없다**. 있는 척하면 실기 툴체인에서
     //   컴파일조차 안 된다(실측: `<dirent.h> not supported`).
     bool freestanding = low_ir_target()->no_heap;
-    if (freestanding) fputs("#define LW_FREESTANDING 1\n", out);
+    if (freestanding) low_puts(out, "#define LW_FREESTANDING 1\n");
     // ★ 호스트이지만 POSIX 가 아닌 칸(Windows)도 표시한다 — POSIX 전용 도우미 블록이
     //   이 매크로로 닫힌다. 잎 자체는 이미 `E-TARGET-LEAF` 로 거절됐으므로 여기 오는 것은
     //   *POSIX 를 안 쓰는 프로그램* 뿐이다.
@@ -7504,8 +7503,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   처음엔 `LW_NOPOSIX` 로 `LW_HOSTED` 를 **대체**했다가 `lw_fmt_f_hosted`
         //   (snprintf 하나, 완전히 이식 가능)가 사라져 mingw 가 암시적 선언으로 울었다.
         //   *"POSIX 가 아니다"* 는 *"stdio 도 없다"* 가 아니다.
-        fputs("#define LW_HOSTED 1\n", out);
-        if (!low_ir_target()->posix) fputs("#define LW_NOPOSIX 1\n", out);
+        low_puts(out, "#define LW_HOSTED 1\n");
+        if (!low_ir_target()->posix) low_puts(out, "#define LW_NOPOSIX 1\n");
     }
     {   // ★ RFC-0151 — 128 비트 정수를 쓰는 단위에만 그 도우미를 낸다(안 쓰는 프로그램 · 프리스탠딩 방출을 그대로 둔다)
         bool w = false;
@@ -7513,13 +7512,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             if (ir->defs[q].param_w128 || cbe_out_w128(&ir->defs[q])) w = true;
             for (proven_size_t j = 0; j < ir->defs[q].ncode && !w; j++) if (cbe_is_w128(&ir->defs[q].code[j])) w = true;
         }
-        if (w) fputs("#define LW_W128 1\n", out);
+        if (w) low_puts(out, "#define LW_W128 1\n");
     }
     // ★ 세 칸이다: 프리스탠딩(아무것도 없음) · Windows(표준 C 만) · POSIX(다 있음).
-    fputs(freestanding ? LW_HDR_FREE
-                       : (low_ir_target()->posix ? LW_HDR_HOSTED : LW_HDR_WIN), out);
+    low_puts(out, freestanding ? LW_HDR_FREE
+                       : (low_ir_target()->posix ? LW_HDR_HOSTED : LW_HDR_WIN));
     // ★ 주입기는 **호스티드에서만**: 프리스탠딩엔 getenv 도 파일계도 없다(그쪽엔 주입할 잎이 없다).
-    if (!freestanding) fputs(LW_HOSTFAULT_C, out);
+    if (!freestanding) low_puts(out, LW_HOSTFAULT_C);
     // ★★★ **option/result 운반체의 레코드 칸은 이 단위의 최대 구조체만큼만** (WO-0177, 2026-09-03).
     //   `lw_r` 은 `r[64]` 를 값으로 들고 다녔다 — 120 byte 가 반환·푸시마다 복사됐다. 찌르개 churn 에서
     //   `create`/`resolve` 가 option 을 돌려주는 자리마다 그 값을 냈고, 칸을 8 로 줄이니 명령 **−10%**
@@ -7539,14 +7538,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         // ★ RFC-0137 P4 (D6 · 정본 §7.6.1 (3)) — 장치 주소에서 포인터를 만드는 **유일한 자리**. 능력 포인터 기계에서는 플랫폼이 준
         //   «장치 메모리에 닿는 능력»(`lw_mmio_root`)의 주소만 바꿔 **파생**한다 — 정수만으로 포인터를 만들지 않는다. 그 밖의 기계에서는
         //   지금과 같은 정수 → 포인터다(권한 `cap mmio` 는 표지일 뿐 뜻이 같다).
-        fputs("#if defined(__CHERI_PURE_CAPABILITY__)\n"
+        low_puts(out, "#if defined(__CHERI_PURE_CAPABILITY__)\n"
               "extern void *lw_mmio_root;   /* the platform provides a capability covering device memory (RFC-0137 D6) */\n"
               "#  define LW_MMIO_PTR(a) ((unsigned char *)__builtin_cheri_address_set(lw_mmio_root, (a)))\n"
               "#  define LW_MMIO_SPAN(a, n) ((unsigned char *)__builtin_cheri_bounds_set(LW_MMIO_PTR(a), (n)))\n"
               "#else\n"
               "#  define LW_MMIO_PTR(a) ((unsigned char *)(uintptr_t)(a))\n"
               "#  define LW_MMIO_SPAN(a, n) LW_MMIO_PTR(a)\n"
-              "#endif\n", out);
+              "#endif\n");
     }
     // ★★★ **파라미터 한도는 방출 C 에서도 수 하나다** (WO-0204). 전에는 인자를 나르는 배열마다
     //   `16` 이 글자로 박혀 있었다 — 컴파일러 쪽 한도를 올려도 방출 쪽은 안 따라오고, 그 어긋남은
@@ -7560,7 +7559,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     low_fpf(out, "#define LW_HW_ASM {}\n", PROVEN_ARG((int)(g_hw_asm)));
     low_fpf(out, "#define LW_HW_VAES {}\n", PROVEN_ARG((int)(g_hw_vaes)));
     {   // ★ RFC-0155 §8-6 (2026-10-30) — 줄 꼴 표: 칸 k 의 아래 줄 바이트 · 그 아래 칸(0 = 원소). `lw_index` 가 줄의 줄을 낼 때 읽는다(VM 과 같은 표)
-        fputs("static const struct { unsigned rb; unsigned sub; } lw_rowsh[] = { {0u,0u}", out);
+        low_puts(out, "static const struct { unsigned rb; unsigned sub; } lw_rowsh[] = { {0u,0u}");
         for (proven_size_t q = 1; q < ir->nrowsh; q++) low_fpf(out, ", {{{}u,{}u}}", PROVEN_ARG((unsigned)((unsigned)ir->rowsh_rb[q])), PROVEN_ARG((unsigned)((unsigned)ir->rowsh_sub[q])));
         low_fpf(out, " }};\n#define LW_NROWSH {}u\n", PROVEN_ARG((size_t)(ir->nrowsh ? ir->nrowsh : (proven_size_t)1)));
     }
@@ -7578,10 +7577,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT: case IRW_NRESOLVE: hl = true; break;
                     default: break;
                 }
-        if (hl) fputs("#define LW_HLEAF 1\n", out);
+        if (hl) low_puts(out, "#define LW_HLEAF 1\n");
     }
-    fputs(LW_PRELUDE, out);
-    if (cbe_uses_proc(ir)) fputs(LW_PROC_RT, out);   // ★ RFC-0136 — 쓰는 단위에만
+    low_puts(out, LW_PRELUDE);
+    if (cbe_uses_proc(ir)) low_puts(out, LW_PROC_RT);   // ★ RFC-0136 — 쓰는 단위에만
     // ★★★ 동시성 런타임은 **쓸 때만** (pay-as-you-go) — 그리고 **reactor 를 쓸 때도** 낸다.
     //   ☞ 처음엔 reactor 를 별도 블록으로 떼었는데, 스케줄러가 `lw_io_poll_once` 를 부르고
     //     reactor 가 `lw_gthr` 를 보므로 **서로를 참조한다.** 쪼개면 순서가 안 나온다.
@@ -7600,62 +7599,62 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 if (ir->defs[d2].nparams > ma) ma = ir->defs[d2].nparams;
             if (ma > LOW_MAX_PARAMS) ma = LOW_MAX_PARAMS;
             low_fpf(out, "#define LW_T0_ARGS {}\n", PROVEN_ARG((size_t)((size_t)ma)));
-            fputs(LW_CONC_T0, out);
-        } else fputs(LW_CONC, out);
+            low_puts(out, LW_CONC_T0);
+        } else low_puts(out, LW_CONC);
     }
     // ★ 2026-11-10 (W-20261110-1548) — 수를 돌려준 부름 뒤에 레코드를 돌려받는다. 우편함이 있는 런타임은 메시지가 남은 액터의 레코드를
     //   돌려받지 않는다(그 런타임이 LW_REC_REWIND 를 정한다 · VM vm_rec_rewind) — 없으면 그대로 되감는다.
     // ★ 2026-11-11 (O7) — 기다리는 `send` 의 쥐기 · 기다리기는 그린스레드가 있는 런타임(LW_CONC)에만 있다. 없으면(동시성 없음 · T0) 늘 안 바쁘다.
-    fputs("#ifndef LW_SEND_ENTER\n#define LW_SEND_ENTER(b) ((void)(b), 0)\n#define LW_SEND_LEAVE(b, p) ((void)(b), (void)(p))\n#define LW_ACTOR_BUSY(b) ((void)(b), 0)\n#endif\n", out);
-    fputs("#ifndef LW_REC_REWIND\n#define LW_REC_REWIND(w) (lw_nrec = (w))\n#endif\n"
-          "#ifndef LW_GC_MBOX_MARK\n#define LW_GC_MBOX_MARK() ((void)0)\n#define LW_GC_MBOX_MOVE(i, j) ((void)0)\n#define LW_GC_MBOX_FIX() ((void)0)\n#endif\n", out);
+    low_puts(out, "#ifndef LW_SEND_ENTER\n#define LW_SEND_ENTER(b) ((void)(b), 0)\n#define LW_SEND_LEAVE(b, p) ((void)(b), (void)(p))\n#define LW_ACTOR_BUSY(b) ((void)(b), 0)\n#endif\n");
+    low_puts(out, "#ifndef LW_REC_REWIND\n#define LW_REC_REWIND(w) (lw_nrec = (w))\n#endif\n"
+          "#ifndef LW_GC_MBOX_MARK\n#define LW_GC_MBOX_MARK() ((void)0)\n#define LW_GC_MBOX_MOVE(i, j) ((void)0)\n#define LW_GC_MBOX_FIX() ((void)0)\n#endif\n");
     // ★ `lw_v` 는 **유닛마다 크기가 다르다**(위 `cbe_mark_vbytes`). 프렐류드보다 먼저 낸다 —
     //   뒤의 모든 것이 이 타입을 쓴다.
     low_fpf(out, "typedef union {{ unsigned long long u64[{}]; uint32_t u32[{}];\n"
                  "                unsigned short u16[{}]; unsigned char u8[{}]; }} lw_v;\n",
             PROVEN_ARG((int)(g_vbytes / 8 ? g_vbytes / 8 : 1)), PROVEN_ARG((int)(g_vbytes / 4 ? g_vbytes / 4 : 1)),
             PROVEN_ARG((int)(g_vbytes / 2 ? g_vbytes / 2 : 1)), PROVEN_ARG((int)(g_vbytes)));
-    fputs(LW_PRELUDE2, out);
+    low_puts(out, LW_PRELUDE2);
 
     // make-site + error-name tables (referenced by lw_render and the bodies)
-    fputs("static const char *lw_mk_fields[][16] = {", out);
+    low_puts(out, "static const char *lw_mk_fields[][16] = {");
     for (proven_size_t m = 0; m < ir->nmakes; m++) {
-        fputs(m ? ", {" : " {", out);
+        low_puts(out, m ? ", {" : " {");
         for (proven_size_t f = 0; f < ir->makes[m].nfields; f++) {
-            fputs(f ? ", \"" : " \"", out);
+            low_puts(out, f ? ", \"" : " \"");
             put_view(out, ir->makes[m].fields[f]);
-            fputs("\"", out);
+            low_puts(out, "\"");
         }
-        fputs(" }", out);
+        low_puts(out, " }");
     }
-    fputs(ir->nmakes ? " };\n" : " { 0 } };\n", out);
-    fputs("static const char *lw_errs[] = {", out);
+    low_puts(out, ir->nmakes ? " };\n" : " { 0 } };\n");
+    low_puts(out, "static const char *lw_errs[] = {");
     for (proven_size_t e = 0; e < ir->nerrs; e++) {
-        fputs(e ? ", \"" : " \"", out);
+        low_puts(out, e ? ", \"" : " \"");
         put_view(out, ir->errs[e]);
-        fputs("\"", out);
+        low_puts(out, "\"");
     }
-    fputs(ir->nerrs ? " };\n" : " \"\" };\n", out);
-    fputs("static const char *lw_fnames[] = {", out);
+    low_puts(out, ir->nerrs ? " };\n" : " \"\" };\n");
+    low_puts(out, "static const char *lw_fnames[] = {");
     for (proven_size_t e = 0; e < ir->nfields; e++) {
-        fputs(e ? ", \"" : " \"", out);
+        low_puts(out, e ? ", \"" : " \"");
         put_view(out, ir->fields[e]);
-        fputs("\"", out);
+        low_puts(out, "\"");
     }
-    fputs(ir->nfields ? " };\n" : " \"\" };\n", out);
+    low_puts(out, ir->nfields ? " };\n" : " \"\" };\n");
     // struct layout tables (for view/try_view + view field reads)
     low_fpf(out, "static const int lw_st_nf[] = {{");
     for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((size_t)(ir->structs[s].nf)));
-    fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
     low_fpf(out, "static const int lw_st_total[] = {{");
     for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)ir->structs[s].total)));
-    fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
     // ★ 2026-11-03 (W-20261103-1143) — 빠른 레코드의 «마디를 가리키는 칸»(주소 · 0 = none)을 태그 값 option(마디의 뷰)으로 — lw_field 의 마디 칸과 같은 모양
-    fputs("static inline lowv lw_nopt_out(const unsigned char *at, int sh) { const unsigned char *pp_; memcpy(&pp_, at, sizeof pp_);\n"
+    low_puts(out, "static inline lowv lw_nopt_out(const unsigned char *at, int sh) { const unsigned char *pp_; memcpy(&pp_, at, sizeof pp_);\n"
           "    if (!pp_) { lowv n_ = {0}; n_.tag = LWV_NONE; return n_; }\n"
           "    if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
           "    lowv w_ = {0}; w_.tag = LWV_VIEW; w_.p = pp_; w_.box = sh; w_.n = (size_t)lw_st_total[sh];\n"
-          "    lw_boxes[lw_nbox] = w_; lowv o_ = {0}; o_.tag = LWV_SOME; o_.box = lw_nbox++; return o_; }\n", out);
+          "    lw_boxes[lw_nbox] = w_; lowv o_ = {0}; o_.tag = LWV_SOME; o_.box = lw_nbox++; return o_; }\n");
     // ★ RFC-0150 §8-31 — 제약 있는 칸(태그 경로의 lw_tryview 가 잰다): 구조체 s 의 칸은 lw_cf_*[lw_st_cfb[s] .. lw_st_cfb[s+1]).
     //   bool 칸은 lo == hi == -1, 폭을 적은 열거 칸은 lw_en_num / lw_en_vi 의 [lo, hi) 가 갈래들이다.
     {
@@ -7665,22 +7664,22 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             tot += low_ir_struct_cfields(ir, s2, all + tot, 1024 - tot);
         }
         starts[ir->nstructs < 256 ? ir->nstructs : 256] = tot;
-        fputs("static const int lw_cf_off[] = {", out);  for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)all[q].off)));  fputs(tot ? " };\n" : " 0 };\n", out);
-        fputs("static const int lw_cf_sz[] = {", out);   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)all[q].size))); fputs(tot ? " };\n" : " 0 };\n", out);
-        fputs("static const int lw_cf_be[] = {", out);   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((int)(all[q].be ? 1 : 0))); fputs(tot ? " };\n" : " 0 };\n", out);
-        fputs("static const int lw_cf_lo[] = {", out);   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((int)(all[q].isbool ? -1 : (int)all[q].elo))); fputs(tot ? " };\n" : " 0 };\n", out);
-        fputs("static const int lw_cf_hi[] = {", out);   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((int)(all[q].isbool ? -1 : (int)all[q].ehi))); fputs(tot ? " };\n" : " 0 };\n", out);
-        fputs("static const int lw_st_cfb[] = {", out);
+        low_puts(out, "static const int lw_cf_off[] = {");  for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)all[q].off)));  low_puts(out, tot ? " };\n" : " 0 };\n");
+        low_puts(out, "static const int lw_cf_sz[] = {");   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)all[q].size))); low_puts(out, tot ? " };\n" : " 0 };\n");
+        low_puts(out, "static const int lw_cf_be[] = {");   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((int)(all[q].be ? 1 : 0))); low_puts(out, tot ? " };\n" : " 0 };\n");
+        low_puts(out, "static const int lw_cf_lo[] = {");   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((int)(all[q].isbool ? -1 : (int)all[q].elo))); low_puts(out, tot ? " };\n" : " 0 };\n");
+        low_puts(out, "static const int lw_cf_hi[] = {");   for (proven_size_t q = 0; q < tot; q++) low_fpf(out, "{}{}", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((int)(all[q].isbool ? -1 : (int)all[q].ehi))); low_puts(out, tot ? " };\n" : " 0 };\n");
+        low_puts(out, "static const int lw_st_cfb[] = {");
         for (proven_size_t s2 = 0; s2 <= ir->nstructs && s2 <= 256; s2++) low_fpf(out, "{}{}", proven_arg_cstr(s2 ? ", " : " "), PROVEN_ARG((size_t)(starts[s2])));
-        fputs(" };\n", out);
-        fputs("static const long long lw_en_num[] = {", out);
+        low_puts(out, " };\n");
+        low_puts(out, "static const long long lw_en_num[] = {");
         for (proven_size_t q = 0; q < ir->nenum_tab; q++) low_fpf(out, "{}{}LL", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((long long)((long long)ir->enum_tab_num[q])));
-        fputs(ir->nenum_tab ? " };\n" : " 0 };\n", out);
-        fputs("static const long long lw_en_vi[] = {", out);
+        low_puts(out, ir->nenum_tab ? " };\n" : " 0 };\n");
+        low_puts(out, "static const long long lw_en_vi[] = {");
         for (proven_size_t q = 0; q < ir->nenum_tab; q++) low_fpf(out, "{}{}LL", proven_arg_cstr(q ? ", " : " "), PROVEN_ARG((long long)((long long)ir->enum_tab_vi[q])));
-        fputs(ir->nenum_tab ? " };\n" : " 0 };\n", out);
+        low_puts(out, ir->nenum_tab ? " };\n" : " 0 };\n");
         // 번호 ↔ 순번 — [lo, hi) 가 비면(열거 칸이 아니면) 그대로. 짝이 없으면 멈춘다(VM 의 E-VM-CAST 와 같은 말)
-        fputs("static unsigned long long lw_en_tovi_r(int lo, int hi, unsigned long long x) {\n"
+        low_puts(out, "static unsigned long long lw_en_tovi_r(int lo, int hi, unsigned long long x) {\n"
               "    if (lo == hi) return x;\n"
               "    for (int q = lo; q < hi; q++) if ((unsigned long long)lw_en_num[q] == x) return (unsigned long long)lw_en_vi[q];\n"
               "    lw_panic(\"the bytes under an enum field hold a number no variant has\"); }\n"
@@ -7694,16 +7693,16 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
               "    unsigned long long x = 0; int sz = lw_cf_sz[q];\n"
               "    if (lw_cf_be[q]) { for (int k = 0; k < sz; k++) x = (x << 8) | p[k]; } else { for (int k = sz; k-- > 0; ) x = (x << 8) | p[k]; }\n"
               "    for (int e = lw_cf_lo[q]; e < lw_cf_hi[q]; e++) if ((unsigned long long)lw_en_num[e] == x) return 1;\n"
-              "    return 0; }\n", out);
+              "    return 0; }\n");
     }
     low_fpf(out, "static const int lw_st_align[] = {{");
     for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)ir->structs[s].align)));
-    fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
     // ★ **이 블록이 디바이스인가** (RFC-0042 D1) — 태그 경로의 lw_vread/lw_fstore 가 이것을 보고
     //   바이트 루프 대신 **폭이 맞는 volatile 접근 한 번**을 쓴다. 빠른 경로는 컴파일 시점에 안다.
     low_fpf(out, "static const int lw_st_mmio[] = {{");
     for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((int)(ir->structs[s].is_mmio ? 1 : 0)));
-    fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
     // ★ 필드가 **전부 sized 스칼라**인 struct 만 바이트로 지을 수 있다(actor 인스턴스처럼 레코드
     //   참조 필드를 가진 struct 는 아니다). VM 은 경계에서 이것을 E-VM-VIEW 로 거부한다 —
     //   네이티브도 같아야 한다(안 그러면 차등 스윕이 정당하게 둘을 컴파일러 버그로 고발한다).
@@ -7721,7 +7720,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     }
     low_fpf(out, "static const int lw_st_viewable[] = {{");
     for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((int)(ir->structs[s].viewable ? 1 : 0)));
-    fputs(ir->nstructs ? " };\n" : " 0 };\n", out);
+    low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
     // ★★★ **구조체 by-value FFI** (RFC-0063 §5) — viewable 구조체마다 **진짜 C struct** 를 낸다.
     //   그러면 씨의 함수에 **값으로** 넘길 때 **C 컴파일러가 SysV AMD64 분류**를 한다(작은 건
     //   레지스터로, 큰 건 숨은 포인터로) — 우리가 분류기를 쓸 필요가 없다. Lowent 의 비-packed
@@ -7738,7 +7737,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             if (fi_->arrn) low_fpf(out, "{} f{}[{}]; ", proven_arg_cstr(ct), PROVEN_ARG((size_t)(i)), PROVEN_ARG((unsigned)((unsigned)fi_->arrn)));
             else low_fpf(out, "{} f{}; ", proven_arg_cstr(ct), PROVEN_ARG((size_t)(i)));
         }
-        fputs("};\n", out);
+        low_puts(out, "};\n");
         // ★★★ **레코드 → struct 값 실체화.** Lowent 에서 `make` 로 지은 구조체는 **레코드**다(풀에
         //   저장, .p 는 없다). 씨에 값으로 넘기려면 필드를 모아 진짜 struct 를 만들어야 한다 —
         //   안 그러면 `*(struct*).p` 가 **널을 역참조**한다(조합 테스트가 그 segfault 를 잡았다).
@@ -7758,17 +7757,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         low_fpf(out, "        return s_; }}\n    return *(const struct lw_sty_{} *)v.p;\n}}\n", PROVEN_ARG((size_t)(s)));
     }
-    fputs("static const char *lw_st_fname[][16] = {", out);
+    low_puts(out, "static const char *lw_st_fname[][16] = {");
     for (proven_size_t s = 0; s < ir->nstructs; s++) {
-        fputs(s ? ", {" : " {", out);
+        low_puts(out, s ? ", {" : " {");
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
-            fputs(i ? ", \"" : " \"", out);
+            low_puts(out, i ? ", \"" : " \"");
             put_view(out, ir->structs[s].f[i].name);
-            fputs("\"", out);
+            low_puts(out, "\"");
         }
-        fputs(" }", out);
+        low_puts(out, " }");
     }
-    fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
+    low_puts(out, ir->nstructs ? " };\n" : " { 0 } };\n");
     for (int t = 0; t < 14; t++) {
         const char *nm = t == 13 ? "lw_st_fsgn"                             /* ★ 2026-10-31 부호 있는 정수 칸(8 바이트 아래) — 바이트에서 읽을 때 부호를 늘린다 */
                        : t == 12 ? "lw_st_farrb"                            /* ★ RFC-0155 §8-3 배열 안의 배열 칸: 줄 바이트(0=줄이 아님) */
@@ -7781,7 +7780,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                        : t == 8 ? "lw_st_felo" : "lw_st_fehi";             // ★ RFC-0150 §8-31 열거 칸의 (번호, 순번) 구간(같으면 열거 칸 아님)
         low_fpf(out, "static const int {}[][16] = {{", proven_arg_cstr(nm));
         for (proven_size_t s = 0; s < ir->nstructs; s++) {
-            fputs(s ? ", {" : " {", out);
+            low_puts(out, s ? ", {" : " {");
             for (proven_size_t i = 0; i < ir->structs[s].nf; i++)
                 low_fpf(out, "{}{}", proven_arg_cstr(i ? ", " : " "),
                         PROVEN_ARG((int)(t == 0 ? (int)ir->structs[s].f[i].size :
@@ -7797,9 +7796,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 12 ? (int)(((proven_u64)ir->structs[s].f[i].arrmeta >> 32) & 0xffffffu) :
                         t == 13 ? (int)(low_sfield_sgn(&ir->structs[s].f[i]) && ir->structs[s].f[i].size < 8) :
                         (int)(ir->structs[s].f[i].size == 16 && ir->structs[s].f[i].cname.size && ir->structs[s].f[i].cname.ptr[0] == (proven_u8)'i'))));
-            fputs(" }", out);
+            low_puts(out, " }");
         }
-        fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
+        low_puts(out, ir->nstructs ? " };\n" : " { 0 } };\n");
     }
     /* ★ 읽기도 **volatile** 이다 — 디바이스 레지스터 읽기는 **부수효과가 있을 수 있고**
        (읽으면 플래그가 지워지는 레지스터가 흔하다), 두 번 읽으면 **두 번 일어나야** 한다.
@@ -7811,7 +7810,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   디바이스 레지스터에는 **틀리다**: u32 레지스터에 바이트를 네 번 대는 것은 한 번 대는
     //   것과 **다른 일**이다(많은 주변장치가 폭이 맞는 단일 접근을 요구하고, 부분 쓰기가 래치를
     //   반만 흔든다). 폭·정렬·엔디언은 `E-MMIO-FIELD` 가 선언 자리에서 이미 좁혀 놓았다.
-    fputs("static unsigned long long lw_vld(const unsigned char *p, unsigned sz) {\n"
+    low_puts(out, "static unsigned long long lw_vld(const unsigned char *p, unsigned sz) {\n"
           "    switch (sz) {\n"
           "    case 1: return (unsigned long long)*(const volatile uint8_t *)p;\n"
           "    case 2: return (unsigned long long)*(const volatile uint16_t *)p;\n"
@@ -7822,8 +7821,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    case 1: *(volatile uint8_t *)p = (uint8_t)v; break;\n"
           "    case 2: *(volatile uint16_t *)p = (uint16_t)v; break;\n"
           "    case 4: *(volatile uint32_t *)p = (uint32_t)v; break;\n"
-          "    default: *(volatile uint64_t *)p = v; break; } }\n", out);
-    fputs("static unsigned long long lw_vread(lowv v, int i) {\n"
+          "    default: *(volatile uint64_t *)p = v; break; } }\n");
+    low_puts(out, "static unsigned long long lw_vread(lowv v, int i) {\n"
           "    const volatile unsigned char *p = v.p + lw_st_foff[v.box][i];\n"
           "    unsigned long long x = 0; int sz = lw_st_fsize[v.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 로드 — 바이트 루프가 아니다. */
@@ -8075,13 +8074,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    }\n"
           "    lowv r = {0}; r.tag = LWV_SLICE; r.p = ob; r.n = (size_t)lw_st_total[s]; lw_nenc++;\n"
           "    return r;\n"
-          "}\n", out);
+          "}\n");
     // ★ 값 렌더링은 **stdio** 다(snprintf). 프리스탠딩엔 찍을 콘솔이 없으므로 스텁을 낸다 —
     //   몸이 부르더라도 링크는 된다(그리고 아무것도 안 쓴다).
     if (freestanding)
-        fputs("static void lw_render(lowv v, char *out, size_t cap) { (void)v; if (cap) out[0] = 0; }\n", out);
+        low_puts(out, "static void lw_render(lowv v, char *out, size_t cap) { (void)v; if (cap) out[0] = 0; }\n");
     else
-        fputs(LW_RENDER, out);
+        low_puts(out, LW_RENDER);
 
     // string literal table (raw bytes — 접두 리터럴의 코드 유닛도 **리틀엔디언 바이트**다)
     //   ★ 원소 타입 배열(`uint16_t lw_strN[]`)로 내지 **않는다**: 런타임은 타입 있는 슬라이스를
@@ -8092,7 +8091,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         low_fpf(out, "static const unsigned char lw_str{}[] = {{", PROVEN_ARG((size_t)(s)));
         for (proven_size_t i = 0; i < ir->strs[s].size; i++)
             low_fpf(out, "{}{}", proven_arg_cstr(i ? "," : " "), PROVEN_ARG((unsigned)((unsigned)ir->strs[s].ptr[i])));
-        fputs(ir->strs[s].size ? ", 0 };\n" : " 0 };\n", out);
+        low_puts(out, ir->strs[s].size ? ", 0 };\n" : " 0 };\n");
     }
     // ★★ RFC-0015 §6.3 (2026-10-31 · W-20261031-0342) — **주소를 품은 상수**: 번역 때 돈 `fn` 이 낸 구조체 배열의 슬라이스 칸(주소 + 길이).
     //   주소 자리는 C 의 주소 상수로 적는다 — 정적 초기값이라 링커가 옮겨 주고, 포인터 폭은 대상의 것이다(32 비트 대상은 주소 4 바이트 뒤에 채움).
@@ -8112,24 +8111,24 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         if (ir->strs[s].size > cur) low_fpf(out, " unsigned char b{}[{}];", PROVEN_ARG((size_t)(m)), PROVEN_ARG((size_t)((size_t)(ir->strs[s].size - cur))));
         low_fpf(out, " }} lw_rel{} = {{", PROVEN_ARG((size_t)(s)));
         cur = 0; bool first = true;
-        #define LW_RB(from, to) do { fputs(first ? " {" : ", {", out); first = false; \
-            for (proven_size_t i_ = (from); i_ < (to); i_++) low_fpf(out, "{}{}", proven_arg_cstr(i_ > (from) ? "," : " "), PROVEN_ARG((unsigned)((unsigned)ir->strs[s].ptr[i_]))); fputs(" }", out); } while (0)
+        #define LW_RB(from, to) do { low_puts(out, first ? " {" : ", {"); first = false; \
+            for (proven_size_t i_ = (from); i_ < (to); i_++) low_fpf(out, "{}{}", proven_arg_cstr(i_ > (from) ? "," : " "), PROVEN_ARG((unsigned)((unsigned)ir->strs[s].ptr[i_]))); low_puts(out, " }"); } while (0)
         for (proven_size_t r = 0; r < ir->nsrel; r++) {
             if (ir->srel[r].si != (proven_u32)s) continue;
             if (ir->srel[r].off > cur) LW_RB(cur, ir->srel[r].off);
             low_fpf(out, "{} lw_str{}", proven_arg_cstr(first ? "" : ","), PROVEN_ARG((unsigned)((unsigned)ir->srel[r].tsi))); first = false;
-            if (slot > pb) fputs(", { 0 }", out);
+            if (slot > pb) low_puts(out, ", { 0 }");
             cur = ir->srel[r].off + slot;
         }
         if (ir->strs[s].size > cur) LW_RB(cur, ir->strs[s].size);
         #undef LW_RB
-        fputs(" };\n", out);
+        low_puts(out, " };\n");
         // 배치가 VM 이 지은 바이트와 한 바이트도 다르지 않아야 한다 — 대상의 포인터 폭이 자리(LW_PTRSLOT)를 넘으면 번역이 멈춘다
         low_fpf(out, "_Static_assert(sizeof lw_rel{} == {}, \"a constant holding addresses must keep its layout\");\n", PROVEN_ARG((size_t)(s)), PROVEN_ARG((size_t)((size_t)ir->strs[s].size)));
     }
     // ★ `n` 은 **원소 수**다(바이트 수가 아니다) — `len u"AB"` 가 2 인 이유가 여기 있다.
     //   `w` 는 원소폭: 슬라이스를 바이트로 되돌릴 때 곱해진다.
-    fputs("static const struct { const unsigned char *p; size_t n; unsigned w; } lw_strs[] = {", out);
+    low_puts(out, "static const struct { const unsigned char *p; size_t n; unsigned w; } lw_strs[] = {");
     for (proven_size_t s = 0; s < ir->nstrs; s++) {
         proven_u8 ew = ir->strew ? ir->strew[s] : 1;
         if (ir->strrel && ir->strrel[s])
@@ -8138,14 +8137,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         low_fpf(out, "{}{{ lw_str{}, {}, {} }}",
                 proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((size_t)(s)), PROVEN_ARG((size_t)(ir->strs[s].size / (ew ? ew : 1))), PROVEN_ARG((unsigned)((unsigned)ew)));
     }
-    fputs(ir->nstrs ? " };\n" : " { 0, 0, 1 } };\n", out);
+    low_puts(out, ir->nstrs ? " };\n" : " { 0, 0, 1 } };\n");
     // ★ 폭 1 = 여태처럼 바이트 슬라이스. 폭 2·4 = **타입 있는 배열**(VM 의 VMV_VARRAY 와 같은
     //   모양) — 새 값 종류를 만들지 않는다.
-    fputs("static lowv lw_strv(int i) { lowv v = {0}; v.p = lw_strs[i].p; v.n = lw_strs[i].n;\n"
+    low_puts(out, "static lowv lw_strv(int i) { lowv v = {0}; v.p = lw_strs[i].p; v.n = lw_strs[i].n;\n"
           "    if (lw_strs[i].w <= 1) { v.tag = LWV_SLICE; } else { v.tag = LWV_VARRAY; v.box = (int)lw_strs[i].w; }\n"
-          "    return v; }\n", out);
+          "    return v; }\n");
     // ★★ RFC-0132 T2b-3b — **배열 칸의 표**: (make 번호, 칸 자리, 원소 수, 원소 폭, 부동·부호). VM 의 vm_arr_* 와 같은 규칙.
-    fputs("static const struct { int mk, slot, n, esz; long long meta; } lw_arrf[] = {", out);
+    low_puts(out, "static const struct { int mk, slot, n, esz; long long meta; } lw_arrf[] = {");
     for (proven_size_t mk = 0; mk < ir->nmakes; mk++)
         for (proven_size_t s = 0; s < ir->nstructs; s++) {
             if (!proven_u8str_view_eq(ir->structs[s].name, ir->makes[mk].type_name)) continue;
@@ -8168,7 +8167,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         if (t2 > rbmax) rbmax = t2;
     }
     // ★ X-0083 — make 마다 **값 구조체**인가(안에 들면 베낀다). VM 의 vm_mk_is_value 와 같은 가름.
-    fputs(" {-1, 0, 0, 0, 0} };\nstatic const unsigned char lw_mkval[] = {", out);
+    low_puts(out, " {-1, 0, 0, 0, 0} };\nstatic const unsigned char lw_mkval[] = {");
     for (proven_size_t mk = 0; mk < ir->nmakes; mk++) {
         int val = 0;
         for (proven_size_t s = 0; s < ir->nstructs; s++) {
@@ -8180,10 +8179,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         low_fpf(out, "{},", PROVEN_ARG((int)(val)));
     }
-    fputs(" 0 };\n", out);
+    low_puts(out, " 0 };\n");
     if (rbmax) low_fpf(out, "#ifdef LW_FREESTANDING\nstatic unsigned char lw_rbuf[LW_RECPOOL][{}] __attribute__((aligned(8)));\n#endif\n", PROVEN_ARG((size_t)(rbmax)));
     if (!rbmax) {   // 배열 칸이 없다 — 힙에 닿는 코드를 아예 내지 않는다(프리스탠딩 프로필이 호스트 기호를 세어 거절한다)
-        fputs("static void lw_rec_arrs(lowrec *r, int mk) { (void)r; (void)mk; }\n"
+        low_puts(out, "static void lw_rec_arrs(lowrec *r, int mk) { (void)r; (void)mk; }\n"
               "static lowv lw_rec_new(lw_fwin *w, lowrec **out) { lowv v = {0}; v.tag = LWV_REC;\n"
               "    if (w && w->n < w->cap) { lowrec *r = &w->r[w->n++]; *out = r; v.box = -1; v.p = (const unsigned char *)(void *)r; return v; }\n"
               "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted — raise it with -DLW_RECPOOL=N (docs/runtime-pools.md)\");\n"
@@ -8200,9 +8199,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
               "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone_w(r->f[f], 1, w);\n"
               "    (void)mk; }\n"
               "static void lw_rec_arrays(lowrec *r, int mk) { lw_rec_arrays_w(r, mk, 0); }\n"
-              "static int lw_fstore_arr(lowrec *r, int slot, lowv v) { (void)r; (void)slot; (void)v; return 0; }\n", out);
-    } else fputs(
-          "static lowv lw_arr_view(int k, unsigned char *p) { lowv v = {0}; v.p = p;\n"
+              "static int lw_fstore_arr(lowrec *r, int slot, lowv v) { (void)r; (void)slot; (void)v; return 0; }\n");
+    } else low_puts(out, "static lowv lw_arr_view(int k, unsigned char *p) { lowv v = {0}; v.p = p;\n"
           "    if (lw_arrf[k].meta & 0x80000) { size_t rb_ = (size_t)((lw_arrf[k].meta >> 32) & 0xffffff); /* RFC-0155 §8-3: rows */\n"
           "        v.tag = LWV_VARRAY; v.i = lw_arrf[k].meta & (0x80000 | 0x30000 | 0xff | 0x0ff00000); v.box = (int)rb_; v.n = rb_ ? (size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz / rb_ : 0; }\n"
           "    else if (lw_arrf[k].esz == 1 && !lw_arrf[k].meta) { v.tag = LWV_SLICE; v.n = (size_t)lw_arrf[k].n; }\n"
@@ -8247,12 +8245,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "static int lw_fstore_arr(lowrec *r, int slot, lowv v) {\n"
           "    for (int k = 0; lw_arrf[k].mk >= 0; k++) if (lw_arrf[k].mk == r->mk && lw_arrf[k].slot == slot) {\n"
           "        lw_arr_copy(k, v, (unsigned char *)(void *)r->f[slot].p); return 1; }\n"
-          "    return 0; }\n", out);
+          "    return 0; }\n");
     // ★★★ RFC-0132 P4e (§14.8) — **틀 창 · 올리기 · 되튐**. 창의 레코드는 그 op 의 C 틀에 산다. 밖으로 나가는 길(박스 · 그릇 · 통로 ·
     //   편지 · 태스크 · 남의 레코드 칸)에서는 풀로 올리고(lw_promote), 돌려줄 때는 되튐 창으로 베껴 부른 쪽이 제 창(없으면 풀)으로 옮긴다.
     //   ☞ 창 레코드의 바이트 버퍼는 틀이 준다(rbc = 이 단위의 가장 큰 배열 칸 몫) — lw_rec_arrs 의 늘리기 갈래에 닿지 않는다.
     low_fpf(out, "#define LW_RBMAX {}\n", PROVEN_ARG((size_t)(rbmax ? rbmax : (size_t)1)));
-    fputs("static _Thread_local unsigned char lw_bnb[17][LW_RBMAX] __attribute__((aligned(8)));\n"
+    low_puts(out, "static _Thread_local unsigned char lw_bnb[17][LW_RBMAX] __attribute__((aligned(8)));\n"
           "static void lw_win_init(lw_fwin *w, lowrec *r, unsigned char *rb, int cap) { w->r = r; w->n = 0; w->cap = cap;\n"
           "    for (int i = 0; i < cap; i++) { r[i].rb = rb + (size_t)i * LW_RBMAX; r[i].rbc = LW_RBMAX; } }\n"
           "static lowv lw_make_w(lw_fwin *w, int mk, int nf, const lowv *vals) {\n"
@@ -8291,11 +8289,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    for (int i = 0; i < nloc; i++) lw_fw_fix(w, n0, &loc[i]);\n"
           "    for (int i = 0; i < sp; i++) lw_fw_fix(w, n0, &st[i]);\n"
           "    for (int i = 0; i < top; i++) for (int f = 0; f < w->r[i].nf; f++) lw_fw_fix(w, n0, &w->r[i].f[f]);\n"
-          "    w->n = top; }\n", out);
+          "    w->n = top; }\n");
     // ★★★ RFC-0042 §8-2 — **레지스터 블록을 자기 기저 주소에서** (태그 경로). 주소는 컴파일 상수다.
     //   ★ RFC-0137 P4 — 기저는 **포인터**로 받는다(장치 주소는 LW_MMIO_PTR 이 만들고, 예약 블록은 배열 그대로). 정수를 거치지 않는다.
-    fputs("static lowv lw_mmioblk(void *base, unsigned n) {\n"
-          "    lowv v = {0}; v.tag = LWV_SLICE; v.p = (unsigned char *)base; v.n = n; return v; }\n", out);
+    low_puts(out, "static lowv lw_mmioblk(void *base, unsigned n) {\n"
+          "    lowv v = {0}; v.tag = LWV_SLICE; v.p = (unsigned char *)base; v.n = n; return v; }\n");
 
     // forward declarations (recursion / any call order)
     // ★★★ **C 의 프로토타입** — `extern` op 마다(RFC-0063).
@@ -8317,29 +8315,28 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     for (proven_size_t i2 = 0; i2 < ir->ndefs && i2 < 512; i2++) g_argmask[i2] = LWA_ALL;
     for (proven_size_t i2 = 0; i2 < ir->ndefs && i2 < 512; i2++) {
         if (!sc_tab[i2]) continue;
-        char *pb = NULL; size_t pn = 0;
-        FILE *pm = open_memstream(&pb, &pn);
+        low_out_t *pm = low_out_mem();          // ★ W-20261113-0024 — proven 메모리 통로(전엔 open_memstream)
         if (!pm) continue;                       // 못 잡으면 전부 넘긴다 — 느릴 뿐 틀리지 않는다
         proven_size_t save = g_cur_di; g_cur_di = i2;
         cbe_scalar_body(ir, &ir->defs[i2], pm);
         g_cur_di = save;
-        fclose(pm);
-        if (pb) { g_argmask[i2] = cbe_argmask_of(pb); free(pb); }
+        if (!low_out_failed(pm)) g_argmask[i2] = cbe_argmask_of((const char *)low_out_mem_view(pm).ptr);
+        (void)low_out_close(pm);
         if (!g_argmask[i2]) g_argmask[i2] = LWA_AI;   // 빈 목록은 안 만든다(호출 표기가 단순해진다)
     }
 
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         if (!cbe_emittable(&ir->defs[i])) continue;
-        fputs("static lowv lw_op_", out); put_sym(out, &ir->defs[i]);
+        low_puts(out, "static lowv lw_op_"); put_sym(out, &ir->defs[i]);
         // ★ `restrict` 는 **표준 C99** 다 — 방언이 아니다. 그리고 이 배열은 op 이 **혼자
         //   읽는다**(호출자가 스택에 세워 넘긴다) ⇒ 겹칠 수가 없다. 그 사실을 말한다.
-        fputs("(const lowv *restrict a);\n", out);
+        low_puts(out, "(const lowv *restrict a);\n");
         // ★ **export 함수 전방 선언** — `unsafe_fn <op>` 의 `&<op>` 가 그 export 함수의 정의보다
         //   먼저 나올 수 있다(콜백을 넘기는 op 이 위에서 하강한다). 그래서 여기서 미리 선언한다.
         if (low_cbe_plan_of(i)->exported_symbol) {   // ★ 같은 기록(RFC-0089 R1) — 세 번째 독자다
             const low_ir_def_t *d = &ir->defs[i];
             cbe_put_export_sig(out, d, low_cbe_plan_of(i), false);   // ★ RFC-0132 P4d — 서명은 한 곳에서
-            fputs(";\n", out);
+            low_puts(out, ";\n");
         }
         if (i < 512 && sc_tab[i]) {
             // ★★★ **작은 순수 op 은 `inline` 이라고 말해 준다** (2026-08-29, 실측).
@@ -8347,10 +8344,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             //   같은 프로그램에서 op 하나에 `inline` 을 붙이자 **78 → 40 ms** 였다(같은 답).
             //   `always_inline` 은 안 쓴다 — 같은 값을 내면서(41 ms) 코드 팽창의 위험만 진다.
             //   ☞ 이것은 **힌트**다: 무엇을 인라인할지는 C 컴파일러의 비용 모형이 정한다.
-            fputs(cbe_inline_hint(i) ? "static inline " : "static ", out);
-            fputs(cbe_ret_scalar(i) ? "long long lw_s_" : "lw_r lw_s_", out); put_sym(out, &ir->defs[i]);
-            fputs("(", out); cbe_put_params(out, i < 512 ? g_argmask[i] : LWA_ALL, cbe_depparam(i)); fputs(");\n", out);
-            if (g_qthunk[i]) { fputs("static void lw_q_", out); put_sym(out, &ir->defs[i]); fputs("(unsigned char *self_, const lowv *a_) LW_HNOINL;\n", out); }
+            low_puts(out, cbe_inline_hint(i) ? "static inline " : "static ");
+            low_puts(out, cbe_ret_scalar(i) ? "long long lw_s_" : "lw_r lw_s_"); put_sym(out, &ir->defs[i]);
+            low_puts(out, "("); cbe_put_params(out, i < 512 ? g_argmask[i] : LWA_ALL, cbe_depparam(i)); low_puts(out, ");\n");
+            if (g_qthunk[i]) { low_puts(out, "static void lw_q_"); put_sym(out, &ir->defs[i]); low_puts(out, "(unsigned char *self_, const lowv *a_) LW_HNOINL;\n"); }
         }
     }
 
@@ -8367,10 +8364,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             //   부르면 "없는 op" 이라고 한다. 조용히 빠지는 것이 죄다(PRINCIPLES.md §0 교훈 2).
             //   ⇒ **말한다.** (그리고 이것은 차등 검증의 **사각지대**이기도 하다:
             //     VM 에는 있고 네이티브에는 없는 op 은 두 실행을 비교할 수가 없다.)
-            fputs("/* skipped (not in the C backend yet): ", out); put_view(out, d->name); fputs(" */\n", out);
-            fputs("lowentc: W-CBE-SKIP: op '", stderr);
-            fwrite(d->name.ptr, 1, d->name.size, stderr);
-            low_fpf(stderr, "' is NOT in the native build ({}) — calling it on the native binary "
+            low_puts(out, "/* skipped (not in the C backend yet): "); put_view(out, d->name); low_puts(out, " */\n");
+            low_puts(low_stderr(), "lowentc: W-CBE-SKIP: op '");
+            low_write(low_stderr(), d->name.ptr, d->name.size);
+            low_fpf(low_stderr(), "' is NOT in the native build ({}) — calling it on the native binary "
                             "will say \"no such op\", and the VM/native differential cannot see it\n",
                     proven_arg_cstr(!d->lowered ? "body outside the S5 core"
                                 : "uses an op this backend does not emit yet"));
@@ -8379,7 +8376,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         // branch targets need labels
         // ★ 태그 경로의 분기 목표 표도 **명령 수만큼** (X-0028 · WO-0205). 4096 은 판단이 아니었다.
         bool *target = (bool *)low_zalloc(d->ncode + 1, sizeof *target);   // ★ W-20261112-0207 — proven 힙
-        if (!target) { fputs("lowentc: out of memory\n", stderr); return -1; }
+        if (!target) { low_puts(low_stderr(), "lowentc: out of memory\n"); return -1; }
         for (proven_size_t j = 0; j < d->ncode; j++)
             if ((d->code[j].w == IRW_BR || d->code[j].w == IRW_BRZ) && (proven_size_t)d->code[j].a < d->ncode)
                 target[d->code[j].a] = true;
@@ -8390,37 +8387,37 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   **일어났어야 할 패닉이 사라진다.**
         // ★★★ **스칼라 전용 op — 자연스러운 C 로 내린다.** 태그도 박스도 12KB 프레임도 없다.
         if (i < 512 && sc_tab[i]) {
-            if (pure_tab[i]) fputs("LW_PURE ", out);
-            fputs(cbe_inline_hint(i) ? "static inline " : "static ", out);
-            fputs(cbe_ret_scalar(i) ? "long long lw_s_" : "lw_r lw_s_", out); put_sym(out, d);
-            fputs("(", out); cbe_put_params(out, i < 512 ? g_argmask[i] : LWA_ALL, cbe_depparam(i));
-            fputs(") {\n", out);
+            if (pure_tab[i]) low_puts(out, "LW_PURE ");
+            low_puts(out, cbe_inline_hint(i) ? "static inline " : "static ");
+            low_puts(out, cbe_ret_scalar(i) ? "long long lw_s_" : "lw_r lw_s_"); put_sym(out, d);
+            low_puts(out, "("); cbe_put_params(out, i < 512 ? g_argmask[i] : LWA_ALL, cbe_depparam(i));
+            low_puts(out, ") {\n");
             { unsigned am_ = i < 512 ? g_argmask[i] : LWA_ALL;
-              if (am_ & LWA_AI) fputs("    (void)ai;", out);  if (am_ & LWA_AS) fputs(" (void)as;", out);
-              if (am_ & LWA_AF) fputs(" (void)af;", out);     if (am_ & LWA_AR) fputs(" (void)ar;", out);
-              if (am_ & LWA_AB) fputs(" (void)ab;", out);     if (am_ & LWA_AO) fputs(" (void)ao;", out);
-              if (am_ & LWA_AV) fputs(" (void)av;", out);     fputs("\n", out); }
+              if (am_ & LWA_AI) low_puts(out, "    (void)ai;");  if (am_ & LWA_AS) low_puts(out, " (void)as;");
+              if (am_ & LWA_AF) low_puts(out, " (void)af;");     if (am_ & LWA_AR) low_puts(out, " (void)ar;");
+              if (am_ & LWA_AB) low_puts(out, " (void)ab;");     if (am_ & LWA_AO) low_puts(out, " (void)ao;");
+              if (am_ & LWA_AV) low_puts(out, " (void)av;");     low_puts(out, "\n"); }
             g_cur_di = i;                    // ★ 반환 모양은 이 def 의 것이다
             cbe_scalar_body(ir, d, out);
-            fputs("}\n", out);
+            low_puts(out, "}\n");
             // ★★★ 2a — 빠른 `spawn send` 칸의 어댑터: 액터의 바이트를 그대로 가리키고 정수 인자를 펴서 빠른 판을 부른다(되쓰기가 없다).
             if (i < 512 && g_qthunk[i]) {
                 const unsigned am_ = g_argmask[i];
                 const proven_size_t ni_ = d->nparams > 1 ? d->nparams - 1 : 1;
-                fputs("static void lw_q_", out); put_sym(out, d); fputs("(unsigned char *self_, const lowv *a_) {\n", out);
+                low_puts(out, "static void lw_q_"); put_sym(out, d); low_puts(out, "(unsigned char *self_, const lowv *a_) {\n");
                 low_fpf(out, "    long long ai[{}]; lw_sl as[1]; double af[1]; unsigned char *ar[1]; long long ab[1] = {{0}}; lw_r ao[1]; lw_v av[1];"
                              " lw_sl rsl[{} * LW_RECF] = {{{{0,0}}}};"
                              " (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl; (void)a_;\n",
                         PROVEN_ARG((size_t)(ni_)), PROVEN_ARG((size_t)((size_t)(d->nparams ? d->nparams : 1))));
                 for (proven_size_t q = 1; q < d->nparams; q++) low_fpf(out, "    ai[{}] = a_[{}].i;\n", PROVEN_ARG((size_t)((size_t)(q - 1))), PROVEN_ARG((size_t)((size_t)(q - 1))));
-                fputs("    ar[0] = self_;\n    (void)lw_s_", out); put_sym(out, d); fputs("(", out);
+                low_puts(out, "    ar[0] = self_;\n    (void)lw_s_"); put_sym(out, d); low_puts(out, "(");
                 cbe_put_args(out, am_, false, cbe_depparam(i) ? "lw_depth" : NULL);
-                fputs(");\n}\n", out);
+                low_puts(out, ");\n}\n");
             }
             // ★ 얇은 어댑터 — 디스패치 표와 느린 경로의 호출자가 그대로 산다.
             //   태그 검사는 **여기 경계에서 한 번**만 한다(안쪽 루프에는 없다).
-            fputs("static lowv lw_op_", out); put_sym(out, d);
-            fputs("(const lowv *restrict a) {\n", out);
+            low_puts(out, "static lowv lw_op_"); put_sym(out, d);
+            low_puts(out, "(const lowv *restrict a) {\n");
             { proven_size_t ni = 0, ns = 0, nfl = 0, nao = 0, nav = 0;
               for (proven_size_t q = 0; q < d->nparams; q++) {
                   if ((d->param_slice >> q) & 1u) ns++;
@@ -8572,10 +8569,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                   }
               } }
             // ★ 경계에서 **한 번** 태그 값으로 되돌린다(호출자가 태그 경로일 수 있으니).
-            fputs(cbe_ret_scalar(i) ? "    lw_r r_ = {0}; r_.v = lw_s_" : "    lw_r r_ = lw_s_", out);
-            put_sym(out, d); fputs("(", out);
+            low_puts(out, cbe_ret_scalar(i) ? "    lw_r r_ = {0}; r_.v = lw_s_" : "    lw_r r_ = lw_s_");
+            put_sym(out, d); low_puts(out, "(");
             cbe_put_args(out, i < 512 ? g_argmask[i] : LWA_ALL, false, cbe_depparam(i) ? "lw_depth" : NULL);
-            fputs(");\n", out);
+            low_puts(out, ");\n");
             { proven_size_t bw = 0;
               for (proven_size_t q = 0; q < d->nparams; q++)
                   if ((d->param_bset >> q) & 1u)
@@ -8598,7 +8595,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★ 레코드 반환 — 경계에서 박스를 만든다(태그 경로가 그것을 기대한다).
                 //   ★★★ 중첩 레코드면 **재귀로** 안쪽 박스부터 짓는다(평탄 슬롯 → 중첩 박스).
                 int sx_ = g_retk[i] - K_REC;
-                fputs("    if (r_.tag == 7) {\n", out);
+                low_puts(out, "    if (r_.tag == 7) {\n");
                 int nid = 0;
                 int root = cbe_emit_rec_recon(out, ir, sx_, 0, &nid);
                 low_fpf(out, "        {{ lowv rv_ = {{0}}; rv_.tag = LWV_REC; rv_.box = box_{}; return rv_; }}\n"
@@ -8621,7 +8618,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★★★ **레코드를 감싼 option/result 반환** — some/ok(태그 1·3)면 r_.r[] 에서
                 //   (중첩) 레코드 박스를 짓고 그것을 감싼다. none/err 은 아래 일반 경로가 처리한다.
                 int rsx = g_retopt[i] - 1;
-                fputs("    if (r_.tag == 1 || r_.tag == 3) {\n", out);
+                low_puts(out, "    if (r_.tag == 1 || r_.tag == 3) {\n");
                 int nid = 0;
                 int root = cbe_emit_rec_recon(out, ir, rsx, 0, &nid);
                 low_fpf(out, "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
@@ -8632,14 +8629,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             }
             if (i < 512 && g_retk[i] == K_OPT2) {
                 // ★ 겹 option · result 반환 — 바깥이 some / ok 이면 안의 값(수를 싼 some · ok · none · error)을 먼저 짓고 그것을 싼다.
-                fputs("    if (r_.tag == 1 || r_.tag == 3) { lowv in_ = {0};\n"
+                low_puts(out, "    if (r_.tag == 1 || r_.tag == 3) { lowv in_ = {0};\n"
                       "        if (r_.t2 == 2) in_.tag = LWV_NONE;\n"
                       "        else if (r_.t2 == 4) in_ = lw_err((int)r_.v);\n"
                       "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                       "               lw_boxes[lw_nbox] = lw_int(r_.v); in_.tag = (r_.t2 == 1) ? LWV_SOME : LWV_OK; in_.box = lw_nbox++; }\n"
                       "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                       "        lw_boxes[lw_nbox] = in_;\n"
-                      "        { lowv w_ = {0}; w_.tag = (r_.tag == 1) ? LWV_SOME : LWV_OK; w_.box = lw_nbox++; return w_; } }\n", out);
+                      "        { lowv w_ = {0}; w_.tag = (r_.tag == 1) ? LWV_SOME : LWV_OK; w_.box = lw_nbox++; return w_; } }\n");
             }
             if (i < 512 && g_retk[i] == K_OPTSL && (g_retve[i] > 1 || g_retfl[i])) {
                 // ★ 2026-11-01 — 원소 폭이 1 이 아닌 슬라이스 option: 태그 경로의 VARRAY(원소 수 · 폭 · 표식)를 싼다.
@@ -8651,10 +8648,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             } else
             if (i < 512 && g_retk[i] == K_OPTSL) {
                 // ★★★★ WO-0222 — **바이트 슬라이스를 감싼 option 반환**: some 이면 태그 경로가 기대하는 박스(LWV_SLICE)를 짓는다.
-                fputs("    if (r_.tag == 1) {\n"
+                low_puts(out, "    if (r_.tag == 1) {\n"
                       "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\");\n"
                       "        lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = r_.s.p, .n = r_.s.n };\n"
-                      "        { lowv w_ = {0}; w_.tag = LWV_SOME; w_.box = lw_nbox++; return w_; } }\n", out);
+                      "        { lowv w_ = {0}; w_.tag = LWV_SOME; w_.box = lw_nbox++; return w_; } }\n");
             }
             if (i < 512 && g_retk[i] == K_ROWS)   // ★ 2026-11-01 — 줄의 나열 반환: 태그 경로의 VARRAY(줄 수 · 줄 바이트 · 줄 표식 · 원소 폭 · 표식) — lw_varray 와 같은 모양
                 low_fpf(out, "    if (r_.tag == 6) {{ lowv sv_ = {{0}}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = {}; sv_.i = 0x80000 | {} | {} | {}; return sv_; }}\n",
@@ -8664,8 +8661,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 low_fpf(out, "    if (r_.tag == 6) {{ lowv sv_ = {{0}}; sv_.tag = LWV_VARRAY; sv_.p = r_.s.p; sv_.n = r_.s.n; sv_.box = {}; sv_.i = {}; return sv_; }}\n",
                         PROVEN_ARG((int)((int)g_retve[i])), PROVEN_ARG((int)(g_retfl[i] == CBE_FL_FLT ? 0x10000 : g_retfl[i] == CBE_FL_SGN ? 0x20000 : 0)));
             if (i < 512 && g_retk[i] == K_W128)   // ★ W-20261105-2304 — 128 비트 결과(바이트 칸 · tag 11)
-                fputs("    if (r_.tag == 11) { lw_u128 w_; memcpy(&w_, r_.r, sizeof w_); return lw_wmk(w_); }\n", out);
-            fputs("    if (r_.tag == 5) return lw_flt(r_.f);\n"
+                low_puts(out, "    if (r_.tag == 11) { lw_u128 w_; memcpy(&w_, r_.r, sizeof w_); return lw_wmk(w_); }\n");
+            low_puts(out, "    if (r_.tag == 5) return lw_flt(r_.f);\n"
                   "    if (r_.tag == 6) { lowv sv_ = {0}; sv_.tag = LWV_SLICE; sv_.p = r_.s.p;"
                   " sv_.n = r_.s.n; return sv_; }\n"
                   "    if (r_.tag == 8) { lowv vv_ = {0}; vv_.tag = LWV_VIEW; vv_.p = r_.s.p;"
@@ -8676,7 +8673,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                   "    if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                   "    lw_boxes[lw_nbox] = lw_int(r_.v);\n"
                   "    { lowv w_ = {0}; w_.tag = (r_.tag == 1) ? LWV_SOME : LWV_OK;"
-                  " w_.box = lw_nbox++; return w_; }\n}\n", out);
+                  " w_.box = lw_nbox++; return w_; }\n}\n");
             emitted++;
             continue;
         }
@@ -8693,9 +8690,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         if (i < 512 && !g_why[i][0])
             low_bfmt(g_why[i], sizeof g_why[0], "the kind inference gave up (no stopping point found)");
-        if (i < 512 && pure_tab[i]) fputs("LW_PURE ", out);
-        fputs("static lowv lw_op_", out); put_sym(out, d); fputs("(const lowv *restrict a) {\n", out);
-        fputs("    if (++lw_depth > 128) lw_panic(\"call depth limit exceeded\");\n", out);
+        if (i < 512 && pure_tab[i]) low_puts(out, "LW_PURE ");
+        low_puts(out, "static lowv lw_op_"); put_sym(out, d); low_puts(out, "(const lowv *restrict a) {\n");
+        low_puts(out, "    if (++lw_depth > 128) lw_panic(\"call depth limit exceeded\");\n");
         low_fpf(out, "    lowv loc[{}]; memset(loc, 0, sizeof loc);\n",
                 PROVEN_ARG((size_t)((size_t)(d->nlocals ? d->nlocals : 1))));
         // ★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ): 이 op 의 C 틀에 바이트 줄 하나(부를 때마다 새것 — 재귀도 안전).
@@ -8733,15 +8730,15 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         // ★ 이 프레임의 **벡터 풀 바닥**(RFC-0089 B) — 루프의 뒤 분기와 반환이 여기로 되감는다.
         //   벡터를 안 만지는 op 에는 **아무것도 안 낸다**(위 cbe_uses_vec 의 이유).
         const bool vecfn = cbe_uses_vec(d);
-        if (vecfn) fputs("    int vb_ = lw_nvecpool; (void)vb_;\n", out);
+        if (vecfn) low_puts(out, "    int vb_ = lw_nvecpool; (void)vb_;\n");
         // ★ 네 풀의 바닥(F1) — 루프의 뒤 분기가 여기로 되감는다.
         // ★★ 2026-11-11 (W-20261111-0940 O1) — 참조를 쥔 op 도 되감는다. 다만 **이 틀이 선 뒤로 참조 너머에 풀 값을 쓴 일이 없을 때만**
         //   (lw_refw 가 그대로). 정본 §8.1 (3a) «풀은 루프를 한 바퀴 돌 때마다 되감긴다» — VM 은 늘 그랬다. 전엔 `W-POOL-LOOP` 로 알리고 멈췄다.
         const bool poolgc_ref = !cbe_pool_gc_ok(d);
         const bool poolgc = true;
-        fputs("    int pbx_ = lw_nbox, prc_ = lw_nrec, psk_ = lw_nstk, pbs_ = lw_nbset, pvc_ = lw_nvecpool;\n"
-              "    (void)pbx_; (void)prc_; (void)psk_; (void)pbs_; (void)pvc_;\n", out);
-        if (poolgc_ref) fputs("    unsigned rwc_ = lw_refw; int esc_ = 0; lw_rfar rf_ = { {0}, 0 }; (void)rwc_; (void)esc_; (void)rf_;\n", out);
+        low_puts(out, "    int pbx_ = lw_nbox, prc_ = lw_nrec, psk_ = lw_nstk, pbs_ = lw_nbset, pvc_ = lw_nvecpool;\n"
+              "    (void)pbx_; (void)prc_; (void)psk_; (void)pbs_; (void)pvc_;\n");
+        if (poolgc_ref) low_puts(out, "    unsigned rwc_ = lw_refw; int esc_ = 0; lw_rfar rf_ = { {0}, 0 }; (void)rwc_; (void)esc_; (void)rf_;\n");
         char pgif_[160] = "";
         if (poolgc_ref) low_bfmt(pgif_, sizeof pgif_, "if (!esc_ && !(esc_ = !lw_refw_ok(&rwc_, loc, {}, &rf_))) ", PROVEN_ARG((size_t)((size_t)(d->nlocals ? d->nlocals : 1))));
         // 되감지 못하는 바퀴에도 벡터 풀은 전처럼 되감는다(참조를 쥔 op 은 전에 lw_vecgc 만 냈다)
@@ -8773,14 +8770,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_CONST: low_fpf(out, "    st[sp++] = lw_int({}ll);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_LOAD:  low_fpf(out, "    st[sp++] = loc[{}];\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_STORE: low_fpf(out, "    lw_store(&loc[{}], st[--sp]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
-                case IRW_DROP:  fputs("    sp--;\n", out); break;
+                case IRW_DROP:  low_puts(out, "    sp--;\n"); break;
                 case IRW_NEG:   low_fpf(out, "    st[sp-1] = lw_negs({}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_FCONST: low_fpf(out, "    st[sp++] = lw_fltbits({}ll);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_CAST:  low_fpf(out, "    st[sp-1] = lw_cast({}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_ASSERT:
                     // ★ 증명된 ensures 검사는 **실제로 제거한다**(그것이 계약이 사 주는 성능).
                     //   진입 requires 는 제거하지 않는다 — 분석이 그것을 사실로 심었으므로.
-                    if ((in->a & 3) && (in->a & IR_POL_PROVEN)) { fputs("    sp--;\n", out); break; }
+                    if ((in->a & 3) && (in->a & IR_POL_PROVEN)) { low_puts(out, "    sp--;\n"); break; }
                     // ★ 계약은 **지켜지라고** 있는 것이다 ⇒ 위반 가지는 **차갑다**.
                     //   컴파일러가 그것을 알면 뜨거운 경로에서 그 코드를 **치워 준다**.
                     low_fpf(out, "    if (LW_UNLIKELY(st[sp-1].tag != LWV_INT || !st[sp-1].i)) "
@@ -8793,16 +8790,16 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 case IRW_UNM:   low_fpf(out, "    st[sp-1] = lw_unm({}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_BINM:  low_fpf(out, "    st[sp-2] = lw_binm({}, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
-                case IRW_NOT:   fputs("    st[sp-1] = lw_not(st[sp-1]);\n", out); break;
+                case IRW_NOT:   low_puts(out, "    st[sp-1] = lw_not(st[sp-1]);\n"); break;
                 case IRW_ADD:   low_fpf(out, "    st[sp-2] = lw_arith({}, 0, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_SUB:   low_fpf(out, "    st[sp-2] = lw_arith({}, 1, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_MUL:   low_fpf(out, "    st[sp-2] = lw_arith({}, 2, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_DIV:   low_fpf(out, "    st[sp-2] = lw_divs({}, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_MOD:   low_fpf(out, "    st[sp-2] = lw_mods({}, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
-                case IRW_AND:   fputs("    st[sp-2] = lw_landor(0, st[sp-2], st[sp-1]); sp--;\n", out); break;
-                case IRW_OR:    fputs("    st[sp-2] = lw_landor(1, st[sp-2], st[sp-1]); sp--;\n", out); break;
-                case IRW_EQ:    fputs("    st[sp-2] = lw_cmp(0, st[sp-2], st[sp-1]); sp--;\n", out); break;
-                case IRW_NE:    fputs("    st[sp-2] = lw_cmp(1, st[sp-2], st[sp-1]); sp--;\n", out); break;
+                case IRW_AND:   low_puts(out, "    st[sp-2] = lw_landor(0, st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_OR:    low_puts(out, "    st[sp-2] = lw_landor(1, st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_EQ:    low_puts(out, "    st[sp-2] = lw_cmp(0, st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_NE:    low_puts(out, "    st[sp-2] = lw_cmp(1, st[sp-2], st[sp-1]); sp--;\n"); break;
                 case IRW_LT:    low_fpf(out, "    st[sp-2] = lw_cmps({}, 2, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_LE:    low_fpf(out, "    st[sp-2] = lw_cmps({}, 3, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_GT:    low_fpf(out, "    st[sp-2] = lw_cmps({}, 4, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
@@ -8831,23 +8828,23 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_SWITCH: {   // ★ MM9-B2 — 점프 테이블 = 진짜 C switch. 뒤 BR 런(span+1)을 소비한다.
                     long long span = in->a;
                     if (vecfn) low_fpf(out, "    lw_vecgc(vb_, loc, {}, st, sp);\n", PROVEN_ARG((size_t)((size_t)(d->nlocals ? d->nlocals : 1))));   // 표의 어느 칸은 뒤로 간다
-                    fputs("    { long long _sv = lw_want_int(st[--sp], \"switch\"); switch (_sv) {\n", out);
+                    low_puts(out, "    { long long _sv = lw_want_int(st[--sp], \"switch\"); switch (_sv) {\n");
                     for (long long cse = 0; cse < span && (proven_size_t)(j + 1 + cse) < d->ncode; cse++)
                         low_fpf(out, "      case {}ll: goto L{};\n", PROVEN_ARG((long long)(cse)), PROVEN_ARG((long long)((long long)d->code[j + 1 + cse].a)));
                     if ((proven_size_t)(j + 1 + span) < d->ncode)
                         low_fpf(out, "      default: goto L{};\n", PROVEN_ARG((long long)((long long)d->code[j + 1 + span].a)));
-                    fputs("    } }\n", out);
+                    low_puts(out, "    } }\n");
                     j += (proven_size_t)span + 1;   // 테이블 BR 들을 건너뛴다(for 의 j++ 가 다음 실명령으로)
                     break;
                 }
                 // ★ 콜리의 벡터는 콜리와 함께 죽고, **돌려주는 하나**만 콜리의 바닥으로 내려온다(RFC-0089 B).
                 case IRW_RET:   // ★ P4e — 틀 창의 레코드를 돌려주면 되튐 창으로 베낀다(부른 쪽이 옮긴다)
                     if (d->nwin)
-                        fputs(vecfn ? "    lw_depth--; return lw_vecret(vb_, lw_fw_ret(&fw_, sp ? st[sp-1] : lw_int(0)));\n"
-                                    : "    lw_depth--; return lw_fw_ret(&fw_, sp ? st[sp-1] : lw_int(0));\n", out);
+                        low_puts(out, vecfn ? "    lw_depth--; return lw_vecret(vb_, lw_fw_ret(&fw_, sp ? st[sp-1] : lw_int(0)));\n"
+                                    : "    lw_depth--; return lw_fw_ret(&fw_, sp ? st[sp-1] : lw_int(0));\n");
                     else
-                        fputs(vecfn ? "    lw_depth--; return lw_vecret(vb_, sp ? st[sp-1] : lw_int(0));\n"
-                                    : "    lw_depth--; return sp ? st[sp-1] : lw_int(0);\n", out);
+                        low_puts(out, vecfn ? "    lw_depth--; return lw_vecret(vb_, sp ? st[sp-1] : lw_int(0));\n"
+                                    : "    lw_depth--; return sp ? st[sp-1] : lw_int(0);\n");
                     break;
                 // ★★★ **인라인 asm — 여기서만 진짜가 된다** (RFC-0041).
                 //   VM 은 이걸 못 돌리고 **못 돌린다고 말한다.** 네이티브는 **돈다.**
@@ -8876,9 +8873,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     // ★ `unsafe_fn <op>` — export extern op 의 **C 심볼 주소**를 lowv .p 에 담는다.
                     //   그 심볼은 계약을 검사하는 경계 래퍼다(RFC-0066 §4). extern 호출이 (void*).p 로 넘긴다.
                     const low_ir_def_t *F = &ir->defs[in->a & 0xffff];
-                    fputs("    { lowv fr = {0}; fr.p = (const unsigned char *)(void *)&", out);
+                    low_puts(out, "    { lowv fr = {0}; fr.p = (const unsigned char *)(void *)&");
                     put_export_name(out, F);   // ★ RFC-0134 — 헤더·정의와 **같은 이름**(경로 이름 또는 `link`)
-                    fputs("; st[sp++] = fr; }\n", out);
+                    low_puts(out, "; st[sp++] = fr; }\n");
                     break;
                 }
                 case IRW_EXTERN: {
@@ -8895,8 +8892,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         //   ★ 첫 구현은 **정수 가변인자**다(`int sum(int n, ...)`). float(SSE)·문자열·포맷
                         //     인지 검사는 후속 — 정수 아닌 가변 인자는 lw_want_int 가 런타임에 정직히 트랩한다.
                         low_fpf(out, "    {{ {} cr_ = ", proven_arg_cstr(crty));
-                        fwrite(E->link_name.ptr, 1, E->link_name.size, out);
-                        fputc('(', out);
+                        low_write(out, E->link_name.ptr, E->link_name.size);
+                        low_putc(out, '(');
                         proven_size_t n = 0;
                         for (proven_size_t vi = 0; vi < vargc; vi++) {
                             proven_size_t off = vargc - vi;   // st[sp-off]
@@ -8922,8 +8919,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     }
                     // ── 고정 arity extern (합성 본문) — 파라미터를 a[] 에서 읽는다 ──────────────
                     low_fpf(out, "    {{ {} cr_ = ", proven_arg_cstr(crty));
-                    fwrite(E->link_name.ptr, 1, E->link_name.size, out);
-                    fputc('(', out);
+                    low_write(out, E->link_name.ptr, E->link_name.size);
+                    low_putc(out, '(');
                     proven_size_t n = 0;
                     for (proven_size_t q = 0; q < E->nparams; q++) {
                         if ((E->param_cap >> q) & 1u) continue;   // ★ 능력은 C 로 안 간다
@@ -8956,7 +8953,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         //   호출자는 `n > 0` 을 **성공**으로 읽는다 ⇒ 실패 표식이 *"1개 방출"* 과
                         //   구별되지 않아 **종료 코드가 0** 이었다. 오류를 찍고 0 으로 나가는 도구는
                         //   게이트를 눈멀게 한다. 한 반환값에 두 뜻을 담았던 것이 병인이다.
-                        low_fpf(stderr, "E-ASM-TARGET: this op is written for `{}` and this build "
+                        low_fpf(low_stderr(), "E-ASM-TARGET: this op is written for `{}` and this build "
                                 "targets `{}`. Assembly is not portable and the tool will not "
                                 "pretend it is — give the op a portable body, or build for that "
                                 "target with `--target`\n",
@@ -8967,15 +8964,15 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     cbe_asm_stmt(out, A);
                     break;
                 }
-                case IRW_LEN:      fputs("    st[sp-1] = lw_len(st[sp-1]);\n", out); break;
+                case IRW_LEN:      low_puts(out, "    st[sp-1] = lw_len(st[sp-1]);\n"); break;
                 case IRW_INDEX:    low_fpf(out, "    st[sp-2] = {}(st[sp-2], st[sp-1]); sp--;\n",
                                            proven_arg_cstr((in->a & IR_POL_PROVEN) ? "lw_index_nc" : "lw_index")); break;
                 case IRW_ELEMCK:   low_fpf(out, "    st[sp-2] = lw_int(lw_elemck(st[sp-2], st[sp-1], {})); sp--;\n",
                                            PROVEN_ARG((int)((int)(in->a & 3)))); break;
                 case IRW_ISTORE:   low_fpf(out, "    {}(st[sp-3], st[sp-2], st[sp-1]); sp -= 3;\n",
                                            proven_arg_cstr((in->a & IR_POL_PROVEN) ? "lw_istore_nc" : "lw_istore")); break;
-                case IRW_SWAP:     fputs("    lw_swap(st[sp-3], st[sp-2], st[sp-1]); sp -= 3; st[sp++] = lw_int(0);\n", out); break;
-                case IRW_SUBSLICE: fputs("    st[sp-3] = lw_subslice(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n", out); break;
+                case IRW_SWAP:     low_puts(out, "    lw_swap(st[sp-3], st[sp-2], st[sp-1]); sp -= 3; st[sp++] = lw_int(0);\n"); break;
+                case IRW_SUBSLICE: low_puts(out, "    st[sp-3] = lw_subslice(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n"); break;
                 // ★★★ **level-3 atomic** (RFC-0018) — place = 슬라이스 + 인덱스. esz 는 런타임 box.
                 case IRW_ALOAD:
                     low_fpf(out, "    {{ lowv s_=st[sp-2]; long long i_=st[sp-1].i; int e_=s_.box?s_.box:8; if (LW_UNLIKELY(i_ < 0 || (unsigned long long)i_ >= s_.n)) lw_panic(\"atomic index out of bounds\");"
@@ -8996,105 +8993,105 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           " st[sp-4]=lw_int(lw_at_cas((unsigned char*)s_.p,i_,e_,x_,d_,{})); sp-=3; }}\n", PROVEN_ARG((int)((int)(in->a & 7))));
                     break;
                 case IRW_TIMENOW:
-                    fputs("    st[sp++] = lw_int(lw_time_now());\n", out); break;
+                    low_puts(out, "    st[sp++] = lw_int(lw_time_now());\n"); break;
                 case IRW_TIMESLEEP:
-                    fputs("    st[sp-1] = lw_int(lw_time_sleep(st[sp-1].i));\n", out); break;
+                    low_puts(out, "    st[sp-1] = lw_int(lw_time_sleep(st[sp-1].i));\n"); break;
                 case IRW_TIMELOCAL:
-                    fputs("    st[sp++] = lw_int(lw_time_local());\n", out); break;
+                    low_puts(out, "    st[sp++] = lw_int(lw_time_local());\n"); break;
                 // ★ 해시 둘 — VM 과 **같은 상수·같은 순서**여야 한다(low_ir.c 의 짝 주석 참조).
                 case IRW_HASH64:
-                    fputs("    { lowv s_ = lw_thru(st[sp-1]); st[sp-1] = lw_int(lw_hash64(s_.p, s_.n)); }\n", out); break;
+                    low_puts(out, "    { lowv s_ = lw_thru(st[sp-1]); st[sp-1] = lw_int(lw_hash64(s_.p, s_.n)); }\n"); break;
                 case IRW_CRC32:
-                    fputs("    { lowv s_ = lw_thru(st[sp-1]); st[sp-1] = lw_int(lw_crc32(s_.p, s_.n)); }\n", out); break;
+                    low_puts(out, "    { lowv s_ = lw_thru(st[sp-1]); st[sp-1] = lw_int(lw_crc32(s_.p, s_.n)); }\n"); break;
                 case IRW_SAMESL:   // ★ RFC-0112 D10 — VM 과 같다: 같은 시작 · 같은 길이
-                    fputs("    { lowv b_ = lw_thru(st[sp-1]); lowv a_ = lw_thru(st[sp-2]); sp--;\n"
-                          "      st[sp-1] = lw_int((a_.p == b_.p && a_.n == b_.n) ? 1 : 0); }\n", out); break;
+                    low_puts(out, "    { lowv b_ = lw_thru(st[sp-1]); lowv a_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int((a_.p == b_.p && a_.n == b_.n) ? 1 : 0); }\n"); break;
                 // ★ VM 과 **같은 상수·같은 순서**여야 한다(splitmix64 — low_ir.c 의 짝 참조).
                 case IRW_RNGNEXT:
-                    fputs("    st[sp-1] = lw_int(lw_rng_next(st[sp-1].i));\n", out); break;
+                    low_puts(out, "    st[sp-1] = lw_int(lw_rng_next(st[sp-1].i));\n"); break;
                 case IRW_SHA256:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
-                          "      st[sp-1] = lw_int(lw_sha256(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n", out); break;
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int(lw_sha256(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n"); break;
                 case IRW_SHA512:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
-                          "      st[sp-1] = lw_int(lw_sha512(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n", out); break;
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int(lw_sha512(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n"); break;
                 case IRW_SHA384:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
-                          "      st[sp-1] = lw_int(lw_sha384(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n", out); break;
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int(lw_sha384(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n"); break;
                 case IRW_AESCTR:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
                           "      lowv c_ = lw_thru(st[sp-3]); lowv k_ = lw_thru(st[sp-4]); sp -= 3;\n"
                           "      st[sp-1] = lw_int(lw_aes_ctr_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
-                          "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
+                          "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n"); break;
                 case IRW_CHACHA20:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
                           "      lowv c_ = lw_thru(st[sp-3]); lowv k_ = lw_thru(st[sp-4]); sp -= 3;\n"
                           "      st[sp-1] = lw_int(lw_chacha20_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
-                          "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
+                          "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n"); break;
                 case IRW_POLY1305:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
-                          "      st[sp-1] = lw_int(lw_poly1305_x((void *)t_.p, t_.n, d_.p, d_.n)); }\n", out); break;
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int(lw_poly1305_x((void *)t_.p, t_.n, d_.p, d_.n)); }\n"); break;
                 case IRW_AESGCM:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
                           "      lowv z_ = lw_thru(st[sp-3]); lowv h_ = lw_thru(st[sp-4]);\n"
                           "      lowv c_ = lw_thru(st[sp-5]); lowv k_ = lw_thru(st[sp-6]); sp -= 5;\n"
                           "      st[sp-1] = lw_int(lw_aes_gcm_x(k_.p, k_.n, (void *)c_.p, c_.n, h_.p, h_.n,\n"
                           "                                     (void *)z_.p, z_.n, s_.p, s_.n,\n"
-                          "                                     (void *)d_.p, d_.n)); }\n", out); break;
+                          "                                     (void *)d_.p, d_.n)); }\n"); break;
                 case IRW_CHAPOLY:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
                           "      lowv t_ = lw_thru(st[sp-3]); lowv c_ = lw_thru(st[sp-4]);\n"
                           "      lowv k_ = lw_thru(st[sp-5]); sp -= 4;\n"
                           "      st[sp-1] = lw_int(lw_chacha_poly_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
                           "                                         (void *)t_.p, t_.n, s_.p, s_.n,\n"
-                          "                                         (void *)d_.p, d_.n)); }\n", out); break;
+                          "                                         (void *)d_.p, d_.n)); }\n"); break;
                 case IRW_AESROUND: case IRW_AESLAST:
                     low_fpf(out, "    {{ lowv r_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
                                  "      st[sp-1] = lw_int(lw_aes_round_x((void *)t_.p, t_.n, r_.p, r_.n, {})); }}\n",
                             PROVEN_ARG((int)(in->w == IRW_AESLAST ? 1 : 0)));
                     break;
                 case IRW_GHASH:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv z_ = lw_thru(st[sp-2]);\n"
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); lowv z_ = lw_thru(st[sp-2]);\n"
                           "      lowv h_ = lw_thru(st[sp-3]); sp -= 2;\n"
-                          "      st[sp-1] = lw_int(lw_ghash_x(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n)); }\n", out); break;
+                          "      st[sp-1] = lw_int(lw_ghash_x(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n)); }\n"); break;
                 case IRW_RANDBYTES:
-                    fputs("    { lowv d_ = lw_thru(st[sp-1]); unsigned long hfk_ = 1;\n"
+                    low_puts(out, "    { lowv d_ = lw_thru(st[sp-1]); unsigned long hfk_ = 1;\n"
                           "      int hf_ = lw_hf_probe(\"random\", &hfk_);\n"
                           "      st[sp-1] = lw_int((hf_ == 1) ? 0 :\n"
-                          "        lw_rand_bytes((unsigned char *)d_.p, (hf_ == 2) ? lw_hf_cap(d_.n, hfk_) : d_.n)); }\n", out); break;
+                          "        lw_rand_bytes((unsigned char *)d_.p, (hf_ == 2) ? lw_hf_cap(d_.n, hfk_) : d_.n)); }\n"); break;
                 case IRW_TTYRAW:
-                    fputs("    st[sp-1] = lw_int(lw_tty_raw(st[sp-1].i));\n", out); break;
+                    low_puts(out, "    st[sp-1] = lw_int(lw_tty_raw(st[sp-1].i));\n"); break;
                 case IRW_TTYREAD:
-                    fputs("    st[sp-1] = lw_tty_read(st[sp-1]);\n", out); break;
+                    low_puts(out, "    st[sp-1] = lw_tty_read(st[sp-1]);\n"); break;
                 case IRW_TTYSIZE:
-                    fputs("    st[sp++] = lw_tty_size();\n", out); break;
+                    low_puts(out, "    st[sp++] = lw_tty_size();\n"); break;
                 case IRW_PREFETCH:
                     // ★★★ **유일하게 승격된 특례** (RFC-0104 §8-14): 이식 가능 157.1 ms 대
                     //   특례 117.5 ms = **+25.2%**, 문턱 5% 를 넘는다. 그리고 순수 힌트라
                     //   **결과를 안 바꾼다** — VM 은 이 op 을 무시하고, 답은 여전히 같다.
-                    fputs("    { long long i_=st[--sp].i; lowv s_=st[--sp];\n"
+                    low_puts(out, "    { long long i_=st[--sp].i; lowv s_=st[--sp];\n"
                           "      if (s_.p && (unsigned long long)i_ < s_.n) __builtin_prefetch(s_.p + i_, 0, 1);\n"
-                          "      st[sp++] = lw_int(0); }\n", out); break;
+                          "      st[sp++] = lw_int(0); }\n"); break;
                 case IRW_AFENCE:
                     // ★ 규약대로 자리 하나를 민다(위 빠른 경로의 주석 참조).
                     low_fpf(out, "    atomic_thread_fence(lw_mo({}));\n", PROVEN_ARG((int)((int)(in->a & 7))));
-                    fputs("    st[sp++] = lw_int(0);\n", out); break;
-                case IRW_WRAP_OK:  fputs("    st[sp-1] = lw_wrap_ok(st[sp-1]);\n", out); break;
+                    low_puts(out, "    st[sp++] = lw_int(0);\n"); break;
+                case IRW_WRAP_OK:  low_puts(out, "    st[sp-1] = lw_wrap_ok(st[sp-1]);\n"); break;
                 // ★ option 생성자 (RFC-0043 D5 — OOM 은 값이다)
                 case IRW_WRAP_SOME:
                     // ★ 박스 풀의 끝을 본다 — lw_wrap_ok 와 같은 검사(전엔 이 자리만 없어 되감지 못하는 루프에서 풀 너머에 썼다 ·
                     //   docs/known-defects/inline-some-past-box-pool.md, 2026-10-25).
-                    fputs("    { lowv v = lw_promote(st[--sp]); if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\"); lw_boxes[lw_nbox] = v;\n"
-                          "      st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; }\n", out);
+                    low_puts(out, "    { lowv v = lw_promote(st[--sp]); if (lw_nbox >= lw_boxlim) lw_panic(\"box pool exhausted — raise it with -DLW_BOXPOOL=N (docs/runtime-pools.md)\"); lw_boxes[lw_nbox] = v;\n"
+                          "      st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; }\n");
                     break;
                 case IRW_WRAP_NONE:
-                    fputs("    st[sp++] = (lowv){ .tag = LWV_NONE };\n", out); break;
+                    low_puts(out, "    st[sp++] = (lowv){ .tag = LWV_NONE };\n"); break;
                 // ★ RFC-0030 D2′ — 프로그램 인자. VM 과 같은 의미: 범위 밖 = none.
                 case IRW_ARGC:
-                    fputs("    st[sp++] = (lowv){ .tag = LWV_INT, .i = lw_g_nargs };\n", out); break;
+                    low_puts(out, "    st[sp++] = (lowv){ .tag = LWV_INT, .i = lw_g_nargs };\n"); break;
                 // ★ 환경 조회 — VM 과 **같은 environ** 을 훑는다(같은 환경이면 같은 답).
                 case IRW_WRITE:
-                    fputs("    { lowv bv = st[--sp]; lowv fv = st[--sp]; st[sp++] = lw_int(lw_h_write(fv.i, bv.p, bv.n)); }\n", out);
+                    low_puts(out, "    { lowv bv = st[--sp]; lowv fv = st[--sp]; st[sp++] = lw_int(lw_h_write(fv.i, bv.p, bv.n)); }\n");
                     break;
                 // ★★★★ RFC-0112 D3 — 피연산자가 뿌리다(0 고정 창 · 1 힙). VM 과 **같은 규칙**(`lw_root_take`).
                 //   ★ 박스 풀 가드도 VM 과 같은 자리에서 먼저 본다(전엔 가드 없이 `lw_boxes[lw_nbox]` 에 썼다).
@@ -9117,24 +9114,24 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
                 // ★ RFC-0069 A5 — 표준입력. VM 과 같은 의미: fd 0 만 · 안 들어가면 none.
                 case IRW_RDIN:
-                    fputs("    { lowv dv = st[--sp]; lowv fv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv fv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_rdin(fv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 // ★★★ **reactor** (RFC-0071 A1) — 네이티브도 **블로킹 폴백만**.
                 //   ☞ A1 의 산물은 *"reactor 라는 자리"* 이지 성능이 아니다. 그 자리가 생겨도
                 //     **답이 한 바이트도 안 바뀐다**는 것이 게이트이고, epoll(A2)·io_uring(A3)
                 //     이 그 게이트를 깨면 즉시 보인다. **되는 것부터 세우고 빠르게 만든다.**
                 case IRW_RNEW:
-                    fputs("    { lowv dv = st[--sp]; lowv mv = st[--sp];\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv mv = st[--sp];\n"
                           "      long long need_ = dv.i * 24;\n"
                           "      if (dv.i <= 0 || (long long)mv.n < need_) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
                           "      else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                           // ★ 뒷받침을 기억한다 — completion 백엔드가 **여기에** 읽는다(D-B).
                           "             lw_rmem = (unsigned char *)(void *)(uintptr_t)mv.p; lw_rmem_n = mv.n;\n"
                           "             lw_boxes[lw_nbox] = lw_int(1);\n"
-                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 // ★★★ **A2 — 논블로킹 + 양보.** 읽을 것이 없으면 **형제에게 넘긴다.**
                 //   ☞ 의미는 A1 과 같다: 버퍼가 차면 `none`(더 남았다), EOF 면 `some(읽은 수)`.
@@ -9143,7 +9140,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 //   ★ fd 는 이제 **아무 것이나** 된다(A1 은 stdin 만). 그래야 파이프 둘로
                 //     *"형제가 굶지 않는다"* 를 **인과로** 잴 수 있다(RFC-0071 A2).
                 case IRW_RREAD:
-                    fputs("    { lowv dv = st[--sp]; lowv fv = st[--sp]; lowv rv = st[--sp];\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv fv = st[--sp]; lowv rv = st[--sp];\n"
                           "      if (rv.i != 1) lw_panic(\"not a reactor handle\");\n"
                           "      if (fv.i < 0) lw_panic(\"not a file descriptor\");\n"
                           "      { int fd_ = (int)fv.i; unsigned char *d_ = (unsigned char *)(void *)(uintptr_t)dv.p;\n"
@@ -9185,7 +9182,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "        if (!eof_) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
                           "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                           "               lw_boxes[lw_nbox] = lw_int((long long)g_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n");
                     break;
                 // ★★★★ **쓰기 쪽** (2026-08-22, N4 단계1) — `r_read` 의 거울.
                 //
@@ -9203,7 +9200,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 //     ⇒ readiness(poll·epoll)만 탄다. **안 되는 것을 되는 척하지 않는다**:
                 //       RFC-0071 A3 의 *"세 백엔드가 바이트까지 같다"* 는 **읽기의 주장**이다.
                 case IRW_RWRITE:
-                    fputs("    { lowv sv = st[--sp]; lowv fv = st[--sp]; lowv rv = st[--sp];\n"
+                    low_puts(out, "    { lowv sv = st[--sp]; lowv fv = st[--sp]; lowv rv = st[--sp];\n"
                           "      if (rv.i != 1) lw_panic(\"not a reactor handle\");\n"
                           "      if (fv.i < 0) lw_panic(\"not a file descriptor\");\n"
                           "      { int fd_ = (int)fv.i; const unsigned char *s_ = (const unsigned char *)(const void *)(uintptr_t)sv.p;\n"
@@ -9220,93 +9217,93 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "        if (err_ && p_ == 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
                           "        else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                           "               lw_boxes[lw_nbox] = lw_int((long long)p_);\n"
-                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                          "               st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n");
                     break;
                 // ★ RFC-0069 §6 스트림 리프 — VM 과 **같은 의미**(같은 libc 를 부른다).
                 case IRW_FOPEN:
-                    fputs("    { lowv mv = st[--sp]; lowv pv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv mv = st[--sp]; lowv pv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_fopen(pv.p, pv.n, mv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_FREAD:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_fread(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_FWRITE:
-                    fputs("    { lowv bv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv bv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_fwrite(hv.i, bv.p, bv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_FCLOSE:
-                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_fclose(hv.i)); }\n", out);
+                    low_puts(out, "    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_fclose(hv.i)); }\n");
                     break;
                 // ★★★ 소켓 리프 (cap net) — VM 과 같은 의미(AF_UNIX socketpair · socks[i]=fd+1, 0=빈).
                 case IRW_NPAIR:
-                    fputs("    {  long long r_ = 0;\n"
+                    low_puts(out, "    {  long long r_ = 0;\n"
                           "      if (!lw_h_npair(&r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_NSEND:
-                    fputs("    { lowv bv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv bv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_nsend(hv.i, bv.p, bv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_NRECV:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_nrecv(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_NCLOSE:
-                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_nclose(hv.i)); }\n", out);
+                    low_puts(out, "    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_nclose(hv.i)); }\n");
                     break;
                 // ★★★ 네트워크 면 — VM 과 같은 의미(127.0.0.1 TCP · 포트 0 = 임시포트).
                 case IRW_NLISTEN:
-                    fputs("    { lowv pv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv pv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_nlisten(pv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_NPORT:
-                    fputs("    { lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_nport(hv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 // ★★★ 주소를 받는다 (X-0032, 2026-09-18) — VM 과 **같은 의미**여야 한다.
                 case IRW_NCONNECT:
-                    fputs("    { lowv pv = st[--sp]; lowv av = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv pv = st[--sp]; lowv av = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_nconnect(av.i, pv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 // ★★★ 이름을 주소로 (X-0032) — VM 과 같은 의미: 첫 A 레코드 하나.
                 case IRW_NRESOLVE:
-                    fputs("    { lowv nv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv nv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_nresolve(nv.p, nv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 // ★★★ RFC-0136 — 프로세스 잎. 런타임은 LW_PROC_RT(쓰는 단위에만 나온다).
                 case IRW_PSPAWN:
-                    fputs("    { lowv av = st[--sp];\n"
+                    low_puts(out, "    { lowv av = st[--sp];\n"
                           "      long long h_ = lw_proc_spawn((const unsigned char *)(const void *)(uintptr_t)av.p, (size_t)av.n);\n"
                           "      if (h_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
                           "      else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "             lw_boxes[lw_nbox] = lw_int(h_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "             lw_boxes[lw_nbox] = lw_int(h_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_PREAD:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp];\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv hv = st[--sp];\n"
                           "      long long r_ = lw_proc_read(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, (size_t)dv.n);\n"
                           "      if (r_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
                           "      else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "             lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "             lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_PPOLL: case IRW_PWAIT:
                     low_fpf(out, "    {{ lowv hv = st[--sp]; unsigned long long s_ = 0;\n"
@@ -9318,34 +9315,34 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             proven_arg_cstr(in->w == IRW_PPOLL ? "lw_proc_poll" : "lw_proc_wait"));
                     break;
                 case IRW_PKILL:
-                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_proc_kill(hv.i) ? 1 : 0); }\n", out);
+                    low_puts(out, "    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_proc_kill(hv.i) ? 1 : 0); }\n");
                     break;
                 case IRW_NACCEPT:
-                    fputs("    { lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_naccept(hv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_FSEEK:
-                    fputs("    { lowv wv = st[--sp], ov = st[--sp], hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv wv = st[--sp], ov = st[--sp], hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_fseek(hv.i, ov.i, wv.i, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_DOPEN:
-                    fputs("    { lowv pv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv pv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_dopen(pv.p, pv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_DREAD:
-                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
+                    low_puts(out, "    { lowv dv = st[--sp]; lowv hv = st[--sp]; long long r_ = 0;\n"
                           "      if (!lw_h_dread(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, dv.n, &r_)) st[sp++] = (lowv){ .tag = LWV_NONE }; else {\n"
                           "      if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
-                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_DCLOSE:
-                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_dclose(hv.i)); }\n", out);
+                    low_puts(out, "    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_h_dclose(hv.i)); }\n");
                     break;
                 case IRW_FTYPE: case IRW_LTYPE:
                     // ★ 한 함수가 둘을 낸다 — 다른 것은 **따라가는가** 하나뿐이다(stat / lstat · `lw_h_ftype`).
@@ -9355,32 +9352,32 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "      lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){{ .tag = LWV_SOME, .box = lw_nbox++ }}; }} }}\n", PROVEN_ARG((int)(in->w == IRW_LTYPE ? 1 : 0)));
                     break;
                 case IRW_DMAKE:
-                    fputs("    { lowv pv = st[--sp]; st[sp++] = lw_int(lw_h_dmake(pv.p, pv.n)); }\n", out);
+                    low_puts(out, "    { lowv pv = st[--sp]; st[sp++] = lw_int(lw_h_dmake(pv.p, pv.n)); }\n");
                     break;
                 case IRW_PREMOVE:
-                    fputs("    { lowv pv = st[--sp]; st[sp++] = lw_int(lw_h_premove(pv.p, pv.n)); }\n", out);
+                    low_puts(out, "    { lowv pv = st[--sp]; st[sp++] = lw_int(lw_h_premove(pv.p, pv.n)); }\n");
                     break;
                 case IRW_PRENAME:
-                    fputs("    { lowv nv = st[--sp], ov = st[--sp]; st[sp++] = lw_int(lw_h_prename(ov.p, ov.n, nv.p, nv.n)); }\n", out);
+                    low_puts(out, "    { lowv nv = st[--sp], ov = st[--sp]; st[sp++] = lw_int(lw_h_prename(ov.p, ov.n, nv.p, nv.n)); }\n");
                     break;
                 case IRW_ENVGET:
-                    fputs("    { lowv nv = st[--sp]; lw_sl s_;\n"
+                    low_puts(out, "    { lowv nv = st[--sp]; lw_sl s_;\n"
                           "      if (!lw_h_envget(nv.p, nv.n, &s_)) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
                           "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = s_.p, .n = s_.n };\n"
-                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_ARGV:
-                    fputs("    { lowv iv = st[--sp]; lw_sl s_;\n"
+                    low_puts(out, "    { lowv iv = st[--sp]; lw_sl s_;\n"
                           "      if (!lw_h_argv(iv.i, &s_)) st[sp++] = (lowv){ .tag = LWV_NONE };\n"
                           "      else { lw_boxes[lw_nbox] = (lowv){ .tag = LWV_SLICE, .p = s_.p, .n = s_.n };\n"
-                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                          "             st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n");
                     break;
                 case IRW_CSTR2STR:
                     // ★★★ **cstr → str** (RFC-0068 S4 · C2) — 널종단 C 문자열의 길이를 몰라 스캔한다
                     //   (strlen, O(n) — 이름이 비용을 말한다). 포인터는 정수 lowv 로 실려 있다(extern 반환).
                     //   ★ **뷰다** — 복사 0. 바이트는 C 쪽이 소유하고, str 은 그 위를 가리킨다(D4).
-                    fputs("    { lowv cv = st[--sp]; const char *p_ = (const char *)cv.p;   /* RFC-0137 P3 — 포인터 칸 */\n"
-                          "      st[sp++] = (lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)p_, .n = p_ ? strlen(p_) : 0 }; }\n", out);
+                    low_puts(out, "    { lowv cv = st[--sp]; const char *p_ = (const char *)cv.p;   /* RFC-0137 P3 — 포인터 칸 */\n"
+                          "      st[sp++] = (lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)p_, .n = p_ ? strlen(p_) : 0 }; }\n");
                     break;
                 case IRW_STR2CSTR:
                     // ★★★ **str_buf → cstr** (RFC-0068 S4 · C4) — 바이트 버퍼의 base 포인터를 cstr 로
@@ -9396,10 +9393,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     //   **하나도 없어서** 아무도 몰랐다(교훈 6: 픽스처의 모양이 감사의 시야다).
                     // ★ 그리고 **같은 자리에 벡터 풀도 있다**(RFC-0089 B): 조기 반환이 되감기를
                     //   건너뛰면 오류를 루프에서 전파할 때 풀이 마른다 — 깊이 원장과 같은 새는 모양이다.
-                    fputs(vecfn ? "    { lowv v = st[--sp]; if (v.tag == LWV_ERR) { lw_depth--; return lw_vecret(vb_, v); }\n"
+                    low_puts(out, vecfn ? "    { lowv v = st[--sp]; if (v.tag == LWV_ERR) { lw_depth--; return lw_vecret(vb_, v); }\n"
                                   "      st[sp++] = (v.tag == LWV_OK) ? lw_boxes[v.box] : v; }\n"
                                 : "    { lowv v = st[--sp]; if (v.tag == LWV_ERR) { lw_depth--; return v; }\n"
-                                  "      st[sp++] = (v.tag == LWV_OK) ? lw_boxes[v.box] : v; }\n", out);
+                                  "      st[sp++] = (v.tag == LWV_OK) ? lw_boxes[v.box] : v; }\n");
                     break;
                 case IRW_MAKE: {
                     proven_size_t nf = ir->makes[in->a].nfields;
@@ -9415,37 +9412,37 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                 PROVEN_ARG((size_t)(nf)), PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((size_t)(nf)), PROVEN_ARG((size_t)(nf)), PROVEN_ARG((size_t)(nf - 1)));
                     break;
                 }
-                case IRW_SNEW:      fputs("    st[sp-1] = lw_snew(st[sp-1]);\n", out); break;
-                case IRW_SPUSH:     fputs("    st[sp-2] = lw_spush(st[sp-2], st[sp-1]); sp--;\n", out); break;
+                case IRW_SNEW:      low_puts(out, "    st[sp-1] = lw_snew(st[sp-1]);\n"); break;
+                case IRW_SPUSH:     low_puts(out, "    st[sp-2] = lw_spush(st[sp-2], st[sp-1]); sp--;\n"); break;
                 case IRW_SPOP_INTO: low_fpf(out, "    st[sp-1] = lw_spop(st[sp-1], &loc[{}]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
-                case IRW_BNEW:      fputs("    st[sp-1] = lw_bnew(st[sp-1]);\n", out); break;
-                case IRW_CONTAINS:  fputs("    st[sp-2] = lw_contains(st[sp-2], st[sp-1]); sp--;\n", out); break;
-                case IRW_COUNT:     fputs("    st[sp-1] = lw_count(st[sp-1]);\n", out); break;
+                case IRW_BNEW:      low_puts(out, "    st[sp-1] = lw_bnew(st[sp-1]);\n"); break;
+                case IRW_CONTAINS:  low_puts(out, "    st[sp-2] = lw_contains(st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_COUNT:     low_puts(out, "    st[sp-1] = lw_count(st[sp-1]);\n"); break;
                 case IRW_FIELD: low_fpf(out, "    st[sp-1] = lw_field(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_FSTORE: low_fpf(out, "    lw_fstore(st[sp-2], {}, lw_fw_keep({}, st[sp-2], st[sp-1])); sp -= 2;\n",
                                          PROVEN_ARG((long long)((long long)in->a)), proven_arg_cstr(d->nwin ? "&fw_" : "0")); break;   // ★ P4e — 남의 레코드 칸이면 풀로 올린다
                 case IRW_VIEW:     low_fpf(out, "    st[sp-1] = lw_view(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_TRYVIEW:  low_fpf(out, "    st[sp-1] = lw_tryview(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
-                case IRW_ISOK:     fputs("    st[sp-1] = lw_isok(st[sp-1]);\n", out); break;
-                case IRW_ISERR:    fputs("    st[sp-1] = lw_iserr(st[sp-1]);\n", out); break;
-                case IRW_OKVAL:    fputs("    st[sp-1] = lw_okval(st[sp-1]);\n", out); break;
-                case IRW_ERRVAL:   fputs("    st[sp-1] = lw_errval(st[sp-1]);\n", out); break;
-                case IRW_ISSOME:   fputs("    st[sp-1] = lw_issome(st[sp-1]);\n", out); break;
-                case IRW_SOMEVAL:  fputs("    st[sp-1] = lw_someval(st[sp-1]);\n", out); break;
-                case IRW_VALOR:    fputs("    st[sp-2] = lw_value_or(st[sp-2], st[sp-1]); sp--;\n", out); break;
-                case IRW_HASVAL:   fputs("    st[sp-1] = lw_int(lw_has_value(st[sp-1]));\n", out); break;
-                case IRW_SPOP:     fputs("    st[sp-1] = lw_poptot(st[sp-1]);\n", out); break;
+                case IRW_ISOK:     low_puts(out, "    st[sp-1] = lw_isok(st[sp-1]);\n"); break;
+                case IRW_ISERR:    low_puts(out, "    st[sp-1] = lw_iserr(st[sp-1]);\n"); break;
+                case IRW_OKVAL:    low_puts(out, "    st[sp-1] = lw_okval(st[sp-1]);\n"); break;
+                case IRW_ERRVAL:   low_puts(out, "    st[sp-1] = lw_errval(st[sp-1]);\n"); break;
+                case IRW_ISSOME:   low_puts(out, "    st[sp-1] = lw_issome(st[sp-1]);\n"); break;
+                case IRW_SOMEVAL:  low_puts(out, "    st[sp-1] = lw_someval(st[sp-1]);\n"); break;
+                case IRW_VALOR:    low_puts(out, "    st[sp-2] = lw_value_or(st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_HASVAL:   low_puts(out, "    st[sp-1] = lw_int(lw_has_value(st[sp-1]));\n"); break;
+                case IRW_SPOP:     low_puts(out, "    st[sp-1] = lw_poptot(st[sp-1]);\n"); break;
                 case IRW_ENCODE:   low_fpf(out, "    st[sp-1] = lw_encode(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_VARRAY:   low_fpf(out, "    st[sp-1] = lw_varray(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 // ★ SPEC-004 §190 T0 — 무비용 비트 재해석. VM 과 **같은 규칙**(폭은 안 바꾼다).
                 case IRW_BITCAST:  low_fpf(out, "    st[sp-1] = lw_bitcast(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 // ★ `panic` — 즉시 트랩. 네이티브도 **같은 자리에서** 멈춘다.
-                case IRW_PANIC:    fputs(in->a == IR_PANIC_SINKFULL ? "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"   // ★ X-0065
+                case IRW_PANIC:    low_puts(out, in->a == IR_PANIC_SINKFULL ? "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"   // ★ X-0065
                                              : in->a == IR_PANIC_ENUMCAST ? "    lw_panic(\"" LW_ENUMCAST_MSG "\");\n"
                                              : in->a == IR_PANIC_NODEKIDS ? "    lw_panic(\"" LW_NODEKIDS_MSG "\");\n"
-                                             : "    lw_upanic(\"the program called `panic`\");\n", out); break;
+                                             : "    lw_upanic(\"the program called `panic`\");\n"); break;
                 // ★ SPEC-007 §28 — 채널 전환(값은 그대로, 채널만 바뀐다).
-                case IRW_ELSE_NONE: fputs("    st[sp-1] = lw_else_none(st[sp-1]);\n", out); break;
+                case IRW_ELSE_NONE: low_puts(out, "    st[sp-1] = lw_else_none(st[sp-1]);\n"); break;
                 case IRW_ELSE_ERR:  low_fpf(out, "    st[sp-1] = lw_else_err(st[sp-1], {});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_STR:      low_fpf(out, "    st[sp++] = lw_strv({});\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_LBUF: {   // ★ T2b-2 — 틀 안 나열 자리: 0 으로 채운 쓸 수 있는 바이트 슬라이스
@@ -9478,23 +9475,23 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                             PROVEN_ARG((unsigned)((unsigned)ir->structs[in->a].total))); break;
                 case IRW_REF:      low_fpf(out, "    st[sp++] = lw_ref(&loc[{}], 0);\n", PROVEN_ARG((long long)((long long)(in->a & 0xffff)))); break;
                 case IRW_MREF:     low_fpf(out, "    st[sp++] = lw_ref(&loc[{}], 1);\n", PROVEN_ARG((long long)((long long)(in->a & 0xffff)))); break;
-                case IRW_DEREF:    fputs("    st[sp-1] = lw_deref(st[sp-1]);\n", out); break;
+                case IRW_DEREF:    low_puts(out, "    st[sp-1] = lw_deref(st[sp-1]);\n"); break;
                 case IRW_SPLAT:    low_fpf(out, "    st[sp-1] = lw_splat({}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_VLOAD:    low_fpf(out, "    st[sp-2] = lw_vload({}, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_VSTORE:   low_fpf(out, "    st[sp-3] = lw_vstore(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n"); break;
                 case IRW_VLOADM:   low_fpf(out, "    st[sp-4] = lw_vloadm({}, st[sp-4], st[sp-3], st[sp-2], st[sp-1]); sp -= 3;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_VSTOREM:  low_fpf(out, "    st[sp-4] = lw_vstorem(st[sp-4], st[sp-3], st[sp-2], st[sp-1]); sp -= 3;\n"); break;
-                case IRW_VAVG:     fputs("    st[sp-2] = lw_vavg(st[sp-2], st[sp-1]); sp--;\n", out); break;
-                case IRW_SELECT:   fputs("    st[sp-3] = lw_vselect(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n", out); break;
-                case IRW_VREVERSE: fputs("    st[sp-1] = lw_vperm(0, 0, st[sp-1]);\n", out); break;
+                case IRW_VAVG:     low_puts(out, "    st[sp-2] = lw_vavg(st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_SELECT:   low_puts(out, "    st[sp-3] = lw_vselect(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n"); break;
+                case IRW_VREVERSE: low_puts(out, "    st[sp-1] = lw_vperm(0, 0, st[sp-1]);\n"); break;
                 case IRW_VROTATE:  low_fpf(out, "    st[sp-1] = lw_vperm(1, {}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_VSHUFFLE: low_fpf(out, "    st[sp-1] = lw_vperm(2, {}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
-                case IRW_RADD:     fputs("    st[sp-1] = lw_vreduce(0, st[sp-1]);\n", out); break;
-                case IRW_RMUL:     fputs("    st[sp-1] = lw_vreduce(1, st[sp-1]);\n", out); break;
-                case IRW_RMIN:     fputs("    st[sp-1] = lw_vreduce(2, st[sp-1]);\n", out); break;
-                case IRW_RMAX:     fputs("    st[sp-1] = lw_vreduce(3, st[sp-1]);\n", out); break;
-                case IRW_MANY:     fputs("    st[sp-1] = lw_mred(0, st[sp-1]);\n", out); break;
-                case IRW_MALL:     fputs("    st[sp-1] = lw_mred(1, st[sp-1]);\n", out); break;
+                case IRW_RADD:     low_puts(out, "    st[sp-1] = lw_vreduce(0, st[sp-1]);\n"); break;
+                case IRW_RMUL:     low_puts(out, "    st[sp-1] = lw_vreduce(1, st[sp-1]);\n"); break;
+                case IRW_RMIN:     low_puts(out, "    st[sp-1] = lw_vreduce(2, st[sp-1]);\n"); break;
+                case IRW_RMAX:     low_puts(out, "    st[sp-1] = lw_vreduce(3, st[sp-1]);\n"); break;
+                case IRW_MANY:     low_puts(out, "    st[sp-1] = lw_mred(0, st[sp-1]);\n"); break;
+                case IRW_MALL:     low_puts(out, "    st[sp-1] = lw_mred(1, st[sp-1]);\n"); break;
                 case IRW_CALL: {
                     const low_ir_def_t *callee = &ir->defs[IR_CALL_IDX(in->a)];
                     // ★ 비워 둔 액터(0)에 보낸 메시지는 멈춘다 — VM 의 E-VM-HANDLE-ZERO 와 같은 게이트(정수 0 만)
@@ -9547,16 +9544,16 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         low_fpf(out, "    {{ int sbx_ = st[sp-{}].tag == LWV_REC ? st[sp-{}].box : -1;\n", PROVEN_ARG((size_t)((size_t)callee->nparams)), PROVEN_ARG((size_t)((size_t)callee->nparams)));
                         if (tsnd_) low_fpf(out, "    if (LW_ACTOR_BUSY(sbx_)) {{ sp -= {}; st[sp++] = lw_err({}); }} else\n",
                                            PROVEN_ARG((size_t)((size_t)callee->nparams)), PROVEN_ARG((long long)((long long)IR_CALL_TRY_ERR(in->a))));
-                        fputs("    { int syp_ = LW_SEND_ENTER(sbx_);\n", out);
+                        low_puts(out, "    { int syp_ = LW_SEND_ENTER(sbx_);\n");
                     }
                     // ★ 2026-11-11 (O1) — 부름이 참조로 풀 값을 부른 쪽에 써 넣었으면(lw_refw 가 움직였으면) 돌려받지 않는다(VM 의 refw_wm 과 같다)
                     low_fpf(out, "    {{ int wm_ = lw_nrec, wb_ = lw_nbset, wk_ = lw_nstk; unsigned rwr_ = lw_refw; lowv r = ");
                     if (has_restart) {
-                        fputs("lw_restart_call(lw_op_", out); put_sym(out, callee);
+                        low_puts(out, "lw_restart_call(lw_op_"); put_sym(out, callee);
                         low_fpf(out, ", &st[sp-{}], st[sp-{}].tag == LWV_REC ? st[sp-{}].box : -1, {}ll)",
                                 PROVEN_ARG((size_t)((size_t)callee->nparams)), PROVEN_ARG((size_t)((size_t)callee->nparams)), PROVEN_ARG((size_t)((size_t)callee->nparams)), PROVEN_ARG((long long)((long long)maxr)));
                     } else {
-                        fputs("lw_op_", out); put_sym(out, callee);
+                        low_puts(out, "lw_op_"); put_sym(out, callee);
                         low_fpf(out, "(&st[sp-{}])", PROVEN_ARG((size_t)((size_t)(callee->nparams ? callee->nparams : 0))));
                     }
                     low_fpf(out, ";{} if ((r.tag == LWV_INT || r.tag == LWV_FLT) && lw_refw == rwr_) {{ LW_REC_REWIND(wm_); lw_nbset = wb_; lw_nstk = wk_; }}"
@@ -9703,7 +9700,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     break;
             }
         }
-        fputs("    return lw_int(0);\n}\n", out);
+        low_puts(out, "    return lw_int(0);\n}\n");
         cbe_line_end(out);
         low_free(target);
         emitted++;
@@ -9714,12 +9711,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   내부 호출은 호출 지점에서 증명·검사된다. 그러나 **바깥에서 들어온 값**(main·FFI)에는
     //   아무 방벽이 없었고, 구간 분석은 그 범위를 사실로 믿고 검사를 제거해 뒀다 —
     //   그래서 네이티브가 조용히 틀린 값을 냈다(u8 op 이 -2 를 냈다). 경계가 마지막 문이다.
-    fputs("struct lw_prng { int has; long long lo, hi; };\n", out);
+    low_puts(out, "struct lw_prng { int has; long long lo, hi; };\n");
     // ★ `pf32` — 어느 파라미터가 **32 비트 부동소수**인가(결함 노트 #83). 경계에서 반올림해야
     //   프로그램 안의 `f32` 와 밖에서 들어온 `f32` 가 같은 정밀도를 갖는다(VM 도 같은 자리에서 한다).
-    fputs("struct lw_entry { const char *name; lowv (*fn)(const lowv *); int nparams; unsigned pslice;"
+    low_puts(out, "struct lw_entry { const char *name; lowv (*fn)(const lowv *); int nparams; unsigned pslice;"
           " unsigned pflt; unsigned pf32; unsigned pu64; unsigned pstruct; int ounsigned; unsigned char psidx[LW_MAXP];"
-          " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; unsigned pcap; unsigned pw128, pw128s; };\n", out);
+          " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; unsigned pcap; unsigned pw128, pw128s; };\n");
     // ★★★ R2 — **진짜 스레드.** `parallel s split` op 마다 `<name>_par` 를 낸다:
     //   슬라이스를 K 조각으로 나누고 **각 조각을 pthread 로** 돌린 뒤, `reduce` 로 합친다.
     //   ★ 청크는 **부분 슬라이스**다 — 같은 버퍼를 가리키므로 쓰기가 그대로 반영된다.
@@ -9729,7 +9726,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         const low_ir_def_t *d = &ir->defs[i];
         if (!cbe_emittable(d) || !d->is_par) continue;
         if (d->par_param >= d->nparams || !((d->param_slice >> d->par_param) & 1u)) continue;
-        fputs("typedef struct { lowv (*fn)(const lowv *); lowv a[LW_MAXP]; int np; lowv r; } lw_ptask;\n"
+        low_puts(out, "typedef struct { lowv (*fn)(const lowv *); lowv a[LW_MAXP]; int np; lowv r; } lw_ptask;\n"
               "static void *lw_pthunk(void *p) { lw_ptask *t = p; t->r = lw_promote(t->fn(t->a)); return 0; }\n"   /* ★ P4e — 되튐 창은 일꾼 스레드의 것이다: 끝나기 전에 풀로 */
               // ★★ 조각 수 K 는 **하드웨어에서 읽는다.** 전에는 **4 로 못 박혀 있었다** — 그리고
               //   그 숫자는 **한 번도 측정된 적이 없었다.** 정확성만 검증하고 속도는 주장만 했다.
@@ -9743,32 +9740,31 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
               "    long n = sysconf(_SC_NPROCESSORS_ONLN);\n"
               "    if (n < 1) n = 1; if (n > 64) n = 64;\n"
               "    return (int)n;\n"
-              "}\n#endif\n",
-              out);
+              "}\n#endif\n");
         break;   // 타입은 한 번만
     }
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         if (!cbe_emittable(d) || !d->is_par) continue;
         if (d->par_param >= d->nparams || !((d->param_slice >> d->par_param) & 1u)) continue;
-        fputs("static lowv lw_par_", out); put_sym(out, d);
-        fputs("(const lowv *a) {\n", out);
+        low_puts(out, "static lowv lw_par_"); put_sym(out, d);
+        low_puts(out, "(const lowv *a) {\n");
         low_fpf(out, "    int P = {}, K = lw_ncpu();\n", PROVEN_ARG((unsigned)((unsigned)d->par_param)));
-        fputs("    lowv s = a[P];\n"
+        low_puts(out, "    lowv s = a[P];\n"
               "    if (s.tag != LWV_SLICE) lw_panic(\"parallel: the split parameter must be a slice\");\n"
               "    if ((size_t)K > s.n) K = (int)s.n; if (K < 1) K = 1;\n"
               "    pthread_t th[64]; lw_ptask ts[64];\n"
               "    for (int c = 0; c < K; c++) {\n"
-              "        size_t lo = (s.n * (size_t)c) / (size_t)K, hi = (s.n * (size_t)(c + 1)) / (size_t)K;\n", out);
-        fputs("        ts[c].fn = lw_op_", out); put_sym(out, d);
+              "        size_t lo = (s.n * (size_t)c) / (size_t)K, hi = (s.n * (size_t)(c + 1)) / (size_t)K;\n");
+        low_puts(out, "        ts[c].fn = lw_op_"); put_sym(out, d);
         low_fpf(out, "; ts[c].np = {};\n", PROVEN_ARG((size_t)((size_t)d->nparams)));
         low_fpf(out, "        for (int q = 0; q < {}; q++) ts[c].a[q] = a[q];\n", PROVEN_ARG((size_t)((size_t)d->nparams)));
-        fputs("        lowv ch = {0}; ch.tag = LWV_SLICE; ch.p = s.p + lo; ch.n = hi - lo;\n"
+        low_puts(out, "        lowv ch = {0}; ch.tag = LWV_SLICE; ch.p = s.p + lo; ch.n = hi - lo;\n"
               "        ts[c].a[P] = ch;\n"
               "        if (pthread_create(&th[c], 0, lw_pthunk, &ts[c])) lw_panic(\"pthread_create\");\n"
               "    }\n"
               "    for (int c = 0; c < K; c++) pthread_join(th[c], 0);\n"
-              "    lowv acc = ts[0].r;\n", out);
+              "    lowv acc = ts[0].r;\n");
         if (d->red_op) {
             const char *op = d->red_op == 1 ? "+" : d->red_op == 2 ? "*" : NULL;
             if (op)
@@ -9779,19 +9775,19 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                              "y = lw_want_int(ts[c].r, \"reduce\"); acc = lw_int({}); }}\n",
                         proven_arg_cstr(d->red_op == 3 ? "x < y ? x : y" : "x > y ? x : y"));
         } else {
-            fputs("    /* no reduce: the op runs for its WRITES (disjoint by Bernstein). "
+            low_puts(out, "    /* no reduce: the op runs for its WRITES (disjoint by Bernstein). "
                   "The return is the sum of the chunks' returns (each is its own length). */\n"
                   "    { long long t = 0; for (int c = 0; c < K; c++) t += lw_want_int(ts[c].r, \"par\"); "
-                  "acc = lw_int(t); }\n", out);
+                  "acc = lw_int(t); }\n");
         }
-        fputs("    return acc;\n}\n", out);
+        low_puts(out, "    return acc;\n}\n");
     }
 
-    fputs("static const struct lw_entry lw_ops[] = {\n", out);
+    low_puts(out, "static const struct lw_entry lw_ops[] = {\n");
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         if (!cbe_emittable(&ir->defs[i])) continue;
-        fputs("    { \"", out); put_view(out, ir->defs[i].name);
-        fputs("\", lw_op_", out); put_sym(out, &ir->defs[i]);
+        low_puts(out, "    { \""); put_view(out, ir->defs[i].name);
+        low_puts(out, "\", lw_op_"); put_sym(out, &ir->defs[i]);
         low_fpf(out, ", {}, {}u, {}u, {}u, {}u, {}u, {}, {{", PROVEN_ARG((size_t)((size_t)ir->defs[i].nparams)),
                 PROVEN_ARG((unsigned)(ir->defs[i].param_slice)), PROVEN_ARG((unsigned)(ir->defs[i].param_flt)), PROVEN_ARG((unsigned)(ir->defs[i].param_f32)),
                 PROVEN_ARG((unsigned)(ir->defs[i].param_u64)), PROVEN_ARG((unsigned)(ir->defs[i].param_struct)),
@@ -9800,20 +9796,20 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 : (ir->defs[i].out_tyname.size && ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'u') ? 1 : 0)));
         for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
             low_fpf(out, "{}{}", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((unsigned)((unsigned)ir->defs[i].param_sidx[p])));
-        fputs("}, {", out);
+        low_puts(out, "}, {");
         for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
         {
             low_fpf(out, "{}{{{},", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((int)(ir->defs[i].prng[p].has_rng ? 1 : 0)));
-            put_i64(out, ir->defs[i].prng[p].rlo); fputs(",", out);
-            put_i64(out, ir->defs[i].prng[p].rhi); fputs("}", out);
+            put_i64(out, ir->defs[i].prng[p].rlo); low_puts(out, ",");
+            put_i64(out, ir->defs[i].prng[p].rhi); low_puts(out, "}");
         }
-        fputs("}, {", out);
+        low_puts(out, "}, {");
         // ★ 타입 자체의 범위도 **계약이다** — 분석이 그것을 믿고 검사를 지운다.
         for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
         {
             low_fpf(out, "{}{{{},", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((int)(ir->defs[i].ptype[p].has_rng ? 1 : 0)));
-            put_i64(out, ir->defs[i].ptype[p].rlo); fputs(",", out);
-            put_i64(out, ir->defs[i].ptype[p].rhi); fputs("}", out);
+            put_i64(out, ir->defs[i].ptype[p].rlo); low_puts(out, ",");
+            put_i64(out, ir->defs[i].ptype[p].rhi); low_puts(out, "}");
         }
         low_fpf(out, "}}, {}u, {}u, {}u }},\n", PROVEN_ARG((unsigned)(ir->defs[i].param_cap)), PROVEN_ARG((unsigned)(ir->defs[i].param_w128)), PROVEN_ARG((unsigned)(ir->defs[i].param_w128s)));
         // ★★★ R2 — `parallel` op 은 **스레드판도** 등재한다: `<name>_par`.
@@ -9821,29 +9817,29 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   (LowentPar.v Qed). 게이트가 그것을 **요구한다** — 그래야 증명이 값을 한다.
         if (ir->defs[i].is_par && ir->defs[i].par_param < ir->defs[i].nparams &&
             ((ir->defs[i].param_slice >> ir->defs[i].par_param) & 1u)) {
-            fputs("    { \"", out); put_view(out, ir->defs[i].name); fputs("_par", out);
-            fputs("\", lw_par_", out); put_sym(out, &ir->defs[i]);
+            low_puts(out, "    { \""); put_view(out, ir->defs[i].name); low_puts(out, "_par");
+            low_puts(out, "\", lw_par_"); put_sym(out, &ir->defs[i]);
             low_fpf(out, ", {}, {}u, {}u, {}u, {{", PROVEN_ARG((size_t)((size_t)ir->defs[i].nparams)),
                     PROVEN_ARG((unsigned)(ir->defs[i].param_slice)), PROVEN_ARG((unsigned)(ir->defs[i].param_flt)), PROVEN_ARG((unsigned)(ir->defs[i].param_struct)));
             for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
                 low_fpf(out, "{}{}", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((unsigned)((unsigned)ir->defs[i].param_sidx[p])));
-            fputs("}, {", out);
+            low_puts(out, "}, {");
             for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++) {
                 low_fpf(out, "{}{{{},", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((int)(ir->defs[i].prng[p].has_rng ? 1 : 0)));
-                put_i64(out, ir->defs[i].prng[p].rlo); fputs(",", out);
-                put_i64(out, ir->defs[i].prng[p].rhi); fputs("}", out);
+                put_i64(out, ir->defs[i].prng[p].rlo); low_puts(out, ",");
+                put_i64(out, ir->defs[i].prng[p].rhi); low_puts(out, "}");
             }
-            fputs("}, {", out);
+            low_puts(out, "}, {");
             for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++) {
                 low_fpf(out, "{}{{{},", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((int)(ir->defs[i].ptype[p].has_rng ? 1 : 0)));
-                put_i64(out, ir->defs[i].ptype[p].rlo); fputs(",", out);
-                put_i64(out, ir->defs[i].ptype[p].rhi); fputs("}", out);
+                put_i64(out, ir->defs[i].ptype[p].rlo); low_puts(out, ",");
+                put_i64(out, ir->defs[i].ptype[p].rhi); low_puts(out, "}");
             }
-            fputs("} },\n", out);
+            low_puts(out, "} },\n");
         }
     }
-    if (emitted == 0) fputs("    { \"\", 0, 0, 0u, 0u, 0u, {0}, {{0,0,0}}, {{0,0,0}} },\n", out);
-    fputs("};\n", out);
+    if (emitted == 0) low_puts(out, "    { \"\", 0, 0, 0u, 0u, 0u, {0}, {{0,0,0}}, {{0,0,0}} },\n");
+    low_puts(out, "};\n");
     // ═══════════════════════════════════════════════════════════════════════
     // ★★★ **C 가 우리를 부른다** (RFC-0063 D3) — `export extern`.
     //   C 헤더에 나가는 이름 그대로의 함수를 낸다. 그리고 그것은 **하강된 몸을 직접** 부른다
@@ -9854,7 +9850,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         const low_ir_plan_t *pl = low_cbe_plan_of(i);
         if (!pl->exported_symbol) continue;
         cbe_put_export_sig(out, d, pl, true);   // ★ RFC-0132 P4d — 서명은 한 곳에서
-        fputs(" {\n", out);
+        low_puts(out, " {\n");
         // ★★★★★ **한 배열을 두 가지 수로 세고 있었다** (2026-08-25 · RFC-0100 · WO-0080).
         //   크기를 재는 고리는 능력을 `continue` 로 **건너뛰고**, 채우는 고리는 `bi++` 로
         //   **세고 있었다**. 능력이 없으면 두 수가 우연히 같아 아무 일도 안 나고, 능력이
@@ -9898,7 +9894,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                        " _Alignas(16) unsigned char arb[{}][64] = {{{{0}}}}; unsigned char *ar[{}] = {{ arb[0] }}; long long ab[1] = {{0}}; lw_r ao[1]; lw_v av[1];\n"
                        "    lw_sl rsl[LW_RECF] = {{{{0,0}}}};\n    (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl;\n",
                   PROVEN_ARG((size_t)((size_t)(ni ? ni : 1))), PROVEN_ARG((size_t)((size_t)(ns ? ns : 1))), PROVEN_ARG((size_t)((size_t)(nfl ? nfl : 1))), PROVEN_ARG((size_t)((size_t)(nst ? nst : 1))), PROVEN_ARG((size_t)((size_t)(nst ? nst : 1))));
-          fwrite(fill, 1, fl, out); }
+          low_write(out, fill, fl); }
         // ★★ W-20261104-1345 — 몸에서 지운 겹침 검사(단위 안의 모든 부름 자리가 보증했다)를 **C 입구에서** 견준다.
         //   C 가 부르는 자리는 그 보증 밖이다. 몸에 남은 짝은 몸이 견주므로 여기서 다시 하지 않는다(같은 뜻 · 같은 문장).
         for (proven_size_t q = 0; q < d->nxpairs; q++) {
@@ -9916,15 +9912,15 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         {
             unsigned am_ = i < 512 ? g_argmask[i] : LWA_ALL;
-            fputs(cbe_ret_scalar(i) ? "    return lw_s_" : "    lw_r r_ = lw_s_", out);
-            put_sym(out, d); fputs("(", out); cbe_put_args(out, am_, false, cbe_depparam(i) ? "0" : NULL); fputs(");\n", out);
+            low_puts(out, cbe_ret_scalar(i) ? "    return lw_s_" : "    lw_r r_ = lw_s_");
+            put_sym(out, d); low_puts(out, "("); cbe_put_args(out, am_, false, cbe_depparam(i) ? "0" : NULL); low_puts(out, ");\n");
             if (pl->ret_sty1)   // ★ RFC-0132 P4d — 구조체는 값으로 돌려준다: 레코드 바이트를 C 구조체로(sret 은 C 컴파일러가 고른다)
                 low_fpf(out, "    _Static_assert(sizeof(struct lw_sty_{}) == {}, \"lw_sty layout\");\n"
                              "    struct lw_sty_{} o_; memcpy(&o_, r_.r, sizeof o_); return o_;\n",
                         PROVEN_ARG((int)(pl->ret_sty1 - 1)), PROVEN_ARG((unsigned)((unsigned)ir->structs[pl->ret_sty1 - 1].total)), PROVEN_ARG((int)(pl->ret_sty1 - 1)));
             else if (!cbe_ret_scalar(i))
-                fputs(g_retk[i] == K_FLT ? "    return r_.f;\n" : "    return r_.v;\n", out);
-            fputs("}\n", out);
+                low_puts(out, g_retk[i] == K_FLT ? "    return r_.f;\n" : "    return r_.v;\n");
+            low_puts(out, "}\n");
         }
     }
 
@@ -9973,16 +9969,16 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             for (proven_size_t i = 0; i < ir->ndefs; i++)
                 if (ir->defs[i].isr_vector == 1 && ir->defs[i].lowered) rst = &ir->defs[i];
             if (nisr) {
-                fputs("\n/* ★ RFC-0042 §8-4 — ISR vector table (freestanding). The hardware reads\n"
+                low_puts(out, "\n/* ★ RFC-0042 §8-4 — ISR vector table (freestanding). The hardware reads\n"
                       "   this and nothing else: slot 0 = initial SP, slot 1 = reset, then one slot\n"
                       "   per interrupt. A declared `vector N .` with no table is a handler nobody\n"
                       "   can call. The board's startup supplies _lw_stack_top (memory layout is the\n"
                       "   BOARD's, not the program's). */\n"
-                      "extern void _lw_stack_top(void);\n", out);
+                      "extern void _lw_stack_top(void);\n");
                 if (!rst)
-                    fputs("/* ★ No op claims `vector 1 .`, so the reset entry is the board's too. */\n"
-                          "void _lw_reset(void);\n", out);
-                fputs("static void lw_isr_default(void) { for (;;) { } }\n", out);
+                    low_puts(out, "/* ★ No op claims `vector 1 .`, so the reset entry is the board's too. */\n"
+                          "void _lw_reset(void);\n");
+                low_puts(out, "static void lw_isr_default(void) { for (;;) { } }\n");
                 for (proven_size_t i = 0; i < ir->ndefs; i++) {
                     const low_ir_def_t *d = &ir->defs[i];
                     if (d->isr_vector < 0 || !d->lowered) continue;
@@ -9998,22 +9994,22 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     //   ★ 그리고 빠른 경로로 안 내려간 ISR 은 `lw_s_` 가 **아예 없다** —
                     //     그때는 언제나 존재하는 태그 어댑터를 부른다. ISR 은 인자가 없으므로
                     //     어댑터가 `a` 를 만지지 않는다.
-                    fputs(" */ void lw_isr_", out); put_sym(out, (low_ir_def_t *)d);
-                    fputs("(void) {\n", out);
+                    low_puts(out, " */ void lw_isr_"); put_sym(out, (low_ir_def_t *)d);
+                    low_puts(out, "(void) {\n");
                     if (i < 512 && sc_tab[i]) {
                         unsigned am_ = g_argmask[i];
-                        fputs("    long long ai[1] = {0}; lw_sl as[1] = {{0,0}}; double af[1] = {0};\n"
+                        low_puts(out, "    long long ai[1] = {0}; lw_sl as[1] = {{0,0}}; double af[1] = {0};\n"
                               "    _Alignas(8) unsigned char arb[1][64] = {{0}}; unsigned char *ar[1] = { arb[0] }; long long ab[1] = {0}; lw_r ao[1] = {0};\n"
                               "    lw_v av[1] = {{{0}}};\n"
                               "    lw_sl rsl[LW_RECF] = {{0,0}};\n"   /* RFC-0106 */
-                              "    (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl;\n", out);
-                        fputs("    (void)lw_s_", out); put_sym(out, (low_ir_def_t *)d);
-                        fputs("(", out); cbe_put_args(out, am_, false, cbe_depparam(i) ? "0" : NULL); fputs(");\n", out);
+                              "    (void)ai; (void)as; (void)af; (void)ar; (void)ab; (void)ao; (void)av; (void)rsl;\n");
+                        low_puts(out, "    (void)lw_s_"); put_sym(out, (low_ir_def_t *)d);
+                        low_puts(out, "("); cbe_put_args(out, am_, false, cbe_depparam(i) ? "0" : NULL); low_puts(out, ");\n");
                     } else {
-                        fputs("    (void)lw_op_", out); put_sym(out, (low_ir_def_t *)d);
-                        fputs("((const lowv *)0);\n", out);
+                        low_puts(out, "    (void)lw_op_"); put_sym(out, (low_ir_def_t *)d);
+                        low_puts(out, "((const lowv *)0);\n");
                     }
-                    fputs("}\n", out);
+                    low_puts(out, "}\n");
                 }
                 // ★★★★ **`vector 1 .` = 리셋 진입** (RFC-0042 D5-c, 2026-08-02 · 새 낱말 0).
                 //
@@ -10032,16 +10028,16 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 low_fpf(out, "__attribute__((used, section(\".isr_vector\")))\n"
                              "void (*const lw_vectors[{}])(void) = {{\n"
                              "    _lw_stack_top,\n", PROVEN_ARG((size_t)((size_t)(maxv + 2))));
-                if (rst) { fputs("    lw_isr_", out); put_sym(out, (low_ir_def_t *)rst); fputs(",  /* vector 1 — reset: the program claims it */\n", out); }
-                else       fputs("    _lw_reset,  /* vector 1 — reset: no op claims it, the BOARD supplies it */\n", out);
+                if (rst) { low_puts(out, "    lw_isr_"); put_sym(out, (low_ir_def_t *)rst); low_puts(out, ",  /* vector 1 — reset: the program claims it */\n"); }
+                else       low_puts(out, "    _lw_reset,  /* vector 1 — reset: no op claims it, the BOARD supplies it */\n");
                 for (proven_size_t v = 2; v <= maxv; v++) {
                     const low_ir_def_t *h = NULL;
                     for (proven_size_t i = 0; i < ir->ndefs; i++)
                         if (ir->defs[i].isr_vector == (proven_i32)v && ir->defs[i].lowered) h = &ir->defs[i];
-                    if (h) { fputs("    lw_isr_", out); put_sym(out, (low_ir_def_t *)h); fputs(",\n", out); }
-                    else     fputs("    lw_isr_default,\n", out);
+                    if (h) { low_puts(out, "    lw_isr_"); put_sym(out, (low_ir_def_t *)h); low_puts(out, ",\n"); }
+                    else     low_puts(out, "    lw_isr_default,\n");
                 }
-                fputs("};\n", out);
+                low_puts(out, "};\n");
 
                 // ★★★★ **NVIC 활성화 — 번호는 한 곳에만 산다** (RFC-0042 §8-4).
                 //
@@ -10060,13 +10056,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 //     필요 없고, 이 쓰기가 남의 IRQ 를 건드리지 않는다(RCC 와 다른 점이다).
                 //   ★ 코어 예외(벡터 < 16: SysTick·PendSV·fault…)는 NVIC 를 안 거친다 — 그래서
                 //     여기에 안 나온다. 켤 것이 없으면 **빈 함수**를 낸다(없는 것도 말한다).
-                fputs("\n/* ★ RFC-0042 §8-4 — NVIC enable for every DECLARED vector >= 16.\n"
+                low_puts(out, "\n/* ★ RFC-0042 §8-4 — NVIC enable for every DECLARED vector >= 16.\n"
                       "   external IRQ = vector - 16. The TOOL emits this because the tool already\n"
                       "   knows the vector numbers; an IRQ bit written by hand lives in two places,\n"
                       "   and two places drift. WHEN to enable is the board's call, so this is a\n"
                       "   function your startup calls — it is not injected into reset.\n"
                       "   ISER ignores zero bits, so this never disturbs another interrupt. */\n"
-                      "void lw_nvic_enable_declared(void) {\n", out);
+                      "void lw_nvic_enable_declared(void) {\n");
                 {
                     bool any = false;
                     for (proven_size_t w = 0; w < 8; w++) {   // ISER0..7 = IRQ 0..255
@@ -10085,11 +10081,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                                 PROVEN_ARG((unsigned long long)((unsigned long)bits)), PROVEN_ARG((size_t)((size_t)w)));
                     }
                     if (!any)
-                        fputs("    /* nothing to enable: every declared vector is a CORE exception\n"
-                              "       (< 16 — SysTick, PendSV, faults), which does not go through NVIC. */\n",
-                              out);
+                        low_puts(out, "    /* nothing to enable: every declared vector is a CORE exception\n"
+                              "       (< 16 — SysTick, PendSV, faults), which does not go through NVIC. */\n");
                 }
-                fputs("}\n", out);
+                low_puts(out, "}\n");
             }
         }
         if (g_no_main) { /* ★ 라이브러리 — main 도 디스패처도 안 낸다 */ }
@@ -10101,22 +10096,22 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         //   ☞ 프리스탠딩 방출이 내는 것은 **op 함수들**이다. 펌웨어가 그것을 부른다:
         //     진입점은 링커 스크립트와 벡터 테이블의 몫이지 이 방출기의 몫이 아니다.
         else if (low_ir_target()->no_heap) {
-            fputs("/* ★ freestanding: no CLI dispatcher and no `main` — this target has no argc,\n"
+            low_puts(out, "/* ★ freestanding: no CLI dispatcher and no `main` — this target has no argc,\n"
                   "   no stdout and no exit status. The ops above are the surface; the firmware\n"
-                  "   entry point belongs to the linker script, not to this emitter. */\n", out);
+                  "   entry point belongs to the linker script, not to this emitter. */\n");
         }
         else {
-        fputs(LW_DISPATCH, out);
+        low_puts(out, LW_DISPATCH);
         if (entry && entry->param_cap) {
             // ★ D2′ — cap 을 받는 엔트리: **argv 는 프로그램의 것**이다. 디스패처(테스트 비계)를
             //   내지 않는다 — per-op 네이티브 검증이 필요한 픽스처는 엔트리를 cap 없이 둔다.
-            fputs("/* ★ RFC-0030 D2\u2032 — entry with capabilities: argv belongs to the PROGRAM. */\n"
+            low_puts(out, "/* ★ RFC-0030 D2\u2032 — entry with capabilities: argv belongs to the PROGRAM. */\n"
                   "int main(int argc, char **argv) {\n"
                   "    lw_g_nargs = argc - 1; lw_g_args = argv + 1;\n"
                   "    lowv a[LW_MAXP]; memset(a, 0, sizeof a);   /* cap 토큰 — 권한은 정적으로 갈렸다 */\n"
-                  "    lowv r = lw_op_", out);
+                  "    lowv r = lw_op_");
             put_sym(out, entry);
-            fputs("(a);\n"
+            low_puts(out, "(a);\n"
                   "    if (r.tag == LWV_ERR) {\n"
                   "        long long e = r.i; int c = (int)((e + 1) & 0xff); if (c == 0) c = 255;\n"
                   "        fprintf(stderr, \"exit: error variant %lld\\n\", e);\n"
@@ -10124,14 +10119,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                   "    }\n"
                   "    if (r.tag == LWV_OK) return 0;\n"
                   "    return (int)(r.i & 0xff);\n"
-                  "}\n", out);
+                  "}\n");
         } else if (entry) {
-            fputs("/* ★ RFC-0030 — the entry point. The op's OUTPUT is the EXIT STATUS. */\n"
+            low_puts(out, "/* ★ RFC-0030 — the entry point. The op's OUTPUT is the EXIT STATUS. */\n"
                   "int main(int argc, char **argv) {\n"
                   "    if (argc >= 2) return lw_dispatch(argc, argv);\n"
-                  "    lowv r = lw_op_", out);
+                  "    lowv r = lw_op_");
             put_sym(out, entry);
-            fputs("(0);\n"
+            low_puts(out, "(0);\n"
                   /* ★ result<T>E 종료 매핑: ok→0 · error→변형 code(1..255, nonzero)+stderr. 태그로 구분한다 —
                      void/u8/i32/u32 는 LWV_INT 로 와서 그 값이 곧 코드(종전 동작 그대로). */
                   "    if (r.tag == LWV_ERR) {\n"
@@ -10141,9 +10136,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                   "    }\n"
                   "    if (r.tag == LWV_OK) return 0;\n"
                   "    return (int)(r.i & 0xff);\n"
-                  "}\n", out);
+                  "}\n");
         } else {
-            fputs("int main(int argc, char **argv) { return lw_dispatch(argc, argv); }\n", out);
+            low_puts(out, "int main(int argc, char **argv) { return lw_dispatch(argc, argv); }\n");
         }
         }
     }

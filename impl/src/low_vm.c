@@ -13,6 +13,7 @@
  */
 #include "low_mem.h"   /* ★ W-20261112-0207 — proven 할당기(low_heap · low_scratch) */
 #include "low_fmt.h"   /* ★ W-20261112-0207 S2 — proven 포매터(low_bfmt) */
+#include "proven/fs.h"  /* ★ W-20261113-0024 B4 — 프로그램이 여는 파일 */
 #include "low_ir_priv.h"
 
 extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파일 전용
@@ -204,6 +205,20 @@ typedef struct { vmrec_t *r; proven_size_t n, cap; } vm_win;
 //   **루프에서 아홉 번째 비트셋을 만들면 죽었다.**
 #define VM_MAXBSET  4096
 #define VM_MAXFILE  32       // ★ 동시에 열 수 있는 파일 — 고정 풀(다른 풀과 같은 규율)
+// ★★ 프로그램이 여는 파일 (W-20261113-0024 B4 · 소유자 «하지 않은 것 처리») — proven 의 파일로. 전엔 stdio FILE * 였다.
+//   읽기 핸들은 proven_file_t 에서 곧바로 읽는다(fread 처럼 다 차거나 끝날 때까지). 쓰기 · 덧붙이기 핸들은 proven 버퍼 쓰기 도구
+//   (low_out_t)다 — 내보내는 네이티브 런타임이 stdio 의 버퍼로 쓰므로 VM 도 버퍼로 쓴다. 비우는 자리도 stdio 와 같다: 옮기기(seek) ·
+//   닫기 · 끝날 때. ☞ 같은 파일을 다른 핸들로 닫기 전에 읽으면 버퍼 크기에 따라 보이는 바이트가 다를 수 있다(두 쪽 다 그렇다).
+typedef struct vm_file { low_out_t *w; proven_file_t r; } vm_file_t;   // w 가 NULL 이면 읽기 핸들
+static size_t vm_file_read(proven_file_t f, void *p, size_t n) {
+    size_t got = 0;
+    while (got < n) {
+        proven_result_size_t r = proven_fs_read(f, (proven_mem_mut_t){ .ptr = (proven_byte_t *)p + got, .size = (proven_size_t)(n - got) });
+        if (!proven_is_ok(r.err) || r.value == 0) break;
+        got += (size_t)r.value;
+    }
+    return got;
+}
 #define VM_MAXSOCK  32       // ★ 동시 소켓 — 고정 풀. socks[i]=fd+1 (0=빈 슬롯 · 정적 0-init 와 맞음)
 // REF encoding in vmv_t: .i = slot | tag<<16 | VM_REF_MUT, .box = frame depth, .n = generation
 #define VM_REF_MUT  ((proven_i64)1 << 62)
@@ -248,7 +263,7 @@ typedef struct {
     proven_u8      *fixmem;  proven_size_t fixcap, fixn;          // 고정 창
     proven_u8     **hpch;    proven_size_t *hpcap, *hpbase;       // 힙 청크 · 크기 · 논리 시작
     proven_size_t   hpn, hpmax, hpcur, hpoff;                    // 잡은 수 · 표 용량 · 지금 청크 · 그 안 오프셋
-    FILE           *files[VM_MAXFILE];   // ★ 열린 파일 — 핸들은 이 배열의 인덱스다(RFC-0069 §6)
+    struct vm_file *files[VM_MAXFILE];   // ★ 열린 파일 — 핸들은 이 배열의 인덱스다(RFC-0069 §6) · proven 의 것(W-20261113-0024)
     DIR            *dirs[VM_MAXFILE];     // ★ 열린 디렉터리 — 핸들은 이 배열의 인덱스다(RFC-0069 §6)
     int             socks[VM_MAXSOCK];   // ★ 열린 소켓 fd+1 — 핸들은 이 배열의 인덱스(0=빈 슬롯)
     vmframe_t      *frames;   // ★ 동적: 메인 + 안 겹치는 그린스레드 창. 그린스레드 수만큼 성장(E-Alloc P3).
@@ -3048,13 +3063,13 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-FD", "only 1 (stdout) and 2 (stderr) are writable — a "
                                                   "file descriptor is not a number you may invent"); return false;
                 }
-                FILE *fp_ = (fv.i == 1) ? stdout : stderr;
+                low_out_t *fp_ = (fv.i == 1) ? low_stdout() : low_stderr();
                 unsigned long hfk_ = 1;
                 int hf_ = lw_hf_probe("out", &hfk_);
-                if (hf_ == 1) { fflush(fp_); stack[sp++] = vmv_int(0); break; }   // ★ 0 바이트 = 부분 쓰기 실패
+                if (hf_ == 1) { (void)low_flush(fp_); stack[sp++] = vmv_int(0); break; }   // ★ 0 바이트 = 부분 쓰기 실패
                 size_t want_ = (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n;
-                size_t w = fwrite(bv.p, 1, want_, fp_);
-                fflush(fp_);
+                size_t w = low_write(fp_, bv.p, want_);
+                (void)low_flush(fp_);
                 stack[sp++] = vmv_int((proven_i64)w);
                 break;
             }
@@ -3111,9 +3126,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   ⇒ 고침: ① 짧게 읽혔으면 그것이 곧 EOF 다 — **떠볼 필요가 없다.**
                 //           ② 가득 찼을 때만 떠보고, 읽었으면 `ungetc` 로 **되돌려 놓는다.**
                 proven_u8 *dst = (proven_u8 *)(void *)(uintptr_t)dv.p;
-                size_t got = fread(dst, 1, dv.n, stdin);
+                size_t got = low_stdin_read(dst, dv.n);   // ★ W-20261113-0024 — proven 의 stdin 읽기 도구(전엔 fread · fgetc · ungetc)
                 int more = 0;
-                if (got == dv.n) { int pk = fgetc(stdin); if (pk != EOF) { ungetc(pk, stdin); more = 1; } }
+                if (got == dv.n && low_stdin_more()) more = 1;   // 가득 찼을 때만 떠 보고, 그 바이트는 되돌려 둔다
                 if (more) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);
@@ -3166,9 +3181,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   ☞ 그리고 그 "같은 일" 을 짓다가 `read_in` 의 **데이터 손실**이 나왔다 —
                 //     A1 이 벌써 값을 했다(위 IRW_RDIN 의 주석 참조).
                 proven_u8 *dst = (proven_u8 *)(void *)(uintptr_t)dv.p;
-                size_t got = fread(dst, 1, dv.n, stdin);
+                size_t got = low_stdin_read(dst, dv.n);   // ★ W-20261113-0024 — proven 의 stdin 읽기 도구(전엔 fread · fgetc · ungetc)
                 int more = 0;
-                if (got == dv.n) { int pk = fgetc(stdin); if (pk != EOF) { ungetc(pk, stdin); more = 1; } }
+                if (got == dv.n && low_stdin_more()) more = 1;   // 가득 찼을 때만 떠 보고, 그 바이트는 되돌려 둔다
                 if (more) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);
@@ -3203,8 +3218,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     return false;
                 }
                 const proven_u8 *src = (const proven_u8 *)(const void *)(uintptr_t)sv.p;
-                size_t put = fwrite(src, 1, sv.n, fv.i == 1 ? stdout : stderr);
-                if (fv.i == 1) fflush(stdout); else fflush(stderr);
+                size_t put = low_write(fv.i == 1 ? low_stdout() : low_stderr(), src, sv.n);
+                if (fv.i == 1) low_flush(low_stdout()); else low_flush(low_stderr());
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)put);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
@@ -3247,11 +3262,19 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             "number you may invent"); return false;
                 }
                 if (lw_hf_probe("open", NULL) == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                FILE *fh = fopen(pb, m);
+                vm_file_t *fh = (vm_file_t *)low_zalloc(1, sizeof *fh);
                 if (!fh) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                if (mv.i == 0) {
+                    proven_result_file_t rf = proven_fs_open(low_heap(), (proven_u8str_view_t){ (const proven_u8 *)pb, (proven_size_t)strlen(pb) }, PROVEN_FS_READ);
+                    if (!proven_is_ok(rf.err)) { low_free(fh); stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                    fh->r = rf.value;
+                } else if (!(fh->w = low_out_open(pb, m))) { low_free(fh); stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 proven_size_t sl = 0;
                 while (sl < VM_MAXFILE && vm->files[sl]) sl++;
-                if (sl >= VM_MAXFILE) { fclose(fh); vm_diag(vm->diags, "E-VM-FILEPOOL", "too many open files"); return false; }
+                if (sl >= VM_MAXFILE) {
+                    if (fh->w) (void)low_out_close(fh->w); else (void)proven_fs_close(fh->r);
+                    low_free(fh); vm_diag(vm->diags, "E-VM-FILEPOOL", "too many open files"); return false;
+                }
                 vm->files[sl] = fh;
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
@@ -3271,7 +3294,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 int hf_ = lw_hf_probe("read", &hfk_);
                 if (hf_ == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }   // ★ 실패는 값이다
                 size_t want_ = (hf_ == 2) ? lw_hf_cap(dv.n, hfk_) : dv.n;
-                size_t got = fread((proven_u8 *)(void *)(uintptr_t)dv.p, 1, want_, vm->files[hv.i]);
+                size_t got = vm->files[hv.i]->w ? 0 : vm_file_read(vm->files[hv.i]->r, (proven_u8 *)(void *)(uintptr_t)dv.p, want_);   // 쓰기 핸들에서 읽으면 0(fread 처럼)
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);   // ★ 0 = EOF (실패가 아니다)
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
@@ -3290,13 +3313,13 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 int hf_ = lw_hf_probe("write", &hfk_);
                 if (hf_ == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 size_t want_ = (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n;
-                size_t w = fwrite(bv.p, 1, want_, vm->files[hv.i]);
+                low_out_t *fw_ = vm->files[hv.i]->w;   // 읽기 핸들이면 NULL — 쓰기는 실패다
+                size_t w = fw_ ? low_write(fw_, bv.p, want_) : 0;
                 // ★★ **모자란 쓰기는 성공이 아니다** (결함 노트 #65, 2026-09-16). 읽기 모드로 연
                 //   파일에 쓰면 `fwrite` 가 0 을 답하는데, 그 0 을 `some 0`("0 바이트 썼다")으로
                 //   싸서 **실패가 성공처럼** 보였다 — `is_ok w` 만 본 호출자는 그냥 지나간다.
                 //   `ferror` 가 켜졌으면 답은 **없음**이다(스트림 오류는 값이 아니라 실패다).
-                if (w < want_ && ferror(vm->files[hv.i])) {
-                    clearerr(vm->files[hv.i]);
+                if (w < want_) {   // proven 의 쓰기 도구는 다 받거나 실패를 답한다 — 모자라면 실패다
                     stack[sp++] = (vmv_t){ .tag = VMV_NONE };
                     break;
                 }
@@ -3313,7 +3336,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     vm_diag(vm->diags, "E-VM-FHANDLE", "not an open file handle"); return false;
                 }
                 int hfc_ = lw_hf_probe("close", NULL);
-                int rc = fclose(vm->files[hv.i]);
+                vm_file_t *fc_ = vm->files[hv.i];
+                int rc = fc_->w ? low_out_close(fc_->w) : (proven_is_ok(proven_fs_close(fc_->r)) ? 0 : -1);
+                low_free(fc_);
                 vm->files[hv.i] = NULL;
                 if (hfc_ == 1) rc = -1;   // ★ 닫기 실패를 부른다 — 자원은 실제로 놓고 답만 실패다
                 stack[sp++] = vmv_int(rc == 0 ? 1 : 0);   // ★ 닫기도 실패할 수 있다(NFS)
@@ -3563,8 +3588,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             "seek whence must be 0 (set), 1 (cur) or 2 (end) — a whence is not a "
                             "number you may invent (mirror of E-VM-FMODE)"); return false;
                 }
-                if (fseek(vm->files[hv.i], (long)ov.i, w) != 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
-                long pos = ftell(vm->files[hv.i]);
+                vm_file_t *fs_ = vm->files[hv.i];
+                long long pos;
+                if (fs_->w) pos = low_out_seek(fs_->w, (long long)ov.i, (int)wv.i);   // 비우고 옮긴다(fseek 처럼)
+                else { proven_result_u64_t sr = proven_fs_seek(fs_->r, (proven_i64)ov.i, (proven_fs_whence_t)wv.i); pos = proven_is_ok(sr.err) ? (long long)sr.val : -1; }
                 if (pos < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)pos);   // ★ 새 절대 위치
@@ -3619,7 +3646,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (dv.tag != VMV_SLICE && dv.tag != VMV_VARRAY) {
                     vm_diag(vm->diags, "E-VM-TYPE", "tty_read needs a destination buffer"); return false;
                 }
-                ssize_t got = read(0, (void *)(uintptr_t)dv.p, (size_t)dv.n);
+                long long got = low_stdin_read_some((void *)(uintptr_t)dv.p, (size_t)dv.n);   // ★ proven(전엔 read(0))
                 if (got < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }   // 오류 = none
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool keeps every value still reachable — it is reclaimed at loop back-edges and when an op returns a plain number (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)got);

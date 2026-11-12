@@ -1185,7 +1185,7 @@ static void ck_glued_field(low_check_result_t *out, const low_cst_t *nd,
     char nb[160]; proven_size_t nn = low_bcopy(nb, sizeof nb, v.ptr, v.size);
     char sp[160]; proven_size_t sn = low_bcopy(sp, sizeof sp, nb, nn);
     for (proven_size_t z = 0; z < sn; z++) if (sp[z] == '.') sp[z] = ' ';
-    if (getenv("LOW_LIST_GLUED2")) { low_fpf(stderr, "GLUED2\t{}\t{}\t(field {})\n",
+    if (getenv("LOW_LIST_GLUED2")) { low_fpf(low_stderr(), "GLUED2\t{}\t{}\t(field {})\n",
                                             PROVEN_ARG((unsigned)((unsigned)nd->tok.line)), proven_arg_cstr(nb), proven_arg_cstr(sp)); return; }
     if (getenv("LOWENT_ALLOW_GLUED_FIELD")) return;   // ★ 되돌릴 문 (기본은 거절)
     emit_at(out, "E-FIELD-GLUED",

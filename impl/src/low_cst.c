@@ -1476,18 +1476,18 @@ bool low_is_clause_word(proven_u8str_view_t v) {
 }
 
 // ── dump ──
-static void low_pv(proven_u8str_view_t v) { fwrite(v.ptr, 1, v.size, stdout); }
+static void low_pv(proven_u8str_view_t v) { low_write(low_stdout(), v.ptr, v.size); }
 static const char *low_closer_name(low_tok_kind_t c) {
     switch (c) { case LOW_TOK_DOT: return "."; default: return "end"; }
 }
 static void low_dump_node(const low_cst_t *nd, int depth) {
     if (!nd) return;
-    for (int i = 0; i < depth; i++) fputs("  ", stdout);
+    for (int i = 0; i < depth; i++) low_puts(low_stdout(), "  ");
     switch (nd->kind) {
         case LOW_CST_ATOM:
-            fputs("ATOM ", stdout); low_pv(nd->tok.lex);
+            low_puts(low_stdout(), "ATOM "); low_pv(nd->tok.lex);
             if (nd->tok.kw) low_pf(" (kw#{})", PROVEN_ARG((int)((int)nd->tok.kw)));
-            putchar('\n');
+            low_putc(low_stdout(), '\n');
             break;
         case LOW_CST_FORM:
             low_pf("FORM [{}]\n", proven_arg_cstr(low_closer_name(nd->closer)));
@@ -1502,14 +1502,14 @@ static void low_dump_node(const low_cst_t *nd, int depth) {
             for (proven_size_t i = 0; i < nd->nkids; i++) low_dump_node(nd->kids[i], depth + 1);
             break;
         case LOW_CST_ACCESS:
-            fputs("ACCESS", stdout);
+            low_puts(low_stdout(), "ACCESS");
             for (proven_size_t i = 0; i + 1 < nd->nkids; i++)
                 low_pf(" {}", proven_arg_cstr(nd->ops && nd->ops[i] == LOW_KW_IN ? "in" : "to"));
-            putchar('\n');
+            low_putc(low_stdout(), '\n');
             for (proven_size_t i = 0; i < nd->nkids; i++) low_dump_node(nd->kids[i], depth + 1);
             break;
         case LOW_CST_ERROR:
-            fputs("ERROR ", stdout); low_pv(nd->tok.lex); putchar('\n');
+            low_puts(low_stdout(), "ERROR "); low_pv(nd->tok.lex); low_putc(low_stdout(), '\n');
             break;
     }
 }
@@ -1532,19 +1532,19 @@ static bool low_fmt_clause_head(const low_cst_t *m, proven_size_t at) {
 //   시작하는 form 이 서명을 열고, 절 낱말로 시작하는 뒤따르는 form 들이 그 절이다. 절 단위로 같은 열쇠(입력은 단조)로
 //   안정 정렬해 한 줄에 찍는다. 입력끼리는 자리를 바꾸지 않는다 — 구현의 입력 자리와 짝이기 때문이다.
 static void low_fmt_trait_blk(const low_cst_t *blk) {
-    fputs("do ", stdout);
+    low_puts(low_stdout(), "do ");
     proven_size_t i = 0;
     while (i < blk->nkids) {
         const low_cst_t *m = blk->kids[i];
         if (!(m->kind == LOW_CST_FORM && m->nkids >= 2 && m->kids[0]->kind == LOW_CST_ATOM &&
               !low_is_clause_word(m->kids[0]->tok.lex) && low_fmt_clause_head(m, 1))) {
-            low_fmt_stmt(m); putchar(' '); i++; continue;
+            low_fmt_stmt(m); low_putc(low_stdout(), ' '); i++; continue;
         }
         proven_size_t j = i + 1;
         while (j < blk->nkids && low_fmt_clause_head(blk->kids[j], 0)) j++;
         enum { NS = 64 };
         const low_cst_t *sf[NS]; proven_size_t sat[NS]; int key[NS]; proven_size_t ns = 0;
-        if (j - i > NS) { for (; i < j; i++) { low_fmt_stmt(blk->kids[i]); putchar(' '); } continue; }
+        if (j - i > NS) { for (; i < j; i++) { low_fmt_stmt(blk->kids[i]); low_putc(low_stdout(), ' '); } continue; }
         int inmax = 2;
         for (proven_size_t q = i; q < j; q++) {
             const low_cst_t *c = blk->kids[q];
@@ -1558,13 +1558,13 @@ static void low_fmt_trait_blk(const low_cst_t *blk) {
         for (int k = 0; k <= 16; k++)
             for (proven_size_t s = 0; s < ns; s++) {
                 if (key[s] != k) continue;
-                for (proven_size_t z = sat[s]; z < sf[s]->nkids; z++) { putchar(' '); low_fmt_node(sf[s]->kids[z], true); }
-                fputs(" .", stdout);
+                for (proven_size_t z = sat[s]; z < sf[s]->nkids; z++) { low_putc(low_stdout(), ' '); low_fmt_node(sf[s]->kids[z], true); }
+                low_puts(low_stdout(), " .");
             }
-        putchar(' ');
+        low_putc(low_stdout(), ' ');
         i = j;
     }
-    fputs("end", stdout);
+    low_puts(low_stdout(), "end");
 }
 static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
     low_kw_t hk = (nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) ? nd->kids[0]->tok.kw : LOW_KW_NONE;
@@ -1603,23 +1603,23 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
             if (hd && (low_view_eq_cstr(hd->tok.lex, "ref") || low_view_eq_cstr(hd->tok.lex, "mut_ref")))
                 for (size_t z = 0; z < sizeof TW / sizeof TW[0] && !tw; z++) tw = low_view_eq_cstr(op->tok.lex, TW[z]);
             if (tw) {
-                if (!first) putchar(' ');
+                if (!first) low_putc(low_stdout(), ' ');
                 first = false;
-                low_pv(hd->tok.lex); putchar(' '); low_pv(op->tok.lex); continue;
+                low_pv(hd->tok.lex); low_putc(low_stdout(), ' '); low_pv(op->tok.lex); continue;
             }
         }
         if (loop && i == 2) continue;
-        if (!first) putchar(' ');
+        if (!first) low_putc(low_stdout(), ' ');
         first = false;
-        if (loop && i == 0) { fputs(loop, stdout); continue; }
+        if (loop && i == 0) { low_puts(low_stdout(), loop); continue; }
         if (bind && i == 2 && atom && ki->tok.kw == LOW_KW_NONE && low_view_eq_cstr(ki->tok.lex, "using")) {
-            fputs(ki->is_keep ? "keep" : "use", stdout); continue;
+            low_puts(low_stdout(), ki->is_keep ? "keep" : "use"); continue;
         }
-        if (hk == LOW_KW_FOR && i >= 2 && atom && ki->tok.kw == LOW_KW_NONE && low_view_eq_cstr(ki->tok.lex, "where")) { fputs("if", stdout); continue; }
+        if (hk == LOW_KW_FOR && i >= 2 && atom && ki->tok.kw == LOW_KW_NONE && low_view_eq_cstr(ki->tok.lex, "where")) { low_puts(low_stdout(), "if"); continue; }
         if (decl && i >= 2) {
             const low_cst_t *k = nd->kids[i];
             bool cw = k->kind == LOW_CST_ATOM && low_is_clause_word(k->tok.lex);
-            if ((cw || k->kind == LOW_CST_BLOCK) && dopen) fputs(". ", stdout);
+            if ((cw || k->kind == LOW_CST_BLOCK) && dopen) low_puts(low_stdout(), ". ");
             if (cw) dopen = true;
         }
         // ★★ **정규화 층이 `else` 를 guard 의 자식으로 넣었다** — 그런데 표면 문법에서는
@@ -1627,7 +1627,7 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
         //   그러지 않으면 `guard c else …` 로 찍히고, 다시 읽으면 `else` 가 **조건의 원자**로
         //   빨려 들어간다 — **서식기가 자기가 낸 것을 자기가 못 읽는다.**
         //   서식 보존 게이트가 즉시 잡았다(73 중 7 깨짐).
-        if (hk == LOW_KW_IF && after_then) fputs("else ", stdout);  // re-insert dropped 'else'
+        if (hk == LOW_KW_IF && after_then) low_puts(low_stdout(), "else ");  // re-insert dropped 'else'
         if (hk == LOW_KW_IF && after_then && nd->kids[i]->kind == LOW_CST_FORM)
             low_fmt_inner(nd->kids[i]);            // else-if: emit as statement, no parens
         else if (hk == LOW_KW_TRAIT && nd->kids[i]->kind == LOW_CST_BLOCK)
@@ -1645,7 +1645,7 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
                 // ★ 문자 리터럴도 **접두사를 다시 찍는다** — 안 찍으면 서식만 돌려도 타입이
                 //   바뀐다(`U'한'` 이 `'한'` 이 되면 u32 가 u8 자리로 내려간다).
                 if (nd->tok.aux.size) low_pv(nd->tok.aux);
-                putchar('\''); low_pv(nd->tok.lex); putchar('\'');
+                low_putc(low_stdout(), '\''); low_pv(nd->tok.lex); low_putc(low_stdout(), '\'');
             }
             else if (nd->tok.kind == LOW_TOK_STRING) {
                 // ★★★ **접두사를 다시 찍는다** (RFC-0035 D5). 안 찍으면 `u"AB"` 가 `"AB"` 로
@@ -1654,38 +1654,38 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
                 //   ☞ 서식기는 **자기가 낸 것을 자기가 읽을 수 있어야** 할 뿐 아니라,
                 //     읽었을 때 **같은 프로그램**이어야 한다.
                 if (nd->tok.aux.size) low_pv(nd->tok.aux);
-                putchar('"'); low_pv(nd->tok.lex); putchar('"');
+                low_putc(low_stdout(), '"'); low_pv(nd->tok.lex); low_putc(low_stdout(), '"');
             }
             else if (nd->tok.kind == LOW_TOK_TEXTLIT) {
                 // ★ 종결자는 **자기 줄에** 있어야 한다. 렉서가 본문 끝의 개행 하나를 **떼므로**
                 //   그냥 이어 붙이면 `…header.HEND` 가 되고 — **다시 읽을 수 없다**
                 //   (E-TEXTLIT-UNTERM). 서식기는 자기가 낸 것을 **자기가 읽을 수 있어야** 한다.
                 // ★★ 태그도 다시 찍는다 — 같은 이유다(전엔 태그가 아무 뜻이 없어 안 드러났다).
-                fputs("text ", stdout);
+                low_puts(low_stdout(), "text ");
                 // ★ 처리기(`u` · `U`)는 태그 **뒤**에 선다 (RFC-0138 §5.2).
                 // ★ 닫는 낱말은 맨 첫 칸에 **홀로** 선다(2026-10-07) — 뒤따르는 것(문장의 `.` 따위)은 다음 줄로 보낸다.
-                fputs("HEND", stdout);
-                if (nd->tok.aux.size) { putchar(' '); low_pv(nd->tok.aux); }
-                putchar('\n'); low_pv(nd->tok.lex); fputs("\nHEND\n", stdout);
+                low_puts(low_stdout(), "HEND");
+                if (nd->tok.aux.size) { low_putc(low_stdout(), ' '); low_pv(nd->tok.aux); }
+                low_putc(low_stdout(), '\n'); low_pv(nd->tok.lex); low_puts(low_stdout(), "\nHEND\n");
             }
             // ★ RFC-0132 §6 (옮김 창) — 옛 `index` 는 `idx` 로 옮겨 찍는다(이름으로 쓴 `index` 는 없다 — E-VOCAB-REMOVED).
-            else if (nd->tok.kind == LOW_TOK_IDENT && low_view_eq_cstr(nd->tok.lex, "index")) fputs("idx", stdout);
+            else if (nd->tok.kind == LOW_TOK_IDENT && low_view_eq_cstr(nd->tok.lex, "index")) low_puts(low_stdout(), "idx");
             // RFC-0147 — op 머리의 얼로케이터 절은 표면에서 `use` 다. 안쪽 낱말 `using` 은 저자의 글에 설 수 없으므로(E-USING-OLD)
             //   여기 닿은 `using` 은 모두 그 절이다.
-            else if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && low_view_eq_cstr(nd->tok.lex, "using")) fputs("use", stdout);
+            else if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE && low_view_eq_cstr(nd->tok.lex, "using")) low_puts(low_stdout(), "use");
             else {
                 low_pv(nd->tok.lex);
                 // ★ RFC-0142 — `method` 의 op 이름(내림이 표시해 둔다): 이름 뒤에 점을 붙여 찍는다. 올림(`low_closer_raise_text`)이 그 점으로
                 //   마디와 op 이름을 가른다.
-                if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.aux.size == 1 && nd->tok.aux.ptr[0] == '.') putchar('.');
+                if (nd->tok.kind == LOW_TOK_IDENT && nd->tok.aux.size == 1 && nd->tok.aux.ptr[0] == '.') low_putc(low_stdout(), '.');
             }
             break;
         case LOW_CST_ACCESS: break;   // ★ 더는 만들어지지 않는다 — 중위 `to`/`in` 을 없앴다
         case LOW_CST_GROUP: low_fmt_node(nd->nkids ? nd->kids[0] : NULL, arg); break;
         case LOW_CST_BLOCK:
-            fputs("do ", stdout);
-            for (proven_size_t i = 0; i < nd->nkids; i++) { low_fmt_stmt(nd->kids[i]); putchar(' '); }
-            fputs("end", stdout);
+            low_puts(low_stdout(), "do ");
+            for (proven_size_t i = 0; i < nd->nkids; i++) { low_fmt_stmt(nd->kids[i]); low_putc(low_stdout(), ' '); }
+            low_puts(low_stdout(), "end");
             break;
         case LOW_CST_FORM: {
             // ★★ 머리가 `else` 인 form 은 **괄호로 싸면 안 된다.** `guard C . else do … end` 를
@@ -1722,17 +1722,17 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
             //   (`area` 는 전역에 없다). def-해시 대조가 즉시 잡았다.
             if (nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
                 nd->kids[0]->tok.kind == LOW_TOK_METHOD) {
-                if (arg) putchar('(');
+                if (arg) low_putc(low_stdout(), '(');
                 low_fmt_node(nd->kids[1], true);                 // 수신자
-                fputs("..", stdout); low_pv(nd->kids[0]->tok.lex);
+                low_puts(low_stdout(), ".."); low_pv(nd->kids[0]->tok.lex);
                 for (proven_size_t i = 2; i < nd->nkids; i++) {
-                    putchar(' '); low_fmt_node(nd->kids[i], true);
+                    low_putc(low_stdout(), ' '); low_fmt_node(nd->kids[i], true);
                 }
-                if (arg) putchar(')');
+                if (arg) low_putc(low_stdout(), ')');
                 break;
             }
             if (arg && nd->nkids > 1 && !is_else && !blocktail) {
-                putchar('('); low_fmt_inner(nd); putchar(')');
+                low_putc(low_stdout(), '('); low_fmt_inner(nd); low_putc(low_stdout(), ')');
             } else low_fmt_inner(nd);
             break;
         }
@@ -1780,8 +1780,8 @@ static void low_fmt_stmt(const low_cst_t *nd) {
         //   무른 판과 def 해시가 같다는 것은 확인했다(dcc4205a28d7079c, IR 바이트 동일).
         // ★★ X-0052 (소유자 결정 2026-09-25) — `end` 는 자기 `do` 만 닫는다. 블록을 **몸으로 갖는** 구문은 그 블록에서
         //   끝나므로 닫개를 찍지 않고(찍으면 E-DOT-STRAY), 나머지 문장은 블록으로 끝나도 자기 점을 찍는다.
-        if (!blocktail) fputs(" .", stdout);
-    } else { low_fmt_node(nd, false); fputs(" .", stdout); }
+        if (!blocktail) low_puts(low_stdout(), " .");
+    } else { low_fmt_node(nd, false); low_puts(low_stdout(), " ."); }
 }
 // ══ F-B 정규형 — **절마다 줄바꿈** (2026-08-26 소유자 결정 · RFC-0102 §8-4) ═══════════
 //
@@ -1796,18 +1796,18 @@ static void low_fmt_stmt(const low_cst_t *nd) {
 // ★★ 판정은 **def 해시**로 한다. 서식기는 이 저장소에서 세 번 뜻을 바꾼 전력이 있고
 //   (else 괄호 · 머리 붙은 블록 · 수식자 누락) 세 번 다 def 해시 대조가 잡았다.
 //   "동작이 같다" 는 "뜻이 같다" 가 아니다.
-static void low_fmt_ind(int depth) { for (int i = 0; i < depth; i++) fputs("  ", stdout); }
+static void low_fmt_ind(int depth) { for (int i = 0; i < depth; i++) low_puts(low_stdout(), "  "); }
 
 // 몸통 블록을 여러 줄로 찍는다: `do` · 문장마다 한 줄 · `end`
 static void low_fmt_body(const low_cst_t *blk, int depth) {
-    fputs("do\n", stdout);            // X-0052 ⓐ — `do` 뒤의 점은 빈 폼이다(E-DOT-STRAY)
+    low_puts(low_stdout(), "do\n");            // X-0052 ⓐ — `do` 뒤의 점은 빈 폼이다(E-DOT-STRAY)
     for (proven_size_t i = 0; i < blk->nkids; i++) {
         low_fmt_ind(depth + 1);
         low_fmt_stmt(blk->kids[i]);
-        putchar('\n');
+        low_putc(low_stdout(), '\n');
     }
     low_fmt_ind(depth);
-    fputs("end", stdout);             // X-0052 ⓐ — `end` 가 폼을 닫는다
+    low_puts(low_stdout(), "end");             // X-0052 ⓐ — `end` 가 폼을 닫는다
 }
 
 // 선언인가 — 머리가 원자이고 **마지막 자식이 블록**이며 절 낱말을 하나라도 가진 form.
@@ -1850,10 +1850,10 @@ static proven_size_t low_fmt_hdr_order(const low_cst_t *f, proven_size_t from, p
 // `fn f` · 절마다 한 줄(닫개 포함) — 머리의 kids[2, to). 몸 있는 op 과 몸 없는 extern 이 같이 쓴다.
 static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to, bool doblk) {
     low_fmt_node(f->kids[0], false);                 // 머리 (fn / proc / …)
-    putchar(' ');
+    low_putc(low_stdout(), ' ');
     low_fmt_node(f->kids[1], false);                 // 이름
     // RFC-0103 ⓐ — 머리를 개행이 닫고 있었다. X-0058 — 몸이 C 에 있는 extern 은 절을 `do … end` 에 담는다.
-    fputs(doblk ? " do\n" : "\n", stdout);   // RFC-0113 R6 (3) — op 이름 뒤에는 점이 없다
+    low_puts(low_stdout(), doblk ? " do\n" : "\n");   // RFC-0113 R6 (3) — op 이름 뒤에는 점이 없다
     bool open_clause = false;
     proven_size_t ord[f->nkids];
     proven_size_t nord = low_fmt_hdr_order(f, 2, to, ord);
@@ -1861,18 +1861,18 @@ static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to, bool doblk) 
         const low_cst_t *k = f->kids[ord[oi]];
         bool starts = (k->kind == LOW_CST_ATOM && low_is_clause_word(k->tok.lex));
         if (starts) {
-            if (open_clause) fputs(" .\n", stdout);  // 앞 절을 닫는다
+            if (open_clause) low_puts(low_stdout(), " .\n");  // 앞 절을 닫는다
             low_fmt_ind(1);
             open_clause = true;
         } else if (open_clause) {
-            putchar(' ');
+            low_putc(low_stdout(), ' ');
         } else {
             // 절 밖의 원자(예: 수식자 뒤 잔여) — 안전하게 같은 줄에 이어 붙인다
-            putchar(' ');
+            low_putc(low_stdout(), ' ');
         }
         low_fmt_node(k, true);
     }
-    if (open_clause) fputs(" .\n", stdout);
+    if (open_clause) low_puts(low_stdout(), " .\n");
 }
 // `fn f` · 절마다 한 줄(닫개 포함) · `do` … `end`
 static void low_fmt_decl(const low_cst_t *f) {
@@ -1887,8 +1887,8 @@ void low_cst_fmt(const low_parse_result_t *pr) {
         //   (def-해시 대조가 그것을 즉시 고발했다. 표시는 **찍어야** 표시다.)
         const low_cst_t *f = pr->forms[i];
         if (f) {
-            if (f->is_export) fputs("export ", stdout);
-            if (f->is_unsafe) fputs("unsafe ", stdout);
+            if (f->is_export) low_puts(low_stdout(), "export ");
+            if (f->is_unsafe) low_puts(low_stdout(), "unsafe ");
             // ★★★★ **네 번째 수식자.** `unsafe target x86_sse2 proc av` 가 평범한
             //   `unsafe proc` 으로 찍혀 op 이 게이트 밖으로 나왔다.
             //   export·unsafe·extern 이 같은 자리에서 같은 이유로 빠졌었고 세 번 다
@@ -1897,11 +1897,11 @@ void low_cst_fmt(const low_parse_result_t *pr) {
             //   잡는 것은 아니다. 그래서 골든에 **fmt 출력을 다시 --check 하는** 검사를
             //   두었다(수식자든 무엇이든, 뜻이 바뀌면 거기서 걸린다).
             if (f->target_iset.size) {
-                fputs("target ", stdout);
-                fwrite(f->target_iset.ptr, 1, f->target_iset.size, stdout);
-                putchar(' ');
+                low_puts(low_stdout(), "target ");
+                low_write(low_stdout(), f->target_iset.ptr, f->target_iset.size);
+                low_putc(low_stdout(), ' ');
             }
-            if (f->is_extern) fputs("extern ", stdout);
+            if (f->is_extern) low_puts(low_stdout(), "extern ");
         }
         if (low_fmt_is_decl(pr->forms[i])) low_fmt_decl(pr->forms[i]);
         else if (f && f->is_extern && f->kind == LOW_CST_FORM && f->nkids > 2) {
@@ -1909,15 +1909,15 @@ void low_cst_fmt(const low_parse_result_t *pr) {
             // ★★ X-0059 — 그리고 **같은 모양으로** 찍는다: 절마다 한 줄, 자기 점. 전엔 한 줄에 원자만 늘어놓아 절의 점을
             //   모두 지웠다(`… input k cap c input w i64 … link "x" . end`) — 서식기가 규범에 없는 꼴을 만들었다.
             low_fmt_decl_head(f, f->nkids, true);
-            fputs("end\n", stdout);
+            low_puts(low_stdout(), "end\n");
             continue;
         }
         else low_fmt_stmt(pr->forms[i]);
         // ★★★ **`extern` 선언은 `end` 로 닫힌다** — 본문은 없지만 **끝은 있어야 한다.**
         //   없으면 절 목록이 **다음 선언의 `do` 를 삼킨다**(그리고 그 op 이 "몸이 둘" 이 된다).
         //   서식기가 그것을 안 찍어서 **서식이 뜻을 바꿨다** — def 해시가 즉시 고발했다.
-        if (f && f->is_extern && !f->is_export) fputs(" end", stdout);
-        putchar('\n');
+        if (f && f->is_extern && !f->is_export) low_puts(low_stdout(), " end");
+        low_putc(low_stdout(), '\n');
     }
 }
 

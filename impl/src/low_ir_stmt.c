@@ -2882,13 +2882,13 @@ static void ir_excl_skip(low_ir_t *ir) {
             const low_ir_xpair_t *x = &d->xpairs[q];
             proven_u32 m = wm[XP_AT(i, q)];
             if (!x->skipped && !seen[i]) m |= 1u << XW_NOCALL;
-            low_fpf(stderr, "XPAIR\t{}\t{}{}{}\t{},{}\t{}", proven_arg_cstr(x->skipped ? "skip" : "keep"), low_sv((const char *)d->owner_mod.ptr, (int)d->owner_mod.size),
+            low_fpf(low_stderr(), "XPAIR\t{}\t{}{}{}\t{},{}\t{}", proven_arg_cstr(x->skipped ? "skip" : "keep"), low_sv((const char *)d->owner_mod.ptr, (int)d->owner_mod.size),
                     proven_arg_cstr(d->owner_mod.size ? "." : ""), low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((unsigned)((unsigned)x->i)), PROVEN_ARG((unsigned)((unsigned)x->j)), PROVEN_ARG((unsigned)((unsigned)x->mode)));
-            for (int r = 1; r < XW_N; r++) if ((m >> r) & 1u) low_fpf(stderr, "\t{}", proven_arg_cstr(ir_xw_name[r]));
+            for (int r = 1; r < XW_N; r++) if ((m >> r) & 1u) low_fpf(low_stderr(), "\t{}", proven_arg_cstr(ir_xw_name[r]));
             if ((m >> XW_DEF) & 1u)
-                low_fpf(stderr, "\t({}{}{}{}{}{} pairs {})", proven_arg_cstr(d->lowered && d->code ? "" : "unlowered "), proven_arg_cstr(d->is_extern ? "extern " : ""), proven_arg_cstr(d->is_test ? "test " : ""),
+                low_fpf(low_stderr(), "\t({}{}{}{}{}{} pairs {})", proven_arg_cstr(d->lowered && d->code ? "" : "unlowered "), proven_arg_cstr(d->is_extern ? "extern " : ""), proven_arg_cstr(d->is_test ? "test " : ""),
                         proven_arg_cstr(d->is_actor ? "actor " : ""), proven_arg_cstr(d->is_par ? "par " : ""), proven_arg_cstr(d->isr_vector >= 0 ? "isr " : ""), PROVEN_ARG((unsigned)((unsigned)d->nxpairs)));
-            fputc('\n', stderr);
+            low_putc(low_stderr(), '\n');
         }
     }
     #undef XW_SET
@@ -3554,12 +3554,12 @@ static void ctfe_cache_put(const low_ir_t *ir, proven_size_t di, const ctfe_call
     char path[1024], tmp[1100];
     if (!ctfe_cache_path(ir, di, c, a, na, path, sizeof path)) return;
     low_bfmt(tmp, sizeof tmp, "{}.{}.tmp", proven_arg_cstr(path), PROVEN_ARG((long long)((long)getpid())));
-    FILE *fp = fopen(tmp, "wb");
+    low_out_t *fp = low_out_open(tmp, "wb");
     if (!fp) return;
     proven_u64 v = (proven_u64)c->v, n = (c->arr || c->sl) ? c->nbytes : 0;
-    bool ok = fwrite(CTFE_CACHE_TAG, 1, 8, fp) == 8 && fwrite(&v, 8, 1, fp) == 1 && fwrite(&n, 8, 1, fp) == 1 &&
-              (!n || fwrite(c->bytes, 1, n, fp) == n);
-    if (fclose(fp) != 0) ok = false;
+    bool ok = low_write(fp, CTFE_CACHE_TAG, 8) == 8 && low_write(fp, &v, 8) == 8 && low_write(fp, &n, 8) == 8 &&
+              (!n || low_write(fp, c->bytes, n) == n);
+    if (low_out_close(fp) != 0) ok = false;
     if (ok) (void)rename(tmp, path); else (void)remove(tmp);
 }
 static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_result_t *pr);
@@ -5635,8 +5635,8 @@ static void hex8(const proven_u8 *h, char out[17]) {
 // ★★★ 증명서 방출 — `--emit-proof`. **사람이 읽고 `diff` 할 수 있는** 텍스트다(lowdb 와 같은 결).
 //   한 줄 = 지운 검사 하나.  `<op> <pc> <opcode> <rule> <수…>`
 //   ☞ 검증기(`scripts/check-certificates.py`)가 이 줄만 보고 **규칙의 산술을 다시 한다.**
-int low_ir_emit_proof(const low_ir_t *ir, FILE *out) {
-    fputs("lowproof 1\n", out);
+int low_ir_emit_proof(const low_ir_t *ir, low_out_t *out) {
+    low_puts(out, "lowproof 1\n");
     // ★★★ **덮지 못한 자리를 먼저 말한다.** 지운 검사 수(분석기가 센 것)와 증명서 수가
     //   다르면, 그 차이만큼은 **근거 없이 지워진 것**이다 — 검증기가 그것을 보고해야 한다.
     //   (증명서를 붙이지 않은 규칙이 남아 있다는 뜻이고, 그 사실을 숨기면 이 파일이
@@ -5645,12 +5645,12 @@ int low_ir_emit_proof(const low_ir_t *ir, FILE *out) {
             PROVEN_ARG((size_t)((size_t)ir->checks_proven)), PROVEN_ARG((size_t)((size_t)g_ncert)));
     for (proven_size_t i = 0; i < g_ncert; i++) {
         const ir_cert_t *c = &g_cert[i];
-        fwrite(c->def.ptr, 1, c->def.size, out);
+        low_write(out, c->def.ptr, c->def.size);
         low_fpf(out, " {} {} {}", PROVEN_ARG((unsigned)((unsigned)c->pc)), proven_arg_cstr(low_irw_name(c->w)), proven_arg_cstr(c->rule));
         for (int k = 0; k < c->nf; k++) low_fpf(out, " {}", PROVEN_ARG((long long)((long long)c->f[k])));
         for (proven_size_t k = 0; k < c->ext_n; k++)
             low_fpf(out, " {}", PROVEN_ARG((long long)((long long)g_cert_ext[c->ext_at + k])));
-        fputc('\n', out);
+        low_putc(out, '\n');
     }
     // ★ 넘쳐서 못 적은 것은 **말한다.** 조용히 자르면 검증기가 "전부 봤다" 고 착각한다.
     if (g_cert_drop)
@@ -5660,19 +5660,19 @@ int low_ir_emit_proof(const low_ir_t *ir, FILE *out) {
     return (int)g_ncert;
 }
 
-int low_ir_emit_db(const low_ir_t *ir, FILE *out) {
+int low_ir_emit_db(const low_ir_t *ir, low_out_t *out) {
     int n = 0;
-    fputs("lowdb 1\n", out);
+    low_puts(out, "lowdb 1\n");
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         char ih[17], dh[17];
         hex8(d->iface_hash, ih);
-        fputs(d->is_calc ? "fn " : "proc ", out);
-        fwrite(d->name.ptr, 1, d->name.size, out);
+        low_puts(out, d->is_calc ? "fn " : "proc ");
+        low_write(out, d->name.ptr, d->name.size);
         low_fpf(out, "/{} iface:{}", PROVEN_ARG((size_t)((size_t)d->nparams)), proven_arg_cstr(ih));
         if (d->lowered) { hex8(d->def_hash, dh); low_fpf(out, " def:{}", proven_arg_cstr(dh)); }
-        else fputs(" def:-", out);          // 하강 못 한 것은 **없다고 적는다**(있는 척 안 한다)
-        fputc('\n', out);
+        else low_puts(out, " def:-");          // 하강 못 한 것은 **없다고 적는다**(있는 척 안 한다)
+        low_putc(out, '\n');
         n++;
     }
     return n;
@@ -5684,8 +5684,8 @@ void low_ir_dump(const low_ir_t *ir) {
         const low_ir_def_t *d = &ir->defs[i];
         char ih[17], dh[17];
         hex8(d->iface_hash, ih);
-        fputs(d->is_calc ? "fn " : "proc ", stdout);
-        fwrite(d->name.ptr, 1, d->name.size, stdout);
+        low_puts(low_stdout(), d->is_calc ? "fn " : "proc ");
+        low_write(low_stdout(), d->name.ptr, d->name.size);
         low_pf("/{}  iface h:{}", PROVEN_ARG((size_t)((size_t)d->nparams)), proven_arg_cstr(ih));
         if (!d->lowered) { low_pf("  (not lowered: outside the S5 core)\n"); continue; }
         hex8(d->def_hash, dh);
@@ -5699,29 +5699,29 @@ void low_ir_dump(const low_ir_t *ir) {
                 case IRW_CALL: {
                     proven_size_t cix = IR_CALL_IDX(d->code[j].a);
                     char ch[17]; hex8(ir->defs[cix].def_hash, ch);
-                    fputs(" ", stdout);
-                    fwrite(ir->defs[cix].name.ptr, 1, ir->defs[cix].name.size, stdout);
+                    low_puts(low_stdout(), " ");
+                    low_write(low_stdout(), ir->defs[cix].name.ptr, ir->defs[cix].name.size);
                     low_pf(" h:{}{}", proven_arg_cstr(ch),
                            proven_arg_cstr((d->code[j].a & IR_POL_PROVEN) ? " [args proven in range]" : ""));
                     break;
                 }
                 case IRW_MAKE: {
                     const low_ir_make_t *mk = &ir->makes[d->code[j].a];
-                    fputs(" ", stdout);
-                    fwrite(mk->type_name.ptr, 1, mk->type_name.size, stdout);
+                    low_puts(low_stdout(), " ");
+                    low_write(low_stdout(), mk->type_name.ptr, mk->type_name.size);
                     low_pf("/{}", PROVEN_ARG((size_t)((size_t)mk->nfields))); break;
                 }
                 case IRW_WRAP_ERR:
-                    fputs(" ", stdout);
-                    fwrite(ir->errs[d->code[j].a].ptr, 1, ir->errs[d->code[j].a].size, stdout);
+                    low_puts(low_stdout(), " ");
+                    low_write(low_stdout(), ir->errs[d->code[j].a].ptr, ir->errs[d->code[j].a].size);
                     break;
                 case IRW_FIELD:
-                    fputs(" ", stdout);
-                    fwrite(ir->fields[d->code[j].a].ptr, 1, ir->fields[d->code[j].a].size, stdout);
+                    low_puts(low_stdout(), " ");
+                    low_write(low_stdout(), ir->fields[d->code[j].a].ptr, ir->fields[d->code[j].a].size);
                     break;
                 default: break;
             }
-            putchar('\n');
+            low_putc(low_stdout(), '\n');
         }
     }
     // RFC-0053 §6.4 — 제거되지 않은 검사는 **보고된다**. 침묵하면 성능 모델이 엔트로피가 된다.

@@ -1381,7 +1381,7 @@ static proven_size_t up_topform(up_t *u, proven_size_t i) {
 }
 
 // 서식기가 찍은 글(text, n 바이트)을 새 표면으로 올려 `out` 에 쓴다. 올리지 못하면 false — 그때는 아무것도 쓰지 않는다.
-bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_size_t n, FILE *out) {
+bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_size_t n, low_out_t *out) {
     low_lex_result_t lx = low_lex(heap, (proven_u8str_view_t){ .ptr = (const proven_byte_t *)text, .size = n });
     up_t u = { .T = (low_token_t *)lx.tokens.data, .n = lx.tokens.len };
     bool ok = false;
@@ -1411,7 +1411,7 @@ bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_siz
             while (i < u.n && u.T[i].kind != LOW_TOK_EOF) i = up_topform(&u, i);
             ok = true;
         } else if (u.cur < u.n) {
-            low_fpf(stderr, "lowentc: --fmt: the printed form could not be raised near its line {}, `{}`\n", PROVEN_ARG((unsigned)((unsigned)u.T[u.cur].line)),
+            low_fpf(low_stderr(), "lowentc: --fmt: the printed form could not be raised near its line {}, `{}`\n", PROVEN_ARG((unsigned)((unsigned)u.T[u.cur].line)),
                     low_sv((const char *)u.T[u.cur].lex.ptr, (int)(u.T[u.cur].lex.size > 30 ? 30 : u.T[u.cur].lex.size)));
         }
     }
@@ -1428,19 +1428,19 @@ bool low_closer_raise_text(proven_allocator_t heap, const char *text, proven_siz
             while (end > off && (text[end - 1] == ' ' || text[end - 1] == '\n' || text[end - 1] == '\t' || text[end - 1] == '\r')) end--;
             if (t->kind == LOW_TOK_IDENT || t->kind == LOW_TOK_NUMBER) { proven_size_t e2 = off + (t->kw == LOW_KW_NONE && cl_eq(t, "using") ? 3 : t->lex.size);   /* 머리의 `use` — 안쪽 낱말은 `using` 이다(RFC-0147) */ if (e2 < end) end = e2; }
             if (t->kind == LOW_TOK_LPAREN || t->kind == LOW_TOK_RPAREN || t->kind == LOW_TOK_DOT) end = off + 1;
-            fwrite(text + at, 1, off - at, out);
-            for (unsigned q = 0; q < u.lp[i]; q++) fputc('(', out);
-            if (!u.del[i]) fwrite(text + off, 1, end - off, out);
-            for (unsigned q = 0; q < u.rp[i]; q++) fputc(')', out);
-            if (u.dot[i]) fputc('.', out);
+            low_write(out, text + at, off - at);
+            for (unsigned q = 0; q < u.lp[i]; q++) low_putc(out, '(');
+            if (!u.del[i]) low_write(out, text + off, end - off);
+            for (unsigned q = 0; q < u.rp[i]; q++) low_putc(out, ')');
+            if (u.dot[i]) low_putc(out, '.');
             if (t->kind == LOW_TOK_TEXTLIT && u.close[i]) {      // 닫는 꼬리표의 줄에는 아무것도 못 온다 — 다음 토큰 앞에 찍는다
-                fwrite(text + end, 1, nxt - end, out); end = nxt;
-                for (unsigned q = 0; q < u.close[i]; q++) fputs(". ", out);
+                low_write(out, text + end, nxt - end); end = nxt;
+                for (unsigned q = 0; q < u.close[i]; q++) low_puts(out, ". ");
             } else
-            for (unsigned q = 0; q < u.close[i]; q++) fputs(" .", out);
+            for (unsigned q = 0; q < u.close[i]; q++) low_puts(out, " .");
             at = end;
         }
-        fwrite(text + at, 1, n - at, out);
+        low_write(out, text + at, n - at);
     }
     low_scratch_close(&su_);
     proven_array_destroy(&lx.diags); proven_array_destroy(&lx.tokens);

@@ -117,8 +117,8 @@ is exactly proven's region allocator. We reuse proven for: arena/allocator (memo
 *"짓는 것은 한 줄도 안 바뀌었다"* 는 잘못된 안심이 세 곳에 퍼졌다(실제로는 `proven_sys_random.c` 가 바뀌었다).
 ☞ *같은 목록을 두 곳에 두면 한 곳만 낡고, 낡은 쪽이 인용된다*(교훈 7).
 
-오늘(2026-11-12) `PROVEN_SRC` 가 짓는 것: `arena · buffer · u8str · array · panic · heap ·
-float_parse · float_decimal · fmt · float_format · utf · u16str · alloc_check`(13) + `platform/proven_sys_{mem,time,random}.c`(3).
+오늘(2026-11-13) `PROVEN_SRC` 가 짓는 것: `arena · buffer · u8str · array · panic · heap ·
+float_parse · float_decimal · fmt · float_format · utf · u16str · alloc_check · stream · sysio · fs · scan · algorithm · random`(19) + `platform/proven_sys_{mem,time,random,fs,io,env}.c`(6).
 (`float_parse`·`float_decimal` 은 부동 리터럴과 부동 인자 읽기 · `utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `buffer` 는 `u8str`·`u16str` 이 부른다 ·
 `alloc_check` 은 `make alloccheck` 용이고 `panic` 은 그것이 부른다. 2026-11-02 에 아무도 부르지 않던 `memory · pool · scan ·
 float_parse · float_decimal` 다섯을 뺐다 — 그리고 같은 날 소유자 요청으로 `float_parse · float_decimal` 둘이 돌아왔다: 부동 리터럴과
@@ -129,6 +129,11 @@ float_parse · float_decimal` 다섯을 뺐다 — 그리고 같은 날 소유�
 가르지 않는다 · `%s` 의 NULL 은 빈 글(glibc `(null)`). 부동소수 `%g` 다섯 자리는 v0.114.0 이 printf 의 `%g` 를 `{:g}` 로 지은 뒤 옮겼다(그 전엔 `{:g}` 가 가장 짧은 왕복
 꼴이라 libc 에 남겼다 · 상류 요청 `proven_c_lib/docs/requirements/2026-11-12-lowent-printf-g-mode.md`). 이제 처리기 코드에 libc 의 printf 류는
 `low_fmt.c` 의 서식 실패 한 줄뿐이다(제 자신을 부르지 않게).
+2026-11-13(W-20261113-0024 단계 B, 소유자 «하지 않은 것 처리하고 단계B 이어서»): `stream · sysio · fs` + PAL `fs · io` — 처리기가 내보내는
+바이트의 통로(`src/low_out.h` 의 `low_out_t`)가 proven 의 쓰기 도구다: 표준 출력(버퍼 · 터미널이면 줄마다) · 표준 오류 · 쓰려고 연 파일 ·
+메모리(open_memstream 의 자리) · 버리기. VM 이 프로그램 대신 하는 표준 입력 · 파일 열기 · 읽기 · 쓰기 · 옮기기 · 닫기도 proven 의 것이다.
+`scan · algorithm · random` + PAL `env` 는 `sysio` · `fs` 가 부른다(링크가 찾는 심볼). ★ proven 은 입력의 끝을 `PROVEN_ERR_EOF` 라는 **값**으로
+알린다 — «0 바이트» 로 읽어야 하는 자리(터미널 한 번 읽기)에서 그것을 실패로 읽어 VM 이 네이티브와 갈렸다(diff-sweep 이 잡았다).
 Warning-clean under `-std=c23 -Wall -Wextra`(벤더 경고 0 — 남아 있던 둘은 우리 쪽 `PROVEN_ARRAY_GET`
 오용이었고 `GET_MUT` 으로 고쳤다).
 

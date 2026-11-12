@@ -35,7 +35,7 @@ static proven_u32 form_first_line(const low_cst_t *f) {
 }
 
 static bool dv(proven_u8str_view_t v, const char *s) { return proven_u8str_view_eq(v, proven_u8str_view_from_cstr(s)); }
-static void ev(FILE *o, proven_u8str_view_t v) { if (v.size) fwrite(v.ptr, 1, v.size, o); }
+static void ev(low_out_t *o, proven_u8str_view_t v) { if (v.size) low_write(o, v.ptr, v.size); }
 
 // the flat MVP clause vocabulary (+ the lowdoc prose clause) = clause boundaries
 static bool is_clause(proven_u8str_view_t v) {
@@ -48,16 +48,16 @@ static bool clause_here(const low_cst_t *f, proven_size_t j, const char *kw) {
     return f->kids[j]->kind == LOW_CST_ATOM && dv(f->kids[j]->tok.lex, kw);
 }
 // render a value node inline (atom text, or a parenthesised group/form for `(len data)`)
-static void emit_node(FILE *o, const low_cst_t *nd);
-static void emit_seq(FILE *o, const low_cst_t *nd) {  // operands of a form (kids[0] IS the head), or a bare atom
+static void emit_node(low_out_t *o, const low_cst_t *nd);
+static void emit_seq(low_out_t *o, const low_cst_t *nd) {  // operands of a form (kids[0] IS the head), or a bare atom
     if (nd->kind == LOW_CST_ATOM) { ev(o, nd->tok.lex); return; }
-    if (nd->kind == LOW_CST_FORM) { for (proven_size_t k = 0; k < nd->nkids; k++) { if (k) fputc(' ', o); emit_node(o, nd->kids[k]); } return; }
+    if (nd->kind == LOW_CST_FORM) { for (proven_size_t k = 0; k < nd->nkids; k++) { if (k) low_putc(o, ' '); emit_node(o, nd->kids[k]); } return; }
     emit_node(o, nd);
 }
-static void emit_node(FILE *o, const low_cst_t *nd) {
+static void emit_node(low_out_t *o, const low_cst_t *nd) {
     if (nd->kind == LOW_CST_ATOM) { ev(o, nd->tok.lex); return; }
-    if (nd->kind == LOW_CST_GROUP) { fputc('(', o); if (nd->nkids) emit_seq(o, nd->kids[0]); fputc(')', o); return; }
-    if (nd->kind == LOW_CST_FORM)  { fputc('(', o); emit_seq(o, nd); fputc(')', o); }
+    if (nd->kind == LOW_CST_GROUP) { low_putc(o, '('); if (nd->nkids) emit_seq(o, nd->kids[0]); low_putc(o, ')'); return; }
+    if (nd->kind == LOW_CST_FORM)  { low_putc(o, '('); emit_seq(o, nd); low_putc(o, ')'); }
 }
 static proven_size_t run_end(const low_cst_t *f, proven_size_t s) {  // next clause-kw atom / block
     proven_size_t j = s;
@@ -65,8 +65,8 @@ static proven_size_t run_end(const low_cst_t *f, proven_size_t s) {  // next cla
            !(f->kids[j]->kind == LOW_CST_ATOM && is_clause(f->kids[j]->tok.lex))) j++;
     return j;
 }
-static void emit_run(FILE *o, const low_cst_t *f, proven_size_t s, proven_size_t e) {
-    for (proven_size_t k = s; k < e; k++) { if (k > s) fputc(' ', o); emit_node(o, f->kids[k]); }
+static void emit_run(low_out_t *o, const low_cst_t *f, proven_size_t s, proven_size_t e) {
+    for (proven_size_t k = s; k < e; k++) { if (k > s) low_putc(o, ' '); emit_node(o, f->kids[k]); }
 }
 
 // ── prose sources ─────────────────────────────────────────────────────────────
@@ -149,33 +149,33 @@ static bool walk_mentions(const low_cst_t *nd, const char *name) {
 //   (실제로 갈렸다: 이 파일은 `print` 둘만 알았다.)
 
 // ── per-op render ─────────────────────────────────────────────────────────────
-static void render_prose(FILE *o, const low_cst_t *f, proven_u8str_view_t src, proven_u8str_view_t *out_summary) {
+static void render_prose(low_out_t *o, const low_cst_t *f, proven_u8str_view_t src, proven_u8str_view_t *out_summary) {
     proven_u8str_view_t cl = lowdoc_clause(f);          // (3) clause takes priority (D12: 절 > 인접)
     if (cl.size) {
         proven_size_t nl = 0; while (nl < cl.size && cl.ptr[nl] != '\n') nl++;
-        fputc('\n', o); fwrite(cl.ptr, 1, nl, o); fputc('\n', o);
+        low_putc(o, '\n'); low_write(o, cl.ptr, nl); low_putc(o, '\n');
         if (out_summary) *out_summary = (proven_u8str_view_t){ cl.ptr, nl };
-        if (nl < cl.size) { fputc('\n', o); fwrite(cl.ptr + nl + 1, 1, cl.size - nl - 1, o); fputc('\n', o); }
+        if (nl < cl.size) { low_putc(o, '\n'); low_write(o, cl.ptr + nl + 1, cl.size - nl - 1); low_putc(o, '\n'); }
         return;
     }
     // (3) rescan adjacent `rem` lines directly above the op head (source order)
     proven_u8str_view_t lines[64]; proven_size_t n = collect_rem(f, src, lines, 64);
     if (n == 0) return;
-    fputc('\n', o); ev(o, lines[0]); fputc('\n', o);           // first line = summary
+    low_putc(o, '\n'); ev(o, lines[0]); low_putc(o, '\n');           // first line = summary
     if (out_summary) *out_summary = lines[0];
-    if (n > 1) { fputc('\n', o); for (proven_size_t k = 1; k < n; k++) { ev(o, lines[k]); fputc('\n', o); } }
+    if (n > 1) { low_putc(o, '\n'); for (proven_size_t k = 1; k < n; k++) { ev(o, lines[k]); low_putc(o, '\n'); } }
 }
 // description body only (matches body_present's hashed bytes); for details externalization
-static void emit_body(FILE *o, const low_cst_t *f, proven_u8str_view_t src) {
+static void emit_body(low_out_t *o, const low_cst_t *f, proven_u8str_view_t src) {
     proven_u8str_view_t cl = lowdoc_clause(f);
     if (cl.size) {
         proven_size_t nl = 0;
         while (nl < cl.size && cl.ptr[nl] != '\n') nl++;
-        if (nl + 1 < cl.size) fwrite(cl.ptr + nl + 1, 1, cl.size - nl - 1, o);
+        if (nl + 1 < cl.size) low_write(o, cl.ptr + nl + 1, cl.size - nl - 1);
         return;
     }
     proven_u8str_view_t lines[64]; proven_size_t n = collect_rem(f, src, lines, 64);
-    for (proven_size_t k = 1; k < n; k++) { fwrite(lines[k].ptr, 1, lines[k].size, o); fputc('\n', o); }
+    for (proven_size_t k = 1; k < n; k++) { low_write(o, lines[k].ptr, lines[k].size); low_putc(o, '\n'); }
 }
 static bool body_present(const low_cst_t *f, proven_u8str_view_t src, unsigned *hash) {
     unsigned h = 2166136261u; bool any = false;
@@ -187,16 +187,16 @@ static bool body_present(const low_cst_t *f, proven_u8str_view_t src, unsigned *
     *hash = h; return any;
 }
 
-static void render_contract_kind(FILE *o, const low_cst_t *f, const char *kw, const char *label, bool *hdr) {
+static void render_contract_kind(low_out_t *o, const low_cst_t *f, const char *kw, const char *label, bool *hdr) {
     for (proven_size_t j = 2; j < f->nkids; j++) {
         if (!clause_here(f, j, kw)) continue;
-        if (!*hdr) { fputs("\n### Contract\n\n", o); *hdr = true; }
+        if (!*hdr) { low_puts(o, "\n### Contract\n\n"); *hdr = true; }
         proven_size_t e = run_end(f, j + 1), vs = j + 1;
         low_fpf(o, "- **{}** ", proven_arg_cstr(label));
         if (vs < e && f->kids[vs]->kind == LOW_CST_ATOM && is_grade(f->kids[vs]->tok.lex)) {  // (1) grade badge
-            fputs("[", o); ev(o, f->kids[vs]->tok.lex); fputs("] ", o); vs++;
+            low_puts(o, "["); ev(o, f->kids[vs]->tok.lex); low_puts(o, "] "); vs++;
         }
-        fputc('`', o); emit_run(o, f, vs, e); fputs("`\n", o);
+        low_putc(o, '`'); emit_run(o, f, vs, e); low_puts(o, "`\n");
         if (strcmp(kw, "errors") == 0) return;  // errors: single line
     }
 }
@@ -212,12 +212,12 @@ static bool doc_unit_has_module(const char *name) {
     }
     return false;
 }
-static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
+static void render_op(low_out_t *o, const low_cst_t *f, proven_u8str_view_t src,
                       const sd_t *ds, proven_size_t nds, proven_u32 lo, proven_u32 hi) {
     proven_u8str_view_t name = f->kids[1]->tok.lex;
     bool calc = f->kids[0]->tok.kw == LOW_KW_FN;
 
-    fputs("## ", o); ev(o, name); fputc('\n', o);
+    low_puts(o, "## "); ev(o, name); low_putc(o, '\n');
     low_fpf(o, "\n`{} op`{}\n", proven_arg_cstr(calc ? "calc" : "proc"), proven_arg_cstr(calc ? " · pure" : ""));   // (1) calc = pure
 
     render_prose(o, f, src, NULL);
@@ -225,15 +225,15 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
     bool sig = false;                                                             // Signature
     for (proven_size_t j = 2; j < f->nkids; j++) {
         if (!clause_here(f, j, "input")) continue;
-        if (!sig) { fputs("\n### Signature\n\n", o); sig = true; }
+        if (!sig) { low_puts(o, "\n### Signature\n\n"); sig = true; }
         proven_size_t e = run_end(f, j + 1);
-        fputs("- `", o); if (j + 1 < e) ev(o, f->kids[j + 1]->tok.lex);
-        fputs("` : `", o); emit_run(o, f, j + 2, e); fputs("`\n", o);
+        low_puts(o, "- `"); if (j + 1 < e) ev(o, f->kids[j + 1]->tok.lex);
+        low_puts(o, "` : `"); emit_run(o, f, j + 2, e); low_puts(o, "`\n");
     }
     for (proven_size_t j = 2; j < f->nkids; j++) {
         if (!clause_here(f, j, "output")) continue;
-        if (!sig) { fputs("\n### Signature\n\n", o); sig = true; }
-        fputs("- **returns** `", o); emit_run(o, f, j + 1, run_end(f, j + 1)); fputs("`\n", o);
+        if (!sig) { low_puts(o, "\n### Signature\n\n"); sig = true; }
+        low_puts(o, "- **returns** `"); emit_run(o, f, j + 1, run_end(f, j + 1)); low_puts(o, "`\n");
         break;
     }
 
@@ -266,7 +266,7 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
         bool hdr = false;
         for (proven_size_t e = 0; e < sizeof ERRB / sizeof ERRB[0]; e++)
             if (b0 && (ERRB[e].op[0] == '@' || doc_unit_has_module("math")) && walk_mentions(b0, ERRB[e].op)) {
-                if (!hdr) { fputs("\n### Numeric error\n\n", o); hdr = true; }
+                if (!hdr) { low_puts(o, "\n### Numeric error\n\n"); hdr = true; }
                 low_fpf(o, "- `{}`: {}\n", proven_arg_cstr(ERRB[e].op + (ERRB[e].op[0] == '@')), proven_arg_cstr(ERRB[e].bound));
             }
     }
@@ -278,41 +278,41 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
         //   ⇒ 이제 `low_op_summary()` 를 부른다. **검사기와 같은 함수, 같은 답.**
         low_op_summary_t sum = low_op_summary(g_pr, f);
         static const unsigned BITS[] = { 1u, 2u, 4u, 8u, 16u };   // io alloc state panic unsafe
-        fputs("\n### Effects\n\n- declared: `", o);
+        low_puts(o, "\n### Effects\n\n- declared: `");
         {
             bool any = false;
             for (proven_size_t k = 0; k < sizeof BITS / sizeof BITS[0]; k++)
                 if (sum.declared & BITS[k]) {
-                    if (any) fputc(' ', o);
-                    fputs(low_effect_bit_name(BITS[k]), o); any = true;
+                    if (any) low_putc(o, ' ');
+                    low_puts(o, low_effect_bit_name(BITS[k])); any = true;
                 }
-            if (!any) fputs("none", o);
+            if (!any) low_puts(o, "none");
         }
-        fputs("`\n- inferred: `", o);
+        low_puts(o, "`\n- inferred: `");
         {
             bool any = false;
             for (proven_size_t k = 0; k < sizeof BITS / sizeof BITS[0]; k++)
                 if (sum.actual & BITS[k]) {
-                    if (any) fputc(' ', o);
-                    fputs(low_effect_bit_name(BITS[k]), o); any = true;
+                    if (any) low_putc(o, ' ');
+                    low_puts(o, low_effect_bit_name(BITS[k])); any = true;
                 }
-            if (!any) fputs("none", o);
+            if (!any) low_puts(o, "none");
         }
-        fputs("`\n", o);
+        low_puts(o, "`\n");
         for (proven_size_t k = 0; k < sizeof BITS / sizeof BITS[0]; k++)
             if ((sum.actual & BITS[k]) && !(sum.declared & BITS[k])) {
-                fputs("- ⚠ inferred effect `", o);
-                fputs(low_effect_bit_name(BITS[k]), o);
-                fputs("` is not in the declared set\n", o);
+                low_puts(o, "- ⚠ inferred effect `");
+                low_puts(o, low_effect_bit_name(BITS[k]));
+                low_puts(o, "` is not in the declared set\n");
             }
         // ★ 관측적 순수성도 **같은 요약**에서 나온다 — 문서가 그것을 숨기지 않는다.
         if (sum.is_calc && sum.writes_caller)
-            fputs("- ⚠ this `fn` WRITES through a `mut` parameter — that write is visible to "
-                  "the caller, so it is **not pure** (RFC-0057)\n", o);
+            low_puts(o, "- ⚠ this `fn` WRITES through a `mut` parameter — that write is visible to "
+                  "the caller, so it is **not pure** (RFC-0057)\n");
     }
     for (proven_size_t j = 2; j < f->nkids; j++) {                               // Examples
         if (!clause_here(f, j, "tests")) continue;
-        fputs("\n### Examples\n\n- tests: `", o); emit_run(o, f, j + 1, run_end(f, j + 1)); fputs("`\n", o);
+        low_puts(o, "\n### Examples\n\n- tests: `"); emit_run(o, f, j + 1, run_end(f, j + 1)); low_puts(o, "`\n");
         break;
     }
 
@@ -320,11 +320,11 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
     bool bad = false;
     for (proven_size_t k = 0; k < nds; k++) {
         if (ds[k].line < lo || ds[k].line >= hi) continue;
-        if (!bad) { fputs("\n### Checks\n\n", o); bad = true; }
+        if (!bad) { low_puts(o, "\n### Checks\n\n"); bad = true; }
         low_fpf(o, "- ⚠ `{}` — {} (line {})\n", proven_arg_cstr(ds[k].code), proven_arg_cstr(ds[k].msg), PROVEN_ARG((unsigned)(ds[k].line)));
     }
-    if (!bad) fputs("\n### Checks\n\n- ✓ effect · type · contract · region checks pass\n", o);
-    fputc('\n', o);
+    if (!bad) low_puts(o, "\n### Checks\n\n- ✓ effect · type · contract · region checks pass\n");
+    low_putc(o, '\n');
 }
 
 // ── module + index ────────────────────────────────────────────────────────────
@@ -363,7 +363,7 @@ void low_doc_release(void) {
     for (int q = 0; q < 4; q++) proven_array_destroy(&g_pre_hold.a[q]);
     g_pre_ok = false; g_pre_nds = 0;
 }
-static int render_module(FILE *o, const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work) {
+static int render_module(low_out_t *o, const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work) {
     build_opeff(pr);  // op → declared effects, for inference
     // run the S4 passes once; attribute each diagnostic to its op by line range
     sd_t ds[256]; proven_size_t nds = 0;
@@ -371,7 +371,7 @@ static int render_module(FILE *o, const low_parse_result_t *pr, proven_u8str_vie
     if (g_pre_ok) { memcpy(ds, g_pre_ds, sizeof ds); nds = g_pre_nds; }
     else doc_diags(pr, work, ds, &nds, &hold);
 
-    fputs("# ", o); ev(o, module_name(pr)); fputs("\n\n", o);
+    low_puts(o, "# "); ev(o, module_name(pr)); low_puts(o, "\n\n");
     int n = 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         if (!is_op(pr->forms[i])) continue;
@@ -384,48 +384,48 @@ static int render_module(FILE *o, const low_parse_result_t *pr, proven_u8str_vie
     return n;
 }
 // llms.txt — curated root index (RFC-0014 §6.6): links + one-line summaries
-static void render_llms(FILE *o, const low_parse_result_t *pr, proven_u8str_view_t src) {
+static void render_llms(low_out_t *o, const low_parse_result_t *pr, proven_u8str_view_t src) {
     proven_u8str_view_t mod = module_name(pr);
-    fputs("# ", o); ev(o, mod); fputs("\n\n> Lowent module API index (generated by lowdoc).\n\n## Ops\n\n", o);
+    low_puts(o, "# "); ev(o, mod); low_puts(o, "\n\n> Lowent module API index (generated by lowdoc).\n\n## Ops\n\n");
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (!is_op(f)) continue;
         proven_u8str_view_t name = f->kids[1]->tok.lex, sum = { 0 };
         // reuse the summary extraction (render to a throwaway sink)
-        FILE *dev = fopen("/dev/null", "w");
-        if (dev) { render_prose(dev, f, src, &sum); fclose(dev); }
-        fputs("- [", o); ev(o, name); fputs("](", o); ev(o, mod); fputs(".md#", o); ev(o, name); fputs(")", o);
-        if (sum.size) { fputs(" — ", o); ev(o, sum); }
-        fputc('\n', o);
+        low_out_t *dev = low_out_null();   // 버리는 통로(전엔 /dev/null 을 열었다)
+        if (dev) { render_prose(dev, f, src, &sum); (void)low_out_close(dev); }
+        low_puts(o, "- ["); ev(o, name); low_puts(o, "]("); ev(o, mod); low_puts(o, ".md#"); ev(o, name); low_puts(o, ")");
+        if (sum.size) { low_puts(o, " — "); ev(o, sum); }
+        low_putc(o, '\n');
     }
 }
 
 // ── .lowctx card (terse; RFC-0014 §6.2.2) — details body is externalised by hash ──
-static void card_clause_line(FILE *o, const low_cst_t *f, const char *kw) {
+static void card_clause_line(low_out_t *o, const low_cst_t *f, const char *kw) {
     for (proven_size_t j = 2; j < f->nkids; j++)
-        if (clause_here(f, j, kw)) { low_fpf(o, "{} ", proven_arg_cstr(kw)); emit_run(o, f, j + 1, run_end(f, j + 1)); fputc('\n', o); }
+        if (clause_here(f, j, kw)) { low_fpf(o, "{} ", proven_arg_cstr(kw)); emit_run(o, f, j + 1, run_end(f, j + 1)); low_putc(o, '\n'); }
 }
-static void render_card(FILE *o, const low_parse_result_t *pr, proven_u8str_view_t src) {
+static void render_card(low_out_t *o, const low_parse_result_t *pr, proven_u8str_view_t src) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (!is_op(f)) continue;
-        fputs("op ", o); ev(o, f->kids[1]->tok.lex); fputc('\n', o);
+        low_puts(o, "op "); ev(o, f->kids[1]->tok.lex); low_putc(o, '\n');
         low_fpf(o, "kind {}\n", proven_arg_cstr(f->kids[0]->tok.kw == LOW_KW_FN ? "calc" : "proc"));
-        proven_u8str_view_t sum = { 0 }; FILE *dev = fopen("/dev/null", "w");
-        if (dev) { render_prose(dev, f, src, &sum); fclose(dev); }
-        if (sum.size) { fputs("summary ", o); ev(o, sum); fputc('\n', o); }
+        proven_u8str_view_t sum = { 0 }; low_out_t *dev = low_out_null();
+        if (dev) { render_prose(dev, f, src, &sum); (void)low_out_close(dev); }
+        if (sum.size) { low_puts(o, "summary "); ev(o, sum); low_putc(o, '\n'); }
         unsigned bh; if (body_present(f, src, &bh)) low_fpf(o, "details h:{:08x}\n", PROVEN_ARG((unsigned)(bh)));  // externalised
         card_clause_line(o, f, "input");   card_clause_line(o, f, "output");
         card_clause_line(o, f, "effects"); card_clause_line(o, f, "requires");
         card_clause_line(o, f, "ensures"); card_clause_line(o, f, "errors");
         card_clause_line(o, f, "tests");
-        fputc('\n', o);
+        low_putc(o, '\n');
     }
 }
 
 int low_doc(const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work) {
     g_pr = pr;
-    return render_module(stdout, pr, src, work);
+    return render_module(low_stdout(), pr, src, work);
 }
 int low_doc_write(const low_parse_result_t *pr, proven_u8str_view_t src, proven_allocator_t work, const char *dir) {
     g_pr = pr;
@@ -433,25 +433,27 @@ int low_doc_write(const low_parse_result_t *pr, proven_u8str_view_t src, proven_
     proven_u8str_view_t mod = module_name(pr);
     char path[1024];
     low_bfmt(path, sizeof path, "{}/{}.md", proven_arg_cstr(dir), low_sv((const char *)mod.ptr, (int)mod.size));
-    FILE *md = fopen(path, "w"); if (!md) return -1;
-    int n = render_module(md, pr, src, work); fclose(md);
+    // ★ 쓴 파일을 닫을 때 쓰기가 닿았는지 본다(W-20261113-0024) — 하나라도 안 닿았으면 -1(전엔 fclose 의 답을 버렸다)
+    bool lost = false;
+    low_out_t *md = low_out_open(path, "w"); if (!md) return -1;
+    int n = render_module(md, pr, src, work); if (low_out_close(md) != 0) lost = true;
 
     // (1) terse card + externalised details bodies (content-hash keyed)
     low_bfmt(path, sizeof path, "{}/{}.lowctx", proven_arg_cstr(dir), low_sv((const char *)mod.ptr, (int)mod.size));
-    FILE *card = fopen(path, "w"); if (card) { render_card(card, pr, src); fclose(card); }
+    low_out_t *card = low_out_open(path, "w"); if (card) { render_card(card, pr, src); if (low_out_close(card) != 0) lost = true; }
     low_bfmt(path, sizeof path, "{}/details", proven_arg_cstr(dir)); (void)mkdir(path, 0755);
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; unsigned bh;
         if (!is_op(f) || !body_present(f, src, &bh)) continue;
         low_bfmt(path, sizeof path, "{}/details/h-{:08x}.md", proven_arg_cstr(dir), PROVEN_ARG((unsigned)(bh)));
-        FILE *b = fopen(path, "w"); if (b) { emit_body(b, f, src); fclose(b); }
+        low_out_t *b = low_out_open(path, "w"); if (b) { emit_body(b, f, src); if (low_out_close(b) != 0) lost = true; }
     }
 
     low_bfmt(path, sizeof path, "{}/llms.txt", proven_arg_cstr(dir));            // (curated index)
-    FILE *idx = fopen(path, "w"); if (!idx) return -1;
-    render_llms(idx, pr, src); fclose(idx);
+    low_out_t *idx = low_out_open(path, "w"); if (!idx) return -1;
+    render_llms(idx, pr, src); if (low_out_close(idx) != 0) lost = true;
 
     low_bfmt(path, sizeof path, "{}/llms-full.txt", proven_arg_cstr(dir));       // (3) full-body bundle
-    FILE *full = fopen(path, "w"); if (full) { render_module(full, pr, src, work); fclose(full); }
-    return n;
+    low_out_t *full = low_out_open(path, "w"); if (full) { render_module(full, pr, src, work); if (low_out_close(full) != 0) lost = true; }
+    return lost ? -1 : n;
 }

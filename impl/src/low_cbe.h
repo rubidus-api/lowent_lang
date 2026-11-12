@@ -11,6 +11,7 @@
 #define LOW_CBE_H
 
 #include <stdio.h>
+#include "low_out.h"
 #include "low_ir.h"
 
 // ★★★ **방출 자격을 한 번 계산한다** (RFC-0089 R1 · 단계 C) — 헤더·래퍼·전방선언이 **읽기만** 한다.
@@ -19,9 +20,9 @@ void low_cbe_plan(const low_ir_t *ir);
 const low_ir_plan_t *low_cbe_plan_of(proven_size_t di);
 
 // Returns the number of functions emitted (< 0 on invalid input).
-int low_cbe_emit(const low_ir_t *ir, FILE *out);
+int low_cbe_emit(const low_ir_t *ir, low_out_t *out);
 // ★ `--emit-h` — C 가 우리를 부르기 위한 **헤더**. 도구가 낸다(손으로 적으면 갈린다).
-int low_cbe_emit_header(const low_ir_t *ir, FILE *out);
+int low_cbe_emit_header(const low_ir_t *ir, low_out_t *out);
 // ★ `--no-fast` — 스칼라 타입 하강을 끄는 **대조 스위치**(`--flat` 과 같은 규율).
 void low_cbe_set_no_fast(bool v);
 // ★ `--no-elemsl` — RFC-0109 단계 1(빠른 경로의 슬라이스 원소 단위)을 끄는 대조 스위치 (WO-0178).

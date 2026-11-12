@@ -450,7 +450,7 @@ static void ir_tres_fill(void) {
     if (ir_tres_ok) return;
     for (proven_size_t i = 0; i < IR_NTREE; i++) {
         char err[160];
-        if (!ir_tnode_resolve(i, &ir_tres[i], err, sizeof err)) { low_fpf(stderr, "lowentc: internal: target table: {}\n", proven_arg_cstr(err)); abort(); }
+        if (!ir_tnode_resolve(i, &ir_tres[i], err, sizeof err)) { low_fpf(low_stderr(), "lowentc: internal: target table: {}\n", proven_arg_cstr(err)); abort(); }
     }
     ir_tres_ok = true;
     if (!ir_tgt) ir_tgt = &ir_tres[ir_tnode_find("x86_64")];
@@ -479,16 +479,16 @@ static bool ir_tgt_under(const char *node) {
     return false;
 }
 // `--targets` — 나무와 펼친 값을 표로 낸다(탭으로 가른 줄). 마지막 칸이 그 마디가 적은 축 값이다.
-void low_ir_print_targets(FILE *f) {
+void low_ir_print_targets(low_out_t *f) {
     ir_tres_fill();
-    fputs("tree\tname\tparent\tpick\taddr_bits\tptr_bytes\tptr_align\tptr_caps\tbig_endian\thas_fpu\tno_heap\tno_float\tsimd_bytes\t"
-          "posix\tmax_slice_len\tcache_line\tpage_size\tcheck_only\tint128\tmul_bits\tlimb_bits\taxes\tatom_ldst\tatom_rmw\n", f);
+    low_puts(f, "tree\tname\tparent\tpick\taddr_bits\tptr_bytes\tptr_align\tptr_caps\tbig_endian\thas_fpu\tno_heap\tno_float\tsimd_bytes\t"
+          "posix\tmax_slice_len\tcache_line\tpage_size\tcheck_only\tint128\tmul_bits\tlimb_bits\taxes\tatom_ldst\tatom_rmw\n");
     for (proven_size_t i = 0; i < IR_NTREE; i++) {
         int depth = 0;
         for (proven_size_t j = i; IR_TREE[j].parent; j = ir_tnode_find(IR_TREE[j].parent)) depth++;
         const low_target_t *t = &ir_tres[i];
         const unsigned limb = t->limb_bits ? t->limb_bits : t->mul_bits < 16 ? 16u : t->mul_bits;
-        for (int d_ = 0; d_ < depth * 2; d_++) fputc(' ', f);   // 들여쓰기(전엔 `%*s`)
+        for (int d_ = 0; d_ < depth * 2; d_++) low_putc(f, ' ');   // 들여쓰기(전엔 `%*s`)
         low_fpf(f, "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
                 proven_arg_cstr(IR_TREE[i].pick ? IR_TREE[i].name : "·"), proven_arg_cstr(IR_TREE[i].name), proven_arg_cstr(IR_TREE[i].parent ? IR_TREE[i].parent : "-"),
                 PROVEN_ARG((int)(IR_TREE[i].pick)), PROVEN_ARG((unsigned)(t->addr_bits)), PROVEN_ARG((unsigned)(t->ptr_bytes)), PROVEN_ARG((unsigned)(t->ptr_align)), PROVEN_ARG((int)(t->ptr_caps)), PROVEN_ARG((int)(t->big_endian)), PROVEN_ARG((int)(t->has_fpu)), PROVEN_ARG((int)(t->no_heap)),
@@ -506,23 +506,23 @@ void low_ir_set_smt(bool on) { g_smt_on = on; }
 //   ★ 그리고 이 출구는 **부정된 목표까지 그대로** 낸다: 외부 솔버가 `unsat` 이라고 답해야
 //     우리가 지운 것이 옳다. 목표를 빼고 내면 그 대조는 아무것도 대조하지 않는다.
 static bool g_smt_emit = false;
-static FILE *g_smt_out = NULL;
-void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = stdout; }
+static low_out_t *g_smt_out = NULL;
+void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = low_stdout(); }
 
  void smt_emit_query(const low_ir_def_t *d, proven_size_t pc, const low_smt_sys_t *s) {
     if (!g_smt_emit || !g_smt_out) return;
-    fputs("; ── query: ", g_smt_out);
-    fwrite(d->name.ptr, 1, d->name.size, g_smt_out);
+    low_puts(g_smt_out, "; ── query: ");
+    low_write(g_smt_out, d->name.ptr, d->name.size);
     low_fpf(g_smt_out, " @{} — expect unsat ─────────────\n", PROVEN_ARG((size_t)((size_t)pc)));
     for (proven_size_t i = 0; i < s->nv; i++)
         low_fpf(g_smt_out, "(declare-const x{} Int)\n", PROVEN_ARG((size_t)((size_t)i)));
     for (proven_size_t j = 0; j < s->nc; j++) {
-        fputs("(assert (<= (+", g_smt_out);
+        low_puts(g_smt_out, "(assert (<= (+");
         for (proven_size_t i = 0; i < s->nv; i++)
             low_fpf(g_smt_out, " (* {} x{})", PROVEN_ARG((long long)((long long)s->row[j].a[i])), PROVEN_ARG((size_t)((size_t)i)));
         low_fpf(g_smt_out, " {}) 0))\n", PROVEN_ARG((long long)((long long)s->row[j].c)));
     }
-    fputs("(check-sat)\n", g_smt_out);
+    low_puts(g_smt_out, "(check-sat)\n");
 }
 
 // ★ 정본 §5.6 (3) — 표에 없는 이름은 **거부**한다(false). 전에는 조용히 무시해 기본 기계(x86_64)로 지었다 —
@@ -887,7 +887,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
         if (ir_list_untyped && !c->tstk_bad &&
             (w == IRW_ADD || w == IRW_SUB || w == IRW_MUL || w == IRW_DIV || w == IRW_MOD || w == IRW_NEG ||
              w == IRW_SHL || w == IRW_SHR || w == IRW_BAND || w == IRW_BOR || w == IRW_BXOR || w == IRW_BNOT)) {
-            if (res.known) low_fpf(stderr, "TYPED\t{}\n", proven_arg_cstr(low_irw_name(w)));
+            if (res.known) low_fpf(low_stderr(), "TYPED\t{}\n", proven_arg_cstr(low_irw_name(w)));
             else {
                 low_irw_t src = IRW_CONST;
                 for (int i = 0; i < ar && i < 3; i++)
@@ -902,7 +902,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 }
                 if (src != IRW_CONST) {
                     proven_u8str_view_t dn = c->def_form ? low_op_header(c->def_form).name : (proven_u8str_view_t){ 0 };
-                    low_fpf(stderr, "UNTYPED\t{}\t{}\t{}\t{}\n", proven_arg_cstr(low_irw_name(w)), proven_arg_cstr(low_irw_name(src)),
+                    low_fpf(low_stderr(), "UNTYPED\t{}\t{}\t{}\t{}\n", proven_arg_cstr(low_irw_name(w)), proven_arg_cstr(low_irw_name(src)),
                             low_sv((const char *)dn.ptr, (int)dn.size),
                             PROVEN_ARG((unsigned)((c->cur_form && c->cur_form->nkids) ? (unsigned)c->cur_form->kids[0]->tok.line : 0u)));
                 }
@@ -2355,7 +2355,7 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
         char nb2[160]; proven_size_t n2 = low_bcopy(nb2, sizeof nb2, v.ptr, v.size);
         char sp2[160]; proven_size_t s2 = low_bcopy(sp2, sizeof sp2, nb2, n2);
         for (proven_size_t z = 0; z < s2; z++) if (sp2[z] == '.') sp2[z] = ' ';
-        low_fpf(stderr, "GLUED\t{}\t{}\t(field {})\n", PROVEN_ARG((unsigned)((unsigned)line)), proven_arg_cstr(nb2), proven_arg_cstr(sp2));
+        low_fpf(low_stderr(), "GLUED\t{}\t{}\t(field {})\n", PROVEN_ARG((unsigned)((unsigned)line)), proven_arg_cstr(nb2), proven_arg_cstr(sp2));
     } else if (!c->allow_glued_field) {
         {   // ★ 진단이 **그 이름을 그대로 보여 준다** — 한 줄에 붙은 점이 여럿일 때
             //   *"어느 것인가"* 를 사람이 다시 찾지 않아도 되도록.
@@ -6506,7 +6506,7 @@ static void ir_types_line(ir_ctx_t *c, const low_cst_t *nd) {
     proven_u32 ln = h->tok.line ? h->tok.line : nd->line;
     const char *fl = c->def_form ? low_cst_file_for_line(c->def_form, ln) : NULL;
     if (fl) { const char *b = strrchr(fl, '/'); fl = b ? b + 1 : fl; }
-    low_fpf(stderr, "TYPES\t{}:{}\t{}\t{}\t{}\t{}\n", proven_arg_cstr(fl ? fl : ""), low_sv((const char *)dn.ptr, (int)dn.size), PROVEN_ARG((unsigned)((unsigned)ln)),
+    low_fpf(low_stderr(), "TYPES\t{}:{}\t{}\t{}\t{}\t{}\n", proven_arg_cstr(fl ? fl : ""), low_sv((const char *)dn.ptr, (int)dn.size), PROVEN_ARG((unsigned)((unsigned)ln)),
             low_sv(hk ? hk : (h->kind == LOW_CST_ATOM ? (const char *)h->tok.lex.ptr : "("), hk ? (int)strlen(hk) : (int)(h->kind == LOW_CST_ATOM ? h->tok.lex.size : 1)), proven_arg_cstr(tb), proven_arg_cstr(ib));
 }
  void ir_node(ir_ctx_t *c, const low_cst_t *nd) {

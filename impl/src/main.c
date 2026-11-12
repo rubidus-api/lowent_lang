@@ -52,6 +52,12 @@
 #include <signal.h>
 #include <time.h>
 
+
+// ★ W-20261113-0024 — 다른 프로그램을 띄우기 전에 표준 출력 · 오류를 비운다(그 프로그램의 글보다 먼저 쓴 글이 먼저 나가게). 전에는
+//   stdio 가 비우지 않아 관(pipe)으로 보낼 때 처리기의 글이 자식의 글 뒤에 나올 수 있었다.
+static int low_system(const char *cmd) { low_flush_std(); return system(cmd); }
+static FILE *low_popen(const char *cmd, const char *mode) { low_flush_std(); return popen(cmd, mode); }
+
 static bool g_stack_report_on;   /* RFC-0150 §8-11 — `--stack-report` 의 풀 상한 머리줄 */
 static bool g_text_stdin;   // `--text-stdin` — 첫 파일의 글을 표준 입력에서 받는다(경로는 자리만 말한다)
 static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *out_len) {
@@ -80,8 +86,8 @@ static void dump_tokens(const low_lex_result_t *lex) {
         //   렉심 없는 줄이 됐고, check-regexlex 의 줄 파서가 그 줄을 **조용히 버렸다** — 두 렉서가
         //   같은데 대조기가 발산을 보고했다. 빈 문자열을 쓴 첫 픽스처(vm_str)가 드러낸 잠복 결함.
         //   토큰이 있으면 렉심 자리도 있어야 한다 — 없음과 빈 것은 다르다.
-        fputs("  '", stdout); fwrite(t->lex.ptr, 1, t->lex.size, stdout); putchar('\'');
-        putchar('\n');
+        low_puts(low_stdout(), "  '"); low_write(low_stdout(), t->lex.ptr, t->lex.size); low_putc(low_stdout(), '\'');
+        low_putc(low_stdout(), '\n');
     }
 }
 // ★★ 진단은 **stderr** 로 간다. stdout 이 아니다.
@@ -120,21 +126,21 @@ static void dump_tokens(const low_lex_result_t *lex) {
 //   이유가 적혀 있다). 지어낸 수리는 없는 수리보다 나쁘다 — 읽는 쪽이 그대로 실행한다.
 static bool g_diag_json = false;
 
-static void json_str(FILE *f, const char *s) {
-    fputc('"', f);
+static void json_str(low_out_t *f, const char *s) {
+    low_putc(f, '"');
     for (const unsigned char *p = (const unsigned char *)s; *p; p++) {
         switch (*p) {
-            case '"':  fputs("\\\"", f); break;
-            case '\\': fputs("\\\\", f); break;
-            case '\n': fputs("\\n", f);  break;
-            case '\r': fputs("\\r", f);  break;
-            case '\t': fputs("\\t", f);  break;
+            case '"':  low_puts(f, "\\\""); break;
+            case '\\': low_puts(f, "\\\\"); break;
+            case '\n': low_puts(f, "\\n");  break;
+            case '\r': low_puts(f, "\\r");  break;
+            case '\t': low_puts(f, "\\t");  break;
             default:
                 if (*p < 0x20) low_fpf(f, "\\u{:04x}", PROVEN_ARG((unsigned)(*p)));
-                else           fputc((int)*p, f);
+                else           low_putc(f, (int)*p);
         }
     }
-    fputc('"', f);
+    low_putc(f, '"');
 }
 
 static const char *sev_name(low_severity_t s) {
@@ -168,17 +174,17 @@ static void expl_json(const char *rule, const char *sev, const char *phase,
                       const char *file, unsigned line, unsigned col, const char *promise,
                       const char *fact, const char *relation, const char *msg,
                       const char *repair) {
-    fputs("{\"rule\":", stderr);        json_str(stderr, rule ? rule : "");
-    fputs(",\"sev\":", stderr);         json_str(stderr, sev);
-    fputs(",\"phase\":", stderr);       json_str(stderr, phase);
-    if (file) { fputs(",\"file\":", stderr); json_str(stderr, file); }   // ★ 2026-09-14 — 파일을 아는 진단은 파일도 싣는다
-    low_fpf(stderr, ",\"span\":{{\"line\":{},\"col\":{}}}", PROVEN_ARG((unsigned)(line)), PROVEN_ARG((unsigned)(col)));
-    if (promise) { fputs(",\"promise\":", stderr); json_str(stderr, promise); }
-    if (fact)    { fputs(",\"fact\":", stderr);    json_str(stderr, fact); }
-    fputs(",\"relation\":", stderr);    json_str(stderr, relation);
-    fputs(",\"msg\":", stderr);         json_str(stderr, msg ? msg : "");
-    if (repair)  { fputs(",\"repair\":", stderr);  json_str(stderr, repair); }
-    fputs("}\n", stderr);
+    low_puts(low_stderr(), "{\"rule\":");        json_str(low_stderr(), rule ? rule : "");
+    low_puts(low_stderr(), ",\"sev\":");         json_str(low_stderr(), sev);
+    low_puts(low_stderr(), ",\"phase\":");       json_str(low_stderr(), phase);
+    if (file) { low_puts(low_stderr(), ",\"file\":"); json_str(low_stderr(), file); }   // ★ 2026-09-14 — 파일을 아는 진단은 파일도 싣는다
+    low_fpf(low_stderr(), ",\"span\":{{\"line\":{},\"col\":{}}}", PROVEN_ARG((unsigned)(line)), PROVEN_ARG((unsigned)(col)));
+    if (promise) { low_puts(low_stderr(), ",\"promise\":"); json_str(low_stderr(), promise); }
+    if (fact)    { low_puts(low_stderr(), ",\"fact\":");    json_str(low_stderr(), fact); }
+    low_puts(low_stderr(), ",\"relation\":");    json_str(low_stderr(), relation);
+    low_puts(low_stderr(), ",\"msg\":");         json_str(low_stderr(), msg ? msg : "");
+    if (repair)  { low_puts(low_stderr(), ",\"repair\":");  json_str(low_stderr(), repair); }
+    low_puts(low_stderr(), "}\n");
 }
 
 // ★ 한 파일에서 온 나무 전체에 그 파일 경로를 새긴다 (단계 V).
@@ -204,14 +210,14 @@ static void dump_diags(const char *what, const proven_array_t *diags) {
         }
         return;
     }
-    low_fpf(stderr, "== {} ({}) ==\n", proven_arg_cstr(what), PROVEN_ARG((size_t)((size_t)diags->len)));
+    low_fpf(low_stderr(), "== {} ({}) ==\n", proven_arg_cstr(what), PROVEN_ARG((size_t)((size_t)diags->len)));
     for (proven_size_t i = 0; i < diags->len; i++) {
         const low_diag_t *d = PROVEN_ARRAY_GET(diags, low_diag_t, i);
         // ★ 파일을 아는 진단은 **파일부터** 말한다 — 한 단위가 여러 파일이고 줄은 파일마다
         //   1 부터 다시 시작하기 때문이다(단계 V). 모르면 여태처럼 줄만 말한다: **없는 것을
         //   지어내지 않는다.**
-        if (d->file) low_fpf(stderr, "  {}:{}:{} {}: {}\n", proven_arg_cstr(d->file), PROVEN_ARG((unsigned)(d->line)), PROVEN_ARG((unsigned)(d->col)), proven_arg_cstr(d->code), proven_arg_cstr(low_diag_text(d)));
-        else         low_fpf(stderr, "  {}:{} {}: {}\n", PROVEN_ARG((unsigned)(d->line)), PROVEN_ARG((unsigned)(d->col)), proven_arg_cstr(d->code), proven_arg_cstr(low_diag_text(d)));
+        if (d->file) low_fpf(low_stderr(), "  {}:{}:{} {}: {}\n", proven_arg_cstr(d->file), PROVEN_ARG((unsigned)(d->line)), PROVEN_ARG((unsigned)(d->col)), proven_arg_cstr(d->code), proven_arg_cstr(low_diag_text(d)));
+        else         low_fpf(low_stderr(), "  {}:{} {}: {}\n", PROVEN_ARG((unsigned)(d->line)), PROVEN_ARG((unsigned)(d->col)), proven_arg_cstr(d->code), proven_arg_cstr(low_diag_text(d)));
     }
 }
 
@@ -232,13 +238,13 @@ static lock_ent_t g_lock[64];
 static int        g_nlock = 0;
 static bool       g_have_lock = false;
 static const char *g_pkg_path = NULL;   // --pkg <file> — 매니페스트 위치를 명시(발견 걷기 생략)
-static FILE       *g_lock_out = NULL;   // --lock-write 가 pkg.lock **파일**에도 쓴다 (매니페스트가 있을 때)
+static low_out_t  *g_lock_out = NULL;   // --lock-write 가 pkg.lock **파일**에도 쓴다 (매니페스트가 있을 때)
 static char        g_lock_path[600];    // ★ 2026-10-31 — 쓸 pkg.lock 의 자리(첫 항목을 적을 때 연다 — 적을 것이 없으면 파일을 만들지 않는다)
 static char        g_pkg_real[4096];    // 매니페스트 폴더의 실경로(포함 파일의 잠금 이름이 그것에 상대적이다)
 
 static void lock_load(const char *path) {
     FILE *f = fopen(path, "r");
-    if (!f) { low_fpf(stderr, "cannot open lockfile: {}\n", proven_arg_cstr(path)); exit(2); }
+    if (!f) { low_fpf(low_stderr(), "cannot open lockfile: {}\n", proven_arg_cstr(path)); exit(2); }
     g_have_lock = true;
     char ln[256];
     while (fgets(ln, sizeof ln, f) && g_nlock < 64) {
@@ -257,12 +263,14 @@ static void lock_emit(const char *name, const char *hex) {
 }
 static void lock_file_write(bool allowed) {
     if (!allowed || !g_lock_path[0]) return;
-    g_lock_out = fopen(g_lock_path, "w");
+    g_lock_out = low_out_open(g_lock_path, "w");
     if (!g_lock_out) return;
     low_fpf(g_lock_out, "# pkg.lock — content hashes (BLAKE3) of every dependency and every file read by include_text.\n"
                         "# Regenerate with: lowentc --lock-write <entry.low>\n");
     for (int i = 0; i < g_nlock_ents; i++) low_fpf(g_lock_out, "{}\n", proven_arg_cstr(g_lock_ents[i]));
-    fclose(g_lock_out); g_lock_out = NULL;
+    if (low_out_close(g_lock_out) != 0)   // ★ W-20261113-0024 — 닫기가 쓰기가 닿았는지 답한다(전엔 그 답을 버렸다)
+        low_fpf(low_stderr(), "lowentc: could not finish writing {}\n", proven_arg_cstr(g_lock_path));
+    g_lock_out = NULL;
 }
 static void hash_hex(const proven_byte_t *b, proven_size_t n, char out[65]);
 // ★★ RFC-0015 §6.4 · §8-3 (2026-10-31 · 소유자 «다른 것들 다 진행» · W-20261031-1421) — `include_text` 의 파일.
@@ -346,7 +354,7 @@ static bool dep_verify(const char *name, const char *path,
     for (int i = 0; i < g_nlock; i++) {
         if (strcmp(g_lock[i].name, name) != 0) continue;
         if (strcmp(g_lock[i].hex, hex) == 0) return true;
-        low_fpf(stderr, "E-DEP-HASH: dependency `{}` ({}) does NOT match the lockfile.\n"
+        low_fpf(low_stderr(), "E-DEP-HASH: dependency `{}` ({}) does NOT match the lockfile.\n"
                 "  locked  {}\n  actual  {}\n"
                 "  The content changed. That is the whole point of pinning content and not names:\n"
                 "  you do not have to trust WHERE it came from — only WHAT it is. A mirror that\n"
@@ -354,7 +362,7 @@ static bool dep_verify(const char *name, const char *path,
                 "  this refusal exists to stop.\n", proven_arg_cstr(name), proven_arg_cstr(path), proven_arg_cstr(g_lock[i].hex), proven_arg_cstr(hex));
         return false;
     }
-    low_fpf(stderr, "E-DEP-UNLOCKED: dependency `{}` ({}) has no entry in the lockfile.\n"
+    low_fpf(low_stderr(), "E-DEP-UNLOCKED: dependency `{}` ({}) has no entry in the lockfile.\n"
             "  An unpinned dependency is whatever the server felt like sending TODAY.\n"
             "  Run with --lock-write to record what you are actually building against.\n", proven_arg_cstr(name), proven_arg_cstr(path));
     return false;
@@ -446,7 +454,7 @@ static void std_scan_dir(const char *dir) {
     while ((e = readdir(d))) {
         if (g_nstd >= LOW_STD_CAP) {
             static bool told;
-            if (!told) low_fpf(stderr, "lowentc: ★ module index is full ({}) — modules under {} were NOT indexed; "
+            if (!told) low_fpf(low_stderr(), "lowentc: ★ module index is full ({}) — modules under {} were NOT indexed; "
                                        "`use <name> .` for them will fail. Raise LOW_STD_CAP.\n", PROVEN_ARG((int)(LOW_STD_CAP)), proven_arg_cstr(dir));
             told = true;
             break;
@@ -454,8 +462,8 @@ static void std_scan_dir(const char *dir) {
         size_t ln = strlen(e->d_name);
         if (ln < 5 || strcmp(e->d_name + ln - 4, ".low") != 0) continue;
         char fp[600]; low_bfmt(fp, sizeof fp, "{}/{}", proven_arg_cstr(dir), proven_arg_cstr(e->d_name));
-        FILE *f = fopen(fp, "rb");
-        if (!f) continue;
+        proven_byte_t *fbuf_ = NULL; proven_size_t fn_ = 0;
+        if (!read_file(fp, &fbuf_, &fn_)) continue;
         // 줄 머리의 `module <name> .` 을 찾는다 (rem 줄은 건너뛴다).
         // ★★★ **파일 전체를 훑는다** (2026-09-04, 라이브러리 보안 검토).
         //   전에는 **앞 4096 바이트만** 읽었다. 머리말이 그보다 길면 `module` 선언을 못 보고,
@@ -466,13 +474,16 @@ static void std_scan_dir(const char *dir) {
         //   픽스처가 모두 `from "…"` 경로 형태로 불렀기 때문이다). `lib/regex.low` 은 머리말이
         //   한 줄 늘자 4096 을 넘어 그날로 사라졌고, 그제야 픽스처가 빨간불이 되어 보였다.
         //   ⇒ 한 줄씩 읽어 **길이와 무관하게** 찾는다. 파일당 한 번, 시작할 때뿐이다.
-        char *line = NULL; size_t lcap = 0; ssize_t lgot;
-        while ((lgot = getline(&line, &lcap, f)) > 0) {
-            char *p = line;
-            while (*p == ' ' || *p == '\t') p++;
-            if (strncmp(p, "module ", 7) != 0) continue;
+        //   ★ W-20261113-0024 — 파일을 proven 힙의 버퍼로 한 번에 읽고(read_file) 줄을 그 안에서 짚는다. 전엔 getline 이 C 의 버퍼를
+        //     주었고 그것을 C 의 free 로 돌려줬다(처리기에 남은 마지막 libc 할당 짝이었다).
+        for (proven_size_t ls_ = 0; ls_ < fn_; ) {
+            proven_size_t le_ = ls_; while (le_ < fn_ && fbuf_[le_] != '\n') le_++;
+            const char *p = (const char *)fbuf_ + ls_, *end_ = (const char *)fbuf_ + le_;
+            ls_ = le_ + 1;
+            while (p < end_ && (*p == ' ' || *p == '\t')) p++;
+            if (end_ - p < 7 || strncmp(p, "module ", 7) != 0) continue;
             p += 7;
-            char *q = p; while (*q && *q != ' ' && *q != '\n' && *q != '\r' && *q != '.') q++;
+            const char *q = p; while (q < end_ && *q && *q != ' ' && *q != '\r' && *q != '.') q++;
             size_t mn = (size_t)(q - p);
             if (mn > 0 && mn < 64) {
                 low_bfmt(g_std[g_nstd].name, 64, "{}", low_sv(p, (int)mn));
@@ -481,8 +492,7 @@ static void std_scan_dir(const char *dir) {
             }
             break;
         }
-        free(line);   // getline 의 버퍼 — C 가 준 것이라 C 에 돌려준다(파일 읽기를 proven 으로 바꿀 때 함께 간다)
-        fclose(f);
+        low_free(fbuf_);
     }
     closedir(d);
 }
@@ -596,7 +606,7 @@ static int cmd_build(int nargs, char **args) {
             // ★ profile 은 **소스가 선언한다**(`build profile <이름> .`) — CLI 플래그가 아니다.
             //   여기서 조용히 삼키면 "지정했는데 안 먹었다" 가 되고, 몰래 지어내 넘기면 컴파일러가
             //   모르는 낱말을 받는다. ⇒ 어느 쪽도 아니라고 **말한다**.
-            low_fpf(stderr, "lowentc build: `--profile` is not a compiler flag — the PROFILE is declared "
+            low_fpf(low_stderr(), "lowentc build: `--profile` is not a compiler flag — the PROFILE is declared "
                             "in the source (`build profile {} .`) or in pkg.low, so that what you build "
                             "is written down, not passed on a command line (RFC-0031)\n", proven_arg_cstr(args[i + 1]));
             return 2;
@@ -607,7 +617,7 @@ static int cmd_build(int nargs, char **args) {
     }
     low_pkg_t pkg = { 0 };
     char entry[600], err[256];
-    if (!resolve_entry(arg, &pkg, entry, err)) { low_fpf(stderr, "lowentc build: {}\n", proven_arg_cstr(err)); return 2; }
+    if (!resolve_entry(arg, &pkg, entry, err)) { low_fpf(low_stderr(), "lowentc build: {}\n", proven_arg_cstr(err)); return 2; }
     // 매니페스트의 target 은 CLI 가 없을 때만 쓴다(설정 우선순위 그대로).
     // (profile 은 소스 선언이라 여기서 넘기지 않는다 — 위 참조.)
     if (pkg.found && !strstr(pass, "--target") && pkg.target[0]) {
@@ -646,8 +656,8 @@ static int cmd_build(int nargs, char **args) {
     //   ⇒ 짓기 전에 **같은 손잡이로** `--check` 를 부르고, 거절하면 그 진단을 보이고 짓지 않는다.
     //   ☞ `--emit-c` 자체는 그대로 둔다 — 오라클이 거절 픽스처의 실행을 재는 데 쓴다.
     low_bfmt(cmd, sizeof cmd, "\"{}\"{} --check \"{}\" 2>&1", proven_arg_cstr(self), proven_arg_cstr(pass), proven_arg_cstr(entry));
-    FILE *cp = popen(cmd, "r");
-    if (!cp) { low_fpf(stderr, "lowentc build: could not run the checks for {}\n", proven_arg_cstr(entry)); return 1; }
+    FILE *cp = low_popen(cmd, "r");
+    if (!cp) { low_fpf(low_stderr(), "lowentc build: could not run the checks for {}\n", proven_arg_cstr(entry)); return 1; }
     char *clog = NULL; size_t clen = 0, ccap = 0;
     for (char chunk[1024]; ; ) {
         size_t k = fread(chunk, 1, sizeof chunk, cp);
@@ -655,14 +665,14 @@ static int cmd_build(int nargs, char **args) {
         if (clen + k + 1 > ccap) {
             size_t occ_ = ccap; ccap = (clen + k + 1) * 2;
             char *g = (char *)low_realloc(clog, occ_, ccap);   // ★ W-20261112-0207 — proven 힙(옛 크기를 넘긴다)
-            if (!g) { low_free(clog); pclose(cp); low_fpf(stderr, "lowentc build: out of memory\n"); return 1; }
+            if (!g) { low_free(clog); pclose(cp); low_fpf(low_stderr(), "lowentc build: out of memory\n"); return 1; }
             clog = g;
         }
         memcpy(clog + clen, chunk, k); clen += k;
     }
     int crc = pclose(cp);
     if (crc != 0) {
-        if (clog) { clog[clen] = 0; fputs(clog, stdout); }
+        if (clog) { clog[clen] = 0; low_puts(low_stdout(), clog); }
         low_free(clog);
         low_pf("   ^ `build` REFUSED this unit: it does not pass the same checks as `--check`. "
                "A program the language rejects must not be built — that is the whole of the promise.\n");
@@ -672,9 +682,9 @@ static int cmd_build(int nargs, char **args) {
     low_bfmt(cfile, sizeof cfile, "{}/.{}.c", proven_arg_cstr(outdir), proven_arg_cstr(name));
     low_bfmt(bin, sizeof bin, "{}/{}", proven_arg_cstr(outdir), proven_arg_cstr(name));
     low_bfmt(cmd, sizeof cmd, "\"{}\"{} --emit-c \"{}\" > \"{}\"", proven_arg_cstr(self), proven_arg_cstr(pass), proven_arg_cstr(entry), proven_arg_cstr(cfile));
-    if (system(cmd) != 0) { low_fpf(stderr, "lowentc build: emit failed for {}\n", proven_arg_cstr(entry)); return 1; }
+    if (low_system(cmd) != 0) { low_fpf(low_stderr(), "lowentc build: emit failed for {}\n", proven_arg_cstr(entry)); return 1; }
     low_bfmt(cmd, sizeof cmd, "\"{}\"{} --emit-ld \"{}\"", proven_arg_cstr(self), proven_arg_cstr(pass), proven_arg_cstr(entry));
-    FILE *lp = popen(cmd, "r");
+    FILE *lp = low_popen(cmd, "r");
     if (lp) { if (!fgets(ld, sizeof ld, lp)) ld[0] = 0; pclose(lp); }
     char *nl = strchr(ld, '\n'); if (nl) *nl = 0;
     // ★★★ **증분은 내용주소다** (RFC-0031 · RFC-0012). 타임스탬프가 아니라 **방출된 C 의
@@ -703,7 +713,7 @@ static int cmd_build(int nargs, char **args) {
         low_bfmt(cache, sizeof cache, "{}/.lowent/cache/build/{}", proven_arg_cstr(home), proven_arg_cstr(key));
         if (file_exists(cache)) {
             low_bfmt(cmd, sizeof cmd, "cp \"{}\" \"{}\" && chmod +x \"{}\"", proven_arg_cstr(cache), proven_arg_cstr(bin), proven_arg_cstr(bin));
-            if (system(cmd) == 0) {
+            if (low_system(cmd) == 0) {
                 remove(cfile);
                 low_pf("built {} (cache hit {:.12}…)\n", proven_arg_cstr(bin), proven_arg_cstr(key));
                 return 0;
@@ -711,11 +721,11 @@ static int cmd_build(int nargs, char **args) {
         }
     }
     low_bfmt(cmd, sizeof cmd, "cc -O2 -w -ffp-contract=off \"{}\" -o \"{}\" {} -lm", proven_arg_cstr(cfile), proven_arg_cstr(bin), proven_arg_cstr(ld));   // 정본 §6.2.4 (2a) — 생성 C 머리의 지시와 같은 뜻
-    if (system(cmd) != 0) { low_fpf(stderr, "lowentc build: cc failed ({})\n", proven_arg_cstr(cfile)); return 1; }
+    if (low_system(cmd) != 0) { low_fpf(low_stderr(), "lowentc build: cc failed ({})\n", proven_arg_cstr(cfile)); return 1; }
     remove(cfile);
     if (cache[0]) {
         low_bfmt(cmd, sizeof cmd, "cp \"{}\" \"{}\"", proven_arg_cstr(bin), proven_arg_cstr(cache));
-        (void)system(cmd);
+        (void)low_system(cmd);
     }
     low_pf("built {}\n", proven_arg_cstr(bin));
     return 0;
@@ -724,18 +734,18 @@ static int cmd_build(int nargs, char **args) {
 // `lowentc add <name> <source>` — 의존을 매니페스트에 **해시 핀과 함께** 적는다.
 //   적는 순간이 곧 고정하는 순간이다: 핀 없는 추가는 "오늘 서버가 준 것"을 믿는 것이다.
 static int cmd_add(const char *name, const char *source) {
-    if (!name || !source) { low_fpf(stderr, "usage: lowentc add <name> <source-path>\n"); return 2; }
+    if (!name || !source) { low_fpf(low_stderr(), "usage: lowentc add <name> <source-path>\n"); return 2; }
     low_pkg_t pkg = { 0 };
     if (!low_pkg_find(".", &pkg)) {
-        low_fpf(stderr, "lowentc add: no pkg.low found — a dependency needs a manifest to live in. "
+        low_fpf(low_stderr(), "lowentc add: no pkg.low found — a dependency needs a manifest to live in. "
                         "Create pkg.low first (package name/version)\n");
         return 2;
     }
     proven_allocator_t heap = lw_heap();
     char perr[512];
-    if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(stderr, "{}\n", proven_arg_cstr(perr)); return 1; }
+    if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
     if (low_pkg_dep_find(&pkg, name)) {
-        low_fpf(stderr, "lowentc add: `{}` is already declared in {} — two declarations for one "
+        low_fpf(low_stderr(), "lowentc add: `{}` is already declared in {} — two declarations for one "
                         "name means every reader must pick (E-PKG-DUP). Edit the existing line\n",
                 proven_arg_cstr(name), proven_arg_cstr(pkg.path));
         return 1;
@@ -745,17 +755,17 @@ static int cmd_add(const char *name, const char *source) {
     else low_bfmt(sp, sizeof sp, "{}/{}", proven_arg_cstr(pkg.dir), proven_arg_cstr(source));
     proven_byte_t *db = NULL; proven_size_t dl = 0;
     if (!read_file(sp, &db, &dl)) {
-        low_fpf(stderr, "lowentc add: cannot read {} — a dependency the tool cannot see is a "
+        low_fpf(low_stderr(), "lowentc add: cannot read {} — a dependency the tool cannot see is a "
                         "dependency nobody checked (E-DEP-MISSING). For URLs, vendor the file first\n", proven_arg_cstr(sp));
         return 1;
     }
     char hex[65];
     hash_hex(db, dl, hex);
     low_free(db);
-    FILE *f = fopen(pkg.path, "a");
-    if (!f) { low_fpf(stderr, "lowentc add: cannot write {}\n", proven_arg_cstr(pkg.path)); return 1; }
+    low_out_t *f = low_out_open(pkg.path, "a");
+    if (!f) { low_fpf(low_stderr(), "lowentc add: cannot write {}\n", proven_arg_cstr(pkg.path)); return 1; }
     low_fpf(f, "use {} from \"{}\" hash \"{}\" .\n", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex));
-    fclose(f);
+    if (low_out_close(f) != 0) { low_fpf(low_stderr(), "lowentc add: cannot write {}\n", proven_arg_cstr(pkg.path)); return 1; }
     low_pf("added {} from \"{}\" (pinned {:.12}…) to {}\n", proven_arg_cstr(name), proven_arg_cstr(source), proven_arg_cstr(hex), proven_arg_cstr(pkg.path));
     return 0;
 }
@@ -798,12 +808,12 @@ static void cfg_load(void) {
 // ── **서명 = 진본** (RFC-0032 D7 · 2C ②층) — 해시(③ 무결)와 **다른 질문**이다:
 //    해시는 "바이트가 그대로인가", 서명은 "**그 발행자가 낸 것**인가"를 답한다.
 //    프리미티브는 ed25519, 실행은 openssl(시스템 도구 폴백 — cc·curl 과 같은 패턴). 없으면 없다고 말한다.
-static bool have_openssl(void) { return system("openssl version >/dev/null 2>&1") == 0; }
+static bool have_openssl(void) { return low_system("openssl version >/dev/null 2>&1") == 0; }
 static bool sig_verify_with(const char *pub, const char *file, const char *sig) {
     char cmd[2048];
     low_bfmt(cmd, sizeof cmd, "openssl pkeyutl -verify -pubin -inkey \"{}\" -rawin -in \"{}\" -sigfile \"{}\" >/dev/null 2>&1",
              proven_arg_cstr(pub), proven_arg_cstr(file), proven_arg_cstr(sig));
-    return system(cmd) == 0;
+    return low_system(cmd) == 0;
 }
 // 신뢰 키(공식 루트) = **폴더의 공개키 파일들** (RFC-0033 D7): ~/.lowent/keys/official/*.pub + <install>/keys/official/*.pub.
 // 어느 키가 검증했는지 keyname 에 담는다. 못 하면 false.
@@ -839,20 +849,20 @@ static bool sig_verify_trusted(const char *file, const char *sig, char keyname[1
 //   신뢰가 곧 눈에 보이는 파일이라, 무엇을 믿고 있는지 ls 가 말해 준다).
 static int cmd_key(int n, char **a) {
     const char *home = getenv("HOME");
-    if (!home) { low_fpf(stderr, "lowentc key: no HOME\n"); return 2; }
+    if (!home) { low_fpf(low_stderr(), "lowentc key: no HOME\n"); return 2; }
     char kd[600], pd[600], od[600];
     low_bfmt(kd, sizeof kd, "{}/.lowent", proven_arg_cstr(home)); mkdir(kd, 0755);
     low_bfmt(kd, sizeof kd, "{}/.lowent/keys", proven_arg_cstr(home)); mkdir(kd, 0755);
     low_bfmt(pd, sizeof pd, "{}/private", proven_arg_cstr(kd)); mkdir(pd, 0700);
     low_bfmt(od, sizeof od, "{}/official", proven_arg_cstr(kd)); mkdir(od, 0755);
     if (n >= 2 && strcmp(a[0], "new") == 0) {
-        if (!have_openssl()) { low_fpf(stderr, "lowentc key: openssl not found — the signature layer needs it (same fallback pattern as cc/curl)\n"); return 1; }
+        if (!have_openssl()) { low_fpf(low_stderr(), "lowentc key: openssl not found — the signature layer needs it (same fallback pattern as cc/curl)\n"); return 1; }
         char priv[736], pub[736], cmd[2048];
         low_bfmt(priv, sizeof priv, "{}/{}.pem", proven_arg_cstr(pd), proven_arg_cstr(a[1]));
         low_bfmt(pub, sizeof pub, "{}/{}.pub", proven_arg_cstr(od), proven_arg_cstr(a[1]));
-        if (file_exists(priv)) { low_fpf(stderr, "lowentc key: {} already exists — a silently replaced key would orphan every signature it made\n", proven_arg_cstr(priv)); return 1; }
+        if (file_exists(priv)) { low_fpf(low_stderr(), "lowentc key: {} already exists — a silently replaced key would orphan every signature it made\n", proven_arg_cstr(priv)); return 1; }
         low_bfmt(cmd, sizeof cmd, "openssl genpkey -algorithm ed25519 -out \"{}\" >/dev/null 2>&1 && chmod 600 \"{}\" && openssl pkey -in \"{}\" -pubout -out \"{}\" >/dev/null 2>&1", proven_arg_cstr(priv), proven_arg_cstr(priv), proven_arg_cstr(priv), proven_arg_cstr(pub));
-        if (system(cmd) != 0) { low_fpf(stderr, "lowentc key: openssl keygen failed\n"); return 1; }
+        if (low_system(cmd) != 0) { low_fpf(low_stderr(), "lowentc key: openssl keygen failed\n"); return 1; }
         low_pf("key {}:\n  private  {}  (0600 — never leaves this machine)\n  public   {}  (your own trust root; give THIS file to people who should trust your signatures)\n", proven_arg_cstr(a[1]), proven_arg_cstr(priv), proven_arg_cstr(pub));
         return 0;
     }
@@ -869,7 +879,7 @@ static int cmd_key(int n, char **a) {
         }
         return 0;
     }
-    low_fpf(stderr, "usage: lowentc key new <name> | key list\n");
+    low_fpf(low_stderr(), "usage: lowentc key new <name> | key list\n");
     return 2;
 }
 
@@ -880,26 +890,26 @@ static int cmd_sign(int n, char **a) {
         if (strcmp(a[i], "--key") == 0 && i + 1 < n) key = a[++i];
         else if (!file) file = a[i];
     }
-    if (!file) { low_fpf(stderr, "usage: lowentc sign <file> [--key <name>]\n"); return 2; }
+    if (!file) { low_fpf(low_stderr(), "usage: lowentc sign <file> [--key <name>]\n"); return 2; }
     const char *home = getenv("HOME");
-    if (!home) { low_fpf(stderr, "lowentc sign: no HOME\n"); return 2; }
-    if (!have_openssl()) { low_fpf(stderr, "lowentc sign: openssl not found\n"); return 1; }
+    if (!home) { low_fpf(low_stderr(), "lowentc sign: no HOME\n"); return 2; }
+    if (!have_openssl()) { low_fpf(low_stderr(), "lowentc sign: openssl not found\n"); return 1; }
     char priv[736], sig[736], cmd[3072];
     low_bfmt(priv, sizeof priv, "{}/.lowent/keys/private/{}.pem", proven_arg_cstr(home), proven_arg_cstr(key));
-    if (!file_exists(priv)) { low_fpf(stderr, "lowentc sign: no key {} — make one: lowentc key new {}\n", proven_arg_cstr(priv), proven_arg_cstr(key)); return 1; }
+    if (!file_exists(priv)) { low_fpf(low_stderr(), "lowentc sign: no key {} — make one: lowentc key new {}\n", proven_arg_cstr(priv), proven_arg_cstr(key)); return 1; }
     low_bfmt(sig, sizeof sig, "{}.sig", proven_arg_cstr(file));
     low_bfmt(cmd, sizeof cmd, "openssl pkeyutl -sign -inkey \"{}\" -rawin -in \"{}\" -out \"{}\" 2>/dev/null", proven_arg_cstr(priv), proven_arg_cstr(file), proven_arg_cstr(sig));
-    if (system(cmd) != 0) { low_fpf(stderr, "lowentc sign: signing failed (readable file? valid key?)\n"); return 1; }
+    if (low_system(cmd) != 0) { low_fpf(low_stderr(), "lowentc sign: signing failed (readable file? valid key?)\n"); return 1; }
     low_pf("signed {} → {} (key {})\n", proven_arg_cstr(file), proven_arg_cstr(sig), proven_arg_cstr(key));
     return 0;
 }
 
 // `lowentc verify <file>` — 4층을 **분리해서** 답한다(RFC-0032 D7 · 2C). 섞으면 아무것도 답이 아니다.
 static int cmd_verify(int n, char **a) {
-    if (n < 1) { low_fpf(stderr, "usage: lowentc verify <file>\n"); return 2; }
+    if (n < 1) { low_fpf(low_stderr(), "usage: lowentc verify <file>\n"); return 2; }
     const char *file = a[0];
     proven_byte_t *b = NULL; proven_size_t ln = 0;
-    if (!read_file(file, &b, &ln)) { low_fpf(stderr, "lowentc verify: cannot read {}\n", proven_arg_cstr(file)); return 1; }
+    if (!read_file(file, &b, &ln)) { low_fpf(low_stderr(), "lowentc verify: cannot read {}\n", proven_arg_cstr(file)); return 1; }
     char hex[65];
     hash_hex(b, ln, hex);
     low_free(b);
@@ -963,14 +973,14 @@ static bool is_url(const char *s) {
 static bool fetch_url(const char *url, const char *to) {
     char cmd[2048];
     low_bfmt(cmd, sizeof cmd, "curl -fsSL -o \"{}\" \"{}\" 2>/dev/null", proven_arg_cstr(to), proven_arg_cstr(url));
-    if (system(cmd) == 0) return true;
+    if (low_system(cmd) == 0) return true;
     low_bfmt(cmd, sizeof cmd, "wget -qO \"{}\" \"{}\" 2>/dev/null", proven_arg_cstr(to), proven_arg_cstr(url));
-    return system(cmd) == 0;
+    return low_system(cmd) == 0;
 }
 // 핀된 URL 을 캐시에서 얻거나(없으면) 받아 검증해 넣는다. 성공 시 out 에 캐시 경로.
 static bool cache_fetch(const char *name, const char *url, const char *pin, char out[600]) {
     const char *home = getenv("HOME");
-    if (!home) { low_fpf(stderr, "E-PKG-FETCH: no HOME — nowhere to keep the content cache\n"); return false; }
+    if (!home) { low_fpf(low_stderr(), "E-PKG-FETCH: no HOME — nowhere to keep the content cache\n"); return false; }
     char base[600], cdir[600];
     low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
     low_bfmt(cdir, sizeof cdir, "{}/.lowent/cache", proven_arg_cstr(home)); mkdir(cdir, 0755);
@@ -988,26 +998,26 @@ static bool cache_fetch(const char *name, const char *url, const char *pin, char
     }
     if (!got && !fetch_url(url, tmp)) {
         remove(tmp);
-        low_fpf(stderr, "E-PKG-FETCH: cannot download `{}` from {}{} (curl/wget failed) — check the "
+        low_fpf(low_stderr(), "E-PKG-FETCH: cannot download `{}` from {}{} (curl/wget failed) — check the "
                         "URL, or vendor the file and point `from` at the local copy\n",
                 proven_arg_cstr(name), proven_arg_cstr(url), proven_arg_cstr(g_cfg.nmirror ? " (and no mirror had it)" : ""));
         return false;
     }
     proven_byte_t *b = NULL; proven_size_t n = 0;
-    if (!read_file(tmp, &b, &n)) { remove(tmp); low_fpf(stderr, "E-PKG-FETCH: fetched but cannot read {}\n", proven_arg_cstr(tmp)); return false; }
+    if (!read_file(tmp, &b, &n)) { remove(tmp); low_fpf(low_stderr(), "E-PKG-FETCH: fetched but cannot read {}\n", proven_arg_cstr(tmp)); return false; }
     char hex[65];
     hash_hex(b, n, hex);
     low_free(b);
     if (strcmp(hex, pin) != 0) {
         remove(tmp);
-        low_fpf(stderr, "E-DEP-HASH: `{}` fetched from {} does NOT match the pin.\n"
+        low_fpf(low_stderr(), "E-DEP-HASH: `{}` fetched from {} does NOT match the pin.\n"
                 "  pinned  {}\n  actual  {}\n"
                 "  A server that returns different bytes under a pinned name is exactly the "
                 "supply-chain attack the pin exists to stop. Nothing was installed.\n",
                 proven_arg_cstr(name), proven_arg_cstr(url), proven_arg_cstr(pin), proven_arg_cstr(hex));
         return false;
     }
-    if (rename(tmp, out) != 0) { remove(tmp); low_fpf(stderr, "E-PKG-FETCH: cannot place {} into the cache\n", proven_arg_cstr(name)); return false; }
+    if (rename(tmp, out) != 0) { remove(tmp); low_fpf(low_stderr(), "E-PKG-FETCH: cannot place {} into the cache\n", proven_arg_cstr(name)); return false; }
     return true;
 }
 
@@ -1016,10 +1026,10 @@ static bool cache_fetch(const char *name, const char *url, const char *pin, char
 //   사람 몫이다. 도구가 몰래 핀을 적으면 그것은 확인이 아니라 눈감기다.
 static int cmd_fetch(void) {
     low_pkg_t pkg = { 0 };
-    if (!low_pkg_find(".", &pkg)) { low_fpf(stderr, "lowentc fetch: no pkg.low found\n"); return 2; }
+    if (!low_pkg_find(".", &pkg)) { low_fpf(low_stderr(), "lowentc fetch: no pkg.low found\n"); return 2; }
     proven_allocator_t heap = lw_heap();
     char perr[512];
-    if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(stderr, "{}\n", proven_arg_cstr(perr)); return 1; }
+    if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
     int nurl = 0, bad = 0;
     for (int i = 0; i < pkg.ndeps; i++) {
         const low_pkg_dep_t *d = &pkg.deps[i];
@@ -1033,7 +1043,7 @@ static int cmd_fetch(void) {
             char tmp[700];
             const char *home = getenv("HOME");
             low_bfmt(tmp, sizeof tmp, "{}/.lowent-fetch.{}", proven_arg_cstr(home ? home : "/tmp"), PROVEN_ARG((int)((int)getpid())));
-            if (!fetch_url(d->source, tmp)) { remove(tmp); low_fpf(stderr, "lowentc fetch: cannot download {} ({})\n", proven_arg_cstr(d->name), proven_arg_cstr(d->source)); bad++; continue; }
+            if (!fetch_url(d->source, tmp)) { remove(tmp); low_fpf(low_stderr(), "lowentc fetch: cannot download {} ({})\n", proven_arg_cstr(d->name), proven_arg_cstr(d->source)); bad++; continue; }
             proven_byte_t *b = NULL; proven_size_t n = 0;
             if (read_file(tmp, &b, &n)) {
                 char hex[65];
@@ -1056,11 +1066,11 @@ static int cmd_fetch(void) {
 static bool copy_file(const char *from, const char *to) {
     proven_byte_t *b = NULL; proven_size_t n = 0;
     if (!read_file(from, &b, &n)) return false;
-    FILE *o = fopen(to, "wb");
+    low_out_t *o = low_out_open(to, "wb");
     if (!o) { low_free(b); return false; }
-    size_t w = fwrite(b, 1, n, o);
-    fclose(o); low_free(b);
-    return w == n;
+    size_t w = low_write(o, b, n);
+    int rc = low_out_close(o); low_free(b);
+    return w == n && rc == 0;
 }
 static int cmd_install(int nargs, char **args) {
     const char *src = NULL, *prefix = NULL;
@@ -1071,9 +1081,9 @@ static int cmd_install(int nargs, char **args) {
         else if (strcmp(args[i], "--prefix") == 0 && i + 1 < nargs) prefix = args[++i];
         else if (!src) src = args[i];
     }
-    if (!src) { low_fpf(stderr, "usage: lowentc install <file.low> [--user | --system | --prefix <dir>]\n"); return 2; }
+    if (!src) { low_fpf(low_stderr(), "usage: lowentc install <file.low> [--user | --system | --prefix <dir>]\n"); return 2; }
     proven_byte_t *b = NULL; proven_size_t n = 0;
-    if (!read_file(src, &b, &n)) { low_fpf(stderr, "lowentc install: cannot read {}\n", proven_arg_cstr(src)); return 1; }
+    if (!read_file(src, &b, &n)) { low_fpf(low_stderr(), "lowentc install: cannot read {}\n", proven_arg_cstr(src)); return 1; }
     // 모듈 이름 = 파일 안의 선언
     char mod[64] = { 0 };
     for (const char *p = (const char *)b; p && (proven_size_t)(p - (const char *)b) < n; ) {
@@ -1086,7 +1096,7 @@ static int cmd_install(int nargs, char **args) {
         }
         p = strchr(p, '\n');
     }
-    if (!mod[0]) { low_free(b); low_fpf(stderr, "lowentc install: {} declares no `module` — there is nothing to name the installation after\n", proven_arg_cstr(src)); return 1; }
+    if (!mod[0]) { low_free(b); low_fpf(low_stderr(), "lowentc install: {} declares no `module` — there is nothing to name the installation after\n", proven_arg_cstr(src)); return 1; }
     char dest[600];
     if (prefix) low_bfmt(dest, sizeof dest, "{}", proven_arg_cstr(prefix));
     else if (sys) {
@@ -1097,7 +1107,7 @@ static int cmd_install(int nargs, char **args) {
         low_bfmt(dest, sizeof dest, "{}/../std", proven_arg_cstr(self));
     } else {
         const char *home = getenv("HOME");
-        if (!home) { low_free(b); low_fpf(stderr, "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
+        if (!home) { low_free(b); low_fpf(low_stderr(), "lowentc install: no HOME — use --prefix <dir>\n"); return 1; }
         char base[600];
         low_bfmt(base, sizeof base, "{}/.lowent", proven_arg_cstr(home)); mkdir(base, 0755);
         low_bfmt(dest, sizeof dest, "{}/.lowent/lib", proven_arg_cstr(home));
@@ -1109,9 +1119,10 @@ static int cmd_install(int nargs, char **args) {
     { char *sl = strrchr(sdir, '/'); if (sl) *sl = 0; else low_bfmt(sdir, sizeof sdir, "."); }
     char to[736];
     low_bfmt(to, sizeof to, "{}/{}.low", proven_arg_cstr(dest), proven_arg_cstr(mod));
-    FILE *o = fopen(to, "wb");
-    if (!o || fwrite(b, 1, n, o) != n) { if (o) fclose(o); low_free(b); low_fpf(stderr, "lowentc install: cannot write {} (need --prefix or permissions?)\n", proven_arg_cstr(to)); return 1; }
-    fclose(o);
+    low_out_t *o = low_out_open(to, "wb");
+    bool wrote_ = o && low_write(o, b, n) == n;
+    if (o && low_out_close(o) != 0) wrote_ = false;   // ★ 닫기가 쓰기가 닿았는지 답한다
+    if (!wrote_) { low_free(b); low_fpf(low_stderr(), "lowentc install: cannot write {} (need --prefix or permissions?)\n", proven_arg_cstr(to)); return 1; }
     char hex[65]; hash_hex(b, n, hex);
     low_pf("installed {} → {} ({:.12}…)\n", proven_arg_cstr(mod), proven_arg_cstr(to), proven_arg_cstr(hex));
     // 전이: 이 파일의 from-상대 의존
@@ -1120,7 +1131,7 @@ static int cmd_install(int nargs, char **args) {
     int dtotal = 0;
     int nd = deps_of(heap, b, n, dn, dpp, MAX_DEPS_PER_FILE, &dtotal);
     if (dtotal > nd) {
-        low_fpf(stderr, "E-DEP-LIMIT: this file declares {} dependencies and the installer carries "
+        low_fpf(low_stderr(), "E-DEP-LIMIT: this file declares {} dependencies and the installer carries "
                 "{} — installing only part of them would put an INCOMPLETE package on disk. "
                 "Refusing is the honest answer (split the module, or raise MAX_DEPS_PER_FILE "
                 "and say why)\n", PROVEN_ARG((int)(dtotal)), PROVEN_ARG((int)(nd)));
@@ -1135,7 +1146,7 @@ static int cmd_install(int nargs, char **args) {
         low_bfmt(toc, sizeof toc, "{}/{}", proven_arg_cstr(dest), proven_arg_cstr(dpp[d]));
         if (strchr(dpp[d], '/')) continue;   // 하위 dir 의존은 아직 — 정직하게 알린다
         if (copy_file(from, toc)) low_pf("installed dep {} → {}\n", proven_arg_cstr(dn[d]), proven_arg_cstr(toc));
-        else low_fpf(stderr, "lowentc install: WARNING — could not copy dependency {} ({}); the installed module will not resolve it\n", proven_arg_cstr(dn[d]), proven_arg_cstr(from));
+        else low_fpf(low_stderr(), "lowentc install: WARNING — could not copy dependency {} ({}); the installed module will not resolve it\n", proven_arg_cstr(dn[d]), proven_arg_cstr(from));
     }
     return 0;
 }
@@ -1143,7 +1154,7 @@ static int cmd_install(int nargs, char **args) {
 // ★ 사용법 — 기능만이 아니라 **읽는 곳**(환경변수·파일 위치·외부 도구)도 전부 말한다.
 //   도구가 무엇을 참조하는지 말하지 않으면 사용자는 동작을 재현할 수도 감사할 수도 없다.
 static void print_usage(const char *argv0) {
-    low_fpf(stderr,
+    low_fpf(low_stderr(),
         "usage: {} <mode> [options] <file.low>… [args…]\n"
         "\n  서브커맨드 (RFC-0033 — 같은 일의 짧은 이름; 플래그 언어도 그대로 산다)\n"
         "    check · test · doc · fmt · ir · lock   = 아래 같은 이름의 플래그\n"
@@ -1268,27 +1279,27 @@ static int run_arg_take(const char *tok, const char *run_op,
         const char *fp = tok + 1;
         FILE *af = fopen(fp, "rb");
         if (!af) {
-            low_fpf(stderr, "E-CLI-ARGFILE: cannot read `{}` — a `@file` argument is the "
+            low_fpf(low_stderr(), "E-CLI-ARGFILE: cannot read `{}` — a `@file` argument is the "
                     "BYTES of that file, used as one slice argument\n", proven_arg_cstr(fp));
             return 2;
         }
-        if (fseek(af, 0, SEEK_END) != 0) { fclose(af); low_fpf(stderr, "E-CLI-ARGFILE: `{}` is not seekable\n", proven_arg_cstr(fp)); return 2; }
+        if (fseek(af, 0, SEEK_END) != 0) { fclose(af); low_fpf(low_stderr(), "E-CLI-ARGFILE: `{}` is not seekable\n", proven_arg_cstr(fp)); return 2; }
         long alen = ftell(af);
         rewind(af);
-        if (alen < 0) { fclose(af); low_fpf(stderr, "E-CLI-ARGFILE: cannot size `{}`\n", proven_arg_cstr(fp)); return 2; }
+        if (alen < 0) { fclose(af); low_fpf(low_stderr(), "E-CLI-ARGFILE: cannot size `{}`\n", proven_arg_cstr(fp)); return 2; }
         if ((unsigned long)alen > LOW_ARGFILE_MAX) {
             fclose(af);
-            low_fpf(stderr, "E-CLI-ARGTOOBIG: `{}` is {} bytes and this tool carries {} per "
+            low_fpf(low_stderr(), "E-CLI-ARGTOOBIG: `{}` is {} bytes and this tool carries {} per "
                     "`@file` argument — refusing rather than truncating (a silently short slice "
                     "makes the program answer \"buffer too small\" and sends you hunting in your "
                     "own code)\n", proven_arg_cstr(fp), PROVEN_ARG((long long)(alen)), PROVEN_ARG((unsigned long long)((unsigned long long)LOW_ARGFILE_MAX)));
             return 2;
         }
         proven_u8 *ab = (proven_u8 *)low_zalloc((size_t)alen ? (size_t)alen : 1, 1);
-        if (!ab) { fclose(af); low_fpf(stderr, "E-CLI-ARGFILE: out of memory for `{}`\n", proven_arg_cstr(fp)); return 2; }
+        if (!ab) { fclose(af); low_fpf(low_stderr(), "E-CLI-ARGFILE: out of memory for `{}`\n", proven_arg_cstr(fp)); return 2; }
         if (alen > 0 && fread(ab, 1, (size_t)alen, af) != (size_t)alen) {
             fclose(af); low_free(ab);
-            low_fpf(stderr, "E-CLI-ARGFILE: short read on `{}` — a half-read argument is not an argument\n", proven_arg_cstr(fp));
+            low_fpf(low_stderr(), "E-CLI-ARGFILE: short read on `{}` — a half-read argument is not an argument\n", proven_arg_cstr(fp));
             return 2;
         }
         fclose(af);
@@ -1312,7 +1323,7 @@ static int run_arg_take(const char *tok, const char *run_op,
             sbufs[k][n++] = (proven_u8)v; p = e;
         }
         if (over) {
-            low_fpf(stderr,
+            low_fpf(low_stderr(),
                     "E-CLI-ARGTOOBIG: this `[...]` argument has more than {} elements — "
                     "refusing rather than truncating (a silently short slice makes the "
                     "program answer \"buffer too small\" and sends you hunting in your own "
@@ -1362,7 +1373,7 @@ int main(int argc, char **argv) {
     // `--lex <파일>` — 그 파일 하나의 토큰만 찍는다(의존을 찾지 않는다). 글자만 보는 도구(옮김 스크립트 · 편집기)가 쓴다.
     if (argc == 3 && strcmp(argv[1], "--lex") == 0) {
         proven_byte_t *lbuf = NULL; proven_size_t llen = 0;
-        if (!read_file(argv[2], &lbuf, &llen)) { low_fpf(stderr, "lowentc: cannot read '{}'\n", proven_arg_cstr(argv[2])); return 1; }
+        if (!read_file(argv[2], &lbuf, &llen)) { low_fpf(low_stderr(), "lowentc: cannot read '{}'\n", proven_arg_cstr(argv[2])); return 1; }
         low_lex_result_t llx = low_lex(lw_heap(), (proven_u8str_view_t){ .ptr = lbuf, .size = llen });
         dump_tokens(&llx);
         return 0;
@@ -1386,7 +1397,7 @@ int main(int argc, char **argv) {
             // `lowentc run [entry] [args…]` → `--run main <entry> [args…]` (엔트리 생략 = 매니페스트/관례)
             static char entry[600]; char err[256]; static low_pkg_t pk;   // static — xargv 가 pk.limb_bits 를 가리킨다
             const char *earg = (argc >= 3 && strstr(argv[2], ".low")) ? argv[2] : NULL;
-            if (!resolve_entry(earg, &pk, entry, err)) { low_fpf(stderr, "lowentc run: {}\n", proven_arg_cstr(err)); return 2; }
+            if (!resolve_entry(earg, &pk, entry, err)) { low_fpf(low_stderr(), "lowentc run: {}\n", proven_arg_cstr(err)); return 2; }
             xargv[xargc++] = argv[0];
             // ★ RFC-0152 §8-12 — 최상위 매니페스트의 조각 폭(명령줄의 `--limb-bits` 가 뒤에 오면 그것이 덮는다)
             if (pk.found && pk.limb_bits[0]) { xargv[xargc++] = (char *)"--limb-bits"; xargv[xargc++] = pk.limb_bits; }
@@ -1442,7 +1453,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--migrate") == 0) {
             // ★ RFC-0142 (1.8) — `--migrate` 는 1.6 의 글을 1.7 로 옮기던 스위치다. 그 결과는 이제 한 판 전의 글이라 이 도구가 읽지 않는다.
             //   조용히 옛 글을 내는 것보다 물러났다고 말하는 편이 낫다(1.6 → 1.7 은 lowentc 1.7.0 이, 1.7 → 1.8 은 옮김 도구가 한다).
-            low_fpf(stderr, "lowentc: `--migrate` is retired — it moved 1.6 text to 1.7, and 1.7 is no longer what this compiler reads.\n"
+            low_fpf(low_stderr(), "lowentc: `--migrate` is retired — it moved 1.6 text to 1.7, and 1.7 is no longer what this compiler reads.\n"
                             "  1.6 → 1.7: run `lowentc --migrate` of release 1.7.0.  1.7 → 1.8: the migration tool in the repository (RFC-0142).\n");
             return 2;
         }
@@ -1473,7 +1484,7 @@ int main(int argc, char **argv) {
                 // ★ X-0055 곁 (2026-09-27) — `win64` 도 x86-64 기계다. 이름만 보고 막아서, 윈도용 측정 도구는
                 //   `--hw auto` 로만 지을 수 있었다(명령 집합을 적으면 E-HW-TARGET).
                 if (!tg || !tg->name || (strcmp(tg->name, "x86_64") != 0 && strcmp(tg->name, "win64") != 0)) {
-                    low_fpf(stderr,
+                    low_fpf(low_stderr(),
                             "lowentc: E-HW-TARGET: `--hw {}` names instruction sets this machine (`{}`) does "
                             "not have. The tool does NOT quietly fall back — pick `--hw none` (plain code "
                             "everywhere) or `--hw auto` (carry both and choose once at start)\n",
@@ -1490,7 +1501,7 @@ int main(int argc, char **argv) {
                                                low_cbe_set_hw_simd(2); low_cbe_set_hw_avx2(2); low_cbe_set_hw_asm(2); }
             else {
                 char buf[128]; size_t bn = strlen(v);
-                if (bn >= sizeof buf) { low_fpf(stderr, "lowentc: --hw list is too long\n"); return 2; }
+                if (bn >= sizeof buf) { low_fpf(low_stderr(), "lowentc: --hw list is too long\n"); return 2; }
                 (void)low_bcopy(buf, sizeof buf, v, bn);
                 low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0);
                 low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0); low_cbe_set_hw_asm(0);
@@ -1506,7 +1517,7 @@ int main(int argc, char **argv) {
                     //   VAES 가 없는 CPU 에서는 AES-NI·PCLMUL 로, 그것도 없으면 소프트로 내려간다 — 시작할 때 한 번 고른다.
                     else if (strcmp(tok, "vaes") == 0) { low_cbe_set_hw_vaes(1); low_cbe_set_hw_aes(2); low_cbe_set_hw_clmul(2); }
                     else {
-                        low_fpf(stderr, "lowentc: --hw takes none | auto | a comma list of "
+                        low_fpf(low_stderr(), "lowentc: --hw takes none | auto | a comma list of "
                                         "pclmul,aes,sse2,avx2,asm,vaes (got `{}`)\n", proven_arg_cstr(tok));
                         return 2;
                     }
@@ -1537,7 +1548,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--emit-events") == 0) { want_emitevents = true; }
         else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
             FILE *cf = fopen(argv[++i], "r");
-            if (!cf) { low_fpf(stderr, "cannot open config: {}\n", proven_arg_cstr(argv[i])); return 2; }
+            if (!cf) { low_fpf(low_stderr(), "cannot open config: {}\n", proven_arg_cstr(argv[i])); return 2; }
             char ln[256];
             low_ir_config_reset();
             while (fgets(ln, sizeof ln, cf)) {
@@ -1596,12 +1607,12 @@ int main(int argc, char **argv) {
             if (!low_ir_set_target(argv[++i])) {
                 // ★ RFC-0054 §8-6 — 묶음 마디(`avr` · `riscv32`)는 나무의 가지이지 기계가 아니다. 그 아래 이름을 고른다.
                 if (low_ir_target_is_group(argv[i]))
-                    low_fpf(stderr, "E-CLI-TARGET: `{}` is a group in the target tree, not a target — pick a name under it "
+                    low_fpf(low_stderr(), "E-CLI-TARGET: `{}` is a group in the target tree, not a target — pick a name under it "
                                     "(`--targets` shows the tree). The names are a closed set:", proven_arg_cstr(argv[i]));
                 else
-                low_fpf(stderr, "E-CLI-TARGET: `{}` is not a build target — the names are a closed set:", proven_arg_cstr(argv[i]));
-                for (proven_size_t t = 0; t < low_ir_target_count(); t++) low_fpf(stderr, " {}", proven_arg_cstr(low_ir_target_name(t)));
-                fputc('\n', stderr);
+                low_fpf(low_stderr(), "E-CLI-TARGET: `{}` is not a build target — the names are a closed set:", proven_arg_cstr(argv[i]));
+                for (proven_size_t t = 0; t < low_ir_target_count(); t++) low_fpf(low_stderr(), " {}", proven_arg_cstr(low_ir_target_name(t)));
+                low_putc(low_stderr(), '\n');
                 return 2;
             }
         }
@@ -1611,7 +1622,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--limb-bits") == 0 && i + 1 < argc) {
             const char *mv = argv[++i];
             if (strcmp(mv, "16") && strcmp(mv, "32") && strcmp(mv, "64")) {
-                low_fpf(stderr, "E-CLI-LIMBBITS: --limb-bits takes 16, 32 or 64 (the limb widths the big-number modules have), got `{}`\n", proven_arg_cstr(mv));
+                low_fpf(low_stderr(), "E-CLI-LIMBBITS: --limb-bits takes 16, 32 or 64 (the limb widths the big-number modules have), got `{}`\n", proven_arg_cstr(mv));
                 return 2;
             }
             low_ir_set_limb_bits((unsigned)atoi(mv));
@@ -1620,7 +1631,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--comptime-steps") == 0 && i + 1 < argc) {
             char *e = NULL; const char *mv = argv[++i]; unsigned long long v = strtoull(mv, &e, 10);
             if (!*mv || *e || v == 0 || v > 1000000000000ull) {
-                low_fpf(stderr, "E-CLI-COMPTIMESTEPS: --comptime-steps takes a whole number of VM steps from 1 to 10^12, got `{}`\n", proven_arg_cstr(mv));
+                low_fpf(low_stderr(), "E-CLI-COMPTIMESTEPS: --comptime-steps takes a whole number of VM steps from 1 to 10^12, got `{}`\n", proven_arg_cstr(mv));
                 return 2;
             }
             low_ctfe_set_steps((proven_u64)v);
@@ -1630,7 +1641,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--fixed-bytes") == 0 && i + 1 < argc) {
             char *e = NULL; unsigned long long v = strtoull(argv[++i], &e, 10);
             if (!e || *e || v == 0) {
-                low_fpf(stderr, "E-CLI-FIXED: --fixed-bytes wants a positive byte count, got `{}`\n", proven_arg_cstr(argv[i]));
+                low_fpf(low_stderr(), "E-CLI-FIXED: --fixed-bytes wants a positive byte count, got `{}`\n", proven_arg_cstr(argv[i]));
                 return 2;
             }
             low_ir_set_fixed_bytes((proven_size_t)v);
@@ -1659,7 +1670,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--test") == 0) want_test = true;
         else if (strcmp(argv[i], "--ops") == 0) want_ops = true;
         // ★ RFC-0054 §8-6 (2026-10-24 소유자 «나무 + 축 값» — «도구가 펼친 값을 보여 준다») — 대상 나무와 마디마다 펼친 값을 낸다.
-        else if (strcmp(argv[i], "--targets") == 0) { low_ir_print_targets(stdout); return 0; }
+        else if (strcmp(argv[i], "--targets") == 0) { low_ir_print_targets(low_stdout()); return 0; }
         else if (strcmp(argv[i], "--absorbs") == 0) want_absorbs = true;
         else if (strcmp(argv[i], "--zones") == 0) want_zones = true;
         // ★ **def 마다의 지우기 계수** (RFC-0053 §8-9). `--ir` 의 사람 읽는 요약은
@@ -1682,7 +1693,7 @@ int main(int argc, char **argv) {
         //   전에는 서른세 번째 파일이 그냥 사라졌고, 그 파일의 틀린 몸통은 검사되지 않은 채
         //   `--check` 가 초록으로 끝났다. 요청을 반만 들어주고 «됐다» 고 말하면 안 된다.
         else {
-            low_fpf(stderr, "E-DEP-LIMIT: more than {} input files were given; the rest would be "
+            low_fpf(low_stderr(), "E-DEP-LIMIT: more than {} input files were given; the rest would be "
                     "IGNORED and their code would go unchecked. Refusing is the honest answer "
                     "(compile in parts, or raise MAX_FILES and say why)\n", PROVEN_ARG((int)(MAX_FILES)));
             return 1;
@@ -1691,12 +1702,12 @@ int main(int argc, char **argv) {
     const char *path = npaths ? paths[0] : NULL;
     // ★★ RFC-0149 §6.14 — 번역까지만 재는 대상(`word16`)은 내지도 돌리지도 않는다. 잰 적 없는 폭의 C 나 답을 내는 것보다 거절이 낫다.
     if (low_ir_target()->check_only && (want_emitc || run_op || run_batch || want_test || want_ir || want_emitproof || want_emitevents)) {
-        low_fpf(stderr, "E-CLI-TARGET: `{}` is a check-only target — `--check` translates and checks a text at that address width, "
+        low_fpf(low_stderr(), "E-CLI-TARGET: `{}` is a check-only target — `--check` translates and checks a text at that address width, "
                         "but nothing is emitted or run for it (no machine of that width has been measured).\n", proven_arg_cstr(low_ir_target()->name));
         return 2;
     }
     if (!path) {
-        low_fpf(stderr, "lowentc {} — the Lowent compiler (VM + C back end) — on {}\n",
+        low_fpf(low_stderr(), "lowentc {} — the Lowent compiler (VM + C back end) — on {}\n",
                 proven_arg_cstr(LOW_VERSION), proven_arg_cstr(PROVEN_VERSION_STRING));
         // ★ 사용법이 **가진 기능의 절반을 안 적고 있었다**(`--emit-c`·`--config`·`--lock`·`--ops`).
         //   도구가 자기가 할 수 있는 일을 말하지 않으면, 그 기능은 **없는 것과 같다** —
@@ -1719,13 +1730,13 @@ int main(int argc, char **argv) {
                 blen += got;
                 if (cap - blen < 2) { proven_byte_t *nb = low_realloc(b, cap, cap * 2); if (!nb) { low_free(b); b = NULL; break; } b = nb; cap *= 2; }
             }
-            if (!b) { low_fpf(stderr, "lowentc: out of memory reading the text from standard input\n"); return 1; }
+            if (!b) { low_fpf(low_stderr(), "lowentc: out of memory reading the text from standard input\n"); return 1; }
             b[blen] = 0;
             bufs[0] = b; lens[0] = blen; total += blen;
             continue;
         }
         if (!read_file(paths[fi], &bufs[fi], &lens[fi])) {
-            low_fpf(stderr, "lowentc: cannot read '{}'\n", proven_arg_cstr(paths[fi]));
+            low_fpf(low_stderr(), "lowentc: cannot read '{}'\n", proven_arg_cstr(paths[fi]));
             return 1;
         }
         total += lens[fi];
@@ -1751,7 +1762,7 @@ int main(int argc, char **argv) {
         }
         if (pkg.found) {
             char perr[512];
-            if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(stderr, "{}\n", proven_arg_cstr(perr)); return 1; }
+            if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
             if (!g_have_lock && !want_lock_write) {
                 char lp[600]; low_bfmt(lp, sizeof lp, "{}/pkg.lock", proven_arg_cstr(pkg.dir));
                 FILE *lf = fopen(lp, "r");
@@ -1781,7 +1792,7 @@ int main(int argc, char **argv) {
             // ★★★ **자르지 않는다 — 말한다** (REQ-0012). 전에는 열일곱 번째 `use` 부터 **로드가
             //   안 됐고**, 그 파일의 틀린 몸통은 검사되지 않은 채 `--check` 가 초록으로 끝났다.
             if (dtotal > nd) {
-                low_fpf(stderr, "E-DEP-LIMIT: `{}` declares {} dependencies and this tool loads {} "
+                low_fpf(low_stderr(), "E-DEP-LIMIT: `{}` declares {} dependencies and this tool loads {} "
                         "per file. Loading only part of them would type-check only part of the "
                         "program and still report success — so it refuses instead. Split the file, "
                         "or raise MAX_DEPS_PER_FILE and say why\n", proven_arg_cstr(paths[fi]), PROVEN_ARG((int)(dtotal)), PROVEN_ARG((int)(nd)));
@@ -1790,7 +1801,7 @@ int main(int argc, char **argv) {
             for (int d = 0; d < nd; d++) {
                 // ★ 단위 전체의 파일 수도 같은 규율이다: 넘치면 **거절한다**(조용히 빼지 않는다).
                 if (npaths >= MAX_FILES) {
-                    low_fpf(stderr, "E-DEP-LIMIT: this compilation unit reaches {} files, which is "
+                    low_fpf(low_stderr(), "E-DEP-LIMIT: this compilation unit reaches {} files, which is "
                             "all the tool carries — the rest would be left out and the missing code "
                             "would go unchecked. Refusing is the honest answer\n", PROVEN_ARG((int)(MAX_FILES)));
                     return 1;
@@ -1826,7 +1837,7 @@ int main(int argc, char **argv) {
                                 sib_ok = false;
                         }
                         if (mdep || sib_ok) {
-                            low_fpf(stderr, "E-NAME-RESERVED: `use {} .` — this is a RESERVED (standard) "
+                            low_fpf(low_stderr(), "E-NAME-RESERVED: `use {} .` — this is a RESERVED (standard) "
                                     "module name, and {} also provides it. A local file must not shadow a "
                                     "standard module: rename it, or import it explicitly with "
                                     "`use {} from \"<path>\" .` so the choice is written down (RFC-0011 §6.3)\n",
@@ -1839,7 +1850,7 @@ int main(int argc, char **argv) {
                         if (is_url(mdep->source)) {
                             // ★ 정책(2D · RFC-0033 D8): local-only 는 네트워크 자체를 거절한다.
                             if (strcmp(g_cfg.policy, "local-only") == 0) {
-                                low_fpf(stderr, "E-POLICY-LOCAL: dependency `{}` points at a URL ({}) but "
+                                low_fpf(low_stderr(), "E-POLICY-LOCAL: dependency `{}` points at a URL ({}) but "
                                         "the policy is local-only (lowpm.local / ~/.lowent/config) — vendor "
                                         "the file, or change the policy on purpose\n", proven_arg_cstr(dnames[d]), proven_arg_cstr(mdep->source));
                                 return 1;
@@ -1847,7 +1858,7 @@ int main(int argc, char **argv) {
                             // ★ URL 은 **핀 없이는 안 받는다** — 핀 없는 다운로드는 "오늘 서버가
                             //   준 것"을 믿는 것이다. 핀이 있으면 content-addressed 캐시가 산다.
                             if (!mdep->hash[0]) {
-                                low_fpf(stderr, "E-DEP-UNPINNED-URL: dependency `{}` points at a URL ({}) "
+                                low_fpf(low_stderr(), "E-DEP-UNPINNED-URL: dependency `{}` points at a URL ({}) "
                                         "with NO hash pin — that would mean trusting whatever the server "
                                         "sends today. Run `lowentc fetch` to see the content hash, then "
                                         "pin it: `use {} from \"{}\" hash \"<hex>\" .` (RFC-0032 D4)\n",
@@ -1864,7 +1875,7 @@ int main(int argc, char **argv) {
                                 low_bfmt(st, sizeof st, "{}.sig", proven_arg_cstr(cp));
                                 if (!file_exists(st) && !fetch_url(su, st)) remove(st);
                                 if (!file_exists(st) || !sig_verify_trusted(cp, st, kn)) {
-                                    low_fpf(stderr, "E-POLICY-UNSIGNED: policy is official-only, and `{}` "
+                                    low_fpf(low_stderr(), "E-POLICY-UNSIGNED: policy is official-only, and `{}` "
                                             "has no signature a TRUSTED key verifies ({}.sig). The hash pin "
                                             "proves the bytes are unchanged; it cannot prove WHO published "
                                             "them — that is the signature's question (RFC-0032 D7)\n",
@@ -1894,7 +1905,7 @@ int main(int argc, char **argv) {
                 proven_byte_t *db = NULL; proven_size_t dl = 0;
                 if (!read_file(dp, &db, &dl)) {
                     if (want_migrate) continue;   // 옮기기는 이 파일의 글자만 본다 — 의존이 없어도 옮긴다
-                    low_fpf(stderr, "E-DEP-MISSING: `use {} from \"{}\"` — cannot read that source. "
+                    low_fpf(low_stderr(), "E-DEP-MISSING: `use {} from \"{}\"` — cannot read that source. "
                             "A dependency the tool cannot see is a dependency nobody checked\n",
                             proven_arg_cstr(dnames[d]), proven_arg_cstr(dp));
                     return 1;
@@ -1904,7 +1915,7 @@ int main(int argc, char **argv) {
                     char hex[65];
                     hash_hex(db, dl, hex);
                     if (strcmp(hex, mdep->hash) != 0) {
-                        low_fpf(stderr, "E-DEP-HASH: dependency `{}` ({}) does NOT match the manifest pin.\n"
+                        low_fpf(low_stderr(), "E-DEP-HASH: dependency `{}` ({}) does NOT match the manifest pin.\n"
                                 "  pinned  {}\n  actual  {}\n"
                                 "  The manifest promised specific BYTES; these are different bytes.\n",
                                 proven_arg_cstr(dnames[d]), proven_arg_cstr(dp), proven_arg_cstr(mdep->hash), proven_arg_cstr(hex));
@@ -1954,7 +1965,7 @@ int main(int argc, char **argv) {
                             char h1[65], h2[65];
                             hash_hex(bufs[q], lens[q], h1);
                             hash_hex(db, dl, h2);
-                            low_fpf(stderr,
+                            low_fpf(low_stderr(),
                                 "E-PKG-DIAMOND: module `{}` arrives TWICE with DIFFERENT bytes — the build "
                                 "would have to pick one, and picking silently is how the wrong program gets "
                                 "built (it used to: the second copy was dropped and its callers were bound to "
@@ -1992,7 +2003,7 @@ int main(int argc, char **argv) {
                     low_bfmt(rel, sizeof rel, "{}", low_sv((const char *)t[q + 1].lex.ptr, (int)t[q + 1].lex.size));
                     proven_u8 *b = NULL; proven_size_t bn = 0;
                     if (!inc_resolve(paths[fi], rel, real, why, sizeof why) || !inc_read(real, &b, &bn, why, sizeof why)) {
-                        low_fpf(stderr, "{}:{}: {}\n", proven_arg_cstr(paths[fi]), PROVEN_ARG((unsigned)(t[q].line)), proven_arg_cstr(why)); iok = false; break;
+                        low_fpf(low_stderr(), "{}:{}: {}\n", proven_arg_cstr(paths[fi]), PROVEN_ARG((unsigned)(t[q].line)), proven_arg_cstr(why)); iok = false; break;
                     }
                     inc_lock_name(real, name, sizeof name);
                     bool dup = false;
@@ -2043,7 +2054,7 @@ int main(int argc, char **argv) {
         // ★ 2026-10-02 — 끝에서 `heap.free_fn` 으로 푸는 배열이므로 **같은 할당기에서** 받는다(전엔 malloc — 힙이 malloc 이라
         //   우연히 맞았다. `make alloccheck` 의 블록 검사가 «남의 블록 해제» 로 잡았다).
         low_cst_t **all = (low_cst_t **)heap.alloc_fn(heap.ctx, sizeof(low_cst_t *) * 4096, alignof(low_cst_t *)).value.ptr;
-        if (!all) { low_fpf(stderr, "lowentc: out of memory\n"); return 1; }
+        if (!all) { low_fpf(low_stderr(), "lowentc: out of memory\n"); return 1; }
         proven_size_t nall = 0;
         bool ok = true;
         proven_result_array_t da = PROVEN_ARRAY_INIT(heap, low_diag_t, 8);
@@ -2107,7 +2118,7 @@ int main(int argc, char **argv) {
                 const low_fix_t *fx = low_parse_fixes(&nfx);
                 proven_size_t *ls = (proven_size_t *)low_alloc(sizeof(proven_size_t) * (s2.size + 2));
                 proven_size_t nl = 0;
-                if (!ls) { low_fpf(stderr, "lowentc: out of memory\n"); return 1; }
+                if (!ls) { low_fpf(low_stderr(), "lowentc: out of memory\n"); return 1; }
                 ls[nl++] = 0;
                 for (proven_size_t q = 0; q < s2.size; q++) if (s2.ptr[q] == '\n') ls[nl++] = q + 1;
                 proven_size_t at = 0;
@@ -2119,19 +2130,23 @@ int main(int argc, char **argv) {
                         if (o >= at && o < bo) { bo = o; best = z; }
                     }
                     if (best == nfx) break;
-                    fwrite(s2.ptr + at, 1, bo - at, stdout);
                     proven_size_t e = bo + fx[best].del;
-                    if (fx[best].ins && fx[best].ins[0]) fputs(fx[best].ins, stdout);
-                    else {                                      // 지운 낱말 곁의 빈칸 하나도 함께 지운다
+                    const bool ins = fx[best].ins && fx[best].ins[0];
+                    bool drop_prev = false;                     // 지운 낱말 곁의 빈칸 하나도 함께 지운다
+                    if (!ins) {
                         if (e < s2.size && s2.ptr[e] == ' ') e++;
-                        else if (bo > at && s2.ptr[bo - 1] == ' ' && (e >= s2.size || s2.ptr[e] == '\n')) fseek(stdout, -1, SEEK_CUR);
+                        else if (bo > at && s2.ptr[bo - 1] == ' ' && (e >= s2.size || s2.ptr[e] == '\n')) drop_prev = true;
                     }
+                    // ★ W-20261113-0024 — 앞 빈칸은 쓰기 **전에** 뺀다. 전엔 쓰고 나서 `fseek(stdout, -1)` 로 되감았는데, 출력이 관(pipe)이면
+                    //   되감기가 조용히 실패해 빈칸이 남았다(파일로 보낼 때와 관으로 보낼 때 글이 달랐다).
+                    low_write(low_stdout(), s2.ptr + at, bo - at - (drop_prev ? 1 : 0));
+                    if (ins) low_puts(low_stdout(), fx[best].ins);
                     at = e;
                     ((low_fix_t *)fx)[best].line = 0;           // 썼다
                 }
-                fwrite(s2.ptr + at, 1, s2.size - at, stdout);
+                low_write(low_stdout(), s2.ptr + at, s2.size - at);
                 low_free(ls);
-                low_fpf(stderr, "migrate: {} edit(s)\n", PROVEN_ARG((size_t)((size_t)nfx)));
+                low_fpf(low_stderr(), "migrate: {} edit(s)\n", PROVEN_ARG((size_t)((size_t)nfx)));
                 return 0;
             }
             if (fi != 0)   // ★ X-0064 — 위와 같다(가져온 파일의 파스 진단)
@@ -2215,12 +2230,12 @@ int main(int argc, char **argv) {
                 dump_diags("unit diagnostics", &tail);
             }
             if (want_nest && ninst)
-                low_fpf(stderr, "mono: {} instance(s) from {} call site(s) — the back end never "
+                low_fpf(low_stderr(), "mono: {} instance(s) from {} call site(s) — the back end never "
                                 "sees a generic (RFC-0021)\n", PROVEN_ARG((size_t)((size_t)ninst)), PROVEN_ARG((size_t)((size_t)nsub)));
         }
         if (want_nest) {
             char why[512]; low_nest_report(why, sizeof why);
-            low_fpf(stderr, "nest: {} form(s) bracketed, {} region(s) left flat"
+            low_fpf(low_stderr(), "nest: {} form(s) bracketed, {} region(s) left flat"
                             "{}{}\n  (a wrong tree is worse than no tree — this list shrinking IS the progress)\n",
                     PROVEN_ARG((size_t)((size_t)nested)), PROVEN_ARG((size_t)((size_t)gave_up)), proven_arg_cstr(why[0] ? " — blame: " : ""), proven_arg_cstr(why));
         }
@@ -2248,8 +2263,8 @@ int main(int argc, char **argv) {
         (void)low_order_lower(&pr, nodes0, heap, 2);   // ★ RFC-0155 §8-2 — 문서에 찍는 타입은 사람의 차례(개수가 먼저)
         if (doc_out) {
             int n = low_doc_write(&pr, src, heap, doc_out);
-            if (n < 0) low_fpf(stderr, "lowdoc: write failed under '{}'\n", proven_arg_cstr(doc_out));
-            else low_fpf(stderr, "lowdoc: wrote {} op(s) → {}/<module>.md + {}/llms.txt\n", PROVEN_ARG((int)(n)), proven_arg_cstr(doc_out), proven_arg_cstr(doc_out));
+            if (n < 0) low_fpf(low_stderr(), "lowdoc: write failed under '{}'\n", proven_arg_cstr(doc_out));
+            else low_fpf(low_stderr(), "lowdoc: wrote {} op(s) → {}/<module>.md + {}/llms.txt\n", PROVEN_ARG((int)(n)), proven_arg_cstr(doc_out), proven_arg_cstr(doc_out));
         } else {
             (void)low_doc(&pr, src, heap);
         }
@@ -2264,23 +2279,23 @@ int main(int argc, char **argv) {
         p0.nforms = nforms0;
         {
             // ★ RFC-0142 — 서식기는 «호출마다 괄호» 로 찍는다. 그 글을 받아 새 표면으로 올려 낸다(괄호를 벗기고 닫는 점을 찍는다).
-            fflush(stdout);
+            low_flush(low_stdout());
             FILE *tf = tmpfile();
             int saved = tf ? dup(1) : -1;
-            if (!tf || saved < 0 || dup2(fileno(tf), 1) < 0) { low_fpf(stderr, "lowentc: cannot open a scratch file for --fmt\n"); return 1; }
+            if (!tf || saved < 0 || dup2(fileno(tf), 1) < 0) { low_fpf(low_stderr(), "lowentc: cannot open a scratch file for --fmt\n"); return 1; }
             (void)low_order_lower(&p0, nodes0, heap, 2);   // ★ RFC-0155 §8-2 — 찍는 것은 사람의 차례(개수가 먼저)
             low_cst_fmt(&p0);
-            fflush(stdout);
+            low_flush(low_stdout());
             dup2(saved, 1); close(saved);
             long sz = ftell(tf) < 0 ? 0 : (fseek(tf, 0, SEEK_END), ftell(tf));
             char *fbuf = (char *)low_alloc((size_t)sz + 1);
-            if (!fbuf) { low_fpf(stderr, "lowentc: out of memory\n"); return 1; }
+            if (!fbuf) { low_fpf(low_stderr(), "lowentc: out of memory\n"); return 1; }
             rewind(tf);
             size_t got = fread(fbuf, 1, (size_t)sz, tf);
             fclose(tf);
-            if (getenv("LOW_FMT_RAW")) { fwrite(fbuf, 1, got, stdout); low_free(fbuf); return 0; }   /* 디버그 — 올리기 전의 글 */
-            if (!low_closer_raise_text(heap, fbuf, got, stdout)) {
-                low_fpf(stderr, "lowentc: --fmt could not print this file in the one-closer surface (RFC-0142) — nothing was written\n");
+            if (getenv("LOW_FMT_RAW")) { low_write(low_stdout(), fbuf, got); low_free(fbuf); return 0; }   /* 디버그 — 올리기 전의 글 */
+            if (!low_closer_raise_text(heap, fbuf, got, low_stdout())) {
+                low_fpf(low_stderr(), "lowentc: --fmt could not print this file in the one-closer surface (RFC-0142) — nothing was written\n");
                 low_free(fbuf);
                 return 1;
             }
@@ -2360,7 +2375,7 @@ int main(int argc, char **argv) {
         // ★★★ 증명 운반 검사 — 분석을 돌린 뒤 **왜 지웠는지**를 낸다(RFC-0086).
         //   `--ir` 처럼 사람용 산문을 섞지 않는다: 이 출력은 **검증기가 읽는 것**이다.
         low_ir_t ir = low_ir_build(heap, &pr);
-        int n = low_ir_emit_proof(&ir, stdout);
+        int n = low_ir_emit_proof(&ir, low_stdout());
         rc = (n >= 0 && ir.ok) ? 0 : 1;
     } else if (want_ir || want_emitc || run_op || run_batch || want_test || want_ops) {
         // ★ `--ir` 은 **사람이 읽는 덤프**다 — 저자를 향한 경고를 여기서도 켠다.
@@ -2495,7 +2510,7 @@ int main(int argc, char **argv) {
         }
         if (want_emitc && !run_refused) {
             if (want_emitdb) {
-                int n = low_ir_emit_db(&ir, stdout);
+                int n = low_ir_emit_db(&ir, low_stdout());
                 rc = (n >= 0 && ir.ok) ? 0 : 1;
             } else if (want_emitld) {
                 // ★ 중복 없이 한 번씩. 순서는 선언 순서다(재현 가능해야 한다).
@@ -2513,7 +2528,7 @@ int main(int argc, char **argv) {
                 if (nseen) low_pf("\n");
                 rc = ir.ok ? 0 : 1;
             } else if (want_emith) {
-                int n = low_cbe_emit_header(&ir, stdout);
+                int n = low_cbe_emit_header(&ir, low_stdout());
                 // ★★★ **같은 설명 기록으로**(RFC-0089 R5) — `export` 인데 심볼이 안 나오는 자리는
                 //   헤더가 주석으로도 말하지만, 도구가 읽을 출구는 **하나**여야 한다.
                 //   ☞ 판정은 단계 C 의 기록(`low_ir_plan_t`)에서 **읽기만** 한다.
@@ -2532,10 +2547,10 @@ int main(int argc, char **argv) {
             } else if (want_why) {
                 // ★★★ **못 하는 일을 말한다.** 어떤 op 이 왜 느린 경로에 남았는지 묻지 못하면,
                 //   그 목록은 아무도 줄이지 못한다 — 그리고 아무도 재지 않는다.
-                FILE *nul = fopen("/dev/null", "w");
+                low_out_t *nul = low_out_null();   // 버리는 통로(전엔 /dev/null 을 열었다)
                 low_cbe_why(true);
-                int n = low_cbe_emit(&ir, nul ? nul : stdout);
-                if (nul) fclose(nul);
+                int n = low_cbe_emit(&ir, nul ? nul : low_stdout());
+                if (nul) (void)low_out_close(nul);
                 proven_size_t slow = 0;
                 for (proven_size_t q = 0; q < ir.ndefs; q++) {
                     const char *w = low_cbe_why_of(q);
@@ -2570,7 +2585,7 @@ int main(int argc, char **argv) {
                        PROVEN_ARG((size_t)((size_t)slow)), PROVEN_ARG((size_t)((size_t)ir.ndefs)));
                 rc = (n >= 0 && ir.ok) ? 0 : 1;
             } else {
-            int n = low_cbe_emit(&ir, stdout);
+            int n = low_cbe_emit(&ir, low_stdout());
             rc = (n > 0 && ir.ok) ? 0 : 1;
             }
         }
@@ -2643,9 +2658,9 @@ int main(int argc, char **argv) {
                 blen += got;
                 if (cap - blen < 2) { char *na_ = (char *)low_realloc(all, cap, cap * 2); if (!na_) { low_free(all); all = NULL; break; } all = na_; cap *= 2; }
             }
-            if (!all) { low_fpf(stderr, "E-CLI-BATCH: out of memory reading the batch\n"); return 2; }
+            if (!all) { low_fpf(low_stderr(), "E-CLI-BATCH: out of memory reading the batch\n"); return 2; }
             all[blen] = '\0';
-            low_pf("\n\x1e" "begin\n"); low_fpf(stderr, "\n\x1e" "begin\n");
+            low_pf("\n\x1e" "begin\n"); low_fpf(low_stderr(), "\n\x1e" "begin\n");
             static char *btok[80];
             bool child = false;
             proven_size_t seq = 0;
@@ -2655,20 +2670,20 @@ int main(int argc, char **argv) {
                 proven_size_t nt = 0;
                 for (char *q = strtok(line, " \t\r"); q && nt < 80; q = strtok(NULL, " \t\r")) btok[nt++] = q;
                 if (!nt) continue;
-                fflush(stdout); fflush(stderr);
+                low_flush(low_stdout()); low_flush(low_stderr());
                 pid_t kid = fork();
-                if (kid < 0) { low_fpf(stderr, "E-CLI-BATCH: cannot fork\n"); return 2; }
+                if (kid < 0) { low_fpf(low_stderr(), "E-CLI-BATCH: cannot fork\n"); return 2; }
                 if (kid == 0) {
                     if (!freopen("/dev/null", "r", stdin)) { /* 읽을 것이 없을 뿐이다 */ }
                     run_op = btok[0];
                     for (proven_size_t t = 1; t < nt; t++) {
                         int t_ = run_arg_take(btok[t], run_op, run_args, &nrun_args, shaped, &nshaped, &any_bracket,
                                               rawargs, &nraw, sbufs);
-                        if (t_ == 2) { fflush(stderr); _exit(2); }
+                        if (t_ == 2) { low_flush(low_stderr()); _exit(2); }
                         if (t_ == 1) {
-                            low_fpf(stderr, "E-CLI-BATCH: `{}` is not a `--run` argument (a batch line is "
+                            low_fpf(low_stderr(), "E-CLI-BATCH: `{}` is not a `--run` argument (a batch line is "
                                     "`<op> <argument>…`, split on spaces)\n", proven_arg_cstr(btok[t]));
-                            fflush(stderr); _exit(2);
+                            low_flush(low_stderr()); _exit(2);
                         }
                     }
                     child = true;
@@ -2693,11 +2708,11 @@ int main(int argc, char **argv) {
                 if (timed_out)            low_bfmt(mark, sizeof mark, "timeout");
                 else if (WIFSIGNALED(st)) low_bfmt(mark, sizeof mark, "sig={}", PROVEN_ARG((int)(WTERMSIG(st))));
                 else                      low_bfmt(mark, sizeof mark, "rc={}", PROVEN_ARG((int)(WEXITSTATUS(st))));
-                low_pf("\n\x1e{} {}\n", PROVEN_ARG((size_t)((size_t)seq)), proven_arg_cstr(mark)); low_fpf(stderr, "\n\x1e{} {}\n", PROVEN_ARG((size_t)((size_t)seq)), proven_arg_cstr(mark));
+                low_pf("\n\x1e{} {}\n", PROVEN_ARG((size_t)((size_t)seq)), proven_arg_cstr(mark)); low_fpf(low_stderr(), "\n\x1e{} {}\n", PROVEN_ARG((size_t)((size_t)seq)), proven_arg_cstr(mark));
                 seq++;
             }
             if (!child) {
-                fflush(stdout); fflush(stderr);
+                low_flush(low_stdout()); low_flush(low_stderr());
                 low_free(all);
                 low_ir_free(heap, &ir);
                 return 0;
@@ -2926,7 +2941,7 @@ int main(int argc, char **argv) {
         // ★ JSON 모드에서는 **판정도 한 줄**로 낸다. 진단만 기계가 읽고 결론은 산문에서
         //   긁어야 한다면 절반만 구조화한 것이다 — 그 절반이 도구를 깨뜨린다.
         if (g_diag_json)
-            low_fpf(stderr, "{{\"result\":\"{}\",\"exit\":{}}}\n", proven_arg_cstr(ok ? "ok" : "violations"), PROVEN_ARG((int)(ok ? 0 : 1)));
+            low_fpf(low_stderr(), "{{\"result\":\"{}\",\"exit\":{}}}\n", proven_arg_cstr(ok ? "ok" : "violations"), PROVEN_ARG((int)(ok ? 0 : 1)));
         rc = ok ? 0 : 1;
         proven_array_destroy(&cr.diags);
         proven_array_destroy(&tr.diags);
@@ -2943,7 +2958,7 @@ int main(int argc, char **argv) {
         //   이 프로젝트가 금지하는 것의 가장 큰 사례다(PRINCIPLES.md §0).
         //   ★ 그리고 그것이 `fn`·`as`·`fail`·`give`·`unit` 이 살아 있던 **유일한 이유**였다.
         //   지웠다. 이제 무엇을 할지 **말해야** 한다 — 도구가 마음대로 고르지 않는다.
-        low_fpf(stderr,
+        low_fpf(low_stderr(),
                 "{}: say what you want done — there is no default mode any more.\n"
                 "  the old tree-walking interpreter (and the second, undocumented language it ran)\n"
                 "  has been deleted: THE LANGUAGE IS ONE. use --check / --run OP / --ir / --test / --doc.\n\n",

@@ -26,6 +26,7 @@
 #define LOW_IR_H
 
 #include <stdio.h>
+#include "low_out.h"
 #include "proven/array.h"
 #include "low_cst.h"
 
@@ -1098,7 +1099,7 @@ bool low_ir_target_is_group(const char *name);
 bool low_ir_target_tree_ok(char *err, size_t errn);          // 모든 마디가 펼쳐지는가(단위 시험)
 // ★ RFC-0132 P4e — 값 구조체인가(액터 상태 · 장치 레지스터 · 예약 · `owned` 칸이 없다): 베끼고 틀에 둘 수 있는 것.
 bool low_ir_struct_is_value(const low_ir_t *ir, proven_size_t sidx);
-void low_ir_print_targets(FILE *f);                          // `--targets`
+void low_ir_print_targets(low_out_t *f);                          // `--targets`
 const char *low_ir_target_name(proven_size_t i);
 // ★★★ **SMT 백엔드를 끈다** (`--no-smt`) — 기능 스위치가 아니라 **측정 도구**다 (후속 M).
 //   같은 바이너리로 켠 판과 끈 판을 재야 *"SMT 가 몇 개를 더 지웠나"* 가 **실측**이 된다.
@@ -1169,9 +1170,9 @@ void low_ir_dump(const low_ir_t *ir);
 // ★★★ **`.lowdb` 사이드파일** (RFC-0012) — 내용주소 해시를 **밖으로 낸다**.
 //   해시는 여태 계산만 되고 **버려졌다**: 다음 실행이 이전 실행과 대조할 방법이 없었으므로
 //   *"변한 op 만 다시 짓는다"* 는 증분 빌드의 전제가 **검사 불가능**했다.
-int low_ir_emit_db(const low_ir_t *ir, FILE *out);
+int low_ir_emit_db(const low_ir_t *ir, low_out_t *out);
 // ★ 증명 운반 검사(RFC-0086): 지운 검사마다 **규칙 id + 쓴 수**를 낸다.
-int low_ir_emit_proof(const low_ir_t *ir, FILE *out);
+int low_ir_emit_proof(const low_ir_t *ir, low_out_t *out);
 // ★ 저자를 향한 경고(W-CONTRACT-IGNORED 따위)를 켠다 — `--check`·`--ir` 만.
 void low_ir_set_author_warnings(bool on);
 

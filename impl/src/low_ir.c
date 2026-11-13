@@ -334,7 +334,7 @@ static const ir_tnode_t IR_TREE[] = {
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
     { "win64",     "lowent",   true,  "simd=16 posix=0 limb=64" },   // 조각 64 = 잰 값(2026-10-23 · Windows 11 VM · RFC-0152 §9.8)
     { "mips_be",   "lowent",   true,  "word=32 be=1 cache=32" },     // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
-    { "cortex_m",  "lowent",   true,  "word=32 env=bare cache=4 atomld=4 atom=4" },   // ★ RFC-0054 §8-8 — LDREX/STREX 는 4 바이트까지(8 은 libatomic 이 없어 링크가 멈췄다)  // freestanding: no_heap · no_float · SIMD 없음
+    { "cortex_m",  "lowent",   true,  "word=32 env=bare cache=4 atomld=4 atom=4 sf32=2" },   // ★ sf32=2 — 소프트웨어 `f32` 를 지었으나 실행해 보지 않았다(W-20261113-1253)   // ★ RFC-0054 §8-8 — LDREX/STREX 는 4 바이트까지(8 은 libatomic 이 없어 링크가 멈췄다)  // freestanding: no_heap · no_float · SIMD 없음
     // RFC-0152 (2026-10-23, 소유자 «Cortex M0을 위한 줄을 따로 둡시다») — `cortex_m` 과 같고 곱셈기만 다르다: M0 · M0+ 는 32×32 곱의
     //   아래 32 비트만 낸다고 알려져 있어(확인하지 않았다) 위 절반까지 한 번에 나오는 곱은 16×16 이다. 재지 않은 대상이라 조각 폭도 곱셈기 폭(16).
     { "cortex_m0", "cortex_m", true,  "mul=16 atom=0" },   // ★ ARMv6-M 은 읽고-쓰기 원자 명령이 없다(잰 값: 1 · 2 · 4 · 8 바이트 모두 __atomic_* 부름)
@@ -342,7 +342,7 @@ static const ir_tnode_t IR_TREE[] = {
     // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
     //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
     //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
-    { "cheriot",   "riscv32",  true,  "env=bare ptr=8 align=8 caps=1 cache=8" },
+    { "cheriot",   "riscv32",  true,  "env=bare ptr=8 align=8 caps=1 cache=8 sf32=2" },   // ★ sf32=2 — 실행해 보지 않은 소프트웨어 `f32`
     // ★★ RFC-0054 §8-7 — **AVR, 첫 8 비트 기계** (2026-10-25, 소유자 «곱셈기 폭 8비트 지원도 넣어 주세요»). 주소 16 비트 · 포인터 2 바이트 ·
     //   정렬 1 · 곱셈 명령은 8×8→16(`mul`). 잰 값: clang `-mmcu=atmega328p` 의 `__SIZEOF_POINTER__` 2 · `__BIGGEST_ALIGNMENT__` 1 ·
     //   `__AVR_HAVE_MUL__` 1 (2026-10-25). 조각 폭은 곱셈기보다 좁을 수 없다 — 16 이다(`low_ir_limb_bits`).
@@ -360,7 +360,7 @@ static const ir_tnode_t IR_TREE[] = {
     // ★★ RFC-0149 §6.14 — **16 비트 주소: 번역까지만** (2026-10-13, 소유자 결정 «가»). 실제 기계의 이름이 아니다 — `usize` · `idiff` 가
     //   16 비트일 때 같은 글이 서는지를 재는 자리다(`scripts/check-size-width.py`). 힙 · 부동 · POSIX 가 없는 프리스탠딩 칸이고,
     //   슬라이스 길이의 상한은 2^15 다. `check` 가 참이라 방출 · 실행은 거절된다.
-    { "word16",    "lowent",   true,  "word=16 env=bare cache=2 check=1" },
+    { "word16",    "lowent",   true,  "word=16 env=bare cache=2 check=1 sf32=2" },   // ★ sf32=2 — 실행해 보지 않은 소프트웨어 `f32`(번역까지만인 칸)
 };
 enum { IR_NTREE = sizeof IR_TREE / sizeof IR_TREE[0] };
 static low_target_t ir_tres[IR_NTREE];   // 펼친 값 — 처음 물을 때 한 번 채운다
@@ -401,13 +401,13 @@ static bool ir_axis(low_target_t *t, const char *k, size_t kn, const char *v) {
     if (K("slice"))  { if (n < 1) return false; t->max_slice_len = n; return true; }
     if (K("cache"))  { if (n < 1) return false; t->cache_line = (proven_u32)n; return true; }
     if (K("page"))   { if (n < 0) return false; t->page_size = (proven_u32)n; return true; }
+    if (K("sf32"))   { if (n < 0 || n > 2) return false; t->soft_f32 = (proven_u8)n; return true; }   // 0 못 지음 · 1 잼 · 2 지었으나 안 잼(W-20261113-1253)
     if (n != 0 && n != 1) return false;
     if (K("be"))     { t->big_endian = n; return true; }
     if (K("caps"))   { t->ptr_caps = n; return true; }
     if (K("fpu"))    { t->has_fpu = n; return true; }
     if (K("heap"))   { t->no_heap = !n; return true; }
     if (K("float"))  { t->no_float = !n; return true; }
-    if (K("sf32"))   { t->soft_f32 = n; return true; }
     if (K("posix"))  { t->posix = n; return true; }
     if (K("check"))  { t->check_only = n; return true; }
     if (K("int128")) { t->int128 = n; return true; }

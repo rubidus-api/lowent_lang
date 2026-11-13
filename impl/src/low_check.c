@@ -5004,6 +5004,13 @@ static void ck_float_target(low_check_result_t *out, const low_parse_result_t *p
                  "target has no floating-point unit (`machine.no_float`). `f64` is optional and this target does not have it — "
                  "the C compiler's software `double` is not a 64-bit IEEE value everywhere (avr-gcc's is 32 bits). Use `f32`, "
                  "fixed-point integers, or a target with float", ln);
+        else if (w32 && t->soft_f32 == 2)
+            // ★ 2026-11-13 (W-20261113-1253 · RFC-0157 §8-8 · 소유자 «소프트웨어 f32는 테스트 없이 일단 만들어만 두고, 제대로 동작하지 않는 것을
+            //   경고하는 번역 메시지를 써 놓읍시다. 개발자에게 연락하라고 해 주세요») — 받되, 실행해 확인하지 않았다고 알린다.
+            warn(out, "W-FLOAT-UNTESTED",
+                 "this declaration uses `f32` on a target with no floating-point unit. Software `f32` is built for this target, "
+                 "but it has not been run and checked against the other back ends, so it may not work correctly. If a result looks "
+                 "wrong, please contact the Lowent developer: https://github.com/rubidus-api/lowent_lang/issues", ln);
         else if (w32 && !t->soft_f32)
             emit(out, "E-FLOAT-NOTYET",
                  "this declaration uses `f32`. `f32` is on every target (canon 5.6 (4-1)), computed in software where there is no "

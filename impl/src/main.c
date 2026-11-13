@@ -2405,6 +2405,16 @@ int main(int argc, char **argv) {
                        proven_arg_cstr(gate_flag));
                 run_refused = true;
                 rc = 2;
+            } else {
+                // ★ 2026-11-13 (W-20261113-1253 · 소유자 «제대로 동작하지 않는 것을 경고하는 번역 메시지를 써 놓읍시다. 개발자에게 연락하라고
+                //   해 주세요») — 실행해 보지 않은 소프트웨어 `f32` 의 경고는 **번역할 때도** 말한다(표준 오류 — 방출하는 C 와 섞이지 않게).
+                //   다른 경고는 전처럼 `--check` 에서만 보인다.
+                for (proven_size_t i = 0; i < rcr.diags.len; i++) {
+                    const low_diag_t *d = PROVEN_ARRAY_GET(&rcr.diags, low_diag_t, i);
+                    if (d->code && strcmp(d->code, "W-FLOAT-UNTESTED") == 0)
+                        low_fpf(low_stderr(), "lowentc: warning {}:{}: W-FLOAT-UNTESTED: {}\n", proven_arg_cstr(d->file ? d->file : path),
+                                PROVEN_ARG((unsigned)d->line), proven_arg_cstr(low_diag_text(d)));
+                }
             }
         }
         low_narrow_qualified(&pr);          // ★ 하강도 좁혀진 이름을 본다 (결함 노트 #77)

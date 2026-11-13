@@ -242,9 +242,11 @@ end .
 (4-1) `f32` **exists on every target.** On a target without a floating-point unit it is computed in software, and the result is identical, to the bit, to that of a target with one.
       `f64` exists only on targets with the unit — it cannot be used on the targets of the table above.
 
-(4-2) The processor accepts software `f32` only on targets **where it has been measured**. The processor of this edition accepts it on the four AVR chips (`atmega328p` · `atmega2560` · `atmega32u4` ·
-      `atmega4809`) and still refuses it on `cortex_m` · `cheriot` · `word16` (`E-FLOAT-NOTYET`). That refusal is not a rule of the language but
-      the processor saying it has not yet been built.
+(4-2) The processor accepts software `f32` on every target without a floating-point unit. On the four AVR chips (`atmega328p` · `atmega2560` ·
+      `atmega32u4` · `atmega4809`) it has been run and measured to the bit; on `cortex_m` · `cheriot` · `word16` it is built but has not been run —
+      a declaration that uses `f32` there is accepted, and translating it warns (`W-FLOAT-UNTESTED`: it may not work correctly; if a result looks
+      wrong, tell the developer). That warning is not a rule of the language but the processor saying it has not yet measured it. A target
+      for which software `f32` is not built yet refuses `f32` (`E-FLOAT-NOTYET`) — this edition has no such target.
 
 > [!산문]
 > Why `f32` and `f64` are separated: 32-bit floating point can be computed exactly in software even on small machines, and there is much work

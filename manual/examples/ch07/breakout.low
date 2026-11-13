@@ -1,0 +1,32 @@
+module breakout .
+rem run: first_cell 8
+
+rem ko: 겹친 되풀이에서 찾던 칸을 만나면 `break 2 .` 로 둘을 한 번에 벗어난다 /// en: in nested loops, `break 2 .` leaves both at once when the cell is found
+export fn first_cell input want u32 . output usize .
+do
+  let g lit slice array 3 u32 lit array 3 u32 1 2 3 . lit array 3 u32 4 0 6 . lit array 3 u32 7 8 9 . . .
+  var hit usize 99 .
+  repeat r usize len g. . do
+    repeat c usize 3 do
+      if eq idx idx g. r. . c. . want. . do
+        set hit. add mul r. 3 . c. . .
+        break 2 .
+      end .
+    end .
+  end .
+  return hit. .
+end .
+
+rem ko: `continue 2 .` 는 안쪽 되풀이를 벗어나 바깥 되풀이의 다음 바퀴로 간다 /// en: `continue 2 .` leaves the inner loop and goes on with the next round of the outer one
+export fn rows_without input bad u32 . output u64 .
+do
+  let g lit slice array 3 u32 lit array 3 u32 1 2 3 . lit array 3 u32 4 0 6 . lit array 3 u32 7 8 9 . . .
+  var n u64 0 .
+  for row g. do
+    for x row. do
+      guard ne x. bad. . else continue 2 . .
+    end .
+    set n. add n. 1 . .
+  end .
+  return n. .
+end .

@@ -1,0 +1,10 @@
+module compt_width .
+rem expect: E-TYPE-WIDTH
+
+let K u64 6 .
+
+fn f output u8 .
+do
+  rem ko: ✘ 셈한 답 600 은 `u8` 에 들지 않는다 — `return 600 .` 과 같다 /// en: ✘ the answer 600 does not fit `u8` — the same as `return 600 .`
+  return comptime mul K. 100 . . .
+end .

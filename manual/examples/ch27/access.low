@@ -1,0 +1,9 @@
+module access .
+rem run: peek [9,8,7]
+
+rem ko: access data shared_read — 이 op 은 data 를 읽기만 한다. 여러 태스크가 함께 쥘 수 있다는 약속이다 /// en: access data shared_read says this op only reads data, a promise that several tasks may hold it together
+fn peek input data slice u8 . output u64 .
+  access data shared_read .
+do
+  return widen u64 idx data. 0 . . .
+end .

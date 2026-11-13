@@ -1,0 +1,13 @@
+module mistake_arity .
+rem expect: E-IR-ARITY
+
+fn add3 input a i32 . input b i32 . input c i32 . output i32 .
+do
+  return add add a. b. . c. . .
+end .
+
+fn use3 output i32 .
+do
+  rem ko: ✘ input 절이 셋인데 인자를 둘만 줬다 /// en: ✘ three input clauses, but only two arguments
+  return add3 1 2 . .
+end .

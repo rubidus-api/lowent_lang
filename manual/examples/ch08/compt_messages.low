@@ -1,0 +1,62 @@
+module compt_messages .
+rem run: lines
+rem run: thanks_len
+
+struct msg do
+  ko slice u8 .
+  en slice u8 .
+end .
+
+rem ko: 줄마다 `ko,en` 을 쪼갠다 — 슬라이스 칸은 입력 글의 조각이다 /// en: split each `ko,en` line — the slice fields are pieces of the input text
+fn parse input txt slice u8 . output r array 8 msg .
+do
+  var row usize 0 .
+  var start usize 0 .
+  var comma usize 0 .
+  var i usize 0 .
+  while le i. len txt. . . do
+    if or eq i. len txt. . . eq idx txt. i. . 10 . . do
+      if gt i. start. . do
+        set idx r. row. . lit msg do ko subslice txt. start. comma. . . en subslice txt. add comma. 1 . i. . . end . .
+        set row. add row. 1 . .
+      end .
+      set start. add i. 1 . .
+    end else do
+      if eq idx txt. i. . 44 . do set comma. i. . end .
+    end .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end .
+
+fn count_lines input txt slice u8 . output usize .
+do
+  var n usize 0 .
+  for c txt. do if eq c. 10 . do set n. add n. 1 . . end . end .
+  return add n. 1 . .
+end .
+
+fn same input s slice u8 . output slice u8 .
+do
+  return s. .
+end .
+
+let RAW slice u8 comptime same text END
+안녕,hello
+고마워,thanks
+END
+  . . .
+
+rem ko: 자리는 넉넉히 8 — 채운 줄 수는 따로 센다 /// en: room for 8 — how many lines were filled is counted separately
+let N usize comptime count_lines RAW. . . .
+let MSGS array 8 msg comptime parse RAW. . . .
+
+fn lines output usize .
+do
+  return N. .
+end .
+
+fn thanks_len output usize .
+do
+  return len field idx MSGS. 1 . en . . .
+end .

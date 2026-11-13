@@ -1,0 +1,7 @@
+module lock .
+rem expect: E-LOCK-NOTYET
+
+rem ko: ✘ 흐름끼리 나누는 자물쇠 상태 — 이름은 정본에 있지만 아직 받지 않는다 /// en: ✘ lock state shared between flows; the name is in the canon but it is not accepted yet
+fn read_count input c lock u64 . output u64 . do
+  return 0 .
+end .

@@ -1,0 +1,20 @@
+module seqborrow .
+rem run: use_twice 7
+
+proc bump input p mut_ref u64 . output void .
+  effects none .
+  requires lt deref p. . 1000 . .
+do
+  set p. add deref p. . 1 . .
+end .
+
+proc use_twice input start u64 . output u64 .
+  effects none .
+  requires lt start. 900 . .
+do
+  var n u64 start. .
+  rem ko: 첫 빌림은 이 호출이 끝날 때 돌아온다 --- 그래서 다음 줄에서 또 빌릴 수 있다 /// en: the first borrow comes back when this call ends --- so the next line may borrow again
+  bump mut_ref n . .
+  bump mut_ref n . .
+  return n. .
+end .

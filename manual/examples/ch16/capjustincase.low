@@ -1,0 +1,10 @@
+module capjustincase .
+rem expect: W-EFFECT-OVER
+
+rem ko: 나중에 쓸지도 몰라 권한과 효과를 미리 적어 두었다 /// en: the capability and the effect are declared just in case they are needed later
+proc area input out cap io . input w u64 . input h u64 . output u64 . effects io .
+  requires le w. 1000 . .
+  requires le h. 1000 . .
+do
+  return mul w. h. . .
+end .

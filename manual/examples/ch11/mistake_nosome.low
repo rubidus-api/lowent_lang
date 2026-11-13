@@ -1,0 +1,9 @@
+module mistake_nosome .
+rem expect: E-TYPE-RETURN
+
+fn find input k u64 . output option u64 .
+do
+  guard lt k. 5 . else return none . .
+  rem ko: ✘ 값을 `some` 으로 싸지 않았다 /// en: ✘ the value is not wrapped in `some`
+  return mul k. 10 . .
+end .

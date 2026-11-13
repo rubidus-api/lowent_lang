@@ -1,0 +1,9 @@
+module mistake_localname .
+rem expect: E-NAME-BUILTIN
+
+fn size input xs slice u8 . output usize .
+do
+  rem ko: ✘ `max` 는 기본 연산의 이름이다 --- 지역 이름으로 쓸 수 없다 /// en: ✘ `max` is the name of a core op --- it cannot be a local name
+  let max usize len xs. . .
+  return max. .
+end .

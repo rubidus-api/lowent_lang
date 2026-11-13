@@ -1,0 +1,16 @@
+module mistake_context .
+rem expect: E-PIPE-CONTEXT-TYPE
+
+rem ko: ✘ 문맥은 참조 없는 값이다 --- 슬라이스는 주소를 들고 다니므로 문맥이 될 수 없다 /// en: ✘ a context is a value without references --- a slice carries an address, so it cannot be one
+fn over input x u8 . input s slice u8 . output bool .
+do
+  return gt x. idx s. 0 . . .
+end .
+
+export fn count_over input xs slice u8 . output u64 .
+do
+  return pipe xs. do
+    filter over with xs. .
+    count .
+  end . .
+end .

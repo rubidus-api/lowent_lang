@@ -21,7 +21,9 @@ typedef struct {
     // self-contained buffer for formatted runtime messages.
     // ★ 96 → 256 (2026-08-07): 이름을 **대는** 진단이 늘면서 96 바이트가 문장을 잘랐다.
     //   자른 진단은 자리를 반만 짚는다 — 그럴 바에는 버퍼가 큰 편이 싸다.
-    char           detail[256];
+    // ★ 256 → 1024 (2026-11-13 · W-20261113-0943 · 소유자 «오류 메시지 길이를 좀 늘리죠. 1024 바이트면 적당하지 않을까요»): 255 바이트에서
+    //   E-STACK-BUDGET 같은 진단의 끝이 잘렸다(무엇을 고치라는 말이 뒤에 있었다).
+    char           detail[1024];
     // ★ optional STABLE repair id, e.g. "R-CALC-TO-PROC" (static string), NULL if none.
     //   The primary user is an AI: a stable code says WHAT is wrong, a repair id says HOW to
     //   fix it — both machine-actionable, neither requiring prose parsing (REQ-0003). Set only

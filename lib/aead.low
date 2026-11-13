@@ -140,7 +140,7 @@ errors short_workspace . do
   var diff u64 0 .
   var i usize 0 .
   while lt i. 16 . do
-    set diff. bit_or diff. bit_xor cast u64 idx want. i. . . cast u64 idx tag. i. . . . . .
+    set diff. bit_or diff. bit_xor idx want. i. . idx tag. i. . . . .
     set i. add i. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .

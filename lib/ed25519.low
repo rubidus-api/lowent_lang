@@ -268,7 +268,7 @@ errors short_workspace . do
   var diff u64 0 .
   var i usize 0 .
   while lt i. 32 . do
-    set diff. bit_or diff. bit_xor cast u64 idx bb. i. . . cast u64 idx bb. add 32 i. . . . . . .
+    set diff. bit_or diff. bit_xor idx bb. i. . idx bb. add 32 i. . . . . .
     set i. add i. 1 . .
   end .
   if eq diff. 0 . do  return ok 1 . .  end .
@@ -452,7 +452,7 @@ errors short_workspace . do
   var diff u64 0 .
   var q usize 0 .
   while lt q. 32 . do
-    set diff. bit_or diff. bit_xor cast u64 idx bb. add 288 q. . . . cast u64 idx bb. q. . . . . .
+    set diff. bit_or diff. bit_xor idx bb. add 288 q. . . idx bb. q. . . . .
     set q. add q. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .
@@ -567,7 +567,7 @@ errors short_workspace . do
   var diff u64 0 .
   var q usize 0 .
   while lt q. 32 . do
-    set diff. bit_or diff. bit_xor cast u64 idx bb. add 288 q. . . . cast u64 idx bb. q. . . . . .
+    set diff. bit_or diff. bit_xor idx bb. add 288 q. . . idx bb. q. . . . .
     set q. add q. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .

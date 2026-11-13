@@ -58,7 +58,7 @@ errors short_workspace . do
   rem ② (K' xor ipad) || msg  →  scratch
   var i usize 0 .
   while lt i. 64 . do
-    set idx scratch. i. . cast u8 bit_xor cast u64 idx scratch. i. . . 54 . . .
+    set idx scratch. i. . bit_xor idx scratch. i. . 54 . .
     set i. add i. 1 . .
   end .
   var j usize 0 .
@@ -73,7 +73,7 @@ errors short_workspace . do
   guard eq key_block key. scratch. . 64 . else return ok 0 . . .
   var m usize 0 .
   while lt m. 64 . do
-    set idx scratch. m. . cast u8 bit_xor cast u64 idx scratch. m. . . 92 . . .
+    set idx scratch. m. . bit_xor idx scratch. m. . 92 . .
     set m. add m. 1 . .
   end .
   var q usize 0 .

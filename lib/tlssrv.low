@@ -666,10 +666,10 @@ do
   guard eq len got. . 36 . else return ok 0 . . .
   guard ge len w. . 1024 . else return ok 0 . . .
   rem 틀 검사부터 — 종류 20, 길이 32.
-  guard eq cast u64 idx got. 0 . . 20 . else return ok 0 . . .
-  guard eq cast u64 idx got. 1 . . 0 . else return ok 0 . . .
-  guard eq cast u64 idx got. 2 . . 0 . else return ok 0 . . .
-  guard eq cast u64 idx got. 3 . . 32 . else return ok 0 . . .
+  guard eq idx got. 0 . 20 . else return ok 0 . . .
+  guard eq idx got. 1 . 0 . else return ok 0 . . .
+  guard eq idx got. 2 . 0 . else return ok 0 . . .
+  guard eq idx got. 3 . 32 . else return ok 0 . . .
   guard eq tls13.transcript msgs. len msgs. . subslice w. 0 32 . . 32 . else return ok 0 . . .
   return tls13.check_finished chs. subslice w. 0 32 . subslice got. 4 36 . subslice w. 32 160 . subslice w. 160 1024 . . .
 end .

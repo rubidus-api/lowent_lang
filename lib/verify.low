@@ -340,7 +340,7 @@ export fn dn_eq input a slice u8 . input ao usize . input b slice u8 . input bo 
   var i usize 0 .
   var diff u64 0 .
   while lt i. al. . do
-    set diff. bit_or diff. bit_xor cast u64 idx a. add ao. i. . . . cast u64 idx b. add bo. i. . . . . . .
+    set diff. bit_or diff. bit_xor idx a. add ao. i. . . idx b. add bo. i. . . . . .
     set i. add i. 1 . .
   end .
   return eq diff. 0 . .

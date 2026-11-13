@@ -210,11 +210,11 @@ rem
 rem ★ 모든 자리가 **상대가 쓴 길이**를 타고 간다. 한 걸음마다 버퍼 안인지 본다.
 export fn sh_ok input b slice u8 . output bool . do
   if lt len b. . 44 . do  return false . end .
-  if ne cast u64 idx b. 0 . . 2 . do  return false . end .
+  if ne idx b. 0 . 2 . do  return false . end .
   let body usize cast usize add mul cast u64 idx b. 1 . . 65536 . tlssrv.be16 b. 2 . . . .
   if ne add body. 4 . len b. . . do  return false . end .
-  if ne cast u64 idx b. 4 . . 3 . do  return false . end .
-  if ne cast u64 idx b. 5 . . 3 . do  return false . end .
+  if ne idx b. 4 . 3 . do  return false . end .
+  if ne idx b. 5 . 3 . do  return false . end .
   let sl usize cast usize idx b. 38 . . .
   if gt sl. 32 . do  return false . end .
   let at usize add 39 sl. . .
@@ -232,12 +232,12 @@ rem   모르고 지나가는 것과 알고 거절하는 것은 다르다.
 export fn sh_is_hrr input b slice u8 . output bool . do
   if lt len b. . 38 . do  return false . end .
   rem CF 21 AD 74 E5 9A 61 11 BE 1D 8C 02 1E 65 B8 91 C2 A2 11 16 7A BB 8C 5E 07 9E 09 E2 C8 A8 33 9C
-  if ne cast u64 idx b. 6 . . 207 . do  return false . end .
-  if ne cast u64 idx b. 7 . . 33 . do  return false . end .
-  if ne cast u64 idx b. 8 . . 173 . do  return false . end .
-  if ne cast u64 idx b. 9 . . 116 . do  return false . end .
-  if ne cast u64 idx b. 36 . . 51 . do  return false . end .
-  if ne cast u64 idx b. 37 . . 156 . do  return false . end .
+  if ne idx b. 6 . 207 . do  return false . end .
+  if ne idx b. 7 . 33 . do  return false . end .
+  if ne idx b. 8 . 173 . do  return false . end .
+  if ne idx b. 9 . 116 . do  return false . end .
+  if ne idx b. 36 . 51 . do  return false . end .
+  if ne idx b. 37 . 156 . do  return false . end .
   return true .
 end .
 
@@ -415,8 +415,8 @@ export proc check_server_fin input s_hs slice u8 . input msgs2 slice u8 . input 
 errors short_workspace .
 do
   guard eq len fin. . 36 . else return ok false . . .
-  guard eq cast u64 idx fin. 0 . . 20 . else return ok false . . .
-  guard eq cast u64 idx fin. 1 . . 0 . else return ok false . . .
+  guard eq idx fin. 0 . 20 . else return ok false . . .
+  guard eq idx fin. 1 . 0 . else return ok false . . .
   guard eq tlssrv.be16 fin. 2 . 32 . else return ok false . . .
   guard ge len w. . 1216 . else return ok false . . .
   let _u1 result usize tlscli_error finished_vd s_hs. msgs2. subslice w. 1024 1056 . subslice w. 0 1024 . . .
@@ -425,7 +425,7 @@ do
   var diff u64 0 .
   var i usize 0 .
   while lt i. 32 . do
-    set diff. bit_or diff. bit_xor cast u64 idx fin. add 4 i. . . . cast u64 idx w. add 1024 i. . . . . . .
+    set diff. bit_or diff. bit_xor idx fin. add 4 i. . . idx w. add 1024 i. . . . . .
     set i. add i. 1 . .
   end .
   return ok eq diff. 0 . . .
@@ -503,7 +503,7 @@ rem ★ 첫째가 **잎**이고 그 뒤가 중간자다(RFC 8446 §4.4.2). 차�
 rem ☞ 길이는 전부 상대가 쓴 것이다 — 한 걸음마다 버퍼 안인지 본다.
 export fn cert_at input b slice u8 . input off usize . input n u64 . output usize . do
   if ge add off. 8 . len b. . . do  return 0 . end .
-  if ne cast u64 idx b. off. . . 11 . do  return 0 . end .
+  if ne idx b. off. . 11 . do  return 0 . end .
   let ctx usize cast usize idx b. add off. 4 . . . .
   var at usize add add off. 5 . ctx. . .
   if ge add at. 3 . len b. . . do  return 0 . end .

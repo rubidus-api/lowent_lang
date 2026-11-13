@@ -32,7 +32,7 @@ rem 16 바이트를 XOR 로 겹친다.
 proc xor16 input z mut slice u8 . input x slice u8 . output u64 . effects none . do
   var i usize 0 .
   while lt i. 16 . do
-    set idx z. i. . cast u8 bit_xor cast u64 idx z. i. . . cast u64 idx x. i. . . . . .
+    set idx z. i. . bit_xor idx z. i. . idx x. i. . . .
     set i. add i. 1 . .
   end .
   return 1 .
@@ -72,7 +72,7 @@ export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice 
       if eq done. 0 . do  set k. sub k. 1 . .  end .
     end .
     if eq lsb. 1 . do
-      set idx v. 0 . cast u8 bit_xor cast u64 idx v. 0 . . 225 . . .
+      set idx v. 0 . bit_xor idx v. 0 . 225 . .
     end .
     set b. add b. 1 . .
   end .
@@ -229,7 +229,7 @@ proc gcm_tag_finish input alen usize . input clen usize . input tag mut slice u8
   rem   그 사이에 그 자리를 건드리는 것은 없다: 누산은 192·176 을, 길이 블록은 224 를 쓴다.
   var t usize 0 .
   while lt t. 16 . do
-    set idx tag. t. . cast u8 bit_xor cast u64 idx w. add 192 t. . . . cast u64 idx w. add 272 t. . . . . . .
+    set idx tag. t. . bit_xor idx w. add 192 t. . . idx w. add 272 t. . . . .
     set t. add t. 1 . .
   end .
   return 16 .
@@ -290,7 +290,7 @@ errors short_workspace . do
   var diff u64 0 .
   var i usize 0 .
   while lt i. 16 . do
-    set diff. bit_or diff. bit_xor cast u64 idx want. i. . . cast u64 idx tag. i. . . . . .
+    set diff. bit_or diff. bit_xor idx want. i. . idx tag. i. . . . .
     set i. add i. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .

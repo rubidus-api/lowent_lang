@@ -189,7 +189,7 @@ export fn spki_key_off input b slice u8 . input spki usize . output usize . do
   let ko usize value_off b. bs. . .
   guard gt ko. 0 . else return 0 . .
   guard lt ko. len b. . . else return 0 . .
-  guard eq cast u64 idx b. ko. . . 0 . else return 0 . .
+  guard eq idx b. ko. . 0 . else return 0 . .
   return add ko. 1 . .
 end .
 
@@ -214,7 +214,7 @@ export fn rsa_n_off input b slice u8 . input ko usize . output usize . do
   let no usize value_off b. so. . .
   guard gt no. 0 . else return 0 . .
   guard lt no. len b. . . else return 0 . .
-  if eq cast u64 idx b. no. . . 0 . do  return add no. 1 . .  end .
+  if eq idx b. no. . 0 . do  return add no. 1 . .  end .
   return no. .
 end .
 
@@ -230,7 +230,7 @@ export fn rsa_n_len input b slice u8 . input ko usize . output usize . do
   rem ★ `rsa_n_off` 와 같은 가드 — 이것이 빠져서 값 없는 INTEGER 머리가 버퍼 끝에 오면
   rem   `index b no` 가 트랩했다(2026-09-04 검토 A2). 형제가 가진 가드는 형제도 가져야 한다.
   guard lt no. len b. . . else return 0 . .
-  if eq cast u64 idx b. no. . . 0 . do  return sub nl. 1 . .  end .
+  if eq idx b. no. . 0 . do  return sub nl. 1 . .  end .
   return nl. .
 end .
 

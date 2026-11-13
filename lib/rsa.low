@@ -75,7 +75,7 @@ errors short_workspace . do
   guard ge len w. . add emlen. 128 . . else return error short_workspace . . .
 
   rem ① 마지막 바이트는 0xbc 여야 한다.
-  guard eq cast u64 idx em. sub emlen. 1 . . . 188 . else return ok 0 . . .
+  guard eq idx em. sub emlen. 1 . . 188 . else return ok 0 . . .
 
   let hlen usize 32 .
   let dblen usize sub sub emlen. hlen. . 1 . .
@@ -90,7 +90,7 @@ errors short_workspace . do
   guard eq ok_value _u0. . dblen. . else return ok 0 . . .
   var i usize 0 .
   while lt i. dblen. . do
-    set idx w. i. . cast u8 bit_xor cast u64 idx w. i. . . cast u64 idx em. i. . . . . .
+    set idx w. i. . bit_xor idx w. i. . idx em. i. . . .
     set i. add i. 1 . .
   end .
   set idx w. 0 . cast u8 bit_and cast u64 idx w. 0 . . 127 . . .
@@ -98,10 +98,10 @@ errors short_workspace . do
   rem ④ DB 는 0x00 … 0x00 ‖ 0x01 ‖ salt 여야 한다.
   var p usize 0 .
   while lt p. sub sub dblen. slen. . 1 . . do
-    guard eq cast u64 idx w. p. . . 0 . else return ok 0 . . .
+    guard eq idx w. p. . 0 . else return ok 0 . . .
     set p. add p. 1 . .
   end .
-  guard eq cast u64 idx w. sub sub dblen. slen. . 1 . . . 1 . else return ok 0 . . .
+  guard eq idx w. sub sub dblen. slen. . 1 . . 1 . else return ok 0 . . .
 
   rem ⑤ M' = 0x00×8 ‖ mHash ‖ salt,  H' = SHA-256(M') 가 EM 안의 H 와 같은가
   let mp usize add emlen. 0 . .
@@ -119,7 +119,7 @@ errors short_workspace . do
   var diff u64 0 .
   var z usize 0 .
   while lt z. 32 . do
-    set diff. bit_or diff. bit_xor cast u64 idx w. add add add mp. 40 . slen. . z. . . . cast u64 idx em. add dblen. z. . . . . . .
+    set diff. bit_or diff. bit_xor idx w. add add add mp. 40 . slen. . z. . . idx em. add dblen. z. . . . . .
     set z. add z. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .
@@ -224,7 +224,7 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   var diff u64 0 .
   var m usize 0 .
   while lt m. len mhash. . . do
-    set diff. bit_or diff. bit_xor cast u64 idx em. add add i. 19 . m. . . . cast u64 idx mhash. m. . . . . .
+    set diff. bit_or diff. bit_xor idx em. add add i. 19 . m. . . idx mhash. m. . . . .
     set m. add m. 1 . .
   end .
   if eq diff. 0 . do  return 1 . end .

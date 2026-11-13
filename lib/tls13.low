@@ -378,7 +378,7 @@ errors short_workspace . do
   var diff u64 0 .
   var i usize 0 .
   while lt i. 32 . do
-    set diff. bit_or diff. bit_xor cast u64 idx w. add 32 i. . . . cast u64 idx got. i. . . . . .
+    set diff. bit_or diff. bit_xor idx w. add 32 i. . . idx got. i. . . . .
     set i. add i. 1 . .
   end .
   guard eq diff. 0 . else return ok 0 . . .

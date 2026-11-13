@@ -48,4 +48,24 @@ long long low_out_seek(low_out_t *o, long long off, int whence);   /* 파일 통
 size_t low_stdin_read(void *dst, size_t n);
 bool   low_stdin_more(void);
 long long low_stdin_read_some(void *dst, size_t n);
+
+/* 파일 읽기 — 처리기가 읽는 파일(소스 · 라이브러리 · include_text · pkg 파일 · 캐시)을 proven 의 파일로 (W-20261113-1122 · 소유자 «넵 진행»).
+ *   low_read_file(path, max, &buf, &n, &rd_err) — 0 이면 읽었다(buf 는 proven 힙 · n+1 바이트 · 끝에 NUL · 짝은 low_free), -1 이면 열지 못했다.
+ *     max == 0 → 파일 전체(크기를 먼저 잰다 — 크기를 모르면 -1). max > 0 → 많아야 max 바이트(전의 `fread(b, 1, max, f)`).
+ *     읽다가 오류가 나면 *rd_err = true 이고 그때까지 읽은 것을 준다(전의 `ferror`).
+ *   low_file_readable(path) — 읽으려고 열 수 있는가(전의 `fopen(p, "rb")` 뒤 `fclose`).
+ *   low_lines_t / low_lines_next — 메모리의 글을 `fgets(ln, cap, f)` 와 같은 조각으로 준다: 많아야 cap-1 바이트, 줄바꿈까지. */
+int  low_read_file(const char *path, proven_size_t max, proven_byte_t **buf, proven_size_t *n, bool *rd_err);
+bool low_file_readable(const char *path);
+typedef struct { const proven_byte_t *p; proven_size_t n, at; } low_lines_t;
+bool low_lines_next(low_lines_t *L, char *ln, size_t cap);
+/* 표준 출력을 잠시 메모리 통로로 돌린다(`--fmt` 가 자기 출력을 받아 다시 쓴다 — 전엔 fd 1 을 임시 파일로 바꿔치기했다). 앞의 통로를 돌려준다. */
+low_out_t *low_stdout_redirect(low_out_t *to);
+/* 디렉터리 목록(처리기가 표준 모듈 · 키를 찾는다) — proven 의 디렉터리 읽기. `.` · `..` 은 오지 않는다. 이름이 UTF-8 이 아닌 항목은 건너뛴다.
+ *   ★ VM 이 프로그램 대신 하는 `dir_read` 는 여기를 쓰지 않는다: 내보내는 네이티브 런타임이 libc readdir 로 `.` · `..` 까지 주므로, VM 도
+ *     libc 그대로 둬야 두 쪽이 같은 답을 낸다(low_vm.c). */
+typedef struct { void *d; } low_dir_t;
+bool low_dir_open(low_dir_t *d, const char *path);
+bool low_dir_next(low_dir_t *d, char *name, size_t cap);   /* 다음 이름(NUL 로 끝남) · 끝이면 false */
+void low_dir_close(low_dir_t *d);
 #endif

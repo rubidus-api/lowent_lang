@@ -3533,18 +3533,20 @@ static bool ctfe_cache_get(const low_ir_t *ir, proven_size_t di, ctfe_call_t *c,
     if (c->st) return false;   // 구조체 답의 칸 이름은 이 짓기의 나무를 가리킨다 — 간직하지 않는다
     char path[1024];
     if (!ctfe_cache_path(ir, di, c, a, na, path, sizeof path)) return false;
-    FILE *fp = fopen(path, "rb");
-    if (!fp) return false;
-    char tag[8]; proven_u64 v, n; bool ok = false;
-    if (fread(tag, 1, 8, fp) == 8 && !memcmp(tag, CTFE_CACHE_TAG, 8) && fread(&v, 8, 1, fp) == 1 && fread(&n, 8, 1, fp) == 1 &&
-        n <= IR_CTFE_MAXBYTES && (!(c->arr || c->sl) || 1)) {
-        proven_u8 *b = (c->arr || c->sl) ? low_alloc(n ? n : 1) : NULL;
-        if ((c->arr || c->sl) && b && fread(b, 1, n, fp) == n && fgetc(fp) == EOF && (!c->arr || c->rowty || c->selem || n == c->nelem * ir_field_size(c->elem))) {
-            low_free(c->bytes); c->bytes = b; c->nbytes = n; b = NULL; ok = true;
-        } else if (!(c->arr || c->sl) && n == 0 && fgetc(fp) == EOF) ok = true;
-        low_free(b);
+    // ★ W-20261113-1122 — proven 의 파일 읽기 — 캐시 파일을 통째로 읽고(한도: 머리 24 + 답의 바이트 + 1) 그 안에서 짚는다. 전엔 fread 를 조각마다 했다.
+    proven_u8 *fb_ = NULL; proven_size_t fn_ = 0;
+    if (low_read_file(path, 24 + IR_CTFE_MAXBYTES + 1, &fb_, &fn_, NULL) != 0) return false;
+    proven_u64 v = 0, n = 0; bool ok = false;
+    if (fn_ >= 24 && !memcmp(fb_, CTFE_CACHE_TAG, 8)) {
+        memcpy(&v, fb_ + 8, 8); memcpy(&n, fb_ + 16, 8);
+        if (n <= IR_CTFE_MAXBYTES) {
+            if ((c->arr || c->sl) && fn_ == 24 + n && (!c->arr || c->rowty || c->selem || n == c->nelem * ir_field_size(c->elem))) {
+                proven_u8 *b = low_alloc(n ? n : 1);
+                if (b) { memcpy(b, fb_ + 24, n); low_free(c->bytes); c->bytes = b; c->nbytes = n; ok = true; }
+            } else if (!(c->arr || c->sl) && n == 0 && fn_ == 24) ok = true;
+        }
     }
-    fclose(fp);
+    low_free(fb_);
     if (!ok) return false;
     c->v = (proven_i64)v; c->ok = true;
     return true;

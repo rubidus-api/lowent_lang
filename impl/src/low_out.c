@@ -55,7 +55,9 @@ static low_out_t *std_get(int which) {
     }
     return o;
 }
-low_out_t *low_stdout(void) { return std_get(0); }
+static low_out_t *g_redirect;
+low_out_t *low_stdout(void) { return g_redirect ? g_redirect : std_get(0); }
+low_out_t *low_stdout_redirect(low_out_t *to) { low_out_t *prev = g_redirect; g_redirect = to; return prev; }
 low_out_t *low_stderr(void) { return std_get(1); }
 
 low_out_t *low_out_open(const char *path, const char *mode) {
@@ -193,4 +195,77 @@ long long low_out_seek(low_out_t *o, long long off, int whence) {
     if (!o || o->kind != LOW_OUT_FILE || low_flush(o) != 0) return -1;   /* fseek 처럼: 먼저 비운다 */
     proven_result_u64_t r = proven_fs_seek(o->file, (proven_i64)off, (proven_fs_whence_t)whence);
     return proven_is_ok(r.err) ? (long long)r.val : -1;
+}
+
+/* ── 파일 읽기 ── */
+int low_read_file(const char *path, proven_size_t max, proven_byte_t **buf, proven_size_t *n, bool *rd_err) {
+    if (rd_err) *rd_err = false;
+    if (!path || !buf || !n) return -1;
+    proven_result_file_t f = proven_fs_open(low_heap(), (proven_u8str_view_t){ (const proven_u8 *)path, (proven_size_t)strlen(path) }, PROVEN_FS_READ);
+    if (!proven_is_ok(f.err)) return -1;
+    proven_size_t want = max;
+    if (!want) {
+        proven_result_size_t sz = proven_fs_size(f.value);
+        if (!proven_is_ok(sz.err)) { (void)proven_fs_close(f.value); return -1; }
+        want = sz.value;
+    }
+    proven_byte_t *b = (proven_byte_t *)low_alloc(want + 1);
+    if (!b) { (void)proven_fs_close(f.value); return -1; }
+    proven_size_t got = 0;
+    while (got < want) {
+        proven_result_size_t r = proven_fs_read(f.value, (proven_mem_mut_t){ .ptr = b + got, .size = want - got });
+        if (r.err == PROVEN_ERR_EOF || (proven_is_ok(r.err) && r.value == 0)) break;
+        if (!proven_is_ok(r.err)) { if (rd_err) *rd_err = true; break; }
+        got += r.value;
+    }
+    (void)proven_fs_close(f.value);   /* 읽기만 한 파일 — 닫기의 실패는 잃은 데이터가 아니다 */
+    b[got] = 0;
+    *buf = b; *n = got;
+    return 0;
+}
+
+bool low_file_readable(const char *path) {
+    if (!path) return false;
+    proven_result_file_t f = proven_fs_open(low_heap(), (proven_u8str_view_t){ (const proven_u8 *)path, (proven_size_t)strlen(path) }, PROVEN_FS_READ);
+    if (!proven_is_ok(f.err)) return false;
+    (void)proven_fs_close(f.value);
+    return true;
+}
+
+bool low_lines_next(low_lines_t *L, char *ln, size_t cap) {
+    if (!L || !ln || cap < 2 || L->at >= L->n) return false;
+    size_t k = 0;
+    while (L->at < L->n && k + 1 < cap) {
+        char c = (char)L->p[L->at++];
+        ln[k++] = c;
+        if (c == '\n') break;
+    }
+    ln[k] = 0;
+    return true;
+}
+
+/* ── 디렉터리 목록 ── */
+bool low_dir_open(low_dir_t *d, const char *path) {
+    d->d = NULL;
+    proven_result_dir_t r = proven_fs_dir_open(low_heap(), (proven_u8str_view_t){ (const proven_u8 *)path, (proven_size_t)strlen(path) });
+    if (!proven_is_ok(r.err)) return false;
+    proven_fs_dir_t *h = (proven_fs_dir_t *)low_alloc(sizeof *h);
+    if (!h) { proven_fs_dir_close(&r.value); return false; }
+    *h = r.value; d->d = h;
+    return true;
+}
+bool low_dir_next(low_dir_t *d, char *name, size_t cap) {
+    if (!d || !d->d || !name || !cap) return false;
+    for (;;) {
+        proven_fs_dir_entry_t e;
+        proven_err_t err = proven_fs_dir_next((proven_fs_dir_t *)d->d, &e);
+        if (err == PROVEN_ERR_INVALID_ENCODING) continue;   /* UTF-8 이 아닌 이름 — 그 항목만 건너뛴다 */
+        if (!proven_is_ok(err)) return false;
+        if (e.name.size + 1 > cap) continue;                 /* 칸에 안 들어가는 이름은 찾는 것이 아니다 */
+        memcpy(name, e.name.ptr, e.name.size); name[e.name.size] = 0;
+        return true;
+    }
+}
+void low_dir_close(low_dir_t *d) {
+    if (d && d->d) { proven_fs_dir_close((proven_fs_dir_t *)d->d); low_free(d->d); d->d = NULL; }
 }

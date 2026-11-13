@@ -47,6 +47,7 @@
 #include "low_cbe.h"
 #include "low_pkg.h"
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -60,20 +61,8 @@ static FILE *low_popen(const char *cmd, const char *mode) { low_flush_std(); ret
 
 static bool g_stack_report_on;   /* RFC-0150 §8-11 — `--stack-report` 의 풀 상한 머리줄 */
 static bool g_text_stdin;   // `--text-stdin` — 첫 파일의 글을 표준 입력에서 받는다(경로는 자리만 말한다)
-static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *out_len) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return false;
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return false; }
-    long n = ftell(f);
-    if (n < 0) { fclose(f); return false; }
-    rewind(f);
-    proven_byte_t *buf = low_alloc((size_t)n + 1);
-    if (!buf) { fclose(f); return false; }
-    size_t got = fread(buf, 1, (size_t)n, f);
-    fclose(f);
-    buf[got] = 0;
-    *out_buf = buf; *out_len = got;
-    return true;
+static bool read_file(const char *path, proven_byte_t **out_buf, proven_size_t *out_len) {   // ★ W-20261113-1122 — proven 의 파일 읽기(전엔 fopen · fseek · fread)
+    return low_read_file(path, 0, out_buf, out_len, NULL) == 0;
 }
 
 static void dump_tokens(const low_lex_result_t *lex) {
@@ -243,15 +232,15 @@ static char        g_lock_path[600];    // ★ 2026-10-31 — 쓸 pkg.lock 의 �
 static char        g_pkg_real[4096];    // 매니페스트 폴더의 실경로(포함 파일의 잠금 이름이 그것에 상대적이다)
 
 static void lock_load(const char *path) {
-    FILE *f = fopen(path, "r");
-    if (!f) { low_fpf(low_stderr(), "cannot open lockfile: {}\n", proven_arg_cstr(path)); exit(2); }
+    proven_byte_t *fb_ = NULL; proven_size_t fn_ = 0;   // ★ W-20261113-1122 — proven 의 파일 읽기
+    if (low_read_file(path, 0, &fb_, &fn_, NULL) != 0) { low_fpf(low_stderr(), "cannot open lockfile: {}\n", proven_arg_cstr(path)); exit(2); }
     g_have_lock = true;
-    char ln[256];
-    while (fgets(ln, sizeof ln, f) && g_nlock < 64) {
+    char ln[256]; low_lines_t L_ = { fb_, fn_, 0 };
+    while (low_lines_next(&L_, ln, sizeof ln) && g_nlock < 64) {
         if (ln[0] == '#' || ln[0] == '\n') continue;
         if (sscanf(ln, "%63s %64s", g_lock[g_nlock].name, g_lock[g_nlock].hex) == 2) g_nlock++;
     }
-    fclose(f);
+    low_free(fb_);
 }
 
 // ★ --lock-write 의 항목은 먼저 모은다. pkg.lock **파일**은 끝에서 쓴다 — 매니페스트가 의존을 선언했거나 단위가 `include_text` 로 파일을
@@ -302,12 +291,8 @@ static void inc_lock_name(const char *real, char *out, size_t cap) {
     else low_bfmt(out, cap, "include:{}", proven_arg_cstr(real));
 }
 static bool inc_read(const char *real, proven_u8 **out, proven_size_t *n, char *why, size_t whycap) {
-    FILE *fp = fopen(real, "rb");
-    if (!fp) { low_bfmt(why, whycap, "`include_text`: cannot read `{:.200}`", proven_arg_cstr(real)); return false; }
-    proven_u8 *b = low_alloc(INC_MAX + 1);
-    size_t got = b ? fread(b, 1, INC_MAX + 1, fp) : 0;
-    const bool err = !b || ferror(fp);
-    fclose(fp);
+    proven_u8 *b = NULL; proven_size_t got = 0; bool err = false;   // ★ W-20261113-1122 — proven 의 파일 읽기
+    if (low_read_file(real, INC_MAX + 1, &b, &got, &err) != 0) { low_bfmt(why, whycap, "`include_text`: cannot read `{:.200}`", proven_arg_cstr(real)); return false; }
     if (err || got > INC_MAX) {
         low_free(b);
         low_bfmt(why, whycap, err ? "`include_text`: reading `{:.200}` failed" : "`include_text`: `{:.200}` is larger than 1 MiB — a file read when translating holds at most that", proven_arg_cstr(real));
@@ -448,10 +433,10 @@ static bool mod_name_of(const proven_byte_t *b, proven_size_t n, char *out, size
 }
 
 static void std_scan_dir(const char *dir) {
-    DIR *d = opendir(dir);
-    if (!d) return;
-    struct dirent *e;
-    while ((e = readdir(d))) {
+    low_dir_t d;   // ★ W-20261113-1122 — proven 의 디렉터리 읽기(전엔 opendir · readdir)
+    if (!low_dir_open(&d, dir)) return;
+    char dn_[256];
+    while (low_dir_next(&d, dn_, sizeof dn_)) {
         if (g_nstd >= LOW_STD_CAP) {
             static bool told;
             if (!told) low_fpf(low_stderr(), "lowentc: ★ module index is full ({}) — modules under {} were NOT indexed; "
@@ -459,9 +444,9 @@ static void std_scan_dir(const char *dir) {
             told = true;
             break;
         }
-        size_t ln = strlen(e->d_name);
-        if (ln < 5 || strcmp(e->d_name + ln - 4, ".low") != 0) continue;
-        char fp[600]; low_bfmt(fp, sizeof fp, "{}/{}", proven_arg_cstr(dir), proven_arg_cstr(e->d_name));
+        size_t ln = strlen(dn_);
+        if (ln < 5 || strcmp(dn_ + ln - 4, ".low") != 0) continue;
+        char fp[600]; low_bfmt(fp, sizeof fp, "{}/{}", proven_arg_cstr(dir), proven_arg_cstr(dn_));
         proven_byte_t *fbuf_ = NULL; proven_size_t fn_ = 0;
         if (!read_file(fp, &fbuf_, &fn_)) continue;
         // 줄 머리의 `module <name> .` 을 찾는다 (rem 줄은 건너뛴다).
@@ -494,7 +479,7 @@ static void std_scan_dir(const char *dir) {
         }
         low_free(fbuf_);
     }
-    closedir(d);
+    low_dir_close(&d);
 }
 
 static void std_scan(const char *argv0) {
@@ -540,7 +525,7 @@ static const char *sub_flag(const char *w) {
     return NULL;
 }
 
-static bool file_exists(const char *p) { FILE *f = fopen(p, "rb"); if (f) { fclose(f); return true; } return false; }
+static bool file_exists(const char *p) { return low_file_readable(p); }   // ★ W-20261113-1122 — proven 의 파일 읽기
 
 // ★★★★★ RFC-0120 §5.2-10 — **누가 흡수해도 되는지는 매니페스트가 정한다.**
 //   소스 파일이 있는 자리에서 위로 걸어 `pkg.low` 를 찾고, `build absorb <모듈> .` 을 읽어
@@ -779,17 +764,17 @@ typedef struct {
 } low_cfg_t;
 static low_cfg_t g_cfg;
 static void cfg_read(const char *p) {
-    FILE *f = fopen(p, "r");
-    if (!f) return;
-    char ln[512];
-    while (fgets(ln, sizeof ln, f)) {
+    proven_byte_t *fb_ = NULL; proven_size_t fn_ = 0;   // ★ W-20261113-1122 — proven 의 파일 읽기
+    if (low_read_file(p, 0, &fb_, &fn_, NULL) != 0) return;
+    char ln[512]; low_lines_t L_ = { fb_, fn_, 0 };
+    while (low_lines_next(&L_, ln, sizeof ln)) {
         char k[32], v[400];
         if (ln[0] == '#' || ln[0] == '\n') continue;
         if (sscanf(ln, "%31s %399s", k, v) != 2) continue;
         if (strcmp(k, "mirror") == 0 && g_cfg.nmirror < 8) low_bfmt(g_cfg.mirror[g_cfg.nmirror++], 256, "{}", proven_arg_cstr(v));
         else if (strcmp(k, "policy") == 0) low_bfmt(g_cfg.policy, sizeof g_cfg.policy, "{}", proven_arg_cstr(v));
     }
-    fclose(f);
+    low_free(fb_);
 }
 static void cfg_load(void) {
     // 낮은 우선순위부터 읽는다 — 나중 파일이 policy 를 덮는다(mirror 는 앞에서부터 누적·시도 순).
@@ -825,20 +810,20 @@ static bool sig_verify_trusted(const char *file, const char *sig, char keyname[1
     ssize_t r = readlink("/proc/self/exe", exe, sizeof exe - 1);
     if (r > 0) { char *sl = strrchr(exe, '/'); if (sl) { *sl = 0; low_bfmt(dirs[nd++], 600, "{}/../keys/official", proven_arg_cstr(exe)); } }
     for (int i = 0; i < nd; i++) {
-        DIR *d = opendir(dirs[i]);
-        if (!d) continue;
-        struct dirent *e;
-        while ((e = readdir(d))) {
-            size_t ln = strlen(e->d_name);
-            if (ln < 5 || strcmp(e->d_name + ln - 4, ".pub") != 0) continue;
-            char pp[736]; low_bfmt(pp, sizeof pp, "{}/{}", proven_arg_cstr(dirs[i]), proven_arg_cstr(e->d_name));
+        low_dir_t d;   // ★ W-20261113-1122 — proven 의 디렉터리 읽기
+        if (!low_dir_open(&d, dirs[i])) continue;
+        char dn_[256];
+        while (low_dir_next(&d, dn_, sizeof dn_)) {
+            size_t ln = strlen(dn_);
+            if (ln < 5 || strcmp(dn_ + ln - 4, ".pub") != 0) continue;
+            char pp[736]; low_bfmt(pp, sizeof pp, "{}/{}", proven_arg_cstr(dirs[i]), proven_arg_cstr(dn_));
             if (sig_verify_with(pp, file, sig)) {
-                low_bfmt(keyname, 128, "{}", low_sv(e->d_name, (int)(ln - 4)));
-                closedir(d);
+                low_bfmt(keyname, 128, "{}", low_sv(dn_, (int)(ln - 4)));
+                low_dir_close(&d);
                 return true;
             }
         }
-        closedir(d);
+        low_dir_close(&d);
     }
     return false;
 }
@@ -870,10 +855,10 @@ static int cmd_key(int n, char **a) {
         for (int which = 0; which < 2; which++) {
             const char *dd = which ? pd : od;
             low_pf("{}:\n", proven_arg_cstr(which ? "private (yours)" : "official (trusted roots)"));
-            DIR *d = opendir(dd);
-            if (d) { struct dirent *e; int c = 0;
-                while ((e = readdir(d))) if (e->d_name[0] != '.') { low_pf("  {}\n", proven_arg_cstr(e->d_name)); c++; }
-                closedir(d);
+            low_dir_t d;   // ★ W-20261113-1122 — proven 의 디렉터리 읽기
+            if (low_dir_open(&d, dd)) { char dn_[256]; int c = 0;
+                while (low_dir_next(&d, dn_, sizeof dn_)) if (dn_[0] != '.') { low_pf("  {}\n", proven_arg_cstr(dn_)); c++; }
+                low_dir_close(&d);
                 if (!c) low_pf("  (none)\n");
             } else low_pf("  (none)\n");
         }
@@ -929,15 +914,15 @@ static int cmd_verify(int n, char **a) {
                     pinned = true;
                 }
             char lp[700]; low_bfmt(lp, sizeof lp, "{}/pkg.lock", proven_arg_cstr(pkg.dir));
-            FILE *lf = fopen(lp, "r");
-            if (lf) {
-                char l2[256], nm[64], hx[80];
-                while (fgets(l2, sizeof l2, lf))
+            proven_byte_t *lb_ = NULL; proven_size_t ln_ = 0;   // ★ W-20261113-1122 — proven 의 파일 읽기
+            if (low_read_file(lp, 0, &lb_, &ln_, NULL) == 0) {
+                char l2[256], nm[64], hx[80]; low_lines_t L_ = { lb_, ln_, 0 };
+                while (low_lines_next(&L_, l2, sizeof l2))
                     if (l2[0] != '#' && sscanf(l2, "%63s %79s", nm, hx) == 2 && strcmp(hx, hex) == 0) {
                         low_pf("                    = pkg.lock entry `{}`\n", proven_arg_cstr(nm));
                         pinned = true;
                     }
-                fclose(lf);
+                low_free(lb_);
             }
         }
     }
@@ -1277,32 +1262,28 @@ static int run_arg_take(const char *tok, const char *run_op,
     //   ☞ 자르지 않는다: 못 읽거나 너무 크면 **말하고 멈춘다**.
     if (tok[0] == '@' && tok[1] && (*nshaped) < LOW_HDR_MAXP) {
         const char *fp = tok + 1;
-        FILE *af = fopen(fp, "rb");
-        if (!af) {
+        // ★ W-20261113-1122 — proven 의 파일 읽기(전엔 fopen · fseek · ftell · fread) — 한도보다 한 바이트 더 읽어 넘는지 본다.
+        if (!low_file_readable(fp)) {
             low_fpf(low_stderr(), "E-CLI-ARGFILE: cannot read `{}` — a `@file` argument is the "
                     "BYTES of that file, used as one slice argument\n", proven_arg_cstr(fp));
             return 2;
         }
-        if (fseek(af, 0, SEEK_END) != 0) { fclose(af); low_fpf(low_stderr(), "E-CLI-ARGFILE: `{}` is not seekable\n", proven_arg_cstr(fp)); return 2; }
-        long alen = ftell(af);
-        rewind(af);
-        if (alen < 0) { fclose(af); low_fpf(low_stderr(), "E-CLI-ARGFILE: cannot size `{}`\n", proven_arg_cstr(fp)); return 2; }
+        proven_u8 *ab = NULL; proven_size_t alen_ = 0; bool aerr_ = false;
+        if (low_read_file(fp, LOW_ARGFILE_MAX + 1, &ab, &alen_, &aerr_) != 0) { low_fpf(low_stderr(), "E-CLI-ARGFILE: out of memory for `{}`\n", proven_arg_cstr(fp)); return 2; }
+        long alen = (long)alen_;
         if ((unsigned long)alen > LOW_ARGFILE_MAX) {
-            fclose(af);
-            low_fpf(low_stderr(), "E-CLI-ARGTOOBIG: `{}` is {} bytes and this tool carries {} per "
+            low_free(ab);
+            low_fpf(low_stderr(), "E-CLI-ARGTOOBIG: `{}` is more than {} bytes, and this tool carries {} per "
                     "`@file` argument — refusing rather than truncating (a silently short slice "
                     "makes the program answer \"buffer too small\" and sends you hunting in your "
-                    "own code)\n", proven_arg_cstr(fp), PROVEN_ARG((long long)(alen)), PROVEN_ARG((unsigned long long)((unsigned long long)LOW_ARGFILE_MAX)));
+                    "own code)\n", proven_arg_cstr(fp), PROVEN_ARG((unsigned long long)((unsigned long long)LOW_ARGFILE_MAX)), PROVEN_ARG((unsigned long long)((unsigned long long)LOW_ARGFILE_MAX)));
             return 2;
         }
-        proven_u8 *ab = (proven_u8 *)low_zalloc((size_t)alen ? (size_t)alen : 1, 1);
-        if (!ab) { fclose(af); low_fpf(low_stderr(), "E-CLI-ARGFILE: out of memory for `{}`\n", proven_arg_cstr(fp)); return 2; }
-        if (alen > 0 && fread(ab, 1, (size_t)alen, af) != (size_t)alen) {
-            fclose(af); low_free(ab);
+        if (aerr_) {
+            low_free(ab);
             low_fpf(low_stderr(), "E-CLI-ARGFILE: short read on `{}` — a half-read argument is not an argument\n", proven_arg_cstr(fp));
             return 2;
         }
-        fclose(af);
         (*any_bracket) = true;
         shaped[(*nshaped)++] = (low_ir_arg_t){ .is_slice = true, .bytes = ab, .n = (proven_size_t)alen };
         return 0;
@@ -1547,16 +1528,16 @@ int main(int argc, char **argv) {
         //   먹이면 모델↔구현 간극이 **이 방출 함수 하나**로 줄어든다.
         else if (strcmp(argv[i], "--emit-events") == 0) { want_emitevents = true; }
         else if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
-            FILE *cf = fopen(argv[++i], "r");
-            if (!cf) { low_fpf(low_stderr(), "cannot open config: {}\n", proven_arg_cstr(argv[i])); return 2; }
-            char ln[256];
+            proven_byte_t *cb_ = NULL; proven_size_t cn_ = 0;   // ★ W-20261113-1122 — proven 의 파일 읽기
+            if (low_read_file(argv[++i], 0, &cb_, &cn_, NULL) != 0) { low_fpf(low_stderr(), "cannot open config: {}\n", proven_arg_cstr(argv[i])); return 2; }
+            char ln[256]; low_lines_t L_ = { cb_, cn_, 0 };
             low_ir_config_reset();
-            while (fgets(ln, sizeof ln, cf)) {
+            while (low_lines_next(&L_, ln, sizeof ln)) {
                 char nm[64], vl[64];
                 if (ln[0] == '#' || ln[0] == '\n') continue;
                 if (sscanf(ln, "%63s %63s", nm, vl) == 2) low_ir_config_add(nm, vl);
             }
-            fclose(cf);
+            low_free(cb_);
         }
         // ★★★ **도구가 자기 버전을 말한다** (2026-08-01, v1 선언과 함께 신설).
         //   그전까지 `lowentc --version` 은 *"cannot read '--version'"* 이라고 답했다 —
@@ -1726,7 +1707,7 @@ int main(int argc, char **argv) {
         if (fi == 0 && g_text_stdin) {
             proven_size_t cap = 1 << 16, blen = 0;
             proven_byte_t *b = low_alloc(cap);
-            for (size_t got; b && (got = fread(b + blen, 1, cap - blen - 1, stdin)) > 0; ) {
+            for (size_t got; b && (got = low_stdin_read(b + blen, cap - blen - 1)) > 0; ) {   // ★ proven 의 stdin 읽기 도구
                 blen += got;
                 if (cap - blen < 2) { proven_byte_t *nb = low_realloc(b, cap, cap * 2); if (!nb) { low_free(b); b = NULL; break; } b = nb; cap *= 2; }
             }
@@ -1765,8 +1746,7 @@ int main(int argc, char **argv) {
             if (!low_pkg_load(heap, &pkg, perr)) { low_fpf(low_stderr(), "{}\n", proven_arg_cstr(perr)); return 1; }
             if (!g_have_lock && !want_lock_write) {
                 char lp[600]; low_bfmt(lp, sizeof lp, "{}/pkg.lock", proven_arg_cstr(pkg.dir));
-                FILE *lf = fopen(lp, "r");
-                if (lf) { fclose(lf); lock_load(lp); }
+                if (low_file_readable(lp)) lock_load(lp);   // ★ W-20261113-1122 — proven 의 파일 읽기
             }
             // ★ --lock-write: 매니페스트가 **의존을 선언할 때만** pkg.lock 파일을 쓴다 —
             //   락은 의존 선언의 그림자다. 정체만 적은 매니페스트(이 저장소의 루트 pkg.low 같은)
@@ -1822,7 +1802,7 @@ int main(int argc, char **argv) {
                     char sib[600];
                     if (slash) low_bfmt(sib, sizeof sib, "{}{}.low", low_sv(base, (int)(slash - base + 1)), proven_arg_cstr(dnames[d]));
                     else        low_bfmt(sib, sizeof sib, "{}.low", proven_arg_cstr(dnames[d]));
-                    FILE *sf = fopen(sib, "rb"); bool sib_ok = sf != NULL; if (sf) fclose(sf);
+                    bool sib_ok = low_file_readable(sib);   // ★ W-20261113-1122 — proven 의 파일 읽기
                     mdep = pkg.found ? low_pkg_dep_find(&pkg, dnames[d]) : NULL;
                     if (sp) {
                         // ★★★ **자기 자신은 가림이 아니다** (2026-07-26).
@@ -2279,20 +2259,20 @@ int main(int argc, char **argv) {
         p0.nforms = nforms0;
         {
             // ★ RFC-0142 — 서식기는 «호출마다 괄호» 로 찍는다. 그 글을 받아 새 표면으로 올려 낸다(괄호를 벗기고 닫는 점을 찍는다).
-            low_flush(low_stdout());
-            FILE *tf = tmpfile();
-            int saved = tf ? dup(1) : -1;
-            if (!tf || saved < 0 || dup2(fileno(tf), 1) < 0) { low_fpf(low_stderr(), "lowentc: cannot open a scratch file for --fmt\n"); return 1; }
+            // ★ W-20261113-1122 — 서식기의 출력을 proven 메모리 통로로 받는다(전엔 fd 1 을 tmpfile 로 바꿔치기하고 다시 읽었다).
+            low_out_t *cap_ = low_out_mem();
+            if (!cap_) { low_fpf(low_stderr(), "lowentc: cannot open a scratch buffer for --fmt\n"); return 1; }
+            low_out_t *prev_ = low_stdout_redirect(cap_);
             (void)low_order_lower(&p0, nodes0, heap, 2);   // ★ RFC-0155 §8-2 — 찍는 것은 사람의 차례(개수가 먼저)
             low_cst_fmt(&p0);
-            low_flush(low_stdout());
-            dup2(saved, 1); close(saved);
-            long sz = ftell(tf) < 0 ? 0 : (fseek(tf, 0, SEEK_END), ftell(tf));
-            char *fbuf = (char *)low_alloc((size_t)sz + 1);
-            if (!fbuf) { low_fpf(low_stderr(), "lowentc: out of memory\n"); return 1; }
-            rewind(tf);
-            size_t got = fread(fbuf, 1, (size_t)sz, tf);
-            fclose(tf);
+            (void)low_stdout_redirect(prev_);
+            if (low_out_failed(cap_)) { (void)low_out_close(cap_); low_fpf(low_stderr(), "lowentc: out of memory\n"); return 1; }
+            proven_u8str_view_t cv_ = low_out_mem_view(cap_);
+            char *fbuf = (char *)low_alloc(cv_.size + 1);
+            if (!fbuf) { (void)low_out_close(cap_); low_fpf(low_stderr(), "lowentc: out of memory\n"); return 1; }
+            memcpy(fbuf, cv_.ptr, cv_.size); fbuf[cv_.size] = 0;
+            size_t got = cv_.size;
+            (void)low_out_close(cap_);
             if (getenv("LOW_FMT_RAW")) { low_write(low_stdout(), fbuf, got); low_free(fbuf); return 0; }   /* 디버그 — 올리기 전의 글 */
             if (!low_closer_raise_text(heap, fbuf, got, low_stdout())) {
                 low_fpf(low_stderr(), "lowentc: --fmt could not print this file in the one-closer surface (RFC-0142) — nothing was written\n");
@@ -2654,7 +2634,7 @@ int main(int argc, char **argv) {
         if (run_batch && !run_op && !run_refused && !lex.diags.len && !pr.diags.len) {
             proven_size_t cap = 1 << 16, blen = 0;
             char *all = (char *)low_alloc(cap);
-            for (size_t got; all && (got = fread(all + blen, 1, cap - blen - 1, stdin)) > 0; ) {
+            for (size_t got; all && (got = low_stdin_read(all + blen, cap - blen - 1)) > 0; ) {   // ★ proven 의 stdin 읽기 도구
                 blen += got;
                 if (cap - blen < 2) { char *na_ = (char *)low_realloc(all, cap, cap * 2); if (!na_) { low_free(all); all = NULL; break; } all = na_; cap *= 2; }
             }
@@ -2674,7 +2654,7 @@ int main(int argc, char **argv) {
                 pid_t kid = fork();
                 if (kid < 0) { low_fpf(low_stderr(), "E-CLI-BATCH: cannot fork\n"); return 2; }
                 if (kid == 0) {
-                    if (!freopen("/dev/null", "r", stdin)) { /* 읽을 것이 없을 뿐이다 */ }
+                    { int nf_ = open("/dev/null", O_RDONLY); if (nf_ >= 0) { (void)dup2(nf_, 0); close(nf_); } }   // 읽을 것이 없다 — fd 0 을 /dev/null 로(stdio 의 freopen 대신)
                     run_op = btok[0];
                     for (proven_size_t t = 1; t < nt; t++) {
                         int t_ = run_arg_take(btok[t], run_op, run_args, &nrun_args, shaped, &nshaped, &any_bracket,

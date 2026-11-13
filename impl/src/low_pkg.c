@@ -41,9 +41,7 @@ bool low_pkg_find(const char *start_dir, low_pkg_t *out) {
     for (int depth = 0; depth < 8; depth++) {
         char cand[600];
         low_bfmt(cand, sizeof cand, "{}/pkg.low", proven_arg_cstr(dir));
-        FILE *f = fopen(cand, "rb");
-        if (f) {
-            fclose(f);
+        if (low_file_readable(cand)) {   // ★ W-20261113-1122 — proven 의 파일 읽기
             low_bfmt(out->dir, sizeof out->dir, "{}", proven_arg_cstr(dir));
             low_bfmt(out->path, sizeof out->path, "{}", proven_arg_cstr(cand));
             out->found = true;
@@ -68,11 +66,11 @@ const low_pkg_dep_t *low_pkg_dep_find(const low_pkg_t *p, const char *name) {
 
 bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
     err[0] = 0;
-    FILE *f = fopen(out->path, "rb");
-    if (!f) { low_bfmt(err, 512, "cannot read manifest: {}", proven_arg_cstr(out->path)); return false; }
+    // ★ W-20261113-1122 — proven 의 파일 읽기 — 많아야 64 KiB 를 읽는다(전엔 정적 칸에 fread). 꽉 찼으면 너무 크다.
     static char buf[65536];
-    size_t len = fread(buf, 1, sizeof buf, f);
-    fclose(f);
+    proven_u8 *mb_ = NULL; proven_size_t len = 0;
+    if (low_read_file(out->path, sizeof buf, &mb_, &len, NULL) != 0) { low_bfmt(err, 512, "cannot read manifest: {}", proven_arg_cstr(out->path)); return false; }
+    memcpy(buf, mb_, len); low_free(mb_);
     if (len == sizeof buf) { low_bfmt(err, 512, "manifest too large (>64KiB): {}", proven_arg_cstr(out->path)); return false; }
 
     proven_u8str_view_t sv = { .ptr = (const proven_u8 *)buf, .size = len };

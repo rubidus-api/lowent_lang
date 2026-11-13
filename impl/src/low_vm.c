@@ -3607,6 +3607,8 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 char pb[4096];
                 if (pv.n == 0 || pv.n >= sizeof pb) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 (void)low_bcopy(pb, sizeof pb, pv.p, pv.n);
+                // ★ W-20261113-1122 — 여기는 libc 그대로다: 내보내는 네이티브 런타임(lw_h_dread)이 libc readdir 로 `.` · `..` 까지 주고 UTF-8 이
+                //   아닌 이름도 준다. proven 의 디렉터리 읽기는 그 둘을 건너뛰므로, VM 만 바꾸면 두 쪽의 답이 갈린다(소유자 D-0207: 런타임은 libc).
                 DIR *dh = opendir(pb);
                 if (!dh) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 proven_size_t sl = 0;

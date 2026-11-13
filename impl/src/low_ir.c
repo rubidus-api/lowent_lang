@@ -3251,12 +3251,8 @@ static bool ir_ctfe_include(const low_cst_t *a, proven_u8 **out, proven_size_t *
     const char *sl = sf ? strrchr(sf, '/') : NULL;
     if (sl) low_bfmt(path, sizeof path, "{}/{}", low_sv(sf, (int)(sl - sf)), low_sv((const char *)pv.ptr, (int)pv.size));
     else low_bfmt(path, sizeof path, "{}", low_sv((const char *)pv.ptr, (int)pv.size));
-    FILE *fp = fopen(path, "rb");
-    if (!fp) { low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text`: cannot read `{:.200}` (read from the folder of this source file)", proven_arg_cstr(path)); return false; }
-    proven_u8 *b = low_alloc(IR_INCLUDE_MAX + 1);
-    proven_size_t got = b ? fread(b, 1, IR_INCLUDE_MAX + 1, fp) : 0;
-    const bool err = !b || ferror(fp);
-    fclose(fp);
+    proven_u8 *b = NULL; proven_size_t got = 0; bool err = false;   // ★ W-20261113-1122 — proven 의 파일 읽기
+    if (low_read_file(path, IR_INCLUDE_MAX + 1, &b, &got, &err) != 0) { low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, "`include_text`: cannot read `{:.200}` (read from the folder of this source file)", proven_arg_cstr(path)); return false; }
     if (err || got > IR_INCLUDE_MAX) {
         low_free(b);
         low_bfmt(g_ctfe_inc_why, sizeof g_ctfe_inc_why, err ? "`include_text`: reading `{:.200}` failed" : "`include_text`: `{:.200}` is larger than 1 MiB — a file read when translating holds at most that", proven_arg_cstr(path));

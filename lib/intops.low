@@ -18,7 +18,17 @@ module intops .
 
 export fn mod_trunc input comptime t type . input a t . input b t . output t .
 do
-  return sub a. mul div a. b. . b. . . .
+  rem ★ 2026-11-13 (W-20261113-1253 · BTS 러너가 찾음) — 바닥 나머지 `mod` 에서 부호를 고쳐 낸다. 전엔 `a − (a ÷ b)·b` 였고, 가장 작은 값을 −1 로
+  rem   나누면 몫이 그 폭에 없어 `div` 에서 멈췄다(나머지는 0 이다 — 위의 머리말도 멈춤은 0 으로 나눌 때만 적는다).
+  rem   `mod` 의 부호는 제수를 따르고 자른 나머지의 부호는 피제수를 따른다: 0 이 아니고 둘의 부호가 다르면 제수를 뺀다(|m| < |b| 라 넘치지 않는다).
+  let m t mod a. b. . .
+  if eq m. 0 . do return m. . end .
+  if lt a. 0 . do
+    if lt b. 0 . do return m. . end .
+    return sub m. b. . .
+  end .
+  if lt b. 0 . do return sub m. b. . . end .
+  return m. .
 end .
 
 export fn div_floor input comptime t type . input a t . input b t . output t .

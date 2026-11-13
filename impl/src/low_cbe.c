@@ -7628,6 +7628,15 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
         low_puts(out, " }");
     }
     low_puts(out, ir->nmakes ? " };\n" : " { 0 } };\n");
+    // ★ 칸마다 부호 없는 정수인가 — lw_render 가 부호 없이 찍는다(W-20261113-1253 · BTS 러너가 찾음)
+    low_puts(out, "static const unsigned char lw_mk_fu[][16] = {");
+    for (proven_size_t m = 0; m < ir->nmakes; m++) {
+        low_puts(out, m ? ", {" : " {");
+        for (proven_size_t f = 0; f < ir->makes[m].nfields; f++)
+            low_fpf(out, "{}{}", proven_arg_cstr(f ? ", " : " "), PROVEN_ARG((int)(low_ir_make_field_unsigned(ir, m, f) ? 1 : 0)));
+        low_puts(out, ir->makes[m].nfields ? " }" : " 0 }");
+    }
+    low_puts(out, ir->nmakes ? " };\n" : " { 0 } };\n");
     low_puts(out, "static const char *lw_errs[] = {");
     for (proven_size_t e = 0; e < ir->nerrs; e++) {
         low_puts(out, e ? ", \"" : " \"");
@@ -9793,7 +9802,8 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                 PROVEN_ARG((unsigned)(ir->defs[i].param_u64)), PROVEN_ARG((unsigned)(ir->defs[i].param_struct)),
                 PROVEN_ARG((int)(// ★ 출력이 **부호 없는** 정수인가 — 표시를 VM 과 같게 한다(결함 노트 #69).
                 cbe_out_w128(&ir->defs[i]) ? (ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'i' ? 3 : 2)   // ★ RFC-0151 — 128 비트 결과
-                : (ir->defs[i].out_tyname.size && ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'u') ? 1 : 0)));
+                : (ir->defs[i].out_tyname.size && ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'u') ? 1
+                : low_ir_out_payload_unsigned(&ir->defs[i]) ? 4 : 0)));   // ★ 4 = option / result 의 알맹이가 부호 없다(W-20261113-1253)
         for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
             low_fpf(out, "{}{}", proven_arg_cstr(p ? "," : ""), PROVEN_ARG((unsigned)((unsigned)ir->defs[i].param_sidx[p])));
         low_puts(out, "}, {");

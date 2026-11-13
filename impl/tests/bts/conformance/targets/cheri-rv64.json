@@ -1,0 +1,119 @@
+{
+ "schema": "bts-target/1",
+ "name": "cheri-rv64",
+ "note": "model only: capability 16 bytes, address 8 bytes (no oracle here)",
+ "oracle": [],
+ "endian": "little",
+ "addr_bits": 64,
+ "usize_bits": 64,
+ "ptr_bytes": 16,
+ "ptr_align": 16,
+ "ptr_caps": true,
+ "scalars": {
+  "bool": [
+   1,
+   1
+  ],
+  "char": [
+   4,
+   4
+  ],
+  "f32": [
+   4,
+   4
+  ],
+  "f64": [
+   8,
+   8
+  ],
+  "i128": [
+   16,
+   16
+  ],
+  "i16": [
+   2,
+   2
+  ],
+  "i32": [
+   4,
+   4
+  ],
+  "i64": [
+   8,
+   8
+  ],
+  "i8": [
+   1,
+   1
+  ],
+  "u128": [
+   16,
+   16
+  ],
+  "u16": [
+   2,
+   2
+  ],
+  "u32": [
+   4,
+   4
+  ],
+  "u64": [
+   8,
+   8
+  ],
+  "u8": [
+   1,
+   1
+  ]
+ },
+ "int_widths": [
+  64,
+  128
+ ],
+ "float_formats": [
+  "f64"
+ ],
+ "atomic_max": 16,
+ "atomic_ldst": 16,
+ "atomic_rmw": 16,
+ "single_core": false,
+ "masking": false,
+ "other_masters": true,
+ "cache_line": 64,
+ "heap": true,
+ "simd_widths": [],
+ "hw": {
+  "mul_bits": 64,
+  "div_bits": 64,
+  "float": [
+   "f32",
+   "f64"
+  ]
+ },
+ "ct_insns": {
+  "core": "generic CHERI RV64",
+  "ops": [],
+  "source": null
+ },
+ "scrub_regs": false,
+ "scrub_stack": false,
+ "address_spaces": [
+  {
+   "name": "data",
+   "addr_bits": 64,
+   "ptr_bytes": 16
+  }
+ ],
+ "volatile_max": 8,
+ "device_ranges": [],
+ "mem_order": "weak",
+ "lb_order": "ctrl_dep",
+ "stack_guard": "mmu",
+ "abi_float_return": "gpr",
+ "io16_store_order": null,
+ "simd_align_max": null,
+ "simd_float_ieee": null,
+ "ct_mode": "none",
+ "ct_isa": []
+}

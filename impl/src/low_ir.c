@@ -8689,3 +8689,29 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
 #undef CT_SKIP_WORLD
     return r;
 }
+
+// low_ir.h 의 ★ — 찍을 때의 부호(W-20261113-1253).
+static bool ir_name_eq_tail(proven_u8str_view_t a, proven_u8str_view_t b) {   // `intops.carry_u8` 과 `carry_u8` 을 같게 본다
+    if (proven_u8str_view_eq(a, b)) return true;
+    for (proven_size_t i = a.size; i-- > 0; ) if (a.ptr[i] == '.') { a = (proven_u8str_view_t){ a.ptr + i + 1, a.size - i - 1 }; break; }
+    for (proven_size_t i = b.size; i-- > 0; ) if (b.ptr[i] == '.') { b = (proven_u8str_view_t){ b.ptr + i + 1, b.size - i - 1 }; break; }
+    return proven_u8str_view_eq(a, b);
+}
+bool low_ir_make_field_unsigned(const low_ir_t *ir, proven_size_t m, proven_size_t f) {
+    if (!ir || m >= ir->nmakes || f >= ir->makes[m].nfields) return false;
+    const low_ir_make_t *mk = &ir->makes[m];
+    for (proven_size_t s = 0; s < ir->nstructs; s++) {
+        if (!ir_name_eq_tail(ir->structs[s].name, mk->type_name)) continue;
+        for (proven_size_t k = 0; k < ir->structs[s].nf; k++) {
+            const low_ir_sfield_t *sf = &ir->structs[s].f[k];
+            if (proven_u8str_view_eq(sf->name, mk->fields[f]))
+                return !sf->flt && sf->cname.size && sf->cname.ptr[0] == (proven_u8)'u' && sf->size < 16;
+        }
+    }
+    return false;
+}
+bool low_ir_out_payload_unsigned(const low_ir_def_t *d) {
+    if (!d || !d->out_cname.size || d->out_cname.ptr[0] != (proven_u8)'u') return false;
+    return proven_u8str_view_eq(d->out_tyname, proven_u8str_view_from_cstr("option")) ||
+           proven_u8str_view_eq(d->out_tyname, proven_u8str_view_from_cstr("result"));
+}

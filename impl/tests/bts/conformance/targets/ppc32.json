@@ -1,0 +1,112 @@
+{
+ "schema": "bts-target/1",
+ "name": "ppc32",
+ "note": "PowerPC 32-bit SysV (big-endian): 64-bit scalars are 8-aligned; no lock-free 8-byte atomics",
+ "oracle": [
+  "--target=powerpc-linux-gnu"
+ ],
+ "endian": "big",
+ "addr_bits": 32,
+ "usize_bits": 32,
+ "ptr_bytes": 4,
+ "ptr_align": 4,
+ "ptr_caps": false,
+ "scalars": {
+  "bool": [
+   1,
+   1
+  ],
+  "char": [
+   4,
+   4
+  ],
+  "f32": [
+   4,
+   4
+  ],
+  "f64": [
+   8,
+   8
+  ],
+  "i16": [
+   2,
+   2
+  ],
+  "i32": [
+   4,
+   4
+  ],
+  "i64": [
+   8,
+   8
+  ],
+  "i8": [
+   1,
+   1
+  ],
+  "u16": [
+   2,
+   2
+  ],
+  "u32": [
+   4,
+   4
+  ],
+  "u64": [
+   8,
+   8
+  ],
+  "u8": [
+   1,
+   1
+  ]
+ },
+ "int_widths": [
+  64
+ ],
+ "float_formats": [
+  "f64"
+ ],
+ "atomic_max": 4,
+ "atomic_ldst": 4,
+ "atomic_rmw": 4,
+ "single_core": false,
+ "masking": false,
+ "other_masters": true,
+ "cache_line": 32,
+ "heap": true,
+ "simd_widths": [],
+ "hw": {
+  "mul_bits": 32,
+  "div_bits": 32,
+  "float": [
+   "f32",
+   "f64"
+  ]
+ },
+ "ct_insns": {
+  "core": "generic 32-bit PowerPC",
+  "ops": [],
+  "source": null
+ },
+ "scrub_regs": false,
+ "scrub_stack": false,
+ "address_spaces": [
+  {
+   "name": "data",
+   "addr_bits": 32,
+   "ptr_bytes": 4
+  }
+ ],
+ "volatile_max": 4,
+ "device_ranges": [],
+ "mem_order": "weak",
+ "lb_order": "ctrl_dep",
+ "stack_guard": "mmu",
+ "abi_float_return": "fpr",
+ "io16_store_order": null,
+ "simd_align_max": null,
+ "simd_float_ieee": null,
+ "ct_mode": "none",
+ "ct_isa": []
+}

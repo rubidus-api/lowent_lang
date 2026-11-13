@@ -1,0 +1,115 @@
+{
+ "schema": "bts-target/1",
+ "name": "msp430",
+ "note": "MSP430: atomics by interrupt masking (single core declared)",
+ "oracle": [
+  "--target=msp430"
+ ],
+ "endian": "little",
+ "addr_bits": 16,
+ "usize_bits": 16,
+ "ptr_bytes": 2,
+ "ptr_align": 2,
+ "ptr_caps": false,
+ "scalars": {
+  "bool": [
+   1,
+   1
+  ],
+  "char": [
+   4,
+   2
+  ],
+  "f32": [
+   4,
+   2
+  ],
+  "f64": [
+   8,
+   2
+  ],
+  "i16": [
+   2,
+   2
+  ],
+  "i32": [
+   4,
+   2
+  ],
+  "i64": [
+   8,
+   2
+  ],
+  "i8": [
+   1,
+   1
+  ],
+  "u16": [
+   2,
+   2
+  ],
+  "u32": [
+   4,
+   2
+  ],
+  "u64": [
+   8,
+   2
+  ],
+  "u8": [
+   1,
+   1
+  ]
+ },
+ "int_widths": [
+  64
+ ],
+ "float_formats": [
+  "f64"
+ ],
+ "atomic_max": 2,
+ "atomic_ldst": 8,
+ "atomic_rmw": 8,
+ "single_core": true,
+ "masking": true,
+ "other_masters": false,
+ "cache_line": null,
+ "heap": false,
+ "simd_widths": [],
+ "hw": {
+  "mul_bits": 0,
+  "div_bits": 0,
+  "float": []
+ },
+ "ct_insns": {
+  "core": "MSP430 without the multiplier peripheral",
+  "ops": [],
+  "source": null
+ },
+ "scrub_regs": false,
+ "scrub_stack": false,
+ "address_spaces": [
+  {
+   "name": "data",
+   "addr_bits": 16,
+   "ptr_bytes": 2
+  }
+ ],
+ "volatile_max": 2,
+ "device_ranges": [
+  {
+   "space": "data",
+   "first": 0,
+   "last": 511
+  }
+ ],
+ "mem_order": "in_order",
+ "lb_order": "none",
+ "stack_guard": "none",
+ "abi_float_return": "gpr",
+ "io16_store_order": null,
+ "simd_align_max": null,
+ "simd_float_ieee": null,
+ "ct_mode": "none",
+ "ct_isa": []
+}

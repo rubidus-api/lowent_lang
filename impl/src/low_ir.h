@@ -1099,7 +1099,12 @@ bool low_ir_target_is_group(const char *name);
 bool low_ir_target_tree_ok(char *err, size_t errn);          // 모든 마디가 펼쳐지는가(단위 시험)
 // ★ RFC-0132 P4e — 값 구조체인가(액터 상태 · 장치 레지스터 · 예약 · `owned` 칸이 없다): 베끼고 틀에 둘 수 있는 것.
 bool low_ir_struct_is_value(const low_ir_t *ir, proven_size_t sidx);
-void low_ir_print_targets(low_out_t *f);                          // `--targets`
+void low_ir_print_targets(low_out_t *f);
+// ★ 2026-11-13 (W-20261113-1253 · BTS 러너가 찾음) — 값을 **찍을 때** 부호 없는 64 비트를 부호 없이 찍으려고 묻는다.
+//   make m 의 칸 f 가 부호 없는 정수 칸인가(구조체 표의 칸 타입 낱말이 `u…` · 부동이 아님) · op 의 출력이 `option` / `result` 이고
+//   그 알맹이가 부호 없는 정수인가. 전엔 VM · 네이티브 모두 `some 9223372036854775808` 을 `some -9223372036854775808` 로 찍었다(값은 맞았다).
+bool low_ir_make_field_unsigned(const low_ir_t *ir, proven_size_t m, proven_size_t f);
+bool low_ir_out_payload_unsigned(const low_ir_def_t *d);                          // `--targets`
 const char *low_ir_target_name(proven_size_t i);
 // ★★★ **SMT 백엔드를 끈다** (`--no-smt`) — 기능 스위치가 아니라 **측정 도구**다 (후속 M).
 //   같은 바이너리로 켠 판과 끈 판을 재야 *"SMT 가 몇 개를 더 지웠나"* 가 **실측**이 된다.

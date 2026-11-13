@@ -1,0 +1,126 @@
+{
+ "schema": "bts-target/1",
+ "name": "x86_64",
+ "note": "",
+ "oracle": [
+  "--target=x86_64-linux-gnu"
+ ],
+ "endian": "little",
+ "addr_bits": 64,
+ "usize_bits": 64,
+ "ptr_bytes": 8,
+ "ptr_align": 8,
+ "ptr_caps": false,
+ "scalars": {
+  "bool": [
+   1,
+   1
+  ],
+  "char": [
+   4,
+   4
+  ],
+  "f32": [
+   4,
+   4
+  ],
+  "f64": [
+   8,
+   8
+  ],
+  "i128": [
+   16,
+   16
+  ],
+  "i16": [
+   2,
+   2
+  ],
+  "i32": [
+   4,
+   4
+  ],
+  "i64": [
+   8,
+   8
+  ],
+  "i8": [
+   1,
+   1
+  ],
+  "u128": [
+   16,
+   16
+  ],
+  "u16": [
+   2,
+   2
+  ],
+  "u32": [
+   4,
+   4
+  ],
+  "u64": [
+   8,
+   8
+  ],
+  "u8": [
+   1,
+   1
+  ]
+ },
+ "int_widths": [
+  64,
+  128
+ ],
+ "float_formats": [
+  "f64"
+ ],
+ "atomic_max": 16,
+ "atomic_ldst": 8,
+ "atomic_rmw": 8,
+ "single_core": false,
+ "masking": false,
+ "other_masters": true,
+ "cache_line": 64,
+ "heap": true,
+ "simd_widths": [
+  128
+ ],
+ "hw": {
+  "mul_bits": 64,
+  "div_bits": 64,
+  "float": [
+   "f32",
+   "f64"
+  ]
+ },
+ "ct_insns": {
+  "core": "Intel Pentium (P5) and later, AMD K7 and later",
+  "ops": [
+   "mul32",
+   "mul32_wide"
+  ],
+  "source": "REF-TG-02"
+ },
+ "scrub_regs": true,
+ "scrub_stack": false,
+ "address_spaces": [
+  {
+   "name": "data",
+   "addr_bits": 64,
+   "ptr_bytes": 8
+  }
+ ],
+ "volatile_max": 8,
+ "device_ranges": [],
+ "mem_order": "tso",
+ "lb_order": "none",
+ "stack_guard": "mmu",
+ "abi_float_return": "sse",
+ "io16_store_order": null,
+ "simd_align_max": null,
+ "simd_float_ieee": true,
+ "ct_mode": "none",
+ "ct_isa": []
+}

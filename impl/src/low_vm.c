@@ -5306,6 +5306,9 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
             for (proven_size_t i = 0; i < r->nfields && o + 24 < cap; i++) {
                 char fv[48];
                 vmv_render(vm, r->fields[i], fv, sizeof fv);
+                // ★ 부호 없는 칸은 부호 없이 찍는다(W-20261113-1253 · BTS 러너가 찾음 — 전엔 `{sum -9223372036854775808, …}`)
+                if (r->fields[i].tag == VMV_INT && r->fields[i].i < 0 && !r->fields[i].n && low_ir_make_field_unsigned(vm->ir, r->make_idx, i))
+                    low_bfmt(fv, sizeof fv, "{}", PROVEN_ARG((unsigned long long)r->fields[i].i));
                 o += (proven_size_t)low_bfmt(out + o, cap - o, "{}{} {}", proven_arg_cstr(i ? ", " : ""),
                                              low_sv((const char *)mk->fields[i].ptr, (int)mk->fields[i].size), proven_arg_cstr(fv));
             }
@@ -5850,6 +5853,12 @@ low_ir_run_result_t low_ir_run_def(const low_ir_t *ir, proven_size_t di,
         if (rv.tag == VMV_INT && rv.i < 0 && d->out_tyname.size &&
             d->out_tyname.ptr[0] == (proven_byte_t)'u')
             low_bfmt(out.text, sizeof out.text, "{}", PROVEN_ARG((unsigned long long)((unsigned long long)rv.i)));
+        // ★ `option u64` · `result u64 …` 의 알맹이도(W-20261113-1253 · BTS 러너가 찾음 — 전엔 `some -9223372036854775808`)
+        if ((rv.tag == VMV_SOME || rv.tag == VMV_OK) && low_ir_out_payload_unsigned(d)) {
+            vmv_t pv_ = vm.boxes[rv.box];
+            if (pv_.tag == VMV_INT && pv_.i < 0 && !pv_.n)
+                low_bfmt(out.text, sizeof out.text, "{} {}", proven_arg_cstr(rv.tag == VMV_SOME ? "some" : "ok"), PROVEN_ARG((unsigned long long)pv_.i));
+        }
 #if defined(__SIZEOF_INT128__)
         // ★ RFC-0151 — 128 비트 결과는 128 비트 십진으로 찍는다(네이티브 lw_fmt_w128 과 같은 글자)
         if (rv.tag == VMV_INT && d->out_tyname.size == 4 &&

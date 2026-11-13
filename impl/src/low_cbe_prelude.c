@@ -12,6 +12,7 @@
  *   병렬이 포화라, 이 조각의 이유는 **속도가 아니라 책임**이다.
  */
 #include "low_cbe_prelude.h"
+#include "low_ir.h"         /* ★ IR_NARROW_F32_MSG — VM 과 같은 글(RFC-0157 §8-15) */
 #include "low_sha256.h"   /* ★ 방출 런타임이 VM 과 **같은 매크로**를 찍는다 — 갈릴 자리가 없다 */
 #include "low_sha512.h"
 #include "low_aes.h"
@@ -3208,7 +3209,9 @@ const char LW_PRELUDE2[] =
 "    return r; }\n"
 "static lowv lw_w_cast(long long meta, lowv v) {\n"
 "    int srcw = (meta & 0x1000000) != 0;\n"
-"    if ((meta & 0xff) == 0) return lw_flt(lw_wc_flt(meta, lw_wv(v)));\n"
+"    if ((meta & 0xff) == 0) { double r_ = lw_wc_flt(meta, lw_wv(v));\n"
+"        if ((meta & 0x2000000) && (r_ > 3.4028234663852886e38 || r_ < -3.4028234663852886e38)) lw_panic(\"" IR_NARROW_F32_MSG "\");   /* §8-15 */\n"
+"        return lw_flt(r_); }\n"
 "    lw_u128 raw; int neg, fits;\n"
 "    if (v.tag == LWV_FLT) raw = lw_wc_src_flt(lw_fval(v), &neg);\n"
 "    else if (srcw) raw = lw_wc_src_w(meta, lw_wv(v), &neg);\n"
@@ -3322,7 +3325,10 @@ const char LW_PRELUDE2[] =
 "    if ((meta & 0xff) == 0) { int to32 = (meta & 0x10000) != 0;   /* RFC-0157 §8-13 — f32 이면 한 번에 반올림 */\n"
 "        if (v.tag == LWV_INT && (meta & 0x200000)) return lw_flt(to32 ? (double)(float)(unsigned long long)v.i : (double)(unsigned long long)v.i);\n"   /* RFC-0157 §8-14 */
 "        if (v.tag == LWV_INT) return lw_flt(to32 ? (double)(float)v.i : (double)v.i);\n"
-"        if (v.tag == LWV_FLT) return to32 ? lw_flt((double)(float)lw_fval(v)) : v;\n"
+"        if (v.tag == LWV_FLT) { double s_ = lw_fval(v); if (!to32) return v; double r_ = (double)(float)s_;\n"
+"            if ((meta & 0x2000000) && (r_ > 3.4028234663852886e38 || r_ < -3.4028234663852886e38) && s_ == s_ && s_ <= 1.7976931348623157e308 && s_ >= -1.7976931348623157e308)\n"
+"                lw_panic(\"" IR_NARROW_F32_MSG "\");   /* RFC-0157 §8-15 — narrow f32 */\n"
+"            return lw_flt(r_); }\n"
 "        lw_panic(\"cast needs a scalar\"); }\n"
 "    int nb = (int)(meta & 0xff) * 8;\n"
 "    int sgn = (meta & 0x20000) != 0;\n"   // ★ widen 은 대상 부호를 싣는다 → 부호 범위(전역성). narrow 는 무부호(손실 트랩)

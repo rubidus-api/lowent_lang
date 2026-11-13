@@ -1588,6 +1588,11 @@ end .
       A `narrow` that crosses kinds (integer ↔ floating point) is refused at translation (`E-TYPE-KIND`), and so is one whose target is wider than the
       value (`E-TYPE-WIDTH` — the word for that is `widen`).
     ]
+    #para("1a-2")[
+      `narrow f32` rounds an `f64` value to `f32` #strong[once]; (the same rounding as (3-1)). If a finite value rounds beyond the largest finite `f32`
+      — the value does not fit `f32` — execution stops. Infinities and NaN pass as they are. To take an overflowing value as the infinity of
+      the same sign, use `cast f32`.
+    ]
     #para("1b")[
       #strong[A conversion that could be read either way does not happen by itself; it goes through `cast`.]; That is a conversion where the same bits could be read as two numbers,
       or that widens or narrows depending on the target machine, or that changes the kind of the value. This rule also applies to types and conversions

@@ -792,7 +792,7 @@ mistake_fnpanic.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `pa
 nonzero_checked(5) = 5
 $ lowentc --run nonzero_strict fnpanic_fixed.low 0
 == ir diagnostics (1) ==
-0:0 E-VM-CONTRACT: `requires` violated at entry — the caller broke the contract
+14:0 E-VM-CONTRACT: `requires` violated at entry — the caller broke the contract — in op `nonzero_strict`, line 14
 </code></pre></div></div><p>The second fix is usually better. <code>nonzero_strict</code> stays pure, and the diagnostic says the fault of passing 0 lies with the caller.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. A <code>fn</code> writing into a slice received as <code>mut</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/mistake_fnmutwrite.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_fnmutwrite .
 <em><span class="tok-c">rem expect: E-EFFECT-PURITY</span></em>
 

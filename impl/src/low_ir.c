@@ -916,6 +916,8 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
     // ★ 자리표는 **문장의 것**이다: `c->cur_form` 이 이미 지금 낮추는 문장을 가리킨다
     //   (수리 id 를 고르려고 두었던 칸이 여기서 두 번째 쓸모를 얻는다).
     proven_u32 ln_ = c->cur_form ? c->cur_form->line : 0;
+    // ★ 2026-11-13 (W-20261113-1253 · RFC-0157 §8-16) — 계약 검사는 문장 밖(op 머리)에서 낮출 때가 많다: 절의 줄, 없으면 op 의 줄
+    if (!ln_ && w == IRW_ASSERT) ln_ = c->contract_line ? c->contract_line : (c->def_form ? c->def_form->line : 0);
     proven_u16 fid_ = 0;
     if (c->cur_form && c->cur_form->file && c->out) {
         low_ir_t *o_ = c->out;
@@ -4589,7 +4591,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         }
                         proven_u8str_view_t tw = k[*pos]->tok.lex;
                         proven_i64 meta;
-                        if (veq(tw, "f32")) meta = IR_CAST_F32;   // ★ RFC-0157 §8-13 — f32 로 반올림한다
+                        if (veq(tw, "f32")) meta = IR_CAST_F32 | (veq(nd->tok.lex, "narrow") ? IR_CAST_NARROW : 0);   // ★ RFC-0157 §8-13 · §8-15 — f32 로 반올림하고, `narrow` 는 넘치면 멈춘다
                         else if (veq(tw, "f64")) meta = 0;
                         else if (veq(tw, "u128") || veq(tw, "i128")) meta = 16 | NW[bi].pol | (veq(tw, "i128") ? IR_SGN_BIT : 0);   // ★ RFC-0151 — 16 바이트
                         else {
@@ -7599,6 +7601,7 @@ proven_size_t g_sched_step;
  proven_size_t g_bdropped = 0;
 
 proven_size_t low_ir_build_dropped(void) { return g_bdropped; }
+bool low_ir_mode_names_contracts(void) { return g_bmode == IR_BM_DEBUG || g_bmode == IR_BM_TEST || g_bmode == IR_BM_AUDIT; }
 bool low_ir_set_build_mode(proven_u8str_view_t m) {
     if      (veq(m, "debug"))         g_bmode = IR_BM_DEBUG;
     else if (veq(m, "test"))          g_bmode = IR_BM_TEST;
@@ -7671,6 +7674,7 @@ bool ir_requires_fact_ok(const low_cst_t *f, proven_size_t i) {
 //   ⇒ **하나로 만든다.** 리터럴 · 지역/파라미터 · **필드 경로** 를 전부 싣는다.
 //     못 실으면 **거짓을 반환**하고, 호출자는 **시끄럽게** 거절한다 — 조용히 넘기지 않는다.
  bool ir_contract_operand(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) {
+    if (line) c->contract_line = line;   // ★ RFC-0157 §8-16 — 이 절의 자리를 계약 검사 명령이 싣는다
     proven_i64 n;
     if (ir_int_lit(v, &n)) { ir_emit(c, IRW_CONST, n); return true; }
     bool glued = false;

@@ -765,7 +765,7 @@ clamp_add(100, 50) = 150
 </code></pre><pre><code>$ cc host.c &lt;exported.low 을 --no-main 으로 낸 C> &amp;&amp; ./host
 clamp_add(100, 50) = 150
 sum_bytes = 10
-panic: requires violated at entry
+panic: requires violated at entry -- in op `clamp_add`, line 5
 (종료 코드 70)
 </code></pre><p>The first two calls get answers. The third breaks <code>requires le a. 1000 . .</code>. C does not know contracts, but <strong>the place being called into is this side’s door</strong>, so the op’s contract is enforced on the arguments and it stops on entry. Lowent answers for inside the door, C for outside.</p><p>Both directions in one picture. Going out, it is <strong>written in the head</strong>; coming in, it is <strong>measured at the door</strong>.</p><pre><code data-lang="text"> going out --- Lowent calls C
    area_twice ──▶ c_area ══ link "lw_c_area" ══▶  lw_c_area (C)

@@ -32,6 +32,18 @@
 //   빼는 것: OS 가 있어야 뜻이 있는 전부(스레드·파일계·소켓·stdio/stdlib).
 
 static void put_view(low_out_t *o, proven_u8str_view_t v) { low_write(o, v.ptr, v.size); }
+// ★ 계약 검사가 깨졌을 때 lw_panic 이 찍는 글(빠른 경로 · 태그 경로가 같은 글). `debug` · `test` · `audit` 이면 어느 op · 줄인지 붙인다
+//   (2026-11-13 · W-20261113-1253 · RFC-0157 §8-16 · 정본 §6.4.7 (2) — VM 의 E-VM-CONTRACT 와 같은 꼬리). 돌려주는 글은 다음 부름까지 산다.
+static const char *cbe_assert_msg(const low_ir_def_t *d, const low_ir_ins_t *in) {
+    const char *base = (in->a & 4) ? LW_EXPECT_MSG   // ★ 2026-09-27 — expect 는 계약이 아니다(VM 의 E-TEST-FAIL)
+                     : (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
+                     : (in->a & 2) ? "errors `when` condition is false on this error path"
+                     : (in->a & 1) ? "ensures violated at exit" : "requires violated at entry";
+    if ((in->a & 4) || !low_ir_mode_names_contracts()) return base;
+    static char buf[320];
+    low_bfmt(buf, sizeof buf, "{} -- in op `{}`, line {}", proven_arg_cstr(base), low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((unsigned)in->line));
+    return buf;
+}
 
 // ★★★ **C 심볼 이름은 이름만으로는 유일하지 않다.**
 //
@@ -6402,10 +6414,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 //   증명된 출구 검사는 **실제로 지운다**(그것이 계약이 사 주는 성능이다).
                 if ((in->a & 3) && (in->a & IR_POL_PROVEN)) low_puts(out, "    sp--;\n");
                 else low_fpf(out, "    if (LW_UNLIKELY(!st[sp-1])) lw_panic(\"{}\"); sp--;\n",
-                             proven_arg_cstr((in->a & 4) ? LW_EXPECT_MSG   // ★ 2026-09-27 — expect 는 계약이 아니다(VM 의 E-TEST-FAIL)
-                           : (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
-                           : (in->a & 2) ? "errors `when` condition is false on this error path"
-                           : (in->a & 1) ? "ensures violated at exit" : "requires violated at entry"));
+                             proven_arg_cstr(cbe_assert_msg(d, in)));
                 ks.n--; break;
             case IRW_PANIC:
                 if (in->a == IR_PANIC_SINKFULL) { low_puts(out, "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"); ks.n = 0; live2 = false; break; }   // ★ X-0065
@@ -6448,7 +6457,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                         low_puts(out, uns_ ? (to32 ? "    fs[fsp++] = (double)(float)(unsigned long long)st[--sp];\n" : "    fs[fsp++] = (double)(unsigned long long)st[--sp];\n")
                                    : (to32 ? "    fs[fsp++] = (double)(float)st[--sp];\n" : "    fs[fsp++] = (double)st[--sp];\n"));
                         ks.k[ks.n-1] = K_FLT;
-                    } else if (to32) low_puts(out, "    fs[fsp-1] = (double)(float)fs[fsp-1];\n");   // 이미 f64 면 항등
+                        if (in->a & IR_CAST_NARROW)   // ★ RFC-0157 §8-15 — 정수 원천은 유한하다: 무한대가 되면 넘친 것이다
+                            low_puts(out, "    if (LW_UNLIKELY(fs[fsp-1] > 3.4028234663852886e38 || fs[fsp-1] < -3.4028234663852886e38)) lw_panic(\"" IR_NARROW_F32_MSG "\");\n");
+                    } else if (to32 && (in->a & IR_CAST_NARROW))   // ★ §8-15 — 유한한 f64 가 f32 를 넘치면 멈춘다(무한대 · NaN 은 그대로)
+                        low_puts(out, "    { double s_ = fs[fsp-1], r_ = (double)(float)s_; if (LW_UNLIKELY((r_ > 3.4028234663852886e38 || r_ < -3.4028234663852886e38) && s_ == s_ && s_ <= 1.7976931348623157e308 && s_ >= -1.7976931348623157e308)) lw_panic(\"" IR_NARROW_F32_MSG "\"); fs[fsp-1] = r_; }\n");
+                    else if (to32) low_puts(out, "    fs[fsp-1] = (double)(float)fs[fsp-1];\n");   // 이미 f64 면 항등
                 } else if (in->a & 0x40000) {              // narrow_try → some|none (ws[])
                     if (ks.k[ks.n-1] == K_FLT)   // ★ 2026-11-11 — 부동 원천은 참값으로 잰다(lw_narrow_fits_f · VM 과 같다)
                         low_fpf(out, "    {{ long long x_; if (lw_narrow_fits_f({}, fs[--fsp], &x_)) {{ ws[wsp].tag = 1; ws[wsp].v = x_; }}"
@@ -8791,11 +8804,7 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                     //   컴파일러가 그것을 알면 뜨거운 경로에서 그 코드를 **치워 준다**.
                     low_fpf(out, "    if (LW_UNLIKELY(st[sp-1].tag != LWV_INT || !st[sp-1].i)) "
                                  "lw_panic(\"{}\"); sp--;\n",
-                            proven_arg_cstr((in->a & 4) ? LW_EXPECT_MSG   // ★ 2026-09-27 — 위와 같다
-                          : (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
-                          : (in->a & 2) ? "errors `when` condition is false on this error path"
-                                        : (in->a & 1) ? "ensures violated at exit"
-                                                      : "requires violated at entry"));
+                            proven_arg_cstr(cbe_assert_msg(d, in)));
                     break;
                 case IRW_UNM:   low_fpf(out, "    st[sp-1] = lw_unm({}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_BINM:  low_fpf(out, "    st[sp-2] = lw_binm({}, st[sp-2], st[sp-1]); sp--;\n", PROVEN_ARG((long long)((long long)in->a))); break;

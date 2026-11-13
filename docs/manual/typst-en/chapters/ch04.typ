@@ -96,6 +96,8 @@ A conversion that can lose a value is *narrowing*, and it must be written. `shri
 `narrow u8 x. .`. 200 fits and comes out unchanged, but 300 does not, so execution stops (`E-VM-CAST`). If you do not want it to stop,
 choose the treatment you want by name. `narrow_sat` stops at the end value 255, and `narrow_wrap` wraps like C and gives 44.
 `narrow_try` gives `none` when the value does not fit.
+Floating point works the same way. `narrow f32` rounds an `f64` value to `f32` once, and stops when a finite value does not fit
+`f32` and would become infinity. If you want the overflowing value as infinity, use `cast f32`.
 
 #qa[
   If `narrow_wrap` does what C does, why isn't wrapping the default?

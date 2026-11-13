@@ -225,6 +225,7 @@ typedef struct {
     //   지금까지 when 조건은 **한 번도 평가되지 않았다** — 본문과 정반대로 적어도 통과했다.
     //   선언은 검사되지 않으면 거짓말이 된다(PRINCIPLES.md §0).
     const low_cst_t     *def_form;                  // 계약 절을 담은 op form
+    proven_u32           contract_line;             // ★ 2026-11-13 (RFC-0157 §8-16) — 마지막으로 낮춘 계약 절의 줄(계약 검사 명령의 자리)
     const low_parse_result_t *pr;                   // ★ 단형화 유래(사용 자리)를 읽으려고
     proven_u8str_view_t  def_name;                  // 지금 낮추는 def 이름(인스턴스면 `#` 를 담는다)
     // ★★★★★ 지금 낮추는 def 의 **소유 모듈**. 맨이름 해소가 이것을 먼저 본다 —

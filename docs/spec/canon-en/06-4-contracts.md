@@ -349,7 +349,8 @@ end .
 (1a) The modes are **a closed four** — `debug` · `test` · `release_safe` · `release_fast`.
       Any other word is refused (`E-BUILD-MODE`).
 
-(2) `debug` keeps the remaining checks and, if one breaks, stops saying what broke.
+(2) `debug` keeps the remaining checks and, if one breaks, stops saying what broke — the kind of check that broke (a `requires`, `ensures` or
+      `errors` clause), the name of the op that has it, and the source line of that clause. `test` says the same.
 
 (2a) `test` keeps checks like `debug`. What runs tests (⟦§6.4.13⟧) is not this mode but **a request to run
       tests** — that request runs tests in any mode, and even in `test` mode an ordinary execution does not run tests.

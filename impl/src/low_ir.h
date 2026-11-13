@@ -489,6 +489,10 @@ typedef struct {
 //   값을 f32 로 반올림한다(가장 가까운 값 · 비기면 짝수 · 넘치면 ±∞ — BTS 02 §1.5). 전엔 `cast f32` · `narrow f32` 가 `f64` 와 같은 0 을 받아
 //   값을 줄이지 않았다(`cast f32 <f64 1e300>` = 1e300 · `cast f32 <u64 16777217>` = 16777217). 읽는 쪽은 `(a & 0xff) == 0` 으로 부동을 가른다.
 #define IR_CAST_F32  IR_FLT_BIT
+// ★ 2026-11-13 (W-20261113-1253 · RFC-0157 §8-15 · 소유자 «추천대로») — `narrow f32`: 반올림은 `cast f32` 와 같고, 유한한 값이 `f32` 를 넘쳐
+//   무한대가 되면 멈춘다(`narrow` 집안의 «안 들어가면 멈춘다»). `cast f32` 는 이 비트가 없다 — 그 값은 같은 부호의 무한대다.
+#define IR_CAST_NARROW 0x2000000
+#define IR_NARROW_F32_MSG "narrow: the value does not fit f32 (a finite value would round to infinity) -- use `cast f32` for the rounding with infinity"
 // ★ `slice <struct>` — 원소가 **구조체**인 슬라이스. 구조체 배열은 시스템 프로그래밍의
 //   기본 모양인데, 원소 크기를 못 구해서 **바이트 슬라이스로 남았다**: `len` 이 **바이트를 셌다**
 //   (2바이트 구조체 2개짜리 슬라이스의 len 이 4). `slice u32` 에서 고쳤던 그 병인데
@@ -1119,6 +1123,9 @@ void low_ir_set_smt_emit(bool on);
 //   **파싱만 되고 아무 데서도 강제되지 않았다** — 즉 **믿게 두고 아무것도 안 했다.**
 const char   *low_irw_name(low_irw_t w);   // ★ 낱말의 이름 — 진단이 그것을 부를 수 있어야 한다
 bool          low_ir_set_build_mode(proven_u8str_view_t m);   // 알 수 없는 모드면 false
+// ★ 2026-11-13 (W-20261113-1253 · RFC-0157 §8-16 · 정본 §6.4.7 (2)) — 계약이 깨졌을 때 **어느 op 의 어느 절 · 소스 자리** 를 알리는 모드인가
+//   (`debug` · `test` · `audit`). `release_safe` 는 짧은 고정 문구만 낸다(§6.4.7 (3)).
+bool          low_ir_mode_names_contracts(void);
 
 // ★★★ **구성(configuration)** (RFC-0036 D5) — Kconfig 의 자리.
 //   `build option smp bool default on .` 이 **손잡이**를 선언하고, `lowent.config`(생성물)가

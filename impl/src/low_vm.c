@@ -1561,6 +1561,7 @@ static int vm_w128_step(vm_ctx_t *vm, const low_ir_ins_t *in, vmv_t *stack, prov
             vm_u128 u = vmv_wv(v);
             if (in->a & IR_CAST_F32) stack[sp++] = vmv_flt(src_sg ? (double)(float)(vm_i128)u : (double)(float)u);
             else stack[sp++] = vmv_flt(src_sg ? (double)(vm_i128)u : (double)u);
+            if ((in->a & IR_CAST_NARROW) && isinf(vmv_f(stack[sp-1]))) { vm_diag(vm->diags, "E-VM-CAST", IR_NARROW_F32_MSG); return 0; }   // ★ §8-15 — 128 비트 정수가 f32 를 넘친다
             *spp = sp; return 1;
         }
         // 원천의 참값을 부호 있는 129 비트로 본다: (음수인가, 크기)
@@ -2429,6 +2430,14 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                   ? "`ensures` violated at exit — THIS op broke its own promise "
                                     "(the caller was told a lie)"
                                   : "`requires` violated at entry — the caller broke the contract";
+                    if (!(in->a & IR_POL_PROVEN) && low_ir_mode_names_contracts()) {
+                        // ★ RFC-0157 §8-16 · 정본 §6.4.7 (2) — `debug` 는 무엇이 깨졌는지 말한다: 어느 op · 어느 절(위의 글) · 소스 자리
+                        low_diag_t dg = { .sev = LOW_SEV_ERROR, .code = code, .msg = NULL, .line = in->line, .col = 0 };
+                        low_bfmt(dg.detail, sizeof dg.detail, "{} — in op `{}`, line {}", proven_arg_cstr(msg),
+                                 low_sv((const char *)d->name.ptr, (int)d->name.size), PROVEN_ARG((unsigned)in->line));
+                        (void)proven_array_push(vm->diags, &dg);
+                        return false;
+                    }
                     vm_diag(vm->diags, code, msg);
                     return false;
                 }
@@ -2553,6 +2562,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                                                      : (to32 ? (double)(float)v.i : (double)v.i));
                     else if (v.tag == VMV_FLT) stack[sp++] = to32 ? vmv_flt((double)(float)vmv_f(v)) : v;
                     else { vm_diag(vm->diags, "E-VM-TYPE", "cast needs a scalar"); return false; }
+                    // ★ RFC-0157 §8-15 — `narrow f32`: 유한한 값이 무한대가 되면 멈춘다
+                    if ((in->a & IR_CAST_NARROW) && isinf(vmv_f(stack[sp-1])) && !(v.tag == VMV_FLT && isinf(vmv_f(v)))) {
+                        vm_diag(vm->diags, "E-VM-CAST", IR_NARROW_F32_MSG); return false;
+                    }
                 } else {
                     // S3/D9: 폭 절단은 **트랩**이 기본. narrow_wrap / narrow_sat 이 정책을 고른다.
                     proven_u8 nb = (proven_u8)((in->a & 0xff) * 8);   // 바이트 → 비트

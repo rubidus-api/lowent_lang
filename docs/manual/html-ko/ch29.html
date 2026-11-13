@@ -765,7 +765,7 @@ clamp_add(100, 50) = 150
 </code></pre><pre><code>$ cc host.c &lt;exported.low 을 --no-main 으로 낸 C> &amp;&amp; ./host
 clamp_add(100, 50) = 150
 sum_bytes = 10
-panic: requires violated at entry
+panic: requires violated at entry -- in op `clamp_add`, line 5
 (종료 코드 70)
 </code></pre><p>앞의 두 호출은 답을 받는다. 셋째 호출은 <code>requires le a. 1000 . .</code> 을 어긴다. C 는 계약을 모르지만, <strong>불려 들어오는 자리는 이쪽 문</strong>이므로 op 의 계약이 인자에 강제되고 진입에서 멈춘다. 문 안은 Lowent 가, 문 밖은 C 가 책임진다.</p><p>두 방향을 한 장에 그리면 이렇다. 나가는 쪽은 <strong>머리에 적고</strong>, 들어오는 쪽은 <strong>문에서 잰다</strong>.</p><pre><code data-lang="text"> 나가는 쪽 --- Lowent 가 C 를 부른다
    area_twice ──▶ c_area ══ link "lw_c_area" ══▶  lw_c_area (C)

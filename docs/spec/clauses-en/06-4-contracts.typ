@@ -357,7 +357,8 @@ end .")
       Any other word is refused (`E-BUILD-MODE`).
     ]
     #para("2")[
-      `debug` keeps the remaining checks and, if one breaks, stops saying what broke.
+      `debug` keeps the remaining checks and, if one breaks, stops saying what broke — the kind of check that broke (a `requires`, `ensures` or
+      `errors` clause), the name of the op that has it, and the source line of that clause. `test` says the same.
     ]
     #para("2a")[
       `test` keeps checks like `debug`. What runs tests (#cref("6.4.13")) is not this mode but #strong[a request to run

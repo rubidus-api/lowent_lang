@@ -707,6 +707,11 @@ end .
       (`sum 3 4 a. .`), and the shape of the argument shall be the same as the shape read with those numbers (`E-MATRIX-SHAPE`). The sizes of `let` · `var` · `output` · struct
       fields and of `lit matrix` shall be numbers (`E-MATRIX-TYPE`).
 
+(3b) The caller may call **leaving out all** of the size inputs of (3a) — then those numbers are read from the shape of the `matrix` argument (`sum a. .` is
+      `sum 3 4 a. .` if `a` is a `matrix 2 3 4 u32`). If one name is used in the sizes of several inputs it is read from the earlier input, and the shape of the
+      other inputs is compared with that number as in (3a). Writing some and leaving out others is not this form — which position is missing would not be told
+      apart by the letters, so it is refused as a call whose argument count does not fit. Type inputs and value inputs not used as sizes are always written (⟦§6.8⟧ (3)).
+
 > [!참고]
 > An input that takes its sizes by name gets no entry contract on its length. What can come in that place is only a `matrix` whose shape the caller compared,
 > and reading and writing elements receive the checks of (5) unchanged.
@@ -729,8 +734,15 @@ end .
 (7a) `row m. i1 … i(k−1) .` is the **row** that leaves one last dimension — one index for each dimension except the last, and its value is a `slice t` that sees
       the elements of that row. It does not copy, and its length is the size of the last dimension. If the number of indices differs it is refused (`E-MATRIX-INDEX`),
       and each index is checked against the size of its own dimension as in (5). If `m` is a writable name, that row can be bound to a `mut slice t` name
-      and written; otherwise it cannot be bound that way (`E-TYPE-MUT` · `E-IMMUTABLE` if it is a field of a struct bound with `let`). There is no view that leaves two
-      or more dimensions (a plane).
+      and written; otherwise it cannot be bound that way (`E-TYPE-MUT` · `E-IMMUTABLE` if it is a field of a struct bound with `let`).
+
+(7c) `face m. i1 … ij .` (1 ≤ j ≤ k − 2) is the **face** that fixes the first j dimensions — a `matrix` of the k − j dimensions that remain (two or more). Its sizes are the
+      sizes of the remaining dimensions, and its elements are those of `m` (it does not copy). Each index is checked against the size of its own dimension as in (5), and
+      an index count outside that range is refused (`E-MATRIX-INDEX` — leaving one dimension is `row`). A face stands where a `matrix` of that shape stands ((9)) — the
+      first argument of `idx` · `row` · `dim` · `flat` · `face`, an argument of an op with an input of the same shape. When bound to a name it is bound with `let`
+      writing the shape (`let p matrix 2 3 4 u32 face c. 1 . .`), and to write through that name it is bound as `mut matrix` — only when `m` is a writable name (`E-TYPE-MUT`).
+      A face is borrowed: it cannot be bound with `var` and cannot be sent out with an op's `return` (`E-MATRIX-USE`). Binding it to a name of another shape is
+      `E-MATRIX-SHAPE`.
 
 (7b) In the `m` position of (5) · (6) · (7) · (7a), not only a name written as `matrix` stands but also `field x. g .` that points at a `matrix` field —
       `idx field b. g . r. c. .`.
@@ -738,7 +750,7 @@ end .
 (8) `len m. .` and `for x m. do … end .` are refused (`E-MATRIX-USE`). The size of one dimension is written with `dim`, and going over all
       elements with `for x flat m. . do … end .`.
 
-(9) The places where a `matrix` name can be written whole are the first argument of `idx` · `row` · `dim` · `flat`, an argument of an op with an input of the same shape,
+(9) The places where a `matrix` name can be written whole are the first argument of `idx` · `row` · `dim` · `flat` · `face`, an argument of an op with an input of the same shape,
       and the `return` of an op with a result of the same shape. Other places are refused (`E-MATRIX-USE`). Arguments and inputs, and the type of a binding
       and the result of the op called, shall agree in both number of dimensions and sizes (`E-MATRIX-SHAPE`).
 
@@ -797,6 +809,41 @@ do
   set idx field b. g . 0 0 . 100 .
   let small lit matrix 2 2 2 u32 1 2 3 4 . .
   return add widen u64 idx field b. g . 0 0 . . sum 2 2 small. . . .
+end .
+```
+
+```lowent 예제: a face view and a call that does not write the sizes · 결과: f(0) = 138 · f(1) = 1222
+module ex_matrix_face .
+
+fn sum input comptime r usize . input comptime c usize . input m matrix 2 r c u32 . output u64 . do
+  var t u64 0 .
+  repeat i usize dim m. 0 . do
+    for x row m. i. . do set t. add t. widen u64 x. . . . end .
+  end .
+  return t. .
+end .
+
+export fn f input k usize . output u64 . do
+  var c lit matrix 3 2 3 4 u32 _ . .
+  repeat a usize 2 do
+    repeat b usize 3 do
+      repeat d usize 4 do
+        set idx c. a. b. d. . cast u32 add add mul a. 100 . mul b. 10 . . d. . . .
+      end .
+    end .
+  end .
+  let w mut matrix 2 3 4 u32 face c. 1 . .
+  set idx w. 2 3 . 7 .
+  let p matrix 2 3 4 u32 face c. k. . .
+  return sum p. . .
+end .
+```
+
+```lowent-거부: a face is borrowed, so it cannot be sent out of the op · E-MATRIX-USE
+module ex_matrix_face_out .
+
+fn first input c matrix 3 2 3 4 u32 . output matrix 2 3 4 u32 . do
+  return face c. 0 . .
 end .
 ```
 
@@ -1611,6 +1658,38 @@ end .
       — the value does not fit `f32` — execution stops. Infinities and NaN pass as they are. To take an overflowing value as the infinity of
       the same sign, use `cast f32`.
 
+(1a-3) The three narrowings that do not stop — `narrow_wrap` · `narrow_sat` · `narrow_try` (⟦§6.3.6⟧ (3)) — take **floating-point values** as well as integers
+      and narrow them to an **integer type**. First the value is truncated toward 0, as in (3). If the truncated integer fits the target, that is the value; if it does not,
+      the disposition the name picks applies. NaN and the infinities are values that fit no integer type.
+
+> [!표] Narrowing a floating-point value to an integer type — when it does not fit
+> #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+> [*Word*], [*Value*],
+> [`narrow_sat`], [the nearer end — above (including `+∞`) the largest value of the target, below (including `−∞`) the smallest. NaN gives `0`],
+> [`narrow_wrap`], [the truncated integer modulo 2^N (N is the target's bit count) — counted exactly. A signed target reads that remainder in two's complement. NaN and the infinities give `0`],
+> [`narrow_try`], [`none`],
+> )
+
+      A floating-point target is refused at translation (`E-TYPE-KIND`) — wrapping, saturating and failing are integer dispositions. A floating-point target is
+      written with `narrow f32` ((1a-2)) and `cast f32` ((3-1)).
+
+```lowent 예제: three dispositions for narrowing a floating-point value to an integer · 결과: s(300.5) = 255 · w(300.5) = 44 · w(1e30) = 0 · t(-0.5) = 0
+module ex_narrow_float .
+
+export fn s input x f64 . output u8 . do return narrow_sat u8 x. . . end .
+export fn w input x f64 . output u8 . do return narrow_wrap u8 x. . . end .
+export fn t input x f64 . output u8 . do
+  let r option u8 narrow_try u8 x. . .
+  guard is_some r. . else return 99 . .
+  return some_value r. . .
+end .
+```
+
+```lowent-거부: the target of a wrapping narrowing is an integer · E-TYPE-KIND
+module ex_narrow_wrap_float .
+fn f input x f64 . output f32 . do return narrow_wrap f32 x. . . end .
+```
+
 (1b) **A conversion that could be read either way does not happen by itself; it goes through `cast`.** That is a conversion where the same bits could be read as two numbers,
       or that widens or narrows depending on the target machine, or that changes the kind of the value. This rule also applies to types and conversions
       that enter the language in the future — if a new conversion is ambiguous its spelling is `cast`, and nothing is decided in the direction of adding implicit conversions.
@@ -1833,6 +1912,9 @@ fn f input s str . output u8 . do return 1 . end .
 (2) The shape that builds such a value is `<enum>.<variant>`, and it gives **all** of what the variant was declared to carry.
       If something is missing it is refused (`E-ENUM-ARITY`) — a half-built value is not made silently.
 
+(2a) Each value given shall be of the type the variant writes for it — it is compared like an op's argument (`E-TYPE-ARG` · `E-TYPE-WIDTH` if a literal
+      does not fit). Giving `300` to a variant that carries a `u8` is refused.
+
 (3) There are two ways to handle an enum that carries values.
 
 > [!표] The two ops that handle variants carrying values
@@ -1909,6 +1991,57 @@ end .
 > holding what the variant carries; building is building an aggregate, and reading is reading a field. So this feature
 > **added not a single machine instruction** — it lowers to what already existed, so it ran on both back ends
 > by itself.
+
+(7) **Enums that take type parameters.** Like a struct (⟦§6.8⟧), an enum takes types as parameters by writing `input comptime <name> type .` in the
+      first lines of its block. That name is used in the type position of what a variant carries. In a type position the enum's name and its type arguments are
+      wrapped in parentheses — `(pick u64)` · `(either u8 pt)` · `(pick (pick u8))`. Different type arguments are different types (`E-TYPE-INSTANCE`).
+
+(7a) The building word `<enum>.<variant>` writes no type argument. Which type it is is decided by **the type written at the place where the value is put** — the
+      value of a binding that writes that type, the `return` of an op that writes that type as its `output`, an argument given to an `input` of that type, the `set`
+      of a name bound with that type, a value given to a variant that carries that type. It is not traced back from the types of the values given (⟦§6.8⟧ (3)).
+      A building word placed anywhere else is refused (`E-ENUM-GENERIC`) — bind it to a name first.
+
+(7b) `isa` · `payload` · `match` use the variant names as they are. The instances of one enum share the names and the order of the variants.
+
+```lowent 예제: an enum that takes a type argument · 결과: f(5) = 11 · f(0) = 1
+module ex_enum_generic .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+fn val input p (pick u64) . output u64 . do
+  guard isa p. has . else return 0 . .
+  return payload p. has v . .
+end .
+
+fn mk input x u64 . output (pick u64) . do
+  guard gt x. 0 . else return pick.nothing . . .
+  return pick.has x. . .
+end .
+
+export fn f input x u64 . output u64 . do
+  var q (pick u64) mk x. . .
+  set q. pick.has add x. 1 . . .
+  return add val q. . val pick.has x. . . . .
+end .
+```
+
+```lowent-거부: the place where the building word stands does not say the type · E-ENUM-GENERIC
+module ex_enum_generic_where .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+fn f output bool . do
+  return isa pick.has 3 . has . .
+end .
+```
 
 ## 6.2.20 Seeing scattered pieces as one — `segments`
 

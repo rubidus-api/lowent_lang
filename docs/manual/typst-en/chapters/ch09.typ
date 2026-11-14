@@ -238,6 +238,14 @@ When you want one row, say `row`. The same example holds a table as a struct fie
 - To leave the sizes open, take them as translation-time inputs: write `input comptime r u64 .` and use `matrix 2 r c u32` as the
   type. The caller writes the sizes (`sum 2 2 small. .`), and passing a table of another shape is `E-MATRIX-SHAPE`. A size given by
   name stands only in an input --- locals, outputs and fields write their sizes as numbers.
+- The caller may also leave *all* the sizes out --- `sum small. .` reads 2 and 2 from the shape of `small` and becomes
+  `sum 2 2 small. .`. Writing some and leaving out others is not allowed. When two inputs use the same size names
+  (`a matrix 2 r c` · `b matrix 2 c r`), the sizes are read from the first and the second is compared against them.
+- `face m. i. .` is a *face* that fixes the leading dimensions --- the matrix of the dimensions that remain (two or more). For a
+  three-dimensional `matrix 3 2 3 4 u32`, `face c. 1 .` is a `matrix 2 3 4 u32`; it is not a copy but sees the elements of `c`.
+  Bind it with `let p matrix 2 3 4 u32 face c. 1 . .`, and to write through it `let w mut matrix 2 3 4 u32 face c. 1 . .` (only
+  when `c` is a `var`). A face is borrowed: binding it with `var` or sending it out with `return` is `E-MATRIX-USE`. It can also be
+  passed straight to an input of the same shape (`sum face c. 1 . .`).
 
 == Contracts remove bounds checks
 

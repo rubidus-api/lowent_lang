@@ -106,6 +106,12 @@ or a large value, is held through a struct that has it as a field, named and wri
 #demo("examples/ch10/payload_struct.low")
 
 - `data d bytes .` holds a struct with a slice in it, and `dot p pt .` a struct of three fields. Both are written as one word (`bytes`, `pt`).
+- An enum can take types as parameters too. Write `input comptime t type .` in the first line of its block and use `t` where a
+  variant's carried type goes --- `enum pick do input comptime t type . has v t . nothing . end .`. In a type position write it in
+  parentheses, `(pick u64)` · `(pick (pick u8))`; different type arguments are different types. The building word `pick.has x.`
+  writes no type argument --- the type written where the value goes decides (a binding's type · an op's `output` · an argument's
+  `input` · the type of the name being `set`). Anywhere else it is `E-ENUM-GENERIC`, so bind it to a name first. The values a variant
+  carries must be of its type --- giving 300 to a variant that carries a `u8` is `E-TYPE-WIDTH`.
 
 === Variant numbers and `cast`
 

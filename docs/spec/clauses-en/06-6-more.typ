@@ -181,6 +181,8 @@ end .")
     #para("3")[
       That making #strong[is visible in the source.]; There are no angle brackets and no inference — which combinations were made is written
       at the call sites.
+      There is one exception: a value input used as a size of a `matrix` input is read from the argument's shape when the caller leaves it out (#cref("6.2.6.1") (3b)). That
+      number is written in the argument's declaration too — the argument's type is that shape.
     ]
     #para("4")[
       Giving a `comptime` position a value not known at translation time does not conform.

@@ -703,6 +703,12 @@ end .", "E-LIT-COUNT")
       (`sum 3 4 a. .`), 인자의 모양은 그 수로 읽은 모양과 같아야 한다(`E-MATRIX-SHAPE`). `let` · `var` · `output` · 구조체의
       칸과 `lit matrix` 의 크기는 수여야 한다(`E-MATRIX-TYPE`).
     ]
+    #para("3b")[
+      부르는 쪽은 (3a) 의 크기 입력을 #strong[모두 빼고]; 부를 수 있다 — 그러면 그 수는 `matrix` 인자의 모양에서 읽는다(`sum a. .` 는
+      `a` 가 `matrix 2 3 4 u32` 이면 `sum 3 4 a. .` 이다). 같은 이름이 여러 입력의 크기에 쓰이면 앞의 입력에서 읽고, 나머지 입력의 모양은
+      (3a) 와 같이 그 수로 견준다. 몇은 적고 몇은 빼는 것은 이 꼴이 아니다 — 어느 자리가 빠졌는지 글자로 갈리지 않으므로 인자 수가 맞지
+      않는 호출로 거부된다. 타입 입력과 크기로 쓰이지 않는 값 입력은 언제나 적는다(#cref("6.8") (3)).
+    ]
     #note[
       크기를 이름으로 받는 입력에는 길이의 진입 계약이 붙지 않는다. 그 자리에 올 수 있는 것은 부르는 쪽에서 모양을 견준
       `matrix` 뿐이고, 원소를 읽고 쓰는 것은 (5) 의 검사를 그대로 받는다.
@@ -730,8 +736,16 @@ end .", "E-LIT-COUNT")
       `row m. i1 … i(k−1) .` 는 마지막 차원 하나를 남긴 #strong[줄];이다 — 색인은 마지막을 뺀 차원마다 하나씩이고, 값은 그 줄의
       원소를 보는 `slice t` 다. 복사하지 아니하며 길이는 마지막 차원의 크기다. 색인 수가 다르면 거부되고(`E-MATRIX-INDEX`),
       색인은 (5) 와 같이 저마다 제 차원의 크기로 검사한다. `m` 이 쓸 수 있는 이름이면 그 줄을 `mut slice t` 이름에 묶어
-      쓸 수 있고, 아니면 그렇게 묶지 못한다(`E-TYPE-MUT` · `let` 으로 묶은 구조체의 칸이면 `E-IMMUTABLE`). 남는 차원이 둘
-      이상인 보기(면)는 없다.
+      쓸 수 있고, 아니면 그렇게 묶지 못한다(`E-TYPE-MUT` · `let` 으로 묶은 구조체의 칸이면 `E-IMMUTABLE`).
+    ]
+    #para("7c")[
+      `face m. i1 … ij .`(1 ≤ j ≤ k − 2)는 앞의 j 차원을 정한 #strong[면]; — 남은 k − j 차원(둘 이상)의 `matrix` 다. 크기는 남은 차원의
+      크기 그대로이고, 원소는 `m` 의 것을 본다(복사하지 아니한다). 색인은 (5) 와 같이 저마다 제 차원의 크기로 검사하며, 색인 수가 그
+      범위 밖이면 거부된다(`E-MATRIX-INDEX` — 하나만 남기는 것은 `row` 다). 면은 그 모양의 `matrix` 가 서는 자리((9))에 선다 — `idx` ·
+      `row` · `dim` · `flat` · `face` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자. 이름에 묶을 때는 모양을 적어 `let` 으로 묶고
+      (`let p matrix 2 3 4 u32 face c. 1 . .`), 그 이름으로 쓰려면 `mut matrix` 로 묶는다 — `m` 이 쓸 수 있는 이름일 때만(`E-TYPE-MUT`).
+      면은 빌린 것이다: `var` 로 묶지 못하고, op 의 `return` 으로 내보내지 못한다(`E-MATRIX-USE`). 모양이 다른 이름에 묶으면
+      `E-MATRIX-SHAPE`.
     ]
     #para("7b")[
       (5) · (6) · (7) · (7a) 의 `m` 자리에는 `matrix` 로 적힌 이름뿐 아니라 `matrix` 칸을 가리키는 `field x. g .` 도 선다 —
@@ -742,7 +756,7 @@ end .", "E-LIT-COUNT")
       것은 `for x flat m. . do … end .` 로 적는다.
     ]
     #para("9")[
-      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
+      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` · `face` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
       같은 모양의 결과를 가진 op 의 `return` 이다. 그 밖의 자리는 거부된다(`E-MATRIX-USE`). 인자와 입력, 바인딩의
       타입과 부른 op 의 결과는 차원 수와 크기가 모두 같아야 한다(`E-MATRIX-SHAPE`).
     ]
@@ -800,6 +814,36 @@ do
   let small lit matrix 2 2 2 u32 1 2 3 4 . .
   return add widen u64 idx field b. g . 0 0 . . sum 2 2 small. . . .
 end .")
+    #ex("면 보기와 크기를 적지 않은 호출", "module ex_matrix_face .
+
+fn sum input comptime r usize . input comptime c usize . input m matrix 2 r c u32 . output u64 . do
+  var t u64 0 .
+  repeat i usize dim m. 0 . do
+    for x row m. i. . do set t. add t. widen u64 x. . . . end .
+  end .
+  return t. .
+end .
+
+export fn f input k usize . output u64 . do
+  var c lit matrix 3 2 3 4 u32 _ . .
+  repeat a usize 2 do
+    repeat b usize 3 do
+      repeat d usize 4 do
+        set idx c. a. b. d. . cast u32 add add mul a. 100 . mul b. 10 . . d. . . .
+      end .
+    end .
+  end .
+  let w mut matrix 2 3 4 u32 face c. 1 . .
+  set idx w. 2 3 . 7 .
+  let p matrix 2 3 4 u32 face c. k. . .
+  return sum p. . .
+end .",
+      out: "f(0) = 138 · f(1) = 1222")
+    #rejected("면은 빌린 것이라 op 밖으로 내보내지 못한다", "module ex_matrix_face_out .
+
+fn first input c matrix 3 2 3 4 u32 . output matrix 2 3 4 u32 . do
+  return face c. 0 . .
+end .", "E-MATRIX-USE")
     #rejected("차원은 둘인데 색인을 하나만 주었다", "module ex_matrix_row .
 
 export fn f output u64 . do
@@ -1600,6 +1644,31 @@ end .
       반올림되면 — 그 값이 `f32` 에 들어가지 않으므로 — 실행이 멈춘다. 무한대와 NaN 은 그대로 넘어간다. 넘친 값을 같은 부호의 무한대로
       받으려면 `cast f32` 를 쓴다.
     ]
+    #para("1a-3")[
+      멈추지 않는 좁히기 셋 — `narrow_wrap` · `narrow_sat` · `narrow_try`(#cref("6.3.6") (3)) — 은 정수뿐 아니라 #strong[부동소수점 값도];
+      받아 #strong[정수 타입];으로 줄인다. 먼저 (3) 과 같이 0 쪽으로 버린다. 버린 정수가 대상에 들어가면 그 값이고, 들어가지 않으면
+      이름이 고른 처분을 한다. NaN 과 무한대는 어느 정수 타입에도 들어가지 않는 값으로 본다.
+    ]
+    #tbl("부동소수점 값을 정수 타입으로 줄일 때 — 들어가지 않으면")[
+      #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*낱말*], [*값*],
+      [`narrow_sat`], [가까운 끝값 — 위로 넘치면(`+∞` 포함) 대상의 가장 큰 값, 아래로 넘치면(`−∞` 포함) 가장 작은 값. NaN 은 `0`],
+      [`narrow_wrap`], [버린 정수를 2^N(N 은 대상의 비트 수)으로 나눈 나머지 — 정확히 센다. 대상이 부호 있으면 그 나머지를 2 의 보수로 읽는다. NaN 과 무한대는 `0`],
+      [`narrow_try`], [`none`],
+      )
+    ]
+    #ex("부동소수점 값을 정수로 줄이는 세 처분", "module ex_narrow_float .
+
+export fn s input x f64 . output u8 . do return narrow_sat u8 x. . . end .
+export fn w input x f64 . output u8 . do return narrow_wrap u8 x. . . end .
+export fn t input x f64 . output u8 . do
+  let r option u8 narrow_try u8 x. . .
+  guard is_some r. . else return 99 . .
+  return some_value r. . .
+end .",
+      out: "s(300.5) = 255 · w(300.5) = 44 · w(1e30) = 0 · t(-0.5) = 0")
+    #rejected("감는 좁히기의 대상은 정수다", "module ex_narrow_wrap_float .
+fn f input x f64 . output f32 . do return narrow_wrap f32 x. . . end .", "E-TYPE-KIND")
     #para("1b")[
       #strong[어느 쪽으로 읽을지 갈릴 수 있는 변환은 저절로 일어나지 아니하며 `cast` 를 거친다.]; 같은 비트가 두 가지 수로 읽힐 수 있거나,
       대상 기계에 따라 넓히기도 되고 좁히기도 되거나, 값의 갈래가 바뀌는 변환이 그렇다. 이 규칙은 앞으로 언어에 들어오는 타입과
@@ -1822,6 +1891,10 @@ fn f input s str . output u8 . do return 1 . end .",
       그런 값을 짓는 모양은 `<열거>.<갈래>` 이며, 갈래가 지니기로 한 것을 #strong[모두]; 준다.
       모자라면 거부된다(`E-ENUM-ARITY`) — 조용히 반만 지은 값을 만들지 아니한다.
     ]
+    #para("2a")[
+      준 값은 저마다 그 갈래가 적은 타입이어야 한다 — op 의 인자와 같이 견준다(`E-TYPE-ARG` · 리터럴이 들어가지 않으면
+      `E-TYPE-WIDTH`). `u8` 을 지니는 갈래에 `300` 을 주면 거부된다.
+    ]
     #para("3")[
       값을 지닌 열거를 다루는 길은 둘이다.
     ]
@@ -1904,6 +1977,55 @@ end .",
       #strong[새 기계 명령을 하나도 늘리지 아니했다]; — 이미 있던 것으로 낮아지므로 두 뒤끝
       모두에서 저절로 돌았다.
     ]
+    #para("7")[
+      #strong[타입 매개변수를 받는 열거.]; 구조체와 같이(#cref("6.8")) 열거도 블록의 첫 줄들에 `input comptime <이름> type .` 을 적어 타입을
+      매개변수로 받는다. 갈래가 지니는 것의 타입 자리에 그 이름을 쓴다. 타입 자리에서는 열거의 이름과 타입 인자를 괄호로 싸서 적는다 —
+      `(pick u64)` · `(either u8 pt)` · `(pick (pick u8))`. 타입 인자가 다르면 다른 타입이다(`E-TYPE-INSTANCE`).
+    ]
+    #para("7a")[
+      짓는 낱말 `<열거>.<갈래>` 에는 타입 인자를 적지 아니한다. 어느 타입인지는 #strong[값이 놓이는 자리에 적힌 타입];이 정한다 — 그 타입을 적은
+      바인딩의 값, 그 타입을 `output` 으로 적은 op 의 `return`, 그 타입의 `input` 에 주는 인자, 그 타입으로 묶은 이름의 `set`, 그 타입을 지니는
+      갈래에 주는 값. 준 값의 타입에서 되짚지 아니한다(#cref("6.8") (3)). 그 밖의 자리에 놓인 짓는 낱말은 거부된다(`E-ENUM-GENERIC`) — 이름에 먼저
+      묶는다.
+    ]
+    #para("7b")[
+      `isa` · `payload` · `match` 는 갈래의 이름을 그대로 쓴다. 한 열거의 인스턴스들은 갈래의 이름과 차례를 함께 갖는다.
+    ]
+    #ex("타입 인자를 받는 열거", "module ex_enum_generic .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+fn val input p (pick u64) . output u64 . do
+  guard isa p. has . else return 0 . .
+  return payload p. has v . .
+end .
+
+fn mk input x u64 . output (pick u64) . do
+  guard gt x. 0 . else return pick.nothing . . .
+  return pick.has x. . .
+end .
+
+export fn f input x u64 . output u64 . do
+  var q (pick u64) mk x. . .
+  set q. pick.has add x. 1 . . .
+  return add val q. . val pick.has x. . . . .
+end .",
+      out: "f(5) = 11 · f(0) = 1")
+    #rejected("짓는 낱말이 놓인 자리가 타입을 말하지 않는다", "module ex_enum_generic_where .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+fn f output bool . do
+  return isa pick.has 3 . has . .
+end .", "E-ENUM-GENERIC")
   ]
   #sub("6.2.20", "흩어진 조각을 하나로 보기 — `segments`")[
     #para("1")[

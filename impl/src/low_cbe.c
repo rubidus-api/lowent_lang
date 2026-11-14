@@ -5674,6 +5674,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                         ks.n--; ks.o[ks.n-1] = -1;
                         break;
                     }
+                    if (in->a & IR_POL_SAT) {   // ★ 2026-11-14 (BTS simd_ops) — `sat_*` 는 레인마다 끝값에서 멈춘다(전엔 감았다)
+                        low_fpf(out, "    {{ vsp--; for (int k_ = 0; k_ < {}; k_++)\n"
+                                     "        vs[vsp-1].{}[k_] = lw_vsat1({}, vs[vsp-1].{}[k_], vs[vsp].{}[k_], {}, {}); }}\n",
+                                PROVEN_ARG((int)(ln)), proven_arg_cstr(lw_vmem((unsigned)ez)), PROVEN_ARG((int)(in->w == IRW_ADD ? 0 : in->w == IRW_SUB ? 1 : 2)),
+                                proven_arg_cstr(lw_vmem((unsigned)ez)), proven_arg_cstr(lw_vmem((unsigned)ez)), PROVEN_ARG((int)(ez)), PROVEN_ARG((int)(ks.fl[ks.n-1] == CBE_FL_SGN)));
+                        ks.n--; ks.o[ks.n-1] = -1;
+                        break;
+                    }
                     // ★ 정수 레인별 산술 — 원소 폭으로 **감싼다**(태그 경로와 같은 뜻).
                     //   ★★ 그 감싸기가 이제 **공짜다**(RFC-0040 §9): 레인이 제 폭의 칸에 담기니
                     //     C 의 대입이 자르고, 손으로 붙이던 `& ((1<<8*ez)-1)` 이 사라진다.
@@ -7853,8 +7861,13 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
           "    else { for (int k = sz; k-- > 0; ) x = (x << 8) | p[k]; }\n"
           "    return lw_en_tovi_r(lw_st_felo[v.box][i], lw_st_fehi[v.box][i], x);\n"
           "}\n"
+          /* ★ 2026-11-14 — f32 NaN 은 비트로 옮긴다(VM 의 ir_bits_to_f 와 같은 식 · 신호 NaN 을 지킨다 · 정본 §8.7). */
           "static double lw_b2f(unsigned long long b, int sz) {\n"
-          "    if (sz == 4) { float f; uint32_t u = (uint32_t)b; memcpy(&f, &u, 4); return (double)f; }\n"
+          "    if (sz == 4) { uint32_t u = (uint32_t)b;\n"
+          "        if ((u & 0x7f800000u) == 0x7f800000u && (u & 0x007fffffu)) {\n"
+          "            unsigned long long w = ((unsigned long long)(u >> 31) << 63) | (0x7ffull << 52) | ((unsigned long long)(u & 0x007fffffu) << 29);\n"
+          "            double d; memcpy(&d, &w, 8); return d; }\n"
+          "        float f; memcpy(&f, &u, 4); return (double)f; }\n"
           "    double d; memcpy(&d, &b, 8); return d; }\n"
           /* ★★★ **aggregate 슬라이스 저장** (RFC-0080 — AST 아레나): 레코드의 필드를 원소의
              구조체 레이아웃 오프셋에 인코딩한다(VM lw_istore ISTORE 와 대칭·이름으로 매칭). */
@@ -7896,7 +7909,9 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
           "            }\n"
           "}\n"
           "static unsigned long long lw_f2b(double d, int sz) {\n"
-          "    if (sz == 4) { float f = (float)d; uint32_t u; memcpy(&u, &f, 4); return u; }\n"
+          "    if (sz == 4) { if (d != d) { unsigned long long w; memcpy(&w, &d, 8); uint32_t m = (uint32_t)((w >> 29) & 0x007fffffu);\n"
+          "            return ((uint32_t)(w >> 63) << 31) | 0x7f800000u | (m ? m : 0x00400000u); }\n"
+          "        float f = (float)d; uint32_t u; memcpy(&u, &f, 4); return u; }\n"
           "    unsigned long long b; memcpy(&b, &d, 8); return b; }\n"
           /* ★★★ 참조를 따라간다 — 참조가 op 경계를 넘을 수 있게 된 조각(2026-07-19). */
           /*   ☞ **정직하게**: 네이티브에는 프레임 세대도 빌림 스택도 없다(`lw_deref` 도 이미 그렇다). */

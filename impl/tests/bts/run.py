@@ -2,18 +2,24 @@
 """Lowent runner for the basic_type_system (BTS) conformance vectors — RFC-0157 §8-1.
 
   python3 impl/tests/bts/run.py [--suite integer_ops] [--out impl/build/bts/results.jsonl] [--jobs 8]
+  suites: see SUITES at the end of the plans
 
-Reads the vector copies in impl/tests/bts/vectors/ (their sha256 and the BTS commit are in SOURCES.tsv), turns every case
-into a small Lowent function, and runs every row on both lowent implementations:
+Reads the vector copies in conformance/vectors/ (their sha256 and the BTS commit are in conformance/SOURCES.tsv), turns
+every case into a small Lowent function, and runs every row on both lowent implementations:
 
   vm      `lowentc --run-batch` — translated once per module, one forked run per row
   native  `lowentc --emit-c` + `cc`, then the binary once per row
 
-A row that must trap is run on its own (harness-protocol §2: a trap does not hide the next row). The result file is
-`bts-results/2` (harness-protocol §5) and is checked with the copied `check_results.py`. Mapping a BTS operation to Lowent:
-the case's `names.lowent` when the vectors give it, else the table in `lowent_expr` below — a same-meaning spelling
-(`wrap_sub 0 a` for a wrapping negation, `intops.*` for the named comparisons and the floor/truncating division); an
-operation Lowent does not have is skipped as `language-policy` (the protocol's word for «the language does not have it»).
+A row that must trap is run on its own (harness-protocol §2: a trap does not hide the next row). A row judged by
+translation (casting_rules `relations` · `common_type`) is its own module: `--check` stands for the VM, `--emit-c` for
+native. The result file is `bts-results/2` (harness-protocol §5) and is checked with the copied `check_results.py`;
+the row numbers follow §5.2 and are counted against the copied `gen.py`.
+
+Mapping a BTS operation to Lowent: the case's `names.lowent` when the vectors give it, else a same-meaning spelling
+written below (`wrap_sub 0 a` for a wrapping negation, `intops.*` for the named comparisons and the floor/truncating
+division, `bit_cast` for float bit patterns). Skips: `language-policy` = Lowent has decided not to have it;
+`not-implemented` = Lowent has no spelling for it yet (the suite then makes no claim); `target-unavailable` = a row
+for another target.
 """
 import argparse, hashlib, json, os, pathlib, re, subprocess, sys, tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -25,9 +31,27 @@ VEC = HERE / 'conformance/vectors'
 TARGET = 'x86_64'          # the machine this runs on; usize / idiff are 64 bits here
 USIZE_BITS = 64
 BUILD_MODE = 'debug'       # keeps every check (harness-protocol §1); written into each generated module
-MODULE_CASES = 40          # cases per generated module (one translation, one C build)
+MODULE_CASES = 40          # functions per generated module (one translation, one C build)
 
 
+# ── the row items a suite plan yields ─────────────────────────────────────────────────────────────────────────────
+class Skip:
+    def __init__(self, reason): self.reason = reason
+
+class Exec:
+    """run function `fsrc` (keyed by `fkey`) with `args`; `expect` is 'trap', a printed text, or a predicate.
+    `kw` is the declaring word (`fn` · `proc`); `pre` are helper declarations written before it, `{F}` standing for its name."""
+    def __init__(self, fkey, fsrc, args, expect, uses=(), kw='fn', pre=()):
+        self.fkey, self.fsrc, self.args, self.expect, self.uses = fkey, fsrc, [str(x) for x in args], expect, tuple(uses)
+        self.kw, self.pre = kw, tuple(pre)
+
+class Xlate:
+    """translate `body` (op declarations) as its own module; `accept` says whether Lowent must take it."""
+    def __init__(self, body, accept, uses=()):
+        self.body, self.accept, self.uses = body, accept, tuple(uses)
+
+
+# ── integer_ops ───────────────────────────────────────────────────────────────────────────────────────────────────
 def lowent_expr(case):
     """(expression over a. b. c., result type) or (None, skip reason)."""
     op, t, d = case['op'], case['type'], case.get('disposition')
@@ -59,7 +83,6 @@ def lowent_expr(case):
 
 
 def param_types(case):
-    """the Lowent type of each operand."""
     op, t = case['op'], case['type']
     n = len(case['rows'][0]) - 1
     if op in ('div_const', 'rem_const'):
@@ -82,41 +105,227 @@ def result_type(case):
     return f'option {t}' if d == 'chk' else t
 
 
-def expected_text(case, exp):
-    """what lowentc prints for the expected result ('trap' stays 'trap')."""
-    op, d = case['op'], case.get('disposition')
+def value_text(exp, chk=False):
+    """what lowentc prints for an expected value ('trap' stays 'trap')."""
     if exp == 'trap':
         return 'trap'
     if isinstance(exp, bool):
         return '1' if exp else '0'
-    if isinstance(exp, list):
-        f = {'add_carry': ('sum', 'carry'), 'sub_borrow': ('diff', 'borrow'), 'mul_wide': ('lo', 'hi'), 'mul_wide_s': ('lo', 'hi')}[op]
-        return '{' + ', '.join(f'{k} {v}' for k, v in zip(f, exp)) + '}'
-    if d == 'chk':
+    if chk:
         return 'none' if exp == 'none' else f'some {exp}'
     return str(exp)
 
 
-def rows_of(suite_doc):
-    """(global row number, case index, row) in harness-protocol §5.2 order — integer_ops: cases[].rows[]."""
-    k = 0
-    for ci, c in enumerate(suite_doc['cases']):
+def plan_integer_ops(doc):
+    for ci, c in enumerate(doc['cases']):
+        label = f'{c["op"]}/{c["type"]}/{c.get("disposition")}'
+        e, why = lowent_expr(c)
+        fsrc = None
+        if e:
+            ps = ' '.join(f'input {v} {ty} .' for v, ty in zip('abc', param_types(c)))
+            fsrc = f'{ps} output {result_type(c)} . do return {e} . end .'
         for r in c['rows']:
-            yield k, ci, r
-            k += 1
+            if c.get('width') and int(c['width']) != USIZE_BITS:
+                yield label, Skip('target-unavailable'); continue
+            if not e:
+                yield label, Skip(why); continue
+            exp = r[-1]
+            if isinstance(exp, list):
+                f = {'add_carry': ('sum', 'carry'), 'sub_borrow': ('diff', 'borrow'), 'mul_wide': ('lo', 'hi'),
+                     'mul_wide_s': ('lo', 'hi')}[c['op']]
+                txt = '{' + ', '.join(f'{k} {v}' for k, v in zip(f, exp)) + '}'
+            else:
+                txt = value_text(exp, c.get('disposition') == 'chk')
+            ops = r[:-1] if c['op'] not in ('div_const', 'rem_const') else r[:1]
+            yield label, Exec(('int', ci), fsrc, ops, txt, uses=['intops'])
 
 
-def build_module(work, mi, cases):
-    lines = [f'module bts{mi} .', f'build {BUILD_MODE} .', 'use intops .']
-    for ci, c in cases:
-        e, _ = lowent_expr(c)
-        ps = ' '.join(f'input {v} {ty} .' for v, ty in zip('abc', param_types(c)))
-        lines.append(f'fn c{ci} {ps} output {result_type(c)} . do return {e} . end .')
-    src = work / f'bts{mi}.low'
-    src.write_text('\n'.join(lines) + '\n')
-    return src
+# ── float_ops ─────────────────────────────────────────────────────────────────────────────────────────────────────
+FBITS = {'f32': ('u32', 32), 'f64': ('u64', 64)}
 
 
+def is_nan_bits(bits, width):
+    e, m = (8, 23) if width == 32 else (11, 52)
+    v = int(bits)
+    return (v >> m) & ((1 << e) - 1) == (1 << e) - 1 and v & ((1 << m) - 1) != 0
+
+
+def fbits_expect(hexv, width):
+    if hexv == 'nan':
+        return lambda got: got is not None and got.isdigit() and is_nan_bits(got, width)
+    return str(int(hexv, 16))
+
+
+def plan_float_ops(doc):
+    for ci, c in enumerate(doc['cases']):
+        op, t = c['op'], c['type']
+        label = f'{op}/{t}'
+        u, w = FBITS[t]
+        fc = lambda v: f'bit_cast {t} {v}. .'
+        uses = []
+        if op in ('add', 'sub', 'mul', 'div'):
+            fsrc = f'input a {u} . input b {u} . output {u} . do return bit_cast {u} {op} {fc("a")} {fc("b")} . . . end .'
+        elif op == 'sqrt':
+            uses = ['math']
+            # f32: math.sqrt is f64 only; one more rounding through f64 is exact for sqrt (53 ≥ 2·24 + 2)
+            inner = (f'cast f32 math.sqrt widen f64 {fc("a")} . . .' if t == 'f32' else f'math.sqrt {fc("a")} .')
+            fsrc = f'input a {u} . output {u} . do return bit_cast {u} {inner} . . end .'
+        elif op in ('lt', 'eq'):
+            fsrc = f'input a {u} . input b {u} . output bool . do return {op} {fc("a")} {fc("b")} . . end .'
+        elif op == 'copy':
+            fsrc = f'input a {u} . output {u} . do let x {t} {fc("a")} . return bit_cast {u} x. . . end .'
+        else:
+            fsrc = None        # order_key (BTS 02 §3.3) · sum_treeW (02 §3.4): Lowent has no spelling for them
+        for r in c['rows']:
+            if not fsrc:
+                yield label, Skip('not-implemented'); continue
+            args = [str(int(x, 16)) for x in (r[:-1] if op not in ('sum_tree4', 'sum_tree8', 'sum_tree16') else [])]
+            exp = r[-1]
+            want = value_text(exp) if isinstance(exp, bool) else fbits_expect(exp, w)
+            yield label, Exec(('float', ci), fsrc, args, want, uses)
+
+
+# ── casting_rules ─────────────────────────────────────────────────────────────────────────────────────────────────
+def width_of(t):
+    return int(re.sub(r'\D', '', t))
+
+
+def plan_casting_rules(doc):
+    for x in doc['relations']:
+        body = f'fn f input a {x["from"]} . output {x["to"]} . do return a. . end .'
+        yield f'relations/{x["from"]}->{x["to"]}', Xlate(body, bool(x['implicit']['lowent']))
+    for x in doc['common_type']:
+        a, b, cmn = x['a'], x['b'], x['common']['lowent']
+        out = cmn or x.get('lub_fixed_width') or a
+        body = f'fn f input a {a} . input b {b} . output {out} . do return add a. b. . . end .'
+        yield f'common_type/{a}+{b}', Xlate(body, cmn is not None)
+    for ci, x in enumerate(doc['narrowing']):
+        f, t, d = x['from'], x['to'], x['disposition']
+        word = {'trap': 'narrow' if width_of(t) < width_of(f) else 'cast', 'wrap': 'narrow_wrap', 'sat': 'narrow_sat',
+                'chk': 'narrow_try'}[d]
+        out = f'option {t}' if d == 'chk' else t
+        fsrc = f'input a {f} . output {out} . do return {word} {t} a. . . end .'
+        for r in x['rows']:
+            yield f'narrowing/{f}->{t}/{d}', Exec(('narrow', ci), fsrc, r[:1], value_text(r[1], d == 'chk'))
+    for ci, x in enumerate(doc['f32_to_int']):
+        t, d = x['to'], x['disposition']
+        word = {'trap': 'cast', 'sat': 'narrow_sat', 'chk': 'narrow_try'}.get(d)
+        out = f'option {t}' if d == 'chk' else t
+        fsrc = f'input a u32 . output {out} . do return {word} {t} bit_cast f32 a. . . . end .' if word else None
+        for r in x['rows']:
+            if not fsrc:
+                yield f'f32_to_int/{t}/{d}', Skip('not-implemented'); continue
+            yield f'f32_to_int/{t}/{d}', Exec(('f2i', ci), fsrc, [str(int(r[0], 16))], value_text(r[1], d == 'chk'))
+    for ci, x in enumerate(doc['int_to_f32']):
+        f = x['from']
+        fsrc = f'input a {f} . output u32 . do return bit_cast u32 cast f32 a. . . . end .'
+        for r in x['rows']:
+            yield f'int_to_f32/{f}', Exec(('i2f', ci), fsrc, r[:1], str(int(r[1], 16)))
+
+
+# ── simd_ops ──────────────────────────────────────────────────────────────────────────────────────────────────────
+def vec_text(lanes):
+    return 'vec[' + ' '.join(str(x) for x in lanes) + ']'
+
+
+def plan_simd_ops(doc):
+    """lane cases: `lit vec N T` from the lane arguments, the Lowent lane op, the printed `vec[…]`. Not built in Lowent (→ not-implemented):
+    lane `and` · `or` · `xor` · `shl` · `shr` (canon §6.2.11 (3a) lists the lane arithmetic; no lane bit operations), `to_int` (a vector is
+    not a scalar for `bit_cast`, §8.7), `lane_lookup16` · `load_masked` · `store_masked` · `load_full` (not mapped yet), and `kernels`."""
+    for ci, c in enumerate(doc['cases']):
+        op, d = c['op'], c.get('disposition')
+        t, n = re.match(r'simd\((\w+),(\d+)\)', c['type']).groups(); n = int(n)
+        label = f'{op}/{c["type"]}/{d}'
+        va = ' '.join(f'a{i}.' for i in range(n)); vb = ' '.join(f'b{i}.' for i in range(n))
+        ins_a = ' '.join(f'input a{i} {t} .' for i in range(n)); ins_b = ' '.join(f'input b{i} {t} .' for i in range(n))
+        lx = f'let x vec {n} {t} lit vec {n} {t} {va} . .'; ly = f'let y vec {n} {t} lit vec {n} {t} {vb} . .'
+        fsrc = None
+        if op in ('add', 'sub', 'mul'):
+            word = {'wrap': op, 'sat': f'sat_{op}'}.get(d)
+            if word:
+                fsrc = f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} return {word} x. y. . . end .'
+        elif op in ('eq', 'lt'):
+            ones = '-1' if t.startswith('i') else str((1 << int(t[1:])) - 1)
+            fsrc = (f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} let t vec {n} {t} splat {ones} . . let f vec {n} {t} splat 0 . . '
+                    f'return lane_select {op} x. y. . t. f. . . end .')
+        elif op in ('reduce_sum', 'reduce_min', 'reduce_max'):
+            word = {'reduce_sum': 'reduce_add'}.get(op, op)   # reduce_add stops when the sum does not fit (canon §6.3.7 (2))
+            fsrc = f'{ins_a} output {t} . do {lx} return {word} x. . . end .'
+        for r in c['rows']:
+            if not fsrc:
+                yield label, Skip('not-implemented'); continue
+            if op.startswith('reduce_'):
+                yield label, Exec(('simd', ci), fsrc, r[0], value_text(r[1]))
+            else:
+                yield label, Exec(('simd', ci), fsrc, list(r[0]) + list(r[1]), 'trap' if r[2] == 'trap' else vec_text(r[2]))
+    for k in doc.get('kernels', []):
+        yield f'kernel/{k["kernel"]}', Skip('not-implemented')
+
+
+# ── litmus ────────────────────────────────────────────────────────────────────────────────────────────────────────
+MO = {'rlx': 'relaxed', 'acq': 'acquire', 'rel': 'release', 'acq_rel': 'acq_rel', 'sc': 'seq_cst'}
+
+
+def fold_add(terms):
+    e = terms[0]
+    for t in terms[1:]:
+        e = f'add {e} {t} .'
+    return e
+
+
+def plan_litmus(doc):
+    """each test is one `proc`: its threads are flows in a `task_group` sharing a `mut slice u64` through `atomic_*` with the test's
+    orders; every register and the final memory come back packed four bits each into one u64. Judged per test (harness-protocol §2):
+    every row of a test passes when the observed outcome is in `allowed`. ★ Lowent's flows are green threads on ONE OS thread, so an
+    outcome is always some sequential interleaving: a pass shows no forbidden outcome appeared, not that a weak one cannot."""
+    for ti, t in enumerate(doc['tests']):
+        locs = sorted({i.get('st') or i.get('ld') or i.get('loc') for th in t['threads'] for i in th if 'fence' not in i})
+        regs = sorted({i['r'] for th in t['threads'] for i in th if 'r' in i})
+        li = {x: k for k, x in enumerate(locs)}; ri = {x: k for k, x in enumerate(regs)}
+        pos = lambda k: 1 << (4 * k)
+        pre = []
+        for j, th in enumerate(t['threads']):
+            body = []
+            mine = [i['r'] for i in th if 'r' in i]
+            body += [f'var {r} u64 0 .' for r in mine]
+            for i in th:
+                if 'fence' in i:
+                    body.append(f'atomic_fence order {MO[i["fence"]]} .')
+                elif 'st' in i:
+                    body.append(f'atomic_store m. {li[i["st"]]} {i["v"]} order {MO[i["mo"]]} .')
+                elif 'ld' in i:
+                    body.append(f'set {i["r"]}. atomic_load m. {li[i["ld"]]} order {MO[i["mo"]]} . .')
+                else:
+                    word = {'fadd': 'atomic_add', 'xchg': 'atomic_swap'}[i['rmw']]
+                    body.append(f'set {i["r"]}. {word} m. {li[i["loc"]]} {i["v"]} order {MO[i["mo"]]} . .')
+            packed = fold_add([f'mul {pos(ri[r])} {r}. .' for r in mine]) if mine else '0'
+            pre.append(f'proc {{F}}_t{j} input k cap atomic . input m mut slice u64 . output u64 . effects atomic . do '
+                       + ' '.join(body) + f' return {packed} . end .')
+        n = len(t['threads'])
+        main = (f'input k cap atomic . output u64 . effects state atomic . do var m lit array {len(locs)} u64 '
+                + ' '.join('0' for _ in locs) + ' . . '
+                + ' '.join(f'var h{j} task u64 0 .' for j in range(n))
+                + ' task_group do ' + ' '.join(f'set h{j}. spawn {{F}}_t{j} k. m. . .' for j in range(n)) + ' end . '
+                + 'return ' + fold_add([f'await h{j}. .' for j in range(n)]
+                                       + [f'mul {pos(len(regs) + li[x])} atomic_load m. {li[x]} . .' for x in locs]) + ' . end .')
+        allowed = {(tuple(sorted(a['regs'].items())), tuple(sorted(a['mem'].items()))) for a in t['allowed']}
+
+        def ok(got, regs=regs, locs=locs, allowed=allowed):
+            if got is None or not got.isdigit():
+                return False
+            v = int(got)
+            rr = tuple(sorted((r, str((v >> (4 * k)) & 15)) for k, r in enumerate(regs)))
+            mm = tuple(sorted((x, str((v >> (4 * (len(regs) + k))) & 15)) for k, x in enumerate(locs)))
+            return (rr, mm) in allowed
+        for _ in t['allowed']:
+            yield f'litmus/{t["name"]}', Exec(('litmus', ti), main, [], ok, kw='proc', pre=pre)
+
+
+SUITES = {'integer_ops': plan_integer_ops, 'float_ops': plan_float_ops, 'casting_rules': plan_casting_rules,
+          'simd_ops': plan_simd_ops, 'litmus': plan_litmus}
+
+
+# ── running ───────────────────────────────────────────────────────────────────────────────────────────────────────
 def run_vm(src, calls):
     """calls: list of 'cN a b' → list of (rc, printed value or None)."""
     r = subprocess.run([str(LOWENTC), '--run-batch', str(src)], input='\n'.join(calls) + '\n', capture_output=True, text=True, cwd=PUB)
@@ -147,13 +356,29 @@ def judge(exp, rc, got):
     if exp == 'trap':
         return ('pass', None) if rc != 0 else ('fail', f'expected a trap, got {got}')
     if rc != 0:
-        return 'fail', f'trapped (rc {rc}), expected {exp}'
+        return 'fail', f'trapped (rc {rc}), expected {exp if isinstance(exp, str) else "a NaN"}'
+    if callable(exp):
+        return ('pass', None) if exp(got) else ('fail', f'got {got}, expected a NaN')
     return ('pass', None) if got == exp else ('fail', f'got {got}, expected {exp}')
+
+
+def header_lines(name, uses):
+    return [f'module {name} .', f'build {BUILD_MODE} .'] + [f'use {u} .' for u in sorted(uses)]
+
+
+def plan(suite, doc):
+    """the plan's rows, checked against the copied gen.py (harness-protocol §5.2 order and count)."""
+    sys.path.insert(0, str(HERE / 'conformance'))
+    import gen
+    rows = list(SUITES[suite](doc))
+    if len(rows) != len(gen.rows_of(doc)):
+        raise SystemExit(f'run: {suite}: the plan has {len(rows)} rows, the vectors {len(gen.rows_of(doc))} — not starting')
+    return rows
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--suite', default='integer_ops')
+    ap.add_argument('--suite', default='integer_ops', choices=sorted(SUITES))
     ap.add_argument('--out', default=str(PUB / 'impl/build/bts/results.jsonl'))
     ap.add_argument('--jobs', type=int, default=8)
     a = ap.parse_args()
@@ -161,70 +386,92 @@ def main():
     doc = json.loads(vf.read_text())
     if doc.get('schema') != 'bts-vectors/1':
         print(f'run: {vf.name}: unknown vector format {doc.get("schema")!r} — not starting'); return 2
+    rows = plan(a.suite, doc)
     ver = subprocess.run([str(LOWENTC), '--version'], capture_output=True, text=True).stdout.split('\n')[0]
     head = {'schema': 'bts-results/2', 'runner': 'lowent impl/tests/bts/run.py', 'language': 'lowent', 'processor': 'lowentc',
             'processor_version': ver, 'build_mode': BUILD_MODE, 'target': TARGET,
             'vectors': {vf.name: hashlib.sha256(vf.read_bytes()).hexdigest()},
             'declaration': {'suites': {a.suite: 'supported'}, 'implementations': ['vm', 'native'], 'removes': [], 'erases_contracts': False}}
-    cases = doc['cases']
-    runnable = [(ci, c) for ci, c in enumerate(cases) if lowent_expr(c)[0]]
     work = pathlib.Path(tempfile.mkdtemp(prefix='bts-', dir=os.environ.get('TMPDIR')))
-    mods = [runnable[i:i + MODULE_CASES] for i in range(0, len(runnable), MODULE_CASES)]
+
+    # functions in first-use order, then modules of MODULE_CASES functions
+    fname, fns = {}, []
+    for _, it in rows:
+        if isinstance(it, Exec) and it.fkey not in fname:
+            fname[it.fkey] = f'c{len(fns)}'; fns.append(it)
+    mods = [fns[i:i + MODULE_CASES] for i in range(0, len(fns), MODULE_CASES)]
+    mod_of = {fname[f.fkey]: mi for mi, m in enumerate(mods) for f in m}
+    calls_of = [[] for _ in mods]                 # (row number, call)
+    for k, (_, it) in enumerate(rows):
+        if isinstance(it, Exec):
+            n = fname[it.fkey]
+            calls_of[mod_of[n]].append((k, ' '.join([n] + it.args)))
     results = {}   # (row, impl) -> (status, reason)
 
     def do_module(mi):
-        mc = mods[mi]
-        src = build_module(work, mi, mc)
-        calls = []; rowids = []; mine = {ci for ci, _ in mc}
-        for k, ci, r in rows_of(doc):
-            if ci not in mine:
-                continue
-            c = cases[ci]
-            if c.get('width') and int(c['width']) != USIZE_BITS:
-                continue
-            ops = r[:-1] if c['op'] not in ('div_const', 'rem_const') else r[:1]
-            calls.append(f'c{ci} ' + ' '.join(str(x) for x in ops)); rowids.append((k, ci, r))
-        out = {}
-        vm = run_vm(src, calls)
+        uses = set(u for f in mods[mi] for u in f.uses)
+        lines = header_lines(f'bts{mi}', uses) + [l for f in mods[mi] for l in [p.replace('{F}', fname[f.fkey]) for p in f.pre]
+                                                  + [f'{f.kw} {fname[f.fkey]} {f.fsrc}'.replace('{F}', fname[f.fkey])]]
+        src = work / f'bts{mi}.low'; src.write_text('\n'.join(lines) + '\n')
+        calls = calls_of[mi]
+        vm = run_vm(src, [c for _, c in calls])
         csrc = work / f'bts{mi}.c'; binp = work / f'bts{mi}'
         e = subprocess.run([str(LOWENTC), '--emit-c', str(src)], capture_output=True, text=True, cwd=PUB)
         nat_ok = e.returncode == 0
         if nat_ok:
             csrc.write_text(e.stdout)
             nat_ok = subprocess.run(['cc', '-O1', '-w', '-o', str(binp), str(csrc), '-lm'], capture_output=True).returncode == 0
-        for (k, ci, r), (rc, got), call in zip(rowids, vm, calls):
-            exp = expected_text(cases[ci], r[-1])
+        out = {}
+        for (k, call), (rc, got) in zip(calls, vm):
+            exp = rows[k][1].expect
             out[(k, 'vm')] = judge(exp, rc, got)
             out[(k, 'native')] = judge(exp, *run_native(binp, call)) if nat_ok else ('error', 'native build failed')
         return out
 
+    def do_xlate(k):
+        it = rows[k][1]
+        src = work / f'x{k}.low'
+        src.write_text('\n'.join(header_lines(f'x{k}', it.uses) + [it.body]) + '\n')
+        out = {}
+        for impl, flag in (('vm', '--check'), ('native', '--emit-c')):
+            r = subprocess.run([str(LOWENTC), flag, str(src)], capture_output=True, text=True, cwd=PUB)
+            took = r.returncode == 0
+            if took == it.accept:
+                out[(k, impl)] = ('pass', None)
+            else:
+                lines = (r.stdout + r.stderr).strip().split('\n')
+                diag = next((l.strip() for l in lines if ' E-' in l), lines[-1] if lines else '')
+                out[(k, impl)] = ('fail', 'accepted, expected a rejection' if took else f'rejected, expected acceptance: {diag[:160]}')
+        return out
+
+    xl = [k for k, (_, it) in enumerate(rows) if isinstance(it, Xlate)]
     with ThreadPoolExecutor(a.jobs) as ex:
         for part in ex.map(do_module, range(len(mods))):
+            results.update(part)
+        for part in ex.map(do_xlate, xl):
             results.update(part)
 
     outp = pathlib.Path(a.out); outp.parent.mkdir(parents=True, exist_ok=True)
     cnt = {'pass': 0, 'fail': 0, 'skip': 0, 'error': 0}
     with outp.open('w') as f:
         f.write(json.dumps(head, ensure_ascii=False) + '\n')
-        for k, ci, r in rows_of(doc):
-            c = cases[ci]
-            label = f'{c["op"]}/{c["type"]}/{c.get("disposition")}'
-            if c.get('width') and int(c['width']) != USIZE_BITS:
-                rows = [{'status': 'skip', 'reason': 'target-unavailable'}]
-            elif not lowent_expr(c)[0]:
-                rows = [{'status': 'skip', 'reason': lowent_expr(c)[1]}]
+        for k, (label, it) in enumerate(rows):
+            if isinstance(it, Skip):
+                outs = [{'status': 'skip', 'reason': it.reason}]
             else:
-                rows = []
+                outs = []
                 for impl in ('vm', 'native'):
                     st, why = results.get((k, impl), ('error', 'not run'))
-                    rows.append({'status': st, 'impl': impl, **({'reason': why} if why else {})})
-            for x in rows:
+                    outs.append({'status': st, 'impl': impl, **({'reason': why} if why else {})})
+            for x in outs:
                 f.write(json.dumps({'suite': a.suite, 'case': label, 'row': k, **x}, ensure_ascii=False) + '\n')
                 cnt[x['status']] += 1
-        conforms = cnt['fail'] == 0 and cnt['error'] == 0
+        ni = sum(1 for _, it in rows if isinstance(it, Skip) and it.reason == 'not-implemented')
+        conforms = cnt['fail'] == 0 and cnt['error'] == 0 and ni == 0
         claim = (f'{a.suite} vectors:{head["vectors"][vf.name][:16]} target:{TARGET} mode:{BUILD_MODE} impl:vm+native') if conforms else None
         f.write(json.dumps({'summary': {a.suite: {**cnt, 'conforms': conforms, 'claim': claim}}}) + '\n')
-    print(f'bts run: {a.suite} · pass {cnt["pass"]} · fail {cnt["fail"]} · skip {cnt["skip"]} · error {cnt["error"]} → {outp}')
+    print(f'bts run: {a.suite} · pass {cnt["pass"]} · fail {cnt["fail"]} · skip {cnt["skip"]}'
+          + (f' (not-implemented {ni})' if ni else '') + f' · error {cnt["error"]} → {outp}')
     return 0
 
 

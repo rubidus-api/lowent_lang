@@ -604,6 +604,7 @@ static void vm_vec_ret(vm_ctx_t *vm, proven_size_t base, vmv_t *rv) {
 //   sqrt 는 스칼라처럼 부동 전용이다. 부호 없는 레인의 neg 는 0 - x 로 감는다(벡터 `sub` 와 같다).
 static bool vm_vec_un(vm_ctx_t *vm, vmv_t *v, char op);
 static bool vm_vec_binm(vm_ctx_t *vm, vmv_t av, vmv_t bv, int sel, vmv_t *out);
+static proven_u64 vm_vsat1(int op, proven_u64 x, proven_u64 y, proven_u8 esz, bool sg);
 
 proven_i64 ity_lo(proven_u8 bits, bool sign) {
     if (!sign) return 0;
@@ -2607,7 +2608,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     if (fits) { stack[sp++] = vmv_int(x); break; }
                     if (in->a & IR_POL_WRAP) { stack[sp++] = vmv_int(ity_wrap(x, nb, nsign)); break; }
                     if (in->a & IR_POL_SAT)  {
-                        proven_i64 sv = src_big ? (nb >= 64 ? INT64_MAX : ity_hi(nb, nsign))   // 위로 넘쳤다 → 대상의 가장 큰 값
+                        proven_i64 sv = src_big ? ity_hi(nb, nsign)   // 위로 넘쳤다 → 대상의 가장 큰 값(★ 2026-11-14 BTS casting_rules: 64 비트 부호 없는 대상은 2^64 − 1 — 전엔 INT64_MAX)
                                       : (src_neg && !nsign) ? 0 : ity_sat(x, nb, nsign);
                         stack[sp++] = vmv_int(sv); break;
                     }
@@ -5064,9 +5065,13 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     }
                     if (in->w == IRW_ADD || in->w == IRW_SUB || in->w == IRW_MUL) {
                         if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool. It REWINDS at loop boundaries and at return (docs/runtime-pools.md), so a loop no longer drains it; what is left is a real limit: this many vectors are LIVE AT ONCE (nested calls, or one frame naming more than 32 of them). The native fast path has NO such pool — it keeps a vector in the frame as a VALUE — so at THIS line the two backends still DIVERGE, and that is now the only divergence left here"); return false; }
+                        // ★ 2026-11-14 (BTS simd_ops) — `sat_add` · `sat_sub` · `sat_mul` 은 레인마다 끝값에서 멈춘다. 전엔 정책을 보지 않아
+                        //   감았다(`sat_sub <vec i8 -128> <1>` 이 127). 부호 있는 레인은 부호로 잰다. 그 밖(`add` · `wrap_*`)은 감는다(§6.2.11 (3a)).
+                        const bool vsat_ = (in->a & IR_POL_SAT) != 0, vsg_ = vm->vecs[av.box].sign;
                         for (proven_u8 k = 0; k < n; k++) {
                             proven_u64 x = vm->vecs[av.box].l[k], y = vm->vecs[bv.box].l[k];
                             proven_u64 r2 = in->w == IRW_ADD ? x + y : in->w == IRW_SUB ? x - y : x * y;
+                            if (vsat_) r2 = vm_vsat1(in->w == IRW_ADD ? 0 : in->w == IRW_SUB ? 1 : 2, x, y, esz, vsg_);
                             vm->vecs[vm->nvec].l[k] = r2 & emask;
                         }
                         vm->vecs[vm->nvec].n = n;
@@ -5391,7 +5396,9 @@ static void vmv_render(const vm_ctx_t *vm, vmv_t v, char *out, proven_size_t cap
                    ? (proven_size_t)low_bfmt(out + o, cap - o, "{}{:g}", proven_arg_cstr(k ? " " : ""),
                                              PROVEN_ARG((double)(ir_bits_to_f(vm->vecs[v.box].l[k], vm->vecs[v.box].esz))))
                    : (proven_size_t)low_bfmt(out + o, cap - o, "{}{}", proven_arg_cstr(k ? " " : ""),
-                                             PROVEN_ARG((unsigned long long)((unsigned long long)vm->vecs[v.box].l[k])));
+                                             vm->vecs[v.box].sign   /* ★ 2026-11-14 — 부호 있는 레인은 부호로 찍는다(전엔 −7 이 249) */
+                                               ? PROVEN_ARG((long long)ity_wrap((proven_i64)vm->vecs[v.box].l[k], (proven_u8)(vm->vecs[v.box].esz * 8), true))
+                                               : PROVEN_ARG((unsigned long long)((unsigned long long)vm->vecs[v.box].l[k])));
             low_bfmt(out + o, cap - o, "]");
             return;
         }
@@ -5961,6 +5968,23 @@ static bool vm_vec_un(vm_ctx_t *vm, vmv_t *v, char op) {
     vm->vecs[vm->nvec].flt = flt; vm->vecs[vm->nvec].sign = sg;
     *v = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
     return true;
+}
+
+// ★ 2026-11-14 (BTS simd_ops) — 정수 레인 하나의 포화 셈(0 add · 1 sub · 2 mul). 네이티브의 lw_vsat1 과 같은 식이다.
+static proven_u64 vm_vsat1(int op, proven_u64 x, proven_u64 y, proven_u8 esz, bool sg) {
+    const int b = esz * 8; const proven_u64 em = esz >= 8 ? ~0ull : ((1ull << b) - 1);
+    x &= em; y &= em;
+    if (!sg) {
+        proven_u64 r; bool o = op == 0 ? __builtin_add_overflow(x, y, &r) : op == 1 ? __builtin_sub_overflow(x, y, &r) : __builtin_mul_overflow(x, y, &r);
+        if (op == 1) return o ? 0 : r;
+        return (o || r > em) ? em : r;
+    }
+    proven_i64 sx = ity_wrap((proven_i64)x, (proven_u8)b, true), sy = ity_wrap((proven_i64)y, (proven_u8)b, true), r;
+    bool o = op == 0 ? __builtin_add_overflow(sx, sy, &r) : op == 1 ? __builtin_sub_overflow(sx, sy, &r) : __builtin_mul_overflow(sx, sy, &r);
+    const proven_i64 lo = b >= 64 ? INT64_MIN : -((proven_i64)1 << (b - 1)), hi = b >= 64 ? INT64_MAX : ((proven_i64)1 << (b - 1)) - 1;
+    if (o) r = (op == 2 ? ((sx < 0) != (sy < 0)) : op == 1 ? (sx < 0) : (sx < 0)) ? lo : hi;
+    else r = r < lo ? lo : r > hi ? hi : r;
+    return (proven_u64)r & em;
 }
 
 static bool vm_vec_binm(vm_ctx_t *vm, vmv_t av, vmv_t bv, int sel, vmv_t *out) {

@@ -1345,4 +1345,8 @@ typedef struct {
 [[nodiscard]] low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work,
                                                    bool verbose);
 
+// ★ 2026-11-14 (REQ-0037) — 구조체 필드 선언에서 타입이 차지하는 낱말 수(첫 낱말은 kids[1] · 뒤의 표지 앞에서 멈춘다). 검사층도 같은 경계를 쓴다.
+struct low_cst;
+proven_size_t ir_field_tywords(const struct low_cst *fld);
+
 #endif // LOW_IR_H

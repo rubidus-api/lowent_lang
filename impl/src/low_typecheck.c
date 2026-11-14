@@ -1474,6 +1474,11 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                     !bsrc.lit && bsrc.bits != tgt.bits && !bsrc.nominal && !tgt.nominal)
                     tc_emit(c, "E-TYPE-BITCAST", "`bit_cast` keeps the bits and changes only how they are read, so both sides must have the "
                             "SAME width (canon §8.7) — change the width first with `widen` / `narrow`, then `bit_cast`", k[start]->line);
+                // ★ 2026-11-14 (BTS simd_ops `to_int`) — 원천도 스칼라여야 한다(정본 §8.7 의 표 «폭이 같은 두 스칼라 사이»). 전엔 `bit_cast u16 <vec 2 u8>` 이
+                //   검사를 지났고 VM 은 실행 중에 멈추고(E-VM-TYPE) 네이티브는 0 을 냈다.
+                if (bsrc.k == TK_VEC || bsrc.k == TK_MASK)
+                    tc_emit(c, "E-TYPE-BITCAST", "`bit_cast` reads the bits of ONE scalar as another scalar of the same width (canon §8.7) — a vector or a "
+                            "mask is not a scalar; take its lanes one at a time, or `store` it into bytes and read those", k[start]->line);
                 if ((tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits) return tgt;
                 if (tgt.k == TK_BOOL) return tgt;   // 덫 표현이 있는 대상은 배치 검사가 따로 거절한다(E-TYPE-BITCAST)
                 return tk(TK_UNKNOWN);
@@ -4323,17 +4328,28 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                             "anything else", fd->line);
                 continue;
             }
-            // ★ 2026-11-12 (W-20261112-1245) — 정본 §6.2.25 의 짓지 않은 낱말은 필드의 타입 자리에서도 거절한다. 타입 이름은 위(4151 근처)에서
-            //   이미 모았으므로 저자가 그 이름을 선언했는지 여기서 안다. (필드 자리의 **선언되지 않은** 이름 일반은 아직 안 본다 —
-            //   docs/known-defects/struct-field-type-undeclared.md.)
-            for (proven_size_t q = 1; q < fd->nkids; q++) {
-                const low_cst_t *ta = fd->kids[q];
-                if (ta->kind != LOW_CST_ATOM || ta->tok.kind != LOW_TOK_IDENT || !ty_is_unbuilt_word(ta->tok.lex) ||
-                    tname_user_declared(&c, ta->tok.lex)) continue;
-                tc_emitf(&c, "E-TYPE-UNBUILT", ta->tok.line ? ta->tok.line : fd->line,
-                         "`{}` is decided (canon 6.2.25: {}) but NOT BUILT yet — it stays tracked and is dropped if it proves "
-                         "unnecessary. {}", low_sv((const char *)ta->tok.lex.ptr, (int)ta->tok.lex.size), proven_arg_cstr(ty_unbuilt_what(ta->tok.lex)),
-                         proven_arg_cstr(ty_unbuilt_instead(ta->tok.lex)));
+            // ★ 2026-11-14 (W-20261114-1522 · REQ-0037) — 필드의 타입 자리도 op 머리 · `let` 과 같은 검사를 지난다: 선언되지 않은 이름은
+            //   `E-TYPE-UNDEF`, 정본 §6.2.25 의 짓지 않은 낱말은 `E-TYPE-UNBUILT`(2026-11-12 에는 뒤의 것만 보았다). 타입 이름은 위에서 이미
+            //   모았으므로 뒤에 선언된 구조체 · 열거 · 별칭도 안다. 전엔 `struct s do a zork . end .` 이 `check: ok` 였고, 그 구조체를 쓰는 자리가
+            //   «`lit` 에서 온 값의 타입을 모른다» 로 거부돼 `zork` 를 짚지 못했다(docs/known-defects/struct-field-type-undeclared.md).
+            //   필드 표지(`big` · `little` · `rw` · `ro` · `wo` — IR 의 ir_field_marker 와 같은 다섯)와 의사 필드 `storage <종류> .` · `mmio <주소> .` 는
+            //   타입이 아니므로 뺀다.
+            //   타입의 끝은 IR 과 같은 경계(`ir_field_tywords`)로 안다 — 타입 뒤의 낱말은 IR 이 `E-FIELD-MARK` 로 따로 거절한다(`u16 le .`).
+            //   틀 구조체(`struct vec do input comptime t type . …`)의 매개변수 줄은 필드가 아니고, 그 이름(`t`)은 타입이다 — 보통은 단형화가
+            //   먼저 지우지만 `--flat` 은 나무를 짓지 않으므로 여기까지 온다.
+            if (!veq(fd->kids[0]->tok.lex, "storage") && !veq(fd->kids[0]->tok.lex, "mmio") && !veq(fd->kids[0]->tok.lex, "input")) {
+                const proven_size_t tw_end = 1 + ir_field_tywords(fd);
+                for (proven_size_t q = 1; q < tw_end && q < fd->nkids; q++) {
+                    const low_cst_t *ta = fd->kids[q];
+                    bool tparam = false;
+                    for (proven_size_t r = 0; ta->kind == LOW_CST_ATOM && r < blk->nkids && !tparam; r++) {
+                        const low_cst_t *pf = blk->kids[r];
+                        tparam = pf->kind == LOW_CST_FORM && pf->nkids >= 3 && pf->kids[0]->kind == LOW_CST_ATOM && veq(pf->kids[0]->tok.lex, "input") &&
+                                 pf->kids[1]->kind == LOW_CST_ATOM && veq(pf->kids[1]->tok.lex, "comptime") && pf->kids[2]->kind == LOW_CST_ATOM &&
+                                 proven_u8str_view_eq(pf->kids[2]->tok.lex, ta->tok.lex);
+                    }
+                    if (!tparam) tc_check_tnames(&c, fd, q, q + 1);
+                }
             }
             st->fname[st->nf] = fd->kids[0]->tok.lex;
             st->fform[st->nf] = fd;

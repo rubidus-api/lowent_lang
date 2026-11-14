@@ -2093,12 +2093,29 @@ static bool ir_is_postmvp_word(proven_u8str_view_t w) {
            veq(w, "spawn_task") || veq(w, "channel") || veq(w, "select");
 }
 // IEEE bits (4/8 bytes) ⇄ double — f32 fields/lanes round-trip through the native float
+// ★ 2026-11-14 (BTS float_ops `copy` · 정본 §8.7 «비트는 그대로») — `f32` 는 속에서 `f64` 로 든다. 기계의 float ↔ double 변환은
+//   신호 NaN 을 조용한 NaN 으로 바꾸므로(x86 cvtss2sd), NaN 은 비트로 옮긴다: f32 가수 23 비트 ↔ f64 가수의 위 23 비트(29 비트 밀기).
+//   그래서 `bit_cast u32 bit_cast f32 x` 가 모든 NaN 에서 x 다. NaN 이 아닌 값은 전과 같다(두 변환이 정확하다).
 double ir_bits_to_f(proven_u64 bits, proven_u8 size) {
-    if (size == 4) { float f; proven_u32 b = (proven_u32)bits; memcpy(&f, &b, 4); return (double)f; }
+    if (size == 4) {
+        proven_u32 b = (proven_u32)bits;
+        if ((b & 0x7f800000u) == 0x7f800000u && (b & 0x007fffffu)) {
+            proven_u64 w = ((proven_u64)(b >> 31) << 63) | (0x7ffull << 52) | ((proven_u64)(b & 0x007fffffu) << 29);
+            double d; memcpy(&d, &w, 8); return d;
+        }
+        float f; memcpy(&f, &b, 4); return (double)f;
+    }
     double d; memcpy(&d, &bits, 8); return d;
 }
 proven_u64 ir_f_to_bits(double d, proven_u8 size) {
-    if (size == 4) { float f = (float)d; proven_u32 b; memcpy(&b, &f, 4); return b; }
+    if (size == 4) {
+        if (d != d) {
+            proven_u64 w; memcpy(&w, &d, 8);
+            proven_u32 m = (proven_u32)((w >> 29) & 0x007fffffu);
+            return ((proven_u32)(w >> 63) << 31) | 0x7f800000u | (m ? m : 0x00400000u);
+        }
+        float f = (float)d; proven_u32 b; memcpy(&b, &f, 4); return b;
+    }
     proven_u64 bits; memcpy(&bits, &d, 8); return bits;
 }
 // layout: packed = cumulative offsets; native = each field aligned to its size,

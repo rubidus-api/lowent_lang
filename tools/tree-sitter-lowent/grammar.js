@@ -100,7 +100,9 @@ module.exports = grammar({
     field_declaration: $ => seq(field('name', $.name), $._type, repeat($._word), $.stop),
     struct_attribute: $ => seq(choice('layout', 'align', 'mmio', 'storage', 'satisfies'), repeat1($._word), $.stop),
     enum_declaration: $ => seq(repeat($.modifier), 'enum', field('name', $.name),
-      'do', repeat(choice($.enum_attribute, $.variant)), 'end', $.stop),
+      'do', repeat(choice($.type_parameter, $.enum_attribute, $.variant)), 'end', $.stop),
+    // 타입 매개변수(정본 §6.2.19 (7) · 구조체와 같은 철자) — `input comptime t type .`
+    type_parameter: $ => seq('input', 'comptime', field('name', $.name), $._type, $.stop),
     // 열거의 폭(정본 §6.2.7 (2d)) — `layout u8 .` · 그리고 `satisfies` 는 갈래가 아니다
     enum_attribute: $ => seq(choice('layout', 'satisfies'), repeat1($._word), $.stop),
     // 갈래의 번호(정본 §6.2.7 (2c)) — `ga 11 .`, 아니면 값의 칸 짝

@@ -717,6 +717,10 @@
             "members": [
               {
                 "type": "SYMBOL",
+                "name": "type_parameter"
+              },
+              {
+                "type": "SYMBOL",
                 "name": "enum_attribute"
               },
               {
@@ -729,6 +733,35 @@
         {
           "type": "STRING",
           "value": "end"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "stop"
+        }
+      ]
+    },
+    "type_parameter": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "input"
+        },
+        {
+          "type": "STRING",
+          "value": "comptime"
+        },
+        {
+          "type": "FIELD",
+          "name": "name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "name"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_type"
         },
         {
           "type": "SYMBOL",

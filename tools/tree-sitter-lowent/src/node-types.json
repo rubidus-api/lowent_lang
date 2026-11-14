@@ -1503,6 +1503,10 @@
           "named": true
         },
         {
+          "type": "type_parameter",
+          "named": true
+        },
+        {
           "type": "variant",
           "named": true
         }
@@ -6044,6 +6048,44 @@
         },
         {
           "type": "path",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_parameter",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "applied_type",
+          "named": true
+        },
+        {
+          "type": "paren_type",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "type_name",
           "named": true
         }
       ]

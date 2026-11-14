@@ -1,0 +1,57 @@
+rem 타입 매개변수를 받는 열거(RFC-0080 §8-4 · 정본 §6.2.19 (7) · W-20261115-0229 D7). 인스턴스 셋(pick u64 · pick u8 · pick (pick u8))과
+rem 인자 둘인 either, 제네릭 op 안의 짓기, match 와 payload. 답 f(1) = 163 — VM 과 네이티브가 같다(골든 «generic enums»).
+module enum_generic .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+enum either do
+  input comptime a type .
+  input comptime b type .
+  left l a .
+  right r b .
+end .
+
+struct pt do
+  x u64 .
+  y u64 .
+end .
+
+fn wrap input comptime t type . input x t . output (pick t) . do
+  return pick.has x. . .
+end .
+
+fn get_or input comptime t type . input p (pick t) . input d t . output t . do
+  guard isa p. has . else return d. . .
+  return payload p. has v . .
+end .
+
+fn side input e (either u8 pt) . output u64 . do
+  match e. do
+    case left l do return widen u64 l. . . end .
+    case right r do return add field r. x . field r. y . . . end .
+  end .
+  return 0 .
+end .
+
+fn count input p (pick u8) . output u64 . do
+  match p. do
+    case has v do return widen u64 v. . . end .
+    case nothing do return 100 . end .
+  end .
+  return 0 .
+end .
+
+export fn f input x u64 . output u64 . do
+  let a (pick u64) wrap u64. x. . .
+  let b (pick u8) pick.nothing . .
+  let c (pick (pick u8)) pick.has pick.has 3 . . .
+  guard isa c. has . else return 7777 . .
+  let inner (pick u8) payload c. has v . .
+  let l (either u8 pt) either.left 9 . .
+  let r (either u8 pt) either.right lit pt do x 20 . y 30 . end . . .
+  return add add add get_or u64. a. 0 . count b. . . count inner. . . add side l. . side r. . . . .
+end .

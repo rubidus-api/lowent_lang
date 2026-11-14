@@ -568,6 +568,8 @@ void ir_mmio_perm_check(ir_ctx_t *c, proven_u8str_view_t base, proven_u8str_view
 proven_i64 ir_native_lanes_of(proven_u8 esz);
 void ir_value(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end);
 proven_i64 ir_variant_index(const ir_ctx_t *c, proven_u8str_view_t name);
+proven_i64 ir_variant_tag(const ir_ctx_t *c, proven_i64 vi);                                         // D7 — 인스턴스는 틀의 첫 자리
+proven_i64 ir_variant_index_ty(const ir_ctx_t *c, proven_u8str_view_t ety, proven_u8str_view_t name);   // D7 — 그 타입의 갈래
 proven_u8str_view_t ir_variant_owner(const ir_ctx_t *c, proven_u8str_view_t v);
 void ir_vec_context(ir_ctx_t *c, const low_cst_t *f, proven_size_t start, proven_size_t end);
 extern const proven_byte_t IR_ENUM_TAGF[2];

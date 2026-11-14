@@ -12792,7 +12792,8 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     //   (한정 경로(`a.f`)가 생기면 그때 이 규칙을 풀면 된다. 지금은 못 푼다.)
     {
         struct { proven_u8str_view_t name; const char *what; proven_u8str_view_t mod;
-                 const low_cst_t *at; } decls[512];   // ★ at = 그 선언의 자리(진단이 짚는다)
+                 const low_cst_t *at;
+                 proven_u8str_view_t tpl; } decls[512];   // ★ at = 그 선언의 자리(진단이 짚는다) · tpl = 제네릭 열거형 인스턴스의 틀 이름(D7)
         proven_size_t nd = 0;
         proven_u8str_view_t dcur = { 0 };     // ★ 지금 훑고 있는 모듈 (슬라이스 ③)
         for (proven_size_t i = 0; i < pr->nforms && nd < 512; i++) {
@@ -12879,7 +12880,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                      "so every call would be read as that word's own grammar first. Rename it",
                      f->kids[1]->tok.line);
             decls[nd].name = f->kids[1]->tok.lex; decls[nd].what = what; decls[nd].mod = dcur;
-            decls[nd].at = f->kids[1]; nd++;
+            decls[nd].at = f->kids[1]; decls[nd].tpl = (proven_u8str_view_t){ 0 }; nd++;
             // enum 변형도 이름이다 — 두 enum 이 같은 변형 이름을 쓰면 값이 뒤섞인다.
             if (kw == LOW_KW_ENUM) {
                 const low_cst_t *b2 = f->kids[f->nkids - 1];
@@ -12891,7 +12892,12 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                             ? vn->kids[0]->tok.lex : (proven_u8str_view_t){ 0 };
                     if (!nm.size) continue;
                     decls[nd].name = nm; decls[nd].what = "enum variant"; decls[nd].mod = dcur;
-                    decls[nd].at = f; nd++;
+                    decls[nd].at = f;
+                    // ★ W-20261115-0229 D7 — 같은 제네릭 열거형의 인스턴스(`pick#u64` · `pick#u8`)는 갈래 이름을 함께 쓴다: 사람이 적은 것은 틀 하나다.
+                    decls[nd].tpl = (proven_u8str_view_t){ 0 };
+                    for (proven_size_t q = 0; q < f->kids[1]->tok.lex.size; q++)
+                        if (f->kids[1]->tok.lex.ptr[q] == (proven_u8)'#') { decls[nd].tpl = (proven_u8str_view_t){ .ptr = f->kids[1]->tok.lex.ptr, .size = q }; break; }
+                    nd++;
                 }
             }
         }
@@ -12907,6 +12913,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         for (proven_size_t i = 0; i < nd; i++)
             for (proven_size_t j = i + 1; j < nd; j++)
                 if (proven_u8str_view_eq(decls[i].name, decls[j].name)) {
+                    if (decls[i].tpl.size && proven_u8str_view_eq(decls[i].tpl, decls[j].tpl)) continue;   // 한 틀의 두 인스턴스
                     if (proven_u8str_view_eq(decls[i].mod, decls[j].mod)) {
                         // ★★★ **이름을 대고, 그 자리를 짚는다** (2026-08-07).
                         //   전엔 이름을 안 대고 **언제나 `1:0`**(첫 form)을 가리켰다. 그래서

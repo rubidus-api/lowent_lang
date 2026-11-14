@@ -1546,6 +1546,27 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 }
                 ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, a0); w.pnz = true; return w;
             }
+            // ★ W-20261115-0229 D7 — 값을 지닌 갈래를 짓는 `<열거>.<갈래> <값>…`: 값마다 그 칸의 타입과 견준다(정본 §6.2.19 (2)). 전엔 재지 않아
+            //   `u8` 칸에 300 이 그대로 들어갔다(제네릭이 아닌 열거형에서도 — VM 이 `{$t 0, v 300}` 을 찍었다). 값의 타입은 그 열거다.
+            if (!sig_find(c, h2) && n >= 2 && k[start]->tok.kind == LOW_TOK_IDENT) {
+                proven_u8str_view_t vn = h2, en = { 0 };
+                for (proven_size_t q = vn.size; q > 0; q--)
+                    if (vn.ptr[q - 1] == (proven_byte_t)'.') { en = (proven_u8str_view_t){ vn.ptr, q - 1 }; vn = (proven_u8str_view_t){ vn.ptr + q, vn.size - q }; break; }
+                if (en.size) {
+                    proven_u8str_view_t eb = tc_base_name(en, NULL);
+                    const tc_variant_t *vv = variant_find(eb, vn);
+                    if (vv && vv->np && proven_u8str_view_eq(vv->en, eb) && n - 1 == vv->np) {
+                        for (proven_size_t q = 0; q < vv->np; q++) {
+                            ty_t at = tc_infer(c, k[start + 1 + q], env, nenv);
+                            if (vv->pt[q].k != TK_UNKNOWN && at.k != TK_UNKNOWN)
+                                tc_flag(c, compat(vv->pt[q], at), "E-TYPE-ARG",
+                                        "a value given to an enum variant does not match the type that variant declares for it (canon §6.2.19 (2)) — "
+                                        "the payload is checked like an op's argument", k[start]->line);
+                        }
+                        ty_t et = tk(TK_NAMED); et.nname = vv->en; return et;
+                    }
+                }
+            }
             // `payload <값> <갈래> <칸>` — 그 갈래의 그 칸의 타입
             if (!sig_find(c, h2) && n == 4 && veq(h2, "payload") && k[start + 2]->kind == LOW_CST_ATOM && k[start + 3]->kind == LOW_CST_ATOM) {
                 ty_t sv = tc_infer(c, k[start + 1], env, nenv);

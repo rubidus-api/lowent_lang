@@ -1878,6 +1878,12 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
         }
     }
 
+    // D7 — 가르는 값이 맨 지역이면 그 타입(제네릭 열거형의 인스턴스면 갈래의 알맹이 타입이 거기서 온다)
+    proven_u8str_view_t mety = { 0 };
+    if (m->nkids == 3 && is_atom(m->kids[1])) {
+        bool mf_; proven_size_t ms_ = ir_local_find(c, m->kids[1]->tok.lex, &mf_);
+        if (mf_) mety = c->locals[ms_].tyname;
+    }
     proven_size_t tmp = ir_local_declare(c, proven_u8str_view_from_cstr("$m"), m->line);
     ir_run(c, m->kids, 1, m->nkids - 2);
     ir_emit(c, IRW_STORE, (proven_i64)tmp);
@@ -2087,7 +2093,7 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
                         if (tagged) ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, (proven_u8str_view_t){ IR_ENUM_TAGF, 2 }));
                         ir_emit(c, IRW_CONST, vi);
                         ir_emit(c, IRW_EQ, 0);
-                        bind_vi = vi;
+                        bind_vi = ir_variant_index_ty(c, mety, p1);   // D7 — 알맹이의 타입은 가르는 값의 타입이 말한다
                     } else if (pat_end == 2) {            // ★ P-BIND (RFC-0020 P-BIND): 변형/리터럴이
                         //   아닌 **한 이름** = scrutinee 전체를 그 이름에 바인딩(항상 매칭). 가드가 흔히 쓴다
                         //   (`case y when gt y 100`). catch-all 이므로 is_wild.
@@ -4545,6 +4551,7 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                             s->total = (proven_u16)(s->total + sz); s->nf++;
                         }
                     }
+                    if (lv_) vb_ = (proven_size_t)ir_variant_tag(&mod, (proven_i64)vb_);   // D7 — 제네릭 열거형의 인스턴스는 틀의 첫 인스턴스의 꼬리표를 쓴다
                     if (lv_ <= 32 && pen_ok_ && vb_ < 0xffff) { s->is_penum = true; s->nvar = (proven_u8)lv_; s->vbase = (proven_u16)vb_; }
                     ir.nstructs++;
                 }

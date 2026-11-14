@@ -2003,6 +2003,30 @@ static bool ir_is_enum_variant(const ir_ctx_t *c, proven_u8str_view_t name) {
         if (proven_u8str_view_eq(c->enumv[i], name)) return (proven_i64)i;
     return -1;
 }
+// ★★ W-20261115-0229 D7 (RFC-0080 §8-4) — **제네릭 열거형의 인스턴스는 갈래의 꼬리표를 함께 쓴다.** `pick#u8` 과 `pick#pick#u8` 은 한 틀에서 나와
+//   갈래 이름과 차례가 같다. 꼬리표는 갈래 표의 차례(전역)인데, 맨 갈래 이름(`isa c. has` · `case has v`)은 그 이름의 **첫** 자리를 읽는다 —
+//   두째 인스턴스가 제 차례를 꼬리표로 쓰면 견줌이 늘 틀린다(재 보니 `isa` 가 거짓). 그래서 인스턴스의 꼬리표는 그 틀의 같은 갈래의 첫 자리다.
+static bool ir_tpl_prefix(proven_u8str_view_t owner, proven_u8str_view_t *pre) {
+    for (proven_size_t i = 0; i < owner.size; i++) if (owner.ptr[i] == (proven_byte_t)'#') { *pre = (proven_u8str_view_t){ owner.ptr, i }; return true; }
+    return false;
+}
+proven_i64 ir_variant_tag(const ir_ctx_t *c, proven_i64 vi) {
+    proven_u8str_view_t pre, p2;
+    if (vi < 0 || !ir_tpl_prefix(c->enum_owner[vi], &pre)) return vi;
+    for (proven_size_t i = 0; i < (proven_size_t)vi; i++)
+        if (proven_u8str_view_eq(c->enumv[i], c->enumv[vi]) && ir_tpl_prefix(c->enum_owner[i], &p2) && proven_u8str_view_eq(p2, pre)) return (proven_i64)i;
+    return vi;
+}
+// 그 타입(열거형 이름 — 인스턴스일 수 있다)의 갈래 — 알맹이의 타입을 읽으려고. 모르면 맨 이름의 첫 자리.
+proven_i64 ir_variant_index_ty(const ir_ctx_t *c, proven_u8str_view_t ety, proven_u8str_view_t name) {
+    if (ety.size) {
+        proven_u8str_view_t b = ety;
+        for (proven_size_t i = b.size; i > 0; i--) if (b.ptr[i - 1] == (proven_byte_t)'.') { b = (proven_u8str_view_t){ b.ptr + i, b.size - i }; break; }
+        for (proven_size_t i = 0; i < c->nenumv; i++)
+            if (proven_u8str_view_eq(c->enumv[i], name) && c->enum_owner[i].size && proven_u8str_view_eq(c->enum_owner[i], b)) return (proven_i64)i;
+    }
+    return ir_variant_index(c, name);
+}
 static proven_size_t ir_err_intern(ir_ctx_t *c, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < c->out->nerrs; i++)
         if (proven_u8str_view_eq(c->out->errs[i], name)) return i;
@@ -3992,14 +4016,14 @@ static bool ir_enum_ctor(ir_ctx_t *c, const low_cst_t *nd,
     //   실행에서 `E-VM-TYPE: arithmetic/compare needs ints` 로 멈췄다(두 뒤끝 모두).
     //   ☞ *한 값에 표현이 둘이면 그 둘이 만나는 자리에서 반드시 터진다.*
     if (!ir_enum_is_payload(c, (proven_i64)vi)) {
-        ir_emit(c, IRW_CONST, (proven_i64)vi);
+        ir_emit(c, IRW_CONST, ir_variant_tag(c, (proven_i64)vi));
         return true;
     }
     if (c->out->nmakes >= IR_MAXMAKES) { ir_fail(c, "E-IR-UNSUP", "too many make sites", nd->line); return true; }
     proven_size_t my = c->out->nmakes++;
     low_ir_make_t mk = { .type_name = ehead, .nfields = 0 };
     mk.fields[mk.nfields++] = (proven_u8str_view_t){ IR_ENUM_TAGF, 2 };   // field 0 = 태그
-    ir_emit(c, IRW_CONST, (proven_i64)vi);                               //   값 = 변형 인덱스
+    ir_emit(c, IRW_CONST, ir_variant_tag(c, (proven_i64)vi));            //   값 = 변형 인덱스(인스턴스는 틀의 첫 자리 — D7)
     proven_u8 np = c->enum_np[vi];
     for (proven_u8 fld = 0; fld < np && mk.nfields < IR_MAKE_MAXF; fld++) {
         if (*pos >= end) {
@@ -4501,6 +4525,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 // ★ 정적 안전(RFC-0080 §4.6): 변형·필드가 **선언에 있어야** 한다. 오타는
                 //   런타임이 아니라 컴파일타임에 잡는다 — 이것이 페이로드 enum 을 고른 이유다.
                 proven_i64 gvi = ir_variant_index(c, vname);
+                if (gvn.size) {   // D7 — 맨 지역이면 그 타입의 갈래(제네릭 열거형의 인스턴스마다 알맹이 타입이 다르다)
+                    bool lf_; proven_size_t ls_ = ir_local_find(c, gvn, &lf_);
+                    if (lf_) gvi = ir_variant_index_ty(c, c->locals[ls_].tyname, vname);
+                }
                 if (gvi < 0) { ir_fail(c, "E-ENUM-NOVARIANT", "this is not a declared enum variant", nd->line); return; }
                 bool okf = false;
                 for (proven_u8 fi = 0; fi < c->enum_np[gvi]; fi++)

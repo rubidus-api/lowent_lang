@@ -1872,6 +1872,9 @@ fn f input s str . output u8 . do return 1 . end .
 (2) 그런 값을 짓는 모양은 `<열거>.<갈래>` 이며, 갈래가 지니기로 한 것을 **모두** 준다.
       모자라면 거부된다(`E-ENUM-ARITY`) — 조용히 반만 지은 값을 만들지 아니한다.
 
+(2a) 준 값은 저마다 그 갈래가 적은 타입이어야 한다 — op 의 인자와 같이 견준다(`E-TYPE-ARG` · 리터럴이 들어가지 않으면
+      `E-TYPE-WIDTH`). `u8` 을 지니는 갈래에 `300` 을 주면 거부된다.
+
 (3) 값을 지닌 열거를 다루는 길은 둘이다.
 
 > [!표] 값을 지닌 갈래를 다루는 두 op
@@ -1949,6 +1952,57 @@ end .
 > 묶음이 있을 뿐이며, 짓는 것은 묶음 짓기이고 읽는 것은 칸 읽기다. 그래서 이 기능은
 > **새 기계 명령을 하나도 늘리지 아니했다** — 이미 있던 것으로 낮아지므로 두 뒤끝
 > 모두에서 저절로 돌았다.
+
+(7) **타입 매개변수를 받는 열거.** 구조체와 같이(⟦§6.8⟧) 열거도 블록의 첫 줄들에 `input comptime <이름> type .` 을 적어 타입을
+      매개변수로 받는다. 갈래가 지니는 것의 타입 자리에 그 이름을 쓴다. 타입 자리에서는 열거의 이름과 타입 인자를 괄호로 싸서 적는다 —
+      `(pick u64)` · `(either u8 pt)` · `(pick (pick u8))`. 타입 인자가 다르면 다른 타입이다(`E-TYPE-INSTANCE`).
+
+(7a) 짓는 낱말 `<열거>.<갈래>` 에는 타입 인자를 적지 아니한다. 어느 타입인지는 **값이 놓이는 자리에 적힌 타입**이 정한다 — 그 타입을 적은
+      바인딩의 값, 그 타입을 `output` 으로 적은 op 의 `return`, 그 타입의 `input` 에 주는 인자, 그 타입으로 묶은 이름의 `set`, 그 타입을 지니는
+      갈래에 주는 값. 준 값의 타입에서 되짚지 아니한다(⟦§6.8⟧ (3)). 그 밖의 자리에 놓인 짓는 낱말은 거부된다(`E-ENUM-GENERIC`) — 이름에 먼저
+      묶는다.
+
+(7b) `isa` · `payload` · `match` 는 갈래의 이름을 그대로 쓴다. 한 열거의 인스턴스들은 갈래의 이름과 차례를 함께 갖는다.
+
+```lowent 예제: 타입 인자를 받는 열거 · 결과: f(5) = 11 · f(0) = 1
+module ex_enum_generic .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+fn val input p (pick u64) . output u64 . do
+  guard isa p. has . else return 0 . .
+  return payload p. has v . .
+end .
+
+fn mk input x u64 . output (pick u64) . do
+  guard gt x. 0 . else return pick.nothing . . .
+  return pick.has x. . .
+end .
+
+export fn f input x u64 . output u64 . do
+  var q (pick u64) mk x. . .
+  set q. pick.has add x. 1 . . .
+  return add val q. . val pick.has x. . . . .
+end .
+```
+
+```lowent-거부: 짓는 낱말이 놓인 자리가 타입을 말하지 않는다 · E-ENUM-GENERIC
+module ex_enum_generic_where .
+
+enum pick do
+  input comptime t type .
+  has v t .
+  nothing .
+end .
+
+fn f output bool . do
+  return isa pick.has 3 . has . .
+end .
+```
 
 ## 6.2.20 흩어진 조각을 하나로 보기 — `segments`
 

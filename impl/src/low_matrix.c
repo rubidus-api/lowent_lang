@@ -31,7 +31,7 @@
 
 typedef struct { unsigned k; const low_cst_t *elem; const low_cst_t *d[MX_MAXRANK]; } mx_shape_t;
 typedef enum { MT_NONE, MT_MATRIX, MT_STRUCT, MT_LIST } mx_kind_t;
-typedef struct { mx_kind_t kind; mx_shape_t sh; proven_u8str_view_t sname; } mx_ty_t;   // sname: 구조체 이름(MT_LIST 면 원소의)
+typedef struct { mx_kind_t kind; mx_shape_t sh; proven_u8str_view_t sname; bool view; } mx_ty_t;   // sname: 구조체 이름(MT_LIST 면 원소의) · view: 면 보기(빌린 것 — D5)
 typedef struct { proven_u8str_view_t sname, fname; mx_ty_t ty; } mx_field_t;
 typedef struct {
     proven_u8str_view_t name; const low_cst_t *form; const char *file;
@@ -298,7 +298,14 @@ static bool mx_bound(const mx_t *c, proven_u8str_view_t name) {   // 지역 이�
     for (proven_size_t i = c->nenv; i-- > 0; ) if (mx_veq(c->env[i].name, name)) return true;
     return false;
 }
-// 식의 타입 — 이름 · `field x f` · `idx xs i`(구조체의 나열) · matrix 를 내는 op 의 호출. 그 밖은 «모른다».
+// ★ W-20261115-0229 D5 (RFC-0144 §8-3 · 소유자 «matrix의 면 보기 … 지금 구현») — 색인 j 개를 앞에서 준 면: 남은 차원 k − j(2 이상)의 matrix.
+static mx_ty_t mx_face_ty(const mx_shape_t *sh, unsigned j) {
+    mx_ty_t t = { .kind = MT_MATRIX, .view = true };
+    t.sh.k = sh->k - j; t.sh.elem = sh->elem;
+    for (unsigned q = 0; q < t.sh.k; q++) t.sh.d[q] = sh->d[j + q];
+    return t;
+}
+// 식의 타입 — 이름 · `field x f` · `idx xs i`(구조체의 나열) · matrix 를 내는 op 의 호출 · `face`. 그 밖은 «모른다».
 static mx_ty_t mx_ty_of(const mx_t *c, const low_cst_t *n) {
     mx_ty_t none = { .kind = MT_NONE };
     n = mx_inner(n);
@@ -321,6 +328,12 @@ static mx_ty_t mx_ty_of(const mx_t *c, const low_cst_t *n) {
     if (mx_is(n->kids[0], "idx") && n->nkids == 3) {
         mx_ty_t x = mx_ty_of(c, n->kids[1]);
         if (x.kind == MT_LIST) return (mx_ty_t){ .kind = MT_STRUCT, .sname = x.sname };
+        return none;
+    }
+    if (mx_is(n->kids[0], "face") && n->nkids >= 3) {    // D5 — `face m. i1 … ij .` 은 남은 차원의 matrix(빌린 것)
+        mx_ty_t x = mx_ty_of(c, n->kids[1]);
+        unsigned j = (unsigned)(n->nkids - 2);
+        if (x.kind == MT_MATRIX && j >= 1 && j + 2 <= x.sh.k) return mx_face_ty(&x.sh, j);
         return none;
     }
     if (mx_name(n->kids[0]))
@@ -357,6 +370,20 @@ static bool mx_lower_call(mx_t *c, low_cst_t *head, low_cst_t *const *args, prov
     if (!mx_atom(head) || !na || !am[0]) return false;
     mx_shape_t sh = as[0];
     bool is_idx = mx_is(head, "idx"), is_row = mx_is(head, "row");
+    if (mx_is(head, "face")) {                           // D5 — 색인 j 개(1 ≤ j ≤ k − 2): 남은 차원의 원소를 보는 조각(복사하지 않는다)
+        unsigned j = (unsigned)(na - 1);
+        if (j < 1 || j + 2 > sh.k) {
+            mx_fail(c, head, "E-MATRIX-INDEX", "`face <matrix>. i1 … ij .` takes 1 to k-2 indexes for a matrix of k dimensions and gives the matrix of the dimensions that remain — "
+                    "two or more; with k-1 indexes the rest is one row, `row m. i. .`");
+            return false;
+        }
+        low_cst_t *cur = mx_peel(c, head, &sh, args[0], args + 1, j);
+        if (!cur) return false;
+        const low_cst_t *f = mx_inner(cur);
+        for (proven_size_t i = 0; i < f->nkids; i++) out[i] = f->kids[i];
+        *nout = f->nkids;
+        return true;
+    }
     if (is_idx || is_row) {
         unsigned want = is_idx ? sh.k : sh.k - 1;
         if (na - 1 != want) { mx_fail(c, head, "E-MATRIX-INDEX", "{}", proven_arg_cstr(is_idx ? MX_RANK_MSG : MX_ROW_MSG)); return false; }
@@ -496,6 +523,62 @@ static void mx_struct_lit(mx_t *c, proven_u8str_view_t sname, low_cst_t *blk) {
         mx_run(c, fl, 1, &e, false);
     }
 }
+// ★★ W-20261115-0229 D6 (RFC-0144 §8-4 · M12 ⓑ · 소유자 «matrix의 … 크기 저절로 풀기는 지금 구현») — **부르는 쪽이 크기를 적지 않으면 인자의 모양에서 푼다.**
+//   `fn sum input comptime r usize . input comptime c usize . input m matrix 2 r c u32 .` 를 `sum small. .` 로 부르면 `sum 2 2 small. .` 로 바꿔 적는다.
+//   푸는 것은 matrix 입력의 크기로 쓰인 번역 시점 값 입력뿐이다(타입 입력 · 다른 값 입력은 적어야 한다). 그 넷을 **모두** 뺐을 때만 푼다 — 몇은 적고 몇은
+//   빼면 어느 자리가 빠졌는지 글자로 갈리지 않는다. 같은 이름이 두 입력에 쓰이면(`a matrix 2 r c` · `b matrix 2 c r`) 첫 자리에서 풀고, 나머지는
+//   아래의 견줌(mx_check_call)이 그 수로 본다 — 푸는 일이 검사를 지우지 않는다.
+static void mx_infer_sizes(mx_t *c, low_cst_t *parent, proven_size_t s, proven_size_t *e) {
+    proven_size_t na = *e - s - 1;
+    proven_u8str_view_t nm = mx_bare(parent->kids[s]->tok.lex);
+    const mx_sig_t *hit = NULL; unsigned nhit = 0;
+    bool inf[MX_MAXP];
+    for (proven_size_t g = 0; g < c->nsigs; g++) {
+        const mx_sig_t *sg = &c->sigs[g];
+        if (!sg->any || !mx_veq(sg->name, nm)) continue;
+        unsigned ninf = 0;
+        for (unsigned q = 0; q < sg->np; q++) {
+            inf[q] = false;
+            if (!sg->pcomp[q]) continue;
+            for (unsigned p = 0; p < sg->np && !inf[q]; p++)
+                if (sg->pty[p].kind == MT_MATRIX)
+                    for (unsigned d = 0; d < sg->pty[p].sh.k; d++)
+                        if (mx_name(sg->pty[p].sh.d[d]) && mx_veq(sg->pty[p].sh.d[d]->tok.lex, sg->pname[q])) { inf[q] = true; break; }
+            ninf += inf[q];
+        }
+        if (ninf && na + ninf == sg->np) { hit = sg; nhit++; }
+    }
+    if (nhit != 1) return;
+    const mx_sig_t *sg = hit;
+    for (unsigned q = 0; q < sg->np; q++) {               // inf 를 hit 의 것으로 다시 잰다(위의 고리가 덮었다)
+        inf[q] = false;
+        if (!sg->pcomp[q]) continue;
+        for (unsigned p = 0; p < sg->np && !inf[q]; p++)
+            if (sg->pty[p].kind == MT_MATRIX)
+                for (unsigned d = 0; d < sg->pty[p].sh.k; d++)
+                    if (mx_name(sg->pty[p].sh.d[d]) && mx_veq(sg->pty[p].sh.d[d]->tok.lex, sg->pname[q])) { inf[q] = true; break; }
+    }
+    // 입력 차례 q → 부르는 쪽의 인자(빠진 자리는 -1)
+    int map[MX_MAXP]; proven_size_t next = 0;
+    for (unsigned q = 0; q < sg->np; q++) map[q] = inf[q] ? -1 : (int)(s + 1 + next++);
+    low_cst_t *fill[MX_MAXP] = { NULL };
+    for (unsigned q = 0; q < sg->np; q++) {
+        if (!inf[q]) continue;
+        for (unsigned p = 0; p < sg->np && !fill[q]; p++) {
+            if (sg->pty[p].kind != MT_MATRIX || map[p] < 0) continue;
+            mx_shape_t ash;
+            if (!mx_is_matrix(c, parent->kids[map[p]], &ash) || ash.k != sg->pty[p].sh.k) continue;
+            for (unsigned d = 0; d < ash.k; d++)
+                if (mx_name(sg->pty[p].sh.d[d]) && mx_veq(sg->pty[p].sh.d[d]->tok.lex, sg->pname[q])) { fill[q] = mx_copy(c, ash.d[d]); break; }
+        }
+        if (!fill[q]) return;                                // 모양을 모르는 인자 — 풀지 않는다(아래의 견줌이 말한다)
+    }
+    low_cst_t *nk[MX_MAXP + 1];
+    proven_size_t w = 0;
+    for (unsigned q = 0; q < sg->np; q++) nk[w++] = inf[q] ? fill[q] : parent->kids[map[q]];
+    mx_splice(c, parent, s + 1, *e, nk, w);
+    *e = s + 1 + w;
+}
 // parent 의 자식 [s, *e) 가 값 하나다: 잎 하나이거나, 머리와 인자들의 평평한 호출. 옮겨 적으면 *e 가 바뀐다.
 static void mx_run(mx_t *c, low_cst_t *parent, proven_size_t s, proven_size_t *e, bool whole_ok) {
     if (s >= *e) return;
@@ -512,6 +595,7 @@ static void mx_run(mx_t *c, low_cst_t *parent, proven_size_t s, proven_size_t *e
         mx_struct_lit(c, mx_bare(parent->kids[0]->tok.lex), parent->kids[*e - 1]);
         return;
     }
+    if (mx_name(parent->kids[s]) && !mx_bound(c, parent->kids[s]->tok.lex)) mx_infer_sizes(c, parent, s, e);
     // 인자가 matrix 인가는 **옮겨 적기 전에** 본다 — `total flat t. . .` 의 인자는 matrix 가 아니라 그것을 편 줄이다
     bool am[MX_MAXP] = { false }; mx_shape_t as[MX_MAXP];
     for (proven_size_t a = 0; s + 1 + a < *e && a < MX_MAXP; a++) am[a] = mx_is_matrix(c, parent->kids[s + 1 + a], &as[a]);
@@ -599,6 +683,49 @@ static void mx_let(mx_t *c, low_cst_t *f) {
         has_lit = mx_lit(c, litf, &lsh);
     if (c->failed) return;
     mx_ty_t bound = decl;
+    const low_cst_t *vh0 = mx_value_head(f, vs, ve);
+    if (vh0 && mx_is(vh0, "face")) {                     // D5 — 면 보기를 이름에 묶는다: `let f [mut] matrix k' d… t face m. i… . .`
+        mx_ty_t fty = { .kind = MT_NONE };
+        if (ve - vs == 1) fty = mx_ty_of(c, f->kids[vs]);
+        else if (ve - vs >= 3) {
+            mx_ty_t x = mx_ty_of(c, f->kids[vs + 1]);
+            unsigned j = (unsigned)(ve - vs - 2);
+            if (x.kind == MT_MATRIX && j >= 1 && j + 2 <= x.sh.k) fty = mx_face_ty(&x.sh, j);
+        }
+        if (fty.kind != MT_MATRIX) {
+            const low_cst_t *fa = ve - vs == 1 ? mx_inner(f->kids[vs]) : NULL;
+            const low_cst_t *m0 = fa ? (fa->kind == LOW_CST_FORM && fa->nkids >= 2 ? fa->kids[1] : NULL) : (ve - vs >= 2 ? f->kids[vs + 1] : NULL);
+            if (m0 && mx_is_matrix(c, m0, NULL)) {
+                mx_fail(c, vh0, "E-MATRIX-INDEX", "`face <matrix>. i1 … ij .` takes 1 to k-2 indexes for a matrix of k dimensions and gives the matrix of the dimensions that remain — "
+                        "two or more; with k-1 indexes the rest is one row, `row m. i. .`");
+                return;
+            }
+        }
+        if (fty.kind == MT_MATRIX) {
+            if (f->kids[0]->tok.kw == LOW_KW_VAR) {
+                mx_fail(c, f->kids[0], "E-MATRIX-USE", "a `face` borrows the matrix it looks into, so it is bound with `let` (`let f [mut] matrix … face m. i. . .`) — a `var` would be a second owner of the same elements");
+                return;
+            }
+            if (decl.kind != MT_MATRIX) {
+                mx_fail(c, vh0, "E-MATRIX-SHAPE", "a `face` is a matrix — bind it to a name declared with its shape: `let f matrix <dimensions left> <their sizes> <element> face m. i. . .` (`mut matrix` to write through it)");
+                return;
+            }
+            if (!mx_same(&decl.sh, &fty.sh)) {
+                char want[48], got[48]; mx_shape_text(&decl.sh, want, sizeof want); mx_shape_text(&fty.sh, got, sizeof got);
+                mx_fail(c, vh0, "E-MATRIX-SHAPE", "this name has shape `{}`, and the `face` gives shape `{}` — the dimensions that remain after the indexes, with their sizes",
+                        proven_arg_cstr(want), proven_arg_cstr(got));
+                return;
+            }
+            proven_size_t e2 = ve;
+            if (ve - vs > 1) mx_run(c, f, vs, &e2, true); else mx_expr(c, &f->kids[vs]);
+            if (c->failed) return;
+            low_cst_t *nk[2] = { mx_word(c, f->kids[at], "slice"), f->kids[at + 1] };   // 빌린 줄 — `mut` 이 앞에 있으면 `mut slice`
+            mx_splice(c, f, at, te, nk, 2);
+            bound = decl; bound.view = true;
+            mx_bind(c, f->kids[1]->tok.lex, bound);
+            return;
+        }
+    }
     if (decl.kind == MT_MATRIX) {
         const low_cst_t *vh = mx_value_head(f, vs, ve);
         if (has_lit) {
@@ -666,13 +793,17 @@ static void mx_return(mx_t *c, low_cst_t *f) {
     bool mo = c->cur && c->cur->out.kind == MT_MATRIX;
     if (s >= e) return;
     const low_cst_t *vh = mx_value_head(f, s, e);
-    mx_shape_t vsh;
+    mx_shape_t vsh = { 0 };
     bool single = e - s == 1;
     const low_cst_t *v0 = single ? mx_inner(f->kids[s]) : NULL;
     bool name_mx = v0 && mx_name(v0) && mx_lookup(c, v0->tok.lex).kind == MT_MATRIX && mx_is_matrix(c, v0, &vsh);
     bool field_mx = v0 && v0->kind == LOW_CST_FORM && v0->nkids && mx_is(v0->kids[0], "field") && mx_is_matrix(c, v0, &vsh);
     const low_cst_t *litn = single ? mx_inner(f->kids[s]) : f->kids[s];
     bool is_lit = litn && ((litn->kind == LOW_CST_FORM && litn->nkids && mx_atom(litn->kids[0]) && litn->kids[0]->tok.kw == LOW_KW_LIT) || (mx_atom(litn) && litn->tok.kw == LOW_KW_LIT));
+    if ((name_mx && mx_lookup(c, v0->tok.lex).view) || (vh && mx_is(vh, "face"))) {   // D5
+        mx_fail(c, vh ? vh : f->kids[0], "E-MATRIX-USE", "a `face` borrows the matrix it looks into and does not leave the op — return a matrix name of the op's own, or pass the face to an op whose input has its shape");
+        return;
+    }
     if (name_mx || field_mx) {
         if (!mo || !mx_same(&c->cur->out.sh, &vsh)) mx_fail(c, mx_inner(f->kids[s])->kind == LOW_CST_ATOM ? mx_inner(f->kids[s]) : f->kids[0], "E-MATRIX-SHAPE", "this `return` gives a `matrix`, and the op's `output` does not declare the same shape");
         return;

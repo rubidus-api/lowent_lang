@@ -709,6 +709,11 @@ end .
       (`sum 3 4 a. .`), 인자의 모양은 그 수로 읽은 모양과 같아야 한다(`E-MATRIX-SHAPE`). `let` · `var` · `output` · 구조체의
       칸과 `lit matrix` 의 크기는 수여야 한다(`E-MATRIX-TYPE`).
 
+(3b) 부르는 쪽은 (3a) 의 크기 입력을 **모두 빼고** 부를 수 있다 — 그러면 그 수는 `matrix` 인자의 모양에서 읽는다(`sum a. .` 는
+      `a` 가 `matrix 2 3 4 u32` 이면 `sum 3 4 a. .` 이다). 같은 이름이 여러 입력의 크기에 쓰이면 앞의 입력에서 읽고, 나머지 입력의 모양은
+      (3a) 와 같이 그 수로 견준다. 몇은 적고 몇은 빼는 것은 이 꼴이 아니다 — 어느 자리가 빠졌는지 글자로 갈리지 않으므로 인자 수가 맞지
+      않는 호출로 거부된다. 타입 입력과 크기로 쓰이지 않는 값 입력은 언제나 적는다(⟦§6.8⟧ (3)).
+
 > [!참고]
 > 크기를 이름으로 받는 입력에는 길이의 진입 계약이 붙지 않는다. 그 자리에 올 수 있는 것은 부르는 쪽에서 모양을 견준
 > `matrix` 뿐이고, 원소를 읽고 쓰는 것은 (5) 의 검사를 그대로 받는다.
@@ -731,8 +736,15 @@ end .
 (7a) `row m. i1 … i(k−1) .` 는 마지막 차원 하나를 남긴 **줄**이다 — 색인은 마지막을 뺀 차원마다 하나씩이고, 값은 그 줄의
       원소를 보는 `slice t` 다. 복사하지 아니하며 길이는 마지막 차원의 크기다. 색인 수가 다르면 거부되고(`E-MATRIX-INDEX`),
       색인은 (5) 와 같이 저마다 제 차원의 크기로 검사한다. `m` 이 쓸 수 있는 이름이면 그 줄을 `mut slice t` 이름에 묶어
-      쓸 수 있고, 아니면 그렇게 묶지 못한다(`E-TYPE-MUT` · `let` 으로 묶은 구조체의 칸이면 `E-IMMUTABLE`). 남는 차원이 둘
-      이상인 보기(면)는 없다.
+      쓸 수 있고, 아니면 그렇게 묶지 못한다(`E-TYPE-MUT` · `let` 으로 묶은 구조체의 칸이면 `E-IMMUTABLE`).
+
+(7c) `face m. i1 … ij .`(1 ≤ j ≤ k − 2)는 앞의 j 차원을 정한 **면** — 남은 k − j 차원(둘 이상)의 `matrix` 다. 크기는 남은 차원의
+      크기 그대로이고, 원소는 `m` 의 것을 본다(복사하지 아니한다). 색인은 (5) 와 같이 저마다 제 차원의 크기로 검사하며, 색인 수가 그
+      범위 밖이면 거부된다(`E-MATRIX-INDEX` — 하나만 남기는 것은 `row` 다). 면은 그 모양의 `matrix` 가 서는 자리((9))에 선다 — `idx` ·
+      `row` · `dim` · `flat` · `face` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자. 이름에 묶을 때는 모양을 적어 `let` 으로 묶고
+      (`let p matrix 2 3 4 u32 face c. 1 . .`), 그 이름으로 쓰려면 `mut matrix` 로 묶는다 — `m` 이 쓸 수 있는 이름일 때만(`E-TYPE-MUT`).
+      면은 빌린 것이다: `var` 로 묶지 못하고, op 의 `return` 으로 내보내지 못한다(`E-MATRIX-USE`). 모양이 다른 이름에 묶으면
+      `E-MATRIX-SHAPE`.
 
 (7b) (5) · (6) · (7) · (7a) 의 `m` 자리에는 `matrix` 로 적힌 이름뿐 아니라 `matrix` 칸을 가리키는 `field x. g .` 도 선다 —
       `idx field b. g . r. c. .`.
@@ -740,7 +752,7 @@ end .
 (8) `len m. .` 과 `for x m. do … end .` 는 거부된다(`E-MATRIX-USE`). 차원 하나의 크기는 `dim` 으로, 모든 원소를 도는
       것은 `for x flat m. . do … end .` 로 적는다.
 
-(9) `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
+(9) `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` · `face` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
       같은 모양의 결과를 가진 op 의 `return` 이다. 그 밖의 자리는 거부된다(`E-MATRIX-USE`). 인자와 입력, 바인딩의
       타입과 부른 op 의 결과는 차원 수와 크기가 모두 같아야 한다(`E-MATRIX-SHAPE`).
 
@@ -799,6 +811,41 @@ do
   set idx field b. g . 0 0 . 100 .
   let small lit matrix 2 2 2 u32 1 2 3 4 . .
   return add widen u64 idx field b. g . 0 0 . . sum 2 2 small. . . .
+end .
+```
+
+```lowent 예제: 면 보기와 크기를 적지 않은 호출 · 결과: f(0) = 138 · f(1) = 1222
+module ex_matrix_face .
+
+fn sum input comptime r usize . input comptime c usize . input m matrix 2 r c u32 . output u64 . do
+  var t u64 0 .
+  repeat i usize dim m. 0 . do
+    for x row m. i. . do set t. add t. widen u64 x. . . . end .
+  end .
+  return t. .
+end .
+
+export fn f input k usize . output u64 . do
+  var c lit matrix 3 2 3 4 u32 _ . .
+  repeat a usize 2 do
+    repeat b usize 3 do
+      repeat d usize 4 do
+        set idx c. a. b. d. . cast u32 add add mul a. 100 . mul b. 10 . . d. . . .
+      end .
+    end .
+  end .
+  let w mut matrix 2 3 4 u32 face c. 1 . .
+  set idx w. 2 3 . 7 .
+  let p matrix 2 3 4 u32 face c. k. . .
+  return sum p. . .
+end .
+```
+
+```lowent-거부: 면은 빌린 것이라 op 밖으로 내보내지 못한다 · E-MATRIX-USE
+module ex_matrix_face_out .
+
+fn first input c matrix 3 2 3 4 u32 . output matrix 2 3 4 u32 . do
+  return face c. 0 . .
 end .
 ```
 

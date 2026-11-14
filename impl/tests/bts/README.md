@@ -24,7 +24,7 @@ python3 -I impl/tests/bts/conformance/check_results.py impl/build/bts/results.js
 | suite | rows | how it maps | what is not run |
 |---|---|---|---|
 | `integer_ops` | 114,991 | `names.lowent`, else a same-meaning spelling (`wrap_sub 0 a` for a wrapping negation, `intops.*`) | operations Lowent does not have (`language-policy`) |
-| `float_ops` | 15,570 | the bit patterns go in and come out as `u32`/`u64` through `bit_cast`; `f32` `sqrt` goes through `math.sqrt` on `f64` (exact: 53 ≥ 2·24 + 2) | `order_key`, `sum_tree4/8/16` — no Lowent spelling (`not-implemented`) |
+| `float_ops` | 15,570 | the bit patterns go in and come out as `u32`/`u64` through `bit_cast`; `f32` `sqrt` goes through `math.sqrt` on `f64` (exact: 53 ≥ 2·24 + 2); `order_key` and `sum_tree4/8/16` are the library `fbits` (one function per `sum_tree` row, the array written into it) | — |
 | `casting_rules` | 3,048 | `relations` and `common_type` by translation; `narrow` · `cast` · `narrow_wrap` · `narrow_sat` · `narrow_try` for the values | — (a common type is checked by accepting the result as that type, so a narrower choice would also pass) |
 | `simd_ops` | 1,556 | `lit vec N T` from the lane arguments; `add` · `sub` · `mul` · `sat_*` · `lane_select` over `eq`/`lt` · `reduce_add/min/max` | lane `and` `or` `xor` `shl` `shr`, `to_int`, `lane_lookup16`, `load_masked`, `store_masked`, `load_full`, `kernels` (`not-implemented`) |
 | `litmus` | 146 | one `proc` per test: each thread is a flow in a `task_group`, sharing a `mut slice u64` through `atomic_*` with the test's orders | — |

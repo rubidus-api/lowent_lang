@@ -1,0 +1,77 @@
+rem ★★ **부동소수의 비트 — 전순서 키 · 정해진 차례의 합** (`fbits`) — RFC-0157 §8-1 (2026-11-15 · W-20261115-0229 D3 · 소유자 «모두 추천대로»).
+rem
+rem   기본 타입 시스템(basic_type_system 02 §3.3 · §3.4)이 두라고 하는 연산이고, BTS 적합성 러너의 `float_ops` 가 그것을 물었다. 빌트인이 아니라
+rem   라이브러리다 — 모두 Lowent 로 적힌다(리프 규칙 «Lowent 로 쓸 수 있으면 라이브러리»).
+rem
+rem   · `order_key_f32` · `order_key_f64` — 부동소수의 비트를 **부호 없는 정수로 견주면 값의 차례가 되는** 키로 바꾼다. 음수는 모든 비트를 뒤집고,
+rem     아니면 맨 위 비트를 켠다. 그래서 −∞ < 음수 < −0 < +0 < 양수 < +∞ 이고, NaN 도 부호에 따라 양 끝 너머에 선다(전순서). 정렬 · 이진 탐색의
+rem     키로 쓴다. 중위 `lt` 와 다르다: `lt` 는 NaN 을 어느 것과도 견주지 않고 −0 과 +0 을 같다고 본다.
+rem   · `sum_tree4_f32` · `sum_tree8_f32` · `sum_tree16_f32`(`_f64` 도) — 더하는 **차례를 정해 둔** 합. 누산기 w 개(이름의 수 — 4 · 8 · 16)를 +0 에서 시작해 i 째 원소를 i mod w 째 누산기에 더하고,
+rem     누산기를 반씩 짝지어(j 와 j + w/2) 하나가 남을 때까지 더한다. 기계 · 빌드 · 레인 수와 상관없이 같은 비트가 나온다 — 덧셈의 차례가 소스에
+rem     적혀 있기 때문이다(`math` 의 축차합과 달리 레인으로 나눠 돌리기 좋은 차례다).
+
+module fbits .
+
+export fn order_key_f32 input x f32 . output u32 . do
+  let b u32 bit_cast u32 x. . .
+  if ne bit_and b. 2147483648 . 0 . do return bit_not b. . . end .
+  return bit_or b. 2147483648 . .
+end .
+
+export fn order_key_f64 input x f64 . output u64 . do
+  let b u64 bit_cast u64 x. . .
+  if ne bit_and b. 9223372036854775808 . 0 . do return bit_not b. . . end .
+  return bit_or b. 9223372036854775808 . .
+end .
+
+fn tree_f32 input w usize . input xs slice f32 . output f32 .
+  requires ge w. 4 . .
+  requires le w. 16 . .
+do
+  var acc lit array 16 f32 _ . .
+  var i usize 0 .
+  for x xs. do
+    let j usize mod i. w. . .
+    set idx acc. j. . add idx acc. j. . x. . .
+    set i. add i. 1 . .
+  end .
+  var n usize w. .
+  while gt n. 1 . do
+    let h usize div n. 2 . .
+    repeat j usize h. do
+      set idx acc. j. . add idx acc. j. . idx acc. add j. h. . . . .
+    end .
+    set n. h. .
+  end .
+  return idx acc. 0 . .
+end .
+
+fn tree_f64 input w usize . input xs slice f64 . output f64 .
+  requires ge w. 4 . .
+  requires le w. 16 . .
+do
+  var acc lit array 16 f64 _ . .
+  var i usize 0 .
+  for x xs. do
+    let j usize mod i. w. . .
+    set idx acc. j. . add idx acc. j. . x. . .
+    set i. add i. 1 . .
+  end .
+  var n usize w. .
+  while gt n. 1 . do
+    let h usize div n. 2 . .
+    repeat j usize h. do
+      set idx acc. j. . add idx acc. j. . idx acc. add j. h. . . . .
+    end .
+    set n. h. .
+  end .
+  return idx acc. 0 . .
+end .
+
+export fn sum_tree4_f32 input xs slice f32 . output f32 . do return tree_f32 4 xs. . . end .
+export fn sum_tree8_f32 input xs slice f32 . output f32 . do return tree_f32 8 xs. . . end .
+export fn sum_tree16_f32 input xs slice f32 . output f32 . do return tree_f32 16 xs. . . end .
+
+export fn sum_tree4_f64 input xs slice f64 . output f64 . do return tree_f64 4 xs. . . end .
+export fn sum_tree8_f64 input xs slice f64 . output f64 . do return tree_f64 8 xs. . . end .
+export fn sum_tree16_f64 input xs slice f64 . output f64 . do return tree_f64 16 xs. . . end .

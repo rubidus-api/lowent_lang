@@ -174,14 +174,29 @@ def plan_float_ops(doc):
             fsrc = f'input a {u} . input b {u} . output bool . do return {op} {fc("a")} {fc("b")} . . end .'
         elif op == 'copy':
             fsrc = f'input a {u} . output {u} . do let x {t} {fc("a")} . return bit_cast {u} x. . . end .'
+        elif op == 'order_key':
+            uses = ['fbits']     # BTS 02 §3.3 — library `fbits` (2026-11-15 · W-20261115-0229 D3)
+            fsrc = f'input a {u} . output {u} . do return fbits.order_key_{t} {fc("a")} . . end .'
+        elif op in ('sum_tree4', 'sum_tree8', 'sum_tree16'):
+            uses = ['fbits']     # BTS 02 §3.4 — the array is written into the function (one function per row)
+            fsrc = 'TREE'
         else:
-            fsrc = None        # order_key (BTS 02 §3.3) · sum_treeW (02 §3.4): Lowent has no spelling for them
-        for r in c['rows']:
+            fsrc = None
+        for ri, r in enumerate(c['rows']):
             if not fsrc:
                 yield label, Skip('not-implemented'); continue
-            args = [str(int(x, 16)) for x in (r[:-1] if op not in ('sum_tree4', 'sum_tree8', 'sum_tree16') else [])]
             exp = r[-1]
             want = value_text(exp) if isinstance(exp, bool) else fbits_expect(exp, w)
+            if fsrc == 'TREE':
+                xs = [int(x, 16) for x in r[0]]
+                n = max(len(xs), 1)
+                body = (f'output {u} . do var xs lit array {n} {t} _ . . '
+                        + (f'let b lit array {len(xs)} {u} ' + ' '.join(map(str, xs)) + ' . . '
+                           + f'repeat i usize {len(xs)} do set idx xs. i. . bit_cast {t} idx b. i. . . . end . ' if xs else '')
+                        + f'return bit_cast {u} fbits.{op}_{t} ' + ('xs. ' if xs else 'subslice xs. 0 0 . ') + '. . . end .')
+                yield label, Exec(('float', ci, ri), body, [], want, uses)
+                continue
+            args = [str(int(x, 16)) for x in r[:-1]]
             yield label, Exec(('float', ci), fsrc, args, want, uses)
 
 

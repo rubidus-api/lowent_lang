@@ -1618,6 +1618,38 @@ end .
       반올림되면 — 그 값이 `f32` 에 들어가지 않으므로 — 실행이 멈춘다. 무한대와 NaN 은 그대로 넘어간다. 넘친 값을 같은 부호의 무한대로
       받으려면 `cast f32` 를 쓴다.
 
+(1a-3) 멈추지 않는 좁히기 셋 — `narrow_wrap` · `narrow_sat` · `narrow_try`(⟦§6.3.6⟧ (3)) — 은 정수뿐 아니라 **부동소수점 값도**
+      받아 **정수 타입**으로 줄인다. 먼저 (3) 과 같이 0 쪽으로 버린다. 버린 정수가 대상에 들어가면 그 값이고, 들어가지 않으면
+      이름이 고른 처분을 한다. NaN 과 무한대는 어느 정수 타입에도 들어가지 않는 값으로 본다.
+
+> [!표] 부동소수점 값을 정수 타입으로 줄일 때 — 들어가지 않으면
+> #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+> [*낱말*], [*값*],
+> [`narrow_sat`], [가까운 끝값 — 위로 넘치면(`+∞` 포함) 대상의 가장 큰 값, 아래로 넘치면(`−∞` 포함) 가장 작은 값. NaN 은 `0`],
+> [`narrow_wrap`], [버린 정수를 2^N(N 은 대상의 비트 수)으로 나눈 나머지 — 정확히 센다. 대상이 부호 있으면 그 나머지를 2 의 보수로 읽는다. NaN 과 무한대는 `0`],
+> [`narrow_try`], [`none`],
+> )
+
+      대상이 부동소수점 타입이면 번역이 거부된다(`E-TYPE-KIND`) — 감기 · 끝값 · 실패는 정수의 처분이다. 부동소수점 대상은
+      `narrow f32`((1a-2)) 와 `cast f32`((3-1)) 로 적는다.
+
+```lowent 예제: 부동소수점 값을 정수로 줄이는 세 처분 · 결과: s(300.5) = 255 · w(300.5) = 44 · w(1e30) = 0 · t(-0.5) = 0
+module ex_narrow_float .
+
+export fn s input x f64 . output u8 . do return narrow_sat u8 x. . . end .
+export fn w input x f64 . output u8 . do return narrow_wrap u8 x. . . end .
+export fn t input x f64 . output u8 . do
+  let r option u8 narrow_try u8 x. . .
+  guard is_some r. . else return 99 . .
+  return some_value r. . .
+end .
+```
+
+```lowent-거부: 감는 좁히기의 대상은 정수다 · E-TYPE-KIND
+module ex_narrow_wrap_float .
+fn f input x f64 . output f32 . do return narrow_wrap f32 x. . . end .
+```
+
 (1b) **어느 쪽으로 읽을지 갈릴 수 있는 변환은 저절로 일어나지 아니하며 `cast` 를 거친다.** 같은 비트가 두 가지 수로 읽힐 수 있거나,
       대상 기계에 따라 넓히기도 되고 좁히기도 되거나, 값의 갈래가 바뀌는 변환이 그렇다. 이 규칙은 앞으로 언어에 들어오는 타입과
       변환에도 적용된다 — 새 변환이 애매하면 그 철자는 `cast` 이고, 암묵 변환을 늘리는 쪽으로 정하지 아니한다.

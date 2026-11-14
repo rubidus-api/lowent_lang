@@ -619,6 +619,19 @@ static bool ity_fits(proven_i64 r, proven_u8 bits, bool sign) {
     if (bits >= 64) return sign ? true : true;      // 64비트는 래핑 전 값이 이미 64비트
     return r >= ity_lo(bits, sign) && r <= ity_hi(bits, sign);
 }
+// ★ W-20261115-0229 D1 (정본 §6.2.16 (1a-2)) — `narrow_wrap` 의 부동 원천: 소수부를 버린 참값을 2^64 로 나눈 나머지(정확히).
+//   전엔 2^64 이상 · −2^63 미만을 끝값에 붙인 뒤 감았다 — 1e30 이 u8 에서 255 가 됐다(참값 1e30 mod 256 = 0). NaN · 무한대는 0.
+//   비트에서 바로 센다: |t| ≥ 2^53 이면 t = M × 2^E(정수 M < 2^53) 이고 나머지는 (M << E) 의 아래 64 비트다. 네이티브의 lw_f2wrap 과 같은 식.
+static proven_u64 vm_f2wrap(double d) {
+    if (!(d == d) || d - d != 0.0) return 0;                 // NaN · ±무한대
+    proven_u64 b; memcpy(&b, &d, sizeof b);
+    int ex = (int)((b >> 52) & 0x7ff);
+    if (ex < 1023) return 0;                                 // |d| < 1 — 버리면 0
+    proven_u64 m = (b & 0xfffffffffffffull) | 0x10000000000000ull;
+    int sh = ex - 1075;                                      // d = m × 2^sh
+    proven_u64 r = sh >= 64 ? 0 : sh >= 0 ? m << sh : m >> -sh;
+    return (b >> 63) ? (proven_u64)0 - r : r;
+}
 static proven_i64 ity_wrap(proven_i64 r, proven_u8 bits, bool sign) {
     if (bits >= 64) return r;
     proven_u64 m = ((proven_u64)1 << bits) - 1;
@@ -2606,7 +2619,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         break;
                     }
                     if (fits) { stack[sp++] = vmv_int(x); break; }
-                    if (in->a & IR_POL_WRAP) { stack[sp++] = vmv_int(ity_wrap(x, nb, nsign)); break; }
+                    if (in->a & IR_POL_WRAP) { stack[sp++] = vmv_int(ity_wrap(fsrc ? (proven_i64)vm_f2wrap(vmv_f(v)) : x, nb, nsign)); break; }
                     if (in->a & IR_POL_SAT)  {
                         proven_i64 sv = src_big ? ity_hi(nb, nsign)   // 위로 넘쳤다 → 대상의 가장 큰 값(★ 2026-11-14 BTS casting_rules: 64 비트 부호 없는 대상은 2^64 − 1 — 전엔 INT64_MAX)
                                       : (src_neg && !nsign) ? 0 : ity_sat(x, nb, nsign);

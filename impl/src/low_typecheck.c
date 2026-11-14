@@ -2223,6 +2223,12 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             (veq(k[start]->tok.lex, "narrow_sat") || veq(k[start]->tok.lex, "narrow_wrap") || veq(k[start]->tok.lex, "narrow_try"))) {
             ty_t ntgt = ty_of_word(k[start + 1]->tok.lex);
             for (proven_size_t i = 2; i < n; i++) (void)tc_enum_as_num(c, tc_infer(c, k[start + i], env, nenv), "E-TYPE-KIND", k[start]->line);
+            // ★ W-20261115-0229 D1 (정본 §6.2.16 (1a-3)) — 셋의 대상은 정수 타입이다. 부동 대상은 «감기» · «끝값» · «실패» 가 뜻이 없다:
+            //   전엔 `narrow_sat f32 <f64>` · `narrow_wrap f32 <u64>` 가 지나 `cast f32` 처럼 반올림했다(넘치면 무한대 — `sat` 이라는 이름과 반대).
+            if (ntgt.k == TK_FLOAT)
+                tc_emit(c, "E-TYPE-KIND", "`narrow_wrap` / `narrow_sat` / `narrow_try` narrow to an INTEGER type — wrapping, saturating and failing are "
+                        "integer outcomes. To a float type the word is `narrow f32` (stops when a finite value overflows) or `cast f32` "
+                        "(overflow becomes infinity) — canon §6.2.16 (1a-3)", k[start]->line);
             if (ntgt.k == TK_INT && ntgt.bits) {
                 if (!veq(k[start]->tok.lex, "narrow_try")) return ntgt;
                 ty_t w = tk(TK_WRAPPED); w.wrap = 1; tc_wrap_payload(&w, ntgt);

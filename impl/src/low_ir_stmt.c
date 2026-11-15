@@ -5687,6 +5687,26 @@ int low_ir_emit_db(const low_ir_t *ir, low_out_t *out) {
     return n;
 }
 
+// ★ W-20261116-0607 (RFC-0157 §8-2 «남은 검사 목록을 의무로» · BTS 08 §2.6) — **실행 중 검사가 서는 자리**와 그 갈래. 전엔 넘침 · 나누기 · 좁히기만
+//   셌다 — `neg` · `abs` · 시프트 칸 수 · 첨자의 검사는 남아 있어도(그리고 멈춰도) 목록에 없었다. 갈래 이름: ovf · div · nar · shc · idx.
+static const char *ir_check_kind(const low_ir_ins_t *in) {
+    bool ti = (in->a & IR_TY_KNOWN) && !(in->a & IR_TY_FLT);
+    switch (in->w) {
+        case IRW_ADD: case IRW_SUB: case IRW_MUL: return ti ? "ovf" : NULL;
+        case IRW_NEG: return ti ? "ovf" : NULL;
+        case IRW_DIV: case IRW_MOD: return ti ? "div" : NULL;
+        case IRW_SHL: case IRW_SHR: return ti && (in->a & 0xff) ? "shc" : NULL;
+        case IRW_UNM: return ((in->a & 0xf) == 1 && (in->a & 0x200000) && (in->a & 0x400000)) ? "ovf" : NULL;   // abs · 부호형 · 폭을 안다
+        case IRW_CAST: { proven_u8 nb = (proven_u8)((in->a & 0xff) * 8); return (nb && nb < 64) ? "nar" : NULL; }
+        case IRW_INDEX: case IRW_ISTORE: return "idx";
+        default: return NULL;
+    }
+}
+static bool ir_check_kept(const low_ir_ins_t *in) {
+    if (!ir_check_kind(in)) return false;
+    if (in->w == IRW_INDEX || in->w == IRW_ISTORE) return !(in->a & IR_POL_PROVEN);
+    return !(in->a & (IR_POL_PROVEN | IR_POL_WRAP | IR_POL_SAT | IR_POL_CHK | IR_POL_NZ));
+}
 void low_ir_dump(const low_ir_t *ir) {
     low_pf("== stack IR ({} def{}) ==\n", PROVEN_ARG((size_t)((size_t)ir->ndefs)), proven_arg_cstr(ir->ndefs == 1 ? "" : "s"));
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
@@ -5782,20 +5802,8 @@ void low_ir_dump(const low_ir_t *ir) {
         //   `sort` 를 파는 데 하루가 걸렸는데 그중 적잖은 시간이 *어느 op 이 남았는지* 를
         //   손으로 되짚는 일이었다(방출 C 의 `lw_arith_i` 를 세어 IR 과 맞대는 식으로).
         //   **도구가 이미 아는 것을 사람이 다시 찾고 있었다** ⇒ 자리를 찍는다.
-        for (proven_size_t i2 = 0; i2 < df->ncode; i2++) {
-            const low_ir_ins_t *in = &df->code[i2];
-            bool site = false;
-            if ((in->w == IRW_ADD || in->w == IRW_SUB || in->w == IRW_MUL ||
-                 in->w == IRW_DIV || in->w == IRW_MOD) &&
-                (in->a & IR_TY_KNOWN) && !(in->a & IR_TY_FLT)) site = true;
-            if (in->w == IRW_CAST) {
-                proven_u8 nb = (proven_u8)((in->a & 0xff) * 8);
-                if (nb && nb < 64) site = true;
-            }
-            if (!site) continue;
-            if (in->a & (IR_POL_PROVEN | IR_POL_WRAP | IR_POL_SAT | IR_POL_CHK | IR_POL_NZ)) continue;
-            rem++;
-        }
+        for (proven_size_t i2 = 0; i2 < df->ncode; i2++)
+            if (ir_check_kept(&df->code[i2])) rem++;
         if (rem) {
             // ★ 이 자리에서 도구는 **거짓 조언**을 하고 있었다: "add a `requires` to prove the range".
             //   관계형 술어(`le a b`)는 그때 **읽히지도 않았고**(죽은 절이었다), 배열 내용에
@@ -5815,18 +5823,8 @@ void low_ir_dump(const low_ir_t *ir) {
             low_pf("     남은 자리(`--ir` 덤프의 색인):");
             for (proven_size_t i2 = 0; i2 < df->ncode; i2++) {
                 const low_ir_ins_t *in2 = &df->code[i2];
-                bool s2 = false;
-                if ((in2->w == IRW_ADD || in2->w == IRW_SUB || in2->w == IRW_MUL ||
-                     in2->w == IRW_DIV || in2->w == IRW_MOD) &&
-                    (in2->a & IR_TY_KNOWN) && !(in2->a & IR_TY_FLT)) s2 = true;
-                if (in2->w == IRW_CAST) {
-                    proven_u8 nb2 = (proven_u8)((in2->a & 0xff) * 8);
-                    if (nb2 && nb2 < 64) s2 = true;
-                }
-                if (!s2) continue;
-                if (in2->a & (IR_POL_PROVEN | IR_POL_WRAP | IR_POL_SAT |
-                              IR_POL_CHK | IR_POL_NZ)) continue;
-                low_pf(" {}:{}", PROVEN_ARG((size_t)((size_t)i2)), proven_arg_cstr(low_irw_name(in2->w)));
+                if (!ir_check_kept(in2)) continue;
+                low_pf(" {}:{}/{}", PROVEN_ARG((size_t)((size_t)i2)), proven_arg_cstr(low_irw_name(in2->w)), proven_arg_cstr(ir_check_kind(in2)));
             }
             low_pf("\n");
         }

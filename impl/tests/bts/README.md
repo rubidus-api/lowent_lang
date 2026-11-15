@@ -29,6 +29,7 @@ python3 -I impl/tests/bts/conformance/check_results.py impl/build/bts/results.js
 | `simd_ops` | 1,556 | `lit vec N T` from the lane arguments; `add` · `sub` · `mul` · `sat_*` · `lane_select` over `eq`/`lt` · `reduce_add/min/max` | lane `and` `or` `xor` `shl` `shr`, `to_int`, `lane_lookup16`, `load_masked`, `store_masked`, `load_full`, `kernels` (`not-implemented`) |
 | `litmus` | 146 | one `proc` per test: each thread is a flow in a `task_group`, sharing a `mut slice u64` through `atomic_*` with the test's orders | — |
 | `programs` | 104 | `programs.py` translates the shared program notation to one op per module (prelude: owned box · a file that needs completion · the externals); judged by translation, `--check` for the VM and `--emit-c` for native | `secret` · `declassify` and one-field borrows (`language-policy`); raw pointers · `uaddr` · arenas (`not-implemented`); the AVR · CHERI examples on this x86_64 run (`target-unavailable`) |
+| `range_erasure` | 34 | `erasure.py` translates each example to one op; the compiler's remaining-check list (`--ir`, «남은 자리», with each check's kind) is read back — a `remove` check must be absent, a `keep` check present and stopping on its `fires_on` input (VM and native) | — |
 
 ★ `litmus`: Lowent's flows are green threads on one OS thread, so every outcome is a sequential interleaving. A pass shows that no
 forbidden outcome appeared — not that a weak outcome cannot appear on a machine that runs the threads at once.

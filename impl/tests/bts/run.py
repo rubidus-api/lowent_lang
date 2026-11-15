@@ -45,6 +45,12 @@ class Exec:
         self.fkey, self.fsrc, self.args, self.expect, self.uses = fkey, fsrc, [str(x) for x in args], expect, tuple(uses)
         self.kw, self.pre = kw, tuple(pre)
 
+class Erase:
+    """range_erasure: translate `src` (op `bts_e`), read the compiler's remaining-check list, and for a `keep` check run `args` and
+    expect a stop. `kind` is the check's kind (ovf · nar · div · shc · idx); `ckey` groups the rows of one example."""
+    def __init__(self, ckey, src, kind, floor, args):
+        self.ckey, self.src, self.kind, self.floor, self.args = ckey, src, kind, floor, args
+
 class Xlate:
     """translate `body` (op declarations) as its own module; `accept` says whether Lowent must take it."""
     def __init__(self, body, accept, uses=()):
@@ -336,6 +342,30 @@ def plan_litmus(doc):
             yield f'litmus/{t["name"]}', Exec(('litmus', ti), main, [], ok, kw='proc', pre=pre)
 
 
+# ── range_erasure (RFC-0157 §8-2 · §8-6 · W-20261116-0607) ───────────────────────────────────────────────────────
+def plan_range_erasure(doc):
+    import erasure as E   # the example → Lowent adapter and the remaining-check reader (impl/tests/bts/erasure.py)
+    for ei, ex in enumerate(doc['examples']):
+        src = E.translate(ex)
+        names = [n for n, _ in ex['params']] + [n + '_in' for n, _, _ in ex.get('calls', [])]
+        types = {n: t for n, t in ex['params']}
+        for c in ex['checks']:
+            label = f'range_erasure/{ex["name"].split(" ")[0]}/{c["id"]}'
+            args = None
+            if c['floor'] == 'keep':
+                fo = c['fires_on'] or {'args': {}, 'lens': {}}
+                av = dict(fo.get('args', {}))
+                for n, _, _ in ex.get('calls', []):
+                    if n in av: av[n + '_in'] = av.pop(n)
+                args = []
+                for n in names:
+                    if types.get(n) == 'slice':
+                        args.append('[' + ','.join('0' for _ in range(fo.get('lens', {}).get(n, 0))) + ']')
+                    else:
+                        args.append(str(av.get(n, 0)))
+            yield label, Erase(('erase', ei), src, c['kind'], c['floor'], args)
+
+
 # ── programs (RFC-0157 §8-6 · W-20261115-1055) ──────────────────────────────────────────────────────────────────────
 def plan_programs(doc):
     import programs as P   # the notation → Lowent adapter (impl/tests/bts/programs.py)
@@ -347,7 +377,7 @@ def plan_programs(doc):
         yield label, Xlate(src, ex['verdict'] == 'accept')
 
 
-SUITES = {'programs': plan_programs, 'integer_ops': plan_integer_ops, 'float_ops': plan_float_ops, 'casting_rules': plan_casting_rules,
+SUITES = {'range_erasure': plan_range_erasure, 'programs': plan_programs, 'integer_ops': plan_integer_ops, 'float_ops': plan_float_ops, 'casting_rules': plan_casting_rules,
           'simd_ops': plan_simd_ops, 'litmus': plan_litmus}
 
 
@@ -470,11 +500,44 @@ def main():
                 out[(k, impl)] = ('fail', 'accepted, expected a rejection' if took else f'rejected, expected acceptance: {diag[:160]}')
         return out
 
+    def do_erase(k):
+        import erasure as E
+        it = rows[k][1]
+        src = work / f'e{k}.low'
+        src.write_text('\n'.join(header_lines(f'e{k}', ()) + [it.src]) + '\n')
+        ir = subprocess.run([str(LOWENTC), '--ir', str(src)], capture_output=True, text=True, cwd=PUB)
+        if ir.returncode != 0:
+            return {(k, impl): ('error', 'translate: ' + (ir.stdout + ir.stderr)[-200:]) for impl in ('vm', 'native')}
+        left = [E.kind_of_irop(o) for o in E.kinds_left(ir.stdout)]
+        listed = it.kind in left
+        out = {}
+        if it.floor == 'remove':
+            st = ('pass', None) if not listed else ('fail', f'a `remove` check ({it.kind}) is still in the remaining-check list')
+            return {(k, 'vm'): st, (k, 'native'): st}
+        if not listed:
+            st = ('fail', f'a `keep` check ({it.kind}) is not in the remaining-check list')
+            return {(k, 'vm'): st, (k, 'native'): st}
+        r = subprocess.run([str(LOWENTC), '--run', 'bts_e', str(src)] + it.args, capture_output=True, text=True, cwd=PUB)
+        out[(k, 'vm')] = ('pass', None) if r.returncode != 0 and 'E-VM-' in r.stdout + r.stderr else ('fail', 'the kept check did not stop on its fires_on input')
+        binp = work / f'e{k}'
+        e = subprocess.run([str(LOWENTC), '--emit-c', str(src)], capture_output=True, text=True, cwd=PUB)
+        if e.returncode != 0:
+            out[(k, 'native')] = ('error', 'emit-c failed'); return out
+        (work / f'e{k}.c').write_text(e.stdout)
+        if subprocess.run(['cc', '-O1', '-w', '-o', str(binp), str(work / f'e{k}.c'), '-lm'], capture_output=True).returncode != 0:
+            out[(k, 'native')] = ('error', 'native build failed'); return out
+        rn = subprocess.run([str(binp), 'bts_e'] + it.args, capture_output=True, text=True)
+        out[(k, 'native')] = ('pass', None) if rn.returncode != 0 else ('fail', 'the kept check did not stop on its fires_on input (native)')
+        return out
+
+    er = [k for k, (_, it) in enumerate(rows) if isinstance(it, Erase)]
     xl = [k for k, (_, it) in enumerate(rows) if isinstance(it, Xlate)]
     with ThreadPoolExecutor(a.jobs) as ex:
         for part in ex.map(do_module, range(len(mods))):
             results.update(part)
         for part in ex.map(do_xlate, xl):
+            results.update(part)
+        for part in ex.map(do_erase, er):
             results.update(part)
 
     outp = pathlib.Path(a.out); outp.parent.mkdir(parents=True, exist_ok=True)

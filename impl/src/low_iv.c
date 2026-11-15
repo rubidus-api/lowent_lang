@@ -182,6 +182,26 @@ static void iv_sig_narrow(ir_ctx_t *c, iv_t *sig, proven_u8str_view_t op,
         else if (veq(op, "gt") && n < INT64_MAX) { if (n + 1 > v->lo) v->lo = n + 1; }
         else if (veq(op, "ge"))                  { if (n     > v->lo) v->lo = n;     }
     }
+    // ★ W-20261116-0607 (RFC-0157 §8-2 · BTS range_erasure E21) — **정렬 계약** `requires eq bit_and a. 3 . 0 .`: 아래 k 비트가 0 이다(마스크가 2^k − 1 일 때만
+    //   — 그때 «hi 이하에서 그 비트가 0 인 가장 큰 값» 이 `hi & ~마스크` 다. 다른 마스크에서 그렇게 자르면 불건전하다). 진입 검사는 그대로 선다.
+    for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
+        proven_size_t k; bool is_assume;
+        if (!ir_requires_at(f, i, &k, &is_assume, NULL)) continue;
+        if (!ir_requires_fact_ok(f, i) || is_assume || !veq(f->kids[k]->tok.lex, "eq")) continue;
+        const low_cst_t *L = f->kids[k + 1], *R = f->kids[k + 2];
+        while (L && L->kind == LOW_CST_GROUP && L->nkids == 1) L = L->kids[0];
+        proven_i64 m, z;
+        if (!(L && L->kind == LOW_CST_FORM && L->nkids == 3 && is_atom(L->kids[0]) && veq(L->kids[0]->tok.lex, "bit_and") &&
+              is_atom(L->kids[1]) && is_atom(L->kids[2]) && ir_int_lit(L->kids[2]->tok.lex, &m) && is_atom(R) && ir_int_lit(R->tok.lex, &z))) continue;
+        if (z != 0 || m <= 0 || ((m + 1) & m) != 0) continue;
+        bool found; proven_size_t slot = ir_local_find(c, L->kids[1]->tok.lex, &found);
+        if (!found || slot >= IR_MAXLOCALS) continue;
+        iv_t *v = &sig[slot];
+        if (v->lo < 0 || v->hi == INT64_MAX) continue;
+        v->hi &= ~m;
+        if (v->lo & m) v->lo = (v->lo | m) + 1;
+        if (v->lo > v->hi) v->lo = v->hi;
+    }
 }
 // ★★★★★ **길이의 상·하계도 계약이 말한다** (2026-08-19).
 //
@@ -342,6 +362,10 @@ typedef struct {
     proven_i32 divof_s; proven_i64 divof_c;
     proven_i32 dmul_s;  proven_i64 dmul_c;
     proven_i32 row_i, row_q, row_k;   // 이 값은 `i*q + k` 다 (트랩 곱·합) — 아니면 -1
+    // ★ W-20261116-0607 (RFC-0157 §8-2 · BTS 02 · 08 §2.6) — **아는 비트**(tnum): 값의 비트 가운데 kv 는 아는 1, km 은 모르는 자리, 나머지는 아는 0.
+    //   비트 연산(`and` · `or` · `xor` · `not` · `shr`)은 구간만으로는 결과를 거의 말하지 못한다 — `(a & 0xF0) | 8` 의 아래 네 비트가 1000 이라는
+    //   것은 구간 [8, 255] 가 놓친다. 식 안에서만 나르고(지역에 담을 때는 구간으로 남긴다) 음이 아닌 값에서만 쓴다.
+    bool tn; proven_i64 kv, km;
     bool       nofail;    // ★ 이 값은 **실패할 수 없는 호출**의 결과다 (errors…when 이 전부 거짓)
     // ★ 경로별 **술어 기억** — 구간으로 표현할 수 없는 조건을 위한 것.
     //   `guard eq (index data 0) 1 else return error bad_version` 에서 else 가지의
@@ -622,6 +646,23 @@ static iv_t iv_widen(iv_t old, iv_t nw) {
 }
 // 술어 `slot <op> cst` 가 참(taken=true)/거짓일 때 구간을 좁힌다.
 // lenrhs ≥ 0 이면 우변이 `len <lenrhs>` 였다는 뜻 — 그러면 **관계 사실**도 함께 갱신한다.
+
+// ★ W-20261116-0607 — 아는 비트(tnum)의 도움말. 음이 아닌 값에서만 말한다(그 밖은 false — 모르면 증명하지 않는다).
+static proven_i64 tn_smear(proven_i64 x) { proven_u64 u = (proven_u64)x; u |= u >> 1; u |= u >> 2; u |= u >> 4; u |= u >> 8; u |= u >> 16; u |= u >> 32; return (proven_i64)u; }
+static bool tn_of(const ivs_t *x, proven_i64 *kv, proven_i64 *km) {
+    if (x->tn) { *kv = x->kv; *km = x->km; return true; }
+    if (x->v.lo < 0 || x->v.hi == INT64_MAX) return false;
+    if (x->v.lo == x->v.hi) { *kv = x->v.lo; *km = 0; return true; }
+    proven_i64 diff = tn_smear(x->v.lo ^ x->v.hi);           // 두 끝이 갈리는 자리부터 아래는 모른다
+    *kv = x->v.lo & ~diff; *km = diff;
+    return true;
+}
+static void tn_set(ivs_t *r, proven_i64 kv, proven_i64 km, proven_i64 cap_hi) {
+    r->tn = true; r->kv = kv & ~km; r->km = km;
+    proven_i64 lo = r->kv, hi = r->kv | km;
+    if (cap_hi >= 0 && cap_hi < hi) hi = cap_hi;
+    r->v = (iv_t){ lo, hi, 0 };
+}
 static void iv_narrow_iv(iv_t *v, proven_u8 e, iv_t rhs) {
     switch (e) {
         // ★ **진짜 사실로 좁히면 자름 표시가 꺼진다** — 새 hi 의 출처가 우변이기 때문이다.
@@ -633,6 +674,9 @@ static void iv_narrow_iv(iv_t *v, proven_u8 e, iv_t rhs) {
         case IRW_EQ: { iv_t m = { v->lo > rhs.lo ? v->lo : rhs.lo, v->hi < rhs.hi ? v->hi : rhs.hi };
                        if (m.lo <= m.hi) { *v = m; }
                        break; }
+        case IRW_NE:   // ★ W-20261116-0607 — 끝값 하나를 빼는 것은 구간으로 말할 수 있다(`guard ne b. 0 .` ⇒ b ≥ 1)
+            if (rhs.lo == rhs.hi && v->lo < v->hi) { if (v->lo == rhs.lo) v->lo++; else if (v->hi == rhs.lo) v->hi--; }
+            break;
         default: break;
     }
     if (v->lo > v->hi) *v = (iv_t){ v->lo, v->lo };
@@ -1452,7 +1496,10 @@ static void iv_narrow(ivstate_t *st, proven_u8 op, proven_i32 slot, iv_t rhs, pr
         case IRW_GT: if (rhs.lo < INT64_MAX && rhs.lo + 1 > v->lo) v->lo = rhs.lo + 1; break;
         case IRW_GE: if (rhs.lo > v->lo) v->lo = rhs.lo; break;
         case IRW_EQ: *v = iv_meet(*v, rhs); break;
-        default: break;   // NE 는 구간으로 표현 불가
+        case IRW_NE:   // ★ W-20261116-0607 — 끝값 하나를 빼는 것만 구간으로 말한다(그 밖의 NE 는 표현 불가)
+            if (rhs.lo == rhs.hi && v->lo < v->hi) { if (v->lo == rhs.lo) v->lo++; else if (v->hi == rhs.lo) v->hi--; }
+            break;
+        default: break;
     }
     if (v->lo > v->hi) *v = (iv_t){ v->lo, v->lo };
 }
@@ -1871,7 +1918,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                         else
                             cert_put(d, i, IRW_ISTORE, "R-IDX-ROWMAJOR", 2,
                                      (proven_i64)ops[1].v.lo, (proven_i64)ops[1].v.hi);
-                    } else if (mark && ops[1].v.lo == ops[1].v.hi && !ops[1].v.wide &&
+                    } else if (mark && !ops[1].v.wide &&   // ★ W-20261116-0607 — 상수뿐 아니라 구간도(`i & 3` · `i mod 4` 가 [0, 3]): 가장 큰 값이 길이의 하한보다 작으면 된다
                                ops[1].v.lo >= 0 &&
                                (proven_size_t)ops[0].slot < IR_MAXLOCALS &&
                                !st->lenv[ops[0].slot].wide &&
@@ -1960,7 +2007,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                         else
                             cert_put(d, i, IRW_INDEX, "R-IDX-ROWMAJOR", 2,
                                      (proven_i64)ops[1].v.lo, (proven_i64)ops[1].v.hi);
-                    } else if (mark && ops[1].v.lo == ops[1].v.hi && !ops[1].v.wide &&
+                    } else if (mark && !ops[1].v.wide &&   // ★ W-20261116-0607 — 상수뿐 아니라 구간도(`i & 3` · `i mod 4` 가 [0, 3]): 가장 큰 값이 길이의 하한보다 작으면 된다
                                ops[1].v.lo >= 0 &&
                                (proven_size_t)ops[0].slot < IR_MAXLOCALS &&
                                !st->lenv[ops[0].slot].wide &&
@@ -2220,6 +2267,24 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                 break;
             }
             case IRW_SHL: case IRW_SHR: {
+                // ★ W-20261116-0607 (RFC-0157 §8-2 · BTS range_erasure `shc`) — 시프트 칸 수의 검사도 **검사 자리**로 센다. 칸 수의 구간이
+                //   [0, 폭 − 1] 안이면 증명된 것이다(`b & 7` 을 u8 에서). 전엔 세지도 않아 «남은 검사» 목록에 없었다.
+                if ((in->a & IR_TY_KNOWN) && !(in->a & IR_TY_FLT) && (in->a & 0xff) > 0 && (in->a & 0xff) <= 64) {
+                    proven_i64 bits_ = in->a & 0xff;
+                    if (mark) (*total)++;
+                    if (ops[1].v.lo >= 0 && ops[1].v.hi < bits_ && mark) {
+                        in->a |= IR_POL_PROVEN; (*proven)++;
+                        cert_put(d, i, in->w, "R-SHIFT-COUNT", 3, (proven_i64)ops[1].v.lo, (proven_i64)ops[1].v.hi, bits_);
+                    }
+                    // 오른쪽 시프트(음이 아닌 값 · 상수 칸 수)의 결과: 구간과 아는 비트를 그 칸만큼 내린다
+                    if (in->w == IRW_SHR && ops[1].v.lo == ops[1].v.hi && ops[1].v.lo >= 0 && ops[1].v.lo < bits_) {
+                        proven_i64 kv_, km_;
+                        if (tn_of(&ops[0], &kv_, &km_)) {
+                            proven_i64 k_ = ops[1].v.lo;
+                            tn_set(&res, kv_ >> k_, km_ >> k_, ops[0].v.hi >= 0 ? (ops[0].v.hi >> k_) : -1);
+                        }
+                    }
+                }
                 // ★★ RFC-0064 §5 — **폭 이상 시프트는 comptime 오류다** (E-SHIFT-RANGE).
                 //   런타임 형제 E-VM-SHIFT 를 앞당긴다: 시프트 양이 **모든 경로에서** 타입 폭 이상
                 //   (또는 음수)임을 구간이 증명하면, 트랩까지 갈 것 없이 **컴파일 오류**로 거절한다 —
@@ -2234,6 +2299,67 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                                 "error, not a runtime trap. If you meant the masking wrap-around, say it "
                                 "by name: `wrap_shl` / `wrap_shr`.",
                                 c->def_form ? c->def_form->line : 0);
+                }
+                break;
+            }
+            case IRW_NEG: {
+                // ★ W-20261116-0607 — `neg` 의 넘침도 검사 자리다: 부호형은 가장 작은 값에서만, 무부호는 0 이 아닐 때 넘친다.
+                if (!(in->a & IR_TY_KNOWN) || (in->a & IR_TY_FLT) || !(in->a & 0xff)) break;
+                proven_u8 nb_ = (proven_u8)(in->a & 0xff); bool sg_ = (in->a & IR_TY_SIGNED) != 0;
+                if (mark) (*total)++;
+                bool ok_ = sg_ ? (ops[0].v.lo > ity_lo(nb_, true)) : (ops[0].v.lo == 0 && ops[0].v.hi == 0);
+                if (ok_ && mark) {
+                    in->a |= IR_POL_PROVEN; (*proven)++;
+                    cert_put(d, i, in->w, "R-NEG-FITS", 3, (proven_i64)ops[0].v.lo, (proven_i64)ops[0].v.hi, (proven_i64)nb_);
+                }
+                if (ok_ && sg_) res.v = (iv_t){ -ops[0].v.hi, -ops[0].v.lo, 0 };
+                break;
+            }
+            case IRW_UNM: {
+                // ★ W-20261116-0607 — 부호형 `abs` 의 넘침(|MIN|)도 검사 자리다. 폭은 `a` 의 위쪽 비트에 실려 온다(low_ir.c).
+                if (!((in->a & 0xf) == 1 && (in->a & 0x200000) && (in->a & 0x400000))) break;
+                proven_u8 wb_ = (proven_u8)((in->a >> 24) & 0xff);
+                if (!wb_) break;
+                if (mark) (*total)++;
+                if (ops[0].v.lo > ity_lo(wb_, true) && mark) {
+                    in->a |= IR_POL_PROVEN; (*proven)++;
+                    cert_put(d, i, in->w, "R-ABS-FITS", 3, (proven_i64)ops[0].v.lo, (proven_i64)ops[0].v.hi, (proven_i64)wb_);
+                }
+                if (ops[0].v.lo > ity_lo(wb_, true)) {
+                    proven_i64 a1 = ops[0].v.lo < 0 ? -ops[0].v.lo : ops[0].v.lo, a2 = ops[0].v.hi < 0 ? -ops[0].v.hi : ops[0].v.hi;
+                    res.v = (iv_t){ (ops[0].v.lo <= 0 && ops[0].v.hi >= 0) ? 0 : (a1 < a2 ? a1 : a2), a1 > a2 ? a1 : a2, 0 };
+                }
+                break;
+            }
+            case IRW_BAND: case IRW_BOR: case IRW_BXOR: case IRW_BNOT: {
+                // ★ W-20261116-0607 (RFC-0157 §8-2) — **비트 연산의 구간 전달 함수**. 음이 아닌 정수에서 아는 비트로 계산하고, 결과는
+                //   [아는 1, 아는 1 | 모르는 자리] 다. 비트 연산은 넘치지 않으므로 검사 자리가 아니다(결과만 좁힌다).
+                if (!(in->a & IR_TY_KNOWN) || (in->a & IR_TY_FLT)) break;
+                proven_i64 ak, am, bk = 0, bm = 0;
+                bool ka = tn_of(&ops[0], &ak, &am), kb = in->w == IRW_BNOT || tn_of(&ops[1], &bk, &bm);
+                if (in->w == IRW_BAND && ka != kb) {   // `x & c` 는 x 가 무엇이든 c 의 비트 안이다 — 모르는 쪽은 «모두 모름» 으로
+                    if (!ka) { ak = 0; am = ~(proven_i64)0; } else { bk = 0; bm = ~(proven_i64)0; }
+                    ka = kb = true;
+                }
+                if (!ka || !kb) break;
+                proven_i64 W = in->a & 0xff;
+                if (in->w == IRW_BAND) {
+                    proven_i64 k_ = ak & bk, m_ = (ak | am) & (bk | bm) & ~k_;
+                    proven_i64 cap = ops[0].v.hi < ops[1].v.hi ? ops[0].v.hi : ops[1].v.hi;
+                    if (m_ < 0) break;   // 둘 다 위 비트를 모르면 말하지 않는다
+                    tn_set(&res, k_, m_, cap);
+                } else if (in->w == IRW_BOR) {
+                    proven_i64 k_ = ak | bk, m_ = (am | bm) & ~k_;
+                    tn_set(&res, k_, m_, -1);
+                    if (res.v.lo < ops[0].v.lo) res.v.lo = ops[0].v.lo;
+                    if (res.v.lo < ops[1].v.lo) res.v.lo = ops[1].v.lo;
+                } else if (in->w == IRW_BXOR) {
+                    proven_i64 m_ = am | bm, k_ = (ak ^ bk) & ~m_;
+                    tn_set(&res, k_, m_, -1);
+                } else if (!(in->a & IR_TY_SIGNED) && W > 0 && W < 64) {   // BNOT — 폭 안에서 뒤집는다(VM 과 같다 · 무부호만)
+                    proven_i64 wm = (proven_i64)((1ULL << W) - 1);
+                    if ((ak | am) & ~wm) break;
+                    tn_set(&res, ~(ak | am) & wm, am & wm, -1);
                 }
                 break;
             }

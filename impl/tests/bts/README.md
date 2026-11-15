@@ -28,6 +28,7 @@ python3 -I impl/tests/bts/conformance/check_results.py impl/build/bts/results.js
 | `casting_rules` | 3,048 | `relations` and `common_type` by translation; `narrow` · `cast` · `narrow_wrap` · `narrow_sat` · `narrow_try` for the values | — (a common type is checked by accepting the result as that type, so a narrower choice would also pass) |
 | `simd_ops` | 1,556 | `lit vec N T` from the lane arguments; `add` · `sub` · `mul` · `sat_*` · `lane_select` over `eq`/`lt` · `reduce_add/min/max` | lane `and` `or` `xor` `shl` `shr`, `to_int`, `lane_lookup16`, `load_masked`, `store_masked`, `load_full`, `kernels` (`not-implemented`) |
 | `litmus` | 146 | one `proc` per test: each thread is a flow in a `task_group`, sharing a `mut slice u64` through `atomic_*` with the test's orders | — |
+| `programs` | 104 | `programs.py` translates the shared program notation to one op per module (prelude: owned box · a file that needs completion · the externals); judged by translation, `--check` for the VM and `--emit-c` for native | `secret` · `declassify` and one-field borrows (`language-policy`); raw pointers · `uaddr` · arenas (`not-implemented`); the AVR · CHERI examples on this x86_64 run (`target-unavailable`) |
 
 ★ `litmus`: Lowent's flows are green threads on one OS thread, so every outcome is a sequential interleaving. A pass shows that no
 forbidden outcome appeared — not that a weak outcome cannot appear on a machine that runs the threads at once.
@@ -37,6 +38,10 @@ the golden suite («bts runner finds 2», `vf` · `vx`).
 
 ★ `simd_ops` `reduce_sum`: Lowent's `reduce_add` stops when the lanes' sum does not fit the lane type (canon §6.3.7 (2)); BTS expects it to
 wrap. Those rows fail and are listed, with that reason, in the private baseline of the gate.
+
+★ `programs`: six reject examples are accepted — an owned value that needs completion overwritten by `set`, two write views of one array,
+a write while a read view lives (twice), and a write view or a `mut_ref` used after it was copied to another name. Canon §8.5 (5) and §8.12 (1)
+already refuse these; they are in the gate's baseline as Lowent defects until fixed.
 
 ## What the runner found
 

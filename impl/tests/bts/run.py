@@ -336,7 +336,18 @@ def plan_litmus(doc):
             yield f'litmus/{t["name"]}', Exec(('litmus', ti), main, [], ok, kw='proc', pre=pre)
 
 
-SUITES = {'integer_ops': plan_integer_ops, 'float_ops': plan_float_ops, 'casting_rules': plan_casting_rules,
+# ── programs (RFC-0157 §8-6 · W-20261115-1055) ──────────────────────────────────────────────────────────────────────
+def plan_programs(doc):
+    import programs as P   # the notation → Lowent adapter (impl/tests/bts/programs.py)
+    for ex in doc['examples']:
+        src, why = P.translate(ex, TARGET)
+        label = f'programs/{ex["name"]}'
+        if not src:
+            yield label, Skip(why[0]); continue
+        yield label, Xlate(src, ex['verdict'] == 'accept')
+
+
+SUITES = {'programs': plan_programs, 'integer_ops': plan_integer_ops, 'float_ops': plan_float_ops, 'casting_rules': plan_casting_rules,
           'simd_ops': plan_simd_ops, 'litmus': plan_litmus}
 
 

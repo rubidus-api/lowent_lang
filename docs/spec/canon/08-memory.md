@@ -749,6 +749,37 @@ end .
       살려 두고 쓰면 (6) 을 어긴 것이다(`E-EXCL`) — 풀의 같은 핸들로 쓰기 뷰 둘을 꺼내는 것이 그렇다. 인자가 이름이나 상수가 아니면
       같은지 묻지 아니한다.
 
+(8d) 배열 **전체**를 본 조각을 이름에 묶으면(`let r slice u8 a.` · `var w mut slice u8 a.`) 그 이름은 그 배열을 빌린다 — `slice` 면 읽기,
+      `mut slice` 면 쓰기 빌림이다. 그 빌림이 살아 있는 동안 (1) 이 그대로 선다: 같은 배열의 쓰기 조각 둘, 읽기 조각이 사는 동안의 쓰기 조각 ·
+      배열에 바로 쓰기(`set idx a. …`)는 거부된다(`E-EXCL`). `subslice` 로 자른 조각은 구간의 물음이라 (6a) · (7b) 가 맡는다.
+
+(8e) 쓰기 조각이나 `mut_ref` 를 받은 이름을 다른 이름에 묶으면(`var t mut slice u8 s.` · `var n mut_ref u8 m.`) 두 이름은 **같은 빌림의 별칭**이다 —
+      옮김이 아니므로 옛 이름도 계속 쓸 수 있고, 둘이 함께 쓰기 하나로 센다. 그 빌림이 끝나는 것은 두 이름이 마지막으로 쓰인 뒤다.
+
+```lowent 예제: 쓰기 조각의 별칭 둘로 쓴다 · 결과: f() = 15
+module ex_view_alias .
+
+proc f output u8 . effects none . do
+  var a lit array 4 u8 _ . .
+  var s mut slice u8 a. .
+  var t mut slice u8 s. .
+  set idx t. 0 . 7 .
+  set idx s. 1 . 8 .
+  return add idx a. 0 . idx a. 1 . . .
+end .
+```
+
+```lowent-거부: 읽기 조각이 사는 동안 배열에 쓴다 · E-EXCL
+module ex_view_overlap .
+
+proc f output u8 . effects none . do
+  var a lit array 4 u8 _ . .
+  let r slice u8 a. .
+  set idx a. 0 . 7 .
+  return idx r. 0 . .
+end .
+```
+
 ```lowent-거부: 자라며 옮기는 op 뒤에 옛 뷰를 쓴다 · E-VIEW-INVALIDATED
 module ex_view_invalidated .
 

@@ -748,6 +748,37 @@ end .
       and using them violates (6) (`E-EXCL`) — taking out two write views with the same handle of a pool is such. If the arguments are not names or constants,
       whether they are the same is not asked.
 
+(8d) Binding a slice that sees a **whole** array to a name (`let r slice u8 a.` · `var w mut slice u8 a.`) makes that name borrow the array — a read
+      borrow for `slice`, a write borrow for `mut slice`. While that borrow lives, (1) holds as it is: two write views of the same array, a write view or a
+      direct write to the array (`set idx a. …`) while a read view lives are refused (`E-EXCL`). Slices cut with `subslice` are a question of ranges, left to (6a) · (7b).
+
+(8e) Binding a name that holds a write view or a `mut_ref` to another name (`var t mut slice u8 s.` · `var n mut_ref u8 m.`) makes the two names **aliases of
+      the same borrow** — it is not a move, so the old name may still be used, and the two count as one writer. That borrow ends after the last use of either name.
+
+```lowent 예제: writing through two aliases of a write view · 결과: f() = 15
+module ex_view_alias .
+
+proc f output u8 . effects none . do
+  var a lit array 4 u8 _ . .
+  var s mut slice u8 a. .
+  var t mut slice u8 s. .
+  set idx t. 0 . 7 .
+  set idx s. 1 . 8 .
+  return add idx a. 0 . idx a. 1 . . .
+end .
+```
+
+```lowent-거부: writing to the array while a read view lives · E-EXCL
+module ex_view_overlap .
+
+proc f output u8 . effects none . do
+  var a lit array 4 u8 _ . .
+  let r slice u8 a. .
+  set idx a. 0 . 7 .
+  return idx r. 0 . .
+end .
+```
+
 ```lowent-거부: using an old view after an op that moves while growing · E-VIEW-INVALIDATED
 module ex_view_invalidated .
 

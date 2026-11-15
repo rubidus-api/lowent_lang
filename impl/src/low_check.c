@@ -5776,6 +5776,7 @@ static void ck_own_mentions(const low_cst_t *nd, proven_u8str_view_t name, prove
 // ★★ RFC-0150 §6.0.6 — **마디 모드**: 스스로를 품는 마디(`option (owned <나>)` 칸을 가진 구조체)를 볼 때만 켠다. 그때는
 //   `some x` · `some_value x` 가 옮김이고, `field x k` · 스칼라를 내는 머리(`is_some x`) 아래의 언급은 읽기다.
 static bool g_own_node;
+static proven_u8str_view_t g_own_ty;   // W-20261115-1055 — 지금 흐름을 보는 이름의 타입(덮어쓰기의 완결 검사)
 static bool ck_scalar_head(proven_u8str_view_t w);
 static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, proven_u8str_view_t fld,
                             const low_opinfo_t *tab, proven_size_t nt, bool in_return) {
@@ -6731,6 +6732,15 @@ static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_resul
         } else {
             if (kw != LOW_KW_BREAK && kw != LOW_KW_CONTINUE) ck_own_note_leave(s, st);   // 실패 절의 `… else break .` — 이 문장 **앞**의 상태로 떠난다
             if (st == OWN_LIVE && ck_own_consumes(s, name, fld, tab, nt, false)) st = OWN_CONSUMED;
+            // ★ W-20261115-1055 (BTS programs `overwrite-without-completion` · 정본 §8.5 (5)) — **살아 있는 값을 덮어쓰면 옛 값은 버려진다.**
+            //   해제만 하면 되는 타입이면 그 버림은 조용한 해제다(스코프 끝과 같다). 그러나 끝내기가 실패할 수 있다고 이 프로그램이 선언한
+            //   타입이면, 스코프 끝에서 거절하는 것과 같은 까닭으로 여기서도 거절한다 — 전엔 `set f. open . .` 이 첫 파일을 닫지 않고 지났다.
+            if (reinit && st == OWN_LIVE && g_own_ty.size && ck_type_needs_completion(pr, g_own_ty))
+                emit(out, "E-OWN-INCOMPLETE",
+                     "this `set` OVERWRITES a value that is still live, and the program declares that finishing this type CAN FAIL "
+                     "(an op takes it `owned` and returns a `result`) — the old value would be dropped without that finish, its "
+                     "failure swallowed. Finish it first (call the op that takes it and handle the `result`), or `drop` it to say "
+                     "that discarding it is meant, then `set` the new value (canon §8.5 (5))", s->kids[0]->tok.line);
             // ★ 재초기화는 자리를 **다시 살린다** — 그리고 새 값도 결국 완결돼야 한다
             //   (스코프 끝 검사가 그것을 요구한다). 그래서 LIVE 로 되돌린다.
             if (reinit) st = OWN_LIVE;
@@ -6879,8 +6889,10 @@ static ck_own_state_t ck_own_linear_r(low_check_result_t *out, const low_parse_r
                           proven_size_t from, const low_opinfo_t *tab, proven_size_t nt, bool report) {
     bool diverges = false;
     g_own_ld = 0;
+    proven_u8str_view_t save_ty = g_own_ty; g_own_ty = report ? ty : (proven_u8str_view_t){ 0 };
     ck_own_state_t st = ck_own_flow(out, pr, (const low_cst_t **)(body->kids + from), body->nkids - from,
                                     name, fld, tab, nt, OWN_LIVE, decl_line, &diverges);
+    g_own_ty = save_ty;
     // 흐름 끝에서 **live** 로 남았다 = 그 출구에서의 **자동 해제**. `return 0`(값을 안 넘기는 발산)도
     //   포함이다 — h 를 소비하지 않고 나가면 return 직전에 h 가 자동 drop 된다. 그 자체는 옳다(해제는
     //   실패 안 함) — 실패할 수 있다고 이 프로그램이 스스로 선언한 타입이 아니라면. (`return h` 는 소비 →

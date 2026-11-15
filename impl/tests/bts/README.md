@@ -39,9 +39,9 @@ the golden suite («bts runner finds 2», `vf` · `vx`).
 ★ `simd_ops` `reduce_sum`: Lowent's `reduce_add` stops when the lanes' sum does not fit the lane type (canon §6.3.7 (2)); BTS expects it to
 wrap. Those rows fail and are listed, with that reason, in the private baseline of the gate.
 
-★ `programs`: six reject examples are accepted — an owned value that needs completion overwritten by `set`, two write views of one array,
-a write while a read view lives (twice), and a write view or a `mut_ref` used after it was copied to another name. Canon §8.5 (5) and §8.12 (1)
-already refuse these; they are in the gate's baseline as Lowent defects until fixed.
+★ `programs`: two reject examples are accepted on purpose for now — a write view or a `mut_ref` bound to another name and then used
+through the old one. Lowent reads the binding as an alias of the same borrow; BTS reads it as a move. Which one Lowent means is the
+owner's to decide; the rows are in the gate's baseline as a meaning difference.
 
 ## What the runner found
 
@@ -50,5 +50,8 @@ already refuse these; they are in the gate's baseline as Lowent defects until fi
 - 2026-11-14 (`float_ops` · `casting_rules` · `simd_ops`): an `f32` signalling NaN lost its bits through `bit_cast`; `narrow_sat u64` of a float
   at or above 2^64 gave 2^63 − 1; integer lane `sat_add`/`sat_sub`/`sat_mul` wrapped and signed lanes printed unsigned; `bit_cast` accepted a
   vector (the VM stopped at run time, native gave 0).
+
+- 2026-11-15 (`programs`): an owned value that needs completion overwritten by `set`; two write views of one array; a write through a
+  write view, or straight into the array, while a read view of it lives.
 
 All were fixed the same day. In every case the two back ends had agreed on the wrong answer, so comparing them could not see it.

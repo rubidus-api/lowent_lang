@@ -47,6 +47,7 @@ typedef struct {   // a borrow with its live interval [c, l] (statement ticks)
     proven_u8       nalias;                // (a borrow laundered through a call — D3)
     proven_u8str_view_t target;
     bool mut;
+    bool whole;                  // W-20261115-1055 — a slice binding that sees the whole local (`let r slice u8 a.`)
     proven_size_t c, l;
     rg_path_t p;                 // path context at creation
     proven_u32 line;
@@ -420,7 +421,7 @@ static void excl2_borrows(rg_ctx_t *c, const low_cst_t *nd, proven_u8str_view_t 
             if (is_atom(fk[j]) &&
                 (veq(fk[j]->tok.lex, "ref") || veq(fk[j]->tok.lex, "mut_ref")) &&
                 is_atom(fk[j + 1]) && is_local(c, fk[j + 1]->tok.lex) && c->nbors < RG_MAX) {
-                rg_bor_t *b = &c->bors[c->nbors++];
+                rg_bor_t *b = &c->bors[c->nbors++]; b->whole = false;
                 b->name = bound_name ? *bound_name : (proven_u8str_view_t){ 0 };
                 b->target = fk[j + 1]->tok.lex;
                 b->mut = veq(fk[j]->tok.lex, "mut_ref");
@@ -496,7 +497,7 @@ static void excl2_block(rg_ctx_t *c, const low_cst_t *blk, proven_size_t ls) {
                 if (is_atom(vk[j]) &&
                     (veq(vk[j]->tok.lex, "ref") || veq(vk[j]->tok.lex, "mut_ref")) &&
                     is_atom(vk[j + 1]) && is_local(c, vk[j + 1]->tok.lex) && c->nbors < RG_MAX) {
-                    rg_bor_t *b = &c->bors[c->nbors++];
+                    rg_bor_t *b = &c->bors[c->nbors++]; b->whole = false;
                     b->name = (j == vstart) ? name : (proven_u8str_view_t){ 0 };
                     b->target = vk[j + 1]->tok.lex;
                     b->mut = veq(vk[j]->tok.lex, "mut_ref");
@@ -524,7 +525,7 @@ static void excl2_block(rg_ctx_t *c, const low_cst_t *blk, proven_size_t ls) {
                     (veq(vkd[j]->tok.lex, "view") || veq(vkd[j]->tok.lex, "try_view") ||
                      veq(vkd[j]->tok.lex, "view_array")) &&
                     is_atom(vkd[j + 2]) && is_local(c, vkd[j + 2]->tok.lex) && c->nbors < RG_MAX) {
-                    rg_bor_t *b = &c->bors[c->nbors++];
+                    rg_bor_t *b = &c->bors[c->nbors++]; b->whole = false;
                     b->name = name;                       // the view binding keeps it live
                     b->target = vkd[j + 2]->tok.lex;
                     b->mut = false;                       // views are shared borrows
@@ -532,6 +533,39 @@ static void excl2_block(rg_ctx_t *c, const low_cst_t *blk, proven_size_t ls) {
                     b->p = c->path;
                     b->line = vkd[j]->line;
                 }
+            // ★ W-20261115-1055 (BTS programs · 정본 §8.12 (1)) — **배열 이름에서 묶은 조각은 그 배열을 빌린다.** `let r slice u8 a.` 은 읽기,
+            //   `let w mut slice u8 a.` 은 쓰기 빌림이다(`subslice a. …` 도 같다). 전엔 이 꼴을 빌림으로 세지 않아 같은 배열의 쓰기 조각 둘,
+            //   읽기 조각이 사는 동안의 쓰기가 지났다 — `ref` · `mut_ref` 로 적으면 거절되는 같은 겹침이다.
+            {
+                proven_size_t te = (be < f->nkids) ? be : f->nkids;
+                bool sl = false, mu = false;
+                for (proven_size_t q = 2; q < te; q++)
+                    if (is_atom(f->kids[q])) {
+                        if (veq(f->kids[q]->tok.lex, "slice")) { sl = true; break; }
+                        if (veq(f->kids[q]->tok.lex, "mut")) mu = true;
+                    }
+                const low_cst_t *src = NULL;
+                if (sl && vstart < vf->nkids) {
+                    const low_cst_t *v0 = vf->kids[vstart];
+                    while (v0 && v0->kind == LOW_CST_GROUP && v0->nkids == 1) v0 = v0->kids[0];
+                    // 이름 하나 — 배열 **전체**를 본 조각만 센다. `subslice` 로 자른 조각은 구간이 겹치는지가 물음이고, 그것은 상수 구간의 견줌과
+                    //   실행 중의 견줌(정본 §8.12 (7b))이 맡는다 — 여기서 통째 빌림으로 세면 겹치지 않는 두 구간이 거절된다(실측 `prog/procrun.low`).
+                    if (vstart + 1 == vf->nkids && is_atom(v0)) src = v0;
+                }
+                if (src && is_local(c, src->tok.lex) && !bor_find(c, src->tok.lex) && c->nbors < RG_MAX) {
+                    rg_bor_t *b = &c->bors[c->nbors++]; b->whole = false;
+                    b->name = name; b->nalias = 0;
+                    b->target = src->tok.lex;
+                    b->mut = mu; b->whole = true;
+                    b->c = b->l = c->tick;
+                    b->p = c->path;
+                    b->line = src->line;
+                    excl2_mentions(c, vf, ls, (proven_u8str_view_t){ 0 }, f->kids[1]);
+                    // the source mention just recorded is the borrow's creation, not an owner access of `src`
+                    if (c->nowns && proven_u8str_view_eq(c->owns[c->nowns - 1].target, src->tok.lex) && c->owns[c->nowns - 1].t == c->tick) c->nowns--;
+                    continue;
+                }
+            }
             // uses / owner accesses (ref-pair positions are skipped inside)
             proven_size_t uses_before = c->nuses;
             excl2_mentions(c, vf, ls, (proven_u8str_view_t){ 0 }, f->kids[1]);
@@ -558,6 +592,16 @@ static void excl2_block(rg_ctx_t *c, const low_cst_t *blk, proven_size_t ls) {
         proven_u8str_view_t write_place = { 0 };
         if (kw == LOW_KW_SET && f->nkids >= 2 && is_atom(f->kids[1]) && !bor_find(c, f->kids[1]->tok.lex))
             write_place = f->kids[1]->tok.lex;
+        // ★ W-20261115-1055 — `set idx a. i. . v .` 는 `a` 에 쓴다(칸 하나여도 쓰기다 — 그 배열을 보는 조각이 살아 있으면 겹친다)
+        if (kw == LOW_KW_SET && f->nkids >= 2 && !write_place.size) {
+            const low_cst_t *pl = f->kids[1];
+            while (pl && pl->kind == LOW_CST_GROUP && pl->nkids == 1) pl = pl->kids[0];
+            const low_cst_t *arr = NULL;
+            if (pl && pl->kind == LOW_CST_FORM && pl->nkids >= 2 && is_atom(pl->kids[0]) && veq(pl->kids[0]->tok.lex, "idx")) arr = pl->kids[1];
+            else if (is_atom(pl) && veq(pl->tok.lex, "idx") && f->nkids >= 3) arr = f->kids[2];
+            while (arr && arr->kind == LOW_CST_GROUP && arr->nkids == 1) arr = arr->kids[0];
+            if (arr && is_atom(arr) && is_local(c, arr->tok.lex) && !bor_find(c, arr->tok.lex)) write_place = arr->tok.lex;
+        }
         excl2_mentions(c, f, ls, write_place, f->kids[0]);
         excl2_borrows(c, f, NULL);   // transient borrows in call arguments
 
@@ -635,6 +679,9 @@ static void excl2_conflicts(rg_ctx_t *c) {
             const rg_bor_t *b = &c->bors[i];
             if (!proven_u8str_view_eq(w->target, b->target)) continue;
             if (!(b->mut || w->write)) continue;
+            // a whole-array view meets only a DIRECT write of its array (`set idx a. …`): other mentions of the array are reads or
+            //   slices handed on, and whether those overlap is the range checks' question (canon §8.12 (6a)(7b))
+            if (b->whole && !w->write) continue;
             if (w->ls > 0 && b->c < w->ls && b->l >= w->ls) {   // borrow spans into the loop
                 rg_excl(c, w->line);                            // (S2L — order-free, path-free)
                 continue;

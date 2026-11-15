@@ -304,13 +304,30 @@ end .
 (1) The processor **takes contracts as facts** and narrows the range a value can have. If that range shows safety,
       it removes that check.
 
-(2) The checks that can be removed are these — overflow, division by 0, narrowing, slice bounds.
+(2) The checks that can be removed are these — overflow (`neg` · `abs` included), division by 0, narrowing, the shift count, slice bounds.
 
 (3) If a contract **is not enforced, it is not used as a fact.** That is, nothing is believed without confirmation.
       Believing without confirmation and removing checks is not being faster but being wrong.
 
-(4) The processor can report where checks it could not remove remain. A performance model that does not report
-      is itself knowledge outside the source (⟦§1.3⟧).
+(4) The processor **reports** where the checks it could not remove remain — per op, with the place and the kind (overflow `ovf` · division
+      `div` · narrowing `nar` · shift count `shc` · bounds `idx`). The current processor gives them in the «남은 자리» line of `--ir`. A
+      performance model that does not report is itself knowledge outside the source (⟦§1.3⟧).
+
+(5) **The floor.** The processor removes checks using at least the facts below. Removing more is the processor's own; removing less does not conform.
+
+> [!표] Facts the processor must use
+> #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+> [*Fact*], [*Example*],
+> [constant ranges and alignment from `requires`], [`add a. 1 .` after `requires le a. 200 .` · `add a. 3 .` after `requires eq bit_and a. 3 . 0 .`],
+> [a comparison a `guard` set up], [`add a. 100 .` after `guard lt a. 100 .` · `div x. b.` after `guard ne b. 0 .`],
+> [the `ensures` of an op called], [`add … 100` on the answer of an op with `ensures le ret. 100 .`],
+> [bit operations and a right shift by a constant], [`add bit_and a. 15 . 240 .` · `mul shr a. 4 . 15 .` · `div x. bit_or b. 1 . .` (u8 · u16)],
+> [widening], [`add widen u16 a. . 65280 .` (`a` is a `u8`)],
+> [lengths and indexes], [`idx s. i.` after `guard lt i. len s. .` · `idx s. bit_and i. 3 . .` after `requires ge len s. . 4 .` · the index of a `repeat` that runs the length],
+> )
+
+(5a) Binding a name again leaves only the facts about the new value — indexing with a name bound to `i + 1` after `guard lt i. len s. .`
+      keeps that bounds check. A value held in another name does not disturb the facts of the original name.
 
 ```lowent 예제: contracts remove checks
 module ex_elim .

@@ -78,6 +78,11 @@ rejected.
 (#chref("locals")). It is followed by the rule that a slice whose elements can be written may be borrowed in only one place at a time
 (#chref("references")).
 
+Binding a *whole* array to a slice name (`let r slice u8 a.` · `var w mut slice u8 a.`) makes that name borrow the array. So using two write
+slices of the same array together, or writing through a write slice or straight into the array (`set idx a. 0 . 7 .`) while a read slice
+lives, is `E-EXCL` --- the value the reader sees would change under it. Binding a write slice to another name (`var t mut slice u8 w.`) is
+not a move but an *alias*: both names can be used, and the two count as one writer.
+
 == Narrowing the window
 
 `subslice s. from. to. .` makes a new slice pointing from position `from` of `s` up to, but not including, `to`. It copies no bytes; it just

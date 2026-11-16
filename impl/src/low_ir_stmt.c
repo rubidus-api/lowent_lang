@@ -1801,6 +1801,14 @@ static bool ir_scrutinee_fold(const low_cst_t *m, proven_i64 *out) {
     }
     return false;
 }
+// ★ W-20261116-1135 — 열거형 ety(가르는 값의 타입)가 갈래 v 를 가졌나
+static bool mety_owns(ir_ctx_t *c, proven_u8str_view_t ety, proven_u8str_view_t v) {
+    if (!ety.size) return false;
+    proven_u8str_view_t b = ety;
+    for (proven_size_t i = b.size; i > 0; i--) if (b.ptr[i - 1] == (proven_byte_t)'.') { b = (proven_u8str_view_t){ b.ptr + i, b.size - i }; break; }
+    proven_size_t vi;
+    return ir_enum_variant_of(c, b, v, &vi);
+}
 static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
     if (m->nkids < 3) { ir_fail(c, "E-IR-UNSUP", "malformed match (needs `match <x> do … end`)", m->line); return; }
     // ★ `do` 를 빠뜨리면 case 들이 **형제 폼**이 되고, 뒤의 `end` 가 **바깥 블록을 닫는다.**
@@ -2040,8 +2048,10 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
                 ir_emit(c, IRW_LOAD, (proven_i64)tmp); ir_emit(c, IRW_CONST, lo); ir_emit(c, IRW_GE, 0);
                 ir_emit(c, IRW_LOAD, (proven_i64)tmp); ir_emit(c, IRW_CONST, hi); ir_emit(c, IRW_LE, 0);
                 ir_emit(c, IRW_AND, 0);
-            } else if (veq(p1, "some") || veq(p1, "none") || veq(p1, "ok") || veq(p1, "error")) {
+            } else if ((veq(p1, "some") || veq(p1, "none") || veq(p1, "ok") || veq(p1, "error")) && !mety_owns(c, mety, p1)) {
                 // ── MM3b: option/result 패턴. some/ok/error 는 페이로드를 바인딩할 수 있다.
+                //   ★ W-20261116-1135 — 가르는 값이 그 이름의 갈래를 가진 **사용자 열거형**이면 그 갈래다(아래 변형 패턴). 전엔 `enum pk do some v u8 . none . end .`
+                //     을 가르면 option 의 꼴로 읽어 실행 중에 «is_some needs an option» 으로 멈췄다(VM · 네이티브 같이 · 검사는 통과).
                 ir_emit(c, IRW_LOAD, (proven_i64)tmp);
                 if (veq(p1, "some")) { ir_emit(c, IRW_ISSOME, 0); opt_extract = IRW_SOMEVAL; }
                 else if (veq(p1, "none")) { ir_emit(c, IRW_ISSOME, 0); ir_emit(c, IRW_NOT, 0); }

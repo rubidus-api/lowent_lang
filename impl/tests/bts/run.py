@@ -377,8 +377,274 @@ def plan_programs(doc):
         yield label, Xlate(src, ex['verdict'] == 'accept')
 
 
+# ── build_modes (RFC-0157 §8-6 · W-20261116-1135) ───────────────────────────────────────────────────────────────────
+# Lowent removes a check only when it is proved: no build mode removes the arithmetic checks (canon §6.4.7 (4b)), so the
+# `erased` column has no mode to run in (harness protocol: `language-policy`) and every row is judged by its `kept` column,
+# in `debug`. `declaration.removes` stays empty.
+BM_OP = {'add': 'add a. b. .', 'sub': 'sub a. b. .', 'mul': 'mul a. b. .', 'neg': 'neg a. .', 'abs': 'abs a. .',
+         'shl': 'shl a. b. .', 'shr': 'shr a. b. .', 'div_trunc': 'div a. b. .'}
+
+
+def plan_build_modes(doc):
+    for ci, c in enumerate(doc['checks']):
+        op, t, chk = c['op'], c['type'], c['check']
+        label = f'build_modes/{chk}/{op}/{t}' + (f'/{c["from"]}' if c.get('from') else '')
+        if op in BM_OP:
+            ps = [t, 'u64'] if op in ('shl', 'shr') else [t] * (1 if op in ('neg', 'abs') else 2)
+            fsrc = ' '.join(f'input {v} {ty} .' for v, ty in zip('ab', ps)) + f' output {t} . do return {BM_OP[op]} . end .'
+            for r in c['rows']:
+                yield label, Exec(('bm', ci), fsrc, r[:-2], value_text(r[-2]))
+        elif op == 'narrow':
+            fsrc = f'input a {c["from"]} . output {t} . do return narrow {t} a. . . end .'
+            for r in c['rows']:
+                yield label, Exec(('bm', ci), fsrc, r[:1], value_text(r[-2]))
+        elif op == 'f32_to_int':
+            fsrc = f'input a u32 . output {t} . do return cast {t} bit_cast f32 a. . . . end .'   # float → integer is `cast` (canon §6.2.16 (1a))
+            for r in c['rows']:
+                yield label, Exec(('bm', ci), fsrc, [str(int(r[0], 16))], value_text(r[-2]))
+        elif op == 'index':
+            # [index, length]: the slice is written as a literal of that length (`[0,0,0,0]`)
+            fsrc = 'input s slice u8 . input i usize . output u8 . do return idx s. i. . . end .'
+            for r in c['rows']:
+                arr = '[' + ','.join('0' for _ in range(int(r[1]))) + ']'
+                yield label, Exec(('bm', ci), fsrc, [arr, r[0]], 'trap' if r[-2] == 'trap' else (lambda g: True))
+        elif op == 'match':
+            # [tag, variants]: BTS counts tags from 0; a Lowent variant number is written, so the enum numbers its variants 0 … n−1
+            # (canon §6.2.7 (2c) — a written number) and `cast` to it stops on a number no variant has (canon §6.2.16 (5a))
+            n = int(c['rows'][0][1])
+            vs = ' '.join(f'v{i} {i} .' if i == 0 else f'v{i} .' for i in range(n))
+            pre = [f'enum {{F}}_e do {vs} end .']
+            fsrc = f'input g u16 . output u16 . do let e {{F}}_e cast {{F}}_e g. . . return cast u16 e. . . end .'
+            for r in c['rows']:
+                yield label, Exec(('bm', ci), fsrc, r[:1], 'trap' if r[-2] == 'trap' else r[0], pre=pre)
+        else:
+            for r in c['rows']:
+                yield label, Skip('not-implemented')
+
+
+# ── canonical_encoding (RFC-0157 §8-6 · W-20261116-1135) ────────────────────────────────────────────────────────────
+# `encode <struct> <value>` writes a value with its struct's byte layout (canon §6.2.13 (4)); a one-field struct gives the bytes of
+# that field. The op returns the bytes folded into one u64 — acc = len, then acc = acc·256 + byte, wrapping — and the runner folds the
+# expected bytes the same way.
+CE_INT = {'i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64'}
+CE_FOLD = ('var acc u64 cast u64 len b. . . . for y b. do set acc. wrap_add wrap_mul acc. 256 . widen u64 y. . . . end . return acc. .')
+
+
+def ce_fold(hexs):
+    bs = bytes.fromhex(hexs)
+    acc = len(bs)
+    for y in bs:
+        acc = (acc * 256 + y) % (1 << 64)
+    return str(acc)
+
+
+def plan_canonical_encoding(doc):
+    for ri, r in enumerate(doc['rows']):
+        t, v = r['type'], r['value']
+        label = f'canonical_encoding/{t}'
+        want = ce_fold(r['bytes'])
+        if t in CE_INT or t in ('usize', 'idiff'):
+            if r.get('width') and int(r['width']) != USIZE_BITS:
+                yield label, Skip('target-unavailable'); continue
+            pre = [f'struct {{F}}_w do v {t} . end .']
+            fsrc = f'input x {t} . output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do v x. . end . . . {CE_FOLD} end .'
+            yield label, Exec(('ce', t), fsrc, [v], want, pre=pre)
+        elif t in ('f32', 'f64'):
+            bt = 'u32' if t == 'f32' else 'u64'
+            pre = [f'struct {{F}}_w do v {t} . end .']
+            fsrc = (f'input x {bt} . output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do v bit_cast {t} x. . . end . . . '
+                    f'{CE_FOLD} end .')
+            yield label, Exec(('ce', t), fsrc, [str(int(v, 16))], want, pre=pre)
+        elif t == 'bool':
+            pre = ['struct {F}_w do v bool . end .']
+            fsrc = f'input x u8 . output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do v ne x. 0 . . end . . . {CE_FOLD} end .'
+            yield label, Exec(('ce', t), fsrc, ['1' if v else '0'], want, pre=pre)
+        elif t.startswith('struct{'):
+            fts = t[len('struct{'):-1].split(',')
+            pre = ['struct {F}_w do ' + ' '.join(f'f{i} {ft} .' for i, ft in enumerate(fts)) + ' end .']
+            ins = ' '.join(f'input x{i} {"u8" if ft == "bool" else ft} .' for i, ft in enumerate(fts))
+            flds = ' '.join(f'f{i} {"ne x%d. 0 ." % i if ft == "bool" else "x%d." % i} .' for i, ft in enumerate(fts))
+            fsrc = f'{ins} output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do {flds} end . . . {CE_FOLD} end .'
+            args = [('1' if a else '0') if isinstance(a, bool) else a for a in v]
+            yield label, Exec(('ce', t), fsrc, args, want, pre=pre)
+        elif t.startswith('Option(') or t.startswith('Result('):
+            yield label, Skip('language-policy')      # an option / result has no fixed bytes (canon §6.2.13 (8)) — `encode` refuses it
+        elif t == 'char':
+            yield label, Skip('not-implemented')      # a `char` is not a layout field (canon §6.2.13 (8)) and has no `cast` from u32 yet
+        else:
+            yield label, Skip('not-implemented')      # Q formats: Lowent has no fixed-point types
+
+
+# ── struct_layout (RFC-0157 §8-6 · W-20261116-1135) ─────────────────────────────────────────────────────────────────
+# Read through the language: the size is `size_of`; the alignment is `size_of` of a struct {u8, S} minus `size_of S` (S sits at its
+# alignment and the whole is a multiple of it); a field's offset is the first nonzero byte of `encode` with that field set to 1 and
+# the others to 0 (bytes are little-endian here). The padding is what the offsets and sizes leave, so it is not read separately.
+# Lowent has no `packed`, unions or a written struct alignment yet (`not-implemented`); it keeps fields in the declared order, so the
+# BTS `default` layout that reorders is not Lowent's (`language-policy`).
+SL_SCALAR = {'u8', 'u16', 'u32', 'u64', 'i8', 'i16', 'i32', 'i64', 'f32', 'f64', 'bool', 'usize', 'idiff'}
+
+
+def sl_type(ft, structs):
+    """the Lowent type of a BTS field type, or None"""
+    if ft in SL_SCALAR:
+        return ft
+    m = re.fullmatch(r'array\((\w+),(\d+)\)', ft)
+    if m and m.group(1) in SL_SCALAR and int(m.group(2)) > 0:
+        return f'array {m.group(2)} {m.group(1)}'
+    if ft.startswith('struct:'):
+        d = structs.get(ft[7:])
+        if d is not None and sl_ok(d, structs):
+            return '{F}_' + ft[7:]
+    return None
+
+
+def sl_ok(d, structs):
+    return (d.get('layout') == 'ffi' and not d.get('union') and 'align' not in d and
+            all(sl_type(ft, structs) for _, ft in d['fields']))
+
+
+def sl_one(ft, structs):
+    """a value of the field type whose lowest-addressed byte is 1"""
+    if ft == 'bool':
+        return 'true'
+    if ft in ('f32', 'f64'):
+        return f'bit_cast {ft} 1 .'
+    m = re.fullmatch(r'array\((\w+),(\d+)\)', ft)
+    if m:
+        return f'lit array {m.group(2)} {m.group(1)} ' + ' '.join([sl_one(m.group(1), structs)] + [sl_zero(m.group(1), structs)] * (int(m.group(2)) - 1)) + ' .'
+    if ft.startswith('struct:'):
+        d = structs[ft[7:]]
+        return 'lit {F}_' + ft[7:] + ' do ' + ' '.join(f'{n} {sl_one(t, structs) if i == 0 else sl_zero(t, structs)} .' for i, (n, t) in enumerate(d['fields'])) + ' end .'
+    return '1'
+
+
+def sl_zero(ft, structs):
+    if ft == 'bool':
+        return 'false'
+    if ft in ('f32', 'f64'):
+        return f'bit_cast {ft} 0 .'
+    m = re.fullmatch(r'array\((\w+),(\d+)\)', ft)
+    if m:
+        return f'lit array {m.group(2)} {m.group(1)} ' + ' '.join([sl_zero(m.group(1), structs)] * int(m.group(2))) + ' .'
+    if ft.startswith('struct:'):
+        d = structs[ft[7:]]
+        return 'lit {F}_' + ft[7:] + ' do ' + ' '.join(f'{n} {sl_zero(t, structs)} .' for n, t in d['fields']) + ' end .'
+    return '0'
+
+
+def sl_decls(name, structs, out, seen):
+    if name in seen:
+        return
+    d = structs[name]
+    for _, ft in d['fields']:
+        if ft.startswith('struct:'):
+            sl_decls(ft[7:], structs, out, seen)
+    seen.add(name)
+    out.append('struct {F}_' + name + ' do ' + ' '.join(f'{n} {sl_type(ft, structs)} .' for n, ft in d['fields']) + ' end .')
+
+
+def sl_fold(vals):
+    acc = 0
+    for v in vals:
+        acc = (acc * 1000003 + int(v)) % (1 << 64)
+    return str(acc)
+
+
+def plan_struct_layout(doc):
+    structs = {s['name']: s for s in doc['structs']}
+    for s in doc['structs']:
+        for tn, res in s['results'].items():
+            label = f'struct_layout/{s["name"]}/{tn}'
+            if tn != TARGET:
+                yield label, Skip('target-unavailable'); continue
+            if s.get('layout') == 'default' and s.get('reorder'):
+                yield label, Skip('language-policy'); continue
+            if 'rejected' in res or not sl_ok(s, structs):
+                yield label, Skip('not-implemented'); continue
+            pre = []
+            sl_decls(s['name'], structs, pre, set())
+            S = '{F}_' + s['name']
+            pre.append(f'struct {{F}}_wrap do a u8 . s {S} . end .')
+            body = [f'var acc u64 0 .',
+                    f'set acc. cast u64 size_of {S} . . .',
+                    f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 sub size_of {{F}}_wrap . size_of {S} . . . . .']
+            for fi, (fn_, ft) in enumerate(s['fields']):
+                lit = ' '.join(f'{n} {sl_one(t, structs) if j == fi else sl_zero(t, structs)} .' for j, (n, t) in enumerate(s['fields']))
+                body += [f'let b{fi} slice u8 encode {S} lit {S} do {lit} end . . .',
+                         f'var o{fi} u64 0 .', f'var seen{fi} bool false .', f'var at{fi} u64 0 .',
+                         f'for y b{fi}. do if and not seen{fi}. . ne y. 0 . . do set o{fi}. at{fi}. . set seen{fi}. true . end . set at{fi}. add at{fi}. 1 . . end .',
+                         f'set acc. wrap_add wrap_mul acc. 1000003 . o{fi}. . .']
+            fsrc = 'input x u8 . output u64 . do ' + ' '.join(body) + ' return acc. . end .'
+            want = sl_fold([res['size'], res['align']] + res['offsets'])
+            yield label, Exec(('sl', s['name']), fsrc, ['0'], want, pre=pre)
+    for b in doc['builtins']:
+        for tn, res in b['results'].items():
+            label = f'struct_layout/builtin/{b["type"]}/{tn}'
+            if tn != TARGET:
+                yield label, Skip('target-unavailable'); continue
+            lt = sl_type(b['type'], structs) if b['type'] in SL_SCALAR or b['type'].startswith('array(') else None
+            if b['type'] == 'array(u8,0)':
+                yield label, Skip('language-policy'); continue      # an array holds at least one element (canon §6.2.6)
+            if b['type'].startswith(('Option(', 'Result(', 'slice', 'ref(', 'mutref(')):
+                yield label, Skip('language-policy'); continue      # no fixed bytes (canon §6.2.13 (8))
+            if not lt or 'unavailable' in res:
+                yield label, Skip('not-implemented'); continue
+            pre = [f'struct {{F}}_one do v {lt} . end .', f'struct {{F}}_wrap do a u8 . s {{F}}_one . end .']
+            fsrc = (f'input x u8 . output u64 . do var acc u64 cast u64 size_of {{F}}_one . . . '
+                    f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 sub size_of {{F}}_wrap . size_of {{F}}_one . . . . . return acc. . end .')
+            yield label, Exec(('slb', b['type']), fsrc, ['0'], sl_fold([res['size'], res['align']]), pre=pre)
+    for b in doc['bitfields']:
+        for _ in b['rows']:
+            yield f'struct_layout/bitfield/{b["name"]}', Skip('not-implemented')   # no bit-field struct in Lowent
+
+
+# ── alloc_sequences (RFC-0157 §8-6 · W-20261116-1135) ───────────────────────────────────────────────────────────────
+# The steps observe a block's offset from the region start; Lowent's allocators hand out slices, and a slice's address is not a
+# value (the word for it, `addr`, is decided and not built — canon §6.9.4): `not-implemented`. `array_sizes` is the language's size
+# arithmetic: `chk_mul count elem` in usize (`none` = size_overflow). Rows for 16- and 32-bit usize are `target-unavailable`.
+def plan_alloc_sequences(doc):
+    for sq in doc['sequences']:
+        for _ in sq['steps']:
+            yield f'alloc_sequences/{sq["name"]}', Skip('not-implemented')
+    fsrc = 'input n usize . input e usize . output option usize . do return chk_mul n. e. . . end .'
+    for r in doc['array_sizes']:
+        label = f'alloc_sequences/array_sizes/{r["usize_bits"]}'
+        if int(r['usize_bits']) != USIZE_BITS:
+            yield label, Skip('target-unavailable'); continue
+        (k, v), = r['expect'].items()
+        yield label, Exec(('as',), fsrc, [r['count'], r['elem']], f'some {v}' if k == 'ok' else 'none')
+
+
+# ── result_sets (RFC-0157 §8-6 · W-20261116-1135) ───────────────────────────────────────────────────────────────────
+# Only the bool scenarios have a Lowent spelling: bytes become a bool through `try_view` (canon §6.2.13 (9a)), which gives `none` for a
+# byte that is not 0 or 1 — the value never exists, which this runner reports as the scenario's `trap`. The rest: a `result` has no
+# bytes (`language-policy`); `char` from u32 is not built (`not-implemented`); every binding is written before it is read and padding
+# bytes are not a struct's value, structs are not compared with `eq` (canon §6.3), and non-atomic data races are refused by the
+# ownership rules (canon §8.12) — `language-policy`.
+def plan_result_sets(doc):
+    pre = ['struct {F}_b do v bool . end .']
+    fsrc = ('input r u8 . output u8 . do var buf lit array 1 u8 0 . . set idx buf. 0 . r. . '
+            'let o option view {F}_b try_view {F}_b buf. . . guard is_some o. . else return 9 . . '
+            'let h view {F}_b some_value o. . . return cast u8 field h. v . . . end .')
+    for sc in doc['scenarios']:
+        label = f'result_sets/{sc["id"]}'
+        if sc['kind'] == 'materialize' and sc['type'] == 'bool':
+            raw = int(sc['bytes'], 16)
+            twice = 'twice' in sc['id']
+            def ok(g, allowed=sc['allowed'], twice=twice):
+                v = 'trap' if g == '9' else (g == '1')
+                return (v if v == 'trap' else ([v, v] if twice else v)) in allowed
+            yield label, Exec(('rs',), fsrc, [str(raw)], ok, pre=pre)
+        elif sc['kind'] == 'materialize' and sc['type'] == 'char':
+            yield label, Skip('not-implemented')
+        else:
+            yield label, Skip('language-policy')
+
+
 SUITES = {'range_erasure': plan_range_erasure, 'programs': plan_programs, 'integer_ops': plan_integer_ops, 'float_ops': plan_float_ops, 'casting_rules': plan_casting_rules,
-          'simd_ops': plan_simd_ops, 'litmus': plan_litmus}
+          'simd_ops': plan_simd_ops, 'litmus': plan_litmus, 'build_modes': plan_build_modes,
+          'canonical_encoding': plan_canonical_encoding, 'struct_layout': plan_struct_layout, 'alloc_sequences': plan_alloc_sequences,
+          'result_sets': plan_result_sets}
 
 
 # ── running ───────────────────────────────────────────────────────────────────────────────────────────────────────

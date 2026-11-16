@@ -110,8 +110,12 @@ or a large value, is held through a struct that has it as a field, named and wri
   variant's carried type goes --- `enum pick do input comptime t type . has v t . nothing . end .`. In a type position write it in
   parentheses, `(pick u64)` · `(pick (pick u8))`; different type arguments are different types. The building word `pick.has x.`
   writes no type argument --- the type written where the value goes decides (a binding's type · an op's `output` · an argument's
-  `input` · the type of the name being `set`). Anywhere else it is `E-ENUM-GENERIC`, so bind it to a name first. The values a variant
+  `input` · the type of the name being `set` · the type of a struct field built with `lit`). Anywhere else it is `E-ENUM-GENERIC`, so bind it to a name first. The values a variant
   carries must be of its type --- giving 300 to a variant that carries a `u8` is `E-TYPE-WIDTH`.
+- To give this type to an op that takes a type argument, write it in the form of an argument --- as `u8` is given as `u8.`, this
+  one is `get_or pick u8. . c. d. .`.
+- A variant named `some` · `none` · `ok` · `error` is still that enum's variant. In `match`, `case some …` picks it when the value
+  being split is that enum.
 
 === Variant numbers and `cast`
 

@@ -2201,6 +2201,8 @@ int main(int argc, char **argv) {
             proven_size_t nd_before = pr.diags.len;
             low_using(&pr, nodes0, heap);
             low_mono(&pr, nodes0, heap, &ninst, &nsub);
+            // ★ W-20261116-1135 (RFC-0144 §8-4) — 찍은 사본의 입력 `array T <수>` 도 슬라이스 + 진입 계약이 된다(틀에서는 개수가 아직 이름이라 바꿔 적지 못했다)
+            if (ninst) low_using_arrays(&pr, nodes0, heap);
             // ★ 파스 뒤에 붙은 진단(using · 단형화)도 **찍는다** — 전엔 `E-MONO-FIXPOINT` 가 여기서 쌓이고
             //   화면에는 안 나왔다(종료 코드만 1). 조용한 거절은 거절이 아니다.
             if (pr.diags.len > nd_before) {

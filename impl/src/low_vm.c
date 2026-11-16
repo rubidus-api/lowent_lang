@@ -1100,6 +1100,119 @@ static void vm_fw_gc(vm_act *a) {
 
 // 진입 프레임(및 그 위 단순 호출들)을 완주시키는 **드라이버**. 중첩 vm_exec(actor·메시지)는
 // 자기 체인을 따로 잡아 돈다 — 프레임이 안 움직이니 서로 안 밟는다.
+// ★ W-20261116-1135 — 값(레코드 · 창)을 배치 s 대로 outb 에 적는다. 안에 든 구조체 칸에서 스스로를 부른다.
+static bool vm_encode_into(vm_ctx_t *vm, vmv_t v, const low_ir_struct_t *s, proven_u8 *outb) {
+    for (proven_size_t i = 0; i < s->nf; i++) {
+        // ★ W-20261116-1135 (BTS struct_layout 가 찾음) — **안에 든 구조체 칸**(정본 §6.2.13 (8) 「그런 칸으로 된 구조체」). 전엔 이 칸을
+        //   수 칸으로 읽으려다 «encode needs integer fields» 로 멈췄다(검사는 통과 · VM · 네이티브 같이). 안의 값을 그 배치대로 그 자리에 적는다.
+        if (s->f[i].sidx >= 0 && !s->f[i].arrn) {
+            const low_ir_struct_t *is = &vm->ir->structs[s->f[i].sidx];
+            vmv_t fv = { 0 }; bool got = false;
+            if (v.tag == VMV_REC) {
+                const vmrec_t *r = VM_RECV(vm, v);
+                const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+                for (proven_size_t j = 0; j < r->nfields && !got; j++)
+                    if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) { fv = r->fields[j]; got = true; }
+            } else if (v.tag == VMV_VIEW) {
+                const low_ir_struct_t *vs = &vm->ir->structs[v.box];
+                for (proven_size_t j = 0; j < vs->nf && !got; j++)
+                    if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && vs->f[j].sidx >= 0)
+                        { fv = (vmv_t){ .tag = VMV_VIEW, .p = v.p + vs->f[j].off, .n = vs->f[j].size, .box = (proven_i32)vs->f[j].sidx }; got = true; }
+            }
+            if (!got) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks a struct field"); return false; }
+            if (!vm_encode_into(vm, fv, is, outb + s->f[i].off)) return false;
+            continue;
+        }
+        proven_u64 x = 0;
+        if (s->f[i].arrn) {                          // ★ T2b-3d ⓓ — 배열 칸은 그 바이트를 그 자리에 베낀다
+            proven_size_t need = (proven_size_t)s->f[i].arrn * s->f[i].arresz;
+            const proven_u8 *src = NULL;
+            if (v.tag == VMV_REC) {
+                const vmrec_t *r = VM_RECV(vm, v);
+                const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+                for (proven_size_t j = 0; j < r->nfields && !src; j++)
+                    if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
+                        vmv_t fv = r->fields[j];
+                        proven_size_t have = fv.tag == VMV_SLICE ? fv.n : fv.tag == VMV_VARRAY ? fv.n * (proven_size_t)fv.box : 0;
+                        if (have != need) { vm_diag(vm->diags, "E-VM-TYPE", "encode: an array field holds the wrong length"); return false; }
+                        src = fv.p;
+                    }
+            } else if (v.tag == VMV_VIEW) {
+                const low_ir_struct_t *vs = &vm->ir->structs[v.box];
+                for (proven_size_t j = 0; j < vs->nf && !src; j++)
+                    if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && (proven_size_t)vs->f[j].arrn * vs->f[j].arresz == need)
+                        src = v.p + vs->f[j].off;
+            }
+            if (!src) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks an array field of that length"); return false; }
+            memmove(outb + s->f[i].off, src, need);
+            continue;
+        }
+#if defined(__SIZEOF_INT128__)
+        if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 16 바이트 칸: 값(레코드) 또는 바이트(뷰)에서 그대로
+            vmv_t w = vmv_int(0); bool got16 = false;
+            if (v.tag == VMV_REC) {
+                const vmrec_t *r = VM_RECV(vm, v);
+                const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+                for (proven_size_t j = 0; j < r->nfields && !got16; j++)
+                    if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) { w = r->fields[j]; got16 = true; }
+            } else if (v.tag == VMV_VIEW) {
+                const low_ir_struct_t *vs = &vm->ir->structs[v.box];
+                for (proven_size_t j = 0; j < vs->nf && !got16; j++)
+                    if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && vs->f[j].size == 16) { w = vm_get16(v.p + vs->f[j].off, vs->f[j].be); got16 = true; }
+            }
+            if (!got16) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks a 16-byte layout field"); return false; }
+            vm_put16(outb + s->f[i].off, w, s->f[i].be);
+            continue;
+        }
+#endif
+        if (v.tag == VMV_REC) {
+            const vmrec_t *r = VM_RECV(vm, v);
+            const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+            bool found = false;
+            for (proven_size_t j = 0; j < r->nfields && !found; j++)
+                if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
+                    vmv_t fv = r->fields[j];
+                    if (s->f[i].flt) {
+                        if (fv.tag == VMV_FLT) x = ir_f_to_bits(vmv_f(fv), s->f[i].size);
+                        else if (fv.tag == VMV_INT) x = ir_f_to_bits((double)fv.i, s->f[i].size);
+                        else { vm_diag(vm->diags, "E-VM-TYPE", "encode: float field needs a number"); return false; }
+                    } else if (fv.tag == VMV_INT) {
+                        x = (proven_u64)fv.i;
+                        if (!vm_en_tonum(vm->ir, &s->f[i], &x)) { vm_diag(vm->diags, "E-VM-TYPE", "an enum field holds no variant"); return false; }
+                    } else {
+                        vm_diag(vm->diags, "E-VM-TYPE", "encode needs integer fields"); return false;
+                    }
+                    found = true;
+                }
+            if (!found) { vm_diag(vm->diags, "E-VM-FIELD", "encode: record lacks a layout field"); return false; }
+        } else if (v.tag == VMV_VIEW) {
+            const low_ir_struct_t *vs = &vm->ir->structs[v.box];
+            bool found = false;
+            for (proven_size_t j = 0; j < vs->nf && !found; j++)
+                if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name)) {
+                    const proven_u8 *p = v.p + vs->f[j].off;
+                    if (vs->f[j].be) for (proven_u8 kk = 0; kk < vs->f[j].size; kk++) x = (x << 8) | p[kk];
+                    else             for (proven_u8 kk = vs->f[j].size; kk-- > 0; ) x = (x << 8) | p[kk];
+                    // ★ RFC-0150 §8-31 — 뷰의 번호를 갈래로 읽고 받는 배치의 번호로 다시 쓴다
+                    if (!vm_en_tovi(vm->ir, &vs->f[j], &x) || !vm_en_tonum(vm->ir, &s->f[i], &x)) {
+                        vm_diag(vm->diags, "E-VM-CAST", "the bytes under this enum field hold a number no variant has"); return false;
+                    }
+                    // re-normalize across differing float widths (f32 ⇄ f64)
+                    if (s->f[i].flt && vs->f[j].flt && s->f[i].size != vs->f[j].size)
+                        x = ir_f_to_bits(ir_bits_to_f(x, vs->f[j].size), s->f[i].size);
+                    found = true;
+                }
+            if (!found) { vm_diag(vm->diags, "E-VM-FIELD", "encode: view lacks a layout field"); return false; }
+        } else {
+            vm_diag(vm->diags, "E-VM-TYPE", "encode needs a record/view");
+            return false;
+        }
+        proven_u8 *p = outb + s->f[i].off;
+        if (s->f[i].be) for (proven_u8 kk = s->f[i].size; kk-- > 0; ) { p[kk] = (proven_u8)x; x >>= 8; }
+        else            for (proven_u8 kk = 0; kk < s->f[i].size; kk++) { p[kk] = (proven_u8)x; x >>= 8; }
+    }
+    return true;
+}
 static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
                     const vmv_t *args, vmv_t *ret, unsigned depth) {
     // ★ 경계는 이 사슬의 ceiling 프레임(메인=VM_MAXCALL · 그린스레드=base+GT_DEPTH · 넘으면 값).
@@ -4500,95 +4613,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (vm->nenc >= VM_MAXENC || s->total > VM_ENCCAP) { vm_diag(vm->diags, "E-VM-VIEW", "encode buffer pool exhausted"); return false; }
                 proven_u8 *outb = vm->encs[vm->nenc];
                 memset(outb, 0, s->total);
-                for (proven_size_t i = 0; i < s->nf; i++) {
-                    proven_u64 x = 0;
-                    if (s->f[i].arrn) {                          // ★ T2b-3d ⓓ — 배열 칸은 그 바이트를 그 자리에 베낀다
-                        proven_size_t need = (proven_size_t)s->f[i].arrn * s->f[i].arresz;
-                        const proven_u8 *src = NULL;
-                        if (v.tag == VMV_REC) {
-                            const vmrec_t *r = VM_RECV(vm, v);
-                            const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
-                            for (proven_size_t j = 0; j < r->nfields && !src; j++)
-                                if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
-                                    vmv_t fv = r->fields[j];
-                                    proven_size_t have = fv.tag == VMV_SLICE ? fv.n : fv.tag == VMV_VARRAY ? fv.n * (proven_size_t)fv.box : 0;
-                                    if (have != need) { vm_diag(vm->diags, "E-VM-TYPE", "encode: an array field holds the wrong length"); return false; }
-                                    src = fv.p;
-                                }
-                        } else if (v.tag == VMV_VIEW) {
-                            const low_ir_struct_t *vs = &vm->ir->structs[v.box];
-                            for (proven_size_t j = 0; j < vs->nf && !src; j++)
-                                if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && (proven_size_t)vs->f[j].arrn * vs->f[j].arresz == need)
-                                    src = v.p + vs->f[j].off;
-                        }
-                        if (!src) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks an array field of that length"); return false; }
-                        memmove(outb + s->f[i].off, src, need);
-                        continue;
-                    }
-#if defined(__SIZEOF_INT128__)
-                    if (s->f[i].size == 16) {   // ★ RFC-0151 §9.4.1 — 16 바이트 칸: 값(레코드) 또는 바이트(뷰)에서 그대로
-                        vmv_t w = vmv_int(0); bool got16 = false;
-                        if (v.tag == VMV_REC) {
-                            const vmrec_t *r = VM_RECV(vm, v);
-                            const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
-                            for (proven_size_t j = 0; j < r->nfields && !got16; j++)
-                                if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) { w = r->fields[j]; got16 = true; }
-                        } else if (v.tag == VMV_VIEW) {
-                            const low_ir_struct_t *vs = &vm->ir->structs[v.box];
-                            for (proven_size_t j = 0; j < vs->nf && !got16; j++)
-                                if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && vs->f[j].size == 16) { w = vm_get16(v.p + vs->f[j].off, vs->f[j].be); got16 = true; }
-                        }
-                        if (!got16) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks a 16-byte layout field"); return false; }
-                        vm_put16(outb + s->f[i].off, w, s->f[i].be);
-                        continue;
-                    }
-#endif
-                    if (v.tag == VMV_REC) {
-                        const vmrec_t *r = VM_RECV(vm, v);
-                        const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
-                        bool found = false;
-                        for (proven_size_t j = 0; j < r->nfields && !found; j++)
-                            if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
-                                vmv_t fv = r->fields[j];
-                                if (s->f[i].flt) {
-                                    if (fv.tag == VMV_FLT) x = ir_f_to_bits(vmv_f(fv), s->f[i].size);
-                                    else if (fv.tag == VMV_INT) x = ir_f_to_bits((double)fv.i, s->f[i].size);
-                                    else { vm_diag(vm->diags, "E-VM-TYPE", "encode: float field needs a number"); return false; }
-                                } else if (fv.tag == VMV_INT) {
-                                    x = (proven_u64)fv.i;
-                                    if (!vm_en_tonum(vm->ir, &s->f[i], &x)) { vm_diag(vm->diags, "E-VM-TYPE", "an enum field holds no variant"); return false; }
-                                } else {
-                                    vm_diag(vm->diags, "E-VM-TYPE", "encode needs integer fields"); return false;
-                                }
-                                found = true;
-                            }
-                        if (!found) { vm_diag(vm->diags, "E-VM-FIELD", "encode: record lacks a layout field"); return false; }
-                    } else if (v.tag == VMV_VIEW) {
-                        const low_ir_struct_t *vs = &vm->ir->structs[v.box];
-                        bool found = false;
-                        for (proven_size_t j = 0; j < vs->nf && !found; j++)
-                            if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name)) {
-                                const proven_u8 *p = v.p + vs->f[j].off;
-                                if (vs->f[j].be) for (proven_u8 kk = 0; kk < vs->f[j].size; kk++) x = (x << 8) | p[kk];
-                                else             for (proven_u8 kk = vs->f[j].size; kk-- > 0; ) x = (x << 8) | p[kk];
-                                // ★ RFC-0150 §8-31 — 뷰의 번호를 갈래로 읽고 받는 배치의 번호로 다시 쓴다
-                                if (!vm_en_tovi(vm->ir, &vs->f[j], &x) || !vm_en_tonum(vm->ir, &s->f[i], &x)) {
-                                    vm_diag(vm->diags, "E-VM-CAST", "the bytes under this enum field hold a number no variant has"); return false;
-                                }
-                                // re-normalize across differing float widths (f32 ⇄ f64)
-                                if (s->f[i].flt && vs->f[j].flt && s->f[i].size != vs->f[j].size)
-                                    x = ir_f_to_bits(ir_bits_to_f(x, vs->f[j].size), s->f[i].size);
-                                found = true;
-                            }
-                        if (!found) { vm_diag(vm->diags, "E-VM-FIELD", "encode: view lacks a layout field"); return false; }
-                    } else {
-                        vm_diag(vm->diags, "E-VM-TYPE", "encode needs a record/view");
-                        return false;
-                    }
-                    proven_u8 *p = outb + s->f[i].off;
-                    if (s->f[i].be) for (proven_u8 kk = s->f[i].size; kk-- > 0; ) { p[kk] = (proven_u8)x; x >>= 8; }
-                    else            for (proven_u8 kk = 0; kk < s->f[i].size; kk++) { p[kk] = (proven_u8)x; x >>= 8; }
-                }
+                if (!vm_encode_into(vm, v, s, outb)) return false;
                 stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = outb, .n = s->total };
                 vm->nenc++;
                 break;

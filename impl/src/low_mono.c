@@ -169,7 +169,7 @@ static proven_u8str_view_t mono_strip_mod(const low_parse_result_t *pr, proven_u
 static void mono_rewrite(mono_ctx_t *c, low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
-        nd->kids[1]->kind == LOW_CST_ATOM) {
+        (nd->kids[1]->kind == LOW_CST_ATOM || nd->kids[1]->kind == LOW_CST_GROUP)) {
         for (proven_size_t gi = 0; gi < c->ng; gi++) {
             const mono_gen_t *g = &c->g[gi];
             proven_u8str_view_t head = nd->kids[0]->tok.lex;
@@ -188,7 +188,15 @@ static void mono_rewrite(mono_ctx_t *c, low_cst_t *nd) {
             // ★ 타입 인자는 **앞자리들**에 순서대로 온다 (comptime 파라미터가 먼저 선언되므로)
             low_token_t ty[MONO_MAXT];
             proven_u8str_view_t tyv[MONO_MAXT];
-            for (proven_size_t q = 0; q < g->nt; q++) { ty[q] = nd->kids[1 + q]->tok; tyv[q] = ty[q].lex; }
+            bool tyok = true;
+            for (proven_size_t q = 0; q < g->nt; q++) {
+                // ★ W-20261116-1135 — 괄호 타입 인자는 앞의 접기(②⁰)가 `GROUP{FORM{pick#u8}}` 로 만들어 둔다 — 그 원자를 꺼낸다
+                const low_cst_t *ta = nd->kids[1 + q];
+                while (ta && (ta->kind == LOW_CST_GROUP || ta->kind == LOW_CST_FORM) && ta->nkids == 1) ta = ta->kids[0];
+                if (!ta || ta->kind != LOW_CST_ATOM) { tyok = false; break; }
+                ty[q] = ta->tok; tyv[q] = ty[q].lex;
+            }
+            if (!tyok) continue;
             proven_u8str_view_t in = mono_iname(c, g->name, tyv, g->nt);
             // 인스턴스를 (없으면) 만든다
             bool have = false;
@@ -227,7 +235,8 @@ static void mono_rewrite(mono_ctx_t *c, low_cst_t *nd) {
 static bool mono_used_as_lane(const low_cst_t *nd, proven_u8str_view_t name) {
     if (!nd) return false;
     for (proven_size_t i = 0; i + 2 < nd->nkids; i++)
-        if (nd->kids[i]->kind == LOW_CST_ATOM && low_view_eq_cstr(nd->kids[i]->tok.lex, "vec") &&
+        if (nd->kids[i]->kind == LOW_CST_ATOM && (low_view_eq_cstr(nd->kids[i]->tok.lex, "vec") ||
+                                                   low_view_eq_cstr(nd->kids[i]->tok.lex, "array")) &&   // ★ W-20261116-1135 — 배열의 길이도(`array u8 n`)
             nd->kids[i + 2]->kind == LOW_CST_ATOM &&
             proven_u8str_view_eq(nd->kids[i + 2]->tok.lex, name)) return true;
     for (proven_size_t i = 0; i < nd->nkids; i++)
@@ -685,9 +694,39 @@ static void me_call(mono_ec_t *e, low_cst_t *f, proven_size_t s) {
         return;
     }
 }
+// ★ W-20261116-1135 (RFC-0080 §8-4 의 남은 것) — 구조체 sname 의 칸 fname 의 적힌 타입(접은 뒤라 낱말 하나 — 인스턴스면 `pick#u64`)
+static proven_u8str_view_t me_field_ty(const mono_ec_t *e, proven_u8str_view_t sname, proven_u8str_view_t fname) {
+    const low_parse_result_t *pr = e->c->p.out;
+    for (proven_size_t pass = 0; pass < 2; pass++)
+        for (proven_size_t i = 0; i < (pass ? e->c->ni : pr->nforms); i++) {
+            const low_cst_t *f = pass ? e->c->iform[i] : pr->forms[i];
+            if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM || f->kids[0]->tok.kw != LOW_KW_STRUCT ||
+                f->kids[1]->kind != LOW_CST_ATOM || !proven_u8str_view_eq(mono_strip_mod(pr, f->kids[1]->tok.lex), sname)) continue;
+            const low_cst_t *blk = f->kids[f->nkids - 1];
+            if (blk->kind != LOW_CST_BLOCK) continue;
+            for (proven_size_t j = 0; j < blk->nkids; j++) {
+                const low_cst_t *fl = blk->kids[j];
+                if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && fl->kids[0]->kind == LOW_CST_ATOM && proven_u8str_view_eq(fl->kids[0]->tok.lex, fname))
+                    return me_last_atom(fl, 1, fl->nkids);
+            }
+        }
+    return (proven_u8str_view_t){ 0 };
+}
 static void me_walk(mono_ec_t *e, low_cst_t *n) {
     if (!n || n->kind == LOW_CST_ATOM) return;
     proven_size_t mark = e->nenv;
+    // 구조체 리터럴 `lit S do f <값> . … end` — 칸의 값은 그 칸의 적힌 타입이 정한다
+    if (n->kind == LOW_CST_FORM && n->nkids >= 2 && n->kids[0]->kind == LOW_CST_ATOM && n->kids[0]->tok.kw == LOW_KW_LIT &&
+        n->kids[1]->kind == LOW_CST_FORM && n->kids[1]->nkids >= 2 && n->kids[1]->kids[0]->kind == LOW_CST_ATOM &&
+        n->kids[1]->kids[n->kids[1]->nkids - 1]->kind == LOW_CST_BLOCK) {
+        proven_u8str_view_t sn = mono_strip_mod(e->c->p.out, n->kids[1]->kids[0]->tok.lex);
+        low_cst_t *blk = n->kids[1]->kids[n->kids[1]->nkids - 1];
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            low_cst_t *fl = blk->kids[j];
+            if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && fl->kids[0]->kind == LOW_CST_ATOM)
+                me_fix(e, fl, 1, me_field_ty(e, sn, fl->kids[0]->tok.lex));
+        }
+    }
     if (n->kind == LOW_CST_FORM && n->nkids) {
         low_cst_t *h = n->kids[0];
         low_kw_t kw = h->kind == LOW_CST_ATOM ? h->tok.kw : LOW_KW_NONE;
@@ -758,8 +797,142 @@ static void mono_enum_ctors(mono_ctx_t *c, const mono_struct_t *sg, proven_size_
                           "this enum takes a type argument, and this place does not say which one — a constructor of a generic enum "
                           "(`pick.some x.`) stands where the type is written: the value of a binding with that type "
                           "(`let p (pick u64) pick.some x. . .`), the `return` of an op whose `output` is that type, an argument of an "
-                          "input of that type, or `set` of a name of that type (canon §6.2.19 (7))", at->tok.line, at->tok.col);
+                          "input of that type, `set` of a name of that type, or a struct literal's field of that type (canon §6.2.19 (7a))", at->tok.line, at->tok.col);
         }
+}
+
+
+// ★★ W-20261116-1135 (RFC-0144 §8-4 · 소유자 «1~5번 모두») — **배열 · 벡터의 크기를 적지 않은 호출.** matrix 의 (3b) 와 같은 규칙이다:
+//   `fn total input comptime n usize . input a array n u8 .` 을 `total a. .` 로 부르면 `a` 의 적힌 타입(`array 4 u8`)에서 4 를 읽어 `total 4 a. .` 로 바꿔 적는다.
+//   크기로 쓰인 값 입력을 **모두** 뺐을 때만 · 인자가 적힌 타입을 가진 이름(지역 · 입력)이거나 `lit array n …` · `lit vec n …` 일 때만 푼다.
+//   같은 이름을 쓰는 두째 입력은 그 수로 찍힌 인스턴스가 타입 검사에서 견준다 — 푸는 일이 검사를 지우지 않는다.
+typedef struct { proven_u8str_view_t name; const low_cst_t *cnt; } mi_ev_t;
+static const low_cst_t *mi_count_of_type(low_cst_t *const *k, proven_size_t s, proven_size_t e) {
+    while (s < e && k[s]->kind == LOW_CST_ATOM && (low_view_eq_cstr(k[s]->tok.lex, "mut") || low_view_eq_cstr(k[s]->tok.lex, "owned"))) s++;
+    // 접은 뒤의 차례: `array <원소> <개수>` · `vec <원소> <개수>`
+    if (s + 2 < e && k[s]->kind == LOW_CST_ATOM &&
+        (low_view_eq_cstr(k[s]->tok.lex, "array") || low_view_eq_cstr(k[s]->tok.lex, "vec")) &&
+        k[s + 2]->kind == LOW_CST_ATOM && (k[s + 2]->tok.kind == LOW_TOK_NUMBER || k[s + 2]->tok.kind == LOW_TOK_IDENT))
+        return k[s + 2];   // 수 · 또는 이름(틀 안에서는 그 틀의 comptime 입력 — 찍을 때 수로 바뀐다)
+    return NULL;
+}
+static const low_cst_t *mi_count_of_value(const low_cst_t *v) {
+    while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
+    if (v && v->kind == LOW_CST_FORM && v->nkids >= 4 && v->kids[0]->kind == LOW_CST_ATOM && v->kids[0]->tok.kw == LOW_KW_LIT)
+        return mi_count_of_type(v->kids, 1, v->nkids);
+    return NULL;
+}
+typedef struct { mono_ctx_t *c; mi_ev_t *env; proven_size_t n, cap; } mi_t;
+static void mi_bind(mi_t *m, proven_u8str_view_t nm, const low_cst_t *cnt) {
+    if (m->n == m->cap) {
+        proven_size_t nc = m->cap ? m->cap * 2 : 64;
+        proven_result_mem_mut_t r = m->c->p.work.alloc_fn(m->c->p.work.ctx, nc * sizeof(mi_ev_t), alignof(mi_ev_t));
+        if (r.err != PROVEN_OK) return;
+        if (m->n) memcpy(r.value.ptr, m->env, m->n * sizeof(mi_ev_t));
+        m->env = (mi_ev_t *)r.value.ptr; m->cap = nc;
+    }
+    m->env[m->n++] = (mi_ev_t){ .name = nm, .cnt = cnt };
+}
+static const low_cst_t *mi_lookup(const mi_t *m, const low_cst_t *a) {
+    while (a && (a->kind == LOW_CST_GROUP || a->kind == LOW_CST_FORM) && a->nkids == 1) a = a->kids[0];
+    if (!a) return NULL;
+    if (a->kind != LOW_CST_ATOM) return mi_count_of_value(a);
+    for (proven_size_t i = m->n; i-- > 0; ) if (proven_u8str_view_eq(m->env[i].name, a->tok.lex)) return m->env[i].cnt;
+    return NULL;
+}
+static void mi_call(mi_t *m, low_cst_t *nd, proven_size_t s) {
+    mono_ctx_t *c = m->c;
+    if (s >= nd->nkids || nd->kids[s]->kind != LOW_CST_ATOM) return;
+    proven_u8str_view_t bare = mono_strip_mod(c->p.out, nd->kids[s]->tok.lex);
+    proven_size_t na = nd->nkids - s - 1;
+    for (proven_size_t gi = 0; gi < c->ng; gi++) {
+        const mono_gen_t *g = &c->g[gi];
+        if (!proven_u8str_view_eq(bare, g->name)) continue;
+        low_op_header_t h = low_op_header(g->form);
+        bool inf[LOW_HDR_MAXP] = { false }; proven_size_t ninf = 0;
+        for (proven_size_t q = 0; q < h.np; q++) {
+            if (!h.p[q].is_comptime) continue;
+            for (proven_size_t p2 = 0; p2 < h.np && !inf[q]; p2++) {
+                if (h.p[p2].is_comptime) continue;
+                proven_size_t ts = h.p[p2].ts;
+                while (ts < h.p[p2].te && g->form->kids[ts]->kind == LOW_CST_ATOM && low_view_eq_cstr(g->form->kids[ts]->tok.lex, "mut")) ts++;
+                if (ts + 2 < h.p[p2].te + 1 && ts + 2 < g->form->nkids && g->form->kids[ts]->kind == LOW_CST_ATOM &&
+                    (low_view_eq_cstr(g->form->kids[ts]->tok.lex, "array") || low_view_eq_cstr(g->form->kids[ts]->tok.lex, "vec")) &&
+                    g->form->kids[ts + 2]->kind == LOW_CST_ATOM && proven_u8str_view_eq(g->form->kids[ts + 2]->tok.lex, h.p[q].name)) inf[q] = true;
+            }
+            ninf += inf[q];
+        }
+        if (!ninf || na + ninf != h.np) continue;
+        // 입력 q → 부르는 쪽 인자(빠진 자리는 -1)
+        proven_i32 map[LOW_HDR_MAXP]; proven_size_t nx = 0;
+        for (proven_size_t q = 0; q < h.np; q++) map[q] = inf[q] ? -1 : (proven_i32)(s + 1 + nx++);
+        const low_cst_t *fill[LOW_HDR_MAXP] = { NULL };
+        for (proven_size_t q = 0; q < h.np; q++) {
+            if (!inf[q]) continue;
+            for (proven_size_t p2 = 0; p2 < h.np && !fill[q]; p2++) {
+                if (map[p2] < 0) continue;
+                proven_size_t ts = h.p[p2].ts;
+                while (ts < h.p[p2].te && g->form->kids[ts]->kind == LOW_CST_ATOM && low_view_eq_cstr(g->form->kids[ts]->tok.lex, "mut")) ts++;
+                if (!(ts + 2 < g->form->nkids && g->form->kids[ts + 2]->kind == LOW_CST_ATOM &&
+                      proven_u8str_view_eq(g->form->kids[ts + 2]->tok.lex, h.p[q].name))) continue;
+                fill[q] = mi_lookup(m, nd->kids[map[p2]]);
+            }
+            if (!fill[q]) return;                // 모양을 모르는 인자 — 풀지 않는다(인자 수가 맞지 않는 호출로 뒤에서 거절된다)
+        }
+        low_cst_t *nk[LOW_HDR_MAXP + 1]; proven_size_t w = 0;
+        for (proven_size_t q = 0; q < h.np; q++) {
+            if (inf[q]) {
+                low_cst_t *a = low_node(&c->p, LOW_CST_ATOM, fill[q]->tok);
+                if (!a) return;
+                a->file = nd->kids[s]->file; a->tok.line = nd->kids[s]->tok.line; a->synth = true;
+                nk[w++] = a;
+            } else nk[w++] = nd->kids[map[q]];
+        }
+        proven_array_t kids = PROVEN_ARRAY_INIT(c->p.work, low_cst_t *, s + 1 + w).value;
+        for (proven_size_t i = 0; i <= s; i++) (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, nd->kids[i]);
+        for (proven_size_t i = 0; i < w; i++) (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, nk[i]);
+        (void)low_refit(&c->p, nd, (low_cst_t **)kids.data, kids.len);
+        proven_array_destroy(&kids);
+        return;
+    }
+}
+static void mi_walk(mi_t *m, low_cst_t *n) {
+    if (!n || n->kind == LOW_CST_ATOM) return;
+    proven_size_t mark = m->n;
+    for (proven_size_t i = 0; i < n->nkids; i++) mi_walk(m, n->kids[i]);    // 안쪽 호출부터
+    if (n->kind == LOW_CST_FORM && n->nkids) {
+        low_kw_t kw = n->kids[0]->kind == LOW_CST_ATOM ? n->kids[0]->tok.kw : LOW_KW_NONE;
+        if ((kw == LOW_KW_LET || kw == LOW_KW_VAR) && n->nkids >= 3 && n->kids[1]->kind == LOW_CST_ATOM) {
+            proven_size_t b = 0;
+            for (proven_size_t i = 2; i < n->nkids; i++) if (n->kids[i]->kind == LOW_CST_ATOM && n->kids[i]->tok.kw == LOW_KW_BE) { b = i; break; }
+            const low_cst_t *cnt = b ? mi_count_of_type(n->kids, 2, b) : NULL;
+            if (!cnt && b && b + 1 < n->nkids) cnt = mi_count_of_value(n->kids[b + 1]);
+            if (b && b + 1 < n->nkids) mi_call(m, n, b + 1);
+            if (cnt) mi_bind(m, n->kids[1]->tok.lex, cnt);
+            return;   // 묶기는 블록 끝까지 산다
+        }
+        if (kw == LOW_KW_NONE) mi_call(m, n, 0);
+        for (proven_size_t i = 0; i + 1 < n->nkids; i++)
+            if (n->kids[i]->kind == LOW_CST_ATOM && (n->kids[i]->tok.kw == LOW_KW_RETURN || n->kids[i]->tok.kw == LOW_KW_SET)) mi_call(m, n, i + 1 + (n->kids[i]->tok.kw == LOW_KW_SET));
+    }
+    if (n->kind == LOW_CST_BLOCK) m->n = mark;
+}
+static void mono_infer_sizes(mono_ctx_t *c, const bool *tpl) {
+    low_parse_result_t *pr = c->p.out;
+    mi_t m = { .c = c };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        low_cst_t *f = pr->forms[i];
+        (void)tpl;   // 틀(제네릭 op)의 몸도 푼다 — 틀 안의 크기는 그 틀의 comptime 이름이고, 찍을 때 수로 바뀐다
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM ||
+            (f->kids[0]->tok.kw != LOW_KW_FN && f->kids[0]->tok.kw != LOW_KW_PROC)) continue;
+        m.n = 0;
+        low_op_header_t h = low_op_header(f);
+        for (proven_size_t q = 0; q < h.np; q++) {
+            const low_cst_t *cnt = mi_count_of_type(f->kids, h.p[q].ts, h.p[q].te);
+            if (cnt) mi_bind(&m, h.p[q].name, cnt);
+        }
+        for (proven_size_t j = 2; j < f->nkids; j++) if (f->kids[j]->kind == LOW_CST_BLOCK) mi_walk(&m, f->kids[j]);
+    }
 }
 
 void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work,
@@ -810,6 +983,31 @@ void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
     }
     if (!c.ng && !ns) { if (ninst) *ninst = 0; if (nsub) *nsub = 0; return; }
 
+    // ②⁰ W-20261116-1135 — 틀이 아닌 form 의 **타입 자리를 먼저 한 번 접는다**: 제네릭 op 의 타입 인자로 괄호 타입(`(pick u8)`)을 주면, op 을 찍기 전에
+    //   그것이 인스턴스 이름(`pick#u8`) 하나가 돼 있어야 한다. 나머지 접기는 아래 ②' 의 고정점이 그대로 한다.
+    if (ns) {
+        proven_u8str_view_t pmod = { 0 };
+        for (proven_size_t i = 0; i < pr->nforms; i++) {
+            const low_cst_t *f1 = pr->forms[i];
+            if (f1->kind == LOW_CST_FORM && f1->nkids >= 2 && f1->kids[0]->kind == LOW_CST_ATOM &&
+                f1->kids[0]->tok.kw == LOW_KW_MODULE && f1->kids[1]->kind == LOW_CST_ATOM) pmod = f1->kids[1]->tok.lex;
+            bool tpl0 = false;
+            for (proven_size_t q = 0; q < ns; q++) if (pr->forms[i] == sg[q].form) tpl0 = true;
+            for (proven_size_t q = 0; q < c.ng; q++) if (pr->forms[i] == c.g[q].form) tpl0 = true;
+            if (tpl0) continue;
+            c.callermod = pmod;
+            (void)mono_type_rewrite(&c, pr->forms[i], sg, ns);
+        }
+    }
+    if (c.ng) {   // ②⁻ W-20261116-1135 — 크기를 뺀 호출을 채운다(배열 · 벡터 · RFC-0144 §8-4)
+        bool tplv0[pr->nforms ? pr->nforms : 1];
+        for (proven_size_t i = 0; i < pr->nforms; i++) {
+            tplv0[i] = false;
+            for (proven_size_t q = 0; q < ns; q++) if (pr->forms[i] == sg[q].form) tplv0[i] = true;
+            for (proven_size_t q = 0; q < c.ng; q++) if (pr->forms[i] == c.g[q].form) tplv0[i] = true;
+        }
+        mono_infer_sizes(&c, tplv0);
+    }
     // ② 호출 자리를 다시 쓰고 인스턴스를 만든다 (제네릭 선언 **자신**은 건드리지 않는다)
     {
         proven_u8str_view_t walkmod = { 0 };

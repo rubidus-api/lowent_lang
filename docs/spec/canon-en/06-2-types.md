@@ -289,10 +289,18 @@ let back u8 narrow u8 wide. . .
 
 (1a) Write **the length `n` first, as an integer literal, and the element type after it** — the same order as `vec n t` · `matrix k d… t`. Since the element type
       comes at the very end, the type knows its own end. Written the other way round (`array t n` — a type in the length position), it is refused (`E-TYPE-ORDER`;
-      `lowentc --fmt` moves it to the new order). If the length is not a literal, it is refused (`E-TYPE-ARRAY`).
+      `lowentc --fmt` moves it to the new order). If the length is not a literal, it is refused (`E-TYPE-ARRAY`) — except that in an op's input the
+      name of a `comptime` input of that op also stands as the length ((1b-1)).
 
 (1b) An op input `input x array n t .` means that it takes a `slice t` of length exactly `n`, and that length is
       **checked at entry**, like `requires eq len x. . n. . .`.
+
+(1b-1) The length position of an input may use an `input comptime <name> usize .` of the same op — `fn total input comptime n usize . input a array n u8 .`.
+      The processor makes an instance for each length used (⟦§6.8⟧ (2)), and the instance's input is checked at entry against that number as in (1b). The caller
+      either writes the length (`total 4 a. .`) or leaves out **all** the value inputs used as lengths (`total a. .`) — then the number is read from the written
+      type of the argument. The arguments it can be read from are names (inputs · locals) whose type has the length written, and `lit array <number> …`. If the
+      same name is the length of several inputs, it is read from the first, and the entry check of (1b) compares the other inputs against that number. Writing
+      some and leaving out others is not this form, as in ⟦§6.2.6.1⟧ (3b).
 
 (1c) An op **can return** an array — `output array n t .`, or with a name, `output r array n t .` (⟦§6.4.1⟧ (3e)). An array has no way
       of being returned as a value, so **the caller provides the place**:
@@ -1339,7 +1347,8 @@ end .
 
 (1) `vec <lane count> <element type>` holds several values of the same type **as one value** (the same order as ⟦§6.2.6⟧ (1a) — the lane count comes first;
       the old order `vec <element type> <lane count>` is `E-TYPE-ORDER`). `scalable` can also stand in the lane-count position (`vec scalable u8`).
-      The lane count shall be a value fixed at translation time (⟦§6.8⟧).
+      The lane count shall be a value fixed at translation time (⟦§6.8⟧). If the `n` of an op input `input v vec n t .` is a `comptime` input of that op,
+      the caller may leave that number out as in ⟦§6.2.6⟧ (1b-1) — it is read from the written type of the argument.
 
 (2) Two `vec`s with different lane counts are different types and do not mix.
 
@@ -1998,10 +2007,17 @@ end .
 
 (7a) The building word `<enum>.<variant>` writes no type argument. Which type it is is decided by **the type written at the place where the value is put** — the
       value of a binding that writes that type, the `return` of an op that writes that type as its `output`, an argument given to an `input` of that type, the `set`
-      of a name bound with that type, a value given to a variant that carries that type. It is not traced back from the types of the values given (⟦§6.8⟧ (3)).
+      of a name bound with that type, a value given to a variant that carries that type, a value given with `lit <struct> do … end` to a struct field declared
+      with that type. It is not traced back from the types of the values given (⟦§6.8⟧ (3)).
       A building word placed anywhere else is refused (`E-ENUM-GENERIC`) — bind it to a name first.
 
 (7b) `isa` · `payload` · `match` use the variant names as they are. The instances of one enum share the names and the order of the variants.
+
+(7c) When this type is given as an argument to an op that takes a type argument (⟦§6.8⟧), it is written in the form of an argument — as a one-word type
+      is given as `u8.`, this one is `get_or pick u8. . c. d. .`. It is the same type as `(pick u8)` in a type position.
+
+(7d) A variant named `some` · `none` · `ok` · `error` is still a variant of its enum. If the value `match` splits is an enum that has a variant of that name,
+      `case some …` picks that variant and is not read in the form of `option` · `result`.
 
 ```lowent 예제: an enum that takes a type argument · 결과: f(5) = 11 · f(0) = 1
 module ex_enum_generic .

@@ -198,6 +198,10 @@ the other --- the same layout as C's `u8 a[2][3]` --- and, because the element t
 - An op can return one --- `output r array 2 array 3 u8 .`. As with any array result, the caller gives the place (`var g array 2 array 3 u8 f … .`, chapter 5).
 - Any number of levels. `array 2 array 3 array 4 u8` is 2 planes of 3 rows of 4; `idx g. i. .` is a `slice array 4 u8` that views plane i,
   and one more `idx` is a `slice u8` that views a row. A value of another depth cannot be passed (`E-TYPE-ARG`).
+- To leave an input's length open, take the length as a translation-time input: `fn total input comptime n usize . input a array n u8 .`.
+  The caller either writes the length (`total 4 a. .`) or leaves it out (`total a. .`), and then it is read from the argument's type.
+  An array of another length given to a second input with the same length name stops at the entry check. The lane count of a
+  `vec n t` input works the same way.
 - For computing with tables of numbers whose sizes are known, there is also `matrix` (next section).
 
 == Several dimensions --- `matrix`

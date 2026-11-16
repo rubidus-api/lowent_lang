@@ -114,8 +114,10 @@
 - 열거도 타입을 매개변수로 받는다. 블록의 첫 줄에 `input comptime t type .` 을 적고 갈래가 지니는 타입 자리에 `t` 를 쓴다 ---
   `enum pick do input comptime t type . has v t . nothing . end .`. 타입 자리에서는 괄호로 싸서 `(pick u64)` · `(pick (pick u8))`
   라고 적고, 타입 인자가 다르면 다른 타입이다. 짓는 낱말 `pick.has x.` 에는 타입 인자를 적지 않는다 --- 값이 놓이는 자리에 적힌
-  타입(바인딩의 타입 · op 의 `output` · 인자의 `input` · `set` 하는 이름의 타입)이 정한다. 그런 자리가 아니면 `E-ENUM-GENERIC`
+  타입(바인딩의 타입 · op 의 `output` · 인자의 `input` · `set` 하는 이름의 타입 · `lit` 으로 짓는 구조체 칸의 타입)이 정한다. 그런 자리가 아니면 `E-ENUM-GENERIC`
   이니 이름에 먼저 묶는다. 갈래가 지니는 값은 그 타입이어야 한다 --- `u8` 을 지니는 갈래에 300 을 주면 `E-TYPE-WIDTH` 다.
+- 타입 인자를 받는 op 에 이 타입을 줄 때는 인자 자리의 꼴로 적는다 --- `u8` 을 `u8.` 로 주듯 `get_or pick u8. . c. d. .` 이다.
+- 갈래 이름이 `some` · `none` · `ok` · `error` 여도 그 열거의 갈래다. `match` 의 `case some …` 은 가르는 값이 그 열거면 그 갈래를 고른다.
 
 === 갈래의 번호와 `cast`
 

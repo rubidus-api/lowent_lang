@@ -2310,7 +2310,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                 bool ok_ = sg_ ? (ops[0].v.lo > ity_lo(nb_, true)) : (ops[0].v.lo == 0 && ops[0].v.hi == 0);
                 if (ok_ && mark) {
                     in->a |= IR_POL_PROVEN; (*proven)++;
-                    cert_put(d, i, in->w, "R-NEG-FITS", 3, (proven_i64)ops[0].v.lo, (proven_i64)ops[0].v.hi, (proven_i64)nb_);
+                    cert_put(d, i, in->w, "R-NEG-FITS", 4, (proven_i64)ops[0].v.lo, (proven_i64)ops[0].v.hi, (proven_i64)nb_, (proven_i64)(sg_ ? 1 : 0));
                 }
                 if (ok_ && sg_) res.v = (iv_t){ -ops[0].v.hi, -ops[0].v.lo, 0 };
                 break;

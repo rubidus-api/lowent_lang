@@ -42,6 +42,7 @@ atomic_add	원자적으로 더한다
 atomic_and	원자적 비트 곱
 atomic_cas	기대한 값일 때만 바꾼다(compare-and-swap)
 atomic_fence	메모리 순서의 울타리
+atomic_signal_fence	번역기의 차례만 막는 울타리(기계 명령 없음)
 atomic_load	원자적으로 읽는다
 atomic_or	원자적 비트 합
 atomic_store	원자적으로 쓴다

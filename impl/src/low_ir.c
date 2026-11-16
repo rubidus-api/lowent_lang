@@ -4054,7 +4054,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                           proven_size_t mark) {
     if (mark >= c->code.len) return false;
     low_ir_ins_t *in = ir_at(c, mark);
-    if (in->w < IRW_ALOAD || in->w > IRW_AFENCE) return false;
+    if ((in->w < IRW_ALOAD || in->w > IRW_AFENCE) && in->w != IRW_SFENCE) return false;
     if (*pos + 1 >= end || !is_atom(k[*pos]) || !veq(k[*pos]->tok.lex, "order")) return false;
     if (!is_atom(k[*pos + 1])) return false;
     proven_u8str_view_t o = k[*pos + 1]->tok.lex;
@@ -4070,7 +4070,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
     bool ok = true;
     if (in->w == IRW_ALOAD)       ok = (ord == 0 || ord == 1 || ord == 4);
     else if (in->w == IRW_ASTORE) ok = (ord == 0 || ord == 2 || ord == 4);
-    else if (in->w == IRW_AFENCE) ok = (ord != 0);
+    else if (in->w == IRW_AFENCE || in->w == IRW_SFENCE) ok = (ord != 0);
     if (!ok) {
         ir_fail(c, "E-ATOMIC-ORDER", "this memory ordering is not valid for this atomic op "
                 "(a load cannot be `release`, a store cannot be `acquire`, a fence cannot be "
@@ -6098,7 +6098,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 // ★★★ **atomic ordering** (RFC-0018 §6.1) — 선택 절 `order <name>`(어휘 안 늘림).
                 //   하위 3비트에 인코딩(0=relaxed 1=acquire 2=release 3=acq_rel 4=seq_cst). 생략=seq_cst.
                 proven_i64 ameta = 0;
-                if (b->w >= IRW_ALOAD && b->w <= IRW_AFENCE) {
+                if ((b->w >= IRW_ALOAD && b->w <= IRW_AFENCE) || b->w == IRW_SFENCE) {
                     ameta = 4;   // 기본 seq_cst
                     if (*pos + 1 < end && is_atom(k[*pos]) && veq(k[*pos]->tok.lex, "order") && is_atom(k[*pos + 1])) {
                         proven_u8str_view_t o = k[*pos + 1]->tok.lex;
@@ -6113,7 +6113,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         bool ok = true;
                         if (b->w == IRW_ALOAD)  ok = (ord == 0 || ord == 1 || ord == 4);
                         else if (b->w == IRW_ASTORE) ok = (ord == 0 || ord == 2 || ord == 4);
-                        else if (b->w == IRW_AFENCE) ok = (ord != 0);
+                        else if (b->w == IRW_AFENCE || b->w == IRW_SFENCE) ok = (ord != 0);
                         if (!ok) {
                             ir_fail(c, "E-ATOMIC-ORDER", "this memory ordering is not valid for this atomic op (a load cannot release, a store cannot acquire, a fence cannot be relaxed — SPEC-018 §6.1)", nd->line);
                             return;
@@ -7543,7 +7543,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_AADD: return "atomic.add"; case IRW_ASUB: return "atomic.sub";
         case IRW_AAND: return "atomic.and"; case IRW_AOR: return "atomic.or";
         case IRW_AXOR: return "atomic.xor"; case IRW_ASWAP: return "atomic.swap";
-        case IRW_ACAS: return "atomic.cas"; case IRW_AFENCE: return "atomic.fence";
+        case IRW_ACAS: return "atomic.cas"; case IRW_AFENCE: return "atomic.fence"; case IRW_SFENCE: return "atomic.signal_fence";
         case IRW_PREFETCH: return "prefetch";
         case IRW_MMIOBLK: return "mmio.block"; case IRW_RESBLK: return "reserve.block";
         case IRW_ELSE_NONE: return "else.none"; case IRW_ELSE_ERR: return "else.err";

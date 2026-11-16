@@ -40,6 +40,8 @@
     X(atomic_and, IRW_AAND, 3)     X(atomic_or, IRW_AOR, 3)                        \
     X(atomic_xor, IRW_AXOR, 3)     X(atomic_swap, IRW_ASWAP, 3)                    \
     X(atomic_cas, IRW_ACAS, 4)     X(atomic_fence, IRW_AFENCE, 0)                  \
+    /* ★ W-20261116-1135 (RFC-0157 §8-4 · BTS LD-22) — 번역기의 차례만 막는 울타리: 기계 명령을 내지 않는다 */ \
+    X(atomic_signal_fence, IRW_SFENCE, 0)                                                \
     X(eq, IRW_EQ, 2)     X(ne, IRW_NE, 2)     X(lt, IRW_LT, 2)                 \
     X(le, IRW_LE, 2)     X(gt, IRW_GT, 2)     X(ge, IRW_GE, 2)                 \
     X(len, IRW_LEN, 1)   X(idx, IRW_INDEX, 2)    X(subslice, IRW_SUBSLICE, 3)  \

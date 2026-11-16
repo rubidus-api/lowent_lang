@@ -12,7 +12,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 234 개다 — 기본 연산 164 개와 빌트인 연산 70 개.]
+  #para("2")[모두 235 개다 — 기본 연산 165 개와 빌트인 연산 70 개.]
 
   == D.1 이름과 뜻
 
@@ -37,6 +37,7 @@
         [`atomic_fence`], [메모리 순서의 울타리],
         [`atomic_load`], [원자적으로 읽는다],
         [`atomic_or`], [원자적 비트 합],
+        [`atomic_signal_fence`], [번역기의 차례만 막는 울타리(기계 명령 없음)],
         [`atomic_store`], [원자적으로 쓴다],
         [`atomic_sub`], [원자적으로 뺀다],
         [`atomic_swap`], [원자적으로 바꿔 끼우고 옛 값을 낸다],
@@ -283,7 +284,7 @@
   ]
 
   #note[
-    실측: 기본 연산 164 개 가운데 지역 이름 선언이 막히는 것은 #strong[141 개];,
+    실측: 기본 연산 165 개 가운데 지역 이름 선언이 막히는 것은 #strong[142 개];,
     쓸 수 있는 것은 #strong[23 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `copy` · `count` · `drain` · `enumerate` · `filter` · `fold` · `into` · `is_none` · `map` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 #strong[이름 충돌 규칙을 틀리게 말하기];
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -293,61 +294,61 @@
 aes_round             aes_round_last        all                   alloc_bytes
 and                   any                   arg                   atomic_add
 atomic_and            atomic_cas            atomic_fence          atomic_load
-atomic_or             atomic_store          atomic_sub            atomic_swap
-atomic_xor            await                 bit_and               bit_cast
-bit_not               bit_or                bit_xor               bitset_complement
-bitset_contains       bitset_count          bitset_difference     bitset_insert
-bitset_intersect      bitset_is_empty       bitset_is_subset      bitset_new
-bitset_remove         bitset_union          borrow                byte_swap
-call_builtin          capacity              cast                  ceil
-chacha20              chacha_poly           channel               chk_add
-chk_mul               chk_sub               chrecv                chsend
-clmul_hi              clmul_lo              collect               config
-copy                  cos                   count                 count_ones
-crc32                 cstr_of               deref                 dir_close
-dir_make              dir_open              dir_read              div
-div_nz                drain                 elem_ge               elem_gt
-elem_le               elem_lt               encode                enumerate
-env_get               eq                    error                 error_value
-exp                   expect                field                 file_close
-file_open             file_read             file_seek             file_type
-file_write            filter                floor                 fmod
-fold                  ge                    ghash                 gt
-hash_bytes            idx                   include_text          into
-is_error              is_none               is_ok                 is_some
-isa                   lane_all              lane_any              lane_avg
-lane_reverse          lane_rotate           lane_select           le
-leading_zeros         len                   link_type             load
-load_masked           log                   lt                    map
-max                   min                   mod                   mul
-mul_hi                mut_ref               narrow                narrow_sat
-narrow_try            narrow_wrap           native_lanes          ne
-neg                   net_accept            net_close             net_connect
-net_listen            net_pair              net_port              net_recv
-net_resolve           net_send              nonzero_of            nonzero_or
-not                   ok                    ok_value              or
-panic                 path_remove           path_rename           payload
-pipe                  poly1305              pop                   pow
-prefetch              proc_kill             proc_poll             proc_read
-proc_spawn            proc_wait             push                  r_read
-r_write               random_bytes          range                 reactor_new
-read_in               read_volatile         reduce_add            reduce_max
-reduce_min            reduce_mul            ref                   region
-ret                   rng_next              rotl                  rotr
-round                 same_slice            sat_add               sat_mul
-sat_sub               scan                  send                  sha256
-sha384                sha512                shl                   shr
-shuffle               sin                   size_of               skip
-some                  some_value            spawn                 splat
-sqrt                  stack_count           stack_new             store
-store_masked          str_from_cstr         sub                   subslice
-sum_neumaier          sum_seq               swap                  take
-time_local            time_now              time_sleep            trailing_zeros
-try_view              tty_raw               tty_read              tty_size
-unsafe_fn             value_or              view                  view_array
-view_segments         widen                 wrap_add              wrap_mul
-wrap_shl              wrap_shr              wrap_sub              write_out
-write_volatile        zip")
+atomic_or             atomic_signal_fence   atomic_store          atomic_sub
+atomic_swap           atomic_xor            await                 bit_and
+bit_cast              bit_not               bit_or                bit_xor
+bitset_complement     bitset_contains       bitset_count          bitset_difference
+bitset_insert         bitset_intersect      bitset_is_empty       bitset_is_subset
+bitset_new            bitset_remove         bitset_union          borrow
+byte_swap             call_builtin          capacity              cast
+ceil                  chacha20              chacha_poly           channel
+chk_add               chk_mul               chk_sub               chrecv
+chsend                clmul_hi              clmul_lo              collect
+config                copy                  cos                   count
+count_ones            crc32                 cstr_of               deref
+dir_close             dir_make              dir_open              dir_read
+div                   div_nz                drain                 elem_ge
+elem_gt               elem_le               elem_lt               encode
+enumerate             env_get               eq                    error
+error_value           exp                   expect                field
+file_close            file_open             file_read             file_seek
+file_type             file_write            filter                floor
+fmod                  fold                  ge                    ghash
+gt                    hash_bytes            idx                   include_text
+into                  is_error              is_none               is_ok
+is_some               isa                   lane_all              lane_any
+lane_avg              lane_reverse          lane_rotate           lane_select
+le                    leading_zeros         len                   link_type
+load                  load_masked           log                   lt
+map                   max                   min                   mod
+mul                   mul_hi                mut_ref               narrow
+narrow_sat            narrow_try            narrow_wrap           native_lanes
+ne                    neg                   net_accept            net_close
+net_connect           net_listen            net_pair              net_port
+net_recv              net_resolve           net_send              nonzero_of
+nonzero_or            not                   ok                    ok_value
+or                    panic                 path_remove           path_rename
+payload               pipe                  poly1305              pop
+pow                   prefetch              proc_kill             proc_poll
+proc_read             proc_spawn            proc_wait             push
+r_read                r_write               random_bytes          range
+reactor_new           read_in               read_volatile         reduce_add
+reduce_max            reduce_min            reduce_mul            ref
+region                ret                   rng_next              rotl
+rotr                  round                 same_slice            sat_add
+sat_mul               sat_sub               scan                  send
+sha256                sha384                sha512                shl
+shr                   shuffle               sin                   size_of
+skip                  some                  some_value            spawn
+splat                 sqrt                  stack_count           stack_new
+store                 store_masked          str_from_cstr         sub
+subslice              sum_neumaier          sum_seq               swap
+take                  time_local            time_now              time_sleep
+trailing_zeros        try_view              tty_raw               tty_read
+tty_size              unsafe_fn             value_or              view
+view_array            view_segments         widen                 wrap_add
+wrap_mul              wrap_shl              wrap_shr              wrap_sub
+write_out             write_volatile        zip")
 
   == D.2 받는 것과 내는 것
 
@@ -358,7 +359,7 @@ write_volatile        zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 234 개 가운데 *102 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 235 개 가운데 *103 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -528,6 +529,7 @@ write_volatile        zip")
   #tbl("원자")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*꼴*], [*받는 것 · 내는 것 · 거절 · 멈춤*],
+        [`atomic_signal_fence [order o]` #cref("7.5")], [*받는 것:* — \ *내는 것:* — (값을 내지 않는다 · 문장으로 쓴다) \ *번역 때 거절:* `order relaxed` 이면 `E-ATOMIC-ORDER` \ *실행 때 멈춤:* —],
         [`atomic_load s i [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` \ *내는 것:* 원소의 타입 — 그 칸의 값 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
         [`atomic_add s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 합이 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],
         [`atomic_sub s i v [order o]` #cref("7.5")], [*받는 것:* `s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입 \ *내는 것:* 원소의 타입 — 바꾸기 전의 값. 칸에는 차가 남는다 \ *번역 때 거절:* 첨자가 `usize` 가 아니면 `E-TYPE-NOMINAL` · `E-IR-ARITY` \ *실행 때 멈춤:* 첨자가 길이 밖이면 `E-VM-BOUNDS`],

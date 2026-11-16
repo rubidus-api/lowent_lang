@@ -448,6 +448,8 @@ mul_hi	a i64	u64	return call_builtin mul_hi a. a. . .	3	CHECK E-TYPE-ARG
 clmul_lo		u8	return call_builtin clmul_lo 3 5 . .		CHECK E-TYPE-WIDTH
 rng_next		u64	return call_builtin rng_next 1 . .		= 10451216379200822465
 rng_next		u8	return call_builtin rng_next 1 . .		CHECK E-TYPE-WIDTH
+atomic_signal_fence	a u8	u8	atomic_signal_fence . ␤ return a. .	7	= 7
+atomic_signal_fence	a u8	u8	atomic_signal_fence order relaxed . ␤ return a. .	7	CHECK E-ATOMIC-ORDER
 atomic_load	s mut slice u64	u64	return atomic_load s. 0 . .	[5,0,0,0,0,0,0,0]	= 5
 atomic_load	s mut slice u64, i u64	u64	return atomic_load s. i. . .	[5,0,0,0,0,0,0,0] 0	CHECK E-TYPE-NOMINAL
 atomic_load	s mut slice u64	u64	return atomic_load s. 1 . .	[5,0,0,0,0,0,0,0]	TRAP E-VM-BOUNDS

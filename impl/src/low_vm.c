@@ -2023,7 +2023,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 sp -= 2;
                 stack[sp++] = vmv_int(0);
                 break;
-            case IRW_AFENCE:
+            case IRW_AFENCE: case IRW_SFENCE:
                 // 단일 스레드에서 fence 는 관찰적으로 무연산이다 — 그러나 **자리는 민다**:
                 // 이 IR 의 규약이 *"모든 op 은 무언가를 민다"* 이고 문장 자리의 DROP 이 그것을
                 // 전제한다. 안 밀었더니 네이티브가 한 칸 어긋났다(VM 21 · 네이티브 0).

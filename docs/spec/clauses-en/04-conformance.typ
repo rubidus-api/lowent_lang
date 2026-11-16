@@ -84,6 +84,11 @@ end .")
     #para("1b")[
       The processor may choose differently at the same place of the same program at each translation and each execution.
     ]
+    #para("1b-1")[
+      This processor's largest call depth (implementation-defined) is #strong[128]; — the number of op calls alive at once. Calling deeper stops
+      the run (the VM `E-VM-DEPTH` · native «call depth limit exceeded»). It does not go on into undefined behaviour from an overflowing
+      stack.
+    ]
     #para("1c")[
       #t("자유 선택", "free choice") #strong[is not something left unspecified.]; Whichever member of the range is chosen, it is behaviour this document specifies.
     ]

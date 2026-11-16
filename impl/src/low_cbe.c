@@ -1738,7 +1738,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
         case IRW_ALOAD: case IRW_ASTORE: case IRW_AADD: case IRW_ASUB:   // ★ atomic (RFC-0018)
         case IRW_AAND: case IRW_AOR: case IRW_AXOR: case IRW_ASWAP: case IRW_ACAS:
-        case IRW_AFENCE:
+        case IRW_AFENCE: case IRW_SFENCE:
         case IRW_BITCAST:                                   // ★ 무비용 값 재해석 (SPEC-004 §190 T0)
         case IRW_REF: case IRW_MREF: case IRW_DEREF:        // ★ 참조 = 프레임 지역의 이름
         case IRW_ENCODE:                                    // ★ 레코드 → 바이트 (프레임 버퍼)
@@ -2768,7 +2768,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     st.k[st.n-3] != K_INT || st.k[st.n-4] != K_SL) return false;
                 if (st.fl[st.n-4]) return false;
                 st.n -= 3; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
-            case IRW_AFENCE:
+            case IRW_AFENCE: case IRW_SFENCE:
                 // ★ 방출기와 **같은 규약**: fence 도 자리 하나를 민다. 시뮬레이터가 이걸
                 //   모르면 스택 모형이 어긋나 그 op 이 조용히 **태그 경로로 떨어진다**
                 //   (실측 `--why-slow` 1 / 10 — 답은 맞는데 느려진다. 그래서 안 보인다).
@@ -5243,7 +5243,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                              " st[sp++]=lw_at_cas((unsigned char*)s_.p,i_,{},x_,d_,{}); }}\n", PROVEN_ARG((int)(e)), PROVEN_ARG((int)(mo)));
                 ks.n -= 3; ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
             }
-            case IRW_AFENCE:
+            case IRW_AFENCE: case IRW_SFENCE:
                 // ★★★★★ **fence 도 자리 하나를 민다** (2026-08-07).
                 //   이 IR 의 규약은 *"모든 op 은 무언가를 민다"* 이고, 문장 자리에서는 호출자가
                 //   `IRW_DROP` 으로 그것을 버린다. `AFENCE` 만 **아무것도 안 밀었다** ⇒
@@ -5252,7 +5252,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 //   ☞ VM 은 `case IRW_DROP: if (sp) sp--;` 로 **가드가 있어 견뎠다** — 그
                 //     가드가 불균형을 **가리고 있었다.** 두 뒤끝이 같은 IR 을 다르게 견디면,
                 //     견디는 쪽이 결함을 숨긴다.
-                low_fpf(out, "    atomic_thread_fence(lw_mo({}));\n", PROVEN_ARG((int)((int)(in->a & 7))));
+                low_fpf(out, (in->w == IRW_SFENCE) ? "    atomic_signal_fence(lw_mo({}));\n" : "    atomic_thread_fence(lw_mo({}));\n", PROVEN_ARG((int)((int)(in->a & 7))));
                 low_puts(out, "    st[sp++] = 0;\n");
                 ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; break;
             case IRW_BITCAST: {
@@ -9115,9 +9115,9 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                     low_puts(out, "    { long long i_=st[--sp].i; lowv s_=st[--sp];\n"
                           "      if (s_.p && (unsigned long long)i_ < s_.n) __builtin_prefetch(s_.p + i_, 0, 1);\n"
                           "      st[sp++] = lw_int(0); }\n"); break;
-                case IRW_AFENCE:
+                case IRW_AFENCE: case IRW_SFENCE:
                     // ★ 규약대로 자리 하나를 민다(위 빠른 경로의 주석 참조).
-                    low_fpf(out, "    atomic_thread_fence(lw_mo({}));\n", PROVEN_ARG((int)((int)(in->a & 7))));
+                    low_fpf(out, (in->w == IRW_SFENCE) ? "    atomic_signal_fence(lw_mo({}));\n" : "    atomic_thread_fence(lw_mo({}));\n", PROVEN_ARG((int)((int)(in->a & 7))));
                     low_puts(out, "    st[sp++] = lw_int(0);\n"); break;
                 case IRW_WRAP_OK:  low_puts(out, "    st[sp-1] = lw_wrap_ok(st[sp-1]);\n"); break;
                 // ★ option 생성자 (RFC-0043 D5 — OOM 은 값이다)

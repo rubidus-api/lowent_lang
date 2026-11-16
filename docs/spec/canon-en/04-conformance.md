@@ -75,6 +75,10 @@ end .
 
 (1b) The processor may choose differently at the same place of the same program at each translation and each execution.
 
+(1b-1) This processor's largest call depth (implementation-defined) is **128** — the number of op calls alive at once. Calling deeper stops
+      the run (the VM `E-VM-DEPTH` · native «call depth limit exceeded»). It does not go on into undefined behaviour from an overflowing
+      stack.
+
 (1c) ⟦자유 선택|free choice⟧ **is not something left unspecified.** Whichever member of the range is chosen, it is behaviour this document specifies.
 
 (1d) A place of ⟦자유 선택|free choice⟧ is marked in the text with a «free choice» box. Annex F gathers all of them, and a place not in annex F

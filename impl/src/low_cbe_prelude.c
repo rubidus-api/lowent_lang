@@ -73,6 +73,18 @@ const char LW_PRELUDE[] =
 "#include <stdatomic.h>\n"
 // ★★★ **atomic ordering** (RFC-0018 §6.1) — 소스의 ordering 이 **memory_order 로** 나간다.
 //   0=relaxed 1=acquire 2=release 3=acq_rel 4=seq_cst. 생략은 앞단에서 seq_cst 로 정해진다.
+// ★★ W-20261116-1135 (RFC-0157 §8-4 · BTS 07 §3.3 · LD-21) — **허공 값 금지.** `relaxed` 읽기 뒤의 같은 흐름의 쓰기가 그 읽기보다 먼저 보이면
+//   (load buffering) 두 흐름이 서로의 «나중» 쓰기를 읽는 실행이 생긴다. 앞의 쓰기를 읽기 앞으로 당길 수 있는 하드웨어(Arm · RISC-V)에는
+//   울타리를 두고(`dmb ishld` · `fence r,w`), 그렇지 않은 곳(x86 TSO · 코어 하나의 순서대로 도는 칩 · wasm)에는 번역기만 막는다.
+"#if defined(__aarch64__)\n"
+"#define LW_LB_ORDER() __asm__ __volatile__(\"dmb ishld\" ::: \"memory\")\n"
+"#elif defined(__riscv)\n"
+"#define LW_LB_ORDER() __asm__ __volatile__(\"fence r,w\" ::: \"memory\")\n"
+"#elif defined(__arm__) && defined(__ARM_ARCH_PROFILE) && __ARM_ARCH_PROFILE == 'A'\n"
+"#define LW_LB_ORDER() __asm__ __volatile__(\"dmb ish\" ::: \"memory\")\n"
+"#else\n"
+"#define LW_LB_ORDER() atomic_signal_fence(memory_order_seq_cst)\n"
+"#endif\n"
 "static memory_order lw_mo(int o) {\n"
 "    return o==0?memory_order_relaxed:o==1?memory_order_acquire:o==2?memory_order_release\n"
 "         :o==3?memory_order_acq_rel:memory_order_seq_cst; }\n"
@@ -104,11 +116,13 @@ const char LW_PRELUDE[] =
 "static long long lw_at_rmw(unsigned char *base, long long i, int esz, int op, long long v, int mo) {\n"
 "    void *a = base + (size_t)i * (size_t)esz; memory_order m = lw_mo(mo);\n"
 "    switch (op) {  /* 0 load 1 store 2 add 3 sub 4 and 5 or 6 xor 7 swap */\n"
-"    case 0: switch (esz) {\n"
-"        case 1: return (long long)atomic_load_explicit((_Atomic unsigned char *)a, m);\n"
-"        case 2: return (long long)atomic_load_explicit((_Atomic unsigned short *)a, m);\n"
-"        case 4: return (long long)atomic_load_explicit((_Atomic uint32_t *)a, m);\n"
-"        default:return (long long)atomic_load_explicit((_Atomic unsigned long long *)a, m); }\n"
+"    case 0: { long long r_; switch (esz) {\n"
+"        case 1: r_ = (long long)atomic_load_explicit((_Atomic unsigned char *)a, m); break;\n"
+"        case 2: r_ = (long long)atomic_load_explicit((_Atomic unsigned short *)a, m); break;\n"
+"        case 4: r_ = (long long)atomic_load_explicit((_Atomic uint32_t *)a, m); break;\n"
+"        default:r_ = (long long)atomic_load_explicit((_Atomic unsigned long long *)a, m); break; }\n"
+"        if (mo == 0) LW_LB_ORDER();   /* canon §7.5 (4a): a relaxed read stays before the later writes of its flow */\n"
+"        return r_; }\n"
 "    case 1: switch (esz) {\n"
 "        case 1: atomic_store_explicit((_Atomic unsigned char *)a, (unsigned char)v, m); return 0;\n"
 "        case 2: atomic_store_explicit((_Atomic unsigned short *)a, (unsigned short)v, m); return 0;\n"

@@ -429,6 +429,7 @@ typedef enum {
     //   IR_XCHK_WR 쓰기와 읽기, `inplace` 없음(겹치면 멈춤) · IR_XCHK_IN 쓰기와 읽기, `inplace` 있음(같은 구간이거나 안 겹치면 지난다).
     //   빈 조각은 아무것과도 겹치지 않는다. 겹침은 **바이트 자리**로 가른다(원소 폭이 달라도 같은 저장소면 잡는다).
     IRW_XCHK,
+    IRW_SFENCE,     // ★ W-20261116-1135 (RFC-0157 §8-4 · BTS LD-22) — `signal_fence`: 번역기의 차례만 막는다 · 기계 명령 없음 · 자리 하나를 민다(AFENCE 와 같은 규약)
 } low_irw_t;
 #define IR_XCHK_WW 0
 #define IR_XCHK_WR 1

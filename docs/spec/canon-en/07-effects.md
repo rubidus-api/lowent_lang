@@ -399,6 +399,11 @@ end .
 (2) `atomic_fence` computes no value and fixes **only order** — it makes what came before it visible before what comes
       after.
 
+(2a) `atomic_signal_fence` stops only **the processor's (the translator's) reordering** — within the same flow it moves nothing before it to
+      after it and nothing after it to before it. It emits no machine instruction, so it sets no order toward other cores. It is for order
+      **within one core**, such as between an interrupt handler and the flow it interrupted (⟦§7.7⟧ (3a)). Its rules for orders and effects
+      are those of `atomic_fence`.
+
 (3) Atomic operations shall write their effect in the contract. Using them without writing it does not conform.
 
 (4) `order <name>` can be attached after an atomic operation to fix **what is visible to other flows, and when**.
@@ -417,6 +422,13 @@ end .
 (5) If no order is written, it is taken as `seq_cst`. The strongest is the default because it is the easiest
       to reason about — weakening it is something done **by someone who writes it knowing its value**.
 
+(5a) **No value comes out of thin air.** The union of each flow's order and "which write each read saw" has no cycle — no read of a flow
+      sees a **later** write of another flow, and no read sees a value nobody wrote. So the processor does not make a write of a flow visible
+      before an earlier `relaxed` read of the same flow. Where the machine can move a write ahead (Arm · RISC-V), this processor puts a fence
+      after that read (`dmb ishld` · `fence r,w`); on machines that cannot (x86 · an in-order single-core chip), it stops only the
+      translator's reordering. The other weaknesses of `relaxed` (a write not waiting for an earlier read · flows seeing writes in different
+      orders) remain.
+
 (6) The orders that can be used differ by operation. **Combinations without meaning are refused** (`E-ATOMIC-ORDER`).
 
 > [!표] The orders each operation can use
@@ -425,6 +437,7 @@ end .
 > [read (`atomic_load`)], [`relaxed` · `acquire` · `seq_cst` — a read cannot be `release`],
 > [write (`atomic_store`)], [`relaxed` · `release` · `seq_cst` — a write cannot be `acquire`],
 > [fence (`atomic_fence`)], [`acquire` · `release` · `acq_rel` · `seq_cst` — a fence with no order at all is not a fence, so `relaxed` cannot be used],
+> [translator fence (`atomic_signal_fence`)], [the same as `atomic_fence`],
 > )
 
 > [!산문]
@@ -522,6 +535,10 @@ end .
 
 (3) Shared state passes between interrupt handlers and ordinary code by **a discipline of priorities and queues**.
       That discipline is not fixed by this document; it is the work of libraries (⟦§9.5⟧).
+
+(3a) The order between a handler and the flow it interrupted is set with atomic operations (⟦§7.5⟧). Within one core,
+      `atomic_signal_fence` is enough. A handler cannot allocate — allocation needs a `cap allocator` as an input (⟦§8.13⟧), and a handler has
+      no inputs (`E-ISR-PARAMS`).
 
 ## 7.2.1 Where capabilities mismatch
 

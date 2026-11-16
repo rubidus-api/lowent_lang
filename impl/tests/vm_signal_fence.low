@@ -1,0 +1,11 @@
+module vm_signal_fence .
+rem ★ W-20261116-1135 (RFC-0157 §8-4 · 정본 §7.5 (2a)(5a)) — 번역기 울타리와 relaxed 읽기 뒤의 쓰기 차례. 두 뒤끝 모두 f(41) = 42.
+export proc f input k cap atomic . input x u64 . output u64 . effects atomic . do
+  var buf lit array 2 u64 0 0 . .
+  atomic_store buf. 0 x. order relaxed .
+  atomic_signal_fence order seq_cst .
+  let a u64 atomic_load buf. 0 order relaxed . .
+  atomic_store buf. 1 add a. 1 . order relaxed .
+  atomic_fence .
+  return atomic_load buf. 1 . .
+end .

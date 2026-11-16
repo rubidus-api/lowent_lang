@@ -164,6 +164,10 @@ writes 15, and `order acquire` reads it back, so 15 is returned. A pairing that 
 What would a read release? C leaves such combinations undefined. A write cannot be `acquire`, and a fence (`atomic_fence`), which only sets order, cannot be
 `relaxed`.
 
+`atomic_signal_fence` is a fence that stops only the translator's reordering. It emits no machine instruction, so it promises nothing to
+other cores --- it is for order within one core, such as between an interrupt handler and the flow it interrupted. A write after a
+`relaxed` read is not seen before that read (no value comes out of thin air); on Arm and RISC-V the processor puts a fence after the read.
+
 == Lanes --- computing several values at once
 
 #idx("lanes")

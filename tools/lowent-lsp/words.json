@@ -149,6 +149,13 @@
    "takes": "`s` — `mut slice` 정수 · `i` — `usize` · `v` — 원소의 타입",
    "gives": "원소의 타입 — 바꾸기 전의 값. 칸에는 비트 합이 남는다"
   },
+  "atomic_signal_fence": {
+   "meaning": "번역기의 차례만 막는 울타리(기계 명령 없음)",
+   "group": "원자",
+   "form": "atomic_signal_fence [order o]",
+   "takes": "—",
+   "gives": "— (값을 내지 않는다 · 문장으로 쓴다)"
+  },
   "atomic_store": {
    "meaning": "원자적으로 쓴다"
   },

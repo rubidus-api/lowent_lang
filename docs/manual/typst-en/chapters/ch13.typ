@@ -166,7 +166,8 @@ at translation (#chref("hardware")). Pinning the layout takes choices away from 
 
 `encode wire_header h. .` produces seven bytes in the byte order written on each field (`big`). The result 7009 puts the length 7 and the 9 of
 the last byte, `kind`, side by side. The side that builds a header going onto the wire uses `encode`; the side that reads a received header
-uses `view`.
+uses `view`. `encode_canonical` writes *canonical bytes* instead of the layout --- fields with no gap, little-endian, −0 as +0, one NaN.
+The same value gives the same bytes on every machine, so it is for values you hash or sign.
 
 ```text
  bytes 00 00 00 01 00 02 09 ── view · try_view ──▶ a wire_header value

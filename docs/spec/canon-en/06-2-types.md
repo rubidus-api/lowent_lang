@@ -1430,6 +1430,12 @@ end .
 (4) The opposite of a view is `encode`. `encode <shape> <value>` **writes** the value **into bytes** in the layout the shape specifies.
       If laying over and reading is `view`, writing down is `encode`.
 
+(4a) `encode_canonical <shape> <value>` writes the value's **canonical bytes** — the same value gives the same bytes on every processor and every
+      machine. Fields are joined in declared order **with no gap** (inner structs too), numbers are written little-endian, a floating-point −0 is
+      written as +0 and every NaN as one pattern (`f32` `7fc00000` · `f64` `7ff8000000000000`). A `bool` is 0 · 1, an enum with a width its variant
+      number. `encode` writes the layout (gaps · each field's endianness · bits as they are) and this writes the canonical form — the two may give
+      different bytes. It takes the same shapes as `encode` (8).
+
 (5) **A view laid over a struct is a window.** `view <struct> <bytes>` gives a **window** that lays the layout of that struct over a byte slice.
       Reading a field of the window reads the bytes at that place, and writing a field writes the bytes at that place — it is not a copy. The type of a window is
       `view T` (a read window) or `mut view T` (a write window), different from the type `T` of a struct value. `try_view` does the same but gives

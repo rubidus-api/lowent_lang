@@ -465,6 +465,7 @@ void ir_tset_top(ir_ctx_t *c, proven_u8str_view_t cname);                       
 proven_u8str_view_t ir_strip_mod(ir_ctx_t *c, proven_u8str_view_t v);          /* 1회 */
 proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line);                    /* RFC-0150 §6.0.6 */
 proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si);
+proven_i32 ir_canon_shadow(low_ir_t *ir, proven_size_t si, int depth);
 proven_u8str_view_t ir_type_mod(ir_ctx_t *c, const low_cst_t *a);                /* RFC-0152 — 타입 낱말의 모듈 */
 proven_size_t ir_def_find_mod(ir_ctx_t *c, proven_u8str_view_t name, proven_u8str_view_t mod, bool *found);
 void ir_struct_layout(const low_ir_t *ir, low_ir_struct_t *s);                 /* 1회 */

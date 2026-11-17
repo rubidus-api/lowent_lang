@@ -9,13 +9,13 @@
 06-10-modules.md	a709bc7571844a59dda2
 06-11-traits.md	49f41c9d8c5ba3442ee8
 06-12-pipe.md	a455bc68c52a206eeda0
-06-2-types.md	d4cadeb607ace7c2fb0e
-06-3-expressions.md	a12578d1e792ddeacf94
+06-2-types.md	82eccdc1af23acafc1b4
+06-3-expressions.md	bd6b1d9b86f7d4851051
 06-4-contracts.md	3fbafa73cf8e94784c99
 06-5-statements.md	5a09ef79ae1e2a15fa92
 06-6-more.md	7ca274d8792ac4c0e8e1
 07-effects.md	57054d8a088ef4b29586
-08-memory.md	eddfa41f0c2ec560c415
+08-memory.md	11c971df40c1fd9d23c2
 09-library.md	053ecd692d728ea30bab
 10-concurrency.md	e58617dc0274ae9471a8
 annex-a-grammar.md	f9a9faa652f4700cf150

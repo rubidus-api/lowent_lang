@@ -78,7 +78,7 @@ rem   전엔 `effects state` 만 적어서, 뿌리를 딛는 얼로케이터가 
 rem ★ 빈 벡터를 연다. `cap0` 는 **원소 개수**다(바이트가 아니다 — 세는 단위를 섞지 않는다).
 rem   들 수 없이 큰 개수는 **none** 이다 — 얼로케이터에 묻기도 전에 곱셈에서 죽지 않는다.
 export proc open input comptime t type . input comptime a type . use al a . input cap0 usize . output option (vec t a) . effects state via a . requires allocs.byte_allocator a. . . do
-  let want0 option usize chk_mul cap0. size_of t . . .
+  let want0 option usize allocs.array_bytes cap0. size_of t . . .
   guard is_some want0. . else return none . .
   let b option mut slice u8 send al. reserve some_value want0. . . .
   guard is_some b. . else return none . .
@@ -170,7 +170,7 @@ export proc reserve_more input comptime t type . input comptime a type . input g
   let need usize some_value need0. . .
   let room usize div len field g. store . . size_of t . . .
   if le need. room. . do return true . end .
-  let nbytes0 option usize chk_mul need. size_of t . . .
+  let nbytes0 option usize allocs.array_bytes need. size_of t . . .
   guard is_some nbytes0. . else return false . .
   let nbytes usize some_value nbytes0. . .
   rem ★ 여기도 먼저 제자리에서 — `reserve_more` 는 성장 사슬을 없애려고 부르는 것이니

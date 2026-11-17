@@ -847,6 +847,10 @@ end .
 (2) Capability fields (`root cap heap .` · `root cap allocator .`) can be put in an actor's state. Calling
       `alloc_bytes` with that field carves from that capability's root. A capability is not a run-time value, so that field has no size.
 
+(2c) **One request can ask for at most the largest `idiff` bytes.** For a larger request `alloc_bytes` gives `none`. The byte count of `n`
+      elements is counted with `allocs.array_bytes n <element size>` — `none` if the product overflows or exceeds the largest `idiff`. The two
+      places use the same cap, so when the count is `some`, the request is not refused for its size.
+
 (3) An actor with capability fields can be spawned only in **an op where a capability of the same kind is visible** — one that received that capability as an input, or an op of an actor that itself has a field of the same
       kind (`E-CAP-FORGE`). This is so that a way of reaching a root in one line cannot be made up in a place without
       the capability.

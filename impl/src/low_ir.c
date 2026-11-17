@@ -2928,6 +2928,33 @@ proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si) {
     ir->structs[si].ashadow1 = (proven_u16)(ni + 1);
     return (proven_i32)ni;
 }
+// ★★ W-20261116-1800 D1 — 구조체 si 의 정규 배치 그림자(안에 든 구조체 칸도 제 정규 그림자를 가리킨다). 없으면 -1.
+proven_i32 ir_canon_shadow(low_ir_t *ir, proven_size_t si, int depth) {
+    if (depth > 16 || si >= ir->nstructs) return -1;
+    low_ir_struct_t *s = &ir->structs[si];
+    if (s->canon) return (proven_i32)si;
+    if (s->cshadow1) return (proven_i32)s->cshadow1 - 1;
+    if (!s->viewable || !s->nf || s->is_mmio || s->is_reserve || s->is_actor_state) return -1;
+    proven_i32 inner[IR_MAKE_MAXF];
+    for (proven_size_t q = 0; q < s->nf; q++) {
+        inner[q] = -1;
+        if (s->f[q].sidx >= 0 && !s->f[q].arrn) { inner[q] = ir_canon_shadow(ir, (proven_size_t)s->f[q].sidx, depth + 1); if (inner[q] < 0) return -1; }
+    }
+    if (ir->nstructs >= 32) return -1;            // ★ 구조체 표는 32 칸이다
+    s = &ir->structs[si];
+    proven_size_t ni = ir->nstructs++;
+    ir->structs[ni] = *s;
+    low_ir_struct_t *g = &ir->structs[ni];
+    g->canon = true; g->cshadow1 = 0; g->ashadow1 = 0; g->packed = true; g->align = 0; g->is_shadow = true;
+    for (proven_size_t q = 0; q < g->nf; q++) {
+        g->f[q].be = false;
+        if (inner[q] >= 0) { g->f[q].sidx = (proven_i16)inner[q]; g->f[q].size = (proven_u8)ir->structs[inner[q]].total; }
+    }
+    ir_struct_layout(ir, g);
+    if (!g->viewable) { ir->nstructs--; return -1; }
+    ir->structs[si].cshadow1 = (proven_u16)(ni + 1);
+    return (proven_i32)ni;
+}
 static void ir_lit_struct_into(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
     const low_cst_t *form = arg;
     while (form && form->kind == LOW_CST_GROUP && form->nkids == 1) form = form->kids[0];
@@ -4941,22 +4968,49 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   비용을 **물을 수 있어야** 한다. native_lanes 와 같은 기계(상수로 접힌다) ⇒ 오라클 안전.
             if (veq(nd->tok.lex, "size_of")) {
                 if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", "size_of needs a type word: `size_of <t>`", nd->line); return; }
-                proven_u8 sz = ir_field_size(k[*pos]->tok.lex);
+                proven_i64 sz = ir_field_size(k[*pos]->tok.lex);
                 if (!sz) {   // ★ 구조체도 답한다 — 레이아웃이 있으면 크기가 있다.
+                    //   ★ W-20261117 (W-20261116-1800 D3) — 255 바이트 위의 구조체도 답한다(배치는 16 비트까지 센다).
                     bool sf; proven_size_t si = ir_struct_find(c->out, k[*pos]->tok.lex, &sf);
-                    if (sf && c->out->structs[si].viewable && c->out->structs[si].total &&
-                        c->out->structs[si].total <= 255)
-                        sz = (proven_u8)c->out->structs[si].total;
+                    if (sf && c->out->structs[si].viewable && c->out->structs[si].total)
+                        sz = c->out->structs[si].total;
                     // ★ RFC-0135 D13 — 펼치기가 지은 `(size_of T)`(할당기에 받을 바이트 수)만 그림자 배치의 크기를 묻는다.
                     //   사람이 적은 `size_of` 는 여전히 바이트 배치가 있는 타입에만 답한다.
                     if (!sz && sf && nd->synth) {
                         proven_i32 gi = ir_alloc_shadow(c->out, si);
-                        if (gi >= 0 && c->out->structs[gi].total <= 255) sz = (proven_u8)c->out->structs[gi].total;
+                        if (gi >= 0) sz = c->out->structs[gi].total;
                     }
                 }
                 if (!sz) { ir_fail(c, "E-IR-UNDEF", "size_of needs a SIZED type (a scalar, or a VIEWABLE struct the unit declares) — it does not answer for slices or views, whose size is not a property of the type", nd->line); return; }
                 (*pos)++;
                 ir_emit(c, IRW_CONST, (proven_i64)sz);
+                return;
+            }
+            // ★★ W-20261116-1800 D3 (소유자 «align_of 비슷한것들 … 있어야 하는 기능») — `align_of <t>` · `offset_of <구조체> <칸>` → **comptime 정수**.
+            //   `size_of` 와 같은 자리(바이트 배치가 있는 타입)에만 답한다. 정렬은 배치가 쓴 실효 정렬(`align n` · `layout packed` 를 따른 것),
+            //   칸의 자리는 배치가 놓은 바이트 오프셋이다(정본 §6.3.8 (1a)(1b)).
+            if (veq(nd->tok.lex, "align_of") || veq(nd->tok.lex, "offset_of")) {
+                bool off_q = veq(nd->tok.lex, "offset_of");
+                if (*pos >= end || !is_atom(k[*pos])) { ir_fail(c, "E-IR-UNSUP", off_q ? "offset_of needs a struct and a field: `offset_of <struct> <field>`" : "align_of needs a type word: `align_of <t>`", nd->line); return; }
+                proven_u8str_view_t tw = k[*pos]->tok.lex;
+                proven_i64 v = 0;
+                bool sf; proven_size_t si = ir_struct_find(c->out, tw, &sf);
+                const low_ir_struct_t *st = (sf && c->out->structs[si].viewable && c->out->structs[si].total) ? &c->out->structs[si] : NULL;
+                if (off_q) {
+                    if (!st) { ir_fail(c, "E-IR-UNDEF", "offset_of needs a struct with a byte layout (a VIEWABLE struct the unit declares)", nd->line); return; }
+                    if (*pos + 1 >= end || !is_atom(k[*pos + 1])) { ir_fail(c, "E-IR-UNSUP", "offset_of needs a field name: `offset_of <struct> <field>`", nd->line); return; }
+                    proven_u8str_view_t fw = k[*pos + 1]->tok.lex; bool ff = false;
+                    for (proven_size_t q = 0; q < st->nf && !ff; q++) if (proven_u8str_view_eq(st->f[q].name, fw)) { v = st->f[q].off; ff = true; }
+                    if (!ff) { ir_fail(c, "E-TYPE-FIELD", "offset_of: this struct has no field of that name", nd->line); return; }
+                    *pos += 2;
+                } else {
+                    v = ir_field_size(tw);
+                    if (veq(tw, "bool")) v = 1;
+                    if (!v && st) v = st->align ? st->align : 1;
+                    if (!v) { ir_fail(c, "E-IR-UNDEF", "align_of needs a SIZED type (a scalar, or a VIEWABLE struct the unit declares) — it does not answer for slices or views", nd->line); return; }
+                    (*pos)++;
+                }
+                ir_emit(c, IRW_CONST, v);
                 return;
             }
             // ★★★★★ **`segments` 짓기 — 기존 op 으로 탈설탕된다** (RFC-0104 §8-8 · 나머지 둘은 RFC-0150 Q3 에서 라이브러리로).
@@ -5129,7 +5183,7 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_BITCAST, meta);
                 return;
             }
-            if (veq(nd->tok.lex, "view") || veq(nd->tok.lex, "try_view") || veq(nd->tok.lex, "encode")) {
+            if (veq(nd->tok.lex, "view") || veq(nd->tok.lex, "try_view") || veq(nd->tok.lex, "encode") || veq(nd->tok.lex, "encode_canonical")) {
                 // `view T b` / `try_view T b` / `encode T v` — T = declared sized struct
                 low_irw_t w = veq(nd->tok.lex, "view") ? IRW_VIEW
                             : veq(nd->tok.lex, "try_view") ? IRW_TRYVIEW : IRW_ENCODE;
@@ -5230,7 +5284,13 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     return;
                 }
                 ir_value(c, k, pos, end);   // the byte slice (view) / the value (encode)
-                ir_emit(c, w, (proven_i64)si);
+                proven_size_t esi = si;   // ★ W-20261116-1800 D1 — `encode_canonical` 은 정규 배치 그림자로 적는다
+                if (veq(nd->tok.lex, "encode_canonical")) {
+                    proven_i32 g = ir_canon_shadow(c->out, si, 0);
+                    if (g < 0) { ir_fail(c, "E-IR-UNDEF", "encode_canonical needs a struct with a byte layout (its fields: numbers, bool, enums with a width, fixed arrays and such structs)", nd->line); return; }
+                    esi = (proven_size_t)g;
+                }
+                ir_emit(c, w, (proven_i64)esi);
                 return;
             }
             if (veq(nd->tok.lex, "stack_new")) {

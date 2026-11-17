@@ -418,6 +418,12 @@ min	a u8, b u16	u8	return min a. b. . .	3 300	CHECK E-TYPE-WIDTH
 bit_and	a usize, b usize	usize	return bit_and a. b. . .	6 3	= 2
 shl	a usize, b u8	usize	return shl a. b. . .	1 4	= 16
 size_of		u64	return size_of u32 . .		CHECK E-TYPE-NOMINAL
+encode_canonical	a u8	u8	let b slice u8 encode_canonical nosuch a. . . ␤ return a. .	1	CHECK E-IR-UNDEF
+align_of		usize	return align_of u64 . .		= 8
+align_of		usize	return align_of u16 . .		= 2
+align_of		usize	return align_of bool . .		= 1
+align_of		usize	return align_of nosuch . .		CHECK E-IR-UNDEF
+offset_of		usize	return offset_of nosuch f . .		CHECK E-IR-UNDEF
 include_text		usize	return len include_text "x.txt" . . .		CHECK E-INCLUDE-PLACE
 cast	a i64	u64	return cast u64 a. . .	-1	TRAP E-VM-CAST
 cast	a i64	u64	return cast u64 a. . .	7	= 7

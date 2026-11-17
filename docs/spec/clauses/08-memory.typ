@@ -868,6 +868,11 @@ end .", "E-IMMUTABLE")
       actor 의 상태에 권한 칸(`root cap heap .` · `root cap allocator .`)을 둘 수 있다. 그 칸으로
       `alloc_bytes` 를 부르면 그 권한의 뿌리에서 깎는다. 권한은 실행 중 값이 아니므로 그 칸은 크기가 없다.
     ]
+    #para("2c")[
+      #strong[한 번에 청할 수 있는 바이트 수는 가장 큰 `idiff` 까지다.]; 그보다 큰 요청에 `alloc_bytes` 는 `none` 을 준다. 원소 `n` 개의
+      바이트 수는 `allocs.array_bytes n <원소 크기>` 로 센다 — 곱이 넘치거나 가장 큰 `idiff` 를 넘으면 `none` 이다. 두 자리가 같은
+      상한을 쓰므로, 센 수가 `some` 이면 그 요청은 크기 때문에 거절되지 아니한다.
+    ]
     #para("3")[
       권한 칸을 가진 actor 는 #strong[같은 종류의 권한이 보이는 op]; — 그 권한을 입력으로 받았거나, 스스로 같은
       종류의 칸을 가진 actor 의 op — 에서만 띄울 수 있다(`E-CAP-FORGE`). 권한 없는 곳에서 한 줄로 뿌리에

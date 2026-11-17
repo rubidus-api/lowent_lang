@@ -1,8 +1,10 @@
 {
+  "align_of": "W",
   "bit_cast": "WV",
   "cast": "WV",
   "config": "W",
   "encode": "WV",
+  "encode_canonical": "WV",
   "error": "W",
   "isa": "VW",
   "lane_rotate": "VW",
@@ -12,6 +14,7 @@
   "narrow_try": "WV",
   "narrow_wrap": "WV",
   "native_lanes": "W",
+  "offset_of": "WW",
   "read_volatile": "VW",
   "ref": "W",
   "shuffle": "VR",

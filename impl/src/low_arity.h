@@ -188,9 +188,11 @@
        `size_of t` 를 못 물으면 제네릭 코드는 최대 폭(8)으로 잡아 u8 벡터가 8배를 쓴다.
        native_lanes 와 **같은 기계**다(타입 낱말 하나 → 정수 상수). */\
     X(size_of, "W")                                                            \
+    X(align_of, "W")  X(offset_of, "WW")   /* ★ W-20261116-1800 D3 — 정렬 · 칸의 자리(comptime) */ \
     X(lane_avg, "VV")        /* D5 target intrinsic: 라운딩 평균 (pavgb/vrhadd) */   \
     /* 뷰·퍼닝 — 첫 슬롯은 **타입 낱말** */                                    \
     X(view, "WV")  X(try_view, "WV")  X(encode, "WV")                          \
+    X(encode_canonical, "WV")   /* ★ W-20261116-1800 D1 — 정규 바이트(틈 없음 · LE · −0 → +0 · NaN 한 꼴) */ \
     X(view_array, "WV")  X(bit_cast, "WV")                                     \
     /* ★ 조각 뷰 (RFC-0104 §8-8) — 백업 슬라이스 + (at,n) 서술자 슬라이스.        */\
     /* ☞ 조각 수와 i 번째 조각(옛 `segs` · `seg`)은 라이브러리 `segview` 의 `piece_count` · `piece` 다(RFC-0150 Q3). */\

@@ -39,6 +39,16 @@ rem ★ `reserve` 는 **option 을 돌려준다** — OOM 은 값이다(RFC-0043
 rem   임베디드는 이것을 **반드시 처리**한다: `guard is_some …` 없이는 바이트에 닿을 수 없다.
 rem ★ 그리고 돌려주는 것은 **오프셋이 아니라 뷰**다. vm_alloc.low 의 첫 얼로케이터는 오프셋을
 rem   줬는데, 그때는 **진짜 바이트를 가진 자가 아무도 없었기 때문**이다. 이제 있다.
+rem ★★ W-20261116-1800 D2 (소유자 «idiff 크기로 상한을 둡니다») — **원소 n 개의 바이트 수**. 곱이 넘치거나 가장 큰 `idiff` 를 넘으면
+rem   none 이다(정본 §8.13 (2c)). 얼로케이터의 뿌리(`alloc_bytes`)도 그보다 큰 요청에는 none 을 준다 — 두 자리가 같은 상한을 쓴다.
+export fn array_bytes input count usize . input elem usize . output option usize . do
+  let p option usize chk_mul count. elem. . .
+  guard is_some p. . else return none . .
+  let n usize some_value p. . .
+  guard is_some narrow_try idiff n. . . else return none . .   rem 기계마다 가장 큰 idiff 까지(32 비트 기계면 2^31 − 1)
+  return some n. . .
+end .
+
 export trait byte_allocator do
   reserve input s self . input n usize . output option mut slice u8 . effects state via self .
   rem ★★★★★ **제자리 성장** (2026-08-18) — 되돌리지 않는 범프의 유일한 되돌림.

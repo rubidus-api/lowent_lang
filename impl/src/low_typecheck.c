@@ -1312,7 +1312,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 { ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut; }   // RFC-0149 — `usize`
             }
             // RFC-0149 L4 — 크기 · 정렬 · 조각 수 · 레인 수도 `usize` 다(전에는 타입이 «모름» 이어서 어느 선언에나 들어갔다).
-            if (!sig_find(c, h2) && (veq(h2, "size_of") || veq(h2, "align_of") || veq(h2, "native_lanes"))) {
+            if (!sig_find(c, h2) && (veq(h2, "size_of") || veq(h2, "align_of") || veq(h2, "offset_of") || veq(h2, "native_lanes"))) {
                 ty_t ut = tk_int(low_ir_target()->addr_bits, false); ut.nominal = 1; return ut;
             }
             // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
@@ -1530,7 +1530,7 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             // `isa <값> <갈래>` — 참거짓 · `encode <짜임> <값>` — 바이트(`slice u8`) · `try_view T b` — `option` · `seg ss i` — 조각(원소는 조각 뷰의 것)
             if (!sig_find(c, h2) && n == 3 && veq(h2, "isa")) { (void)tc_infer(c, k[start + 1], env, nenv); return tk(TK_BOOL); }
-            if (!sig_find(c, h2) && n == 3 && veq(h2, "encode")) { (void)tc_infer(c, k[start + 2], env, nenv); return tc_slice_of_elem(tk_int(8, false)); }
+            if (!sig_find(c, h2) && n == 3 && (veq(h2, "encode") || veq(h2, "encode_canonical"))) { (void)tc_infer(c, k[start + 2], env, nenv); return tc_slice_of_elem(tk_int(8, false)); }
             if (!sig_find(c, h2) && n == 3 && veq(h2, "try_view")) {
                 (void)tc_infer(c, k[start + 2], env, nenv);
                 ty_t w = tk(TK_WRAPPED); w.wrap = 1;

@@ -1,0 +1,4 @@
+module vm_array_bytes .
+rem ★ W-20261116-1800 D2 (정본 §8.13 (2c)) — 원소 n 개의 바이트 수 · 가장 큰 idiff 를 넘으면 none.
+use allocs .
+export fn f input n usize . input e usize . output option usize . do return allocs.array_bytes n. e. . . end .

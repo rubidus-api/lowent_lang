@@ -121,7 +121,9 @@ Some expressions have values before the program runs.
 #demo("examples/ch08/compt.low")
 
 `size_of u32 .` gives the number of bytes of one value of that type at translation time. It lets code that takes a type as a parameter
-compute its costs honestly instead of assuming the widest type (#chref("generics")).
+compute its costs honestly instead of assuming the widest type (#chref("generics")). `align_of u32 .` gives the alignment, and
+`offset_of hdr kind .` the byte position where field `kind` starts in struct `hdr` --- the same numbers the layout of `encode` · `view` uses.
+The byte count of n elements is `allocs.array_bytes n. size_of t . .`; above the largest `idiff` it is `none`.
 
 `comptime add 2 3 .` marks an expression to be computed at translation time. When the value a `match` splits on is a translation-time
 constant, the `match` folds to the one matching arm and the run-time comparisons disappear. The folded-away arms are still type-checked,

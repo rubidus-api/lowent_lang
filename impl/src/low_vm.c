@@ -1207,6 +1207,10 @@ static bool vm_encode_into(vm_ctx_t *vm, vmv_t v, const low_ir_struct_t *s, prov
             vm_diag(vm->diags, "E-VM-TYPE", "encode needs a record/view");
             return false;
         }
+        if (s->canon && s->f[i].flt) {   // ★ W-20261116-1800 D1 — 정규 부동: −0 → +0 · NaN → 한 꼴
+            if (s->f[i].size == 4) { if ((x & 0x7f800000u) == 0x7f800000u && (x & 0x7fffffu)) x = 0x7fc00000u; else if (x == 0x80000000u) x = 0; }
+            else { if ((x & 0x7ff0000000000000ull) == 0x7ff0000000000000ull && (x & 0xfffffffffffffull)) x = 0x7ff8000000000000ull; else if (x == 0x8000000000000000ull) x = 0; }
+        }
         proven_u8 *p = outb + s->f[i].off;
         if (s->f[i].be) for (proven_u8 kk = s->f[i].size; kk-- > 0; ) { p[kk] = (proven_u8)x; x >>= 8; }
         else            for (proven_u8 kk = 0; kk < s->f[i].size; kk++) { p[kk] = (proven_u8)x; x >>= 8; }

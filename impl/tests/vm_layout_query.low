@@ -1,0 +1,29 @@
+module vm_layout_query .
+rem ★ W-20261116-1800 D3 (정본 §6.3.8 (1a)(1b)) — 배치 질의 셋. f(0) = 161604851(정렬 4 · 칸 c 의 자리 8 · packed 의 자리 5 · 정렬 1 · align 16 의 정렬 16 · 크기 16), g(0) = 9.
+struct s3 do
+  a u8 .
+  b u32 .
+  c u8 .
+end .
+struct pk do
+  layout packed .
+  a u8 .
+  b u32 .
+  c u16 .
+end .
+struct a16 do
+  align 16 .
+  a u32 .
+end .
+export fn f input x u8 . output u64 . do
+  let a u64 mul 1000 cast u64 align_of s3 . . . .
+  let b u64 mul 100 cast u64 offset_of s3 c . . . .
+  let c u64 mul 10 cast u64 offset_of pk c . . . .
+  let d u64 cast u64 align_of pk . . .
+  let e u64 mul 100000 cast u64 align_of a16 . . . .
+  let h u64 mul 10000000 cast u64 size_of a16 . . . .
+  return add add add a. b. . add c. d. . . add e. h. . . .
+end .
+export fn g input x u8 . output usize . do
+  return add align_of u64 . align_of bool . . .
+end .

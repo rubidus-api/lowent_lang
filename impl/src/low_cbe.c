@@ -2620,6 +2620,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   — 태그 경로는 그것을 **8칸짜리 버퍼 풀**에서 꺼냈다(다섯 번째 유한 풀).
                 if (st.n < 1) return false;
                 int sx = (int)(in->a & 0xffff);
+                if (ir->structs[sx].canon) return false;   // ★ W-20261116-1800 D1 — 정규 배치는 레코드 바이트의 복사가 아니다(태그 길)
                 if ((!cbe_rec_ok_f(ir, sx, true) && !cbe_rec_arr_ok(ir, sx)) || !ir->structs[sx].viewable) return false;   // ★ 배열 칸은 레코드 바이트 안에 있다(2026-11-01)
                 if (ir->structs[sx].total > 64) return false;
                 if (st.k[st.n-1] != (unsigned char)(K_REC + sx)) return false;
@@ -7679,6 +7680,10 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
     low_fpf(out, "static const int lw_st_total[] = {{");
     for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((unsigned)((unsigned)ir->structs[s].total)));
     low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
+    // ★ W-20261116-1800 D1 — 정규 배치(`encode_canonical`)인가
+    low_fpf(out, "static const int lw_st_canon[] = {{");
+    for (proven_size_t s = 0; s < ir->nstructs; s++) low_fpf(out, "{}{}", proven_arg_cstr(s ? ", " : " "), PROVEN_ARG((int)(ir->structs[s].canon ? 1 : 0)));
+    low_puts(out, ir->nstructs ? " };\n" : " 0 };\n");
     // ★ 2026-11-03 (W-20261103-1143) — 빠른 레코드의 «마디를 가리키는 칸»(주소 · 0 = none)을 태그 값 option(마디의 뷰)으로 — lw_field 의 마디 칸과 같은 모양
     low_puts(out, "static inline lowv lw_nopt_out(const unsigned char *at, int sh) { const unsigned char *pp_; memcpy(&pp_, at, sizeof pp_);\n"
           "    if (!pp_) { lowv n_ = {0}; n_.tag = LWV_NONE; return n_; }\n"
@@ -8115,6 +8120,9 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
           "        } else lw_panic(\"encode needs a record/view\");\n"
           "        if (!found) lw_panic(\"encode: value lacks a layout field\");\n"
           "        x = lw_en_tonum_r(lw_st_felo[s][i], lw_st_fehi[s][i], x);\n"
+          "        if (lw_st_canon[s] && lw_st_fflt[s][i]) { /* W-20261116-1800 D1: -0 -> +0, one NaN */\n"
+          "            if (lw_st_fsize[s][i] == 4) { if ((x & 0x7f800000ull) == 0x7f800000ull && (x & 0x7fffffull)) x = 0x7fc00000ull; else if (x == 0x80000000ull) x = 0; }\n"
+          "            else { if ((x & 0x7ff0000000000000ull) == 0x7ff0000000000000ull && (x & 0xfffffffffffffull)) x = 0x7ff8000000000000ull; else if (x == 0x8000000000000000ull) x = 0; } }\n"
           "        unsigned char *p = ob + lw_st_foff[s][i]; int sz = lw_st_fsize[s][i];\n"
           "        if (lw_st_fbe[s][i]) { for (int k = sz; k-- > 0; ) { p[k] = (unsigned char)x; x >>= 8; } }\n"
           "        else { for (int k = 0; k < sz; k++) { p[k] = (unsigned char)x; x >>= 8; } }\n"

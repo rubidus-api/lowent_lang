@@ -31,9 +31,9 @@ python3 -I impl/tests/bts/conformance/check_results.py impl/build/bts/results.js
 | `programs` | 104 | `programs.py` translates the shared program notation to one op per module (prelude: owned box · a file that needs completion · the externals); judged by translation, `--check` for the VM and `--emit-c` for native | `secret` · `declassify` and one-field borrows (`language-policy`); raw pointers · `uaddr` · arenas (`not-implemented`); the AVR · CHERI examples on this x86_64 run (`target-unavailable`) |
 | `range_erasure` | 34 | `erasure.py` translates each example to one op; the compiler's remaining-check list (`--ir`, «남은 자리», with each check's kind) is read back — a `remove` check must be absent, a `keep` check present and stopping on its `fires_on` input (VM and native) | — |
 | `build_modes` | 1,286 | each check's `kept` column in `debug`: `add` · `sub` · `mul` · `neg` · `abs` · `shl` · `shr` · `div` · `narrow`; a float to an integer through `cast`; `idx` on a slice of the row's length; a tag through `cast` to an enum numbered 0 … n−1 | the `erased` column: no Lowent build mode removes an arithmetic check (canon §6.4.7 (4b)), so there is no mode to run it in (`declaration.removes` stays empty) |
-| `canonical_encoding` | 183 | `encode` of a one-field struct (or of the composite's struct), the bytes folded into one `u64`; float bits through `bit_cast` | Q formats and `char` (`not-implemented`); `Option` / `Result` have no bytes (`language-policy`); rows for 16/32-bit `usize` / `idiff` |
-| `struct_layout` | 727 | `size_of`; the alignment as `size_of {u8, S}` − `size_of S`; each field's offset as the first nonzero byte of `encode` with only that field set to 1 | other targets; `packed`, unions, a written alignment, `i128`, pointers, atomics, locks, `vec` fields and bit fields (`not-implemented`); the reordering `default` layout, `Option` / `Result` / slices / references (`language-policy`) |
-| `alloc_sequences` | 212 | `array_sizes` as `chk_mul count elem` in `usize` | the allocator sequences: a block's offset is not observable (no address word — `addr` is decided and not built, canon §6.9.4) |
+| `canonical_encoding` | 183 | `encode_canonical` of a one-field struct (or of the composite's struct), the bytes folded into one `u64`; float bits through `bit_cast` | Q formats and `char` (`not-implemented`); `Option` / `Result` have no bytes (`language-policy`); rows for 16/32-bit `usize` / `idiff` |
+| `struct_layout` | 727 | `size_of` · `align_of` · `offset_of`; `packed` is `layout packed .`, a written alignment `align n .` | other targets; unions, `i128`, pointers, atomics, locks, `vec` fields and bit fields (`not-implemented`); the reordering `default` layout, `Option` / `Result` / slices / references (`language-policy`) |
+| `alloc_sequences` | 212 | `array_sizes` as `allocs.array_bytes count elem` (none above the largest `idiff`) | the allocator sequences: a block's offset is not observable (no address word — `addr` is decided and not built, canon §6.9.4) |
 | `result_sets` | 47 | a bool from a byte through `try_view` (`none` is reported as the scenario's `trap`) | `char` from `u32` (`not-implemented`); `result` tags, reads before a write, padding equality and racing non-atomic accesses (`language-policy` — refused by the type, init and ownership rules) |
 
 ★ `litmus`: Lowent's flows are green threads on one OS thread, so every outcome is a sequential interleaving. A pass shows that no
@@ -45,10 +45,8 @@ the golden suite («bts runner finds 2», `vf` · `vx`).
 ★ `simd_ops` `reduce_sum`: Lowent's `reduce_add` stops when the lanes' sum does not fit the lane type (canon §6.3.7 (2)); BTS expects it to
 wrap. Those rows fail and are listed, with that reason, in the private baseline of the gate.
 
-★ `canonical_encoding` and `alloc_sequences`: the failing rows are meaning differences, listed in the private baseline for the owner to
-decide. BTS's canonical encoding turns −0 into +0, gives every NaN one pattern and joins struct fields with no gap; Lowent's `encode` writes
-the layout as it is (bits unchanged, gaps as 0), and Lowent has no separate canonical encoder. BTS refuses an array size above the largest
-`idiff`; Lowent's size arithmetic accepts sizes up to the largest `usize`.
+★ `canonical_encoding`: since 2026-11-17 the rows run through `encode_canonical` (gaps removed, −0 → +0, one NaN); `encode` still writes
+the layout as it is. The array-size difference of `alloc_sequences` is gone too: Lowent refuses a size above the largest `idiff`.
 
 ★ `programs`: two reject examples are accepted on purpose for now — a write view or a `mut_ref` bound to another name and then used
 through the old one. Lowent reads the binding as an alias of the same borrow; BTS reads it as a move. Which one Lowent means is the

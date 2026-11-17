@@ -638,8 +638,38 @@ end .", "E-TYPE-RETURN")
       `size_of <type>` gives the number of bytes one value of that type occupies, #strong[at translation time];. The type of that number is `usize` — so are the
       alignment `align_of` gives and the number of lanes `native_lanes` gives.
     ]
+    #para("1a")[
+      `align_of <type>` is the alignment (in bytes) at which a value of that type is placed. A number's is its width and `bool`'s is 1. A struct's is
+      the alignment its layout used — the largest alignment among its fields, raised by `align n .`, and 1 under `layout packed .` unless `align`
+      is written (#cref("6.2.13")).
+    ]
+    #para("1b")[
+      `offset_of <struct> <field>` is the byte position at which that field starts in the struct's layout. If the struct has no field of that
+      name, it is refused (`E-TYPE-FIELD`). The answers of `size_of` · `align_of` · `offset_of` are all numbers at translation time and agree with
+      the layout `encode` · `view` use.
+    ]
+    #ex("asking an alignment and a field's position", "module ex_layout_query .
+
+struct hdr do
+  a u8 .
+  b u32 .
+  c u8 .
+end .
+
+fn f output usize . do
+  return add mul 100 align_of hdr . . offset_of hdr c . . .
+end .",
+      out: "f() = 408")
+    #rejected("asking the position of a field that does not exist", "module ex_offset_missing .
+
+struct hdr do
+  a u8 .
+end .
+
+fn f output usize . do return offset_of hdr b . . end .", "E-TYPE-FIELD")
     #para("2")[
-      It cannot be used on a type whose size cannot be known.
+      It cannot be used on a type whose size cannot be known — a type with no byte layout (a slice · a view · an `option` · a struct holding an
+      enum with no written width, and the like).
     ]
     #plain[
       Without this question, code that takes a type as a parameter would have to #strong[assume the widest width];.

@@ -598,7 +598,37 @@ end .
 (1) `size_of <타입>` 은 그 타입 값 하나가 차지하는 바이트 수를 **번역 시점에** 준다. 그 수의 타입은 `usize` 다 — `align_of` 가 주는
       정렬, `native_lanes` 가 주는 레인의 수도 같다.
 
-(2) 크기를 알 수 없는 타입에는 쓸 수 없다.
+(1a) `align_of <타입>` 은 그 타입 값이 놓이는 정렬(바이트)이다. 수는 제 폭이고 `bool` 은 1 이다. 구조체는 그 배치가 쓴 정렬이다 — 칸의
+      정렬 가운데 가장 큰 것이고, `align n .` 은 그것을 올리며, `layout packed .` 은 `align` 이 없으면 1 로 둔다(⟦§6.2.13⟧).
+
+(1b) `offset_of <구조체> <칸>` 은 그 칸이 구조체의 배치에서 시작하는 바이트 자리다. 그 이름의 칸이 없으면 거부된다(`E-TYPE-FIELD`).
+      `size_of` · `align_of` · `offset_of` 의 답은 모두 번역 시점의 수이고 `encode` · `view` 가 쓰는 배치와 같다.
+
+```lowent 예제: 정렬과 칸의 자리를 묻는다 · 결과: f() = 408
+module ex_layout_query .
+
+struct hdr do
+  a u8 .
+  b u32 .
+  c u8 .
+end .
+
+fn f output usize . do
+  return add mul 100 align_of hdr . . offset_of hdr c . . .
+end .
+```
+
+```lowent-거부: 없는 칸의 자리를 묻는다 · E-TYPE-FIELD
+module ex_offset_missing .
+
+struct hdr do
+  a u8 .
+end .
+
+fn f output usize . do return offset_of hdr b . . end .
+```
+
+(2) 크기를 알 수 없는 타입에는 쓸 수 없다 — 바이트 배치가 없는 타입(슬라이스 · 창 · `option` · 폭을 적지 않은 열거를 품은 구조체 따위)이다.
 
 > [!산문]
 > 이 물음이 없으면, 타입을 매개변수로 받는 코드는 **가장 넓은 폭을 가정할** 수밖에 없다.

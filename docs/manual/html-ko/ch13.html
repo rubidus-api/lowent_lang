@@ -828,7 +828,7 @@ $ lowentc --run grow tiny.low 1023
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run header_bytes encoded.low 9
 header_bytes(9) = 7009
-</code></pre></div></div><p><code>encode wire_header h. .</code> 는 칸마다 적힌 바이트 차례(<code>big</code>)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 <code>kind</code> 의 9 를 한데 적은 것이다. 선으로 나갈 머리를 짓는 쪽이 <code>encode</code>, 받은 머리를 읽는 쪽이 <code>view</code> 다.</p><pre><code data-lang="text"> 바이트 00 00 00 01 00 02 09 ── view · try_view ──▶ wire_header 값
+</code></pre></div></div><p><code>encode wire_header h. .</code> 는 칸마다 적힌 바이트 차례(<code>big</code>)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 <code>kind</code> 의 9 를 한데 적은 것이다. 선으로 나갈 머리를 짓는 쪽이 <code>encode</code>, 받은 머리를 읽는 쪽이 <code>view</code> 다. <code>encode_canonical</code> 은 배치가 아니라 <strong>정규 바이트</strong>를 적는다 — 칸을 틈 없이 잇고 리틀엔디언으로, −0 은 +0 으로, NaN 은 한 꼴로. 같은 값이면 어느 기계에서나 같은 바이트라 해시나 서명할 값에 쓴다.</p><pre><code data-lang="text"> 바이트 00 00 00 01 00 02 09 ── view · try_view ──▶ wire_header 값
  (선 · 파일 · 장치)          ◀──── encode ───────── magic 1 · length 2 · kind 9</code></pre><p><code>view</code> 는 길이나 정렬이 맞지 않으면 <strong>멈춘다</strong>. 계약이 깨졌다고 보기 때문이다. 그런데 네트워크에서 온 바이트는 짧은 것이 흔한 일이다. 그런 자리에서는 같은 일을 하되 실패를 값으로 주는 <code>try_view</code> 를 쓴다(17장).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/tryview.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tryview .
 <em><span class="tok-c">rem run: kind_or_zero [1,2,3,4,0,5,9]</span></em>
 <em><span class="tok-c">rem run: kind_or_zero [1,2,3]</span></em>

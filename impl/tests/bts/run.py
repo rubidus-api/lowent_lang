@@ -423,8 +423,8 @@ def plan_build_modes(doc):
 
 
 # ── canonical_encoding (RFC-0157 §8-6 · W-20261116-1135) ────────────────────────────────────────────────────────────
-# `encode <struct> <value>` writes a value with its struct's byte layout (canon §6.2.13 (4)); a one-field struct gives the bytes of
-# that field. The op returns the bytes folded into one u64 — acc = len, then acc = acc·256 + byte, wrapping — and the runner folds the
+# `encode_canonical <struct> <value>` writes the canonical bytes (canon §6.2.13 (4a) · W-20261116-1800 D1): fields with no gap, little-endian,
+# −0 as +0 and every NaN as one pattern; a one-field struct gives the bytes of that field. The op returns the bytes folded into one u64 — acc = len, then acc = acc·256 + byte, wrapping — and the runner folds the
 # expected bytes the same way.
 CE_INT = {'i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64'}
 CE_FOLD = ('var acc u64 cast u64 len b. . . . for y b. do set acc. wrap_add wrap_mul acc. 256 . widen u64 y. . . . end . return acc. .')
@@ -447,24 +447,24 @@ def plan_canonical_encoding(doc):
             if r.get('width') and int(r['width']) != USIZE_BITS:
                 yield label, Skip('target-unavailable'); continue
             pre = [f'struct {{F}}_w do v {t} . end .']
-            fsrc = f'input x {t} . output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do v x. . end . . . {CE_FOLD} end .'
+            fsrc = f'input x {t} . output u64 . do let b slice u8 encode_canonical {{F}}_w lit {{F}}_w do v x. . end . . . {CE_FOLD} end .'
             yield label, Exec(('ce', t), fsrc, [v], want, pre=pre)
         elif t in ('f32', 'f64'):
             bt = 'u32' if t == 'f32' else 'u64'
             pre = [f'struct {{F}}_w do v {t} . end .']
-            fsrc = (f'input x {bt} . output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do v bit_cast {t} x. . . end . . . '
+            fsrc = (f'input x {bt} . output u64 . do let b slice u8 encode_canonical {{F}}_w lit {{F}}_w do v bit_cast {t} x. . . end . . . '
                     f'{CE_FOLD} end .')
             yield label, Exec(('ce', t), fsrc, [str(int(v, 16))], want, pre=pre)
         elif t == 'bool':
             pre = ['struct {F}_w do v bool . end .']
-            fsrc = f'input x u8 . output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do v ne x. 0 . . end . . . {CE_FOLD} end .'
+            fsrc = f'input x u8 . output u64 . do let b slice u8 encode_canonical {{F}}_w lit {{F}}_w do v ne x. 0 . . end . . . {CE_FOLD} end .'
             yield label, Exec(('ce', t), fsrc, ['1' if v else '0'], want, pre=pre)
         elif t.startswith('struct{'):
             fts = t[len('struct{'):-1].split(',')
             pre = ['struct {F}_w do ' + ' '.join(f'f{i} {ft} .' for i, ft in enumerate(fts)) + ' end .']
             ins = ' '.join(f'input x{i} {"u8" if ft == "bool" else ft} .' for i, ft in enumerate(fts))
             flds = ' '.join(f'f{i} {"ne x%d. 0 ." % i if ft == "bool" else "x%d." % i} .' for i, ft in enumerate(fts))
-            fsrc = f'{ins} output u64 . do let b slice u8 encode {{F}}_w lit {{F}}_w do {flds} end . . . {CE_FOLD} end .'
+            fsrc = f'{ins} output u64 . do let b slice u8 encode_canonical {{F}}_w lit {{F}}_w do {flds} end . . . {CE_FOLD} end .'
             args = [('1' if a else '0') if isinstance(a, bool) else a for a in v]
             yield label, Exec(('ce', t), fsrc, args, want, pre=pre)
         elif t.startswith('Option(') or t.startswith('Result('):
@@ -476,11 +476,10 @@ def plan_canonical_encoding(doc):
 
 
 # ── struct_layout (RFC-0157 §8-6 · W-20261116-1135) ─────────────────────────────────────────────────────────────────
-# Read through the language: the size is `size_of`; the alignment is `size_of` of a struct {u8, S} minus `size_of S` (S sits at its
-# alignment and the whole is a multiple of it); a field's offset is the first nonzero byte of `encode` with that field set to 1 and
-# the others to 0 (bytes are little-endian here). The padding is what the offsets and sizes leave, so it is not read separately.
-# Lowent has no `packed`, unions or a written struct alignment yet (`not-implemented`); it keeps fields in the declared order, so the
-# BTS `default` layout that reorders is not Lowent's (`language-policy`).
+# Read through the language's own queries (W-20261116-1800 D3): `size_of`, `align_of` and `offset_of <struct> <field>`. The padding is
+# what the offsets and sizes leave, so it is not read separately. `packed` is `layout packed .` and a written alignment is `align n .`.
+# Lowent has no unions yet (`not-implemented`); it keeps fields in the declared order, so the BTS `default` layout that reorders is not
+# Lowent's (`language-policy`).
 SL_SCALAR = {'u8', 'u16', 'u32', 'u64', 'i8', 'i16', 'i32', 'i64', 'f32', 'f64', 'bool', 'usize', 'idiff'}
 
 
@@ -499,37 +498,8 @@ def sl_type(ft, structs):
 
 
 def sl_ok(d, structs):
-    return (d.get('layout') == 'ffi' and not d.get('union') and 'align' not in d and
+    return (d.get('layout') in ('ffi', 'packed') and not d.get('union') and isinstance(d.get('align', 1), int) and
             all(sl_type(ft, structs) for _, ft in d['fields']))
-
-
-def sl_one(ft, structs):
-    """a value of the field type whose lowest-addressed byte is 1"""
-    if ft == 'bool':
-        return 'true'
-    if ft in ('f32', 'f64'):
-        return f'bit_cast {ft} 1 .'
-    m = re.fullmatch(r'array\((\w+),(\d+)\)', ft)
-    if m:
-        return f'lit array {m.group(2)} {m.group(1)} ' + ' '.join([sl_one(m.group(1), structs)] + [sl_zero(m.group(1), structs)] * (int(m.group(2)) - 1)) + ' .'
-    if ft.startswith('struct:'):
-        d = structs[ft[7:]]
-        return 'lit {F}_' + ft[7:] + ' do ' + ' '.join(f'{n} {sl_one(t, structs) if i == 0 else sl_zero(t, structs)} .' for i, (n, t) in enumerate(d['fields'])) + ' end .'
-    return '1'
-
-
-def sl_zero(ft, structs):
-    if ft == 'bool':
-        return 'false'
-    if ft in ('f32', 'f64'):
-        return f'bit_cast {ft} 0 .'
-    m = re.fullmatch(r'array\((\w+),(\d+)\)', ft)
-    if m:
-        return f'lit array {m.group(2)} {m.group(1)} ' + ' '.join([sl_zero(m.group(1), structs)] * int(m.group(2))) + ' .'
-    if ft.startswith('struct:'):
-        d = structs[ft[7:]]
-        return 'lit {F}_' + ft[7:] + ' do ' + ' '.join(f'{n} {sl_zero(t, structs)} .' for n, t in d['fields']) + ' end .'
-    return '0'
 
 
 def sl_decls(name, structs, out, seen):
@@ -540,7 +510,8 @@ def sl_decls(name, structs, out, seen):
         if ft.startswith('struct:'):
             sl_decls(ft[7:], structs, out, seen)
     seen.add(name)
-    out.append('struct {F}_' + name + ' do ' + ' '.join(f'{n} {sl_type(ft, structs)} .' for n, ft in d['fields']) + ' end .')
+    out.append('struct {F}_' + name + ' do ' + ('layout packed . ' if d.get('layout') == 'packed' else '') +
+               (f'align {d["align"]} . ' if 'align' in d else '') + ' '.join(f'{n} {sl_type(ft, structs)} .' for n, ft in d['fields']) + ' end .')
 
 
 def sl_fold(vals):
@@ -564,16 +535,10 @@ def plan_struct_layout(doc):
             pre = []
             sl_decls(s['name'], structs, pre, set())
             S = '{F}_' + s['name']
-            pre.append(f'struct {{F}}_wrap do a u8 . s {S} . end .')
-            body = [f'var acc u64 0 .',
-                    f'set acc. cast u64 size_of {S} . . .',
-                    f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 sub size_of {{F}}_wrap . size_of {S} . . . . .']
-            for fi, (fn_, ft) in enumerate(s['fields']):
-                lit = ' '.join(f'{n} {sl_one(t, structs) if j == fi else sl_zero(t, structs)} .' for j, (n, t) in enumerate(s['fields']))
-                body += [f'let b{fi} slice u8 encode {S} lit {S} do {lit} end . . .',
-                         f'var o{fi} u64 0 .', f'var seen{fi} bool false .', f'var at{fi} u64 0 .',
-                         f'for y b{fi}. do if and not seen{fi}. . ne y. 0 . . do set o{fi}. at{fi}. . set seen{fi}. true . end . set at{fi}. add at{fi}. 1 . . end .',
-                         f'set acc. wrap_add wrap_mul acc. 1000003 . o{fi}. . .']
+            body = [f'var acc u64 cast u64 size_of {S} . . .',
+                    f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 align_of {S} . . . .']
+            for fn_, ft in s['fields']:
+                body.append(f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 offset_of {S} {fn_} . . . .')
             fsrc = 'input x u8 . output u64 . do ' + ' '.join(body) + ' return acc. . end .'
             want = sl_fold([res['size'], res['align']] + res['offsets'])
             yield label, Exec(('sl', s['name']), fsrc, ['0'], want, pre=pre)
@@ -589,9 +554,9 @@ def plan_struct_layout(doc):
                 yield label, Skip('language-policy'); continue      # no fixed bytes (canon §6.2.13 (8))
             if not lt or 'unavailable' in res:
                 yield label, Skip('not-implemented'); continue
-            pre = [f'struct {{F}}_one do v {lt} . end .', f'struct {{F}}_wrap do a u8 . s {{F}}_one . end .']
+            pre = [f'struct {{F}}_one do v {lt} . end .']
             fsrc = (f'input x u8 . output u64 . do var acc u64 cast u64 size_of {{F}}_one . . . '
-                    f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 sub size_of {{F}}_wrap . size_of {{F}}_one . . . . . return acc. . end .')
+                    f'set acc. wrap_add wrap_mul acc. 1000003 . cast u64 align_of {{F}}_one . . . . return acc. . end .')
             yield label, Exec(('slb', b['type']), fsrc, ['0'], sl_fold([res['size'], res['align']]), pre=pre)
     for b in doc['bitfields']:
         for _ in b['rows']:
@@ -600,19 +565,20 @@ def plan_struct_layout(doc):
 
 # ── alloc_sequences (RFC-0157 §8-6 · W-20261116-1135) ───────────────────────────────────────────────────────────────
 # The steps observe a block's offset from the region start; Lowent's allocators hand out slices, and a slice's address is not a
-# value (the word for it, `addr`, is decided and not built — canon §6.9.4): `not-implemented`. `array_sizes` is the language's size
-# arithmetic: `chk_mul count elem` in usize (`none` = size_overflow). Rows for 16- and 32-bit usize are `target-unavailable`.
+# value (the word for it, `addr`, is decided and not built — canon §6.9.4): `not-implemented`. `array_sizes` is the library's size
+# arithmetic `allocs.array_bytes count elem` (none above the largest idiff — canon §8.13 (2c)). Rows for 16- and 32-bit usize are
+# `target-unavailable`.
 def plan_alloc_sequences(doc):
     for sq in doc['sequences']:
         for _ in sq['steps']:
             yield f'alloc_sequences/{sq["name"]}', Skip('not-implemented')
-    fsrc = 'input n usize . input e usize . output option usize . do return chk_mul n. e. . . end .'
+    fsrc = 'input n usize . input e usize . output option usize . do return allocs.array_bytes n. e. . . end .'
     for r in doc['array_sizes']:
         label = f'alloc_sequences/array_sizes/{r["usize_bits"]}'
         if int(r['usize_bits']) != USIZE_BITS:
             yield label, Skip('target-unavailable'); continue
         (k, v), = r['expect'].items()
-        yield label, Exec(('as',), fsrc, [r['count'], r['elem']], f'some {v}' if k == 'ok' else 'none')
+        yield label, Exec(('as',), fsrc, [r['count'], r['elem']], f'some {v}' if k == 'ok' else 'none', uses=['allocs'])
 
 
 # ── result_sets (RFC-0157 §8-6 · W-20261116-1135) ───────────────────────────────────────────────────────────────────

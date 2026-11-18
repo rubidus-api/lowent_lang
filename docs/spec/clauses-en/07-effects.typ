@@ -695,8 +695,8 @@ end .", "E-ALLOC-NOCAP")
       is decoration, and #strong[decoration is a lie.];
     ]
     #plain[
-      Why only seven? The capabilities of the starting place shall be #strong[what the executing side can actually hand over];.
-      Capabilities not on the list (for example atomics · machine instructions · devices) #strong[cannot be made up by the program
+      Why only these twelve? The capabilities of the starting place shall be #strong[what the executing side can actually hand over];.
+      Capabilities not on the list (for example machine instructions · devices) #strong[cannot be made up by the program
       itself];, nor are they something the executing side can hand over — such capabilities shall be made at a place entitled to
       give them and flow as arguments. Devices (`mmio`) and machine instructions
       (`machine`) are such, and so is the door into C (`c`).

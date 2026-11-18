@@ -1105,7 +1105,7 @@ $ lowentc --test runmax.low
 <em><span class="tok-c">rem run: stored</span></em>
 <em><span class="tok-c">rem run: computed</span></em>
 
-<em><span class="tok-c">rem ✘ 리터럴을 그대로 담은 f32 — 이 판에서는 32 비트로 반올림되지 않아 f64 의 0.1 과 같다고 나온다</span></em>
+<em><span class="tok-c">rem ✘ 리터럴을 그대로 담은 f32 도 32 비트로 반올림되어 f64 의 0.1 과 다르다고 나온다(2026-09-16 까지는 같다고 나왔다)</span></em>
 <strong><span class="tok-k">fn</span></strong> stored <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">f32</span></strong> <span class="tok-n">0.1</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">f64</span></strong> <span class="tok-n">0.1</span> .

@@ -1105,7 +1105,7 @@ $ lowentc --test runmax.low
 <em><span class="tok-c">rem run: stored</span></em>
 <em><span class="tok-c">rem run: computed</span></em>
 
-<em><span class="tok-c">rem ✘ an f32 holding a literal as is; in this edition it is not rounded to 32 bits, so it compares equal to the f64 0.1</span></em>
+<em><span class="tok-c">rem ✘ an f32 holding a literal as is is also rounded to 32 bits, so it compares unequal to the f64 0.1 (until 2026-09-16 it compared equal)</span></em>
 <strong><span class="tok-k">fn</span></strong> stored <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">f32</span></strong> <span class="tok-n">0.1</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">f64</span></strong> <span class="tok-n">0.1</span> .

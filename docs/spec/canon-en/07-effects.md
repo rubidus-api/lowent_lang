@@ -652,8 +652,8 @@ end .
       is decoration, and **decoration is a lie.**
 
 > [!산문]
-> Why only seven? The capabilities of the starting place shall be **what the executing side can actually hand over**.
-> Capabilities not on the list (for example atomics · machine instructions · devices) **cannot be made up by the program
+> Why only these twelve? The capabilities of the starting place shall be **what the executing side can actually hand over**.
+> Capabilities not on the list (for example machine instructions · devices) **cannot be made up by the program
 > itself**, nor are they something the executing side can hand over — such capabilities shall be made at a place entitled to
 > give them and flow as arguments. Devices (`mmio`) and machine instructions
 > (`machine`) are such, and so is the door into C (`c`).

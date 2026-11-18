@@ -542,6 +542,10 @@ typedef struct {
 //   갈래(0 fmod · 1 min · 2 max · 3 pow)이고 이 비트가 부호를 싣는다. 없으면 두 뒤끝이 `u64` 의 위쪽 절반을 음수로 견주었다
 //   (`max (2^64−1) 10` = 10). 읽는 쪽은 갈래를 `& 0xff` 로 꺼낸다.
 #define IR_BINM_UNS   0x100
+// ★ RFC-0150 §8-42 (2026-11-18 W-20261118-2346) — 구간 분석이 `min` · `max` 의 두 피연산자가 다 2^63 아래(넓지 않은 상계)임을 보였다.
+//   그때 부호 있는 견줌과 부호 없는 견줌의 답이 같으므로 C 뒤끝은 부호 있는 견줌을 낸다(gcc 가 고리를 더 줄인다 — `msort`).
+//   답은 바뀌지 않는다. 구간 분석(low_iv.c)만 세운다.
+#define IR_BINM_SGNOK 0x200
 // ★ X-0065 — IRW_PANIC 의 a 가 이 값이면 «받는 자리가 찼다»(문자열 번호와 겹치지 않는 큰 수).
 #define IR_PANIC_SINKFULL 0x7fff0001
 #define IR_PANIC_NODEKIDS 0x7fff0003   /* ★ RFC-0150 §6.0.6 — `drop n. use al.` 의 마디에 자식 칸이 아직 들어 있다 */

@@ -491,7 +491,8 @@ static bool iv_same_expr(const low_ir_def_t *d, proven_size_t a0, proven_size_t 
         low_irw_t xw = top ? iv_canon_cmp(x->w) : x->w;
         low_irw_t yw = top ? iv_canon_cmp(y->w) : y->w;
         if (xw != yw) return false;
-        if ((x->a & ~(proven_i64)IR_POL_PROVEN) != (y->a & ~(proven_i64)IR_POL_PROVEN)) return false;
+        const proven_i64 m_ = ~(proven_i64)(IR_POL_PROVEN | (x->w == IRW_BINM ? IR_BINM_SGNOK : 0));
+        if ((x->a & m_) != (y->a & m_)) return false;
     }
     return true;
 }
@@ -1759,7 +1760,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
         // ★ 식 지문 + **명령 범위**. 지문은 조회용이고, 확정은 구조 비교가 한다.
         {
             proven_u64 h = iv_mix(iv_mix(1469598103934665603ULL, (proven_u64)in->w),
-                                  (proven_u64)(in->a & ~(proven_i64)IR_POL_PROVEN));
+                                  (proven_u64)(in->a & ~(proven_i64)(IR_POL_PROVEN | (in->w == IRW_BINM ? IR_BINM_SGNOK : 0))));
             proven_u64 dp = 0;
             proven_size_t from = i;
             for (int q = 0; q < ar && q < 3; q++) {
@@ -2329,6 +2330,22 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                     proven_i64 a1 = ops[0].v.lo < 0 ? -ops[0].v.lo : ops[0].v.lo, a2 = ops[0].v.hi < 0 ? -ops[0].v.hi : ops[0].v.hi;
                     res.v = (iv_t){ (ops[0].v.lo <= 0 && ops[0].v.hi >= 0) ? 0 : (a1 < a2 ? a1 : a2), a1 > a2 ? a1 : a2, 0 };
                 }
+                break;
+            }
+            case IRW_BINM: {
+                // ★ RFC-0150 §8-42 (2026-11-18 W-20261118-2346) — `min` · `max` 의 구간은 두 구간의 min · max 다(정수만 · 넘치지 않는다).
+                //   부호 없는 견줌(IR_BINM_UNS)인데 두 피연산자의 상계가 다 **진짜**(넓지 않음)이고 하계가 0 이상이면 두 값은 2^63 아래다 —
+                //   그때 부호 있는 견줌의 답이 같으므로 IR_BINM_SGNOK 를 세운다(C 뒤끝이 읽는다 · VM 은 읽지 않는다).
+                const proven_i64 sel_ = in->a & 0xff;
+                if (sel_ != 1 && sel_ != 2) break;
+                if (ops[0].vlanes || ops[1].vlanes) break;   // 레인 값은 여기서 다루지 않는다
+                const iv_t x_ = ops[0].v, y_ = ops[1].v;
+                if (x_.wide || y_.wide) break;
+                const bool uns_ = (in->a & IR_BINM_UNS) != 0;
+                if (uns_ && (x_.lo < 0 || y_.lo < 0)) break;   // 부호 없는 값의 음수 하계는 «모름» 이다 — 말하지 않는다
+                if (sel_ == 1) res.v = (iv_t){ x_.lo < y_.lo ? x_.lo : y_.lo, x_.hi < y_.hi ? x_.hi : y_.hi, 0 };
+                else           res.v = (iv_t){ x_.lo > y_.lo ? x_.lo : y_.lo, x_.hi > y_.hi ? x_.hi : y_.hi, 0 };
+                if (uns_ && mark) in->a |= IR_BINM_SGNOK;
                 break;
             }
             case IRW_BAND: case IRW_BOR: case IRW_BXOR: case IRW_BNOT: {

@@ -1254,6 +1254,23 @@ static bool cbe_rec_ok_f(const low_ir_t *ir, int sidx, bool allow_flt) {
     }
     return true;
 }
+// ★★ 2026-11-18 (W-20261118-2346 · RFC-0157 6 · unbuilt) — `encode_canonical` 의 빠른 길. 정규 그림자 sx 의 원래 구조체를 찾는다:
+//   레코드가 그 원래 구조체의 바이트 배치이고(빠른 길의 레코드), 칸이 전부 1 · 2 · 4 · 8 바이트 스칼라일 때만(중첩 · 배열 · 열거 배치 ·
+//   128 비트 칸은 태그 길 그대로). 칸 순서는 그림자와 같다(ir_canon_shadow 가 베낀다). 못 찾으면 -1.
+static int cbe_canon_src(const low_ir_t *ir, int sx) {
+    if (sx < 0 || (proven_size_t)sx >= ir->nstructs || !ir->structs[sx].canon || ir->structs[sx].total > 64) return -1;
+    for (proven_size_t o = 0; o < ir->nstructs; o++) {
+        if (ir->structs[o].cshadow1 != (proven_u16)(sx + 1)) continue;
+        const low_ir_struct_t *S = &ir->structs[o], *G = &ir->structs[sx];
+        if (!cbe_rec_ok_f(ir, (int)o, true) || S->nf != G->nf) return -1;
+        for (proven_size_t q = 0; q < S->nf; q++) {
+            const proven_u8 z = S->f[q].size;
+            if ((z != 1 && z != 2 && z != 4 && z != 8) || G->f[q].size != z || G->f[q].flt != S->f[q].flt) return -1;
+        }
+        return (int)o;
+    }
+    return -1;
+}
 static bool cbe_rec_ok(const low_ir_t *ir, int sidx) { return cbe_rec_ok_f(ir, sidx, false); }
 
 // ★★ 2026-11-01 (W-20261101-1828 · 소유자 «다음 진행할 것들 마저») — **배열 칸을 가진 구조체를 한 op 안의 값으로** 나른다.
@@ -2620,7 +2637,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   — 태그 경로는 그것을 **8칸짜리 버퍼 풀**에서 꺼냈다(다섯 번째 유한 풀).
                 if (st.n < 1) return false;
                 int sx = (int)(in->a & 0xffff);
-                if (ir->structs[sx].canon) return false;   // ★ W-20261116-1800 D1 — 정규 배치는 레코드 바이트의 복사가 아니다(태그 길)
+                if (ir->structs[sx].canon) {   // ★ W-20261116-1800 D1 — 정규 배치는 레코드 바이트의 복사가 아니다 — 칸마다 옮긴다(2026-11-18 · cbe_canon_src)
+                    const int o_ = cbe_canon_src(ir, sx);
+                    if (o_ < 0 || st.k[st.n-1] != (unsigned char)(K_REC + o_)) return false;
+                    st.k[st.n-1] = K_SL; st.o[st.n-1] = -1; st.ve[st.n-1] = 1; st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; break;
+                }
                 if ((!cbe_rec_ok_f(ir, sx, true) && !cbe_rec_arr_ok(ir, sx)) || !ir->structs[sx].viewable) return false;   // ★ 배열 칸은 레코드 바이트 안에 있다(2026-11-01)
                 if (ir->structs[sx].total > 64) return false;
                 if (st.k[st.n-1] != (unsigned char)(K_REC + sx)) return false;
@@ -4234,14 +4255,20 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, low_out_t
     //   **64 바이트**(`lw_v` = 최대 폭 u32×16 공용체)라, 안 쓰는 슬롯 하나가 곧 64 B 다.
     //   ☞ 슬롯 번호는 그대로 둔다(빽빽하게 다시 매기면 방출 자리 전부를 고쳐야 한다) —
     //     **가장 높은 번호 + 1** 까지만 잡는다. 색인이 전부 리터럴이라 본문에서 정확히 읽힌다.
-    if (cbe_uses(body, "vloc[")) {
-        size_t vn = 0;
-        for (const char *q = body; (q = strstr(q, "vloc[")); q += 5) {
+    // ★ RFC-0150 §8-37 (2026-11-18 W-20261118-2346) — 벡터 지역은 **배열이 아니라 이름 붙은 지역 하나씩**(`vloc_3`)이다.
+    //   배열(`lw_v vloc[8]`)이면 gcc 가 칸을 레지스터로 풀지 못해 반복마다 스택에 썼다(`simd` 0.51 → 0.39 ms).
+    //   번호는 전부 리터럴이라 본문에서 정확히 읽힌다 — 쓰는 번호만 선언한다.
+    if (cbe_uses(body, "vloc_")) {
+        unsigned char *seen = (unsigned char *)low_zalloc(n ? n : 1, 1);   // 지역 번호는 n 아래다(옛 배열의 크기)
+        if (!seen) { low_puts(out, "lw_v vloc_oom_; "); } else {
+        for (const char *q = body; (q = strstr(q, "vloc_")); q += 5) {
+            if (q != body && ((q[-1] >= 'a' && q[-1] <= 'z') || q[-1] == '_')) continue;
             char *e; unsigned long ix = strtoul(q + 5, &e, 10);
-            if (e != q + 5 && *e == ']' && ix + 1 > vn) vn = ix + 1;
+            if (e != q + 5 && ix < n) seen[ix] = 1;
         }
-        if (!vn || vn > n) vn = n;          // 못 읽었으면 옛 값 — 작게 잡는 실수는 안 한다
-        low_fpf(out, "lw_v vloc[{}] = {{{{{{0}}}}}}; ", PROVEN_ARG((size_t)(vn)));
+        for (size_t ix = 0; ix < n; ix++)
+            if (seen[ix]) low_fpf(out, "lw_v vloc_{} = {{{{0}}}}; ", PROVEN_ARG((size_t)ix));
+        low_free(seen); }
     }
     low_puts(out, "\n");
     // ★ 벡터 스택의 칸 수를 여기서 박는다 — **증가만 센 값**이라 상계이고, 넘침은 방출된
@@ -4471,7 +4498,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
               else low_fpf(out, "    rloc[{}] = ar[{}];\n", PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)nr++)));
           }
           else if ((d->param_opt >> q) & 1u) low_fpf(out, "    wloc[{}] = ao[{}];\n", PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)nao2++)));  // ★ option·result 파라미터
-          else if ((d->param_vec >> q) & 1u) low_fpf(out, "    vloc[{}] = av[{}];\n", PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)nav2++)));  // ★ 벡터 파라미터
+          else if ((d->param_vec >> q) & 1u) low_fpf(out, "    vloc_{} = av[{}];\n", PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)nav2++)));  // ★ 벡터 파라미터
           else if ((d->param_flt >> q) & 1u) low_fpf(out, "    floc[{}] = af[{}];\n", PROVEN_ARG((size_t)((size_t)q)), PROVEN_ARG((size_t)((size_t)nf2++)));
           else if ((d->param_bset >> q) & 1u) {
               // ★★★ 비트셋 파라미터는 **참조**로 온다 — BFS 의 `visited` 집합처럼,
@@ -4579,7 +4606,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                     //   레인 수·폭은 컴파일 시각에 알려져 있으니 그만큼만 옮긴다.
                     g_vspush++;
                     low_puts(out, "@@VSG@@");
-                    low_fpf(out, "    vs[vsp++] = vloc[{}];\n", PROVEN_ARG((long long)((long long)in->a)));
+                    low_fpf(out, "    vs[vsp++] = vloc_{};\n", PROVEN_ARG((long long)((long long)in->a)));
                     ks.o[ks.n] = -1; ks.k[ks.n] = K_VEC;
                     ks.vn[ks.n] = lln[in->a]; ks.ve[ks.n] = lez[in->a]; ks.fl[ks.n] = lfl[in->a];
                     ks.n++;
@@ -4632,7 +4659,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 if (kk == K_SL || kk == K_ROWS || kk == K_AREF || kk >= K_VIEW) low_fpf(out, "    sloc[{}] = ss[--ssp];\n", PROVEN_ARG((long long)((long long)in->a)));
                 else if (kk == K_FLT) low_fpf(out, "    floc[{}] = fs[--fsp];\n", PROVEN_ARG((long long)((long long)in->a)));
                 else if (kk == K_W128) low_fpf(out, "    lw_hloc[{}] = lw_hs[--lw_hsp];\n", PROVEN_ARG((long long)((long long)in->a)));   // ★ W-20261105-2304
-                else if (kk == K_VEC) low_fpf(out, "    vloc[{}] = vs[--vsp];\n", PROVEN_ARG((long long)((long long)in->a)));
+                else if (kk == K_VEC) low_fpf(out, "    vloc_{} = vs[--vsp];\n", PROVEN_ARG((long long)((long long)in->a)));
                 else if (cbe_optrec_sl(ir, kk, ks.ve[ks.n], ks.fl[ks.n]))
                     low_fpf(out, "    wloc[{}] = ws[--wsp]; memcpy(wlocsl[{}], wssl[wsp], sizeof wlocsl[0]);\n", PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((long long)((long long)in->a)));
                 else if (kk == K_OPT || kk == K_OPTSL || kk == K_OPT2) low_fpf(out, "    wloc[{}] = ws[--wsp];\n", PROVEN_ARG((long long)((long long)in->a)));
@@ -5294,6 +5321,28 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
             case IRW_ENCODE: {
                 int sx = (int)(in->a & 0xffff);
                 const low_ir_struct_t *S = &ir->structs[sx];
+                if (S->canon) {
+                    // ★★ 2026-11-18 (W-20261118-2346) — **정규 바이트를 칸마다 적는다**(태그 길의 lw_encode 와 같은 뜻): 틈 없이 · 리틀엔디언 ·
+                    //   부동의 −0 은 +0 · NaN 은 한 꼴. 레코드는 원래 구조체의 배치 바이트다 — `be` 칸은 뒤집어 옮긴다.
+                    const int o_ = cbe_canon_src(ir, sx);
+                    const low_ir_struct_t *R = &ir->structs[o_ < 0 ? sx : o_];
+                    low_fpf(out, "    {{ unsigned char *e_ = encb[{}]; const unsigned char *r_ = rs[--rsp];\n", PROVEN_ARG((int)(encn)));
+                    for (proven_size_t q = 0; q < S->nf; q++) {
+                        const unsigned z = S->f[q].size, co = S->f[q].off, ro = R->f[q].off;
+                        if (R->f[q].be) low_fpf(out, "      for (int k_ = 0; k_ < {}; k_++) e_[{} + k_] = r_[{} + {} - 1 - k_];\n", PROVEN_ARG(z), PROVEN_ARG(co), PROVEN_ARG(ro), PROVEN_ARG(z));
+                        else low_fpf(out, "      memcpy(e_ + {}, r_ + {}, {});\n", PROVEN_ARG(co), PROVEN_ARG(ro), PROVEN_ARG(z));
+                        if (S->f[q].flt && z == 4)
+                            low_fpf(out, "      {{ unsigned long long x_ = lw_ld_le(e_ + {}, 4); if ((x_ & 0x7f800000ull) == 0x7f800000ull && (x_ & 0x7fffffull)) x_ = 0x7fc00000ull;"
+                                         " else if (x_ == 0x80000000ull) x_ = 0; for (int k_ = 0; k_ < 4; k_++) e_[{} + k_] = (unsigned char)(x_ >> (8 * k_)); }}\n", PROVEN_ARG(co), PROVEN_ARG(co));
+                        else if (S->f[q].flt && z == 8)
+                            low_fpf(out, "      {{ unsigned long long x_ = lw_ld_le(e_ + {}, 8); if ((x_ & 0x7ff0000000000000ull) == 0x7ff0000000000000ull && (x_ & 0xfffffffffffffull)) x_ = 0x7ff8000000000000ull;"
+                                         " else if (x_ == 0x8000000000000000ull) x_ = 0; for (int k_ = 0; k_ < 8; k_++) e_[{} + k_] = (unsigned char)(x_ >> (8 * k_)); }}\n", PROVEN_ARG(co), PROVEN_ARG(co));
+                    }
+                    low_fpf(out, "      ss[ssp].p = e_; ss[ssp].n = {}; ssp++; }}\n", PROVEN_ARG((unsigned)((unsigned)S->total)));
+                    encn++;
+                    ks.k[ks.n-1] = K_SL; ks.o[ks.n-1] = -1; ks.ve[ks.n-1] = 1;
+                    break;
+                }
                 // ★★★★ **encode 도 구간 복사 하나가 됐다** (2026-08-03 — 표현 통합).
                 //   레코드가 이미 그 타입의 **바이트 레이아웃**이므로, 직렬화할 것이 없다.
                 //   그전에는 필드마다 슬롯에서 꺼내 바이트로 흩뿌렸다 — 같은 값을 두 표현
@@ -5587,7 +5636,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                     else if ((in->a & 0xff) == 3) low_puts(out, "    fs[fsp-2] = pow(fs[fsp-2], fs[fsp-1]); fsp--;\n");
                     else low_fpf(out, "    fs[fsp-2] = (fs[fsp-2] {} fs[fsp-1]) ? fs[fsp-2] : fs[fsp-1];"
                                       " fsp--;\n", proven_arg_cstr((in->a & 0xff) == 1 ? "<" : ">"));
-                } else if (in->a & IR_BINM_UNS)   // ★ RFC-0151 §8-9 — 부호 없는 정수는 부호 없이 견준다(u64 의 위쪽 절반)
+                } else if ((in->a & IR_BINM_UNS) && !(in->a & IR_BINM_SGNOK))   // ★ RFC-0151 §8-9 · SGNOK = 두 값이 2^63 아래(RFC-0150 §8-42) — 부호 없는 정수는 부호 없이 견준다(u64 의 위쪽 절반)
                     low_fpf(out, "    st[sp-2] = ((unsigned long long)st[sp-2] {} (unsigned long long)st[sp-1]) ? st[sp-2] : st[sp-1]; sp--;\n",
                             proven_arg_cstr((in->a & 0xff) == 1 ? "<" : ">"));
                 else

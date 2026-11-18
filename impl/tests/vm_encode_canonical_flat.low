@@ -1,0 +1,16 @@
+module vm_encode_canonical_flat .
+rem ★ W-20261118-2346 (정본 §6.2.13 (4a)) — 칸이 다 스칼라인 구조체의 정규 바이트는 빠른 길이 칸마다 적는다(`big` 칸은 뒤집고 · −0 → +0 · NaN 한 꼴).
+rem   안에 든 구조체가 있는 판은 vm_encode_canonical.low(태그 길). 기대값은 골든 ㉛-2 가 적는다.
+struct flat do
+  h u16 big .
+  x f64 .
+  y f32 .
+  t bool .
+  k i32 .
+end .
+export fn f input xb u64 . input yb u32 . output u64 . do
+  let b slice u8 encode_canonical flat lit flat do h 513 . x bit_cast f64 xb. . . y bit_cast f32 yb. . . t true . k -2 . end . . .
+  var acc u64 cast u64 len b. . . .
+  for z b. do set acc. wrap_add wrap_mul acc. 257 . widen u64 z. . . . end .
+  return acc. .
+end .

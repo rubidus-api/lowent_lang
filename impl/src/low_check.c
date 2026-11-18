@@ -2906,7 +2906,7 @@ static void ck_entry(low_check_result_t *out, const low_parse_result_t *pr) {
             if (!givable)
                 emit(out, "E-ENTRY-CAP",
                      "the entry asked for a capability the runtime cannot hand it yet — only "
-                     "`cap args`, `cap env`, `cap io`, `cap allocator`, `cap file_system`, `cap net`, `cap process`, `cap tty`, `cap atomic`, `cap random` and `cap clock` are provided "
+                     "`cap args`, `cap env`, `cap io`, `cap allocator`, `cap heap`, `cap file_system`, `cap net`, `cap process`, `cap tty`, `cap atomic`, `cap random` and `cap clock` are provided "
                      "(RFC-0030 D2\u2032). Declaring a right "
                      "nobody can grant would be decoration, and decoration is a lie",
                      f->kids[1]->tok.line);

@@ -297,7 +297,7 @@ end .", "E-METHOD-UNDEF")
     ]
     #para("6")[
       `object <trait>` is a #strong[value type]; with a fixed size. Its value holds the number of the type it holds and the fields of #strong[all]; the types that
-      satisfy the trait side by side — its size is the sum of those fields (not the largest such type). So, like a struct, it can be an element of a list
+      satisfy the trait side by side — its size is that of a struct holding the number and those fields side by side — the sum of the fields plus the number and alignment padding, not the largest such type. So, like a struct, it can be an element of a list
       literal (#cref("6.2.6") (6) · `lit slice object <trait> … .` · `lit array <n> object <trait> … .`), and when `for` walks such a list the element's name is `object <trait>` too.
       In this version every field of a type that satisfies the trait is a one-word sized number, float or `bool` — the other types' fields must be filled with zero (`E-DYN-FIELD`).
     ]

@@ -19,12 +19,12 @@
       The following are all the keywords. What is not in this list is not a keyword.
     ]
     #shape("the keyword list — this list is all of it", "actor      break      case       continue   contract   cycle      do
-drop       else       end        enum       expect     export     expr
-extern     false      fn         for        guard      if         keep
-let        lit        match      module     newtype    next       none
-proc       range      repeat     return     satisfies  send       set
-spawn      state      step       struct     test       trait      true
-try        type       unsafe     use        var        while")
+drop       dyn        else       end        enum       expect     export
+expr       extern     false      fn         for        guard      if
+keep       let        lit        match      module     newtype    next
+none       proc       range      repeat     return     satisfies  send
+set        spawn      state      step       struct     test       trait
+true       try        type       unsafe     use        var        while")
     #para("2")[
       Reserved keywords cannot be names (#cref("6.1.2")). Every keyword in this list is dealt with by this document,
       and there is #strong[no]; keyword that is only reserved without being dealt with.
@@ -364,6 +364,9 @@ slice   array   matrix   segments   set   stack   range   vec   bitset   mask
 rem what holds an answer
 result   option
 
+rem the value of a trait (⟦§6.11.5⟧)
+object
+
 rem flows and channels (⟦§10.3⟧ · ⟦§10.6⟧)
 task   chan
 
@@ -383,7 +386,7 @@ self")
       The following words #strong[are accepted as names but have no meaning yet.]; The processor says so (`W-NOT-YET`,
       #cref("4.7")) — it does not accept them silently.
     ]
-    #shape("type words accepted only as names", "byte   char   str   string   bytes_view   dyn   atomic
+    #shape("type words accepted only as names", "byte   char   str   string   bytes_view   atomic
 rng   clock   device   file_system   net   tty   process")
     #para("2a")[
       Four (`list` · `raw` · `addr` · `rng`) were moved into this group in the edition of 2026-09-17. They were listed in (1) above,
@@ -486,7 +489,7 @@ comment-line    ::= ? a line that is not the closing line ?
 end-of-source   ::= ? the end of the source ?
 
 keyword ::= \"actor\" | \"break\" | \"case\" | \"continue\" | \"contract\" | \"cycle\" | \"do\"
-          | \"drop\" | \"else\" | \"end\" | \"enum\" | \"expect\" | \"export\" | \"expr\"
+          | \"drop\" | \"dyn\" | \"else\" | \"end\" | \"enum\" | \"expect\" | \"export\" | \"expr\"
           | \"extern\" | \"false\" | \"fn\" | \"for\" | \"guard\" | \"if\" | \"keep\"
           | \"let\" | \"lit\" | \"match\" | \"module\" | \"newtype\" | \"next\" | \"none\"
           | \"proc\" | \"range\" | \"repeat\" | \"return\" | \"satisfies\" | \"send\" | \"set\"
@@ -684,6 +687,8 @@ stage          ::= stage-word { word | term } [ \"with\" term ] \".\"
 stage-word     ::= ? a word of a pipe stage — a closed vocabulary (⟦§6.12⟧) ?
 word-form      ::= \"field\" term segment { segment } \".\"
                  | \"method\" term { segment } name \".\" { term } \".\"
+                 | \"dyn\" term name \".\" { term } \".\"
+                 | \"object\" name term \".\"
                  | \"payload\" term name name \".\"
                  | \"send\" term name { term } \".\"
                  | \"spawn\" \"actor\" path \".\"
@@ -709,6 +714,7 @@ shaped-form    ::= ? a core op whose word positions are fixed by the tables of a
     #para("4")[
       The op name of `method` is #strong[the first name closed with a dot];. The names and numbers before it are steps, and what comes after are arguments
       (`method o. inner area. w. 2 .`). The two words of `payload` are the names of a variant and a field (#cref("6.2.19")).
+      The op name of `dyn` is also a name closed by a stop, and what follows are arguments (`dyn s. scaled. 3 .`). The name after `object` is a trait (#cref("6.11.5")).
     ]
     #para("5")[
       The `operator` inside an `island` is an infix operator (#cref("6.3.2")). Parentheses group one piece of the island.

@@ -19,6 +19,7 @@
   [식과 값], [`expr` `lit` `true` `false` `none`], [#chref("expr")],
   [동시성], [`spawn` `send`], [#chref("actors")],
   [소유], [`drop`], [#chref("ownership")],
+  [실행 중에 고르기], [`dyn`], [#chref("traits")],
   [시험], [`test` `expect`], [#chref("build-test")],
   [블록], [`do` `end`], [#chref("surface")],
 )

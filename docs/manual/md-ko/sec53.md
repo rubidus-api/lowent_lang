@@ -13,6 +13,7 @@
 | 식과 값 | `expr` `lit` `true` `false` `none` | 8장 |
 | 동시성 | `spawn` `send` | 25장 |
 | 소유 | `drop` | 19장 |
+| 실행 중에 고르기 | `dyn` | 23장 |
 | 시험 | `test` `expect` | 31장 |
 | 블록 | `do` `end` | 3장 |
 

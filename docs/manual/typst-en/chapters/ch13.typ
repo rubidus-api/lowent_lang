@@ -310,7 +310,7 @@ The words that may stand in a type position form a closed list set by the canon.
   caption: [Type words --- usable · known by name · refused],
   [*Kind*], [*Words*], [*What the tool does*],
   [usable], [numbers · `bool` · `void` · `slice` · `array` · `segments` · `set` · `stack` · `range` · `vec` · `bitset` · `mask` · `result` · `option` · `ref` · `mut_ref` · `mut` · `owned` · `region` · `cap` · `self`], [checks and lowers them by meaning],
-  [known by name], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic` · `rng`], [`W-NOT-YET` --- says there is no meaning],
+  [known by name], [`byte` · `char` · `str` · `string` · `bytes_view` · `atomic` · `rng`], [`W-NOT-YET` --- says there is no meaning],
   [refused for now], [`shared_read` · `lock` · `rwlock`], [`E-LOCK-NOTYET` --- state shared between flows (#chref("tasks-channels"))],
   [qualifier], [`unsafe_ptr`], [a C pointer mark placed before a type (#chref("ffi"))],
   [decided, not built], [`raw` · `addr` · `c8` … `c64` · `b8` … `b128` · `list`], [`E-UNSAFE-UNBUILT` · `E-TYPE-UNBUILT` --- refuses them],

@@ -54,6 +54,7 @@ machine-readable form).
   [`E-CTRL-NODO`], [something other than a block `do … end` stands where one belongs], [#chref("surface")],
   [`E-DEP-MISSING`], [the file at a `use … from` place cannot be read], [#chref("modules")],
   [`E-DOT-MISSING`], [a stop `.` that closes a binding is missing], [#chref("surface"), #chref("control"), #chref("proofs-syntax")],
+  [`E-DYN-EFFECT`], [calls `dyn`, which chooses at run time, without `dyn` in its effects line --- `proc … effects dyn .`], [#chref("traits")],
   [`E-EFFECT`], [performs an effect its `effects` clause does not declare], [#chref("effects"), #chref("fixed-memory"), #chref("tasks-channels")],
   [`E-EFFECT-CALC`], [a pure `fn` performs an effect], [#chref("intro"), #chref("ops"), #chref("effects"), #chref("capabilities"), #chref("regions"), #chref("pipe")],
   [`E-EFFECT-DUP`], [the same atom twice in an `effects` clause], [#chref("effects"), #chref("proofs-effects")],

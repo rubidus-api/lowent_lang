@@ -269,3 +269,101 @@ do
   return method s. nosuch. . .
 end .
 ```
+
+## 6.11.5 실행 중에 고르기 — `object` 와 `dyn`
+
+(1) 타입 `object <트레이트>` 의 값은 그 트레이트를 `satisfies` 로 갖춘 **어느 타입의 값이든** 담는다. 어느 타입인지는 실행 중의 값이 정하고,
+      처리기는 번역할 때 그 타입을 모른다. 값은 `object <트레이트> <값> .` 으로 만든다 — 그 값을 **복사해 담는다**.
+      `<값>` 의 타입은 적혀 있어야 한다: 타입을 적은 이름이거나 `lit <타입> …` 이다(타입은 짐작하지 아니한다 · `E-DYN-LIT`).
+      그 타입이 트레이트를 갖추지 않았으면 `E-DYN-NOTSAT` 다.
+
+(2) `dyn <값> <op 이름>. <인자> .` 는 `<값>` 에 든 타입이 갖춘 그 op 을 **실행 중에 골라** 부른다. `<값>` 은 `object <트레이트>` 로 적은
+      이름이어야 하고(`E-DYN-RECV`), op 은 그 트레이트에 적힌 것이어야 한다(`E-DYN-OP`). 결과의 타입과 인자는 트레이트의 서명이 정한다.
+
+(3) 실행 중에 op 을 고르는 일은 효과 `dyn` 이다(⟦§7.1⟧). `dyn` 을 부르는 op 은 효과 줄에 `dyn` 을 적은 `proc` 이어야 하고
+      (`E-DYN-EFFECT`), 그 op 을 부르는 쪽으로 다른 효과처럼 번진다. 그래서 어느 op 이 실행 중에 고르는지가 서명에 보인다.
+      고른 op 이 하는 일의 효과는 트레이트 서명이 적은 효과를 넘지 아니한다(⟦§6.11.2⟧ (1b) · `E-TRAIT-EFFECT`).
+
+(4) `object` 로 쓸 수 있는 트레이트는 op 마다 다음을 지켜야 한다 — 어기면 `E-DYN-TRAIT` 다.
+      - 첫 입력이 `self` 다(고르는 기준이 되는 값). `self` 는 다른 입력과 출력에 오지 아니한다 — 그 크기는 실행 중에야 정해진다.
+      - `comptime` 입력이 없고, 효과 줄에 `via self` 가 없다.
+      - 나머지 입력과 출력은 낱말 하나의 타입이다(이 판의 테두리).
+
+(5) 트레이트를 갖춘 타입이 하나도 없으면 `E-DYN-NOIMPL` 이다. 이 판에서 갖춘 타입은 트레이트와 같은 모듈에 있어야 한다(`E-DYN-MODULE`).
+      `object <트레이트>` 의 값으로 원래의 타입을 되찾는 길은 없다.
+      `dyn` 과 `object` 의 꼴이 틀리면(op 이름 뒤에 점이 없다 · 값이 둘이다) `E-DYN-FORM` 이다. 처리기는 그 값의 타입에 `<트레이트>__object` 라는
+      이름을 주므로, 저자가 같은 이름을 지으면 `E-DYN-NAME` 이다. C 와 주고받는 op(`link` · `extern`)은 `object` 를 받거나 내지 아니하고(`E-DYN-FFI`),
+      액터의 처리기도 그렇다(`E-DYN-ACTOR`) — 이 판의 테두리다.
+
+> [!산문] 무엇에 쓰나
+> 트레이트 경계(⟦§6.11.2⟧)로 부르면 처리기가 번역 때 타입마다 op 을 따로 지어 간접 부름이 없다 — 가장 빠르다.
+> 갈래 있는 열거(⟦§6.6⟧)는 타입의 집합을 **저자가 닫는다**. `object` 는 그 둘이 안 되는 자리 — 값의 타입이 실행 중에 정해지고,
+> 그 집합을 부르는 쪽이 적지 않는 자리 — 를 위한 것이다. 그 대신 고르는 값을 치르고(간접 부름은 펼 수 없다), 그 사실이 `dyn` 이라는 낱말과
+> 효과에 보인다.
+
+```lowent 예제: 실행 중에 고른다 — 같은 op 이 사각형도 정사각형도 받는다 · 결과: demo() = 28
+module ex_dyn .
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area input s rect . output u64 .
+do
+  return mul field s. w . field s. h . . .
+end .
+
+fn square.area input s square . output u64 .
+do
+  return mul field s. side . field s. side . . .
+end .
+
+rem 이 op 은 받는 값이 무슨 타입인지 모른다 — `dyn` 이 실행 중에 고른다
+proc twice input o object shape . output u64 . effects dyn .
+do
+  return mul 2 dyn o. area. . . .
+end .
+
+proc demo output u64 . effects dyn .
+do
+  let r rect lit rect do w 2 . h 3 . end . .
+  let q square lit square do side 4 . end . .
+  let a object shape object shape r. . .
+  let b object shape object shape q. . .
+  return add twice a. . dyn b. area. . . .
+end .
+```
+
+```lowent-거부: 실행 중에 고르면서 효과 줄에 `dyn` 을 적지 않았다 · E-DYN-EFFECT
+module ex_dyn_effect .
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+end .
+
+fn rect.area input s rect . output u64 .
+do
+  return field s. w . .
+end .
+
+proc f input o object shape . output u64 . effects none .
+do
+  return dyn o. area. . .
+end .
+```

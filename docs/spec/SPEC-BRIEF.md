@@ -33,14 +33,14 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 
 ☞ 새 기능의 시금석: *"이게 이 원칙들의 귀결인가, 새 축인가?"* 새 축이면 뺀다.
 
-## 2. 어휘 — 하드 키워드 **48**  ·  *출처: 정본 §6.1 · 부록 A*
+## 2. 어휘 — 하드 키워드 **49**  ·  *출처: 정본 §6.1 · 부록 A*
 
 ```text
-  actor         break         case          continue      contract      cycle         do            drop          else          end
-  enum          expect        export        expr          extern        false         fn            for           guard         if
-  keep          let           lit           match         module        newtype       next          none          proc          range
-  repeat        return        satisfies     send          set           spawn         state         step          struct        test
-  trait         true          try           type          unsafe        use           var           while
+  actor         break         case          continue      contract      cycle         do            drop          dyn           else
+  end           enum          expect        export        expr          extern        false         fn            for           guard
+  if            keep          let           lit           match         module        newtype       next          none          proc
+  range         repeat        return        satisfies     send          set           spawn         state         step          struct
+  test          trait         true          try           type          unsafe        use           var           while
 ```
 
 ## 3. 빌트인 op **238**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
@@ -80,12 +80,12 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   wrap_shl        wrap_shr        wrap_sub        write_out       write_volatile  zip
 ```
 
-## 4. effect atom **15**  ·  *출처: 정본 §7.1*
+## 4. effect atom **16**  ·  *출처: 정본 §7.1*
 
 전파 = 합집합 · 게이팅 = ⊆. 바닥은 `none`(=∅).
 
 ```text
-  alloc  heap  io  wait  concurrent  lock  atomic  state  panic  device  unsafe  page_fault  blocking  cancel  detach
+  alloc  heap  io  wait  concurrent  lock  atomic  state  panic  device  unsafe  page_fault  blocking  cancel  detach  dyn
 ```
 
 ## 5. 권한(capability)·프로파일  ·  *출처: 정본 §7.2 · §5.6*
@@ -97,16 +97,16 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   프로파일  freestanding  embedded  native  server
 ```
 
-## 6. 오류 코드 — 계열 **124**  ·  *출처: `impl/src/*.c`*
+## 6. 오류 코드 — 계열 **125**  ·  *출처: `impl/src/*.c`*
 
 **전부 적지 않는다**(수백 개다). 어느 계열이 얼마나 굵은지만 — 굵은 계열이 곧 이 언어가
 가장 자주 거절하는 자리다.
 
 ```text
-  E-VM(56)  E-TYPE(41)  E-NAME(13)  E-ENUM(12)  E-ASM(11)
-  E-ALLOC(10)  E-EFFECT(9)  E-MMIO(9)  E-PKG(8)  E-IR(8)
-  E-PAR(7)  E-FFI(7)  E-OWN(7)  E-LIT(7)
-  … 그 밖 110 계열
+  E-VM(56)  E-TYPE(41)  E-NAME(13)  E-DYN(12)  E-ENUM(12)
+  E-ASM(11)  E-ALLOC(10)  E-EFFECT(9)  E-MMIO(9)  E-PKG(8)
+  E-IR(8)  E-PAR(7)  E-FFI(7)  E-OWN(7)
+  … 그 밖 111 계열
 ```
 
 ## 7. 지금의 수  ·  *가리키기만 한다*

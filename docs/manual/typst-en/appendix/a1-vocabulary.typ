@@ -19,6 +19,7 @@ specification's Appendix A, and anything not in that list is not a word.
   [Expressions and values], [`expr` `lit` `true` `false` `none`], [#chref("expr")],
   [Concurrency], [`spawn` `send`], [#chref("actors")],
   [Ownership], [`drop`], [#chref("ownership")],
+  [Choosing at run time], [`dyn`], [#chref("traits")],
   [Tests], [`test` `expect`], [#chref("build-test")],
   [Blocks], [`do` `end`], [#chref("surface")],
 )

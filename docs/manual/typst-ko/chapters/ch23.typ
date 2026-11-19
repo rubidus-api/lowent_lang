@@ -186,6 +186,45 @@ end .
   않는다. `rect` 와 `square` 는 `shape` 를 갖춘 뒤에도 서로 아무 관계가 없다. 이 언어에는 상속이 없다.
 ]
 
+== 실행 중에 고르기 --- `object` 와 `dyn`
+
+트레이트 경계(`requires shape t`)로 부르면 처리기가 *번역할 때* 타입마다 op 을 따로 짓는다. 가장 빠르지만, 어느 타입인지가 번역 때
+정해져 있어야 한다. 값의 타입이 *실행 중에야* 정해질 때 --- 사용자가 고른 모양 · 파일에서 읽은 종류 --- 는 `object <트레이트>` 에 담고
+`dyn` 으로 부른다.
+
+#demo("examples/ch23/dyn.low")
+
+- `object shape` 는 "shape 를 갖춘 *어느* 타입의 값" 이다. `object shape r. .` 이 `r` 을 *복사해* 담는다. 담을 값의 타입은
+  적혀 있어야 한다 --- 타입을 적은 이름이거나 `lit <타입> …` 이다.
+- `dyn a. area. .` 는 `a` 에 든 타입의 `area` 를 *실행 중에 골라* 부른다. 인자는 op 이름 뒤에 온다(`dyn b. scaled. 10 .`).
+- 고르는 일은 효과 `dyn` 이다. `both` 와 `demo` 는 `effects dyn .` 을 적어야 하고, 적지 않으면 `E-DYN-EFFECT` 다. 그래서 어느 op 이
+  실행 중에 고르는지가 서명에 보인다. 만드는 `pick` 은 고르지 않으므로 `effects none .` 이다.
+- 답 166 은 `a` 의 넓이 6 에 `b` 의 `scaled 10`(160)을 더한 것이다.
+
+#demo("examples/ch23/dyn_effect.low")
+
+#dtable(
+  columns: 2,
+  id: "traits-dyn-diags",
+  caption: [`object` · `dyn` 이 거절되는 자리],
+  [*진단*], [*뜻*],
+  [`E-DYN-EFFECT`], [`dyn` 을 부르는 op 이 `proc … effects dyn .` 이 아니다],
+  [`E-DYN-RECV`], [받는 값이 `object <트레이트>` 로 적은 이름이 아니다],
+  [`E-DYN-OP`], [트레이트에 없는 op 을 부른다],
+  [`E-DYN-NOTSAT`], [담으려는 값의 타입이 그 트레이트를 갖추지 않았다],
+  [`E-DYN-LIT`], [담으려는 값의 타입이 적혀 있지 않다],
+  [`E-DYN-TRAIT`], [트레이트의 서명이 실행 중에 고를 수 없는 꼴이다(첫 입력이 `self` 가 아니다 · `self` 가 다른 자리에 있다 · `via self` …)],
+  [`E-DYN-NOIMPL`], [그 트레이트를 갖춘 타입이 없다],
+)
+
+#qa[
+  `object` 와 갈래 있는 열거는 무엇이 다른가?
+][
+  열거는 *저자가* 타입의 집합을 닫는다 --- `enum shape do rect … square … end` 처럼 적어 둔다. `object shape` 는 집합을 적지 않는다.
+  `satisfies shape` 를 적은 타입이 늘면 그만큼 늘어난다. 처리기는 그 집합으로 고르는 표를 짓는다. 그 대신 고르는 값을 치르고,
+  그 사실이 `dyn` 이라는 낱말과 효과에 보인다. 트레이트 경계로 부를 수 있으면 그쪽이 빠르다.
+]
+
 == 흔한 실수
 
 #antipattern[`method` 뒤에 이름을 먼저 적는다][

@@ -1898,7 +1898,7 @@ end .
 
 (1) Some names **are accepted but have no meaning.** If such a name is written in a signature, the processor
       warns (`W-NOT-YET`). Those names are gathered in annex A.9 (2) — names such as `byte` · `char` · `str` ·
-      `string` · `bytes_view` · `dyn` · `atomic`.
+      `string` · `bytes_view` · `atomic`.
 
 (2) Having no meaning means that **the processor does not know the shape of the values that name holds**. Neither the size, the layout,
       nor what can be done with the value is fixed, so checks that rely on that name **do not stand**.

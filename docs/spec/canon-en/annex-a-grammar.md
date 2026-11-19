@@ -16,12 +16,12 @@
 
 ```문법틀: the keyword list — this list is all of it
 actor      break      case       continue   contract   cycle      do
-drop       else       end        enum       expect     export     expr
-extern     false      fn         for        guard      if         keep
-let        lit        match      module     newtype    next       none
-proc       range      repeat     return     satisfies  send       set
-spawn      state      step       struct     test       trait      true
-try        type       unsafe     use        var        while
+drop       dyn        else       end        enum       expect     export
+expr       extern     false      fn         for        guard      if
+keep       let        lit        match      module     newtype    next
+none       proc       range      repeat     return     satisfies  send
+set        spawn      state      step       struct     test       trait
+true       try        type       unsafe     use        var        while
 ```
 
 (2) Reserved keywords cannot be names (⟦§6.1.2⟧). Every keyword in this list is dealt with by this document,
@@ -364,6 +364,9 @@ slice   array   matrix   segments   set   stack   range   vec   bitset   mask
 rem what holds an answer
 result   option
 
+rem the value of a trait (⟦§6.11.5⟧)
+object
+
 rem flows and channels (⟦§10.3⟧ · ⟦§10.6⟧)
 task   chan
 
@@ -385,7 +388,7 @@ self
       ⟦§4.7⟧) — it does not accept them silently.
 
 ```문법틀: type words accepted only as names
-byte   char   str   string   bytes_view   dyn   atomic
+byte   char   str   string   bytes_view   atomic
 rng   clock   device   file_system   net   tty   process
 ```
 
@@ -482,7 +485,7 @@ comment-line    ::= ? a line that is not the closing line ?
 end-of-source   ::= ? the end of the source ?
 
 keyword ::= "actor" | "break" | "case" | "continue" | "contract" | "cycle" | "do"
-          | "drop" | "else" | "end" | "enum" | "expect" | "export" | "expr"
+          | "drop" | "dyn" | "else" | "end" | "enum" | "expect" | "export" | "expr"
           | "extern" | "false" | "fn" | "for" | "guard" | "if" | "keep"
           | "let" | "lit" | "match" | "module" | "newtype" | "next" | "none"
           | "proc" | "range" | "repeat" | "return" | "satisfies" | "send" | "set"
@@ -675,6 +678,8 @@ stage          ::= stage-word { word | term } [ "with" term ] "."
 stage-word     ::= ? a word of a pipe stage — a closed vocabulary (⟦§6.12⟧) ?
 word-form      ::= "field" term segment { segment } "."
                  | "method" term { segment } name "." { term } "."
+                 | "dyn" term name "." { term } "."
+                 | "object" name term "."
                  | "payload" term name name "."
                  | "send" term name { term } "."
                  | "spawn" "actor" path "."
@@ -698,6 +703,7 @@ shaped-form    ::= ? a core op whose word positions are fixed by the tables of a
 
 (4) The op name of `method` is **the first name closed with a dot**. The names and numbers before it are steps, and what comes after are arguments
       (`method o. inner area. w. 2 .`). The two words of `payload` are the names of a variant and a field (⟦§6.2.19⟧).
+      The op name of `dyn` is also a name closed by a stop, and what follows are arguments (`dyn s. scaled. 3 .`). The name after `object` is a trait (⟦§6.11.5⟧).
 
 (5) The `operator` inside an `island` is an infix operator (⟦§6.3.2⟧). Parentheses group one piece of the island.
 

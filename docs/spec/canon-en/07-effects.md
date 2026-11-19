@@ -29,6 +29,7 @@
 > [`blocking`], [can hold up a flow of execution],
 > [`cancel`], [can be cancelled],
 > [`detach`], [detaches a flow of execution it made],
+> [`dyn`], [calls an op chosen at run time (⟦§6.11.5⟧) — the value at that moment decides which type's op runs],
 > )
 
 (2a) Of these, five --- `lock` · `page_fault` · `blocking` · `cancel` · `detach` --- **have no core op yet** that does that work.

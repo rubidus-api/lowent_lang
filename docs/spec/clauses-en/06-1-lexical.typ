@@ -111,7 +111,7 @@ fn f output u8 . do return 1 . end .",
   #sub("6.1.2", "Keywords")[
     #part("Syntax")
     #syntax("keyword", "keyword ::= \"actor\" | \"break\" | \"case\" | \"continue\" | \"contract\" | \"cycle\" | \"do\"
-          | \"drop\" | \"else\" | \"end\" | \"enum\" | \"expect\" | \"export\" | \"expr\"
+          | \"drop\" | \"dyn\" | \"else\" | \"end\" | \"enum\" | \"expect\" | \"export\" | \"expr\"
           | \"extern\" | \"false\" | \"fn\" | \"for\" | \"guard\" | \"if\" | \"keep\"
           | \"let\" | \"lit\" | \"match\" | \"module\" | \"newtype\" | \"next\" | \"none\"
           | \"proc\" | \"range\" | \"repeat\" | \"return\" | \"satisfies\" | \"send\" | \"set\"

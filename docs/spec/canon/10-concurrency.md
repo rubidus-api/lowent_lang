@@ -505,7 +505,7 @@ end .
 > [!표] 등급과 그것이 감당하는 효과
 > #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
 > [*등급*], [*어떤 기계*], [*새로 감당하는 효과*],
-> [`t0`], [협력 바닥 — 아주 작은 기계, 운영체제 없음], [`none` `unsafe` `panic` `state` `wait` `cancel`],
+> [`t0`], [협력 바닥 — 아주 작은 기계, 운영체제 없음], [`none` `unsafe` `panic` `state` `wait` `cancel` `dyn`],
 > [`t1`], [작은 기계], [위에 더해 `io` `device`],
 > [`t2`], [실시간 운영체제], [위에 더해 `alloc` `lock` `atomic` `blocking` `concurrent`],
 > [`t3`], [운영체제가 있는 기계], [위에 더해 `heap` `page_fault` `detach` — 곧 **전부**],

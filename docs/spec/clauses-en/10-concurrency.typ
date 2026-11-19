@@ -537,7 +537,7 @@ end .", "E-TYPE-LET")
     #tbl("Tiers and the effects they bear")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*Tier*], [*What machine*], [*Effects newly borne*],
-      [`t0`], [cooperative floor — very small machines, no operating system], [`none` `unsafe` `panic` `state` `wait` `cancel`],
+      [`t0`], [cooperative floor — very small machines, no operating system], [`none` `unsafe` `panic` `state` `wait` `cancel` `dyn`],
       [`t1`], [small machines], [in addition to the above, `io` `device`],
       [`t2`], [real-time operating systems], [in addition to the above, `alloc` `lock` `atomic` `blocking` `concurrent`],
       [`t3`], [machines with an operating system], [in addition to the above, `heap` `page_fault` `detach` — that is, #strong[everything];],

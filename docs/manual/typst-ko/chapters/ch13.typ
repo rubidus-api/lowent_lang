@@ -310,7 +310,7 @@
   caption: [타입 낱말 --- 쓸 수 있는 것 · 이름만 아는 것 · 거절되는 것],
   [*갈래*], [*낱말*], [*도구가 하는 일*],
   [쓸 수 있다], [수 · `bool` · `void` · `slice` · `array` · `segments` · `set` · `stack` · `range` · `vec` · `bitset` · `mask` · `result` · `option` · `ref` · `mut_ref` · `mut` · `owned` · `region` · `cap` · `self`], [뜻대로 검사하고 낮춘다],
-  [이름만 안다], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic` · `rng`], [`W-NOT-YET` --- 뜻이 없다고 말한다],
+  [이름만 안다], [`byte` · `char` · `str` · `string` · `bytes_view` · `atomic` · `rng`], [`W-NOT-YET` --- 뜻이 없다고 말한다],
   [아직 거절], [`shared_read` · `lock` · `rwlock`], [`E-LOCK-NOTYET` --- 흐름끼리 나누는 상태(#chref("tasks-channels"))],
   [한정자], [`unsafe_ptr`], [타입 앞에 붙는 C 포인터 표시(#chref("ffi"))],
   [정했으되 짓지 않음], [`raw` · `addr` · `c8` … `c64` · `b8` … `b128` · `list`], [`E-UNSAFE-UNBUILT` · `E-TYPE-UNBUILT` --- 거절한다],

@@ -92,7 +92,9 @@ static const char *const CL_T_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32
                                          "void","self","str","string","char","byte","bytes_view", NULL };
 static const char *const CL_T_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero","task","chan",   /* RFC-0148 S5 — 흐름의 핸들 · 채널(소유자 2026-10-14 «핸들·채널에 타입을») */
                                          
-                                         "atomic","lock","rwlock","shared_read","view", NULL };
+                                         "atomic","lock","rwlock","shared_read","view",
+                                         "object",   /* RFC-0159 — `object <트레이트>`: 그 트레이트를 갖춘 어떤 타입의 값 */
+                                         NULL };
 static const char *const CL_T_CTOR[] = { "result","array","vec","matrix","bitset","mask","bits","cap","region","fn","unsafe_fn", NULL };
 static const char *const CL_QUAL[]   = { "mut","owned","ref","mut_ref", NULL };
 static const char *const CL_GRADE[]  = { "assume","static","debug", NULL };
@@ -332,6 +334,16 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
             if (cl_kw(c, i + 1, "send")) return cl_done(c, i, cl_term(c, i + 1, false, false), wrap, keep);
             return cl_done(c, i, cl_args(c, i + 2), wrap, keep);
         }
+        if (cl_eq(t, "dyn")) {                               // ★ RFC-0159 — dyn <값> <op 이름>. <인자>* .  (가상 테이블로 고른 op 을 부른다)
+            proven_size_t j = cl_term(c, i + 1, true, false);
+            if (cl_dot(c, j)) cl_fail(c, j, "E-DYN-FORM", "`dyn` needs a receiver and an op name: `dyn <value> <op name>. <arguments> .`");
+            const low_token_t *s = cl_tk(c, j);
+            if (s->kind != LOW_TOK_IDENT || !cl_dot(c, j + 1))
+                cl_fail(c, j, "E-DYN-FORM", "`dyn <value> <op name>. <arguments> .` — the op name is a name closed by a stop, right after the value");
+            c->del[j + 1] = 1;                               // op 이름의 점
+            c->T[j].aux = (proven_u8str_view_t){ .ptr = (const proven_byte_t *)".", .size = 1 };   // 서식기가 이 이름 뒤에 점을 다시 찍는다
+            return cl_done(c, i, cl_args(c, j + 2), wrap, keep);
+        }
         if (cl_eq(t, "try")) {
             proven_size_t j = cl_term(c, i + 1, true, false);
             while (!cl_dot(c, j)) { cl_tk(c, j); j++; }
@@ -382,6 +394,11 @@ static proven_size_t cl_term_in(cl_t *c, proven_size_t i, bool wrap, bool keep) 
     if (cl_eq(t, "pop")) {
         proven_size_t j = cl_term(c, i + 1, true, false);
         if (cl_word(c, j, "into")) j = cl_term(c, j + 1, true, false);
+        return cl_done(c, i, j, wrap, keep);
+    }
+    if (cl_eq(t, "object") && cl_id(c, i + 1) && !cl_dot(c, i + 2)) {   // ★ RFC-0159 — object <트레이트> <값> .  (그 값을 트레이트의 값으로 싼다)
+        proven_size_t j = cl_term(c, i + 2, true, false);
+        if (!cl_dot(c, j)) cl_fail(c, j, "E-DYN-FORM", "`object <trait> <value> .` — one value, then the stop");
         return cl_done(c, i, j, wrap, keep);
     }
     if (cl_eq(t, "field")) {
@@ -978,7 +995,7 @@ static proven_size_t up_open_end(up_t *u, proven_size_t i);
 // 인자 자리의 한 마디 — 서식기가 괄호 없이 찍는 값(`lit … do … end` · 섬 · `send` …)도 받는다. 그것은 제 끝까지가 한 항이다.
 static proven_size_t up_arg(up_t *u, proven_size_t j, proven_size_t e) {
     const low_token_t *t = up_tk(u, j);
-    bool open = t->kind == LOW_TOK_IDENT && ((t->kw != LOW_KW_NONE && (cl_eq(t, "lit") || cl_eq(t, "expr") || cl_eq(t, "send") || cl_eq(t, "spawn") || cl_eq(t, "try"))) ||
+    bool open = t->kind == LOW_TOK_IDENT && ((t->kw != LOW_KW_NONE && (cl_eq(t, "lit") || cl_eq(t, "expr") || cl_eq(t, "send") || cl_eq(t, "spawn") || cl_eq(t, "try") || cl_eq(t, "dyn"))) ||
                                              (t->kw == LOW_KW_NONE && cl_eq(t, "pipe") && j + 1 < e));
     if (!open) return up_item(u, j);
     proven_size_t x = up_open_end(u, j);
@@ -1057,6 +1074,13 @@ static void up_call(up_t *u, proven_size_t h, proven_size_t e) {
             up_items(u, h + 2, e); u->close[last]++; return;
         }
         if (cl_eq(t, "try")) { (void)up_item(u, h + 1); u->close[last]++; return; }
+        if (cl_eq(t, "dyn")) {                           // ★ RFC-0159 — 서식기가 op 이름 뒤에 점을 붙여 찍었다(`method` 와 같다)
+            proven_size_t j = up_item(u, h + 1);
+            while (j < e && !up_dot(u, j)) j++;
+            if (j >= e) up_fail(u);
+            up_items(u, j + 1, e);
+            u->close[last]++; return;
+        }
         if (cl_eq(t, "true") || cl_eq(t, "false") || cl_eq(t, "none")) up_fail(u);
         up_fail(u);
     }
@@ -1089,7 +1113,15 @@ static void up_call(up_t *u, proven_size_t h, proven_size_t e) {
         if (up_word(u, j, "into")) (void)up_item(u, j + 1);
         u->close[last]++; return;
     }
+    if (cl_eq(t, "object")) { (void)up_item(u, h + 2); u->close[last]++; return; }   // ★ RFC-0159
     if (cl_eq(t, "field")) { (void)up_item(u, h + 1); u->close[last]++; return; }
+    if (cl_eq(t, "dyn")) {                               // ★ RFC-0159 — 서식기가 op 이름 뒤에 점을 붙여 찍었다
+        proven_size_t j = up_item(u, h + 1);
+        while (j < e && !up_dot(u, j)) j++;
+        if (j >= e) up_fail(u);
+        up_items(u, j + 1, e);
+        u->close[last]++; return;
+    }
     if (cl_eq(t, "method")) {                            // 서식기가 op 이름 뒤에 점을 붙여 찍었다
         proven_size_t j = up_item(u, h + 1);
         while (j < e && !up_dot(u, j)) j++;
@@ -1241,7 +1273,7 @@ static proven_size_t up_stmt(up_t *u, proven_size_t i) {
         proven_size_t j = up_block(u, up_kw(u, i + 1, "do") ? i + 1 : i + 2); u->close[j - 1]++; return j;
     }
     if (kw && (cl_eq(t, "fn") || cl_eq(t, "proc"))) return up_op_decl(u, i);
-    if (kw && !cl_eq(t, "send") && !cl_eq(t, "spawn") && !cl_eq(t, "try") && !cl_eq(t, "lit") && !cl_eq(t, "expr")) up_fail(u);
+    if (kw && !cl_eq(t, "send") && !cl_eq(t, "spawn") && !cl_eq(t, "try") && !cl_eq(t, "lit") && !cl_eq(t, "expr") && !cl_eq(t, "dyn")) up_fail(u);
     // 호출 문장 — 문장의 점이 그 호출의 닫는 점이다(따로 찍지 않는다).
     proven_size_t e = up_open_end(u, i);
     if (!kw && cl_eq(t, "pipe") && e > i + 1) { up_call(u, i, e); return e; }

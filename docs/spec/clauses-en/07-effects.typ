@@ -32,6 +32,7 @@
       [`blocking`], [can hold up a flow of execution],
       [`cancel`], [can be cancelled],
       [`detach`], [detaches a flow of execution it made],
+      [`dyn`], [calls an op chosen at run time (⟦§6.11.5⟧) — the value at that moment decides which type's op runs],
       )
     ]
     #para("2a")[

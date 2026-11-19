@@ -45,7 +45,10 @@ enum { EFF_NONE = 0, EFF_IO = 1u, EFF_ALLOC = 2u, EFF_STATE = 4u,
        //   ★ 추론할 원시어가 없으므로 "선언했는데 안 한다"(W-EFFECT-OVER)에서는 뺀다 —
        //     그 경고는 «몸이 그것을 하는가» 를 묻는데, 물을 몸이 없다.
        EFF_LOCK = 512u, EFF_DEVICE = 1024u, EFF_PAGEFAULT = 2048u,
-       EFF_BLOCKING = 4096u, EFF_CANCEL = 8192u, EFF_DETACH = 16384u };
+       EFF_BLOCKING = 4096u, EFF_CANCEL = 8192u, EFF_DETACH = 16384u,
+       // ★ RFC-0159 (2026-11-19 소유자 «effect 같은 것에 분류를 추가하는 것도») — `dyn`: 실행 중 가상 테이블로 고른 op 을 부른다.
+       //   그 일을 하는 것은 처리기가 지은 고르는 op(`<트레이트>__object.<이름>`)이고, 부르는 쪽으로 다른 효과처럼 번진다.
+       EFF_DYN = 32768u };
 // ★ `device` 는 2026-10-22 에 이 묶음에서 나왔다(RFC-0150 Q7 ⓒ · 소유자 «추천대로»): 장치 레지스터를 만지는 일
 //   (`read_volatile` · `write_volatile` · mmio 뷰의 `field` · `set`)이 곧 그 일이다 — 계수는 아래 `used |= EFF_DEVICE`.
 #define EFF_NOPRIM (EFF_LOCK | EFF_PAGEFAULT | EFF_BLOCKING | EFF_CANCEL | EFF_DETACH)
@@ -133,6 +136,7 @@ static unsigned effect_of_word(proven_u8str_view_t v) {
     if (veq(v, "blocking")) return EFF_BLOCKING;
     if (veq(v, "cancel")) return EFF_CANCEL;
     if (veq(v, "detach")) return EFF_DETACH;
+    if (veq(v, "dyn")) return EFF_DYN;   // ★ RFC-0159
     return EFF_NONE;  // "none" or an effect with no primitive yet
 }
 // ★ effect 어휘는 **닫혀 있다**(SPEC-002 §부록 K — 13 평면 atom + 바닥 `none`).
@@ -160,7 +164,8 @@ static unsigned effect_of_word(proven_u8str_view_t v) {
     X("alloc", 2) X("lock", 2)    X("atomic", 2)  X("blocking", 2)            \
     X("heap", 3)                                                              \
     X("concurrent", 2)                                                        \
-    X("page_fault", 3) X("detach", 3)
+    X("page_fault", 3) X("detach", 3)                                    \
+    X("dyn", 0)
 
 static bool effect_word_known(proven_u8str_view_t v) {
 #define LOW_EFF_CHECK(w, tier) if (veq(v, w)) return true;
@@ -9166,6 +9171,7 @@ const char *low_effect_bit_name(unsigned bit) {
         case EFF_BLOCKING:  return "blocking";
         case EFF_CANCEL: return "cancel";
         case EFF_DETACH: return "detach";
+        case EFF_DYN:    return "dyn";
         default:         return "none";
     }
 }
@@ -13695,6 +13701,10 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         // ★ 예약 블록(모듈 가변 전역)을 만지면 `state` 다 — 요구하는 쪽과 같은 판정으로(위 ★★★★★).
         if (tab[i].form && ck_touches_reserved(pr, tab[i].form))
             used |= EFF_STATE;
+        // ★ RFC-0159 — 처리기가 지은 고르는 op(`<트레이트>__object.<이름>`)이 곧 `dyn` 부름을 하는 자리다(가상 테이블에서 고른다).
+        { proven_u8str_view_t nm_ = tab[i].name; bool gen_ = false;
+          for (proven_size_t q = 0; q + 5 <= nm_.size; q++) if (q + 9 <= nm_.size && memcmp(nm_.ptr + q, "__object.", 9) == 0) { gen_ = true; break; }
+          if (gen_) used |= EFF_DYN & tab[i].declared; }
         // ★ `asm` 도 같은 규율이다 — **헤더 절로 쓴 것까지** 센다(WO-0187). 본문 워크는 문장 자리만
         //   보므로 `unsafe proc wait_irq … asm cortex_m .` 이 새어 나갔다. 요구하는 쪽(`ck_asm`)과
         //   **같은 함수**를 부른다.
@@ -13779,7 +13789,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 low_diag_t *last = (low_diag_t *)out.diags.data + (out.diags.len - 1);
                 // ★ 넘친 효과를 **모두** 말한다(2026-10-22) — 첫 하나만 말하면 `unsafe` 가 `device` 를 가렸다.
                 char onames[128]; size_t oo = 0; onames[0] = 0;
-                for (unsigned bit = 1; bit && bit <= EFF_DETACH; bit <<= 1) {
+                for (unsigned bit = 1; bit && bit <= EFF_DYN; bit <<= 1) {
                     if (!(over & bit)) continue;
                     int w = low_bfmt(onames + oo, sizeof onames - oo, "{}`{}`", proven_arg_cstr(oo ? ", " : ""), proven_arg_cstr(low_effect_bit_name(bit)));
                     if (w < 0 || (size_t)w >= sizeof onames - oo) break;

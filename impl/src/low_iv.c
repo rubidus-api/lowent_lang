@@ -423,6 +423,16 @@ static bool iv_leknown(const ivstate_t *st, proven_size_t k, proven_i32 p) {
     proven_i32 q = st->lerel[k];
     return q >= 0 && (proven_size_t)q < IR_MAXLOCALS && st->lerel[q] == p;
 }
+static proven_i64 iv_ivmargin(iv_t a, iv_t b);
+static proven_i64 iv_any_lemargin(const ivstate_t *st, proven_size_t k, proven_i32 p) {
+    if (k >= IR_MAXLOCALS || p < 0 || (proven_size_t)p >= IR_MAXLOCALS) return -1;
+    proven_i64 m = -1;
+    if (iv_leknown(st, k, p)) m = iv_lemargin(st, k, p);
+    if (st->lerel2[k] == p && st->leoff2[k] > m) m = st->leoff2[k];
+    proven_i64 im = iv_ivmargin(st->loc[k], st->loc[p]);
+    if (im > m) m = im;
+    return m;
+}
 static proven_i64 iv_margin(const ivstate_t *st, proven_size_t k, proven_i32 s) {
     if (k >= IR_MAXLOCALS || s < 0 || st->lenlt[k] != s) return 0;
     return st->lenoff[k] + (st->lenstr[k] ? 1 : 0);
@@ -580,6 +590,7 @@ static void iv_kill_local(ivstate_t *st, proven_size_t sl, bool keep_lenge) {
     if (!keep_lenge) { st->lenge_p[sl] = -1; st->lenge_q[sl] = -1;
                       st->slenle_t[sl] = -1; st->slenle_str[sl] = 0; }
     st->lerel[sl]    = -1; st->lestr[sl]   = 0; st->leoff[sl] = 0;
+    st->lerel2[sl]   = -1; st->leoff2[sl] = 0;
     st->vlanesloc[sl] = 0;
     st->divofloc_s[sl] = -1;
     st->prodloc_l[sl] = -1; st->prodloc_r[sl] = -1;
@@ -609,6 +620,7 @@ static void iv_kill_local(ivstate_t *st, proven_size_t sl, bool keep_lenge) {
             st->slenle_t[k] = -1; st->slenle_str[k] = 0;
         }
         if (st->lerel[k]    == (proven_i32)sl) { st->lerel[k] = -1; st->lestr[k] = 0; st->leoff[k] = 0; }
+        if (st->lerel2[k]   == (proven_i32)sl) { st->lerel2[k] = -1; st->leoff2[k] = 0; }
         // ★★ 출처도 **양방향**이다 (2026-10-04): `row = i·n` 은 i 나 n 이 바뀌는 순간 낡고, `q = s / c` 는 s 가 바뀌는 순간 낡는다.
         //   나눗셈 출처는 이 줄이 없었다 — 원본이 바뀐 뒤에도 `q·c ≤ s` 를 믿을 수 있었다(이번에 곱 출처를 지역에 실으며 찾았다).
         if (st->prodloc_l[k] == (proven_i32)sl || st->prodloc_r[k] == (proven_i32)sl) { st->prodloc_l[k] = -1; st->prodloc_r[k] = -1; }
@@ -636,6 +648,15 @@ static iv_t iv_join2(iv_t a, iv_t b) {
 //   문턱 = 길이의 상한 `max_slice_len − 1` · `max_slice_len`(목표 표). 사슬이 유한하므로 끝난다. 문턱의 hi 는 **고정점에서만** 사실이다 —
 //   그래서 증명은 수렴 뒤의 표시 패스만 적고(아래 4), 24 바퀴 안에 수렴하지 못하면 문턱을 끄고 처음부터 다시 돈다(g_iv_thr).
 static bool g_iv_thr = true;
+// ★★ RFC-0150 §8-47 ① — 합류가 관계를 **받는다**: 이미 있던 경로들의 구간이 a.hi ≤ b.lo 이면(구간은 경로의 모든 값을 덮는다) 그 경로에서도
+//   a ≤ b 가 참이다. 받은 관계는 **둘째 칸**(lerel2)에만 담는다. 수렴하지 못하면 문턱과 함께 끄고 다시 돈다.
+static bool g_iv_adopt = true;
+static proven_i64 iv_ivmargin(iv_t a, iv_t b) {
+    if (a.wide || a.hi == INT64_MAX || b.lo == INT64_MIN || b.lo < a.hi) return -1;
+    return b.lo - a.hi;
+}
+// 상태 st 에서 «k + m ≤ p» 의 가장 큰 m(첫 칸 · 둘째 칸 · 구간 셋 가운데) — 모르면 -1
+static proven_i64 iv_any_lemargin(const ivstate_t *st, proven_size_t k, proven_i32 p);
 static iv_t iv_widen(iv_t old, iv_t nw) {
     // ★ 위드닝이 hi 를 극단으로 보내면 그것은 **더 이상 사실이 아니다** ⇒ 자른 것으로 표시한다.
     //   INT64_MAX 는 u64 의 진짜 상계가 아니다 — 그 자리에서 결론하면 불건전하다.
@@ -1663,10 +1684,12 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                     bool inc_self = stk[sp - 1].aff_s == (proven_i32)sl && stk[sp - 1].aff_c >= 0;
                     proven_i32 keep_p[IR_MAXLOCALS]; proven_u8 keep_s[IR_MAXLOCALS];
                     proven_i64 keep_o[IR_MAXLOCALS];
+                    proven_i32 keep_p2[IR_MAXLOCALS]; proven_i64 keep_o2[IR_MAXLOCALS];   /* §8-47 — 둘째 칸도 같은 까닭으로 산다 */
                     if (inc_self)
                         for (proven_size_t k2 = 0; k2 < IR_MAXLOCALS; k2++) {
                             keep_p[k2] = (st->lerel[k2] == (proven_i32)sl) ? st->lerel[k2] : -1;
                             keep_s[k2] = st->lestr[k2]; keep_o[k2] = st->leoff[k2];
+                            keep_p2[k2] = (st->lerel2[k2] == (proven_i32)sl) ? st->lerel2[k2] : -1; keep_o2[k2] = st->leoff2[k2];
                         }
                     // ★ 진입 프롤로그의 자기-재대입만 계약 사실을 지키고, 몸통의 재대입은 지운다.
                     iv_kill_local(st, sl, i < ir_prologue_end(d));
@@ -1676,6 +1699,9 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                                 st->lerel[k2] = keep_p[k2];
                                 st->lestr[k2] = keep_s[k2]; st->leoff[k2] = keep_o[k2];
                             }
+                    if (inc_self)
+                        for (proven_size_t k2 = 0; k2 < IR_MAXLOCALS; k2++)
+                            if (keep_p2[k2] >= 0 && k2 != sl) { st->lerel2[k2] = keep_p2[k2]; st->leoff2[k2] = keep_o2[k2]; }
                     st->loc[sl] = stk[sp - 1].v;
                     st->lenlt[sl] = stk[sp - 1].lenlt;   // 사실은 값을 따라간다 (`var j be i`)
                     st->lenstr[sl] = stk[sp - 1].lenstr; // ★ 엄격/비엄격도 함께 따라간다
@@ -1718,6 +1744,8 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                             //   ⇒ 대상에 아직 상계 관계가 없으면 `sl ≤ src` 도 심는다. 둘 중 하나가 바뀌면 kill 이 양쪽을 지운다.
                             if (st->lerel[sl] < 0)
                                 iv_put_lerel(st, (proven_i32)sl, src, false, 0);
+                            // ★ §8-47 ① — 복사는 언제나 같음이다. 첫 칸이 이미 다른 관계로 찼으면 «sl ≤ src» 를 둘째 칸에 적는다(방금 죽어 비어 있다).
+                            if (st->lerel[sl] != src) { st->lerel2[sl] = src; st->leoff2[sl] = 0; }
                         } else if (stk[sp - 1].aff_s >= 0 && stk[sp - 1].aff_c >= 0 &&
                                    (proven_size_t)stk[sp - 1].aff_s < IR_MAXLOCALS &&
                                    (proven_size_t)stk[sp - 1].aff_s != sl) {
@@ -2688,6 +2716,14 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                         proven_i64 m_ = iv_lemargin(st, (proven_size_t)ops[0].slot, pp);
                         if (m_ >= 0 && st->loc[pp].hi - m_ + ops[1].v.lo < INT64_MAX) add_rel = true;
                     }
+                    // ★ §8-47 ① — 둘째 칸의 관계도 같은 논거를 준다(합류가 받은 «x + m ≤ p»)
+                    { proven_i32 p2 = st->lerel2[ops[0].slot];
+                      if (!add_rel && p2 >= 0 && (proven_size_t)p2 < IR_MAXLOCALS && st->loc[p2].lo >= 0) {
+                          proven_i64 m2 = st->leoff2[ops[0].slot];
+                          if (m2 >= ops[1].v.lo) add_rel = true;
+                          else if (!st->loc[p2].wide && st->loc[p2].hi < INT64_MAX - ops[1].v.lo &&
+                                   st->loc[p2].hi - m2 + ops[1].v.lo < INT64_MAX) add_rel = true;
+                      } }
                     // ★★★ **길이 사실도 같은 논거를 준다** (2026-08-17). `x + c ≤ len s` 이고
                     //   `len s` 는 **언제나 그 타입의 값**이다(슬라이스 길이는 size_t) ⇒ 넘칠 수 없다.
                     //   ☞ 코퍼스에 남은 검사를 op 별로 세 보니 `add` 가 **1798** 로 압도적이었고,
@@ -3045,7 +3081,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
         //   ★ 이것은 **언어의 약속**이다 — SPEC-004 에 명문화했다. 약속 없이
         //     상계를 쓰는 것이 이 파일이 경고하는 바로 그 잘못이다.
         e0.lenv[i].lo = 0; e0.lenv[i].hi = low_ir_target()->max_slice_len; e0.lenv[i].wide = 0;
-        e0.lerel[i] = -1; e0.lestr[i] = 0; e0.leoff[i] = 0; e0.vlanesloc[i] = 0;
+        e0.lerel[i] = -1; e0.lestr[i] = 0; e0.leoff[i] = 0; e0.lerel2[i] = -1; e0.leoff2[i] = 0; e0.vlanesloc[i] = 0;
         e0.elemv[i] = IV_TOP;                    // ★ 원소 구간 — 기본 미지(⊤)
     }
     e0.nfacts = 0;
@@ -3097,7 +3133,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
     if (pass) { memset(seen, 0, sizeof(bool) * n); ent[0] = e0; seen[0] = true; }
 
     // 3) 고정점 — 뒤로 가는 간선에서 위드닝
-    g_iv_thr = true;
+    g_iv_thr = true; g_iv_adopt = true;
     iv_rounds:;
     bool iv_conv = false;
     for (int round = 0; round < 24; round++) {
@@ -3115,6 +3151,8 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
                 if (_t < n) {                                                              \
                     if (!seen[_t]) { ent[_t] = (S); seen[_t] = true; changed = true; }     \
                     else {                                                                 \
+                        iv_t _old[IR_MAXLOCALS];                                           \
+                        memcpy(_old, ent[_t].loc, sizeof _old);  /* §8-47 — 합치기 전 구간 */ \
                         for (proven_size_t _i = 0; _i < IR_MAXLOCALS; _i++) {              \
                             iv_t _o = ent[_t].loc[_i];                                     \
                             iv_t _j = iv_join2(_o, (S).loc[_i]);                           \
@@ -3176,6 +3214,26 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
                             } else if (ent[_t].lerel[_i] >= 0 &&                           \
                                        ent[_t].lestr[_i] && !(S).lestr[_i]) {              \
                                 ent[_t].lestr[_i] = 0; changed = true;                     \
+                            }                                                              \
+                            /* ★ §8-47 ① — 둘째 칸: 두 경로가 모두 보이면 산다(작은 여백) · 아니면 죽는다 */ \
+                            if (ent[_t].lerel2[_i] >= 0) {                                 \
+                                proven_i64 _m2 = g_iv_adopt ? iv_any_lemargin(&(S), _i, ent[_t].lerel2[_i]) : -1; \
+                                if (_m2 < 0) { ent[_t].lerel2[_i] = -1; ent[_t].leoff2[_i] = 0; changed = true; } \
+                                else if (_m2 < ent[_t].leoff2[_i]) { ent[_t].leoff2[_i] = _m2; changed = true; } \
+                            } else if (g_iv_adopt) {                                       \
+                                /* 들어온 경로의 관계(첫 칸 · 둘째 칸)를, 이미 있던 경로들의 구간이 보증하면 둘째 칸에 받는다 */ \
+                                for (int _c = 0; _c < 2 && ent[_t].lerel2[_i] < 0; _c++) { \
+                                    proven_i32 _p = _c ? (S).lerel2[_i] : (S).lerel[_i];   \
+                                    if (_p < 0 || (proven_size_t)_p >= IR_MAXLOCALS || (proven_size_t)_p == _i || \
+                                        ent[_t].lerel[_i] == _p) continue;                 \
+                                    proven_i64 _sm2 = _c ? (S).leoff2[_i] :                \
+                                        (iv_leknown(&(S), _i, _p) ? iv_lemargin(&(S), _i, _p) : -1); \
+                                    proven_i64 _im2 = iv_ivmargin(_old[_i], _old[_p]);     \
+                                    if (_sm2 >= 0 && _im2 >= 0) {                          \
+                                        ent[_t].lerel2[_i] = _p;                           \
+                                        ent[_t].leoff2[_i] = _im2 < _sm2 ? _im2 : _sm2; changed = true; \
+                                    }                                                      \
+                                }                                                          \
                             }                                                              \
                             /* ★ 레인 수는 두 경로가 같을 때만 산다 — 다르면 모르는 것이다. */ \
                             if (ent[_t].vlanesloc[_i] != (S).vlanesloc[_i] &&              \
@@ -3261,7 +3319,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
         if (!changed) { iv_conv = true; break; }
     }
     // ★ §8-47 — 문턱 위드닝은 **수렴했을 때만** 건전하다. 못 했으면 문턱을 끄고 이 패스를 처음부터(옛 길).
-    if (!iv_conv && g_iv_thr) { g_iv_thr = false; memset(seen, 0, sizeof(bool) * n); ent[0] = e0; seen[0] = true; goto iv_rounds; }
+    if (!iv_conv && (g_iv_thr || g_iv_adopt)) { g_iv_thr = false; g_iv_adopt = false; memset(seen, 0, sizeof(bool) * n); ent[0] = e0; seen[0] = true; goto iv_rounds; }
 
     // ── 원소 상계: 관찰 → 추측 → 검증 ─────────────────────────────────────
     if (pass == 0) {

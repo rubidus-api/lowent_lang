@@ -16,12 +16,12 @@
 
 ```문법틀: 낱말 목록 — 이 목록이 전부다
 actor      break      case       continue   contract   cycle      do
-drop       else       end        enum       expect     export     expr
-extern     false      fn         for        guard      if         keep
-let        lit        match      module     newtype    next       none
-proc       range      repeat     return     satisfies  send       set
-spawn      state      step       struct     test       trait      true
-try        type       unsafe     use        var        while
+drop       dyn        else       end        enum       expect     export
+expr       extern     false      fn         for        guard      if
+keep       let        lit        match      module     newtype    next
+none       proc       range      repeat     return     satisfies  send
+set        spawn      state      step       struct     test       trait
+true       try        type       unsafe     use        var        while
 ```
 
 (2) 예약된 낱말은 이름이 될 수 없다(⟦§6.1.2⟧). 이 목록의 낱말은 모두 이 문서가
@@ -364,6 +364,9 @@ slice   array   matrix   segments   set   stack   range   vec   bitset   mask
 rem 답을 담는 것
 result   option
 
+rem 트레이트의 값(⟦§6.11.5⟧)
+object
+
 rem 흐름과 채널(⟦§10.3⟧ · ⟦§10.6⟧)
 task   chan
 
@@ -385,7 +388,7 @@ self
       ⟦§4.7⟧) — 조용히 받아 주지 아니한다.
 
 ```문법틀: 이름만 받는 타입 낱말
-byte   char   str   string   bytes_view   dyn   atomic
+byte   char   str   string   bytes_view   atomic
 rng   clock   device   file_system   net   tty   process
 ```
 
@@ -483,7 +486,7 @@ comment-line    ::= ? 닫는 줄이 아닌 줄 ?
 end-of-source   ::= ? 소스의 끝 ?
 
 keyword ::= "actor" | "break" | "case" | "continue" | "contract" | "cycle" | "do"
-          | "drop" | "else" | "end" | "enum" | "expect" | "export" | "expr"
+          | "drop" | "dyn" | "else" | "end" | "enum" | "expect" | "export" | "expr"
           | "extern" | "false" | "fn" | "for" | "guard" | "if" | "keep"
           | "let" | "lit" | "match" | "module" | "newtype" | "next" | "none"
           | "proc" | "range" | "repeat" | "return" | "satisfies" | "send" | "set"
@@ -676,6 +679,8 @@ stage          ::= stage-word { word | term } [ "with" term ] "."
 stage-word     ::= ? 파이프 단계의 낱말 — 닫힌 어휘다(⟦§6.12⟧) ?
 word-form      ::= "field" term segment { segment } "."
                  | "method" term { segment } name "." { term } "."
+                 | "dyn" term name "." { term } "."
+                 | "object" name term "."
                  | "payload" term name name "."
                  | "send" term name { term } "."
                  | "spawn" "actor" path "."
@@ -699,6 +704,7 @@ shaped-form    ::= ? 부록 D 의 표가 낱말의 자리를 정한 기본 연�
 
 (4) `method` 의 op 이름은 **점으로 닫은 첫 이름**이다. 그 앞의 이름과 수는 마디이고 그 뒤는 인자다
       (`method o. inner area. w. 2 .`). `payload` 의 두 낱말은 갈래와 칸의 이름이다(⟦§6.2.19⟧).
+      `dyn` 의 op 이름도 점으로 닫은 이름이고 그 뒤는 인자다(`dyn s. scaled. 3 .`). `object` 의 이름은 트레이트다(⟦§6.11.5⟧).
 
 (5) `island` 안의 `operator` 는 중위 연산자다(⟦§6.3.2⟧). 괄호는 섬의 한 토막을 묶는다.
 

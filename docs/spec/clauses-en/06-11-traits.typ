@@ -266,4 +266,101 @@ do
   return method s. nosuch. . .
 end .", "E-METHOD-UNDEF")
   ]
+  #sub("6.11.5", "Choosing at run time — `object` and `dyn`")[
+    #para("1")[
+      A value of type `object <trait>` holds a value of #strong[any type]; that satisfies the trait with `satisfies`. Which type it is is decided by the value at run time,
+      and the processor does not know it when it translates. The value is made with `object <trait> <value> .` — it #strong[copies]; that value in.
+      The type of `<value>` must be written: a name with a written type, or `lit <type> …` (the type is never guessed · `E-DYN-LIT`).
+      If that type does not satisfy the trait, it is `E-DYN-NOTSAT`.
+    ]
+    #para("2")[
+      `dyn <value> <op name>. <arguments> .` #strong[chooses at run time]; the op that the type held in `<value>` provides, and calls it. `<value>` must be a name written
+      with type `object <trait>` (`E-DYN-RECV`), and the op must be one listed in the trait (`E-DYN-OP`). The trait's signature decides the result type and the arguments.
+    ]
+    #para("3")[
+      Choosing an op at run time is the effect `dyn` (#cref("7.1")). An op that calls `dyn` must be a `proc` with `dyn` in its effects line
+      (`E-DYN-EFFECT`), and the effect spreads to its callers like any other. So the signature shows which ops choose at run time.
+      The effects of what the chosen op does do not go beyond the effects the trait signature lists (#cref("6.11.2") (1b) · `E-TRAIT-EFFECT`).
+    ]
+    #para("4")[
+      A trait that can be used with `object` must keep the following for every op — otherwise it is `E-DYN-TRAIT`.
+      - The first input is `self` (the value the choice is made by). `self` does not appear in the other inputs or the output — its size is settled only at run time.
+      - There is no `comptime` input, and no `via self` in the effects line.
+      - The other inputs and the output are one-word types (the limit of this version).
+    ]
+    #para("5")[
+      If no type satisfies the trait, it is `E-DYN-NOIMPL`. In this version the types that satisfy it must be in the trait's own module (`E-DYN-MODULE`).
+      There is no way to get the original type back from a value of `object <trait>`.
+      If the shape of `dyn` or `object` is wrong (no stop after the op name · two values), it is `E-DYN-FORM`. The processor gives the type of those values the name
+      `<trait>__object`, so if the author makes the same name it is `E-DYN-NAME`. An op that crosses to C (`link` · `extern`) does not take or give `object` (`E-DYN-FFI`),
+      and neither does an actor's handler (`E-DYN-ACTOR`) — the limits of this version.
+    ]
+    #plain[
+      Calling through a trait bound (#cref("6.11.2")) has the processor build the op separately for each type at translation, with no indirect call — the fastest.
+      An enum with variants (#cref("6.6")) has #strong[the author close]; the set of types. `object` is for the place where neither works — where the type of the value is settled at run time
+      and the caller does not write down the set. In exchange it pays for choosing (an indirect call cannot be inlined), and that fact shows in the word `dyn` and in the effect.
+    ]
+    #ex("chosen at run time — one op takes a rect and a square", "module ex_dyn .
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area input s rect . output u64 .
+do
+  return mul field s. w . field s. h . . .
+end .
+
+fn square.area input s square . output u64 .
+do
+  return mul field s. side . field s. side . . .
+end .
+
+rem this op does not know the type of the value it gets — `dyn` chooses at run time
+proc twice input o object shape . output u64 . effects dyn .
+do
+  return mul 2 dyn o. area. . . .
+end .
+
+proc demo output u64 . effects dyn .
+do
+  let r rect lit rect do w 2 . h 3 . end . .
+  let q square lit square do side 4 . end . .
+  let a object shape object shape r. . .
+  let b object shape object shape q. . .
+  return add twice a. . dyn b. area. . . .
+end .",
+      out: "demo() = 28")
+    #rejected("chooses at run time without `dyn` in its effects line", "module ex_dyn_effect .
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+end .
+
+fn rect.area input s rect . output u64 .
+do
+  return field s. w . .
+end .
+
+proc f input o object shape . output u64 . effects none .
+do
+  return dyn o. area. . .
+end .", "E-DYN-EFFECT")
+  ]
 ]

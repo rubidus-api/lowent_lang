@@ -133,6 +133,9 @@ typedef struct { proven_u32 line, col, del; const char *ins; } low_fix_t;
 void low_parse_lenient(bool on);
 const low_fix_t *low_parse_fixes(proven_size_t *n);
 void low_surface_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0141: 새 표면 → 안쪽 나무 */
+/* RFC-0159 — `object <트레이트>` · `dyn`: ⓐ 열거와 고르는 op 을 짓는다(표면을 내린 직후) · ⓑ 저자의 글을 옮겨 적는다(선언 차례 패스 뒤) */
+bool low_dyn_generate(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, proven_size_t *nforms0);
+bool low_dyn_rewrite(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 
 // Print the CST as an indented tree (debug).
 void low_cst_dump(const low_parse_result_t *pr);

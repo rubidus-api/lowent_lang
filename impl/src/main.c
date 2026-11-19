@@ -2186,6 +2186,7 @@ int main(int argc, char **argv) {
                         (void)low_rows_lower(&pr, nodes0, heap, true);   // ★ 2026-10-29 — 옛 줄의 나열을 새 철자로 옮겨 찍는다
                         low_decl_migrate(&pr, nodes0, heap); }
         else { low_surface_lower(&pr, nodes0, heap);
+               if (!low_dyn_generate(&pr, nodes0, heap, &nforms0)) pr.nforms = 0;   // ★ RFC-0159 ⓐ — `object T` 의 열거 · 고르는 op 을 짓는다(거절하면 뒤는 헛것)
                // ★ RFC-0144 §6-2 — `matrix` 를 `array` · `subslice` 로. 뒤의 걸음(이름 붙은 결과 · 배열 결과 · 입력 배열의 계약)이
                //   옮겨 적힌 것을 본다. 거절했으면 뒤따르는 진단은 전부 헛것이라 폼을 비운다(표면 패스가 토큰을 비우는 것과 같다).
                if (!low_matrix_lower(&pr, nodes0, heap)) pr.nforms = 0;
@@ -2197,6 +2198,7 @@ int main(int argc, char **argv) {
                low_call_host_strip(&pr, nodes0, heap);     // ★ RFC-0127 ⓒ — 권한 잎은 `call_builtin` 뒤에서만
                low_local_lift(&pr, nodes0, heap, &nforms0);  // ★ RFC-0121 — 몸 안의 fn/proc 을 `<바깥>::<로컬>` 로 끌어올린다
                low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)
+               if (!low_dyn_rewrite(&pr, nodes0, heap)) pr.nforms = 0;   // ★ RFC-0159 ⓑ — `object T` · `object T v` · `dyn x. m.` 을 옮겨 적는다
                low_bind_else_expand(&pr, nodes0, heap); }   // ★ RFC-0135 S1 — 바인딩 `else` 를 숨은 임시 · guard · 꺼내기로
         if (pr.diags.len > nd0) {
             proven_array_t tail = pr.diags;

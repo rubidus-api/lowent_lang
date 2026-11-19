@@ -3058,7 +3058,7 @@ static const char *ty_unbuilt_instead(proven_u8str_view_t v) {
 static bool ty_is_name_only(proven_u8str_view_t v) {
     static const char *k[] = {
         // 뜻이 없다 — 하강이 이 이름들을 슬라이스/스칼라로 못 읽는다.
-        "str", "string", "char", "byte", "bytes_view", "dyn",
+        "str", "string", "char", "byte", "bytes_view",
         // SPEC-008 §74 의 공유 상태 타입 — 이름만 받는다고 위에 적혀 있다.
         "shared_read", "lock", "rwlock", "atomic",
         // ★★★ **문법 부록 A.9 의 낱말 넷** (결함 노트 #80 · RFC-0115 §8-10, 2026-09-17).
@@ -3190,7 +3190,8 @@ static bool ty_is_builtin_word(proven_u8str_view_t v) {
         "owned","raw","addr","mmio","bitset","cap","vec","mask","range","mut","void","unit",
         "unsafe_ptr",   // ★ 생 포인터 한정자(RFC-0066 가족) — mut/owned 처럼 타입 앞에 붙는 낱말
         "unsafe_fn",    // ★ 콜백 타입(RFC-0066) — 씨에 함수 포인터로. 값은 `unsafe_fn <op>`.
-        "str","string","char","byte","bytes_view","dyn","fn","self",
+        "str","string","char","byte","bytes_view","fn","self",
+        "object",       // ★ RFC-0159 — `object <트레이트>`. `low_dyn.c` 가 검사 앞에서 처리기가 지은 열거로 옮겨 적는다
         // ★ 정본 §6.2.25 — 정했으되 짓지 않은 타입 낱말(2026-11-12 · W-20261112-1245). 어휘에 있는 까닭은 «없는 타입» 이 거짓이기 때문이고,
         //   tc_check_tnames 가 `E-TYPE-UNBUILT` 로 거절한다(`list` 는 위 줄에 이미 있다).
         "c8","c16","c32","c64","b8","b16","b32","b64","b128",

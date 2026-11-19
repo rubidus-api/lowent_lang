@@ -53,6 +53,7 @@
   [`E-CTRL-NODO`], [블록 `do … end` 가 와야 할 자리에 다른 것이 왔다], [#chref("surface")],
   [`E-DEP-MISSING`], [`use … from` 의 자리에서 파일을 읽을 수 없다], [#chref("modules")],
   [`E-DOT-MISSING`], [묶음을 닫는 마침표 `.` 가 빠졌다], [#chref("surface"), #chref("control"), #chref("proofs-syntax")],
+  [`E-DYN-EFFECT`], [실행 중에 고르는 `dyn` 을 부르면서 효과 줄에 `dyn` 을 적지 않았다 --- `proc … effects dyn .`], [#chref("traits")],
   [`E-EFFECT`], [선언하지 않은 효과를 낸다], [#chref("effects"), #chref("fixed-memory"), #chref("tasks-channels")],
   [`E-EFFECT-CALC`], [순수한 `fn` 이 효과를 낸다], [#chref("intro"), #chref("ops"), #chref("effects"), #chref("capabilities"), #chref("regions"), #chref("pipe")],
   [`E-EFFECT-DUP`], [효과 줄에 같은 원자를 두 번 적었다], [#chref("effects"), #chref("proofs-effects")],

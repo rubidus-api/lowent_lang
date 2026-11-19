@@ -838,7 +838,9 @@ static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32",
                                        "void","self","str","string","char","byte","bytes_view", NULL };
 static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero","task","chan",   /* RFC-0148 S5 */
                                        
-                                       "atomic","lock","rwlock","shared_read","view", NULL };
+                                       "atomic","lock","rwlock","shared_read","view",
+                                       "object",   /* RFC-0159 */
+                                       NULL };
 // ★ 이름은 **모듈과 함께** 맞춘다(check-lib-pairs 가 잡았다: `trust` 의 `files.handle` 이 `pool` 의 브랜드 타입 `handle`
 //   (인자 하나)로 읽혀 다음 낱말을 삼켰다). `m.t` 는 모듈 m 의 t 만, 맨 `t` 는 **자기 모듈 것만**.
 // ★★ 되짚기(«없으면 아무 모듈의 것») 를 좁혔다(2026-09-28, 코드 검토). 전엔 **링크 차례상 처음** 것을 집어, 같은

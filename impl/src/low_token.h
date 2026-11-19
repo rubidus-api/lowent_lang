@@ -67,6 +67,9 @@ typedef enum {
     // ★ RFC-0141 — 되풀이의 머리말 셋(`repeat` · `range` · `cycle`), 머리 안에서 식을 끝내는 낱말 둘(`next` · `step`),
     //   할당기 절의 `keep`(`use` 는 이미 있다). `be` 는 어휘에서 빠졌다 — 열거값 LOW_KW_BE 는 안쪽 나무의 표식으로만 남는다.
     LOW_KW_REPEAT, LOW_KW_RANGE, LOW_KW_CYCLE, LOW_KW_NEXT, LOW_KW_STEP, LOW_KW_KEEP,
+    // ★ RFC-0159 (2026-11-19 소유자 «부르는 표기는 … 새로운 키워드» · «dyn이 호출하는 키워드로 하고 정의 쪽을 새로운 키워드로») —
+    //   실행 중 가상 테이블로 부르는 낱말. 값의 타입 쪽은 타입 낱말 `object <트레이트>` 다(예약어가 아니다).
+    LOW_KW_DYN,
 } low_kw_t;
 
 typedef struct {

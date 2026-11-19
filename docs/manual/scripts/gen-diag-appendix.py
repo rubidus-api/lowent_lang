@@ -110,6 +110,7 @@ MEANING = {
  "E-TIER-EFFECT": ("선언한 기계 등급이 감당하지 못하는 효과다", "an effect the declared machine tier cannot carry"),
  "E-TRAIT-EFFECT": ("갖춘 op 이 서명보다 많은 효과를 가진다", "the implementing op has more effects than the signature"),
  "E-TRAIT-MISSING": ("트레이트의 op 하나가 없다", "an op required by the trait is missing"),
+ "E-DYN-EFFECT": ("실행 중에 고르는 `dyn` 을 부르면서 효과 줄에 `dyn` 을 적지 않았다 --- `proc … effects dyn .`", "calls `dyn`, which chooses at run time, without `dyn` in its effects line --- `proc … effects dyn .`"),
  "E-TRAIT-SIG": ("서명에 `fn`·`proc` 을 적었거나 매개변수 수가 다르다", "`fn`/`proc` in a signature, or a parameter-count mismatch"),
  "E-TYPE-ARRAY": ("고정 길이 `array` 를 둘 자리가 없는 곳에 적었다 · 세 겹 배열", "a fixed-length `array` where its length has nowhere to be kept · three levels of arrays"),
  "E-TYPE-ORDER": ("개수를 받는 타입의 원소 타입을 개수 앞에 적었다(옛 차례)", "the element type of a counted type written before the count (the old order)"),

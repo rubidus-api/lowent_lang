@@ -13,6 +13,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Expressions and values | `expr` `lit` `true` `false` `none` | chapter 8 |
 | Concurrency | `spawn` `send` | chapter 25 |
 | Ownership | `drop` | chapter 19 |
+| Choosing at run time | `dyn` | chapter 23 |
 | Tests | `test` `expect` | chapter 31 |
 | Blocks | `do` `end` | chapter 3 |
 

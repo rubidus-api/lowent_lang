@@ -1875,7 +1875,7 @@ end .", "E-TYPE-KIND")
     #para("1")[
       어떤 이름은 #strong[받아들여지되 뜻이 없다.]; 그런 이름을 시그니처에 적으면 처리기는
       경고한다(`W-NOT-YET`). 그 이름들은 부록 A.9 (2) 에 모여 있다 — `byte` · `char` · `str` ·
-      `string` · `bytes_view` · `dyn` · `atomic` 과 같은 것들이다.
+      `string` · `bytes_view` · `atomic` 과 같은 것들이다.
     ]
     #para("2")[
       뜻이 없다는 것은 #strong[처리기가 그 이름이 담는 값의 모양을 모른다];는 말이다. 크기도, 배치도,

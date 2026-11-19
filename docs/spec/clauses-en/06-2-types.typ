@@ -1870,7 +1870,7 @@ end .", "E-TYPE-KIND")
     #para("1")[
       Some names #strong[are accepted but have no meaning.]; If such a name is written in a signature, the processor
       warns (`W-NOT-YET`). Those names are gathered in annex A.9 (2) — names such as `byte` · `char` · `str` ·
-      `string` · `bytes_view` · `dyn` · `atomic`.
+      `string` · `bytes_view` · `atomic`.
     ]
     #para("2")[
       Having no meaning means that #strong[the processor does not know the shape of the values that name holds];. Neither the size, the layout,

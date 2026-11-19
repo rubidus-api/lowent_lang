@@ -185,6 +185,45 @@ fixed window for every ticket.
   to each other even after satisfying `shape`. This language has no inheritance.
 ]
 
+== Choosing at run time --- `object` and `dyn`
+
+Calling through a trait bound (`requires shape t`) has the processor build the op for each type *at translation*. It is the fastest, but which type it is must be
+settled at translation. When the type of a value is settled only *at run time* --- a shape the user picked · a kind read from a file --- hold it in `object <trait>`
+and call it with `dyn`.
+
+#demo("examples/ch23/dyn.low")
+
+- `object shape` is "a value of *any* type that satisfies shape". `object shape r. .` *copies* `r` in. The type of the value it holds must be
+  written --- a name with a written type, or `lit <type> …`.
+- `dyn a. area. .` *chooses at run time* the `area` of the type held in `a` and calls it. Arguments come after the op name (`dyn b. scaled. 10 .`).
+- Choosing is the effect `dyn`. `both` and `demo` must write `effects dyn .`, otherwise it is `E-DYN-EFFECT`. So the signature shows which ops
+  choose at run time. `pick`, which only makes values, does not choose, so it is `effects none .`.
+- The answer 166 is the area 6 of `a` plus `scaled 10` of `b` (160).
+
+#demo("examples/ch23/dyn_effect.low")
+
+#dtable(
+  columns: 2,
+  id: "traits-dyn-diags",
+  caption: [Where `object` · `dyn` are refused],
+  [*Diagnostic*], [*Meaning*],
+  [`E-DYN-EFFECT`], [an op that calls `dyn` is not `proc … effects dyn .`],
+  [`E-DYN-RECV`], [the receiving value is not a name written with type `object <trait>`],
+  [`E-DYN-OP`], [it calls an op the trait does not list],
+  [`E-DYN-NOTSAT`], [the type of the value to hold does not satisfy the trait],
+  [`E-DYN-LIT`], [the type of the value to hold is not written],
+  [`E-DYN-TRAIT`], [the trait's signature cannot be chosen at run time (the first input is not `self` · `self` stands elsewhere · `via self` …)],
+  [`E-DYN-NOIMPL`], [no type satisfies the trait],
+)
+
+#qa[
+  How is `object` different from an enum with variants?
+][
+  An enum has *the author* close the set of types --- written down as `enum shape do rect … square … end`. `object shape` does not write the set.
+  As more types write `satisfies shape`, it grows with them. The processor builds the table it chooses by from that set. In exchange it pays for choosing,
+  and that fact shows in the word `dyn` and in the effect. If you can call through a trait bound, that is faster.
+]
+
 == Common mistakes
 
 #antipattern[Writing the name before the value after `method`][

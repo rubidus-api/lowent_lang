@@ -285,8 +285,9 @@ Searches headings and index terms --- not the full text
 - [23.4 Signatures do not say fn or proc](ch23.md#s23-4)
 - [23.5 When a trait is not satisfied](ch23.md#s23-5)
 - [23.6 via self — more allocation effects only](ch23.md#s23-6)
-- [23.7 Common mistakes](ch23.md#s23-7)
-- [23.8 This chapter’s syntax at a glance](ch23.md#s23-8)
+- [23.7 Choosing at run time — object and dyn](ch23.md#s23-7)
+- [23.8 Common mistakes](ch23.md#s23-8)
+- [23.9 This chapter’s syntax at a glance](ch23.md#s23-9)
 
 [24 pipe — one line for each thing you mean to do](ch24.md)
 

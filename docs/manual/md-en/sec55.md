@@ -47,6 +47,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-CTRL-NODO` | something other than a block `do … end` stands where one belongs | chapter 3 |
 | `E-DEP-MISSING` | the file at a `use … from` place cannot be read | chapter 21 |
 | `E-DOT-MISSING` | a stop `.` that closes a binding is missing | chapter 3, chapter 7, chapter 48 |
+| `E-DYN-EFFECT` | calls `dyn`, which chooses at run time, without `dyn` in its effects line — `proc … effects dyn .` | chapter 23 |
 | `E-EFFECT` | performs an effect its `effects` clause does not declare | chapter 15, chapter 20, chapter 26 |
 | `E-EFFECT-CALC` | a pure `fn` performs an effect | chapter 1, chapter 5, chapter 15, chapter 16, chapter 18, chapter 24 |
 | `E-EFFECT-DUP` | the same atom twice in an `effects` clause | chapter 15, chapter 44 |

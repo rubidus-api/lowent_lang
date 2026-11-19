@@ -320,6 +320,10 @@ typedef struct {
     //   이것 하나로 `requires le a b . ⇒ sub b a ≥ 0` 이 증명된다 — 그전엔 런타임 검사가 남았다.
     proven_i32 lerel[IR_MAXLOCALS];
     proven_u8  lestr[IR_MAXLOCALS];
+    // ★ RFC-0150 §8-47 ① (2026-11-19) — **둘째 관계 칸**: 합류가 구간에 기대어 받은 `loc[k] + leoff2[k] ≤ loc[lerel2[k]]`(비엄격).
+    //   첫 칸(lerel)은 하나뿐이라, 받은 관계를 거기 담으면 뒤에 올 더 쓸모 있는 관계(복사가 심는 것)의 자리를 빼앗았다.
+    proven_i32 lerel2[IR_MAXLOCALS];
+    proven_i64 leoff2[IR_MAXLOCALS];
     // ★★★★★ **차분 제약의 여백** (2026-08-16, WO-0056 P2) — 길이 쪽(`lenoff`)과 같은 이유·같은 모양:
     //     사실은 언제나 **loc[k] + leoff[k] (<|≤) loc[lerel[k]]** 이고,
     //     여백 `lemargin(k) = leoff[k] + (lestr[k] ? 1 : 0)` 하나만 본다.

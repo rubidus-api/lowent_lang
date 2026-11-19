@@ -630,6 +630,12 @@ static iv_t iv_join2(iv_t a, iv_t b) {
                    (proven_u8)(a.wide || b.wide) };
 }
 // 위드닝: 넓어지는 쪽만 극단으로 보낸다(무한 상승 사슬 차단)
+// ★★★ RFC-0150 §8-47 (2026-11-19) — **문턱에서 먼저 멈춘다**(threshold widening). 늘어나는 상계를 곧장 INT64_MAX 로 보내면
+//   `var star usize … set star. i. .`(i < len pat 인 가지에서 베낀 값)처럼 **조건 밖에서 베낀 지역**은 반복 머리에서 상계를 잃고,
+//   다시 좁혀 줄 조건도 지나지 않는다 — `star + 1` 의 넘침 검사가 남았다(`regex` · 같은 모양의 C 대비 ×1.40 가운데 검사의 몫).
+//   문턱 = 길이의 상한 `max_slice_len − 1` · `max_slice_len`(목표 표). 사슬이 유한하므로 끝난다. 문턱의 hi 는 **고정점에서만** 사실이다 —
+//   그래서 증명은 수렴 뒤의 표시 패스만 적고(아래 4), 24 바퀴 안에 수렴하지 못하면 문턱을 끄고 처음부터 다시 돈다(g_iv_thr).
+static bool g_iv_thr = true;
 static iv_t iv_widen(iv_t old, iv_t nw) {
     // ★ 위드닝이 hi 를 극단으로 보내면 그것은 **더 이상 사실이 아니다** ⇒ 자른 것으로 표시한다.
     //   INT64_MAX 는 u64 의 진짜 상계가 아니다 — 그 자리에서 결론하면 불건전하다.
@@ -641,6 +647,13 @@ static iv_t iv_widen(iv_t old, iv_t nw) {
     //   음수가 나오면 그때 INT64_MIN 으로 간다(사슬 유한 ⇒ 종료도 그대로).
     proven_i64 lo = old.lo;
     if (nw.lo < old.lo) lo = (old.lo >= 0 && nw.lo >= 0) ? 0 : INT64_MIN;
+    if (up && g_iv_thr) {
+        const proven_i64 ml = low_ir_target()->max_slice_len;
+        const proven_i64 thr[2] = { ml - 1, ml };
+        for (int q = 0; q < 2; q++)
+            if (ml > 0 && nw.hi <= thr[q] && thr[q] > old.hi)
+                return (iv_t){ lo, thr[q], (proven_u8)(old.wide || nw.wide) };   // 자른 것이 아니다 — 수렴하면 사실이다
+    }
     return (iv_t){ lo,
                    up ? INT64_MAX : old.hi,
                    (proven_u8)(up ? 1 : (old.wide || nw.wide)) };
@@ -3076,6 +3089,9 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
     if (pass) { memset(seen, 0, sizeof(bool) * n); ent[0] = e0; seen[0] = true; }
 
     // 3) 고정점 — 뒤로 가는 간선에서 위드닝
+    g_iv_thr = true;
+    iv_rounds:;
+    bool iv_conv = false;
     for (int round = 0; round < 24; round++) {
         bool changed = false;
         for (proven_size_t b = 0; b < n; b++) {
@@ -3234,8 +3250,10 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
             IV_PUSH(bend, st);
             #undef IV_PUSH
         }
-        if (!changed) break;
+        if (!changed) { iv_conv = true; break; }
     }
+    // ★ §8-47 — 문턱 위드닝은 **수렴했을 때만** 건전하다. 못 했으면 문턱을 끄고 이 패스를 처음부터(옛 길).
+    if (!iv_conv && g_iv_thr) { g_iv_thr = false; memset(seen, 0, sizeof(bool) * n); ent[0] = e0; seen[0] = true; goto iv_rounds; }
 
     // ── 원소 상계: 관찰 → 추측 → 검증 ─────────────────────────────────────
     if (pass == 0) {

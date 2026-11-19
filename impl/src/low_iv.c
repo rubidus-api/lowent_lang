@@ -2680,6 +2680,14 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                         iv_leknown(st, (proven_size_t)ops[0].slot, pp) &&
                         iv_lemargin(st, (proven_size_t)ops[0].slot, pp) >= ops[1].v.lo)
                         add_rel = true;
+                    // ★ RFC-0150 §8-47 ② (2026-11-19) — `x + m ≤ p` 이고 p 의 상계가 믿을 만하면 `x + c ≤ hi(p) − m + c` 다. 그것이 INT64_MAX
+                    //   아래면 u64 로 넘칠 수 없다 — 여백이 c 보다 작아도 된다(관계가 «x 는 p 를 넘지 않는다» 만 말하고, p 가 작다는 것은 구간이 안다).
+                    if (!add_rel && pp >= 0 && (proven_size_t)pp < IR_MAXLOCALS && st->loc[pp].lo >= 0 &&
+                        !st->loc[pp].wide && st->loc[pp].hi < INT64_MAX - ops[1].v.lo &&
+                        iv_leknown(st, (proven_size_t)ops[0].slot, pp)) {
+                        proven_i64 m_ = iv_lemargin(st, (proven_size_t)ops[0].slot, pp);
+                        if (m_ >= 0 && st->loc[pp].hi - m_ + ops[1].v.lo < INT64_MAX) add_rel = true;
+                    }
                     // ★★★ **길이 사실도 같은 논거를 준다** (2026-08-17). `x + c ≤ len s` 이고
                     //   `len s` 는 **언제나 그 타입의 값**이다(슬라이스 길이는 size_t) ⇒ 넘칠 수 없다.
                     //   ☞ 코퍼스에 남은 검사를 op 별로 세 보니 `add` 가 **1798** 로 압도적이었고,

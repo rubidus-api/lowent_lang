@@ -582,7 +582,9 @@ static int cmd_build(int nargs, char **args) {
     //   해석하면 그것이 곧 갈라지는 두 번째 표현이다. build 는 잇기만 한다.
     const char *arg = NULL;
     char pass[1024] = { 0 };
+    bool pad = false;   // ★ RFC-0150 §8-45 ⓑ (소유자 2026-11-19) — `--pad-branches`: cc 에 분기 경계 완화를 준다(켜야 켜진다)
     for (int i = 0; i < nargs; i++) {
+        if (strcmp(args[i], "--pad-branches") == 0) { pad = true; continue; }
         if ((strcmp(args[i], "--target") == 0 || strcmp(args[i], "--config") == 0 || strcmp(args[i], "--limb-bits") == 0) && i + 1 < nargs) {
             size_t n = strlen(pass);
             low_bfmt(pass + n, sizeof pass - n, " {} {}", proven_arg_cstr(args[i]), proven_arg_cstr(args[i + 1]));
@@ -679,11 +681,12 @@ static int cmd_build(int nargs, char **args) {
     char key[65] = { 0 };
     if (read_file(cfile, &cb, &cn)) {
         // 링크 플래그도 정체의 일부다 — 같은 C 를 다른 라이브러리로 링크하면 다른 산물이다.
-        proven_byte_t *mix = (proven_byte_t *)low_alloc(cn + sizeof ld);
+        proven_byte_t *mix = (proven_byte_t *)low_alloc(cn + sizeof ld + 1);
         if (mix) {
             memcpy(mix, cb, cn);
             memcpy(mix + cn, ld, sizeof ld);
-            hash_hex(mix, cn + sizeof ld, key);
+            mix[cn + sizeof ld] = pad ? 'P' : 'p';   // ★ `--pad-branches` 도 산물의 정체다 — 같은 C 를 다른 옵션으로 지으면 다른 산물이다
+            hash_hex(mix, cn + sizeof ld + 1, key);
             low_free(mix);
         }
         low_free(cb);
@@ -705,7 +708,25 @@ static int cmd_build(int nargs, char **args) {
             }
         }
     }
-    low_bfmt(cmd, sizeof cmd, "cc -O2 -w -ffp-contract=off \"{}\" -o \"{}\" {} -lm", proven_arg_cstr(cfile), proven_arg_cstr(bin), proven_arg_cstr(ld));   // 정본 §6.2.4 (2a) — 생성 C 머리의 지시와 같은 뜻
+    // ★★ RFC-0150 §8-45 ⓑ — `--pad-branches`: Skylake 계열 Intel(2015–2020)의 마이크로코드는 32 바이트 경계에 걸친 분기를 해독 캐시에
+    //   두지 않는다(JCC 정오표). 뜨거운 고리의 분기가 거기 걸리면 같은 코드가 20–35 % 느리다(RFC-0150 §4.14). 어셈블러가 분기를 비켜 놓게 한다 —
+    //   코드는 3–7 % 커지고, 그 결함이 없는 CPU 에서의 값은 아직 재지 않아서 **켜야 켜진다**. cc 가 받지 않으면 말없이 넘어가지 않고 거절한다.
+    const char *padf = "";
+    if (pad) {
+        static const char *const cand[] = { "-Wa,-mbranches-within-32B-boundaries", "-mbranches-within-32B-boundaries" };   // gcc(as) · clang
+        for (size_t q = 0; q < sizeof cand / sizeof cand[0] && !padf[0]; q++) {
+            char probe[256];
+            low_bfmt(probe, sizeof probe, "printf 'int main(void){{return 0;}}\\n' | cc {} -Werror -x c - -o /dev/null >/dev/null 2>&1", proven_arg_cstr(cand[q]));
+            if (low_system(probe) == 0) padf = cand[q];
+        }
+        if (!padf[0]) {
+            low_fpf(low_stderr(), "lowentc build: `--pad-branches` — this C compiler takes neither `-Wa,-mbranches-within-32B-boundaries` (gcc) "
+                                  "nor `-mbranches-within-32B-boundaries` (clang). The padding exists only for x86 (RFC-0150 §8-45); build without it\n");
+            remove(cfile);
+            return 2;
+        }
+    }
+    low_bfmt(cmd, sizeof cmd, "cc -O2 -w -ffp-contract=off {} \"{}\" -o \"{}\" {} -lm", proven_arg_cstr(padf), proven_arg_cstr(cfile), proven_arg_cstr(bin), proven_arg_cstr(ld));   // 정본 §6.2.4 (2a) — 생성 C 머리의 지시와 같은 뜻
     if (low_system(cmd) != 0) { low_fpf(low_stderr(), "lowentc build: cc failed ({})\n", proven_arg_cstr(cfile)); return 1; }
     remove(cfile);
     if (cache[0]) {
@@ -1144,8 +1165,9 @@ static void print_usage(const char *argv0) {
         "\n  서브커맨드 (RFC-0033 — 같은 일의 짧은 이름; 플래그 언어도 그대로 산다)\n"
         "    check · test · doc · fmt · ir · lock   = 아래 같은 이름의 플래그\n"
         "    run [entry] [args…]    엔트리를 VM 으로 돌린다 (생략 = pkg.low entry → src/main.low)\n"
-        "    build [entry] [--target T --config F]  네이티브 실행파일 (emit-c → cc, out/<이름>;\n"
-        "                           증분 = 방출된 C 의 내용해시 캐시 ~/.lowent/cache/build/)\n"
+        "    build [entry] [--target T --config F] [--pad-branches]  네이티브 실행파일 (emit-c → cc, out/<이름>;\n"
+        "                           증분 = 방출된 C 의 내용해시 캐시 ~/.lowent/cache/build/;\n"
+        "                           --pad-branches = x86 에서 분기를 32 바이트 경계에서 비켜 놓는다 — Skylake 계열 Intel 의 JCC 정오표)\n"
         "    add <name> <source>    의존을 pkg.low 에 **해시 핀과 함께** 적는다\n"
         "    install <f> [--user|--system|--prefix D]  라이브러리 설치 (기본 ~/.lowent/lib, 전이 의존 포함)\n"
         "    fetch                  매니페스트의 URL 의존을 받아 캐시에 넣는다 (핀 검증; 무핀=해시 제시)\n"

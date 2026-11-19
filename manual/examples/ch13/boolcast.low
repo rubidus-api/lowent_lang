@@ -1,0 +1,15 @@
+module boolcast .
+rem run: flag 5
+rem run: flag 1
+rem run: count_big 5 7
+
+fn flag input a u64 . output u8 .
+do
+  rem ko: 참이면 1, 거짓이면 0 /// en: 1 for true, 0 for false
+  return cast u8 gt a. 2 . . .
+end .
+
+fn count_big input a u64 . input b u64 . output u64 .
+do
+  return add cast u64 gt a. 2 . . cast u64 gt b. 2 . . . .
+end .

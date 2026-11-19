@@ -1,0 +1,7 @@
+module notyet .
+rem expect: W-NOT-YET
+
+rem ko: byte 는 이름만 아는 타입 낱말이다 — 뜻이 없어 경고한다. 바이트는 u8 로 적는다 /// en: byte is a type word known by name only; it has no meaning yet, so a warning is given; write a byte as u8
+fn first input x byte . output u64 . do
+  return 0 .
+end .

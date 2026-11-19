@@ -1,0 +1,45 @@
+module trycheck .
+rem run: kind_of [7,1,2]
+rem run: kind_of [2,1,2]
+rem run: active_of [1,5]
+rem run: active_of [2,5]
+
+rem ko: 폭을 적은 열거 --- 바이트 하나에 갈래의 번호가 든다 /// en: an enum with a width --- one byte holds the variant's number
+enum kind do
+  layout u8 .
+  ping .
+  data 7 .
+  close .
+end .
+
+struct hdr do
+  layout packed .
+  k kind .
+  len u16 big .
+end .
+
+struct flag do
+  active bool .
+  n u8 .
+end .
+
+rem ko: 번호가 1 · 7 · 8 이 아니면 try_view 가 none 을 준다 /// en: try_view gives none unless the number is 1, 7 or 8
+fn kind_of input b slice u8 . output u8 . do
+  let o option view hdr try_view hdr b. . .
+  guard is_some o. . else return 0 . .
+  let h view hdr some_value o. . .
+  match field h. k . do
+    case ping do return 1 . end .
+    case data do return 2 . end .
+    case close do return 3 . end .
+  end .
+end .
+
+rem ko: bool 칸의 바이트가 0 · 1 이 아니어도 none 이다 /// en: a bool byte other than 0 or 1 gives none too
+fn active_of input b slice u8 . output u8 . do
+  let o option view flag try_view flag b. . .
+  guard is_some o. . else return 9 . .
+  let h view flag some_value o. . .
+  if field h. active . do return 1 . end .
+  return 0 .
+end .

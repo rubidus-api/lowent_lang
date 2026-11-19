@@ -1,0 +1,7 @@
+module mref_slice .
+rem expect: E-MREF-SLICE
+
+proc shrink input p mut ref slice u8 . output u64 . effects none .
+do
+  return 0 .
+end .

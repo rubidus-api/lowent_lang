@@ -1,0 +1,9 @@
+# ★ 추출 산물 — **생성되는 것**이라 추적하지 않는다(`LowentCertExtract.v` 가 소스다).
+#   추적하면 소스와 산물이 갈릴 수 있고, 그러면 어느 쪽이 진짜인지 아무도 모른다.
+lowent_cert.ml
+lowent_cert.mli
+cert_check
+*.cmi
+*.cmx
+*.cmti
+*.o

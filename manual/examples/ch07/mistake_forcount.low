@@ -1,0 +1,12 @@
+module mistake_forcount .
+rem expect: E-FOR-OLD
+
+fn tally input n u64 . output u64 .
+do
+  var s u64 0 .
+  rem ko: ✘ 옛 꼴 --- 수를 세는 일은 `repeat` 가 한다. `for` 는 원소만 돈다 /// en: ✘ the old form --- counting is what `repeat` does. `for` walks elements only
+  for i count u64 n. do
+    set s. add s. i. . .
+  end .
+  return s. .
+end .

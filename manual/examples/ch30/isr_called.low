@@ -1,0 +1,15 @@
+module isr_called .
+rem expect: E-ISR-CALLED
+
+proc on_exti
+  vector 6 .
+  output void .
+  effects device .
+do
+  return .
+end .
+
+proc impatient output void . effects device .
+do
+  on_exti .
+end .

@@ -1,0 +1,17 @@
+module grades .
+rem run: bump_checked 10
+rem trap: bump_checked 250
+rem run: bump_assumed 10
+rem trap: bump_assumed 255
+
+fn bump_checked input a u8 . output u8 .
+  requires le a. 200 . .
+do
+  return add a. 1 . .
+end .
+
+fn bump_assumed input a u8 . output u8 .
+  requires assume le a. 200 . .
+do
+  return add a. 1 . .
+end .

@@ -1,0 +1,10 @@
+module filename_fixed .
+rem run: same [104,105] [104,105]
+rem run: same [104,105] [104,111]
+
+use strings .
+
+fn same input a slice u8 . input b slice u8 . output bool .
+do
+  return strings.eq_str a. b. . .
+end .

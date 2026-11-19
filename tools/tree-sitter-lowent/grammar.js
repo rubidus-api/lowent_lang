@@ -19,7 +19,7 @@ const sep = (rule) => repeat(rule);
 
 // type words that take one more type after them
 const T_PRE1 = ['slice', 'mut', 'owned', 'ref', 'mut_ref', 'option', 'segments', 'task', 'chan', 'stack', 'set',
-                'unsafe_ptr', 'nonzero', 'atomic', 'lock', 'rwlock', 'shared_read', 'view'];
+                'unsafe_ptr', 'nonzero', 'atomic', 'lock', 'rwlock', 'shared_read', 'view', 'object'];
 
 const CLAUSE_WORDS = ['reduce', 'lowdoc', 'vector', 'priority', 'inplace', 'invalidates', 'absorbs',
                       'reference', 'why', 'strlen', 'link', 'variadic', 'schedule', 'access', 'parallel',
@@ -211,7 +211,7 @@ module.exports = grammar({
       $.call, $.paren_term,
       $.struct_literal, $.fill_literal, $.list_literal,
       $.island, $.pipe_form,
-      $.field_form, $.method_form, $.payload_form, $.send_form, $.spawn_form, $.try_form,
+      $.field_form, $.method_form, $.dyn_form, $.object_form, $.payload_form, $.send_form, $.spawn_form, $.try_form,
       $.builtin_call, $.alloc_form, $.pop_form, $.view_form, $.word_list_form, $.shaped_form,
       $.word_value,
     ),
@@ -254,6 +254,9 @@ module.exports = grammar({
     field_form: $ => seq('field', $._term, repeat1(field('segment', choice($.name, $.number))), $.stop),
     method_form: $ => seq('method', $._term, repeat(field('segment', choice($.name, $.number))),
       field('op', $.name), $.stop, repeat($._term), $.stop),
+    // RFC-0159 — `dyn <value> <op>. <args> .` chooses the op at run time; `object <trait> <value> .` makes the value
+    dyn_form: $ => seq('dyn', $._term, field('op', $.name), $.stop, repeat($._term), $.stop),
+    object_form: $ => seq('object', field('trait', $.name), $._term, $.stop),
     payload_form: $ => seq('payload', $._term, field('variant', $.name), field('field', $.name), $.stop),
     send_form: $ => seq('send', $._term, field('handler', $.name), repeat($._term), $.stop),
     spawn_form: $ => seq('spawn', choice(

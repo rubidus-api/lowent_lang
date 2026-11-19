@@ -1769,6 +1769,10 @@
                   {
                     "type": "STRING",
                     "value": "view"
+                  },
+                  {
+                    "type": "STRING",
+                    "value": "object"
                   }
                 ]
               },
@@ -3176,6 +3180,14 @@
         },
         {
           "type": "SYMBOL",
+          "name": "dyn_form"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "object_form"
+        },
+        {
+          "type": "SYMBOL",
           "name": "payload_form"
         },
         {
@@ -4119,6 +4131,67 @@
             "type": "SYMBOL",
             "name": "_term"
           }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "stop"
+        }
+      ]
+    },
+    "dyn_form": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "dyn"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_term"
+        },
+        {
+          "type": "FIELD",
+          "name": "op",
+          "content": {
+            "type": "SYMBOL",
+            "name": "name"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "stop"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_term"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "stop"
+        }
+      ]
+    },
+    "object_form": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "object"
+        },
+        {
+          "type": "FIELD",
+          "name": "trait",
+          "content": {
+            "type": "SYMBOL",
+            "name": "name"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_term"
         },
         {
           "type": "SYMBOL",

@@ -90,6 +90,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -115,6 +119,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -298,6 +306,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "fail_clause",
           "named": true
         },
@@ -331,6 +343,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -453,6 +469,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "expect_statement",
           "named": true
         },
@@ -502,6 +522,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -644,6 +668,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -669,6 +697,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -809,6 +841,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -834,6 +870,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -943,6 +983,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -968,6 +1012,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -1123,6 +1171,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -1156,6 +1208,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -1315,6 +1371,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -1344,6 +1404,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -1431,6 +1495,144 @@
         },
         {
           "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dyn_form",
+    "named": true,
+    "fields": {
+      "op": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
           "named": true
         }
       ]
@@ -1542,6 +1744,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -1567,6 +1773,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -1703,6 +1913,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -1732,6 +1946,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -1903,6 +2121,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -1928,6 +2150,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2037,6 +2263,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2062,6 +2292,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2156,6 +2390,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2185,6 +2423,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2322,6 +2564,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2347,6 +2593,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2452,6 +2702,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2481,6 +2735,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2614,6 +2872,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2639,6 +2901,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2741,6 +3007,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2766,6 +3036,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2860,6 +3134,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -2889,6 +3167,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -2987,6 +3269,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -3016,6 +3302,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -3133,6 +3423,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -3162,6 +3456,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -3276,6 +3574,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -3301,6 +3603,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -3420,6 +3726,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -3445,6 +3755,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -3546,6 +3860,144 @@
       "types": [
         {
           "type": "stop",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "object_form",
+    "named": true,
+    "fields": {
+      "trait": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "alloc_form",
+          "named": true
+        },
+        {
+          "type": "boolean",
+          "named": true
+        },
+        {
+          "type": "builtin_call",
+          "named": true
+        },
+        {
+          "type": "call",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
+          "type": "field_form",
+          "named": true
+        },
+        {
+          "type": "fill_literal",
+          "named": true
+        },
+        {
+          "type": "island",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "method_form",
+          "named": true
+        },
+        {
+          "type": "none",
+          "named": true
+        },
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
+          "named": true
+        },
+        {
+          "type": "paren_term",
+          "named": true
+        },
+        {
+          "type": "payload_form",
+          "named": true
+        },
+        {
+          "type": "pipe_form",
+          "named": true
+        },
+        {
+          "type": "pop_form",
+          "named": true
+        },
+        {
+          "type": "send_form",
+          "named": true
+        },
+        {
+          "type": "shaped_form",
+          "named": true
+        },
+        {
+          "type": "spawn_form",
+          "named": true
+        },
+        {
+          "type": "stop",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "struct_literal",
+          "named": true
+        },
+        {
+          "type": "text_literal",
+          "named": true
+        },
+        {
+          "type": "try_form",
+          "named": true
+        },
+        {
+          "type": "view_form",
+          "named": true
+        },
+        {
+          "type": "word_list_form",
+          "named": true
+        },
+        {
+          "type": "word_value",
           "named": true
         }
       ]
@@ -3677,6 +4129,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -3702,6 +4158,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -3883,6 +4343,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -3908,6 +4372,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4002,6 +4470,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4027,6 +4499,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4125,6 +4601,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4150,6 +4630,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4263,6 +4747,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4292,6 +4780,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4447,6 +4939,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4476,6 +4972,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4578,6 +5078,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4603,6 +5107,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4693,6 +5201,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4718,6 +5230,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4823,6 +5339,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4848,6 +5368,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -4942,6 +5466,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -4967,6 +5495,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -5098,6 +5630,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -5123,6 +5659,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -5330,6 +5870,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -5359,6 +5903,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -5530,6 +6078,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -5555,6 +6107,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -5898,6 +6454,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -5927,6 +6487,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -6206,6 +6770,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -6235,6 +6803,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -6337,6 +6909,10 @@
           "named": true
         },
         {
+          "type": "dyn_form",
+          "named": true
+        },
+        {
           "type": "field_form",
           "named": true
         },
@@ -6362,6 +6938,10 @@
         },
         {
           "type": "number",
+          "named": true
+        },
+        {
+          "type": "object_form",
           "named": true
         },
         {
@@ -6667,6 +7247,10 @@
     "named": false
   },
   {
+    "type": "dyn",
+    "named": false
+  },
+  {
     "type": "effects",
     "named": false
   },
@@ -6894,6 +7478,10 @@
   {
     "type": "number",
     "named": true
+  },
+  {
+    "type": "object",
+    "named": false
   },
   {
     "type": "on",

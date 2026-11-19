@@ -1,7 +1,8 @@
 rem ★★★ RFC-0159 첫 판 — `object <트레이트>` 값과 `dyn` 부름 (2026-11-19 · W-20261119-1840).
-rem   `object shape` 는 shape 를 갖춘 **어떤** 타입의 값을 담는다(값을 담는다 · 크기는 가장 큰 갖춘 타입). `dyn x. area. .` 은 실행 중
+rem   `object shape` 는 shape 를 갖춘 **어떤** 타입의 값을 담는다(값을 복사해 담는다). `dyn x. area. .` 은 실행 중
 rem   그 값의 타입으로 op 을 골라 부른다. 고르는 일은 효과 `dyn` 이다 — 부르는 op 은 `proc … effects dyn .` 이어야 한다.
-rem   처리기는 이것을 갈래 있는 열거와 `match` 로 옮겨 적는다(`low_dyn.c`) — 두 뒤끝이 같은 답을 내야 한다.
+rem   처리기는 이것을 납작한 구조체(태그 + 갖춘 타입 모두의 칸 · 크기 = 칸의 합)와 태그로 고르는 op 으로 옮겨 적는다(`low_dyn.c`) —
+rem   두 뒤끝이 같은 답을 내야 하고, 모든 op 이 빠른 경로에 남는다(2026-11-19 W-20261119-2322 · 전엔 열거라 태그 경로였다).
 module vm_dyn .
 
 trait shape do
@@ -52,4 +53,19 @@ export proc demo input n u64 . output u64 . effects dyn . do
   let a object shape pick n. . .
   let b object shape pick add n. 1 . . .
   return sum2 a. b. . .
+end .
+
+rem ★ 2026-11-19 (W-20261119-2322) — 여러 모양을 한 목록에: `object shape` 의 조각 · 배열 · `for`
+proc total input xs slice object shape . output u64 . effects dyn . do
+  var s u64 0 .
+  for x xs. do set s. add s. dyn x. area. . . . end .
+  return s. .
+end .
+
+export proc many input n u64 . output u64 . effects dyn . do
+  let r rect lit rect do w 2 . h 3 . end . .
+  let q square lit square do side n. . end . .
+  let xs slice object shape lit slice object shape object shape r. . object shape q. . pick 2 . . .
+  var ys lit array 2 object shape pick 1 . object shape r. . . .
+  return add total xs. . total ys. . . .
 end .

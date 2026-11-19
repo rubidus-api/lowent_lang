@@ -201,6 +201,15 @@ end .
   실행 중에 고르는지가 서명에 보인다. 만드는 `pick` 은 고르지 않으므로 `effects none .` 이다.
 - 답 166 은 `a` 의 넓이 6 에 `b` 의 `scaled 10`(160)을 더한 것이다.
 
+`object shape` 는 크기가 정해진 값이라 목록에도 담긴다. 원소마다 타입이 달라도 된다.
+
+#demo("examples/ch23/dyn_list.low")
+
+- `lit slice object shape … .` 의 원소는 `object shape r. .` 처럼 만든 값이다. `lit array 3 object shape … .` 도 같다.
+- `for x xs.` 의 `x` 도 `object shape` 이므로 `dyn x. area. .` 로 부른다. 답 38 은 6 + 16 + 16 이다.
+- 그 값은 갖춘 타입 *모두*의 칸을 나란히 지닌다 --- 크기는 칸의 합이다. 그래서 이 판에서 갖춘 타입의 칸은 크기 있는 수 · 부동 ·
+  `bool` 이어야 한다(슬라이스 칸은 `E-DYN-FIELD`). 담긴 값의 칸을 `field` 로 읽을 수는 없다 --- 닿는 길은 `dyn` 뿐이다.
+
 #demo("examples/ch23/dyn_effect.low")
 
 #dtable(
@@ -215,6 +224,7 @@ end .
   [`E-DYN-LIT`], [담으려는 값의 타입이 적혀 있지 않다],
   [`E-DYN-TRAIT`], [트레이트의 서명이 실행 중에 고를 수 없는 꼴이다(첫 입력이 `self` 가 아니다 · `self` 가 다른 자리에 있다 · `via self` …)],
   [`E-DYN-NOIMPL`], [그 트레이트를 갖춘 타입이 없다],
+  [`E-DYN-FIELD`], [갖춘 타입의 칸이 크기 있는 수 · 부동 · `bool` 이 아니다(슬라이스 · 배열 · 구조체 칸)],
 )
 
 #qa[

@@ -200,6 +200,15 @@ and call it with `dyn`.
   choose at run time. `pick`, which only makes values, does not choose, so it is `effects none .`.
 - The answer 166 is the area 6 of `a` plus `scaled 10` of `b` (160).
 
+`object shape` is a value with a fixed size, so it also goes into lists. Each element can hold a different type.
+
+#demo("examples/ch23/dyn_list.low")
+
+- The elements of `lit slice object shape … .` are values made like `object shape r. .`. `lit array 3 object shape … .` works the same way.
+- The `x` of `for x xs.` is an `object shape` too, so it is called with `dyn x. area. .`. The answer 38 is 6 + 16 + 16.
+- The value holds the fields of *all* the types that satisfy the trait side by side --- its size is the sum of those fields. So in this version every field of
+  such a type is a sized number, a float or `bool` (a slice field is `E-DYN-FIELD`). The fields of the held value cannot be read with `field` --- `dyn` is the only way in.
+
 #demo("examples/ch23/dyn_effect.low")
 
 #dtable(
@@ -214,6 +223,7 @@ and call it with `dyn`.
   [`E-DYN-LIT`], [the type of the value to hold is not written],
   [`E-DYN-TRAIT`], [the trait's signature cannot be chosen at run time (the first input is not `self` · `self` stands elsewhere · `via self` …)],
   [`E-DYN-NOIMPL`], [no type satisfies the trait],
+  [`E-DYN-FIELD`], [a field of a type that satisfies the trait is not a sized number, a float or `bool` (a slice, array or struct field)],
 )
 
 #qa[

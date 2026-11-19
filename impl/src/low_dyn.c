@@ -1,17 +1,20 @@
 // low_dyn.c — RFC-0159 첫 판: `object <트레이트>` 값과 `dyn` 부름 (2026-11-19 · W-20261119-1840)
 //
-// ★★★ **새 기계를 짓지 않는다.** 첫 판은 이미 검사되고 두 뒤끝이 오라클로 맞대는 것 — 갈래 있는 열거와 `match` — 로 옮겨 적는다.
-//   트레이트 T 를 `object` 로 쓰는 단위마다 처리기가 둘을 짓는다:
-//     enum T__object do v0 x <갖춘 타입 0> . v1 x <갖춘 타입 1> . … end .          ← 값: 갈래 번호(= 실행 중 타입) + 그 값
-//     proc T__object.<op> input o T__object . <나머지 입력> . output … . effects <트레이트의 효과> dyn . do
-//       match o. do case v0 x do return <타입 0>.<op> x. <인자>… . end . … end .  ← 가상 테이블: 갈래 번호로 고르는 표
+// ★★★ **새 기계를 짓지 않는다.** 이미 검사되고 두 뒤끝이 오라클로 맞대는 것 — 구조체 · `if` · 보통 부름 — 으로 옮겨 적는다.
+//   트레이트 T 를 `object` 로 쓰는 단위마다 처리기가 셋을 짓는다(2026-11-19 W-20261119-2322 부터 · 전엔 열거와 `match`):
+//     struct T__object do dyn__tag u32 . v0__<칸> <타입> . … v1__<칸> … end .     ← 값: 갖춘 타입의 번호 + 갖춘 타입 **모두**의 칸(크기 = 합)
+//     fn T__object.v<k> input dyn__v <갖춘 타입 k> . output T__object . …          ← 만들기: 제 칸에 값, 남의 칸에 0
+//     proc T__object.<op> input dyn__o T__object . <나머지 입력> . output … . effects <트레이트의 효과> dyn . do
+//       if eq field dyn__o. dyn__tag . 0 . do return <타입 0>.<op> lit <타입 0> do … end . <인자>… . . end . …   ← 번호로 고른다
 //     end .
 //   그리고 저자의 글을 옮겨 적는다: 타입 `object T` → `T__object` · 값 `object T v` → `T__object.v<k> v` · `dyn x. m. a .` → `T__object.m x a`.
-//   `match` 를 C 컴파일러는 갈래 번호로 뛰는 표(점프 표)로 낸다 — 실행 중에 타입 번호로 고르는 표, 곧 가상 테이블이다.
+//   ★ 왜 열거가 아닌가: 갈래에 값이 실린 열거는 바이트 배치가 없어(정본 §6.2.7 (2d)) 원소 나열에 못 담기고 빠른 경로도 못 나른다.
+//     납작한 구조체는 둘 다 된다(목록에 담기 · 모든 op 이 빠른 경로). 값은 칸의 합만큼 크다 — 겹쳐 두기(가장 큰 것만큼)는 RFC-0159 §9-15.
 //
 // ★ 갖춘 타입의 집합은 **번역 단위 안에서 닫힌다** — 저자는 그 집합을 적지 않는다(다른 모듈이 `satisfies T` 로 늘린다 · 이 판은 같은 모듈만).
 // ★ 첫 판의 테두리(RFC-0159 §5 · 그 밖은 진단으로 거절한다):
-//   · 값을 **담는다**(복사) — 빌림이 아니다. 조각 · 배열 · 칸에 담길 수 있고 수명 규칙이 따로 없다. 크기는 가장 큰 갖춘 타입이다.
+//   · 값을 **담는다**(복사) — 빌림이 아니다. 조각 · 배열 · 칸에 담길 수 있고 수명 규칙이 따로 없다. 크기는 갖춘 타입 모두의 칸의 합이다.
+//   · 갖춘 타입의 칸은 낱말 하나의 크기 있는 수 · 부동 · `bool`(`E-DYN-FIELD`). `object` 값의 칸은 `field` 로 읽지 못한다(`E-DYN-FORM`).
 //   · 트레이트의 op: 첫 입력이 `self`(값) · `self` 를 다른 자리에 쓰지 않는다 · 나머지 입력과 출력은 낱말 하나의 타입 · comptime · `via` 없음.
 //   · `object T v` 의 v 는 타입을 적은 이름이거나 `lit <타입> …` 이다(타입은 짐작하지 않는다).
 //   · `dyn` 의 받는 값은 `object T` 로 적은 이름이다. `dyn` 을 부르는 op 은 `proc … effects … dyn .` 이어야 한다(효과 원자 `dyn`).
@@ -29,11 +32,13 @@
 #define DY_MAXO   16      // 트레이트의 op
 #define DY_MAXA    8      // op 하나의 입력(self 제외)
 #define DY_MAXE    8      // 효과 낱말
+#define DY_MAXF   16      // 갖춘 타입 하나의 칸
 
 typedef struct {
     proven_u8str_view_t name, mod;
     proven_size_t form;                       // 최상위 폼 자리
     proven_size_t nimpl; proven_u8str_view_t impl[DY_MAXI];
+    proven_size_t nf[DY_MAXI]; proven_u8str_view_t fn_[DY_MAXI][DY_MAXF], ft[DY_MAXI][DY_MAXF];   // 갖춘 타입의 칸(이름 · 타입)
     proven_size_t nop;
     struct { proven_u8str_view_t name, out; proven_size_t na; proven_u8str_view_t an[DY_MAXA], at[DY_MAXA];
              proven_size_t ne; proven_u8str_view_t eff[DY_MAXE]; } op[DY_MAXO];
@@ -97,6 +102,31 @@ static const low_cst_t *dy_find_trait_form(const low_parse_result_t *pr, proven_
     return NULL;
 }
 // 트레이트 T 를 갖춘 구조체(같은 모듈) — 폼 차례대로. 두 단계가 같은 차례를 본다(갈래 번호가 그 차례다).
+// ★ 2026-11-19 (W-20261119-2322 · 소유자 «dyn 목록에 담기부터») — `object T` 는 **납작한 구조체**다: 태그 하나 + 갖춘 타입 모두의 칸을
+//   나란히(크기 = 칸의 합). 갈래에 값이 실린 열거는 바이트 배치가 없어(정본 §6.2.7 (2d)) 나열에 못 담기지만, 크기 있는 수 · bool 칸만의
+//   구조체는 나열 · `for` · 빠른 경로가 이미 나른다. 그래서 갖춘 타입의 칸은 낱말 하나의 크기 있는 수 · 부동 · `bool` 이어야 한다 —
+//   0 값을 적을 수 있어야 하기 때문이다(빈 조각 리터럴은 없다). 그 밖은 `E-DYN-FIELD`.
+static const char *dy_zero_of(proven_u8str_view_t ty) {
+    static const char *const ints[] = { "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "usize", "idiff" };
+    for (size_t i = 0; i < sizeof ints / sizeof ints[0]; i++) if (low_view_eq_cstr(ty, ints[i])) return "0";
+    if (low_view_eq_cstr(ty, "f32") || low_view_eq_cstr(ty, "f64")) return "0.0";
+    if (low_view_eq_cstr(ty, "bool")) return "false";
+    return NULL;
+}
+static void dy_collect_fields(dy_t *c, dy_trait_t *t, proven_size_t k, const low_cst_t *b) {
+    t->nf[k] = 0;
+    for (proven_size_t q = 0; b && q < b->nkids; q++) {
+        const low_cst_t *s = b->kids[q];
+        if (!s || s->kind != LOW_CST_FORM || !s->nkids || !dy_atom(s->kids[0]) || s->kids[0]->tok.kw != LOW_KW_NONE) continue;
+        if (s->nkids != 2 || !dy_atom(s->kids[1]) || !dy_zero_of(s->kids[1]->tok.lex)) {
+            char m[300]; low_bfmt(m, sizeof m, "a type held in `object {}` keeps its fields side by side in one record, so each field is a sized number, a float or "
+                                  "`bool` in this version — `{}` is not (RFC-0159 §9-14)", proven_arg_str_view(t->name), proven_arg_str_view(s->kids[0]->tok.lex));
+            dy_err(c, s->kids[0], "E-DYN-FIELD", dy_dup(c, m)); t->ok = false; return;
+        }
+        if (t->nf[k] >= DY_MAXF) { dy_err(c, s->kids[0], "E-DYN-FIELD", "a type held in `object` has too many fields for this version"); t->ok = false; return; }
+        t->fn_[k][t->nf[k]] = s->kids[0]->tok.lex; t->ft[k][t->nf[k]] = s->kids[1]->tok.lex; t->nf[k]++;
+    }
+}
 static void dy_collect_impl(dy_t *c, dy_trait_t *t) {
     proven_u8str_view_t cur = { 0 };
     t->nimpl = 0;
@@ -112,7 +142,7 @@ static void dy_collect_impl(dy_t *c, dy_trait_t *t) {
                 dy_atom(s->kids[1]) && dy_eqv(s->kids[1]->tok.lex, t->name)) {
                 if (!dy_eqv(cur, t->mod)) { dy_err(c, f->kids[1], "E-DYN-MODULE",
                     "a type that satisfies a trait used with `object` must be in the trait's own module in this first version (RFC-0159 §5)"); t->ok = false; }
-                else if (t->nimpl < DY_MAXI) t->impl[t->nimpl++] = f->kids[1]->tok.lex;
+                else if (t->nimpl < DY_MAXI) { t->impl[t->nimpl] = f->kids[1]->tok.lex; dy_collect_fields(c, t, t->nimpl, b); t->nimpl++; }
             }
         }
     }
@@ -210,10 +240,33 @@ static void dy_put(dy_buf_t *o, const char *s, size_t n) { if (o->n + n + 1 > o-
 static void dy_ps(dy_buf_t *o, const char *s) { dy_put(o, s, strlen(s)); }
 static void dy_pv(dy_buf_t *o, proven_u8str_view_t v) { dy_put(o, (const char *)v.ptr, v.size); }
 
+static void dy_pk(dy_buf_t *o, proven_size_t k) { char v[24]; low_bfmt(v, sizeof v, "{}", PROVEN_ARG((size_t)k)); dy_ps(o, v); }
+// 칸 이름: `v<k>__<칸>` · 태그 `dyn__tag`(u32 · 갖춘 타입의 번호)
+static void dy_fld(dy_buf_t *o, proven_size_t k, proven_u8str_view_t f) { dy_ps(o, "v"); dy_pk(o, k); dy_ps(o, "__"); dy_pv(o, f); }
+// 갖춘 타입 k 의 값을 납작한 칸에서 다시 짓는다: `lit <타입 k> do a field dyn__o. v<k>__a . . … end .`
+static void dy_rebuild(dy_buf_t *o, const dy_trait_t *t, proven_size_t k) {
+    dy_ps(o, "lit "); dy_pv(o, t->impl[k]); dy_ps(o, " do");
+    for (proven_size_t f = 0; f < t->nf[k]; f++) { dy_ps(o, " "); dy_pv(o, t->fn_[k][f]); dy_ps(o, " field dyn__o. "); dy_fld(o, k, t->fn_[k][f]); dy_ps(o, " . ."); }
+    dy_ps(o, " end .");
+}
 static void dy_gen_text(dy_t *c, const dy_trait_t *t, dy_buf_t *o) {
-    dy_ps(o, "enum "); dy_pv(o, t->name); dy_ps(o, "__object do\n");
-    for (proven_size_t k = 0; k < t->nimpl; k++) { char v[24]; low_bfmt(v, sizeof v, "  v{} x ", PROVEN_ARG((size_t)k)); dy_ps(o, v); dy_pv(o, t->impl[k]); dy_ps(o, " .\n"); }
+    dy_ps(o, "struct "); dy_pv(o, t->name); dy_ps(o, "__object do\n  dyn__tag u32 .\n");
+    for (proven_size_t k = 0; k < t->nimpl; k++)
+        for (proven_size_t f = 0; f < t->nf[k]; f++) { dy_ps(o, "  "); dy_fld(o, k, t->fn_[k][f]); dy_ps(o, " "); dy_pv(o, t->ft[k][f]); dy_ps(o, " .\n"); }
     dy_ps(o, "end .\n");
+    // 만들기 — 갖춘 타입마다 하나: 제 칸에 값을, 남의 칸에 0 을
+    for (proven_size_t k = 0; k < t->nimpl; k++) {
+        dy_ps(o, "fn "); dy_pv(o, t->name); dy_ps(o, "__object.v"); dy_pk(o, k); dy_ps(o, " input dyn__v "); dy_pv(o, t->impl[k]);
+        dy_ps(o, " . output "); dy_pv(o, t->name); dy_ps(o, "__object . do\n  return lit "); dy_pv(o, t->name); dy_ps(o, "__object do dyn__tag "); dy_pk(o, k); dy_ps(o, " .");
+        for (proven_size_t j = 0; j < t->nimpl; j++)
+            for (proven_size_t f = 0; f < t->nf[j]; f++) {
+                dy_ps(o, " "); dy_fld(o, j, t->fn_[j][f]);
+                if (j == k) { dy_ps(o, " field dyn__v. "); dy_pv(o, t->fn_[j][f]); dy_ps(o, " . ."); }
+                else { dy_ps(o, " "); dy_ps(o, dy_zero_of(t->ft[j][f])); dy_ps(o, " ."); }
+            }
+        dy_ps(o, " end . .\nend .\n");
+    }
+    // 고르기 — 트레이트의 op 마다 하나: 태그로 갖춘 타입을 골라 그 값을 다시 짓고 그 타입의 op 을 부른다(마지막 갈래는 조건 없이)
     for (proven_size_t q = 0; q < t->nop; q++) {
         const __typeof__(t->op[0]) *op = &t->op[q];
         bool vd = low_view_eq_cstr(op->out, "void");
@@ -222,15 +275,19 @@ static void dy_gen_text(dy_t *c, const dy_trait_t *t, dy_buf_t *o) {
         for (proven_size_t a = 0; a < op->na; a++) { dy_ps(o, " input "); dy_pv(o, op->an[a]); dy_ps(o, " "); dy_pv(o, op->at[a]); dy_ps(o, " ."); }
         dy_ps(o, " output "); dy_pv(o, op->out); dy_ps(o, " . effects");
         for (proven_size_t e = 0; e < op->ne; e++) { dy_ps(o, " "); dy_pv(o, op->eff[e]); }
-        dy_ps(o, " dyn . do\n  match dyn__o. do\n");
+        dy_ps(o, " dyn . do\n");
         for (proven_size_t k = 0; k < t->nimpl; k++) {
-            char v[24]; low_bfmt(v, sizeof v, "    case v{} dyn__x do ", PROVEN_ARG((size_t)k)); dy_ps(o, v);
+            bool last = k + 1 == t->nimpl;
+            if (!last) { dy_ps(o, "  if eq field dyn__o. dyn__tag . "); dy_pk(o, k); dy_ps(o, " . do "); } else dy_ps(o, "  ");
             if (!vd) dy_ps(o, "return ");
-            dy_pv(o, t->impl[k]); dy_ps(o, "."); dy_pv(o, op->name); dy_ps(o, " dyn__x.");
+            dy_pv(o, t->impl[k]); dy_ps(o, "."); dy_pv(o, op->name); dy_ps(o, " "); dy_rebuild(o, t, k);
             for (proven_size_t a = 0; a < op->na; a++) { dy_ps(o, " "); dy_pv(o, op->an[a]); dy_ps(o, "."); }
-            dy_ps(o, vd ? " . end .\n" : " . . end .\n");   // 부름의 점 · `return` 의 점
+            dy_ps(o, " .");                                   // 부름의 점
+            if (!vd) dy_ps(o, " .");                          // `return` 의 점
+            else if (!last) dy_ps(o, " return .");
+            dy_ps(o, last ? "\n" : " end .\n");
         }
-        dy_ps(o, "  end .\nend .\n");
+        dy_ps(o, "end .\n");
     }
     (void)c;
 }
@@ -294,25 +351,53 @@ bool low_dyn_generate(low_parse_result_t *pr, proven_allocator_t node_alloc, pro
 }
 
 // ── ⓑ 옮겨 적기 — 선언 차례 패스 뒤(`let a <타입…> be <값…>`) ─────────────────────────────────────────────────────
-typedef struct { proven_u8str_view_t name, ty; bool obj; } dy_decl_t;
+typedef struct { proven_u8str_view_t name, ty; bool obj, seq; } dy_decl_t;   // seq: 원소가 `object <ty>` 인 조각 · 배열
 typedef struct { dy_decl_t d[256]; proven_size_t n; bool has_dyn_eff; bool is_fn; bool ffi; bool actor; const low_cst_t *head; } dy_scope_t;
 
+static const dy_decl_t *dy_lookup(const dy_scope_t *sc, proven_u8str_view_t n);
+// `slice object T` · `array object T N`(안쪽 차례) · `lit slice|array object T …` — 원소가 `object T` 인 줄이면 T 를 돌려준다
+static const low_cst_t *dy_seq_trait(dy_t *c, low_cst_t *const *k, proven_size_t i, proven_size_t n) {
+    if (i < n && dy_atom(k[i]) && k[i]->tok.kw == LOW_KW_LIT) i++;
+    if (i + 2 < n + 0 && (dy_is(k[i], "slice") || dy_is(k[i], "array")) && dy_is(k[i + 1], "object") && dy_atom(k[i + 2]) && dy_find(c, k[i + 2]->tok.lex))
+        return k[i + 2];
+    return NULL;
+}
 static void dy_collect_decls(dy_t *c, const low_cst_t *nd, dy_scope_t *sc) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
+    // ★ 2026-11-19 (W-20261119-2322) — 원소가 `object T` 인 줄을 적은 이름, 그리고 그 줄을 도는 `for x <줄>.` 의 x
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && dy_atom(nd->kids[0]) && dy_atom(nd->kids[1]) && sc->n < 256) {
+        low_kw_t k0 = nd->kids[0]->tok.kw;
+        if (k0 == LOW_KW_LET || k0 == LOW_KW_VAR) {
+            const low_cst_t *tr = dy_seq_trait(c, nd->kids, 2, nd->nkids);
+            if (!tr && nd->nkids > 2 && nd->kids[2]->kind == LOW_CST_FORM) tr = dy_seq_trait(c, nd->kids[2]->kids, 0, nd->kids[2]->nkids);
+            if (!tr) for (proven_size_t q = 2; q < nd->nkids && !tr; q++)   // `var ys lit array object T N …` — 값이 `be` 뒤에 있다
+                if (dy_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE && q + 1 < nd->nkids) {
+                    const low_cst_t *v = nd->kids[q + 1];
+                    tr = v->kind == LOW_CST_FORM ? dy_seq_trait(c, v->kids, 0, v->nkids) : dy_seq_trait(c, nd->kids, q + 1, nd->nkids);
+                }
+            if (tr) { sc->d[sc->n++] = (dy_decl_t){ nd->kids[1]->tok.lex, tr->tok.lex, false, true }; }
+        }
+        if (k0 == LOW_KW_FOR && dy_atom(nd->kids[2])) {
+            const dy_decl_t *d = dy_lookup(sc, nd->kids[2]->tok.lex);
+            if (d && d->seq) sc->d[sc->n++] = (dy_decl_t){ nd->kids[1]->tok.lex, d->ty, true, false };
+        }
+    }
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && dy_atom(nd->kids[0]) &&
         (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && dy_atom(nd->kids[1]) && sc->n < 256) {
         if (dy_is(nd->kids[2], "object") && dy_atom(nd->kids[3]) && dy_find(c, nd->kids[3]->tok.lex))
-            sc->d[sc->n++] = (dy_decl_t){ nd->kids[1]->tok.lex, nd->kids[3]->tok.lex, true };
+            sc->d[sc->n++] = (dy_decl_t){ nd->kids[1]->tok.lex, nd->kids[3]->tok.lex, true, false };
         else if (dy_atom(nd->kids[2]) && nd->nkids > 3 && dy_atom(nd->kids[3]) && nd->kids[3]->tok.kw == LOW_KW_BE)
-            sc->d[sc->n++] = (dy_decl_t){ nd->kids[1]->tok.lex, nd->kids[2]->tok.lex, false };
+            sc->d[sc->n++] = (dy_decl_t){ nd->kids[1]->tok.lex, nd->kids[2]->tok.lex, false, false };
     }
     // op 머리의 `input <이름> <타입>`
     for (proven_size_t i = 0; i + 2 < nd->nkids && sc->n < 256; i++)
         if (dy_is(nd->kids[i], "input") && dy_atom(nd->kids[i + 1]) && dy_atom(nd->kids[i + 2])) {
-            if (dy_is(nd->kids[i + 2], "object") && i + 3 < nd->nkids && dy_atom(nd->kids[i + 3]) && dy_find(c, nd->kids[i + 3]->tok.lex))
-                sc->d[sc->n++] = (dy_decl_t){ nd->kids[i + 1]->tok.lex, nd->kids[i + 3]->tok.lex, true };
+            const low_cst_t *tr = dy_seq_trait(c, nd->kids, i + 2, nd->nkids);
+            if (tr) sc->d[sc->n++] = (dy_decl_t){ nd->kids[i + 1]->tok.lex, tr->tok.lex, false, true };
+            else if (dy_is(nd->kids[i + 2], "object") && i + 3 < nd->nkids && dy_atom(nd->kids[i + 3]) && dy_find(c, nd->kids[i + 3]->tok.lex))
+                sc->d[sc->n++] = (dy_decl_t){ nd->kids[i + 1]->tok.lex, nd->kids[i + 3]->tok.lex, true, false };
             else if (i + 3 >= nd->nkids || dy_clause(nd->kids[i + 3]) || nd->kids[i + 3]->kind == LOW_CST_BLOCK)
-                sc->d[sc->n++] = (dy_decl_t){ nd->kids[i + 1]->tok.lex, nd->kids[i + 2]->tok.lex, false };
+                sc->d[sc->n++] = (dy_decl_t){ nd->kids[i + 1]->tok.lex, nd->kids[i + 2]->tok.lex, false, false };
         }
     for (proven_size_t i = 0; i < nd->nkids; i++)
         if (nd->kids[i]->kind != LOW_CST_ATOM && !(nd->kind == LOW_CST_FORM && i == 0)) dy_collect_decls(c, nd->kids[i], sc);
@@ -335,6 +420,23 @@ static bool dy_value_type(const dy_scope_t *sc, const low_cst_t *v, proven_u8str
 static void dy_rewrite(dy_t *c, low_cst_t *nd, dy_scope_t *sc) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     for (proven_size_t i = 0; i < nd->nkids; i++) dy_rewrite(c, nd->kids[i], sc);   // 안쪽부터
+    // ★ 2026-11-19 (W-20261119-2322) — `object` 는 납작한 구조체지만 그 칸은 처리기의 것이다: `field o. v0__w .` 로 읽으면 원래의 타입을
+    //   되찾는 길이 생긴다(정본 §6.11.5 (5) «되찾는 길은 없다»). 그래서 `object` 로 적은 이름의 칸은 읽지도 쓰지도 못한다.
+    for (proven_size_t i = 0; i + 1 < nd->nkids; i++) {   // 이 걸음에서는 `return field a v` 처럼 낱말이 아직 한 줄에 있다
+        if (!dy_is(nd->kids[i], "field") || !dy_atom(nd->kids[i + 1])) continue;
+        const dy_decl_t *d = dy_lookup(sc, nd->kids[i + 1]->tok.lex);
+        if (d && (d->obj || d->seq)) dy_err(c, nd->kids[i], "E-DYN-FORM", "a value of `object <trait>` has no fields to read — what it holds is reached only through `dyn` (RFC-0159 · canon 6.11.5 (5))");
+    }
+    // 안쪽 차례 패스가 낱말 둘의 타입을 괄호로 묶었다(`array (object T) N`) — 옮겨 적으면 낱말 하나(`T__object`)이므로 괄호를 벗긴다
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        low_cst_t *g = nd->kids[i];
+        if (g && g->kind == LOW_CST_GROUP && g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 1 && dy_atom(g->kids[0]->kids[0])) {
+            proven_u8str_view_t w = g->kids[0]->kids[0]->tok.lex;
+            for (proven_size_t q = 0; q < c->nt; q++)
+                if (c->t[q].ok && w.size == c->t[q].name.size + 8 && memcmp(w.ptr, c->t[q].name.ptr, c->t[q].name.size) == 0 &&
+                    memcmp(w.ptr + c->t[q].name.size, "__object", 8) == 0) { nd->kids[i] = g->kids[0]->kids[0]; break; }
+        }
+    }
     bool bind = nd->kind == LOW_CST_FORM && nd->nkids >= 2 && dy_atom(nd->kids[0]) && (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR);
     proven_size_t be = nd->nkids;
     if (bind) for (proven_size_t i = 2; i < nd->nkids; i++) if (dy_atom(nd->kids[i]) && nd->kids[i]->tok.kw == LOW_KW_BE) { be = i; break; }
@@ -383,7 +485,9 @@ static void dy_rewrite(dy_t *c, low_cst_t *nd, dy_scope_t *sc) {
         if (dy_is(k, "object") && i + 1 < nd->nkids && dy_atom(nd->kids[i + 1]) && dy_find(c, nd->kids[i + 1]->tok.lex)) {
             dy_trait_t *t = dy_find(c, nd->kids[i + 1]->tok.lex);
             proven_u8str_view_t gn = dy_cat(c, t->name, "__object", (proven_u8str_view_t){ 0 });
-            bool value = i + 2 < nd->nkids && !(bind && i < be) && nd->kids[i + 2]->kind != LOW_CST_BLOCK &&
+            bool lit_el = i >= 2 && dy_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LIT && i == 2 &&   // `lit slice|array object T …` — 원소 타입
+                          (dy_is(nd->kids[1], "slice") || dy_is(nd->kids[1], "array"));
+            bool value = i + 2 < nd->nkids && !(bind && i < be) && !lit_el && nd->kids[i + 2]->kind != LOW_CST_BLOCK &&
                          !dy_clause(nd->kids[i + 2]) && !(dy_atom(nd->kids[i + 2]) && nd->kids[i + 2]->tok.kw == LOW_KW_BE);
             if (!value) {
                 // ★ 첫 판의 테두리(소유자 2026-11-19 «추천대로» · RFC-0159 D11 · D12) — C 와 주고받는 op 과 액터의 처리기는 `object` 를 받지도 내지도 않는다

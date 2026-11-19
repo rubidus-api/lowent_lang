@@ -1082,7 +1082,7 @@ bool low_rows_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, prove
 static const char *const OR_TYW[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","u128","i128","usize","idiff","f32","f64",
                                       "void","self","str","string","char","byte","bytes_view",
                                       "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero","task","chan",
-                                      "atomic","lock","rwlock","shared_read","view",
+                                      "atomic","lock","rwlock","shared_read","view","object",
                                       "result","array","vec","matrix","bitset","mask","bits","cap","region","fn","unsafe_fn", NULL };
 static const char *const OR_WRAP[] = { "slice","option","segments","stack","set","unsafe_ptr","nonzero","task","chan","atomic","lock","rwlock",
                                        "shared_read","view","result","array","vec",

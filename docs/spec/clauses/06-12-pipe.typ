@@ -40,6 +40,34 @@ do
     count .
   end . .
 end .")
+  #para("1a")[
+    원천은 둘 가운데 하나다.
+      - #strong[슬라이스]; — 앞에서부터 원소를 하나씩 꺼낸다. 끝에 이르면 흐름이 끝난다.
+      - #strong[`pull` 처리기를 가진 actor 의 손잡이]; — 원소마다 그 actor 의 `pull` 을 부른다. `pull` 은 입력이 없고
+      `option <원소 타입>` 을 내는 처리기다. `some v` 면 `v` 가 흐르고, `none` 이면 흐름이 끝난다.
+      처리기의 이름은 `pull` 로 정해져 있다(`next` 는 되풀이 머리의 예약어다 — #cref("6.5.3.1")).
+      `none` 을 내지 않는 원천은 #cref("6.12.2") 의 멈춤(`take` · `any` · `all`)으로 끝낸다.
+      멈춘 뒤에는 원소를 하나도 더 꺼내지 아니한다 — 같은 손잡이를 다음 `pipe` 가 읽으면 그 다음 원소부터 읽는다.
+  ]
+  #ex("pull 원천 — 셋을 내고 none 으로 끝나는 actor 를 센다(답 3)", "module ex_pipe_pull .
+
+actor below3 do
+  state do
+    n u64 .
+  end .
+  proc pull output option u64 . effects state . do
+    guard lt n. 3 . else return none . .
+    set n. add n. 1 . .
+    return some n. . .
+  end .
+end .
+
+proc count_below3 output u64 . effects state . do
+  let it below3 spawn actor below3 . .
+  return pipe it. do
+    count .
+  end . .
+end .")
   #para("2")[
     스테이지는 일곱이다: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.
       종결자는 다섯이다: `collect into` · `fold` · `count` · `any` · `all`.

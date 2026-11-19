@@ -15,12 +15,18 @@
 #include "low_blake3.h"
 #include "low_smt.h"
 
-// ★ RFC-0141 — 이 시험들의 원문은 **안쪽 모양**이다(`var v u64 be 1 .` · `if c . do` · `for i count …`): 선언 차례 패스를
-//   거치지 않고 검사 · 하강에 바로 준다. 파서를 안쪽 모양 모드(RFC-0141 전의 읽기)로 둔다.
+// ★ RFC-0141 §12-4 (2026-11-19) — 이 시험들의 원문은 **파서가 읽는 꼴**이다: `be` 없는 바인딩(`var v u64 1 .`) · 머리의 점 없이
+//   (`if c do`) · 네 머리말(`repeat i u64 n do`). 표면 패스(RFC-0142 의 이름·점, `low_closer`)는 거치지 않는다 — 그 패스가 내 주는
+//   괄호로 묶인 꼴을 바로 적는다. 파스 뒤에는 몰이꾼(main.c)과 같은 차례로 새 표면을 안쪽 나무로 내린다(`low_surface_lower` →
+//   `low_call_host_strip` → `low_decl_order`). 예전에는 파서에 시험 전용 «안쪽 모양 모드»(RFC-0141 전의 읽기)를 두고 안쪽 나무를
+//   원문으로 적었다 — 그 모드는 지웠다. 옮긴 뒤 3,723 번의 파스가 옛 모드의 나무와 같은지를 맞대 봤다(RFC-0141 §12-4).
+//   `PARSE(…)`(파서 자체의 시험)는 내리기 전의 나무를 본다 — `g_ut_raw`.
+static bool g_ut_raw = false;
 static low_parse_result_t ut_parse(proven_allocator_t nodes, proven_allocator_t heap, const proven_array_t *toks) {
-    low_parse_inner_shape(true);
     low_parse_result_t r = low_parse(nodes, heap, toks);
+    if (!g_ut_raw) low_surface_lower(&r, nodes, heap);                 // ★ RFC-0141 — 새 표면 → 안쪽 나무
     low_call_host_strip(&r, nodes, heap);       // ★ RFC-0127 ⓒ · RFC-0147 — 빌트인 연산은 `call_builtin` 뒤에서만 선다(몰이꾼 main.c 와 같은 차례)
+    if (!g_ut_raw) low_decl_order(&r, nodes, heap, true);              // ★ RFC-0132 T1 — `be` 뒤의 타입을 안쪽 자리로(옛 모양 · 타입 생략은 거절)
     return r;
 }
 #define low_parse(a, b, c) ut_parse(a, b, c)
@@ -97,23 +103,23 @@ static void fz_stmt(fz_t *g, int nest) {
     if (g->nv >= 40) k = 2;                         // stay under the IR locals cap
     switch (k) {
         case 0: case 7:   // new int var
-            fz_putf(g, "var v%d u64 be ", g->nv, 0);
+            fz_putf(g, "var v%d u64 ", g->nv, 0);
             fz_iexpr(g, 2); fz_put(g, " . ");
             g->nv++;
             break;
         case 1: {         // new borrow of a random (non-counter) int var
             int t = fz_pick_var(g, false);
-            if (t < 0 || g->nb >= 12) { fz_putf(g, "var v%d u64 be 1 . ", g->nv++, 0); return; }
+            if (t < 0 || g->nb >= 12) { fz_putf(g, "var v%d u64 1 . ", g->nv++, 0); return; }
             g->bmut[g->nb] = fz_rnd(2);
-            fz_putf(g, g->bmut[g->nb] ? "var r%d mut_ref u64 . be mut_ref v%d . "
-                                      : "var r%d ref u64 . be ref v%d . ",
+            fz_putf(g, g->bmut[g->nb] ? "var r%d mut_ref u64 mut_ref v%d . "
+                                      : "var r%d ref u64 ref v%d . ",
                     g->nb, t);
             g->nb++;
             break;
         }
         case 2: {         // owner write (never a loop counter)
             int t = fz_pick_var(g, false);
-            if (t < 0) { fz_putf(g, "var v%d u64 be 1 . ", g->nv++, 0); return; }
+            if (t < 0) { fz_putf(g, "var v%d u64 1 . ", g->nv++, 0); return; }
             fz_putf(g, "set v%d ", t, 0);
             fz_iexpr(g, 1); fz_put(g, " . ");
             break;
@@ -121,71 +127,71 @@ static void fz_stmt(fz_t *g, int nest) {
         case 3: {         // write-through a mut borrow (if any)
             int m = -1;
             for (int i = 0; i < g->nb; i++) if (g->bmut[i]) m = i;
-            if (m < 0) { fz_putf(g, "var v%d u64 be 1 . ", g->nv++, 0); return; }
+            if (m < 0) { fz_putf(g, "var v%d u64 1 . ", g->nv++, 0); return; }
             fz_putf(g, "set r%d ", m, 0);
             fz_iexpr(g, 1); fz_put(g, " . ");
             break;
         }
         case 4:           // read through a borrow into a new var
-            fz_putf(g, "var v%d u64 be deref r%d . ", g->nv, (int)fz_rnd((proven_u32)g->nb));
+            fz_putf(g, "var v%d u64 deref r%d . ", g->nv, (int)fz_rnd((proven_u32)g->nb));
             g->nv++;
             break;
         case 5:           // if block
             fz_put(g, "if lt ");
             fz_iexpr(g, 1); fz_put(g, " ");
-            fz_iexpr(g, 1); fz_put(g, " . do ");
+            fz_iexpr(g, 1); fz_put(g, " do ");
             fz_stmts(g, 1 + (int)fz_rnd(2), nest + 1);
             fz_put(g, "end ");
             break;
         case 6: {         // bounded while: dedicated counter, never reset elsewhere
             int c = g->nv;
-            if (c >= 48) { fz_putf(g, "var v%d u64 be 1 . ", g->nv++, 0); return; }
+            if (c >= 48) { fz_putf(g, "var v%d u64 1 . ", g->nv++, 0); return; }
             g->is_counter[c] = true;
             g->nv++;
-            fz_putf(g, "var v%d u64 be 0 . while lt v%d ", c, c);
-            fz_putf(g, "%d . do ", 2 + (int)fz_rnd(3), 0);
+            fz_putf(g, "var v%d u64 0 . while lt v%d ", c, c);
+            fz_putf(g, "%d do ", 2 + (int)fz_rnd(3), 0);
             fz_stmts(g, 1 + (int)fz_rnd(2), nest + 1);
             fz_putf(g, "set v%d expr v%d + 1 . end ", c, c);
             break;
         }
         case 8: {         // string literal: len / in-bounds index
             char s[12]; fz_str(g, s, 3);
-            if (fz_rnd(2)) { fz_putf(g, "var v%d u64 be cast u64 (len \"", g->nv, 0); fz_put(g, s); fz_put(g, "\") . "); }
+            if (fz_rnd(2)) { fz_putf(g, "var v%d u64 cast u64 (len \"", g->nv, 0); fz_put(g, s); fz_put(g, "\") . "); }
             else {
-                fz_putf(g, "var v%d u64 be idx \"", g->nv, 0); fz_put(g, s);
+                fz_putf(g, "var v%d u64 idx \"", g->nv, 0); fz_put(g, s);
                 fz_putf(g, "\" %d . ", (int)fz_rnd((proven_u32)strlen(s)), 0);
             }
             g->nv++;
             break;
         }
         case 9:           // record literal + field read
-            fz_putf(g, "var q%d u64 . be lit fzr do f0 ", g->nr, 0);
+            fz_putf(g, "var q%d u64 lit fzr do f0 ", g->nr, 0);
             fz_iexpr(g, 1); fz_put(g, " . f1 ");
             fz_iexpr(g, 1); fz_put(g, " . end . ");
-            fz_putf(g, "var v%d u64 be q%d.f0 . ", g->nv, g->nr);
+            fz_putf(g, "var v%d u64 q%d.f0 . ", g->nv, g->nr);
             g->nv++; g->nr++;
             break;
         case 10: {        // encode → view → field read (layout round-trip inline)
             int q = (int)fz_rnd((proven_u32)g->nr);
-            fz_putf(g, "var s%d u64 . be encode fzw q%d . ", g->ns, q);
-            fz_putf(g, "var v%d u64 be field (view fzw s%d) f", g->nv, g->ns);
+            fz_putf(g, "var s%d u64 encode fzw q%d . ", g->ns, q);
+            fz_putf(g, "var v%d u64 field (view fzw s%d) f", g->nv, g->ns);
             fz_putf(g, "%d . ", (int)fz_rnd(2), 0);
             g->nv++; g->ns++;
             break;
         }
         case 11: {        // vector from a string literal: load + reduce
             char s[12]; fz_str(g, s, 4);
-            fz_putf(g, "var w%d vec u8 4 . be load \"", g->nw, 0); fz_put(g, s); fz_put(g, "\" 0 . ");
-            fz_putf(g, "var v%d u64 be reduce_add w%d . ", g->nv, g->nw);
+            fz_putf(g, "var w%d vec u8 4 load \"", g->nw, 0); fz_put(g, s); fz_put(g, "\" 0 . ");
+            fz_putf(g, "var v%d u64 reduce_add w%d . ", g->nv, g->nw);
             g->nv++; g->nw++;
             break;
         }
         case 12: {        // D3: launder a borrow through fzpass (result aliases it)
             int m = -1;
             for (int i = 0; i < g->nb; i++) if (g->bmut[i]) m = i;
-            if (m < 0 || g->nb >= 12) { fz_putf(g, "var v%d u64 be 1 . ", g->nv++, 0); return; }
+            if (m < 0 || g->nb >= 12) { fz_putf(g, "var v%d u64 1 . ", g->nv++, 0); return; }
             g->bmut[g->nb] = true;
-            fz_putf(g, "var r%d mut_ref u64 . be fzpass r%d . ", g->nb, m);
+            fz_putf(g, "var r%d mut_ref u64 fzpass r%d . ", g->nb, m);
             g->nb++;
             break;
         }
@@ -203,7 +209,7 @@ static void fz_gen(fz_t *g, proven_u64 seed) {
     fz_put(g, "fn fzpass input a mut_ref u64 . output mut_ref u64 . "
               " do return a . end ");
     fz_put(g, "fn fmain output u64 .  do ");
-    fz_put(g, "var v0 u64 be 3 . ");
+    fz_put(g, "var v0 u64 3 . ");
     g->nv = 1;
     fz_stmts(g, 4 + (int)fz_rnd(6), 0);
     fz_putf(g, "return v%d . end", (int)fz_rnd((proven_u32)g->nv), 0);
@@ -249,10 +255,10 @@ static void mp_emit(const mp_t *m, char *out, proven_size_t cap) {
     #define MPUT(...) o += (proven_size_t)snprintf(out + o, cap - o, __VA_ARGS__)
     MPUT("fn mmain output %s .  do ", MP_TY[m->base]);
     for (int i = 0; i < m->nv; i++)
-        MPUT("var v%d %s be %d . ", i, MP_TY[m->vt[i]], m->lit[i]);
+        MPUT("var v%d %s %d . ", i, MP_TY[m->vt[i]], m->lit[i]);
     // one borrow + write-through: the positive control (a strong checker must
     // reject `ref` + write — E-TYPE-REF)
-    MPUT("var r %s %s . be mut_ref v0 . ", m->ref_shared ? "ref" : "mut_ref", MP_TY[m->vt[0]]);
+    MPUT("var r %s %s mut_ref v0 . ", m->ref_shared ? "ref" : "mut_ref", MP_TY[m->vt[0]]);
     MPUT("set r %d . ", m->lit[0]);
     for (int i = 1; i < m->nv; i++)
         MPUT("set v%d expr v%d %s v%d . ", i, i,
@@ -736,8 +742,10 @@ int main(void) {
     printf("parser:\n");
     #define PARSE(s) ({ low_lex_result_t _l = LEX(s); \
         proven_arena_reset(&arena); \
-        low_parse_result_t _p = low_parse(nodes, heap, &_l.tokens); \
+        g_ut_raw = true; low_parse_result_t _p = low_parse(nodes, heap, &_l.tokens); g_ut_raw = false; \
         proven_array_destroy(&_l.tokens); proven_array_destroy(&_l.diags); _p; })
+    // 파서가 이 진단을 냈는가(내리기 전의 파스 — 옛 철자의 거절은 파서가 한다)
+    #define PARSE_HAS(s, want) ({ low_parse_result_t _q = PARSE(s); bool _h = false;         for (proven_size_t _i = 0; _i < _q.diags.len; _i++)             if (strcmp(PROVEN_ARRAY_GET(&_q.diags, low_diag_t, _i)->code, (want)) == 0) _h = true;         proven_array_destroy(&_q.diags); if (_q.forms) heap.free_fn(heap.ctx, _q.forms); _h; })
 
     {
         // pure reader: value 'add a b' stays FLAT at L1 → let(x, add, a, b); the
@@ -798,11 +806,11 @@ int main(void) {
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
     {
-        low_parse_result_t p = PARSE("for i range 0 10 do print i . end");
+        low_parse_result_t p = PARSE("range i u64 0 10 do print i . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         bool acc = false;
         if (f) for (proven_size_t i = 0; i < f->nkids; i++) if (f->kids[i]->kind == LOW_CST_ACCESS) acc = true;
-        check(f && f->nkids == 6, "for: [for,i,range,0,10,block] (in-marker dropped)");
+        check(f && f->nkids == 6, "range: [range,i,u64,0,10,block] (in-marker dropped)");
         check(!acc, "for-marker 'in' is NOT reverse-access");
         check(f && f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "for body is a block");
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
@@ -851,7 +859,7 @@ int main(void) {
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
     {
-        low_parse_result_t p = PARSE("while lt i n . do set i (add i 1) . end");
+        low_parse_result_t p = PARSE("while lt i n do set i (add i 1) . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         check(p.ok && f && f->kids[0]->tok.kw == LOW_KW_WHILE &&
               f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "MVP while binds body (cond '.' skipped)");
@@ -889,7 +897,7 @@ int main(void) {
     }
     {
         // for-iterable may be a '.'-closed form before 'do' (SPEC-015 §17.2)
-        low_parse_result_t p = PARSE("for child children_of g node . do push work child . end");
+        low_parse_result_t p = PARSE("for child children_of g node do push work child . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         check(p.ok && f && f->kids[0]->tok.kw == LOW_KW_FOR &&
               f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "MVP for with closed-form iterable parses");
@@ -935,15 +943,15 @@ int main(void) {
     //   언어가 아니라 그 표였다.** 실제 op 으로 다시 쓴다.
     //   ☞ *죽은 코드를 지울 때 무엇이 빨개지는지 보면, 그 코드가 무엇을 떠받치고 있었는지
     //     알 수 있다. 시험이 빨개지면 시험 쪽을 먼저 의심한다.*
-    check(CHECK("fn f input k cap io . do var n u64 be call_builtin write_out k \"x\" . return . end") == false,
+    check(CHECK("fn f input k cap io . do var n u64 call_builtin write_out k \"x\" . return . end") == false,
           "fn doing io (write_out) → rejected");
     // ★ 2026-07-24: `effects io` 는 이제 그것을 **인가하는 cap** 을 요구한다(E-EFFECT-NO-CAP,
     //   RFC-0007 §6.7) — io 는 손에 쥐여 주는 **권리**이지 주변 권능이 아니다. 그리고 `print`
     //   는 op 이 아니다(정의 없는 이름 → E-IR-UNDEF); 실제 출력은 `write_out <cap> <바이트>` 다.
     //   이 테스트는 그 둘이 착지하기 전에 쓰여 **낡아 있었다**(그 사이 유닛 게이트가 빨간불이었다).
-    check(CHECK("proc g input k cap io . effects io . do var n u64 be call_builtin write_out k \"x\" . return . end") == true,
+    check(CHECK("proc g input k cap io . effects io . do var n u64 call_builtin write_out k \"x\" . return . end") == true,
           "proc doing io: ok (declared + cap io that authorizes it)");
-    check(CHECK("proc p input k cap io . effects io . do var n u64 be call_builtin write_out k \"x\" . return . end  fn c input k cap io . do p k . end") == false,
+    check(CHECK("proc p input k cap io . effects io . do var n u64 call_builtin write_out k \"x\" . return . end  fn c input k cap io . do p k . end") == false,
           "fn calling a proc → rejected (transitive effect)");
     check(CHECK("fn a  do return add 1 2 . end") == true, "fn calling a pure builtin: ok");
 
@@ -956,16 +964,16 @@ int main(void) {
 
     check(TYCK("fn f input x u32 . output u32 . do return x . end") == true, "return matches output type: ok");
     check(TYCK("fn f input x u32 . output bool . do return x . end") == false, "return u32 vs output bool → rejected");
-    check(TYCK("fn f output u32 . do var i u32 be true . return i . end") == false, "var u32 := bool → rejected");
-    check(TYCK("fn f output u32 . do var i u32 be 5 . return i . end") == true, "var u32 := int literal: ok");
+    check(TYCK("fn f output u32 . do var i u32 true . return i . end") == false, "var u32 := bool → rejected");
+    check(TYCK("fn f output u32 . do var i u32 5 . return i . end") == true, "var u32 := int literal: ok");
     check(TYCK("fn g input p u32 . output u32 . do return p . end  fn f output u32 . do return g true . end") == false,
           "call arg bool vs param u32 → rejected");
     check(TYCK("fn f input x f64 . output bool . do return lt x 3 . end") == true, "compare → bool matches output: ok");
 
     // type checking (integer width / signedness)
-    check(TYCK("fn f output u8 . do var i u8 be 200 . return i . end") == true,  "u8 := 200 literal fits: ok");
-    check(TYCK("fn f output u8 . do var i u8 be 300 . return i . end") == false, "u8 := 300 literal → E-TYPE-WIDTH");
-    check(TYCK("fn f output u8 . do var i u8 be 5 . set i 300 . return i . end") == false,
+    check(TYCK("fn f output u8 . do var i u8 200 . return i . end") == true,  "u8 := 200 literal fits: ok");
+    check(TYCK("fn f output u8 . do var i u8 300 . return i . end") == false, "u8 := 300 literal → E-TYPE-WIDTH");
+    check(TYCK("fn f output u8 . do var i u8 5 . set i 300 . return i . end") == false,
           "set u8 := 300 (markerless set, RFC-0049) → E-TYPE-WIDTH");
     check(TYCK("fn f input x u8 . output u32 . do return x . end") == true,  "u8 → u32 implicit widening: ok");
     check(TYCK("fn f input x u32 . output u8 . do return x . end") == false, "u32 → u8 implicit narrowing → E-TYPE-WIDTH");
@@ -1002,18 +1010,18 @@ int main(void) {
     check(TYCK("fn f input a u8 . output u8 . do return add a 300 . end") == false,
           "D3: a literal that does not fit the operand type → E-TYPE-WIDTH");
     check(TYCK("fn f input x f64 . output f32 . do return x . end") == false, "f64 → f32 narrowing → E-TYPE-WIDTH");
-    check(TYCK("fn f output u16 . do var i u16 be 0xFFFF . return i . end") == true, "u16 := 0xFFFF hex fits: ok");
-    check(TYCK("fn f output i16 . do var i i16 be 0xFFFF . return i . end") == false, "i16 := 0xFFFF → E-TYPE-WIDTH");
+    check(TYCK("fn f output u16 . do var i u16 0xFFFF . return i . end") == true, "u16 := 0xFFFF hex fits: ok");
+    check(TYCK("fn f output i16 . do var i i16 0xFFFF . return i . end") == false, "i16 := 0xFFFF → E-TYPE-WIDTH");
 
     // type checking (references: shared ref is read-only, G7 write-through typed)
-    check(TYCK("fn f input n u64 . output u64 . do var x u64 be n . "
-               "var s ref u64 . be ref x . set s 9 . return x . end") == false,
+    check(TYCK("fn f input n u64 . output u64 . do var x u64 n . "
+               "var s ref u64 ref x . set s 9 . return x . end") == false,
           "set through shared ref → E-TYPE-REF (statics now catch it)");
-    check(TYCK("fn f input n u64 . output u64 . do var x u64 be n . "
-               "var r mut_ref u64 . be mut_ref x . set r 9 . return x . end") == true,
+    check(TYCK("fn f input n u64 . output u64 . do var x u64 n . "
+               "var r mut_ref u64 mut_ref x . set r 9 . return x . end") == true,
           "set through mut_ref: ok");
-    check(TYCK("fn f input n u64 . output u64 . do var x u64 be n . "
-               "var r mut_ref u64 . be mut_ref x . set r true . return x . end") == false,
+    check(TYCK("fn f input n u64 . output u64 . do var x u64 n . "
+               "var r mut_ref u64 mut_ref x . set r true . return x . end") == false,
           "write-through value type vs referent → E-TYPE-SET");
 
     // contract checking (requires / errors)
@@ -1052,83 +1060,83 @@ int main(void) {
 
     check(RGCK("fn f input p ref u32 . output ref u32 . do return ref p . end") == true,
           "return ref to a param: ok (referent outlives op)");
-    check(RGCK("fn f output ref u32 . do var l u32 be 5 . return ref l . end") == false,
+    check(RGCK("fn f output ref u32 . do var l u32 5 . return ref l . end") == false,
           "return ref to a local → E-ESCAPE");
-    check(RGCK("fn f output ref u32 . do var t u32 be 1 . return ok (mut_ref t) . end") == false,
+    check(RGCK("fn f output ref u32 . do var t u32 1 . return ok (mut_ref t) . end") == false,
           "nested ref-to-local in return → E-ESCAPE");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . return x . end") == true,
+    check(RGCK("fn f output u32 . do var x u32 5 . return x . end") == true,
           "return a local by value (not by ref): ok");
 
     // EXCL exclusivity (readers-XOR-writer, last-use liveness v2 — NLL-style)
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "var a mut_ref u32 be mut_ref x . var b mut_ref u32 be mut_ref x . "
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "var a mut_ref u32 mut_ref x . var b mut_ref u32 mut_ref x . "
                "set a 1 . set b 2 . return x . end") == false,
           "two overlapping (used) mut_ref of one local → E-EXCL");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "var a mut_ref u32 be mut_ref x . var b mut_ref u32 be mut_ref x . return x . end") == true,
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "var a mut_ref u32 mut_ref x . var b mut_ref u32 mut_ref x . return x . end") == true,
           "two UNUSED mut_ref: intervals don't overlap → ok (liveness precision)");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "var a ref u32 be ref x . var b ref u32 be ref x . return x . end") == true,
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "var a ref u32 ref x . var b ref u32 ref x . return x . end") == true,
           "two shared refs of one local: ok (readers)");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "var a mut_ref u32 be mut_ref x . var r ref u32 be ref x . set a 1 . return x . end") == false,
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "var a mut_ref u32 mut_ref x . var r ref u32 ref x . set a 1 . return x . end") == false,
           "shared ref created inside a mut_ref's live interval → E-EXCL");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . var y u32 be 6 . "
-               "var a mut_ref u32 be mut_ref x . var b mut_ref u32 be mut_ref y . "
+    check(RGCK("fn f output u32 . do var x u32 5 . var y u32 6 . "
+               "var a mut_ref u32 mut_ref x . var b mut_ref u32 mut_ref y . "
                "set a 1 . set b 2 . return x . end") == true,
           "mut_ref of two different locals: ok");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "if true do var a mut_ref u32 be mut_ref x . set a 1 . end "
-               "var b mut_ref u32 be mut_ref x . set b 2 . return x . end") == true,
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "if true do var a mut_ref u32 mut_ref x . set a 1 . end "
+               "var b mut_ref u32 mut_ref x . set b 2 . return x . end") == true,
           "sequential borrows in/after a block: ok (intervals disjoint)");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "var a mut_ref u32 be mut_ref x . var y u32 be x . set a 1 . return x . end") == false,
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "var a mut_ref u32 mut_ref x . var y u32 x . set a 1 . return x . end") == false,
           "owner read inside a mut borrow's live interval → E-EXCL (v2)");
-    check(RGCK("fn f output u32 . do var x u32 be 5 . "
-               "var a mut_ref u32 be mut_ref x . set a 1 . "
-               "while lt x 9 . do set x expr x + 1 . . set a 3 . end return x . end") == false,
+    check(RGCK("fn f output u32 . do var x u32 5 . "
+               "var a mut_ref u32 mut_ref x . set a 1 . "
+               "while lt x 9 do set x expr x + 1 . . set a 3 . end return x . end") == false,
           "loop wrap-around: owner access + crossing borrow in one while body → E-EXCL");
-    check(RGCK("proc f output u32 . do var x u32 be 5 . g mut_ref x mut_ref x . return x . end") == false,
+    check(RGCK("proc f output u32 . do var x u32 5 . g mut_ref x mut_ref x . return x . end") == false,
           "two mut_ref args to one call → E-EXCL");
-    check(RGCK("proc f output u32 . do var x u32 be 5 . g ref x ref x . return x . end") == true,
+    check(RGCK("proc f output u32 . do var x u32 5 . g ref x ref x . return x . end") == true,
           "two shared-ref args to one call: ok");
 
     // op-boundary borrows (D3): a reference-typed result aliases the argument borrow
     check(RGCK("fn pass input a mut_ref u32 . output mut_ref u32 . do return a . end "
-               "fn f output u32 . do var x u32 be 1 . "
-               "var r mut_ref u32 . be mut_ref x . "
-               "var t mut_ref u32 . be pass r . "
+               "fn f output u32 . do var x u32 1 . "
+               "var r mut_ref u32 mut_ref x . "
+               "var t mut_ref u32 pass r . "
                "set x 9 . set t 5 . return x . end") == false,
           "laundered borrow: owner write while the call result is live → E-EXCL (D3 fixed)");
     check(RGCK("fn pass input a mut_ref u32 . output mut_ref u32 . do return a . end "
-               "fn f output u32 . do var x u32 be 1 . "
-               "var r mut_ref u32 . be mut_ref x . "
-               "var t mut_ref u32 . be pass r . "
+               "fn f output u32 . do var x u32 1 . "
+               "var r mut_ref u32 mut_ref x . "
+               "var t mut_ref u32 pass r . "
                "set t 5 . return x . end") == true,
           "laundered borrow used correctly (no owner access while live): ok");
     check(RGCK("fn pass input a mut_ref u32 . output mut_ref u32 . do return a . end "
-               "fn f output u32 . do var x u32 be 1 . "
-               "var v u32 be pass 5 . set x 9 . return v . end") == true,
+               "fn f output u32 . do var x u32 1 . "
+               "var v u32 pass 5 . set x 9 . return v . end") == true,
           "non-reference bindings are unaffected by the alias rule");
 
     // path sensitivity (D4): mutually exclusive if-arms never conflict
-    check(RGCK("fn f input c u32 . output u32 . do var x u32 be 1 . "
-               "var r mut_ref u32 . be mut_ref x . "
-               "if gt c 0 . do set x 9 . end else do set r 5 . end return x . end") == true,
+    check(RGCK("fn f input c u32 . output u32 . do var x u32 1 . "
+               "var r mut_ref u32 mut_ref x . "
+               "if gt c 0 do set x 9 . end else do set r 5 . end return x . end") == true,
           "path-sensitive: owner write in one arm, borrow use in the other → ok (D4 fixed)");
-    check(RGCK("fn f input c u32 . output u32 . do var x u32 be 1 . "
-               "var r mut_ref u32 . be mut_ref x . "
-               "if gt c 0 . do set x 9 . set r 5 . end else do var y u32 be 0 . end return x . end") == false,
+    check(RGCK("fn f input c u32 . output u32 . do var x u32 1 . "
+               "var r mut_ref u32 mut_ref x . "
+               "if gt c 0 do set x 9 . set r 5 . end else do var y u32 0 . end return x . end") == false,
           "path-sensitive: owner write + borrow use in the SAME arm → E-EXCL");
-    check(RGCK("fn f input c u32 . output u32 . do var x u32 be 1 . "
-               "var r mut_ref u32 . be mut_ref x . "
-               "while lt c 3 . do set x 9 . set r 5 . end return x . end") == false,
+    check(RGCK("fn f input c u32 . output u32 . do var x u32 1 . "
+               "var r mut_ref u32 mut_ref x . "
+               "while lt c 3 do set x 9 . set r 5 . end return x . end") == false,
           "path sensitivity does not weaken the loop rule (crossing borrow → E-EXCL)");
     // else-if arms are traversed (previously invisible → false negative)
-    check(RGCK("fn f input c u32 . output u32 . do var x u32 be 1 . "
-               "var r mut_ref u32 . be mut_ref x . "
-               "if gt c 5 . do var z u32 be 0 . end "
-               "else if gt c 2 . do set x 9 . set r 5 . end "
+    check(RGCK("fn f input c u32 . output u32 . do var x u32 1 . "
+               "var r mut_ref u32 mut_ref x . "
+               "if gt c 5 do var z u32 0 . end "
+               "else if gt c 2 do set x 9 . set r 5 . end "
                "return x . end") == false,
           "else-if body is analyzed: owner+borrow inside it → E-EXCL (false negative fixed)");
 
@@ -1151,11 +1159,11 @@ int main(void) {
     {
         const char *src =
             "fn fact input n u64 . output u64 .  do "
-            "var acc u64 be 1 . var i u64 be 1 . "
-            "while le i n . do set acc mul acc i . set i expr i + 1 . . end "
+            "var acc u64 1 . var i u64 1 . "
+            "while le i n do set acc mul acc i . set i expr i + 1 . . end "
             "return acc . end "
             "fn fib input n u64 . output u64 .  do "
-            "if lt n 2 . do return n . end "
+            "if lt n 2 do return n . end "
             "return expr (fib (expr n - 1 .)) + (fib (expr n - 2 .)) . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1226,9 +1234,9 @@ int main(void) {
         // mutual recursion = one SCC: runs on the VM, hashes deterministic across builds
         const char *src =
             "fn is_even input n u64 . output bool .  do "
-            "if eq n 0 . do return true . end return is_odd expr n - 1 . . end "
+            "if eq n 0 do return true . end return is_odd expr n - 1 . . end "
             "fn is_odd input n u64 . output bool .  do "
-            "if eq n 0 . do return false . end return is_even expr n - 1 . . end";
+            "if eq n 0 do return false . end return is_even expr n - 1 . . end";
         proven_u8 h1[32], h2[32];
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1258,12 +1266,12 @@ int main(void) {
             "enum e2 do neg end "
             "struct pairr do a u64 . b u64 . end "
             "fn chk input n u64 . output result u64 e2 .  do "
-            "guard ge n 1 . else return error neg . . "
+            "guard ge n 1 else return error neg . . "
             "return ok n . end "
             "fn mk input n u64 . output pairr .  do "
             "return lit pairr do a n . b mul n 2 . end end "
             "fn use_try input n u64 . output u64 .  do "
-            "let v u64 be try chk n . . return v . end "
+            "let v u64 try chk n . . return v . end "
             "fn first input d slice u8 . output u64 . do return idx d 0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1293,19 +1301,19 @@ int main(void) {
         const char *src =
             ""
             "proc drain input n u64 . output u64 . effects none . do "
-            "var work stack u64 . be stack_new r capacity 8 . . "
-            "var i u64 be 0 . "
-            "while lt i n . do push work i . set i expr i + 1 . . end "
-            "var total u64 be 0 . "
-            "while pop work into v . do set total expr total + v . . end "
+            "var work stack u64 stack_new r capacity 8 . . "
+            "var i u64 0 . "
+            "while lt i n do push work i . set i expr i + 1 . . end "
+            "var total u64 0 . "
+            "while pop work into v do set total expr total + v . . end "
             "return total . end "
             "proc bset input a u64 . input b u64 . output u64 . effects none . do "
-            "var s bitset be bitset_new 64 . . "
+            "var s bitset bitset_new 64 . . "
             "add s a . add s b . add s a . "
-            "guard bitset_contains s a . else return 99 . . "
+            "guard bitset_contains s a else return 99 . . "
             "return bitset_count s . end "
             "fn sum_bytes input xs slice u8 . output u64 .  do "
-            "var t u64 be 0 . "
+            "var t u64 0 . "
             "for x xs do set t expr t + x . . end "
             "return t . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1339,18 +1347,18 @@ int main(void) {
             "fn bump input p mut_ref u32 . output u32 .  do "
             "set p expr (deref p) + 1 . . return deref p . end "
             "fn bump42 input n u64 . output u64 .  do "
-            "var x u64 be n . "
-            "var r mut_ref u64 . be mut_ref x . "
+            "var x u64 n . "
+            "var r mut_ref u64 mut_ref x . "
             "bump r . "
             "return x . end "
             "fn ro_write input n u64 . output u64 .  do "
-            "var x u64 be n . "
-            "var s ref u64 . be ref x . "
+            "var x u64 n . "
+            "var s ref u64 ref x . "
             "set s 9 . return x . end "
             "fn bad output ref u64 .  do "
-            "var l u64 be 5 . return ref l . end "
+            "var l u64 5 . return ref l . end "
             "fn use_bad output u64 .  do "
-            "var r ref u64 . be bad . return deref r . end";
+            "var r ref u64 bad . return deref r . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -1375,14 +1383,14 @@ int main(void) {
     {
         const char *src =
             "fn two_mut output u64 .  do "
-            "var x u64 be 0 . "
-            "var a mut_ref u64 . be mut_ref x . "
-            "var b mut_ref u64 . be mut_ref x . "
+            "var x u64 0 . "
+            "var a mut_ref u64 mut_ref x . "
+            "var b mut_ref u64 mut_ref x . "
             "set a 1 . set b 2 . return x . end "
             "fn owner_read output u64 .  do "
-            "var x u64 be 7 . "
-            "var r mut_ref u64 . be mut_ref x . "
-            "var y u64 be x . "
+            "var x u64 7 . "
+            "var r mut_ref u64 mut_ref x . "
+            "var y u64 x . "
             "set r 5 . return x . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1408,11 +1416,11 @@ int main(void) {
         // green paths stay green under the borrow stack: sequential reborrow
         const char *src =
             "fn seq output u64 .  do "
-            "var x u64 be 1 . "
-            "var a mut_ref u64 . be mut_ref x . "
+            "var x u64 1 . "
+            "var a mut_ref u64 mut_ref x . "
             "set a 2 . "
-            "var y u64 be x . "
-            "var b mut_ref u64 . be mut_ref x . "
+            "var y u64 x . "
+            "var b mut_ref u64 mut_ref x . "
             "set b expr y + 2 . . "
             "return x . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1430,10 +1438,10 @@ int main(void) {
         const char *src =
             "struct pairr do a u64 . b u64 . end "
             "fn mk2 output pairr .  do return lit pairr do a 3 . b 9 . end end "
-            "fn geta output u64 .  do var p pairr be mk2 . return field p a . end "
-            "fn getb output u64 .  do var p pairr be mk2 . return field p b . end "
-            "fn getg output u64 .  do var p pairr be mk2 . return (field p a) . end "
-            "fn getin output u64 .  do var p pairr be mk2 . return (field p b) . end";
+            "fn geta output u64 .  do var p pairr mk2 . return field p a . end "
+            "fn getb output u64 .  do var p pairr mk2 . return field p b . end "
+            "fn getg output u64 .  do var p pairr mk2 . return (field p a) . end "
+            "fn getin output u64 .  do var p pairr mk2 . return (field p b) . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -1468,12 +1476,12 @@ int main(void) {
             ""
             "struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
             "fn hdr_kind input b slice u8 . output u64 .  do "
-            "var o wire_header . be try_view wire_header b . . "
-            "guard is_some o . else return 999 . . "
-            "var h wire_header . be some_value o . "
+            "var o wire_header try_view wire_header b . . "
+            "guard is_some o else return 999 . . "
+            "var h wire_header some_value o . "
             "return field h kind . end "
             "fn hdr_sum input b slice u8 . output u64 .  do "
-            "var h wire_header . be view wire_header b . . "
+            "var h wire_header view wire_header b . . "
             "return expr (cast u64 (field h length)) * 1000 + (cast u64 (field h kind)) . . end";   /* RFC-0148 S2 — u16 칸 258 × 1000 은 u16 에서 넘친다 */
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1501,7 +1509,7 @@ int main(void) {
             "fn mk_hdr output wire_header .  do "
             "return lit wire_header do magic 3735928559 . length 258 . kind 7 . end end "
             "fn rt output u64 .  do "
-            "var h wire_header . be view wire_header encode wire_header mk_hdr . . "
+            "var h wire_header view wire_header encode wire_header mk_hdr . . "
             "return expr (field h magic) + (field h length) + (field h kind) . . end "
             "fn blen output u64 .  do return len encode wire_header mk_hdr . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1524,7 +1532,7 @@ int main(void) {
             "fn mk output mixed .  do "
             "return lit mixed do flag 1 . big 305419896 . small 4660 . end end "
             "fn rt output u64 .  do "
-            "var h mixed . be view mixed encode mixed mk . . "
+            "var h mixed view mixed encode mixed mk . . "
             "return expr (field h flag) + (field h big) + (field h small) . . end "
             "fn blen output u64 .  do return len encode mixed mk . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1549,12 +1557,12 @@ int main(void) {
         const char *src =
             ""
             "fn va_sum input b slice u8 . output u64 .  do "
-            "var t u64 be 0 . for x view_array u16 b . do set t expr t + x . . end return t . end "
+            "var t u64 0 . for x view_array u16 b do set t expr t + x . . end return t . end "
             "fn va_at input b slice u8 . output u64 .  do "
             "return idx (view_array u32 b) 1 . end "
             "fn slen output u64 .  do return len \"hello\" . end "
             "fn ssum output u64 .  do "
-            "var t u64 be 0 . for ch \"abc\" do set t expr t + ch . . end return t . end";
+            "var t u64 0 . for ch \"abc\" do set t expr t + ch . . end return t . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -1582,14 +1590,14 @@ int main(void) {
             "struct pairr do a u32 . b u32 . end "
             "fn mkp output pairr .  do return lit pairr do a 5 . b 6 . end end "
             "fn stale output u64 .  do "
-            "var s u64 . be encode pairr mkp . . "
-            "var h pairr . be view pairr s . "
+            "var s u64 encode pairr mkp . . "
+            "var h pairr view pairr s . "
             "set s encode pairr mkp . . "
             "return field h a . end "
             "fn fine output u64 .  do "
-            "var s u64 . be encode pairr mkp . . "
-            "var h pairr . be view pairr s . "
-            "var v u64 be field h a . "
+            "var s u64 encode pairr mkp . . "
+            "var h pairr view pairr s . "
+            "var v u64 field h a . "
             "set s encode pairr mkp . . "
             "return v . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1614,21 +1622,21 @@ int main(void) {
         const char *src =
             ""
             "fn dot4 input b slice u8 . output u64 .  do "
-            "var xs u64 . be view_array u32 b . "
-            "var va vec u32 4 . be load xs 0 . "
-            "var vb vec u32 4 . be load xs 4 . "
+            "var xs u64 view_array u32 b . "
+            "var va vec u32 4 load xs 0 . "
+            "var vb vec u32 4 load xs 4 . "
             "return reduce_add mul va vb . end "
             "fn clampsum input b slice u8 . output u64 .  do "
-            "var xs u64 . be view_array u32 b . "
-            "var v vec u32 4 . be load xs 0 . "
-            "var lim vec u32 4 . be splat 10 . "
-            "var m u64 . be gt v lim . "
-            "var cc vec u32 4 . be lane_select m lim v . "
+            "var xs u64 view_array u32 b . "
+            "var v vec u32 4 load xs 0 . "
+            "var lim vec u32 4 splat 10 . "
+            "var m u64 gt v lim . "
+            "var cc vec u32 4 lane_select m lim v . "
             "return reduce_add cc . end "
             "fn over input b slice u8 . output u64 .  do "
-            "var xs u64 . be view_array u32 b . "
-            "var v vec u32 4 . be load xs 0 . "
-            "var lim vec u32 4 . be splat 10 . "
+            "var xs u64 view_array u32 b . "
+            "var v vec u32 4 load xs 0 . "
+            "var lim vec u32 4 splat 10 . "
             "return lane_any gt v lim . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1725,13 +1733,13 @@ int main(void) {
             "fn mk output sample .  do "
             "  return lit sample do temp 1.5 . scale 2.25 . tag 3 . end end "
             "fn rt output f64 .  do "
-            "  var h sample . be view sample encode sample mk . . "
+            "  var h sample view sample encode sample mk . . "
             "  return expr (field h temp) + (field h scale) . . end "
             "fn wire output u64 .  do return len encode sample mk . . end "
             "fn dot input b slice u8 . output f64 .  do "
-            "  var xs u64 . be view_array f32 b . "
-            "  var va vec f32 4 . be load xs 0 . "
-            "  var vb vec f32 4 . be load xs 4 . "
+            "  var xs u64 view_array f32 b . "
+            "  var va vec f32 4 load xs 0 . "
+            "  var vb vec f32 4 load xs 4 . "
             "  return reduce_add mul va vb . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1768,9 +1776,9 @@ int main(void) {
             "fn wide output u64 .  do return len encode reg mk . . end "
             "fn narrow output u64 .  do return len encode nat mkn . . end "
             "fn tv_at input off u64 . input b slice u8 . output u64 .  do "
-            "  var o reg . be try_view reg (subslice b off (len b)) . . "
-            "  guard is_some o . else return 0 . . "
-            "  var h reg . be some_value o . "
+            "  var o reg try_view reg (subslice b off (len b)) . . "
+            "  guard is_some o else return 0 . . "
+            "  var h reg some_value o . "
             "  return expr (field h ctrl) + 1000 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -1828,7 +1836,7 @@ int main(void) {
             FPUT("end fn mk output s .  do return lit s do ");
             for (int i = 0; i < nf; i++) FPUT("f%d %llu . ", i, (unsigned long long)vals[i]);
             FPUT("end . end fn rt output u64 .  do "
-                 "var h s . be view s encode s mk . return ");
+                 "var h s view s encode s mk . return ");
             #define FTERM(i) do { (void)flts[i]; FPUT("(cast u64 (field h f%d))", i);   /* RFC-0148 S2 — 칸은 제 폭을 안다: u64 로 옮겨서 더한다(전에는 폭을 몰라 64 비트로 더해졌다) */ } while (0)
             for (int i = 0; i < nf - 1; i++) { FPUT("wrap_add "); FTERM(i); FPUT(" ("); }
             FTERM(nf - 1);
@@ -2016,9 +2024,9 @@ int main(void) {
           "range τ: an empty range (lo > hi) → E-TYPE-RANGE");
     check(TYCK("fn f input a range f32 0 10 . output f32 .  do return a . end") == false,
           "range τ: a range must refine an INTEGER type (no float ranges)");
-    check(TYCK("fn f output u8 .  do var i range 0 9 be 20 . return i . end") == false,
+    check(TYCK("fn g input a range 0 9 . output u8 .  do return a . end fn f output u8 .  do return g 20 . end") == false,
           "range τ: a literal outside its own declared range → E-TYPE-RANGE (the range is the contract, not do the width)");
-    check(TYCK("fn f output u8 .  do var i range 0 9 be 7 . return i . end") == true,
+    check(TYCK("fn g input a range 0 9 . output u8 .  do return a . end fn f output u8 .  do return g 7 . end") == true,
           "range τ: a literal inside the declared range is fine");
     // ★ 이것이 사용자가 물은 구멍이었다: range 파라미터가 TK_NAMED 로 떨어져 **타입이 안 걸렸다.**
     check(TYCK("fn g input a range u8 0 100 . output u8 .  do return a . end "
@@ -2044,29 +2052,29 @@ int main(void) {
     // ★ 그리고 DET-1 덕분에 **순차 실행이 곧 올바른 구현**이다 — 검사부터 넣고 실행은
     //   나중에 붙여도 의미가 바뀌지 않는다. 증명이 사 준 자유다.
     check(CHECK("proc dbl input s mut slice u8 . output u64 . effects none . parallel s split . do "
-                "  var i u64 be 0 . "
-                "  while lt i (len s) . do set (idx s i) expr (idx s i) * 2 . . "
+                "  var i u64 0 . "
+                "  while lt i (len s) do set (idx s i) expr (idx s i) * 2 . . "
                 "    set i expr i + 1 . . end "
                 "  return len s . end") == true,
           "parallel: ★ an independent loop passes the Bernstein check (each iteration touches only "
           "its OWN element) — the compiler reports W-PAR-OK and cites the Coq theorem");
     check(CHECK("proc blur input s mut slice u8 . output u64 . effects none . parallel s split . do "
-                "  var i u64 be 1 . "
-                "  while lt i (len s) . do set (idx s i) expr (idx s i) + (idx s 0) . . "
+                "  var i u64 1 . "
+                "  while lt i (len s) do set (idx s i) expr (idx s i) + (idx s 0) . . "
                 "    set i expr i + 1 . . end "
                 "  return len s . end") == false,
           "parallel: ★ reading ANOTHER index → E-PAR-READ (rd ∩ wr ≠ ∅ — a cross-iteration "
           "dependence; DET-1's premise fails and the parallel result would NOT match sequential)");
     check(CHECK("proc sum input s mut slice u8 . output u64 . effects none . parallel s split . do "
-                "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
+                "  var acc u64 0 . var i u64 0 . "
+                "  while lt i (len s) do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end "
                 "  return acc . end") == false,
           "parallel: ★ writing an accumulator that lives across iterations → E-PAR-CARRY "
           "(a loop-carried dependence — a reduction must be declared, and its tree fixed: DET-3)");
     check(CHECK("proc f input s mut slice u8 . output u64 . effects none . do "
-                "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
+                "  var acc u64 0 . var i u64 0 . "
+                "  while lt i (len s) do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end "
                 "  return acc . end") == true,
           "parallel: without the `parallel` clause the same loop is fine — the check only bites "
@@ -2079,23 +2087,23 @@ int main(void) {
     // 도구가 있지도 않은 것을 시키고 있었다. 만들었다 — 그리고 DET-3 을 그 위에 걸었다.
     check(CHECK("proc isum input s mut slice u8 . output u64 . effects none . "
                 " parallel s split . reduce acc add . do "
-                "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
+                "  var acc u64 0 . var i u64 0 . "
+                "  while lt i (len s) do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == true,
           "reduce: ★ an INTEGER `add` reduction may be split — add is associative, so the tree "
           "shape cannot change the answer (assoc_shape_free, Qed)");
     check(CHECK("proc fsum input s mut slice u8 . output f64 . effects none . "
                 " parallel s split . reduce acc add . do "
-                "  var acc f64 be 0.0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
+                "  var acc f64 0.0 . var i u64 0 . "
+                "  while lt i (len s) do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == false,
           "reduce: ★★ a FLOAT reduction is REJECTED → E-PAR-FLOAT. Float addition is not "
           "associative, so splitting changes the tree and the answer would depend on the SCHEDULE "
           "(nonassoc_shape_matters, Qed). Determinism is part of the meaning, not a detail");
     check(CHECK("proc bad input s mut slice u8 . output u64 . effects none . "
                 " parallel s split . reduce acc sub . do "
-                "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc - (idx s i) . . "
+                "  var acc u64 0 . var i u64 0 . "
+                "  while lt i (len s) do set acc expr acc - (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == false,
           "reduce: ★ a NON-ASSOCIATIVE operator (`sub`) is rejected → E-PAR-ASSOC (the theorem "
           "names exactly this: the tree shape decides the answer)");
@@ -2107,12 +2115,12 @@ int main(void) {
     {
         const char *src =
             "proc dbl input s mut slice u8 . output u64 . effects none . do "
-            "  var i u64 be 0 . "
-            "  while lt i (len s) . do "
+            "  var i u64 0 . "
+            "  while lt i (len s) do "
             "    set (idx s i) expr (idx s i) * 2 . . "
             "    set i expr i + 1 . . end "
-            "  var acc u64 be 0 . var j u64 be 0 . "
-            "  while lt j (len s) . do set acc expr acc + (idx s j) . . set j expr j + 1 . . end "
+            "  var acc u64 0 . var j u64 0 . "
+            "  while lt j (len s) do set acc expr acc + (idx s j) . . set j expr j + 1 . . end "
             "  return acc . end "
             "fn poke input i u64 . input s mut slice u8 . output u64 .  do "
             "  set (idx s i) 9 . return len s . end";
@@ -2165,7 +2173,7 @@ int main(void) {
           "here used to silently declare the op PURE)");
     // ★ 2026-07-24: 위(§`proc doing io`)와 **같은 낡음**이 여기 한 번 더 있었다 — `effects io`
     //   는 그것을 인가하는 `cap` 을 요구하고(E-EFFECT-NO-CAP), `print` 는 op 이 아니다.
-    check(CHECK("proc g input k cap io . effects io . do var n u64 be call_builtin write_out k \"x\" . return . end") == true,
+    check(CHECK("proc g input k cap io . effects io . do var n u64 call_builtin write_out k \"x\" . return . end") == true,
           "effects: a real effect word still passes");
     check(CHECK("fn f output u8 .  do return 1 . end") == true,
           "effects: `none` is a real effect word");
@@ -2197,12 +2205,12 @@ int main(void) {
             "enum color do\n red .\n green .\n blue .\nend\n"
             "fn code input c color . output u8 .  do "
             "  match c do "
-            "    case red . do return 10 . end "
-            "    case green . do return 20 . end "
-            "    case blue . do return 30 . end "
+            "    case red do return 10 . end "
+            "    case green do return 20 . end "
+            "    case blue do return 30 . end "
             "  end end "
             "fn pick input n u8 . output color .  do "
-            "  if lt n 5 . do return red . end return blue . end";
+            "  if lt n 5 do return red . end return blue . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -2225,18 +2233,18 @@ int main(void) {
     // ★★ 완전성 — 이것이 match 의 값어치다.
     check(CHECK("enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
-                "  match c do case a . do return 1 . end end end end") == false,
+                "  match c do case a do return 1 . end end end end") == false,
           "match: ★★ a missing variant → E-MATCH-INEXHAUSTIVE. THIS is what a `match` buys over an "
           "if-chain: add a variant to the enum later and the compiler finds every place that must "
           "change");
     check(CHECK("enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
-                "  match c do case a . do return 1 . end case ghost . do return 2 . end "
-                "  case b . do return 3 . end end end end") == false,
+                "  match c do case a do return 1 . end case ghost do return 2 . end "
+                "  case b do return 3 . end end end end") == false,
           "match: ★ a `case` naming a variant the enum does not contain → E-MATCH-UNDEF");
     check(CHECK("enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
-                "  match c do case a . do return 1 . end case b . do return 2 . end end end end") == true,
+                "  match c do case a do return 1 . end case b do return 2 . end end end end") == true,
           "match: an exhaustive match passes (no false positive)");
 
     // ── ★★ `slice T` 의 **원소 타입** — 지금까지 조용히 바이트로 취급됐다 ──
@@ -2251,8 +2259,8 @@ int main(void) {
             "fn at input i u64 . input s slice u32 . output u32 .  do "
             "  return idx s i . end "
             "proc dbl input s mut slice u32 . output u32 . effects none . do "
-            "  var i u64 be 0 . "
-            "  while lt i (len s) . do set (idx s i) expr (idx s i) * 2 . . "
+            "  var i u64 0 . "
+            "  while lt i (len s) do set (idx s i) expr (idx s i) * 2 . . "
             "    set i expr i + 1 . . end "
             "  return idx s 1 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -2277,11 +2285,11 @@ int main(void) {
     }
     // ★ 그리고 타입체커가 원소 타입을 안다 — `index` 의 결과는 슬라이스가 정한다.
     check(TYCK("fn f input s slice u32 . output u8 .  do "
-               "  var x u8 be idx s 0 . . return x . end") == false,
+               "  var x u8 idx s 0 . . return x . end") == false,
           "slice T: ★ a u32 element into a u8 is a narrowing → E-TYPE-WIDTH (before this, `index` "
           "was ALWAYS u8 no matter what the slice held)");
     check(TYCK("fn f input s slice u32 . output u32 .  do "
-               "  var x u32 be idx s 0 . . return x . end") == true,
+               "  var x u32 idx s 0 . . return x . end") == true,
           "slice T: the element type flows out of the slice type");
 
     // ── ★ 마스크는 **진짜 타입**이다 — bool 도 정수도 아니다 (레인마다 하나씩) ──
@@ -2290,17 +2298,17 @@ int main(void) {
     // 그래서 select 에 아무거나 넘겨도·any 에 정수를 넘겨도 통과했다.
     check(TYCK(""
                "fn f input b slice u8 . output bool .  do "
-               "  var n u64 be 5 . return lane_any n . end") == false,
+               "  var n u64 5 . return lane_any n . end") == false,
           "mask: ★ `any` on an integer → E-TYPE-MASK (a mask is the result of a lanewise compare, "
           "not a number)");
     // ★ 2026-07-24: `var xs u64 . be view_array u32 b .` 였다 — 초기식은 **슬라이스**인데 선언은
     //   스칼라라 이제 E-TYPE-VAR 다(타입검사가 자랐고 픽스처가 안 따라가 유닛 게이트가 빨간불이었다).
     check(TYCK(""
                "fn f input b slice u8 . output bool .  do "
-               "  var xs slice u32 . be view_array u32 b . "
-               "  var v vec u32 4 . be load xs 0 . "
-               "  var lim vec u32 4 . be splat 10 . "
-               "  var m mask 4 . be gt v lim . "
+               "  var xs slice u32 view_array u32 b . "
+               "  var v vec u32 4 load xs 0 . "
+               "  var lim vec u32 4 splat 10 . "
+               "  var m mask 4 gt v lim . "
                "  return lane_any m . end") == true,
           "mask: a real `mask 4` from a lanewise compare passes (and vm_vec now declares it that "
           "way — it used to say `u64`)");
@@ -2308,10 +2316,10 @@ int main(void) {
     //   안 재고도 통과한다**(맞는 답, 틀린 이유 — 이 프로젝트가 가장 싫어하는 초록불이다).
     check(TYCK(""
                "fn f input b slice u8 . output u64 .  do "
-               "  var xs slice u32 . be view_array u32 b . "
-               "  var v vec u32 4 . be load xs 0 . "
-               "  var lim vec u32 4 . be splat 10 . "
-               "  var cc vec u32 4 . be lane_select v lim v . "
+               "  var xs slice u32 view_array u32 b . "
+               "  var v vec u32 4 load xs 0 . "
+               "  var lim vec u32 4 splat 10 . "
+               "  var cc vec u32 4 lane_select v lim v . "
                "  return reduce_add cc . end") == false,
           "mask: ★ `select` whose first argument is a VECTOR, not a mask → E-TYPE-MASK");
 
@@ -2320,23 +2328,23 @@ int main(void) {
     // (E-VM-TYPE: len needs a slice). 타입 오류를 런타임까지 미루는 것은 이 언어가 아니다.
     // 그리고 x 가 환경에 **없어서**, 본문에서 x 를 어떻게 쓰든 검사되지 않았다.
     check(TYCK("fn f input n u64 . output u64 .  do "
-               "  var acc u64 be 0 . "
-               "  for x n . do set acc expr acc + x . . end "
+               "  var acc u64 0 . "
+               "  for x n do set acc expr acc + x . . end "
                "  return acc . end") == false,
           "for: ★ iterating a NON-slice → E-TYPE-ITER (before this it passed --check and only the "
           "VM caught it, at run time)");
     check(TYCK("fn f input s slice u8 . output u64 .  do "
-               "  var acc u64 be 0 . "
-               "  for x s . do set acc expr acc + x . . end "
+               "  var acc u64 0 . "
+               "  for x s do set acc expr acc + x . . end "
                "  return acc . end") == true,
           "for: iterating a slice is fine, and the loop variable is now bound in the environment");
     // ★ 루프 변수는 **슬라이스의 원소 타입**을 갖는다(u8 고정이었다).
     check(TYCK("fn f input s slice u32 . output u8 .  do "
-               "  var acc u8 be 0 . for x s . do set acc x . end return acc . end") == false,
+               "  var acc u8 0 . for x s do set acc x . end return acc . end") == false,
           "for: ★ the loop variable carries the slice's ELEMENT type — a u32 element into a u8 is a "
           "narrowing (it used to be hard-coded u8 no matter what the slice held)");
     check(TYCK("fn f input s slice u32 . output u32 .  do "
-               "  var acc u32 be 0 . for x s . do set acc x . end return acc . end") == true,
+               "  var acc u32 0 . for x s do set acc x . end return acc . end") == true,
           "for: the element type flows into the loop variable");
 
     // ★★ 문법에 없는 철자 — 구조체는 `struct N … end` 로만 선언된다(SPEC-002 §211-213).
@@ -2349,10 +2357,10 @@ int main(void) {
     check(TYCK("type c enum . variant red . "
                "fn f output u8 .  do return 0 . end") == false,
           "type: an enum is `enum N do … end`, not `type N is enum …`");
-    check(TYCK("type pct be u8 . fn f output u8 . do return 0 . end") == false &&
-          TYCK("newtype pid be u32 . fn f output u8 . do return 0 . end") == false &&
+    check(PARSE_HAS("type pct be u8 . fn f output u8 . do return 0 . end", "E-LET-BE") &&
+          PARSE_HAS("newtype pid be u32 . fn f output u8 . do return 0 . end", "E-LET-BE") &&
           TYCK("type pct u8 . newtype pid u32 . fn f output u8 . do return 0 . end") == true,
-          "type: ★ `type N be T` / `newtype N be T` is REFUSED (E-TYPE-DECL) — `be` binds a value; one meaning, one spelling");
+          "type: ★ `type N be T` / `newtype N be T` is REFUSED — `be` is gone from the language (E-LET-BE, RFC-0141; before that E-TYPE-DECL: `be` bound a value)");
     check(CHECK("proc f output u64 . effects atomic . do return 0 . end") == false &&
           CHECK("proc f input k cap atomic . output u64 . effects atomic . do return 0 . end") == true,
           "effects: ★ `effects atomic` needs `cap atomic` (E-ATOMIC-NOCAP) — the same pair as io/alloc/heap");
@@ -2383,12 +2391,12 @@ int main(void) {
     //   (그리고 이것이 위의 효과 전파를 성립시킨다: 원자가 op 이름이면 **그것은 그 op 다.**
     //    가림이 가능하면 그 추론이 깨진다 — 두 규칙은 한 몸이다.)
     check(CHECK("proc w input k cap io . output u8 . effects io . do return 1 . end "
-                "fn c output u8 .  do var w u8 be 3 . return w . end") == false,
+                "fn c output u8 .  do var w u8 3 . return w . end") == false,
           "names: ★ a local may not take a top-level name — the VM silently picked the LOCAL "
           "(returned 3) while the effect checker saw the op. Same sin as the module `g` calling "
           "another module's `f`: the resolver silently picks one of the two (E-NAME-SHADOW)");
     check(CHECK("proc w input k cap io . output u8 . effects io . do return 1 . end "
-                "fn c output u8 .  do var q u8 be 3 . return q . end") == true,
+                "fn c output u8 .  do var q u8 3 . return q . end") == true,
           "names: a local with its own name is fine");
 
     // ★★ 수식자를 붙이면 **op 이 통째로 사라졌다** (SPEC-003 §21).
@@ -2488,7 +2496,7 @@ int main(void) {
 
     // ★ SPEC-002 의 제어 어휘에 있는데 구현이 없던 셋 — 그리고 `panic` 은 **오진**당했다.
     check(TYCK("fn f input a u8 . output u8 . effects panic . "
-               " do if gt a 10 . do panic \"too big\" . end return a . end") == true,
+               " do if gt a 10 do panic \"too big\" . end return a . end") == true,
           "control: `panic` is in the spec's control AND effect vocabulary — the tool called it "
           "\"undefined name\" (your program is wrong). It was not: the TOOL could not. Same "
           "misdiagnosis as bit_cast");
@@ -2560,23 +2568,23 @@ int main(void) {
     // (E-VM-TYPE: vector lane counts differ) — **타입 오류를 런타임까지 미루는 것은
     // 이 언어가 아니다.** 정적으로 올렸다.
     check(TYCK("fn f input xs slice u8 . output u32 .  do "
-               "  var va vec u32 4 . be load xs 0 . "
-               "  var vb vec u32 8 . be load xs 4 . "
-               "  var vc vec u32 4 . be add va vb . "
+               "  var va vec u32 4 load xs 0 . "
+               "  var vb vec u32 8 load xs 4 . "
+               "  var vc vec u32 4 add va vb . "
                "  return reduce_add vc . end") == false,
           "vec: ★★ adding a 4-lane and an 8-lane vector → E-TYPE-LANES. Two vectors of different "
           "width are different types (before this the initializer of a split binding was never "
           "checked AT ALL, and the VM caught it only at run time)");
     check(TYCK("fn f input xs slice u8 . output u32 .  do "
-               "  var va vec u32 4 . be load xs 0 . "
-               "  var vb vec f32 4 . be load xs 4 . "
-               "  var vc vec u32 4 . be add va vb . "
+               "  var va vec u32 4 load xs 0 . "
+               "  var vb vec f32 4 load xs 4 . "
+               "  var vc vec u32 4 add va vb . "
                "  return reduce_add vc . end") == false,
           "vec: ★ an integer vector and a float vector do not mix → E-TYPE-MIX");
     check(TYCK("fn f input xs slice u8 . output u32 .  do "
-               "  var va vec u32 4 . be load xs 0 . "
-               "  var vb vec u32 4 . be load xs 4 . "
-               "  var vc vec u32 4 . be add va vb . "
+               "  var va vec u32 4 load xs 0 . "
+               "  var vb vec u32 4 load xs 4 . "
+               "  var vc vec u32 4 add va vb . "
                "  return reduce_add vc . end") == true,
           "vec: matching lanes and lane kinds pass (no false positive — the existing SIMD fixtures "
           "stay green)");
@@ -2623,13 +2631,13 @@ int main(void) {
     // 아무것도 안 가리켜도 **조용히 통과했다.** 선언된 이름인데 아무도 확인하지 않았다.
     check(CHECK("type frame u64 . "
                 "proc f input r region frame . output u64 . effects alloc . do "
-                "  let s be stack_new nosuch capacity 4 . . push s 1 . return count s . end") == false,
+                "  let s stack u64 stack_new nosuch capacity 4 . . push s 1 . return count s . end") == false,
           "region: ★ `stack_new` naming something that is not a `region` parameter → "
           "E-REGION-UNDEF (the lowering ERASES this name — that does not mean it need not be "
           "checked)");
     check(CHECK("type frame u64 . "
                 "proc f input r region frame . output u64 . effects alloc . do "
-                "  let s be stack_new r capacity 4 . . push s 1 . return count s . end") == true,
+                "  let s stack u64 stack_new r capacity 4 . . push s 1 . return count s . end") == true,
           "region: a real region parameter passes (no over-rejection)");
 
     // ── ★★★★★ **같은 이름, 다른 모듈 — 제 모듈이 이긴다** (2026-08-07) ──
@@ -2697,11 +2705,11 @@ int main(void) {
         const char *src =
             "enum k do\n a .\n b .\nend\n"
             "fn f input s slice u8 . output u64 .  do "
-            "  var n u64 be 0 . var i u64 be 0 . "
-            "  while lt i (len s) . do "
+            "  var n u64 0 . var i u64 0 . "
+            "  while lt i (len s) do "
             "    match a "                       // ← do 가 없다
-            "      case a . do set n expr n + 1 . . end "
-            "      case b . do set n n . end "
+            "      case a do set n expr n + 1 . . end "
+            "      case b do set n n . end "
             "    end "
             "    set i expr i + 1 . . end "
             "  return n . end";
@@ -2764,7 +2772,7 @@ int main(void) {
         const char *src =
             "struct p do\n x u8 .\n y u8 .\nend\n"
             "fn f input v u8 . output u8 .  do "
-            "  var q p be lit p do x 1 . y 2 . end . "
+            "  var q p lit p do x 1 . y 2 . end . "
             "  set (field q x) v . "
             "  return expr (field q x) + (field q y) . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -2780,12 +2788,12 @@ int main(void) {
     }
     check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f output u8 .  do "
-               "  var q p be lit p do x 1 . end . set (field q ghost) 5 . "
+               "  var q p lit p do x 1 . end . set (field q ghost) 5 . "
                "  return field q x . end") == false,
           "field write: ★ writing a field no struct declares → E-TYPE-FIELD");
     check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f input a i32 . output u8 .  do "
-               "  var q p be lit p do x 1 . end . set (field q x) a . "
+               "  var q p lit p do x 1 . end . set (field q x) a . "
                "  return field q x . end") == false,
           "field write: ★ a value that does not match the field's declared type is caught "
           "(the ⊑ lattice applies here too)");
@@ -2835,17 +2843,17 @@ int main(void) {
     // ── ★ `let` 이 타입체크를 **통째로 빠져나가고 있었다** ──
     // `var` 만 검사됐다. 같은 선언인데 한쪽만 검사한 것은 그냥 빠뜨린 것이다.
     check(TYCK("fn f input a i32 . output u8 .  do "
-               "  var v u8 be a . return v . end") == false,
-          "let/var: `var v u8 be <i32>` is caught (this always worked)");
+               "  var v u8 a . return v . end") == false,
+          "let/var: `var v u8 <i32>` is caught (this always worked)");
     check(TYCK("fn f input a i32 . output u8 .  do "
-               "  let v u8 be a . return v . end") == false,
-          "let/var: ★ `let v u8 be <i32>` is caught too — before this, `let` escaped the type "
-          "checker ENTIRELY and even `let v bool be <u8>` passed silently");
+               "  let v u8 a . return v . end") == false,
+          "let/var: ★ `let v u8 <i32>` is caught too — before this, `let` escaped the type "
+          "checker ENTIRELY and even `let v bool <u8>` passed silently");
     check(TYCK("fn f input a u8 . output u8 .  do "
-               "  let v bool be a . return a . end") == false,
-          "let/var: `let v bool be <u8>` — a kind mismatch, now caught");
+               "  let v bool a . return a . end") == false,
+          "let/var: `let v bool <u8>` — a kind mismatch, now caught");
     check(TYCK("fn f input a u8 . output u8 .  do "
-               "  let v u8 be a . return v . end") == true,
+               "  let v u8 a . return v . end") == true,
           "let/var: a correct `let` still passes (no false positive)");
 
     // ── ★ `try` 는 **풀 수 있는 것**에만 붙는다 ──
@@ -2855,7 +2863,7 @@ int main(void) {
     //   본문이 `try read_u16_be …` 라고 적어 놨다. 아무도 확인하지 않았다.
     check(TYCK("fn plain input a u8 . output u8 .  do return a . end "
                "fn f input a u8 . output u8 .  do "
-               "  let x u8 be try plain a . . return x . end") == false,
+               "  let x u8 try plain a . . return x . end") == false,
           "try: ★ `try` on a value that is not a result/option → E-TYPE-TRY (the flagship example "
           "in SPEC-MVP §8 had exactly this — a `try` that did nothing)");
 
@@ -2866,7 +2874,7 @@ int main(void) {
     {
         const char *src =
             "fn safe input a u8 . output u8 .  do "
-            "  guard le a 100 . else return 0 . . "
+            "  guard le a 100 else return 0 . . "
             "  return mul a 2 . end";     // a ≤ 100 → a*2 ≤ 200 ⊆ u8 ⇒ 검사 불필요
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -2895,12 +2903,12 @@ int main(void) {
             // ① 정직 — guard 의 조건과 when 이 같은 식 ⇒ **증명되어 검사가 사라진다**
             "fn honest input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
-            " do guard ge len data . 4 . else return error small . . . "
+            " do guard ge (len data) 4 else return error small . . "
             "   return ok idx data 0 . . end "
             // ② 거짓말 — 선언은 len<2, 본문은 len<9 ⇒ 증명 실패 ⇒ 검사 유지
             "fn liar input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 2 . . "
-            " do guard ge len data . 9 . else return error small . . . "
+            " do guard ge (len data) 9 else return error small . . "
             "   return ok idx data 0 . . end "
             // ③ ★★ 가장 미묘한 거짓말 — **같은 식, 반대 극성**.
             //    선언: len ≥ 4 일 때 small.  본문: len < 4 일 때 small.
@@ -2909,7 +2917,7 @@ int main(void) {
             //    극성(pneg)이 건전성의 축이다 — 실제로 그것을 빼면 E-VM-ANALYSIS 가 터진다.
             "fn inverted input data slice u8 . output result u8 e . .  "
             "  errors small ge len data . 4 . . "
-            " do guard ge len data . 4 . else return error small . . . "
+            " do guard ge (len data) 4 else return error small . . "
             "   return ok idx data 0 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3050,12 +3058,12 @@ int main(void) {
             // 정직 — 선언과 본문이 같은 경계(4)
             "fn honest input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
-            " do guard ge len data . 4 . else return error small . . . "
+            " do guard ge (len data) 4 else return error small . . "
             "   return ok idx data 0 . . end "
             // 거짓말 — 선언은 2, 본문은 9
             "fn liar input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 2 . . "
-            " do guard ge len data . 9 . else return error small . . . "
+            " do guard ge (len data) 9 else return error small . . "
             "   return ok idx data 0 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3078,7 +3086,7 @@ int main(void) {
             "module t . enum e do small end "
             "fn honest input data slice u8 . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
-            " do guard ge len data . 4 . else return error small . . . "
+            " do guard ge (len data) 4 else return error small . . "
             "   return ok idx data 0 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3182,11 +3190,11 @@ int main(void) {
         const char *src =
             // ① 가드가 사실을 만든다
             "fn at_guarded input i u64 . input g slice u8 . output u64 .  do "
-            "  if lt i (len g) . do return idx g i . end return 0 . end "
+            "  if lt i (len g) do return idx g i . end return 0 . end "
             // ② 루프 — 사실이 매 반복의 조건에서 다시 세워진다
             "fn sum_all input g slice u8 . output u64 .  do "
-            "  var acc u64 be 0 . var i u64 be 0 . "
-            "  while lt i (len g) . do set acc expr acc + (idx g i) . set i expr i + 1 . . end "
+            "  var acc u64 0 . var i u64 0 . "
+            "  while lt i (len g) do set acc expr acc + (idx g i) . set i expr i + 1 . . end "
             "  return acc . end "
             // ③ mod 이디엄 — ★ mod_is_a_safe_index (Qed) 가 그대로 근거다
             "fn wrapped input i u64 . input g slice u8 . output u64 .  do "
@@ -3196,7 +3204,7 @@ int main(void) {
             "  return idx g i . end "
             // ⑤ 다른 슬라이스 — len(g) 를 안다고 h 를 인덱싱할 수는 없다
             "fn crossed input i u64 . input h slice u8 . input g slice u8 . output u64 .  do "
-            "  if lt i (len g) . do return idx h i . end return 0 . end";
+            "  if lt i (len g) do return idx h i . end return 0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3256,9 +3264,9 @@ int main(void) {
         const char *src =
             "fn wsize output u64 .  do return machine.ptr_width . end "
             "fn etag output u64 .  do "
-            "  if machine.big_endian . do return 1 . end else do return 0 . end end "
+            "  if machine.big_endian do return 1 . end else do return 0 . end end "
             "fn fpu input a u64 . output u64 .  do "
-            "  if machine.has_fpu . do return add a 1 . end else do return add a 2 . end end";
+            "  if machine.has_fpu do return add a 1 . end else do return add a 2 . end end";
         const char *targets[3] = { "x86_64", "cortex_m", "mips_be" };
         proven_i64 want_ptr[3] = { 64, 32, 32 };
         proven_i64 want_end[3] = { 0, 0, 1 };
@@ -3287,7 +3295,7 @@ int main(void) {
         // ★ 이것이 #ifdef 와의 결정적 차이다: **선택되지 않은 가지도 타입 검사를 받는다.**
         // C 라면 else 안의 오류가 3년 뒤 다른 플랫폼 빌드에서 처음 터진다.
         check(TYCK("fn f input a u8 . input b i32 . output u8 . do "
-                   "  if machine.has_fpu . do return add a 1 . end "
+                   "  if machine.has_fpu do return add a 1 . end "
                    "  else do return add a b . end end") == false,
               "RFC-0054: a type error in the DEAD arm is still caught — the #ifdef disease is cured");
     }
@@ -3297,13 +3305,13 @@ int main(void) {
         const char *src =
             // ① 루프 카운터: while lt i 10 → 본문에서 i ∈ [0,9] → add i 1 은 u8 안에서 안전
             "fn counter output u8 .  do "
-            "  var i u8 be 0 . while lt i 10 . do set i expr i + 1 . end return i . end "
+            "  var i u8 0 . while lt i 10 do set i expr i + 1 . end return i . end "
             // ② 계약이 **루프 안까지** 전달된다: n ≤ 100 ∧ i < n ⇒ i ≤ 99
             "fn guarded input n u8 . output u8 . requires le n 100 .  do "
-            "  var i u8 be 0 . while lt i n . do set i expr i + 1 . end return i . end "
+            "  var i u8 0 . while lt i n do set i expr i + 1 . end return i . end "
             // ③ 경계가 없으면 증명 못 한다 — 보수적이되 건전(거짓 제거 없음)
             "fn unbounded input n u8 . output u8 .  do "
-            "  var i u8 be 0 . while lt i n . do set i expr i + 100 . end return i . end";
+            "  var i u8 0 . while lt i n do set i expr i + 100 . end return i . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3361,9 +3369,9 @@ int main(void) {
         const char *src =
             ""
             "fn s_good input b slice u8 . output f64 .  do "
-            "  var xs u64 . be view_array f64 b . return call_builtin sum_neumaier xs . end "
+            "  var xs u64 view_array f64 b . return call_builtin sum_neumaier xs . end "
             "fn s_fast input b slice u8 . output f64 .  do "
-            "  var xs u64 . be view_array f64 b . return call_builtin sum_seq xs . end";
+            "  var xs u64 view_array f64 b . return call_builtin sum_seq xs . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3398,8 +3406,8 @@ int main(void) {
             "fn nbare input x u32 . output u8 .  "
             "  do return narrow u8 x . end "
             "fn ntry input x u32 . output u64 .  do "
-            "  var r u64 . be narrow_try u8 x . "
-            "  guard is_some r . else return 999 . . "
+            "  var r u64 narrow_try u8 x . "
+            "  guard is_some r else return 999 . . "
             "  return some_value r . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3429,12 +3437,12 @@ int main(void) {
     {
         const char *src =
             "fn chk input a u8 . output u64 .  do "
-            "  var r u64 . be chk_add a 1 . "
-            "  guard is_some r . else return 999 . . "
+            "  var r u64 chk_add a 1 . "
+            "  guard is_some r else return 999 . . "
             "  return some_value r . end "
             "fn dz input a u32 . input b u32 . output u32 .  do "
-            "  var nb u32 . be nonzero_of b . "
-            "  guard is_some nb . else return 0 . . "
+            "  var nb u32 nonzero_of b . "
+            "  guard is_some nb else return 0 . . "
             "  return div_nz a (some_value nb) . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3460,13 +3468,13 @@ int main(void) {
     }
 
     // ── RFC-0052 D3: 부동 리터럴 — comptime 무타입, 범위 초과는 컴파일 오류 ──
-    check(TYCK("fn f output f32 . do var a f32 be 3.0e38 . return a . end") == true,
+    check(TYCK("fn f output f32 . do var a f32 3.0e38 . return a . end") == true,
           "float literal: 3.0e38 fits f32");
-    check(TYCK("fn f output f32 . do var a f32 be 1e50 . return a . end") == false,
+    check(TYCK("fn f output f32 . do var a f32 1e50 . return a . end") == false,
           "float literal: 1e50 does NOT fit f32 → E-TYPE-WIDTH (was a silent inf)");
-    check(TYCK("fn f output f64 . do var a f64 be 1e300 . return a . end") == true,
+    check(TYCK("fn f output f64 . do var a f64 1e300 . return a . end") == true,
           "float literal: 1e300 fits f64");
-    check(TYCK("fn f output f32 . do var a f32 be 1e-50 . return a . end") == true,
+    check(TYCK("fn f output f32 . do var a f32 1e-50 . return a . end") == true,
           "float literal: underflow to zero is IEEE, not an error");
     check(TYCK("fn f input a f32 . output f32 . do return add a 1.0 . end") == true,
           "float literal adopts the operand type (f32 + 1.0 stays f32 — no f64 promotion)");
@@ -3475,9 +3483,9 @@ int main(void) {
     {
         const char *src =
             "fn f32r output bool .  do "
-            "  var a f32 be 16777216.0 . return eq (add a 1.0) a . end "
+            "  var a f32 16777216.0 . return eq (add a 1.0) a . end "
             "fn f64k output bool .  do "
-            "  var a f64 be 16777216.0 . return eq (add a 1.0) a . end "
+            "  var a f64 16777216.0 . return eq (add a 1.0) a . end "
             "fn isqrt input x u64 . output u64 .  do return call_builtin sqrt x . end "
             "fn fsqrt input x u64 . output f64 .  do return call_builtin sqrt (cast f64 x) . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -3511,7 +3519,7 @@ int main(void) {
         const char *src =
             "fn first output u64 .  do return add 1 2 . end "
             "fn second output bool .  do "
-            "  var a f32 be 16777216.0 . return eq (add a 1.0) a . end "
+            "  var a f32 16777216.0 . return eq (add a 1.0) a . end "
             "fn third input x u8 . output u8 .  do return add x 1 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -3571,9 +3579,9 @@ int main(void) {
     {
         const char *src =
             "fn ubig output bool .  do "
-            "  var big u64 be 9223372036854775808 . return lt big 1 . end "
+            "  var big u64 9223372036854775808 . return lt big 1 . end "
             "fn udiv output u64 .  do "
-            "  var big u64 be 9223372036854775808 . return div big 2 . end "
+            "  var big u64 9223372036854775808 . return div big 2 . end "
             "fn ineg input a i32 . output bool .  do return lt a 0 . end "
             "fn idiv input a i32 . output i32 .  do return div a 2 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -3662,7 +3670,7 @@ int main(void) {
                 "fn helper input a u8 . output u8 .  do return a . end "
                 "fn f input d slice u8 . output result u8 e .  "
                 "  errors small lt len d 4 . tests helper . "
-                " do guard ge (len d) 4 . else return error small . "
+                " do guard ge (len d) 4 else return error small . "
                 "   return ok idx d 0 . end "
                 "fn g input a range u8 0 100 . output u8 .  "
                 "  ensures le ret 200 . do return mul a 2 . end "

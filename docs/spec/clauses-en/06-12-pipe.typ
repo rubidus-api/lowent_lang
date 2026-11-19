@@ -40,6 +40,34 @@ do
     count .
   end . .
 end .")
+  #para("1a")[
+    A source is one of two things.
+      - #strong[A slice]; — its elements are taken out one at a time from the front. The flow ends when the end is reached.
+      - #strong[The handle of an actor that has a `pull` handler]; — for each element, that actor's `pull` is called. `pull` is a handler
+      that takes no input and gives `option <element type>`. On `some v`, `v` flows; on `none`, the flow ends.
+      The handler's name is fixed as `pull` (`next` is a reserved word of loop heads — #cref("6.5.3.1")).
+      A source that never gives `none` is ended by the stopping of #cref("6.12.2") (`take` · `any` · `all`).
+      After stopping, no further element is taken out — when the next `pipe` reads the same handle, it reads from the element after that.
+  ]
+  #ex("a pull source — count an actor that gives three and ends with none (answer 3)", "module ex_pipe_pull .
+
+actor below3 do
+  state do
+    n u64 .
+  end .
+  proc pull output option u64 . effects state . do
+    guard lt n. 3 . else return none . .
+    set n. add n. 1 . .
+    return some n. . .
+  end .
+end .
+
+proc count_below3 output u64 . effects state . do
+  let it below3 spawn actor below3 . .
+  return pipe it. do
+    count .
+  end . .
+end .")
   #para("2")[
     There are seven stages: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.
       There are five terminals: `collect into` · `fold` · `count` · `any` · `all`.

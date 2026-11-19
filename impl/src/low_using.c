@@ -2034,12 +2034,10 @@ static void sl_walk(us_ctx_t *c, low_cst_t *nd) {
                 if (u) { u->is_keep = nd->kids[2]->tok.kw == LOW_KW_KEEP; nd->kids[2] = u; }
                 at = 4;
             }
-            bool has_be = false;                       // 안쪽 모양의 원문(단위 시험)은 `be` 를 이미 들고 온다
-            for (proven_size_t i = 2; i < nd->nkids; i++) if (us_atom(nd->kids[i]) && nd->kids[i]->tok.kw == LOW_KW_BE) has_be = true;
-            if (!has_be && at <= nd->nkids) sl_insert(c, nd, at, sl_word(c, nd->kids[at - 1], "be", LOW_KW_BE));
+            // 파서가 `be` 를 걸러 낸다(저자는 적을 수 없다) — 안쪽 나무의 `be` 는 모두 여기서 넣는 것이다
+            if (at <= nd->nkids) sl_insert(c, nd, at, sl_word(c, nd->kids[at - 1], "be", LOW_KW_BE));
         } else if (k == LOW_KW_NONE && us_eq(nd->kids[0]->tok.lex, "borrow") && nd->nkids >= 3) {
-            if (!(us_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_BE))
-                sl_insert(c, nd, 2, sl_word(c, nd->kids[1], "be", LOW_KW_BE));
+            sl_insert(c, nd, 2, sl_word(c, nd->kids[1], "be", LOW_KW_BE));
         } else if (k == LOW_KW_FOR || k == LOW_KW_REPEAT || k == LOW_KW_RANGE || k == LOW_KW_CYCLE) {
             proven_size_t nwhile = 0, nnext = 0, nstep = 0, nif = 0;
             bool order = true;

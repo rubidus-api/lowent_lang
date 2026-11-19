@@ -131,7 +131,6 @@ typedef struct {
 //   옛 철자의 진단을 내지 않는다 — 나무는 어느 쪽이든 새 꼴로 선다.
 typedef struct { proven_u32 line, col, del; const char *ins; } low_fix_t;
 void low_parse_lenient(bool on);
-void low_parse_inner_shape(bool on);   /* 단위 시험 전용 — 안쪽 모양(`var x u64 be 1 .`)을 그대로 읽는다 */
 const low_fix_t *low_parse_fixes(proven_size_t *n);
 void low_surface_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0141: 새 표면 → 안쪽 나무 */
 

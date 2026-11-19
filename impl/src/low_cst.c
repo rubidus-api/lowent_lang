@@ -93,10 +93,8 @@ static bool g_lenient = false;
 static low_fix_t *g_fix = NULL;
 static proven_size_t g_nfix = 0, g_capfix = 0;
 void low_parse_lenient(bool on) { g_lenient = on; }
-// ★ 안쪽 모양의 원문(`var x u64 be 1 .` — 타입이 `be` 앞에 선다)을 그대로 읽는다. 처리기의 단위 시험만 쓴다: 그 시험들은 선언 차례
-//   패스를 거치지 않고 검사 · 하강에 안쪽 나무를 바로 준다. 이 모드에서는 `be` 를 걸러 내지 않는다(저자의 원문에는 쓰지 않는다).
-static bool g_inner = false;
-void low_parse_inner_shape(bool on) { g_inner = on; g_lenient = on; }
+// ☞ RFC-0141 §12-4 (2026-11-19) — 단위 시험 전용 «안쪽 모양 모드»(RFC-0141 전의 읽기)는 지웠다. 단위 시험의 원문은 이제
+//   이 파서가 저자의 원문에서 읽는 꼴 그대로다(`impl/tests/run_tests.c` 머리 주석).
 const low_fix_t *low_parse_fixes(proven_size_t *n) { *n = g_nfix; return g_fix; }
 static void low_fix(proven_u32 line, proven_u32 col, proven_u32 del, const char *ins) {
     if (g_nfix == g_capfix) {
@@ -133,7 +131,7 @@ static bool low_do_is_body(const low_parser_t *p, proven_size_t at) {
 }
 // 식을 끝내는 낱말 앞인가 — 제 인자를 끝까지 먹는 폼(나열 리터럴 · `..op`)이 여기서 멈춘다.
 static bool low_at_term_word(low_parser_t *p) {
-    if (g_inner || low_curk(p) != LOW_TOK_IDENT) return false;
+    if (low_curk(p) != LOW_TOK_IDENT) return false;
     low_kw_t k = low_curkw(p);
     if (k == LOW_KW_ELSE || k == LOW_KW_NEXT || k == LOW_KW_STEP) return true;
     if (!p->head) return false;
@@ -142,7 +140,7 @@ static bool low_at_term_word(low_parser_t *p) {
 }
 // 머리 안에서 다음 낱말이 블록을 품는 값의 머리인가(`lit pt do … end` 의 `pt`)
 static bool low_head_value_block(const low_parser_t *p) {
-    return !g_inner && p->pos + 1 < p->n && p->toks[p->pos].kind == LOW_TOK_IDENT && p->toks[p->pos].kw == LOW_KW_NONE &&
+    return p->pos + 1 < p->n && p->toks[p->pos].kind == LOW_TOK_IDENT && p->toks[p->pos].kw == LOW_KW_NONE &&
            p->toks[p->pos + 1].kind == LOW_TOK_IDENT && p->toks[p->pos + 1].kw == LOW_KW_DO && !low_do_is_body(p, p->pos + 1);
 }
 
@@ -365,7 +363,7 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
         low_tok_kind_t k = low_curk(p);
         if (k == LOW_TOK_DOT) return false;
         // ★ RFC-0141 — `else` 는 피연산자가 아니다: 바인딩 · `guard` 의 값이 여기서 끝나고 실패 절이 선다(점 없이).
-        if (!g_inner && ops->len && k == LOW_TOK_IDENT && low_curkw(p) == LOW_KW_ELSE) return false;
+        if (ops->len && k == LOW_TOK_IDENT && low_curkw(p) == LOW_KW_ELSE) return false;
         // ★ X-0059 — 문장을 여는 낱말(`let`·`var`·`return`·`guard`)은 피연산자가 될 수 없다. 폼 한가운데서 만나면
         //   앞 문장의 점이 빠진 것이다(`let x be u64 a` ⏎ `return x .`). 전엔 둘이 한 폼이 되어 엉뚱한 진단
         //   (`E-RETURN-PARTIAL`)이 났다. `else` 바로 뒤는 나가는 문장의 자리라 제외한다(`else return 1 .`).
@@ -468,7 +466,7 @@ static low_cst_t *low_parse_generic(low_parser_t *p) {
                  (head.kw == LOW_KW_ELSE || head.kw == LOW_KW_DO ||   // do = 머리 없는 블록(이미 E-BLOCK-NOHEAD)
                   proven_u8str_view_eq(head.lex, proven_u8str_view_from_cstr("region")) ||
                   proven_u8str_view_eq(head.lex, proven_u8str_view_from_cstr("borrow")));
-    if (!g_inner && !owner && ops.len && low_curk(p) == LOW_TOK_IDENT && low_curkw(p) == LOW_KW_ELSE && head.kw != LOW_KW_ELSE) {
+    if (!owner && ops.len && low_curk(p) == LOW_TOK_IDENT && low_curkw(p) == LOW_KW_ELSE && head.kw != LOW_KW_ELSE) {
         // ★ RFC-0141 — 실패 절(`else …`)은 `let` · `var` · `guard` 의 것이다. 다른 문장 뒤의 `else` 는 그 문장의 점이 빠진 것이다.
         const low_token_t *last = &p->toks[p->pos ? p->pos - 1 : 0];
         low_pdiag(p, "E-DOT-MISSING",
@@ -724,49 +722,6 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
                               (void)PROVEN_ARRAY_PUSH(&bk, low_cst_t *, one); low_take_kids(p, blk, &bk); }
             (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, blk);
         }
-    }
-    low_cst_t *f = low_node(p, LOW_CST_FORM, head);
-    if (f) { f->closer = LOW_TOK_EOF; low_take_kids(p, f, &ops); }
-    else proven_array_destroy(&ops);
-    return f;
-}
-
-// ── 안쪽 모양 모드(단위 시험 전용 · `low_parse_inner_shape`)의 옛 `for` 읽기 — RFC-0141 전의 것 그대로다 ──
-static low_cst_t *low_parse_for_inner(low_parser_t *p) {
-    low_token_t head = low_adv(p);  // 'for'
-    proven_array_t ops = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 4).value;
-    (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_node(p, LOW_CST_ATOM, head));
-    if (low_curk(p) == LOW_TOK_IDENT)
-        (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_node(p, LOW_CST_ATOM, low_adv(p)));
-    // ★ `in` 표시자는 **없앴다**: `for <name> <seq> do … end`. `do` 가 끝을 못 박으므로
-    //   표시자는 아무것도 나르지 않았다(파서는 그것을 읽고 **트리에서 버리고** 있었다).
-    // '.'/',' before 'do' are the iterable form's own closer/separators
-    // (`for child in children_of g node . do`) — skipped, as in while/if
-    // ★ `for` 도 **제어 머리**다: 첫 닫개가 iterable 을 닫는다. 그리고 본체는 `do…end` 이거나
-    //   **form 하나**다(S ≡ do S end).
-    while (low_curkw(p) != LOW_KW_DO && !low_is_form_boundary(p)) {
-        if (low_curk(p) == LOW_TOK_DOT) {
-            low_adv(p);
-            // ★ RFC-0132 P2 (§8.1 점 규칙) — `for` 머리는 절의 열이다: `range … . where … . do` · `be τ v . while c . next e . do`.
-            //   점 뒤에 이 절 낱말이 오면 머리가 이어진다 — 절 낱말은 원자로 넣는다(`while` 은 예약어라 문장으로 읽히면 안 된다).
-            if (low_curkw(p) == LOW_KW_WHILE ||
-                (low_curk(p) == LOW_TOK_IDENT && (low_view_eq_cstr(low_cur(p)->lex, "where") || low_view_eq_cstr(low_cur(p)->lex, "next")))) {
-                (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_node(p, LOW_CST_ATOM, low_adv(p)));
-                continue;
-            }
-            break;
-        }
-        (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_access(p, false));
-    }
-    if (low_curkw(p) == LOW_KW_DO) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
-    else {
-        low_pdiag(p, "E-CTRL-NODO",
-                  "`for` takes a `do … end` body — `for x xs do … end` (RFC-0113 R4: no one-form body)", head.line, head.col);
-        low_cst_t *one = low_parse_form(p);
-        low_cst_t *blk = low_node(p, LOW_CST_BLOCK, head);
-        if (blk && one) { proven_array_t bk = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 1).value;
-                          (void)PROVEN_ARRAY_PUSH(&bk, low_cst_t *, one); low_take_kids(p, blk, &bk); }
-        (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, blk);
     }
     low_cst_t *f = low_node(p, LOW_CST_FORM, head);
     if (f) { f->closer = LOW_TOK_EOF; low_take_kids(p, f, &ops); }
@@ -1058,14 +1013,9 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
                   w.line, w.col);
         return low_parse_generic(p);
     }
-    if (!g_inner && kw == LOW_KW_NONE && low_curk(p) == LOW_TOK_IDENT &&
+    if (kw == LOW_KW_NONE && low_curk(p) == LOW_TOK_IDENT &&
         proven_u8str_view_eq(low_cur(p)->lex, proven_u8str_view_from_cstr("borrow")))
         return low_parse_borrow(p);
-    if (g_inner) {   // 단위 시험 전용 — RFC-0141 전의 읽기(안쪽 모양의 원문)
-        if (kw == LOW_KW_FOR) return low_parse_for_inner(p);
-        if (kw == LOW_KW_LET || kw == LOW_KW_VAR || kw == LOW_KW_GUARD || kw == LOW_KW_REPEAT || kw == LOW_KW_RANGE ||
-            kw == LOW_KW_CYCLE || kw == LOW_KW_NEXT || kw == LOW_KW_STEP || kw == LOW_KW_KEEP) return low_parse_generic(p);
-    }
     switch (kw) {
         case LOW_KW_LET: case LOW_KW_VAR: case LOW_KW_GUARD:   // ★ RFC-0141 — 값은 닫는 점이나 `else` 에서 끝난다
             return low_parse_bindlike(p);
@@ -1129,122 +1079,7 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
 // ★ RFC-0141 — 이 층이 하던 두 가지 이어 붙이기(`guard c . else …` 의 `else` 를 자식으로 · 타입이 제 점으로 닫히던 시절의
 //   `var x ref u8 . be v .`)는 **없어졌다**: 실패 절은 문장 안에 서고(`low_parse_bindlike`), `be` 는 어휘에서 빠졌다.
 //   남은 것은 내려가는 일뿐이다.
-static bool low_head_is(const low_cst_t *f, low_kw_t kw) {
-    return f && f->kind == LOW_CST_FORM && f->nkids && f->kids[0]->kind == LOW_CST_ATOM &&
-           f->kids[0]->tok.kw == kw;
-}
-// 한 겹씩 싸인 form 을 벗긴다 (`(else do … end)` 처럼 파서가 한 겹 더 감싼 경우)
-static const low_cst_t *low_peel(const low_cst_t *f) {
-    while (f && f->kind == LOW_CST_FORM && f->nkids == 1 && f->kids[0]->kind == LOW_CST_FORM)
-        f = f->kids[0];
-    return f;
-}
- void low_norm_node(low_parser_t *p, low_cst_t *nd);
-// ── 안쪽 모양 모드(단위 시험 전용)의 옛 이어 붙이기 — RFC-0141 전의 것 그대로다 ──
-static void low_bind_attach_else(low_parser_t *p, low_cst_t *blk, proven_size_t *i, proven_array_t *out) {
-    if (*i + 1 >= blk->nkids || !out->len) return;
-    const low_cst_t *nx = low_peel(blk->kids[*i + 1]);
-    if (!nx || nx->kind != LOW_CST_FORM || !nx->nkids || !low_head_is(nx, LOW_KW_ELSE)) return;
-    low_cst_t *bf = ((low_cst_t **)out->data)[out->len - 1];
-    bool has_be = false;
-    for (proven_size_t x = 0; x < bf->nkids; x++) if (bf->kids[x]->kind == LOW_CST_ATOM && bf->kids[x]->tok.kw == LOW_KW_BE) has_be = true;
-    if (!has_be) return;
-    proven_array_t k2 = PROVEN_ARRAY_INIT(p->work, low_cst_t *, bf->nkids + 1).value;
-    for (proven_size_t x = 0; x < bf->nkids; x++) (void)PROVEN_ARRAY_PUSH(&k2, low_cst_t *, bf->kids[x]);
-    (void)PROVEN_ARRAY_PUSH(&k2, low_cst_t *, (low_cst_t *)nx);
-    ((low_cst_t **)out->data)[out->len - 1] = low_refit(p, bf, (low_cst_t **)k2.data, k2.len);
-    proven_array_destroy(&k2);
-    (*i)++;
-}
-static void low_norm_seq_inner(low_parser_t *p, low_cst_t *blk) {
-    proven_array_t out = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 16).value;
-    proven_array_t buf = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 16).value;
-    for (proven_size_t i = 0; i < blk->nkids; i++) {
-        low_cst_t *f = blk->kids[i];
-        if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) {
-            (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *, f); continue;
-        }
-        low_kw_t hk = f->kids[0]->tok.kw;
-
-        // ── ① `guard <cond…> . [<조각>…] else <…>` — **else 를 자식으로 끌어들인다.**
-        //   점이 guard 를 닫으므로 else 는 **형제**로 온다. 그리고 점이 하나 더 있으면
-        //   조건의 조각이 사이에 낀다. 여섯 소비자가 각자 이 재조립을 해야 했다.
-        if (hk == LOW_KW_GUARD) {
-            buf.len = 0;
-            for (proven_size_t x = 0; x < f->nkids; x++)
-                (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, f->kids[x]);
-            proven_size_t j = i + 1;
-            const low_cst_t *els = NULL;
-            for (; j < blk->nkids; j++) {
-                const low_cst_t *nx = low_peel(blk->kids[j]);
-                if (!nx || nx->kind != LOW_CST_FORM || !nx->nkids) break;
-                if (low_head_is(nx, LOW_KW_ELSE)) { els = nx; break; }
-                if (nx->kids[0]->kind == LOW_CST_ATOM && nx->kids[0]->tok.kw != LOW_KW_NONE) break;
-                for (proven_size_t x = 0; x < nx->nkids; x++)   // 조건의 조각
-                    (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, nx->kids[x]);
-            }
-            if (els) {
-                (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, (low_cst_t *)els);   // ★ else 는 **마지막 자식**
-                (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *,
-                                        low_refit(p, f, (low_cst_t **)buf.data, buf.len));
-                i = j;
-                continue;
-            }
-        }
-
-        // ── ② `var x be <type> <value> .` — **be 를 form 안으로 끌어들인다.**
-        //   타입이 자기 닫개를 가지면(`ref u8 .`) 점이 var 를 닫아 버려 `be …` 가 형제가 된다.
-        if (hk == LOW_KW_VAR || hk == LOW_KW_LET) {
-            bool inline_be = false;
-            for (proven_size_t x = 0; x < f->nkids; x++)
-                if (f->kids[x]->kind == LOW_CST_ATOM && f->kids[x]->tok.kw == LOW_KW_BE)
-                    inline_be = true;
-            if (!inline_be) {
-                buf.len = 0;
-                for (proven_size_t x = 0; x < f->nkids; x++)
-                    (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, f->kids[x]);
-                proven_size_t j = i + 1;
-                bool fused = false;
-                for (; j < blk->nkids && j <= i + 3; j++) {
-                    low_cst_t *v = blk->kids[j];
-                    if (v->kind != LOW_CST_FORM || !v->nkids || v->kids[0]->kind != LOW_CST_ATOM) break;
-                    // ★★★★ RFC-0112 D8(3) — `let v be (<타입> . using <출처>) …` : 타입의 닫개 뒤에 온 `using` 폼도
-                    //   `be` 폼처럼 바인딩에 붙인다(그 폼 안에 `be` 가 있을 때).
-                    bool using_be = false;
-                    if (v->kids[0]->kind == LOW_CST_ATOM && low_view_eq_cstr(v->kids[0]->tok.lex, "using"))
-                        for (proven_size_t x = 1; x < v->nkids; x++)
-                            if (v->kids[x]->kind == LOW_CST_ATOM && v->kids[x]->tok.kw == LOW_KW_BE) using_be = true;
-                    if (using_be) {
-                        for (proven_size_t x = 0; x < v->nkids; x++)
-                            (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, v->kids[x]);
-                        fused = true; break;
-                    }
-                    if (v->kids[0]->tok.kw != LOW_KW_BE) {              // 타입의 꼬리 조각
-                        if (v->kids[0]->tok.kw != LOW_KW_NONE) break;
-                        for (proven_size_t x = 0; x < v->nkids; x++)
-                            (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, v->kids[x]);
-                        continue;
-                    }
-                    for (proven_size_t x = 0; x < v->nkids; x++)
-                        (void)PROVEN_ARRAY_PUSH(&buf, low_cst_t *, v->kids[x]);
-                    fused = true; break;
-                }
-                if (fused) {
-                    (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *,
-                                            low_refit(p, f, (low_cst_t **)buf.data, buf.len));
-                    i = j; low_bind_attach_else(p, blk, &i, &out); continue;
-                }
-            }
-        }
-        (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *, f);
-        if (hk == LOW_KW_VAR || hk == LOW_KW_LET) low_bind_attach_else(p, blk, &i, &out);
-    }
-    low_refit(p, blk, (low_cst_t **)out.data, out.len);
-    proven_array_destroy(&out); proven_array_destroy(&buf);
-    for (proven_size_t i = 0; i < blk->nkids; i++) low_norm_node(p, blk->kids[i]);
-}
 static void low_norm_seq(low_parser_t *p, low_cst_t *blk) {
-    if (g_inner) { low_norm_seq_inner(p, blk); return; }
     for (proven_size_t i = 0; i < blk->nkids; i++) low_norm_node(p, blk->kids[i]);
 }
  void low_norm_node(low_parser_t *p, low_cst_t *nd) {
@@ -1265,23 +1100,10 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
     // ★★★ RFC-0141 (소유자 2026-10-09 «be도 완전히 뺌») — `be` 는 어휘에서 빠졌다. 옛 철자(`let n be u64 5 .` · `for i be …` ·
     //   `borrow b be …`)의 `be` 를 여기서 걸러 내고(나무는 새 꼴과 같다) 고칠 글자를 적는다. 너그러운 모드가 아니면 거절한다.
     g_nfix = 0;
-    if (g_inner) {   // 안쪽 모양의 원문은 RFC-0141 의 새 예약어를 보통 낱말로 쓴다(`for i range …` · `next`)
-        proven_result_mem_mut_t r = node_alloc.alloc_fn(node_alloc.ctx, sizeof(low_token_t) * (p.n ? p.n : 1), alignof(low_token_t));
-        if (r.err == PROVEN_OK) {
-            low_token_t *nt = (low_token_t *)r.value.ptr;
-            for (proven_size_t i = 0; i < p.n; i++) {
-                nt[i] = p.toks[i];
-                low_kw_t k = nt[i].kw;
-                if (k == LOW_KW_REPEAT || k == LOW_KW_RANGE || k == LOW_KW_CYCLE || k == LOW_KW_NEXT || k == LOW_KW_STEP || k == LOW_KW_KEEP)
-                    nt[i].kw = LOW_KW_NONE;
-            }
-            p.toks = nt;
-        }
-    }
     {
         proven_size_t nbe = 0;
         for (proven_size_t i = 0; i < p.n; i++) if (p.toks[i].kind == LOW_TOK_IDENT && p.toks[i].kw == LOW_KW_BE) nbe++;
-        if (nbe && !g_inner) {
+        if (nbe) {
             proven_result_mem_mut_t r = node_alloc.alloc_fn(node_alloc.ctx, sizeof(low_token_t) * p.n, alignof(low_token_t));
             if (r.err == PROVEN_OK) {
                 low_token_t *nt = (low_token_t *)r.value.ptr;

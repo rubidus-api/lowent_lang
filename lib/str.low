@@ -123,8 +123,8 @@ do
   return some subslice src. pos. len src. . . . .          rem 마지막 조각(sep 없음)
 end .
 
-rem ★ pull 소스 판 — RFC-0010 파이프라인의 `next` 규약(RFC-0068 §5.2). 상태를 원할 때는 이것.
-rem   spawn 뒤 `send sp init <src> <sep>` 로 채우고, `send sp next` 가 조각을 option 으로 낸다.
+rem ★ pull 소스 판 — 파이프라인의 `pull` 규약(정본 §6.12 (1a) · RFC-0068 §5.2 · RFC-0141 이 `next` 를 `pull` 로 바꿨다). 상태를 원할 때는 이것.
+rem   spawn 뒤 `send sp init <src> <sep>` 로 채우고, `send sp pull` 이 조각을 option 으로 낸다(`pipe sp. do …` 의 원천도 된다).
 export actor str_splitter do
   state do
     src slice u8 .

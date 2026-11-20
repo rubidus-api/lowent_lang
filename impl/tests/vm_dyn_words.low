@@ -1,0 +1,45 @@
+rem ★★ RFC-0159 §9-12 (2026-11-20 · W-20261120-1030) — 트레이트 서명의 타입이 낱말 여럿이다: `mut slice u8` · `slice u8` · `option u8`.
+rem   두 뒤끝이 같은 답(35)이고 op 이 모두 빠른 경로에 남는다.
+module vm_dyn_words .
+trait codec do
+  put input s self . input buf mut slice u8 . input at usize . output usize .
+  peek input s self . input xs slice u8 . output option u8 .
+end .
+struct one do
+  satisfies codec .
+  v u8 .
+end .
+struct two do
+  satisfies codec .
+  a u8 .
+  b u8 .
+end .
+proc one.put input s one . input buf mut slice u8 . input at usize . output usize . effects none . do
+  set idx buf. at. . field s. v . .
+  return add at. 1 . .
+end .
+proc two.put input s two . input buf mut slice u8 . input at usize . output usize . effects none . do
+  set idx buf. at. . field s. a . .
+  set idx buf. add at. 1 . . field s. b . .
+  return add at. 2 . .
+end .
+fn one.peek input s one . input xs slice u8 . output option u8 . do
+  if eq len xs. . 0 . do return none . end .
+  return some field s. v . . .
+end .
+fn two.peek input s two . input xs slice u8 . output option u8 . do return none . end .
+export proc demo input n u64 . output u64 . effects dyn . do
+  let p one lit one do v 7 . end . .
+  let q two lit two do a 1 . b 2 . end . .
+  let xs slice object codec lit slice object codec object codec p. . object codec q. . object codec p. . . .
+  var buf lit array 8 u8 _ . .
+  var at usize 0 .
+  for x xs. do set at. dyn x. put. buf. at. . . end .
+  var s u64 cast u64 at. . .
+  for x xs. do
+    let o option u8 dyn x. peek. buf. . .
+    if is_some o. . do set s. add s. cast u64 some_value o. . . . . end .
+  end .
+  for b buf. do set s. add s. cast u64 b. . . . end .
+  return add s. n. . .
+end .

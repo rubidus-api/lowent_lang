@@ -147,6 +147,20 @@ static void dy_collect_impl(dy_t *c, dy_trait_t *t) {
         }
     }
 }
+// ★ 2026-11-20 (W-20261120-1030 · RFC-0159 §9-12) — 입력과 출력의 타입은 **낱말 여럿**이어도 된다(`slice u8` · `mut slice u8` · `option u64`).
+//   지은 글을 다시 읽으므로 낱말을 빈칸으로 이어 한 줄로 둔다. 개수를 받는 타입(`array` · `vec` · `matrix`)은 이 걸음에서 안쪽 차례(`array u8 3`)라
+//   그대로 적으면 옛 차례로 거절된다 — 이 판은 받지 않는다. 괄호 · `self` · `comptime` 도 받지 않는다. 못 이으면 빈 뷰를 돌려준다.
+static proven_u8str_view_t dy_type_text(dy_t *c, low_cst_t *const *k, proven_size_t a, proven_size_t b) {
+    proven_u8str_view_t r = { 0 };
+    if (a >= b) return r;
+    for (proven_size_t i = a; i < b; i++) {
+        if (!dy_atom(k[i]) || k[i]->tok.kind != LOW_TOK_IDENT) return (proven_u8str_view_t){ 0 };
+        if (dy_is(k[i], "array") || dy_is(k[i], "vec") || dy_is(k[i], "matrix") || dy_is(k[i], "self") || dy_is(k[i], "comptime"))
+            return (proven_u8str_view_t){ 0 };
+        r = r.size ? dy_cat(c, r, " ", k[i]->tok.lex) : k[i]->tok.lex;
+    }
+    return r;
+}
 // 트레이트의 서명을 읽고 `dyn` 으로 부를 수 있는지 본다(RFC-0159 D3).
 static void dy_read_sigs(dy_t *c, dy_trait_t *t, const low_cst_t *tf) {
     const low_cst_t *b = dy_block(tf);
@@ -174,21 +188,28 @@ static void dy_read_sigs(dy_t *c, dy_trait_t *t, const low_cst_t *tf) {
             const low_cst_t *w = s->kids[k];
             if (dy_is(w, "input")) {
                 proven_size_t e = k + 1; while (e < s->nkids && !dy_clause(s->kids[e])) e++;
-                if (e - k != 3 || !dy_atom(s->kids[k + 1]) || !dy_atom(s->kids[k + 2])) { bad = true; why = "every input is `input <name> <one-word type> .`"; break; }
+                if (e - k < 3 || !dy_atom(s->kids[k + 1]) || !dy_atom(s->kids[k + 2])) { bad = true; why = "every input is `input <name> <type> .`"; break; }
                 bool self_ = dy_is(s->kids[k + 2], "self");
                 if (nin == 0 && !self_) { bad = true; why = "the first input must be `self` — the value the table is chosen by"; break; }
+                if (nin == 0 && e - k != 3) { bad = true; why = "the first input is `input <name> self .` — `self` alone, the value the table is chosen by"; break; }
                 if (nin > 0 && self_) { bad = true; why = "`self` may stand only in the first input — the size of the other value is not known"; break; }
                 if (dy_is(s->kids[k + 1], "comptime")) { bad = true; why = "a `comptime` input cannot be chosen at run time"; break; }
                 if (nin > 0) {
                     if (o->na >= DY_MAXA) { bad = true; why = "too many inputs for this first version"; break; }
-                    o->an[o->na] = s->kids[k + 1]->tok.lex; o->at[o->na] = s->kids[k + 2]->tok.lex; o->na++;
+                    proven_u8str_view_t ty = dy_type_text(c, s->kids, k + 2, e);
+                    if (!ty.size) { bad = true; why = "an input's type is a run of words without a count — `slice u8` · `mut slice u8` · `option u64` (not `array` · `vec` · `matrix` in this version)"; break; }
+                    o->an[o->na] = s->kids[k + 1]->tok.lex; o->at[o->na] = ty; o->na++;
                 }
                 nin++; k = e;
             } else if (dy_is(w, "output")) {
                 proven_size_t e = k + 1; while (e < s->nkids && !dy_clause(s->kids[e])) e++;
-                if (e - k != 2 || !dy_atom(s->kids[k + 1])) { bad = true; why = "the output is one word in this first version (`output u64 .`)"; break; }
-                if (dy_is(s->kids[k + 1], "self")) { bad = true; why = "an op chosen at run time cannot give back `self` — its size is not known"; break; }
-                o->out = s->kids[k + 1]->tok.lex; k = e;
+                if (e - k < 2 || !dy_atom(s->kids[k + 1])) { bad = true; why = "the output is `output <type> .`"; break; }
+                for (proven_size_t z = k + 1; z < e; z++)
+                    if (dy_is(s->kids[z], "self")) { bad = true; why = "an op chosen at run time cannot give back `self` — its size is not known"; break; }
+                if (bad) break;
+                o->out = dy_type_text(c, s->kids, k + 1, e);
+                if (!o->out.size) { bad = true; why = "the output's type is a run of words without a count — `u64` · `option u64` (not `array` · `vec` · `matrix` in this version)"; break; }
+                k = e;
             } else if (dy_is(w, "effects")) {
                 proven_size_t e = k + 1;
                 for (; e < s->nkids && !dy_clause(s->kids[e]); e++) {

@@ -1,0 +1,67 @@
+rem ★★ RFC-0159 §9-13 (2026-11-20 · W-20261120-1030) — `dyn` 으로 한 목록을 도는 것과 트레이트 경계로 타입마다 도는 것이 같은 답을 낸다.
+rem   벤치(arch-dev)가 이 꼴로 잰다. 이 파일이 지키는 결함 셋: `satisfies` 를 적은 구조체의 나열(전엔 E-LIT-UNBUILT) ·
+rem   `for` 의 원소에 `method`(전엔 E-METHOD-UNDEF) · `object` 를 쓰는 단위에서 트레이트 경계로 부르는 순수한 `fn`(전엔 E-EFFECT-CALC «performs dyn»).
+module vm_dyn_bound .
+trait shape do
+  scaled input s self . input k u64 . output u64 .
+end .
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+struct tri do
+  satisfies shape .
+  b u64 .
+  h u64 .
+end .
+fn rect.scaled input s rect . input k u64 . output u64 . do return add mul field s. w . field s. h . . k. . . end .
+fn square.scaled input s square . input k u64 . output u64 . do return add mul field s. side . field s. side . . k. . . end .
+fn tri.scaled input s tri . input k u64 . output u64 . do return add div mul field s. b . field s. h . . 2 . k. . . end .
+
+fn mr input n u64 . output rect . do return lit rect do w add n. 2 . . h 3 . end . . end .
+fn ms input n u64 . output square . do return lit square do side add n. 4 . . end . . end .
+fn mt input n u64 . output tri . do return lit tri do b add n. 6 . . h 5 . end . . end .
+
+rem 실행 중 값으로 타입이 정해진다 — 처리기도 C 컴파일러도 미리 모른다
+fn pick input n u64 . output object shape . do
+  let m u64 mod n. 3 . .
+  if eq m. 0 . do let r rect mr n. . . return object shape r. . . end .
+  if eq m. 1 . do let q square ms n. . . return object shape q. . . end .
+  let t tri mt n. . .
+  return object shape t. . .
+end .
+
+rem (A) 한 목록 · `dyn`
+export proc via_dyn input n u64 . input reps u64 . output u64 . effects dyn . do
+  let xs slice object shape lit slice object shape pick n. . pick add n. 1 . . pick add n. 2 . . pick add n. 3 . . pick add n. 4 . . pick add n. 5 . . pick add n. 6 . . pick add n. 7 . . pick add n. 8 . . . .
+  var s u64 0 .
+  repeat k u64 reps. do
+    for x xs. do set s. add s. dyn x. scaled. k. . . . end .
+  end .
+  return s. .
+end .
+
+rem (B) 타입마다 따로 · 트레이트 경계(번역 때 타입마다 지은 op)
+fn tot input comptime t type . input xs slice t . input k u64 . output u64 .
+  requires shape t. . .
+do
+  var s u64 0 .
+  for x xs. do set s. add s. method x. scaled. k. . . . end .
+  return s. .
+end .
+
+export fn via_bound input n u64 . input reps u64 . output u64 . do
+  let rs slice rect lit slice rect mr n. . mr add n. 3 . . mr add n. 6 . . . .
+  let qs slice square lit slice square ms add n. 1 . . ms add n. 4 . . ms add n. 7 . . . .
+  let ts slice tri lit slice tri mt add n. 2 . . mt add n. 5 . . mt add n. 8 . . . .
+  var s u64 0 .
+  repeat k u64 reps. do
+    set s. add s. add tot rect. rs. k. . add tot square. qs. k. . tot tri. ts. k. . . . . .
+  end .
+  return s. .
+end .

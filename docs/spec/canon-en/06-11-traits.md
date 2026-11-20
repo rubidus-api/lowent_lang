@@ -287,7 +287,8 @@ end .
 (4) A trait that can be used with `object` must keep the following for every op — otherwise it is `E-DYN-TRAIT`.
       - The first input is `self` (the value the choice is made by). `self` does not appear in the other inputs or the output — its size is settled only at run time.
       - There is no `comptime` input, and no `via self` in the effects line.
-      - The other inputs and the output are one-word types (the limit of this version).
+      - The other inputs and the output have types that take no count — like `u64` · `slice u8` · `mut slice u8` · `option u64`.
+        `array` · `vec` · `matrix`, which take a count, are outside the limits of this version.
 
 (5) If no type satisfies the trait, it is `E-DYN-NOIMPL`. In this version the types that satisfy it must be in the trait's own module (`E-DYN-MODULE`).
       There is no way to get the original type back from a value of `object <trait>` — its fields cannot be read with `field` (`E-DYN-FORM`).

@@ -1604,6 +1604,12 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             c->locals[idx].ty = (ityp_t){ .known = true, .bits = 64, .sign = false };
             const proven_i64 U64f = (proven_i64)(IR_TY_KNOWN | 64);
             proven_size_t var = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
+            // ★ 2026-11-20 (W-20261120-1030) — 원소의 타입 이름을 원소 이름에 싣는다: 줄이 지역 이름이고 그 타입이 `slice <S>` · `array <S> n`
+            //   이면 원소는 S 다(알맹이 낱말 cname). 싣지 않아 `for x rs. do method x. f. .` 가 E-METHOD-UNDEF 였다(RFC-0159 벤치가 밟았다).
+            if (direct && (veq(c->locals[it].tyname, "slice") || veq(c->locals[it].tyname, "array")) && c->locals[it].cname.size) {
+                bool sfe; (void)ir_struct_find(c->out, c->locals[it].cname, &sfe);
+                if (sfe) { c->locals[var].tyname = c->locals[it].cname; c->locals[var].tymod = c->locals[it].tymod; }
+            }
             if (!direct) {
                 ir_run(c, f->kids, 2, b - 2);
                 ir_emit(c, IRW_STORE, (proven_i64)it);

@@ -259,6 +259,7 @@ static unsigned builtin_effect(proven_u8str_view_t v) {
 //     `max` 는 arity 표에 있어 E-NAME-BUILTIN 으로 정확히 잡히는데 `raw` 는 빠져나갔다 —
 //     **같은 죄에 두 개의 진단**이었고 그중 하나가 거짓말이었다.
 static bool ck_effect_word(proven_u8str_view_t v) { return builtin_effect(v) != EFF_NONE; }
+const char *low_effect_bit_name(unsigned bit);
 // ★★ **비트마다 이름이 있어야 한다** (2026-09-06). 이 함수가 아는 여섯 밖의 비트
 //   (`concurrent`·`wait`)는 «none» 으로 떨어졌다 — 그리고 그 «none» 이 경고 문장에 실리자
 //   *"선언했는데 안 하는 효과는 none 이다"* 라는 **뜻 없는 말**이 나왔다(코퍼스 4 건).
@@ -274,6 +275,10 @@ static const char *effect_name(unsigned e) {
     if (e & EFF_CONCURRENT) return "concurrent";
     if (e & EFF_WAIT) return "wait";
     if (e & EFF_DEVICE) return "device";
+    // ★ 2026-11-20 (W-20261120-1030) — 위 열 줄 밖의 비트(`lock` · `page_fault` · `blocking` · `cancel` · `detach` · `dyn`)는 «이름 없는 효과 비트» 로
+    //   떨어졌다. 이름의 원천은 아래 `low_effect_bit_name` 하나다 — 위의 차례(둘 이상일 때 무엇을 먼저 말하나)만 여기 둔다.
+    for (unsigned bit = 1; bit && bit <= e; bit <<= 1)
+        if ((e & bit) && strcmp(low_effect_bit_name(bit), "none") != 0) return low_effect_bit_name(bit);
     return e ? "(이름 없는 효과 비트)" : "none";
 }
 
@@ -756,6 +761,12 @@ static unsigned walk_effects_in(const low_cst_t *nd, const low_opinfo_t *tab, pr
                 if (dot == PROVEN_INDEX_NOT_FOUND) continue;
                 proven_u8str_view_t suf = { .ptr = tn.ptr + dot + 1, .size = tn.size - dot - 1 };
                 if (!proven_u8str_view_eq(suf, mn)) continue;
+                // ★ 2026-11-20 (W-20261120-1030 · RFC-0159) — 처리기가 지은 고르는 op(`<트레이트>__object.<이름>`)은 `method` 로 닿지 않는다:
+                //   `object T` 는 타입 인자로 적을 수 없고 지은 구조체는 `satisfies` 를 적지 않아 경계가 거절한다(E-BOUND-UNSAT). 합에 넣으면
+                //   트레이트 경계로 부르는 순수한 `fn` 이 `dyn` 을 한다고 거절됐다(E-EFFECT-CALC) — `object` 를 쓰는 단위에서만.
+                { bool gen_ = false;
+                  for (proven_size_t q = 0; q + 9 <= dot + 1; q++) if (memcmp(tn.ptr + q, "__object.", 9) == 0) { gen_ = true; break; }
+                  if (gen_) continue; }
                 all |= tab[i].declared;
                 // 타입 낱말이 `limb` 이면 `limb.x` · `bigint16.limb.x` 가 맞고 `xlimb.x` 는 아니다 — 낱말 경계로 견준다
                 if (rtw.size && dot >= rtw.size && memcmp(tn.ptr + dot - rtw.size, rtw.ptr, rtw.size) == 0 &&
@@ -8390,6 +8401,9 @@ static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *
             const low_cst_t *fl = blk->kids[j];
             if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0]) || !ck_atom(fl->kids[1])) return false;
             proven_u8str_view_t w0 = fl->kids[0]->tok.lex, w1 = fl->kids[1]->tok.lex;
+            // ★ 2026-11-20 (W-20261120-1030) — `satisfies <트레이트> .` 는 칸이 아니다. 칸으로 읽어 «배치 없음» 이라 했다 —
+            //   트레이트를 갖춘 구조체는 나열의 원소가 되지 못했다(`lit slice rect …` 가 E-LIT-UNBUILT). RFC-0159 벤치가 밟았다.
+            if (fl->kids[0]->tok.kw == LOW_KW_SATISFIES) continue;
             if (veq(w0, "layout")) { packed = veq(w1, "packed"); continue; }
             if (veq(w0, "align")) { decl_al = (unsigned)strtoul((const char *)w1.ptr, NULL, 0); continue; }
             if (veq(w0, "mmio") || veq(w0, "storage") || veq(w0, "input")) return false;
@@ -8448,6 +8462,7 @@ static bool ck_struct_sliceable(proven_u8str_view_t ty) {
             const low_cst_t *fl = blk->kids[j];
             if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0]) || !ck_atom(fl->kids[1])) return false;
             proven_u8str_view_t w1 = fl->kids[1]->tok.lex;
+            if (fl->kids[0]->tok.kw == LOW_KW_SATISFIES) continue;   // 칸이 아니다(위 ck_struct_layout 와 같다)
             if (veq(fl->kids[0]->tok.lex, "layout") || veq(fl->kids[0]->tok.lex, "align") || veq(fl->kids[0]->tok.lex, "mmio")) return false;
             if (veq(w1, "slice") && fl->nkids >= 3 && ck_atom(fl->kids[2]) && ck_elem_sized(fl->kids[2]->tok.lex)) { nf++; nsl++; continue; }
             if (ck_elem_sized(w1) && fl->nkids == 2) { nf++; continue; }

@@ -499,7 +499,7 @@ static void mx_expr(mx_t *c, low_cst_t **slot) {
     low_cst_t *f = n;
     while (f->kind == LOW_CST_GROUP && f->nkids == 1) f = f->kids[0];
     if (f->kind != LOW_CST_FORM || !f->nkids) { for (proven_size_t i = 0; i < f->nkids; i++) mx_expr(c, &f->kids[i]); return; }
-    if (mx_atom(f->kids[0]) && f->kids[0]->tok.kw != LOW_KW_NONE && f->kids[0]->tok.kw != LOW_KW_LIT) { mx_stmt(c, f); return; }
+    if (mx_atom(f->kids[0]) && f->kids[0]->tok.kw != LOW_KW_NONE && f->kids[0]->tok.kw != LOW_KW_LIT && f->kids[0]->tok.kw != LOW_KW_DYN) { mx_stmt(c, f); return; }   // `dyn` 은 값이다(RFC-0159)
     proven_size_t before = f->nkids, e = f->nkids;
     mx_run(c, f, 0, &e, false);
     if (before > 1 && f->nkids == 1) *slot = f->kids[0];   // `dim m. 1 .` → 4 · `flat m. .` → m: 폼이 값 하나가 됐다
@@ -582,6 +582,23 @@ static void mx_infer_sizes(mx_t *c, low_cst_t *parent, proven_size_t s, proven_s
 // parent 의 자식 [s, *e) 가 값 하나다: 잎 하나이거나, 머리와 인자들의 평평한 호출. 옮겨 적으면 *e 가 바뀐다.
 static void mx_run(mx_t *c, low_cst_t *parent, proven_size_t s, proven_size_t *e, bool whole_ok) {
     if (s >= *e) return;
+    // ★ 2026-11-20 (W-20261120-1549 · RFC-0159 §9-12) — `dyn <받는 값> <op>. <인자>* .` 는 처리기가 지은 고르는 op `<트레이트>__object.<op>` 을
+    //   받는 값과 인자로 부르는 것이다(옮겨 적기는 이 걸음 뒤에 돈다). 머리를 op 이름으로 · 인자를 [받는 값, 나머지] 로 보고 서명과 견준다 —
+    //   그래야 `matrix` 를 받는 트레이트 op 에 행렬을 통째로 넘길 수 있다(전엔 E-MATRIX-USE).
+    //   `method <받는 값> <op>. <인자>* .` 도 꼴이 같다 — 전엔 머리를 `method` 로 읽어 «matrix 를 받지 않는 op» 이라 거절했다(dyn 과 함께 고쳤다).
+    if (mx_atom(parent->kids[s]) && (parent->kids[s]->tok.kw == LOW_KW_DYN || mx_is(parent->kids[s], "method")) && s + 2 < *e && mx_atom(parent->kids[s + 2])) {
+        low_cst_t *args[MX_MAXP]; proven_size_t na = 0;
+        bool am[MX_MAXP] = { false }; mx_shape_t as[MX_MAXP];
+        for (proven_size_t i = s + 1; i < *e && na < MX_MAXP; i++) {
+            if (i == s + 2) continue;                         // op 이름
+            am[na] = mx_is_matrix(c, parent->kids[i], &as[na]);
+            args[na++] = parent->kids[i];
+        }
+        for (proven_size_t i = s + 1; i < *e; i++) if (i != s + 2 && !mx_is_matrix(c, parent->kids[i], NULL)) mx_expr(c, &parent->kids[i]);
+        if (c->failed) return;
+        mx_check_call(c, parent->kids[s + 2], args, na, am, as);
+        return;
+    }
     // 구조체 리터럴 `lit <이름> do … end` 은 칸마다 본다
     if (mx_atom(parent->kids[s]) && parent->kids[s]->tok.kw == LOW_KW_LIT && s + 1 < *e && parent->kids[s + 1]->kind == LOW_CST_FORM &&
         parent->kids[s + 1]->nkids >= 2 && mx_name(parent->kids[s + 1]->kids[0]) &&
@@ -873,7 +890,7 @@ static void mx_stmt(mx_t *c, low_cst_t *f) {
             mx_expr(c, &f->kids[1]);
         }
         s = 2;
-    } else if (kw == LOW_KW_NONE && mx_atom(h)) s = 0;   // 문장으로 선 호출
+    } else if ((kw == LOW_KW_NONE || kw == LOW_KW_DYN) && mx_atom(h)) s = 0;   // 문장으로 선 호출(`dyn o. f. m. .` 도 — RFC-0159)
     proven_size_t e = mx_run_end(f, s);
     if (kw == LOW_KW_FOR) { for (proven_size_t i = s; i < e; i++) mx_expr(c, &f->kids[i]); }
     else if (e > s) { proven_size_t e2 = e; mx_run(c, f, s, &e2, false); e = e2; }
@@ -979,6 +996,31 @@ bool low_matrix_lower(low_parse_result_t *pr, proven_allocator_t node_alloc, pro
     for (proven_size_t i = 0; i < pr->nforms; i++) mx_collect(c, pr->forms[i]);
     for (proven_size_t i = 0; i < pr->nforms && !c->failed; i++) mx_struct_fields(c, pr->forms[i]);
     for (proven_size_t i = 0; i < pr->nforms && !c->failed; i++) {
+        // ★ 2026-11-20 (W-20261120-1549 · RFC-0159 §9-12) — 트레이트 블록의 줄은 서명이지 부름이 아니다. 문장으로 걸어 `tot input s self . input m matrix …` 를
+        //   `tot` 의 부름으로 읽고 E-MATRIX-SHAPE 로 거절했다 — 트레이트 서명에 `matrix` 입력을 둘 수 없었다.
+        low_cst_t *tf = pr->forms[i];
+        if (tf && tf->kind == LOW_CST_FORM && tf->nkids && mx_atom(tf->kids[0]) && tf->kids[0]->tok.kw == LOW_KW_TRAIT) {
+            // 서명의 `input <이름> matrix <원소> <k> <크기 k 개>` 는 op 머리와 같은 꼴 `slice <원소>` 로 적는다(길이 계약은 갖춘 타입의 op 이 진다)
+            low_cst_t *blk = tf->kids[tf->nkids - 1];
+            for (proven_size_t j = 0; blk && blk->kind == LOW_CST_BLOCK && j < blk->nkids; j++) {
+                low_cst_t *sg = blk->kids[j];
+                if (!sg || sg->kind != LOW_CST_FORM) continue;
+                for (proven_size_t z = 2; z + 2 < sg->nkids; z++) {
+                    unsigned long long kk = 0;
+                    if (!(mx_is(sg->kids[z - 2], "input") && mx_is(sg->kids[z], "matrix") && mx_atom(sg->kids[z + 1]) && mx_num(sg->kids[z + 2], &kk))) continue;
+                    if (z + 3 + kk > sg->nkids) continue;
+                    low_cst_t **nk = (low_cst_t **)mx_alloc(c, sizeof(low_cst_t *) * sg->nkids);
+                    if (!nk) continue;
+                    proven_size_t m = 0;
+                    for (proven_size_t q = 0; q < sg->nkids; q++) {
+                        if (q > z + 1 && q < z + 3 + kk) continue;      // k 와 크기들을 뗀다
+                        nk[m++] = q == z ? mx_word(c, sg->kids[q], "slice") : sg->kids[q];
+                    }
+                    (void)low_refit(&c->p, sg, nk, m);
+                }
+            }
+            continue;
+        }
         low_tyctx_form(c->tyc, pr->forms[i]);
         c->nenv = 0; c->cur = NULL;
         mx_stmt(c, pr->forms[i]);

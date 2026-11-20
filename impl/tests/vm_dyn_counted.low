@@ -1,0 +1,36 @@
+rem ★★ RFC-0159 §9-12 (2026-11-20 · W-20261120-1549) — 개수를 받는 타입을 트레이트 서명에: `array 3 u8` · `matrix 2 2 3 u32`.
+rem   전엔 트레이트 서명에 둘 수 없었다(`array` 는 E-TYPE-ARRAY · `matrix` 는 서명 줄을 부름으로 읽어 E-MATRIX-SHAPE). 서명은 op 머리와 같은 꼴
+rem   `slice <원소>` 로 적히고 길이 계약은 갖춘 타입의 op 이 진다. `method` 로 `matrix` 를 넘기는 것도 함께 열었다.
+module vm_dyn_counted .
+trait k do
+  pick input s self . input t array 3 u8 . output u64 .
+  tot input s self . input m matrix 2 2 3 u32 . output u64 .
+end .
+struct r do
+  satisfies k .
+  w u64 .
+end .
+struct q do
+  satisfies k .
+  z u32 .
+end .
+fn r.pick input s r . input t array 3 u8 . output u64 . do return add field s. w . cast u64 idx t. 0 . . . . end .
+fn q.pick input s q . input t array 3 u8 . output u64 . do return cast u64 idx t. 2 . . . end .
+fn r.tot input s r . input m matrix 2 2 3 u32 . output u64 . do
+  var t u64 field s. w . .
+  repeat i usize dim m. 0 . do
+    for x row m. i. . do set t. add t. widen u64 x. . . . end .
+  end .
+  return t. .
+end .
+fn q.tot input s q . input m matrix 2 2 3 u32 . output u64 . do return widen u64 field s. z . . . end .
+proc both input o object k . input t array 3 u8 . input m matrix 2 2 3 u32 . output u64 . effects dyn . do
+  return add dyn o. pick. t. . dyn o. tot. m. . . .
+end .
+export proc demo input n u64 . output u64 . effects dyn . do
+  var t lit array 3 u8 7 8 9 . .
+  var m lit matrix 2 2 3 u32 1 2 3 4 5 6 . .
+  let x r lit r do w n. . end . .
+  let y q lit q do z 9 . end . .
+  return add add both object k x. . t. m. . both object k y. . t. m. . . method x. tot. m. . . .
+end .

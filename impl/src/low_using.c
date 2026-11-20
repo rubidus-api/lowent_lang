@@ -741,9 +741,34 @@ static void us_walk_op(us_ctx_t *c, low_cst_t *f) {
 }
 
 // ⓪ 고정 길이 입력(`array N T`)을 슬라이스 + 진입 계약으로 바꿔 적는다 — 아래 모든 소비자가 바뀐 머리를 본다
+// ★ 2026-11-20 (W-20261120-1549 · RFC-0159 §9-12) — 트레이트 서명의 입력 `array <타입> <개수>` 도 `slice <타입>` 으로 적는다. 갖춘 타입의 op 은 위에서
+//   `slice` + 길이 계약이 되므로 서명이 `array` 로 남으면 둘이 어긋났다(E-TRAIT-SIG) — 그리고 검사기가 서명의 `array` 를 E-TYPE-ARRAY 로 거절했다.
+//   길이는 서명에 계약으로 둘 수 없다 — 갖춘 타입마다의 op 이 제 입구에서 진다(트레이트로 부르든 `dyn` 으로 부르든 그 op 을 거친다).
+static void us_arrays_trait(us_ctx_t *c, low_cst_t *f) {
+    if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !us_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_TRAIT ||
+        f->kids[f->nkids - 1]->kind != LOW_CST_BLOCK) return;
+    low_cst_t *blk = f->kids[f->nkids - 1];
+    for (proven_size_t j = 0; j < blk->nkids; j++) {
+        low_cst_t *s = blk->kids[j];
+        if (!s || s->kind != LOW_CST_FORM) continue;
+        for (proven_size_t z = 2; z + 2 < s->nkids; z++)
+            if (us_atom(s->kids[z - 2]) && us_eq(s->kids[z - 2]->tok.lex, "input") && us_atom(s->kids[z]) && us_eq(s->kids[z]->tok.lex, "array") &&
+                ((us_atom(s->kids[z + 1]) && !us_is_int_lit(s->kids[z + 1])) || us_row_group(s->kids[z + 1])) && us_is_int_lit(s->kids[z + 2])) {
+                low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * s->nkids, alignof(low_cst_t *)).value.ptr;
+                if (!nk) return;
+                proven_size_t m = 0;
+                for (proven_size_t i = 0; i < s->nkids; i++) {
+                    if (i == z + 2) continue;
+                    nk[m++] = i == z ? us_atom_like(c, s->kids[i], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"slice", .size = 5 }) : s->kids[i];
+                }
+                (void)low_refit(&c->p, s, nk, m);
+            }
+    }
+}
 static void us_arrays_all(us_ctx_t *c, low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         low_cst_t *f = pr->forms[i];
+        us_arrays_trait(c, f);
         us_arrays_one(c, f);
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR &&
             f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {

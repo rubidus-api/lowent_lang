@@ -1,0 +1,47 @@
+rem ★★ RFC-0159 §9-12 (2026-11-20 · W-20261120-1549 · 소유자 «컴퓨터가 효율적으로 처리할 수 있는 방향») — C 경계와 액터에 `object`.
+rem   `object T` 는 크기가 정해진 평범한 구조체라 다른 구조체와 같은 길로 건넌다: C 에는 값으로(머리글 `--emit-h` 에 struct 로 실린다), 액터에는
+rem   메시지 복사로. C 가 넘기는 `object` 는 문에서 태그를 검사한다(처리기가 `requires lt field o. dyn__tag . N .` 를 붙인다 — 없는 번호는 거기서 멈춘다).
+rem   C 가 돌려주는 `object` 는 받지 않는다(E-DYN-FFI · docs/known-defects/ffi-import-struct-return.md).
+module vm_dyn_ffi .
+export trait shape do
+  area input s self . output u64 .
+end .
+export struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+export struct sq do
+  satisfies shape .
+  side u32 .
+end .
+export fn rect.area input s rect . output u64 . do return mul field s. w . field s. h . . . end .
+export fn sq.area input s sq . output u64 . do return cast u64 mul field s. side . field s. side . . . . end .
+rem C 가 부른다 — `object shape` 를 값으로 받는다
+export extern proc area_of input o object shape . output u64 . effects dyn .
+  link "shape_area" .
+do
+  return dyn o. area. . .
+end .
+rem C 가 부른다 — `object shape` 를 값으로 낸다
+export extern fn make_sq input n u32 . output object shape .
+  link "shape_make_sq" .
+do
+  let q sq lit sq do side n. . end . .
+  return object shape q. . .
+end .
+actor acc do
+  state do total u64 . end .
+  proc add_one input o object shape . output void . effects state dyn . do
+    set total. add total. dyn o. area. . . .
+  end .
+  fn get output u64 . do return total. . end .
+end .
+export proc demo input n u64 . output u64 . effects dyn state . do
+  let a acc spawn actor acc . .
+  let r rect lit rect do w 2 . h n. . end . .
+  send a. add_one object shape r. . .
+  send a. add_one make_sq 4 . .
+  let x u64 send a. get. .
+  return add x. area_of make_sq 3 . . . .
+end .

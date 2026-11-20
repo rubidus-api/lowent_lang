@@ -295,7 +295,8 @@ let back u8 narrow u8 wide. . .")
     ]
     #para("1b")[
       An op input `input x array n t .` means that it takes a `slice t` of length exactly `n`, and that length is
-      #strong[checked at entry];, like `requires eq len x. . n. . .`.
+      #strong[checked at entry];, like `requires eq len x. . n. . .`. It may also be written in an input of a trait signature (#cref("6.11")) — the signature
+      reads as `slice t`, and each type that satisfies the trait checks the length at the entry of its own op.
     ]
     #para("1b-1")[
       The length position of an input may use an `input comptime <name> usize .` of the same op — `fn total input comptime n usize . input a array n u8 .`.
@@ -465,6 +466,10 @@ end .", "E-TYPE-ORDER")
       The number of array elements shall equal `n`. If there are fewer, a `_` shall be written at the #strong[end]; of the list to say «the remaining slots are 0»;
       if there are more, or `_` is somewhere other than the end, or a slice list has `_`, it is refused (`E-LIT-COUNT`). Slots are not filled
       silently.
+    ]
+    #para("6a-1")[
+      A slice list with no elements, `lit slice t .`, is the #strong[empty slice]; — its length is 0 and its start points at one read-only place
+      (not null — it may be passed to C). The same holds when the element type is a struct. There is no empty array list (`lit array n t _ .` is slots of zero).
     ]
     #para("6b")[
       Each element shall fit `t` — a negative number does not fit an unsigned `t` either (`E-TYPE-WIDTH`). `bool` elements are only
@@ -701,7 +706,7 @@ end .", "E-LIT-COUNT")
       of elements, and reading that pointer as `t (*)[d2]…[dk]` points at the same slots.
     ]
     #para("3")[
-      A `matrix` type is written #strong[in places that make a name]; — the type of `let` · `var`, an op's `input` and `output`, a struct field. It cannot be written
+      A `matrix` type is written #strong[in places that make a name]; — the type of `let` · `var`, an op's `input` and `output`, an `input` of a trait signature, a struct field. It cannot be written
       as the element of another type, as a type argument or in the place of an alias (`E-MATRIX-USE`).
     ]
     #para("3a")[
@@ -763,7 +768,7 @@ end .", "E-LIT-COUNT")
       elements with `for x flat m. . do … end .`.
     ]
     #para("9")[
-      The places where a `matrix` name can be written whole are the first argument of `idx` · `row` · `dim` · `flat` · `face`, an argument of an op with an input of the same shape,
+      The places where a `matrix` name can be written whole are the first argument of `idx` · `row` · `dim` · `flat` · `face`, an argument of an op with an input of the same shape (called through `method` or `dyn` too),
       and the `return` of an op with a result of the same shape. Other places are refused (`E-MATRIX-USE`). Arguments and inputs, and the type of a binding
       and the result of the op called, shall agree in both number of dimensions and sizes (`E-MATRIX-SHAPE`).
     ]

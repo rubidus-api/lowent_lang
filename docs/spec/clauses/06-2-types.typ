@@ -296,7 +296,8 @@ let back u8 narrow u8 wide. . .")
     ]
     #para("1b")[
       op 의 입력 `input x array n t .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
-      `requires eq len x. . n. . .` 과 같이 #strong[진입에서 검사된다];.
+      `requires eq len x. . n. . .` 과 같이 #strong[진입에서 검사된다];. 트레이트 서명(#cref("6.11"))의 입력에도 적을 수 있다 — 서명은 `slice t` 로
+      읽히고, 길이는 그 트레이트를 갖춘 타입의 op 이 저마다 진입에서 검사한다.
     ]
     #para("1b-1")[
       입력의 길이 자리에 같은 op 의 `input comptime <이름> usize .` 를 쓸 수 있다 — `fn total input comptime n usize . input a array n u8 .`.
@@ -465,6 +466,10 @@ end .", "E-TYPE-ORDER")
       배열의 원소 수는 `n` 과 같아야 한다. 모자라면 나열의 #strong[끝];에 `_` 를 적어 «나머지 칸은 0» 이라고 말해야 하며,
       넘치거나 `_` 가 끝이 아닌 자리에 있거나 슬라이스 나열에 `_` 가 있으면 거부된다(`E-LIT-COUNT`). 칸은 말없이
       채워지지 않는다.
+    ]
+    #para("6a-1")[
+      원소가 하나도 없는 슬라이스 나열 `lit slice t .` 는 #strong[빈 조각];이다 — 길이는 0 이고, 시작점은 읽기 전용 자리 하나를 가리킨다
+      (널이 아니다 — C 로 넘겨도 된다). 원소 타입이 구조체여도 같다. 빈 배열 나열은 없다(`lit array n t _ .` 이 0 인 칸들이다).
     ]
     #para("6b")[
       각 원소는 `t` 에 들어가야 한다 — 부호 없는 `t` 에 음수도 들어가지 않는다(`E-TYPE-WIDTH`). `bool` 원소는
@@ -702,7 +707,7 @@ end .", "E-LIT-COUNT")
       받고, 그 포인터를 `t (*)[d2]…[dk]` 로 읽어 같은 칸을 가리킨다.
     ]
     #para("3")[
-      `matrix` 타입은 #strong[이름을 짓는 자리];에 적는다 — `let` · `var` 의 타입, op 의 `input` 과 `output`, 구조체의 칸. 다른
+      `matrix` 타입은 #strong[이름을 짓는 자리];에 적는다 — `let` · `var` 의 타입, op 의 `input` 과 `output`, 트레이트 서명의 `input`, 구조체의 칸. 다른
       타입의 원소, 타입 인자, 별칭의 자리에는 적지 못한다(`E-MATRIX-USE`).
     ]
     #para("3a")[
@@ -764,7 +769,7 @@ end .", "E-LIT-COUNT")
       것은 `for x flat m. . do … end .` 로 적는다.
     ]
     #para("9")[
-      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` · `face` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자,
+      `matrix` 이름을 통째로 적을 수 있는 자리는 `idx` · `row` · `dim` · `flat` · `face` 의 첫 인자, 같은 모양의 입력을 가진 op 의 인자(`method` · `dyn` 으로 부른 것도),
       같은 모양의 결과를 가진 op 의 `return` 이다. 그 밖의 자리는 거부된다(`E-MATRIX-USE`). 인자와 입력, 바인딩의
       타입과 부른 op 의 결과는 차원 수와 크기가 모두 같아야 한다(`E-MATRIX-SHAPE`).
     ]

@@ -8214,7 +8214,7 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                  : "fewer elements than the array's length — end the list with `_` to say «the rest are zero»; "
                    "cells are never filled silently", ln);
         }
-        if (!is_array && cnt == 0) emit(out, "E-LIT-COUNT", "an empty slice literal says nothing — a slice literal lists at least one element", ln);
+        // ★ 2026-11-20 (W-20261120-1549 · 소유자 «빈 슬라이스는 시작점만을 찍고 길이를 0으로») — `lit slice t .` 는 빈 조각이다(길이 0). 전엔 E-LIT-COUNT.
         return;
     }
     for (proven_size_t j = 0; j < nd->nkids; j++) ck_lit_walk(out, nd->kids[j]);

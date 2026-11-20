@@ -1,0 +1,30 @@
+rem ★★ 빈 슬라이스 리터럴 `lit slice <타입> .` (2026-11-20 · W-20261120-1549 · 소유자 «빈 슬라이스는 시작점만을 찍고 길이를 0으로») — 전엔 E-LIT-COUNT.
+rem   길이 0 · 시작점은 상수 풀의 한 자리(NULL 이 아니다 — C 로 넘겨도 된다). 구조체 칸 · 구조체 원소의 빈 조각도. 세 길이 같은 답(10).
+module vm_emptyslice .
+struct pt do
+  x u32 .
+  y u32 .
+end .
+struct sv do
+  n u64 .
+  b slice u8 .
+end .
+fn cnt input xs slice u8 . output u64 . do
+  var s u64 cast u64 len xs. . . .
+  for x xs. do set s. add s. cast u64 x. . . . end .
+  return s. .
+end .
+export fn d input n u64 . output u64 . do
+  let e slice u8 lit slice u8 . .
+  let f slice f64 lit slice f64 . .
+  let p slice pt lit slice pt . .
+  let v sv lit sv do n n. . b lit slice u8 . . end . .
+  let full slice u8 lit slice u8 1 2 . .
+  let w sv lit sv do n 1 . b full. . end . .
+  let a u64 cnt e. . .
+  let b u64 cast u64 len f. . . .
+  let c u64 cast u64 len p. . . .
+  let g u64 cnt field v. b . . .
+  let h u64 cnt field w. b . . .
+  return add add a. b. . add add c. g. . add h. n. . . . .
+end .

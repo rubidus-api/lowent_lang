@@ -1,0 +1,54 @@
+rem ★★ RFC-0159 §9-14 (2026-11-20 · W-20261120-1549) — 갖춘 타입의 슬라이스 칸. 남의 칸은 빈 슬라이스(`lit slice u8 .` · 시작점과 길이 0)로 채운다.
+rem   다른 모듈 · 구조체 칸도 함께. 두 뒤끝이 같은 답(217).
+module a .
+export trait shape do
+  area input s self . output u64 .
+  pick input s self . input t vec 4 u32 . output u64 .
+end .
+
+module b .
+use a .
+export struct pt do
+  x u32 .
+  y u32 .
+end .
+export struct rect do
+  satisfies a.shape .
+  at pt .
+  w u64 .
+  h u64 .
+end .
+export fn rect.area input s rect . output u64 . do return add mul field s. w . field s. h . . cast u64 field s. at x . . . . end .
+export fn rect.pick input s rect . input t vec 4 u32 . output u64 . do return cast u64 reduce_add t. . . . end .
+
+module c .
+use a .
+export struct bag do
+  satisfies a.shape .
+  bytes slice u8 .
+end .
+export fn bag.area input s bag . output u64 . do
+  var n u64 cast u64 len field s. bytes . . . .
+  return n. .
+end .
+export fn bag.pick input s bag . input t vec 4 u32 . output u64 . do return add 1 cast u64 reduce_add t. . . . . end .
+
+module app .
+use a .
+use b .
+use c .
+proc total input xs slice object a.shape . output u64 . effects dyn . do
+  var s u64 0 .
+  for o xs. do set s. add s. dyn o. area. . . . end .
+  return s. .
+end .
+export proc demo input n u64 . output u64 . effects dyn . do
+  let r b.rect lit b.rect do at lit b.pt do x 7 . y 0 . end . . w 2 . h n. . end . .
+  let bs slice u8 lit slice u8 1 2 3 . .
+  let g c.bag lit c.bag do bytes bs. . end . .
+  let xs slice object a.shape lit slice object a.shape object a.shape r. . object a.shape g. . . .
+  let t vec 4 u32 lit vec 4 u32 10 20 30 40 . .
+  var s u64 total xs. . .
+  for o xs. do set s. add s. dyn o. pick. t. . . . end .
+  return s. .
+end .

@@ -1,0 +1,56 @@
+rem ★★ RFC-0159 §9-12 · §9-14 (2026-11-20 · W-20261120-1549 · 소유자 «쓰는 모듈이 불러온다») — 갖춘 타입이 다른 모듈에 있다.
+rem   `object a.shape` 를 쓰는 모듈 `app` 이 트레이트의 모듈 `a` 와 갖춘 타입의 모듈 `b` · `c` 를 모두 `use` 한다(C 의 #include 처럼) — 표는 `app` 에 지어진다.
+rem   칸: `rect` 의 `at` 은 구조체(펴서 `v0__at__x` · `v0__at__y`) · `bag` 의 `tag` 는 `array 4 u8`. 서명에 `vec 4 u32`. 두 뒤끝이 같은 답(218).
+module a .
+export trait shape do
+  area input s self . output u64 .
+  pick input s self . input t vec 4 u32 . output u64 .
+end .
+
+module b .
+use a .
+export struct pt do
+  x u32 .
+  y u32 .
+end .
+export struct rect do
+  satisfies a.shape .
+  at pt .
+  w u64 .
+  h u64 .
+end .
+export fn rect.area input s rect . output u64 . do return add mul field s. w . field s. h . . cast u64 field s. at x . . . . end .
+export fn rect.pick input s rect . input t vec 4 u32 . output u64 . do return cast u64 reduce_add t. . . . end .
+
+module c .
+use a .
+export struct bag do
+  satisfies a.shape .
+  tag array 4 u8 .
+end .
+export fn bag.area input s bag . output u64 . do
+  var n u64 0 .
+  for v field s. tag . do set n. add n. cast u64 v. . . . end .
+  return n. .
+end .
+export fn bag.pick input s bag . input t vec 4 u32 . output u64 . do return add 1 cast u64 reduce_add t. . . . . end .
+
+module app .
+use a .
+use b .
+use c .
+proc total input xs slice object a.shape . output u64 . effects dyn . do
+  var s u64 0 .
+  for o xs. do set s. add s. dyn o. area. . . . end .
+  return s. .
+end .
+export proc demo input n u64 . output u64 . effects dyn . do
+  let r b.rect lit b.rect do at lit b.pt do x 7 . y 0 . end . . w 2 . h n. . end . .
+  let bs slice u8 lit slice u8 1 2 3 . .
+  let g c.bag lit c.bag do tag lit array 4 u8 1 1 1 1 . . end . .
+  let xs slice object a.shape lit slice object a.shape object a.shape r. . object a.shape g. . . .
+  let t vec 4 u32 lit vec 4 u32 10 20 30 40 . .
+  var s u64 total xs. . .
+  for o xs. do set s. add s. dyn o. pick. t. . . . end .
+  return s. .
+end .

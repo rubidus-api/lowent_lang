@@ -269,7 +269,7 @@ end .", "E-METHOD-UNDEF")
   #sub("6.11.5", "Choosing at run time — `object` and `dyn`")[
     #para("1")[
       A value of type `object <trait>` holds a value of #strong[any type]; that satisfies the trait with `satisfies`. Which type it is is decided by the value at run time,
-      and the processor does not know it when it translates. The value is made with `object <trait> <value> .` — it #strong[copies]; that value in.
+      and the processor does not know it when it translates. The value is made with `object <trait> <value> .` — it #strong[copies]; that value in (it does not point at the original · owner 2026-11-20 — there is no borrowing form).
       The type of `<value>` must be written: a name with a written type, or `lit <type> …` (the type is never guessed · `E-DYN-LIT`).
       If that type does not satisfy the trait, it is `E-DYN-NOTSAT`.
     ]
@@ -286,21 +286,31 @@ end .", "E-METHOD-UNDEF")
       A trait that can be used with `object` must keep the following for every op — otherwise it is `E-DYN-TRAIT`.
       - The first input is `self` (the value the choice is made by). `self` does not appear in the other inputs or the output — its size is settled only at run time.
       - There is no `comptime` input, and no `via self` in the effects line.
-      - The other inputs and the output have types that take no count — like `u64` · `slice u8` · `mut slice u8` · `option u64`.
-      `array` · `vec` · `matrix`, which take a count, are outside the limits of this version.
+      - The other inputs and the output have types that an op's inputs and output may have — `u64` · `slice u8` · `mut slice u8` · `option u64` · `vec 4 u32`, and in an input
+      also `array 3 u8` · `matrix 2 2 3 u32` (#cref("6.2.6") (1b) · #cref("6.2") matrix (3)). The length and shape are checked at the entry of each satisfying type's op.
     ]
     #para("5")[
-      If no type satisfies the trait, it is `E-DYN-NOIMPL`. In this version the types that satisfy it must be in the trait's own module (`E-DYN-MODULE`).
+      If no type satisfies the trait, it is `E-DYN-NOIMPL`. The satisfying types #strong[may be in any module]; — but a module that uses `object <trait>` must `use`
+      the trait's module and every satisfying type's module (as C includes headers · modules may `use` each other). The processor builds the table in a module that sees
+      them all — the trait's module if it does, else the first module that uses `object`. If a module is not brought in, or another module that uses `object` does not
+      `use` the module the table is built in, it is `E-DYN-MODULE` (it says what to `use`).
       There is no way to get the original type back from a value of `object <trait>` — its fields cannot be read with `field` (`E-DYN-FORM`).
       If the shape of `dyn` or `object` is wrong (no stop after the op name · two values), it is `E-DYN-FORM`. The processor gives the type of those values the name
-      `<trait>__object`, so if the author makes the same name it is `E-DYN-NAME`. An op that crosses to C (`link` · `extern`) does not take or give `object` (`E-DYN-FFI`),
-      and neither does an actor's handler (`E-DYN-ACTOR`) — the limits of this version.
+      `<trait>__object`, so if the author makes the same name it is `E-DYN-NAME`.
+    ]
+    #para("5a")[
+      `object <trait>` crosses the C boundary and actors #strong[the same way as any other struct]; — to C by value (fields in order · it appears in the header as a struct),
+      to an actor as a copy in the message. Choosing (`dyn`) happens only on this side. An `object` input of an op C calls #strong[has its number checked at entry]; —
+      the processor adds a `requires`, and a number that is no satisfying type stops there. A C function we call cannot give back an `object` (`E-DYN-FFI`) —
+      there is no way yet to check its number at the exit. To have C fill one, pass a value made on this side.
     ]
     #para("6")[
       `object <trait>` is a #strong[value type]; with a fixed size. Its value holds the number of the type it holds and the fields of #strong[all]; the types that
       satisfy the trait side by side — its size is that of a struct holding the number and those fields side by side — the sum of the fields plus the number and alignment padding, not the largest such type. So, like a struct, it can be an element of a list
       literal (#cref("6.2.6") (6) · `lit slice object <trait> … .` · `lit array <n> object <trait> … .`), and when `for` walks such a list the element's name is `object <trait>` too.
-      In this version every field of a type that satisfies the trait is a one-word sized number, float or `bool` — the other types' fields must be filled with zero (`E-DYN-FIELD`).
+      The other types' fields are filled with zero, so every field of a satisfying type must be one zero can be written for: a sized number, float or `bool` (0 · `0.0` · `false`),
+      `array <n> <number>` (`_`), `slice <type>` (the empty slice · #cref("6.2.6") (6a-1)), and structs of such fields (flattened side by side). An enum, `owned` or reference field
+      is `E-DYN-FIELD`. A value holding both a slice field and an array field cannot go into a list — as a list of structs cannot hold the two together (#cref("6.2.6") (6)).
     ]
     #plain[
       Calling through a trait bound (#cref("6.11.2")) has the processor build the op separately for each type at translation, with no indirect call — the fastest.

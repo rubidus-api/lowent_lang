@@ -8,11 +8,8 @@ rem   `lib/regex.low` 는 **1,284 줄**인데 자기 픽스처(`vm_regex.low`)�
 rem   *이 op 이 도는가*를 묻고, 실물 프로그램은 **이 API 로 일을 할 수 있는가**를 묻는다 —
 rem   그리고 이 저장소에서 API 결함을 가장 싸게 드러낸 것은 언제나 후자였다.
 rem
-rem ★★ **그리고 그 물음이 곧바로 답을 냈다.** 픽스처는 스크래치 버퍼(prog·st·clist·nlist·
-rem   marks·cstart·nstart)를 **전부 파라미터로** 받는다 — 차등 퍼저가 넣어 주니까. 실물
-rem   프로그램에는 넣어 줄 사람이 없다: **일곱 개를 직접 할당해야 한다.** 그것이 이 API 의
-rem   실제 사용감이고, 픽스처만 봐서는 보이지 않던 것이다.
-rem   ☞ 여기서는 바이트 버퍼 하나를 `view_array u64` 로 재해석해 나눠 쓴다(무복사).
+rem The program buffer and five search buffers are reused for every line.
+rem compile_checked keeps its parser state on the stack.
 rem
 rem ★★ 쓰는 것: `regex`(패턴) · `utf8`(입력이 정말 UTF-8 인가) · `files`(읽기) · `io`(줄 나누기)
 rem   · `fmt`(조립) · `allocs`(버퍼). 앞의 둘이 이 프로그램이 새로 데려온 모듈이다.
@@ -59,16 +56,11 @@ do
   rem   **거절하는 것이 조용히 이상하게 도는 것보다 낫다.**
   guard utf8.is_valid pat. . else return 65 . .
 
-  rem ── 스크래치 일곱 개. 바이트 버퍼 하나를 잡아 u64 로 재해석해 나눈다(무복사).
+  rem Allocate the program and five matcher buffers.
   let gp option mut slice u8 alloc_bytes al. capacity 4096 . .
   guard is_some gp. . else return 70 . .
   let progb mut slice u8 some_value gp. . .
   let prog mut slice u64 view_array u64 progb. . .
-
-  let gs option mut slice u8 alloc_bytes al. capacity 4096 . .
-  guard is_some gs. . else return 70 . .
-  let stb mut slice u8 some_value gs. . .
-  let st mut slice u64 view_array u64 stb. . .
 
   let g1 option mut slice u8 alloc_bytes al. capacity 2048 . .
   guard is_some g1. . else return 70 . .
@@ -95,9 +87,11 @@ do
   let b5 mut slice u8 some_value g5. . .
   let ns mut slice u64 view_array u64 b5. . .
 
-  rem ★ 컴파일 실패는 **사용자의 오류**다(자원 부족과 구별한다 — 종료 코드가 그 말을 한다).
-  let cn option u64 regex.compile pat. prog. st. . .
-  guard is_some cn. . else return 66 . .
+  match regex.compile_checked pat. prog. . do
+    case ok n do end .
+    case error invalid_pattern do return 66 . end .
+    case error program_too_small do return 70 . end .
+  end .
 
   rem ── 파일을 통째로 읽고 줄로 나눈다(`io.mem_reader` 는 이미 검증된 프레이밍이다).
   let gtx option mut slice u8 alloc_bytes al. capacity 8192 . .

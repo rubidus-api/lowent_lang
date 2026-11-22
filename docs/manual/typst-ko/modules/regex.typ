@@ -10,13 +10,12 @@
 ```lowent
 use regex as rx .
 
-let n option u64 rx.compile "a{2,4}b" prog. st. . .
-guard is_some n. . else return 1 . .
+let n result u64 rx.compile_error rx.compile_checked "a{2,4}b" prog. . .
+guard is_ok n. . else return 1 . .
 let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 ```
 
-프로그램(`slice u64`)도, 컴파일러 상태도, 매처의 작업 공간도 모두 호출자의 슬라이스다. 그래서 `effects none` 이고 숨은 할당이 없으며 재진입이 공짜이고 VM·
-네이티브 대조 안에서 돈다.
+호출자는 프로그램 버퍼와 매칭 작업 공간을 넘긴다. `compile_checked`는 파서 상태 다섯 칸을 스택에 둔다.
 
 *왜 Pike VM 이 안전한가.* 흔한 정규식 엔진은 *역추적* 방식이다. 갈림길(`|`·`*`)에서 한 길을 끝까지 가 보고 막히면 되돌아와 다른 길을 간다. 갈림길이 겹겹이
 겹치면 시도할 길이 2·4·8… 로 불어나고, `(a*)*b` 같은 패턴 하나가 입력 몇십 바이트에 몇 분씩 걸린다 --- 이것이 ReDoS(정규식 서비스 거부)다. Pike VM 은
@@ -39,7 +38,7 @@ let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 근거가 그대로다. 표는 #modref("unicode")[`unicode`] 가 든다. 모르는 속성 이름은 *거절*한다 --- 넓은 표로 대신 답하면 조용히 틀린 매치가 된다.
 
 *짓지 않은 것* --- 클래스 안의 속성(`[\p{L}0-9]`, 클래스는 바이트 비트맵이다), 대소문자 무시(`(?i)`, 폴딩 표가 필요하다), 역참조와 룩어라운드(이것은 짓지 않을 것에
-가깝다 --- 그 순간 선형성이 죽는다). 잘못된 패턴과 모자란 버퍼는 모두 *값으로*(`none`) 거절된다.
+가깝다 --- 그 순간 선형성이 죽는다).
 
 == 자료구조
 
@@ -66,7 +65,7 @@ let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 속성 코드는 0=L · 1=N · 2=P · 3=Z · 4=M · 5=Lu · 6=Ll · 7=Nd · 8=Lt · 9=Lm · 10=Lo · 11=Nl · 12=No 이고, *부정은 +16* 이다(`\P{L}` = 16). 부정 자리를 넉넉히 잡아
 둔 덕에 표가 8 개에서 13 개로 늘 때 인코딩이 한 비트도 바뀌지 않았다.
 
-*컴파일러 상태* `st` 는 네 칸(명령 수 · 클래스 수 · 패턴 위치 · 실패 표시)이고 `compile` 이 초기화하므로 길이 4 이상만 보장하면 된다. *매처 스크래치*는 현재·다음
+인자 셋을 받는 `compile`의 상태 버퍼 `st`는 `u64` 다섯 칸 이상이어야 한다. 다섯째 칸은 캡처 그룹 수를 센다. *매처 스크래치*는 현재·다음
 스레드 목록 `clist`·`nlist` 와 중복 방지 도장 `marks`, 그리고 `search` 가 더 받는 시작 위치 배열 `cstart`·`nstart` 다. 모두 `slice u64` 이고 각각 *길이가 명령 수
 이상*이어야 한다.
 
@@ -77,6 +76,7 @@ let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
   id: "mod-regex-ops",
   caption: [`regex` 의 op --- 모두 `effects none`],
   [*op*], [*시그니처*], [*안 될 때*],
+  [`compile_checked`], [`proc (pat slice u8, prog mut slice u64) → result u64 compile_error`], [`invalid_pattern` 또는 `program_too_small`],
   [`compile`], [`proc (pat slice u8, prog mut slice u64, st mut slice u64) → option u64`], [문법 오류나 버퍼 부족이면 `none`],
   [`match_at`], [`proc (prog slice u64, s slice u8, at usize, clist, nlist, marks) → option usize`], [매치 없음 · 빈 프로그램 · 스크래치 부족이면 `none`],
   [`find`], [`proc (prog slice u64, s slice u8, clist, nlist, marks) → option usize`], [어디에도 매치가 없으면 `none`],
@@ -89,7 +89,9 @@ let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 
 == op 상세
 
-- *`compile pat prog st`* --- `len prog ≥ 8`·`len st ≥ 4` 여야 한다. 성공하면 `some <명령 수>` 이고, 이 값이 곧 매처 스크래치의 최소 길이다. 닫히지 않은
+`compile_checked`는 성공하면 명령 수를 돌려준다. `program_too_small`이면 더 큰 프로그램 버퍼로 다시 시도한다. `invalid_pattern`이면 패턴을 고친다. 컴파일이 성공한 뒤에만 프로그램을 매칭에 쓴다.
+
+- *`compile pat prog st`* --- `len prog ≥ 8`·`len st ≥ 5` 여야 한다. 성공하면 `some <명령 수>` 이고, 이 값이 곧 매처 스크래치의 최소 길이다. 닫히지 않은
   그룹 `(ab`, 원자 자리에 온 `) | * + ?`, 닫히지 않은 `[…]`, 뒤집힌 범위 `[z-a]`, 패턴 끝의 홀로 선 `\`, 잘못된 셈(`a{4,2}`·`a{}`·`a{2`·64 초과), 코드와 비트맵이
   만남(버퍼 부족)이면 `none`. 빈 패턴은 유효하다 --- `MATCH` 하나로 컴파일되어 어디서나 빈 매치다.
 - *`match_at prog s at clist nlist marks`* --- `at` 에서 시작하는 매치의 *가장 긴 끝*(탐욕)을 `some end`(끝은 배타적)로 준다. 시작점이 물음의 일부라 `at` 을 받는다.
@@ -176,7 +178,7 @@ do
 end .
 ```
 
-호출자는 예컨대 `prog` 32 칸, `st` 4 칸, `cl`·`nl`·`mk`(`search` 를 쓰면 `cs`·`ns` 까지) 각 32 칸을 마련한다 --- `compile` 이 돌려준 명령 수보다 크면 된다. `{m,n}` 은
+호출자는 예컨대 `prog` 32 칸, `st` 5 칸, `cl`·`nl`·`mk`(`search` 를 쓰면 `cs`·`ns` 까지) 각 32 칸을 마련한다 --- `compile` 이 돌려준 명령 수보다 크면 된다. `{m,n}` 은
 펼쳐지므로 명령 수가 반복 횟수만큼 는다.
 
 역추적 엔진이라면 `(a*)*b` 에 `a` 64 개를 주면 2#super[64] 갈래를 헤매지만, Pike VM 은 스레드 목록이라 선형으로 끝난다.

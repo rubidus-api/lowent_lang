@@ -10,13 +10,12 @@ Checks and finds *what shape* a string has. Use it for input validation (did onl
 ```lowent
 use regex as rx .
 
-let n option u64 rx.compile "a{2,4}b" prog. st. . .
-guard is_some n. . else return 1 . .
+let n result u64 rx.compile_error rx.compile_checked "a{2,4}b" prog. . .
+guard is_ok n. . else return 1 . .
 let m option usize rx.match_at prog. "aaab" 0 cl. nl. mk. . .
 ```
 
-The program (`slice u64`), the compiler state and the matcher's workspace are all the caller's slices. So it is `effects none` with no hidden allocation, reentrancy
-is free, and it runs inside the VM/native cross-check.
+The caller supplies the program buffer and the matcher's workspace. `compile_checked` keeps its five words of parser state on the stack.
 
 *Why a Pike VM is safe.* Common regex engines *backtrack*. At a fork (`|`, `*`) they follow one path to the end and come back to try another when stuck. When forks
 nest, paths to try multiply 2, 4, 8…, and one pattern like `(a*)*b` can take minutes on a few dozen bytes of input --- that is ReDoS (regular expression denial of
@@ -42,7 +41,7 @@ self-synchronising and can be read backwards, and the check consumes no bytes, s
 Unknown property names are *rejected* --- answering with a broader table would be a silently wrong match.
 
 *Not built* --- properties inside classes (`[\p{L}0-9]`; classes are byte bitmaps), case-insensitive matching (`(?i)`; needs folding tables), and backreferences and
-lookaround (closer to never being built --- linearity dies the moment they arrive). Invalid patterns and short buffers are all rejected *as values* (`none`).
+lookaround (closer to never being built --- linearity dies the moment they arrive).
 
 == Data structures
 
@@ -69,8 +68,7 @@ bitmap of class k is at `prog[len − 4·(k+1) .. len − 4·k)`.
 Property codes are 0=L · 1=N · 2=P · 3=Z · 4=M · 5=Lu · 6=Ll · 7=Nd · 8=Lt · 9=Lm · 10=Lo · 11=Nl · 12=No, and *negation adds 16* (`\P{L}` = 16). Because the
 negation offset was generous, the encoding did not change by a single bit when the tables grew from 8 to 13.
 
-*Compiler state* `st` is four slots (instruction count · class count · pattern position · failure flag), initialised by `compile`, so only length 4 or more must be
-ensured. *Matcher scratch* is the current and next thread lists `clist` and `nlist`, the deduplication stamps `marks`, and the start position arrays `cstart` and `nstart`
+The three-argument `compile` takes a state buffer `st` of at least five `u64` words. The fifth word counts capture groups. *Matcher scratch* is the current and next thread lists `clist` and `nlist`, the deduplication stamps `marks`, and the start position arrays `cstart` and `nstart`
 that `search` also takes. All are `slice u64`, each *at least the instruction count long*.
 
 == Ops at a glance
@@ -80,6 +78,7 @@ that `search` also takes. All are `slice u64`, each *at least the instruction co
   id: "mod-regex-ops",
   caption: [Ops of `regex` --- all `effects none`],
   [*op*], [*Signature*], [*When it cannot*],
+  [`compile_checked`], [`proc (pat slice u8, prog mut slice u64) → result u64 compile_error`], [`invalid_pattern` or `program_too_small`],
   [`compile`], [`proc (pat slice u8, prog mut slice u64, st mut slice u64) → option u64`], [`none` on syntax error or short buffer],
   [`match_at`], [`proc (prog slice u64, s slice u8, at usize, clist, nlist, marks) → option usize`], [`none` for no match · empty program · short scratch],
   [`find`], [`proc (prog slice u64, s slice u8, clist, nlist, marks) → option usize`], [`none` if no match anywhere],
@@ -92,7 +91,9 @@ Names starting with `rx_` are compiler and matcher internals, invisible from out
 
 == Ops in detail
 
-- *`compile pat prog st`* --- needs `len prog ≥ 8` and `len st ≥ 4`. Success gives `some <instruction count>`, which is the minimum length for matcher scratch. `none` for
+On success, `compile_checked` returns the instruction count. For `program_too_small`, retry with a larger program buffer. An `invalid_pattern` requires a change to the pattern. Only use the program after a successful compile.
+
+- *`compile pat prog st`* --- needs `len prog ≥ 8` and `len st ≥ 5`. Success gives `some <instruction count>`, which is the minimum length for matcher scratch. `none` for
   an unclosed group `(ab`, `) | * + ?` in atom position, an unclosed `[…]`, a reversed range `[z-a]`, a lone `\` at the end, bad counts (`a{4,2}`, `a{}`, `a{2`, over 64),
   or code meeting bitmaps (buffer too small). The empty pattern is valid --- it compiles to one `MATCH` and matches empty anywhere.
 - *`match_at prog s at clist nlist marks`* --- gives *the longest end* (greedy) of a match starting at `at` as `some end` (exclusive). The start is part of the question, so
@@ -180,7 +181,7 @@ do
 end .
 ```
 
-The caller provides, for example, `prog` of 32 slots, `st` of 4, and `cl`, `nl`, `mk` (and `cs`, `ns` for `search`) of 32 each --- anything above the instruction count
+The caller provides, for example, `prog` of 32 slots, `st` of 5, and `cl`, `nl`, `mk` (and `cs`, `ns` for `search`) of 32 each --- anything above the instruction count
 `compile` returned. `{m,n}` expands, so the instruction count grows with the repetition count.
 
 A backtracking engine would wander through 2#super[64] paths giving `(a*)*b` sixty-four `a`s, but a Pike VM finishes linearly with its thread list.

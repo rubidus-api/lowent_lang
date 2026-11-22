@@ -4,9 +4,9 @@ rem ★ prov rfc-0009 의 범위를 그대로 받는다: **역추적 없음** �
 rem   동시 진행시키는 Pike VM 이라, 어떤 패턴·입력에도 **지수 폭발(ReDoS)이 없다.**
 rem   anchored 매칭 한 번 = O(입력 × 프로그램). 역참조·룩어라운드는 **없다**(그 순간 선형이 죽는다).
 rem
-rem ★ 순수 L0: effects none · 숨은 할당 0 · **모든 스크래치는 호출자의 것**(재진입·오라클 안).
+rem ★ 순수 L0: effects none · 숨은 할당 0 · 프로그램 버퍼와 매처 작업 공간은 호출자가 넘긴다.
 rem   프로그램 버퍼(u64)는 코드가 앞에서 자라고 문자클래스 비트맵(256비트=4워드)이 **뒤에서
-rem   거꾸로** 자란다 — 만나면 none (버퍼가 작다고 말하는 값).
+rem   거꾸로** 자란다. 자리가 모자라면 compile_checked 는 program_too_small 을 돌려준다.
 rem
 rem ★ 표면(이 슬라이스): 리터럴 · `.`(개행 제외) · `* + ?`(탐욕) · `[a-z]`/`[^…]` · `|` · `(…)` ·
 rem   `^ $`(문자열 경계) · 이스케이프 `\d \w \s \n \t \r` + 특수문자 리터럴화(`\.` 등).
@@ -48,7 +48,7 @@ module regex .
 use unicode from "unicode.low" .
 use utf8 from "utf8.low" .
 
-rem ── 컴파일러 상태 st: [0]=명령 수 [1]=클래스 수 [2]=패턴 위치 [3]=실패 플래그 [4]=그룹 수 ──
+rem ── 컴파일러 상태 st: [0]=명령 수 [1]=클래스 수 [2]=패턴 위치 [3]=상태(0 성공, 1 패턴 오류, 2 프로그램 버퍼 부족) [4]=그룹 수 ──
 rem   ★ st 는 **5칸 이상**이어야 한다(그룹 번호가 [4] 에 산다).
 
 rem 명령 하나를 붙인다. 코드 상단이 비트맵 하단과 만나면 실패 플래그.
@@ -57,7 +57,7 @@ proc rx_emit input prog mut slice u64 . input st mut slice u64 . input op u64 . 
   let top usize add 2 mul 3 add ni. 1 . . . .
   let space_fl usize sub len prog. . mul 4 cast usize idx st. 1 . . . . .
   guard le top. space_fl. . else do
-    set idx st. 3 . 1 .
+    set idx st. 3 . 2 .
     return .
   end .
   set idx prog. add 2 mul 3 ni. . . . op. .
@@ -72,7 +72,7 @@ proc rx_shift input prog mut slice u64 . input st mut slice u64 . input from usi
   let top usize add 2 mul 3 add ni. 1 . . . .
   let space_fl usize sub len prog. . mul 4 cast usize idx st. 1 . . . . .
   guard le top. space_fl. . else do
-    set idx st. 3 . 1 .
+    set idx st. 3 . 2 .
     return .
   end .
   var i usize ni. .
@@ -106,7 +106,7 @@ proc rx_class_new input prog mut slice u64 . input st mut slice u64 . output usi
   rem ★ 빼기 전에 잰다 — 작은 버퍼(`\X` 는 클래스 다섯을 연다)에서 `len prog - 4(k+1)` 이
   rem   음수로 떨어져 **트랩**이 났다(2026-09-04). "버퍼가 작다"는 none 으로 말해야 하는 값이다.
   guard ge len prog. . add mul 4 add k. 1 . . top. . . else do
-    set idx st. 3 . 1 .
+    set idx st. 3 . 2 .
     return 0 .
   end .
   let base usize sub len prog. . mul 4 add k. 1 . . . .
@@ -866,7 +866,7 @@ end .
 
 rem ★ 패턴을 컴파일한다. 성공 = some <명령 수>. 문법 오류·버퍼 부족 = none 하나다.
 rem   prog 는 매칭 때 **그대로**(같은 길이로) 넘겨야 한다 — 클래스 비트맵이 꼬리에 산다.
-rem   st 는 컴파일러 상태 4칸(호출자 스크래치 — codec·strbuf 과 같은 원칙: 재진입은 공짜).
+rem   st 는 컴파일러 상태 5칸(호출자 스크래치 — codec·strbuf 과 같은 원칙: 재진입은 공짜).
 export proc compile input pat slice u8 . input prog mut slice u64 . input st mut slice u64 . output option u64 . effects none . do
   guard ge len prog. . 8 . else return none . .
   guard ge len st. . 5 . else return none . .
@@ -885,6 +885,23 @@ export proc compile input pat slice u8 . input prog mut slice u64 . input st mut
   set idx prog. 0 . idx st. 0 . .
   set idx prog. 1 . idx st. 1 . .
   return some idx st. 0 . . .
+end .
+
+export enum compile_error do
+  invalid_pattern .
+  program_too_small .
+end .
+
+rem Keep the five parser words local. The caller can retry a short program buffer.
+export proc compile_checked input pat slice u8 . input prog mut slice u64 . output result u64 compile_error . effects none .
+  errors invalid_pattern . errors program_too_small .
+do
+  guard ge len prog. . 8 . else return error program_too_small . . .
+  var st lit array 5 u64 _ . .
+  let count option u64 compile pat. prog. st. . .
+  if is_some count. . do return ok idx prog. 0 . . . end .
+  if eq idx st. 3 . 2 . do return error program_too_small . . end .
+  return error invalid_pattern . .
 end .
 
 rem ★ 방금 먹은 코드포인트를 **뒤로 돌아** 읽는다 — UTF-8 은 자기동기적이라 이어지기

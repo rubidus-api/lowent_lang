@@ -77,6 +77,19 @@ end .
 rem 잘못된 패턴은 값으로 거절된다: 닫히지 않은 그룹·앞이 없는 `*`·모자란 버퍼 → 전부 none.
 proc rejects input prog mut slice u64 . input st mut slice u64 . input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 . output u64 . effects none . do
   guard ge len prog. . 32 . else return 90 . .
+  guard ge len st. . 5 . else return 91 . .
+  let four mut slice u64 subslice st. 0 4 . .
+  let five mut slice u64 subslice st. 0 5 . .
+  guard is_none rx.compile "a" prog. four. . . else return 4 . .
+  guard is_some rx.compile "(a)" prog. five. . . else return 5 . .
+  guard eq compile_status "(ab" prog. . 1 . else return 6 . .
+  guard eq compile_status "a)" prog. . 1 . else return 7 . .
+  let short mut slice u64 subslice prog. 0 8 . .
+  guard eq compile_status "ab" short. . 2 . else return 8 . .
+  guard eq compile_status "ab?" short. . 2 . else return 9 . .
+  guard eq compile_status "ab[c]" short. . 2 . else return 10 . .
+  guard eq compile_status "ab[c]" prog. . 0 . else return 11 . .
+  guard eq compile_status "" short. . 0 . else return 12 . .
   let a option u64 rx.compile "(ab" prog. st. . .
   guard is_some a. . else do
     let b option u64 rx.compile "*a" prog. st. . .
@@ -330,4 +343,14 @@ proc props_sub input prog mut slice u64 . input st mut slice u64 . input cl mut 
     return 12 .
   end .
   return 13 .
+end .
+
+rem Return zero for success, one for a rejected pattern, two for a short program buffer.
+proc compile_status input pat slice u8 . input prog mut slice u64 . output u64 . effects none . do
+  let compiled result u64 rx.compile_error rx.compile_checked pat. prog. . .
+  match compiled. do
+    case ok n do return 0 . end .
+    case error invalid_pattern do return 1 . end .
+    case error program_too_small do return 2 . end .
+  end .
 end .

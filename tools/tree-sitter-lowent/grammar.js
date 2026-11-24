@@ -256,7 +256,7 @@ module.exports = grammar({
       field('op', $.name), $.stop, repeat($._term), $.stop),
     // RFC-0159 — `dyn <value> <op>. <args> .` chooses the op at run time; `object <trait> <value> .` makes the value
     dyn_form: $ => seq('dyn', $._term, field('op', $.name), $.stop, repeat($._term), $.stop),
-    object_form: $ => seq('object', field('trait', $.name), $._term, $.stop),
+    object_form: $ => seq('object', field('trait', choice($.name, $.path)), $._term, $.stop),   // a trait of another module: `object a.shape …`
     payload_form: $ => seq('payload', $._term, field('variant', $.name), field('field', $.name), $.stop),
     send_form: $ => seq('send', $._term, field('handler', $.name), repeat($._term), $.stop),
     spawn_form: $ => seq('spawn', choice(

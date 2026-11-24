@@ -91,3 +91,17 @@ long long lw_c_fill34(uint32_t *p, size_t n) {
         for (int c = 0; c < 4; c++) a[r][c] = (uint32_t)(r * 10 + c);
     return 12;
 }
+
+/* A C function that GIVES BACK a struct by value (tests/vm_ffi_sret.low · 2026-11-24 W-20261124-2235).
+   The Lowent side used to declare these as returning `long long` — known-defects/ffi-import-struct-return. */
+struct sr_pt { long long x, y; };
+struct sr_mix { uint8_t a; int32_t b; double c; uint16_t d; };
+struct sr_big { long long p, q, r; uint32_t s; };
+struct sr_inner { int32_t a, b; };
+struct sr_outer { uint8_t h; struct sr_inner i; long long t; };
+struct sr_warr { uint32_t n; uint16_t v[4]; };
+struct sr_pt lw_c_pt(long long a) { struct sr_pt v = { a, a * 10 + 1 }; return v; }
+struct sr_mix lw_c_mix(long long a) { struct sr_mix v = { (uint8_t)(a + 200), (int32_t)(-a * 1000), 2.5 * (double)a, 60000 }; return v; }
+struct sr_big lw_c_big(long long a) { struct sr_big v = { a, a << 20, -a, 4000000000u }; return v; }
+struct sr_outer lw_c_outer(long long a) { struct sr_outer o = { 9, { (int32_t)a, -3 }, a * 100 }; return o; }
+struct sr_warr lw_c_warr(long long a) { struct sr_warr w = { (uint32_t)a, { 1, 2, 3, 40000 } }; return w; }

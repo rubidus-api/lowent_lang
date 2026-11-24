@@ -1,0 +1,98 @@
+rem ★★ X-0092 (2026-11-24 · W-20261124-2235) — Ruby 의 정규식 · 대소문자 변환 결함 일곱(2026-11-18 공지)과 **같은 부류**가
+rem   Lowent 의 라이브러리에 있는지 본 증인. 각 op 은 성공 = 42, 실패 = 갈린 단계 번호를 낸다.
+rem   ☞ 결과: 라이브러리에는 길이가 바뀌는 문자열 변환이 없다(`to_upper` · `to_lower` 는 한 글자 → 한 글자이고, 늘어나는 글자는
+rem     `is_special_case` 가 따로 말한다). 대소문자 무시 맞춤 · 역참조는 `regex` 에 없다. 남은 자리 — 잘린 UTF-8 · UTF-16,
+rem     큰 반복, 모자란 출력 칸 — 는 아래처럼 **값으로** 거절된다(멈추거나 넘겨 읽지 않는다). VM 과 네이티브가 같아야 한다.
+module vm_x0092 .
+
+use unicode .
+use utf8 .
+use utf16 .
+use regex as rx .
+use codec .
+
+rem ① ② 늘어나는 대소문자 변환: ß → SS · İ → i̇ · ﬃ → FFI 는 한 글자 짝으로 적을 수 없다 — 그대로 두고 «특별하다» 고 말한다.
+proc case_special output u64 . effects none . do
+  guard eq unicode.to_upper 223 . 223 . else return 1 . .
+  guard unicode.is_special_case 223 . else return 2 . .
+  guard unicode.is_special_case 304 . else return 3 . .
+  guard unicode.is_special_case 64259 . else return 4 . .
+  guard eq unicode.to_upper 963 . 931 . else return 5 . .
+  guard eq unicode.to_lower 931 . 963 . else return 6 . .
+  guard not unicode.is_special_case 97 . . else return 7 . .
+  rem 코드포인트 끝값 근처도 값이다(표 밖 — 그대로).
+  guard eq unicode.to_upper 1114111 . 1114111 . else return 8 . .
+  guard eq unicode.to_lower 18446744073709551615 . 18446744073709551615 . else return 9 . .
+  return 42 .
+end .
+
+rem ⑥ ⑦ 의 이웃 — 끝에서 잘린 UTF-8 은 넘겨 읽지 않고 none 이다. buf 는 8 바이트 이상의 0 칸이다.
+proc utf8_cut input buf mut slice u8 . output u64 . effects none . do
+  guard ge len buf. . 8 . else return 90 . .
+  set idx buf. 0 . 195 .
+  let one slice u8 subslice buf. 0 1 . .
+  guard is_none utf8.decode one. 0 . . else return 1 . .
+  guard is_none utf8.count_chars one. . . else return 2 . .
+  guard not utf8.is_valid one. . . else return 3 . .
+  set idx buf. 0 . 240 . set idx buf. 1 . 159 . set idx buf. 2 . 152 .
+  let three slice u8 subslice buf. 0 3 . .
+  guard is_none utf8.decode three. 0 . . else return 4 . .
+  guard is_none utf8.decode three. 2 . . else return 5 . .
+  guard is_none utf8.decode three. 3 . . else return 6 . .
+  set idx buf. 3 . 128 .
+  let four slice u8 subslice buf. 0 4 . .
+  let cp option u64 utf8.decode four. 0 . .
+  guard is_some cp. . else return 7 . .
+  guard eq some_value cp. . 128512 . else return 8 . .
+  return 42 .
+end .
+
+rem 끝에 홀로 남은 대리 쌍 반쪽은 none 이다.
+proc utf16_cut input buf mut slice u16 . output u64 . effects none . do
+  guard ge len buf. . 4 . else return 90 . .
+  set idx buf. 0 . 55357 .
+  let hi slice u16 subslice buf. 0 1 . .
+  guard is_none utf16.decode hi. 0 . . else return 1 . .
+  guard is_none utf16.count_chars hi. . . else return 2 . .
+  set idx buf. 0 . 56832 .
+  let lo slice u16 subslice buf. 0 1 . .
+  guard is_none utf16.decode lo. 0 . . else return 3 . .
+  guard is_none utf16.decode lo. 1 . . else return 4 . .
+  return 42 .
+end .
+
+rem ④ 크기 셈: 반복이 겹치면 프로그램이 커진다 — 칸이 모자라면 «작다», 네 자리 셈은 «틀린 패턴».
+rem 패턴을 컴파일해 0(맞다) · 1(틀린 패턴) · 2(칸이 작다)를 낸다.
+proc rx_kind input pat slice u8 . input prog mut slice u64 . output u64 . effects none . do
+  let compiled result u64 rx.compile_error rx.compile_checked pat. prog. . .
+  match compiled. do
+    case ok n do return 0 . end .
+    case error invalid_pattern do return 1 . end .
+    case error program_too_small do return 2 . end .
+  end .
+end .
+
+proc regex_big input prog mut slice u64 . output u64 . effects none . do
+  guard ge len prog. . 64 . else return 90 . .
+  guard eq rx_kind "(a{64}){64}" prog. . 2 . else return 1 . .
+  guard eq rx_kind "a{1000}" prog. . 1 . else return 2 . .
+  guard eq rx_kind "a{99999999999999999999}" prog. . 1 . else return 3 . .
+  guard eq rx_kind "a{64}" prog. . 0 . else return 4 . .
+  return 42 .
+end .
+
+rem 출력 칸이 모자라면 쓰지 않고 none — 1 바이트 여유를 잘못 잰 자리가 있으면 여기서 보인다.
+proc codec_room input dst mut slice u8 . output u64 . effects none . do
+  guard ge len dst. . 16 . else return 90 . .
+  guard is_none codec.hex_enc "abc" subslice dst. 0 5 . . . else return 1 . .
+  let h option usize codec.hex_enc "abc" subslice dst. 0 6 . . .
+  guard is_some h. . else return 2 . .
+  guard eq some_value h. . 6 . else return 3 . .
+  guard is_none codec.b64_enc "abcd" subslice dst. 0 7 . . . else return 4 . .
+  let b option usize codec.b64_enc "abcd" subslice dst. 0 8 . . .
+  guard is_some b. . else return 5 . .
+  guard eq some_value b. . 8 . else return 6 . .
+  guard is_none codec.b64_dec "YWJjZA==" subslice dst. 0 3 . . . else return 7 . .
+  guard is_none codec.b64_dec "Y" subslice dst. 0 16 . . . else return 8 . .
+  return 42 .
+end .

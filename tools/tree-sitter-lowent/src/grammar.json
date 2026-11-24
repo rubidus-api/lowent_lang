@@ -4185,8 +4185,17 @@
           "type": "FIELD",
           "name": "trait",
           "content": {
-            "type": "SYMBOL",
-            "name": "name"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "name"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "path"
+              }
+            ]
           }
         },
         {

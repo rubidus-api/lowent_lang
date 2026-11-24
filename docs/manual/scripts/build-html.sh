@@ -5,7 +5,7 @@ set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
 ws=$(cd "$root/../../.." && pwd)
 typst=${TYPST:-$ws/usr/toolchains/typst/typst}
-fonts=${FONT_PATH:-$ws/toolchains/fonts}
+fonts=${FONT_PATH:-$ws/toolchain/fonts}
 [ -d "$root/build/examples-out" ] || sh "$root/scripts/verify-examples.sh"
 build_one() {
     lang=$1

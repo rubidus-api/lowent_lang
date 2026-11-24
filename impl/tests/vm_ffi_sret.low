@@ -1,0 +1,78 @@
+rem ★★★ **C 가 구조체를 값으로 돌려준다** (RFC-0063 §5 · 정본 §6.9.2 (4c) · 2026-11-24 W-20261124-2235).
+rem
+rem   전엔 `output pt .` 인 extern 을 C 에 `extern long long lw_c_pt(...)` 로 선언하고 반환을 정수로 받았다 —
+rem   검사를 지나고 지어지고 틀린 값을 냈다(known-defects/ffi-import-struct-return). 이제 `struct lw_sty_N` 으로
+rem   선언하고 값으로 받는다. 레지스터 둘에 실리는지 숨은 포인터로 오는지는 C 컴파일러가 대상의 규약대로 정한다.
+rem   ★ 빠른 경로는 칸이 모두 스칼라인 구조체를 레코드 칸으로 받고, 중첩 · 배열 칸은 태그 경로가 레코드 박스로 짓는다.
+rem   ★ VM 은 C 를 부르지 못한다(E-VM-EXTERN) — 이 파일은 네이티브로만 돈다.
+module vm_ffi_sret .
+
+struct pt do
+  x i64 .
+  y i64 .
+end .
+
+rem 폭이 섞이고 부동 칸이 있다 — 칸 사이의 빈자리까지 C 와 같아야 한다.
+struct mix do
+  a u8 .
+  b i32 .
+  c f64 .
+  d u16 .
+end .
+
+rem 16 바이트를 넘는다 — x86-64 에서는 숨은 포인터(sret)로 돌아온다.
+struct big do
+  p i64 .
+  q i64 .
+  r i64 .
+  s u32 .
+end .
+
+struct inner do
+  a i32 .
+  b i32 .
+end .
+
+struct outer do
+  h u8 .
+  i inner .
+  t i64 .
+end .
+
+struct warr do
+  n u32 .
+  v array 4 u16 .
+end .
+
+unsafe extern proc c_pt do input k cap c . input a i64 . output pt . effects unsafe . link lw_c_pt . end .
+unsafe extern proc c_mix do input k cap c . input a i64 . output mix . effects unsafe . link lw_c_mix . end .
+unsafe extern proc c_big do input k cap c . input a i64 . output big . effects unsafe . link lw_c_big . end .
+unsafe extern proc c_outer do input k cap c . input a i64 . output outer . effects unsafe . link lw_c_outer . end .
+unsafe extern proc c_warr do input k cap c . input a i64 . output warr . effects unsafe . link lw_c_warr . end .
+
+unsafe proc pt_sum input k cap c . input a i64 . output i64 . effects unsafe . do
+  let p pt c_pt k. a. . .
+  return add field p. x . field p. y . . .
+end .
+
+unsafe proc mix_sum input k cap c . input a i64 . output i64 . effects unsafe . do
+  let m mix c_mix k. a. . .
+  return add add cast i64 field m. a . . cast i64 field m. b . . . add cast i64 field m. c . . cast i64 field m. d . . . . .
+end .
+
+unsafe proc big_sum input k cap c . input a i64 . output i64 . effects unsafe . do
+  let g big c_big k. a. . .
+  return add add field g. p . field g. q . . add field g. r . cast i64 field g. s . . . . .
+end .
+
+unsafe proc outer_sum input k cap c . input a i64 . output i64 . effects unsafe . do
+  let o outer c_outer k. a. . .
+  let j inner field o. i . .
+  return add add cast i64 field o. h . . field o. t . . add cast i64 field j. a . . cast i64 field j. b . . . . .
+end .
+
+unsafe proc warr_sum input k cap c . input a i64 . output i64 . effects unsafe . do
+  let w warr c_warr k. a. . .
+  let v slice u16 field w. v . .
+  return add cast i64 field w. n . . cast i64 add add idx v. 0 . idx v. 1 . . add idx v. 2 . idx v. 3 . . . . . .
+end .

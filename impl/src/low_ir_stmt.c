@@ -2477,6 +2477,33 @@ static bool ipw_arr(const low_ir_struct_t *sd, const low_cst_t *fname) {
     for (proven_size_t z = 0; z < sd->nf; z++) if (sd->f[z].arrn && proven_u8str_view_eq(sd->f[z].name, fname->tok.lex)) return true;
     return false;
 }
+// ★★★ 2026-11-24 (W-20261124-2235) — C 가 돌려주는 구조체가 경계를 건널 수 있나(§6.9.2 (4c) — 바이트 배치가 있는 struct).
+//   칸이 모두 크기 있는 수 · 그런 수의 배열 · 그런 struct 여야 한다. C 구조체로 나가지 않는 것은 거절한다.
+static bool ir_sret_ok(const low_ir_t *ir, proven_size_t si, int depth) {
+    if (si >= ir->nstructs || depth > 8) return false;
+    const low_ir_struct_t *S = &ir->structs[si];
+    if (!S->viewable || S->is_mmio || S->is_actor_state || S->is_shadow || S->nf == 0) return false;
+    if (low_ir_struct_has_enumlayout(ir, si)) return false;
+    for (proven_size_t z = 0; z < S->nf; z++) {
+        if (S->f[z].size == 16 && !S->f[z].arrn) return false;              // 128 비트 칸(§6.2.2 (3b-2))
+        if (S->f[z].sidx >= 0 && !S->f[z].arrn && !ir_sret_ok(ir, (proven_size_t)S->f[z].sidx, depth + 1)) return false;
+    }
+    return true;
+}
+// 태그 경로의 레코드는 `make` 자리의 칸 순서로 산다 — 단위가 그 구조체를 한 번도 짓지 않으면 자리가 없다. C 가 돌려준 값을
+//   되지을 자리를 (안쪽 구조체까지) 하나씩 적어 둔다(칸 순서 = 구조체 순서 · 매개변수를 베끼는 자리와 같은 꼴). 자리가 모자라면 false.
+static bool ir_sret_make(low_ir_t *ir, proven_size_t si, int depth) {
+    const low_ir_struct_t *S = &ir->structs[si];
+    for (proven_size_t z = 0; z < S->nf; z++)
+        if (S->f[z].sidx >= 0 && !S->f[z].arrn && !ir_sret_make(ir, (proven_size_t)S->f[z].sidx, depth + 1)) return false;
+    for (proven_size_t m = 0; m < ir->nmakes; m++)
+        if (proven_u8str_view_eq(ir->makes[m].type_name, S->name) && ir->makes[m].nfields == S->nf) return true;
+    if (ir->nmakes >= IR_MAXMAKES || S->nf > IR_MAKE_MAXF) return false;
+    low_ir_make_t mk2 = { .type_name = S->name, .nfields = 0 };
+    for (proven_size_t z = 0; z < S->nf; z++) mk2.fields[mk2.nfields++] = S->f[z].name;
+    ir->makes[ir->nmakes++] = mk2;
+    return true;
+}
 static bool ir_param_written(const low_cst_t *nd, proven_u8str_view_t nm, const low_ir_struct_t *sd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return false;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && is_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_SET) {
@@ -5557,6 +5584,39 @@ static low_ir_t low_ir_build_impl(proven_allocator_t work, const low_parse_resul
                         veq(f->kids[j + 2]->tok.lex, "from") && is_atom(f->kids[j + 3]))
                         d->link_lib = f->kids[j + 3]->tok.lex;
                 }
+            // ★★★ 2026-11-24 (W-20261124-2235) — **C 가 구조체를 돌려준다**: 출력 타입이 구조체면 그것을 적는다(cbe 가
+            //   `struct lw_sty_N` 으로 선언하고 값으로 받는다). 전엔 `long long` 으로 선언 · 수신했다 — C 가 «conflicting types» 로
+            //   거절하거나, 따로 지어 이으면 반환 레지스터를 잘못 읽었다(known-defects/ffi-import-struct-return).
+            //   C 와 바이트 배치가 같다고 보일 수 있는 구조체만 받는다 — 인자로 넘기는 구조체와 같은 잣대(viewable)에 더해,
+            //   C 구조체로 나가지 않는 것(레지스터 블록 · 액터 상태 · 배열 칸 · 128 비트 칸 · 폭을 적은 열거 칸)은 거절한다.
+            if (d->out_tyname.size) {
+                bool osf = false; proven_size_t osi = ir_struct_find(&ir, d->out_tyname, &osf);
+                if (osf && !d->out_ptr) {
+                    const low_ir_struct_t *S = &ir.structs[osi];
+                    bool bad = !S->viewable || S->is_mmio || S->is_actor_state || S->is_shadow
+                            || low_ir_struct_has_enumlayout(&ir, osi);
+                    bad = bad || !ir_sret_ok(&ir, osi, 0);
+                    if (bad || osi >= 0xffff) {
+                        low_diag_t rd = { .sev = LOW_SEV_ERROR, .code = "E-FFI-TYPE",
+                            .msg = "a C function can give back a struct only when it has a byte layout — every field a sized "
+                                   "number, an array of them, or such a struct (§6.9.2 (4c)); then its bytes are laid out as C lays them out. "
+                                   "A register block, an actor's state, a 128-bit field or an enum field does not cross: "
+                                   "let C fill a struct you pass as `unsafe_ptr`, or give back the fields one by one",
+                            .line = f->line, .col = 0 };
+                        (void)proven_array_push(&ir.diags, &rd); ir.ok = false;
+                    } else {
+                        d->out_sidx1 = (proven_u16)(osi + 1);
+                        // ★ 태그 경로의 레코드는 `make` 자리의 칸 순서로 산다 — 단위가 이 구조체를 한 번도 짓지 않으면 자리가 없다.
+                        //   C 가 돌려준 값을 되지을 자리를 하나 적어 둔다(칸 순서 = 구조체 순서 · 매개변수를 베끼는 자리와 같은 꼴).
+                        if (!ir_sret_make(&ir, osi, 0)) {
+                            low_diag_t rd = { .sev = LOW_SEV_ERROR, .code = "E-IR-LIMIT",
+                                .msg = "this unit has no room left to rebuild the struct a C function gives back (the table of struct shapes is full)",
+                                .line = f->line, .col = 0 };
+                            (void)proven_array_push(&ir.diags, &rd); ir.ok = false;
+                        }
+                    }
+                }
+            }
             // 계약은 **경계에서** 검사된다 — 그것이 이 언어의 FFI 가 다른 이유다.
             ir_emit(&c, IRW_EXTERN, (proven_i64)i);
             ir_emit(&c, IRW_RET, 0);

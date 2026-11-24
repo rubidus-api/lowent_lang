@@ -1,0 +1,11 @@
+rem ★ C 가 돌려주는 구조체가 레지스터 블록(`mmio`)이면 건너가지 않는다 — 블록은 값이 아니라 장치다(RFC-0042 D3) · E-FFI-TYPE.
+rem   (128 비트 칸은 그 앞에서 E-INT128-PLACE 가 막는다.)
+module vm_ffi_sret_bad .
+
+struct uart do
+  mmio 0x40011000 .
+  cr   u32 rw .
+  dr   u32 rw .
+end .
+
+unsafe extern proc c_uart do input k cap c . output uart . effects unsafe . link lw_c_uart . end .

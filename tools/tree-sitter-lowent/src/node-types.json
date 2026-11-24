@@ -3876,6 +3876,10 @@
           {
             "type": "name",
             "named": true
+          },
+          {
+            "type": "path",
+            "named": true
           }
         ]
       }

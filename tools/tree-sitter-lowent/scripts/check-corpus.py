@@ -27,7 +27,9 @@ if not cli or not pathlib.Path(lowentc).exists():
     print(f'check-corpus: SKIP — tree-sitter CLI ({cli}) or lowentc ({lowentc}) is missing')
     sys.exit(3)
 
-files = subprocess.run(['git', '-C', str(ROOT), 'ls-files', '*.low'], capture_output=True, text=True).stdout.split()
+# The published tree only: since 2026-11-23 the repository also tracks its internal `ops/` (archives and design probes in old spellings),
+# which is not part of what an editor is promised to read.
+files = subprocess.run(['git', '-C', str(ROOT), 'ls-files', '*.low', ':(exclude)ops/'], capture_output=True, text=True).stdout.split()
 if len(files) < 500:
     print(f'check-corpus: only {len(files)} .low files found — refusing to call that a corpus')
     sys.exit(1)

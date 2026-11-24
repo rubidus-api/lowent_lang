@@ -436,6 +436,7 @@ void low_cbe_set_no_main(bool v) { g_no_main = v; }
 //   각 슬롯이 정수인지 바이트 슬라이스인지 알 수 있다. 모르면 **빠른 경로를 안 쓴다.**
 //   (★ 조용히 틀린 표현으로 내리느니 **안 내리는 게 낫다** — 나무를 세울 때와 같은 규율.)
 static bool cbe_ret_flt(const low_ir_def_t *d);   // ★ extern 의 출력이 f64/f32 인가 (앞선 사용)
+static bool cbe_sty_ok(const low_ir_t *ir, proven_size_t s);   // ★ W-20261124-2235 — C 구조체로 나가는가(앞선 사용)
 #define K_INT 0
 #define K_SL  1
 #define K_BAD 2
@@ -1222,6 +1223,16 @@ static int cbe_emit_rec_recon(low_out_t *out, const low_ir_t *ir, int sx, int ba
     return me;
 }
 
+// ★★★ W-20261124-2235 — C 가 돌려준 구조체(`cr_`)를 태그 경로의 레코드 박스로 지어 민다(`{` 는 부른 쪽이 열었다 · 여기서 닫는다).
+//   바이트를 `lw_r` 의 레코드 칸에 옮기고, 빠른 경로가 레코드를 돌려줄 때와 같은 재구성(cbe_emit_rec_recon)을 쓴다 — 짓는 법은 하나다.
+static void cbe_ext_rec_push(low_out_t *out, const low_ir_t *ir, int sx) {
+    low_fpf(out, "      _Static_assert(sizeof cr_ == {}, \"lw_sty layout\");\n"
+                 "      lw_r r_ = {{0}}; _Static_assert(sizeof cr_ <= sizeof r_.r, \"lw_sty fits\"); memcpy(r_.r, &cr_, sizeof cr_);\n",
+            PROVEN_ARG((unsigned)((unsigned)ir->structs[sx].total)));
+    int nid = 0;
+    int root = cbe_emit_rec_recon(out, ir, sx, 0, &nid);
+    low_fpf(out, "        {{ lowv rv_ = {{0}}; rv_.tag = LWV_REC; rv_.box = box_{}; st[sp++] = rv_; }} }}\n", PROVEN_ARG((int)(root)));
+}
 // 이 구조체를 **레코드 값**으로 내릴 수 있나 — 필드가 전부 스칼라여야 한다.
 //   ★ `allow_flt`: 레코드 **값**(make·field·encode·반환)은 부동 필드를 **비트로** 슬롯에
 //     담을 수 있다. 하지만 구조체 **파라미터**는 안 된다 — 어댑터가 필드를 정수로 읽는다.
@@ -2935,6 +2946,12 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if ((E->param_struct >> q) & 1u || (E->param_opt >> q) & 1u
                         || (E->param_vec >> q) & 1u || (E->param_bset >> q) & 1u
                         || (E->param_ufn >> q) & 1u) return false;  // C 로 안 편다(태그 경로 — 콜백은 lowv .p)
+                }
+                // ★★★ W-20261124-2235 — 구조체 반환은 **레코드 칸**으로(C 구조체의 바이트를 그대로 담는다). 빠른 경로가 나르지 못하는 모양이면 태그 경로로.
+                if (E->out_sidx1) {
+                    const int rsx_ = (int)E->out_sidx1 - 1;
+                    if (!cbe_rec_ok_f(ir, rsx_, true) || !cbe_sty_ok(ir, (proven_size_t)rsx_)) return false;
+                    st.o[st.n] = -1; st.ve[st.n] = 0; st.vn[st.n] = 0; st.fl[st.n] = 0; st.k[st.n++] = (unsigned char)(K_REC + rsx_); break;
                 }
                 // ★ f64 반환 → 부동 스택, 정수 반환 → 정수 스택. 생 포인터(cstr)는 **슬라이스 칸**(RFC-0137 P3 — 포인터를 정수에 안 싣는다)
                 if (E->out_ptr) { st.o[st.n] = -1; st.ve[st.n] = 1; st.fl[st.n] = 0; st.k[st.n++] = K_SL; break; }
@@ -6169,6 +6186,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 const low_ir_def_t *E = &ir->defs[in->a & 0xffff];
                 bool eflt = cbe_ret_flt(E);   // ★ 반환이 f64 면 double 로 받아 부동 스택으로
                 bool eptr = E->out_ptr;       // ★ 반환이 생 포인터(cstr)면 const char* 로 받아 스칼라로
+                const int esx = (int)E->out_sidx1 - 1;   // ★ W-20261124-2235 — 구조체 반환(-1 = 아니다)
+                if (esx >= 0) low_fpf(out, "    {{ struct lw_sty_{} cr_ = ", PROVEN_ARG((int)(esx)));
+                else
                 low_fpf(out, "    {{ {} cr_ = ", proven_arg_cstr(eptr ? "const char *" : eflt ? "double" : "long long"));
                 low_write(out, E->link_name.ptr, E->link_name.size);
                 low_putc(out, '(');
@@ -6189,7 +6209,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                   } }
                 // ★ 부동 반환은 **부동 스택**(fs)으로, 생 포인터·정수 반환은 정수 스택(st)으로 —
                 //   포인터는 기계어 한 칸이라 정수 스칼라로 실린다(K_INT). str_from_cstr 가 그것을 읽는다.
-                if (eflt)      { low_puts(out, "); fs[fsp++] = cr_; }\n"); ks.o[ks.n] = -1; ks.k[ks.n++] = K_FLT; }
+                if (esx >= 0)  { low_fpf(out, "); _Static_assert(sizeof cr_ == {} && sizeof cr_ <= LW_RECB, \"lw_sty layout\");"
+                                             " rs[rsp] = rsb[rsp]; memset(rs[rsp], 0, LW_RECB); memcpy(rs[rsp], &cr_, sizeof cr_); rsp++; }}\n",
+                                         PROVEN_ARG((unsigned)((unsigned)ir->structs[esx].total)));
+                                 ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0; ks.k[ks.n++] = (unsigned char)(K_REC + esx); }
+                else if (eflt) { low_puts(out, "); fs[fsp++] = cr_; }\n"); ks.o[ks.n] = -1; ks.k[ks.n++] = K_FLT; }
                 else if (eptr) { low_puts(out, "); ss[ssp].p = (const unsigned char *)cr_; ss[ssp].n = 0; ssp++; }\n");   // ★ RFC-0137 P3 — 포인터 칸
                                  ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; }
                 else           { low_puts(out, "); st[sp++] = cr_; }\n"); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; }
@@ -7003,7 +7027,9 @@ static void cbe_extern_proto(const low_ir_t *ir, const low_ir_def_t *d, low_out_
     // ★★★ **반환 타입을 폭으로 정직하게** — f64→double · cstr→`const char *` · 정수는 선언된 폭
     //   그대로(i32→int …). long long 으로 뭉뚱그리면 `int printf` 같은 실제 libc 심볼과 충돌해
     //   **직접 못 부른다**(f64→double fix 와 같은 규율 · cbe_ret_ctype).
-    low_puts(out, cbe_ret_ctype(d));
+    // ★★★ 2026-11-24 (W-20261124-2235) — 구조체를 돌려주는 C 함수는 **구조체로** 선언한다(전엔 `long long` — known-defects/ffi-import-struct-return).
+    if (d->out_sidx1) low_fpf(out, "struct lw_sty_{} ", PROVEN_ARG((unsigned)(d->out_sidx1 - 1u)));
+    else low_puts(out, cbe_ret_ctype(d));
     low_write(out, d->link_name.ptr, d->link_name.size);
     low_putc(out, '(');
     proven_size_t n = 0;
@@ -7219,9 +7245,10 @@ static bool cbe_hdr_struct_used(const low_ir_t *ir, proven_size_t s, bool export
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
         const low_ir_plan_t *pl = low_cbe_plan_of(i);
-        bool on = exports ? pl->exported_symbol : (d->is_extern && d->param_struct && cbe_c_name_ok(d->link_name));
+        bool on = exports ? pl->exported_symbol : (d->is_extern && (d->param_struct || d->out_sidx1) && cbe_c_name_ok(d->link_name));
         if (!on) continue;
         if (exports && pl->ret_sty1 == (int)s + 1) return true;
+        if (!exports && d->out_sidx1 == s + 1) return true;   // ★ W-20261124-2235 — C 가 돌려주는 구조체
         for (proven_size_t q = 0; q < d->nparams; q++)
             if (((d->param_struct >> q) & 1u) && d->param_sidx[q] == s) return true;
     }
@@ -8983,7 +9010,10 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                     const low_ir_def_t *E = &ir->defs[in->a & 0xffff];
                     bool eflt = cbe_ret_flt(E);   // ★ f64 반환은 double 로 받아 lw_flt 로 민다
                     bool eptr = E->out_ptr;       // ★ 생 포인터(cstr) 반환은 const char* → lw_int(포인터)
-                    const char *crty = eptr ? "const char *" : eflt ? "double" : "long long";
+                    const int esx = (int)E->out_sidx1 - 1;   // ★ W-20261124-2235 — 구조체 반환이면 C 구조체로 받아 레코드 박스를 짓는다
+                    char crty_b[40];
+                    if (esx >= 0) low_bfmt(crty_b, sizeof crty_b, "struct lw_sty_{}", PROVEN_ARG((int)(esx)));
+                    const char *crty = esx >= 0 ? crty_b : eptr ? "const char *" : eflt ? "double" : "long long";
                     const char *push = eptr ? "((lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)cr_, .n = 0 })"   /* ★ RFC-0137 P3 — 포인터 칸 */
                                             : eflt ? "lw_flt(cr_)" : "lw_int(cr_)";
                     if (vargc) {
@@ -9014,6 +9044,8 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                             else
                                 low_fpf(out, "{}lw_varg(st[sp-{}])", proven_arg_cstr(sep), PROVEN_ARG((size_t)(off)));   // ★ RFC-0137 P3 — 정수 또는 cstr(포인터 칸)
                         }
+                        if (esx >= 0) { low_fpf(out, "); sp -= {};\n", PROVEN_ARG((size_t)(vargc))); cbe_ext_rec_push(out, ir, esx); }
+                        else
                         low_fpf(out, "); sp -= {}; st[sp++] = {}; }}\n", PROVEN_ARG((size_t)(vargc)), proven_arg_cstr(push));
                         break;
                     }
@@ -9041,6 +9073,8 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                         else
                             low_fpf(out, "{}lw_want_int(a[{}], \"ints\")", proven_arg_cstr(n++ ? ", " : ""), PROVEN_ARG((size_t)((size_t)q)));
                     }
+                    if (esx >= 0) { low_puts(out, ");\n"); cbe_ext_rec_push(out, ir, esx); }
+                    else
                     low_fpf(out, ");\n      st[sp++] = {}; }}\n", proven_arg_cstr(push));
                     break;
                 }

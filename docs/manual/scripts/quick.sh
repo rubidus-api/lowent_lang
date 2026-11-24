@@ -5,7 +5,7 @@ set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 ws=$(cd "$root/../../.." && pwd)
 typst=${TYPST:-$ws/usr/toolchains/typst/typst}
-fonts=${FONT_PATH:-$ws/toolchains/fonts}
+fonts=${FONT_PATH:-$ws/toolchain/fonts}
 lang=${1:-ko}
 mkdir -p "$root/build"
 # 원고의 #demo 는 예제 실행 출력(build/examples-out)을 싣는다 --- 새로 받은 복제본에는 없으므로 먼저 만든다.

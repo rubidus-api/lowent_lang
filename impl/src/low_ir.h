@@ -805,6 +805,9 @@ typedef struct {
     //   `const char *` 로 나가고(f64 가 double 로 나가는 것과 같은 정직함), 값은 포인터-크기
     //   스칼라로 받는다. VM 은 이 자리를 못 본다(extern 이 이미 E-VM-EXTERN).
     bool                out_ptr;
+    // ★★★ 2026-11-24 (W-20261124-2235 · known-defects/ffi-import-struct-return) — `extern` 의 출력이 구조체면 그 인덱스 + 1(아니면 0).
+    //   전엔 이것이 없어 C 가 돌려주는 구조체를 `long long` 으로 선언 · 수신했다(조용한 ABI 어긋남). cbe 가 `struct lw_sty_N` 으로 낸다.
+    proven_u16          out_sidx1;
     proven_u8           ndropped;      // ★ 빌드 모드가 지운 이 op 의 계약 검사 수
     proven_u32          param_struct;  // bitmask: param i is a struct
     // ★★ 2026-11-04 (W-20261104-0013 O4) — `match` 가 맞춰 볼 값을 담는 숨은 지역(`$m`)의 비트(가드 `when` 이 없는 것만). 그 지역은 갈래의 몸이

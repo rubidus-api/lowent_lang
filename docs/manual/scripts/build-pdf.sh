@@ -6,7 +6,7 @@ set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 ws=$(cd "$root/../../.." && pwd)
 typst=${TYPST:-$ws/usr/toolchains/typst/typst}
-fonts=${FONT_PATH:-$ws/toolchains/fonts}
+fonts=${FONT_PATH:-$ws/toolchain/fonts}
 [ -x "$typst" ] || { echo "build-pdf: typst 를 못 찾았다: $typst" >&2; exit 1; }
 
 sh "$root/scripts/verify-examples.sh"

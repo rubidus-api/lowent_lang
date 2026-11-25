@@ -1352,6 +1352,24 @@ end .")
       따르며(#cref("6.3")), 부호 있는 레인의 `min` · `max` 는 부호로 견준다(2026-11-02). 부동소수점 레인에는 `mod` 가 없다 — 스칼라와 같이
       번역이 거부된다(#cref("6.3.3") (2a) · `E-TYPE-KIND`).
     ]
+    #para("3b")[
+      정수 레인에는 비트 연산도 레인마다 있다: `bit_and` · `bit_or` · `bit_xor` · `bit_not` · `wrap_shl` · `wrap_shr`(2026-11-25). 두 피연산자는 같은
+      모양의 벡터다. 밀기의 칸 수도 같은 모양의 벡터이고, 레인마다 그 레인의 폭으로 가린 아랫 비트만 쓴다 — 스칼라 `wrap_shl` · `wrap_shr` 와 같다
+      (#cref("6.3.5")). 부호 있는 레인의 `wrap_shr` 는 산술 밀기다. 멈추는 `shl` · `shr` 와 돌리기 `rotl` · `rotr` 는 벡터를 받지 않고, 부동소수점 레인에는
+      비트 연산이 없다 — 번역이 거부된다(`E-TYPE-KIND`).
+    ]
+    #ex("레인마다의 비트 연산", "module ex_vec_bits .
+
+fn lanes output u64 . do
+  let x vec 4 u8 lit vec 4 u8 12 10 255 1 . .
+  let y vec 4 u8 lit vec 4 u8 10 6 15 3 . .
+  let k vec 4 u8 lit vec 4 u8 1 9 7 0 . .
+  let a vec 4 u8 bit_and x. y. . .
+  let s vec 4 u8 wrap_shl a. k. . .
+  let n vec 4 u8 bit_not s. . .
+  return widen u64 reduce_max n. . . .
+end .",
+      out: "lanes() = 254")
     #note[
       기계가 여러 레인을 한 번에 셈할 수 있으면 그렇게 하고, 못 하면 하나씩 셈한다.
       #strong[어느 쪽이든 답은 같다]; — 레인 수는 성능의 힌트가 아니라 타입의 일부다.

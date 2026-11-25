@@ -2781,9 +2781,17 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
             case IRW_ROTL: case IRW_ROTR:
             case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI:
+                // ★ 2026-11-25 (RFC-0157 §8-17) — 정수 레인의 `bit_and` · `bit_or` · `bit_xor` · `wrap_shl` · `wrap_shr` 는 레인마다(벡터가 남는다)
+                if (st.n >= 2 && st.k[st.n-1] == K_VEC && st.k[st.n-2] == K_VEC &&
+                    (in->w == IRW_BAND || in->w == IRW_BOR || in->w == IRW_BXOR || in->w == IRW_WSHL || in->w == IRW_WSHR)) {
+                    if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2] || st.fl[st.n-1] != st.fl[st.n-2]) return false;
+                    if (st.fl[st.n-1] == CBE_FL_FLT) return false;
+                    st.n--; st.o[st.n-1] = -1; break;
+                }
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT) return false;
                 st.n--; st.o[st.n-1] = -1; break;
             case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
+                if (in->w == IRW_BNOT && st.n >= 1 && st.k[st.n-1] == K_VEC && st.fl[st.n-1] != CBE_FL_FLT) { st.o[st.n-1] = -1; break; }
                 if (st.n < 1 || st.k[st.n-1] != K_INT) return false;
                 st.o[st.n-1] = -1; break;
             case IRW_ALOAD:   // atomic: [slice, i] → int
@@ -5248,6 +5256,31 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
             case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: case IRW_MULHI: {
+                if (ks.n >= 2 && ks.k[ks.n-1] == K_VEC && ks.k[ks.n-2] == K_VEC) {   // ★ 2026-11-25 (RFC-0157 §8-17) — 레인마다(태그 경로 lw_vbit2 와 같다)
+                    const int ln = (int)ks.vn[ks.n-1], ez = (int)ks.ve[ks.n-1];
+                    const char *m_ = lw_vmem((unsigned)ez);
+                    const char *si_ = ez == 1 ? "int8_t" : ez == 2 ? "int16_t" : ez == 4 ? "int32_t" : "int64_t";
+                    if (in->w == IRW_WSHL) {
+                        low_fpf(out, "    {{ vsp--; for (int k_ = 0; k_ < {}; k_++)\n"
+                                     "        vs[vsp-1].{}[k_] = vs[vsp-1].{}[k_] << (unsigned)(vs[vsp].{}[k_] & {}u); }}\n",
+                                PROVEN_ARG((int)(ln)), proven_arg_cstr(m_), proven_arg_cstr(m_), proven_arg_cstr(m_), PROVEN_ARG((int)(8 * ez - 1)));
+                    } else if (in->w == IRW_WSHR && ks.fl[ks.n-1] == CBE_FL_SGN) {   // 부호 있는 레인 — 산술 시프트
+                        low_fpf(out, "    {{ vsp--; for (int k_ = 0; k_ < {}; k_++)\n"
+                                     "        vs[vsp-1].{}[k_] = ({}_t)(({})vs[vsp-1].{}[k_] >> (unsigned)(vs[vsp].{}[k_] & {}u)); }}\n",
+                                PROVEN_ARG((int)(ln)), proven_arg_cstr(m_), proven_arg_cstr(ez == 1 ? "uint8" : ez == 2 ? "uint16" : ez == 4 ? "uint32" : "uint64"),
+                                proven_arg_cstr(si_), proven_arg_cstr(m_), proven_arg_cstr(m_), PROVEN_ARG((int)(8 * ez - 1)));
+                    } else if (in->w == IRW_WSHR) {
+                        low_fpf(out, "    {{ vsp--; for (int k_ = 0; k_ < {}; k_++)\n"
+                                     "        vs[vsp-1].{}[k_] = vs[vsp-1].{}[k_] >> (unsigned)(vs[vsp].{}[k_] & {}u); }}\n",
+                                PROVEN_ARG((int)(ln)), proven_arg_cstr(m_), proven_arg_cstr(m_), proven_arg_cstr(m_), PROVEN_ARG((int)(8 * ez - 1)));
+                    } else {
+                        const char *o_ = in->w == IRW_BAND ? "&" : in->w == IRW_BOR ? "|" : "^";
+                        low_fpf(out, "    {{ vsp--; for (int k_ = 0; k_ < {}; k_++)\n"
+                                     "        vs[vsp-1].{}[k_] = vs[vsp-1].{}[k_] {} vs[vsp].{}[k_]; }}\n",
+                                PROVEN_ARG((int)(ln)), proven_arg_cstr(m_), proven_arg_cstr(m_), proven_arg_cstr(o_), proven_arg_cstr(m_));
+                    }
+                    ks.n--; ks.o[ks.n-1] = -1; break;
+                }
                 int op2 = in->w == IRW_BAND ? 0 : in->w == IRW_BOR ? 1 : in->w == IRW_BXOR ? 2
                         : in->w == IRW_SHL ? 3 : in->w == IRW_SHR ? 4 : in->w == IRW_WSHL ? 5
                         : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7
@@ -5257,6 +5290,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 ks.n--; ks.o[ks.n-1] = -1; break;
             }
             case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP: {
+                if (in->w == IRW_BNOT && ks.n >= 1 && ks.k[ks.n-1] == K_VEC) {   // ★ 2026-11-25 (RFC-0157 §8-17) — 레인마다
+                    const char *m_ = lw_vmem((unsigned)ks.ve[ks.n-1]);
+                    low_fpf(out, "    {{ for (int k_ = 0; k_ < {}; k_++) vs[vsp-1].{}[k_] = ~vs[vsp-1].{}[k_]; }}\n",
+                            PROVEN_ARG((int)(ks.vn[ks.n-1])), proven_arg_cstr(m_), proven_arg_cstr(m_));
+                    ks.o[ks.n-1] = -1; break;
+                }
                 int op1 = in->w == IRW_BNOT ? 0 : in->w == IRW_POPCNT ? 1 : in->w == IRW_CLZ ? 2
                         : in->w == IRW_CTZ ? 3 : 4;
                 low_fpf(out, "    st[sp-1] = lw_bit1({}, {}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((int)(op1)));
@@ -8985,14 +9024,14 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                             : in->w == IRW_SHL ? 3 : in->w == IRW_SHR ? 4 : in->w == IRW_WSHL ? 5
                             : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7
                             : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : in->w == IRW_MULHI ? 11 : 8;
-                    low_fpf(out, "    st[sp-2] = lw_int(lw_bit2({}, {}, lw_want_int(st[sp-2], \"ints\"),"
-                                 " lw_want_int(st[sp-1], \"ints\"))); sp--;\n", PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((int)(op2)));
+                    low_fpf(out, "    st[sp-2] = lw_vbit2({}, {}, st[sp-2], st[sp-1]); sp--;\n",   /* 2026-11-25 — 벡터면 레인마다(RFC-0157 §8-17) */
+                            PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((int)(op2)));
                     break;
                 }
                 case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP: {
                     int op1 = in->w == IRW_BNOT ? 0 : in->w == IRW_POPCNT ? 1 : in->w == IRW_CLZ ? 2
                             : in->w == IRW_CTZ ? 3 : 4;
-                    low_fpf(out, "    st[sp-1] = lw_int(lw_bit1({}, {}, lw_want_int(st[sp-1], \"ints\")));\n",
+                    low_fpf(out, "    st[sp-1] = lw_vbit1({}, {}, st[sp-1]);\n",
                             PROVEN_ARG((long long)((long long)in->a)), PROVEN_ARG((int)(op1)));
                     break;
                 }

@@ -1,0 +1,44 @@
+rem ★★ 2026-11-25 (RFC-0157 §8-17 · 정본 §6.2.11 (3b) · 소유자 «2번 추천대로») — **정수 레인의 비트 연산**: `bit_and` · `bit_or` · `bit_xor` · `bit_not` ·
+rem   `wrap_shl` · `wrap_shr` 가 레인마다 스칼라와 같은 뜻이다. 밀기의 칸 수는 같은 모양의 벡터이고 레인 폭으로 가린다(9 → 1 · 31 → 7). 부호 있는 레인의
+rem   `wrap_shr` 는 산술 밀기. `fand` · `fsh` 는 빠른 경로(스칼라로 줄인다), `vand` … `vshr` 는 벡터를 돌려준다(태그 경로).
+
+module vm_vecbits .
+fn vand output vec 4 u8 . do
+  let x vec 4 u8 lit vec 4 u8 12 10 255 1 . .
+  let y vec 4 u8 lit vec 4 u8 10 6 15 3 . .
+  let r vec 4 u8 bit_and x. y. . .
+  return r. .
+end .
+fn vnot output vec 4 i8 . do
+  let x vec 4 i8 lit vec 4 i8 0 -1 5 -128 . .
+  let r vec 4 i8 bit_not x. . .
+  return r. .
+end .
+fn vshl output vec 4 u8 . do
+  let x vec 4 u8 lit vec 4 u8 1 1 3 128 . .
+  let k vec 4 u8 lit vec 4 u8 1 9 31 1 . .
+  let r vec 4 u8 wrap_shl x. k. . .
+  return r. .
+end .
+fn vshr output vec 4 i8 . do
+  let x vec 4 i8 lit vec 4 i8 -128 64 -1 100 . .
+  let k vec 4 i8 lit vec 4 i8 1 9 7 -1 . .
+  let r vec 4 i8 wrap_shr x. k. . .
+  return r. .
+end .
+fn fand input a u8 . output u64 . do
+  let x vec 4 u8 lit vec 4 u8 a. 10 255 1 . .
+  let y vec 4 u8 lit vec 4 u8 10 6 15 3 . .
+  let r vec 4 u8 bit_xor bit_and x. y. . bit_or x. y. . . .
+  let n vec 4 u8 bit_not r. . .
+  return widen u64 reduce_max n. . . .
+end .
+fn fsh input a i8 . output i64 . do
+  let x vec 4 i8 lit vec 4 i8 a. 64 -1 100 . .
+  let k vec 4 i8 lit vec 4 i8 1 9 7 -1 . .
+  let r vec 4 i8 wrap_shr x. k. . .
+  let l vec 4 i8 wrap_shl x. k. . .
+  let p i64 widen i64 reduce_min r. . . .
+  let q i64 widen i64 reduce_max l. . . .
+  return add p. q. . .
+end .

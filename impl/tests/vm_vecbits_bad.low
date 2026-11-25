@@ -1,0 +1,14 @@
+rem ★ 짝 — 멈추는 `shl` 은 벡터를 받지 않고(칸 수가 폭 이상인 레인 하나로 벡터 전체를 멈추게 하는 이름이 아니다), 부동 레인에는 비트가 없다: E-TYPE-KIND.
+module vm_vecbits_bad .
+
+fn sh output vec 4 u8 . do
+  let x vec 4 u8 lit vec 4 u8 1 2 3 4 . .
+  let r vec 4 u8 shl x. x. . .
+  return r. .
+end .
+
+fn fl output vec 2 f64 . do
+  let x vec 2 f64 lit vec 2 f64 1.0 2.0 . .
+  let r vec 2 f64 bit_and x. x. . .
+  return r. .
+end .

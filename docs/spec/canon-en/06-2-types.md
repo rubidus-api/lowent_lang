@@ -1364,6 +1364,11 @@ end .
       (⟦§6.3⟧), and `min` · `max` of signed lanes compare by sign (2026-11-02). Floating-point lanes have no `mod` — as for scalars,
       translation is refused (⟦§6.3.3⟧ (2a) · `E-TYPE-KIND`).
 
+(3b) Integer lanes also have bit operations, per lane: `bit_and` · `bit_or` · `bit_xor` · `bit_not` · `wrap_shl` · `wrap_shr` (2026-11-25). Both operands are
+      vectors of the same shape. A shift's count is a vector of the same shape too, and each lane uses only the low bits masked to that lane's width — the
+      same as the scalar `wrap_shl` · `wrap_shr` (⟦§6.3.5⟧). `wrap_shr` of a signed lane is an arithmetic shift. The stopping `shl` · `shr` and the rotations
+      `rotl` · `rotr` do not take vectors, and floating-point lanes have no bit operations — translation is refused (`E-TYPE-KIND`).
+
 > [!참고]
 > If the machine can compute several lanes at once it does so; if not, it computes them one by one.
 > **Either way the answer is the same** — the lane count is not a performance hint but part of the type.

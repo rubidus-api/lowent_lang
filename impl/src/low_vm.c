@@ -2379,6 +2379,33 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             case IRW_ROTL: case IRW_ROTR: {
                 if (sp < 2) return false;
                 vmv_t bv = stack[--sp], av = stack[--sp];
+                // ★ 2026-11-25 (RFC-0157 §8-17 · 정본 §6.2.11 (3a)) — 레인마다: `bit_and` · `bit_or` · `bit_xor` · `wrap_shl` · `wrap_shr`.
+                //   칸 수 레인은 그 레인 폭으로 가린다(스칼라 `wrap_*` 와 같다) · 부호 있는 레인의 `wrap_shr` 는 산술 시프트.
+                if (av.tag == VMV_VEC && bv.tag == VMV_VEC &&
+                    (in->w == IRW_BAND || in->w == IRW_BOR || in->w == IRW_BXOR || in->w == IRW_WSHL || in->w == IRW_WSHR)) {
+                    const proven_u8 n_ = vm->vecs[av.box].n, ez_ = vm->vecs[av.box].esz;
+                    if (vm->vecs[bv.box].n != n_ || vm->vecs[bv.box].esz != ez_ || vm->vecs[av.box].flt || vm->vecs[bv.box].flt) {
+                        vm_diag(vm->diags, "E-VM-TYPE", "a lane bit operation needs two integer vectors of the same shape"); return false; }
+                    if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool (docs/runtime-pools.md)"); return false; }
+                    const int lb_ = 8 * ez_; const bool vs_ = vm->vecs[av.box].sign;
+                    const proven_u64 em_ = lb_ >= 64 ? ~0ull : ((1ull << lb_) - 1);
+                    for (proven_u8 q = 0; q < n_; q++) {
+                        proven_u64 x = vm->vecs[av.box].l[q] & em_, y = vm->vecs[bv.box].l[q] & em_, r2;
+                        if (in->w == IRW_BAND) r2 = x & y;
+                        else if (in->w == IRW_BOR) r2 = x | y;
+                        else if (in->w == IRW_BXOR) r2 = x ^ y;
+                        else {
+                            const proven_u64 kk = y & (proven_u64)(lb_ - 1);
+                            if (in->w == IRW_WSHL) r2 = x << kk;
+                            else if (vs_) r2 = (proven_u64)(ity_wrap((proven_i64)x, (proven_u8)lb_, true) >> kk);
+                            else r2 = x >> kk;
+                        }
+                        vm->vecs[vm->nvec].l[q] = r2 & em_;
+                    }
+                    vm->vecs[vm->nvec].n = n_; vm->vecs[vm->nvec].esz = ez_; vm->vecs[vm->nvec].flt = false; vm->vecs[vm->nvec].sign = vs_;
+                    stack[sp++] = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
+                    break;
+                }
                 if (av.tag != VMV_INT || bv.tag != VMV_INT) {
                     vm_diag(vm->diags, "E-BITOP-TYPE",
                             "a bit operation needs INTEGERS — bits are a property of a machine word, "
@@ -2466,6 +2493,15 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP: {
                 if (sp < 1) return false;
                 vmv_t av = stack[--sp];
+                if (av.tag == VMV_VEC && in->w == IRW_BNOT && !vm->vecs[av.box].flt) {   // ★ 2026-11-25 (RFC-0157 §8-17) — 레인마다
+                    if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool (docs/runtime-pools.md)"); return false; }
+                    const proven_u8 n_ = vm->vecs[av.box].n, ez_ = vm->vecs[av.box].esz;
+                    const proven_u64 em_ = ez_ >= 8 ? ~0ull : ((1ull << (8 * ez_)) - 1);
+                    for (proven_u8 q = 0; q < n_; q++) vm->vecs[vm->nvec].l[q] = ~vm->vecs[av.box].l[q] & em_;
+                    vm->vecs[vm->nvec].n = n_; vm->vecs[vm->nvec].esz = ez_; vm->vecs[vm->nvec].flt = false; vm->vecs[vm->nvec].sign = vm->vecs[av.box].sign;
+                    stack[sp++] = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
+                    break;
+                }
                 if (av.tag != VMV_INT) {
                     vm_diag(vm->diags, "E-BITOP-TYPE", "a bit operation needs an INTEGER");
                     return false;

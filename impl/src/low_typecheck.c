@@ -1411,6 +1411,14 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             if (!sig_find(c, h2) && n == 3 && (veq(h2, "bit_and") || veq(h2, "bit_or") || veq(h2, "bit_xor"))) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv), b = tc_infer(c, k[start + 2], env, nenv);
                 if (tc_enum_as_num(c, a, "E-TYPE-KIND", k[start]->line) | tc_enum_as_num(c, b, "E-TYPE-KIND", k[start]->line)) { ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
+                // ★ 2026-11-25 (RFC-0157 §8-17 · 소유자 «2번 추천대로») — `vec` 에서는 레인마다(정본 §6.2.11 (3a)). 부동 레인에는 비트가 없다.
+                if (a.k == TK_VEC || b.k == TK_VEC) {
+                    if (a.k != TK_VEC || b.k != TK_VEC || a.vflt || b.vflt) {
+                        tc_emit(c, "E-TYPE-KIND", "a lane bit operation takes two integer vectors of the same shape (canon §6.2.11 (3a))", k[start]->line);
+                        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                    }
+                    return tc_binop(c, a, b, false, k[start]->line);
+                }
                 if (a.k == TK_BOOL || b.k == TK_BOOL) {   // ★ 2026-11-11 (W-20261111-0940 O2 · 정본 §6.3.10) — 참거짓의 «그리고» 는 `and` 다
                     tc_emit(c, "E-TYPE-KIND", "bit operations take integers, and a bool is not a number (canon §6.3.10) — for truth values "
                             "write `and` / `or` / `ne`", k[start]->line);
@@ -1445,6 +1453,17 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                 //   부호 있는 칸 수는 음수일 수 있고, 그 뜻(반대로 밀기? 감기? 멈춤?)을 언어마다 달리 골랐다. 실행 때 멈추던 것을
                 //   검사에서 거른다 — 부호 있는 값을 칸 수로 쓰려면 명시적으로 바꾼다. 리터럴은 자리의 타입을 받으므로 그대로 선다
                 //   (음수 리터럴은 따로 E-SHIFT-RANGE). 돌리기(`rotl` · `rotr`)는 칸 수를 폭으로 나눈 나머지로 쓰므로 이 규칙에 들지 않는다.
+                // ★ 2026-11-25 (RFC-0157 §8-17) — 레인 시프트는 `wrap_shl` · `wrap_shr` 만: 칸 수는 같은 모양의 `vec` 이고 레인마다 그 폭으로 가린다
+                //   (스칼라 `wrap_*` 그대로 — 부호 있는 칸 수 레인도 아랫 비트만 쓰므로 E-SHIFT-SIGNED 에 들지 않는다). 멈추는 `shl` · `shr` 과
+                //   돌리기는 레인에 열지 않았다.
+                if (a.k == TK_VEC || sb.k == TK_VEC) {
+                    if (!(veq(h2, "wrap_shl") || veq(h2, "wrap_shr")) || a.k != TK_VEC || sb.k != TK_VEC || a.vflt || sb.vflt) {
+                        tc_emit(c, "E-TYPE-KIND", "a lane shift is `wrap_shl` / `wrap_shr` over two integer vectors of the same shape — the count "
+                                "lanes are masked to the lane width (canon §6.2.11 (3a)); `shl` / `shr` / `rotl` / `rotr` do not take vectors", k[start]->line);
+                        ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                    }
+                    return tc_binop(c, a, sb, false, k[start]->line);
+                }
                 if (!veq(h2, "rotl") && !veq(h2, "rotr") && sb.k == TK_INT && !sb.lit && sb.bits && sb.sign) {
                     tc_emitf(c, "E-SHIFT-SIGNED", k[start]->line,
                              "the shift amount of `{}` is a signed integer — a shift count is an UNSIGNED integer type "
@@ -1795,6 +1814,10 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
             }
             if (!sig_find(c, h2) && n == 2 && veq(h2, "bit_not")) {
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
+                if (a.k == TK_VEC) {   // ★ 2026-11-25 (RFC-0157 §8-17) — 레인마다
+                    if (a.vflt) { tc_emit(c, "E-TYPE-KIND", "`bit_not` takes an integer vector — float lanes have no bits to flip", k[start]->line); ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u; }
+                    return a;
+                }
                 if (a.k == TK_INT && !a.lit && a.bits) { a.has_rng = false; return a; }
                 return tk_int(0, false);
             }

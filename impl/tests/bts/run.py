@@ -251,7 +251,7 @@ def vec_text(lanes):
 
 def plan_simd_ops(doc):
     """lane cases: `lit vec N T` from the lane arguments, the Lowent lane op, the printed `vec[…]`. Not built in Lowent (→ not-implemented):
-    lane `and` · `or` · `xor` · `shl` · `shr` (canon §6.2.11 (3a) lists the lane arithmetic; no lane bit operations), `to_int` (a vector is
+    `to_int` (a vector is
     not a scalar for `bit_cast`, §8.7), `lane_lookup16`, and `kernels`. `load_masked` · `store_masked` · `load_full`: simd_memory_rows."""
     for ci, c in enumerate(doc['cases']):
         op, d = c['op'], c.get('disposition')
@@ -267,6 +267,11 @@ def plan_simd_ops(doc):
             word = {'wrap': op, 'sat': f'sat_{op}'}.get(d)
             if word:
                 fsrc = f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} return {word} x. y. . . end .'
+        elif op in ('and', 'or', 'xor') or (op in ('shl', 'shr') and d == 'wrap'):
+            # 2026-11-25 (RFC-0157 §8-17 · W-20261125-1240): the scalar words, lane by lane (canon §6.2.11 (3a)); a shift's count lanes are
+            # masked to the lane width — exactly the scalar `wrap_shl` · `wrap_shr`, which is BTS 03 §3.3 «k mod lane bits».
+            word = {'and': 'bit_and', 'or': 'bit_or', 'xor': 'bit_xor', 'shl': 'wrap_shl', 'shr': 'wrap_shr'}[op]
+            fsrc = f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} let r vec {n} {t} {word} x. y. . . return r. . end .'
         elif op in ('eq', 'lt'):
             ones = '-1' if t.startswith('i') else str((1 << int(t[1:])) - 1)
             fsrc = (f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} let t vec {n} {t} splat {ones} . . let f vec {n} {t} splat 0 . . '
@@ -280,7 +285,12 @@ def plan_simd_ops(doc):
             if op.startswith('reduce_'):
                 yield label, Exec(('simd', ci), fsrc, r[0], value_text(r[1]))
             else:
-                yield label, Exec(('simd', ci), fsrc, list(r[0]) + list(r[1]), 'trap' if r[2] == 'trap' else vec_text(r[2]))
+                b = list(r[1])
+                if op in ('shl', 'shr'):
+                    # a count lane is `t` in Lowent, and the vectors' counts go up to 2^64-1: write k mod 2^w (as `t`) — it keeps
+                    # k mod w, the only part a wrapping lane shift reads (w divides 2^w)
+                    w = int(t[1:]); b = [str(((int(k) % (1 << w)) ^ (1 << (w - 1))) - (1 << (w - 1)) if t[0] == 'i' else int(k) % (1 << w)) for k in b]
+                yield label, Exec(('simd', ci), fsrc, list(r[0]) + b, 'trap' if r[2] == 'trap' else vec_text(r[2]))
     for k in doc.get('kernels', []):
         yield f'kernel/{k["kernel"]}', Skip('not-implemented')
 

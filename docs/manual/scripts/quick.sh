@@ -3,7 +3,7 @@
 #   scripts/quick.sh [ko|en]  → build/quick-<판>.pdf
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
-ws=$(cd "$root/../../.." && pwd)
+ws=$(cd "$root/../../../.." && pwd)   # 작업공간 뿌리(저장소가 proj/ 아래로 옮겨 한 겹 더 · 2026-11-25)
 typst=${TYPST:-$ws/usr/toolchains/typst/typst}
 fonts=${FONT_PATH:-$ws/toolchain/fonts}
 lang=${1:-ko}

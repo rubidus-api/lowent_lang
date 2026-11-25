@@ -3809,15 +3809,16 @@ int main(void) {
     printf("target tree (RFC-0054 §8-6):\n");
     {   // ★ 평평한 표(공개 307ec5e5)가 적던 아홉 줄 — 나무로 바꾼 뒤에도 칸마다 **같은 값**이어야 한다.
         //   name BE addr ptr align caps fpu nohp nofl simd posix slice cache page check int128 mul limb
+        //   ★ 2026-11-25 — 32 비트 줄의 slice 를 2^24 → 2^31 로 일부러 바꿨다(할당 상한과 같게 · docs/known-defects/slice-cap-32bit-below-alloc.md).
         static const low_target_t want[] = {
             { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },
             { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },
-            { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 32 },
-            { "cortex_m0",false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0, .mul_bits = 16 },
+            { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 31, 4, 0, .mul_bits = 32 },
+            { "cortex_m0",false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 31, 4, 0, .mul_bits = 16 },
             { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64 },
-            { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096, .mul_bits = 32 },
+            { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 31, 32, 4096, .mul_bits = 32 },
             { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096, false, true, .mul_bits = 64, .limb_bits = 64 },
-            { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0, .mul_bits = 32 },
+            { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 31, 8, 0, .mul_bits = 32 },
             { "word16",   false, 16, 2, 2, false, false, true,  true,  0,  false, (proven_i64)1 << 15, 2, 0, true, .mul_bits = 16 },
         };
         char err[160] = "";

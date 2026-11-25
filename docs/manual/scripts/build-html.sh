@@ -3,7 +3,7 @@
 # GitHub Pages 가 저장소의 docs/ 를 내보내면 주소는 …/lowent_lang/manual/html-ko/ 이다.
 set -e
 root=$(cd "$(dirname "$0")/.." && pwd)
-ws=$(cd "$root/../../.." && pwd)
+ws=$(cd "$root/../../../.." && pwd)   # 작업공간 뿌리(저장소가 proj/ 아래로 옮겨 한 겹 더 · 2026-11-25)
 typst=${TYPST:-$ws/usr/toolchains/typst/typst}
 fonts=${FONT_PATH:-$ws/toolchain/fonts}
 [ -d "$root/build/examples-out" ] || sh "$root/scripts/verify-examples.sh"

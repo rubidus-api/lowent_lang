@@ -4,7 +4,7 @@
 # ★ 글꼴을 못 찾으면 조판은 성공하되 한글이 대체 글꼴로 떨어진다 — 그 PDF 는 버린다.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
-ws=$(cd "$root/../../.." && pwd)
+ws=$(cd "$root/../../../.." && pwd)   # 작업공간 뿌리(저장소가 proj/ 아래로 옮겨 한 겹 더 · 2026-11-25)
 typst=${TYPST:-$ws/usr/toolchains/typst/typst}
 fonts=${FONT_PATH:-$ws/toolchain/fonts}
 [ -x "$typst" ] || { echo "build-pdf: typst 를 못 찾았다: $typst" >&2; exit 1; }

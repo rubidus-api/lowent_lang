@@ -310,8 +310,13 @@ static void ir_trestore(ir_ctx_t *c, const ir_tsave_t *sv, ityp_t top, proven_u8
 //   ★ 축 낱말 — `word=64|32|16` 은 주소 폭 · 포인터 크기 · 정렬 · 슬라이스 상한 · 128 비트 정수 · 곱셈기 폭을 그 폭의 기본으로,
 //     `env=hosted|bare` 는 부동 장치 · 힙 · 부동 · POSIX · 쪽 크기를 그 환경의 기본으로 둔다. 뒤에 적은 낱말이 앞을 덮는다.
 //     나머지는 칸 하나씩: be addr ptr align caps fpu heap float simd posix slice cache page check int128 mul limb.
-//   ★ max_slice_len(`slice`) — **주소공간에서 나온 상한**. 64 비트는 2^48(현실적 가상주소), 32 비트는 2^24(16 MiB — MMU 없는
-//     프리스탠딩 기계의 넉넉한 상한), 16 비트는 2^15(두 위치의 차가 `idiff` 에 든다). 보수적으로 잡는다: 이 수를 넘는 슬라이스는
+//   ★ max_slice_len(`slice`) — **주소공간에서 나온 상한**. 64 비트는 2^48(현실적 가상주소), 32 비트는 2^31, 16 비트는 2^15
+//     (두 위치의 차가 `idiff` 에 든다 — 정본 §8.13 (2c) 의 할당 상한 «가장 큰 `idiff`» 와 같은 수이고, C 도 PTRDIFF_MAX 를 넘는
+//     객체를 만들지 않는다).
+//     ★★★ 2026-11-25 (X-0092 ③) — 32 비트는 **2^24 였다**(«MMU 없는 기계의 넉넉한 상한»). 그런데 `alloc_bytes` 는 2^31 − 1 바이트까지
+//     주고(§8.13 (2c)), 호스트 32 비트(`mips_be` · `riscv32`)는 malloc 으로 그만큼을 실제로 받는다. 분석은 «길이 ≤ 2^24» 를 사실로 심어
+//     `idx t. len s. .` 의 경계 검사를 지웠고, 32 MiB 조각을 건네자 네이티브가 버퍼 밖을 읽었다(ASan · `docs/known-defects/
+//     slice-cap-32bit-below-alloc.md`). 상한은 **만들 수 있는 가장 긴 조각 이상**이어야 한다 — 작게 잡으면 약속이 아니라 거짓이다. 보수적으로 잡는다: 이 수를 넘는 슬라이스는
 //     만들 수 없다는 **약속**이므로, 크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다. 조절은 `word=` 의 기본 하나거나
 //     그 마디의 `slice=` 다(소유자 요구: "차후 조절 가능").
 typedef struct {
@@ -386,7 +391,7 @@ static bool ir_axis(low_target_t *t, const char *k, size_t kn, const char *v) {
     if (K("word")) {
         if (n != 16 && n != 32 && n != 64) return false;
         t->addr_bits = (proven_u8)n; t->ptr_bytes = t->ptr_align = (proven_u8)(n / 8);
-        t->max_slice_len = n == 64 ? (proven_i64)1 << 48 : n == 32 ? (proven_i64)1 << 24 : (proven_i64)1 << 15;
+        t->max_slice_len = n == 64 ? (proven_i64)1 << 48 : n == 32 ? (proven_i64)1 << 31 : (proven_i64)1 << 15;
         t->int128 = n == 64; t->mul_bits = (proven_u8)n;
         return true;
     }

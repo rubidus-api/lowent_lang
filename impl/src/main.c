@@ -1812,7 +1812,9 @@ int main(int argc, char **argv) {
                 //   CWD 기준이면 **어디서 컴파일하느냐에 따라 프로그램의 뜻이 달라진다** —
                 //   같은 소스가 두 가지를 뜻하게 된다. (그리고 실제로 그랬다: 저장소 루트에서
                 //   부르면 의존을 못 찾았다. 정규식-렉싱 게이트가 그것을 잡았다.)
-                static char resolved[16][512];
+                // ★ 2026-11-25 (X-0092 · `make asan`) — 전엔 `[16]` 이었다. 한 파일의 의존은 MAX_DEPS_PER_FILE(32)까지 받으므로
+                //   열일곱 번째 `use` 가 이 표 끝을 넘어 옆 전역(`loaded`)을 덮었다(ASan global-buffer-overflow, 골든 안에서).
+                static char resolved[MAX_DEPS_PER_FILE][512];
                 const char *base = paths[fi];
                 const char *slash = strrchr(base, '/');
                 const low_pkg_dep_t *mdep = NULL;   // 매니페스트 선언 의존으로 해소됐는가 (해시 핀)

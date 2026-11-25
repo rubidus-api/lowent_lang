@@ -1633,11 +1633,15 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                               ivstate_t *st, ivs_t *pred_out, bool mark,
                               proven_size_t *proven, proven_size_t *total) {
     ivs_t stk[64]; proven_size_t sp = 0;
-    pred_out->pred = 0; pred_out->slot = -1; pred_out->lenpred = -1; pred_out->lenlt = -1;
-    pred_out->rslot = -1;
-    pred_out->eid = 0; pred_out->deps = 0; pred_out->pneg = false;
-    pred_out->ifrom = 0; pred_out->ito = 0;
-    pred_out->divof_s = -1; pred_out->dmul_s = -1;
+    // ★ 2026-11-25 (`make asan` · UBSan «load of value 7 … '_Bool'» 가 3300 줄의 `pr.puns` 에서) — 전엔 칸 몇 개만 적었다. 블록이
+    //   BRZ 로 끝나지 않으면 부르는 쪽의 `pr` 은 나머지 칸(`puns` · `prod_l/r` · `aff_s` · `dif_l/r` …)이 **쓰레기**인 채로
+    //   iv_narrow_* 에 건너갔다. 모든 칸을 «모른다» 로 둔다(1779 줄의 zero_ivs 와 같은 값).
+    *pred_out = (ivs_t){ .v = IV_TOP, .rhs = IV_TOP,
+                         .slot = -1, .lenof = -1, .lenlt = -1, .lenpred = -1, .rslot = -1,
+                         .aff_s = -1, .aff_c = 0, .raff_s = -1, .raff_c = 0,
+                         .dif_l = -1, .dif_r = -1, .puns = false, .vlanes = 0,
+                         .prod_l = -1, .prod_r = -1, .divof_s = -1, .dmul_s = -1,
+                         .row_i = -1, .row_q = -1, .row_k = -1 };
     proven_size_t i = b0;
     for (; i < bend; i++) {
         low_ir_ins_t *in = &d->code[i];

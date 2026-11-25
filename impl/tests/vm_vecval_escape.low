@@ -1,0 +1,18 @@
+rem ★★ 2026-11-25 (RFC-0157 §8-1 · BTS simd_ops 를 잇다가 봄) — **`vec` · `mask` 는 값이다.** 나열 리터럴의 틀에서 `load` 한
+rem   벡터를 돌려주거나 `some` 에 싸서 돌려주는 것이 `E-LIT-ESCAPE` 로 거절되고 있었다. 나열 수명 검사가 «자리를 싣지 못하는 값» 을
+rem   낱말 하나의 스칼라로만 알았기 때문이다(정본 §6.2.11 (1) — 벡터는 레인을 **한 값으로** 든다). 조각을 돌려주는 것은 여전히 거절이다.
+
+module vm_vecval_escape .
+
+fn top output vec 4 u8 . do
+  var xs lit array 4 u8 1 2 3 4 . .
+  let r vec 4 u8 load xs. 0 . .
+  return r. .
+end .
+
+fn maybe input k u8 . output option vec 4 u8 . do
+  var xs lit array 4 u8 9 8 7 6 . .
+  guard lt k. 4 . else return none . .
+  let r vec 4 u8 load xs. 0 . .
+  return some r. . .
+end .

@@ -6145,6 +6145,18 @@ static bool ck_type_word_scalar(proven_u8str_view_t w) {
     for (proven_size_t i = 0; i < sizeof SC / sizeof SC[0]; i++) if (veq(w, SC[i])) return true;
     return false;
 }
+// ★ 2026-11-25 (RFC-0157 §8-1 · BTS simd_ops 를 잇다가 봄) — 나열 수명 검사가 «자리를 싣지 못하는 값» 으로 보는 타입. 전엔 낱말 하나의
+//   스칼라만이었고, 그래서 `let r vec 4 u8 load xs. 0 . .` · `return r. .` 이 `E-LIT-ESCAPE` 였다 — 그런데 `vec` 은 레인을 **베껴 든 값**이다
+//   (정본 §6.2.11 (1) «한 값으로 든다»). `vec <n> <스칼라>` · `mask <n>` 도 값이다. 조각 · 배열 · 구조체는 그대로 자리를 싣는다고 본다.
+static bool ck_lc_value_words(const low_cst_t *const *w, proven_size_t n) {
+    for (proven_size_t i = 0; i < n; i++) if (!ck_atom(w[i])) return false;
+    if (n == 1) return ck_type_word_scalar(w[0]->tok.lex);
+    if (n == 3 && veq(w[0]->tok.lex, "vec"))   // CST 는 `vec <원소> <레인 수>` 차례로 나른다(소스는 레인 수가 먼저)
+        return ck_type_word_scalar(w[1]->tok.lex) || ck_type_word_scalar(w[2]->tok.lex);
+    if (n == 2 && veq(w[0]->tok.lex, "mask")) return true;
+    if (n >= 2 && veq(w[0]->tok.lex, "option")) return ck_lc_value_words(w + 1, n - 1);   // 값 하나를 싸는 꼴도 값이다
+    return false;
+}
 // 이 폼 어디에 `alloc_bytes`·`stack_new` 가 있나(영역의 바이트를 새로 받는 자리)
 static bool ck_has_fresh_bytes(const low_cst_t *nd) {
     if (!nd) return false;
@@ -8642,7 +8654,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
         if ((kw == LOW_KW_LET || kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
             proven_size_t be = nd->nkids;
             for (proven_size_t q = 2; q < nd->nkids; q++) if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
-            bool scalar = be == 3 && ck_atom(nd->kids[2]) && ck_type_word_scalar(nd->kids[2]->tok.lex);
+            bool scalar = be >= 2 && ck_lc_value_words((const low_cst_t *const *)(nd->kids + 2), be - 2);
             const low_cst_t *l = (be + 2 == nd->nkids) ? lc_list(nd->kids[be + 1]) : NULL;
             if (l) {
                 if (!ck_atom(l->kids[2]) || !ck_elem_sized(l->kids[2]->tok.lex)) {   // 원소가 줄·구조체 — `index` 가 보기를 낸다
@@ -9008,10 +9020,13 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     if (!x.bytes && !x.autorel && !x.sarr) return;               // 틀 안 나열도 돌려줄 바이트도 지역 구조체의 배열 칸도 없으면 볼 수명이 없다
     {
         low_op_header_t h = low_op_header(f);
-        proven_size_t nw = 0; proven_u8str_view_t w0 = { 0 };
-        for (proven_size_t j = h.out_s; j < h.out_e; j++)
-            if (ck_atom(f->kids[j]) && !veq(f->kids[j]->tok.lex, "output")) { if (nw == 0) w0 = f->kids[j]->tok.lex; nw++; }
-        x.scalar_out = nw == 1 && ck_type_word_scalar(w0);
+        const low_cst_t *ow[4]; proven_size_t nw = 0; bool flat = true;
+        for (proven_size_t j = h.out_s; j < h.out_e; j++) {
+            if (!ck_atom(f->kids[j])) { flat = false; continue; }
+            if (veq(f->kids[j]->tok.lex, "output") || veq(f->kids[j]->tok.lex, ".")) continue;
+            if (nw < 4) ow[nw] = f->kids[j]; nw++;
+        }
+        x.scalar_out = flat && nw <= 4 && ck_lc_value_words((const low_cst_t *const *)ow, nw);
     }
     lc_walk(out, &x, f, 0);
     if (x.over)

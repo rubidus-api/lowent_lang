@@ -252,11 +252,13 @@ def vec_text(lanes):
 def plan_simd_ops(doc):
     """lane cases: `lit vec N T` from the lane arguments, the Lowent lane op, the printed `vec[…]`. Not built in Lowent (→ not-implemented):
     lane `and` · `or` · `xor` · `shl` · `shr` (canon §6.2.11 (3a) lists the lane arithmetic; no lane bit operations), `to_int` (a vector is
-    not a scalar for `bit_cast`, §8.7), `lane_lookup16` · `load_masked` · `store_masked` · `load_full` (not mapped yet), and `kernels`."""
+    not a scalar for `bit_cast`, §8.7), `lane_lookup16`, and `kernels`. `load_masked` · `store_masked` · `load_full`: simd_memory_rows."""
     for ci, c in enumerate(doc['cases']):
         op, d = c['op'], c.get('disposition')
         t, n = re.match(r'simd\((\w+),(\d+)\)', c['type']).groups(); n = int(n)
         label = f'{op}/{c["type"]}/{d}'
+        if op in ('load_masked', 'store_masked', 'load_full'):
+            yield from simd_memory_rows(ci, c, op, d, t, n, label); continue
         va = ' '.join(f'a{i}.' for i in range(n)); vb = ' '.join(f'b{i}.' for i in range(n))
         ins_a = ' '.join(f'input a{i} {t} .' for i in range(n)); ins_b = ' '.join(f'input b{i} {t} .' for i in range(n))
         lx = f'let x vec {n} {t} lit vec {n} {t} {va} . .'; ly = f'let y vec {n} {t} lit vec {n} {t} {vb} . .'
@@ -281,6 +283,48 @@ def plan_simd_ops(doc):
                 yield label, Exec(('simd', ci), fsrc, list(r[0]) + list(r[1]), 'trap' if r[2] == 'trap' else vec_text(r[2]))
     for k in doc.get('kernels', []):
         yield f'kernel/{k["kernel"]}', Skip('not-implemented')
+
+
+def simd_memory_rows(ci, c, op, d, t, n, label):
+    """2026-11-25 (W-20261125-0930 · RFC-0157 «남은 작업 진행»): the three memory ops map to words Lowent already has (canon §6.3.7).
+    The slice is written into the function (one function per row, as `sum_tree`). `load_masked` · `store_masked` take a `mask n`;
+    the row's `n` becomes the mask «lane < min(n, len s)» — computed IN Lowent (`min` · `lt` over a lane-index vector), so the
+    tail-safety the vectors test (lanes past the slice are not touched) is the processor's, not the runner's. `load_full` trap = plain
+    `load` (stops when the slice is short); chk = `guard ge len s. n.` then `load` — Lowent has no checked-load word, so that row
+    measures a two-word spelling, not one op. `store_masked` is judged in Lowent: the function compares the whole slice to the
+    expected bytes and gives back `true`."""
+    def arr(name, xs, mut):
+        k = max(len(xs), 1)
+        body = ' '.join(xs) if xs else '_'
+        return (f'{"var" if mut else "let"} {name}a lit array {k} {t} {body} . . '
+                f'let {name} {"mut " if mut else ""}slice {t} subslice {name}a. 0 {len(xs)} . . ')
+    ix = f'let ix vec {n} {t} lit vec {n} {t} ' + ' '.join(str(i) for i in range(n)) + ' . . '
+    def mask(k):
+        return (ix + f'let k {t} cast {t} min len s. . {k} . . . let kv vec {n} {t} splat k. . . '
+                f'let m mask {n} lt ix. kv. . . ')
+    for ri, r in enumerate(c['rows']):
+        if op == 'load_masked':
+            xs, k, want = r
+            body = (f'output vec {n} {t} . do ' + arr('s', xs, False) + mask(k)
+                    + f'let z vec {n} {t} splat 0 . . let r vec {n} {t} load_masked s. 0 m. z. . . return r. . end .')
+            yield label, Exec(('simd', ci, ri), body, [], vec_text(want))
+        elif op == 'store_masked':
+            xs, v, k, after = r
+            body = (f'output bool . effects none . do ' + arr('s', xs, True) + mask(k)
+                    + f'let v vec {n} {t} lit vec {n} {t} ' + ' '.join(v) + ' . . store_masked s. 0 v. m. . '
+                    + (f'let e lit array {len(after)} {t} ' + ' '.join(after) + ' . . '
+                       + f'repeat i usize {len(after)} do guard eq idx s. i. . idx e. i. . . else return false . . end . ' if after else '')
+                    + 'return true . end .')
+            yield label, Exec(('simd', ci, ri), body, [], '1', kw='proc')
+        else:
+            xs, want = r
+            if d == 'trap':
+                body = f'output vec {n} {t} . do ' + arr('s', xs, False) + f'let r vec {n} {t} load s. 0 . . return r. . end .'
+                yield label, Exec(('simd', ci, ri), body, [], 'trap' if want == 'trap' else vec_text(want))
+            else:
+                body = (f'output option vec {n} {t} . do ' + arr('s', xs, False)
+                        + f'guard ge len s. . {n} . else return none . . let r vec {n} {t} load s. 0 . . return some r. . . end .')
+                yield label, Exec(('simd', ci, ri), body, [], 'none' if want == 'none' else 'some ' + vec_text(want))
 
 
 # ── litmus ────────────────────────────────────────────────────────────────────────────────────────────────────────

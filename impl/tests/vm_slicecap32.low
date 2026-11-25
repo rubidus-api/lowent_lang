@@ -1,0 +1,26 @@
+rem ★★★ X-0092 ③ (2026-11-25) — **32 비트 대상의 조각 길이 상한이 할당보다 작았다.**
+rem   목표 표가 `word=32` 의 `max_slice_len` 을 2^24 로 두었고, 구간 분석은 그것을 사실로 믿어
+rem   `idx t. len s. .` 의 경계 검사를 지웠다(len s ≤ 2^24 < 16777217 ≤ len t). 그런데 할당은 가장 큰 `idiff`
+rem   (2^31 − 1 바이트)까지 준다(정본 §8.13 (2c)) — 32 MiB 조각을 건네자 VM 이 E-VM-ANALYSIS 를, 네이티브가
+rem   버퍼 밖 읽기를 냈다. `docs/known-defects/slice-cap-32bit-below-alloc.md`.
+rem ★ 고친 뒤: 상한은 2^31 이라 분석이 이 검사를 지우지 못한다 — 두 뒤끝 모두 «범위 밖» 으로 멈춘다.
+rem   돌리기: `--target mips_be --fixed-bytes 67108864 --run main` (고정 창이 48 MiB 를 담아야 한다).
+
+module vm_slicecap32 .
+
+fn pick input s mut slice u8 . input t mut slice u8 . output u8 .
+  requires ge len t. . 16777217 . .
+do
+  return idx t. len s. . . .
+end .
+
+export proc main input al cap allocator . output u8 . effects alloc . do
+  let g option mut slice u8 alloc_bytes al. capacity 33554432 . .
+  guard is_some g. . else return 7 . .
+  let h option mut slice u8 alloc_bytes al. capacity 16777217 . .
+  guard is_some h. . else return 8 . .
+  let a mut slice u8 some_value g. . .
+  let b mut slice u8 some_value h. . .
+  let v u8 pick a. b. . .
+  return v. .
+end .

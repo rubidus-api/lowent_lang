@@ -1,0 +1,7 @@
+rem ★ 짝 — `var` 나열의 틀을 **보는 조각**을 돌려주는 것은 여전히 E-LIT-ESCAPE 다(값이 아니라 자리다).
+module vm_vecval_escape_bad .
+
+fn leak output slice u8 . do
+  var xs lit array 4 u8 1 2 3 4 . .
+  return subslice xs. 0 4 . .
+end .

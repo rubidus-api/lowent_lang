@@ -4687,6 +4687,10 @@ static void ir_value_impl(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             if (ity_of_word(tw).sign) meta |= IR_SGN_BIT;
                         }
                         (*pos)++;
+                        // ★ 2026-11-26 (known-defects/bitcast-128-scalar-upper-half) — 원천이 **음수 리터럴** 이면 부호를 싣는다. 리터럴은 무타입이라
+                        //   그림자가 부호를 몰랐고(IR_SRC_SGN 도 _UNS 도 없음), 128 비트로 넓힐 때 위 절반을 0 으로 채웠다: `widen i128 -1` 이 2^64 − 1.
+                        if (*pos < end && is_atom(k[*pos]) && k[*pos]->tok.lex.size >= 2 && k[*pos]->tok.lex.ptr[0] == '-' &&
+                            k[*pos]->tok.lex.ptr[1] >= '0' && k[*pos]->tok.lex.ptr[1] <= '9') meta |= IR_SRC_SGN;
                         ir_value(c, k, pos, end);
                         if (!ir_cast_is_identity(c, meta)) ir_emit(c, IRW_CAST, meta);
                         return;
@@ -7618,6 +7622,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_SPLAT: return "splat"; case IRW_VLOAD: return "vec.load"; case IRW_VSTORE: return "vector.store";
         case IRW_VLOADM: return "vec.load_masked"; case IRW_VSTOREM: return "vector.store_masked";
         case IRW_VAVG: return "vec.avg";
+        case IRW_VLOOKUP: return "vec.lookup";
         case IRW_VALOR: return "value_or"; case IRW_SPOP: return "stack.pop";
         case IRW_VREVERSE: return "vec.reverse"; case IRW_VROTATE: return "vec.rotate"; case IRW_VSHUFFLE: return "vec.shuffle";
         case IRW_SELECT: return "select";

@@ -1268,6 +1268,14 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
         }
         if (outcome == VMOUT_CALL) {
+            // ★ 2026-11-26 (known-defects/unlowered-op-call-gives-zero) — 낮추지 못한 op(본문이 없다)을 부르면 멈춘다. vm_exec 는 이 검사를
+            //   하는데 드라이버의 부름(RFC-0073 P1b)은 하지 않아 빈 프레임을 돌려 0 을 받았다: `--check ok` · `t1() = 0`.
+            if (!callee->lowered) {
+                vm_diag(vm->diags, "E-VM-UNSUP", "this call reaches an op whose body could not be lowered (see the E-IR-UNSUP above) — it does not run");
+                while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
+                              vm_act *p = top->parent; act_free(top); top = p; }
+                { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
+            }
             unsigned nd = top->depth + 1;
             vm_act *fc = (nd >= vm->cur_ceiling) ? NULL : act_alloc();
             proven_size_t sc = fc ? slot_alloc(vm) : (proven_size_t)-1;
@@ -3031,6 +3039,25 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 proven_u8 sz = (proven_u8)(in->a & 0xff);
                 bool flt = (in->a & IR_FLT_BIT) != 0, sgn = (in->a & IR_SGN_BIT) != 0;
                 proven_u64 bits;
+                // ★ 2026-11-25 (RFC-0157 §8-18 · 정본 §8.7.1 (3b)) — 정수 레인의 벡터 → 크기가 같은 부호 없는 정수. 레인 0 이 가장 아랫 비트(수의 뜻 —
+                //   바이트 차례와 무관하다), 그래서 메모리를 베끼지 않고 밀고 잇는다. 16 바이트면 위 절반은 값 칸의 `n` 에 든다(vmv_w 와 같은 자리).
+                if (v.tag == VMV_VEC) {
+                    const proven_u8 vn_ = vm->vecs[v.box].n, ve_ = vm->vecs[v.box].esz;
+                    if (vm->vecs[v.box].flt || flt || sgn || (unsigned)vn_ * ve_ != sz || (sz != 1 && sz != 2 && sz != 4 && sz != 8 && sz != 16)) {
+                        vm_diag(vm->diags, "E-VM-TYPE", "bit_cast of a vector needs integer lanes and an unsigned integer of the same size"); return false; }
+                    proven_u64 lo = 0, hi = 0;
+                    const proven_u64 em_ = ve_ >= 8 ? ~0ull : ((1ull << (8 * ve_)) - 1);
+                    for (proven_u8 q = 0; q < vn_; q++) {
+                        const proven_u64 x = vm->vecs[v.box].l[q] & em_;
+                        const unsigned at = 8u * ve_ * q;   // 이 레인의 아랫 비트 자리
+                        if (at < 64) lo |= x << at; else hi |= x << (at - 64);
+                    }
+                    stack[sp++] = (vmv_t){ .tag = VMV_INT, .i = (proven_i64)lo, .n = (proven_size_t)hi };
+                    break;
+                }
+                // ★ 2026-11-26 (known-defects/bitcast-128-scalar-upper-half) — 16 바이트 정수끼리(i128 ↔ u128)는 같은 비트다. 전엔 아래 64 비트
+                //   `bits` 로 내려 위 절반(`n`)을 버렸다: `bit_cast u128 <i128 −1>` 이 2^64 − 1. 두 뒤끝이 같이 틀려 대조에 안 보였다.
+                if (v.tag == VMV_INT && sz == 16 && !flt) { stack[sp++] = (vmv_t){ .tag = VMV_INT, .i = v.i, .n = v.n }; break; }
                 if (v.tag == VMV_FLT) bits = ir_f_to_bits(vmv_f(v), sz);
                 else if (v.tag == VMV_INT) {
                     bits = (proven_u64)v.i;
@@ -4794,6 +4821,21 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vm->vecs[vm->nvec].esz = esz;
                 vm->vecs[vm->nvec].flt = false;
                 vm->vecs[vm->nvec].sign = vm->vecs[av.box].sign;
+                stack[sp++] = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
+                break;
+            }
+            case IRW_VLOOKUP: {   // ★ 2026-11-25 (RFC-0157 §8-19 · 정본 §6.3.7 (1e)) — out[k] = 첨자[k] < 16 ? 표[첨자[k]] : 0
+                if (sp < 2) return false;
+                vmv_t xv = stack[--sp], tv = stack[--sp];
+                if (tv.tag != VMV_VEC || xv.tag != VMV_VEC || vm->vecs[tv.box].n != 16 || vm->vecs[xv.box].n != 16 ||
+                    vm->vecs[tv.box].esz != 1 || vm->vecs[xv.box].esz != 1 || vm->vecs[tv.box].flt || vm->vecs[xv.box].flt) {
+                    vm_diag(vm->diags, "E-VM-TYPE", "lane_lookup needs a table and an index that are both `vec 16 u8`"); return false; }
+                if (vm->nvec >= 32) { vm_diag(vm->diags, "E-VM-VIEW", "vector pool exhausted — the VM keeps vectors in a 32-slot pool (docs/runtime-pools.md)"); return false; }
+                for (proven_u8 q = 0; q < 16; q++) {
+                    const proven_u64 ix = vm->vecs[xv.box].l[q] & 0xffu;
+                    vm->vecs[vm->nvec].l[q] = ix < 16 ? (vm->vecs[tv.box].l[ix] & 0xffu) : 0;
+                }
+                vm->vecs[vm->nvec].n = 16; vm->vecs[vm->nvec].esz = 1; vm->vecs[vm->nvec].flt = false; vm->vecs[vm->nvec].sign = false;
                 stack[sp++] = (vmv_t){ .tag = VMV_VEC, .box = (proven_i32)vm->nvec++ };
                 break;
             }

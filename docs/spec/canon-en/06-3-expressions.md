@@ -526,6 +526,7 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 > [`reduce_add` · `reduce_mul`], [`reduce_add <value>`], [adds · multiplies all lanes],
 > [`reduce_min` · `reduce_max`], [`reduce_min <value>`], [the smallest · largest of the lanes],
 > [`lane_avg`], [`lane_avg <value> <value>`], [the rounded average per lane],
+> [`lane_lookup`], [`lane_lookup <table> <index>`], [for each lane of the index, picks that lane of a 16-slot table — (1e)],
 > [`native_lanes`], [`native_lanes <type>`], [asks **at translation time** how many lanes this machine handles at once],
 > )
 
@@ -548,6 +549,22 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 (1d) The literal of `splat <literal>` follows ⟦§6.1.4⟧ (8)(9), taking one lane as a place of that lane type — filling floating-point lanes with an integer
       literal is `E-TYPE-LET`, and filling `f32` lanes with a floating-point literal beyond its range is `E-TYPE-WIDTH`. The elements of list literals
       (`lit vec` · `lit array` · `lit slice`) are the same.
+
+(1e) `lane_lookup <table> <index>` picks, for each lane `k` of the index, lane `index[k]` of the table (2026-11-25). The table, the index and the result are
+      all `vec 16 u8`; any other shape is refused at translation (`E-TYPE-KIND`). A lane whose index is 16 or more is **0** — every one from 16 to 255. Even at
+      an index where machine instructions answer differently (x86 `pshufb` looks only at the index's top bit, Arm `tbl` gives 0 from 16 up), the answer is
+      this one.
+
+```lowent 예제: picking from a 16-slot table — index 16 gives 0 · 결과: pick() = 50
+module ex_lane_lookup .
+
+fn pick output u8 . do
+  let t vec 16 u8 lit vec 16 u8 0 10 20 30 40 50 60 70 80 90 100 110 120 130 140 150 . .
+  let x vec 16 u8 lit vec 16 u8 5 16 255 0 0 0 0 0 0 0 0 0 0 0 0 0 . .
+  let r vec 16 u8 lane_lookup t. x. . .
+  return reduce_max r. . .
+end .
+```
 
 (2) An op that crosses lanes gathers as many as the lane count **into one**. The type of the result is the type of the lanes. Signed lanes are added and
       multiplied by sign, and if the value of `reduce_add` · `reduce_mul` does not fit that type, it stops (⟦§6.3.4⟧ (3)).

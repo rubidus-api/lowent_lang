@@ -252,9 +252,12 @@ const char LW_PRELUDE[] =
 "    unsigned long long bits=lw_f2b(d,(unsigned char)sz); long long r=(long long)bits;\n"
 "    if(sgn&&sz<8){unsigned long long sb=1ull<<(sz*8-1); if(bits&sb) r=(long long)(bits|~((1ull<<(sz*8))-1));}\n"
 "    return r; }\n"
+"static lowv lw_vbitcast(lowv v, long long meta);   /* 2026-11-25 (RFC-0157 8-18): an integer-lane vector -> the unsigned number of the same size */\n"
 "static lowv lw_bitcast(lowv v, long long meta) {\n"
+"    if (v.tag == LWV_VEC) return lw_vbitcast(v, meta);\n"
 "    unsigned sz = (unsigned)(meta & 0xff);\n"
 "    int flt = (meta & 0x10000) != 0, sgn = (meta & 0x20000) != 0;\n"
+"    if (v.tag == LWV_INT && sz == 16 && !flt) { lowv r = {0}; r.tag = LWV_INT; r.i = v.i; r.n = v.n; return r; }   /* i128 <-> u128: the same 128 bits, upper half kept */\n"
 "    unsigned long long bits;\n"
 "    if (v.tag == LWV_FLT) bits = lw_f2b(lw_fval(v), (unsigned char)sz);\n"
 "    else { bits = (unsigned long long)v.i; if (sz < 8) bits &= (1ull << (sz * 8)) - 1; }\n"
@@ -2921,6 +2924,15 @@ const char LW_PRELUDE2[] =
 "    unsigned long long m = 1ull << (b - 1); return (long long)((x ^ m) - m); }\n"
 "static unsigned long long lw_emask(int esz) { return esz >= 8 ? ~0ull : ((1ull << (8 * esz)) - 1); }\n"
 "static lowv lw_vecv(int idx) { lowv v = {0}; v.tag = LWV_VEC; v.box = idx; return v; }\n"
+/* 2026-11-25 (RFC-0157 8-18, canon 8.7.1 (3b)): lane 0 is the lowest bits (the number's meaning, not the bytes' order) -- shifted and or-ed, never copied.
+   16 bytes: the upper half lives in lowv.n, as for any 128-bit integer (lw_wmk). Same as the VM. */
+"static lowv lw_vbitcast(lowv v, long long meta) {\n"
+"    unsigned sz = (unsigned)(meta & 0xff); int n = lw_vecs[v.box].n, esz = lw_vecs[v.box].esz;\n"
+"    if (lw_vecs[v.box].flt || (meta & 0x30000) || (unsigned)(n * esz) != sz) lw_panic(\"bit_cast of a vector needs integer lanes and an unsigned target of the same size\");\n"
+"    unsigned long long lo = 0, hi = 0;\n"
+"    for (int k = 0; k < n; k++) { unsigned long long x = lw_vecs[v.box].l[k] & lw_emask(esz); unsigned at = 8u * (unsigned)esz * (unsigned)k;\n"
+"        if (at < 64) lo |= x << at; else hi |= x << (at - 64); }\n"
+"    lowv r = {0}; r.tag = LWV_INT; r.i = (long long)lo; r.n = (size_t)hi; return r; }\n"
 // ★ 태그 벡터의 한 레인 비트를 꺼낸다(빠른 경로의 av[] 채널이 경계에서 부른다).
 "static unsigned long long lw_vlane(lowv v, int lane) {\n"
 "    if (v.tag != LWV_VEC) lw_panic(\"a vector argument\");\n"
@@ -3563,6 +3575,13 @@ const char LW_PRELUDE2[] =
 /* ★ D5 target intrinsic `avg` — 레인별 라운딩 평균 (a+b+1)>>1 (x86 pavgb/pavgw · ARM vrhadd).
    widening 이라 portable 합성 불가(u8 레인에서 a+b 가 넘친다) — 그래서 특수 명령이다.
    VM 핸들러와 **같은 산술** ⇒ diff-sweep 로 VM≡native (비트-정확 intrinsic 이라 오라클 안에 남는다). */
+/* 2026-11-25 (RFC-0157 8-19, canon 6.3.7 (1e)): out[k] = idx[k] < 16 ? table[idx[k]] : 0 -- both vec 16 u8. Same as the VM. */
+"static lowv lw_vlookup(lowv t, lowv x) {\n"
+"    if (t.tag != LWV_VEC || x.tag != LWV_VEC || lw_vecs[t.box].n != 16 || lw_vecs[x.box].n != 16 || lw_vecs[t.box].esz != 1 || lw_vecs[x.box].esz != 1\n"
+"        || lw_vecs[t.box].flt || lw_vecs[x.box].flt) lw_panic(\"lane_lookup needs a table and an index that are both `vec 16 u8`\");\n"
+"    int s = lw_vecslot();\n"
+"    for (int k = 0; k < 16; k++) { unsigned long long ix = lw_vecs[x.box].l[k] & 0xffu; lw_vecs[s].l[k] = ix < 16 ? (lw_vecs[t.box].l[ix] & 0xffu) : 0; }\n"
+"    lw_vecs[s].n = 16; lw_vecs[s].esz = 1; lw_vecs[s].flt = 0; lw_vecs[s].sign = 0; return lw_vecv(s); }\n"
 "static lowv lw_vavg(lowv a, lowv b) {\n"
 "    if (a.tag != LWV_VEC || b.tag != LWV_VEC) lw_panic(\"avg needs two vectors\");\n"
 "    int n = lw_vecs[a.box].n, esz = lw_vecs[a.box].esz;\n"

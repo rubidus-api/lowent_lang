@@ -1495,9 +1495,21 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                             "SAME width (canon §8.7) — change the width first with `widen` / `narrow`, then `bit_cast`", k[start]->line);
                 // ★ 2026-11-14 (BTS simd_ops `to_int`) — 원천도 스칼라여야 한다(정본 §8.7 의 표 «폭이 같은 두 스칼라 사이»). 전엔 `bit_cast u16 <vec 2 u8>` 이
                 //   검사를 지났고 VM 은 실행 중에 멈추고(E-VM-TYPE) 네이티브는 0 을 냈다.
+                // ★ 2026-11-25 (RFC-0157 §8-18 · 소유자 «18~20번 모두 추천대로») — 한 예외: 정수 레인의 `vec` 은 **크기가 같은 부호 없는 정수**로
+                //   읽을 수 있다(레인 0 이 가장 아랫 비트 — 기계의 바이트 차례와 무관한 수의 뜻, 정본 §8.7.1 (3b)). 반대 방향 · 부호 있는 목표 ·
+                //   부동 레인 · 가림막은 열지 않았다(소유자가 고른 것은 «벡터 → 같은 크기의 부호 없는 정수» 뿐).
+                if (bsrc.k == TK_VEC && !bsrc.vflt && tgt.k == TK_INT && tgt.bits && !tgt.sign && !tgt.nominal) {
+                    if (bsrc.lanes && bsrc.bits && (unsigned)bsrc.lanes * bsrc.bits != tgt.bits)
+                        tc_emitf(c, "E-TYPE-BITCAST", k[start]->line,
+                                 "`bit_cast` of a vector needs an unsigned integer of the SAME size — this vector has {} lanes of {} bits = {} bits, "
+                                 "the target has {} (canon §8.7.1 (3b))", PROVEN_ARG((unsigned)bsrc.lanes), PROVEN_ARG((unsigned)bsrc.bits),
+                                 PROVEN_ARG((unsigned)bsrc.lanes * bsrc.bits), PROVEN_ARG((unsigned)tgt.bits));
+                    return tgt;
+                }
                 if (bsrc.k == TK_VEC || bsrc.k == TK_MASK)
-                    tc_emit(c, "E-TYPE-BITCAST", "`bit_cast` reads the bits of ONE scalar as another scalar of the same width (canon §8.7) — a vector or a "
-                            "mask is not a scalar; take its lanes one at a time, or `store` it into bytes and read those", k[start]->line);
+                    tc_emit(c, "E-TYPE-BITCAST", "`bit_cast` reads the bits of ONE scalar as another scalar of the same width (canon §8.7) — the one "
+                            "exception is an integer-lane vector read as the UNSIGNED integer of the same size (§8.7.1 (3b)); a float-lane vector, a "
+                            "mask, a signed target or a scalar → vector is not taken: take the lanes one at a time, or `store` them into bytes", k[start]->line);
                 if ((tgt.k == TK_INT || tgt.k == TK_FLOAT) && tgt.bits) return tgt;
                 if (tgt.k == TK_BOOL) return tgt;   // 덫 표현이 있는 대상은 배치 검사가 따로 거절한다(E-TYPE-BITCAST)
                 return tk(TK_UNKNOWN);
@@ -1805,6 +1817,19 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                             "For two numbers write the arithmetic itself", k[start]->line);
                     ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
                 }
+                return tk(TK_UNKNOWN);
+            }
+            // ★ 2026-11-25 (RFC-0157 §8-19 · 정본 §6.3.7 (1e)) — `lane_lookup <표> <첨자>`: 둘 다 `vec 16 u8`, 결과도 그렇다.
+            if (!sig_find(c, h2) && n == 3 && veq(h2, "lane_lookup")) {
+                ty_t t = tc_infer(c, k[start + 1], env, nenv), x = tc_infer(c, k[start + 2], env, nenv);
+                const bool tok = t.k == TK_VEC && !t.vflt && !t.sign && t.bits == 8 && t.lanes == 16;
+                const bool xok = x.k == TK_VEC && !x.vflt && !x.sign && x.bits == 8 && x.lanes == 16;
+                if ((t.k != TK_UNKNOWN && !tok) || (x.k != TK_UNKNOWN && !xok)) {
+                    tc_emit(c, "E-TYPE-KIND", "`lane_lookup` takes a table and an index that are both `vec 16 u8` — each lane of the index picks a "
+                            "lane of the table, and an index of 16 or more gives 0 (canon §6.3.7 (1e))", k[start]->line);
+                    ty_t u = tk(TK_UNKNOWN); u.bydecl = true; return u;
+                }
+                if (tok) return t;
                 return tk(TK_UNKNOWN);
             }
             if (!sig_find(c, h2) && n == 2 && (veq(h2, "lane_reverse") || veq(h2, "lane_rotate"))) {

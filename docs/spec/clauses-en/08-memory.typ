@@ -484,7 +484,7 @@ end .", "E-DROP-USE")
     #tbl("The two kinds of reading bytes again")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*Kind*], [*op*], [*What it is*],
-      [moving a value's bits as they are], [`bit_cast`], [between two scalars of the same width. The bit pattern is left as it is and #strong[only the way of reading]; changes],
+      [moving a value's bits as they are], [`bit_cast`], [between two scalars of the same width (and from an integer-lane vector to the unsigned integer of the same size — (3b)). The bit pattern is left as it is and #strong[only the way of reading]; changes],
       [laying a shape over bytes], [`view` · `try_view` · `view_array`], [#strong[reads]; a piece of bytes with the layout of some shape. It does not copy],
       )
     ]
@@ -503,6 +503,20 @@ end .", "E-DROP-USE")
       Source and target shall have #strong[the same width];. If the widths differ it is refused at translation (`E-TYPE-BITCAST`) — nothing can say where the
       extra or missing bits come from. Change the width first with `widen` · `narrow`.
     ]
+    #para("3b")[
+      One exception: #strong[an integer-lane `vec`]; can be read as the #strong[unsigned integer]; of the same size — `bit_cast u128 <vec 16 u8>` · `bit_cast u32 <vec 4 i8>`
+      (2026-11-25). Lane 0 is the lowest bits, and lane `k` is placed from bit `k` × the lane width. This is #strong[the number's meaning]; — the same value whatever
+      the machine's byte order (it is not reading the bytes the vector would be written to memory as). A signed lane goes in as its bits. If the lane count ×
+      the lane width differs from the target's width, if the target is a signed integer or a floating-point type, if the lanes are floating-point, or if the
+      source is a mask (`mask`), it is refused at translation (`E-TYPE-BITCAST`). There is no opposite direction (number → vector).
+    ]
+    #ex("reading a vector as a number — lane 0 is the lowest bits", "module ex_bitcast_vec .
+
+fn packed output u32 . do
+  let x vec 4 i8 lit vec 4 i8 1 -1 2 -128 . .
+  return bit_cast u32 x. . .
+end .",
+      out: "packed() = 2147680001")
     #caution("")[
       «Is it `plain`» shall be asked #strong[directly];. A way that asks indirectly, treating what is not in the width table as not `plain`,
       silently flips the day the width table is filled. A verdict that held by coincidence disappears without a word

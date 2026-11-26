@@ -188,6 +188,7 @@ bitset_insert	집합에 그 원소를 넣는다 — **제자리에서** 바꾼�
 bitset_remove	집합에서 그 원소를 지운다 — **제자리에서** 바꾼다
 ret	오류를 위로 넘긴다
 lane_reverse	차례를 뒤집는다
+lane_lookup	16 칸 표에서 레인마다 고른다(첨자 16 이상은 0)
 rng_next	난수를 낸다
 lane_rotate	주어진 방향으로 돌린다
 rotl	왼쪽으로 돌린다

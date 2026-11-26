@@ -283,6 +283,7 @@ typedef enum {
     IRW_SPOP,     // a = 0; mut stack T → option T — **총체형**: 비었으면 none (부분형 panic 아님)
     IRW_SELECT,   // mask, va, vb → lanewise m?a:b
     IRW_VREVERSE, // a = 0; vec → vec (레인 역순). 레인수는 vec 이 실어 온다
+    IRW_VLOOKUP,  // ★ 2026-11-25 (RFC-0157 §8-19) a = 0; 표 vec 16 u8, 첨자 vec 16 u8 → vec 16 u8 — out[k] = 첨자[k] < 16 ? 표[첨자[k]] : 0
     IRW_VROTATE,  // a = 회전량 n; vec → vec (out[k]=v[(k+n) mod lanes])
     IRW_VSHUFFLE, // a = (count<<32) | idx0..idxN (4bit each); vec → vec (out[k]=v[idx[k]], comptime 순열)
     IRW_RADD, IRW_RMUL, IRW_RMIN, IRW_RMAX,   // vec → scalar (horizontal)

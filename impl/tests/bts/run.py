@@ -250,9 +250,9 @@ def vec_text(lanes):
 
 
 def plan_simd_ops(doc):
-    """lane cases: `lit vec N T` from the lane arguments, the Lowent lane op, the printed `vec[…]`. Not built in Lowent (→ not-implemented):
-    `to_int` (a vector is
-    not a scalar for `bit_cast`, §8.7), `lane_lookup16`, and `kernels`. `load_masked` · `store_masked` · `load_full`: simd_memory_rows."""
+    """lane cases: `lit vec N T` from the lane arguments, the Lowent lane op, the printed `vec[…]`. `to_int` is `bit_cast u<N·w>` of the
+    vector (canon §8.7.1 (3b), lane 0 lowest), `lane_lookup16` is `lane_lookup` (§6.3.7 (1e)) — both 2026-11-25, RFC-0157 §8-18 · 19.
+    `load_masked` · `store_masked` · `load_full`: simd_memory_rows. `kernels`: simd_kernel_rows (§8-20)."""
     for ci, c in enumerate(doc['cases']):
         op, d = c['op'], c.get('disposition')
         t, n = re.match(r'simd\((\w+),(\d+)\)', c['type']).groups(); n = int(n)
@@ -276,14 +276,22 @@ def plan_simd_ops(doc):
             ones = '-1' if t.startswith('i') else str((1 << int(t[1:])) - 1)
             fsrc = (f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} let t vec {n} {t} splat {ones} . . let f vec {n} {t} splat 0 . . '
                     f'return lane_select {op} x. y. . t. f. . . end .')
+        elif op == 'to_int':
+            # 2026-11-25 (RFC-0157 §8-18 · 소유자 «18~20번 모두 추천대로») — the unsigned integer of the vector's size, lane 0 lowest
+            fsrc = f'{ins_a} output u{n * int(t[1:])} . do {lx} return bit_cast u{n * int(t[1:])} x. . . end .'
+        elif op == 'lane_lookup16':
+            # 2026-11-25 (RFC-0157 §8-19) — `lane_lookup <table> <index>`; an index of 16 or more gives 0
+            fsrc = f'{ins_a} {ins_b} output vec {n} {t} . do {lx} {ly} let r vec {n} {t} lane_lookup x. y. . . return r. . end .'
         elif op in ('reduce_sum', 'reduce_min', 'reduce_max'):
             word = {'reduce_sum': 'reduce_add'}.get(op, op)   # reduce_add stops when the sum does not fit (canon §6.3.7 (2))
             fsrc = f'{ins_a} output {t} . do {lx} return {word} x. . . end .'
         for r in c['rows']:
             if not fsrc:
                 yield label, Skip('not-implemented'); continue
-            if op.startswith('reduce_'):
+            if op.startswith('reduce_') or op == 'to_int':
                 yield label, Exec(('simd', ci), fsrc, r[0], value_text(r[1]))
+            elif op == 'lane_lookup16':
+                yield label, Exec(('simd', ci), fsrc, list(r[0]) + list(r[1]), vec_text(r[2]))
             else:
                 b = list(r[1])
                 if op in ('shl', 'shr'):
@@ -291,8 +299,96 @@ def plan_simd_ops(doc):
                     # k mod w, the only part a wrapping lane shift reads (w divides 2^w)
                     w = int(t[1:]); b = [str(((int(k) % (1 << w)) ^ (1 << (w - 1))) - (1 << (w - 1)) if t[0] == 'i' else int(k) % (1 << w)) for k in b]
                 yield label, Exec(('simd', ci), fsrc, list(r[0]) + b, 'trap' if r[2] == 'trap' else vec_text(r[2]))
-    for k in doc.get('kernels', []):
-        yield f'kernel/{k["kernel"]}', Skip('not-implemented')
+    for ki, k in enumerate(doc.get('kernels', [])):
+        yield from simd_kernel_rows(ki, k)
+
+
+# 2026-11-25 (RFC-0157 §8-20 · 소유자 «18~20번 모두 추천대로» — 권고 ⓐ): BTS writes each kernel once over a vector of unknown length and runs it
+# at 1 · 4 · 16 lanes. Lowent spells that as ONE op whose lane count is a `comptime` input (canon §6.2.11 (1), §6.2.6 (1b-1)) — no new word —
+# called once per lane count; the row passes when every call gives the expected answer (judged in Lowent, as store_masked). The body:
+# full vectors with `load`, the tail one element at a time, and a lane fold through `store` into a 16-slot buffer (`lane_rotate` takes a
+# literal count only, and `reduce_add` stops on overflow where the kernel wraps).
+KERNELS = {
+    'sum_u32_wrap': ('u32', """fn {F}_k input comptime n usize . input s slice u32 . output u32 . do
+  var acc vec n u32 splat 0 . .
+  var i usize 0 .
+  while le add i. n. . len s. . . do let v vec n u32 load s. i. . . set acc. add acc. v. . . set i. add i. n. . . end .
+  var ba lit array 16 u32 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 . .
+  let b mut slice u32 subslice ba. 0 n. . .
+  store b. 0 acc. .
+  var r u32 0 .
+  var j usize 0 .
+  while lt j. n. . do set r. wrap_add r. idx b. j. . . . set j. add j. 1 . . end .
+  while lt i. len s. . . do set r. wrap_add r. idx s. i. . . . set i. add i. 1 . . end .
+  return r. .
+end ."""),
+    'add_sat_u8': ('u8', """proc {F}_k input comptime n usize . input s slice u8 . input o mut slice u8 . output bool . effects none . do
+  let m usize div len s. . 2 . .
+  var i usize 0 .
+  while le add i. n. . m. . do
+    let x vec n u8 load s. i. . .
+    let y vec n u8 load s. add m. i. . . .
+    let z vec n u8 sat_add x. y. . .
+    store o. i. z. .
+    set i. add i. n. . .
+  end .
+  while lt i. m. . do set idx o. i. . sat_add idx s. i. . idx s. add m. i. . . . . set i. add i. 1 . . end .
+  return true .
+end ."""),
+    'count_eq_u8': ('u8', """fn {F}_k input comptime n usize . input s slice u8 . output u64 . do
+  let f u8 idx s. 0 . .
+  let fv vec n u8 splat f. . .
+  let one vec n u8 splat 1 . .
+  let zero vec n u8 splat 0 . .
+  var ba lit array 16 u8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 . .
+  let b mut slice u8 subslice ba. 0 n. . .
+  var r u64 0 .
+  var i usize 1 .
+  while le add i. n. . len s. . . do
+    let x vec n u8 load s. i. . .
+    let c vec n u8 lane_select eq x. fv. . one. zero. . .
+    store b. 0 c. .
+    var j usize 0 .
+    while lt j. n. . do set r. add r. widen u64 idx b. j. . . . . set j. add j. 1 . . end .
+    set i. add i. n. . .
+  end .
+  while lt i. len s. . . do
+    if eq idx s. i. . f. . do set r. add r. 1 . . end .
+    set i. add i. 1 . .
+  end .
+  return r. .
+end ."""),
+    'max_i16': ('i16', """fn {F}_k input comptime n usize . input s slice i16 . output i16 . do
+  var acc vec n i16 splat idx s. 0 . . .
+  var i usize 0 .
+  while le add i. n. . len s. . . do let x vec n i16 load s. i. . . set acc. max acc. x. . . set i. add i. n. . . end .
+  var r i16 reduce_max acc. . .
+  while lt i. len s. . . do set r. max r. idx s. i. . . . set i. add i. 1 . . end .
+  return r. .
+end ."""),
+}
+
+
+def simd_kernel_rows(ki, k):
+    name, label = k['kernel'], f'kernel/{k["kernel"]}'
+    if name not in KERNELS or k.get('type') != KERNELS[name][0]:
+        yield label, Skip('not-implemented'); return
+    t, pre = KERNELS[name]
+    xs, want, lanes = k['input'], k['expected'], k['lane_counts']
+    m = len(xs)
+    body = f'output bool . effects none . do let a lit array {m} {t} {" ".join(xs)} . . let s slice {t} subslice a. 0 {m} . . '
+    if name == 'add_sat_u8':
+        h = len(want)
+        body += (f'let e lit array {h} {t} {" ".join(want)} . . var oa lit array {h} {t} {" ".join("0" for _ in want)} . . '
+                 f'let o mut slice {t} subslice oa. 0 {h} . . ')
+        for n in lanes:
+            body += (f'let d{n} bool {{F}}_k {n} s. o. . . '
+                     f'repeat i usize {h} do guard eq idx o. i. . idx e. i. . . else return false . . end . ')
+    else:
+        for n in lanes:
+            body += f'guard eq {{F}}_k {n} s. . {want[0]} . else return false . . '
+    body += 'return true . end .'
+    yield label, Exec(('kernel', ki), body, [], '1', kw='proc', pre=(pre,))
 
 
 def simd_memory_rows(ci, c, op, d, t, n, label):

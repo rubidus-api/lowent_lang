@@ -568,6 +568,7 @@ static bool cbe_w128_place(const low_ir_t *ir, const low_ir_def_t *d);   // ★ 
 // ★ RFC-0151 — 128 비트 정수의 낱말인가(low_vm.c vm_is_w128 의 거울 — 그 판정이 바뀌면 여기도).
 static bool cbe_is_w128(const low_ir_ins_t *in) {
     if (in->w == IRW_MK128) return true;
+    if (in->w == IRW_BITCAST) return (in->a & 0xff) == 16;   // ★ 2026-11-25 (RFC-0157 §8-18) — `bit_cast u128 <vec>` (16 바이트 정수를 낸다)
     if (in->w == IRW_CAST) return (in->a & 0xff) == 16 || (in->a & IR_SRC_W128);
     switch (in->w) {
         case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD: case IRW_NEG:
@@ -1731,6 +1732,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_HASH64: case IRW_RNGNEXT: case IRW_RANDBYTES:  // ★ 해시·난수 — 같은 모양
         case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:  // ★ 레인 순열 — 그냥 레인 옮기기
         case IRW_VAVG:                                          // ★ 레인 평균 — (a+b+1)>>1
+        case IRW_VLOOKUP:                                       // ★ 16 칸 표 고르기 (RFC-0157 §8-19)
         case IRW_VLOADM: case IRW_VSTOREM:                      // ★ 마스크 적재·저장 — 켜진 레인만
         case IRW_TIMENOW: case IRW_TIMELOCAL: case IRW_TIMESLEEP:  // ★ 시계 — 잎 하나를 부를 뿐
         case IRW_ARGC: case IRW_ARGV:                       // ★ cap args (D2′)
@@ -2337,6 +2339,17 @@ static int cbe_w128_step(kstack_t *st, const low_ir_ins_t *in, low_out_t *out) {
         if (out) low_fpf(out, "    {{ long long lo_ = st[--sp]; lw_hs[lw_hsp++] = LW_WOF(lo_, {}ull); }}\n", PROVEN_ARG((unsigned long long)((unsigned long long)in->a)));
         W_PUSH(K_W128); return 1;
     }
+    if (in->w == IRW_BITCAST) {   // ★ 2026-11-25 (RFC-0157 §8-18 · 정본 §8.7.1 (3b)) — 정수 레인 벡터 → u128, 레인 0 이 가장 아랫 비트(밀고 잇는다)
+        // ★ 2026-11-26 (known-defects/bitcast-128-scalar-upper-half) — 128 비트 정수끼리(i128 ↔ u128)는 같은 비트다: 아무것도 안 한다.
+        if (st->n >= 1 && st->k[st->n-1] == K_W128 && !(m & 0x10000)) return 1;
+        if (st->n < 1 || st->k[st->n-1] != K_VEC || st->fl[st->n-1] == CBE_FL_FLT || (m & 0x30000) ||
+            (unsigned)st->vn[st->n-1] * st->ve[st->n-1] != 16) return 0;
+        const int ln = (int)st->vn[st->n-1], ez = (int)st->ve[st->n-1];
+        st->n--;
+        if (out) low_fpf(out, "    {{ vsp--; lw_u128 b_ = 0; for (int k_ = 0; k_ < {}; k_++) b_ |= (lw_u128)vs[vsp].{}[k_] << ({} * k_);\n"
+                              "      lw_hs[lw_hsp++] = b_; }}\n", PROVEN_ARG((int)ln), proven_arg_cstr(lw_vmem((unsigned)ez)), PROVEN_ARG((int)(8 * ez)));
+        W_PUSH(K_W128); return 1;
+    }
     if (eqw) {
         if (!WK_OK(st->k[st->n-1]) || !WK_OK(st->k[st->n-2])) return 0;
         const unsigned char kb = st->k[st->n-1], ka = st->k[st->n-2];
@@ -2562,6 +2575,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             st.o[st.n-1] = -1; break;
             // ★ 평균은 **정수 인트린식**이다(태그 경로가 부동이면 패닉한다). 여기서는 그 판정을
             //   컴파일 시에 하고, 부동이면 **안 받는다** — 조용히 다른 답을 내지 않기 위해서다.
+            case IRW_VLOOKUP:   // ★ 2026-11-25 (RFC-0157 §8-19) — 둘 다 vec 16 u8 이어야 빠른 경로(아니면 태그 경로가 멈춘다 — VM 과 같다)
+                            if (st.n < 2 || st.k[st.n-1] != K_VEC || st.k[st.n-2] != K_VEC) return false;
+                            if (st.vn[st.n-1] != 16 || st.vn[st.n-2] != 16 || st.ve[st.n-1] != 1 || st.ve[st.n-2] != 1 || st.fl[st.n-1] || st.fl[st.n-2]) return false;
+                            st.n--; st.o[st.n-1] = -1; break;
             case IRW_VAVG:  if (st.n < 2 || st.k[st.n-1] != K_VEC || st.k[st.n-2] != K_VEC) return false;
                             if (st.vn[st.n-1] != st.vn[st.n-2] || st.ve[st.n-1] != st.ve[st.n-2]) return false;
                             if (st.fl[st.n-1] || st.fl[st.n-2]) return false;
@@ -2818,6 +2835,10 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_BITCAST: {
                 if (st.n < 1) return false;
                 unsigned char in_k = st.k[st.n-1];
+                if (in_k == K_VEC) {   // ★ 2026-11-25 (RFC-0157 §8-18) — 벡터 → 같은 크기(≤ 8 바이트)의 부호 없는 정수. 16 바이트는 cbe_w128_step
+                    if (st.fl[st.n-1] == CBE_FL_FLT || (in->a & 0x30000) || (unsigned)st.vn[st.n-1] * st.ve[st.n-1] != (unsigned)(in->a & 0xff)) return false;
+                    st.k[st.n-1] = K_INT; st.vn[st.n-1] = 0; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1; break;
+                }
                 if (in_k != K_INT && in_k != K_FLT) return false;
                 st.k[st.n-1] = (in->a & 0x10000) ? K_FLT : K_INT;   // 출력 flt 비트
                 st.o[st.n-1] = -1; break;
@@ -4951,6 +4972,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1;
                 break;
             }
+            case IRW_VLOOKUP:   // ★ 2026-11-25 (RFC-0157 §8-19) — 표를 먼저 베낀다(결과가 표의 자리를 덮는다)
+                low_puts(out, "    { vsp--; lw_v t_ = vs[vsp-1]; for (int k_ = 0; k_ < 16; k_++) {\n"
+                              "        unsigned ix_ = vs[vsp].u8[k_]; vs[vsp-1].u8[k_] = ix_ < 16u ? t_.u8[ix_] : 0; } }\n");
+                ks.n--; ks.o[ks.n-1] = -1; break;
             case IRW_VAVG: {
                 int ln = (int)ks.vn[ks.n-1];
                 const char *m = lw_vmem((unsigned)ks.ve[ks.n-1]);
@@ -5340,6 +5365,12 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, low_o
                 low_puts(out, "    st[sp++] = 0;\n");
                 ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; break;
             case IRW_BITCAST: {
+                if (ks.k[ks.n-1] == K_VEC) {   // ★ 2026-11-25 (RFC-0157 §8-18) — 레인 0 이 가장 아랫 비트. 레인 하나의 자리는 늘 64 미만이다(합이 8 바이트 이하)
+                    const int ln = (int)ks.vn[ks.n-1], ez = (int)ks.ve[ks.n-1];
+                    low_fpf(out, "    {{ vsp--; unsigned long long b_ = 0; for (int k_ = 0; k_ < {}; k_++) b_ |= (unsigned long long)vs[vsp].{}[k_] << ({} * k_);\n"
+                                 "      st[sp++] = (long long)b_; }}\n", PROVEN_ARG((int)ln), proven_arg_cstr(lw_vmem((unsigned)ez)), PROVEN_ARG((int)(8 * ez)));
+                    ks.k[ks.n-1] = K_INT; ks.vn[ks.n-1] = 0; ks.ve[ks.n-1] = 0; ks.fl[ks.n-1] = 0; ks.o[ks.n-1] = -1; break;
+                }
                 bool out_f = (in->a & 0x10000) != 0;
                 bool in_f  = (ks.k[ks.n-1] == K_FLT);
                 if (in_f && out_f) { /* f64→f64: 항등 (폭 안 바꿈) */ }
@@ -7515,7 +7546,7 @@ static bool cbe_uses_vec_1(const low_ir_def_t *d) {
     for (proven_size_t j = 0; j < d->ncode; j++)
         switch (d->code[j].w) {
             case IRW_SPLAT: case IRW_VLOAD: case IRW_VLOADM: case IRW_VSTORE: case IRW_VSTOREM:
-            case IRW_VAVG:  case IRW_SELECT: case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:
+            case IRW_VAVG:  case IRW_SELECT: case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE: case IRW_VLOOKUP:
             case IRW_RADD:  case IRW_RMUL: case IRW_RMIN: case IRW_RMAX: case IRW_MANY: case IRW_MALL:
                 return true;
             default: break;
@@ -8918,7 +8949,7 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
             const low_ir_ins_t *in = &d->code[j];
             cbe_line(out, ir, in, &lastln2_, &lastfid2_);
             if (target[j]) low_fpf(out, "L{}:\n", PROVEN_ARG((size_t)((size_t)j)));
-            if (cbe_is_w128(in)) {   // ★ RFC-0151 — 128 비트 정수(프렐류드 lw_w_*)
+            if (cbe_is_w128(in) && in->w != IRW_BITCAST) {   // ★ RFC-0151 — 128 비트 정수(프렐류드 lw_w_*). `bit_cast` 는 아래 lw_bitcast 가 한다(RFC-0157 §8-18)
                 static const struct { low_irw_t w; int op; } WB[] = {
                     { IRW_ADD, 0 }, { IRW_SUB, 1 }, { IRW_MUL, 2 }, { IRW_DIV, 3 }, { IRW_MOD, 4 }, { IRW_LT, 5 }, { IRW_LE, 6 }, { IRW_GT, 7 },
                     { IRW_GE, 8 }, { IRW_BAND, 9 }, { IRW_BOR, 10 }, { IRW_BXOR, 11 }, { IRW_SHL, 12 }, { IRW_SHR, 13 }, { IRW_WSHL, 14 },
@@ -9655,6 +9686,7 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                 case IRW_VLOADM:   low_fpf(out, "    st[sp-4] = lw_vloadm({}, st[sp-4], st[sp-3], st[sp-2], st[sp-1]); sp -= 3;\n", PROVEN_ARG((long long)((long long)in->a))); break;
                 case IRW_VSTOREM:  low_fpf(out, "    st[sp-4] = lw_vstorem(st[sp-4], st[sp-3], st[sp-2], st[sp-1]); sp -= 3;\n"); break;
                 case IRW_VAVG:     low_puts(out, "    st[sp-2] = lw_vavg(st[sp-2], st[sp-1]); sp--;\n"); break;
+                case IRW_VLOOKUP:  low_puts(out, "    st[sp-2] = lw_vlookup(st[sp-2], st[sp-1]); sp--;\n"); break;   /* RFC-0157 8-19 */
                 case IRW_SELECT:   low_puts(out, "    st[sp-3] = lw_vselect(st[sp-3], st[sp-2], st[sp-1]); sp -= 2;\n"); break;
                 case IRW_VREVERSE: low_puts(out, "    st[sp-1] = lw_vperm(0, 0, st[sp-1]);\n"); break;
                 case IRW_VROTATE:  low_fpf(out, "    st[sp-1] = lw_vperm(1, {}, st[sp-1]);\n", PROVEN_ARG((long long)((long long)in->a))); break;
@@ -9667,6 +9699,13 @@ int low_cbe_emit(const low_ir_t *ir, low_out_t *out) {
                 case IRW_MALL:     low_puts(out, "    st[sp-1] = lw_mred(1, st[sp-1]);\n"); break;
                 case IRW_CALL: {
                     const low_ir_def_t *callee = &ir->defs[IR_CALL_IDX(in->a)];
+                    // ★ 2026-11-26 (known-defects/unlowered-op-call-gives-zero) — 낮추지 못한 op 에는 C 함수가 없다(W-CBE-SKIP). 전엔 그 이름을 그대로
+                    //   불러 C 컴파일러가 «implicit declaration» 으로 멈췄다. VM 과 같이, 그 부름에 닿으면 멈춘다.
+                    if (!callee->lowered) {
+                        low_fpf(out, "    lw_panic(\"this call reaches an op whose body could not be lowered (E-IR-UNSUP) \xe2\x80\x94 it does not run\"); sp -= {}; st[sp++] = lw_int(0);\n",
+                                PROVEN_ARG((size_t)((size_t)callee->nparams)));
+                        break;
+                    }
                     // ★ 비워 둔 액터(0)에 보낸 메시지는 멈춘다 — VM 의 E-VM-HANDLE-ZERO 와 같은 게이트(정수 0 만)
                     if (callee->is_actor && callee->nparams > 0)
                         low_fpf(out, "    if (st[sp-{}].tag == LWV_INT && st[sp-{}].i == 0) lw_panic(\"`send` on actor handle 0 \xe2\x80\x94 this actor was never spawned\");\n",

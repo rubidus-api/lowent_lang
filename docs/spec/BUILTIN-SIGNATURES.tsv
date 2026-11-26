@@ -82,7 +82,7 @@ narrow_wrap	변환	`narrow_wrap T a`	`T` — 정수 타입 · `a` — 수	`T` �
 narrow_sat	변환	`narrow_sat T a`	`T` — 정수 타입 · `a` — 수	`T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0)	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
 narrow_try	변환	`narrow_try T a`	`T` — 정수 타입 · `a` — 정수	`option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음	`T` 를 안 적으면 `E-FORM-UNEXPECTED`	—	6.3.6
 cast	변환	`cast T a`	`T` — 정수 또는 부동 타입 · `a` — 수, 또는 참거짓(`T` 가 정수 타입일 때)	`T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값. 참거짓에서 오면 참은 1, 거짓은 0	`T` 가 `bool` 이면 `E-TYPE-KIND`(수를 참거짓으로 바꾸는 `cast` 는 없다 — `ne a. 0 .`) · 참거짓을 부동 타입으로 바꾸면 `E-TYPE-KIND`	정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`	6.2.16
-bit_cast	변환	`bit_cast T a`	`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수	`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408)		—	6.2.5
+bit_cast	변환	`bit_cast T a`	`T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수, 또는 `T` 가 부호 없는 정수일 때 크기가 같은 정수 레인의 `vec`(§8.7.1 (3b))	`T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408 · 벡터는 레인 0 이 가장 아랫 비트)		—	6.2.5
 size_of	변환	`size_of T`	`T` — 타입	`usize` — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4)		—	6.3.8
 encode_canonical	뷰	`encode_canonical S v`	`S` — 바이트 배치가 있는 구조체 · `v` — 그 구조체의 값이나 창	`slice u8` — 정규 바이트(칸을 틈 없이 · LE · −0 → +0 · NaN 한 꼴)	`S` 가 바이트 배치가 있는 구조체가 아니면 `E-IR-UNDEF`	—	6.2.13
 align_of	변환	`align_of T`	`T` — 타입	`usize` — 그 타입 값의 정렬(`align_of u64` 는 8 · `bool` 은 1 · 구조체는 배치의 정렬)	바이트 배치가 없는 타입이면 `E-IR-UNDEF`	—	6.3.8
@@ -126,3 +126,4 @@ splat	SIMD	`splat a`	`a` — 정수 또는 부동	`vec N T` — 모든 레인이
 reduce_add	SIMD	`reduce_add v`	`v` — `vec N T`	`T` — 레인의 합(부호 있는 레인은 부호로 더한다)	`E-IR-ARITY`	합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`	6.3.11
 reduce_max	SIMD	`reduce_max v`	`v` — `vec N T`	`T` — 가장 큰 레인	`E-IR-ARITY`	—	6.3.11
 reduce_min	SIMD	`reduce_min v`	`v` — `vec N T`	`T` — 가장 작은 레인	`E-IR-ARITY`	—	6.3.11
+lane_lookup	SIMD	`lane_lookup t x`	`t` — 표 `vec 16 u8` · `x` — 첨자 `vec 16 u8`	`vec 16 u8` — 레인 `k` 는 `x[k]` 가 16 미만이면 `t[x[k]]`, 아니면 0	다른 모양이면 `E-TYPE-KIND`	—	6.3.7

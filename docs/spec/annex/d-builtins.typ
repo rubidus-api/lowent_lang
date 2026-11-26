@@ -12,7 +12,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 238 개다 — 기본 연산 168 개와 빌트인 연산 70 개.]
+  #para("2")[모두 239 개다 — 기본 연산 169 개와 빌트인 연산 70 개.]
 
   == D.1 이름과 뜻
 
@@ -108,6 +108,7 @@
         [`lane_all`], [가림막의 레인이 모두 켜졌나 (레인 판정 — pipe 종결자 `all` 과 다른 낱말)],
         [`lane_any`], [가림막의 레인이 하나라도 켜졌나 (레인 판정 — pipe 종결자 `any` 와 다른 낱말)],
         [`lane_avg`], [두 수의 평균 — 중간값을 넘침 없이 낸다],
+        [`lane_lookup`], [16 칸 표에서 레인마다 고른다(첨자 16 이상은 0)],
         [`lane_reverse`], [차례를 뒤집는다],
         [`lane_rotate`], [주어진 방향으로 돌린다],
         [`lane_select`], [가림막에 따라 두 값 중 하나를 레인마다 고른다],
@@ -287,7 +288,7 @@
   ]
 
   #note[
-    실측: 기본 연산 168 개 가운데 지역 이름 선언이 막히는 것은 #strong[145 개];,
+    실측: 기본 연산 169 개 가운데 지역 이름 선언이 막히는 것은 #strong[146 개];,
     쓸 수 있는 것은 #strong[23 개];다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `copy` · `count` · `drain` · `enumerate` · `filter` · `fold` · `into` · `is_none` · `map` · `pipe` · `pop` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 #strong[이름 충돌 규칙을 틀리게 말하기];
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -320,39 +321,39 @@ filter                floor                 fmod                  fold
 ge                    ghash                 gt                    hash_bytes
 idx                   include_text          into                  is_error
 is_none               is_ok                 is_some               isa
-lane_all              lane_any              lane_avg              lane_reverse
-lane_rotate           lane_select           le                    leading_zeros
-len                   link_type             load                  load_masked
-log                   lt                    map                   max
-min                   mod                   mul                   mul_hi
-mut_ref               narrow                narrow_sat            narrow_try
-narrow_wrap           native_lanes          ne                    neg
-net_accept            net_close             net_connect           net_listen
-net_pair              net_port              net_recv              net_resolve
-net_send              nonzero_of            nonzero_or            not
-offset_of             ok                    ok_value              or
-panic                 path_remove           path_rename           payload
-pipe                  poly1305              pop                   pow
-prefetch              proc_kill             proc_poll             proc_read
-proc_spawn            proc_wait             push                  r_read
-r_write               random_bytes          range                 reactor_new
-read_in               read_volatile         reduce_add            reduce_max
-reduce_min            reduce_mul            ref                   region
-ret                   rng_next              rotl                  rotr
-round                 same_slice            sat_add               sat_mul
-sat_sub               scan                  send                  sha256
-sha384                sha512                shl                   shr
-shuffle               sin                   size_of               skip
-some                  some_value            spawn                 splat
-sqrt                  stack_count           stack_new             store
-store_masked          str_from_cstr         sub                   subslice
-sum_neumaier          sum_seq               swap                  take
-time_local            time_now              time_sleep            trailing_zeros
-try_view              tty_raw               tty_read              tty_size
-unsafe_fn             value_or              view                  view_array
-view_segments         widen                 wrap_add              wrap_mul
-wrap_shl              wrap_shr              wrap_sub              write_out
-write_volatile        zip")
+lane_all              lane_any              lane_avg              lane_lookup
+lane_reverse          lane_rotate           lane_select           le
+leading_zeros         len                   link_type             load
+load_masked           log                   lt                    map
+max                   min                   mod                   mul
+mul_hi                mut_ref               narrow                narrow_sat
+narrow_try            narrow_wrap           native_lanes          ne
+neg                   net_accept            net_close             net_connect
+net_listen            net_pair              net_port              net_recv
+net_resolve           net_send              nonzero_of            nonzero_or
+not                   offset_of             ok                    ok_value
+or                    panic                 path_remove           path_rename
+payload               pipe                  poly1305              pop
+pow                   prefetch              proc_kill             proc_poll
+proc_read             proc_spawn            proc_wait             push
+r_read                r_write               random_bytes          range
+reactor_new           read_in               read_volatile         reduce_add
+reduce_max            reduce_min            reduce_mul            ref
+region                ret                   rng_next              rotl
+rotr                  round                 same_slice            sat_add
+sat_mul               sat_sub               scan                  send
+sha256                sha384                sha512                shl
+shr                   shuffle               sin                   size_of
+skip                  some                  some_value            spawn
+splat                 sqrt                  stack_count           stack_new
+store                 store_masked          str_from_cstr         sub
+subslice              sum_neumaier          sum_seq               swap
+take                  time_local            time_now              time_sleep
+trailing_zeros        try_view              tty_raw               tty_read
+tty_size              unsafe_fn             value_or              view
+view_array            view_segments         widen                 wrap_add
+wrap_mul              wrap_shl              wrap_shr              wrap_sub
+write_out             write_volatile        zip")
 
   == D.2 받는 것과 내는 것
 
@@ -363,7 +364,7 @@ write_volatile        zip")
   ]
 
   #note[
-    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 238 개 가운데 *106 개*를 적었고,
+    이 절도 *생성된 것*이다. 줄마다 처리기를 돌려 잰 탐침이 뒷받침한다. 239 개 가운데 *107 개*를 적었고,
     나머지는 D.1 의 한 줄짜리 뜻과 본문 조항이 말한다.
   ]
 
@@ -492,7 +493,7 @@ write_volatile        zip")
         [`narrow_sat T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 수 \ *내는 것:* `T` — `T` 의 끝값에 붙인 값(`narrow_sat u8` 에 300 은 255, -1 은 0) \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`narrow_try T a` #cref("6.3.6")], [*받는 것:* `T` — 정수 타입 · `a` — 정수 \ *내는 것:* `option T` — 값이 `T` 에 들어가면 그 값, 아니면 없음 \ *번역 때 거절:* `T` 를 안 적으면 `E-FORM-UNEXPECTED` \ *실행 때 멈춤:* —],
         [`cast T a` #cref("6.2.16")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 수, 또는 참거짓(`T` 가 정수 타입일 때) \ *내는 것:* `T`. 부동에서 정수로 가면 소수부를 버린다(`cast i8` 에 -1.9 는 -1). 정수에서 부동으로 가면 가장 가까운 값. 참거짓에서 오면 참은 1, 거짓은 0 \ *번역 때 거절:* `T` 가 `bool` 이면 `E-TYPE-KIND`(수를 참거짓으로 바꾸는 `cast` 는 없다 — `ne a. 0 .`) · 참거짓을 부동 타입으로 바꾸면 `E-TYPE-KIND` \ *실행 때 멈춤:* 정수 값이 정수 `T` 에 안 들어가면 `E-VM-CAST`],
-        [`bit_cast T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수 \ *내는 것:* `T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408) \ *번역 때 거절:*  \ *실행 때 멈춤:* —],
+        [`bit_cast T a` #cref("6.2.5")], [*받는 것:* `T` — 정수 또는 부동 타입 · `a` — 폭이 같은 수, 또는 `T` 가 부호 없는 정수일 때 크기가 같은 정수 레인의 `vec`(§8.7.1 (3b)) \ *내는 것:* `T` — 비트는 그대로 두고 타입만 바꾼다(`bit_cast u64` 에 `f64` 1.0 은 4607182418800017408 · 벡터는 레인 0 이 가장 아랫 비트) \ *번역 때 거절:*  \ *실행 때 멈춤:* —],
         [`size_of T` #cref("6.3.8")], [*받는 것:* `T` — 타입 \ *내는 것:* `usize` — 그 타입이 차지하는 바이트 수(`size_of u32` 는 4) \ *번역 때 거절:*  \ *실행 때 멈춤:* —],
         [`align_of T` #cref("6.3.8")], [*받는 것:* `T` — 타입 \ *내는 것:* `usize` — 그 타입 값의 정렬(`align_of u64` 는 8 · `bool` 은 1 · 구조체는 배치의 정렬) \ *번역 때 거절:* 바이트 배치가 없는 타입이면 `E-IR-UNDEF` \ *실행 때 멈춤:* —],
         [`offset_of S f` #cref("6.3.8")], [*받는 것:* `S` — 바이트 배치가 있는 구조체 · `f` — 그 칸의 이름 \ *내는 것:* `usize` — 그 칸이 배치에서 시작하는 바이트 자리 \ *번역 때 거절:* 구조체가 아니거나 배치가 없으면 `E-IR-UNDEF` \ *실행 때 멈춤:* —],
@@ -572,6 +573,7 @@ write_volatile        zip")
         [`reduce_add v` #cref("6.3.11")], [*받는 것:* `v` — `vec N T` \ *내는 것:* `T` — 레인의 합(부호 있는 레인은 부호로 더한다) \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* 합이 `T` 에 안 들어가면 `E-VM-OVERFLOW`],
         [`reduce_max v` #cref("6.3.11")], [*받는 것:* `v` — `vec N T` \ *내는 것:* `T` — 가장 큰 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
         [`reduce_min v` #cref("6.3.11")], [*받는 것:* `v` — `vec N T` \ *내는 것:* `T` — 가장 작은 레인 \ *번역 때 거절:* `E-IR-ARITY` \ *실행 때 멈춤:* —],
+        [`lane_lookup t x` #cref("6.3.7")], [*받는 것:* `t` — 표 `vec 16 u8` · `x` — 첨자 `vec 16 u8` \ *내는 것:* `vec 16 u8` — 레인 `k` 는 `x[k]` 가 16 미만이면 `t[x[k]]`, 아니면 0 \ *번역 때 거절:* 다른 모양이면 `E-TYPE-KIND` \ *실행 때 멈춤:* —],
     )
   ]
 

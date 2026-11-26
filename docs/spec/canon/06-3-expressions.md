@@ -525,6 +525,7 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 > [`reduce_add` · `reduce_mul`], [`reduce_add <값>`], [모든 레인을 더한다 · 곱한다],
 > [`reduce_min` · `reduce_max`], [`reduce_min <값>`], [레인 가운데 가장 작은 것 · 가장 큰 것],
 > [`lane_avg`], [`lane_avg <값> <값>`], [레인마다 반올림하는 평균],
+> [`lane_lookup`], [`lane_lookup <표> <첨자>`], [첨자의 레인마다 16 칸 표의 그 레인을 고른다 — (1e)],
 > [`native_lanes`], [`native_lanes <타입>`], [이 기계가 한 번에 다루는 레인 수를 **번역 시점에** 묻는다],
 > )
 
@@ -547,6 +548,21 @@ fn endian input a u32 . output u32 . do return byte_swap a. . . end .
 (1d) `splat <리터럴>` 의 리터럴은 레인 하나를 그 레인 타입의 자리로 보고 ⟦§6.1.4⟧ (8)(9) 를 따른다 — 부동소수점 레인에 정수 리터럴을
       채우면 `E-TYPE-LET`, `f32` 레인에 그 범위를 넘는 부동소수점 리터럴을 채우면 `E-TYPE-WIDTH` 다. 나열 리터럴(`lit vec` · `lit array` ·
       `lit slice`)의 원소도 같다.
+
+(1e) `lane_lookup <표> <첨자>` 는 첨자의 레인 `k` 마다 표의 레인 `첨자[k]` 를 고른다(2026-11-25). 표 · 첨자 · 결과는 모두 `vec 16 u8` 이고, 다른 모양을
+      주면 번역이 거부된다(`E-TYPE-KIND`). 첨자가 16 이상인 레인은 **0** 이다 — 16 부터 255 까지 모두 그렇다. 기계 명령(x86 `pshufb` 은 첨자의 맨 위
+      비트만 보고, Arm `tbl` 은 16 이상을 0 으로 한다)이 다르게 답하는 첨자에서도 답은 이 하나다.
+
+```lowent 예제: 16 칸 표에서 고른다 — 첨자 16 은 0 · 결과: pick() = 50
+module ex_lane_lookup .
+
+fn pick output u8 . do
+  let t vec 16 u8 lit vec 16 u8 0 10 20 30 40 50 60 70 80 90 100 110 120 130 140 150 . .
+  let x vec 16 u8 lit vec 16 u8 5 16 255 0 0 0 0 0 0 0 0 0 0 0 0 0 . .
+  let r vec 16 u8 lane_lookup t. x. . .
+  return reduce_max r. . .
+end .
+```
 
 (2) 레인을 가로지르는 op 은 레인 수만큼을 **하나로** 모은다. 결과의 타입은 레인의 타입이다. 부호 있는 레인은 부호로
       더하고 곱하며, `reduce_add` · `reduce_mul` 의 값이 그 타입에 들어가지 않으면 멈춘다(⟦§6.3.4⟧ (3)).

@@ -1,0 +1,39 @@
+rem ★★ 2026-11-25 (RFC-0157 §8-18 · §8-19 · 소유자 «18~20번 모두 추천대로») — 벡터에서 수로, 그리고 16 칸 표에서 고르기.
+rem   `bit_cast u<크기> <vec>`: 정수 레인의 벡터를 크기가 같은 부호 없는 정수로 읽는다 — 레인 0 이 가장 아랫 비트(기계의 바이트 차례와 무관하다 ·
+rem   정본 §8.7.1 (3b)). `lane_lookup <표> <첨자>`: 둘 다 `vec 16 u8`, 첨자가 16 이상인 레인은 0(16 · 127 · 128 · 255 모두 — 정본 §6.3.7 (1e)).
+rem   모든 op 이 수를 돌려주므로 빠른 경로에 남는다. VM · 빠른 경로 · 태그 경로(--no-fast)가 같은 답이어야 한다.
+
+module vm_vecint .
+fn b16 output u128 . do
+  let x vec 16 u8 lit vec 16 u8 76 116 192 234 1 254 1 125 0 237 110 254 255 0 0 0 . .
+  return bit_cast u128 x. . .
+end .
+fn b2 output u128 . do
+  let x vec 2 i64 lit vec 2 i64 -5969420606954665893 -3750598260663997378 . .
+  return bit_cast u128 x. . .
+end .
+fn b4 input a i8 . output u32 . do
+  let x vec 4 i8 lit vec 4 i8 a. -1 2 -128 . .
+  return bit_cast u32 x. . .
+end .
+fn b8 input a u16 . output u64 . do
+  let x vec 4 u16 lit vec 4 u16 a. 0 65535 1 . .
+  return bit_cast u64 x. . .
+end .
+fn lk input a u8 . output u128 . do
+  let t vec 16 u8 lit vec 16 u8 216 127 41 179 242 143 207 42 126 163 184 131 17 179 202 3 . .
+  let x vec 16 u8 lit vec 16 u8 a. 15 0 2 15 5 11 128 0 255 15 128 15 127 16 1 . .
+  let r vec 16 u8 lane_lookup t. x. . .
+  return bit_cast u128 r. . .
+end .
+rem ★ 2026-11-26 (known-defects/bitcast-128-scalar-upper-half) — 128 비트 정수끼리의 `bit_cast` 는 위 절반까지 옮긴다(전엔 아래 64 비트만:
+rem   `bit_cast u128 <i128 −1>` 이 2^64 − 1). 음수 리터럴을 넓힐 때도 부호를 늘린다(전엔 `widen i128 -1` 이 2^64 − 1).
+fn s16 input a i64 . output u128 . do
+  return bit_cast u128 widen i128 a. . . .
+end .
+fn s16r input a i64 . output i128 . do
+  return bit_cast i128 bit_cast u128 widen i128 a. . . . .
+end .
+fn wl output i128 . do
+  return widen i128 -1 . .
+end .

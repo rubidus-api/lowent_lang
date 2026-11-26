@@ -206,11 +206,14 @@ four slots remain at the end of a slice.
   [*Op*], [*What it does*], [*Note*],
   [`load` · `store` · `load_masked` · `store_masked`], [read and write between memory and lanes], [masked forms touch only lanes that are on],
   [`splat` · `lane_select`], [one value into every lane · choose per lane by mask], [`splat` needs a type context (below)],
+  [`bit_and` · `bit_or` · `bit_xor` · `bit_not` · `wrap_shl` · `wrap_shr`], [bit operations per integer lane], [both vectors have the same shape; a shift count is a vector too, masked to the lane width — the stopping `shl` · `shr` take no vectors (canon 6.2.11 (3b))],
   [`reduce_add` · `reduce_max` · `reduce_min` · `reduce_mul`], [gather the lanes into one], [the result has the element type],
   [`lane_reverse` · `lane_rotate`], [reverse · rotate the lanes], [the count is a translation-time constant],
   [`native_lanes`], [this machine's lane count (translation time)], [does not change answers],
   [`math.sum_neumaier` · `math.sum_seq`], [add up a float slice seen through `view_array`], [not lane ops --- the name says how they add (compensated · front to back)],
   [`lane_avg`], [rounding average per lane], [its value is fixed at `(a+b+1)>>1` — the sum is widened so a lane cannot overflow],
+  [`lane_lookup`], [picks from a 16-slot table, lane by lane], [the table and the index are both `vec 16 u8`; a lane whose index is 16 or more is 0 (canon 6.3.7 (1e))],
+  [`bit_cast u128 v.`], [reads an integer-lane vector as the unsigned integer of the same size], [lane 0 is the lowest bits, whatever the machine's byte order; a different size or a signed target is refused (canon 8.7.1 (3b))],
   [`prefetch xs. i. .`], [pull a place about to be used into cache], [a performance hint that does not change meaning],
 )
 

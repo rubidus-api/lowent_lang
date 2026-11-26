@@ -1,0 +1,20 @@
+rem ★ 짝 — `bit_cast` 의 벡터 예외는 «정수 레인 → 크기가 같은 부호 없는 정수» 하나다: 크기가 다르거나(32 비트 → u16), 목표가 부호 있거나(i32),
+rem   레인이 부동이면(f32) E-TYPE-BITCAST. `lane_lookup` 은 `vec 16 u8` 만 받는다: E-TYPE-KIND (RFC-0157 §8-18 · §8-19).
+module vm_vecint_bad .
+
+fn sz output u16 . do
+  let x vec 4 u8 splat 1 . .
+  return bit_cast u16 x. . .
+end .
+fn sg output i32 . do
+  let x vec 4 u8 splat 1 . .
+  return bit_cast i32 x. . .
+end .
+fn fl output u64 . do
+  let x vec 2 f32 splat 1.0 . .
+  return bit_cast u64 x. . .
+end .
+fn lk output vec 4 u8 . do
+  let t vec 4 u8 splat 1 . .
+  return lane_lookup t. t. . .
+end .

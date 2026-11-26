@@ -11917,7 +11917,7 @@ static bool ck_pure_value_word(proven_u8str_view_t w) {
         "is_some","is_none","is_ok","is_error","some_value","value_or","ok_value","error_value",
         "bitset_contains","bitset_union","bitset_intersect","bitset_difference","bitset_complement",
         "bitset_is_empty","bitset_is_subset",
-        "lane_select","lane_any","lane_all","lane_reverse","lane_rotate","lane_avg",
+        "lane_select","lane_any","lane_all","lane_reverse","lane_rotate","lane_avg","lane_lookup",
         "reduce_add","reduce_mul","reduce_min","reduce_max","splat","expr",
     };
     for (proven_size_t i = 0; i < sizeof P / sizeof P[0]; i++) if (veq(w, P[i])) return true;

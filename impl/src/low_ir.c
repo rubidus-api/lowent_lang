@@ -2300,7 +2300,8 @@ int ir_int_lit128(proven_u8str_view_t v, proven_u64 *lo, proven_u64 *hi) {
         if (d >= base) return false;
         val = val * base + d;
     }
-    *out = neg ? -(proven_i64)val : (proven_i64)val;
+    // ★ 2026-11-26 (W-20261126-1117) — 2^63 을 부호 있는 수로 바꾼 뒤 뒤집으면 정의되지 않은 동작이다(UBSan). −(v−1)−1 로 같은 값을 낸다.
+    *out = neg ? (val ? -(proven_i64)(val - 1) - 1 : 0) : (proven_i64)val;
     return true;
 }
 

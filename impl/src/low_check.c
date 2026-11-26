@@ -3028,7 +3028,7 @@ static bool ck_int_val(proven_u8str_view_t v, proven_i64 *out) {
         acc = acc * (proven_u64)base + (proven_u64)d; any = true;
     }
     if (!any) return false;
-    *out = neg ? -(proven_i64)acc : (proven_i64)acc;
+    *out = neg ? (acc ? -(proven_i64)(acc - 1) - 1 : 0) : (proven_i64)acc;   // ★ 2026-11-26 — 2^63 을 뒤집어도 정의된 동작이게(low_ir.c 의 ir_int_lit 과 같다)
     return true;
 }
 // ★ MM4 — scrutinee 이름이 **부호 없는 정수 타입**(u8/u16/u32/u64)의 파라미터/지역이면 그 폭(비트)을

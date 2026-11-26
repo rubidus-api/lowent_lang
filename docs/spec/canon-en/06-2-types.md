@@ -272,6 +272,19 @@ end .
  usize · idiff are not in this picture — there is no arrow either way, and the word that crosses is cast
 ```
 
+(4a) A literal follows this table too. A literal has no width, but its **value** is known at translation, so if that value does not
+      fit the target type it is not a widening — widening a negative literal into an unsigned type is refused with `E-WIDEN-SIGN`,
+      and a literal outside the target's range with `E-WIDEN-NARROW` (`widen u64 -1` · `widen u8 300`). To keep the bits, use
+      `narrow_wrap` or `cast`.
+
+```lowent-거부: a negative literal widened into an unsigned type · E-WIDEN-SIGN
+module ex_widen_neg_lit .
+
+fn all_ones output u64 . do
+  return widen u64 -1 . .
+end .
+```
+
 ```lowent 예제: widening and narrowing
 let small u8 200 .
 let wide u64 widen u64 small. . .

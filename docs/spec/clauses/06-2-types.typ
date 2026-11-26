@@ -275,6 +275,16 @@ end .", "E-TYPE-COND")
  i8 ──▶ i16 ──▶ i32 ──▶ i64
  같은 폭으로 내려가는 화살(u8 → i8)도, i 줄에서 u 줄로 가는 화살도 없다
  usize · idiff 는 이 그림에 없다 — 어느 쪽으로도 화살이 없고, 건너는 낱말은 cast 다")
+    #para("4a")[
+      리터럴도 이 표를 따른다. 리터럴에는 폭이 없지만 #strong[값];은 번역할 때 정해져 있으므로, 그 값이 대상 타입에 들어가지 않으면
+      넓히기가 아니다 — 음수 리터럴을 부호 없는 타입으로 넓히는 것은 `E-WIDEN-SIGN`, 대상의 범위를 넘는 리터럴은
+      `E-WIDEN-NARROW` 로 거부된다(`widen u64 -1` · `widen u8 300`). 비트를 그대로 옮기려면 `narrow_wrap` 이나 `cast` 를 쓴다.
+    ]
+    #rejected("음수 리터럴을 부호 없는 타입으로 넓혔다", "module ex_widen_neg_lit .
+
+fn all_ones output u64 . do
+  return widen u64 -1 . .
+end .", "E-WIDEN-SIGN")
     #ex("넓히기와 좁히기", "let small u8 200 .
 let wide u64 widen u64 small. . .
 let back u8 narrow u8 wide. . .")

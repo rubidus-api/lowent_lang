@@ -294,7 +294,7 @@ static bool tc_int_lit(proven_u8str_view_t v, proven_i64 *out) {
     if (low_num_is_float(v)) return false;
     proven_u64 val; bool neg;
     if (!num_value(v, &val, &neg)) return false;
-    if (neg) { if (val > (proven_u64)INT64_MAX + 1) return false; *out = -(proven_i64)val; }
+    if (neg) { if (val > (proven_u64)INT64_MAX + 1) return false; *out = val ? -(proven_i64)(val - 1) - 1 : 0; }   // ★ 2026-11-26 — −2^63 을 정의된 동작으로
     else     { if (val > (proven_u64)INT64_MAX) return false;     *out =  (proven_i64)val; }
     return true;
 }
@@ -2354,6 +2354,21 @@ static ty_t tc_infer_run_impl(tc_ctx_t *c, low_cst_t *const *k, proven_size_t st
                             "STRICTLY wider (uN into iM needs N < M) — at equal width the top of "
                             "the range does not fit", k[start]->line);
                 }
+            }
+            // ★ 2026-11-26 (known-defects/widen-negative-literal-unsigned · 정본 §6.2.16 (4a)) — 리터럴은 폭이 없어 위의 물음 밖이었다.
+            //   그래서 `widen u64 -1` · `widen u8 300` 이 검사를 지나 실행 중에 멈췄다(전엔 u64 만 조용히 2^64 − 1). 리터럴의 **값**은
+            //   번역 때 알므로, 대상에 들어가지 않으면 여기서 거절한다 — 넓히기는 값을 바꾸지 않는다는 약속이다.
+            if (src.k == TK_INT && src.lit && tgt.k == TK_INT && tgt.bits && !lit_fits(src, tgt)) {
+                if (src.neg && !tgt.sign)
+                    tc_emit(c, "E-WIDEN-SIGN",
+                            "a negative literal cannot widen into an unsigned type — the value has no place there. "
+                            "Write the value the target can hold, or use `cast` / `narrow_wrap` if you mean its bits",
+                            k[start]->line);
+                else
+                    tc_emit(c, "E-WIDEN-NARROW",
+                            "this literal does not fit the target — widening promises the value is unchanged, so a "
+                            "literal outside the target's range is not a widening. Write a value that fits, or use "
+                            "`narrow` / `narrow_wrap` / `narrow_sat`", k[start]->line);
             }
             return tgt;
         }

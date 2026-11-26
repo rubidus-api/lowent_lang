@@ -274,6 +274,17 @@ end .", "E-TYPE-COND")
  i8 ──▶ i16 ──▶ i32 ──▶ i64
  there is no arrow down at the same width (u8 → i8), and no arrow from the i row to the u row
  usize · idiff are not in this picture — there is no arrow either way, and the word that crosses is cast")
+    #para("4a")[
+      A literal follows this table too. A literal has no width, but its #strong[value]; is known at translation, so if that value does not
+      fit the target type it is not a widening — widening a negative literal into an unsigned type is refused with `E-WIDEN-SIGN`,
+      and a literal outside the target's range with `E-WIDEN-NARROW` (`widen u64 -1` · `widen u8 300`). To keep the bits, use
+      `narrow_wrap` or `cast`.
+    ]
+    #rejected("a negative literal widened into an unsigned type", "module ex_widen_neg_lit .
+
+fn all_ones output u64 . do
+  return widen u64 -1 . .
+end .", "E-WIDEN-SIGN")
     #ex("widening and narrowing", "let small u8 200 .
 let wide u64 widen u64 small. . .
 let back u8 narrow u8 wide. . .")

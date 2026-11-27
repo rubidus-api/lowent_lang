@@ -1,0 +1,15 @@
+module mistake_breakfar .
+rem expect: E-LOOP-COUNT
+
+fn f output u64 .
+do
+  var n u64 0 .
+  repeat a u64 3 do
+    repeat b u64 3 do
+      set n. add n. 1 . .
+      rem ko: ✘ 감싼 되풀이는 둘뿐이다 --- 셋을 벗어날 수 없다 /// en: ✘ only two loops surround this --- three cannot be left
+      break 3 .
+    end .
+  end .
+  return n. .
+end .

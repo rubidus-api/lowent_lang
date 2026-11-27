@@ -1,0 +1,18 @@
+module wire_truncates .
+rem run: put_mode 5
+rem run: put_mode 20
+rem run: fits_mode 20
+
+use wire .
+
+rem ko: 칸은 네 비트(0 … 15)다 --- 20 은 잘려 4 가 들어간다 /// en: the field is four bits (0 … 15) --- 20 is cut down and 4 goes in
+fn put_mode input m u64 . output u64 .
+do
+  return wire.put 3840 m. . .
+end .
+
+rem ko: 잘리는 것이 싫으면 먼저 묻는다 /// en: if truncation is unwanted, ask first
+fn fits_mode input m u64 . output bool .
+do
+  return wire.fits 3840 m. . .
+end .

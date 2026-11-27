@@ -1,0 +1,26 @@
+module nested .
+rem run: tri 4
+
+proc bump input p mut_ref u64 . output u64 . effects none .
+do
+  set p. add deref p. . 1 . .
+  return deref p. . .
+end .
+
+rem ko: 안쪽 반복은 바깥 회차마다 다른 횟수로 돈다(0, 1, 2, 3 번) /// en: the inner loop runs a different number of times each outer round (0, 1, 2, 3)
+proc tri input n u64 . output u64 .
+  effects none .
+  requires le n. 100 . .
+do
+  var x u64 0 .
+  var i u64 0 .
+  while lt i. n. . do
+    var k u64 0 .
+    while lt k. i. . do
+      let seen u64 bump mut_ref x . . .
+      set k. add k. 1 . .
+    end .
+    set i. add i. 1 . .
+  end .
+  return x. .
+end .

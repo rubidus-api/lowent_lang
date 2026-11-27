@@ -1,0 +1,12 @@
+module failing .
+rem test-fail
+
+fn clamp8 input v u64 . output u8 .
+do
+  return narrow_wrap u8 v. . .
+end .
+
+test clamp_saturates
+do
+  expect eq clamp8 1000 . 255 . .
+end .

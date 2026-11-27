@@ -1,0 +1,15 @@
+module mistake_localconst .
+rem expect: E-COMPTIME-ARG
+
+fn add_const input comptime n u8 . input a u8 . output u8 .
+  requires le a. 200 . .
+do
+  return add a. n. . .
+end .
+
+fn seventeen output u8 .
+do
+  rem ko: ✘ 값은 늘 7 이지만 `var` 는 바뀔 수 있는 이름이다 /// en: ✘ the value is always 7, but a `var` is a name that can change
+  var k u8 7 .
+  return add_const k. 10 . .
+end .

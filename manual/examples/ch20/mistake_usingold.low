@@ -1,0 +1,17 @@
+module mistake_usingold .
+rem expect: E-USING-OLD
+
+use allocs .
+
+proc one_from
+  input comptime a type .
+  rem ko: ✘ 옛 철자다 --- 머리의 절도 `use` 로 적는다 /// en: ✘ the old spelling --- the clause in the head is `use` too
+  using al a .
+  output u64 .
+  effects state via a .
+  requires allocs.byte_allocator a. . .
+do
+  let p option mut slice u8 send al. reserve 3 . .
+  guard is_some p. . else return 91 . .
+  return send al. used . .
+end .

@@ -1,0 +1,42 @@
+module dyn_pick .
+rem run: demo
+
+trait shape do
+  area input s self . output u64 .
+  scaled input s self . input k u64 . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area input s rect . output u64 . do return mul field s. w . field s. h . . . end .
+fn rect.scaled input s rect . input k u64 . output u64 . do return mul k. rect.area s. . . . end .
+fn square.area input s square . output u64 . do return mul field s. side . field s. side . . . end .
+fn square.scaled input s square . input k u64 . output u64 . do return mul k. square.area s. . . . end .
+
+rem 받는 값이 무슨 타입인지 모른다 — `dyn` 이 실행 중에 고른다. 그래서 효과 줄에 `dyn` 이 있다
+proc both input a object shape . input b object shape . output u64 . effects dyn . do
+  return add dyn a. area. . dyn b. scaled. 10 . . .
+end .
+
+rem 만드는 것은 효과가 아니다 — 값을 복사해 담을 뿐이다
+proc pick input n u64 . output object shape . effects none . do
+  let r rect lit rect do w 2 . h 3 . end . .
+  let q square lit square do side 4 . end . .
+  if eq n. 0 . do return object shape r. . . end .
+  return object shape q. . .
+end .
+
+proc demo output u64 . effects dyn . do
+  let a object shape pick 0 . .
+  let b object shape pick 1 . .
+  return both a. b. . .
+end .

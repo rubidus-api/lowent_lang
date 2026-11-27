@@ -1,0 +1,15 @@
+module mistake_noderef .
+rem expect: E-TYPE-REFVAL
+
+fn twice input p ref u64 . output u64 .
+do
+  rem ko: ✘ `p` 는 수가 아니라 수를 가리키는 참조다 --- `deref p` 로 읽어야 한다 /// en: ✘ `p` is not a number but a reference to one --- read it with `deref p`
+  return add p. p. . .
+end .
+
+fn double input x u64 . output u64 .
+  requires le x. 1000 . .
+do
+  let n u64 x. .
+  return twice ref n . . .
+end .

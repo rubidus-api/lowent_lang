@@ -1,0 +1,36 @@
+module structview .
+rem run: write_through [1,2]
+rem run: copy_by_name [1,2]
+rem run: pass_mut [1,2]
+
+struct pt do
+  x u8 .
+  y u8 .
+end .
+
+rem ko: 쓰기 창(mut view)의 칸에 쓰면 그 자리의 바이트에 쓴다 --- b 가 [1,9] 가 된다 /// en: writing a field of a write window (mut view) writes the bytes there --- b becomes [1,9]
+proc write_through input b mut slice u8 . output u8 . effects none . do
+  let h mut view pt view pt b. . .
+  set field h. y . 9 .
+  return idx b. 1 . .
+end .
+
+rem ko: `cast` 로 사본을 짓는다 --- k 에 써도 b 는 그대로 /// en: `cast` builds a copy --- writing k leaves b as it was
+proc copy_by_name input b mut slice u8 . output u8 . effects none . do
+  let h view pt view pt b. . .
+  var k pt cast pt h. . .
+  set field k. y . 7 .
+  return idx b. 1 . .
+end .
+
+rem ko: mut 입력에 건네면 받는 쪽의 쓰기가 b 에 닿는다 /// en: handed to a mut input, the callee's write reaches b
+proc put input p mut pt . output u8 . effects none . do
+  set field p. y . 6 .
+  return 0 .
+end .
+proc pass_mut input b mut slice u8 . output u8 . effects none . do
+  let h mut view pt view pt b. . .
+  let r u8 put h. . .
+  return add idx b. 1 . r. . .
+end .
+

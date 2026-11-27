@@ -1,0 +1,8 @@
+module dots .
+rem expect: E-DOT-MISSING
+
+fn poly input a u64 . input b u64 . output u64 .
+do
+  rem ko: ✘ 점이 하나 모자란다 --- `add` 를 닫는 점이 없다 /// en: ✘ one stop short --- nothing closes `add`
+  return add mul a. 2 . mul b. 3 . .
+end .

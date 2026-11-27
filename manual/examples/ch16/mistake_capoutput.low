@@ -1,0 +1,8 @@
+module mistake_capoutput .
+rem expect: E-CAP-OUTPUT
+
+rem ko: ✘ 권한을 내놓는 op --- 권한은 받는 것이지 돌려주는 값이 아니다 /// en: ✘ an op that gives a capability back --- a capability is handed in, never returned
+fn screen input out cap io . output cap io .
+do
+  return out. .
+end .

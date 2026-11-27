@@ -1,0 +1,12 @@
+module request_line .
+rem run: classify [71,69,84,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]
+rem run: classify [66,82,69,87,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]
+
+use http .
+
+fn classify input req slice u8 . output u64 .
+do
+  let m u64 http.method_code req. . .
+  guard http.version_ok req. . else return 99 . .
+  return m. .
+end .

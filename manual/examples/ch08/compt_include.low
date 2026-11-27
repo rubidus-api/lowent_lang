@@ -1,0 +1,39 @@
+module compt_include .
+rem run: words
+rem run: longest
+
+rem ko: 줄 수를 센다 /// en: counts the lines
+fn count_lines input txt slice u8 . output usize .
+do
+  var n usize 0 .
+  for c txt. do if eq c. 10 . do set n. add n. 1 . . end . end .
+  return n. .
+end .
+
+rem ko: 가장 긴 줄의 길이 /// en: the length of the longest line
+fn longest_line input txt slice u8 . output usize .
+do
+  var best usize 0 .
+  var cur usize 0 .
+  for c txt. do
+    if eq c. 10 . do
+      if gt cur. best. . do set best. cur. . end .
+      set cur. 0 .
+    end else do set cur. add cur. 1 . . end .
+  end .
+  return best. .
+end .
+
+rem ko: 이 파일 옆의 `compt_words.txt` 를 번역할 때 읽는다 /// en: reads `compt_words.txt` next to this file when translating
+let WORDS usize comptime count_lines include_text "compt_words.txt" . . . .
+let LONGEST usize comptime longest_line include_text "compt_words.txt" . . . .
+
+fn words output usize .
+do
+  return WORDS. .
+end .
+
+fn longest output usize .
+do
+  return LONGEST. .
+end .

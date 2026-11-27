@@ -1,0 +1,18 @@
+module dyn_effect .
+rem expect: E-DYN-EFFECT
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+end .
+
+fn rect.area input s rect . output u64 . do return field s. w . . end .
+
+rem 실행 중에 고르면서 효과 줄에 `dyn` 을 적지 않았다
+proc f input o object shape . output u64 . effects none . do
+  return dyn o. area. . .
+end .

@@ -1,0 +1,9 @@
+module mistake_fnpanic .
+rem expect: E-EFFECT-CALC
+
+rem ko: ✘ 순수한 `fn` 이 `panic` 을 쓴다 --- 멈추게 하는 것도 효과다 /// en: ✘ a pure `fn` uses `panic` --- stopping the program is an effect too
+fn nonzero input x u64 . output u64 .
+do
+  if eq x. 0 . do panic "zero" . end .
+  return x. .
+end .

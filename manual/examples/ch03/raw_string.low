@@ -1,0 +1,22 @@
+module raw_string .
+rem run: raw_len
+rem run: escaped_len
+rem run: pattern_len
+
+rem ko: 날 문자열 --- 역슬래시가 그대로 남는다. `\\` 는 두 바이트다 /// en: a raw string --- backslashes stay as written. `\\` is two bytes
+fn raw_len output usize .
+do
+  return len r"\\s192kf%d" . .
+end .
+
+rem ko: 같은 글을 보통 문자열로 적으면 `\\` 가 역슬래시 하나로 풀린다 /// en: the same text as an ordinary string --- `\\` becomes one backslash
+fn escaped_len output usize .
+do
+  return len "\\s192kf%d" . .
+end .
+
+rem ko: 정규식처럼 역슬래시가 많은 글은 날 문자열이 읽기 쉽다 /// en: text full of backslashes, like a regex, reads better raw
+fn pattern_len output usize .
+do
+  return len r"^\d+\.\d+$" . .
+end .

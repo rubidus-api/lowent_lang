@@ -1,0 +1,34 @@
+module dyn_list .
+rem run: demo
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area input s rect . output u64 . do return mul field s. w . field s. h . . . end .
+fn square.area input s square . output u64 . do return mul field s. side . field s. side . . . end .
+
+rem 목록의 원소마다 타입이 다르다 — 원소의 이름 x 도 `object shape` 다
+proc total input xs slice object shape . output u64 . effects dyn . do
+  var s u64 0 .
+  for x xs. do set s. add s. dyn x. area. . . . end .
+  return s. .
+end .
+
+proc demo output u64 . effects dyn . do
+  let r rect lit rect do w 2 . h 3 . end . .
+  let q square lit square do side 4 . end . .
+  let xs slice object shape lit slice object shape object shape r. . object shape q. . object shape q. . . .
+  return total xs. . .
+end .

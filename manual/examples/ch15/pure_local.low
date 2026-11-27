@@ -1,0 +1,15 @@
+module pure_local .
+rem run: sum_to 10
+
+rem ko: `var` 와 `set` 을 써도 순수하다 --- 바뀌는 것이 이 op 안에서만 보이기 때문이다 /// en: still pure with `var` and `set` --- the changes are visible only inside this op
+fn sum_to input n u64 . output u64 .
+  requires le n. 1000 . .
+do
+  var s u64 0 .
+  var i u64 0 .
+  while le i. n. . do
+    set s. add s. i. . .
+    set i. add i. 1 . .
+  end .
+  return s. .
+end .
